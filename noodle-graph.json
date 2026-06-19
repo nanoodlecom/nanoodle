@@ -1,0 +1,45 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "n2",
+      "type": "image",
+      "x": 580,
+      "y": 57.272735595703125,
+      "fields": {
+        "model": "persona:376130@2456367"
+      }
+    },
+    {
+      "id": "n5",
+      "type": "llm",
+      "x": 168.00003051757812,
+      "y": 62.727264404296875,
+      "fields": {
+        "model": "xiaomi/mimo-v2.5-pro-ultraspeed",
+        "system": "You are great at sdxl prompts. do not output anything besides the prompt.",
+        "prompt": "SDXL prompt about a knight looking badass"
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l3",
+      "from": {
+        "node": "n5",
+        "port": "text"
+      },
+      "to": {
+        "node": "n2",
+        "port": "prompt"
+      }
+    }
+  ],
+  "nid": 6,
+  "lid": 4,
+  "view": {
+    "panX": 360.3339073350694,
+    "panY": 307.6494323221843,
+    "scale": 0.4
+  }
+}

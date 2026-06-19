@@ -980,6 +980,14 @@ function load(){
   if(!raw) return false;
   try{ applyGraphData(JSON.parse(raw)); return true; }catch{ return false; }
 }
+async function loadDefault(){   // noodle-graph.json shipped alongside the page = the starting point
+  try{
+    const r = await fetch("noodle-graph.json", {cache:"no-store"});
+    if(!r.ok) return false;
+    applyGraphData(await r.json());
+    return true;
+  }catch{ return false; }      // e.g. opened via file:// — fall back to the built-in seed
+}
 function saveFile(){
   const blob = new Blob([JSON.stringify(serializeGraph(), null, 2)], {type:"application/json"});
   const a = document.createElement("a");
@@ -1112,7 +1120,8 @@ $("signout").onclick = ()=> setKey(null);
   let restored = false;
   if(location.hash.length > 3) restored = await loadFromHash();   // opened a shared link
   if(!restored) restored = load();                                // else last local graph
-  if(!restored) seed();                                           // else starter graph
+  if(!restored) restored = await loadDefault();                   // else noodle-graph.json
+  if(!restored) seed();                                           // else built-in starter
   redraw();
   try{ await handleRedirect(); }catch(e){ $("status").textContent="sign-in error: "+e.message; }
   renderAuth();
