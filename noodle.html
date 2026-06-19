@@ -105,6 +105,7 @@
   .body input{ width:100%; background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; padding:.35rem .5rem }
   .body input[type=checkbox]{ width:auto }
   .body .chk{ display:flex; align-items:center; gap:.45rem; font-size:.8rem; color:var(--ink); text-transform:none; letter-spacing:0 }
+  .body .fhint{ font-size:.68rem; color:var(--dim); margin-top:.2rem; text-transform:none; letter-spacing:0 }
   .body .two{ display:flex; gap:.4rem } .body .two > *{ flex:1; min-width:0 }
   .body details.adv{ margin-top:.1rem } .body details.adv summary{ cursor:pointer; font-size:.72rem; color:var(--dim) }
   .body details.adv textarea{ margin-top:.35rem; font-family:ui-monospace,monospace; font-size:.76rem }
@@ -306,7 +307,7 @@ function updateNodePrice(n){
 // only-when-nonempty, so providers that don't accept them just never receive the key.
 const AUDIO_PARAMS = {
   music: [
-    { id:"lyrics",          label:"Lyrics",          type:"textarea", appliesTo:"all" },
+    { id:"lyrics",          label:"Lyrics",          type:"textarea", appliesTo:"all", hint:"required by vocal song models (e.g. Mureka); leave empty for instrumental/BGM" },
     { id:"instrumental",    label:"Instrumental",    type:"boolean",  appliesTo:"all" },
     { id:"duration",        label:"Duration (sec)",  type:"number",   appliesTo:"cat:duration" },
     { id:"number_of_songs", label:"Number of songs", type:"number",   appliesTo:"cat:gencount", default:1 },
@@ -347,23 +348,24 @@ function audioFields(kind, it){
 }
 function audioFieldHTML(n, f){
   const cur = n.fields[f.id];
+  const hint = f.hint ? `<div class="fhint">${esc(f.hint)}</div>` : "";
   if(f.type==="select"){
     const opts = f.options || [];
     const val = opts.includes(cur) ? cur : (f.default ?? opts[0] ?? "");
     return `<div><label>${esc(f.label)}</label><select data-pf="${f.id}">${
-      opts.map(o=>`<option${o===val?" selected":""}>${esc(o)}</option>`).join("")}</select></div>`;
+      opts.map(o=>`<option${o===val?" selected":""}>${esc(o)}</option>`).join("")}</select>${hint}</div>`;
   }
   if(f.type==="boolean")
-    return `<label class="chk"><input type="checkbox" data-pf="${f.id}"${(cur===true||cur==="true")?" checked":""}/> ${esc(f.label)}</label>`;
+    return `<label class="chk"><input type="checkbox" data-pf="${f.id}"${(cur===true||cur==="true")?" checked":""}/> ${esc(f.label)}</label>${hint}`;
   if(f.type==="number"){
     const rng = (f.min!=null&&f.max!=null) ? ` (${f.min}–${f.max})` : "";
     return `<div><label>${esc(f.label)}${rng}</label><input type="number" data-pf="${f.id}" step="any"${
-      f.min!=null?` min="${f.min}"`:""}${f.max!=null?` max="${f.max}"`:""} value="${cur??""}" placeholder="${f.default??""}"/></div>`;
+      f.min!=null?` min="${f.min}"`:""}${f.max!=null?` max="${f.max}"`:""} value="${cur??""}" placeholder="${f.default??""}"/>${hint}</div>`;
   }
   const v = cur!=null ? cur : "";
   if(f.type==="textarea")
-    return `<div><label>${esc(f.label)}</label><textarea data-pf="${f.id}" style="min-height:40px" placeholder="${esc(f.label)}">${esc(v)}</textarea></div>`;
-  return `<div><label>${esc(f.label)}</label><input data-pf="${f.id}" value="${esc(v)}" placeholder="${esc(f.label)}"/></div>`;
+    return `<div><label>${esc(f.label)}</label><textarea data-pf="${f.id}" style="min-height:40px" placeholder="${esc(f.label)}">${esc(v)}</textarea>${hint}</div>`;
+  return `<div><label>${esc(f.label)}</label><input data-pf="${f.id}" value="${esc(v)}" placeholder="${esc(f.label)}"/>${hint}</div>`;
 }
 // rebuild the parameter block for an audio node from its current model
 function refreshAudioParams(n){
@@ -1007,7 +1009,14 @@ const CTX = {
   async genAudio(model, input, extra){
     const body = Object.assign({ model, input }, extra||{});
     const r = await fetch(`${NANOGPT}/api/v1/audio/speech`, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
-    if(!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`);
+    if(!r.ok){
+      const t = (await r.text()).slice(0,220);
+      if(/lyric/i.test(t)) throw new Error("This model needs lyrics — fill the Lyrics field (vocal models require them; leave empty / use a BGM model for instrumentals).");
+      const req = t.match(/["']?([a-z_]+)["']?\s+(?:is\s+)?required|missing[^a-z]+["']?([a-z_]+)/i);
+      const field = req && (req[1]||req[2]);
+      if(field) throw new Error(`This model requires "${field}" — set it in the node, or add it under advanced params.`);
+      throw new Error(`${r.status}: ${t}`);
+    }
     const ct = r.headers.get("content-type") || "";
     if(ct.includes("application/json")){
       const j = await r.json(); accrue(j);
