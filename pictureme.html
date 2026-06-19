@@ -242,11 +242,9 @@ function renderStyles(){
 }
 
 // ---------- image-edit models: loaded LIVE from NanoGPT so new models appear automatically ----------
-// The list is fetched at boot from /api/v1/image-models (CORS-open, public) and filtered to
-// models that can edit a photo. A few favourites float to the top; the rest follow by price.
+// Fetched at boot from /api/v1/image-models (CORS-open, public), filtered to models that can edit a
+// photo, and sorted newest-released first (from each model's `created` date — no editorial ordering).
 const IMG_ENDPOINT_MODELS = `${NANOGPT}/api/v1/image-models`;
-const PINNED_IMG = ["gemini-flash-edit","nano-banana","nano-banana-2","nano-banana-pro","flux-kontext","seedream-v4","seedream-v5.0-lite","qwen-image-2.0","gpt-image-2","gpt-image-1"];
-const DEFAULT_IMG = "gemini-flash-edit";
 // Used only if the live fetch fails — so the app still works offline-of-the-catalog.
 const FALLBACK_IMG = [
   { id:"gemini-flash-edit", price:0.02, label:"Gemini Flash edit · $0.020" },
@@ -280,14 +278,10 @@ const fmtPrice = (p)=> p==null ? "—" : "$"+p.toFixed(p<0.1?3:2);
 function populateImgSelect(){
   const sel = $("imgModel"); const cur = sel.value;
   sel.innerHTML = "";
-  const pinned = imgModels.filter(m=>PINNED_IMG.includes(m.id));
-  const rest   = imgModels.filter(m=>!PINNED_IMG.includes(m.id));
-  const grp = (label, list)=>{ if(!list.length) return; const g=document.createElement("optgroup"); g.label=label;
-    for(const m of list){ const o=document.createElement("option"); o.value=m.id; o.textContent=m.label; g.appendChild(o); } sel.appendChild(g); };
-  grp("Popular", pinned);
-  grp(`All edit models (${imgModels.length})`, rest);
-  const want = (cur && imgModels.some(m=>m.id===cur)) ? cur
-    : (imgModels.some(m=>m.id===DEFAULT_IMG) ? DEFAULT_IMG : imgModels[0]?.id);
+  const g = document.createElement("optgroup"); g.label = `${imgModels.length} edit models · newest first`;
+  for(const m of imgModels){ const o=document.createElement("option"); o.value=m.id; o.textContent=m.label; g.appendChild(o); }
+  sel.appendChild(g);
+  const want = (cur && imgModels.some(m=>m.id===cur)) ? cur : imgModels[0]?.id;  // default = most recently released
   if(want) sel.value = want;
   updateGo();
 }
@@ -295,10 +289,9 @@ async function loadImageModels(){
   try{
     const headers = {}; const k = getKey(); if(k) headers.Authorization = `Bearer ${k}`;
     const data = ((await (await fetch(IMG_ENDPOINT_MODELS, { headers })).json()).data) || [];
-    const edit = data.filter(isRestyleEdit).map(m=>({ id:m.id, price:imgPrice(m), name:(m.name||m.id).trim(), open:!!m.capabilities?.nsfw }));
+    const edit = data.filter(isRestyleEdit).map(m=>({ id:m.id, price:imgPrice(m), name:(m.name||m.id).trim(), created:m.created||0, open:!!m.capabilities?.nsfw }));
     if(!edit.length) return; // keep fallback
-    const rank = (id)=>{ const i=PINNED_IMG.indexOf(id); return i<0 ? 1e9 : i; };
-    edit.sort((a,b)=> (rank(a.id)-rank(b.id)) || ((a.price??9)-(b.price??9)) || a.id.localeCompare(b.id));
+    edit.sort((a,b)=> (b.created-a.created) || ((a.price??9)-(b.price??9)) || a.id.localeCompare(b.id)); // newest released first
     // "unfiltered" tags models that allow mature content — a tasteful note, not a label
     imgModels = edit.map(m=>({ id:m.id, price:m.price, label:`${m.name} · ${fmtPrice(m.price)}${m.open?" · unfiltered":""}` }));
     for(const m of imgModels) priceById[m.id] = m.price;
@@ -306,19 +299,43 @@ async function loadImageModels(){
   }catch{ /* keep the fallback list */ }
 }
 
-// ---------- fusion writer (chat) models ----------
-const FUSE_MODELS = [
-  ["google/gemini-3.5-flash","Gemini 3.5 Flash · fast"],
-  ["x-ai/grok-4.20","Grok 4.20 · witty"],
-  ["zai-org/glm-5.2","GLM-5.2"],
-  ["anthropic/claude-haiku-latest","Claude Haiku"],
-  ["moonshotai/kimi-k2.7-code-highspeed","Kimi K2.7 · highspeed"],
+// ---------- fusion-writer (chat) models: also loaded LIVE from /api/v1/models so it stays current ----------
+const CHAT_ENDPOINT_MODELS = `${NANOGPT}/api/v1/models?detailed=true`;
+const FALLBACK_FUSE = [
+  { id:"google/gemini-3.5-flash", label:"Gemini 3.5 Flash" },
+  { id:"x-ai/grok-4.20", label:"Grok 4.20" },
+  { id:"anthropic/claude-haiku-latest", label:"Claude Haiku" },
 ];
-function fillSelect(sel, items, def){
-  sel.innerHTML = "";
-  for(const [v,label] of items){ const o=document.createElement("option"); o.value=v; o.textContent=label; sel.appendChild(o); }
-  sel.value = def;
+let fuseModels = FALLBACK_FUSE.slice();
+const tokPrice = (n)=> n==null ? "" : "$"+(+n).toFixed(2);
+function isTextModel(m){
+  const out = m.architecture?.output_modalities;
+  return Array.isArray(out) ? out.includes("text") : true; // assume text unless told otherwise
 }
+function populateFuseSelect(){
+  const sel = $("fuseModel"); const cur = sel.value;
+  sel.innerHTML = "";
+  const g = document.createElement("optgroup"); g.label = `${fuseModels.length} chat models · newest first`;
+  for(const m of fuseModels){ const o=document.createElement("option"); o.value=m.id; o.textContent=m.label; g.appendChild(o); }
+  sel.appendChild(g);
+  const want = (cur && fuseModels.some(m=>m.id===cur)) ? cur : fuseModels[0]?.id;  // default = most recently released
+  if(want) sel.value = want;
+}
+async function loadChatModels(){
+  try{
+    const headers = {}; const k = getKey(); if(k) headers.Authorization = `Bearer ${k}`;
+    const data = ((await (await fetch(CHAT_ENDPOINT_MODELS, { headers })).json()).data) || [];
+    const list = data.filter(isTextModel).map(m=>{
+      const name = (m.name||m.id).trim(), p = m.pricing||{};
+      const price = p.prompt!=null ? ` · ${tokPrice(p.prompt)}/${tokPrice(p.completion)} 1M` : "";
+      return { id:m.id, created:m.created||0, label:`${name}${price}` };
+    });
+    if(!list.length) return; // keep fallback
+    list.sort((a,b)=> (b.created-a.created) || a.id.localeCompare(b.id)); // newest released first
+    fuseModels = list; populateFuseSelect();
+  }catch{ /* keep the fallback list */ }
+}
+
 const imgModel = () => $("imgModelCustom").value.trim() || $("imgModel").value;
 const fuseModel = () => $("fuseModelCustom").value.trim() || $("fuseModel").value;
 
@@ -616,12 +633,13 @@ function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo
 // ---------- boot ----------
 (async ()=>{
   renderStyles();
-  populateImgSelect();                              // show the fallback list immediately…
-  fillSelect($("fuseModel"), FUSE_MODELS, FUSE_MODELS[0][0]);
+  populateImgSelect();                              // show the fallback lists immediately…
+  populateFuseSelect();
   ["imgModel","imgModelCustom"].forEach(id=> $(id).addEventListener("input", updateGo));
   try{ await handleRedirect(); }catch(e){ $("status").textContent="sign-in error: "+e.message; }
   renderAuth();
-  loadImageModels();                               // …then swap in the live catalog (auto-expands as NanoGPT adds models)
+  loadImageModels();                               // …then swap in the live catalogs (auto-expand as NanoGPT adds models)
+  loadChatModels();
 })();
 </script>
 </body>

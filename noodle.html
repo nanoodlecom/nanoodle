@@ -157,6 +157,7 @@
     <div id="addpop"></div>
   </div>
   <button id="run" class="primary">▶ Run all</button>
+  <button id="share" title="copy a shareable link to this graph">🔗 Share</button>
   <button id="save" title="download this graph as JSON">⭳ Save</button>
   <button id="load" title="open a graph JSON file">⭱ Load</button>
   <input id="loadfile" type="file" accept="application/json,.json" hidden />
@@ -193,7 +194,7 @@
   <div id="world"></div>
 </div>
 
-<div id="hint">drag from a port — compatible inputs light up &amp; snap · drag header to move · scroll to zoom · click a wire to delete · ⭳/⭱ save &amp; load</div>
+<div id="hint">drag from a port — compatible inputs light up &amp; snap · drag header to move · scroll to zoom · click a wire to delete · ⭳/⭱ save &amp; load · 🔗 share a link</div>
 
 <script>
 const NANOGPT = "https://nano-gpt.com";
@@ -969,7 +970,10 @@ function applyGraphData(d){
 let saveT=null;
 function save(){
   clearTimeout(saveT);
-  saveT = setTimeout(()=> localStorage.setItem("noodle_graph", JSON.stringify(serializeGraph())), 250);
+  saveT = setTimeout(()=>{
+    localStorage.setItem("noodle_graph", JSON.stringify(serializeGraph()));
+    if(location.hash) history.replaceState({}, "", location.pathname + location.search); // a local edit supersedes a shared link
+  }, 250);
 }
 function load(){
   const raw = localStorage.getItem("noodle_graph");
@@ -991,6 +995,58 @@ function loadFile(file){
 $("save").onclick = saveFile;
 $("load").onclick = ()=> $("loadfile").click();
 $("loadfile").onchange = (e)=>{ loadFile(e.target.files[0]); e.target.value=""; };
+
+/* ---------- shareable link: graph packed into the URL hash ---------- */
+function bytesToB64url(bytes){
+  let bin=""; const CH=0x8000;
+  for(let i=0;i<bytes.length;i+=CH) bin += String.fromCharCode.apply(null, bytes.subarray(i,i+CH));
+  return btoa(bin).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+}
+function b64urlToBytes(s){
+  s = s.replace(/-/g,"+").replace(/_/g,"/"); while(s.length%4) s+="=";
+  const bin=atob(s), out=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) out[i]=bin.charCodeAt(i);
+  return out;
+}
+async function gzip(str){
+  if(typeof CompressionStream==="undefined") return null;
+  const stream = new Blob([new TextEncoder().encode(str)]).stream().pipeThrough(new CompressionStream("gzip"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+async function gunzip(bytes){
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+  return new TextDecoder().decode(await new Response(stream).arrayBuffer());
+}
+async function copyText(t){
+  try{ await navigator.clipboard.writeText(t); return true; }catch{}
+  try{ const ta=document.createElement("textarea"); ta.value=t; ta.style.cssText="position:fixed;opacity:0";
+       document.body.appendChild(ta); ta.select(); const ok=document.execCommand("copy"); ta.remove(); return ok; }catch{ return false; }
+}
+async function shareUrl(){
+  const json = JSON.stringify(serializeGraph());
+  let hash;
+  const packed = await gzip(json).catch(()=>null);
+  hash = packed ? "#g="+bytesToB64url(packed) : "#j="+bytesToB64url(new TextEncoder().encode(json));
+  const url = location.origin + location.pathname + location.search + hash;
+  history.replaceState({}, "", url);                 // surface it in the address bar too
+  const big = url.length > 8000 ? ` (long link, ${(url.length/1024).toFixed(0)}kB)` : "";
+  flash(await copyText(url) ? `share link copied ✓${big}` : `link is in the address bar${big}`);
+}
+async function loadFromHash(){
+  const h = location.hash; let json=null;
+  try{
+    if(h.startsWith("#g=")) json = await gunzip(b64urlToBytes(h.slice(3)));
+    else if(h.startsWith("#j=")) json = new TextDecoder().decode(b64urlToBytes(h.slice(3)));
+  }catch{ /* bad link */ }
+  if(!json) return false;
+  try{
+    applyGraphData(JSON.parse(json));
+    history.replaceState({}, "", location.pathname + location.search); // consume the link; edits now win
+    save();
+    return true;
+  }catch{ return false; }
+}
+$("share").onclick = ()=> shareUrl().catch(e=> flash("share failed: "+e.message));
 function seed(){
   const a = addNode("text", 60, 80, { text:"a cozy ramen shop on a rainy neon street, cinematic" });
   const b = addNode("image", 360, 60);
@@ -1053,7 +1109,10 @@ $("signout").onclick = ()=> setKey(null);
 (async ()=>{
   buildAddMenu();
   applyWorld();
-  if(!load()) seed();
+  let restored = false;
+  if(location.hash.length > 3) restored = await loadFromHash();   // opened a shared link
+  if(!restored) restored = load();                                // else last local graph
+  if(!restored) seed();                                           // else starter graph
   redraw();
   try{ await handleRedirect(); }catch(e){ $("status").textContent="sign-in error: "+e.message; }
   renderAuth();
