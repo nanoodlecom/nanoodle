@@ -9,11 +9,12 @@ and calls the model APIs directly from the browser. You pay per call on your own
 
 ## Apps
 
-- **`noodle.html`** — a tiny ComfyUI-style node playground. Wire text/image
-  primitives together (Text, Join, LLM, Image, Edit, Vision), drag from port to
-  port (compatible inputs glow and snap by type), and hit Run to see each node's
-  output. Full live model pickers (built around `gpt-image-2`), image editing,
-  and save/load to JSON.
+- **`noodle.html`** — a tiny ComfyUI-style node playground. Wire primitives
+  together (Text, Join, LLM, Image, Edit, Vision, Text→Video, Image→Video,
+  Text→Audio), drag from port to port (compatible inputs glow and snap by type),
+  and hit Run to see each node's output. Full live model pickers for every
+  modality (text, image, video, audio — built around `gpt-image-2`), image
+  editing, async video generation, TTS, and save/load to JSON.
 - **`pictureme.html`** — drop in one photo and see yourself reimagined across a
   grid of styles (Renaissance, cyberpunk, claymation, …), or fuse several looks
   into one hybrid.

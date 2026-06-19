@@ -241,16 +241,72 @@ function renderStyles(){
   }
 }
 
-// ---------- model lists ----------
-const IMG_MODELS = [
-  ["gemini-flash-edit","Gemini Flash edit · fast & cheap"],
-  ["flux-kontext","FLUX Kontext · strong likeness"],
-  ["flux-dev-image-to-image","FLUX dev img2img"],
-  ["hidream-edit","HiDream edit"],
-  ["ghiblify","Ghiblify · everything Ghibli"],
-  ["gpt-image-2","gpt-image-2 · premium, best prompt-following"],
-  ["gpt-image-1","gpt-image-1 · premium"],
+// ---------- image-edit models: loaded LIVE from NanoGPT so new models appear automatically ----------
+// The list is fetched at boot from /api/v1/image-models (CORS-open, public) and filtered to
+// models that can edit a photo. A few favourites float to the top; the rest follow by price.
+const IMG_ENDPOINT_MODELS = `${NANOGPT}/api/v1/image-models`;
+const PINNED_IMG = ["gemini-flash-edit","nano-banana","nano-banana-2","nano-banana-pro","flux-kontext","seedream-v4","seedream-v5.0-lite","qwen-image-2.0","gpt-image-2","gpt-image-1"];
+const DEFAULT_IMG = "gemini-flash-edit";
+// Used only if the live fetch fails — so the app still works offline-of-the-catalog.
+const FALLBACK_IMG = [
+  { id:"gemini-flash-edit", price:0.02, label:"Gemini Flash edit · $0.020" },
+  { id:"nano-banana",       price:0.039, label:"Nano Banana · $0.039" },
+  { id:"gpt-image-2",       price:0.052, label:"gpt-image-2 · $0.052" },
 ];
+// utilities that aren't a "restyle me" edit — kept out of the picker even though they accept an image
+const NON_RESTYLE = /upscal|cropper|remove-text|seedvr|background-removal/i;
+let imgModels = FALLBACK_IMG.slice();
+const priceById = {};
+FALLBACK_IMG.forEach(m=> priceById[m.id]=m.price);
+
+function imgPrice(m){
+  const p = m?.pricing?.per_image;
+  if(typeof p==="number") return p;
+  if(p && typeof p==="object"){
+    if(typeof p.auto==="number") return p.auto;
+    const vals = Object.values(p).filter(v=>typeof v==="number");
+    return vals.length ? Math.min(...vals) : null;
+  }
+  return null;
+}
+function isRestyleEdit(m){
+  const c = m.capabilities || {};
+  if(!c.image_to_image) return false;                               // must accept a photo
+  if((m.category||"").toLowerCase()==="tools") return false;        // skip Cropper/etc.
+  if(NON_RESTYLE.test(m.id)) return false;                          // skip upscalers/removers
+  return true;
+}
+const fmtPrice = (p)=> p==null ? "—" : "$"+p.toFixed(p<0.1?3:2);
+function populateImgSelect(){
+  const sel = $("imgModel"); const cur = sel.value;
+  sel.innerHTML = "";
+  const pinned = imgModels.filter(m=>PINNED_IMG.includes(m.id));
+  const rest   = imgModels.filter(m=>!PINNED_IMG.includes(m.id));
+  const grp = (label, list)=>{ if(!list.length) return; const g=document.createElement("optgroup"); g.label=label;
+    for(const m of list){ const o=document.createElement("option"); o.value=m.id; o.textContent=m.label; g.appendChild(o); } sel.appendChild(g); };
+  grp("Popular", pinned);
+  grp(`All edit models (${imgModels.length})`, rest);
+  const want = (cur && imgModels.some(m=>m.id===cur)) ? cur
+    : (imgModels.some(m=>m.id===DEFAULT_IMG) ? DEFAULT_IMG : imgModels[0]?.id);
+  if(want) sel.value = want;
+  updateGo();
+}
+async function loadImageModels(){
+  try{
+    const headers = {}; const k = getKey(); if(k) headers.Authorization = `Bearer ${k}`;
+    const data = ((await (await fetch(IMG_ENDPOINT_MODELS, { headers })).json()).data) || [];
+    const edit = data.filter(isRestyleEdit).map(m=>({ id:m.id, price:imgPrice(m), name:(m.name||m.id).trim(), open:!!m.capabilities?.nsfw }));
+    if(!edit.length) return; // keep fallback
+    const rank = (id)=>{ const i=PINNED_IMG.indexOf(id); return i<0 ? 1e9 : i; };
+    edit.sort((a,b)=> (rank(a.id)-rank(b.id)) || ((a.price??9)-(b.price??9)) || a.id.localeCompare(b.id));
+    // "unfiltered" tags models that allow mature content — a tasteful note, not a label
+    imgModels = edit.map(m=>({ id:m.id, price:m.price, label:`${m.name} · ${fmtPrice(m.price)}${m.open?" · unfiltered":""}` }));
+    for(const m of imgModels) priceById[m.id] = m.price;
+    populateImgSelect();
+  }catch{ /* keep the fallback list */ }
+}
+
+// ---------- fusion writer (chat) models ----------
 const FUSE_MODELS = [
   ["google/gemini-3.5-flash","Gemini 3.5 Flash · fast"],
   ["x-ai/grok-4.20","Grok 4.20 · witty"],
@@ -392,12 +448,10 @@ for(const b of document.querySelectorAll("#fuseCount button")){
   b.onclick = ()=>{ fuseCount = +b.dataset.n; document.querySelectorAll("#fuseCount button").forEach(x=>x.classList.toggle("on", x===b)); updateGo(); };
 }
 
-// rough per-image price (USD) by edit model — exact cost is shown after each render
-const IMG_PRICE = { "gemini-flash-edit":0.02, "gpt-image-1":0.04, "gpt-image-2":0.078, "flux-kontext":0.03, "flux-dev-image-to-image":0.025, "hidream-edit":0.03, "ghiblify":0.03 };
 function updateGo(){
   const n = activeStyles().length, chips = chipStyles().length, ready = !!(getKey() && photoDataUrl);
   const hasCustom = !!customText();
-  const per = IMG_PRICE[imgModel()] ?? 0.03;
+  const per = priceById[imgModel()] ?? 0.03; // live price from the catalog; ~0.03 guess for a typed-in id
   // Transform renders every active style (chips + your-own); Fuse blends the chips only, and is off when you have a custom prompt.
   $("go").disabled = !(ready && n);
   const fuseOk = ready && chips>=2 && !hasCustom;
@@ -562,11 +616,12 @@ function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo
 // ---------- boot ----------
 (async ()=>{
   renderStyles();
-  fillSelect($("imgModel"), IMG_MODELS, IMG_MODELS[0][0]);
+  populateImgSelect();                              // show the fallback list immediately…
   fillSelect($("fuseModel"), FUSE_MODELS, FUSE_MODELS[0][0]);
   ["imgModel","imgModelCustom"].forEach(id=> $(id).addEventListener("input", updateGo));
   try{ await handleRedirect(); }catch(e){ $("status").textContent="sign-in error: "+e.message; }
   renderAuth();
+  loadImageModels();                               // …then swap in the live catalog (auto-expands as NanoGPT adds models)
 })();
 </script>
 </body>
