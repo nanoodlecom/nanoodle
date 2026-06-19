@@ -689,7 +689,7 @@ function buildNodeEl(n){
   refreshAudioParams(n);
   // header buttons
   el.querySelector('[data-act=del]').onclick = (e)=>{ e.stopPropagation(); removeNode(n.id); };
-  el.querySelector('[data-act=run]').onclick  = (e)=>{ e.stopPropagation(); evaluate([n.id]); };
+  el.querySelector('[data-act=run]').onclick  = (e)=>{ e.stopPropagation(); runGroup([n.id]); };
   // selection + drag
   const header = el.querySelector("header");
   header.addEventListener("pointerdown", e=>{
@@ -925,34 +925,65 @@ function topoOrder(ids){
   return { order, cyclic:[...ids].filter(id=>!order.includes(id)) };
 }
 
-let running=false;
-async function evaluate(targets){
-  if(running) return;
-  if(!getKey()){ flash("sign in or paste an API key first"); return; }
-  const ids = targets ? ancestors(targets) : new Set(graph.nodes.map(n=>n.id));
-  if(!ids.size){ flash("nothing to run — add a node"); return; }
-  running = true; $("run").disabled=true;
-  const { order, cyclic } = topoOrder(ids);
-  cyclic.forEach(id=> setStatus(byId(id), "error", "cycle detected"));
-  ids.forEach(id=>{ if(order.includes(id)) byId(id).el.dataset.status="idle"; });
-
-  for(const id of order){
-    const n = byId(id), t = NODE_TYPES[n.type];
-    const inp = {};
-    for(const port of t.inputs){
-      const l = graph.links.find(x=> x.to.node===id && x.to.port===port.name);
-      if(l) inp[port.name] = byId(l.from.node)?.out?.[l.from.port];
-    }
-    setStatus(n, "run");
-    try{
-      n.out = await t.run(n, inp, CTX) || {};
-      showResult(n);
-      setStatus(n, "done");
-    }catch(err){
-      setStatus(n, "error", err.message);
+// the connected component (links treated as undirected) containing a node — i.e. its "group"
+function componentOf(id){
+  const seen = new Set([id]), stack = [id];
+  while(stack.length){
+    const n = stack.pop();
+    for(const l of graph.links){
+      if(l.from.node===n && !seen.has(l.to.node)){ seen.add(l.to.node); stack.push(l.to.node); }
+      if(l.to.node===n && !seen.has(l.from.node)){ seen.add(l.from.node); stack.push(l.from.node); }
     }
   }
-  running=false; $("run").disabled=false;
+  return seen;
+}
+function components(){
+  const seen = new Set(), out = [];
+  for(const n of graph.nodes){ if(seen.has(n.id)) continue; const c = componentOf(n.id); c.forEach(x=>seen.add(x)); out.push(c); }
+  return out;
+}
+
+const runningNodes = new Set();   // nodes whose group is currently executing — play is disabled for these
+function groupBusy(ids){ for(const id of ids) if(runningNodes.has(id)) return true; return false; }
+function updateRunButtons(){
+  for(const n of graph.nodes){ const b = n.el?.querySelector("[data-act=run]"); if(b) b.disabled = runningNodes.has(n.id); }
+  const idle = graph.nodes.some(n=> !runningNodes.has(n.id));
+  $("run").disabled = graph.nodes.length>0 && !idle;
+}
+
+// Run one group: lock its whole connected component, execute the ancestors of `seedIds` in topo order.
+// Multiple groups run concurrently because callers don't await each other.
+async function runGroup(seedIds){
+  if(!getKey()){ flash("sign in or paste an API key first"); return; }
+  const lock = new Set();
+  for(const id of seedIds) for(const x of componentOf(id)) lock.add(x);
+  if(!lock.size || groupBusy(lock)) return;         // empty, or this group is already running
+  const ids = ancestors(seedIds);                    // what we actually compute (seed + upstream)
+  lock.forEach(id=>runningNodes.add(id)); updateRunButtons();
+  try{
+    const { order, cyclic } = topoOrder(ids);
+    cyclic.forEach(id=> setStatus(byId(id), "error", "cycle detected"));
+    ids.forEach(id=>{ if(order.includes(id) && byId(id)?.el) byId(id).el.dataset.status="idle"; });
+    for(const id of order){
+      const n = byId(id); if(!n) continue;
+      const t = NODE_TYPES[n.type], inp = {};
+      for(const port of t.inputs){
+        const l = graph.links.find(x=> x.to.node===id && x.to.port===port.name);
+        if(l) inp[port.name] = byId(l.from.node)?.out?.[l.from.port];
+      }
+      setStatus(n, "run");
+      try{ n.out = await t.run(n, inp, CTX) || {}; showResult(n); setStatus(n, "done"); }
+      catch(err){ setStatus(n, "error", err.message); }
+    }
+  } finally {
+    lock.forEach(id=>runningNodes.delete(id)); updateRunButtons();
+  }
+}
+// Run every idle group at once (busy ones keep going untouched).
+function runAll(){
+  if(!getKey()){ flash("sign in or paste an API key first"); return; }
+  if(!graph.nodes.length){ flash("nothing to run — add a node"); return; }
+  for(const c of components()) if(!groupBusy(c)) runGroup([...c]);   // fire-and-forget → groups run in parallel
 }
 
 /* ---------- NanoGPT calls (browser → NanoGPT directly) ---------- */
@@ -1063,7 +1094,7 @@ function spawnCenter(type){
 }
 $("addbtn").onclick = (e)=>{ e.stopPropagation(); $("addpop").classList.toggle("open"); };
 document.addEventListener("click", e=>{ if(!$("addmenu").contains(e.target)) $("addpop").classList.remove("open"); });
-$("run").onclick = ()=> evaluate(null);
+$("run").onclick = runAll;
 $("clear").onclick = ()=>{ if(confirm("Clear the whole graph?")){ graph={nodes:[],links:[]}; world.innerHTML=""; redraw(); save(); } };
 
 // picker interactions
