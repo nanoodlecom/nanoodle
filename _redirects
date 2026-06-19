@@ -1,6 +1,6 @@
-# Cloudflare Pages routing (200 = rewrite, keeps the address bar)
-# / serves the editor (index.html). Aliases:
-/app         /index.html        200
-/editor      /index.html        200
-/landing     /landing.html      200
-/pictureme   /pictureme.html    200
+# Cloudflare static assets already serves clean URLs for real files
+# (/pictureme -> pictureme.html, /landing -> landing.html) — adding rules for
+# those collides with the auto .html handling and causes a redirect loop.
+# Only the virtual /app alias (no app.html on disk) needs an explicit rewrite.
+/app      /index.html   200
+/editor   /index.html   200
