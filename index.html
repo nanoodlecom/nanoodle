@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NaNoodle — a tiny node playground for AI</title>
+<meta name="description" content="Wire AI like Lego. Drag text, image, video, music and LLM nodes together, connect them, and hit run — all in your browser, bring your own NanoGPT key." />
+<meta property="og:title" content="NaNoodle — a tiny node playground for AI" />
+<meta property="og:description" content="Drag nodes, connect them, hit run. Text · Image · Edit · Vision · Video · Music · Speech — 100% in your browser." />
+<style>
+  :root{
+    --bg:#0b0d12; --panel:#12151d; --panel2:#171b25; --ink:#eef1f7; --dim:#9aa3b2;
+    --line:#262c3a; --accent:#7c8cff; --accent2:#ff79c6; --cyan:#67e8f9;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0; height:100%}
+  body{ background:radial-gradient(1100px 540px at 70% -10%, #1a1f3a55, transparent), var(--bg);
+        color:var(--ink); font:16px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+        min-height:100vh; display:flex; flex-direction:column; }
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{ max-width:860px; margin:0 auto; padding:1.4rem 1.2rem; flex:1; display:flex; flex-direction:column; }
+
+  header{ display:flex; align-items:center; gap:.5rem; }
+  .logo{ font-weight:800; letter-spacing:-.02em; font-size:1.25rem; }
+  .logo .nano{ background:linear-gradient(90deg,var(--cyan),var(--accent) 70%); -webkit-background-clip:text; background-clip:text;
+        color:transparent; font-weight:900; filter:drop-shadow(0 0 9px #7c8cff77); }
+  .spacer{flex:1}
+  .ghost{ font:inherit; font-size:.85rem; color:var(--dim); border:1px solid var(--line); border-radius:.55rem; padding:.35rem .7rem; }
+  .ghost:hover{ border-color:#3a425a; color:var(--ink); text-decoration:none }
+
+  main{ flex:1; display:flex; flex-direction:column; justify-content:center; padding:3rem 0; }
+  h1{ font-size:clamp(2.1rem, 6vw, 3.4rem); line-height:1.05; letter-spacing:-.03em; margin:0 0 1rem; font-weight:850; }
+  h1 .grad{ background:linear-gradient(90deg,var(--cyan),var(--accent) 55%,var(--accent2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .lede{ font-size:1.15rem; color:var(--dim); max-width:42rem; margin:0 0 1.8rem; }
+  .lede b{ color:var(--ink); font-weight:600 }
+
+  .chips{ display:flex; flex-wrap:wrap; gap:.45rem; margin:0 0 2rem; }
+  .chip{ font-size:.82rem; border:1px solid var(--line); background:var(--panel2); color:var(--ink);
+         padding:.32rem .65rem; border-radius:2rem; }
+  .chip .d{ width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:.4rem; vertical-align:-1px; }
+
+  .cta{ display:flex; gap:.8rem; flex-wrap:wrap; align-items:center; }
+  .btn{ font:inherit; font-weight:700; cursor:pointer; border-radius:.7rem; padding:.85rem 1.5rem; font-size:1.05rem;
+        background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#0b0d12; border:none; }
+  .btn:hover{ filter:brightness(1.06); text-decoration:none }
+  .cta .note{ color:var(--dim); font-size:.85rem }
+
+  footer{ border-top:1px solid var(--line); color:var(--dim); font-size:.82rem; padding:1.1rem 0 .3rem;
+          display:flex; gap:.4rem 1rem; flex-wrap:wrap; align-items:center; }
+  footer .spacer{flex:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <span class="logo"><span class="nano">NaNo</span>odle</span>
+    <div class="spacer"></div>
+    <a class="ghost" href="/app">Open editor →</a>
+  </header>
+
+  <main>
+    <h1>Wire AI like <span class="grad">Lego.</span></h1>
+    <p class="lede">
+      Drag nodes onto a canvas, connect them, and hit run. Chain <b>text → image → video</b>,
+      caption a picture, score a song — a tiny <b>ComfyUI for everything</b>. Runs 100% in your
+      browser; bring your own NanoGPT key.
+    </p>
+
+    <div class="chips">
+      <span class="chip"><span class="d" style="background:var(--accent)"></span>Text</span>
+      <span class="chip"><span class="d" style="background:var(--accent)"></span>LLM</span>
+      <span class="chip"><span class="d" style="background:var(--accent2)"></span>Image</span>
+      <span class="chip"><span class="d" style="background:var(--accent2)"></span>Edit</span>
+      <span class="chip"><span class="d" style="background:#ffcf6b"></span>Vision</span>
+      <span class="chip"><span class="d" style="background:var(--cyan)"></span>Video</span>
+      <span class="chip"><span class="d" style="background:#3ddc97"></span>Music</span>
+      <span class="chip"><span class="d" style="background:#3ddc97"></span>Speech</span>
+    </div>
+
+    <div class="cta">
+      <a class="btn" href="/app">▶ Launch NaNoodle</a>
+      <span class="note">no install · no signup to look around · open-ended</span>
+    </div>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· 100% in your browser, no server</span>
+    <div class="spacer"></div>
+    <a href="/app">Editor</a>
+  </footer>
+
+</div>
+</body>
+</html>

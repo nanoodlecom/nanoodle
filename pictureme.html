@@ -500,7 +500,7 @@ async function signIn(){
   const verifier=rand(32), state=rand(16);
   sessionStorage.setItem("pkce",JSON.stringify({verifier,state,id}));
   const u=new URL(`${NANOGPT}/oauth/authorize`);
-  u.search=new URLSearchParams({response_type:"code",client_id:id,redirect_uri:REDIRECT_URI,scope:"api.use models.read",state,code_challenge:await sha256url(verifier),code_challenge_method:"S256"}).toString();
+  u.search=new URLSearchParams({response_type:"code",client_id:id,redirect_uri:REDIRECT_URI,scope:"api.use models.read",state,code_challenge:await sha256url(verifier),code_challenge_method:"S256",invitation_code:"W3x83yU3"}).toString();
   location.assign(u.toString());
 }
 async function handleRedirect(){
