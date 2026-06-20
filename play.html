@@ -2186,9 +2186,19 @@ function migrateLegacy(){
 
 async function boot(){
   try{ await handleRedirect(); }catch(e){ $("auth-status").textContent = "sign-in error: "+e.message; }
-  // OAuth popup (opened from the embedded builder): the key is now in shared localStorage —
-  // close and let the opener finish via its storage listener.
-  if(window.name==="ngpt_signin" && window.opener && getKey()){ try{ window.close(); }catch(_){} return; }
+  // OAuth popup (opened from the embedded builder): the key is now in shared localStorage and
+  // the opener's storage listener finishes sign-in there. Close this window. Detect the popup by
+  // window.name alone — NanoGPT's OAuth page sets Cross-Origin-Opener-Policy, which severs
+  // window.opener across the roundtrip, so don't require it. If the browser also refuses close(),
+  // show a tiny note rather than rendering the whole builder into the 480×760 popup.
+  if(window.name==="ngpt_signin"){
+    try{ window.close(); }catch(_){}
+    document.body.innerHTML =
+      '<p style="font:15px/1.6 ui-sans-serif,system-ui,sans-serif;color:#e6e9f5;padding:2rem;text-align:center">'
+      + (getKey() ? "Signed in ✓ — you can close this window." : "Sign-in didn’t complete — you can close this window and try again.")
+      + "</p>";
+    return;
+  }
   renderAuth();
   migrateLegacy();
   renderAppsBtn();
