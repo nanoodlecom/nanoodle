@@ -196,7 +196,6 @@
   <button id="save" title="download this graph as JSON">⭳ Save</button>
   <button id="load" title="open a graph JSON file">⭱ Load</button>
   <input id="loadfile" type="file" accept="application/json,.json" hidden />
-  <button id="clear">Clear</button>
   <div class="sep"></div>
   <span id="cost"></span>
   <div class="spacer"></div>
@@ -1271,7 +1270,6 @@ function spawnCenter(type){
 $("addbtn").onclick = (e)=>{ e.stopPropagation(); $("addpop").classList.toggle("open"); };
 document.addEventListener("click", e=>{ if(!$("addmenu").contains(e.target)) $("addpop").classList.remove("open"); });
 $("run").onclick = runAll;
-$("clear").onclick = ()=>{ if(confirm("Clear the whole graph?")){ graph={nodes:[],links:[]}; world.innerHTML=""; redraw(); save(); } };
 
 // picker interactions
 $("mpicksearch").addEventListener("input", renderPicker);
