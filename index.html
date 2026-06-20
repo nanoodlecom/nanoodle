@@ -9,6 +9,9 @@
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <link rel="manifest" href="/site.webmanifest" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Righteous&display=swap" />
 <meta name="theme-color" content="#0b0d12" />
 <script>if("serviceWorker" in navigator){addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));}</script>
 <style>
@@ -31,7 +34,7 @@
   /* ---------- top bar ---------- */
   #top{ position:fixed; inset:0 0 auto 0; height:52px; z-index:30; display:flex; align-items:center; gap:.6rem;
         padding:0 .9rem; background:rgba(18,21,29,.85); backdrop-filter:blur(8px); border-bottom:1px solid var(--line);}
-  #top .logo{font-weight:800; letter-spacing:-.02em; font-size:1.15rem; margin-right:.3rem;}
+  #top .logo{font-family:"Righteous",ui-sans-serif,system-ui,sans-serif; font-weight:400; letter-spacing:.01em; font-size:1.25rem; margin-right:.3rem;}
   #top .logo .nano{ background:linear-gradient(90deg,#67e8f9,#7c8cff 70%); -webkit-background-clip:text; background-clip:text;
         color:transparent; font-weight:900; filter:drop-shadow(0 0 9px #7c8cff77); }
   #top .logo .ui{ color:var(--dim); font-weight:700; font-size:.72rem; letter-spacing:.12em; margin-left:.3rem; vertical-align:.08em; text-transform:uppercase; }
@@ -193,7 +196,7 @@
 <body>
 
 <div id="top">
-  <div class="logo"><span class="nano">NaNo</span>odle<span class="ui">UI</span></div>
+  <div class="logo"><span class="nano">nano</span>odle</div>
   <div id="addmenu">
     <button id="addbtn">＋ Add node ▾</button>
     <div id="addpop"></div>
