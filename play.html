@@ -1136,7 +1136,10 @@ window.NoodleApp = (function () {
   /* =====================================================================
      MOUNT
      ===================================================================== */
+  let mounted = false;
   function mount(){
+    if(mounted) return;                 // idempotent — the bundler may emit the mount call defensively
+    mounted = true;
     const data = window.NOODLE_GRAPH || { nodes:[], links:[] };
     const graph = materialize(data);
     STATE = { data, graph, inputs:deriveInputs(graph), outputs:deriveOutputs(graph) };
@@ -1339,38 +1342,77 @@ body{ background:
 }
 
 /* ======================================================================
-   BUNDLER — fills the include markers from fixed sources. RUNTIME_JS and
-   graph.json are NOT in the editable files map, so a diff can never break
-   the engine. The single output string is BOTH the iframe srcdoc (via
-   withPreamble) and the Export/Share payload. No key is ever embedded.
+   BUNDLER — assembles the runnable app from the editable index.html/app.css
+   plus the FIXED engine pieces (RUNTIME_JS, graph.json), which never live in
+   the editable files map. The single output string is BOTH the iframe srcdoc
+   (via withPreamble) and the Export/Share payload. No key is ever embedded.
+
+   The build markers in the template are only a PLACEMENT HINT. Everything the
+   engine needs is GUARANTEED here, not requested from the model: if a diff
+   drops a marker, the mount call, the mount-point ids, or adds external
+   scripts, we repair it so an edit can never break the app — which is why the
+   prompt no longer has to police any of it.
    ====================================================================== */
+const ENGINE = {
+  css:     ()=> "<style>" + (APP_STATE.files["app.css"] || "") + "</style>",
+  runtime: ()=> "<script>\n" + RUNTIME_JS.replace(/<\/script/gi, "<\\/script") + "\n<\/script>",
+  mount:   '<script>NoodleApp.mount();<\/script>',
+  graph:   ()=> {
+    const json = JSON.stringify(shareableGraph(APP_STATE.graph))
+      .replace(/</g, "\\u003c").replace(/>/g, "\\u003e")
+      .replace(/[\u2028\u2029]/g, m => m === "\u2028" ? "\\u2028" : "\\u2029");
+    return "<script>window.NOODLE_GRAPH = " + json + ";<\/script>";
+  },
+};
+const injectInHead = (html, s)=> /<\/head>/i.test(html) ? html.replace(/<\/head>/i, s + "</head>")
+                               : /<body[^>]*>/i.test(html) ? html.replace(/<body[^>]*>/i, m=> m + s) : s + html;
+const injectInBody = (html, s)=> /<\/body>/i.test(html) ? html.replace(/<\/body>/i, s + "</body>") : html + s;
+
 function bundle(files){
   let html = files["index.html"];
   if(html == null)
     return '<!doctype html><meta charset=utf-8><body style="font:14px system-ui;color:#888;padding:2rem">No <code>index.html</code> — reopen this app from the editor.</body>';
 
+  let cssDone = false, runtimeDone = false, graphDone = false;
+
   // <!-- include: app.css --> -> css text ; <!-- include: runtime.js --> -> the fixed engine
   html = html.replace(/<!--\s*include:\s*([^>]+?)\s*-->/g, (_, p) => {
     const name = p.trim();
-    if(name === "runtime.js") return "<script>\n" + RUNTIME_JS.replace(/<\/script/gi, "<\\/script") + "\n<\/script>";
+    if(name === "runtime.js"){ runtimeDone = true; return ENGINE.runtime(); }
+    if(name === "app.css"){    cssDone = true;     return APP_STATE.files["app.css"] || ""; }
     const raw = files[name];
     return raw != null ? raw : "<!-- missing: " + name + " -->";
   });
 
   // <!-- include-config: graph.json --> -> window.NOODLE_GRAPH = <json>
-  html = html.replace(/<!--\s*include-config:\s*([^>]+?)\s*-->/g, () => {
-    const json = JSON.stringify(shareableGraph(APP_STATE.graph))
-      .replace(/</g, "\\u003c").replace(/>/g, "\\u003e")
-      .replace(/[\u2028\u2029]/g, m => m === "\u2028" ? "\\u2028" : "\\u2029");
-    return "<script>window.NOODLE_GRAPH = " + json + ";<\/script>";
-  });
+  html = html.replace(/<!--\s*include-config:\s*([^>]+?)\s*-->/g, () => { graphDone = true; return ENGINE.graph(); });
 
-  // inline any LOCAL <script src> a diff may have added (CDN/data left alone)
-  html = html.replace(/<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*><\/script>/gi, (m, src) => {
-    if(/^(https?:)?\/\//i.test(src) || /^data:/i.test(src)) return m;
+  // inline LOCAL <script src>; DROP external/remote ones (no external scripts — enforced, not prompted)
+  html = html.replace(/<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>\s*<\/script>/gi, (m, src) => {
+    if(/^(https?:)?\/\//i.test(src) || /^data:/i.test(src)) return "";          // remote/data → strip
     const raw = files[src];
-    return raw == null ? m : "<script>\n" + String(raw).replace(/<\/script/gi, "<\\/script") + "\n<\/script>";
+    return raw == null ? "" : "<script>\n" + String(raw).replace(/<\/script/gi, "<\\/script") + "\n<\/script>";
   });
+  // DROP external stylesheets too (keep the app self-contained)
+  html = html.replace(/<link\b[^>]*>/gi, (m) =>
+    (/\brel=["']?stylesheet["']?/i.test(m) && /\bhref=["'](?:(?:https?:)?\/\/|data:)/i.test(m)) ? "" : m);
+
+  /* ---- self-heal the engine contract so an edit can never break the app ---- */
+  // 1) mount-point ids: re-add a typed fallback for any the diff dropped, so the
+  //    runtime always has the elements it binds to.
+  const missing = MOUNT_IDS.filter(id => !html.includes('id="'+id+'"') && !html.includes("id='"+id+"'"));
+  if(missing.length)
+    html = injectInBody(html, '<div class="noodle-shim">' + missing.map(id => MOUNT_FALLBACK[id]).join("") + '</div>');
+  // 2) data + engine go in <head> so they're ready before any in-body mount call,
+  //    no matter where (or whether) the marker survived.
+  if(!cssDone)     html = injectInHead(html, ENGINE.css());
+  if(!graphDone)   html = injectInHead(html, ENGINE.graph());
+  if(!runtimeDone) html = injectInHead(html, ENGINE.runtime());
+  // 3) the mount call runs dead-last: strip any existing one, re-add at end of body
+  //    so the DOM (incl. any shimmed mount points) and the engine are fully ready.
+  //    mount() is idempotent, so a stray hand-written call is harmless anyway.
+  html = html.replace(/<script>\s*NoodleApp\s*\.\s*mount\s*\(\s*\)\s*;?\s*<\/script>/gi, "");
+  html = injectInBody(html, ENGINE.mount);
   return html;
 }
 
@@ -1487,19 +1529,30 @@ function renderPicker(){
 
 /* ======================================================================
    CUSTOMIZE LOOP (gptdiff): goal -> generateDiff -> guard -> smartapply
-   -> push version -> re-render. The CONTRACT keeps the mount-point ids and
-   build markers intact so the engine can never be broken by a diff.
+   -> push version -> re-render. The engine contract (mount-point ids, build
+   markers, the mount call, no external scripts) is enforced in bundle(), NOT
+   in the prompt — so a diff can never break the app and the CONTRACT below is
+   free to be short and about intent, not self-preservation.
    ====================================================================== */
 const MOUNT_IDS = ["app-title","app-tagline","app-auth","app-inputs","app-run","app-count","app-status","app-output"];
+// Typed fallbacks bundle() re-injects if a diff ever drops a mount point, so the
+// runtime always finds the elements it binds to — no prompt policing required.
+const MOUNT_FALLBACK = {
+  "app-title":   '<h1 id="app-title"></h1>',
+  "app-tagline": '<p id="app-tagline"></p>',
+  "app-auth":    '<div id="app-auth" class="auth"></div>',
+  "app-inputs":  '<section id="app-inputs" class="inputs"></section>',
+  "app-run":     '<button id="app-run" class="run">▶ Run</button>',
+  "app-count":   '<div id="app-count" class="count"></div>',
+  "app-status":  '<div id="app-status" class="status"></div>',
+  "app-output":  '<section id="app-output" class="output"></section>',
+};
 const CONTRACT =
-`You are restyling a small single-purpose web app. You may edit ONLY two files: index.html and app.css.
-You may restyle, re-layout, and rewrite the visible copy (titles, tagline, button labels, helper text).
-You MUST keep these element ids in index.html exactly, each on a real element the app binds to:
-  ${MOUNT_IDS.map(i=>"#"+i).join(", ")}.
-Do NOT remove, rename, or duplicate those ids. Do NOT remove or alter these HTML comments — they are
-build markers the engine needs: "<!-- include: app.css -->", "<!-- include-config: graph.json -->",
-"<!-- include: runtime.js -->", and the inline <script>NoodleApp.mount();<\/script>.
-Do NOT add network requests, frameworks, or external scripts. Keep it a clean form-over-flow UI.
+`You are customizing a small single-purpose web app. You edit two files — index.html and app.css —
+restyling it, re-laying it out, and rewriting the visible copy (title, tagline, input labels, button
+text, helper text) to fit the workflow described below. Keep it a clean, self-contained form-over-flow
+UI: no frameworks, no external scripts or stylesheets. The app already has its working controls wired
+up (run button, input area, status and output regions); keep those in place as you restyle.
 
 Below is a description of the workflow this app is a front-end for. Use it to give the app a
 fitting title, tagline, input labels, button text, and helper copy, and to reason about what the
