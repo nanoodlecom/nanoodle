@@ -209,13 +209,6 @@ const APPLY_DEFAULT = "xiaomi/mimo-v2.5-pro-ultraspeed";      // applies the dif
 const LS_KEY = "noodle_app_state";   // {v,graph,files,versions,curVer}
 const ACCENT = "#7c8cff";
 
-// friendlier names for the speed-tuned defaults; any other picked model shows its short id
-const FRIENDLY_MODEL = {
-  "xiaomi/mimo-v2.5-pro-ultraspeed": "Ultraspeed (fast)",
-  "moonshotai/kimi-k2.7-code-highspeed": "Kimi high-speed",
-};
-const friendlyName = (id)=> FRIENDLY_MODEL[id] || (id && id.includes("/") ? id.split("/").pop() : id) || "pick a model…";
-
 let MODEL = localStorage.getItem("ngpt_app_model") || DEFAULT_MODEL;
 let APPLY = localStorage.getItem("ngpt_apply_model") || APPLY_DEFAULT;
 
@@ -1134,7 +1127,7 @@ async function loadChatCatalog(){
   chatCatalog = list; return list;
 }
 let picker = null;
-function renderModelBtn(){ const b = $("modelpick"); if(b) b.textContent = "✨ " + friendlyName(MODEL) + " ▾"; }
+function renderModelBtn(){ const b = $("modelpick"); if(b) b.textContent = "✨ " + (MODEL || "pick a model…") + " ▾"; }
 function setModel(id){ MODEL = id; try{ localStorage.setItem("ngpt_app_model", id); }catch(_){} renderModelBtn(); }
 function openModelPicker(){
   picker = { current: MODEL };
