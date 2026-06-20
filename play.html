@@ -1058,11 +1058,13 @@ window.NoodleApp = (function () {
   }
 
   // A download control for generated media. Images come back as data: URLs and
-  // sync speech as blob: URLs — those save straight through an anchor (a fetch
-  // would hit the tight connect-src). Music/video are URLs on a provider CDN;
-  // those can't be pulled into a blob from this null-origin frame (connect-src
-  // blocks the cross-origin fetch), so the anchor is best-effort and the native
-  // <audio>/<video> controls' own ⋮ menu is the reliable cross-origin saver.
+  // sync speech as blob: URLs — those save straight through an anchor. Music/video
+  // are URLs on a provider CDN: this frame can't pull them into a blob (the tight
+  // connect-src blocks the cross-origin fetch, and an anchor to a cross-origin URL
+  // is refused outright in the sandboxed preview), so in the preview we ask the
+  // parent — real origin, not sandboxed — to open it in a tab to save from, and a
+  // standalone app (no such CSP) fetches it directly. The native <audio>/<video>
+  // controls' own ⋮ menu is also a reliable cross-origin saver.
   function addDownload(card, url, kind, nodeType){
     const row = document.createElement("div"); row.className = "dlrow";
     const btn = document.createElement("button"); btn.type = "button"; btn.className = "dl";
@@ -1072,12 +1074,13 @@ window.NoodleApp = (function () {
       if(/^(blob:|data:)/i.test(url)){ saveAs(url, name); return; }
       btn.disabled = true;
       try{
-        const b = await (await fetch(url)).blob();
+        const b = await (await fetch(url)).blob();         // works standalone (no CSP) when CORS allows
         const u = URL.createObjectURL(b);
         saveAs(u, name);
         setTimeout(()=> URL.revokeObjectURL(u), 5000);
       }catch(e){
-        saveAs(url, name);   // cross-origin: download attr is ignored, but allow-downloads still saves
+        if(EMBEDDED) window.parent.postMessage({ type:"__open__", url }, "*");
+        else window.open(url, "_blank");
       }finally{ btn.disabled = false; }
     };
     row.appendChild(btn);
@@ -1584,6 +1587,14 @@ function pushAuthToApp(){ postToApp({ type:"__auth__", signedIn: !!getKey() }); 
 addEventListener("message", async (e) => {
   if(e.source !== $("appframe").contentWindow) return;
   const d = e.data;
+  // Save a generated media URL the sandboxed preview can't reach (CDN-hosted music/
+  // video, blocked there by connect-src). We open it at our real, un-sandboxed origin
+  // so the user can save it. https only, so a shared app can't bounce the user to a
+  // javascript:/data: URL via the download button.
+  if(d && d.type === "__open__"){
+    if(typeof d.url === "string" && /^https:\/\//i.test(d.url)) window.open(d.url, "_blank", "noopener");
+    return;
+  }
   // API proxy: the app asks us to call NanoGPT. We attach OUR key, but only ever to
   // nano-gpt.com, and hand back just the response — the key is never exposed to the app.
   if(d && d.type === "__api__"){
