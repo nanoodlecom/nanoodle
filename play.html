@@ -281,6 +281,12 @@ window.NoodleApp = (function () {
      STANDALONE (exported/hosted top-level) = call directly with our own pasted/OAuth key. */
   const EMBEDDED = !!(window.parent && window.parent !== window);
   let parentAuthed = false;                                   // set by the parent's __auth__ message
+  // Cancellation — one AbortController per run(); Stop aborts it, which cancels
+  // in-flight fetches, wakes pending poll-sleeps, and halts every dependent step.
+  let ABORT = null;
+  const runAborted = ()=> !!(ABORT && ABORT.signal.aborted);
+  const abortError = ()=> new DOMException("canceled", "AbortError");
+  const isAbort = (e)=> e && (e.name==="AbortError" || runAborted());
   const getKey = ()=> localStorage.getItem("ngpt_key");
   const setKey = (k)=>{ k ? localStorage.setItem("ngpt_key",k) : localStorage.removeItem("ngpt_key"); renderAuth(); };
   const hasAuth = ()=> EMBEDDED ? parentAuthed : !!getKey();
@@ -290,18 +296,24 @@ window.NoodleApp = (function () {
   // every NanoGPT data call goes through here
   async function apiFetch(url, opts){
     opts = opts || {};
-    if(EMBEDDED) return proxyFetch(url, opts);
+    const signal = ABORT ? ABORT.signal : undefined;
+    if(EMBEDDED) return proxyFetch(url, opts, signal);
     const k = getKey();
     const headers = Object.assign({}, opts.headers, { Authorization:"Bearer "+k, "x-api-key":k });
-    return fetch(url, Object.assign({}, opts, { headers }));
+    return fetch(url, Object.assign({}, opts, { headers, signal }));
   }
   // ask the parent to make the call; get back a minimal fetch-Response shim.
-  function proxyFetch(url, opts){
+  // `signal` lets Stop reject the pending call locally so the lane halts at once
+  // (the parent's in-flight request may finish, but we ignore its result).
+  function proxyFetch(url, opts, signal){
     const id = (proxyFetch._n = (proxyFetch._n||0)+1);
     return new Promise((resolve, reject)=>{
+      if(signal && signal.aborted){ reject(abortError()); return; }
+      function cleanup(){ window.removeEventListener("message", onMsg); if(signal) signal.removeEventListener("abort", onAbort); }
+      function onAbort(){ cleanup(); reject(abortError()); }
       function onMsg(e){
         const d = e.data; if(!d || d.type!=="__api_result__" || d.id!==id) return;
-        window.removeEventListener("message", onMsg);
+        cleanup();
         if(d.error){ reject(new Error(d.error)); return; }
         const headers = d.headers || {}, buf = d.body || new ArrayBuffer(0);
         resolve({
@@ -313,13 +325,21 @@ window.NoodleApp = (function () {
         });
       }
       window.addEventListener("message", onMsg);
+      if(signal) signal.addEventListener("abort", onAbort);
       const h = Object.assign({}, opts.headers); delete h.Authorization; delete h["x-api-key"];   // parent owns auth
       window.parent.postMessage({ type:"__api__", id, url, method:opts.method||"GET", headers:h,
                                   body: (opts.body!=null ? String(opts.body) : null) }, "*");
     });
   }
 
-  const sleep = (ms)=> new Promise(res=> setTimeout(res, ms));
+  // Abortable: Stop rejects any in-flight wait so polling loops exit at once.
+  const sleep = (ms)=> new Promise((res, rej)=>{
+    const sig = ABORT && ABORT.signal;
+    if(sig && sig.aborted){ rej(abortError()); return; }
+    const t = setTimeout(()=>{ if(sig) sig.removeEventListener("abort", onAb); res(); }, ms);
+    function onAb(){ clearTimeout(t); rej(abortError()); }
+    if(sig) sig.addEventListener("abort", onAb, { once:true });
+  });
   const accrue = ()=>{};   // no-op cost sink (the editor paints a cost HUD we don't have here)
 
   /* ---------- mdl (verbatim) ---------- */
@@ -626,6 +646,7 @@ window.NoodleApp = (function () {
     r.cyclic.forEach(id=> onStatus && onStatus(id, "error", "cycle detected"));
     graph.nodes.forEach(n=>{ n.out = {}; });           // fresh run
     for(const id of r.order){
+      if(runAborted()) throw abortError();             // Stop pressed — don't start dependent steps
       const n = byId(id); if(!n) continue;
       const t = NODE_TYPES[n.type], inp = {};
       for(const port of t.inputs){
@@ -649,7 +670,8 @@ window.NoodleApp = (function () {
       }
       // editor parity (runGroup): isolate per-node failures — mark error and keep going so
       // independent flows / other sinks still produce output. Do NOT rethrow.
-      catch(err){ onStatus && onStatus(id, "error", err.message); }
+      // Exception: a Stop-triggered abort halts the whole lane (propagate it).
+      catch(err){ if(isAbort(err)) throw err; onStatus && onStatus(id, "error", err.message); }
     }
   }
 
@@ -770,7 +792,9 @@ window.NoodleApp = (function () {
     row.innerHTML = '<span class="msg">'+esc(msg||"")+'</span>';
   }
 
-  let PROG = null, progTimer = null;
+  /* RUN = one click; it fans out into N independent lanes (parallel runs of
+     the same graph). Each lane tracks its own step order/state/timers. */
+  let RUN = null, runTimer = null;
   function fmtClock(ms){
     const s = Math.max(0, Math.round(ms/1000)), m = Math.floor(s/60);
     return m ? (m + ":" + String(s%60).padStart(2,"0")) : (s + "s");
@@ -779,57 +803,98 @@ window.NoodleApp = (function () {
     const n = STATE.graph.byId(id), t = n ? NODE_TYPES[n.type] : null;
     return t ? (t.em + " " + t.title) : id;
   }
-  function startProgress(){
-    PROG = { order:[], state:{}, curId:null, curT0:0, t0:Date.now() };
+  function startRun(n){
+    RUN = { n:n, t0:Date.now(), lanes:[] };
+    for(let i=0;i<n;i++) RUN.lanes.push({ idx:i, order:[], state:{}, curId:null, curT0:0, t0:Date.now(), endAt:0 });
     ensureStatus(); const p = $("app-prog"); if(p) p.hidden = false;
-    clearInterval(progTimer); progTimer = setInterval(paintProgress, 1000);
-    paintProgress();
+    clearInterval(runTimer); runTimer = setInterval(paintRuns, 1000);
+    paintRuns();
   }
-  function stopProgress(){ clearInterval(progTimer); progTimer = null; paintProgress(); }
-  function onStep(id, kind, msg){
-    if(!PROG) return;
-    PROG.state[id] = { kind:kind, msg:msg };
-    if(kind==="run" && PROG.curId!==id){ PROG.curId = id; PROG.curT0 = Date.now(); }
-    paintProgress();
+  function stopRun(){ clearInterval(runTimer); runTimer = null; paintRuns(); }
+  function laneStart(i, order){ if(RUN && RUN.lanes[i]){ RUN.lanes[i].order = order; paintRuns(); } }
+  function laneStep(i, id, kind, msg){
+    const L = RUN && RUN.lanes[i]; if(!L) return;
+    L.state[id] = { kind:kind, msg:msg };
+    if(kind==="run" && L.curId!==id){ L.curId = id; L.curT0 = Date.now(); }
+    paintRuns();
   }
-  function paintProgress(){
-    const box = $("app-prog"); if(!box || !PROG) return;
-    const order = PROG.order || [], total = order.length;
-    let done = 0, errs = 0;
+  function laneStats(L){
+    const order = L.order || [], total = order.length; let done = 0, errs = 0;
     const segs = order.map(function(id){
-      const s = PROG.state[id]; let cls = "seg";
+      const s = L.state[id]; let cls = "seg";
       if(s && s.kind==="done"){ cls += " done"; done++; }
       else if(s && s.kind==="error"){ cls += " error"; done++; errs++; }
       else if(s && s.kind==="run"){ cls += " active"; }
       return '<span class="'+cls+'"></span>';
     }).join("");
-    const running = progTimer != null;
-    let now = "";
-    if(running && PROG.curId != null){
-      const cur = PROG.state[PROG.curId] || {}, idx = order.indexOf(PROG.curId) + 1;
+    return { order:order, total:total, done:done, errs:errs, segs:segs, finished:(L.endAt>0) };
+  }
+  function singleLaneHtml(L){
+    const st = laneStats(L); let now = "";
+    if(!st.finished && L.curId != null){
+      const cur = L.state[L.curId] || {}, idx = st.order.indexOf(L.curId) + 1;
       now = '<div class="prog-now">'
-          + '<span class="prog-step">Step ' + idx + ' / ' + total + '</span>'
-          + '<b class="prog-node">' + esc(stepLabel(PROG.curId)) + '</b>'
+          + '<span class="prog-step">Step ' + idx + ' / ' + st.total + '</span>'
+          + '<b class="prog-node">' + esc(stepLabel(L.curId)) + '</b>'
           + '<span class="prog-msg">' + esc(cur.msg || "working…") + '</span>'
-          + '<span class="prog-el">' + fmtClock(Date.now()-PROG.curT0) + '</span>'
-          + '</div>';
-    } else if(!running && total){
-      const tot = fmtClock(Date.now()-PROG.t0);
-      now = errs
-        ? '<div class="prog-now is-err">Finished with ' + errs + ' error' + (errs>1?"s":"") + ' · ' + done + '/' + total + ' steps · ' + tot + '</div>'
-        : '<div class="prog-now is-ok">✓ Done · ' + total + ' step' + (total!==1?"s":"") + ' · ' + tot + '</div>';
+          + '<span class="prog-el">' + fmtClock(Date.now()-L.curT0) + '</span></div>';
+    } else if(st.finished){
+      now = st.errs
+        ? '<div class="prog-now is-err">Finished with ' + st.errs + ' error' + (st.errs>1?"s":"") + ' · ' + st.done + '/' + st.total + ' steps · ' + fmtClock(L.endAt-L.t0) + '</div>'
+        : '<div class="prog-now is-ok">✓ Done · ' + st.total + ' step' + (st.total!==1?"s":"") + ' · ' + fmtClock(L.endAt-L.t0) + '</div>';
     }
-    box.innerHTML = '<div class="prog-track">' + segs + '</div>' + now;
+    return '<div class="prog-track">' + st.segs + '</div>' + now;
+  }
+  function laneRowHtml(L){
+    const st = laneStats(L);
+    const elapsed = fmtClock((L.endAt>0?L.endAt:Date.now()) - L.t0);
+    let mid;
+    if(st.finished){
+      mid = st.errs ? '<span class="prog-msg is-err">' + st.errs + ' error' + (st.errs>1?"s":"") + '</span>'
+                    : '<span class="prog-msg is-ok">✓ done</span>';
+    } else if(L.curId != null){
+      const cur = L.state[L.curId] || {};
+      mid = '<b class="prog-node">' + esc(stepLabel(L.curId)) + '</b> <span class="prog-msg">' + esc(cur.msg || "working…") + '</span>';
+    } else { mid = '<span class="prog-msg">starting…</span>'; }
+    return '<div class="lane' + (st.finished?" is-done":"") + '">'
+         + '<span class="lane-no">Run ' + (L.idx+1) + '</span>'
+         + '<div class="prog-track">' + st.segs + '</div>'
+         + '<span class="lane-mid">' + mid + '</span>'
+         + '<span class="prog-el">' + elapsed + '</span></div>';
+  }
+  function paintRuns(){
+    const box = $("app-prog"); if(!box || !RUN) return;
+    if(RUN.n === 1){ box.innerHTML = singleLaneHtml(RUN.lanes[0]); return; }
+    box.innerHTML = '<div class="lanes">' + RUN.lanes.map(laneRowHtml).join("") + '</div>';
+  }
+  // Independent copy of the live graph (current input values included) so N
+  // lanes can run at once without clobbering each other's node outputs.
+  function cloneGraph(){
+    return materialize({
+      nodes: STATE.graph.nodes.map(n=>({ id:n.id, type:n.type, x:n.x, y:n.y, fields:{...n.fields} })),
+      links: STATE.graph.links.map(l=>({ id:l.id, from:{...l.from}, to:{...l.to} })),
+    });
+  }
+  const RUN_CHOICES = [1,2,4,8];
+  let RUNS_N = 1;
+  function renderCount(){
+    const box = $("app-count"); if(!box) return;
+    box.innerHTML = '<span class="count-lbl">Runs</span>'
+      + RUN_CHOICES.map(function(c){ return '<button type="button" class="cnt'+(c===RUNS_N?" on":"")+'" data-n="'+c+'">'+c+'×</button>'; }).join("");
+    box.querySelectorAll("button[data-n]").forEach(function(b){
+      b.addEventListener("click", function(){ if(running) return; RUNS_N = +b.dataset.n; renderCount(); });
+    });
   }
 
-  function renderResult(n){
+  function renderResult(n, runNo){
     const box = $("app-output"); if(!box) return;
     const out = n.out || {};
     const port = (NODE_TYPES[n.type].outputs||[])[0] || {};
     const val = out[port.name];
     if(val==null) return;
     const card = document.createElement("div"); card.className="card";
-    const head = '<div class="rhead">'+esc(NODE_TYPES[n.type].em)+' '+esc(NODE_TYPES[n.type].title)+'</div>';
+    const badge = runNo ? '<span class="run-badge">Run '+runNo+'</span> ' : '';
+    const head = '<div class="rhead">'+badge+esc(NODE_TYPES[n.type].em)+' '+esc(NODE_TYPES[n.type].title)+'</div>';
     let media;
     if(port.type==="image") media = '<img src="'+esc(val)+'" alt="">';
     else if(port.type==="video") media = '<video src="'+esc(val)+'" controls playsinline></video>';
@@ -839,30 +904,53 @@ window.NoodleApp = (function () {
     box.appendChild(card);
   }
 
+  // The run button's resting label (e.g. "▶ Run"), captured at mount so it can be
+  // restored after a run regardless of how the app was customized.
+  let RUN_LABEL = "▶ Run";
+  function setRunBtn(stopping){
+    const btn = $("app-run"); if(!btn) return;
+    btn.disabled = false;
+    btn.classList.toggle("stop", !!stopping);
+    btn.innerHTML = stopping ? "■ Stop" : RUN_LABEL;
+  }
+  // Stop: abort the live run immediately. In-flight fetches cancel, pending
+  // poll-sleeps wake, and runGraph halts before any dependent step starts.
+  function cancelRun(){
+    if(ABORT && !ABORT.signal.aborted){
+      ABORT.abort();
+      statusLine("__run__","done","Stopped.");
+    }
+  }
+
   async function run(){
     if(running) return;
-    const btn = $("app-run");
     if(!hasAuth()){ statusLine("__auth__","error", EMBEDDED ? "Sign in from the bar at the top to run this app." : "Sign in or paste an API key first."); return; }
+    const N = RUNS_N;
     running = true;
-    const lbl = btn ? btn.textContent : null;
-    if(btn){ btn.disabled = true; btn.textContent = "Running…"; }
+    ABORT = new AbortController();
+    setRunBtn(true);
+    const cbox = $("app-count"); if(cbox) cbox.classList.add("busy");
     ensureStatus();
     const mbox = $("app-msg"), obox = $("app-output");
-    if(mbox) mbox.innerHTML = ""; if(obox) obox.innerHTML = "";
-    startProgress();
+    if(mbox) mbox.innerHTML = ""; if(obox){ obox.innerHTML = ""; obox.classList.toggle("grid", N>1); }
+    startRun(N);
     const outIds = new Set(STATE.outputs.map(n=>n.id));
-    try{
-      await runGraph(STATE.graph, {
-        onStart: (order)=>{ if(PROG) PROG.order = order; paintProgress(); },
-        onStatus: onStep,
-        onResult: (n)=>{ if(outIds.has(n.id)) renderResult(n); },
-      });
-    }catch(err){
-      statusLine("__run__","error", err.message || String(err));
-    }finally{
-      running = false; if(btn){ btn.disabled = false; if(lbl!=null) btn.textContent = lbl; }
-      stopProgress();
-    }
+    const graphs = []; for(let i=0;i<N;i++) graphs.push(cloneGraph());
+    await Promise.all(graphs.map(function(g,i){
+      return runGraph(g, {
+        onStart: (order)=> laneStart(i, order),
+        onStatus: (id,kind,msg)=> laneStep(i, id, kind, msg),
+        onResult: (n)=>{ if(outIds.has(n.id)) renderResult(n, N>1 ? i+1 : 0); },
+      })
+      // a Stop-triggered abort is expected — swallow it; surface only real errors.
+      .catch(err=>{ if(isAbort(err)) return; statusLine("__run_"+i+"__","error", (N>1?("Run "+(i+1)+": "):"") + (err.message || String(err))); })
+      .finally(()=>{ if(RUN && RUN.lanes[i]) RUN.lanes[i].endAt = Date.now(); paintRuns(); });
+    }));
+    running = false;
+    ABORT = null;
+    setRunBtn(false);
+    if(cbox) cbox.classList.remove("busy");
+    stopRun();
   }
 
   /* =====================================================================
@@ -967,9 +1055,13 @@ window.NoodleApp = (function () {
     renderAuth();
     handleRedirect().catch(e=> statusLine("__auth__","error","sign-in error: "+e.message)).finally(renderAuth);
     renderInputs();
+    renderCount();
 
     const runBtn = $("app-run");
-    if(runBtn) runBtn.addEventListener("click", run);
+    if(runBtn){
+      RUN_LABEL = runBtn.innerHTML.trim() || RUN_LABEL;   // remember the customized resting label
+      runBtn.addEventListener("click", ()=> running ? cancelRun() : run());
+    }
 
     if(!graph.nodes.length){
       const sbox = $("app-status");
@@ -1029,8 +1121,10 @@ function defaultFiles(graph){
 
   <div class="run-row">
     <button id="app-run" class="run">▶ Run</button>
-    <div id="app-status" class="status"></div>
+    <div id="app-count" class="count"></div>
   </div>
+
+  <div id="app-status" class="status"></div>
 
   <section id="app-output" class="output"></section>
 </main>
@@ -1079,6 +1173,10 @@ body{ background:
   box-shadow:0 0 26px ${ACCENT}33; }
 .run:hover{ box-shadow:0 0 36px ${ACCENT}55; }
 .run:disabled{ opacity:.5; box-shadow:none; cursor:default; }
+/* Stop state — destructive red while a run is in flight */
+.run.stop{ background:linear-gradient(180deg,#ff8a8a,#ef5a5a); border-color:#ff8a8a;
+  color:#180a0a; box-shadow:0 0 26px #ff6b6b3a; }
+.run.stop:hover{ box-shadow:0 0 36px #ff6b6b5c; }
 .status{ font-size:.82rem; color:var(--dim); min-height:1.2em; display:flex; flex-direction:column; gap:.2rem; }
 .status .stline.error{ color:var(--danger); } .status .stline.done{ color:var(--ok); }
 
@@ -1119,6 +1217,28 @@ body{ background:
 .opt-count{ background:var(--panel2); border:1px solid var(--line); border-radius:99px; padding:0 .45rem; font-size:.72rem; }
 .opt-hint{ margin-left:auto; font-size:.72rem; color:var(--faint); }
 .opt-body{ display:flex; flex-direction:column; gap:1rem; padding:.2rem .8rem .85rem; }
+
+/* parallel-runs selector — how many copies of the workflow to run at once */
+.count{ display:flex; align-items:center; gap:.35rem; flex-wrap:wrap; }
+.count.busy{ opacity:.5; pointer-events:none; }
+.count-lbl{ font-size:.72rem; color:var(--faint); text-transform:uppercase; letter-spacing:.05em; margin-right:.1rem; }
+.cnt{ font:inherit; font-size:.8rem; min-width:2.3rem; padding:.34rem .5rem; cursor:pointer;
+  background:var(--panel); border:1px solid var(--line); color:var(--dim); border-radius:.45rem; }
+.cnt:hover{ border-color:var(--accent-line); color:var(--ink); }
+.cnt.on{ background:var(--accent-soft); border-color:var(--accent-line); color:var(--ink); font-weight:700; }
+
+/* parallel lanes (N>1): one compact progress row per run */
+.lanes{ display:flex; flex-direction:column; gap:.4rem; }
+.lane{ display:flex; align-items:center; gap:.55rem; }
+.lane.is-done{ opacity:.85; }
+.lane-no{ flex:none; width:3.4rem; font-size:.72rem; color:var(--dim); font-variant-numeric:tabular-nums; }
+.lane .prog-track{ flex:none; width:84px; margin:0; }
+.lane-mid{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.8rem; }
+
+/* run badge on output cards when N>1 */
+.run-badge{ display:inline-block; background:var(--accent-soft); border:1px solid var(--accent-line);
+  color:var(--ink); border-radius:99px; padding:0 .45rem; font-size:.7rem; font-weight:700; }
+.output.grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); }
 `;
 
   return { "index.html": indexHtml, "app.css": appCss };
@@ -1276,7 +1396,7 @@ function renderPicker(){
    -> push version -> re-render. The CONTRACT keeps the mount-point ids and
    build markers intact so the engine can never be broken by a diff.
    ====================================================================== */
-const MOUNT_IDS = ["app-title","app-tagline","app-auth","app-inputs","app-run","app-status","app-output"];
+const MOUNT_IDS = ["app-title","app-tagline","app-auth","app-inputs","app-run","app-count","app-status","app-output"];
 const CONTRACT =
 `You are restyling a small single-purpose web app. You may edit ONLY two files: index.html and app.css.
 You may restyle, re-layout, and rewrite the visible copy (titles, tagline, button labels, helper text).
