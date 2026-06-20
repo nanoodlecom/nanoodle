@@ -1121,11 +1121,13 @@ async function loadChatCatalog(){
   catch(_){ /* offline — exact ids still typeable */ }
   const list = raw.map(m=>{ const p = m.pricing || {};
     return { id:m.id, name:m.name||m.id, created:m.created,
+      pin: p.prompt!=null ? +p.prompt : null, pout: p.completion!=null ? +p.completion : null,  // USD per 1M
       price: p.prompt!=null ? "$"+(+p.prompt).toFixed(2)+"/$"+(+p.completion).toFixed(2)+" ·1M" : "" }; })
     .filter(m=>m.id);
   list.sort((a,b)=> (b.created||0)-(a.created||0));   // newest first
   chatCatalog = list; return list;
 }
+const priceOf = (id)=> (chatCatalog||[]).find(m=>m.id===id) || null;
 let picker = null;
 function renderModelBtn(){ const b = $("modelpick"); if(b) b.textContent = "✨ " + (MODEL || "pick a model…") + " ▾"; }
 function setModel(id){ MODEL = id; try{ localStorage.setItem("ngpt_app_model", id); }catch(_){} renderModelBtn(); }
@@ -1175,8 +1177,9 @@ The change to make: `;
 
 // streaming SSE client injected into gptdiff-js (Bearer key, returns the shape it expects)
 /* ---- usage meter: tokens in/out + cost across a whole customize run (both LLM
-   phases). Tokens stream live as a ~4-chars/token estimate; exact figures + USD
-   replace the estimate from NanoGPT's x_nanogpt_pricing SSE field when it lands. */
+   phases). Cost updates LIVE from the model's per-1M price (NanoGPT catalog);
+   exact figures + USD replace the estimate from x_nanogpt_pricing when it lands.
+   A leading ~ means the cost is still an estimate (no exact pricing yet). */
 const USAGE = { inTok:0, outTok:0, cost:0, exact:true };
 const estTok = (s)=> Math.ceil((s ? String(s).length : 0) / 4);
 const estMsgs = (msgs)=> (msgs||[]).reduce((n,m)=> n + estTok(typeof m.content==="string" ? m.content : JSON.stringify(m.content)), 0);
@@ -1184,16 +1187,21 @@ const fmtTok = (n)=> n>=1000 ? (n/1000).toFixed(n>=10000?0:1)+"k" : String(Math.
 function usageMeter(live){
   const inT  = USAGE.inTok  + (live ? live.inTok  : 0);
   const outT = USAGE.outTok + (live ? live.outTok : 0);
+  const cost = USAGE.cost   + (live ? (live.cost||0) : 0);
+  const approx = !USAGE.exact || !!(live && live.cost);   // estimate in play → show ~
   return '<span class="meter">↑ ' + fmtTok(inT) + ' in · ↓ ' + fmtTok(outT) + ' out · '
-       + (USAGE.exact ? '' : '~') + '$' + USAGE.cost.toFixed(4) + '</span>';
+       + (approx ? '~' : '') + '$' + cost.toFixed(4) + '</span>';
 }
 function resetUsage(){ USAGE.inTok = USAGE.outTok = USAGE.cost = 0; USAGE.exact = true; }
 
 function streamingCallLlm(phase){
   return async ({ apiKey, baseUrl, model, messages, maxTokens=null, temperature=1.0 }) => {
     const inEst = estMsgs(messages);
-    const paint = (live)=> $("cust-status").innerHTML = '<span class="spin">◐</span> ' + esc(phase) + '… ' + usageMeter(live);
-    paint({ inTok:inEst, outTok:0 });
+    const pr = priceOf(model) || {};                          // per-1M USD from the catalog
+    const inPer = (Number(pr.pin)||0)/1e6, outPer = (Number(pr.pout)||0)/1e6;
+    let outTok = 0, liveCost = inEst*inPer;
+    const paint = ()=> $("cust-status").innerHTML = '<span class="spin">◐</span> ' + esc(phase) + '… ' + usageMeter({ inTok:inEst, outTok, cost:liveCost });
+    paint();
     const endpoint = (baseUrl || (NANOGPT + "/api/v1/")).replace(/\/+$/,"") + "/chat/completions";
     const r = await fetch(endpoint, {
       method:"POST",
@@ -1219,17 +1227,20 @@ function streamingCallLlm(phase){
         if(d){
           if(d.content) content += d.content;
           if(d.reasoning) reasoning += d.reasoning;          // thinking tokens still cost output
+          outTok = estTok(content)+estTok(reasoning);
+          liveCost = inEst*inPer + outTok*outPer;
           const now = performance.now();
-          if(now - lastPaint > 120){ lastPaint = now; paint({ inTok:inEst, outTok:estTok(content)+estTok(reasoning) }); }
+          if(now - lastPaint > 120){ lastPaint = now; paint(); }
         }
-        if(j.x_nanogpt_pricing) pricing = j.x_nanogpt_pricing;   // exact tokens + USD (final chunk)
+        if(j.x_nanogpt_pricing) pricing = j.x_nanogpt_pricing;   // exact tokens + USD (final chunk, when present)
       }
     }
-    // commit this call: prefer exact pricing, else fall back to the char estimate
+    // commit this call: prefer exact pricing, else the per-1M price-table estimate
+    const exactCost = pricing && (pricing.costUsd != null ? pricing.costUsd : pricing.cost);
     USAGE.inTok  += (pricing && pricing.inputTokens  != null) ? pricing.inputTokens  : inEst;
-    USAGE.outTok += (pricing && pricing.outputTokens != null) ? pricing.outputTokens : (estTok(content)+estTok(reasoning));
-    const cost = pricing && (pricing.costUsd != null ? pricing.costUsd : pricing.cost);
-    if(cost != null) USAGE.cost += Number(cost); else USAGE.exact = false;
+    USAGE.outTok += (pricing && pricing.outputTokens != null) ? pricing.outputTokens : outTok;
+    if(exactCost != null){ USAGE.cost += Number(exactCost); }
+    else { USAGE.cost += inEst*inPer + outTok*outPer; USAGE.exact = false; }   // estimate → keep the ~
     return { choices:[{ message:{ content } }] };   // shape gptdiff-js expects
   };
 }
@@ -1243,6 +1254,7 @@ async function applyCustomize(){
   $("apply").disabled = true; $("undo").disabled = true;
   const t0 = performance.now();
   resetUsage();
+  await loadChatCatalog().catch(()=>{});   // make sure per-model prices are available for the live cost
 
   try{
     const env = buildEnvironment({ "index.html": APP_STATE.files["index.html"], "app.css": APP_STATE.files["app.css"] });
@@ -1486,6 +1498,7 @@ $("fr-skip").onclick = exitFirstRun;                          // "skip — use t
 
 // model picker wiring
 renderModelBtn();
+loadChatCatalog().catch(()=>{});   // warm prices (public endpoint) so the live cost meter is ready
 $("modelpick").onclick = openModelPicker;
 $("mpickclose").onclick = closePicker;
 $("mpickback").onclick = closePicker;
