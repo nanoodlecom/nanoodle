@@ -1376,7 +1376,6 @@ async function loadFromHash(){
                                 : await gunzip(b64urlToBytes(tag));
       const spec = JSON.parse(json);
       installApp({ graph:spec.graph, files:spec.files });   // shared apps carry their own files
-      toast("opened a shared app — sign in and it runs with your key (the app never sees it)");
       return true;
     }catch(_){ /* fall through */ }
   }
