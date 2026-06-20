@@ -1967,16 +1967,28 @@ async function clientId(){
 async function signIn(){
   const id = await clientId();
   const verifier=rand(32), state=rand(16);
-  sessionStorage.setItem("pkce",JSON.stringify({verifier,state,id}));
+  const pkce = JSON.stringify({verifier,state,id});
   const u=new URL(`${NANOGPT}/oauth/authorize`);
   u.search=new URLSearchParams({response_type:"code",client_id:id,redirect_uri:REDIRECT_URI,scope:"api.use models.read",state,code_challenge:await sha256url(verifier),code_challenge_method:"S256",invitation_code:"W3x83yU3"}).toString();
+  // Opened as the editor's modal iframe, a same-frame navigation to nano-gpt.com is blocked
+  // by its frame-ancestors 'none'. Run OAuth in a top-level popup instead; it stores the key
+  // in shared localStorage and the storage listener (wiring below) finishes sign-in here.
+  if(window.parent && window.parent !== window){
+    localStorage.setItem("pkce_popup", pkce);
+    const popup = window.open(u.toString(), "ngpt_signin", "width=480,height=760");
+    if(!popup){ localStorage.removeItem("pkce_popup"); throw new Error('popup blocked — allow popups, or use “paste key”'); }
+    return;
+  }
+  sessionStorage.setItem("pkce", pkce);
   location.assign(u.toString());
 }
 async function handleRedirect(){
   const p=new URLSearchParams(location.search);
   if(!p.has("code")&&!p.has("error")) return;
   history.replaceState({},"",REDIRECT_URI);
-  const saved=JSON.parse(sessionStorage.getItem("pkce")||"null"); sessionStorage.removeItem("pkce");
+  // pkce lives in sessionStorage for a same-tab redirect, or shared localStorage for the popup flow.
+  const saved=JSON.parse(sessionStorage.getItem("pkce")||localStorage.getItem("pkce_popup")||"null");
+  sessionStorage.removeItem("pkce"); localStorage.removeItem("pkce_popup");
   if(p.get("error")) throw new Error(p.get("error"));
   if(!saved||p.get("state")!==saved.state) throw new Error("state mismatch");
   const r=await fetch(`${NANOGPT}/oauth/token`,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},
@@ -2111,6 +2123,8 @@ $("am-new").onclick = newAppFromGraph;
 document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && !$("appsmenu").hidden){ e.stopPropagation(); closeAppsMenu(); } }, true);
 
 $("signin").addEventListener("click",(e)=>{ e.preventDefault(); signIn().catch(err=>$("auth-status").textContent="sign-in error: "+err.message); });
+// The OAuth popup stores the key from another window — reflect it the moment it lands.
+window.addEventListener("storage",(e)=>{ if(e.key==="ngpt_key"){ renderAuth(); pushAuthToApp(); if(getKey()) toast("signed in — the app can run now"); } });
 $("pastebtn").addEventListener("click",()=>{ $("key").style.display="flex"; $("keyinput").focus(); });
 $("keysave").addEventListener("click",()=>{ const k=$("keyinput").value.trim(); if(k){ setKey(k); $("key").style.display="none"; renderAuth(); pushAuthToApp(); toast("key saved — the app can run now"); } });
 $("keyinput").addEventListener("keydown",(e)=>{ if(e.key==="Enter") $("keysave").click(); });
@@ -2132,6 +2146,9 @@ function migrateLegacy(){
 
 async function boot(){
   try{ await handleRedirect(); }catch(e){ $("auth-status").textContent = "sign-in error: "+e.message; }
+  // OAuth popup (opened from the embedded builder): the key is now in shared localStorage —
+  // close and let the opener finish via its storage listener.
+  if(window.name==="ngpt_signin" && window.opener && getKey()){ try{ window.close(); }catch(_){} return; }
   renderAuth();
   migrateLegacy();
   renderAppsBtn();
