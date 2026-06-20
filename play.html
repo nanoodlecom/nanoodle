@@ -104,6 +104,23 @@
   .empty-card h2{ font-size:1.15rem; margin:0 0 .4rem; }
   .ghost-link{ display:inline-block; margin-top:.8rem; }
 
+  /* ---------- model picker (ported from the editor) ---------- */
+  #mpickback{ position:fixed; inset:0; z-index:75; background:#0008; display:none; }   /* above bar(70) + firstrun(60) */
+  #mpickback.show{ display:block; }
+  #mpick{ position:fixed; top:8vh; left:50%; transform:translateX(-50%); z-index:80; display:none; flex-direction:column;
+          width:min(640px,94vw); max-height:80vh; background:var(--panel); border:1px solid var(--line);
+          border-radius:.7rem; box-shadow:0 24px 80px #000a; overflow:hidden; }
+  #mpick.open{ display:flex; }
+  #mpick .mphead{ display:flex; align-items:center; gap:.5rem; padding:.6rem .75rem; border-bottom:1px solid var(--line); }
+  #mpicksearch{ margin:.6rem .75rem .25rem; }
+  #mpicklist{ overflow:auto; padding:.4rem .55rem .65rem; display:flex; flex-direction:column; gap:.1rem; }
+  #mpicklist button{ display:flex; justify-content:space-between; gap:1rem; width:100%; text-align:left; border:0;
+          background:none; color:var(--ink); padding:.45rem .55rem; border-radius:.45rem; cursor:pointer; font:inherit; }
+  #mpicklist button:hover{ background:var(--panel2); }
+  #mpicklist button.sel{ background:var(--accent-soft); font-weight:600; }
+  #mpicklist .mname{ min-width:0; word-break:break-all; }
+  #mpicklist .price{ opacity:.6; white-space:nowrap; font-family:ui-monospace,monospace; font-size:.74rem; }
+
   #toast{ position:fixed; left:50%; bottom:1.1rem; transform:translateX(-50%);
           background:var(--panel); border:1px solid var(--accent-line); color:var(--ink);
           padding:.55rem .9rem; border-radius:.6rem; font-size:.82rem; max-width:80ch;
@@ -157,6 +174,7 @@
   <div class="cust-row">
     <span class="cust-label">✨ Customize this app</span>
     <input id="goal" placeholder="e.g. “warm sunrise theme, big rounded inputs, friendlier copy”" />
+    <button id="modelpick" class="ghost" title="Choose the model that writes your app changes">✨ model ▾</button>
     <button id="apply" class="primary">✦ Apply</button>
     <button id="undo" class="ghost" disabled>↶ undo</button>
   </div>
@@ -166,6 +184,15 @@
 </div>
 
 <div id="toast"></div>
+
+<!-- model picker (ported from the editor's shared picker) — choose the LLM that writes app changes -->
+<div id="mpickback"></div>
+<div id="mpick">
+  <div class="mphead"><b id="mpicktitle">Model</b> <span id="mpickcount" class="dim"></span>
+    <span class="grow"></span><button id="mpickclose" class="link">✕</button></div>
+  <input id="mpicksearch" placeholder="filter the full list, or type an exact id + Enter…" autocomplete="off" />
+  <div id="mpicklist"></div>
+</div>
 
 <script type="module">
 import { buildEnvironment, generateDiff, smartapply, parseDiffPerFile, callLlmForApply, setEnv }
@@ -177,12 +204,19 @@ import { buildEnvironment, generateDiff, smartapply, parseDiffPerFile, callLlmFo
    ====================================================================== */
 const $ = (id) => document.getElementById(id);
 const NANOGPT = "https://nano-gpt.com";
-const DEFAULT_MODEL = "xiaomi/mimo-v2.5-pro-ultraspeed"; // diff model
-const APPLY_DEFAULT = "xiaomi/mimo-v2.5-pro-ultraspeed"; // smartapply (fast, mechanical)
+const DEFAULT_MODEL = "xiaomi/mimo-v2.5-pro-ultraspeed";      // writes the changes (user-selectable)
+const APPLY_DEFAULT = "moonshotai/kimi-k2.7-code-highspeed";  // applies the diff (fast, mechanical)
 const LS_KEY = "noodle_app_state";   // {v,graph,files,versions,curVer}
 const ACCENT = "#7c8cff";
 
-let MODEL = localStorage.getItem("ngpt_model") || DEFAULT_MODEL;
+// friendlier names for the speed-tuned defaults; any other picked model shows its short id
+const FRIENDLY_MODEL = {
+  "xiaomi/mimo-v2.5-pro-ultraspeed": "Ultraspeed (fast)",
+  "moonshotai/kimi-k2.7-code-highspeed": "Kimi high-speed",
+};
+const friendlyName = (id)=> FRIENDLY_MODEL[id] || (id && id.includes("/") ? id.split("/").pop() : id) || "pick a model…";
+
+let MODEL = localStorage.getItem("ngpt_app_model") || DEFAULT_MODEL;
 let APPLY = localStorage.getItem("ngpt_apply_model") || APPLY_DEFAULT;
 
 // escape exactly like index.html's esc() — used for every graph/user string put into HTML
@@ -1082,6 +1116,53 @@ addEventListener("message", async (e) => {
 });
 
 /* ======================================================================
+   MODEL PICKER — the same searchable popover the editor uses, scoped to
+   chat models, choosing the LLM that WRITES app changes (the generate step).
+   ====================================================================== */
+let chatCatalog = null;
+async function loadChatCatalog(){
+  if(chatCatalog) return chatCatalog;
+  const headers = {}; const k = getKey(); if(k) headers.Authorization = "Bearer " + k;
+  let raw = [];
+  try{ raw = (await (await fetch(NANOGPT + "/api/v1/models?detailed=true", { headers })).json()).data || []; }
+  catch(_){ /* offline — exact ids still typeable */ }
+  const list = raw.map(m=>{ const p = m.pricing || {};
+    return { id:m.id, name:m.name||m.id, created:m.created,
+      price: p.prompt!=null ? "$"+(+p.prompt).toFixed(2)+"/$"+(+p.completion).toFixed(2)+" ·1M" : "" }; })
+    .filter(m=>m.id);
+  list.sort((a,b)=> (b.created||0)-(a.created||0));   // newest first
+  chatCatalog = list; return list;
+}
+let picker = null;
+function renderModelBtn(){ const b = $("modelpick"); if(b) b.textContent = "✨ " + friendlyName(MODEL) + " ▾"; }
+function setModel(id){ MODEL = id; try{ localStorage.setItem("ngpt_app_model", id); }catch(_){} renderModelBtn(); }
+function openModelPicker(){
+  picker = { current: MODEL };
+  $("mpicktitle").textContent = "Model for app changes";
+  $("mpick").classList.add("open"); $("mpickback").classList.add("show");
+  $("mpicksearch").value = ""; $("mpicklist").innerHTML = "<div class='dim' style='padding:.6rem'>loading the full list…</div>";
+  $("mpicksearch").focus();
+  loadChatCatalog().then(renderPicker);
+}
+function closePicker(){ $("mpick").classList.remove("open"); $("mpickback").classList.remove("show"); picker = null; }
+function renderPicker(){
+  if(!picker) return;
+  const q = $("mpicksearch").value.trim().toLowerCase();
+  const list = chatCatalog || [];
+  const matches = q ? list.filter(m=> m.id.toLowerCase().includes(q) || m.name.toLowerCase().includes(q)) : list;
+  $("mpickcount").textContent = matches.length + " model" + (matches.length===1?"":"s") + (q?"":" · newest first");
+  const frag = document.createDocumentFragment();
+  for(const m of matches.slice(0,400)){
+    const b = document.createElement("button");
+    if(m.id===picker.current) b.className = "sel";
+    b.innerHTML = '<span class="mname">'+esc(m.id)+'</span><span class="price">'+esc(m.price)+'</span>';
+    b.onclick = ()=>{ setModel(m.id); closePicker(); };
+    frag.appendChild(b);
+  }
+  $("mpicklist").replaceChildren(frag);
+}
+
+/* ======================================================================
    CUSTOMIZE LOOP (gptdiff): goal -> generateDiff -> guard -> smartapply
    -> push version -> re-render. The CONTRACT keeps the mount-point ids and
    build markers intact so the engine can never be broken by a diff.
@@ -1409,6 +1490,17 @@ $("apply").onclick = applyCustomize;
 $("goal").addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ e.preventDefault(); if(!busy) applyCustomize(); } });
 $("undo").onclick = () => { if(APP_STATE.curVer > 0) selectVersion(APP_STATE.curVer - 1); };
 $("fr-skip").onclick = exitFirstRun;                          // "skip — use the default app"
+
+// model picker wiring
+renderModelBtn();
+$("modelpick").onclick = openModelPicker;
+$("mpickclose").onclick = closePicker;
+$("mpickback").onclick = closePicker;
+$("mpicksearch").addEventListener("input", renderPicker);
+$("mpicksearch").addEventListener("keydown", (e)=>{
+  if(e.key==="Enter"){ const v=$("mpicksearch").value.trim(); if(v){ setModel(v); closePicker(); } }
+  else if(e.key==="Escape") closePicker();
+});
 
 $("signin").addEventListener("click",(e)=>{ e.preventDefault(); signIn().catch(err=>$("auth-status").textContent="sign-in error: "+err.message); });
 $("pastebtn").addEventListener("click",()=>{ $("key").style.display="flex"; $("keyinput").focus(); });
