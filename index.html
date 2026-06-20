@@ -400,7 +400,7 @@ function refreshAudioParams(n){
 function audioBody(n, promptLabel, ph){
   return `${modelFieldHTML(n)}
     <div data-params></div>
-    <div><label>${promptLabel} (used if no input wired)</label><textarea data-f="prompt" placeholder="${esc(ph)}">${esc(n.fields.prompt||"")}</textarea></div>
+    <div><label>${promptLabel}</label><textarea data-f="prompt" placeholder="${esc(ph)}">${esc(n.fields.prompt||"")}</textarea></div>
     <details class="adv"><summary>advanced params (JSON)</summary>
       <textarea data-f="extraJson" style="min-height:34px" placeholder='{"any_extra_key": 123}'>${esc(n.fields.extraJson||"")}</textarea></details>`;
 }
@@ -503,7 +503,7 @@ const NODE_TYPES = {
     body:(n)=>`
       ${modelFieldHTML(n)}
       <div><label>system (optional)</label><textarea data-f="system" style="min-height:40px" placeholder="you are a helpful…">${esc(n.fields.system||"")}</textarea></div>
-      <div><label>prompt (used if no input wired)</label><textarea data-f="prompt" placeholder="ask something…">${esc(n.fields.prompt||"")}</textarea></div>`,
+      <div><label>prompt</label><textarea data-f="prompt" placeholder="ask something…">${esc(n.fields.prompt||"")}</textarea></div>`,
     async run(n, inp, ctx){
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       if(!prompt) throw new Error("no prompt");
@@ -522,7 +522,7 @@ const NODE_TYPES = {
     body:(n)=>`
       ${modelFieldHTML(n)}
       <div><label>size</label><select data-f="size">${optsHTML(SIZES, n.fields.size||SIZES[0][0])}</select></div>
-      <div><label>prompt (used if no input wired)</label><textarea data-f="prompt" placeholder="a red panda astronaut…">${esc(n.fields.prompt||"")}</textarea></div>`,
+      <div><label>prompt</label><textarea data-f="prompt" placeholder="a red panda astronaut…">${esc(n.fields.prompt||"")}</textarea></div>`,
     async run(n, inp, ctx){
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       if(!prompt) throw new Error("no prompt");
@@ -538,7 +538,7 @@ const NODE_TYPES = {
     body:(n)=>`
       ${modelFieldHTML(n)}
       <div><label>size</label><select data-f="size">${optsHTML(SIZES, n.fields.size||SIZES[0][0])}</select></div>
-      <div><label>edit instruction (used if no input wired)</label><textarea data-f="prompt" placeholder="make it night-time, add neon…">${esc(n.fields.prompt||"")}</textarea></div>`,
+      <div><label>edit instruction</label><textarea data-f="prompt" placeholder="make it night-time, add neon…">${esc(n.fields.prompt||"")}</textarea></div>`,
     async run(n, inp, ctx){
       if(!inp.image) throw new Error("no image input");
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
@@ -577,7 +577,7 @@ const NODE_TYPES = {
         <div><label>duration</label><select data-f="duration">${optsHTML([["5","5 sec"],["10","10 sec"]], n.fields.duration||"5")}</select></div>
         <div><label>aspect</label><select data-f="aspect">${optsHTML([["16:9","16:9"],["9:16","9:16"],["1:1","1:1"]], n.fields.aspect||"16:9")}</select></div>
       </div>
-      <div><label>prompt (used if no input wired)</label><textarea data-f="prompt" placeholder="a drone shot over neon Tokyo at night…">${esc(n.fields.prompt||"")}</textarea></div>`,
+      <div><label>prompt</label><textarea data-f="prompt" placeholder="a drone shot over neon Tokyo at night…">${esc(n.fields.prompt||"")}</textarea></div>`,
     async run(n, inp, ctx){
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       if(!prompt) throw new Error("no prompt");
