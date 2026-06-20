@@ -840,21 +840,40 @@ function setNodeProgress(n, msg){
   r.classList.add("show"); r.innerHTML = `<span class="spin"></span> ${esc(msg)}`;
 }
 function openUrl(url){ window.open(url, "_blank", "noopener"); }
+async function downloadUrl(url, filename){
+  try{
+    let href = url;
+    if(!/^(data:|blob:)/.test(url)){                    // remote URL → fetch the bytes so download works cross-origin
+      const b = await (await fetch(url)).blob();
+      href = URL.createObjectURL(b);
+    }
+    const a = document.createElement("a"); a.href=href; a.download=filename; a.click();
+    if(href!==url) setTimeout(()=> URL.revokeObjectURL(href), 4000);
+  }catch{ openUrl(url); }                                // fallback: open in a new tab
+}
+async function copyText(text, btn){
+  try{ await navigator.clipboard.writeText(text ?? ""); if(btn){ const o=btn.textContent; btn.textContent="✓ copied"; setTimeout(()=> btn.textContent=o, 1200); } }
+  catch{ flash("copy failed — clipboard blocked"); }
+}
 function showResult(n){
   const t = NODE_TYPES[n.type], r = n.el.querySelector(".result");
   if(t.preview==="none"){ r.classList.remove("show"); r.innerHTML=""; return; }
   r.classList.add("show");
   if(t.preview==="image" && n.out.image){
     r.innerHTML = `<img src="${n.out.image}" alt="output"/><div class="acts"><button data-dl>⬇ save</button></div>`;
-    r.querySelector("[data-dl]").onclick = ()=>{ const a=document.createElement("a"); a.href=n.out.image; a.download=`noodle-${n.id}.png`; a.click(); };
+    r.querySelector("[data-dl]").onclick = ()=> downloadUrl(n.out.image, `noodle-${n.id}.png`);
   } else if(t.preview==="video" && n.out.video){
-    r.innerHTML = `<video src="${n.out.video}" controls loop muted playsinline></video><div class="acts"><button data-open>↗ open</button></div>`;
+    r.innerHTML = `<video src="${n.out.video}" controls loop muted playsinline></video><div class="acts"><button data-dl>⬇ save</button><button data-open>↗ open</button></div>`;
+    r.querySelector("[data-dl]").onclick   = ()=> downloadUrl(n.out.video, `noodle-${n.id}.mp4`);
     r.querySelector("[data-open]").onclick = ()=> openUrl(n.out.video);
   } else if(t.preview==="audio" && n.out.audio){
-    r.innerHTML = `<audio src="${n.out.audio}" controls></audio><div class="acts"><button data-open>↗ open</button></div>`;
+    const ext = (n.fields.response_format || "mp3").toLowerCase();
+    r.innerHTML = `<audio src="${n.out.audio}" controls></audio><div class="acts"><button data-dl>⬇ save</button><button data-open>↗ open</button></div>`;
+    r.querySelector("[data-dl]").onclick   = ()=> downloadUrl(n.out.audio, `noodle-${n.id}.${ext}`);
     r.querySelector("[data-open]").onclick = ()=> openUrl(n.out.audio);
   } else {
-    r.innerHTML = `<div class="rtext">${esc(n.out.text ?? "")}</div>`;
+    r.innerHTML = `<div class="rtext">${esc(n.out.text ?? "")}</div><div class="acts"><button data-copy>⧉ copy</button></div>`;
+    r.querySelector("[data-copy]").onclick = (e)=> copyText(n.out.text, e.currentTarget);
   }
 }
 
