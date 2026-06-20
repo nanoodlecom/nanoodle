@@ -101,6 +101,8 @@
   .port.filled{ box-shadow:0 0 0 3px #ffffff22 }
   /* inline ports: a wirable socket sitting on the left edge next to a text field */
   .body .fieldport{ position:absolute; left:-1.1rem; top:0; z-index:3 }
+  /* a field whose port is wired is driven by the connection — lock + dim it */
+  .body textarea.wired{ opacity:.4; border-style:dashed; cursor:not-allowed; color:var(--dim) }
   /* magnetism: every valid destination glows, the closest one grabs the wire */
   .port.compatible{ transform:scale(1.25); box-shadow:0 0 0 4px #ffffff26; animation:portpulse 1.1s ease-in-out infinite }
   .port.snap{ transform:scale(1.7); box-shadow:0 0 0 5px #ffffff66, 0 0 12px #fff6; animation:none }
@@ -822,9 +824,14 @@ function redraw(){
 function removeLink(id){ graph.links = graph.links.filter(l=>l.id!==id); redraw(); refreshPortFills(); save(); }
 function refreshPortFills(){
   document.querySelectorAll(".port").forEach(p=> p.classList.remove("filled"));
+  document.querySelectorAll("textarea.wired").forEach(ta=>{ ta.classList.remove("wired"); ta.disabled=false; });
   for(const l of graph.links){
     document.querySelector(`.port[data-node="${l.to.node}"][data-port="${l.to.port}"][data-dir="in"]`)?.classList.add("filled");
     document.querySelector(`.port[data-node="${l.from.node}"][data-port="${l.from.port}"][data-dir="out"]`)?.classList.add("filled");
+    // a wired text field is driven by the connection — lock its textarea
+    const fp = document.querySelector(`.fieldport[data-node="${l.to.node}"][data-port="${l.to.port}"]`);
+    const ta = fp?.parentElement.querySelector("textarea[data-f],textarea[data-pf]");
+    if(ta){ ta.classList.add("wired"); ta.disabled=true; }
   }
 }
 
