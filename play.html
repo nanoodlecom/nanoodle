@@ -303,7 +303,7 @@ window.NoodleApp = (function () {
     return fetch(url, Object.assign({}, opts, { headers, signal }));
   }
   // ask the parent to make the call; get back a minimal fetch-Response shim.
-  // `signal` lets Stop reject the pending call locally so the lane halts at once
+  // the signal arg lets Stop reject the pending call locally so the lane halts at once
   // (the parent's in-flight request may finish, but we ignore its result).
   function proxyFetch(url, opts, signal){
     const id = (proxyFetch._n = (proxyFetch._n||0)+1);
@@ -645,34 +645,47 @@ window.NoodleApp = (function () {
     if(opts.onStart) opts.onStart(r.order.slice());
     r.cyclic.forEach(id=> onStatus && onStatus(id, "error", "cycle detected"));
     graph.nodes.forEach(n=>{ n.out = {}; });           // fresh run
-    for(const id of r.order){
-      if(runAborted()) throw abortError();             // Stop pressed — don't start dependent steps
-      const n = byId(id); if(!n) continue;
-      const t = NODE_TYPES[n.type], inp = {};
-      for(const port of t.inputs){
-        const l = graph.links.find(x=> x.to.node===id && x.to.port===port.name);
-        if(l){ const src = byId(l.from.node); inp[port.name] = src && src.out ? src.out[l.from.port] : undefined; }
-      }
-      // a wired field overrides its typed value (n.fields[field]); declared ports handled above
-      const fieldOverrides = {};
-      for(const l of graph.links){
-        if(l.to.node!==id || t.inputs.some(p=>p.name===l.to.port)) continue;
-        const src = byId(l.from.node);
-        const v = src && src.out ? src.out[l.from.port] : undefined;
-        if(v!=null) fieldOverrides[l.to.port] = v;
-      }
-      const rn = Object.keys(fieldOverrides).length ? { ...n, fields:{...n.fields, ...fieldOverrides} } : n;
-      onStatus && onStatus(id, "run", "running…");
-      try{
-        n.out = await t.run(rn, inp, CTX, (msg)=> onStatus && onStatus(id, "run", msg)) || {};
-        onStatus && onStatus(id, "done", "done");
-        onResult && onResult(n);
-      }
-      // editor parity (runGroup): isolate per-node failures — mark error and keep going so
-      // independent flows / other sinks still produce output. Do NOT rethrow.
-      // Exception: a Stop-triggered abort halts the whole lane (propagate it).
-      catch(err){ if(isAbort(err)) throw err; onStatus && onStatus(id, "error", err.message); }
+    // Each node runs as soon as its OWN inputs are ready — siblings that share a
+    // parent (a→b, a→c) run concurrently instead of serializing down topo order.
+    const done = {};                                   // id → promise, keyed so dependents can await their inputs
+    const depsOf = (id)=>{                              // upstream node ids feeding this node (within the run set)
+      const s = new Set();
+      for(const l of graph.links) if(l.to.node===id && ids.has(l.from.node)) s.add(l.from.node);
+      return [...s];
+    };
+    for(const id of r.order){                           // topo order → every dep's promise exists before we read it
+      const deps = depsOf(id);
+      done[id] = (async ()=>{
+        await Promise.all(deps.map(d=> done[d]));        // wait on this node's inputs only, not the whole lane
+        if(runAborted()) throw abortError();             // Stop pressed — don't start dependent steps
+        const n = byId(id); if(!n) return;
+        const t = NODE_TYPES[n.type], inp = {};
+        for(const port of t.inputs){
+          const l = graph.links.find(x=> x.to.node===id && x.to.port===port.name);
+          if(l){ const src = byId(l.from.node); inp[port.name] = src && src.out ? src.out[l.from.port] : undefined; }
+        }
+        // a wired field overrides its typed value (n.fields[field]); declared ports handled above
+        const fieldOverrides = {};
+        for(const l of graph.links){
+          if(l.to.node!==id || t.inputs.some(p=>p.name===l.to.port)) continue;
+          const src = byId(l.from.node);
+          const v = src && src.out ? src.out[l.from.port] : undefined;
+          if(v!=null) fieldOverrides[l.to.port] = v;
+        }
+        const rn = Object.keys(fieldOverrides).length ? { ...n, fields:{...n.fields, ...fieldOverrides} } : n;
+        onStatus && onStatus(id, "run", "running…");
+        try{
+          n.out = await t.run(rn, inp, CTX, (msg)=> onStatus && onStatus(id, "run", msg)) || {};
+          onStatus && onStatus(id, "done", "done");
+          onResult && onResult(n);
+        }
+        // editor parity (runGroup): isolate per-node failures — mark error and keep going so
+        // independent flows / other sinks still produce output. Do NOT rethrow.
+        // Exception: a Stop-triggered abort halts the whole lane (propagate it).
+        catch(err){ if(isAbort(err)) throw err; onStatus && onStatus(id, "error", err.message); }
+      })();
     }
+    await Promise.all(r.order.map(id=> done[id]));       // lane finishes when every node has settled
   }
 
   /* =====================================================================
@@ -1265,7 +1278,7 @@ function bundle(files){
 
   // <!-- include-config: graph.json --> -> window.NOODLE_GRAPH = <json>
   html = html.replace(/<!--\s*include-config:\s*([^>]+?)\s*-->/g, () => {
-    const json = JSON.stringify(APP_STATE.graph || { nodes:[], links:[] })
+    const json = JSON.stringify(shareableGraph(APP_STATE.graph))
       .replace(/</g, "\\u003c").replace(/>/g, "\\u003e")
       .replace(/[\u2028\u2029]/g, m => m === "\u2028" ? "\\u2028" : "\\u2029");
     return "<script>window.NOODLE_GRAPH = " + json + ";<\/script>";
@@ -1647,10 +1660,17 @@ function renderAuth(){
 /* ======================================================================
    SHARE / EXPORT / OPEN-IN-EDITOR / FULLSCREEN
    ====================================================================== */
+// Uploaded image inputs are the sharer's own data — blank them out of any graph
+// that leaves this machine (share links, exported HTML). Local sessions keep them.
+function shareableGraph(g){
+  g = g || { nodes:[], links:[] };
+  return { ...g, nodes:(g.nodes||[]).map(n => n.type==="upload" ? {...n, fields:{...(n.fields||{}), image:""}} : n) };
+}
+
 // SHARE: pack {v:1, graph, files} -> gzip -> b64url -> #a= ; copy + toast. NO key inside.
 async function doShare(){
   try{
-    const json = JSON.stringify({ v:1, graph:APP_STATE.graph, files:APP_STATE.files });
+    const json = JSON.stringify({ v:1, graph:shareableGraph(APP_STATE.graph), files:APP_STATE.files });
     const packed = await gzip(json).catch(()=>null);
     const hash = packed ? "#a="+bytesToB64url(packed)
                         : "#a=u"+bytesToB64url(new TextEncoder().encode(json)); // 'u' = uncompressed fallback
