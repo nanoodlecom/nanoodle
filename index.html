@@ -250,7 +250,7 @@ const IMG_ENDPOINT  = `${NANOGPT}/v1/images/generations`;
 const CHAT_ENDPOINT = `${NANOGPT}/api/v1/chat/completions`;
 const $ = (id) => document.getElementById(id);
 const clamp = (v,a,b)=> Math.max(a, Math.min(b, v));
-const esc = (s)=> String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const esc = (s)=> String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 /* ======================================================================
    MODEL CATALOGS  (the FULL live lists, fetched from NanoGPT + cached)
@@ -810,7 +810,7 @@ function mountUpload(n){
   const cambox = el.querySelector("[data-cambox]");
   const video = el.querySelector("[data-upvid]");
   let stream = null;
-  const setImage = (url)=>{ n.fields.image = url; prev.innerHTML = `<img src="${url}" alt="image"/>`; save(); };
+  const setImage = (url)=>{ n.fields.image = url; prev.innerHTML = `<img src="${esc(url)}" alt="image"/>`; save(); };
   const stopCam = ()=>{ if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } if(video) video.srcObject=null; cambox.hidden=true; };
   n._stopCam = stopCam;                                    // so removeNode can release the camera
   el.querySelectorAll("[data-up]").forEach(b=>{
@@ -881,15 +881,15 @@ function showResult(n){
   if(t.preview==="none"){ r.classList.remove("show"); r.innerHTML=""; return; }
   r.classList.add("show");
   if(t.preview==="image" && n.out.image){
-    r.innerHTML = `<img src="${n.out.image}" alt="output"/><div class="acts"><button data-dl>⬇ save</button></div>`;
+    r.innerHTML = `<img src="${esc(n.out.image)}" alt="output"/><div class="acts"><button data-dl>⬇ save</button></div>`;
     r.querySelector("[data-dl]").onclick = ()=> downloadUrl(n.out.image, `noodle-${n.id}.png`);
   } else if(t.preview==="video" && n.out.video){
-    r.innerHTML = `<video src="${n.out.video}" controls loop muted playsinline></video><div class="acts"><button data-dl>⬇ save</button><button data-open>↗ open</button></div>`;
+    r.innerHTML = `<video src="${esc(n.out.video)}" controls loop muted playsinline></video><div class="acts"><button data-dl>⬇ save</button><button data-open>↗ open</button></div>`;
     r.querySelector("[data-dl]").onclick   = ()=> downloadUrl(n.out.video, `noodle-${n.id}.mp4`);
     r.querySelector("[data-open]").onclick = ()=> openUrl(n.out.video);
   } else if(t.preview==="audio" && n.out.audio){
     const ext = (n.fields.response_format || "mp3").toLowerCase();
-    r.innerHTML = `<audio src="${n.out.audio}" controls></audio><div class="acts"><button data-dl>⬇ save</button><button data-open>↗ open</button></div>`;
+    r.innerHTML = `<audio src="${esc(n.out.audio)}" controls></audio><div class="acts"><button data-dl>⬇ save</button><button data-open>↗ open</button></div>`;
     r.querySelector("[data-dl]").onclick   = ()=> downloadUrl(n.out.audio, `noodle-${n.id}.${ext}`);
     r.querySelector("[data-open]").onclick = ()=> openUrl(n.out.audio);
   } else {

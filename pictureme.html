@@ -678,7 +678,7 @@ async function genEdit(prompt, model, size, imageDataUrl){
   const exact = typeof j.cost==="number" && j.cost>0;
   return { url, cost: exact? j.cost : 0.02, exact, balance: typeof j.remainingBalance==="number"? j.remainingBalance : null };
 }
-const esc = (s)=> String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const esc = (s)=> String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function mkBtn(label, fn){ const b=document.createElement("button"); b.textContent=label; b.onclick=fn; return b; }
 function tile(style){
   const el=document.createElement("div"); el.className="tile";
@@ -696,7 +696,7 @@ async function renderInto(el, style, job, fresh){
   const fullPrompt = `Reimagine the person in this photo as ${style.prompt}. Keep their face, identity, hairstyle and pose clearly recognizable. Head-and-shoulders portrait. No text, no watermark, no caption.${fresh?" Give a fresh, different take.":""}`;
   try{
     const img = await genEdit(fullPrompt, job.im, job.size, job.imageData);
-    wrap.innerHTML = `<img alt="${esc(style.name)}" src="${img.url}">`;
+    wrap.innerHTML = `<img alt="${esc(style.name)}" src="${esc(img.url)}">`;
     wrap.querySelector("img").onclick = ()=> openZoom(img.url, style);
     stats.count++; stats.cost+=img.cost; if(!img.exact) stats.exact=false; if(img.balance!=null) stats.balance=img.balance; paintMeter();
     acts.append(

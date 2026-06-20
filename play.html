@@ -196,7 +196,7 @@
 
 <script type="module">
 import { buildEnvironment, generateDiff, smartapply, parseDiffPerFile, callLlmForApply, setEnv }
-  from "https://esm.sh/gh/255BITS/gptdiff-js";
+  from "./vendor/gptdiff-js/index.js";  // vendored from github.com/255BITS/gptdiff-js v0.2.0 — self-hosted, no third-party gateway
 
 /* ======================================================================
    SHARED HELPERS — mirror index.html exactly so signing in once works
@@ -213,7 +213,7 @@ let MODEL = localStorage.getItem("ngpt_app_model") || DEFAULT_MODEL;
 let APPLY = localStorage.getItem("ngpt_apply_model") || APPLY_DEFAULT;
 
 // escape exactly like index.html's esc() — used for every graph/user string put into HTML
-const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 // NanoGPT canonicalizes the loopback host to "localhost" so the OAuth redirect returns
 // to the same origin (keeping sessionStorage + the shared ngpt_key intact).
@@ -268,7 +268,7 @@ window.NoodleApp = (function () {
   const CHAT_ENDPOINT = NANOGPT + "/api/v1/chat/completions";
 
   /* ---------- esc (verbatim) ---------- */
-  const esc = (s)=> String(s ?? "").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const esc = (s)=> String(s ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
   /* ---------- SIZES (verbatim) ---------- */
   const SIZES = [["1024x1024","square"],["1024x1536","portrait"],["1536x1024","landscape"],["auto","auto"]];
@@ -1095,6 +1095,15 @@ addEventListener("message", async (e) => {
     try{
       let u; try{ u = new URL(d.url, NANOGPT); }catch(_){ return reply({ error:"bad request url" }); }
       if(u.origin !== NANOGPT) return reply({ error:"blocked: apps may only call nano-gpt.com" });
+      // Path allowlist: the runtime only ever hits these endpoints (across all modalities —
+      // chat/vision, image gen+edit, video submit/poll, audio speech+music+poll). Anything else
+      // (account, billing, balance, keys, settings, subscription, …) is rejected so a malicious
+      // shared app can't burn credits or touch the account with the viewer's key. startsWith for
+      // the *status endpoints because they carry ids/params in the query string.
+      const ALLOW_PATHS = ["/v1/images/generations", "/api/v1/chat/completions", "/api/generate-video", "/api/v1/audio/speech"];
+      const ALLOW_PREFIXES = ["/api/video/status", "/api/tts/status"];
+      const okPath = ALLOW_PATHS.includes(u.pathname) || ALLOW_PREFIXES.some(p=> u.pathname.startsWith(p));
+      if(!okPath) return reply({ error:"blocked: this app endpoint is not permitted" });
       const k = getKey(); if(!k) return reply({ error:"sign in to run this app" });
       const headers = Object.assign({}, d.headers, { Authorization:"Bearer "+k, "x-api-key":k });
       const r = await fetch(u.href, { method:d.method||"GET", headers, body:(d.body!=null?d.body:undefined) });

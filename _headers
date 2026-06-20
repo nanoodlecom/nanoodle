@@ -5,3 +5,16 @@
 # Don't let the service worker get stuck in a stale cache
 /sw.js
   Cache-Control: no-cache
+
+# Security headers for going live.
+# script-src keeps 'unsafe-inline' (every app is one big inline <script> with inline onclick handlers).
+# gptdiff-js is vendored at /vendor/gptdiff-js (self-hosted ESM), so no third-party script origin is needed.
+# connect-src/img-src/media-src allow https://nano-gpt.com (the API) plus blob:/data: used for
+# generated images/audio and download URLs. frame/child/worker blob: cover the sandboxed app iframe.
+# camera=(self) is required (pictureme.html + index.html use getUserMedia).
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://nano-gpt.com; media-src 'self' data: blob: https://nano-gpt.com; connect-src 'self' https://nano-gpt.com; frame-src 'self' blob:; child-src blob:; worker-src 'self' blob:; font-src 'self' data:; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(self), microphone=(), geolocation=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
