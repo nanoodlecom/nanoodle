@@ -173,7 +173,7 @@
     <button id="addbtn">＋ Add node ▾</button>
     <div id="addpop"></div>
   </div>
-  <button id="run" class="primary">▶ Run all</button>
+  <button id="run" class="primary" title="run every flow (Ctrl/⌘+Enter)">▶ Run all</button>
   <button id="share" title="copy a shareable link to this graph">🔗 Share</button>
   <button id="save" title="download this graph as JSON">⭳ Save</button>
   <button id="load" title="open a graph JSON file">⭱ Load</button>
@@ -279,7 +279,9 @@ async function loadCatalog(kind){
   try{ raw = (await (await fetch(`${NANOGPT}${cfg.url}`,{headers})).json()).data || []; }
   catch{ /* offline — leave empty, ids still typeable */ }
   const list = raw.map(cfg.norm).filter(m=>m.id);
-  list.sort((a,b)=> (b.created||0)-(a.created||0) || a.id.localeCompare(b.id));   // newest first
+  // newest first by created; on ties keep the API's native order (curated newest-first) via stable sort —
+  // audio models all share one created timestamp, so this is what actually orders music/speech by recency
+  list.sort((a,b)=> (b.created||0)-(a.created||0));
   catalogs[kind]=list;
   return list;
 }
@@ -927,6 +929,7 @@ editor.addEventListener("wheel", e=>{
 
 // delete selected node with keyboard (when not typing)
 window.addEventListener("keydown", e=>{
+  if((e.ctrlKey||e.metaKey) && e.key==="Enter"){ e.preventDefault(); runAll(); return; }   // run every flow
   if((e.key==="Delete"||e.key==="Backspace") && selected && !/^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName)){
     removeNode(selected.id);
   }
