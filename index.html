@@ -182,7 +182,7 @@
     <div id="addpop"></div>
   </div>
   <button id="run" class="primary" title="run every flow (Ctrl/⌘+Enter)">▶ Run all</button>
-  <button id="share" title="copy a shareable link to this graph">🔗 Share</button>
+  <button id="share" title="Copy a link that loads this exact workflow — paste it to share with anyone">🔗 Copy share link</button>
   <button id="save" title="download this graph as JSON">⭳ Save</button>
   <button id="load" title="open a graph JSON file">⭱ Load</button>
   <input id="loadfile" type="file" accept="application/json,.json" hidden />
@@ -851,10 +851,6 @@ async function downloadUrl(url, filename){
     if(href!==url) setTimeout(()=> URL.revokeObjectURL(href), 4000);
   }catch{ openUrl(url); }                                // fallback: open in a new tab
 }
-async function copyText(text, btn){
-  try{ await navigator.clipboard.writeText(text ?? ""); if(btn){ const o=btn.textContent; btn.textContent="✓ copied"; setTimeout(()=> btn.textContent=o, 1200); } }
-  catch{ flash("copy failed — clipboard blocked"); }
-}
 function showResult(n){
   const t = NODE_TYPES[n.type], r = n.el.querySelector(".result");
   if(t.preview==="none"){ r.classList.remove("show"); r.innerHTML=""; return; }
@@ -873,7 +869,11 @@ function showResult(n){
     r.querySelector("[data-open]").onclick = ()=> openUrl(n.out.audio);
   } else {
     r.innerHTML = `<div class="rtext">${esc(n.out.text ?? "")}</div><div class="acts"><button data-copy>⧉ copy</button></div>`;
-    r.querySelector("[data-copy]").onclick = (e)=> copyText(n.out.text, e.currentTarget);
+    r.querySelector("[data-copy]").onclick = async (e)=>{
+      const b=e.currentTarget, o=b.textContent;
+      b.textContent = await copyText(n.out.text ?? "") ? "✓ copied" : "copy failed";
+      setTimeout(()=> b.textContent=o, 1200);
+    };
   }
 }
 
@@ -1370,7 +1370,9 @@ async function shareUrl(){
   const url = location.origin + location.pathname + location.search + hash;
   history.replaceState({}, "", url);                 // surface it in the address bar too
   const big = url.length > 8000 ? ` (long link, ${(url.length/1024).toFixed(0)}kB)` : "";
-  flash(await copyText(url) ? `share link copied ✓${big}` : `link is in the address bar${big}`);
+  flash(await copyText(url)
+    ? `✓ Share link copied — anyone who opens it gets this exact workflow${big}`
+    : `Share link is in the address bar — copy it to share this workflow${big}`);
 }
 async function loadFromHash(){
   const h = location.hash; let json=null;
