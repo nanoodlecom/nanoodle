@@ -46,6 +46,15 @@
   #addpop .k{ font-size:1.1rem; width:1.4rem; text-align:center }
   #addpop .d{font-size:.74rem; color:var(--dim)}
   #status{font-size:.78rem; color:var(--dim)}
+  #share.ok{ border-color:var(--good); color:var(--good) }
+  /* toast — a clearly-visible transient confirmation */
+  #toast{ position:fixed; top:64px; left:50%; transform:translateX(-50%) translateY(-14px) scale(.98); z-index:80;
+          display:flex; align-items:center; gap:.5rem; max-width:min(92vw,560px);
+          background:var(--panel); border:1px solid var(--good); color:var(--ink);
+          padding:.7rem 1rem; border-radius:.6rem; box-shadow:0 16px 44px #000b; font-size:.9rem; font-weight:600;
+          opacity:0; pointer-events:none; transition:opacity .18s ease, transform .18s ease }
+  #toast.show{ opacity:1; transform:translateX(-50%) translateY(0) scale(1) }
+  #toast.err{ border-color:var(--bad) }
   #cost{font-family:ui-monospace,monospace; font-size:.78rem; color:var(--dim)}
   #cost b{color:var(--ink)}
 
@@ -213,6 +222,8 @@
   <input id="mpicksearch" placeholder="filter the full list, or type an exact id + Enter…" autocomplete="off" />
   <div id="mpicklist"></div>
 </div>
+
+<div id="toast"></div>
 
 <div id="editor">
   <svg id="wires"></svg>
@@ -1230,6 +1241,12 @@ function accrue(j){
   paintCost();
 }
 function flash(msg){ $("status").textContent = msg; setTimeout(renderAuth, 2200); }
+let toastT=null;
+function toast(msg, kind){
+  const t=$("toast"); if(!t) return;
+  t.textContent=msg; t.className = (kind==="err"?"err ":"")+"show";
+  clearTimeout(toastT); toastT=setTimeout(()=> t.classList.remove("show"), 3200);
+}
 
 /* ======================================================================
    ADD-NODE MENU
@@ -1369,10 +1386,14 @@ async function shareUrl(){
   hash = packed ? "#g="+bytesToB64url(packed) : "#j="+bytesToB64url(new TextEncoder().encode(json));
   const url = location.origin + location.pathname + location.search + hash;
   history.replaceState({}, "", url);                 // surface it in the address bar too
-  const big = url.length > 8000 ? ` (long link, ${(url.length/1024).toFixed(0)}kB)` : "";
-  flash(await copyText(url)
-    ? `✓ Share link copied — anyone who opens it gets this exact workflow${big}`
-    : `Share link is in the address bar — copy it to share this workflow${big}`);
+  const big = url.length > 8000 ? ` (${(url.length/1024).toFixed(0)}kB)` : "";
+  const ok = await copyText(url);
+  toast(ok
+    ? `✓ Share link copied! Paste it anywhere — it opens this exact workflow${big}`
+    : `Share link is in the address bar — copy it to share this workflow${big}`, ok?"":"err");
+  const b = $("share");                                   // flip the button itself for unmistakable feedback
+  if(b && ok){ const o=b.textContent; b.textContent="✓ Link copied!"; b.classList.add("ok");
+    setTimeout(()=>{ b.textContent=o; b.classList.remove("ok"); }, 1800); }
 }
 async function loadFromHash(){
   const h = location.hash; let json=null;
