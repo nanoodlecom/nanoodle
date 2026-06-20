@@ -25,7 +25,8 @@
   /* ---------- top bar ---------- */
   #bar{ display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;
         padding:.55rem .8rem; border-bottom:1px solid var(--line);
-        background:linear-gradient(180deg,#161a27,#11141f); }
+        background:linear-gradient(180deg,#161a27,#11141f);
+        position:relative; z-index:70; }   /* stays above the first-run overlay (sign-in / Share remain usable) */
   .brand{ font-weight:800; letter-spacing:.02em; }
   .brand .nano{ color:var(--accent); } .brand .ui{ color:var(--dim); font-weight:600; }
   .title-wrap{ max-width:42ch; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
@@ -39,16 +40,34 @@
   #signin{ font-size:.8rem; }
 
   /* ---------- paste-key row ---------- */
-  #key{ display:none; align-items:center; gap:.5rem; padding:.5rem .8rem; border-bottom:1px solid var(--line); background:#11141f; }
+  #key{ display:none; align-items:center; gap:.5rem; padding:.5rem .8rem; border-bottom:1px solid var(--line); background:#11141f; position:relative; z-index:70; }
   #key input{ max-width:420px; flex:0 1 420px; }
   input{ font:inherit; padding:.5rem .65rem; border-radius:.5rem; background:#0b0e18; border:1px solid var(--line); color:var(--ink); }
   input:focus{ outline:none; border-color:var(--accent-line); box-shadow:0 0 0 3px var(--accent-soft); }
 
-  /* ---------- customize box ---------- */
-  #customize{ padding:.6rem .8rem; border-bottom:1px solid var(--line); background:#11141f; }
+  /* ---------- customize composer (docked at the BOTTOM) ---------- */
+  #customize{ padding:.6rem .8rem; border-top:1px solid var(--line); background:#11141f; }
   .cust-row{ display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
   .cust-label{ font-size:.82rem; color:var(--dim); font-weight:600; }
   #goal{ flex:1; min-width:240px; }
+  #fr-head{ display:none; }
+  #fr-skip{ display:none; }
+
+  /* ---------- first run: lead with a centered "describe your app" prompt ----------
+     The same composer floats over the (dim) default app; after the first generate it
+     drops back into its docked place at the bottom. */
+  body.firstrun #customize{ position:fixed; inset:0; z-index:60; border:0; background:rgba(6,8,15,.72);
+        backdrop-filter:blur(4px); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.2rem; }
+  body.firstrun .cust-row{ width:min(720px,88vw); }
+  body.firstrun .cust-label{ display:none; }
+  body.firstrun #goal{ font-size:1.05rem; padding:.7rem .9rem; }
+  body.firstrun #cust-status{ width:min(720px,88vw); text-align:center; }
+  body.firstrun #versions{ display:none; }
+  body.firstrun #undo{ display:none; }
+  body.firstrun #fr-head{ display:block; width:min(720px,88vw); font-size:1.25rem; font-weight:800; margin-bottom:.5rem; }
+  body.firstrun #fr-head .sub{ display:block; font-size:.85rem; font-weight:400; color:var(--dim); margin-top:.25rem; }
+  body.firstrun #fr-skip{ display:inline-block; margin-top:.7rem; font-size:.8rem; color:var(--dim); cursor:pointer; background:none; border:0; }
+  body.firstrun #fr-skip:hover{ color:var(--ink); text-decoration:underline; }
   button.primary{ font:inherit; font-weight:700; padding:.5rem 1rem; border-radius:.5rem; cursor:pointer;
                   background:linear-gradient(180deg,#8b97ff,#6573ef); border:1px solid #8b97ff; color:#0b0e18;
                   box-shadow:0 0 22px #7c8cff33; }
@@ -106,7 +125,6 @@
   <button id="signout" class="link" style="display:none">sign out</button>
 
   <div class="sep"></div>
-  <button id="fullscreen" title="View the app fullscreen">⛶ Fullscreen</button>
   <button id="share" title="Copy a link that loads this exact app — recipients sign in with their own key">🔗 Share</button>
   <button id="export" title="Download this app as one self-contained .html (no key inside)">⭳ Export</button>
   <button id="openeditor" title="Open the underlying workflow in the NaNoodle editor">✎ Open in editor</button>
@@ -119,18 +137,6 @@
   <span class="dim" style="font-size:.78rem">— from <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">nano-gpt.com</a> → Settings → API</span>
 </div>
 
-<!-- CUSTOMIZE box: a goal + Apply that drives the gptdiff loop over index.html + app.css -->
-<div id="customize">
-  <div class="cust-row">
-    <span class="cust-label">✨ Customize this app</span>
-    <input id="goal" placeholder="e.g. “warm sunrise theme, big rounded inputs, friendlier copy”" />
-    <button id="apply" class="primary">✦ Apply</button>
-    <button id="undo" class="ghost" disabled>↶ undo</button>
-  </div>
-  <div id="cust-status" class="dim"></div>
-  <div id="versions" title="Each customize adds a version — click one to view it"></div>
-</div>
-
 <!-- THE APP — sandboxed, key never travels in srcdoc; the parent postMessages it after load -->
 <div id="stage">
   <iframe id="appframe" sandbox="allow-scripts" title="your app"></iframe>
@@ -141,6 +147,22 @@
       <a class="ghost-link" href="index.html">→ Open the editor</a>
     </div>
   </div>
+</div>
+
+<!-- CUSTOMIZE composer: goal + Apply drives the gptdiff loop over index.html + app.css.
+     Docked at the bottom; floats centered as the "describe your app" prompt on first run. -->
+<div id="customize">
+  <div id="fr-head">✨ Turn this workflow into an app
+    <span class="sub">Describe the app you want — layout, theme, copy. You can keep tweaking after.</span></div>
+  <div class="cust-row">
+    <span class="cust-label">✨ Customize this app</span>
+    <input id="goal" placeholder="e.g. “warm sunrise theme, big rounded inputs, friendlier copy”" />
+    <button id="apply" class="primary">✦ Apply</button>
+    <button id="undo" class="ghost" disabled>↶ undo</button>
+  </div>
+  <div id="cust-status" class="dim"></div>
+  <div id="versions" title="Each customize adds a version — click one to view it"></div>
+  <button id="fr-skip">skip — start from the default app</button>
 </div>
 
 <div id="toast"></div>
@@ -1168,6 +1190,7 @@ async function applyCustomize(){
     // merge edited files back; runtime.js/graph.json are never in the map so they survive untouched
     APP_STATE.files = { ...APP_STATE.files, "index.html":updated["index.html"], "app.css":updated["app.css"] };
     pushVersion(APP_STATE.files, goal);
+    exitFirstRun();                 // first generate done → drop the composer back to the bottom
     syncTitleFromFiles();           // keep the bar title in step with any <title>/#app-title rewrite
     renderApp();
     persist();
@@ -1236,7 +1259,7 @@ function persist(){
 }
 
 // install a freshly-loaded {graph, files} into the builder (used by every load path)
-function installApp({ graph, files, versions, curVer }){
+function installApp({ graph, files, versions, curVer, fresh }){
   APP_STATE.graph = graph || { nodes:[], links:[] };
   APP_STATE.files = files && files["index.html"] ? files : defaultFiles(APP_STATE.graph);
   APP_STATE.versions = (versions && versions.length)
@@ -1246,8 +1269,14 @@ function installApp({ graph, files, versions, curVer }){
   $("empty").hidden = true; $("appframe").style.display = "";
   syncTitleFromFiles(); renderVersions(); renderApp(); persist();
   $("undo").disabled = APP_STATE.curVer <= 0;
+  // a brand-new app (straight from the editor, never customized) leads with the prompt
+  if(fresh && APP_STATE.versions.length <= 1) enterFirstRun(); else exitFirstRun();
 }
-function showEmpty(){ $("empty").hidden = false; $("appframe").style.display="none"; $("bar-title").textContent="My NaNoodle app"; }
+function showEmpty(){ exitFirstRun(); $("empty").hidden = false; $("appframe").style.display="none"; $("bar-title").textContent="My NaNoodle app"; }
+
+// first-run: float the customize composer as a centered "describe your app" prompt
+function enterFirstRun(){ document.body.classList.add("firstrun"); setTimeout(()=>{ const g=$("goal"); if(g) g.focus(); }, 30); }
+function exitFirstRun(){ document.body.classList.remove("firstrun"); }
 
 /* ======================================================================
    BUILDER AUTH CHROME — same flow + localStorage keys as index.html.
@@ -1357,7 +1386,7 @@ async function loadFromHash(){
       const json = h.startsWith("#g=") ? await gunzip(b64urlToBytes(h.slice(3)))
                                        : new TextDecoder().decode(b64urlToBytes(h.slice(3)));
       const graph = JSON.parse(json);
-      installApp({ graph, files:defaultFiles(graph) });
+      installApp({ graph, files:defaultFiles(graph), fresh:true });   // straight from the editor → lead with the prompt
       return true;
     }catch(_){ /* fall through */ }
   }
@@ -1367,14 +1396,20 @@ async function loadFromHash(){
 /* ======================================================================
    WIRING + BOOT
    ====================================================================== */
-$("fullscreen").onclick = () => { const f=$("appframe"); const req=f.requestFullscreen||f.webkitRequestFullscreen; if(req){ const p=req.call(f); if(p&&p.catch) p.catch(()=>{}); } };
+const IN_EDITOR = window.parent && window.parent !== window;   // opened as a popup inside the editor
 $("share").onclick = doShare;
 $("export").onclick = doExport;
 $("openeditor").onclick = doOpenEditor;
+if(IN_EDITOR){
+  $("openeditor").style.display = "none";                      // already in the editor — the popup IS the editor
+  // Esc inside the popup → ask the editor to close it (the keydown can't reach the parent)
+  document.addEventListener("keydown", (e)=>{ if(e.key==="Escape"){ try{ parent.postMessage({ type:"__closeapp__" }, "*"); }catch(_){} } });
+}
 
 $("apply").onclick = applyCustomize;
 $("goal").addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ e.preventDefault(); if(!busy) applyCustomize(); } });
 $("undo").onclick = () => { if(APP_STATE.curVer > 0) selectVersion(APP_STATE.curVer - 1); };
+$("fr-skip").onclick = exitFirstRun;                          // "skip — use the default app"
 
 $("signin").addEventListener("click",(e)=>{ e.preventDefault(); signIn().catch(err=>$("auth-status").textContent="sign-in error: "+err.message); });
 $("pastebtn").addEventListener("click",()=>{ $("key").style.display="flex"; $("keyinput").focus(); });
@@ -1392,7 +1427,7 @@ async function boot(){
   if(!loaded){
     try{ const ho = localStorage.getItem("noodle_app_handoff");
       if(ho){ const graph = JSON.parse(ho); localStorage.removeItem("noodle_app_handoff");
-        installApp({ graph, files:defaultFiles(graph) }); loaded = true; } }catch(_){}
+        installApp({ graph, files:defaultFiles(graph), fresh:true }); loaded = true; } }catch(_){}
   }
   // saved builder session
   if(!loaded){

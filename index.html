@@ -47,6 +47,14 @@
   #addpop .d{font-size:.74rem; color:var(--dim)}
   #status{font-size:.78rem; color:var(--dim)}
   #share.ok{ border-color:var(--good); color:var(--good) }
+  /* create-app popup (play.html in a modal iframe over the editor) */
+  #appmodal[hidden]{ display:none }
+  #appmodal{ position:fixed; inset:0; z-index:200; display:flex; padding:min(4vh,2.4rem) min(4vw,2.4rem);
+             background:rgba(4,6,11,.74); backdrop-filter:blur(3px); }
+  #appmodalframe{ margin:auto; width:100%; height:100%; max-width:1180px; border:1px solid var(--line);
+                  border-radius:.8rem; background:var(--bg); box-shadow:0 30px 90px #000a; }
+  #appmodalclose{ position:absolute; top:.7rem; right:.9rem; z-index:2; width:2.1rem; height:2.1rem; border-radius:.55rem;
+                  display:flex; align-items:center; justify-content:center; font-size:1.05rem; }
   /* toast — a clearly-visible transient confirmation */
   #toast{ position:fixed; top:64px; left:50%; transform:translateX(-50%) translateY(-14px) scale(.98); z-index:80;
           display:flex; align-items:center; gap:.5rem; max-width:min(92vw,560px);
@@ -224,6 +232,12 @@
 </div>
 
 <div id="toast"></div>
+
+<!-- Create-app popup: play.html embedded over the editor -->
+<div id="appmodal" hidden>
+  <button id="appmodalclose" title="Close (Esc)">✕</button>
+  <iframe id="appmodalframe" title="Create app" allow="clipboard-write; fullscreen"></iframe>
+</div>
 
 <div id="editor">
   <svg id="wires"></svg>
@@ -1410,14 +1424,22 @@ async function loadFromHash(){
 $("share").onclick = ()=> shareUrl().catch(e=> flash("share failed: "+e.message));
 // Turn this workflow into a standalone app (play.html). Hand off the graph via the
 // existing #g= packing; stash a localStorage copy as a belt-and-suspenders fallback.
+// Open the app builder as a popup over the editor (play.html in a modal iframe), so it
+// feels cohesive instead of a separate tab. Same-origin → it shares the signed-in key.
+function closeAppModal(){ $("appmodal").hidden = true; $("appmodalframe").src = "about:blank"; }
+function openAppModal(hash){ $("appmodalframe").src = "play.html"+hash; $("appmodal").hidden = false; }
 $("makeapp").onclick = async ()=>{
   if(!graph.nodes.length){ flash("add a node first"); return; }
   const json = JSON.stringify(serializeGraph());
   try{ localStorage.setItem("noodle_app_handoff", json); }catch{}
   const packed = await gzip(json).catch(()=>null);
   const hash = packed ? "#g="+bytesToB64url(packed) : "#j="+bytesToB64url(new TextEncoder().encode(json));
-  window.open("play.html"+hash, "_blank");
+  openAppModal(hash);
 };
+$("appmodalclose").onclick = closeAppModal;
+$("appmodal").addEventListener("click", e=>{ if(e.target.id==="appmodal") closeAppModal(); });   // click the dim backdrop
+addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("appmodal").hidden) closeAppModal(); });
+addEventListener("message", e=>{ if(e.source===$("appmodalframe").contentWindow && e.data && e.data.type==="__closeapp__") closeAppModal(); });
 function seed(){
   const a = addNode("text", 60, 80, { text:"a cozy ramen shop on a rainy neon street, cinematic" });
   const b = addNode("image", 360, 60);
