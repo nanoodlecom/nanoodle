@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>NaNoodle UI — a tiny node playground</title>
 <link rel="icon" href="/favicon.ico" sizes="any" />
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
@@ -73,7 +73,11 @@
   #editor{ position:fixed; inset:52px 0 0 0; overflow:hidden; cursor:grab;
            background-color:#0b0d12;
            background-image:radial-gradient(circle, #ffffff0d 1px, transparent 1px);
-           background-size:22px 22px; }
+           background-size:22px 22px;
+           /* own all touch gestures here so the browser never steals a drag/pan/pinch */
+           touch-action:none; -webkit-user-select:none; user-select:none; }
+  /* …but let form fields & scrollable results behave normally under touch */
+  .node textarea, .node input, .node select, .result .rtext{ touch-action:auto; }
   #editor.panning{cursor:grabbing}
   #world{ position:absolute; top:0; left:0; transform-origin:0 0; }
   #wires{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:5; overflow:visible }
@@ -112,7 +116,7 @@
   .col{ display:flex; flex-direction:column; gap:.35rem }
   .prow{ display:flex; align-items:center; gap:.4rem; font-size:.74rem; color:var(--dim) }
   .col.out .prow{ flex-direction:row-reverse }
-  .port{ width:13px; height:13px; border-radius:50%; border:2px solid var(--bg); background:var(--dim);
+  .port{ position:relative; width:13px; height:13px; border-radius:50%; border:2px solid var(--bg); background:var(--dim);
          cursor:crosshair; flex:0 0 auto; transition:transform .1s }
   .col.in{ margin-left:-7px } .col.out{ margin-right:-7px }
   .port:hover{ transform:scale(1.35) }
@@ -191,6 +195,42 @@
               padding:.35rem .5rem; font-size:.8rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
   .modelpick:hover{ border-color:var(--accent) }
   .mprice{ font-family:ui-monospace,monospace; font-size:.68rem; color:var(--dim); margin-top:.2rem; min-height:.8rem }
+
+  /* ---------- overflow ("⋯ More") menu — desktop keeps actions inline, mobile collapses them here ---------- */
+  #moremenu{ position:relative; display:none }
+  #morepop{ position:absolute; top:110%; right:0; background:var(--panel); border:1px solid var(--line);
+            border-radius:.6rem; padding:.35rem; display:none; flex-direction:column; gap:.1rem; min-width:200px;
+            box-shadow:0 12px 40px #0008; z-index:40 }
+  #morepop.open{ display:flex }
+  #morepop button{ text-align:left; border:none; background:none; width:100%; padding:.6rem .65rem; border-radius:.45rem; font-size:.92rem }
+  #morepop button.primary{ background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#0b0d12 }
+  #morepop button:hover{ background:var(--panel2) }
+  #morepop #status{ padding:.45rem .65rem; font-size:.76rem; color:var(--dim) }
+  #morepop .mdiv{ height:1px; background:var(--line); margin:.25rem .2rem }
+
+  /* ---------- phone layout: collapse the crowded toolbar, never scroll sideways ---------- */
+  @media (max-width:640px){
+    #top{ gap:.45rem; padding:0 max(.55rem,env(safe-area-inset-left)) 0 max(.55rem,env(safe-area-inset-right)) }
+    #top .logo{ font-size:1.05rem; margin-right:.1rem }
+    #addbtn .lbl{ display:none }          /* ＋ ▾ only — the popover lists every node anyway */
+    #moremenu{ display:block }            /* reveal the overflow trigger */
+    #top .sep{ display:none }
+    #cost{ display:none }                 /* balance is non-essential chrome on a phone */
+  }
+
+  /* ---------- touch devices: finger-sized hit targets everywhere ---------- */
+  @media (pointer:coarse){
+    #top button{ min-height:42px }
+    #addpop button, #morepop button{ min-height:46px }
+    /* fatten the wire ports and give each an invisible oversized tap zone */
+    .port{ width:16px; height:16px }
+    .port::after{ content:""; position:absolute; inset:-11px }
+    .col.in{ margin-left:-8px } .col.out{ margin-right:-8px }
+    .body .fieldport{ left:-1.25rem }
+    .node header{ padding:.6rem .6rem }
+    .node header .hbtn{ padding:6px 9px; font-size:1rem }
+    .result .acts button{ padding:.45rem .65rem; font-size:.8rem }
+  }
 </style>
 </head>
 <body>
@@ -198,7 +238,7 @@
 <div id="top">
   <div class="logo"><span class="nano">nano</span>odle</div>
   <div id="addmenu">
-    <button id="addbtn">＋ Add node ▾</button>
+    <button id="addbtn" title="Add a node">＋<span class="lbl"> Add node</span> ▾</button>
     <div id="addpop"></div>
   </div>
   <button id="run" class="primary" title="run every flow (Ctrl/⌘+Enter)">▶ Run</button>
@@ -207,6 +247,10 @@
   <button id="save" title="download this graph as JSON">⭳ Save</button>
   <button id="load" title="open a graph JSON file">⭱ Load</button>
   <input id="loadfile" type="file" accept="application/json,.json" hidden />
+  <div id="moremenu">
+    <button id="morebtn" title="More actions">⋯</button>
+    <div id="morepop"></div>
+  </div>
   <div class="sep"></div>
   <span id="cost"></span>
   <div class="spacer"></div>
@@ -1028,16 +1072,60 @@ function connect(fromNode, fromPort, toNode, toPort){
   redraw(); refreshPortFills(); save();
 }
 
-// pan + zoom on the editor background
+// pan (one finger / drag) + pinch-zoom (two fingers) on the editor background.
+// One unified pointer tracker handles mouse and multi-touch alike, so a phone can
+// drag the canvas with a finger and pinch to zoom — the wheel handler below covers desktop.
+const ZMIN=0.4, ZMAX=1.8;
+const ptrs = new Map();           // pointers that began on empty canvas: id -> {x,y}
+let gest = null;                  // {mode:"pan",sx,sy,px,py} | {mode:"pinch",d0,s0,wx,wy}
+const onBg = (t)=> t===editor || t===world || t===svg;   // nodes/ports run their own handlers
+const edPt = (cx,cy)=>{ const r=editor.getBoundingClientRect(); return {x:cx-r.left, y:cy-r.top}; };
+function seedPinch(){              // anchor the world-point under the two-finger midpoint
+  const p=[...ptrs.values()].slice(0,2);
+  const mid=edPt((p[0].x+p[1].x)/2,(p[0].y+p[1].y)/2);
+  gest={ mode:"pinch", d0:Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y)||1, s0:scale,
+         wx:(mid.x-panX)/scale, wy:(mid.y-panY)/scale };
+}
 editor.addEventListener("pointerdown", e=>{
-  if(e.target!==editor && e.target!==world && e.target!==svg) return;
-  select(null);
-  const sx=e.clientX, sy=e.clientY, px=panX, py=panY;
-  editor.classList.add("panning");
-  const move=(ev)=>{ panX=px+(ev.clientX-sx); panY=py+(ev.clientY-sy); applyWorld(); redraw(); };
-  const up=()=>{ editor.classList.remove("panning"); window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up); };
-  window.addEventListener("pointermove",move); window.addEventListener("pointerup",up);
+  if(!onBg(e.target)) return;
+  try{ editor.setPointerCapture?.(e.pointerId); }catch{}   // capture is best-effort — never let it abort the gesture
+  ptrs.set(e.pointerId, {x:e.clientX, y:e.clientY});
+  if(ptrs.size===1){
+    select(null);
+    gest={ mode:"pan", sx:e.clientX, sy:e.clientY, px:panX, py:panY };
+    editor.classList.add("panning");
+  } else if(ptrs.size===2){
+    editor.classList.remove("panning"); seedPinch();
+  }
 });
+editor.addEventListener("pointermove", e=>{
+  if(!ptrs.has(e.pointerId)) return;
+  ptrs.set(e.pointerId, {x:e.clientX, y:e.clientY});
+  if(gest?.mode==="pan" && ptrs.size===1){
+    panX = gest.px + (e.clientX-gest.sx);
+    panY = gest.py + (e.clientY-gest.sy);
+    applyWorld(); redraw();
+  } else if(gest?.mode==="pinch" && ptrs.size>=2){
+    const p=[...ptrs.values()].slice(0,2);
+    const mid=edPt((p[0].x+p[1].x)/2,(p[0].y+p[1].y)/2);
+    const d=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y);
+    scale = clamp(gest.s0 * (d/gest.d0), ZMIN, ZMAX);
+    panX = mid.x - gest.wx*scale;     // keep that focal world-point pinned under the fingers
+    panY = mid.y - gest.wy*scale;
+    applyWorld(); redraw();
+  }
+});
+function endPtr(e){
+  if(!ptrs.has(e.pointerId)) return;
+  ptrs.delete(e.pointerId);
+  if(ptrs.size>=2){ seedPinch(); }
+  else if(ptrs.size===1){           // pinch → single finger: resume panning without a jump
+    const [p]=[...ptrs.values()];
+    gest={ mode:"pan", sx:p.x, sy:p.y, px:panX, py:panY };
+  } else { gest=null; editor.classList.remove("panning"); }
+}
+editor.addEventListener("pointerup", endPtr);
+editor.addEventListener("pointercancel", endPtr);
 editor.addEventListener("wheel", e=>{
   e.preventDefault();
   const rect=editor.getBoundingClientRect();
@@ -1303,6 +1391,26 @@ $("addbtn").onclick = (e)=>{ e.stopPropagation(); $("addpop").classList.toggle("
 document.addEventListener("click", e=>{ if(!$("addmenu").contains(e.target)) $("addpop").classList.remove("open"); });
 $("run").onclick = runAll;
 
+/* ---------- responsive toolbar: collapse secondary actions into the ⋯ menu on phones ----------
+   Buttons keep their handlers (they're moved, not cloned). On desktop everything sits inline. */
+const RELOC = ["makeapp","share","save","load","signin","pastebtn","signout","status"];  // order shown in the menu
+const mqMobile = matchMedia("(max-width:640px)");
+let topOrder = null;
+function layoutBar(){
+  const pop = $("morepop");
+  if(mqMobile.matches){
+    pop.innerHTML = "";
+    RELOC.forEach((id,i)=>{ if(id==="signin") pop.appendChild(Object.assign(document.createElement("div"),{className:"mdiv"})); pop.appendChild($(id)); });
+  } else {
+    topOrder.forEach(n=> $("top").appendChild(n));      // re-append originals in order → pulls them back out of the menu
+    pop.querySelectorAll(".mdiv").forEach(d=> d.remove());
+  }
+}
+$("morebtn").onclick = (e)=>{ e.stopPropagation(); $("morepop").classList.toggle("open"); };
+$("morepop").addEventListener("click", e=>{ if(e.target.closest("button")) $("morepop").classList.remove("open"); });
+document.addEventListener("click", e=>{ if(!$("moremenu").contains(e.target)) $("morepop").classList.remove("open"); });
+mqMobile.addEventListener("change", layoutBar);
+
 // picker interactions
 $("mpicksearch").addEventListener("input", renderPicker);
 $("mpicksearch").addEventListener("keydown", e=>{
@@ -1527,6 +1635,8 @@ $("signout").onclick = ()=> setKey(null);
    ====================================================================== */
 (async ()=>{
   buildAddMenu();
+  topOrder = [...$("top").childNodes];   // snapshot before any responsive relocation
+  layoutBar();
   applyWorld();
   let restored = false;
   if(location.hash.length > 3) restored = await loadFromHash();   // opened a shared link
