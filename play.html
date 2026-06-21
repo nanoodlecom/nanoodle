@@ -2041,10 +2041,16 @@ function pushVersion(files, goal){
   renderVersions();
 }
 
+// decode HTML entities back to text — the <title> below holds escaped HTML
+// (e.g. "Tom &amp; Jerry"), but we use the title as plain-text data: set via
+// textContent, stored in the library, and re-escaped when rendered in a list.
+function decodeEntities(s){
+  const t = document.createElement("textarea"); t.innerHTML = s; return t.value;
+}
 // pull a title from an app's files (the <title> the customize pass keeps in step)
 function titleFromFiles(files){
   const m = ((files && files["index.html"])||"").match(/<title>([\s\S]*?)<\/title>/i);
-  return (m ? m[1] : "My nanoodle app").trim();
+  return decodeEntities((m ? m[1] : "My nanoodle app").trim());
 }
 // pull the bar title from the live files (after a default build or a customize pass)
 function syncTitleFromFiles(){
