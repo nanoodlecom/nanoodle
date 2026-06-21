@@ -14,9 +14,11 @@ touches_export=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/che
 touches_login=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-login-state\.mjs)$' || true)
 # sw.js decides which shell each route gets — wrong fallback shows the wrong app.
 touches_sw=$(printf '%s\n' "$staged" | grep -E '(^|/)(sw\.js|scripts/check-sw-routing\.mjs)$' || true)
+# play.html defines the workflow-compatibility classifier the edit-workflow round-trip relies on.
+touches_compat=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-workflow-compat\.mjs)$' || true)
 
 # Nothing to check unless an .html file or one of the checkers changed.
-[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && exit 0
+[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && exit 0
 
 if ! command -v node >/dev/null 2>&1; then
   echo "pre-commit: node not found, skipping HTML JS checks" >&2
@@ -50,4 +52,11 @@ fi
 #    /play), including the offline/network-miss fallback.
 if [ -n "$touches_sw" ]; then
   node "$root/scripts/check-sw-routing.mjs"
+fi
+
+# 5) the workflow-compatibility classifier (keep-UI vs needs-port) must hold.
+#    Cheap: no browser, no inference — runs the classifier from play.html over a
+#    table of graph edits in a node:vm sandbox.
+if [ -n "$touches_compat" ]; then
+  node "$root/scripts/check-workflow-compat.mjs"
 fi

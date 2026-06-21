@@ -1512,6 +1512,7 @@ function applyGraphData(d){
 }
 
 const RESUME_KEY = "noodle_resume";  // sessionStorage: the graph, stashed across an OAuth full-page redirect
+const RESUME_APPID_KEY = "noodle_resume_appid";  // and the app id, when editing an existing app's workflow
 let saveT=null;
 function save(){
   clearTimeout(saveT);
@@ -1542,7 +1543,7 @@ function saveFile(){
 function loadFile(file){
   if(!file) return;
   const r = new FileReader();
-  r.onload = ()=>{ try{ applyGraphData(JSON.parse(r.result)); save(); }catch(e){ alert("Couldn’t load that file: "+e.message); } };
+  r.onload = ()=>{ try{ pendingAppId = null; applyGraphData(JSON.parse(r.result)); save(); }catch(e){ alert("Couldn’t load that file: "+e.message); } };
   r.readAsText(file);
 }
 $("save").onclick = saveFile;
@@ -1591,15 +1592,22 @@ async function shareUrl(){
   if(b && ok){ const o=b.textContent; b.textContent="✓ Link copied!"; b.classList.add("ok");
     setTimeout(()=>{ b.textContent=o; b.classList.remove("ok"); }, 1800); }
 }
+// Set when this editor session is editing the workflow of an existing app (carried in
+// via #ga= or the modal's __editflow__ message). "Create app" hands the graph back under
+// this id so the app updates in place instead of spawning a fresh default app.
+let pendingAppId = null;
 async function loadFromHash(){
-  const h = location.hash; let json=null;
+  const h = location.hash; let json=null, ga=false;
   try{
-    if(h.startsWith("#g=")) json = await gunzip(b64urlToBytes(h.slice(3)));
+    if(h.startsWith("#ga=")){ ga=true; const tag=h.slice(4);
+      json = tag[0]==="u" ? new TextDecoder().decode(b64urlToBytes(tag.slice(1))) : await gunzip(b64urlToBytes(tag)); }
+    else if(h.startsWith("#g=")) json = await gunzip(b64urlToBytes(h.slice(3)));
     else if(h.startsWith("#j=")) json = new TextDecoder().decode(b64urlToBytes(h.slice(3)));
   }catch{ /* bad link */ }
   if(!json) return false;
   try{
-    applyGraphData(JSON.parse(json));
+    if(ga){ const spec = JSON.parse(json); pendingAppId = spec.appId || null; applyGraphData(spec.graph); }
+    else { pendingAppId = null; applyGraphData(JSON.parse(json)); }
     history.replaceState({}, "", location.pathname + location.search); // consume the link; edits now win
     save();
     return true;
@@ -1614,16 +1622,34 @@ function closeAppModal(){ $("appmodal").hidden = true; $("appmodalframe").src = 
 function openAppModal(hash){ $("appmodalframe").src = "play.html"+hash; $("appmodal").hidden = false; }
 $("makeapp").onclick = async ()=>{
   if(!graph.nodes.length){ flash("add a node first"); return; }
-  const json = JSON.stringify(serializeGraph());
+  const graphData = serializeGraph();
+  const json = JSON.stringify(graphData);
   try{ localStorage.setItem("noodle_app_handoff", json); }catch{}
-  const packed = await gzip(json).catch(()=>null);
-  const hash = packed ? "#g="+bytesToB64url(packed) : "#j="+bytesToB64url(new TextEncoder().encode(json));
+  let hash;
+  if(pendingAppId){   // editing an existing app's workflow → hand the graph back under its id
+    const payload = JSON.stringify({ v:1, graph:graphData, appId:pendingAppId });
+    const packed = await gzip(payload).catch(()=>null);
+    hash = packed ? "#ga="+bytesToB64url(packed) : "#ga=u"+bytesToB64url(new TextEncoder().encode(payload));
+  }else{
+    const packed = await gzip(json).catch(()=>null);
+    hash = packed ? "#g="+bytesToB64url(packed) : "#j="+bytesToB64url(new TextEncoder().encode(json));
+  }
   openAppModal(hash);
 };
 $("appmodalclose").onclick = closeAppModal;
 $("appmodal").addEventListener("click", e=>{ if(e.target.id==="appmodal") closeAppModal(); });   // click the dim backdrop
 addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("appmodal").hidden) closeAppModal(); });
-addEventListener("message", e=>{ if(e.source===$("appmodalframe").contentWindow && e.data && e.data.type==="__closeapp__") closeAppModal(); });
+addEventListener("message", e=>{
+  if(e.source!==$("appmodalframe").contentWindow || !e.data) return;
+  if(e.data.type==="__closeapp__") closeAppModal();
+  // builder asked to edit the workflow: load that app's graph onto the canvas, remember
+  // its id so the next "Create app" updates it, and drop back to the editor.
+  else if(e.data.type==="__editflow__"){
+    pendingAppId = e.data.appId || null;
+    if(e.data.graph){ try{ applyGraphData(e.data.graph); save(); }catch(_){ /* keep current canvas */ } }
+    closeAppModal();
+  }
+});
 function seed(){
   const a = addNode("text", 60, 80, { text:"a cozy ramen shop on a rainy neon street, cinematic" });
   const b = addNode("image", 360, 60);
@@ -1664,6 +1690,7 @@ async function signIn(){
   // Stash the graph before the full-page redirect (the #g=/#j= hash never survives OAuth,
   // and a debounced autosave may not have fired yet). sessionStorage survives same-tab nav.
   try{ if(graph.nodes && graph.nodes.length) sessionStorage.setItem(RESUME_KEY, JSON.stringify(serializeGraph())); }catch(_){}
+  try{ if(pendingAppId) sessionStorage.setItem(RESUME_APPID_KEY, pendingAppId); else sessionStorage.removeItem(RESUME_APPID_KEY); }catch(_){}
   location.assign(u.toString());
 }
 async function handleRedirect(){
@@ -1700,7 +1727,10 @@ $("signout").onclick = ()=> setKey(null);
   applyWorld();
   let restored = false;
   // came back from an OAuth redirect: restore the graph we stashed just before it (consumed once)
-  try{ const rs = sessionStorage.getItem(RESUME_KEY); if(rs){ sessionStorage.removeItem(RESUME_KEY); applyGraphData(JSON.parse(rs)); save(); restored = true; } }catch(_){}
+  try{ const rs = sessionStorage.getItem(RESUME_KEY); if(rs){ sessionStorage.removeItem(RESUME_KEY); applyGraphData(JSON.parse(rs)); save(); restored = true;
+        const ra = sessionStorage.getItem(RESUME_APPID_KEY); if(ra){ pendingAppId = ra; }   // keep the edit-workflow link across login
+      } }catch(_){}
+  try{ sessionStorage.removeItem(RESUME_APPID_KEY); }catch(_){}
   if(!restored && location.hash.length > 3) restored = await loadFromHash();   // opened a shared link
   if(!restored) restored = load();                                // else last local graph
   if(!restored) restored = await loadDefault();                   // else noodle-graph.json
