@@ -186,6 +186,7 @@
   <a id="signin" href="#" style="display:none">Sign in with NanoGPT</a>
   <button id="pastebtn" class="link" style="display:none">paste key</button>
   <button id="signout" class="link" style="display:none">sign out</button>
+  <span id="oauthnote" class="dim" style="display:none;font-size:.72rem">⚠ one-click sign-in may be down right now — use “paste key”, or try again later</span>
 
   <div class="sep"></div>
   <button id="share" title="Copy a link that loads this exact app — recipients sign in with their own key">🔗 Share</button>
@@ -2257,6 +2258,7 @@ function renderAuth(){
   $("signin").style.display  = signed ? "none" : "";
   $("pastebtn").style.display = signed ? "none" : "";
   $("signout").style.display  = signed ? "" : "none";
+  $("oauthnote").style.display = signed ? "none" : "";
   $("apply").disabled = !signed || busy;
 }
 // Reflect the current key (e.g. one the OAuth popup just stored) into the builder + inner app.

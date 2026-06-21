@@ -261,6 +261,7 @@
   <button id="signin" class="link" style="display:none">sign in</button>
   <button id="pastebtn" class="link" style="display:none">paste key</button>
   <button id="signout" class="link" style="display:none">sign out</button>
+  <span id="oauthnote" style="display:none;font-size:.72rem;color:var(--dim)">⚠ one-click sign-in may be down right now — use “paste key”, or try again later</span>
 </div>
 
 <div id="keyrow">
@@ -1598,6 +1599,7 @@ function renderAuth(){
   const ok = !!getKey();
   $("status").textContent = ok ? "ready ✓" : "not signed in";
   $("signin").style.display = ok?"none":""; $("pastebtn").style.display = ok?"none":""; $("signout").style.display = ok?"":"none";
+  $("oauthnote").style.display = ok?"none":"";
 }
 const REDIRECT_URI = location.origin + location.pathname;
 if (location.hostname === "127.0.0.1") location.hostname = "localhost";
