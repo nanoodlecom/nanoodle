@@ -49,6 +49,7 @@ function prepare(code) {
     ";globalThis.__compatTest = {" +
     "  sig:   (g)    => ioSignature(g)," +
     "  compat:(a, b) => workflowCompatible(a, b)," +
+    "  fits:  (s, g) => uiFitsGraph(s, g)," +
     "};" +
     "throw new Error('__COMPAT_TEST_HOOK_READY__');\n";
   return code.slice(0, at) + hook + code.slice(at);
@@ -170,6 +171,23 @@ function structuralChecks(t, failures) {
   const got = t.sig(loneImage());
   const want = JSON.stringify({ ins: ["textarea"], outs: ["image"] });
   if (got !== want) failures.push(`base signature drifted:\n  want: ${want}\n  got:  ${got}`);
+
+  // uiFitsGraph: the UI must be judged against the shape it was AUTHORED for (uiSig),
+  // not the last graph swapped in. This is the "declined the port, then tweaked a
+  // textbox" bug: the app's stored graph is already the video graph, but the UI was
+  // written for an image app, so a later video-shaped edit must still need a port.
+  const imageSig = t.sig(textToImage());
+  if (!t.fits(imageSig, textToImage("a different prompt")))
+    failures.push("uiFitsGraph: an image UI should still fit an image graph after a text-only edit");
+  if (t.fits(imageSig, textToVideo()))
+    failures.push("uiFitsGraph: an image UI must NOT fit a video graph (port still required)");
+  // the regression itself: UI authored for image, graph already swapped to video (port
+  // declined), then a *video-shaped* textbox tweak → must still report needs-port.
+  const videoAfterTweak = textToVideo(); // same shape as the declined-into graph
+  if (t.fits(imageSig, videoAfterTweak))
+    failures.push("uiFitsGraph: declined-port app lost its port-needed state after a same-shape edit (regression)");
+  if (!t.fits(null, textToVideo()))
+    failures.push("uiFitsGraph: a null uiSig (legacy app) should be treated as fitting");
 }
 
 // ---- run ------------------------------------------------------------------

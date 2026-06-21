@@ -2017,6 +2017,9 @@ async function runDiffPass(goal, opts){
 
     // merge edited files back; runtime.js/graph.json are never in the map so they survive untouched
     APP_STATE.files = { ...APP_STATE.files, "index.html":updated["index.html"], "app.css":updated["app.css"] };
+    // the UI was just (re)written against the current graph — a customize keeps the same
+    // graph, a port re-fits to the new one; either way the UI now fits APP_STATE.graph.
+    APP_STATE.uiSig = ioSignature(APP_STATE.graph);
     pushVersion(APP_STATE.files, opts.versionGoal || goal);
     exitFirstRun();                 // first generate done → drop the composer back to the bottom
     syncTitleFromFiles();           // keep the bar title in step with any <title>/#app-title rewrite
@@ -2121,7 +2124,7 @@ function syncTitleFromFiles(){
    gets an id and lives in the library, with its OWN versions, so closing the
    builder never loses it.
    ====================================================================== */
-let APP_STATE = { v:1, graph:{ nodes:[], links:[] }, files:{}, versions:[], curVer:0 };
+let APP_STATE = { v:1, graph:{ nodes:[], links:[] }, files:{}, versions:[], curVer:0, uiSig:null };
 let CUR_ID = null;          // library id of the open app, or null for a draft
 let curImported = false;    // open app came in via a share link (#a=)
 
@@ -2133,7 +2136,7 @@ function newId(){ return "app_" + Date.now().toString(36) + Math.random().toStri
 // snapshot the open app as a library entry
 function curEntry(){
   return { id:CUR_ID, title:titleFromFiles(APP_STATE.files), imported:curImported,
-           graph:APP_STATE.graph, files:APP_STATE.files,
+           graph:APP_STATE.graph, files:APP_STATE.files, uiSig:APP_STATE.uiSig,
            versions:APP_STATE.versions, curVer:APP_STATE.curVer, updated:Date.now() };
 }
 // write the working state (LS_KEY) and, if this app is in the library, upsert it there
@@ -2163,12 +2166,16 @@ function stashResume(){
 }
 
 // install a freshly-loaded {graph, files} into the builder (used by every load path)
-function installApp({ graph, files, versions, curVer, fresh, id, imported }){
+function installApp({ graph, files, versions, curVer, fresh, id, imported, uiSig }){
   if($("portbar")){ $("portbar").hidden = true; setPortMode(false); }   // any (re)load clears a stale "port?" offer
   CUR_ID = id || null;
   curImported = !!imported;
   APP_STATE.graph = graph || { nodes:[], links:[] };
   APP_STATE.files = files && files["index.html"] ? files : defaultFiles(APP_STATE.graph);
+  // the shape the UI fits: explicit when the caller knows it (a stored app, or an
+  // intentionally-stale port-declined app); otherwise these files were just built to
+  // match this graph (default app / import), so they fit it by construction.
+  APP_STATE.uiSig = (uiSig != null) ? uiSig : ioSignature(APP_STATE.graph);
   APP_STATE.versions = (versions && versions.length)
     ? versions
     : [{ files:{ "index.html":APP_STATE.files["index.html"], "app.css":APP_STATE.files["app.css"] }, goal:null }];
@@ -2196,9 +2203,13 @@ function updateAppWorkflow(appId, newGraph){
     return;
   }
   const oldGraph = app.graph || { nodes:[], links:[] };
-  // open the existing app, on the NEW graph, keeping its UI / versions / identity
-  installApp({ graph:newGraph, files:app.files, versions:app.versions, curVer:app.curVer, id:app.id, imported:app.imported });
-  if(workflowCompatible(oldGraph, newGraph)){
+  // the shape the stored UI actually fits — carried forward, NOT recomputed from the
+  // (possibly already-diverged) stored graph. Legacy apps with no uiSig fall back to
+  // their graph's signature (best-effort: assume the UI matched when it was saved).
+  const uiSig = app.uiSig != null ? app.uiSig : ioSignature(oldGraph);
+  // open the existing app, on the NEW graph, keeping its UI / versions / identity / uiSig
+  installApp({ graph:newGraph, files:app.files, versions:app.versions, curVer:app.curVer, id:app.id, imported:app.imported, uiSig });
+  if(uiFitsGraph(uiSig, newGraph)){
     toast("Workflow updated — your app UI was kept");
   }else{
     offerPort(oldGraph);
@@ -2248,6 +2259,12 @@ function workflowCompatible(oldGraph, newGraph){
   const a = ioSignature(oldGraph), b = ioSignature(newGraph);
   return a !== null && a === b;
 }
+// Does the app's UI still fit `graph`? Compared against uiSig — the signature the
+// CURRENT UI files were authored for (default build / last port), NOT the last graph
+// we swapped in. This is what survives "declined the port, then made a small edit":
+// the graph diverged but the UI never caught up, so the mismatch must persist until
+// an actual port re-fits it. A null uiSig (legacy app) is treated as "fits".
+function uiFitsGraph(uiSig, graph){ return uiSig == null || ioSignature(graph) === uiSig; }
 
 function relTime(ts){
   if(!ts) return "";
@@ -2293,7 +2310,7 @@ function toggleAppsMenu(){ $("appsmenu").hidden ? openAppsMenu() : closeAppsMenu
 function openApp(id){
   const a = loadApps().find(x=>x.id===id); if(!a) return;
   closeAppsMenu();
-  installApp({ graph:a.graph, files:a.files, versions:a.versions, curVer:a.curVer, id:a.id, imported:a.imported });
+  installApp({ graph:a.graph, files:a.files, versions:a.versions, curVer:a.curVer, id:a.id, imported:a.imported, uiSig:a.uiSig });
 }
 function deleteApp(id){
   saveApps(loadApps().filter(a=>a.id!==id));
