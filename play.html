@@ -1172,12 +1172,11 @@ window.NoodleApp = (function () {
 
   // A download control for generated media. Images come back as data: URLs and
   // sync speech as blob: URLs — those save straight through an anchor. Music/video
-  // are URLs on a provider CDN: this frame can't pull them into a blob (the tight
-  // connect-src blocks the cross-origin fetch, and an anchor to a cross-origin URL
-  // is refused outright in the sandboxed preview), so in the preview we ask the
-  // parent — real origin, not sandboxed — to open it in a tab to save from, and a
-  // standalone app (no such CSP) fetches it directly. The native <audio>/<video>
-  // controls' own ⋮ menu is also a reliable cross-origin saver.
+  // are URLs on a provider CDN: this sandboxed frame can't pull them into a blob, so
+  // in the preview we hand the URL to the parent — real origin, not sandboxed — which
+  // fetches the bytes and saves them as a file (falling back to opening a tab only if
+  // CORS refuses). A standalone app (no sandbox) fetches it directly. The native
+  // <audio>/<video> controls' own ⋮ menu is also a reliable cross-origin saver.
   function addDownload(card, url, kind, nodeType){
     const row = document.createElement("div"); row.className = "dlrow";
     const btn = document.createElement("button"); btn.type = "button"; btn.className = "dl";
@@ -1187,13 +1186,17 @@ window.NoodleApp = (function () {
       if(/^(blob:|data:)/i.test(url)){ saveAs(url, name); return; }
       btn.disabled = true;
       try{
-        const b = await (await fetch(url)).blob();         // works standalone (no CSP) when CORS allows
-        const u = URL.createObjectURL(b);
-        saveAs(u, name);
-        setTimeout(()=> URL.revokeObjectURL(u), 5000);
+        // Preview: the sandboxed frame can't pull cross-origin CDN media into a blob,
+        // so hand it to the parent (real origin) to fetch + save. Standalone fetches it.
+        if(EMBEDDED){ window.parent.postMessage({ type:"__download__", url, name }, "*"); }
+        else {
+          const b = await (await fetch(url)).blob();       // standalone (no sandbox) when CORS allows
+          const u = URL.createObjectURL(b);
+          saveAs(u, name);
+          setTimeout(()=> URL.revokeObjectURL(u), 5000);
+        }
       }catch(e){
-        if(EMBEDDED) window.parent.postMessage({ type:"__open__", url }, "*");
-        else window.open(url, "_blank");
+        window.open(url, "_blank");                         // CORS-blocked standalone → open a tab to save from
       }finally{ btn.disabled = false; }
     };
     row.appendChild(btn);
@@ -1742,12 +1745,22 @@ function pushAuthToApp(){ postToApp({ type:"__auth__", signedIn: !!getKey() }); 
 addEventListener("message", async (e) => {
   if(e.source !== $("appframe").contentWindow) return;
   const d = e.data;
-  // Save a generated media URL the sandboxed preview can't reach (CDN-hosted music/
-  // video, blocked there by connect-src). We open it at our real, un-sandboxed origin
-  // so the user can save it. https only, so a shared app can't bounce the user to a
-  // javascript:/data: URL via the download button.
-  if(d && d.type === "__open__"){
-    if(typeof d.url === "string" && /^https:\/\//i.test(d.url)) window.open(d.url, "_blank", "noopener");
+  // Save a generated media URL the sandboxed preview can't pull into a blob itself
+  // (CDN-hosted music/video). We run at the real, un-sandboxed origin, so fetch the
+  // bytes and save them as a file — only opening a tab if CORS refuses the fetch.
+  // https only, so a shared app can't bounce the user to a javascript:/data: URL.
+  if(d && d.type === "__download__"){
+    if(typeof d.url !== "string" || !/^https:\/\//i.test(d.url)) return;
+    const name = (typeof d.name === "string" && d.name ? d.name : "download").replace(/[^\w.\-]+/g, "_").slice(0, 80);
+    try{
+      const b = await (await fetch(d.url)).blob();
+      const u = URL.createObjectURL(b);
+      const a = document.createElement("a"); a.href = u; a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=> URL.revokeObjectURL(u), 5000);
+    }catch(_){
+      window.open(d.url, "_blank", "noopener");   // CORS-blocked → open a tab to save from manually
+    }
     return;
   }
   // API proxy: the app asks us to call NanoGPT. We attach OUR key, but only ever to
