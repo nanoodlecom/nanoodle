@@ -1,0 +1,16 @@
+#!/bin/sh
+# Block commits that introduce syntax errors in inline HTML JavaScript.
+# Only runs when .html files are part of the commit.
+
+set -e
+
+staged_html=$(git diff --cached --name-only --diff-filter=ACM -- '*.html')
+[ -z "$staged_html" ] && exit 0
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "pre-commit: node not found, skipping HTML JS check" >&2
+  exit 0
+fi
+
+# shellcheck disable=SC2086
+node "$(git rev-parse --show-toplevel)/scripts/check-html-js.mjs" $staged_html
