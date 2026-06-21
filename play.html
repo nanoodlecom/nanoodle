@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>My NaNoodle app</title>
+<title>My nanoodle app</title>
 <link rel="icon" href="/favicon.ico" sizes="any" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -174,7 +174,7 @@
 <body>
 <div id="bar">
   <div class="brand"><span class="nano">nano</span>odle</div>
-  <div class="title-wrap"><span id="bar-title">My NaNoodle app</span></div>
+  <div class="title-wrap"><span id="bar-title">My nanoodle app</span></div>
 
   <!-- only shown once the user has created/imported at least one app -->
   <button id="myapps" class="link" style="display:none" title="Apps you've created or imported">≡ My apps ▾</button>
@@ -190,7 +190,7 @@
   <div class="sep"></div>
   <button id="share" title="Copy a link that loads this exact app — recipients sign in with their own key">🔗 Share</button>
   <button id="export" title="Download this app as one self-contained .html (no key inside)">⭳ Export</button>
-  <button id="openeditor" title="Open the underlying workflow in the NaNoodle editor">✎ Open in editor</button>
+  <button id="openeditor" title="Open the underlying workflow in the nanoodle editor">✎ Open in editor</button>
 </div>
 
 <!-- "My apps" library — created + imported apps, each with its own versions -->
@@ -214,7 +214,7 @@
   <div id="empty" hidden>
     <div class="empty-card">
       <h2>Open a workflow from the editor</h2>
-      <p class="dim">Build a flow in NaNoodle, then hit <b>✨ Create app</b> to turn it into a shareable app.</p>
+      <p class="dim">Build a flow in nanoodle, then hit <b>✨ Create app</b> to turn it into a shareable app.</p>
       <a class="ghost-link" href="index.html">→ Open the editor</a>
     </div>
   </div>
@@ -307,7 +307,7 @@ function toast(msg, kind){ const el=$("toast"); el.className = kind==="err" ? "e
 const RUNTIME_JS = String.raw`
 /* =====================================================================
    NoodleApp — FAITHFUL headless execution runtime, extracted from the
-   NaNoodle editor (index.html). Runs inside the sandboxed app iframe
+   nanoodle editor (index.html). Runs inside the sandboxed app iframe
    (sandbox="allow-scripts"). No imports; only fetch to nano-gpt.com.
    Reads window.NOODLE_GRAPH, derives INPUTS (unsatisfied source fields)
    and OUTPUTS (sink nodes), renders a form-over-flow UI into the fixed
@@ -1249,7 +1249,20 @@ window.NoodleApp = (function () {
 
   async function run(){
     if(running) return;
-    if(!hasAuth()){ statusLine("__auth__","error", EMBEDDED ? "Sign in from the bar at the top to run this app." : "Sign in or paste an API key first."); return; }
+    if(!hasAuth()){
+      // Don't dead-end on a "sign in first" message — kick off sign-in right here.
+      if(EMBEDDED){
+        try{ window.parent.postMessage({ type:"__signin__" }, "*"); }catch(_){}
+        statusLine("__auth__","done","Signing in… press Run again once you're signed in.");
+      } else if(/^https?:$/.test(location.protocol)){
+        signIn().catch(e=> statusLine("__auth__","error","sign-in error: "+e.message));   // OAuth redirect
+      } else {
+        renderAuth(); const row=$("auth-keyrow"); if(row) row.hidden=false;   // file:// → no OAuth, reveal paste-key
+        const ki=$("auth-keyinput"); if(ki) ki.focus();
+        statusLine("__auth__","error","Paste a nano-gpt.com API key to run this app.");
+      }
+      return;
+    }
     const N = RUNS_N;
     running = true;
     ABORT = new AbortController();
@@ -1314,7 +1327,7 @@ window.NoodleApp = (function () {
     const cached = JSON.parse(localStorage.getItem("ngpt_client")||"null");
     if (cached && cached.redirect===REDIRECT_URI) return cached.id;
     const r = await fetch(NANOGPT + "/oauth/register",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({client_name:"NaNoodle app",redirect_uris:[REDIRECT_URI],grant_types:["authorization_code"],response_types:["code"],token_endpoint_auth_method:"none"})});
+      body:JSON.stringify({client_name:"nanoodle app",redirect_uris:[REDIRECT_URI],grant_types:["authorization_code"],response_types:["code"],token_endpoint_auth_method:"none"})});
     if(!r.ok) throw new Error("register "+r.status);
     const id=(await r.json()).client_id;
     localStorage.setItem("ngpt_client",JSON.stringify({id,redirect:REDIRECT_URI}));
@@ -1406,7 +1419,7 @@ window.NoodleApp = (function () {
     wireParentBridge();
 
     const titleEl = $("app-title");
-    if(titleEl && !titleEl.textContent.trim()) titleEl.textContent = "My NaNoodle app";
+    if(titleEl && !titleEl.textContent.trim()) titleEl.textContent = "My nanoodle app";
 
     renderAuth();
     handleRedirect().catch(e=> statusLine("__auth__","error","sign-in error: "+e.message)).finally(renderAuth);
@@ -1455,7 +1468,7 @@ function deriveTitle(graph){
   const kinds=new Set((graph.nodes||[]).map(n=>({image:"Image",tvideo:"Video",ivideo:"Video",music:"Music",
     tts:"Speech",llm:"Text",vision:"Vision"}[n.type])).filter(Boolean));
   if(kinds.size===1) return [...kinds][0]+" Generator";
-  return "My NaNoodle app";
+  return "My nanoodle app";
 }
 function deriveTagline(graph){
   const out=new Set((graph.nodes||[]).map(n=>({image:"images",tvideo:"video",ivideo:"video",
@@ -1745,6 +1758,12 @@ function pushAuthToApp(){ postToApp({ type:"__auth__", signedIn: !!getKey() }); 
 addEventListener("message", async (e) => {
   if(e.source !== $("appframe").contentWindow) return;
   const d = e.data;
+  // The app's Run was pressed while signed out — it owns no key, so the parent (which
+  // does) starts the OAuth popup. finishSignIn() then pushes __auth__ back to the app.
+  if(d && d.type === "__signin__"){
+    signIn().catch(err=>{ try{ $("auth-status").textContent = "sign-in error: " + err.message; }catch(_){} });
+    return;
+  }
   // Save a generated media URL the sandboxed preview can't pull into a blob itself
   // (CDN-hosted music/video). We run at the real, un-sandboxed origin, so fetch the
   // bytes and save them as a file — only opening a tab if CORS refuses the fetch.
@@ -2026,12 +2045,12 @@ function pushVersion(files, goal){
 // pull a title from an app's files (the <title> the customize pass keeps in step)
 function titleFromFiles(files){
   const m = ((files && files["index.html"])||"").match(/<title>([\s\S]*?)<\/title>/i);
-  return (m ? m[1] : "My NaNoodle app").trim();
+  return (m ? m[1] : "My nanoodle app").trim();
 }
 // pull the bar title from the live files (after a default build or a customize pass)
 function syncTitleFromFiles(){
   const t = titleFromFiles(APP_STATE.files);
-  $("bar-title").textContent = t; document.title = t + " · NaNoodle app";
+  $("bar-title").textContent = t; document.title = t + " · nanoodle app";
 }
 
 /* ======================================================================
@@ -2092,7 +2111,7 @@ function installApp({ graph, files, versions, curVer, fresh, id, imported }){
   // a brand-new app (straight from the editor, never customized) leads with the prompt
   if(fresh && APP_STATE.versions.length <= 1) enterFirstRun(); else exitFirstRun();
 }
-function showEmpty(){ exitFirstRun(); $("empty").hidden = false; $("appframe").style.display="none"; $("bar-title").textContent="My NaNoodle app"; renderAppsBtn(); }
+function showEmpty(){ exitFirstRun(); $("empty").hidden = false; $("appframe").style.display="none"; $("bar-title").textContent="My nanoodle app"; renderAppsBtn(); }
 
 /* ---------- "My apps" library UI ---------- */
 const IO_CHIP = { text:{em:"📝",label:"Text"}, image:{em:"🖼",label:"Image"},
@@ -2185,7 +2204,7 @@ async function clientId(){
   const cached = JSON.parse(localStorage.getItem("ngpt_client")||"null");
   if (cached && cached.redirect===REDIRECT_URI) return cached.id;
   const r = await fetch(`${NANOGPT}/oauth/register`,{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({client_name:"NaNoodle app",redirect_uris:[REDIRECT_URI],grant_types:["authorization_code"],response_types:["code"],token_endpoint_auth_method:"none"})});
+    body:JSON.stringify({client_name:"nanoodle app",redirect_uris:[REDIRECT_URI],grant_types:["authorization_code"],response_types:["code"],token_endpoint_auth_method:"none"})});
   if(!r.ok) throw new Error("register "+r.status);
   const id=(await r.json()).client_id;
   localStorage.setItem("ngpt_client",JSON.stringify({id,redirect:REDIRECT_URI}));
