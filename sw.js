@@ -1,4 +1,4 @@
-// NaNoodle service worker — makes the app installable + offline-capable.
+// nanoodle service worker — makes the app installable + offline-capable.
 // Network-first for same-origin GETs (so new deploys always show when online),
 // cache fallback when offline. Cross-origin requests (the NanoGPT API) are never touched.
 const CACHE = "nanoodle-v2"; // bump this version on every release to purge stale offline caches

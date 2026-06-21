@@ -12,13 +12,13 @@ maps the clean URL `/app` → the editor; `/` serves the editor too.
 
 ## Apps
 
-- **`index.html`** — **NaNoodle**, a tiny ComfyUI-style node playground (the site
+- **`index.html`** — **nanoodle**, a tiny ComfyUI-style node playground (the site
   root / `/app`). Wire primitives together (Text, Join, LLM, Image, Edit, Vision,
   Text→Video, Image→Video, Music, Speech), drag from port to port (compatible
   inputs glow and snap by type), run disconnected groups in parallel, and share a
   graph via URL. Live model pickers for every modality (text, image, video, audio),
   image editing, async video generation, TTS/music, and save/load to JSON.
-- **`play.html`** — the **app builder ("Create app")**. Turns any NaNoodle
+- **`play.html`** — the **app builder ("Create app")**. Turns any nanoodle
   workflow into a standalone, shareable web app: auto-generated inputs → Run →
   outputs, restyle it with [gptdiff-js](https://github.com/255BITS/gptdiff-js),
   go fullscreen, share via `#a=` link, or export a self-contained `.html` (no key

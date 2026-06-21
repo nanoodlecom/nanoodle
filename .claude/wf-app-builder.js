@@ -1,6 +1,6 @@
 export const meta = {
   name: 'noodle-app-builder',
-  description: 'Build play.html: turn a NaNoodle workflow into a shareable, customizable app',
+  description: 'Build play.html: turn a nanoodle workflow into a shareable, customizable app',
   phases: [
     { title: 'Design', detail: 'extract headless runtime + draft app/bundler/customize code' },
     { title: 'Build', detail: 'assemble play.html, wire editor button, docs' },
@@ -15,14 +15,14 @@ const REPO = '/home/ntc/dev/nanoodle'
 // AUTHORITATIVE SPEC — every agent gets this verbatim. Do not diverge from it.
 // ----------------------------------------------------------------------------
 const SPEC = `
-FEATURE: "Create app" — turn a NaNoodle workflow (node graph) into a standalone,
+FEATURE: "Create app" — turn a nanoodle workflow (node graph) into a standalone,
 shareable, customizable web app. The graph is the engine; the app is a clean
 form-over-flow UI (auto inputs -> Run -> outputs) that the user can restyle with
 gptdiff-js, make fullscreen, share via link, and export as a self-contained file.
 
 REPO: ${REPO} (single-file static site, no build step). Branch already checked out.
 Reference patterns (READ them, do not modify them):
-  - ${REPO}/index.html               (the NaNoodle editor: graph model, engine, CTX, auth, share)
+  - ${REPO}/index.html               (the nanoodle editor: graph model, engine, CTX, auth, share)
   - /home/ntc/dev/gptdiff-js-examples/marvis.html   (localStorage state, version history, #s= gzip share)
   - /home/ntc/dev/gptdiff-js-examples/overlay.html  (mini-bundler include directives, export bundle)
   - /home/ntc/dev/gptdiff-js-examples/index.html    (generateDiff/smartapply, streaming callLlm, iframe srcdoc preamble)
@@ -70,7 +70,7 @@ EDITABLE VIRTUAL FS "files" (this is what gptdiff sees & edits):
       #app-title, #app-tagline, #app-auth, #app-inputs, #app-run, #app-status, #app-output, #app-share.
     End of body: <!-- include-config: graph.json -->  then  <!-- include: runtime.js -->  then an
     inline boot <script> that calls NoodleApp.mount().
-  - "app.css" : styling (gptdiff edits freely; default theme matches NaNoodle dark UI).
+  - "app.css" : styling (gptdiff edits freely; default theme matches nanoodle dark UI).
   gptdiff edits ONLY these two. runtime.js and graph.json are NOT in the files map shown to it
   (injected by the bundler from fixed sources), so the engine can never be broken by a diff. The
   customize goal is prefixed with a short CONTRACT telling the model: it may restyle/relayout/
@@ -101,7 +101,7 @@ BUNDLER bundle(files) (overlay.html style): returns ONE html string =
   iframe srcdoc (via withPreamble) and the Export/Share payload.
 
 DEFAULT app generation defaultFiles(graph): deterministic, NO LLM. Produces a working index.html
-  shell + app.css themed like NaNoodle (dark, accent #7c8cff). Title from the graph (or "My NaNoodle
+  shell + app.css themed like nanoodle (dark, accent #7c8cff). Title from the graph (or "My nanoodle
   App"), a tagline, the mount points, a primary Run button, output area, a Share button. Works the
   instant play.html opens — before any AI customization.
 
@@ -146,7 +146,7 @@ phase('Design')
 
 const design = await parallel([
   () => agent(
-    `You are extracting a FAITHFUL headless execution runtime from the NaNoodle editor.\n\n${SPEC}\n\n`
+    `You are extracting a FAITHFUL headless execution runtime from the nanoodle editor.\n\n${SPEC}\n\n`
     + `YOUR TASK (read-only; produce code, write nothing): Read ${REPO}/index.html closely — the\n`
     + `NODE_TYPES map (~502-672), the run loop runGroup() (~1096-1135), CTX (~1138-1214), pollAudio,\n`
     + `authHeaders, mdl/SIZES/audioRun/audioBody helpers, topoOrder/ancestors/components.\n`
@@ -166,7 +166,7 @@ const design = await parallel([
     + `(marvis.html, overlay.html, index.html) for concrete patterns. Produce concrete, paste-ready\n`
     + `code blocks for everything in play.html EXCEPT RUNTIME_JS (another agent owns that):\n`
     + ` 1. defaultFiles(graph) -> { "index.html", "app.css" }: the deterministic default app shell\n`
-    + `    (mount points exactly as SPEC) + a NaNoodle-themed app.css. Show the full template strings.\n`
+    + `    (mount points exactly as SPEC) + a nanoodle-themed app.css. Show the full template strings.\n`
     + ` 2. bundle(files) mini-bundler (overlay style) + withPreamble() (marvis style) + the iframe\n`
     + `    render + parent<->iframe postMessage (inject key, fullscreen, receive __share__).\n`
     + ` 3. The gptdiff customize loop: streamingCallLlm(), the CONTRACT preamble, generateDiff +\n`
