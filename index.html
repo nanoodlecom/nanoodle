@@ -1204,7 +1204,7 @@ function updateRunButtons(){
 // Run one group: lock its whole connected component, execute the ancestors of `seedIds` in topo order.
 // Multiple groups run concurrently because callers don't await each other.
 async function runGroup(seedIds){
-  if(!getKey()){ flash("sign in or paste an API key first"); return; }
+  if(!ensureAuth()) return;
   const lock = new Set();
   for(const id of seedIds) for(const x of componentOf(id)) lock.add(x);
   if(!lock.size || groupBusy(lock)) return;         // empty, or this group is already running
@@ -1252,7 +1252,7 @@ async function runGroup(seedIds){
 }
 // Run every idle group at once (busy ones keep going untouched).
 function runAll(){
-  if(!getKey()){ flash("sign in or paste an API key first"); return; }
+  if(!ensureAuth()) return;
   if(!graph.nodes.length){ flash("nothing to run — add a node"); return; }
   for(const c of components()) if(!groupBusy(c)) runGroup([...c]);   // fire-and-forget → groups run in parallel
 }
@@ -1633,6 +1633,13 @@ async function handleRedirect(){
     body:new URLSearchParams({grant_type:"authorization_code",client_id:saved.id,redirect_uri:REDIRECT_URI,code:p.get("code"),code_verifier:saved.verifier})});
   if(!r.ok) throw new Error("token: "+(await r.text()));
   setKey((await r.json()).access_token);
+}
+// Run pressed while signed out: kick off sign-in instead of just nagging.
+function ensureAuth(){
+  if(getKey()) return true;
+  if(/^https?:$/.test(location.protocol)) signIn().catch(e=> $("status").textContent="sign-in error: "+e.message);
+  else { $("keyrow").classList.add("open"); $("keyinput").focus(); flash("paste a nano-gpt.com API key to run"); }
+  return false;
 }
 $("signin").onclick = ()=> signIn().catch(e=> $("status").textContent="sign-in error: "+e.message);
 $("pastebtn").onclick = ()=>{ $("keyrow").classList.add("open"); $("keyinput").focus(); };
