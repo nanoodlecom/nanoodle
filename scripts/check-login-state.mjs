@@ -449,6 +449,23 @@ async function run() {
     });
     record("S8 /play#a= near-full localStorage (quota)", playAppShown(b), `appShown=${playAppShown(b)}`);
   }
+
+  /* R1/R2: sign-in must send OAuth back to the SAME page (a wrong redirect_uri,
+     e.g. from the shared ngpt_client cache, lands the user on the other app). */
+  {
+    const ruri = async (src, kind, href) => {
+      const store = {}, session = {};
+      const a = loadPage(src, kind, { href, store, session });
+      await a.__BOOT__; await drainAsync();
+      await a.signIn(); await drainAsync();
+      if (!a._nav.target) throw new Error("signIn did not navigate");
+      return new URL(a._nav.target).searchParams.get("redirect_uri");
+    };
+    const got1 = await ruri(PLAY_SRC, "play", "https://nanoodle.com/play" + (await appHash({ v: 1, graph: SAMPLE_GRAPH, files: SAMPLE_FILES })));
+    record("R1 /play sign-in returns to /play", got1 === "https://nanoodle.com/play", `redirect_uri=${got1}`);
+    const got2 = await ruri(INDEX_SRC, "index", "https://nanoodle.com/editor");
+    record("R2 /editor sign-in returns to /editor", got2 === "https://nanoodle.com/editor", `redirect_uri=${got2}`);
+  }
 }
 
 run().then(() => {
