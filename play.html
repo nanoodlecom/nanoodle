@@ -1016,6 +1016,19 @@ window.NoodleApp = (function () {
     const box = $("app-status"); if(!box) return null;
     if(!box.querySelector("#app-prog"))
       box.innerHTML = '<div id="app-prog" class="prog" hidden></div><div id="app-msg" class="msg-area"></div>';
+    // A run can finish with per-node errors that only show as red bar segments.
+    // Clicking the "N errors" toggle reveals which steps failed and why. Bind once
+    // (delegated) on #app-prog, which paintRuns rebuilds; the open/closed state
+    // lives on the lane object so it survives repaints.
+    const prog = box.querySelector("#app-prog");
+    if(prog && !prog._errBound){
+      prog._errBound = true;
+      prog.addEventListener("click", (e)=>{
+        const btn = e.target.closest(".err-toggle"); if(!btn) return;
+        const L = RUN && RUN.lanes[+btn.dataset.lane]; if(!L) return;
+        L.showErrs = !L.showErrs; paintRuns();
+      });
+    }
     return box;
   }
   function statusLine(id, kind, msg){
@@ -1070,6 +1083,22 @@ window.NoodleApp = (function () {
     }).join("");
     return { order:order, total:total, done:done, errs:errs, segs:segs, finished:(L.endAt>0) };
   }
+  // Clickable "N errors" toggle + (when open) one line per failed step with its
+  // message — the only place a run's per-node errors are actually readable.
+  function errBlockHtml(L, st){
+    if(!st.errs) return "";
+    const open = !!L.showErrs;
+    const word = "error" + (st.errs>1?"s":"");
+    let html = '<button type="button" class="err-toggle' + (open?" open":"") + '" data-lane="' + L.idx
+             + '" aria-expanded="' + open + '">' + (open ? "Hide" : "Show") + " " + st.errs + " " + word + "</button>";
+    if(open){
+      const lines = (L.order||[]).filter(id=>{ const s=L.state[id]; return s && s.kind==="error"; })
+        .map(id=> '<div class="err-line"><b>' + esc(stepLabel(id)) + '</b><span>' + esc(L.state[id].msg || "failed") + '</span></div>')
+        .join("");
+      html += '<div class="err-detail">' + lines + "</div>";
+    }
+    return html;
+  }
   function singleLaneHtml(L){
     const st = laneStats(L); let now = "";
     if(!st.finished && L.curId != null){
@@ -1084,7 +1113,7 @@ window.NoodleApp = (function () {
         ? '<div class="prog-now is-err">Finished with ' + st.errs + ' error' + (st.errs>1?"s":"") + ' · ' + st.done + '/' + st.total + ' steps · ' + fmtClock(L.endAt-L.t0) + '</div>'
         : '<div class="prog-now is-ok">✓ Done · ' + st.total + ' step' + (st.total!==1?"s":"") + ' · ' + fmtClock(L.endAt-L.t0) + '</div>';
     }
-    return '<div class="prog-track">' + st.segs + '</div>' + now;
+    return '<div class="prog-track">' + st.segs + '</div>' + now + errBlockHtml(L, st);
   }
   function laneRowHtml(L){
     const st = laneStats(L);
@@ -1106,7 +1135,9 @@ window.NoodleApp = (function () {
   function paintRuns(){
     const box = $("app-prog"); if(!box || !RUN) return;
     if(RUN.n === 1){ box.innerHTML = singleLaneHtml(RUN.lanes[0]); return; }
-    box.innerHTML = '<div class="lanes">' + RUN.lanes.map(laneRowHtml).join("") + '</div>';
+    box.innerHTML = '<div class="lanes">'
+      + RUN.lanes.map(L=> laneRowHtml(L) + errBlockHtml(L, laneStats(L))).join("")
+      + '</div>';
   }
   // Independent copy of the live graph (current input values included) so N
   // lanes can run at once without clobbering each other's node outputs.
@@ -1627,6 +1658,17 @@ body{ background:
 .prog-now.is-ok{ color:var(--ok); } .prog-now.is-err{ color:var(--danger); }
 .msg-area{ display:flex; flex-direction:column; gap:.2rem; }
 .msg-area .stline.error{ color:var(--danger); } .msg-area .stline.done{ color:var(--ok); }
+
+/* error detail — click "N errors" to reveal which steps failed and why */
+.err-toggle{ font:inherit; font-size:.76rem; margin-top:.4rem; padding:.28rem .6rem; cursor:pointer;
+  background:var(--panel2); border:1px solid var(--danger); color:var(--danger); border-radius:.45rem; }
+.err-toggle:hover{ background:#ff6b6b18; }
+.err-toggle.open{ border-bottom-left-radius:0; border-bottom-right-radius:0; }
+.err-detail{ border:1px solid var(--danger); border-top:0; border-radius:0 0 .45rem .45rem;
+  background:#ff6b6b0f; padding:.4rem .6rem; display:flex; flex-direction:column; gap:.4rem; }
+.err-line{ display:flex; flex-direction:column; gap:.1rem; font-size:.78rem; }
+.err-line b{ color:var(--ink); font-weight:700; }
+.err-line span{ color:var(--danger); white-space:pre-wrap; word-break:break-word; }
 
 /* optional inputs — collapsed, pre-filled disclosure under the mandatory fields */
 .opt{ border:1px solid var(--line); border-radius:var(--radius); background:var(--panel); }
