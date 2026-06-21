@@ -144,7 +144,8 @@
 
   .body{ padding:.1rem .6rem .6rem; display:flex; flex-direction:column; gap:.5rem }
   .body label{ font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); display:block; margin-bottom:.2rem }
-  .body textarea{ width:100%; resize:vertical; min-height:54px; background:var(--panel2); border:1px solid var(--line);
+  .body textarea{ width:100%; resize:both; min-width:190px; max-width:min(80vw,760px); min-height:54px;
+                  background:var(--panel2); border:1px solid var(--line);
                   border-radius:.45rem; padding:.4rem .5rem; line-height:1.35 }
   .body select{ width:100%; background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; padding:.35rem .4rem }
   .body input{ width:100%; background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; padding:.35rem .5rem }
@@ -494,6 +495,7 @@ function refreshAudioParams(n){
   const ta = n.el.querySelector('[data-f="prompt"]'), mc = it.params?.max_chars;
   if(ta){ mc ? ta.setAttribute("maxlength", mc) : ta.removeAttribute("maxlength"); }
   addFieldPorts(n); refreshPortFills(); redraw();   // re-attach ports to the rebuilt param fields + reconnect wires
+  prepTextareas(n);
 }
 // shared body + run for the Music and Speech nodes
 function audioBody(n, promptLabel, ph){
@@ -778,6 +780,7 @@ function buildNodeEl(n){
   const el = document.createElement("div");
   el.className = "node"; el.dataset.id = n.id; el.dataset.status = "idle";
   el.style.left = n.x+"px"; el.style.top = n.y+"px";
+  if(n.w){ el.style.width = n.w+"px"; el.style.maxWidth = "none"; }   // restore a horizontally-stretched card
   const inRows  = t.inputs.map(p=>`<div class="prow"><i class="port ${p.type}" data-node="${n.id}" data-port="${p.name}" data-dir="in" data-ptype="${p.type}"></i><span>${p.name}</span></div>`).join("");
   const outRows = t.outputs.map(p=>`<div class="prow"><i class="port ${p.type}" data-node="${n.id}" data-port="${p.name}" data-dir="out" data-ptype="${p.type}"></i><span>${p.name}</span></div>`).join("");
   el.innerHTML = `
@@ -830,6 +833,7 @@ function buildNodeEl(n){
   el.querySelectorAll(".port").forEach(p=> p.addEventListener("pointerdown", e=>startWire(p, e)));
   addFieldPorts(n);
   refreshPortFills();
+  prepTextareas(n);
 }
 
 // Give every text field an inline input port: wiring it makes the node use the wired
@@ -849,6 +853,44 @@ function addFieldPorts(n){
     wrap.insertBefore(port, wrap.firstChild);
   });
 }
+
+// Let prompt textareas stretch both ways. Dragging the corner grip wider grows the whole
+// node card (so results + sibling fields stay aligned and nothing overflows); height is
+// remembered per field. Both persist so a stretched layout survives reload/share.
+// We only react while the user is actively dragging the grip — never to layout reflow
+// (e.g. a result rendering) that merely changes a width:100% textarea's measured size.
+const GRIP = 18, _taSeen = new WeakSet();
+let _resizingTA = null, _nodeRO = null;
+function applyResize(ta){
+  const el = ta.closest(".node"); if(!el) return;
+  const n = byId(el.dataset.id); if(!n) return;
+  const w = ta.offsetWidth, h = ta.offsetHeight, start = ta._rs || {}, chrome = n._chrome ?? 21;
+  if(w !== start.w){ el.style.maxWidth = "none"; el.style.width = (n.w = w + chrome) + "px"; }  // wider → grow the card
+  if(h !== start.h){ (n.sizes ||= {})[ta.dataset.f || ta.dataset.pf] = h; }                        // taller → remember the field
+  redraw(); save();
+}
+function nodeRO(){
+  if(_nodeRO) return _nodeRO;
+  _nodeRO = new ResizeObserver(es=>{ for(const e of es) if(e.target === _resizingTA) applyResize(e.target); });
+  return _nodeRO;
+}
+function prepTextareas(n){
+  if(!n.el) return;
+  n.el.querySelectorAll("textarea[data-f],textarea[data-pf]").forEach(ta=>{
+    const field = ta.dataset.f || ta.dataset.pf;
+    if(n.sizes && n.sizes[field] && !ta.style.height) ta.style.height = n.sizes[field]+"px";
+    // measure node padding+borders now, while the textarea still fills the card (before any grip drag)
+    if(n._chrome==null && n.el.offsetWidth>0 && ta.offsetWidth>0) n._chrome = Math.round(n.el.offsetWidth - ta.offsetWidth);
+    if(_taSeen.has(ta)) return;
+    _taSeen.add(ta);
+    ta.addEventListener("pointerdown", e=>{                  // a gesture starting on the bottom-right grip is a resize
+      const r = ta.getBoundingClientRect();
+      if(e.clientX >= r.right - GRIP && e.clientY >= r.bottom - GRIP){ ta._rs = {w:ta.offsetWidth, h:ta.offsetHeight}; _resizingTA = ta; }
+    });
+    nodeRO().observe(ta);
+  });
+}
+addEventListener("pointerup", ()=>{ if(_resizingTA){ applyResize(_resizingTA); _resizingTA = null; } });  // commit the final size
 
 // downscale an <img>/<video> source to a JPEG data URL (keeps localStorage/share payloads small)
 function scaledDataURL(src, sw, sh, max=1024){
@@ -1444,7 +1486,7 @@ $("mpickback").onclick = closePicker;
 function serializeGraph(){
   return {
     v:1,
-    nodes: graph.nodes.map(n=>({id:n.id,type:n.type,x:n.x,y:n.y,fields:n.fields})),
+    nodes: graph.nodes.map(n=>({id:n.id,type:n.type,x:n.x,y:n.y,fields:n.fields,w:n.w,sizes:n.sizes})),
     links: graph.links, nid, lid, view:{panX,panY,scale}
   };
 }
