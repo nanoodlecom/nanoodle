@@ -1511,6 +1511,7 @@ function applyGraphData(d){
   redraw(); refreshPortFills(); refreshAllPrices();
 }
 
+const RESUME_KEY = "noodle_resume";  // sessionStorage: the graph, stashed across an OAuth full-page redirect
 let saveT=null;
 function save(){
   clearTimeout(saveT);
@@ -1660,6 +1661,9 @@ async function signIn(){
   sessionStorage.setItem("pkce",JSON.stringify({verifier,state,id}));
   const u=new URL(`${NANOGPT}/oauth/authorize`);
   u.search=new URLSearchParams({response_type:"code",client_id:id,redirect_uri:REDIRECT_URI,scope:"api.use models.read",state,code_challenge:await sha256url(verifier),code_challenge_method:"S256",invitation_code:"W3x83yU3"}).toString();
+  // Stash the graph before the full-page redirect (the #g=/#j= hash never survives OAuth,
+  // and a debounced autosave may not have fired yet). sessionStorage survives same-tab nav.
+  try{ if(graph.nodes && graph.nodes.length) sessionStorage.setItem(RESUME_KEY, JSON.stringify(serializeGraph())); }catch(_){}
   location.assign(u.toString());
 }
 async function handleRedirect(){
@@ -1695,7 +1699,9 @@ $("signout").onclick = ()=> setKey(null);
   layoutBar();
   applyWorld();
   let restored = false;
-  if(location.hash.length > 3) restored = await loadFromHash();   // opened a shared link
+  // came back from an OAuth redirect: restore the graph we stashed just before it (consumed once)
+  try{ const rs = sessionStorage.getItem(RESUME_KEY); if(rs){ sessionStorage.removeItem(RESUME_KEY); applyGraphData(JSON.parse(rs)); save(); restored = true; } }catch(_){}
+  if(!restored && location.hash.length > 3) restored = await loadFromHash();   // opened a shared link
   if(!restored) restored = load();                                // else last local graph
   if(!restored) restored = await loadDefault();                   // else noodle-graph.json
   if(!restored) seed();                                           // else built-in starter

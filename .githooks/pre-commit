@@ -10,9 +10,11 @@ staged=$(git diff --cached --name-only --diff-filter=ACM)
 staged_html=$(printf '%s\n' "$staged" | grep '\.html$' || true)
 # play.html is the bundler; either checker can change what "self-contained" means.
 touches_export=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-export\.mjs|scripts/check-html-js\.mjs)$' || true)
+# index.html/play.html carry the OAuth login flow; the harness replays a sign-in round-trip.
+touches_login=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-login-state\.mjs)$' || true)
 
-# Nothing to check unless an .html file or an export checker changed.
-[ -z "$staged_html" ] && [ -z "$touches_export" ] && exit 0
+# Nothing to check unless an .html file or one of the checkers changed.
+[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && exit 0
 
 if ! command -v node >/dev/null 2>&1; then
   echo "pre-commit: node not found, skipping HTML JS checks" >&2
@@ -33,4 +35,11 @@ fi
 #    output has no external deps, then node --checks its inline scripts.
 if [ -n "$touches_export" ]; then
   node "$root/scripts/check-export.mjs"
+fi
+
+# 3) the user's app/graph must survive the OAuth login round-trip on every entry
+#    path (#a=/#g=/#j=, My-Apps, local graph, near-full localStorage). Replays a
+#    full sign-in redirect against the pages' real boot/signIn/handleRedirect code.
+if [ -n "$touches_login" ]; then
+  node "$root/scripts/check-login-state.mjs"
 fi

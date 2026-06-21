@@ -259,6 +259,7 @@ const NANOGPT = "https://nano-gpt.com";
 const DEFAULT_MODEL = "xiaomi/mimo-v2.5-pro-ultraspeed";      // writes the changes (user-selectable)
 const APPLY_DEFAULT = "xiaomi/mimo-v2.5-pro-ultraspeed";      // applies the diff (fast, mechanical)
 const LS_KEY = "noodle_app_state";   // working state of the app currently open {id,title,imported,graph,files,versions,curVer}
+const RESUME_KEY = "noodle_resume";  // sessionStorage: the open app, stashed across an OAuth full-page redirect
 const ACCENT = "#7c8cff";
 
 let MODEL = localStorage.getItem("ngpt_app_model") || DEFAULT_MODEL;
@@ -2091,6 +2092,15 @@ let persistTimer = null;
 function persist(){ clearTimeout(persistTimer); persistTimer = setTimeout(writeState, 300); }
 // promote a draft into the library (called on first customize / on import) and save now
 function commit(){ if(!CUR_ID) CUR_ID = newId(); clearTimeout(persistTimer); writeState(); }
+// Stash the open app in sessionStorage right before a full-page OAuth redirect.
+// sessionStorage is a separate quota bucket and survives same-tab navigation, so the
+// app returns even when localStorage is full or a debounced autosave hasn't flushed.
+function stashResume(){
+  try{
+    if((APP_STATE.graph && APP_STATE.graph.nodes && APP_STATE.graph.nodes.length) || (APP_STATE.versions && APP_STATE.versions.length > 1))
+      sessionStorage.setItem(RESUME_KEY, JSON.stringify({ ...curEntry(), v:1 }));
+  }catch(_){}
+}
 
 // install a freshly-loaded {graph, files} into the builder (used by every load path)
 function installApp({ graph, files, versions, curVer, fresh, id, imported }){
@@ -2233,6 +2243,7 @@ async function signIn(){
     return;
   }
   sessionStorage.setItem("pkce", pkce);
+  stashResume();   // survive the full-page redirect even if localStorage is full or an autosave hasn't fired
   location.assign(u.toString());
 }
 async function handleRedirect(){
@@ -2428,7 +2439,22 @@ async function boot(){
   migrateLegacy();
   renderAppsBtn();
 
-  let loaded = await loadFromHash();
+  // Resume the app stashed just before an OAuth redirect — it's exactly what the user
+  // was on, so it wins over every other source. Consumed once so a later reload won't reuse it.
+  let loaded = false;
+  try{
+    const rs = sessionStorage.getItem(RESUME_KEY);
+    if(rs){
+      sessionStorage.removeItem(RESUME_KEY);
+      const st = JSON.parse(rs);
+      if(st && st.graph){
+        if(st.id && !loadApps().some(a=>a.id===st.id)) st.id = null;   // its library slot was lost (e.g. quota) → reopen as a draft
+        installApp(st); loaded = true;
+      }
+    }
+  }catch(_){}
+
+  if(!loaded) loaded = await loadFromHash();
 
   // belt-and-suspenders: the editor also stashes the raw graph JSON before opening us
   if(!loaded){
