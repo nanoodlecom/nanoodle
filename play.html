@@ -2223,14 +2223,17 @@ async function signIn(){
     localStorage.setItem("pkce_popup", pkce);
     const popup = window.open(u.toString(), "ngpt_signin", "width=480,height=760");
     if(!popup){ localStorage.removeItem("pkce_popup"); throw new Error('popup blocked — allow popups, or use “paste key”'); }
-    // The popup stores the key in shared (same-origin) localStorage. Its storage event doesn't
-    // reliably cross the COOP-severed popup→iframe boundary, so poll localStorage directly here
-    // instead of relying on the event. Stop once the key lands, the popup closes, or we time out.
+    // The popup stores the key in shared (same-origin) localStorage; poll for it here
+    // (its storage event doesn't reliably cross the COOP-severed popup→iframe boundary).
+    // Do NOT bail on popup.closed: once the popup navigates to nano-gpt.com (which sets
+    // COOP) the browser severs our handle and popup.closed reads true while OAuth is
+    // still completing — stopping on it aborts sign-in right before the key lands, which
+    // is exactly why sign-in "authorized but never registered". Poll until the key
+    // arrives or we time out; finishSignIn() is idempotent if the storage event also fires.
     const started = Date.now();
     const poll = setInterval(()=>{
-      let closed = false; try{ closed = popup.closed; }catch(_){}
       if(getKey()){ clearInterval(poll); finishSignIn(); }
-      else if(closed || Date.now()-started > 300000){ clearInterval(poll); }
+      else if(Date.now()-started > 300000){ clearInterval(poll); }
     }, 400);
     return;
   }
