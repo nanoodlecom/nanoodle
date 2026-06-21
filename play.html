@@ -121,6 +121,8 @@
   #portbar{ display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin-top:.5rem;
     padding:.5rem .6rem; border:1px solid var(--line); border-radius:.55rem; background:rgba(255,196,84,.07); }
   #portbar .pb-msg{ font-size:.8rem; color:var(--dim); flex:1 1 auto; }
+  /* porting (port offer open or a port running) → the customize composer steps aside */
+  #customize.porting .cust-row, #customize.porting #fr-skip{ display:none; }
 
   /* ---------- version strip (index.html .ver pattern, re-themed) ---------- */
   #versions{ display:flex; flex-wrap:wrap; gap:.35rem; align-items:center; margin-top:.45rem; }
@@ -240,6 +242,7 @@
   <!-- shown only after a workflow edit changed the app's input/output shape -->
   <div id="portbar" hidden>
     <span class="pb-msg">⚠ Your workflow changed shape — the app’s copy &amp; layout may no longer fit it.</span>
+    <button id="portmodelpick" class="ghost" title="Choose the model that ports your app">✨ model ▾</button>
     <button id="portbar-go" class="primary">✦ Port the UI with AI</button>
     <button id="portbar-skip" class="ghost">Keep as-is</button>
   </div>
@@ -1843,7 +1846,9 @@ async function loadChatCatalog(){
 }
 const priceOf = (id)=> (chatCatalog||[]).find(m=>m.id===id) || null;
 let picker = null;
-function renderModelBtn(){ const b = $("modelpick"); if(b) b.textContent = "✨ " + (MODEL || "pick a model…") + " ▾"; }
+function renderModelBtn(){ const label = "✨ " + (MODEL || "pick a model…") + " ▾";
+  const b = $("modelpick"); if(b) b.textContent = label;
+  const p = $("portmodelpick"); if(p) p.textContent = label; }   // port uses the same MODEL
 function setModel(id){ MODEL = id; try{ localStorage.setItem("ngpt_app_model", id); }catch(_){} renderModelBtn(); }
 function openModelPicker(){
   picker = { current: MODEL };
@@ -2054,12 +2059,15 @@ async function portWorkflow(oldGraph){
     okLabel:"Ported to the updated workflow", versionGoal:"port — workflow shape changed",
   });
 }
+// While the port offer is open or a port is running, the Customize composer steps
+// aside (you choose the model and copy in the port bar instead).
+function setPortMode(on){ const c = $("customize"); if(c) c.classList.toggle("porting", !!on); }
 // Offer the port as a dismissible bar (never auto-spends on inference).
 function offerPort(oldGraph){
   const bar = $("portbar"); if(!bar) return;
-  bar.hidden = false;
-  $("portbar-go").onclick   = ()=>{ bar.hidden = true; portWorkflow(oldGraph); };
-  $("portbar-skip").onclick = ()=>{ bar.hidden = true; };
+  bar.hidden = false; setPortMode(true);
+  $("portbar-go").onclick   = ()=>{ bar.hidden = true; portWorkflow(oldGraph).finally(()=> setPortMode(false)); };
+  $("portbar-skip").onclick = ()=>{ bar.hidden = true; setPortMode(false); };
 }
 
 /* ---------- version strip (index.html .ver pattern; branch-on-edit) ---------- */
@@ -2156,7 +2164,7 @@ function stashResume(){
 
 // install a freshly-loaded {graph, files} into the builder (used by every load path)
 function installApp({ graph, files, versions, curVer, fresh, id, imported }){
-  if($("portbar")) $("portbar").hidden = true;   // any (re)load clears a stale "port?" offer
+  if($("portbar")){ $("portbar").hidden = true; setPortMode(false); }   // any (re)load clears a stale "port?" offer
   CUR_ID = id || null;
   curImported = !!imported;
   APP_STATE.graph = graph || { nodes:[], links:[] };
@@ -2505,6 +2513,7 @@ $("fr-skip").onclick = exitFirstRun;                          // "skip — use t
 renderModelBtn();
 loadChatCatalog().catch(()=>{});   // warm prices (public endpoint) so the live cost meter is ready
 $("modelpick").onclick = openModelPicker;
+$("portmodelpick").onclick = openModelPicker;   // same shared MODEL, same picker
 $("mpickclose").onclick = closePicker;
 $("mpickback").onclick = closePicker;
 $("mpicksearch").addEventListener("input", renderPicker);
