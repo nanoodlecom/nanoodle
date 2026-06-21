@@ -1359,8 +1359,14 @@ async function pollAudio(model, j, onProgress){
 function authHeaders(){ const k=getKey(); return { Authorization:`Bearer ${k}`, "x-api-key":k, "Content-Type":"application/json" }; }
 function accrue(j){
   stats.count++;
-  if(typeof j.cost==="number" && j.cost>0) stats.cost += j.cost; else stats.exact=false;
-  if(typeof j.remainingBalance==="number") stats.balance = j.remainingBalance;
+  // images/video/audio price top-level (j.cost); chat completions ride it in
+  // x_nanogpt_pricing (costUsd|cost) — without this, LLM calls never bump spend.
+  const p = j?.x_nanogpt_pricing, pUsd = p && (p.costUsd!=null ? p.costUsd : p.cost);
+  const usd = (typeof j?.cost==="number" && j.cost>0) ? j.cost
+            : (pUsd!=null && Number(pUsd)>0) ? Number(pUsd) : null;
+  if(usd!=null) stats.cost += usd; else stats.exact=false;
+  if(typeof j?.remainingBalance==="number") stats.balance = j.remainingBalance;
+  else if(p && typeof p.remainingBalance==="number") stats.balance = p.remainingBalance;
   paintCost();
 }
 function flash(msg){ $("status").textContent = msg; setTimeout(renderAuth, 2200); }

@@ -407,8 +407,15 @@ window.NoodleApp = (function () {
     return "$" + v.toFixed(d);
   }
   function costFromJson(j){
-    return { usd: (j && typeof j.cost==="number" && j.cost>0) ? j.cost : null,
-             balance: (j && typeof j.remainingBalance==="number") ? j.remainingBalance : null };
+    if(!j) return { usd:null, balance:null };
+    // images/video/audio price top-level (j.cost); chat completions ride it in
+    // x_nanogpt_pricing (costUsd|cost) — without this, LLM calls never bump spend.
+    const p = j.x_nanogpt_pricing, pUsd = p && (p.costUsd!=null ? p.costUsd : p.cost);
+    const usd = (typeof j.cost==="number" && j.cost>0) ? j.cost
+              : (pUsd!=null && Number(pUsd)>0) ? Number(pUsd) : null;
+    const balance = (typeof j.remainingBalance==="number") ? j.remainingBalance
+                  : (p && typeof p.remainingBalance==="number") ? p.remainingBalance : null;
+    return { usd, balance };
   }
   function costFromHeaders(r){
     const g = (k)=> r.headers.get(k);
