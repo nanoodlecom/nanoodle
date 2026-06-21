@@ -40,6 +40,7 @@
   #bar button{ font-size:.82rem; padding:.4rem .7rem; border-radius:.5rem;
                border:1px solid var(--line); background:var(--panel2); color:var(--ink); cursor:pointer; }
   #bar button:hover{ border-color:var(--accent-line); }
+  #bar #share.ok{ border-color:var(--ok); color:var(--ok); }
   button.link{ background:none; border:none; color:var(--accent); cursor:pointer; padding:0; font-size:.8rem; }
   #signin{ font-size:.8rem; }
   #myapps{ font-weight:600; }
@@ -393,7 +394,37 @@ window.NoodleApp = (function () {
     function onAb(){ clearTimeout(t); rej(abortError()); }
     if(sig) sig.addEventListener("abort", onAb, { once:true });
   });
-  const accrue = ()=>{};   // no-op cost sink (the editor paints a cost HUD we don't have here)
+  /* ---------- cost accounting ----------
+     NanoGPT bills per generation and rides the price back on each response —
+     JSON cost/remainingBalance, or x-cost / x-remaining-balance headers for the
+     binary-audio path. We total it for the whole session ("spent on this app")
+     and attribute each generation's slice to its result card. `exact` drops to
+     false if any call omitted a price, so the running total is shown as a floor (~). */
+  const COST = { total:0, count:0, balance:null, exact:true };
+  function fmtUsd(v){
+    const a = Math.abs(v);
+    const d = a>0 && a<0.01 ? 5 : a<1 ? 4 : 2;   // keep sub-cent generations legible
+    return "$" + v.toFixed(d);
+  }
+  function costFromJson(j){
+    return { usd: (j && typeof j.cost==="number" && j.cost>0) ? j.cost : null,
+             balance: (j && typeof j.remainingBalance==="number") ? j.remainingBalance : null };
+  }
+  function costFromHeaders(r){
+    const g = (k)=> r.headers.get(k);
+    const c = parseFloat(g("x-cost") || g("x-nano-cost") || "");
+    const b = parseFloat(g("x-remaining-balance") || "");
+    return { usd: c>0 ? c : null, balance: isNaN(b) ? null : b };
+  }
+  // Fold one generation's cost into the session total; returns its USD (0 if unknown)
+  // so the caller can also attribute it to that node's output card.
+  function bumpCost(c){
+    COST.count++;
+    if(c && c.usd!=null) COST.total += c.usd; else COST.exact = false;   // unknown price → total is a lower bound
+    if(c && c.balance!=null) COST.balance = c.balance;
+    paintCost();
+    return (c && c.usd!=null) ? c.usd : 0;
+  }
 
   /* ---------- mdl (verbatim) ---------- */
   const mdl = (n)=>{ if(!n.fields.model) throw new Error("pick a model first"); return n.fields.model; };
@@ -401,7 +432,9 @@ window.NoodleApp = (function () {
   /* =====================================================================
      CTX — NanoGPT calls (verbatim behavior, index.html)
      ===================================================================== */
-  const CTX = {
+  // Per-run cost-tracking context: each node gets its own makeCtx(onCost) so a
+  // generation's price lands on the right card even when siblings/lanes run at once.
+  function makeCtx(onCost){ return {
     async genImage(prompt, model, size, imageDataUrl){
       const body = { model, prompt, size, n:1, response_format:"b64_json" };
       if(imageDataUrl) body.imageDataUrl = imageDataUrl;   // present → image edit (img2img)
@@ -411,14 +444,14 @@ window.NoodleApp = (function () {
       const d = (j.data||[])[0]||{};
       const url = d.b64_json ? "data:image/png;base64," + d.b64_json : d.url;
       if(!url) throw new Error("no image in response");
-      accrue(j); return url;
+      onCost(costFromJson(j)); return url;
     },
     async genChat(messages, model){
       const r = await apiFetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(),
         body:JSON.stringify({ model, messages, temperature:0.8 })});
       if(!r.ok) throw new Error(r.status + ": " + (await r.text()).slice(0,160));
       const j = await r.json();
-      accrue(j);
+      onCost(costFromJson(j));
       const txt = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
       if(txt==null) throw new Error("no text in response");
       return typeof txt==="string" ? txt : txt.map(p=>p.text||"").join("");
@@ -429,7 +462,7 @@ window.NoodleApp = (function () {
       if(imageDataUrl) body.imageDataUrl = imageDataUrl;
       const r = await apiFetch(NANOGPT + "/api/generate-video", {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
       if(!r.ok) throw new Error(r.status + ": " + (await r.text()).slice(0,160));
-      const j = await r.json(); accrue(j);
+      const j = await r.json(); onCost(costFromJson(j));
       const runId = j.runId || j.id;
       if(!runId) throw new Error("no runId returned");
       const t0 = Date.now();
@@ -463,12 +496,13 @@ window.NoodleApp = (function () {
       }
       const ct = r.headers.get("content-type") || "";
       if(ct.includes("application/json")){
-        const j = await r.json(); accrue(j);
+        const j = await r.json(); onCost(costFromJson(j));
         let url = j.url || j.audioUrl || (j.data && j.data.url) || (j.data && j.data.audioUrl);
         if(!url && (j.runId || j.id)) url = await pollAudio(model, j, onProgress);   // async model → poll
         if(!url) throw new Error("no audio url in response");
         return url;
       }
+      onCost(costFromHeaders(r));   // binary audio: price rides on x-cost / x-remaining-balance
       const blob = await r.blob();
       // Some providers hand back the audio with a blank/generic content-type. An
       // <audio> element won't play a blob whose MIME it can't recognise (shows
@@ -482,7 +516,7 @@ window.NoodleApp = (function () {
       }
       return URL.createObjectURL(blob);
     }
-  };
+  }; }
   // async audio (music / some TTS): submit returns {status:"pending", runId} → poll /api/tts/status until completed
   async function pollAudio(model, j, onProgress){
     const runId = j.runId || j.id;
@@ -737,8 +771,11 @@ window.NoodleApp = (function () {
         }
         const rn = Object.keys(fieldOverrides).length ? { ...n, fields:{...n.fields, ...fieldOverrides} } : n;
         onStatus && onStatus(id, "run", "running…");
+        let nodeCost = 0;                                  // USD this node's generation(s) cost
+        const ctx = makeCtx((c)=>{ nodeCost += bumpCost(c); });
         try{
-          n.out = await t.run(rn, inp, CTX, (msg)=> onStatus && onStatus(id, "run", msg)) || {};
+          n.out = await t.run(rn, inp, ctx, (msg)=> onStatus && onStatus(id, "run", msg)) || {};
+          n.costUsd = nodeCost;
           onStatus && onStatus(id, "done", "done");
           onResult && onResult(n);
         }
@@ -1062,6 +1099,48 @@ window.NoodleApp = (function () {
     box.querySelector("#app-loop-cb").addEventListener("change", function(e){ KEEP = e.target.checked; });
   }
 
+  /* ---------- session cost meter ----------
+     A running "spent on this app" line. Self-styled and self-mounted so it shows
+     up in every app — the default one, customized ones, exported standalones, and
+     ones created before this existed (they all share THIS runtime, not their own
+     stored copy). Totals persist across runs, mirroring how result cards stack. */
+  function injectCostStyles(){
+    if(document.getElementById("noodle-cost-style")) return;
+    const s = document.createElement("style"); s.id = "noodle-cost-style";
+    s.textContent =
+      '#app-cost{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;margin:.1rem 0 1.1rem;'
+        + 'font-size:.78rem;color:var(--dim,#8b93b4);font-variant-numeric:tabular-nums;}'
+      + '#app-cost[hidden]{display:none;}'
+      + '#app-cost .cm-spent{font-weight:700;color:var(--ink,#e6e9f5);'
+        + 'font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}'
+      + '#app-cost .cm-n{color:var(--faint,#5d6788);}'
+      + '#app-cost .cm-bal{color:var(--dim,#8b93b4);}'
+      + '.rhead .rcost{float:right;font-weight:700;color:var(--ok,#46d27a);'
+        + 'font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}';
+    (document.head || document.documentElement).appendChild(s);
+  }
+  function ensureCostMeter(){
+    let el = $("app-cost");
+    if(el) return el;
+    injectCostStyles();
+    el = document.createElement("div"); el.id = "app-cost"; el.hidden = true;
+    const rr = document.querySelector(".run-row"), out = $("app-output");
+    if(rr && rr.parentNode) rr.parentNode.insertBefore(el, rr.nextSibling);   // just under the Run controls
+    else if(out && out.parentNode) out.parentNode.insertBefore(el, out);
+    else document.body.appendChild(el);
+    return el;
+  }
+  function paintCost(){
+    const el = ensureCostMeter(); if(!el) return;
+    if(COST.count === 0){ el.hidden = true; return; }
+    el.hidden = false;
+    const total = (COST.exact ? "" : "~") + fmtUsd(COST.total);
+    const bal = COST.balance!=null ? '<span class="cm-bal">· balance ' + fmtUsd(COST.balance) + '</span>' : "";
+    el.innerHTML = '<span class="cm-spent">⌁ ' + total + ' spent on this app</span>'
+                 + '<span class="cm-n">' + COST.count + ' generation' + (COST.count!==1?"s":"") + '</span>'
+                 + bal;
+  }
+
   function renderResult(n, runNo){
     const box = $("app-output"); if(!box) return;
     const out = n.out || {};
@@ -1070,7 +1149,8 @@ window.NoodleApp = (function () {
     if(val==null) return;
     const card = document.createElement("div"); card.className="card";
     const badge = runNo ? '<span class="run-badge">Run '+runNo+'</span> ' : '';
-    const head = '<div class="rhead">'+badge+esc(NODE_TYPES[n.type].em)+' '+esc(NODE_TYPES[n.type].title)+'</div>';
+    const cost = (n.costUsd>0) ? '<span class="rcost" title="cost of this generation">'+fmtUsd(n.costUsd)+'</span>' : '';
+    const head = '<div class="rhead">'+badge+esc(NODE_TYPES[n.type].em)+' '+esc(NODE_TYPES[n.type].title)+cost+'</div>';
     let media;
     if(port.type==="image") media = '<img src="'+esc(val)+'" alt="">';
     else if(port.type==="video") media = '<video src="'+esc(val)+'" controls playsinline></video>';
@@ -1323,6 +1403,7 @@ window.NoodleApp = (function () {
     renderInputs();
     renderCount();
     renderLoop();
+    ensureCostMeter();   // place the (hidden) "spent on this app" meter now → stable layout
 
     const runBtn = $("app-run");
     if(runBtn){
@@ -1337,7 +1418,7 @@ window.NoodleApp = (function () {
     }
   }
 
-  return { mount, runGraph, materialize, describeGraph, deriveInputs, deriveOutputs, NODE_TYPES, CTX };
+  return { mount, runGraph, materialize, describeGraph, deriveInputs, deriveOutputs, NODE_TYPES, CTX:makeCtx(function(){}) };
 })();
 `;
 
@@ -2171,6 +2252,9 @@ async function doShare(){
     const big = url.length>8000 ? ` (${(url.length/1024).toFixed(0)}kB)` : "";
     toast(ok ? `✓ App link copied — anyone who opens it gets this exact app and signs in with their own key${big}`
              : `App link is in the address bar — copy it to share${big}`, ok?"":"err");
+    const b = $("share");                                  // flip the button itself for unmistakable feedback (mirrors the editor)
+    if(b && ok){ const o=b.textContent; b.textContent="✓ Link copied!"; b.classList.add("ok");
+      setTimeout(()=>{ b.textContent=o; b.classList.remove("ok"); }, 1800); }
   }catch(e){ toast("share failed: "+e.message, "err"); }
 }
 
