@@ -24,11 +24,12 @@
         display:flex; flex-direction:column; }
   a{ color:var(--accent); text-decoration:none; } a:hover{ text-decoration:underline; }
   .dim{ color:var(--dim); } .grow{ flex:1; }
-  #oauthbanner{ display:none; position:relative; z-index:80; background:#f5b301; color:#1a1205;
-    font-size:.82rem; font-weight:600; text-align:center; padding:.5rem 2.2rem; line-height:1.35; }
-  #oauthbanner b{ font-weight:800; }
+  #oauthbanner{ display:none; position:relative; z-index:80; background:#241b09; color:#f6c453;
+    border-bottom:1px solid #5a440f; font-size:.82rem; font-weight:600; text-align:center; padding:.5rem 2.2rem; line-height:1.35; }
+  #oauthbanner b{ font-weight:800; color:#ffd980; }
   #oauthdismiss{ position:absolute; right:.4rem; top:50%; transform:translateY(-50%); background:none; border:0;
-    color:#1a1205; font-size:1rem; line-height:1; cursor:pointer; padding:.15rem .4rem; }
+    color:#f6c453; opacity:.75; font-size:1rem; line-height:1; cursor:pointer; padding:.15rem .4rem; }
+  #oauthdismiss:hover{ opacity:1; }
   body.oauthwarn #oauthbanner{ display:block; }
 
   /* ---------- top bar ---------- */
@@ -178,7 +179,7 @@
 </style>
 </head>
 <body>
-<div id="oauthbanner">⚠ One-click sign-in is currently failing (provider outage). Click <b>paste key</b> to use a nano-gpt.com API key, or try again later.<button id="oauthdismiss" title="Dismiss" aria-label="Dismiss">✕</button></div>
+<div id="oauthbanner">⚠ One-click sign-in is currently unavailable. Click <b>paste key</b> to use a nano-gpt.com API key, or try again later.<button id="oauthdismiss" title="Dismiss" aria-label="Dismiss">✕</button></div>
 <div id="bar">
   <div class="brand"><span class="nano">nano</span>odle</div>
   <div class="title-wrap"><span id="bar-title">My nanoodle app</span></div>
