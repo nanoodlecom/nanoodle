@@ -4,6 +4,25 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>My nanoodle app</title>
+<meta name="description" content="A nanoodle app — built from an AI workflow with nano-gpt, refined right in the browser. No analytics, just static HTML and nano-gpt. Make your own at nanoodle.com." />
+
+<!-- Open Graph -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="A nanoodle app" />
+<meta property="og:description" content="An app built from an AI workflow with nano-gpt, refined right in the browser. No analytics, just static HTML. Make your own at nanoodle.com." />
+<meta property="og:url" content="https://nanoodle.com/play.html" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="nanoodle — neon noodles flowing out of a ramen bowl into glowing workflow cables" />
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="A nanoodle app" />
+<meta name="twitter:description" content="An app built from an AI workflow with nano-gpt, refined right in the browser. No analytics, just static HTML. Make your own at nanoodle.com." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
 <link rel="icon" href="/favicon.ico" sizes="any" />
 <link rel="stylesheet" href="/vendor/righteous/righteous.css" />
 <meta name="theme-color" content="#0d0f17" />
@@ -2456,11 +2475,12 @@ function doExport(){
 // graph and close the modal; standalone we open the editor in a new tab via #ga=.
 async function doOpenEditor(){
   const graph = APP_STATE.graph, appId = CUR_ID || null;
+  const title = ($("bar-title").textContent || "").trim() || null;
   if(IN_EDITOR){
-    try{ parent.postMessage({ type:"__editflow__", appId, graph }, "*"); }catch(_){ /* no parent */ }
+    try{ parent.postMessage({ type:"__editflow__", appId, graph, title }, "*"); }catch(_){ /* no parent */ }
     return;
   }
-  const json = JSON.stringify({ v:1, graph, appId });
+  const json = JSON.stringify({ v:1, graph, appId, title });
   const packed = await gzip(json).catch(()=>null);
   const hash = packed ? "#ga="+bytesToB64url(packed)
                       : "#ga=u"+bytesToB64url(new TextEncoder().encode(json));
