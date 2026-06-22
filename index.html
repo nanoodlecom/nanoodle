@@ -400,7 +400,13 @@ function normAudio(m){
   const mod = arch.modality||"", out = mod.split("->")[1]||"";
   const sp = m.supported_parameters || {};
   const voices = Array.isArray(sp.voices) ? sp.voices.filter(v=>typeof v==="string") : [];
-  const gen = mod.startsWith("text") && /audio|music/.test(out);   // text-driven audio (speech / music / sfx)
+  // TODO(nanogpt): drop this guard once /api/v1/audio-models reports real modality (see
+  // NANOGPT-audio-modality-bug.md). NanoGPT tags ~12 audio endpoints "text->music" that aren't:
+  // lyrics generators (text->text), song analyzers (audio->text), stem/clone, the upload helper,
+  // and source-needing cover/extend/inpaint (audio+text->…). No metadata distinguishes them, so we
+  // match the action verb in the id — same approach as the /clone/ stt guard below.
+  const usable = !/lyric|describe|recognize|stem|clone|upload|cover|extend|inpaint/i.test(m.id);
+  const gen = usable && mod.startsWith("text") && /audio|music/.test(out);   // text-driven audio (speech / music / sfx)
   const tts = !!c.text_to_speech || m.category==="audio_tts";
   // speech→text (transcription). voice-clone models are mislabeled audio_stt but emit a voice-id,
   // not a transcript — exclude them by id so they don't pollute the Transcribe node.
