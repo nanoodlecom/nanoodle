@@ -14,10 +14,10 @@
     {
       "id": "n18",
       "type": "text",
-      "x": 209.25327446792423,
-      "y": -117.37273905786179,
+      "x": 204.33227169014646,
+      "y": -126.23054405786179,
       "fields": {
-        "text": "Write an 80s traprap song"
+        "text": "Write an 90s triphop with rap beats. Repeat the hook."
       }
     },
     {
@@ -35,30 +35,15 @@
     {
       "id": "n24",
       "type": "llm",
-      "x": 490.19876728981137,
-      "y": 174.29891319488468,
+      "x": 785.458933956478,
+      "y": 89.6576654171069,
       "fields": {
         "model": "zai-org/glm-5.2:thinking",
-        "system": "You come up with a style that fits the given lyrics.\nOnly state the style there should be no pre or post discussion."
-      }
-    },
-    {
-      "id": "n35",
-      "type": "llm",
-      "x": 784.4749432067958,
-      "y": 507.1393126209461,
-      "fields": {
-        "model": "zai-org/glm-5.2:thinking",
-        "system": "Create a song album art based on these lyrics for sdxl.\nDont add pre or post text. only respond with a single prompt."
-      }
-    },
-    {
-      "id": "n36",
-      "type": "image",
-      "x": 1123.2125389483144,
-      "y": 496.73166068582333,
-      "fields": {
-        "model": "z-image-turbo"
+        "system": "You come up with a musical style that fits the given lyrics.\nOnly state the style there should be no pre or post discussion."
+      },
+      "w": 222,
+      "sizes": {
+        "system": 126
       }
     }
   ],
@@ -97,31 +82,9 @@
       }
     },
     {
-      "id": "l33",
-      "from": {
-        "node": "n35",
-        "port": "text"
-      },
-      "to": {
-        "node": "n36",
-        "port": "prompt"
-      }
-    },
-    {
-      "id": "l34",
+      "id": "l40",
       "from": {
         "node": "n17",
-        "port": "text"
-      },
-      "to": {
-        "node": "n35",
-        "port": "prompt"
-      }
-    },
-    {
-      "id": "l37",
-      "from": {
-        "node": "n18",
         "port": "text"
       },
       "to": {
@@ -130,11 +93,11 @@
       }
     }
   ],
-  "nid": 39,
-  "lid": 38,
+  "nid": 41,
+  "lid": 41,
   "view": {
-    "panX": -136.96055613560907,
-    "panY": 331.6738045017944,
+    "panX": -169.96055613560907,
+    "panY": 436.6738045017944,
     "scale": 1.0160530740967995
   }
 }
