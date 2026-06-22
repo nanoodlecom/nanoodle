@@ -451,6 +451,37 @@ window.NoodleApp = (function () {
   /* ---------- esc (verbatim) ---------- */
   const esc = (s)=> String(s ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
+  /* ---------- model-output localization ----------
+     The app chrome stays in English, but generated TEXT should come back in the
+     user's language. We detect it from a persisted editor choice (noodle_lang,
+     shared via same-origin localStorage) and otherwise from navigator.languages,
+     limited to the languages nanoodle's editor offers. English → no directive,
+     so English users' prompts are sent byte-identical. */
+  const I18N_ENAME = { es:"Spanish", fr:"French", de:"German", pt:"Portuguese", ja:"Japanese" };
+  const i18nDir = (code)=> I18N_ENAME[code] ? ("Respond in "+I18N_ENAME[code]+" unless the user explicitly asks for another language.") : "";
+  function localeDirective(){
+    // An EXPLICIT editor choice wins, including "en" (→ no directive): the live preview
+    // can't read the parent's localStorage from this sandboxed frame, so the parent seeds
+    // window.NOODLE_LANG; a standalone export reads its own noodle_lang. Only with no
+    // explicit choice do we fall back to the viewer's browser language (right for an
+    // exported app opened by someone else).
+    let code = (typeof window!=="undefined" && window.NOODLE_LANG) || null;
+    if(!code){ try{ code = localStorage.getItem("noodle_lang"); }catch(e){} }
+    if(code) return i18nDir(code);
+    const prefs=(navigator.languages&&navigator.languages.length)?navigator.languages:[navigator.language||"en"];
+    for(const p of prefs){ const base=String(p||"").toLowerCase().split("-")[0]; if(I18N_ENAME[base]) return i18nDir(base); }
+    return "";
+  }
+  function withLocale(messages){
+    const dir = localeDirective();
+    if(!dir || !Array.isArray(messages)) return messages;
+    const out = messages.slice();
+    const i = out.findIndex(m=> m && m.role==="system" && typeof m.content==="string");
+    if(i>=0) out[i] = Object.assign({}, out[i], { content: out[i].content + "\n\n" + dir });
+    else out.unshift({ role:"system", content:dir });
+    return out;
+  }
+
   /* ---------- SIZES (verbatim) ---------- */
   const SIZES = [["1024x1024","square"],["1024x1536","portrait"],["1536x1024","landscape"],["auto","auto"]];
 
@@ -731,7 +762,7 @@ window.NoodleApp = (function () {
     },
     async genChat(messages, model, opts){
       opts = opts || {};
-      const body = { model, messages };                                 // temperature always sent (0.8 default, as before); other knobs omitted-when-unset
+      const body = { model, messages: withLocale(messages) };           // withLocale injects the app locale so model output matches the UI language
       body.temperature = (opts.temperature!=null && opts.temperature!=="") ? +opts.temperature : 0.8;
       if(opts.max_tokens) body.max_tokens = +opts.max_tokens;
       if(opts.response_format) body.response_format = opts.response_format;   // {type:"json_object"} for JSON mode
@@ -3218,11 +3249,23 @@ const PREVIEW_PREAMBLE = PREVIEW_CSP +
   'try{window.sessionStorage.getItem("x");}catch(e){try{Object.defineProperty(window,"sessionStorage",{value:s(),configurable:true});}catch(_){}}})();' +
   'addEventListener("keydown",function(e){if(e.key==="Escape"){parent.postMessage("__esc__","*");}});<\/script>';
 
+// The editor's UI language (persisted at our real origin) or the browser's, limited to
+// what nanoodle offers. Seeded into the PREVIEW only (never the export), so the sandboxed
+// frame — which can't read our localStorage — localizes model output to the chosen language.
+function parentLang(){
+  const SUP={ en:1, es:1, fr:1, de:1, pt:1, ja:1 };
+  let stored=null; try{ stored=localStorage.getItem("noodle_lang"); }catch(e){}
+  if(stored && SUP[stored]) return stored;
+  const prefs=(navigator.languages&&navigator.languages.length)?navigator.languages:[navigator.language||"en"];
+  for(const p of prefs){ const b=String(p||"").toLowerCase().split("-")[0]; if(SUP[b]) return b; }
+  return "en";
+}
 function withPreamble(html){
-  if(/<head[^>]*>/i.test(html))     return html.replace(/<head[^>]*>/i, (m)=> m + PREVIEW_PREAMBLE);
-  if(/<!doctype[^>]*>/i.test(html)) return html.replace(/<!doctype[^>]*>/i, (m)=> m + PREVIEW_PREAMBLE);
-  if(/<html[^>]*>/i.test(html))     return html.replace(/<html[^>]*>/i, (m)=> m + PREVIEW_PREAMBLE);
-  return PREVIEW_PREAMBLE + html;
+  const pre = '<script>window.NOODLE_LANG=' + JSON.stringify(parentLang()) + ';<\/script>' + PREVIEW_PREAMBLE;
+  if(/<head[^>]*>/i.test(html))     return html.replace(/<head[^>]*>/i, (m)=> m + pre);
+  if(/<!doctype[^>]*>/i.test(html)) return html.replace(/<!doctype[^>]*>/i, (m)=> m + pre);
+  if(/<html[^>]*>/i.test(html))     return html.replace(/<html[^>]*>/i, (m)=> m + pre);
+  return pre + html;
 }
 
 // ----- render the iframe. The app always runs at a NULL origin (allow-scripts, no

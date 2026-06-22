@@ -115,6 +115,21 @@
   #quickadd .d{ font-size:.74rem; color:var(--dim) }
   #quickadd .grp{ font-size:.66rem; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); padding:.4rem .55rem .15rem; pointer-events:none }
   #quickadd .qhint{ font-size:.7rem; color:var(--accent); padding:.35rem .55rem .3rem; pointer-events:none; border-bottom:1px solid var(--line); margin-bottom:.2rem }
+  /* ---------- language selector ---------- */
+  #langmenu{ position:relative }
+  #langbtn{ display:flex; align-items:center; gap:.25rem; background:none; border:1px solid transparent;
+            color:var(--dim); padding:.3rem .45rem; font-size:.8rem; border-radius:.5rem }
+  #langbtn:hover{ background:var(--panel2); border-color:var(--line); color:var(--ink) }
+  #langbtn .gl{ font-size:.95rem; line-height:1 }
+  #langcur{ font-weight:600; letter-spacing:.01em }
+  #langpop{ position:absolute; top:110%; right:0; background:var(--panel); border:1px solid var(--line); border-radius:.6rem;
+            padding:.35rem; display:none; flex-direction:column; gap:.05rem; min-width:170px; box-shadow:0 12px 40px #0008; z-index:40 }
+  #langpop.open{ display:flex }
+  #langpop button{ display:flex; justify-content:space-between; align-items:center; gap:.8rem; width:100%; text-align:left;
+                   border:none; background:none; color:var(--ink); padding:.45rem .55rem; border-radius:.45rem; font-size:.86rem }
+  #langpop button:hover{ background:var(--panel2) }
+  #langpop button.sel{ color:var(--accent); font-weight:600 }
+  #langpop button .code{ font-size:.66rem; color:var(--dim); font-family:ui-monospace,monospace; text-transform:uppercase }
   #status{font-size:.78rem; color:var(--dim)}
   #share.ok{ border-color:var(--good); color:var(--good) }
   /* create-app popup (play.html in a modal iframe over the editor) */
@@ -507,6 +522,7 @@
     #morepop #apppop{ position:static; display:flex; padding:0; min-width:0; border:none; box-shadow:none; background:none }
     #top .sep{ display:none }
     #cost{ display:none }                 /* balance is non-essential chrome on a phone */
+    #langcur{ display:none }              /* globe + ▾ only — the menu still lists every language */
   }
 
   /* ---------- touch devices: finger-sized hit targets everywhere ---------- */
@@ -554,19 +570,19 @@
     <button id="addbtn" title="Add a node">＋<span class="lbl"> Add node</span> ▾</button>
     <div id="addpop"></div>
   </div>
-  <button id="run" class="primary" title="run every flow (Ctrl/⌘+Enter)">▶ Run</button>
+  <button id="run" class="primary" title="run every flow (Ctrl/⌘+Enter)">▶ <span>Run</span></button>
   <div id="appmenu">
-    <button id="makeapp" title="Turn this workflow into a shareable app">✨ Create app</button>
+    <button id="makeapp" title="Turn this workflow into a shareable app">✨ <span>Create app</span></button>
     <button id="appmore" class="caret" title="More app options" aria-label="More app options" aria-haspopup="true" hidden>▾</button>
     <div id="apppop">
-      <button id="newapp" title="Save this as a brand-new app — the one you’re editing stays untouched">✨ Save as a new app</button>
+      <button id="newapp" title="Save this as a brand-new app — the one you’re editing stays untouched">✨ <span>Save as a new app</span></button>
     </div>
   </div>
-  <button id="share" title="Copy a link that opens this workflow in the node editor so others can remix it">🔗 Share workflow</button>
-  <button id="submitcontest" title="Enter this in the Noodle Cookoff">🏆 Cookoff</button>
-  <button id="save" title="download this graph as JSON">⭳ Save</button>
-  <button id="load" title="open a graph JSON file">⭱ Load</button>
-  <button id="updates" title="What’s new in nanoodle">📣 Updates<span id="updbadge" hidden></span></button>
+  <button id="share" title="Copy a link that opens this workflow in the node editor so others can remix it">🔗 <span>Share workflow</span></button>
+  <button id="submitcontest" title="Enter this in the Noodle Cookoff">🏆 <span>Cookoff</span></button>
+  <button id="save" title="download this graph as JSON">⭳ <span>Save</span></button>
+  <button id="load" title="open a graph JSON file">⭱ <span>Load</span></button>
+  <button id="updates" title="What’s new in nanoodle">📣 <span>Updates</span><span id="updbadge" hidden></span></button>
   <input id="loadfile" type="file" accept="application/json,.json" hidden />
   <div id="moremenu">
     <button id="morebtn" title="More actions">⋯</button>
@@ -576,6 +592,10 @@
   <span id="cost"></span>
   <div class="spacer"></div>
   <span id="status">checking…</span>
+  <div id="langmenu">
+    <button id="langbtn" title="Language" aria-label="Language" data-no-i18n><span class="gl">🌐</span><span id="langcur"></span> ▾</button>
+    <div id="langpop" role="menu"></div>
+  </div>
   <button id="signin" class="link" style="display:none">sign in</button>
   <button id="pastebtn" class="link" style="display:none">paste key</button>
   <button id="signout" class="link" style="display:none">sign out</button>
@@ -733,6 +753,818 @@ const CHAT_ENDPOINT = `${NANOGPT}/api/v1/chat/completions`;
 const $ = (id) => document.getElementById(id);
 const clamp = (v,a,b)=> Math.max(a, Math.min(b, v));
 const esc = (s)=> String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+/* ======================================================================
+   i18n — the editor chrome is translatable; the app runner (play.html) and
+   exported apps stay in English chrome but localize MODEL OUTPUT via the
+   prompt (see localeDirective / genChat). English is the identity language.
+
+   Catalog shape: I18N[lang][englishSource] = translation. A missing key
+   falls back to the English source, so a partial catalog degrades cleanly.
+   Detection walks navigator.languages, matching the base subtag (es-419→es)
+   against I18N_LANGS; a persisted choice ("noodle_lang") always wins.
+   Switching language persists + reloads — the graph auto-saves, so reload
+   is lossless and avoids any half-retranslated DOM.
+
+   Translators: fill one map per language with the SAME keys as the English
+   sources used across this file; keep trailing "…", leading spaces, emoji,
+   and {placeholders} verbatim. Maps live between the I18N markers below.
+   ====================================================================== */
+const I18N_LANGS = [
+  { code:"en", native:"English" },
+  { code:"es", native:"Español" },
+  { code:"fr", native:"Français" },
+  { code:"de", native:"Deutsch" },
+  { code:"pt", native:"Português" },
+  { code:"ja", native:"日本語" },
+];
+// English name per language → the model-output prompt directive.
+const I18N_ENAME = { es:"Spanish", fr:"French", de:"German", pt:"Portuguese", ja:"Japanese" };
+
+/* === I18N-MAPS-BEGIN (es/fr/de/pt/ja — generated; English is identity) === */
+const I18N = {
+  es:{
+    "Add node":"Añadir nodo",
+    "Add a node":"Añadir un nodo",
+    "Run":"Ejecutar",
+    "run every flow (Ctrl/⌘+Enter)":"ejecutar todos los flujos (Ctrl/⌘+Enter)",
+    "Create app":"Crear app",
+    "Turn this workflow into a shareable app":"Convierte este flujo en una app para compartir",
+    "Share":"Compartir",
+    "Copy a link that loads this exact workflow — paste it to share with anyone":"Copia un enlace que carga este flujo exacto — pégalo para compartirlo",
+    "Save":"Guardar",
+    "download this graph as JSON":"descargar este grafo como JSON",
+    "Load":"Cargar",
+    "open a graph JSON file":"abrir un archivo JSON de grafo",
+    "More actions":"Más acciones",
+    "Close (Esc)":"Cerrar (Esc)",
+    "sign in":"iniciar sesión",
+    "paste key":"pegar clave",
+    "sign out":"cerrar sesión",
+    "checking…":"comprobando…",
+    "ready ✓":"listo ✓",
+    "not signed in":"sin iniciar sesión",
+    "paste a nano-gpt.com API key to run":"pega una clave API de nano-gpt.com para ejecutar",
+    "paste NanoGPT API key (sk-nano-… or a UUID)":"pega la clave API de NanoGPT (sk-nano-… o un UUID)",
+    "save":"guardar",
+    "nano-gpt.com → Settings → API":"nano-gpt.com → Ajustes → API",
+    "model":"modelo",
+    "Model":"Modelo",
+    "Chat":"Chat",
+    "Image":"Imagen",
+    "Video":"Vídeo",
+    "Audio":"Audio",
+    "filter the full list, or type an exact id + Enter…":"filtra la lista completa, o escribe un id exacto + Enter…",
+    "loading the full list…":"cargando la lista completa…",
+    "pick a model…":"elige un modelo…",
+    "newest first":"más recientes primero",
+    "Text":"Texto",
+    "A string source":"Una fuente de texto",
+    "Image input":"Entrada de imagen",
+    "Upload or capture an image":"Sube o captura una imagen",
+    "Join":"Unir",
+    "Glue two texts together":"Une dos textos",
+    "LLM":"LLM",
+    "Text → text (any chat model)":"Texto → texto (cualquier modelo de chat)",
+    "Text → image":"Texto → imagen",
+    "Edit":"Editar",
+    "Image + text → image":"Imagen + texto → imagen",
+    "Vision":"Visión",
+    "Image → text (describe / ask)":"Imagen → texto (describir / preguntar)",
+    "Text→Video":"Texto→Vídeo",
+    "Text → video (renders ~1 min)":"Texto → vídeo (renderiza ~1 min)",
+    "Image→Video":"Imagen→Vídeo",
+    "Image (+text) → video":"Imagen (+texto) → vídeo",
+    "Music":"Música",
+    "Text → music":"Texto → música",
+    "Speech":"Voz",
+    "Text → speech (TTS)":"Texto → voz (TTS)",
+    "system (optional)":"sistema (opcional)",
+    "prompt":"prompt",
+    "separator":"separador",
+    "size":"tamaño",
+    "edit instruction":"instrucción de edición",
+    "question":"pregunta",
+    "duration":"duración",
+    "aspect":"relación",
+    "motion prompt (optional)":"prompt de movimiento (opcional)",
+    "style / prompt":"estilo / prompt",
+    "text to speak":"texto a leer",
+    "advanced params (JSON)":"parámetros avanzados (JSON)",
+    "type some text…":"escribe algo…",
+    "you are a helpful…":"eres un asistente útil…",
+    "ask something…":"pregunta algo…",
+    "a red panda astronaut…":"un panda rojo astronauta…",
+    "make it night-time, add neon…":"hazlo de noche, añade neón…",
+    "Describe this image.":"Describe esta imagen.",
+    "a drone shot over neon Tokyo at night…":"un plano con dron sobre el Tokio de neón de noche…",
+    "slow push-in, hair blowing in the wind…":"acercamiento lento, pelo al viento…",
+    "upbeat lo-fi hip hop, mellow piano, vinyl crackle, 90 BPM":"lo-fi hip hop animado, piano suave, crepitar de vinilo, 90 BPM",
+    "Hello! This is a test.":"¡Hola! Esto es una prueba.",
+    "square":"cuadrado",
+    "portrait":"vertical",
+    "landscape":"horizontal",
+    "auto":"auto",
+    "5 sec":"5 seg",
+    "10 sec":"10 seg",
+    "Lyrics":"Letra",
+    "Instrumental":"Instrumental",
+    "Duration (sec)":"Duración (seg)",
+    "Number of songs":"Número de canciones",
+    "Negative prompt":"Prompt negativo",
+    "Seed":"Semilla",
+    "Format":"Formato",
+    "Voice":"Voz",
+    "Speed":"Velocidad",
+    "Instructions":"Instrucciones",
+    "required by vocal song models (e.g. Mureka); leave empty for instrumental/BGM":"requerido por modelos de canción vocal (p. ej. Mureka); déjalo vacío para instrumental/BGM",
+    "run this branch":"ejecutar esta rama",
+    "delete":"eliminar",
+    "open":"abrir",
+    "copy":"copiar",
+    "✓ copied":"✓ copiado",
+    "copy failed":"error al copiar",
+    "Upload":"Subir",
+    "Webcam":"Cámara",
+    "Capture":"Capturar",
+    "Cancel":"Cancelar",
+    "no image yet":"aún sin imagen",
+    "running…":"ejecutando…",
+    "error":"error",
+    "generating audio…":"generando audio…",
+    "rendering video…":"renderizando vídeo…",
+    "animating…":"animando…",
+    "nothing to run — add a node":"nada que ejecutar — añade un nodo",
+    "add a node first":"añade un nodo primero",
+    "cycle detected":"ciclo detectado",
+    "couldn’t read that image":"no se pudo leer esa imagen",
+    "webcam unavailable":"cámara no disponible",
+    "share failed":"error al compartir",
+    "sign-in error":"error de inicio de sesión",
+    "pick a model first":"elige un modelo primero",
+    "no prompt":"sin prompt",
+    "no text":"sin texto",
+    "no image input":"sin entrada de imagen",
+    "no edit instruction":"sin instrucción de edición",
+    "no image — upload or capture one first":"sin imagen — sube o captura una primero",
+    "✓ Link copied!":"✓ ¡Enlace copiado!",
+    "✓ Share link copied! Paste it anywhere — it opens this exact workflow":"✓ ¡Enlace copiado! Pégalo donde sea — abre este flujo exacto",
+    "Share link is in the address bar — copy it to share this workflow":"El enlace está en la barra de direcciones — cópialo para compartir este flujo",
+    "Couldn’t load that file:":"No se pudo cargar ese archivo:",
+    "Audio input":"Entrada de audio",
+    "Upload an audio clip":"Sube un clip de audio",
+    "Video input":"Entrada de video",
+    "Upload a video clip":"Sube un clip de video",
+    "Video edit":"Editar video",
+    "Video (+text) → video — edit / extend / upscale":"Video (+texto) → video — editar / extender / escalar",
+    "Avatar / lipsync":"Avatar / sincronización labial",
+    "Image + audio → talking video":"Imagen + audio → video hablado",
+    "Transcribe":"Transcribir",
+    "Audio → text (speech-to-text)":"Audio → texto (voz a texto)",
+    "Inputs":"Entradas",
+    "Other":"Otros",
+    "instruction (optional)":"instrucción (opcional)",
+    "prompt (optional)":"prompt (opcional)",
+    "language":"idioma",
+    "restyle as claymation · extend the clip · upscale to 4K…":"reestiliza como plastilina · extiende el clip · escala a 4K…",
+    "subtle head movement, warm lighting…":"movimiento sutil de cabeza, luz cálida…"
+  },
+  fr:{
+    "Add node":"Ajouter un nœud",
+    "Add a node":"Ajouter un nœud",
+    "Run":"Exécuter",
+    "run every flow (Ctrl/⌘+Enter)":"tout exécuter (Ctrl/⌘+Entrée)",
+    "Create app":"Créer une app",
+    "Turn this workflow into a shareable app":"Transformer ce workflow en app partageable",
+    "Share":"Partager",
+    "Copy a link that loads this exact workflow — paste it to share with anyone":"Copier un lien qui charge ce workflow exact — collez-le pour le partager",
+    "Save":"Enregistrer",
+    "download this graph as JSON":"télécharger ce graphe en JSON",
+    "Load":"Charger",
+    "open a graph JSON file":"ouvrir un fichier de graphe JSON",
+    "More actions":"Plus d’actions",
+    "Close (Esc)":"Fermer (Esc)",
+    "sign in":"se connecter",
+    "paste key":"coller la clé",
+    "sign out":"se déconnecter",
+    "checking…":"vérification…",
+    "ready ✓":"prêt ✓",
+    "not signed in":"non connecté",
+    "paste a nano-gpt.com API key to run":"collez une clé API nano-gpt.com pour exécuter",
+    "paste NanoGPT API key (sk-nano-… or a UUID)":"collez la clé API NanoGPT (sk-nano-… ou un UUID)",
+    "save":"enregistrer",
+    "nano-gpt.com → Settings → API":"nano-gpt.com → Paramètres → API",
+    "model":"modèle",
+    "Model":"Modèle",
+    "Chat":"Chat",
+    "Image":"Image",
+    "Video":"Vidéo",
+    "Audio":"Audio",
+    "filter the full list, or type an exact id + Enter…":"filtrer la liste, ou saisir un id exact + Entrée…",
+    "loading the full list…":"chargement de la liste…",
+    "pick a model…":"choisir un modèle…",
+    "newest first":"plus récents d’abord",
+    "Text":"Texte",
+    "A string source":"Une source de texte",
+    "Image input":"Entrée image",
+    "Upload or capture an image":"Importer ou capturer une image",
+    "Join":"Joindre",
+    "Glue two texts together":"Assembler deux textes",
+    "LLM":"LLM",
+    "Text → text (any chat model)":"Texte → texte (tout modèle chat)",
+    "Text → image":"Texte → image",
+    "Edit":"Modifier",
+    "Image + text → image":"Image + texte → image",
+    "Vision":"Vision",
+    "Image → text (describe / ask)":"Image → texte (décrire / demander)",
+    "Text→Video":"Texte→Vidéo",
+    "Text → video (renders ~1 min)":"Texte → vidéo (rendu ~1 min)",
+    "Image→Video":"Image→Vidéo",
+    "Image (+text) → video":"Image (+texte) → vidéo",
+    "Music":"Musique",
+    "Text → music":"Texte → musique",
+    "Speech":"Voix",
+    "Text → speech (TTS)":"Texte → voix (TTS)",
+    "system (optional)":"système (facultatif)",
+    "prompt":"prompt",
+    "separator":"séparateur",
+    "size":"taille",
+    "edit instruction":"instruction de modification",
+    "question":"question",
+    "duration":"durée",
+    "aspect":"format",
+    "motion prompt (optional)":"prompt de mouvement (facultatif)",
+    "style / prompt":"style / prompt",
+    "text to speak":"texte à dire",
+    "advanced params (JSON)":"params avancés (JSON)",
+    "type some text…":"saisissez du texte…",
+    "you are a helpful…":"vous êtes un assistant…",
+    "ask something…":"posez une question…",
+    "a red panda astronaut…":"un panda roux astronaute…",
+    "make it night-time, add neon…":"passe en mode nuit, ajoute des néons…",
+    "Describe this image.":"Décrivez cette image.",
+    "a drone shot over neon Tokyo at night…":"un plan drone sur Tokyo en néons la nuit…",
+    "slow push-in, hair blowing in the wind…":"léger travelling avant, cheveux au vent…",
+    "upbeat lo-fi hip hop, mellow piano, vinyl crackle, 90 BPM":"lo-fi hip hop entraînant, piano doux, grésillement vinyle, 90 BPM",
+    "Hello! This is a test.":"Bonjour ! Ceci est un test.",
+    "square":"carré",
+    "portrait":"portrait",
+    "landscape":"paysage",
+    "auto":"auto",
+    "5 sec":"5 s",
+    "10 sec":"10 s",
+    "Lyrics":"Paroles",
+    "Instrumental":"Instrumental",
+    "Duration (sec)":"Durée (s)",
+    "Number of songs":"Nombre de morceaux",
+    "Negative prompt":"Prompt négatif",
+    "Seed":"Seed",
+    "Format":"Format",
+    "Voice":"Voix",
+    "Speed":"Vitesse",
+    "Instructions":"Instructions",
+    "required by vocal song models (e.g. Mureka); leave empty for instrumental/BGM":"requis par les modèles vocaux (ex. Mureka) ; laisser vide pour instrumental/BGM",
+    "run this branch":"exécuter cette branche",
+    "delete":"supprimer",
+    "open":"ouvrir",
+    "copy":"copier",
+    "✓ copied":"✓ copié",
+    "copy failed":"échec de la copie",
+    "Upload":"Importer",
+    "Webcam":"Webcam",
+    "Capture":"Capturer",
+    "Cancel":"Annuler",
+    "no image yet":"aucune image",
+    "running…":"exécution…",
+    "error":"erreur",
+    "generating audio…":"génération de l’audio…",
+    "rendering video…":"rendu de la vidéo…",
+    "animating…":"animation…",
+    "nothing to run — add a node":"rien à exécuter — ajoutez un nœud",
+    "add a node first":"ajoutez d’abord un nœud",
+    "cycle detected":"cycle détecté",
+    "couldn’t read that image":"impossible de lire cette image",
+    "webcam unavailable":"webcam indisponible",
+    "share failed":"échec du partage",
+    "sign-in error":"erreur de connexion",
+    "pick a model first":"choisissez d’abord un modèle",
+    "no prompt":"aucun prompt",
+    "no text":"aucun texte",
+    "no image input":"aucune entrée image",
+    "no edit instruction":"aucune instruction de modification",
+    "no image — upload or capture one first":"aucune image — importez-en ou capturez-en une d’abord",
+    "✓ Link copied!":"✓ Lien copié !",
+    "✓ Share link copied! Paste it anywhere — it opens this exact workflow":"✓ Lien de partage copié ! Collez-le où vous voulez — il ouvre ce workflow exact",
+    "Share link is in the address bar — copy it to share this workflow":"Le lien de partage est dans la barre d’adresse — copiez-le pour partager ce workflow",
+    "Couldn’t load that file:":"Impossible de charger ce fichier :",
+    "Audio input":"Entrée audio",
+    "Upload an audio clip":"Importer un clip audio",
+    "Video input":"Entrée vidéo",
+    "Upload a video clip":"Importer un clip vidéo",
+    "Video edit":"Édition vidéo",
+    "Video (+text) → video — edit / extend / upscale":"Vidéo (+texte) → vidéo — éditer / prolonger / agrandir",
+    "Avatar / lipsync":"Avatar / synchro labiale",
+    "Image + audio → talking video":"Image + audio → vidéo parlante",
+    "Transcribe":"Transcrire",
+    "Audio → text (speech-to-text)":"Audio → texte (reconnaissance vocale)",
+    "Inputs":"Entrées",
+    "Other":"Autre",
+    "instruction (optional)":"instruction (facultatif)",
+    "prompt (optional)":"prompt (facultatif)",
+    "language":"langue",
+    "restyle as claymation · extend the clip · upscale to 4K…":"style pâte à modeler · prolonger le clip · passer en 4K…",
+    "subtle head movement, warm lighting…":"léger mouvement de tête, lumière chaude…"
+  },
+  de:{
+    "Add node":"Node hinzufügen",
+    "Add a node":"Node hinzufügen",
+    "Run":"Ausführen",
+    "run every flow (Ctrl/⌘+Enter)":"alle Abläufe ausführen (Ctrl/⌘+Enter)",
+    "Create app":"App erstellen",
+    "Turn this workflow into a shareable app":"Diesen Workflow in eine teilbare App umwandeln",
+    "Share":"Teilen",
+    "Copy a link that loads this exact workflow — paste it to share with anyone":"Link kopieren, der genau diesen Workflow lädt — zum Teilen einfügen",
+    "Save":"Speichern",
+    "download this graph as JSON":"diesen Graphen als JSON herunterladen",
+    "Load":"Laden",
+    "open a graph JSON file":"eine Graph-JSON-Datei öffnen",
+    "More actions":"Weitere Aktionen",
+    "Close (Esc)":"Schließen (Esc)",
+    "sign in":"anmelden",
+    "paste key":"Schlüssel einfügen",
+    "sign out":"abmelden",
+    "checking…":"wird geprüft…",
+    "ready ✓":"bereit ✓",
+    "not signed in":"nicht angemeldet",
+    "paste a nano-gpt.com API key to run":"nano-gpt.com API-Schlüssel zum Ausführen einfügen",
+    "paste NanoGPT API key (sk-nano-… or a UUID)":"NanoGPT API-Schlüssel einfügen (sk-nano-… oder UUID)",
+    "save":"speichern",
+    "nano-gpt.com → Settings → API":"nano-gpt.com → Einstellungen → API",
+    "model":"Modell",
+    "Model":"Modell",
+    "Chat":"Chat",
+    "Image":"Bild",
+    "Video":"Video",
+    "Audio":"Audio",
+    "filter the full list, or type an exact id + Enter…":"Liste filtern oder exakte ID + Enter eingeben…",
+    "loading the full list…":"lade vollständige Liste…",
+    "pick a model…":"Modell wählen…",
+    "newest first":"neueste zuerst",
+    "Text":"Text",
+    "A string source":"Eine Textquelle",
+    "Image input":"Bildeingabe",
+    "Upload or capture an image":"Bild hochladen oder aufnehmen",
+    "Join":"Verbinden",
+    "Glue two texts together":"Zwei Texte zusammenfügen",
+    "LLM":"LLM",
+    "Text → text (any chat model)":"Text → Text (beliebiges Chat-Modell)",
+    "Text → image":"Text → Bild",
+    "Edit":"Bearbeiten",
+    "Image + text → image":"Bild + Text → Bild",
+    "Vision":"Vision",
+    "Image → text (describe / ask)":"Bild → Text (beschreiben / fragen)",
+    "Text→Video":"Text→Video",
+    "Text → video (renders ~1 min)":"Text → Video (rendert ~1 Min.)",
+    "Image→Video":"Bild→Video",
+    "Image (+text) → video":"Bild (+Text) → Video",
+    "Music":"Musik",
+    "Text → music":"Text → Musik",
+    "Speech":"Sprache",
+    "Text → speech (TTS)":"Text → Sprache (TTS)",
+    "system (optional)":"System (optional)",
+    "prompt":"Prompt",
+    "separator":"Trennzeichen",
+    "size":"Größe",
+    "edit instruction":"Bearbeitungsanweisung",
+    "question":"Frage",
+    "duration":"Dauer",
+    "aspect":"Seitenverhältnis",
+    "motion prompt (optional)":"Bewegungs-Prompt (optional)",
+    "style / prompt":"Stil / Prompt",
+    "text to speak":"Text zum Sprechen",
+    "advanced params (JSON)":"erweiterte Parameter (JSON)",
+    "type some text…":"Text eingeben…",
+    "you are a helpful…":"du bist ein hilfreicher…",
+    "ask something…":"etwas fragen…",
+    "a red panda astronaut…":"ein Roter Panda als Astronaut…",
+    "make it night-time, add neon…":"mach es Nacht, füge Neon hinzu…",
+    "Describe this image.":"Beschreibe dieses Bild.",
+    "a drone shot over neon Tokyo at night…":"eine Drohnenaufnahme über dem nächtlichen Neon-Tokio…",
+    "slow push-in, hair blowing in the wind…":"langsame Kamerafahrt nach vorne, Haar weht im Wind…",
+    "upbeat lo-fi hip hop, mellow piano, vinyl crackle, 90 BPM":"fröhlicher Lo-Fi-Hip-Hop, sanftes Piano, Vinyl-Knistern, 90 BPM",
+    "Hello! This is a test.":"Hallo! Das ist ein Test.",
+    "square":"quadratisch",
+    "portrait":"Hochformat",
+    "landscape":"Querformat",
+    "auto":"auto",
+    "5 sec":"5 Sek.",
+    "10 sec":"10 Sek.",
+    "Lyrics":"Songtext",
+    "Instrumental":"Instrumental",
+    "Duration (sec)":"Dauer (Sek.)",
+    "Number of songs":"Anzahl Songs",
+    "Negative prompt":"Negativer Prompt",
+    "Seed":"Seed",
+    "Format":"Format",
+    "Voice":"Stimme",
+    "Speed":"Geschwindigkeit",
+    "Instructions":"Anweisungen",
+    "required by vocal song models (e.g. Mureka); leave empty for instrumental/BGM":"erforderlich für Gesangsmodelle (z.B. Mureka); leer lassen für Instrumental/BGM",
+    "run this branch":"diesen Zweig ausführen",
+    "delete":"löschen",
+    "open":"öffnen",
+    "copy":"kopieren",
+    "✓ copied":"✓ kopiert",
+    "copy failed":"Kopieren fehlgeschlagen",
+    "Upload":"Hochladen",
+    "Webcam":"Webcam",
+    "Capture":"Aufnehmen",
+    "Cancel":"Abbrechen",
+    "no image yet":"noch kein Bild",
+    "running…":"läuft…",
+    "error":"Fehler",
+    "generating audio…":"Audio wird erzeugt…",
+    "rendering video…":"Video wird gerendert…",
+    "animating…":"wird animiert…",
+    "nothing to run — add a node":"nichts auszuführen — Node hinzufügen",
+    "add a node first":"zuerst Node hinzufügen",
+    "cycle detected":"Zyklus erkannt",
+    "couldn’t read that image":"Bild konnte nicht gelesen werden",
+    "webcam unavailable":"Webcam nicht verfügbar",
+    "share failed":"Teilen fehlgeschlagen",
+    "sign-in error":"Anmeldefehler",
+    "pick a model first":"zuerst Modell wählen",
+    "no prompt":"kein Prompt",
+    "no text":"kein Text",
+    "no image input":"keine Bildeingabe",
+    "no edit instruction":"keine Bearbeitungsanweisung",
+    "no image — upload or capture one first":"kein Bild — erst hochladen oder aufnehmen",
+    "✓ Link copied!":"✓ Link kopiert!",
+    "✓ Share link copied! Paste it anywhere — it opens this exact workflow":"✓ Link kopiert! Überall einfügen — er öffnet genau diesen Workflow",
+    "Share link is in the address bar — copy it to share this workflow":"Teil-Link ist in der Adressleiste — kopieren, um diesen Workflow zu teilen",
+    "Couldn’t load that file:":"Datei konnte nicht geladen werden:",
+    "Audio input":"Audio-Eingabe",
+    "Upload an audio clip":"Audioclip hochladen",
+    "Video input":"Video-Eingabe",
+    "Upload a video clip":"Videoclip hochladen",
+    "Video edit":"Video bearbeiten",
+    "Video (+text) → video — edit / extend / upscale":"Video (+Text) → Video — bearbeiten / erweitern / hochskalieren",
+    "Avatar / lipsync":"Avatar / Lippensynchro",
+    "Image + audio → talking video":"Bild + Audio → sprechendes Video",
+    "Transcribe":"Transkribieren",
+    "Audio → text (speech-to-text)":"Audio → Text (Sprache-zu-Text)",
+    "Inputs":"Eingaben",
+    "Other":"Sonstiges",
+    "instruction (optional)":"Anweisung (optional)",
+    "prompt (optional)":"Prompt (optional)",
+    "language":"Sprache",
+    "restyle as claymation · extend the clip · upscale to 4K…":"im Knetfilm-Stil · Clip verlängern · auf 4K hochskalieren…",
+    "subtle head movement, warm lighting…":"leichte Kopfbewegung, warmes Licht…"
+  },
+  pt:{
+    "Add node":"Adicionar nó",
+    "Add a node":"Adicionar um nó",
+    "Run":"Executar",
+    "run every flow (Ctrl/⌘+Enter)":"executar todos os fluxos (Ctrl/⌘+Enter)",
+    "Create app":"Criar app",
+    "Turn this workflow into a shareable app":"Transforme este fluxo num app compartilhável",
+    "Share":"Compartilhar",
+    "Copy a link that loads this exact workflow — paste it to share with anyone":"Copie um link que carrega exatamente este fluxo — cole para compartilhar",
+    "Save":"Salvar",
+    "download this graph as JSON":"baixar este grafo como JSON",
+    "Load":"Carregar",
+    "open a graph JSON file":"abrir um arquivo de grafo JSON",
+    "More actions":"Mais ações",
+    "Close (Esc)":"Fechar (Esc)",
+    "sign in":"entrar",
+    "paste key":"colar chave",
+    "sign out":"sair",
+    "checking…":"verificando…",
+    "ready ✓":"pronto ✓",
+    "not signed in":"sessão não iniciada",
+    "paste a nano-gpt.com API key to run":"cole uma chave de API do nano-gpt.com para executar",
+    "paste NanoGPT API key (sk-nano-… or a UUID)":"cole a chave de API NanoGPT (sk-nano-… ou um UUID)",
+    "save":"salvar",
+    "nano-gpt.com → Settings → API":"nano-gpt.com → Definições → API",
+    "model":"modelo",
+    "Model":"Modelo",
+    "Chat":"Chat",
+    "Image":"Imagem",
+    "Video":"Vídeo",
+    "Audio":"Áudio",
+    "filter the full list, or type an exact id + Enter…":"filtre a lista completa, ou digite um id exato + Enter…",
+    "loading the full list…":"carregando a lista completa…",
+    "pick a model…":"escolha um modelo…",
+    "newest first":"mais recentes primeiro",
+    "Text":"Texto",
+    "A string source":"Uma fonte de texto",
+    "Image input":"Entrada de imagem",
+    "Upload or capture an image":"Envie ou capture uma imagem",
+    "Join":"Juntar",
+    "Glue two texts together":"Cole dois textos num só",
+    "LLM":"LLM",
+    "Text → text (any chat model)":"Texto → texto (qualquer modelo de chat)",
+    "Text → image":"Texto → imagem",
+    "Edit":"Editar",
+    "Image + text → image":"Imagem + texto → imagem",
+    "Vision":"Visão",
+    "Image → text (describe / ask)":"Imagem → texto (descrever / perguntar)",
+    "Text→Video":"Texto→Vídeo",
+    "Text → video (renders ~1 min)":"Texto → vídeo (renderiza ~1 min)",
+    "Image→Video":"Imagem→Vídeo",
+    "Image (+text) → video":"Imagem (+texto) → vídeo",
+    "Music":"Música",
+    "Text → music":"Texto → música",
+    "Speech":"Fala",
+    "Text → speech (TTS)":"Texto → fala (TTS)",
+    "system (optional)":"sistema (opcional)",
+    "prompt":"prompt",
+    "separator":"separador",
+    "size":"tamanho",
+    "edit instruction":"instrução de edição",
+    "question":"pergunta",
+    "duration":"duração",
+    "aspect":"proporção",
+    "motion prompt (optional)":"prompt de movimento (opcional)",
+    "style / prompt":"estilo / prompt",
+    "text to speak":"texto a falar",
+    "advanced params (JSON)":"parâmetros avançados (JSON)",
+    "type some text…":"digite um texto…",
+    "you are a helpful…":"você é um assistente prestativo…",
+    "ask something…":"pergunte algo…",
+    "a red panda astronaut…":"um panda-vermelho astronauta…",
+    "make it night-time, add neon…":"transforme em noite, adicione néon…",
+    "Describe this image.":"Descreva esta imagem.",
+    "a drone shot over neon Tokyo at night…":"um drone sobre a Tóquio de néon à noite…",
+    "slow push-in, hair blowing in the wind…":"aproximação lenta, cabelo ao vento…",
+    "upbeat lo-fi hip hop, mellow piano, vinyl crackle, 90 BPM":"lo-fi hip hop animado, piano suave, chiado de vinil, 90 BPM",
+    "Hello! This is a test.":"Olá! Isto é um teste.",
+    "square":"quadrado",
+    "portrait":"retrato",
+    "landscape":"paisagem",
+    "auto":"auto",
+    "5 sec":"5 seg",
+    "10 sec":"10 seg",
+    "Lyrics":"Letra",
+    "Instrumental":"Instrumental",
+    "Duration (sec)":"Duração (seg)",
+    "Number of songs":"Número de músicas",
+    "Negative prompt":"Prompt negativo",
+    "Seed":"Seed",
+    "Format":"Formato",
+    "Voice":"Voz",
+    "Speed":"Velocidade",
+    "Instructions":"Instruções",
+    "required by vocal song models (e.g. Mureka); leave empty for instrumental/BGM":"exigido por modelos com vocal (ex.: Mureka); deixe vazio para instrumental/BGM",
+    "run this branch":"executar este ramo",
+    "delete":"excluir",
+    "open":"abrir",
+    "copy":"copiar",
+    "✓ copied":"✓ copiado",
+    "copy failed":"falha ao copiar",
+    "Upload":"Enviar",
+    "Webcam":"Webcam",
+    "Capture":"Capturar",
+    "Cancel":"Cancelar",
+    "no image yet":"nenhuma imagem ainda",
+    "running…":"executando…",
+    "error":"erro",
+    "generating audio…":"gerando áudio…",
+    "rendering video…":"renderizando vídeo…",
+    "animating…":"animando…",
+    "nothing to run — add a node":"nada para executar — adicione um nó",
+    "add a node first":"adicione um nó primeiro",
+    "cycle detected":"ciclo detectado",
+    "couldn’t read that image":"não foi possível ler essa imagem",
+    "webcam unavailable":"webcam indisponível",
+    "share failed":"falha ao compartilhar",
+    "sign-in error":"erro ao entrar",
+    "pick a model first":"escolha um modelo primeiro",
+    "no prompt":"sem prompt",
+    "no text":"sem texto",
+    "no image input":"sem entrada de imagem",
+    "no edit instruction":"sem instrução de edição",
+    "no image — upload or capture one first":"sem imagem — envie ou capture uma primeiro",
+    "✓ Link copied!":"✓ Link copiado!",
+    "✓ Share link copied! Paste it anywhere — it opens this exact workflow":"✓ Link de compartilhamento copiado! Cole em qualquer lugar — ele abre exatamente este fluxo",
+    "Share link is in the address bar — copy it to share this workflow":"O link de compartilhamento está na barra de endereço — copie para compartilhar este fluxo",
+    "Couldn’t load that file:":"Não foi possível carregar o arquivo:",
+    "Audio input":"Entrada de áudio",
+    "Upload an audio clip":"Envie um clipe de áudio",
+    "Video input":"Entrada de vídeo",
+    "Upload a video clip":"Envie um clipe de vídeo",
+    "Video edit":"Editar vídeo",
+    "Video (+text) → video — edit / extend / upscale":"Vídeo (+texto) → vídeo — editar / estender / ampliar",
+    "Avatar / lipsync":"Avatar / sincronia labial",
+    "Image + audio → talking video":"Imagem + áudio → vídeo falado",
+    "Transcribe":"Transcrever",
+    "Audio → text (speech-to-text)":"Áudio → texto (voz para texto)",
+    "Inputs":"Entradas",
+    "Other":"Outros",
+    "instruction (optional)":"instrução (opcional)",
+    "prompt (optional)":"prompt (opcional)",
+    "language":"idioma",
+    "restyle as claymation · extend the clip · upscale to 4K…":"reestilizar como massinha · estender o clipe · ampliar para 4K…",
+    "subtle head movement, warm lighting…":"leve movimento da cabeça, iluminação quente…"
+  },
+  ja:{
+    "Add node":"ノード追加",
+    "Add a node":"ノードを追加",
+    "Run":"実行",
+    "run every flow (Ctrl/⌘+Enter)":"すべてのフローを実行 (Ctrl/⌘+Enter)",
+    "Create app":"アプリ作成",
+    "Turn this workflow into a shareable app":"このワークフローを共有可能なアプリに変換",
+    "Share":"共有",
+    "Copy a link that loads this exact workflow — paste it to share with anyone":"このワークフローを開くリンクをコピー — 貼り付けて誰とでも共有",
+    "Save":"保存",
+    "download this graph as JSON":"このグラフをJSONでダウンロード",
+    "Load":"読み込み",
+    "open a graph JSON file":"グラフのJSONファイルを開く",
+    "More actions":"その他の操作",
+    "Close (Esc)":"閉じる (Esc)",
+    "sign in":"サインイン",
+    "paste key":"キーを貼り付け",
+    "sign out":"サインアウト",
+    "checking…":"確認中…",
+    "ready ✓":"準備完了 ✓",
+    "not signed in":"未サインイン",
+    "paste a nano-gpt.com API key to run":"実行するには nano-gpt.com APIキーを貼り付け",
+    "paste NanoGPT API key (sk-nano-… or a UUID)":"NanoGPT APIキーを貼り付け (sk-nano-… または UUID)",
+    "save":"保存",
+    "nano-gpt.com → Settings → API":"nano-gpt.com → 設定 → API",
+    "model":"モデル",
+    "Model":"モデル",
+    "Chat":"チャット",
+    "Image":"画像",
+    "Video":"動画",
+    "Audio":"音声",
+    "filter the full list, or type an exact id + Enter…":"一覧を絞り込み、または正確なIDを入力 + Enter…",
+    "loading the full list…":"一覧を読み込み中…",
+    "pick a model…":"モデルを選択…",
+    "newest first":"新しい順",
+    "Text":"テキスト",
+    "A string source":"文字列ソース",
+    "Image input":"画像入力",
+    "Upload or capture an image":"画像をアップロードまたは撮影",
+    "Join":"結合",
+    "Glue two texts together":"2つのテキストを結合",
+    "LLM":"LLM",
+    "Text → text (any chat model)":"テキスト → テキスト (任意のチャットモデル)",
+    "Text → image":"テキスト → 画像",
+    "Edit":"編集",
+    "Image + text → image":"画像 + テキスト → 画像",
+    "Vision":"ビジョン",
+    "Image → text (describe / ask)":"画像 → テキスト (説明 / 質問)",
+    "Text→Video":"テキスト→動画",
+    "Text → video (renders ~1 min)":"テキスト → 動画 (生成 約1分)",
+    "Image→Video":"画像→動画",
+    "Image (+text) → video":"画像 (+テキスト) → 動画",
+    "Music":"音楽",
+    "Text → music":"テキスト → 音楽",
+    "Speech":"音声",
+    "Text → speech (TTS)":"テキスト → 音声 (TTS)",
+    "system (optional)":"システム (任意)",
+    "prompt":"プロンプト",
+    "separator":"区切り文字",
+    "size":"サイズ",
+    "edit instruction":"編集指示",
+    "question":"質問",
+    "duration":"長さ",
+    "aspect":"アスペクト比",
+    "motion prompt (optional)":"動きのプロンプト (任意)",
+    "style / prompt":"スタイル / プロンプト",
+    "text to speak":"読み上げるテキスト",
+    "advanced params (JSON)":"詳細パラメータ (JSON)",
+    "type some text…":"テキストを入力…",
+    "you are a helpful…":"あなたは親切なアシスタントです…",
+    "ask something…":"質問を入力…",
+    "a red panda astronaut…":"宇宙飛行士のレッサーパンダ…",
+    "make it night-time, add neon…":"夜にして、ネオンを追加…",
+    "Describe this image.":"この画像を説明してください。",
+    "a drone shot over neon Tokyo at night…":"夜のネオン輝く東京上空のドローン映像…",
+    "slow push-in, hair blowing in the wind…":"ゆっくりズームイン、風になびく髪…",
+    "upbeat lo-fi hip hop, mellow piano, vinyl crackle, 90 BPM":"アップビートなlo-fiヒップホップ、まろやかなピアノ、レコードノイズ、90 BPM",
+    "Hello! This is a test.":"こんにちは！これはテストです。",
+    "square":"スクエア",
+    "portrait":"縦長",
+    "landscape":"横長",
+    "auto":"自動",
+    "5 sec":"5秒",
+    "10 sec":"10秒",
+    "Lyrics":"歌詞",
+    "Instrumental":"インストゥルメンタル",
+    "Duration (sec)":"長さ (秒)",
+    "Number of songs":"曲数",
+    "Negative prompt":"ネガティブプロンプト",
+    "Seed":"シード",
+    "Format":"形式",
+    "Voice":"声",
+    "Speed":"速度",
+    "Instructions":"指示",
+    "required by vocal song models (e.g. Mureka); leave empty for instrumental/BGM":"ボーカル曲モデル (例: Mureka) に必須。インスト/BGMの場合は空欄に",
+    "run this branch":"このブランチを実行",
+    "delete":"削除",
+    "open":"開く",
+    "copy":"コピー",
+    "✓ copied":"✓ コピー済み",
+    "copy failed":"コピー失敗",
+    "Upload":"アップロード",
+    "Webcam":"ウェブカメラ",
+    "Capture":"撮影",
+    "Cancel":"キャンセル",
+    "no image yet":"画像なし",
+    "running…":"実行中…",
+    "error":"エラー",
+    "generating audio…":"音声を生成中…",
+    "rendering video…":"動画を生成中…",
+    "animating…":"生成中…",
+    "nothing to run — add a node":"実行対象なし — ノードを追加",
+    "add a node first":"先にノードを追加",
+    "cycle detected":"循環を検出",
+    "couldn’t read that image":"画像を読み込めませんでした",
+    "webcam unavailable":"ウェブカメラを利用できません",
+    "share failed":"共有に失敗",
+    "sign-in error":"サインインエラー",
+    "pick a model first":"先にモデルを選択",
+    "no prompt":"プロンプトなし",
+    "no text":"テキストなし",
+    "no image input":"画像入力なし",
+    "no edit instruction":"編集指示なし",
+    "no image — upload or capture one first":"画像なし — 先にアップロードまたは撮影",
+    "✓ Link copied!":"✓ リンクをコピーしました！",
+    "✓ Share link copied! Paste it anywhere — it opens this exact workflow":"✓ 共有リンクをコピーしました！どこかに貼り付けるとこのワークフローが開きます",
+    "Share link is in the address bar — copy it to share this workflow":"共有リンクはアドレスバーにあります — コピーしてこのワークフローを共有",
+    "Couldn’t load that file:":"ファイルを読み込めませんでした:",
+    "Audio input":"音声入力",
+    "Upload an audio clip":"音声クリップをアップロード",
+    "Video input":"動画入力",
+    "Upload a video clip":"動画クリップをアップロード",
+    "Video edit":"動画編集",
+    "Video (+text) → video — edit / extend / upscale":"動画(+テキスト)→ 動画 — 編集 / 延長 / 高画質化",
+    "Avatar / lipsync":"アバター / リップシンク",
+    "Image + audio → talking video":"画像 + 音声 → 話す動画",
+    "Transcribe":"文字起こし",
+    "Audio → text (speech-to-text)":"音声 → テキスト(文字起こし)",
+    "Inputs":"入力",
+    "Other":"その他",
+    "instruction (optional)":"指示(任意)",
+    "prompt (optional)":"プロンプト(任意)",
+    "language":"言語",
+    "restyle as claymation · extend the clip · upscale to 4K…":"クレイアニメ風に変換 · クリップを延長 · 4Kに高画質化…",
+    "subtle head movement, warm lighting…":"わずかな頭の動き、温かみのある照明…"
+  }
+};
+/* === I18N-MAPS-END === */
+
+function i18nDetect(){
+  let stored=null; try{ stored=localStorage.getItem("noodle_lang"); }catch(e){}
+  const codes=I18N_LANGS.map(l=>l.code);
+  if(stored && codes.includes(stored)) return stored;
+  const prefs=(navigator.languages&&navigator.languages.length)?navigator.languages:[navigator.language||"en"];
+  for(const p of prefs){ const base=String(p||"").toLowerCase().split("-")[0]; if(codes.includes(base)) return base; }
+  return "en";
+}
+let LANG = i18nDetect();
+function i18nLookup(s){ if(LANG==="en") return null; const m=I18N[LANG]; const hit=m&&m[String(s).trim()]; return hit!=null?hit:null; }
+// translate a whole JS string (toasts/status/errors/labels); returns input if untranslated.
+function t(s){ if(s==null) return s; const hit=i18nLookup(s); return hit!=null ? String(s).replace(String(s).trim(),hit) : s; }
+// translate the static text/placeholder/title inside a freshly-built chrome subtree.
+// Skips user content, model ids, and generated output.
+const I18N_SKIP = ".modelpick, .result, .mname, .price, [data-no-i18n]";
+function translateTree(root){
+  if(LANG==="en" || !root) return;
+  root.querySelectorAll("[placeholder],[title]").forEach(el=>{
+    if(el.closest(I18N_SKIP)) return;
+    ["placeholder","title"].forEach(a=>{ if(!el.hasAttribute(a)) return; const hit=i18nLookup(el.getAttribute(a)); if(hit!=null) el.setAttribute(a,hit); });
+  });
+  const tw=document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode(n){
+    const p=n.parentElement; if(!p) return NodeFilter.FILTER_REJECT;
+    const tag=p.tagName; if(tag==="TEXTAREA"||tag==="INPUT"||tag==="SCRIPT"||tag==="STYLE") return NodeFilter.FILTER_REJECT;
+    if(p.closest(I18N_SKIP)) return NodeFilter.FILTER_REJECT;
+    return NodeFilter.FILTER_ACCEPT;
+  }});
+  const out=[]; while(tw.nextNode()) out.push(tw.currentNode);
+  for(const tn of out){ const raw=tn.nodeValue, k=raw.trim(); if(!k) continue; const hit=i18nLookup(k); if(hit!=null) tn.nodeValue=raw.replace(k,hit); }
+}
+// model-output localization: a system directive to answer in the user's language
+// (""→English, so English prompts stay byte-identical). Used by genChat here and
+// mirrored into the exported-app runtime in play.html.
+function localeDirective(code){
+  const name=I18N_ENAME[code||LANG];
+  return name ? ("Respond in "+name+" unless the user explicitly asks for another language.") : "";
+}
+// Return a copy of a chat `messages` array with the language directive folded in
+// (appended to an existing system message, else prepended as one). English →
+// returns the array unchanged, so English prompts are sent byte-identical.
+function withLocale(messages){
+  const dir = localeDirective();
+  if(!dir || !Array.isArray(messages)) return messages;
+  const out = messages.slice();
+  const i = out.findIndex(m=> m && m.role==="system" && typeof m.content==="string");
+  if(i>=0) out[i] = Object.assign({}, out[i], { content: out[i].content + "\n\n" + dir });
+  else out.unshift({ role:"system", content:dir });
+  return out;
+}
 
 /* ======================================================================
    MODEL CATALOGS  (the FULL live lists, fetched from NanoGPT + cached)
@@ -995,7 +1827,7 @@ function audioInputPart(url){
 /* one model-row in a node body — a button that opens the shared picker */
 function modelFieldHTML(node){
   return `<div><label>model</label>
-    <button class="modelpick" type="button">${esc(node.fields.model||"pick a model…")} ▾</button>
+    <button class="modelpick" type="button">${esc(node.fields.model||t("pick a model…"))} ▾</button>
     <div class="mprice" data-mp></div></div>`;
 }
 function updateNodePrice(n){
@@ -1065,7 +1897,7 @@ function audioFieldHTML(n, f){
     return `<label class="chk"><input type="checkbox" data-pf="${f.id}"${(cur===true||cur==="true")?" checked":""}/> ${esc(f.label)}</label>${hint}`;
   if(f.type==="number"){
     const rng = (f.min!=null&&f.max!=null) ? ` (${f.min}–${f.max})` : "";
-    return `<div><label>${esc(f.label)}${rng}</label><input type="number" data-pf="${f.id}" step="any"${
+    return `<div><label><span>${esc(f.label)}</span>${rng}</label><input type="number" data-pf="${f.id}" step="any"${
       f.min!=null?` min="${f.min}"`:""}${f.max!=null?` max="${f.max}"`:""} value="${esc(cur??"")}" placeholder="${esc(f.default??"")}"/>${hint}</div>`;
   }
   const v = cur!=null ? cur : "";
@@ -1083,6 +1915,7 @@ function refreshAudioParams(n){
   for(const f of fields)   // normalize selects so a switched model lands on a valid value
     if(f.type==="select" && !(f.options||[]).includes(n.fields[f.id])) n.fields[f.id] = f.default ?? (f.options||[])[0];
   box.innerHTML = fields.map(f=>audioFieldHTML(n,f)).join("");
+  translateTree(box);   // localize audio param labels (Voice, Speed, Format…)
   box.querySelectorAll("[data-pf]").forEach(inp=>{
     const id = inp.dataset.pf;
     const ev = (inp.tagName==="SELECT" || inp.type==="checkbox") ? "change" : "input";
@@ -1171,7 +2004,7 @@ async function audioRun(n, inp, ctx){
   const text = (inp.text ?? n.fields.prompt ?? "").trim();
   if(!text) throw new Error("no text — type something in the prompt field first");
   return { audio: await ctx.genAudio(mdl(n), text, collectAudioParams(n),
-    (q,ms)=> setNodeProgress(n, `generating audio… ${Math.round(ms/1000)}s${q!=null?` · queue ${q}`:""}`)) };
+    (q,ms)=> setNodeProgress(n, `${t("generating audio…")} ${Math.round(ms/1000)}s${q!=null?` · queue ${q}`:""}`)) };
 }
 /* ---------- general per-model options (from the catalog's own param descriptors) ----------
    Video models advertise rich params (preset, style, effect, cameraMovement, mode, switches…)
@@ -1429,11 +2262,11 @@ function backfillModel(n){   // once a catalog arrives, give model nodes a sensi
 let picker = null; // { kind, filter, current, onPick }
 function openPicker(kind, opts){
   picker = { kind, filter:opts.filter, current:opts.current, onPick:opts.onPick };
-  $("mpicktitle").textContent = `${KIND_LABEL[kind]||"Model"} model` + (opts.filter ? ` · ${opts.filter}` : "");
+  $("mpicktitle").textContent = `${t(KIND_LABEL[kind]||"Model")} ${t("model")}` + (opts.filter ? ` · ${opts.filter}` : "");
   $("mpick").classList.add("open");
   $("mpickback").classList.add("show");
   $("mpicksearch").value = "";
-  $("mpicklist").innerHTML = "<div class='dim' style='padding:.6rem'>loading the full list…</div>";
+  $("mpicklist").innerHTML = `<div class='dim' style='padding:.6rem'>${esc(t("loading the full list…"))}</div>`;
   $("mpicksearch").focus();
   loadCatalog(kind).then(()=> renderPicker());
 }
@@ -1450,7 +2283,7 @@ function renderPicker(){
   if(!picker) return;
   const q = $("mpicksearch").value.trim().toLowerCase();
   const matches = pickerMatches();
-  $("mpickcount").textContent = `${matches.length} model${matches.length===1?"":"s"}${q?"":" · newest first"}`;
+  $("mpickcount").textContent = `${matches.length} ${t("model")}${(LANG==="en"&&matches.length!==1)?"s":""}${q?"":` · ${t("newest first")}`}`;
   const frag = document.createDocumentFragment();
   for(const m of matches.slice(0,400)){
     const b = document.createElement("button");
@@ -1487,13 +2320,13 @@ const NODE_TYPES = {
     body:(n)=>`
       <div class="uprev" data-uprev>${n.fields.image ? `<img src="${esc(n.fields.image)}" alt="image"/>` : `<span class="dim">no image yet</span>`}</div>
       <div class="two">
-        <button class="ubtn" data-up="file">⬆ Upload</button>
-        <button class="ubtn" data-up="cam">📷 Webcam</button>
+        <button class="ubtn" data-up="file">⬆ <span>Upload</span></button>
+        <button class="ubtn" data-up="cam">📷 <span>Webcam</span></button>
       </div>
       <input type="file" accept="image/*" hidden data-upfile/>
       <div class="cambox" data-cambox hidden>
         <video data-upvid autoplay playsinline muted></video>
-        <div class="two"><button class="ubtn" data-up="snap">● Capture</button><button class="ubtn" data-up="stop">✕ Cancel</button></div>
+        <div class="two"><button class="ubtn" data-up="snap">● <span>Capture</span></button><button class="ubtn" data-up="stop">✕ <span>Cancel</span></button></div>
       </div>`,
     mount: mountUpload,
     async run(n){ if(!n.fields.image) throw new Error("no image — upload or capture one first"); return { image: n.fields.image }; }
@@ -1707,7 +2540,7 @@ const NODE_TYPES = {
       if(!prompt) throw new Error("no prompt — describe the video to generate");
       const url = await ctx.genVideo(mdl(n), prompt,
         { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9", resolution:n.fields.resolution||"", lora:loraParams(n), extra:(n.fields.modelOpts||{}), runKey:n.id }, null,
-        (st,ms)=> setNodeProgress(n, `rendering video… ${Math.round(ms/1000)}s · ${st.toLowerCase()}`));
+        (st,ms)=> setNodeProgress(n, `${t("rendering video…")} ${Math.round(ms/1000)}s · ${st.toLowerCase()}`));
       return { video: url };
     }
   },
@@ -1728,7 +2561,7 @@ const NODE_TYPES = {
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       const url = await ctx.genVideo(mdl(n), prompt,
         { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9", resolution:n.fields.resolution||"", lora:loraParams(n), extra:(n.fields.modelOpts||{}), runKey:n.id }, inp.image,
-        (st,ms)=> setNodeProgress(n, `animating… ${Math.round(ms/1000)}s · ${st.toLowerCase()}`));
+        (st,ms)=> setNodeProgress(n, `${t("animating…")} ${Math.round(ms/1000)}s · ${st.toLowerCase()}`));
       return { video: url };
     }
   },
@@ -2025,6 +2858,7 @@ function buildNodeEl(n){
     <i class="rgrip" title="drag to resize"></i>`;
   world.appendChild(el);
   n.el = el;
+  translateTree(el);   // localize header title, labels, placeholders (skips model id, user fields, results)
 
   // field bindings
   el.querySelectorAll("[data-f]").forEach(inp=>{
@@ -2206,7 +3040,7 @@ function mountUpload(n){
       if(act==="file") fileInput.click();
       else if(act==="cam"){
         try{ stream = await navigator.mediaDevices.getUserMedia({video:true}); video.srcObject=stream; cambox.hidden=false; }
-        catch(err){ flash("webcam unavailable: "+err.message); }
+        catch(err){ flash(t("webcam unavailable")+": "+err.message); }
       }
       else if(act==="snap"){ if(video.videoWidth){ setImage(scaledDataURL(video, video.videoWidth, video.videoHeight)); } stopCam(); }
       else if(act==="stop") stopCam();
@@ -2387,11 +3221,11 @@ function setStatus(n, status, msg){
   n.el.dataset.status = status;
   if(status==="run"){
     const r = n.el.querySelector(".result");
-    r.classList.add("show"); r.innerHTML = `<span class="spin"></span> running…`;
+    r.classList.add("show"); r.innerHTML = `<span class="spin"></span> ${esc(t("running…"))}`;
   }
   if(status==="error"){
     const r = n.el.querySelector(".result");
-    r.classList.add("show"); r.innerHTML = `<div class="err">⚠ ${esc(msg||"error")}</div>`;
+    r.classList.add("show"); r.innerHTML = `<div class="err">⚠ ${esc(t(msg||"error"))}</div>`;   // translate user-facing run errors at the display site
   }
 }
 
@@ -2428,45 +3262,45 @@ async function downloadUrl(url, filename){
   }catch{ openUrl(url); }                                // fallback: open in a new tab
 }
 function showResult(n){
-  const t = NODE_TYPES[n.type], r = n.el.querySelector(".result");
-  if(t.preview==="none"){ r.classList.remove("show"); r.innerHTML=""; return; }
+  const ty = NODE_TYPES[n.type], r = n.el.querySelector(".result");
+  if(ty.preview==="none"){ r.classList.remove("show"); r.innerHTML=""; return; }
   r.classList.add("show");
-  if(t.preview==="frames"){
+  if(ty.preview==="frames"){
     const imgs = outputsOf(n).map(p=> n.out[p.name]).filter(Boolean);
     if(!imgs.length){ r.classList.remove("show"); r.innerHTML=""; return; }
     r.innerHTML = `<div class="frames">${imgs.map((src,i)=>
-      `<div class="fr"><img src="${esc(src)}" alt="frame ${i+1}"/><button data-dl="${i}" title="save frame ${i+1}">⬇</button></div>`).join("")}</div>`;
+      `<div class="fr"><img src="${esc(src)}" alt="frame ${i+1}"/><button data-dl="${i}" title="${esc(t("save frame")+" "+(i+1))}">⬇</button></div>`).join("")}</div>`;
     imgs.forEach((src,i)=> r.querySelector(`[data-dl="${i}"]`).onclick = ()=> downloadUrl(src, `noodle-${n.id}-frame${i+1}.png`));
     return;
   }
-  if(t.preview==="image" && n.out.image){
+  if(ty.preview==="image" && n.out.image){
     const imgs = (n.out.images && n.out.images.length>1) ? n.out.images : null;   // pick-one gallery only when there's more than one
     const sel = imgs ? Math.max(0, imgs.indexOf(n.out.image)) : 0;
     const strip = imgs ? `<div class="varstrip">${imgs.map((u,i)=>
-      `<img class="varthumb${i===sel?" sel":""}" data-vi="${i}" src="${esc(u)}" alt="variation ${i+1}" title="variation ${i+1}"/>`).join("")}</div>` : "";
-    r.innerHTML = `<img src="${esc(n.out.image)}" alt="output"/>${strip}<div class="acts"><button data-dl>⬇ save</button></div>`;
+      `<img class="varthumb${i===sel?" sel":""}" data-vi="${i}" src="${esc(u)}" alt="variation ${i+1}" title="${esc(t("variation")+" "+(i+1))}"/>`).join("")}</div>` : "";
+    r.innerHTML = `<img src="${esc(n.out.image)}" alt="output"/>${strip}<div class="acts"><button data-dl>⬇ ${esc(t("save"))}</button></div>`;
     r.querySelector("[data-dl]").onclick = ()=> downloadUrl(n.out.image, `noodle-${n.id}.png`);
     if(imgs) r.querySelectorAll("[data-vi]").forEach(el=> el.onclick = ()=>{
       const i = +el.dataset.vi;
       n.out.image = n.out.images[i]; n.fields.sel = i;   // node-local pick; the single image port forwards it on the next run
       save(); showResult(n);
     });
-  } else if(t.preview==="video" && n.out.video){
-    const vit = catItem(t.modelKind, n.fields.model);          // selected video model (undefined if offline/unknown)
+  } else if(ty.preview==="video" && n.out.video){
+    const vit = catItem(ty.modelKind, n.fields.model);          // selected video model (undefined if offline/unknown)
     const m = vit && vit.audioGen ? "" : " muted";             // keep audio-generating clips audible; mute everything else (safe default)
-    r.innerHTML = `<video src="${esc(n.out.video)}" controls loop${m} playsinline></video><div class="acts">${m?"":`<span class="sndbadge" title="this clip has generated audio">🔊</span>`}<button data-dl>⬇ save</button><button data-open>↗ open</button></div>`;
+    r.innerHTML = `<video src="${esc(n.out.video)}" controls loop${m} playsinline></video><div class="acts">${m?"":`<span class="sndbadge" title="${esc(t("this clip has generated audio"))}">🔊</span>`}<button data-dl>⬇ ${esc(t("save"))}</button><button data-open>↗ ${esc(t("open"))}</button></div>`;
     r.querySelector("[data-dl]").onclick   = ()=> downloadUrl(n.out.video, `noodle-${n.id}.mp4`);
     r.querySelector("[data-open]").onclick = ()=> openUrl(n.out.video);
-  } else if(t.preview==="audio" && n.out.audio){
+  } else if(ty.preview==="audio" && n.out.audio){
     const ext = (n.fields.response_format || "mp3").toLowerCase();
-    r.innerHTML = `<audio src="${esc(n.out.audio)}" controls></audio><div class="acts"><button data-dl>⬇ save</button><button data-open>↗ open</button></div>`;
+    r.innerHTML = `<audio src="${esc(n.out.audio)}" controls></audio><div class="acts"><button data-dl>⬇ ${esc(t("save"))}</button><button data-open>↗ ${esc(t("open"))}</button></div>`;
     r.querySelector("[data-dl]").onclick   = ()=> downloadUrl(n.out.audio, `noodle-${n.id}.${ext}`);
     r.querySelector("[data-open]").onclick = ()=> openUrl(n.out.audio);
   } else {
-    r.innerHTML = `<div class="rtext">${esc(n.out.text ?? "")}</div><div class="acts"><button data-copy>⧉ copy</button></div>`;
+    r.innerHTML = `<div class="rtext">${esc(n.out.text ?? "")}</div><div class="acts"><button data-copy>⧉ ${esc(t("copy"))}</button></div>`;
     r.querySelector("[data-copy]").onclick = async (e)=>{
       const b=e.currentTarget, o=b.textContent;
-      b.textContent = await copyText(n.out.text ?? "") ? "✓ copied" : "copy failed";
+      b.textContent = await copyText(n.out.text ?? "") ? t("✓ copied") : t("copy failed");
       setTimeout(()=> b.textContent=o, 1200);
     };
   }
@@ -3287,7 +4121,7 @@ const CTX = {
   },
   async genChat(messages, model, opts){
     opts = opts || {};
-    const body = { model, messages };                                   // temperature always sent (0.8 default, as before); other knobs omitted-when-unset
+    const body = { model, messages: withLocale(messages) };             // withLocale injects the app locale so model output matches the UI language
     body.temperature = (opts.temperature!=null && opts.temperature!=="") ? +opts.temperature : 0.8;
     if(opts.max_tokens) body.max_tokens = +opts.max_tokens;
     if(opts.response_format) body.response_format = opts.response_format;   // {type:"json_object"} for JSON mode
@@ -3648,12 +4482,12 @@ function accrue(j, estUsd){
   else if(p && typeof p.remainingBalance==="number") stats.balance = p.remainingBalance;
   paintCost();
 }
-function flash(msg){ $("status").textContent = msg; setTimeout(renderAuth, 2200); }
+function flash(msg){ $("status").textContent = t(msg); setTimeout(renderAuth, 2200); }
 let toastT=null;
 function toast(msg, kind){
-  const t=$("toast"); if(!t) return;
-  t.textContent=msg; t.className = (kind==="err"?"err ":"")+"show";
-  clearTimeout(toastT); toastT=setTimeout(()=> t.classList.remove("show"), 3200);
+  const el=$("toast"); if(!el) return;
+  el.textContent=t(msg); el.className = (kind==="err"?"err ":"")+"show";
+  clearTimeout(toastT); toastT=setTimeout(()=> el.classList.remove("show"), 3200);
 }
 
 /* ======================================================================
@@ -3723,8 +4557,9 @@ function buildAddMenu(){
   const pop = $("addpop");
   pop.innerHTML = `<input id="addsearch" type="search" autocomplete="off" placeholder="Search nodes… (image, voice, video)"><div id="addlist"></div><div class="addhint" hidden>↑↓ move · ↵ add · esc close</div>`;
   renderAddList("");
+  translateTree(pop);   // localize placeholder, hint, and node titles + descriptions
   const search = $("addsearch");
-  search.addEventListener("input", ()=> renderAddList(search.value.trim().toLowerCase()));
+  search.addEventListener("input", ()=>{ renderAddList(search.value.trim().toLowerCase()); translateTree($("addlist")); });
   search.addEventListener("keydown", e=>{
     if(e.key==="ArrowDown"||e.key==="ArrowUp"){ e.preventDefault(); moveAddSel(e.key==="ArrowDown"?1:-1); }
     else if(e.key==="Enter" && !(e.ctrlKey||e.metaKey)){ e.preventDefault(); $("addlist").querySelector("button.sel")?.click(); }
@@ -3757,6 +4592,23 @@ $("run").onclick = ()=>{
   if(runningNodes.size && runAbort && !runAbort.signal.aborted){ runAbort.abort(); flash("stopping…"); updateRunButtons(); }  // ■ Stop
   else runAll();                                                                                                              // ▶ Run
 };
+
+/* ---------- language selector ---------- */
+function buildLangMenu(){
+  const cur = I18N_LANGS.find(l=>l.code===LANG) || I18N_LANGS[0];
+  $("langcur").textContent = cur.native;
+  const pop = $("langpop");
+  pop.innerHTML = I18N_LANGS.map(l=>
+    `<button role="menuitem" data-lang="${l.code}"${l.code===LANG?' class="sel"':''}><span>${esc(l.native)}</span><span class="code">${esc(l.code)}</span></button>`).join("");
+  pop.querySelectorAll("button").forEach(b=> b.onclick=()=>{
+    const code=b.dataset.lang; $("langpop").classList.remove("open");
+    if(code===LANG) return;
+    try{ localStorage.setItem("noodle_lang", code); }catch(e){}
+    location.reload();   // graph auto-saves; reload yields a fully (re)translated DOM
+  });
+}
+$("langbtn").onclick = (e)=>{ e.stopPropagation(); $("langpop").classList.toggle("open"); };
+document.addEventListener("click", e=>{ if(!$("langmenu").contains(e.target)) $("langpop").classList.remove("open"); });
 
 /* ---------- responsive toolbar: collapse secondary actions into the ⋯ menu on phones ----------
    Buttons keep their handlers (they're moved, not cloned). On desktop everything sits inline. */
@@ -3914,7 +4766,7 @@ function saveFile(){
 function loadFile(file){
   if(!file) return;
   const r = new FileReader();
-  r.onload = ()=>{ try{ setPendingApp(null); applyGraphData(JSON.parse(r.result)); save(); }catch(e){ alert("Couldn’t load that file: "+e.message); } };
+  r.onload = ()=>{ try{ setPendingApp(null); applyGraphData(JSON.parse(r.result)); save(); }catch(e){ alert(t("Couldn’t load that file:")+" "+e.message); } };
   r.readAsText(file);
 }
 $("save").onclick = saveFile;
@@ -3984,9 +4836,9 @@ async function shareUrl(){
   // gets re-consumed on the next reload — loadFromHash runs setPendingApp(null), unbinding the
   // app so "✨ Update app" reverts to "✨ Create app" and the next save spawns a duplicate.
   if(!ok) history.replaceState({}, "", url);
-  toast(ok
-    ? `✓ Workflow link copied${big} — shorten or share it below`
-    : `Workflow link is in the address bar${big} — copy it below`, ok?"":"err");
+  toast((ok
+    ? t("✓ Workflow link copied — shorten or share it below")
+    : t("Workflow link is in the address bar — copy it below")) + big, ok?"":"err");
   openShareMenu(url);                                // same popover the app share uses: copy / shorten / share-to-social
 }
 // ---- share popover (ported from play.html's app share; reused here for the workflow link) ----
@@ -4321,7 +5173,7 @@ const setKey = (k)=>{ k ? localStorage.setItem("ngpt_key",k) : localStorage.remo
   if(k) refreshBalance(); else { stats.balance=null; paintCost(); } };   // seed the bal on sign-in, clear on sign-out
 function renderAuth(){
   const ok = !!getKey();
-  $("status").textContent = ok ? "ready ✓" : "not signed in";
+  $("status").textContent = ok ? t("ready ✓") : t("not signed in");
   $("signin").style.display = ok?"none":""; $("pastebtn").style.display = ok?"none":""; $("signout").style.display = ok?"":"none";
 }
 const REDIRECT_URI = location.origin + location.pathname;
@@ -4371,7 +5223,7 @@ function ensureAuth(){
   $("keyrow").classList.add("open"); $("keyinput").focus();
   return false;
 }
-$("signin").onclick = ()=> signIn().catch(e=> $("status").textContent="sign-in error: "+e.message);
+$("signin").onclick = ()=> signIn().catch(e=> $("status").textContent=t("sign-in error")+": "+e.message);
 $("pastebtn").onclick = ()=>{ $("keyrow").classList.add("open"); $("keyinput").focus(); };
 $("keysignin").onclick = ()=> signIn().catch(e=> $("status").textContent="sign-in error: "+e.message);
 addEventListener("keydown", e=>{ if(e.key==="Escape" && $("keyrow").classList.contains("open")){ e.preventDefault(); $("keyrow").classList.remove("open"); } });
@@ -4401,6 +5253,9 @@ $("signout").onclick = ()=> setKey(null);
    ====================================================================== */
 (async ()=>{
   buildAddMenu();
+  document.documentElement.lang = LANG;  // detected (or persisted) UI language
+  buildLangMenu();
+  translateTree(document.body);           // translate the static chrome once (toolbar, key row, picker header…)
   topOrder = [...$("top").childNodes];   // snapshot before any responsive relocation
   layoutBar();
   applyWorld();
@@ -4424,7 +5279,7 @@ $("signout").onclick = ()=> setKey(null);
   redraw();
   try{ if(!localStorage.getItem(HINT_KEY)) $("canvashint").hidden = false; }catch{}   // first-run orientation line
   // Brand-new visitors land straight on a simple working flow (the default graph).
-  try{ await handleRedirect(); }catch(e){ $("status").textContent="sign-in error: "+e.message; }
+  try{ await handleRedirect(); }catch(e){ $("status").textContent=t("sign-in error")+": "+e.message; }
   renderAuth();
   refreshBalance();                 // already-signed-in visitor: show the bal without waiting for a run
   // pull the full model catalogs in the background, then show per-node prices
