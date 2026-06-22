@@ -443,9 +443,12 @@ window.NoodleApp = (function () {
     if(!j) return { usd:null, balance:null };
     // images/video/audio price top-level (j.cost); chat completions ride it in
     // x_nanogpt_pricing (costUsd|cost) — without this, LLM calls never bump spend.
+    // A present-but-ZERO price is known-free (subscription-included), NOT unknown:
+    // keep it as 0 so the meter stays exact and the node can show "included".
     const p = j.x_nanogpt_pricing, pUsd = p && (p.costUsd!=null ? p.costUsd : p.cost);
     const usd = (typeof j.cost==="number" && j.cost>0) ? j.cost
-              : (pUsd!=null && Number(pUsd)>0) ? Number(pUsd) : null;
+              : (pUsd!=null && isFinite(Number(pUsd))) ? Number(pUsd)
+              : (typeof j.cost==="number") ? j.cost : null;
     const balance = (typeof j.remainingBalance==="number") ? j.remainingBalance
                   : (p && typeof p.remainingBalance==="number") ? p.remainingBalance : null;
     return { usd, balance };
@@ -454,7 +457,7 @@ window.NoodleApp = (function () {
     const g = (k)=> r.headers.get(k);
     const c = parseFloat(g("x-cost") || g("x-nano-cost") || "");
     const b = parseFloat(g("x-remaining-balance") || "");
-    return { usd: c>0 ? c : null, balance: isNaN(b) ? null : b };
+    return { usd: isNaN(c) ? null : c, balance: isNaN(b) ? null : b };   // x-cost 0 = known-free (subscription)
   }
   // Fold one generation's cost into the session total; returns its USD (0 if unknown)
   // so the caller can also attribute it to that node's output card.
@@ -811,11 +814,11 @@ window.NoodleApp = (function () {
         }
         const rn = Object.keys(fieldOverrides).length ? { ...n, fields:{...n.fields, ...fieldOverrides} } : n;
         onStatus && onStatus(id, "run", "running…");
-        let nodeCost = 0;                                  // USD this node's generation(s) cost
-        const ctx = makeCtx((c)=>{ nodeCost += bumpCost(c); });
+        let nodeCost = 0, nodeKnown = false;               // USD this node's generation(s) cost; known incl $0 (subscription)
+        const ctx = makeCtx((c)=>{ nodeCost += bumpCost(c); if(c && c.usd!=null) nodeKnown = true; });
         try{
           n.out = await t.run(rn, inp, ctx, (msg)=> onStatus && onStatus(id, "run", msg)) || {};
-          n.costUsd = nodeCost;
+          n.costUsd = nodeCost; n.costKnown = nodeKnown;
           onStatus && onStatus(id, "done", "done");
           onResult && onResult(n);
         }
@@ -1187,7 +1190,8 @@ window.NoodleApp = (function () {
       + '#app-cost .cm-n{color:var(--faint,#5d6788);}'
       + '#app-cost .cm-bal{color:var(--dim,#8b93b4);}'
       + '.rhead .rcost{float:right;font-weight:700;color:var(--ok,#46d27a);'
-        + 'font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}';
+        + 'font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}'
+      + '.rhead .rcost.incl{color:var(--dim,#8b93b4);font-weight:600;}';
     (document.head || document.documentElement).appendChild(s);
   }
   function ensureCostMeter(){
@@ -1220,7 +1224,8 @@ window.NoodleApp = (function () {
     if(val==null) return;
     const card = document.createElement("div"); card.className="card";
     const badge = runNo ? '<span class="run-badge">Run '+runNo+'</span> ' : '';
-    const cost = (n.costUsd>0) ? '<span class="rcost" title="cost of this generation">'+fmtUsd(n.costUsd)+'</span>' : '';
+    const cost = (n.costUsd>0) ? '<span class="rcost" title="cost of this generation">'+fmtUsd(n.costUsd)+'</span>'
+               : n.costKnown ? '<span class="rcost incl" title="included in your subscription">included</span>' : '';
     const head = '<div class="rhead">'+badge+esc(NODE_TYPES[n.type].em)+' '+esc(NODE_TYPES[n.type].title)+cost+'</div>';
     let media;
     if(port.type==="image") media = '<img src="'+esc(val)+'" alt="">';

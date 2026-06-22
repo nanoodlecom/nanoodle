@@ -1388,7 +1388,7 @@ const CTX = {
     }
     const blob = await r.blob();
     const hc = parseFloat(r.headers.get("x-cost") || r.headers.get("x-nano-cost") || "");
-    stats.count++; if(hc>0) stats.cost += hc; else stats.exact = false;
+    stats.count++; if(!isNaN(hc)) stats.cost += hc; else stats.exact = false;   // x-cost 0 = known-free (subscription)
     const bal = parseFloat(r.headers.get("x-remaining-balance") || ""); if(!isNaN(bal)) stats.balance = bal;
     paintCost();
     return URL.createObjectURL(blob);
@@ -1420,9 +1420,12 @@ function accrue(j){
   stats.count++;
   // images/video/audio price top-level (j.cost); chat completions ride it in
   // x_nanogpt_pricing (costUsd|cost) — without this, LLM calls never bump spend.
+  // A present-but-ZERO price is known-free (subscription-included), NOT unknown —
+  // keep it as 0 so the spend meter stays exact instead of flipping to "~".
   const p = j?.x_nanogpt_pricing, pUsd = p && (p.costUsd!=null ? p.costUsd : p.cost);
   const usd = (typeof j?.cost==="number" && j.cost>0) ? j.cost
-            : (pUsd!=null && Number(pUsd)>0) ? Number(pUsd) : null;
+            : (pUsd!=null && isFinite(Number(pUsd))) ? Number(pUsd)
+            : (typeof j?.cost==="number") ? j.cost : null;
   if(usd!=null) stats.cost += usd; else stats.exact=false;
   if(typeof j?.remainingBalance==="number") stats.balance = j.remainingBalance;
   else if(p && typeof p.remainingBalance==="number") stats.balance = p.remainingBalance;
