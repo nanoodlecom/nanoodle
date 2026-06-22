@@ -274,14 +274,17 @@ proof/
 ├── harness/
 │   ├── validate-graph.mjs         ← graph validator (real NODE_TYPES + app-builder derivation)
 │   ├── run-graph.mjs              ← headless DAG executor (live NanoGPT) — proved comic end-to-end
-│   └── gptdiff-app-gen.mjs        ← headless "Create app" + gptdiff customize/iterate loop
+│   ├── gptdiff-app-gen.mjs        ← headless "Create app" + gptdiff customize/iterate loop
+│   └── gptdiff-edit.mjs           ← general single-file gptdiff editor (same vendored diff engine)
 ├── graphs/
 │   ├── pictureme.json  comic.json  marvis.json   ← the 3 buildable cores (validated)
 │   └── music-lyrics.json          ← the editor's own sample graph (validated control)
 ├── apps/
+│   ├── index.html                 ← gallery landing page (built with the diff tool: gptdiff-edit.mjs)
 │   ├── comic-run/                 ← LIVE run: composed prompt + steps + out-n9-image.png (real page)
 │   ├── pictureme-app/             ← gptdiff-created app, v0→v2 (seeds, diffs, runnable standalones)
-│   └── comic-app/                 ← gptdiff-created app, v0→v1
+│   ├── comic-app/                 ← gptdiff-created app, v0→v1
+│   └── marvis-app/                ← gptdiff-created app, v0→v2 ("MARVIS // Lab Assistant Terminal")
 └── _digest.json                   ← machine analysis (profiles + verdicts + adversarial verify)
 ```
 Reproduce: `NANOGPT_API_KEY=… node proof/harness/validate-graph.mjs proof/graphs/*.json` ·
