@@ -1501,6 +1501,13 @@ window.NoodleApp = (function () {
     if(runBtn){
       RUN_LABEL = runBtn.innerHTML.trim() || RUN_LABEL;   // remember the customized resting label
       runBtn.addEventListener("click", ()=> running ? cancelRun() : run());
+      // Ctrl/Cmd+Enter runs from anywhere — including while typing in an input/textarea.
+      document.addEventListener("keydown", (e)=>{
+        if(e.key==="Enter" && (e.ctrlKey || e.metaKey)){
+          e.preventDefault();
+          running ? cancelRun() : run();
+        }
+      });
     }
 
     if(!graph.nodes.length){
