@@ -372,9 +372,15 @@ function normImg(m){
   const per = m.pricing?.per_image||{};
   const v = per.square ?? per.square_hd ?? Object.values(per)[0];
   const mod = m.architecture?.modality || "";   // text->image | text+image->image | image->image
+  // TODO(nanogpt): NanoGPT mislabels a few edit-only models as text->image with image_to_image:false,
+  // so they'd surface as text-to-image generators and fail without a source image (verified live:
+  // "Image upload is required", "No input image data provided"). Detect the ones that truly need a
+  // source by id and route them to the edit node instead. Remove once upstream modality is correct —
+  // see NANOGPT-audio-modality-bug.md.
+  const needsSrc = /upscal|inpaint|image-to-image|img2img/i.test(m.id);
   return { id:m.id, name:m.name||m.id, created:m.created,
-    edit:!!m.capabilities?.image_to_image,                          // accepts an image input (text+image->image | image->image)
-    gen: mod ? mod.startsWith("text") : !m.capabilities?.image_to_image,  // can generate from text alone — excludes edit-only image->image models
+    edit: needsSrc || !!m.capabilities?.image_to_image,             // accepts an image input (text+image->image | image->image)
+    gen: needsSrc ? false : (mod ? mod.startsWith("text") : !m.capabilities?.image_to_image),  // text-only generators; excludes edit-only models
     price: v!=null ? `$${(+v).toFixed(3)}/img` : "" };
 }
 function normVideo(m){
