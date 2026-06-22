@@ -29,8 +29,8 @@ const REPO = resolve(__dirname, "../..");                 // worktree root
 const PLAY = join(REPO, "play.html");
 
 const NANOGPT = "https://nano-gpt.com";
-const MODEL  = "xiaomi/mimo-v2.5-pro-ultraspeed";          // writes the diff (play.html DEFAULT_MODEL)
-const APPLY  = "xiaomi/mimo-v2.5-pro-ultraspeed";          // applies the diff (play.html APPLY_DEFAULT)
+const MODEL  = process.env.GPTDIFF_MODEL || "xiaomi/mimo-v2.5-pro-ultraspeed";          // writes the diff (play.html DEFAULT_MODEL)
+const APPLY  = process.env.GPTDIFF_APPLY || process.env.GPTDIFF_MODEL || "xiaomi/mimo-v2.5-pro-ultraspeed"; // applies the diff
 const ACCENT = "#7c8cff";
 const KEY = process.env.NANOGPT_API_KEY;
 if (!KEY) { console.error("NANOGPT_API_KEY not set"); process.exit(1); }

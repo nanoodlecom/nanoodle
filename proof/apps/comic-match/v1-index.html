@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Inkflight — AI Comic Studio</title>
+<style><!-- include: app.css --></style>
+</head>
+<body>
+<main class="app">
+  <header class="app-head">
+    <h1 id="app-title">Inkflight <span class="title-sub">// AI Comic Studio</span></h1>
+    <p id="app-tagline">Script your style, palette, cast, and panels — we render a full comic page in bold ink, halftone shadow, and cinematic teal-and-amber light.</p>
+    <div id="app-auth" class="auth"></div>
+  </header>
+
+  <section id="app-inputs" class="inputs"></section>
+
+  <div class="run-row">
+    <button id="app-run" class="run">⚡ Render Page</button>
+    <label id="app-loop" class="loop"></label>
+    <div id="app-count" class="count"></div>
+  </div>
+
+  <p class="helper">Your four script blocks are merged into one art-director brief, refined into a single image prompt, then drawn as one 6-panel page. Set the system prompt to tune the director's voice — or leave it blank for defaults.</p>
+
+  <div id="app-status" class="status"></div>
+
+  <section id="app-output" class="output"></section>
+
+  <footer class="app-foot">
+    <span class="foot-mark">▰▰</span>
+    Powered by <strong>NanoGPT</strong> — ink, halftone &amp; lightning.
+  </footer>
+</main>
+
+<!-- include-config: graph.json -->
+<!-- include: runtime.js -->
+<script>NoodleApp.mount();</script>
+</body>
+</html>

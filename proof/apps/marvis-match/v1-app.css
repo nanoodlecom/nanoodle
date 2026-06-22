@@ -1,0 +1,58 @@
+:root{
+  color-scheme: dark;
+  --bg:#05080d; --panel:#0a1119; --panel2:#0d1822; --line:#14334a;
+  --ink:#d6f3ff; --dim:#5d8aa6; --faint:#33566b;
+  --cyan:#36e6ff; --cyan-soft:#36e6ff18; --cyan-line:#36e6ff55;
+  --amber:#ffb648; --amber-soft:#ffb64822; --amber-line:#ffb64866;
+  --ok:#46d27a; --danger:#ff6b6b; --radius:2px;
+  --mono:"SFMono-Regular", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+}
+*{ box-sizing:border-box; }
+html,body{ margin:0; }
+body{ background:
+    radial-gradient(1000px 600px at 50% -20%, #0a2233 0%, transparent 55%),
+    radial-gradient(700px 400px at 90% 110%, #2a1a05 0%, transparent 60%), var(--bg);
+  color:var(--ink); font:14px/1.6 var(--mono); min-height:100vh; letter-spacing:.02em; }
+.app{ max-width:720px; margin:0 auto; padding:2.4rem 1.2rem 4rem; position:relative; }
+.app-head{ position:relative; padding-top:.5rem; }
+.hud-corner{ position:absolute; width:14px; height:14px; border:1px solid var(--amber-line); }
+.hud-corner.top-left{ top:0; left:-2px; border-right:0; border-bottom:0; }
+.hud-corner.top-right{ top:0; right:-2px; border-left:0; border-bottom:0; }
+.app-head h1{ font-size:1.7rem; margin:0 0 .35rem; letter-spacing:.4em; color:var(--cyan);
+  text-shadow:0 0 18px var(--cyan-soft); font-weight:700; }
+.app-head .auth{ font-size:.72rem; color:var(--faint); margin-top:.5rem; min-height:1.1em; text-transform:uppercase; }
+#app-tagline{ color:var(--dim); margin:0; max-width:62ch; font-size:.82rem; }
+.mood-badge{ display:inline-block; margin-top:.7rem; font-size:.68rem; letter-spacing:.25em;
+  padding:.25rem .6rem; border:1px solid var(--amber-line); color:var(--amber);
+  background:var(--amber-soft); text-transform:uppercase; }
+.inputs{ display:flex; flex-direction:column; gap:1.1rem; margin:1.8rem 0; }
+.field label{ display:block; font-size:.72rem; color:var(--amber); margin-bottom:.4rem;
+  text-transform:uppercase; letter-spacing:.2em; }
+.field input, .field textarea, .field select{
+  width:100%; font:inherit; padding:.6rem .7rem; border-radius:var(--radius);
+  background:var(--panel); border:1px solid var(--line); color:var(--ink); }
+.field input:focus, .field textarea:focus, .field select:focus{
+  outline:none; border-color:var(--cyan-line); box-shadow:0 0 0 1px var(--cyan-line), 0 0 14px var(--cyan-soft); }
+.field textarea{ min-height:90px; resize:vertical; }
+.run-row{ display:flex; align-items:center; gap:1rem; margin:.4rem 0 1.2rem; flex-wrap:wrap; }
+.run{ font:inherit; font-weight:700; padding:.7rem 1.8rem; border-radius:var(--radius); cursor:pointer;
+  background:transparent; border:1px solid var(--cyan); color:var(--cyan);
+  letter-spacing:.25em; text-transform:uppercase; font-size:.82rem;
+  box-shadow:0 0 22px var(--cyan-soft); transition:all .15s; }
+.run:hover{ background:var(--cyan-soft); text-shadow:0 0 8px var(--cyan); }
+.status{ font-size:.74rem; color:var(--dim); min-height:1.2em; display:flex; flex-direction:column; gap:.2rem;
+  text-transform:uppercase; letter-spacing:.15em; }
+.status::before{ content:"› "; color:var(--amber); }
+.output{ display:flex; flex-direction:column; gap:1.2rem; align-items:center; }
+.portrait-frame{ position:relative; width:220px; height:220px; margin:0 auto .4rem; }
+.portrait-ring{ position:absolute; inset:0; border-radius:50%;
+  border:1px solid var(--cyan-line); box-shadow:0 0 30px var(--cyan-soft), inset 0 0 30px var(--cyan-soft); }
+.portrait-ring::before, .portrait-ring::after{ content:""; position:absolute; border:1px solid var(--amber-line); border-radius:50%; }
+.portrait-ring::before{ inset:-7px; clip-path:polygon(0 0,30% 0,30% 8%,8% 8%,8% 30%,0 30%); }
+.portrait-ring::after{ inset:-7px; clip-path:polygon(100% 100%,70% 100%,70% 92%,92% 92%,92% 70%,100% 70%); }
+.portrait-frame img{ width:100%; height:100%; border-radius:50%; object-fit:cover; display:block;
+  filter:contrast(1.05) saturate(.9); }
+.output .card{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:1rem; width:100%; }
+.output img, .output video, .output audio{ width:100%; border-radius:var(--radius); display:block; }
+.output .text{ white-space:pre-wrap; line-height:1.7; color:var(--ink); }
+.output.grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); }

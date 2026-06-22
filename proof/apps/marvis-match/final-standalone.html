@@ -1,0 +1,1387 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MARVIS — Android Bard Terminal</title>
+<style>:root{
+  color-scheme: dark;
+  --bg:#05080d; --panel:#0a1119; --panel2:#0d1822; --line:#14334a;
+  --ink:#d6f3ff; --dim:#5d8aa6; --faint:#33566b;
+  --cyan:#36e6ff; --cyan-soft:#36e6ff18; --cyan-line:#36e6ff55;
+  --amber:#ffb648; --amber-soft:#ffb64822; --amber-line:#ffb64866;
+  --ok:#46d27a; --danger:#ff6b6b; --radius:2px;
+  --mono:"SFMono-Regular", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+}
+*{ box-sizing:border-box; }
+html,body{ margin:0; }
+body{ background:
+    radial-gradient(1000px 600px at 50% -20%, #0a2233 0%, transparent 55%),
+    radial-gradient(700px 400px at 90% 110%, #2a1a05 0%, transparent 60%), var(--bg);
+  color:var(--ink); font:14px/1.6 var(--mono); min-height:100vh; letter-spacing:.02em; }
+.app{ max-width:720px; margin:0 auto; padding:2.4rem 1.2rem 4rem; position:relative; }
+.app-head{ position:relative; padding-top:.5rem; }
+.hud-corner{ position:absolute; width:14px; height:14px; border:1px solid var(--amber-line); }
+.hud-corner.top-left{ top:0; left:-2px; border-right:0; border-bottom:0; }
+.hud-corner.top-right{ top:0; right:-2px; border-left:0; border-bottom:0; }
+.app-head h1{ font-size:1.7rem; margin:0 0 .35rem; letter-spacing:.4em; color:var(--cyan);
+  text-shadow:0 0 18px var(--cyan-soft); font-weight:700; }
+.app-head .auth{ font-size:.72rem; color:var(--faint); margin-top:.5rem; min-height:1.1em; text-transform:uppercase; }
+#app-tagline{ color:var(--dim); margin:0; max-width:62ch; font-size:.82rem; }
+.mood-badge{ display:inline-block; margin-top:.7rem; font-size:.68rem; letter-spacing:.25em;
+  padding:.25rem .6rem; border:1px solid var(--amber-line); color:var(--amber);
+  background:var(--amber-soft); text-transform:uppercase; }
+.inputs{ display:flex; flex-direction:column; gap:1.1rem; margin:1.8rem 0; }
+.field label{ display:block; font-size:.72rem; color:var(--amber); margin-bottom:.4rem;
+  text-transform:uppercase; letter-spacing:.2em; }
+.field input, .field textarea, .field select{
+  width:100%; font:inherit; padding:.6rem .7rem; border-radius:var(--radius);
+  background:var(--panel); border:1px solid var(--line); color:var(--ink); }
+.field input:focus, .field textarea:focus, .field select:focus{
+  outline:none; border-color:var(--cyan-line); box-shadow:0 0 0 1px var(--cyan-line), 0 0 14px var(--cyan-soft); }
+.field textarea{ min-height:90px; resize:vertical; }
+.run-row{ display:flex; align-items:center; gap:1rem; margin:.4rem 0 1.2rem; flex-wrap:wrap; }
+.run{ font:inherit; font-weight:700; padding:.7rem 1.8rem; border-radius:var(--radius); cursor:pointer;
+  background:transparent; border:1px solid var(--cyan); color:var(--cyan);
+  letter-spacing:.25em; text-transform:uppercase; font-size:.82rem;
+  box-shadow:0 0 22px var(--cyan-soft); transition:all .15s; }
+.run:hover{ background:var(--cyan-soft); text-shadow:0 0 8px var(--cyan); }
+.status{ font-size:.74rem; color:var(--dim); min-height:1.2em; display:flex; flex-direction:column; gap:.2rem;
+  text-transform:uppercase; letter-spacing:.15em; }
+.status::before{ content:"› "; color:var(--amber); }
+.output{ display:flex; flex-direction:column; gap:1.2rem; align-items:center; }
+.portrait-frame{ position:relative; width:220px; height:220px; margin:0 auto .4rem; }
+.portrait-ring{ position:absolute; inset:0; border-radius:50%;
+  border:1px solid var(--cyan-line); box-shadow:0 0 30px var(--cyan-soft), inset 0 0 30px var(--cyan-soft); }
+.portrait-ring::before, .portrait-ring::after{ content:""; position:absolute; border:1px solid var(--amber-line); border-radius:50%; }
+.portrait-ring::before{ inset:-7px; clip-path:polygon(0 0,30% 0,30% 8%,8% 8%,8% 30%,0 30%); }
+.portrait-ring::after{ inset:-7px; clip-path:polygon(100% 100%,70% 100%,70% 92%,92% 92%,92% 70%,100% 70%); }
+.portrait-frame img{ width:100%; height:100%; border-radius:50%; object-fit:cover; display:block;
+  filter:contrast(1.05) saturate(.9); }
+.output .card{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:1rem; width:100%; }
+.output img, .output video, .output audio{ width:100%; border-radius:var(--radius); display:block; }
+.output .text{ white-space:pre-wrap; line-height:1.7; color:var(--ink); }
+.output.grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); }
+</style>
+</head>
+<body>
+<main class="app">
+  <header class="app-head">
+    <div class="hud-corner top-left"></div>
+    <div class="hud-corner top-right"></div>
+    <h1 id="app-title">MARVIS</h1>
+    <p id="app-tagline">A wry, world-weary android bard answers. Portrait rendered, voice synthesized — speak with the last witness of fallen empires.</p>
+    <span class="mood-badge" id="app-mood">MOOD · DORMANT</span>
+    <div id="app-auth" class="auth"></div>
+  </header>
+
+  <section id="app-inputs" class="inputs"></section>
+
+  <div class="run-row">
+    <button id="app-run" class="run">▶ Continue</button>
+    <label id="app-loop" class="loop"></label>
+    <div id="app-count" class="count"></div>
+  </div>
+
+  <div id="app-status" class="status"></div>
+
+  <section id="app-output" class="output">
+    <div class="portrait-frame" id="app-portrait" hidden>
+      <div class="portrait-ring"></div>
+      <img alt="Marvis portrait" id="app-portrait-img" />
+    </div>
+    <div class="reply-wrap" id="app-reply-wrap" hidden></div>
+  </section>
+</main>
+
+<script>window.NOODLE_GRAPH = {"v":1,"nodes":[{"id":"n1","type":"text","x":60,"y":80,"fields":{"text":"Marvis, a wry, world-weary android bard who has seen empires fall. Speaks in short, vivid lines. Curious about the human in front of it."}},{"id":"n2","type":"text","x":60,"y":340,"fields":{"text":"Hello Marvis. What were you doing before I arrived?"}},{"id":"n3","type":"llm","x":460,"y":180,"fields":{"model":"zai-org/glm-5.2:thinking","system":"You are the character described below. Stay fully in character. Reply in first person, 2-5 sentences, evocative and concrete. Do not break character or mention being an AI.","prompt":""}},{"id":"n4","type":"llm","x":460,"y":470,"fields":{"model":"xiaomi/mimo-v2.5-pro-ultraspeed","system":"You write a single concise text-to-image prompt (no preamble, no quotes) for a portrait of the character described, capturing their current mood and look. Output only the prompt.","prompt":""}},{"id":"n5","type":"image","x":880,"y":470,"fields":{"model":"seedream-v5.0-lite","prompt":"","size":"1024x1024"}},{"id":"n6","type":"tts","x":880,"y":200,"fields":{"model":"tts-1","prompt":"","voice":"onyx"}}],"links":[{"id":"l1","from":{"node":"n1","port":"text"},"to":{"node":"n3","port":"system"}},{"id":"l2","from":{"node":"n2","port":"text"},"to":{"node":"n3","port":"prompt"}},{"id":"l3","from":{"node":"n1","port":"text"},"to":{"node":"n4","port":"prompt"}},{"id":"l4","from":{"node":"n4","port":"text"},"to":{"node":"n5","port":"prompt"}},{"id":"l5","from":{"node":"n3","port":"text"},"to":{"node":"n6","port":"prompt"}}],"nid":7,"lid":6,"view":{"panX":0,"panY":0,"scale":1}};</script>
+<script>
+
+/* =====================================================================
+   NoodleApp — FAITHFUL headless execution runtime, extracted from the
+   nanoodle editor (index.html). Runs inside the sandboxed app iframe
+   (sandbox="allow-scripts"). No imports; only fetch to nano-gpt.com.
+   Reads window.NOODLE_GRAPH, derives INPUTS (unsatisfied source fields)
+   and OUTPUTS (sink nodes), renders a form-over-flow UI into the fixed
+   mount points, runs the graph, and streams results.
+   ===================================================================== */
+window.NoodleApp = (function () {
+  "use strict";
+
+  /* ---------- endpoints (verbatim from index.html) ---------- */
+  const NANOGPT = "https://nano-gpt.com";
+  const MEDIA_INLINE_MAX = 4.4*1024*1024;   // edge (Vercel) rejects request bodies over ~4.5 MB; guard inlined base64 media
+  const IMG_ENDPOINT  = NANOGPT + "/v1/images/generations";
+  const CHAT_ENDPOINT = NANOGPT + "/api/v1/chat/completions";
+
+  /* ---------- esc (verbatim) ---------- */
+  const esc = (s)=> String(s ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+  /* ---------- SIZES (verbatim) ---------- */
+  const SIZES = [["1024x1024","square"],["1024x1536","portrait"],["1536x1024","landscape"],["auto","auto"]];
+
+  /* ---------- key + auth ----------
+     EMBEDDED = running inside the builder's preview iframe (null origin). There the
+     key lives in the PARENT, never here: API calls are proxied through the parent
+     (its real Origin + its key, restricted to nano-gpt.com) so untrusted shared-app
+     HTML can use NanoGPT while open but can never read or exfiltrate the key.
+     STANDALONE (exported/hosted top-level) = call directly with our own pasted/OAuth key. */
+  const EMBEDDED = !!(window.parent && window.parent !== window);
+  let parentAuthed = false;                                   // set by the parent's __auth__ message
+  // Cancellation — one AbortController per run(); Stop aborts it, which cancels
+  // in-flight fetches, wakes pending poll-sleeps, and halts every dependent step.
+  let ABORT = null;
+  const runAborted = ()=> !!(ABORT && ABORT.signal.aborted);
+  const abortError = ()=> new DOMException("canceled", "AbortError");
+  const isAbort = (e)=> e && (e.name==="AbortError" || runAborted());
+  const getKey = ()=> localStorage.getItem("ngpt_key");
+  const setKey = (k)=>{ k ? localStorage.setItem("ngpt_key",k) : localStorage.removeItem("ngpt_key"); renderAuth(); };
+  const hasAuth = ()=> EMBEDDED ? parentAuthed : !!getKey();
+  // Content-Type only — the key is attached by apiFetch (standalone) or the parent proxy (embedded).
+  function authHeaders(){ return { "Content-Type":"application/json" }; }
+
+  // every NanoGPT data call goes through here
+  async function apiFetch(url, opts){
+    opts = opts || {};
+    const signal = ABORT ? ABORT.signal : undefined;
+    if(EMBEDDED) return proxyFetch(url, opts, signal);
+    const k = getKey();
+    const headers = Object.assign({}, opts.headers, { Authorization:"Bearer "+k, "x-api-key":k });
+    return fetch(url, Object.assign({}, opts, { headers, signal }));
+  }
+  // ask the parent to make the call; get back a minimal fetch-Response shim.
+  // the signal arg lets Stop reject the pending call locally so the lane halts at once
+  // (the parent's in-flight request may finish, but we ignore its result).
+  function proxyFetch(url, opts, signal){
+    const id = (proxyFetch._n = (proxyFetch._n||0)+1);
+    return new Promise((resolve, reject)=>{
+      if(signal && signal.aborted){ reject(abortError()); return; }
+      function cleanup(){ window.removeEventListener("message", onMsg); if(signal) signal.removeEventListener("abort", onAbort); }
+      function onAbort(){ cleanup(); reject(abortError()); }
+      function onMsg(e){
+        const d = e.data; if(!d || d.type!=="__api_result__" || d.id!==id) return;
+        cleanup();
+        if(d.error){ reject(new Error(d.error)); return; }
+        const headers = d.headers || {}, buf = d.body || new ArrayBuffer(0);
+        resolve({
+          ok:d.ok, status:d.status,
+          headers:{ get:(k)=>{ k=String(k).toLowerCase(); return (k in headers) ? headers[k] : null; } },
+          text: async()=> new TextDecoder().decode(buf),
+          json: async()=> JSON.parse(new TextDecoder().decode(buf)),
+          blob: async()=> new Blob([buf], { type: headers["content-type"] || "" }),
+        });
+      }
+      window.addEventListener("message", onMsg);
+      if(signal) signal.addEventListener("abort", onAbort);
+      const h = Object.assign({}, opts.headers); delete h.Authorization; delete h["x-api-key"];   // parent owns auth
+      window.parent.postMessage({ type:"__api__", id, url, method:opts.method||"GET", headers:h,
+                                  body: (opts.body!=null ? String(opts.body) : null) }, "*");
+    });
+  }
+
+  // Abortable: Stop rejects any in-flight wait so polling loops exit at once.
+  const sleep = (ms)=> new Promise((res, rej)=>{
+    const sig = ABORT && ABORT.signal;
+    if(sig && sig.aborted){ rej(abortError()); return; }
+    const t = setTimeout(()=>{ if(sig) sig.removeEventListener("abort", onAb); res(); }, ms);
+    function onAb(){ clearTimeout(t); rej(abortError()); }
+    if(sig) sig.addEventListener("abort", onAb, { once:true });
+  });
+  /* ---------- cost accounting ----------
+     NanoGPT bills per generation and rides the price back on each response —
+     JSON cost/remainingBalance, or x-cost / x-remaining-balance headers for the
+     binary-audio path. We total it for the whole session ("spent on this app")
+     and attribute each generation's slice to its result card. "exact" drops to
+     false if any call omitted a price, so the running total is shown as a floor (~). */
+  const COST = { total:0, count:0, balance:null, exact:true };
+  function fmtUsd(v){
+    const a = Math.abs(v);
+    const d = a>0 && a<0.01 ? 5 : a<1 ? 4 : 2;   // keep sub-cent generations legible
+    return "$" + v.toFixed(d);
+  }
+  function costFromJson(j){
+    if(!j) return { usd:null, balance:null };
+    // images/video/audio price top-level (j.cost); chat completions ride it in
+    // x_nanogpt_pricing (costUsd|cost) — without this, LLM calls never bump spend.
+    // A present-but-ZERO price is known-free (subscription-included), NOT unknown:
+    // keep it as 0 so the meter stays exact and the node can show "included".
+    const p = j.x_nanogpt_pricing, pUsd = p && (p.costUsd!=null ? p.costUsd : p.cost);
+    const usd = (typeof j.cost==="number" && j.cost>0) ? j.cost
+              : (pUsd!=null && isFinite(Number(pUsd))) ? Number(pUsd)
+              : (typeof j.cost==="number") ? j.cost : null;
+    const balance = (typeof j.remainingBalance==="number") ? j.remainingBalance
+                  : (p && typeof p.remainingBalance==="number") ? p.remainingBalance : null;
+    return { usd, balance };
+  }
+  function costFromHeaders(r){
+    const g = (k)=> r.headers.get(k);
+    const c = parseFloat(g("x-cost") || g("x-nano-cost") || "");
+    const b = parseFloat(g("x-remaining-balance") || "");
+    return { usd: isNaN(c) ? null : c, balance: isNaN(b) ? null : b };   // x-cost 0 = known-free (subscription)
+  }
+  // Fold one generation's cost into the session total; returns its USD (0 if unknown)
+  // so the caller can also attribute it to that node's output card.
+  function bumpCost(c){
+    COST.count++;
+    if(c && c.usd!=null) COST.total += c.usd; else COST.exact = false;   // unknown price → total is a lower bound
+    if(c && c.balance!=null) COST.balance = c.balance;
+    paintCost();
+    return (c && c.usd!=null) ? c.usd : 0;
+  }
+
+  /* ---------- mdl (verbatim) ---------- */
+  const mdl = (n)=>{ if(!n.fields.model) throw new Error("pick a model first"); return n.fields.model; };
+
+  /* =====================================================================
+     CTX — NanoGPT calls (verbatim behavior, index.html)
+     ===================================================================== */
+  // Per-run cost-tracking context: each node gets its own makeCtx(onCost) so a
+  // generation's price lands on the right card even when siblings/lanes run at once.
+  function makeCtx(onCost){ return {
+    async genImage(prompt, model, size, imageDataUrl){
+      const body = { model, prompt, size, n:1, response_format:"b64_json" };
+      if(imageDataUrl) body.imageDataUrl = imageDataUrl;   // present → image edit (img2img)
+      const r = await apiFetch(IMG_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
+      if(!r.ok) throw new Error(r.status + ": " + (await r.text()).slice(0,160));
+      const j = await r.json();
+      const d = (j.data||[])[0]||{};
+      const url = d.b64_json ? "data:image/png;base64," + d.b64_json : d.url;
+      if(!url) throw new Error("no image in response");
+      onCost(costFromJson(j)); return url;
+    },
+    async genChat(messages, model){
+      const r = await apiFetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(),
+        body:JSON.stringify({ model, messages, temperature:0.8 })});
+      if(!r.ok) throw new Error(r.status + ": " + (await r.text()).slice(0,160));
+      const j = await r.json();
+      onCost(costFromJson(j));
+      const txt = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+      if(txt==null) throw new Error("no text in response");
+      return typeof txt==="string" ? txt : txt.map(p=>p.text||"").join("");
+    },
+    // async video: submit → poll /api/video/status until COMPLETED (up to 5 min)
+    // opts also carries optional source media: videoUrl/videoDataUrl (edit/extend/upscale)
+    // and audioDataUrl (lipsync/avatar). duration/aspect only sent when set.
+    async genVideo(model, prompt, opts, imageDataUrl, onProgress){
+      const body = { model, prompt };
+      if(opts.duration) body.duration = opts.duration;
+      if(opts.aspect_ratio) body.aspect_ratio = opts.aspect_ratio;
+      if(imageDataUrl) body.imageDataUrl = imageDataUrl;
+      if(opts.videoUrl) body.videoUrl = opts.videoUrl;
+      if(opts.videoDataUrl) body.videoDataUrl = opts.videoDataUrl;
+      if(opts.audioDataUrl) body.audioDataUrl = opts.audioDataUrl;
+      // NanoGPT inlines media as base64 and the edge rejects bodies over ~4.5 MB with a header-less
+      // 413 the browser mislabels as CORS. No upload endpoint → catch oversize locally and explain.
+      const payload = JSON.stringify(body);
+      if(payload.length > MEDIA_INLINE_MAX)
+        throw new Error("This audio/video is a bit large (~4 MB max). nanoodle sends media inline rather than uploading it (no S3 here), so NanoGPT's edge won't accept it. A shorter clip works well — or build this flow into an app (✨ Create app) and run it offline.");
+      let r;
+      try{ r = await apiFetch(NANOGPT + "/api/generate-video", {method:"POST", headers:authHeaders(), body:payload}); }
+      catch(e){ throw new Error("couldn't reach the video API — if the source media is large it may have been rejected for size before CORS applies. Try a shorter clip, or build this into an app and run it offline. (" + (e.message||e) + ")"); }
+      if(!r.ok) throw new Error(r.status + ": " + (await r.text()).slice(0,160));
+      const j = await r.json(); onCost(costFromJson(j));
+      const runId = j.runId || j.id;
+      if(!runId) throw new Error("no runId returned");
+      const t0 = Date.now();
+      while(Date.now()-t0 < 300000){
+        await sleep(5000);
+        let s; try{ s = await (await apiFetch(NANOGPT + "/api/video/status?requestId=" + encodeURIComponent(runId), {headers:authHeaders()})).json(); }
+        catch(e){ continue; }
+        const st = String((s.data && s.data.status) || s.status || "").toUpperCase();
+        onProgress && onProgress(st, Date.now()-t0);
+        if(st==="COMPLETED" || st==="SUCCEEDED"){
+          const out = (s.data && s.data.output) || s.output || {};
+          const url = (out.video && out.video.url) || out.url || (Array.isArray(out.video) ? out.video[0] && out.video[0].url : null);
+          if(!url) throw new Error("completed but no video url");
+          return url;
+        }
+        if(["FAILED","ERROR","CANCELED"].includes(st)) throw new Error("video failed: " + ((s.data && s.data.error) || st));
+      }
+      throw new Error("video timed out (5 min)");
+    },
+    // sync audio (speech OR music): /api/v1/audio/speech → binary audio (or JSON with a url for some providers).
+    async genAudio(model, input, extra, onProgress){
+      const body = Object.assign({ model, input }, extra||{});
+      const r = await apiFetch(NANOGPT + "/api/v1/audio/speech", {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
+      if(!r.ok){
+        const t = (await r.text()).slice(0,220);
+        if(/lyric/i.test(t)) throw new Error("This model needs lyrics — fill the Lyrics field (vocal models require them; leave empty / use a BGM model for instrumentals).");
+        const req = t.match(/["']?([a-z_]+)["']?\s+(?:is\s+)?required|missing[^a-z]+["']?([a-z_]+)/i);
+        const field = req && (req[1]||req[2]);
+        if(field) throw new Error('This model requires "' + field + '" — set it in the node, or add it under advanced params.');
+        throw new Error(r.status + ": " + t);
+      }
+      const ct = r.headers.get("content-type") || "";
+      if(ct.includes("application/json")){
+        const j = await r.json(); onCost(costFromJson(j));
+        let url = j.url || j.audioUrl || (j.data && j.data.url) || (j.data && j.data.audioUrl);
+        if(!url && (j.runId || j.id)) url = await pollAudio(model, j, onProgress);   // async model → poll
+        if(!url) throw new Error("no audio url in response");
+        return url;
+      }
+      onCost(costFromHeaders(r));   // binary audio: price rides on x-cost / x-remaining-balance
+      const blob = await r.blob();
+      // Some providers hand back the audio with a blank/generic content-type. An
+      // <audio> element won't play a blob whose MIME it can't recognise (shows
+      // 0:00, dead play button) even though the bytes download/open fine — so pin
+      // the type from the requested format when it's missing or generic.
+      const t = (blob.type||"").split(";")[0].trim().toLowerCase();
+      if(!t || t==="application/octet-stream" || t==="binary/octet-stream"){
+        const AUDIO_MIME = { mp3:"audio/mpeg", opus:"audio/ogg", aac:"audio/aac", flac:"audio/flac", wav:"audio/wav", pcm:"audio/wav" };
+        const fmt = (extra && extra.response_format) || "mp3";
+        return URL.createObjectURL(new Blob([blob], { type: AUDIO_MIME[fmt] || "audio/mpeg" }));
+      }
+      return URL.createObjectURL(blob);
+    },
+    // speech→text: multipart upload to /api/v1/audio/transcriptions. Multipart can't ride the
+    // parent-proxied apiFetch (it serializes bodies as strings), so the in-editor preview can't
+    // run it — it works in the editor and in exported/standalone apps where auth is local.
+    async transcribe(model, audioUrl, language){
+      if(EMBEDDED) throw new Error("Transcribe runs in the editor and exported apps, not the in-app preview — build this into an app (✨ Create app) and run it offline.");
+      const blob = await (await fetch(audioUrl)).blob();
+      if(blob.size > 3.5*1024*1024)
+        throw new Error("This clip is a bit big to transcribe directly (~3 MB max) — nanoodle sends audio inline rather than uploading it (no S3 here). A shorter clip works, or build this into an app (✨ Create app) and run it offline.");
+      const ext = (blob.type.split("/")[1] || "mp3").split(";")[0];
+      const fd = new FormData();
+      fd.append("audio", blob, "audio." + ext);
+      fd.append("model", model);
+      if(language) fd.append("language", language);
+      const k = getKey();
+      const r = await fetch(NANOGPT + "/api/v1/audio/transcriptions", {method:"POST",
+        headers:{ Authorization:"Bearer " + k, "x-api-key":k }, body:fd});
+      if(!r.ok) throw new Error(r.status + ": " + (await r.text()).slice(0,160));
+      const j = await r.json(); onCost(costFromJson(j));
+      const txt = j.transcription != null ? j.transcription
+                : j.text != null ? j.text
+                : (j.data && (j.data.transcription != null ? j.data.transcription : j.data.text));
+      if(txt==null) throw new Error("no transcription in response");
+      return txt;
+    }
+  }; }
+  // turn a blob:/data:/http url into a base64 data URL (for video/audio source payloads)
+  async function urlToDataUrl(url){
+    if(/^data:/.test(url)) return url;
+    const blob = await (await fetch(url)).blob();
+    return await new Promise((res, rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=()=>rej(new Error("could not read media")); fr.readAsDataURL(blob); });
+  }
+  // source-video payload: public https link → videoUrl, otherwise inline as videoDataUrl
+  async function videoSourceOpts(url){
+    return /^https?:/.test(url) ? { videoUrl:url } : { videoDataUrl: await urlToDataUrl(url) };
+  }
+  // async audio (music / some TTS): submit returns {status:"pending", runId} → poll /api/tts/status until completed
+  async function pollAudio(model, j, onProgress){
+    const runId = j.runId || j.id;
+    const qs = new URLSearchParams({ runId, model });
+    if(j.cost!=null) qs.set("cost", j.cost);                 // these let the server auto-refund on failure
+    if(j.paymentSource) qs.set("paymentSource", j.paymentSource);
+    if(j.isApiRequest!=null) qs.set("isApiRequest", j.isApiRequest);
+    const t0 = Date.now();
+    while(Date.now()-t0 < 300000){
+      await sleep(3000);
+      let s; try{ s = await (await apiFetch(NANOGPT + "/api/tts/status?" + qs, {headers:authHeaders()})).json(); }
+      catch(e){ continue; }
+      const st = String(s.status||"").toLowerCase();
+      if(st==="completed" || st==="succeeded")
+        return s.audioUrl || s.url || (s.data && s.data.audioUrl) || (s.data && s.data.url) || (()=>{ throw new Error("completed but no audio url"); })();
+      if(["error","failed","content_policy_violation"].includes(st)) throw new Error("audio failed: " + (s.error || s.message || st));
+      onProgress && onProgress(s.queuePosition, Date.now()-t0);
+    }
+    throw new Error("audio timed out (5 min)");
+  }
+
+  /* =====================================================================
+     AUDIO PARAMS (index.html) — metadata-driven, no model names. Without a
+     live catalog the runtime can't resolve cat:* applies-to, so it reads
+     any literal param value present on n.fields (sent only-when-nonempty,
+     exactly like the editor) plus the extraJson escape hatch.
+     ===================================================================== */
+  const AUDIO_PARAMS = {
+    music: [
+      { id:"lyrics",          type:"textarea" },
+      { id:"instrumental",    type:"boolean" },
+      { id:"duration",        type:"number" },
+      { id:"number_of_songs", type:"number",   default:1 },
+      { id:"negative_prompt", type:"textarea" },
+      { id:"seed",            type:"number" },
+      { id:"response_format", type:"select",   default:"mp3" },
+    ],
+    tts: [
+      { id:"voice",           type:"select" },
+      { id:"speed",           type:"number", default:1 },
+      { id:"instructions",    type:"textarea" },
+      { id:"response_format", type:"select", default:"mp3" },
+    ],
+  };
+  // Faithful to collectAudioParams(): only-when-nonempty, omit defaults, then merge extraJson verbatim.
+  function collectAudioParams(n){
+    const body = {};
+    for(const f of (AUDIO_PARAMS[n.type]||[])){
+      let v = n.fields[f.id];
+      if(f.type==="boolean"){ if(v===true||v==="true") body[f.id]=true; continue; }
+      if(v==null || v==="") continue;
+      if(f.type==="number"){ const num=Number(v); if(isNaN(num)) continue; if(f.default!=null && num===f.default) continue; body[f.id]=num; continue; }
+      if(f.default!=null && v===f.default) continue;       // e.g. response_format=mp3 → omit
+      body[f.id] = v;
+    }
+    if((n.fields.extraJson||"").trim()){                    // escape hatch: merge any extra keys verbatim
+      try{ Object.assign(body, JSON.parse(n.fields.extraJson)); }catch(e){ throw new Error("advanced params: invalid JSON"); }
+    }
+    return body;
+  }
+  async function audioRun(n, inp, ctx, onProgress){
+    const text = (inp.text != null ? inp.text : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
+    if(!text) throw new Error("no text");
+    return { audio: await ctx.genAudio(mdl(n), text, collectAudioParams(n),
+      (q,ms)=> onProgress && onProgress("generating audio… " + Math.round(ms/1000) + "s" + (q!=null?(" · queue "+q):""))) };
+  }
+
+  /* =====================================================================
+     NODE_TYPES run map (verbatim behavior, index.html).
+     setNodeProgress() calls are redirected to the per-run onProgress cb.
+     ===================================================================== */
+  const NODE_TYPES = {
+    text: {
+      em:"📝", title:"Text", inputs:[], outputs:[{name:"text", type:"text"}],
+      async run(n){ return { text: n.fields.text||"" }; }
+    },
+    upload: {
+      em:"📷", title:"Image input", inputs:[], outputs:[{name:"image", type:"image"}],
+      async run(n){ if(!n.fields.image) throw new Error("no image — upload or capture one first"); return { image: n.fields.image }; }
+    },
+    aupload: {
+      em:"🎤", title:"Audio input", inputs:[], outputs:[{name:"audio", type:"audio"}],
+      async run(n){ if(!n.fields.audio) throw new Error("no audio — upload a clip first"); return { audio: n.fields.audio }; }
+    },
+    vupload: {
+      em:"📹", title:"Video input", inputs:[], outputs:[{name:"video", type:"video"}],
+      async run(n){ if(!n.fields.video) throw new Error("no video — upload a clip first"); return { video: n.fields.video }; }
+    },
+    join: {
+      em:"🔗", title:"Join",
+      inputs:[{name:"a", type:"text"},{name:"b", type:"text"}], outputs:[{name:"text", type:"text"}],
+      async run(n, inp){
+        const sep = (n.fields.sep != null ? n.fields.sep : " ").replace(/\\n/g,"\n");
+        return { text: [inp.a, inp.b].filter(v=>v!=null && v!=="").join(sep) };
+      }
+    },
+    llm: {
+      em:"🧠", title:"LLM", inputs:[], outputs:[{name:"text", type:"text"}],
+      async run(n, inp, ctx){
+        const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
+        if(!prompt) throw new Error("no prompt");
+        const messages = [];
+        if((n.fields.system||"").trim()) messages.push({role:"system", content:n.fields.system.trim()});
+        messages.push({role:"user", content:prompt});
+        return { text: await ctx.genChat(messages, mdl(n)) };
+      }
+    },
+    image: {
+      em:"🖼", title:"Image", inputs:[], outputs:[{name:"image", type:"image"}],
+      async run(n, inp, ctx){
+        const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
+        if(!prompt) throw new Error("no prompt");
+        return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0]) };
+      }
+    },
+    edit: {
+      em:"✂️", title:"Edit",
+      inputs:[{name:"image", type:"image"}], outputs:[{name:"image", type:"image"}],
+      async run(n, inp, ctx){
+        if(!inp.image) throw new Error("no image input");
+        const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
+        if(!prompt) throw new Error("no edit instruction");
+        return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], inp.image) };
+      }
+    },
+    vision: {
+      em:"👁", title:"Vision",
+      inputs:[{name:"image", type:"image"}], outputs:[{name:"text", type:"text"}],
+      async run(n, inp, ctx){
+        if(!inp.image) throw new Error("no image input");
+        const q = (n.fields.q||"Describe this image.").trim();
+        const messages = [{ role:"user", content:[
+          {type:"text", text:q},
+          {type:"image_url", image_url:{url:inp.image}}
+        ]}];
+        return { text: await ctx.genChat(messages, mdl(n)) };
+      }
+    },
+    tvideo: {
+      em:"🎬", title:"Text→Video", inputs:[], outputs:[{name:"video", type:"video"}],
+      async run(n, inp, ctx, onProgress){
+        const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
+        if(!prompt) throw new Error("no prompt");
+        const url = await ctx.genVideo(mdl(n), prompt,
+          { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9" }, null,
+          (st,ms)=> onProgress && onProgress("rendering video… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
+        return { video: url };
+      }
+    },
+    ivideo: {
+      em:"📽️", title:"Image→Video",
+      inputs:[{name:"image", type:"image"}], outputs:[{name:"video", type:"video"}],
+      async run(n, inp, ctx, onProgress){
+        if(!inp.image) throw new Error("no image input");
+        const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
+        const url = await ctx.genVideo(mdl(n), prompt,
+          { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9" }, inp.image,
+          (st,ms)=> onProgress && onProgress("animating… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
+        return { video: url };
+      }
+    },
+    vedit: {
+      em:"🎞️", title:"Video edit",
+      inputs:[{name:"video", type:"video"}], outputs:[{name:"video", type:"video"}],
+      async run(n, inp, ctx, onProgress){
+        if(!inp.video) throw new Error("no video input");
+        const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
+        const url = await ctx.genVideo(mdl(n), prompt, await videoSourceOpts(inp.video), null,
+          (st,ms)=> onProgress && onProgress("processing video… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
+        return { video: url };
+      }
+    },
+    lipsync: {
+      em:"🎭", title:"Avatar / lipsync",
+      inputs:[{name:"image", type:"image"},{name:"audio", type:"audio"}], outputs:[{name:"video", type:"video"}],
+      async run(n, inp, ctx, onProgress){
+        if(!inp.image) throw new Error("no image input");
+        if(!inp.audio) throw new Error("no audio input");
+        const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
+        const url = await ctx.genVideo(mdl(n), prompt, { audioDataUrl: await urlToDataUrl(inp.audio) }, inp.image,
+          (st,ms)=> onProgress && onProgress("lip-syncing… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
+        return { video: url };
+      }
+    },
+    music: {
+      em:"🎵", title:"Music", inputs:[], outputs:[{name:"audio", type:"audio"}],
+      run: audioRun,
+    },
+    tts: {
+      em:"🗣️", title:"Speech", inputs:[], outputs:[{name:"audio", type:"audio"}],
+      run: audioRun,
+    },
+    transcribe: {
+      em:"🎙️", title:"Transcribe",
+      inputs:[{name:"audio", type:"audio"}], outputs:[{name:"text", type:"text"}],
+      async run(n, inp, ctx){
+        if(!inp.audio) throw new Error("no audio input");
+        return { text: await ctx.transcribe(mdl(n), inp.audio, (n.fields.language||"auto").trim()) };
+      }
+    },
+  };
+
+  /* =====================================================================
+     GRAPH TRAVERSAL (verbatim, index.html) — parameterized over a passed
+     graph instead of the editor's module global.
+     ===================================================================== */
+  function ancestors(graph, targets){
+    const keep = new Set(targets);
+    const stack = [...targets];
+    while(stack.length){
+      const n = stack.pop();
+      for(const l of graph.links) if(l.to.node===n && !keep.has(l.from.node)){ keep.add(l.from.node); stack.push(l.from.node); }
+    }
+    return keep;
+  }
+  function topoOrder(graph, ids){
+    const indeg={}, adj={};
+    ids.forEach(id=>{ indeg[id]=0; adj[id]=[]; });
+    for(const l of graph.links) if(ids.has(l.from.node) && ids.has(l.to.node)){ adj[l.from.node].push(l.to.node); indeg[l.to.node]++; }
+    const q=[...ids].filter(id=>indeg[id]===0), order=[];
+    while(q.length){ const n=q.shift(); order.push(n); for(const m of adj[n]) if(--indeg[m]===0) q.push(m); }
+    return { order, cyclic:[...ids].filter(id=>!order.includes(id)) };
+  }
+
+  /* =====================================================================
+     MATERIALIZE window.NOODLE_GRAPH into a runnable graph.
+     Mirrors applyGraphData(): audio→tts alias, drop unknown node types,
+     keep only links with surviving endpoints, migrate music/tts header
+     "text" port → inline "prompt" field port.
+     ===================================================================== */
+  function materialize(data){
+    const ALIAS = { audio:"tts" };
+    const nodes = [];
+    for(const sn of (data.nodes||[])){
+      const type = ALIAS[sn.type] || sn.type;
+      if(!NODE_TYPES[type]) continue;
+      nodes.push({ id:sn.id, type, x:sn.x, y:sn.y, fields:{ ...(sn.fields||{}) }, out:{} });
+    }
+    const byId = (id)=> nodes.find(n=>n.id===id);
+    const ids = new Set(nodes.map(n=>n.id));
+    const links = (data.links||[]).filter(l=> ids.has(l.from && l.from.node) && ids.has(l.to && l.to.node))
+      .map(l=>({ id:l.id, from:{...l.from}, to:{...l.to} }));
+    for(const l of links){
+      const tn = byId(l.to.node);
+      if(tn && (tn.type==="music"||tn.type==="tts") && l.to.port==="text") l.to.port="prompt";
+    }
+    return { nodes, links, byId };
+  }
+
+  /* =====================================================================
+     RUN LOOP — ported from runGroup(), minus the editor's DOM, locking,
+     and group-concurrency. Port wiring + fieldOverrides preserved.
+     ===================================================================== */
+  async function runGraph(graph, opts){
+    opts = opts || {};
+    const onStatus = opts.onStatus, onResult = opts.onResult;
+    if(!hasAuth()) throw new Error("sign in or paste an API key first");
+    const byId = graph.byId;
+    const all = new Set(graph.nodes.map(n=>n.id));
+    const ids = ancestors(graph, all);                 // everything (no seed subset → run whole graph)
+    const r = topoOrder(graph, ids);
+    if(opts.onStart) opts.onStart(r.order.slice());
+    r.cyclic.forEach(id=> onStatus && onStatus(id, "error", "cycle detected"));
+    graph.nodes.forEach(n=>{ n.out = {}; });           // fresh run
+    // Each node runs as soon as its OWN inputs are ready — siblings that share a
+    // parent (a→b, a→c) run concurrently instead of serializing down topo order.
+    const done = {};                                   // id → promise, keyed so dependents can await their inputs
+    const depsOf = (id)=>{                              // upstream node ids feeding this node (within the run set)
+      const s = new Set();
+      for(const l of graph.links) if(l.to.node===id && ids.has(l.from.node)) s.add(l.from.node);
+      return [...s];
+    };
+    for(const id of r.order){                           // topo order → every dep's promise exists before we read it
+      const deps = depsOf(id);
+      done[id] = (async ()=>{
+        await Promise.all(deps.map(d=> done[d]));        // wait on this node's inputs only, not the whole lane
+        if(runAborted()) throw abortError();             // Stop pressed — don't start dependent steps
+        const n = byId(id); if(!n) return;
+        const t = NODE_TYPES[n.type], inp = {};
+        for(const port of t.inputs){
+          const l = graph.links.find(x=> x.to.node===id && x.to.port===port.name);
+          if(l){ const src = byId(l.from.node); inp[port.name] = src && src.out ? src.out[l.from.port] : undefined; }
+        }
+        // a wired field overrides its typed value (n.fields[field]); declared ports handled above
+        const fieldOverrides = {};
+        for(const l of graph.links){
+          if(l.to.node!==id || t.inputs.some(p=>p.name===l.to.port)) continue;
+          const src = byId(l.from.node);
+          const v = src && src.out ? src.out[l.from.port] : undefined;
+          if(v!=null) fieldOverrides[l.to.port] = v;
+        }
+        const rn = Object.keys(fieldOverrides).length ? { ...n, fields:{...n.fields, ...fieldOverrides} } : n;
+        onStatus && onStatus(id, "run", "running…");
+        let nodeCost = 0, nodeKnown = false;               // USD this node's generation(s) cost; known incl $0 (subscription)
+        const ctx = makeCtx((c)=>{ nodeCost += bumpCost(c); if(c && c.usd!=null) nodeKnown = true; });
+        try{
+          n.out = await t.run(rn, inp, ctx, (msg)=> onStatus && onStatus(id, "run", msg)) || {};
+          n.costUsd = nodeCost; n.costKnown = nodeKnown;
+          onStatus && onStatus(id, "done", "done");
+          onResult && onResult(n);
+        }
+        // editor parity (runGroup): isolate per-node failures — mark error and keep going so
+        // independent flows / other sinks still produce output. Do NOT rethrow.
+        // Exception: a Stop-triggered abort halts the whole lane (propagate it).
+        catch(err){ if(isAbort(err)) throw err; onStatus && onStatus(id, "error", err.message); }
+      })();
+    }
+    await Promise.all(r.order.map(id=> done[id]));       // lane finishes when every node has settled
+  }
+
+  /* =====================================================================
+     INPUT DERIVATION — a control for each source-node field NOT satisfied
+     by an incoming link. (Source nodes have no inputs[]; their typed
+     fields are the graph's knobs.)
+     ===================================================================== */
+  const INPUT_SPECS = {
+    text:   [{ f:"text",   label:"Text",         kind:"textarea" }],
+    upload: [{ f:"image",  label:"Image",        kind:"image" }],
+    aupload:[{ f:"audio",  label:"Audio",        kind:"audio" }],
+    vupload:[{ f:"video",  label:"Video",        kind:"video" }],
+    llm:    [{ f:"prompt", label:"Prompt",       kind:"textarea" },
+             { f:"system", label:"System prompt", kind:"textarea", optional:true, def:"You are a helpful, concise assistant." }],
+    image:  [{ f:"prompt", label:"Image prompt", kind:"textarea" }],
+    tvideo: [{ f:"prompt", label:"Video prompt", kind:"textarea" }],
+    music:  [{ f:"prompt", label:"Style / prompt", kind:"textarea" }],
+    tts:    [{ f:"prompt", label:"Text to speak",  kind:"textarea" }],
+  };
+  function deriveInputs(graph){
+    const out = [];
+    for(const n of graph.nodes){
+      const specs = INPUT_SPECS[n.type]; if(!specs) continue;     // not a knob-bearing source
+      for(const s of specs){
+        // satisfied if a link feeds this field (fieldOverrides) → hide the control
+        const fed = graph.links.some(l=> l.to.node===n.id && l.to.port===s.f);
+        if(fed) continue;
+        out.push({ nodeId:n.id, field:s.f, label:s.label, kind:s.kind, optional:!!s.optional, def:s.def,
+                   node:n, title:NODE_TYPES[n.type].title, em:NODE_TYPES[n.type].em });
+      }
+    }
+    return out;
+  }
+  // OUTPUTS = sink nodes (no outgoing link) that produce something
+  function deriveOutputs(graph){
+    return graph.nodes.filter(n=>{
+      const t = NODE_TYPES[n.type];
+      if(!t.outputs || !t.outputs.length) return false;
+      return !graph.links.some(l=> l.from.node===n.id);
+    });
+  }
+
+  /* =====================================================================
+     DESCRIBE — a plain-English account of what the graph actually does:
+     the pipeline steps in run order, the data flow between them, the
+     prompts/models in play, what the end-user fills in, and what comes
+     out. Fed to the customize LLM so it can title/label/word the app for
+     the real workflow and reason about what the user is trying to build,
+     instead of restyling blind. Takes a materialized graph (has byId).
+     ===================================================================== */
+  const NODE_ROLE = {
+    text:   "a fixed block of text",
+    upload: "an image the user uploads",
+    aupload:"an audio clip the user uploads",
+    vupload:"a video clip the user uploads",
+    join:   "joins two pieces of text into one",
+    llm:    "writes text from a prompt",
+    image:  "generates an image from a text prompt",
+    edit:   "edits an existing image following an instruction",
+    vision: "looks at an image and answers a question about it in text",
+    tvideo: "generates a video from a text prompt",
+    ivideo: "animates a still image into a video",
+    music:  "generates music from a style/prompt",
+    tts:    "reads text aloud as speech",
+  };
+  function describeGraph(graph){
+    const clip = (s, n)=>{ s = String(s).replace(/\s+/g," ").trim(); return s.length>n ? s.slice(0,n-1)+"…" : s; };
+    const nameOf = (n)=> n ? ((NODE_TYPES[n.type] && NODE_TYPES[n.type].title) || n.type) : "?";
+    if(!graph.nodes.length) return "(The workflow is empty — no steps yet.)";
+
+    const allIds = new Set(graph.nodes.map(n=>n.id));
+    const r = topoOrder(graph, allIds);
+    const order = [...r.order, ...r.cyclic];     // cyclic shouldn't happen, but never drop a node
+
+    const lines = ["The app runs this workflow, step by step:"];
+    order.forEach((id, idx)=>{
+      const n = graph.byId(id); if(!n) return;
+      const t = NODE_TYPES[n.type] || {};
+      const incoming = graph.links.filter(l=> l.to.node===id);
+      const fedPorts = new Set(incoming.map(l=> l.to.port));   // a link into a field overrides its inline value
+      const fed = incoming.map(l=>{
+        const src = graph.byId(l.from.node);
+        return nameOf(src) + "'s " + l.from.port + " feeds this step's " + l.to.port;
+      });
+      const f = n.fields || {};
+      const facts = [];
+      if(f.model)                                         facts.push("model " + f.model);
+      if(!fedPorts.has("system") && (f.system||"").trim()) facts.push('system prompt "' + clip(f.system,140) + '"');
+      if(!fedPorts.has("prompt") && (f.prompt||"").trim()) facts.push('prompt "' + clip(f.prompt,140) + '"');
+      if(!fedPorts.has("text")   && (f.text||"").trim())   facts.push('text "' + clip(f.text,140) + '"');
+      if(!fedPorts.has("q")      && (f.q||"").trim())      facts.push('question "' + clip(f.q,140) + '"');
+      if(f.size)                        facts.push("size " + f.size);
+      if(f.duration)                    facts.push("duration " + f.duration + "s");
+      if(f.aspect)                      facts.push("aspect " + f.aspect);
+      if(n.type==="join" && f.sep!=null) facts.push("separator " + JSON.stringify(f.sep));
+
+      let line = "  " + (idx+1) + ". " + (t.em ? t.em+" " : "") + nameOf(n)
+               + (NODE_ROLE[n.type] ? " — " + NODE_ROLE[n.type] : "");
+      if(fed.length)   line += " (" + fed.join("; ") + ")";
+      if(facts.length) line += " [" + facts.join("; ") + "]";
+      lines.push(line);
+    });
+
+    const inputs = deriveInputs(graph);
+    lines.push("");
+    if(inputs.length){
+      lines.push("What the end-user fills in before pressing Run:");
+      for(const it of inputs)
+        lines.push("  • " + it.label + (it.optional ? " (optional)" : "") + " — for the " + nameOf(it.node) + " step");
+    } else {
+      lines.push("The end-user fills in nothing — pressing Run produces the result directly.");
+    }
+
+    const outs = deriveOutputs(graph);
+    if(outs.length){
+      const kinds = [...new Set(outs.map(n=>{
+        const t = NODE_TYPES[n.type] || {};
+        return (t.outputs && t.outputs[0] && t.outputs[0].type) || "result";
+      }))];
+      lines.push("");
+      lines.push("The result it shows the user: " + kinds.join(", ") + ".");
+    }
+    return lines.join("\n");
+  }
+
+  /* =====================================================================
+     DOM / RENDER
+     ===================================================================== */
+  const $ = (id)=> document.getElementById(id);
+  let STATE = null;        // { data, graph, inputs, outputs }
+  let running = false;
+
+  function fileToDataUrl(file){
+    return new Promise((res, rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=()=>rej(new Error("read failed")); fr.readAsDataURL(file); });
+  }
+
+  function fieldHtml(it, i){
+    const id = "in_"+i;
+    let cur = it.node.fields[it.field];
+    // Optional fields ship pre-filled with a sensible default so they read as
+    // ready-to-go (and are written onto the graph so a run uses them as-is).
+    if(it.optional && (cur==null || cur==="") && it.def){ cur = it.def; it.node.fields[it.field] = it.def; }
+    let ctrl;
+    if(it.kind==="textarea")
+      ctrl = '<textarea id="'+id+'" data-i="'+i+'" placeholder="'+esc(it.label)+'">'+esc(cur||"")+'</textarea>';
+    else if(it.kind==="image")
+      ctrl = '<div class="imgin">'
+           + '<div class="file-prev" data-prev="'+i+'">'+(cur ? '<img src="'+esc(cur)+'" alt="">' : '<span class="muted">no image</span>')+'</div>'
+           + '<input type="file" accept="image/*" id="'+id+'" data-i="'+i+'">'
+           + '</div>';
+    else if(it.kind==="audio" || it.kind==="video")
+      ctrl = '<div class="imgin">'
+           + '<div class="file-prev" data-prev="'+i+'">'+(cur ? '<'+it.kind+' src="'+esc(cur)+'" controls'+(it.kind==="video"?" playsinline":"")+'></'+it.kind+'>' : '<span class="muted">no '+it.kind+'</span>')+'</div>'
+           + '<input type="file" accept="'+it.kind+'/*" id="'+id+'" data-i="'+i+'">'
+           + '</div>';
+    else
+      ctrl = '<input id="'+id+'" data-i="'+i+'" value="'+esc(cur||"")+'" placeholder="'+esc(it.label)+'">';
+    return '<div class="field"><label for="'+id+'">'+esc(it.em)+' '+esc(it.label)+'</label>'+ctrl+'</div>';
+  }
+  function renderInputs(){
+    const box = $("app-inputs"); if(!box) return;
+    if(!STATE.inputs.length){ box.innerHTML = '<p class="muted">This app takes no inputs — just press Run.</p>'; return; }
+    const req = [], opt = [];
+    STATE.inputs.forEach((it,i)=>{ (it.optional ? opt : req).push(i); });
+    // Mandatory fields first; optional ones tucked into a collapsed, pre-filled disclosure below.
+    let html = req.map(i=> fieldHtml(STATE.inputs[i], i)).join("");
+    if(opt.length){
+      html += '<details class="opt">'
+            + '<summary><span class="opt-tw">▸</span> Optional settings'
+            + '<span class="opt-count">'+opt.length+'</span>'
+            + '<span class="opt-hint">pre-filled — tap to adjust</span></summary>'
+            + '<div class="opt-body">' + opt.map(i=> fieldHtml(STATE.inputs[i], i)).join("") + '</div>'
+            + '</details>';
+    }
+    box.innerHTML = html;
+    // wire controls back onto the live graph fields
+    box.querySelectorAll("textarea[data-i],input[data-i]").forEach(el=>{
+      const it = STATE.inputs[+el.dataset.i];
+      if(el.type==="file"){
+        el.addEventListener("change", async ()=>{
+          const f = el.files && el.files[0]; if(!f) return;
+          const url = await fileToDataUrl(f); it.node.fields[it.field] = url;
+          const prev = box.querySelector('[data-prev="'+el.dataset.i+'"]');
+          if(prev){
+            const k = it.kind;
+            prev.innerHTML = (k==="audio" || k==="video")
+              ? '<'+k+' src="'+esc(url)+'" controls'+(k==="video"?" playsinline":"")+'></'+k+'>'
+              : '<img src="'+esc(url)+'" alt="">';
+          }
+        });
+      } else {
+        el.addEventListener("input", ()=>{ it.node.fields[it.field] = el.value; });
+      }
+    });
+  }
+
+  /* ---------- status + progress UI ----------
+     #app-status hosts a segmented progress bar (#app-prog) that shows which
+     step of the run we're on with a live elapsed timer (runs can take ~a
+     minute), plus a message area (#app-msg) for sign-in / fatal errors. */
+  function ensureStatus(){
+    const box = $("app-status"); if(!box) return null;
+    if(!box.querySelector("#app-prog"))
+      box.innerHTML = '<div id="app-prog" class="prog" hidden></div><div id="app-msg" class="msg-area"></div>';
+    // A run can finish with per-node errors that only show as red bar segments.
+    // Clicking the "N errors" toggle reveals which steps failed and why. Bind once
+    // (delegated) on #app-prog, which paintRuns rebuilds; the open/closed state
+    // lives on the lane object so it survives repaints.
+    const prog = box.querySelector("#app-prog");
+    if(prog && !prog._errBound){
+      prog._errBound = true;
+      prog.addEventListener("click", (e)=>{
+        const btn = e.target.closest(".err-toggle"); if(!btn) return;
+        const L = RUN && RUN.lanes[+btn.dataset.lane]; if(!L) return;
+        L.showErrs = !L.showErrs; paintRuns();
+      });
+    }
+    return box;
+  }
+  function statusLine(id, kind, msg){
+    ensureStatus(); const box = $("app-msg"); if(!box) return;
+    let row = box.querySelector('[data-st="'+id+'"]');
+    if(!row){ row = document.createElement("div"); row.className="stline"; row.dataset.st=id; box.appendChild(row); }
+    row.className = "stline " + esc(kind);
+    row.innerHTML = '<span class="msg">'+esc(msg||"")+'</span>';
+  }
+
+  /* RUN = one click; it fans out into N independent lanes (parallel runs of
+     the same graph). Each lane tracks its own step order/state/timers. */
+  let RUN = null, runTimer = null;
+  function fmtClock(ms){
+    const s = Math.max(0, Math.round(ms/1000)), m = Math.floor(s/60);
+    return m ? (m + ":" + String(s%60).padStart(2,"0")) : (s + "s");
+  }
+  function stepLabel(id){
+    const n = STATE.graph.byId(id), t = n ? NODE_TYPES[n.type] : null;
+    return t ? (t.em + " " + t.title) : id;
+  }
+  function startRun(n){
+    RUN = { n:n, t0:Date.now(), lanes:[] };
+    for(let i=0;i<n;i++) RUN.lanes.push({ idx:i, order:[], state:{}, curId:null, curT0:0, t0:Date.now(), endAt:0 });
+    ensureStatus(); const p = $("app-prog"); if(p) p.hidden = false;
+    clearInterval(runTimer); runTimer = setInterval(paintRuns, 1000);
+    paintRuns();
+  }
+  function stopRun(){ clearInterval(runTimer); runTimer = null; paintRuns(); }
+  // Re-init one lane for its next pass in keep-generating mode, so its progress
+  // bar and timer start fresh instead of showing the previous pass as "done".
+  function resetLane(i){
+    if(!RUN || !RUN.lanes[i]) return;
+    RUN.lanes[i] = { idx:i, order:[], state:{}, curId:null, curT0:0, t0:Date.now(), endAt:0 };
+    paintRuns();
+  }
+  function laneStart(i, order){ if(RUN && RUN.lanes[i]){ RUN.lanes[i].order = order; paintRuns(); } }
+  function laneStep(i, id, kind, msg){
+    const L = RUN && RUN.lanes[i]; if(!L) return;
+    L.state[id] = { kind:kind, msg:msg };
+    if(kind==="run" && L.curId!==id){ L.curId = id; L.curT0 = Date.now(); }
+    paintRuns();
+  }
+  function laneStats(L){
+    const order = L.order || [], total = order.length; let done = 0, errs = 0;
+    const segs = order.map(function(id){
+      const s = L.state[id]; let cls = "seg";
+      if(s && s.kind==="done"){ cls += " done"; done++; }
+      else if(s && s.kind==="error"){ cls += " error"; done++; errs++; }
+      else if(s && s.kind==="run"){ cls += " active"; }
+      return '<span class="'+cls+'"></span>';
+    }).join("");
+    return { order:order, total:total, done:done, errs:errs, segs:segs, finished:(L.endAt>0) };
+  }
+  // Clickable "N errors" toggle + (when open) one line per failed step with its
+  // message — the only place a run's per-node errors are actually readable.
+  function errBlockHtml(L, st){
+    if(!st.errs) return "";
+    const open = !!L.showErrs;
+    const word = "error" + (st.errs>1?"s":"");
+    let html = '<button type="button" class="err-toggle' + (open?" open":"") + '" data-lane="' + L.idx
+             + '" aria-expanded="' + open + '">' + (open ? "Hide" : "Show") + " " + st.errs + " " + word + "</button>";
+    if(open){
+      const lines = (L.order||[]).filter(id=>{ const s=L.state[id]; return s && s.kind==="error"; })
+        .map(id=> '<div class="err-line"><b>' + esc(stepLabel(id)) + '</b><span>' + esc(L.state[id].msg || "failed") + '</span></div>')
+        .join("");
+      html += '<div class="err-detail">' + lines + "</div>";
+    }
+    return html;
+  }
+  function singleLaneHtml(L){
+    const st = laneStats(L); let now = "";
+    if(!st.finished && L.curId != null){
+      const cur = L.state[L.curId] || {}, idx = st.order.indexOf(L.curId) + 1;
+      now = '<div class="prog-now">'
+          + '<span class="prog-step">Step ' + idx + ' / ' + st.total + '</span>'
+          + '<b class="prog-node">' + esc(stepLabel(L.curId)) + '</b>'
+          + '<span class="prog-msg">' + esc(cur.msg || "working…") + '</span>'
+          + '<span class="prog-el">' + fmtClock(Date.now()-L.curT0) + '</span></div>';
+    } else if(st.finished){
+      now = st.errs
+        ? '<div class="prog-now is-err">Finished with ' + st.errs + ' error' + (st.errs>1?"s":"") + ' · ' + st.done + '/' + st.total + ' steps · ' + fmtClock(L.endAt-L.t0) + '</div>'
+        : '<div class="prog-now is-ok">✓ Done · ' + st.total + ' step' + (st.total!==1?"s":"") + ' · ' + fmtClock(L.endAt-L.t0) + '</div>';
+    }
+    return '<div class="prog-track">' + st.segs + '</div>' + now + errBlockHtml(L, st);
+  }
+  function laneRowHtml(L){
+    const st = laneStats(L);
+    const elapsed = fmtClock((L.endAt>0?L.endAt:Date.now()) - L.t0);
+    let mid;
+    if(st.finished){
+      mid = st.errs ? '<span class="prog-msg is-err">' + st.errs + ' error' + (st.errs>1?"s":"") + '</span>'
+                    : '<span class="prog-msg is-ok">✓ done</span>';
+    } else if(L.curId != null){
+      const cur = L.state[L.curId] || {};
+      mid = '<b class="prog-node">' + esc(stepLabel(L.curId)) + '</b> <span class="prog-msg">' + esc(cur.msg || "working…") + '</span>';
+    } else { mid = '<span class="prog-msg">starting…</span>'; }
+    return '<div class="lane' + (st.finished?" is-done":"") + '">'
+         + '<span class="lane-no">Run ' + (L.idx+1) + '</span>'
+         + '<div class="prog-track">' + st.segs + '</div>'
+         + '<span class="lane-mid">' + mid + '</span>'
+         + '<span class="prog-el">' + elapsed + '</span></div>';
+  }
+  function paintRuns(){
+    const box = $("app-prog"); if(!box || !RUN) return;
+    if(RUN.n === 1){ box.innerHTML = singleLaneHtml(RUN.lanes[0]); return; }
+    box.innerHTML = '<div class="lanes">'
+      + RUN.lanes.map(L=> laneRowHtml(L) + errBlockHtml(L, laneStats(L))).join("")
+      + '</div>';
+  }
+  // Independent copy of the live graph (current input values included) so N
+  // lanes can run at once without clobbering each other's node outputs.
+  function cloneGraph(){
+    return materialize({
+      nodes: STATE.graph.nodes.map(n=>({ id:n.id, type:n.type, x:n.x, y:n.y, fields:{...n.fields} })),
+      links: STATE.graph.links.map(l=>({ id:l.id, from:{...l.from}, to:{...l.to} })),
+    });
+  }
+  const RUN_CHOICES = [1,2,4,8];
+  let RUNS_N = 1;
+  let KEEP = false;   // keep-generating: keep all N lanes busy until Stop / unchecked
+  function renderCount(){
+    const box = $("app-count"); if(!box) return;
+    box.innerHTML = '<span class="count-lbl">Runs</span>'
+      + RUN_CHOICES.map(function(c){ return '<button type="button" class="cnt'+(c===RUNS_N?" on":"")+'" data-n="'+c+'">'+c+'×</button>'; }).join("");
+    box.querySelectorAll("button[data-n]").forEach(function(b){
+      b.addEventListener("click", function(){ if(running) return; RUNS_N = +b.dataset.n; renderCount(); });
+    });
+  }
+
+  // Keep-generating toggle: when on, run() keeps all N lanes busy, starting a
+  // fresh pass the instant one finishes, until Stop or the box is unchecked.
+  // Lives in the runtime so every generated/exported app gets it; unchecking it
+  // mid-run lets the in-flight pass finish, then stops — that's the per-app off.
+  function renderLoop(){
+    const box = $("app-loop"); if(!box) return;
+    box.innerHTML = '<input type="checkbox" id="app-loop-cb"'+(KEEP?" checked":"")+'>'
+      + '<span>Keep generating</span>';
+    box.querySelector("#app-loop-cb").addEventListener("change", function(e){ KEEP = e.target.checked; });
+  }
+
+  /* ---------- session cost meter ----------
+     A running "spent on this app" line. Self-styled and self-mounted so it shows
+     up in every app — the default one, customized ones, exported standalones, and
+     ones created before this existed (they all share THIS runtime, not their own
+     stored copy). Totals persist across runs, mirroring how result cards stack. */
+  function injectCostStyles(){
+    if(document.getElementById("noodle-cost-style")) return;
+    const s = document.createElement("style"); s.id = "noodle-cost-style";
+    s.textContent =
+      '#app-cost{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;margin:.1rem 0 1.1rem;'
+        + 'font-size:.78rem;color:var(--dim,#8b93b4);font-variant-numeric:tabular-nums;}'
+      + '#app-cost[hidden]{display:none;}'
+      + '#app-cost .cm-spent{font-weight:700;color:var(--ink,#e6e9f5);'
+        + 'font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}'
+      + '#app-cost .cm-n{color:var(--faint,#5d6788);}'
+      + '#app-cost .cm-bal{color:var(--dim,#8b93b4);}'
+      + '.rhead .rcost{float:right;font-weight:700;color:var(--ok,#46d27a);'
+        + 'font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}'
+      + '.rhead .rcost.incl{color:var(--dim,#8b93b4);font-weight:600;}';
+    (document.head || document.documentElement).appendChild(s);
+  }
+  function ensureCostMeter(){
+    let el = $("app-cost");
+    if(el) return el;
+    injectCostStyles();
+    el = document.createElement("div"); el.id = "app-cost"; el.hidden = true;
+    const rr = document.querySelector(".run-row"), out = $("app-output");
+    if(rr && rr.parentNode) rr.parentNode.insertBefore(el, rr.nextSibling);   // just under the Run controls
+    else if(out && out.parentNode) out.parentNode.insertBefore(el, out);
+    else document.body.appendChild(el);
+    return el;
+  }
+  function paintCost(){
+    const el = ensureCostMeter(); if(!el) return;
+    if(COST.count === 0){ el.hidden = true; return; }
+    el.hidden = false;
+    const total = (COST.exact ? "" : "~") + fmtUsd(COST.total);
+    const bal = COST.balance!=null ? '<span class="cm-bal">· balance ' + fmtUsd(COST.balance) + '</span>' : "";
+    el.innerHTML = '<span class="cm-spent">⌁ ' + total + ' spent on this app</span>'
+                 + '<span class="cm-n">' + COST.count + ' generation' + (COST.count!==1?"s":"") + '</span>'
+                 + bal;
+  }
+
+  function renderResult(n, runNo){
+    const box = $("app-output"); if(!box) return;
+    const out = n.out || {};
+    const port = (NODE_TYPES[n.type].outputs||[])[0] || {};
+    const val = out[port.name];
+    if(val==null) return;
+    const card = document.createElement("div"); card.className="card";
+    const badge = runNo ? '<span class="run-badge">Run '+runNo+'</span> ' : '';
+    const cost = (n.costUsd>0) ? '<span class="rcost" title="cost of this generation">'+fmtUsd(n.costUsd)+'</span>'
+               : n.costKnown ? '<span class="rcost incl" title="included in your subscription">included</span>' : '';
+    const head = '<div class="rhead">'+badge+esc(NODE_TYPES[n.type].em)+' '+esc(NODE_TYPES[n.type].title)+cost+'</div>';
+    let media;
+    if(port.type==="image") media = '<img src="'+esc(val)+'" alt="">';
+    else if(port.type==="video") media = '<video src="'+esc(val)+'" controls playsinline></video>';
+    else if(port.type==="audio") media = '<audio src="'+esc(val)+'" controls preload="metadata"></audio>';
+    else media = '<div class="text">'+esc(typeof val==="string"?val:JSON.stringify(val,null,2))+'</div>';
+    card.innerHTML = head + media;
+    box.insertBefore(card, box.firstChild);   // newest at the top; nothing is removed
+    if(port.type==="audio") fixAudioDuration(card.querySelector("audio"));
+    if(port.type==="image" || port.type==="video" || port.type==="audio")
+      addDownload(card, val, port.type, n.type);
+  }
+
+  // A download control for generated media. Images come back as data: URLs and
+  // sync speech as blob: URLs — those save straight through an anchor. Music/video
+  // are URLs on a provider CDN: this sandboxed frame can't pull them into a blob, so
+  // in the preview we hand the URL to the parent — real origin, not sandboxed — which
+  // fetches the bytes and saves them as a file (falling back to opening a tab only if
+  // CORS refuses). A standalone app (no sandbox) fetches it directly. The native
+  // <audio>/<video> controls' own ⋮ menu is also a reliable cross-origin saver.
+  function addDownload(card, url, kind, nodeType){
+    const row = document.createElement("div"); row.className = "dlrow";
+    const btn = document.createElement("button"); btn.type = "button"; btn.className = "dl";
+    btn.textContent = "⭳ Download";
+    const name = (nodeType||"output") + "." + mediaExt(url, kind);
+    btn.onclick = async ()=>{
+      if(/^(blob:|data:)/i.test(url)){ saveAs(url, name); return; }
+      btn.disabled = true;
+      try{
+        // Preview: the sandboxed frame can't pull cross-origin CDN media into a blob,
+        // so hand it to the parent (real origin) to fetch + save. Standalone fetches it.
+        if(EMBEDDED){ window.parent.postMessage({ type:"__download__", url, name }, "*"); }
+        else {
+          const b = await (await fetch(url)).blob();       // standalone (no sandbox) when CORS allows
+          const u = URL.createObjectURL(b);
+          saveAs(u, name);
+          setTimeout(()=> URL.revokeObjectURL(u), 5000);
+        }
+      }catch(e){
+        window.open(url, "_blank");                         // CORS-blocked standalone → open a tab to save from
+      }finally{ btn.disabled = false; }
+    };
+    row.appendChild(btn);
+    card.appendChild(row);
+  }
+  function saveAs(href, name){
+    const a = document.createElement("a"); a.href = href; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  function mediaExt(url, kind){
+    const m = String(url).split(/[?#]/)[0].match(/\.([a-z0-9]{2,4})$/i);
+    if(m) return m[1].toLowerCase();
+    return kind==="audio" ? "mp3" : kind==="video" ? "mp4" : kind==="image" ? "png" : "bin";
+  }
+
+  // Generated MP3s commonly ship without a duration header, so a blob <audio>
+  // reports duration=Infinity — Chrome then renders a stuck 0:00 with a dead
+  // play button (the file is fine: it downloads and opens normally). Nudging
+  // currentTime past the end forces the browser to scan the file and resolve
+  // the real duration, after which playback and seeking work.
+  function fixAudioDuration(el){
+    if(!el) return;
+    const fix = ()=>{
+      if(el.duration!==Infinity) return;
+      el.currentTime = 1e101;
+      const back = ()=>{ el.removeEventListener("timeupdate", back); el.currentTime = 0; };
+      el.addEventListener("timeupdate", back);
+    };
+    if(el.readyState >= 1) fix();
+    else el.addEventListener("loadedmetadata", fix, { once:true });
+  }
+
+  // The run button's resting label (e.g. "▶ Run"), captured at mount so it can be
+  // restored after a run regardless of how the app was customized.
+  let RUN_LABEL = "▶ Run";
+  function setRunBtn(stopping){
+    const btn = $("app-run"); if(!btn) return;
+    btn.disabled = false;
+    btn.classList.toggle("stop", !!stopping);
+    btn.innerHTML = stopping ? "■ Stop" : RUN_LABEL;
+  }
+  // Stop: abort the live run immediately. In-flight fetches cancel, pending
+  // poll-sleeps wake, and runGraph halts before any dependent step starts.
+  function cancelRun(){
+    if(ABORT && !ABORT.signal.aborted){
+      ABORT.abort();
+      statusLine("__run__","done","Stopped.");
+    }
+  }
+
+  async function run(){
+    if(running) return;
+    if(!hasAuth()){
+      // Don't dead-end on a "sign in first" message — kick off sign-in right here.
+      if(EMBEDDED){
+        try{ window.parent.postMessage({ type:"__signin__" }, "*"); }catch(_){}
+        statusLine("__auth__","done","Signing in… press Run again once you're signed in.");
+      } else if(/^https?:$/.test(location.protocol)){
+        signIn().catch(e=> statusLine("__auth__","error","sign-in error: "+e.message));   // OAuth redirect
+      } else {
+        renderAuth(); const row=$("auth-keyrow"); if(row) row.hidden=false;   // file:// → no OAuth, reveal paste-key
+        const ki=$("auth-keyinput"); if(ki) ki.focus();
+        statusLine("__auth__","error","Paste a nano-gpt.com API key to run this app.");
+      }
+      return;
+    }
+    const N = RUNS_N;
+    running = true;
+    ABORT = new AbortController();
+    setRunBtn(true);
+    const cbox = $("app-count"); if(cbox) cbox.classList.add("busy");
+    ensureStatus();
+    const mbox = $("app-msg"), obox = $("app-output");
+    // Results accumulate — never cleared. New cards land at the top (renderResult
+    // prepends), so each run, or continuous generation, just stacks onto history.
+    if(mbox) mbox.innerHTML = ""; if(obox) obox.classList.toggle("grid", N>1);
+    startRun(N);
+    const outIds = new Set(STATE.outputs.map(n=>n.id));
+
+    // One worker per lane. A worker runs the graph once, then — while "keep
+    // generating" is on and we haven't been Stopped — resets its lane and runs
+    // again, so all N lanes stay busy in parallel. Unchecking the box lets the
+    // in-flight pass finish, then the loop exits on its own.
+    async function worker(i){
+      let first = true;
+      do {
+        if(!first) resetLane(i);
+        first = false;
+        let failed = false;
+        try {
+          await runGraph(cloneGraph(), {
+            onStart: (order)=> laneStart(i, order),
+            onStatus: (id,kind,msg)=> laneStep(i, id, kind, msg),
+            onResult: (n)=>{ if(outIds.has(n.id)) renderResult(n, N>1 ? i+1 : 0); },
+          });
+        } catch(err){
+          // a Stop-triggered abort is expected — swallow it; surface only real errors.
+          if(isAbort(err)) break;
+          failed = true;
+          statusLine("__run_"+i+"__","error", (N>1?("Run "+(i+1)+": "):"") + (err.message || String(err)));
+        }
+        if(RUN && RUN.lanes[i]) RUN.lanes[i].endAt = Date.now();
+        paintRuns();
+        // Back off after a failure in keep mode so a fast, persistent error
+        // (bad input, auth) can't spin into a hot retry loop. Abort wakes it.
+        if(failed && KEEP && running){ try { await sleep(1200); } catch(e){ break; } }
+      } while(KEEP && running && !(ABORT && ABORT.signal.aborted));
+    }
+    await Promise.all(Array.from({ length:N }, (_, i)=> worker(i)));
+    running = false;
+    ABORT = null;
+    setRunBtn(false);
+    if(cbox) cbox.classList.remove("busy");
+    stopRun();
+  }
+
+  /* =====================================================================
+     AUTH UI (#app-auth) — OAuth PKCE + paste key, verbatim flow from
+     index.html. Same localStorage keys (ngpt_key / ngpt_client) and
+     sessionStorage pkce, so a sign-in here is shared with the editor.
+     The parent also postMessages a live key (preview without re-auth).
+     ===================================================================== */
+  const REDIRECT_URI = location.origin + location.pathname;
+  const b64url = (b)=>btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+  const rand = (n)=>b64url(crypto.getRandomValues(new Uint8Array(n)));
+  const sha256url = async (s)=>b64url(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)));
+  async function clientId(){
+    const cached = JSON.parse(localStorage.getItem("ngpt_client")||"null");
+    if (cached && cached.redirect===REDIRECT_URI) return cached.id;
+    const r = await fetch(NANOGPT + "/oauth/register",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({client_name:"nanoodle app",redirect_uris:[REDIRECT_URI],grant_types:["authorization_code"],response_types:["code"],token_endpoint_auth_method:"none"})});
+    if(!r.ok) throw new Error("register "+r.status);
+    const id=(await r.json()).client_id;
+    localStorage.setItem("ngpt_client",JSON.stringify({id,redirect:REDIRECT_URI}));
+    return id;
+  }
+  async function signIn(){
+    const id = await clientId();
+    const verifier=rand(32), state=rand(16);
+    sessionStorage.setItem("pkce",JSON.stringify({verifier,state,id}));
+    const u=new URL(NANOGPT + "/oauth/authorize");
+    u.search=new URLSearchParams({response_type:"code",client_id:id,redirect_uri:REDIRECT_URI,scope:"api.use models.read",state,code_challenge:await sha256url(verifier),code_challenge_method:"S256",invitation_code:"W3x83yU3"}).toString();
+    location.assign(u.toString());
+  }
+  async function handleRedirect(){
+    const p=new URLSearchParams(location.search);
+    if(!p.has("code")&&!p.has("error")) return;
+    history.replaceState({},"",REDIRECT_URI);
+    const saved=JSON.parse(sessionStorage.getItem("pkce")||"null"); sessionStorage.removeItem("pkce");
+    if(p.get("error")) throw new Error(p.get("error"));
+    if(!saved||p.get("state")!==saved.state) throw new Error("state mismatch");
+    const r=await fetch(NANOGPT + "/oauth/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},
+      body:new URLSearchParams({grant_type:"authorization_code",client_id:saved.id,redirect_uri:REDIRECT_URI,code:p.get("code"),code_verifier:saved.verifier})});
+    if(!r.ok) throw new Error("token: "+(await r.text()));
+    setKey((await r.json()).access_token);
+  }
+  function renderAuth(){
+    const box = $("app-auth"); if(!box) return;
+    // Embedded in the builder, auth belongs to the parent (it holds the key and proxies
+    // calls) — the app never takes a key of its own, so just reflect the parent's state.
+    if(EMBEDDED){
+      // The builder's top bar already shows auth state — keep the app header clean
+      // (no "signed in" indicator) and only nudge when not yet signed in.
+      box.innerHTML = parentAuthed
+        ? ''
+        : '<span class="dim">sign in from the bar at the top to run this app</span>';
+      return;
+    }
+    const ok = !!getKey();
+    // OAuth needs a registerable http(s) redirect_uri. Opened straight from disk
+    // (file://, the natural way to run an exported app), NanoGPT rejects the
+    // redirect — so offer only paste-key there and say why, instead of dead-ending
+    // on a "Sign in" button that 400s.
+    const canOAuth = /^https?:$/.test(location.protocol);
+    box.innerHTML = ok
+      ? '<span class="authok">signed in ✓</span> <button class="link" id="auth-out">sign out</button>'
+      : (canOAuth ? '<button class="link" id="auth-in">Sign in</button> ' : '')
+      + '<button class="link" id="auth-paste">paste key</button>'
+      + ' <span class="keyrow" id="auth-keyrow" hidden>'
+      + '<input id="auth-keyinput" type="password" placeholder="nano-gpt API key" autocomplete="off">'
+      + ' <button class="link" id="auth-keysave">save</button>'
+      + '</span>'
+      + (canOAuth ? '' : ' <span class="dim">— paste a nano-gpt.com key (one-click sign-in needs the app served over http)</span>');
+    if(ok){
+      $("auth-out").onclick = ()=> setKey(null);
+    } else {
+      if(canOAuth) $("auth-in").onclick = ()=> signIn().catch(e=> statusLine("__auth__","error","sign-in error: "+e.message));
+      $("auth-paste").onclick = ()=>{ $("auth-keyrow").hidden=false; $("auth-keyinput").focus(); };
+      $("auth-keysave").onclick = ()=>{ const k=$("auth-keyinput").value.trim(); if(k){ setKey(k); } };
+      const ki = $("auth-keyinput");
+      if(ki) ki.addEventListener("keydown", e=>{ if(e.key==="Enter") $("auth-keysave").click(); });
+    }
+  }
+
+  /* =====================================================================
+     PARENT MESSAGING — the parent tells us whether IT is signed in (we never
+     receive the key itself); Escape→parent. API calls go via proxyFetch.
+     ===================================================================== */
+  function wireParentBridge(){
+    window.addEventListener("message", (e)=>{
+      const m = e.data || {};
+      if(m && m.type==="__auth__"){ parentAuthed = !!m.signedIn; renderAuth(); }
+    });
+    document.addEventListener("keydown", (e)=>{
+      if(e.key==="Escape"){ try{ parent.postMessage({type:"__escape__"}, "*"); }catch(_){} }
+    });
+  }
+
+  /* =====================================================================
+     MOUNT
+     ===================================================================== */
+  let mounted = false;
+  function mount(){
+    if(mounted) return;                 // idempotent — the bundler may emit the mount call defensively
+    mounted = true;
+    const data = window.NOODLE_GRAPH || { nodes:[], links:[] };
+    const graph = materialize(data);
+    STATE = { data, graph, inputs:deriveInputs(graph), outputs:deriveOutputs(graph) };
+
+    wireParentBridge();
+
+    const titleEl = $("app-title");
+    if(titleEl && !titleEl.textContent.trim()) titleEl.textContent = "My nanoodle app";
+
+    renderAuth();
+    handleRedirect().catch(e=> statusLine("__auth__","error","sign-in error: "+e.message)).finally(renderAuth);
+    renderInputs();
+    renderCount();
+    renderLoop();
+    ensureCostMeter();   // place the (hidden) "spent on this app" meter now → stable layout
+
+    const runBtn = $("app-run");
+    if(runBtn){
+      RUN_LABEL = runBtn.innerHTML.trim() || RUN_LABEL;   // remember the customized resting label
+      runBtn.addEventListener("click", ()=> running ? cancelRun() : run());
+      // Ctrl/Cmd+Enter runs from anywhere — including while typing in an input/textarea.
+      document.addEventListener("keydown", (e)=>{
+        if(e.key==="Enter" && (e.ctrlKey || e.metaKey)){
+          e.preventDefault();
+          running ? cancelRun() : run();
+        }
+      });
+    }
+
+    if(!graph.nodes.length){
+      const sbox = $("app-status");
+      if(sbox) sbox.innerHTML = '<p class="muted">This app has no workflow yet. Open it in the editor to build one.</p>';
+      if(runBtn) runBtn.disabled = true;
+    }
+  }
+
+  return { mount, runGraph, materialize, describeGraph, deriveInputs, deriveOutputs, NODE_TYPES, CTX:makeCtx(function(){}) };
+})();
+
+</script>
+
+<script>NoodleApp.mount();</script></body>
+</html>

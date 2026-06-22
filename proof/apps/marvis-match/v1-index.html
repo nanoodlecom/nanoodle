@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MARVIS — Android Bard Terminal</title>
+<style><!-- include: app.css --></style>
+</head>
+<body>
+<main class="app">
+  <header class="app-head">
+    <div class="hud-corner top-left"></div>
+    <div class="hud-corner top-right"></div>
+    <h1 id="app-title">MARVIS</h1>
+    <p id="app-tagline">A wry, world-weary android bard answers. Portrait rendered, voice synthesized — speak with the last witness of fallen empires.</p>
+    <span class="mood-badge" id="app-mood">MOOD · DORMANT</span>
+    <div id="app-auth" class="auth"></div>
+  </header>
+
+  <section id="app-inputs" class="inputs"></section>
+
+  <div class="run-row">
+    <button id="app-run" class="run">▶ Continue</button>
+    <label id="app-loop" class="loop"></label>
+    <div id="app-count" class="count"></div>
+  </div>
+
+  <div id="app-status" class="status"></div>
+
+  <section id="app-output" class="output">
+    <div class="portrait-frame" id="app-portrait" hidden>
+      <div class="portrait-ring"></div>
+      <img alt="Marvis portrait" id="app-portrait-img" />
+    </div>
+    <div class="reply-wrap" id="app-reply-wrap" hidden></div>
+  </section>
+</main>
+
+<!-- include-config: graph.json -->
+<!-- include: runtime.js -->
+<script>NoodleApp.mount();</script>
+</body>
+</html>
