@@ -351,6 +351,7 @@ window.NoodleApp = (function () {
 
   /* ---------- endpoints (verbatim from index.html) ---------- */
   const NANOGPT = "https://nano-gpt.com";
+  const MEDIA_INLINE_MAX = 4.4*1024*1024;   // edge (Vercel) rejects request bodies over ~4.5 MB; guard inlined base64 media
   const IMG_ENDPOINT  = NANOGPT + "/v1/images/generations";
   const CHAT_ENDPOINT = NANOGPT + "/api/v1/chat/completions";
 
@@ -500,10 +501,24 @@ window.NoodleApp = (function () {
       return typeof txt==="string" ? txt : txt.map(p=>p.text||"").join("");
     },
     // async video: submit → poll /api/video/status until COMPLETED (up to 5 min)
+    // opts also carries optional source media: videoUrl/videoDataUrl (edit/extend/upscale)
+    // and audioDataUrl (lipsync/avatar). duration/aspect only sent when set.
     async genVideo(model, prompt, opts, imageDataUrl, onProgress){
-      const body = { model, prompt, duration:opts.duration, aspect_ratio:opts.aspect_ratio };
+      const body = { model, prompt };
+      if(opts.duration) body.duration = opts.duration;
+      if(opts.aspect_ratio) body.aspect_ratio = opts.aspect_ratio;
       if(imageDataUrl) body.imageDataUrl = imageDataUrl;
-      const r = await apiFetch(NANOGPT + "/api/generate-video", {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
+      if(opts.videoUrl) body.videoUrl = opts.videoUrl;
+      if(opts.videoDataUrl) body.videoDataUrl = opts.videoDataUrl;
+      if(opts.audioDataUrl) body.audioDataUrl = opts.audioDataUrl;
+      // NanoGPT inlines media as base64 and the edge rejects bodies over ~4.5 MB with a header-less
+      // 413 the browser mislabels as CORS. No upload endpoint → catch oversize locally and explain.
+      const payload = JSON.stringify(body);
+      if(payload.length > MEDIA_INLINE_MAX)
+        throw new Error("This audio/video is a bit large (~4 MB max). nanoodle sends media inline rather than uploading it (no S3 here), so NanoGPT's edge won't accept it. A shorter clip works well — or build this flow into an app (✨ Create app) and run it offline.");
+      let r;
+      try{ r = await apiFetch(NANOGPT + "/api/generate-video", {method:"POST", headers:authHeaders(), body:payload}); }
+      catch(e){ throw new Error("couldn't reach the video API — if the source media is large it may have been rejected for size before CORS applies. Try a shorter clip, or build this into an app and run it offline. (" + (e.message||e) + ")"); }
       if(!r.ok) throw new Error(r.status + ": " + (await r.text()).slice(0,160));
       const j = await r.json(); onCost(costFromJson(j));
       const runId = j.runId || j.id;
@@ -558,8 +573,42 @@ window.NoodleApp = (function () {
         return URL.createObjectURL(new Blob([blob], { type: AUDIO_MIME[fmt] || "audio/mpeg" }));
       }
       return URL.createObjectURL(blob);
+    },
+    // speech→text: multipart upload to /api/v1/audio/transcriptions. Multipart can't ride the
+    // parent-proxied apiFetch (it serializes bodies as strings), so the in-editor preview can't
+    // run it — it works in the editor and in exported/standalone apps where auth is local.
+    async transcribe(model, audioUrl, language){
+      if(EMBEDDED) throw new Error("Transcribe runs in the editor and exported apps, not the in-app preview — build this into an app (✨ Create app) and run it offline.");
+      const blob = await (await fetch(audioUrl)).blob();
+      if(blob.size > 3.5*1024*1024)
+        throw new Error("This clip is a bit big to transcribe directly (~3 MB max) — nanoodle sends audio inline rather than uploading it (no S3 here). A shorter clip works, or build this into an app (✨ Create app) and run it offline.");
+      const ext = (blob.type.split("/")[1] || "mp3").split(";")[0];
+      const fd = new FormData();
+      fd.append("audio", blob, "audio." + ext);
+      fd.append("model", model);
+      if(language) fd.append("language", language);
+      const k = getKey();
+      const r = await fetch(NANOGPT + "/api/v1/audio/transcriptions", {method:"POST",
+        headers:{ Authorization:"Bearer " + k, "x-api-key":k }, body:fd});
+      if(!r.ok) throw new Error(r.status + ": " + (await r.text()).slice(0,160));
+      const j = await r.json(); onCost(costFromJson(j));
+      const txt = j.transcription != null ? j.transcription
+                : j.text != null ? j.text
+                : (j.data && (j.data.transcription != null ? j.data.transcription : j.data.text));
+      if(txt==null) throw new Error("no transcription in response");
+      return txt;
     }
   }; }
+  // turn a blob:/data:/http url into a base64 data URL (for video/audio source payloads)
+  async function urlToDataUrl(url){
+    if(/^data:/.test(url)) return url;
+    const blob = await (await fetch(url)).blob();
+    return await new Promise((res, rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=()=>rej(new Error("could not read media")); fr.readAsDataURL(blob); });
+  }
+  // source-video payload: public https link → videoUrl, otherwise inline as videoDataUrl
+  async function videoSourceOpts(url){
+    return /^https?:/.test(url) ? { videoUrl:url } : { videoDataUrl: await urlToDataUrl(url) };
+  }
   // async audio (music / some TTS): submit returns {status:"pending", runId} → poll /api/tts/status until completed
   async function pollAudio(model, j, onProgress){
     const runId = j.runId || j.id;
@@ -640,6 +689,14 @@ window.NoodleApp = (function () {
       em:"📷", title:"Image input", inputs:[], outputs:[{name:"image", type:"image"}],
       async run(n){ if(!n.fields.image) throw new Error("no image — upload or capture one first"); return { image: n.fields.image }; }
     },
+    aupload: {
+      em:"🎤", title:"Audio input", inputs:[], outputs:[{name:"audio", type:"audio"}],
+      async run(n){ if(!n.fields.audio) throw new Error("no audio — upload a clip first"); return { audio: n.fields.audio }; }
+    },
+    vupload: {
+      em:"📹", title:"Video input", inputs:[], outputs:[{name:"video", type:"video"}],
+      async run(n){ if(!n.fields.video) throw new Error("no video — upload a clip first"); return { video: n.fields.video }; }
+    },
     join: {
       em:"🔗", title:"Join",
       inputs:[{name:"a", type:"text"},{name:"b", type:"text"}], outputs:[{name:"text", type:"text"}],
@@ -713,6 +770,29 @@ window.NoodleApp = (function () {
         return { video: url };
       }
     },
+    vedit: {
+      em:"🎞️", title:"Video edit",
+      inputs:[{name:"video", type:"video"}], outputs:[{name:"video", type:"video"}],
+      async run(n, inp, ctx, onProgress){
+        if(!inp.video) throw new Error("no video input");
+        const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
+        const url = await ctx.genVideo(mdl(n), prompt, await videoSourceOpts(inp.video), null,
+          (st,ms)=> onProgress && onProgress("processing video… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
+        return { video: url };
+      }
+    },
+    lipsync: {
+      em:"🎭", title:"Avatar / lipsync",
+      inputs:[{name:"image", type:"image"},{name:"audio", type:"audio"}], outputs:[{name:"video", type:"video"}],
+      async run(n, inp, ctx, onProgress){
+        if(!inp.image) throw new Error("no image input");
+        if(!inp.audio) throw new Error("no audio input");
+        const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
+        const url = await ctx.genVideo(mdl(n), prompt, { audioDataUrl: await urlToDataUrl(inp.audio) }, inp.image,
+          (st,ms)=> onProgress && onProgress("lip-syncing… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
+        return { video: url };
+      }
+    },
     music: {
       em:"🎵", title:"Music", inputs:[], outputs:[{name:"audio", type:"audio"}],
       run: audioRun,
@@ -720,6 +800,14 @@ window.NoodleApp = (function () {
     tts: {
       em:"🗣️", title:"Speech", inputs:[], outputs:[{name:"audio", type:"audio"}],
       run: audioRun,
+    },
+    transcribe: {
+      em:"🎙️", title:"Transcribe",
+      inputs:[{name:"audio", type:"audio"}], outputs:[{name:"text", type:"text"}],
+      async run(n, inp, ctx){
+        if(!inp.audio) throw new Error("no audio input");
+        return { text: await ctx.transcribe(mdl(n), inp.audio, (n.fields.language||"auto").trim()) };
+      }
     },
   };
 
@@ -839,6 +927,8 @@ window.NoodleApp = (function () {
   const INPUT_SPECS = {
     text:   [{ f:"text",   label:"Text",         kind:"textarea" }],
     upload: [{ f:"image",  label:"Image",        kind:"image" }],
+    aupload:[{ f:"audio",  label:"Audio",        kind:"audio" }],
+    vupload:[{ f:"video",  label:"Video",        kind:"video" }],
     llm:    [{ f:"prompt", label:"Prompt",       kind:"textarea" },
              { f:"system", label:"System prompt", kind:"textarea", optional:true, def:"You are a helpful, concise assistant." }],
     image:  [{ f:"prompt", label:"Image prompt", kind:"textarea" }],
@@ -880,6 +970,8 @@ window.NoodleApp = (function () {
   const NODE_ROLE = {
     text:   "a fixed block of text",
     upload: "an image the user uploads",
+    aupload:"an audio clip the user uploads",
+    vupload:"a video clip the user uploads",
     join:   "joins two pieces of text into one",
     llm:    "writes text from a prompt",
     image:  "generates an image from a text prompt",
@@ -975,6 +1067,11 @@ window.NoodleApp = (function () {
            + '<div class="file-prev" data-prev="'+i+'">'+(cur ? '<img src="'+esc(cur)+'" alt="">' : '<span class="muted">no image</span>')+'</div>'
            + '<input type="file" accept="image/*" id="'+id+'" data-i="'+i+'">'
            + '</div>';
+    else if(it.kind==="audio" || it.kind==="video")
+      ctrl = '<div class="imgin">'
+           + '<div class="file-prev" data-prev="'+i+'">'+(cur ? '<'+it.kind+' src="'+esc(cur)+'" controls'+(it.kind==="video"?" playsinline":"")+'></'+it.kind+'>' : '<span class="muted">no '+it.kind+'</span>')+'</div>'
+           + '<input type="file" accept="'+it.kind+'/*" id="'+id+'" data-i="'+i+'">'
+           + '</div>';
     else
       ctrl = '<input id="'+id+'" data-i="'+i+'" value="'+esc(cur||"")+'" placeholder="'+esc(it.label)+'">';
     return '<div class="field"><label for="'+id+'">'+esc(it.em)+' '+esc(it.label)+'</label>'+ctrl+'</div>';
@@ -1003,7 +1100,12 @@ window.NoodleApp = (function () {
           const f = el.files && el.files[0]; if(!f) return;
           const url = await fileToDataUrl(f); it.node.fields[it.field] = url;
           const prev = box.querySelector('[data-prev="'+el.dataset.i+'"]');
-          if(prev) prev.innerHTML = '<img src="'+esc(url)+'" alt="">';
+          if(prev){
+            const k = it.kind;
+            prev.innerHTML = (k==="audio" || k==="video")
+              ? '<'+k+' src="'+esc(url)+'" controls'+(k==="video"?" playsinline":"")+'></'+k+'>'
+              : '<img src="'+esc(url)+'" alt="">';
+          }
         });
       } else {
         el.addEventListener("input", ()=>{ it.node.fields[it.field] = el.value; });
@@ -1624,7 +1726,8 @@ body{ background:
 .field textarea{ min-height:90px; resize:vertical; }
 .field input:focus, .field textarea:focus, .field select:focus{
   outline:none; border-color:var(--accent-line); box-shadow:0 0 0 3px var(--accent-soft); }
-.field .file-prev img{ max-width:160px; border-radius:.5rem; border:1px solid var(--line); margin-top:.4rem; display:block; }
+.field .file-prev img, .field .file-prev video{ max-width:160px; border-radius:.5rem; border:1px solid var(--line); margin-top:.4rem; display:block; }
+.field .file-prev audio{ width:100%; max-width:280px; margin-top:.4rem; display:block; }
 .muted{ color:var(--faint); font-size:.85rem; }
 
 .run-row{ display:flex; align-items:center; gap:1rem; margin:.4rem 0 1.2rem; flex-wrap:wrap; }
@@ -2486,11 +2589,12 @@ function finishSignIn(){
 /* ======================================================================
    SHARE / EXPORT / OPEN-IN-EDITOR / FULLSCREEN
    ====================================================================== */
-// Uploaded image inputs are the sharer's own data — blank them out of any graph
+// Uploaded media inputs are the sharer's own data — blank them out of any graph
 // that leaves this machine (share links, exported HTML). Local sessions keep them.
+const UPLOAD_FIELD = { upload:"image", aupload:"audio", vupload:"video" };
 function shareableGraph(g){
   g = g || { nodes:[], links:[] };
-  return { ...g, nodes:(g.nodes||[]).map(n => n.type==="upload" ? {...n, fields:{...(n.fields||{}), image:""}} : n) };
+  return { ...g, nodes:(g.nodes||[]).map(n => UPLOAD_FIELD[n.type] ? {...n, fields:{...(n.fields||{}), [UPLOAD_FIELD[n.type]]:""}} : n) };
 }
 
 // SHARE: pack {v:1, graph, files} -> gzip -> b64url -> #a= ; copy + toast. NO key inside.
