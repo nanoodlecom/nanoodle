@@ -1,4 +1,4 @@
-# ai-apps
+# nanoodle
 
 Small, self-contained AI web apps — each one is a single `.html` file that runs
 entirely in the browser and talks straight to [NanoGPT](https://nano-gpt.com).

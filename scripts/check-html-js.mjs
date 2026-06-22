@@ -49,6 +49,9 @@ try {
     while ((m = re.exec(html))) {
       const [, attrs, code] = m;
       if (/\bsrc=/i.test(attrs)) continue; // external script, nothing inline to check
+      const type = (attrs.match(/\btype\s*=\s*["']?([^"'\s>]+)/i) || [])[1];
+      // Only real JS is executable; a typed data block (e.g. application/ld+json) is not JS.
+      if (type && !/^(module|text\/javascript|application\/javascript|text\/ecmascript|application\/ecmascript)$/i.test(type)) continue;
       const startLine = html.slice(0, m.index).split("\n").length;
       const err = checkBlock(code, file, startLine, tmp);
       if (err) {

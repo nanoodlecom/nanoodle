@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>nanoodle - workflow</title>
 <meta name="description" content="Build AI workflows with nano-gpt. ComfyUI-style, but way simpler. Turn your noodle into an app and refine it right in the browser. Share workflows and apps as plain URLs, or export to a single HTML file that's yours to keep. No analytics, just static HTML and nano-gpt, so you can noodle in privacy." />
 
@@ -22,6 +22,7 @@
 <meta name="twitter:title" content="nanoodle - like ComfyUI, but way simpler" />
 <meta name="twitter:description" content="Wire up nano-gpt models (text, image, video, audio) into workflows in your browser, then turn one into a shareable app. Share or export, no analytics. Noodle in privacy." />
 <meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+<meta name="twitter:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
 
 <link rel="icon" href="/favicon.ico" sizes="any" />
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
@@ -30,14 +31,42 @@
 <link rel="manifest" href="/site.webmanifest" />
 <link rel="stylesheet" href="/vendor/righteous/righteous.css" />
 <meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/" />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://nanoodle.com/#website",
+      "url": "https://nanoodle.com/",
+      "name": "nanoodle",
+      "description": "Build AI workflows with nano-gpt. ComfyUI-style, but way simpler. Share or export, no analytics."
+    },
+    {
+      "@type": "SoftwareApplication",
+      "name": "nanoodle",
+      "url": "https://nanoodle.com/",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Web",
+      "description": "A tiny ComfyUI-style node playground for AI: wire text, image, video, audio and LLM nodes into workflows in your browser, then turn one into a shareable app. No analytics.",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+    }
+  ]
+}
+</script>
 <script>if("serviceWorker" in navigator){addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));}</script>
 <style>
   :root{
+    color-scheme: dark;
     --bg:#0b0d12; --panel:#12151d; --panel2:#171b25; --ink:#eef1f7; --dim:#9aa3b2;
     --line:#262c3a; --accent:#7c8cff; --accent2:#ff79c6; --good:#3ddc97; --bad:#ff6b6b; --warn:#ffcf6b;
     --text-port:#7c8cff; --image-port:#ff79c6; --video-port:#5ad1e6; --audio-port:#3ddc97;
   }
   *{box-sizing:border-box}
+  .vh{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  @media (prefers-reduced-motion: reduce){ *,*::before,*::after{ animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important } }
   html,body{margin:0; height:100%}
   body{ background:var(--bg); color:var(--ink);
         font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; overflow:hidden; }
@@ -259,8 +288,9 @@
 </head>
 <body>
 
-<div id="top">
-  <div class="logo"><span class="nano">nano</span>odle</div>
+<header id="top">
+  <h1 class="vh">nanoodle — AI workflow editor</h1>
+  <div class="logo" aria-hidden="true"><span class="nano">nano</span>odle</div>
   <div id="addmenu">
     <button id="addbtn" title="Add a node">＋<span class="lbl"> Add node</span> ▾</button>
     <div id="addpop"></div>
@@ -282,7 +312,7 @@
   <button id="signin" class="link" style="display:none">sign in</button>
   <button id="pastebtn" class="link" style="display:none">paste key</button>
   <button id="signout" class="link" style="display:none">sign out</button>
-</div>
+</header>
 
 <div id="keyrow">
   <input id="keyinput" type="text" placeholder="paste NanoGPT API key (sk-nano-… or a UUID)" />
@@ -296,7 +326,7 @@
     <b id="mpicktitle">model</b>
     <span id="mpickcount" class="dim"></span>
     <div class="spacer"></div>
-    <button id="mpickclose" class="hbtn">✕</button>
+    <button id="mpickclose" class="hbtn" aria-label="Close model picker">✕</button>
   </div>
   <input id="mpicksearch" placeholder="filter the full list, or type an exact id + Enter…" autocomplete="off" />
   <div id="mpicklist"></div>
@@ -306,14 +336,14 @@
 
 <!-- Create-app popup: play.html embedded over the editor -->
 <div id="appmodal" hidden>
-  <button id="appmodalclose" title="Close (Esc)">✕</button>
+  <button id="appmodalclose" title="Close (Esc)" aria-label="Close">✕</button>
   <iframe id="appmodalframe" title="Create app" allow="clipboard-write; fullscreen"></iframe>
 </div>
 
-<div id="editor">
+<main id="editor" aria-label="Workflow canvas">
   <svg id="wires"></svg>
   <div id="world"></div>
-</div>
+</main>
 
 <script>
 const NANOGPT = "https://nano-gpt.com";
