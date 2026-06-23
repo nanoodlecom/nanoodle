@@ -1,0 +1,232 @@
+a/index.html b/index.html
+--- a/index.html
++++ b/index.html
+@@ -14,9 +14,22 @@
+     <p id="app-tagline">Fill in the inputs, hit Run, and get text.</p>
+     <div id="app-auth" class="auth"></div>
+   </header>
+ 
++  <div class="preset-wrap" aria-label="Style presets">
++    <span class="preset-label">Quick styles</span>
++    <div id="preset-chips" class="chips" role="group"></div>
++  </div>
++
+   <section id="app-inputs" class="inputs"></section>
+ 
+   <div class="run-row">
+     <button id="app-run" class="run">▶ Run</button>
+     <label id="app-loop" class="loop"></label>
+     <div id="app-count" class="count"></div>
+   </div>
+ 
+   <div id="app-status" class="status"></div>
+ 
+   <section id="app-output" class="output"></section>
++
++  <div id="zoom-modal" class="zoom-modal" role="dialog" aria-modal="true" aria-label="Image preview">
++    <button id="zoom-close" class="zoom-close" aria-label="Close preview">✕</button>
++    <img id="zoom-img" alt="Zoomed result preview" />
++  </div>
++
++  <p class="hint">Tip: <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Enter</kbd> to run · click a result to zoom · <kbd>Esc</kbd> to close</p>
+ </main>
+ 
+ <!-- include-config: graph.json -->
+ <!-- include: runtime.js -->
+-<script>NoodleApp.mount();</script>
++<script>NoodleApp.mount();</script>
++<script>
++(function(){
++  const PRESETS = [
++    {name:'Renaissance', text:'Renaissance oil painting portrait, soft chiaroscuro lighting, classical composition, rich earth tones, fine brushwork'},
++    {name:'Cyberpunk', text:'Cyberpunk neon portrait, holographic magenta and cyan rim light, rain-soaked city backdrop, glowing circuit accents'},
++    {name:'Claymation', text:'Claymation stop-motion portrait, textured clay surface, handcrafted stylized features, warm soft studio lighting'},
++    {name:'90s Anime', text:'90s anime cel-shaded portrait, pastel palette, detailed hair, nostalgic film grain, soft expression'},
++    {name:'Marble', text:'White marble statue portrait, classical sculpted features, smooth polished surface, dramatic museum lighting'}
++  ];
++  const LS_KEY = 'noodle.lastPrompt';
++
++  const presetBar = document.getElementById('preset-chips');
++  PRESETS.forEach(p=>{
++    const chip = document.createElement('button');
++    chip.type='button'; chip.className='chip'; chip.textContent=p.name;
++    chip.addEventListener('click', ()=> setPrompt(p.text));
++    presetBar.appendChild(chip);
++  });
++
++  function getTextarea(){
++    const tas = document.querySelectorAll('#app-inputs textarea');
++    return tas[0] || null;
++  }
++  function setPrompt(text){
++    const ta = getTextarea();
++    if(!ta) return;
++    ta.value = text;
++    ta.dispatchEvent(new Event('input',{bubbles:true}));
++    try{ localStorage.setItem(LS_KEY, text); }catch(e){}
++  }
++  function restorePrompt(){
++    const ta = getTextarea(); if(!ta) return false;
++    if(!ta.dataset.noodleBound){
++      ta.dataset.noodleBound='1';
++      ta.addEventListener('input', ()=>{ try{ localStorage.setItem(LS_KEY, ta.value); }catch(e){} });
++    }
++    let saved=null; try{ saved=localStorage.getItem(LS_KEY); }catch(e){}
++    if(saved && !ta.value.trim()){ ta.value = saved; }
++    return true;
++  }
++
++  const inObs = new MutationObserver(()=>{ restorePrompt(); });
++  inObs.observe(document.getElementById('app-inputs'), {childList:true, subtree:true});
++  let tries=0;
++  const initTimer = setInterval(()=>{
++    if(restorePrompt() || ++tries>40) clearInterval(initTimer);
++  }, 150);
++
++  // Enhance output cards: zoomable + download
++  const output = document.getElementById('app-output');
++  function enhanceOutput(){
++    output.querySelectorAll('.card').forEach(card=>{
++      if(card.dataset.noodleEnhanced) return;
++      const img = card.querySelector('img');
++      if(!img) return;
++      card.dataset.noodleEnhanced='1';
++      card.classList.add('zoomable');
++      const btn = document.createElement('button');
++      btn.type='button'; btn.className='dl-btn'; btn.textContent='↓ Download';
++      btn.addEventListener('click', (e)=>{ e.stopPropagation(); downloadImg(img); });
++      const actions = document.createElement('div'); actions.className='card-actions';
++      actions.appendChild(btn);
++      card.appendChild(actions);
++      card.addEventListener('click', ()=> openZoom(img));
++    });
++  }
++  const outObs = new MutationObserver(enhanceOutput);
++  outObs.observe(output, {childList:true, subtree:true});
++
++  function downloadImg(img){
++    fetch(img.src).then(r=>r.blob()).then(blob=>{
++      const url=URL.createObjectURL(blob);
++      const a=document.createElement('a');
++      a.href=url; a.download='portrait-'+Date.now()+'.png';
++      document.body.appendChild(a); a.click(); a.remove();
++      setTimeout(()=>URL.revokeObjectURL(url), 1500);
++    }).catch(()=>{
++      const a=document.createElement('a');
++      a.href=img.src; a.download='portrait.png'; a.target='_blank';
++      document.body.appendChild(a); a.click(); a.remove();
++    });
++  }
++
++  // Zoom modal
++  const modal = document.getElementById('zoom-modal');
++  const modalImg = document.getElementById('zoom-img');
++  function openZoom(img){ modalImg.src = img.src; modalImg.alt = img.alt || 'Zoomed result preview'; modal.classList.add('open'); }
++  document.getElementById('zoom-close').addEventListener('click', ()=> modal.classList.remove('open'));
++  modal.addEventListener('click', (e)=>{ if(e.target===modal) modal.classList.remove('open'); });
++
++  // Keyboard shortcuts
++  document.addEventListener('keydown', (e)=>{
++    if(e.key==='Escape') modal.classList.remove('open');
++    if((e.metaKey||e.ctrlKey) && e.key==='Enter'){ e.preventDefault(); document.getElementById('app-run').click(); }
++  });
++})();
++</script>
+ </body>
+ </html>
+a/app.css b/app.css
+--- a/app.css
++++ b/app.css
+@@ -1,1 +1,1 @@
+ :root{
+   color-scheme: dark;
+   --bg:#0d0f17; --panel:#161a27; --panel2:#1d2236; --line:#2a3150;
+   --ink:#e6e9f5; --dim:#8b93b4; --faint:#5d6788;
+   --accent:#7c8cff; --accent-soft:#7c8cff22; --accent-line:#7c8cff66;
+-  --ok:#46d27a; --danger:#ff6b6b; --radius:.7rem;
++  --ok:#46d27a; --danger:#ff6b6b; --radius:.7rem; --chip:#232a45;
+ }
+ *{ box-sizing:border-box; }
+ html,body{ margin:0; }
+ body{ background:
+     radial-gradient(900px 520px at 50% -10%, #1a2147 0%, transparent 60%), var(--bg);
+   color:var(--ink); font:15px/1.55 ui-sans-serif, system-ui, sans-serif; min-height:100vh; }
+ .app{ max-width:760px; margin:0 auto; padding:2rem 1.1rem 4rem; }
+ .app-head h1{ font-size:1.5rem; margin:0 0 .25rem; letter-spacing:.01em; }
+ .app-head .auth{ font-size:.78rem; color:var(--dim); margin-top:.4rem; min-height:1.1em; }
+ #app-tagline{ color:var(--dim); margin:0; max-width:60ch; }
+ .inputs{ display:flex; flex-direction:column; gap:1rem; margin:1.6rem 0; }
+ .field label{ display:block; font-size:.8rem; color:var(--dim); margin-bottom:.3rem; }
+ .field input, .field textarea, .field select{
+   width:100%; font:inherit; padding:.6rem .7rem; border-radius:var(--radius);
+   background:var(--panel); border:1px solid var(--line); color:var(--ink); }
+ .field textarea{ min-height:90px; resize:vertical; }
+ .run-row{ display:flex; align-items:center; gap:1rem; margin:.4rem 0 1.2rem; flex-wrap:wrap; }
+ .run{ font:inherit; font-weight:700; padding:.7rem 1.6rem; border-radius:var(--radius); cursor:pointer;
+   background:linear-gradient(180deg,#8b97ff,#6573ef); border:1px solid #8b97ff; color:#0b0e18;
+   box-shadow:0 0 26px #7c8cff33; }
+ .status{ font-size:.82rem; color:var(--dim); min-height:1.2em; display:flex; flex-direction:column; gap:.2rem; }
+ .output{ display:flex; flex-direction:column; gap:1rem; }
+ .output .card{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:1rem; }
+ .output img, .output video, .output audio{ width:100%; border-radius:.5rem; display:block; }
+ .output .text{ white-space:pre-wrap; line-height:1.6; }
+ .output.grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); }
++
++/* Preset chips */
++.preset-wrap{ display:flex; align-items:center; gap:.7rem; flex-wrap:wrap; margin:1.2rem 0 .2rem; }
++.preset-label{ font-size:.78rem; color:var(--dim); letter-spacing:.02em; }
++.chips{ display:flex; gap:.5rem; flex-wrap:wrap; }
++.chip{
++  font:inherit; font-size:.82rem; font-weight:600; padding:.42rem .85rem; cursor:pointer;
++  border-radius:999px; background:var(--chip); border:1px solid var(--line);
++  color:var(--ink); transition:transform .12s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
++}
++.chip:hover{ transform:translateY(-1px); background:#2a3357; border-color:var(--accent-line); box-shadow:0 4px 14px #7c8cff22; }
++.chip:active{ transform:translateY(0) scale(.97); }
++.chip:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
++
++/* Enhanced result cards */
++.output .card.zoomable{ cursor:zoom-in; transition:border-color .15s ease, transform .15s ease; position:relative; }
++.output .card.zoomable:hover{ border-color:var(--accent-line); }
++.output .card.zoomable:hover img{ filter:brightness(1.04); }
++.card-actions{ display:flex; justify-content:flex-end; margin-top:.7rem; }
++.dl-btn{
++  font:inherit; font-size:.82rem; font-weight:700; padding:.45rem .9rem; cursor:pointer;
++  border-radius:var(--radius); background:var(--accent-soft); border:1px solid var(--accent-line);
++  color:var(--ink); transition:background .15s ease, transform .12s ease;
++}
++.dl-btn:hover{ background:#7c8cff33; transform:translateY(-1px); }
++.dl-btn:active{ transform:scale(.96); }
++.dl-btn:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
++
++/* Zoom modal */
++.zoom-modal{
++  position:fixed; inset:0; display:none; align-items:center; justify-content:center;
++  background:rgba(6,8,14,.86); backdrop-filter:blur(4px); z-index:1000; padding:1.5rem;
++}
++.zoom-modal.open{ display:flex; animation:fadeIn .18s ease; }
++@keyframes fadeIn{ from{opacity:0;} to{opacity:1;} }
++.zoom-modal img{
++  max-width:min(92vw, 1024px); max-height:88vh; border-radius:.6rem;
++  box-shadow:0 18px 60px rgba(0,0,0,.6); animation:pop .18s ease;
++}
++@keyframes pop{ from{transform:scale(.96); opacity:0;} to{transform:scale(1); opacity:1;} }
++.zoom-close{
++  position:absolute; top:1.1rem; right:1.1rem; font:inherit; font-size:1.1rem; line-height:1;
++  width:2.2rem; height:2.2rem; cursor:pointer; border-radius:50%;
++  background:var(--panel2); border:1px solid var(--line); color:var(--ink);
++  transition:background .15s ease, transform .12s ease;
++}
++.zoom-close:hover{ background:#2a3357; transform:rotate(90deg); }
++.zoom-close:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
++
++/* Hint + keyboard */
++.hint{ margin-top:2rem; font-size:.76rem; color:var(--faint); text-align:center; }
++.hint kbd{
++  font:inherit; font-size:.72rem; padding:.1rem .4rem; border-radius:.35rem;
++  background:var(--panel2); border:1px solid var(--line); color:var(--dim);
++}
++@media (max-width:520px){
++  .preset-label{ width:100%; }
++  .chip{ padding:.4rem .7rem; }
++}

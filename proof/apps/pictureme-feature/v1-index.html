@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>1980s analog film portrait, warm</title>
+<style><!-- include: app.css --></style>
+</head>
+<body>
+<main class="app">
+  <header class="app-head">
+    <h1 id="app-title">1980s analog film portrait, warm</h1>
+    <p id="app-tagline">Fill in the inputs, hit Run, and get text.</p>
+    <div id="app-auth" class="auth"></div>
+  </header>
+
+  <div class="preset-wrap" aria-label="Style presets">
+    <span class="preset-label">Quick styles</span>
+    <div id="preset-chips" class="chips" role="group"></div>
+  </div>
+
+  <section id="app-inputs" class="inputs"></section>
+
+  <div class="run-row">
+    <button id="app-run" class="run">▶ Run</button>
+    <label id="app-loop" class="loop"></label>
+    <div id="app-count" class="count"></div>
+  </div>
+
+  <div id="app-status" class="status"></div>
+
+  <section id="app-output" class="output"></section>
+
+  <div id="zoom-modal" class="zoom-modal" role="dialog" aria-modal="true" aria-label="Image preview">
+    <button id="zoom-close" class="zoom-close" aria-label="Close preview">✕</button>
+    <img id="zoom-img" alt="Zoomed result preview" />
+  </div>
+
+  <p class="hint">Tip: <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Enter</kbd> to run · click a result to zoom · <kbd>Esc</kbd> to close</p>
+</main>
+
+<!-- include-config: graph.json -->
+<!-- include: runtime.js -->
+<script>NoodleApp.mount();</script>
+<script>
+(function(){
+  const PRESETS = [
+    {name:'Renaissance', text:'Renaissance oil painting portrait, soft chiaroscuro lighting, classical composition, rich earth tones, fine brushwork'},
+    {name:'Cyberpunk', text:'Cyberpunk neon portrait, holographic magenta and cyan rim light, rain-soaked city backdrop, glowing circuit accents'},
+    {name:'Claymation', text:'Claymation stop-motion portrait, textured clay surface, handcrafted stylized features, warm soft studio lighting'},
+    {name:'90s Anime', text:'90s anime cel-shaded portrait, pastel palette, detailed hair, nostalgic film grain, soft expression'},
+    {name:'Marble', text:'White marble statue portrait, classical sculpted features, smooth polished surface, dramatic museum lighting'}
+  ];
+  const LS_KEY = 'noodle.lastPrompt';
+
+  const presetBar = document.getElementById('preset-chips');
+  PRESETS.forEach(p=>{
+    const chip = document.createElement('button');
+    chip.type='button'; chip.className='chip'; chip.textContent=p.name;
+    chip.addEventListener('click', ()=> setPrompt(p.text));
+    presetBar.appendChild(chip);
+  });
+
+  function getTextarea(){
+    const tas = document.querySelectorAll('#app-inputs textarea');
+    return tas[0] || null;
+  }
+  function setPrompt(text){
+    const ta = getTextarea();
+    if(!ta) return;
+    ta.value = text;
+    ta.dispatchEvent(new Event('input',{bubbles:true}));
+    try{ localStorage.setItem(LS_KEY, text); }catch(e){}
+  }
+  function restorePrompt(){
+    const ta = getTextarea(); if(!ta) return false;
+    if(!ta.dataset.noodleBound){
+      ta.dataset.noodleBound='1';
+      ta.addEventListener('input', ()=>{ try{ localStorage.setItem(LS_KEY, ta.value); }catch(e){} });
+    }
+    let saved=null; try{ saved=localStorage.getItem(LS_KEY); }catch(e){}
+    if(saved && !ta.value.trim()){ ta.value = saved; }
+    return true;
+  }
+
+  const inObs = new MutationObserver(()=>{ restorePrompt(); });
+  inObs.observe(document.getElementById('app-inputs'), {childList:true, subtree:true});
+  let tries=0;
+  const initTimer = setInterval(()=>{
+    if(restorePrompt() || ++tries>40) clearInterval(initTimer);
+  }, 150);
+
+  // Enhance output cards: zoomable + download
+  const output = document.getElementById('app-output');
+  function enhanceOutput(){
+    output.querySelectorAll('.card').forEach(card=>{
+      if(card.dataset.noodleEnhanced) return;
+      const img = card.querySelector('img');
+      if(!img) return;
+      card.dataset.noodleEnhanced='1';
+      card.classList.add('zoomable');
+      const btn = document.createElement('button');
+      btn.type='button'; btn.className='dl-btn'; btn.textContent='↓ Download';
+      btn.addEventListener('click', (e)=>{ e.stopPropagation(); downloadImg(img); });
+      const actions = document.createElement('div'); actions.className='card-actions';
+      actions.appendChild(btn);
+      card.appendChild(actions);
+      card.addEventListener('click', ()=> openZoom(img));
+    });
+  }
+  const outObs = new MutationObserver(enhanceOutput);
+  outObs.observe(output, {childList:true, subtree:true});
+
+  function downloadImg(img){
+    fetch(img.src).then(r=>r.blob()).then(blob=>{
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url; a.download='portrait-'+Date.now()+'.png';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 1500);
+    }).catch(()=>{
+      const a=document.createElement('a');
+      a.href=img.src; a.download='portrait.png'; a.target='_blank';
+      document.body.appendChild(a); a.click(); a.remove();
+    });
+  }
+
+  // Zoom modal
+  const modal = document.getElementById('zoom-modal');
+  const modalImg = document.getElementById('zoom-img');
+  function openZoom(img){ modalImg.src = img.src; modalImg.alt = img.alt || 'Zoomed result preview'; modal.classList.add('open'); }
+  document.getElementById('zoom-close').addEventListener('click', ()=> modal.classList.remove('open'));
+  modal.addEventListener('click', (e)=>{ if(e.target===modal) modal.classList.remove('open'); });
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e)=>{
+    if(e.key==='Escape') modal.classList.remove('open');
+    if((e.metaKey||e.ctrlKey) && e.key==='Enter'){ e.preventDefault(); document.getElementById('app-run').click(); }
+  });
+})();
+</script>
+</body>
+</html>

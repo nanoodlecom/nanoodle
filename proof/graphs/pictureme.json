@@ -1,0 +1,129 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "upload",
+      "x": 80,
+      "y": 320,
+      "fields": {}
+    },
+    {
+      "id": "n2",
+      "type": "text",
+      "x": 80,
+      "y": 40,
+      "fields": {
+        "text": "1980s analog film portrait, warm grain, neon rim light"
+      }
+    },
+    {
+      "id": "n3",
+      "type": "llm",
+      "x": 420,
+      "y": 40,
+      "fields": {
+        "model": "zai-org/glm-5.2:thinking",
+        "system": "Merge the described looks into ONE photographic edit instruction under 60 words that restyles a portrait keeping identity and pose. Output only the instruction.",
+        "prompt": ""
+      }
+    },
+    {
+      "id": "n4",
+      "type": "edit",
+      "x": 800,
+      "y": 200,
+      "fields": {
+        "model": "gpt-image-2",
+        "prompt": "",
+        "size": "1024x1024"
+      }
+    },
+    {
+      "id": "n5",
+      "type": "edit",
+      "x": 800,
+      "y": 480,
+      "fields": {
+        "model": "gpt-image-2",
+        "prompt": "restyle as film-noir black and white portrait, keep identity and pose",
+        "size": "1024x1024"
+      }
+    },
+    {
+      "id": "n6",
+      "type": "edit",
+      "x": 800,
+      "y": 760,
+      "fields": {
+        "model": "gpt-image-2",
+        "prompt": "restyle as Ghibli-style anime portrait, keep identity and pose",
+        "size": "1024x1024"
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "n2",
+        "port": "text"
+      },
+      "to": {
+        "node": "n3",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "n3",
+        "port": "text"
+      },
+      "to": {
+        "node": "n4",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "n1",
+        "port": "image"
+      },
+      "to": {
+        "node": "n4",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l4",
+      "from": {
+        "node": "n1",
+        "port": "image"
+      },
+      "to": {
+        "node": "n5",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l5",
+      "from": {
+        "node": "n1",
+        "port": "image"
+      },
+      "to": {
+        "node": "n6",
+        "port": "image"
+      }
+    }
+  ],
+  "nid": 7,
+  "lid": 6,
+  "view": {
+    "panX": 0,
+    "panY": 0,
+    "scale": 1
+  }
+}

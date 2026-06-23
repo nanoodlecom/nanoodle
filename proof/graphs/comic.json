@@ -1,0 +1,192 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "text",
+      "x": -40,
+      "y": 40,
+      "fields": {
+        "text": "Style: clean modern comic, bold ink lines, cinematic lighting, halftone shading, 6-panel page, 2 columns x 3 rows, white gutters, top-to-bottom left-to-right reading order."
+      },
+      "w": 320
+    },
+    {
+      "id": "n2",
+      "type": "text",
+      "x": -40,
+      "y": 280,
+      "fields": {
+        "text": "Palette: teal + warm amber, deep navy shadows, paper-white highlights."
+      },
+      "w": 320
+    },
+    {
+      "id": "n3",
+      "type": "text",
+      "x": -40,
+      "y": 470,
+      "fields": {
+        "text": "Character bible: NOVA = teen girl, short silver hair, orange flight jacket, freckles. PIXEL = small floating round drone, single cyan eye."
+      },
+      "w": 320
+    },
+    {
+      "id": "n4",
+      "type": "text",
+      "x": -40,
+      "y": 700,
+      "fields": {
+        "text": "Panels (one line each, in reading order):\n1) WIDE \u2014 rooftop at dusk. Nova looks at the skyline. Caption: \"The signal came from above.\"\n2) MED \u2014 Pixel hovers up. Dialogue Pixel: \"You hear that too?\"\n3) CLOSE \u2014 Nova's determined eyes. FX: wind streaks.\n4) WIDE \u2014 a light tears across the sky. SFX: KRA-KOOM.\n5) MED \u2014 Nova runs to the ledge. Dialogue Nova: \"It's now or never.\"\n6) SPLASH \u2014 Nova leaps, Pixel trailing, city below. Caption: \"And she jumped.\""
+      },
+      "w": 360
+    },
+    {
+      "id": "n5",
+      "type": "join",
+      "x": 360,
+      "y": 160,
+      "fields": {
+        "sep": "\n\n"
+      }
+    },
+    {
+      "id": "n6",
+      "type": "join",
+      "x": 360,
+      "y": 470,
+      "fields": {
+        "sep": "\n\n"
+      }
+    },
+    {
+      "id": "n7",
+      "type": "join",
+      "x": 720,
+      "y": 320,
+      "fields": {
+        "sep": "\n\n"
+      }
+    },
+    {
+      "id": "n8",
+      "type": "llm",
+      "x": 1080,
+      "y": 280,
+      "fields": {
+        "model": "zai-org/glm-5.2:thinking",
+        "system": "You are a comic art director. You receive a STYLE block, a PALETTE block, a CHARACTER BIBLE, and a numbered PANELS list. Output ONE single image-generation prompt that describes the ENTIRE comic page as a single rendered image: state the page grid and reading order, then describe each panel in order with its shot type, scene, characters (use ONLY characters that actually appear in that panel), and render its captions/dialogue/SFX as lettered comic text inside the panel. Keep it under ~2500 characters, vivid and concrete, no preamble, output only the prompt.",
+        "prompt": "Compose the whole-page comic prompt from the spec below:"
+      },
+      "w": 340
+    },
+    {
+      "id": "n9",
+      "type": "image",
+      "x": 1480,
+      "y": 300,
+      "fields": {
+        "model": "gpt-image-2",
+        "size": "1024x1536"
+      },
+      "w": 320
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "n1",
+        "port": "text"
+      },
+      "to": {
+        "node": "n5",
+        "port": "a"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "n2",
+        "port": "text"
+      },
+      "to": {
+        "node": "n5",
+        "port": "b"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "n3",
+        "port": "text"
+      },
+      "to": {
+        "node": "n6",
+        "port": "a"
+      }
+    },
+    {
+      "id": "l4",
+      "from": {
+        "node": "n4",
+        "port": "text"
+      },
+      "to": {
+        "node": "n6",
+        "port": "b"
+      }
+    },
+    {
+      "id": "l5",
+      "from": {
+        "node": "n5",
+        "port": "text"
+      },
+      "to": {
+        "node": "n7",
+        "port": "a"
+      }
+    },
+    {
+      "id": "l6",
+      "from": {
+        "node": "n6",
+        "port": "text"
+      },
+      "to": {
+        "node": "n7",
+        "port": "b"
+      }
+    },
+    {
+      "id": "l7",
+      "from": {
+        "node": "n7",
+        "port": "text"
+      },
+      "to": {
+        "node": "n8",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l8",
+      "from": {
+        "node": "n8",
+        "port": "text"
+      },
+      "to": {
+        "node": "n9",
+        "port": "prompt"
+      }
+    }
+  ],
+  "nid": 10,
+  "lid": 9,
+  "view": {
+    "panX": 0,
+    "panY": 0,
+    "scale": 1
+  }
+}

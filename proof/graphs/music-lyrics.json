@@ -1,0 +1,111 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "n17",
+      "type": "llm",
+      "x": 493.8985716987001,
+      "y": -204.6235873860798,
+      "fields": {
+        "model": "xiaomi/mimo-v2.5-pro-ultraspeed",
+        "system": "You are an 80s singer-songwriter writing lyrics.\nonly state the lyrics not the style. no pre or post discussion."
+      },
+      "w": 213,
+      "sizes": {
+        "system": 155
+      }
+    },
+    {
+      "id": "n18",
+      "type": "text",
+      "x": 204.33227169014646,
+      "y": -126.23054405786179,
+      "fields": {
+        "text": "Write an 90s triphop. Repeat the hook."
+      }
+    },
+    {
+      "id": "n19",
+      "type": "music",
+      "x": 1080.0232294851155,
+      "y": -193.4761406738786,
+      "fields": {
+        "model": "mureka-ai/mureka-v9/generate-song",
+        "response_format": "mp3",
+        "prompt": "",
+        "instrumental": false
+      },
+      "w": 405,
+      "sizes": {
+        "prompt": 174
+      }
+    },
+    {
+      "id": "n24",
+      "type": "llm",
+      "x": 785.458933956478,
+      "y": 89.6576654171069,
+      "fields": {
+        "model": "zai-org/glm-5.2:thinking",
+        "system": "You come up with a musical style that fits the given lyrics.\nOnly state the style there should be no pre or post discussion. Be descriptive."
+      },
+      "w": 222,
+      "sizes": {
+        "system": 126
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l13",
+      "from": {
+        "node": "n18",
+        "port": "text"
+      },
+      "to": {
+        "node": "n17",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l19",
+      "from": {
+        "node": "n17",
+        "port": "text"
+      },
+      "to": {
+        "node": "n19",
+        "port": "lyrics"
+      }
+    },
+    {
+      "id": "l23",
+      "from": {
+        "node": "n24",
+        "port": "text"
+      },
+      "to": {
+        "node": "n19",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l40",
+      "from": {
+        "node": "n17",
+        "port": "text"
+      },
+      "to": {
+        "node": "n24",
+        "port": "prompt"
+      }
+    }
+  ],
+  "nid": 42,
+  "lid": 42,
+  "view": {
+    "panX": -40.95797731006019,
+    "panY": 261.3316281701524,
+    "scale": 0.8397132843775202
+  }
+}

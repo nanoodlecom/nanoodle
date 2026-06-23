@@ -1,0 +1,86 @@
+--- a/index.html
++++ b/index.html
+@@ -3,13 +3,13 @@
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+-<title>Marvis, a wry, world-weary android</title>
++<title>MARVIS // Lab Assistant Terminal</title>
+ <style><!-- include: app.css --></style>
+ </head>
+ <body>
+ <main class="app">
+   <header class="app-head">
+-    <h1 id="app-title">Marvis, a wry, world-weary android</h1>
+-    <p id="app-tagline">Fill in the inputs, hit Run, and get text, images, speech.</p>
++    <h1 id="app-title">MARVIS</h1>
++    <p id="app-tagline">Sardonic lab-assistant terminal. Direct the scene.</p>
+     <div id="app-auth" class="auth"></div>
+   </header>
+ 
+@@ -18,7 +18,7 @@
+ 
+   <div class="run-row">
+-    <button id="app-run" class="run">▶ Run</button>
++    <button id="app-run" class="run">▶ Continue</button>
+     <label id="app-loop" class="loop"></label>
+     <div id="app-count" class="count"></div>
+   </div>
+--- a/app.css
++++ b/app.css
+@@ -1,32 +1,38 @@
+ :root{
+   color-scheme: dark;
+-  --bg:#0d0f17; --panel:#161a27; --panel2:#1d2236; --line:#2a3150;
+-  --ink:#e6e9f5; --dim:#8b93b4; --faint:#5d6788;
+-  --accent:#7c8cff; --accent-soft:#7c8cff22; --accent-line:#7c8cff66;
+-  --ok:#46d27a; --danger:#ff6b6b; --radius:.7rem;
++  --bg:#080910; --panel:#0c0f18; --panel2:#111520; --line:#1c2235;
++  --ink:#d0d5e0; --dim:#6a7388; --faint:#444d62;
++  --accent:#00d4d4; --accent-soft:#00d4d414; --accent-line:#00d4d444;
++  --amber:#e8a832; --amber-soft:#e8a83214; --amber-line:#e8a83244;
++  --ok:#46d27a; --danger:#ff6b6b; --radius:.35rem;
+ }
+-*{ box-sizing:border-box; }
++*{ box-sizing:border-box; margin:0; padding:0; }
+ html,body{ margin:0; }
+ body{ background:
+-    radial-gradient(900px 520px at 50% -10%, #1a2147 0%, transparent 60%), var(--bg);
+-  color:var(--ink); font:15px/1.55 ui-sans-serif, system-ui, sans-serif; min-height:100vh; }
++    radial-gradient(800px 400px at 50% -5%, #0c1428 0%, transparent 60%),
++    var(--bg);
++  color:var(--ink); font:14px/1.55 'Courier New', ui-monospace, monospace; min-height:100vh; }
+ .app{ max-width:760px; margin:0 auto; padding:2rem 1.1rem 4rem; }
+-.app-head h1{ font-size:1.5rem; margin:0 0 .25rem; letter-spacing:.01em; }
+-.app-head .auth{ font-size:.78rem; color:var(--dim); margin-top:.4rem; min-height:1.1em; }
+-#app-tagline{ color:var(--dim); margin:0; max-width:60ch; }
++.app-head{ border-bottom:1px solid var(--accent-line); padding-bottom:1rem; margin-bottom:1.2rem; }
++.app-head h1{ font-size:1.3rem; margin:0 0 .2rem; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); font-weight:700; }
++.app-head .auth{ font-size:.72rem; color:var(--dim); margin-top:.4rem; min-height:1.1em; }
++#app-tagline{ color:var(--dim); margin:0; max-width:60ch; font-size:.82rem; letter-spacing:.03em; }
+ .inputs{ display:flex; flex-direction:column; gap:1rem; margin:1.6rem 0; }
+-.field label{ display:block; font-size:.8rem; color:var(--dim); margin-bottom:.3rem; }
++.field label{ display:block; font-size:.72rem; color:var(--amber); margin-bottom:.3rem; text-transform:uppercase; letter-spacing:.08em; }
+ .field input, .field textarea, .field select{
+   width:100%; font:inherit; padding:.6rem .7rem; border-radius:var(--radius);
+   background:var(--panel); border:1px solid var(--line); color:var(--ink); }
++.field input:focus, .field textarea:focus, .field select:focus{
++  outline:none; border-color:var(--accent-line); box-shadow:0 0 12px var(--accent-soft); }
+ .field textarea{ min-height:90px; resize:vertical; }
+ .run-row{ display:flex; align-items:center; gap:1rem; margin:.4rem 0 1.2rem; flex-wrap:wrap; }
+-.run{ font:inherit; font-weight:700; padding:.7rem 1.6rem; border-radius:var(--radius); cursor:pointer;
+-  background:linear-gradient(180deg,#8b97ff,#6573ef); border:1px solid #8b97ff; color:#0b0e18;
+-  box-shadow:0 0 26px #7c8cff33; }
+-.status{ font-size:.82rem; color:var(--dim); min-height:1.2em; display:flex; flex-direction:column; gap:.2rem; }
++.run{ font:inherit; font-weight:700; padding:.7rem 1.6rem; border-radius:var(--radius); cursor:pointer;
++  background:var(--panel2); border:1px solid var(--amber-line); color:var(--amber);
++  letter-spacing:.08em; text-transform:uppercase; font-size:.82rem; transition:all .15s; }
++.run:hover{ background:var(--amber-soft); border-color:var(--amber); box-shadow:0 0 18px var(--amber-soft); }
++.status{ font-size:.78rem; color:var(--dim); min-height:1.2em; display:flex; flex-direction:column; gap:.2rem; }
+ .output{ display:flex; flex-direction:column; gap:1rem; }
+-.output .card{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:1rem; }
+-.output img, .output video, .output audio{ width:100%; border-radius:.5rem; display:block; }
++.output .card{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:1rem; border-left:3px solid var(--accent-line); }
++.output img, .output video, .output audio{ width:100%; border-radius:var(--radius); display:block; }
+ .output .text{ white-space:pre-wrap; line-height:1.6; }
+ .output.grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); }

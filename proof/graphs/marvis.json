@@ -1,0 +1,131 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "text",
+      "x": 60,
+      "y": 80,
+      "fields": {
+        "text": "Marvis, a wry, world-weary android bard who has seen empires fall. Speaks in short, vivid lines. Curious about the human in front of it."
+      }
+    },
+    {
+      "id": "n2",
+      "type": "text",
+      "x": 60,
+      "y": 340,
+      "fields": {
+        "text": "Hello Marvis. What were you doing before I arrived?"
+      }
+    },
+    {
+      "id": "n3",
+      "type": "llm",
+      "x": 460,
+      "y": 180,
+      "fields": {
+        "model": "zai-org/glm-5.2:thinking",
+        "system": "You are the character described below. Stay fully in character. Reply in first person, 2-5 sentences, evocative and concrete. Do not break character or mention being an AI.",
+        "prompt": ""
+      }
+    },
+    {
+      "id": "n4",
+      "type": "llm",
+      "x": 460,
+      "y": 470,
+      "fields": {
+        "model": "xiaomi/mimo-v2.5-pro-ultraspeed",
+        "system": "You write a single concise text-to-image prompt (no preamble, no quotes) for a portrait of the character described, capturing their current mood and look. Output only the prompt.",
+        "prompt": ""
+      }
+    },
+    {
+      "id": "n5",
+      "type": "image",
+      "x": 880,
+      "y": 470,
+      "fields": {
+        "model": "seedream-v5.0-lite",
+        "prompt": "",
+        "size": "1024x1024"
+      }
+    },
+    {
+      "id": "n6",
+      "type": "tts",
+      "x": 880,
+      "y": 200,
+      "fields": {
+        "model": "tts-1",
+        "prompt": "",
+        "voice": "onyx"
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "n1",
+        "port": "text"
+      },
+      "to": {
+        "node": "n3",
+        "port": "system"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "n2",
+        "port": "text"
+      },
+      "to": {
+        "node": "n3",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "n1",
+        "port": "text"
+      },
+      "to": {
+        "node": "n4",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l4",
+      "from": {
+        "node": "n4",
+        "port": "text"
+      },
+      "to": {
+        "node": "n5",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l5",
+      "from": {
+        "node": "n3",
+        "port": "text"
+      },
+      "to": {
+        "node": "n6",
+        "port": "prompt"
+      }
+    }
+  ],
+  "nid": 7,
+  "lid": 6,
+  "view": {
+    "panX": 0,
+    "panY": 0,
+    "scale": 1
+  }
+}

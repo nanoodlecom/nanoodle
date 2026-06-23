@@ -1,0 +1,50 @@
+--- a/index.html
++++ b/index.html
+@@ -14,7 +14,10 @@
+ <main class="app">
+   <header class="app-head">
+-    <h1 id="app-title">MARVIS</h1>
+-    <p id="app-tagline">Sardonic lab-assistant terminal. Direct the scene.</p>
++    <div class="title-row">
++      <h1 id="app-title">MARVIS</h1>
++      <span class="mood-badge">mood: wry</span>
++    </div>
++    <p id="app-tagline">Sardonic lab-assistant terminal. Direct the scene.</p>
+     <div id="app-auth" class="auth"></div>
+   </header>
+
+--- a/app.css
++++ b/app.css
+@@ -12,6 +12,30 @@
+   color:var(--ink); font:14px/1.55 'Courier New', ui-monospace, monospace; min-height:100vh; }
+ 
++/* --- scanline overlay --- */
++body::before{
++  content:''; position:fixed; inset:0; z-index:9999; pointer-events:none;
++  background:repeating-linear-gradient(
++    0deg,
++    transparent,
++    transparent 3px,
++    rgba(0,0,0,0.04) 3px,
++    rgba(0,0,0,0.04) 4px
++  );
++}
++
++/* --- vignette --- */
++body::after{
++  content:''; position:fixed; inset:0; z-index:9998; pointer-events:none;
++  background:radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0,0,0,0.35) 100%);
++}
++
+ .app{ max-width:760px; margin:0 auto; padding:2rem 1.1rem 4rem; }
+ .app-head{ border-bottom:1px solid var(--accent-line); padding-bottom:1rem; margin-bottom:1.2rem; }
+-.app-head h1{ font-size:1.3rem; margin:0 0 .2rem; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); font-weight:700; }
++.title-row{ display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; margin-bottom:.2rem; }
++.app-head h1{ font-size:1.3rem; margin:0; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); font-weight:700; }
++.mood-badge{
++  font-size:.58rem; color:var(--dim); background:var(--panel2);
++  border:1px solid var(--line); padding:.12rem .45rem; border-radius:2px;
++  letter-spacing:.1em; text-transform:lowercase; font-family:'Courier New',ui-monospace,monospace;
++  opacity:.7;
++}
+ .app-head .auth{ font-size:.72rem; color:var(--dim); margin-top:.4rem; min-height:1.1em; }

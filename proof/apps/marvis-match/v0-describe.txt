@@ -1,0 +1,14 @@
+The app runs this workflow, step by step:
+  1. 📝 Text — a fixed block of text [text "Marvis, a wry, world-weary android bard who has seen empires fall. Speaks in short, vivid lines. Curious about the human in front of it."]
+  2. 📝 Text — a fixed block of text [text "Hello Marvis. What were you doing before I arrived?"]
+  3. 🧠 LLM — writes text from a prompt (Text's text feeds this step's prompt) [model xiaomi/mimo-v2.5-pro-ultraspeed; system prompt "You write a single concise text-to-image prompt (no preamble, no quotes) for a portrait of the character described, capturing their current…"]
+  4. 🧠 LLM — writes text from a prompt (Text's text feeds this step's system; Text's text feeds this step's prompt) [model zai-org/glm-5.2:thinking]
+  5. 🖼 Image — generates an image from a text prompt (LLM's text feeds this step's prompt) [model seedream-v5.0-lite; size 1024x1024]
+  6. 🗣️ Speech — reads text aloud as speech (LLM's text feeds this step's prompt) [model tts-1]
+
+What the end-user fills in before pressing Run:
+  • Text — for the Text step
+  • Text — for the Text step
+  • System prompt (optional) — for the LLM step
+
+The result it shows the user: image, audio.

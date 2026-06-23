@@ -111,6 +111,8 @@
   .cust-row{ display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
   .cust-label{ font-size:.82rem; color:var(--dim); font-weight:600; }
   #goal{ flex:1; min-width:240px; }
+  /* the model id can be long — cap the picker so it never starves the goal input */
+  #modelpick{ max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #fr-head{ display:none; }
   #fr-skip{ display:none; }
 
@@ -119,9 +121,11 @@
      drops back into its docked place at the bottom. */
   body.firstrun #customize{ position:fixed; inset:0; z-index:60; border:0; background:rgba(6,8,15,.72);
         backdrop-filter:blur(4px); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.2rem; }
-  body.firstrun .cust-row{ width:min(720px,88vw); }
+  body.firstrun .cust-row{ width:min(720px,88vw); justify-content:center; }
   body.firstrun .cust-label{ display:none; }
-  body.firstrun #goal{ font-size:1.05rem; padding:.7rem .9rem; }
+  /* first run: the goal input is the hero — give it the whole first line to breathe,
+     the model picker + Apply wrap centered onto the line below it */
+  body.firstrun #goal{ font-size:1.1rem; padding:.95rem 1.1rem; flex:1 1 100%; }
   body.firstrun #cust-status{ width:min(720px,88vw); text-align:center; }
   body.firstrun #versions{ display:none; }
   body.firstrun #undo{ display:none; }
@@ -137,6 +141,19 @@
   button.ghost{ font:inherit; padding:.5rem .8rem; border-radius:.5rem; border:1px solid var(--line);
                 background:var(--panel2); color:var(--ink); cursor:pointer; }
   button.ghost:disabled{ opacity:.45; cursor:default; }
+  /* ---------- click-to-fill idea chips ---------- */
+  #cust-suggest{ display:flex; flex-wrap:wrap; gap:.35rem; align-items:center; margin-top:.5rem; }
+  #cust-suggest[hidden]{ display:none; }
+  #cust-suggest .sg-lbl{ font-size:.74rem; color:var(--faint); margin-right:.1rem; }
+  .sugg{ font:inherit; font-size:.76rem; padding:.26rem .62rem; border-radius:1rem; cursor:pointer;
+         border:1px solid var(--line); background:var(--panel2); color:var(--dim);
+         transition:border-color .15s, color .15s, background .15s; }
+  .sugg:hover{ border-color:var(--accent-line); color:var(--ink); background:var(--accent-soft); }
+  .sugg-shuffle{ font-size:.82rem; line-height:1; padding:.26rem .5rem; border-radius:1rem; cursor:pointer;
+         border:1px solid var(--line); background:none; color:var(--faint); }
+  .sugg-shuffle:hover{ color:var(--ink); border-color:var(--accent-line); }
+  body.firstrun #cust-suggest{ width:min(720px,88vw); justify-content:center; margin-top:.7rem; }
+
   #cust-status{ font-size:.78rem; min-height:1.1em; margin-top:.4rem; }
   #cust-status .ok{ color:var(--ok); } #cust-status .err{ color:var(--danger); }
   #cust-status .meter{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--dim); opacity:.9; white-space:nowrap; }
@@ -257,14 +274,16 @@
      Docked at the bottom; floats centered as the "describe your app" prompt on first run. -->
 <div id="customize">
   <div id="fr-head">✨ Turn this workflow into an app
-    <span class="sub">Describe the app you want — layout, theme, copy. You can keep tweaking after.</span></div>
+    <span class="sub">Describe the app you want — its theme, layout, or a real feature (presets, galleries, shortcuts). Keep tweaking after.</span></div>
   <div class="cust-row">
     <span class="cust-label">✨ Customize this app</span>
-    <input id="goal" placeholder="e.g. “warm sunrise theme, big rounded inputs, friendlier copy”" />
+    <input id="goal" placeholder="e.g. “add presets”" />
     <button id="modelpick" class="ghost" title="Choose the model that writes your app changes">✨ model ▾</button>
     <button id="apply" class="primary">✦ Apply</button>
     <button id="undo" class="ghost" disabled>↶ undo</button>
   </div>
+  <!-- click-to-fill idea chips (a random few from a static list); hidden once you start typing -->
+  <div id="cust-suggest"></div>
   <div id="cust-status" class="dim"></div>
   <!-- shown only after a workflow edit changed the app's input/output shape -->
   <div id="portbar" hidden>
@@ -300,6 +319,7 @@ const $ = (id) => document.getElementById(id);
 const NANOGPT = "https://nano-gpt.com";
 const DEFAULT_MODEL = "xiaomi/mimo-v2.5-pro-ultraspeed";      // writes the changes (user-selectable)
 const APPLY_DEFAULT = "xiaomi/mimo-v2.5-pro-ultraspeed";      // applies the diff (fast, mechanical)
+const FALLBACK_MODEL = "openai/gpt-5.4-mini";                 // auto-retry here when the chosen model is overloaded/down (429 / 5xx)
 const LS_KEY = "noodle_app_state";   // working state of the app currently open {id,title,imported,graph,files,versions,curVer}
 const RESUME_KEY = "noodle_resume";  // sessionStorage: the open app, stashed across an OAuth full-page redirect
 const ACCENT = "#7c8cff";
@@ -2082,15 +2102,29 @@ const MOUNT_FALLBACK = {
   "app-output":  '<section id="app-output" class="output"></section>',
 };
 const CONTRACT =
-`You are customizing a small single-purpose web app. You edit two files — index.html and app.css —
-restyling it, re-laying it out, and rewriting the visible copy (title, tagline, input labels, button
-text, helper text) to fit the workflow described below. Keep it a clean, self-contained form-over-flow
-UI: no frameworks, no external scripts or stylesheets. The app already has its working controls wired
-up (run button, input area, status and output regions); keep those in place as you restyle.
+`You are upgrading a small, self-contained single-page web app — and you may make it genuinely more
+capable, not just restyle it. You edit two files, index.html and app.css. Add interactive UI,
+client-side logic, layout, micro-interactions, output galleries, preset controls, keyboard shortcuts,
+drag-and-drop, localStorage persistence — whatever best serves the goal below. Think "build a real
+feature," not "change the theme."
 
-Below is a description of the workflow this app is a front-end for. Use it to give the app a
-fitting title, tagline, input labels, button text, and helper copy, and to reason about what the
-user is trying to accomplish — then make their requested change in a way that serves that goal.`;
+How the app works, so you can build on it safely:
+- It's ONE self-contained page. Add as much inline <script>, <style> and markup as you need. Do NOT
+  reference external/remote scripts or stylesheets — inline everything (anything remote is dropped).
+  No build step.
+- A prebuilt engine, window.NoodleApp, is already loaded. It renders the input form into #app-inputs,
+  runs the workflow when #app-run is clicked, writes status to #app-status and results into
+  #app-output. Keep those element ids present and let the engine own what it renders INSIDE
+  #app-inputs / #app-output / #app-status. You may freely wrap, restyle, reposition and surround them,
+  and add new sections, controls and scripts around them.
+- To add behavior, attach your own event listeners and helpers: read or fill the engine's input
+  fields (inside #app-inputs), enhance the result cards in #app-output (zoom, download, compare,
+  grid), drive #app-run, persist to localStorage, add shortcuts or animation. Do NOT redefine or
+  remove the engine, and do NOT touch the embedded workflow.
+
+Keep it self-contained, responsive and accessible. Below is a description of the workflow this app is
+a front-end for — use it to give the app a fitting identity and to reason about what the user is
+trying to accomplish, then make their requested change in a way that genuinely serves that goal.`;
 
 // streaming SSE client injected into gptdiff-js (Bearer key, returns the shape it expects)
 /* ---- usage meter: tokens in/out + cost across a whole customize run (both LLM
@@ -2114,18 +2148,28 @@ function resetUsage(){ USAGE.inTok = USAGE.outTok = USAGE.cost = 0; USAGE.exact 
 function streamingCallLlm(phase){
   return async ({ apiKey, baseUrl, model, messages, maxTokens=null, temperature=1.0 }) => {
     const inEst = estMsgs(messages);
-    const pr = priceOf(model) || {};                          // per-1M USD from the catalog
-    const inPer = (Number(pr.pin)||0)/1e6, outPer = (Number(pr.pout)||0)/1e6;
+    let usedModel = model;                                     // may switch to FALLBACK_MODEL if the chosen model is overloaded
+    const priceFor = (m)=>{ const p = priceOf(m) || {}; return [(Number(p.pin)||0)/1e6, (Number(p.pout)||0)/1e6]; };
+    let [inPer, outPer] = priceFor(usedModel);                // per-1M USD from the catalog
     let outTok = 0, liveCost = inEst*inPer;
     const paint = ()=> $("cust-status").innerHTML = '<span class="spin">◐</span> ' + esc(phase) + '… ' + usageMeter({ inTok:inEst, outTok, cost:liveCost });
     paint();
     const endpoint = (baseUrl || (NANOGPT + "/api/v1/")).replace(/\/+$/,"") + "/chat/completions";
-    const r = await fetch(endpoint, {
+    // No max_tokens by default → avoids silent truncation that yields an unparseable diff.
+    const send = (m)=> fetch(endpoint, {
       method:"POST",
       headers:{ Authorization:"Bearer "+apiKey, "Content-Type":"application/json" },
-      // No max_tokens by default → avoids silent truncation that yields an unparseable diff.
-      body: JSON.stringify({ model, messages, ...(maxTokens?{max_tokens:maxTokens}:{}), temperature, stream:true }),
+      body: JSON.stringify({ model:m, messages, ...(maxTokens?{max_tokens:maxTokens}:{}), temperature, stream:true }),
     });
+    let r = await send(usedModel);
+    // Chosen model is overloaded or down (429 / 503 / any 5xx) → fall back to a reliable model and retry once,
+    // so a flaky default never kills the customize. The user's own pick still gets first crack.
+    if(!r.ok && (r.status===429 || r.status>=500) && usedModel!==FALLBACK_MODEL){
+      try{ await r.body?.cancel(); }catch(_){}
+      usedModel = FALLBACK_MODEL; [inPer, outPer] = priceFor(usedModel); liveCost = inEst*inPer;
+      $("cust-status").innerHTML = '<span class="spin">◐</span> ' + esc(model) + ' is busy — retrying with ' + esc(FALLBACK_MODEL) + '…';
+      r = await send(usedModel);
+    }
     if(!r.ok) throw new Error("LLM " + r.status + ": " + (await r.text()).slice(0,300));
     const reader = r.body.getReader(), dec = new TextDecoder();
     let buf="", content="", reasoning="", pricing=null, lastPaint=0;
@@ -2223,7 +2267,7 @@ async function applyCustomize(){
   const goal = $("goal").value.trim();
   if(!goal){ $("goal").focus(); return; }
   const ok = await runDiffPass(goal);
-  if(ok) $("goal").value = "";
+  if(ok){ $("goal").value = ""; if(typeof newSuggestion==="function"){ newSuggestion(); syncSuggest(); } }
 }
 
 // PORT — re-fit the app's UI to a workflow whose shape changed. Always uses gptdiff
@@ -2717,6 +2761,54 @@ $("apply").onclick = applyCustomize;
 $("goal").addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ e.preventDefault(); if(!busy) applyCustomize(); } });
 $("undo").onclick = () => { if(APP_STATE.curVer > 0) selectVersion(APP_STATE.curVer - 1); };
 $("fr-skip").onclick = exitFirstRun;                          // "skip — use the default app"
+
+/* ---------- one random "starting point" idea, woven into the composer ----------
+   On load (and on ↻ / after each apply) we pick ONE suggestion from the static
+   pool below: it becomes the input's example placeholder AND a single tap-to-fill
+   pill. The pill row hides the moment you type your own goal. A starting point —
+   not a menu. Add to the pool freely; keep it to things a Customize edit can do. */
+const SUGGESTIONS = [
+  { label:"Add presets",        goal:"add preset buttons that fill the inputs with good starting values" },
+  { label:"Results gallery",    goal:"show the results in a responsive gallery grid with click-to-zoom" },
+  { label:"Remember inputs",    goal:"remember my last inputs in localStorage and restore them on load" },
+  { label:"Copy button",        goal:"add a copy-to-clipboard button on text results" },
+  { label:"Theme toggle",       goal:"add a light / dark theme toggle that persists across visits" },
+  { label:"Friendlier layout",  goal:"give it a bigger, friendlier hero layout with clear sections" },
+  { label:"Example inputs",     goal:"add an empty state with a couple of example inputs to try" },
+  { label:"Surprise me",        goal:"add a ‘surprise me’ button that fills the inputs with a fun random idea" },
+  { label:"Hero header",        goal:"add a hero header with a bold title, a one-line tagline and a soft gradient" },
+  { label:"Bigger Run",         goal:"make the Run button big, bold and impossible to miss" },
+  { label:"Phone-friendly",     goal:"tighten the layout so it looks great on a phone" },
+  { label:"Loading skeletons",  goal:"show skeleton placeholders in the results area while it runs" },
+  { label:"Clear button",       goal:"add a button that clears the inputs and the results" },
+  { label:"Onboarding tip",     goal:"add a one-line helper tip under the title explaining what to do" },
+  { label:"Auto-scroll",        goal:"scroll to the newest result when it finishes" },
+  { label:"Result count",       goal:"show a small counter of how many results have been generated" },
+  { label:"Playful accent",     goal:"give it a playful accent color and rounded, friendly controls" },
+];
+let suggPick = null;
+function newSuggestion(){
+  suggPick = SUGGESTIONS[Math.floor(Math.random() * SUGGESTIONS.length)];
+  const g = $("goal"); if(g) g.placeholder = "e.g. “" + suggPick.goal + "”";
+  renderSuggestion();
+}
+function renderSuggestion(){
+  const wrap = $("cust-suggest"); if(!wrap || !suggPick) return;
+  wrap.innerHTML = "";
+  const lbl = document.createElement("span"); lbl.className = "sg-lbl"; lbl.textContent = "Try:"; wrap.appendChild(lbl);
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "sugg"; b.textContent = suggPick.label; b.title = suggPick.goal;
+  b.onclick = ()=>{ const g = $("goal"); g.value = suggPick.goal; g.focus();
+    try{ g.setSelectionRange(g.value.length, g.value.length); }catch(_){}
+    syncSuggest(); };
+  wrap.appendChild(b);
+  const sh = document.createElement("button");
+  sh.type = "button"; sh.className = "sugg-shuffle"; sh.textContent = "↻"; sh.title = "Another idea";
+  sh.onclick = newSuggestion; wrap.appendChild(sh);
+}
+function syncSuggest(){ const wrap = $("cust-suggest"); if(wrap) wrap.hidden = !!$("goal").value.trim(); }
+$("goal").addEventListener("input", syncSuggest);
+newSuggestion(); syncSuggest();
 
 // model picker wiring
 renderModelBtn();

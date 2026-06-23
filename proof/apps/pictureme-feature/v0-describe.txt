@@ -1,0 +1,14 @@
+The app runs this workflow, step by step:
+  1. 📷 Image input — an image the user uploads
+  2. 📝 Text — a fixed block of text [text "1980s analog film portrait, warm grain, neon rim light"]
+  3. ✂️ Edit — edits an existing image following an instruction (Image input's image feeds this step's image) [model gpt-image-2; prompt "restyle as film-noir black and white portrait, keep identity and pose"; size 1024x1024]
+  4. ✂️ Edit — edits an existing image following an instruction (Image input's image feeds this step's image) [model gpt-image-2; prompt "restyle as Ghibli-style anime portrait, keep identity and pose"; size 1024x1024]
+  5. 🧠 LLM — writes text from a prompt (Text's text feeds this step's prompt) [model zai-org/glm-5.2:thinking; system prompt "Merge the described looks into ONE photographic edit instruction under 60 words that restyles a portrait keeping identity and pose. Output …"]
+  6. ✂️ Edit — edits an existing image following an instruction (LLM's text feeds this step's prompt; Image input's image feeds this step's image) [model gpt-image-2; size 1024x1024]
+
+What the end-user fills in before pressing Run:
+  • Image — for the Image input step
+  • Text — for the Text step
+  • System prompt (optional) — for the LLM step
+
+The result it shows the user: image.
