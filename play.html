@@ -111,8 +111,11 @@
   .cust-row{ display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
   .cust-label{ font-size:.82rem; color:var(--dim); font-weight:600; }
   #goal{ flex:1; min-width:240px; }
-  /* the model id can be long — cap the picker so it never starves the goal input */
-  #modelpick{ max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  /* the model picker is a power-user control: capped (the id runs long) and recessive
+     by default — small and dim — brightening only when you reach for it */
+  #modelpick{ max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+              font-size:.8rem; color:var(--dim); }
+  #modelpick:hover, #modelpick:focus{ color:var(--ink); }
   /* ---------- first run (the initial moment) ----------
      The live default app is the hero from the first frame — no overlay, no dim.
      The whole composer is present and usable from the start, but sits de-emphasized
@@ -127,9 +130,17 @@
                   box-shadow:0 0 22px #7c8cff33; }
   button.primary:hover{ box-shadow:0 0 30px #7c8cff55; }
   button.primary:disabled{ opacity:.5; box-shadow:none; cursor:default; }
+  /* Apply earns its glow only when there's a goal to act on; until then it sits quiet
+     like a ghost button so it doesn't compete with the live app for attention */
+  #apply.idle{ background:var(--panel2); border-color:var(--line); color:var(--dim);
+               font-weight:600; box-shadow:none; }
+  #apply.idle:hover{ box-shadow:none; }
   button.ghost{ font:inherit; padding:.5rem .8rem; border-radius:.5rem; border:1px solid var(--line);
                 background:var(--panel2); color:var(--ink); cursor:pointer; }
   button.ghost:disabled{ opacity:.45; cursor:default; }
+  /* nothing to undo yet → don't clutter the row with a dead control; it returns the
+     moment an edit lands and curVer advances */
+  #undo:disabled{ display:none; }
   /* ---------- click-to-fill idea chips ---------- */
   #cust-suggest{ display:flex; flex-wrap:wrap; gap:.35rem; align-items:center; margin-top:.5rem; }
   #cust-suggest[hidden]{ display:none; }
@@ -2797,7 +2808,9 @@ function renderSuggestion(){
   sh.type = "button"; sh.className = "sugg-shuffle"; sh.textContent = "↻"; sh.title = "Another idea";
   sh.onclick = newSuggestion; wrap.appendChild(sh);
 }
-function syncSuggest(){ const wrap = $("cust-suggest"); if(wrap) wrap.hidden = !!$("goal").value.trim(); }
+// Apply is quiet until the field has something to act on; keep it in step with the goal.
+function syncApply(){ const a = $("apply"); if(a) a.classList.toggle("idle", !$("goal").value.trim()); }
+function syncSuggest(){ const wrap = $("cust-suggest"); if(wrap) wrap.hidden = !!$("goal").value.trim(); syncApply(); }
 $("goal").addEventListener("input", syncSuggest);
 newSuggestion(); syncSuggest();
 
