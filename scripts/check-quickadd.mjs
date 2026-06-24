@@ -113,25 +113,29 @@ const imgConsumers = keys("out", "image");
 // Dragging FROM an input  → the origin port is the SINK;  the new node feeds it.
 // Run the REAL quickSpawn() against tiny stubs and assert the connect() argument order.
 // quickSpawn(typeKey, wx, wy, dir, type, originPort) — drive it with the REAL signature.
-function spawnReal(typeKey, wx, wy, dir, type, originDataset, newPorts) {
-  const calls = { added: null, connected: null };
-  const fakeNew = { id: "new1", el: { querySelectorAll: () => newPorts } };
+// getPorts() is called on every querySelectorAll, so a stubbed ensureModelForInput can mutate
+// the returned set (mirroring how upgrading the model enables a previously-disabled socket).
+function spawnReal(typeKey, wx, wy, dir, type, originDataset, getPorts, onEnsure) {
+  const calls = { added: null, connected: null, ensured: 0 };
+  const fakeNew = { id: "new1", el: { querySelectorAll: () => getPorts() } };
   const sctx = {
     addNode: (tk, x, y) => { calls.added = { tk, x, y }; return fakeNew; },
     select: () => {}, redraw: () => {},
     connect: (fn, fp, tn, tp) => { calls.connected = { fn, fp, tn, tp }; },
+    ensureModelForInput: () => { calls.ensured++; if (onEnsure) onEnsure(); },
   };
   vm.createContext(sctx);
   new vm.Script(extractFn(SRC, "quickSpawn") + ";globalThis.__qs = quickSpawn;", { filename: "index.html#quickspawn" }).runInContext(sctx);
   sctx.__qs(typeKey, wx, wy, dir, type, { dataset: originDataset });
-  return calls;
+  return { ...calls, ctx: sctx };
 }
 const freePort = (node, port) => ({ dataset: { node, port }, classList: { contains: () => false } });
+const fixed = (arr) => () => arr;
 
 // out-drag: text from node "src" → new LLM; should prefer the "prompt" socket and wire src→new
 const outCase = spawnReal("llm", 500, 300, "out", "text",
   { node: "src", port: "text", dir: "out", ptype: "text" },
-  [freePort("new1", "system"), freePort("new1", "prompt")]);
+  fixed([freePort("new1", "system"), freePort("new1", "prompt")]));
 ok(outCase.added && outCase.added.tk === "llm", "spawn(out): should addNode('llm')");
 ok(outCase.added && outCase.added.x === 508, "spawn(out): downstream node placed to the right of the drop (wx+8)");
 ok(outCase.connected && outCase.connected.fn === "src" && outCase.connected.fp === "text",
@@ -142,12 +146,27 @@ ok(outCase.connected && outCase.connected.tn === "new1" && outCase.connected.tp 
 // in-drag: image into node "dst" ← new upload; new node is the SOURCE, origin is the SINK
 const inCase = spawnReal("upload", 500, 300, "in", "image",
   { node: "dst", port: "image", dir: "in", ptype: "image" },
-  [freePort("new1", "image")]);
+  fixed([freePort("new1", "image")]));
 ok(inCase.added && inCase.added.x === 268, "spawn(in): source node placed to the left of the drop (wx-232)");
 ok(inCase.connected && inCase.connected.fn === "new1" && inCase.connected.fp === "image",
   "spawn(in): new node must be the link SOURCE");
 ok(inCase.connected && inCase.connected.tn === "dst" && inCase.connected.tp === "image",
   "spawn(in): origin input must be the link SINK, got " + JSON.stringify(inCase.connected));
+
+// out-drag image → an LLM whose default model can't see images: the image socket starts disabled,
+// so quickSpawn must upgrade the model (ensureModelForInput) and then wire the now-enabled socket —
+// never leave the promised auto-wire dangling. (Regression: Codex P2 review on PR #17.)
+let imgDisabled = true;
+const imgPort = { dataset: { node: "new1", port: "img1" }, classList: { contains: (c) => (c === "disabled" ? imgDisabled : false) } };
+const upgradeCase = spawnReal("llm", 700, 400, "out", "image",
+  { node: "src2", port: "image", dir: "out", ptype: "image" },
+  () => [imgPort], () => { imgDisabled = false; });   // ensure-stub enables the socket
+ok(upgradeCase.ensured === 1, "spawn(out,image): must call ensureModelForInput when the only socket is disabled");
+ok(upgradeCase.connected && upgradeCase.connected.fn === "src2" && upgradeCase.connected.tn === "new1" && upgradeCase.connected.tp === "img1",
+  "spawn(out,image): after the model upgrade the image must wire into the now-enabled socket, got " + JSON.stringify(upgradeCase.connected));
+
+// sanity: when the socket is already enabled, no needless model upgrade happens
+ok(outCase.ensured === 0, "spawn(out,text): an already-enabled socket must NOT trigger a model upgrade");
 
 if (failures.length) {
   process.stderr.write("✗ quick-add candidate filtering is wrong:\n\n- " + failures.join("\n- ") + "\n");

@@ -1449,15 +1449,37 @@ function closeQuickAdd(){
   pop.classList.remove("open"); pop.innerHTML = "";
   document.removeEventListener("pointerdown", quickAddOutside);
 }
+// A chat node's image socket is gated on a vision-capable model. When the quick-add lands an
+// image on an LLM whose default model can't see images, the socket renders disabled — so swap in
+// a model that supports the input, otherwise the promised auto-wire would have nothing to land on.
+function ensureModelForInput(n, type){
+  const t = NODE_TYPES[n.type];
+  if(type==="image" && t.imageInputs && t.modelKind){
+    const m = (catalogs[t.modelKind]||[]).find(x=> passesFilter(x, t.imageInputs));
+    if(m){
+      n.fields.model = m.id;
+      const mp = n.el.querySelector(".modelpick"); if(mp) mp.textContent = m.id + " ▾";
+      updateNodePrice(n); refreshImageInputs(n); save();
+    }
+  }
+}
 function quickSpawn(typeKey, wx, wy, dir, type, originPort){
   // place the card so its relevant edge sits near the drop point (downstream to the right, source to the left)
   const x = dir==="out" ? wx + 8 : wx - 232;
   const n = addNode(typeKey, Math.round(x), Math.round(wy - 24));
-  select(n); redraw();
+  select(n);
+  const opp = dir==="out" ? "in" : "out", sel = `.port[data-dir="${opp}"][data-ptype="${type}"]`;
+  let ports = [...n.el.querySelectorAll(sel)];
+  // the only matching socket may be disabled (e.g. an LLM defaulted to a non-vision model) — upgrade
+  // the model so the wire can actually land, then re-read the now-enabled ports
+  if(dir==="out" && ports.length && !ports.some(p=> !p.classList.contains("disabled"))){
+    ensureModelForInput(n, type);
+    ports = [...n.el.querySelectorAll(sel)];
+  }
+  ports = ports.filter(p=> !p.classList.contains("disabled"));
   // wire the dragged port to the new node's first matching, free socket
-  const opp = dir==="out" ? "in" : "out";
-  const ports = [...n.el.querySelectorAll(`.port[data-dir="${opp}"][data-ptype="${type}"]:not(.disabled)`)];
   const target = ports.find(p=> p.dataset.port==="prompt") || ports.find(p=> !p.classList.contains("filled")) || ports[0];
+  redraw();
   if(target){
     const out = dir==="out" ? originPort : target, inn = dir==="out" ? target : originPort;
     connect(out.dataset.node, out.dataset.port, inn.dataset.node, inn.dataset.port);
