@@ -22,11 +22,13 @@ touches_run=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-
 touches_imgports=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-image-ports\.mjs)$' || true)
 # index.html carries the link-removal path (unlocking text fields when their source is deleted).
 touches_editorports=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-editor-ports\.mjs)$' || true)
+# play.html surfaces the per-node settings (swappable models, sizes…) the app's "Optional settings" panel renders.
+touches_settings=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-app-settings\.mjs)$' || true)
 # index.html carries the quick-add type filter (drop a wire into empty space → only fitting nodes).
 touches_quickadd=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-quickadd\.mjs)$' || true)
 
 # Nothing to check unless an .html file or one of the checkers changed.
-[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_imgports" ] && [ -z "$touches_editorports" ] && [ -z "$touches_quickadd" ] && exit 0
+[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_imgports" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && exit 0
 
 if ! command -v node >/dev/null 2>&1; then
   echo "pre-commit: node not found, skipping HTML JS checks" >&2
@@ -89,7 +91,14 @@ if [ -n "$touches_editorports" ]; then
   node "$root/scripts/check-editor-ports.mjs"
 fi
 
-# 9) drop-a-wire-into-empty-space quick add must offer ONLY type-compatible nodes
+# 9) the "Optional settings" panel must surface every app's models (swappable)
+#    plus the per-node knobs — and must keep them OUT of the IO signature, so a
+#    model swap never reads as a breaking edit. Same node:vm sandbox technique.
+if [ -n "$touches_settings" ]; then
+  node "$root/scripts/check-app-settings.mjs"
+fi
+
+# 10) drop-a-wire-into-empty-space quick add must offer ONLY type-compatible nodes
 #    (consumers when dragging from an output, producers when dragging from an input).
 #    Runs the real filter functions over the real NODE_TYPES registry.
 if [ -n "$touches_quickadd" ]; then
