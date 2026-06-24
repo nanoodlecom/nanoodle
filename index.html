@@ -825,7 +825,8 @@ const I18N = {
     "Join":"Unir",
     "Glue two texts together":"Une dos textos",
     "LLM":"LLM",
-    "Text → text (any chat model)":"Texto → texto (cualquier modelo de chat)",
+    "Text (+ images) → text — any chat model":"Texto (+ imágenes) → texto — cualquier modelo de chat",
+    "this model can’t read images — pick a vision model":"este modelo no puede leer imágenes — elige un modelo de visión",
     "Text → image":"Texto → imagen",
     "Edit":"Editar",
     "Image + text → image":"Imagen + texto → imagen",
@@ -971,7 +972,8 @@ const I18N = {
     "Join":"Joindre",
     "Glue two texts together":"Assembler deux textes",
     "LLM":"LLM",
-    "Text → text (any chat model)":"Texte → texte (tout modèle chat)",
+    "Text (+ images) → text — any chat model":"Texte (+ images) → texte — tout modèle chat",
+    "this model can’t read images — pick a vision model":"ce modèle ne peut pas lire les images — choisissez un modèle de vision",
     "Text → image":"Texte → image",
     "Edit":"Modifier",
     "Image + text → image":"Image + texte → image",
@@ -1117,7 +1119,8 @@ const I18N = {
     "Join":"Verbinden",
     "Glue two texts together":"Zwei Texte zusammenfügen",
     "LLM":"LLM",
-    "Text → text (any chat model)":"Text → Text (beliebiges Chat-Modell)",
+    "Text (+ images) → text — any chat model":"Text (+ Bilder) → Text — beliebiges Chat-Modell",
+    "this model can’t read images — pick a vision model":"dieses Modell kann keine Bilder lesen — wähle ein Vision-Modell",
     "Text → image":"Text → Bild",
     "Edit":"Bearbeiten",
     "Image + text → image":"Bild + Text → Bild",
@@ -1263,7 +1266,8 @@ const I18N = {
     "Join":"Juntar",
     "Glue two texts together":"Cole dois textos num só",
     "LLM":"LLM",
-    "Text → text (any chat model)":"Texto → texto (qualquer modelo de chat)",
+    "Text (+ images) → text — any chat model":"Texto (+ imagens) → texto — qualquer modelo de chat",
+    "this model can’t read images — pick a vision model":"este modelo não consegue ler imagens — escolha um modelo de visão",
     "Text → image":"Texto → imagem",
     "Edit":"Editar",
     "Image + text → image":"Imagem + texto → imagem",
@@ -1409,7 +1413,8 @@ const I18N = {
     "Join":"結合",
     "Glue two texts together":"2つのテキストを結合",
     "LLM":"LLM",
-    "Text → text (any chat model)":"テキスト → テキスト (任意のチャットモデル)",
+    "Text (+ images) → text — any chat model":"テキスト (+ 画像) → テキスト — 任意のチャットモデル",
+    "this model can’t read images — pick a vision model":"このモデルは画像を読み取れません — ビジョンモデルを選んでください",
     "Text → image":"テキスト → 画像",
     "Edit":"編集",
     "Image + text → image":"画像 + テキスト → 画像",
@@ -2931,6 +2936,7 @@ function refreshImageInputs(n){
       + (d.disabled?` title="this model can’t read images — pick a vision model"`:``) + `></i>`
       + `<span>${multi?("image "+(i+1)):"image"}</span>`;
     col.appendChild(row);
+    translateTree(row);   // localize the disabled-port tooltip (port label stays English, like the static ports)
     if(!d.disabled) row.querySelector(".port").addEventListener("pointerdown", e=> startWire(e.currentTarget, e));
   });
   refreshPortFills();
