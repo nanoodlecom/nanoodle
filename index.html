@@ -151,6 +151,7 @@
   .node header.t-vision{ background:linear-gradient(90deg,#ffcf6b22,transparent) }
   .node header.t-edit{ background:linear-gradient(90deg,#ff79c622,#7c8cff14,transparent) }
   .node header.t-tvideo, .node header.t-ivideo{ background:linear-gradient(90deg,#5ad1e622,transparent) }
+  .node header.t-vframes{ background:linear-gradient(90deg,#5ad1e622,#ff79c614,transparent) }
   .node header.t-music, .node header.t-tts{ background:linear-gradient(90deg,#3ddc9722,transparent) }
   .node header.t-join{ background:linear-gradient(90deg,#9aa3b222,transparent) }
   .node header .em{font-size:1rem}
@@ -211,6 +212,11 @@
   .result audio{ width:100%; margin-top:.2rem }
   .result .rtext{ font-size:.82rem; white-space:pre-wrap; max-height:160px; overflow:auto; color:var(--ink) }
   .result .err{ color:var(--bad); font-size:.8rem; white-space:pre-wrap }
+  .result .frames{ display:flex; flex-wrap:wrap; gap:.35rem }
+  .result .frames .fr{ position:relative; flex:1 1 46%; min-width:80px }
+  .result .frames .fr img{ width:100%; border-radius:.45rem; display:block }
+  .result .frames .fr button{ position:absolute; right:.25rem; bottom:.25rem; padding:.15rem .35rem; font-size:.7rem;
+    background:#000a; border:1px solid var(--line); border-radius:.35rem; color:var(--ink); cursor:pointer }
   .result .acts{ display:flex; gap:.35rem; margin-top:.4rem }
   .result .acts button{ padding:.25rem .5rem; font-size:.74rem }
   .spin{ display:inline-block; width:16px;height:16px; border:2px solid #ffffff22; border-top-color:var(--warn); border-radius:50%; animation:sp .8s linear infinite; vertical-align:middle }
@@ -819,6 +825,58 @@ const NODE_TYPES = {
     }
   },
 
+  vframes: {
+    em:"🎞", title:"Video → frames", desc:"Pull still frames out of a video", group:"Video",
+    inputs:[{name:"video", type:"video"}],
+    outputs:(n)=> framePorts(n), preview:"frames",
+    body:(n)=>`
+      <div class="two">
+        <div><label>start from</label><select data-f="dir">${optsHTML([["start","beginning"],["end","last frame"]], n.fields.dir||"start")}</select></div>
+        <div><label>frames</label><input type="number" data-f="frames" min="1" max="${MAX_FRAMES}" value="${esc(n.fields.frames ?? 1)}"/></div>
+      </div>
+      <div class="two">
+        <div><label>skip between</label><input type="number" data-f="skip" min="0" value="${esc(n.fields.skip ?? 0)}"/></div>
+        <div><label>fps (assumed)</label><input type="number" data-f="fps" min="1" max="120" value="${esc(n.fields.fps ?? 30)}"/></div>
+      </div>`,
+    mount:(n)=>{
+      const fr = n.el.querySelector('[data-f="frames"]');
+      if(fr) fr.addEventListener("change", ()=> refreshFramePorts(n));   // grow/shrink the image output ports
+    },
+    async run(n, inp){
+      if(!inp.video) throw new Error("no video input");
+      const count = Math.max(1, Math.min(MAX_FRAMES, parseInt(n.fields.frames,10)||1));
+      const skip  = Math.max(0, parseInt(n.fields.skip,10)||0);
+      const fps   = Math.max(1, Math.min(120, parseInt(n.fields.fps,10)||30));
+      const fromEnd = (n.fields.dir||"start")==="end";
+      const frameDur = 1/fps, stepSec = (skip+1)*frameDur;
+      const { src, revoke } = await toLocalMediaUrl(inp.video);
+      const vid = document.createElement("video");
+      vid.muted = true; vid.playsInline = true; vid.preload = "auto"; vid.crossOrigin = "anonymous";
+      try{
+        vid.src = src;
+        await new Promise((res, rej)=>{
+          vid.onloadedmetadata = ()=> res();
+          vid.onerror = ()=> rej(new Error("could not load that video"));
+        });
+        const dur = vid.duration;
+        if(!isFinite(dur) || dur<=0) throw new Error("video has no readable duration");
+        const canvas = document.createElement("canvas");
+        canvas.width = vid.videoWidth || 1280; canvas.height = vid.videoHeight || 720;
+        const c2d = canvas.getContext("2d");
+        const out = {};
+        for(let i=0;i<count;i++){
+          setNodeProgress(n, `extracting frame ${i+1}/${count}…`);
+          let t = fromEnd ? (dur - frameDur - i*stepSec) : (i*stepSec);
+          t = Math.max(0, Math.min(Math.max(0, dur - frameDur), t));
+          await seekVideo(vid, t);
+          c2d.drawImage(vid, 0, 0, canvas.width, canvas.height);
+          out["frame"+(i+1)] = canvas.toDataURL("image/jpeg", 0.9);
+        }
+        return out;
+      } finally { if(revoke) revoke(); vid.removeAttribute("src"); vid.load(); }
+    }
+  },
+
   lipsync: {
     em:"🎭", title:"Avatar / lipsync", desc:"Image + audio → talking video", group:"Video",
     modelKind:"video", modelFilter:"avatar",
@@ -896,14 +954,39 @@ function addNode(type, x, y, fields){
   return n;
 }
 
+// A node's output ports may be dynamic (a function of its fields) — e.g. the frame
+// extractor exposes one image port per requested frame. inputs are always static.
+function outputsOf(n){
+  const o = NODE_TYPES[n.type].outputs;
+  return typeof o === "function" ? o(n) : o;
+}
+const portRowHTML = (nodeId, p, dir)=>
+  `<div class="prow"><i class="port ${p.type}" data-node="${nodeId}" data-port="${p.name}" data-dir="${dir}" data-ptype="${p.type}"></i><span>${p.name}</span></div>`;
+
+// Rebuild a node's output port column after its dynamic-port count changes, then drop
+// any wires that fed from a port that no longer exists.
+function refreshFramePorts(n){
+  if(!n.el || typeof NODE_TYPES[n.type].outputs !== "function") return;
+  const ports = outputsOf(n);
+  const col = n.el.querySelector(".col.out");
+  if(!col) return;
+  col.innerHTML = ports.map(p=> portRowHTML(n.id, p, "out")).join("");
+  col.querySelectorAll(".port").forEach(p=> p.addEventListener("pointerdown", e=>startWire(p, e)));
+  const names = new Set(ports.map(p=>p.name));
+  const before = graph.links.length;
+  graph.links = graph.links.filter(l=> !(l.from.node===n.id && !names.has(l.from.port)));
+  refreshPortFills(); redraw();
+  if(graph.links.length !== before) save();
+}
+
 function buildNodeEl(n){
   const t = NODE_TYPES[n.type];
   const el = document.createElement("div");
   el.className = "node"; el.dataset.id = n.id; el.dataset.status = "idle";
   el.style.left = n.x+"px"; el.style.top = n.y+"px";
   if(n.w){ el.style.width = n.w+"px"; el.style.maxWidth = "none"; }   // restore a horizontally-stretched card
-  const inRows  = t.inputs.map(p=>`<div class="prow"><i class="port ${p.type}" data-node="${n.id}" data-port="${p.name}" data-dir="in" data-ptype="${p.type}"></i><span>${p.name}</span></div>`).join("");
-  const outRows = t.outputs.map(p=>`<div class="prow"><i class="port ${p.type}" data-node="${n.id}" data-port="${p.name}" data-dir="out" data-ptype="${p.type}"></i><span>${p.name}</span></div>`).join("");
+  const inRows  = t.inputs.map(p=>portRowHTML(n.id, p, "in")).join("");
+  const outRows = outputsOf(n).map(p=>portRowHTML(n.id, p, "out")).join("");
   el.innerHTML = `
     <header class="t-${n.type}">
       <span class="em">${t.em}</span><span class="ttl">${t.title}</span>
@@ -1131,6 +1214,14 @@ function showResult(n){
   const t = NODE_TYPES[n.type], r = n.el.querySelector(".result");
   if(t.preview==="none"){ r.classList.remove("show"); r.innerHTML=""; return; }
   r.classList.add("show");
+  if(t.preview==="frames"){
+    const imgs = outputsOf(n).map(p=> n.out[p.name]).filter(Boolean);
+    if(!imgs.length){ r.classList.remove("show"); r.innerHTML=""; return; }
+    r.innerHTML = `<div class="frames">${imgs.map((src,i)=>
+      `<div class="fr"><img src="${esc(src)}" alt="frame ${i+1}"/><button data-dl="${i}" title="save frame ${i+1}">⬇</button></div>`).join("")}</div>`;
+    imgs.forEach((src,i)=> r.querySelector(`[data-dl="${i}"]`).onclick = ()=> downloadUrl(src, `noodle-${n.id}-frame${i+1}.png`));
+    return;
+  }
   if(t.preview==="image" && n.out.image){
     r.innerHTML = `<img src="${esc(n.out.image)}" alt="output"/><div class="acts"><button data-dl>⬇ save</button></div>`;
     r.querySelector("[data-dl]").onclick = ()=> downloadUrl(n.out.image, `noodle-${n.id}.png`);
@@ -1571,6 +1662,33 @@ const CTX = {
   }
 };
 // turn a blob:/data:/http url into a base64 data URL (for video/audio source payloads)
+// Output ports for the frame extractor: one image port per requested frame (clamped).
+const MAX_FRAMES = 12;
+function framePorts(n){
+  const k = Math.max(1, Math.min(MAX_FRAMES, parseInt(n.fields.frames,10)||1));
+  return Array.from({length:k}, (_,i)=> ({ name:"frame"+(i+1), type:"image" }));
+}
+// Give any media URL a same-origin handle we can paint to a canvas without tainting it.
+// data:/blob: are usable as-is; a remote https: clip is fetched to a blob URL (connect-src
+// already allows this — same path the save buttons use). Caller must revoke() when done.
+async function toLocalMediaUrl(url){
+  if(/^(data:|blob:)/.test(url)) return { src:url, revoke:null };
+  const blob = await (await fetch(url)).blob();
+  const o = URL.createObjectURL(blob);
+  return { src:o, revoke:()=> URL.revokeObjectURL(o) };
+}
+// Seek a <video> to a time and resolve once that frame is decoded and drawable. Falls back
+// after a timeout so a stubborn clip can't hang the run (the frame may just be approximate).
+function seekVideo(vid, t){
+  return new Promise((res)=>{
+    let settled = false;
+    const done = ()=>{ if(settled) return; settled = true; clearTimeout(to); vid.removeEventListener("seeked", done); res(); };
+    const to = setTimeout(done, 5000);
+    vid.addEventListener("seeked", done);
+    if(Math.abs(vid.currentTime - t) < 1e-3 && vid.readyState >= 2) requestAnimationFrame(done);
+    else vid.currentTime = t;
+  });
+}
 async function urlToDataUrl(url){
   if(/^data:/.test(url)) return url;
   const blob = await (await fetch(url)).blob();

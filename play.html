@@ -637,6 +637,25 @@ window.NoodleApp = (function () {
   async function videoSourceOpts(url){
     return /^https?:/.test(url) ? { videoUrl:url } : { videoDataUrl: await urlToDataUrl(url) };
   }
+  // frame extraction helpers (verbatim, index.html): a same-origin handle to paint to a
+  // canvas, and a seek that resolves once the frame is decoded (timeout-guarded).
+  const MAX_FRAMES = 12;
+  async function toLocalMediaUrl(url){
+    if(/^(data:|blob:)/.test(url)) return { src:url, revoke:null };
+    const blob = await (await fetch(url)).blob();
+    const o = URL.createObjectURL(blob);
+    return { src:o, revoke:()=> URL.revokeObjectURL(o) };
+  }
+  function seekVideo(vid, t){
+    return new Promise((res)=>{
+      let settled = false;
+      const done = ()=>{ if(settled) return; settled = true; clearTimeout(to); vid.removeEventListener("seeked", done); res(); };
+      const to = setTimeout(done, 5000);
+      vid.addEventListener("seeked", done);
+      if(Math.abs(vid.currentTime - t) < 1e-3 && vid.readyState >= 2) requestAnimationFrame(done);
+      else vid.currentTime = t;
+    });
+  }
   // async audio (music / some TTS): submit returns {status:"pending", runId} → poll /api/tts/status until completed
   async function pollAudio(model, j, onProgress){
     const runId = j.runId || j.id;
@@ -807,6 +826,40 @@ window.NoodleApp = (function () {
         const url = await ctx.genVideo(mdl(n), prompt, await videoSourceOpts(inp.video), null,
           (st,ms)=> onProgress && onProgress("processing video… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
         return { video: url };
+      }
+    },
+    vframes: {
+      em:"🎞", title:"Video → frames",
+      inputs:[{name:"video", type:"video"}], outputs:[{name:"frame1", type:"image"}],
+      async run(n, inp, ctx, onProgress){
+        if(!inp.video) throw new Error("no video input");
+        const count = Math.max(1, Math.min(MAX_FRAMES, parseInt(n.fields.frames,10)||1));
+        const skip  = Math.max(0, parseInt(n.fields.skip,10)||0);
+        const fps   = Math.max(1, Math.min(120, parseInt(n.fields.fps,10)||30));
+        const fromEnd = (n.fields.dir||"start")==="end";
+        const frameDur = 1/fps, stepSec = (skip+1)*frameDur;
+        const loc = await toLocalMediaUrl(inp.video);
+        const vid = document.createElement("video");
+        vid.muted = true; vid.playsInline = true; vid.preload = "auto"; vid.crossOrigin = "anonymous";
+        try{
+          vid.src = loc.src;
+          await new Promise((res, rej)=>{ vid.onloadedmetadata = ()=> res(); vid.onerror = ()=> rej(new Error("could not load that video")); });
+          const dur = vid.duration;
+          if(!isFinite(dur) || dur<=0) throw new Error("video has no readable duration");
+          const canvas = document.createElement("canvas");
+          canvas.width = vid.videoWidth || 1280; canvas.height = vid.videoHeight || 720;
+          const c2d = canvas.getContext("2d");
+          const out = {};
+          for(let i=0;i<count;i++){
+            onProgress && onProgress("extracting frame " + (i+1) + "/" + count + "…");
+            let t = fromEnd ? (dur - frameDur - i*stepSec) : (i*stepSec);
+            t = Math.max(0, Math.min(Math.max(0, dur - frameDur), t));
+            await seekVideo(vid, t);
+            c2d.drawImage(vid, 0, 0, canvas.width, canvas.height);
+            out["frame"+(i+1)] = canvas.toDataURL("image/jpeg", 0.9);
+          }
+          return out;
+        } finally { if(loc.revoke) loc.revoke(); vid.removeAttribute("src"); vid.load(); }
       }
     },
     lipsync: {
@@ -1006,6 +1059,7 @@ window.NoodleApp = (function () {
     edit:   "edits an existing image following an instruction",
     vision: "looks at an image and answers a question about it in text",
     tvideo: "generates a video from a text prompt",
+    vframes:"pulls still frames out of a video",
     ivideo: "animates a still image into a video",
     music:  "generates music from a style/prompt",
     tts:    "reads text aloud as speech",
@@ -1040,6 +1094,7 @@ window.NoodleApp = (function () {
       if(f.duration)                    facts.push("duration " + f.duration + "s");
       if(f.aspect)                      facts.push("aspect " + f.aspect);
       if(n.type==="join" && f.sep!=null) facts.push("separator " + JSON.stringify(f.sep));
+      if(n.type==="vframes")             facts.push((f.frames>1?(f.frames+" frames"):"1 frame") + " from the " + ((f.dir||"start")==="end"?"end":"start"));
 
       let line = "  " + (idx+1) + ". " + (t.em ? t.em+" " : "") + nameOf(n)
                + (NODE_ROLE[n.type] ? " — " + NODE_ROLE[n.type] : "");
