@@ -1159,6 +1159,7 @@ function removeNode(id){
   graph.nodes = graph.nodes.filter(x=>x.id!==id);
   if(selected===n) selected=null;
   for(const aid of affected){ const an = byId(aid); if(an){ recompactImageLinks(an); refreshImageInputs(an); } }
+  refreshPortFills();   // a textarea fed by the removed node is now unwired — unlock it (don't leave it disabled)
   redraw(); save();
 }
 
