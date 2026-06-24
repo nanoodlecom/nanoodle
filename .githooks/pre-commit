@@ -18,9 +18,11 @@ touches_sw=$(printf '%s\n' "$staged" | grep -E '(^|/)(sw\.js|scripts/check-sw-ro
 touches_compat=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-workflow-compat\.mjs)$' || true)
 # play.html carries the run engine — old workflows must keep producing identical NanoGPT calls.
 touches_run=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-run-compat\.mjs)$' || true)
+# index.html carries the editor's dynamic image-input port logic (growth, compaction).
+touches_imgports=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-image-ports\.mjs)$' || true)
 
 # Nothing to check unless an .html file or one of the checkers changed.
-[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && exit 0
+[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_imgports" ] && exit 0
 
 if ! command -v node >/dev/null 2>&1; then
   echo "pre-commit: node not found, skipping HTML JS checks" >&2
@@ -68,4 +70,11 @@ fi
 #    of graphs (+ the shipped noodle-graph.json) with a recording fetch.
 if [ -n "$touches_run" ]; then
   node "$root/scripts/check-run-compat.mjs"
+fi
+
+# 7) the editor's dynamic image-input ports must grow, disable, and COMPACT (no hole
+#    left when a middle image source is removed). Extracts the real functions from
+#    index.html and unit-tests them in a node:vm sandbox.
+if [ -n "$touches_imgports" ]; then
+  node "$root/scripts/check-image-ports.mjs"
 fi

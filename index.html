@@ -995,6 +995,16 @@ function buildNodeEl(n){
   prepTextareas(n);
 }
 
+// Keep a node's image ports contiguous (img1, img2, …) after one is unwired — without this,
+// removing the source of a middle port (img2) leaves a hole. Renumbers the surviving image
+// links in place, preserving order. Safe no-op for nodes without image inputs.
+function recompactImageLinks(n){
+  if(!n || !NODE_TYPES[n.type]?.imageInputs) return;
+  graph.links.filter(l=> l.to.node===n.id && IMG_PORT_RE.test(l.to.port))
+    .sort((a,b)=> (+a.to.port.slice(3)) - (+b.to.port.slice(3)))
+    .forEach((l,i)=>{ l.to.port = "img"+(i+1); });
+}
+
 // Render a node's dynamic image input ports (vision-capable chat). Idempotent: rebuilds the
 // rows from the current model + wiring, so it's safe to re-run after a model pick, connect,
 // disconnect, or graph load. A disabled stub can't be wired (startWire bails on .disabled).
@@ -1140,11 +1150,15 @@ function mountFileUpload(n, field){
 }
 
 function removeNode(id){
+  // downstream image inputs this node feeds — they must recompact so no hole is left behind
+  const affected = [...new Set(graph.links
+    .filter(l=> l.from.node===id && IMG_PORT_RE.test(l.to.port)).map(l=> l.to.node))];
   graph.links = graph.links.filter(l=> l.from.node!==id && l.to.node!==id);
   const n = byId(id); n?._stopCam?.();           // release the webcam if this was an Image-input node
   if(n?.el) n.el.remove();
   graph.nodes = graph.nodes.filter(x=>x.id!==id);
   if(selected===n) selected=null;
+  for(const aid of affected){ const an = byId(aid); if(an){ recompactImageLinks(an); refreshImageInputs(an); } }
   redraw(); save();
 }
 
@@ -1250,8 +1264,9 @@ function redraw(){
 function removeLink(id){
   const l = graph.links.find(x=>x.id===id);
   graph.links = graph.links.filter(x=>x.id!==id);
-  redraw(); refreshPortFills();
-  if(l) refreshImageInputs(byId(l.to.node)||{});   // a freed image port may drop a trailing slot
+  const tn = l && byId(l.to.node);
+  if(tn){ recompactImageLinks(tn); refreshImageInputs(tn); }   // close any hole, rebuild ports first…
+  redraw(); refreshPortFills();                                // …then draw wires to the new ports
   save();
 }
 function refreshPortFills(){
@@ -1797,7 +1812,7 @@ function applyGraphData(d){
   const num = (s)=> parseInt(String(s).replace(/\D/g,""),10) || 0;
   nid = Math.max(d.nid||0, 0, ...graph.nodes.map(n=>num(n.id))) + 1;
   lid = Math.max(d.lid||0, 0, ...graph.links.map(l=>num(l.id))) + 1;
-  graph.nodes.forEach(refreshImageInputs);   // now that links are loaded, grow image ports to match
+  graph.nodes.forEach(n=>{ recompactImageLinks(n); refreshImageInputs(n); });   // links loaded → compact + grow image ports
   redraw(); refreshPortFills(); refreshAllPrices();
 }
 
