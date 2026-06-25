@@ -637,6 +637,91 @@ window.NoodleApp = (function () {
   async function videoSourceOpts(url){
     return /^https?:/.test(url) ? { videoUrl:url } : { videoDataUrl: await urlToDataUrl(url) };
   }
+  // frame extraction helpers (verbatim, index.html): a same-origin handle to paint to a
+  // canvas, and a seek that resolves once the frame is decoded (timeout-guarded).
+  const MAX_FRAMES = 12;
+  // in-browser video concatenation (the Combine node). Play each clip, paint its frames onto a
+  // shared canvas, and re-record them into ONE clip via MediaRecorder. captureStream(0) + manual
+  // requestFrame() give frame-exact control, so dedup drops each next clip's duplicate first
+  // frame. mp4 where the browser can record it, else webm. Same-origin throughout (no new CSP).
+  function pickVideoMime(){
+    if(typeof MediaRecorder === "undefined") throw new Error("this browser can’t record video (no MediaRecorder)");
+    const prefs = ["video/mp4;codecs=avc1.42E01E","video/mp4","video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"];
+    for(const m of prefs) if(MediaRecorder.isTypeSupported(m)) return m;
+    throw new Error("this browser can’t record a supported video format");
+  }
+  async function toLocalMediaUrl(url){
+    if(/^(data:|blob:)/.test(url)) return { src:url, revoke:null };
+    const blob = await (await fetch(url)).blob();
+    const o = URL.createObjectURL(blob);
+    return { src:o, revoke:()=> URL.revokeObjectURL(o) };
+  }
+  function seekVideo(vid, t){
+    return new Promise((res)=>{
+      let settled = false;
+      const done = ()=>{ if(settled) return; settled = true; clearTimeout(to); vid.removeEventListener("seeked", done); res(); };
+      const to = setTimeout(done, 5000);
+      vid.addEventListener("seeked", done);
+      if(Math.abs(vid.currentTime - t) < 1e-3 && vid.readyState >= 2) requestAnimationFrame(done);
+      else vid.currentTime = t;
+    });
+  }
+  function loadVideoMeta(src){
+    return new Promise((res, rej)=>{
+      const v = document.createElement("video");
+      v.muted = true; v.preload = "metadata"; v.crossOrigin = "anonymous"; v.src = src;
+      v.onloadedmetadata = ()=> res({ w: v.videoWidth||1280, h: v.videoHeight||720, dur: v.duration });
+      v.onerror = ()=> rej(new Error("could not read a clip"));
+    });
+  }
+  function recordClip(src, c2d, W, H, track, skipFirst){
+    return new Promise((resolve, reject)=>{
+      const vid = document.createElement("video");
+      vid.muted = true; vid.playsInline = true; vid.crossOrigin = "anonymous"; vid.src = src;
+      let seen = 0, finished = false;
+      const cleanup = ()=>{ try{ vid.pause(); }catch(e){} vid.removeAttribute("src"); vid.load(); };
+      const finish = ()=>{ if(finished) return; finished = true; cleanup(); resolve(); };
+      const onFrame = ()=>{
+        if(finished) return;
+        seen++;
+        if(!(skipFirst && seen===1)){ c2d.drawImage(vid, 0, 0, W, H); track.requestFrame(); }
+        if(vid.ended) return finish();
+        vid.requestVideoFrameCallback(onFrame);
+      };
+      vid.onended = finish;
+      vid.onerror = ()=>{ cleanup(); reject(new Error("could not play a clip")); };
+      vid.onloadeddata = ()=>{
+        if(typeof vid.requestVideoFrameCallback !== "function"){ cleanup(); return reject(new Error("this browser can’t read video frames (no requestVideoFrameCallback)")); }
+        vid.requestVideoFrameCallback(onFrame);
+        vid.play().catch(reject);
+      };
+    });
+  }
+  async function concatVideos(urls, dedup, onProgress){
+    const handles = [];
+    for(const u of urls) handles.push(await toLocalMediaUrl(u));
+    try{
+      const mime = pickVideoMime();
+      const meta = await loadVideoMeta(handles[0].src), W = meta.w, H = meta.h;
+      const canvas = document.createElement("canvas"); canvas.width = W; canvas.height = H;
+      const c2d = canvas.getContext("2d");
+      if(typeof canvas.captureStream !== "function") throw new Error("this browser can’t capture a canvas stream");
+      const stream = canvas.captureStream(0);
+      const track = stream.getVideoTracks()[0];
+      const rec = new MediaRecorder(stream, { mimeType:mime, videoBitsPerSecond: 16000000 });
+      const chunks = []; rec.ondataavailable = e=>{ if(e.data && e.data.size) chunks.push(e.data); };
+      const stopped = new Promise((res, rej)=>{ rec.onstop = res; rec.onerror = e=> rej((e && e.error) || new Error("recording failed")); });
+      rec.start();
+      for(let i=0;i<handles.length;i++){
+        onProgress && onProgress("combining clip " + (i+1) + "/" + handles.length + "…");
+        await recordClip(handles[i].src, c2d, W, H, track, dedup && i>0);
+      }
+      rec.stop();
+      await stopped;
+      track.stop();
+      return URL.createObjectURL(new Blob(chunks, { type: mime.split(";")[0] }));
+    } finally { handles.forEach(h=> h.revoke && h.revoke()); }
+  }
   // async audio (music / some TTS): submit returns {status:"pending", runId} → poll /api/tts/status until completed
   async function pollAudio(model, j, onProgress){
     const runId = j.runId || j.id;
@@ -708,6 +793,12 @@ window.NoodleApp = (function () {
   const IMG_PORT_RE = /^img\d+$/;
   function collectImageInputs(inp){
     return Object.keys(inp).filter(k=> IMG_PORT_RE.test(k)).sort((a,b)=> +a.slice(3) - +b.slice(3))
+      .map(k=> inp[k]).filter(Boolean);
+  }
+  // dynamic clip input ports (vid1, vid2, …) on the Combine node — pulled from inp in order
+  const VID_PORT_RE = /^vid\d+$/;
+  function collectVideoInputs(inp){
+    return Object.keys(inp).filter(k=> VID_PORT_RE.test(k)).sort((a,b)=> +a.slice(3) - +b.slice(3))
       .map(k=> inp[k]).filter(Boolean);
   }
 
@@ -817,6 +908,50 @@ window.NoodleApp = (function () {
         const url = await ctx.genVideo(mdl(n), prompt, await videoSourceOpts(inp.video), null,
           (st,ms)=> onProgress && onProgress("processing video… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
         return { video: url };
+      }
+    },
+    vframes: {
+      em:"🎞", title:"Video → frames",
+      inputs:[{name:"video", type:"video"}], outputs:[{name:"frame1", type:"image"}],
+      async run(n, inp, ctx, onProgress){
+        if(!inp.video) throw new Error("no video input");
+        const count = Math.max(1, Math.min(MAX_FRAMES, parseInt(n.fields.frames,10)||1));
+        const gapRaw = parseFloat(n.fields.gap);
+        const stepSec = Number.isFinite(gapRaw) ? Math.max(0, gapRaw) : 0.5;   // seconds between captured frames
+        const fromEnd = (n.fields.dir||"end")==="end";
+        const EPS = 0.04;   // back off from the exact end — seeking to =duration often yields no frame
+        const loc = await toLocalMediaUrl(inp.video);
+        const vid = document.createElement("video");
+        vid.muted = true; vid.playsInline = true; vid.preload = "auto"; vid.crossOrigin = "anonymous";
+        try{
+          vid.src = loc.src;
+          await new Promise((res, rej)=>{ vid.onloadedmetadata = ()=> res(); vid.onerror = ()=> rej(new Error("could not load that video")); });
+          const dur = vid.duration;
+          if(!isFinite(dur) || dur<=0) throw new Error("video has no readable duration");
+          const canvas = document.createElement("canvas");
+          canvas.width = vid.videoWidth || 1280; canvas.height = vid.videoHeight || 720;
+          const c2d = canvas.getContext("2d");
+          const out = {};
+          for(let i=0;i<count;i++){
+            onProgress && onProgress("extracting frame " + (i+1) + "/" + count + "…");
+            let t = fromEnd ? (dur - EPS - i*stepSec) : (i*stepSec);
+            t = Math.max(0, Math.min(Math.max(0, dur - EPS), t));
+            await seekVideo(vid, t);
+            c2d.drawImage(vid, 0, 0, canvas.width, canvas.height);
+            out["frame"+(i+1)] = canvas.toDataURL("image/jpeg", 0.9);
+          }
+          return out;
+        } finally { if(loc.revoke) loc.revoke(); vid.removeAttribute("src"); vid.load(); }
+      }
+    },
+    combine: {
+      em:"🎬", title:"Combine videos",
+      inputs:[], videoInputs:true, outputs:[{name:"video", type:"video"}],
+      async run(n, inp, ctx, onProgress){
+        const clips = collectVideoInputs(inp);
+        if(clips.length < 2) throw new Error("wire at least two clips to combine");
+        const dedup = n.fields.dedup != null ? n.fields.dedup : true;
+        return { video: await concatVideos(clips, dedup, onProgress) };
       }
     },
     lipsync: {
@@ -934,11 +1069,16 @@ window.NoodleApp = (function () {
         if(t.imageInputs) for(const l of graph.links){
           if(l.to.node===id && IMG_PORT_RE.test(l.to.port)){ const src = byId(l.from.node); inp[l.to.port] = src && src.out ? src.out[l.from.port] : undefined; }
         }
+        // dynamic clip ports (vid1, vid2, …) on the Combine node → collected by run() via collectVideoInputs()
+        if(t.videoInputs) for(const l of graph.links){
+          if(l.to.node===id && VID_PORT_RE.test(l.to.port)){ const src = byId(l.from.node); inp[l.to.port] = src && src.out ? src.out[l.from.port] : undefined; }
+        }
         // a wired field overrides its typed value (n.fields[field]); declared ports handled above
         const fieldOverrides = {};
         for(const l of graph.links){
           if(l.to.node!==id || t.inputs.some(p=>p.name===l.to.port)) continue;
           if(t.imageInputs && IMG_PORT_RE.test(l.to.port)) continue;   // image ports aren't text-field overrides
+          if(t.videoInputs && VID_PORT_RE.test(l.to.port)) continue;   // clip ports aren't text-field overrides
           const src = byId(l.from.node);
           const v = src && src.out ? src.out[l.from.port] : undefined;
           if(v!=null) fieldOverrides[l.to.port] = v;
@@ -1021,9 +1161,11 @@ window.NoodleApp = (function () {
     edit:   "edits an existing image following an instruction",
     vision: "looks at an image and answers a question about it in text",
     tvideo: "generates a video from a text prompt",
+    vframes:"pulls still frames out of a video",
     ivideo: "animates a still image into a video",
     music:  "generates music from a style/prompt",
     tts:    "reads text aloud as speech",
+    combine:"joins several video clips end-to-end into one video",
   };
   function describeGraph(graph){
     const clip = (s, n)=>{ s = String(s).replace(/\s+/g," ").trim(); return s.length>n ? s.slice(0,n-1)+"…" : s; };
@@ -1055,6 +1197,7 @@ window.NoodleApp = (function () {
       if(f.duration)                    facts.push("duration " + f.duration + "s");
       if(f.aspect)                      facts.push("aspect " + f.aspect);
       if(n.type==="join" && f.sep!=null) facts.push("separator " + JSON.stringify(f.sep));
+      if(n.type==="vframes")             facts.push((f.frames>1?(f.frames+" frames"):"1 frame") + " from the " + ((f.dir||"end")==="end"?"end":"start"));
 
       let line = "  " + (idx+1) + ". " + (t.em ? t.em+" " : "") + nameOf(n)
                + (NODE_ROLE[n.type] ? " — " + NODE_ROLE[n.type] : "");

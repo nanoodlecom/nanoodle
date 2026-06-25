@@ -25,7 +25,8 @@ function extractFn(src, name) {
   }
   throw new Error(`could not brace-match ${name}()`);
 }
-const reLine = (SRC.match(/const IMG_PORT_RE = \/[^\n]*;/) || [])[0];
+const reLine = (SRC.match(/const IMG_PORT_RE = \/[^\n]*;/) || [])[0]
+  + "\n" + (SRC.match(/const VID_PORT_RE = \/[^\n]*;/) || [])[0];
 
 // ---- a fake DOM just big enough for refreshPortFills' selectors -----------
 const ALL = [];
@@ -92,6 +93,7 @@ const ctx = {
   selected: null,
   redraw: () => {}, save: () => {},
   refreshImageInputs: () => {}, recompactImageLinks: () => {},  // not exercised in this scenario
+  refreshVideoInputs: () => {}, recompactVideoLinks: () => {},  // combine's clip-port helpers — not exercised here
 };
 ctx.byId = (id) => ctx.graph.nodes.find((n) => n.id === id);
 vm.createContext(ctx);
