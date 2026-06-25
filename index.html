@@ -885,40 +885,57 @@ const NODE_TYPES = {
   inpaint: {
     em:"🩹", title:"Inpaint", desc:"Brush a region of an image → repaint just that area", group:"Image",
     modelKind:"image", modelFilter:"inpaint",
-    inputs:[],                                          // self-contained: own the source so the mask can be painted on it
+    // Both optional: leave them unwired to upload + brush inline (the easy default), or wire them to
+    // drive the source / mask from upstream nodes (a B/W mask image, a generated source, etc.). Wire
+    // always overrides inline; resolved in run() as inp.image ?? fields.image, inp.mask ?? fields.mask.
+    inputs:[{name:"image", type:"image"},{name:"mask", type:"image"}],
     outputs:[{name:"image", type:"image"}], preview:"image",
-    body:(n)=>`
+    body:(n)=>{
+      const links = (typeof graph!=="undefined" && graph && graph.links) || [];   // defensive: body() may run outside the live graph
+      const imgWired  = links.some(l=> l.to.node===n.id && l.to.port==="image");
+      const maskWired = links.some(l=> l.to.node===n.id && l.to.port==="mask");
+      const canvasHTML = n.fields.image
+        ? `<img src="${esc(n.fields.image)}" alt="source"/><canvas data-mcanvas></canvas>`
+        : `<span class="dim">${imgWired
+            ? "source comes from the wire — run once to load it here, then brush"
+            : "upload or capture an image, then brush the area to repaint"}</span>`;
+      const sourceCtrls = imgWired
+        ? `<div class="fhint">🔌 source image ← wired</div>`
+        : `<div class="two">
+             <button class="ubtn" data-up="file">⬆ Upload</button>
+             <button class="ubtn" data-up="cam">📷 Webcam</button>
+           </div>
+           <input type="file" accept="image/*" hidden data-upfile/>
+           <div class="cambox" data-cambox hidden>
+             <video data-upvid autoplay playsinline muted></video>
+             <div class="two"><button class="ubtn" data-up="snap">● Capture</button><button class="ubtn" data-up="stop">✕ Cancel</button></div>
+           </div>`;
+      const maskCtrls = maskWired
+        ? `<div class="fhint">🔌 mask ← wired (white = repaint)</div>`
+        : `<div class="two">
+             <div><label>brush size</label><input type="range" min="8" max="140" value="${+n.fields.brush||40}" data-f="brush"/></div>
+             <button class="ubtn" data-clearmask>Clear mask</button>
+           </div>`;
+      return `
       ${modelFieldHTML(n)}
-      <div class="maskwrap" data-maskwrap>
-        ${n.fields.image
-          ? `<img src="${esc(n.fields.image)}" alt="source"/><canvas data-mcanvas></canvas>`
-          : `<span class="dim">upload or capture an image, then brush the area to repaint</span>`}
-      </div>
-      <div class="two">
-        <button class="ubtn" data-up="file">⬆ Upload</button>
-        <button class="ubtn" data-up="cam">📷 Webcam</button>
-      </div>
-      <input type="file" accept="image/*" hidden data-upfile/>
-      <div class="cambox" data-cambox hidden>
-        <video data-upvid autoplay playsinline muted></video>
-        <div class="two"><button class="ubtn" data-up="snap">● Capture</button><button class="ubtn" data-up="stop">✕ Cancel</button></div>
-      </div>
-      <div class="two">
-        <div><label>brush size</label><input type="range" min="8" max="140" value="${+n.fields.brush||40}" data-f="brush"/></div>
-        <button class="ubtn" data-clearmask>Clear mask</button>
-      </div>
+      <div class="maskwrap" data-maskwrap>${canvasHTML}</div>
+      ${sourceCtrls}
+      ${maskCtrls}
       <div><label>size</label><select data-f="size">${optsHTML(SIZES, n.fields.size||SIZES[0][0])}</select></div>
-      <div><label>what to paint in</label><textarea data-f="prompt" placeholder="a red coffee mug, a small bird…">${esc(n.fields.prompt||"")}</textarea></div>`,
+      <div><label>what to paint in</label><textarea data-f="prompt" placeholder="a red coffee mug, a small bird…">${esc(n.fields.prompt||"")}</textarea></div>`;
+    },
     mount: mountInpaint,
     async run(n, inp, ctx){
-      if(!n.fields.image) throw new Error("no image — upload or capture one, then brush the area to repaint");
-      if(!n.fields.mask)  throw new Error("brush the area you want to repaint first (white = repaint)");
+      const source = inp.image ?? n.fields.image;       // wired source overrides the uploaded/captured one
+      const rawMask = inp.mask ?? n.fields.mask;         // wired B/W mask overrides the brushed one
+      if(!source)  throw new Error("no image — upload/capture one (or wire the image port), then brush the area to repaint");
+      if(!rawMask) throw new Error("no mask — brush the area to repaint (white), or wire the mask port");
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       if(!prompt) throw new Error("no prompt — say what to paint into the brushed area");
-      const mask = await maskToSource(n.fields.mask, n.fields.image);   // black/white PNG sized to the source
-      if((n.fields.image.length + mask.length) > MEDIA_INLINE_MAX)
+      const mask = await maskToSource(rawMask, source);   // composite onto black at the source's pixel size
+      if((source.length + mask.length) > MEDIA_INLINE_MAX)
         throw new Error("image too large (~4 MB limit) — use a smaller source image");
-      return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], n.fields.image, mask) };
+      return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], source, mask) };
     }
   },
 
@@ -1392,20 +1409,25 @@ function mountUpload(n){
   fileInput.addEventListener("change", ()=>{ const f=fileInput.files?.[0]; if(f) fileToDataURL(f, setImage); fileInput.value=""; });
 }
 
-// Inpaint node: own the source image (upload/webcam, like mountUpload) and brush a mask over it.
-// The visible overlay strokes translucent red so the selection is obvious; an offscreen canvas at the
-// source's pixel size accumulates the real white-on-transparent mask, exported (composited onto black)
-// only at run. Source + mask both live on n.fields, so they're present synchronously at paint time and
-// serialize for free — no dependence on runtime-only upstream n.out, sidestepping the DAG-timing issue.
+// Inpaint node: a source image (uploaded/captured inline, OR wired in) with a mask over it (brushed
+// inline, OR wired in as a B/W image). The visible overlay strokes translucent red so the selection is
+// obvious; an offscreen canvas at the source's pixel size accumulates the real white-on-transparent
+// mask, exported (composited onto black) only at run. Inline source+mask live on n.fields so they're
+// present synchronously and serialize for free. When the image port is wired, the source isn't known
+// until the upstream node runs — so we hydrate the brush canvas from its last output (n.out) when it
+// exists, and show a "run once to load it" hint until then. When the mask port is wired, brushing is
+// disabled (the wire supplies the mask) and we just preview the source.
 function mountInpaint(n){
   const el = n.el;
   const wrap = el.querySelector("[data-maskwrap]");
   const fileInput = el.querySelector("[data-upfile]");
   const cambox = el.querySelector("[data-cambox]");
   const video = el.querySelector("[data-upvid]");
+  const imgWired  = (graph.links||[]).some(l=> l.to.node===n.id && l.to.port==="image");
+  const maskWired = (graph.links||[]).some(l=> l.to.node===n.id && l.to.port==="mask");
   let stream = null, off = null, octx = null, drawing = false, last = null;
 
-  const stopCam = ()=>{ if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } if(video) video.srcObject=null; cambox.hidden=true; };
+  const stopCam = ()=>{ if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } if(video) video.srcObject=null; if(cambox) cambox.hidden=true; };
   n._stopCam = stopCam;                                    // so removeNode can release the camera
 
   const initMask = (w,h)=>{                                // offscreen mask: white strokes on a transparent canvas
@@ -1435,47 +1457,54 @@ function mountInpaint(n){
   const onUp = ()=>{ if(!drawing) return; drawing=false; n.fields.mask = off.toDataURL("image/png"); save(); };
   const bindCanvas = ()=>{ const cv=overlay(); if(!cv) return;
     cv.width=off.width; cv.height=off.height;
-    cv.addEventListener("pointerdown", onDown); cv.addEventListener("pointermove", onMove);
-    cv.addEventListener("pointerup", onUp); cv.addEventListener("pointerleave", onUp);
+    if(!maskWired){                                        // wired mask → preview only, no painting
+      cv.addEventListener("pointerdown", onDown); cv.addEventListener("pointermove", onMove);
+      cv.addEventListener("pointerup", onUp); cv.addEventListener("pointerleave", onUp);
+    }
     tintOverlay(); };
 
-  const setImage = (url)=>{                                // new source → old mask no longer aligns, so drop it
-    n.fields.image = url; n.fields.mask = null;
+  // Render a source image into the brush canvas. `store` writes it to n.fields.image (inline upload);
+  // a wired source passes store=false so the user's transient upstream image isn't serialized.
+  const render = (url, store)=>{
     const img = new Image();
     img.onload = ()=>{ wrap.innerHTML = `<img src="${esc(url)}" alt="source"/><canvas data-mcanvas></canvas>`;
-      initMask(img.naturalWidth, img.naturalHeight); bindCanvas(); save(); };
+      initMask(img.naturalWidth, img.naturalHeight);
+      if(n.fields.mask){ const m=new Image(); m.onload=()=>{ octx.drawImage(m,0,0,off.width,off.height); bindCanvas(); }; m.src=n.fields.mask; }
+      else bindCanvas();
+      if(store) save();
+    };
     img.onerror = ()=> flash("couldn’t read that image");
     img.src = url;
   };
+  const setImage = (url)=>{ n.fields.image = url; n.fields.mask = null; render(url, true); };   // new source → old mask no longer aligns
 
   el.querySelectorAll("[data-up]").forEach(b=>{
     b.addEventListener("pointerdown", e=> e.stopPropagation());   // don't start a node drag
     b.onclick = async (e)=>{
       e.stopPropagation();
       const act = b.dataset.up;
-      if(act==="file") fileInput.click();
+      if(act==="file") fileInput?.click();
       else if(act==="cam"){
         try{ stream = await navigator.mediaDevices.getUserMedia({video:true}); video.srcObject=stream; cambox.hidden=false; }
         catch(err){ flash("webcam unavailable: "+err.message); }
       }
-      else if(act==="snap"){ if(video.videoWidth){ setImage(scaledDataURL(video, video.videoWidth, video.videoHeight)); } stopCam(); }
+      else if(act==="snap"){ if(video?.videoWidth){ setImage(scaledDataURL(video, video.videoWidth, video.videoHeight)); } stopCam(); }
       else if(act==="stop") stopCam();
     };
   });
-  fileInput.addEventListener("change", ()=>{ const f=fileInput.files?.[0]; if(f) fileToDataURL(f, setImage); fileInput.value=""; });
+  fileInput?.addEventListener("change", ()=>{ const f=fileInput.files?.[0]; if(f) fileToDataURL(f, setImage); fileInput.value=""; });
   el.querySelector("[data-clearmask]")?.addEventListener("pointerdown", e=> e.stopPropagation());
   el.querySelector("[data-clearmask]")?.addEventListener("click", (e)=>{ e.stopPropagation();
     if(off) octx.clearRect(0,0,off.width,off.height);
     n.fields.mask = null; tintOverlay(); save(); });
 
-  // re-hydrate after a graph load / rebuild: the body already rendered the img + canvas
-  if(n.fields.image){
-    const img = new Image();
-    img.onload = ()=>{ initMask(img.naturalWidth, img.naturalHeight);
-      if(n.fields.mask){ const m=new Image(); m.onload=()=>{ octx.drawImage(m,0,0,off.width,off.height); bindCanvas(); }; m.src=n.fields.mask; }
-      else bindCanvas();
-    };
-    img.src = n.fields.image;
+  // Hydrate the canvas: inline source if present, else the wired source's last output (so brushing a
+  // generated image works after one run). The body already rendered the hint when neither is available.
+  if(n.fields.image){ render(n.fields.image, false); }
+  else if(imgWired){
+    const l = (graph.links||[]).find(x=> x.to.node===n.id && x.to.port==="image");
+    const upstream = l ? byId(l.from.node)?.out?.[l.from.port] : null;
+    if(upstream) render(upstream, false);
   }
 }
 // Build the API mask from the painted strokes: composite white-on-transparent onto black, at the
@@ -1651,6 +1680,7 @@ function removeLink(id){
   graph.links = graph.links.filter(x=>x.id!==id);
   const tn = l && byId(l.to.node);
   if(tn){ recompactImageLinks(tn); refreshImageInputs(tn); recompactVideoLinks(tn); refreshVideoInputs(tn); }   // close any hole, rebuild ports first…
+  if(tn?.type==="inpaint") rerenderNode(tn);                   // restore upload/brush UI when a port is unwired
   redraw(); refreshPortFills();                                // …then draw wires to the new ports
   save();
 }
@@ -1738,13 +1768,19 @@ function startWire(port, e){
   window.addEventListener("pointermove",move); window.addEventListener("pointerup",up);
 }
 
+// Rebuild a node's DOM in place (and redraw its wires). Used when a node's body depends on wiring
+// state — e.g. the Inpaint node folds its upload/brush UI away once a port is wired.
+function rerenderNode(n){ if(!n?.el) return; n.el.remove(); buildNodeEl(n); redraw(); refreshPortFills(); }
+
 function connect(fromNode, fromPort, toNode, toPort){
   if(fromNode===toNode) return;
   // each input takes a single link — drop any existing one
   graph.links = graph.links.filter(l=> !(l.to.node===toNode && l.to.port===toPort));
   graph.links.push({ id:"l"+(lid++), from:{node:fromNode, port:fromPort}, to:{node:toNode, port:toPort} });
-  refreshImageInputs(byId(toNode)||{});   // wiring the empty slot grows the next one
-  refreshVideoInputs(byId(toNode)||{});   // …same for the Combine node's clip ports
+  const tn = byId(toNode);
+  refreshImageInputs(tn||{});   // wiring the empty slot grows the next one
+  refreshVideoInputs(tn||{});   // …same for the Combine node's clip ports
+  if(tn?.type==="inpaint") rerenderNode(tn);   // reflect wired source/mask in the body
   redraw(); refreshPortFills(); save();
 }
 
@@ -2051,7 +2087,13 @@ async function runGroup(seedIds){
         }
         const rn = Object.keys(fieldOverrides).length ? { ...n, fields:{...n.fields, ...fieldOverrides} } : n;
         setStatus(n, "run");
-        try{ n.out = await t.run(rn, inp, CTX) || {}; showResult(n); setStatus(n, "done"); }
+        try{ n.out = await t.run(rn, inp, CTX) || {}; showResult(n); setStatus(n, "done");
+          // a downstream Inpaint node brushing a WIRED source can now load its canvas from this output
+          for(const l of graph.links){
+            const dn = l.from.node===n.id ? byId(l.to.node) : null;
+            if(dn?.type==="inpaint" && dn.el && !dn.fields.image && !runningNodes.has(dn.id)) rerenderNode(dn);
+          }
+        }
         catch(err){ setStatus(n, "error", err.message); }
       })();
     }
@@ -2068,6 +2110,16 @@ function runAll(){
 }
 
 /* ---------- NanoGPT calls (browser → NanoGPT directly) ---------- */
+// NanoGPT returns raw base64 with no declared content-type (usually JPEG, sometimes PNG/WebP).
+// Sniff the format from the leading bytes so the data: URL's MIME is honest — a wrong label bites
+// anyone who saves the bytes by their declared type or feeds them to a strict decoder.
+function b64ImageMime(b64){
+  if(b64.startsWith("/9j/"))  return "image/jpeg";
+  if(b64.startsWith("iVBOR")) return "image/png";
+  if(b64.startsWith("R0lG"))  return "image/gif";
+  if(b64.startsWith("UklG"))  return "image/webp";
+  return "image/png";   // unknown → sensible default; browsers sniff content regardless
+}
 const CTX = {
   async genImage(prompt, model, size, imageDataUrl, maskDataUrl){
     const body = { model, prompt, size, n:1, response_format:"b64_json" };
@@ -2077,7 +2129,7 @@ const CTX = {
     if(!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`);
     const j = await r.json();
     const d = (j.data||[])[0]||{};
-    const url = d.b64_json ? `data:image/png;base64,${d.b64_json}` : d.url;
+    const url = d.b64_json ? `data:${b64ImageMime(d.b64_json)};base64,${d.b64_json}` : d.url;
     if(!url) throw new Error("no image in response");
     accrue(j); return url;
   },

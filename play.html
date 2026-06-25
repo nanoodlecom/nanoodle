@@ -510,14 +510,15 @@ window.NoodleApp = (function () {
   // Per-run cost-tracking context: each node gets its own makeCtx(onCost) so a
   // generation's price lands on the right card even when siblings/lanes run at once.
   function makeCtx(onCost){ return {
-    async genImage(prompt, model, size, imageDataUrl){
+    async genImage(prompt, model, size, imageDataUrl, maskDataUrl){
       const body = { model, prompt, size, n:1, response_format:"b64_json" };
       if(imageDataUrl) body.imageDataUrl = imageDataUrl;   // present → image edit (img2img)
+      if(maskDataUrl)  body.maskDataUrl  = maskDataUrl;    // present → inpaint; WHITE areas = the region to repaint
       const r = await apiFetch(IMG_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
       if(!r.ok) throw new Error(r.status + ": " + (await r.text()).slice(0,160));
       const j = await r.json();
       const d = (j.data||[])[0]||{};
-      const url = d.b64_json ? "data:image/png;base64," + d.b64_json : d.url;
+      const url = d.b64_json ? "data:" + b64ImageMime(d.b64_json) + ";base64," + d.b64_json : d.url;
       if(!url) throw new Error("no image in response");
       onCost(costFromJson(j)); return url;
     },
@@ -824,6 +825,36 @@ window.NoodleApp = (function () {
       .map(k=> inp[k]).filter(Boolean);
   }
 
+  // Sniff an image's format from its base64 magic bytes so a data: URL's MIME is honest (verbatim, index.html).
+  function b64ImageMime(b64){
+    if(b64.startsWith("/9j/"))  return "image/jpeg";
+    if(b64.startsWith("iVBOR")) return "image/png";
+    if(b64.startsWith("R0lG"))  return "image/gif";
+    if(b64.startsWith("UklG"))  return "image/webp";
+    return "image/png";
+  }
+  // Build the API mask: composite the (brushed white-on-transparent, or wired B/W) mask onto black at
+  // the source's exact pixel size, so dimensions always match (verbatim behavior, index.html maskToSource).
+  function maskToSource(maskUrl, sourceUrl){
+    return new Promise((resolve, reject)=>{
+      const src = new Image();
+      src.onload = ()=>{
+        const m = new Image();
+        m.onload = ()=>{
+          const c = document.createElement("canvas"); c.width=src.naturalWidth; c.height=src.naturalHeight;
+          const ctx = c.getContext("2d");
+          ctx.fillStyle="#000"; ctx.fillRect(0,0,c.width,c.height);   // black = keep
+          ctx.drawImage(m, 0, 0, c.width, c.height);                  // white = repaint
+          resolve(c.toDataURL("image/png"));
+        };
+        m.onerror = ()=> reject(new Error("couldn’t read the mask"));
+        m.src = maskUrl;
+      };
+      src.onerror = ()=> reject(new Error("couldn’t read the source image"));
+      src.src = sourceUrl;
+    });
+  }
+
   /* =====================================================================
      NODE_TYPES run map (verbatim behavior, index.html).
      setNodeProgress() calls are redirected to the per-run onProgress cb.
@@ -883,6 +914,20 @@ window.NoodleApp = (function () {
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         if(!prompt) throw new Error("no edit instruction");
         return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], inp.image) };
+      }
+    },
+    inpaint: {
+      em:"🩹", title:"Inpaint",
+      inputs:[{name:"image", type:"image"},{name:"mask", type:"image"}], outputs:[{name:"image", type:"image"}],
+      async run(n, inp, ctx){
+        const source = inp.image != null ? inp.image : n.fields.image;   // wired source overrides the uploaded one
+        const rawMask = inp.mask != null ? inp.mask : n.fields.mask;      // wired B/W mask overrides the brushed one
+        if(!source)  throw new Error("no image — upload one, then brush the area to repaint");
+        if(!rawMask) throw new Error("no mask — brush the area to repaint (white)");
+        const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
+        if(!prompt) throw new Error("no prompt — say what to paint into the brushed area");
+        const mask = await maskToSource(rawMask, source);
+        return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], source, mask) };
       }
     },
     vision: {
@@ -1146,6 +1191,18 @@ window.NoodleApp = (function () {
   function deriveInputs(graph){
     const out = [];
     for(const n of graph.nodes){
+      // Inpaint is special: source + mask each come from a wire OR from the user. Surface the easiest
+      // controls for whatever isn't wired — an upload+brush widget for the common case, a B/W mask
+      // upload when the source is wired (so "generate → repaint" apps still expose the mask).
+      if(n.type==="inpaint"){
+        const fed = (p)=> graph.links.some(l=> l.to.node===n.id && l.to.port===p);
+        const base = { nodeId:n.id, node:n, title:NODE_TYPES.inpaint.title, em:NODE_TYPES.inpaint.em };
+        if(!fed("prompt")) out.push({ ...base, field:"prompt", label:"What to paint in", kind:"textarea" });
+        const imgFed = fed("image"), maskFed = fed("mask");
+        if(!imgFed) out.push({ ...base, field:"image", label: maskFed ? "Image" : "Image — brush the area to repaint", kind: maskFed ? "image" : "inpaint" });
+        else if(!maskFed) out.push({ ...base, field:"mask", label:"Mask (white = repaint)", kind:"image" });
+        continue;
+      }
       const specs = INPUT_SPECS[n.type]; if(!specs) continue;     // not a knob-bearing source
       for(const s of specs){
         // satisfied if a link feeds this field (fieldOverrides) → hide the control
@@ -1292,6 +1349,7 @@ window.NoodleApp = (function () {
     llm:    "writes text from a prompt",
     image:  "generates an image from a text prompt",
     edit:   "edits an existing image following an instruction",
+    inpaint:"repaints a brushed (or masked) region of an image from a prompt",
     vision: "looks at an image and answers a question about it in text",
     tvideo: "generates a video from a text prompt",
     vframes:"pulls still frames out of a video",
@@ -1393,6 +1451,15 @@ window.NoodleApp = (function () {
            + '<div class="file-prev" data-prev="'+id+'">'+(cur ? '<'+it.kind+' src="'+esc(cur)+'" controls'+(it.kind==="video"?" playsinline":"")+'></'+it.kind+'>' : '<span class="muted">no '+it.kind+'</span>')+'</div>'
            + '<input type="file" accept="'+it.kind+'/*" id="'+id+'" '+di+'>'
            + '</div>';
+    else if(it.kind==="inpaint")   // upload a source image, then brush the area to repaint (writes fields.image + fields.mask)
+      ctrl = '<div class="imgin inpaint-ctl" data-ip="'+i+'">'
+           + '<div class="file-prev maskwrap2" data-prev="'+i+'">'
+           +   (cur ? '<img src="'+esc(cur)+'" alt=""><canvas data-mc="'+i+'"></canvas>' : '<span class="muted">upload an image, then brush the area to repaint</span>')
+           + '</div>'
+           + '<input type="file" accept="image/*" id="'+id+'" data-ip-src="'+i+'">'
+           + '<div class="brushrow"><label>brush <input type="range" min="8" max="140" value="40" data-ip-brush="'+i+'"></label>'
+           +   '<button type="button" data-ip-clear="'+i+'">Clear mask</button></div>'
+           + '</div>';
     else if(it.kind==="select")
       ctrl = '<select id="'+id+'" '+di+'>'
            + (it.options||[]).map(o=>{ const v=Array.isArray(o)?o[0]:o, l=Array.isArray(o)?o[1]:o;
@@ -1490,6 +1557,7 @@ window.NoodleApp = (function () {
       }
     });
     fillModelLists();
+    box.querySelectorAll(".inpaint-ctl").forEach(ctl=> wireInpaintControl(box, ctl));
   }
   // Best-effort: pull each model field's catalog and fill its datalist so the
   // user can pick a different model. Never blocks the run; failures are silent.
@@ -1508,6 +1576,46 @@ window.NoodleApp = (function () {
                       + '<option value="__custom__">✎ Custom model id…</option>';
       }).catch(()=>{});
     });
+  }
+
+  // The end-user's inpaint widget: upload a source image, then brush the area to repaint. Mirrors the
+  // editor's mountInpaint — an offscreen white-on-transparent mask painted at the source's pixel size,
+  // shown as a translucent red overlay; written to fields.image + fields.mask for the run.
+  function wireInpaintControl(box, ctl){
+    const i = +ctl.dataset.ip, it = STATE.inputs[i];
+    const prev = ctl.querySelector('[data-prev="'+i+'"]');
+    const fileEl = ctl.querySelector('[data-ip-src]');
+    const brushEl = ctl.querySelector('[data-ip-brush]');
+    const clearEl = ctl.querySelector('[data-ip-clear]');
+    let off=null, octx=null, drawing=false, last=null, brush=40;
+    const overlay = ()=> prev.querySelector('canvas');
+    const initMask = (w,h)=>{ off=document.createElement('canvas'); off.width=w; off.height=h; octx=off.getContext('2d');
+      octx.lineCap='round'; octx.lineJoin='round'; octx.fillStyle='#fff'; octx.strokeStyle='#fff'; };
+    const tint = ()=>{ const cv=overlay(); if(!cv||!off) return;
+      if(cv.width!==off.width||cv.height!==off.height){ cv.width=off.width; cv.height=off.height; }
+      const c=cv.getContext('2d'); c.globalCompositeOperation='source-over'; c.clearRect(0,0,cv.width,cv.height);
+      c.drawImage(off,0,0); c.globalCompositeOperation='source-in'; c.fillStyle='rgba(255,59,48,.55)'; c.fillRect(0,0,cv.width,cv.height);
+      c.globalCompositeOperation='source-over'; };
+    const ptr = (e)=>{ const cv=overlay(), r=cv.getBoundingClientRect(); const sx=off.width/r.width, sy=off.height/r.height;
+      return { x:(e.clientX-r.left)*sx, y:(e.clientY-r.top)*sy, s:Math.max(sx,sy) }; };
+    const dab = (p)=>{ octx.beginPath(); octx.arc(p.x,p.y,(brush*p.s)/2,0,7); octx.fill(); };
+    const commit = ()=>{ it.node.fields.mask = off ? off.toDataURL('image/png') : null; };
+    const bind = ()=>{ const cv=overlay(); if(!cv) return; cv.width=off.width; cv.height=off.height;
+      cv.addEventListener('pointerdown', e=>{ if(!off) return; e.preventDefault(); cv.setPointerCapture?.(e.pointerId); drawing=true; last=ptr(e); dab(last); tint(); });
+      cv.addEventListener('pointermove', e=>{ if(!drawing) return; const p=ptr(e); octx.lineWidth=brush*p.s; octx.beginPath(); octx.moveTo(last.x,last.y); octx.lineTo(p.x,p.y); octx.stroke(); dab(p); last=p; tint(); });
+      const end = ()=>{ if(!drawing) return; drawing=false; commit(); };
+      cv.addEventListener('pointerup', end); cv.addEventListener('pointerleave', end); tint(); };
+    const loadSource = (url)=>{ const img=new Image(); img.onload=()=>{
+        prev.innerHTML = '<img src="'+esc(url)+'" alt=""><canvas data-mc="'+i+'"></canvas>';
+        initMask(img.naturalWidth, img.naturalHeight);
+        if(it.node.fields.mask){ const m=new Image(); m.onload=()=>{ octx.drawImage(m,0,0,off.width,off.height); bind(); }; m.src=it.node.fields.mask; }
+        else bind();
+      }; img.src=url; };
+    fileEl?.addEventListener('change', async ()=>{ const f=fileEl.files&&fileEl.files[0]; if(!f) return;
+      const url=await fileToDataUrl(f); it.node.fields.image=url; it.node.fields.mask=null; loadSource(url); });
+    brushEl?.addEventListener('input', ()=>{ brush=+brushEl.value||40; });
+    clearEl?.addEventListener('click', ()=>{ if(off) octx.clearRect(0,0,off.width,off.height); it.node.fields.mask=null; tint(); });
+    if(it.node.fields.image) loadSource(it.node.fields.image);   // re-hydrate a pre-set source
   }
 
   /* ---------- status + progress UI ----------
@@ -2150,6 +2258,14 @@ body{ background:
   outline:none; border-color:var(--accent-line); box-shadow:0 0 0 3px var(--accent-soft); }
 .field .file-prev img, .field .file-prev video{ max-width:160px; border-radius:.5rem; border:1px solid var(--line); margin-top:.4rem; display:block; }
 .field .file-prev audio{ width:100%; max-width:280px; margin-top:.4rem; display:block; }
+/* Inpaint control: brush canvas overlaid exactly on the source image */
+.field .maskwrap2{ position:relative; line-height:0; display:inline-block; max-width:280px; margin-top:.4rem; }
+.field .maskwrap2 img{ width:100%; max-width:280px; border-radius:.5rem; border:1px solid var(--line); display:block; }
+.field .maskwrap2 canvas{ position:absolute; inset:0; width:100%; height:100%; cursor:crosshair; touch-action:none; border-radius:.5rem; }
+.field .brushrow{ display:flex; align-items:center; gap:.7rem; margin-top:.5rem; flex-wrap:wrap; }
+.field .brushrow label{ display:flex; align-items:center; gap:.4rem; margin:0; flex:1; min-width:120px; }
+.field .brushrow input[type=range]{ flex:1; }
+.field .brushrow button{ font:inherit; padding:.4rem .7rem; border-radius:var(--radius); background:var(--panel); border:1px solid var(--line); color:var(--ink); cursor:pointer; width:auto; }
 .muted{ color:var(--faint); font-size:.85rem; }
 
 .run-row{ display:flex; align-items:center; gap:1rem; margin:.4rem 0 1.2rem; flex-wrap:wrap; }
