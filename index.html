@@ -392,9 +392,15 @@ function normImg(m){
   const per = m.pricing?.per_image||{};
   const v = per.square ?? per.square_hd ?? Object.values(per)[0];
   const mod = m.architecture?.modality || "";   // text->image | text+image->image | image->image
+  // TODO(nanogpt): NanoGPT mislabels a few edit-only models as text->image with image_to_image:false,
+  // so they'd surface as text-to-image generators and fail without a source image (verified live:
+  // "Image upload is required", "No input image data provided"). Detect the ones that truly need a
+  // source by id and route them to the edit node instead. Remove once upstream modality is correct —
+  // see NANOGPT-audio-modality-bug.md.
+  const needsSrc = /upscal|inpaint|image-to-image|img2img/i.test(m.id);
   return { id:m.id, name:m.name||m.id, created:m.created,
-    edit:!!m.capabilities?.image_to_image,                          // accepts an image input (text+image->image | image->image)
-    gen: mod ? mod.startsWith("text") : !m.capabilities?.image_to_image,  // can generate from text alone — excludes edit-only image->image models
+    edit: needsSrc || !!m.capabilities?.image_to_image,             // accepts an image input (text+image->image | image->image)
+    gen: needsSrc ? false : (mod ? mod.startsWith("text") : !m.capabilities?.image_to_image),  // text-only generators; excludes edit-only models
     price: v!=null ? `$${(+v).toFixed(3)}/img` : "" };
 }
 function normVideo(m){
@@ -420,7 +426,18 @@ function normAudio(m){
   const mod = arch.modality||"", out = mod.split("->")[1]||"";
   const sp = m.supported_parameters || {};
   const voices = Array.isArray(sp.voices) ? sp.voices.filter(v=>typeof v==="string") : [];
-  const gen = mod.startsWith("text") && /audio|music/.test(out);   // text-driven audio (speech / music / sfx)
+  // TODO(nanogpt): drop this guard once /api/v1/audio-models reports real modality (see
+  // NANOGPT-audio-modality-bug.md). NanoGPT tags ~12 audio endpoints "text->music" that aren't:
+  // lyrics generators (text->text), song analyzers (audio->text), stem/clone, the upload helper,
+  // and source-needing cover/extend/inpaint (audio+text->…). No metadata distinguishes them, so we
+  // match the action verb in the id — same approach as the /clone/ stt guard below.
+  const usable = !/lyric|describe|recognize|stem|clone|upload|cover|extend|inpaint/i.test(m.id);
+  // TODO(nanogpt): hide models whose generation service errors on *every* call — they're correctly
+  // labeled but currently dead, so picking one is a guaranteed dead end. Elevenlabs-Music-V1 returns
+  // 502 "Music generation service error" on every request (its TTS siblings work). Remove each id once
+  // upstream recovers — see NANOGPT-audio-modality-bug.md.
+  const dead = /^Elevenlabs-Music-V1$/i.test(m.id);
+  const gen = usable && !dead && mod.startsWith("text") && /audio|music/.test(out);   // text-driven audio (speech / music / sfx)
   const tts = !!c.text_to_speech || m.category==="audio_tts";
   // speech→text (transcription). voice-clone models are mislabeled audio_stt but emit a voice-id,
   // not a transcript — exclude them by id so they don't pollute the Transcribe node.
