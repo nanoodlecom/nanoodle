@@ -641,7 +641,7 @@ function audioFieldHTML(n, f){
   if(f.type==="number"){
     const rng = (f.min!=null&&f.max!=null) ? ` (${f.min}–${f.max})` : "";
     return `<div><label>${esc(f.label)}${rng}</label><input type="number" data-pf="${f.id}" step="any"${
-      f.min!=null?` min="${f.min}"`:""}${f.max!=null?` max="${f.max}"`:""} value="${cur??""}" placeholder="${f.default??""}"/>${hint}</div>`;
+      f.min!=null?` min="${f.min}"`:""}${f.max!=null?` max="${f.max}"`:""} value="${esc(cur??"")}" placeholder="${esc(f.default??"")}"/>${hint}</div>`;
   }
   const v = cur!=null ? cur : "";
   if(f.type==="textarea")
@@ -1096,7 +1096,7 @@ function outputsOf(n){
   return typeof o === "function" ? o(n) : o;
 }
 const portRowHTML = (nodeId, p, dir)=>
-  `<div class="prow"><i class="port ${p.type}" data-node="${nodeId}" data-port="${p.name}" data-dir="${dir}" data-ptype="${p.type}"></i><span>${p.name}</span></div>`;
+  `<div class="prow"><i class="port ${esc(p.type)}" data-node="${esc(nodeId)}" data-port="${esc(p.name)}" data-dir="${esc(dir)}" data-ptype="${esc(p.type)}"></i><span>${esc(p.name)}</span></div>`;
 
 // Rebuild a node's output port column after its dynamic-port count changes, then drop
 // any wires that fed from a port that no longer exists.
@@ -1198,7 +1198,7 @@ function refreshImageInputs(n){
   defs.forEach((d,i)=>{
     const row = document.createElement("div");
     row.className = "prow imgrow" + (d.disabled?" off":"");
-    row.innerHTML = `<i class="port image${d.disabled?" disabled":""}" data-node="${n.id}" data-port="${d.name}" data-dir="in" data-ptype="image"`
+    row.innerHTML = `<i class="port image${d.disabled?" disabled":""}" data-node="${esc(n.id)}" data-port="${esc(d.name)}" data-dir="in" data-ptype="image"`
       + (d.disabled?` title="this model can’t read images — pick a vision model"`:``) + `></i>`
       + `<span>${multi?("image "+(i+1)):"image"}</span>`;
     col.appendChild(row);
@@ -1223,7 +1223,7 @@ function refreshVideoInputs(n){
   defs.forEach((d,i)=>{
     const row = document.createElement("div");
     row.className = "prow vidrow";
-    row.innerHTML = `<i class="port video" data-node="${n.id}" data-port="${d.name}" data-dir="in" data-ptype="video"></i>`
+    row.innerHTML = `<i class="port video" data-node="${esc(n.id)}" data-port="${esc(d.name)}" data-dir="in" data-ptype="video"></i>`
       + `<span>${multi?("clip "+(i+1)):"clip"}</span>`;
     col.appendChild(row);
     row.querySelector(".port").addEventListener("pointerdown", e=> startWire(e.currentTarget, e));
