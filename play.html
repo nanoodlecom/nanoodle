@@ -2091,15 +2091,27 @@ function bundle(files){
   // <!-- include-config: graph.json --> -> window.NOODLE_GRAPH = <json>
   html = html.replace(/<!--\s*include-config:\s*([^>]+?)\s*-->/g, () => { graphDone = true; return ENGINE.graph(); });
 
-  // inline LOCAL <script src>; DROP external/remote ones (no external scripts — enforced, not prompted)
-  html = html.replace(/<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>\s*<\/script>/gi, (m, src) => {
-    if(/^(https?:)?\/\//i.test(src) || /^data:/i.test(src)) return "";          // remote/data → strip
-    const raw = files[src];
-    return raw == null ? "" : "<script>\n" + String(raw).replace(/<\/script/gi, "<\\/script") + "\n<\/script>";
+  // inline LOCAL script src; DROP external/remote ones (no external scripts — enforced, not prompted).
+  // Parse src quote-agnostically (quoted OR bare) and tolerate a non-empty body — a remote
+  // script tag must be stripped regardless of how it was written or whether it had a body; src wins.
+  html = html.replace(/<script\b([^>]*?)\bsrc\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))([^>]*)>([\s\S]*?)<\/script>/gi,
+    (m, pre, _raw, dq, sq, uq) => {
+      const src = (dq ?? sq ?? uq ?? "").trim();
+      if(/^(https?:)?\/\//i.test(src) || /^data:/i.test(src)) return "";          // remote/data → strip
+      const raw = files[src];
+      return raw == null ? "" : "<script>\n" + String(raw).replace(/<\/script/gi, "<\\/script") + "\n<\/script>";
+    });
+  // DROP external resource <link>s too (keep the app self-contained). Cover every rel that
+  // fetches a remote URL (stylesheet/preload/prefetch/preconnect/dns-prefetch/modulepreload)
+  // and parse href quote-agnostically.
+  html = html.replace(/<link\b[^>]*>/gi, (m) => {
+    const attr = (re)=> { const x = m.match(re); return x ? (x[1]||"").replace(/^["']|["']$/g, "") : ""; };
+    const rel  = attr(/\brel\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/i).toLowerCase();
+    const href = attr(/\bhref\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/i);
+    const fetchesRemote = /\b(stylesheet|preload|prefetch|preconnect|dns-prefetch|modulepreload)\b/.test(rel)
+      && /^(?:(?:https?:)?\/\/|data:)/i.test(href);
+    return fetchesRemote ? "" : m;
   });
-  // DROP external stylesheets too (keep the app self-contained)
-  html = html.replace(/<link\b[^>]*>/gi, (m) =>
-    (/\brel=["']?stylesheet["']?/i.test(m) && /\bhref=["'](?:(?:https?:)?\/\/|data:)/i.test(m)) ? "" : m);
 
   /* ---- self-heal the engine contract so an edit can never break the app ---- */
   // 1) mount-point ids: re-add a typed fallback for any the diff dropped, so the
