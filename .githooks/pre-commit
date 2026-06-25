@@ -16,9 +16,17 @@ touches_login=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|
 touches_sw=$(printf '%s\n' "$staged" | grep -E '(^|/)(sw\.js|scripts/check-sw-routing\.mjs)$' || true)
 # play.html defines the workflow-compatibility classifier the edit-workflow round-trip relies on.
 touches_compat=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-workflow-compat\.mjs)$' || true)
+# play.html carries the run engine — old workflows must keep producing identical NanoGPT calls.
+touches_run=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-run-compat\.mjs)$' || true)
+# index.html carries the editor's dynamic image-input port logic (growth, compaction).
+touches_imgports=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-image-ports\.mjs)$' || true)
+# index.html carries the link-removal path (unlocking text fields when their source is deleted).
+touches_editorports=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-editor-ports\.mjs)$' || true)
+# index.html carries the quick-add type filter (drop a wire into empty space → only fitting nodes).
+touches_quickadd=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-quickadd\.mjs)$' || true)
 
 # Nothing to check unless an .html file or one of the checkers changed.
-[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && exit 0
+[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_imgports" ] && [ -z "$touches_editorports" ] && [ -z "$touches_quickadd" ] && exit 0
 
 if ! command -v node >/dev/null 2>&1; then
   echo "pre-commit: node not found, skipping HTML JS checks" >&2
@@ -59,4 +67,31 @@ fi
 #    table of graph edits in a node:vm sandbox.
 if [ -n "$touches_compat" ]; then
   node "$root/scripts/check-workflow-compat.mjs"
+fi
+
+# 6) backward-compat: old workflows must produce the SAME NanoGPT calls after the
+#    LLM node gained dynamic image inputs. Drives the real runGraph() over a table
+#    of graphs (+ the shipped noodle-graph.json) with a recording fetch.
+if [ -n "$touches_run" ]; then
+  node "$root/scripts/check-run-compat.mjs"
+fi
+
+# 7) the editor's dynamic image-input ports must grow, disable, and COMPACT (no hole
+#    left when a middle image source is removed). Extracts the real functions from
+#    index.html and unit-tests them in a node:vm sandbox.
+if [ -n "$touches_imgports" ]; then
+  node "$root/scripts/check-image-ports.mjs"
+fi
+
+# 8) removing a node must unlock any text field it fed (no stuck-disabled prompt).
+#    Runs the real refreshPortFills()/removeNode() over a tiny fake DOM.
+if [ -n "$touches_editorports" ]; then
+  node "$root/scripts/check-editor-ports.mjs"
+fi
+
+# 9) drop-a-wire-into-empty-space quick add must offer ONLY type-compatible nodes
+#    (consumers when dragging from an output, producers when dragging from an input).
+#    Runs the real filter functions over the real NODE_TYPES registry.
+if [ -n "$touches_quickadd" ]; then
+  node "$root/scripts/check-quickadd.mjs"
 fi

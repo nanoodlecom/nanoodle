@@ -96,6 +96,16 @@
   #addpop .d{font-size:.74rem; color:var(--dim)}
   #addpop .grp{ font-size:.66rem; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); padding:.4rem .55rem .15rem; pointer-events:none }
   #addpop .grp:first-child{ padding-top:.15rem }
+  /* drop-a-wire-in-empty-space quick add: a contextual, type-filtered clone of #addpop, placed at the cursor */
+  #quickadd{ position:fixed; z-index:50; display:none; flex-direction:column; gap:.05rem; min-width:215px; max-height:min(60vh,520px);
+             overflow-y:auto; background:var(--panel); border:1px solid var(--line); border-radius:.6rem; padding:.35rem; box-shadow:0 12px 40px #000a }
+  #quickadd.open{ display:flex }
+  #quickadd button{ text-align:left; border:none; background:none; display:flex; gap:.55rem; align-items:center; padding:.45rem .55rem; border-radius:.45rem }
+  #quickadd button:hover{ background:var(--panel2) }
+  #quickadd .k{ font-size:1.1rem; width:1.4rem; text-align:center }
+  #quickadd .d{ font-size:.74rem; color:var(--dim) }
+  #quickadd .grp{ font-size:.66rem; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); padding:.4rem .55rem .15rem; pointer-events:none }
+  #quickadd .qhint{ font-size:.7rem; color:var(--accent); padding:.35rem .55rem .3rem; pointer-events:none; border-bottom:1px solid var(--line); margin-bottom:.2rem }
   #status{font-size:.78rem; color:var(--dim)}
   #share.ok{ border-color:var(--good); color:var(--good) }
   /* create-app popup (play.html in a modal iframe over the editor) */
@@ -171,10 +181,19 @@
   .port{ position:relative; width:13px; height:13px; border-radius:50%; border:2px solid var(--bg); background:var(--dim);
          cursor:crosshair; flex:0 0 auto; transition:transform .1s }
   .col.in{ margin-left:-7px } .col.out{ margin-right:-7px }
-  .port:hover{ transform:scale(1.35) }
+  /* a generous invisible grab zone so the tiny wire handle is easy to hit. Ports stack vertically,
+     so we widen mostly sideways (where you aim from) and only a little up/down (avoids grabbing the
+     neighbour socket on multi-input nodes). Touch widens it further below. */
+  .port::after{ content:""; position:absolute; inset:-5px -11px }
+  .body .fieldport::after{ right:0 }   /* …but keep the text-field socket's zone off the adjacent textarea */
+  .port:hover{ transform:scale(1.35); box-shadow:0 0 0 4px #ffffff1f }   /* clear "this is a draggable link handle" affordance */
   .port.text{ background:var(--text-port) } .port.image{ background:var(--image-port) }
   .port.video{ background:var(--video-port) } .port.audio{ background:var(--audio-port) }
   .port.filled{ box-shadow:0 0 0 3px #ffffff22 }
+  /* a disabled image input: the model can't see images, so the socket is inert until a vision model is picked */
+  .port.disabled{ cursor:not-allowed; opacity:.3; background:var(--dim) }
+  .port.disabled:hover{ transform:none }
+  .prow.imgrow.off span{ opacity:.4 }
   /* inline ports: a wirable socket sitting on the left edge next to a text field */
   .body .fieldport{ position:absolute; left:-1.1rem; top:0; z-index:3 }
   /* a field whose port is wired is driven by the connection — lock + dim it */
@@ -350,6 +369,7 @@
   <svg id="wires"></svg>
   <div id="world"></div>
 </main>
+<div id="quickadd"></div>
 
 <script>
 const NANOGPT = "https://nano-gpt.com";
@@ -378,9 +398,15 @@ function normImg(m){
   const per = m.pricing?.per_image||{};
   const v = per.square ?? per.square_hd ?? Object.values(per)[0];
   const mod = m.architecture?.modality || "";   // text->image | text+image->image | image->image
+  // TODO(nanogpt): NanoGPT mislabels a few edit-only models as text->image with image_to_image:false,
+  // so they'd surface as text-to-image generators and fail without a source image (verified live:
+  // "Image upload is required", "No input image data provided"). Detect the ones that truly need a
+  // source by id and route them to the edit node instead. Remove once upstream modality is correct —
+  // see NANOGPT-audio-modality-bug.md.
+  const needsSrc = /upscal|inpaint|image-to-image|img2img/i.test(m.id);
   return { id:m.id, name:m.name||m.id, created:m.created,
-    edit:!!m.capabilities?.image_to_image,                          // accepts an image input (text+image->image | image->image)
-    gen: mod ? mod.startsWith("text") : !m.capabilities?.image_to_image,  // can generate from text alone — excludes edit-only image->image models
+    edit: needsSrc || !!m.capabilities?.image_to_image,             // accepts an image input (text+image->image | image->image)
+    gen: needsSrc ? false : (mod ? mod.startsWith("text") : !m.capabilities?.image_to_image),  // text-only generators; excludes edit-only models
     price: v!=null ? `$${(+v).toFixed(3)}/img` : "" };
 }
 function normVideo(m){
@@ -406,7 +432,18 @@ function normAudio(m){
   const mod = arch.modality||"", out = mod.split("->")[1]||"";
   const sp = m.supported_parameters || {};
   const voices = Array.isArray(sp.voices) ? sp.voices.filter(v=>typeof v==="string") : [];
-  const gen = mod.startsWith("text") && /audio|music/.test(out);   // text-driven audio (speech / music / sfx)
+  // TODO(nanogpt): drop this guard once /api/v1/audio-models reports real modality (see
+  // NANOGPT-audio-modality-bug.md). NanoGPT tags ~12 audio endpoints "text->music" that aren't:
+  // lyrics generators (text->text), song analyzers (audio->text), stem/clone, the upload helper,
+  // and source-needing cover/extend/inpaint (audio+text->…). No metadata distinguishes them, so we
+  // match the action verb in the id — same approach as the /clone/ stt guard below.
+  const usable = !/lyric|describe|recognize|stem|clone|upload|cover|extend|inpaint/i.test(m.id);
+  // TODO(nanogpt): hide models whose generation service errors on *every* call — they're correctly
+  // labeled but currently dead, so picking one is a guaranteed dead end. Elevenlabs-Music-V1 returns
+  // 502 "Music generation service error" on every request (its TTS siblings work). Remove each id once
+  // upstream recovers — see NANOGPT-audio-modality-bug.md.
+  const dead = /^Elevenlabs-Music-V1$/i.test(m.id);
+  const gen = usable && !dead && mod.startsWith("text") && /audio|music/.test(out);   // text-driven audio (speech / music / sfx)
   const tts = !!c.text_to_speech || m.category==="audio_tts";
   // speech→text (transcription). voice-clone models are mislabeled audio_stt but emit a voice-id,
   // not a transcript — exclude them by id so they don't pollute the Transcribe node.
@@ -448,6 +485,35 @@ function defModelFor(type){
   const t = NODE_TYPES[type]; if(!t.modelKind) return "";
   const m = (catalogs[t.modelKind]||[]).find(x=> passesFilter(x, t.modelFilter));
   return m ? m.id : "";
+}
+
+/* ---------- dynamic image inputs (vision-capable chat models) ----------
+   A node with `imageInputs:"<capFlag>"` grows image input ports that get sent to the
+   model alongside the prompt. The selected model's capability flag (e.g. vision) gates it:
+   supported → show every wired port plus ONE empty trailing slot (so there's always room
+   for another); unsupported → a single disabled stub that visibly "unlocks" once a capable
+   model (e.g. doubao-seed-2.1-pro) is picked. Unknown/offline model ids are treated as
+   capable so a typed-in id is never blocked. Ports are named img1, img2, … and live as
+   links (not fields), so they serialize and export for free. */
+const IMG_PORT_RE = /^img\d+$/;
+function modelSupportsImages(n){
+  const t = NODE_TYPES[n.type]; if(!t.imageInputs) return false;
+  const m = catItem(t.modelKind, n.fields.model);
+  return !m || !!m[t.imageInputs];   // permissive when the id isn't in the catalog
+}
+function imageInputDefs(n){
+  const t = NODE_TYPES[n.type]; if(!t.imageInputs) return [];
+  const wired = (graph.links||[]).filter(l=> l.to.node===n.id && IMG_PORT_RE.test(l.to.port))
+                  .map(l=> +l.to.port.slice(3));
+  const maxIdx = wired.length ? Math.max(...wired) : 0;
+  if(!modelSupportsImages(n))
+    return Array.from({length:Math.max(1,maxIdx)}, (_,i)=> ({ name:"img"+(i+1), disabled:true }));
+  return Array.from({length:maxIdx+1}, (_,i)=> ({ name:"img"+(i+1) }));   // wired ports + one empty trailing slot
+}
+// pull wired image ports out of a run's inp map, in port order
+function collectImageInputs(inp){
+  return Object.keys(inp).filter(k=> IMG_PORT_RE.test(k)).sort((a,b)=> +a.slice(3) - +b.slice(3))
+    .map(k=> inp[k]).filter(Boolean);
 }
 
 /* one model-row in a node body — a button that opens the shared picker */
@@ -694,9 +760,10 @@ const NODE_TYPES = {
   },
 
   llm: {
-    em:"🧠", title:"LLM", desc:"Text → text (any chat model)", group:"Text",
+    em:"🧠", title:"LLM", desc:"Text (+ images) → text — any chat model", group:"Text",
     modelKind:"chat",
     inputs:[],
+    imageInputs:"vision",   // vision-capable models grow dynamic image input ports (see refreshImageInputs)
     outputs:[{name:"text", type:"text"}], preview:"text",
     body:(n)=>`
       ${modelFieldHTML(n)}
@@ -705,9 +772,12 @@ const NODE_TYPES = {
     async run(n, inp, ctx){
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       if(!prompt) throw new Error("no prompt");
+      const imgs = collectImageInputs(inp);   // wired image ports, in order — sent alongside the prompt
       const messages = [];
       if((n.fields.system||"").trim()) messages.push({role:"system", content:n.fields.system.trim()});
-      messages.push({role:"user", content:prompt});
+      messages.push(imgs.length
+        ? { role:"user", content:[{type:"text", text:prompt}, ...imgs.map(url=>({type:"image_url", image_url:{url}}))] }
+        : { role:"user", content:prompt });
       return { text: await ctx.genChat(messages, mdl(n)) };
     }
   },
@@ -1016,7 +1086,7 @@ function buildNodeEl(n){
     mp.onclick = (e)=>{
       e.stopPropagation();
       openPicker(t.modelKind, { current:n.fields.model, filter:t.modelFilter, onPick:(id)=>{
-        n.fields.model = id; mp.textContent = id+" ▾"; updateNodePrice(n); refreshAudioParams(n); save();
+        n.fields.model = id; mp.textContent = id+" ▾"; updateNodePrice(n); refreshAudioParams(n); refreshImageInputs(n); save();
       }});
     };
     updateNodePrice(n);
@@ -1035,9 +1105,40 @@ function buildNodeEl(n){
   el.addEventListener("pointerdown", ()=> select(n));
   // ports
   el.querySelectorAll(".port").forEach(p=> p.addEventListener("pointerdown", e=>startWire(p, e)));
+  refreshImageInputs(n);             // dynamic image ports + their own wire listeners (after the static-port bind above)
   addFieldPorts(n);
   refreshPortFills();
   prepTextareas(n);
+}
+
+// Keep a node's image ports contiguous (img1, img2, …) after one is unwired — without this,
+// removing the source of a middle port (img2) leaves a hole. Renumbers the surviving image
+// links in place, preserving order. Safe no-op for nodes without image inputs.
+function recompactImageLinks(n){
+  if(!n || !NODE_TYPES[n.type]?.imageInputs) return;
+  graph.links.filter(l=> l.to.node===n.id && IMG_PORT_RE.test(l.to.port))
+    .sort((a,b)=> (+a.to.port.slice(3)) - (+b.to.port.slice(3)))
+    .forEach((l,i)=>{ l.to.port = "img"+(i+1); });
+}
+
+// Render a node's dynamic image input ports (vision-capable chat). Idempotent: rebuilds the
+// rows from the current model + wiring, so it's safe to re-run after a model pick, connect,
+// disconnect, or graph load. A disabled stub can't be wired (startWire bails on .disabled).
+function refreshImageInputs(n){
+  if(!n.el || !NODE_TYPES[n.type].imageInputs) return;
+  const col = n.el.querySelector(".col.in"); if(!col) return;
+  col.querySelectorAll(".prow.imgrow").forEach(el=> el.remove());
+  const defs = imageInputDefs(n), multi = defs.length>1;
+  defs.forEach((d,i)=>{
+    const row = document.createElement("div");
+    row.className = "prow imgrow" + (d.disabled?" off":"");
+    row.innerHTML = `<i class="port image${d.disabled?" disabled":""}" data-node="${n.id}" data-port="${d.name}" data-dir="in" data-ptype="image"`
+      + (d.disabled?` title="this model can’t read images — pick a vision model"`:``) + `></i>`
+      + `<span>${multi?("image "+(i+1)):"image"}</span>`;
+    col.appendChild(row);
+    if(!d.disabled) row.querySelector(".port").addEventListener("pointerdown", e=> startWire(e.currentTarget, e));
+  });
+  refreshPortFills();
 }
 
 // Give every text field an inline input port: wiring it makes the node use the wired
@@ -1165,11 +1266,16 @@ function mountFileUpload(n, field){
 }
 
 function removeNode(id){
+  // downstream image inputs this node feeds — they must recompact so no hole is left behind
+  const affected = [...new Set(graph.links
+    .filter(l=> l.from.node===id && IMG_PORT_RE.test(l.to.port)).map(l=> l.to.node))];
   graph.links = graph.links.filter(l=> l.from.node!==id && l.to.node!==id);
   const n = byId(id); n?._stopCam?.();           // release the webcam if this was an Image-input node
   if(n?.el) n.el.remove();
   graph.nodes = graph.nodes.filter(x=>x.id!==id);
   if(selected===n) selected=null;
+  for(const aid of affected){ const an = byId(aid); if(an){ recompactImageLinks(an); refreshImageInputs(an); } }
+  refreshPortFills();   // a textarea fed by the removed node is now unwired — unlock it (don't leave it disabled)
   redraw(); save();
 }
 
@@ -1280,7 +1386,14 @@ function redraw(){
     p.addEventListener("click", e=>{ e.stopPropagation(); removeLink(p.dataset.link); });
   });
 }
-function removeLink(id){ graph.links = graph.links.filter(l=>l.id!==id); redraw(); refreshPortFills(); save(); }
+function removeLink(id){
+  const l = graph.links.find(x=>x.id===id);
+  graph.links = graph.links.filter(x=>x.id!==id);
+  const tn = l && byId(l.to.node);
+  if(tn){ recompactImageLinks(tn); refreshImageInputs(tn); }   // close any hole, rebuild ports first…
+  redraw(); refreshPortFills();                                // …then draw wires to the new ports
+  save();
+}
 function refreshPortFills(){
   document.querySelectorAll(".port").forEach(p=> p.classList.remove("filled"));
   document.querySelectorAll("textarea.wired").forEach(ta=>{ ta.classList.remove("wired"); ta.disabled=false; });
@@ -1313,7 +1426,7 @@ function startNodeDrag(n, e){
 const MAG = 80; // snap radius (px, screen space) — lets people aim loosely
 function compatiblePorts(dir, ptype, skipNode){
   return [...document.querySelectorAll(".port")].filter(p=>
-    p.dataset.dir!==dir && p.dataset.ptype===ptype && p.dataset.node!==skipNode);
+    p.dataset.dir!==dir && p.dataset.ptype===ptype && p.dataset.node!==skipNode && !p.classList.contains("disabled"));
 }
 function nearestPort(x, y, ports){
   let best=null, bd=MAG*MAG;
@@ -1322,7 +1435,9 @@ function nearestPort(x, y, ports){
 }
 function startWire(port, e){
   e.preventDefault(); e.stopPropagation();
+  closeQuickAdd();
   const dir = port.dataset.dir, ptype = port.dataset.ptype, node = port.dataset.node;
+  const sx = e.clientX, sy = e.clientY;             // where the drag began — used to tell a click from a drag
   const fixed = portCenter(port);
   const targets = compatiblePorts(dir, ptype, node);
   targets.forEach(p=> p.classList.add("compatible"));   // glow every valid destination, by type
@@ -1343,15 +1458,22 @@ function startWire(port, e){
     targets.forEach(p=> p.classList.remove("compatible","snap"));
     let other = snap?.p;                              // prefer the magnetically-snapped port
     if(!other){ const tgt = document.elementFromPoint(ev.clientX, ev.clientY); other = tgt && tgt.closest(".port"); }
+    let connected = false;
     if(other && other!==port){
       const odir = other.dataset.dir, otype = other.dataset.ptype;
-      if(odir!==dir && otype===ptype){
+      if(odir!==dir && otype===ptype && !other.classList.contains("disabled")){
         const out = dir==="out" ? port : other;
         const inn = dir==="in"  ? port : other;
         connect(out.dataset.node, out.dataset.port, inn.dataset.node, inn.dataset.port);
+        connected = true;
       }
     }
     redraw();
+    // dropped a wire into empty canvas → offer to create a node that fits this port, right here
+    if(!connected && Math.hypot(ev.clientX-sx, ev.clientY-sy) > 6){
+      const tgt = document.elementFromPoint(ev.clientX, ev.clientY);
+      if(!tgt || !tgt.closest(".node")) openQuickAdd(ev.clientX, ev.clientY, port);
+    }
   };
   window.addEventListener("pointermove",move); window.addEventListener("pointerup",up);
 }
@@ -1361,7 +1483,115 @@ function connect(fromNode, fromPort, toNode, toPort){
   // each input takes a single link — drop any existing one
   graph.links = graph.links.filter(l=> !(l.to.node===toNode && l.to.port===toPort));
   graph.links.push({ id:"l"+(lid++), from:{node:fromNode, port:fromPort}, to:{node:toNode, port:toPort} });
+  refreshImageInputs(byId(toNode)||{});   // wiring the empty slot grows the next one
   redraw(); refreshPortFills(); save();
+}
+
+/* ======================================================================
+   QUICK ADD — drop a wire into empty space, pick a node, get it wired
+   ----------------------------------------------------------------------
+   The menu only lists nodes that actually fit the dragged port: dragging
+   FROM an output shows nodes that *consume* that type; dragging FROM an
+   input shows nodes that *produce* it. The chosen node is created at the
+   drop point and auto-connected to its first matching free socket.
+   ====================================================================== */
+const nodeProducesType = (k, type)=> (NODE_TYPES[k].outputs||[]).some(o=> o.type===type);
+// Does a node accept this type as input? Static input ports, the LLM's dynamic image ports,
+// and — for text — any wirable text field (every textarea gets an inline text port via addFieldPorts).
+function nodeAcceptsType(k, type){
+  const t = NODE_TYPES[k];
+  if((t.inputs||[]).some(p=> p.type===type)) return true;
+  if(type==="image" && t.imageInputs) return true;
+  if(type==="text"  && bodyHasTextField(k)) return true;
+  return false;
+}
+const _qaTextField = {};   // memoised: which node types render a wirable text field
+function bodyHasTextField(k){
+  if(k in _qaTextField) return _qaTextField[k];
+  let has = false;
+  if(k!=="text"){            // Text is a pure source — its textarea is the value, not a wirable override
+    try{ has = /<textarea\b[^>]*\bdata-(?:f|pf)\s*=\s*"(?!extraJson")/i.test(NODE_TYPES[k].body({ type:k, fields:{} })); }
+    catch{ has = false; }
+  }
+  return (_qaTextField[k] = has);
+}
+function quickAddCandidates(dir, type){
+  const fits = dir==="out" ? (k)=> nodeAcceptsType(k, type) : (k)=> nodeProducesType(k, type);
+  return Object.entries(NODE_TYPES).filter(([k])=> fits(k));
+}
+
+function openQuickAdd(clientX, clientY, originPort){
+  closeQuickAdd();
+  const dir = originPort.dataset.dir, type = originPort.dataset.ptype;
+  const cands = quickAddCandidates(dir, type);
+  if(!cands.length) return;
+  const pop = $("quickadd");
+  // group the candidates the same way the main Add menu does
+  const groups = new Map(ADD_GROUPS.map(g=>[g,[]]));
+  for(const [k,t] of cands){ const g = t.group||"Other"; if(!groups.has(g)) groups.set(g,[]); groups.get(g).push([k,t]); }
+  let html = `<div class="qhint">${dir==="out" ? "→ send "+esc(type)+" to…" : "← get "+esc(type)+" from…"}</div>`;
+  for(const [g,items] of groups){
+    if(!items.length) continue;
+    html += `<div class="grp">${esc(g)}</div>`;
+    html += items.map(([k,t])=>
+      `<button data-type="${k}"><span class="k">${t.em}</span><span><div>${esc(t.title)}</div><div class="d">${esc(t.desc)}</div></span></button>`).join("");
+  }
+  pop.innerHTML = html;
+  // world coords for the new node, derived from the drop point (#world is translated by pan and scaled)
+  const ed = editor.getBoundingClientRect();
+  const wx = (clientX - ed.left - panX)/scale, wy = (clientY - ed.top - panY)/scale;
+  pop.querySelectorAll("button").forEach(b=> b.onclick = ()=>{ quickSpawn(b.dataset.type, wx, wy, dir, type, originPort); closeQuickAdd(); });
+  // show, then clamp to the viewport
+  pop.classList.add("open");
+  const pr = pop.getBoundingClientRect();
+  let px = clientX + 6, py = clientY + 6;
+  if(px + pr.width  > innerWidth  - 8) px = Math.max(8, clientX - pr.width - 6);
+  if(py + pr.height > innerHeight - 8) py = Math.max(8, innerHeight - pr.height - 8);
+  pop.style.left = px+"px"; pop.style.top = py+"px";
+  // close on the next outside interaction (deferred so this drag's own pointerup doesn't immediately close it)
+  setTimeout(()=> document.addEventListener("pointerdown", quickAddOutside), 0);
+}
+function quickAddOutside(e){ if(!$("quickadd").contains(e.target)) closeQuickAdd(); }
+function closeQuickAdd(){
+  const pop = $("quickadd"); if(!pop || !pop.classList.contains("open")) return;
+  pop.classList.remove("open"); pop.innerHTML = "";
+  document.removeEventListener("pointerdown", quickAddOutside);
+}
+// A chat node's image socket is gated on a vision-capable model. When the quick-add lands an
+// image on an LLM whose default model can't see images, the socket renders disabled — so swap in
+// a model that supports the input, otherwise the promised auto-wire would have nothing to land on.
+function ensureModelForInput(n, type){
+  const t = NODE_TYPES[n.type];
+  if(type==="image" && t.imageInputs && t.modelKind){
+    const m = (catalogs[t.modelKind]||[]).find(x=> passesFilter(x, t.imageInputs));
+    if(m){
+      n.fields.model = m.id;
+      const mp = n.el.querySelector(".modelpick"); if(mp) mp.textContent = m.id + " ▾";
+      updateNodePrice(n); refreshImageInputs(n); save();
+    }
+  }
+}
+function quickSpawn(typeKey, wx, wy, dir, type, originPort){
+  // place the card so its relevant edge sits near the drop point (downstream to the right, source to the left)
+  const x = dir==="out" ? wx + 8 : wx - 232;
+  const n = addNode(typeKey, Math.round(x), Math.round(wy - 24));
+  select(n);
+  const opp = dir==="out" ? "in" : "out", sel = `.port[data-dir="${opp}"][data-ptype="${type}"]`;
+  let ports = [...n.el.querySelectorAll(sel)];
+  // the only matching socket may be disabled (e.g. an LLM defaulted to a non-vision model) — upgrade
+  // the model so the wire can actually land, then re-read the now-enabled ports
+  if(dir==="out" && ports.length && !ports.some(p=> !p.classList.contains("disabled"))){
+    ensureModelForInput(n, type);
+    ports = [...n.el.querySelectorAll(sel)];
+  }
+  ports = ports.filter(p=> !p.classList.contains("disabled"));
+  // wire the dragged port to the new node's first matching, free socket
+  const target = ports.find(p=> p.dataset.port==="prompt") || ports.find(p=> !p.classList.contains("filled")) || ports[0];
+  redraw();
+  if(target){
+    const out = dir==="out" ? originPort : target, inn = dir==="out" ? target : originPort;
+    connect(out.dataset.node, out.dataset.port, inn.dataset.node, inn.dataset.port);
+  }
 }
 
 // pan (one finger / drag) + pinch-zoom (two fingers) on the editor background.
@@ -1521,10 +1751,15 @@ async function runGroup(seedIds){
           const l = graph.links.find(x=> x.to.node===id && x.to.port===port.name);
           if(l) inp[port.name] = byId(l.from.node)?.out?.[l.from.port];
         }
+        // dynamic image ports (img1, img2, …) on vision-capable nodes → collected by run() via collectImageInputs()
+        if(t.imageInputs) for(const l of graph.links){
+          if(l.to.node===id && IMG_PORT_RE.test(l.to.port)) inp[l.to.port] = byId(l.from.node)?.out?.[l.from.port];
+        }
         // a wired text field overrides its typed value (n.fields[field]); declared ports handled above
         const fieldOverrides = {};
         for(const l of graph.links){
           if(l.to.node!==id || t.inputs.some(p=>p.name===l.to.port)) continue;
+          if(t.imageInputs && IMG_PORT_RE.test(l.to.port)) continue;   // image ports aren't text-field overrides
           const v = byId(l.from.node)?.out?.[l.from.port];
           if(v!=null) fieldOverrides[l.to.port] = v;
         }
@@ -1845,6 +2080,7 @@ function applyGraphData(d){
   const num = (s)=> parseInt(String(s).replace(/\D/g,""),10) || 0;
   nid = Math.max(d.nid||0, 0, ...graph.nodes.map(n=>num(n.id))) + 1;
   lid = Math.max(d.lid||0, 0, ...graph.links.map(l=>num(l.id))) + 1;
+  graph.nodes.forEach(n=>{ recompactImageLinks(n); refreshImageInputs(n); });   // links loaded → compact + grow image ports
   redraw(); refreshPortFills(); refreshAllPrices();
 }
 
