@@ -12,10 +12,8 @@ winners and honorable mentions get hand-curated into `gallery.json`.
 
 ## Prize
 
-- **3 prizes of 133 Nano each.** (Assumption to confirm: paid in **Nano (XNO)** to
-  the winner's wallet — which doubles as nano-gpt credit, since nano-gpt takes
-  Nano. If you instead mean nano-gpt account credit, the copy still works; just
-  swap the word.)
+- **3 prizes of 133 Nano (XNO) each** — paid to the winner's Nano wallet. Doubles
+  as nano-gpt credit, since nano-gpt takes Nano. (Total payout: 399 XNO.)
 - Three prizes, not one, so it's not a single winner-take-all popularity race —
   see categories.
 
@@ -86,7 +84,7 @@ viral one.
 
 ## Open questions for the host
 
-- Prize currency: **Nano (XNO) to a wallet**, or **nano-gpt credit**? (changes one word)
+- ~~Prize currency~~ → **confirmed: 133 Nano (XNO) per winner, paid to wallet.**
 - Exact launch date / window length (14 days suggested).
 - Is nano-gpt co-announcing / amplifying? (They benefit — prize flows into their
   ecosystem — so worth asking them to boost or match.)
