@@ -238,6 +238,12 @@
                 background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; overflow:hidden; font-size:.74rem }
   .body .uprev img, .body .uprev video{ width:100%; display:block; border-radius:.45rem }
   .body .uprev audio{ width:100% }
+  .body .maskwrap{ position:relative; line-height:0; width:100%; min-height:90px; display:flex; align-items:center;
+                   justify-content:center; background:var(--panel2); border:1px solid var(--line); border-radius:.45rem;
+                   overflow:hidden; font-size:.74rem; text-align:center }
+  .body .maskwrap:has(.dim){ padding:.5rem }   /* pad only the empty-state hint, never the image (keeps canvas aligned) */
+  .body .maskwrap img{ width:100%; display:block; border-radius:.45rem }
+  .body .maskwrap canvas{ position:absolute; inset:0; width:100%; height:100%; cursor:crosshair; touch-action:none }
   .body .ubtn{ padding:.4rem .4rem; font-size:.78rem; background:var(--panel2); border:1px solid var(--line);
                border-radius:.45rem; cursor:pointer; color:var(--ink) }
   .body .ubtn:hover{ border-color:var(--accent) }
@@ -442,11 +448,13 @@ function normImg(m){
   // requires a mask image." With no mask-painting UI yet, a pickable inpaint model is a pure dead-end,
   // so hide it from BOTH pickers (gen already excludes it via needsSrc; this drops it from edit too).
   // Upscale/img2img still route to edit above — they need only a source image, which edit supplies.
-  // Remove once the dedicated mask-brush Inpaint node lands — see issue #19.
+  // The Inpaint node (issue #19) supplies a maskDataUrl, so inpaint models are pickable THERE via the
+  // `inpaint` flag — just kept out of the plain gen/edit pickers (which send no mask) to avoid the 400.
   const needsMask = /inpaint/i.test(m.id);
   return { id:m.id, name:m.name||m.id, created:m.created,
     edit: !needsMask && (needsSrc || !!m.capabilities?.image_to_image),  // accepts an image input (text+image->image | image->image)
     gen: needsSrc ? false : (mod ? mod.startsWith("text") : !m.capabilities?.image_to_image),  // text-only generators; excludes edit-only models
+    inpaint: needsMask,                                                  // needs image + mask → the Inpaint node
     price: v!=null ? `$${(+v).toFixed(3)}/img` : "" };
 }
 function normVideo(m){
@@ -871,6 +879,46 @@ const NODE_TYPES = {
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       if(!prompt) throw new Error("no edit instruction");
       return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], inp.image) };
+    }
+  },
+
+  inpaint: {
+    em:"🩹", title:"Inpaint", desc:"Brush a region of an image → repaint just that area", group:"Image",
+    modelKind:"image", modelFilter:"inpaint",
+    inputs:[],                                          // self-contained: own the source so the mask can be painted on it
+    outputs:[{name:"image", type:"image"}], preview:"image",
+    body:(n)=>`
+      ${modelFieldHTML(n)}
+      <div class="maskwrap" data-maskwrap>
+        ${n.fields.image
+          ? `<img src="${esc(n.fields.image)}" alt="source"/><canvas data-mcanvas></canvas>`
+          : `<span class="dim">upload or capture an image, then brush the area to repaint</span>`}
+      </div>
+      <div class="two">
+        <button class="ubtn" data-up="file">⬆ Upload</button>
+        <button class="ubtn" data-up="cam">📷 Webcam</button>
+      </div>
+      <input type="file" accept="image/*" hidden data-upfile/>
+      <div class="cambox" data-cambox hidden>
+        <video data-upvid autoplay playsinline muted></video>
+        <div class="two"><button class="ubtn" data-up="snap">● Capture</button><button class="ubtn" data-up="stop">✕ Cancel</button></div>
+      </div>
+      <div class="two">
+        <div><label>brush size</label><input type="range" min="8" max="140" value="${+n.fields.brush||40}" data-f="brush"/></div>
+        <button class="ubtn" data-clearmask>Clear mask</button>
+      </div>
+      <div><label>size</label><select data-f="size">${optsHTML(SIZES, n.fields.size||SIZES[0][0])}</select></div>
+      <div><label>what to paint in</label><textarea data-f="prompt" placeholder="a red coffee mug, a small bird…">${esc(n.fields.prompt||"")}</textarea></div>`,
+    mount: mountInpaint,
+    async run(n, inp, ctx){
+      if(!n.fields.image) throw new Error("no image — upload or capture one, then brush the area to repaint");
+      if(!n.fields.mask)  throw new Error("brush the area you want to repaint first (white = repaint)");
+      const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
+      if(!prompt) throw new Error("no prompt — say what to paint into the brushed area");
+      const mask = await maskToSource(n.fields.mask, n.fields.image);   // black/white PNG sized to the source
+      if((n.fields.image.length + mask.length) > MEDIA_INLINE_MAX)
+        throw new Error("image too large (~4 MB limit) — use a smaller source image");
+      return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], n.fields.image, mask) };
     }
   },
 
@@ -1344,6 +1392,113 @@ function mountUpload(n){
   fileInput.addEventListener("change", ()=>{ const f=fileInput.files?.[0]; if(f) fileToDataURL(f, setImage); fileInput.value=""; });
 }
 
+// Inpaint node: own the source image (upload/webcam, like mountUpload) and brush a mask over it.
+// The visible overlay strokes translucent red so the selection is obvious; an offscreen canvas at the
+// source's pixel size accumulates the real white-on-transparent mask, exported (composited onto black)
+// only at run. Source + mask both live on n.fields, so they're present synchronously at paint time and
+// serialize for free — no dependence on runtime-only upstream n.out, sidestepping the DAG-timing issue.
+function mountInpaint(n){
+  const el = n.el;
+  const wrap = el.querySelector("[data-maskwrap]");
+  const fileInput = el.querySelector("[data-upfile]");
+  const cambox = el.querySelector("[data-cambox]");
+  const video = el.querySelector("[data-upvid]");
+  let stream = null, off = null, octx = null, drawing = false, last = null;
+
+  const stopCam = ()=>{ if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } if(video) video.srcObject=null; cambox.hidden=true; };
+  n._stopCam = stopCam;                                    // so removeNode can release the camera
+
+  const initMask = (w,h)=>{                                // offscreen mask: white strokes on a transparent canvas
+    off = document.createElement("canvas"); off.width=w; off.height=h;
+    octx = off.getContext("2d");
+    octx.lineCap="round"; octx.lineJoin="round"; octx.strokeStyle="#fff"; octx.fillStyle="#fff";
+  };
+  const overlay = ()=> wrap.querySelector("[data-mcanvas]");
+  const tintOverlay = ()=>{                                // render the mask as translucent red over the image
+    const cv = overlay(); if(!cv || !off) return;
+    if(cv.width!==off.width || cv.height!==off.height){ cv.width=off.width; cv.height=off.height; }
+    const c = cv.getContext("2d");
+    c.globalCompositeOperation="source-over"; c.clearRect(0,0,cv.width,cv.height);
+    c.drawImage(off,0,0);                                  // white strokes on transparent
+    c.globalCompositeOperation="source-in"; c.fillStyle="rgba(255,59,48,.55)"; c.fillRect(0,0,cv.width,cv.height);
+    c.globalCompositeOperation="source-over";
+  };
+  const ptr = (e)=>{ const cv=overlay(), r=cv.getBoundingClientRect();   // client → source-pixel coords (zoom-correct via rect)
+    const sx=off.width/r.width, sy=off.height/r.height;
+    return { x:(e.clientX-r.left)*sx, y:(e.clientY-r.top)*sy, s:Math.max(sx,sy) }; };
+  const dab = (p)=>{ octx.beginPath(); octx.arc(p.x,p.y,((+n.fields.brush||40)*p.s)/2,0,7); octx.fill(); };
+  const onDown = (e)=>{ if(!off) return; e.stopPropagation(); e.preventDefault();
+    overlay().setPointerCapture?.(e.pointerId); drawing=true; last=ptr(e); dab(last); tintOverlay(); };
+  const onMove = (e)=>{ if(!drawing) return; e.stopPropagation(); const p=ptr(e);
+    octx.lineWidth=(+n.fields.brush||40)*p.s; octx.beginPath(); octx.moveTo(last.x,last.y); octx.lineTo(p.x,p.y); octx.stroke();
+    dab(p); last=p; tintOverlay(); };
+  const onUp = ()=>{ if(!drawing) return; drawing=false; n.fields.mask = off.toDataURL("image/png"); save(); };
+  const bindCanvas = ()=>{ const cv=overlay(); if(!cv) return;
+    cv.width=off.width; cv.height=off.height;
+    cv.addEventListener("pointerdown", onDown); cv.addEventListener("pointermove", onMove);
+    cv.addEventListener("pointerup", onUp); cv.addEventListener("pointerleave", onUp);
+    tintOverlay(); };
+
+  const setImage = (url)=>{                                // new source → old mask no longer aligns, so drop it
+    n.fields.image = url; n.fields.mask = null;
+    const img = new Image();
+    img.onload = ()=>{ wrap.innerHTML = `<img src="${esc(url)}" alt="source"/><canvas data-mcanvas></canvas>`;
+      initMask(img.naturalWidth, img.naturalHeight); bindCanvas(); save(); };
+    img.onerror = ()=> flash("couldn’t read that image");
+    img.src = url;
+  };
+
+  el.querySelectorAll("[data-up]").forEach(b=>{
+    b.addEventListener("pointerdown", e=> e.stopPropagation());   // don't start a node drag
+    b.onclick = async (e)=>{
+      e.stopPropagation();
+      const act = b.dataset.up;
+      if(act==="file") fileInput.click();
+      else if(act==="cam"){
+        try{ stream = await navigator.mediaDevices.getUserMedia({video:true}); video.srcObject=stream; cambox.hidden=false; }
+        catch(err){ flash("webcam unavailable: "+err.message); }
+      }
+      else if(act==="snap"){ if(video.videoWidth){ setImage(scaledDataURL(video, video.videoWidth, video.videoHeight)); } stopCam(); }
+      else if(act==="stop") stopCam();
+    };
+  });
+  fileInput.addEventListener("change", ()=>{ const f=fileInput.files?.[0]; if(f) fileToDataURL(f, setImage); fileInput.value=""; });
+  el.querySelector("[data-clearmask]")?.addEventListener("pointerdown", e=> e.stopPropagation());
+  el.querySelector("[data-clearmask]")?.addEventListener("click", (e)=>{ e.stopPropagation();
+    if(off) octx.clearRect(0,0,off.width,off.height);
+    n.fields.mask = null; tintOverlay(); save(); });
+
+  // re-hydrate after a graph load / rebuild: the body already rendered the img + canvas
+  if(n.fields.image){
+    const img = new Image();
+    img.onload = ()=>{ initMask(img.naturalWidth, img.naturalHeight);
+      if(n.fields.mask){ const m=new Image(); m.onload=()=>{ octx.drawImage(m,0,0,off.width,off.height); bindCanvas(); }; m.src=n.fields.mask; }
+      else bindCanvas();
+    };
+    img.src = n.fields.image;
+  }
+}
+// Build the API mask from the painted strokes: composite white-on-transparent onto black, at the
+// source's exact decoded pixel size, so dimensions always match (the single likeliest 400 cause).
+function maskToSource(maskUrl, sourceUrl){
+  return new Promise((resolve, reject)=>{
+    const src = new Image();
+    src.onload = ()=>{
+      const m = new Image();
+      m.onload = ()=>{
+        const c = document.createElement("canvas"); c.width=src.naturalWidth; c.height=src.naturalHeight;
+        const ctx = c.getContext("2d");
+        ctx.fillStyle="#000"; ctx.fillRect(0,0,c.width,c.height);   // black = keep
+        ctx.drawImage(m, 0, 0, c.width, c.height);                  // white strokes = repaint
+        resolve(c.toDataURL("image/png"));
+      };
+      m.onerror = ()=> reject(new Error("couldn’t read the mask"));
+      m.src = maskUrl;
+    };
+    src.onerror = ()=> reject(new Error("couldn’t read the source image"));
+    src.src = sourceUrl;
+  });
+}
 // Audio/Video input nodes: read a chosen file straight to a data URL (no scaling — bytes are
 // kept as-is) and store it on the node field. Clips are inlined when they feed a model, so the
 // ≤4 MB limit applies downstream; warn early when a file is over it.
@@ -1914,9 +2069,10 @@ function runAll(){
 
 /* ---------- NanoGPT calls (browser → NanoGPT directly) ---------- */
 const CTX = {
-  async genImage(prompt, model, size, imageDataUrl){
+  async genImage(prompt, model, size, imageDataUrl, maskDataUrl){
     const body = { model, prompt, size, n:1, response_format:"b64_json" };
     if(imageDataUrl) body.imageDataUrl = imageDataUrl;   // present → image edit (img2img)
+    if(maskDataUrl)  body.maskDataUrl  = maskDataUrl;    // present → inpaint; WHITE areas = the region to repaint (verified live)
     const r = await fetch(IMG_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
     if(!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`);
     const j = await r.json();
@@ -2258,7 +2414,10 @@ function serializeGraph(){
 const UPLOAD_FIELD = { upload:"image", aupload:"audio", vupload:"video" };
 function shareableGraph(){
   const g = serializeGraph();
-  g.nodes = g.nodes.map(n => UPLOAD_FIELD[n.type] ? {...n, fields:{...n.fields, [UPLOAD_FIELD[n.type]]:""}} : n);
+  g.nodes = g.nodes.map(n => {
+    if(n.type==="inpaint") return {...n, fields:{...n.fields, image:"", mask:""}};   // don't leak the user's photo/mask
+    return UPLOAD_FIELD[n.type] ? {...n, fields:{...n.fields, [UPLOAD_FIELD[n.type]]:""}} : n;
+  });
   return g;
 }
 function applyGraphData(d){
