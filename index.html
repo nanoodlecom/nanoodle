@@ -436,8 +436,16 @@ function normImg(m){
   // source by id and route them to the edit node instead. Remove once upstream modality is correct —
   // see NANOGPT-audio-modality-bug.md.
   const needsSrc = /upscal|inpaint|image-to-image|img2img/i.test(m.id);
+  // True inpainting models (flux-lora/inpainting, any future *inpaint*) report image_to_image too, but
+  // they REQUIRE a maskDataUrl marking the region to repaint — and we don't send one. Verified live:
+  // image+prompt with no mask hard-errors 400 "No mask image data provided. Flux LoRA Inpainting
+  // requires a mask image." With no mask-painting UI yet, a pickable inpaint model is a pure dead-end,
+  // so hide it from BOTH pickers (gen already excludes it via needsSrc; this drops it from edit too).
+  // Upscale/img2img still route to edit above — they need only a source image, which edit supplies.
+  // Remove once the dedicated mask-brush Inpaint node lands — see issue #19.
+  const needsMask = /inpaint/i.test(m.id);
   return { id:m.id, name:m.name||m.id, created:m.created,
-    edit: needsSrc || !!m.capabilities?.image_to_image,             // accepts an image input (text+image->image | image->image)
+    edit: !needsMask && (needsSrc || !!m.capabilities?.image_to_image),  // accepts an image input (text+image->image | image->image)
     gen: needsSrc ? false : (mod ? mod.startsWith("text") : !m.capabilities?.image_to_image),  // text-only generators; excludes edit-only models
     price: v!=null ? `$${(+v).toFixed(3)}/img` : "" };
 }
