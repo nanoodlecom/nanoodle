@@ -11,6 +11,7 @@ Columns: date · venue · angle used · result (upvotes, comments, signups, what
 | (prior) | r/monero | — | — |
 | (planned) | nano-gpt Discord #community-projects | Noodle Contest launch — 3×133 Nano, "show your coolest noodle" (see contest.md) | pending |
 | (planned) | nano-gpt Discord #nanocurrency | Contest cross-post, Nano-holder angle (build→earn Nano, no signup) | pending |
+| Jun 26 (planned) | r/nanocurrency (subreddit) | Contest launch, pay-per-call Nano utility angle + 3×133 XNO (draft B2 in contest-announcement.md) | pending |
 
 ## Ideas / candidate venues
 

@@ -33,7 +33,7 @@ viral one.
 
 ## How to enter
 
-1. Build a noodle at **nanoodle.app** (no account needed — bring your own
+1. Build a noodle at **nanoodle.com** (no account needed — bring your own
    nano-gpt key or sign in).
 2. Hit **🔗 Share** in the toolbar — the link to your exact workflow is copied to
    your clipboard.
@@ -47,7 +47,7 @@ viral one.
 
 ## Rules
 
-- **Window:** opens `<LAUNCH DATE>`, closes `<LAUNCH DATE + 14 days>` at 23:59 UTC.
+- **Window:** opens **June 26, 2026**, closes **July 10, 2026** at 23:59 UTC.
 - **Max 2 entries per person.** One category each. No spam reposts.
 - Entry must be a working nanoodle **share link** (not a screenshot) and must run
   for someone using **their own** key — i.e. self-contained, no private uploads
