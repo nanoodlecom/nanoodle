@@ -2,6 +2,11 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "ai-apps",
   "compatibility_date": "2026-06-20",
+  // Deploy-time only: stamp sw.js's cache name with the commit SHA so each release purges
+  // stale offline caches automatically. No-op locally (no CI sha). See scripts/stamp-sw.mjs.
+  "build": {
+    "command": "node scripts/stamp-sw.mjs"
+  },
   "observability": {
     "enabled": true
   },
