@@ -844,10 +844,10 @@ window.NoodleApp = (function () {
       async run(n, inp, ctx, onProgress){
         if(!inp.video) throw new Error("no video input");
         const count = Math.max(1, Math.min(MAX_FRAMES, parseInt(n.fields.frames,10)||1));
-        const skip  = Math.max(0, parseInt(n.fields.skip,10)||0);
-        const fps   = Math.max(1, Math.min(120, parseInt(n.fields.fps,10)||30));
-        const fromEnd = (n.fields.dir||"start")==="end";
-        const frameDur = 1/fps, stepSec = (skip+1)*frameDur;
+        const gapRaw = parseFloat(n.fields.gap);
+        const stepSec = Number.isFinite(gapRaw) ? Math.max(0, gapRaw) : 0.5;   // seconds between captured frames
+        const fromEnd = (n.fields.dir||"end")==="end";
+        const EPS = 0.04;   // back off from the exact end — seeking to =duration often yields no frame
         const loc = await toLocalMediaUrl(inp.video);
         const vid = document.createElement("video");
         vid.muted = true; vid.playsInline = true; vid.preload = "auto"; vid.crossOrigin = "anonymous";
@@ -862,8 +862,8 @@ window.NoodleApp = (function () {
           const out = {};
           for(let i=0;i<count;i++){
             onProgress && onProgress("extracting frame " + (i+1) + "/" + count + "…");
-            let t = fromEnd ? (dur - frameDur - i*stepSec) : (i*stepSec);
-            t = Math.max(0, Math.min(Math.max(0, dur - frameDur), t));
+            let t = fromEnd ? (dur - EPS - i*stepSec) : (i*stepSec);
+            t = Math.max(0, Math.min(Math.max(0, dur - EPS), t));
             await seekVideo(vid, t);
             c2d.drawImage(vid, 0, 0, canvas.width, canvas.height);
             out["frame"+(i+1)] = canvas.toDataURL("image/jpeg", 0.9);
@@ -1109,7 +1109,7 @@ window.NoodleApp = (function () {
       if(f.duration)                    facts.push("duration " + f.duration + "s");
       if(f.aspect)                      facts.push("aspect " + f.aspect);
       if(n.type==="join" && f.sep!=null) facts.push("separator " + JSON.stringify(f.sep));
-      if(n.type==="vframes")             facts.push((f.frames>1?(f.frames+" frames"):"1 frame") + " from the " + ((f.dir||"start")==="end"?"end":"start"));
+      if(n.type==="vframes")             facts.push((f.frames>1?(f.frames+" frames"):"1 frame") + " from the " + ((f.dir||"end")==="end"?"end":"start"));
 
       let line = "  " + (idx+1) + ". " + (t.em ? t.em+" " : "") + nameOf(n)
                + (NODE_ROLE[n.type] ? " — " + NODE_ROLE[n.type] : "");

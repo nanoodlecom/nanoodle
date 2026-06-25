@@ -901,13 +901,10 @@ const NODE_TYPES = {
     outputs:(n)=> framePorts(n), preview:"frames",
     body:(n)=>`
       <div class="two">
-        <div><label>start from</label><select data-f="dir">${optsHTML([["start","beginning"],["end","last frame"]], n.fields.dir||"start")}</select></div>
+        <div><label>start from</label><select data-f="dir">${optsHTML([["end","last frame"],["start","beginning"]], n.fields.dir||"end")}</select></div>
         <div><label>frames</label><input type="number" data-f="frames" min="1" max="${MAX_FRAMES}" value="${esc(n.fields.frames ?? 1)}"/></div>
       </div>
-      <div class="two">
-        <div><label>skip between</label><input type="number" data-f="skip" min="0" value="${esc(n.fields.skip ?? 0)}"/></div>
-        <div><label>fps (assumed)</label><input type="number" data-f="fps" min="1" max="120" value="${esc(n.fields.fps ?? 30)}"/></div>
-      </div>`,
+      <div><label>gap between frames (sec)</label><input type="number" step="0.1" min="0" data-f="gap" value="${esc(n.fields.gap ?? 0.5)}"/></div>`,
     mount:(n)=>{
       const fr = n.el.querySelector('[data-f="frames"]');
       if(fr) fr.addEventListener("change", ()=> refreshFramePorts(n));   // grow/shrink the image output ports
@@ -915,10 +912,10 @@ const NODE_TYPES = {
     async run(n, inp){
       if(!inp.video) throw new Error("no video input");
       const count = Math.max(1, Math.min(MAX_FRAMES, parseInt(n.fields.frames,10)||1));
-      const skip  = Math.max(0, parseInt(n.fields.skip,10)||0);
-      const fps   = Math.max(1, Math.min(120, parseInt(n.fields.fps,10)||30));
-      const fromEnd = (n.fields.dir||"start")==="end";
-      const frameDur = 1/fps, stepSec = (skip+1)*frameDur;
+      const gapRaw = parseFloat(n.fields.gap);
+      const stepSec = Number.isFinite(gapRaw) ? Math.max(0, gapRaw) : 0.5;   // seconds between captured frames
+      const fromEnd = (n.fields.dir||"end")==="end";
+      const EPS = 0.04;   // back off from the exact end — seeking to =duration often yields no frame
       const { src, revoke } = await toLocalMediaUrl(inp.video);
       const vid = document.createElement("video");
       vid.muted = true; vid.playsInline = true; vid.preload = "auto"; vid.crossOrigin = "anonymous";
@@ -936,8 +933,8 @@ const NODE_TYPES = {
         const out = {};
         for(let i=0;i<count;i++){
           setNodeProgress(n, `extracting frame ${i+1}/${count}…`);
-          let t = fromEnd ? (dur - frameDur - i*stepSec) : (i*stepSec);
-          t = Math.max(0, Math.min(Math.max(0, dur - frameDur), t));
+          let t = fromEnd ? (dur - EPS - i*stepSec) : (i*stepSec);
+          t = Math.max(0, Math.min(Math.max(0, dur - EPS), t));
           await seekVideo(vid, t);
           c2d.drawImage(vid, 0, 0, canvas.width, canvas.height);
           out["frame"+(i+1)] = canvas.toDataURL("image/jpeg", 0.9);
