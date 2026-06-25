@@ -643,7 +643,9 @@ window.NoodleApp = (function () {
   // in-browser video concatenation (the Combine node). Play each clip, paint its frames onto a
   // shared canvas, and re-record them into ONE clip via MediaRecorder. captureStream(0) + manual
   // requestFrame() give frame-exact control, so dedup drops each next clip's duplicate first
-  // frame. mp4 where the browser can record it, else webm. Same-origin throughout (no new CSP).
+  // frame. Each clip's audio is mixed through a Web Audio MediaStreamDestination and added to
+  // the recorded stream, so the combined clip keeps its sound (clips play in real time → A/V
+  // stays in sync). mp4 where the browser can record it, else webm. Same-origin throughout (no new CSP).
   function pickVideoMime(){
     if(typeof MediaRecorder === "undefined") throw new Error("this browser can’t record video (no MediaRecorder)");
     const prefs = ["video/mp4;codecs=avc1.42E01E","video/mp4","video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"];
@@ -674,12 +676,14 @@ window.NoodleApp = (function () {
       v.onerror = ()=> rej(new Error("could not read a clip"));
     });
   }
-  function recordClip(src, c2d, W, H, track, skipFirst){
+  function recordClip(src, c2d, W, H, track, skipFirst, audio){
     return new Promise((resolve, reject)=>{
       const vid = document.createElement("video");
-      vid.muted = true; vid.playsInline = true; vid.crossOrigin = "anonymous"; vid.src = src;
-      let seen = 0, finished = false;
-      const cleanup = ()=>{ try{ vid.pause(); }catch(e){} vid.removeAttribute("src"); vid.load(); };
+      // Mute only when we have no audio sink; with one, routing through Web Audio reroutes the
+      // element's audio into the recording (never the speakers) so we must leave it unmuted.
+      vid.muted = !audio; vid.playsInline = true; vid.crossOrigin = "anonymous"; vid.src = src;
+      let seen = 0, finished = false, srcNode = null;
+      const cleanup = ()=>{ try{ vid.pause(); }catch(e){} if(srcNode){ try{ srcNode.disconnect(); }catch(e){} } vid.removeAttribute("src"); vid.load(); };
       const finish = ()=>{ if(finished) return; finished = true; cleanup(); resolve(); };
       const onFrame = ()=>{
         if(finished) return;
@@ -692,6 +696,8 @@ window.NoodleApp = (function () {
       vid.onerror = ()=>{ cleanup(); reject(new Error("could not play a clip")); };
       vid.onloadeddata = ()=>{
         if(typeof vid.requestVideoFrameCallback !== "function"){ cleanup(); return reject(new Error("this browser can’t read video frames (no requestVideoFrameCallback)")); }
+        // Pipe this clip's audio into the shared mix. A clip with no audio track yields silence — fine.
+        if(audio){ try{ srcNode = audio.ctx.createMediaElementSource(vid); srcNode.connect(audio.dest); }catch(e){} }
         vid.requestVideoFrameCallback(onFrame);
         vid.play().catch(reject);
       };
@@ -700,6 +706,7 @@ window.NoodleApp = (function () {
   async function concatVideos(urls, dedup, onProgress){
     const handles = [];
     for(const u of urls) handles.push(await toLocalMediaUrl(u));
+    let audio = null;
     try{
       const mime = pickVideoMime();
       const meta = await loadVideoMeta(handles[0].src), W = meta.w, H = meta.h;
@@ -708,19 +715,31 @@ window.NoodleApp = (function () {
       if(typeof canvas.captureStream !== "function") throw new Error("this browser can’t capture a canvas stream");
       const stream = canvas.captureStream(0);
       const track = stream.getVideoTracks()[0];
+      // One continuous audio track for the whole combine: each clip's sound is mixed into it as
+      // the clip plays (recordClip wires the element in), so the recording isn't silent.
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(AC){
+        const ctx = new AC();
+        const dest = ctx.createMediaStreamDestination();
+        const at = dest.stream.getAudioTracks()[0];
+        if(at){ stream.addTrack(at); audio = { ctx, dest, track: at }; try{ await ctx.resume(); }catch(e){} }
+      }
       const rec = new MediaRecorder(stream, { mimeType:mime, videoBitsPerSecond: 16000000 });
       const chunks = []; rec.ondataavailable = e=>{ if(e.data && e.data.size) chunks.push(e.data); };
       const stopped = new Promise((res, rej)=>{ rec.onstop = res; rec.onerror = e=> rej((e && e.error) || new Error("recording failed")); });
       rec.start();
       for(let i=0;i<handles.length;i++){
         onProgress && onProgress("combining clip " + (i+1) + "/" + handles.length + "…");
-        await recordClip(handles[i].src, c2d, W, H, track, dedup && i>0);
+        await recordClip(handles[i].src, c2d, W, H, track, dedup && i>0, audio);
       }
       rec.stop();
       await stopped;
       track.stop();
       return URL.createObjectURL(new Blob(chunks, { type: mime.split(";")[0] }));
-    } finally { handles.forEach(h=> h.revoke && h.revoke()); }
+    } finally {
+      handles.forEach(h=> h.revoke && h.revoke());
+      if(audio){ try{ audio.track.stop(); }catch(e){} try{ audio.ctx.close(); }catch(e){} }
+    }
   }
   // async audio (music / some TTS): submit returns {status:"pending", runId} → poll /api/tts/status until completed
   async function pollAudio(model, j, onProgress){
