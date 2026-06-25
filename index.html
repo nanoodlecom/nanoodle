@@ -1109,7 +1109,14 @@ function refreshFramePorts(n){
   col.querySelectorAll(".port").forEach(p=> p.addEventListener("pointerdown", e=>startWire(p, e)));
   const names = new Set(ports.map(p=>p.name));
   const before = graph.links.length;
+  // Downstream nodes that lose a frame link would otherwise keep a hole in their
+  // dynamic image/video inputs — capture them so we can recompact + rebuild their
+  // ports after the orphaned links are dropped (mirrors removeLink/removeNode).
+  const affected = [...new Set(graph.links
+    .filter(l=> l.from.node===n.id && !names.has(l.from.port))
+    .map(l=> l.to.node))].map(byId).filter(Boolean);
   graph.links = graph.links.filter(l=> !(l.from.node===n.id && !names.has(l.from.port)));
+  affected.forEach(tn=>{ recompactImageLinks(tn); refreshImageInputs(tn); recompactVideoLinks(tn); refreshVideoInputs(tn); });
   refreshPortFills(); redraw();
   if(graph.links.length !== before) save();
 }
@@ -1748,6 +1755,18 @@ function endPtr(e){
 editor.addEventListener("pointerup", endPtr);
 editor.addEventListener("pointercancel", endPtr);
 editor.addEventListener("wheel", e=>{
+  // Yield to a scrollable region inside a node (a tall textarea, a long result
+  // .rtext) so the wheel scrolls its content instead of zooming the canvas — but
+  // only while that region can still scroll the way the wheel points. Everything
+  // else (background, a non-scrolling node) zooms exactly as before.
+  for(let el=e.target; el && el!==editor; el=el.parentElement){
+    if(el.nodeType!==1) continue;
+    const scrollable = el.tagName==="TEXTAREA" || /^(auto|scroll)$/.test(getComputedStyle(el).overflowY);
+    if(scrollable && el.scrollHeight > el.clientHeight){
+      const canScroll = e.deltaY<0 ? el.scrollTop>0 : el.scrollTop + el.clientHeight < el.scrollHeight - 1;
+      if(canScroll) return;   // let the element consume the wheel natively
+    }
+  }
   e.preventDefault();
   const rect=editor.getBoundingClientRect();
   const mx=e.clientX-rect.left, my=e.clientY-rect.top;
