@@ -1495,7 +1495,14 @@ function connect(fromNode, fromPort, toNode, toPort){
    input shows nodes that *produce* it. The chosen node is created at the
    drop point and auto-connected to its first matching free socket.
    ====================================================================== */
-const nodeProducesType = (k, type)=> (NODE_TYPES[k].outputs||[]).some(o=> o.type===type);
+// Outputs may be a static array or a function of the node (dynamic ports, e.g. vframes).
+// Probe function-valued outputs with a stub node so quick-add can classify them by type.
+function nodeOutputs(k){
+  const o = NODE_TYPES[k].outputs;
+  try{ return (typeof o === "function" ? o({ type:k, fields:{} }) : o) || []; }
+  catch{ return []; }
+}
+const nodeProducesType = (k, type)=> nodeOutputs(k).some(o=> o.type===type);
 // Does a node accept this type as input? Static input ports, the LLM's dynamic image ports,
 // and — for text — any wirable text field (every textarea gets an inline text port via addFieldPorts).
 function nodeAcceptsType(k, type){
