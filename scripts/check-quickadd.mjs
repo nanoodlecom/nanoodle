@@ -90,8 +90,8 @@ eq(keys("out", "image"), ["edit", "ivideo", "llm", "lipsync", "vision"],
   "image output → nodes that take an image (incl. LLM's dynamic image ports)");
 eq(keys("out", "audio"), ["lipsync", "transcribe"],
   "audio output → nodes that take audio");
-eq(keys("out", "video"), ["vedit", "vframes"],
-  "video output → nodes that take video (vframes extracts stills from it)");
+eq(keys("out", "video"), ["combine", "vedit", "vframes"],
+  "video output → nodes that take video (combine joins clips; vframes extracts stills)");
 // transcribe is excluded: its only text field is a plain <input> (language), not a wirable textarea
 eq(keys("out", "text"), ["edit", "image", "ivideo", "join", "llm", "lipsync", "music", "tts", "tvideo", "vedit", "vision"],
   "text output → nodes with a text input OR a wirable text field");
@@ -101,8 +101,8 @@ eq(keys("in", "image"), ["edit", "image", "upload", "vframes"],
   "image input → nodes that produce an image (vframes emits frame stills)");
 eq(keys("in", "audio"), ["aupload", "music", "tts"],
   "audio input → nodes that produce audio");
-eq(keys("in", "video"), ["ivideo", "lipsync", "tvideo", "vedit", "vupload"],
-  "video input → nodes that produce video");
+eq(keys("in", "video"), ["combine", "ivideo", "lipsync", "tvideo", "vedit", "vupload"],
+  "video input → nodes that produce video (combine joins clips into one)");
 eq(keys("in", "text"), ["join", "llm", "text", "transcribe", "vision"],
   "text input → nodes that produce text");
 
