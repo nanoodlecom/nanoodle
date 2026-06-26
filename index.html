@@ -2822,8 +2822,7 @@ $("signout").onclick = ()=> setKey(null);
   if(!restored) seed();                                           // else built-in starter
   updateTitle();                                                  // reflect whether an app's workflow is loaded
   redraw();
-  // Brand-new visitors land straight on a simple working flow (the default graph) —
-  // no gallery modal in the way. The 🖼️ Gallery button is there when they want to browse.
+  // Brand-new visitors land straight on a simple working flow (the default graph) — no gallery modal in the way.
   try{ await handleRedirect(); }catch(e){ $("status").textContent="sign-in error: "+e.message; }
   renderAuth();
   // pull the full model catalogs in the background, then show per-node prices
