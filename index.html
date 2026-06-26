@@ -135,6 +135,43 @@
   .gcard .tag{ font-size:.66rem; color:var(--accent); border:1px solid var(--line); border-radius:1rem; padding:.08rem .5rem; }
   .gcard .remix{ margin-top:.55rem; align-self:flex-start; border-color:var(--accent); color:var(--accent) }
   #galleryempty{ font-size:.85rem; color:var(--dim); padding:1.4rem 0 }
+  /* 🍜 Noodle Cookoff — floating promo button + announcement modal (time-boxed contest) */
+  @keyframes cookoff-flow{ to{ background-position:200% 0 } }
+  @keyframes cookoff-bob{ 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(-3px) } }
+  #cookoffbtn[hidden]{ display:none }
+  #cookoffbtn{ position:fixed; left:1rem; bottom:1rem; z-index:120; display:flex; align-items:center; gap:.45rem; cursor:pointer;
+               padding:.62rem .9rem; border:0; border-radius:2rem; font-weight:800; font-size:.86rem; color:#0b0d12;
+               background:linear-gradient(90deg,#ff6b6b,#ffcf6b,#3ddc97,#7c8cff,#ff79c6,#ff6b6b); background-size:200% 100%;
+               box-shadow:0 8px 26px #0007, inset 0 0 0 1px #fff3;
+               animation:cookoff-flow 4s linear infinite, cookoff-bob 2.8s ease-in-out infinite; }
+  #cookoffbtn:hover{ filter:brightness(1.08) saturate(1.12) }
+  #cookoffbtn .x{ display:flex; align-items:center; justify-content:center; width:1.15rem; height:1.15rem; border-radius:50%;
+                  background:#0b0d1233; font-size:.72rem; opacity:.85 }
+  #cookoffbtn .x:hover{ background:#0b0d1255; opacity:1 }
+  @media (prefers-reduced-motion:reduce){ #cookoffbtn{ animation:none } }
+  #cookoffmodal[hidden]{ display:none }
+  #cookoffmodal{ position:fixed; inset:0; z-index:210; display:flex; padding:min(4vh,2.4rem) min(4vw,2.4rem);
+                 background:rgba(4,6,11,.78); backdrop-filter:blur(3px); }
+  #cookoffpanel{ position:relative; margin:auto; width:100%; max-width:540px; max-height:92vh; overflow:auto;
+                 background:var(--bg); border-radius:.9rem; padding:1.5rem 1.5rem 1.5rem; box-shadow:0 30px 90px #000c; }
+  #cookoffpanel::before{ content:""; position:absolute; inset:0; border-radius:.9rem; padding:2px; pointer-events:none;
+                 background:linear-gradient(90deg,#ff6b6b,#ffcf6b,#3ddc97,#7c8cff,#ff79c6,#ff6b6b); background-size:200% 100%;
+                 -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); -webkit-mask-composite:xor;
+                 mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); mask-composite:exclude;
+                 animation:cookoff-flow 4s linear infinite; }
+  @media (prefers-reduced-motion:reduce){ #cookoffpanel::before{ animation:none } }
+  #cookoffpanel h2{ margin:.1rem 0 .15rem; font-size:1.4rem; background:linear-gradient(90deg,#ff6b6b,#ffcf6b,#3ddc97,#7c8cff,#ff79c6);
+                 -webkit-background-clip:text; background-clip:text; color:transparent }
+  #cookoffpanel .prize{ font-weight:800; font-size:1.05rem; color:var(--ink); margin:0 0 .7rem }
+  #cookoffpanel p{ font-size:.86rem; line-height:1.5; color:var(--ink); margin:.5rem 0 }
+  #cookoffpanel .cats{ list-style:none; padding:0; margin:.6rem 0; display:flex; flex-direction:column; gap:.45rem }
+  #cookoffpanel .cats li{ font-size:.84rem; background:var(--panel); border:1px solid var(--line); border-radius:.55rem; padding:.5rem .65rem }
+  #cookoffpanel .meta{ font-size:.75rem; color:var(--dim); line-height:1.55; margin-top:.7rem }
+  #cookoffpanel a{ color:var(--accent) }
+  #cookoffpanel .cta{ display:inline-block; margin-top:.9rem; padding:.6rem 1.05rem; border:0; border-radius:.6rem; cursor:pointer;
+                 font-weight:800; color:#0b0d12; background:linear-gradient(90deg,var(--accent),var(--accent2)) }
+  #cookoffclose{ position:absolute; top:.6rem; right:.7rem; width:2.1rem; height:2.1rem; border-radius:.55rem;
+                 display:flex; align-items:center; justify-content:center; font-size:1.05rem; z-index:2 }
   /* toast — a clearly-visible transient confirmation */
   #toast{ position:fixed; top:64px; left:50%; transform:translateX(-50%) translateY(-14px) scale(.98); z-index:80;
           display:flex; align-items:center; gap:.5rem; max-width:min(92vw,560px);
@@ -400,6 +437,27 @@
 <div id="appmodal" hidden>
   <button id="appmodalclose" title="Close (Esc)" aria-label="Close">✕</button>
   <iframe id="appmodalframe" title="Create app" allow="clipboard-write; fullscreen"></iframe>
+</div>
+
+<!-- 🍜 Noodle Cookoff — floating announcement (left), opens the contest modal -->
+<button id="cookoffbtn" title="Noodle Cookoff — win Nano" aria-haspopup="dialog">🍜 Noodle Cookoff<span class="x" id="cookoffdismiss" role="button" tabindex="0" title="Dismiss" aria-label="Dismiss">✕</span></button>
+<div id="cookoffmodal" hidden>
+  <div id="cookoffpanel" role="dialog" aria-label="Noodle Cookoff">
+    <button id="cookoffclose" class="hbtn" title="Close (Esc)" aria-label="Close">✕</button>
+    <h2>🍜 Noodle Cookoff</h2>
+    <div class="prize">Win 3 × 133 XNO (Nano)</div>
+    <p>You're already in the kitchen. Wire up a noodle, share it, and win Nano — feeless, pay-per-call, no signup.</p>
+    <ul class="cats">
+      <li>🛠 <b>Most Useful</b> — the one you'd actually open every week</li>
+      <li>💡 <b>Most Innovative</b> — made nano-gpt do something nobody expected</li>
+      <li>❤️ <b>People's Choice</b> — most hearts on Discord + upvotes on Reddit (summed if you post both!)</li>
+    </ul>
+    <p><b>How to enter:</b> build something here → hit <b>🔗 Share</b> → drop the link in nano-gpt's Discord <b>#community-projects</b> or post it to <b>r/nanocurrency</b> (or both!).</p>
+    <p class="meta">Opens June 26 · closes July 12 (23:59 UTC) · max 2 entries each · winners get a permanent spot in the gallery.<br>
+      Keep entries SFW — no copyright violations, nothing illegal. Prizes can only be sent to wallets in countries not under active US sanctions.<br>
+      nanoodle is a community project on <a href="https://nano-gpt.com" target="_blank" rel="noopener">nano-gpt</a>, which takes Nano — so the prize pool stays in the ecosystem.</p>
+    <button class="cta" id="cookoffstart">Start cooking →</button>
+  </div>
 </div>
 
 <main id="editor" aria-label="Workflow canvas">
@@ -2656,6 +2714,19 @@ $("makeapp").onclick = async ()=>{
 $("appmodalclose").onclick = closeAppModal;
 $("appmodal").addEventListener("click", e=>{ if(e.target.id==="appmodal") closeAppModal(); });   // click the dim backdrop
 addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("appmodal").hidden) closeAppModal(); });
+
+// 🍜 Noodle Cookoff promo — opens a static announcement modal; the ✕ on the button dismisses it for good.
+const cookoffBtn = $("cookoffbtn");
+try{ if(localStorage.getItem("noodle_cookoff_dismissed")) cookoffBtn.hidden = true; }catch(_){}
+function closeCookoff(){ $("cookoffmodal").hidden = true; }
+cookoffBtn.onclick = ()=>{ $("cookoffmodal").hidden = false; };
+function dismissCookoff(e){ e.stopPropagation(); cookoffBtn.hidden = true; try{ localStorage.setItem("noodle_cookoff_dismissed","1"); }catch(_){} }
+$("cookoffdismiss").onclick = dismissCookoff;
+$("cookoffdismiss").addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" ") dismissCookoff(e); });
+$("cookoffclose").onclick = closeCookoff;
+$("cookoffstart").onclick = closeCookoff;
+$("cookoffmodal").addEventListener("click", e=>{ if(e.target.id==="cookoffmodal") closeCookoff(); });   // click the dim backdrop
+addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("cookoffmodal").hidden) closeCookoff(); });
 addEventListener("message", e=>{
   if(e.source!==$("appmodalframe").contentWindow || !e.data) return;
   if(e.data.type==="__closeapp__") closeAppModal();
