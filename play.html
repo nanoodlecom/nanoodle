@@ -475,8 +475,10 @@ window.NoodleApp = (function () {
     // A present-but-ZERO price is known-free (subscription-included), NOT unknown:
     // keep it as 0 so the meter stays exact and the node can show "included".
     const p = j.x_nanogpt_pricing, pUsd = p && (p.costUsd!=null ? p.costUsd : p.cost);
+    const mUsd = j.metadata && j.metadata.cost;        // the transcription endpoint reports price here
     const usd = (typeof j.cost==="number" && j.cost>0) ? j.cost
               : (pUsd!=null && isFinite(Number(pUsd))) ? Number(pUsd)
+              : (mUsd!=null && isFinite(Number(mUsd))) ? Number(mUsd)
               : (typeof j.cost==="number") ? j.cost : null;
     const balance = (typeof j.remainingBalance==="number") ? j.remainingBalance
                   : (p && typeof p.remainingBalance==="number") ? p.remainingBalance : null;
@@ -1068,6 +1070,7 @@ window.NoodleApp = (function () {
     // Each node runs as soon as its OWN inputs are ready — siblings that share a
     // parent (a→b, a→c) run concurrently instead of serializing down topo order.
     const done = {};                                   // id → promise, keyed so dependents can await their inputs
+    let nodeErrors = 0;                                // per-node failures (isolated, not thrown) — reported for keep-mode backoff
     const depsOf = (id)=>{                              // upstream node ids feeding this node (within the run set)
       const s = new Set();
       for(const l of graph.links) if(l.to.node===id && ids.has(l.from.node)) s.add(l.from.node);
@@ -1115,10 +1118,11 @@ window.NoodleApp = (function () {
         // editor parity (runGroup): isolate per-node failures — mark error and keep going so
         // independent flows / other sinks still produce output. Do NOT rethrow.
         // Exception: a Stop-triggered abort halts the whole lane (propagate it).
-        catch(err){ if(isAbort(err)) throw err; onStatus && onStatus(id, "error", err.message); }
+        catch(err){ if(isAbort(err)) throw err; nodeErrors++; onStatus && onStatus(id, "error", err.message); }
       })();
     }
     await Promise.all(r.order.map(id=> done[id]));       // lane finishes when every node has settled
+    return { nodeErrors };                               // let the caller back off if every retry just re-fails
   }
 
   /* =====================================================================
@@ -1683,11 +1687,15 @@ window.NoodleApp = (function () {
         first = false;
         let failed = false;
         try {
-          await runGraph(cloneGraph(), {
+          const res = await runGraph(cloneGraph(), {
             onStart: (order)=> laneStart(i, order),
             onStatus: (id,kind,msg)=> laneStep(i, id, kind, msg),
             onResult: (n)=>{ if(outIds.has(n.id)) renderResult(n, N>1 ? i+1 : 0); },
           });
+          // per-node errors are isolated (not thrown), so the run "succeeds" even when
+          // every node failed — count them as a failure so keep mode backs off instead
+          // of hot-looping on a persistent bad-input/auth error.
+          if(res && res.nodeErrors>0) failed = true;
         } catch(err){
           // a Stop-triggered abort is expected — swallow it; surface only real errors.
           if(isAbort(err)) break;
