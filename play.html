@@ -404,7 +404,8 @@ window.NoodleApp = (function () {
   const abortError = ()=> new DOMException("canceled", "AbortError");
   const isAbort = (e)=> e && (e.name==="AbortError" || runAborted());
   const getKey = ()=> localStorage.getItem("ngpt_key");
-  const setKey = (k)=>{ k ? localStorage.setItem("ngpt_key",k) : localStorage.removeItem("ngpt_key"); renderAuth(); };
+  const setKey = (k)=>{ k ? localStorage.setItem("ngpt_key",k) : localStorage.removeItem("ngpt_key"); renderAuth();
+    if(k && typeof STATE!=="undefined" && STATE) fillModelLists(); };   // standalone: a pasted/OAuth key fills the model dropdowns
   const hasAuth = ()=> EMBEDDED ? parentAuthed : !!getKey();
   // Content-Type only — the key is attached by apiFetch (standalone) or the parent proxy (embedded).
   function authHeaders(){ return { "Content-Type":"application/json" }; }
@@ -1166,6 +1167,115 @@ window.NoodleApp = (function () {
   }
 
   /* =====================================================================
+     SETTINGS — the per-node knobs (model, size, duration, …). Unlike inputs
+     these are NOT part of the app's user-facing IO SHAPE: swapping a model or
+     changing a size leaves the same controls/outputs (see ioSignature), so a
+     port is never needed for them. They therefore live in their own list and
+     must NEVER be folded into deriveInputs(). The play page surfaces them under
+     "Optional settings" so every model the app uses is visible and swappable.
+     ===================================================================== */
+  const ASPECTS = [["16:9","16:9 landscape"],["9:16","9:16 portrait"],["1:1","1:1 square"],["4:3","4:3"],["3:4","3:4"]];
+  const SETTING_SPECS = {
+    llm:     [{ f:"model", label:"Model", kind:"model" }],
+    vision:  [{ f:"model", label:"Model", kind:"model" },
+              { f:"q",     label:"Question", kind:"textarea", def:"Describe this image." }],
+    image:   [{ f:"model", label:"Model", kind:"model" },
+              { f:"size",  label:"Image size", kind:"select", options:SIZES, def:SIZES[0][0] }],
+    edit:    [{ f:"model", label:"Model", kind:"model" },
+              { f:"size",  label:"Image size", kind:"select", options:SIZES, def:SIZES[0][0] }],
+    tvideo:  [{ f:"model", label:"Model", kind:"model" },
+              { f:"duration", label:"Duration (s)", kind:"number", min:1, def:"5" },
+              { f:"aspect",   label:"Aspect ratio", kind:"select", options:ASPECTS, def:"16:9" }],
+    ivideo:  [{ f:"model", label:"Model", kind:"model" },
+              { f:"prompt", label:"Motion prompt", kind:"textarea" },
+              { f:"duration", label:"Duration (s)", kind:"number", min:1, def:"5" },
+              { f:"aspect",   label:"Aspect ratio", kind:"select", options:ASPECTS, def:"16:9" }],
+    vedit:   [{ f:"model", label:"Model", kind:"model" },
+              { f:"prompt", label:"Edit instruction", kind:"textarea" }],
+    lipsync: [{ f:"model", label:"Model", kind:"model" },
+              { f:"prompt", label:"Guidance prompt", kind:"textarea" }],
+    music:   [{ f:"model", label:"Model", kind:"model" },
+              { f:"lyrics", label:"Lyrics", kind:"textarea" },
+              { f:"instrumental", label:"Instrumental", kind:"boolean" },
+              { f:"duration", label:"Duration (s)", kind:"number", min:1 },
+              { f:"negative_prompt", label:"Negative prompt", kind:"textarea" },
+              { f:"seed", label:"Seed", kind:"number" }],
+    tts:     [{ f:"model", label:"Model", kind:"model" },
+              { f:"voice", label:"Voice", kind:"text" },
+              { f:"speed", label:"Speed", kind:"number", min:0, step:"0.1", def:"1" },
+              { f:"instructions", label:"Voice instructions", kind:"textarea" }],
+    transcribe:[{ f:"model", label:"Model", kind:"model" },
+              { f:"language", label:"Language", kind:"text", def:"auto" }],
+    join:    [{ f:"sep", label:"Separator (use \\n for a line break)", kind:"text", def:" " }],
+  };
+  // node type -> NanoGPT catalog kind, used to populate the model-swap datalist
+  const SETTING_MODEL_KIND = {
+    llm:"chat", vision:"chat", image:"image", edit:"image",
+    tvideo:"video", ivideo:"video", vedit:"video", lipsync:"video",
+    music:"audio", tts:"audio", transcribe:"audio",
+  };
+  function deriveSettings(graph){
+    const out = [];
+    for(const n of graph.nodes){
+      const specs = SETTING_SPECS[n.type]; if(!specs) continue;
+      for(const s of specs){
+        // a knob fed by a link is decided upstream → don't offer a control for it
+        if(graph.links.some(l=> l.to.node===n.id && l.to.port===s.f)) continue;
+        out.push({ nodeId:n.id, field:s.f, label:s.label, kind:s.kind,
+                   options:s.options, def:s.def, min:s.min, max:s.max, step:s.step,
+                   modelKind:(s.kind==="model" ? SETTING_MODEL_KIND[n.type] : null),
+                   node:n, title:NODE_TYPES[n.type].title, em:NODE_TYPES[n.type].em });
+      }
+    }
+    return out;
+  }
+
+  /* ---------- model catalogs for the swap dropdown (best-effort) ----------
+     The runtime needs NO catalog to run — the chosen model id rides on the
+     graph — so this is pure autocomplete. We fetch the matching NanoGPT list,
+     keep only entries a given node can actually use, and fill its <select>.
+     These catalog endpoints are PUBLIC (no key needed), so we load them even
+     signed-out; the proxy allows them read-only. A failed/empty fetch just
+     leaves the model field as free text. */
+  const CATALOG_URL = { chat:"/api/v1/models?detailed=true", image:"/api/v1/image-models", video:"/api/v1/video-models", audio:"/api/v1/audio-models" };
+  const _catCache = {};   // kind -> Promise<rawItem[]> (only cached once it resolves non-empty)
+  function loadCatalogRaw(kind){
+    if(_catCache[kind]) return _catCache[kind];
+    return (_catCache[kind] = (async()=>{
+      try{
+        const r = await apiFetch(NANOGPT + CATALOG_URL[kind], { headers:authHeaders() });
+        const data = (await r.json()).data || [];
+        if(!data.length) delete _catCache[kind];   // empty (blocked/transient/pre-auth) → allow a later retry
+        return data;
+      }catch(e){ delete _catCache[kind]; return []; }   // transient failure → allow a later retry
+    })());
+  }
+  // does a raw catalog item suit this node type? (capability flags, mirrors the editor's filters)
+  function modelSuits(type, m){
+    const c = m.capabilities||{}, mod = (m.architecture||{}).modality||"", out = mod.split("->")[1]||"";
+    switch(type){
+      case "vision":     return !!c.vision;
+      case "image":      return mod ? mod.startsWith("text") : !c.image_to_image;
+      case "edit":       return !!c.image_to_image;
+      case "tvideo":     return !!c.text_to_video;
+      case "ivideo":     return !!c.image_to_video;
+      case "vedit":      return !!c.video_to_video;
+      case "lipsync":    return !!c.image_to_video && !!c.audio_input;
+      case "tts":        return !!c.text_to_speech || m.category==="audio_tts";
+      case "music":      return mod.startsWith("text") && /audio|music/.test(out) && !(c.text_to_speech || m.category==="audio_tts");
+      case "transcribe": return (!!c.speech_to_text || m.category==="audio_stt") && !/clone/i.test(m.id||"");
+      default:           return true;   // llm — any chat model
+    }
+  }
+  async function modelOptionsFor(type){
+    const kind = SETTING_MODEL_KIND[type]; if(!kind) return [];
+    const raw = await loadCatalogRaw(kind);
+    return raw.filter(m=> m && m.id && modelSuits(type, m))
+              .sort((a,b)=> (b.created||0)-(a.created||0))
+              .map(m=> m.id);
+  }
+
+  /* =====================================================================
      DESCRIBE — a plain-English account of what the graph actually does:
      the pipeline steps in run order, the data flow between them, the
      prompts/models in play, what the end-user fills in, and what comes
@@ -1262,53 +1372,101 @@ window.NoodleApp = (function () {
     return new Promise((res, rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=()=>rej(new Error("read failed")); fr.readAsDataURL(file); });
   }
 
-  function fieldHtml(it, i){
-    const id = "in_"+i;
+  // ns ("in"=user input | "set"=optional setting) namespaces the element id and
+  // the data-i index so renderInputs can wire each control back to the right list.
+  function fieldHtml(it, i, ns, grouped){
+    const id = ns+"_"+i, di = 'data-ns="'+ns+'" data-i="'+i+'"';
     let cur = it.node.fields[it.field];
-    // Optional fields ship pre-filled with a sensible default so they read as
-    // ready-to-go (and are written onto the graph so a run uses them as-is).
-    if(it.optional && (cur==null || cur==="") && it.def){ cur = it.def; it.node.fields[it.field] = it.def; }
-    let ctrl;
+    // Optional fields / settings ship pre-filled with a sensible default so they
+    // read as ready-to-go (and are written onto the graph so a run uses them as-is).
+    if((it.optional || ns==="set") && (cur==null || cur==="") && it.def!=null){ cur = it.def; it.node.fields[it.field] = it.def; }
+    let ctrl, ownLabel = false;
     if(it.kind==="textarea")
-      ctrl = '<textarea id="'+id+'" data-i="'+i+'" placeholder="'+esc(it.label)+'">'+esc(cur||"")+'</textarea>';
+      ctrl = '<textarea id="'+id+'" '+di+' placeholder="'+esc(it.label)+'">'+esc(cur||"")+'</textarea>';
     else if(it.kind==="image")
       ctrl = '<div class="imgin">'
-           + '<div class="file-prev" data-prev="'+i+'">'+(cur ? '<img src="'+esc(cur)+'" alt="">' : '<span class="muted">no image</span>')+'</div>'
-           + '<input type="file" accept="image/*" id="'+id+'" data-i="'+i+'">'
+           + '<div class="file-prev" data-prev="'+id+'">'+(cur ? '<img src="'+esc(cur)+'" alt="">' : '<span class="muted">no image</span>')+'</div>'
+           + '<input type="file" accept="image/*" id="'+id+'" '+di+'>'
            + '</div>';
     else if(it.kind==="audio" || it.kind==="video")
       ctrl = '<div class="imgin">'
-           + '<div class="file-prev" data-prev="'+i+'">'+(cur ? '<'+it.kind+' src="'+esc(cur)+'" controls'+(it.kind==="video"?" playsinline":"")+'></'+it.kind+'>' : '<span class="muted">no '+it.kind+'</span>')+'</div>'
-           + '<input type="file" accept="'+it.kind+'/*" id="'+id+'" data-i="'+i+'">'
+           + '<div class="file-prev" data-prev="'+id+'">'+(cur ? '<'+it.kind+' src="'+esc(cur)+'" controls'+(it.kind==="video"?" playsinline":"")+'></'+it.kind+'>' : '<span class="muted">no '+it.kind+'</span>')+'</div>'
+           + '<input type="file" accept="'+it.kind+'/*" id="'+id+'" '+di+'>'
            + '</div>';
+    else if(it.kind==="select")
+      ctrl = '<select id="'+id+'" '+di+'>'
+           + (it.options||[]).map(o=>{ const v=Array.isArray(o)?o[0]:o, l=Array.isArray(o)?o[1]:o;
+               return '<option value="'+esc(v)+'"'+(String(v)===String(cur)?" selected":"")+'>'+esc(l)+'</option>'; }).join("")
+           + '</select>';
+    else if(it.kind==="boolean"){
+      const blab = (!grouped && it.em) ? it.em+' '+it.label : it.label;
+      ctrl = '<label class="setbool"><input type="checkbox" id="'+id+'" '+di+(cur===true||cur==="true"?" checked":"")+'> '+esc(blab)+'</label>';
+      ownLabel = true;
+    }
+    else if(it.kind==="number"){
+      const a=(it.min!=null?' min="'+esc(it.min)+'"':""), b=(it.max!=null?' max="'+esc(it.max)+'"':""), s=(it.step!=null?' step="'+esc(it.step)+'"':"");
+      ctrl = '<input type="number" id="'+id+'" '+di+a+b+s+' value="'+esc(cur==null?"":cur)+'" placeholder="'+esc(it.label)+'">';
+    }
+    else if(it.kind==="model"){
+      // a real <select> (opens on click) populated from the catalog by fillModelLists;
+      // a "Custom…" option reveals a text input so an offline/uncatalogued id still works.
+      const o = (v,sel)=> '<option value="'+esc(v)+'"'+(sel?" selected":"")+'>'+esc(v)+'</option>';
+      ctrl = '<div class="modelpick">'
+           + '<select id="'+id+'" '+di+' class="modelsel">'
+           +   (cur ? o(cur,true) : '<option value="" selected disabled>Choose a model…</option>')
+           +   '<option value="__custom__">✎ Custom model id…</option>'
+           + '</select>'
+           + '<input class="modelcustom" value="'+esc(cur||"")+'" placeholder="model id" autocomplete="off" spellcheck="false" hidden>'
+           + '</div>';
+    }
     else
-      ctrl = '<input id="'+id+'" data-i="'+i+'" value="'+esc(cur||"")+'" placeholder="'+esc(it.label)+'">';
-    return '<div class="field"><label for="'+id+'">'+esc(it.em)+' '+esc(it.label)+'</label>'+ctrl+'</div>';
+      ctrl = '<input id="'+id+'" '+di+' value="'+esc(cur||"")+'" placeholder="'+esc(it.label)+'">';
+    if(ownLabel) return '<div class="field">'+ctrl+'</div>';
+    const tag = (!grouped && it.em) ? esc(it.em)+' ' : "";
+    return '<div class="field"><label for="'+id+'">'+tag+esc(it.label)+'</label>'+ctrl+'</div>';
   }
+  // resolve a control's (ns, index) back to its live item in STATE
+  function itemAt(el){ return (el.dataset.ns==="set" ? STATE.settings : STATE.inputs)[+el.dataset.i]; }
   function renderInputs(){
     const box = $("app-inputs"); if(!box) return;
-    if(!STATE.inputs.length){ box.innerHTML = '<p class="muted">This app takes no inputs — just press Run.</p>'; return; }
+    const inputs = STATE.inputs, settings = STATE.settings || [];
     const req = [], opt = [];
-    STATE.inputs.forEach((it,i)=>{ (it.optional ? opt : req).push(i); });
-    // Mandatory fields first; optional ones tucked into a collapsed, pre-filled disclosure below.
-    let html = req.map(i=> fieldHtml(STATE.inputs[i], i)).join("");
-    if(opt.length){
+    inputs.forEach((it,i)=>{ (it.optional ? opt : req).push(i); });
+    // Mandatory fields first; optional inputs + every per-step setting (models,
+    // sizes, durations…) tucked into a collapsed, pre-filled disclosure below.
+    let html = req.map(i=> fieldHtml(inputs[i], i, "in")).join("");
+    if(!req.length) html += '<p class="muted">This app takes no inputs — just press Run.</p>';
+    const optCount = opt.length + settings.length;
+    if(optCount){
+      // Group every optional control under its step (graph order), so a step's
+      // model + its knobs read as one cluster instead of a flat, emoji-tagged jumble.
+      const items = opt.map(i=> ({ it:inputs[i], idx:i, ns:"in" }))
+                .concat(settings.map((it,i)=> ({ it, idx:i, ns:"set" })));
+      const byNode = new Map();
+      for(const e of items){ const k=e.it.nodeId; (byNode.get(k) || byNode.set(k,[]).get(k)).push(e); }
+      let groups = "";
+      for(const n of STATE.graph.nodes){
+        const g = byNode.get(n.id); if(!g) continue;
+        const h = g[0].it;
+        groups += '<div class="setgroup"><div class="setgroup-h">'+(h.em?esc(h.em)+' ':'')+esc(h.title||"step")+'</div>'
+                + g.map(e=> fieldHtml(e.it, e.idx, e.ns, true)).join("")
+                + '</div>';
+      }
       html += '<details class="opt">'
             + '<summary><span class="opt-tw">▸</span> Optional settings'
-            + '<span class="opt-count">'+opt.length+'</span>'
-            + '<span class="opt-hint">pre-filled — tap to adjust</span></summary>'
-            + '<div class="opt-body">' + opt.map(i=> fieldHtml(STATE.inputs[i], i)).join("") + '</div>'
-            + '</details>';
+            + '<span class="opt-count">'+optCount+'</span>'
+            + '<span class="opt-hint">models &amp; defaults — tap to adjust</span></summary>'
+            + '<div class="opt-body">'+groups+'</div></details>';
     }
     box.innerHTML = html;
     // wire controls back onto the live graph fields
-    box.querySelectorAll("textarea[data-i],input[data-i]").forEach(el=>{
-      const it = STATE.inputs[+el.dataset.i];
+    box.querySelectorAll("[data-ns]").forEach(el=>{
+      const it = itemAt(el); if(!it) return;
       if(el.type==="file"){
         el.addEventListener("change", async ()=>{
           const f = el.files && el.files[0]; if(!f) return;
           const url = await fileToDataUrl(f); it.node.fields[it.field] = url;
-          const prev = box.querySelector('[data-prev="'+el.dataset.i+'"]');
+          const prev = box.querySelector('[data-prev="'+el.id+'"]');
           if(prev){
             const k = it.kind;
             prev.innerHTML = (k==="audio" || k==="video")
@@ -1316,9 +1474,39 @@ window.NoodleApp = (function () {
               : '<img src="'+esc(url)+'" alt="">';
           }
         });
+      } else if(el.type==="checkbox"){
+        el.addEventListener("change", ()=>{ it.node.fields[it.field] = el.checked; });
+      } else if(el.classList.contains("modelsel")){
+        const wrap = el.closest(".modelpick"), custom = wrap.querySelector(".modelcustom");
+        el.addEventListener("change", ()=>{
+          if(el.value==="__custom__"){ custom.hidden=false; custom.focus(); it.node.fields[it.field]=custom.value.trim(); }
+          else { custom.hidden=true; it.node.fields[it.field]=el.value; }
+        });
+        custom.addEventListener("input", ()=>{ it.node.fields[it.field]=custom.value.trim(); });
       } else {
-        el.addEventListener("input", ()=>{ it.node.fields[it.field] = el.value; });
+        const sync = ()=>{ it.node.fields[it.field] = el.value; };
+        el.addEventListener("input", sync);
+        if(el.tagName==="SELECT") el.addEventListener("change", sync);
       }
+    });
+    fillModelLists();
+  }
+  // Best-effort: pull each model field's catalog and fill its datalist so the
+  // user can pick a different model. Never blocks the run; failures are silent.
+  function fillModelLists(){
+    (STATE.settings || []).forEach((it,i)=>{
+      if(it.kind!=="model") return;
+      modelOptionsFor(it.node.type).then(ids=>{
+        const sel = document.getElementById("set_"+i);
+        if(!sel || sel.tagName!=="SELECT" || !ids.length) return;
+        // user already switched to free-text entry — don't yank the catalog over it
+        const custom = sel.closest(".modelpick") && sel.closest(".modelpick").querySelector(".modelcustom");
+        if(custom && !custom.hidden) return;
+        const cur = it.node.fields[it.field];
+        const all = (cur && !ids.includes(cur)) ? [cur, ...ids] : ids;   // keep the current id even if filtered out
+        sel.innerHTML = all.slice(0,300).map(id=> '<option value="'+esc(id)+'"'+(id===cur?" selected":"")+'>'+esc(id)+'</option>').join("")
+                      + '<option value="__custom__">✎ Custom model id…</option>';
+      }).catch(()=>{});
     });
   }
 
@@ -1802,7 +1990,8 @@ window.NoodleApp = (function () {
   function wireParentBridge(){
     window.addEventListener("message", (e)=>{
       const m = e.data || {};
-      if(m && m.type==="__auth__"){ parentAuthed = !!m.signedIn; renderAuth(); }
+      if(m && m.type==="__auth__"){ const was=parentAuthed; parentAuthed = !!m.signedIn; renderAuth();
+        if(parentAuthed && !was && STATE) fillModelLists(); }   // key just arrived → fill the model dropdowns
     });
     document.addEventListener("keydown", (e)=>{
       if(e.key==="Escape"){ try{ parent.postMessage({type:"__escape__"}, "*"); }catch(_){} }
@@ -1818,7 +2007,7 @@ window.NoodleApp = (function () {
     mounted = true;
     const data = window.NOODLE_GRAPH || { nodes:[], links:[] };
     const graph = materialize(data);
-    STATE = { data, graph, inputs:deriveInputs(graph), outputs:deriveOutputs(graph) };
+    STATE = { data, graph, inputs:deriveInputs(graph), settings:deriveSettings(graph), outputs:deriveOutputs(graph) };
 
     wireParentBridge();
 
@@ -1852,7 +2041,7 @@ window.NoodleApp = (function () {
     }
   }
 
-  return { mount, runGraph, materialize, describeGraph, deriveInputs, deriveOutputs, NODE_TYPES, CTX:makeCtx(function(){}) };
+  return { mount, runGraph, materialize, describeGraph, deriveInputs, deriveSettings, deriveOutputs, NODE_TYPES, CTX:makeCtx(function(){}) };
 })();
 `;
 
@@ -2029,6 +2218,13 @@ body{ background:
 .opt-count{ background:var(--panel2); border:1px solid var(--line); border-radius:99px; padding:0 .45rem; font-size:.72rem; }
 .opt-hint{ margin-left:auto; font-size:.72rem; color:var(--faint); }
 .opt-body{ display:flex; flex-direction:column; gap:1rem; padding:.2rem .8rem .85rem; }
+.setgroup{ border:1px solid var(--line); border-radius:var(--radius); background:var(--panel2);
+  padding:.7rem .8rem; display:flex; flex-direction:column; gap:.85rem; }
+.setgroup-h{ font-size:.78rem; font-weight:600; color:var(--dim); }
+.modelpick .modelcustom{ margin-top:.45rem; }
+.modelcustom[hidden]{ display:none; }
+.field .setbool{ display:flex; align-items:center; gap:.5rem; font-size:.85rem; color:var(--ink); cursor:pointer; user-select:none; }
+.field .setbool input{ accent-color:var(--accent); width:1rem; height:1rem; margin:0; }
 
 /* keep-generating toggle — keeps all N lanes busy until Stop / unchecked */
 .loop{ display:flex; align-items:center; gap:.4rem; font-size:.8rem; color:var(--dim); cursor:pointer; user-select:none; }
@@ -2231,10 +2427,14 @@ addEventListener("message", async (e) => {
       // the *status endpoints because they carry ids/params in the query string.
       const ALLOW_PATHS = ["/v1/images/generations", "/api/v1/chat/completions", "/api/generate-video", "/api/v1/audio/speech"];
       const ALLOW_PREFIXES = ["/api/video/status", "/api/tts/status"];
-      const okPath = ALLOW_PATHS.includes(u.pathname) || ALLOW_PREFIXES.some(p=> u.pathname.startsWith(p));
+      // Read-only public model catalogs (no key needed, no account/billing surface).
+      // Allowed so a node's model-swap dropdown can populate — even before sign-in.
+      const ALLOW_CATALOG = ["/api/v1/models", "/api/v1/image-models", "/api/v1/video-models", "/api/v1/audio-models"];
+      const isCatalog = ALLOW_CATALOG.includes(u.pathname);
+      const okPath = isCatalog || ALLOW_PATHS.includes(u.pathname) || ALLOW_PREFIXES.some(p=> u.pathname.startsWith(p));
       if(!okPath) return reply({ error:"blocked: this app endpoint is not permitted" });
-      const k = getKey(); if(!k) return reply({ error:"sign in to run this app" });
-      const headers = Object.assign({}, d.headers, { Authorization:"Bearer "+k, "x-api-key":k });
+      const k = getKey(); if(!k && !isCatalog) return reply({ error:"sign in to run this app" });
+      const headers = Object.assign({}, d.headers, k ? { Authorization:"Bearer "+k, "x-api-key":k } : {});
       const r = await fetch(u.href, { method:d.method||"GET", headers, body:(d.body!=null?d.body:undefined) });
       const body = await r.arrayBuffer();
       const hdrs = {}; r.headers.forEach((v,kk)=> hdrs[kk.toLowerCase()]=v);
