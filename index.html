@@ -2586,14 +2586,12 @@ $("signout").onclick = ()=> setKey(null);
   if(!restored && location.hash.startsWith("#gallery=")) restored = await loadGalleryEntry(decodeURIComponent(location.hash.slice(9)));
   if(!restored && location.hash.length > 3) restored = await loadFromHash();   // opened a shared link
   if(!restored) restored = load();                                // else last local graph
-  // brand-new visitor landing on the bare page: welcome them with the gallery (once ever)
-  const firstVisit = !restored && !location.hash && !location.search
-    && !localStorage.getItem("noodle_graph") && !localStorage.getItem("noodle_seen_gallery");
   if(!restored) restored = await loadDefault();                   // else noodle-graph.json
   if(!restored) seed();                                           // else built-in starter
   updateTitle();                                                  // reflect whether an app's workflow is loaded
   redraw();
-  if(firstVisit) openGallery();                                   // show what's possible over the default graph
+  // Brand-new visitors land straight on a simple working flow (the default graph) —
+  // no gallery modal in the way. The 🖼️ Gallery button is there when they want to browse.
   try{ await handleRedirect(); }catch(e){ $("status").textContent="sign-in error: "+e.message; }
   renderAuth();
   // pull the full model catalogs in the background, then show per-node prices
