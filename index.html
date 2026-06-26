@@ -340,7 +340,6 @@
     <div id="addpop"></div>
   </div>
   <button id="run" class="primary" title="run every flow (Ctrl/⌘+Enter)">▶ Run</button>
-  <button id="gallery" title="Browse example &amp; contest noodles — open one to remix it">🖼️ Gallery</button>
   <button id="makeapp" title="Turn this workflow into a shareable app">✨ Create app</button>
   <button id="share" title="Copy a link that loads this exact workflow — paste it to share with anyone">🔗 Share</button>
   <button id="save" title="download this graph as JSON">⭳ Save</button>
@@ -2216,7 +2215,7 @@ $("run").onclick = runAll;
 
 /* ---------- responsive toolbar: collapse secondary actions into the ⋯ menu on phones ----------
    Buttons keep their handlers (they're moved, not cloned). On desktop everything sits inline. */
-const RELOC = ["gallery","makeapp","share","save","load","signin","pastebtn","signout","status"];  // order shown in the menu
+const RELOC = ["makeapp","share","save","load","signin","pastebtn","signout","status"];  // order shown in the menu
 const mqMobile = matchMedia("(max-width:640px)");
 let topOrder = null;
 function layoutBar(){
@@ -2501,7 +2500,7 @@ async function openGallery(){
   list.forEach(e=> grid.appendChild(galleryCard(e)));
 }
 function closeGallery(){ $("gallerymodal").hidden = true; }
-$("gallery").onclick = openGallery;
+// No toolbar button for now — the gallery still opens via a "#gallery=<slug>" deep link (see boot).
 $("galleryclose").onclick = closeGallery;
 $("gallerymodal").addEventListener("click", e=>{ if(e.target.id==="gallerymodal") closeGallery(); });   // click the dim backdrop
 addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("gallerymodal").hidden) closeGallery(); });
