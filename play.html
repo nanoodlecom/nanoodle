@@ -1475,15 +1475,15 @@ window.NoodleApp = (function () {
       ctrl = '<input type="number" id="'+id+'" '+di+a+b+s+' value="'+esc(cur==null?"":cur)+'" placeholder="'+esc(it.label)+'">';
     }
     else if(it.kind==="model"){
-      // a real <select> (opens on click) populated from the catalog by fillModelLists;
-      // a "Custom…" option reveals a text input so an offline/uncatalogued id still works.
-      const o = (v,sel)=> '<option value="'+esc(v)+'"'+(sel?" selected":"")+'>'+esc(v)+'</option>';
+      // A free-text input over a small custom dropdown (setupModelCombo): focus shows
+      // the full catalog, typing filters it like the editor's picker, and any id can
+      // be pasted free-hand (works offline / for uncatalogued ids). A native <datalist>
+      // won't do — once the input holds a model id it hides the browse-all list.
       ctrl = '<div class="modelpick">'
-           + '<select id="'+id+'" '+di+' class="modelsel">'
-           +   (cur ? o(cur,true) : '<option value="" selected disabled>Choose a model…</option>')
-           +   '<option value="__custom__">✎ Custom model id…</option>'
-           + '</select>'
-           + '<input class="modelcustom" value="'+esc(cur||"")+'" placeholder="model id" autocomplete="off" spellcheck="false" hidden>'
+           + '<input id="'+id+'" '+di+' class="modelsel" value="'+esc(cur||"")+'"'
+           +   ' role="combobox" aria-expanded="false" aria-autocomplete="list"'
+           +   ' placeholder="search models or paste an id…" autocomplete="off" spellcheck="false">'
+           + '<div class="modelmenu" hidden></div>'
            + '</div>';
     }
     else
@@ -1544,12 +1544,7 @@ window.NoodleApp = (function () {
       } else if(el.type==="checkbox"){
         el.addEventListener("change", ()=>{ it.node.fields[it.field] = el.checked; });
       } else if(el.classList.contains("modelsel")){
-        const wrap = el.closest(".modelpick"), custom = wrap.querySelector(".modelcustom");
-        el.addEventListener("change", ()=>{
-          if(el.value==="__custom__"){ custom.hidden=false; custom.focus(); it.node.fields[it.field]=custom.value.trim(); }
-          else { custom.hidden=true; it.node.fields[it.field]=el.value; }
-        });
-        custom.addEventListener("input", ()=>{ it.node.fields[it.field]=custom.value.trim(); });
+        setupModelCombo(el, it);   // searchable catalog dropdown + free-text fallback
       } else {
         const sync = ()=>{ it.node.fields[it.field] = el.value; };
         el.addEventListener("input", sync);
@@ -1559,22 +1554,56 @@ window.NoodleApp = (function () {
     fillModelLists();
     box.querySelectorAll(".inpaint-ctl").forEach(ctl=> wireInpaintControl(box, ctl));
   }
-  // Best-effort: pull each model field's catalog and fill its datalist so the
-  // user can pick a different model. Never blocks the run; failures are silent.
+  // Best-effort: pull each model field's catalog into its dropdown so the user can
+  // pick a different model. Never blocks the run; failures are silent.
+  // Per-input catalog options, keyed by the live <input> so a re-render drops stale entries.
+  const MODEL_OPTS = new WeakMap();
   function fillModelLists(){
     (STATE.settings || []).forEach((it,i)=>{
       if(it.kind!=="model") return;
       modelOptionsFor(it.node.type).then(ids=>{
-        const sel = document.getElementById("set_"+i);
-        if(!sel || sel.tagName!=="SELECT" || !ids.length) return;
-        // user already switched to free-text entry — don't yank the catalog over it
-        const custom = sel.closest(".modelpick") && sel.closest(".modelpick").querySelector(".modelcustom");
-        if(custom && !custom.hidden) return;
+        const input = document.getElementById("set_"+i);
+        if(!input || !ids.length) return;
         const cur = it.node.fields[it.field];
         const all = (cur && !ids.includes(cur)) ? [cur, ...ids] : ids;   // keep the current id even if filtered out
-        sel.innerHTML = all.slice(0,300).map(id=> '<option value="'+esc(id)+'"'+(id===cur?" selected":"")+'>'+esc(id)+'</option>').join("")
-                      + '<option value="__custom__">✎ Custom model id…</option>';
+        MODEL_OPTS.set(input, all.slice(0,300));
+        if(document.activeElement===input) input.dispatchEvent(new Event("modelrefresh"));
       }).catch(()=>{});
+    });
+  }
+  // A tiny searchable dropdown over the model catalog: focus opens the full list,
+  // typing filters it, click / Enter picks, arrows navigate. Whatever ends up in
+  // the box is written to the node field, so an uncatalogued id still works.
+  function setupModelCombo(input, it){
+    const menu = input.closest(".modelpick").querySelector(".modelmenu");
+    let active = -1;
+    const opts = ()=> MODEL_OPTS.get(input) || [];
+    function open(showAll){
+      const q = showAll ? "" : input.value.trim().toLowerCase();
+      const list = opts().filter(id=> !q || id.toLowerCase().includes(q));
+      active = -1;
+      if(!list.length){ close(); return; }
+      menu.innerHTML = list.map(id=> '<button type="button" class="modelopt" data-id="'+esc(id)+'">'+esc(id)+'</button>').join("");
+      menu.hidden = false; input.setAttribute("aria-expanded","true");
+    }
+    function close(){ menu.hidden = true; input.setAttribute("aria-expanded","false"); active = -1; }
+    function pick(id){ input.value = id; it.node.fields[it.field] = id; close(); }
+    input.addEventListener("focus", ()=> open(true));
+    input.addEventListener("modelrefresh", ()=> open(true));   // catalog arrived while focused
+    input.addEventListener("input", ()=>{ it.node.fields[it.field] = input.value.trim(); open(false); });
+    input.addEventListener("blur", ()=> setTimeout(close, 120));   // let a menu click land first
+    // mousedown (not click) so the pick fires before the input blurs
+    menu.addEventListener("mousedown", (e)=>{ const b = e.target.closest(".modelopt"); if(!b) return; e.preventDefault(); pick(b.dataset.id); });
+    input.addEventListener("keydown", (e)=>{
+      if(e.key==="ArrowDown" && menu.hidden){ e.preventDefault(); return open(true); }
+      const btns = menu.hidden ? [] : Array.from(menu.querySelectorAll(".modelopt"));
+      if(e.key==="ArrowDown"){ e.preventDefault(); active = Math.min(active+1, btns.length-1); }
+      else if(e.key==="ArrowUp"){ e.preventDefault(); active = Math.max(active-1, 0); }
+      else if(e.key==="Enter" && active>=0){ e.preventDefault(); return pick(btns[active].dataset.id); }
+      else if(e.key==="Escape"){ return close(); }
+      else return;
+      btns.forEach((b,i)=> b.classList.toggle("on", i===active));
+      if(active>=0) btns[active].scrollIntoView({ block:"nearest" });
     });
   }
 
@@ -2338,8 +2367,14 @@ body{ background:
 .setgroup{ border:1px solid var(--line); border-radius:var(--radius); background:var(--panel2);
   padding:.7rem .8rem; display:flex; flex-direction:column; gap:.85rem; }
 .setgroup-h{ font-size:.78rem; font-weight:600; color:var(--dim); }
-.modelpick .modelcustom{ margin-top:.45rem; }
-.modelcustom[hidden]{ display:none; }
+.modelpick{ position:relative; }
+.modelmenu{ position:absolute; left:0; right:0; top:100%; z-index:30; margin-top:.25rem;
+  max-height:240px; overflow:auto; background:var(--panel); border:1px solid var(--line);
+  border-radius:.5rem; box-shadow:0 10px 28px #0007; padding:.25rem; display:flex; flex-direction:column; }
+.modelmenu[hidden]{ display:none; }
+.modelopt{ display:block; width:100%; text-align:left; background:none; border:0; color:var(--ink);
+  font:inherit; padding:.4rem .5rem; border-radius:.35rem; cursor:pointer; word-break:break-all; }
+.modelopt:hover, .modelopt.on{ background:var(--panel2); }
 .field .setbool{ display:flex; align-items:center; gap:.5rem; font-size:.85rem; color:var(--ink); cursor:pointer; user-select:none; }
 .field .setbool input{ accent-color:var(--accent); width:1rem; height:1rem; margin:0; }
 
