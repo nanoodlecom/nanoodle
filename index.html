@@ -135,6 +135,30 @@
   .gcard .tag{ font-size:.66rem; color:var(--accent); border:1px solid var(--line); border-radius:1rem; padding:.08rem .5rem; }
   .gcard .remix{ margin-top:.55rem; align-self:flex-start; border-color:var(--accent); color:var(--accent) }
   #galleryempty{ font-size:.85rem; color:var(--dim); padding:1.4rem 0 }
+  /* updates — a tiny changelog (static updates.json, newest first). The 📣 button
+     opens it; an unseen-count badge nudges return visits. No server, no tracking. */
+  #updatesmodal[hidden]{ display:none }
+  #updatesmodal{ position:fixed; inset:0; z-index:205; display:flex; padding:min(4vh,2.4rem) min(4vw,2.4rem);
+                 background:rgba(4,6,11,.74); backdrop-filter:blur(3px); }
+  #updatespanel{ margin:auto; width:100%; max-width:620px; max-height:88vh; overflow:auto; background:var(--bg);
+                 border:1px solid var(--line); border-radius:.8rem; box-shadow:0 30px 90px #000a; padding:1.2rem 1.3rem 1.5rem; }
+  #updateshead{ display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap }
+  #updateshead h2{ font-size:1.1rem; margin:0 }
+  #updateshead .sub{ font-size:.78rem; color:var(--dim) }
+  #updatesclose{ margin-left:auto; width:2.1rem; height:2.1rem; border-radius:.55rem; display:flex; align-items:center; justify-content:center; }
+  #updateslist{ margin-top:1rem }
+  .update-date{ font-size:.72rem; color:var(--dim); text-transform:uppercase; letter-spacing:.04em; margin:.95rem 0 .35rem }
+  .update-date:first-child{ margin-top:0 }
+  .update-items{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:.4rem }
+  .update-items li{ font-size:.9rem; line-height:1.4; padding-left:1.1rem; position:relative }
+  .update-items li::before{ content:"–"; position:absolute; left:0; color:var(--accent) }
+  #updatesempty{ font-size:.85rem; color:var(--dim); padding:1.4rem 0 }
+  /* the 📣 Updates button's unseen badge */
+  #updates{ position:relative }
+  #updbadge[hidden]{ display:none }
+  #updbadge{ display:inline-flex; align-items:center; justify-content:center; min-width:1.05rem; height:1.05rem;
+             padding:0 .28rem; margin-left:.3rem; border-radius:1rem; font-size:.66rem; font-weight:700; line-height:1;
+             background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#0b0d12; vertical-align:middle }
   /* 🍜 Noodle Cookoff — floating promo button + announcement modal (time-boxed contest) */
   @keyframes cookoff-flow{ to{ background-position:200% 0 } }
   @keyframes cookoff-bob{ 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(-3px) } }
@@ -387,6 +411,7 @@
   <button id="share" title="Copy a link that loads this exact workflow — paste it to share with anyone">🔗 Share</button>
   <button id="save" title="download this graph as JSON">⭳ Save</button>
   <button id="load" title="open a graph JSON file">⭱ Load</button>
+  <button id="updates" title="What’s new in nanoodle">📣 Updates<span id="updbadge" hidden></span></button>
   <input id="loadfile" type="file" accept="application/json,.json" hidden />
   <div id="moremenu">
     <button id="morebtn" title="More actions">⋯</button>
@@ -430,6 +455,18 @@
       <button id="galleryclose" class="hbtn" title="Close (Esc)" aria-label="Close">✕</button>
     </div>
     <div id="gallerygrid"></div>
+  </div>
+</div>
+
+<!-- Updates: a tiny changelog (static updates.json, newest first; one line per change) -->
+<div id="updatesmodal" hidden>
+  <div id="updatespanel" role="dialog" aria-label="What’s new">
+    <div id="updateshead">
+      <h2>📣 What’s new</h2>
+      <span class="sub">A running changelog — one line per change.</span>
+      <button id="updatesclose" class="hbtn" title="Close (Esc)" aria-label="Close">✕</button>
+    </div>
+    <div id="updateslist"></div>
   </div>
 </div>
 
@@ -2503,7 +2540,7 @@ $("run").onclick = runAll;
 
 /* ---------- responsive toolbar: collapse secondary actions into the ⋯ menu on phones ----------
    Buttons keep their handlers (they're moved, not cloned). On desktop everything sits inline. */
-const RELOC = ["makeapp","share","save","load","signin","pastebtn","signout","status"];  // order shown in the menu
+const RELOC = ["makeapp","share","save","load","updates","signin","pastebtn","signout","status"];  // order shown in the menu
 const mqMobile = matchMedia("(max-width:640px)");
 let topOrder = null;
 function layoutBar(){
@@ -2808,6 +2845,68 @@ function closeGallery(){ $("gallerymodal").hidden = true; }
 $("galleryclose").onclick = closeGallery;
 $("gallerymodal").addEventListener("click", e=>{ if(e.target.id==="gallerymodal") closeGallery(); });   // click the dim backdrop
 addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("gallerymodal").hidden) closeGallery(); });
+
+/* ======================================================================
+   UPDATES  (a tiny changelog — static updates.json, newest first. Each commit
+   auto-appends a one-line entry via the post-commit hook; the file is plain
+   JSON you can edit or prune. The 📣 button shows it; an unseen badge nudges
+   return visits. No server, no tracking — last-seen is local only.)
+   ====================================================================== */
+const UPD_SEEN_KEY = "noodle_seen_updates";
+let updatesCache = null;
+async function fetchUpdates(){
+  if(updatesCache) return updatesCache;
+  try{ const r = await fetch("updates.json", {cache:"no-store"}); updatesCache = r.ok ? await r.json() : []; }
+  catch{ updatesCache = []; }
+  if(!Array.isArray(updatesCache)) updatesCache = [];
+  return updatesCache;
+}
+const updKey = (e)=> (e && e.date || "") + "|" + (e && e.text || "");
+// How many entries sit above the most recently seen one (everything if never opened).
+function unseenCount(list, seen){
+  if(!list.length) return 0;
+  if(!seen) return list.length;
+  const i = list.findIndex(e=> updKey(e)===seen);
+  return i<0 ? list.length : i;
+}
+async function refreshUpdatesBadge(){
+  const list = await fetchUpdates();
+  let seen = null; try{ seen = localStorage.getItem(UPD_SEEN_KEY); }catch{}
+  const n = unseenCount(list, seen);
+  const b = $("updbadge");
+  if(n>0){ b.textContent = n>9 ? "9+" : String(n); b.hidden = false; }
+  else { b.hidden = true; }
+}
+function markUpdatesSeen(list){
+  try{ localStorage.setItem(UPD_SEEN_KEY, list.length ? updKey(list[0]) : ""); }catch{}
+  $("updbadge").hidden = true;
+}
+async function openUpdates(){
+  const body = $("updateslist");
+  body.innerHTML = "<div id='updatesempty'>Loading…</div>";
+  $("updatesmodal").hidden = false;
+  const list = await fetchUpdates();
+  body.innerHTML = "";
+  if(!list.length){ body.innerHTML = "<div id='updatesempty'>No updates yet — check back soon.</div>"; }
+  else {
+    let curDate = null, ul = null;   // group consecutive entries under their date
+    list.forEach(e=>{
+      if(e.date!==curDate){
+        curDate = e.date;
+        const h = document.createElement("div"); h.className = "update-date"; h.textContent = e.date; body.appendChild(h);
+        ul = document.createElement("ul"); ul.className = "update-items"; body.appendChild(ul);
+      }
+      const li = document.createElement("li"); li.textContent = e.text; ul.appendChild(li);
+    });
+  }
+  markUpdatesSeen(list);
+}
+function closeUpdates(){ $("updatesmodal").hidden = true; }
+$("updates").onclick = openUpdates;
+$("updatesclose").onclick = closeUpdates;
+$("updatesmodal").addEventListener("click", e=>{ if(e.target.id==="updatesmodal") closeUpdates(); });   // click the dim backdrop
+addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("updatesmodal").hidden) closeUpdates(); });
+refreshUpdatesBadge();
 
 /* ======================================================================
    AUTH  (OAuth PKCE + paste key — identical pattern to the other examples)

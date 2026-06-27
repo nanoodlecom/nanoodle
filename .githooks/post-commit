@@ -1,0 +1,44 @@
+#!/bin/sh
+# Add a one-line entry to updates.json ONLY when a commit opts in with an
+# "Update:" line in its message, then fold it into that same commit via --amend.
+# Internal churn ("Remove the gallery button", "fix typo") stays out of the
+# changelog by default — you write a polished, user-facing line when there's
+# actually something worth showing. The list is plain JSON you can edit, reword,
+# reorder, or prune at will (the in-app "📣 Updates" panel renders it).
+#
+# Example commit message:
+#   Feat: Inpaint node — brush a region and repaint
+#
+#   Update: New Inpaint node — paint over any part of an image and regenerate just that area
+#
+# A commit that hand-edits updates.json is left untouched (your manual line wins).
+
+# Don't recurse: our own --amend re-fires this hook.
+[ -n "$NOODLE_SKIP_UPDATE_HOOK" ] && exit 0
+
+root=$(git rev-parse --show-toplevel) || exit 0
+[ -f "$root/scripts/add-update.mjs" ] || exit 0
+command -v node >/dev/null 2>&1 || exit 0
+
+# Skip merge commits (more than one parent).
+parents=$(git cat-file -p HEAD | grep -c '^parent ')
+[ "$parents" -gt 1 ] && exit 0
+
+# Opt in: only a commit with an "Update: <line>" reaches the changelog. No line,
+# no entry — silence is the default, so random commits never spam the panel.
+text=$(git log -1 --format=%B HEAD | sed -n 's/^[Uu]pdate:[[:space:]]*//p' | head -1)
+[ -z "$text" ] && exit 0
+
+# Respect a hand-written changelog edit already in this commit.
+if git diff-tree --no-commit-id --name-only -r HEAD | grep -qx 'updates.json'; then
+  exit 0
+fi
+
+date=$(git log -1 --format=%cs HEAD) # commit date, YYYY-MM-DD
+node "$root/scripts/add-update.mjs" "$date" "$text" || exit 0
+
+# Nothing changed (e.g. dedup of an identical top entry) → leave the commit as-is.
+[ -z "$(git status --porcelain -- "$root/updates.json")" ] && exit 0
+
+NOODLE_SKIP_UPDATE_HOOK=1 git add "$root/updates.json"
+NOODLE_SKIP_UPDATE_HOOK=1 git commit --amend --no-edit --no-verify

@@ -33,3 +33,28 @@ Open any file directly, or serve the folder so OAuth redirects resolve cleanly:
 python3 -m http.server 8000
 # then visit http://localhost:8000/   (the editor)
 ```
+
+## Updates / changelog
+
+`updates.json` is the in-app changelog the editor's **📣 Updates** button renders —
+a newest-first array of `{ "date": "YYYY-MM-DD", "text": "one line" }`. No server,
+no tracking: it ships as a static file, and "unseen" state is local-only.
+
+The changelog is **opt-in, so internal churn never spams it.** Most commits stay
+silent. When a commit is worth showing users, add an `Update:` line to its message
+and the `post-commit` hook folds that one line into the same commit:
+
+```
+Feat: Inpaint node — brush a region and repaint
+
+Update: New Inpaint node — paint over any part of an image and regenerate just that area
+```
+
+So the PR process is just: **when you ship something user-facing, write one polished
+`Update:` line.** Commits without one — refactors, typos, growth notes — add nothing.
+
+- **Edit / reword / reorder / delete:** `updates.json` is plain JSON — change it by
+  hand anytime. A commit that hand-edits it is left alone (your line wins).
+- **Add a line by hand:** `node scripts/add-update.mjs "2026-06-27" "Short line"`.
+- Merge commits are skipped automatically. `scripts/check-updates.mjs` (run from
+  `pre-commit`) keeps the file valid.
