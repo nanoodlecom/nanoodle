@@ -811,12 +811,24 @@ function refreshImageParams(n){
   box.innerHTML = `<details class="adv"${open}><summary>🎨 LoRA (style adapter)</summary>
     <div><label>LoRA URL</label><input data-f="loraUrl" value="${esc(n.fields.loraUrl||"")}" placeholder="https://huggingface.co/…/resolve/main/x.safetensors"/></div>
     <div><label>strength (0.1–4)</label><input type="number" data-f="loraStrength" step="0.05" min="0.1" max="4" value="${esc(n.fields.loraStrength??"")}" placeholder="1"/></div>
-    <div class="fhint">HuggingFace .safetensors link or any direct URL. CivitAI must be re-hosted (its links can't be fetched).</div></details>`;
+    <div class="fhint">HuggingFace .safetensors link or any direct URL — or <a href="#" data-loraeg>try an example ↗</a>. CivitAI must be re-hosted (its links can't be fetched).</div></details>`;
   box.querySelectorAll("[data-f]").forEach(inp=>{
     const f = inp.dataset.f;
     inp.addEventListener("input", ()=>{ n.fields[f] = inp.value; save(); });
     inp.addEventListener("pointerdown", e=>e.stopPropagation());   // don't drag node when editing
   });
+  // one-tap working example: a public Ghibli-style Flux LoRA (verified live) + a matching prompt
+  const eg = box.querySelector("[data-loraeg]");
+  if(eg) eg.onclick = (e)=>{
+    e.preventDefault();
+    n.fields.loraUrl = "https://huggingface.co/aleksa-codes/flux-ghibsky-illustration/resolve/main/lora.safetensors";
+    n.fields.loraStrength = "1";
+    if(!(n.fields.prompt||"").trim()){          // seed a prompt with the LoRA's trigger word so a click → a wow
+      n.fields.prompt = "GHIBSKY style, a cozy cottage by a calm lake at sunset, lush rolling hills, soft clouds";
+      const pt = n.el.querySelector('[data-f="prompt"]'); if(pt) pt.value = n.fields.prompt;
+    }
+    save(); refreshImageParams(n);
+  };
 }
 // shared body + run for the Music and Speech nodes
 function audioBody(n, promptLabel, ph){
