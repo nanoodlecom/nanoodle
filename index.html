@@ -764,6 +764,23 @@ function refreshAudioParams(n){
   addFieldPorts(n); refreshPortFills(); redraw();   // re-attach ports to the rebuilt param fields + reconnect wires
   prepTextareas(n);
 }
+// show the LoRA disclosure on an image/edit node only when its model accepts an adapter,
+// so the plain-image happy path stays untouched. Rebuilt on model-pick like the audio block.
+function refreshImageParams(n){
+  if((n.type!=="image" && n.type!=="edit") || !n.el) return;
+  const box = n.el.querySelector("[data-loraparams]"); if(!box) return;
+  if(!modelHasLora(n.fields.model)){ box.innerHTML=""; return; }
+  const open = (n.fields.loraUrl||"").trim() ? " open" : "";
+  box.innerHTML = `<details class="adv"${open}><summary>🎨 LoRA (style adapter)</summary>
+    <div><label>LoRA URL</label><input data-f="loraUrl" value="${esc(n.fields.loraUrl||"")}" placeholder="https://huggingface.co/…/resolve/main/x.safetensors"/></div>
+    <div><label>strength (0.1–4)</label><input type="number" data-f="loraStrength" step="0.05" min="0.1" max="4" value="${esc(n.fields.loraStrength??"")}" placeholder="1"/></div>
+    <div class="fhint">HuggingFace .safetensors link or any direct URL. CivitAI must be re-hosted (its links can't be fetched).</div></details>`;
+  box.querySelectorAll("[data-f]").forEach(inp=>{
+    const f = inp.dataset.f;
+    inp.addEventListener("input", ()=>{ n.fields[f] = inp.value; save(); });
+    inp.addEventListener("pointerdown", e=>e.stopPropagation());   // don't drag node when editing
+  });
+}
 // shared body + run for the Music and Speech nodes
 function audioBody(n, promptLabel, ph){
   return `${modelFieldHTML(n)}
@@ -795,7 +812,7 @@ async function audioRun(n, inp, ctx){
   return { audio: await ctx.genAudio(mdl(n), text, collectAudioParams(n),
     (q,ms)=> setNodeProgress(n, `generating audio… ${Math.round(ms/1000)}s${q!=null?` · queue ${q}`:""}`)) };
 }
-function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshAudioParams(n); backfillModel(n); }); }
+function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshAudioParams(n); refreshImageParams(n); backfillModel(n); }); }
 function backfillModel(n){   // once a catalog arrives, give model nodes a sensible default if none chosen yet
   const t = NODE_TYPES[n.type];
   if(t.modelKind && !n.fields.model){
@@ -936,11 +953,12 @@ const NODE_TYPES = {
     body:(n)=>`
       ${modelFieldHTML(n)}
       <div><label>size</label><select data-f="size">${optsHTML(SIZES, n.fields.size||SIZES[0][0])}</select></div>
-      <div><label>prompt</label><textarea data-f="prompt" placeholder="a red panda astronaut…">${esc(n.fields.prompt||"")}</textarea></div>`,
+      <div><label>prompt</label><textarea data-f="prompt" placeholder="a red panda astronaut…">${esc(n.fields.prompt||"")}</textarea></div>
+      <div data-loraparams></div>`,
     async run(n, inp, ctx){
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       if(!prompt) throw new Error("no prompt");
-      return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0]) };
+      return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], undefined, undefined, loraParams(n)) };
     }
   },
 
@@ -952,12 +970,13 @@ const NODE_TYPES = {
     body:(n)=>`
       ${modelFieldHTML(n)}
       <div><label>size</label><select data-f="size">${optsHTML(SIZES, n.fields.size||SIZES[0][0])}</select></div>
-      <div><label>edit instruction</label><textarea data-f="prompt" placeholder="make it night-time, add neon…">${esc(n.fields.prompt||"")}</textarea></div>`,
+      <div><label>edit instruction</label><textarea data-f="prompt" placeholder="make it night-time, add neon…">${esc(n.fields.prompt||"")}</textarea></div>
+      <div data-loraparams></div>`,
     async run(n, inp, ctx){
       if(!inp.image) throw new Error("no image input");
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       if(!prompt) throw new Error("no edit instruction");
-      return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], inp.image) };
+      return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], inp.image, undefined, loraParams(n)) };
     }
   },
 
@@ -1310,12 +1329,13 @@ function buildNodeEl(n){
     mp.onclick = (e)=>{
       e.stopPropagation();
       openPicker(t.modelKind, { current:n.fields.model, filter:t.modelFilter, onPick:(id)=>{
-        n.fields.model = id; mp.textContent = id+" ▾"; updateNodePrice(n); refreshAudioParams(n); refreshImageInputs(n); save();
+        n.fields.model = id; mp.textContent = id+" ▾"; updateNodePrice(n); refreshAudioParams(n); refreshImageParams(n); refreshImageInputs(n); save();
       }});
     };
     updateNodePrice(n);
   }
   refreshAudioParams(n);
+  refreshImageParams(n);            // LoRA disclosure on image/edit nodes (model-gated)
   if(t.mount) t.mount(n);            // node-specific widget wiring (e.g. upload/webcam)
   // header buttons
   el.querySelector('[data-act=del]').onclick = (e)=>{ e.stopPropagation(); removeNode(n.id); };
@@ -2199,11 +2219,52 @@ function b64ImageMime(b64){
   if(b64.startsWith("UklG"))  return "image/webp";
   return "image/png";   // unknown → sensible default; browsers sniff content regardless
 }
+/* ---------- LoRA (image style adapters) ----------
+   HuggingFace + any direct .safetensors URL only. The browser never fetches the
+   weights — it forwards the URL string and NanoGPT pulls it server-side, so this
+   needs ZERO new CSP origins. CivitAI can't be used directly (its download links
+   are signed/temporary/login-gated), so we reject those with guidance BEFORE the
+   paid call rather than let the user eat a charged 422. All pure-string, no net. */
+function normalizeLoraUrl(raw){
+  var u = String(raw||"").trim();
+  if(!u) return "";
+  if(/\b(civitai\.com|civitai\.red|civit\.ai)\b/i.test(u))
+    throw new Error("CivitAI links can't be fetched directly — download the .safetensors and re-host it (e.g. on HuggingFace), then paste that URL.");
+  if(/(^|\/\/|\.)huggingface\.co\//i.test(u)){
+    u = u.replace("/blob/", "/resolve/");              // HF file page → raw file
+    if(!/\/resolve\/.+\.safetensors(\?|$)/i.test(u))
+      throw new Error("Link the .safetensors file on HuggingFace: open it and use Copy download link (…/resolve/main/your-lora.safetensors).");
+    return u;
+  }
+  if(/^[\w.-]+\/[\w.-]+$/.test(u))                     // bare repo id, no host
+    throw new Error("That looks like a HuggingFace repo id — open the .safetensors file and copy its download link (…/resolve/main/your-lora.safetensors).");
+  if(!/^https?:\/\//i.test(u))
+    throw new Error("LoRA must be a direct https URL to a .safetensors file (HuggingFace or any host).");
+  return u;
+}
+// only models whose id carries "lora" accept an adapter (flux-lora, *-dev-lora, p-image/*-lora, …)
+function modelHasLora(model){ return /lora/i.test(String(model||"")); }
+// map url+strength onto the param names the selected lora model expects (from the catalog)
+function loraBodyFor(model, url, strength){
+  var m = String(model||""), s = (strength==null||strength==="") ? 1 : Number(strength);
+  if(isNaN(s)) s = 1;
+  if(/p-image/i.test(m))              return { lora_weights:url, lora_scale:s };
+  if(/flux-2|z-image|klein/i.test(m)) return { lora_url_1:url, lora_scale_1:s };
+  return { lora_url:url, lora_strength:s };            // flux-lora and friends
+}
+// request params for a node's LoRA — {} when none; throws on a bad URL before any paid call
+function loraParams(n){
+  if(!modelHasLora(n.fields.model)) return {};
+  var url = normalizeLoraUrl(n.fields.loraUrl);
+  if(!url) return {};
+  return loraBodyFor(n.fields.model, url, n.fields.loraStrength);
+}
 const CTX = {
-  async genImage(prompt, model, size, imageDataUrl, maskDataUrl){
+  async genImage(prompt, model, size, imageDataUrl, maskDataUrl, extra){
     const body = { model, prompt, size, n:1, response_format:"b64_json" };
     if(imageDataUrl) body.imageDataUrl = imageDataUrl;   // present → image edit (img2img)
     if(maskDataUrl)  body.maskDataUrl  = maskDataUrl;    // present → inpaint; WHITE areas = the region to repaint (verified live)
+    if(extra) Object.assign(body, extra);                // LoRA (and any future per-model image params)
     const r = await fetch(IMG_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
     if(!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`);
     const j = await r.json();

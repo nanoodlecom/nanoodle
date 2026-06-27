@@ -504,16 +504,53 @@ window.NoodleApp = (function () {
   /* ---------- mdl (verbatim) ---------- */
   const mdl = (n)=>{ if(!n.fields.model) throw new Error("pick a model first"); return n.fields.model; };
 
+  /* ---------- LoRA (image style adapters), verbatim behavior from index.html ----------
+     HuggingFace + any direct .safetensors URL; the URL is forwarded to NanoGPT and
+     pulled server-side (no CSP origins). CivitAI links are signed/login-gated, so we
+     reject them with guidance before the paid call instead of eating a charged 422. */
+  function normalizeLoraUrl(raw){
+    var u = String(raw||"").trim();
+    if(!u) return "";
+    if(/\b(civitai\.com|civitai\.red|civit\.ai)\b/i.test(u))
+      throw new Error("CivitAI links can't be fetched directly — download the .safetensors and re-host it (e.g. on HuggingFace), then paste that URL.");
+    if(/(^|\/\/|\.)huggingface\.co\//i.test(u)){
+      u = u.replace("/blob/", "/resolve/");
+      if(!/\/resolve\/.+\.safetensors(\?|$)/i.test(u))
+        throw new Error("Link the .safetensors file on HuggingFace: open it and use Copy download link (…/resolve/main/your-lora.safetensors).");
+      return u;
+    }
+    if(/^[\w.-]+\/[\w.-]+$/.test(u))
+      throw new Error("That looks like a HuggingFace repo id — open the .safetensors file and copy its download link (…/resolve/main/your-lora.safetensors).");
+    if(!/^https?:\/\//i.test(u))
+      throw new Error("LoRA must be a direct https URL to a .safetensors file (HuggingFace or any host).");
+    return u;
+  }
+  function modelHasLora(model){ return /lora/i.test(String(model||"")); }
+  function loraBodyFor(model, url, strength){
+    var m = String(model||""), s = (strength==null||strength==="") ? 1 : Number(strength);
+    if(isNaN(s)) s = 1;
+    if(/p-image/i.test(m))              return { lora_weights:url, lora_scale:s };
+    if(/flux-2|z-image|klein/i.test(m)) return { lora_url_1:url, lora_scale_1:s };
+    return { lora_url:url, lora_strength:s };
+  }
+  function loraParams(n){
+    if(!modelHasLora(n.fields.model)) return {};
+    var url = normalizeLoraUrl(n.fields.loraUrl);
+    if(!url) return {};
+    return loraBodyFor(n.fields.model, url, n.fields.loraStrength);
+  }
+
   /* =====================================================================
      CTX — NanoGPT calls (verbatim behavior, index.html)
      ===================================================================== */
   // Per-run cost-tracking context: each node gets its own makeCtx(onCost) so a
   // generation's price lands on the right card even when siblings/lanes run at once.
   function makeCtx(onCost){ return {
-    async genImage(prompt, model, size, imageDataUrl, maskDataUrl){
+    async genImage(prompt, model, size, imageDataUrl, maskDataUrl, extra){
       const body = { model, prompt, size, n:1, response_format:"b64_json" };
       if(imageDataUrl) body.imageDataUrl = imageDataUrl;   // present → image edit (img2img)
       if(maskDataUrl)  body.maskDataUrl  = maskDataUrl;    // present → inpaint; WHITE areas = the region to repaint
+      if(extra) Object.assign(body, extra);                // LoRA (and any future per-model image params)
       const r = await apiFetch(IMG_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
       if(!r.ok) throw new Error(r.status + ": " + (await r.text()).slice(0,160));
       const j = await r.json();
@@ -903,7 +940,7 @@ window.NoodleApp = (function () {
       async run(n, inp, ctx){
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         if(!prompt) throw new Error("no prompt");
-        return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0]) };
+        return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], undefined, undefined, loraParams(n)) };
       }
     },
     edit: {
@@ -913,7 +950,7 @@ window.NoodleApp = (function () {
         if(!inp.image) throw new Error("no image input");
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         if(!prompt) throw new Error("no edit instruction");
-        return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], inp.image) };
+        return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], inp.image, undefined, loraParams(n)) };
       }
     },
     inpaint: {
