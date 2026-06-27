@@ -525,13 +525,24 @@ window.NoodleApp = (function () {
       throw new Error("LoRA must be a direct https URL to a .safetensors file (HuggingFace or any host).");
     return u;
   }
-  function modelHasLora(model){ return /lora/i.test(String(model||"")); }
-  function loraCap(model){
+  function loraFamily(model){
     var m = String(model||"");
-    if(/flux-2-dev-lora/i.test(m)) return 4;
-    if(/z-image-turbo-lora|klein/i.test(m)) return 3;
-    if(/flux-lora/i.test(m)) return 4;
-    return 1;
+    if(/spicy/i.test(m)) return null;
+    if(/p-image/i.test(m)) return "pimage";
+    if(/klein/i.test(m)) return "flux2klein";
+    if(/flux-2/i.test(m)) return "flux2dev";
+    if(/z-image/i.test(m)) return "zimage";
+    if(/ltx/i.test(m)) return "ltx";
+    if(/lora/i.test(m)) return "flux";
+    return null;
+  }
+  function modelHasLora(model){ return loraFamily(model) != null; }
+  function loraCap(model){
+    switch(loraFamily(model)){
+      case "flux": case "flux2dev": return 4;
+      case "flux2klein": case "zimage": case "ltx": return 3;
+      default: return 1;
+    }
   }
   function nodeLoras(n){
     if(Array.isArray(n.fields.loras)) return n.fields.loras;
@@ -540,9 +551,9 @@ window.NoodleApp = (function () {
     return [];
   }
   function loraBodyFor(model, items){
-    var m = String(model||""), sc = function(v){ return isNaN(v) ? 1 : v; };
-    if(/p-image/i.test(m)) return { lora_weights:items[0].url, lora_scale:sc(items[0].scale) };
-    if(/flux-2|z-image|klein/i.test(m)){
+    var fam = loraFamily(model), sc = function(v){ return isNaN(v) ? 1 : v; };
+    if(fam==="pimage") return { lora_weights:items[0].url, lora_scale:sc(items[0].scale) };
+    if(fam==="flux2dev" || fam==="flux2klein" || fam==="zimage" || fam==="ltx"){
       var b = {}; items.forEach(function(it,i){ b["lora_url_"+(i+1)]=it.url; b["lora_scale_"+(i+1)]=sc(it.scale); }); return b;
     }
     if(items.length===1) return { lora_url:items[0].url, lora_strength:sc(items[0].scale) };
@@ -598,6 +609,7 @@ window.NoodleApp = (function () {
       if(opts.videoUrl) body.videoUrl = opts.videoUrl;
       if(opts.videoDataUrl) body.videoDataUrl = opts.videoDataUrl;
       if(opts.audioDataUrl) body.audioDataUrl = opts.audioDataUrl;
+      if(opts.lora) Object.assign(body, opts.lora);        // LoRA params (lora_url_1.. for LTX video)
       // NanoGPT inlines media as base64 and the edge rejects bodies over ~4.5 MB with a header-less
       // 413 the browser mislabels as CORS. No upload endpoint → catch oversize locally and explain.
       const payload = JSON.stringify(body);
@@ -1004,7 +1016,7 @@ window.NoodleApp = (function () {
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         if(!prompt) throw new Error("no prompt");
         const url = await ctx.genVideo(mdl(n), prompt,
-          { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9" }, null,
+          { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9", lora:loraParams(n) }, null,
           (st,ms)=> onProgress && onProgress("rendering video… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
         return { video: url };
       }
@@ -1016,7 +1028,7 @@ window.NoodleApp = (function () {
         if(!inp.image) throw new Error("no image input");
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         const url = await ctx.genVideo(mdl(n), prompt,
-          { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9" }, inp.image,
+          { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9", lora:loraParams(n) }, inp.image,
           (st,ms)=> onProgress && onProgress("animating… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
         return { video: url };
       }
@@ -1027,7 +1039,8 @@ window.NoodleApp = (function () {
       async run(n, inp, ctx, onProgress){
         if(!inp.video) throw new Error("no video input");
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
-        const url = await ctx.genVideo(mdl(n), prompt, await videoSourceOpts(inp.video), null,
+        const vopts = await videoSourceOpts(inp.video); vopts.lora = loraParams(n);
+        const url = await ctx.genVideo(mdl(n), prompt, vopts, null,
           (st,ms)=> onProgress && onProgress("processing video… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
         return { video: url };
       }
