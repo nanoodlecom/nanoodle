@@ -28,9 +28,11 @@ touches_settings=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/c
 touches_quickadd=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-quickadd\.mjs)$' || true)
 # updates.json feeds the in-app "📣 Updates" changelog — a bad hand edit must not ship.
 touches_updates=$(printf '%s\n' "$staged" | grep -E '(^|/)(updates\.json|scripts/check-updates\.mjs)$' || true)
+# index.html + play.html carry the "Create app" handoff state machine (which app a click targets).
+touches_createapp=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-create-app\.mjs)$' || true)
 
 # Nothing to check unless an .html file or one of the checkers changed.
-[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_imgports" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_updates" ] && exit 0
+[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_imgports" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && exit 0
 
 if ! command -v node >/dev/null 2>&1; then
   echo "pre-commit: node not found, skipping HTML JS checks" >&2
@@ -111,4 +113,12 @@ fi
 #     { date:"YYYY-MM-DD", text:"one line" }) so the in-app panel renders.
 if [ -n "$touches_updates" ]; then
   node "$root/scripts/check-updates.mjs"
+fi
+
+# 12) the "Create app" handoff must route to the RIGHT app: a fresh workflow makes a NEW
+#     app, an edited app's workflow UPDATES it (binding survives reload), the ✨ New escape
+#     hatch unlinks, and an explicit handoff hash beats a stale resume stash. Drives the real
+#     editor↔builder boot/handoff code in a node:vm sandbox across both pages.
+if [ -n "$touches_createapp" ]; then
+  node "$root/scripts/check-create-app.mjs"
 fi

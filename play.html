@@ -321,7 +321,10 @@ const DEFAULT_MODEL = "xiaomi/mimo-v2.5-pro-ultraspeed";      // writes the chan
 const APPLY_DEFAULT = "xiaomi/mimo-v2.5-pro-ultraspeed";      // applies the diff (fast, mechanical)
 const FALLBACK_MODEL = "openai/gpt-5.4-mini";                 // auto-retry here when the chosen model is overloaded/down (429 / 5xx)
 const LS_KEY = "noodle_app_state";   // working state of the app currently open {id,title,imported,graph,files,versions,curVer}
-const RESUME_KEY = "noodle_resume";  // sessionStorage: the open app, stashed across an OAuth full-page redirect
+const RESUME_KEY = "noodle_resume_app";  // sessionStorage: the open app, stashed across an OAuth full-page redirect. NOTE the
+                                         // distinct name from the editor's "noodle_resume": the builder runs in a same-origin
+                                         // modal iframe and SHARES the tab's sessionStorage, so a shared key would let a stale
+                                         // editor stash open here as an "old app" instead of the workflow just handed off.
 const ACCENT = "#7c8cff";
 
 let MODEL = localStorage.getItem("ngpt_app_model") || DEFAULT_MODEL;
@@ -2968,6 +2971,7 @@ function updateAppWorkflow(appId, newGraph){
   const app = appId ? loadApps().find(a=> a.id===appId) : null;
   if(!app){                                  // unknown/forgotten app → just open the workflow as a fresh draft
     installApp({ graph:newGraph, files:defaultFiles(newGraph), fresh:true });
+    if(appId) toast("That app’s no longer here — started a new one from this workflow");   // don't silently swap an update for a new app
     return;
   }
   const oldGraph = app.graph || { nodes:[], links:[] };
@@ -3239,6 +3243,13 @@ async function doOpenEditor(){
    Created/imported apps persist in the library (noodle_apps); only an
    uncustomized editor draft is disposable.
    ====================================================================== */
+// Consume a one-shot handoff: strip the hash from the URL (so a reload restores the SAVED
+// session, not the original handoff) AND drop the editor's belt-and-suspenders graph copy
+// (so a later hash-less visit can't reopen this stale workflow as an "old app").
+function consumeHandoff(){
+  try{ history.replaceState({}, "", location.origin + location.pathname); }catch(_){}
+  try{ localStorage.removeItem("noodle_app_handoff"); }catch(_){}
+}
 async function loadFromHash(){
   const h = location.hash;
   // #a= : full app spec {v,graph,files}, gzip (or 'u'+b64 uncompressed fallback)
@@ -3250,7 +3261,7 @@ async function loadFromHash(){
       const spec = JSON.parse(json);
       // someone else's app → keep it in "My apps", flagged as imported (it carries its own files)
       installApp({ graph:spec.graph, files:spec.files, id:newId(), imported:true });
-      history.replaceState({}, "", location.origin + location.pathname);   // don't re-import on reload
+      consumeHandoff();   // don't re-import on reload
       toast("Imported — saved to “My apps”");
       return true;
     }catch(_){ /* fall through */ }
@@ -3263,8 +3274,8 @@ async function loadFromHash(){
       const json = tag[0]==="u" ? new TextDecoder().decode(b64urlToBytes(tag.slice(1)))
                                 : await gunzip(b64urlToBytes(tag));
       const spec = JSON.parse(json);
-      history.replaceState({}, "", location.origin + location.pathname);   // consume the handoff
       updateAppWorkflow(spec.appId, spec.graph);
+      consumeHandoff();
       return true;
     }catch(_){ /* fall through */ }
   }
@@ -3275,6 +3286,7 @@ async function loadFromHash(){
                                        : new TextDecoder().decode(b64urlToBytes(h.slice(3)));
       const graph = JSON.parse(json);
       installApp({ graph, files:defaultFiles(graph), fresh:true });   // straight from the editor → lead with the prompt
+      consumeHandoff();   // a reload now restores the saved draft, not the original graph
       return true;
     }catch(_){ /* fall through */ }
   }
@@ -3410,20 +3422,25 @@ async function boot(){
   migrateLegacy();
   renderAppsBtn();
 
-  // Resume the app stashed just before an OAuth redirect — it's exactly what the user
-  // was on, so it wins over every other source. Consumed once so a later reload won't reuse it.
   let loaded = false;
-  try{
-    const rs = sessionStorage.getItem(RESUME_KEY);
-    if(rs){
-      sessionStorage.removeItem(RESUME_KEY);
-      const st = JSON.parse(rs);
-      if(st && st.graph){
-        if(st.id && !loadApps().some(a=>a.id===st.id)) st.id = null;   // its library slot was lost (e.g. quota) → reopen as a draft
-        installApp(st); loaded = true;
-      }
-    }
-  }catch(_){}
+  // A handoff hash (#a=/#ga=/#g=/#j=) means a fresh, explicit user action — clicking "Create app",
+  // or opening a share/app link. That MUST win over a stale OAuth resume stash: a real OAuth return
+  // carries no hash (it never survives the redirect), so preferring the hash never steals a genuine
+  // resume. Without this, the modal could reopen the previously-resumed app and ignore the new graph.
+  const hasHandoff = /^#(a|ga|g|j)=/.test(location.hash);
+
+  // Pull (and clear) any OAuth resume stash up front — it's single-use, so consume it either way
+  // and only fall back to it when no handoff hash claimed the boot.
+  let resumeSt = null;
+  try{ const rs = sessionStorage.getItem(RESUME_KEY); if(rs){ sessionStorage.removeItem(RESUME_KEY); resumeSt = JSON.parse(rs); } }catch(_){}
+
+  if(hasHandoff) loaded = await loadFromHash();
+
+  // Resume the app stashed just before an OAuth redirect — exactly what the user was on.
+  if(!loaded && resumeSt && resumeSt.graph){
+    if(resumeSt.id && !loadApps().some(a=>a.id===resumeSt.id)) resumeSt.id = null;   // its library slot was lost (e.g. quota) → reopen as a draft
+    installApp(resumeSt); loaded = true;
+  }
 
   if(!loaded) loaded = await loadFromHash();
 

@@ -408,6 +408,7 @@
   </div>
   <button id="run" class="primary" title="run every flow (Ctrl/⌘+Enter)">▶ Run</button>
   <button id="makeapp" title="Turn this workflow into a shareable app">✨ Create app</button>
+  <button id="newapp" title="Start a NEW app from this workflow (don’t update the one you’re editing)" hidden>✨ New</button>
   <button id="share" title="Copy a link that loads this exact workflow — paste it to share with anyone">🔗 Share</button>
   <button id="save" title="download this graph as JSON">⭳ Save</button>
   <button id="load" title="open a graph JSON file">⭱ Load</button>
@@ -2540,7 +2541,7 @@ $("run").onclick = runAll;
 
 /* ---------- responsive toolbar: collapse secondary actions into the ⋯ menu on phones ----------
    Buttons keep their handlers (they're moved, not cloned). On desktop everything sits inline. */
-const RELOC = ["makeapp","share","save","load","updates","signin","pastebtn","signout","status"];  // order shown in the menu
+const RELOC = ["makeapp","newapp","share","save","load","updates","signin","pastebtn","signout","status"];  // order shown in the menu
 const mqMobile = matchMedia("(max-width:640px)");
 let topOrder = null;
 function layoutBar(){
@@ -2617,6 +2618,7 @@ function applyGraphData(d){
 const RESUME_KEY = "noodle_resume";  // sessionStorage: the graph, stashed across an OAuth full-page redirect
 const RESUME_APPID_KEY = "noodle_resume_appid";  // and the app id, when editing an existing app's workflow
 const RESUME_APPTITLE_KEY = "noodle_resume_apptitle";  // and its name, for the page title across the redirect
+const EDITOR_APP_KEY = "noodle_editor_app";  // localStorage: {id,title} of the app THIS workflow is bound to, so the binding survives a plain reload (not just OAuth)
 let saveT=null;
 function save(){
   clearTimeout(saveT);
@@ -2648,7 +2650,7 @@ function saveFile(){
 function loadFile(file){
   if(!file) return;
   const r = new FileReader();
-  r.onload = ()=>{ try{ pendingAppId = null; applyGraphData(JSON.parse(r.result)); save(); }catch(e){ alert("Couldn’t load that file: "+e.message); } };
+  r.onload = ()=>{ try{ setPendingApp(null); applyGraphData(JSON.parse(r.result)); save(); }catch(e){ alert("Couldn’t load that file: "+e.message); } };
   r.readAsText(file);
 }
 $("save").onclick = saveFile;
@@ -2702,10 +2704,33 @@ async function shareUrl(){
 // this id so the app updates in place instead of spawning a fresh default app.
 let pendingAppId = null;
 let pendingAppTitle = null;   // the loaded app's name, for the page title (carried alongside pendingAppId)
+// The single chokepoint for the app binding: keep the in-memory pair, the persisted
+// {id,title} (so a plain reload re-links, like the title does), and the UI in lockstep.
+// EVERY place that changes which app this workflow targets must go through here — that's
+// what stops a stale id from silently re-targeting an old app on the next "Create app".
+function setPendingApp(id, title){
+  pendingAppId = id || null;
+  pendingAppTitle = pendingAppId ? (title || null) : null;
+  try{
+    if(pendingAppId) localStorage.setItem(EDITOR_APP_KEY, JSON.stringify({ id:pendingAppId, title:pendingAppTitle }));
+    else localStorage.removeItem(EDITOR_APP_KEY);
+  }catch(_){}
+  updateTitle();
+}
 // "nanoodle - workflow" while noodling; "nanoodle - <app> app" once an app's workflow is loaded.
+// Also keeps the action button honest: it says "Update app" (and reveals a "New" escape hatch)
+// whenever a binding is live, so "Create app" can never quietly overwrite an app you forgot about.
 function updateTitle(){
   const t = (pendingAppTitle || "").trim();
   document.title = pendingAppId ? `nanoodle - ${t || "app"} app` : "nanoodle - workflow";
+  const mk = $("makeapp"), nw = $("newapp");
+  if(mk){
+    mk.textContent = pendingAppId ? "✨ Update app" : "✨ Create app";
+    mk.title = pendingAppId
+      ? `Update “${t || "your app"}” with this workflow`
+      : "Turn this workflow into a shareable app";
+  }
+  if(nw) nw.hidden = !pendingAppId;   // only meaningful when a binding is live
 }
 async function loadFromHash(){
   const h = location.hash; let json=null, ga=false;
@@ -2717,9 +2742,8 @@ async function loadFromHash(){
   }catch{ /* bad link */ }
   if(!json) return false;
   try{
-    if(ga){ const spec = JSON.parse(json); pendingAppId = spec.appId || null; pendingAppTitle = spec.title || null; applyGraphData(spec.graph); }
-    else { pendingAppId = null; pendingAppTitle = null; applyGraphData(JSON.parse(json)); }
-    updateTitle();
+    if(ga){ const spec = JSON.parse(json); setPendingApp(spec.appId, spec.title); applyGraphData(spec.graph); }
+    else { setPendingApp(null); applyGraphData(JSON.parse(json)); }
     history.replaceState({}, "", location.pathname + location.search); // consume the link; edits now win
     save();
     return true;
@@ -2732,7 +2756,7 @@ $("share").onclick = ()=> shareUrl().catch(e=> flash("share failed: "+e.message)
 // feels cohesive instead of a separate tab. Same-origin → it shares the signed-in key.
 function closeAppModal(){ $("appmodal").hidden = true; $("appmodalframe").src = "about:blank"; }
 function openAppModal(hash){ $("appmodalframe").src = "play.html"+hash; $("appmodal").hidden = false; }
-$("makeapp").onclick = async ()=>{
+async function openCreateApp(){
   if(!graph.nodes.length){ flash("add a node first"); return; }
   const graphData = serializeGraph();
   const json = JSON.stringify(graphData);
@@ -2747,7 +2771,11 @@ $("makeapp").onclick = async ()=>{
     hash = packed ? "#g="+bytesToB64url(packed) : "#j="+bytesToB64url(new TextEncoder().encode(json));
   }
   openAppModal(hash);
-};
+}
+$("makeapp").onclick = openCreateApp;
+// "✨ New" (shown only while this workflow is bound to an app): unlink first, then open the
+// builder on a plain #g= handoff so it mints a brand-new app instead of updating the bound one.
+$("newapp").onclick = ()=>{ setPendingApp(null); openCreateApp(); };
 $("appmodalclose").onclick = closeAppModal;
 $("appmodal").addEventListener("click", e=>{ if(e.target.id==="appmodal") closeAppModal(); });   // click the dim backdrop
 addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("appmodal").hidden) closeAppModal(); });
@@ -2770,10 +2798,11 @@ addEventListener("message", e=>{
   // builder asked to edit the workflow: load that app's graph onto the canvas, remember
   // its id so the next "Create app" updates it, and drop back to the editor.
   else if(e.data.type==="__editflow__"){
-    pendingAppId = e.data.appId || null;
-    pendingAppTitle = e.data.title || null;
-    updateTitle();
-    if(e.data.graph){ try{ applyGraphData(e.data.graph); save(); }catch(_){ /* keep current canvas */ } }
+    // Bind the id ONLY if the graph actually applies — otherwise "Update app" would point at
+    // one app while the canvas shows another's, and the next save would overwrite the wrong app.
+    let ok = !e.data.graph;   // no graph payload → nothing to apply, the binding is all there is
+    if(e.data.graph){ try{ applyGraphData(e.data.graph); save(); ok = true; }catch(_){ /* keep current canvas, don't rebind */ } }
+    if(ok) setPendingApp(e.data.appId, e.data.title);
     closeAppModal();
   }
 });
@@ -2802,9 +2831,8 @@ async function loadGalleryEntry(slug){
   try{
     const r = await fetch(entry.graph, {cache:"no-store"});
     if(!r.ok) return false;
-    pendingAppId = null; pendingAppTitle = null;
+    setPendingApp(null);
     applyGraphData(await r.json());
-    updateTitle();
     history.replaceState({}, "", location.pathname + location.search);  // it's your copy now — edits win
     save();
     return true;
@@ -2981,13 +3009,19 @@ $("signout").onclick = ()=> setKey(null);
   let restored = false;
   // came back from an OAuth redirect: restore the graph we stashed just before it (consumed once)
   try{ const rs = sessionStorage.getItem(RESUME_KEY); if(rs){ sessionStorage.removeItem(RESUME_KEY); applyGraphData(JSON.parse(rs)); save(); restored = true;
-        const ra = sessionStorage.getItem(RESUME_APPID_KEY); if(ra){ pendingAppId = ra; pendingAppTitle = sessionStorage.getItem(RESUME_APPTITLE_KEY) || null; }   // keep the edit-workflow link across login
+        const ra = sessionStorage.getItem(RESUME_APPID_KEY); if(ra) setPendingApp(ra, sessionStorage.getItem(RESUME_APPTITLE_KEY) || null);   // keep the edit-workflow link across login
       } }catch(_){}
   try{ sessionStorage.removeItem(RESUME_APPID_KEY); sessionStorage.removeItem(RESUME_APPTITLE_KEY); }catch(_){}
   // opened a "#gallery=<slug>" link → load that curated noodle as the working copy
   if(!restored && location.hash.startsWith("#gallery=")) restored = await loadGalleryEntry(decodeURIComponent(location.hash.slice(9)));
   if(!restored && location.hash.length > 3) restored = await loadFromHash();   // opened a shared link
-  if(!restored) restored = load();                                // else last local graph
+  if(!restored && (restored = load())){                          // else last local graph...
+    // ...and re-link it to the app it was bound to, so a plain reload keeps "Update app"
+    // (the binding lives outside noodle_graph; without this the next "Create app" would
+    // spawn a duplicate of the very app the user was editing).
+    try{ const b = JSON.parse(localStorage.getItem(EDITOR_APP_KEY) || "null");
+      if(b && b.id) setPendingApp(b.id, b.title || null); }catch(_){}
+  }
   if(!restored) restored = await loadDefault();                   // else noodle-graph.json
   if(!restored) seed();                                           // else built-in starter
   updateTitle();                                                  // reflect whether an app's workflow is loaded
