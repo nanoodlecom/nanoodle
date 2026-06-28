@@ -571,6 +571,7 @@ function normImg(m){
     edit: !needsMask && (needsSrc || !!m.capabilities?.image_to_image),  // accepts an image input (text+image->image | image->image)
     gen: needsSrc ? false : (mod ? mod.startsWith("text") : !m.capabilities?.image_to_image),  // text-only generators; excludes edit-only models
     inpaint: inpaintOk,                                                  // needs/honors image + mask → the Inpaint node
+    lora: imageTakesLora(m.id),                                          // accepts a LoRA (v1 image catalog hides lora params → name allow-list)
     price: v!=null ? `$${(+v).toFixed(3)}/img` : "" };
 }
 function normVideo(m){
@@ -581,10 +582,15 @@ function normVideo(m){
   } else if(p.per_video!=null) price=`$${(+p.per_video).toFixed(2)}/clip`;
   else if(p.per_second!=null) price=`~$${(+p.per_second*(p.default_duration||5)).toFixed(2)}/clip`;
   else if(p.base_price!=null) price=`~$${(+p.base_price).toFixed(2)}/clip`;
+  // the video catalog DOES expose lora params, so gate on the real thing: a lora_url slot
+  // means we can drive it (the spicy model only offers a "loras" override → correctly excluded)
+  const sp=m.supported_parameters||{}, pp=sp.parameters||sp;
+  const lora = Object.keys(pp).some(k=>/^lora_url/i.test(k));
   return { id:m.id, name:m.name||m.id, created:m.created,
     t2v:!!c.text_to_video, i2v:!!c.image_to_video,
     v2v:!!c.video_to_video,                          // edits/extends/upscales a SOURCE video (→ vedit node)
     avatar:!!c.image_to_video && !!c.audio_input,    // image + audio → talking video (→ lipsync node)
+    lora,                                            // catalog advertises lora_url_N → the LoRA disclosure is offered
     price };
 }
 function normAudio(m){
@@ -807,7 +813,7 @@ const LORA_NODES = { image:1, edit:1, tvideo:1, ivideo:1, vedit:1 };   // nodes 
 function refreshLoraParams(n){
   if(!LORA_NODES[n.type] || !n.el) return;
   const box = n.el.querySelector("[data-loraparams]"); if(!box) return;
-  if(!modelHasLora(n.fields.model)){ box.innerHTML=""; return; }
+  if(!modelTakesLora(loraKind(n.type), n.fields.model)){ box.innerHTML=""; return; }
   // materialize rows (migrating the original single-field shape) so listeners mutate stored state
   const rows = nodeLoras(n).slice();
   if(!rows.length) rows.push({ url:"", strength:"" });          // always show one row to fill
@@ -2330,7 +2336,26 @@ function loraFamily(model){
   if(/lora/i.test(m)) return "flux";                       // flux-lora + generic *-lora
   return null;
 }
-function modelHasLora(model){ return loraFamily(model) != null; }
+// image-vs-video kind for a lora-capable node (image/edit → image; *video → video)
+function loraKind(type){ return (type==="image"||type==="edit") ? "image" : "video"; }
+// the v1 IMAGE catalog hides lora params, so allow-list lora-capable image ids by shape:
+// any *-lora variant + flux-2-klein-*, minus inpainting (no lora_url). check-lora-models
+// audits this against the richer catalog so a new lora image model can't slip through.
+function imageTakesLora(id){
+  id = String(id||"");
+  if(/inpaint/i.test(id)) return false;            // flux-lora/inpainting etc. carry no lora_url
+  if(/klein/i.test(id)) return true;               // flux-2-klein-* (lora-capable per catalog)
+  return /(^|[-\/])lora($|[-\/])/i.test(id);        // *-lora variants (flux-lora, *-dev-lora, p-image/*-lora)
+}
+// does the PICKED model actually accept a LoRA we can send? video gates on the catalog's real
+// lora_url params (so the spicy "loras"-override model is correctly excluded); image falls back
+// to the name allow-list. Unknown/offline ids trust the family so a typed lora id still works.
+function modelTakesLora(kind, id){
+  if(!id || loraFamily(id)==null) return false;
+  var m = catItem(kind, id);
+  if(m) return !!m.lora;
+  return kind==="video" ? true : imageTakesLora(id);
+}
 // how many LoRAs a model can stack (catalog lora_url_1..N caps / fal loras-array)
 function loraCap(model){
   switch(loraFamily(model)){
@@ -2358,7 +2383,7 @@ function loraBodyFor(model, items){       // items: [{url,scale}], 1..cap, alrea
 }
 // request params for a node's LoRA(s) — {} when none; throws on a bad URL before any paid call
 function loraParams(n){
-  if(!modelHasLora(n.fields.model)) return {};
+  if(!modelTakesLora(loraKind(n.type), n.fields.model)) return {};
   var rows = nodeLoras(n).filter(function(r){ return r && (r.url||"").trim(); });
   if(!rows.length) return {};
   var items = rows.slice(0, loraCap(n.fields.model)).map(function(r){

@@ -536,7 +536,19 @@ window.NoodleApp = (function () {
     if(/lora/i.test(m)) return "flux";
     return null;
   }
-  function modelHasLora(model){ return loraFamily(model) != null; }
+  function loraKind(type){ return (type==="image"||type==="edit") ? "image" : "video"; }
+  function imageTakesLora(id){
+    id = String(id||"");
+    if(/inpaint/i.test(id)) return false;
+    if(/klein/i.test(id)) return true;
+    return /(^|[-\/])lora($|[-\/])/i.test(id);
+  }
+  // the editor already gated LoRA INPUT to truly lora-capable models, so a name-based check
+  // here (video by family, image by allow-list) stays in lockstep without a live catalog.
+  function modelTakesLora(kind, id){
+    if(!id || loraFamily(id)==null) return false;
+    return kind==="video" ? true : imageTakesLora(id);
+  }
   function loraCap(model){
     switch(loraFamily(model)){
       case "flux": case "flux2dev": return 4;
@@ -560,7 +572,7 @@ window.NoodleApp = (function () {
     return { loras: items.map(function(it){ return { path:it.url, scale:sc(it.scale) }; }) };
   }
   function loraParams(n){
-    if(!modelHasLora(n.fields.model)) return {};
+    if(!modelTakesLora(loraKind(n.type), n.fields.model)) return {};
     var rows = nodeLoras(n).filter(function(r){ return r && (r.url||"").trim(); });
     if(!rows.length) return {};
     var items = rows.slice(0, loraCap(n.fields.model)).map(function(r){
