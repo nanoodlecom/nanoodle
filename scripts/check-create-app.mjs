@@ -37,6 +37,14 @@
 //       noodle_app_handoff fallback) so a reload restores the SAVED draft, not the
 //       original graph, and a later hash-less visit can't reopen a stale workflow.
 //   10. updateAppWorkflow(unknownId) installs a fresh draft without throwing.
+//   Resume / keep-alive (R*) — closing the modal must not lose your in-progress app:
+//   R0. appHandoffSig() (the change-detector) ignores canvas pan/zoom + node positions but
+//       flips on node type/fields, links, and the bound app id. [the "pan = lost work" trap]
+//   R1. Reopening on the UNCHANGED graph resumes the live builder — emits no new handoff.
+//   R2. Closing the modal keeps the iframe loaded (never about:blank). [the lost-state bug]
+//   R3. A builder→canvas graph edit (__editflow__) re-hands-off — never a stale resume.
+//   R4. Source guards: closeAppModal doesn't blank, openAppModal records the resume state,
+//       openCreateApp short-circuits on an unchanged graph, play.html pauses media on hide.
 
 import { readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
@@ -56,6 +64,19 @@ function extractMainScript(html, needle) {
     if (!/\bsrc=/i.test(m[1]) && needle.test(m[2])) return m[2];
   }
   throw new Error("main inline <script> not found");
+}
+
+// Pull one `function name(){…}` out of a source blob by brace-matching (same idea as
+// check-image-ports / check-editor-ports) so we can unit-test it in isolation.
+function extractFn(src, name) {
+  const start = src.indexOf("function " + name + "(");
+  if (start === -1) throw new Error(`function ${name}() not found`);
+  let depth = 0;
+  for (let j = src.indexOf("{", start); j < src.length; j++) {
+    if (src[j] === "{") depth++;
+    else if (src[j] === "}" && --depth === 0) return src.slice(start, j + 1);
+  }
+  throw new Error(`could not brace-match ${name}()`);
 }
 
 function prepare(code, kind) {
@@ -488,6 +509,106 @@ async function run() {
     record("B6 consumed handoff → reload restores saved draft, no stale residue",
       playAppShown(ctx2) && graphMarker(playStateGraph(store)) === "NEW" && store.noodle_app_handoff === undefined,
       `shown=${playAppShown(ctx2)} marker=${graphMarker(playStateGraph(store))} handoffLeft=${store.noodle_app_handoff}`);
+  }
+
+  /* ----------------------------------------------------------------------------
+     RESUME / KEEP-ALIVE (R*) — closing the Create-app modal must NOT throw away the
+     app you're mid-build on. The editor keeps the builder iframe loaded and only
+     re-hands-off when the app-MEANINGFUL graph changed; reopening on the same graph
+     just unhides the live builder. Regressing any of these brings back the reported
+     "closed the modal, lost my app" bug.
+     -------------------------------------------------------------------------- */
+
+  /* R0 (unit): appHandoffSig() is the change-detector. It MUST ignore canvas view
+     (pan/zoom) and node positions/sizes — else navigating the canvas reads as an edit
+     and the resume never fires — and MUST flip on node type/fields, links, or the bound
+     app id. Run the REAL function in isolation over hand-built graphs. */
+  {
+    const sigFn = extractFn(INDEX_SRC, "appHandoffSig");
+    const sctx = { JSON, graph: null, pendingAppId: null };
+    vm.createContext(sctx);
+    new vm.Script(sigFn, { filename: "appHandoffSig" }).runInContext(sctx);
+    const sig = (graph, app = "") => { sctx.graph = graph; sctx.pendingAppId = app; return sctx.appHandoffSig(); };
+    const base = () => ({
+      nodes: [
+        { id: "a", type: "text", x: 0, y: 0, w: 120, sizes: { 0: 1 }, fields: { text: "hi" } },
+        { id: "b", type: "image", x: 50, y: 60, w: 200, sizes: {}, fields: { model: "m1" } },
+      ],
+      links: [{ from: { node: "a", port: "text" }, to: { node: "b", port: "prompt" } }],
+      view: { panX: 0, panY: 0, scale: 1 },
+    });
+    const moved = base(); moved.nodes[0].x = 999; moved.nodes[1].y = -42; moved.nodes[0].w = 9;
+    moved.nodes[1].sizes = { 9: 9 }; moved.view = { panX: 800, panY: -300, scale: 2.5 };
+    const fieldEdit = base(); fieldEdit.nodes[1].fields.model = "m2";
+    const typeEdit = base(); typeEdit.nodes[1].type = "video";
+    const linkEdit = base(); linkEdit.links.push({ from: { node: "a", port: "text" }, to: { node: "b", port: "neg" } });
+    const b0 = sig(base());
+    record("R0 appHandoffSig ignores pan/zoom + node positions (resume fast-path can fire)",
+      sig(moved) === b0, `moved sig ${sig(moved) === b0 ? "==" : "!="} base — view/x/y/w/sizes must be excluded`);
+    record("R0 appHandoffSig flips on a field edit", sig(fieldEdit) !== b0, "model change must read as a change");
+    record("R0 appHandoffSig flips on a node-type change", sig(typeEdit) !== b0, "type change must read as a change");
+    record("R0 appHandoffSig flips on a link change", sig(linkEdit) !== b0, "new wire must read as a change");
+    record("R0 appHandoffSig flips on the bound app id", sig(base(), "app_X") !== b0, "pendingAppId must be folded in");
+  }
+
+  /* R1: reopening Create app on the UNCHANGED graph resumes the live builder — it emits
+     NO new handoff hash (the fast-path returns early) and re-shows the modal. */
+  {
+    const store = {}, session = {};
+    const ctx = await bootEditor(ORIGIN + "/editor" + (await graphHash(APP_B)), store, session);
+    const first = await emittedHandoff(ctx);                    // first open → real handoff
+    const second = await emittedHandoff(ctx);                   // same graph → fast-path, no new hash
+    record("R1 unchanged reopen resumes (no re-handoff, modal reshown)",
+      first.kind === "g" && second.kind === "none" && el(ctx, "appmodal").hidden === false,
+      `first=${first.kind} second=${second.kind} shown=${el(ctx, "appmodal").hidden === false}`);
+  }
+
+  /* R2: closing the modal keeps the builder LOADED — it must never blank the iframe to
+     about:blank (the old teardown that destroyed in-progress app state). */
+  {
+    const store = {}, session = {};
+    const ctx = await bootEditor(ORIGIN + "/editor" + (await graphHash(APP_B)), store, session);
+    await el(ctx, "makeapp").onclick(); await drainAsync();
+    const opened = String(el(ctx, "appmodalframe").src);
+    await el(ctx, "appmodalclose").onclick(); await drainAsync();
+    const closed = String(el(ctx, "appmodalframe").src);
+    record("R2 close keeps the builder loaded (never about:blank)",
+      /play\.html#/.test(opened) && closed === opened && !/about:blank/.test(closed) && el(ctx, "appmodal").hidden === true,
+      `opened=${opened.slice(0, 18)} closed=${closed.slice(0, 18)} hidden=${el(ctx, "appmodal").hidden}`);
+  }
+
+  /* R3: when the builder hands an edited graph back to the canvas (__editflow__), the next
+     Create app must RE-hand-off the new graph — never silently resume the stale builder. */
+  {
+    const store = {}, session = {};
+    const ctx = await bootEditor(ORIGIN + "/editor" + (await graphHash(APP_B)), store, session);
+    await emittedHandoff(ctx);                                  // open once → sig recorded for APP_B
+    const src = el(ctx, "appmodalframe").contentWindow;
+    for (const fn of (ctx._listeners.message || [])) fn({ source: src, data: { type: "__editflow__", appId: "app_ZZZ", title: "Z", graph: NEWG } });
+    await drainAsync();
+    const out = await emittedHandoff(ctx);                      // changed graph → must re-hand-off
+    record("R3 round-trip graph change re-hands-off (no stale resume)",
+      out.kind === "ga" && out.spec.appId === "app_ZZZ" && graphMarker(out.spec.graph) === "NEW",
+      `kind=${out.kind} appId=${out.spec && out.spec.appId} marker=${graphMarker(out.spec && out.spec.graph)}`);
+  }
+
+  /* R4 (static): the editor's closeAppModal must not tear down the iframe, openAppModal must
+     record the resume bookkeeping, openCreateApp must carry the same-graph fast-path, and the
+     builder must pause its chrome media when hidden. Cheap source guards backing R1–R3. */
+  {
+    const close = extractFn(INDEX_SRC, "closeAppModal");
+    const open = extractFn(INDEX_SRC, "openAppModal");
+    const create = extractFn(INDEX_SRC, "openCreateApp");
+    record("R4 closeAppModal keeps the iframe (no about:blank)", !/about:blank/.test(close), "closeAppModal must not blank src");
+    record("R4 openAppModal records resume bookkeeping",
+      /appFrameLoaded\s*=\s*true/.test(open) && /lastHandoffSig\s*=\s*appHandoffSig\(\)/.test(open),
+      "openAppModal must set appFrameLoaded + lastHandoffSig");
+    record("R4 openCreateApp has the same-graph resume fast-path",
+      /appFrameLoaded\s*&&\s*appHandoffSig\(\)\s*===\s*lastHandoffSig/.test(create) && /return/.test(create),
+      "openCreateApp must short-circuit on an unchanged graph");
+    record("R4 play.html pauses chrome media when hidden",
+      /__appmodalhidden__/.test(PLAY_SRC) && /querySelectorAll\((?:"|')audio,\s*video/.test(PLAY_SRC),
+      "play.html must pause audio/video on __appmodalhidden__");
   }
 }
 
