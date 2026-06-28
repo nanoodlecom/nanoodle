@@ -3475,6 +3475,14 @@ $("openeditor").onclick = doOpenEditor;                        // works in both 
 if(IN_EDITOR){
   // Esc inside the popup → ask the editor to close it (the keydown can't reach the parent)
   document.addEventListener("keydown", (e)=>{ if(e.key==="Escape"){ try{ parent.postMessage({ type:"__closeapp__" }, "*"); }catch(_){} } });
+  // The editor now hides this modal instead of tearing it down, so we stay loaded and you can
+  // come back to your app. When hidden, pause any media in the builder chrome so nothing keeps
+  // playing out of sight. (The app preview runs in a no-same-origin sandbox we can't reach into.)
+  addEventListener("message", (e)=>{
+    if(e.source===parent && e.data && e.data.type==="__appmodalhidden__"){
+      document.querySelectorAll("audio,video").forEach(m=>{ try{ m.pause(); }catch(_){} });
+    }
+  });
 }
 
 $("apply").onclick = applyCustomize;
