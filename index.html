@@ -473,7 +473,7 @@
 
 <!-- Create-app popup: play.html embedded over the editor -->
 <div id="appmodal" hidden>
-  <button id="appmodalclose" title="Close (Esc)" aria-label="Close">✕</button>
+  <button id="appmodalclose" title="Close — your app stays here (Esc)" aria-label="Close">✕</button>
   <iframe id="appmodalframe" title="Create app" allow="clipboard-write; fullscreen"></iframe>
 </div>
 
@@ -3088,10 +3088,36 @@ $("share").onclick = ()=> shareUrl().catch(e=> flash("share failed: "+e.message)
 // existing #g= packing; stash a localStorage copy as a belt-and-suspenders fallback.
 // Open the app builder as a popup over the editor (play.html in a modal iframe), so it
 // feels cohesive instead of a separate tab. Same-origin → it shares the signed-in key.
-function closeAppModal(){ $("appmodal").hidden = true; $("appmodalframe").src = "about:blank"; }
-function openAppModal(hash){ $("appmodalframe").src = "play.html"+hash; $("appmodal").hidden = false; }
+// Keep the builder iframe ALIVE across dismissals so closing the modal (✕, Esc, or a stray
+// backdrop click) never throws away the app you're mid-build on. Reopening "Create app" with
+// the same graph just unhides the live document — draft, generated versions, title, scroll
+// and focus all intact — instead of reloading play.html into a fresh default app. We only
+// re-hand-off when the app-meaningful graph actually changed.
+let appFrameLoaded = false;     // play.html is live in the iframe (don't reload it needlessly)
+let lastHandoffSig = null;      // signature of the graph last handed to the builder
+// What the builder actually consumes: node identity/type/fields + links + which app we're
+// editing. Deliberately EXCLUDES the canvas view (panX/panY/scale) and node positions/sizes —
+// panning, zooming or nudging a node must NOT count as a change, or the resume never fires.
+function appHandoffSig(){
+  return JSON.stringify({
+    app: pendingAppId || "",
+    nodes: graph.nodes.map(n=>({ id:n.id, type:n.type, fields:n.fields })),
+    links: graph.links.map(l=>({ f:l.from, t:l.to }))
+  });
+}
+function closeAppModal(){
+  $("appmodal").hidden = true;   // hide, but keep the builder loaded so you can come back to it
+  try{ $("appmodalframe").contentWindow.postMessage({ type:"__appmodalhidden__" }, "*"); }catch(_){}   // pause any builder-chrome media
+}
+function openAppModal(hash){ $("appmodalframe").src = "play.html"+hash; appFrameLoaded = true; lastHandoffSig = appHandoffSig(); $("appmodal").hidden = false; }
 async function openCreateApp(){
   if(!graph.nodes.length){ flash("add a node first"); return; }
+  // Same graph + builder still loaded → just bring your app back (no reload, no fresh draft).
+  if(appFrameLoaded && appHandoffSig()===lastHandoffSig){
+    $("appmodal").hidden = false;
+    try{ $("appmodalframe").contentWindow.postMessage({ type:"__appmodalshown__" }, "*"); }catch(_){}
+    return;
+  }
   const graphData = serializeGraph();
   const json = JSON.stringify(graphData);
   try{ localStorage.setItem("noodle_app_handoff", json); }catch{}
@@ -3137,6 +3163,7 @@ addEventListener("message", e=>{
     let ok = !e.data.graph;   // no graph payload → nothing to apply, the binding is all there is
     if(e.data.graph){ try{ applyGraphData(e.data.graph); save(); ok = true; }catch(_){ /* keep current canvas, don't rebind */ } }
     if(ok) setPendingApp(e.data.appId, e.data.title);
+    lastHandoffSig = null;   // the round-trip changed the canvas/binding → next "Create app" re-hands-off
     closeAppModal();
   }
 });
