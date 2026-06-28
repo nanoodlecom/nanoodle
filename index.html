@@ -591,6 +591,7 @@ function normVideo(m){
     v2v:!!c.video_to_video,                          // edits/extends/upscales a SOURCE video (→ vedit node)
     avatar:!!c.image_to_video && !!c.audio_input,    // image + audio → talking video (→ lipsync node)
     lora,                                            // catalog advertises lora_url_N → the LoRA disclosure is offered
+    params: pp,                                      // per-model param descriptors → the ⚙️ Model options block
     price };
 }
 function normAudio(m){
@@ -886,7 +887,62 @@ async function audioRun(n, inp, ctx){
   return { audio: await ctx.genAudio(mdl(n), text, collectAudioParams(n),
     (q,ms)=> setNodeProgress(n, `generating audio… ${Math.round(ms/1000)}s${q!=null?` · queue ${q}`:""}`)) };
 }
-function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshAudioParams(n); refreshLoraParams(n); backfillModel(n); }); }
+/* ---------- general per-model options (from the catalog's own param descriptors) ----------
+   Video models advertise rich params (preset, style, effect, cameraMovement, mode, switches…)
+   in supported_parameters.parameters. Surface every CHOICE param (select ≥2 opts, or switch)
+   the node doesn't already drive, so each model's knobs light up automatically — no model names.
+   Chosen values live in n.fields.modelOpts and pass straight through to the API; play.html just
+   forwards that object, so exports need no catalog. duration/aspect (node-driven) and lora_* (the
+   LoRA box) are excluded. */
+const VIDEO_OPT_NODES = { tvideo:1, ivideo:1, vedit:1 };
+function videoOptDefs(model){
+  const p = (catItem("video", model)||{}).params || {};
+  const defs = [];
+  for(const [key,d] of Object.entries(p)){
+    if(!d || typeof d!=="object") continue;
+    if(key==="duration" || key==="aspect_ratio") continue;     // the node already controls these
+    if(/^lora(_|$)/i.test(key)) continue;                      // the 🎨 LoRA box handles these
+    if(d.type==="select"){
+      const opts = (d.options||[]).filter(o=> o && o.value!=="" && o.value!=null);
+      if(opts.length<2) continue;                              // nothing meaningful to choose
+      defs.push({ key, label:d.label||key, type:"select", options:opts, def:d.default });
+    } else if(d.type==="switch" || d.type==="boolean"){
+      defs.push({ key, label:d.label||key, type:"bool", def:d.default });
+    }
+  }
+  return defs;
+}
+// rebuild the ⚙️ Model options disclosure for a video node from its current model
+function refreshModelOpts(n){
+  if(!VIDEO_OPT_NODES[n.type] || !n.el) return;
+  const box = n.el.querySelector("[data-modelopts]"); if(!box) return;
+  const defs = videoOptDefs(n.fields.model);
+  if(!defs.length){ box.innerHTML=""; return; }
+  const cur = n.fields.modelOpts || (n.fields.modelOpts = {});
+  for(const k of Object.keys(cur)) if(!defs.some(d=>d.key===k)) delete cur[k];   // drop other models' knobs
+  const ctl = (d)=>{
+    const v = cur[d.key];
+    if(d.type==="bool"){
+      const on = (v==null) ? (d.def===true||d.def==="true") : (v===true||v==="true");
+      return `<label class="setbool" style="margin:3px 0"><input type="checkbox" data-of="${esc(d.key)}"${on?" checked":""}/> ${esc(d.label)}</label>`;
+    }
+    const sel = (v!=null) ? v : (d.def!=null ? d.def : "");
+    return `<div style="margin:3px 0"><label>${esc(d.label)}</label><select data-of="${esc(d.key)}">${
+      d.options.map(o=>`<option value="${esc(o.value)}"${String(o.value)===String(sel)?" selected":""}>${esc(o.label!=null?o.label:o.value)}</option>`).join("")}</select></div>`;
+  };
+  const open = Object.keys(cur).length ? " open" : "";
+  box.innerHTML = `<details class="adv"${open}><summary>⚙️ Model options${defs.length>1?` · ${defs.length}`:""}</summary>
+    ${defs.map(ctl).join("")}
+    <div class="fhint">Per-model knobs from the catalog (presets, styles, camera moves…). Defaults apply when untouched.</div></details>`;
+  box.querySelectorAll("[data-of]").forEach(el=>{
+    const key = el.dataset.of;
+    el.addEventListener(el.type==="checkbox" ? "change" : "input", ()=>{
+      cur[key] = el.type==="checkbox" ? el.checked : el.value; save();
+    });
+    el.addEventListener("pointerdown", e=> e.stopPropagation());   // don't drag the node while choosing
+  });
+}
+function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); backfillModel(n); }); }
 function backfillModel(n){   // once a catalog arrives, give model nodes a sensible default if none chosen yet
   const t = NODE_TYPES[n.type];
   if(t.modelKind && !n.fields.model){
@@ -1149,12 +1205,13 @@ const NODE_TYPES = {
         <div><label>aspect</label><select data-f="aspect">${optsHTML([["16:9","16:9"],["9:16","9:16"],["1:1","1:1"]], n.fields.aspect||"16:9")}</select></div>
       </div>
       <div><label>prompt</label><textarea data-f="prompt" placeholder="a drone shot over neon Tokyo at night…">${esc(n.fields.prompt||"")}</textarea></div>
+      <div data-modelopts></div>
       <div data-loraparams></div>`,
     async run(n, inp, ctx){
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       if(!prompt) throw new Error("no prompt");
       const url = await ctx.genVideo(mdl(n), prompt,
-        { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9", lora:loraParams(n) }, null,
+        { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9", lora:loraParams(n), extra:(n.fields.modelOpts||{}) }, null,
         (st,ms)=> setNodeProgress(n, `rendering video… ${Math.round(ms/1000)}s · ${st.toLowerCase()}`));
       return { video: url };
     }
@@ -1172,12 +1229,13 @@ const NODE_TYPES = {
         <div><label>aspect</label><select data-f="aspect">${optsHTML([["16:9","16:9"],["9:16","9:16"],["1:1","1:1"]], n.fields.aspect||"16:9")}</select></div>
       </div>
       <div><label>motion prompt (optional)</label><textarea data-f="prompt" placeholder="slow push-in, hair blowing in the wind…">${esc(n.fields.prompt||"")}</textarea></div>
+      <div data-modelopts></div>
       <div data-loraparams></div>`,
     async run(n, inp, ctx){
       if(!inp.image) throw new Error("no image input");
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       const url = await ctx.genVideo(mdl(n), prompt,
-        { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9", lora:loraParams(n) }, inp.image,
+        { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9", lora:loraParams(n), extra:(n.fields.modelOpts||{}) }, inp.image,
         (st,ms)=> setNodeProgress(n, `animating… ${Math.round(ms/1000)}s · ${st.toLowerCase()}`));
       return { video: url };
     }
@@ -1191,11 +1249,12 @@ const NODE_TYPES = {
     body:(n)=>`
       ${modelFieldHTML(n)}
       <div><label>instruction (optional)</label><textarea data-f="prompt" placeholder="restyle as claymation · extend the clip · upscale to 4K…">${esc(n.fields.prompt||"")}</textarea></div>
+      <div data-modelopts></div>
       <div data-loraparams></div>`,
     async run(n, inp, ctx){
       if(!inp.video) throw new Error("no video input");
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
-      const opts = await videoSourceOpts(inp.video); opts.lora = loraParams(n);
+      const opts = await videoSourceOpts(inp.video); opts.lora = loraParams(n); opts.extra = (n.fields.modelOpts||{});
       const url = await ctx.genVideo(mdl(n), prompt, opts, null,
         (st,ms)=> setNodeProgress(n, `processing video… ${Math.round(ms/1000)}s · ${st.toLowerCase()}`));
       return { video: url };
@@ -1414,13 +1473,14 @@ function buildNodeEl(n){
     mp.onclick = (e)=>{
       e.stopPropagation();
       openPicker(t.modelKind, { current:n.fields.model, filter:t.modelFilter, onPick:(id)=>{
-        n.fields.model = id; mp.textContent = id+" ▾"; updateNodePrice(n); refreshAudioParams(n); refreshLoraParams(n); refreshImageInputs(n); save();
+        n.fields.model = id; mp.textContent = id+" ▾"; updateNodePrice(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshImageInputs(n); save();
       }});
     };
     updateNodePrice(n);
   }
   refreshAudioParams(n);
   refreshLoraParams(n);            // LoRA disclosure on image/edit nodes (model-gated)
+  refreshModelOpts(n);            // ⚙️ Model options disclosure on video nodes (catalog-driven)
   if(t.mount) t.mount(n);            // node-specific widget wiring (e.g. upload/webcam)
   // header buttons
   el.querySelector('[data-act=del]').onclick = (e)=>{ e.stopPropagation(); removeNode(n.id); };
@@ -2444,6 +2504,7 @@ const CTX = {
     if(opts.videoDataUrl) body.videoDataUrl = opts.videoDataUrl;
     if(opts.audioDataUrl) body.audioDataUrl = opts.audioDataUrl;
     if(opts.lora) Object.assign(body, opts.lora);        // LoRA params (lora_url_1.. for LTX video)
+    if(opts.extra) Object.assign(body, opts.extra);      // per-model catalog options (preset/style/effect/…)
     // NanoGPT inlines media as base64 and the edge (Vercel) rejects bodies over ~4.5 MB with a
     // header-less 413 that the browser mislabels as a CORS error. There's no upload endpoint, so
     // catch oversize locally and explain it. Video chained from another node rides as a remote

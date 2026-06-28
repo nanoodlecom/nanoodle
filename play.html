@@ -622,6 +622,7 @@ window.NoodleApp = (function () {
       if(opts.videoDataUrl) body.videoDataUrl = opts.videoDataUrl;
       if(opts.audioDataUrl) body.audioDataUrl = opts.audioDataUrl;
       if(opts.lora) Object.assign(body, opts.lora);        // LoRA params (lora_url_1.. for LTX video)
+      if(opts.extra) Object.assign(body, opts.extra);      // per-model catalog options (preset/style/effect/…)
       // NanoGPT inlines media as base64 and the edge rejects bodies over ~4.5 MB with a header-less
       // 413 the browser mislabels as CORS. No upload endpoint → catch oversize locally and explain.
       const payload = JSON.stringify(body);
@@ -1028,7 +1029,7 @@ window.NoodleApp = (function () {
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         if(!prompt) throw new Error("no prompt");
         const url = await ctx.genVideo(mdl(n), prompt,
-          { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9", lora:loraParams(n) }, null,
+          { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9", lora:loraParams(n), extra:(n.fields.modelOpts||{}) }, null,
           (st,ms)=> onProgress && onProgress("rendering video… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
         return { video: url };
       }
@@ -1040,7 +1041,7 @@ window.NoodleApp = (function () {
         if(!inp.image) throw new Error("no image input");
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         const url = await ctx.genVideo(mdl(n), prompt,
-          { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9", lora:loraParams(n) }, inp.image,
+          { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9", lora:loraParams(n), extra:(n.fields.modelOpts||{}) }, inp.image,
           (st,ms)=> onProgress && onProgress("animating… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
         return { video: url };
       }
@@ -1051,7 +1052,7 @@ window.NoodleApp = (function () {
       async run(n, inp, ctx, onProgress){
         if(!inp.video) throw new Error("no video input");
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
-        const vopts = await videoSourceOpts(inp.video); vopts.lora = loraParams(n);
+        const vopts = await videoSourceOpts(inp.video); vopts.lora = loraParams(n); vopts.extra = (n.fields.modelOpts||{});
         const url = await ctx.genVideo(mdl(n), prompt, vopts, null,
           (st,ms)=> onProgress && onProgress("processing video… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
         return { video: url };
