@@ -165,9 +165,10 @@ try {
 
     // 2) representative non-model knobs are present with the expected control kind
     const KNOB = [
-      { type: "image",      field: "size",     kind: "select" },
-      { type: "tvideo",     field: "duration", kind: "number" },
-      { type: "tvideo",     field: "aspect",   kind: "select" },
+      { type: "image",      field: "size",       kind: "select" },
+      { type: "tvideo",     field: "duration",   kind: "select" },
+      { type: "tvideo",     field: "resolution", kind: "select" },
+      { type: "tvideo",     field: "aspect",     kind: "select" },
       { type: "vision",     field: "q",        kind: "textarea" },
       { type: "join",       field: "sep",      kind: "text" },
       { type: "transcribe", field: "language", kind: "text" },

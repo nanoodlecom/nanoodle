@@ -620,6 +620,7 @@ window.NoodleApp = (function () {
       const body = { model, prompt };
       if(opts.duration) body.duration = opts.duration;
       if(opts.aspect_ratio) body.aspect_ratio = opts.aspect_ratio;
+      if(opts.resolution) body.resolution = opts.resolution;
       if(imageDataUrl) body.imageDataUrl = imageDataUrl;
       if(opts.videoUrl) body.videoUrl = opts.videoUrl;
       if(opts.videoDataUrl) body.videoDataUrl = opts.videoDataUrl;
@@ -1032,7 +1033,7 @@ window.NoodleApp = (function () {
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         if(!prompt) throw new Error("no prompt");
         const url = await ctx.genVideo(mdl(n), prompt,
-          { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9", lora:loraParams(n), extra:(n.fields.modelOpts||{}) }, null,
+          { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9", resolution:n.fields.resolution||"", lora:loraParams(n), extra:(n.fields.modelOpts||{}) }, null,
           (st,ms)=> onProgress && onProgress("rendering video… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
         return { video: url };
       }
@@ -1044,7 +1045,7 @@ window.NoodleApp = (function () {
         if(!inp.image) throw new Error("no image input");
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         const url = await ctx.genVideo(mdl(n), prompt,
-          { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9", lora:loraParams(n), extra:(n.fields.modelOpts||{}) }, inp.image,
+          { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9", resolution:n.fields.resolution||"", lora:loraParams(n), extra:(n.fields.modelOpts||{}) }, inp.image,
           (st,ms)=> onProgress && onProgress("animating… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
         return { video: url };
       }
@@ -1056,6 +1057,7 @@ window.NoodleApp = (function () {
         if(!inp.video) throw new Error("no video input");
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         const vopts = await videoSourceOpts(inp.video); vopts.lora = loraParams(n); vopts.extra = (n.fields.modelOpts||{});
+        if(n.fields.resolution) vopts.resolution = n.fields.resolution;
         const url = await ctx.genVideo(mdl(n), prompt, vopts, null,
           (st,ms)=> onProgress && onProgress("processing video… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
         return { video: url };
@@ -1316,6 +1318,10 @@ window.NoodleApp = (function () {
      "Optional settings" so every model the app uses is visible and swappable.
      ===================================================================== */
   const ASPECTS = [["16:9","16:9 landscape"],["9:16","9:16 portrait"],["1:1","1:1 square"],["4:3","4:3"],["3:4","3:4"]];
+  // Fallback dimension options, used offline / for uncatalogued ids. On the hosted play page (and in
+  // the editor) the real per-model options replace these from the live catalog — see fillDimLists().
+  const DURATIONS   = [["5","5 sec"],["10","10 sec"]];
+  const RESOLUTIONS = [["","model default"]];   // "" sends nothing → the model's own default (behavior-preserving)
   const SETTING_SPECS = {
     llm:     [{ f:"model", label:"Model", kind:"model" }],
     vision:  [{ f:"model", label:"Model", kind:"model" },
@@ -1325,14 +1331,17 @@ window.NoodleApp = (function () {
     edit:    [{ f:"model", label:"Model", kind:"model" },
               { f:"size",  label:"Image size", kind:"select", options:SIZES, def:SIZES[0][0] }],
     tvideo:  [{ f:"model", label:"Model", kind:"model" },
-              { f:"duration", label:"Duration (s)", kind:"number", min:1, def:"5" },
-              { f:"aspect",   label:"Aspect ratio", kind:"select", options:ASPECTS, def:"16:9" }],
+              { f:"resolution", label:"Resolution", kind:"select", options:RESOLUTIONS, def:"" },
+              { f:"aspect",   label:"Aspect ratio", kind:"select", options:ASPECTS, def:"16:9" },
+              { f:"duration", label:"Duration", kind:"select", options:DURATIONS, def:"5" }],
     ivideo:  [{ f:"model", label:"Model", kind:"model" },
               { f:"prompt", label:"Motion prompt", kind:"textarea" },
-              { f:"duration", label:"Duration (s)", kind:"number", min:1, def:"5" },
-              { f:"aspect",   label:"Aspect ratio", kind:"select", options:ASPECTS, def:"16:9" }],
+              { f:"resolution", label:"Resolution", kind:"select", options:RESOLUTIONS, def:"" },
+              { f:"aspect",   label:"Aspect ratio", kind:"select", options:ASPECTS, def:"16:9" },
+              { f:"duration", label:"Duration", kind:"select", options:DURATIONS, def:"5" }],
     vedit:   [{ f:"model", label:"Model", kind:"model" },
-              { f:"prompt", label:"Edit instruction", kind:"textarea" }],
+              { f:"prompt", label:"Edit instruction", kind:"textarea" },
+              { f:"resolution", label:"Resolution", kind:"select", options:RESOLUTIONS, def:"" }],
     lipsync: [{ f:"model", label:"Model", kind:"model" },
               { f:"prompt", label:"Guidance prompt", kind:"textarea" }],
     music:   [{ f:"model", label:"Model", kind:"model" },
@@ -1414,6 +1423,52 @@ window.NoodleApp = (function () {
     return raw.filter(m=> m && m.id && modelSuits(type, m))
               .sort((a,b)=> (b.created||0)-(a.created||0))
               .map(m=> m.id);
+  }
+  /* ---------- per-model DIMENSION options (size / resolution / aspect / duration) ----------
+     Each model's REAL dimension options ride in the public catalog — image models list their
+     supported sizes in supported_parameters.resolutions; video models expose resolution/aspect_ratio/
+     duration as select params. We rewrite the dimension <select>s from the live catalog so the user
+     only sees sizes/resolutions the chosen model actually supports (mirrors the editor's dimDefs).
+     The chosen value lives on n.fields and runs without a catalog, so exports keep working offline. */
+  const DIM_FIELDS = { size:1, resolution:1, aspect:1, duration:1 };
+  async function rawCatItem(kind, id){
+    if(!id) return null;
+    const raw = await loadCatalogRaw(kind);
+    return raw.find(m=> m && m.id===id) || null;
+  }
+  function dimOptionsFromItem(type, m){
+    const out = {}; if(!m) return out;
+    if(type==="image" || type==="edit"){
+      const res = Array.isArray(m.supported_parameters && m.supported_parameters.resolutions)
+        ? m.supported_parameters.resolutions.filter(x=> typeof x==="string" && x) : [];
+      if(res.length) out.size = res.map(r=>[r,r]);
+      return out;
+    }
+    const p = (m.supported_parameters && m.supported_parameters.parameters) || {};
+    const sel = (param)=> ((param&&param.options)||[]).filter(o=> o && o.value!=="" && o.value!=null)
+      .map(o=> [String(o.value), o.label!=null?String(o.label):String(o.value)]);
+    const r = sel(p.resolution);   if(r.length) out.resolution = [["","model default"], ...r];
+    const a = sel(p.aspect_ratio); if(a.length) out.aspect = a;
+    const d = sel(p.duration);     if(d.length) out.duration = d;
+    return out;
+  }
+  // Best-effort: rewrite each dimension <select> from the chosen model's live catalog options. Never
+  // blocks the run; an absent/empty catalog just leaves the fallback options in place.
+  function fillDimLists(){
+    (STATE.settings || []).forEach((it,i)=>{
+      if(it.kind!=="select" || !DIM_FIELDS[it.field]) return;
+      const kind = SETTING_MODEL_KIND[it.node.type]; if(!kind) return;
+      rawCatItem(kind, it.node.fields.model).then(m=>{
+        const opts = dimOptionsFromItem(it.node.type, m)[it.field];
+        if(!opts || !opts.length) return;
+        const el = document.getElementById("set_"+i);
+        if(!el || el.tagName!=="SELECT") return;
+        const cur = it.node.fields[it.field];
+        const list = (cur!=null && cur!=="" && !opts.some(o=> String(o[0])===String(cur)))
+          ? [[String(cur),String(cur)], ...opts] : opts;   // keep a stored (e.g. baked-in) value pickable
+        el.innerHTML = list.map(o=> '<option value="'+esc(o[0])+'"'+(String(o[0])===String(cur)?" selected":"")+'>'+esc(o[1])+'</option>').join("");
+      }).catch(()=>{});
+    });
   }
 
   /* =====================================================================
@@ -1636,6 +1691,7 @@ window.NoodleApp = (function () {
       }
     });
     fillModelLists();
+    fillDimLists();   // rewrite size/resolution/aspect/duration options from each model's live catalog
     box.querySelectorAll(".inpaint-ctl").forEach(ctl=> wireInpaintControl(box, ctl));
   }
   // Best-effort: pull each model field's catalog into its dropdown so the user can
@@ -1671,7 +1727,7 @@ window.NoodleApp = (function () {
       menu.hidden = false; input.setAttribute("aria-expanded","true");
     }
     function close(){ menu.hidden = true; input.setAttribute("aria-expanded","false"); active = -1; }
-    function pick(id){ input.value = id; it.node.fields[it.field] = id; close(); }
+    function pick(id){ input.value = id; it.node.fields[it.field] = id; close(); fillDimLists(); }   // new model → refresh its dim options
     input.addEventListener("focus", ()=> open(true));
     input.addEventListener("modelrefresh", ()=> open(true));   // catalog arrived while focused
     input.addEventListener("input", ()=>{ it.node.fields[it.field] = input.value.trim(); open(false); });

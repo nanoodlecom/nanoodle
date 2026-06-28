@@ -568,11 +568,18 @@ function normImg(m){
   // a mask without requiring one (INPAINT_OK above). Only the `inpaint` flag widens, never `needsMask`,
   // so these optional-mask models stay in the plain edit picker too.
   const inpaintOk = needsMask || INPAINT_OK.has(m.id);
+  // The image catalog advertises each model's real supported sizes in
+  // supported_parameters.resolutions (named or WxH), and prices per-size in
+  // per_image — so the size control is driven from these, not a generic list.
+  const resolutions = Array.isArray(m.supported_parameters?.resolutions)
+    ? m.supported_parameters.resolutions.filter(x=> typeof x==="string" && x) : [];
   return { id:m.id, name:m.name||m.id, created:m.created,
     edit: !needsMask && (needsSrc || !!m.capabilities?.image_to_image),  // accepts an image input (text+image->image | image->image)
     gen: needsSrc ? false : (mod ? mod.startsWith("text") : !m.capabilities?.image_to_image),  // text-only generators; excludes edit-only models
     inpaint: inpaintOk,                                                  // needs/honors image + mask → the Inpaint node
     lora: imageTakesLora(m.id),                                          // accepts a LoRA (v1 image catalog hides lora params → name allow-list)
+    resolutions,                                                         // real supported sizes → the size control's options
+    sizePrices: per,                                                     // per-size price map → live price as the size changes
     price: v!=null ? `$${(+v).toFixed(3)}/img` : "" };
 }
 function normVideo(m){
@@ -593,6 +600,7 @@ function normVideo(m){
     avatar:!!c.image_to_video && !!c.audio_input,    // image + audio → talking video (→ lipsync node)
     lora,                                            // catalog advertises lora_url_N → the LoRA disclosure is offered
     params: pp,                                      // per-model param descriptors → the ⚙️ Model options block
+    pricing: p,                                      // raw pricing → live price recomputed as resolution/duration change
     price };
 }
 function normAudio(m){
@@ -716,7 +724,7 @@ function modelFieldHTML(node){
 function updateNodePrice(n){
   const t = NODE_TYPES[n.type]; if(!t.modelKind || !n.el) return;
   const el = n.el.querySelector("[data-mp]"); if(!el) return;
-  el.textContent = catItem(t.modelKind, n.fields.model)?.price || "";
+  el.textContent = livePrice(t.modelKind, n.fields) || catItem(t.modelKind, n.fields.model)?.price || "";
 }
 /* ---------- dynamic audio parameters (from the model catalog + a researched spec) ----------
    Music & Speech both POST to /api/v1/audio/speech with { model, input, ...extra }. Every extra key is
@@ -947,7 +955,88 @@ function refreshModelOpts(n){
     el.addEventListener("pointerdown", e=> e.stopPropagation());   // don't drag the node while choosing
   });
 }
-function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); backfillModel(n); }); }
+/* ---------- per-model DIMENSION controls (size / resolution / aspect / duration) ----------
+   The catalog carries each model's REAL dimension options — image models list their supported
+   sizes in resolutions[]; video models expose duration/resolution/aspect_ratio as select params
+   with their own options + defaults (and price keys off them). So these controls are driven from
+   the live catalog entry rather than one generic hardcoded list that's wrong for most models, and
+   fall back to a sensible default set when a model is uncatalogued/offline. Chosen values live on
+   n.fields (size/duration/aspect/resolution) and pass straight through at run time, so exports
+   need no catalog; each change updates the node's live price. */
+const SIZE_FALLBACK     = SIZES;                                       // [[value,label],…]
+const ASPECT_FALLBACK   = [["16:9","16:9"],["9:16","9:16"],["1:1","1:1"]];
+const DURATION_FALLBACK = [["5","5 sec"],["10","10 sec"]];
+const DIM_NODES = { image:1, edit:1, tvideo:1, ivideo:1, vedit:1 };
+// a catalog select param → [[value,label],…] (real options only)
+function selOpts(param){
+  return ((param&&param.options)||[]).filter(o=> o && o.value!=="" && o.value!=null)
+    .map(o=> [String(o.value), o.label!=null?String(o.label):String(o.value)]);
+}
+function paramDef(param, opts){ return (param && param.default!=null) ? String(param.default) : (opts[0]||[""])[0]; }
+// the dimension fields a node should show, resolved from its model's catalog entry
+function dimDefs(type, model){
+  if(type==="image" || type==="edit"){
+    const it = catItem("image", model);
+    const res = (it && it.resolutions && it.resolutions.length) ? it.resolutions.map(r=>[r,r]) : SIZE_FALLBACK;
+    return [{ f:"size", label:"size", options:res, def:res[0][0] }];
+  }
+  if(type==="tvideo" || type==="ivideo" || type==="vedit"){
+    const p = (catItem("video", model)||{}).params || {};
+    const defs = [], soft = type!=="vedit";   // t2v/i2v always show aspect+duration; vedit only what the model lists
+    const rOpts = selOpts(p.resolution);
+    if(rOpts.length) defs.push({ f:"resolution", label:"resolution", options:rOpts, def:paramDef(p.resolution, rOpts) });
+    const aOpts = selOpts(p.aspect_ratio);
+    if(aOpts.length || soft) defs.push({ f:"aspect", label:"aspect", options:(aOpts.length?aOpts:ASPECT_FALLBACK), def:paramDef(p.aspect_ratio, aOpts.length?aOpts:ASPECT_FALLBACK) });
+    const dOpts = selOpts(p.duration);
+    if(dOpts.length || soft) defs.push({ f:"duration", label:"duration", options:(dOpts.length?dOpts:DURATION_FALLBACK), def:paramDef(p.duration, dOpts.length?dOpts:DURATION_FALLBACK) });
+    return defs;
+  }
+  return [];
+}
+// rebuild the size/duration/aspect/resolution controls for a node from its current model
+function refreshDims(n){
+  if(!DIM_NODES[n.type] || !n.el) return;
+  const box = n.el.querySelector("[data-dims]"); if(!box) return;
+  const defs = dimDefs(n.type, n.fields.model);
+  if(!defs.length){ box.innerHTML=""; return; }
+  for(const d of defs){               // seed a default when unset; never clobber a stored (e.g. pre-catalog) value
+    const cur = n.fields[d.f];
+    if(cur==null || cur==="") n.fields[d.f] = d.def;
+    else if(!d.options.some(o=> String(o[0])===String(cur))) d.options = [[String(cur), String(cur)], ...d.options];
+  }
+  const ctl = (d)=> `<div><label>${esc(d.label)}</label><select data-df="${esc(d.f)}">${
+    d.options.map(o=>`<option value="${esc(o[0])}"${String(o[0])===String(n.fields[d.f])?" selected":""}>${esc(o[1])}</option>`).join("")}</select></div>`;
+  box.innerHTML = defs.length>1
+    ? `<div class="two">${defs.slice(0,2).map(ctl).join("")}</div>${defs.slice(2).map(ctl).join("")}`
+    : ctl(defs[0]);
+  box.querySelectorAll("[data-df]").forEach(el=>{
+    const f = el.dataset.df;
+    el.addEventListener("change", ()=>{ n.fields[f] = el.value; updateNodePrice(n); save(); });
+    el.addEventListener("pointerdown", e=> e.stopPropagation());   // don't drag the node while choosing
+  });
+  updateNodePrice(n);
+}
+// live price for a node from its chosen dimensions (image: per-size; video: per_second_by_resolution × duration);
+// other pricing shapes keep the catalog's precomputed string.
+function livePrice(kind, fields){
+  const it = catItem(kind, fields.model); if(!it) return "";
+  if(kind==="image"){
+    const per = it.sizePrices||{};
+    const v = per[fields.size] ?? per.square ?? per.square_hd ?? Object.values(per)[0];
+    return v!=null ? `$${(+v).toFixed(3)}/img` : (it.price||"");
+  }
+  if(kind==="video"){
+    const p = it.pricing||{}, dur = parseFloat(String(fields.duration)) || p.default_duration || 5;
+    if(p.per_second_by_resolution){
+      const r = (fields.resolution!=null && p.per_second_by_resolution[fields.resolution]!=null)
+        ? fields.resolution : (p.default_resolution || Object.keys(p.per_second_by_resolution)[0]);
+      const ps = p.per_second_by_resolution[r];
+      if(ps!=null) return `~$${(ps*dur).toFixed(2)}/clip`;
+    }
+  }
+  return it.price||"";
+}
+function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); backfillModel(n); }); }
 function backfillModel(n){   // once a catalog arrives, give model nodes a sensible default if none chosen yet
   const t = NODE_TYPES[n.type];
   if(t.modelKind && !n.fields.model){
@@ -1094,7 +1183,7 @@ const NODE_TYPES = {
     outputs:[{name:"image", type:"image"}], preview:"image",
     body:(n)=>`
       ${modelFieldHTML(n)}
-      <div><label>size</label><select data-f="size">${optsHTML(SIZES, n.fields.size||SIZES[0][0])}</select></div>
+      <div data-dims></div>
       <div><label>prompt</label><textarea data-f="prompt" placeholder="a red panda astronaut…">${esc(n.fields.prompt||"")}</textarea></div>
       <div data-loraparams></div>`,
     async run(n, inp, ctx){
@@ -1111,7 +1200,7 @@ const NODE_TYPES = {
     outputs:[{name:"image", type:"image"}], preview:"image",
     body:(n)=>`
       ${modelFieldHTML(n)}
-      <div><label>size</label><select data-f="size">${optsHTML(SIZES, n.fields.size||SIZES[0][0])}</select></div>
+      <div data-dims></div>
       <div><label>edit instruction</label><textarea data-f="prompt" placeholder="make it night-time, add neon…">${esc(n.fields.prompt||"")}</textarea></div>
       <div data-loraparams></div>`,
     async run(n, inp, ctx){
@@ -1205,10 +1294,7 @@ const NODE_TYPES = {
     outputs:[{name:"video", type:"video"}], preview:"video",
     body:(n)=>`
       ${modelFieldHTML(n)}
-      <div class="two">
-        <div><label>duration</label><select data-f="duration">${optsHTML([["5","5 sec"],["10","10 sec"]], n.fields.duration||"5")}</select></div>
-        <div><label>aspect</label><select data-f="aspect">${optsHTML([["16:9","16:9"],["9:16","9:16"],["1:1","1:1"]], n.fields.aspect||"16:9")}</select></div>
-      </div>
+      <div data-dims></div>
       <div><label>prompt</label><textarea data-f="prompt" placeholder="a drone shot over neon Tokyo at night…">${esc(n.fields.prompt||"")}</textarea></div>
       <div data-modelopts></div>
       <div data-loraparams></div>`,
@@ -1216,7 +1302,7 @@ const NODE_TYPES = {
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       if(!prompt) throw new Error("no prompt");
       const url = await ctx.genVideo(mdl(n), prompt,
-        { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9", lora:loraParams(n), extra:(n.fields.modelOpts||{}) }, null,
+        { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9", resolution:n.fields.resolution||"", lora:loraParams(n), extra:(n.fields.modelOpts||{}) }, null,
         (st,ms)=> setNodeProgress(n, `rendering video… ${Math.round(ms/1000)}s · ${st.toLowerCase()}`));
       return { video: url };
     }
@@ -1229,10 +1315,7 @@ const NODE_TYPES = {
     outputs:[{name:"video", type:"video"}], preview:"video",
     body:(n)=>`
       ${modelFieldHTML(n)}
-      <div class="two">
-        <div><label>duration</label><select data-f="duration">${optsHTML([["5","5 sec"],["10","10 sec"]], n.fields.duration||"5")}</select></div>
-        <div><label>aspect</label><select data-f="aspect">${optsHTML([["16:9","16:9"],["9:16","9:16"],["1:1","1:1"]], n.fields.aspect||"16:9")}</select></div>
-      </div>
+      <div data-dims></div>
       <div><label>motion prompt (optional)</label><textarea data-f="prompt" placeholder="slow push-in, hair blowing in the wind…">${esc(n.fields.prompt||"")}</textarea></div>
       <div data-modelopts></div>
       <div data-loraparams></div>`,
@@ -1240,7 +1323,7 @@ const NODE_TYPES = {
       if(!inp.image) throw new Error("no image input");
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       const url = await ctx.genVideo(mdl(n), prompt,
-        { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9", lora:loraParams(n), extra:(n.fields.modelOpts||{}) }, inp.image,
+        { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9", resolution:n.fields.resolution||"", lora:loraParams(n), extra:(n.fields.modelOpts||{}) }, inp.image,
         (st,ms)=> setNodeProgress(n, `animating… ${Math.round(ms/1000)}s · ${st.toLowerCase()}`));
       return { video: url };
     }
@@ -1253,6 +1336,7 @@ const NODE_TYPES = {
     outputs:[{name:"video", type:"video"}], preview:"video",
     body:(n)=>`
       ${modelFieldHTML(n)}
+      <div data-dims></div>
       <div><label>instruction (optional)</label><textarea data-f="prompt" placeholder="restyle as claymation · extend the clip · upscale to 4K…">${esc(n.fields.prompt||"")}</textarea></div>
       <div data-modelopts></div>
       <div data-loraparams></div>`,
@@ -1260,6 +1344,9 @@ const NODE_TYPES = {
       if(!inp.video) throw new Error("no video input");
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       const opts = await videoSourceOpts(inp.video); opts.lora = loraParams(n); opts.extra = (n.fields.modelOpts||{});
+      if(n.fields.resolution) opts.resolution = n.fields.resolution;
+      if(n.fields.aspect) opts.aspect_ratio = n.fields.aspect;
+      if(n.fields.duration) opts.duration = n.fields.duration;
       const url = await ctx.genVideo(mdl(n), prompt, opts, null,
         (st,ms)=> setNodeProgress(n, `processing video… ${Math.round(ms/1000)}s · ${st.toLowerCase()}`));
       return { video: url };
@@ -1478,11 +1565,12 @@ function buildNodeEl(n){
     mp.onclick = (e)=>{
       e.stopPropagation();
       openPicker(t.modelKind, { current:n.fields.model, filter:t.modelFilter, onPick:(id)=>{
-        n.fields.model = id; mp.textContent = id+" ▾"; updateNodePrice(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshImageInputs(n); save();
+        n.fields.model = id; mp.textContent = id+" ▾"; updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshImageInputs(n); save();
       }});
     };
     updateNodePrice(n);
   }
+  refreshDims(n);                  // size/resolution/aspect/duration controls (catalog-driven)
   refreshAudioParams(n);
   refreshLoraParams(n);            // LoRA disclosure on image/edit nodes (model-gated)
   refreshModelOpts(n);            // ⚙️ Model options disclosure on video nodes (catalog-driven)
@@ -2504,6 +2592,7 @@ const CTX = {
     const body = { model, prompt };
     if(opts.duration) body.duration = opts.duration;
     if(opts.aspect_ratio) body.aspect_ratio = opts.aspect_ratio;
+    if(opts.resolution) body.resolution = opts.resolution;
     if(imageDataUrl) body.imageDataUrl = imageDataUrl;
     if(opts.videoUrl) body.videoUrl = opts.videoUrl;
     if(opts.videoDataUrl) body.videoDataUrl = opts.videoDataUrl;
