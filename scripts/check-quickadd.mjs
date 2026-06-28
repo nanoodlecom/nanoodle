@@ -89,7 +89,7 @@ const ok = (c, m) => { if (!c) failures.push(m); };
 // dragging FROM an output → consumers of that type
 eq(keys("out", "image"), ["edit", "inpaint", "ivideo", "llm", "lipsync", "vision"],
   "image output → nodes that take an image (incl. LLM's dynamic image ports + Inpaint's image/mask)");
-eq(keys("out", "audio"), ["lipsync", "transcribe"],
+eq(keys("out", "audio"), ["lipsync", "transcribe", "trim"],
   "audio output → nodes that take audio");
 eq(keys("out", "video"), ["combine", "vedit", "vframes"],
   "video output → nodes that take video (combine joins clips; vframes extracts stills)");
@@ -100,7 +100,7 @@ eq(keys("out", "text"), ["edit", "image", "inpaint", "ivideo", "join", "llm", "l
 // dragging FROM an input → producers of that type
 eq(keys("in", "image"), ["edit", "image", "inpaint", "upload", "vframes"],
   "image input → nodes that produce an image (inpaint repaints; vframes emits frame stills)");
-eq(keys("in", "audio"), ["aupload", "music", "tts"],
+eq(keys("in", "audio"), ["aupload", "music", "trim", "tts"],
   "audio input → nodes that produce audio");
 eq(keys("in", "video"), ["combine", "ivideo", "lipsync", "tvideo", "vedit", "vupload"],
   "video input → nodes that produce video (combine joins clips into one)");

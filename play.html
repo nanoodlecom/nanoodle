@@ -624,6 +624,7 @@ window.NoodleApp = (function () {
       if(imageDataUrl) body.imageDataUrl = imageDataUrl;
       if(opts.videoUrl) body.videoUrl = opts.videoUrl;
       if(opts.videoDataUrl) body.videoDataUrl = opts.videoDataUrl;
+      if(opts.audioUrl) body.audioUrl = opts.audioUrl;
       if(opts.audioDataUrl) body.audioDataUrl = opts.audioDataUrl;
       if(opts.lora) Object.assign(body, opts.lora);        // LoRA params (lora_url_1.. for LTX video)
       if(opts.extra) Object.assign(body, opts.extra);      // per-model catalog options (preset/style/effect/…)
@@ -724,6 +725,48 @@ window.NoodleApp = (function () {
   // source-video payload: public https link → videoUrl, otherwise inline as videoDataUrl
   async function videoSourceOpts(url){
     return /^https?:/.test(url) ? { videoUrl:url } : { videoDataUrl: await urlToDataUrl(url) };
+  }
+  // source-audio payload for lipsync: remote song/TTS url rides as audioUrl (no base64 inlining,
+  // which would blow a long song past the edge body limit); blob/data urls still inline.
+  async function audioSourceOpts(url){
+    return /^https?:/.test(url) ? { audioUrl:url } : { audioDataUrl: await urlToDataUrl(url) };
+  }
+  // audio trimming (no libraries — Web Audio decode + manual RIFF encoder, same spirit as the
+  // Combine node). Used by the Trim node and lipsync's auto-fit when a clip exceeds the model's cap.
+  function encodeWavMono(samples, sampleRate){
+    const n = samples.length, dataLen = n*2, ab = new ArrayBuffer(44+dataLen), dv = new DataView(ab);
+    const ws = (o,s)=>{ for(let i=0;i<s.length;i++) dv.setUint8(o+i, s.charCodeAt(i)); };
+    ws(0,"RIFF"); dv.setUint32(4, 36+dataLen, true); ws(8,"WAVE");
+    ws(12,"fmt "); dv.setUint32(16,16,true); dv.setUint16(20,1,true);
+    dv.setUint16(22,1,true); dv.setUint32(24,sampleRate,true);
+    dv.setUint32(28, sampleRate*2, true); dv.setUint16(32,2,true); dv.setUint16(34,16,true);
+    ws(36,"data"); dv.setUint32(40,dataLen,true);
+    let off = 44;
+    for(let i=0;i<n;i++){ const v = Math.max(-1, Math.min(1, samples[i])); dv.setInt16(off, v<0 ? v*0x8000 : v*0x7FFF, true); off += 2; }
+    return new Blob([ab], {type:"audio/wav"});
+  }
+  // decode any audio url, slice [start,start+len]s, re-render to MONO at the target Hz (downmix +
+  // resample in one OfflineAudioContext pass), return a blob: url. mono keeps a 30s clip inlinable.
+  // NOTE: no backticks anywhere in RUNTIME_JS — it's a String.raw template; a stray one ends it.
+  async function trimAudioToWavUrl(url, start, len, rate){
+    rate = rate || 24000;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    if(!AC || !OAC) throw new Error("this browser can’t process audio (no Web Audio API)");
+    const arr = await (await fetch(url)).arrayBuffer();
+    const dec = new AC();
+    let src;
+    try{ src = await dec.decodeAudioData(arr); }
+    catch(e){ throw new Error("couldn’t decode that audio for trimming (unsupported format?)"); }
+    finally{ try{ dec.close(); }catch(e){} }
+    const dur = src.duration;
+    const s = Math.max(0, Math.min(start||0, Math.max(0, dur-0.05)));
+    const take = Math.max(0.05, Math.min(len>0 ? len : 30, dur - s));
+    const off = new OAC(1, Math.max(1, Math.floor(take*rate)), rate);
+    const node = off.createBufferSource(); node.buffer = src; node.connect(off.destination);
+    node.start(0, s, take);
+    const rendered = await off.startRendering();
+    return URL.createObjectURL(encodeWavMono(rendered.getChannelData(0), rate));
   }
   // frame extraction helpers (verbatim, index.html): a same-origin handle to paint to a
   // canvas, and a seek that resolves once the frame is decoded (timeout-guarded).
@@ -1114,9 +1157,30 @@ window.NoodleApp = (function () {
         if(!inp.image) throw new Error("no image input");
         if(!inp.audio) throw new Error("no audio input");
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
-        const url = await ctx.genVideo(mdl(n), prompt, { audioDataUrl: await urlToDataUrl(inp.audio) }, inp.image,
-          (st,ms)=> onProgress && onProgress("lip-syncing… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
-        return { video: url };
+        const prog = (st,ms)=> onProgress && onProgress("lip-syncing… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase());
+        // Send audio as-is first (a remote song rides full-length); if the model rejects it for
+        // duration, read its real cap from the error, trim to fit (mono WAV) and retry once.
+        let trimSec = null;
+        for(let attempt=0; attempt<2; attempt++){
+          let opts;
+          if(trimSec!=null){
+            onProgress && onProgress("trimming audio to " + Math.round(trimSec) + "s…");
+            const tmp = await trimAudioToWavUrl(inp.audio, 0, trimSec, 24000);
+            try{ opts = { audioDataUrl: await urlToDataUrl(tmp) }; } finally { URL.revokeObjectURL(tmp); }
+          } else opts = await audioSourceOpts(inp.audio);
+          try{
+            return { video: await ctx.genVideo(mdl(n), prompt, opts, inp.image, prog) };
+          }catch(e){
+            if(attempt>0) throw e;
+            const msg = e.message || "";
+            const cap = /up to\s+(\d+(?:\.\d+)?)\s*second/i.exec(msg);
+            if(cap && /INVALID_AUDIO_DURATION|audio.{0,15}duration/i.test(msg))
+              trimSec = Math.min(60, Math.max(1, parseFloat(cap[1]) - 0.1));
+            else if(/\blarge\b|MEDIA_INLINE|~4 MB|inline/i.test(msg))
+              trimSec = 30;
+            else throw e;
+          }
+        }
       }
     },
     music: {
@@ -1126,6 +1190,17 @@ window.NoodleApp = (function () {
     tts: {
       em:"🗣️", title:"Speech", inputs:[], outputs:[{name:"audio", type:"audio"}],
       run: audioRun,
+    },
+    trim: {
+      em:"✂️", title:"Trim audio",
+      inputs:[{name:"audio", type:"audio"}], outputs:[{name:"audio", type:"audio"}],
+      async run(n, inp, ctx, onProgress){
+        if(!inp.audio) throw new Error("no audio input");
+        const start = parseFloat(n.fields.start) || 0;
+        const length = parseFloat(n.fields.length);
+        onProgress && onProgress("trimming audio…");
+        return { audio: await trimAudioToWavUrl(inp.audio, start, Number.isFinite(length) ? length : 30, 24000) };
+      }
     },
     transcribe: {
       em:"🎙️", title:"Transcribe",
@@ -1357,6 +1432,8 @@ window.NoodleApp = (function () {
               { f:"instructions", label:"Voice instructions", kind:"textarea" }],
     transcribe:[{ f:"model", label:"Model", kind:"model" },
               { f:"language", label:"Language", kind:"text", def:"auto" }],
+    trim:    [{ f:"start",  label:"Start (s)",  kind:"number", min:0, step:"0.1", def:"0" },
+              { f:"length", label:"Length (s)", kind:"number", min:0.1, step:"0.1", def:"30" }],
     join:    [{ f:"sep", label:"Separator (use \\n for a line break)", kind:"text", def:" " }],
   };
   // node type -> NanoGPT catalog kind, used to populate the model-swap datalist
@@ -1496,6 +1573,7 @@ window.NoodleApp = (function () {
     ivideo: "animates a still image into a video",
     music:  "generates music from a style/prompt",
     tts:    "reads text aloud as speech",
+    trim:   "trims an audio clip to a chosen start and length",
     combine:"joins several video clips end-to-end into one video",
   };
   function describeGraph(graph){
