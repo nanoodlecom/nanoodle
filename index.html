@@ -2371,6 +2371,20 @@ function paintCost(){
   if(stats.balance==null){ $("cost").textContent=""; return; }   // show only the running balance
   $("cost").innerHTML = `bal $<b>${stats.balance.toFixed(2)}</b>`;
 }
+// Show the balance the moment you're signed in — before any run prices it in. Generations keep it
+// live via x-remaining-balance headers; this just seeds it from nano-gpt on sign-in / boot.
+let _balPending = false;
+async function refreshBalance(){
+  if(!getKey() || _balPending) return;
+  _balPending = true;
+  try{
+    const r = await fetch(`${NANOGPT}/api/check-balance`, { method:"POST", headers:authHeaders(), body:"{}" });
+    if(!r.ok) return;
+    const usd = parseFloat((await r.json()).usd_balance);
+    if(!isNaN(usd)){ stats.balance = usd; paintCost(); }
+  }catch(_){}                       // best-effort: a run will fill it in anyway
+  finally{ _balPending = false; }
+}
 
 function ancestors(targets){
   const keep = new Set(targets);
@@ -3387,7 +3401,8 @@ refreshUpdatesBadge();
    AUTH  (OAuth PKCE + paste key — identical pattern to the other examples)
    ====================================================================== */
 const getKey = ()=> localStorage.getItem("ngpt_key");
-const setKey = (k)=>{ k ? localStorage.setItem("ngpt_key",k) : localStorage.removeItem("ngpt_key"); renderAuth(); };
+const setKey = (k)=>{ k ? localStorage.setItem("ngpt_key",k) : localStorage.removeItem("ngpt_key"); renderAuth();
+  if(k) refreshBalance(); else { stats.balance=null; paintCost(); } };   // seed the bal on sign-in, clear on sign-out
 function renderAuth(){
   const ok = !!getKey();
   $("status").textContent = ok ? "ready ✓" : "not signed in";
@@ -3476,6 +3491,7 @@ $("signout").onclick = ()=> setKey(null);
   // Brand-new visitors land straight on a simple working flow (the default graph) — no gallery modal in the way.
   try{ await handleRedirect(); }catch(e){ $("status").textContent="sign-in error: "+e.message; }
   renderAuth();
+  refreshBalance();                 // already-signed-in visitor: show the bal without waiting for a run
   // pull the full model catalogs in the background, then show per-node prices
   Promise.all([loadCatalog("chat"), loadCatalog("image"), loadCatalog("video"), loadCatalog("audio")]).then(refreshAllPrices);
 })();
