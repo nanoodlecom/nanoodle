@@ -728,9 +728,19 @@ window.NoodleApp = (function () {
     }
   }; }
   // turn a blob:/data:/http url into a base64 data URL (for video/audio source payloads)
+  // Generated music/video come back as URLs on the provider's media CDN, which serves them for
+  // playback but sends no CORS headers — the browser can play them yet can't fetch their bytes to
+  // edit (trim/inline). A raw cross-origin fetch throws a bare "Failed to fetch"; make it actionable.
+  function mediaFetchError(url, e){
+    if(/^https?:/.test(url))
+      return new Error("couldn’t download that generated clip to edit it — the provider’s media CDN blocks in-browser downloads (CORS). Shorten it at the source node instead (e.g. lower the Music node’s length), or use a 🗣️ Speech node, whose audio nanoodle can trim. (" + (e.message||e) + ")");
+    return new Error("could not read media (" + (e.message||e) + ")");
+  }
   async function urlToDataUrl(url){
     if(/^data:/.test(url)) return url;
-    const blob = await (await fetch(url)).blob();
+    let blob;
+    try{ blob = await (await fetch(url)).blob(); }
+    catch(e){ throw mediaFetchError(url, e); }
     return await new Promise((res, rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=()=>rej(new Error("could not read media")); fr.readAsDataURL(blob); });
   }
   // source-video payload: public https link → videoUrl, otherwise inline as videoDataUrl
@@ -764,7 +774,9 @@ window.NoodleApp = (function () {
     const AC = window.AudioContext || window.webkitAudioContext;
     const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
     if(!AC || !OAC) throw new Error("this browser can’t process audio (no Web Audio API)");
-    const arr = await (await fetch(url)).arrayBuffer();
+    let arr;
+    try{ arr = await (await fetch(url)).arrayBuffer(); }
+    catch(e){ throw mediaFetchError(url, e); }
     const dec = new AC();
     let src;
     try{ src = await dec.decodeAudioData(arr); }
@@ -1176,7 +1188,15 @@ window.NoodleApp = (function () {
           let opts;
           if(trimSec!=null){
             onProgress && onProgress("trimming audio to " + Math.round(trimSec) + "s…");
-            const tmp = await trimAudioToWavUrl(inp.audio, 0, trimSec, 24000);
+            let tmp;
+            // A chained song lives on the provider's CDN, whose bytes the browser can't fetch to
+            // trim (no CORS). Don't surface the bare "Failed to fetch" — give the cap and the way out.
+            try{ tmp = await trimAudioToWavUrl(inp.audio, 0, trimSec, 24000); }
+            catch(e){
+              if(/^https?:/.test(inp.audio))
+                throw new Error("This avatar model accepts about " + Math.round(trimSec) + "s of audio, but nanoodle can’t trim a chained song — the provider’s audio CDN blocks in-browser downloads (CORS). Set the Music node’s length to " + Math.round(trimSec) + "s or less, or use a 🗣️ Speech node (its audio can be trimmed).");
+              throw e;
+            }
             try{ opts = { audioDataUrl: await urlToDataUrl(tmp) }; } finally { URL.revokeObjectURL(tmp); }
           } else opts = await audioSourceOpts(inp.audio);
           try{
