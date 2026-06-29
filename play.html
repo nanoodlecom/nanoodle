@@ -2129,11 +2129,24 @@ window.NoodleApp = (function () {
           setTimeout(()=> URL.revokeObjectURL(u), 5000);
         }
       }catch(e){
-        window.open(url, "_blank");                         // CORS-blocked standalone → open a tab to save from
+        // Third-party CDN media with no CORS headers can't be pulled into a blob here
+        // (no server to proxy through), so a direct save is impossible. Open it in a tab
+        // to save manually, and point at the native player's ⋮ menu — the browser saves
+        // cross-origin media from there reliably even when our fetch can't.
+        window.open(url, "_blank");
+        dlHint(row);
       }finally{ btn.disabled = false; }
     };
     row.appendChild(btn);
     card.appendChild(row);
+  }
+  // Shown once under the ⭳ button when a cross-origin download had to fall back to a tab.
+  function dlHint(row){
+    if(row.querySelector(".dlhint")) return;
+    const h = document.createElement("span"); h.className = "dlhint";
+    h.style.cssText = "font-size:.72rem;color:var(--dim,#8b93b4);margin-left:.55rem;";
+    h.textContent = "opened in a tab — or use the player’s ⋮ to save";
+    row.appendChild(h);
   }
   function saveAs(href, name){
     const a = document.createElement("a"); a.href = href; a.download = name;
@@ -2780,7 +2793,11 @@ addEventListener("message", async (e) => {
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(()=> URL.revokeObjectURL(u), 5000);
     }catch(_){
-      window.open(d.url, "_blank", "noopener");   // CORS-blocked → open a tab to save from manually
+      // Third-party CDN media with no CORS headers can't be fetched even here (no server
+      // to proxy through). Open it so the user can save it manually, and say so — the
+      // native player's ⋮ menu also downloads cross-origin media reliably.
+      window.open(d.url, "_blank", "noopener");
+      toast("Couldn’t save directly — opened it in a new tab. The player’s ⋮ menu also downloads it.");
     }
     return;
   }
