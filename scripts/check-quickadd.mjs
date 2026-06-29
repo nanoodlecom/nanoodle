@@ -127,6 +127,7 @@ function spawnReal(typeKey, wx, wy, dir, type, originDataset, getPorts, onEnsure
     select: () => {}, redraw: () => {},
     connect: (fn, fp, tn, tp) => { calls.connected = { fn, fp, tn, tp }; },
     ensureModelForInput: () => { calls.ensured++; if (onEnsure) onEnsure(); },
+    rememberAdd: () => {},   // wire-drop adds also feed the Add-menu "Recent" tier (localStorage, on-device)
   };
   vm.createContext(sctx);
   new vm.Script(extractFn(SRC, "quickSpawn") + ";globalThis.__qs = quickSpawn;", { filename: "index.html#quickspawn" }).runInContext(sctx);

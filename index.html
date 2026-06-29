@@ -88,14 +88,20 @@
   #top .spacer{flex:1}
   #addmenu{position:relative}
   #addpop{ position:absolute; top:110%; left:0; background:var(--panel); border:1px solid var(--line); border-radius:.6rem;
-           padding:.35rem; display:none; flex-direction:column; gap:.05rem; min-width:215px; max-height:min(72vh,560px); overflow-y:auto; box-shadow:0 12px 40px #0008; z-index:40;}
+           padding:.35rem; display:none; flex-direction:column; gap:.05rem; min-width:235px; box-shadow:0 12px 40px #0008; z-index:40;}
   #addpop.open{display:flex}
+  #addsearch{ width:100%; box-sizing:border-box; min-height:46px; margin:0 0 .25rem; background:var(--panel2); border:1px solid var(--line);
+              border-radius:.5rem; padding:.5rem .6rem; color:inherit; font:inherit }
+  #addlist{ display:flex; flex-direction:column; gap:.05rem; overflow-y:auto; max-height:min(60vh,480px) }
   #addpop button{ text-align:left; border:none; background:none; display:flex; gap:.55rem; align-items:center; padding:.45rem .55rem; border-radius:.45rem;}
   #addpop button:hover{background:var(--panel2)}
+  #addpop button.sel{ background:#7c8cff22; font-weight:600 }
   #addpop .k{ font-size:1.1rem; width:1.4rem; text-align:center }
   #addpop .d{font-size:.74rem; color:var(--dim)}
   #addpop .grp{ font-size:.66rem; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); padding:.4rem .55rem .15rem; pointer-events:none }
   #addpop .grp:first-child{ padding-top:.15rem }
+  #addpop .addhint{ font-size:.7rem; color:var(--accent); padding:.35rem .55rem .15rem; pointer-events:none; border-top:1px solid var(--line); margin-top:.2rem }
+  #addpop .nomatch{ font-size:.74rem; color:var(--dim); padding:.5rem .55rem }
   /* drop-a-wire-in-empty-space quick add: a contextual, type-filtered clone of #addpop, placed at the cursor */
   #quickadd{ position:fixed; z-index:50; display:none; flex-direction:column; gap:.05rem; min-width:215px; max-height:min(60vh,520px);
              overflow-y:auto; background:var(--panel); border:1px solid var(--line); border-radius:.6rem; padding:.35rem; box-shadow:0 12px 40px #000a }
@@ -1154,7 +1160,7 @@ const NODE_TYPES = {
   },
 
   llm: {
-    em:"🧠", title:"LLM", desc:"Text (+ images) → text — any chat model", group:"Text",
+    em:"🧠", title:"LLM", desc:"Text (+ images) → text — any chat model", group:"Text", kw:"chat write reason gpt assistant ask prompt",
     modelKind:"chat",
     inputs:[],
     imageInputs:"vision",   // vision-capable models grow dynamic image input ports (see refreshImageInputs)
@@ -1177,7 +1183,7 @@ const NODE_TYPES = {
   },
 
   image: {
-    em:"🖼", title:"Image", desc:"Text → image", group:"Image",
+    em:"🖼", title:"Image", desc:"Text → image", group:"Image", kw:"generate picture art draw create photo render",
     modelKind:"image", modelFilter:"gen",
     inputs:[],
     outputs:[{name:"image", type:"image"}], preview:"image",
@@ -1309,7 +1315,7 @@ const NODE_TYPES = {
   },
 
   ivideo: {
-    em:"📽️", title:"Image→Video", desc:"Image (+text) → video", group:"Video",
+    em:"📽️", title:"Image→Video", desc:"Image (+text) → video", group:"Video", kw:"animate motion move bring to life",
     modelKind:"video", modelFilter:"i2v",
     inputs:[{name:"image", type:"image"}],
     outputs:[{name:"video", type:"video"}], preview:"video",
@@ -1354,7 +1360,7 @@ const NODE_TYPES = {
   },
 
   vframes: {
-    em:"🎞", title:"Video → frames", desc:"Pull still frames out of a video", group:"Video",
+    em:"🎞", title:"Video → frames", desc:"Pull still frames out of a video", group:"Video", kw:"split extract frames stills screenshot",
     inputs:[{name:"video", type:"video"}],
     outputs:(n)=> framePorts(n), preview:"frames",
     body:(n)=>`
@@ -1420,7 +1426,7 @@ const NODE_TYPES = {
   },
 
   lipsync: {
-    em:"🎭", title:"Avatar / lipsync", desc:"Image + audio → talking video", group:"Video",
+    em:"🎭", title:"Avatar / lipsync", desc:"Image + audio → talking video", group:"Video", kw:"talk talking face mouth speak portrait",
     modelKind:"video", modelFilter:"avatar",
     inputs:[{name:"image", type:"image"},{name:"audio", type:"audio"}],
     outputs:[{name:"video", type:"video"}], preview:"video",
@@ -1470,7 +1476,7 @@ const NODE_TYPES = {
   },
 
   tts: {
-    em:"🗣️", title:"Speech", desc:"Text → speech (TTS)", group:"Audio",
+    em:"🗣️", title:"Speech", desc:"Text → speech (TTS)", group:"Audio", kw:"voice speak narration read aloud talk",
     modelKind:"audio", modelFilter:"tts",
     inputs:[],
     outputs:[{name:"audio", type:"audio"}], preview:"audio",
@@ -2217,8 +2223,7 @@ function openQuickAdd(clientX, clientY, originPort){
   for(const [g,items] of groups){
     if(!items.length) continue;
     html += `<div class="grp">${esc(g)}</div>`;
-    html += items.map(([k,t])=>
-      `<button data-type="${k}"><span class="k">${t.em}</span><span><div>${esc(t.title)}</div><div class="d">${esc(t.desc)}</div></span></button>`).join("");
+    html += items.map(([k,t])=> nodeRow(k,t)).join("");
   }
   pop.innerHTML = html;
   // world coords for the new node, derived from the drop point (#world is translated by pan and scaled)
@@ -2259,6 +2264,7 @@ function quickSpawn(typeKey, wx, wy, dir, type, originPort){
   // place the card so its relevant edge sits near the drop point (downstream to the right, source to the left)
   const x = dir==="out" ? wx + 8 : wx - 232;
   const n = addNode(typeKey, Math.round(x), Math.round(wy - 24));
+  rememberAdd(typeKey);
   select(n);
   const opp = dir==="out" ? "in" : "out", sel = `.port[data-dir="${opp}"][data-ptype="${type}"]`;
   let ports = [...n.el.querySelectorAll(sel)];
@@ -2938,21 +2944,79 @@ function toast(msg, kind){
    ADD-NODE MENU
    ====================================================================== */
 const ADD_GROUPS = ["Inputs","Text","Image","Video","Audio"];   // section order in the Add-node menu
+// First-timers (no add history yet) open onto this compose-a-wow shortlist instead of the full 20-row wall.
+const ADD_STARTERS = ["text","llm","image","tvideo","upload","edit"];
+// Recently-added node types, most-recent first. On-device only (localStorage) — never sent anywhere (no-analytics promise).
+let addRecent = (()=>{ try{ return JSON.parse(localStorage.getItem("nano.addRecent"))||[]; }catch{ return []; } })();
+function rememberAdd(type){
+  addRecent = [type, ...addRecent.filter(t=>t!==type)].slice(0,4);
+  try{ localStorage.setItem("nano.addRecent", JSON.stringify(addRecent)); }catch{}
+}
+// One node row — shared by the Add menu and the wire-drop quick-add so their styling can never drift.
+function nodeRow(k,t){
+  return `<button data-type="${k}"><span class="k">${t.em}</span><span><div>${esc(t.title)}</div><div class="d">${esc(t.desc)}</div></span></button>`;
+}
+// Rank a query hit: title-prefix(0) beats title-substring(1) beats desc/keyword-substring(2); -1 = no match.
+function addMatchRank(t, q){
+  const title = t.title.toLowerCase();
+  if(title.startsWith(q)) return 0;
+  if(title.includes(q)) return 1;
+  if((t.desc+" "+(t.kw||"")).toLowerCase().includes(q)) return 2;
+  return -1;
+}
+// Render the list body for the current query. Empty query → Recent/Start-here tier + the full grouped catalog.
+// Non-empty → a flat, rank-sorted match list (no group headers). The first row is auto-selected for Enter.
+function renderAddList(q){
+  const list = $("addlist"), hint = $("addpop").querySelector(".addhint");
+  let html = "";
+  if(!q){
+    hint.hidden = true;
+    const recent = addRecent.filter(k=>NODE_TYPES[k]);
+    html += recent.length
+      ? `<div class="grp">Recent</div>` + recent.map(k=>nodeRow(k,NODE_TYPES[k])).join("")
+      : `<div class="grp">Start here</div>` + ADD_STARTERS.filter(k=>NODE_TYPES[k]).map(k=>nodeRow(k,NODE_TYPES[k])).join("");
+    const groups = new Map(ADD_GROUPS.map(g=>[g,[]]));
+    for(const [k,t] of Object.entries(NODE_TYPES)){ const g = t.group||"Other"; if(!groups.has(g)) groups.set(g,[]); groups.get(g).push([k,t]); }
+    for(const [g,items] of groups){
+      if(!items.length) continue;
+      html += `<div class="grp">${esc(g)}</div>` + items.map(([k,t])=>nodeRow(k,t)).join("");
+    }
+  } else {
+    hint.hidden = false;
+    const hits = Object.entries(NODE_TYPES)
+      .map(([k,t])=>[k,t,addMatchRank(t,q)])
+      .filter(([,,r])=>r>=0)
+      .sort((a,b)=>a[2]-b[2]);   // stable sort → ties keep NODE_TYPES order (which mirrors ADD_GROUPS)
+    html = hits.length ? hits.map(([k,t])=>nodeRow(k,t)).join("")
+                       : `<div class="nomatch">no nodes match “${esc(q)}”</div>`;
+  }
+  list.innerHTML = html;
+  list.querySelector("button[data-type]")?.classList.add("sel");
+}
+// Move the keyboard selection by ±1 across the currently-visible rows, wrapping at the ends.
+function moveAddSel(dir){
+  const btns = [...$("addlist").querySelectorAll("button[data-type]")];
+  if(!btns.length) return;
+  let i = btns.findIndex(b=>b.classList.contains("sel"));
+  btns[i]?.classList.remove("sel");
+  i = (i + dir + btns.length) % btns.length;
+  btns[i].classList.add("sel");
+  btns[i].scrollIntoView({block:"nearest"});
+}
 function buildAddMenu(){
   const pop = $("addpop");
-  const entries = Object.entries(NODE_TYPES);
-  const groups = new Map(ADD_GROUPS.map(g=>[g,[]]));
-  for(const [k,t] of entries){ const g = t.group||"Other"; if(!groups.has(g)) groups.set(g,[]); groups.get(g).push([k,t]); }
-  let html = "";
-  for(const [g,items] of groups){
-    if(!items.length) continue;
-    html += `<div class="grp">${esc(g)}</div>`;
-    html += items.map(([k,t])=>
-      `<button data-type="${k}"><span class="k">${t.em}</span><span><div>${esc(t.title)}</div><div class="d">${esc(t.desc)}</div></span></button>`).join("");
-  }
-  pop.innerHTML = html;
-  pop.querySelectorAll("button").forEach(b=> b.onclick=()=>{
-    spawnCenter(b.dataset.type); pop.classList.remove("open");
+  pop.innerHTML = `<input id="addsearch" type="search" autocomplete="off" placeholder="Search nodes… (image, voice, video)"><div id="addlist"></div><div class="addhint" hidden>↑↓ move · ↵ add · esc close</div>`;
+  renderAddList("");
+  const search = $("addsearch");
+  search.addEventListener("input", ()=> renderAddList(search.value.trim().toLowerCase()));
+  search.addEventListener("keydown", e=>{
+    if(e.key==="ArrowDown"||e.key==="ArrowUp"){ e.preventDefault(); moveAddSel(e.key==="ArrowDown"?1:-1); }
+    else if(e.key==="Enter" && !(e.ctrlKey||e.metaKey)){ e.preventDefault(); $("addlist").querySelector("button.sel")?.click(); }
+    else if(e.key==="Escape"){ e.preventDefault(); pop.classList.remove("open"); }
+  });
+  $("addlist").addEventListener("click", e=>{
+    const b = e.target.closest("button[data-type]");
+    if(b){ spawnCenter(b.dataset.type); pop.classList.remove("open"); }
   });
 }
 let spawnN = 0;
@@ -2961,9 +3025,15 @@ function spawnCenter(type){
   const cy = (editor.clientHeight/2 - panY)/scale - 60  + (spawnN%4)*26;
   spawnN++;
   const n = addNode(type, Math.round(cx), Math.round(cy));
+  rememberAdd(type);
   select(n); redraw();
 }
-$("addbtn").onclick = (e)=>{ e.stopPropagation(); $("addpop").classList.toggle("open"); };
+$("addbtn").onclick = (e)=>{
+  e.stopPropagation();
+  const pop = $("addpop"), opening = !pop.classList.contains("open");
+  pop.classList.toggle("open");
+  if(opening){ buildAddMenu(); if(!matchMedia("(pointer:coarse)").matches) $("addsearch").focus(); }
+};
 document.addEventListener("click", e=>{ if(!$("addmenu").contains(e.target)) $("addpop").classList.remove("open"); });
 $("run").onclick = runAll;
 
