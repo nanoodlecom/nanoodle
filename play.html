@@ -327,6 +327,13 @@ const RESUME_KEY = "noodle_resume_app";  // sessionStorage: the open app, stashe
                                          // editor stash open here as an "old app" instead of the workflow just handed off.
 const ACCENT = "#7c8cff";
 
+// One-time migration: retire xiaomi/mimo-v2.5-pro-ultraspeed as a stored Customize pick.
+// nano-gpt started 503ing it, so returning users had a dead model pinned in localStorage from
+// when it was the default. Drop the stale pick so it falls through to the live DEFAULT_MODEL.
+// Only the diff-writer key — APPLY_DEFAULT still points at ultraspeed, so ngpt_apply_model
+// matching it is expected (the apply step's 5xx fallback handles the outage).
+try{ if(localStorage.getItem("ngpt_app_model") === "xiaomi/mimo-v2.5-pro-ultraspeed") localStorage.removeItem("ngpt_app_model"); }catch(_){}
+
 let MODEL = localStorage.getItem("ngpt_app_model") || DEFAULT_MODEL;
 let APPLY = localStorage.getItem("ngpt_apply_model") || APPLY_DEFAULT;
 
