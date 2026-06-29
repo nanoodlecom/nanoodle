@@ -600,10 +600,14 @@ function normVideo(m){
   // means we can drive it (the spicy model only offers a "loras" override → correctly excluded)
   const sp=m.supported_parameters||{}, pp=sp.parameters||sp;
   const lora = Object.keys(pp).some(k=>/^lora_url/i.test(k));
+  // multi-speaker avatars (e.g. LongCat Multi) require left_audio/right_audio URLs, not one audio track —
+  // the lipsync node only wires a single audio input, so offering them is a guaranteed dead end. Gate on
+  // the real param descriptors rather than the model name.
+  const multiAudio = "left_audio" in pp || "right_audio" in pp;
   return { id:m.id, name:m.name||m.id, created:m.created,
     t2v:!!c.text_to_video, i2v:!!c.image_to_video,
     v2v:!!c.video_to_video,                          // edits/extends/upscales a SOURCE video (→ vedit node)
-    avatar:!!c.image_to_video && !!c.audio_input,    // image + audio → talking video (→ lipsync node)
+    avatar:!!c.image_to_video && !!c.audio_input && !multiAudio,    // image + single audio → talking video (→ lipsync node)
     lora,                                            // catalog advertises lora_url_N → the LoRA disclosure is offered
     params: pp,                                      // per-model param descriptors → the ⚙️ Model options block
     pricing: p,                                      // raw pricing → live price recomputed as resolution/duration change
@@ -1460,6 +1464,10 @@ const NODE_TYPES = {
             trimSec = Math.min(60, Math.max(1, parseFloat(cap[1]) - 0.1));   // model told us its real cap
           else if(/\blarge\b|MEDIA_INLINE|~4 MB|inline/i.test(msg))
             trimSec = 30;                                                    // oversize local clip → safe default
+          // a multi-speaker avatar (left_audio/right_audio) reached here via a saved/shared graph — these
+          // are filtered out of the model picker, but a #g= link could still name one. Explain the fix.
+          else if(/left.{0,6}audio|right.{0,6}audio|left and right/i.test(msg))
+            throw new Error("This avatar model needs two separate audio tracks (multi-speaker). Pick a single-speaker avatar model in the model dropdown.");
           else throw e;
         }
       }
