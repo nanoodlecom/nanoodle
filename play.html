@@ -66,6 +66,9 @@
                border:1px solid var(--line); background:var(--panel2); color:var(--ink); cursor:pointer; }
   #bar button:hover{ border-color:var(--accent-line); }
   #bar #share.ok{ border-color:var(--ok); color:var(--ok); }
+  /* shown next to Share when the running app diverged — says in plain words that in-app edits aren't in the link */
+  #bar #sharehint{ font-size:.74rem; color:var(--accent); white-space:nowrap; }
+  #bar #sharehint[hidden]{ display:none; }
   button.link{ background:none; border:none; color:var(--accent); cursor:pointer; padding:0; font-size:.8rem; }
   #signin{ font-size:.8rem; }
   #myapps{ font-weight:600; }
@@ -237,6 +240,7 @@
   <button id="signout" class="link" style="display:none">sign out</button>
 
   <div class="sep"></div>
+  <span id="sharehint" hidden>✱ edits aren’t shared</span>
   <button id="share" title="Copy a link that loads this exact app — recipients sign in with their own key">🔗 Share</button>
   <button id="export" title="Download this app as one self-contained .html (no key inside)">⭳ Export</button>
   <button id="openeditor" title="Edit this app's underlying workflow in the nanoodle editor — your app UI is kept">✎ Edit workflow</button>
@@ -1644,6 +1648,33 @@ window.NoodleApp = (function () {
   let STATE = null;        // { data, graph, inputs, outputs }
   let running = false;
 
+  /* ---- "app vs usage" divergence signal -------------------------------
+     Share/Export serialize the app TEMPLATE, not this running session. If the
+     viewer swaps a model or overwrites an author-prefilled prompt while using
+     the app, those edits live only in this iframe's graph copy and would be
+     silently dropped from a share link. We diff the editable, bakeable fields
+     against the as-loaded baseline and tell the parent chrome to flag Share
+     (only when EMBEDDED — a standalone/exported app has no chrome to flag). */
+  let DIRTY_TRACK = [];    // [{node, field, base}] — fields we watch for divergence
+  let LAST_DIRTY = false;  // last reported state, so we only post on a flip
+  const fieldStr = (n, f)=> { const v = n.fields[f]; return v == null ? "" : String(v); };
+  function buildDirtyTrack(){
+    DIRTY_TRACK = []; LAST_DIRTY = false;
+    // uploads are blanked from every share by shareableGraph(), so flagging them
+    // would be noise that contradicts the share contract — skip those kinds.
+    const skip = { image:1, audio:1, video:1, inpaint:1 };
+    (STATE.settings || []).forEach(it=>{ if(!skip[it.kind]) DIRTY_TRACK.push(it); });
+    // a blank required input shipped empty → filling it is "usage", not a template
+    // change; only watch inputs the author pre-filled (a non-empty baseline).
+    (STATE.inputs || []).forEach(it=>{ if(!skip[it.kind] && fieldStr(it.node, it.field) !== "") DIRTY_TRACK.push(it); });
+    DIRTY_TRACK.forEach(it=>{ it.__base = fieldStr(it.node, it.field); });
+  }
+  function checkDirty(){
+    if(!EMBEDDED) return;
+    const d = DIRTY_TRACK.some(it=> fieldStr(it.node, it.field) !== it.__base);
+    if(d !== LAST_DIRTY){ LAST_DIRTY = d; try{ window.parent.postMessage({ type:"__dirty__", dirty:d }, "*"); }catch(_){} }
+  }
+
   function fileToDataUrl(file){
     return new Promise((res, rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=()=>rej(new Error("read failed")); fr.readAsDataURL(file); });
   }
@@ -1760,11 +1791,11 @@ window.NoodleApp = (function () {
           }
         });
       } else if(el.type==="checkbox"){
-        el.addEventListener("change", ()=>{ it.node.fields[it.field] = el.checked; });
+        el.addEventListener("change", ()=>{ it.node.fields[it.field] = el.checked; checkDirty(); });
       } else if(el.classList.contains("modelsel")){
         setupModelCombo(el, it);   // searchable catalog dropdown + free-text fallback
       } else {
-        const sync = ()=>{ it.node.fields[it.field] = el.value; };
+        const sync = ()=>{ it.node.fields[it.field] = el.value; checkDirty(); };
         el.addEventListener("input", sync);
         if(el.tagName==="SELECT") el.addEventListener("change", sync);
       }
@@ -1806,10 +1837,10 @@ window.NoodleApp = (function () {
       menu.hidden = false; input.setAttribute("aria-expanded","true");
     }
     function close(){ menu.hidden = true; input.setAttribute("aria-expanded","false"); active = -1; }
-    function pick(id){ input.value = id; it.node.fields[it.field] = id; close(); fillDimLists(); }   // new model → refresh its dim options
+    function pick(id){ input.value = id; it.node.fields[it.field] = id; close(); fillDimLists(); checkDirty(); }   // new model → refresh its dim options
     input.addEventListener("focus", ()=> open(true));
     input.addEventListener("modelrefresh", ()=> open(true));   // catalog arrived while focused
-    input.addEventListener("input", ()=>{ it.node.fields[it.field] = input.value.trim(); open(false); });
+    input.addEventListener("input", ()=>{ it.node.fields[it.field] = input.value.trim(); open(false); checkDirty(); });
     input.addEventListener("blur", ()=> setTimeout(close, 120));   // let a menu click land first
     // mousedown (not click) so the pick fires before the input blurs
     menu.addEventListener("mousedown", (e)=>{ const b = e.target.closest(".modelopt"); if(!b) return; e.preventDefault(); pick(b.dataset.id); });
@@ -2373,6 +2404,7 @@ window.NoodleApp = (function () {
     renderAuth();
     handleRedirect().catch(e=> statusLine("__auth__","error","sign-in error: "+e.message)).finally(renderAuth);
     renderInputs();
+    buildDirtyTrack();   // snapshot AFTER renderInputs so lazy-applied defaults read as the baseline, not as edits
     renderCount();
     renderLoop();
     ensureCostMeter();   // place the (hidden) "spent on this app" meter now → stable layout
@@ -2746,8 +2778,24 @@ function withPreamble(html){
 // allow-same-origin) so untrusted shared-app HTML can never read the parent's stored
 // key. The app reaches NanoGPT only by asking the parent to proxy the call (below),
 // so the key never enters the frame and shared apps still run with the viewer's key. -----
+// Share/Export copy the app TEMPLATE, not the current session. When the running app
+// signals it diverged (__dirty__), reveal a short plain-words hint beside Share so a
+// viewer who swapped a model / edited a prefilled prompt isn't surprised to lose those
+// edits. The hint sits in the right cluster (grow:1 absorbs its width), so it never
+// shifts the buttons; the tooltip carries the one-line "why".
+let appDirty = false;
+let shareTitleDefault = null;   // captured from the HTML once, so the tooltip never drifts
+const SHARE_TITLE_DIRTY = "Copies the app as built — not your in-app edits (model swaps, prompt changes).";
+function setShareDirty(on){
+  appDirty = !!on;
+  const h = $("sharehint"); if(h) h.hidden = !appDirty;
+  const b = $("share"); if(!b) return;
+  if(shareTitleDefault == null) shareTitleDefault = b.title;
+  b.title = appDirty ? SHARE_TITLE_DIRTY : shareTitleDefault;
+}
 function renderApp(){
   const frame = $("appframe");
+  setShareDirty(false);   // a fresh mount starts clean and won't re-post until it diverges, so clear our flag
   frame.sandbox = "allow-scripts allow-downloads";   // allow-downloads: the output cards' ⭳ Download button
   frame.onload = () => pushAuthToApp();
   frame.srcdoc = withPreamble(bundle(APP_STATE.files));
@@ -2813,6 +2861,9 @@ addEventListener("message", async (e) => {
     }catch(err){ reply({ error:(err && err.message) || String(err) }); }
     return;
   }
+  // the running app diverged from (or returned to) its template — flag/unflag Share so a
+  // viewer who swapped a model or edited a prefilled prompt knows the link copies the app, not their session
+  if(d && d.type === "__dirty__"){ setShareDirty(d.dirty); return; }
   if(d === "__share__" || (d && d.type === "__share__")) doShare();   // app owns the button, parent owns the link
   else if(d === "__esc__" || (d && d.type === "__escape__")){ if(document.fullscreenElement) document.exitFullscreen(); }
 });
@@ -3451,7 +3502,9 @@ async function doShare(){
     history.replaceState({}, "", url);
     const ok = await copyText(url);
     const big = url.length>8000 ? ` (${(url.length/1024).toFixed(0)}kB)` : "";
-    toast(ok ? `✓ App link copied — anyone who opens it gets this exact app and signs in with their own key${big}`
+    toast(ok ? (appDirty
+                 ? `✓ Link copied — the app as built, not your in-app edits${big}`
+                 : `✓ App link copied — anyone who opens it gets this exact app and signs in with their own key${big}`)
              : `App link is in the address bar — copy it to share${big}`, ok?"":"err");
     const b = $("share");                                  // flip the button itself for unmistakable feedback (mirrors the editor)
     if(b && ok){ const o=b.textContent; b.textContent="✓ Link copied!"; b.classList.add("ok");
@@ -3467,7 +3520,7 @@ function doExport(){
   a.href = URL.createObjectURL(blob); a.download = safe + ".html";
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
-  toast("exported — that .html is self-contained (no key inside)");
+  toast("exported — that .html is self-contained (no key inside)" + (appDirty ? " · not your in-app edits" : ""));
 }
 
 // EDIT WORKFLOW: hand the graph back to the editor for node-level editing, carrying
