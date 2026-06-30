@@ -328,8 +328,9 @@
   .result .frames .fr img{ width:100%; border-radius:.45rem; display:block }
   .result .frames .fr button{ position:absolute; right:.25rem; bottom:.25rem; padding:.15rem .35rem; font-size:.7rem;
     background:#000a; border:1px solid var(--line); border-radius:.35rem; color:var(--ink); cursor:pointer }
-  .result .acts{ display:flex; gap:.35rem; margin-top:.4rem }
+  .result .acts{ display:flex; gap:.35rem; margin-top:.4rem; align-items:center }
   .result .acts button{ padding:.25rem .5rem; font-size:.74rem }
+  .result .acts .sndbadge{ font-size:.85rem; line-height:1; cursor:default }
   .spin{ display:inline-block; width:16px;height:16px; border:2px solid #ffffff22; border-top-color:var(--warn); border-radius:50%; animation:sp .8s linear infinite; vertical-align:middle }
   @keyframes sp{to{transform:rotate(360deg)}}
 
@@ -609,6 +610,7 @@ function normVideo(m){
     v2v:!!c.video_to_video,                          // edits/extends/upscales a SOURCE video (→ vedit node)
     avatar:!!c.image_to_video && !!c.audio_input && !multiAudio,    // image + single audio → talking video (→ lipsync node)
     lora,                                            // catalog advertises lora_url_N → the LoRA disclosure is offered
+    audioGen:!!c.audio_generation,                   // model renders synchronized audio into the clip → preview should NOT be muted
     params: pp,                                      // per-model param descriptors → the ⚙️ Model options block
     pricing: p,                                      // raw pricing → live price recomputed as resolution/duration change
     price };
@@ -2022,7 +2024,9 @@ function showResult(n){
     r.innerHTML = `<img src="${esc(n.out.image)}" alt="output"/><div class="acts"><button data-dl>⬇ save</button></div>`;
     r.querySelector("[data-dl]").onclick = ()=> downloadUrl(n.out.image, `noodle-${n.id}.png`);
   } else if(t.preview==="video" && n.out.video){
-    r.innerHTML = `<video src="${esc(n.out.video)}" controls loop muted playsinline></video><div class="acts"><button data-dl>⬇ save</button><button data-open>↗ open</button></div>`;
+    const vit = catItem(t.modelKind, n.fields.model);          // selected video model (undefined if offline/unknown)
+    const m = vit && vit.audioGen ? "" : " muted";             // keep audio-generating clips audible; mute everything else (safe default)
+    r.innerHTML = `<video src="${esc(n.out.video)}" controls loop${m} playsinline></video><div class="acts">${m?"":`<span class="sndbadge" title="this clip has generated audio">🔊</span>`}<button data-dl>⬇ save</button><button data-open>↗ open</button></div>`;
     r.querySelector("[data-dl]").onclick   = ()=> downloadUrl(n.out.video, `noodle-${n.id}.mp4`);
     r.querySelector("[data-open]").onclick = ()=> openUrl(n.out.video);
   } else if(t.preview==="audio" && n.out.audio){
