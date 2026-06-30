@@ -511,7 +511,7 @@
   <button id="makeapp" title="Turn this workflow into a shareable app">✨ Create app</button>
   <button id="newapp" title="Start a NEW app from this workflow (don’t update the one you’re editing)" hidden>✨ New</button>
   <button id="share" title="Copy a link that loads this exact workflow — paste it to share with anyone">🔗 Share</button>
-  <button id="submitcontest" title="Enter this in the Noodle Cookoff">🏆 Submit</button>
+  <button id="submitcontest" title="Enter this in the Noodle Cookoff">🏆 Cookoff</button>
   <button id="save" title="download this graph as JSON">⭳ Save</button>
   <button id="load" title="open a graph JSON file">⭱ Load</button>
   <button id="updates" title="What’s new in nanoodle">📣 Updates<span id="updbadge" hidden></span></button>
@@ -3713,9 +3713,7 @@ async function shareUrl(){
   const b = $("share");                                   // flip the button itself for unmistakable feedback
   if(b && ok){ const o=b.textContent; b.textContent="✓ Link copied!"; b.classList.add("ok");
     setTimeout(()=>{ b.textContent=o; b.classList.remove("ok"); }, 1800); }
-  // Catch the wow moment: a link is on the clipboard — nudge them to enter it in the Cookoff.
-  // The popup builds its own APP link (what to post for the contest); back off once dismissed.
-  if(ok && !suppressShareNudge) openSubmit(true);
+  // (No auto-nudge: the Cookoff is reachable via 🏆 Cookoff + the 🍜 promo — Share stays a clean copy.)
 }
 // Set when this editor session is editing the workflow of an existing app (carried in
 // via #ga= or the modal's __editflow__ message). "Create app" hands the graph back under
@@ -3826,7 +3824,10 @@ addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("appmodal").hidden) c
 
 // 🍜 Noodle Cookoff promo — opens a static announcement modal; the ✕ on the button dismisses it for good.
 const cookoffBtn = $("cookoffbtn");
-try{ if(localStorage.getItem("noodle_cookoff_dismissed")) cookoffBtn.hidden = true; }catch(_){}
+// Contest ends Jul 12, 23:59 UTC — after that, retire the entry button + promo so they don't rot for new users.
+const COOKOFF_OVER = Date.now() > Date.parse("2026-07-12T23:59:59Z");
+if(COOKOFF_OVER) $("submitcontest").hidden = true;
+try{ if(COOKOFF_OVER || localStorage.getItem("noodle_cookoff_dismissed")) cookoffBtn.hidden = true; }catch(_){}
 function closeCookoff(){ $("cookoffmodal").hidden = true; }
 function dismissCookoff(e){ e.stopPropagation(); cookoffBtn.hidden = true; try{ localStorage.setItem("noodle_cookoff_dismissed","1"); }catch(_){} }
 $("cookoffdismiss").onclick = dismissCookoff;
