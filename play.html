@@ -1106,7 +1106,14 @@ window.NoodleApp = (function () {
       async run(n, inp, ctx){
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         if(!prompt) throw new Error("no prompt");
-        const want = Math.max(1, parseInt(n.fields.variations,10)||1);
+        let want = Math.max(1, parseInt(n.fields.variations,10)||1);
+        // Clamp to the model's real max output so we never request — or get billed for — more images
+        // than the model supports (mirrors the editor's catItem().maxOut clamp). Best-effort: if the
+        // catalog isn't loaded (offline / export with no network), rawCatItem returns null → leave want
+        // unclamped rather than hard-fail, so exports keep running the chosen model's own behavior.
+        const _catIt = await rawCatItem("image", mdl(n));
+        const _maxOut = _catIt && _catIt.supported_parameters && _catIt.supported_parameters.max_output_images;
+        if(_maxOut > 0) want = Math.min(want, _maxOut);
         // always multi: even n:1 can return N (fixed_image_count models) — surface every image paid for.
         const urls = await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], undefined, undefined, imgExtra(n), {n:want, multi:true});
         const sel = Math.min(Math.max(0, parseInt(n.fields.sel,10)||0), urls.length-1);
