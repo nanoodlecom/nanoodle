@@ -31,6 +31,9 @@ export const NODE_SCHEMA = [
 const BY_TYPE = Object.fromEntries(NODE_SCHEMA.map(s=>[s.type,s]));
 export const KNOWN_TYPES = new Set(NODE_SCHEMA.map(s=>s.type));
 
+// media/binary fields the planner never sees — mirrors index.html MEDIA_KEYS
+const MEDIA_KEYS = new Set(["image","audio","video","mask"]);
+
 // port-type lookups for link validation
 function outType(type){ return BY_TYPE[type]?.out; }
 function inPortType(type, port){
@@ -64,8 +67,17 @@ export function toSimple(g){
     links: (g.links||[]).map(l=>({ from:`${l.from.node}.${l.from.port}`, to:`${l.to.node}.${l.to.port}` })),
   };
 }
+// mirrors index.html strip(): the planner sees neither empty fields nor the user's media
+// (image/audio/video/mask) nor any inline data: blob — those are stripped from the simplified view.
 function stripEmpty(f){
-  const o={}; for(const [k,v] of Object.entries(f)){ if(v!=="" && v!=null) o[k]=v; } return o;
+  const o={};
+  for(const [k,v] of Object.entries(f)){
+    if(v==="" || v==null) continue;
+    if(MEDIA_KEYS.has(k)) continue;
+    if(typeof v==="string" && v.startsWith("data:")) continue;
+    o[k]=v;
+  }
+  return o;
 }
 
 // place new nodes in a tidy column to the right of existing ones
@@ -81,7 +93,13 @@ export function fromSimple(simple, prev){
   const nodes = (simple.nodes||[]).map(sn=>{
     const old = prevById[sn.id];
     const base = old ? { x:old.x, y:old.y, w:old.w, sizes:old.sizes } : autoPlace(prev.nodes||[], placeIdx++);
-    return { id:sn.id, type:sn.type, x:base.x, y:base.y, fields:sn.fields||{}, ...(base.w?{w:base.w}:{}), ...(base.sizes?{sizes:base.sizes}:{}) };
+    // The planner only ever sees the SIMPLIFIED fields (stripEmpty drops the user's media + inline
+    // data:), so a key it leaves OUT is an intentional deletion only when it was visible to it.
+    // Carry back just the stripped-away keys (media/binary) — those absences aren't edits.
+    const carried = {};
+    if(old){ const seen = stripEmpty(old.fields||{}); for(const k of Object.keys(old.fields||{})) if(!(k in seen)) carried[k] = old.fields[k]; }
+    const fields = { ...carried, ...(sn.fields||{}) };
+    return { id:sn.id, type:sn.type, x:base.x, y:base.y, fields, ...(base.w?{w:base.w}:{}), ...(base.sizes?{sizes:base.sizes}:{}) };
   });
   const num = s=> parseInt(String(s).replace(/\D/g,""),10)||0;
   let lid = Math.max(prev.lid||0, 0, ...(prev.links||[]).map(l=>num(l.id)));
@@ -108,6 +126,7 @@ export function validateGraph(simple){
     const [fn,fp]=String(l.from).split("."); const [tn,tp]=String(l.to).split(".");
     if(!ids.has(fn)) errors.push(`link from unknown node ${fn}`);
     if(!ids.has(tn)) errors.push(`link to unknown node ${tn}`);
+    if(!fp || !tp) errors.push(`link missing a port — endpoints must be nodeId.port`);
   }
   // cycle check (stateless feed-forward DAG only)
   const adj = {}; (simple.links||[]).forEach(l=>{ const f=String(l.from).split(".")[0], t=String(l.to).split(".")[0]; (adj[f]||(adj[f]=[])).push(t); });
