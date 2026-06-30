@@ -3350,14 +3350,16 @@ function renderVersions(){
 function selectVersion(i){
   const vs = APP_STATE.versions;
   if(i<0 || i>=vs.length || i===APP_STATE.curVer) return;
-  // Live in-app edits (model swaps, prompt tweaks) live only in the running frame —
-  // they're in no version snapshot, so the re-mount below would silently drop them.
-  // Only ask when there's actually something to lose, so a clean switch stays friction-free.
-  if(appDirty && !confirm("Switch versions? Your in-app edits (model swaps, prompt changes) aren't saved to a version and will be cleared.")) return;
+  // Live in-app edits (model swaps, prompt tweaks) are ephemeral runtime state in the running
+  // frame, not part of the file-based versions — there's nothing to snapshot them into, and the
+  // sharehint already flags them as unsaved. So don't interrupt with a prompt: switch, and drop a
+  // non-blocking heads-up only when there were such edits, so the reset is never a silent surprise.
+  const hadEdits = appDirty;
   APP_STATE.curVer = i;
   APP_STATE.files = { ...APP_STATE.files, ...vs[i].files };   // flip the editable files to that version
   syncTitleFromFiles(); renderVersions(); renderApp(); persist();
   $("undo").disabled = APP_STATE.curVer <= 0;
+  if(hadEdits) toast("switched to v"+i+" — your in-app edits (model/prompt) were reset", "info");
 }
 function pushVersion(files, goal){
   // Append-only history. Editing off an older version used to truncate everything after

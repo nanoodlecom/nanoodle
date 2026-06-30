@@ -4400,14 +4400,19 @@ RULES for the diff:
   function selectVersion(i){
     const v = versions[i]; if(!v || i===curVer || busy) return;
     // Canvas edits made by hand since the current version aren't a snapshot — applyGraphData
-    // below would replace the live graph and drop them. Compare on the semantic shape (toSimple
-    // ignores node positions/pan/zoom) so a plain drag never trips this, and confirm before losing real edits.
+    // below would replace the live graph and drop them. Don't interrupt to ask: just capture
+    // them as a version first, so jumping away always keeps your work and parks it in the strip
+    // to return to. toSimple ignores node positions/pan/zoom, so a plain drag isn't an "edit".
     const cur = versions[curVer];
-    if(cur && JSON.stringify(toSimple(serializeGraph())) !== JSON.stringify(toSimple(cur.graph))
-       && !confirm(`Jump to v${i}? Your canvas edits since the current version aren't saved as a version and will be replaced.`)) return;
+    let savedAt = -1;
+    if(cur && JSON.stringify(toSimple(serializeGraph())) !== JSON.stringify(toSimple(cur.graph))){
+      versions.push({ graph: clone(serializeGraph()), goal: "your canvas edits" });
+      savedAt = versions.length - 1;
+    }
     applyGraphData(clone(v.graph)); save();
     curVer = i; renderVersions();
-    setStatus(i===0 ? "↩ Back to the starting workflow." : `↩ Back to v${i} — ${esc(v.goal)}`);
+    const back = i===0 ? "↩ Back to the starting workflow." : `↩ Back to v${i} — ${esc(v.goal)}`;
+    setStatus(savedAt >= 0 ? `${back} Your edits are safe in v${savedAt}.` : back);
   }
 
   function setBusy(on){
