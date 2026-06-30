@@ -125,6 +125,15 @@
                   border-radius:.8rem; background:var(--bg); box-shadow:0 30px 90px #000a; }
   #appmodalclose{ position:absolute; top:.7rem; right:.9rem; z-index:2; width:2.1rem; height:2.1rem; border-radius:.55rem;
                   display:flex; align-items:center; justify-content:center; font-size:1.05rem; }
+  #appmodalhint[hidden]{ display:none }
+  #appmodalhint{ position:absolute; left:50%; bottom:1.1rem; transform:translateX(-50%); z-index:3;
+                 max-width:min(560px,90vw); display:flex; gap:.7rem; align-items:center;
+                 padding:.5rem .55rem .5rem .85rem; border:1px solid var(--line); border-radius:.6rem;
+                 background:var(--panel); box-shadow:0 12px 40px #000a; font-size:.82rem; color:var(--ink); }
+  #appmodalhint b{ color:var(--accent) }
+  #appmodalhintok{ flex:none; padding:.3rem .7rem; border:1px solid var(--line); border-radius:.4rem;
+                   background:var(--panel2); color:var(--ink); font-size:.78rem; cursor:pointer; }
+  #appmodalhintok:hover{ border-color:var(--accent) }
   /* gallery — browse & remix curated example/contest noodles (static gallery.json) */
   #gallerymodal[hidden]{ display:none }
   #gallerymodal{ position:fixed; inset:0; z-index:200; display:flex; padding:min(4vh,2.4rem) min(4vw,2.4rem);
@@ -577,6 +586,7 @@
 <div id="appmodal" hidden>
   <button id="appmodalclose" title="Close — your app stays here (Esc)" aria-label="Close">✕</button>
   <iframe id="appmodalframe" title="Create app" allow="clipboard-write; fullscreen"></iframe>
+  <div id="appmodalhint" hidden><span>✎ <b>Edit workflow</b> (in the top bar) takes you back to the graph and keeps this app.</span><button id="appmodalhintok" title="Got it">Got it</button></div>
 </div>
 
 <!-- 💬 Describe changes — docked bottom composer (same shape as the app builder's Customize bar);
@@ -3779,7 +3789,7 @@ function closeAppModal(){
   $("appmodal").hidden = true;   // hide, but keep the builder loaded so you can come back to it
   try{ $("appmodalframe").contentWindow.postMessage({ type:"__appmodalhidden__" }, "*"); }catch(_){}   // pause any builder-chrome media
 }
-function openAppModal(hash){ $("appmodalframe").src = "play.html"+hash; appFrameLoaded = true; lastHandoffSig = appHandoffSig(); $("appmodal").hidden = false; }
+function openAppModal(hash){ $("appmodalframe").src = "play.html"+hash; appFrameLoaded = true; lastHandoffSig = appHandoffSig(); $("appmodal").hidden = false; try{ if(!localStorage.getItem("noodle_appbuilder_intro_seen")) $("appmodalhint").hidden = false; }catch(_){} }
 async function openCreateApp(){
   if(!graph.nodes.length){ flash("add a node first"); return; }
   // Same graph + builder still loaded → just bring your app back (no reload, no fresh draft).
@@ -3807,6 +3817,7 @@ $("makeapp").onclick = openCreateApp;
 // builder on a plain #g= handoff so it mints a brand-new app instead of updating the bound one.
 $("newapp").onclick = ()=>{ setPendingApp(null); openCreateApp(); };
 $("appmodalclose").onclick = closeAppModal;
+$("appmodalhintok").onclick = ()=>{ $("appmodalhint").hidden = true; try{ localStorage.setItem("noodle_appbuilder_intro_seen","1"); }catch(_){} };
 $("appmodal").addEventListener("click", e=>{ if(e.target.id==="appmodal") closeAppModal(); });   // click the dim backdrop
 addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("appmodal").hidden) closeAppModal(); });
 
