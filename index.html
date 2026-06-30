@@ -3030,7 +3030,7 @@ const CTX = {
       throw new Error("This clip is a bit big to transcribe directly (~3 MB max) — nanoodle sends audio inline rather than uploading it (no S3 here). A shorter clip works, or build this into an app (✨ Create app) and run it offline.");
     const ext = (blob.type.split("/")[1] || "mp3").split(";")[0];
     const fd = new FormData();
-    fd.append("audio", blob, `audio.${ext}`);
+    fd.append("file", blob, `audio.${ext}`);    // the endpoint is OpenAI-compatible: the audio field MUST be "file" (sending "audio" 400s "Missing 'file'")
     fd.append("model", model);
     if(language) fd.append("language", language);
     const k = getKey();   // multipart: let the browser set Content-Type (boundary) — don't use authHeaders()
