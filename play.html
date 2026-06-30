@@ -1356,6 +1356,23 @@ window.NoodleApp = (function () {
      RUN LOOP — ported from runGroup(), minus the editor's DOM, locking,
      and group-concurrency. Port wiring + fieldOverrides preserved.
      ===================================================================== */
+  // Deterministic-skip cache (mirrors the editor's runGroup n._sig skip): a node with a FIXED
+  // seed reproduces the same output for the same inputs, so re-running it is pure waste — reuse
+  // the prior output, no second charge. A BLANK seed = random each run, so those never cache.
+  // Module-level so it survives the per-run cloneGraph()+wipe and persists across Run clicks and
+  // keep-generate passes. ONE entry per node id ({sig,out}) — a new sig overwrites the old, so it
+  // can't grow with seed tweaks. Signature drops display-only knobs (sel/brush).
+  var SEED_FIELD = { image:1, edit:1, inpaint:1, music:1 };   // seed lives in n.fields.seed
+  var VIDEO_SEED_NODE = { tvideo:1, ivideo:1, vedit:1 };      // seed rides in n.fields.modelOpts.seed
+  function nodeSeed(n){
+    if(SEED_FIELD[n.type]) return n.fields.seed;
+    if(VIDEO_SEED_NODE[n.type]) return n.fields.modelOpts && n.fields.modelOpts.seed;
+    return undefined;
+  }
+  function isSeeded(n){ var s = nodeSeed(n); return s!=null && String(s).trim()!==""; }
+  function sigHash(s){ var h=5381; for(var i=0;i<s.length;i++) h=((h*33) ^ s.charCodeAt(i))>>>0; return h; }
+  function nodeSig(n, inp){ var f = Object.assign({}, n.fields); delete f.sel; delete f.brush; return sigHash(JSON.stringify({ t:n.type, f:f, inp:inp })); }
+  var RUN_CACHE = new Map();   // id -> {sig, out}
   async function runGraph(graph, opts){
     opts = opts || {};
     const onStatus = opts.onStatus, onResult = opts.onResult;
@@ -1371,6 +1388,7 @@ window.NoodleApp = (function () {
     // parent (a→b, a→c) run concurrently instead of serializing down topo order.
     const done = {};                                   // id → promise, keyed so dependents can await their inputs
     let nodeErrors = 0;                                // per-node failures (isolated, not thrown) — reported for keep-mode backoff
+    let generated = 0;                                 // model calls made this pass (not cache reuses, not instant local nodes) — keep mode stops when 0
     const depsOf = (id)=>{                              // upstream node ids feeding this node (within the run set)
       const s = new Set();
       for(const l of graph.links) if(l.to.node===id && ids.has(l.from.node)) s.add(l.from.node);
@@ -1412,11 +1430,22 @@ window.NoodleApp = (function () {
           if(v!=null) fieldOverrides[l.to.port] = v;
         }
         const rn = Object.keys(fieldOverrides).length ? { ...n, fields:{...n.fields, ...fieldOverrides} } : n;
+        // Deterministic skip: a seeded node with unchanged inputs reuses its prior output — no
+        // second charge, no "running…" flash. Blank seed = random, so it always regenerates.
+        const sig = nodeSig(rn, inp), cached = RUN_CACHE.get(id);
+        if(isSeeded(rn) && cached && cached.sig===sig){
+          n.out = cached.out; n.costUsd = 0; n.costKnown = true;
+          onStatus && onStatus(id, "done", "done");
+          onResult && onResult(n);
+          return;
+        }
         onStatus && onStatus(id, "run", "running…");
-        let nodeCost = 0, nodeKnown = false;               // USD this node's generation(s) cost; known incl $0 (subscription)
-        const ctx = makeCtx((c)=>{ nodeCost += bumpCost(c); if(c && c.usd!=null) nodeKnown = true; });
+        let nodeCost = 0, nodeKnown = false, didGen = false;   // didGen: this node actually called the model (onCost fires only on a real generation, never for instant local nodes like text/join/trim)
+        const ctx = makeCtx((c)=>{ didGen = true; nodeCost += bumpCost(c); if(c && c.usd!=null) nodeKnown = true; });
         try{
           n.out = await t.run(rn, inp, ctx, (msg)=> onStatus && onStatus(id, "run", msg)) || {};
+          if(isSeeded(rn)) RUN_CACHE.set(id, { sig, out:n.out });   // fixed seed → cache the result for the next pass
+          if(didGen) generated++;                          // a real model call happened — NOT a cache reuse or an instant local node (so keep mode keeps pacing only on real generations)
           n.costUsd = nodeCost; n.costKnown = nodeKnown;
           onStatus && onStatus(id, "done", "done");
           onResult && onResult(n);
@@ -1428,7 +1457,7 @@ window.NoodleApp = (function () {
       })();
     }
     await Promise.all(r.order.map(id=> done[id]));       // lane finishes when every node has settled
-    return { nodeErrors };                               // let the caller back off if every retry just re-fails
+    return { nodeErrors, generated };                    // generated=0 → a fully-cached pass (keep mode stops; nothing new to make)
   }
 
   /* =====================================================================
@@ -2412,7 +2441,7 @@ window.NoodleApp = (function () {
       do {
         if(!first) resetLane(i);
         first = false;
-        let failed = false;
+        let failed = false, nothingNew = false;
         try {
           const res = await runGraph(cloneGraph(), {
             onStart: (order)=> laneStart(i, order),
@@ -2423,6 +2452,8 @@ window.NoodleApp = (function () {
           // every node failed — count them as a failure so keep mode backs off instead
           // of hot-looping on a persistent bad-input/auth error.
           if(res && res.nodeErrors>0) failed = true;
+          // A fully-cached pass (every gen node was a fixed-seed reuse) has nothing new to make.
+          nothingNew = !!(res && res.generated===0 && !failed);
         } catch(err){
           // a Stop-triggered abort is expected — swallow it; surface only real errors.
           if(isAbort(err)) break;
@@ -2431,6 +2462,10 @@ window.NoodleApp = (function () {
         }
         if(RUN && RUN.lanes[i]) RUN.lanes[i].endAt = Date.now();
         paintRuns();
+        // Frozen graph (all fixed-seed cache hits): the reused results are already rendered, so
+        // don't keep-loop on it — there's nothing new to generate. A blank-seed node never caches,
+        // so genuine "keep generating" flows are untouched.
+        if(nothingNew) break;
         // Back off after a failure in keep mode so a fast, persistent error
         // (bad input, auth) can't spin into a hot retry loop. Abort wakes it.
         if(failed && KEEP && running){ try { await sleep(1200); } catch(e){ break; } }
