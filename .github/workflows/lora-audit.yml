@@ -1,0 +1,25 @@
+name: LoRA catalog audit
+
+# Monthly check that NanoGPT hasn't shipped a LoRA-capable image/video model the
+# app doesn't handle yet (or quietly changed a model's lora_url slot count). This
+# is build/audit-time only: it never touches the deployed app, users, or exported
+# apps — it just fetches the public catalog and compares it to the classifier
+# shipped in play.html. A FAILING run is the alert: a new/unhandled model turned up,
+# a gate drifted, or the catalog shape changed. The repo owner gets the standard
+# scheduled-workflow failure email and wires a family rule in loraFamily().
+on:
+  schedule:
+    - cron: "0 9 1 * *"   # 09:00 UTC on the 1st of each month
+  workflow_dispatch: {}     # also runnable on demand from the Actions tab
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      # No npm install: the repo has no dependencies and the script uses only Node built-ins.
+      - name: Audit NanoGPT catalog against the shipped LoRA classifier
+        run: node scripts/check-lora-models.mjs

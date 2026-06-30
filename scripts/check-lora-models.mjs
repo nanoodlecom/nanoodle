@@ -6,8 +6,10 @@
 // lora-models.json so the in-repo list refreshes.
 //
 // Build/audit-time ONLY. The app never fetches this at runtime (the classifier is inlined
-// in index.html + play.html and bundled into exported apps). Run by hand or monthly via a
-// scheduled agent:  node scripts/check-lora-models.mjs
+// in index.html + play.html and bundled into exported apps). NOT a pre-commit check — it
+// hits the live network and fails on vendor changes unrelated to your diff. Run by hand
+//   node scripts/check-lora-models.mjs
+// or monthly via .github/workflows/lora-audit.yml (cron) — a failing run is the alert.
 //
 // Exit 0 = every LoRA-capable catalog model is handled. Exit 1 = new unhandled model(s)
 // found (the scheduled job treats this as "open a PR to add a family rule").
@@ -23,10 +25,24 @@ const CATALOG_URL = "https://nano-gpt.com/api/models";
 // catalog hides lora params, so the app allow-lists by id and we verify that allow-list here).
 const PLAY_SRC = readFileSync(join(root, "play.html"), "utf8");
 function loadFn(name, deps = []) {
+  // Extract a top-level `function name(...){ ... }` verbatim from play.html by
+  // brace-matching from its opening brace — robust to indentation/body changes,
+  // and loud (throws) rather than silently truncating if the source drifts.
+  // Assumption (holds for these helpers): no `{`/`}` inside their string/regex
+  // literals, so a naive depth count finds the true close.
   const grab = (n) => {
-    const start = PLAY_SRC.indexOf("function " + n);
-    if (start < 0) throw new Error(n + "() not found in play.html");
-    return PLAY_SRC.slice(start, PLAY_SRC.indexOf("\n  }", start) + 4);
+    const decl = new RegExp("function\\s+" + n + "\\s*\\(");   // word-exact: no prefix collisions
+    const m = decl.exec(PLAY_SRC);
+    if (!m) throw new Error(n + "() not found as a `function` declaration in play.html — did it get rewritten?");
+    const open = PLAY_SRC.indexOf("{", m.index);
+    if (open < 0) throw new Error(n + "(): no opening brace after its declaration");
+    let depth = 0;
+    for (let i = open; i < PLAY_SRC.length; i++) {
+      const c = PLAY_SRC[i];
+      if (c === "{") depth++;
+      else if (c === "}" && --depth === 0) return PLAY_SRC.slice(m.index, i + 1);
+    }
+    throw new Error(n + "(): unbalanced braces — extraction would be truncated, refusing to audit against a half-function");
   };
   const src = [...deps, name].map(grab).join("\n");   // pull dependency fns into scope too
   return new Function(src + "\nreturn " + name + ";")();
@@ -48,7 +64,9 @@ const KNOWN_SKIP = {
 };
 
 // A catalog model is LoRA-capable if any of its param descriptors carries a lora key.
-const LORA_KEY = /lora/i;
+// Match "lora" only at a token boundary (start, or after a non-letter) so a key like
+// "exploration_steps" — which contains the substring "lora" — is never miscounted.
+const LORA_KEY = /(?:^|[^a-z])lora/i;
 function loraKeys(model) {
   const keys = new Set();
   const walk = (o) => {
@@ -83,9 +101,11 @@ const main = async () => {
   // true (the v1 catalog can't tell it). Compare against real capability so a false positive
   // (box on a non-lora model → silently ignored adapter) or false negative can't ship.
   const gateFalsePos = [], gateFalseNeg = [], capMismatch = [];
+  let scanned = 0;
   for (const kind of ["image", "video"]) {
-    const models = (catalog.models && catalog.models[kind]) || {};
+    const models = (catalog && catalog.models && catalog.models[kind]) || {};
     for (const [id, m] of Object.entries(models)) {
+      scanned++;
       const keys = loraKeys(m);
       const capable = keys.length > 0 && !KNOWN_SKIP[id];   // truly takes a lora_url/_N we can send
       if (kind === "image") {
@@ -102,6 +122,15 @@ const main = async () => {
       if (want !== got) capMismatch.push({ id, want, got });
     }
   }
+  // Catalog fetched OK but yielded zero image/video models → the API shape changed
+  // under us (models[kind] moved/renamed, or the body isn't the object we expect).
+  // Reporting "✓ all handled" here would silently turn the audit into a no-op that
+  // always passes — the opposite of its job. Fail loudly so the monthly run alerts.
+  if (scanned === 0) {
+    console.error("check-lora-models: fetched the catalog but found 0 image/video models — unexpected shape at " + CATALOG_URL + ". Audited nothing; refusing to report success.");
+    process.exit(1);
+  }
+
   handled.sort((a, b) => a.id.localeCompare(b.id));
   unhandled.sort((a, b) => a.id.localeCompare(b.id));
 
