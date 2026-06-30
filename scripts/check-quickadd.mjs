@@ -89,8 +89,8 @@ const ok = (c, m) => { if (!c) failures.push(m); };
 // dragging FROM an output → consumers of that type
 eq(keys("out", "image"), ["edit", "inpaint", "ivideo", "llm", "lipsync", "vision"],
   "image output → nodes that take an image (incl. LLM's dynamic image ports + Inpaint's image/mask)");
-eq(keys("out", "audio"), ["lipsync", "transcribe", "trim"],
-  "audio output → nodes that take audio");
+eq(keys("out", "audio"), ["llm", "lipsync", "transcribe", "trim"],
+  "audio output → nodes that take audio (incl. the LLM's audio-input port)");
 eq(keys("out", "video"), ["combine", "vedit", "vframes"],
   "video output → nodes that take video (combine joins clips; vframes extracts stills)");
 // transcribe is excluded: its only text field is a plain <input> (language), not a wirable textarea

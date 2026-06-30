@@ -98,7 +98,11 @@ function recordingFetch(url, opts = {}) {
   calls.push({ url: String(url), body });
   let json = {};
   if (/\/chat\/completions/.test(url)) json = { choices: [{ message: { content: "CHAT_REPLY", reasoning: "THINK_TRACE" } }] };
-  else if (/\/images\/generations/.test(url)) json = { data: [{ b64_json: "AAAA" }] };
+  else if (/\/images\/generations/.test(url)) {
+    // honor the requested batch size so a variations=N graph gets N images back (the real API does this)
+    const cnt = Math.max(1, (body && Number(body.n)) || 1);
+    json = { data: Array.from({ length: cnt }, (_, i) => ({ b64_json: "IMG" + i })) };
+  }
   // audio/video/transcribe: leave generic — those run()s may throw, runGraph isolates them.
   return Promise.resolve({
     ok: true, status: 200,
@@ -207,6 +211,34 @@ const SCENARIOS = [
       if (!b) return fail("no edit/image call");
       if (b.imageDataUrl !== IMG) fail("edit must pass the source image as imageDataUrl");
       if (b.prompt !== "make it night") fail("edit instruction not forwarded");
+      if (b.n !== 1) fail(`edit must request a single image (n:1), got ${JSON.stringify(b.n)}`);
+      if (typeof g.byId("e1").out.image !== "string") fail("edit must still produce a single image url");
+    },
+  },
+  {
+    name: "OLD: default Image node still requests n:1 (single image unchanged)",
+    data: { nodes: [node("t1", "text", { text: "a cat" }), node("i1", "image", { model: "x" })],
+            links: [link("t1", "text", "i1", "prompt")] },
+    check(app, g, fail) {
+      const b = imgCalls()[0]?.body;
+      if (!b) return fail("no image generation call");
+      if (b.n !== 1) fail(`default image node must send n:1, got ${JSON.stringify(b.n)}`);
+      const o = g.byId("i1").out;
+      if (typeof o.image !== "string") fail("single-image run must produce an image url");
+      if (o.images && o.images.length !== 1) fail(`single-image run must expose exactly 1 result, got ${o.images.length}`);
+    },
+  },
+  {
+    name: "NEW: Image variations=2 sends n:2 and exposes 2 results (first selected)",
+    data: { nodes: [node("t1", "text", { text: "a red panda" }), node("i1", "image", { model: "x", size: "1024x1024", variations: "2" })],
+            links: [link("t1", "text", "i1", "prompt")] },
+    check(app, g, fail) {
+      const b = imgCalls()[0]?.body;
+      if (!b) return fail("no image generation call");
+      if (b.n !== 2) fail(`variations=2 must send n:2, got ${JSON.stringify(b.n)}`);
+      const o = g.byId("i1").out;
+      if (!Array.isArray(o.images) || o.images.length !== 2) fail(`expected 2 result images, got ${JSON.stringify(o.images)}`);
+      if (o.image !== o.images[0]) fail("the first variation must be selected by default");
     },
   },
   {
@@ -231,6 +263,34 @@ const SCENARIOS = [
       const urls = (u.content || []).filter((p) => p.type === "image_url").map((p) => p.image_url.url);
       if (urls.length !== 2 || urls[0] !== IMG + "1" || urls[1] !== IMG + "2")
         fail(`expected images in order [img1,img2], got ${JSON.stringify(urls)}`);
+    },
+  },
+  {
+    // An in-graph audio clip (aupload) wired to the LLM's audio port → an inline input_audio
+    // part alongside the prompt text, base64 stripped of the data: prefix, format from the MIME.
+    name: "NEW: audio → LLM audio input (input_audio part, base64 stripped)",
+    data: { nodes: [node("u1", "aupload", { audio: "data:audio/wav;base64,QUJD" }),
+                    node("t1", "text", { text: "Transcribe this" }), node("m1", "llm", { model: "x" })],
+            links: [link("u1", "audio", "m1", "audio"), link("t1", "text", "m1", "prompt")] },
+    check(app, g, fail) {
+      const u = userMsg(chatCalls()[0]);
+      if (!Array.isArray(u.content)) return fail("multimodal LLM content must be an array when audio is wired");
+      if (u.content[0].type !== "text" || u.content[0].text !== "Transcribe this") fail("prompt text missing from multimodal content");
+      const a = u.content.find((p) => p.type === "input_audio");
+      if (!a) return fail("the wired audio was not sent as an input_audio part");
+      if (a.input_audio.data !== "QUJD") fail(`audio data must be the bare base64 (no data: prefix), got ${JSON.stringify(a.input_audio.data)}`);
+      if (a.input_audio.format !== "wav") fail(`audio format must be parsed from the MIME (wav), got ${JSON.stringify(a.input_audio.format)}`);
+    },
+  },
+  {
+    // Guard: text-only LLM calls are UNCHANGED by the audio feature — still a bare string content,
+    // never an input_audio part (the historical shape old workflows depend on).
+    name: "NEW: audio feature leaves text-only LLM calls as string content",
+    data: { nodes: [node("m1", "llm", { model: "x", prompt: "just text" })], links: [] },
+    check(app, g, fail) {
+      const u = userMsg(chatCalls()[0]);
+      if (typeof u.content !== "string" || u.content !== "just text")
+        fail(`an imageless/audioless LLM must still send string content, got ${JSON.stringify(u.content).slice(0,80)}`);
     },
   },
   {
