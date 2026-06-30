@@ -316,9 +316,15 @@
   #wires path.temp{ fill:none; stroke:#ffffff88; stroke-width:2.5; stroke-dasharray:5 4; pointer-events:none }
 
   /* ---------- node ---------- */
-  .node{ position:absolute; min-width:210px; max-width:300px; background:var(--panel); border:1px solid var(--line);
+  .node{ position:absolute; min-width:210px; max-width:340px; background:var(--panel); border:1px solid var(--line);
          border-radius:.7rem; box-shadow:0 10px 30px #0006; z-index:10; user-select:none; }
   .node.sel{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent), 0 14px 36px #0008 }
+  /* card-corner resize grip — drag to set card width + the primary prompt's height (writes n.w / n.sizes) */
+  .node .rgrip{ position:absolute; right:0; bottom:0; width:16px; height:16px; z-index:6;
+                cursor:nwse-resize; opacity:.4; touch-action:none; border-radius:0 0 .7rem 0;
+                background:linear-gradient(135deg, transparent 0 50%, var(--dim) 50% 62%, transparent 62% 74%, var(--dim) 74% 86%, transparent 86%); }
+  .node .rgrip:hover{ opacity:1 }
+  .node .rgrip::after{ content:""; position:absolute; inset:-7px -7px 0 0; }  /* fat touch target */
   .node[data-status=run]{ border-color:var(--warn) }
   .node[data-status=done]{ border-color:var(--good) }
   .node[data-status=error]{ border-color:var(--bad) }
@@ -374,7 +380,7 @@
 
   .body{ padding:.1rem .6rem .6rem; display:flex; flex-direction:column; gap:.5rem }
   .body label{ font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); display:block; margin-bottom:.2rem }
-  .body textarea{ width:100%; resize:both; min-width:190px; max-width:min(80vw,760px); min-height:54px;
+  .body textarea{ width:100%; resize:none; min-width:190px; max-width:min(80vw,760px); min-height:84px;
                   background:var(--panel2); border:1px solid var(--line);
                   border-radius:.45rem; padding:.4rem .5rem; line-height:1.35 }
   .body select{ width:100%; background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; padding:.35rem .4rem }
@@ -1928,7 +1934,8 @@ function buildNodeEl(n){
       <div class="col in">${inRows}</div>
       <div class="col out">${outRows}</div>
     </div>
-    <div class="body">${t.body(n)}<div class="result"></div></div>`;
+    <div class="body">${t.body(n)}<div class="result"></div></div>
+    <i class="rgrip" title="drag to resize"></i>`;
   world.appendChild(el);
   n.el = el;
 
@@ -1967,6 +1974,7 @@ function buildNodeEl(n){
     select(n); startNodeDrag(n, e);
   });
   el.addEventListener("pointerdown", ()=> select(n));
+  el.querySelector(".rgrip").addEventListener("pointerdown", e=> startNodeResize(n, e));
   // ports
   el.querySelectorAll(".port").forEach(p=> p.addEventListener("pointerdown", e=>startWire(p, e)));
   refreshImageInputs(n);             // dynamic image ports + their own wire listeners (after the static-port bind above)
@@ -2067,43 +2075,16 @@ function addFieldPorts(n){
   });
 }
 
-// Let prompt textareas stretch both ways. Dragging the corner grip wider grows the whole
-// node card (so results + sibling fields stay aligned and nothing overflows); height is
-// remembered per field. Both persist so a stretched layout survives reload/share.
-// We only react while the user is actively dragging the grip — never to layout reflow
-// (e.g. a result rendering) that merely changes a width:100% textarea's measured size.
-const GRIP = 18, _taSeen = new WeakSet();
-let _resizingTA = null, _nodeRO = null;
-function applyResize(ta){
-  const el = ta.closest(".node"); if(!el) return;
-  const n = byId(el.dataset.id); if(!n) return;
-  const w = ta.offsetWidth, h = ta.offsetHeight, start = ta._rs || {}, chrome = n._chrome ?? 21;
-  if(w !== start.w){ el.style.maxWidth = "none"; el.style.width = (n.w = w + chrome) + "px"; }  // wider → grow the card
-  if(h !== start.h){ (n.sizes ||= {})[ta.dataset.f || ta.dataset.pf] = h; }                        // taller → remember the field
-  redraw(); save();
-}
-function nodeRO(){
-  if(_nodeRO) return _nodeRO;
-  _nodeRO = new ResizeObserver(es=>{ for(const e of es) if(e.target === _resizingTA) applyResize(e.target); });
-  return _nodeRO;
-}
+// Restore any saved per-field textarea heights so a stretched layout survives reload/share
+// (card width is restored in buildNodeEl from n.w). Live resizing is driven by the node's
+// corner grip → startNodeResize, which writes n.w + n.sizes; nothing reacts to layout reflow.
 function prepTextareas(n){
   if(!n.el) return;
   n.el.querySelectorAll("textarea[data-f],textarea[data-pf]").forEach(ta=>{
     const field = ta.dataset.f || ta.dataset.pf;
     if(n.sizes && n.sizes[field] && !ta.style.height) ta.style.height = n.sizes[field]+"px";
-    // measure node padding+borders now, while the textarea still fills the card (before any grip drag)
-    if(n._chrome==null && n.el.offsetWidth>0 && ta.offsetWidth>0) n._chrome = Math.round(n.el.offsetWidth - ta.offsetWidth);
-    if(_taSeen.has(ta)) return;
-    _taSeen.add(ta);
-    ta.addEventListener("pointerdown", e=>{                  // a gesture starting on the bottom-right grip is a resize
-      const r = ta.getBoundingClientRect();
-      if(e.clientX >= r.right - GRIP && e.clientY >= r.bottom - GRIP){ ta._rs = {w:ta.offsetWidth, h:ta.offsetHeight}; _resizingTA = ta; }
-    });
-    nodeRO().observe(ta);
   });
 }
-addEventListener("pointerup", ()=>{ if(_resizingTA){ applyResize(_resizingTA); _resizingTA = null; } });  // commit the final size
 
 // downscale an <img>/<video> source to a JPEG data URL (keeps localStorage/share payloads small)
 function scaledDataURL(src, sw, sh, max=1024){
@@ -2463,6 +2444,29 @@ function startNodeDrag(n, e){
     n.x = ox + (ev.clientX-sx)/scale;
     n.y = oy + (ev.clientY-sy)/scale;
     n.el.style.left = n.x+"px"; n.el.style.top = n.y+"px";
+    redraw();
+  };
+  const up = ()=>{ window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up); save(); };
+  window.addEventListener("pointermove",move); window.addEventListener("pointerup",up);
+}
+
+// Drag the node's bottom-right grip to resize: width grows the card (n.w), height grows the
+// primary prompt textarea (n.sizes). Mirrors startNodeDrag — window listeners, /scale, save on up.
+const RMINW = 210, RMAXW = 760, RMINH = 54;
+function startNodeResize(n, e){
+  e.preventDefault(); e.stopPropagation(); select(n);
+  const el = n.el;
+  // the primary prompt field by name (some nodes render a secondary textarea — e.g. LLM "system" — first)
+  const ta = el.querySelector('.body textarea[data-f="prompt"],.body textarea[data-f="text"],.body textarea[data-f="q"]');
+  const sx=e.clientX, sy=e.clientY, startW=el.offsetWidth, startH=ta?ta.offsetHeight:0;
+  el.style.maxWidth = "none";
+  const move = (ev)=>{
+    n.w = Math.round(Math.max(RMINW, Math.min(RMAXW, startW + (ev.clientX-sx)/scale)));
+    el.style.width = n.w+"px";
+    if(ta){
+      const h = Math.round(Math.max(RMINH, startH + (ev.clientY-sy)/scale));
+      ta.style.height = h+"px"; (n.sizes ||= {})[ta.dataset.f] = h;
+    }
     redraw();
   };
   const up = ()=>{ window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up); save(); };
