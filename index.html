@@ -3603,8 +3603,8 @@ function applyGraphData(d){
   }
   // rebuild id counters so new nodes/links never collide with loaded ones
   const num = (s)=> parseInt(String(s).replace(/\D/g,""),10) || 0;
-  nid = Math.max(d.nid||0, 0, ...graph.nodes.map(n=>num(n.id))) + 1;
-  lid = Math.max(d.lid||0, 0, ...graph.links.map(l=>num(l.id))) + 1;
+  nid = Math.max(num(d.nid), 0, ...graph.nodes.map(n=>num(n.id))) + 1;
+  lid = Math.max(num(d.lid), 0, ...graph.links.map(l=>num(l.id))) + 1;
   graph.nodes.forEach(n=>{ recompactImageLinks(n); refreshImageInputs(n); recompactVideoLinks(n); refreshVideoInputs(n); });   // links loaded → compact + grow image/clip ports
   redraw(); refreshPortFills(); refreshAllPrices();
 }
