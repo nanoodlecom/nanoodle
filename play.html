@@ -518,6 +518,17 @@ window.NoodleApp = (function () {
   /* ---------- mdl (verbatim) ---------- */
   const mdl = (n)=>{ if(!n.fields.model) throw new Error("pick a model first"); return n.fields.model; };
 
+  // collect the LLM node's sampling/reasoning settings into a genChat options object (raw; genChat omits defaults)
+  function llmOpts(n){
+    const f = n.fields, o = {};
+    if(f.temperature!=null && f.temperature!=="") o.temperature = +f.temperature;
+    if(f.maxTokens) o.max_tokens = +f.maxTokens;
+    if(f.format==="JSON") o.response_format = { type:"json_object" };
+    if(f.reasoningEffort && f.reasoningEffort!=="default") o.reasoning_effort = f.reasoningEffort;
+    if(f.showThinking===true || f.showThinking==="true") o.showThinking = true;
+    return o;
+  }
+
   /* ---------- LoRA (image style adapters), verbatim behavior from index.html ----------
      HuggingFace + any direct .safetensors URL; the URL is forwarded to NanoGPT and
      pulled server-side (no CSP origins). CivitAI links are signed/login-gated, so we
@@ -614,15 +625,26 @@ window.NoodleApp = (function () {
       if(!url) throw new Error("no image in response");
       onCost(costFromJson(j)); return url;
     },
-    async genChat(messages, model){
-      const r = await apiFetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(),
-        body:JSON.stringify({ model, messages, temperature:0.8 })});
+    async genChat(messages, model, opts){
+      opts = opts || {};
+      const body = { model, messages };                                 // temperature always sent (0.8 default, as before); other knobs omitted-when-unset
+      body.temperature = (opts.temperature!=null && opts.temperature!=="") ? +opts.temperature : 0.8;
+      if(opts.max_tokens) body.max_tokens = +opts.max_tokens;
+      if(opts.response_format) body.response_format = opts.response_format;   // {type:"json_object"} for JSON mode
+      if(opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
+      const r = await apiFetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
       if(!r.ok) throw new Error(r.status + ": " + (await r.text()).slice(0,160));
       const j = await r.json();
       onCost(costFromJson(j));
-      const txt = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+      const msg = (j.choices && j.choices[0] && j.choices[0].message) || {};
+      const txt = msg.content;
       if(txt==null) throw new Error("no text in response");
-      return typeof txt==="string" ? txt : txt.map(p=>p.text||"").join("");
+      let out = typeof txt==="string" ? txt : txt.map(p=>p.text||"").join("");
+      if(opts.showThinking && msg.reasoning){                           // thinking trace returns in message.reasoning (NOT reasoning_content)
+        const fence = String.fromCharCode(96,96,96);                    // a code fence, built without literal backticks (RUNTIME_JS rule)
+        out = fence + "thinking\n" + msg.reasoning + "\n" + fence + "\n\n" + out;
+      }
+      return out;
     },
     // async video: submit → poll /api/video/status until COMPLETED (up to 10 min)
     // opts also carries optional source media: videoUrl/videoDataUrl (edit/extend/upscale)
@@ -1045,7 +1067,7 @@ window.NoodleApp = (function () {
         messages.push(imgs.length
           ? { role:"user", content:[{type:"text", text:prompt}, ...imgs.map(url=>({type:"image_url", image_url:{url}}))] }
           : { role:"user", content:prompt });
-        return { text: await ctx.genChat(messages, mdl(n)) };
+        return { text: await ctx.genChat(messages, mdl(n), llmOpts(n)) };
       }
     },
     image: {
@@ -1429,7 +1451,12 @@ window.NoodleApp = (function () {
   const DURATIONS   = [["5","5 sec"],["10","10 sec"]];
   const RESOLUTIONS = [["","model default"]];   // "" sends nothing → the model's own default (behavior-preserving)
   const SETTING_SPECS = {
-    llm:     [{ f:"model", label:"Model", kind:"model" }],
+    llm:     [{ f:"model", label:"Model", kind:"model" },
+              { f:"temperature",     label:"Temperature",       kind:"number", min:0, max:2, step:"0.1", def:"0.8" },
+              { f:"maxTokens",       label:"Max tokens",        kind:"number", min:1 },
+              { f:"format",          label:"Output format",     kind:"select", options:[["Text","Text"],["JSON","JSON"]], def:"Text" },
+              { f:"reasoningEffort", label:"Reasoning effort",   kind:"select", options:[["default","default"],["low","low"],["medium","medium"],["high","high"]], def:"default" },
+              { f:"showThinking",    label:"Show thinking",      kind:"boolean" }],
     vision:  [{ f:"model", label:"Model", kind:"model" },
               { f:"q",     label:"Question", kind:"textarea", def:"Describe this image." }],
     image:   [{ f:"model", label:"Model", kind:"model" },

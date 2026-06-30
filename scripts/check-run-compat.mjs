@@ -97,7 +97,7 @@ function recordingFetch(url, opts = {}) {
   try { body = opts.body ? JSON.parse(opts.body) : null; } catch { body = opts.body; }
   calls.push({ url: String(url), body });
   let json = {};
-  if (/\/chat\/completions/.test(url)) json = { choices: [{ message: { content: "CHAT_REPLY" } }] };
+  if (/\/chat\/completions/.test(url)) json = { choices: [{ message: { content: "CHAT_REPLY", reasoning: "THINK_TRACE" } }] };
   else if (/\/images\/generations/.test(url)) json = { data: [{ b64_json: "AAAA" }] };
   // audio/video/transcribe: leave generic — those run()s may throw, runGraph isolates them.
   return Promise.resolve({
@@ -231,6 +231,64 @@ const SCENARIOS = [
       const urls = (u.content || []).filter((p) => p.type === "image_url").map((p) => p.image_url.url);
       if (urls.length !== 2 || urls[0] !== IMG + "1" || urls[1] !== IMG + "2")
         fail(`expected images in order [img1,img2], got ${JSON.stringify(urls)}`);
+    },
+  },
+
+  // ---- LLM sampling / reasoning controls (the ⚙️ advanced block) ----
+  // These lock the request-body plumbing so a future refactor can't silently
+  // drop a knob or shift an untouched node's output. All offline (recordingFetch).
+  {
+    name: "LLM controls: untouched node still sends temperature 0.8 (no silent shift)",
+    data: { nodes: [node("m1", "llm", { model: "x", prompt: "hi" })], links: [] },
+    check(app, g, fail) {
+      const b = chatCalls()[0].body;
+      if (b.temperature !== 0.8) fail(`default temperature must be 0.8, got ${JSON.stringify(b.temperature)}`);
+      if ("response_format" in b) fail("untouched LLM must not send response_format");
+      if ("reasoning_effort" in b) fail("untouched LLM must not send reasoning_effort");
+      if ("max_tokens" in b) fail("untouched LLM must not send max_tokens");
+      if (g.byId("m1").out.text !== "CHAT_REPLY") fail("show-thinking OFF must not leak the reasoning trace into the output");
+    },
+  },
+  {
+    name: "LLM controls: vision node still sends temperature 0.8",
+    data: { nodes: [node("u1", "upload", { image: IMG }), node("v1", "vision", { model: "x", q: "what?" })],
+            links: [link("u1", "image", "v1", "image")] },
+    check(app, g, fail) {
+      const b = chatCalls()[0].body;
+      if (b.temperature !== 0.8) fail(`vision temperature must be 0.8, got ${JSON.stringify(b.temperature)}`);
+    },
+  },
+  {
+    name: "LLM controls: temperature slider overrides the default",
+    data: { nodes: [node("m1", "llm", { model: "x", prompt: "hi", temperature: "0.2" })], links: [] },
+    check(app, g, fail) {
+      const t = chatCalls()[0].body.temperature;
+      if (t !== 0.2) fail(`slider value must override default, expected 0.2 got ${JSON.stringify(t)}`);
+    },
+  },
+  {
+    name: "LLM controls: JSON mode sends response_format json_object",
+    data: { nodes: [node("m1", "llm", { model: "x", prompt: "hi", format: "JSON" })], links: [] },
+    check(app, g, fail) {
+      const rf = chatCalls()[0].body.response_format;
+      if (!rf || rf.type !== "json_object") fail(`format=JSON must send response_format {type:"json_object"}, got ${JSON.stringify(rf)}`);
+    },
+  },
+  {
+    name: "LLM controls: reasoning effort forwards; 'default' is omitted",
+    data: { nodes: [node("m1", "llm", { model: "x", prompt: "hi", reasoningEffort: "high" })], links: [] },
+    check(app, g, fail) {
+      const re = chatCalls()[0].body.reasoning_effort;
+      if (re !== "high") fail(`reasoning_effort must forward "high", got ${JSON.stringify(re)}`);
+    },
+  },
+  {
+    name: "LLM controls: show-thinking prepends the message.reasoning trace",
+    data: { nodes: [node("m1", "llm", { model: "x", prompt: "hi", showThinking: true })], links: [] },
+    check(app, g, fail) {
+      const out = g.byId("m1").out.text || "";
+      if (!out.includes("THINK_TRACE")) fail(`show-thinking must include the reasoning trace, got ${JSON.stringify(out).slice(0,80)}`);
+      if (!out.includes("CHAT_REPLY")) fail("show-thinking must still include the answer content");
     },
   },
 ];

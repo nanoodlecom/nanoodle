@@ -530,8 +530,11 @@ const SIZES = [["1024x1024","square"],["1024x1536","portrait"],["1536x1024","lan
 const optsHTML = (items, def)=> items.map(([v,l])=>`<option value="${esc(v)}"${v===def?" selected":""}>${esc(l)}</option>`).join("");
 
 function normChat(m){
-  const p = m.pricing||{};
-  return { id:m.id, name:m.name||m.id, created:m.created, vision:!!m.capabilities?.vision,
+  const p = m.pricing||{}, c = m.capabilities||{};
+  return { id:m.id, name:m.name||m.id, created:m.created, vision:!!c.vision,
+    reasoning:!!c.reasoning, structured_output:!!c.structured_output,   // gate JSON mode + reasoning controls
+    audio_input:!!c.audio_input, video_input:!!c.video_input, pdf_upload:!!c.pdf_upload,
+    maxOut: m.max_output_tokens,   // max_tokens ceiling (present on most models)
     price: p.prompt!=null ? `$${(+p.prompt).toFixed(2)}/$${(+p.completion).toFixed(2)} ·1M` : "" };
 }
 // Edit models verified live (2026-06-26) to HONOR a brushed mask on the inpaint path: the masked
@@ -1004,6 +1007,55 @@ function refreshModelOpts(n){
     el.addEventListener("pointerdown", e=> e.stopPropagation());   // don't drag the node while choosing
   });
 }
+/* ---------- LLM sampling / reasoning controls (⚙️ advanced disclosure) ----------
+   temperature + max_tokens are always offered; output-format (JSON) and reasoning effort/trace
+   light up only when the selected model's catalog flags (structured_output / reasoning) allow it.
+   Values live in n.fields and pass through genChat, omitted at their default so request bodies stay
+   clean. Rebuilt on model-pick (like the LoRA / model-options blocks); stale flag-gated fields are
+   dropped when a model that can't use them is chosen. */
+const REASONING_EFFORTS = ["default","low","medium","high"];
+function refreshLlmOpts(n){
+  if(n.type!=="llm" || !n.el) return;
+  const box = n.el.querySelector("[data-llmadv]"); if(!box) return;
+  const it = catItem("chat", n.fields.model) || {};
+  const f = n.fields;
+  if(!it.structured_output) delete f.format;                         // drop a knob the new model can't use
+  if(!it.reasoning){ delete f.reasoningEffort; delete f.showThinking; }
+  const temp = (f.temperature!=null && f.temperature!=="") ? +f.temperature : 0.8;
+  const fmtRow = it.structured_output
+    ? `<div style="margin:3px 0"><label>output format</label><select data-lf="format">${
+        optsHTML([["Text","Text"],["JSON","JSON"]], f.format||"Text")}</select></div>` : "";
+  const reasonRows = it.reasoning
+    ? `<div style="margin:3px 0"><label>reasoning effort</label><select data-lf="reasoningEffort">${
+        REASONING_EFFORTS.map(o=>`<option${(f.reasoningEffort||"default")===o?" selected":""}>${o}</option>`).join("")}</select></div>
+       <label class="setbool" style="margin:3px 0"><input type="checkbox" data-lf="showThinking"${(f.showThinking===true||f.showThinking==="true")?" checked":""}/> show thinking</label>` : "";
+  const open = (f.temperature!=null && +f.temperature!==0.8) || (f.maxTokens||"") || f.format==="JSON"
+            || (f.reasoningEffort && f.reasoningEffort!=="default") || f.showThinking===true || f.showThinking==="true" ? " open" : "";
+  box.innerHTML = `<details class="adv"${open}><summary>⚙️ advanced</summary>
+    <div style="margin:3px 0"><label data-ltlab>temperature · ${temp.toFixed(1)}</label><input type="range" data-lf="temperature" min="0" max="2" step="0.1" value="${esc(temp)}" style="width:100%"/></div>
+    <div style="margin:3px 0"><label>max tokens${it.maxOut?` (≤ ${it.maxOut})`:""}</label><input type="number" data-lf="maxTokens" min="1"${it.maxOut?` max="${it.maxOut}"`:""} value="${esc(f.maxTokens??"")}" placeholder="default"/></div>
+    ${fmtRow}${reasonRows}
+    <div class="fhint">Sampling + reasoning knobs. Defaults apply when untouched.</div></details>`;
+  box.querySelectorAll("[data-lf]").forEach(el=>{
+    const key = el.dataset.lf;
+    el.addEventListener(el.type==="checkbox" ? "change" : "input", ()=>{
+      n.fields[key] = el.type==="checkbox" ? el.checked : el.value;
+      if(key==="temperature"){ const lab = box.querySelector("[data-ltlab]"); if(lab) lab.textContent = "temperature · "+(+el.value).toFixed(1); }
+      save();
+    });
+    el.addEventListener("pointerdown", e=>e.stopPropagation());   // don't drag the node while editing
+  });
+}
+// collect the LLM node's sampling/reasoning settings into a genChat options object (raw; genChat omits defaults)
+function llmOpts(n){
+  const f = n.fields, o = {};
+  if(f.temperature!=null && f.temperature!=="") o.temperature = +f.temperature;
+  if(f.maxTokens) o.max_tokens = +f.maxTokens;
+  if(f.format==="JSON") o.response_format = { type:"json_object" };
+  if(f.reasoningEffort && f.reasoningEffort!=="default") o.reasoning_effort = f.reasoningEffort;
+  if(f.showThinking===true || f.showThinking==="true") o.showThinking = true;
+  return o;
+}
 /* ---------- per-model DIMENSION controls (size / resolution / aspect / duration) ----------
    The catalog carries each model's REAL dimension options — image models list their supported
    sizes in resolutions[]; video models expose duration/resolution/aspect_ratio as select params
@@ -1211,7 +1263,8 @@ const NODE_TYPES = {
     body:(n)=>`
       ${modelFieldHTML(n)}
       <div><label>system (optional)</label><textarea data-f="system" style="min-height:40px" placeholder="you are a helpful…">${esc(n.fields.system||"")}</textarea></div>
-      <div><label>prompt</label><textarea data-f="prompt" placeholder="ask something…">${esc(n.fields.prompt||"")}</textarea></div>`,
+      <div><label>prompt</label><textarea data-f="prompt" placeholder="ask something…">${esc(n.fields.prompt||"")}</textarea></div>
+      <div data-llmadv></div>`,
     async run(n, inp, ctx){
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       if(!prompt) throw new Error("no prompt");
@@ -1221,7 +1274,7 @@ const NODE_TYPES = {
       messages.push(imgs.length
         ? { role:"user", content:[{type:"text", text:prompt}, ...imgs.map(url=>({type:"image_url", image_url:{url}}))] }
         : { role:"user", content:prompt });
-      return { text: await ctx.genChat(messages, mdl(n)) };
+      return { text: await ctx.genChat(messages, mdl(n), llmOpts(n)) };
     }
   },
 
@@ -1683,7 +1736,7 @@ function buildNodeEl(n){
     mp.onclick = (e)=>{
       e.stopPropagation();
       openPicker(t.modelKind, { current:n.fields.model, filter:t.modelFilter, onPick:(id)=>{
-        n.fields.model = id; mp.textContent = id+" ▾"; updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshImageInputs(n); save();
+        n.fields.model = id; mp.textContent = id+" ▾"; updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); save();
       }});
     };
     updateNodePrice(n);
@@ -1692,6 +1745,7 @@ function buildNodeEl(n){
   refreshAudioParams(n);
   refreshLoraParams(n);            // LoRA disclosure on image/edit nodes (model-gated)
   refreshModelOpts(n);            // ⚙️ Model options disclosure on video nodes (catalog-driven)
+  refreshLlmOpts(n);              // ⚙️ advanced (sampling/reasoning) disclosure on the LLM node
   if(t.mount) t.mount(n);            // node-specific widget wiring (e.g. upload/webcam)
   // header buttons
   el.querySelector('[data-act=del]').onclick = (e)=>{ e.stopPropagation(); removeNode(n.id); };
@@ -2714,15 +2768,24 @@ const CTX = {
     if(!url) throw new Error("no image in response");
     accrue(j); return url;
   },
-  async genChat(messages, model){
-    const r = await fetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(),
-      body:JSON.stringify({ model, messages, temperature:0.8 })});
+  async genChat(messages, model, opts){
+    opts = opts || {};
+    const body = { model, messages };                                   // temperature always sent (0.8 default, as before); other knobs omitted-when-unset
+    body.temperature = (opts.temperature!=null && opts.temperature!=="") ? +opts.temperature : 0.8;
+    if(opts.max_tokens) body.max_tokens = +opts.max_tokens;
+    if(opts.response_format) body.response_format = opts.response_format;   // {type:"json_object"} for JSON mode
+    if(opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
+    const r = await fetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
     if(!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`);
     const j = await r.json();
     accrue(j);
-    const txt = j.choices?.[0]?.message?.content;
+    const msg = j.choices?.[0]?.message || {};
+    const txt = msg.content;
     if(txt==null) throw new Error("no text in response");
-    return typeof txt==="string" ? txt : txt.map(p=>p.text||"").join("");
+    let out = typeof txt==="string" ? txt : txt.map(p=>p.text||"").join("");
+    if(opts.showThinking && msg.reasoning)                              // thinking trace returns in message.reasoning (NOT reasoning_content)
+      out = "```thinking\n"+msg.reasoning+"\n```\n\n"+out;
+    return out;
   },
   // async video: submit → poll /api/video/status until COMPLETED (up to 10 min)
   // opts also carries optional source media for editing models: videoUrl/videoDataUrl
