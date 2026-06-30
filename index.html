@@ -310,7 +310,7 @@
   .node textarea, .node input, .node select, .result .rtext{ touch-action:auto; }
   #editor.panning{cursor:grabbing}
   #world{ position:absolute; top:0; left:0; transform-origin:0 0; }
-  #wires{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:5; overflow:visible }
+  #wires{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:-1; overflow:visible }
   #wires path.wire{ fill:none; stroke-width:2.5; pointer-events:stroke; cursor:pointer; }
   #wires path.hit{ fill:none; stroke:transparent; stroke-width:14; pointer-events:stroke; cursor:pointer; }
   #wires path.temp{ fill:none; stroke:#ffffff88; stroke-width:2.5; stroke-dasharray:5 4; pointer-events:none }
@@ -2439,6 +2439,7 @@ function refreshPortFills(){
    ====================================================================== */
 function startNodeDrag(n, e){
   e.preventDefault();
+  world.appendChild(n.el);                    // raise the grabbed node above any newer node covering it
   const sx=e.clientX, sy=e.clientY, ox=n.x, oy=n.y;
   const move = (ev)=>{
     n.x = ox + (ev.clientX-sx)/scale;
