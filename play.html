@@ -1841,6 +1841,25 @@ window.NoodleApp = (function () {
   function fileToDataUrl(file){
     return new Promise((res, rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=()=>rej(new Error("read failed")); fr.readAsDataURL(file); });
   }
+  // downscale a decoded image to a JPEG data URL (mirror index.html scaledDataURL) so a
+  // full-res phone photo stays under MEDIA_INLINE_MAX and the run doesn't hard-fail.
+  function scaledDataUrl(src, sw, sh, max){
+    max = max || 1024;
+    let w=sw, h=sh;
+    if(Math.max(w,h) > max){ const r = max/Math.max(w,h); w=Math.round(w*r); h=Math.round(h*r); }
+    const c = document.createElement("canvas"); c.width=w; c.height=h;
+    c.getContext("2d").drawImage(src, 0, 0, w, h);
+    return c.toDataURL("image/jpeg", 0.9);
+  }
+  // image uploads decode → downscale (≤1024px long edge, q0.9 JPEG); audio/video keep fileToDataUrl.
+  function imageFileToDataUrl(file){
+    return new Promise((res, rej)=>{
+      const img = new Image();
+      img.onload = ()=>{ try{ res(scaledDataUrl(img, img.naturalWidth, img.naturalHeight)); }catch(e){ rej(e); } };
+      img.onerror = ()=> rej(new Error("read failed"));
+      const fr = new FileReader(); fr.onload = ()=> img.src = fr.result; fr.onerror = ()=> rej(new Error("read failed")); fr.readAsDataURL(file);
+    });
+  }
 
   // ns ("in"=user input | "set"=optional setting) namespaces the element id and
   // the data-i index so renderInputs can wire each control back to the right list.
@@ -1944,7 +1963,7 @@ window.NoodleApp = (function () {
       if(el.type==="file"){
         el.addEventListener("change", async ()=>{
           const f = el.files && el.files[0]; if(!f) return;
-          const url = await fileToDataUrl(f); it.node.fields[it.field] = url;
+          const url = await (it.kind==="image" ? imageFileToDataUrl(f) : fileToDataUrl(f)); it.node.fields[it.field] = url;
           const prev = box.querySelector('[data-prev="'+el.id+'"]');
           if(prev){
             const k = it.kind;
@@ -2055,7 +2074,7 @@ window.NoodleApp = (function () {
         else bind();
       }; img.src=url; };
     fileEl?.addEventListener('change', async ()=>{ const f=fileEl.files&&fileEl.files[0]; if(!f) return;
-      const url=await fileToDataUrl(f); it.node.fields.image=url; it.node.fields.mask=null; loadSource(url); });
+      const url=await imageFileToDataUrl(f); it.node.fields.image=url; it.node.fields.mask=null; loadSource(url); });
     brushEl?.addEventListener('input', ()=>{ brush=+brushEl.value||40; });
     clearEl?.addEventListener('click', ()=>{ if(off) octx.clearRect(0,0,off.width,off.height); it.node.fields.mask=null; tint(); });
     if(it.node.fields.image) loadSource(it.node.fields.image);   // re-hydrate a pre-set source
