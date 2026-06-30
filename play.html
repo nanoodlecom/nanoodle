@@ -984,10 +984,14 @@ window.NoodleApp = (function () {
       (q,ms)=> onProgress && onProgress("generating audio… " + Math.round(ms/1000) + "s" + (q!=null?(" · queue "+q):""))) };
   }
 
-  // dynamic image input ports (img1, img2, …) on vision-capable LLM nodes — pulled from inp in order
+  // dynamic image input ports — llm (vision): img1,img2,… ; edit (multi-reference): image,image2,…
   const IMG_PORT_RE = /^img\d+$/;
-  function collectImageInputs(inp){
-    return Object.keys(inp).filter(k=> IMG_PORT_RE.test(k)).sort((a,b)=> +a.slice(3) - +b.slice(3))
+  const EDIT_IMG_RE = /^image\d*$/;
+  const portIdx = function(name){ var m = String(name).match(/(\d+)$/); return m ? +m[1] : 1; };   // trailing number → slot index (no digit = slot 1)
+  function imgPortRe(t){ return (t && t.imageInputs && t.imageInputs.re) ? t.imageInputs.re : IMG_PORT_RE; }
+  function collectImageInputs(inp, re){
+    re = re || IMG_PORT_RE;
+    return Object.keys(inp).filter(k=> re.test(k)).sort((a,b)=> portIdx(a) - portIdx(b))
       .map(k=> inp[k]).filter(Boolean);
   }
   // dynamic clip input ports (vid1, vid2, …) on the Combine node — pulled from inp in order
@@ -1080,12 +1084,17 @@ window.NoodleApp = (function () {
     },
     edit: {
       em:"✂️", title:"Edit",
-      inputs:[{name:"image", type:"image"}], outputs:[{name:"image", type:"image"}],
+      inputs:[], imageInputs:{multi:true, re:EDIT_IMG_RE},   // image, image2, … wired source images (multi-reference compositing)
+      outputs:[{name:"image", type:"image"}],
       async run(n, inp, ctx){
-        if(!inp.image) throw new Error("no image input");
+        const imgs = collectImageInputs(inp, EDIT_IMG_RE);   // wired source images, in port order
+        if(!imgs.length) throw new Error("no image input");
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         if(!prompt) throw new Error("no edit instruction");
-        return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], inp.image, undefined, loraParams(n)) };
+        if(imgs.reduce(function(s,u){ return s + (u?u.length:0); }, 0) > MEDIA_INLINE_MAX)
+          throw new Error("reference images too large (~4 MB combined limit) — use fewer or smaller images");
+        const src = imgs.length>1 ? imgs : imgs[0];   // array → multi-image composite; string → single edit (unchanged)
+        return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], src, undefined, loraParams(n)) };
       }
     },
     inpaint: {
@@ -1347,9 +1356,10 @@ window.NoodleApp = (function () {
           const l = graph.links.find(x=> x.to.node===id && x.to.port===port.name);
           if(l){ const src = byId(l.from.node); inp[port.name] = src && src.out ? src.out[l.from.port] : undefined; }
         }
-        // dynamic image ports (img1, img2, …) on vision-capable nodes → collected by run() via collectImageInputs()
-        if(t.imageInputs) for(const l of graph.links){
-          if(l.to.node===id && IMG_PORT_RE.test(l.to.port)){ const src = byId(l.from.node); inp[l.to.port] = src && src.out ? src.out[l.from.port] : undefined; }
+        // dynamic image ports (llm: img1,img2,…  edit: image,image2,…) → collected by run() via collectImageInputs()
+        const imgRe = t.imageInputs ? imgPortRe(t) : null;
+        if(imgRe) for(const l of graph.links){
+          if(l.to.node===id && imgRe.test(l.to.port)){ const src = byId(l.from.node); inp[l.to.port] = src && src.out ? src.out[l.from.port] : undefined; }
         }
         // dynamic clip ports (vid1, vid2, …) on the Combine node → collected by run() via collectVideoInputs()
         if(t.videoInputs) for(const l of graph.links){
@@ -1359,7 +1369,7 @@ window.NoodleApp = (function () {
         const fieldOverrides = {};
         for(const l of graph.links){
           if(l.to.node!==id || t.inputs.some(p=>p.name===l.to.port)) continue;
-          if(t.imageInputs && IMG_PORT_RE.test(l.to.port)) continue;   // image ports aren't text-field overrides
+          if(imgRe && imgRe.test(l.to.port)) continue;   // image ports aren't text-field overrides
           if(t.videoInputs && VID_PORT_RE.test(l.to.port)) continue;   // clip ports aren't text-field overrides
           const src = byId(l.from.node);
           const v = src && src.out ? src.out[l.from.port] : undefined;

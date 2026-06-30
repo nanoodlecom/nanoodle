@@ -233,6 +233,31 @@ const SCENARIOS = [
         fail(`expected images in order [img1,img2], got ${JSON.stringify(urls)}`);
     },
   },
+  {
+    name: "NEW: Edit node with 2 source images sends imageDataUrl as an ARRAY in wiring order",
+    data: { nodes: [node("a", "upload", { image: IMG + "A" }), node("b", "upload", { image: IMG + "B" }),
+                    node("e1", "edit", { model: "x", prompt: "put the product in the scene" })],
+            links: [link("a", "image", "e1", "image"), link("b", "image", "e1", "image2")] },
+    check(app, g, fail) {
+      const b = imgCalls()[0]?.body;
+      if (!b) return fail("no edit/image call");
+      if (!Array.isArray(b.imageDataUrl)) return fail(`multi-ref edit must send imageDataUrl as an ARRAY, got ${typeof b.imageDataUrl}`);
+      if (b.imageDataUrl.length !== 2 || b.imageDataUrl[0] !== IMG + "A" || b.imageDataUrl[1] !== IMG + "B")
+        fail(`expected [imgA,imgB] in wiring order (image, image2), got ${JSON.stringify(b.imageDataUrl)}`);
+      if (b.prompt !== "put the product in the scene") fail("edit instruction not forwarded");
+    },
+  },
+  {
+    name: "NEW: Edit node with 1 source image still sends imageDataUrl as a STRING (unchanged)",
+    data: { nodes: [node("u1", "upload", { image: IMG }), node("e1", "edit", { model: "x", prompt: "make it night" })],
+            links: [link("u1", "image", "e1", "image")] },
+    check(app, g, fail) {
+      const b = imgCalls()[0]?.body;
+      if (!b) return fail("no edit/image call");
+      if (typeof b.imageDataUrl !== "string") fail(`single-image edit must send imageDataUrl as a STRING, got ${typeof b.imageDataUrl}`);
+      if (b.imageDataUrl !== IMG) fail("edit must pass the single source image as the imageDataUrl string");
+    },
+  },
 
   // ---- LLM sampling / reasoning controls (the ⚙️ advanced block) ----
   // These lock the request-body plumbing so a future refactor can't silently

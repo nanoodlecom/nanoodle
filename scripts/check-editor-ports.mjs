@@ -26,6 +26,7 @@ function extractFn(src, name) {
   throw new Error(`could not brace-match ${name}()`);
 }
 const reLine = (SRC.match(/const IMG_PORT_RE = \/[^\n]*;/) || [])[0]
+  + "\n" + (SRC.match(/const EDIT_IMG_RE = \/[^\n]*;/) || [])[0]
   + "\n" + (SRC.match(/const VID_PORT_RE = \/[^\n]*;/) || [])[0];
 
 // ---- a fake DOM just big enough for refreshPortFills' selectors -----------
