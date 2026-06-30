@@ -2391,9 +2391,11 @@ function colorForType(tp){ return tp==="image" ? getCss("--image-port") : getCss
 function getCss(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 
 let tempWire = null; // {x1,y1,type}
+let draggingLinkId = null; // a link being grab-moved: hidden while dragging but kept in graph.links until the drag commits (so an aborted gesture never silently drops it)
 function redraw(){
   let html = "";
   for(const l of graph.links){
+    if(l.id===draggingLinkId) continue;   // lifted off its input and following the cursor — drawn as the temp wire instead
     const a = document.querySelector(`.port[data-node="${l.from.node}"][data-port="${l.from.port}"][data-dir="out"]`);
     const b = document.querySelector(`.port[data-node="${l.to.node}"][data-port="${l.to.port}"][data-dir="in"]`);
     if(!a||!b) continue;
@@ -2488,8 +2490,22 @@ function startWire(port, e){
   closeQuickAdd();
   const dir = port.dataset.dir, ptype = port.dataset.ptype, node = port.dataset.node;
   const sx = e.clientX, sy = e.clientY;             // where the drag began — used to tell a click from a drag
-  const fixed = portCenter(port);
-  const targets = compatiblePorts(dir, ptype, node);
+  // Grab-the-wire: pressing a wired INPUT picks up its existing link and re-anchors the drag to the
+  // SOURCE output, so you can drag-move it to another input (single-input still enforced by connect)
+  // or off into empty space to detach it. Empty inputs and all outputs behave exactly as before —
+  // outputs still fan out to many inputs untouched (this block only runs for dir==="in").
+  let anchor = port, adir = dir, anode = node, pickup = null;
+  if(dir==="in"){
+    const ex = graph.links.find(l=> l.to.node===node && l.to.port===port.dataset.port);
+    const srcEl = ex && document.querySelector(`.port[data-node="${ex.from.node}"][data-port="${ex.from.port}"][data-dir="out"]`);
+    if(srcEl){
+      pickup = ex; draggingLinkId = ex.id;
+      anchor = srcEl; adir = "out"; anode = ex.from.node;   // the loose end now dangles from the source output
+      redraw(); refreshPortFills(); port.classList.remove("filled");   // lift the wire + show the input as freed
+    }
+  }
+  const fixed = portCenter(anchor);
+  const targets = compatiblePorts(adir, ptype, anode);
   targets.forEach(p=> p.classList.add("compatible"));   // glow every valid destination, by type
   tempWire = { x1:fixed.x, y1:fixed.y, x2:fixed.x, y2:fixed.y };
   let snap = null;
@@ -2504,25 +2520,31 @@ function startWire(port, e){
   };
   const up = (ev)=>{
     window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up);
-    tempWire = null;
+    tempWire = null; draggingLinkId = null;           // un-hide the picked link on every exit path
     targets.forEach(p=> p.classList.remove("compatible","snap"));
     let other = snap?.p;                              // prefer the magnetically-snapped port
     if(!other){ const tgt = document.elementFromPoint(ev.clientX, ev.clientY); other = tgt && tgt.closest(".port"); }
     let connected = false;
-    if(other && other!==port){
+    if(other && other!==anchor){
       const odir = other.dataset.dir, otype = other.dataset.ptype;
-      if(odir!==dir && otype===ptype && !other.classList.contains("disabled")){
-        const out = dir==="out" ? port : other;
-        const inn = dir==="in"  ? port : other;
-        connect(out.dataset.node, out.dataset.port, inn.dataset.node, inn.dataset.port);
-        connected = true;
+      if(odir!==adir && otype===ptype && !other.classList.contains("disabled")){
+        const out = adir==="out" ? anchor : other;
+        const inn = adir==="in"  ? anchor : other;
+        if(pickup && inn.dataset.node===pickup.to.node && inn.dataset.port===pickup.to.port){
+          connected = true;                           // dropped back on its own input → no-op restore (link still in graph)
+        }else{
+          if(pickup) removeLink(pickup.id);           // grab-move: drop the old endpoint (recompaction + save handled there)
+          connect(out.dataset.node, out.dataset.port, inn.dataset.node, inn.dataset.port);
+          connected = true;
+        }
       }
     }
+    if(!connected && pickup) removeLink(pickup.id);   // dragged the wire loose → detach it (input freed, stays freed)
     redraw();
     // dropped a wire into empty canvas → offer to create a node that fits this port, right here
     if(!connected && Math.hypot(ev.clientX-sx, ev.clientY-sy) > 6){
       const tgt = document.elementFromPoint(ev.clientX, ev.clientY);
-      if(!tgt || !tgt.closest(".node")) openQuickAdd(ev.clientX, ev.clientY, port);
+      if(!tgt || !tgt.closest(".node")) openQuickAdd(ev.clientX, ev.clientY, anchor);
     }
   };
   window.addEventListener("pointermove",move); window.addEventListener("pointerup",up);
