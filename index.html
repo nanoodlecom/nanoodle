@@ -328,6 +328,11 @@
   .result .frames .fr img{ width:100%; border-radius:.45rem; display:block }
   .result .frames .fr button{ position:absolute; right:.25rem; bottom:.25rem; padding:.15rem .35rem; font-size:.7rem;
     background:#000a; border:1px solid var(--line); border-radius:.35rem; color:var(--ink); cursor:pointer }
+  .result .varstrip{ display:flex; flex-wrap:wrap; gap:.3rem; margin-top:.35rem }
+  .result .varstrip .varthumb{ width:auto; flex:1 1 22%; min-width:44px; max-width:64px; aspect-ratio:1; object-fit:cover;
+    border-radius:.35rem; cursor:pointer; opacity:.62; border:2px solid transparent; transition:opacity .15s }
+  .result .varstrip .varthumb:hover{ opacity:.9 }
+  .result .varstrip .varthumb.sel{ opacity:1; border-color:var(--accent) }
   .result .acts{ display:flex; gap:.35rem; margin-top:.4rem; align-items:center }
   .result .acts button{ padding:.25rem .5rem; font-size:.74rem }
   .result .acts .sndbadge{ font-size:.85rem; line-height:1; cursor:default }
@@ -589,6 +594,8 @@ function normImg(m){
     inpaint: inpaintOk,                                                  // needs/honors image + mask → the Inpaint node
     lora: imageTakesLora(m.id),                                          // accepts a LoRA (v1 image catalog hides lora params → name allow-list)
     resolutions,                                                         // real supported sizes → the size control's options
+    maxOut: m.supported_parameters?.max_output_images || 1,             // can return N images per call → the "variations" control (gen only)
+    fixedCount: m.supported_parameters?.fixed_image_count || 0,          // ALWAYS returns this many (e.g. midjourney/higgsfield = 4), regardless of n
     sizePrices: per,                                                     // per-size price map → live price as the size changes
     price: v!=null ? `$${(+v).toFixed(3)}/img` : "" };
 }
@@ -1079,7 +1086,13 @@ function dimDefs(type, model){
   if(type==="image" || type==="edit"){
     const it = catItem("image", model);
     const res = (it && it.resolutions && it.resolutions.length) ? it.resolutions.map(r=>[r,r]) : SIZE_FALLBACK;
-    return [{ f:"size", label:"size", options:res, def:res[0][0] }];
+    const defs = [{ f:"size", label:"size", options:res, def:res[0][0] }];
+    const maxOut = (it && it.maxOut) || 1;                  // generate-N-pick-one — gen node only, when the model supports it
+    if(type==="image" && maxOut>1){
+      const vopts=[]; for(let i=1;i<=maxOut;i++) vopts.push([String(i), String(i)]);
+      defs.push({ f:"variations", label:"variations", options:vopts, def:"1" });
+    }
+    return defs;
   }
   if(type==="tvideo" || type==="ivideo" || type==="vedit"){
     const p = (catItem("video", model)||{}).params || {};
@@ -1291,7 +1304,13 @@ const NODE_TYPES = {
     async run(n, inp, ctx){
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       if(!prompt) throw new Error("no prompt");
-      return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], undefined, undefined, loraParams(n)) };
+      const it = catItem("image", n.fields.model), maxOut = (it && it.maxOut) || 1;
+      const want = Math.max(1, Math.min(maxOut, parseInt(n.fields.variations,10)||1));
+      // always take the multi path: even a single-image request can come back with N (fixed_image_count
+      // models return 4), and we want to surface every image the user paid for, not discard them.
+      const urls = await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], undefined, undefined, loraParams(n), {n:want, multi:true});
+      const sel = Math.min(Math.max(0, parseInt(n.fields.sel,10)||0), urls.length-1);   // remembered pick, clamped to what came back
+      return { image: urls[sel], images: urls };
     }
   },
 
@@ -2127,8 +2146,17 @@ function showResult(n){
     return;
   }
   if(t.preview==="image" && n.out.image){
-    r.innerHTML = `<img src="${esc(n.out.image)}" alt="output"/><div class="acts"><button data-dl>⬇ save</button></div>`;
+    const imgs = (n.out.images && n.out.images.length>1) ? n.out.images : null;   // pick-one gallery only when there's more than one
+    const sel = imgs ? Math.max(0, imgs.indexOf(n.out.image)) : 0;
+    const strip = imgs ? `<div class="varstrip">${imgs.map((u,i)=>
+      `<img class="varthumb${i===sel?" sel":""}" data-vi="${i}" src="${esc(u)}" alt="variation ${i+1}" title="variation ${i+1}"/>`).join("")}</div>` : "";
+    r.innerHTML = `<img src="${esc(n.out.image)}" alt="output"/>${strip}<div class="acts"><button data-dl>⬇ save</button></div>`;
     r.querySelector("[data-dl]").onclick = ()=> downloadUrl(n.out.image, `noodle-${n.id}.png`);
+    if(imgs) r.querySelectorAll("[data-vi]").forEach(el=> el.onclick = ()=>{
+      const i = +el.dataset.vi;
+      n.out.image = n.out.images[i]; n.fields.sel = i;   // node-local pick; the single image port forwards it on the next run
+      save(); showResult(n);
+    });
   } else if(t.preview==="video" && n.out.video){
     const vit = catItem(t.modelKind, n.fields.model);          // selected video model (undefined if offline/unknown)
     const m = vit && vit.audioGen ? "" : " muted";             // keep audio-generating clips audible; mute everything else (safe default)
@@ -2755,18 +2783,22 @@ const LORA_EXAMPLES = {
 // re-submit. In-memory only; a transient runId has no business in a saved or shared graph.
 const PENDING_VIDEO = new Map();   // nodeId → runId of an in-flight (timed-out) video job
 const CTX = {
-  async genImage(prompt, model, size, imageDataUrl, maskDataUrl, extra){
-    const body = { model, prompt, size, n:1, response_format:"b64_json" };
+  // opts.n = how many images to request (default 1). opts.multi=true returns ALL images as an
+  // array (the gen node, which shows a pick-one gallery); every other caller omits opts and gets a
+  // single url back, unchanged. Some models (midjourney/higgsfield) ALWAYS return 4 regardless of n —
+  // multi callers surface all of them so the user doesn't silently pay for 3 discarded images.
+  async genImage(prompt, model, size, imageDataUrl, maskDataUrl, extra, opts){
+    opts = opts || {};
+    const body = { model, prompt, size, n: opts.n||1, response_format:"b64_json" };
     if(imageDataUrl) body.imageDataUrl = imageDataUrl;   // present → image edit (img2img)
     if(maskDataUrl)  body.maskDataUrl  = maskDataUrl;    // present → inpaint; WHITE areas = the region to repaint (verified live)
     if(extra) Object.assign(body, extra);                // LoRA (and any future per-model image params)
     const r = await fetch(IMG_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
     if(!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`);
     const j = await r.json();
-    const d = (j.data||[])[0]||{};
-    const url = d.b64_json ? `data:${b64ImageMime(d.b64_json)};base64,${d.b64_json}` : d.url;
-    if(!url) throw new Error("no image in response");
-    accrue(j); return url;
+    const urls = (j.data||[]).map(d=> d.b64_json ? `data:${b64ImageMime(d.b64_json)};base64,${d.b64_json}` : d.url).filter(Boolean);
+    if(!urls.length) throw new Error("no image in response");
+    accrue(j); return opts.multi ? urls : urls[0];
   },
   async genChat(messages, model, opts){
     opts = opts || {};

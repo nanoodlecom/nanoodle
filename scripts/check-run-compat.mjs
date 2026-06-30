@@ -98,7 +98,11 @@ function recordingFetch(url, opts = {}) {
   calls.push({ url: String(url), body });
   let json = {};
   if (/\/chat\/completions/.test(url)) json = { choices: [{ message: { content: "CHAT_REPLY", reasoning: "THINK_TRACE" } }] };
-  else if (/\/images\/generations/.test(url)) json = { data: [{ b64_json: "AAAA" }] };
+  else if (/\/images\/generations/.test(url)) {
+    // honor the requested batch size so a variations=N graph gets N images back (the real API does this)
+    const cnt = Math.max(1, (body && Number(body.n)) || 1);
+    json = { data: Array.from({ length: cnt }, (_, i) => ({ b64_json: "IMG" + i })) };
+  }
   // audio/video/transcribe: leave generic — those run()s may throw, runGraph isolates them.
   return Promise.resolve({
     ok: true, status: 200,
@@ -207,6 +211,34 @@ const SCENARIOS = [
       if (!b) return fail("no edit/image call");
       if (b.imageDataUrl !== IMG) fail("edit must pass the source image as imageDataUrl");
       if (b.prompt !== "make it night") fail("edit instruction not forwarded");
+      if (b.n !== 1) fail(`edit must request a single image (n:1), got ${JSON.stringify(b.n)}`);
+      if (typeof g.byId("e1").out.image !== "string") fail("edit must still produce a single image url");
+    },
+  },
+  {
+    name: "OLD: default Image node still requests n:1 (single image unchanged)",
+    data: { nodes: [node("t1", "text", { text: "a cat" }), node("i1", "image", { model: "x" })],
+            links: [link("t1", "text", "i1", "prompt")] },
+    check(app, g, fail) {
+      const b = imgCalls()[0]?.body;
+      if (!b) return fail("no image generation call");
+      if (b.n !== 1) fail(`default image node must send n:1, got ${JSON.stringify(b.n)}`);
+      const o = g.byId("i1").out;
+      if (typeof o.image !== "string") fail("single-image run must produce an image url");
+      if (o.images && o.images.length !== 1) fail(`single-image run must expose exactly 1 result, got ${o.images.length}`);
+    },
+  },
+  {
+    name: "NEW: Image variations=2 sends n:2 and exposes 2 results (first selected)",
+    data: { nodes: [node("t1", "text", { text: "a red panda" }), node("i1", "image", { model: "x", size: "1024x1024", variations: "2" })],
+            links: [link("t1", "text", "i1", "prompt")] },
+    check(app, g, fail) {
+      const b = imgCalls()[0]?.body;
+      if (!b) return fail("no image generation call");
+      if (b.n !== 2) fail(`variations=2 must send n:2, got ${JSON.stringify(b.n)}`);
+      const o = g.byId("i1").out;
+      if (!Array.isArray(o.images) || o.images.length !== 2) fail(`expected 2 result images, got ${JSON.stringify(o.images)}`);
+      if (o.image !== o.images[0]) fail("the first variation must be selected by default");
     },
   },
   {

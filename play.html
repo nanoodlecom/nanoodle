@@ -612,18 +612,21 @@ window.NoodleApp = (function () {
   // Per-run cost-tracking context: each node gets its own makeCtx(onCost) so a
   // generation's price lands on the right card even when siblings/lanes run at once.
   function makeCtx(onCost){ return {
-    async genImage(prompt, model, size, imageDataUrl, maskDataUrl, extra){
-      const body = { model, prompt, size, n:1, response_format:"b64_json" };
+    // opts.n = images to request (default 1); opts.multi=true returns ALL of them as an array (the gen
+    // node's pick-one gallery). Every other caller omits opts and gets one url back, unchanged. Some
+    // models always return 4 regardless of n — multi callers surface them all instead of discarding 3.
+    async genImage(prompt, model, size, imageDataUrl, maskDataUrl, extra, opts){
+      opts = opts || {};
+      const body = { model, prompt, size, n: opts.n||1, response_format:"b64_json" };
       if(imageDataUrl) body.imageDataUrl = imageDataUrl;   // present → image edit (img2img)
       if(maskDataUrl)  body.maskDataUrl  = maskDataUrl;    // present → inpaint; WHITE areas = the region to repaint
       if(extra) Object.assign(body, extra);                // LoRA (and any future per-model image params)
       const r = await apiFetch(IMG_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
       if(!r.ok) throw new Error(r.status + ": " + (await r.text()).slice(0,160));
       const j = await r.json();
-      const d = (j.data||[])[0]||{};
-      const url = d.b64_json ? "data:" + b64ImageMime(d.b64_json) + ";base64," + d.b64_json : d.url;
-      if(!url) throw new Error("no image in response");
-      onCost(costFromJson(j)); return url;
+      const urls = (j.data||[]).map(function(d){ return d.b64_json ? "data:" + b64ImageMime(d.b64_json) + ";base64," + d.b64_json : d.url; }).filter(Boolean);
+      if(!urls.length) throw new Error("no image in response");
+      onCost(costFromJson(j)); return opts.multi ? urls : urls[0];
     },
     async genChat(messages, model, opts){
       opts = opts || {};
@@ -1075,7 +1078,11 @@ window.NoodleApp = (function () {
       async run(n, inp, ctx){
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         if(!prompt) throw new Error("no prompt");
-        return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], undefined, undefined, loraParams(n)) };
+        const want = Math.max(1, parseInt(n.fields.variations,10)||1);
+        // always multi: even n:1 can return N (fixed_image_count models) — surface every image paid for.
+        const urls = await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], undefined, undefined, loraParams(n), {n:want, multi:true});
+        const sel = Math.min(Math.max(0, parseInt(n.fields.sel,10)||0), urls.length-1);
+        return { image: urls[sel], images: urls };
       }
     },
     edit: {
@@ -1460,7 +1467,8 @@ window.NoodleApp = (function () {
     vision:  [{ f:"model", label:"Model", kind:"model" },
               { f:"q",     label:"Question", kind:"textarea", def:"Describe this image." }],
     image:   [{ f:"model", label:"Model", kind:"model" },
-              { f:"size",  label:"Image size", kind:"select", options:SIZES, def:SIZES[0][0] }],
+              { f:"size",  label:"Image size", kind:"select", options:SIZES, def:SIZES[0][0] },
+              { f:"variations", label:"Variations", kind:"number", min:1, def:"1" }],
     edit:    [{ f:"model", label:"Model", kind:"model" },
               { f:"prompt", label:"Edit instruction", kind:"textarea" },
               { f:"size",  label:"Image size", kind:"select", options:SIZES, def:SIZES[0][0] }],
@@ -2199,8 +2207,13 @@ window.NoodleApp = (function () {
     const cost = (n.costUsd>0) ? '<span class="rcost" title="cost of this generation">'+fmtUsd(n.costUsd)+'</span>'
                : n.costKnown ? '<span class="rcost incl" title="included in your subscription">included</span>' : '';
     const head = '<div class="rhead">'+badge+esc(NODE_TYPES[n.type].em)+' '+esc(NODE_TYPES[n.type].title)+cost+'</div>';
+    const gallery = (port.type==="image" && out.images && out.images.length>1) ? out.images : null;
     let media;
-    if(port.type==="image") media = '<img src="'+esc(val)+'" alt="">';
+    if(port.type==="image"){
+      media = '<img class="rmain" src="'+esc(val)+'" alt="">';
+      if(gallery) media += '<div class="varstrip">' + gallery.map(function(u,i){
+        return '<img class="varthumb'+(u===val?" sel":"")+'" data-vi="'+i+'" src="'+esc(u)+'" alt="variation '+(i+1)+'" title="variation '+(i+1)+'">'; }).join("") + '</div>';
+    }
     else if(port.type==="video") media = '<video src="'+esc(val)+'" controls playsinline></video>';
     else if(port.type==="audio") media = '<audio src="'+esc(val)+'" controls preload="metadata"></audio>';
     else media = '<div class="text">'+esc(typeof val==="string"?val:JSON.stringify(val,null,2))+'</div>';
@@ -2209,6 +2222,18 @@ window.NoodleApp = (function () {
     if(port.type==="audio") fixAudioDuration(card.querySelector("audio"));
     if(port.type==="image" || port.type==="video" || port.type==="audio")
       addDownload(card, val, port.type, n.type);
+    if(gallery){
+      // pick-one: clicking a thumb swaps the shown image and re-points the Download button at it
+      card.querySelectorAll("[data-vi]").forEach(function(el){
+        el.onclick = function(){
+          const u = gallery[+el.dataset.vi];
+          const mainImg = card.querySelector(".rmain"); if(mainImg) mainImg.src = u;
+          card.querySelectorAll(".varthumb").forEach(function(t){ t.classList.toggle("sel", t===el); });
+          const old = card.querySelector(".dlrow"); if(old) old.remove();
+          addDownload(card, u, "image", n.type);
+        };
+      });
+    }
   }
 
   // A download control for generated media. Images come back as data: URLs and
@@ -2653,6 +2678,11 @@ body{ background:
 .output .rhead{ font-size:.78rem; color:var(--dim); margin-bottom:.5rem; }
 .output img, .output video, .output audio{ width:100%; border-radius:.5rem; display:block; }
 .output .text{ white-space:pre-wrap; line-height:1.6; }
+.output .varstrip{ display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.5rem; }
+.output .varstrip .varthumb{ width:auto; flex:0 0 auto; height:60px; aspect-ratio:1; object-fit:cover; border-radius:.4rem;
+  cursor:pointer; opacity:.6; border:2px solid transparent; transition:opacity .15s; }
+.output .varstrip .varthumb:hover{ opacity:.9; }
+.output .varstrip .varthumb.sel{ opacity:1; border-color:var(--accent); }
 .output .dlrow{ margin-top:.6rem; }
 .output .dl{ font:inherit; font-size:.78rem; padding:.4rem .8rem; border-radius:.45rem; cursor:pointer;
   background:var(--panel2); border:1px solid var(--line); color:var(--dim); }
