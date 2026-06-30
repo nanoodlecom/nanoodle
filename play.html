@@ -612,18 +612,21 @@ window.NoodleApp = (function () {
   // Per-run cost-tracking context: each node gets its own makeCtx(onCost) so a
   // generation's price lands on the right card even when siblings/lanes run at once.
   function makeCtx(onCost){ return {
-    async genImage(prompt, model, size, imageDataUrl, maskDataUrl, extra){
-      const body = { model, prompt, size, n:1, response_format:"b64_json" };
+    // opts.n = images to request (default 1); opts.multi=true returns ALL of them as an array (the gen
+    // node's pick-one gallery). Every other caller omits opts and gets one url back, unchanged. Some
+    // models always return 4 regardless of n — multi callers surface them all instead of discarding 3.
+    async genImage(prompt, model, size, imageDataUrl, maskDataUrl, extra, opts){
+      opts = opts || {};
+      const body = { model, prompt, size, n: opts.n||1, response_format:"b64_json" };
       if(imageDataUrl) body.imageDataUrl = imageDataUrl;   // present → image edit (img2img)
       if(maskDataUrl)  body.maskDataUrl  = maskDataUrl;    // present → inpaint; WHITE areas = the region to repaint
       if(extra) Object.assign(body, extra);                // LoRA (and any future per-model image params)
       const r = await apiFetch(IMG_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
       if(!r.ok) throw new Error(r.status + ": " + (await r.text()).slice(0,160));
       const j = await r.json();
-      const d = (j.data||[])[0]||{};
-      const url = d.b64_json ? "data:" + b64ImageMime(d.b64_json) + ";base64," + d.b64_json : d.url;
-      if(!url) throw new Error("no image in response");
-      onCost(costFromJson(j)); return url;
+      const urls = (j.data||[]).map(function(d){ return d.b64_json ? "data:" + b64ImageMime(d.b64_json) + ";base64," + d.b64_json : d.url; }).filter(Boolean);
+      if(!urls.length) throw new Error("no image in response");
+      onCost(costFromJson(j)); return opts.multi ? urls : urls[0];
     },
     async genChat(messages, model, opts){
       opts = opts || {};
@@ -734,7 +737,7 @@ window.NoodleApp = (function () {
         throw new Error("This clip is a bit big to transcribe directly (~3 MB max) — nanoodle sends audio inline rather than uploading it (no S3 here). A shorter clip works, or build this into an app (✨ Create app) and run it offline.");
       const ext = (blob.type.split("/")[1] || "mp3").split(";")[0];
       const fd = new FormData();
-      fd.append("audio", blob, "audio." + ext);
+      fd.append("file", blob, "audio." + ext);    // OpenAI-compatible endpoint: the audio field MUST be "file" (sending "audio" 400s "Missing 'file'")
       fd.append("model", model);
       if(language) fd.append("language", language);
       const k = getKey();
@@ -984,10 +987,14 @@ window.NoodleApp = (function () {
       (q,ms)=> onProgress && onProgress("generating audio… " + Math.round(ms/1000) + "s" + (q!=null?(" · queue "+q):""))) };
   }
 
-  // dynamic image input ports (img1, img2, …) on vision-capable LLM nodes — pulled from inp in order
+  // dynamic image input ports — llm (vision): img1,img2,… ; edit (multi-reference): image,image2,…
   const IMG_PORT_RE = /^img\d+$/;
-  function collectImageInputs(inp){
-    return Object.keys(inp).filter(k=> IMG_PORT_RE.test(k)).sort((a,b)=> +a.slice(3) - +b.slice(3))
+  const EDIT_IMG_RE = /^image\d*$/;
+  const portIdx = function(name){ var m = String(name).match(/(\d+)$/); return m ? +m[1] : 1; };   // trailing number → slot index (no digit = slot 1)
+  function imgPortRe(t){ return (t && t.imageInputs && t.imageInputs.re) ? t.imageInputs.re : IMG_PORT_RE; }
+  function collectImageInputs(inp, re){
+    re = re || IMG_PORT_RE;
+    return Object.keys(inp).filter(k=> re.test(k)).sort((a,b)=> portIdx(a) - portIdx(b))
       .map(k=> inp[k]).filter(Boolean);
   }
   // dynamic clip input ports (vid1, vid2, …) on the Combine node — pulled from inp in order
@@ -995,6 +1002,22 @@ window.NoodleApp = (function () {
   function collectVideoInputs(inp){
     return Object.keys(inp).filter(k=> VID_PORT_RE.test(k)).sort((a,b)=> +a.slice(3) - +b.slice(3))
       .map(k=> inp[k]).filter(Boolean);
+  }
+  // a wired audio data: URL → the OpenAI-standard inline part audio-input chat models hear
+  // (verbatim from index.html audioInputPart). Strips the data-URL prefix, derives the format
+  // from the MIME subtype (audio/mpeg→mp3), guards the ~4.4MB edge body cap that bites lipsync.
+  function audioInputPart(url){
+    if(typeof url!=="string" || !url) return null;
+    if(url.length > MEDIA_INLINE_MAX)
+      throw new Error("audio clip is too large to inline (~4 MB send limit) — shorten it with the ✂️ Trim node first");
+    const comma = url.indexOf(",");
+    const head = comma>=0 ? url.slice(0,comma) : "";
+    const data = comma>=0 ? url.slice(comma+1) : url;
+    const mt = head.match(/data:([^;]+)/);
+    let fmt = ((mt && mt[1] ? mt[1].split("/")[1] : "") || "wav").toLowerCase();
+    if(fmt==="mpeg" || fmt==="mp3") fmt = "mp3";
+    else if(fmt==="x-wav" || fmt==="wave") fmt = "wav";
+    return { type:"input_audio", input_audio:{ data, format:fmt } };
   }
 
   // Sniff an image's format from its base64 magic bytes so a data: URL's MIME is honest (verbatim, index.html).
@@ -1057,15 +1080,16 @@ window.NoodleApp = (function () {
       }
     },
     llm: {
-      em:"🧠", title:"LLM", inputs:[], imageInputs:"vision", outputs:[{name:"text", type:"text"}],
+      em:"🧠", title:"LLM", inputs:[], imageInputs:"vision", audioInput:"audio_input", outputs:[{name:"text", type:"text"}],
       async run(n, inp, ctx){
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         if(!prompt) throw new Error("no prompt");
         const imgs = collectImageInputs(inp);   // wired image ports (vision models) — sent alongside the prompt
+        const aud  = audioInputPart(inp.audio); // wired audio port (audio-input models) — one inline input_audio part
         const messages = [];
         if((n.fields.system||"").trim()) messages.push({role:"system", content:n.fields.system.trim()});
-        messages.push(imgs.length
-          ? { role:"user", content:[{type:"text", text:prompt}, ...imgs.map(url=>({type:"image_url", image_url:{url}}))] }
+        messages.push((imgs.length || aud)
+          ? { role:"user", content:[{type:"text", text:prompt}, ...imgs.map(url=>({type:"image_url", image_url:{url}})), ...(aud?[aud]:[])] }
           : { role:"user", content:prompt });
         return { text: await ctx.genChat(messages, mdl(n), llmOpts(n)) };
       }
@@ -1075,17 +1099,26 @@ window.NoodleApp = (function () {
       async run(n, inp, ctx){
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         if(!prompt) throw new Error("no prompt");
-        return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], undefined, undefined, loraParams(n)) };
+        const want = Math.max(1, parseInt(n.fields.variations,10)||1);
+        // always multi: even n:1 can return N (fixed_image_count models) — surface every image paid for.
+        const urls = await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], undefined, undefined, loraParams(n), {n:want, multi:true});
+        const sel = Math.min(Math.max(0, parseInt(n.fields.sel,10)||0), urls.length-1);
+        return { image: urls[sel], images: urls };
       }
     },
     edit: {
       em:"✂️", title:"Edit",
-      inputs:[{name:"image", type:"image"}], outputs:[{name:"image", type:"image"}],
+      inputs:[], imageInputs:{multi:true, re:EDIT_IMG_RE},   // image, image2, … wired source images (multi-reference compositing)
+      outputs:[{name:"image", type:"image"}],
       async run(n, inp, ctx){
-        if(!inp.image) throw new Error("no image input");
+        const imgs = collectImageInputs(inp, EDIT_IMG_RE);   // wired source images, in port order
+        if(!imgs.length) throw new Error("no image input");
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         if(!prompt) throw new Error("no edit instruction");
-        return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], inp.image, undefined, loraParams(n)) };
+        if(imgs.reduce(function(s,u){ return s + (u?u.length:0); }, 0) > MEDIA_INLINE_MAX)
+          throw new Error("reference images too large (~4 MB combined limit) — use fewer or smaller images");
+        const src = imgs.length>1 ? imgs : imgs[0];   // array → multi-image composite; string → single edit (unchanged)
+        return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], src, undefined, loraParams(n)) };
       }
     },
     inpaint: {
@@ -1347,20 +1380,26 @@ window.NoodleApp = (function () {
           const l = graph.links.find(x=> x.to.node===id && x.to.port===port.name);
           if(l){ const src = byId(l.from.node); inp[port.name] = src && src.out ? src.out[l.from.port] : undefined; }
         }
-        // dynamic image ports (img1, img2, …) on vision-capable nodes → collected by run() via collectImageInputs()
-        if(t.imageInputs) for(const l of graph.links){
-          if(l.to.node===id && IMG_PORT_RE.test(l.to.port)){ const src = byId(l.from.node); inp[l.to.port] = src && src.out ? src.out[l.from.port] : undefined; }
+        // dynamic image ports (llm: img1,img2,…  edit: image,image2,…) → collected by run() via collectImageInputs()
+        const imgRe = t.imageInputs ? imgPortRe(t) : null;
+        if(imgRe) for(const l of graph.links){
+          if(l.to.node===id && imgRe.test(l.to.port)){ const src = byId(l.from.node); inp[l.to.port] = src && src.out ? src.out[l.from.port] : undefined; }
         }
         // dynamic clip ports (vid1, vid2, …) on the Combine node → collected by run() via collectVideoInputs()
         if(t.videoInputs) for(const l of graph.links){
           if(l.to.node===id && VID_PORT_RE.test(l.to.port)){ const src = byId(l.from.node); inp[l.to.port] = src && src.out ? src.out[l.from.port] : undefined; }
         }
+        // the single audio port on audio-input chat models → read by run() as inp.audio
+        if(t.audioInput) for(const l of graph.links){
+          if(l.to.node===id && l.to.port==="audio"){ const src = byId(l.from.node); inp.audio = src && src.out ? src.out[l.from.port] : undefined; }
+        }
         // a wired field overrides its typed value (n.fields[field]); declared ports handled above
         const fieldOverrides = {};
         for(const l of graph.links){
           if(l.to.node!==id || t.inputs.some(p=>p.name===l.to.port)) continue;
-          if(t.imageInputs && IMG_PORT_RE.test(l.to.port)) continue;   // image ports aren't text-field overrides
+          if(imgRe && imgRe.test(l.to.port)) continue;   // image ports aren't text-field overrides
           if(t.videoInputs && VID_PORT_RE.test(l.to.port)) continue;   // clip ports aren't text-field overrides
+          if(t.audioInput && l.to.port==="audio") continue;            // the audio port isn't a text-field override
           const src = byId(l.from.node);
           const v = src && src.out ? src.out[l.from.port] : undefined;
           if(v!=null) fieldOverrides[l.to.port] = v;
@@ -1460,7 +1499,8 @@ window.NoodleApp = (function () {
     vision:  [{ f:"model", label:"Model", kind:"model" },
               { f:"q",     label:"Question", kind:"textarea", def:"Describe this image." }],
     image:   [{ f:"model", label:"Model", kind:"model" },
-              { f:"size",  label:"Image size", kind:"select", options:SIZES, def:SIZES[0][0] }],
+              { f:"size",  label:"Image size", kind:"select", options:SIZES, def:SIZES[0][0] },
+              { f:"variations", label:"Variations", kind:"number", min:1, def:"1" }],
     edit:    [{ f:"model", label:"Model", kind:"model" },
               { f:"prompt", label:"Edit instruction", kind:"textarea" },
               { f:"size",  label:"Image size", kind:"select", options:SIZES, def:SIZES[0][0] }],
@@ -2199,8 +2239,13 @@ window.NoodleApp = (function () {
     const cost = (n.costUsd>0) ? '<span class="rcost" title="cost of this generation">'+fmtUsd(n.costUsd)+'</span>'
                : n.costKnown ? '<span class="rcost incl" title="included in your subscription">included</span>' : '';
     const head = '<div class="rhead">'+badge+esc(NODE_TYPES[n.type].em)+' '+esc(NODE_TYPES[n.type].title)+cost+'</div>';
+    const gallery = (port.type==="image" && out.images && out.images.length>1) ? out.images : null;
     let media;
-    if(port.type==="image") media = '<img src="'+esc(val)+'" alt="">';
+    if(port.type==="image"){
+      media = '<img class="rmain" src="'+esc(val)+'" alt="">';
+      if(gallery) media += '<div class="varstrip">' + gallery.map(function(u,i){
+        return '<img class="varthumb'+(u===val?" sel":"")+'" data-vi="'+i+'" src="'+esc(u)+'" alt="variation '+(i+1)+'" title="variation '+(i+1)+'">'; }).join("") + '</div>';
+    }
     else if(port.type==="video") media = '<video src="'+esc(val)+'" controls playsinline></video>';
     else if(port.type==="audio") media = '<audio src="'+esc(val)+'" controls preload="metadata"></audio>';
     else media = '<div class="text">'+esc(typeof val==="string"?val:JSON.stringify(val,null,2))+'</div>';
@@ -2209,6 +2254,18 @@ window.NoodleApp = (function () {
     if(port.type==="audio") fixAudioDuration(card.querySelector("audio"));
     if(port.type==="image" || port.type==="video" || port.type==="audio")
       addDownload(card, val, port.type, n.type);
+    if(gallery){
+      // pick-one: clicking a thumb swaps the shown image and re-points the Download button at it
+      card.querySelectorAll("[data-vi]").forEach(function(el){
+        el.onclick = function(){
+          const u = gallery[+el.dataset.vi];
+          const mainImg = card.querySelector(".rmain"); if(mainImg) mainImg.src = u;
+          card.querySelectorAll(".varthumb").forEach(function(t){ t.classList.toggle("sel", t===el); });
+          const old = card.querySelector(".dlrow"); if(old) old.remove();
+          addDownload(card, u, "image", n.type);
+        };
+      });
+    }
   }
 
   // A download control for generated media. Images come back as data: URLs and
@@ -2653,6 +2710,11 @@ body{ background:
 .output .rhead{ font-size:.78rem; color:var(--dim); margin-bottom:.5rem; }
 .output img, .output video, .output audio{ width:100%; border-radius:.5rem; display:block; }
 .output .text{ white-space:pre-wrap; line-height:1.6; }
+.output .varstrip{ display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.5rem; }
+.output .varstrip .varthumb{ width:auto; flex:0 0 auto; height:60px; aspect-ratio:1; object-fit:cover; border-radius:.4rem;
+  cursor:pointer; opacity:.6; border:2px solid transparent; transition:opacity .15s; }
+.output .varstrip .varthumb:hover{ opacity:.9; }
+.output .varstrip .varthumb.sel{ opacity:1; border-color:var(--accent); }
 .output .dlrow{ margin-top:.6rem; }
 .output .dl{ font:inherit; font-size:.78rem; padding:.4rem .8rem; border-radius:.45rem; cursor:pointer;
   background:var(--panel2); border:1px solid var(--line); color:var(--dim); }

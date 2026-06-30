@@ -31,22 +31,25 @@ function extractFn(src, name) {
   throw new Error(`could not brace-match ${name}()`);
 }
 
-// The literal `const IMG_PORT_RE = /.../;` line, verbatim from the source.
-const reLine = (SRC.match(/const IMG_PORT_RE = \/[^\n]*;/) || [])[0];
-if (!reLine) throw new Error("IMG_PORT_RE declaration not found in index.html");
+// The verbatim const lines the extracted functions close over (regex + index helper + edit family).
+const grab = (re, what) => { const m = SRC.match(re); if (!m) throw new Error(what + " declaration not found in index.html"); return m[0]; };
+const reLine      = grab(/const IMG_PORT_RE = \/[^\n]*;/, "IMG_PORT_RE");
+const editReLine  = grab(/const EDIT_IMG_RE = \/[^\n]*;/, "EDIT_IMG_RE");
+const portIdxLine = grab(/const portIdx = [^\n]*;/, "portIdx");
 
 const bundle =
-  reLine + "\n" +
-  ["modelSupportsImages", "imageInputDefs", "collectImageInputs", "recompactImageLinks"]
+  reLine + "\n" + editReLine + "\n" + portIdxLine + "\n" +
+  ["modelSupportsImages", "imgSpec", "imageInputDefs", "collectImageInputs", "recompactImageLinks"]
     .map((n) => extractFn(SRC, n)).join("\n") + "\n" +
-  "globalThis.__t = { imageInputDefs, collectImageInputs, recompactImageLinks, modelSupportsImages };";
+  "globalThis.__t = { imageInputDefs, collectImageInputs, recompactImageLinks, modelSupportsImages, imgSpec };";
 
 // ---- stubs for the globals the extracted code closes over -----------------
-const MODELS = { vmodel: { vision: true }, tmodel: { vision: false } }; // unknown id → undefined
+// vision flag for the llm family; maxIn (max_input_images) for the edit family. Unknown id → undefined.
+const MODELS = { vmodel: { vision: true }, tmodel: { vision: false }, emodel: { maxIn: 4 }, e1model: { maxIn: 1 } };
 const ctx = {
   console,
   graph: { links: [] },
-  NODE_TYPES: { llm: { imageInputs: "vision", modelKind: "chat" }, text: {}, upload: {} },
+  NODE_TYPES: { llm: { imageInputs: "vision", modelKind: "chat" }, edit: { imageInputs: { multi: true }, modelKind: "image" }, text: {}, upload: {} },
   catItem: (_kind, id) => MODELS[id],
 };
 vm.createContext(ctx);
@@ -101,6 +104,30 @@ T.recompactImageLinks({ id: "n", type: "text", fields: {} }); // must not throw 
 // ---- D. collectImageInputs order ------------------------------------------
 ok(JSON.stringify(T.collectImageInputs({ img2: "B", prompt: "x", img1: "A", img10: "J" })) === '["A","B","J"]',
   "collectImageInputs must return images in numeric port order");
+
+// ---- E. edit node: max_input_images-gated multi-reference ports -----------
+// ports keep the legacy name "image" for slot 1 (so already-wired graphs load), then image2,image3,…
+const edit = (model) => ({ id: "e1", type: "edit", fields: { model } });
+const editLinks = (...ports) => { ctx.graph.links = ports.map((port, i) => ({ id: "e" + i, from: { node: "u" + i, port: "image" }, to: { node: "e1", port } })); };
+const editWires = () => ctx.graph.links.filter((l) => l.to.node === "e1" && /^image\d*$/.test(l.to.port)).map((l) => l.from.node + "->" + l.to.port).sort();
+
+const e4 = edit("emodel");   // a model that composites up to 4 references
+editLinks(); ok(JSON.stringify(names(e4)) === '["image"]', `edit/no-wire: want [image], got ${JSON.stringify(names(e4))}`);
+editLinks("image"); ok(JSON.stringify(names(e4)) === '["image","image2"]', `edit one wired: want [image,image2], got ${JSON.stringify(names(e4))}`);
+editLinks("image", "image2", "image3", "image4");
+ok(JSON.stringify(names(e4)) === '["image","image2","image3","image4"]', `edit must STOP at maxIn=4 (no trailing slot), got ${JSON.stringify(names(e4))}`);
+
+// a single-image model keeps exactly one port even when wired — identical to the old static behavior
+const e1 = edit("e1model");
+editLinks("image"); ok(JSON.stringify(names(e1)) === '["image"]', `edit maxIn=1: want single [image], got ${JSON.stringify(names(e1))}`);
+
+// recompaction renumbers to image,image2 (slot 1 keeps the bare "image" name)
+editLinks("image", "image3"); T.recompactImageLinks(e4);
+ok(JSON.stringify(editWires()) === '["u0->image","u1->image2"]', `edit recompact must renumber to image,image2, got ${JSON.stringify(editWires())}`);
+
+// collectImageInputs over the edit family pulls image,image2,… in order
+ok(JSON.stringify(T.collectImageInputs({ image2: "B", prompt: "x", image: "A", image10: "J" }, e4)) === '["A","B","J"]',
+  "collectImageInputs(edit) must return images in port order image,image2,…");
 
 // ---- report ---------------------------------------------------------------
 if (failures.length) {

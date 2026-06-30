@@ -75,6 +75,9 @@
   button:hover:not(:disabled){border-color:#3a425a}
   button:disabled{opacity:.45; cursor:default}
   button.primary{ background:linear-gradient(90deg,var(--accent),var(--accent2)); border:none; color:#0b0d12; font-weight:700;}
+  #run{ min-width:5.4rem; text-align:center; }    /* fixed width so ▶ Run ↔ ■ Stop never resizes the toolbar */
+  #run.running{ background:var(--bad); }          /* same button morphs into a stop affordance (red), same size */
+  #run.running:hover:not(:disabled){ background:#ff5252; }
   button.link{background:none;border:none;color:var(--accent);padding:0;font-size:.8rem}
 
   /* ---------- top bar ---------- */
@@ -240,6 +243,48 @@
                  font-weight:800; color:#0b0d12; background:linear-gradient(90deg,var(--accent),var(--accent2)) }
   #cookoffclose{ position:absolute; top:.6rem; right:.7rem; width:2.1rem; height:2.1rem; border-radius:.55rem;
                  display:flex; align-items:center; justify-content:center; font-size:1.05rem; z-index:2 }
+  /* 🏆 Submit popup — tight conversion-first "checkout": prize banner → entry link → where to post */
+  #submitmodal[hidden]{ display:none }
+  #submitmodal{ position:fixed; inset:0; z-index:215; display:flex; padding:min(4vh,2.4rem) min(4vw,2.4rem);
+                background:rgba(4,6,11,.78); backdrop-filter:blur(3px); }
+  #submitpanel{ position:relative; margin:auto; width:100%; max-width:460px; max-height:92vh; overflow:auto;
+                background:var(--bg); border-radius:.9rem; padding:1.35rem 1.35rem 1.25rem; box-shadow:0 30px 90px #000c; }
+  #submitpanel::before{ content:""; position:absolute; inset:0; border-radius:.9rem; padding:2px; pointer-events:none;
+                background:linear-gradient(90deg,#ff6b6b,#ffcf6b,#3ddc97,#7c8cff,#ff79c6,#ff6b6b); background-size:200% 100%;
+                -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); -webkit-mask-composite:xor;
+                mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); mask-composite:exclude;
+                animation:cookoff-flow 4s linear infinite; }
+  @media (prefers-reduced-motion:reduce){ #submitpanel::before{ animation:none } }
+  #submitclose{ position:absolute; top:.55rem; right:.6rem; width:2rem; height:2rem; border-radius:.55rem;
+                display:flex; align-items:center; justify-content:center; font-size:1.05rem; z-index:2 }
+  .sub-prize{ display:flex; flex-direction:column; gap:.15rem; text-align:center; margin:.1rem 1.6rem .95rem }
+  .sub-prizetop{ font-weight:800; font-size:1.12rem; background:linear-gradient(90deg,#ff6b6b,#ffcf6b,#3ddc97,#7c8cff,#ff79c6);
+                -webkit-background-clip:text; background-clip:text; color:transparent }
+  .sub-cats{ font-size:.76rem; color:var(--dim) }
+  .sub-link{ background:var(--panel); border:1px solid var(--line); border-radius:.65rem; padding:.7rem .75rem .8rem }
+  .sub-link label{ display:block; font-size:.7rem; letter-spacing:.07em; text-transform:uppercase; color:var(--dim); font-weight:700; margin-bottom:.4rem }
+  .sub-linktabs{ display:inline-flex; gap:.2rem; background:var(--bg); border:1px solid var(--line); border-radius:.5rem; padding:.18rem; margin-bottom:.45rem }
+  .sub-tab{ border:none; background:transparent; color:var(--dim); font-weight:700; font-size:.78rem; padding:.28rem .6rem; border-radius:.4rem; cursor:pointer }
+  .sub-tab.on{ background:var(--panel2); color:var(--ink) }
+  .sub-linkhint{ display:block; font-size:.72rem; color:var(--dim); margin-bottom:.5rem }
+  .sub-linkrow{ display:flex; gap:.5rem }
+  #submitlink{ flex:1; min-width:0; background:var(--bg); border:1px solid var(--line); border-radius:.5rem;
+               padding:.6rem .65rem; font-size:.92rem; color:var(--ink); }
+  .sub-copy{ flex:0 0 auto; border:none; border-radius:.5rem; font-weight:800; font-size:.9rem; color:#0b0d12;
+             padding:.6rem 1rem; background:linear-gradient(90deg,var(--accent),var(--accent2)); }
+  .sub-copy.ok{ background:var(--good) }
+  .sub-where{ margin-top:1rem }
+  .sub-wheretitle{ display:block; font-size:.7rem; letter-spacing:.07em; text-transform:uppercase; color:var(--dim); font-weight:700; margin-bottom:.5rem }
+  .sub-anchors{ display:flex; gap:.5rem; flex-wrap:wrap }
+  .sub-anchor{ flex:1 1 0; min-width:140px; display:flex; flex-direction:column; gap:.12rem; text-align:center; text-decoration:none;
+               color:var(--ink); background:var(--panel2); border:1px solid var(--line); border-radius:.55rem; padding:.55rem .7rem }
+  .sub-anchor:hover{ border-color:#3a425a }
+  .sub-anchor .t{ font-weight:700; font-size:.86rem }
+  .sub-anchor .s{ font-size:.72rem; color:var(--dim) }
+  .sub-rules{ font-size:.74rem; color:var(--dim); text-align:center; margin:.8rem 0 .1rem }
+  /* explainer modal: side-by-side actions (primary "Submit" + secondary "Start cooking") */
+  #cookoffpanel .cookoff-actions{ display:flex; gap:.55rem; flex-wrap:wrap; align-items:center }
+  #cookoffpanel .cta.secondary{ background:transparent; color:var(--ink); border:1px solid var(--line) }
   /* toast — a clearly-visible transient confirmation */
   #toast{ position:fixed; top:64px; left:50%; transform:translateX(-50%) translateY(-14px) scale(.98); z-index:80;
           display:flex; align-items:center; gap:.5rem; max-width:min(92vw,560px);
@@ -366,6 +411,11 @@
   .result .frames .fr img{ width:100%; border-radius:.45rem; display:block }
   .result .frames .fr button{ position:absolute; right:.25rem; bottom:.25rem; padding:.15rem .35rem; font-size:.7rem;
     background:#000a; border:1px solid var(--line); border-radius:.35rem; color:var(--ink); cursor:pointer }
+  .result .varstrip{ display:flex; flex-wrap:wrap; gap:.3rem; margin-top:.35rem }
+  .result .varstrip .varthumb{ width:auto; flex:1 1 22%; min-width:44px; max-width:64px; aspect-ratio:1; object-fit:cover;
+    border-radius:.35rem; cursor:pointer; opacity:.62; border:2px solid transparent; transition:opacity .15s }
+  .result .varstrip .varthumb:hover{ opacity:.9 }
+  .result .varstrip .varthumb.sel{ opacity:1; border-color:var(--accent) }
   .result .acts{ display:flex; gap:.35rem; margin-top:.4rem; align-items:center }
   .result .acts button{ padding:.25rem .5rem; font-size:.74rem }
   .result .acts .sndbadge{ font-size:.85rem; line-height:1; cursor:default }
@@ -455,6 +505,7 @@
   <button id="makeapp" title="Turn this workflow into a shareable app">✨ Create app</button>
   <button id="newapp" title="Start a NEW app from this workflow (don’t update the one you’re editing)" hidden>✨ New</button>
   <button id="share" title="Copy a link that loads this exact workflow — paste it to share with anyone">🔗 Share</button>
+  <button id="submitcontest" title="Enter this in the Noodle Cookoff">🏆 Submit</button>
   <button id="save" title="download this graph as JSON">⭳ Save</button>
   <button id="load" title="open a graph JSON file">⭱ Load</button>
   <button id="updates" title="What’s new in nanoodle">📣 Updates<span id="updbadge" hidden></span></button>
@@ -552,7 +603,40 @@
     <p class="meta">Opens June 26 · closes July 12 (23:59 UTC) · max 2 entries each · winners get a permanent spot in the gallery.<br>
       Keep entries SFW — no copyright violations, nothing illegal. Prizes can only be sent to wallets in countries not under active US sanctions.<br>
       nanoodle is a community project on <a href="https://nano-gpt.com" target="_blank" rel="noopener">nano-gpt</a>, which takes Nano — so the prize pool stays in the ecosystem.</p>
-    <button class="cta" id="cookoffstart">Start cooking →</button>
+    <div class="cookoff-actions">
+      <button class="cta" id="cookoffsubmit">📨 Submit your entry →</button>
+      <button class="cta secondary" id="cookoffstart">Start cooking →</button>
+    </div>
+  </div>
+</div>
+
+<!-- 🏆 Submit to the Noodle Cookoff — conversion-first popup: prize → your link → where to post -->
+<div id="submitmodal" hidden>
+  <div id="submitpanel" role="dialog" aria-modal="true" aria-label="Submit to the Noodle Cookoff">
+    <button id="submitclose" class="hbtn" title="Close (Esc)" aria-label="Close">✕</button>
+    <div class="sub-prize">
+      <span class="sub-prizetop">🏆 Win 3 × 133 XNO (Nano)</span>
+      <span class="sub-cats">🛠 Most Useful · 💡 Most Innovative · ❤️ People's Choice</span>
+    </div>
+    <div class="sub-link">
+      <div class="sub-linktabs" role="tablist" aria-label="What your link opens">
+        <button id="sublinkapp" class="sub-tab on" role="tab" aria-selected="true">🚀 App</button>
+        <button id="sublinkwf" class="sub-tab" role="tab" aria-selected="false">🛠 Workflow</button>
+      </div>
+      <span id="sublinkhint" class="sub-linkhint">Opens your creation as a ready-to-run app — what people click to try it. Best for entries.</span>
+      <div class="sub-linkrow">
+        <input id="submitlink" type="text" readonly value="" aria-label="Your entry link" />
+        <button id="submitcopy" class="sub-copy">Copy link</button>
+      </div>
+    </div>
+    <div class="sub-where">
+      <span class="sub-wheretitle">Where to post</span>
+      <div class="sub-anchors">
+        <a class="sub-anchor" href="https://discord.gg/KaQt8gPG6V" target="_blank" rel="noopener"><span class="t">💬 Post in Discord ↗</span><span class="s">#community-projects</span></a>
+        <a class="sub-anchor" href="https://www.reddit.com/r/nanocurrency/submit" target="_blank" rel="noopener"><span class="t">🤖 Post to r/nanocurrency ↗</span><span class="s">paste your link</span></a>
+      </div>
+      <p class="sub-rules">max 2 entries · keep it SFW · closes Jul 12, 23:59 UTC</p>
+    </div>
   </div>
 </div>
 
@@ -638,8 +722,11 @@ function normImg(m){
     edit: !needsMask && (needsSrc || !!m.capabilities?.image_to_image),  // accepts an image input (text+image->image | image->image)
     gen: needsSrc ? false : (mod ? mod.startsWith("text") : !m.capabilities?.image_to_image),  // text-only generators; excludes edit-only models
     inpaint: inpaintOk,                                                  // needs/honors image + mask → the Inpaint node
+    maxIn: m.supported_parameters?.max_input_images || 1,               // # reference images this model composites (1 = single-image edit)
     lora: imageTakesLora(m.id),                                          // accepts a LoRA (v1 image catalog hides lora params → name allow-list)
     resolutions,                                                         // real supported sizes → the size control's options
+    maxOut: m.supported_parameters?.max_output_images || 1,             // can return N images per call → the "variations" control (gen only)
+    fixedCount: m.supported_parameters?.fixed_image_count || 0,          // ALWAYS returns this many (e.g. midjourney/higgsfield = 4), regardless of n
     sizePrices: per,                                                     // per-size price map → live price as the size changes
     price: v!=null ? `$${(+v).toFixed(3)}/img` : "" };
 }
@@ -744,25 +831,47 @@ function defModelFor(type){
    model (e.g. doubao-seed-2.1-pro) is picked. Unknown/offline model ids are treated as
    capable so a typed-in id is never blocked. Ports are named img1, img2, … and live as
    links (not fields), so they serialize and export for free. */
-const IMG_PORT_RE = /^img\d+$/;
+const IMG_PORT_RE = /^img\d+$/;       // llm: img1, img2, … (vision models)
+const EDIT_IMG_RE = /^image\d*$/;     // edit: image, image2, … (multi-reference compositing)
+const portIdx = (name)=>{ const m = String(name).match(/(\d+)$/); return m ? +m[1] : 1; };   // trailing number → slot index (no digit = slot 1)
+// Does a (string/capability-gated) node's chosen model accept image inputs? Permissive for ids
+// not in the catalog. Only meaningful for the "vision" form — the edit node gates on maxIn instead.
 function modelSupportsImages(n){
-  const t = NODE_TYPES[n.type]; if(!t.imageInputs) return false;
+  const t = NODE_TYPES[n.type]; if(typeof t.imageInputs!=="string") return false;
   const m = catItem(t.modelKind, n.fields.model);
   return !m || !!m[t.imageInputs];   // permissive when the id isn't in the catalog
 }
-function imageInputDefs(n){
-  const t = NODE_TYPES[n.type]; if(!t.imageInputs) return [];
-  const wired = (graph.links||[]).filter(l=> l.to.node===n.id && IMG_PORT_RE.test(l.to.port))
-                  .map(l=> +l.to.port.slice(3));
-  const maxIdx = wired.length ? Math.max(...wired) : 0;
-  if(!modelSupportsImages(n))
-    return Array.from({length:Math.max(1,maxIdx)}, (_,i)=> ({ name:"img"+(i+1), disabled:true }));
-  return Array.from({length:maxIdx+1}, (_,i)=> ({ name:"img"+(i+1) }));   // wired ports + one empty trailing slot
+// Does the selected chat model accept audio? Gates the single audio input port (mirror of
+// modelSupportsImages). Permissive when the id isn't in the catalog (typed-in id never blocked).
+function modelSupportsAudio(n){
+  const t = NODE_TYPES[n.type]; if(!t.audioInput) return false;
+  const m = catItem(t.modelKind, n.fields.model);
+  return !m || !!m[t.audioInput];
 }
-// pull wired image ports out of a run's inp map, in port order
-function collectImageInputs(inp){
-  return Object.keys(inp).filter(k=> IMG_PORT_RE.test(k)).sort((a,b)=> +a.slice(3) - +b.slice(3))
-    .map(k=> inp[k]).filter(Boolean);
+/* One engine, two port families. imgSpec resolves a node's dynamic-image-port config:
+     • llm  (imageInputs:"vision")     → capability-gated, ports img1,img2,… , unbounded (+1 trailing slot)
+     • edit (imageInputs:{multi:true}) → max_input_images-gated, ports image,image2,… , capped at the model's maxIn
+   The edit node keeps the legacy port name "image" for slot 1, so already-wired/saved graphs still load. */
+function imgSpec(n){
+  const t = n && NODE_TYPES[n.type], ii = t && t.imageInputs; if(!ii) return null;
+  if(typeof ii==="string")
+    return { re:IMG_PORT_RE, name:(i)=> "img"+i, capable:modelSupportsImages(n), cap:Infinity };
+  const m = catItem(t.modelKind, n.fields.model);
+  return { re:EDIT_IMG_RE, name:(i)=> i===1?"image":"image"+i, capable:true, cap:(m ? (m.maxIn||1) : 14) };  // permissive when offline/unknown
+}
+function imageInputDefs(n){
+  const s = imgSpec(n); if(!s) return [];
+  const wired = (graph.links||[]).filter(l=> l.to.node===n.id && s.re.test(l.to.port)).map(l=> portIdx(l.to.port));
+  const maxIdx = wired.length ? Math.max(...wired) : 0;
+  if(!s.capable)
+    return Array.from({length:Math.max(1,maxIdx)}, (_,i)=> ({ name:s.name(i+1), disabled:true }));
+  const count = Math.max(1, Math.min(maxIdx+1, s.cap));   // wired ports + one empty trailing slot, capped at the model's max
+  return Array.from({length:count}, (_,i)=> ({ name:s.name(i+1) }));
+}
+// pull wired image ports out of a run's inp map, in port order (n selects the port family)
+function collectImageInputs(inp, n){
+  const s = imgSpec(n), re = s ? s.re : IMG_PORT_RE;
+  return Object.keys(inp).filter(k=> re.test(k)).sort((a,b)=> portIdx(a)-portIdx(b)).map(k=> inp[k]).filter(Boolean);
 }
 
 /* ---------- dynamic video inputs (the Combine node) ----------
@@ -782,6 +891,26 @@ function videoInputDefs(n){
 function collectVideoInputs(inp){
   return Object.keys(inp).filter(k=> VID_PORT_RE.test(k)).sort((a,b)=> +a.slice(3) - +b.slice(3))
     .map(k=> inp[k]).filter(Boolean);
+}
+
+/* ---------- audio input (audio_input chat models) ----------
+   Turn a wired audio data: URL into the OpenAI-standard inline part the chat API hears:
+   {type:"input_audio", input_audio:{data:<base64>, format:"wav"|"mp3"|…}}. Strips the
+   data-URL prefix, derives the format from the MIME subtype (audio/mpeg→mp3). Inline
+   base64 hits the same ~4.4MB edge body cap that bites lipsync — guard it loudly rather
+   than POST a body the edge will drop. Shared verbatim with play.html's RUNTIME_JS. */
+function audioInputPart(url){
+  if(typeof url!=="string" || !url) return null;
+  if(url.length > MEDIA_INLINE_MAX)
+    throw new Error("audio clip is too large to inline (~4 MB send limit) — shorten it with the ✂️ Trim node first");
+  const comma = url.indexOf(",");
+  const head = comma>=0 ? url.slice(0,comma) : "";
+  const data = comma>=0 ? url.slice(comma+1) : url;
+  const mt = head.match(/data:([^;]+)/);
+  let fmt = ((mt && mt[1] ? mt[1].split("/")[1] : "") || "wav").toLowerCase();
+  if(fmt==="mpeg" || fmt==="mp3") fmt = "mp3";
+  else if(fmt==="x-wav" || fmt==="wave") fmt = "wav";
+  return { type:"input_audio", input_audio:{ data, format:fmt } };
 }
 
 /* one model-row in a node body — a button that opens the shared picker */
@@ -987,9 +1116,15 @@ function videoFreetextSkip(key, d){
   if(/\bJSON (array|object)\b|\bURLs?\b/i.test(txt)) return true;                           // descriptor itself declares a URL/list
   return false;
 }
-function videoOptDefs(model){
+function videoOptDefs(model, nodeType){
   const it = catItem("video", model) || {};
   const p = it.params || {}, dflt = it.defaults || {};
+  // omni video models expose a `mode` select of GENERATION TYPES; drop the ones this node can't feed —
+  // reference-to-video needs reference images (no port anywhere), video-edit needs a source video (only
+  // the v2v "Edit video" node supplies one). "auto" stays and lets the model detect from the wiring, so
+  // a plain Text→Video node stops offering a dead-end "Reference to Video" / "Edit Video" choice.
+  const isVedit = !!(nodeType && NODE_TYPES[nodeType] && NODE_TYPES[nodeType].modelFilter==="v2v");
+  const modeOK = (o)=> o.value!=="reference-to-video" && (o.value!=="video-edit" || isVedit);
   const defs = [];
   for(const [key,d] of Object.entries(p)){
     if(!d || typeof d!=="object") continue;
@@ -997,7 +1132,8 @@ function videoOptDefs(model){
     if(/^lora(_|$)/i.test(key)) continue;                      // the 🎨 LoRA box handles these
     const def = dflt[key]!=null ? dflt[key] : d.default;       // catalog default → placeholder/initial
     if(d.type==="select"){
-      const opts = (d.options||[]).filter(o=> o && o.value!=="" && o.value!=null);
+      let opts = (d.options||[]).filter(o=> o && o.value!=="" && o.value!=null);
+      if(key==="mode") opts = opts.filter(modeOK);             // hide generation-type modes this node can't satisfy
       if(opts.length<2) continue;                              // nothing meaningful to choose
       defs.push({ key, label:d.label||key, type:"select", options:opts, def, desc:d.description });
     } else if(d.type==="switch" || d.type==="boolean"){
@@ -1016,7 +1152,7 @@ function videoOptDefs(model){
 function refreshModelOpts(n){
   if(!VIDEO_OPT_NODES[n.type] || !n.el) return;
   const box = n.el.querySelector("[data-modelopts]"); if(!box) return;
-  const defs = videoOptDefs(n.fields.model);
+  const defs = videoOptDefs(n.fields.model, n.type);
   if(!defs.length){ box.innerHTML=""; return; }
   const cur = n.fields.modelOpts || (n.fields.modelOpts = {});
   for(const k of Object.keys(cur)) if(!defs.some(d=>d.key===k)) delete cur[k];   // drop other models' knobs
@@ -1130,7 +1266,13 @@ function dimDefs(type, model){
   if(type==="image" || type==="edit"){
     const it = catItem("image", model);
     const res = (it && it.resolutions && it.resolutions.length) ? it.resolutions.map(r=>[r,r]) : SIZE_FALLBACK;
-    return [{ f:"size", label:"size", options:res, def:res[0][0] }];
+    const defs = [{ f:"size", label:"size", options:res, def:res[0][0] }];
+    const maxOut = (it && it.maxOut) || 1;                  // generate-N-pick-one — gen node only, when the model supports it
+    if(type==="image" && maxOut>1){
+      const vopts=[]; for(let i=1;i<=maxOut;i++) vopts.push([String(i), String(i)]);
+      defs.push({ f:"variations", label:"variations", options:vopts, def:"1" });
+    }
+    return defs;
   }
   if(type==="tvideo" || type==="ivideo" || type==="vedit"){
     const p = (catItem("video", model)||{}).params || {};
@@ -1306,10 +1448,11 @@ const NODE_TYPES = {
   },
 
   llm: {
-    em:"🧠", title:"LLM", desc:"Text (+ images) → text — any chat model", group:"Text", kw:"chat write reason gpt assistant ask prompt",
+    em:"🧠", title:"LLM", desc:"Text (+ images, audio) → text — any chat model", group:"Text", kw:"chat write reason gpt assistant ask prompt transcribe describe listen",
     modelKind:"chat",
     inputs:[],
     imageInputs:"vision",   // vision-capable models grow dynamic image input ports (see refreshImageInputs)
+    audioInput:"audio_input",   // audio-input models grow a single audio input port (see refreshAudioInputs)
     outputs:[{name:"text", type:"text"}], preview:"text",
     body:(n)=>`
       ${modelFieldHTML(n)}
@@ -1319,11 +1462,12 @@ const NODE_TYPES = {
     async run(n, inp, ctx){
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       if(!prompt) throw new Error("no prompt");
-      const imgs = collectImageInputs(inp);   // wired image ports, in order — sent alongside the prompt
+      const imgs = collectImageInputs(inp, n);   // wired image ports, in order — sent alongside the prompt
+      const aud  = audioInputPart(inp.audio); // wired audio port (audio-input models) — one inline input_audio part
       const messages = [];
       if((n.fields.system||"").trim()) messages.push({role:"system", content:n.fields.system.trim()});
-      messages.push(imgs.length
-        ? { role:"user", content:[{type:"text", text:prompt}, ...imgs.map(url=>({type:"image_url", image_url:{url}}))] }
+      messages.push((imgs.length || aud)
+        ? { role:"user", content:[{type:"text", text:prompt}, ...imgs.map(url=>({type:"image_url", image_url:{url}})), ...(aud?[aud]:[])] }
         : { role:"user", content:prompt });
       return { text: await ctx.genChat(messages, mdl(n), llmOpts(n)) };
     }
@@ -1342,14 +1486,21 @@ const NODE_TYPES = {
     async run(n, inp, ctx){
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       if(!prompt) throw new Error("no prompt");
-      return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], undefined, undefined, loraParams(n)) };
+      const it = catItem("image", n.fields.model), maxOut = (it && it.maxOut) || 1;
+      const want = Math.max(1, Math.min(maxOut, parseInt(n.fields.variations,10)||1));
+      // always take the multi path: even a single-image request can come back with N (fixed_image_count
+      // models return 4), and we want to surface every image the user paid for, not discard them.
+      const urls = await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], undefined, undefined, loraParams(n), {n:want, multi:true});
+      const sel = Math.min(Math.max(0, parseInt(n.fields.sel,10)||0), urls.length-1);   // remembered pick, clamped to what came back
+      return { image: urls[sel], images: urls };
     }
   },
 
   edit: {
-    em:"✂️", title:"Edit", desc:"Image + text → image", group:"Image",
+    em:"✂️", title:"Edit", desc:"Image(s) + text → image", group:"Image",
     modelKind:"image", modelFilter:"edit",
-    inputs:[{name:"image", type:"image"}],
+    inputs:[],
+    imageInputs:{multi:true},   // grows image, image2, … up to the model's max_input_images (multi-reference compositing); 1 = single image port, as before
     outputs:[{name:"image", type:"image"}], preview:"image",
     body:(n)=>`
       ${modelFieldHTML(n)}
@@ -1357,10 +1508,15 @@ const NODE_TYPES = {
       <div><label>edit instruction</label><textarea data-f="prompt" placeholder="make it night-time, add neon…">${esc(n.fields.prompt||"")}</textarea></div>
       <div data-loraparams></div>`,
     async run(n, inp, ctx){
-      if(!inp.image) throw new Error("no image input");
+      const imgs = collectImageInputs(inp, n);   // wired source images, in port order (image, image2, …)
+      if(!imgs.length) throw new Error("no image input");
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       if(!prompt) throw new Error("no edit instruction");
-      return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], inp.image, undefined, loraParams(n)) };
+      // N inlined refs add up fast — refuse before any paid call (mirrors the inpaint guard)
+      if(imgs.reduce((s,u)=> s + (u?u.length:0), 0) > MEDIA_INLINE_MAX)
+        throw new Error("reference images too large (~4 MB combined limit) — use fewer or smaller images");
+      const src = imgs.length>1 ? imgs : imgs[0];   // array → multi-image composite; string → single edit (unchanged)
+      return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], src, undefined, loraParams(n)) };
     }
   },
 
@@ -1787,7 +1943,7 @@ function buildNodeEl(n){
     mp.onclick = (e)=>{
       e.stopPropagation();
       openPicker(t.modelKind, { current:n.fields.model, filter:t.modelFilter, onPick:(id)=>{
-        n.fields.model = id; mp.textContent = id+" ▾"; updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); save();
+        n.fields.model = id; mp.textContent = id+" ▾"; updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); save();
       }});
     };
     updateNodePrice(n);
@@ -1812,6 +1968,7 @@ function buildNodeEl(n){
   el.querySelectorAll(".port").forEach(p=> p.addEventListener("pointerdown", e=>startWire(p, e)));
   refreshImageInputs(n);             // dynamic image ports + their own wire listeners (after the static-port bind above)
   refreshVideoInputs(n);             // dynamic clip ports on the Combine node (same timing as image ports)
+  refreshAudioInputs(n);             // single audio port on audio-input chat models (model-gated)
   addFieldPorts(n);
   refreshPortFills();
   prepTextareas(n);
@@ -1821,10 +1978,10 @@ function buildNodeEl(n){
 // removing the source of a middle port (img2) leaves a hole. Renumbers the surviving image
 // links in place, preserving order. Safe no-op for nodes without image inputs.
 function recompactImageLinks(n){
-  if(!n || !NODE_TYPES[n.type]?.imageInputs) return;
-  graph.links.filter(l=> l.to.node===n.id && IMG_PORT_RE.test(l.to.port))
-    .sort((a,b)=> (+a.to.port.slice(3)) - (+b.to.port.slice(3)))
-    .forEach((l,i)=>{ l.to.port = "img"+(i+1); });
+  const s = imgSpec(n); if(!s) return;
+  graph.links.filter(l=> l.to.node===n.id && s.re.test(l.to.port))
+    .sort((a,b)=> portIdx(a.to.port) - portIdx(b.to.port))
+    .forEach((l,i)=>{ l.to.port = s.name(i+1); });
 }
 
 // Render a node's dynamic image input ports (vision-capable chat). Idempotent: rebuilds the
@@ -1868,6 +2025,24 @@ function refreshVideoInputs(n){
     col.appendChild(row);
     row.querySelector(".port").addEventListener("pointerdown", e=> startWire(e.currentTarget, e));
   });
+  refreshPortFills();
+}
+
+// Render the single audio input port on an audio-input chat model. Idempotent — safe after a
+// model pick or graph load. A non-audio model shows a disabled stub that visibly "unlocks" once
+// an audio-input model is picked (mirror of refreshImageInputs' disabled stub). The port lives as
+// a link (named "audio"), so it serializes and exports for free.
+function refreshAudioInputs(n){
+  if(!n.el || !NODE_TYPES[n.type].audioInput) return;
+  const col = n.el.querySelector(".col.in"); if(!col) return;
+  col.querySelectorAll(".prow.audrow").forEach(el=> el.remove());
+  const off = !modelSupportsAudio(n);
+  const row = document.createElement("div");
+  row.className = "prow audrow" + (off?" off":"");
+  row.innerHTML = `<i class="port audio${off?" disabled":""}" data-node="${esc(n.id)}" data-port="audio" data-dir="in" data-ptype="audio"`
+    + (off?` title="this model can’t hear audio — pick an audio-input model"`:``) + `></i><span>audio</span>`;
+  col.appendChild(row);
+  if(!off) row.querySelector(".port").addEventListener("pointerdown", e=> startWire(e.currentTarget, e));
   refreshPortFills();
 }
 
@@ -2117,7 +2292,7 @@ function mountFileUpload(n, field){
 function removeNode(id){
   // downstream image/clip inputs this node feeds — they must recompact so no hole is left behind
   const affected = [...new Set(graph.links
-    .filter(l=> l.from.node===id && (IMG_PORT_RE.test(l.to.port) || VID_PORT_RE.test(l.to.port))).map(l=> l.to.node))];
+    .filter(l=> l.from.node===id && (IMG_PORT_RE.test(l.to.port) || EDIT_IMG_RE.test(l.to.port) || VID_PORT_RE.test(l.to.port))).map(l=> l.to.node))];
   graph.links = graph.links.filter(l=> l.from.node!==id && l.to.node!==id);
   const n = byId(id); n?._stopCam?.();           // release the webcam if this was an Image-input node
   if(n?.el) n.el.remove();
@@ -2148,6 +2323,13 @@ function setStatus(n, status, msg){
   }
 }
 
+// A node the user stopped mid-run: clear the "running…" spinner and mark it idle (not an error).
+function setStopped(n){
+  if(!n?.el) return;
+  n.el.dataset.status = "idle";
+  const r = n.el.querySelector(".result");
+  if(r){ r.classList.add("show"); r.innerHTML = `<div style="color:var(--dim)">■ stopped</div>`; }
+}
 function setNodeProgress(n, msg){
   if(!n.el) return;
   const r = n.el.querySelector(".result");
@@ -2178,8 +2360,17 @@ function showResult(n){
     return;
   }
   if(t.preview==="image" && n.out.image){
-    r.innerHTML = `<img src="${esc(n.out.image)}" alt="output"/><div class="acts"><button data-dl>⬇ save</button></div>`;
+    const imgs = (n.out.images && n.out.images.length>1) ? n.out.images : null;   // pick-one gallery only when there's more than one
+    const sel = imgs ? Math.max(0, imgs.indexOf(n.out.image)) : 0;
+    const strip = imgs ? `<div class="varstrip">${imgs.map((u,i)=>
+      `<img class="varthumb${i===sel?" sel":""}" data-vi="${i}" src="${esc(u)}" alt="variation ${i+1}" title="variation ${i+1}"/>`).join("")}</div>` : "";
+    r.innerHTML = `<img src="${esc(n.out.image)}" alt="output"/>${strip}<div class="acts"><button data-dl>⬇ save</button></div>`;
     r.querySelector("[data-dl]").onclick = ()=> downloadUrl(n.out.image, `noodle-${n.id}.png`);
+    if(imgs) r.querySelectorAll("[data-vi]").forEach(el=> el.onclick = ()=>{
+      const i = +el.dataset.vi;
+      n.out.image = n.out.images[i]; n.fields.sel = i;   // node-local pick; the single image port forwards it on the next run
+      save(); showResult(n);
+    });
   } else if(t.preview==="video" && n.out.video){
     const vit = catItem(t.modelKind, n.fields.model);          // selected video model (undefined if offline/unknown)
     const m = vit && vit.audioGen ? "" : " muted";             // keep audio-generating clips audible; mute everything else (safe default)
@@ -2369,6 +2560,7 @@ function nodeAcceptsType(k, type){
   if((t.inputs||[]).some(p=> p.type===type)) return true;
   if(type==="image" && t.imageInputs) return true;
   if(type==="video" && t.videoInputs) return true;
+  if(type==="audio" && t.audioInput) return true;
   if(type==="text"  && bodyHasTextField(k)) return true;
   return false;
 }
@@ -2428,12 +2620,22 @@ function closeQuickAdd(){
 // a model that supports the input, otherwise the promised auto-wire would have nothing to land on.
 function ensureModelForInput(n, type){
   const t = NODE_TYPES[n.type];
-  if(type==="image" && t.imageInputs && t.modelKind){
+  // only the capability-gated (vision) form can render a DISABLED socket that needs a model swap;
+  // the edit node's image port is never disabled (it gates port COUNT on maxIn, not enablement).
+  if(type==="image" && typeof t.imageInputs==="string" && t.modelKind){
     const m = (catalogs[t.modelKind]||[]).find(x=> passesFilter(x, t.imageInputs));
     if(m){
       n.fields.model = m.id;
       const mp = n.el.querySelector(".modelpick"); if(mp) mp.textContent = m.id + " ▾";
       updateNodePrice(n); refreshImageInputs(n); save();
+    }
+  }
+  if(type==="audio" && t.audioInput && t.modelKind){
+    const m = (catalogs[t.modelKind]||[]).find(x=> passesFilter(x, t.audioInput));
+    if(m){
+      n.fields.model = m.id;
+      const mp = n.el.querySelector(".modelpick"); if(mp) mp.textContent = m.id + " ▾";
+      updateNodePrice(n); refreshAudioInputs(n); save();
     }
   }
 }
@@ -2606,11 +2808,18 @@ function components(){
 }
 
 const runningNodes = new Set();   // nodes whose group is currently executing — play is disabled for these
+let runAbort = null;              // AbortController shared by every group in the current run; Stop aborts it
+const runSignal = ()=> runAbort?.signal;   // pass to fetch() during a run; undefined when nothing is running
 function groupBusy(ids){ for(const id of ids) if(runningNodes.has(id)) return true; return false; }
 function updateRunButtons(){
   for(const n of graph.nodes){ const b = n.el?.querySelector("[data-act=run]"); if(b) b.disabled = runningNodes.has(n.id); }
-  const idle = graph.nodes.some(n=> !runningNodes.has(n.id));
-  $("run").disabled = graph.nodes.length>0 && !idle;
+  const running = runningNodes.size > 0;
+  const draining = !!runAbort?.signal.aborted;     // stopped, but in-flight nodes are still unwinding
+  const run = $("run");
+  run.classList.toggle("running", running);        // the Run button itself becomes the Stop button while live
+  run.textContent = running ? "■ Stop" : "▶ Run";
+  run.title = running ? "Stop the running workflow" : "run every flow (Ctrl/⌘+Enter)";
+  run.disabled = draining;                         // mid-stop: ignore clicks until the run unwinds
 }
 
 // Run one group: lock its whole connected component, execute the ancestors of `seedIds` in topo order.
@@ -2621,7 +2830,11 @@ async function runGroup(seedIds){
   for(const id of seedIds) for(const x of componentOf(id)) lock.add(x);
   if(!lock.size || groupBusy(lock)) return;         // empty, or this group is already running
   const ids = ancestors(seedIds);                    // what we actually compute (seed + upstream)
-  lock.forEach(id=>runningNodes.add(id)); updateRunButtons();
+  const wasIdle = !runningNodes.size;
+  lock.forEach(id=>runningNodes.add(id));
+  if(wasIdle) runAbort = new AbortController();       // fresh controller for a fresh run; concurrent groups share it
+  const ctl = runAbort;                               // capture so a later run can't confuse our own abort check
+  updateRunButtons();
   try{
     const { order, cyclic } = topoOrder(ids);
     cyclic.forEach(id=> setStatus(byId(id), "error", "cycle detected"));
@@ -2644,20 +2857,26 @@ async function runGroup(seedIds){
           const l = graph.links.find(x=> x.to.node===id && x.to.port===port.name);
           if(l) inp[port.name] = byId(l.from.node)?.out?.[l.from.port];
         }
-        // dynamic image ports (img1, img2, …) on vision-capable nodes → collected by run() via collectImageInputs()
-        if(t.imageInputs) for(const l of graph.links){
-          if(l.to.node===id && IMG_PORT_RE.test(l.to.port)) inp[l.to.port] = byId(l.from.node)?.out?.[l.from.port];
+        // dynamic image ports (llm: img1,img2,…  edit: image,image2,…) → collected by run() via collectImageInputs()
+        const imgRe = t.imageInputs ? imgSpec(n).re : null;
+        if(imgRe) for(const l of graph.links){
+          if(l.to.node===id && imgRe.test(l.to.port)) inp[l.to.port] = byId(l.from.node)?.out?.[l.from.port];
         }
         // dynamic clip ports (vid1, vid2, …) on the Combine node → collected by run() via collectVideoInputs()
         if(t.videoInputs) for(const l of graph.links){
           if(l.to.node===id && VID_PORT_RE.test(l.to.port)) inp[l.to.port] = byId(l.from.node)?.out?.[l.from.port];
         }
+        // the single audio port on audio-input chat models → read by run() as inp.audio
+        if(t.audioInput) for(const l of graph.links){
+          if(l.to.node===id && l.to.port==="audio") inp.audio = byId(l.from.node)?.out?.[l.from.port];
+        }
         // a wired text field overrides its typed value (n.fields[field]); declared ports handled above
         const fieldOverrides = {};
         for(const l of graph.links){
           if(l.to.node!==id || t.inputs.some(p=>p.name===l.to.port)) continue;
-          if(t.imageInputs && IMG_PORT_RE.test(l.to.port)) continue;   // image ports aren't text-field overrides
+          if(imgRe && imgRe.test(l.to.port)) continue;   // image ports aren't text-field overrides
           if(t.videoInputs && VID_PORT_RE.test(l.to.port)) continue;   // clip ports aren't text-field overrides
+          if(t.audioInput && l.to.port==="audio") continue;            // the audio port isn't a text-field override
           const v = byId(l.from.node)?.out?.[l.from.port];
           if(v!=null) fieldOverrides[l.to.port] = v;
         }
@@ -2670,12 +2889,17 @@ async function runGroup(seedIds){
             if(dn?.type==="inpaint" && dn.el && !dn.fields.image && !runningNodes.has(dn.id)) rerenderNode(dn);
           }
         }
-        catch(err){ setStatus(n, "error", err.message); }
+        catch(err){
+          if(ctl.signal.aborted || err?.name==="AbortError") setStopped(n);   // user hit Stop — not a failure
+          else setStatus(n, "error", err.message);
+        }
       })();
     }
     await Promise.all(order.map(id=> done[id]));
   } finally {
-    lock.forEach(id=>runningNodes.delete(id)); updateRunButtons();
+    lock.forEach(id=>runningNodes.delete(id));
+    if(!runningNodes.size && runAbort===ctl) runAbort = null;   // last group out clears the shared controller
+    updateRunButtons();
   }
 }
 // Run every idle group at once (busy ones keep going untouched).
@@ -2806,18 +3030,22 @@ const LORA_EXAMPLES = {
 // re-submit. In-memory only; a transient runId has no business in a saved or shared graph.
 const PENDING_VIDEO = new Map();   // nodeId → runId of an in-flight (timed-out) video job
 const CTX = {
-  async genImage(prompt, model, size, imageDataUrl, maskDataUrl, extra){
-    const body = { model, prompt, size, n:1, response_format:"b64_json" };
+  // opts.n = how many images to request (default 1). opts.multi=true returns ALL images as an
+  // array (the gen node, which shows a pick-one gallery); every other caller omits opts and gets a
+  // single url back, unchanged. Some models (midjourney/higgsfield) ALWAYS return 4 regardless of n —
+  // multi callers surface all of them so the user doesn't silently pay for 3 discarded images.
+  async genImage(prompt, model, size, imageDataUrl, maskDataUrl, extra, opts){
+    opts = opts || {};
+    const body = { model, prompt, size, n: opts.n||1, response_format:"b64_json" };
     if(imageDataUrl) body.imageDataUrl = imageDataUrl;   // present → image edit (img2img)
     if(maskDataUrl)  body.maskDataUrl  = maskDataUrl;    // present → inpaint; WHITE areas = the region to repaint (verified live)
     if(extra) Object.assign(body, extra);                // LoRA (and any future per-model image params)
-    const r = await fetch(IMG_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
+    const r = await fetch(IMG_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
     if(!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`);
     const j = await r.json();
-    const d = (j.data||[])[0]||{};
-    const url = d.b64_json ? `data:${b64ImageMime(d.b64_json)};base64,${d.b64_json}` : d.url;
-    if(!url) throw new Error("no image in response");
-    accrue(j); return url;
+    const urls = (j.data||[]).map(d=> d.b64_json ? `data:${b64ImageMime(d.b64_json)};base64,${d.b64_json}` : d.url).filter(Boolean);
+    if(!urls.length) throw new Error("no image in response");
+    accrue(j); return opts.multi ? urls : urls[0];
   },
   async genChat(messages, model, opts){
     opts = opts || {};
@@ -2826,7 +3054,7 @@ const CTX = {
     if(opts.max_tokens) body.max_tokens = +opts.max_tokens;
     if(opts.response_format) body.response_format = opts.response_format;   // {type:"json_object"} for JSON mode
     if(opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
-    const r = await fetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
+    const r = await fetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
     if(!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`);
     const j = await r.json();
     accrue(j);
@@ -2866,8 +3094,9 @@ const CTX = {
       if(payload.length > MEDIA_INLINE_MAX)
         throw new Error("This audio/video is a bit large (~4 MB max). nanoodle sends media inline rather than uploading it (no S3 here), so NanoGPT's edge won't accept it. A shorter clip works well — or build this flow into an app (✨ Create app) and run it offline.");
       let r;
-      try{ r = await fetch(`${NANOGPT}/api/generate-video`, {method:"POST", headers:authHeaders(), body:payload}); }
-      catch(e){ throw new Error(`couldn't reach the video API — if the source media is large it may have been rejected for size before CORS applies. Try a shorter clip, or build this into an app and run it offline. (${e.message||e})`); }
+      try{ r = await fetch(`${NANOGPT}/api/generate-video`, {method:"POST", headers:authHeaders(), body:payload, signal:runSignal()}); }
+      catch(e){ if(e?.name==="AbortError") throw e;
+        throw new Error(`couldn't reach the video API — if the source media is large it may have been rejected for size before CORS applies. Try a shorter clip, or build this into an app and run it offline. (${e.message||e})`); }
       if(!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`);
       const j = await r.json(); accrue(j);
       runId = j.runId || j.id;
@@ -2877,8 +3106,9 @@ const CTX = {
     const t0 = Date.now();
     while(Date.now()-t0 < 600000){                   // 10 min — the job runs server-side, so patience here is cheap
       await sleep(5000);
-      let s; try{ s = await (await fetch(`${NANOGPT}/api/video/status?requestId=${encodeURIComponent(runId)}`, {headers:authHeaders()})).json(); }
-      catch{ continue; }
+      if(runSignal()?.aborted) throw new DOMException("aborted","AbortError");   // Stop: leave runId in PENDING_VIDEO so a re-run resumes
+      let s; try{ s = await (await fetch(`${NANOGPT}/api/video/status?requestId=${encodeURIComponent(runId)}`, {headers:authHeaders(), signal:runSignal()})).json(); }
+      catch(e){ if(e?.name==="AbortError") throw e; continue; }
       const st = String(s.data?.status || s.status || "").toUpperCase();
       onProgress && onProgress(st, Date.now()-t0);
       if(st==="COMPLETED" || st==="SUCCEEDED"){
@@ -2902,7 +3132,7 @@ const CTX = {
   // extra = the dynamic, model-specific params already resolved by the node (lyrics, voice, duration, …).
   async genAudio(model, input, extra, onProgress){
     const body = Object.assign({ model, input }, extra||{});
-    const r = await fetch(`${NANOGPT}/api/v1/audio/speech`, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
+    const r = await fetch(`${NANOGPT}/api/v1/audio/speech`, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
     if(!r.ok){
       const t = (await r.text()).slice(0,220);
       if(/lyric/i.test(t)) throw new Error("This model needs lyrics — fill the Lyrics field (vocal models require them; leave empty / use a BGM model for instrumentals).");
@@ -2929,17 +3159,17 @@ const CTX = {
   // speech→text: multipart upload to /api/v1/audio/transcriptions (audio file + model + language).
   // The in-graph audio is a blob/data URL, so we re-fetch its bytes and post them as a file.
   async transcribe(model, audioUrl, language){
-    const blob = await (await fetch(audioUrl)).blob();
+    const blob = await (await fetch(audioUrl, {signal:runSignal()})).blob();
     if(blob.size > 3.5*1024*1024)
       throw new Error("This clip is a bit big to transcribe directly (~3 MB max) — nanoodle sends audio inline rather than uploading it (no S3 here). A shorter clip works, or build this into an app (✨ Create app) and run it offline.");
     const ext = (blob.type.split("/")[1] || "mp3").split(";")[0];
     const fd = new FormData();
-    fd.append("audio", blob, `audio.${ext}`);
+    fd.append("file", blob, `audio.${ext}`);    // the endpoint is OpenAI-compatible: the audio field MUST be "file" (sending "audio" 400s "Missing 'file'")
     fd.append("model", model);
     if(language) fd.append("language", language);
     const k = getKey();   // multipart: let the browser set Content-Type (boundary) — don't use authHeaders()
     const r = await fetch(`${NANOGPT}/api/v1/audio/transcriptions`, {method:"POST",
-      headers:{ Authorization:`Bearer ${k}`, "x-api-key":k }, body:fd});
+      headers:{ Authorization:`Bearer ${k}`, "x-api-key":k }, body:fd, signal:runSignal()});
     if(!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`);
     const j = await r.json(); accrue(j);
     if(j?.metadata?.cost!=null && isFinite(+j.metadata.cost)) stats.cost += +j.metadata.cost;   // cost rides in metadata here
@@ -2960,7 +3190,7 @@ function framePorts(n){
 // already allows this — same path the save buttons use). Caller must revoke() when done.
 async function toLocalMediaUrl(url){
   if(/^(data:|blob:)/.test(url)) return { src:url, revoke:null };
-  const blob = await (await fetch(url)).blob();
+  const blob = await (await fetch(url, {signal:runSignal()})).blob();
   const o = URL.createObjectURL(blob);
   return { src:o, revoke:()=> URL.revokeObjectURL(o) };
 }
@@ -2988,8 +3218,8 @@ function mediaFetchError(url, e){
 async function urlToDataUrl(url){
   if(/^data:/.test(url)) return url;
   let blob;
-  try{ blob = await (await fetch(url)).blob(); }
-  catch(e){ throw mediaFetchError(url, e); }
+  try{ blob = await (await fetch(url, {signal:runSignal()})).blob(); }
+  catch(e){ if(e?.name==="AbortError") throw e; throw mediaFetchError(url, e); }
   return await new Promise((res, rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=()=>rej(new Error("could not read media")); fr.readAsDataURL(blob); });
 }
 // source-video payload for /api/generate-video: pass a public https link as videoUrl, otherwise inline as videoDataUrl
@@ -3025,8 +3255,8 @@ async function trimAudioToWavUrl(url, start, len, rate){
   const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
   if(!AC || !OAC) throw new Error("this browser can’t process audio (no Web Audio API)");
   let arr;
-  try{ arr = await (await fetch(url)).arrayBuffer(); }
-  catch(e){ throw mediaFetchError(url, e); }
+  try{ arr = await (await fetch(url, {signal:runSignal()})).arrayBuffer(); }
+  catch(e){ if(e?.name==="AbortError") throw e; throw mediaFetchError(url, e); }
   const dec = new AC();
   let src;
   try{ src = await dec.decodeAudioData(arr); }
@@ -3124,8 +3354,9 @@ async function pollAudio(model, j, onProgress){
   const t0 = Date.now();
   while(Date.now()-t0 < 300000){
     await sleep(3000);
-    let s; try{ s = await (await fetch(`${NANOGPT}/api/tts/status?${qs}`, {headers:authHeaders()})).json(); }
-    catch{ continue; }
+    if(runSignal()?.aborted) throw new DOMException("aborted","AbortError");
+    let s; try{ s = await (await fetch(`${NANOGPT}/api/tts/status?${qs}`, {headers:authHeaders(), signal:runSignal()})).json(); }
+    catch(e){ if(e?.name==="AbortError") throw e; continue; }
     const st = String(s.status||"").toLowerCase();
     if(st==="completed" || st==="succeeded")
       return s.audioUrl || s.url || s.data?.audioUrl || s.data?.url || (()=>{ throw new Error("completed but no audio url"); })();
@@ -3253,11 +3484,14 @@ $("addbtn").onclick = (e)=>{
   if(opening){ buildAddMenu(); if(!matchMedia("(pointer:coarse)").matches) $("addsearch").focus(); }
 };
 document.addEventListener("click", e=>{ if(!$("addmenu").contains(e.target)) $("addpop").classList.remove("open"); });
-$("run").onclick = runAll;
+$("run").onclick = ()=>{
+  if(runningNodes.size && runAbort && !runAbort.signal.aborted){ runAbort.abort(); flash("stopping…"); updateRunButtons(); }  // ■ Stop
+  else runAll();                                                                                                              // ▶ Run
+};
 
 /* ---------- responsive toolbar: collapse secondary actions into the ⋯ menu on phones ----------
    Buttons keep their handlers (they're moved, not cloned). On desktop everything sits inline. */
-const RELOC = ["makeapp","newapp","share","save","load","updates","signin","pastebtn","signout","status"];  // order shown in the menu
+const RELOC = ["makeapp","newapp","share","submitcontest","save","load","updates","signin","pastebtn","signout","status"];  // order shown in the menu
 const mqMobile = matchMedia("(max-width:640px)");
 let topOrder = null;
 function layoutBar(){
@@ -3405,12 +3639,19 @@ async function copyText(t){
   try{ const ta=document.createElement("textarea"); ta.value=t; ta.style.cssText="position:fixed;opacity:0";
        document.body.appendChild(ta); ta.select(); const ok=document.execCommand("copy"); ta.remove(); return ok; }catch{ return false; }
 }
-async function shareUrl(){
+// Build a shareable #g= (or #j= fallback) URL for the current graph.
+// target "app"  → play.html: opens the standalone, ready-to-run APP (what contest voters click).
+// target other  → this editor page: opens the editable WORKFLOW (the 🔗 Share default, for remixing).
+// One packer so the 🔗 Share button and the 🏆 Submit popup never drift.
+async function buildShareUrl(target){
   const json = JSON.stringify(shareableGraph());
-  let hash;
   const packed = await gzip(json).catch(()=>null);
-  hash = packed ? "#g="+bytesToB64url(packed) : "#j="+bytesToB64url(new TextEncoder().encode(json));
-  const url = location.origin + location.pathname + location.search + hash;
+  const hash = packed ? "#g="+bytesToB64url(packed) : "#j="+bytesToB64url(new TextEncoder().encode(json));
+  if(target==="app") return location.origin + "/play.html" + hash;     // real file → resolves on the live site and locally
+  return location.origin + location.pathname + location.search + hash;
+}
+async function shareUrl(){
+  const url = await buildShareUrl();
   history.replaceState({}, "", url);                 // surface it in the address bar too
   const big = url.length > 8000 ? ` (${(url.length/1024).toFixed(0)}kB)` : "";
   const ok = await copyText(url);
@@ -3420,6 +3661,9 @@ async function shareUrl(){
   const b = $("share");                                   // flip the button itself for unmistakable feedback
   if(b && ok){ const o=b.textContent; b.textContent="✓ Link copied!"; b.classList.add("ok");
     setTimeout(()=>{ b.textContent=o; b.classList.remove("ok"); }, 1800); }
+  // Catch the wow moment: a link is on the clipboard — nudge them to enter it in the Cookoff.
+  // The popup builds its own APP link (what to post for the contest); back off once dismissed.
+  if(ok && !suppressShareNudge) openSubmit(true);
 }
 // Set when this editor session is editing the workflow of an existing app (carried in
 // via #ga= or the modal's __editflow__ message). "Create app" hands the graph back under
@@ -3532,7 +3776,6 @@ addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("appmodal").hidden) c
 const cookoffBtn = $("cookoffbtn");
 try{ if(localStorage.getItem("noodle_cookoff_dismissed")) cookoffBtn.hidden = true; }catch(_){}
 function closeCookoff(){ $("cookoffmodal").hidden = true; }
-cookoffBtn.onclick = ()=>{ $("cookoffmodal").hidden = false; };
 function dismissCookoff(e){ e.stopPropagation(); cookoffBtn.hidden = true; try{ localStorage.setItem("noodle_cookoff_dismissed","1"); }catch(_){} }
 $("cookoffdismiss").onclick = dismissCookoff;
 $("cookoffdismiss").addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" ") dismissCookoff(e); });
@@ -3540,6 +3783,60 @@ $("cookoffclose").onclick = closeCookoff;
 $("cookoffstart").onclick = closeCookoff;
 $("cookoffmodal").addEventListener("click", e=>{ if(e.target.id==="cookoffmodal") closeCookoff(); });   // click the dim backdrop
 addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("cookoffmodal").hidden) closeCookoff(); });
+
+// 🏆 Submit popup — the conversion path into the Cookoff: prize → your entry link → where to post.
+// Reached three ways: the 🏆 Submit toolbar button, the 🍜 explainer's "Submit your entry →",
+// and an auto-nudge the instant a 🔗 Share copy succeeds (the wow moment).
+let submitFromShare = false;     // this open was the post-Share auto-nudge (vs. an explicit click)
+let suppressShareNudge = false;  // user dismissed that nudge once → stop auto-popping it this session
+let submitTarget = "app";        // "app" (play.html runtime — the contest default) | "workflow" (editor, for remixers)
+function closeSubmit(){
+  if(submitFromShare) suppressShareNudge = true;   // dismissed the post-Share nudge → don't re-pop it this session
+  submitFromShare = false;
+  $("submitmodal").hidden = true;
+}
+const SUBMIT_HINT = {
+  app: "Opens your creation as a ready-to-run app — what people click to try it. Best for entries.",
+  workflow: "Opens in the editor so others can remix or learn from your noodle.",
+};
+async function fillSubmitLink(){               // (re)generate the link for the active target
+  const inp = $("submitlink"); inp.value = "…";
+  try{ inp.value = await buildShareUrl(submitTarget); }catch(e){ inp.value = ""; }
+  inp.focus(); inp.select();                   // keyboard users can copy immediately
+}
+function setSubmitTarget(t){
+  submitTarget = t;
+  $("sublinkapp").classList.toggle("on", t==="app");
+  $("sublinkwf").classList.toggle("on", t==="workflow");
+  $("sublinkapp").setAttribute("aria-selected", t==="app");
+  $("sublinkwf").setAttribute("aria-selected", t==="workflow");
+  $("sublinkhint").textContent = SUBMIT_HINT[t];
+  const cb = $("submitcopy"); cb.textContent = "Copy link"; cb.classList.remove("ok");
+  fillSubmitLink();
+}
+async function openSubmit(fromShare){
+  submitFromShare = !!fromShare;
+  $("submitmodal").hidden = false;
+  const copyBtn = $("submitcopy");
+  copyBtn.textContent = "Copy link"; copyBtn.classList.remove("ok");   // reset from any prior copy
+  await fillSubmitLink();                                              // uses the sticky submitTarget (default: app)
+}
+$("sublinkapp").onclick = ()=> setSubmitTarget("app");
+$("sublinkwf").onclick  = ()=> setSubmitTarget("workflow");
+// 🍜 floating button → the rich "why enter" explainer; its CTA opens this submit popup.
+cookoffBtn.onclick = ()=>{ $("cookoffmodal").hidden = false; };
+$("cookoffsubmit").onclick = ()=>{ closeCookoff(); openSubmit(); };
+$("submitcontest").onclick = ()=> openSubmit();                       // wrap: never pass the click event as a URL
+$("submitclose").onclick = closeSubmit;
+$("submitmodal").addEventListener("click", e=>{ if(e.target.id==="submitmodal") closeSubmit(); });   // click the dim backdrop
+addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("submitmodal").hidden) closeSubmit(); });
+$("submitcopy").onclick = async ()=>{
+  const inp = $("submitlink"); inp.select();
+  const ok = await copyText(inp.value);
+  const b = $("submitcopy");
+  if(ok){ b.textContent = "✓ Copied"; b.classList.add("ok"); setTimeout(()=>{ b.textContent="Copy link"; b.classList.remove("ok"); }, 1800); }
+  else { toast("Couldn't copy — select the link and copy it manually", "err"); }
+};
 addEventListener("message", e=>{
   if(e.source!==$("appmodalframe").contentWindow || !e.data) return;
   if(e.data.type==="__closeapp__") closeAppModal();
