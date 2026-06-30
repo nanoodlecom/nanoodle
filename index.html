@@ -180,62 +180,37 @@
   #cookoffbtn .x:hover{ background:#0b0d1255; opacity:1 }
   @media (prefers-reduced-motion:reduce){ #cookoffbtn{ animation:none } }
 
-  /* ---------- 💬 Describe changes: a non-modal copilot that edits the graph from a text description ---------- */
-  #copilotbtn{ position:fixed; left:1rem; bottom:var(--copilot-bottom,1rem); z-index:121; display:flex; align-items:center; gap:.4rem;
-    padding:.5rem .7rem; border-radius:.6rem; background:var(--panel2); color:var(--accent); border:1px solid var(--line); cursor:pointer;
-    font-weight:600; font-size:.86rem; box-shadow:0 6px 18px #0006; transition:bottom .15s ease, filter .12s ease; }
-  #copilotbtn:hover{ filter:brightness(1.12) }
-  #copilotbtn.on{ background:var(--accent); color:#0b0d12; border-color:var(--accent) }
-  #copilot{ position:fixed; top:52px; right:0; bottom:0; width:clamp(320px,30vw,430px); z-index:130; display:flex; flex-direction:column;
-    background:var(--panel); border-left:1px solid var(--line); box-shadow:-12px 0 34px #0007;
-    transform:translateX(101%); transition:transform .18s ease; }
-  #copilot.open{ transform:translateX(0) }
-  #copilot .cohead{ display:flex; align-items:center; gap:.5rem; padding:.7rem .8rem; border-bottom:1px solid var(--line); font-weight:600 }
-  #copilot .cohead .sub{ font-weight:400; font-size:.72rem; color:var(--dim) }
-  #copilotclose{ margin-left:auto; width:1.9rem; height:1.9rem; border-radius:.5rem; display:flex; align-items:center; justify-content:center;
-    background:var(--panel2); border:1px solid var(--line); color:var(--ink); cursor:pointer }
-  #cobody{ flex:1; overflow:auto; padding:.7rem .8rem; display:flex; flex-direction:column; gap:.7rem }
-  .co-empty{ color:var(--dim); font-size:.82rem; line-height:1.5 }
-  .co-chips{ display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.5rem }
-  .co-chip{ padding:.32rem .55rem; border-radius:1rem; background:var(--panel2); border:1px solid var(--line); color:var(--ink);
-    font-size:.76rem; cursor:pointer; transition:border-color .12s }
-  .co-chip:hover{ border-color:var(--accent) }
-  .co-hist{ display:flex; flex-direction:column; gap:.4rem }
-  .co-hrow{ font-size:.78rem; color:var(--dim); display:flex; gap:.4rem; align-items:baseline; border-left:2px solid var(--good); padding-left:.5rem }
-  .co-hrow .undo{ margin-left:auto; color:var(--accent); cursor:pointer; flex:0 0 auto }
-  .co-hrow .txt{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
-  .co-diff,.co-result{ border:1px solid var(--line); border-radius:.6rem; overflow:hidden }
-  .co-diff .dtitle,.co-result .dtitle{ padding:.45rem .6rem; background:var(--panel2); border-bottom:1px solid var(--line); font-size:.78rem; color:var(--good) }
-  .co-rows{ padding:.45rem .6rem; display:flex; flex-direction:column; gap:.2rem; max-height:34vh; overflow:auto }
-  .dchg{ font-size:.78rem; line-height:1.5; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
-  .dchg.add{ color:var(--good) } .dchg.del{ color:var(--bad) } .dchg.mod{ color:var(--warn) } .dchg.wire{ color:var(--dim) }
-  .co-note{ font-size:.76rem; color:var(--dim); padding:.45rem .6rem }
-  .co-note.err{ color:var(--bad) }
-  .co-dacts{ display:flex; gap:.5rem; padding:.5rem .6rem; border-top:1px solid var(--line) }
-  .co-dacts button{ flex:1; padding:.45rem; border-radius:.5rem; border:1px solid var(--line); background:var(--panel2); color:var(--ink); cursor:pointer; font-size:.82rem }
-  .co-dacts button.primary{ background:var(--accent); color:#0b0d12; border-color:var(--accent); font-weight:600 }
-  .co-dacts button.danger{ border-color:var(--bad); color:var(--bad) }
-  .co-dacts button:disabled{ opacity:.45; cursor:default }
-  #cofoot{ border-top:1px solid var(--line); padding:.6rem .7rem; display:flex; flex-direction:column; gap:.5rem }
-  #cofoot .corow{ display:flex; gap:.45rem; align-items:flex-end }
-  #copilotin{ flex:1; resize:none; background:var(--panel2); border:1px solid var(--line); border-radius:.5rem; color:var(--ink);
-    padding:.5rem .55rem; font:inherit; font-size:.86rem; line-height:1.35; max-height:7rem; min-height:2.4rem }
-  #copilotin::placeholder{ color:var(--dim) }
-  #copilotgen{ flex:0 0 auto; padding:.55rem .8rem; border-radius:.5rem; background:var(--accent); color:#0b0d12; border:none; cursor:pointer; font-weight:600 }
-  #copilotgen:disabled{ opacity:.55; cursor:default }
-  #cofoot .comodel{ display:flex; align-items:center; gap:.4rem; font-size:.72rem; color:var(--dim) }
-  #copilotmodel{ flex:1; background:var(--panel2); border:1px solid var(--line); border-radius:.4rem; color:var(--ink); padding:.25rem .35rem; font-size:.72rem }
-  .co-spin{ display:inline-block; width:.85rem; height:.85rem; border:2px solid #0b0d1255; border-top-color:#0b0d12; border-radius:50%; animation:cospin .7s linear infinite; vertical-align:-.1rem }
-  @keyframes cospin{ to{ transform:rotate(360deg) } }
-  @keyframes copulse{ 0%{ box-shadow:0 0 0 0 var(--accent) } 100%{ box-shadow:0 0 0 14px transparent } }
-  .node.co-pulse{ animation:copulse 1s ease-out 2 }
-  @media (prefers-reduced-motion:reduce){ #copilot,#copilotbtn{ transition:none } .node.co-pulse{ animation:none } .co-spin{ animation:none } }
-  @media (max-width:760px){
-    #copilot{ top:auto; left:0; right:0; bottom:0; width:auto; max-height:74vh; border-left:none; border-top:1px solid var(--line);
-      border-radius:.9rem .9rem 0 0; transform:translateY(101%); }
-    #copilot.open{ transform:translateY(0) }
-    #copilotbtn .lbl{ display:none }
-  }
+  /* ---------- 💬 Describe changes: a docked bottom composer that edits the graph (gptdiff engine) ---------- */
+  /*    Same placement & shape as the app builder's "Customize" composer (play.html #customize). */
+  #describebar{ position:fixed; left:0; right:0; bottom:0; z-index:120; padding:.55rem .8rem;
+    background:#11141f; border-top:1px solid var(--line); box-shadow:0 -8px 24px #0005; }
+  .db-row{ display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+  .db-label{ font-size:.84rem; color:var(--accent); font-weight:600; white-space:nowrap; }
+  #describegoal{ flex:1; min-width:240px; background:var(--panel2); border:1px solid var(--line); border-radius:.5rem;
+    color:var(--ink); padding:.5rem .6rem; font:inherit; font-size:.88rem; }
+  #describegoal::placeholder{ color:var(--dim) }
+  #describebar button{ flex:0 0 auto; border-radius:.5rem; padding:.5rem .75rem; cursor:pointer; font:inherit; font-size:.84rem;
+    border:1px solid var(--line); background:var(--panel2); color:var(--ink); }
+  #describebar button.ghost{ background:transparent; color:var(--dim); }
+  #describebar button.ghost:hover{ color:var(--ink); }
+  #describebar button.primary{ background:var(--accent); color:#0b0d12; border-color:var(--accent); font-weight:700; }
+  #describebar button:disabled{ opacity:.5; cursor:default; }
+  #describemodel{ max-width:230px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #describesuggest{ display:flex; flex-wrap:wrap; gap:.35rem; align-items:center; margin-top:.5rem; }
+  #describesuggest[hidden]{ display:none }
+  #describesuggest .sg-lbl{ font-size:.74rem; color:var(--dim); }
+  .db-chip{ padding:.28rem .5rem; border-radius:1rem; background:var(--panel2); border:1px solid var(--line); color:var(--ink); font-size:.76rem; cursor:pointer; }
+  .db-chip:hover{ border-color:var(--accent) }
+  #describestatus{ font-size:.8rem; min-height:1.1em; margin-top:.45rem; color:var(--dim); }
+  #describestatus .ok{ color:var(--good) } #describestatus .err{ color:var(--bad) }
+  #describestatus .undo{ color:var(--accent); cursor:pointer; margin-left:.4rem; }
+  .db-spin{ display:inline-block; width:.85rem; height:.85rem; border:2px solid #ffffff33; border-top-color:var(--accent); border-radius:50%; animation:dbspin .7s linear infinite; vertical-align:-.1rem; margin-right:.3rem; }
+  @keyframes dbspin{ to{ transform:rotate(360deg) } }
+  @keyframes dbpulse{ 0%{ box-shadow:0 0 0 0 var(--accent) } 100%{ box-shadow:0 0 0 14px transparent } }
+  .node.db-pulse{ animation:dbpulse 1s ease-out 2 }
+  #cookoffbtn{ bottom:calc(var(--db-h,3rem) + .7rem); }   /* lift the (temporary) contest badge above the composer */
+  @media (prefers-reduced-motion:reduce){ .node.db-pulse{ animation:none } .db-spin{ animation:none } }
+  @media (max-width:620px){ .db-label{ display:none } #describemodel{ max-width:120px } #describegoal{ min-width:140px } }
   #cookoffmodal[hidden]{ display:none }
   #cookoffmodal{ position:fixed; inset:0; z-index:210; display:flex; padding:min(4vh,2.4rem) min(4vw,2.4rem);
                  background:rgba(4,6,11,.78); backdrop-filter:blur(3px); }
@@ -271,10 +246,10 @@
   #cost b{color:var(--ink)}
 
   /* ---------- editor surface ---------- */
-  #legallink{ position:fixed; right:.5rem; bottom:.35rem; z-index:20; font-size:.62rem; line-height:1;
+  #legallink{ position:fixed; right:.5rem; bottom:calc(var(--db-h,3rem) + .35rem); z-index:20; font-size:.62rem; line-height:1;
               color:var(--dim); opacity:.4; text-decoration:none; pointer-events:auto; }
   #legallink:hover{ opacity:.85; text-decoration:underline }
-  #editor{ position:fixed; inset:52px 0 0 0; overflow:hidden; cursor:grab;
+  #editor{ position:fixed; inset:52px 0 var(--db-h,3rem) 0; overflow:hidden; cursor:grab;
            background-color:#0b0d12;
            background-image:radial-gradient(circle, #ffffff0d 1px, transparent 1px);
            background-size:22px 22px;
@@ -541,21 +516,19 @@
   <iframe id="appmodalframe" title="Create app" allow="clipboard-write; fullscreen"></iframe>
 </div>
 
-<!-- 💬 Describe changes — non-modal copilot that edits the workflow graph from a text description -->
-<button id="copilotbtn" title="Describe a change to your workflow in plain words" aria-haspopup="dialog" aria-controls="copilot">💬<span class="lbl"> Describe changes</span></button>
-<aside id="copilot" role="dialog" aria-label="Describe changes" aria-hidden="true">
-  <div class="cohead">💬 Describe changes <span class="sub">edit the graph in words</span>
-    <button id="copilotclose" title="Close (Esc)" aria-label="Close">✕</button>
+<!-- 💬 Describe changes — docked bottom composer (same shape as the app builder's Customize bar);
+     describes a change to the workflow and applies it via the vendored gptdiff engine. -->
+<div id="describebar">
+  <div class="db-row">
+    <span class="db-label">💬 Describe changes</span>
+    <input id="describegoal" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="e.g. “add a node that speaks the result aloud”" />
+    <button id="describemodel" class="ghost" title="Choose the model that plans your change">✨ model ▾</button>
+    <button id="describego" class="primary" title="Apply the described change (Enter)">✦ Apply</button>
+    <button id="describeundo" class="ghost" disabled title="Undo the last applied change">↶ undo</button>
   </div>
-  <div id="cobody"></div>
-  <div id="cofoot">
-    <div class="corow">
-      <textarea id="copilotin" rows="2" placeholder="Describe a change… e.g. “add a node that speaks the lyrics aloud”"></textarea>
-      <button id="copilotgen" title="Generate the change (Enter)">Generate</button>
-    </div>
-    <div class="comodel">model <select id="copilotmodel" title="Which model plans the change"></select></div>
-  </div>
-</aside>
+  <div id="describesuggest"></div>
+  <div id="describestatus"></div>
+</div>
 
 <!-- 🍜 Noodle Cookoff — floating announcement (left), opens the contest modal -->
 <button id="cookoffbtn" title="Noodle Cookoff — win Nano" aria-haspopup="dialog">🍜 Noodle Cookoff<span class="x" id="cookoffdismiss" role="button" tabindex="0" title="Dismiss" aria-label="Dismiss">✕</span></button>
@@ -3807,19 +3780,16 @@ $("signout").onclick = ()=> setKey(null);
 })();
 
 /* ===================== 💬 Describe changes — graph copilot =====================
-   Edit the workflow by describing the change. We ask a chat model for the COMPLETE new
-   graph (the most model-robust shape — proven in proof/describe), strip layout noise so the
-   model only reasons about semantics, then DIFF prev-vs-new ourselves for a review-before-apply
-   preview. We never trust the model to emit diff syntax. Apply preserves layout + uploaded media
-   for surviving nodes and auto-fills default models for new ones. One-level undo per change. */
+   A docked bottom composer (same shape/placement as the app builder's Customize bar) that edits
+   the workflow by description. Powered by the vendored gptdiff engine (generateDiff → smartapply)
+   over the graph as a file. We feed the model the simplified semantic graph (layout + media
+   stripped) and re-inject layout/media on apply. The user sees the RESULT — the change lands on
+   the canvas with a one-line recap + one-click undo. NOT a unified-diff view. */
 (function(){
-  const DESCRIBE_MODEL_KEY = "noodle_describe_model";
-  const DESC_MODELS = [
-    ["gemini-2.5-flash","Gemini 2.5 Flash · fast"],
-    ["moonshotai/kimi-k2-instruct","Kimi K2 Instruct"],
-    ["Qwen/Qwen3-235B-A22B-Instruct-2507","Qwen3 235B Instruct"],
-    ["openai/gpt-oss-120b","GPT-OSS 120B · reasons"],
-  ];
+  // Same default + persisted key the app builder uses (play.html DEFAULT_MODEL / ngpt_app_model),
+  // so "the model that writes your changes" is one consistent choice across Describe + Customize.
+  const DESCRIBE_DEFAULT_MODEL = "zai-org/glm-5.2:thinking";
+  const DESCRIBE_MODEL_KEY = "ngpt_app_model";
   const EXAMPLES = [
     "Add a node that speaks the result aloud",
     "Turn the final text into an image",
@@ -4002,130 +3972,108 @@ RULES for the diff:
     return { rawDiff, next:{ nodes:(next.nodes||[]).map(n=>({ id:n.id, type:n.type, fields:n.fields||{} })), links:normalizeLinks(next.links) } };
   }
 
-  // ---- UI ----
-  const panel = $("copilot"), btn = $("copilotbtn"), input = $("copilotin"), gen = $("copilotgen"),
-        body = $("cobody"), modelSel = $("copilotmodel"), closeBtn = $("copilotclose");
-  if(!panel || !btn) return;   // defensive
-  const cookoff = $("cookoffbtn");
+  // ---- UI: docked bottom composer (same shape/placement as the app builder's Customize bar) ----
+  const bar = $("describebar"), input = $("describegoal"), goBtn = $("describego"),
+        modelBtn = $("describemodel"), undoBtn = $("describeundo"),
+        statusEl = $("describestatus"), suggestEl = $("describesuggest");
+  if(!bar || !input) return;   // defensive
   const history = [];          // {text, prev, dif} newest last — each an applied, undoable change
   let busy = false;
-
-  // model select
-  for(const [id,label] of DESC_MODELS){ const o=document.createElement("option"); o.value=id; o.textContent=label; modelSel.appendChild(o); }
-  try{ const saved=localStorage.getItem(DESCRIBE_MODEL_KEY); if(saved && DESC_MODELS.some(m=>m[0]===saved)) modelSel.value=saved; }catch(_){}
-  modelSel.onchange = ()=>{ try{ localStorage.setItem(DESCRIBE_MODEL_KEY, modelSel.value); }catch(_){} };
-
-  // launcher above the (temporary) contest badge
-  function syncBadge(){ try{ document.documentElement.style.setProperty("--copilot-bottom", (cookoff && !cookoff.hidden) ? "3.7rem" : "1rem"); }catch(_){} }
-  syncBadge();
-  if(cookoff && typeof MutationObserver!=="undefined"){ try{ new MutationObserver(syncBadge).observe(cookoff, { attributes:true, attributeFilter:["hidden"] }); }catch(_){} }
-
-  function open(){ panel.classList.add("open"); panel.setAttribute("aria-hidden","false"); btn.classList.add("on"); setTimeout(()=>input.focus(),180); }
-  function close(){ panel.classList.remove("open"); panel.setAttribute("aria-hidden","true"); btn.classList.remove("on"); }
-  function toggle(){ panel.classList.contains("open") ? close() : (render(), open()); }
-  btn.onclick = toggle;
-  closeBtn.onclick = close;
-  panel.addEventListener("keydown", e=>{ if(e.key==="Escape" && !input.value.trim()){ e.stopPropagation(); close(); } });
-
-  function autogrow(){ input.style.height="auto"; input.style.height=Math.min(input.scrollHeight,112)+"px"; }
-  input.addEventListener("input", autogrow);
-  input.addEventListener("keydown", e=>{ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); submit(); } });
-  gen.onclick = submit;
-
   const esc = s=> String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-  const short = (v)=>{ let s = typeof v==="string" ? v : JSON.stringify(v); if(s==null) s=""; s=String(s); return s.length>42 ? s.slice(0,40)+"…" : s; };
-  const label = n=> `${n.type}${n.id?` (${n.id})`:""}`;
 
-  function diffRowsHTML(d){
-    const rows = [];
-    for(const n of d.added)   rows.push(`<div class="dchg add">+ add ${esc(label(n))}${n.fields?.model?` · ${esc(short(n.fields.model))}`:""}</div>`);
-    for(const n of d.removed) rows.push(`<div class="dchg del">– remove ${esc(label(n))}</div>`);
-    for(const c of d.changed){
-      if(c.retyped) rows.push(`<div class="dchg mod">~ ${esc(c.id)}: ${esc(c.retyped)} → ${esc(c.type)}</div>`);
-      for(const f of c.fields) rows.push(`<div class="dchg mod">~ ${esc(c.id)}.${esc(f.key)}: ${esc(short(f.from))} → ${esc(short(f.to))}</div>`);
-    }
-    for(const l of d.linksAdded)   rows.push(`<div class="dchg wire">+ wire ${esc(l.from)} ▸ ${esc(l.to)}</div>`);
-    for(const l of d.linksRemoved) rows.push(`<div class="dchg wire">– unwire ${esc(l.from)} ▸ ${esc(l.to)}</div>`);
-    return rows.join("");
-  }
-  // Result view: gptdiff is the engine, but we put the RESULT in front of the user — the change
-  // lands on the canvas, the panel shows a plain-English recap of what changed, undo is one click.
-  function render(){
-    let html = "";
-    if(history.length){
-      const last = history.length-1;
-      if(last>0){
-        html += `<div class="co-hist">` + history.slice(0,last).map((h,i)=>
-          `<div class="co-hrow"><span class="txt" title="${esc(h.text)}">✓ ${esc(h.text)}</span><span class="undo" data-undo="${i}">undo</span></div>`
-        ).join("") + `</div>`;
-      }
-      const h = history[last];
-      html += `<div class="co-result"><div class="dtitle">✓ Done — ${esc(h.text)}</div>`;
-      html += h.dif && h.dif.count ? `<div class="co-rows">${diffRowsHTML(h.dif)}</div>`
-                                   : `<div class="co-note">Updated the workflow.</div>`;
-      html += `<div class="co-dacts"><button data-undo="${last}">↩ Undo this change</button></div></div>`;
-    } else {
-      html += `<div class="co-empty">Describe a change to your workflow — it’s applied straight to your canvas, and you can undo it in one click.
-        <div class="co-chips">${EXAMPLES.map(e=>`<span class="co-chip" data-chip="${esc(e)}">${esc(e)}</span>`).join("")}</div></div>`;
-    }
-    body.innerHTML = html;
-  }
+  // the composer owns the bottom strip; publish its (dynamic) height so the canvas, contest badge
+  // and legal link sit above it (CSS reads --db-h).
+  function syncHeight(){ try{ document.documentElement.style.setProperty("--db-h", (bar.offsetHeight||44)+"px"); }catch(_){} }
+  syncHeight();
+  if(typeof ResizeObserver!=="undefined"){ try{ new ResizeObserver(syncHeight).observe(bar); }catch(_){} }
+  else if(typeof addEventListener==="function") addEventListener("resize", syncHeight);
 
-  body.addEventListener("click", e=>{
-    const chip = e.target.closest("[data-chip]");
-    if(chip){ input.value = chip.getAttribute("data-chip"); autogrow(); input.focus(); return; }
-    const undo = e.target.closest("[data-undo]");
-    if(undo){ doUndo(+undo.getAttribute("data-undo")); }
-  });
+  // Model = the full searchable LLM list — the SAME popover the editor uses for nodes (openPicker).
+  // Default + persisted with the app builder's setting (ngpt_app_model / glm-5.2:thinking).
+  let descModel = "";
+  try{ descModel = localStorage.getItem(DESCRIBE_MODEL_KEY) || ""; }catch(_){}
+  if(!descModel) descModel = DESCRIBE_DEFAULT_MODEL;
+  function renderModelBtn(){ modelBtn.textContent = "✨ " + (descModel || "pick a model…") + " ▾"; }
+  renderModelBtn();
+  modelBtn.onclick = ()=>{
+    if(typeof openPicker!=="function") return;
+    openPicker("chat", { filter:null, current:descModel, onPick:(id)=>{
+      descModel = id; try{ localStorage.setItem(DESCRIBE_MODEL_KEY, id); }catch(_){}
+      renderModelBtn();
+    }});
+  };
+
+  // click-to-fill idea chips; hidden once you've typed or made a change
+  function renderSuggest(){
+    if(!suggestEl) return;
+    if(history.length || input.value.trim()){ suggestEl.hidden = true; suggestEl.innerHTML = ""; return; }
+    suggestEl.hidden = false;
+    suggestEl.innerHTML = `<span class="sg-lbl">try:</span>` + EXAMPLES.map(e=>`<span class="db-chip" data-chip="${esc(e)}">${esc(e)}</span>`).join("");
+  }
+  renderSuggest();
+  suggestEl.addEventListener("click", e=>{ const c=e.target.closest("[data-chip]"); if(c){ input.value=c.getAttribute("data-chip"); input.focus(); renderSuggest(); } });
+  statusEl.addEventListener("click", e=>{ if(e.target.closest("[data-undo]")) doUndo(history.length-1); });
+  input.addEventListener("input", renderSuggest);
+  input.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); submit(); } });
+  goBtn.onclick = submit;
+  undoBtn.onclick = ()=> doUndo(history.length-1);
 
   function setBusy(on){
-    busy = on; gen.disabled = on; input.disabled = on;
-    gen.innerHTML = on ? `<span class="co-spin"></span>` : "Generate";
+    busy = on; goBtn.disabled = on; input.disabled = on; modelBtn.disabled = on;
+    goBtn.textContent = on ? "working…" : "✦ Apply";
   }
-  function showError(msg){
-    render();
-    body.insertAdjacentHTML("beforeend", `<div class="co-note err">⚠ ${esc(msg)}</div>`);
-  }
+  function setStatus(html, cls){ statusEl.innerHTML = html ? `<span class="${cls||""}">${html}</span>` : ""; }
+  function refreshUndo(){ undoBtn.disabled = history.length===0; }
+
   function pulse(ids){
     for(const id of ids){
       const n = graph.nodes.find(x=>x.id===id);
-      if(n && n.el){ n.el.classList.remove("co-pulse"); void n.el.offsetWidth; n.el.classList.add("co-pulse"); }
+      if(n && n.el){ n.el.classList.remove("db-pulse"); void n.el.offsetWidth; n.el.classList.add("db-pulse"); }
     }
+  }
+  // one-line, plain-English recap of the RESULT (never diff syntax)
+  function summarize(d){
+    const bits = [];
+    if(d.added.length)   bits.push(`added ${[...new Set(d.added.map(n=>n.type))].join(", ")}`);
+    if(d.removed.length) bits.push(`removed ${[...new Set(d.removed.map(n=>n.type))].join(", ")}`);
+    const fc = d.changed.reduce((n,c)=> n + (c.retyped?1:0) + c.fields.length, 0);
+    if(fc)               bits.push(`updated ${fc} setting${fc>1?"s":""}`);
+    const wires = d.linksAdded.length + d.linksRemoved.length;
+    if(wires)            bits.push(`wired ${wires} connection${wires>1?"s":""}`);
+    return bits.length ? bits.join(", ") : "updated the workflow";
   }
 
   async function submit(){
     if(busy) return;
     const text = input.value.trim();
     if(!text){ input.focus(); return; }
-    if(!getKey()){ showError("Add your nano-gpt key to describe changes — click “paste key” up top."); return; }
+    if(!getKey()){ setStatus("⚠ Add your nano-gpt key first — “paste key” up top.", "err"); return; }
     const prevInternal = serializeGraph();
     const prevSimple = toSimple(prevInternal);
-    setBusy(true);
+    setBusy(true); setStatus(`<span class="db-spin"></span>planning your change…`);
     try{
-      const { next } = await runGptdiff(prevSimple, text, modelSel.value);
+      const { next } = await runGptdiff(prevSimple, text, descModel);
       const valid = validate(next);
       if(!valid.ok) throw new Error(valid.errs[0]);
       const dif = diff(prevSimple, next);
-      if(dif.count===0){ showError("That didn’t change anything — try being more specific."); return; }
+      if(dif.count===0){ setStatus("No change needed — try being more specific."); return; }
       const internal = fromSimple(next, prevInternal);
       applyGraphData(internal); save();
       history.push({ text, prev: prevInternal, dif });
-      input.value = ""; autogrow();
-      render();
+      input.value = ""; renderSuggest(); refreshUndo();
       pulse(dif.added.map(n=>n.id));
-      const c = dif.count;
-      toast(`✓ Applied ${c} change${c>1?"s":""} — undo in the panel`, "");
+      setStatus(`✓ ${esc(summarize(dif))}.<span class="undo" data-undo>↶ undo</span>`, "ok");
     }catch(e){
-      showError(e.message || String(e));
+      setStatus("⚠ " + esc(e.message || String(e)), "err");
     }finally{ setBusy(false); }
   }
 
   function doUndo(i){
     const h = history[i]; if(!h) return;
     applyGraphData(h.prev); save();
-    history.splice(i);            // drop this and anything after it (they built on the reverted state)
-    render();
-    toast("↩ Reverted", "");
+    history.splice(i);            // drop this change and anything after it (they built on the reverted state)
+    refreshUndo(); renderSuggest();
+    setStatus("↩ Reverted.");
   }
 })();
 </script>
