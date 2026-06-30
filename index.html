@@ -183,7 +183,9 @@
   /* ---------- 💬 Describe changes: a docked bottom composer that edits the graph (gptdiff engine) ---------- */
   /*    Same placement & shape as the app builder's "Customize" composer (play.html #customize). */
   #describebar{ position:fixed; left:0; right:0; bottom:0; z-index:120; padding:.55rem .8rem;
-    background:#11141f; border-top:1px solid var(--line); box-shadow:0 -8px 24px #0005; }
+    background:#11141f; border-top:1px solid var(--line); box-shadow:0 -8px 24px #0005;
+    opacity:.5; transition:opacity .18s ease; }   /* soft until you reach for it (like play's composer) */
+  #describebar:hover, #describebar:focus-within{ opacity:1; }
   .db-row{ display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
   .db-label{ font-size:.84rem; color:var(--accent); font-weight:600; white-space:nowrap; }
   #describegoal{ flex:1; min-width:240px; background:var(--panel2); border:1px solid var(--line); border-radius:.5rem;
@@ -196,14 +198,17 @@
   #describebar button.primary{ background:var(--accent); color:#0b0d12; border-color:var(--accent); font-weight:700; }
   #describebar button:disabled{ opacity:.5; cursor:default; }
   #describemodel{ max-width:230px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  #describesuggest{ display:flex; flex-wrap:wrap; gap:.35rem; align-items:center; margin-top:.5rem; }
-  #describesuggest[hidden]{ display:none }
-  #describesuggest .sg-lbl{ font-size:.74rem; color:var(--dim); }
-  .db-chip{ padding:.28rem .5rem; border-radius:1rem; background:var(--panel2); border:1px solid var(--line); color:var(--ink); font-size:.76rem; cursor:pointer; }
-  .db-chip:hover{ border-color:var(--accent) }
   #describestatus{ font-size:.8rem; min-height:1.1em; margin-top:.45rem; color:var(--dim); }
+  #describestatus:empty{ display:none }
   #describestatus .ok{ color:var(--good) } #describestatus .err{ color:var(--bad) }
-  #describestatus .undo{ color:var(--accent); cursor:pointer; margin-left:.4rem; }
+  #describeversions{ display:flex; flex-wrap:wrap; gap:.3rem; align-items:center; margin-top:.45rem; }
+  #describeversions:empty{ display:none }
+  #describeversions .vlabel{ font-size:.74rem; color:var(--dim); margin-right:.05rem; }
+  #describeversions .ver{ font-size:.74rem; padding:.18rem .45rem; border-radius:.4rem; border:1px solid var(--line);
+    background:var(--panel2); color:var(--dim); cursor:pointer; }
+  #describeversions .ver:hover{ color:var(--ink); border-color:var(--accent); }
+  #describeversions .ver.cur{ background:var(--accent); color:#0b0d12; border-color:var(--accent); font-weight:700; }
+  #describeversions .ver.seed{ font-style:italic; }
   .db-spin{ display:inline-block; width:.85rem; height:.85rem; border:2px solid #ffffff33; border-top-color:var(--accent); border-radius:50%; animation:dbspin .7s linear infinite; vertical-align:-.1rem; margin-right:.3rem; }
   @keyframes dbspin{ to{ transform:rotate(360deg) } }
   @keyframes dbpulse{ 0%{ box-shadow:0 0 0 0 var(--accent) } 100%{ box-shadow:0 0 0 14px transparent } }
@@ -524,10 +529,9 @@
     <input id="describegoal" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="e.g. “add a node that speaks the result aloud”" />
     <button id="describemodel" class="ghost" title="Choose the model that plans your change">✨ model ▾</button>
     <button id="describego" class="primary" title="Apply the described change (Enter)">✦ Apply</button>
-    <button id="describeundo" class="ghost" disabled title="Undo the last applied change">↶ undo</button>
   </div>
-  <div id="describesuggest"></div>
   <div id="describestatus"></div>
+  <div id="describeversions" title="Each change adds a version — click one to jump back to it"></div>
 </div>
 
 <!-- 🍜 Noodle Cookoff — floating announcement (left), opens the contest modal -->
@@ -3790,11 +3794,6 @@ $("signout").onclick = ()=> setKey(null);
   // so "the model that writes your changes" is one consistent choice across Describe + Customize.
   const DESCRIBE_DEFAULT_MODEL = "zai-org/glm-5.2:thinking";
   const DESCRIBE_MODEL_KEY = "ngpt_app_model";
-  const EXAMPLES = [
-    "Add a node that speaks the result aloud",
-    "Turn the final text into an image",
-    "Make the song instrumental",
-  ];
   const MEDIA_KEYS = new Set(["image","audio","video","mask"]);
 
   // Per-type field hints; structure (ports/output/modelKind) is read live from NODE_TYPES so a
@@ -3974,12 +3973,11 @@ RULES for the diff:
 
   // ---- UI: docked bottom composer (same shape/placement as the app builder's Customize bar) ----
   const bar = $("describebar"), input = $("describegoal"), goBtn = $("describego"),
-        modelBtn = $("describemodel"), undoBtn = $("describeundo"),
-        statusEl = $("describestatus"), suggestEl = $("describesuggest");
+        modelBtn = $("describemodel"), statusEl = $("describestatus"), versEl = $("describeversions");
   if(!bar || !input) return;   // defensive
-  const history = [];          // {text, prev, dif} newest last — each an applied, undoable change
   let busy = false;
   const esc = s=> String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const clone = o=> JSON.parse(JSON.stringify(o));   // immutable version snapshots (later edits can't mutate history)
 
   // the composer owns the bottom strip; publish its (dynamic) height so the canvas, contest badge
   // and legal link sit above it (CSS reads --db-h).
@@ -4003,27 +4001,38 @@ RULES for the diff:
     }});
   };
 
-  // click-to-fill idea chips; hidden once you've typed or made a change
-  function renderSuggest(){
-    if(!suggestEl) return;
-    if(history.length || input.value.trim()){ suggestEl.hidden = true; suggestEl.innerHTML = ""; return; }
-    suggestEl.hidden = false;
-    suggestEl.innerHTML = `<span class="sg-lbl">try:</span>` + EXAMPLES.map(e=>`<span class="db-chip" data-chip="${esc(e)}">${esc(e)}</span>`).join("");
-  }
-  renderSuggest();
-  suggestEl.addEventListener("click", e=>{ const c=e.target.closest("[data-chip]"); if(c){ input.value=c.getAttribute("data-chip"); input.focus(); renderSuggest(); } });
-  statusEl.addEventListener("click", e=>{ if(e.target.closest("[data-undo]")) doUndo(history.length-1); });
-  input.addEventListener("input", renderSuggest);
   input.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); submit(); } });
   goBtn.onclick = submit;
-  undoBtn.onclick = ()=> doUndo(history.length-1);
+
+  // ---- versions: each applied change is a snapshot you can jump back to (like the app builder) ----
+  // Entry { graph, goal }. v0 = the workflow BEFORE your first described change; v1.. = after each
+  // change (goal = the words you typed, so you can see/recall what you did). Selecting an older
+  // version then applying branches from there.
+  const versions = [];           // [{ graph, goal }]
+  let curVer = -1;
+  function renderVersions(){
+    if(versions.length <= 1){ versEl.innerHTML = ""; return; }
+    let html = `<span class="vlabel">versions:</span>`;
+    versions.forEach((v,i)=>{
+      const cls = "ver" + (i===curVer?" cur":"") + (i===0?" seed":"");
+      const tip = i===0 ? "before your first change" : `change: ${v.goal}`;
+      html += `<button class="${cls}" data-ver="${i}" title="${esc(tip)}">v${i}</button>`;
+    });
+    versEl.innerHTML = html;
+  }
+  versEl.addEventListener("click", e=>{ const b=e.target.closest("[data-ver]"); if(b) selectVersion(+b.getAttribute("data-ver")); });
+  function selectVersion(i){
+    const v = versions[i]; if(!v || i===curVer || busy) return;
+    applyGraphData(clone(v.graph)); save();
+    curVer = i; renderVersions();
+    setStatus(i===0 ? "↩ Back to the starting workflow." : `↩ Back to v${i} — ${esc(v.goal)}`);
+  }
 
   function setBusy(on){
     busy = on; goBtn.disabled = on; input.disabled = on; modelBtn.disabled = on;
     goBtn.textContent = on ? "working…" : "✦ Apply";
   }
   function setStatus(html, cls){ statusEl.innerHTML = html ? `<span class="${cls||""}">${html}</span>` : ""; }
-  function refreshUndo(){ undoBtn.disabled = history.length===0; }
 
   function pulse(ids){
     for(const id of ids){
@@ -4057,23 +4066,19 @@ RULES for the diff:
       if(!valid.ok) throw new Error(valid.errs[0]);
       const dif = diff(prevSimple, next);
       if(dif.count===0){ setStatus("No change needed — try being more specific."); return; }
-      const internal = fromSimple(next, prevInternal);
-      applyGraphData(internal); save();
-      history.push({ text, prev: prevInternal, dif });
-      input.value = ""; renderSuggest(); refreshUndo();
+      applyGraphData(fromSimple(next, prevInternal)); save();
+      // record versions: seed v0 from the pre-change graph on the first change; branch if editing from an older version
+      if(versions.length===0){ versions.push({ graph: clone(prevInternal), goal:"start" }); curVer = 0; }
+      else if(curVer < versions.length-1){ versions.length = curVer+1; }   // branch-on-edit from an older version
+      versions.push({ graph: clone(serializeGraph()), goal: text });
+      curVer = versions.length-1;
+      renderVersions();
+      input.value = "";
       pulse(dif.added.map(n=>n.id));
-      setStatus(`✓ ${esc(summarize(dif))}.<span class="undo" data-undo>↶ undo</span>`, "ok");
+      setStatus(`✓ ${esc(summarize(dif))}.`, "ok");
     }catch(e){
       setStatus("⚠ " + esc(e.message || String(e)), "err");
     }finally{ setBusy(false); }
-  }
-
-  function doUndo(i){
-    const h = history[i]; if(!h) return;
-    applyGraphData(h.prev); save();
-    history.splice(i);            // drop this change and anything after it (they built on the reverted state)
-    refreshUndo(); renderSuggest();
-    setStatus("↩ Reverted.");
   }
 })();
 </script>
