@@ -313,6 +313,7 @@
   #wires{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:5; overflow:visible }
   #wires path.wire{ fill:none; stroke-width:2.5; pointer-events:stroke; cursor:pointer; }
   #wires path.hit{ fill:none; stroke:transparent; stroke-width:14; pointer-events:stroke; cursor:pointer; }
+  #wires path.hit:hover + path.wire{ stroke:var(--bad); stroke-width:3.5; }   /* hovering a wire previews the snip (click removes it) */
   #wires path.temp{ fill:none; stroke:#ffffff88; stroke-width:2.5; stroke-dasharray:5 4; pointer-events:none }
 
   /* ---------- node ---------- */
@@ -1874,6 +1875,7 @@ function applyWorld(){ world.style.transform = `translate(${panX}px,${panY}px) s
    NODE CREATION / RENDERING
    ====================================================================== */
 function addNode(type, x, y, fields){
+  pushUndo();
   const t = NODE_TYPES[type];
   const n = { id:"n"+(nid++), type, x, y, fields:Object.assign({}, fields), out:{}, el:null };
   if(t.modelKind && !n.fields.model) n.fields.model = defModelFor(type);
@@ -2274,6 +2276,7 @@ function mountFileUpload(n, field){
 }
 
 function removeNode(id){
+  pushUndo();
   // downstream image/clip inputs this node feeds — they must recompact so no hole is left behind
   const affected = [...new Set(graph.links
     .filter(l=> l.from.node===id && (IMG_PORT_RE.test(l.to.port) || EDIT_IMG_RE.test(l.to.port) || VID_PORT_RE.test(l.to.port))).map(l=> l.to.node))];
@@ -2400,7 +2403,7 @@ function redraw(){
     const p1 = portCenter(a), p2 = portCenter(b);
     const d = wirePath(p1.x,p1.y,p2.x,p2.y);
     const col = colorForType(a.dataset.ptype);
-    html += `<path class="hit" data-link="${l.id}" d="${d}"></path>`;
+    html += `<path class="hit" data-link="${l.id}" d="${d}"><title>click to remove</title></path>`;
     html += `<path class="wire" data-link="${l.id}" d="${d}" stroke="${col}"></path>`;
   }
   if(tempWire){
@@ -2413,6 +2416,7 @@ function redraw(){
   });
 }
 function removeLink(id){
+  pushUndo();   // wire-click delete path — the actual confusion source
   const l = graph.links.find(x=>x.id===id);
   graph.links = graph.links.filter(x=>x.id!==id);
   const tn = l && byId(l.to.node);
@@ -2440,7 +2444,9 @@ function refreshPortFills(){
 function startNodeDrag(n, e){
   e.preventDefault();
   const sx=e.clientX, sy=e.clientY, ox=n.x, oy=n.y;
+  let _snapped=false;
   const move = (ev)=>{
+    if(!_snapped){ pushUndo(); _snapped=true; }   // first real move → record pre-drag layout
     n.x = ox + (ev.clientX-sx)/scale;
     n.y = oy + (ev.clientY-sy)/scale;
     n.el.style.left = n.x+"px"; n.el.style.top = n.y+"px";
@@ -2460,7 +2466,9 @@ function startNodeResize(n, e){
   const ta = el.querySelector('.body textarea[data-f="prompt"],.body textarea[data-f="text"],.body textarea[data-f="q"]');
   const sx=e.clientX, sy=e.clientY, startW=el.offsetWidth, startH=ta?ta.offsetHeight:0;
   el.style.maxWidth = "none";
+  let _snapped=false;
   const move = (ev)=>{
+    if(!_snapped){ pushUndo(); _snapped=true; }   // first real move → record pre-resize layout
     n.w = Math.round(Math.max(RMINW, Math.min(RMAXW, startW + (ev.clientX-sx)/scale)));
     el.style.width = n.w+"px";
     if(ta){
@@ -2534,6 +2542,7 @@ function rerenderNode(n){ if(!n?.el) return; n.el.remove(); buildNodeEl(n); redr
 
 function connect(fromNode, fromPort, toNode, toPort){
   if(fromNode===toNode) return;
+  pushUndo();   // after the self-drop no-op guard, so a no-op doesn't snapshot
   // each input takes a single link — drop any existing one
   graph.links = graph.links.filter(l=> !(l.to.node===toNode && l.to.port===toPort));
   graph.links.push({ id:"l"+(lid++), from:{node:fromNode, port:fromPort}, to:{node:toNode, port:toPort} });
@@ -2749,7 +2758,13 @@ editor.addEventListener("wheel", e=>{
 // delete selected node with keyboard (when not typing)
 window.addEventListener("keydown", e=>{
   if((e.ctrlKey||e.metaKey) && e.key==="Enter"){ e.preventDefault(); runAll(); return; }   // run every flow
-  if((e.key==="Delete"||e.key==="Backspace") && selected && !/^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName)){
+  const typing = /^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName);
+  if((e.ctrlKey||e.metaKey) && !typing && /^[zy]$/i.test(e.key)){
+    e.preventDefault();
+    (/y/i.test(e.key) || e.shiftKey) ? redo() : undo();   // Ctrl/Cmd+Z undo · +Shift / Ctrl+Y redo
+    return;
+  }
+  if((e.key==="Delete"||e.key==="Backspace") && selected && !typing){
     removeNode(selected.id);
   }
 });
@@ -3622,6 +3637,30 @@ function save(){
     if(location.hash) history.replaceState({}, "", location.pathname + location.search); // a local edit supersedes a shared link
   }, 250);
 }
+
+/* ---- Undo / redo: in-memory snapshots of STRUCTURAL edits (wires, nodes, drags).
+   Field typing isn't snapshotted — the browser's own Ctrl+Z handles text inside a
+   textarea; this brings back a node or wire you lost, crisply. Memory-only, never
+   persisted, invisible until you reach for it. ---- */
+const undoStack = [], redoStack = [];
+const UNDO_DEPTH = 25;            // bounded: snapshots can be large when nodes hold uploaded media (base64)
+let undoMuted = false;            // suppress snapshots during programmatic builds (seed) AND during restore
+const _snap = ()=> JSON.stringify(serializeGraph());
+function pushUndo(){              // call BEFORE a structural mutation — records the state to return to
+  if(undoMuted) return;
+  undoStack.push(_snap());
+  if(undoStack.length > UNDO_DEPTH) undoStack.shift();   // oldest steps fall off
+  redoStack.length = 0;          // a fresh edit forks history — drop the redo tail
+}
+function _restore(from, to){
+  if(!from.length) return;
+  to.push(_snap());
+  undoMuted = true;
+  try{ applyGraphData(JSON.parse(from.pop())); } finally { undoMuted = false; }
+  save();
+}
+const undo = ()=> _restore(undoStack, redoStack);
+const redo = ()=> _restore(redoStack, undoStack);
 function load(){
   const raw = localStorage.getItem("noodle_graph");
   if(!raw) return false;
@@ -3891,9 +3930,11 @@ addEventListener("message", e=>{
   }
 });
 function seed(){
+  undoMuted = true;   // the built-in starter graph must not be undoable — a new user's first Ctrl+Z must not empty it
   const a = addNode("text", 60, 80, { text:"a cozy ramen shop on a rainy neon street, cinematic" });
   const b = addNode("image", 360, 60);
   connect(a.id, "text", b.id, "prompt");
+  undoMuted = false;
 }
 
 /* ======================================================================
