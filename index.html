@@ -1965,7 +1965,7 @@ function buildNodeEl(n){
   refreshLlmOpts(n);              // ⚙️ advanced (sampling/reasoning) disclosure on the LLM node
   if(t.mount) t.mount(n);            // node-specific widget wiring (e.g. upload/webcam)
   // header buttons
-  el.querySelector('[data-act=del]').onclick = (e)=>{ e.stopPropagation(); removeNode(n.id); };
+  el.querySelector('[data-act=del]').onclick = (e)=>{ e.stopPropagation(); if(runningNodes.has(n.id)){ flash("can’t delete while running — Stop first"); return; } removeNode(n.id); };  // don't discard an in-flight (already-charged) run or orphan a downstream node
   el.querySelector('[data-act=run]').onclick  = (e)=>{ e.stopPropagation(); runGroup([n.id]); };
   // selection + drag
   const header = el.querySelector("header");
@@ -2749,8 +2749,12 @@ editor.addEventListener("wheel", e=>{
 // delete selected node with keyboard (when not typing)
 window.addEventListener("keydown", e=>{
   if((e.ctrlKey||e.metaKey) && e.key==="Enter"){ e.preventDefault(); runAll(); return; }   // run every flow
-  if((e.key==="Delete"||e.key==="Backspace") && selected && !/^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName)){
-    removeNode(selected.id);
+  if((e.key==="Delete"||e.key==="Backspace") && selected){
+    const ae=document.activeElement;   // ignore while any control/editable holds focus (▶/model-picker BUTTON, fields) — Backspace is browser-back muscle memory
+    if(!/^(TEXTAREA|INPUT|SELECT|BUTTON)$/.test(ae.tagName) && !ae.isContentEditable){
+      if(runningNodes.has(selected.id)){ flash("can’t delete while running — Stop first"); return; }   // don't discard an in-flight (already-charged) run or orphan a downstream node
+      removeNode(selected.id);
+    }
   }
 });
 window.addEventListener("resize", redraw);
