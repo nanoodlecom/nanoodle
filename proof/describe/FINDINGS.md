@@ -39,3 +39,18 @@ is most reliable across models (users bring their own key → can't assume a str
 - "make instrumental" → ~ n19.instrumental: false→true. surgical.
 - "remove the style node" → – node, rewire lyrics→music. correct.
 - "haiku → image" (empty canvas) → + llm + image, wired. builds from scratch.
+
+## Final implementation (shipped)
+The bake-off informed the approach, but the shipped engine is the repo's own vendored
+**`gptdiff-js`** (`vendor/gptdiff-js/`) — the SAME library that powers "Create app" / Customize —
+applied to the graph as a file (`noodle-graph.json`, simplified view):
+`buildEnvironment → generateDiff → parseDiffPerFile → smartapply`.
+- `smartapply` is what makes a JSON diff robust: it applies the patch deterministically and falls
+  back to an **LLM-assisted full-file apply** when the patch doesn't land cleanly. That LLM fallback
+  is effectively the full-file rewrite that scored 6/6 here — so the bake-off result *supports*
+  gptdiff's smartapply, it doesn't contradict it. The naive udiff applier (no smartapply) was the
+  strawman that failed.
+- We still feed the model the simplified semantic graph (layout + media stripped) and re-inject
+  layout/media on apply via stable ids.
+- Per product direction, the UI does **not** surface the unified diff. gptdiff is the engine; the
+  user sees the result — the change lands on the canvas with a plain-English recap + one-click undo.

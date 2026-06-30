@@ -204,9 +204,9 @@
   .co-hrow{ font-size:.78rem; color:var(--dim); display:flex; gap:.4rem; align-items:baseline; border-left:2px solid var(--good); padding-left:.5rem }
   .co-hrow .undo{ margin-left:auto; color:var(--accent); cursor:pointer; flex:0 0 auto }
   .co-hrow .txt{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
-  .co-diff{ border:1px solid var(--line); border-radius:.6rem; overflow:hidden }
-  .co-diff .dtitle{ padding:.45rem .6rem; background:var(--panel2); border-bottom:1px solid var(--line); font-size:.78rem; color:var(--dim) }
-  .co-rows{ padding:.45rem .6rem; display:flex; flex-direction:column; gap:.2rem; max-height:38vh; overflow:auto }
+  .co-diff,.co-result{ border:1px solid var(--line); border-radius:.6rem; overflow:hidden }
+  .co-diff .dtitle,.co-result .dtitle{ padding:.45rem .6rem; background:var(--panel2); border-bottom:1px solid var(--line); font-size:.78rem; color:var(--good) }
+  .co-rows{ padding:.45rem .6rem; display:flex; flex-direction:column; gap:.2rem; max-height:34vh; overflow:auto }
   .dchg{ font-size:.78rem; line-height:1.5; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
   .dchg.add{ color:var(--good) } .dchg.del{ color:var(--bad) } .dchg.mod{ color:var(--warn) } .dchg.wire{ color:var(--dim) }
   .co-note{ font-size:.76rem; color:var(--dim); padding:.45rem .6rem }
@@ -3945,28 +3945,13 @@ $("signout").onclick = ()=> setKey(null);
     return { added, removed, changed, linksAdded, linksRemoved, count, removes: removed.length };
   }
 
-  // ---- model call ----
-  function extractJson(text){
-    let t = String(text).trim();
-    const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i); if(fence) t = fence[1].trim();
-    const start = t.search(/[\[{]/); if(start<0) throw new Error("no graph in the reply");
-    const open = t[start], close = open==="{" ? "}" : "]";
-    let depth=0, end=-1, inStr=false, esc=false;
-    for(let i=start;i<t.length;i++){
-      const c=t[i];
-      if(inStr){ if(esc) esc=false; else if(c==="\\") esc=true; else if(c==='"') inStr=false; continue; }
-      if(c==='"'){ inStr=true; continue; }
-      if(c===open) depth++; else if(c===close){ depth--; if(depth===0){ end=i; break; } }
-    }
-    if(end<0) throw new Error("the reply was cut off");
-    return JSON.parse(t.slice(start,end+1));
-  }
-  function parseGraph(text){
-    const g = extractJson(text);
-    if(!g || !Array.isArray(g.nodes)) throw new Error("the reply wasn’t a graph");
-    const links = (g.links||[]).map(l=> typeof l.from==="string" ? { from:l.from, to:l.to } : { from:`${l.from.node}.${l.from.port}`, to:`${l.to.node}.${l.to.port}` });
-    return { nodes:g.nodes.map(n=>({ id:n.id, type:n.type, fields:n.fields||{} })), links };
-  }
+  // ---- gptdiff engine (the SAME vendored gptdiff-js that powers "Create app" / Customize) ----
+  // We treat the workflow as a file (noodle-graph.json, simplified view) and run the real
+  // generateDiff → parseDiffPerFile → smartapply loop. smartapply's deterministic patch with an
+  // LLM-assisted fallback is what makes a JSON diff robust — the bit a naive patcher can't do.
+  const GRAPH_FILE = "noodle-graph.json";
+  let _gd = null;
+  async function lib(){ return _gd || (_gd = await import("./vendor/gptdiff-js/index.js")); }
   async function modelHint(){
     await Promise.all(["chat","image","video","audio"].map(k=>loadCatalog(k).catch(()=>null)));
     const pick = (kind,filter,n=6)=> (catalogs[kind]||[]).filter(m=>passesFilter(m,filter)).slice(0,n).map(m=>m.id);
@@ -3976,38 +3961,45 @@ $("signout").onclick = ()=> setKey(null);
     const v=pick("video","t2v"); if(v.length) L.push(`  video: ${v.join(", ")}`);
     const tts=pick("audio","tts"); if(tts.length) L.push(`  tts: ${tts.join(", ")}`);
     const mus=pick("audio","music"); if(mus.length) L.push(`  music: ${mus.join(", ")}`);
-    return L.length ? `\nExample model ids you MAY use (newest first) — only if the user names a model, otherwise leave "model" out:\n${L.join("\n")}\n` : "";
+    return L.length ? `\nExample model ids you MAY use (newest first) — only if the user names a model, otherwise leave "model" out:\n${L.join("\n")}` : "";
   }
-  function systemPrompt(hint){
-    return `You edit a node-graph workflow for "nanoodle", a browser tool that wires nano-gpt AI models into pipelines. The graph is a feed-forward DAG — NO cycles. Data flows along links from a node's output port into another node's input port; the two ends must share a type (text/image/audio/video).
+  // Prepended to gptdiff's own system prompt (which already asks for a unified ```diff block).
+  async function contract(){
+    return `You are editing a node-graph workflow for "nanoodle", a browser tool that wires nano-gpt AI models into pipelines. The workflow lives in ${GRAPH_FILE}, a SIMPLIFIED view of the graph: {"nodes":[{"id","type","fields"}],"links":[{"from":"nodeId.port","to":"nodeId.port"}]}. Node positions and uploaded media are deliberately omitted — do NOT add x/y/coordinates or media data. It is a feed-forward DAG (NO cycles); a link connects an output port to an input port of the SAME type (text/image/audio/video).
 
 NODE TYPES you may use:
 ${schemaLines()}
 
-GRAPH FORMAT (simplified): {"nodes":[{"id","type","fields"}],"links":[{"from":"nodeId.port","to":"nodeId.port"}]}. A node needs only id and type. A node's OUTPUT port name equals its output type (text/image/audio/video) — except vframes (frame1,frame2,…). Most generators accept their main text via a wired link to a field port (llm.prompt, image.prompt, edit.prompt, tvideo.prompt, music.prompt, tts.prompt) OR you can hardcode that field instead.
-${hint}
-RULES:
+A node's OUTPUT port name equals its output type (text/image/audio/video) — except vframes (frame1,frame2,…). Most generators accept their main text via a wired link to a field port (llm.prompt, image.prompt, edit.prompt, tvideo.prompt, music.prompt, tts.prompt) or you can hardcode that field instead.
+${await modelHint()}
+
+RULES for the diff:
 - Keep every EXISTING node id stable. Give NEW nodes ids n100, n101, … (never reuse an existing id).
 - Leave a node's "model" field OUT unless the user explicitly names a model — the app fills the best current default.
 - Make sure every generator node actually gets its input: wire its main port, or set its prompt/text field.
-- Change as little as needed to satisfy the request; don't restructure unrelated parts.
-- Return ONLY the COMPLETE new graph as one JSON object {"nodes":[...],"links":[...]}. No prose, no markdown fences.`;
+- Change as little as needed; don't restructure or reformat unrelated parts of the file.`;
   }
-  async function generate(simpleGraph, instruction, model, signal){
-    const sys = systemPrompt(await modelHint());
-    const usr = `Current graph:\n${JSON.stringify(simpleGraph)}\n\nChange requested: ${instruction}`;
-    const body = { model, messages:[{role:"system",content:sys},{role:"user",content:usr}], temperature:0, max_tokens:8000 };
-    const r = await fetch(CHAT_ENDPOINT, { method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal });
-    if(!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0,140)}`);
-    const j = await r.json(); accrue(j);
-    const m = j.choices?.[0]?.message || {};
-    let txt = (m.content!=null && m.content!=="") ? m.content : (m.reasoning || "");
-    if(typeof txt!=="string") txt = txt.map(p=>p.text||"").join("");
-    if(!txt.trim()){
-      if(j.choices?.[0]?.finish_reason==="length") throw new Error("the model ran out of room before answering — try a shorter request or a different model");
-      throw new Error("the model returned an empty reply — try again");
-    }
-    return txt;
+  function normalizeLinks(links){
+    return (links||[]).map(l=> typeof l.from==="string" ? { from:l.from, to:l.to } : { from:`${l.from.node}.${l.from.port}`, to:`${l.to.node}.${l.to.port}` });
+  }
+  // → { rawDiff, next }  (next = simplified graph). Throws with a friendly message on failure.
+  async function runGptdiff(prevSimple, instruction, model){
+    const gd = await lib();
+    const key = getKey();
+    const before = { [GRAPH_FILE]: JSON.stringify(prevSimple, null, 2) };   // pretty → line-granular diff
+    const env = gd.buildEnvironment(before);
+    const rawDiff = await gd.generateDiff(env, instruction, { apiKey:key, model, prepend: await contract(), temperature:0 });
+    const parsed = gd.parseDiffPerFile(rawDiff);
+    if(!rawDiff.trim() || !parsed.length) throw new Error("no applicable change — try rephrasing the request");
+    // smartapply: deterministic patch first, LLM-assisted apply if it doesn't land cleanly.
+    const updated = await gd.smartapply(rawDiff, before, { apiKey:key });
+    const outText = updated[GRAPH_FILE];
+    if(outText==null) throw new Error("the diff didn’t touch the workflow");
+    let next;
+    try{ next = JSON.parse(outText); }
+    catch(_){ throw new Error("the edited graph came back as invalid JSON — try again, or pick a different model"); }
+    if(!next || !Array.isArray(next.nodes)) throw new Error("the edited file wasn’t a graph");
+    return { rawDiff, next:{ nodes:(next.nodes||[]).map(n=>({ id:n.id, type:n.type, fields:n.fields||{} })), links:normalizeLinks(next.links) } };
   }
 
   // ---- UI ----
@@ -4015,9 +4007,7 @@ RULES:
         body = $("cobody"), modelSel = $("copilotmodel"), closeBtn = $("copilotclose");
   if(!panel || !btn) return;   // defensive
   const cookoff = $("cookoffbtn");
-  const history = [];          // {text, prev} newest last
-  let proposal = null;         // {prevInternal, prevSimple, next, dif, valid}
-  let controller = null;       // in-flight fetch
+  const history = [];          // {text, prev, dif} newest last — each an applied, undoable change
   let busy = false;
 
   // model select
@@ -4058,29 +4048,24 @@ RULES:
     for(const l of d.linksRemoved) rows.push(`<div class="dchg wire">– unwire ${esc(l.from)} ▸ ${esc(l.to)}</div>`);
     return rows.join("");
   }
-
+  // Result view: gptdiff is the engine, but we put the RESULT in front of the user — the change
+  // lands on the canvas, the panel shows a plain-English recap of what changed, undo is one click.
   function render(){
     let html = "";
     if(history.length){
-      html += `<div class="co-hist">` + history.map((h,i)=>
-        `<div class="co-hrow"><span class="txt" title="${esc(h.text)}">✓ ${esc(h.text)}</span><span class="undo" data-undo="${i}">undo</span></div>`
-      ).join("") + `</div>`;
-    }
-    if(proposal){
-      const d = proposal.dif;
-      const empty = d.count===0;
-      html += `<div class="co-diff"><div class="dtitle">${empty?"No changes":`Proposed · ${d.count} change${d.count>1?"s":""}`}</div>`;
-      if(!empty) html += `<div class="co-rows">${diffRowsHTML(d)}</div>`;
-      if(!proposal.valid.ok) html += `<div class="co-note err">⚠ ${esc(proposal.valid.errs[0])}</div>`;
-      else if(empty) html += `<div class="co-note">Try being more specific.</div>`;
-      else if(d.removes) html += `<div class="co-note">Removes ${d.removes} node${d.removes>1?"s":""} — undo is one click.</div>`;
-      html += `<div class="co-dacts">
-        <button data-act="discard">Discard</button>
-        <button class="primary${d.removes?" danger":""}" data-act="apply" ${(!proposal.valid.ok||empty)?"disabled":""}>${d.removes?`Apply · removes ${d.removes}`:"Apply"}</button>
-      </div></div>`;
-    }
-    if(!history.length && !proposal){
-      html += `<div class="co-empty">Describe a change to your workflow and I’ll plan it, show you the diff, and apply it on your OK. The graph stays put until you click Apply.
+      const last = history.length-1;
+      if(last>0){
+        html += `<div class="co-hist">` + history.slice(0,last).map((h,i)=>
+          `<div class="co-hrow"><span class="txt" title="${esc(h.text)}">✓ ${esc(h.text)}</span><span class="undo" data-undo="${i}">undo</span></div>`
+        ).join("") + `</div>`;
+      }
+      const h = history[last];
+      html += `<div class="co-result"><div class="dtitle">✓ Done — ${esc(h.text)}</div>`;
+      html += h.dif && h.dif.count ? `<div class="co-rows">${diffRowsHTML(h.dif)}</div>`
+                                   : `<div class="co-note">Updated the workflow.</div>`;
+      html += `<div class="co-dacts"><button data-undo="${last}">↩ Undo this change</button></div></div>`;
+    } else {
+      html += `<div class="co-empty">Describe a change to your workflow — it’s applied straight to your canvas, and you can undo it in one click.
         <div class="co-chips">${EXAMPLES.map(e=>`<span class="co-chip" data-chip="${esc(e)}">${esc(e)}</span>`).join("")}</div></div>`;
     }
     body.innerHTML = html;
@@ -4090,9 +4075,7 @@ RULES:
     const chip = e.target.closest("[data-chip]");
     if(chip){ input.value = chip.getAttribute("data-chip"); autogrow(); input.focus(); return; }
     const undo = e.target.closest("[data-undo]");
-    if(undo){ doUndo(+undo.getAttribute("data-undo")); return; }
-    const act = e.target.closest("[data-act]");
-    if(act){ act.getAttribute("data-act")==="apply" ? apply() : discard(); }
+    if(undo){ doUndo(+undo.getAttribute("data-undo")); }
   });
 
   function setBusy(on){
@@ -4100,8 +4083,14 @@ RULES:
     gen.innerHTML = on ? `<span class="co-spin"></span>` : "Generate";
   }
   function showError(msg){
-    proposal = null; render();
+    render();
     body.insertAdjacentHTML("beforeend", `<div class="co-note err">⚠ ${esc(msg)}</div>`);
+  }
+  function pulse(ids){
+    for(const id of ids){
+      const n = graph.nodes.find(x=>x.id===id);
+      if(n && n.el){ n.el.classList.remove("co-pulse"); void n.el.offsetWidth; n.el.classList.add("co-pulse"); }
+    }
   }
 
   async function submit(){
@@ -4111,48 +4100,31 @@ RULES:
     if(!getKey()){ showError("Add your nano-gpt key to describe changes — click “paste key” up top."); return; }
     const prevInternal = serializeGraph();
     const prevSimple = toSimple(prevInternal);
-    proposal = null;
     setBusy(true);
-    controller = new AbortController();
     try{
-      const out = await generate(prevSimple, text, modelSel.value, controller.signal);
-      const next = parseGraph(out);
+      const { next } = await runGptdiff(prevSimple, text, modelSel.value);
       const valid = validate(next);
+      if(!valid.ok) throw new Error(valid.errs[0]);
       const dif = diff(prevSimple, next);
-      proposal = { prevInternal, prevSimple, next, dif, valid, text };
+      if(dif.count===0){ showError("That didn’t change anything — try being more specific."); return; }
+      const internal = fromSimple(next, prevInternal);
+      applyGraphData(internal); save();
+      history.push({ text, prev: prevInternal, dif });
+      input.value = ""; autogrow();
       render();
+      pulse(dif.added.map(n=>n.id));
+      const c = dif.count;
+      toast(`✓ Applied ${c} change${c>1?"s":""} — undo in the panel`, "");
     }catch(e){
-      if(e.name==="AbortError") return;
       showError(e.message || String(e));
-    }finally{ setBusy(false); controller=null; }
+    }finally{ setBusy(false); }
   }
 
-  function pulse(ids){
-    for(const id of ids){
-      const n = graph.nodes.find(x=>x.id===id);
-      if(n && n.el){ n.el.classList.remove("co-pulse"); void n.el.offsetWidth; n.el.classList.add("co-pulse"); }
-    }
-  }
-
-  function apply(){
-    if(!proposal || !proposal.valid.ok || proposal.dif.count===0) return;
-    const newIds = proposal.dif.added.map(n=>n.id);
-    const internal = fromSimple(proposal.next, proposal.prevInternal);
-    applyGraphData(internal);
-    save();
-    history.push({ text: proposal.text, prev: proposal.prevInternal });
-    const c = proposal.dif.count;
-    proposal = null;
-    render();
-    pulse(newIds);
-    toast(`✓ Applied ${c} change${c>1?"s":""} — undo in the panel`, "");
-  }
-  function discard(){ proposal = null; render(); input.focus(); }
   function doUndo(i){
     const h = history[i]; if(!h) return;
     applyGraphData(h.prev); save();
     history.splice(i);            // drop this and anything after it (they built on the reverted state)
-    proposal = null; render();
+    render();
     toast("↩ Reverted", "");
   }
 })();
