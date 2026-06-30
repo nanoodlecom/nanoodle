@@ -2709,8 +2709,8 @@ const CTX = {
   },
   async genChat(messages, model, opts){
     opts = opts || {};
-    const body = { model, messages };                                   // omit each knob at its default so default bodies stay clean
-    if(opts.temperature!=null && +opts.temperature!==0.8) body.temperature = +opts.temperature;
+    const body = { model, messages };                                   // temperature always sent (0.8 default, as before); other knobs omitted-when-unset
+    body.temperature = (opts.temperature!=null && opts.temperature!=="") ? +opts.temperature : 0.8;
     if(opts.max_tokens) body.max_tokens = +opts.max_tokens;
     if(opts.response_format) body.response_format = opts.response_format;   // {type:"json_object"} for JSON mode
     if(opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
