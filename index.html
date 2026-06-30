@@ -2771,7 +2771,9 @@ async function refreshBalance(){
   _balPending = true;
   try{
     const r = await fetch(`${NANOGPT}/api/check-balance`, { method:"POST", headers:authHeaders(), body:"{}" });
-    if(!r.ok) return;
+    if(!r.ok) return;                  // can't validate the key here: /api/check-balance has no CORS header,
+                                       // so a bad key makes the fetch THROW (→catch) before any 401 is readable.
+                                       // Key rejection is detected at paste-time (probeKey) + run-time (flagAuth) instead.
     const usd = parseFloat((await r.json()).usd_balance);
     if(!isNaN(usd)){ stats.balance = usd; paintCost(); }
   }catch(_){}                       // best-effort: a run will fill it in anyway
@@ -3079,7 +3081,7 @@ const CTX = {
     if(maskDataUrl)  body.maskDataUrl  = maskDataUrl;    // present → inpaint; WHITE areas = the region to repaint (verified live)
     if(extra) Object.assign(body, extra);                // LoRA (and any future per-model image params)
     const r = await fetch(IMG_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
-    if(!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`);
+    if(!r.ok){ flagAuth(r); throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`); }
     const j = await r.json();
     const urls = (j.data||[]).map(d=> d.b64_json ? `data:${b64ImageMime(d.b64_json)};base64,${d.b64_json}` : d.url).filter(Boolean);
     if(!urls.length) throw new Error("no image in response");
@@ -3093,7 +3095,7 @@ const CTX = {
     if(opts.response_format) body.response_format = opts.response_format;   // {type:"json_object"} for JSON mode
     if(opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
     const r = await fetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
-    if(!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`);
+    if(!r.ok){ flagAuth(r); throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`); }
     const j = await r.json();
     accrue(j);
     const msg = j.choices?.[0]?.message || {};
@@ -3135,7 +3137,7 @@ const CTX = {
       try{ r = await fetch(`${NANOGPT}/api/generate-video`, {method:"POST", headers:authHeaders(), body:payload, signal:runSignal()}); }
       catch(e){ if(e?.name==="AbortError") throw e;
         throw new Error(`couldn't reach the video API — if the source media is large it may have been rejected for size before CORS applies. Try a shorter clip, or build this into an app and run it offline. (${e.message||e})`); }
-      if(!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`);
+      if(!r.ok){ flagAuth(r); throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`); }
       const j = await r.json(); accrue(j);
       runId = j.runId || j.id;
       if(!runId) throw new Error("no runId returned");
@@ -3172,6 +3174,7 @@ const CTX = {
     const body = Object.assign({ model, input }, extra||{});
     const r = await fetch(`${NANOGPT}/api/v1/audio/speech`, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
     if(!r.ok){
+      flagAuth(r);
       const t = (await r.text()).slice(0,220);
       if(/lyric/i.test(t)) throw new Error("This model needs lyrics — fill the Lyrics field (vocal models require them; leave empty / use a BGM model for instrumentals).");
       const req = t.match(/["']?([a-z_]+)["']?\s+(?:is\s+)?required|missing[^a-z]+["']?([a-z_]+)/i);
@@ -3208,7 +3211,7 @@ const CTX = {
     const k = getKey();   // multipart: let the browser set Content-Type (boundary) — don't use authHeaders()
     const r = await fetch(`${NANOGPT}/api/v1/audio/transcriptions`, {method:"POST",
       headers:{ Authorization:`Bearer ${k}`, "x-api-key":k }, body:fd, signal:runSignal()});
-    if(!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`);
+    if(!r.ok){ flagAuth(r); throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`); }
     const j = await r.json(); accrue(j);
     if(j?.metadata?.cost!=null && isFinite(+j.metadata.cost)) stats.cost += +j.metadata.cost;   // cost rides in metadata here
     const txt = j.transcription ?? j.text ?? j.data?.transcription ?? j.data?.text;
@@ -3404,6 +3407,10 @@ async function pollAudio(model, j, onProgress){
   throw new Error("audio timed out (5 min)");
 }
 function authHeaders(){ const k=getKey(); return { Authorization:`Bearer ${k}`, "x-api-key":k, "Content-Type":"application/json" }; }
+// A 401/403 from a generation call means the stored key is dead (revoked, or an expired OAuth token the
+// user won't re-paste). Clear it so the chrome flips back to signed-out + signposts the fix; the caller
+// still throws so the run loop surfaces the error. (Generation endpoints are CORS-enabled → status readable.)
+function flagAuth(r){ if(r.status===401||r.status===403){ setKey(null); flash("your key was rejected — sign in or paste a valid nano-gpt.com key"); } }
 function accrue(j){
   stats.count++;
   // images/video/audio price top-level (j.cost); chat completions ride it in
@@ -4080,7 +4087,25 @@ function ensureAuth(){
 }
 $("signin").onclick = ()=> signIn().catch(e=> $("status").textContent="sign-in error: "+e.message);
 $("pastebtn").onclick = ()=>{ $("keyrow").classList.add("open"); $("keyinput").focus(); };
-$("keysave").onclick = ()=>{ const k=$("keyinput").value.trim(); if(k){ setKey(k); $("keyrow").classList.remove("open"); } };
+// Validate a pasted key against the CORS-enabled chat endpoint BEFORE storing it (an empty body is rejected
+// for auth *before* any model runs — no charge), so a typo'd/expired key never lands us in a false "ready ✓".
+// Network-tolerant: only a readable 401/403 is a rejection; offline / CORS / any other status passes, so a
+// correctly-pasted key is never locked out when nano-gpt is unreachable.
+async function probeKey(k){
+  try{
+    const r = await fetch(CHAT_ENDPOINT, { method:"POST",
+      headers:{ Authorization:`Bearer ${k}`, "x-api-key":k, "Content-Type":"application/json" }, body:"{}" });
+    return !(r.status===401||r.status===403);
+  }catch(_){ return true; }
+}
+$("keysave").onclick = async ()=>{
+  const k=$("keyinput").value.trim(); if(!k) return;
+  const btn=$("keysave"), label=btn.textContent; btn.disabled=true; btn.textContent="checking…";
+  const valid = await probeKey(k);
+  btn.disabled=false; btn.textContent=label;
+  if(!valid){ $("keyrow").classList.add("open"); $("keyinput").focus(); flash("that key was rejected — paste a valid nano-gpt.com key"); return; }
+  setKey(k); $("keyrow").classList.remove("open");      // validated → store + close (renderAuth shows the real "ready ✓")
+};
 $("signout").onclick = ()=> setKey(null);
 
 /* ======================================================================
@@ -4448,7 +4473,7 @@ RULES for the diff:
       paint();
       const body = { model, messages, temperature, stream:true, ...(maxTokens?{max_tokens:maxTokens}:{}) };
       const r = await fetch(CHAT_ENDPOINT, { method:"POST", headers:authHeaders(), body:JSON.stringify(body) });
-      if(!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`);
+      if(!r.ok){ flagAuth(r); throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`); }
       const reader = r.body.getReader(), dec = new TextDecoder();
       let buf="", content="", reasoning="", pricing=null, lastPaint=0;
       for(;;){
