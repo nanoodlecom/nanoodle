@@ -3858,6 +3858,8 @@ $("signout").onclick = ()=> setKey(null);
       const fields = { ...(old ? old.fields : {}), ...(sn.fields||{}) };  // keep survivors' media, model's edits win
       if(NODE_TYPES[sn.type]?.modelKind && !fields.model) fields.model = defModelFor(sn.type);
       const node = { id:sn.id, type:sn.type, fields };
+      sanitizeFields(node);   // the model may set an option this node/model doesn't allow (e.g. duration 60) → snap to default
+
       if(old){ node.x=old.x; node.y=old.y; if(old.w) node.w=old.w; if(old.sizes) node.sizes=old.sizes; }
       else { node.x = maxX + 320; node.y = -140 + (place++)*200; }
       return node;
@@ -3869,6 +3871,46 @@ $("signout").onclick = ()=> setKey(null);
     });
     const nid = Math.max(prev.nid||0, 0, ...nodes.map(n=>num(n.id))) + 1;
     return { v:1, nodes, links, nid, lid:lid+1, view:prev.view };
+  }
+
+  // ---- field sanitizer: the model writes fields straight into the graph (no UI select to constrain
+  // it), so an option this node/model doesn't actually offer can slip in (the user hit duration 60 on
+  // a 5/10s video model). Validate each option-type field against the editor's OWN sources of truth
+  // (dimDefs / audioFields / SIZES) and snap anything invalid back to the model's default. Free-text
+  // fields (prompt/system/lyrics/text) are never touched. ----
+  function sanitizeFields(node){
+    const t = node.type, f = node.fields || {};
+    // size / resolution / aspect / duration — straight from the live catalog entry (image+edit+video)
+    if(typeof dimDefs==="function"){
+      for(const d of dimDefs(t, f.model)){
+        const cur = f[d.f];
+        if(cur!=null && cur!=="" && !d.options.some(o=> String(o[0])===String(cur))) f[d.f] = d.def;
+      }
+    }
+    // audio params (music / tts): selects must be in-set, numbers in-range, booleans real
+    if((t==="music" || t==="tts") && typeof audioFields==="function" && typeof catItem==="function"){
+      const it = catItem("audio", f.model);
+      if(it) for(const af of audioFields(t, it)){
+        const key = af.jsonKey || af.id, cur = f[key];
+        if(cur==null || cur==="") continue;
+        if(af.type==="select"){ if(!(af.options||[]).map(String).includes(String(cur))) delete f[key]; }
+        else if(af.type==="number"){ const x=parseFloat(cur);
+          if(!isFinite(x) || (af.min!=null && x<af.min) || (af.max!=null && x>af.max)) delete f[key]; }
+        else if(af.type==="boolean" && typeof cur!=="boolean"){ f[key] = (cur==="true" || cur===true); }
+      }
+    }
+    if(t==="inpaint" && f.size!=null && typeof SIZES!=="undefined" && !SIZES.some(s=> s[0]===f.size)) delete f.size;
+    if(t==="vframes"){
+      if(f.dir!=null && f.dir!=="end" && f.dir!=="start") delete f.dir;
+      if(f.frames!=null){ const x=parseInt(f.frames,10); const cap = (typeof MAX_FRAMES!=="undefined"?MAX_FRAMES:8);
+        if(!isFinite(x) || x<1) delete f.frames; else f.frames = String(Math.min(x, cap)); }
+      if(f.gap!=null){ const x=parseFloat(f.gap); if(!isFinite(x) || x<0) delete f.gap; }
+    }
+    if(t==="transcribe" && f.language && f.language!=="auto"){
+      const langs = (catItem("audio", f.model)||{}).langs;
+      if(Array.isArray(langs) && langs.length && !langs.includes(f.language)) f.language = "auto";
+    }
+    return node;
   }
 
   // ---- validation: known types, unique ids, resolvable links, feed-forward (no cycles) ----
