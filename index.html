@@ -179,6 +179,63 @@
                   background:#0b0d1233; font-size:.72rem; opacity:.85 }
   #cookoffbtn .x:hover{ background:#0b0d1255; opacity:1 }
   @media (prefers-reduced-motion:reduce){ #cookoffbtn{ animation:none } }
+
+  /* ---------- 💬 Describe changes: a non-modal copilot that edits the graph from a text description ---------- */
+  #copilotbtn{ position:fixed; left:1rem; bottom:var(--copilot-bottom,1rem); z-index:121; display:flex; align-items:center; gap:.4rem;
+    padding:.5rem .7rem; border-radius:.6rem; background:var(--panel2); color:var(--accent); border:1px solid var(--line); cursor:pointer;
+    font-weight:600; font-size:.86rem; box-shadow:0 6px 18px #0006; transition:bottom .15s ease, filter .12s ease; }
+  #copilotbtn:hover{ filter:brightness(1.12) }
+  #copilotbtn.on{ background:var(--accent); color:#0b0d12; border-color:var(--accent) }
+  #copilot{ position:fixed; top:52px; right:0; bottom:0; width:clamp(320px,30vw,430px); z-index:130; display:flex; flex-direction:column;
+    background:var(--panel); border-left:1px solid var(--line); box-shadow:-12px 0 34px #0007;
+    transform:translateX(101%); transition:transform .18s ease; }
+  #copilot.open{ transform:translateX(0) }
+  #copilot .cohead{ display:flex; align-items:center; gap:.5rem; padding:.7rem .8rem; border-bottom:1px solid var(--line); font-weight:600 }
+  #copilot .cohead .sub{ font-weight:400; font-size:.72rem; color:var(--dim) }
+  #copilotclose{ margin-left:auto; width:1.9rem; height:1.9rem; border-radius:.5rem; display:flex; align-items:center; justify-content:center;
+    background:var(--panel2); border:1px solid var(--line); color:var(--ink); cursor:pointer }
+  #cobody{ flex:1; overflow:auto; padding:.7rem .8rem; display:flex; flex-direction:column; gap:.7rem }
+  .co-empty{ color:var(--dim); font-size:.82rem; line-height:1.5 }
+  .co-chips{ display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.5rem }
+  .co-chip{ padding:.32rem .55rem; border-radius:1rem; background:var(--panel2); border:1px solid var(--line); color:var(--ink);
+    font-size:.76rem; cursor:pointer; transition:border-color .12s }
+  .co-chip:hover{ border-color:var(--accent) }
+  .co-hist{ display:flex; flex-direction:column; gap:.4rem }
+  .co-hrow{ font-size:.78rem; color:var(--dim); display:flex; gap:.4rem; align-items:baseline; border-left:2px solid var(--good); padding-left:.5rem }
+  .co-hrow .undo{ margin-left:auto; color:var(--accent); cursor:pointer; flex:0 0 auto }
+  .co-hrow .txt{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+  .co-diff{ border:1px solid var(--line); border-radius:.6rem; overflow:hidden }
+  .co-diff .dtitle{ padding:.45rem .6rem; background:var(--panel2); border-bottom:1px solid var(--line); font-size:.78rem; color:var(--dim) }
+  .co-rows{ padding:.45rem .6rem; display:flex; flex-direction:column; gap:.2rem; max-height:38vh; overflow:auto }
+  .dchg{ font-size:.78rem; line-height:1.5; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .dchg.add{ color:var(--good) } .dchg.del{ color:var(--bad) } .dchg.mod{ color:var(--warn) } .dchg.wire{ color:var(--dim) }
+  .co-note{ font-size:.76rem; color:var(--dim); padding:.45rem .6rem }
+  .co-note.err{ color:var(--bad) }
+  .co-dacts{ display:flex; gap:.5rem; padding:.5rem .6rem; border-top:1px solid var(--line) }
+  .co-dacts button{ flex:1; padding:.45rem; border-radius:.5rem; border:1px solid var(--line); background:var(--panel2); color:var(--ink); cursor:pointer; font-size:.82rem }
+  .co-dacts button.primary{ background:var(--accent); color:#0b0d12; border-color:var(--accent); font-weight:600 }
+  .co-dacts button.danger{ border-color:var(--bad); color:var(--bad) }
+  .co-dacts button:disabled{ opacity:.45; cursor:default }
+  #cofoot{ border-top:1px solid var(--line); padding:.6rem .7rem; display:flex; flex-direction:column; gap:.5rem }
+  #cofoot .corow{ display:flex; gap:.45rem; align-items:flex-end }
+  #copilotin{ flex:1; resize:none; background:var(--panel2); border:1px solid var(--line); border-radius:.5rem; color:var(--ink);
+    padding:.5rem .55rem; font:inherit; font-size:.86rem; line-height:1.35; max-height:7rem; min-height:2.4rem }
+  #copilotin::placeholder{ color:var(--dim) }
+  #copilotgen{ flex:0 0 auto; padding:.55rem .8rem; border-radius:.5rem; background:var(--accent); color:#0b0d12; border:none; cursor:pointer; font-weight:600 }
+  #copilotgen:disabled{ opacity:.55; cursor:default }
+  #cofoot .comodel{ display:flex; align-items:center; gap:.4rem; font-size:.72rem; color:var(--dim) }
+  #copilotmodel{ flex:1; background:var(--panel2); border:1px solid var(--line); border-radius:.4rem; color:var(--ink); padding:.25rem .35rem; font-size:.72rem }
+  .co-spin{ display:inline-block; width:.85rem; height:.85rem; border:2px solid #0b0d1255; border-top-color:#0b0d12; border-radius:50%; animation:cospin .7s linear infinite; vertical-align:-.1rem }
+  @keyframes cospin{ to{ transform:rotate(360deg) } }
+  @keyframes copulse{ 0%{ box-shadow:0 0 0 0 var(--accent) } 100%{ box-shadow:0 0 0 14px transparent } }
+  .node.co-pulse{ animation:copulse 1s ease-out 2 }
+  @media (prefers-reduced-motion:reduce){ #copilot,#copilotbtn{ transition:none } .node.co-pulse{ animation:none } .co-spin{ animation:none } }
+  @media (max-width:760px){
+    #copilot{ top:auto; left:0; right:0; bottom:0; width:auto; max-height:74vh; border-left:none; border-top:1px solid var(--line);
+      border-radius:.9rem .9rem 0 0; transform:translateY(101%); }
+    #copilot.open{ transform:translateY(0) }
+    #copilotbtn .lbl{ display:none }
+  }
   #cookoffmodal[hidden]{ display:none }
   #cookoffmodal{ position:fixed; inset:0; z-index:210; display:flex; padding:min(4vh,2.4rem) min(4vw,2.4rem);
                  background:rgba(4,6,11,.78); backdrop-filter:blur(3px); }
@@ -483,6 +540,22 @@
   <button id="appmodalclose" title="Close — your app stays here (Esc)" aria-label="Close">✕</button>
   <iframe id="appmodalframe" title="Create app" allow="clipboard-write; fullscreen"></iframe>
 </div>
+
+<!-- 💬 Describe changes — non-modal copilot that edits the workflow graph from a text description -->
+<button id="copilotbtn" title="Describe a change to your workflow in plain words" aria-haspopup="dialog" aria-controls="copilot">💬<span class="lbl"> Describe changes</span></button>
+<aside id="copilot" role="dialog" aria-label="Describe changes" aria-hidden="true">
+  <div class="cohead">💬 Describe changes <span class="sub">edit the graph in words</span>
+    <button id="copilotclose" title="Close (Esc)" aria-label="Close">✕</button>
+  </div>
+  <div id="cobody"></div>
+  <div id="cofoot">
+    <div class="corow">
+      <textarea id="copilotin" rows="2" placeholder="Describe a change… e.g. “add a node that speaks the lyrics aloud”"></textarea>
+      <button id="copilotgen" title="Generate the change (Enter)">Generate</button>
+    </div>
+    <div class="comodel">model <select id="copilotmodel" title="Which model plans the change"></select></div>
+  </div>
+</aside>
 
 <!-- 🍜 Noodle Cookoff — floating announcement (left), opens the contest modal -->
 <button id="cookoffbtn" title="Noodle Cookoff — win Nano" aria-haspopup="dialog">🍜 Noodle Cookoff<span class="x" id="cookoffdismiss" role="button" tabindex="0" title="Dismiss" aria-label="Dismiss">✕</span></button>
@@ -3731,6 +3804,357 @@ $("signout").onclick = ()=> setKey(null);
   refreshBalance();                 // already-signed-in visitor: show the bal without waiting for a run
   // pull the full model catalogs in the background, then show per-node prices
   Promise.all([loadCatalog("chat"), loadCatalog("image"), loadCatalog("video"), loadCatalog("audio")]).then(refreshAllPrices);
+})();
+
+/* ===================== 💬 Describe changes — graph copilot =====================
+   Edit the workflow by describing the change. We ask a chat model for the COMPLETE new
+   graph (the most model-robust shape — proven in proof/describe), strip layout noise so the
+   model only reasons about semantics, then DIFF prev-vs-new ourselves for a review-before-apply
+   preview. We never trust the model to emit diff syntax. Apply preserves layout + uploaded media
+   for surviving nodes and auto-fills default models for new ones. One-level undo per change. */
+(function(){
+  const DESCRIBE_MODEL_KEY = "noodle_describe_model";
+  const DESC_MODELS = [
+    ["gemini-2.5-flash","Gemini 2.5 Flash · fast"],
+    ["moonshotai/kimi-k2-instruct","Kimi K2 Instruct"],
+    ["Qwen/Qwen3-235B-A22B-Instruct-2507","Qwen3 235B Instruct"],
+    ["openai/gpt-oss-120b","GPT-OSS 120B · reasons"],
+  ];
+  const EXAMPLES = [
+    "Add a node that speaks the result aloud",
+    "Turn the final text into an image",
+    "Make the song instrumental",
+  ];
+  const MEDIA_KEYS = new Set(["image","audio","video","mask"]);
+
+  // Per-type field hints; structure (ports/output/modelKind) is read live from NODE_TYPES so a
+  // newly added node type still surfaces (with generic fields) instead of silently disappearing.
+  const DESC_FIELDS = {
+    text:{ main:"text", fields:{ text:"the literal string" } },
+    upload:{ fields:{} }, aupload:{ fields:{} }, vupload:{ fields:{} },
+    join:{ fields:{ sep:"separator (default space; \\n = newline)" } },
+    llm:{ main:"prompt", fields:{ model:"chat model id (optional)", system:"system prompt", prompt:"user prompt" }, note:"vision models also accept wired image ports" },
+    vision:{ fields:{ model:"vision model id (optional)", q:"the question" } },
+    image:{ main:"prompt", fields:{ model:"image model id (optional)", prompt:"image prompt", size:"e.g. 1024x1024" } },
+    edit:{ main:"prompt", fields:{ model:"edit model id (optional)", prompt:"edit instruction" } },
+    inpaint:{ main:"prompt", fields:{ model:"inpaint model id (optional)", prompt:"what to paint in" } },
+    tvideo:{ main:"prompt", fields:{ model:"t2v model id (optional)", prompt:"video prompt", duration:"seconds", aspect:"e.g. 16:9" } },
+    ivideo:{ main:"prompt", fields:{ model:"i2v model id (optional)", prompt:"motion prompt", duration:"seconds", aspect:"e.g. 16:9" } },
+    vedit:{ main:"prompt", fields:{ model:"v2v model id (optional)", prompt:"instruction" } },
+    vframes:{ fields:{ frames:"how many", gap:"seconds between frames", dir:"end|start" } },
+    combine:{ fields:{ dedup:"trim duplicate seam frame (true/false)" } },
+    lipsync:{ fields:{ model:"avatar model id (optional)", prompt:"optional direction" } },
+    music:{ main:"prompt", fields:{ model:"music model id (optional)", prompt:"style/prompt", lyrics:"lyrics for vocal models", instrumental:"true/false" } },
+    tts:{ main:"prompt", fields:{ model:"tts model id (optional)", prompt:"text to speak", voice:"voice id (optional)" } },
+    trim:{ fields:{ start:"seconds", length:"seconds" } },
+    transcribe:{ fields:{ model:"stt model id (optional)", language:"auto or a language code" } },
+  };
+  function schemaLines(){
+    return Object.keys(NODE_TYPES).map(type=>{
+      const t = NODE_TYPES[type], a = DESC_FIELDS[type] || { fields:{} };
+      const ins = (Array.isArray(t.inputs) ? t.inputs : []).map(p=>`${p.name}:${p.type}`);
+      if(t.videoInputs) ins.push("clip1:video,…");
+      if(t.imageInputs) ins.push("image1:image,… (vision models)");
+      const out = typeof t.outputs === "function" ? "image (ports frame1,frame2,…)" : (t.outputs[0]?.type || "—");
+      const flds = Object.entries(a.fields).map(([k,v])=>`${k} (${v})`).join("; ") || "—";
+      return `- ${type}: ${t.desc}. in: ${ins.join(", ")||"—"}. out: ${out}. fields: ${flds}.${a.note?" "+a.note:""}`;
+    }).join("\n");
+  }
+
+  // ---- simplified <-> internal graph (strip layout noise + uploaded media) ----
+  function strip(fields){
+    const o = {};
+    for(const [k,v] of Object.entries(fields||{})){
+      if(v==="" || v==null) continue;
+      if(MEDIA_KEYS.has(k)) continue;                                  // don't ship the user's photo/song to the planner
+      if(typeof v==="string" && v.startsWith("data:")) continue;       // any inline media
+      o[k] = v;
+    }
+    return o;
+  }
+  function toSimple(g){
+    return {
+      nodes:(g.nodes||[]).map(n=>({ id:n.id, type:n.type, fields:strip(n.fields) })),
+      links:(g.links||[]).map(l=>({ from:`${l.from.node}.${l.from.port}`, to:`${l.to.node}.${l.to.port}` })),
+    };
+  }
+  function fromSimple(simple, prev){
+    const prevById = Object.fromEntries((prev.nodes||[]).map(n=>[n.id,n]));
+    const num = s=> parseInt(String(s).replace(/\D/g,""),10) || 0;
+    const maxX = (prev.nodes||[]).length ? Math.max(...prev.nodes.map(n=>n.x||0)) : 60;
+    let place = 0;
+    const nodes = (simple.nodes||[]).map(sn=>{
+      const old = prevById[sn.id];
+      const fields = { ...(old ? old.fields : {}), ...(sn.fields||{}) };  // keep survivors' media, model's edits win
+      if(NODE_TYPES[sn.type]?.modelKind && !fields.model) fields.model = defModelFor(sn.type);
+      const node = { id:sn.id, type:sn.type, fields };
+      if(old){ node.x=old.x; node.y=old.y; if(old.w) node.w=old.w; if(old.sizes) node.sizes=old.sizes; }
+      else { node.x = maxX + 320; node.y = -140 + (place++)*200; }
+      return node;
+    });
+    let lid = Math.max(prev.lid||0, 0, ...(prev.links||[]).map(l=>num(l.id)));
+    const links = (simple.links||[]).map(l=>{
+      const [fn,fp] = String(l.from).split("."); const [tn,tp] = String(l.to).split(".");
+      return { id:"l"+(++lid), from:{node:fn,port:fp}, to:{node:tn,port:tp} };
+    });
+    const nid = Math.max(prev.nid||0, 0, ...nodes.map(n=>num(n.id))) + 1;
+    return { v:1, nodes, links, nid, lid:lid+1, view:prev.view };
+  }
+
+  // ---- validation: known types, unique ids, resolvable links, feed-forward (no cycles) ----
+  function validate(simple){
+    const errs = []; const ids = new Set();
+    for(const n of simple.nodes||[]){
+      if(!n.id){ errs.push("a node is missing an id"); continue; }
+      if(ids.has(n.id)) errs.push(`duplicate node id ${n.id}`);
+      ids.add(n.id);
+      if(!NODE_TYPES[n.type]) errs.push(`unknown node type “${n.type}”`);
+    }
+    for(const l of simple.links||[]){
+      const f = String(l.from).split(".")[0], t = String(l.to).split(".")[0];
+      if(!ids.has(f)) errs.push(`a wire starts from a missing node (${f})`);
+      if(!ids.has(t)) errs.push(`a wire ends at a missing node (${t})`);
+    }
+    const adj = {}; (simple.links||[]).forEach(l=>{ const f=String(l.from).split(".")[0], t=String(l.to).split(".")[0]; (adj[f]||(adj[f]=[])).push(t); });
+    const color = {}; let cyclic = false;
+    const dfs = u=>{ color[u]=1; for(const v of adj[u]||[]){ if(color[v]===1){ cyclic=true; return; } if(!color[v]) dfs(v); } color[u]=2; };
+    for(const id of ids){ if(!color[id]) dfs(id); }
+    if(cyclic) errs.push("that change would create a loop — workflows must flow one way");
+    return { ok: errs.length===0, errs };
+  }
+
+  // ---- semantic diff (what the user reviews before applying) ----
+  function diff(prev, next){
+    const pById = Object.fromEntries((prev.nodes||[]).map(n=>[n.id,n]));
+    const nById = Object.fromEntries((next.nodes||[]).map(n=>[n.id,n]));
+    const added=[], removed=[], changed=[];
+    for(const n of next.nodes||[]) if(!pById[n.id]) added.push(n);
+    for(const n of prev.nodes||[]) if(!nById[n.id]) removed.push(n);
+    for(const n of next.nodes||[]){
+      const old = pById[n.id]; if(!old) continue;
+      const keys = new Set([...Object.keys(old.fields||{}), ...Object.keys(n.fields||{})]);
+      const fc = [];
+      for(const k of keys){ if(JSON.stringify(old.fields?.[k])!==JSON.stringify(n.fields?.[k])) fc.push({ key:k, from:old.fields?.[k], to:n.fields?.[k] }); }
+      if(old.type!==n.type || fc.length) changed.push({ id:n.id, type:n.type, retyped: old.type!==n.type?old.type:null, fields:fc });
+    }
+    const key = l=>`${l.from}→${l.to}`;
+    const pL = new Set((prev.links||[]).map(key)), nL = new Set((next.links||[]).map(key));
+    const linksAdded = (next.links||[]).filter(l=>!pL.has(key(l)));
+    const linksRemoved = (prev.links||[]).filter(l=>!nL.has(key(l)));
+    const count = added.length+removed.length+changed.length+linksAdded.length+linksRemoved.length;
+    return { added, removed, changed, linksAdded, linksRemoved, count, removes: removed.length };
+  }
+
+  // ---- model call ----
+  function extractJson(text){
+    let t = String(text).trim();
+    const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i); if(fence) t = fence[1].trim();
+    const start = t.search(/[\[{]/); if(start<0) throw new Error("no graph in the reply");
+    const open = t[start], close = open==="{" ? "}" : "]";
+    let depth=0, end=-1, inStr=false, esc=false;
+    for(let i=start;i<t.length;i++){
+      const c=t[i];
+      if(inStr){ if(esc) esc=false; else if(c==="\\") esc=true; else if(c==='"') inStr=false; continue; }
+      if(c==='"'){ inStr=true; continue; }
+      if(c===open) depth++; else if(c===close){ depth--; if(depth===0){ end=i; break; } }
+    }
+    if(end<0) throw new Error("the reply was cut off");
+    return JSON.parse(t.slice(start,end+1));
+  }
+  function parseGraph(text){
+    const g = extractJson(text);
+    if(!g || !Array.isArray(g.nodes)) throw new Error("the reply wasn’t a graph");
+    const links = (g.links||[]).map(l=> typeof l.from==="string" ? { from:l.from, to:l.to } : { from:`${l.from.node}.${l.from.port}`, to:`${l.to.node}.${l.to.port}` });
+    return { nodes:g.nodes.map(n=>({ id:n.id, type:n.type, fields:n.fields||{} })), links };
+  }
+  async function modelHint(){
+    await Promise.all(["chat","image","video","audio"].map(k=>loadCatalog(k).catch(()=>null)));
+    const pick = (kind,filter,n=6)=> (catalogs[kind]||[]).filter(m=>passesFilter(m,filter)).slice(0,n).map(m=>m.id);
+    const L = [];
+    const c=pick("chat",null); if(c.length) L.push(`  chat: ${c.join(", ")}`);
+    const i=pick("image","gen"); if(i.length) L.push(`  image: ${i.join(", ")}`);
+    const v=pick("video","t2v"); if(v.length) L.push(`  video: ${v.join(", ")}`);
+    const tts=pick("audio","tts"); if(tts.length) L.push(`  tts: ${tts.join(", ")}`);
+    const mus=pick("audio","music"); if(mus.length) L.push(`  music: ${mus.join(", ")}`);
+    return L.length ? `\nExample model ids you MAY use (newest first) — only if the user names a model, otherwise leave "model" out:\n${L.join("\n")}\n` : "";
+  }
+  function systemPrompt(hint){
+    return `You edit a node-graph workflow for "nanoodle", a browser tool that wires nano-gpt AI models into pipelines. The graph is a feed-forward DAG — NO cycles. Data flows along links from a node's output port into another node's input port; the two ends must share a type (text/image/audio/video).
+
+NODE TYPES you may use:
+${schemaLines()}
+
+GRAPH FORMAT (simplified): {"nodes":[{"id","type","fields"}],"links":[{"from":"nodeId.port","to":"nodeId.port"}]}. A node needs only id and type. A node's OUTPUT port name equals its output type (text/image/audio/video) — except vframes (frame1,frame2,…). Most generators accept their main text via a wired link to a field port (llm.prompt, image.prompt, edit.prompt, tvideo.prompt, music.prompt, tts.prompt) OR you can hardcode that field instead.
+${hint}
+RULES:
+- Keep every EXISTING node id stable. Give NEW nodes ids n100, n101, … (never reuse an existing id).
+- Leave a node's "model" field OUT unless the user explicitly names a model — the app fills the best current default.
+- Make sure every generator node actually gets its input: wire its main port, or set its prompt/text field.
+- Change as little as needed to satisfy the request; don't restructure unrelated parts.
+- Return ONLY the COMPLETE new graph as one JSON object {"nodes":[...],"links":[...]}. No prose, no markdown fences.`;
+  }
+  async function generate(simpleGraph, instruction, model, signal){
+    const sys = systemPrompt(await modelHint());
+    const usr = `Current graph:\n${JSON.stringify(simpleGraph)}\n\nChange requested: ${instruction}`;
+    const body = { model, messages:[{role:"system",content:sys},{role:"user",content:usr}], temperature:0, max_tokens:8000 };
+    const r = await fetch(CHAT_ENDPOINT, { method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal });
+    if(!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0,140)}`);
+    const j = await r.json(); accrue(j);
+    const m = j.choices?.[0]?.message || {};
+    let txt = (m.content!=null && m.content!=="") ? m.content : (m.reasoning || "");
+    if(typeof txt!=="string") txt = txt.map(p=>p.text||"").join("");
+    if(!txt.trim()){
+      if(j.choices?.[0]?.finish_reason==="length") throw new Error("the model ran out of room before answering — try a shorter request or a different model");
+      throw new Error("the model returned an empty reply — try again");
+    }
+    return txt;
+  }
+
+  // ---- UI ----
+  const panel = $("copilot"), btn = $("copilotbtn"), input = $("copilotin"), gen = $("copilotgen"),
+        body = $("cobody"), modelSel = $("copilotmodel"), closeBtn = $("copilotclose");
+  if(!panel || !btn) return;   // defensive
+  const cookoff = $("cookoffbtn");
+  const history = [];          // {text, prev} newest last
+  let proposal = null;         // {prevInternal, prevSimple, next, dif, valid}
+  let controller = null;       // in-flight fetch
+  let busy = false;
+
+  // model select
+  for(const [id,label] of DESC_MODELS){ const o=document.createElement("option"); o.value=id; o.textContent=label; modelSel.appendChild(o); }
+  try{ const saved=localStorage.getItem(DESCRIBE_MODEL_KEY); if(saved && DESC_MODELS.some(m=>m[0]===saved)) modelSel.value=saved; }catch(_){}
+  modelSel.onchange = ()=>{ try{ localStorage.setItem(DESCRIBE_MODEL_KEY, modelSel.value); }catch(_){} };
+
+  // launcher above the (temporary) contest badge
+  function syncBadge(){ try{ document.documentElement.style.setProperty("--copilot-bottom", (cookoff && !cookoff.hidden) ? "3.7rem" : "1rem"); }catch(_){} }
+  syncBadge();
+  if(cookoff && typeof MutationObserver!=="undefined"){ try{ new MutationObserver(syncBadge).observe(cookoff, { attributes:true, attributeFilter:["hidden"] }); }catch(_){} }
+
+  function open(){ panel.classList.add("open"); panel.setAttribute("aria-hidden","false"); btn.classList.add("on"); setTimeout(()=>input.focus(),180); }
+  function close(){ panel.classList.remove("open"); panel.setAttribute("aria-hidden","true"); btn.classList.remove("on"); }
+  function toggle(){ panel.classList.contains("open") ? close() : (render(), open()); }
+  btn.onclick = toggle;
+  closeBtn.onclick = close;
+  panel.addEventListener("keydown", e=>{ if(e.key==="Escape" && !input.value.trim()){ e.stopPropagation(); close(); } });
+
+  function autogrow(){ input.style.height="auto"; input.style.height=Math.min(input.scrollHeight,112)+"px"; }
+  input.addEventListener("input", autogrow);
+  input.addEventListener("keydown", e=>{ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); submit(); } });
+  gen.onclick = submit;
+
+  const esc = s=> String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const short = (v)=>{ let s = typeof v==="string" ? v : JSON.stringify(v); if(s==null) s=""; s=String(s); return s.length>42 ? s.slice(0,40)+"…" : s; };
+  const label = n=> `${n.type}${n.id?` (${n.id})`:""}`;
+
+  function diffRowsHTML(d){
+    const rows = [];
+    for(const n of d.added)   rows.push(`<div class="dchg add">+ add ${esc(label(n))}${n.fields?.model?` · ${esc(short(n.fields.model))}`:""}</div>`);
+    for(const n of d.removed) rows.push(`<div class="dchg del">– remove ${esc(label(n))}</div>`);
+    for(const c of d.changed){
+      if(c.retyped) rows.push(`<div class="dchg mod">~ ${esc(c.id)}: ${esc(c.retyped)} → ${esc(c.type)}</div>`);
+      for(const f of c.fields) rows.push(`<div class="dchg mod">~ ${esc(c.id)}.${esc(f.key)}: ${esc(short(f.from))} → ${esc(short(f.to))}</div>`);
+    }
+    for(const l of d.linksAdded)   rows.push(`<div class="dchg wire">+ wire ${esc(l.from)} ▸ ${esc(l.to)}</div>`);
+    for(const l of d.linksRemoved) rows.push(`<div class="dchg wire">– unwire ${esc(l.from)} ▸ ${esc(l.to)}</div>`);
+    return rows.join("");
+  }
+
+  function render(){
+    let html = "";
+    if(history.length){
+      html += `<div class="co-hist">` + history.map((h,i)=>
+        `<div class="co-hrow"><span class="txt" title="${esc(h.text)}">✓ ${esc(h.text)}</span><span class="undo" data-undo="${i}">undo</span></div>`
+      ).join("") + `</div>`;
+    }
+    if(proposal){
+      const d = proposal.dif;
+      const empty = d.count===0;
+      html += `<div class="co-diff"><div class="dtitle">${empty?"No changes":`Proposed · ${d.count} change${d.count>1?"s":""}`}</div>`;
+      if(!empty) html += `<div class="co-rows">${diffRowsHTML(d)}</div>`;
+      if(!proposal.valid.ok) html += `<div class="co-note err">⚠ ${esc(proposal.valid.errs[0])}</div>`;
+      else if(empty) html += `<div class="co-note">Try being more specific.</div>`;
+      else if(d.removes) html += `<div class="co-note">Removes ${d.removes} node${d.removes>1?"s":""} — undo is one click.</div>`;
+      html += `<div class="co-dacts">
+        <button data-act="discard">Discard</button>
+        <button class="primary${d.removes?" danger":""}" data-act="apply" ${(!proposal.valid.ok||empty)?"disabled":""}>${d.removes?`Apply · removes ${d.removes}`:"Apply"}</button>
+      </div></div>`;
+    }
+    if(!history.length && !proposal){
+      html += `<div class="co-empty">Describe a change to your workflow and I’ll plan it, show you the diff, and apply it on your OK. The graph stays put until you click Apply.
+        <div class="co-chips">${EXAMPLES.map(e=>`<span class="co-chip" data-chip="${esc(e)}">${esc(e)}</span>`).join("")}</div></div>`;
+    }
+    body.innerHTML = html;
+  }
+
+  body.addEventListener("click", e=>{
+    const chip = e.target.closest("[data-chip]");
+    if(chip){ input.value = chip.getAttribute("data-chip"); autogrow(); input.focus(); return; }
+    const undo = e.target.closest("[data-undo]");
+    if(undo){ doUndo(+undo.getAttribute("data-undo")); return; }
+    const act = e.target.closest("[data-act]");
+    if(act){ act.getAttribute("data-act")==="apply" ? apply() : discard(); }
+  });
+
+  function setBusy(on){
+    busy = on; gen.disabled = on; input.disabled = on;
+    gen.innerHTML = on ? `<span class="co-spin"></span>` : "Generate";
+  }
+  function showError(msg){
+    proposal = null; render();
+    body.insertAdjacentHTML("beforeend", `<div class="co-note err">⚠ ${esc(msg)}</div>`);
+  }
+
+  async function submit(){
+    if(busy) return;
+    const text = input.value.trim();
+    if(!text){ input.focus(); return; }
+    if(!getKey()){ showError("Add your nano-gpt key to describe changes — click “paste key” up top."); return; }
+    const prevInternal = serializeGraph();
+    const prevSimple = toSimple(prevInternal);
+    proposal = null;
+    setBusy(true);
+    controller = new AbortController();
+    try{
+      const out = await generate(prevSimple, text, modelSel.value, controller.signal);
+      const next = parseGraph(out);
+      const valid = validate(next);
+      const dif = diff(prevSimple, next);
+      proposal = { prevInternal, prevSimple, next, dif, valid, text };
+      render();
+    }catch(e){
+      if(e.name==="AbortError") return;
+      showError(e.message || String(e));
+    }finally{ setBusy(false); controller=null; }
+  }
+
+  function pulse(ids){
+    for(const id of ids){
+      const n = graph.nodes.find(x=>x.id===id);
+      if(n && n.el){ n.el.classList.remove("co-pulse"); void n.el.offsetWidth; n.el.classList.add("co-pulse"); }
+    }
+  }
+
+  function apply(){
+    if(!proposal || !proposal.valid.ok || proposal.dif.count===0) return;
+    const newIds = proposal.dif.added.map(n=>n.id);
+    const internal = fromSimple(proposal.next, proposal.prevInternal);
+    applyGraphData(internal);
+    save();
+    history.push({ text: proposal.text, prev: proposal.prevInternal });
+    const c = proposal.dif.count;
+    proposal = null;
+    render();
+    pulse(newIds);
+    toast(`✓ Applied ${c} change${c>1?"s":""} — undo in the panel`, "");
+  }
+  function discard(){ proposal = null; render(); input.focus(); }
+  function doUndo(i){
+    const h = history[i]; if(!h) return;
+    applyGraphData(h.prev); save();
+    history.splice(i);            // drop this and anything after it (they built on the reverted state)
+    proposal = null; render();
+    toast("↩ Reverted", "");
+  }
 })();
 </script>
 <a id="legallink" href="/legal" target="_blank" rel="noopener">Terms · Privacy</a>

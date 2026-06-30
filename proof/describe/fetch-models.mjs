@@ -1,0 +1,16 @@
+import fs from "node:fs";
+const KEY=process.env.NANOGPT_API_KEY;
+const H={Authorization:"Bearer "+KEY,"x-api-key":KEY};
+const get=async(u)=>{const r=await fetch("https://nano-gpt.com"+u,{headers:H});return r.ok?r.json():{__status:r.status};};
+const asArr=(j)=>Array.isArray(j)?j:(j.data||j.models||[]);
+const chat=asArr(await get("/api/v1/models?detailed=true"));
+const img=asArr(await get("/api/v1/image-models"));
+const vid=asArr(await get("/api/v1/video-models"));
+const aud=asArr(await get("/api/v1/audio-models"));
+const idOf=m=>m.id||m.model||m.name;
+console.log("counts",{chat:chat.length,img:img.length,vid:vid.length,aud:aud.length});
+console.log("chat sample",chat.slice(0,10).map(idOf));
+console.log("chat vision",chat.filter(m=>m.vision||m.capabilities?.vision).slice(0,8).map(idOf));
+console.log("img sample",img.slice(0,8).map(idOf));
+console.log("vid sample",vid.slice(0,6).map(idOf));
+console.log("aud sample",aud.slice(0,8).map(idOf));
