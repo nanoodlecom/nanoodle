@@ -205,6 +205,48 @@
                  font-weight:800; color:#0b0d12; background:linear-gradient(90deg,var(--accent),var(--accent2)) }
   #cookoffclose{ position:absolute; top:.6rem; right:.7rem; width:2.1rem; height:2.1rem; border-radius:.55rem;
                  display:flex; align-items:center; justify-content:center; font-size:1.05rem; z-index:2 }
+  /* 🏆 Submit popup — tight conversion-first "checkout": prize banner → entry link → where to post */
+  #submitmodal[hidden]{ display:none }
+  #submitmodal{ position:fixed; inset:0; z-index:215; display:flex; padding:min(4vh,2.4rem) min(4vw,2.4rem);
+                background:rgba(4,6,11,.78); backdrop-filter:blur(3px); }
+  #submitpanel{ position:relative; margin:auto; width:100%; max-width:460px; max-height:92vh; overflow:auto;
+                background:var(--bg); border-radius:.9rem; padding:1.35rem 1.35rem 1.25rem; box-shadow:0 30px 90px #000c; }
+  #submitpanel::before{ content:""; position:absolute; inset:0; border-radius:.9rem; padding:2px; pointer-events:none;
+                background:linear-gradient(90deg,#ff6b6b,#ffcf6b,#3ddc97,#7c8cff,#ff79c6,#ff6b6b); background-size:200% 100%;
+                -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); -webkit-mask-composite:xor;
+                mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); mask-composite:exclude;
+                animation:cookoff-flow 4s linear infinite; }
+  @media (prefers-reduced-motion:reduce){ #submitpanel::before{ animation:none } }
+  #submitclose{ position:absolute; top:.55rem; right:.6rem; width:2rem; height:2rem; border-radius:.55rem;
+                display:flex; align-items:center; justify-content:center; font-size:1.05rem; z-index:2 }
+  .sub-prize{ display:flex; flex-direction:column; gap:.15rem; text-align:center; margin:.1rem 1.6rem .95rem }
+  .sub-prizetop{ font-weight:800; font-size:1.12rem; background:linear-gradient(90deg,#ff6b6b,#ffcf6b,#3ddc97,#7c8cff,#ff79c6);
+                -webkit-background-clip:text; background-clip:text; color:transparent }
+  .sub-cats{ font-size:.76rem; color:var(--dim) }
+  .sub-link{ background:var(--panel); border:1px solid var(--line); border-radius:.65rem; padding:.7rem .75rem .8rem }
+  .sub-link label{ display:block; font-size:.7rem; letter-spacing:.07em; text-transform:uppercase; color:var(--dim); font-weight:700; margin-bottom:.4rem }
+  .sub-linktabs{ display:inline-flex; gap:.2rem; background:var(--bg); border:1px solid var(--line); border-radius:.5rem; padding:.18rem; margin-bottom:.45rem }
+  .sub-tab{ border:none; background:transparent; color:var(--dim); font-weight:700; font-size:.78rem; padding:.28rem .6rem; border-radius:.4rem; cursor:pointer }
+  .sub-tab.on{ background:var(--panel2); color:var(--ink) }
+  .sub-linkhint{ display:block; font-size:.72rem; color:var(--dim); margin-bottom:.5rem }
+  .sub-linkrow{ display:flex; gap:.5rem }
+  #submitlink{ flex:1; min-width:0; background:var(--bg); border:1px solid var(--line); border-radius:.5rem;
+               padding:.6rem .65rem; font-size:.92rem; color:var(--ink); }
+  .sub-copy{ flex:0 0 auto; border:none; border-radius:.5rem; font-weight:800; font-size:.9rem; color:#0b0d12;
+             padding:.6rem 1rem; background:linear-gradient(90deg,var(--accent),var(--accent2)); }
+  .sub-copy.ok{ background:var(--good) }
+  .sub-where{ margin-top:1rem }
+  .sub-wheretitle{ display:block; font-size:.7rem; letter-spacing:.07em; text-transform:uppercase; color:var(--dim); font-weight:700; margin-bottom:.5rem }
+  .sub-anchors{ display:flex; gap:.5rem; flex-wrap:wrap }
+  .sub-anchor{ flex:1 1 0; min-width:140px; display:flex; flex-direction:column; gap:.12rem; text-align:center; text-decoration:none;
+               color:var(--ink); background:var(--panel2); border:1px solid var(--line); border-radius:.55rem; padding:.55rem .7rem }
+  .sub-anchor:hover{ border-color:#3a425a }
+  .sub-anchor .t{ font-weight:700; font-size:.86rem }
+  .sub-anchor .s{ font-size:.72rem; color:var(--dim) }
+  .sub-rules{ font-size:.74rem; color:var(--dim); text-align:center; margin:.8rem 0 .1rem }
+  /* explainer modal: side-by-side actions (primary "Submit" + secondary "Start cooking") */
+  #cookoffpanel .cookoff-actions{ display:flex; gap:.55rem; flex-wrap:wrap; align-items:center }
+  #cookoffpanel .cta.secondary{ background:transparent; color:var(--ink); border:1px solid var(--line) }
   /* toast — a clearly-visible transient confirmation */
   #toast{ position:fixed; top:64px; left:50%; transform:translateX(-50%) translateY(-14px) scale(.98); z-index:80;
           display:flex; align-items:center; gap:.5rem; max-width:min(92vw,560px);
@@ -425,6 +467,7 @@
   <button id="makeapp" title="Turn this workflow into a shareable app">✨ Create app</button>
   <button id="newapp" title="Start a NEW app from this workflow (don’t update the one you’re editing)" hidden>✨ New</button>
   <button id="share" title="Copy a link that loads this exact workflow — paste it to share with anyone">🔗 Share</button>
+  <button id="submitcontest" title="Enter this in the Noodle Cookoff">🏆 Submit</button>
   <button id="save" title="download this graph as JSON">⭳ Save</button>
   <button id="load" title="open a graph JSON file">⭱ Load</button>
   <button id="updates" title="What’s new in nanoodle">📣 Updates<span id="updbadge" hidden></span></button>
@@ -509,7 +552,40 @@
     <p class="meta">Opens June 26 · closes July 12 (23:59 UTC) · max 2 entries each · winners get a permanent spot in the gallery.<br>
       Keep entries SFW — no copyright violations, nothing illegal. Prizes can only be sent to wallets in countries not under active US sanctions.<br>
       nanoodle is a community project on <a href="https://nano-gpt.com" target="_blank" rel="noopener">nano-gpt</a>, which takes Nano — so the prize pool stays in the ecosystem.</p>
-    <button class="cta" id="cookoffstart">Start cooking →</button>
+    <div class="cookoff-actions">
+      <button class="cta" id="cookoffsubmit">📨 Submit your entry →</button>
+      <button class="cta secondary" id="cookoffstart">Start cooking →</button>
+    </div>
+  </div>
+</div>
+
+<!-- 🏆 Submit to the Noodle Cookoff — conversion-first popup: prize → your link → where to post -->
+<div id="submitmodal" hidden>
+  <div id="submitpanel" role="dialog" aria-modal="true" aria-label="Submit to the Noodle Cookoff">
+    <button id="submitclose" class="hbtn" title="Close (Esc)" aria-label="Close">✕</button>
+    <div class="sub-prize">
+      <span class="sub-prizetop">🏆 Win 3 × 133 XNO (Nano)</span>
+      <span class="sub-cats">🛠 Most Useful · 💡 Most Innovative · ❤️ People's Choice</span>
+    </div>
+    <div class="sub-link">
+      <div class="sub-linktabs" role="tablist" aria-label="What your link opens">
+        <button id="sublinkapp" class="sub-tab on" role="tab" aria-selected="true">🚀 App</button>
+        <button id="sublinkwf" class="sub-tab" role="tab" aria-selected="false">🛠 Workflow</button>
+      </div>
+      <span id="sublinkhint" class="sub-linkhint">Opens your creation as a ready-to-run app — what people click to try it. Best for entries.</span>
+      <div class="sub-linkrow">
+        <input id="submitlink" type="text" readonly value="" aria-label="Your entry link" />
+        <button id="submitcopy" class="sub-copy">Copy link</button>
+      </div>
+    </div>
+    <div class="sub-where">
+      <span class="sub-wheretitle">Where to post</span>
+      <div class="sub-anchors">
+        <a class="sub-anchor" href="https://discord.gg/KaQt8gPG6V" target="_blank" rel="noopener"><span class="t">💬 Post in Discord ↗</span><span class="s">#community-projects</span></a>
+        <a class="sub-anchor" href="https://www.reddit.com/r/nanocurrency/submit" target="_blank" rel="noopener"><span class="t">🤖 Post to r/nanocurrency ↗</span><span class="s">paste your link</span></a>
+      </div>
+      <p class="sub-rules">max 2 entries · keep it SFW · closes Jul 12, 23:59 UTC</p>
+    </div>
   </div>
 </div>
 
@@ -3357,7 +3433,7 @@ $("run").onclick = ()=>{
 
 /* ---------- responsive toolbar: collapse secondary actions into the ⋯ menu on phones ----------
    Buttons keep their handlers (they're moved, not cloned). On desktop everything sits inline. */
-const RELOC = ["makeapp","newapp","share","save","load","updates","signin","pastebtn","signout","status"];  // order shown in the menu
+const RELOC = ["makeapp","newapp","share","submitcontest","save","load","updates","signin","pastebtn","signout","status"];  // order shown in the menu
 const mqMobile = matchMedia("(max-width:640px)");
 let topOrder = null;
 function layoutBar(){
@@ -3505,12 +3581,19 @@ async function copyText(t){
   try{ const ta=document.createElement("textarea"); ta.value=t; ta.style.cssText="position:fixed;opacity:0";
        document.body.appendChild(ta); ta.select(); const ok=document.execCommand("copy"); ta.remove(); return ok; }catch{ return false; }
 }
-async function shareUrl(){
+// Build a shareable #g= (or #j= fallback) URL for the current graph.
+// target "app"  → play.html: opens the standalone, ready-to-run APP (what contest voters click).
+// target other  → this editor page: opens the editable WORKFLOW (the 🔗 Share default, for remixing).
+// One packer so the 🔗 Share button and the 🏆 Submit popup never drift.
+async function buildShareUrl(target){
   const json = JSON.stringify(shareableGraph());
-  let hash;
   const packed = await gzip(json).catch(()=>null);
-  hash = packed ? "#g="+bytesToB64url(packed) : "#j="+bytesToB64url(new TextEncoder().encode(json));
-  const url = location.origin + location.pathname + location.search + hash;
+  const hash = packed ? "#g="+bytesToB64url(packed) : "#j="+bytesToB64url(new TextEncoder().encode(json));
+  if(target==="app") return location.origin + "/play.html" + hash;     // real file → resolves on the live site and locally
+  return location.origin + location.pathname + location.search + hash;
+}
+async function shareUrl(){
+  const url = await buildShareUrl();
   history.replaceState({}, "", url);                 // surface it in the address bar too
   const big = url.length > 8000 ? ` (${(url.length/1024).toFixed(0)}kB)` : "";
   const ok = await copyText(url);
@@ -3520,6 +3603,9 @@ async function shareUrl(){
   const b = $("share");                                   // flip the button itself for unmistakable feedback
   if(b && ok){ const o=b.textContent; b.textContent="✓ Link copied!"; b.classList.add("ok");
     setTimeout(()=>{ b.textContent=o; b.classList.remove("ok"); }, 1800); }
+  // Catch the wow moment: a link is on the clipboard — nudge them to enter it in the Cookoff.
+  // The popup builds its own APP link (what to post for the contest); back off once dismissed.
+  if(ok && !suppressShareNudge) openSubmit(true);
 }
 // Set when this editor session is editing the workflow of an existing app (carried in
 // via #ga= or the modal's __editflow__ message). "Create app" hands the graph back under
@@ -3632,7 +3718,6 @@ addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("appmodal").hidden) c
 const cookoffBtn = $("cookoffbtn");
 try{ if(localStorage.getItem("noodle_cookoff_dismissed")) cookoffBtn.hidden = true; }catch(_){}
 function closeCookoff(){ $("cookoffmodal").hidden = true; }
-cookoffBtn.onclick = ()=>{ $("cookoffmodal").hidden = false; };
 function dismissCookoff(e){ e.stopPropagation(); cookoffBtn.hidden = true; try{ localStorage.setItem("noodle_cookoff_dismissed","1"); }catch(_){} }
 $("cookoffdismiss").onclick = dismissCookoff;
 $("cookoffdismiss").addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" ") dismissCookoff(e); });
@@ -3640,6 +3725,60 @@ $("cookoffclose").onclick = closeCookoff;
 $("cookoffstart").onclick = closeCookoff;
 $("cookoffmodal").addEventListener("click", e=>{ if(e.target.id==="cookoffmodal") closeCookoff(); });   // click the dim backdrop
 addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("cookoffmodal").hidden) closeCookoff(); });
+
+// 🏆 Submit popup — the conversion path into the Cookoff: prize → your entry link → where to post.
+// Reached three ways: the 🏆 Submit toolbar button, the 🍜 explainer's "Submit your entry →",
+// and an auto-nudge the instant a 🔗 Share copy succeeds (the wow moment).
+let submitFromShare = false;     // this open was the post-Share auto-nudge (vs. an explicit click)
+let suppressShareNudge = false;  // user dismissed that nudge once → stop auto-popping it this session
+let submitTarget = "app";        // "app" (play.html runtime — the contest default) | "workflow" (editor, for remixers)
+function closeSubmit(){
+  if(submitFromShare) suppressShareNudge = true;   // dismissed the post-Share nudge → don't re-pop it this session
+  submitFromShare = false;
+  $("submitmodal").hidden = true;
+}
+const SUBMIT_HINT = {
+  app: "Opens your creation as a ready-to-run app — what people click to try it. Best for entries.",
+  workflow: "Opens in the editor so others can remix or learn from your noodle.",
+};
+async function fillSubmitLink(){               // (re)generate the link for the active target
+  const inp = $("submitlink"); inp.value = "…";
+  try{ inp.value = await buildShareUrl(submitTarget); }catch(e){ inp.value = ""; }
+  inp.focus(); inp.select();                   // keyboard users can copy immediately
+}
+function setSubmitTarget(t){
+  submitTarget = t;
+  $("sublinkapp").classList.toggle("on", t==="app");
+  $("sublinkwf").classList.toggle("on", t==="workflow");
+  $("sublinkapp").setAttribute("aria-selected", t==="app");
+  $("sublinkwf").setAttribute("aria-selected", t==="workflow");
+  $("sublinkhint").textContent = SUBMIT_HINT[t];
+  const cb = $("submitcopy"); cb.textContent = "Copy link"; cb.classList.remove("ok");
+  fillSubmitLink();
+}
+async function openSubmit(fromShare){
+  submitFromShare = !!fromShare;
+  $("submitmodal").hidden = false;
+  const copyBtn = $("submitcopy");
+  copyBtn.textContent = "Copy link"; copyBtn.classList.remove("ok");   // reset from any prior copy
+  await fillSubmitLink();                                              // uses the sticky submitTarget (default: app)
+}
+$("sublinkapp").onclick = ()=> setSubmitTarget("app");
+$("sublinkwf").onclick  = ()=> setSubmitTarget("workflow");
+// 🍜 floating button → the rich "why enter" explainer; its CTA opens this submit popup.
+cookoffBtn.onclick = ()=>{ $("cookoffmodal").hidden = false; };
+$("cookoffsubmit").onclick = ()=>{ closeCookoff(); openSubmit(); };
+$("submitcontest").onclick = ()=> openSubmit();                       // wrap: never pass the click event as a URL
+$("submitclose").onclick = closeSubmit;
+$("submitmodal").addEventListener("click", e=>{ if(e.target.id==="submitmodal") closeSubmit(); });   // click the dim backdrop
+addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("submitmodal").hidden) closeSubmit(); });
+$("submitcopy").onclick = async ()=>{
+  const inp = $("submitlink"); inp.select();
+  const ok = await copyText(inp.value);
+  const b = $("submitcopy");
+  if(ok){ b.textContent = "✓ Copied"; b.classList.add("ok"); setTimeout(()=>{ b.textContent="Copy link"; b.classList.remove("ok"); }, 1800); }
+  else { toast("Couldn't copy — select the link and copy it manually", "err"); }
+};
 addEventListener("message", e=>{
   if(e.source!==$("appmodalframe").contentWindow || !e.data) return;
   if(e.data.type==="__closeapp__") closeAppModal();
