@@ -3583,6 +3583,20 @@ function shareableGraph(){
   });
   return g;
 }
+// SECURITY (mirror of the share-out blanking above, for the import side): a shared #g=/#j= link
+// auto-applies on open with no Run/gesture. Upload-node media fields are ALWAYS data: URLs locally
+// (FileReader / canvas.toDataURL), so any remote value here can only be an injected beacon — the
+// default <audio>/<video> preload would fetch it and leak the viewer's IP/UA/open-timestamp on open.
+// Blank any non-data:/blob: upload media on import (legit uploads are untouched; generated outputs
+// ride in n.out, not n.fields, so remote outputs are unaffected).
+const SAFE_MEDIA_RE = /^(data:|blob:)/;
+function stripInjectedMedia(n){
+  if(!n.fields) return;
+  const f = UPLOAD_FIELD[n.type];                                   // upload→image, aupload→audio, vupload→video
+  if(f && n.fields[f] && !SAFE_MEDIA_RE.test(n.fields[f])) n.fields[f] = "";
+  if(n.type==="inpaint") for(const k of ["image","mask"])           // source photo + brushed mask, both data: locally
+    if(n.fields[k] && !SAFE_MEDIA_RE.test(n.fields[k])) n.fields[k] = "";
+}
 function applyGraphData(d){
   world.innerHTML=""; selected=null;
   graph = { nodes:[], links:[] };
@@ -3591,7 +3605,7 @@ function applyGraphData(d){
   for(const sn of (d.nodes||[])){
     const type = ALIAS[sn.type] || sn.type;
     if(!NODE_TYPES[type]) continue;               // skip unknown node types gracefully
-    const n={ ...sn, type, out:{}, el:null }; graph.nodes.push(n); buildNodeEl(n);
+    const n={ ...sn, type, out:{}, el:null }; stripInjectedMedia(n); graph.nodes.push(n); buildNodeEl(n);
   }
   // keep only links whose endpoints survived
   const ids = new Set(graph.nodes.map(n=>n.id));
