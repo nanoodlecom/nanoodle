@@ -30,7 +30,7 @@ const ALLOWED_HOSTS = ["nano-gpt.com"];
 // as outbound fetch() sinks (the shorten request), and STILL forbidden as
 // resource loaders (<script>/<img>/font/style) so the no-3rd-party-asset
 // promise stays intact. Keep this list tiny and CORS-verified.
-const SHORTENER_HOSTS = ["tinyurl.com", "da.gd", "clck.ru"];
+const SHORTENER_HOSTS = ["tinyurl.com", "da.gd"];
 
 function htmlFiles(argv) {
   if (argv.length) return argv;

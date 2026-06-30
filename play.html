@@ -289,7 +289,6 @@
   <div class="sm-svc">
     <button data-svc="tinyurl">TinyURL</button>
     <button data-svc="dagd">da.gd</button>
-    <button data-svc="clckru">clck.ru <span class="sm-flag">⚑ RU</span></button>
   </div>
 
   <div class="am-head">Share to</div>
@@ -3023,7 +3022,7 @@ function bundle(files){
 // /play header CSP, and the browser enforces EVERY delivered policy — so even though that
 // header now also lists the URL shorteners (for the trusted Share UI in the parent chrome),
 // this tighter connect-src wins by intersection and a malicious shared app still cannot
-// fetch-exfiltrate the viewer's inputs/outputs to da.gd/tinyurl/clck.ru. Preview-only: the
+// fetch-exfiltrate the viewer's inputs/outputs to da.gd/tinyurl. Preview-only: the
 // exported bundle never carries this (it sets its own headers / runs standalone from file://).
 const PREVIEW_CSP =
   '<meta http-equiv="Content-Security-Policy" content="connect-src \'self\' blob: https://nano-gpt.com">';
@@ -3803,7 +3802,7 @@ function openShareMenu(url){ setShareUrl(url); $("sharemenu").hidden = false; $(
 function closeShareMenu(){ $("sharemenu").hidden = true; $("shareback").hidden = true; }
 
 // SHORTEN — direct client-side fetch to the chosen service (no nanoodle backend in the path).
-// All three return the short URL as plain text and preserve our #a= fragment through the redirect.
+// Both return the short URL as plain text and preserve our #a= fragment through the redirect.
 async function shortenWith(svc, longUrl){
   let r, t;
   if(svc==="tinyurl"){
@@ -3813,9 +3812,6 @@ async function shortenWith(svc, longUrl){
     r = await fetch("https://da.gd/shorten", { method:"POST",
         headers:{ "Content-Type":"application/x-www-form-urlencoded" },
         body:"url="+encodeURIComponent(longUrl) });
-    t = (await r.text()).trim();
-  } else if(svc==="clckru"){
-    r = await fetch("https://clck.ru/--?url="+encodeURIComponent(longUrl));
     t = (await r.text()).trim();
   } else { throw new Error("unknown service"); }
   if(!/^https?:\/\/\S+$/.test(t)) throw new Error(t.slice(0,80) || "no link returned");
