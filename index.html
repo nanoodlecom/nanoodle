@@ -1096,7 +1096,7 @@ function collectAudioParams(n){
 }
 async function audioRun(n, inp, ctx){
   const text = (inp.text ?? n.fields.prompt ?? "").trim();
-  if(!text) throw new Error("no text");
+  if(!text) throw new Error("no text — type something in the prompt field first");
   return { audio: await ctx.genAudio(mdl(n), text, collectAudioParams(n),
     (q,ms)=> setNodeProgress(n, `generating audio… ${Math.round(ms/1000)}s${q!=null?` · queue ${q}`:""}`)) };
 }
@@ -1467,7 +1467,7 @@ const NODE_TYPES = {
       <div data-llmadv></div>`,
     async run(n, inp, ctx){
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
-      if(!prompt) throw new Error("no prompt");
+      if(!prompt) throw new Error("no prompt — type what to ask in the prompt field");
       const imgs = collectImageInputs(inp, n);   // wired image ports, in order — sent alongside the prompt
       const aud  = audioInputPart(inp.audio); // wired audio port (audio-input models) — one inline input_audio part
       const messages = [];
@@ -1492,7 +1492,7 @@ const NODE_TYPES = {
       <div data-loraparams></div>`,
     async run(n, inp, ctx){
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
-      if(!prompt) throw new Error("no prompt");
+      if(!prompt) throw new Error("no prompt — describe the image to generate");
       const it = catItem("image", n.fields.model), maxOut = (it && it.maxOut) || 1;
       const want = Math.max(1, Math.min(maxOut, parseInt(n.fields.variations,10)||1));
       // always take the multi path: even a single-image request can come back with N (fixed_image_count
@@ -1517,9 +1517,9 @@ const NODE_TYPES = {
       <div data-loraparams></div>`,
     async run(n, inp, ctx){
       const imgs = collectImageInputs(inp, n);   // wired source images, in port order (image, image2, …)
-      if(!imgs.length) throw new Error("no image input");
+      if(!imgs.length) throw new Error("no image — wire an image into the image port");
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
-      if(!prompt) throw new Error("no edit instruction");
+      if(!prompt) throw new Error("no edit instruction — describe the change to make");
       // N inlined refs add up fast — refuse before any paid call (mirrors the inpaint guard)
       if(imgs.reduce((s,u)=> s + (u?u.length:0), 0) > MEDIA_INLINE_MAX)
         throw new Error("reference images too large (~4 MB combined limit) — use fewer or smaller images");
@@ -1595,7 +1595,7 @@ const NODE_TYPES = {
       ${modelFieldHTML(n)}
       <div><label>question</label><textarea data-f="q" placeholder="Describe this image.">${esc(n.fields.q || "Describe this image in vivid detail.")}</textarea></div>`,
     async run(n, inp, ctx){
-      if(!inp.image) throw new Error("no image input");
+      if(!inp.image) throw new Error("no image — wire an image into the image port");
       const q = (n.fields.q||"Describe this image.").trim();
       const messages = [{ role:"user", content:[
         {type:"text", text:q},
@@ -1618,7 +1618,7 @@ const NODE_TYPES = {
       <div data-loraparams></div>`,
     async run(n, inp, ctx){
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
-      if(!prompt) throw new Error("no prompt");
+      if(!prompt) throw new Error("no prompt — describe the video to generate");
       const url = await ctx.genVideo(mdl(n), prompt,
         { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9", resolution:n.fields.resolution||"", lora:loraParams(n), extra:(n.fields.modelOpts||{}), runKey:n.id }, null,
         (st,ms)=> setNodeProgress(n, `rendering video… ${Math.round(ms/1000)}s · ${st.toLowerCase()}`));
@@ -1638,7 +1638,7 @@ const NODE_TYPES = {
       <div data-modelopts></div>
       <div data-loraparams></div>`,
     async run(n, inp, ctx){
-      if(!inp.image) throw new Error("no image input");
+      if(!inp.image) throw new Error("no image — wire an image into the image port");
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       const url = await ctx.genVideo(mdl(n), prompt,
         { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9", resolution:n.fields.resolution||"", lora:loraParams(n), extra:(n.fields.modelOpts||{}), runKey:n.id }, inp.image,
@@ -1659,7 +1659,7 @@ const NODE_TYPES = {
       <div data-modelopts></div>
       <div data-loraparams></div>`,
     async run(n, inp, ctx){
-      if(!inp.video) throw new Error("no video input");
+      if(!inp.video) throw new Error("no video — wire a video into the video port");
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       const opts = await videoSourceOpts(inp.video); opts.lora = loraParams(n); opts.extra = (n.fields.modelOpts||{}); opts.runKey = n.id;
       if(n.fields.resolution) opts.resolution = n.fields.resolution;
@@ -1686,7 +1686,7 @@ const NODE_TYPES = {
       if(fr) fr.addEventListener("change", ()=> refreshFramePorts(n));   // grow/shrink the image output ports
     },
     async run(n, inp){
-      if(!inp.video) throw new Error("no video input");
+      if(!inp.video) throw new Error("no video — wire a video into the video port");
       const count = Math.max(1, Math.min(MAX_FRAMES, parseInt(n.fields.frames,10)||1));
       const gapRaw = parseFloat(n.fields.gap);
       const stepSec = Number.isFinite(gapRaw) ? Math.max(0, gapRaw) : 0.5;   // seconds between captured frames
@@ -1746,8 +1746,8 @@ const NODE_TYPES = {
       ${modelFieldHTML(n)}
       <div><label>prompt (optional)</label><textarea data-f="prompt" placeholder="subtle head movement, warm lighting…">${esc(n.fields.prompt||"")}</textarea></div>`,
     async run(n, inp, ctx){
-      if(!inp.image) throw new Error("no image input");
-      if(!inp.audio) throw new Error("no audio input");
+      if(!inp.image) throw new Error("no image — wire an image into the image port");
+      if(!inp.audio) throw new Error("no audio — wire an audio clip into the audio port");
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       const prog = (st,ms)=> setNodeProgress(n, `lip-syncing… ${Math.round(ms/1000)}s · ${st.toLowerCase()}`);
       // Avatar models cap audio length (LongCat = 30s) and the cap isn't reliably in the catalog,
@@ -1820,7 +1820,7 @@ const NODE_TYPES = {
       </div>
       <div style="opacity:.6;font-size:.8em;margin-top:.3rem">outputs mono WAV, sized to inline — handy before Avatar / lipsync when a clip is too long.</div>`,
     async run(n, inp){
-      if(!inp.audio) throw new Error("no audio input");
+      if(!inp.audio) throw new Error("no audio — wire an audio clip into the audio port");
       const start = parseFloat(n.fields.start) || 0;
       const length = parseFloat(n.fields.length);
       setNodeProgress(n, "trimming audio…");
@@ -1851,7 +1851,7 @@ const NODE_TYPES = {
       <div><label>language</label>${langCtrl}</div>`;
     },
     async run(n, inp, ctx){
-      if(!inp.audio) throw new Error("no audio input");
+      if(!inp.audio) throw new Error("no audio — wire an audio clip into the audio port");
       return { text: await ctx.transcribe(mdl(n), inp.audio, (n.fields.language||"auto").trim()) };
     }
   },
