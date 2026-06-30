@@ -2519,6 +2519,19 @@ window.NoodleApp = (function () {
     if(!r.ok) throw new Error("token: "+(await r.text()));
     setKey((await r.json()).access_token);
   }
+  // Save-time key probe (standalone). chat/completions is CORS-enabled and checks auth BEFORE
+  // body validation, so an empty body never generates and never charges: a good key 400s, a bad
+  // key 401s. Returns false ONLY on a definitive auth rejection; a network/CORS hiccup returns
+  // true so an offline user is never locked out of a key they pasted correctly. (No backticks —
+  // this lives inside RUNTIME_JS.)
+  async function probeKey(k){
+    try{
+      const r = await fetch(CHAT_ENDPOINT, { method:"POST",
+        headers:{ Authorization:"Bearer "+k, "x-api-key":k, "Content-Type":"application/json" },
+        body:"{}" });
+      return !(r.status===401 || r.status===403);
+    }catch(_){ return true; }
+  }
   function renderAuth(){
     const box = $("app-auth"); if(!box) return;
     // Embedded in the builder, auth belongs to the parent (it holds the key and proxies
@@ -2551,7 +2564,17 @@ window.NoodleApp = (function () {
     } else {
       if(canOAuth) $("auth-in").onclick = ()=> signIn().catch(e=> statusLine("__auth__","error","sign-in error: "+e.message));
       $("auth-paste").onclick = ()=>{ $("auth-keyrow").hidden=false; $("auth-keyinput").focus(); };
-      $("auth-keysave").onclick = ()=>{ const k=$("auth-keyinput").value.trim(); if(k){ setKey(k); } };
+      $("auth-keysave").onclick = async ()=>{
+        const k=$("auth-keyinput").value.trim(); if(!k) return;
+        const sb=$("auth-keysave"); sb.disabled=true; sb.textContent="checking…";
+        const valid = await probeKey(k);                 // 401/403 → reject; 200/400/offline → keep
+        if(!valid){
+          sb.disabled=false; sb.textContent="save";      // keep the row OPEN, never store → no false "signed in ✓"
+          statusLine("__auth__","error","that key was rejected by nano-gpt — check you copied the whole key");
+          $("auth-keyinput").focus(); return;
+        }
+        setKey(k);   // validated (or offline-tolerated): setKey() re-renders the header to the true signed-in state
+      };
       const ki = $("auth-keyinput");
       if(ki) ki.addEventListener("keydown", e=>{ if(e.key==="Enter") $("auth-keysave").click(); });
     }
@@ -3671,6 +3694,21 @@ function renderAuth(){
   $("signout").style.display  = signed ? "" : "none";
   $("apply").disabled = !signed || busy;
 }
+// Save-time key probe: a definitively-rejected key (401/403) → false; anything else → true.
+// /api/v1/chat/completions is CORS-enabled (unlike /api/check-balance, which a browser can't
+// reach) and checks auth BEFORE body validation, so an empty body never generates and never
+// charges: a good key 400s (kept), a bad key 401s (rejected). A network/CORS hiccup also returns
+// true, so an offline blip can never lock a user out of a key they pasted correctly.
+async function probeKey(k){
+  try{
+    const r = await fetch(NANOGPT + "/api/v1/chat/completions", {
+      method:"POST",
+      headers:{ Authorization:"Bearer "+k, "x-api-key":k, "Content-Type":"application/json" },
+      body:"{}"
+    });
+    return !(r.status===401 || r.status===403);
+  }catch(_){ return true; }
+}
 // Reflect the current key (e.g. one the OAuth popup just stored) into the builder + inner app.
 // Idempotent so the storage listener and the popup poll can both call it without double-toasting.
 let _signedInReflected = false;
@@ -3897,7 +3935,20 @@ $("signin").addEventListener("click",(e)=>{ e.preventDefault(); signIn().catch(e
 // lands. The poll in signIn() is the primary path for the popup; this covers cross-tab changes.
 window.addEventListener("storage",(e)=>{ if(e.key==="ngpt_key") finishSignIn(); });
 $("pastebtn").addEventListener("click",()=>{ $("key").style.display="flex"; $("keyinput").focus(); });
-$("keysave").addEventListener("click",()=>{ const k=$("keyinput").value.trim(); if(k){ setKey(k); $("key").style.display="none"; renderAuth(); pushAuthToApp(); toast("key saved — the app can run now"); } });
+$("keysave").addEventListener("click", async ()=>{
+  const k=$("keyinput").value.trim();
+  if(!k) return;
+  const btn=$("keysave"); btn.disabled=true; btn.textContent="checking…";
+  const ok = await probeKey(k);                          // 401/403 → reject; 200/400/offline → keep
+  btn.disabled=false; btn.textContent="save key";
+  if(!ok){                                               // rejected → keep the row OPEN, never show "signed in ✓"
+    $("keyinput").focus();
+    toast("that key was rejected by nano-gpt — check you copied the whole key","err");
+    return;
+  }
+  setKey(k); $("key").style.display="none"; renderAuth(); pushAuthToApp();
+  toast("key saved — the app can run now");
+});
 $("keyinput").addEventListener("keydown",(e)=>{ if(e.key==="Enter") $("keysave").click(); });
 $("signout").addEventListener("click",()=>{ setKey(null); renderAuth(); pushAuthToApp(); toast("signed out"); });
 
