@@ -508,6 +508,7 @@
     <div id="addpop"></div>
   </div>
   <button id="run" class="primary" title="run every flow (Ctrl/⌘+Enter)">▶ Run</button>
+  <button id="fit" title="Fit the whole workflow in view (F)">⊡ Fit</button>
   <button id="makeapp" title="Turn this workflow into a shareable app">✨ Create app</button>
   <button id="newapp" title="Start a NEW app from this workflow (don’t update the one you’re editing)" hidden>✨ New</button>
   <button id="share" title="Copy a link that loads this exact workflow — paste it to share with anyone">🔗 Share</button>
@@ -2724,6 +2725,7 @@ function endPtr(e){
 }
 editor.addEventListener("pointerup", endPtr);
 editor.addEventListener("pointercancel", endPtr);
+editor.addEventListener("dblclick", e=>{ if(onBg(e.target)) fitView(); });   // double-click empty canvas to reframe
 editor.addEventListener("wheel", e=>{
   // Yield to a scrollable region inside a node (a tall textarea, a long result
   // .rtext) so the wheel scrolls its content instead of zooming the canvas — but
@@ -2746,9 +2748,35 @@ editor.addEventListener("wheel", e=>{
   applyWorld(); redraw();
 }, {passive:false});
 
+// ---- Fit-to-view: frame the whole graph in the viewport (⊡ button / F / dbl-click) ----
+function graphBBox(){
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  for(const n of graph.nodes){ if(!n.el) continue;
+    x0=Math.min(x0,n.x); y0=Math.min(y0,n.y);
+    x1=Math.max(x1,n.x+n.el.offsetWidth); y1=Math.max(y1,n.y+n.el.offsetHeight); }
+  return isFinite(x0) ? {x0,y0,x1,y1} : null;
+}
+// Center the graph with breathing room; clamp to 1x so we never zoom IN past native.
+function fitView(){
+  const b=graphBBox(); if(!b) return;
+  const M=48, vw=editor.clientWidth, vh=editor.clientHeight, bw=b.x1-b.x0, bh=b.y1-b.y0;
+  scale = clamp(Math.min(vw/(bw+M*2), vh/(bh+M*2)), ZMIN, 1);
+  panX = (vw - bw*scale)/2 - b.x0*scale;
+  panY = (vh - bh*scale)/2 - b.y0*scale;
+  applyWorld(); redraw();
+}
+// Does the whole graph already sit inside the viewport under the CURRENT (just-applied) view?
+function graphFitsViewport(){
+  const b=graphBBox(); if(!b) return true;
+  return b.x0*scale+panX>=0 && b.y0*scale+panY>=0 &&
+         b.x1*scale+panX<=editor.clientWidth && b.y1*scale+panY<=editor.clientHeight;
+}
+
 // delete selected node with keyboard (when not typing)
 window.addEventListener("keydown", e=>{
   if((e.ctrlKey||e.metaKey) && e.key==="Enter"){ e.preventDefault(); runAll(); return; }   // run every flow
+  if((e.key==="f"||e.key==="F") && !(e.ctrlKey||e.metaKey||e.altKey) &&
+     !/^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName)){ e.preventDefault(); fitView(); return; }   // F = fit to view
   if((e.key==="Delete"||e.key==="Backspace") && selected && !/^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName)){
     removeNode(selected.id);
   }
@@ -3632,6 +3660,7 @@ async function loadDefault(){   // noodle-graph.json shipped alongside the page 
     const r = await fetch("noodle-graph.json", {cache:"no-store"});
     if(!r.ok) return false;
     applyGraphData(await r.json());
+    if(!graphFitsViewport()) fitView();   // first-run framing — only when the shipped view overflows THIS screen
     return true;
   }catch{ return false; }      // e.g. opened via file:// — fall back to the built-in seed
 }
@@ -3649,6 +3678,7 @@ function loadFile(file){
 }
 $("save").onclick = saveFile;
 $("load").onclick = ()=> $("loadfile").click();
+$("fit").onclick = fitView;
 $("loadfile").onchange = (e)=>{ loadFile(e.target.files[0]); e.target.value=""; };
 
 /* ---------- shareable link: graph packed into the URL hash ---------- */
