@@ -265,6 +265,34 @@ const SCENARIOS = [
         fail(`expected images in order [img1,img2], got ${JSON.stringify(urls)}`);
     },
   },
+  {
+    // An in-graph audio clip (aupload) wired to the LLM's audio port → an inline input_audio
+    // part alongside the prompt text, base64 stripped of the data: prefix, format from the MIME.
+    name: "NEW: audio → LLM audio input (input_audio part, base64 stripped)",
+    data: { nodes: [node("u1", "aupload", { audio: "data:audio/wav;base64,QUJD" }),
+                    node("t1", "text", { text: "Transcribe this" }), node("m1", "llm", { model: "x" })],
+            links: [link("u1", "audio", "m1", "audio"), link("t1", "text", "m1", "prompt")] },
+    check(app, g, fail) {
+      const u = userMsg(chatCalls()[0]);
+      if (!Array.isArray(u.content)) return fail("multimodal LLM content must be an array when audio is wired");
+      if (u.content[0].type !== "text" || u.content[0].text !== "Transcribe this") fail("prompt text missing from multimodal content");
+      const a = u.content.find((p) => p.type === "input_audio");
+      if (!a) return fail("the wired audio was not sent as an input_audio part");
+      if (a.input_audio.data !== "QUJD") fail(`audio data must be the bare base64 (no data: prefix), got ${JSON.stringify(a.input_audio.data)}`);
+      if (a.input_audio.format !== "wav") fail(`audio format must be parsed from the MIME (wav), got ${JSON.stringify(a.input_audio.format)}`);
+    },
+  },
+  {
+    // Guard: text-only LLM calls are UNCHANGED by the audio feature — still a bare string content,
+    // never an input_audio part (the historical shape old workflows depend on).
+    name: "NEW: audio feature leaves text-only LLM calls as string content",
+    data: { nodes: [node("m1", "llm", { model: "x", prompt: "just text" })], links: [] },
+    check(app, g, fail) {
+      const u = userMsg(chatCalls()[0]);
+      if (typeof u.content !== "string" || u.content !== "just text")
+        fail(`an imageless/audioless LLM must still send string content, got ${JSON.stringify(u.content).slice(0,80)}`);
+    },
+  },
 
   // ---- LLM sampling / reasoning controls (the ⚙️ advanced block) ----
   // These lock the request-body plumbing so a future refactor can't silently

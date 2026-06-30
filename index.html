@@ -709,6 +709,13 @@ function modelSupportsImages(n){
   const m = catItem(t.modelKind, n.fields.model);
   return !m || !!m[t.imageInputs];   // permissive when the id isn't in the catalog
 }
+// Does the selected chat model accept audio? Gates the single audio input port (mirror of
+// modelSupportsImages). Permissive when the id isn't in the catalog (typed-in id never blocked).
+function modelSupportsAudio(n){
+  const t = NODE_TYPES[n.type]; if(!t.audioInput) return false;
+  const m = catItem(t.modelKind, n.fields.model);
+  return !m || !!m[t.audioInput];
+}
 function imageInputDefs(n){
   const t = NODE_TYPES[n.type]; if(!t.imageInputs) return [];
   const wired = (graph.links||[]).filter(l=> l.to.node===n.id && IMG_PORT_RE.test(l.to.port))
@@ -741,6 +748,26 @@ function videoInputDefs(n){
 function collectVideoInputs(inp){
   return Object.keys(inp).filter(k=> VID_PORT_RE.test(k)).sort((a,b)=> +a.slice(3) - +b.slice(3))
     .map(k=> inp[k]).filter(Boolean);
+}
+
+/* ---------- audio input (audio_input chat models) ----------
+   Turn a wired audio data: URL into the OpenAI-standard inline part the chat API hears:
+   {type:"input_audio", input_audio:{data:<base64>, format:"wav"|"mp3"|…}}. Strips the
+   data-URL prefix, derives the format from the MIME subtype (audio/mpeg→mp3). Inline
+   base64 hits the same ~4.4MB edge body cap that bites lipsync — guard it loudly rather
+   than POST a body the edge will drop. Shared verbatim with play.html's RUNTIME_JS. */
+function audioInputPart(url){
+  if(typeof url!=="string" || !url) return null;
+  if(url.length > MEDIA_INLINE_MAX)
+    throw new Error("audio clip is too large to inline (~4 MB send limit) — shorten it with the ✂️ Trim node first");
+  const comma = url.indexOf(",");
+  const head = comma>=0 ? url.slice(0,comma) : "";
+  const data = comma>=0 ? url.slice(comma+1) : url;
+  const mt = head.match(/data:([^;]+)/);
+  let fmt = ((mt && mt[1] ? mt[1].split("/")[1] : "") || "wav").toLowerCase();
+  if(fmt==="mpeg" || fmt==="mp3") fmt = "mp3";
+  else if(fmt==="x-wav" || fmt==="wave") fmt = "wav";
+  return { type:"input_audio", input_audio:{ data, format:fmt } };
 }
 
 /* one model-row in a node body — a button that opens the shared picker */
@@ -1271,10 +1298,11 @@ const NODE_TYPES = {
   },
 
   llm: {
-    em:"🧠", title:"LLM", desc:"Text (+ images) → text — any chat model", group:"Text", kw:"chat write reason gpt assistant ask prompt",
+    em:"🧠", title:"LLM", desc:"Text (+ images, audio) → text — any chat model", group:"Text", kw:"chat write reason gpt assistant ask prompt transcribe describe listen",
     modelKind:"chat",
     inputs:[],
     imageInputs:"vision",   // vision-capable models grow dynamic image input ports (see refreshImageInputs)
+    audioInput:"audio_input",   // audio-input models grow a single audio input port (see refreshAudioInputs)
     outputs:[{name:"text", type:"text"}], preview:"text",
     body:(n)=>`
       ${modelFieldHTML(n)}
@@ -1285,10 +1313,11 @@ const NODE_TYPES = {
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       if(!prompt) throw new Error("no prompt");
       const imgs = collectImageInputs(inp);   // wired image ports, in order — sent alongside the prompt
+      const aud  = audioInputPart(inp.audio); // wired audio port (audio-input models) — one inline input_audio part
       const messages = [];
       if((n.fields.system||"").trim()) messages.push({role:"system", content:n.fields.system.trim()});
-      messages.push(imgs.length
-        ? { role:"user", content:[{type:"text", text:prompt}, ...imgs.map(url=>({type:"image_url", image_url:{url}}))] }
+      messages.push((imgs.length || aud)
+        ? { role:"user", content:[{type:"text", text:prompt}, ...imgs.map(url=>({type:"image_url", image_url:{url}})), ...(aud?[aud]:[])] }
         : { role:"user", content:prompt });
       return { text: await ctx.genChat(messages, mdl(n), llmOpts(n)) };
     }
@@ -1758,7 +1787,7 @@ function buildNodeEl(n){
     mp.onclick = (e)=>{
       e.stopPropagation();
       openPicker(t.modelKind, { current:n.fields.model, filter:t.modelFilter, onPick:(id)=>{
-        n.fields.model = id; mp.textContent = id+" ▾"; updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); save();
+        n.fields.model = id; mp.textContent = id+" ▾"; updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); save();
       }});
     };
     updateNodePrice(n);
@@ -1783,6 +1812,7 @@ function buildNodeEl(n){
   el.querySelectorAll(".port").forEach(p=> p.addEventListener("pointerdown", e=>startWire(p, e)));
   refreshImageInputs(n);             // dynamic image ports + their own wire listeners (after the static-port bind above)
   refreshVideoInputs(n);             // dynamic clip ports on the Combine node (same timing as image ports)
+  refreshAudioInputs(n);             // single audio port on audio-input chat models (model-gated)
   addFieldPorts(n);
   refreshPortFills();
   prepTextareas(n);
@@ -1839,6 +1869,24 @@ function refreshVideoInputs(n){
     col.appendChild(row);
     row.querySelector(".port").addEventListener("pointerdown", e=> startWire(e.currentTarget, e));
   });
+  refreshPortFills();
+}
+
+// Render the single audio input port on an audio-input chat model. Idempotent — safe after a
+// model pick or graph load. A non-audio model shows a disabled stub that visibly "unlocks" once
+// an audio-input model is picked (mirror of refreshImageInputs' disabled stub). The port lives as
+// a link (named "audio"), so it serializes and exports for free.
+function refreshAudioInputs(n){
+  if(!n.el || !NODE_TYPES[n.type].audioInput) return;
+  const col = n.el.querySelector(".col.in"); if(!col) return;
+  col.querySelectorAll(".prow.audrow").forEach(el=> el.remove());
+  const off = !modelSupportsAudio(n);
+  const row = document.createElement("div");
+  row.className = "prow audrow" + (off?" off":"");
+  row.innerHTML = `<i class="port audio${off?" disabled":""}" data-node="${esc(n.id)}" data-port="audio" data-dir="in" data-ptype="audio"`
+    + (off?` title="this model can’t hear audio — pick an audio-input model"`:``) + `></i><span>audio</span>`;
+  col.appendChild(row);
+  if(!off) row.querySelector(".port").addEventListener("pointerdown", e=> startWire(e.currentTarget, e));
   refreshPortFills();
 }
 
@@ -2356,6 +2404,7 @@ function nodeAcceptsType(k, type){
   if((t.inputs||[]).some(p=> p.type===type)) return true;
   if(type==="image" && t.imageInputs) return true;
   if(type==="video" && t.videoInputs) return true;
+  if(type==="audio" && t.audioInput) return true;
   if(type==="text"  && bodyHasTextField(k)) return true;
   return false;
 }
@@ -2421,6 +2470,14 @@ function ensureModelForInput(n, type){
       n.fields.model = m.id;
       const mp = n.el.querySelector(".modelpick"); if(mp) mp.textContent = m.id + " ▾";
       updateNodePrice(n); refreshImageInputs(n); save();
+    }
+  }
+  if(type==="audio" && t.audioInput && t.modelKind){
+    const m = (catalogs[t.modelKind]||[]).find(x=> passesFilter(x, t.audioInput));
+    if(m){
+      n.fields.model = m.id;
+      const mp = n.el.querySelector(".modelpick"); if(mp) mp.textContent = m.id + " ▾";
+      updateNodePrice(n); refreshAudioInputs(n); save();
     }
   }
 }
@@ -2650,12 +2707,17 @@ async function runGroup(seedIds){
         if(t.videoInputs) for(const l of graph.links){
           if(l.to.node===id && VID_PORT_RE.test(l.to.port)) inp[l.to.port] = byId(l.from.node)?.out?.[l.from.port];
         }
+        // the single audio port on audio-input chat models → read by run() as inp.audio
+        if(t.audioInput) for(const l of graph.links){
+          if(l.to.node===id && l.to.port==="audio") inp.audio = byId(l.from.node)?.out?.[l.from.port];
+        }
         // a wired text field overrides its typed value (n.fields[field]); declared ports handled above
         const fieldOverrides = {};
         for(const l of graph.links){
           if(l.to.node!==id || t.inputs.some(p=>p.name===l.to.port)) continue;
           if(t.imageInputs && IMG_PORT_RE.test(l.to.port)) continue;   // image ports aren't text-field overrides
           if(t.videoInputs && VID_PORT_RE.test(l.to.port)) continue;   // clip ports aren't text-field overrides
+          if(t.audioInput && l.to.port==="audio") continue;            // the audio port isn't a text-field override
           const v = byId(l.from.node)?.out?.[l.from.port];
           if(v!=null) fieldOverrides[l.to.port] = v;
         }
