@@ -75,6 +75,9 @@
   button:hover:not(:disabled){border-color:#3a425a}
   button:disabled{opacity:.45; cursor:default}
   button.primary{ background:linear-gradient(90deg,var(--accent),var(--accent2)); border:none; color:#0b0d12; font-weight:700;}
+  #run{ min-width:5.4rem; text-align:center; }    /* fixed width so ▶ Run ↔ ■ Stop never resizes the toolbar */
+  #run.running{ background:var(--bad); }          /* same button morphs into a stop affordance (red), same size */
+  #run.running:hover:not(:disabled){ background:#ff5252; }
   button.link{background:none;border:none;color:var(--accent);padding:0;font-size:.8rem}
 
   /* ---------- top bar ---------- */
@@ -2097,6 +2100,13 @@ function setStatus(n, status, msg){
   }
 }
 
+// A node the user stopped mid-run: clear the "running…" spinner and mark it idle (not an error).
+function setStopped(n){
+  if(!n?.el) return;
+  n.el.dataset.status = "idle";
+  const r = n.el.querySelector(".result");
+  if(r){ r.classList.add("show"); r.innerHTML = `<div style="color:var(--dim)">■ stopped</div>`; }
+}
 function setNodeProgress(n, msg){
   if(!n.el) return;
   const r = n.el.querySelector(".result");
@@ -2555,11 +2565,18 @@ function components(){
 }
 
 const runningNodes = new Set();   // nodes whose group is currently executing — play is disabled for these
+let runAbort = null;              // AbortController shared by every group in the current run; Stop aborts it
+const runSignal = ()=> runAbort?.signal;   // pass to fetch() during a run; undefined when nothing is running
 function groupBusy(ids){ for(const id of ids) if(runningNodes.has(id)) return true; return false; }
 function updateRunButtons(){
   for(const n of graph.nodes){ const b = n.el?.querySelector("[data-act=run]"); if(b) b.disabled = runningNodes.has(n.id); }
-  const idle = graph.nodes.some(n=> !runningNodes.has(n.id));
-  $("run").disabled = graph.nodes.length>0 && !idle;
+  const running = runningNodes.size > 0;
+  const draining = !!runAbort?.signal.aborted;     // stopped, but in-flight nodes are still unwinding
+  const run = $("run");
+  run.classList.toggle("running", running);        // the Run button itself becomes the Stop button while live
+  run.textContent = running ? "■ Stop" : "▶ Run";
+  run.title = running ? "Stop the running workflow" : "run every flow (Ctrl/⌘+Enter)";
+  run.disabled = draining;                         // mid-stop: ignore clicks until the run unwinds
 }
 
 // Run one group: lock its whole connected component, execute the ancestors of `seedIds` in topo order.
@@ -2570,7 +2587,11 @@ async function runGroup(seedIds){
   for(const id of seedIds) for(const x of componentOf(id)) lock.add(x);
   if(!lock.size || groupBusy(lock)) return;         // empty, or this group is already running
   const ids = ancestors(seedIds);                    // what we actually compute (seed + upstream)
-  lock.forEach(id=>runningNodes.add(id)); updateRunButtons();
+  const wasIdle = !runningNodes.size;
+  lock.forEach(id=>runningNodes.add(id));
+  if(wasIdle) runAbort = new AbortController();       // fresh controller for a fresh run; concurrent groups share it
+  const ctl = runAbort;                               // capture so a later run can't confuse our own abort check
+  updateRunButtons();
   try{
     const { order, cyclic } = topoOrder(ids);
     cyclic.forEach(id=> setStatus(byId(id), "error", "cycle detected"));
@@ -2619,12 +2640,17 @@ async function runGroup(seedIds){
             if(dn?.type==="inpaint" && dn.el && !dn.fields.image && !runningNodes.has(dn.id)) rerenderNode(dn);
           }
         }
-        catch(err){ setStatus(n, "error", err.message); }
+        catch(err){
+          if(ctl.signal.aborted || err?.name==="AbortError") setStopped(n);   // user hit Stop — not a failure
+          else setStatus(n, "error", err.message);
+        }
       })();
     }
     await Promise.all(order.map(id=> done[id]));
   } finally {
-    lock.forEach(id=>runningNodes.delete(id)); updateRunButtons();
+    lock.forEach(id=>runningNodes.delete(id));
+    if(!runningNodes.size && runAbort===ctl) runAbort = null;   // last group out clears the shared controller
+    updateRunButtons();
   }
 }
 // Run every idle group at once (busy ones keep going untouched).
@@ -2760,7 +2786,7 @@ const CTX = {
     if(imageDataUrl) body.imageDataUrl = imageDataUrl;   // present → image edit (img2img)
     if(maskDataUrl)  body.maskDataUrl  = maskDataUrl;    // present → inpaint; WHITE areas = the region to repaint (verified live)
     if(extra) Object.assign(body, extra);                // LoRA (and any future per-model image params)
-    const r = await fetch(IMG_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
+    const r = await fetch(IMG_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
     if(!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`);
     const j = await r.json();
     const d = (j.data||[])[0]||{};
@@ -2775,7 +2801,7 @@ const CTX = {
     if(opts.max_tokens) body.max_tokens = +opts.max_tokens;
     if(opts.response_format) body.response_format = opts.response_format;   // {type:"json_object"} for JSON mode
     if(opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
-    const r = await fetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
+    const r = await fetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
     if(!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`);
     const j = await r.json();
     accrue(j);
@@ -2815,8 +2841,9 @@ const CTX = {
       if(payload.length > MEDIA_INLINE_MAX)
         throw new Error("This audio/video is a bit large (~4 MB max). nanoodle sends media inline rather than uploading it (no S3 here), so NanoGPT's edge won't accept it. A shorter clip works well — or build this flow into an app (✨ Create app) and run it offline.");
       let r;
-      try{ r = await fetch(`${NANOGPT}/api/generate-video`, {method:"POST", headers:authHeaders(), body:payload}); }
-      catch(e){ throw new Error(`couldn't reach the video API — if the source media is large it may have been rejected for size before CORS applies. Try a shorter clip, or build this into an app and run it offline. (${e.message||e})`); }
+      try{ r = await fetch(`${NANOGPT}/api/generate-video`, {method:"POST", headers:authHeaders(), body:payload, signal:runSignal()}); }
+      catch(e){ if(e?.name==="AbortError") throw e;
+        throw new Error(`couldn't reach the video API — if the source media is large it may have been rejected for size before CORS applies. Try a shorter clip, or build this into an app and run it offline. (${e.message||e})`); }
       if(!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`);
       const j = await r.json(); accrue(j);
       runId = j.runId || j.id;
@@ -2826,8 +2853,9 @@ const CTX = {
     const t0 = Date.now();
     while(Date.now()-t0 < 600000){                   // 10 min — the job runs server-side, so patience here is cheap
       await sleep(5000);
-      let s; try{ s = await (await fetch(`${NANOGPT}/api/video/status?requestId=${encodeURIComponent(runId)}`, {headers:authHeaders()})).json(); }
-      catch{ continue; }
+      if(runSignal()?.aborted) throw new DOMException("aborted","AbortError");   // Stop: leave runId in PENDING_VIDEO so a re-run resumes
+      let s; try{ s = await (await fetch(`${NANOGPT}/api/video/status?requestId=${encodeURIComponent(runId)}`, {headers:authHeaders(), signal:runSignal()})).json(); }
+      catch(e){ if(e?.name==="AbortError") throw e; continue; }
       const st = String(s.data?.status || s.status || "").toUpperCase();
       onProgress && onProgress(st, Date.now()-t0);
       if(st==="COMPLETED" || st==="SUCCEEDED"){
@@ -2851,7 +2879,7 @@ const CTX = {
   // extra = the dynamic, model-specific params already resolved by the node (lyrics, voice, duration, …).
   async genAudio(model, input, extra, onProgress){
     const body = Object.assign({ model, input }, extra||{});
-    const r = await fetch(`${NANOGPT}/api/v1/audio/speech`, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
+    const r = await fetch(`${NANOGPT}/api/v1/audio/speech`, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
     if(!r.ok){
       const t = (await r.text()).slice(0,220);
       if(/lyric/i.test(t)) throw new Error("This model needs lyrics — fill the Lyrics field (vocal models require them; leave empty / use a BGM model for instrumentals).");
@@ -2878,7 +2906,7 @@ const CTX = {
   // speech→text: multipart upload to /api/v1/audio/transcriptions (audio file + model + language).
   // The in-graph audio is a blob/data URL, so we re-fetch its bytes and post them as a file.
   async transcribe(model, audioUrl, language){
-    const blob = await (await fetch(audioUrl)).blob();
+    const blob = await (await fetch(audioUrl, {signal:runSignal()})).blob();
     if(blob.size > 3.5*1024*1024)
       throw new Error("This clip is a bit big to transcribe directly (~3 MB max) — nanoodle sends audio inline rather than uploading it (no S3 here). A shorter clip works, or build this into an app (✨ Create app) and run it offline.");
     const ext = (blob.type.split("/")[1] || "mp3").split(";")[0];
@@ -2888,7 +2916,7 @@ const CTX = {
     if(language) fd.append("language", language);
     const k = getKey();   // multipart: let the browser set Content-Type (boundary) — don't use authHeaders()
     const r = await fetch(`${NANOGPT}/api/v1/audio/transcriptions`, {method:"POST",
-      headers:{ Authorization:`Bearer ${k}`, "x-api-key":k }, body:fd});
+      headers:{ Authorization:`Bearer ${k}`, "x-api-key":k }, body:fd, signal:runSignal()});
     if(!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`);
     const j = await r.json(); accrue(j);
     if(j?.metadata?.cost!=null && isFinite(+j.metadata.cost)) stats.cost += +j.metadata.cost;   // cost rides in metadata here
@@ -2909,7 +2937,7 @@ function framePorts(n){
 // already allows this — same path the save buttons use). Caller must revoke() when done.
 async function toLocalMediaUrl(url){
   if(/^(data:|blob:)/.test(url)) return { src:url, revoke:null };
-  const blob = await (await fetch(url)).blob();
+  const blob = await (await fetch(url, {signal:runSignal()})).blob();
   const o = URL.createObjectURL(blob);
   return { src:o, revoke:()=> URL.revokeObjectURL(o) };
 }
@@ -2937,8 +2965,8 @@ function mediaFetchError(url, e){
 async function urlToDataUrl(url){
   if(/^data:/.test(url)) return url;
   let blob;
-  try{ blob = await (await fetch(url)).blob(); }
-  catch(e){ throw mediaFetchError(url, e); }
+  try{ blob = await (await fetch(url, {signal:runSignal()})).blob(); }
+  catch(e){ if(e?.name==="AbortError") throw e; throw mediaFetchError(url, e); }
   return await new Promise((res, rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=()=>rej(new Error("could not read media")); fr.readAsDataURL(blob); });
 }
 // source-video payload for /api/generate-video: pass a public https link as videoUrl, otherwise inline as videoDataUrl
@@ -2974,8 +3002,8 @@ async function trimAudioToWavUrl(url, start, len, rate){
   const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
   if(!AC || !OAC) throw new Error("this browser can’t process audio (no Web Audio API)");
   let arr;
-  try{ arr = await (await fetch(url)).arrayBuffer(); }
-  catch(e){ throw mediaFetchError(url, e); }
+  try{ arr = await (await fetch(url, {signal:runSignal()})).arrayBuffer(); }
+  catch(e){ if(e?.name==="AbortError") throw e; throw mediaFetchError(url, e); }
   const dec = new AC();
   let src;
   try{ src = await dec.decodeAudioData(arr); }
@@ -3073,8 +3101,9 @@ async function pollAudio(model, j, onProgress){
   const t0 = Date.now();
   while(Date.now()-t0 < 300000){
     await sleep(3000);
-    let s; try{ s = await (await fetch(`${NANOGPT}/api/tts/status?${qs}`, {headers:authHeaders()})).json(); }
-    catch{ continue; }
+    if(runSignal()?.aborted) throw new DOMException("aborted","AbortError");
+    let s; try{ s = await (await fetch(`${NANOGPT}/api/tts/status?${qs}`, {headers:authHeaders(), signal:runSignal()})).json(); }
+    catch(e){ if(e?.name==="AbortError") throw e; continue; }
     const st = String(s.status||"").toLowerCase();
     if(st==="completed" || st==="succeeded")
       return s.audioUrl || s.url || s.data?.audioUrl || s.data?.url || (()=>{ throw new Error("completed but no audio url"); })();
@@ -3202,7 +3231,10 @@ $("addbtn").onclick = (e)=>{
   if(opening){ buildAddMenu(); if(!matchMedia("(pointer:coarse)").matches) $("addsearch").focus(); }
 };
 document.addEventListener("click", e=>{ if(!$("addmenu").contains(e.target)) $("addpop").classList.remove("open"); });
-$("run").onclick = runAll;
+$("run").onclick = ()=>{
+  if(runningNodes.size && runAbort && !runAbort.signal.aborted){ runAbort.abort(); flash("stopping…"); updateRunButtons(); }  // ■ Stop
+  else runAll();                                                                                                              // ▶ Run
+};
 
 /* ---------- responsive toolbar: collapse secondary actions into the ⋯ menu on phones ----------
    Buttons keep their handlers (they're moved, not cloned). On desktop everything sits inline. */
