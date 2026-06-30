@@ -32,9 +32,13 @@ touches_quickadd=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/
 touches_updates=$(printf '%s\n' "$staged" | grep -E '(^|/)(updates\.json|scripts/check-updates\.mjs)$' || true)
 # index.html + play.html carry the "Create app" handoff state machine (which app a click targets).
 touches_createapp=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-create-app\.mjs)$' || true)
+# index.html runGroup must not run/charge a downstream node on a failed upstream's stale output.
+touches_stale=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-stale-input-charge\.mjs)$' || true)
+# play.html runtime must resume a timed-out video job instead of re-submitting (double charge).
+touches_vresume=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-video-resume\.mjs)$' || true)
 
 # Nothing to check unless an .html file or one of the checkers changed.
-[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && exit 0
+[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && exit 0
 
 if ! command -v node >/dev/null 2>&1; then
   echo "pre-commit: node not found, skipping HTML JS checks" >&2
@@ -129,4 +133,18 @@ fi
 #     editor↔builder boot/handoff code in a node:vm sandbox across both pages.
 if [ -n "$touches_createapp" ]; then
   node "$root/scripts/check-create-app.mjs"
+fi
+
+# 13) the editor's run engine must not charge a downstream node on a failed upstream's stale
+#     output: a failed/cyclic node poisons its dependents, which are skipped (never run). Extracts
+#     the real runGroup() and drives it with spy run()s in a node:vm sandbox.
+if [ -n "$touches_stale" ]; then
+  node "$root/scripts/check-stale-input-charge.mjs"
+fi
+
+# 14) the exported/standalone runtime must RESUME a video job that outlived the 10-min poll window
+#     instead of re-submitting (and re-charging) it — while an edited node still submits afresh.
+#     Drives the real runGraph() over a timing-out video graph with a recording fetch.
+if [ -n "$touches_vresume" ]; then
+  node "$root/scripts/check-video-resume.mjs"
 fi
