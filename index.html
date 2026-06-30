@@ -182,6 +182,44 @@
                   background:#0b0d1233; font-size:.72rem; opacity:.85 }
   #cookoffbtn .x:hover{ background:#0b0d1255; opacity:1 }
   @media (prefers-reduced-motion:reduce){ #cookoffbtn{ animation:none } }
+
+  /* ---------- 💬 Describe changes: a docked bottom composer that edits the graph (gptdiff engine) ---------- */
+  /*    Same placement & shape as the app builder's "Customize" composer (play.html #customize). */
+  #describebar{ position:fixed; left:0; right:0; bottom:0; z-index:120; padding:.55rem .8rem;
+    background:#11141f; border-top:1px solid var(--line); box-shadow:0 -8px 24px #0005;
+    opacity:.5; transition:opacity .18s ease; }   /* soft until you reach for it (like play's composer) */
+  #describebar:hover, #describebar:focus-within{ opacity:1; }
+  .db-row{ display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+  .db-label{ font-size:.84rem; color:var(--accent); font-weight:600; white-space:nowrap; }
+  #describegoal{ flex:1; min-width:240px; background:var(--panel2); border:1px solid var(--line); border-radius:.5rem;
+    color:var(--ink); padding:.5rem .6rem; font:inherit; font-size:.88rem; }
+  #describegoal::placeholder{ color:var(--dim) }
+  #describebar button{ flex:0 0 auto; border-radius:.5rem; padding:.5rem .75rem; cursor:pointer; font:inherit; font-size:.84rem;
+    border:1px solid var(--line); background:var(--panel2); color:var(--ink); }
+  #describebar button.ghost{ background:transparent; color:var(--dim); }
+  #describebar button.ghost:hover{ color:var(--ink); }
+  #describebar button.primary{ background:var(--accent); color:#0b0d12; border-color:var(--accent); font-weight:700; }
+  #describebar button:disabled{ opacity:.5; cursor:default; }
+  #describemodel{ max-width:230px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #describestatus{ font-size:.8rem; min-height:1.1em; margin-top:.45rem; color:var(--dim); }
+  #describestatus:empty{ display:none }
+  #describestatus .ok{ color:var(--good) } #describestatus .err{ color:var(--bad) }
+  #describestatus .meter{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--dim); opacity:.9; white-space:nowrap; margin-left:.35rem; }
+  #describeversions{ display:flex; flex-wrap:wrap; gap:.3rem; align-items:center; margin-top:.45rem; }
+  #describeversions:empty{ display:none }
+  #describeversions .vlabel{ font-size:.74rem; color:var(--dim); margin-right:.05rem; }
+  #describeversions .ver{ font-size:.74rem; padding:.18rem .45rem; border-radius:.4rem; border:1px solid var(--line);
+    background:var(--panel2); color:var(--dim); cursor:pointer; }
+  #describeversions .ver:hover{ color:var(--ink); border-color:var(--accent); }
+  #describeversions .ver.cur{ background:var(--accent); color:#0b0d12; border-color:var(--accent); font-weight:700; }
+  #describeversions .ver.seed{ font-style:italic; }
+  .db-spin{ display:inline-block; width:.85rem; height:.85rem; border:2px solid #ffffff33; border-top-color:var(--accent); border-radius:50%; animation:dbspin .7s linear infinite; vertical-align:-.1rem; margin-right:.3rem; }
+  @keyframes dbspin{ to{ transform:rotate(360deg) } }
+  @keyframes dbpulse{ 0%{ box-shadow:0 0 0 0 var(--accent) } 100%{ box-shadow:0 0 0 14px transparent } }
+  .node.db-pulse{ animation:dbpulse 1s ease-out 2 }
+  #cookoffbtn{ bottom:calc(var(--db-h,3rem) + .7rem); }   /* lift the (temporary) contest badge above the composer */
+  @media (prefers-reduced-motion:reduce){ .node.db-pulse{ animation:none } .db-spin{ animation:none } }
+  @media (max-width:620px){ .db-label{ display:none } #describemodel{ max-width:120px } #describegoal{ min-width:140px } }
   #cookoffmodal[hidden]{ display:none }
   #cookoffmodal{ position:fixed; inset:0; z-index:210; display:flex; padding:min(4vh,2.4rem) min(4vw,2.4rem);
                  background:rgba(4,6,11,.78); backdrop-filter:blur(3px); }
@@ -259,10 +297,10 @@
   #cost b{color:var(--ink)}
 
   /* ---------- editor surface ---------- */
-  #legallink{ position:fixed; right:.5rem; bottom:.35rem; z-index:20; font-size:.62rem; line-height:1;
+  #legallink{ position:fixed; right:.5rem; bottom:calc(var(--db-h,3rem) + .35rem); z-index:20; font-size:.62rem; line-height:1;
               color:var(--dim); opacity:.4; text-decoration:none; pointer-events:auto; }
   #legallink:hover{ opacity:.85; text-decoration:underline }
-  #editor{ position:fixed; inset:52px 0 0 0; overflow:hidden; cursor:grab;
+  #editor{ position:fixed; inset:52px 0 var(--db-h,3rem) 0; overflow:hidden; cursor:grab;
            background-color:#0b0d12;
            background-image:radial-gradient(circle, #ffffff0d 1px, transparent 1px);
            background-size:22px 22px;
@@ -533,6 +571,19 @@
 <div id="appmodal" hidden>
   <button id="appmodalclose" title="Close — your app stays here (Esc)" aria-label="Close">✕</button>
   <iframe id="appmodalframe" title="Create app" allow="clipboard-write; fullscreen"></iframe>
+</div>
+
+<!-- 💬 Describe changes — docked bottom composer (same shape as the app builder's Customize bar);
+     describes a change to the workflow and applies it via the vendored gptdiff engine. -->
+<div id="describebar">
+  <div class="db-row">
+    <span class="db-label">💬 Describe changes</span>
+    <input id="describegoal" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="e.g. “add a node that speaks the result aloud”" />
+    <button id="describemodel" class="ghost" title="Choose the model that plans your change">✨ model ▾</button>
+    <button id="describego" class="primary" title="Apply the described change (Enter)">✦ Apply</button>
+  </div>
+  <div id="describestatus"></div>
+  <div id="describeversions" title="Each change adds a version — click one to jump back to it"></div>
 </div>
 
 <!-- 🍜 Noodle Cookoff — floating announcement (left), opens the contest modal -->
@@ -4028,6 +4079,400 @@ $("signout").onclick = ()=> setKey(null);
   refreshBalance();                 // already-signed-in visitor: show the bal without waiting for a run
   // pull the full model catalogs in the background, then show per-node prices
   Promise.all([loadCatalog("chat"), loadCatalog("image"), loadCatalog("video"), loadCatalog("audio")]).then(refreshAllPrices);
+})();
+
+/* ===================== 💬 Describe changes — graph copilot =====================
+   A docked bottom composer (same shape/placement as the app builder's Customize bar) that edits
+   the workflow by description. Powered by the vendored gptdiff engine (generateDiff → smartapply)
+   over the graph as a file. We feed the model the simplified semantic graph (layout + media
+   stripped) and re-inject layout/media on apply. The user sees the RESULT — the change lands on
+   the canvas with a one-line recap + one-click undo. NOT a unified-diff view. */
+(function(){
+  // Same default + persisted key the app builder uses (play.html DEFAULT_MODEL / ngpt_app_model),
+  // so "the model that writes your changes" is one consistent choice across Describe + Customize.
+  const DESCRIBE_DEFAULT_MODEL = "zai-org/glm-5.2:thinking";
+  const DESCRIBE_MODEL_KEY = "ngpt_app_model";
+  const MEDIA_KEYS = new Set(["image","audio","video","mask"]);
+
+  // Per-type field hints; structure (ports/output/modelKind) is read live from NODE_TYPES so a
+  // newly added node type still surfaces (with generic fields) instead of silently disappearing.
+  const DESC_FIELDS = {
+    text:{ main:"text", fields:{ text:"the literal string" } },
+    upload:{ fields:{} }, aupload:{ fields:{} }, vupload:{ fields:{} },
+    join:{ fields:{ sep:"separator (default space; \\n = newline)" } },
+    llm:{ main:"prompt", fields:{ model:"chat model id (optional)", system:"system prompt", prompt:"user prompt" }, note:"vision models also accept wired image ports" },
+    vision:{ fields:{ model:"vision model id (optional)", q:"the question" } },
+    image:{ main:"prompt", fields:{ model:"image model id (optional)", prompt:"image prompt", size:"e.g. 1024x1024" } },
+    edit:{ main:"prompt", fields:{ model:"edit model id (optional)", prompt:"edit instruction" } },
+    inpaint:{ main:"prompt", fields:{ model:"inpaint model id (optional)", prompt:"what to paint in" } },
+    tvideo:{ main:"prompt", fields:{ model:"t2v model id (optional)", prompt:"video prompt", duration:"seconds", aspect:"e.g. 16:9" } },
+    ivideo:{ main:"prompt", fields:{ model:"i2v model id (optional)", prompt:"motion prompt", duration:"seconds", aspect:"e.g. 16:9" } },
+    vedit:{ main:"prompt", fields:{ model:"v2v model id (optional)", prompt:"instruction" } },
+    vframes:{ fields:{ frames:"how many", gap:"seconds between frames", dir:"end|start" } },
+    combine:{ fields:{ dedup:"trim duplicate seam frame (true/false)" } },
+    lipsync:{ fields:{ model:"avatar model id (optional)", prompt:"optional direction" } },
+    music:{ main:"prompt", fields:{ model:"music model id (optional)", prompt:"style/prompt", lyrics:"lyrics for vocal models", instrumental:"true/false" } },
+    tts:{ main:"prompt", fields:{ model:"tts model id (optional)", prompt:"text to speak", voice:"voice id (optional)" } },
+    trim:{ fields:{ start:"seconds", length:"seconds" } },
+    transcribe:{ fields:{ model:"stt model id (optional)", language:"auto or a language code" } },
+  };
+  function schemaLines(){
+    return Object.keys(NODE_TYPES).map(type=>{
+      const t = NODE_TYPES[type], a = DESC_FIELDS[type] || { fields:{} };
+      const ins = (Array.isArray(t.inputs) ? t.inputs : []).map(p=>`${p.name}:${p.type}`);
+      if(t.videoInputs) ins.push("clip1:video,…");
+      if(t.imageInputs) ins.push("image1:image,… (vision models)");
+      const out = typeof t.outputs === "function" ? "image (ports frame1,frame2,…)" : (t.outputs[0]?.type || "—");
+      const flds = Object.entries(a.fields).map(([k,v])=>`${k} (${v})`).join("; ") || "—";
+      return `- ${type}: ${t.desc}. in: ${ins.join(", ")||"—"}. out: ${out}. fields: ${flds}.${a.note?" "+a.note:""}`;
+    }).join("\n");
+  }
+
+  // ---- simplified <-> internal graph (strip layout noise + uploaded media) ----
+  function strip(fields){
+    const o = {};
+    for(const [k,v] of Object.entries(fields||{})){
+      if(v==="" || v==null) continue;
+      if(MEDIA_KEYS.has(k)) continue;                                  // don't ship the user's photo/song to the planner
+      if(typeof v==="string" && v.startsWith("data:")) continue;       // any inline media
+      o[k] = v;
+    }
+    return o;
+  }
+  function toSimple(g){
+    return {
+      nodes:(g.nodes||[]).map(n=>({ id:n.id, type:n.type, fields:strip(n.fields) })),
+      links:(g.links||[]).map(l=>({ from:`${l.from.node}.${l.from.port}`, to:`${l.to.node}.${l.to.port}` })),
+    };
+  }
+  function fromSimple(simple, prev){
+    const prevById = Object.fromEntries((prev.nodes||[]).map(n=>[n.id,n]));
+    const num = s=> parseInt(String(s).replace(/\D/g,""),10) || 0;
+    const maxX = (prev.nodes||[]).length ? Math.max(...prev.nodes.map(n=>n.x||0)) : 60;
+    let place = 0;
+    const nodes = (simple.nodes||[]).map(sn=>{
+      const old = prevById[sn.id];
+      const fields = { ...(old ? old.fields : {}), ...(sn.fields||{}) };  // keep survivors' media, model's edits win
+      if(NODE_TYPES[sn.type]?.modelKind && !fields.model) fields.model = defModelFor(sn.type);
+      const node = { id:sn.id, type:sn.type, fields };
+      sanitizeFields(node);   // the model may set an option this node/model doesn't allow (e.g. duration 60) → snap to default
+
+      if(old){ node.x=old.x; node.y=old.y; if(old.w) node.w=old.w; if(old.sizes) node.sizes=old.sizes; }
+      else { node.x = maxX + 320; node.y = -140 + (place++)*200; }
+      return node;
+    });
+    let lid = Math.max(prev.lid||0, 0, ...(prev.links||[]).map(l=>num(l.id)));
+    const links = (simple.links||[]).map(l=>{
+      const [fn,fp] = String(l.from).split("."); const [tn,tp] = String(l.to).split(".");
+      return { id:"l"+(++lid), from:{node:fn,port:fp}, to:{node:tn,port:tp} };
+    });
+    const nid = Math.max(prev.nid||0, 0, ...nodes.map(n=>num(n.id))) + 1;
+    return { v:1, nodes, links, nid, lid:lid+1, view:prev.view };
+  }
+
+  // ---- field sanitizer: the model writes fields straight into the graph (no UI select to constrain
+  // it), so an option this node/model doesn't actually offer can slip in (the user hit duration 60 on
+  // a 5/10s video model). Validate each option-type field against the editor's OWN sources of truth
+  // (dimDefs / audioFields / SIZES) and snap anything invalid back to the model's default. Free-text
+  // fields (prompt/system/lyrics/text) are never touched. ----
+  function sanitizeFields(node){
+    const t = node.type, f = node.fields || {};
+    // size / resolution / aspect / duration — straight from the live catalog entry (image+edit+video)
+    if(typeof dimDefs==="function"){
+      for(const d of dimDefs(t, f.model)){
+        const cur = f[d.f];
+        if(cur!=null && cur!=="" && !d.options.some(o=> String(o[0])===String(cur))) f[d.f] = d.def;
+      }
+    }
+    // audio params (music / tts): selects must be in-set, numbers in-range, booleans real
+    if((t==="music" || t==="tts") && typeof audioFields==="function" && typeof catItem==="function"){
+      const it = catItem("audio", f.model);
+      if(it) for(const af of audioFields(t, it)){
+        const key = af.jsonKey || af.id, cur = f[key];
+        if(cur==null || cur==="") continue;
+        if(af.type==="select"){ if(!(af.options||[]).map(String).includes(String(cur))) delete f[key]; }
+        else if(af.type==="number"){ const x=parseFloat(cur);
+          if(!isFinite(x) || (af.min!=null && x<af.min) || (af.max!=null && x>af.max)) delete f[key]; }
+        else if(af.type==="boolean" && typeof cur!=="boolean"){ f[key] = (cur==="true" || cur===true); }
+      }
+    }
+    if(t==="inpaint" && f.size!=null && typeof SIZES!=="undefined" && !SIZES.some(s=> s[0]===f.size)) delete f.size;
+    if(t==="vframes"){
+      if(f.dir!=null && f.dir!=="end" && f.dir!=="start") delete f.dir;
+      if(f.frames!=null){ const x=parseInt(f.frames,10); const cap = (typeof MAX_FRAMES!=="undefined"?MAX_FRAMES:8);
+        if(!isFinite(x) || x<1) delete f.frames; else f.frames = String(Math.min(x, cap)); }
+      if(f.gap!=null){ const x=parseFloat(f.gap); if(!isFinite(x) || x<0) delete f.gap; }
+    }
+    if(t==="transcribe" && f.language && f.language!=="auto"){
+      const langs = (catItem("audio", f.model)||{}).langs;
+      if(Array.isArray(langs) && langs.length && !langs.includes(f.language)) f.language = "auto";
+    }
+    return node;
+  }
+
+  // ---- validation: known types, unique ids, resolvable links, feed-forward (no cycles) ----
+  function validate(simple){
+    const errs = []; const ids = new Set();
+    for(const n of simple.nodes||[]){
+      if(!n.id){ errs.push("a node is missing an id"); continue; }
+      if(ids.has(n.id)) errs.push(`duplicate node id ${n.id}`);
+      ids.add(n.id);
+      if(!NODE_TYPES[n.type]) errs.push(`unknown node type “${n.type}”`);
+    }
+    for(const l of simple.links||[]){
+      const f = String(l.from).split(".")[0], t = String(l.to).split(".")[0];
+      if(!ids.has(f)) errs.push(`a wire starts from a missing node (${f})`);
+      if(!ids.has(t)) errs.push(`a wire ends at a missing node (${t})`);
+    }
+    const adj = {}; (simple.links||[]).forEach(l=>{ const f=String(l.from).split(".")[0], t=String(l.to).split(".")[0]; (adj[f]||(adj[f]=[])).push(t); });
+    const color = {}; let cyclic = false;
+    const dfs = u=>{ color[u]=1; for(const v of adj[u]||[]){ if(color[v]===1){ cyclic=true; return; } if(!color[v]) dfs(v); } color[u]=2; };
+    for(const id of ids){ if(!color[id]) dfs(id); }
+    if(cyclic) errs.push("that change would create a loop — workflows must flow one way");
+    return { ok: errs.length===0, errs };
+  }
+
+  // ---- semantic diff (what the user reviews before applying) ----
+  function diff(prev, next){
+    const pById = Object.fromEntries((prev.nodes||[]).map(n=>[n.id,n]));
+    const nById = Object.fromEntries((next.nodes||[]).map(n=>[n.id,n]));
+    const added=[], removed=[], changed=[];
+    for(const n of next.nodes||[]) if(!pById[n.id]) added.push(n);
+    for(const n of prev.nodes||[]) if(!nById[n.id]) removed.push(n);
+    for(const n of next.nodes||[]){
+      const old = pById[n.id]; if(!old) continue;
+      const keys = new Set([...Object.keys(old.fields||{}), ...Object.keys(n.fields||{})]);
+      const fc = [];
+      for(const k of keys){ if(JSON.stringify(old.fields?.[k])!==JSON.stringify(n.fields?.[k])) fc.push({ key:k, from:old.fields?.[k], to:n.fields?.[k] }); }
+      if(old.type!==n.type || fc.length) changed.push({ id:n.id, type:n.type, retyped: old.type!==n.type?old.type:null, fields:fc });
+    }
+    const key = l=>`${l.from}→${l.to}`;
+    const pL = new Set((prev.links||[]).map(key)), nL = new Set((next.links||[]).map(key));
+    const linksAdded = (next.links||[]).filter(l=>!pL.has(key(l)));
+    const linksRemoved = (prev.links||[]).filter(l=>!nL.has(key(l)));
+    const count = added.length+removed.length+changed.length+linksAdded.length+linksRemoved.length;
+    return { added, removed, changed, linksAdded, linksRemoved, count, removes: removed.length };
+  }
+
+  // ---- gptdiff engine (the SAME vendored gptdiff-js that powers "Create app" / Customize) ----
+  // We treat the workflow as a file (noodle-graph.json, simplified view) and run the real
+  // generateDiff → parseDiffPerFile → smartapply loop. smartapply's deterministic patch with an
+  // LLM-assisted fallback is what makes a JSON diff robust — the bit a naive patcher can't do.
+  const GRAPH_FILE = "noodle-graph.json";
+  let _gd = null;
+  async function lib(){ return _gd || (_gd = await import("./vendor/gptdiff-js/index.js")); }
+  async function modelHint(){
+    await Promise.all(["chat","image","video","audio"].map(k=>loadCatalog(k).catch(()=>null)));
+    const pick = (kind,filter,n=6)=> (catalogs[kind]||[]).filter(m=>passesFilter(m,filter)).slice(0,n).map(m=>m.id);
+    const L = [];
+    const c=pick("chat",null); if(c.length) L.push(`  chat: ${c.join(", ")}`);
+    const i=pick("image","gen"); if(i.length) L.push(`  image: ${i.join(", ")}`);
+    const v=pick("video","t2v"); if(v.length) L.push(`  video: ${v.join(", ")}`);
+    const tts=pick("audio","tts"); if(tts.length) L.push(`  tts: ${tts.join(", ")}`);
+    const mus=pick("audio","music"); if(mus.length) L.push(`  music: ${mus.join(", ")}`);
+    return L.length ? `\nExample model ids you MAY use (newest first) — only if the user names a model, otherwise leave "model" out:\n${L.join("\n")}` : "";
+  }
+  // Prepended to gptdiff's own system prompt (which already asks for a unified ```diff block).
+  async function contract(){
+    return `You are editing a node-graph workflow for "nanoodle", a browser tool that wires nano-gpt AI models into pipelines. The workflow lives in ${GRAPH_FILE}, a SIMPLIFIED view of the graph: {"nodes":[{"id","type","fields"}],"links":[{"from":"nodeId.port","to":"nodeId.port"}]}. Node positions and uploaded media are deliberately omitted — do NOT add x/y/coordinates or media data. It is a feed-forward DAG (NO cycles); a link connects an output port to an input port of the SAME type (text/image/audio/video).
+
+NODE TYPES you may use:
+${schemaLines()}
+
+A node's OUTPUT port name equals its output type (text/image/audio/video) — except vframes (frame1,frame2,…). Most generators accept their main text via a wired link to a field port (llm.prompt, image.prompt, edit.prompt, tvideo.prompt, music.prompt, tts.prompt) or you can hardcode that field instead.
+${await modelHint()}
+
+RULES for the diff:
+- Keep every EXISTING node id stable. Give NEW nodes ids n100, n101, … (never reuse an existing id).
+- Leave a node's "model" field OUT unless the user explicitly names a model — the app fills the best current default.
+- Make sure every generator node actually gets its input: wire its main port, or set its prompt/text field.
+- Change as little as needed; don't restructure or reformat unrelated parts of the file.`;
+  }
+  function normalizeLinks(links){
+    return (links||[]).map(l=> typeof l.from==="string" ? { from:l.from, to:l.to } : { from:`${l.from.node}.${l.from.port}`, to:`${l.to.node}.${l.to.port}` });
+  }
+  // → { rawDiff, next }  (next = simplified graph). Throws with a friendly message on failure.
+  async function runGptdiff(prevSimple, instruction, model, clients){
+    const gd = await lib();
+    const key = getKey();
+    const before = { [GRAPH_FILE]: JSON.stringify(prevSimple, null, 2) };   // pretty → line-granular diff
+    const env = gd.buildEnvironment(before);
+    const rawDiff = await gd.generateDiff(env, instruction, { apiKey:key, model, prepend: await contract(), temperature:0, callLlm: clients && clients.gen });
+    const parsed = gd.parseDiffPerFile(rawDiff);
+    if(!rawDiff.trim() || !parsed.length) throw new Error("no applicable change — try rephrasing the request");
+    // smartapply: deterministic patch first, LLM-assisted apply (metered) if it doesn't land cleanly.
+    const applyLlm = clients && clients.apply;
+    const updated = await gd.smartapply(rawDiff, before, { apiKey:key,
+      callLlmForApply: applyLlm ? (pa,or,fd,mo,op)=> gd.callLlmForApply(pa,or,fd,mo,{ ...op, callLlm: applyLlm }) : undefined });
+    const outText = updated[GRAPH_FILE];
+    if(outText==null) throw new Error("the diff didn’t touch the workflow");
+    let next;
+    try{ next = JSON.parse(outText); }
+    catch(_){ throw new Error("the edited graph came back as invalid JSON — try again, or pick a different model"); }
+    if(!next || !Array.isArray(next.nodes)) throw new Error("the edited file wasn’t a graph");
+    return { rawDiff, next:{ nodes:(next.nodes||[]).map(n=>({ id:n.id, type:n.type, fields:n.fields||{} })), links:normalizeLinks(next.links) } };
+  }
+
+  // ---- UI: docked bottom composer (same shape/placement as the app builder's Customize bar) ----
+  const bar = $("describebar"), input = $("describegoal"), goBtn = $("describego"),
+        modelBtn = $("describemodel"), statusEl = $("describestatus"), versEl = $("describeversions");
+  if(!bar || !input) return;   // defensive
+  let busy = false;
+  const esc = s=> String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const clone = o=> JSON.parse(JSON.stringify(o));   // immutable version snapshots (later edits can't mutate history)
+
+  // the composer owns the bottom strip; publish its (dynamic) height so the canvas, contest badge
+  // and legal link sit above it (CSS reads --db-h).
+  function syncHeight(){ try{ document.documentElement.style.setProperty("--db-h", (bar.offsetHeight||44)+"px"); }catch(_){} }
+  syncHeight();
+  if(typeof ResizeObserver!=="undefined"){ try{ new ResizeObserver(syncHeight).observe(bar); }catch(_){} }
+  else if(typeof addEventListener==="function") addEventListener("resize", syncHeight);
+
+  // Model = the full searchable LLM list — the SAME popover the editor uses for nodes (openPicker).
+  // Default + persisted with the app builder's setting (ngpt_app_model / glm-5.2:thinking).
+  let descModel = "";
+  try{ descModel = localStorage.getItem(DESCRIBE_MODEL_KEY) || ""; }catch(_){}
+  if(!descModel) descModel = DESCRIBE_DEFAULT_MODEL;
+  function renderModelBtn(){ modelBtn.textContent = "✨ " + (descModel || "pick a model…") + " ▾"; }
+  renderModelBtn();
+  modelBtn.onclick = ()=>{
+    if(typeof openPicker!=="function") return;
+    openPicker("chat", { filter:null, current:descModel, onPick:(id)=>{
+      descModel = id; try{ localStorage.setItem(DESCRIBE_MODEL_KEY, id); }catch(_){}
+      renderModelBtn();
+    }});
+  };
+
+  input.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); submit(); } });
+  goBtn.onclick = submit;
+
+  // ---- versions: each applied change is a snapshot you can jump back to (like the app builder) ----
+  // Entry { graph, goal }. v0 = the workflow BEFORE your first described change; v1.. = after each
+  // change (goal = the words you typed, so you can see/recall what you did). Selecting an older
+  // version then applying branches from there.
+  const versions = [];           // [{ graph, goal }]
+  let curVer = -1;
+  function renderVersions(){
+    if(versions.length <= 1){ versEl.innerHTML = ""; return; }
+    let html = `<span class="vlabel">versions:</span>`;
+    versions.forEach((v,i)=>{
+      const cls = "ver" + (i===curVer?" cur":"") + (i===0?" seed":"");
+      const tip = i===0 ? "before your first change" : `change: ${v.goal}`;
+      html += `<button class="${cls}" data-ver="${i}" title="${esc(tip)}">v${i}</button>`;
+    });
+    versEl.innerHTML = html;
+  }
+  versEl.addEventListener("click", e=>{ const b=e.target.closest("[data-ver]"); if(b) selectVersion(+b.getAttribute("data-ver")); });
+  function selectVersion(i){
+    const v = versions[i]; if(!v || i===curVer || busy) return;
+    applyGraphData(clone(v.graph)); save();
+    curVer = i; renderVersions();
+    setStatus(i===0 ? "↩ Back to the starting workflow." : `↩ Back to v${i} — ${esc(v.goal)}`);
+  }
+
+  function setBusy(on){
+    busy = on; goBtn.disabled = on; input.disabled = on; modelBtn.disabled = on;
+    goBtn.textContent = on ? "working…" : "✦ Apply";
+  }
+  function setStatus(html, cls){ statusEl.innerHTML = html ? `<span class="${cls||""}">${html}</span>` : ""; }
+
+  // ---- token-usage meter (parity with the app builder): ↑ in · ↓ out · $cost, live during the run ----
+  const USAGE = { inTok:0, outTok:0, cost:0, exact:true };
+  function resetUsage(){ USAGE.inTok=USAGE.outTok=USAGE.cost=0; USAGE.exact=true; }
+  const estTok = s=> Math.ceil((s?String(s).length:0)/4);
+  const fmtTok = n=> n>=1000 ? (n/1000).toFixed(n>=10000?0:1)+"k" : String(Math.round(n));
+  function usageMeter(live){
+    const inT = USAGE.inTok + (live?live.inTok:0), outT = USAGE.outTok + (live?live.outTok:0);
+    if(!inT && !outT) return "";
+    const cost = USAGE.cost + (live?(live.cost||0):0);
+    const approx = !USAGE.exact || (live && live.live);
+    return `<span class="meter">↑ ${fmtTok(inT)} · ↓ ${fmtTok(outT)}${cost?` · ${approx?"~":""}$${cost.toFixed(4)}`:""}</span>`;
+  }
+  // streaming LLM client injected into gptdiff-js (same role as play's streamingCallLlm): streams the
+  // reply, repaints the meter live, then commits exact tokens + cost from x_nanogpt_pricing and bumps
+  // the editor's top-bar spend via accrue(). Uses the editor's own key/endpoint (no new origin).
+  function meteredCallLlm(phaseLabel){
+    return async ({ model, messages, maxTokens=null, temperature=1.0 })=>{
+      const inEst = (messages||[]).reduce((n,m)=> n+estTok(typeof m.content==="string"?m.content:JSON.stringify(m.content)), 0);
+      let outTok = 0;
+      const paint = ()=> setStatus(`<span class="db-spin"></span>${esc(phaseLabel)}… ${usageMeter({inTok:inEst,outTok,cost:0,live:true})}`);
+      paint();
+      const body = { model, messages, temperature, stream:true, ...(maxTokens?{max_tokens:maxTokens}:{}) };
+      const r = await fetch(CHAT_ENDPOINT, { method:"POST", headers:authHeaders(), body:JSON.stringify(body) });
+      if(!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`);
+      const reader = r.body.getReader(), dec = new TextDecoder();
+      let buf="", content="", reasoning="", pricing=null, lastPaint=0;
+      for(;;){
+        const { value, done } = await reader.read(); if(done) break;
+        buf += dec.decode(value, { stream:true });
+        const lines = buf.split("\n"); buf = lines.pop();
+        for(const line of lines){
+          const t = line.trim(); if(!t.startsWith("data:")) continue;
+          const data = t.slice(5).trim(); if(data==="[DONE]") continue;
+          let j; try{ j = JSON.parse(data); }catch{ continue; }
+          const d = j.choices?.[0]?.delta;
+          if(d){ if(d.content) content+=d.content; if(d.reasoning) reasoning+=d.reasoning; outTok = estTok(content)+estTok(reasoning);
+            const now = (typeof performance!=="undefined"?performance.now():0);
+            if(now-lastPaint>120){ lastPaint=now; paint(); } }
+          if(j.x_nanogpt_pricing) pricing = j.x_nanogpt_pricing;
+        }
+      }
+      USAGE.inTok  += (pricing && pricing.inputTokens!=null)  ? pricing.inputTokens  : inEst;
+      USAGE.outTok += (pricing && pricing.outputTokens!=null) ? pricing.outputTokens : outTok;
+      const exactCost = pricing && (pricing.costUsd!=null ? pricing.costUsd : pricing.cost);
+      if(exactCost!=null) USAGE.cost += Number(exactCost); else USAGE.exact = false;
+      if(pricing){ try{ accrue({ x_nanogpt_pricing: pricing }); }catch(_){} }   // editor top-bar spend
+      return { choices:[{ message:{ content: content.trim() ? content : reasoning } }] };
+    };
+  }
+
+  function pulse(ids){
+    for(const id of ids){
+      const n = graph.nodes.find(x=>x.id===id);
+      if(n && n.el){ n.el.classList.remove("db-pulse"); void n.el.offsetWidth; n.el.classList.add("db-pulse"); }
+    }
+  }
+  // one-line, plain-English recap of the RESULT (never diff syntax)
+  function summarize(d){
+    const bits = [];
+    if(d.added.length)   bits.push(`added ${[...new Set(d.added.map(n=>n.type))].join(", ")}`);
+    if(d.removed.length) bits.push(`removed ${[...new Set(d.removed.map(n=>n.type))].join(", ")}`);
+    const fc = d.changed.reduce((n,c)=> n + (c.retyped?1:0) + c.fields.length, 0);
+    if(fc)               bits.push(`updated ${fc} setting${fc>1?"s":""}`);
+    const wires = d.linksAdded.length + d.linksRemoved.length;
+    if(wires)            bits.push(`wired ${wires} connection${wires>1?"s":""}`);
+    return bits.length ? bits.join(", ") : "updated the workflow";
+  }
+
+  async function submit(){
+    if(busy) return;
+    const text = input.value.trim();
+    if(!text){ input.focus(); return; }
+    if(!getKey()){ setStatus("⚠ Add your nano-gpt key first — “paste key” up top.", "err"); return; }
+    const prevInternal = serializeGraph();
+    const prevSimple = toSimple(prevInternal);
+    setBusy(true); resetUsage(); setStatus(`<span class="db-spin"></span>planning your change…`);
+    const clients = { gen: meteredCallLlm("planning your change"), apply: meteredCallLlm("applying the change") };
+    try{
+      const { next } = await runGptdiff(prevSimple, text, descModel, clients);
+      const valid = validate(next);
+      if(!valid.ok) throw new Error(valid.errs[0]);
+      const dif = diff(prevSimple, next);
+      if(dif.count===0){ setStatus(`No change needed — try being more specific. ${usageMeter()}`); return; }
+      applyGraphData(fromSimple(next, prevInternal)); save();
+      // record versions: seed v0 from the pre-change graph on the first change; branch if editing from an older version
+      if(versions.length===0){ versions.push({ graph: clone(prevInternal), goal:"start" }); curVer = 0; }
+      else if(curVer < versions.length-1){ versions.length = curVer+1; }   // branch-on-edit from an older version
+      versions.push({ graph: clone(serializeGraph()), goal: text });
+      curVer = versions.length-1;
+      renderVersions();
+      input.value = "";
+      pulse(dif.added.map(n=>n.id));
+      setStatus(`✓ ${esc(summarize(dif))}. ${usageMeter()}`, "ok");
+    }catch(e){
+      setStatus(`⚠ ${esc(e.message || String(e))} ${usageMeter()}`, "err");
+    }finally{ setBusy(false); }
+  }
 })();
 </script>
 <a id="legallink" href="/legal" target="_blank" rel="noopener">Terms · Privacy</a>
