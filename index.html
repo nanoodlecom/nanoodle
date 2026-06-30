@@ -4421,10 +4421,16 @@ RULES for the diff:
     // Canvas edits made by hand since the current version aren't a snapshot — applyGraphData
     // below would replace the live graph and drop them. Don't interrupt to ask: just capture
     // them as a version first, so jumping away always keeps your work and parks it in the strip
-    // to return to. toSimple ignores node positions/pan/zoom, so a plain drag isn't an "edit".
+    // to return to. Compare workflow CONTENT (fields incl. uploaded media), not layout: a plain
+    // drag/pan/resize isn't an edit, but dropping in a photo IS. (toSimple strips media — it's
+    // for the planner — so it must NOT be used here, or media-only edits get silently destroyed.)
+    const contentSig = g => JSON.stringify({
+      nodes:(g.nodes||[]).map(n=>({ id:n.id, type:n.type, fields:n.fields||{} })),
+      links:(g.links||[]).map(l=>({ from:`${l.from.node}.${l.from.port}`, to:`${l.to.node}.${l.to.port}` })),
+    });
     const cur = versions[curVer];
     let savedAt = -1;
-    if(cur && JSON.stringify(toSimple(serializeGraph())) !== JSON.stringify(toSimple(cur.graph))){
+    if(cur && contentSig(serializeGraph()) !== contentSig(cur.graph)){
       versions.push({ graph: clone(serializeGraph()), goal: "your canvas edits" });
       savedAt = versions.length - 1;
     }

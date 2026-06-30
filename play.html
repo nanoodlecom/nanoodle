@@ -3688,7 +3688,10 @@ function finishSignIn(){
 const UPLOAD_FIELD = { upload:"image", aupload:"audio", vupload:"video" };
 function shareableGraph(g){
   g = g || { nodes:[], links:[] };
-  return { ...g, nodes:(g.nodes||[]).map(n => UPLOAD_FIELD[n.type] ? {...n, fields:{...(n.fields||{}), [UPLOAD_FIELD[n.type]]:""}} : n) };
+  return { ...g, nodes:(g.nodes||[]).map(n => {
+    if(n.type==="inpaint") return {...n, fields:{...(n.fields||{}), image:"", mask:""}};   // don't leak the user's photo/mask (mirror index.html shareableGraph)
+    return UPLOAD_FIELD[n.type] ? {...n, fields:{...(n.fields||{}), [UPLOAD_FIELD[n.type]]:""}} : n;
+  }) };
 }
 
 // SHARE: pack {v:1, graph, files} -> gzip -> b64url -> #a= ; copy + toast. NO key inside.
