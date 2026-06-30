@@ -509,10 +509,34 @@ window.NoodleApp = (function () {
   // so the caller can also attribute it to that node's output card.
   function bumpCost(c){
     COST.count++;
-    if(c && c.usd!=null) COST.total += c.usd; else COST.exact = false;   // unknown price → total is a lower bound
+    if(c && c.usd!=null){ COST.total += c.usd; if(c.estimate) COST.exact = false; }   // estimate counts toward the total but keeps the meter honest (~)
+    else COST.exact = false;                                                           // unknown price → total is a lower bound
     if(c && c.balance!=null) COST.balance = c.balance;
     paintCost();
     return (c && c.usd!=null) ? c.usd : 0;
+  }
+  // Estimate spend when an API response carries no cost field — image generations and transcriptions
+  // return none (live-confirmed). The per-unit price rides in the public catalog (per_image by size,
+  // per_minute for STT), so a paid run never reads as $0; bumpCost flags it as an estimate ("~").
+  // Real cost always wins — these only run when costFromJson found none. Best-effort: any failure
+  // (offline / blocked) yields null and the meter keeps its current behavior.
+  async function estImageUsd(model, size, count){
+    try{
+      const m = await rawCatItem("image", model);
+      const per = (m && m.pricing && m.pricing.per_image) || {};
+      const v = per[size]!=null ? per[size]
+              : per.square!=null ? per.square
+              : per.square_hd!=null ? per.square_hd
+              : Object.values(per)[0];
+      return (v!=null && isFinite(+v)) ? +v * (count||1) : null;
+    }catch(e){ return null; }
+  }
+  async function estTranscribeUsd(model, durationSec){
+    try{
+      const m = await rawCatItem("audio", model);
+      const perMin = m && m.pricing && m.pricing.per_minute;
+      return (isFinite(+durationSec) && perMin!=null && isFinite(+perMin)) ? (+durationSec/60)*(+perMin) : null;
+    }catch(e){ return null; }
   }
 
   /* ---------- mdl (verbatim) ---------- */
@@ -633,7 +657,9 @@ window.NoodleApp = (function () {
       const j = await r.json();
       const urls = (j.data||[]).map(function(d){ return d.b64_json ? "data:" + b64ImageMime(d.b64_json) + ";base64," + d.b64_json : d.url; }).filter(Boolean);
       if(!urls.length) throw new Error("no image in response");
-      onCost(costFromJson(j)); return opts.multi ? urls : urls[0];
+      const c = costFromJson(j);   // /v1/images/generations returns no cost field → estimate from the catalog per-size price × images returned
+      if(c.usd==null){ const est = await estImageUsd(model, size, urls.length); if(est!=null){ c.usd = est; c.estimate = true; } }
+      onCost(c); return opts.multi ? urls : urls[0];
     },
     async genChat(messages, model, opts){
       opts = opts || {};
@@ -751,7 +777,10 @@ window.NoodleApp = (function () {
       const r = await fetch(NANOGPT + "/api/v1/audio/transcriptions", {method:"POST",
         headers:{ Authorization:"Bearer " + k, "x-api-key":k }, body:fd});
       if(!r.ok) throw new Error(r.status + ": " + (await r.text()).slice(0,160));
-      const j = await r.json(); onCost(costFromJson(j));
+      const j = await r.json();
+      const c = costFromJson(j);   // endpoint returns {text, language, duration} with no cost → estimate from duration × catalog per_minute
+      if(c.usd==null){ const est = await estTranscribeUsd(model, +j.duration); if(est!=null){ c.usd = est; c.estimate = true; } }
+      onCost(c);
       const txt = j.transcription != null ? j.transcription
                 : j.text != null ? j.text
                 : (j.data && (j.data.transcription != null ? j.data.transcription : j.data.text));

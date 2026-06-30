@@ -791,7 +791,7 @@ function normAudio(m){
   // not a transcript — exclude them by id so they don't pollute the Transcribe node.
   const stt = (!!c.speech_to_text || m.category==="audio_stt") && !/clone/i.test(m.id);
   return { id:m.id, name:m.name||m.id, created:m.created, owner:m.owned_by||"", voices, langs, params:sp,
-    tts, gen, music: gen && !tts, stt, price };
+    tts, gen, music: gen && !tts, stt, pricing:p, price };   // raw pricing kept so transcribe can estimate from per_minute
 }
 
 const CATALOG = {
@@ -1335,6 +1335,13 @@ function livePrice(kind, fields){
     }
   }
   return it.price||"";
+}
+// raw per-image USD for (model,size) from the catalog — the number behind livePrice's "$/img"
+// string. Used to estimate image spend, which /v1/images/generations omits from its response.
+function imageUnitUsd(model, size){
+  const per = catItem("image", model)?.sizePrices || {};
+  const v = per[size] ?? per.square ?? per.square_hd ?? Object.values(per)[0];
+  return (v!=null && isFinite(+v)) ? +v : null;
 }
 function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); backfillModel(n); }); }
 function backfillModel(n){   // once a catalog arrives, give model nodes a sensible default if none chosen yet
@@ -3083,7 +3090,10 @@ const CTX = {
     const j = await r.json();
     const urls = (j.data||[]).map(d=> d.b64_json ? `data:${b64ImageMime(d.b64_json)};base64,${d.b64_json}` : d.url).filter(Boolean);
     if(!urls.length) throw new Error("no image in response");
-    accrue(j); return opts.multi ? urls : urls[0];
+    // /v1/images/generations returns no cost field (live-confirmed), so estimate from the catalog's
+    // per-size price × the number of images ACTUALLY returned (some models force N regardless of opts.n).
+    const unit = imageUnitUsd(model, size);
+    accrue(j, unit!=null ? unit*urls.length : null); return opts.multi ? urls : urls[0];
   },
   async genChat(messages, model, opts){
     opts = opts || {};
@@ -3209,8 +3219,14 @@ const CTX = {
     const r = await fetch(`${NANOGPT}/api/v1/audio/transcriptions`, {method:"POST",
       headers:{ Authorization:`Bearer ${k}`, "x-api-key":k }, body:fd, signal:runSignal()});
     if(!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`);
-    const j = await r.json(); accrue(j);
-    if(j?.metadata?.cost!=null && isFinite(+j.metadata.cost)) stats.cost += +j.metadata.cost;   // cost rides in metadata here
+    const j = await r.json();
+    // The transcription endpoint carries no top-level cost (live: {text, language, duration}); a few
+    // providers tuck it in j.metadata.cost. When neither is present, estimate from duration (seconds)
+    // × the catalog per-minute rate so a paid run never reads as $0 — real metered cost always wins.
+    const mUsd = j?.metadata?.cost, dur = +j?.duration;
+    const perMin = catItem("audio", model)?.pricing?.per_minute;
+    const estUsd = (isFinite(dur) && perMin!=null && isFinite(+perMin)) ? (dur/60)*(+perMin) : null;
+    accrue((mUsd!=null && isFinite(+mUsd)) ? Object.assign({}, j, {cost:+mUsd}) : j, estUsd);
     const txt = j.transcription ?? j.text ?? j.data?.transcription ?? j.data?.text;
     if(txt==null) throw new Error("no transcription in response");
     return txt;
@@ -3404,7 +3420,11 @@ async function pollAudio(model, j, onProgress){
   throw new Error("audio timed out (5 min)");
 }
 function authHeaders(){ const k=getKey(); return { Authorization:`Bearer ${k}`, "x-api-key":k, "Content-Type":"application/json" }; }
-function accrue(j){
+// estUsd: a catalog-derived fallback price for endpoints whose response carries no cost field
+// (image generations and transcriptions — live-confirmed). Real cost (j.cost / x_nanogpt_pricing)
+// always wins; the estimate only fires when none is present, and it marks the session inexact ("~")
+// so the meter never silently reads $0 for a genuinely paid run.
+function accrue(j, estUsd){
   stats.count++;
   // images/video/audio price top-level (j.cost); chat completions ride it in
   // x_nanogpt_pricing (costUsd|cost) — without this, LLM calls never bump spend.
@@ -3414,7 +3434,9 @@ function accrue(j){
   const usd = (typeof j?.cost==="number" && j.cost>0) ? j.cost
             : (pUsd!=null && isFinite(Number(pUsd))) ? Number(pUsd)
             : (typeof j?.cost==="number") ? j.cost : null;
-  if(usd!=null) stats.cost += usd; else stats.exact=false;
+  if(usd!=null) stats.cost += usd;                                                                  // real cost → counted, meter stays exact
+  else if(typeof estUsd==="number" && isFinite(estUsd)){ stats.cost += estUsd; stats.exact=false; } // catalog estimate → counted, but flag the session as inexact
+  else stats.exact=false;                                                                           // no price at all → total is a lower bound
   if(typeof j?.remainingBalance==="number") stats.balance = j.remainingBalance;
   else if(p && typeof p.remainingBalance==="number") stats.balance = p.remainingBalance;
   paintCost();
