@@ -3699,8 +3699,11 @@ async function doShare(){
     const hash = packed ? "#a="+bytesToB64url(packed)
                         : "#a=u"+bytesToB64url(new TextEncoder().encode(json)); // 'u' = uncompressed fallback
     const url = location.origin + location.pathname + hash;
-    history.replaceState({}, "", url);
+    history.replaceState({}, "", url);                       // surface it so a failed copy can still be grabbed
     const ok = await copyText(url);
+    // On a successful copy, strip the #a= back out of OUR url (mirror consumeHandoff): leaving the
+    // handoff hash means a later reload re-imports it as a fresh "imported" library entry — a duplicate.
+    if(ok){ try{ history.replaceState({}, "", location.origin + location.pathname); }catch(_){} }
     const big = url.length>8000 ? ` (${(url.length/1024).toFixed(0)}kB)` : "";
     toast(ok ? (appDirty
                  ? `✓ Link copied — the app as built, not your in-app edits${big}`
