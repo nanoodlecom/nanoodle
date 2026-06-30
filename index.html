@@ -2437,17 +2437,27 @@ function refreshPortFills(){
 /* ======================================================================
    POINTER INTERACTIONS  (node drag · pan · zoom · wire connect)
    ====================================================================== */
+// Pointers that own an in-progress node gesture (drag/resize). While this is
+// non-empty the editor background ignores new pointerdowns — a second finger on
+// the canvas must not seed a pan / select(null) on top of the live gesture.
+const nodeGestPtrs = new Set();
 function startNodeDrag(n, e){
   e.preventDefault();
+  const id = e.pointerId; nodeGestPtrs.add(id);
   const sx=e.clientX, sy=e.clientY, ox=n.x, oy=n.y;
   const move = (ev)=>{
+    if(ev.pointerId!==id) return;                 // ignore a stray second touch
     n.x = ox + (ev.clientX-sx)/scale;
     n.y = oy + (ev.clientY-sy)/scale;
     n.el.style.left = n.x+"px"; n.el.style.top = n.y+"px";
     redraw();
   };
-  const up = ()=>{ window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up); save(); };
-  window.addEventListener("pointermove",move); window.addEventListener("pointerup",up);
+  const up = (ev)=>{
+    if(ev.pointerId!==id) return;
+    window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up); window.removeEventListener("pointercancel",up);
+    nodeGestPtrs.delete(id); save();
+  };
+  window.addEventListener("pointermove",move); window.addEventListener("pointerup",up); window.addEventListener("pointercancel",up);
 }
 
 // Drag the node's bottom-right grip to resize: width grows the card (n.w), height grows the
@@ -2455,12 +2465,14 @@ function startNodeDrag(n, e){
 const RMINW = 210, RMAXW = 760, RMINH = 54;
 function startNodeResize(n, e){
   e.preventDefault(); e.stopPropagation(); select(n);
+  const id = e.pointerId; nodeGestPtrs.add(id);
   const el = n.el;
   // the primary prompt field by name (some nodes render a secondary textarea — e.g. LLM "system" — first)
   const ta = el.querySelector('.body textarea[data-f="prompt"],.body textarea[data-f="text"],.body textarea[data-f="q"]');
   const sx=e.clientX, sy=e.clientY, startW=el.offsetWidth, startH=ta?ta.offsetHeight:0;
   el.style.maxWidth = "none";
   const move = (ev)=>{
+    if(ev.pointerId!==id) return;                 // ignore a stray second touch
     n.w = Math.round(Math.max(RMINW, Math.min(RMAXW, startW + (ev.clientX-sx)/scale)));
     el.style.width = n.w+"px";
     if(ta){
@@ -2469,8 +2481,12 @@ function startNodeResize(n, e){
     }
     redraw();
   };
-  const up = ()=>{ window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up); save(); };
-  window.addEventListener("pointermove",move); window.addEventListener("pointerup",up);
+  const up = (ev)=>{
+    if(ev.pointerId!==id) return;
+    window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up); window.removeEventListener("pointercancel",up);
+    nodeGestPtrs.delete(id); save();
+  };
+  window.addEventListener("pointermove",move); window.addEventListener("pointerup",up); window.addEventListener("pointercancel",up);
 }
 
 const MAG = 80; // snap radius (px, screen space) — lets people aim loosely
@@ -2487,6 +2503,7 @@ function startWire(port, e){
   e.preventDefault(); e.stopPropagation();
   closeQuickAdd();
   const dir = port.dataset.dir, ptype = port.dataset.ptype, node = port.dataset.node;
+  const id = e.pointerId;                            // only this pointer drives the wire — ignore a stray second touch
   const sx = e.clientX, sy = e.clientY;             // where the drag began — used to tell a click from a drag
   const fixed = portCenter(port);
   const targets = compatiblePorts(dir, ptype, node);
@@ -2494,6 +2511,7 @@ function startWire(port, e){
   tempWire = { x1:fixed.x, y1:fixed.y, x2:fixed.x, y2:fixed.y };
   let snap = null;
   const move = (ev)=>{
+    if(ev.pointerId!==id) return;
     const ed = editor.getBoundingClientRect();
     let mx = ev.clientX-ed.left, my = ev.clientY-ed.top;
     if(snap) snap.p.classList.remove("snap");
@@ -2503,6 +2521,7 @@ function startWire(port, e){
     redraw();
   };
   const up = (ev)=>{
+    if(ev.pointerId!==id) return;
     window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up);
     tempWire = null;
     targets.forEach(p=> p.classList.remove("compatible","snap"));
@@ -2686,6 +2705,7 @@ function seedPinch(){              // anchor the world-point under the two-finge
 }
 editor.addEventListener("pointerdown", e=>{
   if(!onBg(e.target)) return;
+  if(nodeGestPtrs.size) return;                            // a node drag/resize owns the gesture — don't pan / select(null) under it
   try{ editor.setPointerCapture?.(e.pointerId); }catch{}   // capture is best-effort — never let it abort the gesture
   ptrs.set(e.pointerId, {x:e.clientX, y:e.clientY});
   if(ptrs.size===1){
