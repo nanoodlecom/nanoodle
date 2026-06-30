@@ -1065,9 +1065,15 @@ function videoFreetextSkip(key, d){
   if(/\bJSON (array|object)\b|\bURLs?\b/i.test(txt)) return true;                           // descriptor itself declares a URL/list
   return false;
 }
-function videoOptDefs(model){
+function videoOptDefs(model, nodeType){
   const it = catItem("video", model) || {};
   const p = it.params || {}, dflt = it.defaults || {};
+  // omni video models expose a `mode` select of GENERATION TYPES; drop the ones this node can't feed —
+  // reference-to-video needs reference images (no port anywhere), video-edit needs a source video (only
+  // the v2v "Edit video" node supplies one). "auto" stays and lets the model detect from the wiring, so
+  // a plain Text→Video node stops offering a dead-end "Reference to Video" / "Edit Video" choice.
+  const isVedit = !!(nodeType && NODE_TYPES[nodeType] && NODE_TYPES[nodeType].modelFilter==="v2v");
+  const modeOK = (o)=> o.value!=="reference-to-video" && (o.value!=="video-edit" || isVedit);
   const defs = [];
   for(const [key,d] of Object.entries(p)){
     if(!d || typeof d!=="object") continue;
@@ -1075,7 +1081,8 @@ function videoOptDefs(model){
     if(/^lora(_|$)/i.test(key)) continue;                      // the 🎨 LoRA box handles these
     const def = dflt[key]!=null ? dflt[key] : d.default;       // catalog default → placeholder/initial
     if(d.type==="select"){
-      const opts = (d.options||[]).filter(o=> o && o.value!=="" && o.value!=null);
+      let opts = (d.options||[]).filter(o=> o && o.value!=="" && o.value!=null);
+      if(key==="mode") opts = opts.filter(modeOK);             // hide generation-type modes this node can't satisfy
       if(opts.length<2) continue;                              // nothing meaningful to choose
       defs.push({ key, label:d.label||key, type:"select", options:opts, def, desc:d.description });
     } else if(d.type==="switch" || d.type==="boolean"){
@@ -1094,7 +1101,7 @@ function videoOptDefs(model){
 function refreshModelOpts(n){
   if(!VIDEO_OPT_NODES[n.type] || !n.el) return;
   const box = n.el.querySelector("[data-modelopts]"); if(!box) return;
-  const defs = videoOptDefs(n.fields.model);
+  const defs = videoOptDefs(n.fields.model, n.type);
   if(!defs.length){ box.innerHTML=""; return; }
   const cur = n.fields.modelOpts || (n.fields.modelOpts = {});
   for(const k of Object.keys(cur)) if(!defs.some(d=>d.key===k)) delete cur[k];   // drop other models' knobs
