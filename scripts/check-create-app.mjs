@@ -17,15 +17,16 @@
 //
 // INVARIANTS ENFORCED
 //   Editor (index.html):
-//    1. A workflow loaded via #ga=<id> binds to that app: button says "Update app",
-//       the ✨ New escape hatch appears, and Create app re-emits #ga=<same id>.
+//    1. A workflow loaded via #ga=<id> binds to that app: the primary button says
+//       "Update <name>", the ▾ caret (which reveals "Save as a new app") appears, and
+//       Create app re-emits #ga=<same id>.
 //    2. That binding SURVIVES a plain reload (persisted outside noodle_graph), so the
 //       next Create app still updates — never duplicates. [the lost-on-reload bug]
-//    3. A fresh #g= workflow has NO binding: button says "Create app", no #ga=, no
-//       persisted binding.
-//    4. ✨ New detaches the binding and emits a plain #g= → a brand-new app. [the
-//       reported "built something new but it updated my old app" escape hatch]
-//    5. __editflow__ applies the graph BEFORE binding the id (never points "Update app"
+//    3. A fresh #g= workflow has NO binding: button says "Create app", the caret is
+//       hidden, no #ga=, no persisted binding.
+//    4. "Save as a new app" detaches the binding and emits a plain #g= → a brand-new app.
+//       [the reported "built something new but it updated my old app" escape hatch]
+//    5. __editflow__ applies the graph BEFORE binding the id (never points "Update"
 //       at one app while showing another's canvas), and ignores wrong-source messages.
 //   Builder (play.html):
 //    6. An explicit handoff hash BEATS a stale OAuth resume stash (the reported bug's
@@ -357,16 +358,16 @@ function record(name, pass, detail) { results.push({ name, pass, detail: pass ? 
 /* -------------------------------------------------------------------------- */
 
 async function run() {
-  /* E1: #ga=<id> binds → "Update app", ✨ New shown, Create app re-emits #ga=<id>, binding persisted */
+  /* E1: #ga=<id> binds → "Update <name>", caret + "Save as a new app" shown, Create app re-emits #ga=<id>, binding persisted */
   {
     const store = {}, session = {};
     const ctx = await bootEditor(ORIGIN + "/editor" + (await gaHash({ v: 1, graph: APP_A, appId: "app_AAA", title: "My App" })), store, session);
     const out = await emittedHandoff(ctx);
     let persisted = null; try { persisted = JSON.parse(store.noodle_editor_app); } catch {}
     record("E1 #ga= binds + Create app updates same app",
-      txt(ctx, "makeapp") === "✨ Update app" && el(ctx, "newapp").hidden === false &&
+      txt(ctx, "makeapp") === "✨ Update My App" && el(ctx, "appmore").hidden === false && el(ctx, "newapp").hidden === false &&
       out.kind === "ga" && out.spec.appId === "app_AAA" && (persisted && persisted.id === "app_AAA"),
-      `btn=${txt(ctx, "makeapp")} newHidden=${el(ctx, "newapp").hidden} kind=${out.kind} appId=${out.spec && out.spec.appId} persisted=${persisted && persisted.id}`);
+      `btn=${txt(ctx, "makeapp")} caretHidden=${el(ctx, "appmore").hidden} newHidden=${el(ctx, "newapp").hidden} kind=${out.kind} appId=${out.spec && out.spec.appId} persisted=${persisted && persisted.id}`);
   }
 
   /* E2: binding SURVIVES a plain reload (no hash) → still updates, never duplicates [lost-on-reload bug] */
@@ -376,7 +377,7 @@ async function run() {
     const ctx2 = await bootEditor(ORIGIN + "/editor", store, session);   // reload: same store, NO hash
     const out = await emittedHandoff(ctx2);
     record("E2 binding survives reload (no duplicate)",
-      txt(ctx2, "makeapp") === "✨ Update app" && out.kind === "ga" && out.spec.appId === "app_AAA",
+      txt(ctx2, "makeapp") === "✨ Update My App" && out.kind === "ga" && out.spec.appId === "app_AAA",
       `btn=${txt(ctx2, "makeapp")} kind=${out.kind} appId=${out.spec && out.spec.appId}`);
   }
 
@@ -386,17 +387,17 @@ async function run() {
     const ctx = await bootEditor(ORIGIN + "/editor" + (await graphHash(APP_B)), store, session);
     const out = await emittedHandoff(ctx);
     record("E3 fresh workflow → new app",
-      txt(ctx, "makeapp") === "✨ Create app" && el(ctx, "newapp").hidden === true &&
+      txt(ctx, "makeapp") === "✨ Create app" && el(ctx, "appmore").hidden === true && el(ctx, "newapp").hidden === true &&
       (out.kind === "g" || out.kind === "j") && !store.noodle_editor_app,
-      `btn=${txt(ctx, "makeapp")} newHidden=${el(ctx, "newapp").hidden} kind=${out.kind} editorApp=${store.noodle_editor_app}`);
+      `btn=${txt(ctx, "makeapp")} caretHidden=${el(ctx, "appmore").hidden} newHidden=${el(ctx, "newapp").hidden} kind=${out.kind} editorApp=${store.noodle_editor_app}`);
   }
 
-  /* E4: ✨ New detaches a live binding and emits a plain #g= → brand-new app [reported-bug escape hatch] */
+  /* E4: "Save as a new app" detaches a live binding and emits a plain #g= → brand-new app [reported-bug escape hatch] */
   {
     const store = {}, session = {};
     const ctx = await bootEditor(ORIGIN + "/editor" + (await gaHash({ v: 1, graph: APP_A, appId: "app_AAA", title: "My App" })), store, session);
     const out = await emittedHandoff(ctx, () => el(ctx, "newapp").onclick());
-    record("E4 ✨ New unlinks → emits #g= (new app)",
+    record("E4 Save-as-new unlinks → emits #g= (new app)",
       (out.kind === "g" || out.kind === "j") && !store.noodle_editor_app && txt(ctx, "makeapp") === "✨ Create app",
       `kind=${out.kind} editorApp=${store.noodle_editor_app} btn=${txt(ctx, "makeapp")}`);
   }
@@ -437,8 +438,8 @@ async function run() {
       `applyGraphData@${applyAt} setPendingApp@${bindAt} — apply must precede bind`);
   }
 
-  /* E6: ✨ New's unlink SURVIVES a reload (negative twin of E2). After detaching, a plain
-     hash-less reload must NOT resurrect the old binding — else the escape hatch silently
+  /* E6: "Save as a new app"'s unlink SURVIVES a reload (negative twin of E2). After detaching, a
+     plain hash-less reload must NOT resurrect the old binding — else the escape hatch silently
      re-updates the very app the user meant to leave. */
   {
     const store = {}, session = {};
@@ -446,7 +447,7 @@ async function run() {
     await el(ctx, "newapp").onclick();                                   // detach the binding
     const ctx2 = await bootEditor(ORIGIN + "/editor", store, session);   // reload: same store, NO hash
     const out = await emittedHandoff(ctx2);
-    record("E6 ✨ New unlink survives reload (no resurrected binding)",
+    record("E6 Save-as-new unlink survives reload (no resurrected binding)",
       txt(ctx2, "makeapp") === "✨ Create app" && (out.kind === "g" || out.kind === "j") && !store.noodle_editor_app,
       `btn=${txt(ctx2, "makeapp")} kind=${out.kind} editorApp=${store.noodle_editor_app}`);
   }
