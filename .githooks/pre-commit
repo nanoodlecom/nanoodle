@@ -38,9 +38,11 @@ touches_stale=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/che
 touches_vresume=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-video-resume\.mjs)$' || true)
 # index.html + play.html carry the Share→Shorten flow; the short link must keep the #g=/#a= payload.
 touches_share=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-share-link\.mjs)$' || true)
+# index.html carries the universal pricing resolver (every NanoGPT shape → a USD number: picker prices + run estimate).
+touches_pricing=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-pricing\.mjs|scripts/pricing-fixtures\.json)$' || true)
 
 # Nothing to check unless an .html file or one of the checkers changed.
-[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_share" ] && exit 0
+[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && exit 0
 
 if ! command -v node >/dev/null 2>&1; then
   echo "pre-commit: node not found, skipping HTML JS checks" >&2
@@ -158,4 +160,12 @@ fi
 #     lifts openShareMenu() + the shorten handler out of both pages and drives them.
 if [ -n "$touches_share" ]; then
   node "$root/scripts/check-share-link.mjs"
+fi
+
+# 16) PRICING: every NanoGPT pricing shape (35+ video variants, audio, chat) must resolve to a
+#     USD number, or the model picker shows blank prices again and the "~$X to run" estimate breaks.
+#     Offline: extracts the real videoUnitUsd/chatUnitUsd/audioUnitUsd out of index.html and runs
+#     them over one captured fixture per live shape (scripts/pricing-fixtures.json). No API spend.
+if [ -n "$touches_pricing" ]; then
+  node "$root/scripts/check-pricing.mjs"
 fi

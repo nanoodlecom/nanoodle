@@ -290,6 +290,12 @@
   #legallink{ position:fixed; right:.5rem; bottom:calc(var(--db-h,3rem) + .35rem); z-index:20; font-size:.62rem; line-height:1;
               color:var(--dim); opacity:.4; text-decoration:none; pointer-events:auto; }
   #legallink:hover{ opacity:.85; text-decoration:underline }
+  #runest{ position:fixed; right:.5rem; bottom:calc(var(--db-h,3rem) + 1.5rem); z-index:20; cursor:default;
+           font-family:ui-monospace,monospace; font-size:.72rem; line-height:1; color:var(--dim);
+           background:var(--panel2,#1a1d24); border:1px solid var(--line,#2a2e37); border-radius:.5rem;
+           padding:.3rem .5rem; box-shadow:0 6px 18px #0005; pointer-events:auto; user-select:none; }
+  #runest b{ color:var(--ink); font-weight:700; }
+  #runest[hidden]{ display:none }
   #canvashint[hidden]{ display:none }
   #canvashint{ position:absolute; top:14px; left:50%; transform:translateX(-50%); z-index:8;
                display:flex; align-items:center; gap:.5rem; max-width:calc(100% - 1.5rem);
@@ -759,7 +765,10 @@ function normChat(m){
     reasoning:!!c.reasoning, structured_output:!!c.structured_output,   // gate JSON mode + reasoning controls
     audio_input:!!c.audio_input, video_input:!!c.video_input, pdf_upload:!!c.pdf_upload,
     maxOut: m.max_output_tokens,   // max_tokens ceiling (present on most models)
-    price: p.prompt!=null ? `$${(+p.prompt).toFixed(2)}/$${(+p.completion).toFixed(2)} ·1M` : "" };
+    promptUsd1M: p.prompt!=null ? +p.prompt : null,          // $ per 1M input tokens — numeric, drives the run estimate
+    completionUsd1M: p.completion!=null ? +p.completion : null,
+    price: p.prompt!=null ? `$${(+p.prompt).toFixed(2)}/$${(+p.completion).toFixed(2)} ·1M`
+         : (p.note==="varies_by_modality" ? "price varies by input" : "") };   // omni models: no flat token price
 }
 // Edit models verified live (2026-06-26) to HONOR a brushed mask on the inpaint path: the masked
 // region is repainted while pixels OUTSIDE the mask stay essentially untouched (measured avg change
@@ -820,13 +829,9 @@ function normImg(m){
     price: v!=null ? `$${(+v).toFixed(3)}/img` : "" };
 }
 function normVideo(m){
-  const p=m.pricing||{}, c=m.capabilities||{}; let price="";
-  if(p.per_second_by_resolution){
-    const r=p.default_resolution||Object.keys(p.per_second_by_resolution)[0], d=p.default_duration||5;
-    price=`~$${(p.per_second_by_resolution[r]*d).toFixed(2)}/clip`;
-  } else if(p.per_video!=null) price=`$${(+p.per_video).toFixed(2)}/clip`;
-  else if(p.per_second!=null) price=`~$${(+p.per_second*(p.default_duration||5)).toFixed(2)}/clip`;
-  else if(p.base_price!=null) price=`~$${(+p.base_price).toFixed(2)}/clip`;
+  const p=m.pricing||{}, c=m.capabilities||{};
+  const _vu = videoUnitUsd(p, {});                 // universal resolver: every pricing shape at default res/duration, never blank
+  const price = _vu!=null ? `~$${_vu.toFixed(2)}/clip` : "";
   // the video catalog DOES expose lora params, so gate on the real thing: a lora_url slot
   // means we can drive it (the spicy model only offers a "loras" override → correctly excluded)
   const sp=m.supported_parameters||{}, pp=sp.parameters||sp;
@@ -1409,13 +1414,8 @@ function livePrice(kind, fields){
     return v!=null ? `$${(+v).toFixed(3)}/img` : (it.price||"");
   }
   if(kind==="video"){
-    const p = it.pricing||{}, dur = parseFloat(String(fields.duration)) || p.default_duration || 5;
-    if(p.per_second_by_resolution){
-      const r = (fields.resolution!=null && p.per_second_by_resolution[fields.resolution]!=null)
-        ? fields.resolution : (p.default_resolution || Object.keys(p.per_second_by_resolution)[0]);
-      const ps = p.per_second_by_resolution[r];
-      if(ps!=null) return `~$${(ps*dur).toFixed(2)}/clip`;
-    }
+    const u = videoUnitUsd(it.pricing, fields);   // all shapes; recomputes live as resolution/duration change
+    if(u!=null) return `~$${u.toFixed(2)}/clip`;
   }
   return it.price||"";
 }
@@ -1426,7 +1426,158 @@ function imageUnitUsd(model, size){
   const v = per[size] ?? per.square ?? per.square_hd ?? Object.values(per)[0];
   return (v!=null && isFinite(+v)) ? +v : null;
 }
-function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); backfillModel(n); }); }
+/* ======================================================================
+   RUN-COST ESTIMATE  ("~$0.42 to run", bottom-right)
+   Turns every NanoGPT pricing shape into one USD-per-run number so people
+   see the bill before they spend. Image is exact (per-size × count); video/
+   chat/audio are ESTIMATES (shown with ~): token counts & clip length aren't
+   known until the run, so we assume typical sizes (EST) and read the node's
+   own prompt length where we can. videoUnitUsd() below is also what fixed the
+   ~40% of video models that used to render a blank price in the picker. */
+const EST = { llmInTokens:1000, llmOutTokens:500, ttsChars:600, audioSeconds:30, sttMinutes:1, videoFps:30 };
+const _num = (x)=> (x!=null && isFinite(+x)) ? +x : null;
+// pick a price from a {resolutionKey: price} map, honouring the chosen/default resolution (else first/lowest tier)
+function pickByRes(map, reqRes, defRes){
+  if(!map || typeof map!=="object") return null;
+  if(reqRes!=null && _num(map[reqRes])!=null) return _num(map[reqRes]);
+  if(defRes!=null && _num(map[defRes])!=null) return _num(map[defRes]);
+  const vals = Object.values(map).map(_num).filter(v=>v!=null);
+  return vals.length ? vals[0] : null;
+}
+// same but the map value is itself an object (res -> {dur: price, …}); return the chosen inner object
+function pickObjByRes(map, reqRes, defRes){
+  if(!map || typeof map!=="object") return null;
+  if(reqRes!=null && map[reqRes] && typeof map[reqRes]==="object") return map[reqRes];
+  if(defRes!=null && map[defRes] && typeof map[defRes]==="object") return map[defRes];
+  const objs = Object.values(map).filter(v=>v && typeof v==="object");
+  return objs.length ? objs[0] : null;
+}
+function pickDur(p, raw, fields){
+  const f = parseFloat(fields && fields.duration);
+  if(isFinite(f) && f>0) return f;
+  const d = _num(p.default_duration) ?? _num(raw.defaultDuration);
+  if(d!=null && d>0) return d;
+  if(p.per_duration){ const k=Object.keys(p.per_duration)[0]; if(k && isFinite(+k)) return +k; }
+  if(Array.isArray(p.supported_durations) && p.supported_durations.length) return +p.supported_durations[0];
+  if(p.fixed_duration_seconds!=null) return _num(p.fixed_duration_seconds) || 5;
+  return 5;
+}
+// Estimated USD for one video clip, for ANY NanoGPT video pricing shape (35+ variants live).
+// Handlers run most-specific first; a generic deep-scan at the end guarantees a number for any
+// future shape rather than a blank. fields.resolution / fields.duration drive the live number.
+function videoUnitUsd(pricing, fields){
+  const p = pricing || {}, raw = (p.raw && typeof p.raw==="object") ? p.raw : {};
+  const f = fields || {};
+  const res = f.resolution, defRes = p.default_resolution ?? raw.defaultResolution;
+  const dur = pickDur(p, raw, f);
+  const rp = (m)=> pickByRes(m, res, defRes);
+  let v;
+  // ---- $/second families (× duration) ----
+  if((v=rp(p.per_second_by_resolution))!=null) return v*dur;
+  if((v=rp(p.standard_prices_per_second))!=null) return v*dur;               // sora (standard tier)
+  if(p.per_second_by_mode){ v=_num(p.per_second_by_mode.text_to_video) ?? pickByRes(p.per_second_by_mode); if(v!=null) return v*dur; }
+  for(const k of ["text_to_video_per_second","text_image_without_audio_per_second","image_to_video_without_audio_per_second"]){
+    if(p[k]!=null){ v = (typeof p[k]==="object") ? rp(p[k]) : _num(p[k]); if(v!=null) return v*dur; }
+  }
+  if(p.base_price_per_second!=null){ const m = p.resolution_multipliers ? (rp(p.resolution_multipliers) ?? 1) : 1; v=_num(p.base_price_per_second); if(v!=null) return v*dur*m; }
+  if(p.per_second!=null){ v=_num(p.per_second); if(v!=null) return v*dur; }
+  // ---- per-clip lookups (no × duration) ----
+  if(p.per_duration){ const dk=String(Math.round(dur)); v=_num(p.per_duration[dk]) ?? _num(p.per_duration[String(dur)]) ?? pickByRes(p.per_duration); if(v!=null) return v; }
+  if(p.without_audio!=null || p.with_audio!=null){ v=_num(p.without_audio) ?? _num(p.with_audio); if(v!=null) return v; }
+  if(p.base_prices_by_resolution){
+    const dk=String(Math.round(dur));
+    if(p.duration_overrides && p.duration_overrides[dk]){ v=rp(p.duration_overrides[dk]); if(v!=null) return v; }
+    const base=rp(p.base_prices_by_resolution);
+    let mult=1;
+    if(p.duration_multiplier!=null) mult=_num(p.duration_multiplier) ?? 1;
+    else if(p.duration_multipliers) mult=_num(p.duration_multipliers[dk]) ?? pickByRes(p.duration_multipliers) ?? 1;
+    if(base!=null) return base*mult;
+  }
+  if((v=rp(p.per_resolution))!=null) return v;
+  if(p.base_price!=null && p.per_extra_second!=null){ const bd=_num(p.base_duration)||0; return _num(p.base_price) + Math.max(0,dur-bd)*_num(p.per_extra_second); }
+  if(p.per_video!=null){ v=_num(p.per_video); if(v!=null) return v; }
+  if(p.per_target_megapixel_second!=null){ const mp=_num(p.default_target_megapixels)||1; v=_num(p.per_target_megapixel_second)*mp*dur; return Math.max(v, _num(p.minimum_price)||0); }
+  if(p.per_frame_unit!=null){ const fpu=_num(p.frames_per_unit)||1; return (dur*EST.videoFps/fpu)*_num(p.per_frame_unit); }
+  if(p.base_price!=null){ v=_num(p.base_price); if(v!=null) return v; }
+  // ---- raw.type dynamic shapes (wan / seedance / skyreels / ltx …) ----
+  if(Object.keys(raw).length){
+    for(const k of ["pricesPerSecond","textToVideoPricesPerSecond","withoutAudioPricesPerSecond",
+                    "standardPricesPerSecond","standardTextToVideoPricesPerSecond","outputPricesPerSecond","fastPricesPerSecond"]){
+      if(raw[k]){ v=pickByRes(raw[k], res, defRes); if(v!=null) return v*dur; }
+    }
+    for(const k of ["withoutAudioPrices","withAudioPrices","referenceToVideoPrices"]){
+      if(raw[k]){ const inner=pickObjByRes(raw[k], res, defRes); if(inner){ const dk=String(Math.round(dur)); v=_num(inner[dk]) ?? pickByRes(inner); if(v!=null) return v; } }
+    }
+    if(raw.pricePerMegapixel!=null && raw.megapixelsByResolution){
+      const mp = _num(raw.megapixelsByResolution[res]) ?? _num(raw.megapixelsByResolution[defRes]) ?? pickByRes(raw.megapixelsByResolution);
+      const nf = _num(raw.defaultNumFrames) || (dur * (_num(raw.defaultFramesPerSecond)||24));
+      if(mp!=null) return _num(raw.pricePerMegapixel)*mp*nf;
+    }
+  }
+  return genericScanUsd(p, dur);
+}
+// last resort: shallowest plausible price leaf; keys hinting "per second" scale by duration, else flat per-clip
+function genericScanUsd(p, dur){
+  let perSec=null, flat=null;
+  (function walk(o, key){
+    if(o==null) return;
+    if(typeof o==="number"){ if(o>0 && o<500){ if(/second|persec/i.test(key)) perSec=Math.min(perSec??Infinity,o); else flat=Math.min(flat??Infinity,o); } return; }
+    if(typeof o==="object") for(const k of Object.keys(o)) walk(o[k], k);
+  })(p, "");
+  if(perSec!=null) return perSec*dur;
+  if(flat!=null) return flat;
+  return null;
+}
+// chat: $ per 1M tokens × assumed (or node-derived) token counts
+function chatUnitUsd(it, inTokens, outTokens){
+  if(!it) return null;
+  const pin=_num(it.promptUsd1M), pout=_num(it.completionUsd1M);
+  if(pin==null && pout==null) return null;                       // omni "varies_by_modality" → unknown
+  return ((pin||0)*(inTokens ?? EST.llmInTokens) + (pout||0)*(outTokens ?? EST.llmOutTokens))/1e6;
+}
+// audio: per-1k-chars / per-char-block / per-generation / per-second / per-minute
+function audioUnitUsd(pricing, chars){
+  const p = pricing || {}, c = chars ?? EST.ttsChars;
+  if(p.per_thousand_chars!=null){ let cost=_num(p.per_thousand_chars)*(c/1000); if(p.per_generation!=null) cost+=_num(p.per_generation); return Math.max(cost, _num(p.minimum)||0); }
+  if(p.per_prompt_char_block!=null){ const bs=_num(p.prompt_char_block_size)||1; return Math.max(Math.ceil(c/bs)*_num(p.per_prompt_char_block), _num(p.minimum)||0); }
+  if(p.per_generation!=null) return _num(p.per_generation);
+  if(p.per_second!=null) return Math.max(_num(p.per_second)*EST.audioSeconds, _num(p.minimum)||0);
+  if(p.per_minute!=null) return _num(p.per_minute)*EST.sttMinutes;
+  return null;
+}
+// USD for one execution of a node with its chosen model + settings. null = no price (no model / uncatalogued / omni).
+function nodeUnitUsd(n){
+  const t = NODE_TYPES[n.type]; if(!t || !t.modelKind) return null;
+  const kind = t.modelKind, it = catItem(kind, n.fields.model); if(!it) return null;
+  if(kind==="image"){ const u = imageUnitUsd(n.fields.model, n.fields.size); return u==null ? null : u*Math.max(1, parseInt(n.fields.variations,10)||1); }
+  if(kind==="video"){ const u = videoUnitUsd(it.pricing, n.fields); return (u!=null && isFinite(u)) ? u : null; }
+  if(kind==="chat"){ const f=n.fields||{}; const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(it, inTok, outTok); }
+  if(kind==="audio"){ const chars = t.modelFilter==="stt" ? undefined : (((n.fields||{}).prompt||"").length || EST.ttsChars); return audioUnitUsd(it.pricing, chars); }
+  return null;
+}
+// total across the whole graph — matches ▶ Run all (every disconnected flow fires)
+function workflowCost(){
+  let usd=0, priced=0, unpriced=0, exact=true;
+  for(const n of graph.nodes){
+    const t = NODE_TYPES[n.type]; if(!t || !t.modelKind) continue;
+    const u = nodeUnitUsd(n);
+    if(u==null){ unpriced++; continue; }
+    usd += u; priced++; if(t.modelKind!=="image") exact=false;   // only image is an exact-per-run figure
+  }
+  return { usd, priced, unpriced, exact };
+}
+const fmtUsd = (v)=> v>=0.01 ? `$${v.toFixed(2)}` : v>0 ? `<$0.01` : `$0.00`;
+function refreshRunEstimate(){
+  const el = $("runest"); if(!el) return;
+  const { usd, priced, unpriced, exact } = workflowCost();
+  if(!priced){ el.hidden = true; return; }        // nothing priced to run → hide the chip entirely
+  el.hidden = false;
+  el.innerHTML = `${exact?"":"~"}<b>${fmtUsd(usd)}</b>&nbsp;to run`;
+  el.title = `Estimated cost to ▶ Run all — ${priced} paid node${priced>1?"s":""}`
+    + (unpriced ? `, plus ${unpriced} with no listed price` : "")
+    + (exact ? "." : `.\nVideo, text & audio are estimates: the real bill depends on clip length, tokens and characters.`);
+}
+function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); backfillModel(n); }); refreshRunEstimate(); }
 function backfillModel(n){   // once a catalog arrives, give model nodes a sensible default if none chosen yet
   const t = NODE_TYPES[n.type];
   if(t.modelKind && !n.fields.model){
@@ -3922,6 +4073,7 @@ const RESUME_APPTITLE_KEY = "noodle_resume_apptitle";  // and its name, for the 
 const EDITOR_APP_KEY = "noodle_editor_app";  // localStorage: {id,title} of the app THIS workflow is bound to, so the binding survives a plain reload (not just OAuth)
 let saveT=null;
 function save(){
+  refreshRunEstimate();                 // keep the bottom-right run cost live as the graph is edited
   clearTimeout(saveT);
   saveT = setTimeout(()=>{
     try{ localStorage.setItem("noodle_graph", JSON.stringify(serializeGraph())); }
@@ -4927,6 +5079,7 @@ RULES for the diff:
   }
 })();
 </script>
+<div id="runest" hidden></div>
 <a id="legallink" href="/legal" target="_blank" rel="noopener">Terms · Privacy</a>
 </body>
 </html>
