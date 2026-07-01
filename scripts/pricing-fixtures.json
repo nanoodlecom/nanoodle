@@ -1,0 +1,746 @@
+{
+ "video": [
+  {
+   "id": "luma/agent/ray/v3.2",
+   "shape": "default_duration,default_resolution,per_second_by_resolution",
+   "pricing": {
+    "currency": "USD",
+    "per_second_by_resolution": {
+     "540p": 0.1,
+     "720p": 0.2,
+     "1080p": 0.4
+    },
+    "default_duration": 5,
+    "default_resolution": "540p"
+   }
+  },
+  {
+   "id": "kling-v26-pro",
+   "shape": "audio_multiplier,per_duration",
+   "pricing": {
+    "currency": "USD",
+    "per_duration": {
+     "5": 0.35,
+     "10": 0.7
+    },
+    "unit": "per_video",
+    "audio_multiplier": 2
+   }
+  },
+  {
+   "id": "kling-v26-std",
+   "shape": "per_duration",
+   "pricing": {
+    "currency": "USD",
+    "per_duration": {
+     "5": 0.25,
+     "10": 0.5
+    },
+    "unit": "per_video"
+   }
+  },
+  {
+   "id": "kling-v26-std-motion-control",
+   "shape": "per_second,supported_durations",
+   "pricing": {
+    "currency": "USD",
+    "per_second": 0.07,
+    "supported_durations": [
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13,
+     14,
+     15,
+     16,
+     17,
+     18,
+     19,
+     20,
+     21,
+     22,
+     23,
+     24,
+     25,
+     26,
+     27,
+     28,
+     29,
+     30
+    ]
+   }
+  },
+  {
+   "id": "sora-2",
+   "shape": "default_duration,pro_prices_per_second,standard_prices_per_second",
+   "pricing": {
+    "currency": "USD",
+    "standard_prices_per_second": {
+     "720p": 0.1
+    },
+    "pro_prices_per_second": {
+     "720p": 0.3,
+     "1792x1024": 0.5
+    },
+    "default_duration": 4
+   }
+  },
+  {
+   "id": "grok-imagine-video",
+   "shape": "default_duration,high_resolution_per_second,image_input_fee,max_duration,per_second,supported_durations",
+   "pricing": {
+    "currency": "USD",
+    "per_second": 0.05,
+    "high_resolution_per_second": 0.07,
+    "image_input_fee": 0.002,
+    "default_duration": 6,
+    "max_duration": 15,
+    "supported_durations": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13,
+     14,
+     15
+    ]
+   }
+  },
+  {
+   "id": "xai/grok-imagine-video/v1.5/image-to-video",
+   "shape": "default_duration,default_resolution,image_input_fee,per_second_by_resolution",
+   "pricing": {
+    "currency": "USD",
+    "per_second_by_resolution": {
+     "480p": 0.204,
+     "720p": 0.34
+    },
+    "image_input_fee": 0.017,
+    "default_duration": 6,
+    "default_resolution": "720p"
+   }
+  },
+  {
+   "id": "grok-imagine-video-extend",
+   "shape": "raw:resolution-per-second-plus-input-seconds",
+   "pricing": {
+    "currency": "USD",
+    "raw": {
+     "type": "resolution-per-second-plus-input-seconds",
+     "outputPricesPerSecond": {
+      "480p": 0.05,
+      "720p": 0.07
+     },
+     "inputPricePerSecond": 0.01,
+     "minDuration": 2,
+     "minInputDuration": 2,
+     "defaultDuration": 6,
+     "defaultResolution": "480p",
+     "maxDuration": 10,
+     "includesProfit": true
+    }
+   }
+  },
+  {
+   "id": "grok-imagine-video-edit",
+   "shape": "base_price_per_second,max_duration,resolution_multipliers",
+   "pricing": {
+    "currency": "USD",
+    "base_price_per_second": 0.065,
+    "resolution_multipliers": {
+     "480p": 1,
+     "720p": 1
+    },
+    "max_duration": 8
+   }
+  },
+  {
+   "id": "grok-imagine-video-reference-to-video",
+   "shape": "default_duration,high_resolution_per_second,image_input_fee,max_duration,per_second",
+   "pricing": {
+    "currency": "USD",
+    "per_second": 0.05,
+    "high_resolution_per_second": 0.07,
+    "image_input_fee": 0.002,
+    "default_duration": 8,
+    "max_duration": 10
+   }
+  },
+  {
+   "id": "veo3-video",
+   "shape": "fixed_duration_seconds,with_audio,without_audio",
+   "pricing": {
+    "currency": "USD",
+    "with_audio": 4.8,
+    "without_audio": 3.2,
+    "fixed_duration_seconds": 8
+   }
+  },
+  {
+   "id": "wan-wavespeed-26",
+   "shape": "raw:wan26-dynamic",
+   "pricing": {
+    "currency": "USD",
+    "raw": {
+     "type": "wan26-dynamic",
+     "textToVideoPricesPerSecond": {
+      "720p": 0.052941176470588235,
+      "1080p": 0.07941176470588236
+     },
+     "imageToVideoPricesPerSecond": {
+      "720p": 0.052941176470588235,
+      "1080p": 0.07941176470588236
+     },
+     "referenceToVideoPrices": {
+      "720p": {
+       "5": 0.5294117647058824,
+       "10": 0.7941176470588236
+      },
+      "1080p": {
+       "5": 0.7941176470588236,
+       "10": 1.1911764705882353
+      }
+     },
+     "defaultDuration": 5,
+     "defaultResolution": "720p"
+    }
+   }
+  },
+  {
+   "id": "wan-2.7-video",
+   "shape": "raw:wan27-video-dynamic",
+   "pricing": {
+    "currency": "USD",
+    "raw": {
+     "type": "wan27-video-dynamic",
+     "pricesPerSecond": {
+      "720p": 0.05882352941176471,
+      "1080p": 0.08823529411764706
+     },
+     "defaultDuration": 5,
+     "defaultResolution": "720p"
+    }
+   }
+  },
+  {
+   "id": "wan-wavespeed-26-flash",
+   "shape": "raw:resolution-per-second-audio-toggle",
+   "pricing": {
+    "currency": "USD",
+    "raw": {
+     "type": "resolution-per-second-audio-toggle",
+     "withAudioPricesPerSecond": {
+      "720p": 0.029411764705882356,
+      "1080p": 0.04411764705882353
+     },
+     "withoutAudioPricesPerSecond": {
+      "720p": 0.014705882352941178,
+      "1080p": 0.022058823529411766
+     },
+     "defaultDuration": 5,
+     "defaultResolution": "720p"
+    }
+   }
+  },
+  {
+   "id": "wan-26-reference-to-video-flash",
+   "shape": "raw:resolution-duration-audio-toggle",
+   "pricing": {
+    "currency": "USD",
+    "raw": {
+     "type": "resolution-duration-audio-toggle",
+     "withAudioPrices": {
+      "720p": {
+       "5": 0.2647058823529412,
+       "10": 0.5294117647058824
+      },
+      "1080p": {
+       "5": 0.4235294117647059,
+       "10": 0.8470588235294118
+      }
+     },
+     "withoutAudioPrices": {
+      "720p": {
+       "5": 0.1323529411764706,
+       "10": 0.2647058823529412
+      },
+      "1080p": {
+       "5": 0.21176470588235294,
+       "10": 0.4235294117647059
+      }
+     },
+     "defaultDuration": 5,
+     "defaultResolution": "720p"
+    }
+   }
+  },
+  {
+   "id": "skywork-ai/skyreels-v4",
+   "shape": "raw:skyreels-v4-dynamic",
+   "pricing": {
+    "currency": "USD",
+    "raw": {
+     "type": "skyreels-v4-dynamic",
+     "standardPricesPerSecond": {
+      "480p": 0.06470588235294118,
+      "720p": 0.0823529411764706,
+      "1080p": 0.20588235294117646
+     },
+     "fastPricesPerSecond": {
+      "480p": 0.047058823529411764,
+      "720p": 0.06470588235294118,
+      "1080p": 0.16176470588235295
+     },
+     "standardReferenceVideoPricesPerSecond": {
+      "480p": 0.10588235294117647,
+      "720p": 0.14705882352941177,
+      "1080p": 0.36764705882352944
+     },
+     "fastReferenceVideoPricesPerSecond": {
+      "480p": 0.08823529411764706,
+      "720p": 0.11764705882352942,
+      "1080p": 0.29411764705882354
+     },
+     "defaultDuration": 5,
+     "defaultResolution": "1080p"
+    }
+   }
+  },
+  {
+   "id": "veo3-1-extend",
+   "shape": "fixed_duration_seconds,per_video",
+   "pricing": {
+    "currency": "USD",
+    "per_video": 2.8,
+    "fixed_duration_seconds": 7
+   }
+  },
+  {
+   "id": "veo3-1-video",
+   "shape": "default_duration,image_to_video_with_audio_per_second,image_to_video_without_audio_per_second,text_to_video_per_second",
+   "pricing": {
+    "currency": "USD",
+    "text_to_video_per_second": {
+     "720p": 0.4,
+     "1080p": 0.65
+    },
+    "image_to_video_with_audio_per_second": 0.4,
+    "image_to_video_without_audio_per_second": 0.2,
+    "default_duration": 8
+   }
+  },
+  {
+   "id": "veo3-1-fast-video",
+   "shape": "default_duration,default_resolution,reference_prices,text_image_with_audio_per_second,text_image_without_audio_per_second",
+   "pricing": {
+    "currency": "USD",
+    "text_image_with_audio_per_second": 0.15,
+    "text_image_without_audio_per_second": 0.1,
+    "reference_prices": {
+     "720p": {
+      "with_audio": 0.8,
+      "without_audio": 0.64
+     },
+     "1080p": {
+      "with_audio": 0.96,
+      "without_audio": 0.8
+     }
+    },
+    "default_duration": 8,
+    "default_resolution": "720p"
+   }
+  },
+  {
+   "id": "seedance-video",
+   "shape": "base_prices_by_resolution,duration_multiplier",
+   "pricing": {
+    "currency": "USD",
+    "base_prices_by_resolution": {
+     "480p": 0.12002,
+     "720p": 0.285,
+     "1080p": 0.57
+    },
+    "duration_multiplier": 2
+   }
+  },
+  {
+   "id": "pixelcut/video-background-removal",
+   "shape": "default_duration,frames_per_unit,per_frame_unit",
+   "pricing": {
+    "currency": "USD",
+    "per_frame_unit": 0.022,
+    "frames_per_unit": 30,
+    "default_duration": 5
+   }
+  },
+  {
+   "id": "clarity-ai/crystal-video-upscaler",
+   "shape": "default_duration,default_target_megapixels,max_target_megapixels,min_target_megapixels,minimum_price,per_target_megapixel_second",
+   "pricing": {
+    "currency": "USD",
+    "per_target_megapixel_second": 0.1,
+    "minimum_price": 0.1,
+    "default_duration": 5,
+    "default_target_megapixels": 2,
+    "min_target_megapixels": 1,
+    "max_target_megapixels": 200
+   }
+  },
+  {
+   "id": "bytedance-seedance-2-0",
+   "shape": "raw:seedance20-turbo-dynamic",
+   "pricing": {
+    "currency": "USD",
+    "raw": {
+     "type": "seedance20-turbo-dynamic",
+     "textToVideoPricesPerSecond": {
+      "720p": 0.08235294117647059,
+      "1080p": 0.08823529411764706
+     },
+     "textToVideoWithReferenceVideoPricesPerSecond": {
+      "720p": 0.06470588235294118,
+      "1080p": 0.07058823529411765
+     },
+     "imageToVideoPricesPerSecond": {
+      "720p": 0.08235294117647059,
+      "1080p": 0.08823529411764706
+     },
+     "defaultDuration": 5,
+     "defaultResolution": "720p"
+    }
+   }
+  },
+  {
+   "id": "bytedance-seedance-2-0-mini",
+   "shape": "raw:seedance20-mini-dynamic",
+   "pricing": {
+    "currency": "USD",
+    "raw": {
+     "type": "seedance20-mini-dynamic",
+     "standardTextToVideoPricesPerSecond": {
+      "720p": 0.07058823529411765,
+      "1080p": 0.17647058823529413
+     },
+     "standardTextToVideoWithReferenceVideoPricesPerSecond": {
+      "720p": 0.1411764705882353,
+      "1080p": 0.35294117647058826
+     },
+     "standardImageToVideoPricesPerSecond": {
+      "720p": 0.07058823529411765,
+      "1080p": 0.17647058823529413
+     },
+     "turboTextToVideoPricesPerSecond": {
+      "720p": 0.08235294117647059,
+      "1080p": 0.08823529411764706
+     },
+     "turboTextToVideoWithReferenceVideoPricesPerSecond": {
+      "720p": 0.06470588235294118,
+      "1080p": 0.07058823529411765
+     },
+     "turboImageToVideoPricesPerSecond": {
+      "720p": 0.08235294117647059,
+      "1080p": 0.08823529411764706
+     },
+     "defaultDuration": 5,
+     "defaultResolution": "720p"
+    }
+   }
+  },
+  {
+   "id": "bytedance-seedance-2-0-mini-video-edit",
+   "shape": "raw:seedance20-mini-video-edit-dynamic",
+   "pricing": {
+    "currency": "USD",
+    "raw": {
+     "type": "seedance20-mini-video-edit-dynamic",
+     "standardPricesPerSecond": {
+      "720p": 0.04411764705882353,
+      "1080p": 0.11029411764705882
+     },
+     "turboPricesPerSecond": {
+      "720p": 0.05588235294117647,
+      "1080p": 0.061764705882352944
+     },
+     "defaultDuration": 5,
+     "defaultResolution": "720p"
+    }
+   }
+  },
+  {
+   "id": "doubao-seedance-2-0",
+   "shape": "default_duration,default_resolution,image_to_video_per_second,text_to_video_per_second,text_to_video_with_reference_video_per_second",
+   "pricing": {
+    "currency": "USD",
+    "text_to_video_per_second": {
+     "480p": 0.12,
+     "720p": 0.24,
+     "1080p": 0.6
+    },
+    "text_to_video_with_reference_video_per_second": {
+     "480p": 0.24,
+     "720p": 0.48,
+     "1080p": 1.2
+    },
+    "image_to_video_per_second": {
+     "480p": 0.12,
+     "720p": 0.24,
+     "1080p": 0.6
+    },
+    "default_duration": 5,
+    "default_resolution": "720p"
+   }
+  },
+  {
+   "id": "wan-video-22-turbo",
+   "shape": "per_resolution",
+   "pricing": {
+    "currency": "USD",
+    "per_resolution": {
+     "480p": 0.05,
+     "580p": 0.075,
+     "720p": 0.1
+    }
+   }
+  },
+  {
+   "id": "ltx-2.3-quality",
+   "shape": "raw:ltx23-quality-megapixel",
+   "pricing": {
+    "currency": "USD",
+    "raw": {
+     "type": "ltx23-quality-megapixel",
+     "pricePerMegapixel": 0.0014161764705882354,
+     "hdrOrLoraPricePerMegapixel": 0.0015926470588235294,
+     "megapixelsByResolution": {
+      "auto": 1.048576,
+      "landscape_16_9": 0.9216,
+      "portrait_16_9": 0.9216,
+      "landscape_4_3": 0.786432,
+      "portrait_4_3": 0.786432,
+      "square_hd": 1.048576,
+      "square": 0.262144,
+      "480p": 0.3072,
+      "720p": 0.9216,
+      "1080p": 2.0736,
+      "4k+": 8.2944
+     },
+     "defaultDuration": 6,
+     "defaultResolution": "landscape_16_9",
+     "defaultFramesPerSecond": 24,
+     "defaultNumFrames": 145
+    }
+   }
+  },
+  {
+   "id": "pixverse-v45",
+   "shape": "base_prices_by_resolution,duration_multipliers,duration_overrides",
+   "pricing": {
+    "currency": "USD",
+    "base_prices_by_resolution": {
+     "360p": 0.12,
+     "540p": 0.12,
+     "720p": 0.15,
+     "1080p": 0.3
+    },
+    "duration_overrides": {
+     "8": {
+      "360p": 0.12,
+      "540p": 0.23,
+      "720p": 0.3,
+      "1080p": 0.3
+     }
+    },
+    "duration_multipliers": {
+     "5": 1,
+     "8": 1
+    }
+   }
+  },
+  {
+   "id": "runway-gen-45",
+   "shape": "base_prices_by_resolution,duration_multipliers",
+   "pricing": {
+    "currency": "USD",
+    "base_prices_by_resolution": {
+     "1280x768": 0.66,
+     "1280x720": 0.66,
+     "720x1280": 0.66,
+     "960x720": 0.66,
+     "720x960": 0.66,
+     "768x768": 0.66,
+     "1280x544": 0.66,
+     "1088x1920": 0.66,
+     "1920x1088": 0.66,
+     "1632x912": 0.66
+    },
+    "duration_multipliers": {
+     "5": 1,
+     "8": 1.6,
+     "10": 2
+    }
+   }
+  },
+  {
+   "id": "veo2-video",
+   "shape": "base_duration,base_price,max_duration,per_extra_second",
+   "pricing": {
+    "currency": "USD",
+    "base_price": 3.4,
+    "base_duration": 5,
+    "per_extra_second": 0.68,
+    "max_duration": 30
+   }
+  },
+  {
+   "id": "hunyuan-video",
+   "shape": "base_price,pro_multiplier",
+   "pricing": {
+    "currency": "USD",
+    "base_price": 0.4,
+    "pro_multiplier": 2
+   }
+  },
+  {
+   "id": "hunyuan-video-image-to-video",
+   "shape": "per_video",
+   "pricing": {
+    "currency": "USD",
+    "per_video": 0.4
+   }
+  },
+  {
+   "id": "wan-video-image-to-video",
+   "shape": "frame_multiplier,frame_threshold,per_resolution",
+   "pricing": {
+    "currency": "USD",
+    "per_resolution": {
+     "480p": 0.2,
+     "720p": 0.4
+    },
+    "frame_multiplier": 1.25,
+    "frame_threshold": 81
+   }
+  },
+  {
+   "id": "kling-video-o1",
+   "shape": "default_duration,per_second_by_mode",
+   "pricing": {
+    "currency": "USD",
+    "per_second_by_mode": {
+     "text_to_video": 0.112,
+     "image_to_video": 0.112,
+     "reference_to_video_image": 0.112,
+     "reference_to_video_video": 0.168,
+     "video_edit": 0.168
+    },
+    "default_duration": 5
+   }
+  }
+ ],
+ "audio": [
+  {
+   "id": "xai-tts",
+   "shape": "per_thousand_chars",
+   "pricing": {
+    "per_thousand_chars": 0.0165,
+    "currency": "USD"
+   }
+  },
+  {
+   "id": "Elevenlabs-Music-V1",
+   "shape": "minimum,per_second",
+   "pricing": {
+    "per_second": 0.01,
+    "minimum": 0.1,
+    "currency": "USD"
+   }
+  },
+  {
+   "id": "bytedance/seed-audio-1.0",
+   "shape": "minimum,per_prompt_char_block,prompt_char_block_size",
+   "pricing": {
+    "per_prompt_char_block": 0.09,
+    "prompt_char_block_size": 300,
+    "minimum": 0.09,
+    "currency": "USD"
+   }
+  },
+  {
+   "id": "fal-ai/stable-audio-3/small/sfx/text-to-audio",
+   "shape": "per_generation",
+   "pricing": {
+    "per_generation": 0.022660000000000003,
+    "currency": "USD"
+   }
+  },
+  {
+   "id": "mirelo-ai/sfx1.6/text-to-audio",
+   "shape": "minimum,multiplier_max,multiplier_min,multiplier_parameter,per_second",
+   "pricing": {
+    "per_second": 0.01,
+    "minimum": 0.01,
+    "currency": "USD",
+    "multiplier_parameter": "num_samples",
+    "multiplier_min": 1,
+    "multiplier_max": 4
+   }
+  },
+  {
+   "id": "microsoft/vibevoice",
+   "shape": "per_generation,per_thousand_chars",
+   "pricing": {
+    "per_generation": 0.15,
+    "per_thousand_chars": 0,
+    "currency": "USD"
+   }
+  },
+  {
+   "id": "mureka-ai/mureka-o2/generate-song",
+   "shape": "multiplier_parameter,per_generation",
+   "pricing": {
+    "per_generation": 0.15,
+    "currency": "USD",
+    "multiplier_parameter": "number_of_songs"
+   }
+  },
+  {
+   "id": "Whisper-Large-V3",
+   "shape": "per_minute",
+   "pricing": {
+    "per_minute": 0.000495,
+    "currency": "USD"
+   }
+  }
+ ],
+ "chat": [
+  {
+   "id": "anthropic/claude-sonnet-5",
+   "promptUsd1M": 2,
+   "completionUsd1M": 10,
+   "prompt": 2,
+   "completion": 10
+  },
+  {
+   "id": "auto-model",
+   "promptUsd1M": 0,
+   "completionUsd1M": 0,
+   "prompt": 0,
+   "completion": 0
+  }
+ ]
+}

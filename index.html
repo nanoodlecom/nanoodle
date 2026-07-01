@@ -305,6 +305,12 @@
   #legallink{ position:fixed; right:.5rem; bottom:calc(var(--db-h,3rem) + .35rem); z-index:20; font-size:.62rem; line-height:1;
               color:var(--dim); opacity:.4; text-decoration:none; pointer-events:auto; }
   #legallink:hover{ opacity:.85; text-decoration:underline }
+  #runest{ position:fixed; right:6.2rem; bottom:calc(var(--db-h,3rem) + 1.5rem); z-index:20; cursor:default;   /* left of the undo+fit buttons so it never covers them */
+           font-family:ui-monospace,monospace; font-size:.72rem; line-height:1; color:var(--dim);
+           background:var(--panel2,#1a1d24); border:1px solid var(--line,#2a2e37); border-radius:.5rem;
+           padding:.3rem .5rem; box-shadow:0 6px 18px #0005; pointer-events:auto; user-select:none; }
+  #runest b{ color:var(--ink); font-weight:700; }
+  #runest[hidden]{ display:none }
   #canvashint[hidden]{ display:none }
   #canvashint{ position:absolute; top:14px; left:50%; transform:translateX(-50%); z-index:8;
                display:flex; align-items:center; gap:.5rem; max-width:calc(100% - 1.5rem);
@@ -325,13 +331,16 @@
   #world{ position:absolute; top:0; left:0; transform-origin:0 0; }
   /* Fit-to-view: a floating canvas control in the bottom-right (where a fullscreen button would sit),
      revealed on hover over the graph. F / double-click do the same; kept tappable where there's no hover. */
-  #fit{ position:absolute; right:.9rem; bottom:.9rem; z-index:30; width:2.3rem; height:2.3rem;
+  #fit, #undo{ position:absolute; bottom:.9rem; z-index:30; width:2.3rem; height:2.3rem;
         display:flex; align-items:center; justify-content:center; font-size:1.15rem; line-height:1;
         border-radius:.6rem; background:var(--panel2); border:1px solid var(--line); color:var(--ink);
         cursor:pointer; opacity:0; transition:opacity .14s ease; box-shadow:0 6px 18px #0006; }
-  #editor:hover #fit, #fit:focus-visible{ opacity:.85 }
-  #fit:hover{ opacity:1; border-color:var(--accent) }
-  @media (hover:none){ #fit{ opacity:.6 } }   /* touch: no hover to reveal it, so keep it discoverable */
+  #fit{ right:.9rem }
+  #undo{ right:3.6rem }   /* one button-width + gap to the left of Fit */
+  #editor:hover #fit, #fit:focus-visible, #editor:hover #undo, #undo:focus-visible{ opacity:.85 }
+  #fit:hover, #undo:hover{ opacity:1; border-color:var(--accent) }
+  #undo[disabled]{ opacity:0!important; pointer-events:none }   /* nothing to undo → stay hidden */
+  @media (hover:none){ #fit{ opacity:.6 } #undo:not([disabled]){ opacity:.6 } }   /* touch: no hover to reveal them, so keep them discoverable */
   #wires{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:-1; overflow:visible }
   #wires path.wire{ fill:none; stroke-width:2.5; pointer-events:stroke; cursor:pointer; }
   #wires path.hit{ fill:none; stroke:transparent; stroke-width:14; pointer-events:stroke; cursor:pointer; }
@@ -365,6 +374,10 @@
   .node header.t-join{ background:linear-gradient(90deg,#9aa3b222,transparent) }
   .node header .em{font-size:1rem}
   .node header .ttl{font-weight:700; font-size:.85rem; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .node-name{ width:100%; box-sizing:border-box; background:transparent; border:0; border-bottom:1px solid #ffffff12; color:var(--dim); font:inherit; font-size:.76rem; padding:.12rem .55rem; outline:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .node-name:hover{ border-bottom-color:#ffffff26 }
+  .node-name:focus{ color:var(--ink); border-bottom-color:var(--accent) }
+  .node-name::placeholder{ color:#ffffff33 }
   .node header .hbtn{ border:none; background:none; padding:2px 4px; color:var(--dim); font-size:.85rem; border-radius:.35rem }
   .node header .hbtn:hover{ background:#ffffff14; color:var(--ink) }
   .node header .dot{ width:8px;height:8px;border-radius:50%; background:var(--dim); flex:0 0 auto }
@@ -405,7 +418,7 @@
 
   .body{ padding:.1rem .6rem .6rem; display:flex; flex-direction:column; gap:.5rem }
   .body label{ font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); display:block; margin-bottom:.2rem }
-  .body textarea{ width:100%; resize:none; min-width:190px; max-width:min(80vw,760px); min-height:84px;
+  .body textarea{ width:100%; resize:vertical; min-width:190px; max-width:min(80vw,760px); min-height:84px;
                   background:var(--panel2); border:1px solid var(--line);
                   border-radius:.45rem; padding:.4rem .5rem; line-height:1.35 }
   .body select{ width:100%; background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; padding:.35rem .4rem }
@@ -471,6 +484,7 @@
   #mpick.open{ display:flex }
   #mpick .mphead{ display:flex; align-items:center; gap:.5rem; padding:.6rem .7rem; border-bottom:1px solid var(--line) }
   #mpick .mphead .spacer{ flex:1 }
+  #mpicksort{ background:var(--panel2); border:1px solid var(--line); color:var(--ink); border-radius:.5rem; padding:.25rem .4rem; font-size:.8rem; cursor:pointer }
   #mpicksearch{ margin:.6rem .7rem .2rem; background:var(--panel2); border:1px solid var(--line); border-radius:.5rem; padding:.5rem .6rem }
   #mpicklist{ overflow:auto; padding:.4rem .5rem .6rem; display:flex; flex-direction:column; gap:.1rem }
   #mpicklist button{ display:flex; justify-content:space-between; gap:1rem; width:100%; text-align:left;
@@ -558,6 +572,12 @@
             background:var(--panel2); border:1px solid var(--line); color:var(--ink); text-decoration:none;
             display:inline-flex; align-items:center; gap:.3rem; }
   .sm-svc button:hover, .sm-social a:hover{ background:var(--panel); border-color:var(--accent); }
+  /* da.gd is the default: it POSTs, so it survives the big #g=/#a= links TinyURL's GET can truncate.
+     Emphasized (bright accent ring + ✓) but still clearly a button in the row, not a filled tag. */
+  .sm-svc button.sm-primary{ background:#7c8cff22; border-color:var(--accent); color:var(--ink);
+            font-weight:700; box-shadow:inset 0 0 0 1px var(--accent); }
+  .sm-svc button.sm-primary::before{ content:"✓"; color:var(--accent); font-weight:700; }
+  .sm-svc button.sm-primary:hover{ background:#7c8cff33; border-color:var(--accent); }
   .sm-svc button:disabled{ opacity:.5; cursor:progress; }
 </style>
 </head>
@@ -616,6 +636,12 @@
     <b id="mpicktitle">model</b>
     <span id="mpickcount" class="dim"></span>
     <div class="spacer"></div>
+    <select id="mpicksort" title="Sort the model list" aria-label="Sort models">
+      <option value="newest">Newest</option>
+      <option value="cheapest">Cheapest</option>
+      <option value="premium">Priciest</option>
+      <option value="name">Name A→Z</option>
+    </select>
     <button id="mpickclose" class="hbtn" aria-label="Close model picker">✕</button>
   </div>
   <input id="mpicksearch" placeholder="filter the full list, or type an exact id + Enter…" autocomplete="off" />
@@ -723,8 +749,8 @@
   <div class="sm-head">Make it shorter — optional</div>
   <p class="sm-warn">Sends this link to a third-party shortener so <em>they</em> host it. They can see the workflow.</p>
   <div class="sm-svc">
-    <button data-svc="tinyurl">TinyURL</button>
-    <button data-svc="dagd">da.gd</button>
+    <button data-svc="dagd" class="sm-primary" title="Recommended — handles very long links (workflow links can get big)">da.gd</button>
+    <button data-svc="tinyurl" title="Shorter domain, but can fail on very long links">TinyURL</button>
   </div>
 
   <div class="sm-head">Share to</div>
@@ -740,6 +766,7 @@
 <main id="editor" aria-label="Workflow canvas">
   <svg id="wires"></svg>
   <div id="world"></div>
+  <button id="undo" title="Undo (Ctrl + Z)" aria-label="Undo the last edit">↺</button>
   <button id="fit" title="Fit the whole workflow in view (F)" aria-label="Fit the whole workflow in view">⊡</button>
   <div id="canvashint" hidden>A live AI workflow — press <b>▶ Run</b>, or <b>＋ Add node</b> to build your own.<button id="hintx" title="Got it" aria-label="Dismiss">×</button></div>
 </main>
@@ -973,6 +1000,14 @@ const I18N = {
     "loading the full list…":"cargando la lista completa…",
     "pick a model…":"elige un modelo…",
     "newest first":"más recientes primero",
+    "Sort the model list":"Ordenar la lista de modelos",
+    "Newest":"Más recientes",
+    "Cheapest":"Más baratos",
+    "Priciest":"Más caros",
+    "Name A→Z":"Nombre A→Z",
+    "newest":"más recientes",
+    "cheapest":"más baratos",
+    "priciest":"más caros",
     "Text":"Texto",
     "A string source":"Una fuente de texto",
     "Image input":"Entrada de imagen",
@@ -1262,6 +1297,14 @@ const I18N = {
     "loading the full list…":"chargement de la liste…",
     "pick a model…":"choisir un modèle…",
     "newest first":"plus récents d’abord",
+    "Sort the model list":"Trier la liste des modèles",
+    "Newest":"Plus récents",
+    "Cheapest":"Moins chers",
+    "Priciest":"Plus chers",
+    "Name A→Z":"Nom A→Z",
+    "newest":"plus récents",
+    "cheapest":"moins chers",
+    "priciest":"plus chers",
     "Text":"Texte",
     "A string source":"Une source de texte",
     "Image input":"Entrée image",
@@ -1557,6 +1600,14 @@ const I18N = {
     "loading the full list…":"lade vollständige Liste…",
     "pick a model…":"Modell wählen…",
     "newest first":"neueste zuerst",
+    "Sort the model list":"Modellliste sortieren",
+    "Newest":"Neueste",
+    "Cheapest":"Günstigste",
+    "Priciest":"Teuerste",
+    "Name A→Z":"Name A→Z",
+    "newest":"neueste",
+    "cheapest":"günstigste",
+    "priciest":"teuerste",
     "Text":"Text",
     "A string source":"Eine Textquelle",
     "Image input":"Bildeingabe",
@@ -1852,6 +1903,14 @@ const I18N = {
     "loading the full list…":"carregando a lista completa…",
     "pick a model…":"escolha um modelo…",
     "newest first":"mais recentes primeiro",
+    "Sort the model list":"Ordenar a lista de modelos",
+    "Newest":"Mais recentes",
+    "Cheapest":"Mais baratos",
+    "Priciest":"Mais caros",
+    "Name A→Z":"Nome A→Z",
+    "newest":"mais recentes",
+    "cheapest":"mais baratos",
+    "priciest":"mais caros",
     "Text":"Texto",
     "A string source":"Uma fonte de texto",
     "Image input":"Entrada de imagem",
@@ -2152,6 +2211,14 @@ const I18N = {
     "loading the full list…":"一覧を読み込み中…",
     "pick a model…":"モデルを選択…",
     "newest first":"新しい順",
+    "Sort the model list":"モデル一覧を並べ替え",
+    "Newest":"新しい順",
+    "Cheapest":"安い順",
+    "Priciest":"高い順",
+    "Name A→Z":"名前 A→Z",
+    "newest":"新しい順",
+    "cheapest":"安い順",
+    "priciest":"高い順",
     "Text":"テキスト",
     "A string source":"文字列ソース",
     "Image input":"画像入力",
@@ -2322,11 +2389,18 @@ const optsHTML = (items, def)=> items.map(([v,l])=>`<option value="${esc(v)}"${v
 
 function normChat(m){
   const p = m.pricing||{}, c = m.capabilities||{};
-  return { id:m.id, name:m.name||m.id, created:m.created, vision:!!c.vision,
+  return { id:m.id, name:m.name||m.id, created:m.created,
+    // blended $/run from the shown prompt+completion prices (same EST mix as the run estimate) → price sorts.
+    // NOT m.cost_estimate: it's 0 for routers/auto-model that actually charge, which would fake them as "cheapest".
+    sortUsd: (p.prompt!=null || p.completion!=null) ? ((+p.prompt||0)*EST.llmInTokens + (+p.completion||0)*EST.llmOutTokens)/1e6 : null,
+    vision:!!c.vision,
     reasoning:!!c.reasoning, structured_output:!!c.structured_output,   // gate JSON mode + reasoning controls
     audio_input:!!c.audio_input, video_input:!!c.video_input, pdf_upload:!!c.pdf_upload,
     maxOut: m.max_output_tokens,   // max_tokens ceiling (present on most models)
-    price: p.prompt!=null ? `$${(+p.prompt).toFixed(2)}/$${(+p.completion).toFixed(2)} ·1M` : "" };
+    promptUsd1M: p.prompt!=null ? +p.prompt : null,          // $ per 1M input tokens — numeric, drives the run estimate
+    completionUsd1M: p.completion!=null ? +p.completion : null,
+    price: p.prompt!=null ? `$${(+p.prompt).toFixed(2)}/$${(+p.completion).toFixed(2)} ·1M`
+         : (p.note==="varies_by_modality" ? "price varies by input" : "") };   // omni models: no flat token price
 }
 // Edit models verified live (2026-06-26) to HONOR a brushed mask on the inpaint path: the masked
 // region is repainted while pixels OUTSIDE the mask stay essentially untouched (measured avg change
@@ -2375,6 +2449,7 @@ function normImg(m){
   const resolutions = Array.isArray(m.supported_parameters?.resolutions)
     ? m.supported_parameters.resolutions.filter(x=> typeof x==="string" && x) : [];
   return { id:m.id, name:m.name||m.id, created:m.created,
+    sortUsd: v!=null ? +v : null,                                       // per-image $ → price sorts
     edit: !needsMask && (needsSrc || !!m.capabilities?.image_to_image),  // accepts an image input (text+image->image | image->image)
     gen: needsSrc ? false : (mod ? mod.startsWith("text") : !m.capabilities?.image_to_image),  // text-only generators; excludes edit-only models
     inpaint: inpaintOk,                                                  // needs/honors image + mask → the Inpaint node
@@ -2387,13 +2462,9 @@ function normImg(m){
     price: v!=null ? `$${(+v).toFixed(3)}/img` : "" };
 }
 function normVideo(m){
-  const p=m.pricing||{}, c=m.capabilities||{}; let price="";
-  if(p.per_second_by_resolution){
-    const r=p.default_resolution||Object.keys(p.per_second_by_resolution)[0], d=p.default_duration||5;
-    price=`~$${(p.per_second_by_resolution[r]*d).toFixed(2)}/clip`;
-  } else if(p.per_video!=null) price=`$${(+p.per_video).toFixed(2)}/clip`;
-  else if(p.per_second!=null) price=`~$${(+p.per_second*(p.default_duration||5)).toFixed(2)}/clip`;
-  else if(p.base_price!=null) price=`~$${(+p.base_price).toFixed(2)}/clip`;
+  const p=m.pricing||{}, c=m.capabilities||{};
+  const _vu = videoUnitUsd(p, {});                 // universal resolver: every pricing shape at default res/duration, never blank
+  const price = _vu!=null ? `~$${_vu.toFixed(2)}/clip` : "";
   // the video catalog DOES expose lora params, so gate on the real thing: a lora_url slot
   // means we can drive it (the spicy model only offers a "loras" override → correctly excluded)
   const sp=m.supported_parameters||{}, pp=sp.parameters||sp;
@@ -2403,6 +2474,7 @@ function normVideo(m){
   // the real param descriptors rather than the model name.
   const multiAudio = "left_audio" in pp || "right_audio" in pp;
   return { id:m.id, name:m.name||m.id, created:m.created,
+    sortUsd: _vu,                                    // resolved $/clip at default res/duration → price sorts
     t2v:!!c.text_to_video, i2v:!!c.image_to_video,
     v2v:!!c.video_to_video,                          // edits/extends/upscales a SOURCE video (→ vedit node)
     avatar:!!c.image_to_video && !!c.audio_input && !multiAudio,    // image + single audio → talking video (→ lipsync node)
@@ -2441,6 +2513,7 @@ function normAudio(m){
   // not a transcript — exclude them by id so they don't pollute the Transcribe node.
   const stt = (!!c.speech_to_text || m.category==="audio_stt") && !/clone/i.test(m.id);
   return { id:m.id, name:m.name||m.id, created:m.created, owner:m.owned_by||"", voices, langs, params:sp,
+    sortUsd: audioUnitUsd(p, EST.ttsChars),          // resolved $ at assumed usage → price sorts (mixed units, rough)
     tts, gen, music: gen && !tts, stt, pricing:p, price };   // raw pricing kept so transcribe can estimate from per_minute
 }
 
@@ -2981,13 +3054,8 @@ function livePrice(kind, fields){
     return v!=null ? `$${(+v).toFixed(3)}/img` : (it.price||"");
   }
   if(kind==="video"){
-    const p = it.pricing||{}, dur = parseFloat(String(fields.duration)) || p.default_duration || 5;
-    if(p.per_second_by_resolution){
-      const r = (fields.resolution!=null && p.per_second_by_resolution[fields.resolution]!=null)
-        ? fields.resolution : (p.default_resolution || Object.keys(p.per_second_by_resolution)[0]);
-      const ps = p.per_second_by_resolution[r];
-      if(ps!=null) return `~$${(ps*dur).toFixed(2)}/clip`;
-    }
+    const u = videoUnitUsd(it.pricing, fields);   // all shapes; recomputes live as resolution/duration change
+    if(u!=null) return `~$${u.toFixed(2)}/clip`;
   }
   return it.price||"";
 }
@@ -2998,7 +3066,158 @@ function imageUnitUsd(model, size){
   const v = per[size] ?? per.square ?? per.square_hd ?? Object.values(per)[0];
   return (v!=null && isFinite(+v)) ? +v : null;
 }
-function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); backfillModel(n); }); }
+/* ======================================================================
+   RUN-COST ESTIMATE  ("~$0.42 to run", bottom-right)
+   Turns every NanoGPT pricing shape into one USD-per-run number so people
+   see the bill before they spend. Image is exact (per-size × count); video/
+   chat/audio are ESTIMATES (shown with ~): token counts & clip length aren't
+   known until the run, so we assume typical sizes (EST) and read the node's
+   own prompt length where we can. videoUnitUsd() below is also what fixed the
+   ~40% of video models that used to render a blank price in the picker. */
+const EST = { llmInTokens:1000, llmOutTokens:500, ttsChars:600, audioSeconds:30, sttMinutes:1, videoFps:30 };
+const _num = (x)=> (x!=null && isFinite(+x)) ? +x : null;
+// pick a price from a {resolutionKey: price} map, honouring the chosen/default resolution (else first/lowest tier)
+function pickByRes(map, reqRes, defRes){
+  if(!map || typeof map!=="object") return null;
+  if(reqRes!=null && _num(map[reqRes])!=null) return _num(map[reqRes]);
+  if(defRes!=null && _num(map[defRes])!=null) return _num(map[defRes]);
+  const vals = Object.values(map).map(_num).filter(v=>v!=null);
+  return vals.length ? vals[0] : null;
+}
+// same but the map value is itself an object (res -> {dur: price, …}); return the chosen inner object
+function pickObjByRes(map, reqRes, defRes){
+  if(!map || typeof map!=="object") return null;
+  if(reqRes!=null && map[reqRes] && typeof map[reqRes]==="object") return map[reqRes];
+  if(defRes!=null && map[defRes] && typeof map[defRes]==="object") return map[defRes];
+  const objs = Object.values(map).filter(v=>v && typeof v==="object");
+  return objs.length ? objs[0] : null;
+}
+function pickDur(p, raw, fields){
+  const f = parseFloat(fields && fields.duration);
+  if(isFinite(f) && f>0) return f;
+  const d = _num(p.default_duration) ?? _num(raw.defaultDuration);
+  if(d!=null && d>0) return d;
+  if(p.per_duration){ const k=Object.keys(p.per_duration)[0]; if(k && isFinite(+k)) return +k; }
+  if(Array.isArray(p.supported_durations) && p.supported_durations.length) return +p.supported_durations[0];
+  if(p.fixed_duration_seconds!=null) return _num(p.fixed_duration_seconds) || 5;
+  return 5;
+}
+// Estimated USD for one video clip, for ANY NanoGPT video pricing shape (35+ variants live).
+// Handlers run most-specific first; a generic deep-scan at the end guarantees a number for any
+// future shape rather than a blank. fields.resolution / fields.duration drive the live number.
+function videoUnitUsd(pricing, fields){
+  const p = pricing || {}, raw = (p.raw && typeof p.raw==="object") ? p.raw : {};
+  const f = fields || {};
+  const res = f.resolution, defRes = p.default_resolution ?? raw.defaultResolution;
+  const dur = pickDur(p, raw, f);
+  const rp = (m)=> pickByRes(m, res, defRes);
+  let v;
+  // ---- $/second families (× duration) ----
+  if((v=rp(p.per_second_by_resolution))!=null) return v*dur;
+  if((v=rp(p.standard_prices_per_second))!=null) return v*dur;               // sora (standard tier)
+  if(p.per_second_by_mode){ v=_num(p.per_second_by_mode.text_to_video) ?? pickByRes(p.per_second_by_mode); if(v!=null) return v*dur; }
+  for(const k of ["text_to_video_per_second","text_image_without_audio_per_second","image_to_video_without_audio_per_second"]){
+    if(p[k]!=null){ v = (typeof p[k]==="object") ? rp(p[k]) : _num(p[k]); if(v!=null) return v*dur; }
+  }
+  if(p.base_price_per_second!=null){ const m = p.resolution_multipliers ? (rp(p.resolution_multipliers) ?? 1) : 1; v=_num(p.base_price_per_second); if(v!=null) return v*dur*m; }
+  if(p.per_second!=null){ v=_num(p.per_second); if(v!=null) return v*dur; }
+  // ---- per-clip lookups (no × duration) ----
+  if(p.per_duration){ const dk=String(Math.round(dur)); v=_num(p.per_duration[dk]) ?? _num(p.per_duration[String(dur)]) ?? pickByRes(p.per_duration); if(v!=null) return v; }
+  if(p.without_audio!=null || p.with_audio!=null){ v=_num(p.without_audio) ?? _num(p.with_audio); if(v!=null) return v; }
+  if(p.base_prices_by_resolution){
+    const dk=String(Math.round(dur));
+    if(p.duration_overrides && p.duration_overrides[dk]){ v=rp(p.duration_overrides[dk]); if(v!=null) return v; }
+    const base=rp(p.base_prices_by_resolution);
+    let mult=1;
+    if(p.duration_multiplier!=null) mult=_num(p.duration_multiplier) ?? 1;
+    else if(p.duration_multipliers) mult=_num(p.duration_multipliers[dk]) ?? pickByRes(p.duration_multipliers) ?? 1;
+    if(base!=null) return base*mult;
+  }
+  if((v=rp(p.per_resolution))!=null) return v;
+  if(p.base_price!=null && p.per_extra_second!=null){ const bd=_num(p.base_duration)||0; return _num(p.base_price) + Math.max(0,dur-bd)*_num(p.per_extra_second); }
+  if(p.per_video!=null){ v=_num(p.per_video); if(v!=null) return v; }
+  if(p.per_target_megapixel_second!=null){ const mp=_num(p.default_target_megapixels)||1; v=_num(p.per_target_megapixel_second)*mp*dur; return Math.max(v, _num(p.minimum_price)||0); }
+  if(p.per_frame_unit!=null){ const fpu=_num(p.frames_per_unit)||1; return (dur*EST.videoFps/fpu)*_num(p.per_frame_unit); }
+  if(p.base_price!=null){ v=_num(p.base_price); if(v!=null) return v; }
+  // ---- raw.type dynamic shapes (wan / seedance / skyreels / ltx …) ----
+  if(Object.keys(raw).length){
+    for(const k of ["pricesPerSecond","textToVideoPricesPerSecond","withoutAudioPricesPerSecond",
+                    "standardPricesPerSecond","standardTextToVideoPricesPerSecond","outputPricesPerSecond","fastPricesPerSecond"]){
+      if(raw[k]){ v=pickByRes(raw[k], res, defRes); if(v!=null) return v*dur; }
+    }
+    for(const k of ["withoutAudioPrices","withAudioPrices","referenceToVideoPrices"]){
+      if(raw[k]){ const inner=pickObjByRes(raw[k], res, defRes); if(inner){ const dk=String(Math.round(dur)); v=_num(inner[dk]) ?? pickByRes(inner); if(v!=null) return v; } }
+    }
+    if(raw.pricePerMegapixel!=null && raw.megapixelsByResolution){
+      const mp = _num(raw.megapixelsByResolution[res]) ?? _num(raw.megapixelsByResolution[defRes]) ?? pickByRes(raw.megapixelsByResolution);
+      const nf = _num(raw.defaultNumFrames) || (dur * (_num(raw.defaultFramesPerSecond)||24));
+      if(mp!=null) return _num(raw.pricePerMegapixel)*mp*nf;
+    }
+  }
+  return genericScanUsd(p, dur);
+}
+// last resort: shallowest plausible price leaf; keys hinting "per second" scale by duration, else flat per-clip
+function genericScanUsd(p, dur){
+  let perSec=null, flat=null;
+  (function walk(o, key){
+    if(o==null) return;
+    if(typeof o==="number"){ if(o>0 && o<500){ if(/second|persec/i.test(key)) perSec=Math.min(perSec??Infinity,o); else flat=Math.min(flat??Infinity,o); } return; }
+    if(typeof o==="object") for(const k of Object.keys(o)) walk(o[k], k);
+  })(p, "");
+  if(perSec!=null) return perSec*dur;
+  if(flat!=null) return flat;
+  return null;
+}
+// chat: $ per 1M tokens × assumed (or node-derived) token counts
+function chatUnitUsd(it, inTokens, outTokens){
+  if(!it) return null;
+  const pin=_num(it.promptUsd1M), pout=_num(it.completionUsd1M);
+  if(pin==null && pout==null) return null;                       // omni "varies_by_modality" → unknown
+  return ((pin||0)*(inTokens ?? EST.llmInTokens) + (pout||0)*(outTokens ?? EST.llmOutTokens))/1e6;
+}
+// audio: per-1k-chars / per-char-block / per-generation / per-second / per-minute
+function audioUnitUsd(pricing, chars){
+  const p = pricing || {}, c = chars ?? EST.ttsChars;
+  if(p.per_thousand_chars!=null){ let cost=_num(p.per_thousand_chars)*(c/1000); if(p.per_generation!=null) cost+=_num(p.per_generation); return Math.max(cost, _num(p.minimum)||0); }
+  if(p.per_prompt_char_block!=null){ const bs=_num(p.prompt_char_block_size)||1; return Math.max(Math.ceil(c/bs)*_num(p.per_prompt_char_block), _num(p.minimum)||0); }
+  if(p.per_generation!=null) return _num(p.per_generation);
+  if(p.per_second!=null) return Math.max(_num(p.per_second)*EST.audioSeconds, _num(p.minimum)||0);
+  if(p.per_minute!=null) return _num(p.per_minute)*EST.sttMinutes;
+  return null;
+}
+// USD for one execution of a node with its chosen model + settings. null = no price (no model / uncatalogued / omni).
+function nodeUnitUsd(n){
+  const t = NODE_TYPES[n.type]; if(!t || !t.modelKind) return null;
+  const kind = t.modelKind, it = catItem(kind, n.fields.model); if(!it) return null;
+  if(kind==="image"){ const u = imageUnitUsd(n.fields.model, n.fields.size); return u==null ? null : u*Math.max(1, parseInt(n.fields.variations,10)||1); }
+  if(kind==="video"){ const u = videoUnitUsd(it.pricing, n.fields); return (u!=null && isFinite(u)) ? u : null; }
+  if(kind==="chat"){ const f=n.fields||{}; const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(it, inTok, outTok); }
+  if(kind==="audio"){ const chars = t.modelFilter==="stt" ? undefined : (((n.fields||{}).prompt||"").length || EST.ttsChars); return audioUnitUsd(it.pricing, chars); }
+  return null;
+}
+// total across the whole graph — matches ▶ Run all (every disconnected flow fires)
+function workflowCost(){
+  let usd=0, priced=0, unpriced=0, exact=true;
+  for(const n of graph.nodes){
+    const t = NODE_TYPES[n.type]; if(!t || !t.modelKind) continue;
+    const u = nodeUnitUsd(n);
+    if(u==null){ unpriced++; continue; }
+    usd += u; priced++; if(t.modelKind!=="image") exact=false;   // only image is an exact-per-run figure
+  }
+  return { usd, priced, unpriced, exact };
+}
+const fmtUsd = (v)=> v>=0.01 ? `$${v.toFixed(2)}` : v>0 ? `<$0.01` : `$0.00`;
+function refreshRunEstimate(){
+  const el = $("runest"); if(!el) return;
+  const { usd, priced, unpriced, exact } = workflowCost();
+  if(!priced){ el.hidden = true; return; }        // nothing priced to run → hide the chip entirely
+  el.hidden = false;
+  el.innerHTML = `${exact?"":"~"}<b>${fmtUsd(usd)}</b>&nbsp;to run`;
+  el.title = `Estimated cost to ▶ Run all — ${priced} paid node${priced>1?"s":""}`
+    + (unpriced ? `, plus ${unpriced} with no listed price` : "")
+    + (exact ? "." : `.\nVideo, text & audio are estimates: the real bill depends on clip length, tokens and characters.`);
+}
+function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); backfillModel(n); }); refreshRunEstimate(); }
 function backfillModel(n){   // once a catalog arrives, give model nodes a sensible default if none chosen yet
   const t = NODE_TYPES[n.type];
   if(t.modelKind && !n.fields.model){
@@ -3008,11 +3227,41 @@ function backfillModel(n){   // once a catalog arrives, give model nodes a sensi
 }
 
 /* ---------- shared searchable model picker ---------- */
+// How the list is ordered. All four are derived from real catalog fields (no curated
+// "best" list to rot): created for recency, sortUsd (cost_estimate / resolved price) for
+// cost — priciest doubles as the honest "frontier/flagship" proxy since headline models
+// (Opus, Veo3, Sora, nano-banana-pro) sit at the top of the price range.
+const PICK_SORTS = { newest:"newest", cheapest:"cheapest", premium:"priciest", name:"A→Z" };
+let pickerSort = (()=>{ try{ return PICK_SORTS[localStorage.getItem("nn_picksort")] ? localStorage.getItem("nn_picksort") : "newest"; }catch{ return "newest"; } })();
+function setPickerSort(s){
+  if(!PICK_SORTS[s]) return;
+  pickerSort = s;
+  try{ localStorage.setItem("nn_picksort", s); }catch{}
+  renderPicker();
+}
+// order the already-filtered matches by the current sort. created (native newest-first order)
+// is the tiebreak everywhere, so equal prices still read newest-first.
+function sortMatches(list){
+  const arr = list.slice();
+  if(pickerSort==="name") return arr.sort((a,b)=> a.id.localeCompare(b.id));
+  if(pickerSort==="cheapest" || pickerSort==="premium"){
+    const dir = pickerSort==="cheapest" ? 1 : -1;
+    return arr.sort((a,b)=>{
+      const pa=a.sortUsd, pb=b.sortUsd;
+      if(pa==null && pb==null) return (b.created||0)-(a.created||0);   // both unpriced → newest
+      if(pa==null) return 1;                                          // unpriced always sinks to the bottom
+      if(pb==null) return -1;
+      return pa===pb ? (b.created||0)-(a.created||0) : dir*(pa-pb);
+    });
+  }
+  return arr.sort((a,b)=> (b.created||0)-(a.created||0));   // newest (default)
+}
 let picker = null; // { kind, filter, current, onPick }
 function openPicker(kind, opts){
   picker = { kind, filter:opts.filter, current:opts.current, onPick:opts.onPick };
   // whole-phrase key so non-English can reorder ("Modelo de imagen", not the word-salad "Imagen modelo")
   $("mpicktitle").textContent = t(KIND_LABEL[kind] ? `${KIND_LABEL[kind]} model` : "Model") + (opts.filter ? ` · ${t(opts.filter)}` : "");
+  $("mpicksort").value = pickerSort;
   $("mpick").classList.add("open");
   $("mpickback").classList.add("show");
   $("mpicksearch").value = "";
@@ -3031,9 +3280,8 @@ function pickerMatches(){
 }
 function renderPicker(){
   if(!picker) return;
-  const q = $("mpicksearch").value.trim().toLowerCase();
-  const matches = pickerMatches();
-  $("mpickcount").textContent = `${matches.length} ${matches.length===1?t("model"):t("models")}${q?"":` · ${t("newest first")}`}`;
+  const matches = sortMatches(pickerMatches());
+  $("mpickcount").textContent = `${matches.length} ${matches.length===1?t("model"):t("models")} · ${t(PICK_SORTS[pickerSort])}`;
   const frag = document.createDocumentFragment();
   for(const m of matches.slice(0,400)){
     const b = document.createElement("button");
@@ -3600,6 +3848,7 @@ function buildNodeEl(n){
       <button class="hbtn" data-act="run" title="run this branch">▶</button>
       <button class="hbtn" data-act="del" title="delete (Del)">✕</button>
     </header>
+    <input class="node-name" value="${esc(n.name||"")}" placeholder="${esc(t.title)}" aria-label="Rename this node" maxlength="60" spellcheck="false" />
     <div class="ports">
       <div class="col in">${inRows}</div>
       <div class="col out">${outRows}</div>
@@ -3617,6 +3866,15 @@ function buildNodeEl(n){
     inp.addEventListener(ev, ()=>{ n.fields[f] = inp.type==="checkbox" ? inp.checked : inp.value; save(); });
     inp.addEventListener("pointerdown", e=>e.stopPropagation()); // don't drag node when editing
   });
+  // rename field — writes n.name (a display label, not a graph field). Lives outside <header>
+  // so the header's drag handler can't fire from it; stopPropagation guards node select/drag.
+  const nm = el.querySelector(".node-name");
+  if(nm){
+    nm.addEventListener("input", ()=>{ n.name = nm.value; save(); });
+    nm.addEventListener("blur",  ()=>{ n.name = nm.value.trim(); if(!n.name) delete n.name; save(); });
+    nm.addEventListener("pointerdown", e=>e.stopPropagation());
+    nm.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); nm.blur(); } });
+  }
   // model picker button
   const mp = el.querySelector(".modelpick");
   if(mp){
@@ -3748,13 +4006,22 @@ function addFieldPorts(n){
 }
 
 // Restore any saved per-field textarea heights so a stretched layout survives reload/share
-// (card width is restored in buildNodeEl from n.w). Live resizing is driven by the node's
-// corner grip → startNodeResize, which writes n.w + n.sizes; nothing reacts to layout reflow.
+// (card width is restored in buildNodeEl from n.w). Height also grows two other ways: the node's
+// corner grip → startNodeResize (primary prompt only), and each textarea's own native resize
+// handle (resize:vertical) — the observer below captures the latter so ANY field's stretch persists.
 function prepTextareas(n){
   if(!n.el) return;
   n.el.querySelectorAll("textarea[data-f],textarea[data-pf]").forEach(ta=>{
     const field = ta.dataset.f || ta.dataset.pf;
     if(n.sizes && n.sizes[field] && !ta.style.height) ta.style.height = n.sizes[field]+"px";
+    if(ta.dataset.htObserved) return;      // one observer per element (survives param rebuilds)
+    ta.dataset.htObserved = "1";
+    let lastH = ta.offsetHeight;
+    new ResizeObserver(()=>{
+      const h = ta.offsetHeight;
+      if(h===lastH) return;                // width-only reflow (card resize) — don't touch height
+      lastH = h; (n.sizes ||= {})[field] = h; save();
+    }).observe(ta);
   });
 }
 
@@ -5121,8 +5388,293 @@ async function trimAudioToWavUrl(url, start, len, rate){
    re-record the painted frames into ONE clip via MediaRecorder. captureStream(0) + the manual
    requestFrame() give frame-exact control, so `dedup` can drop each subsequent clip's first
    frame — which duplicates the previous clip's last frame when clips are chained from one
-   another. Output is mp4 where the browser can record it (current Chrome/Safari), else webm.
+   another. The played <video> stays MUTED: an UNmuted element syncs its picture to the audio clock
+   and drops video frames under load, which lost ~a second of each clip right at the seam. Instead
+   each clip's audio is decoded up front (Web Audio) and played from a buffer into the recorded
+   stream the instant that clip's first frame paints — so sound rides along without touching the
+   frame pace, and a silent clip just contributes silence. A silent keep-alive source feeds the
+   audio track for the whole recording so it never starves (an unfed track collapses the pacing).
+   Output is mp4 where the browser can record it (current Chrome/Safari), else webm.
    Everything stays same-origin (remote clips fetched to a blob first), so no new origins/CSP. */
+/* ---- Lossless in-browser mp4 concatenation (Combine node) --------------------------------------
+   Copies the compressed H.264+AAC samples from each clip onto one timeline and writes a single mp4:
+   no decode/re-encode, no MediaRecorder, no AudioContext. Duration is exact by construction and it
+   avoids the canvas-captureStream + audio-track path that mangled the picture. Used when every clip
+   is mp4 with matching codec params; concatVideos falls back to the recorder otherwise. No backticks
+   (check-html-js). Everything is scoped in this IIFE so its short helper names can't collide. */
+const MP4CAT = (()=>{
+const fourcc = (dv, p) => String.fromCharCode(dv.getUint8(p), dv.getUint8(p+1), dv.getUint8(p+2), dv.getUint8(p+3));
+
+function walk(dv, start, end){
+  const out = [];
+  let p = start;
+  while(p + 8 <= end){
+    let size = dv.getUint32(p);
+    const type = fourcc(dv, p+4);
+    let hs = 8;
+    if(size === 1){ size = Number(dv.getBigUint64(p+8)); hs = 16; }
+    else if(size === 0){ size = end - p; }
+    if(size < 8 || p + size > end) break;
+    out.push({ type, start: p, end: p+size, body: p+hs });
+    p += size;
+  }
+  return out;
+}
+const find = (boxes, type) => boxes.find(b => b.type === type);
+
+// Scan a byte range for a box of the given 4cc and return its bytes (used to pull avcC/esds out of
+// an stsd for the match gate — the surrounding sample entry can carry clip-specific boxes like btrt).
+function scanForBox(u8, type){
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  for(let p=0; p+8<=u8.length; p++){
+    if(fourcc(dv, p+4) === type){
+      const size = dv.getUint32(p);
+      if(size >= 8 && p + size <= u8.length) return u8.slice(p, p+size);
+    }
+  }
+  return null;
+}
+
+// Parse one mp4 into { moovTimescale, tracks:[{kind, timescale, stsdRaw, samples:[{offset,size,dur,cts,sync}], width,height}] }
+function parseMp4(u8){
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  const top = walk(dv, 0, u8.byteLength);
+  const moov = find(top, "moov");
+  if(!moov) throw new Error("no moov");
+  const moovBoxes = walk(dv, moov.body, moov.end);
+  const traks = moovBoxes.filter(b => b.type === "trak");
+  const tracks = [];
+  for(const trak of traks){
+    const tb = walk(dv, trak.body, trak.end);
+    const mdia = find(tb, "mdia"); if(!mdia) continue;
+    const mb = walk(dv, mdia.body, mdia.end);
+    const mdhd = find(mb, "mdhd");
+    const hdlr = find(mb, "hdlr");
+    const mdhdV1 = dv.getUint8(mdhd.body) === 1;
+    // v0: [ver/flags 4][ctime 4][mtime 4][timescale 4]; v1: [ver/flags 4][ctime 8][mtime 8][timescale 4]
+    const timescale = dv.getUint32(mdhd.body + (mdhdV1 ? 20 : 12));
+    const handler = fourcc(dv, hdlr.body + 8); // after ver/flags(4)+pre_defined(4)
+    const kind = handler === "vide" ? "video" : handler === "soun" ? "audio" : handler;
+    const minf = find(mb, "minf"); const minfB = walk(dv, minf.body, minf.end);
+    const stbl = find(minfB, "stbl"); const sb = walk(dv, stbl.body, stbl.end);
+    const stsd = find(sb, "stsd");
+    const stsdRaw = u8.slice(stsd.start, stsd.end); // whole stsd box, copied verbatim into output
+    // codec config only (SPS/PPS or audio decoder config) — the equality signal for the match gate,
+    // excluding clip-specific sample-entry boxes (btrt etc) that differ by content.
+    const codecCfg = scanForBox(stsdRaw, kind==="video" ? "avcC" : "esds")
+                  || scanForBox(stsdRaw, "hvcC") || scanForBox(stsdRaw, "vpcC") || scanForBox(stsdRaw, "av1C");
+    // video dims from tkhd
+    let width = 0, height = 0;
+    const tkhd = find(tb, "tkhd");
+    if(tkhd && kind === "video"){ width = dv.getUint16(tkhd.end - 8) ; height = dv.getUint16(tkhd.end - 4); }
+    // audio rate/channels from the mp4a sample entry (esds carries clip-specific bitrate, so it's not
+    // a stable equality signal — rate+channels is what decides concat compatibility).
+    let channels = 0, sampleRate = 0;
+    if(kind === "audio"){ const mp4a = scanForBox(stsdRaw, "mp4a"); if(mp4a){ const adv = new DataView(mp4a.buffer, mp4a.byteOffset, mp4a.byteLength); channels = adv.getUint16(24); sampleRate = adv.getUint16(32); } }
+
+    // --- sample tables ---
+    const stts = find(sb, "stts"), stsc = find(sb, "stsc"), stsz = find(sb, "stsz");
+    const stco = find(sb, "stco"), co64 = find(sb, "co64"), ctts = find(sb, "ctts"), stss = find(sb, "stss");
+
+    // stsz
+    const stszSampleSize = dv.getUint32(stsz.body + 4);
+    const sampleCount = dv.getUint32(stsz.body + 8);
+    const sizes = new Array(sampleCount);
+    if(stszSampleSize === 0){ for(let i=0;i<sampleCount;i++) sizes[i] = dv.getUint32(stsz.body + 12 + i*4); }
+    else sizes.fill(stszSampleSize);
+
+    // stts -> per-sample duration
+    const sttsN = dv.getUint32(stts.body + 4);
+    const durs = new Array(sampleCount); let si = 0;
+    for(let e=0;e<sttsN;e++){ const cnt = dv.getUint32(stts.body + 8 + e*8); const delta = dv.getUint32(stts.body + 12 + e*8); for(let k=0;k<cnt && si<sampleCount;k++) durs[si++] = delta; }
+    while(si < sampleCount) durs[si++] = durs[si-2] || 0;
+
+    // ctts -> per-sample composition offset (may be signed in v1; treat as int32)
+    const cts = new Array(sampleCount).fill(0);
+    if(ctts){ const n = dv.getUint32(ctts.body + 4); let ci = 0; for(let e=0;e<n;e++){ const cnt = dv.getUint32(ctts.body + 8 + e*8); const off = dv.getInt32(ctts.body + 12 + e*8); for(let k=0;k<cnt && ci<sampleCount;k++) cts[ci++] = off; } }
+
+    // stss -> sync set (1-based). absent => all sync
+    let syncSet = null;
+    if(stss){ syncSet = new Set(); const n = dv.getUint32(stss.body + 4); for(let e=0;e<n;e++) syncSet.add(dv.getUint32(stss.body + 8 + e*4)); }
+
+    // chunk offsets
+    const co = stco || co64; const is64 = !!co64;
+    const coN = dv.getUint32(co.body + 4);
+    const chunkOffsets = new Array(coN);
+    for(let e=0;e<coN;e++) chunkOffsets[e] = is64 ? Number(dv.getBigUint64(co.body + 8 + e*8)) : dv.getUint32(co.body + 8 + e*4);
+
+    // stsc -> samples per chunk
+    const stscN = dv.getUint32(stsc.body + 4);
+    const stscEntries = [];
+    for(let e=0;e<stscN;e++) stscEntries.push({ first: dv.getUint32(stsc.body + 8 + e*12), spc: dv.getUint32(stsc.body + 12 + e*12) });
+
+    // compute per-sample file offset
+    const samples = [];
+    let sIdx = 0;
+    for(let c=0;c<coN;c++){
+      // samples in this chunk = spc from the applicable stsc entry
+      let spc = 1;
+      for(let e=stscEntries.length-1;e>=0;e--){ if((c+1) >= stscEntries[e].first){ spc = stscEntries[e].spc; break; } }
+      let off = chunkOffsets[c];
+      for(let k=0;k<spc && sIdx<sampleCount;k++){
+        samples.push({ offset: off, size: sizes[sIdx], dur: durs[sIdx], cts: cts[sIdx], sync: syncSet ? syncSet.has(sIdx+1) : true });
+        off += sizes[sIdx];
+        sIdx++;
+      }
+    }
+    if(samples.length !== sampleCount) throw new Error("sample count mismatch " + samples.length + "/" + sampleCount);
+    tracks.push({ kind, timescale, stsdRaw, codecCfg, samples, width, height, channels, sampleRate });
+  }
+  return { tracks };
+}
+
+// ---- box writers ----
+const enc = (s) => Uint8Array.from(s, c => c.charCodeAt(0));
+function u32(n){ const a = new Uint8Array(4); new DataView(a.buffer).setUint32(0, n>>>0); return a; }
+function u16(n){ const a = new Uint8Array(2); new DataView(a.buffer).setUint16(0, n & 0xffff); return a; }
+function concat(arrs){ let len=0; for(const a of arrs) len += a.length; const out = new Uint8Array(len); let p=0; for(const a of arrs){ out.set(a, p); p += a.length; } return out; }
+function box(type, ...payload){ const body = concat(payload); return concat([u32(body.length + 8), enc(type), body]); }
+function fullbox(type, version, flags, ...payload){ return box(type, Uint8Array.from([version, (flags>>16)&255, (flags>>8)&255, flags&255]), ...payload); }
+
+function rle(values){ // -> [count,val] runs, returns entries array of Uint8Array pairs
+  const runs = []; let i=0;
+  while(i<values.length){ let j=i+1; while(j<values.length && values[j]===values[i]) j++; runs.push([j-i, values[i]]); i=j; }
+  return runs;
+}
+
+// Concatenate. buffers: array of Uint8Array (whole mp4 files). opts.dedup drops each later clip's first video sample.
+function concatMp4(buffers, opts){
+  const dedup = !!(opts && opts.dedup);
+  const parsed = buffers.map(parseMp4);
+  // gather track kinds present in clip0
+  const base = parsed[0];
+  const outTracks = [];
+  for(let ti=0; ti<base.tracks.length; ti++){
+    const kind = base.tracks[ti].kind;
+    if(kind !== "video" && kind !== "audio") continue;
+    const outTs = base.tracks[ti].timescale;
+    const merged = { kind, timescale: outTs, stsdRaw: base.tracks[ti].stsdRaw, width: base.tracks[ti].width, height: base.tracks[ti].height, samples: [] };
+    for(let ci=0; ci<parsed.length; ci++){
+      const t = parsed[ci].tracks.find((x,i)=> x.kind===kind && (kind!=="video" || true) );
+      if(!t){ throw new Error("clip "+ci+" missing "+kind+" track"); }
+      const scale = outTs / t.timescale;
+      let list = t.samples;
+      if(dedup && kind==="video" && ci>0) list = list.slice(1);
+      for(const s of list){
+        merged.samples.push({ bufIdx: ci, offset: s.offset, size: s.size, dur: Math.round(s.dur*scale), cts: Math.round(s.cts*scale), sync: s.sync });
+      }
+    }
+    outTracks.push(merged);
+  }
+
+  // Build mdat first so chunk offsets are known. Layout: ftyp + mdat + moov.
+  const ftyp = box("ftyp", enc("isom"), u32(0x200), enc("isomiso2avc1mp41"));
+  // assemble mdat data, recording each sample's absolute offset
+  const mdatParts = [];
+  let cursor = ftyp.length + 8; // 8 = mdat header
+  for(const t of outTracks){
+    for(const s of t.samples){
+      s.newOffset = cursor;
+      const src = buffers[s.bufIdx].subarray(s.offset, s.offset + s.size);
+      mdatParts.push(src);
+      cursor += s.size;
+    }
+  }
+  const mdatData = concat(mdatParts);
+  const mdat = concat([u32(mdatData.length + 8), enc("mdat"), mdatData]);
+
+  // moov
+  const mvTimescale = 1000;
+  let maxDurMs = 0;
+  const trakBoxes = [];
+  let trackId = 1;
+  for(const t of outTracks){
+    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);
+    const durMs = Math.round(totalTicks / t.timescale * mvTimescale);
+    if(durMs > maxDurMs) maxDurMs = durMs;
+
+    // stbl children
+    const sttsRuns = rle(t.samples.map(s=>s.dur));
+    const stts = fullbox("stts", 0, 0, u32(sttsRuns.length), ...sttsRuns.map(r=>concat([u32(r[0]), u32(r[1])])));
+    const stsz = fullbox("stsz", 0, 0, u32(0), u32(t.samples.length), ...t.samples.map(s=>u32(s.size)));
+    const stsc = fullbox("stsc", 0, 0, u32(1), concat([u32(1), u32(1), u32(1)]));
+    const stco = fullbox("stco", 0, 0, u32(t.samples.length), ...t.samples.map(s=>u32(s.newOffset)));
+    const children = [t.stsdRaw, stts];
+    if(t.kind==="video"){
+      const anyCts = t.samples.some(s=>s.cts!==0);
+      if(anyCts){ const cttsRuns = rle(t.samples.map(s=>s.cts)); children.push(fullbox("ctts", 0, 0, u32(cttsRuns.length), ...cttsRuns.map(r=>concat([u32(r[0]), u32(r[1]>>>0)])))); }
+      const syncIdx = []; t.samples.forEach((s,i)=>{ if(s.sync) syncIdx.push(i+1); });
+      if(syncIdx.length && syncIdx.length !== t.samples.length) children.push(fullbox("stss", 0, 0, u32(syncIdx.length), ...syncIdx.map(u32)));
+    }
+    children.push(stsc, stsz, stco);
+    const stbl = box("stbl", ...children);
+
+    const mediaHeader = t.kind==="video"
+      ? box("vmhd", Uint8Array.from([0,0,0,1]), new Uint8Array(8))
+      : box("smhd", new Uint8Array(8));
+    const dref = fullbox("dref", 0, 0, u32(1), fullbox("url ", 0, 1));
+    const dinf = box("dinf", dref);
+    const minf = box("minf", mediaHeader, dinf, stbl);
+
+    const hdlrName = enc(t.kind==="video" ? "VideoHandler\0" : "SoundHandler\0");
+    const hdlr = fullbox("hdlr", 0, 0, u32(0), enc(t.kind==="video"?"vide":"soun"), new Uint8Array(12), hdlrName);
+    const mdhd = fullbox("mdhd", 0, 0, u32(0), u32(0), u32(t.timescale), u32(totalTicks), Uint8Array.from([0x55,0xc4,0,0]));
+    const mdia = box("mdia", mdhd, hdlr, minf);
+
+    // tkhd (enabled+in_movie flags=7)
+    const w = (t.width||0), h = (t.height||0);
+    const tkhdBody = concat([
+      u32(0), u32(0), u32(trackId), u32(0), u32(durMs),
+      new Uint8Array(8), u16(0), u16(0), u16(t.kind==="audio"?0x0100:0), u16(0),
+      // matrix
+      concat([u32(0x00010000),u32(0),u32(0),u32(0),u32(0x00010000),u32(0),u32(0),u32(0),u32(0x40000000)]),
+      u32(w<<16), u32(h<<16)
+    ]);
+    const tkhd = fullbox("tkhd", 0, 7, tkhdBody);
+    trakBoxes.push(box("trak", tkhd, mdia));
+    trackId++;
+  }
+  const mvhd = fullbox("mvhd", 0, 0, u32(0), u32(0), u32(mvTimescale), u32(maxDurMs),
+    u32(0x00010000), u16(0x0100), u16(0), new Uint8Array(8),
+    concat([u32(0x00010000),u32(0),u32(0),u32(0),u32(0x00010000),u32(0),u32(0),u32(0),u32(0x40000000)]),
+    new Uint8Array(24), u32(trackId));
+  const moov = box("moov", mvhd, ...trakBoxes);
+
+  return concat([ftyp, mdat, moov]);
+}
+
+// quick sniff
+function isMp4(u8){ if(u8.length<12) return false; const dv=new DataView(u8.buffer,u8.byteOffset,u8.byteLength); return fourcc(dv,4)==="ftyp"; }
+
+function bytesEqual(a, b){ if(!a || !b || a.length !== b.length) return false; for(let i=0;i<a.length;i++) if(a[i]!==b[i]) return false; return true; }
+
+// Strict gate: every clip must have the same track shape and byte-identical codec config
+// (avcC / esds live in stsd). A false positive silently corrupts output, so default to NO on any doubt.
+function mp4ParamsMatch(bufs){
+  try{
+    if(bufs.length < 2) return false;
+    const ps = bufs.map(parseMp4);
+    const sig = (p)=>{
+      const vids = p.tracks.filter(t=>t.kind==="video");
+      const auds = p.tracks.filter(t=>t.kind==="audio");
+      if(vids.length !== 1) return null;                 // need exactly one video track
+      if(auds.length > 1) return null;
+      return { v: vids[0], a: auds[0] || null, na: auds.length };
+    };
+    const base = sig(ps[0]); if(!base) return false;
+    for(let i=1;i<ps.length;i++){
+      const s = sig(ps[i]); if(!s) return false;
+      if(s.na !== base.na) return false;                 // all-or-none audio
+      if(s.v.width !== base.v.width || s.v.height !== base.v.height) return false;
+      if(!bytesEqual(s.v.codecCfg, base.v.codecCfg)) return false;   // same video SPS/PPS (avcC)
+      if(base.a && (s.a.sampleRate !== base.a.sampleRate || s.a.channels !== base.a.channels)) return false; // audio concat-compatible
+    }
+    return true;
+  }catch(e){ return false; }
+}
+  return { concatMp4, isMp4, mp4ParamsMatch, parseMp4 };
+})();
+
 function pickVideoMime(){
   if(typeof MediaRecorder === "undefined") throw new Error("this browser can’t record video (no MediaRecorder)");
   const prefs = ["video/mp4;codecs=avc1.42E01E","video/mp4","video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"];
@@ -5137,55 +5689,128 @@ function loadVideoMeta(src){
     v.onerror = ()=> rej(new Error("could not read a clip"));
   });
 }
-// play one clip start→end, painting each presented frame onto the shared canvas and pushing it
-// into the recorder; skipFirst drops the opening frame (the seam duplicate on chained clips).
-function recordClip(src, c2d, W, H, track, skipFirst){
+// Decode a clip to its first frame WITHOUT playing it, so the caller can line every clip up
+// before recording starts. Loading inside the record loop instead froze each seam while the next
+// clip fetched+decoded — dead wall-clock that both stretched the output past the clips' real
+// length and slid the audio timeline late (the "55s clip, audio comes in seconds after the video"
+// bug). Returns a MUTED, ready-to-play <video>; the element stays muted because an unmuted one
+// syncs its video to the audio clock and drops frames under load — clip audio is mixed separately.
+function prepClip(src){
   return new Promise((resolve, reject)=>{
     const vid = document.createElement("video");
-    vid.muted = true; vid.playsInline = true; vid.crossOrigin = "anonymous"; vid.src = src;
+    vid.muted = true; vid.playsInline = true; vid.crossOrigin = "anonymous"; vid.preload = "auto"; vid.src = src;
+    vid.onerror = ()=> reject(new Error("could not load a clip"));
+    vid.onloadeddata = ()=>{
+      if(typeof vid.requestVideoFrameCallback !== "function") return reject(new Error("this browser can’t read video frames (no requestVideoFrameCallback)"));
+      resolve(vid);
+    };
+  });
+}
+// Play one already-decoded clip start→end, painting each presented frame onto the shared canvas and
+// pushing it into the recorder; skipFirst drops the opening frame (the seam duplicate on chained
+// clips). onFirstFrame fires when this clip's opening frame is actually painted, so the caller can
+// start this clip's decoded audio in lockstep (a startup stall then delays picture+sound alike).
+function recordClip(vid, c2d, W, H, track, skipFirst, onFirstFrame){
+  return new Promise((resolve, reject)=>{
     let seen = 0, finished = false;
     const cleanup = ()=>{ try{ vid.pause(); }catch{} vid.removeAttribute("src"); vid.load(); };
     const finish = ()=>{ if(finished) return; finished = true; cleanup(); resolve(); };
     const onFrame = ()=>{
       if(finished) return;
       seen++;
+      if(seen===1 && onFirstFrame) onFirstFrame();
       if(!(skipFirst && seen===1)){ c2d.drawImage(vid, 0, 0, W, H); track.requestFrame(); }
       if(vid.ended) return finish();
       vid.requestVideoFrameCallback(onFrame);
     };
     vid.onended = finish;
     vid.onerror = ()=>{ cleanup(); reject(new Error("could not play a clip")); };
-    vid.onloadeddata = ()=>{
-      if(typeof vid.requestVideoFrameCallback !== "function"){ cleanup(); return reject(new Error("this browser can’t read video frames (no requestVideoFrameCallback)")); }
-      vid.requestVideoFrameCallback(onFrame);
-      vid.play().catch(reject);
-    };
+    vid.requestVideoFrameCallback(onFrame);
+    vid.play().catch(reject);
   });
 }
+// Combine dispatcher: try lossless mp4 remux first (exact, no re-encode, and it dodges the
+// MediaRecorder+audio-track path that corrupted the video); fall back to the real-time recorder for
+// non-mp4 clips or mismatched codecs/params. dedup (seam-frame trim) applies only to the recorder;
+// remux never drops a frame (dropping a clip's first sample would kill its keyframe and freeze it).
 async function concatVideos(urls, dedup, onProgress){
+  try{
+    const bufs = [];
+    for(const u of urls){ const h = await toLocalMediaUrl(u); try{ bufs.push(new Uint8Array(await (await fetch(h.src, {signal:runSignal()})).arrayBuffer())); } finally{ h.revoke && h.revoke(); } }
+    if(bufs.length >= 2 && bufs.every(b=>MP4CAT.isMp4(b)) && MP4CAT.mp4ParamsMatch(bufs)){
+      onProgress && onProgress("combining clips…");
+      const out = MP4CAT.concatMp4(bufs, { dedup:false });
+      return URL.createObjectURL(new Blob([out], { type:"video/mp4" }));
+    }
+  }catch(e){ if(e && e.name === "AbortError") throw e; /* else fall back to the recorder */ }
+  return concatViaRecorder(urls, dedup, onProgress);
+}
+async function concatViaRecorder(urls, dedup, onProgress){
   const handles = [];
   for(const u of urls) handles.push(await toLocalMediaUrl(u));
+  let ac = null; let vids = [];
   try{
     const mime = pickVideoMime();
-    const { w:W, h:H } = await loadVideoMeta(handles[0].src);
+    // Decode every clip to its first frame BEFORE recording, so seams don't freeze while the next
+    // clip loads (that dead time was padding the output well past the clips' real combined length).
+    for(let i=0;i<handles.length;i++){ onProgress && onProgress(`loading clip ${i+1}/${handles.length}…`); vids.push(await prepClip(handles[i].src)); }
+    const W = vids[0].videoWidth||1280, H = vids[0].videoHeight||720;
     const canvas = document.createElement("canvas"); canvas.width = W; canvas.height = H;
     const c2d = canvas.getContext("2d");
     if(typeof canvas.captureStream !== "function") throw new Error("this browser can’t capture a canvas stream");
     const stream = canvas.captureStream(0);            // 0 fps = we drive every frame by hand
     const track = stream.getVideoTracks()[0];
-    const rec = new MediaRecorder(stream, { mimeType:mime, videoBitsPerSecond: 16_000_000 });
+    // Decode each clip's audio up front and add one live audio track. Best-effort: if Web Audio is
+    // unavailable we simply record video only, as before, rather than failing the combine.
+    let dest = null; const buffers = [];
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(AC){
+      try{
+        ac = new AC();
+        // Nudge the context awake, but never block on it: resume() can stall indefinitely where no
+        // audio device is present, and we must not hang the combine — the recorder captures the track
+        // in real time regardless, so a slow/failed resume just means (at worst) a silent result.
+        if(ac.state === "suspended"){ await Promise.race([ Promise.resolve(ac.resume()).catch(()=>{}), new Promise(r=> setTimeout(r, 1500)) ]); }
+        for(const h of handles){
+          onProgress && onProgress("preparing audio…");
+          try{ buffers.push(await ac.decodeAudioData(await (await fetch(h.src, {signal:runSignal()})).arrayBuffer())); }
+          catch{ buffers.push(null); }                  // no/undecodable audio track → this clip stays silent
+        }
+        dest = ac.createMediaStreamDestination();
+        const atrack = dest.stream.getAudioTracks()[0];
+        if(atrack){
+          stream.addTrack(atrack);
+          // Keep-alive: a silent source feeds the destination for the whole recording so the audio
+          // track never starves. An added track that produces no samples (a clip with no audio, esp.
+          // the first) collapses captureStream(0)'s pacing and truncates the video. Clip audio rides
+          // on top of this silence; offset 0 means it's inaudible.
+          const keep = ac.createConstantSource(); keep.offset.value = 0; keep.connect(dest); keep.start();
+        } else dest = null;
+      }catch{ dest = null; try{ ac && ac.close(); }catch{} ac = null; }
+    }
+    // Scale the bitrate to the frame size instead of a flat 16 Mbps. 16 Mbps was ~3× what a 720p
+    // clip needs and made the encoder the bottleneck — when it can't keep up the source <video>
+    // drops below real time, which stretches the whole recording (its length IS its wall-clock) into
+    // slow motion and slides the separately-clocked audio out of sync. ~0.2 bits/pixel/frame keeps
+    // quality while leaving the encoder comfortably real-time; clamped so tiny/huge clips stay sane.
+    const vbps = Math.max(3_000_000, Math.min(12_000_000, Math.round(W * H * 30 * 0.2)));
+    const rec = new MediaRecorder(stream, { mimeType:mime, videoBitsPerSecond: vbps });
     const chunks = []; rec.ondataavailable = e=>{ if(e.data && e.data.size) chunks.push(e.data); };
     const stopped = new Promise((res, rej)=>{ rec.onstop = res; rec.onerror = e=> rej((e && e.error) || new Error("recording failed")); });
     rec.start();
     for(let i=0;i<handles.length;i++){
       onProgress && onProgress(`combining clip ${i+1}/${handles.length}…`);
-      await recordClip(handles[i].src, c2d, W, H, track, dedup && i>0);
+      // Start this clip's decoded audio the instant its first frame paints, so a startup stall delays
+      // picture and sound together instead of losing frames while the audio timeline runs ahead.
+      const buf = dest && buffers[i];
+      const onFirstFrame = buf ? ()=>{ try{ const s = ac.createBufferSource(); s.buffer = buf; s.connect(dest); s.start(); }catch{} } : null;
+      await recordClip(vids[i], c2d, W, H, track, dedup && i>0, onFirstFrame);
     }
     rec.stop();
     await stopped;
     track.stop();
     return URL.createObjectURL(new Blob(chunks, { type: mime.split(";")[0] }));
-  } finally { handles.forEach(h=> h.revoke && h.revoke()); }
+  } finally { vids.forEach(v=>{ try{ v.pause(); v.removeAttribute("src"); v.load(); }catch{} }); handles.forEach(h=> h.revoke && h.revoke()); try{ ac && ac.close(); }catch{} }
 }
 const sleep = (ms)=> new Promise(res=> setTimeout(res, ms));
 // async audio (music / some TTS): submit returns {status:"pending", runId} → poll /api/tts/status until completed
@@ -5386,11 +6011,12 @@ mqMobile.addEventListener("change", layoutBar);
 
 // picker interactions
 $("mpicksearch").addEventListener("input", renderPicker);
+$("mpicksort").addEventListener("change", e=> setPickerSort(e.target.value));
 $("mpicksearch").addEventListener("keydown", e=>{
   if(e.key==="Enter"){
     e.preventDefault();
     if(!picker) return;
-    const top = pickerMatches()[0], v = $("mpicksearch").value.trim();
+    const top = sortMatches(pickerMatches())[0], v = $("mpicksearch").value.trim();
     if(top){ picker.onPick(top.id); closePicker(); }            // select the model you're looking at…
     else if(v){ picker.onPick(v); closePicker(); }              // …or, with no match, take a typed id verbatim
   }
@@ -5405,7 +6031,7 @@ $("mpickback").onclick = closePicker;
 function serializeGraph(){
   return {
     v:1,
-    nodes: graph.nodes.map(n=>({id:n.id,type:n.type,x:n.x,y:n.y,fields:n.fields,w:n.w,sizes:n.sizes})),
+    nodes: graph.nodes.map(n=>({id:n.id,type:n.type,x:n.x,y:n.y,fields:n.fields,w:n.w,sizes:n.sizes,...(n.name&&n.name.trim()?{name:n.name.trim()}:{})})),
     links: graph.links, nid, lid, view:{panX,panY,scale}
   };
 }
@@ -5466,6 +6092,7 @@ const RESUME_APPTITLE_KEY = "noodle_resume_apptitle";  // and its name, for the 
 const EDITOR_APP_KEY = "noodle_editor_app";  // localStorage: {id,title} of the app THIS workflow is bound to, so the binding survives a plain reload (not just OAuth)
 let saveT=null;
 function save(){
+  refreshRunEstimate();                 // keep the bottom-right run cost live as the graph is edited
   clearTimeout(saveT);
   saveT = setTimeout(()=>{
     try{ localStorage.setItem("noodle_graph", JSON.stringify(serializeGraph())); }
@@ -5487,6 +6114,7 @@ function pushUndo(){              // call BEFORE a structural mutation — recor
   undoStack.push(_snap());
   if(undoStack.length > UNDO_DEPTH) undoStack.shift();   // oldest steps fall off
   redoStack.length = 0;          // a fresh edit forks history — drop the redo tail
+  syncUndoBtn();
 }
 function _restore(from, to){
   if(!from.length) return;
@@ -5495,8 +6123,9 @@ function _restore(from, to){
   try{ applyGraphData(JSON.parse(from.pop())); } finally { undoMuted = false; }
   save();
 }
-const undo = ()=> _restore(undoStack, redoStack);
-const redo = ()=> _restore(redoStack, undoStack);
+function syncUndoBtn(){ const b=$("undo"); if(b) b.disabled = !undoStack.length; }   // hide the button when there's nothing to undo
+const undo = ()=> { _restore(undoStack, redoStack); syncUndoBtn(); };
+const redo = ()=> { _restore(redoStack, undoStack); syncUndoBtn(); };
 function load(){
   const raw = localStorage.getItem("noodle_graph");
   if(!raw) return false;
@@ -5526,6 +6155,8 @@ function loadFile(file){
 $("save").onclick = saveFile;
 $("load").onclick = ()=> $("loadfile").click();
 $("fit").onclick = fitView;
+$("undo").onclick = undo;
+syncUndoBtn();   // start hidden — no edits yet
 $("loadfile").onchange = (e)=>{ loadFile(e.target.files[0]); e.target.value=""; };
 
 /* ---------- shareable link: graph packed into the URL hash ---------- */
@@ -5596,7 +6227,9 @@ async function shareUrl(){
   openShareMenu(url);                                // same popover the app share uses: copy / shorten / share-to-social
 }
 // ---- share popover (ported from play.html's app share; reused here for the workflow link) ----
-let curShareUrl = "";   // the link the popover currently reflects (long, or a shortened one)
+let curShareUrl = "";    // the link the popover currently reflects (long, or a shortened one)
+let curLongShareUrl = ""; // the FULL long link the popover was opened with — what shortening always acts on
+                          // (the editor keeps its own URL clean, so location.hash is empty/stale by shorten time)
 function setShareUrl(u){
   curShareUrl = u;
   $("sm-url").value = u;
@@ -5610,7 +6243,7 @@ function setShareUrl(u){
   };
   document.querySelectorAll("#sharemenu .sm-social a").forEach(a => a.href = soc[a.dataset.soc]);
 }
-function openShareMenu(url){ setShareUrl(url); $("sharemenu").hidden = false; $("shareback").hidden = false; }
+function openShareMenu(url){ curLongShareUrl = url; setShareUrl(url); $("sharemenu").hidden = false; $("shareback").hidden = false; }
 function closeShareMenu(){ $("sharemenu").hidden = true; $("shareback").hidden = true; }
 // Set when this editor session is editing the workflow of an existing app (carried in
 // via #ga= or the modal's __editflow__ message). "Create app" hands the graph back under
@@ -5673,7 +6306,7 @@ $("sm-copy").onclick = async ()=>{ const ok = await copyText(curShareUrl); toast
 $("sm-url").onclick = ()=> $("sm-url").select();
 document.querySelectorAll("#sharemenu .sm-svc button").forEach(btn => btn.onclick = async ()=>{
   const svc = btn.dataset.svc, label = btn.textContent.trim();
-  const longUrl = location.origin + location.pathname + location.search + location.hash;   // shorten the full current link
+  const longUrl = curLongShareUrl || (location.origin + location.pathname + location.search + location.hash);   // the full link the popover was opened with (NOT location.hash — the editor URL is kept clean)
   const others = [...document.querySelectorAll("#sharemenu .sm-svc button")];
   others.forEach(b=> b.disabled = true);
   const o = btn.textContent; btn.textContent = "…";
@@ -5699,13 +6332,15 @@ document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && !$("sharemenu
 // re-hand-off when the app-meaningful graph actually changed.
 let appFrameLoaded = false;     // play.html is live in the iframe (don't reload it needlessly)
 let lastHandoffSig = null;      // signature of the graph last handed to the builder
-// What the builder actually consumes: node identity/type/fields + links + which app we're
-// editing. Deliberately EXCLUDES the canvas view (panX/panY/scale) and node positions/sizes —
-// panning, zooming or nudging a node must NOT count as a change, or the resume never fires.
+// What the builder actually consumes: node identity/type/name/fields + links + which app we're
+// editing. INCLUDES the custom name — it's a step's label in the built app, so renaming a node
+// is an app-meaningful change and must re-hand-off. Deliberately EXCLUDES the canvas view
+// (panX/panY/scale) and node positions/sizes — panning, zooming or nudging a node must NOT
+// count as a change, or the resume never fires. Trim to match serializeGraph/displayName.
 function appHandoffSig(){
   return JSON.stringify({
     app: pendingAppId || "",
-    nodes: graph.nodes.map(n=>({ id:n.id, type:n.type, fields:n.fields })),
+    nodes: graph.nodes.map(n=>({ id:n.id, type:n.type, name:(n.name&&n.name.trim())||"", fields:n.fields })),
     links: graph.links.map(l=>({ f:l.from, t:l.to }))
   });
 }
@@ -6334,11 +6969,12 @@ RULES for the diff:
     // Canvas edits made by hand since the current version aren't a snapshot — applyGraphData
     // below would replace the live graph and drop them. Don't interrupt to ask: just capture
     // them as a version first, so jumping away always keeps your work and parks it in the strip
-    // to return to. Compare workflow CONTENT (fields incl. uploaded media), not layout: a plain
-    // drag/pan/resize isn't an edit, but dropping in a photo IS. (toSimple strips media — it's
-    // for the planner — so it must NOT be used here, or media-only edits get silently destroyed.)
+    // to return to. Compare workflow CONTENT (fields incl. uploaded media + custom node names),
+    // not layout: a plain drag/pan/resize isn't an edit, but dropping in a photo or renaming a node
+    // IS. (toSimple strips media — it's for the planner — so it must NOT be used here, or
+    // media-only edits get silently destroyed.)
     const contentSig = g => JSON.stringify({
-      nodes:(g.nodes||[]).map(n=>({ id:n.id, type:n.type, fields:n.fields||{} })),
+      nodes:(g.nodes||[]).map(n=>({ id:n.id, type:n.type, name:(n.name&&n.name.trim())||"", fields:n.fields||{} })),
       links:(g.links||[]).map(l=>({ from:`${l.from.node}.${l.from.port}`, to:`${l.to.node}.${l.to.port}` })),
     });
     const cur = versions[curVer];
@@ -6468,6 +7104,7 @@ RULES for the diff:
   }
 })();
 </script>
+<div id="runest" hidden></div>
 <a id="legallink" href="/legal" target="_blank" rel="noopener">Terms · Privacy</a>
 </body>
 </html>

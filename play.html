@@ -60,6 +60,12 @@
   .brand .nano{ color:var(--accent); }
   .title-wrap{ max-width:42ch; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
                color:var(--ink); font-weight:600; opacity:.9; }
+  /* the app title doubles as a rename field — click it to edit in place */
+  #bar-title{ cursor:text; border-radius:.35rem; padding:.06rem .3rem; margin:0 -.3rem; outline:none; }
+  #bar-title:hover{ background:var(--panel2); }
+  #bar-title:hover::after{ content:" ✎"; opacity:.45; font-weight:400; }
+  #bar-title:focus{ background:var(--panel2); box-shadow:0 0 0 1px var(--accent-line) inset; }
+  #bar-title:focus::after{ content:none; }
   #bar .status{ font-size:.76rem; color:var(--dim); }
   #bar .sep{ width:1px; height:20px; background:var(--line); margin:0 .25rem; }
   #bar button{ font-size:.82rem; padding:.4rem .7rem; border-radius:.5rem;
@@ -121,6 +127,12 @@
             background:var(--panel2); border:1px solid var(--line); color:var(--text); text-decoration:none;
             display:inline-flex; align-items:center; gap:.3rem; }
   .sm-svc button:hover, .sm-social a:hover{ background:var(--accent-soft); border-color:var(--accent-line); }
+  /* da.gd is the default: it POSTs, so it survives the big #a= links TinyURL's GET can truncate.
+     Emphasized (bright accent ring + ✓) but still clearly a button in the row, not a filled tag. */
+  .sm-svc button.sm-primary{ background:var(--accent-soft); border-color:var(--accent); color:var(--text);
+            font-weight:700; box-shadow:inset 0 0 0 1px var(--accent); }
+  .sm-svc button.sm-primary::before{ content:"✓"; color:var(--accent); font-weight:700; }
+  .sm-svc button.sm-primary:hover{ background:var(--accent-soft); border-color:var(--accent); filter:brightness(1.1); }
   .sm-svc button:disabled{ opacity:.5; cursor:progress; }
   .sm-flag{ font-size:.66rem; color:var(--faint); }
 
@@ -291,8 +303,8 @@
   <div class="am-head">Make it shorter — optional</div>
   <p class="sm-warn">Sends this link to a third-party shortener so <em>they</em> host it. They can see the app.</p>
   <div class="sm-svc">
-    <button data-svc="tinyurl">TinyURL</button>
-    <button data-svc="dagd">da.gd</button>
+    <button data-svc="dagd" class="sm-primary" title="Recommended — handles very long links (app links can get big)">da.gd</button>
+    <button data-svc="tinyurl" title="Shorter domain, but can fail on very long links">TinyURL</button>
   </div>
 
   <div class="am-head">Share to</div>
@@ -624,6 +636,161 @@ window.NoodleApp = (function () {
       const perMin = m && m.pricing && m.pricing.per_minute;
       return (isFinite(+durationSec) && perMin!=null && isFinite(+perMin)) ? (+durationSec/60)*(+perMin) : null;
     }catch(e){ return null; }
+  }
+
+  /* ---------- PRE-RUN cost estimate ("~$X / run", next to Run) ----------
+     A forecast the app can show BEFORE you spend: every NanoGPT pricing shape → one
+     USD-per-run number. Mirrors index.html's resolver (see check-pricing.mjs) so the
+     two engines agree. Uses the public model catalog play already loads for the swap
+     dropdown; if pricing isn't available (offline export) the chip just hides. Kept
+     backtick-free — this rides in the String.raw runtime. Image is exact; video/chat/
+     audio are estimates (shown with ~): true cost depends on length & tokens. */
+  const EST = { llmInTokens:1000, llmOutTokens:500, ttsChars:600, audioSeconds:30, sttMinutes:1, videoFps:30 };
+  const _num = (x)=> (x!=null && isFinite(+x)) ? +x : null;
+  function pickByRes(map, reqRes, defRes){
+    if(!map || typeof map!=="object") return null;
+    if(reqRes!=null && _num(map[reqRes])!=null) return _num(map[reqRes]);
+    if(defRes!=null && _num(map[defRes])!=null) return _num(map[defRes]);
+    const vals = Object.values(map).map(_num).filter(v=>v!=null);
+    return vals.length ? vals[0] : null;
+  }
+  function pickObjByRes(map, reqRes, defRes){
+    if(!map || typeof map!=="object") return null;
+    if(reqRes!=null && map[reqRes] && typeof map[reqRes]==="object") return map[reqRes];
+    if(defRes!=null && map[defRes] && typeof map[defRes]==="object") return map[defRes];
+    const objs = Object.values(map).filter(v=>v && typeof v==="object");
+    return objs.length ? objs[0] : null;
+  }
+  function pickDur(p, raw, fields){
+    const f = parseFloat(fields && fields.duration);
+    if(isFinite(f) && f>0) return f;
+    const d = _num(p.default_duration) ?? _num(raw.defaultDuration);
+    if(d!=null && d>0) return d;
+    if(p.per_duration){ const k=Object.keys(p.per_duration)[0]; if(k && isFinite(+k)) return +k; }
+    if(Array.isArray(p.supported_durations) && p.supported_durations.length) return +p.supported_durations[0];
+    if(p.fixed_duration_seconds!=null) return _num(p.fixed_duration_seconds) || 5;
+    return 5;
+  }
+  function videoUnitUsd(pricing, fields){
+    const p = pricing || {}, raw = (p.raw && typeof p.raw==="object") ? p.raw : {};
+    const f = fields || {};
+    const res = f.resolution, defRes = p.default_resolution ?? raw.defaultResolution;
+    const dur = pickDur(p, raw, f);
+    const rp = (m)=> pickByRes(m, res, defRes);
+    let v;
+    if((v=rp(p.per_second_by_resolution))!=null) return v*dur;
+    if((v=rp(p.standard_prices_per_second))!=null) return v*dur;
+    if(p.per_second_by_mode){ v=_num(p.per_second_by_mode.text_to_video) ?? pickByRes(p.per_second_by_mode); if(v!=null) return v*dur; }
+    for(const k of ["text_to_video_per_second","text_image_without_audio_per_second","image_to_video_without_audio_per_second"]){
+      if(p[k]!=null){ v = (typeof p[k]==="object") ? rp(p[k]) : _num(p[k]); if(v!=null) return v*dur; }
+    }
+    if(p.base_price_per_second!=null){ const m = p.resolution_multipliers ? (rp(p.resolution_multipliers) ?? 1) : 1; v=_num(p.base_price_per_second); if(v!=null) return v*dur*m; }
+    if(p.per_second!=null){ v=_num(p.per_second); if(v!=null) return v*dur; }
+    if(p.per_duration){ const dk=String(Math.round(dur)); v=_num(p.per_duration[dk]) ?? _num(p.per_duration[String(dur)]) ?? pickByRes(p.per_duration); if(v!=null) return v; }
+    if(p.without_audio!=null || p.with_audio!=null){ v=_num(p.without_audio) ?? _num(p.with_audio); if(v!=null) return v; }
+    if(p.base_prices_by_resolution){
+      const dk=String(Math.round(dur));
+      if(p.duration_overrides && p.duration_overrides[dk]){ v=rp(p.duration_overrides[dk]); if(v!=null) return v; }
+      const base=rp(p.base_prices_by_resolution);
+      let mult=1;
+      if(p.duration_multiplier!=null) mult=_num(p.duration_multiplier) ?? 1;
+      else if(p.duration_multipliers) mult=_num(p.duration_multipliers[dk]) ?? pickByRes(p.duration_multipliers) ?? 1;
+      if(base!=null) return base*mult;
+    }
+    if((v=rp(p.per_resolution))!=null) return v;
+    if(p.base_price!=null && p.per_extra_second!=null){ const bd=_num(p.base_duration)||0; return _num(p.base_price) + Math.max(0,dur-bd)*_num(p.per_extra_second); }
+    if(p.per_video!=null){ v=_num(p.per_video); if(v!=null) return v; }
+    if(p.per_target_megapixel_second!=null){ const mp=_num(p.default_target_megapixels)||1; v=_num(p.per_target_megapixel_second)*mp*dur; return Math.max(v, _num(p.minimum_price)||0); }
+    if(p.per_frame_unit!=null){ const fpu=_num(p.frames_per_unit)||1; return (dur*EST.videoFps/fpu)*_num(p.per_frame_unit); }
+    if(p.base_price!=null){ v=_num(p.base_price); if(v!=null) return v; }
+    if(Object.keys(raw).length){
+      for(const k of ["pricesPerSecond","textToVideoPricesPerSecond","withoutAudioPricesPerSecond",
+                      "standardPricesPerSecond","standardTextToVideoPricesPerSecond","outputPricesPerSecond","fastPricesPerSecond"]){
+        if(raw[k]){ v=pickByRes(raw[k], res, defRes); if(v!=null) return v*dur; }
+      }
+      for(const k of ["withoutAudioPrices","withAudioPrices","referenceToVideoPrices"]){
+        if(raw[k]){ const inner=pickObjByRes(raw[k], res, defRes); if(inner){ const dk=String(Math.round(dur)); v=_num(inner[dk]) ?? pickByRes(inner); if(v!=null) return v; } }
+      }
+      if(raw.pricePerMegapixel!=null && raw.megapixelsByResolution){
+        const mp = _num(raw.megapixelsByResolution[res]) ?? _num(raw.megapixelsByResolution[defRes]) ?? pickByRes(raw.megapixelsByResolution);
+        const nf = _num(raw.defaultNumFrames) || (dur * (_num(raw.defaultFramesPerSecond)||24));
+        if(mp!=null) return _num(raw.pricePerMegapixel)*mp*nf;
+      }
+    }
+    return genericScanUsd(p, dur);
+  }
+  function genericScanUsd(p, dur){
+    let perSec=null, flat=null;
+    (function walk(o, key){
+      if(o==null) return;
+      if(typeof o==="number"){ if(o>0 && o<500){ if(/second|persec/i.test(key)) perSec=Math.min(perSec??Infinity,o); else flat=Math.min(flat??Infinity,o); } return; }
+      if(typeof o==="object") for(const k of Object.keys(o)) walk(o[k], k);
+    })(p, "");
+    if(perSec!=null) return perSec*dur;
+    if(flat!=null) return flat;
+    return null;
+  }
+  function chatUnitUsd(pricing, inTok, outTok){
+    if(!pricing) return null;
+    const pin=_num(pricing.prompt), pout=_num(pricing.completion);   // $ per 1M tokens
+    if(pin==null && pout==null) return null;                          // omni "varies_by_modality" → unknown
+    return ((pin||0)*(inTok ?? EST.llmInTokens) + (pout||0)*(outTok ?? EST.llmOutTokens))/1e6;
+  }
+  function audioUnitUsd(pricing, chars){
+    const p = pricing || {}, c = chars ?? EST.ttsChars;
+    if(p.per_thousand_chars!=null){ let cost=_num(p.per_thousand_chars)*(c/1000); if(p.per_generation!=null) cost+=_num(p.per_generation); return Math.max(cost, _num(p.minimum)||0); }
+    if(p.per_prompt_char_block!=null){ const bs=_num(p.prompt_char_block_size)||1; return Math.max(Math.ceil(c/bs)*_num(p.per_prompt_char_block), _num(p.minimum)||0); }
+    if(p.per_generation!=null) return _num(p.per_generation);
+    if(p.per_second!=null) return Math.max(_num(p.per_second)*EST.audioSeconds, _num(p.minimum)||0);
+    if(p.per_minute!=null) return _num(p.per_minute)*EST.sttMinutes;
+    return null;
+  }
+  function imageUsd(pricing, size, count){
+    const per = (pricing && pricing.per_image) || {};
+    const v = per[size] ?? per.square ?? per.square_hd ?? Object.values(per)[0];
+    return (v!=null && isFinite(+v)) ? +v*(count||1) : null;
+  }
+  // one node's USD/run from its chosen model + settings (pricing pulled from the public catalog)
+  async function nodeUnitUsdPlay(n){
+    const kind = SETTING_MODEL_KIND[n.type]; if(!kind) return null;
+    const id = n.fields && n.fields.model; if(!id) return null;
+    const m = await rawCatItem(kind, id); if(!m) return null;
+    const pricing = m.pricing, f = n.fields || {};
+    if(kind==="image"){ return imageUsd(pricing, f.size, Math.max(1, parseInt(f.variations,10)||1)); }
+    if(kind==="video"){ const u = videoUnitUsd(pricing, f); return (u!=null && isFinite(u)) ? u : null; }
+    if(kind==="chat"){ const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(pricing, inTok, outTok); }
+    if(kind==="audio"){ const chars = n.type==="transcribe" ? undefined : ((f.prompt||"").length || EST.ttsChars); return audioUnitUsd(pricing, chars); }
+    return null;
+  }
+  let _runCostToken = 0;
+  async function refreshRunCost(){
+    if(!STATE || !STATE.graph) return;
+    const token = ++_runCostToken;
+    const nodes = STATE.graph.nodes.filter(n=> SETTING_MODEL_KIND[n.type]);
+    let usd=0, priced=0, unpriced=0, exact=true;
+    for(const n of nodes){
+      const u = await nodeUnitUsdPlay(n);
+      if(token !== _runCostToken) return;   // a newer refresh started → drop this stale pass
+      if(u==null){ unpriced++; continue; }
+      usd+=u; priced++; if(SETTING_MODEL_KIND[n.type]!=="image") exact=false;
+    }
+    const el = ensureRunCostEl(); if(!el) return;
+    if(!priced){ el.hidden = true; return; }
+    el.hidden = false;
+    el.innerHTML = '<span class="rc-amt">' + (exact?"":"~") + fmtUsd(usd) + '</span><span class="rc-lbl">/run</span>';
+    let t = "Estimated cost each time you press Run — " + priced + " paid step" + (priced!==1?"s":"");
+    if(unpriced) t += ", plus " + unpriced + " with no listed price";
+    t += exact ? "." : ". Video, text and audio are estimates; the real cost depends on length and tokens.";
+    el.title = t;
+  }
+  function ensureRunCostEl(){
+    let el = $("app-runcost"); if(el) return el;
+    injectCostStyles();
+    const rr = document.querySelector(".run-row"); if(!rr) return null;
+    el = document.createElement("span"); el.id = "app-runcost"; el.className = "run-cost"; el.hidden = true;
+    const btn = $("app-run");
+    if(btn && btn.nextSibling) rr.insertBefore(el, btn.nextSibling); else rr.appendChild(el);
+    return el;
   }
 
   /* ---------- mdl (verbatim) ---------- */
@@ -986,9 +1153,20 @@ window.NoodleApp = (function () {
   }
   async function toLocalMediaUrl(url){
     if(/^(data:|blob:)/.test(url)) return { src:url, revoke:null };
-    const blob = await (await fetch(url)).blob();
-    const o = URL.createObjectURL(blob);
-    return { src:o, revoke:()=> URL.revokeObjectURL(o) };
+    // A generated clip lives on the provider CDN (CloudFront). The sandboxed /play app frame seals
+    // connect-src to self/blob/nano-gpt (anti-exfiltration), so fetch()-ing those bytes is CSP-blocked
+    // there — which used to break vframes (last-frame grab) and combine, both of which need the video.
+    // But media-src still allows https:, so a <video> can LOAD the URL, and the CDN answers every origin
+    // (incl. the frame's null origin) with Access-Control-Allow-Origin:* — so a crossOrigin="anonymous"
+    // element paints to a canvas untainted (toDataURL / captureStream) and mixes through Web Audio with
+    // NO byte fetch. Every caller sets crossOrigin, so hand the raw URL through when we can't buffer it.
+    // A standalone (un-sandboxed) export can still fetch a blob for smoother seeking; the sandbox streams
+    // (range requests are supported, so seeking still works). Try the blob, fall back to the raw URL.
+    try{
+      const blob = await (await fetch(url)).blob();
+      const o = URL.createObjectURL(blob);
+      return { src:o, revoke:()=> URL.revokeObjectURL(o) };
+    }catch(e){ return { src:url, revoke:null }; }
   }
   function seekVideo(vid, t){
     return new Promise((res)=>{
@@ -1487,13 +1665,17 @@ window.NoodleApp = (function () {
      keep only links with surviving endpoints, migrate music/tts header
      "text" port → inline "prompt" field port.
      ===================================================================== */
+  // A node's display label: the user's custom name if set, else the node-type title. One source
+  // of truth for every place the played app shows a step's name (steps list, settings group
+  // header, result card, live-runner label, plain-text description). Backtick-free (RUNTIME_JS).
+  const displayName = (n)=> (n && n.name && String(n.name).trim()) || (NODE_TYPES[n && n.type] && NODE_TYPES[n.type].title) || (n && n.type) || "?";
   function materialize(data){
     const ALIAS = { audio:"tts" };
     const nodes = [];
     for(const sn of (data.nodes||[])){
       const type = ALIAS[sn.type] || sn.type;
       if(!NODE_TYPES[type]) continue;
-      nodes.push({ id:sn.id, type, x:sn.x, y:sn.y, fields:{ ...(sn.fields||{}) }, out:{} });
+      nodes.push({ id:sn.id, type, name:sn.name, x:sn.x, y:sn.y, fields:{ ...(sn.fields||{}) }, out:{} });
     }
     const byId = (id)=> nodes.find(n=>n.id===id);
     const ids = new Set(nodes.map(n=>n.id));
@@ -1663,7 +1845,7 @@ window.NoodleApp = (function () {
       // upload when the source is wired (so "generate → repaint" apps still expose the mask).
       if(n.type==="inpaint"){
         const fed = (p)=> graph.links.some(l=> l.to.node===n.id && l.to.port===p);
-        const base = { nodeId:n.id, node:n, title:NODE_TYPES.inpaint.title, em:NODE_TYPES.inpaint.em };
+        const base = { nodeId:n.id, node:n, title:displayName(n), em:NODE_TYPES.inpaint.em };
         if(!fed("prompt")) out.push({ ...base, field:"prompt", label:"What to paint in", kind:"textarea" });
         const imgFed = fed("image"), maskFed = fed("mask");
         if(!imgFed) out.push({ ...base, field:"image", label: maskFed ? "Image" : "Image — brush the area to repaint", kind: maskFed ? "image" : "inpaint" });
@@ -1676,7 +1858,7 @@ window.NoodleApp = (function () {
         const fed = graph.links.some(l=> l.to.node===n.id && l.to.port===s.f);
         if(fed) continue;
         out.push({ nodeId:n.id, field:s.f, label:s.label, kind:s.kind, optional:!!s.optional, def:s.def,
-                   node:n, title:NODE_TYPES[n.type].title, em:NODE_TYPES[n.type].em });
+                   node:n, title:displayName(n), em:NODE_TYPES[n.type].em });
       }
     }
     return out;
@@ -1766,7 +1948,7 @@ window.NoodleApp = (function () {
         out.push({ nodeId:n.id, field:s.f, label:s.label, kind:s.kind,
                    options:s.options, def:s.def, min:s.min, max:s.max, step:s.step,
                    modelKind:(s.kind==="model" ? SETTING_MODEL_KIND[n.type] : null),
-                   node:n, title:NODE_TYPES[n.type].title, em:NODE_TYPES[n.type].em });
+                   node:n, title:displayName(n), em:NODE_TYPES[n.type].em });
       }
     }
     return out;
@@ -1888,7 +2070,7 @@ window.NoodleApp = (function () {
           ctrl.setAttribute("placeholder", it.label);
         }
         ctrl.id = el.id; ctrl.setAttribute("data-ns","set"); ctrl.setAttribute("data-i", String(i));
-        ctrl.addEventListener(ctrl.tagName==="SELECT"?"change":"input", ()=>{ it.node.fields[it.field] = ctrl.value; checkDirty(); });
+        ctrl.addEventListener(ctrl.tagName==="SELECT"?"change":"input", ()=>{ it.node.fields[it.field] = ctrl.value; checkDirty(); refreshRunCost(); });
         el.replaceWith(ctrl);
       }).catch(()=>{});
     });
@@ -1923,7 +2105,7 @@ window.NoodleApp = (function () {
   };
   function describeGraph(graph){
     const clip = (s, n)=>{ s = String(s).replace(/\s+/g," ").trim(); return s.length>n ? s.slice(0,n-1)+"…" : s; };
-    const nameOf = (n)=> n ? ((NODE_TYPES[n.type] && NODE_TYPES[n.type].title) || n.type) : "?";
+    const nameOf = displayName;
     if(!graph.nodes.length) return "(The workflow is empty — no steps yet.)";
 
     const allIds = new Set(graph.nodes.map(n=>n.id));
@@ -2155,7 +2337,7 @@ window.NoodleApp = (function () {
       } else if(el.classList.contains("modelsel")){
         setupModelCombo(el, it);   // searchable catalog dropdown + free-text fallback
       } else {
-        const sync = ()=>{ it.node.fields[it.field] = el.value; checkDirty(); };
+        const sync = ()=>{ it.node.fields[it.field] = el.value; checkDirty(); refreshRunCost(); };
         el.addEventListener("input", sync);
         if(el.tagName==="SELECT") el.addEventListener("change", sync);
       }
@@ -2198,10 +2380,10 @@ window.NoodleApp = (function () {
       menu.hidden = false; input.setAttribute("aria-expanded","true");
     }
     function close(){ menu.hidden = true; input.setAttribute("aria-expanded","false"); active = -1; }
-    function pick(id){ input.value = id; it.node.fields[it.field] = id; close(); fillDimLists(); fillLangLists(); checkDirty(); }   // new model → refresh its dim/language options
+    function pick(id){ input.value = id; it.node.fields[it.field] = id; close(); fillDimLists(); fillLangLists(); checkDirty(); refreshRunCost(); }   // new model → refresh its dim/language options + price
     input.addEventListener("focus", ()=> open(true));
     input.addEventListener("modelrefresh", ()=> open(true));   // catalog arrived while focused
-    input.addEventListener("input", ()=>{ it.node.fields[it.field] = input.value.trim(); open(false); checkDirty(); });
+    input.addEventListener("input", ()=>{ it.node.fields[it.field] = input.value.trim(); open(false); checkDirty(); refreshRunCost(); });
     input.addEventListener("blur", ()=> setTimeout(close, 120));   // let a menu click land first
     // mousedown (not click) so the pick fires before the input blurs
     menu.addEventListener("mousedown", (e)=>{ const b = e.target.closest(".modelopt"); if(!b) return; e.preventDefault(); pick(b.dataset.id); });
@@ -2274,6 +2456,8 @@ window.NoodleApp = (function () {
     if(prog && !prog._errBound){
       prog._errBound = true;
       prog.addEventListener("click", (e)=>{
+        const peek = e.target.closest("[data-open-lane]");
+        if(peek){ openDetail(+peek.dataset.openLane); return; }
         const btn = e.target.closest(".err-toggle"); if(!btn) return;
         const L = RUN && RUN.lanes[+btn.dataset.lane]; if(!L) return;
         L.showErrs = !L.showErrs; paintRuns();
@@ -2298,11 +2482,12 @@ window.NoodleApp = (function () {
   }
   function stepLabel(id){
     const n = STATE.graph.byId(id), t = n ? NODE_TYPES[n.type] : null;
-    return t ? (t.em + " " + t.title) : id;
+    return t ? (t.em + " " + displayName(n)) : id;
   }
   function startRun(n){
+    closeDetail();   // a steps sheet left open from a prior run must not point at a stale lane
     RUN = { n:n, t0:Date.now(), lanes:[] };
-    for(let i=0;i<n;i++) RUN.lanes.push({ idx:i, order:[], state:{}, curId:null, curT0:0, t0:Date.now(), endAt:0 });
+    for(let i=0;i<n;i++) RUN.lanes.push({ idx:i, order:[], state:{}, res:{}, curId:null, curT0:0, t0:Date.now(), endAt:0 });
     ensureStatus(); const p = $("app-prog"); if(p) p.hidden = false;
     clearInterval(runTimer); runTimer = setInterval(paintRuns, 1000);
     paintRuns();
@@ -2312,10 +2497,19 @@ window.NoodleApp = (function () {
   // bar and timer start fresh instead of showing the previous pass as "done".
   function resetLane(i){
     if(!RUN || !RUN.lanes[i]) return;
-    RUN.lanes[i] = { idx:i, order:[], state:{}, curId:null, curT0:0, t0:Date.now(), endAt:0 };
+    RUN.lanes[i] = { idx:i, order:[], state:{}, res:{}, curId:null, curT0:0, t0:Date.now(), endAt:0 };
     paintRuns();
   }
   function laneStart(i, order){ if(RUN && RUN.lanes[i]){ RUN.lanes[i].order = order; paintRuns(); } }
+  // Capture every completed node's output (not just the sink nodes rendered to
+  // #app-output), so "peek inside this run" can show intermediate results — and
+  // whatever a run made before it errored partway. Keyed by node id; the lane's
+  // own graph clone owns these node objects, so lanes never clobber each other.
+  function laneCapture(i, n){
+    const L = RUN && RUN.lanes[i]; if(!L) return;
+    (L.res || (L.res = {}))[n.id] = n;
+    if(detailOpen === i) paintDetail();
+  }
   function laneStep(i, id, kind, msg){
     const L = RUN && RUN.lanes[i]; if(!L) return;
     L.state[id] = { kind:kind, msg:msg };
@@ -2349,6 +2543,16 @@ window.NoodleApp = (function () {
     }
     return html;
   }
+  // "Peek inside this run" chip — opens the steps sheet with every node's output
+  // captured so far. Shows once a lane has produced a result, or once it has
+  // settled (so a run that errored on step 1 still exposes the why). Hidden while
+  // a lane is still spinning up with nothing to show yet.
+  function peekBtnHtml(L){
+    const nres = L.res ? Object.keys(L.res).length : 0;
+    if(!nres && !(L.endAt>0)) return "";
+    const label = nres ? (nres + " result" + (nres!==1?"s":"")) : "steps";
+    return '<button type="button" class="peek" data-open-lane="'+L.idx+'" title="See every step of this run, including partial results">⧉ ' + label + ' ›</button>';
+  }
   function singleLaneHtml(L){
     const st = laneStats(L); let now = "";
     if(!st.finished && L.curId != null){
@@ -2363,7 +2567,7 @@ window.NoodleApp = (function () {
         ? '<div class="prog-now is-err">Finished with ' + st.errs + ' error' + (st.errs>1?"s":"") + ' · ' + st.done + '/' + st.total + ' steps · ' + fmtClock(L.endAt-L.t0) + '</div>'
         : '<div class="prog-now is-ok">✓ Done · ' + st.total + ' step' + (st.total!==1?"s":"") + ' · ' + fmtClock(L.endAt-L.t0) + '</div>';
     }
-    return '<div class="prog-track">' + st.segs + '</div>' + now + errBlockHtml(L, st);
+    return '<div class="prog-track">' + st.segs + '</div>' + now + peekBtnHtml(L) + errBlockHtml(L, st);
   }
   function laneRowHtml(L){
     const st = laneStats(L);
@@ -2380,14 +2584,16 @@ window.NoodleApp = (function () {
          + '<span class="lane-no">Run ' + (L.idx+1) + '</span>'
          + '<div class="prog-track">' + st.segs + '</div>'
          + '<span class="lane-mid">' + mid + '</span>'
-         + '<span class="prog-el">' + elapsed + '</span></div>';
+         + '<span class="prog-el">' + elapsed + '</span>'
+         + peekBtnHtml(L) + '</div>';
   }
   function paintRuns(){
     const box = $("app-prog"); if(!box || !RUN) return;
-    if(RUN.n === 1){ box.innerHTML = singleLaneHtml(RUN.lanes[0]); return; }
-    box.innerHTML = '<div class="lanes">'
+    if(RUN.n === 1){ box.innerHTML = singleLaneHtml(RUN.lanes[0]); }
+    else box.innerHTML = '<div class="lanes">'
       + RUN.lanes.map(L=> laneRowHtml(L) + errBlockHtml(L, laneStats(L))).join("")
       + '</div>';
+    if(detailOpen != null) paintDetail();   // keep an open steps sheet live (step status + timers)
   }
   // Independent copy of the live graph (current input values included) so N
   // lanes can run at once without clobbering each other's node outputs.
@@ -2438,7 +2644,13 @@ window.NoodleApp = (function () {
       + '#app-cost .cm-bal{color:var(--dim,#8b93b4);}'
       + '.rhead .rcost{float:right;font-weight:700;color:var(--ok,#46d27a);'
         + 'font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}'
-      + '.rhead .rcost.incl{color:var(--dim,#8b93b4);font-weight:600;}';
+      + '.rhead .rcost.incl{color:var(--dim,#8b93b4);font-weight:600;}'
+      + '.run-cost{display:inline-flex;align-items:baseline;gap:.12rem;font-size:.78rem;'
+        + 'color:var(--dim,#8b93b4);font-variant-numeric:tabular-nums;white-space:nowrap;cursor:default;'
+        + 'font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}'
+      + '.run-cost[hidden]{display:none;}'
+      + '.run-cost .rc-amt{font-weight:700;color:var(--ink,#e6e9f5);}'
+      + '.run-cost .rc-lbl{color:var(--faint,#5d6788);}';
     (document.head || document.documentElement).appendChild(s);
   }
   function ensureCostMeter(){
@@ -2463,18 +2675,20 @@ window.NoodleApp = (function () {
                  + bal;
   }
 
-  function renderResult(n, runNo){
-    const box = $("app-output"); if(!box) return;
+  // Build a self-contained result card (media + cost + download + variation
+  // picker) for one node. Shared by the #app-output funnel (sink nodes only) and
+  // the per-run "steps" sheet (every node), so both render media identically.
+  // Returns null when the node produced nothing renderable on its primary port.
+  function resultCard(n, badge){
     const out = n.out || {};
     const port = (NODE_TYPES[n.type].outputs||[])[0] || {};
     const val = out[port.name];
-    if(val==null) return;
+    if(val==null) return null;
     const card = document.createElement("div"); card.className="card";
-    const badge = runNo ? '<span class="run-badge">Run '+runNo+'</span> ' : '';
     const cost = n.cached ? '<span class="rcost" title="reused fixed-seed result — no charge">↺ reused</span>'
                : (n.costUsd>0) ? '<span class="rcost" title="cost of this generation">'+fmtUsd(n.costUsd)+'</span>'
                : n.costKnown ? '<span class="rcost incl" title="included in your subscription">included</span>' : '';
-    const head = '<div class="rhead">'+badge+esc(NODE_TYPES[n.type].em)+' '+esc(NODE_TYPES[n.type].title)+cost+'</div>';
+    const head = '<div class="rhead">'+(badge||"")+esc(NODE_TYPES[n.type].em)+' '+esc(displayName(n))+cost+'</div>';
     const gallery = (port.type==="image" && out.images && out.images.length>1) ? out.images : null;
     let media;
     if(port.type==="image"){
@@ -2486,7 +2700,6 @@ window.NoodleApp = (function () {
     else if(port.type==="audio") media = '<audio src="'+esc(val)+'" controls preload="metadata"></audio>';
     else media = '<div class="text">'+esc(typeof val==="string"?val:JSON.stringify(val,null,2))+'</div>';
     card.innerHTML = head + media;
-    box.insertBefore(card, box.firstChild);   // newest at the top; nothing is removed
     if(port.type==="audio") fixAudioDuration(card.querySelector("audio"));
     if(port.type==="image" || port.type==="video" || port.type==="audio")
       addDownload(card, val, port.type, n.type);
@@ -2502,6 +2715,136 @@ window.NoodleApp = (function () {
         };
       });
     }
+    return card;
+  }
+  function renderResult(n, runNo){
+    const box = $("app-output"); if(!box) return;
+    const badge = runNo ? '<span class="run-badge">Run '+runNo+'</span> ' : '';
+    const card = resultCard(n, badge); if(!card) return;
+    box.insertBefore(card, box.firstChild);   // newest at the top; nothing is removed
+  }
+
+  /* ---------- run "steps" sheet ----------
+     The #app-output funnel deliberately shows only the sink nodes, to keep the
+     app clean for end users. But a run makes (and pays for) intermediate outputs
+     too, and a run that errors halfway still produced real artifacts upstream.
+     This sheet is the opt-in "peek inside a run": click the ⧉ chip on any lane to
+     see every step in pipeline order, with its status and its output — live while
+     running, and preserved after an error so nothing paid-for is lost.
+     Self-styled + self-mounted (like the cost meter) so every app gets it,
+     including gptdiff-customized and exported standalones that never had a mount
+     point for it. Updates idempotently (one DOM node per step, media inserted
+     once) so live repaints never re-fetch media or reset a playing <video>. */
+  let detailOpen = null, detailLaneRef = null, detailSheet = null;
+  function injectDetailStyles(){
+    if(document.getElementById("noodle-steps-style")) return;
+    const s = document.createElement("style"); s.id = "noodle-steps-style";
+    s.textContent =
+      '.peek{font:inherit;font-size:.74rem;margin:.45rem 0 0;padding:.24rem .6rem;cursor:pointer;'
+        + 'background:var(--panel,#161a27);color:var(--dim,#8b93b4);border:1px solid var(--line,#2a3150);'
+        + 'border-radius:999px;line-height:1.2;white-space:nowrap;transition:color .12s,border-color .12s;}'
+      + '.peek:hover{color:var(--ink,#e6e9f5);border-color:var(--accent,#7c8cff);}'
+      + '.lane .peek{margin:0 0 0 .5rem;flex:0 0 auto;}'
+      + '#noodle-steps{position:fixed;inset:0;z-index:9998;display:flex;}'
+      + '#noodle-steps[hidden]{display:none;}'
+      + '#noodle-steps .nd-back{position:absolute;inset:0;background:rgba(6,8,14,.66);}'
+      + '#noodle-steps .nd-panel{position:relative;margin:auto;width:min(680px,100%);max-height:88vh;'
+        + 'display:flex;flex-direction:column;background:var(--panel,#161a27);color:var(--ink,#e6e9f5);'
+        + 'border:1px solid var(--line,#2a3150);border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.5);overflow:hidden;}'
+      + '@media(max-width:640px){#noodle-steps{align-items:flex-end;}'
+        + '#noodle-steps .nd-panel{width:100%;max-height:92vh;border-radius:16px 16px 0 0;}}'
+      + '#noodle-steps .nd-head{display:flex;align-items:center;gap:.6rem;padding:.85rem 1rem;'
+        + 'border-bottom:1px solid var(--line,#2a3150);}'
+      + '#noodle-steps .nd-title{font-weight:700;font-size:.98rem;}'
+      + '#noodle-steps .nd-sub{font-size:.76rem;color:var(--dim,#8b93b4);margin-right:auto;'
+        + 'font-variant-numeric:tabular-nums;}'
+      + '#noodle-steps .nd-x{margin-left:auto;background:transparent;border:0;color:var(--dim,#8b93b4);'
+        + 'font-size:1.05rem;cursor:pointer;padding:.2rem .5rem;border-radius:8px;line-height:1;}'
+      + '#noodle-steps .nd-x:hover{background:#ffffff12;color:var(--ink,#e6e9f5);}'
+      + '#noodle-steps .nd-body{padding:.4rem 1rem 1.2rem;overflow:auto;}'
+      + '.nd-step{border-top:1px solid var(--line,#2a3150);padding:.8rem 0;}'
+      + '.nd-step:first-child{border-top:0;}'
+      + '.nd-shead{display:flex;align-items:center;gap:.5rem;font-size:.82rem;margin-bottom:.55rem;}'
+      + '.nd-shead .nd-lbl{font-weight:600;color:var(--ink,#e6e9f5);}'
+      + '.nd-shead .nd-badge{margin-left:auto;font-size:.72rem;font-weight:700;font-variant-numeric:tabular-nums;}'
+      + '.nd-badge.nd-ok{color:var(--ok,#46d27a);}.nd-badge.nd-run{color:var(--accent,#7c8cff);}'
+      + '.nd-badge.nd-err{color:#ff6b6b;}.nd-badge.nd-wait{color:var(--faint,#5d6788);}'
+      + '.nd-step .nd-errmsg{font-size:.77rem;color:#ff9a9a;background:#ff6b6b12;'
+        + 'border:1px solid #ff6b6b30;border-radius:8px;padding:.45rem .6rem;}'
+      + '.nd-step .card{margin:0;}'
+      + '.nd-step .card .rhead{display:none;}';   // the step header already labels + costs it
+    (document.head || document.documentElement).appendChild(s);
+  }
+  function ensureDetailSheet(){
+    if(detailSheet) return detailSheet;
+    injectDetailStyles();
+    const w = document.createElement("div"); w.id = "noodle-steps"; w.hidden = true;
+    w.innerHTML = '<div class="nd-back"></div>'
+      + '<div class="nd-panel" role="dialog" aria-modal="true" aria-label="Run steps">'
+      + '<div class="nd-head"><span class="nd-title">Run steps</span><span class="nd-sub"></span>'
+      + '<button type="button" class="nd-x" aria-label="Close">✕</button></div>'
+      + '<div class="nd-body"></div></div>';
+    document.body.appendChild(w);
+    w.querySelector(".nd-back").onclick = closeDetail;
+    w.querySelector(".nd-x").onclick = closeDetail;
+    document.addEventListener("keydown", function(e){ if(e.key==="Escape" && detailOpen!=null) closeDetail(); });
+    detailSheet = w; return w;
+  }
+  function openDetail(i){
+    detailOpen = i; detailLaneRef = null;      // force a fresh rebuild for this open
+    const root = ensureDetailSheet(); root.hidden = false;
+    paintDetail();
+    const body = root.querySelector(".nd-body"); if(body) body.scrollTop = 0;
+  }
+  function closeDetail(){
+    detailOpen = null; detailLaneRef = null;
+    if(detailSheet) detailSheet.hidden = true;
+  }
+  function stepStatus(L, id){
+    const s = L.state[id] || {};
+    if(s.kind==="error") return { cls:"err", txt:"✗ failed" };
+    if(s.kind==="done"){
+      const n = L.res && L.res[id];
+      if(n && n.cached) return { cls:"ok", txt:"↺ reused" };
+      const cost = (n && n.costUsd>0) ? (" · " + fmtUsd(n.costUsd)) : (n && n.costKnown) ? " · included" : "";
+      return { cls:"ok", txt:"✓ done" + cost };
+    }
+    if(s.kind==="run") return { cls:"run", txt:"● " + (s.msg || "running…") };
+    return { cls:"wait", txt:"○ waiting" };
+  }
+  function paintDetail(){
+    if(detailOpen == null) return;
+    const L = RUN && RUN.lanes[detailOpen];
+    if(!L){ closeDetail(); return; }
+    const root = ensureDetailSheet(), body = root.querySelector(".nd-body");
+    // A fresh lane object (first open, or a keep-generating reset) → rebuild from scratch.
+    if(L !== detailLaneRef){ detailLaneRef = L; body.innerHTML = ""; body._steps = {}; }
+    const steps = body._steps || (body._steps = {});
+    const st = laneStats(L);
+    root.querySelector(".nd-title").textContent = RUN.n>1 ? ("Run " + (L.idx+1) + " · steps") : "Run steps";
+    root.querySelector(".nd-sub").textContent = st.done + "/" + st.total + " steps"
+      + (st.errs ? (" · " + st.errs + " error" + (st.errs>1?"s":"")) : "")
+      + (L.endAt>0 ? "" : " · running…");
+    (L.order || []).forEach(function(id){
+      let step = steps[id];
+      if(!step){
+        step = document.createElement("div"); step.className = "nd-step";
+        step.innerHTML = '<div class="nd-shead"><span class="nd-lbl"></span><span class="nd-badge"></span></div>';
+        step.querySelector(".nd-lbl").textContent = stepLabel(id);
+        steps[id] = step; body.appendChild(step);
+      }
+      const ss = stepStatus(L, id), badge = step.querySelector(".nd-badge");
+      badge.className = "nd-badge nd-" + ss.cls; badge.textContent = ss.txt;
+      // media card inserted ONCE, when this node's output first lands (never re-fetched)
+      const n = L.res && L.res[id];
+      if(n && !step._carded){ const card = resultCard(n, ""); if(card) step.appendChild(card); step._carded = true; }
+      // error detail inserted ONCE
+      const es = L.state[id] || {};
+      if(es.kind==="error" && !step._errShown){
+        const em = document.createElement("div"); em.className = "nd-errmsg";
+        em.textContent = es.msg || "failed"; step.appendChild(em); step._errShown = true;
+      }
+    });
   }
 
   // A download control for generated media. Images come back as data: URLs and
@@ -2657,7 +3000,7 @@ window.NoodleApp = (function () {
           const res = await runGraph(cloneGraph(), {
             onStart: (order)=> laneStart(i, order),
             onStatus: (id,kind,msg)=> laneStep(i, id, kind, msg),
-            onResult: (n)=>{ if(outIds.has(n.id)) renderResult(n, N>1 ? i+1 : 0); },
+            onResult: (n)=>{ laneCapture(i, n); if(outIds.has(n.id)) renderResult(n, N>1 ? i+1 : 0); },
           });
           // per-node errors are isolated (not thrown), so the run "succeeds" even when
           // every node failed — count them as a failure so keep mode backs off instead
@@ -2862,6 +3205,7 @@ window.NoodleApp = (function () {
     renderCount();
     renderLoop();
     ensureCostMeter();   // place the (hidden) "spent on this app" meter now → stable layout
+    refreshRunCost();    // forecast "~$X / run" next to Run (warms the public catalog, renders when ready)
 
     const runBtn = $("app-run");
     if(runBtn){
@@ -3717,6 +4061,64 @@ function syncTitleFromFiles(){
   const t = titleFromFiles(APP_STATE.files);
   $("bar-title").textContent = t; document.title = t + " · nanoodle app";
 }
+// escape a plain-text title for safe insertion into the HTML <title> tag
+// (titleFromFiles decodes it back, so round-trips like "Tom & Jerry" survive)
+function escTitleTag(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+// rewrite (or insert) the <title> of an index.html string
+function withTitle(html, enc){
+  return /<title>[\s\S]*?<\/title>/i.test(html)
+    ? html.replace(/<title>[\s\S]*?<\/title>/i, "<title>"+enc+"</title>")
+    : html.replace(/<head([^>]*)>/i, "<head$1>\n<title>"+enc+"</title>");
+}
+// Rename the open app: the title lives in the <title> tag of the app's index.html,
+// so we rewrite it in the live files AND the current version's snapshot (otherwise
+// flipping versions would lose the new name), re-sync the bar/tab, and persist.
+// Renaming a draft is a real edit (not regenerable from the graph) so it commits.
+function setAppTitle(raw){
+  const name = (raw||"").replace(/\s+/g," ").trim();
+  const html = APP_STATE.files && APP_STATE.files["index.html"];
+  if(!name || !html) return false;
+  if(name === titleFromFiles(APP_STATE.files)) return false;   // no-op
+  const enc = escTitleTag(name);
+  APP_STATE.files = { ...APP_STATE.files, "index.html": withTitle(html, enc) };
+  const cv = APP_STATE.versions[APP_STATE.curVer];
+  if(cv && cv.files && cv.files["index.html"]) cv.files["index.html"] = withTitle(cv.files["index.html"], enc);
+  syncTitleFromFiles();
+  commit();   // naming an app is intent to keep it → promote a draft into "My apps"
+  return true;
+}
+// click (or focus + Enter) the bar title to rename in place; Enter/blur saves, Esc cancels
+function wireTitle(){
+  const span = $("bar-title");
+  span.tabIndex = 0; span.setAttribute("role","textbox");
+  let before = null;                                  // set while editing
+  const begin = ()=>{
+    if(!$("empty").hidden || before != null) return; // nothing loaded / already editing
+    before = span.textContent;
+    span.title = "";
+    span.contentEditable = "plaintext-only";
+    span.focus();
+    const r = document.createRange(); r.selectNodeContents(span);
+    const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+  };
+  const end = (save)=>{
+    if(before == null) return;
+    const val = span.textContent, orig = before; before = null;
+    span.contentEditable = "false";
+    span.title = "Click to rename this app";
+    if(!(save && setAppTitle(val))){ span.textContent = orig; document.title = orig + " · nanoodle app"; }
+  };
+  span.title = "Click to rename this app";
+  span.addEventListener("click", begin);
+  // Enter/Escape commit explicitly (not via blur — a synthetic or lost focus can skip it);
+  // blur stays as the click-away save.
+  span.addEventListener("keydown", (e)=>{
+    if(before == null){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); begin(); } return; }
+    if(e.key==="Enter"){ e.preventDefault(); end(true); span.blur(); }
+    else if(e.key==="Escape"){ e.preventDefault(); end(false); span.blur(); }
+  });
+  span.addEventListener("blur", ()=> end(true));
+}
 
 /* ======================================================================
    CENTRAL STATE + PERSISTENCE
@@ -3993,12 +4395,15 @@ async function signIn(){
   stashResume();   // survive the full-page redirect even if localStorage is full or an autosave hasn't fired
   location.assign(u.toString());
 }
+let cameBackFromPopup = false;   // this window is the OAuth popup returning — close it, don't boot the builder
 async function handleRedirect(){
   const p=new URLSearchParams(location.search);
   if(!p.has("code")&&!p.has("error")) return;
   history.replaceState({},"",REDIRECT_URI);
   // pkce lives in sessionStorage for a same-tab redirect, or shared localStorage for the popup flow.
-  const saved=JSON.parse(sessionStorage.getItem("pkce")||localStorage.getItem("pkce_popup")||"null");
+  const sessionPkce = sessionStorage.getItem("pkce"), popupPkce = localStorage.getItem("pkce_popup");
+  cameBackFromPopup = !sessionPkce && !!popupPkce;   // came via the popup path (survives nano-gpt's COOP wipe of window.name)
+  const saved=JSON.parse(sessionPkce||popupPkce||"null");
   sessionStorage.removeItem("pkce"); localStorage.removeItem("pkce_popup");
   if(p.get("error")) throw new Error(p.get("error"));
   if(!saved||p.get("state")!==saved.state) throw new Error("state mismatch");
@@ -4054,7 +4459,9 @@ function shareableGraph(g){
 }
 
 // SHARE: pack {v:1, graph, files} -> gzip -> b64url -> #a= ; copy + open the share popover. NO key inside.
-let shareUrl = "";   // the link the popover currently reflects (long, or a shortened one)
+let shareUrl = "";      // the link the popover currently reflects (long, or a shortened one)
+let longShareUrl = "";  // the FULL long link the popover was opened with — what shortening always acts on
+                        // (doShare strips #a= back out of the address bar, so location.hash is empty by then)
 async function doShare(){
   try{
     const json = JSON.stringify({ v:1, graph:shareableGraph(APP_STATE.graph), files:APP_STATE.files });
@@ -4090,7 +4497,7 @@ function setShareUrl(u){
   };
   document.querySelectorAll("#sharemenu .sm-social a").forEach(a => a.href = soc[a.dataset.soc]);
 }
-function openShareMenu(url){ setShareUrl(url); $("sharemenu").hidden = false; $("shareback").hidden = false; }
+function openShareMenu(url){ longShareUrl = url; setShareUrl(url); $("sharemenu").hidden = false; $("shareback").hidden = false; }
 function closeShareMenu(){ $("sharemenu").hidden = true; $("shareback").hidden = true; }
 
 // SHORTEN — direct client-side fetch to the chosen service (no nanoodle backend in the path).
@@ -4210,7 +4617,7 @@ $("sm-copy").onclick = async ()=>{ const ok = await copyText(shareUrl); toast(ok
 $("sm-url").onclick = ()=> $("sm-url").select();
 document.querySelectorAll("#sharemenu .sm-svc button").forEach(btn => btn.onclick = async ()=>{
   const svc = btn.dataset.svc, label = btn.textContent.trim();
-  const longUrl = location.origin + location.pathname + location.hash;   // always shorten the full current link
+  const longUrl = longShareUrl || (location.origin + location.pathname + location.hash);   // the full link the popover was opened with (NOT location.hash — doShare already stripped it)
   const others = [...document.querySelectorAll("#sharemenu .sm-svc button")];
   others.forEach(b=> b.disabled = true);
   const o = btn.textContent; btn.textContent = "…";
@@ -4307,6 +4714,9 @@ $("mpicksearch").addEventListener("keydown", (e)=>{
   else if(e.key==="Escape") closePicker();
 });
 
+// click the bar title to rename the open app
+wireTitle();
+
 // "My apps" library wiring
 $("myapps").onclick = toggleAppsMenu;
 $("appsback").onclick = closeAppsMenu;
@@ -4354,11 +4764,13 @@ function migrateLegacy(){
 async function boot(){
   try{ await handleRedirect(); }catch(e){ $("auth-status").textContent = "sign-in error: "+e.message; }
   // OAuth popup (opened from the embedded builder): the key is now in shared localStorage and
-  // the opener's storage listener finishes sign-in there. Close this window. Detect the popup by
-  // window.name alone — NanoGPT's OAuth page sets Cross-Origin-Opener-Policy, which severs
-  // window.opener across the roundtrip, so don't require it. If the browser also refuses close(),
-  // show a tiny note rather than rendering the whole builder into the 480×760 popup.
-  if(window.name==="ngpt_signin"){
+  // the opener's poll finishes sign-in there. Close this window. NanoGPT's OAuth page sets
+  // Cross-Origin-Opener-Policy, which swaps the browsing-context group across the roundtrip —
+  // that severs window.opener AND resets window.name to "". So don't trust window.name: also
+  // treat "handleRedirect just consumed the popup-only pkce_popup key" as the popup returning.
+  // If the browser still refuses close(), show a tiny note rather than booting the whole builder
+  // into the 480×760 popup.
+  if(window.name==="ngpt_signin" || cameBackFromPopup){
     try{ window.close(); }catch(_){}
     document.body.innerHTML =
       '<p style="font:15px/1.6 ui-sans-serif,system-ui,sans-serif;color:#e6e9f5;padding:2rem;text-align:center">'

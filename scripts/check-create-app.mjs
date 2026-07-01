@@ -543,12 +543,16 @@ async function run() {
     const fieldEdit = base(); fieldEdit.nodes[1].fields.model = "m2";
     const typeEdit = base(); typeEdit.nodes[1].type = "video";
     const linkEdit = base(); linkEdit.links.push({ from: { node: "a", port: "text" }, to: { node: "b", port: "neg" } });
+    const nameEdit = base(); nameEdit.nodes[0].name = "Headline";           // custom label → shown in the built app
+    const wsName = base(); wsName.nodes[0].name = "   ";                     // whitespace-only → trims to "" (no change)
     const b0 = sig(base());
     record("R0 appHandoffSig ignores pan/zoom + node positions (resume fast-path can fire)",
       sig(moved) === b0, `moved sig ${sig(moved) === b0 ? "==" : "!="} base — view/x/y/w/sizes must be excluded`);
     record("R0 appHandoffSig flips on a field edit", sig(fieldEdit) !== b0, "model change must read as a change");
     record("R0 appHandoffSig flips on a node-type change", sig(typeEdit) !== b0, "type change must read as a change");
     record("R0 appHandoffSig flips on a link change", sig(linkEdit) !== b0, "new wire must read as a change");
+    record("R0 appHandoffSig flips on a node rename", sig(nameEdit) !== b0, "custom name is the app's step label — must re-hand-off");
+    record("R0 appHandoffSig ignores a whitespace-only name", sig(wsName) === b0, "blank name trims to '' — not an edit");
     record("R0 appHandoffSig flips on the bound app id", sig(base(), "app_X") !== b0, "pendingAppId must be folded in");
   }
 
