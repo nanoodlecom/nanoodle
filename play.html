@@ -121,6 +121,9 @@
             background:var(--panel2); border:1px solid var(--line); color:var(--text); text-decoration:none;
             display:inline-flex; align-items:center; gap:.3rem; }
   .sm-svc button:hover, .sm-social a:hover{ background:var(--accent-soft); border-color:var(--accent-line); }
+  /* da.gd is the default: it POSTs, so it survives the big #a= links TinyURL's GET can truncate. */
+  .sm-svc button.sm-primary{ background:var(--accent); border-color:var(--accent); color:#0b0d12; font-weight:700; }
+  .sm-svc button.sm-primary:hover{ background:var(--accent); border-color:var(--accent); filter:brightness(1.08); }
   .sm-svc button:disabled{ opacity:.5; cursor:progress; }
   .sm-flag{ font-size:.66rem; color:var(--faint); }
 
@@ -291,8 +294,8 @@
   <div class="am-head">Make it shorter — optional</div>
   <p class="sm-warn">Sends this link to a third-party shortener so <em>they</em> host it. They can see the app.</p>
   <div class="sm-svc">
-    <button data-svc="tinyurl">TinyURL</button>
-    <button data-svc="dagd">da.gd</button>
+    <button data-svc="dagd" class="sm-primary" title="Recommended — handles very long links (app links can get big)">da.gd</button>
+    <button data-svc="tinyurl" title="Shorter domain, but can fail on very long links">TinyURL</button>
   </div>
 
   <div class="am-head">Share to</div>
