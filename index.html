@@ -3830,7 +3830,7 @@ async function concatVideos(urls, dedup, onProgress){
     await stopped;
     track.stop();
     return URL.createObjectURL(new Blob(chunks, { type: mime.split(";")[0] }));
-  } finally { handles.forEach(h=> h.revoke && h.revoke()); try{ ac && ac.close(); }catch{} }
+  } finally { vids.forEach(v=>{ try{ v.pause(); v.removeAttribute("src"); v.load(); }catch{} }); handles.forEach(h=> h.revoke && h.revoke()); try{ ac && ac.close(); }catch{} }
 }
 const sleep = (ms)=> new Promise(res=> setTimeout(res, ms));
 // async audio (music / some TTS): submit returns {status:"pending", runId} → poll /api/tts/status until completed
