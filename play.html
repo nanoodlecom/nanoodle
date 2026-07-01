@@ -490,6 +490,19 @@ window.NoodleApp = (function () {
   // and signpost the fix; mirrors the editor's flagAuth. Embedded preview proxies auth through the parent, so
   // leave that path untouched (the key never lives here when EMBEDDED).
   function flagAuth(status){ if(!EMBEDDED && (status===401||status===403)){ setKey(null); statusLine("__auth__","error","your nano-gpt key was rejected — sign in or paste a valid key to run"); } }
+  // A generation call can fail purely for lack of credit: NanoGPT signals it with 402, or a body that
+  // mentions balance/funds/insufficient. Turn that into one actionable line (with the top-up link)
+  // instead of a raw "402: {...}" snippet the app surfaces verbatim. Mirrors the editor's httpRunError.
+  function isLowFundsError(status, body){
+    // 401/403 are auth's territory (flagAuth already owns them) — don't let a body that happens to say
+    // "insufficient permissions" masquerade as a funds problem and hand out conflicting guidance.
+    return status===402 || (status!==401 && status!==403 && /insufficient|balance|funds|not enough|payment required/i.test(String(body||"")));
+  }
+  function httpRunError(status, body){
+    return isLowFundsError(status, body)
+      ? new Error("out of balance — this run needs more credit. Top up at nano-gpt.com, then run again.")
+      : new Error(status + ": " + String(body).slice(0,160));
+  }
   // Content-Type only — the key is attached by apiFetch (standalone) or the parent proxy (embedded).
   function authHeaders(){ return { "Content-Type":"application/json" }; }
 
@@ -546,7 +559,7 @@ window.NoodleApp = (function () {
      binary-audio path. We total it for the whole session ("spent on this app")
      and attribute each generation's slice to its result card. "exact" drops to
      false if any call omitted a price, so the running total is shown as a floor (~). */
-  const COST = { total:0, count:0, balance:null, exact:true };
+  const COST = { total:0, count:0, balance:null, exact:true, estUsd:null };
   function fmtUsd(v){
     const a = Math.abs(v);
     const d = a>0 && a<0.01 ? 5 : a<1 ? 4 : 2;   // keep sub-cent generations legible
@@ -744,6 +757,7 @@ window.NoodleApp = (function () {
       if(u==null){ unpriced++; continue; }
       usd+=u; priced++; if(SETTING_MODEL_KIND[n.type]!=="image") exact=false;
     }
+    COST.estUsd = priced ? usd : null;   // last known whole-run forecast — read by the pre-flight balance guard
     const el = ensureRunCostEl(); if(!el) return;
     if(!priced){ el.hidden = true; return; }
     el.hidden = false;
@@ -889,7 +903,7 @@ window.NoodleApp = (function () {
       if(maskDataUrl)  body.maskDataUrl  = maskDataUrl;    // present → inpaint; WHITE areas = the region to repaint
       if(extra) Object.assign(body, extra);                // LoRA (and any future per-model image params)
       const r = await apiFetch(IMG_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
-      if(!r.ok){ flagAuth(r.status); throw new Error(r.status + ": " + (await r.text()).slice(0,160)); }
+      if(!r.ok){ flagAuth(r.status); throw httpRunError(r.status, await r.text()); }
       const j = await r.json();
       const urls = (j.data||[]).map(function(d){ return d.b64_json ? "data:" + b64ImageMime(d.b64_json) + ";base64," + d.b64_json : d.url; }).filter(Boolean);
       if(!urls.length) throw new Error("no image in response");
@@ -905,7 +919,7 @@ window.NoodleApp = (function () {
       if(opts.response_format) body.response_format = opts.response_format;   // {type:"json_object"} for JSON mode
       if(opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
       const r = await apiFetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
-      if(!r.ok){ flagAuth(r.status); throw new Error(r.status + ": " + (await r.text()).slice(0,160)); }
+      if(!r.ok){ flagAuth(r.status); throw httpRunError(r.status, await r.text()); }
       const j = await r.json();
       onCost(costFromJson(j));
       const msg = (j.choices && j.choices[0] && j.choices[0].message) || {};
@@ -949,7 +963,7 @@ window.NoodleApp = (function () {
         let r;
         try{ r = await apiFetch(NANOGPT + "/api/generate-video", {method:"POST", headers:authHeaders(), body:payload}); }
         catch(e){ throw new Error("couldn't reach the video API — if the source media is large it may have been rejected for size before CORS applies. Try a shorter clip, or build this into an app and run it offline. (" + (e.message||e) + ")"); }
-        if(!r.ok){ flagAuth(r.status); throw new Error(r.status + ": " + (await r.text()).slice(0,160)); }
+        if(!r.ok){ flagAuth(r.status); throw httpRunError(r.status, await r.text()); }
         const j = await r.json(); onCost(costFromJson(j));
         runId = j.runId || j.id;
         if(!runId) throw new Error("no runId returned");
@@ -987,7 +1001,7 @@ window.NoodleApp = (function () {
         const req = t.match(/["']?([a-z_]+)["']?\s+(?:is\s+)?required|missing[^a-z]+["']?([a-z_]+)/i);
         const field = req && (req[1]||req[2]);
         if(field) throw new Error('This model requires "' + field + '" — set it in the node, or add it under advanced params.');
-        throw new Error(r.status + ": " + t);
+        throw httpRunError(r.status, t);
       }
       const ct = r.headers.get("content-type") || "";
       if(ct.includes("application/json")){
@@ -1027,7 +1041,7 @@ window.NoodleApp = (function () {
       const k = getKey();
       const r = await fetch(NANOGPT + "/api/v1/audio/transcriptions", {method:"POST",
         headers:{ Authorization:"Bearer " + k, "x-api-key":k }, body:fd});
-      if(!r.ok){ flagAuth(r.status); throw new Error(r.status + ": " + (await r.text()).slice(0,160)); }
+      if(!r.ok){ flagAuth(r.status); throw httpRunError(r.status, await r.text()); }
       const j = await r.json();
       const c = costFromJson(j);   // endpoint returns {text, language, duration} with no cost → estimate from duration × catalog per_minute
       if(c.usd==null){ const est = await estTranscribeUsd(model, +j.duration); if(est!=null){ c.usd = est; c.estimate = true; } }
@@ -2951,6 +2965,13 @@ window.NoodleApp = (function () {
     // prepends), so each run, or continuous generation, just stacks onto history.
     if(mbox) mbox.innerHTML = ""; if(obox) obox.classList.toggle("grid", N>1);
     startRun(N);
+    // Non-blocking heads-up when the KNOWN balance probably won't cover the KNOWN forecast. Estimates
+    // are fuzzy, so we warn and still run — never block. Silent when either number is unknown (never
+    // treat unknown balance as empty) or the forecast is $0. Emitted after the #app-msg clear above so
+    // the warning survives run start.
+    if(COST.balance!=null && COST.estUsd!=null && COST.estUsd>0 && COST.balance < COST.estUsd){
+      statusLine("__lowbal__","warn","balance " + fmtUsd(COST.balance) + " may not cover this ~" + fmtUsd(COST.estUsd) + " run — top up at nano-gpt.com");
+    }
     const outIds = new Set(STATE.outputs.map(n=>n.id));
 
     // One worker per lane. A worker runs the graph once, then — while "keep
@@ -3378,7 +3399,7 @@ body{ background:
   color:#180a0a; box-shadow:0 0 26px #ff6b6b3a; }
 .run.stop:hover{ box-shadow:0 0 36px #ff6b6b5c; }
 .status{ font-size:.82rem; color:var(--dim); min-height:1.2em; display:flex; flex-direction:column; gap:.2rem; }
-.status .stline.error{ color:var(--danger); } .status .stline.done{ color:var(--ok); }
+.status .stline.error{ color:var(--danger); } .status .stline.done{ color:var(--ok); } .status .stline.warn{ color:#ffcf6b; }
 
 .output{ display:flex; flex-direction:column; gap:1rem; }
 .output .card{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:1rem; }
@@ -3414,7 +3435,7 @@ body{ background:
   color:var(--faint); font-variant-numeric:tabular-nums; }
 .prog-now.is-ok{ color:var(--ok); } .prog-now.is-err{ color:var(--danger); }
 .msg-area{ display:flex; flex-direction:column; gap:.2rem; }
-.msg-area .stline.error{ color:var(--danger); } .msg-area .stline.done{ color:var(--ok); }
+.msg-area .stline.error{ color:var(--danger); } .msg-area .stline.done{ color:var(--ok); } .msg-area .stline.warn{ color:#ffcf6b; }
 
 /* error detail — click "N errors" to reveal which steps failed and why */
 .err-toggle{ font:inherit; font-size:.76rem; margin-top:.4rem; padding:.28rem .6rem; cursor:pointer;
