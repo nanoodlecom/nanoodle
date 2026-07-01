@@ -3990,7 +3990,9 @@ async function shareUrl(){
   openShareMenu(url);                                // same popover the app share uses: copy / shorten / share-to-social
 }
 // ---- share popover (ported from play.html's app share; reused here for the workflow link) ----
-let curShareUrl = "";   // the link the popover currently reflects (long, or a shortened one)
+let curShareUrl = "";    // the link the popover currently reflects (long, or a shortened one)
+let curLongShareUrl = ""; // the FULL long link the popover was opened with — what shortening always acts on
+                          // (the editor keeps its own URL clean, so location.hash is empty/stale by shorten time)
 function setShareUrl(u){
   curShareUrl = u;
   $("sm-url").value = u;
@@ -4004,7 +4006,7 @@ function setShareUrl(u){
   };
   document.querySelectorAll("#sharemenu .sm-social a").forEach(a => a.href = soc[a.dataset.soc]);
 }
-function openShareMenu(url){ setShareUrl(url); $("sharemenu").hidden = false; $("shareback").hidden = false; }
+function openShareMenu(url){ curLongShareUrl = url; setShareUrl(url); $("sharemenu").hidden = false; $("shareback").hidden = false; }
 function closeShareMenu(){ $("sharemenu").hidden = true; $("shareback").hidden = true; }
 // Set when this editor session is editing the workflow of an existing app (carried in
 // via #ga= or the modal's __editflow__ message). "Create app" hands the graph back under
@@ -4067,7 +4069,7 @@ $("sm-copy").onclick = async ()=>{ const ok = await copyText(curShareUrl); toast
 $("sm-url").onclick = ()=> $("sm-url").select();
 document.querySelectorAll("#sharemenu .sm-svc button").forEach(btn => btn.onclick = async ()=>{
   const svc = btn.dataset.svc, label = btn.textContent.trim();
-  const longUrl = location.origin + location.pathname + location.search + location.hash;   // shorten the full current link
+  const longUrl = curLongShareUrl || (location.origin + location.pathname + location.search + location.hash);   // the full link the popover was opened with (NOT location.hash — the editor URL is kept clean)
   const others = [...document.querySelectorAll("#sharemenu .sm-svc button")];
   others.forEach(b=> b.disabled = true);
   const o = btn.textContent; btn.textContent = "…";

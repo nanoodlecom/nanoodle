@@ -4011,7 +4011,9 @@ function shareableGraph(g){
 }
 
 // SHARE: pack {v:1, graph, files} -> gzip -> b64url -> #a= ; copy + open the share popover. NO key inside.
-let shareUrl = "";   // the link the popover currently reflects (long, or a shortened one)
+let shareUrl = "";      // the link the popover currently reflects (long, or a shortened one)
+let longShareUrl = "";  // the FULL long link the popover was opened with — what shortening always acts on
+                        // (doShare strips #a= back out of the address bar, so location.hash is empty by then)
 async function doShare(){
   try{
     const json = JSON.stringify({ v:1, graph:shareableGraph(APP_STATE.graph), files:APP_STATE.files });
@@ -4047,7 +4049,7 @@ function setShareUrl(u){
   };
   document.querySelectorAll("#sharemenu .sm-social a").forEach(a => a.href = soc[a.dataset.soc]);
 }
-function openShareMenu(url){ setShareUrl(url); $("sharemenu").hidden = false; $("shareback").hidden = false; }
+function openShareMenu(url){ longShareUrl = url; setShareUrl(url); $("sharemenu").hidden = false; $("shareback").hidden = false; }
 function closeShareMenu(){ $("sharemenu").hidden = true; $("shareback").hidden = true; }
 
 // SHORTEN — direct client-side fetch to the chosen service (no nanoodle backend in the path).
@@ -4167,7 +4169,7 @@ $("sm-copy").onclick = async ()=>{ const ok = await copyText(shareUrl); toast(ok
 $("sm-url").onclick = ()=> $("sm-url").select();
 document.querySelectorAll("#sharemenu .sm-svc button").forEach(btn => btn.onclick = async ()=>{
   const svc = btn.dataset.svc, label = btn.textContent.trim();
-  const longUrl = location.origin + location.pathname + location.hash;   // always shorten the full current link
+  const longUrl = longShareUrl || (location.origin + location.pathname + location.hash);   // the full link the popover was opened with (NOT location.hash — doShare already stripped it)
   const others = [...document.querySelectorAll("#sharemenu .sm-svc button")];
   others.forEach(b=> b.disabled = true);
   const o = btn.textContent; btn.textContent = "…";
