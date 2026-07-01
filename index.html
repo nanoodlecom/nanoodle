@@ -532,7 +532,7 @@
   <button id="makeapp" title="Turn this workflow into a shareable app">✨ Create app</button>
   <button id="newapp" title="Start a NEW app from this workflow (don’t update the one you’re editing)" hidden>✨ New</button>
   <button id="share" title="Copy a link that loads this exact workflow — paste it to share with anyone">🔗 Share</button>
-  <button id="submitcontest" title="Enter this in the Noodle Cookoff">🏆 Submit</button>
+  <button id="submitcontest" title="Enter this in the Noodle Cookoff">🏆 Cookoff</button>
   <button id="save" title="download this graph as JSON">⭳ Save</button>
   <button id="load" title="open a graph JSON file">⭱ Load</button>
   <button id="updates" title="What’s new in nanoodle">📣 Updates<span id="updbadge" hidden></span></button>
@@ -551,7 +551,7 @@
 </header>
 
 <div id="keyrow">
-  <input id="keyinput" type="text" placeholder="paste NanoGPT API key (sk-nano-… or a UUID)" />
+  <input id="keyinput" type="password" autocomplete="off" placeholder="paste NanoGPT API key (sk-nano-… or a UUID)" />
   <button id="keysave" class="btn">save</button>
   <span class="dim" style="font-size:.72rem;color:var(--dim)">nano-gpt.com → Settings → API</span>
 </div>
@@ -1976,7 +1976,7 @@ function buildNodeEl(n){
       <span class="em">${t.em}</span><span class="ttl">${t.title}</span>
       <span class="dot"></span>
       <button class="hbtn" data-act="run" title="run this branch">▶</button>
-      <button class="hbtn" data-act="del" title="delete">✕</button>
+      <button class="hbtn" data-act="del" title="delete (Del)">✕</button>
     </header>
     <div class="ports">
       <div class="col in">${inRows}</div>
@@ -3631,6 +3631,20 @@ function shareableGraph(){
   });
   return g;
 }
+// SECURITY (mirror of the share-out blanking above, for the import side): a shared #g=/#j= link
+// auto-applies on open with no Run/gesture. Upload-node media fields are ALWAYS data: URLs locally
+// (FileReader / canvas.toDataURL), so any remote value here can only be an injected beacon — the
+// default <audio>/<video> preload would fetch it and leak the viewer's IP/UA/open-timestamp on open.
+// Blank any non-data:/blob: upload media on import (legit uploads are untouched; generated outputs
+// ride in n.out, not n.fields, so remote outputs are unaffected).
+const SAFE_MEDIA_RE = /^(data:|blob:)/;
+function stripInjectedMedia(n){
+  if(!n.fields) return;
+  const f = UPLOAD_FIELD[n.type];                                   // upload→image, aupload→audio, vupload→video
+  if(f && n.fields[f] && !SAFE_MEDIA_RE.test(n.fields[f])) n.fields[f] = "";
+  if(n.type==="inpaint") for(const k of ["image","mask"])           // source photo + brushed mask, both data: locally
+    if(n.fields[k] && !SAFE_MEDIA_RE.test(n.fields[k])) n.fields[k] = "";
+}
 function applyGraphData(d){
   world.innerHTML=""; selected=null;
   graph = { nodes:[], links:[] };
@@ -3639,7 +3653,7 @@ function applyGraphData(d){
   for(const sn of (d.nodes||[])){
     const type = ALIAS[sn.type] || sn.type;
     if(!NODE_TYPES[type]) continue;               // skip unknown node types gracefully
-    const n={ ...sn, type, out:{}, el:null }; graph.nodes.push(n); buildNodeEl(n);
+    const n={ ...sn, type, out:{}, el:null }; stripInjectedMedia(n); graph.nodes.push(n); buildNodeEl(n);
   }
   // keep only links whose endpoints survived
   const ids = new Set(graph.nodes.map(n=>n.id));
@@ -3651,8 +3665,8 @@ function applyGraphData(d){
   }
   // rebuild id counters so new nodes/links never collide with loaded ones
   const num = (s)=> parseInt(String(s).replace(/\D/g,""),10) || 0;
-  nid = Math.max(d.nid||0, 0, ...graph.nodes.map(n=>num(n.id))) + 1;
-  lid = Math.max(d.lid||0, 0, ...graph.links.map(l=>num(l.id))) + 1;
+  nid = Math.max(num(d.nid), 0, ...graph.nodes.map(n=>num(n.id))) + 1;
+  lid = Math.max(num(d.lid), 0, ...graph.links.map(l=>num(l.id))) + 1;
   graph.nodes.forEach(n=>{ recompactImageLinks(n); refreshImageInputs(n); recompactVideoLinks(n); refreshVideoInputs(n); });   // links loaded → compact + grow image/clip ports
   redraw(); refreshPortFills(); refreshAllPrices();
 }
@@ -3908,7 +3922,10 @@ addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("appmodal").hidden) c
 
 // 🍜 Noodle Cookoff promo — opens a static announcement modal; the ✕ on the button dismisses it for good.
 const cookoffBtn = $("cookoffbtn");
-try{ if(localStorage.getItem("noodle_cookoff_dismissed")) cookoffBtn.hidden = true; }catch(_){}
+// Contest ends Jul 12, 23:59 UTC — after that, retire the entry button + promo so they don't rot for new users.
+const COOKOFF_OVER = Date.now() > Date.parse("2026-07-12T23:59:59Z");
+if(COOKOFF_OVER) $("submitcontest").hidden = true;
+try{ if(COOKOFF_OVER || localStorage.getItem("noodle_cookoff_dismissed")) cookoffBtn.hidden = true; }catch(_){}
 function closeCookoff(){ $("cookoffmodal").hidden = true; }
 function dismissCookoff(e){ e.stopPropagation(); cookoffBtn.hidden = true; try{ localStorage.setItem("noodle_cookoff_dismissed","1"); }catch(_){} }
 $("cookoffdismiss").onclick = dismissCookoff;
@@ -4514,10 +4531,16 @@ RULES for the diff:
     // Canvas edits made by hand since the current version aren't a snapshot — applyGraphData
     // below would replace the live graph and drop them. Don't interrupt to ask: just capture
     // them as a version first, so jumping away always keeps your work and parks it in the strip
-    // to return to. toSimple ignores node positions/pan/zoom, so a plain drag isn't an "edit".
+    // to return to. Compare workflow CONTENT (fields incl. uploaded media), not layout: a plain
+    // drag/pan/resize isn't an edit, but dropping in a photo IS. (toSimple strips media — it's
+    // for the planner — so it must NOT be used here, or media-only edits get silently destroyed.)
+    const contentSig = g => JSON.stringify({
+      nodes:(g.nodes||[]).map(n=>({ id:n.id, type:n.type, fields:n.fields||{} })),
+      links:(g.links||[]).map(l=>({ from:`${l.from.node}.${l.from.port}`, to:`${l.to.node}.${l.to.port}` })),
+    });
     const cur = versions[curVer];
     let savedAt = -1;
-    if(cur && JSON.stringify(toSimple(serializeGraph())) !== JSON.stringify(toSimple(cur.graph))){
+    if(cur && contentSig(serializeGraph()) !== contentSig(cur.graph)){
       versions.push({ graph: clone(serializeGraph()), goal: "your canvas edits" });
       savedAt = versions.length - 1;
     }
