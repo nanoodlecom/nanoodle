@@ -2823,16 +2823,21 @@ function endPtr(e){
 editor.addEventListener("pointerup", endPtr);
 editor.addEventListener("pointercancel", endPtr);
 editor.addEventListener("wheel", e=>{
-  // Yield to a scrollable region inside a node (a tall textarea, a long result
-  // .rtext) so the wheel scrolls its content instead of zooming the canvas — but
-  // only while that region can still scroll the way the wheel points. Everything
-  // else (background, a non-scrolling node) zooms exactly as before.
-  for(let el=e.target; el && el!==editor; el=el.parentElement){
+  // Plain wheel yields to a scrollable region inside a node (a tall textarea, a long
+  // result .rtext) so it scrolls its content instead of zooming the canvas — but only
+  // while that region can still scroll the way the wheel points. At the boundary of the
+  // textarea you're EDITING the wheel is swallowed (never flips into a surprise zoom),
+  // so reaching the top/bottom of a focused prompt does nothing rather than trapping you.
+  // Ctrl/Cmd+wheel always zooms anywhere (incl. over a textarea), so zoom stays reachable
+  // while editing — that modifier path also covers trackpad pinch (arrives as ctrl+wheel).
+  const zoomKey = e.ctrlKey || e.metaKey;
+  if(!zoomKey) for(let el=e.target; el && el!==editor; el=el.parentElement){
     if(el.nodeType!==1) continue;
     const scrollable = el.tagName==="TEXTAREA" || /^(auto|scroll)$/.test(getComputedStyle(el).overflowY);
     if(scrollable && el.scrollHeight > el.clientHeight){
       const canScroll = e.deltaY<0 ? el.scrollTop>0 : el.scrollTop + el.clientHeight < el.scrollHeight - 1;
       if(canScroll) return;   // let the element consume the wheel natively
+      if(el===document.activeElement){ e.preventDefault(); return; }   // at the boundary of the field you're editing → swallow, don't zoom
     }
   }
   e.preventDefault();
