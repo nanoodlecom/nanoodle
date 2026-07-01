@@ -344,7 +344,13 @@ const FILES = { "index.html": "<!doctype html><title>t</title>" };
 const ORIGIN = "https://nanoodle.com";
 
 const el = (ctx, id) => ctx.document.getElementById(id);
-const txt = (ctx, id) => String(el(ctx, id).textContent ?? "");
+// #makeapp renders via innerHTML (its label rides in a .lbl span so phones can collapse it to ✨),
+// so read whichever the page set and flatten markup/entities back to visible text.
+const txt = (ctx, id) => {
+  const e = el(ctx, id);
+  const raw = typeof e.innerHTML === "string" ? e.innerHTML : (typeof e.textContent === "string" ? e.textContent : "");
+  return raw.replace(/<[^>]*>/g, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&");  // &amp; last — the exact reverse of esc(), so escaped entities can't double-decode
+};
 const graphMarker = (g) => (g && g.nodes && g.nodes[0] && g.nodes[0].fields && g.nodes[0].fields.text) || null;
 function playStateGraph(store) { try { return JSON.parse(store["noodle_app_state"]).graph; } catch { return null; } }
 function playAppShown(ctx) { return el(ctx, "empty").hidden === true; }
