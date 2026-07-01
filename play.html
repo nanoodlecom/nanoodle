@@ -916,7 +916,7 @@ window.NoodleApp = (function () {
      dropdown; if pricing isn't available (offline export) the chip just hides. Kept
      backtick-free — this rides in the String.raw runtime. Image is exact; video/chat/
      audio are estimates (shown with ~): true cost depends on length & tokens. */
-  const EST = { llmInTokens:1000, llmOutTokens:500, ttsChars:600, audioSeconds:30, sttMinutes:1, videoFps:30 };
+  const EST = { llmInTokens:1000, llmOutTokens:500, ttsChars:600, audioSeconds:30, sttMinutes:1, videoFps:30, chatImageUsd:0.14 };   // Draw node: chat-endpoint image models bill image_tokens the catalog can't price — measured ~$0.14/image
   const _num = (x)=> (x!=null && isFinite(+x)) ? +x : null;
   function pickByRes(map, reqRes, defRes){
     if(!map || typeof map!=="object") return null;
@@ -1229,6 +1229,25 @@ window.NoodleApp = (function () {
         out = fence + "thinking\n" + msg.reasoning + "\n" + fence + "\n\n" + out;
       }
       return out;
+    },
+    // Draw node twin: same chat call, but the model answers with an IMAGE in message.images[] and
+    // content:null. Returns every image as a data URL plus any interleaved text. Mirrors index.html's
+    // ctx.genChatImage — see there for the live-verified response shape (gemini-3-pro-image-preview).
+    async genChatImage(messages, model, opts){
+      opts = opts || {};
+      const body = { model, messages };
+      body.temperature = (opts.temperature!=null && opts.temperature!=="") ? +opts.temperature : 0.8;
+      const r = await apiFetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
+      if(!r.ok){ flagAuth(r.status); throw new Error(r.status + ": " + (await r.text()).slice(0,160)); }
+      const j = await r.json();
+      const msg = (j.choices && j.choices[0] && j.choices[0].message) || {};
+      const images = (msg.images||[]).map(function(im){ return (im && im.image_url && im.image_url.url) || (im && im.url) || (typeof im==="string"?im:null); }).filter(Boolean);
+      const text = typeof msg.content==="string" ? msg.content : Array.isArray(msg.content) ? msg.content.map(p=>p.text||"").join("") : "";
+      if(!images.length) throw new Error(text ? "this model replied with text, not an image — pick an image-output model" : "no image in response");
+      const c = costFromJson(j);   // chat endpoint reports no usable image cost → fall back to the measured per-image estimate
+      if(c.usd==null){ c.usd = EST.chatImageUsd*images.length; c.estimate = true; }
+      onCost(c);
+      return { images, text, reasoning: msg.reasoning||"" };
     },
     // async video: submit → poll /api/video/status until COMPLETED (up to 10 min)
     // opts also carries optional source media: videoUrl/videoDataUrl (edit/extend/upscale)
@@ -1883,6 +1902,23 @@ window.NoodleApp = (function () {
         return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], src, undefined, imgExtra(n)) };
       }
     },
+    draw: {
+      em:"🎨", title:"Draw", inputs:[], imageInputs:"vision",   // Gemini omni: reasons, then draws or edits; wired image ports are composed/edited in the same call
+      outputs:[{name:"image", type:"image"},{name:"text", type:"text"}],
+      async run(n, inp, ctx){
+        const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
+        if(!prompt) throw new Error("no prompt");
+        const imgs = collectImageInputs(inp);   // wired image ports (img1, img2, …) — the model edits/composes from them when present
+        const messages = [];
+        if((n.fields.system||"").trim()) messages.push({role:"system", content:n.fields.system.trim()});
+        messages.push(imgs.length
+          ? { role:"user", content:[{type:"text", text:prompt}, ...imgs.map(url=>({type:"image_url", image_url:{url}}))] }
+          : { role:"user", content:prompt });
+        const res = await ctx.genChatImage(messages, mdl(n), {});
+        const sel = Math.min(Math.max(0, parseInt(n.fields.sel,10)||0), res.images.length-1);
+        return { image: res.images[sel], images: res.images, text: res.text };
+      }
+    },
     inpaint: {
       em:"🩹", title:"Inpaint",
       inputs:[{name:"image", type:"image"},{name:"mask", type:"image"}], outputs:[{name:"image", type:"image"}],
@@ -2303,6 +2339,8 @@ window.NoodleApp = (function () {
     llm:    [{ f:"prompt", label:"Prompt",       kind:"textarea" },
              { f:"system", label:"System prompt", kind:"textarea", optional:true, def:"You are a helpful, concise assistant." }],
     image:  [{ f:"prompt", label:"Image prompt", kind:"textarea" }],
+    draw:   [{ f:"prompt", label:"Prompt",       kind:"textarea" },
+             { f:"system", label:"System prompt", kind:"textarea", optional:true }],
     tvideo: [{ f:"prompt", label:"Video prompt", kind:"textarea" }],
     music:  [{ f:"prompt", label:"Style / prompt", kind:"textarea" }],
     tts:    [{ f:"prompt", label:"Text to speak",  kind:"textarea" }],
@@ -2381,6 +2419,7 @@ window.NoodleApp = (function () {
               { f:"prompt", label:"Edit instruction", kind:"textarea" },
               { f:"size",  label:"Image size", kind:"select", options:SIZES, def:SIZES[0][0] },
               { f:"seed", label:"Seed", kind:"number" }],
+    draw:    [{ f:"model", label:"Model", kind:"model" }],
     tvideo:  [{ f:"model", label:"Model", kind:"model" },
               { f:"resolution", label:"Resolution", kind:"select", options:RESOLUTIONS, def:"" },
               { f:"aspect",   label:"Aspect ratio", kind:"select", options:ASPECTS, def:"16:9" },
@@ -2418,7 +2457,7 @@ window.NoodleApp = (function () {
   };
   // node type -> NanoGPT catalog kind, used to populate the model-swap datalist
   const SETTING_MODEL_KIND = {
-    llm:"chat", vision:"chat", image:"image", edit:"image",
+    llm:"chat", vision:"chat", image:"image", edit:"image", draw:"chat",
     tvideo:"video", ivideo:"video", vedit:"video", lipsync:"video",
     music:"audio", tts:"audio", transcribe:"audio",
   };
@@ -2576,6 +2615,7 @@ window.NoodleApp = (function () {
     join:   "joins two pieces of text into one",
     llm:    "writes text from a prompt",
     image:  "generates an image from a text prompt",
+    draw:   "reasons, then draws an image from a prompt (or edits/composes wired images) with a Gemini omni model",
     edit:   "edits an existing image following an instruction",
     inpaint:"repaints a brushed (or masked) region of an image from a prompt",
     vision: "looks at an image and answers a question about it in text",

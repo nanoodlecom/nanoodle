@@ -1372,6 +1372,8 @@ const I18N = {
     "you are a helpful…":"eres un asistente útil…",
     "ask something…":"pregunta algo…",
     "a red panda astronaut…":"un panda rojo astronauta…",
+    "style guide, constraints…":"guía de estilo, restricciones…",
+    "a red panda astronaut, cinematic — or, with images wired in: 'combine these into a poster'":"un panda rojo astronauta, cinematográfico — o, con imágenes conectadas: 'combínalas en un póster'",
     "make it night-time, add neon…":"hazlo de noche, añade neón…",
     "Describe this image.":"Describe esta imagen.",
     "a drone shot over neon Tokyo at night…":"un plano con dron sobre el Tokio de neón de noche…",
@@ -1783,6 +1785,8 @@ const I18N = {
     "you are a helpful…":"vous êtes un assistant…",
     "ask something…":"posez une question…",
     "a red panda astronaut…":"un panda roux astronaute…",
+    "style guide, constraints…":"guide de style, contraintes…",
+    "a red panda astronaut, cinematic — or, with images wired in: 'combine these into a poster'":"un panda roux astronaute, cinématique — ou, avec des images branchées : 'combine-les en une affiche'",
     "make it night-time, add neon…":"passe en mode nuit, ajoute des néons…",
     "Describe this image.":"Décrivez cette image.",
     "a drone shot over neon Tokyo at night…":"un plan drone sur Tokyo en néons la nuit…",
@@ -2194,6 +2198,8 @@ const I18N = {
     "you are a helpful…":"du bist ein hilfreicher…",
     "ask something…":"etwas fragen…",
     "a red panda astronaut…":"ein Roter Panda als Astronaut…",
+    "style guide, constraints…":"Stilvorgaben, Einschränkungen…",
+    "a red panda astronaut, cinematic — or, with images wired in: 'combine these into a poster'":"ein Roter Panda als Astronaut, filmisch — oder, mit verbundenen Bildern: 'kombiniere sie zu einem Poster'",
     "make it night-time, add neon…":"mach es Nacht, füge Neon hinzu…",
     "Describe this image.":"Beschreibe dieses Bild.",
     "a drone shot over neon Tokyo at night…":"eine Drohnenaufnahme über dem nächtlichen Neon-Tokio…",
@@ -2605,6 +2611,8 @@ const I18N = {
     "you are a helpful…":"você é um assistente prestativo…",
     "ask something…":"pergunte algo…",
     "a red panda astronaut…":"um panda-vermelho astronauta…",
+    "style guide, constraints…":"guia de estilo, restrições…",
+    "a red panda astronaut, cinematic — or, with images wired in: 'combine these into a poster'":"um panda-vermelho astronauta, cinematográfico — ou, com imagens conectadas: 'combine-as em um pôster'",
     "make it night-time, add neon…":"transforme em noite, adicione néon…",
     "Describe this image.":"Descreva esta imagem.",
     "a drone shot over neon Tokyo at night…":"um drone sobre a Tóquio de néon à noite…",
@@ -3016,6 +3024,8 @@ const I18N = {
     "you are a helpful…":"あなたは親切なアシスタントです…",
     "ask something…":"質問を入力…",
     "a red panda astronaut…":"宇宙飛行士のレッサーパンダ…",
+    "style guide, constraints…":"スタイルガイド、制約…",
+    "a red panda astronaut, cinematic — or, with images wired in: 'combine these into a poster'":"宇宙飛行士のレッサーパンダ、映画的に — または画像をつないで：'これらをポスターに合成'",
     "make it night-time, add neon…":"夜にして、ネオンを追加…",
     "Describe this image.":"この画像を説明してください。",
     "a drone shot over neon Tokyo at night…":"夜のネオン輝く東京上空のドローン映像…",
@@ -3200,9 +3210,19 @@ function withLocale(messages){
 const SIZES = [["1024x1024","square"],["1024x1536","portrait"],["1536x1024","landscape"],["auto","auto"]];
 const optsHTML = (items, def)=> items.map(([v,l])=>`<option value="${esc(v)}"${v===def?" selected":""}>${esc(l)}</option>`).join("");
 
+// Chat models that return an IMAGE inline (message.images[]) instead of text — Google's "omni"
+// Gemini image models exposed on the /chat/completions endpoint (NOT the image-generations one, so
+// they never appear in the Image/Edit pickers). They reason, then draw, and take text + optional
+// source images (generate OR conversationally edit in one call). Live-verified this returns
+// content:null + message.images[0] as a data URL (2026-07-01). Allowlist, not metadata-derivable:
+// NanoGPT tags these as modality "text->text" with no image-output flag. The Draw node filters on it.
+const CHAT_IMAGE_OUT = new Set([
+  "gemini-3-pro-image-preview",
+]);
+
 function normChat(m){
   const p = m.pricing||{}, c = m.capabilities||{};
-  return { id:m.id, name:m.name||m.id, created:m.created,
+  return { id:m.id, name:m.name||m.id, created:m.created, imageOut: CHAT_IMAGE_OUT.has(m.id),   // returns an image inline → pickable in the Draw node
     // blended $/run from the shown prompt+completion prices (same EST mix as the run estimate) → price sorts.
     // NOT m.cost_estimate: it's 0 for routers/auto-model that actually charge, which would fake them as "cheapest".
     sortUsd: (p.prompt!=null || p.completion!=null) ? ((+p.prompt||0)*EST.llmInTokens + (+p.completion||0)*EST.llmOutTokens)/1e6 : null,
@@ -3929,7 +3949,8 @@ function imageUnitUsd(model, size){
    known until the run, so we assume typical sizes (EST) and read the node's
    own prompt length where we can. videoUnitUsd() below is also what fixed the
    ~40% of video models that used to render a blank price in the picker. */
-const EST = { llmInTokens:1000, llmOutTokens:500, ttsChars:600, audioSeconds:30, sttMinutes:1, videoFps:30 };
+const EST = { llmInTokens:1000, llmOutTokens:500, ttsChars:600, audioSeconds:30, sttMinutes:1, videoFps:30,
+  chatImageUsd:0.14 };   // Draw node: chat-endpoint image models bill mostly image_tokens, which the catalog's $/token can't predict — live-measured ~$0.14/image (gemini-3-pro-image-preview, 2026-07-01)
 const _num = (x)=> (x!=null && isFinite(+x)) ? +x : null;
 // pick a price from a {resolutionKey: price} map, honouring the chosen/default resolution (else first/lowest tier)
 function pickByRes(map, reqRes, defRes){
@@ -4052,7 +4073,8 @@ function nodeUnitUsd(n){
     const count = fixed>0 ? fixed : Math.min(maxOut, Math.max(1, parseInt(n.fields.variations,10)||1));
     return u*count; }
   if(kind==="video"){ const u = videoUnitUsd(it.pricing, n.fields); return (u!=null && isFinite(u)) ? u : null; }
-  if(kind==="chat"){ const f=n.fields||{}; const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(it, inTok, outTok); }
+  if(kind==="chat"){ if(it.imageOut) return EST.chatImageUsd;   // Draw node: token pricing can't see image_tokens — use the measured per-image figure
+    const f=n.fields||{}; const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(it, inTok, outTok); }
   if(kind==="audio"){ const chars = t.modelFilter==="stt" ? undefined : (((n.fields||{}).prompt||"").length || EST.ttsChars);
     const u = audioUnitUsd(it.pricing, chars); if(u==null) return null;
     const songs = Math.max(1, parseInt((n.fields||{}).number_of_songs,10)||1);   // music models bill per song (the API is sent number_of_songs)
@@ -4357,6 +4379,32 @@ const NODE_TYPES = {
       const urls = await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], undefined, undefined, imgExtra(n), {n:want, multi:true});
       const sel = Math.min(Math.max(0, parseInt(n.fields.sel,10)||0), urls.length-1);   // remembered pick, clamped to what came back
       return { image: urls[sel], images: urls };
+    }
+  },
+
+  draw: {
+    em:"🎨", title:"Draw", desc:"Prompt (+ images) → image — Gemini omni: reasons, then draws or edits", group:"Image",
+    kw:"gemini omni draw reason think image generate edit compose nano banana chat picture",
+    modelKind:"chat", modelFilter:"imageOut",
+    inputs:[],
+    imageInputs:"vision",   // optional wired images → conversational edit / multi-image compositing in the SAME call
+    outputs:[{name:"image", type:"image"},{name:"text", type:"text"}], preview:"image",
+    body:(n)=>`
+      ${modelFieldHTML(n)}
+      <div><label>system (optional)</label><textarea data-f="system" style="min-height:40px" placeholder="style guide, constraints…">${esc(n.fields.system||"")}</textarea></div>
+      <div><label>prompt</label><textarea data-f="prompt" placeholder="a red panda astronaut, cinematic — or, with images wired in: 'combine these into a poster'">${esc(n.fields.prompt||"")}</textarea></div>`,
+    async run(n, inp, ctx){
+      const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
+      if(!prompt) throw new Error("no prompt — describe what to draw (or how to edit the wired images)");
+      const imgs = collectImageInputs(inp, n);   // wired image ports, in order — the model edits/composes from them when present
+      const messages = [];
+      if((n.fields.system||"").trim()) messages.push({role:"system", content:n.fields.system.trim()});
+      messages.push(imgs.length
+        ? { role:"user", content:[{type:"text", text:prompt}, ...imgs.map(url=>({type:"image_url", image_url:{url}}))] }
+        : { role:"user", content:prompt });
+      const { images, text } = await ctx.genChatImage(messages, mdl(n), {});
+      const sel = Math.min(Math.max(0, parseInt(n.fields.sel,10)||0), images.length-1);   // remembered pick when the model returns several
+      return { image: images[sel], images, text };
     }
   },
 
@@ -6426,6 +6474,23 @@ const CTX = {
       out = "```thinking\n"+msg.reasoning+"\n```\n\n"+out;
     return out;
   },
+  // Draw node: same /chat/completions call, but the model answers with an IMAGE (or several) in
+  // message.images[] rather than text (content is null). Returns every image as a data URL plus any
+  // interleaved text. Live-verified: gemini-3-pro-image-preview replies content:null + images:[{image_url:{url:"data:image/png;base64,…"}}].
+  async genChatImage(messages, model, opts){
+    opts = opts || {};
+    const body = { model, messages };
+    body.temperature = (opts.temperature!=null && opts.temperature!=="") ? +opts.temperature : 0.8;
+    const r = await fetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
+    if(!r.ok){ flagAuth(r); throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`); }
+    const j = await r.json();
+    const msg = j.choices?.[0]?.message || {};
+    const images = (msg.images||[]).map(im=> im?.image_url?.url || im?.url || (typeof im==="string"?im:null)).filter(Boolean);
+    const text = typeof msg.content==="string" ? msg.content : Array.isArray(msg.content) ? msg.content.map(p=>p.text||"").join("") : "";
+    if(!images.length) throw new Error(text ? "this model replied with text, not an image — pick an image-output model" : "no image in response");
+    accrue(j, EST.chatImageUsd*images.length);   // chat endpoint reports no usable image cost (image_tokens) → count the measured per-image estimate
+    return { images, text, reasoning: msg.reasoning||"" };
+  },
   // async video: submit → poll /api/video/status until COMPLETED (up to 10 min)
   // opts also carries optional source media for editing models: videoUrl/videoDataUrl
   // (extend/edit/upscale) and audioDataUrl (lipsync/avatar). duration/aspect only sent when set.
@@ -8436,6 +8501,7 @@ $("signout").onclick = ()=> setKey(null);
     vision:{ fields:{ model:"vision model id (optional)", q:"the question" } },
     image:{ main:"prompt", fields:{ model:"image model id (optional)", prompt:"image prompt", size:"e.g. 1024x1024" } },
     edit:{ main:"prompt", fields:{ model:"edit model id (optional)", prompt:"edit instruction" } },
+    draw:{ main:"prompt", fields:{ model:"image-output chat model id (optional)", system:"system prompt", prompt:"what to draw (or how to edit wired images)" }, note:"reasons, then draws; wired image ports are edited/composed" },
     inpaint:{ main:"prompt", fields:{ model:"inpaint model id (optional)", prompt:"what to paint in" } },
     resize:{ fields:{ mode:"fit|fill|exact", width:"target px", height:"target px (blank = derive from aspect)" } },
     tvideo:{ main:"prompt", fields:{ model:"t2v model id (optional)", prompt:"video prompt", duration:"seconds", aspect:"e.g. 16:9" } },
