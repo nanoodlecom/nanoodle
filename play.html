@@ -3913,7 +3913,7 @@ function stopCustomize(){ if(custAbort && !custAbort.signal.aborted) custAbort.a
 function setCustBusy(on){
   const a = $("apply"); if(!a) return;
   if(on){ a.disabled = false; a.classList.add("stop"); a.classList.remove("idle"); a.textContent = "■ Stop"; a.onclick = stopCustomize; }
-  else { a.classList.remove("stop"); a.textContent = "✦ Apply"; a.onclick = applyCustomize; a.disabled = !getKey(); syncApply(); }
+  else { a.classList.remove("stop"); a.textContent = "✦ Apply"; a.onclick = applyCustomize; a.disabled = false; syncApply(); }   // signed-out stays clickable — the click kicks sign-in
 }
 // Signed-out users shouldn't dead-end on a toast — launch the same sign-in the ✨ Sign in button
 // uses (https → OAuth popup; file:// → reveal the paste-key row), so Customize has a way forward like Run.
@@ -3928,7 +3928,10 @@ function kickBuilderSignIn(){
 // opts: { preamble, genLabel, applyLabel, okLabel, versionGoal }
 async function runDiffPass(goal, opts){
   opts = opts || {};
-  if(!getKey()){ kickBuilderSignIn(); return false; }   // signed out → launch sign-in, not a dead-end toast
+  if(!getKey()){   // signed out → say why, then launch sign-in; stashResume keeps the typed goal across a redirect
+    $("cust-status").innerHTML = '<span class="dim" id="keyless-hint">Customizing uses your nano-gpt.com key — sign in' + (hasResumable() ? ' and your goal is kept.' : ' to continue.') + '</span>';
+    kickBuilderSignIn(); return false;
+  }
   const key = getKey();
   if(!goal || !goal.trim()) return false;
   if(busy) return false; busy = true;
@@ -4187,10 +4190,12 @@ function commit(){ if(!CUR_ID) CUR_ID = newId(); clearTimeout(persistTimer); ret
 // Stash the open app in sessionStorage right before a full-page OAuth redirect.
 // sessionStorage is a separate quota bucket and survives same-tab navigation, so the
 // app returns even when localStorage is full or a debounced autosave hasn't flushed.
+function hasResumable(){ return !!((APP_STATE.graph && APP_STATE.graph.nodes && APP_STATE.graph.nodes.length) || (APP_STATE.versions && APP_STATE.versions.length > 1)); }
 function stashResume(){
   try{
-    if((APP_STATE.graph && APP_STATE.graph.nodes && APP_STATE.graph.nodes.length) || (APP_STATE.versions && APP_STATE.versions.length > 1))
-      sessionStorage.setItem(RESUME_KEY, JSON.stringify({ ...curEntry(), v:1 }));
+    const goal = ($("goal") && $("goal").value.trim()) || "";   // a typed-but-unapplied goal survives the redirect too
+    if(hasResumable())
+      sessionStorage.setItem(RESUME_KEY, JSON.stringify({ ...curEntry(), goal, v:1 }));
   }catch(_){}
 }
 
@@ -4431,7 +4436,7 @@ function renderAuth(){
   $("signin").style.display  = signed ? "none" : "";
   $("pastebtn").style.display = signed ? "none" : "";
   $("signout").style.display  = signed ? "" : "none";
-  $("apply").disabled = busy ? false : !signed;   // while busy the Apply button is the ■ Stop control — keep it live
+  $("apply").disabled = false;   // signed-out clicks route through kickBuilderSignIn (same as Enter) — never a dead-end
 }
 // Save-time key probe: a definitively-rejected key (401/403) → false; anything else → true.
 // /api/v1/chat/completions is CORS-enabled (unlike /api/check-balance, which a browser can't
@@ -4453,7 +4458,8 @@ async function probeKey(k){
 let _signedInReflected = false;
 function finishSignIn(){
   renderAuth(); pushAuthToApp();
-  if(getKey()){ if(!_signedInReflected){ _signedInReflected = true; toast("signed in — the app can run now"); } }
+  if(getKey()){ if($("keyless-hint")) $("cust-status").innerHTML = "";   // the "sign in…" hint has done its job
+    if(!_signedInReflected){ _signedInReflected = true; toast("signed in — the app can run now"); } }
   else { _signedInReflected = false; }
 }
 
@@ -4813,6 +4819,7 @@ async function boot(){
   if(!loaded && resumeSt && resumeSt.graph){
     if(resumeSt.id && !loadApps().some(a=>a.id===resumeSt.id)) resumeSt.id = null;   // its library slot was lost (e.g. quota) → reopen as a draft
     installApp(resumeSt); loaded = true;
+    if(resumeSt.goal && $("goal")){ $("goal").value = resumeSt.goal; syncSuggest(); }   // the goal typed before the sign-in redirect
   }
 
   if(!loaded) loaded = await loadFromHash();
