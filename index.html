@@ -4391,13 +4391,15 @@ document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && !$("sharemenu
 // re-hand-off when the app-meaningful graph actually changed.
 let appFrameLoaded = false;     // play.html is live in the iframe (don't reload it needlessly)
 let lastHandoffSig = null;      // signature of the graph last handed to the builder
-// What the builder actually consumes: node identity/type/fields + links + which app we're
-// editing. Deliberately EXCLUDES the canvas view (panX/panY/scale) and node positions/sizes —
-// panning, zooming or nudging a node must NOT count as a change, or the resume never fires.
+// What the builder actually consumes: node identity/type/name/fields + links + which app we're
+// editing. INCLUDES the custom name — it's a step's label in the built app, so renaming a node
+// is an app-meaningful change and must re-hand-off. Deliberately EXCLUDES the canvas view
+// (panX/panY/scale) and node positions/sizes — panning, zooming or nudging a node must NOT
+// count as a change, or the resume never fires. Trim to match serializeGraph/displayName.
 function appHandoffSig(){
   return JSON.stringify({
     app: pendingAppId || "",
-    nodes: graph.nodes.map(n=>({ id:n.id, type:n.type, fields:n.fields })),
+    nodes: graph.nodes.map(n=>({ id:n.id, type:n.type, name:(n.name&&n.name.trim())||"", fields:n.fields })),
     links: graph.links.map(l=>({ f:l.from, t:l.to }))
   });
 }
@@ -5023,11 +5025,12 @@ RULES for the diff:
     // Canvas edits made by hand since the current version aren't a snapshot — applyGraphData
     // below would replace the live graph and drop them. Don't interrupt to ask: just capture
     // them as a version first, so jumping away always keeps your work and parks it in the strip
-    // to return to. Compare workflow CONTENT (fields incl. uploaded media), not layout: a plain
-    // drag/pan/resize isn't an edit, but dropping in a photo IS. (toSimple strips media — it's
-    // for the planner — so it must NOT be used here, or media-only edits get silently destroyed.)
+    // to return to. Compare workflow CONTENT (fields incl. uploaded media + custom node names),
+    // not layout: a plain drag/pan/resize isn't an edit, but dropping in a photo or renaming a node
+    // IS. (toSimple strips media — it's for the planner — so it must NOT be used here, or
+    // media-only edits get silently destroyed.)
     const contentSig = g => JSON.stringify({
-      nodes:(g.nodes||[]).map(n=>({ id:n.id, type:n.type, fields:n.fields||{} })),
+      nodes:(g.nodes||[]).map(n=>({ id:n.id, type:n.type, name:(n.name&&n.name.trim())||"", fields:n.fields||{} })),
       links:(g.links||[]).map(l=>({ from:`${l.from.node}.${l.from.port}`, to:`${l.to.node}.${l.to.port}` })),
     });
     const cur = versions[curVer];
