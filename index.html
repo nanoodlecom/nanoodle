@@ -158,6 +158,24 @@
   #updbadge{ display:inline-flex; align-items:center; justify-content:center; min-width:1.05rem; height:1.05rem;
              padding:0 .28rem; margin-left:.3rem; border-radius:1rem; font-size:.66rem; font-weight:700; line-height:1;
              background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#0b0d12; vertical-align:middle }
+  /* examples — a small gallery of one-click starter workflows (embedded graphs, no fetch).
+     Mirrors the updates modal's look; z-index 206 sits above Updates (205), below cookoff (210). */
+  #examplesmodal[hidden]{ display:none }
+  #examplesmodal{ position:fixed; inset:0; z-index:206; display:flex; padding:min(4vh,2.4rem) min(4vw,2.4rem);
+                  background:rgba(4,6,11,.74); backdrop-filter:blur(3px); }
+  #examplespanel{ margin:auto; width:100%; max-width:620px; max-height:88vh; overflow:auto; background:var(--bg);
+                  border:1px solid var(--line); border-radius:.8rem; box-shadow:0 30px 90px #000a; padding:1.2rem 1.3rem 1.3rem; }
+  #exampleshead{ display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap }
+  #exampleshead h2{ font-size:1.1rem; margin:0 }
+  #exampleshead .sub{ font-size:.78rem; color:var(--dim); flex:1 1 12rem }
+  #examplesclose{ margin-left:auto; width:2.1rem; height:2.1rem; border-radius:.55rem; display:flex; align-items:center; justify-content:center }
+  #exampleslist{ margin-top:1rem; display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:.55rem }
+  .ex-card{ display:flex; gap:.6rem; align-items:flex-start; text-align:left; width:100%; padding:.65rem .7rem; background:var(--panel); border:1px solid var(--line); border-radius:.6rem; cursor:pointer }
+  .ex-card:hover{ border-color:var(--accent) }
+  .ex-card .ex-em{ font-size:1.25rem; line-height:1.1; flex:none }
+  .ex-card .ex-tt{ font-weight:600; font-size:.9rem; display:block }
+  .ex-card .ex-ds{ font-size:.78rem; color:var(--dim); line-height:1.35; margin-top:.1rem; display:block }
+  #examplesnote{ font-size:.72rem; color:var(--dim); margin-top:1rem }
   /* 🍜 Noodle Cookoff — floating promo button + announcement modal (time-boxed contest) */
   @keyframes cookoff-flow{ to{ background-position:200% 0 } }
   @keyframes cookoff-bob{ 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(-3px) } }
@@ -586,6 +604,7 @@
   <button id="submitcontest" title="Enter this in the Noodle Cookoff">🏆 Cookoff</button>
   <button id="save" title="download this graph as JSON">⭳ Save</button>
   <button id="load" title="open a graph JSON file">⭱ Load</button>
+  <button id="examples" title="Load a ready-made example workflow">📚 Examples</button>
   <button id="updates" title="What’s new in nanoodle">📣 Updates<span id="updbadge" hidden></span></button>
   <input id="loadfile" type="file" accept="application/json,.json" hidden />
   <div id="moremenu">
@@ -639,6 +658,19 @@
       <button id="updatesclose" class="hbtn" title="Close (Esc)" aria-label="Close">✕</button>
     </div>
     <div id="updateslist"></div>
+  </div>
+</div>
+
+<!-- Examples: one-click starter workflows (embedded graphs, loaded through applyGraphData). No fetch. -->
+<div id="examplesmodal" hidden>
+  <div id="examplespanel" role="dialog" aria-label="Examples">
+    <div id="exampleshead">
+      <h2>📚 Examples</h2>
+      <span class="sub">ready-made workflows, built right into the page — click one to load it, then ▶ Run on your own key.</span>
+      <button id="examplesclose" class="hbtn" title="Close (Esc)" aria-label="Close">✕</button>
+    </div>
+    <div id="exampleslist"></div>
+    <div id="examplesnote">loading replaces your current workflow — it’s autosaved, and ↺ Undo brings it back.</div>
   </div>
 </div>
 
@@ -748,7 +780,7 @@
   <div id="world"></div>
   <button id="undo" title="Undo (Ctrl + Z)" aria-label="Undo the last edit">↺</button>
   <button id="fit" title="Fit the whole workflow in view (F)" aria-label="Fit the whole workflow in view">⊡</button>
-  <div id="canvashint" hidden>A live AI workflow — press <b>▶ Run</b>, or <b>＋ Add node</b> to build your own.<button id="hintx" title="Got it" aria-label="Dismiss">×</button></div>
+  <div id="canvashint" hidden>A live AI workflow — press <b>▶ Run</b>, <b>＋ Add node</b> to build your own, or browse <button id="hintexamples" class="link">📚 Examples</button>.<button id="hintx" title="Got it" aria-label="Dismiss">×</button></div>
 </main>
 <div id="quickadd"></div>
 
@@ -4345,7 +4377,7 @@ $("run").onclick = ()=>{
 
 /* ---------- responsive toolbar: collapse secondary actions into the ⋯ menu on phones ----------
    Buttons keep their handlers (they're moved, not cloned). On desktop everything sits inline. */
-const RELOC = ["appmenu","share","submitcontest","save","load","updates","signin","pastebtn","signout","status"];  // order shown in the menu
+const RELOC = ["appmenu","share","submitcontest","save","load","examples","updates","signin","pastebtn","signout","status"];  // order shown in the menu
 const mqMobile = matchMedia("(max-width:640px)");
 let topOrder = null;
 function layoutBar(){
@@ -4907,6 +4939,75 @@ $("updatesclose").onclick = closeUpdates;
 $("updatesmodal").addEventListener("click", e=>{ if(e.target.id==="updatesmodal") closeUpdates(); });   // click the dim backdrop
 addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("updatesmodal").hidden) closeUpdates(); });
 refreshUpdatesBadge();
+
+/* ---- Examples: one-click starter workflows spanning the modalities nanoodle covers.
+   Each graph is embedded JSON in the applyGraphData shape ({v, nodes, links}); nid/lid/view
+   are intentionally omitted (applyGraphData recomputes the id counters; loadExample fits the
+   view). Every model-bearing node OMITS fields.model on purpose — refreshAllPrices→backfillModel
+   fills the newest live-catalog model of the right kind on load (the same default a freshly
+   dragged node gets), so no model id is ever hardcoded and none can go stale. ---- */
+const EXAMPLES = [
+ { em:"🖼", title:"text → image", desc:"describe a picture, get an image", graph:{ v:1,
+   nodes:[ {id:"n1",type:"text",x:80,y:120,fields:{text:"a red panda astronaut drifting over neon-lit Tokyo at night, cinematic, 35mm"}},
+           {id:"n2",type:"image",x:420,y:100,fields:{}} ],
+   links:[ {id:"l1",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}} ] } },
+ { em:"✂️", title:"edit a photo", desc:"upload an image, describe the change", graph:{ v:1,
+   nodes:[ {id:"n1",type:"upload",x:80,y:120,fields:{}},
+           {id:"n2",type:"edit",x:420,y:100,fields:{prompt:"make it night-time, add glowing neon signs and rain reflections"}} ],
+   links:[ {id:"l1",from:{node:"n1",port:"image"},to:{node:"n2",port:"image"}} ] } },
+ { em:"🎬", title:"text → video", desc:"a sentence becomes a short clip", graph:{ v:1,
+   nodes:[ {id:"n1",type:"text",x:80,y:120,fields:{text:"a slow cinematic drone shot over a misty mountain valley at sunrise"}},
+           {id:"n2",type:"tvideo",x:420,y:100,fields:{}} ],
+   links:[ {id:"l1",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}} ] } },
+ { em:"📽️", title:"photo → video", desc:"generate an image, then animate it", graph:{ v:1,
+   nodes:[ {id:"n1",type:"text",x:60,y:120,fields:{text:"a tiny sailboat on a glowing bioluminescent sea, night, stars"}},
+           {id:"n2",type:"image",x:400,y:100,fields:{}},
+           {id:"n3",type:"ivideo",x:740,y:100,fields:{prompt:"slow push-in, gentle waves, camera drifts forward"}} ],
+   links:[ {id:"l1",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}},
+           {id:"l2",from:{node:"n2",port:"image"},to:{node:"n3",port:"image"}} ] } },
+ { em:"🎵", title:"lyrics → song", desc:"an idea becomes lyrics, a style, and a track", graph:{ v:1,
+   nodes:[ {id:"n1",type:"text",x:60,y:60,fields:{text:"Write a wistful 90s trip-hop track. Repeat the hook."}},
+           {id:"n2",type:"llm",x:340,y:20,fields:{system:"You are a songwriter. Write only the lyrics — no title, no commentary."}},
+           {id:"n3",type:"llm",x:620,y:260,fields:{system:"You invent a musical style that fits the given lyrics. Reply with only the style, richly descriptive — no commentary."}},
+           {id:"n4",type:"music",x:900,y:60,fields:{instrumental:false}} ],
+   links:[ {id:"l1",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}},
+           {id:"l2",from:{node:"n2",port:"text"},to:{node:"n4",port:"lyrics"}},
+           {id:"l3",from:{node:"n2",port:"text"},to:{node:"n3",port:"prompt"}},
+           {id:"l4",from:{node:"n3",port:"text"},to:{node:"n4",port:"prompt"}} ] } },
+ { em:"👁", title:"see, think, speak", desc:"image → vision → poem → spoken audio", graph:{ v:1,
+   nodes:[ {id:"n1",type:"upload",x:60,y:120,fields:{}},
+           {id:"n2",type:"vision",x:340,y:100,fields:{q:"Describe this image in vivid, concrete detail."}},
+           {id:"n3",type:"llm",x:620,y:100,fields:{system:"You are a poet. Turn the description into a wistful four-line poem. Reply with only the poem."}},
+           {id:"n4",type:"tts",x:900,y:100,fields:{}} ],
+   links:[ {id:"l1",from:{node:"n1",port:"image"},to:{node:"n2",port:"image"}},
+           {id:"l2",from:{node:"n2",port:"text"},to:{node:"n3",port:"prompt"}},
+           {id:"l3",from:{node:"n3",port:"text"},to:{node:"n4",port:"prompt"}} ] } },
+];
+function openExamples(){
+  const list=$("exampleslist"); list.innerHTML="";
+  EXAMPLES.forEach((ex,i)=>{ const c=document.createElement("button"); c.className="ex-card";
+    c.innerHTML=`<span class="ex-em">${ex.em}</span><span><span class="ex-tt">${esc(ex.title)}</span><span class="ex-ds">${esc(ex.desc)}</span></span>`;
+    c.onclick=()=>loadExample(i); list.appendChild(c); });
+  $("examplesmodal").hidden=false;
+}
+function closeExamples(){ $("examplesmodal").hidden=true; }
+function loadExample(i){
+  const ex=EXAMPLES[i]; if(!ex) return;
+  if(graph.nodes.length && !confirm("Load this example? It replaces your current workflow — that’s autosaved, and ↺ Undo brings it back.")) return;
+  closeExamples();
+  pushUndo();                                    // BEFORE the mutation — ↺ Undo restores the prior graph
+  setPendingApp(null);                           // an example is a fresh workflow, not an app edit (mirrors loadFile)
+  applyGraphData(JSON.parse(JSON.stringify(ex.graph)));  // deep-clone: applyGraphData spreads nodes shallowly and mutates them, so a raw template would be corrupted for the next load
+  fitView();                                     // frame the freshly loaded example on any screen
+  save();                                        // persist as the new autosave
+  dismissHint();                                 // loading an example counts as orientation complete
+  toast("✓ loaded example: "+ex.title);
+}
+$("examples").onclick = openExamples;
+$("examplesclose").onclick = closeExamples;
+$("hintexamples").onclick = openExamples;        // first-run banner link — must NOT dismiss the hint
+$("examplesmodal").addEventListener("click", e=>{ if(e.target.id==="examplesmodal") closeExamples(); });   // dim-backdrop close
+addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("examplesmodal").hidden) closeExamples(); });
 
 /* ======================================================================
    AUTH  (OAuth PKCE + paste key — identical pattern to the other examples)
