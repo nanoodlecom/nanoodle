@@ -1916,7 +1916,15 @@ window.NoodleApp = (function () {
         return { text: await ctx.transcribe(mdl(n), inp.audio, (n.fields.language||"auto").trim()) };
       }
     },
+    // Editor sticky note. note:true → no ports, no run(); kept by materialize() so it
+    // survives into shared/exported apps and renders as a read-only caption (renderInputs).
+    // Excluded from inputs/settings/outputs (not in INPUT_SPECS/SETTING_SPECS, outputs:[])
+    // and skipped by runGraph (if(t.note) return).
+    comment: { em:"💬", title:"Comment", note:true, inputs:[], outputs:[] },
   };
+  // sticky-note colour palette (mirror of index.html's COMMENT_COLORS); key is what's stored
+  var COMMENT_COLORS = { yellow:"#f5d76e", pink:"#ff8fce", green:"#63d29a", blue:"#6ea8ff", purple:"#b28bff", gray:"#aab3c2" };
+  function commentHex(c){ return COMMENT_COLORS[c] || COMMENT_COLORS.yellow; }
 
   /* =====================================================================
      GRAPH TRAVERSAL (verbatim, index.html) — parameterized over a passed
@@ -2022,6 +2030,7 @@ window.NoodleApp = (function () {
         if(runAborted()) throw abortError();             // Stop pressed — don't start dependent steps
         const n = byId(id); if(!n) return;
         const t = NODE_TYPES[n.type], inp = {};
+        if(t.note) return;   // annotation node — nothing to run, no cost, no status
         for(const port of t.inputs){
           const l = graph.links.find(x=> x.to.node===id && x.to.port===port.name);
           if(l){ const src = byId(l.from.node); inp[port.name] = src && src.out ? src.out[l.from.port] : undefined; }
@@ -2570,11 +2579,24 @@ window.NoodleApp = (function () {
   }
   // resolve a control's (ns, index) back to its live item in STATE
   function itemAt(el){ return (el.dataset.ns==="set" ? STATE.settings : STATE.inputs)[+el.dataset.i]; }
+  // A read-only sticky note the workflow author left (comment node) — rendered in the app
+  // as a styled caption. Text is escaped, then newlines become <br>. No backticks (RUNTIME_JS).
+  function noteHtml(n){
+    var hex = commentHex(n.fields.color);
+    var size = Math.max(11, Math.min(30, parseInt(n.fields.size,10) || 15));
+    var weight = n.fields.bold ? 700 : 400;
+    var body = esc(n.fields.text||"").replace(/\n/g, "<br>");
+    return '<div class="app-note" style="border-color:'+hex+'">'
+         + '<div class="app-note-b" style="color:'+hex+';font-weight:'+weight+';font-size:'+size+'px">'+body+'</div></div>';
+  }
   function renderInputs(){
     const box = $("app-inputs"); if(!box) return;
     const inputs = STATE.inputs, settings = STATE.settings || [];
     const req = [], opt = [];
     inputs.forEach((it,i)=>{ (it.optional ? opt : req).push(i); });
+    // Author's sticky notes first (comment nodes with text), in graph order — instructions/labels.
+    var notes = (STATE.graph.nodes||[]).filter(function(n){ var t=NODE_TYPES[n.type]; return t && t.note && (n.fields.text||"").trim(); })
+                  .map(noteHtml).join("");
     // Mandatory fields first; optional inputs + every per-step setting (models,
     // sizes, durations…) tucked into a collapsed, pre-filled disclosure below.
     // A renamed node's custom name is that step's label in the built app (mirrors the
@@ -2587,7 +2609,7 @@ window.NoodleApp = (function () {
     // collapse them all to one name; un-renamed nodes keep their generic label as before.
     const reqByNode = {};
     req.forEach(i=>{ const k = inputs[i].nodeId; reqByNode[k] = (reqByNode[k]||0)+1; });
-    let html = req.map(i=>{
+    let html = notes + req.map(i=>{
       const it = inputs[i], nm = it.node && it.node.name && String(it.node.name).trim();
       const lab = (nm && reqByNode[it.nodeId]===1) ? '<span data-no-i18n>'+esc(nm)+'</span>' : null;
       return fieldHtml(it, i, "in", false, lab);
@@ -3783,6 +3805,9 @@ body{ background:
 .field .brushrow input[type=range]{ flex:1; }
 .field .brushrow button{ font:inherit; padding:.4rem .7rem; border-radius:var(--radius); background:var(--panel); border:1px solid var(--line); color:var(--ink); cursor:pointer; width:auto; }
 .muted{ color:var(--dim); font-size:.85rem; }
+/* author's sticky notes (comment nodes) — read-only captions at the top of the form */
+.app-note{ border-left:3px solid var(--accent); background:#ffffff08; border-radius:.5rem; padding:.55rem .8rem; }
+.app-note-b{ white-space:pre-wrap; line-height:1.45; word-break:break-word; }
 
 .run-row{ display:flex; align-items:center; gap:1rem; margin:.4rem 0 1.2rem; flex-wrap:wrap; }
 .run{ font:inherit; font-weight:700; padding:.7rem 1.6rem; border-radius:var(--radius); cursor:pointer;
