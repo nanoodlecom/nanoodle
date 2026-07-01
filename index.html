@@ -1530,7 +1530,13 @@ const NODE_TYPES = {
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       if(!prompt) throw new Error("no prompt — type what to ask in the prompt field");
       const imgs = collectImageInputs(inp, n);   // wired image ports, in order — sent alongside the prompt
-      const aud  = audioInputPart(inp.audio); // wired audio port (audio-input models) — one inline input_audio part
+      // Wired audio port (audio-input models) — one inline input_audio part. A text-only model
+      // silently ignores it (verified: GLM 5.2 replies "I am an AI text model"), so drop it and
+      // warn rather than POST audio the model can't hear. modelSupportsAudio is permissive for
+      // typed-in/unknown ids, so only a known text-only model trips this.
+      const hearsAudio = modelSupportsAudio(n);
+      const aud  = hearsAudio ? audioInputPart(inp.audio) : null;
+      if(inp.audio && !hearsAudio) toast("audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).", "err");
       const messages = [];
       if((n.fields.system||"").trim()) messages.push({role:"system", content:n.fields.system.trim()});
       messages.push((imgs.length || aud)
