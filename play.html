@@ -3539,7 +3539,17 @@ let curImported = false;    // open app came in via a share link (#a=)
 
 const APPS_KEY = "noodle_apps";   // [{id,title,imported,graph,files,versions,curVer,updated}]
 function loadApps(){ try{ return JSON.parse(localStorage.getItem(APPS_KEY) || "[]") || []; }catch{ return []; } }
-function saveApps(apps){ try{ localStorage.setItem(APPS_KEY, JSON.stringify(apps)); }catch(_){ /* quota */ } }
+// localStorage.setItem that REPORTS success and warns the user once when storage
+// is full — silent failures here mean a reload/close quietly loses customizations.
+let lsQuotaWarned = false;
+function lsSet(key, val){
+  try{ localStorage.setItem(key, val); return true; }
+  catch(_){   // quota exceeded / private mode
+    if(!lsQuotaWarned){ lsQuotaWarned = true; toast("can’t save — uploaded media is too large for local storage; remove or downscale it", "err"); }
+    return false;
+  }
+}
+function saveApps(apps){ return lsSet(APPS_KEY, JSON.stringify(apps)); }
 function newId(){ return "app_" + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 
 // snapshot the open app as a library entry
@@ -3551,19 +3561,20 @@ function curEntry(){
 // write the working state (LS_KEY) and, if this app is in the library, upsert it there
 function writeState(){
   const e = curEntry();
-  try{ localStorage.setItem(LS_KEY, JSON.stringify({ ...e, v:1 })); }catch(_){ /* quota / private mode */ }
+  let ok = lsSet(LS_KEY, JSON.stringify({ ...e, v:1 }));
   if(CUR_ID){
     const apps = loadApps();
     const i = apps.findIndex(a=>a.id===CUR_ID);
     if(i>=0) apps[i] = e; else apps.unshift(e);
-    saveApps(apps);
+    if(!saveApps(apps)) ok = false;
   }
   renderAppsBtn();
+  return ok;
 }
 let persistTimer = null;
 function persist(){ clearTimeout(persistTimer); persistTimer = setTimeout(writeState, 300); }
 // promote a draft into the library (called on first customize / on import) and save now
-function commit(){ if(!CUR_ID) CUR_ID = newId(); clearTimeout(persistTimer); writeState(); }
+function commit(){ if(!CUR_ID) CUR_ID = newId(); clearTimeout(persistTimer); return writeState(); }
 // Stash the open app in sessionStorage right before a full-page OAuth redirect.
 // sessionStorage is a separate quota bucket and survives same-tab navigation, so the
 // app returns even when localStorage is full or a debounced autosave hasn't flushed.
@@ -3591,10 +3602,13 @@ function installApp({ graph, files, versions, curVer, fresh, id, imported, uiSig
   APP_STATE.curVer = (curVer!=null && curVer<APP_STATE.versions.length) ? curVer : APP_STATE.versions.length-1;
   $("empty").hidden = true; $("appframe").style.display = "";
   syncTitleFromFiles(); renderVersions(); renderApp();
-  if(CUR_ID) commit(); else persist();   // committed apps refresh their slot; drafts only autosave working state
+  // committed apps refresh their slot (and report whether the write stuck); drafts
+  // only schedule a debounced autosave, so there's no synchronous result to report.
+  const saved = CUR_ID ? commit() : (persist(), true);
   $("undo").disabled = APP_STATE.curVer <= 0;
   // a brand-new app (straight from the editor, never customized) leads with the prompt
   if(fresh && APP_STATE.versions.length <= 1) enterFirstRun(); else exitFirstRun();
+  return saved;
 }
 function showEmpty(){ exitFirstRun(); $("empty").hidden = false; $("appframe").style.display="none"; $("bar-title").textContent="My nanoodle app"; renderAppsBtn(); }
 
@@ -3936,9 +3950,14 @@ async function loadFromHash(){
                                 : await gunzip(b64urlToBytes(tag));
       const spec = JSON.parse(json);
       // someone else's app → keep it in "My apps", flagged as imported (it carries its own files)
-      installApp({ graph:spec.graph, files:spec.files, id:newId(), imported:true });
-      consumeHandoff();   // don't re-import on reload
-      toast("Imported — saved to “My apps”");
+      const saved = installApp({ graph:spec.graph, files:spec.files, id:newId(), imported:true });
+      if(saved){
+        consumeHandoff();   // don't re-import on reload
+        toast("Imported — saved to “My apps”");
+      }else{
+        // quota full: nothing persisted. Keep the #a= hash so a reload can retry the import.
+        toast("Couldn’t save the imported app — local storage is full. Keep this link to re-open it.", "err");
+      }
       return true;
     }catch(_){ /* fall through */ }
   }
