@@ -41,9 +41,11 @@ touches_share=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|
 # index.html + play.html both carry the universal pricing resolver (every NanoGPT shape → a USD number:
 # picker prices + "~$X to run" / "~$X / run" estimates); the check asserts both engines stay in lockstep.
 touches_pricing=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-pricing\.mjs|scripts/pricing-fixtures\.json)$' || true)
+# index.html carries the Combine node's lossless mp4 remux (MP4CAT); the check runs it on fixtures.
+touches_combine=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-combine\.mjs|scripts/fixtures/clip[AB]\.mp4)$' || true)
 
 # Nothing to check unless an .html file or one of the checkers changed.
-[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && exit 0
+[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && exit 0
 
 if ! command -v node >/dev/null 2>&1; then
   echo "pre-commit: node not found, skipping HTML JS checks" >&2
@@ -169,4 +171,11 @@ fi
 #     them over one captured fixture per live shape (scripts/pricing-fixtures.json). No API spend.
 if [ -n "$touches_pricing" ]; then
   node "$root/scripts/check-pricing.mjs"
+fi
+
+# 17) COMBINE: the Combine node's lossless mp4 remux (MP4CAT in index.html) must produce an
+#     exact-duration, correctly-tracked mp4. Offline: extracts the shipped remuxer and runs it on
+#     two tiny committed fixtures. No browser, no ffmpeg, no API spend.
+if [ -n "$touches_combine" ]; then
+  node "$root/scripts/check-combine.mjs"
 fi
