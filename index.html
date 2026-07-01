@@ -511,6 +511,7 @@
   <button id="makeapp" title="Turn this workflow into a shareable app">✨ Create app</button>
   <button id="newapp" title="Start a NEW app from this workflow (don’t update the one you’re editing)" hidden>✨ New</button>
   <button id="share" title="Copy a link that loads this exact workflow — paste it to share with anyone">🔗 Share</button>
+  <button id="shareshort" title="Copy a shortened share link (via da.gd)">✂ Short</button>
   <button id="submitcontest" title="Enter this in the Noodle Cookoff">🏆 Submit</button>
   <button id="save" title="download this graph as JSON">⭳ Save</button>
   <button id="load" title="open a graph JSON file">⭱ Load</button>
@@ -632,6 +633,7 @@
       <span id="sublinkhint" class="sub-linkhint">Opens your creation as a ready-to-run app — what people click to try it. Best for entries.</span>
       <div class="sub-linkrow">
         <input id="submitlink" type="text" readonly value="" aria-label="Your entry link" />
+        <button id="submitshort" class="sub-copy" title="Shorten this link (via da.gd) — nicer to post">✂ Shorten</button>
         <button id="submitcopy" class="sub-copy">Copy link</button>
       </div>
     </div>
@@ -3688,6 +3690,16 @@ async function buildShareUrl(target){
   if(target==="app") return location.origin + "/play.html" + hash;     // real file → resolves on the live site and locally
   return location.origin + location.pathname + location.search + hash;
 }
+// da.gd shortener (POST → handles long links). The editor's connect-src allows https: and runs
+// only first-party code over declarative graphs — no untrusted app — so calling a shortener here
+// has no exfiltration surface (unlike play.html's preview, which is sealed by PREVIEW_CSP).
+async function shortenDaGd(longUrl){
+  const r = await fetch("https://da.gd/shorten", { method:"POST",
+      headers:{ "Content-Type":"application/x-www-form-urlencoded" }, body:"url="+encodeURIComponent(longUrl) });
+  const t = (await r.text()).trim();
+  if(!/^https?:\/\/\S+$/.test(t)) throw new Error(t.slice(0,80) || "no link returned");
+  return t;
+}
 async function shareUrl(){
   const url = await buildShareUrl();
   history.replaceState({}, "", url);                 // surface it in the address bar too
@@ -3754,6 +3766,15 @@ async function loadFromHash(){
   }catch{ return false; }
 }
 $("share").onclick = ()=> shareUrl().catch(e=> flash("share failed: "+e.message));
+$("shareshort").onclick = async ()=>{
+  const b = $("shareshort"), o = b.textContent; b.textContent = "…"; b.disabled = true;
+  try{
+    const short = await shortenDaGd(await buildShareUrl());
+    const ok = await copyText(short);
+    toast(ok ? `✓ Short link copied — opens this workflow` : `Short link: ${short}`, ok?"":"err");
+  }catch(e){ toast("shorten failed: "+e.message, "err"); }
+  finally{ b.textContent = o; b.disabled = false; }
+};
 // Turn this workflow into a standalone app (play.html). Hand off the graph via the
 // existing #g= packing; stash a localStorage copy as a belt-and-suspenders fallback.
 // Open the app builder as a popup over the editor (play.html in a modal iframe), so it
@@ -3874,6 +3895,18 @@ $("submitcopy").onclick = async ()=>{
   const b = $("submitcopy");
   if(ok){ b.textContent = "✓ Copied"; b.classList.add("ok"); setTimeout(()=>{ b.textContent="Copy link"; b.classList.remove("ok"); }, 1800); }
   else { toast("Couldn't copy — select the link and copy it manually", "err"); }
+};
+$("submitshort").onclick = async ()=>{
+  const inp = $("submitlink"), b = $("submitshort"), o = b.textContent;
+  if(!/^https?:\/\//.test(inp.value)) return;            // nothing to shorten yet
+  b.textContent = "…"; b.disabled = true;
+  try{
+    inp.value = await shortenDaGd(inp.value);             // replace in place so Copy/post uses the short one
+    inp.select();
+    b.textContent = "✓ Short"; b.classList.add("ok");
+    setTimeout(()=>{ b.textContent = o; b.classList.remove("ok"); }, 1800);
+  }catch(e){ b.textContent = o; toast("shorten failed: "+e.message, "err"); }
+  finally{ b.disabled = false; }
 };
 addEventListener("message", e=>{
   if(e.source!==$("appmodalframe").contentWindow || !e.data) return;
