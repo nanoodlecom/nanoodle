@@ -310,13 +310,16 @@
   #world{ position:absolute; top:0; left:0; transform-origin:0 0; }
   /* Fit-to-view: a floating canvas control in the bottom-right (where a fullscreen button would sit),
      revealed on hover over the graph. F / double-click do the same; kept tappable where there's no hover. */
-  #fit{ position:absolute; right:.9rem; bottom:.9rem; z-index:30; width:2.3rem; height:2.3rem;
+  #fit, #undo{ position:absolute; bottom:.9rem; z-index:30; width:2.3rem; height:2.3rem;
         display:flex; align-items:center; justify-content:center; font-size:1.15rem; line-height:1;
         border-radius:.6rem; background:var(--panel2); border:1px solid var(--line); color:var(--ink);
         cursor:pointer; opacity:0; transition:opacity .14s ease; box-shadow:0 6px 18px #0006; }
-  #editor:hover #fit, #fit:focus-visible{ opacity:.85 }
-  #fit:hover{ opacity:1; border-color:var(--accent) }
-  @media (hover:none){ #fit{ opacity:.6 } }   /* touch: no hover to reveal it, so keep it discoverable */
+  #fit{ right:.9rem }
+  #undo{ right:3.6rem }   /* one button-width + gap to the left of Fit */
+  #editor:hover #fit, #fit:focus-visible, #editor:hover #undo, #undo:focus-visible{ opacity:.85 }
+  #fit:hover, #undo:hover{ opacity:1; border-color:var(--accent) }
+  #undo[disabled]{ opacity:0!important; pointer-events:none }   /* nothing to undo → stay hidden */
+  @media (hover:none){ #fit{ opacity:.6 } #undo:not([disabled]){ opacity:.6 } }   /* touch: no hover to reveal them, so keep them discoverable */
   #wires{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:-1; overflow:visible }
   #wires path.wire{ fill:none; stroke-width:2.5; pointer-events:stroke; cursor:pointer; }
   #wires path.hit{ fill:none; stroke:transparent; stroke-width:14; pointer-events:stroke; cursor:pointer; }
@@ -726,6 +729,7 @@
 <main id="editor" aria-label="Workflow canvas">
   <svg id="wires"></svg>
   <div id="world"></div>
+  <button id="undo" title="Undo (Ctrl + Z)" aria-label="Undo the last edit">↺</button>
   <button id="fit" title="Fit the whole workflow in view (F)" aria-label="Fit the whole workflow in view">⊡</button>
   <div id="canvashint" hidden>A live AI workflow — press <b>▶ Run</b>, or <b>＋ Add node</b> to build your own.<button id="hintx" title="Got it" aria-label="Dismiss">×</button></div>
 </main>
@@ -3896,6 +3900,7 @@ function pushUndo(){              // call BEFORE a structural mutation — recor
   undoStack.push(_snap());
   if(undoStack.length > UNDO_DEPTH) undoStack.shift();   // oldest steps fall off
   redoStack.length = 0;          // a fresh edit forks history — drop the redo tail
+  syncUndoBtn();
 }
 function _restore(from, to){
   if(!from.length) return;
@@ -3904,8 +3909,9 @@ function _restore(from, to){
   try{ applyGraphData(JSON.parse(from.pop())); } finally { undoMuted = false; }
   save();
 }
-const undo = ()=> _restore(undoStack, redoStack);
-const redo = ()=> _restore(redoStack, undoStack);
+function syncUndoBtn(){ const b=$("undo"); if(b) b.disabled = !undoStack.length; }   // hide the button when there's nothing to undo
+const undo = ()=> { _restore(undoStack, redoStack); syncUndoBtn(); };
+const redo = ()=> { _restore(redoStack, undoStack); syncUndoBtn(); };
 function load(){
   const raw = localStorage.getItem("noodle_graph");
   if(!raw) return false;
@@ -3935,6 +3941,8 @@ function loadFile(file){
 $("save").onclick = saveFile;
 $("load").onclick = ()=> $("loadfile").click();
 $("fit").onclick = fitView;
+$("undo").onclick = undo;
+syncUndoBtn();   // start hidden — no edits yet
 $("loadfile").onchange = (e)=>{ loadFile(e.target.files[0]); e.target.value=""; };
 
 /* ---------- shareable link: graph packed into the URL hash ---------- */
