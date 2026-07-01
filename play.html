@@ -1631,13 +1631,17 @@ window.NoodleApp = (function () {
      keep only links with surviving endpoints, migrate music/tts header
      "text" port → inline "prompt" field port.
      ===================================================================== */
+  // A node's display label: the user's custom name if set, else the node-type title. One source
+  // of truth for every place the played app shows a step's name (steps list, settings group
+  // header, result card, live-runner label, plain-text description). Backtick-free (RUNTIME_JS).
+  const displayName = (n)=> (n && n.name && String(n.name).trim()) || (NODE_TYPES[n && n.type] && NODE_TYPES[n.type].title) || (n && n.type) || "?";
   function materialize(data){
     const ALIAS = { audio:"tts" };
     const nodes = [];
     for(const sn of (data.nodes||[])){
       const type = ALIAS[sn.type] || sn.type;
       if(!NODE_TYPES[type]) continue;
-      nodes.push({ id:sn.id, type, x:sn.x, y:sn.y, fields:{ ...(sn.fields||{}) }, out:{} });
+      nodes.push({ id:sn.id, type, name:sn.name, x:sn.x, y:sn.y, fields:{ ...(sn.fields||{}) }, out:{} });
     }
     const byId = (id)=> nodes.find(n=>n.id===id);
     const ids = new Set(nodes.map(n=>n.id));
@@ -1807,7 +1811,7 @@ window.NoodleApp = (function () {
       // upload when the source is wired (so "generate → repaint" apps still expose the mask).
       if(n.type==="inpaint"){
         const fed = (p)=> graph.links.some(l=> l.to.node===n.id && l.to.port===p);
-        const base = { nodeId:n.id, node:n, title:NODE_TYPES.inpaint.title, em:NODE_TYPES.inpaint.em };
+        const base = { nodeId:n.id, node:n, title:displayName(n), em:NODE_TYPES.inpaint.em };
         if(!fed("prompt")) out.push({ ...base, field:"prompt", label:"What to paint in", kind:"textarea" });
         const imgFed = fed("image"), maskFed = fed("mask");
         if(!imgFed) out.push({ ...base, field:"image", label: maskFed ? "Image" : "Image — brush the area to repaint", kind: maskFed ? "image" : "inpaint" });
@@ -1820,7 +1824,7 @@ window.NoodleApp = (function () {
         const fed = graph.links.some(l=> l.to.node===n.id && l.to.port===s.f);
         if(fed) continue;
         out.push({ nodeId:n.id, field:s.f, label:s.label, kind:s.kind, optional:!!s.optional, def:s.def,
-                   node:n, title:NODE_TYPES[n.type].title, em:NODE_TYPES[n.type].em });
+                   node:n, title:displayName(n), em:NODE_TYPES[n.type].em });
       }
     }
     return out;
@@ -1910,7 +1914,7 @@ window.NoodleApp = (function () {
         out.push({ nodeId:n.id, field:s.f, label:s.label, kind:s.kind,
                    options:s.options, def:s.def, min:s.min, max:s.max, step:s.step,
                    modelKind:(s.kind==="model" ? SETTING_MODEL_KIND[n.type] : null),
-                   node:n, title:NODE_TYPES[n.type].title, em:NODE_TYPES[n.type].em });
+                   node:n, title:displayName(n), em:NODE_TYPES[n.type].em });
       }
     }
     return out;
@@ -2067,7 +2071,7 @@ window.NoodleApp = (function () {
   };
   function describeGraph(graph){
     const clip = (s, n)=>{ s = String(s).replace(/\s+/g," ").trim(); return s.length>n ? s.slice(0,n-1)+"…" : s; };
-    const nameOf = (n)=> n ? ((NODE_TYPES[n.type] && NODE_TYPES[n.type].title) || n.type) : "?";
+    const nameOf = displayName;
     if(!graph.nodes.length) return "(The workflow is empty — no steps yet.)";
 
     const allIds = new Set(graph.nodes.map(n=>n.id));
@@ -2444,7 +2448,7 @@ window.NoodleApp = (function () {
   }
   function stepLabel(id){
     const n = STATE.graph.byId(id), t = n ? NODE_TYPES[n.type] : null;
-    return t ? (t.em + " " + t.title) : id;
+    return t ? (t.em + " " + displayName(n)) : id;
   }
   function startRun(n){
     closeDetail();   // a steps sheet left open from a prior run must not point at a stale lane
@@ -2650,7 +2654,7 @@ window.NoodleApp = (function () {
     const cost = n.cached ? '<span class="rcost" title="reused fixed-seed result — no charge">↺ reused</span>'
                : (n.costUsd>0) ? '<span class="rcost" title="cost of this generation">'+fmtUsd(n.costUsd)+'</span>'
                : n.costKnown ? '<span class="rcost incl" title="included in your subscription">included</span>' : '';
-    const head = '<div class="rhead">'+(badge||"")+esc(NODE_TYPES[n.type].em)+' '+esc(NODE_TYPES[n.type].title)+cost+'</div>';
+    const head = '<div class="rhead">'+(badge||"")+esc(NODE_TYPES[n.type].em)+' '+esc(displayName(n))+cost+'</div>';
     const gallery = (port.type==="image" && out.images && out.images.length>1) ? out.images : null;
     let media;
     if(port.type==="image"){

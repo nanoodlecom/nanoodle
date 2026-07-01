@@ -359,6 +359,10 @@
   .node header.t-join{ background:linear-gradient(90deg,#9aa3b222,transparent) }
   .node header .em{font-size:1rem}
   .node header .ttl{font-weight:700; font-size:.85rem; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .node-name{ width:100%; box-sizing:border-box; background:transparent; border:0; border-bottom:1px solid #ffffff12; color:var(--dim); font:inherit; font-size:.76rem; padding:.12rem .55rem; outline:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .node-name:hover{ border-bottom-color:#ffffff26 }
+  .node-name:focus{ color:var(--ink); border-bottom-color:var(--accent) }
+  .node-name::placeholder{ color:#ffffff33 }
   .node header .hbtn{ border:none; background:none; padding:2px 4px; color:var(--dim); font-size:.85rem; border-radius:.35rem }
   .node header .hbtn:hover{ background:#ffffff14; color:var(--ink) }
   .node header .dot{ width:8px;height:8px;border-radius:50%; background:var(--dim); flex:0 0 auto }
@@ -2221,6 +2225,7 @@ function buildNodeEl(n){
       <button class="hbtn" data-act="run" title="run this branch">▶</button>
       <button class="hbtn" data-act="del" title="delete (Del)">✕</button>
     </header>
+    <input class="node-name" value="${esc(n.name||"")}" placeholder="${esc(t.title)}" aria-label="Rename this node" maxlength="60" spellcheck="false" />
     <div class="ports">
       <div class="col in">${inRows}</div>
       <div class="col out">${outRows}</div>
@@ -2237,6 +2242,15 @@ function buildNodeEl(n){
     inp.addEventListener(ev, ()=>{ n.fields[f] = inp.type==="checkbox" ? inp.checked : inp.value; save(); });
     inp.addEventListener("pointerdown", e=>e.stopPropagation()); // don't drag node when editing
   });
+  // rename field — writes n.name (a display label, not a graph field). Lives outside <header>
+  // so the header's drag handler can't fire from it; stopPropagation guards node select/drag.
+  const nm = el.querySelector(".node-name");
+  if(nm){
+    nm.addEventListener("input", ()=>{ n.name = nm.value; save(); });
+    nm.addEventListener("blur",  ()=>{ n.name = nm.value.trim(); if(!n.name) delete n.name; save(); });
+    nm.addEventListener("pointerdown", e=>e.stopPropagation());
+    nm.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); nm.blur(); } });
+  }
   // model picker button
   const mp = el.querySelector(".modelpick");
   if(mp){
@@ -4089,7 +4103,7 @@ $("mpickback").onclick = closePicker;
 function serializeGraph(){
   return {
     v:1,
-    nodes: graph.nodes.map(n=>({id:n.id,type:n.type,x:n.x,y:n.y,fields:n.fields,w:n.w,sizes:n.sizes})),
+    nodes: graph.nodes.map(n=>({id:n.id,type:n.type,x:n.x,y:n.y,fields:n.fields,w:n.w,sizes:n.sizes,...(n.name&&n.name.trim()?{name:n.name.trim()}:{})})),
     links: graph.links, nid, lid, view:{panX,panY,scale}
   };
 }
