@@ -3145,7 +3145,7 @@ const LORA_EXAMPLES = {
 // If we stop polling (timeout), the job — and the credits already spent — aren't lost: stash its
 // runId keyed by the calling node so the next run resumes the same job instead of paying to
 // re-submit. In-memory only; a transient runId has no business in a saved or shared graph.
-const PENDING_VIDEO = new Map();   // nodeId → runId of an in-flight (timed-out) video job
+const PENDING_VIDEO = new Map();   // nodeId → {sig, runId} of an in-flight (timed-out) video job
 const CTX = {
   // opts.n = how many images to request (default 1). opts.multi=true returns ALL images as an
   // array (the gen node, which shows a pick-one gallery); every other caller omits opts and gets a
@@ -3208,7 +3208,13 @@ const CTX = {
     // Resume an earlier job that timed out on this node (opts.runKey = node id) — the work is still
     // running server-side, so skip submit (and the second charge) and go straight back to polling.
     const runKey = opts.runKey;
-    let runId = (runKey && PENDING_VIDEO.get(runKey)) || null;
+    // Only resume a pending job when the request is UNCHANGED. The stored entry is keyed by node id,
+    // and a timeout leaves it in place, so without matching the request signature an edited re-run
+    // (new prompt/seed/inputs → new body) would resume the previous request and return the OLD video.
+    const bodySig = sigHash(JSON.stringify(body));
+    const pend = runKey && PENDING_VIDEO.get(runKey);
+    let runId = (pend && pend.sig===bodySig) ? pend.runId : null;
+    if(pend && !runId && runKey) PENDING_VIDEO.delete(runKey);   // stale (request changed) — drop it and submit fresh
     if(!runId){
       const payload = JSON.stringify(body);
       if(payload.length > MEDIA_INLINE_MAX)
@@ -3221,7 +3227,7 @@ const CTX = {
       const j = await r.json(); accrue(j);
       runId = j.runId || j.id;
       if(!runId) throw new Error("no runId returned");
-      if(runKey) PENDING_VIDEO.set(runKey, runId);   // remember it the moment it exists, so a timeout is recoverable
+      if(runKey) PENDING_VIDEO.set(runKey, {sig:bodySig, runId});   // remember it (with its request sig) the moment it exists, so a timeout is recoverable
     }
     const t0 = Date.now();
     while(Date.now()-t0 < 600000){                   // 10 min — the job runs server-side, so patience here is cheap
