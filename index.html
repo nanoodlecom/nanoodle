@@ -4407,7 +4407,12 @@ $("signout").onclick = ()=> setKey(null);
     let place = 0;
     const nodes = (simple.nodes||[]).map(sn=>{
       const old = prevById[sn.id];
-      const fields = { ...(old ? old.fields : {}), ...(sn.fields||{}) };  // keep survivors' media, model's edits win
+      // The planner only ever sees the SIMPLIFIED fields (strip() omits the user's media + inline
+      // data:), so a key it leaves OUT is an intentional deletion only when that key was visible to
+      // it. Carry back just the stripped-away keys (media/binary) — those absences aren't edits.
+      const carried = {};
+      if(old){ const seen = strip(old.fields); for(const k of Object.keys(old.fields)) if(!(k in seen)) carried[k] = old.fields[k]; }
+      const fields = { ...carried, ...(sn.fields||{}) };  // survivors' media kept, the planner's edits (incl. deletions) win
       if(NODE_TYPES[sn.type]?.modelKind && !fields.model) fields.model = defModelFor(sn.type);
       const node = { id:sn.id, type:sn.type, fields };
       sanitizeFields(node);   // the model may set an option this node/model doesn't allow (e.g. duration 60) → snap to default
@@ -4475,9 +4480,10 @@ $("signout").onclick = ()=> setKey(null);
       if(!NODE_TYPES[n.type]) errs.push(`unknown node type “${n.type}”`);
     }
     for(const l of simple.links||[]){
-      const f = String(l.from).split(".")[0], t = String(l.to).split(".")[0];
+      const [f, fp] = String(l.from).split("."); const [t, tp] = String(l.to).split(".");
       if(!ids.has(f)) errs.push(`a wire starts from a missing node (${f})`);
       if(!ids.has(t)) errs.push(`a wire ends at a missing node (${t})`);
+      if(!fp || !tp) errs.push(`a wire is missing its port — name each end as nodeId.port (e.g. n1.image)`);
     }
     const adj = {}; (simple.links||[]).forEach(l=>{ const f=String(l.from).split(".")[0], t=String(l.to).split(".")[0]; (adj[f]||(adj[f]=[])).push(t); });
     const color = {}; let cyclic = false;
