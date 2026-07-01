@@ -2934,7 +2934,11 @@ async function runGroup(seedIds){
   const ids = ancestors(seedIds);                    // what we actually compute (seed + upstream)
   const wasIdle = !runningNodes.size;
   lock.forEach(id=>runningNodes.add(id));
-  if(wasIdle) runAbort = new AbortController();       // fresh controller for a fresh run; concurrent groups share it
+  // Fresh controller when idle, OR when the prior one is still aborted (we're inside the post-Stop
+  // drain window): a new run must NOT adopt a Stopped run's aborted controller, or its very first
+  // fetch instantly rejects with AbortError and the run silently does nothing. A LIVE (non-aborted)
+  // controller is still shared, so groups added to an in-flight run keep aborting together.
+  if(wasIdle || runAbort?.signal.aborted) runAbort = new AbortController();
   const ctl = runAbort;                               // capture so a later run can't confuse our own abort check
   updateRunButtons();
   try{
@@ -3230,10 +3234,15 @@ const CTX = {
       if(!runId) throw new Error("no runId returned");
       if(runKey) PENDING_VIDEO.set(runKey, {sig:bodySig, runId});   // remember it (with its request sig) the moment it exists, so a timeout is recoverable
     }
+    // Capture THIS run's abort signal up front. A new run started during our post-Stop drain
+    // repurposes the global runSignal(), so re-reading it each loop could make a Stopped poll see a
+    // fresh, un-aborted signal and resurrect. Our own controller stays aborted → we exit as intended
+    // (runId stays in PENDING_VIDEO so the user can re-run to resume — never auto-resumed).
+    const sig = runSignal();
     const t0 = Date.now();
     while(Date.now()-t0 < 600000){                   // 10 min — the job runs server-side, so patience here is cheap
       await sleep(5000);
-      if(runSignal()?.aborted) throw new DOMException("aborted","AbortError");   // Stop: leave runId in PENDING_VIDEO so a re-run resumes
+      if(sig?.aborted) throw new DOMException("aborted","AbortError");   // Stop: leave runId in PENDING_VIDEO so a re-run resumes
       let s; try{ s = await (await fetch(`${NANOGPT}/api/video/status?requestId=${encodeURIComponent(runId)}`, {headers:authHeaders(), signal:runSignal()})).json(); }
       catch(e){ if(e?.name==="AbortError") throw e; continue; }
       const st = String(s.data?.status || s.status || "").toUpperCase();
@@ -3485,10 +3494,11 @@ async function pollAudio(model, j, onProgress){
   if(j.cost!=null) qs.set("cost", j.cost);                 // these let the server auto-refund on failure
   if(j.paymentSource) qs.set("paymentSource", j.paymentSource);
   if(j.isApiRequest!=null) qs.set("isApiRequest", j.isApiRequest);
+  const sig = runSignal();   // capture this run's signal — a run started during our drain repurposes the global one (see genVideo)
   const t0 = Date.now();
   while(Date.now()-t0 < 300000){
     await sleep(3000);
-    if(runSignal()?.aborted) throw new DOMException("aborted","AbortError");
+    if(sig?.aborted) throw new DOMException("aborted","AbortError");
     let s; try{ s = await (await fetch(`${NANOGPT}/api/tts/status?${qs}`, {headers:authHeaders(), signal:runSignal()})).json(); }
     catch(e){ if(e?.name==="AbortError") throw e; continue; }
     const st = String(s.status||"").toLowerCase();
