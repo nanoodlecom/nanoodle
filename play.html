@@ -3255,6 +3255,17 @@ window.NoodleApp = (function () {
     // in the parent): clean in place, or drop an unsendable one so auth honestly shows signed-out.
     if(!EMBEDDED){ try{ const k0 = getKey(); if(k0){ const k1 = cleanKey(k0);
       if(k1!==k0 || !keySendable(k1)) setKey(k1 && keySendable(k1) ? k1 : null); } }catch(_){} }
+
+    // The made-with footer's link only works standalone: the builder/share preview iframe is
+    // sandboxed with no allow-popups, so a target=_blank anchor is silently dead there (same
+    // trap authIntro documents). When embedded, de-link it to honest plain text — the parent
+    // chrome IS nanoodle, so the way back is already on screen.
+    const madeWith = document.querySelector("#app-made-with a");
+    if(madeWith && EMBEDDED){
+      madeWith.removeAttribute("href"); madeWith.removeAttribute("target");
+      madeWith.style.textDecoration = "none";   // beat the a:hover underline — it's not clickable here
+    }
+
     renderAuth();
     handleRedirect().catch(e=> statusLine("__auth__","error","sign-in error: "+e.message)).finally(renderAuth);
     restoreRunInputs();   // bring back anything typed before a sign-in redirect, before the first paint
@@ -3321,6 +3332,20 @@ function deriveTagline(graph){
                   : "Fill in the inputs and hit Run.";
 }
 
+// The export viral loop: every app carries a visible way back to nanoodle (exported .html
+// especially — its meta tags are crawler-only). ONE styleable element: Customize may restyle
+// or move #app-made-with freely, but a diff that deletes it gets re-injected by bundle()'s
+// self-heal, same engine-piece protection as the mount points.
+const MADE_WITH =
+  '<footer id="app-made-with" class="made-with"><a href="https://nanoodle.com/" target="_blank" rel="noopener">Made with nanoodle — build your own AI app</a></footer>';
+// Its default look, shared by the app.css template below and the self-heal: apps saved before
+// the footer existed have no .made-with rules in their stored css, so a bare re-inject would
+// render as a raw blue link — the heal carries the style along when the css lacks it.
+const MADE_WITH_CSS =
+  '.made-with{ margin-top:2.4rem; text-align:center; font-size:.75rem; color:var(--faint,#5d6788); }\n'
++ '.made-with a{ color:var(--faint,#5d6788); text-decoration:none; }\n'
++ '.made-with a:hover{ color:var(--accent,#7c8cff); text-decoration:underline; }';
+
 function defaultFiles(graph){
   const title = deriveTitle(graph);
   const tagline = deriveTagline(graph);
@@ -3371,6 +3396,8 @@ function defaultFiles(graph){
   <div id="app-status" class="status"></div>
 
   <section id="app-output" class="output"></section>
+
+  ${MADE_WITH}
 </main>
 
 <!-- include-config: graph.json -->
@@ -3536,6 +3563,9 @@ body{ background:
   color:var(--ink); border-radius:99px; padding:0 .45rem; font-size:.7rem; font-weight:700; }
 .output.grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); }
 
+/* made-with footer — quiet one-liner back to nanoodle */
+${MADE_WITH_CSS}
+
 /* touch devices: finger-friendly targets + no iOS focus-zoom on inputs */
 @media (pointer:coarse){
   .field input, .field textarea, .field select, .run, .cnt, .output .dl{ font-size:16px; }
@@ -3626,6 +3656,11 @@ function bundle(files){
   const missing = MOUNT_IDS.filter(id => !html.includes('id="'+id+'"') && !html.includes("id='"+id+"'"));
   if(missing.length)
     html = injectInBody(html, '<div class="noodle-shim">' + missing.map(id => MOUNT_FALLBACK[id]).join("") + '</div>');
+  // 1b) the made-with footer is an engine piece too — restyle/move it all you like, but a
+  //     diff that deletes it outright gets it back (Export is the viral loop). Apps whose
+  //     stored css predates the footer get its default style injected alongside.
+  if(!html.includes('id="app-made-with"') && !html.includes("id='app-made-with'"))
+    html = injectInBody(html, (/\.made-with\s*\{/.test(html) ? "" : "<style>"+MADE_WITH_CSS+"</style>") + MADE_WITH);
   // 2) data + engine go in <head> so they're ready before any in-body mount call,
   //    no matter where (or whether) the marker survived.
   if(!cssDone)     html = injectInHead(html, ENGINE.css());
