@@ -276,7 +276,7 @@
   #cookoffpanel .cookoff-actions{ display:flex; gap:.55rem; flex-wrap:wrap; align-items:center }
   #cookoffpanel .cta.secondary{ background:transparent; color:var(--ink); border:1px solid var(--line) }
   /* toast — a clearly-visible transient confirmation */
-  #toast{ position:fixed; top:64px; left:50%; transform:translateX(-50%) translateY(-14px) scale(.98); z-index:80;
+  #toast{ position:fixed; top:64px; left:50%; transform:translateX(-50%) translateY(-14px) scale(.98); z-index:240;   /* above every modal (200-215) — Submit/Share toast feedback must show over them; pointer-events:none keeps it click-through */
           display:flex; align-items:center; gap:.5rem; max-width:min(92vw,560px);
           background:var(--panel); border:1px solid var(--good); color:var(--ink);
           padding:.7rem 1rem; border-radius:.6rem; box-shadow:0 16px 44px #000b; font-size:.9rem; font-weight:600;
@@ -4470,9 +4470,9 @@ function serializeGraph(){
 // A graph for handing off to others: uploaded media inputs are the sharer's own
 // data, so blank them out of share links and downloaded files. (Local autosave keeps them.)
 const UPLOAD_FIELD = { upload:"image", aupload:"audio", vupload:"video" };
-function shareableGraph(){
-  const g = serializeGraph();
-  g.nodes = g.nodes.map(n => {
+function shareableGraph(graph){          // no arg → the canvas; pass a stored app's graph to blank that instead
+  const g = graph || serializeGraph();
+  g.nodes = (g.nodes||[]).map(n => {
     if(n.type==="inpaint") return {...n, fields:{...n.fields, image:"", mask:""}};   // don't leak the user's photo/mask
     return UPLOAD_FIELD[n.type] ? {...n, fields:{...n.fields, [UPLOAD_FIELD[n.type]]:""}} : n;
   });
@@ -4619,9 +4619,29 @@ async function copyText(t){
 }
 // Build a shareable #g= (or #j= fallback) URL for the current graph.
 // target "app"  → play.html: opens the standalone, ready-to-run APP (what contest voters click).
+//                 Bound to an app in the library? Ship THE app — #a= with its stored graph AND
+//                 files, packed exactly like play.html's doShare — so recipients get the entrant's
+//                 Customize polish, not a default rebuild that silently discards it.
 // target other  → this editor page: opens the editable WORKFLOW (the 🔗 Share default, for remixing).
 // One packer so the 🔗 Share button and the 🏆 Submit popup never drift.
 async function buildShareUrl(target){
+  if(target==="app" && pendingAppId){
+    try{
+      const app = (JSON.parse(localStorage.getItem("noodle_apps") || "[]") || []).find(a=> a && a.id===pendingAppId);
+      if(app && app.graph && app.files && app.files["index.html"]){
+        // It ships the app AS SAVED: canvas edits not yet pushed via ✨ Update won't be in
+        // the link, so flag the divergence (play.html's doShare toasts the same case).
+        // appHandoffSig = "what the app consumes" — layout/pan/zoom don't count as edits.
+        try{ if(appHandoffSig(app.graph) !== appHandoffSig())
+          toast("Link opens the app as last saved — hit ✨ Update first to include your newest canvas edits", "warn"); }catch(_){}
+        const json = JSON.stringify({ v:1, graph:shareableGraph(app.graph), files:app.files });
+        const packed = await gzip(json).catch(()=>null);
+        const hash = packed ? "#a="+bytesToB64url(packed)
+                            : "#a=u"+bytesToB64url(new TextEncoder().encode(json));   // 'u' = uncompressed (mirror doShare)
+        return location.origin + "/play.html" + hash;
+      }
+    }catch(_){ /* unreadable library → fall back to the default-app link below */ }
+  }
   const json = JSON.stringify(shareableGraph());
   const packed = await gzip(json).catch(()=>null);
   const hash = packed ? "#g="+bytesToB64url(packed) : "#j="+bytesToB64url(new TextEncoder().encode(json));
@@ -4770,11 +4790,12 @@ let lastHandoffSig = null;      // signature of the graph last handed to the bui
 // is an app-meaningful change and must re-hand-off. Deliberately EXCLUDES the canvas view
 // (panX/panY/scale) and node positions/sizes — panning, zooming or nudging a node must NOT
 // count as a change, or the resume never fires. Trim to match serializeGraph/displayName.
-function appHandoffSig(){
+function appHandoffSig(g){
+  g = g || graph;   // no arg → the live canvas; pass a stored app's graph to sign that instead
   return JSON.stringify({
     app: pendingAppId || "",
-    nodes: graph.nodes.map(n=>({ id:n.id, type:n.type, name:(n.name&&n.name.trim())||"", fields:n.fields })),
-    links: graph.links.map(l=>({ f:l.from, t:l.to }))
+    nodes: (g.nodes||[]).map(n=>({ id:n.id, type:n.type, name:(n.name&&n.name.trim())||"", fields:n.fields })),
+    links: (g.links||[]).map(l=>({ f:l.from, t:l.to }))
   });
 }
 function closeAppModal(){
