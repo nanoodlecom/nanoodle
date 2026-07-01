@@ -283,6 +283,7 @@
           opacity:0; pointer-events:none; transition:opacity .18s ease, transform .18s ease }
   #toast.show{ opacity:1; transform:translateX(-50%) translateY(0) scale(1) }
   #toast.err{ border-color:var(--bad) }
+  #toast.warn{ border-color:var(--warn) }
   #cost{font-family:ui-monospace,monospace; font-size:.78rem; color:var(--dim)}
   #cost b{color:var(--ink)}
 
@@ -610,6 +611,7 @@
   <input id="keyinput" type="password" autocomplete="off" placeholder="paste NanoGPT API key (sk-nano-… or a UUID)" />
   <button id="keysave" class="btn">save</button>
   <span class="dim" style="font-size:.72rem;color:var(--dim)">nano-gpt.com → Settings → API</span>
+  <span class="dim" style="flex-basis:100%;font-size:.72rem">new to nano-gpt? <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">create an account →</a> — pay-per-use, no subscription needed; your key stays in this browser.</span>
 </div>
 
 <div id="mpickback"></div>
@@ -3361,10 +3363,21 @@ async function runGroup(seedIds){
     updateRunButtons();
   }
 }
+// Non-blocking heads-up when the KNOWN balance probably won't cover the KNOWN estimate. Estimates
+// are fuzzy (video/chat/audio) so we warn and still run — never block. Stays silent when either
+// number is unknown (never treat unknown balance as empty) or the estimate is $0.
+function warnLowBalance(){
+  const bal = stats.balance;
+  if(bal==null) return;                                  // balance unknown → say nothing
+  const { usd, priced } = workflowCost();
+  if(!priced || !(usd>0) || bal>=usd) return;            // nothing priced, $0, or covered → no warning
+  toast(`balance ${fmtUsd(bal)} may not cover this ~${fmtUsd(usd)} run — top up at nano-gpt.com`, "warn");
+}
 // Run every idle group at once (busy ones keep going untouched).
 function runAll(){
   if(!ensureAuth()) return;
   if(!graph.nodes.length){ flash("nothing to run — add a node"); return; }
+  warnLowBalance();
   for(const c of components()) if(!groupBusy(c)) runGroup([...c]);   // fire-and-forget → groups run in parallel
 }
 
@@ -3508,7 +3521,7 @@ const CTX = {
     if(maskDataUrl)  body.maskDataUrl  = maskDataUrl;    // present → inpaint; WHITE areas = the region to repaint (verified live)
     if(extra) Object.assign(body, extra);                // LoRA (and any future per-model image params)
     const r = await fetch(IMG_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
-    if(!r.ok){ flagAuth(r); throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`); }
+    if(!r.ok){ await throwHttp(r); }
     const j = await r.json();
     const urls = (j.data||[]).map(d=> d.b64_json ? `data:${b64ImageMime(d.b64_json)};base64,${d.b64_json}` : d.url).filter(Boolean);
     if(!urls.length) throw new Error("no image in response");
@@ -3525,7 +3538,7 @@ const CTX = {
     if(opts.response_format) body.response_format = opts.response_format;   // {type:"json_object"} for JSON mode
     if(opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
     const r = await fetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
-    if(!r.ok){ flagAuth(r); throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`); }
+    if(!r.ok){ await throwHttp(r); }
     const j = await r.json();
     accrue(j);
     const msg = j.choices?.[0]?.message || {};
@@ -3573,7 +3586,7 @@ const CTX = {
       try{ r = await fetch(`${NANOGPT}/api/generate-video`, {method:"POST", headers:authHeaders(), body:payload, signal:runSignal()}); }
       catch(e){ if(e?.name==="AbortError") throw e;
         throw new Error(`couldn't reach the video API — if the source media is large it may have been rejected for size before CORS applies. Try a shorter clip, or build this into an app and run it offline. (${e.message||e})`); }
-      if(!r.ok){ flagAuth(r); throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`); }
+      if(!r.ok){ await throwHttp(r); }
       const j = await r.json(); accrue(j);
       runId = j.runId || j.id;
       if(!runId) throw new Error("no runId returned");
@@ -3621,7 +3634,7 @@ const CTX = {
       const req = t.match(/["']?([a-z_]+)["']?\s+(?:is\s+)?required|missing[^a-z]+["']?([a-z_]+)/i);
       const field = req && (req[1]||req[2]);
       if(field) throw new Error(`This model requires "${field}" — set it in the node, or add it under advanced params.`);
-      throw new Error(`${r.status}: ${t}`);
+      throw httpRunError(r.status, t);
     }
     const ct = r.headers.get("content-type") || "";
     if(ct.includes("application/json")){
@@ -3652,7 +3665,7 @@ const CTX = {
     const k = getKey();   // multipart: let the browser set Content-Type (boundary) — don't use authHeaders()
     const r = await fetch(`${NANOGPT}/api/v1/audio/transcriptions`, {method:"POST",
       headers:{ Authorization:`Bearer ${k}`, "x-api-key":k }, body:fd, signal:runSignal()});
-    if(!r.ok){ flagAuth(r); throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`); }
+    if(!r.ok){ await throwHttp(r); }
     const j = await r.json();
     // The transcription endpoint carries no top-level cost (live: {text, language, duration}); a few
     // providers tuck it in j.metadata.cost. When neither is present, estimate from duration (seconds)
@@ -4217,6 +4230,21 @@ function authHeaders(){ const k=getKey(); return { Authorization:`Bearer ${k}`, 
 // user won't re-paste). Clear it so the chrome flips back to signed-out + signposts the fix; the caller
 // still throws so the run loop surfaces the error. (Generation endpoints are CORS-enabled → status readable.)
 function flagAuth(r){ if(r.status===401||r.status===403){ setKey(null); flash("your key was rejected — sign in or paste a valid nano-gpt.com key"); } }
+// A generation call can fail purely for lack of credit: NanoGPT signals it with 402, or a body that
+// mentions balance/funds/insufficient. Turn that into one actionable line (with the top-up link)
+// instead of a raw "402: {…}" snippet — the run loop shows the Error's message text verbatim.
+function isLowFundsError(status, body){
+  // 401/403 are auth's territory (flagAuth already owns them) — don't let a body that happens to say
+  // "insufficient permissions" masquerade as a funds problem and hand out conflicting guidance.
+  return status===402 || (status!==401 && status!==403 && /insufficient|balance|funds|not enough|payment required/i.test(String(body||"")));
+}
+function httpRunError(status, body){
+  return isLowFundsError(status, body)
+    ? new Error("out of balance — this run needs more credit. Top up at nano-gpt.com, then run again.")
+    : new Error(`${status}: ${String(body).slice(0,160)}`);
+}
+// Read a failed generation Response and throw the clearest Error (auth flagged first, then low-funds → raw).
+async function throwHttp(r){ flagAuth(r); throw httpRunError(r.status, await r.text()); }
 // estUsd: a catalog-derived fallback price for endpoints whose response carries no cost field
 // (image generations and transcriptions — live-confirmed). Real cost (j.cost / x_nanogpt_pricing)
 // always wins; the estimate only fires when none is present, and it marks the session inexact ("~")
@@ -4242,8 +4270,8 @@ function flash(msg){ $("status").textContent = msg; setTimeout(renderAuth, 2200)
 let toastT=null;
 function toast(msg, kind){
   const t=$("toast"); if(!t) return;
-  t.textContent=msg; t.className = (kind==="err"?"err ":"")+"show";
-  clearTimeout(toastT); toastT=setTimeout(()=> t.classList.remove("show"), 3200);
+  t.textContent=msg; t.className = (kind==="err"?"err ":kind==="warn"?"warn ":"")+"show";
+  clearTimeout(toastT); toastT=setTimeout(()=> t.classList.remove("show"), kind==="warn"?4600:3200);
 }
 
 /* ======================================================================
@@ -5391,7 +5419,7 @@ RULES for the diff:
       paint();
       const body = { model, messages, temperature, stream:true, ...(maxTokens?{max_tokens:maxTokens}:{}) };
       const r = await fetch(CHAT_ENDPOINT, { method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal: dbAbort?.signal });
-      if(!r.ok){ flagAuth(r); throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`); }
+      if(!r.ok){ await throwHttp(r); }
       const reader = r.body.getReader(), dec = new TextDecoder();
       let buf="", content="", reasoning="", pricing=null, lastPaint=0;
       for(;;){

@@ -137,7 +137,7 @@
   .sm-flag{ font-size:.66rem; color:var(--faint); }
 
   /* ---------- paste-key row ---------- */
-  #key{ display:none; align-items:center; gap:.5rem; padding:.5rem .8rem; border-bottom:1px solid var(--line); background:#11141f; position:relative; z-index:70; }
+  #key{ display:none; align-items:center; flex-wrap:wrap; gap:.5rem; padding:.5rem .8rem; border-bottom:1px solid var(--line); background:#11141f; position:relative; z-index:70; }
   #key input{ max-width:420px; flex:0 1 420px; }
   input{ font:inherit; padding:.5rem .65rem; border-radius:.5rem; background:#0b0e18; border:1px solid var(--line); color:var(--ink); }
   input:focus{ outline:none; border-color:var(--accent-line); box-shadow:0 0 0 3px var(--accent-soft); }
@@ -322,6 +322,7 @@
   <input id="keyinput" placeholder="paste NanoGPT API key (sk-nano-… or a UUID)" type="password" autocomplete="off" />
   <button id="keysave" class="link">save key</button>
   <span class="dim" style="font-size:.78rem">— from <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">nano-gpt.com</a> → Settings → API</span>
+  <span class="dim" style="flex-basis:100%;font-size:.72rem">new to nano-gpt? <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">create an account →</a> — pay-per-use, no subscription needed; your key stays in this browser.</span>
 </div>
 
 <!-- THE APP — sandboxed, key never travels in srcdoc; the parent postMessages it after load -->
@@ -489,6 +490,19 @@ window.NoodleApp = (function () {
   // and signpost the fix; mirrors the editor's flagAuth. Embedded preview proxies auth through the parent, so
   // leave that path untouched (the key never lives here when EMBEDDED).
   function flagAuth(status){ if(!EMBEDDED && (status===401||status===403)){ setKey(null); statusLine("__auth__","error","your nano-gpt key was rejected — sign in or paste a valid key to run"); } }
+  // A generation call can fail purely for lack of credit: NanoGPT signals it with 402, or a body that
+  // mentions balance/funds/insufficient. Turn that into one actionable line (with the top-up link)
+  // instead of a raw "402: {...}" snippet the app surfaces verbatim. Mirrors the editor's httpRunError.
+  function isLowFundsError(status, body){
+    // 401/403 are auth's territory (flagAuth already owns them) — don't let a body that happens to say
+    // "insufficient permissions" masquerade as a funds problem and hand out conflicting guidance.
+    return status===402 || (status!==401 && status!==403 && /insufficient|balance|funds|not enough|payment required/i.test(String(body||"")));
+  }
+  function httpRunError(status, body){
+    return isLowFundsError(status, body)
+      ? new Error("out of balance — this run needs more credit. Top up at nano-gpt.com, then run again.")
+      : new Error(status + ": " + String(body).slice(0,160));
+  }
   // Content-Type only — the key is attached by apiFetch (standalone) or the parent proxy (embedded).
   function authHeaders(){ return { "Content-Type":"application/json" }; }
 
@@ -545,7 +559,7 @@ window.NoodleApp = (function () {
      binary-audio path. We total it for the whole session ("spent on this app")
      and attribute each generation's slice to its result card. "exact" drops to
      false if any call omitted a price, so the running total is shown as a floor (~). */
-  const COST = { total:0, count:0, balance:null, exact:true };
+  const COST = { total:0, count:0, balance:null, exact:true, estUsd:null };
   function fmtUsd(v){
     const a = Math.abs(v);
     const d = a>0 && a<0.01 ? 5 : a<1 ? 4 : 2;   // keep sub-cent generations legible
@@ -743,6 +757,7 @@ window.NoodleApp = (function () {
       if(u==null){ unpriced++; continue; }
       usd+=u; priced++; if(SETTING_MODEL_KIND[n.type]!=="image") exact=false;
     }
+    COST.estUsd = priced ? usd : null;   // last known whole-run forecast — read by the pre-flight balance guard
     const el = ensureRunCostEl(); if(!el) return;
     if(!priced){ el.hidden = true; return; }
     el.hidden = false;
@@ -888,7 +903,7 @@ window.NoodleApp = (function () {
       if(maskDataUrl)  body.maskDataUrl  = maskDataUrl;    // present → inpaint; WHITE areas = the region to repaint
       if(extra) Object.assign(body, extra);                // LoRA (and any future per-model image params)
       const r = await apiFetch(IMG_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
-      if(!r.ok){ flagAuth(r.status); throw new Error(r.status + ": " + (await r.text()).slice(0,160)); }
+      if(!r.ok){ flagAuth(r.status); throw httpRunError(r.status, await r.text()); }
       const j = await r.json();
       const urls = (j.data||[]).map(function(d){ return d.b64_json ? "data:" + b64ImageMime(d.b64_json) + ";base64," + d.b64_json : d.url; }).filter(Boolean);
       if(!urls.length) throw new Error("no image in response");
@@ -904,7 +919,7 @@ window.NoodleApp = (function () {
       if(opts.response_format) body.response_format = opts.response_format;   // {type:"json_object"} for JSON mode
       if(opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
       const r = await apiFetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
-      if(!r.ok){ flagAuth(r.status); throw new Error(r.status + ": " + (await r.text()).slice(0,160)); }
+      if(!r.ok){ flagAuth(r.status); throw httpRunError(r.status, await r.text()); }
       const j = await r.json();
       onCost(costFromJson(j));
       const msg = (j.choices && j.choices[0] && j.choices[0].message) || {};
@@ -948,7 +963,7 @@ window.NoodleApp = (function () {
         let r;
         try{ r = await apiFetch(NANOGPT + "/api/generate-video", {method:"POST", headers:authHeaders(), body:payload}); }
         catch(e){ throw new Error("couldn't reach the video API — if the source media is large it may have been rejected for size before CORS applies. Try a shorter clip, or build this into an app and run it offline. (" + (e.message||e) + ")"); }
-        if(!r.ok){ flagAuth(r.status); throw new Error(r.status + ": " + (await r.text()).slice(0,160)); }
+        if(!r.ok){ flagAuth(r.status); throw httpRunError(r.status, await r.text()); }
         const j = await r.json(); onCost(costFromJson(j));
         runId = j.runId || j.id;
         if(!runId) throw new Error("no runId returned");
@@ -986,7 +1001,7 @@ window.NoodleApp = (function () {
         const req = t.match(/["']?([a-z_]+)["']?\s+(?:is\s+)?required|missing[^a-z]+["']?([a-z_]+)/i);
         const field = req && (req[1]||req[2]);
         if(field) throw new Error('This model requires "' + field + '" — set it in the node, or add it under advanced params.');
-        throw new Error(r.status + ": " + t);
+        throw httpRunError(r.status, t);
       }
       const ct = r.headers.get("content-type") || "";
       if(ct.includes("application/json")){
@@ -1026,7 +1041,7 @@ window.NoodleApp = (function () {
       const k = getKey();
       const r = await fetch(NANOGPT + "/api/v1/audio/transcriptions", {method:"POST",
         headers:{ Authorization:"Bearer " + k, "x-api-key":k }, body:fd});
-      if(!r.ok){ flagAuth(r.status); throw new Error(r.status + ": " + (await r.text()).slice(0,160)); }
+      if(!r.ok){ flagAuth(r.status); throw httpRunError(r.status, await r.text()); }
       const j = await r.json();
       const c = costFromJson(j);   // endpoint returns {text, language, duration} with no cost → estimate from duration × catalog per_minute
       if(c.usd==null){ const est = await estTranscribeUsd(model, +j.duration); if(est!=null){ c.usd = est; c.estimate = true; } }
@@ -2950,6 +2965,13 @@ window.NoodleApp = (function () {
     // prepends), so each run, or continuous generation, just stacks onto history.
     if(mbox) mbox.innerHTML = ""; if(obox) obox.classList.toggle("grid", N>1);
     startRun(N);
+    // Non-blocking heads-up when the KNOWN balance probably won't cover the KNOWN forecast. Estimates
+    // are fuzzy, so we warn and still run — never block. Silent when either number is unknown (never
+    // treat unknown balance as empty) or the forecast is $0. Emitted after the #app-msg clear above so
+    // the warning survives run start.
+    if(COST.balance!=null && COST.estUsd!=null && COST.estUsd>0 && COST.balance < COST.estUsd){
+      statusLine("__lowbal__","warn","balance " + fmtUsd(COST.balance) + " may not cover this ~" + fmtUsd(COST.estUsd) + " run — top up at nano-gpt.com");
+    }
     const outIds = new Set(STATE.outputs.map(n=>n.id));
 
     // One worker per lane. A worker runs the graph once, then — while "keep
@@ -3084,6 +3106,38 @@ window.NoodleApp = (function () {
       return !(r.status===401 || r.status===403);
     }catch(_){ return true; }
   }
+  // Warm landing for a shared-app / exported recipient who lands here without a key:
+  // styles injected at runtime (mirroring injectCostStyles, with var() fallbacks) so a
+  // gptdiff-customized shell that rewrote its CSS still renders the card themed.
+  function injectAuthIntroStyles(){
+    if(document.getElementById("noodle-authintro-style")) return;
+    const s = document.createElement("style"); s.id = "noodle-authintro-style";
+    s.textContent =
+      '.auth-intro{margin:.6rem 0 .5rem;padding:.75rem .85rem;border:1px solid var(--line,#2a3150);'
+        + 'border-radius:var(--radius,.7rem);background:var(--panel,#161a27);max-width:52ch;text-align:left;}'
+      + '.auth-intro p{margin:.2rem 0;font-size:.8rem;color:var(--dim,#8b93b4);line-height:1.5;}'
+      + '.auth-intro .auth-why{color:var(--ink,#e6e9f5);font-weight:600;font-size:.85rem;margin-bottom:.35rem;}'
+      + '.auth-intro .auth-new{margin-top:.4rem;}'
+      + '.auth-intro a{color:var(--accent,#7c8cff);text-decoration:none;}'
+      + '.auth-intro a:hover{text-decoration:underline;}';
+    (document.head || document.documentElement).appendChild(s);
+  }
+  function authIntro(embedded){
+    injectAuthIntroStyles();
+    // The "create an account" call to action differs by surface: a standalone / exported
+    // app runs un-sandboxed, so a plain new-tab link works. The #a= share-link preview
+    // runs in a sandboxed iframe with no allow-popups, where a target=_blank link is dead
+    // — there we point at the top bar, which is un-sandboxed and owns sign-in / sign-up.
+    const newAcct = embedded
+      ? '<p class="auth-new">new to nano-gpt? use <b>Sign in</b> at the top — creating an account is free.</p>'
+      : '<p class="auth-new">new to nano-gpt? <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">create an account →</a></p>';
+    return '<div class="auth-intro">'
+      + '<p class="auth-why">this app runs AI on your own nano-gpt key</p>'
+      + '<p>the models are called straight from your browser — nanoodle has no server and no analytics, so nothing runs until you add a key.</p>'
+      + '<p>your key stays on this device. you pay nano-gpt per run, on your own key, and each run shows what it cost — setup takes about a minute.</p>'
+      + newAcct
+      + '</div>';
+  }
   function renderAuth(){
     const box = $("app-auth"); if(!box) return;
     // Embedded in the builder, auth belongs to the parent (it holds the key and proxies
@@ -3093,7 +3147,7 @@ window.NoodleApp = (function () {
       // (no "signed in" indicator) and only nudge when not yet signed in.
       box.innerHTML = parentAuthed
         ? ''
-        : '<span class="dim">sign in from the bar at the top to run this app</span>';
+        : authIntro(true) + '<span class="dim">sign in from the bar at the top to run this app</span>';
       return;
     }
     const ok = !!getKey();
@@ -3104,13 +3158,15 @@ window.NoodleApp = (function () {
     const canOAuth = /^https?:$/.test(location.protocol);
     box.innerHTML = ok
       ? '<span class="authok">signed in ✓</span> <button class="link" id="auth-out">sign out</button>'
-      : (canOAuth ? '<button class="link" id="auth-in">Sign in</button> ' : '')
+      : authIntro(false)
+      + (canOAuth ? '<button class="link" id="auth-in">Sign in</button> ' : '')
       + '<button class="link" id="auth-paste">paste key</button>'
       + ' <span class="keyrow" id="auth-keyrow" hidden>'
       + '<input id="auth-keyinput" type="password" placeholder="nano-gpt API key" autocomplete="off">'
       + ' <button class="link" id="auth-keysave">save</button>'
       + '</span>'
-      + (canOAuth ? '' : ' <span class="dim">— paste a nano-gpt.com key (one-click sign-in needs the app served over http)</span>');
+      + (canOAuth ? '' : ' <span class="dim">— paste a nano-gpt.com key (one-click sign-in needs the app served over http)</span>')
+      + '<div class="auth-new">new to nano-gpt? <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">create an account →</a><span class="dim"> — pay-per-use, no subscription needed; your key stays in this browser.</span></div>';
     if(ok){
       $("auth-out").onclick = ()=> setKey(null);
     } else {
@@ -3306,6 +3362,9 @@ body{ background:
 .app-head .auth{ font-size:.78rem; color:var(--dim); margin-top:.4rem; min-height:1.1em; }
 .app-head .auth input{ font:inherit; padding:.3rem .45rem; border-radius:.4rem; background:var(--panel); border:1px solid var(--line); color:var(--ink); }
 .app-head .auth .link{ background:none; border:none; color:var(--accent); cursor:pointer; padding:0; font:inherit; }
+.app-head .auth .auth-new{ display:block; margin-top:.35rem; font-size:.72rem; line-height:1.4; }
+.app-head .auth .auth-new a{ color:var(--accent); text-decoration:none; }
+.app-head .auth .auth-new a:hover{ text-decoration:underline; }
 #app-tagline{ color:var(--dim); margin:0; max-width:60ch; }
 
 .inputs{ display:flex; flex-direction:column; gap:1rem; margin:1.6rem 0; }
@@ -3340,7 +3399,7 @@ body{ background:
   color:#180a0a; box-shadow:0 0 26px #ff6b6b3a; }
 .run.stop:hover{ box-shadow:0 0 36px #ff6b6b5c; }
 .status{ font-size:.82rem; color:var(--dim); min-height:1.2em; display:flex; flex-direction:column; gap:.2rem; }
-.status .stline.error{ color:var(--danger); } .status .stline.done{ color:var(--ok); }
+.status .stline.error{ color:var(--danger); } .status .stline.done{ color:var(--ok); } .status .stline.warn{ color:#ffcf6b; }
 
 .output{ display:flex; flex-direction:column; gap:1rem; }
 .output .card{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:1rem; }
@@ -3376,7 +3435,7 @@ body{ background:
   color:var(--faint); font-variant-numeric:tabular-nums; }
 .prog-now.is-ok{ color:var(--ok); } .prog-now.is-err{ color:var(--danger); }
 .msg-area{ display:flex; flex-direction:column; gap:.2rem; }
-.msg-area .stline.error{ color:var(--danger); } .msg-area .stline.done{ color:var(--ok); }
+.msg-area .stline.error{ color:var(--danger); } .msg-area .stline.done{ color:var(--ok); } .msg-area .stline.warn{ color:#ffcf6b; }
 
 /* error detail — click "N errors" to reveal which steps failed and why */
 .err-toggle{ font:inherit; font-size:.76rem; margin-top:.4rem; padding:.28rem .6rem; cursor:pointer;
