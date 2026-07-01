@@ -121,9 +121,12 @@
             background:var(--panel2); border:1px solid var(--line); color:var(--text); text-decoration:none;
             display:inline-flex; align-items:center; gap:.3rem; }
   .sm-svc button:hover, .sm-social a:hover{ background:var(--accent-soft); border-color:var(--accent-line); }
-  /* da.gd is the default: it POSTs, so it survives the big #a= links TinyURL's GET can truncate. */
-  .sm-svc button.sm-primary{ background:var(--accent); border-color:var(--accent); color:#0b0d12; font-weight:700; }
-  .sm-svc button.sm-primary:hover{ background:var(--accent); border-color:var(--accent); filter:brightness(1.08); }
+  /* da.gd is the default: it POSTs, so it survives the big #a= links TinyURL's GET can truncate.
+     Emphasized (bright accent ring + ✓) but still clearly a button in the row, not a filled tag. */
+  .sm-svc button.sm-primary{ background:var(--accent-soft); border-color:var(--accent); color:var(--text);
+            font-weight:700; box-shadow:inset 0 0 0 1px var(--accent); }
+  .sm-svc button.sm-primary::before{ content:"✓"; color:var(--accent); font-weight:700; }
+  .sm-svc button.sm-primary:hover{ background:var(--accent-soft); border-color:var(--accent); filter:brightness(1.1); }
   .sm-svc button:disabled{ opacity:.5; cursor:progress; }
   .sm-flag{ font-size:.66rem; color:var(--faint); }
 
