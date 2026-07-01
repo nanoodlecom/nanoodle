@@ -964,9 +964,20 @@ window.NoodleApp = (function () {
   }
   async function toLocalMediaUrl(url){
     if(/^(data:|blob:)/.test(url)) return { src:url, revoke:null };
-    const blob = await (await fetch(url)).blob();
-    const o = URL.createObjectURL(blob);
-    return { src:o, revoke:()=> URL.revokeObjectURL(o) };
+    // A generated clip lives on the provider CDN (CloudFront). The sandboxed /play app frame seals
+    // connect-src to self/blob/nano-gpt (anti-exfiltration), so fetch()-ing those bytes is CSP-blocked
+    // there — which used to break vframes (last-frame grab) and combine, both of which need the video.
+    // But media-src still allows https:, so a <video> can LOAD the URL, and the CDN answers every origin
+    // (incl. the frame's null origin) with Access-Control-Allow-Origin:* — so a crossOrigin="anonymous"
+    // element paints to a canvas untainted (toDataURL / captureStream) and mixes through Web Audio with
+    // NO byte fetch. Every caller sets crossOrigin, so hand the raw URL through when we can't buffer it.
+    // A standalone (un-sandboxed) export can still fetch a blob for smoother seeking; the sandbox streams
+    // (range requests are supported, so seeking still works). Try the blob, fall back to the raw URL.
+    try{
+      const blob = await (await fetch(url)).blob();
+      const o = URL.createObjectURL(blob);
+      return { src:o, revoke:()=> URL.revokeObjectURL(o) };
+    }catch(e){ return { src:url, revoke:null }; }
   }
   function seekVideo(vid, t){
     return new Promise((res)=>{
