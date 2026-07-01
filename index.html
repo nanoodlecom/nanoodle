@@ -3805,8 +3805,8 @@ function prepClip(src){
 // start this clip's decoded audio in lockstep (a startup stall then delays picture+sound alike).
 function recordClip(vid, c2d, W, H, track, skipFirst, onFirstFrame){
   return new Promise((resolve, reject)=>{
-    let seen = 0, finished = false, cap = 0;
-    const cleanup = ()=>{ clearTimeout(cap); try{ vid.pause(); }catch{} vid.removeAttribute("src"); vid.load(); };
+    let seen = 0, finished = false;
+    const cleanup = ()=>{ try{ vid.pause(); }catch{} vid.removeAttribute("src"); vid.load(); };
     const finish = ()=>{ if(finished) return; finished = true; cleanup(); resolve(); };
     const onFrame = ()=>{
       if(finished) return;
@@ -3816,11 +3816,6 @@ function recordClip(vid, c2d, W, H, track, skipFirst, onFirstFrame){
       if(vid.ended) return finish();
       vid.requestVideoFrameCallback(onFrame);
     };
-    // Safety net: end this clip after its own known duration (+ slack) no matter what, so a frame
-    // stall can never freeze the picture through to the end nor hang the whole combine. The element
-    // is DOM-attached (see concatVideos) to stop Chrome throttling rVFC on detached media — the
-    // watchdog is the belt to that suspenders, and also covers a play() that never fires 'ended'.
-    cap = setTimeout(finish, ((isFinite(vid.duration) && vid.duration>0 ? vid.duration : 30) + 0.8) * 1000);
     vid.onended = finish;
     vid.onerror = ()=>{ cleanup(); reject(new Error("could not play a clip")); };
     vid.requestVideoFrameCallback(onFrame);
@@ -3830,20 +3825,12 @@ function recordClip(vid, c2d, W, H, track, skipFirst, onFirstFrame){
 async function concatVideos(urls, dedup, onProgress){
   const handles = [];
   for(const u of urls) handles.push(await toLocalMediaUrl(u));
-  let ac = null; let vids = []; let stage = null;
+  let ac = null; let vids = [];
   try{
     const mime = pickVideoMime();
     // Decode every clip to its first frame BEFORE recording, so seams don't freeze while the next
     // clip loads (that dead time was padding the output well past the clips' real combined length).
     for(let i=0;i<handles.length;i++){ onProgress && onProgress(`loading clip ${i+1}/${handles.length}…`); vids.push(await prepClip(handles[i].src)); }
-    // Attach the clips to a real (but ~invisible, 1×1, in-viewport) element. Chrome throttles and
-    // eventually STOPS presenting frames for a media element that isn't in the composited tree —
-    // rVFC then stops firing and the canvas freezes on its last frame partway through (the reported
-    // "video froze a few seconds in, audio kept going"). A composited host keeps frames flowing.
-    stage = document.createElement("div");
-    stage.setAttribute("style", "position:fixed;left:0;top:0;width:1px;height:1px;overflow:hidden;opacity:0.01;pointer-events:none;z-index:-1");
-    vids.forEach(v=>{ v.setAttribute("style","width:1px;height:1px"); stage.appendChild(v); });
-    document.body.appendChild(stage);
     const W = vids[0].videoWidth||1280, H = vids[0].videoHeight||720;
     const canvas = document.createElement("canvas"); canvas.width = W; canvas.height = H;
     const c2d = canvas.getContext("2d");
@@ -3900,7 +3887,7 @@ async function concatVideos(urls, dedup, onProgress){
     await stopped;
     track.stop();
     return URL.createObjectURL(new Blob(chunks, { type: mime.split(";")[0] }));
-  } finally { vids.forEach(v=>{ try{ v.pause(); v.removeAttribute("src"); v.load(); }catch{} }); try{ stage && stage.remove(); }catch{} handles.forEach(h=> h.revoke && h.revoke()); try{ ac && ac.close(); }catch{} }
+  } finally { vids.forEach(v=>{ try{ v.pause(); v.removeAttribute("src"); v.load(); }catch{} }); handles.forEach(h=> h.revoke && h.revoke()); try{ ac && ac.close(); }catch{} }
 }
 const sleep = (ms)=> new Promise(res=> setTimeout(res, ms));
 // async audio (music / some TTS): submit returns {status:"pending", runId} → poll /api/tts/status until completed
