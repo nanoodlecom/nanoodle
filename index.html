@@ -3147,6 +3147,23 @@ function graphFitsViewport(){
   return b.x0*scale+panX>=0 && b.y0*scale+panY>=0 &&
          b.x1*scale+panX<=editor.clientWidth && b.y1*scale+panY<=editor.clientHeight;
 }
+// Bring a specific set of nodes into view (used after a described change adds nodes that flow
+// off the right edge on a busy canvas). Centers on just those nodes, only zooming OUT if they
+// don't fit; no-ops when they're already fully visible so we never yank a settled camera.
+function revealNodes(ids){
+  const ns = ids.map(id=>graph.nodes.find(n=>n.id===id)).filter(n=>n&&n.el);
+  if(!ns.length) return;
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  for(const n of ns){ x0=Math.min(x0,n.x); y0=Math.min(y0,n.y);
+    x1=Math.max(x1,n.x+n.el.offsetWidth); y1=Math.max(y1,n.y+n.el.offsetHeight); }
+  const vw=editor.clientWidth, vh=editor.clientHeight;
+  if(x0*scale+panX>=0 && y0*scale+panY>=0 && x1*scale+panX<=vw && y1*scale+panY<=vh) return;  // already in view
+  const M=64, bw=x1-x0, bh=y1-y0;
+  scale = clamp(Math.min(scale, vw/(bw+M*2), vh/(bh+M*2)), ZMIN, 1);   // keep zoom unless they overflow
+  panX = (vw - bw*scale)/2 - x0*scale;
+  panY = (vh - bh*scale)/2 - y0*scale;
+  applyWorld(); redraw();
+}
 
 // delete selected node with keyboard (when not typing)
 window.addEventListener("keydown", e=>{
@@ -5479,7 +5496,9 @@ RULES for the diff:
       curVer = versions.length-1;
       renderVersions();
       input.value = "";
-      pulse(dif.added.map(n=>n.id));
+      const addedIds = dif.added.map(n=>n.id);
+      revealNodes(addedIds);   // scroll the freshly-added nodes into view before the pulse lands
+      pulse(addedIds);
       setStatus(`✓ ${esc(summarize(dif))}. ${usageMeter()}`, "ok");
     }catch(e){
       if(e && e.name==="AbortError") setStatus(`Stopped. ${usageMeter()}`);   // you hit ■ Stop — neutral, not an error
