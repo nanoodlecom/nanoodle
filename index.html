@@ -3826,9 +3826,13 @@ async function shortenWith(svc, longUrl){
 }
 async function shareUrl(){
   const url = await buildShareUrl();
-  history.replaceState({}, "", url);                 // surface it in the address bar too
   const big = url.length > 8000 ? ` (${(url.length/1024).toFixed(0)}kB)` : "";
   const ok = await copyText(url);
+  // Surface the #g= in the address bar ONLY when the copy failed (so "copy it from the
+  // address bar" stays valid). On success leave OUR own URL clean: a leftover handoff hash
+  // gets re-consumed on the next reload — loadFromHash runs setPendingApp(null), unbinding the
+  // app so "✨ Update app" reverts to "✨ Create app" and the next save spawns a duplicate.
+  if(!ok) history.replaceState({}, "", url);
   toast(ok
     ? `✓ Share link copied${big} — shorten or share it below`
     : `Share link is in the address bar${big} — copy it below`, ok?"":"err");
