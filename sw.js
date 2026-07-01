@@ -33,7 +33,17 @@ self.addEventListener("fetch", (e) => {
   if (req.method !== "GET" || new URL(req.url).origin !== location.origin) return; // never the API
   e.respondWith(
     fetch(req)
-      .then((res) => { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); return res; })
+      .then((res) => {
+        // Only cache successful, same-origin ("basic"), query-less responses.
+        // Skips error pages served mid-deploy (no stale-error pinning) and any
+        // query-string navigation — notably the OAuth return (/?code=…&state=…),
+        // which would otherwise leave one unbounded cache entry per login.
+        if (res.ok && res.type === "basic" && !new URL(req.url).search) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy));
+        }
+        return res;
+      })
       .catch(() => caches.match(req).then((m) => {
         if (m) return m;
         if (req.mode === "navigate") return caches.match(shellFor(req.url)); // route-correct shell, never the editor for /play

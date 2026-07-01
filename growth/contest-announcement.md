@@ -7,7 +7,7 @@ Match each venue's norms — don't paste the same block in both.
 
 ## A. nano-gpt Discord → #community-projects (primary launch)
 
-> **🍜 Noodle Contest — show us your coolest noodle, win Nano**
+> **🍜 Noodle Cookoff — show us your coolest noodle, win Nano**
 >
 > nanoodle is a tiny ComfyUI-style playground that runs entirely in your browser —
 > wire nano-gpt models (text, image, video, audio, LLM) into a workflow, then share
@@ -15,21 +15,21 @@ Match each venue's norms — don't paste the same block in both.
 > analytics. Bring your own nano-gpt key and go.
 >
 > **We're giving away 3 × 133 Nano** for the coolest noodles:
-> 🛠 **Most Useful** · 🎨 **Most Beautiful/Weird** · ❤️ **People's Choice** (most hearted)
+> 🛠 **Most Useful** · 💡 **Most Innovative** · ❤️ **People's Choice** (Discord hearts + Reddit upvotes)
 >
 > **How to enter:**
 > 1. Build something at <https://nanoodle.com> (no signup).
 > 2. Hit **🔗 Share** — your workflow link is copied to your clipboard.
 > 3. Drop it here with a title + one line + your category:
 > ```
-> **Title** — what it does. 🎨
-> Category: Most Beautiful/Weird
+> **Title** — what it does. 💡
+> Category: Most Innovative
 > [▶ Open it](your-share-link)
 > ```
 >
 > Max 2 entries each. Closes **July 12** (23:59 UTC). Winners get featured in the
-> in-app Gallery. Need a starting point? Open the **🖼 Gallery** in nanoodle and
-> remix one.
+> in-app Gallery. Need a starting point? Remix one of the example noodles, e.g.
+> <https://nanoodle.com/#gallery=comic-strip> or `#gallery=song-maker`.
 >
 > Can't wait to see what you build. 🚀
 
@@ -45,7 +45,7 @@ Match each venue's norms — don't paste the same block in both.
 > works, naturally).
 >
 > We're running a build contest: **3 × 133 Nano** for the coolest noodles, across
-> three categories (Most Useful / Most Beautiful-Weird / People's Choice). Make
+> three categories (Most Useful / Most Innovative / People's Choice). Make
 > something, share the link in nano-gpt's #community-projects, most-loved entries
 > win.
 >
@@ -74,7 +74,7 @@ Match each venue's norms — don't paste the same block in both.
 > a key and pay per run (Nano works natively).
 >
 > **The contest:** **3 × 133 XNO**, paid straight to your Nano wallet, across three
-> categories — 🛠 Most Useful, 🎨 Most Beautiful/Weird, ❤️ People's Choice. Build
+> categories — 🛠 Most Useful, 💡 Most Innovative, ❤️ People's Choice. Build
 > something, share the link in nano-gpt's Discord #community-projects, winners get
 > featured in the app's gallery. Opens **June 26**, closes **July 12** (23:59 UTC).
 >
@@ -95,15 +95,16 @@ Match each venue's norms — don't paste the same block in both.
 
 ## D. Results post (after close — becomes its own shareable artifact)
 
-> **🏆 Noodle Contest winners**
+> **🏆 Noodle Cookoff winners**
 >
 > 🛠 Most Useful — **<title>** by <author> · [open](<link>)
-> 🎨 Most Beautiful/Weird — **<title>** by <author> · [open](<link>)
+> 💡 Most Innovative — **<title>** by <author> · [open](<link>)
 > ❤️ People's Choice — **<title>** by <author> · [open](<link>)
 >
-> All three (and the best of the rest) are now in the in-app **🖼 Gallery** —
-> open <https://nanoodle.com>, hit Gallery, remix away. Thanks to everyone who
-> built something. 133 Nano heading to each winner. 🙌
+> All three (and the best of the rest) are now in the in-app **🖼 Gallery**, which
+> goes live with the results — open <https://nanoodle.com>, hit **🖼 Gallery**, and
+> remix away. Thanks to everyone who built something. 133 Nano heading to each
+> winner. 🙌
 
 > (Then point a Show HN / Reddit / X post at the Gallery — "people built these in a
 > no-signup, no-server AI playground" — with the three winners as the hook.)

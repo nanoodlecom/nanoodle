@@ -497,6 +497,27 @@
     .node header .hbtn{ padding:6px 9px; font-size:1rem }
     .result .acts button{ padding:.45rem .65rem; font-size:.8rem }
   }
+
+  /* ---------- share popover (ported from play.html's app share) ---------- */
+  #shareback{ position:fixed; inset:0; z-index:190; }
+  #sharemenu{ position:fixed; right:.6rem; top:3rem; z-index:191; width:min(360px,94vw);
+              max-height:80vh; overflow:auto; background:var(--panel); border:1px solid var(--line);
+              border-radius:.7rem; box-shadow:0 18px 50px rgba(0,0,0,.5); padding:.55rem .6rem; }
+  #sharemenu[hidden], #shareback[hidden]{ display:none; }
+  .sm-head{ font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--dim); padding:.3rem .5rem .35rem; }
+  .sm-urlrow{ display:flex; gap:.4rem; align-items:center; }
+  .sm-url{ flex:1; min-width:0; font-size:.78rem; font-family:ui-monospace,monospace; color:var(--dim);
+           background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; padding:.4rem .5rem; }
+  .sm-copy{ flex:none; }
+  .sm-note{ font-size:.74rem; color:var(--dim); margin:.4rem .15rem .1rem; line-height:1.4; }
+  .sm-warn{ font-size:.74rem; color:var(--dim); margin:.15rem .15rem .35rem; line-height:1.45;
+            border-left:2px solid var(--accent); padding:.1rem .5rem; }
+  .sm-svc, .sm-social{ display:flex; gap:.4rem; flex-wrap:wrap; }
+  .sm-svc button, .sm-social a{ font-size:.82rem; padding:.4rem .6rem; border-radius:.5rem; cursor:pointer;
+            background:var(--panel2); border:1px solid var(--line); color:var(--ink); text-decoration:none;
+            display:inline-flex; align-items:center; gap:.3rem; }
+  .sm-svc button:hover, .sm-social a:hover{ background:var(--panel); border-color:var(--accent); }
+  .sm-svc button:disabled{ opacity:.5; cursor:progress; }
 </style>
 </head>
 <body>
@@ -512,7 +533,7 @@
   <button id="makeapp" title="Turn this workflow into a shareable app">✨ Create app</button>
   <button id="newapp" title="Start a NEW app from this workflow (don’t update the one you’re editing)" hidden>✨ New</button>
   <button id="share" title="Copy a link that loads this exact workflow — paste it to share with anyone">🔗 Share</button>
-  <button id="submitcontest" title="Enter this in the Noodle Cookoff">🏆 Submit</button>
+  <button id="submitcontest" title="Enter this in the Noodle Cookoff">🏆 Cookoff</button>
   <button id="save" title="download this graph as JSON">⭳ Save</button>
   <button id="load" title="open a graph JSON file">⭱ Load</button>
   <button id="updates" title="What’s new in nanoodle">📣 Updates<span id="updbadge" hidden></span></button>
@@ -531,7 +552,7 @@
 </header>
 
 <div id="keyrow">
-  <input id="keyinput" type="text" placeholder="paste NanoGPT API key (sk-nano-… or a UUID)" />
+  <input id="keyinput" type="password" autocomplete="off" placeholder="paste NanoGPT API key (sk-nano-… or a UUID)" />
   <button id="keysave" class="btn">save</button>
   <span class="dim" style="font-size:.72rem;color:var(--dim)">nano-gpt.com → Settings → API</span>
 </div>
@@ -633,6 +654,7 @@
       <span id="sublinkhint" class="sub-linkhint">Opens your creation as a ready-to-run app — what people click to try it. Best for entries.</span>
       <div class="sub-linkrow">
         <input id="submitlink" type="text" readonly value="" aria-label="Your entry link" />
+        <button id="submitshort" class="sub-copy" title="Shorten this link (via da.gd) — nicer to post">✂ Shorten</button>
         <button id="submitcopy" class="sub-copy">Copy link</button>
       </div>
     </div>
@@ -646,6 +668,32 @@
     </div>
   </div>
 </div>
+
+<!-- SHARE popover — copy / shorten (opt-in, 3rd-party) / share-to-social. Same as the app share. -->
+<div id="sharemenu" hidden>
+  <div class="sm-head">Share this workflow</div>
+  <div class="sm-urlrow">
+    <input id="sm-url" class="sm-url" readonly />
+    <button id="sm-copy" class="sm-copy">Copy</button>
+  </div>
+  <p class="sm-note">This link opens your exact workflow for anyone to run or remix.</p>
+
+  <div class="sm-head">Make it shorter — optional</div>
+  <p class="sm-warn">Sends this link to a third-party shortener so <em>they</em> host it. They can see the workflow.</p>
+  <div class="sm-svc">
+    <button data-svc="tinyurl">TinyURL</button>
+    <button data-svc="dagd">da.gd</button>
+  </div>
+
+  <div class="sm-head">Share to</div>
+  <div class="sm-social">
+    <a data-soc="x" target="_blank" rel="noopener">𝕏</a>
+    <a data-soc="reddit" target="_blank" rel="noopener">Reddit</a>
+    <a data-soc="facebook" target="_blank" rel="noopener">Facebook</a>
+    <a data-soc="email">Email</a>
+  </div>
+</div>
+<div id="shareback" hidden></div>
 
 <main id="editor" aria-label="Workflow canvas">
   <svg id="wires"></svg>
@@ -1930,7 +1978,7 @@ function buildNodeEl(n){
       <span class="em">${t.em}</span><span class="ttl">${t.title}</span>
       <span class="dot"></span>
       <button class="hbtn" data-act="run" title="run this branch">▶</button>
-      <button class="hbtn" data-act="del" title="delete">✕</button>
+      <button class="hbtn" data-act="del" title="delete (Del)">✕</button>
     </header>
     <div class="ports">
       <div class="col in">${inRows}</div>
@@ -3598,6 +3646,20 @@ function shareableGraph(){
   });
   return g;
 }
+// SECURITY (mirror of the share-out blanking above, for the import side): a shared #g=/#j= link
+// auto-applies on open with no Run/gesture. Upload-node media fields are ALWAYS data: URLs locally
+// (FileReader / canvas.toDataURL), so any remote value here can only be an injected beacon — the
+// default <audio>/<video> preload would fetch it and leak the viewer's IP/UA/open-timestamp on open.
+// Blank any non-data:/blob: upload media on import (legit uploads are untouched; generated outputs
+// ride in n.out, not n.fields, so remote outputs are unaffected).
+const SAFE_MEDIA_RE = /^(data:|blob:)/;
+function stripInjectedMedia(n){
+  if(!n.fields) return;
+  const f = UPLOAD_FIELD[n.type];                                   // upload→image, aupload→audio, vupload→video
+  if(f && n.fields[f] && !SAFE_MEDIA_RE.test(n.fields[f])) n.fields[f] = "";
+  if(n.type==="inpaint") for(const k of ["image","mask"])           // source photo + brushed mask, both data: locally
+    if(n.fields[k] && !SAFE_MEDIA_RE.test(n.fields[k])) n.fields[k] = "";
+}
 function applyGraphData(d){
   world.innerHTML=""; selected=null;
   graph = { nodes:[], links:[] };
@@ -3606,7 +3668,7 @@ function applyGraphData(d){
   for(const sn of (d.nodes||[])){
     const type = ALIAS[sn.type] || sn.type;
     if(!NODE_TYPES[type]) continue;               // skip unknown node types gracefully
-    const n={ ...sn, type, out:{}, el:null }; graph.nodes.push(n); buildNodeEl(n);
+    const n={ ...sn, type, out:{}, el:null }; stripInjectedMedia(n); graph.nodes.push(n); buildNodeEl(n);
   }
   // keep only links whose endpoints survived
   const ids = new Set(graph.nodes.map(n=>n.id));
@@ -3618,8 +3680,8 @@ function applyGraphData(d){
   }
   // rebuild id counters so new nodes/links never collide with loaded ones
   const num = (s)=> parseInt(String(s).replace(/\D/g,""),10) || 0;
-  nid = Math.max(d.nid||0, 0, ...graph.nodes.map(n=>num(n.id))) + 1;
-  lid = Math.max(d.lid||0, 0, ...graph.links.map(l=>num(l.id))) + 1;
+  nid = Math.max(num(d.nid), 0, ...graph.nodes.map(n=>num(n.id))) + 1;
+  lid = Math.max(num(d.lid), 0, ...graph.links.map(l=>num(l.id))) + 1;
   graph.nodes.forEach(n=>{ recompactImageLinks(n); refreshImageInputs(n); recompactVideoLinks(n); refreshVideoInputs(n); });   // links loaded → compact + grow image/clip ports
   redraw(); refreshPortFills(); refreshAllPrices();
 }
@@ -3727,21 +3789,49 @@ async function buildShareUrl(target){
   if(target==="app") return location.origin + "/play.html" + hash;     // real file → resolves on the live site and locally
   return location.origin + location.pathname + location.search + hash;
 }
+// URL shorteners (TinyURL GET, da.gd POST for long links). The editor's connect-src allows https:
+// and runs only first-party code over declarative graphs — no untrusted app — so calling a
+// shortener here has no exfiltration surface (unlike play.html's preview, sealed by PREVIEW_CSP).
+async function shortenWith(svc, longUrl){
+  let r, t;
+  if(svc==="tinyurl"){
+    r = await fetch("https://tinyurl.com/api-create.php?url="+encodeURIComponent(longUrl));
+    t = (await r.text()).trim();
+  } else if(svc==="dagd"){
+    r = await fetch("https://da.gd/shorten", { method:"POST",
+        headers:{ "Content-Type":"application/x-www-form-urlencoded" }, body:"url="+encodeURIComponent(longUrl) });
+    t = (await r.text()).trim();
+  } else { throw new Error("unknown service"); }
+  if(!/^https?:\/\/\S+$/.test(t)) throw new Error(t.slice(0,80) || "no link returned");
+  return t;
+}
 async function shareUrl(){
   const url = await buildShareUrl();
   history.replaceState({}, "", url);                 // surface it in the address bar too
   const big = url.length > 8000 ? ` (${(url.length/1024).toFixed(0)}kB)` : "";
   const ok = await copyText(url);
   toast(ok
-    ? `✓ Share link copied! Paste it anywhere — it opens this exact workflow${big}`
-    : `Share link is in the address bar — copy it to share this workflow${big}`, ok?"":"err");
-  const b = $("share");                                   // flip the button itself for unmistakable feedback
-  if(b && ok){ const o=b.textContent; b.textContent="✓ Link copied!"; b.classList.add("ok");
-    setTimeout(()=>{ b.textContent=o; b.classList.remove("ok"); }, 1800); }
-  // Catch the wow moment: a link is on the clipboard — nudge them to enter it in the Cookoff.
-  // The popup builds its own APP link (what to post for the contest); back off once dismissed.
-  if(ok && !suppressShareNudge) openSubmit(true);
+    ? `✓ Share link copied${big} — shorten or share it below`
+    : `Share link is in the address bar${big} — copy it below`, ok?"":"err");
+  openShareMenu(url);                                // same popover the app share uses: copy / shorten / share-to-social
 }
+// ---- share popover (ported from play.html's app share; reused here for the workflow link) ----
+let curShareUrl = "";   // the link the popover currently reflects (long, or a shortened one)
+function setShareUrl(u){
+  curShareUrl = u;
+  $("sm-url").value = u;
+  const text = "Built this workflow with nanoodle — open it to remix (bring your own key, runs in your browser):";
+  const eu = encodeURIComponent(u), et = encodeURIComponent(text), ti = encodeURIComponent("A nanoodle workflow");
+  const soc = {
+    x:        `https://twitter.com/intent/tweet?text=${et}&url=${eu}`,
+    reddit:   `https://www.reddit.com/submit?url=${eu}&title=${ti}`,
+    facebook: `https://www.facebook.com/sharer/sharer.php?u=${eu}`,
+    email:    `mailto:?subject=${ti}&body=${et}%0A%0A${eu}`,
+  };
+  document.querySelectorAll("#sharemenu .sm-social a").forEach(a => a.href = soc[a.dataset.soc]);
+}
+function openShareMenu(url){ setShareUrl(url); $("sharemenu").hidden = false; $("shareback").hidden = false; }
+function closeShareMenu(){ $("sharemenu").hidden = true; $("shareback").hidden = true; }
 // Set when this editor session is editing the workflow of an existing app (carried in
 // via #ga= or the modal's __editflow__ message). "Create app" hands the graph back under
 // this id so the app updates in place instead of spawning a fresh default app.
@@ -3793,6 +3883,26 @@ async function loadFromHash(){
   }catch{ return false; }
 }
 $("share").onclick = ()=> shareUrl().catch(e=> flash("share failed: "+e.message));
+$("shareback").onclick = closeShareMenu;
+$("sm-copy").onclick = async ()=>{ const ok = await copyText(curShareUrl); toast(ok?"✓ Copied":"copy failed", ok?"":"err"); };
+$("sm-url").onclick = ()=> $("sm-url").select();
+document.querySelectorAll("#sharemenu .sm-svc button").forEach(btn => btn.onclick = async ()=>{
+  const svc = btn.dataset.svc, label = btn.textContent.trim();
+  const longUrl = location.origin + location.pathname + location.search + location.hash;   // shorten the full current link
+  const others = [...document.querySelectorAll("#sharemenu .sm-svc button")];
+  others.forEach(b=> b.disabled = true);
+  const o = btn.textContent; btn.textContent = "…";
+  try{
+    const short = await shortenWith(svc, longUrl);
+    setShareUrl(short);
+    const ok = await copyText(short);
+    toast(ok ? `✓ Short link copied — via ${label}` : `Short link ready — copy it above`, ok?"":"err");
+  }catch(e){
+    toast(`${label} couldn't shorten it (${e.message}) — try da.gd for very long links, or share the full link`, "err");
+  }finally{ btn.textContent = o; others.forEach(b=> b.disabled = false); }
+});
+document.querySelectorAll('#sharemenu .sm-social a[data-soc="email"]').forEach(a=> a.onclick = ()=> closeShareMenu());
+document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && !$("sharemenu").hidden){ e.stopPropagation(); closeShareMenu(); } }, true);
 // Turn this workflow into a standalone app (play.html). Hand off the graph via the
 // existing #g= packing; stash a localStorage copy as a belt-and-suspenders fallback.
 // Open the app builder as a popup over the editor (play.html in a modal iframe), so it
@@ -3851,7 +3961,10 @@ addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("appmodal").hidden) c
 
 // 🍜 Noodle Cookoff promo — opens a static announcement modal; the ✕ on the button dismisses it for good.
 const cookoffBtn = $("cookoffbtn");
-try{ if(localStorage.getItem("noodle_cookoff_dismissed")) cookoffBtn.hidden = true; }catch(_){}
+// Contest ends Jul 12, 23:59 UTC — after that, retire the entry button + promo so they don't rot for new users.
+const COOKOFF_OVER = Date.now() > Date.parse("2026-07-12T23:59:59Z");
+if(COOKOFF_OVER) $("submitcontest").hidden = true;
+try{ if(COOKOFF_OVER || localStorage.getItem("noodle_cookoff_dismissed")) cookoffBtn.hidden = true; }catch(_){}
 function closeCookoff(){ $("cookoffmodal").hidden = true; }
 function dismissCookoff(e){ e.stopPropagation(); cookoffBtn.hidden = true; try{ localStorage.setItem("noodle_cookoff_dismissed","1"); }catch(_){} }
 $("cookoffdismiss").onclick = dismissCookoff;
@@ -3913,6 +4026,18 @@ $("submitcopy").onclick = async ()=>{
   const b = $("submitcopy");
   if(ok){ b.textContent = "✓ Copied"; b.classList.add("ok"); setTimeout(()=>{ b.textContent="Copy link"; b.classList.remove("ok"); }, 1800); }
   else { toast("Couldn't copy — select the link and copy it manually", "err"); }
+};
+$("submitshort").onclick = async ()=>{
+  const inp = $("submitlink"), b = $("submitshort"), o = b.textContent;
+  if(!/^https?:\/\//.test(inp.value)) return;            // nothing to shorten yet
+  b.textContent = "…"; b.disabled = true;
+  try{
+    inp.value = await shortenWith("dagd", inp.value);    // replace in place so Copy/post uses the short one
+    inp.select();
+    b.textContent = "✓ Short"; b.classList.add("ok");
+    setTimeout(()=>{ b.textContent = o; b.classList.remove("ok"); }, 1800);
+  }catch(e){ b.textContent = o; toast("shorten failed: "+e.message, "err"); }
+  finally{ b.disabled = false; }
 };
 addEventListener("message", e=>{
   if(e.source!==$("appmodalframe").contentWindow || !e.data) return;
@@ -4447,10 +4572,16 @@ RULES for the diff:
     // Canvas edits made by hand since the current version aren't a snapshot — applyGraphData
     // below would replace the live graph and drop them. Don't interrupt to ask: just capture
     // them as a version first, so jumping away always keeps your work and parks it in the strip
-    // to return to. toSimple ignores node positions/pan/zoom, so a plain drag isn't an "edit".
+    // to return to. Compare workflow CONTENT (fields incl. uploaded media), not layout: a plain
+    // drag/pan/resize isn't an edit, but dropping in a photo IS. (toSimple strips media — it's
+    // for the planner — so it must NOT be used here, or media-only edits get silently destroyed.)
+    const contentSig = g => JSON.stringify({
+      nodes:(g.nodes||[]).map(n=>({ id:n.id, type:n.type, fields:n.fields||{} })),
+      links:(g.links||[]).map(l=>({ from:`${l.from.node}.${l.from.port}`, to:`${l.to.node}.${l.to.port}` })),
+    });
     const cur = versions[curVer];
     let savedAt = -1;
-    if(cur && JSON.stringify(toSimple(serializeGraph())) !== JSON.stringify(toSimple(cur.graph))){
+    if(cur && contentSig(serializeGraph()) !== contentSig(cur.graph)){
       versions.push({ graph: clone(serializeGraph()), goal: "your canvas edits" });
       savedAt = versions.length - 1;
     }
