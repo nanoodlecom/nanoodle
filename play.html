@@ -468,6 +468,11 @@ window.NoodleApp = (function () {
   const setKey = (k)=>{ k ? localStorage.setItem("ngpt_key",k) : localStorage.removeItem("ngpt_key"); renderAuth();
     if(k && typeof STATE!=="undefined" && STATE) fillModelLists(); };   // standalone: a pasted/OAuth key fills the model dropdowns
   const hasAuth = ()=> EMBEDDED ? parentAuthed : !!getKey();
+  // A 401/403 from a standalone run means the stored key is dead (revoked, or an expired OAuth token the
+  // user won't re-paste). Clear it — setKey(null) re-renders auth, flipping the header back to signed-out/paste —
+  // and signpost the fix; mirrors the editor's flagAuth. Embedded preview proxies auth through the parent, so
+  // leave that path untouched (the key never lives here when EMBEDDED).
+  function flagAuth(status){ if(!EMBEDDED && (status===401||status===403)){ setKey(null); statusLine("__auth__","error","your nano-gpt key was rejected — sign in or paste a valid key to run"); } }
   // Content-Type only — the key is attached by apiFetch (standalone) or the parent proxy (embedded).
   function authHeaders(){ return { "Content-Type":"application/json" }; }
 
@@ -712,7 +717,7 @@ window.NoodleApp = (function () {
       if(maskDataUrl)  body.maskDataUrl  = maskDataUrl;    // present → inpaint; WHITE areas = the region to repaint
       if(extra) Object.assign(body, extra);                // LoRA (and any future per-model image params)
       const r = await apiFetch(IMG_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
-      if(!r.ok) throw new Error(r.status + ": " + (await r.text()).slice(0,160));
+      if(!r.ok){ flagAuth(r.status); throw new Error(r.status + ": " + (await r.text()).slice(0,160)); }
       const j = await r.json();
       const urls = (j.data||[]).map(function(d){ return d.b64_json ? "data:" + b64ImageMime(d.b64_json) + ";base64," + d.b64_json : d.url; }).filter(Boolean);
       if(!urls.length) throw new Error("no image in response");
@@ -728,7 +733,7 @@ window.NoodleApp = (function () {
       if(opts.response_format) body.response_format = opts.response_format;   // {type:"json_object"} for JSON mode
       if(opts.reasoning_effort) body.reasoning_effort = opts.reasoning_effort;
       const r = await apiFetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
-      if(!r.ok) throw new Error(r.status + ": " + (await r.text()).slice(0,160));
+      if(!r.ok){ flagAuth(r.status); throw new Error(r.status + ": " + (await r.text()).slice(0,160)); }
       const j = await r.json();
       onCost(costFromJson(j));
       const msg = (j.choices && j.choices[0] && j.choices[0].message) || {};
@@ -772,7 +777,7 @@ window.NoodleApp = (function () {
         let r;
         try{ r = await apiFetch(NANOGPT + "/api/generate-video", {method:"POST", headers:authHeaders(), body:payload}); }
         catch(e){ throw new Error("couldn't reach the video API — if the source media is large it may have been rejected for size before CORS applies. Try a shorter clip, or build this into an app and run it offline. (" + (e.message||e) + ")"); }
-        if(!r.ok) throw new Error(r.status + ": " + (await r.text()).slice(0,160));
+        if(!r.ok){ flagAuth(r.status); throw new Error(r.status + ": " + (await r.text()).slice(0,160)); }
         const j = await r.json(); onCost(costFromJson(j));
         runId = j.runId || j.id;
         if(!runId) throw new Error("no runId returned");
@@ -804,6 +809,7 @@ window.NoodleApp = (function () {
       const body = Object.assign({ model, input }, extra||{});
       const r = await apiFetch(NANOGPT + "/api/v1/audio/speech", {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
       if(!r.ok){
+        flagAuth(r.status);
         const t = (await r.text()).slice(0,220);
         if(/lyric/i.test(t)) throw new Error("This model needs lyrics — fill the Lyrics field (vocal models require them; leave empty / use a BGM model for instrumentals).");
         const req = t.match(/["']?([a-z_]+)["']?\s+(?:is\s+)?required|missing[^a-z]+["']?([a-z_]+)/i);
@@ -849,7 +855,7 @@ window.NoodleApp = (function () {
       const k = getKey();
       const r = await fetch(NANOGPT + "/api/v1/audio/transcriptions", {method:"POST",
         headers:{ Authorization:"Bearer " + k, "x-api-key":k }, body:fd});
-      if(!r.ok) throw new Error(r.status + ": " + (await r.text()).slice(0,160));
+      if(!r.ok){ flagAuth(r.status); throw new Error(r.status + ": " + (await r.text()).slice(0,160)); }
       const j = await r.json();
       const c = costFromJson(j);   // endpoint returns {text, language, duration} with no cost → estimate from duration × catalog per_minute
       if(c.usd==null){ const est = await estTranscribeUsd(model, +j.duration); if(est!=null){ c.usd = est; c.estimate = true; } }
