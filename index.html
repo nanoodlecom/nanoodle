@@ -465,6 +465,7 @@
   #mpick.open{ display:flex }
   #mpick .mphead{ display:flex; align-items:center; gap:.5rem; padding:.6rem .7rem; border-bottom:1px solid var(--line) }
   #mpick .mphead .spacer{ flex:1 }
+  #mpicksort{ background:var(--panel2); border:1px solid var(--line); color:var(--ink); border-radius:.5rem; padding:.25rem .4rem; font-size:.8rem; cursor:pointer }
   #mpicksearch{ margin:.6rem .7rem .2rem; background:var(--panel2); border:1px solid var(--line); border-radius:.5rem; padding:.5rem .6rem }
   #mpicklist{ overflow:auto; padding:.4rem .5rem .6rem; display:flex; flex-direction:column; gap:.1rem }
   #mpicklist button{ display:flex; justify-content:space-between; gap:1rem; width:100%; text-align:left;
@@ -611,6 +612,12 @@
     <b id="mpicktitle">model</b>
     <span id="mpickcount" class="dim"></span>
     <div class="spacer"></div>
+    <select id="mpicksort" title="Sort the model list" aria-label="Sort models">
+      <option value="newest">Newest</option>
+      <option value="cheapest">Cheapest</option>
+      <option value="premium">Priciest</option>
+      <option value="name">Name A→Z</option>
+    </select>
     <button id="mpickclose" class="hbtn" aria-label="Close model picker">✕</button>
   </div>
   <input id="mpicksearch" placeholder="filter the full list, or type an exact id + Enter…" autocomplete="off" />
@@ -761,7 +768,11 @@ const optsHTML = (items, def)=> items.map(([v,l])=>`<option value="${esc(v)}"${v
 
 function normChat(m){
   const p = m.pricing||{}, c = m.capabilities||{};
-  return { id:m.id, name:m.name||m.id, created:m.created, vision:!!c.vision,
+  return { id:m.id, name:m.name||m.id, created:m.created,
+    // blended $/run from the shown prompt+completion prices (same EST mix as the run estimate) → price sorts.
+    // NOT m.cost_estimate: it's 0 for routers/auto-model that actually charge, which would fake them as "cheapest".
+    sortUsd: (p.prompt!=null || p.completion!=null) ? ((+p.prompt||0)*EST.llmInTokens + (+p.completion||0)*EST.llmOutTokens)/1e6 : null,
+    vision:!!c.vision,
     reasoning:!!c.reasoning, structured_output:!!c.structured_output,   // gate JSON mode + reasoning controls
     audio_input:!!c.audio_input, video_input:!!c.video_input, pdf_upload:!!c.pdf_upload,
     maxOut: m.max_output_tokens,   // max_tokens ceiling (present on most models)
@@ -817,6 +828,7 @@ function normImg(m){
   const resolutions = Array.isArray(m.supported_parameters?.resolutions)
     ? m.supported_parameters.resolutions.filter(x=> typeof x==="string" && x) : [];
   return { id:m.id, name:m.name||m.id, created:m.created,
+    sortUsd: v!=null ? +v : null,                                       // per-image $ → price sorts
     edit: !needsMask && (needsSrc || !!m.capabilities?.image_to_image),  // accepts an image input (text+image->image | image->image)
     gen: needsSrc ? false : (mod ? mod.startsWith("text") : !m.capabilities?.image_to_image),  // text-only generators; excludes edit-only models
     inpaint: inpaintOk,                                                  // needs/honors image + mask → the Inpaint node
@@ -841,6 +853,7 @@ function normVideo(m){
   // the real param descriptors rather than the model name.
   const multiAudio = "left_audio" in pp || "right_audio" in pp;
   return { id:m.id, name:m.name||m.id, created:m.created,
+    sortUsd: _vu,                                    // resolved $/clip at default res/duration → price sorts
     t2v:!!c.text_to_video, i2v:!!c.image_to_video,
     v2v:!!c.video_to_video,                          // edits/extends/upscales a SOURCE video (→ vedit node)
     avatar:!!c.image_to_video && !!c.audio_input && !multiAudio,    // image + single audio → talking video (→ lipsync node)
@@ -879,6 +892,7 @@ function normAudio(m){
   // not a transcript — exclude them by id so they don't pollute the Transcribe node.
   const stt = (!!c.speech_to_text || m.category==="audio_stt") && !/clone/i.test(m.id);
   return { id:m.id, name:m.name||m.id, created:m.created, owner:m.owned_by||"", voices, langs, params:sp,
+    sortUsd: audioUnitUsd(p, EST.ttsChars),          // resolved $ at assumed usage → price sorts (mixed units, rough)
     tts, gen, music: gen && !tts, stt, pricing:p, price };   // raw pricing kept so transcribe can estimate from per_minute
 }
 
@@ -1587,10 +1601,40 @@ function backfillModel(n){   // once a catalog arrives, give model nodes a sensi
 }
 
 /* ---------- shared searchable model picker ---------- */
+// How the list is ordered. All four are derived from real catalog fields (no curated
+// "best" list to rot): created for recency, sortUsd (cost_estimate / resolved price) for
+// cost — priciest doubles as the honest "frontier/flagship" proxy since headline models
+// (Opus, Veo3, Sora, nano-banana-pro) sit at the top of the price range.
+const PICK_SORTS = { newest:"newest", cheapest:"cheapest", premium:"priciest", name:"A→Z" };
+let pickerSort = (()=>{ try{ return PICK_SORTS[localStorage.getItem("nn_picksort")] ? localStorage.getItem("nn_picksort") : "newest"; }catch{ return "newest"; } })();
+function setPickerSort(s){
+  if(!PICK_SORTS[s]) return;
+  pickerSort = s;
+  try{ localStorage.setItem("nn_picksort", s); }catch{}
+  renderPicker();
+}
+// order the already-filtered matches by the current sort. created (native newest-first order)
+// is the tiebreak everywhere, so equal prices still read newest-first.
+function sortMatches(list){
+  const arr = list.slice();
+  if(pickerSort==="name") return arr.sort((a,b)=> a.id.localeCompare(b.id));
+  if(pickerSort==="cheapest" || pickerSort==="premium"){
+    const dir = pickerSort==="cheapest" ? 1 : -1;
+    return arr.sort((a,b)=>{
+      const pa=a.sortUsd, pb=b.sortUsd;
+      if(pa==null && pb==null) return (b.created||0)-(a.created||0);   // both unpriced → newest
+      if(pa==null) return 1;                                          // unpriced always sinks to the bottom
+      if(pb==null) return -1;
+      return pa===pb ? (b.created||0)-(a.created||0) : dir*(pa-pb);
+    });
+  }
+  return arr.sort((a,b)=> (b.created||0)-(a.created||0));   // newest (default)
+}
 let picker = null; // { kind, filter, current, onPick }
 function openPicker(kind, opts){
   picker = { kind, filter:opts.filter, current:opts.current, onPick:opts.onPick };
   $("mpicktitle").textContent = `${KIND_LABEL[kind]||"Model"} model` + (opts.filter ? ` · ${opts.filter}` : "");
+  $("mpicksort").value = pickerSort;
   $("mpick").classList.add("open");
   $("mpickback").classList.add("show");
   $("mpicksearch").value = "";
@@ -1609,9 +1653,8 @@ function pickerMatches(){
 }
 function renderPicker(){
   if(!picker) return;
-  const q = $("mpicksearch").value.trim().toLowerCase();
-  const matches = pickerMatches();
-  $("mpickcount").textContent = `${matches.length} model${matches.length===1?"":"s"}${q?"":" · newest first"}`;
+  const matches = sortMatches(pickerMatches());
+  $("mpickcount").textContent = `${matches.length} model${matches.length===1?"":"s"} · ${PICK_SORTS[pickerSort]}`;
   const frag = document.createDocumentFragment();
   for(const m of matches.slice(0,400)){
     const b = document.createElement("button");
@@ -4013,11 +4056,12 @@ mqMobile.addEventListener("change", layoutBar);
 
 // picker interactions
 $("mpicksearch").addEventListener("input", renderPicker);
+$("mpicksort").addEventListener("change", e=> setPickerSort(e.target.value));
 $("mpicksearch").addEventListener("keydown", e=>{
   if(e.key==="Enter"){
     e.preventDefault();
     if(!picker) return;
-    const top = pickerMatches()[0], v = $("mpicksearch").value.trim();
+    const top = sortMatches(pickerMatches())[0], v = $("mpicksearch").value.trim();
     if(top){ picker.onPick(top.id); closePicker(); }            // select the model you're looking at…
     else if(v){ picker.onPick(v); closePicker(); }              // …or, with no match, take a typed id verbatim
   }
