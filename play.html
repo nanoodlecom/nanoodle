@@ -60,6 +60,12 @@
   .brand .nano{ color:var(--accent); }
   .title-wrap{ max-width:42ch; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
                color:var(--ink); font-weight:600; opacity:.9; }
+  /* the app title doubles as a rename field — click it to edit in place */
+  #bar-title{ cursor:text; border-radius:.35rem; padding:.06rem .3rem; margin:0 -.3rem; outline:none; }
+  #bar-title:hover{ background:var(--panel2); }
+  #bar-title:hover::after{ content:" ✎"; opacity:.45; font-weight:400; }
+  #bar-title:focus{ background:var(--panel2); box-shadow:0 0 0 1px var(--accent-line) inset; }
+  #bar-title:focus::after{ content:none; }
   #bar .status{ font-size:.76rem; color:var(--dim); }
   #bar .sep{ width:1px; height:20px; background:var(--line); margin:0 .25rem; }
   #bar button{ font-size:.82rem; padding:.4rem .7rem; border-radius:.5rem;
@@ -3677,6 +3683,64 @@ function syncTitleFromFiles(){
   const t = titleFromFiles(APP_STATE.files);
   $("bar-title").textContent = t; document.title = t + " · nanoodle app";
 }
+// escape a plain-text title for safe insertion into the HTML <title> tag
+// (titleFromFiles decodes it back, so round-trips like "Tom & Jerry" survive)
+function escTitleTag(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+// rewrite (or insert) the <title> of an index.html string
+function withTitle(html, enc){
+  return /<title>[\s\S]*?<\/title>/i.test(html)
+    ? html.replace(/<title>[\s\S]*?<\/title>/i, "<title>"+enc+"</title>")
+    : html.replace(/<head([^>]*)>/i, "<head$1>\n<title>"+enc+"</title>");
+}
+// Rename the open app: the title lives in the <title> tag of the app's index.html,
+// so we rewrite it in the live files AND the current version's snapshot (otherwise
+// flipping versions would lose the new name), re-sync the bar/tab, and persist.
+// Renaming a draft is a real edit (not regenerable from the graph) so it commits.
+function setAppTitle(raw){
+  const name = (raw||"").replace(/\s+/g," ").trim();
+  const html = APP_STATE.files && APP_STATE.files["index.html"];
+  if(!name || !html) return false;
+  if(name === titleFromFiles(APP_STATE.files)) return false;   // no-op
+  const enc = escTitleTag(name);
+  APP_STATE.files = { ...APP_STATE.files, "index.html": withTitle(html, enc) };
+  const cv = APP_STATE.versions[APP_STATE.curVer];
+  if(cv && cv.files && cv.files["index.html"]) cv.files["index.html"] = withTitle(cv.files["index.html"], enc);
+  syncTitleFromFiles();
+  commit();   // naming an app is intent to keep it → promote a draft into "My apps"
+  return true;
+}
+// click (or focus + Enter) the bar title to rename in place; Enter/blur saves, Esc cancels
+function wireTitle(){
+  const span = $("bar-title");
+  span.tabIndex = 0; span.setAttribute("role","textbox");
+  let before = null;                                  // set while editing
+  const begin = ()=>{
+    if(!$("empty").hidden || before != null) return; // nothing loaded / already editing
+    before = span.textContent;
+    span.title = "";
+    span.contentEditable = "plaintext-only";
+    span.focus();
+    const r = document.createRange(); r.selectNodeContents(span);
+    const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+  };
+  const end = (save)=>{
+    if(before == null) return;
+    const val = span.textContent, orig = before; before = null;
+    span.contentEditable = "false";
+    span.title = "Click to rename this app";
+    if(!(save && setAppTitle(val))){ span.textContent = orig; document.title = orig + " · nanoodle app"; }
+  };
+  span.title = "Click to rename this app";
+  span.addEventListener("click", begin);
+  // Enter/Escape commit explicitly (not via blur — a synthetic or lost focus can skip it);
+  // blur stays as the click-away save.
+  span.addEventListener("keydown", (e)=>{
+    if(before == null){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); begin(); } return; }
+    if(e.key==="Enter"){ e.preventDefault(); end(true); span.blur(); }
+    else if(e.key==="Escape"){ e.preventDefault(); end(false); span.blur(); }
+  });
+  span.addEventListener("blur", ()=> end(true));
+}
 
 /* ======================================================================
    CENTRAL STATE + PERSISTENCE
@@ -4271,6 +4335,9 @@ $("mpicksearch").addEventListener("keydown", (e)=>{
   if(e.key==="Enter"){ const v=$("mpicksearch").value.trim(); if(v){ setModel(v); closePicker(); } }
   else if(e.key==="Escape") closePicker();
 });
+
+// click the bar title to rename the open app
+wireTitle();
 
 // "My apps" library wiring
 $("myapps").onclick = toggleAppsMenu;
