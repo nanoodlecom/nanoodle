@@ -3947,12 +3947,15 @@ async function signIn(){
   stashResume();   // survive the full-page redirect even if localStorage is full or an autosave hasn't fired
   location.assign(u.toString());
 }
+let cameBackFromPopup = false;   // this window is the OAuth popup returning — close it, don't boot the builder
 async function handleRedirect(){
   const p=new URLSearchParams(location.search);
   if(!p.has("code")&&!p.has("error")) return;
   history.replaceState({},"",REDIRECT_URI);
   // pkce lives in sessionStorage for a same-tab redirect, or shared localStorage for the popup flow.
-  const saved=JSON.parse(sessionStorage.getItem("pkce")||localStorage.getItem("pkce_popup")||"null");
+  const sessionPkce = sessionStorage.getItem("pkce"), popupPkce = localStorage.getItem("pkce_popup");
+  cameBackFromPopup = !sessionPkce && !!popupPkce;   // came via the popup path (survives nano-gpt's COOP wipe of window.name)
+  const saved=JSON.parse(sessionPkce||popupPkce||"null");
   sessionStorage.removeItem("pkce"); localStorage.removeItem("pkce_popup");
   if(p.get("error")) throw new Error(p.get("error"));
   if(!saved||p.get("state")!==saved.state) throw new Error("state mismatch");
@@ -4308,11 +4311,13 @@ function migrateLegacy(){
 async function boot(){
   try{ await handleRedirect(); }catch(e){ $("auth-status").textContent = "sign-in error: "+e.message; }
   // OAuth popup (opened from the embedded builder): the key is now in shared localStorage and
-  // the opener's storage listener finishes sign-in there. Close this window. Detect the popup by
-  // window.name alone — NanoGPT's OAuth page sets Cross-Origin-Opener-Policy, which severs
-  // window.opener across the roundtrip, so don't require it. If the browser also refuses close(),
-  // show a tiny note rather than rendering the whole builder into the 480×760 popup.
-  if(window.name==="ngpt_signin"){
+  // the opener's poll finishes sign-in there. Close this window. NanoGPT's OAuth page sets
+  // Cross-Origin-Opener-Policy, which swaps the browsing-context group across the roundtrip —
+  // that severs window.opener AND resets window.name to "". So don't trust window.name: also
+  // treat "handleRedirect just consumed the popup-only pkce_popup key" as the popup returning.
+  // If the browser still refuses close(), show a tiny note rather than booting the whole builder
+  // into the 480×760 popup.
+  if(window.name==="ngpt_signin" || cameBackFromPopup){
     try{ window.close(); }catch(_){}
     document.body.innerHTML =
       '<p style="font:15px/1.6 ui-sans-serif,system-ui,sans-serif;color:#e6e9f5;padding:2rem;text-align:center">'
