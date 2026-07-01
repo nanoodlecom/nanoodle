@@ -69,6 +69,7 @@ async function run(world, seed) {
     imgSpec: () => ({ re: /never/ }), VID_PORT_RE: /^vid\d+$/,
     nodeSig: () => 0, isSeeded: () => false, showResult: () => {}, rerenderNode: () => {}, CTX: {},
     friendlyRunError: (e) => e?.message || String(e),   // identity here — the real mapper is UX-only
+    maybeAppNudge: () => {},   // post-first-wow "Create app" nudge — UI-only, inert here
 
     console,
   };

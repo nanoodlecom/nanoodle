@@ -959,10 +959,10 @@ window.NoodleApp = (function () {
       let runId = (prev && prev.sig===sig) ? prev.runId : null;
       if(!runId){
         if(payload.length > MEDIA_INLINE_MAX)
-          throw new Error("This audio/video is a bit large (~4 MB max). nanoodle sends media inline rather than uploading it (no S3 here), so NanoGPT's edge won't accept it. A shorter clip works well — or build this flow into an app (✨ Create app) and run it offline.");
+          throw new Error("This audio/video is a bit large (~4 MB max). nanoodle sends media inline rather than uploading it (no S3 here), so NanoGPT's edge won't accept it. Use a shorter clip — the ✂️ Trim node can cut audio down to size.");
         let r;
         try{ r = await apiFetch(NANOGPT + "/api/generate-video", {method:"POST", headers:authHeaders(), body:payload}); }
-        catch(e){ throw new Error("couldn't reach the video API — if the source media is large it may have been rejected for size before CORS applies. Try a shorter clip, or build this into an app and run it offline. (" + (e.message||e) + ")"); }
+        catch(e){ throw new Error("couldn't reach the video API — if the source media is large it may have been rejected for size before CORS applies. Try a shorter clip (the ✂️ Trim node can cut audio down). (" + (e.message||e) + ")"); }
         if(!r.ok){ flagAuth(r.status); throw httpRunError(r.status, await r.text()); }
         const j = await r.json(); onCost(costFromJson(j));
         runId = j.runId || j.id;
@@ -1029,10 +1029,10 @@ window.NoodleApp = (function () {
     // parent-proxied apiFetch (it serializes bodies as strings), so the in-editor preview can't
     // run it — it works in the editor and in exported/standalone apps where auth is local.
     async transcribe(model, audioUrl, language){
-      if(EMBEDDED) throw new Error("Transcribe runs in the editor and exported apps, not the in-app preview — build this into an app (✨ Create app) and run it offline.");
+      if(EMBEDDED) throw new Error("Transcribe runs in the editor and in shared/exported apps, not in this in-editor preview — try it there.");
       const blob = await (await fetch(audioUrl)).blob();
       if(blob.size > 3.5*1024*1024)
-        throw new Error("This clip is a bit big to transcribe directly (~3 MB max) — nanoodle sends audio inline rather than uploading it (no S3 here). A shorter clip works, or build this into an app (✨ Create app) and run it offline.");
+        throw new Error("This clip is a bit big to transcribe directly (~3 MB max) — nanoodle sends audio inline rather than uploading it (no S3 here). Use a shorter clip, or cut it down with the ✂️ Trim node.");
       const ext = (blob.type.split("/")[1] || "mp3").split(";")[0];
       const fd = new FormData();
       fd.append("file", blob, "audio." + ext);    // OpenAI-compatible endpoint: the audio field MUST be "file" (sending "audio" 400s "Missing 'file'")

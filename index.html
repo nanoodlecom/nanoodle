@@ -500,6 +500,9 @@
 
   /* ---------- app action: primary "Create/Update app" + a caret split-button that reveals "Save as a new app" ---------- */
   #appmenu{ position:relative; display:inline-flex; align-items:stretch }
+  /* the headline conversion — second-tier CTA: accent ring + tint, never a second filled primary (that's Run's) */
+  #makeapp, #appmore.caret{ border-color:var(--accent); color:#aeb6ff; background:#7c8cff14; font-weight:600 }
+  #makeapp:hover:not(:disabled), #appmore.caret:hover:not(:disabled){ border-color:var(--accent); background:#7c8cff2e }
   #appmore.caret{ padding:.4rem .35rem; margin-left:-.15rem; font-size:.8rem; line-height:1 }
   #apppop{ position:absolute; top:110%; right:0; background:var(--panel); border:1px solid var(--line);
            border-radius:.6rem; padding:.35rem; display:none; flex-direction:column; gap:.1rem; min-width:210px;
@@ -507,6 +510,14 @@
   #apppop.open{ display:flex }
   #apppop button{ text-align:left; border:none; background:none; width:100%; padding:.6rem .65rem; border-radius:.45rem; font-size:.92rem; white-space:nowrap }
   #apppop button:hover{ background:var(--panel2) }
+  /* one-time post-first-run nudge, anchored under the ✨ button (same pill styling as #canvashint) */
+  #appnudge[hidden]{ display:none }
+  #appnudge{ position:absolute; top:115%; right:0; z-index:41; display:flex; align-items:center; gap:.4rem;
+             white-space:nowrap; max-width:calc(100vw - 1rem); background:var(--panel); border:1px solid var(--accent); border-radius:2rem;
+             padding:.4rem .45rem .4rem .85rem; font-size:.82rem; color:var(--dim); box-shadow:0 6px 22px #0007; cursor:pointer }
+  #appnudge b{ color:var(--ink); font-weight:600; white-space:nowrap }
+  #appnudge #appnudgex{ border:none; background:none; color:var(--dim); cursor:pointer; font-size:1rem; line-height:1; padding:.1rem .4rem; border-radius:.4rem }
+  #appnudge #appnudgex:hover{ background:var(--panel2); color:var(--ink) }
 
   /* ---------- overflow ("⋯ More") menu — desktop keeps actions inline, mobile collapses them here ---------- */
   #moremenu{ position:relative; display:none }
@@ -525,12 +536,11 @@
     #top{ gap:.45rem; padding:0 max(.55rem,env(safe-area-inset-left)) 0 max(.55rem,env(safe-area-inset-right)) }
     #top .logo{ font-size:1.05rem; margin-right:.1rem }
     #addbtn .lbl{ display:none }          /* ＋ ▾ only — the popover lists every node anyway */
+    #makeapp .lbl{ display:none }         /* ✨ only — the flagship action stays in the bar, never buried in ⋯ */
+    #appmore{ display:none }              /* no room for the caret; its "Save as a new app" fork moves into ⋯ (layoutBar) */
     #moremenu{ display:block }            /* reveal the overflow trigger */
-    /* the app split-button lives in the ⋯ menu on phones: flatten it into stacked full-width items */
-    #morepop #appmenu{ flex-direction:column; width:100% }
-    #morepop #makeapp{ width:100%; text-align:left }
-    #morepop #appmore{ display:none }
-    #morepop #apppop{ position:static; display:flex; padding:0; min-width:0; border:none; box-shadow:none; background:none }
+    /* an icon-only ✨ gives the nudge no width to hug — pin it to the viewport instead */
+    #appnudge{ position:fixed; top:58px; left:.5rem; right:.5rem; max-width:none; justify-content:center; white-space:normal }
     #top .sep{ display:none }
     #cost{ display:none }                 /* balance is non-essential chrome on a phone */
   }
@@ -588,11 +598,12 @@
   </div>
   <button id="run" class="primary" title="run every flow (Ctrl/⌘+Enter)">▶ Run</button>
   <div id="appmenu">
-    <button id="makeapp" title="Turn this workflow into a shareable app">✨ Create app</button>
+    <button id="makeapp" title="Turn this workflow into a shareable app">✨<span class="lbl"> Create app</span></button>
     <button id="appmore" class="caret" title="More app options" aria-label="More app options" aria-haspopup="true" hidden>▾</button>
     <div id="apppop">
       <button id="newapp" title="Save this as a brand-new app — the one you’re editing stays untouched">✨ Save as a new app</button>
     </div>
+    <div id="appnudge" hidden role="status"><span>Like it? <b>✨ Turn this into an app</b> you can share</span><button id="appnudgex" title="Got it" aria-label="Dismiss">×</button></div>
   </div>
   <button id="share" title="Copy a link that opens this workflow in the node editor so others can remix it">🔗 Share workflow</button>
   <button id="submitcontest" title="Enter this in the Noodle Cookoff">🏆 Cookoff</button>
@@ -3366,6 +3377,9 @@ async function runGroup(seedIds){
       })();
     }
     await Promise.all(order.map(id=> done[id]));
+    // a clean finish (nothing failed or Stopped, ≥1 node actually produced output) is the
+    // post-wow moment — one-time nudge toward ✨ Create app
+    if(!failed.size && !ctl.signal.aborted && order.some(id=>{ const n = byId(id); return n?.out && Object.keys(n.out).length; })) maybeAppNudge();
   } finally {
     lock.forEach(id=>runningNodes.delete(id));
     if(!runningNodes.size && runAbort===ctl) runAbort = null;   // last group out clears the shared controller
@@ -3590,11 +3604,11 @@ const CTX = {
     if(!runId){
       const payload = JSON.stringify(body);
       if(payload.length > MEDIA_INLINE_MAX)
-        throw new Error("This audio/video is a bit large (~4 MB max). nanoodle sends media inline rather than uploading it (no S3 here), so NanoGPT's edge won't accept it. A shorter clip works well — or build this flow into an app (✨ Create app) and run it offline.");
+        throw new Error("This audio/video is a bit large (~4 MB max). nanoodle sends media inline rather than uploading it (no S3 here), so NanoGPT's edge won't accept it. Use a shorter clip — the ✂️ Trim node can cut audio down to size.");
       let r;
       try{ r = await fetch(`${NANOGPT}/api/generate-video`, {method:"POST", headers:authHeaders(), body:payload, signal:runSignal()}); }
       catch(e){ if(e?.name==="AbortError") throw e;
-        throw new Error(`couldn't reach the video API — if the source media is large it may have been rejected for size before CORS applies. Try a shorter clip, or build this into an app and run it offline. (${e.message||e})`); }
+        throw new Error(`couldn't reach the video API — if the source media is large it may have been rejected for size before CORS applies. Try a shorter clip (the ✂️ Trim node can cut audio down). (${e.message||e})`); }
       if(!r.ok){ await throwHttp(r); }
       const j = await r.json(); accrue(j);
       runId = j.runId || j.id;
@@ -3665,7 +3679,7 @@ const CTX = {
   async transcribe(model, audioUrl, language){
     const blob = await (await fetch(audioUrl, {signal:runSignal()})).blob();
     if(blob.size > 3.5*1024*1024)
-      throw new Error("This clip is a bit big to transcribe directly (~3 MB max) — nanoodle sends audio inline rather than uploading it (no S3 here). A shorter clip works, or build this into an app (✨ Create app) and run it offline.");
+      throw new Error("This clip is a bit big to transcribe directly (~3 MB max) — nanoodle sends audio inline rather than uploading it (no S3 here). Use a shorter clip, or cut it down with the ✂️ Trim node.");
     const ext = (blob.type.split("/")[1] || "mp3").split(";")[0];
     const fd = new FormData();
     fd.append("file", blob, `audio.${ext}`);    // the endpoint is OpenAI-compatible: the audio field MUST be "file" (sending "audio" 400s "Missing 'file'")
@@ -4406,16 +4420,19 @@ $("run").onclick = ()=>{
 
 /* ---------- responsive toolbar: collapse secondary actions into the ⋯ menu on phones ----------
    Buttons keep their handlers (they're moved, not cloned). On desktop everything sits inline. */
-const RELOC = ["appmenu","share","submitcontest","save","load","updates","signin","pastebtn","signout","status"];  // order shown in the menu
+const RELOC = ["share","submitcontest","save","load","updates","signin","pastebtn","signout","status"];  // order shown in the menu — ✨ Create app stays in the bar (icon-only via CSS)
 const mqMobile = matchMedia("(max-width:640px)");
 let topOrder = null;
 function layoutBar(){
   const pop = $("morepop");
   if(mqMobile.matches){
     pop.innerHTML = "";
+    $("apppop").classList.remove("open");               // the caret popover would otherwise linger as an empty box once its fork moves out
+    pop.appendChild($("newapp"));                       // the ▾ caret is hidden on phones, so its "Save as a new app" fork lives here (hidden while unbound, like the caret)
     RELOC.forEach((id,i)=>{ if(id==="signin") pop.appendChild(Object.assign(document.createElement("div"),{className:"mdiv"})); pop.appendChild($(id)); });
   } else {
     topOrder.forEach(n=> $("top").appendChild(n));      // re-append originals in order → pulls them back out of the menu
+    $("apppop").appendChild($("newapp"));               // hand the fork back to the caret popover
     pop.querySelectorAll(".mdiv").forEach(d=> d.remove());
   }
 }
@@ -4687,8 +4704,9 @@ function updateTitle(){
   const mk = $("makeapp"), nw = $("newapp"), more = $("appmore");
   if(mk){
     // Name the destination so the primary can never quietly overwrite the wrong app.
+    // The label rides in a .lbl span so phones can collapse the button to ✨ (title keeps the words).
     const short = t ? (t.length > 20 ? t.slice(0,19)+"…" : t) : "app";
-    mk.textContent = pendingAppId ? `✨ Update ${short}` : "✨ Create app";
+    mk.innerHTML = `✨<span class="lbl"> ${pendingAppId ? `Update ${esc(short)}` : "Create app"}</span>`;
     mk.title = pendingAppId
       ? `Update “${t || "your app"}” with this workflow`
       : "Turn this workflow into a shareable app";
@@ -4766,6 +4784,8 @@ function closeAppModal(){
 function openAppModal(hash){ $("appmodalframe").src = "play.html"+hash; appFrameLoaded = true; lastHandoffSig = appHandoffSig(); $("appmodal").hidden = false; try{ if(!localStorage.getItem("noodle_appbuilder_intro_seen")) $("appmodalhint").hidden = false; }catch(_){} }
 async function openCreateApp(){
   if(!graph.nodes.length){ flash("add a node first"); return; }
+  dismissAppNudge();   // they've reached the builder — the post-run nudge is spent
+
   // Same graph + builder still loaded → just bring your app back (no reload, no fresh draft).
   if(appFrameLoaded && appHandoffSig()===lastHandoffSig){
     $("appmodal").hidden = false;
@@ -4790,9 +4810,24 @@ $("makeapp").onclick = openCreateApp;
 // "✨ New" (shown only while this workflow is bound to an app): unlink first, then open the
 // builder on a plain #g= handoff so it mints a brand-new app instead of updating the bound one.
 $("newapp").onclick = ()=>{ $("apppop").classList.remove("open"); setPendingApp(null); openCreateApp(); };
-// Caret next to "Update app": reveal the "Save as a new app" fork (desktop popover; flattened into the ⋯ menu on phones).
+// Caret next to "Update app": reveal the "Save as a new app" fork (desktop only — phones hide the caret and layoutBar moves the fork into ⋯).
 $("appmore").onclick = (e)=>{ e.stopPropagation(); $("apppop").classList.toggle("open"); };
 document.addEventListener("click", e=>{ if(!$("appmenu").contains(e.target)) $("apppop").classList.remove("open"); });
+/* One-time post-first-wow nudge — the first run that finishes clean is the natural "turn it
+   into an app" moment, so surface it once. Local flag only, no tracking; skipped when the
+   workflow is already bound to an app, the builder intro was seen (they know the feature), or
+   another coach pill is up (never stack two — an unflagged skip retries on the next clean run).
+   Click = open the builder; only the ✕ or opening the builder burns the one-shot flag
+   (canvashint idiom: no ambient any-click dismissal, so a stray post-run click can't eat it). */
+const APP_NUDGE_KEY = "noodle_makeapp_nudge_done";
+function dismissAppNudge(){ const el = $("appnudge"); if(el && !el.hidden){ el.hidden = true; try{ localStorage.setItem(APP_NUDGE_KEY,"1"); }catch(_){} } }
+function maybeAppNudge(){
+  if(pendingAppId || !$("appmodal").hidden) return;   // already an app / builder already open
+  if(!$("canvashint").hidden || !$("connecthint").hidden) return;   // a coach pill is up — don't pile on
+  try{ if(localStorage.getItem(APP_NUDGE_KEY) || localStorage.getItem("noodle_appbuilder_intro_seen")) return; }catch(_){ return; }
+  $("appnudge").hidden = false;
+}
+$("appnudge").onclick = (e)=>{ e.stopPropagation(); const justX = e.target.id==="appnudgex"; dismissAppNudge(); if(!justX) openCreateApp(); };
 $("appmodalclose").onclick = closeAppModal;
 $("appmodalhintok").onclick = ()=>{ $("appmodalhint").hidden = true; try{ localStorage.setItem("noodle_appbuilder_intro_seen","1"); }catch(_){} };
 $("appmodal").addEventListener("click", e=>{ if(e.target.id==="appmodal") closeAppModal(); });   // click the dim backdrop
@@ -4915,7 +4950,7 @@ const CONNECT_HINT_KEY = "noodle_connect_hint_dismissed";
 function dismissConnectHint(){ const h = $("connecthint"); if(h) h.hidden = true; try{ localStorage.setItem(CONNECT_HINT_KEY,"1"); }catch{} }
 function maybeShowConnectHint(){
   try{ if(localStorage.getItem(CONNECT_HINT_KEY)) return; }catch{ return; }
-  if(!$("canvashint").hidden) return;                 // first-run line still up → wait, don't stack
+  if(!$("canvashint").hidden || !$("appnudge").hidden) return;   // another coach pill is up → wait, don't stack (this retries on every Run/Add-node)
   if((graph.nodes||[]).length >= 2) $("connecthint").hidden = false;
 }
 $("connecthintx").onclick = dismissConnectHint;
