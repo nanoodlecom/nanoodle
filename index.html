@@ -290,7 +290,7 @@
   #legallink{ position:fixed; right:.5rem; bottom:calc(var(--db-h,3rem) + .35rem); z-index:20; font-size:.62rem; line-height:1;
               color:var(--dim); opacity:.4; text-decoration:none; pointer-events:auto; }
   #legallink:hover{ opacity:.85; text-decoration:underline }
-  #runest{ position:fixed; right:.5rem; bottom:calc(var(--db-h,3rem) + 1.5rem); z-index:20; cursor:default;
+  #runest{ position:fixed; right:6.2rem; bottom:calc(var(--db-h,3rem) + 1.5rem); z-index:20; cursor:default;   /* left of the undo+fit buttons so it never covers them */
            font-family:ui-monospace,monospace; font-size:.72rem; line-height:1; color:var(--dim);
            background:var(--panel2,#1a1d24); border:1px solid var(--line,#2a2e37); border-radius:.5rem;
            padding:.3rem .5rem; box-shadow:0 6px 18px #0005; pointer-events:auto; user-select:none; }
@@ -3725,15 +3725,29 @@ function loadVideoMeta(src){
     v.onerror = ()=> rej(new Error("could not read a clip"));
   });
 }
-// play one clip start→end, painting each presented frame onto the shared canvas and pushing it
-// into the recorder; skipFirst drops the opening frame (the seam duplicate on chained clips).
-// The element stays MUTED — an unmuted element syncs its video to the audio clock and drops frames
-// under load. onFirstFrame fires when this clip's opening frame is actually painted, so the caller
-// can start this clip's decoded audio in lockstep (a startup stall then delays picture+sound alike).
-function recordClip(src, c2d, W, H, track, skipFirst, onFirstFrame){
+// Decode a clip to its first frame WITHOUT playing it, so the caller can line every clip up
+// before recording starts. Loading inside the record loop instead froze each seam while the next
+// clip fetched+decoded — dead wall-clock that both stretched the output past the clips' real
+// length and slid the audio timeline late (the "55s clip, audio comes in seconds after the video"
+// bug). Returns a MUTED, ready-to-play <video>; the element stays muted because an unmuted one
+// syncs its video to the audio clock and drops frames under load — clip audio is mixed separately.
+function prepClip(src){
   return new Promise((resolve, reject)=>{
     const vid = document.createElement("video");
-    vid.muted = true; vid.playsInline = true; vid.crossOrigin = "anonymous"; vid.src = src;
+    vid.muted = true; vid.playsInline = true; vid.crossOrigin = "anonymous"; vid.preload = "auto"; vid.src = src;
+    vid.onerror = ()=> reject(new Error("could not load a clip"));
+    vid.onloadeddata = ()=>{
+      if(typeof vid.requestVideoFrameCallback !== "function") return reject(new Error("this browser can’t read video frames (no requestVideoFrameCallback)"));
+      resolve(vid);
+    };
+  });
+}
+// Play one already-decoded clip start→end, painting each presented frame onto the shared canvas and
+// pushing it into the recorder; skipFirst drops the opening frame (the seam duplicate on chained
+// clips). onFirstFrame fires when this clip's opening frame is actually painted, so the caller can
+// start this clip's decoded audio in lockstep (a startup stall then delays picture+sound alike).
+function recordClip(vid, c2d, W, H, track, skipFirst, onFirstFrame){
+  return new Promise((resolve, reject)=>{
     let seen = 0, finished = false;
     const cleanup = ()=>{ try{ vid.pause(); }catch{} vid.removeAttribute("src"); vid.load(); };
     const finish = ()=>{ if(finished) return; finished = true; cleanup(); resolve(); };
@@ -3747,20 +3761,20 @@ function recordClip(src, c2d, W, H, track, skipFirst, onFirstFrame){
     };
     vid.onended = finish;
     vid.onerror = ()=>{ cleanup(); reject(new Error("could not play a clip")); };
-    vid.onloadeddata = ()=>{
-      if(typeof vid.requestVideoFrameCallback !== "function"){ cleanup(); return reject(new Error("this browser can’t read video frames (no requestVideoFrameCallback)")); }
-      vid.requestVideoFrameCallback(onFrame);
-      vid.play().catch(reject);
-    };
+    vid.requestVideoFrameCallback(onFrame);
+    vid.play().catch(reject);
   });
 }
 async function concatVideos(urls, dedup, onProgress){
   const handles = [];
   for(const u of urls) handles.push(await toLocalMediaUrl(u));
-  let ac = null;
+  let ac = null; let vids = [];
   try{
     const mime = pickVideoMime();
-    const { w:W, h:H } = await loadVideoMeta(handles[0].src);
+    // Decode every clip to its first frame BEFORE recording, so seams don't freeze while the next
+    // clip loads (that dead time was padding the output well past the clips' real combined length).
+    for(let i=0;i<handles.length;i++){ onProgress && onProgress(`loading clip ${i+1}/${handles.length}…`); vids.push(await prepClip(handles[i].src)); }
+    const W = vids[0].videoWidth||1280, H = vids[0].videoHeight||720;
     const canvas = document.createElement("canvas"); canvas.width = W; canvas.height = H;
     const c2d = canvas.getContext("2d");
     if(typeof canvas.captureStream !== "function") throw new Error("this browser can’t capture a canvas stream");
@@ -3794,7 +3808,13 @@ async function concatVideos(urls, dedup, onProgress){
         } else dest = null;
       }catch{ dest = null; try{ ac && ac.close(); }catch{} ac = null; }
     }
-    const rec = new MediaRecorder(stream, { mimeType:mime, videoBitsPerSecond: 16_000_000 });
+    // Scale the bitrate to the frame size instead of a flat 16 Mbps. 16 Mbps was ~3× what a 720p
+    // clip needs and made the encoder the bottleneck — when it can't keep up the source <video>
+    // drops below real time, which stretches the whole recording (its length IS its wall-clock) into
+    // slow motion and slides the separately-clocked audio out of sync. ~0.2 bits/pixel/frame keeps
+    // quality while leaving the encoder comfortably real-time; clamped so tiny/huge clips stay sane.
+    const vbps = Math.max(3_000_000, Math.min(12_000_000, Math.round(W * H * 30 * 0.2)));
+    const rec = new MediaRecorder(stream, { mimeType:mime, videoBitsPerSecond: vbps });
     const chunks = []; rec.ondataavailable = e=>{ if(e.data && e.data.size) chunks.push(e.data); };
     const stopped = new Promise((res, rej)=>{ rec.onstop = res; rec.onerror = e=> rej((e && e.error) || new Error("recording failed")); });
     rec.start();
@@ -3804,7 +3824,7 @@ async function concatVideos(urls, dedup, onProgress){
       // picture and sound together instead of losing frames while the audio timeline runs ahead.
       const buf = dest && buffers[i];
       const onFirstFrame = buf ? ()=>{ try{ const s = ac.createBufferSource(); s.buffer = buf; s.connect(dest); s.start(); }catch{} } : null;
-      await recordClip(handles[i].src, c2d, W, H, track, dedup && i>0, onFirstFrame);
+      await recordClip(vids[i], c2d, W, H, track, dedup && i>0, onFirstFrame);
     }
     rec.stop();
     await stopped;
