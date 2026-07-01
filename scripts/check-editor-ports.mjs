@@ -92,7 +92,7 @@ const ctx = {
     links: [{ id: "l1", from: { node: "t1", port: "text" }, to: { node: "m1", port: "prompt" } }],
   },
   selected: null,
-  redraw: () => {}, save: () => {},
+  redraw: () => {}, save: () => {}, pushUndo: () => {},   // undo-snapshot hook — no-op here
   refreshImageInputs: () => {}, recompactImageLinks: () => {},  // not exercised in this scenario
   refreshVideoInputs: () => {}, recompactVideoLinks: () => {},  // combine's clip-port helpers — not exercised here
 };
