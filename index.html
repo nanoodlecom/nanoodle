@@ -4675,7 +4675,13 @@ async function loadFromHash(){
   }catch{ /* bad link */ }
   if(!json) return false;
   try{
-    if(ga){ const spec = JSON.parse(json); setPendingApp(spec.appId, spec.title); applyGraphData(spec.graph); }
+    if(ga){
+      // #ga= runs at boot BEFORE load(), so the canvas is empty — pushUndo() would snapshot
+      // nothing. Park the STORED graph (same serializeGraph JSON) instead: the save() below
+      // overwrites the noodle someone left on this browser, and Ctrl+Z must bring it back.
+      try{ const prev = localStorage.getItem("noodle_graph"); if(prev){ undoStack.push(prev); syncUndoBtn(); } }catch(_){}
+      const spec = JSON.parse(json); setPendingApp(spec.appId, spec.title); applyGraphData(spec.graph);
+    }
     else { setPendingApp(null); applyGraphData(JSON.parse(json)); }
     history.replaceState({}, "", location.pathname + location.search); // consume the link; edits now win
     save();
@@ -4710,9 +4716,15 @@ document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && !$("sharemenu
 // Keep the builder iframe ALIVE across dismissals so closing the modal (✕, Esc, or a stray
 // backdrop click) never throws away the app you're mid-build on. Reopening "Create app" with
 // the same graph just unhides the live document — draft, generated versions, title, scroll
-// and focus all intact — instead of reloading play.html into a fresh default app. We only
-// re-hand-off when the app-meaningful graph actually changed.
-let appFrameLoaded = false;     // play.html is live in the iframe (don't reload it needlessly)
+// and focus all intact. When the app-meaningful graph DID change, we re-hand-off over
+// postMessage (__handoff__): re-assigning src to "play.html"+hash would differ only in the
+// fragment, which the browser treats as fragment navigation — NO reload, and play.html has
+// no hashchange listener — so the new graph would be silently dropped. The src assignment
+// is for the FIRST load only.
+let appFrameLoaded = false;     // play.html finished booting in the iframe (it posted __appready__)
+let appFrameBooting = false;    // src assigned but boot unconfirmed — a postMessage now would be
+                                // lost (no listener) or clobbered by the in-flight boot's hash graph
+let queuedHandoff = null;       // __handoff__ parked during that window; flushed on __appready__
 let lastHandoffSig = null;      // signature of the graph last handed to the builder
 // What the builder actually consumes: node identity/type/name/fields + links + which app we're
 // editing. INCLUDES the custom name — it's a step's label in the built app, so renaming a node
@@ -4730,11 +4742,14 @@ function closeAppModal(){
   $("appmodal").hidden = true;   // hide, but keep the builder loaded so you can come back to it
   try{ $("appmodalframe").contentWindow.postMessage({ type:"__appmodalhidden__" }, "*"); }catch(_){}   // pause any builder-chrome media
 }
-function openAppModal(hash){ $("appmodalframe").src = "play.html"+hash; appFrameLoaded = true; lastHandoffSig = appHandoffSig(); $("appmodal").hidden = false; try{ if(!localStorage.getItem("noodle_appbuilder_intro_seen")) $("appmodalhint").hidden = false; }catch(_){} }
+// First load only: boots play.html into the iframe off the hash. Later handoffs must NOT
+// come through here — a same-URL-different-fragment src write doesn't reload the iframe.
+function openAppModal(hash){ $("appmodalframe").src = "play.html"+hash; appFrameBooting = true; lastHandoffSig = appHandoffSig(); $("appmodal").hidden = false; try{ if(!localStorage.getItem("noodle_appbuilder_intro_seen")) $("appmodalhint").hidden = false; }catch(_){} }
 async function openCreateApp(){
   if(!graph.nodes.length){ flash("add a node first"); return; }
-  // Same graph + builder still loaded → just bring your app back (no reload, no fresh draft).
-  if(appFrameLoaded && appHandoffSig()===lastHandoffSig){
+  // Same graph + builder loaded (or still booting off this very graph) → just bring your
+  // app back (no reload, no fresh draft).
+  if((appFrameLoaded || appFrameBooting) && appHandoffSig()===lastHandoffSig){
     $("appmodal").hidden = false;
     try{ $("appmodalframe").contentWindow.postMessage({ type:"__appmodalshown__" }, "*"); }catch(_){}
     return;
@@ -4742,6 +4757,19 @@ async function openCreateApp(){
   const graphData = serializeGraph();
   const json = JSON.stringify(graphData);
   try{ localStorage.setItem("noodle_app_handoff", json); }catch{}
+  // Builder already live but the graph changed → hand the new graph into the running
+  // document over the message channel (see the reload note above). appId carries the
+  // binding: set → update that app in place; null → mint a brand-new app. If the first
+  // load is still booting (slow device, reopened within the load window) the frame can't
+  // hear us yet — park the payload; the __appready__ handler below flushes it.
+  if(appFrameLoaded || appFrameBooting){
+    const payload = { type:"__handoff__", graph:graphData, appId:pendingAppId||null };
+    if(appFrameLoaded){ try{ $("appmodalframe").contentWindow.postMessage(payload, "*"); }catch(_){} }
+    else queuedHandoff = payload;
+    lastHandoffSig = appHandoffSig();
+    $("appmodal").hidden = false;
+    return;
+  }
   let hash;
   if(pendingAppId){   // editing an existing app's workflow → hand the graph back under its id
     const payload = JSON.stringify({ v:1, graph:graphData, appId:pendingAppId });
@@ -4854,10 +4882,32 @@ addEventListener("message", e=>{
     // Bind the id ONLY if the graph actually applies — otherwise "Update app" would point at
     // one app while the canvas shows another's, and the next save would overwrite the wrong app.
     let ok = !e.data.graph;   // no graph payload → nothing to apply, the binding is all there is
-    if(e.data.graph){ try{ applyGraphData(e.data.graph); save(); ok = true; }catch(_){ /* keep current canvas, don't rebind */ } }
+    // snapshot the canvas being replaced — an unbound in-progress noodle must stay one Ctrl+Z away
+    if(e.data.graph){ try{ pushUndo(); applyGraphData(e.data.graph); save(); ok = true; }catch(_){ /* keep current canvas, don't rebind */ } }
     if(ok) setPendingApp(e.data.appId, e.data.title);
     lastHandoffSig = null;   // the round-trip changed the canvas/binding → next "Create app" re-hands-off
     closeAppModal();
+  }
+  // builder committed/renamed the CANVAS-DERIVED app (play.html only posts this for apps
+  // born of our handoff, never for library browsing): bind the canvas to it, so the primary
+  // flips to "✨ Update <name>" the moment the app durably exists and later handoffs update
+  // THAT app instead of minting duplicate defaults. setPendingApp stays the single chokepoint.
+  else if(e.data.type==="__appsaved__"){
+    const mirrored = (appFrameLoaded || appFrameBooting) && appHandoffSig()===lastHandoffSig;   // builder still shows exactly this canvas
+    setPendingApp(e.data.appId, e.data.title);
+    if(mirrored) lastHandoffSig = appHandoffSig();   // only the binding changed → keep the reopen-resume path alive
+  }
+  // builder finished booting → it can hear postMessage now. Flush any handoff parked during
+  // the load window; the boot installed the STALE hash graph, and if it committed, its
+  // __appsaved__ arrived BEFORE this (same-pair postMessage order is guaranteed) — so send
+  // under the CURRENT binding to re-target that same app instead of minting a duplicate.
+  else if(e.data.type==="__appready__"){
+    appFrameLoaded = true; appFrameBooting = false;
+    if(queuedHandoff){
+      const q = queuedHandoff; queuedHandoff = null;
+      q.appId = pendingAppId || q.appId || null;
+      try{ $("appmodalframe").contentWindow.postMessage(q, "*"); }catch(_){}
+    }
   }
 });
 function seed(){

@@ -43,9 +43,26 @@
 //       flips on node type/fields, links, and the bound app id. [the "pan = lost work" trap]
 //   R1. Reopening on the UNCHANGED graph resumes the live builder — emits no new handoff.
 //   R2. Closing the modal keeps the iframe loaded (never about:blank). [the lost-state bug]
-//   R3. A builder→canvas graph edit (__editflow__) re-hands-off — never a stale resume.
+//   R3. A builder→canvas graph edit (__editflow__) re-hands-off — never a stale resume —
+//       and it rides the LIVE __handoff__ postMessage (a fragment-only src write never
+//       reloads the iframe, so a src re-handoff silently drops the new graph).
 //   R4. Source guards: closeAppModal doesn't blank, openAppModal records the resume state,
 //       openCreateApp short-circuits on an unchanged graph, play.html pauses media on hide.
+//   Live handoff + bind-on-create (H*) — Create must CREATE and the editor must know:
+//   H1. A fresh handoff commits a "My apps" entry immediately; a null-appId __handoff__
+//       into the live builder mints a separate NEW app and posts __appsaved__ to the parent.
+//   H2. A bound __handoff__ (appId set) updates that app in place — never a duplicate.
+//   H3. The editor's __appsaved__ handler binds + persists the id (button flips to
+//       "✨ Update <name>") without breaking the unchanged-graph resume fast-path.
+//   H4. __editflow__ pushes an undo snapshot — the replaced canvas stays one Ctrl+Z away.
+//   H5. The standalone #ga= boot parks the STORED graph in undo (the canvas is still empty
+//       at that point in boot, so a plain pushUndo would snapshot nothing).
+//   H6. A handoff clicked while the FIRST load is still booting is PARKED (a postMessage
+//       then would be lost, or clobbered by the in-flight boot's stale hash graph) and
+//       flushed on __appready__ under the editor's CURRENT binding.
+//   H7. Browsing an unrelated app in the builder's "My apps" drawer never posts
+//       __appsaved__ — only canvas-derived apps may rebind the editor, else the next
+//       "Update" would overwrite the browsed app's workflow with the canvas graph.
 
 import { readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
@@ -337,17 +354,31 @@ async function bootEditor(href, store, session) {
   await ctx.__BOOT__; await drainAsync(); settleTimers(ctx); await drainAsync();
   return ctx;
 }
-async function bootPlay(href, store, session) {
-  const ctx = loadPage(PLAY_SRC, "play", { href, store, session });
+async function bootPlay(href, store, session, opts) {
+  const ctx = loadPage(PLAY_SRC, "play", { href, store, session, ...(opts || {}) });
   await ctx.__BOOT__; await drainAsync(); settleTimers(ctx); await drainAsync();
   return ctx;
 }
-// Click "Create app" (default) or another button, and decode the hash handed to the iframe.
+// Click "Create app" (default) or another button, and decode the handoff. First loads ride
+// the iframe src hash; once the builder is live, re-handoffs arrive as a __handoff__
+// postMessage into it (a fragment-only src write would NOT reload the iframe), so capture
+// both channels and normalize to the same {kind, spec} shape.
 async function emittedHandoff(ctx, buttonFn) {
-  el(ctx, "appmodalframe").src = "";          // reset so we read THIS click's value
+  const frame = el(ctx, "appmodalframe");
+  frame.src = "";                             // reset so we read THIS click's value
+  const posted = [];
+  frame.contentWindow.postMessage = (msg) => posted.push(msg);
   await (buttonFn ? buttonFn() : el(ctx, "makeapp").onclick());
   await drainAsync();
-  return decodeHandoff(el(ctx, "appmodalframe").src);
+  // a real builder posts __appready__ once its boot settles — mirror that after a first
+  // load, so later clicks in the same scenario take the live __handoff__ path
+  if (/play\.html#/.test(String(frame.src))) {
+    for (const fn of (ctx._listeners.message || [])) fn({ source: frame.contentWindow, data: { type: "__appready__" } });
+    await drainAsync();
+  }
+  const ho = posted.find((m) => m && m.type === "__handoff__");
+  if (ho) return { kind: ho.appId ? "ga" : "g", spec: { appId: ho.appId, graph: ho.graph }, graph: ho.graph, live: true };
+  return decodeHandoff(frame.src);
 }
 
 const results = [];
@@ -583,7 +614,9 @@ async function run() {
   }
 
   /* R3: when the builder hands an edited graph back to the canvas (__editflow__), the next
-     Create app must RE-hand-off the new graph — never silently resume the stale builder. */
+     Create app must RE-hand-off the new graph — never silently resume the stale builder.
+     And it must arrive over the LIVE channel (__handoff__ postMessage): re-writing the src
+     with a different fragment does not reload the iframe, so a src re-handoff is a no-op. */
   {
     const store = {}, session = {};
     const ctx = await bootEditor(ORIGIN + "/editor" + (await graphHash(APP_B)), store, session);
@@ -592,9 +625,138 @@ async function run() {
     for (const fn of (ctx._listeners.message || [])) fn({ source: src, data: { type: "__editflow__", appId: "app_ZZZ", title: "Z", graph: NEWG } });
     await drainAsync();
     const out = await emittedHandoff(ctx);                      // changed graph → must re-hand-off
-    record("R3 round-trip graph change re-hands-off (no stale resume)",
-      out.kind === "ga" && out.spec.appId === "app_ZZZ" && graphMarker(out.spec.graph) === "NEW",
-      `kind=${out.kind} appId=${out.spec && out.spec.appId} marker=${graphMarker(out.spec && out.spec.graph)}`);
+    record("R3 round-trip graph change re-hands-off live (no stale resume, no dead src write)",
+      out.kind === "ga" && out.spec.appId === "app_ZZZ" && graphMarker(out.spec.graph) === "NEW" && out.live === true,
+      `kind=${out.kind} appId=${out.spec && out.spec.appId} marker=${graphMarker(out.spec && out.spec.graph)} live=${out.live}`);
+  }
+
+  /* ----------------------------------------------------------------------------
+     LIVE HANDOFF + BIND-ON-CREATE (H*) — "Create app" must actually create (a durable
+     "My apps" entry), the editor must find out (__appsaved__ → button flips to
+     "✨ Update <name>"), and a LIVE builder must accept a changed graph over
+     postMessage (__handoff__) since a fragment-only src write never reloads it.
+     -------------------------------------------------------------------------- */
+
+  /* H1: fresh #g= boot COMMITS (bind-on-create), and a null-appId __handoff__ into the
+     live builder mints a SEPARATE new app (the "✨ New app" fork) + notifies the editor. */
+  {
+    const store = {}, session = {};
+    const ctx = await bootPlay(ORIGIN + "/play" + (await graphHash(OLDG)), store, session, { parentIsSelf: false });
+    const apps0 = JSON.parse(store.noodle_apps || "[]");
+    const saved = [];
+    ctx.parent.postMessage = (msg) => saved.push(msg);
+    for (const fn of (ctx._listeners.message || [])) fn({ source: ctx.parent, data: { type: "__handoff__", graph: NEWG, appId: null } });
+    await drainAsync(); settleTimers(ctx); await drainAsync();
+    const apps = JSON.parse(store.noodle_apps || "[]");
+    const note = saved.find((m) => m && m.type === "__appsaved__");
+    record("H1 fresh handoffs commit — Create creates; null-id __handoff__ mints a NEW app + __appsaved__",
+      apps0.length === 1 && apps.length === 2 && graphMarker(playStateGraph(store)) === "NEW" &&
+      note && note.appId && note.appId !== apps0[0].id,
+      `bootApps=${apps0.length} apps=${apps.length} marker=${graphMarker(playStateGraph(store))} appsaved=${JSON.stringify(note)}`);
+  }
+
+  /* H2: a bound __handoff__ (appId set) re-targets THAT app in place — same id, new graph,
+     no duplicate entry. This is the within-session "edit graph → reopen modal" fix. */
+  {
+    const store = {}, session = {};
+    const ctx = await bootPlay(ORIGIN + "/play" + (await graphHash(OLDG)), store, session, { parentIsSelf: false });
+    const apps0 = JSON.parse(store.noodle_apps || "[]");
+    const id = apps0[0] && apps0[0].id;
+    for (const fn of (ctx._listeners.message || [])) fn({ source: ctx.parent, data: { type: "__handoff__", graph: NEWG, appId: id } });
+    await drainAsync(); settleTimers(ctx); await drainAsync();
+    const apps = JSON.parse(store.noodle_apps || "[]");
+    record("H2 bound __handoff__ updates the app in place (no duplicate)",
+      apps0.length === 1 && apps.length === 1 && apps[0].id === id && graphMarker(apps[0].graph) === "NEW",
+      `bootApps=${apps0.length} apps=${apps.length} id=${apps[0] && apps[0].id}→${id} marker=${graphMarker(apps[0] && apps[0].graph)}`);
+  }
+
+  /* H3: the editor handles __appsaved__: binds + persists the id, flips the button, and
+     keeps the reopen-resume alive (only the binding changed — no spurious re-handoff). */
+  {
+    const store = {}, session = {};
+    const ctx = await bootEditor(ORIGIN + "/editor" + (await graphHash(APP_B)), store, session);
+    await emittedHandoff(ctx);                                  // first open → builder live, sig recorded
+    const src = el(ctx, "appmodalframe").contentWindow;
+    for (const fn of (ctx._listeners.message || [])) fn({ source: src, data: { type: "__appsaved__", appId: "app_NEW1", title: "Neon Ramen" } });
+    await drainAsync();
+    let persisted = null; try { persisted = JSON.parse(store.noodle_editor_app); } catch {}
+    const second = await emittedHandoff(ctx);                   // unchanged graph → must resume, not re-hand-off
+    record("H3 __appsaved__ binds the editor (button flips, persists) and keeps the resume path",
+      txt(ctx, "makeapp") === "✨ Update Neon Ramen" && persisted && persisted.id === "app_NEW1" && second.kind === "none",
+      `btn=${txt(ctx, "makeapp")} persisted=${persisted && persisted.id} second=${second.kind}`);
+  }
+
+  /* H4: __editflow__ must leave the replaced canvas ONE undo away (it used to destroy an
+     unbound in-progress noodle unrecoverably). */
+  {
+    const store = {}, session = {};
+    const ctx = await bootEditor(ORIGIN + "/editor" + (await graphHash(APP_B)), store, session);
+    const undoBefore = el(ctx, "undo").disabled;                // nothing to undo yet
+    const src = el(ctx, "appmodalframe").contentWindow;
+    for (const fn of (ctx._listeners.message || [])) fn({ source: src, data: { type: "__editflow__", appId: "app_Z", title: "Z", graph: NEWG } });
+    await drainAsync();
+    record("H4 __editflow__ pushes an undo snapshot (old canvas recoverable)",
+      undoBefore === true && el(ctx, "undo").disabled === false,
+      `undoBefore=${undoBefore} undoAfter=${el(ctx, "undo").disabled}`);
+  }
+
+  /* H5: the standalone #ga= boot parks the STORED graph in undo — clicking undo brings
+     back the noodle the handoff's save() overwrote (boot runs loadFromHash before load(),
+     so a plain pushUndo would have snapshotted an empty canvas). */
+  {
+    const store = { noodle_graph: JSON.stringify(OLDG) }, session = {};
+    const ctx = await bootEditor(ORIGIN + "/editor" + (await gaHash({ v: 1, graph: NEWG, appId: "app_AAA", title: "My App" })), store, session);
+    const undoLive = el(ctx, "undo").disabled === false;
+    const overwrote = graphMarker(JSON.parse(store.noodle_graph)) === "NEW";   // handoff's save() landed
+    await el(ctx, "undo").onclick(); await drainAsync(); settleTimers(ctx); await drainAsync();
+    record("H5 #ga= boot parks the stored graph — undo restores the overwritten noodle",
+      undoLive && overwrote && graphMarker(JSON.parse(store.noodle_graph)) === "OLD",
+      `undoLive=${undoLive} overwrote=${overwrote} marker=${graphMarker(JSON.parse(store.noodle_graph))}`);
+  }
+
+  /* H6: a re-handoff clicked while the FIRST load is still booting must be parked (no live
+     post — the frame can't hear it yet) and flushed once the builder posts __appready__. */
+  {
+    const store = {}, session = {};
+    const ctx = await bootEditor(ORIGIN + "/editor" + (await graphHash(APP_B)), store, session);
+    const frame = el(ctx, "appmodalframe");
+    const posted = [];
+    frame.contentWindow.postMessage = (m) => posted.push(m);
+    await el(ctx, "makeapp").onclick(); await drainAsync();          // first load: rides the src hash, boot in flight
+    const firstLoad = /play\.html#/.test(String(frame.src));
+    // the graph changes while the boot is still in flight (round-trip edit closes the modal)
+    for (const fn of (ctx._listeners.message || [])) fn({ source: frame.contentWindow, data: { type: "__editflow__", appId: "app_ZZZ", title: "Z", graph: NEWG } });
+    await drainAsync();
+    await el(ctx, "makeapp").onclick(); await drainAsync();          // reopen inside the boot window → must PARK
+    const postedEarly = posted.filter((m) => m && m.type === "__handoff__").length;
+    for (const fn of (ctx._listeners.message || [])) fn({ source: frame.contentWindow, data: { type: "__appready__" } });
+    await drainAsync();
+    const ho = posted.find((m) => m && m.type === "__handoff__");
+    record("H6 handoff during the boot window parks, then flushes on __appready__",
+      firstLoad && postedEarly === 0 && ho && ho.appId === "app_ZZZ" && graphMarker(ho.graph) === "NEW",
+      `firstLoad=${firstLoad} early=${postedEarly} flushed=${!!ho} appId=${ho && ho.appId} marker=${ho && graphMarker(ho.graph)}`);
+  }
+
+  /* H7: opening an UNRELATED app from the builder's "My apps" drawer must NOT post
+     __appsaved__ — its graph was never on the canvas, so binding the editor to it would
+     make the next "Update" overwrite that app's workflow with the canvas graph. */
+  {
+    const store = {}, session = {};
+    const ctx = await bootPlay(ORIGIN + "/play" + (await graphHash(OLDG)), store, session, { parentIsSelf: false });
+    // a second, unrelated app already in the library (made in some earlier session)
+    const apps = JSON.parse(store.noodle_apps || "[]");
+    apps.unshift({ id: "app_OTHER", title: "Other", graph: APP_B, files: FILES, versions: [{ files: FILES }], curVer: 0 });
+    store.noodle_apps = JSON.stringify(apps);
+    const saved = [];
+    ctx.parent.postMessage = (msg) => saved.push(msg);
+    ctx.openApp("app_OTHER");                                        // browse it in the drawer
+    await drainAsync(); settleTimers(ctx); await drainAsync();
+    ctx.commit();                                                    // e.g. a rename of the browsed app
+    await drainAsync();
+    const notes = saved.filter((m) => m && m.type === "__appsaved__");
+    record("H7 drawer browsing never rebinds the editor (no __appsaved__ for foreign apps)",
+      graphMarker(playStateGraph(store)) === "BBB" && notes.length === 0,
+      `opened=${graphMarker(playStateGraph(store))} appsavedPosts=${JSON.stringify(notes)}`);
   }
 
   /* R4 (static): the editor's closeAppModal must not tear down the iframe, openAppModal must
@@ -606,11 +768,11 @@ async function run() {
     const create = extractFn(INDEX_SRC, "openCreateApp");
     record("R4 closeAppModal keeps the iframe (no about:blank)", !/about:blank/.test(close), "closeAppModal must not blank src");
     record("R4 openAppModal records resume bookkeeping",
-      /appFrameLoaded\s*=\s*true/.test(open) && /lastHandoffSig\s*=\s*appHandoffSig\(\)/.test(open),
-      "openAppModal must set appFrameLoaded + lastHandoffSig");
+      /appFrameBooting\s*=\s*true/.test(open) && /lastHandoffSig\s*=\s*appHandoffSig\(\)/.test(open),
+      "openAppModal must mark the frame booting + set lastHandoffSig (loaded is only set by __appready__)");
     record("R4 openCreateApp has the same-graph resume fast-path",
-      /appFrameLoaded\s*&&\s*appHandoffSig\(\)\s*===\s*lastHandoffSig/.test(create) && /return/.test(create),
-      "openCreateApp must short-circuit on an unchanged graph");
+      /appFrameLoaded\s*\|\|\s*appFrameBooting\)\s*&&\s*appHandoffSig\(\)\s*===\s*lastHandoffSig/.test(create) && /return/.test(create),
+      "openCreateApp must short-circuit on an unchanged graph (loaded OR still booting)");
     record("R4 play.html pauses chrome media when hidden",
       /__appmodalhidden__/.test(PLAY_SRC) && /querySelectorAll\((?:"|')audio,\s*video/.test(PLAY_SRC),
       "play.html must pause audio/video on __appmodalhidden__");

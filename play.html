@@ -3906,6 +3906,7 @@ function streamingCallLlm(phase){
 
 let busy = false;
 let custAbort = null;   // AbortController for the in-flight customize/port; the ■ Stop button aborts it
+let pendingHandoff = null;   // editor __handoff__ parked while a customize/port runs; applied in runDiffPass's finally
 
 // While a customize/port runs, the Apply button doubles as a ■ Stop control (mirrors the runtime
 // run button): a stalled LLM can always be cancelled instead of leaving the bar permanently disabled.
@@ -3979,6 +3980,8 @@ async function runDiffPass(goal, opts){
     return false;
   }finally{
     busy = false; custAbort = null; setCustBusy(false); $("undo").disabled = APP_STATE.curVer <= 0;
+    // the editor handed a new graph over while we were generating — apply it now that the run settled
+    if(pendingHandoff){ const p = pendingHandoff; pendingHandoff = null; applyHandoff(p); }
   }
 }
 async function applyCustomize(){
@@ -4136,15 +4139,19 @@ function wireTitle(){
 /* ======================================================================
    CENTRAL STATE + PERSISTENCE
    APP_STATE is the app currently open in the builder. CUR_ID is its slot in
-   the "My apps" library (noodle_apps) — null while it's an uncustomized draft
-   straight off the editor (those are regenerable from the graph, so we don't
-   clutter the library with them). The moment it's customized or imported it
-   gets an id and lives in the library, with its OWN versions, so closing the
-   builder never loses it.
+   the "My apps" library (noodle_apps) — null only for restored drafts whose
+   slot was lost (quota/deleted). Fresh handoffs commit immediately (installApp),
+   so "Create app" creates a durable library entry with its OWN versions, and
+   closing the builder never loses it; the editor is told via __appsaved__ and
+   binds to it, so re-creates update in place instead of stacking duplicates.
    ====================================================================== */
 let APP_STATE = { v:1, graph:{ nodes:[], links:[] }, files:{}, versions:[], curVer:0, uiSig:null };
 let CUR_ID = null;          // library id of the open app, or null for a draft
 let curImported = false;    // open app came in via a share link (#a=)
+let FROM_EDITOR = false;    // open app derives from the host editor's canvas. Only THEN may a
+                            // commit post __appsaved__ — binding the editor to an app whose
+                            // graph was never on the canvas (e.g. one merely browsed in the
+                            // "My apps" drawer) would make its next Update overwrite that app.
 
 const APPS_KEY = "noodle_apps";   // [{id,title,imported,graph,files,versions,curVer,updated}]
 function loadApps(){ try{ return JSON.parse(localStorage.getItem(APPS_KEY) || "[]") || []; }catch{ return []; } }
@@ -4182,8 +4189,17 @@ function writeState(){
 }
 let persistTimer = null;
 function persist(){ clearTimeout(persistTimer); persistTimer = setTimeout(writeState, 300); }
-// promote a draft into the library (called on first customize / on import) and save now
-function commit(){ if(!CUR_ID) CUR_ID = newId(); clearTimeout(persistTimer); return writeState(); }
+// promote a draft into the library (called on first customize / on import) and save now.
+// A commit/rename of the CANVAS-DERIVED app (FROM_EDITOR) tells the host editor it now
+// durably exists under this id, so its button flips to "✨ Update <name>" and later
+// handoffs can't mint duplicate defaults.
+function commit(){
+  if(!CUR_ID) CUR_ID = newId();
+  clearTimeout(persistTimer);
+  const ok = writeState();
+  if(ok && IN_EDITOR && FROM_EDITOR){ try{ parent.postMessage({ type:"__appsaved__", appId:CUR_ID, title:titleFromFiles(APP_STATE.files) }, "*"); }catch(_){} }
+  return ok;
+}
 // Stash the open app in sessionStorage right before a full-page OAuth redirect.
 // sessionStorage is a separate quota bucket and survives same-tab navigation, so the
 // app returns even when localStorage is full or a debounced autosave hasn't flushed.
@@ -4195,9 +4211,10 @@ function stashResume(){
 }
 
 // install a freshly-loaded {graph, files} into the builder (used by every load path)
-function installApp({ graph, files, versions, curVer, fresh, id, imported, uiSig }){
+function installApp({ graph, files, versions, curVer, fresh, id, imported, uiSig, fromEditor }){
   if($("portbar")){ $("portbar").hidden = true; setPortMode(false); }   // any (re)load clears a stale "port?" offer
   CUR_ID = id || null;
+  FROM_EDITOR = !!fromEditor;   // set BEFORE the commit below — it gates the __appsaved__ post
   curImported = !!imported;
   APP_STATE.graph = graph || { nodes:[], links:[] };
   APP_STATE.files = files && files["index.html"] ? files : defaultFiles(APP_STATE.graph);
@@ -4211,6 +4228,10 @@ function installApp({ graph, files, versions, curVer, fresh, id, imported, uiSig
   APP_STATE.curVer = (curVer!=null && curVer<APP_STATE.versions.length) ? curVer : APP_STATE.versions.length-1;
   $("empty").hidden = true; $("appframe").style.display = "";
   syncTitleFromFiles(); renderVersions(); renderApp();
+  // "Create app" creates for real: a fresh graph handoff lands in "My apps" immediately
+  // (and commit() tells the editor, which binds ✨ Update to it) — before this, a fresh
+  // app was a transient draft that vanished unless customized/renamed.
+  if(fresh && !CUR_ID) CUR_ID = newId();
   // committed apps refresh their slot (and report whether the write stuck); drafts
   // only schedule a debounced autosave, so there's no synchronous result to report.
   const saved = CUR_ID ? commit() : (persist(), true);
@@ -4227,11 +4248,11 @@ function showEmpty(){ exitFirstRun(); $("empty").hidden = false; $("appframe").s
    the user-facing shape is unchanged we keep the UI verbatim; if it changed we
    open on the new graph (the runtime still rebuilds the controls, so it RUNS)
    and offer a gptdiff port to refresh the now-mismatched copy/layout. */
-function updateAppWorkflow(appId, newGraph){
+function updateAppWorkflow(appId, newGraph, fromEditor){
   newGraph = newGraph || { nodes:[], links:[] };
   const app = appId ? loadApps().find(a=> a.id===appId) : null;
   if(!app){                                  // unknown/forgotten app → just open the workflow as a fresh draft
-    installApp({ graph:newGraph, files:defaultFiles(newGraph), fresh:true });
+    installApp({ graph:newGraph, files:defaultFiles(newGraph), fresh:true, fromEditor });
     if(appId) toast("That app’s no longer here — started a new one from this workflow");   // don't silently swap an update for a new app
     return;
   }
@@ -4241,12 +4262,24 @@ function updateAppWorkflow(appId, newGraph){
   // their graph's signature (best-effort: assume the UI matched when it was saved).
   const uiSig = app.uiSig != null ? app.uiSig : ioSignature(oldGraph);
   // open the existing app, on the NEW graph, keeping its UI / versions / identity / uiSig
-  installApp({ graph:newGraph, files:app.files, versions:app.versions, curVer:app.curVer, id:app.id, imported:app.imported, uiSig });
+  installApp({ graph:newGraph, files:app.files, versions:app.versions, curVer:app.curVer, id:app.id, imported:app.imported, uiSig, fromEditor });
   if(uiFitsGraph(uiSig, newGraph)){
     toast("Workflow updated — your app UI was kept");
   }else{
     offerPort(oldGraph);
   }
+}
+
+/* ---------- live handoff from the host editor (__handoff__) ----------
+   Re-handoffs can't ride the iframe src: "play.html"+hash differs only in the fragment,
+   so the browser never reloads us. The editor postMessages the graph instead. An appId
+   means "update that app" (same path as the #ga= boot); null means "mint a brand-new
+   app" (same as the #g= boot — installApp commits fresh apps, so Create creates). */
+function applyHandoff(d){
+  const graph = d.graph || { nodes:[], links:[] };
+  if(d.appId) updateAppWorkflow(d.appId, graph, true);
+  else installApp({ graph, files:defaultFiles(graph), fresh:true, fromEditor:true });
+  try{ localStorage.removeItem("noodle_app_handoff"); }catch(_){}   // consume the belt-and-suspenders copy
 }
 
 /* ---------- "My apps" library UI ---------- */
@@ -4601,7 +4634,7 @@ async function loadFromHash(){
       const json = tag[0]==="u" ? new TextDecoder().decode(b64urlToBytes(tag.slice(1)))
                                 : await gunzip(b64urlToBytes(tag));
       const spec = JSON.parse(json);
-      updateAppWorkflow(spec.appId, spec.graph);
+      updateAppWorkflow(spec.appId, spec.graph, true);
       consumeHandoff();
       return true;
     }catch(_){ /* fall through */ }
@@ -4612,7 +4645,7 @@ async function loadFromHash(){
       const json = h.startsWith("#g=") ? await gunzip(b64urlToBytes(h.slice(3)))
                                        : new TextDecoder().decode(b64urlToBytes(h.slice(3)));
       const graph = JSON.parse(json);
-      installApp({ graph, files:defaultFiles(graph), fresh:true });   // straight from the editor → lead with the prompt
+      installApp({ graph, files:defaultFiles(graph), fresh:true, fromEditor:true });   // straight from the editor → lead with the prompt
       consumeHandoff();   // a reload now restores the saved draft, not the original graph
       return true;
     }catch(_){ /* fall through */ }
@@ -4653,8 +4686,16 @@ if(IN_EDITOR){
   // come back to your app. When hidden, pause any media in the builder chrome so nothing keeps
   // playing out of sight. (The app preview runs in a no-same-origin sandbox we can't reach into.)
   addEventListener("message", (e)=>{
-    if(e.source===parent && e.data && e.data.type==="__appmodalhidden__"){
+    if(e.source!==parent || !e.data) return;
+    if(e.data.type==="__appmodalhidden__"){
       document.querySelectorAll("audio,video").forEach(m=>{ try{ m.pause(); }catch(_){} });
+    }
+    // the editor re-handed-off a changed graph into this live document (see applyHandoff)
+    else if(e.data.type==="__handoff__"){
+      // never yank the app out from under an in-flight customize/port — park the graph
+      // and let runDiffPass's finally apply it once the run settles
+      if(busy){ pendingHandoff = e.data; toast("Workflow received — applying it when this customize finishes"); }
+      else applyHandoff(e.data);
     }
   });
 }
@@ -4821,7 +4862,7 @@ async function boot(){
   if(!loaded){
     try{ const ho = localStorage.getItem("noodle_app_handoff");
       if(ho){ const graph = JSON.parse(ho); localStorage.removeItem("noodle_app_handoff");
-        installApp({ graph, files:defaultFiles(graph), fresh:true }); loaded = true; } }catch(_){}
+        installApp({ graph, files:defaultFiles(graph), fresh:true, fromEditor:true }); loaded = true; } }catch(_){}
   }
   // saved builder session — restore the app that was open, reconnecting it to its library slot
   if(!loaded){
@@ -4834,6 +4875,11 @@ async function boot(){
   // friendly empty state
   if(!loaded) showEmpty();
   renderAppsBtn();
+  // Tell the host editor we're live: only NOW is a __handoff__ postMessage safe (sent
+  // earlier it would find no listener, or this boot would overwrite it with the stale
+  // hash graph). The editor parks handoffs until this arrives. Posted AFTER any commit
+  // above, so a bind-on-create __appsaved__ is already in flight ahead of it.
+  if(IN_EDITOR){ try{ parent.postMessage({ type:"__appready__" }, "*"); }catch(_){} }
 }
 boot();
 </script>
