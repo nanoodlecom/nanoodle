@@ -80,19 +80,48 @@ function stripEmpty(f){
   return o;
 }
 
-// place new nodes in a tidy column to the right of existing ones
-function autoPlace(existing, idx){
-  const maxX = existing.length ? Math.max(...existing.map(n=>n.x||0)) : 0;
-  return { x: maxX + 320, y: -120 + idx*200 };
+// Canvas coords for the NEW nodes in a described change (survivors keep their exact spot).
+// Place each new node one column RIGHT of whatever feeds it, so an added A→B→C chain reads
+// left→right like a hand-built graph instead of dropping into one vertical stack. Fan-outs and
+// source-less adds stagger down. Mirrors index.html placeNew() — keep the two in sync.
+function placeNew(simple, prev){
+  const COL = 320, ROW = 200;
+  const prevIds = new Set((prev.nodes||[]).map(n=>n.id));
+  const isNew = id => !prevIds.has(id);
+  const maxX = (prev.nodes||[]).length ? Math.max(...prev.nodes.map(n=>n.x||0)) : 60;
+  const pos = {};
+  for(const n of (prev.nodes||[])) pos[n.id] = { x:n.x||0, y:n.y||0 };
+  const ups = {};
+  for(const l of (simple.links||[])){
+    const t = String(l.to).split(".")[0], f = String(l.from).split(".")[0];
+    (ups[t] || (ups[t]=[])).push(f);
+  }
+  const used = {};
+  const placeAt = (id,x,y)=>{ const col = used[x] || (used[x]=[]); while(col.some(yy=>Math.abs(yy-y)<ROW*0.75)) y+=ROW; col.push(y); pos[id]={x,y}; };
+  let remaining = (simple.nodes||[]).map(n=>n.id).filter(isNew);
+  let guard = remaining.length + 2;
+  while(remaining.length && guard-- > 0){
+    const next = [];
+    for(const id of remaining){
+      const srcs = (ups[id]||[]).filter(s=>s!==id);
+      if(srcs.some(s=>isNew(s) && !pos[s])){ next.push(id); continue; }
+      const known = srcs.filter(s=>pos[s]);
+      if(known.length) placeAt(id, Math.max(...known.map(s=>pos[s].x))+COL, known.reduce((a,s)=>a+pos[s].y,0)/known.length);
+      else placeAt(id, maxX+COL, -140);
+    }
+    if(next.length===remaining.length){ let k=0; for(const id of next) placeAt(id, maxX+COL, -140+(k++)*ROW); break; }
+    remaining = next;
+  }
+  return pos;
 }
 
 // rebuild internal graph from a simplified one, preserving layout for surviving nodes
 export function fromSimple(simple, prev){
   const prevById = Object.fromEntries((prev.nodes||[]).map(n=>[n.id,n]));
-  let placeIdx = 0;
+  const pos = placeNew(simple, prev);
   const nodes = (simple.nodes||[]).map(sn=>{
     const old = prevById[sn.id];
-    const base = old ? { x:old.x, y:old.y, w:old.w, sizes:old.sizes } : autoPlace(prev.nodes||[], placeIdx++);
+    const base = old ? { x:old.x, y:old.y, w:old.w, sizes:old.sizes } : pos[sn.id];
     // The planner only ever sees the SIMPLIFIED fields (stripEmpty drops the user's media + inline
     // data:), so a key it leaves OUT is an intentional deletion only when it was visible to it.
     // Carry back just the stripped-away keys (media/binary) — those absences aren't edits.

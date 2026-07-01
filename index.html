@@ -5090,11 +5090,44 @@ $("signout").onclick = ()=> setKey(null);
       links:(g.links||[]).map(l=>({ from:`${l.from.node}.${l.from.port}`, to:`${l.to.node}.${l.to.port}` })),
     };
   }
+  // Canvas coords for the NEW nodes in a described change (survivors keep their exact spot).
+  // The planner works on a layout-free graph, so we invent positions: place each new node one
+  // column RIGHT of whatever feeds it, so an added A→B→C chain reads left→right like a hand-built
+  // graph instead of dropping into one vertical stack. Fan-outs and source-less adds stagger down.
+  function placeNew(simple, prev){
+    const COL = 320, ROW = 200;
+    const prevIds = new Set((prev.nodes||[]).map(n=>n.id));
+    const isNew = id => !prevIds.has(id);
+    const maxX = (prev.nodes||[]).length ? Math.max(...prev.nodes.map(n=>n.x||0)) : 60;
+    const pos = {};
+    for(const n of (prev.nodes||[])) pos[n.id] = { x:n.x||0, y:n.y||0 };   // survivors anchor the layout
+    const ups = {};   // node id → ids feeding into it
+    for(const l of (simple.links||[])){
+      const t = String(l.to).split(".")[0], f = String(l.from).split(".")[0];
+      (ups[t] || (ups[t]=[])).push(f);
+    }
+    const used = {};   // column x → y's taken, so siblings sharing a column don't overlap
+    const placeAt = (id,x,y)=>{ const col = used[x] || (used[x]=[]); while(col.some(yy=>Math.abs(yy-y)<ROW*0.75)) y+=ROW; col.push(y); pos[id]={x,y}; };
+    let remaining = (simple.nodes||[]).map(n=>n.id).filter(isNew);
+    let guard = remaining.length + 2;
+    while(remaining.length && guard-- > 0){
+      const next = [];
+      for(const id of remaining){
+        const srcs = (ups[id]||[]).filter(s=>s!==id);
+        if(srcs.some(s=>isNew(s) && !pos[s])){ next.push(id); continue; }   // wait for an upstream new node to land first
+        const known = srcs.filter(s=>pos[s]);
+        if(known.length) placeAt(id, Math.max(...known.map(s=>pos[s].x))+COL, known.reduce((a,s)=>a+pos[s].y,0)/known.length);
+        else placeAt(id, maxX+COL, -140);   // a new root: just right of the graph
+      }
+      if(next.length===remaining.length){ let k=0; for(const id of next) placeAt(id, maxX+COL, -140+(k++)*ROW); break; }   // cycle guard: fall back to a stack
+      remaining = next;
+    }
+    return pos;
+  }
   function fromSimple(simple, prev){
     const prevById = Object.fromEntries((prev.nodes||[]).map(n=>[n.id,n]));
     const num = s=> parseInt(String(s).replace(/\D/g,""),10) || 0;
-    const maxX = (prev.nodes||[]).length ? Math.max(...prev.nodes.map(n=>n.x||0)) : 60;
-    let place = 0;
+    const pos = placeNew(simple, prev);
     const nodes = (simple.nodes||[]).map(sn=>{
       const old = prevById[sn.id];
       // The planner only ever sees the SIMPLIFIED fields (strip() omits the user's media + inline
@@ -5108,7 +5141,7 @@ $("signout").onclick = ()=> setKey(null);
       sanitizeFields(node);   // the model may set an option this node/model doesn't allow (e.g. duration 60) → snap to default
 
       if(old){ node.x=old.x; node.y=old.y; if(old.w) node.w=old.w; if(old.sizes) node.sizes=old.sizes; }
-      else { node.x = maxX + 320; node.y = -140 + (place++)*200; }
+      else { const p = pos[sn.id] || { x:0, y:0 }; node.x = p.x; node.y = p.y; }
       return node;
     });
     let lid = Math.max(prev.lid||0, 0, ...(prev.links||[]).map(l=>num(l.id)));
