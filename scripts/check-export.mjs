@@ -200,6 +200,30 @@ try {
     links: [{ from: "u1", to: "p1" }],
   }), failures);
 
+  // Privacy: uploaded media (upload nodes) AND an inpaint node's source photo + brushed
+  // mask are the user's own data — they must NEVER ride along in an exported file (or share
+  // link). Build an export whose nodes carry sentinel media and assert the bytes are stripped
+  // from NOODLE_GRAPH. Regression guard for the inpaint leak (image/mask were not blanked).
+  const MEDIA_LEAKS = {
+    "upload image": "UPLOADIMGLEAK",
+    "inpaint source photo": "INPAINTSRCLEAK",
+    "inpaint mask": "INPAINTMASKLEAK",
+  };
+  const mediaExport = buildExport({
+    nodes: [
+      { id: "u1", type: "upload", fields: { image: "data:image/png;base64," + MEDIA_LEAKS["upload image"] } },
+      { id: "ip1", type: "inpaint", fields: {
+        image: "data:image/png;base64," + MEDIA_LEAKS["inpaint source photo"],
+        mask: "data:image/png;base64," + MEDIA_LEAKS["inpaint mask"],
+        prompt: "repaint the sky",
+      } },
+    ],
+    links: [],
+  });
+  for (const [what, marker] of Object.entries(MEDIA_LEAKS)) {
+    if (mediaExport.includes(marker)) failures.push(`export leaks the ${what} — shareableGraph did not strip it from the exported graph`);
+  }
+
   // Adversarial graph: a field value that tries to break out of the <script>
   // and a line/paragraph separator that would corrupt an unescaped JS string.
   const evil = { id: "p1", text: "</script><img src=x onerror=alert(1)>   & <b>ok</b>" };

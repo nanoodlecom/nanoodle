@@ -32,9 +32,12 @@ touches_quickadd=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/
 touches_updates=$(printf '%s\n' "$staged" | grep -E '(^|/)(updates\.json|scripts/check-updates\.mjs)$' || true)
 # index.html + play.html carry the "Create app" handoff state machine (which app a click targets).
 touches_createapp=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-create-app\.mjs)$' || true)
+# the curated Gallery (gallery.json + gallery/*.json) ships untrusted, hand-edited graphs (contest
+# winners). play.html sources NODE_TYPES; play-engine.mjs is the shared runner the checker drives them through.
+touches_gallery=$(printf '%s\n' "$staged" | grep -E '(^|/)(gallery\.json|gallery/[^/]+\.json|play\.html|scripts/(check-gallery|play-engine)\.mjs)$' || true)
 
 # Nothing to check unless an .html file or one of the checkers changed.
-[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && exit 0
+[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_gallery" ] && exit 0
 
 if ! command -v node >/dev/null 2>&1; then
   echo "pre-commit: node not found, skipping HTML JS checks" >&2
@@ -129,4 +132,12 @@ fi
 #     editor↔builder boot/handoff code in a node:vm sandbox across both pages.
 if [ -n "$touches_createapp" ]; then
   node "$root/scripts/check-create-app.mjs"
+fi
+
+# 13) the curated Gallery must stay valid: gallery.json parses to an array of entries with
+#     unique slugs; every entry.graph exists, parses, runs (real NODE_TYPES + runGraph), and is
+#     self-contained (no baked uploads / off-allowlist hosts / pasted keys). Guards the winner-
+#     curation surface the contest feeds. Same node:vm engine as check-run-compat.
+if [ -n "$touches_gallery" ]; then
+  node "$root/scripts/check-gallery.mjs"
 fi
