@@ -3552,9 +3552,12 @@ async function trimAudioToWavUrl(url, start, len, rate){
    re-record the painted frames into ONE clip via MediaRecorder. captureStream(0) + the manual
    requestFrame() give frame-exact control, so `dedup` can drop each subsequent clip's first
    frame — which duplicates the previous clip's last frame when clips are chained from one
-   another. Each clip's OWN audio is mixed in via Web Audio (a MediaStreamDestination track added
-   to the recorded stream) so the combined clip keeps its sound; real-time playback keeps that
-   audio aligned with the hand-driven frames, and a silent clip just contributes silence.
+   another. The played <video> stays MUTED: an UNmuted element syncs its picture to the audio clock
+   and drops video frames under load, which lost ~a second of each clip right at the seam. Instead
+   each clip's audio is decoded up front (Web Audio) and played from a buffer into the recorded
+   stream the instant that clip's first frame paints — so sound rides along without touching the
+   frame pace, and a silent clip just contributes silence. A silent keep-alive source feeds the
+   audio track for the whole recording so it never starves (an unfed track collapses the pacing).
    Output is mp4 where the browser can record it (current Chrome/Safari), else webm.
    Everything stays same-origin (remote clips fetched to a blob first), so no new origins/CSP. */
 function pickVideoMime(){
@@ -3573,18 +3576,20 @@ function loadVideoMeta(src){
 }
 // play one clip start→end, painting each presented frame onto the shared canvas and pushing it
 // into the recorder; skipFirst drops the opening frame (the seam duplicate on chained clips).
-function recordClip(src, c2d, W, H, track, skipFirst, audio){
+// The element stays MUTED — an unmuted element syncs its video to the audio clock and drops frames
+// under load. onFirstFrame fires when this clip's opening frame is actually painted, so the caller
+// can start this clip's decoded audio in lockstep (a startup stall then delays picture+sound alike).
+function recordClip(src, c2d, W, H, track, skipFirst, onFirstFrame){
   return new Promise((resolve, reject)=>{
     const vid = document.createElement("video");
-    // With an audio mixer we leave the element un-muted so its samples reach Web Audio, but we only
-    // wire it to the recording destination (never ac.destination), so nothing plays through speakers.
-    vid.muted = !audio; vid.playsInline = true; vid.crossOrigin = "anonymous"; vid.src = src;
-    let seen = 0, finished = false, srcNode = null;
-    const cleanup = ()=>{ try{ srcNode && srcNode.disconnect(); }catch{} try{ vid.pause(); }catch{} vid.removeAttribute("src"); vid.load(); };
+    vid.muted = true; vid.playsInline = true; vid.crossOrigin = "anonymous"; vid.src = src;
+    let seen = 0, finished = false;
+    const cleanup = ()=>{ try{ vid.pause(); }catch{} vid.removeAttribute("src"); vid.load(); };
     const finish = ()=>{ if(finished) return; finished = true; cleanup(); resolve(); };
     const onFrame = ()=>{
       if(finished) return;
       seen++;
+      if(seen===1 && onFirstFrame) onFirstFrame();
       if(!(skipFirst && seen===1)){ c2d.drawImage(vid, 0, 0, W, H); track.requestFrame(); }
       if(vid.ended) return finish();
       vid.requestVideoFrameCallback(onFrame);
@@ -3593,9 +3598,6 @@ function recordClip(src, c2d, W, H, track, skipFirst, audio){
     vid.onerror = ()=>{ cleanup(); reject(new Error("could not play a clip")); };
     vid.onloadeddata = ()=>{
       if(typeof vid.requestVideoFrameCallback !== "function"){ cleanup(); return reject(new Error("this browser can’t read video frames (no requestVideoFrameCallback)")); }
-      // Route this clip's audio into the shared recording destination. A clip with no audio track just
-      // feeds silence; a failure here (e.g. source already taken) is non-fatal — record video only.
-      if(audio){ try{ srcNode = audio.ac.createMediaElementSource(vid); srcNode.connect(audio.dest); }catch{ srcNode = null; } }
       vid.requestVideoFrameCallback(onFrame);
       vid.play().catch(reject);
     };
@@ -3613,9 +3615,9 @@ async function concatVideos(urls, dedup, onProgress){
     if(typeof canvas.captureStream !== "function") throw new Error("this browser can’t capture a canvas stream");
     const stream = canvas.captureStream(0);            // 0 fps = we drive every frame by hand
     const track = stream.getVideoTracks()[0];
-    // Add one live audio track that each clip mixes into (see recordClip). Best-effort: if Web Audio
-    // is unavailable we simply record video only, as before, rather than failing the combine.
-    let audio = null;
+    // Decode each clip's audio up front and add one live audio track. Best-effort: if Web Audio is
+    // unavailable we simply record video only, as before, rather than failing the combine.
+    let dest = null; const buffers = [];
     const AC = window.AudioContext || window.webkitAudioContext;
     if(AC){
       try{
@@ -3624,10 +3626,22 @@ async function concatVideos(urls, dedup, onProgress){
         // audio device is present, and we must not hang the combine — the recorder captures the track
         // in real time regardless, so a slow/failed resume just means (at worst) a silent result.
         if(ac.state === "suspended"){ await Promise.race([ Promise.resolve(ac.resume()).catch(()=>{}), new Promise(r=> setTimeout(r, 1500)) ]); }
-        const dest = ac.createMediaStreamDestination();
+        for(const h of handles){
+          onProgress && onProgress("preparing audio…");
+          try{ buffers.push(await ac.decodeAudioData(await (await fetch(h.src, {signal:runSignal()})).arrayBuffer())); }
+          catch{ buffers.push(null); }                  // no/undecodable audio track → this clip stays silent
+        }
+        dest = ac.createMediaStreamDestination();
         const atrack = dest.stream.getAudioTracks()[0];
-        if(atrack){ stream.addTrack(atrack); audio = { ac, dest }; }
-      }catch{ audio = null; try{ ac && ac.close(); }catch{} ac = null; }
+        if(atrack){
+          stream.addTrack(atrack);
+          // Keep-alive: a silent source feeds the destination for the whole recording so the audio
+          // track never starves. An added track that produces no samples (a clip with no audio, esp.
+          // the first) collapses captureStream(0)'s pacing and truncates the video. Clip audio rides
+          // on top of this silence; offset 0 means it's inaudible.
+          const keep = ac.createConstantSource(); keep.offset.value = 0; keep.connect(dest); keep.start();
+        } else dest = null;
+      }catch{ dest = null; try{ ac && ac.close(); }catch{} ac = null; }
     }
     const rec = new MediaRecorder(stream, { mimeType:mime, videoBitsPerSecond: 16_000_000 });
     const chunks = []; rec.ondataavailable = e=>{ if(e.data && e.data.size) chunks.push(e.data); };
@@ -3635,7 +3649,11 @@ async function concatVideos(urls, dedup, onProgress){
     rec.start();
     for(let i=0;i<handles.length;i++){
       onProgress && onProgress(`combining clip ${i+1}/${handles.length}…`);
-      await recordClip(handles[i].src, c2d, W, H, track, dedup && i>0, audio);
+      // Start this clip's decoded audio the instant its first frame paints, so a startup stall delays
+      // picture and sound together instead of losing frames while the audio timeline runs ahead.
+      const buf = dest && buffers[i];
+      const onFirstFrame = buf ? ()=>{ try{ const s = ac.createBufferSource(); s.buffer = buf; s.connect(dest); s.start(); }catch{} } : null;
+      await recordClip(handles[i].src, c2d, W, H, track, dedup && i>0, onFirstFrame);
     }
     rec.stop();
     await stopped;
