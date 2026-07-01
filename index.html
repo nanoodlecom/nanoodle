@@ -390,7 +390,7 @@
 
   .body{ padding:.1rem .6rem .6rem; display:flex; flex-direction:column; gap:.5rem }
   .body label{ font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); display:block; margin-bottom:.2rem }
-  .body textarea{ width:100%; resize:none; min-width:190px; max-width:min(80vw,760px); min-height:84px;
+  .body textarea{ width:100%; resize:vertical; min-width:190px; max-width:min(80vw,760px); min-height:84px;
                   background:var(--panel2); border:1px solid var(--line);
                   border-radius:.45rem; padding:.4rem .5rem; line-height:1.35 }
   .body select{ width:100%; background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; padding:.35rem .4rem }
@@ -2169,13 +2169,22 @@ function addFieldPorts(n){
 }
 
 // Restore any saved per-field textarea heights so a stretched layout survives reload/share
-// (card width is restored in buildNodeEl from n.w). Live resizing is driven by the node's
-// corner grip → startNodeResize, which writes n.w + n.sizes; nothing reacts to layout reflow.
+// (card width is restored in buildNodeEl from n.w). Height also grows two other ways: the node's
+// corner grip → startNodeResize (primary prompt only), and each textarea's own native resize
+// handle (resize:vertical) — the observer below captures the latter so ANY field's stretch persists.
 function prepTextareas(n){
   if(!n.el) return;
   n.el.querySelectorAll("textarea[data-f],textarea[data-pf]").forEach(ta=>{
     const field = ta.dataset.f || ta.dataset.pf;
     if(n.sizes && n.sizes[field] && !ta.style.height) ta.style.height = n.sizes[field]+"px";
+    if(ta.dataset.htObserved) return;      // one observer per element (survives param rebuilds)
+    ta.dataset.htObserved = "1";
+    let lastH = ta.offsetHeight;
+    new ResizeObserver(()=>{
+      const h = ta.offsetHeight;
+      if(h===lastH) return;                // width-only reflow (card resize) — don't touch height
+      lastH = h; (n.sizes ||= {})[field] = h; save();
+    }).observe(ta);
   });
 }
 
