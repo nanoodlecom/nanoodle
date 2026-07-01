@@ -68,6 +68,8 @@ async function run(world, seed) {
     graph: { links: world.links },
     imgSpec: () => ({ re: /never/ }), VID_PORT_RE: /^vid\d+$/,
     nodeSig: () => 0, isSeeded: () => false, showResult: () => {}, rerenderNode: () => {}, CTX: {},
+    friendlyRunError: (e) => e?.message || String(e),   // identity here — the real mapper is UX-only
+
     console,
   };
   ctx.globalThis = ctx;

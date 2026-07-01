@@ -1766,7 +1766,7 @@ window.NoodleApp = (function () {
             onResult && onResult(n);
           }
           // the owning lane deletes the entry if its generation fails; here just isolate per-node.
-          catch(err){ if(isAbort(err)) throw err; nodeErrors++; onStatus && onStatus(id, "error", err.message); }
+          catch(err){ if(isAbort(err)) throw err; nodeErrors++; onStatus && onStatus(id, "error", friendlyRunError(err)); }
           return;
         }
         onStatus && onStatus(id, "run", "running…");
@@ -1793,7 +1793,7 @@ window.NoodleApp = (function () {
           // don't poison the cache with a failed/aborted promise — drop our pending entry so a
           // later lane or run can retry (only if it's still ours, not already swapped/overwritten).
           if(seeded){ const c = RUN_CACHE.get(id); if(c && c.pending===p) RUN_CACHE.delete(id); }
-          if(isAbort(err)) throw err; nodeErrors++; onStatus && onStatus(id, "error", err.message);
+          if(isAbort(err)) throw err; nodeErrors++; onStatus && onStatus(id, "error", friendlyRunError(err));
         }
       })();
     }
@@ -3000,7 +3000,7 @@ window.NoodleApp = (function () {
           // a Stop-triggered abort is expected — swallow it; surface only real errors.
           if(isAbort(err)) break;
           failed = true;
-          statusLine("__run_"+i+"__","error", (N>1?("Run "+(i+1)+": "):"") + (err.message || String(err)));
+          statusLine("__run_"+i+"__","error", (N>1?("Run "+(i+1)+": "):"") + friendlyRunError(err));
         }
         if(RUN && RUN.lanes[i]) RUN.lanes[i].endAt = Date.now();
         paintRuns();
@@ -3093,18 +3093,41 @@ window.NoodleApp = (function () {
     if(!r.ok) throw new Error("token: "+(await r.text()));
     setKey((await r.json()).access_token);
   }
+  // Keys are plain ASCII, but hand-typed/copied ones arrive with mobile-keyboard dashes, NBSP or
+  // zero-width junk — ONE non-ISO-8859-1 char makes fetch() itself throw before the network
+  // (live-reproduced in the editor: key saves fine, then every run "fails to fetch").
+  function cleanKey(raw){
+    return String(raw||"").replace(/[\u2010-\u2015\u2212]/g,"-")   // unicode hyphen/dash/minus variants -> plain hyphen
+      .replace(/[\s\u00A0\u200B-\u200D\u2060\uFEFF]/g,"");       // whitespace, NBSP, zero-width chars, BOM -> gone
+  }
+  const keySendable = (k)=> /^[\x21-\x7E]+$/.test(k);   // printable ASCII — anything else can't ride in an HTTP header
   // Save-time key probe (standalone). chat/completions is CORS-enabled and checks auth BEFORE
   // body validation, so an empty body never generates and never charges: a good key 400s, a bad
-  // key 401s. Returns false ONLY on a definitive auth rejection; a network/CORS hiccup returns
-  // true so an offline user is never locked out of a key they pasted correctly. (No backticks —
-  // this lives inside RUNTIME_JS.)
+  // key 401s. "bad" ONLY on a definitive auth rejection; a network/CORS hiccup is "unverified" so
+  // an offline user is never locked out of a key they pasted correctly — but the caller now says
+  // so instead of a silent false "signed in ✓". (No backticks — this lives inside RUNTIME_JS.)
   async function probeKey(k){
     try{
       const r = await fetch(CHAT_ENDPOINT, { method:"POST",
         headers:{ Authorization:"Bearer "+k, "x-api-key":k, "Content-Type":"application/json" },
         body:"{}" });
-      return !(r.status===401 || r.status===403);
-    }catch(_){ return true; }
+      return (r.status===401 || r.status===403) ? "bad" : "ok";
+    }catch(_){ return "unverified"; }
+  }
+  // Translate bare browser-internal failures ("Failed to fetch", "non ISO-8859-1 code point")
+  // into something a viewer can act on; curated errors that merely quote them pass through.
+  function friendlyRunError(err){
+    const m = (err && err.message) || String(err);
+    // TypeError gate is load-bearing: thrown "STATUS: body" errors relay API bodies verbatim,
+    // and a body saying "Invalid value" must NOT wipe a good key — browser-internal
+    // header/network failures are always TypeErrors, ours never are.
+    if((err instanceof TypeError) && /ISO-8859-1|invalid header|Invalid value/i.test(m)){
+      if(!EMBEDDED) setKey(null);   // an unsendable key fails every run the same way (embedded: the parent owns the key)
+      return "the saved API key contains a character that can't be sent (usually a smart-dash or an invisible character from typing/copying) — sign in again or re-paste the key";
+    }
+    if(/^(TypeError: )?(Failed to fetch|Load failed|NetworkError)/i.test(m.trim()))
+      return "couldn't reach nano-gpt.com — an ad-blocker, VPN or network filter may be blocking it; check the connection and run again";
+    return m;
   }
   // Warm landing for a shared-app / exported recipient who lands here without a key:
   // styles injected at runtime (mirroring injectCostStyles, with var() fallbacks) so a
@@ -3171,17 +3194,26 @@ window.NoodleApp = (function () {
       $("auth-out").onclick = ()=> setKey(null);
     } else {
       if(canOAuth) $("auth-in").onclick = ()=> signIn().catch(e=> statusLine("__auth__","error","sign-in error: "+e.message));
-      $("auth-paste").onclick = ()=>{ $("auth-keyrow").hidden=false; $("auth-keyinput").focus(); };
+      $("auth-paste").onclick = async ()=>{
+        $("auth-keyrow").hidden=false; $("auth-keyinput").focus();
+        // it says "paste" — fill from the clipboard where allowed (else manual paste still works)
+        try{ const t = cleanKey(await navigator.clipboard.readText()); if(t) $("auth-keyinput").value = t; }catch(_){}
+      };
       $("auth-keysave").onclick = async ()=>{
-        const k=$("auth-keyinput").value.trim(); if(!k) return;
+        const k=cleanKey($("auth-keyinput").value); if(!k) return;
+        if(!keySendable(k)){
+          statusLine("__auth__","error","that key has a character that can't be sent — re-copy it from nano-gpt.com → Settings → API and paste again");
+          $("auth-keyinput").focus(); return;
+        }
         const sb=$("auth-keysave"); sb.disabled=true; sb.textContent="checking…";
-        const valid = await probeKey(k);                 // 401/403 → reject; 200/400/offline → keep
-        if(!valid){
+        const probe = await probeKey(k);                 // 401/403 → reject; 200/400 → keep; offline → keep but say so
+        if(probe==="bad"){
           sb.disabled=false; sb.textContent="save";      // keep the row OPEN, never store → no false "signed in ✓"
           statusLine("__auth__","error","that key was rejected by nano-gpt — check you copied the whole key");
           $("auth-keyinput").focus(); return;
         }
         setKey(k);   // validated (or offline-tolerated): setKey() re-renders the header to the true signed-in state
+        if(probe==="unverified") statusLine("__auth__","error","key saved — but nano-gpt.com can't be reached right now (ad-blocker, VPN or network?), so runs may fail");
       };
       const ki = $("auth-keyinput");
       if(ki) ki.addEventListener("keydown", e=>{ if(e.key==="Enter") $("auth-keysave").click(); });
@@ -3219,6 +3251,10 @@ window.NoodleApp = (function () {
     const titleEl = $("app-title");
     if(titleEl && !titleEl.textContent.trim()) titleEl.textContent = "My nanoodle app";
 
+    // Heal a stored key that predates save-time cleaning (standalone only — embedded auth lives
+    // in the parent): clean in place, or drop an unsendable one so auth honestly shows signed-out.
+    if(!EMBEDDED){ try{ const k0 = getKey(); if(k0){ const k1 = cleanKey(k0);
+      if(k1!==k0 || !keySendable(k1)) setKey(k1 && keySendable(k1) ? k1 : null); } }catch(_){} }
     renderAuth();
     handleRedirect().catch(e=> statusLine("__auth__","error","sign-in error: "+e.message)).finally(renderAuth);
     restoreRunInputs();   // bring back anything typed before a sign-in redirect, before the first paint
@@ -3978,7 +4014,7 @@ async function runDiffPass(goal, opts){
     return true;
   }catch(e){
     if(e && e.name==="AbortError") $("cust-status").innerHTML = '<span class="dim">Stopped.</span> ' + usageMeter();   // you hit ■ Stop — neutral, not an error
-    else $("cust-status").innerHTML = '<span class="err">Error: ' + esc(e.message) + '</span>';
+    else $("cust-status").innerHTML = '<span class="err">Error: ' + esc(friendlyRunError(e)) + '</span>';
     return false;
   }finally{
     busy = false; custAbort = null; setCustBusy(false); $("undo").disabled = APP_STATE.curVer <= 0;
@@ -4438,11 +4474,32 @@ function renderAuth(){
   $("signout").style.display  = signed ? "" : "none";
   $("apply").disabled = false;   // signed-out clicks route through kickBuilderSignIn (same as Enter) — never a dead-end
 }
-// Save-time key probe: a definitively-rejected key (401/403) → false; anything else → true.
-// /api/v1/chat/completions is CORS-enabled (unlike /api/check-balance, which a browser can't
-// reach) and checks auth BEFORE body validation, so an empty body never generates and never
-// charges: a good key 400s (kept), a bad key 401s (rejected). A network/CORS hiccup also returns
-// true, so an offline blip can never lock a user out of a key they pasted correctly.
+// Hand-typed/copied keys arrive with mobile-keyboard dashes, NBSP or zero-width junk — ONE
+// non-ISO-8859-1 char makes fetch() itself throw before the network. Mirrors index.html.
+function cleanKey(raw){
+  return String(raw||"").replace(/[\u2010-\u2015\u2212]/g,"-")   // unicode hyphen/dash/minus variants -> plain hyphen
+    .replace(/[\s\u00A0\u200B-\u200D\u2060\uFEFF]/g,"");        // whitespace, NBSP, zero-width chars, BOM -> gone
+}
+const keySendable = (k)=> /^[\x21-\x7E]+$/.test(k);   // printable ASCII — anything else can't ride in an HTTP header
+// Builder-chrome twin of the runtime's error translator (Customize/Apply hits the same nano-gpt
+// endpoint with the same stored key). TypeError gate: thrown "STATUS: body" errors relay API
+// bodies verbatim and must never wipe a good key — browser header/network failures are TypeErrors.
+function friendlyRunError(err){
+  const m = (err && err.message) || String(err);
+  if((err instanceof TypeError) && /ISO-8859-1|invalid header|Invalid value/i.test(m)){
+    setKey(null);
+    return "the saved API key contains a character that can't be sent (usually a smart-dash or an invisible character from typing/copying) — sign in again or re-paste the key";
+  }
+  if(/^(TypeError: )?(Failed to fetch|Load failed|NetworkError)/i.test(m.trim()))
+    return "couldn't reach nano-gpt.com — an ad-blocker, VPN or network filter may be blocking it; check the connection and try again";
+  return m;
+}
+// Save-time key probe: a definitively-rejected key (401/403) → "bad"; a readable response →
+// "ok"; a network/CORS hiccup → "unverified" (kept, so an offline blip can never lock a user
+// out of a key they pasted correctly — but the caller says so instead of a silent false
+// "signed in ✓"). /api/v1/chat/completions is CORS-enabled (unlike /api/check-balance, which a
+// browser can't reach) and checks auth BEFORE body validation, so an empty body never generates
+// and never charges: a good key 400s, a bad key 401s.
 async function probeKey(k){
   try{
     const r = await fetch(NANOGPT + "/api/v1/chat/completions", {
@@ -4450,8 +4507,8 @@ async function probeKey(k){
       headers:{ Authorization:"Bearer "+k, "x-api-key":k, "Content-Type":"application/json" },
       body:"{}"
     });
-    return !(r.status===401 || r.status===403);
-  }catch(_){ return true; }
+    return (r.status===401 || r.status===403) ? "bad" : "ok";
+  }catch(_){ return "unverified"; }
 }
 // Reflect the current key (e.g. one the OAuth popup just stored) into the builder + inner app.
 // Idempotent so the storage listener and the popup poll can both call it without double-toasting.
@@ -4748,20 +4805,26 @@ $("signin").addEventListener("click",(e)=>{ e.preventDefault(); signIn().catch(e
 // The OAuth popup (or another tab) stores the key from another window — reflect it the moment it
 // lands. The poll in signIn() is the primary path for the popup; this covers cross-tab changes.
 window.addEventListener("storage",(e)=>{ if(e.key==="ngpt_key") finishSignIn(); });
-$("pastebtn").addEventListener("click",()=>{ $("key").style.display="flex"; $("keyinput").focus(); });
+$("pastebtn").addEventListener("click", async ()=>{
+  $("key").style.display="flex"; $("keyinput").focus();
+  // it says "paste" — fill from the clipboard where the browser allows it (else manual paste still works)
+  try{ const t = cleanKey(await navigator.clipboard.readText()); if(t) $("keyinput").value = t; }catch(_){}
+});
 $("keysave").addEventListener("click", async ()=>{
-  const k=$("keyinput").value.trim();
+  const k=cleanKey($("keyinput").value);
   if(!k) return;
+  if(!keySendable(k)){ $("keyinput").focus();
+    toast("that key has a character that can't be sent — re-copy it from nano-gpt.com → Settings → API and paste again","err"); return; }
   const btn=$("keysave"); btn.disabled=true; btn.textContent="checking…";
-  const ok = await probeKey(k);                          // 401/403 → reject; 200/400/offline → keep
+  const probe = await probeKey(k);                       // 401/403 → reject; 200/400 → keep; offline → keep but say so
   btn.disabled=false; btn.textContent="save key";
-  if(!ok){                                               // rejected → keep the row OPEN, never show "signed in ✓"
+  if(probe==="bad"){                                     // rejected → keep the row OPEN, never show "signed in ✓"
     $("keyinput").focus();
     toast("that key was rejected by nano-gpt — check you copied the whole key","err");
     return;
   }
   setKey(k); $("key").style.display="none"; renderAuth(); pushAuthToApp();
-  toast("key saved — the app can run now");
+  toast(probe==="unverified" ? "key saved — but nano-gpt.com can't be reached right now (ad-blocker, VPN or network?), so runs may fail" : "key saved — the app can run now", probe==="unverified" ? "err" : undefined);
 });
 $("keyinput").addEventListener("keydown",(e)=>{ if(e.key==="Enter") $("keysave").click(); });
 $("signout").addEventListener("click",()=>{ setKey(null); renderAuth(); pushAuthToApp(); toast("signed out"); });
@@ -4781,6 +4844,10 @@ function migrateLegacy(){
 }
 
 async function boot(){
+  // Heal a stored key that predates save-time cleaning (one invisible char makes every run throw
+  // before the network): clean in place, or drop an unsendable one so auth honestly shows signed-out.
+  try{ const k0 = getKey(); if(k0){ const k1 = cleanKey(k0);
+    if(k1!==k0 || !keySendable(k1)) setKey(k1 && keySendable(k1) ? k1 : null); } }catch(_){}
   try{ await handleRedirect(); }catch(e){ $("auth-status").textContent = "sign-in error: "+e.message; }
   // OAuth popup (opened from the embedded builder): the key is now in shared localStorage and
   // the opener's poll finishes sign-in there. Close this window. NanoGPT's OAuth page sets
