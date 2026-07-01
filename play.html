@@ -103,6 +103,27 @@
   .am-new:hover{ background:var(--accent-soft); }
   .am-empty{ padding:.6rem .55rem; color:var(--dim); font-size:.82rem; }
 
+  /* ---------- share popover (mirrors #appsmenu) ---------- */
+  #shareback{ position:fixed; inset:0; z-index:90; }
+  #sharemenu{ position:fixed; right:.6rem; top:3rem; z-index:91; width:min(360px,94vw);
+              max-height:80vh; overflow:auto; background:var(--panel); border:1px solid var(--line);
+              border-radius:.7rem; box-shadow:0 18px 50px rgba(0,0,0,.5); padding:.55rem .6rem; }
+  #sharemenu[hidden], #shareback[hidden]{ display:none; }
+  .sm-urlrow{ display:flex; gap:.4rem; align-items:center; }
+  .sm-url{ flex:1; min-width:0; font-size:.78rem; font-family:ui-monospace,monospace; color:var(--dim);
+           background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; padding:.4rem .5rem; }
+  .sm-copy{ flex:none; }
+  .sm-note{ font-size:.74rem; color:var(--faint); margin:.4rem .15rem .1rem; line-height:1.4; }
+  .sm-warn{ font-size:.74rem; color:var(--dim); margin:.15rem .15rem .35rem; line-height:1.45;
+            border-left:2px solid var(--accent-line); padding:.1rem .5rem; }
+  .sm-svc, .sm-social{ display:flex; gap:.4rem; flex-wrap:wrap; }
+  .sm-svc button, .sm-social a{ font-size:.82rem; padding:.4rem .6rem; border-radius:.5rem; cursor:pointer;
+            background:var(--panel2); border:1px solid var(--line); color:var(--text); text-decoration:none;
+            display:inline-flex; align-items:center; gap:.3rem; }
+  .sm-svc button:hover, .sm-social a:hover{ background:var(--accent-soft); border-color:var(--accent-line); }
+  .sm-svc button:disabled{ opacity:.5; cursor:progress; }
+  .sm-flag{ font-size:.66rem; color:var(--faint); }
+
   /* ---------- paste-key row ---------- */
   #key{ display:none; align-items:center; gap:.5rem; padding:.5rem .8rem; border-bottom:1px solid var(--line); background:#11141f; position:relative; z-index:70; }
   #key input{ max-width:420px; flex:0 1 420px; }
@@ -253,6 +274,32 @@
   <button id="am-new" class="am-new">＋ New app from this workflow</button>
 </div>
 <div id="appsback" hidden></div>
+
+<!-- SHARE popover — copy / shorten (opt-in, 3rd-party) / share-to-social. All client-side. -->
+<div id="sharemenu" hidden>
+  <div class="am-head">Share this app</div>
+  <div class="sm-urlrow">
+    <input id="sm-url" class="sm-url" readonly />
+    <button id="sm-copy" class="sm-copy">Copy</button>
+  </div>
+  <p class="sm-note">The whole app lives in this link — nothing hits a server when someone opens it. That's why it can get long.</p>
+
+  <div class="am-head">Make it shorter — optional</div>
+  <p class="sm-warn">Sends this link to a third-party shortener so <em>they</em> host it. They can see the app.</p>
+  <div class="sm-svc">
+    <button data-svc="tinyurl">TinyURL</button>
+    <button data-svc="dagd">da.gd</button>
+  </div>
+
+  <div class="am-head">Share to</div>
+  <div class="sm-social">
+    <a data-soc="x" target="_blank" rel="noopener">𝕏</a>
+    <a data-soc="reddit" target="_blank" rel="noopener">Reddit</a>
+    <a data-soc="facebook" target="_blank" rel="noopener">Facebook</a>
+    <a data-soc="email">Email</a>
+  </div>
+</div>
+<div id="shareback" hidden></div>
 
 <!-- paste-key row (hidden until "paste key") — same pattern as index.html -->
 <div id="key">
@@ -2665,6 +2712,22 @@ function defaultFiles(graph){
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${esc(title)}</title>
+<meta name="description" content="${esc(tagline)}" />
+<!-- Per-app social card. Exported apps are standalone static files, so the crawler
+     reads these real tags (unlike #a= share links, where the app is in the invisible
+     fragment). og:image is nanoodle's branded card — fetched only by a social crawler
+     rendering the preview, never by the running app. -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="${esc(title)}" />
+<meta property="og:description" content="${esc(tagline)}" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="${esc(title)}" />
+<meta name="twitter:description" content="${esc(tagline)}" />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
 <style><!-- include: app.css --></style>
 </head>
 <body>
@@ -2953,7 +3016,17 @@ function bundle(files){
 
 // marvis/index-style preamble: storage shims (the sandbox blocks real localStorage in
 // the live preview) + Escape→parent so the builder can leave fullscreen.
-const PREVIEW_PREAMBLE =
+//
+// PREVIEW_CSP: a per-app <meta> CSP that re-seals the iframe's network egress to exactly
+// what an app legitimately needs (self / blob: / nano-gpt). The srcdoc inherits the parent
+// /play header CSP, and the browser enforces EVERY delivered policy — so even though that
+// header now also lists the URL shorteners (for the trusted Share UI in the parent chrome),
+// this tighter connect-src wins by intersection and a malicious shared app still cannot
+// fetch-exfiltrate the viewer's inputs/outputs to da.gd/tinyurl. Preview-only: the
+// exported bundle never carries this (it sets its own headers / runs standalone from file://).
+const PREVIEW_CSP =
+  '<meta http-equiv="Content-Security-Policy" content="connect-src \'self\' blob: https://nano-gpt.com">';
+const PREVIEW_PREAMBLE = PREVIEW_CSP +
   '<script>(function(){function s(){var m={};return{getItem:function(k){return Object.prototype.hasOwnProperty.call(m,k)?m[k]:null;},setItem:function(k,v){m[k]=String(v);},removeItem:function(k){delete m[k];},clear:function(){m={};},key:function(i){return Object.keys(m)[i]||null;},get length(){return Object.keys(m).length;}};}' +
   'try{window.localStorage.getItem("x");}catch(e){try{Object.defineProperty(window,"localStorage",{value:s(),configurable:true});}catch(_){}}' +
   'try{window.sessionStorage.getItem("x");}catch(e){try{Object.defineProperty(window,"sessionStorage",{value:s(),configurable:true});}catch(_){}}})();' +
@@ -3694,7 +3767,8 @@ function shareableGraph(g){
   }) };
 }
 
-// SHARE: pack {v:1, graph, files} -> gzip -> b64url -> #a= ; copy + toast. NO key inside.
+// SHARE: pack {v:1, graph, files} -> gzip -> b64url -> #a= ; copy + open the share popover. NO key inside.
+let shareUrl = "";   // the link the popover currently reflects (long, or a shortened one)
 async function doShare(){
   try{
     const json = JSON.stringify({ v:1, graph:shareableGraph(APP_STATE.graph), files:APP_STATE.files });
@@ -3706,13 +3780,45 @@ async function doShare(){
     const ok = await copyText(url);
     const big = url.length>8000 ? ` (${(url.length/1024).toFixed(0)}kB)` : "";
     toast(ok ? (appDirty
-                 ? `✓ Link copied — the app as built, not your in-app edits${big}`
-                 : `✓ App link copied — anyone who opens it gets this exact app and signs in with their own key${big}`)
-             : `App link is in the address bar — copy it to share${big}`, ok?"":"err");
-    const b = $("share");                                  // flip the button itself for unmistakable feedback (mirrors the editor)
-    if(b && ok){ const o=b.textContent; b.textContent="✓ Link copied!"; b.classList.add("ok");
-      setTimeout(()=>{ b.textContent=o; b.classList.remove("ok"); }, 1800); }
+                 ? `✓ Link copied — the app as built, not your in-app edits${big} · shorten or share below`
+                 : `✓ Link copied${big} · shorten it or share below — recipients sign in with their own key`)
+             : `App link is in the address bar — copy it below${big}`, ok?"":"err");
+    openShareMenu(url);                                    // fast path stays one-click; options live in the popover
   }catch(e){ toast("share failed: "+e.message, "err"); }
+}
+
+// ---- share popover: copy / shorten (opt-in 3rd-party) / share-to-social. All client-side. ----
+function setShareUrl(u){
+  shareUrl = u;
+  $("sm-url").value = u;
+  const text = "Built this with nanoodle — open it (bring your own key, runs in your browser):";
+  const eu = encodeURIComponent(u), et = encodeURIComponent(text), ti = encodeURIComponent("A nanoodle app");
+  const soc = {
+    x:        `https://twitter.com/intent/tweet?text=${et}&url=${eu}`,
+    reddit:   `https://www.reddit.com/submit?url=${eu}&title=${ti}`,
+    facebook: `https://www.facebook.com/sharer/sharer.php?u=${eu}`,
+    email:    `mailto:?subject=${ti}&body=${et}%0A%0A${eu}`,
+  };
+  document.querySelectorAll("#sharemenu .sm-social a").forEach(a => a.href = soc[a.dataset.soc]);
+}
+function openShareMenu(url){ setShareUrl(url); $("sharemenu").hidden = false; $("shareback").hidden = false; }
+function closeShareMenu(){ $("sharemenu").hidden = true; $("shareback").hidden = true; }
+
+// SHORTEN — direct client-side fetch to the chosen service (no nanoodle backend in the path).
+// Both return the short URL as plain text and preserve our #a= fragment through the redirect.
+async function shortenWith(svc, longUrl){
+  let r, t;
+  if(svc==="tinyurl"){
+    r = await fetch("https://tinyurl.com/api-create.php?url="+encodeURIComponent(longUrl));
+    t = (await r.text()).trim();
+  } else if(svc==="dagd"){                                 // POST → handles very long links (GET ceilings don't apply)
+    r = await fetch("https://da.gd/shorten", { method:"POST",
+        headers:{ "Content-Type":"application/x-www-form-urlencoded" },
+        body:"url="+encodeURIComponent(longUrl) });
+    t = (await r.text()).trim();
+  } else { throw new Error("unknown service"); }
+  if(!/^https?:\/\/\S+$/.test(t)) throw new Error(t.slice(0,80) || "no link returned");
+  return t;
 }
 
 // EXPORT: download bundle(files) as "<title>.html". No key inside (bundle never embeds it).
@@ -3805,6 +3911,25 @@ async function loadFromHash(){
    ====================================================================== */
 const IN_EDITOR = window.parent && window.parent !== window;   // opened as a popup inside the editor
 $("share").onclick = doShare;
+$("shareback").onclick = closeShareMenu;
+$("sm-copy").onclick = async ()=>{ const ok = await copyText(shareUrl); toast(ok?"✓ Copied":"copy failed", ok?"":"err"); };
+$("sm-url").onclick = ()=> $("sm-url").select();
+document.querySelectorAll("#sharemenu .sm-svc button").forEach(btn => btn.onclick = async ()=>{
+  const svc = btn.dataset.svc, label = btn.textContent.trim();
+  const longUrl = location.origin + location.pathname + location.hash;   // always shorten the full current link
+  const others = [...document.querySelectorAll("#sharemenu .sm-svc button")];
+  others.forEach(b=> b.disabled = true);
+  const o = btn.textContent; btn.textContent = "…";
+  try{
+    const short = await shortenWith(svc, longUrl);
+    setShareUrl(short);
+    const ok = await copyText(short);
+    toast(ok ? `✓ Short link copied — via ${label}` : `Short link ready — copy it above`, ok?"":"err");
+  }catch(e){
+    toast(`${label} couldn't shorten it (${e.message}) — try da.gd for very long links, or share the full link`, "err");
+  }finally{ btn.textContent = o; others.forEach(b=> b.disabled = false); }
+});
+document.querySelectorAll('#sharemenu .sm-social a[data-soc="email"]').forEach(a=> a.onclick = ()=> closeShareMenu());
 $("export").onclick = doExport;
 $("openeditor").onclick = doOpenEditor;                        // works in both modes: edits the workflow, keeps this app
 if(IN_EDITOR){
@@ -3894,6 +4019,7 @@ $("appsback").onclick = closeAppsMenu;
 $("am-new").onclick = newAppFromGraph;
 // Escape closes the apps menu first (capture, so it beats the editor-popup close handler below)
 document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && !$("appsmenu").hidden){ e.stopPropagation(); closeAppsMenu(); } }, true);
+document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && !$("sharemenu").hidden){ e.stopPropagation(); closeShareMenu(); } }, true);
 
 $("signin").addEventListener("click",(e)=>{ e.preventDefault(); signIn().catch(err=>$("auth-status").textContent="sign-in error: "+err.message); });
 // The OAuth popup (or another tab) stores the key from another window — reflect it the moment it
