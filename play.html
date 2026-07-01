@@ -663,9 +663,21 @@ window.NoodleApp = (function () {
   /* =====================================================================
      CTX — NanoGPT calls (verbatim behavior, index.html)
      ===================================================================== */
+  // A video job bills at /api/generate-video submit but can outlast our 10-min poll window. Keep its
+  // runId at module scope (keyed on node id, threaded via makeCtx) so re-running the SAME node RESUMES
+  // the in-flight job instead of POSTing — and paying — again. We also stash a content signature, so
+  // editing the node's inputs (new prompt/media) submits a correct fresh job rather than resuming a
+  // stale render. Set on submit, kept on the 10-min timeout, deleted on COMPLETED/FAILED. Module-level,
+  // so it survives re-runs in both the exported file and the builder preview iframe.
+  const PENDING_VIDEO = new Map();   // nodeId -> {runId, sig} of an in-flight (possibly timed-out) video job
+  function videoSig(s){              // djb2, tiny + backtick-free; detects input edits so we never resume a stale job
+    let h = 5381;
+    for(let i=0;i<s.length;i++) h = ((h<<5)+h+s.charCodeAt(i))|0;
+    return h.toString(36);
+  }
   // Per-run cost-tracking context: each node gets its own makeCtx(onCost) so a
   // generation's price lands on the right card even when siblings/lanes run at once.
-  function makeCtx(onCost){ return {
+  function makeCtx(onCost, runKey){ return {
     // opts.n = images to request (default 1); opts.multi=true returns ALL of them as an array (the gen
     // node's pick-one gallery). Every other caller omits opts and gets one url back, unchanged. Some
     // models always return 4 regardless of n — multi callers surface them all instead of discarding 3.
@@ -721,15 +733,25 @@ window.NoodleApp = (function () {
       // NanoGPT inlines media as base64 and the edge rejects bodies over ~4.5 MB with a header-less
       // 413 the browser mislabels as CORS. No upload endpoint → catch oversize locally and explain.
       const payload = JSON.stringify(body);
-      if(payload.length > MEDIA_INLINE_MAX)
-        throw new Error("This audio/video is a bit large (~4 MB max). nanoodle sends media inline rather than uploading it (no S3 here), so NanoGPT's edge won't accept it. A shorter clip works well — or build this flow into an app (✨ Create app) and run it offline.");
-      let r;
-      try{ r = await apiFetch(NANOGPT + "/api/generate-video", {method:"POST", headers:authHeaders(), body:payload}); }
-      catch(e){ throw new Error("couldn't reach the video API — if the source media is large it may have been rejected for size before CORS applies. Try a shorter clip, or build this into an app and run it offline. (" + (e.message||e) + ")"); }
-      if(!r.ok) throw new Error(r.status + ": " + (await r.text()).slice(0,160));
-      const j = await r.json(); onCost(costFromJson(j));
-      const runId = j.runId || j.id;
-      if(!runId) throw new Error("no runId returned");
+      // Resume a job that timed out on an earlier run of THIS node: the work keeps running server-side,
+      // so an unchanged re-run skips submit (and the duplicate charge) and goes straight back to polling.
+      // The stored signature guards against a stale resume — edit the node's inputs and the payload sig
+      // changes, so we submit a correct fresh job instead of returning the old render.
+      const sig = videoSig(payload);
+      const prev = runKey ? PENDING_VIDEO.get(runKey) : null;
+      let runId = (prev && prev.sig===sig) ? prev.runId : null;
+      if(!runId){
+        if(payload.length > MEDIA_INLINE_MAX)
+          throw new Error("This audio/video is a bit large (~4 MB max). nanoodle sends media inline rather than uploading it (no S3 here), so NanoGPT's edge won't accept it. A shorter clip works well — or build this flow into an app (✨ Create app) and run it offline.");
+        let r;
+        try{ r = await apiFetch(NANOGPT + "/api/generate-video", {method:"POST", headers:authHeaders(), body:payload}); }
+        catch(e){ throw new Error("couldn't reach the video API — if the source media is large it may have been rejected for size before CORS applies. Try a shorter clip, or build this into an app and run it offline. (" + (e.message||e) + ")"); }
+        if(!r.ok) throw new Error(r.status + ": " + (await r.text()).slice(0,160));
+        const j = await r.json(); onCost(costFromJson(j));
+        runId = j.runId || j.id;
+        if(!runId) throw new Error("no runId returned");
+        if(runKey) PENDING_VIDEO.set(runKey, {runId:runId, sig:sig});   // remember it the moment it exists, so a timeout is recoverable
+      }
       const t0 = Date.now();
       while(Date.now()-t0 < 600000){                  // 10 min — the job runs server-side, so patience here is cheap
         await sleep(5000);
@@ -741,11 +763,15 @@ window.NoodleApp = (function () {
           const out = (s.data && s.data.output) || s.output || {};
           const url = (out.video && out.video.url) || out.url || (Array.isArray(out.video) ? out.video[0] && out.video[0].url : null);
           if(!url) throw new Error("completed but no video url");
+          if(runKey) PENDING_VIDEO.delete(runKey);
           return url;
         }
-        if(["FAILED","ERROR","CANCELED"].includes(st)) throw new Error("video failed: " + ((s.data && s.data.error) || st));
+        if(["FAILED","ERROR","CANCELED"].includes(st)){ if(runKey) PENDING_VIDEO.delete(runKey); throw new Error("video failed: " + ((s.data && s.data.error) || st)); }
       }
-      throw new Error("Still rendering after 10 min — the job is likely still running on NanoGPT's side. Try running it again in a bit; a finished render usually returns fast.");
+      // Keep the runId in PENDING_VIDEO so re-running this node picks the job back up instead of paying twice.
+      throw new Error(runKey
+        ? "Still rendering after 10 min — the job is likely still running on NanoGPT's side. Run this node again to pick up the finished video (you won't be charged twice)."
+        : "Still rendering after 10 min — the job is likely still running on NanoGPT's side. Try running it again in a bit; a finished render usually returns fast.");
     },
     // sync audio (speech OR music): /api/v1/audio/speech → binary audio (or JSON with a url for some providers).
     async genAudio(model, input, extra, onProgress){
@@ -1488,7 +1514,7 @@ window.NoodleApp = (function () {
         }
         onStatus && onStatus(id, "run", "running…");
         let nodeCost = 0, nodeKnown = false, didGen = false;   // didGen: this node actually called the model (onCost fires only on a real generation, never for instant local nodes like text/join/trim)
-        const ctx = makeCtx((c)=>{ didGen = true; nodeCost += bumpCost(c); if(c && c.usd!=null) nodeKnown = true; });
+        const ctx = makeCtx((c)=>{ didGen = true; nodeCost += bumpCost(c); if(c && c.usd!=null) nodeKnown = true; }, id);
         try{
           n.out = await t.run(rn, inp, ctx, (msg)=> onStatus && onStatus(id, "run", msg)) || {};
           if(isSeeded(rn)) RUN_CACHE.set(id, { sig, out:n.out });   // fixed seed → cache the result for the next pass

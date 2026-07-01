@@ -328,6 +328,7 @@
   .node[data-status=run]{ border-color:var(--warn) }
   .node[data-status=done]{ border-color:var(--good) }
   .node[data-status=error]{ border-color:var(--bad) }
+  .node[data-status=skip]{ border-color:var(--dim); border-style:dashed }
   .node header{ display:flex; align-items:center; gap:.4rem; padding:.45rem .55rem; cursor:grab;
                 border-bottom:1px solid var(--line); border-radius:.7rem .7rem 0 0; }
   .node header.t-image{ background:linear-gradient(90deg,#ff79c622,transparent) }
@@ -347,6 +348,7 @@
   .node[data-status=run] .dot{ background:var(--warn); animation:pulse 1s infinite }
   .node[data-status=done] .dot{ background:var(--good) }
   .node[data-status=error] .dot{ background:var(--bad) }
+  .node[data-status=skip] .dot{ background:var(--dim) }
   @keyframes pulse{50%{opacity:.3}}
 
   .ports{ display:flex; justify-content:space-between; padding:.45rem 0 .2rem; }
@@ -2362,6 +2364,14 @@ function setStopped(n){
   const r = n.el.querySelector(".result");
   if(r){ r.classList.add("show"); r.innerHTML = `<div style="color:var(--dim)">■ stopped</div>`; }
 }
+// A node we never ran because an upstream node failed/cycled: not its own fault and never charged,
+// so show it as blocked — no stale-input run, no misleading "missing input" error.
+function setSkipped(n){
+  if(!n?.el) return;
+  n.el.dataset.status = "skip";
+  const r = n.el.querySelector(".result");
+  if(r){ r.classList.add("show"); r.innerHTML = `<div style="color:var(--dim)">⤼ skipped — upstream failed</div>`; }
+}
 function setNodeProgress(n, msg){
   if(!n.el) return;
   const r = n.el.querySelector(".result");
@@ -2916,6 +2926,7 @@ async function runGroup(seedIds){
     // Each node fires as soon as its OWN inputs resolve, so sibling branches
     // (a→b, a→c) run concurrently rather than serializing down the topo order.
     const done = {};                                  // id → promise, so dependents await just their inputs
+    const failed = new Set(cyclic);                   // ids that errored (or are in a cycle) → output is invalid, so dependents must NOT run on its stale .out
     const depsOf = (id)=>{                             // upstream node ids feeding this node (within the run set)
       const s = new Set();
       for(const l of graph.links) if(l.to.node===id && ids.has(l.from.node)) s.add(l.from.node);
@@ -2926,6 +2937,9 @@ async function runGroup(seedIds){
       done[id] = (async ()=>{
         await Promise.all(deps.map(d=> done[d]));       // wait on this node's inputs only
         const n = byId(id); if(!n) return;
+        // Poison-propagate: a failed/cyclic upstream node has no valid output, so running here would
+        // feed this node the parent's STALE .out and reach a PAID call. Skip (transitively) instead.
+        if(deps.some(d=> failed.has(d))){ failed.add(id); setSkipped(n); return; }
         const t = NODE_TYPES[n.type], inp = {};
         for(const port of t.inputs){
           const l = graph.links.find(x=> x.to.node===id && x.to.port===port.name);
@@ -2969,7 +2983,7 @@ async function runGroup(seedIds){
         }
         catch(err){
           if(ctl.signal.aborted || err?.name==="AbortError") setStopped(n);   // user hit Stop — not a failure
-          else setStatus(n, "error", err.message);
+          else { setStatus(n, "error", err.message); failed.add(id); }        // real failure → poison dependents (no stale-input charge)
         }
       })();
     }
