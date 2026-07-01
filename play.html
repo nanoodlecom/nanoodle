@@ -2252,6 +2252,8 @@ window.NoodleApp = (function () {
     if(prog && !prog._errBound){
       prog._errBound = true;
       prog.addEventListener("click", (e)=>{
+        const peek = e.target.closest("[data-open-lane]");
+        if(peek){ openDetail(+peek.dataset.openLane); return; }
         const btn = e.target.closest(".err-toggle"); if(!btn) return;
         const L = RUN && RUN.lanes[+btn.dataset.lane]; if(!L) return;
         L.showErrs = !L.showErrs; paintRuns();
@@ -2279,8 +2281,9 @@ window.NoodleApp = (function () {
     return t ? (t.em + " " + t.title) : id;
   }
   function startRun(n){
+    closeDetail();   // a steps sheet left open from a prior run must not point at a stale lane
     RUN = { n:n, t0:Date.now(), lanes:[] };
-    for(let i=0;i<n;i++) RUN.lanes.push({ idx:i, order:[], state:{}, curId:null, curT0:0, t0:Date.now(), endAt:0 });
+    for(let i=0;i<n;i++) RUN.lanes.push({ idx:i, order:[], state:{}, res:{}, curId:null, curT0:0, t0:Date.now(), endAt:0 });
     ensureStatus(); const p = $("app-prog"); if(p) p.hidden = false;
     clearInterval(runTimer); runTimer = setInterval(paintRuns, 1000);
     paintRuns();
@@ -2290,10 +2293,19 @@ window.NoodleApp = (function () {
   // bar and timer start fresh instead of showing the previous pass as "done".
   function resetLane(i){
     if(!RUN || !RUN.lanes[i]) return;
-    RUN.lanes[i] = { idx:i, order:[], state:{}, curId:null, curT0:0, t0:Date.now(), endAt:0 };
+    RUN.lanes[i] = { idx:i, order:[], state:{}, res:{}, curId:null, curT0:0, t0:Date.now(), endAt:0 };
     paintRuns();
   }
   function laneStart(i, order){ if(RUN && RUN.lanes[i]){ RUN.lanes[i].order = order; paintRuns(); } }
+  // Capture every completed node's output (not just the sink nodes rendered to
+  // #app-output), so "peek inside this run" can show intermediate results — and
+  // whatever a run made before it errored partway. Keyed by node id; the lane's
+  // own graph clone owns these node objects, so lanes never clobber each other.
+  function laneCapture(i, n){
+    const L = RUN && RUN.lanes[i]; if(!L) return;
+    (L.res || (L.res = {}))[n.id] = n;
+    if(detailOpen === i) paintDetail();
+  }
   function laneStep(i, id, kind, msg){
     const L = RUN && RUN.lanes[i]; if(!L) return;
     L.state[id] = { kind:kind, msg:msg };
@@ -2327,6 +2339,16 @@ window.NoodleApp = (function () {
     }
     return html;
   }
+  // "Peek inside this run" chip — opens the steps sheet with every node's output
+  // captured so far. Shows once a lane has produced a result, or once it has
+  // settled (so a run that errored on step 1 still exposes the why). Hidden while
+  // a lane is still spinning up with nothing to show yet.
+  function peekBtnHtml(L){
+    const nres = L.res ? Object.keys(L.res).length : 0;
+    if(!nres && !(L.endAt>0)) return "";
+    const label = nres ? (nres + " result" + (nres!==1?"s":"")) : "steps";
+    return '<button type="button" class="peek" data-open-lane="'+L.idx+'" title="See every step of this run, including partial results">⧉ ' + label + ' ›</button>';
+  }
   function singleLaneHtml(L){
     const st = laneStats(L); let now = "";
     if(!st.finished && L.curId != null){
@@ -2341,7 +2363,7 @@ window.NoodleApp = (function () {
         ? '<div class="prog-now is-err">Finished with ' + st.errs + ' error' + (st.errs>1?"s":"") + ' · ' + st.done + '/' + st.total + ' steps · ' + fmtClock(L.endAt-L.t0) + '</div>'
         : '<div class="prog-now is-ok">✓ Done · ' + st.total + ' step' + (st.total!==1?"s":"") + ' · ' + fmtClock(L.endAt-L.t0) + '</div>';
     }
-    return '<div class="prog-track">' + st.segs + '</div>' + now + errBlockHtml(L, st);
+    return '<div class="prog-track">' + st.segs + '</div>' + now + peekBtnHtml(L) + errBlockHtml(L, st);
   }
   function laneRowHtml(L){
     const st = laneStats(L);
@@ -2358,14 +2380,16 @@ window.NoodleApp = (function () {
          + '<span class="lane-no">Run ' + (L.idx+1) + '</span>'
          + '<div class="prog-track">' + st.segs + '</div>'
          + '<span class="lane-mid">' + mid + '</span>'
-         + '<span class="prog-el">' + elapsed + '</span></div>';
+         + '<span class="prog-el">' + elapsed + '</span>'
+         + peekBtnHtml(L) + '</div>';
   }
   function paintRuns(){
     const box = $("app-prog"); if(!box || !RUN) return;
-    if(RUN.n === 1){ box.innerHTML = singleLaneHtml(RUN.lanes[0]); return; }
-    box.innerHTML = '<div class="lanes">'
+    if(RUN.n === 1){ box.innerHTML = singleLaneHtml(RUN.lanes[0]); }
+    else box.innerHTML = '<div class="lanes">'
       + RUN.lanes.map(L=> laneRowHtml(L) + errBlockHtml(L, laneStats(L))).join("")
       + '</div>';
+    if(detailOpen != null) paintDetail();   // keep an open steps sheet live (step status + timers)
   }
   // Independent copy of the live graph (current input values included) so N
   // lanes can run at once without clobbering each other's node outputs.
@@ -2441,18 +2465,20 @@ window.NoodleApp = (function () {
                  + bal;
   }
 
-  function renderResult(n, runNo){
-    const box = $("app-output"); if(!box) return;
+  // Build a self-contained result card (media + cost + download + variation
+  // picker) for one node. Shared by the #app-output funnel (sink nodes only) and
+  // the per-run "steps" sheet (every node), so both render media identically.
+  // Returns null when the node produced nothing renderable on its primary port.
+  function resultCard(n, badge){
     const out = n.out || {};
     const port = (NODE_TYPES[n.type].outputs||[])[0] || {};
     const val = out[port.name];
-    if(val==null) return;
+    if(val==null) return null;
     const card = document.createElement("div"); card.className="card";
-    const badge = runNo ? '<span class="run-badge">Run '+runNo+'</span> ' : '';
     const cost = n.cached ? '<span class="rcost" title="reused fixed-seed result — no charge">↺ reused</span>'
                : (n.costUsd>0) ? '<span class="rcost" title="cost of this generation">'+fmtUsd(n.costUsd)+'</span>'
                : n.costKnown ? '<span class="rcost incl" title="included in your subscription">included</span>' : '';
-    const head = '<div class="rhead">'+badge+esc(NODE_TYPES[n.type].em)+' '+esc(NODE_TYPES[n.type].title)+cost+'</div>';
+    const head = '<div class="rhead">'+(badge||"")+esc(NODE_TYPES[n.type].em)+' '+esc(NODE_TYPES[n.type].title)+cost+'</div>';
     const gallery = (port.type==="image" && out.images && out.images.length>1) ? out.images : null;
     let media;
     if(port.type==="image"){
@@ -2464,7 +2490,6 @@ window.NoodleApp = (function () {
     else if(port.type==="audio") media = '<audio src="'+esc(val)+'" controls preload="metadata"></audio>';
     else media = '<div class="text">'+esc(typeof val==="string"?val:JSON.stringify(val,null,2))+'</div>';
     card.innerHTML = head + media;
-    box.insertBefore(card, box.firstChild);   // newest at the top; nothing is removed
     if(port.type==="audio") fixAudioDuration(card.querySelector("audio"));
     if(port.type==="image" || port.type==="video" || port.type==="audio")
       addDownload(card, val, port.type, n.type);
@@ -2480,6 +2505,136 @@ window.NoodleApp = (function () {
         };
       });
     }
+    return card;
+  }
+  function renderResult(n, runNo){
+    const box = $("app-output"); if(!box) return;
+    const badge = runNo ? '<span class="run-badge">Run '+runNo+'</span> ' : '';
+    const card = resultCard(n, badge); if(!card) return;
+    box.insertBefore(card, box.firstChild);   // newest at the top; nothing is removed
+  }
+
+  /* ---------- run "steps" sheet ----------
+     The #app-output funnel deliberately shows only the sink nodes, to keep the
+     app clean for end users. But a run makes (and pays for) intermediate outputs
+     too, and a run that errors halfway still produced real artifacts upstream.
+     This sheet is the opt-in "peek inside a run": click the ⧉ chip on any lane to
+     see every step in pipeline order, with its status and its output — live while
+     running, and preserved after an error so nothing paid-for is lost.
+     Self-styled + self-mounted (like the cost meter) so every app gets it,
+     including gptdiff-customized and exported standalones that never had a mount
+     point for it. Updates idempotently (one DOM node per step, media inserted
+     once) so live repaints never re-fetch media or reset a playing <video>. */
+  let detailOpen = null, detailLaneRef = null, detailSheet = null;
+  function injectDetailStyles(){
+    if(document.getElementById("noodle-steps-style")) return;
+    const s = document.createElement("style"); s.id = "noodle-steps-style";
+    s.textContent =
+      '.peek{font:inherit;font-size:.74rem;margin:.45rem 0 0;padding:.24rem .6rem;cursor:pointer;'
+        + 'background:var(--panel,#161a27);color:var(--dim,#8b93b4);border:1px solid var(--line,#2a3150);'
+        + 'border-radius:999px;line-height:1.2;white-space:nowrap;transition:color .12s,border-color .12s;}'
+      + '.peek:hover{color:var(--ink,#e6e9f5);border-color:var(--accent,#7c8cff);}'
+      + '.lane .peek{margin:0 0 0 .5rem;flex:0 0 auto;}'
+      + '#noodle-steps{position:fixed;inset:0;z-index:9998;display:flex;}'
+      + '#noodle-steps[hidden]{display:none;}'
+      + '#noodle-steps .nd-back{position:absolute;inset:0;background:rgba(6,8,14,.66);}'
+      + '#noodle-steps .nd-panel{position:relative;margin:auto;width:min(680px,100%);max-height:88vh;'
+        + 'display:flex;flex-direction:column;background:var(--panel,#161a27);color:var(--ink,#e6e9f5);'
+        + 'border:1px solid var(--line,#2a3150);border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.5);overflow:hidden;}'
+      + '@media(max-width:640px){#noodle-steps{align-items:flex-end;}'
+        + '#noodle-steps .nd-panel{width:100%;max-height:92vh;border-radius:16px 16px 0 0;}}'
+      + '#noodle-steps .nd-head{display:flex;align-items:center;gap:.6rem;padding:.85rem 1rem;'
+        + 'border-bottom:1px solid var(--line,#2a3150);}'
+      + '#noodle-steps .nd-title{font-weight:700;font-size:.98rem;}'
+      + '#noodle-steps .nd-sub{font-size:.76rem;color:var(--dim,#8b93b4);margin-right:auto;'
+        + 'font-variant-numeric:tabular-nums;}'
+      + '#noodle-steps .nd-x{margin-left:auto;background:transparent;border:0;color:var(--dim,#8b93b4);'
+        + 'font-size:1.05rem;cursor:pointer;padding:.2rem .5rem;border-radius:8px;line-height:1;}'
+      + '#noodle-steps .nd-x:hover{background:#ffffff12;color:var(--ink,#e6e9f5);}'
+      + '#noodle-steps .nd-body{padding:.4rem 1rem 1.2rem;overflow:auto;}'
+      + '.nd-step{border-top:1px solid var(--line,#2a3150);padding:.8rem 0;}'
+      + '.nd-step:first-child{border-top:0;}'
+      + '.nd-shead{display:flex;align-items:center;gap:.5rem;font-size:.82rem;margin-bottom:.55rem;}'
+      + '.nd-shead .nd-lbl{font-weight:600;color:var(--ink,#e6e9f5);}'
+      + '.nd-shead .nd-badge{margin-left:auto;font-size:.72rem;font-weight:700;font-variant-numeric:tabular-nums;}'
+      + '.nd-badge.nd-ok{color:var(--ok,#46d27a);}.nd-badge.nd-run{color:var(--accent,#7c8cff);}'
+      + '.nd-badge.nd-err{color:#ff6b6b;}.nd-badge.nd-wait{color:var(--faint,#5d6788);}'
+      + '.nd-step .nd-errmsg{font-size:.77rem;color:#ff9a9a;background:#ff6b6b12;'
+        + 'border:1px solid #ff6b6b30;border-radius:8px;padding:.45rem .6rem;}'
+      + '.nd-step .card{margin:0;}'
+      + '.nd-step .card .rhead{display:none;}';   // the step header already labels + costs it
+    (document.head || document.documentElement).appendChild(s);
+  }
+  function ensureDetailSheet(){
+    if(detailSheet) return detailSheet;
+    injectDetailStyles();
+    const w = document.createElement("div"); w.id = "noodle-steps"; w.hidden = true;
+    w.innerHTML = '<div class="nd-back"></div>'
+      + '<div class="nd-panel" role="dialog" aria-modal="true" aria-label="Run steps">'
+      + '<div class="nd-head"><span class="nd-title">Run steps</span><span class="nd-sub"></span>'
+      + '<button type="button" class="nd-x" aria-label="Close">✕</button></div>'
+      + '<div class="nd-body"></div></div>';
+    document.body.appendChild(w);
+    w.querySelector(".nd-back").onclick = closeDetail;
+    w.querySelector(".nd-x").onclick = closeDetail;
+    document.addEventListener("keydown", function(e){ if(e.key==="Escape" && detailOpen!=null) closeDetail(); });
+    detailSheet = w; return w;
+  }
+  function openDetail(i){
+    detailOpen = i; detailLaneRef = null;      // force a fresh rebuild for this open
+    const root = ensureDetailSheet(); root.hidden = false;
+    paintDetail();
+    const body = root.querySelector(".nd-body"); if(body) body.scrollTop = 0;
+  }
+  function closeDetail(){
+    detailOpen = null; detailLaneRef = null;
+    if(detailSheet) detailSheet.hidden = true;
+  }
+  function stepStatus(L, id){
+    const s = L.state[id] || {};
+    if(s.kind==="error") return { cls:"err", txt:"✗ failed" };
+    if(s.kind==="done"){
+      const n = L.res && L.res[id];
+      if(n && n.cached) return { cls:"ok", txt:"↺ reused" };
+      const cost = (n && n.costUsd>0) ? (" · " + fmtUsd(n.costUsd)) : (n && n.costKnown) ? " · included" : "";
+      return { cls:"ok", txt:"✓ done" + cost };
+    }
+    if(s.kind==="run") return { cls:"run", txt:"● " + (s.msg || "running…") };
+    return { cls:"wait", txt:"○ waiting" };
+  }
+  function paintDetail(){
+    if(detailOpen == null) return;
+    const L = RUN && RUN.lanes[detailOpen];
+    if(!L){ closeDetail(); return; }
+    const root = ensureDetailSheet(), body = root.querySelector(".nd-body");
+    // A fresh lane object (first open, or a keep-generating reset) → rebuild from scratch.
+    if(L !== detailLaneRef){ detailLaneRef = L; body.innerHTML = ""; body._steps = {}; }
+    const steps = body._steps || (body._steps = {});
+    const st = laneStats(L);
+    root.querySelector(".nd-title").textContent = RUN.n>1 ? ("Run " + (L.idx+1) + " · steps") : "Run steps";
+    root.querySelector(".nd-sub").textContent = st.done + "/" + st.total + " steps"
+      + (st.errs ? (" · " + st.errs + " error" + (st.errs>1?"s":"")) : "")
+      + (L.endAt>0 ? "" : " · running…");
+    (L.order || []).forEach(function(id){
+      let step = steps[id];
+      if(!step){
+        step = document.createElement("div"); step.className = "nd-step";
+        step.innerHTML = '<div class="nd-shead"><span class="nd-lbl"></span><span class="nd-badge"></span></div>';
+        step.querySelector(".nd-lbl").textContent = stepLabel(id);
+        steps[id] = step; body.appendChild(step);
+      }
+      const ss = stepStatus(L, id), badge = step.querySelector(".nd-badge");
+      badge.className = "nd-badge nd-" + ss.cls; badge.textContent = ss.txt;
+      // media card inserted ONCE, when this node's output first lands (never re-fetched)
+      const n = L.res && L.res[id];
+      if(n && !step._carded){ const card = resultCard(n, ""); if(card) step.appendChild(card); step._carded = true; }
+      // error detail inserted ONCE
+      const es = L.state[id] || {};
+      if(es.kind==="error" && !step._errShown){
+        const em = document.createElement("div"); em.className = "nd-errmsg";
+        em.textContent = es.msg || "failed"; step.appendChild(em); step._errShown = true;
+      }
+    });
   }
 
   // A download control for generated media. Images come back as data: URLs and
@@ -2635,7 +2790,7 @@ window.NoodleApp = (function () {
           const res = await runGraph(cloneGraph(), {
             onStart: (order)=> laneStart(i, order),
             onStatus: (id,kind,msg)=> laneStep(i, id, kind, msg),
-            onResult: (n)=>{ if(outIds.has(n.id)) renderResult(n, N>1 ? i+1 : 0); },
+            onResult: (n)=>{ laneCapture(i, n); if(outIds.has(n.id)) renderResult(n, N>1 ? i+1 : 0); },
           });
           // per-node errors are isolated (not thrown), so the run "succeeds" even when
           // every node failed — count them as a failure so keep mode backs off instead
