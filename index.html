@@ -297,14 +297,25 @@
            padding:.3rem .5rem; box-shadow:0 6px 18px #0005; pointer-events:auto; user-select:none; }
   #runest b{ color:var(--ink); font-weight:700; }
   #runest[hidden]{ display:none }
-  #canvashint[hidden]{ display:none }
-  #canvashint{ position:absolute; top:14px; left:50%; transform:translateX(-50%); z-index:8;
+  #canvashint[hidden], #connecthint[hidden]{ display:none }
+  #canvashint, #connecthint{ position:absolute; top:14px; left:50%; transform:translateX(-50%); z-index:8;
                display:flex; align-items:center; gap:.5rem; max-width:calc(100% - 1.5rem);
                background:var(--panel); border:1px solid var(--line); border-radius:2rem;
                padding:.4rem .45rem .4rem .85rem; font-size:.82rem; color:var(--dim); box-shadow:0 6px 22px #0007 }
-  #canvashint b{ color:var(--ink); font-weight:600 }
-  #canvashint #hintx{ border:none; background:none; color:var(--dim); cursor:pointer; font-size:1rem; line-height:1; padding:.1rem .4rem; border-radius:.4rem }
-  #canvashint #hintx:hover{ background:var(--panel2); color:var(--ink) }
+  #canvashint .ht{ flex:1; min-width:0 }   /* the sentence fills the row as one wrapping block; the × stays pinned right */
+  #canvashint b{ color:var(--ink); font-weight:600; white-space:nowrap }   /* keep ▶ Run / ＋ Add node from breaking mid-token when the line wraps */
+  #connecthint b{ color:var(--accent); font-weight:600 }   /* the ● reads as a port dot */
+  #connecthint span{ min-width:0 }   /* keep the sentence flowing as prose (not split flex columns) on narrow screens */
+  #canvashint #hintx, #connecthint #connecthintx{ border:none; background:none; color:var(--dim); cursor:pointer; font-size:1rem; line-height:1; padding:.1rem .4rem; border-radius:.4rem }
+  #canvashint #hintx:hover, #connecthint #connecthintx:hover{ background:var(--panel2); color:var(--ink) }
+  /* Phone widths: the run-cost chip and the left-hand 🍜 Cookoff badge share the bottom band and
+     were colliding mid-screen. Lift the cost chip into the bottom-right corner, above the Fit/Undo
+     controls, so it clears the Cookoff badge, the Terms/Privacy link and the Fit button. */
+  @media (max-width:480px){
+    #runest{ right:.5rem; bottom:calc(var(--db-h,3rem) + 3.6rem); }
+    /* fill the width so the orientation line flows across the screen instead of into a narrow column */
+    #canvashint{ width:calc(100% - 1.2rem); max-width:none; }
+  }
   #editor{ position:fixed; inset:52px 0 var(--db-h,3rem) 0; overflow:hidden; cursor:grab;
            background-color:#0b0d12;
            background-image:radial-gradient(circle, #ffffff0d 1px, transparent 1px);
@@ -750,7 +761,8 @@
   <div id="world"></div>
   <button id="undo" title="Undo (Ctrl + Z)" aria-label="Undo the last edit">↺</button>
   <button id="fit" title="Fit the whole workflow in view (F)" aria-label="Fit the whole workflow in view">⊡</button>
-  <div id="canvashint" hidden>A live AI workflow — press <b>▶ Run</b>, or <b>＋ Add node</b> to build your own.<button id="hintx" title="Got it" aria-label="Dismiss">×</button></div>
+  <div id="canvashint" hidden><span class="ht">A live AI workflow — press <b>▶ Run</b>, or <b>＋ Add node</b> to build your own.</span><button id="hintx" title="Got it" aria-label="Dismiss">×</button></div>
+  <div id="connecthint" hidden><span>Drag a <b>●</b> port onto a matching one to connect — or drop a wire on empty canvas to quick-add.</span><button id="connecthintx" title="Got it" aria-label="Dismiss">×</button></div>
 </main>
 <div id="quickadd"></div>
 
@@ -2885,6 +2897,7 @@ function startWire(port, e){
         }else{
           if(pickup) removeLink(pickup.id);           // grab-move: drop the old endpoint (recompaction + save handled there)
           connect(out.dataset.node, out.dataset.port, inn.dataset.node, inn.dataset.port);
+          dismissConnectHint();                        // they've made a wire by hand — retire the coach line
           connected = true;
         }
       }
@@ -3040,6 +3053,7 @@ function quickSpawn(typeKey, wx, wy, dir, type, originPort){
   if(target){
     const out = dir==="out" ? originPort : target, inn = dir==="out" ? target : originPort;
     connect(out.dataset.node, out.dataset.port, inn.dataset.node, inn.dataset.port);
+    dismissConnectHint();                              // wire-drop quick-add is a manual connect too — retire the coach line
   }
 }
 
@@ -4921,8 +4935,21 @@ function seed(){
 /* First-run canvas hint — one quiet line, dismissed by the × or the user's first Run / Add-node.
    Local flag only, no tracking; returning users (flag set) never see it. */
 const HINT_KEY = "noodle_hint_dismissed";
-function dismissHint(){ const h = $("canvashint"); if(h && !h.hidden){ h.hidden = true; try{ localStorage.setItem(HINT_KEY,"1"); }catch{} } }
+function dismissHint(){ const h = $("canvashint"); if(h && !h.hidden){ h.hidden = true; try{ localStorage.setItem(HINT_KEY,"1"); }catch{} } maybeShowConnectHint(); }
 $("hintx").onclick = dismissHint;
+
+/* Connect-hint — teaches the one core interaction the first-run line doesn't: drag a ● port to a
+   matching one, or drop a wire on empty canvas to quick-add. Surfaces once, only after the first-run
+   line is gone (never stacked on it), when the graph has 2+ nodes and the user has never wired by
+   hand; auto-dismissed for good on the first manual connect. Local flag only, no tracking. */
+const CONNECT_HINT_KEY = "noodle_connect_hint_dismissed";
+function dismissConnectHint(){ const h = $("connecthint"); if(h) h.hidden = true; try{ localStorage.setItem(CONNECT_HINT_KEY,"1"); }catch{} }
+function maybeShowConnectHint(){
+  try{ if(localStorage.getItem(CONNECT_HINT_KEY)) return; }catch{ return; }
+  if(!$("canvashint").hidden) return;                 // first-run line still up → wait, don't stack
+  if((graph.nodes||[]).length >= 2) $("connecthint").hidden = false;
+}
+$("connecthintx").onclick = dismissConnectHint;
 
 /* ======================================================================
    UPDATES  (a tiny changelog — static updates.json, newest first. Each commit
@@ -5096,6 +5123,7 @@ $("signout").onclick = ()=> setKey(null);
   updateTitle();                                                  // reflect whether an app's workflow is loaded
   redraw();
   try{ if(!localStorage.getItem(HINT_KEY)) $("canvashint").hidden = false; }catch{}   // first-run orientation line
+  maybeShowConnectHint();   // returning user who never wired by hand → the connect coach (skipped while the first-run line is up)
   // Brand-new visitors land straight on a simple working flow (the default graph).
   try{ await handleRedirect(); }catch(e){ $("status").textContent="sign-in error: "+e.message; }
   renderAuth();
