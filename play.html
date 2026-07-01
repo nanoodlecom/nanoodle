@@ -159,6 +159,10 @@
   #apply.idle{ background:var(--panel2); border-color:var(--line); color:var(--dim);
                font-weight:600; box-shadow:none; }
   #apply.idle:hover{ box-shadow:none; }
+  /* While a customize/port is running, Apply becomes a ■ Stop control (red) so a stalled LLM
+     can always be cancelled — mirrors the runtime run button's .run.stop state. */
+  #apply.stop{ background:linear-gradient(180deg,#ff8a8a,#ef5a5a); border-color:#ff8a8a; color:#1a0b0b; box-shadow:0 0 22px #ff6b6b3a; }
+  #apply.stop:hover{ box-shadow:0 0 30px #ff6b6b5c; }
   button.ghost{ font:inherit; padding:.5rem .8rem; border-radius:.5rem; border:1px solid var(--line);
                 background:var(--panel2); color:var(--ink); cursor:pointer; }
   button.ghost:disabled{ opacity:.45; cursor:default; }
@@ -3450,6 +3454,7 @@ function streamingCallLlm(phase){
       method:"POST",
       headers:{ Authorization:"Bearer "+apiKey, "Content-Type":"application/json" },
       body: JSON.stringify({ model:m, messages, ...(maxTokens?{max_tokens:maxTokens}:{}), temperature, stream:true }),
+      signal: custAbort && custAbort.signal,   // ■ Stop aborts the request; reader.read() below then rejects with AbortError
     });
     let r = await send(usedModel);
     // Chosen model is overloaded or down (429 / 503 / any 5xx) → fall back to a reliable model and retry once,
@@ -3497,16 +3502,35 @@ function streamingCallLlm(phase){
 }
 
 let busy = false;
+let custAbort = null;   // AbortController for the in-flight customize/port; the ■ Stop button aborts it
+
+// While a customize/port runs, the Apply button doubles as a ■ Stop control (mirrors the runtime
+// run button): a stalled LLM can always be cancelled instead of leaving the bar permanently disabled.
+function stopCustomize(){ if(custAbort && !custAbort.signal.aborted) custAbort.abort(); }
+function setCustBusy(on){
+  const a = $("apply"); if(!a) return;
+  if(on){ a.disabled = false; a.classList.add("stop"); a.classList.remove("idle"); a.textContent = "■ Stop"; a.onclick = stopCustomize; }
+  else { a.classList.remove("stop"); a.textContent = "✦ Apply"; a.onclick = applyCustomize; a.disabled = !getKey(); syncApply(); }
+}
+// Signed-out users shouldn't dead-end on a toast — launch the same sign-in the ✨ Sign in button
+// uses (https → OAuth popup; file:// → reveal the paste-key row), so Customize has a way forward like Run.
+function kickBuilderSignIn(){
+  if(/^https?:$/.test(location.protocol)) signIn().catch(err=>{ try{ $("auth-status").textContent = "sign-in error: " + err.message; }catch(_){} });
+  else { $("key").style.display = "flex"; $("keyinput").focus(); toast("paste a nano-gpt.com API key to customize", "err"); }
+}
+
 // Shared gptdiff loop: generate a diff for `goal` against the current index.html +
 // app.css, smart-apply it, push the result as a new version, and persist. Both the
 // Customize composer and the workflow Port reuse this — only the goal/labels differ.
 // opts: { preamble, genLabel, applyLabel, okLabel, versionGoal }
 async function runDiffPass(goal, opts){
   opts = opts || {};
-  const key = getKey(); if(!key){ toast("sign in first to customize", "err"); return false; }
+  if(!getKey()){ kickBuilderSignIn(); return false; }   // signed out → launch sign-in, not a dead-end toast
+  const key = getKey();
   if(!goal || !goal.trim()) return false;
   if(busy) return false; busy = true;
-  $("apply").disabled = true; $("undo").disabled = true;
+  custAbort = new AbortController();
+  setCustBusy(true); $("undo").disabled = true;
   const t0 = performance.now();
   resetUsage();
   await loadChatCatalog().catch(()=>{});   // make sure per-model prices are available for the live cost
@@ -3547,10 +3571,11 @@ async function runDiffPass(goal, opts){
     $("cust-status").innerHTML = '<span class="ok">✓ ' + (opts.okLabel || "Applied") + ' in ' + secs + 's — preview updated.</span> ' + usageMeter();
     return true;
   }catch(e){
-    $("cust-status").innerHTML = '<span class="err">Error: ' + esc(e.message) + '</span>';
+    if(e && e.name==="AbortError") $("cust-status").innerHTML = '<span class="dim">Stopped.</span> ' + usageMeter();   // you hit ■ Stop — neutral, not an error
+    else $("cust-status").innerHTML = '<span class="err">Error: ' + esc(e.message) + '</span>';
     return false;
   }finally{
-    busy = false; $("apply").disabled = !getKey(); $("undo").disabled = APP_STATE.curVer <= 0;
+    busy = false; custAbort = null; setCustBusy(false); $("undo").disabled = APP_STATE.curVer <= 0;
   }
 }
 async function applyCustomize(){
@@ -3942,7 +3967,7 @@ function renderAuth(){
   $("signin").style.display  = signed ? "none" : "";
   $("pastebtn").style.display = signed ? "none" : "";
   $("signout").style.display  = signed ? "" : "none";
-  $("apply").disabled = !signed || busy;
+  $("apply").disabled = busy ? false : !signed;   // while busy the Apply button is the ■ Stop control — keep it live
 }
 // Save-time key probe: a definitively-rejected key (401/403) → false; anything else → true.
 // /api/v1/chat/completions is CORS-enabled (unlike /api/check-balance, which a browser can't

@@ -4662,6 +4662,7 @@ RULES for the diff:
         modelBtn = $("describemodel"), statusEl = $("describestatus"), versEl = $("describeversions");
   if(!bar || !input) return;   // defensive
   let busy = false;
+  let dbAbort = null;          // AbortController for the in-flight run; the ■ Stop button aborts it (mirrors the main Run/Stop)
   const esc = s=> String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
   const clone = o=> JSON.parse(JSON.stringify(o));   // immutable version snapshots (later edits can't mutate history)
 
@@ -4688,7 +4689,7 @@ RULES for the diff:
   };
 
   input.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); submit(); } });
-  goBtn.onclick = submit;
+  goBtn.onclick = ()=> busy ? dbAbort?.abort() : submit();   // ✦ Apply while idle · ■ Stop while a change is planning/applying
 
   // ---- versions: each applied change is a snapshot you can jump back to (like the app builder) ----
   // Entry { graph, goal }. v0 = the workflow BEFORE your first described change; v1.. = after each
@@ -4732,8 +4733,11 @@ RULES for the diff:
   }
 
   function setBusy(on){
-    busy = on; goBtn.disabled = on; input.disabled = on; modelBtn.disabled = on;
-    goBtn.textContent = on ? "working…" : "✦ Apply";
+    // Keep the button LIVE while busy — it becomes the Stop control so a slow/stalled thinking model
+    // never leaves the bar permanently disabled (only the input + model picker lock during a run).
+    busy = on; input.disabled = on; modelBtn.disabled = on; goBtn.disabled = false;
+    goBtn.textContent = on ? "■ Stop" : "✦ Apply";
+    goBtn.title = on ? "Stop this change" : "";
   }
   function setStatus(html, cls){ statusEl.innerHTML = html ? `<span class="${cls||""}">${html}</span>` : ""; }
 
@@ -4759,7 +4763,7 @@ RULES for the diff:
       const paint = ()=> setStatus(`<span class="db-spin"></span>${esc(phaseLabel)}… ${usageMeter({inTok:inEst,outTok,cost:0,live:true})}`);
       paint();
       const body = { model, messages, temperature, stream:true, ...(maxTokens?{max_tokens:maxTokens}:{}) };
-      const r = await fetch(CHAT_ENDPOINT, { method:"POST", headers:authHeaders(), body:JSON.stringify(body) });
+      const r = await fetch(CHAT_ENDPOINT, { method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal: dbAbort?.signal });
       if(!r.ok){ flagAuth(r); throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`); }
       const reader = r.body.getReader(), dec = new TextDecoder();
       let buf="", content="", reasoning="", pricing=null, lastPaint=0;
@@ -4809,18 +4813,23 @@ RULES for the diff:
     if(busy) return;
     const text = input.value.trim();
     if(!text){ input.focus(); return; }
-    if(!getKey()){ setStatus("⚠ Add your nano-gpt key first — “paste key” up top.", "err"); return; }
+    if(!ensureAuth()) return;   // signed out: launch sign-in on https / open the key row on file:// — same as Run
     const prevInternal = serializeGraph();
     const prevSimple = toSimple(prevInternal);
+    dbAbort = new AbortController();
     setBusy(true); resetUsage(); setStatus(`<span class="db-spin"></span>planning your change…`);
     const clients = { gen: meteredCallLlm("planning your change"), apply: meteredCallLlm("applying the change") };
     try{
       const { next } = await runGptdiff(prevSimple, text, descModel, clients);
       const valid = validate(next);
       if(!valid.ok) throw new Error(valid.errs[0]);
-      const dif = diff(prevSimple, next);
+      // Diff against the graph we'll ACTUALLY apply, not the raw model output: fromSimple→sanitizeFields
+      // snaps out-of-range options back to default (e.g. "make it 60s" on a 5/10s model), so a request
+      // that nets to nothing must read as a no-op — not "✓ updated 1 setting" + a duplicate version.
+      const appliedInternal = fromSimple(next, prevInternal);   // pure → safe to compute once and reuse
+      const dif = diff(prevSimple, toSimple(appliedInternal));
       if(dif.count===0){ setStatus(`No change needed — try being more specific. ${usageMeter()}`); return; }
-      applyGraphData(fromSimple(next, prevInternal)); save();
+      applyGraphData(appliedInternal); save();
       // record versions: seed v0 from the pre-change graph on the first change. Append-only —
       // a change applied from an older version lands at the END and becomes current; we never
       // truncate the versions after it (that silently destroyed work you could still want back).
@@ -4832,8 +4841,9 @@ RULES for the diff:
       pulse(dif.added.map(n=>n.id));
       setStatus(`✓ ${esc(summarize(dif))}. ${usageMeter()}`, "ok");
     }catch(e){
-      setStatus(`⚠ ${esc(e.message || String(e))} ${usageMeter()}`, "err");
-    }finally{ setBusy(false); }
+      if(e && e.name==="AbortError") setStatus(`Stopped. ${usageMeter()}`);   // you hit ■ Stop — neutral, not an error
+      else setStatus(`⚠ ${esc(e.message || String(e))} ${usageMeter()}`, "err");
+    }finally{ setBusy(false); dbAbort = null; }
   }
 })();
 </script>
