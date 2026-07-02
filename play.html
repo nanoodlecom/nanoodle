@@ -62,8 +62,10 @@
                color:var(--ink); font-weight:600; opacity:.9; }
   /* the app title doubles as a rename field — click it to edit in place */
   #bar-title{ cursor:text; border-radius:.35rem; padding:.06rem .3rem; margin:0 -.3rem; outline:none; }
+  /* the pencil sits there always (dim) so the name reads as editable at a glance, brightening on hover */
+  #bar-title::after{ content:" ✎"; opacity:.32; font-weight:400; }
   #bar-title:hover{ background:var(--panel2); }
-  #bar-title:hover::after{ content:" ✎"; opacity:.45; font-weight:400; }
+  #bar-title:hover::after{ opacity:.6; }
   #bar-title:focus{ background:var(--panel2); box-shadow:0 0 0 1px var(--accent-line) inset; }
   #bar-title:focus::after{ content:none; }
   #bar .status{ font-size:.76rem; color:var(--dim); }
@@ -3136,11 +3138,17 @@ window.NoodleApp = (function () {
     if(document.getElementById("noodle-authintro-style")) return;
     const s = document.createElement("style"); s.id = "noodle-authintro-style";
     s.textContent =
-      '.auth-intro{margin:.6rem 0 .5rem;padding:.75rem .85rem;border:1px solid var(--line,#2a3150);'
-        + 'border-radius:var(--radius,.7rem);background:var(--panel,#161a27);max-width:52ch;text-align:left;}'
-      + '.auth-intro p{margin:.2rem 0;font-size:.8rem;color:var(--dim,#8b93b4);line-height:1.5;}'
-      + '.auth-intro .auth-why{color:var(--ink,#e6e9f5);font-weight:600;font-size:.85rem;margin-bottom:.35rem;}'
-      + '.auth-intro .auth-new{margin-top:.55rem;padding-top:.5rem;border-top:1px solid var(--line,#252b3d);color:var(--ink,#e6e9f5);}'
+      '.auth-intro{margin:.7rem 0 .55rem;padding:.9rem 1rem;border:1px solid var(--accent-line,#7c8cff55);'
+        + 'border-radius:var(--radius,.7rem);background:linear-gradient(180deg,var(--accent-soft,#7c8cff1f),transparent 62%),var(--panel,#161a27);'
+        + 'max-width:46ch;text-align:left;}'
+      + '.auth-intro .auth-hd{display:flex;align-items:baseline;gap:.5rem;margin-bottom:.6rem;}'
+      + '.auth-intro .auth-ic{font-size:1rem;line-height:1;}'
+      + '.auth-intro .auth-why{color:var(--ink,#e6e9f5);font-weight:600;font-size:.92rem;letter-spacing:.01em;}'
+      + '.auth-intro .auth-pts{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:.34rem;}'
+      + '.auth-intro .auth-pts li{position:relative;padding-left:1.15rem;font-size:.8rem;color:var(--dim,#8b93b4);line-height:1.45;}'
+      + '.auth-intro .auth-pts li::before{content:"✓";position:absolute;left:0;top:0;color:var(--accent,#7c8cff);font-weight:700;}'
+      + '.auth-intro .auth-new{margin:.65rem 0 0;padding-top:.6rem;border-top:1px solid var(--line,#252b3d);'
+        + 'font-size:.8rem;line-height:1.5;color:var(--ink,#e6e9f5);}'
       + '.auth-intro a{color:var(--accent,#7c8cff);text-decoration:none;}'
       + '.auth-intro a:hover{text-decoration:underline;}';
     (document.head || document.documentElement).appendChild(s);
@@ -3155,9 +3163,13 @@ window.NoodleApp = (function () {
       ? '<p class="auth-new"><b>Sign in</b> from the bar at the top to run this app — new to nano-gpt? creating an account is free.</p>'
       : '<p class="auth-new">new to nano-gpt? <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">create an account →</a></p>';
     return '<div class="auth-intro">'
-      + '<p class="auth-why">runs on your own nano-gpt key</p>'
-      + '<p>the AI is called straight from your browser — no server, no analytics, and your key never leaves this device.</p>'
-      + '<p>you pay nano-gpt per run and see the cost each time. setup takes about a minute.</p>'
+      + '<div class="auth-hd"><span class="auth-ic">🔑</span>'
+        + '<span class="auth-why">runs on your own nano-gpt key</span></div>'
+      + '<ul class="auth-pts">'
+        + '<li>called straight from your browser — no server, no analytics</li>'
+        + '<li>your key never leaves this device</li>'
+        + '<li>pay nano-gpt per run, see the cost each time · setup takes ~a minute</li>'
+      + '</ul>'
       + newAcct
       + '</div>';
   }
@@ -4160,20 +4172,35 @@ function withTitle(html, enc){
     ? html.replace(/<title>[\s\S]*?<\/title>/i, "<title>"+enc+"</title>")
     : html.replace(/<head([^>]*)>/i, "<head$1>\n<title>"+enc+"</title>");
 }
-// Rename the open app: the title lives in the <title> tag of the app's index.html,
-// so we rewrite it in the live files AND the current version's snapshot (otherwise
-// flipping versions would lose the new name), re-sync the bar/tab, and persist.
-// Renaming a draft is a real edit (not regenerable from the graph) so it commits.
+// rewrite the VISIBLE heading — the element the runtime mounts as #app-title (usually the
+// default <h1>, but a customized shell may use any tag as long as the id stays). Matches the
+// id-bearing element regardless of tag so a rename reaches what the user actually sees in the
+// frame; if a customize pass dropped the heading, the <title> rewrite alone still stands.
+function withHeading(html, htmlText){
+  return html.replace(
+    /(<([a-zA-Z][\w-]*)[^>]*\bid=["']app-title["'][^>]*>)[\s\S]*?(<\/\2>)/i,
+    "$1"+htmlText+"$3");
+}
+// Apply a new name to both the <title> tag (browser tab / social card) and the visible
+// heading in one pass, so the two never drift.
+function withName(html, name){
+  return withHeading(withTitle(html, escTitleTag(name)), esc(name));
+}
+// Rename the open app: the name lives in the <title> tag AND the visible #app-title heading
+// of the app's index.html, so we rewrite both in the live files AND the current version's
+// snapshot (otherwise flipping versions would lose the new name), re-sync the bar/tab, and
+// persist. Renaming a draft is a real edit (not regenerable from the graph) so it commits.
 function setAppTitle(raw){
   const name = (raw||"").replace(/\s+/g," ").trim();
   const html = APP_STATE.files && APP_STATE.files["index.html"];
   if(!name || !html) return false;
   if(name === titleFromFiles(APP_STATE.files)) return false;   // no-op
-  const enc = escTitleTag(name);
-  APP_STATE.files = { ...APP_STATE.files, "index.html": withTitle(html, enc) };
+  APP_STATE.files = { ...APP_STATE.files, "index.html": withName(html, name) };
   const cv = APP_STATE.versions[APP_STATE.curVer];
-  if(cv && cv.files && cv.files["index.html"]) cv.files["index.html"] = withTitle(cv.files["index.html"], enc);
+  if(cv && cv.files && cv.files["index.html"]) cv.files["index.html"] = withName(cv.files["index.html"], name);
   syncTitleFromFiles();
+  renderApp();   // remount the frame so the new heading shows immediately (the sandboxed
+                 // iframe has no same-origin access, so a live DOM poke isn't possible)
   commit();   // naming an app is intent to keep it → promote a draft into "My apps"
   return true;
 }
