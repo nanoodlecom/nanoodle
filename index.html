@@ -5133,6 +5133,23 @@ window.addEventListener("resize", redraw);
    EXECUTION  (topological evaluation)
    ====================================================================== */
 const stats = { count:0, cost:0, exact:true, balance:null };
+const BAL_CACHE_KEY = "ngpt_balance_usd";
+function cacheBalance(){
+  try{
+    if(stats.balance==null) localStorage.removeItem(BAL_CACHE_KEY);
+    else localStorage.setItem(BAL_CACHE_KEY, JSON.stringify({ usd:stats.balance, t:Date.now() }));
+  }catch(_){}
+}
+function restoreCachedBalance(){
+  if(!getKey()) return;
+  try{
+    const j = JSON.parse(localStorage.getItem(BAL_CACHE_KEY)||"null");
+    if(j && typeof j.usd==="number" && isFinite(j.usd) && Date.now()-(j.t||0) < 7*24*60*60*1000){
+      stats.balance = j.usd;
+      paintCost();
+    }
+  }catch(_){}
+}
 function paintCost(){
   if(stats.balance==null){ $("cost").textContent=""; return; }   // show only the running balance
   $("cost").innerHTML = `bal $<b>${stats.balance.toFixed(2)}</b>`;
@@ -5149,7 +5166,7 @@ async function refreshBalance(){
                                        // so a bad key makes the fetch THROW (→catch) before any 401 is readable.
                                        // Key rejection is detected at paste-time (probeKey) + run-time (flagAuth) instead.
     const usd = parseFloat((await r.json()).usd_balance);
-    if(!isNaN(usd)){ stats.balance = usd; paintCost(); }
+    if(!isNaN(usd)){ stats.balance = usd; cacheBalance(); paintCost(); }
   }catch(_){}                       // best-effort: a run will fill it in anyway
   finally{ _balPending = false; }
 }
@@ -5606,7 +5623,7 @@ const CTX = {
     const blob = await r.blob();
     const hc = parseFloat(r.headers.get("x-cost") || r.headers.get("x-nano-cost") || "");
     stats.count++; if(!isNaN(hc)) stats.cost += hc; else stats.exact = false;   // x-cost 0 = known-free (subscription)
-    const bal = parseFloat(r.headers.get("x-remaining-balance") || ""); if(!isNaN(bal)) stats.balance = bal;
+    const bal = parseFloat(r.headers.get("x-remaining-balance") || ""); if(!isNaN(bal)){ stats.balance = bal; cacheBalance(); }
     paintCost();
     return URL.createObjectURL(blob);
   },
@@ -6242,6 +6259,7 @@ function accrue(j, estUsd){
   else stats.exact=false;                                                                           // no price at all → total is a lower bound
   if(typeof j?.remainingBalance==="number") stats.balance = j.remainingBalance;
   else if(p && typeof p.remainingBalance==="number") stats.balance = p.remainingBalance;
+  if(stats.balance!=null) cacheBalance();
   paintCost();
 }
 function flash(msg){ $("status").textContent = t(msg); setTimeout(renderAuth, 2200); }
@@ -7047,7 +7065,7 @@ refreshUpdatesBadge();
    ====================================================================== */
 const getKey = ()=> localStorage.getItem("ngpt_key");
 const setKey = (k)=>{ k ? localStorage.setItem("ngpt_key",k) : localStorage.removeItem("ngpt_key"); renderAuth();
-  if(k) refreshBalance(); else { stats.balance=null; paintCost(); } };   // seed the bal on sign-in, clear on sign-out
+  if(k){ restoreCachedBalance(); refreshBalance(); } else { stats.balance=null; cacheBalance(); paintCost(); } };   // seed the bal on sign-in, clear on sign-out
 function renderAuth(){
   const ok = !!getKey();
   $("status").textContent = ok ? t("ready ✓") : t("not signed in");
@@ -7192,7 +7210,7 @@ $("signout").onclick = ()=> setKey(null);
   // Brand-new visitors land straight on a simple working flow (the default graph).
   renderAuth();   // paint the signed-out chrome first: a handleRedirect() failure below must not be overwritten by this
   try{ await handleRedirect(); }catch(e){ signInErr(e); }   // success re-renders via setKey; failure now stays visible (status + toast) instead of being wiped to "not signed in"
-  refreshBalance();                 // already-signed-in visitor: show the bal without waiting for a run
+  restoreCachedBalance(); refreshBalance();   // already-signed-in visitor: show cached bal immediately, then refresh if CORS permits
   refreshAllPrices();              // catalogs were loaded before first paint; keep the estimate/auth chrome in sync
 })();
 
