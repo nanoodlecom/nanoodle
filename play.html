@@ -3140,7 +3140,7 @@ window.NoodleApp = (function () {
         + 'border-radius:var(--radius,.7rem);background:var(--panel,#161a27);max-width:52ch;text-align:left;}'
       + '.auth-intro p{margin:.2rem 0;font-size:.8rem;color:var(--dim,#8b93b4);line-height:1.5;}'
       + '.auth-intro .auth-why{color:var(--ink,#e6e9f5);font-weight:600;font-size:.85rem;margin-bottom:.35rem;}'
-      + '.auth-intro .auth-new{margin-top:.4rem;}'
+      + '.auth-intro .auth-new{margin-top:.55rem;padding-top:.5rem;border-top:1px solid var(--line,#252b3d);color:var(--ink,#e6e9f5);}'
       + '.auth-intro a{color:var(--accent,#7c8cff);text-decoration:none;}'
       + '.auth-intro a:hover{text-decoration:underline;}';
     (document.head || document.documentElement).appendChild(s);
@@ -3152,12 +3152,12 @@ window.NoodleApp = (function () {
     // runs in a sandboxed iframe with no allow-popups, where a target=_blank link is dead
     // — there we point at the top bar, which is un-sandboxed and owns sign-in / sign-up.
     const newAcct = embedded
-      ? '<p class="auth-new">new to nano-gpt? use <b>Sign in</b> at the top — creating an account is free.</p>'
+      ? '<p class="auth-new"><b>Sign in</b> from the bar at the top to run this app — new to nano-gpt? creating an account is free.</p>'
       : '<p class="auth-new">new to nano-gpt? <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">create an account →</a></p>';
     return '<div class="auth-intro">'
-      + '<p class="auth-why">this app runs AI on your own nano-gpt key</p>'
-      + '<p>the models are called straight from your browser — nanoodle has no server and no analytics, so nothing runs until you add a key.</p>'
-      + '<p>your key stays on this device. you pay nano-gpt per run, on your own key, and each run shows what it cost — setup takes about a minute.</p>'
+      + '<p class="auth-why">runs on your own nano-gpt key</p>'
+      + '<p>the AI is called straight from your browser — no server, no analytics, and your key never leaves this device.</p>'
+      + '<p>you pay nano-gpt per run and see the cost each time. setup takes about a minute.</p>'
       + newAcct
       + '</div>';
   }
@@ -3170,7 +3170,7 @@ window.NoodleApp = (function () {
       // (no "signed in" indicator) and only nudge when not yet signed in.
       box.innerHTML = parentAuthed
         ? ''
-        : authIntro(true) + '<span class="dim">sign in from the bar at the top to run this app</span>';
+        : authIntro(true);
       return;
     }
     const ok = !!getKey();
