@@ -17,7 +17,7 @@ const MODELS = {
 // the shipped seed graph (lyrics -> style -> song), simplified
 const SEED = {
   nodes: [
-    { id:"n18", type:"text", fields:{ text:"Write an 90s triphop. Repeat the hook." } },
+    { id:"n18", type:"text", fields:{ text:"Write a 90s trip hop song. Repeat the hook." } },
     { id:"n17", type:"llm",  fields:{ model:"xiaomi/mimo-v2.5-pro-ultraspeed", system:"You are an 80s singer-songwriter writing lyrics." } },
     { id:"n24", type:"llm",  fields:{ model:"zai-org/glm-5.2:thinking", system:"You come up with a musical style that fits the given lyrics." } },
     { id:"n19", type:"music",fields:{ model:"mureka-ai/mureka-v9/generate-song", instrumental:false } },

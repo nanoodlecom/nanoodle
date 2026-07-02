@@ -15,7 +15,7 @@ const MODEL = process.argv[2] || "gemini-2.5-flash";
 const SEED_INTERNAL = {
   v:1,
   nodes:[
-    { id:"n18", type:"text", x:200, y:-120, fields:{ text:"Write a 90s triphop. Repeat the hook." } },
+    { id:"n18", type:"text", x:200, y:-120, fields:{ text:"Write a 90s trip hop song. Repeat the hook." } },
     { id:"n17", type:"llm",  x:500, y:-200, w:213, sizes:{system:155}, fields:{ model:"xiaomi/mimo-v2.5-pro-ultraspeed", system:"You are an 80s singer-songwriter writing lyrics." } },
     { id:"n24", type:"llm",  x:780, y:90,  fields:{ model:"zai-org/glm-5.2:thinking", system:"You come up with a musical style." } },
     { id:"n19", type:"music",x:1080,y:-190, fields:{ model:"mureka-ai/mureka-v9/generate-song", instrumental:false } },

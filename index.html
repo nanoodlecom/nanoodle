@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>nanoodle - workflow</title>
+<title>nanoodle — like ComfyUI, but way simpler</title>
 <meta name="description" content="Build AI workflows with nano-gpt. ComfyUI-style, but way simpler. Turn your noodle into an app right in the browser. Share workflows and apps as plain URLs, or export to a single HTML file that's yours to keep. No analytics, just static HTML and nano-gpt, so you can noodle in privacy. UI in English, Español, Français, Deutsch, Português and 日本語." />
 
 <!-- Open Graph -->
@@ -7028,12 +7028,12 @@ function setPendingApp(id, title){
   }catch(_){}
   updateTitle();
 }
-// "nanoodle - workflow" while noodling; "nanoodle - <app> app" once an app's workflow is loaded.
+// "nanoodle — like ComfyUI, but way simpler" while noodling; "nanoodle - <app> app" once an app's workflow is loaded.
 // Also keeps the action button honest: it says "Update app" (and reveals a "New" escape hatch)
 // whenever a binding is live, so "Create app" can never quietly overwrite an app you forgot about.
 function updateTitle(){
   const appTitle = (pendingAppTitle || "").trim();   // NB: not named `t` — that's the global translation fn
-  document.title = pendingAppId ? `nanoodle - ${appTitle || "app"} app` : "nanoodle - workflow";
+  document.title = pendingAppId ? `nanoodle - ${appTitle || "app"} app` : "nanoodle — like ComfyUI, but way simpler";
   const mk = $("makeapp"), nw = $("newapp"), more = $("appmore");
   if(mk){
     // Name the destination so the primary can never quietly overwrite the wrong app.
