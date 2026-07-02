@@ -3000,7 +3000,7 @@ const AUDIO_PARAMS = {
     { id:"duration",        label:"Duration (sec)",  type:"number",   appliesTo:"cat:duration" },
     { id:"number_of_songs", label:"Number of songs", type:"number",   appliesTo:"cat:gencount", default:1 },
     { id:"negative_prompt", label:"Negative prompt", type:"textarea", appliesTo:"all" },
-    { id:"seed",            label:"Seed",            type:"number",   appliesTo:"all" },
+    { id:"seed",            label:"Seed",            type:"number",   appliesTo:"all", advanced:true, hint:"blank = random; set a fixed seed to repeat this song and reuse cached results" },
     { id:"response_format", label:"Format",          type:"select",   appliesTo:"all", options:["mp3","opus","aac","flac","wav","pcm"], default:"mp3" },
   ],
   tts: [
@@ -3060,17 +3060,28 @@ function refreshAudioParams(n){
   if((n.type!=="music" && n.type!=="tts") || !n.el) return;
   const box = n.el.querySelector("[data-params]"); if(!box) return;
   const it = catItem("audio", n.fields.model);
-  if(!it){ box.innerHTML=""; return; }
+  const advBox = n.el.querySelector("[data-advparams]");
+  if(!it){ box.innerHTML=""; if(advBox) advBox.innerHTML=""; return; }
   const fields = audioFields(n.type, it);
   for(const f of fields)   // normalize selects so a switched model lands on a valid value
     if(f.type==="select" && !(f.options||[]).includes(n.fields[f.id])) n.fields[f.id] = f.default ?? (f.options||[])[0];
-  box.innerHTML = fields.map(f=>audioFieldHTML(n,f)).join("");
-  translateTree(box);   // localize audio param labels (Voice, Speed, Format…)
-  box.querySelectorAll("[data-pf]").forEach(inp=>{
-    const id = inp.dataset.pf;
-    const ev = (inp.tagName==="SELECT" || inp.type==="checkbox") ? "change" : "input";
-    inp.addEventListener(ev, ()=>{ n.fields[id] = inp.type==="checkbox" ? inp.checked : inp.value; save(); });
-    inp.addEventListener("pointerdown", e=>e.stopPropagation());
+  const basicFields = fields.filter(f=>!f.advanced);
+  const advancedFields = fields.filter(f=>f.advanced);
+  box.innerHTML = basicFields.map(f=>audioFieldHTML(n,f)).join("");
+  if(advBox){
+    advBox.innerHTML = advancedFields.length
+      ? `<details class="adv"><summary>⚙️ advanced</summary>${advancedFields.map(f=>audioFieldHTML(n,f)).join("")}</details>`
+      : "";
+  }
+  const bindBox = advBox ? [box, advBox] : [box];
+  bindBox.forEach(root=>{
+    translateTree(root);   // localize audio param labels (Voice, Speed, Format…)
+    root.querySelectorAll("[data-pf]").forEach(inp=>{
+      const id = inp.dataset.pf;
+      const ev = (inp.tagName==="SELECT" || inp.type==="checkbox") ? "change" : "input";
+      inp.addEventListener(ev, ()=>{ n.fields[id] = inp.type==="checkbox" ? inp.checked : inp.value; save(); });
+      inp.addEventListener("pointerdown", e=>e.stopPropagation());
+    });
   });
   const ta = n.el.querySelector('[data-f="prompt"]'), mc = it.params?.max_chars;
   if(ta){ mc ? ta.setAttribute("maxlength", mc) : ta.removeAttribute("maxlength"); }
@@ -3131,6 +3142,7 @@ function audioBody(n, promptLabel, ph){
   return `${modelFieldHTML(n)}
     <div data-params></div>
     <div><label>${promptLabel}</label><textarea data-f="prompt" placeholder="${esc(ph)}">${esc(n.fields.prompt||"")}</textarea></div>
+    <div data-advparams></div>
     <details class="adv"><summary>advanced params (JSON)</summary>
       <textarea data-f="extraJson" style="min-height:34px" placeholder='{"any_extra_key": 123}'>${esc(n.fields.extraJson||"")}</textarea></details>`;
 }
