@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>nanoodle — ブラウザで動くノード型AIプレイグラウンド</title>
+<meta name="description" content="nanoodle は、ブラウザだけで完結する ComfyUI ライクなノード型プレイグラウンドです。サーバー不要、登録不要、解析なし。自分の nano-gpt キーを使います。テキスト・画像・動画・音声のモデルをワークフローにつなぎ、共有できるアプリや 1 つの HTML ファイルとして書き出せます。画面もモデルの返答も、あなたの言語で表示されます。" />
+
+<!-- Open Graph -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:locale" content="ja_JP" />
+<meta property="og:title" content="nanoodle — ComfyUI みたいに、でもずっとシンプルに" />
+<meta property="og:description" content="nanoodle は、ブラウザだけで完結する ComfyUI ライクなノード型プレイグラウンドです。サーバー不要、登録不要、解析なし。自分の nano-gpt キーを使います。テキスト・画像・動画・音声のモデルをワークフローにつなぎ、共有できるアプリや 1 つの HTML ファイルとして書き出せます。画面もモデルの返答も、あなたの言語で表示されます。" />
+<meta property="og:url" content="https://nanoodle.com/ja/" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="ラーメンの丼から光るワークフローのケーブルへと立ちのぼるネオンの麺と、nanoodle のロゴ" />
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="nanoodle — ComfyUI みたいに、でもずっとシンプルに" />
+<meta name="twitter:description" content="nanoodle は、ブラウザだけで完結する ComfyUI ライクなノード型プレイグラウンドです。サーバー不要、登録不要、解析なし。自分の nano-gpt キーを使います。テキスト・画像・動画・音声のモデルをワークフローにつなぎ、共有できるアプリや 1 つの HTML ファイルとして書き出せます。画面もモデルの返答も、あなたの言語で表示されます。" />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+<meta name="twitter:image:alt" content="ラーメンの丼から光るワークフローのケーブルへと立ちのぼるネオンの麺と、nanoodle のロゴ" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/ja/" />
+<link rel="alternate" hreflang="en" href="https://nanoodle.com/" />
+<link rel="alternate" hreflang="es" href="https://nanoodle.com/es/" />
+<link rel="alternate" hreflang="fr" href="https://nanoodle.com/fr/" />
+<link rel="alternate" hreflang="de" href="https://nanoodle.com/de/" />
+<link rel="alternate" hreflang="pt" href="https://nanoodle.com/pt/" />
+<link rel="alternate" hreflang="ja" href="https://nanoodle.com/ja/" />
+<link rel="alternate" hreflang="x-default" href="https://nanoodle.com/" />
+<style>
+  :root{
+    color-scheme: dark;
+    --bg:#0b0d12; --panel:#12151d; --panel2:#171b25; --ink:#eef1f7; --dim:#aeb7c8; --muted:#c3c9d6;
+    --line:#262c3a; --accent:#7c8cff; --accent2:#ff79c6;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{ background:var(--bg); color:var(--ink); min-height:100vh; display:flex; flex-direction:column; align-items:center;
+        font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; padding:2rem 1.1rem 3rem; }
+  a{ color:var(--accent); text-decoration:none } a:hover{ text-decoration:underline }
+  :focus-visible{ outline:2px solid var(--accent); outline-offset:2px }
+  main{ width:100%; max-width:660px }
+  .logo{ font-weight:900; font-size:1.5rem; letter-spacing:.01em; margin:0 0 1.6rem }
+  .logo .nano{ background:linear-gradient(90deg,#67e8f9,#7c8cff 70%); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .logo .ui{ color:var(--dim); font-weight:700; font-size:.62rem; letter-spacing:.14em; margin-left:.35rem; vertical-align:.14em; text-transform:uppercase; }
+  h1{ font-size:2rem; line-height:1.2; margin:0 0 .6rem; letter-spacing:-.01em }
+  .tagline{ color:var(--muted); font-size:1.05rem; margin:0 0 1.6rem }
+  .hero{ display:block; width:100%; height:auto; border:1px solid var(--line); border-radius:.9rem; margin:0 0 1.8rem; }
+  p{ color:var(--ink); margin:0 0 1.1rem }
+  .faq{ background:var(--panel); border:1px solid var(--line); border-radius:.7rem; padding:.9rem 1.1rem; margin:.4rem 0 1.8rem }
+  .faq .q{ font-weight:700; margin:0 0 .3rem } .faq .a{ color:var(--muted); margin:0 }
+  .cta{ display:inline-block; background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#0b0d12;
+        font-weight:800; font-size:1.05rem; padding:.8rem 1.5rem; border-radius:.6rem; }
+  .cta:hover{ text-decoration:none; filter:brightness(1.05) }
+  footer{ margin-top:2.4rem; color:var(--dim); font-size:.86rem; line-height:1.9 }
+  footer a{ color:var(--dim) } footer a:hover{ color:var(--ink) }
+  footer .langs strong{ color:var(--ink) }
+  footer .sep{ margin:0 .5rem; opacity:.5 }
+</style>
+</head>
+<body>
+<main>
+  <p class="logo"><span class="nano">nanoodle</span><span class="ui">node ui</span></p>
+  <h1>ブラウザで動くAIワークフローを、日本語で</h1>
+  <p class="tagline">ComfyUI みたいに、でもずっとシンプル。サーバー不要、登録不要、解析なし。</p>
+  <img class="hero" src="/og-card.png" width="1200" height="630" alt="ラーメンの丼から光るワークフローのケーブルへと立ちのぼるネオンの麺と、nanoodle のロゴ" />
+  <p>nanoodle は、AI のための小さなノード型プレイグラウンドです。nano-gpt のテキスト・画像・動画・音声モデルをワークフローにつなぎ、ブラウザでそのまま実行して、結果がノードからノードへ流れていく様子を見られます。インストールもアカウントも不要。URL を開けば、すぐに noodle を始められます。</p>
+  <p>すべては、あなたの nano-gpt キーを使ってあなたの端末で動きます。キーがブラウザの外に出ることはありません。作業内容を保存するサーバーも、あなたを追跡する解析もありません。どんなワークフローも、リンク 1 つで共有できるアプリにしたり、そのまま持ち歩ける 1 つの HTML ファイルに書き出したりできます。画面もモデルの返答も、すべてあなたの言語で表示されます。</p>
+  <div class="faq">
+    <p class="q">無料ですか？</p>
+    <p class="a">アプリ自体は無料でオープンです。料金がかかるのは、あなたが実行したモデル呼び出しの分だけ。自分のキーで、使った分だけ nano-gpt に支払います。サブスクリプションは不要です。</p>
+  </div>
+  <p><a class="cta" href="/?lang=ja">エディターを開く →</a></p>
+  <footer>
+    <div class="langs">他の言語: <a href="/">English</a> · <a href="/es/">Español</a> · <a href="/fr/">Français</a> · <a href="/de/">Deutsch</a> · <a href="/pt/">Português</a> · <strong>日本語</strong></div>
+    <div><a href="/legal">利用規約とプライバシー</a></div>
+  </footer>
+</main>
+</body>
+</html>

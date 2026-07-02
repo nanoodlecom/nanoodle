@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>nanoodle — un playground de IA por nodos en tu navegador</title>
+<meta name="description" content="nanoodle es un playground de nodos estilo ComfyUI que funciona por completo en tu navegador. Sin servidor, sin registro y sin analíticas: usas tu propia clave de nano-gpt. Conecta modelos de texto, imagen, vídeo y audio en un flujo y conviértelo en una app para compartir o en un único archivo HTML exportado. La interfaz y las respuestas de los modelos están en tu idioma." />
+
+<!-- Open Graph -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:locale" content="es_ES" />
+<meta property="og:title" content="nanoodle — como ComfyUI, pero mucho más simple" />
+<meta property="og:description" content="nanoodle es un playground de nodos estilo ComfyUI que funciona por completo en tu navegador. Sin servidor, sin registro y sin analíticas: usas tu propia clave de nano-gpt. Conecta modelos de texto, imagen, vídeo y audio en un flujo y conviértelo en una app para compartir o en un único archivo HTML exportado. La interfaz y las respuestas de los modelos están en tu idioma." />
+<meta property="og:url" content="https://nanoodle.com/es/" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Fideos de neón que se elevan desde un bol de ramen hacia cables de flujo brillantes, con el logotipo de nanoodle" />
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="nanoodle — como ComfyUI, pero mucho más simple" />
+<meta name="twitter:description" content="nanoodle es un playground de nodos estilo ComfyUI que funciona por completo en tu navegador. Sin servidor, sin registro y sin analíticas: usas tu propia clave de nano-gpt. Conecta modelos de texto, imagen, vídeo y audio en un flujo y conviértelo en una app para compartir o en un único archivo HTML exportado. La interfaz y las respuestas de los modelos están en tu idioma." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+<meta name="twitter:image:alt" content="Fideos de neón que se elevan desde un bol de ramen hacia cables de flujo brillantes, con el logotipo de nanoodle" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/es/" />
+<link rel="alternate" hreflang="en" href="https://nanoodle.com/" />
+<link rel="alternate" hreflang="es" href="https://nanoodle.com/es/" />
+<link rel="alternate" hreflang="fr" href="https://nanoodle.com/fr/" />
+<link rel="alternate" hreflang="de" href="https://nanoodle.com/de/" />
+<link rel="alternate" hreflang="pt" href="https://nanoodle.com/pt/" />
+<link rel="alternate" hreflang="ja" href="https://nanoodle.com/ja/" />
+<link rel="alternate" hreflang="x-default" href="https://nanoodle.com/" />
+<style>
+  :root{
+    color-scheme: dark;
+    --bg:#0b0d12; --panel:#12151d; --panel2:#171b25; --ink:#eef1f7; --dim:#aeb7c8; --muted:#c3c9d6;
+    --line:#262c3a; --accent:#7c8cff; --accent2:#ff79c6;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{ background:var(--bg); color:var(--ink); min-height:100vh; display:flex; flex-direction:column; align-items:center;
+        font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; padding:2rem 1.1rem 3rem; }
+  a{ color:var(--accent); text-decoration:none } a:hover{ text-decoration:underline }
+  :focus-visible{ outline:2px solid var(--accent); outline-offset:2px }
+  main{ width:100%; max-width:660px }
+  .logo{ font-weight:900; font-size:1.5rem; letter-spacing:.01em; margin:0 0 1.6rem }
+  .logo .nano{ background:linear-gradient(90deg,#67e8f9,#7c8cff 70%); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .logo .ui{ color:var(--dim); font-weight:700; font-size:.62rem; letter-spacing:.14em; margin-left:.35rem; vertical-align:.14em; text-transform:uppercase; }
+  h1{ font-size:2rem; line-height:1.2; margin:0 0 .6rem; letter-spacing:-.01em }
+  .tagline{ color:var(--muted); font-size:1.05rem; margin:0 0 1.6rem }
+  .hero{ display:block; width:100%; height:auto; border:1px solid var(--line); border-radius:.9rem; margin:0 0 1.8rem; }
+  p{ color:var(--ink); margin:0 0 1.1rem }
+  .faq{ background:var(--panel); border:1px solid var(--line); border-radius:.7rem; padding:.9rem 1.1rem; margin:.4rem 0 1.8rem }
+  .faq .q{ font-weight:700; margin:0 0 .3rem } .faq .a{ color:var(--muted); margin:0 }
+  .cta{ display:inline-block; background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#0b0d12;
+        font-weight:800; font-size:1.05rem; padding:.8rem 1.5rem; border-radius:.6rem; }
+  .cta:hover{ text-decoration:none; filter:brightness(1.05) }
+  footer{ margin-top:2.4rem; color:var(--dim); font-size:.86rem; line-height:1.9 }
+  footer a{ color:var(--dim) } footer a:hover{ color:var(--ink) }
+  footer .langs strong{ color:var(--ink) }
+  footer .sep{ margin:0 .5rem; opacity:.5 }
+</style>
+</head>
+<body>
+<main>
+  <p class="logo"><span class="nano">nanoodle</span><span class="ui">node ui</span></p>
+  <h1>Flujos de IA en tu navegador, en español</h1>
+  <p class="tagline">Como ComfyUI, pero mucho más simple. Sin servidor, sin registro, sin analíticas.</p>
+  <img class="hero" src="/og-card.png" width="1200" height="630" alt="Fideos de neón que se elevan desde un bol de ramen hacia cables de flujo brillantes, con el logotipo de nanoodle" />
+  <p>nanoodle es un pequeño playground de nodos para IA. Conecta modelos de texto, imagen, vídeo y audio de nano-gpt en un flujo, ejecútalo directamente en tu navegador y mira cómo los resultados pasan de un nodo a otro. Sin instalar nada y sin cuenta: abres una URL y te pones a noodlear.</p>
+  <p>Todo se ejecuta en tu propio equipo con tu clave de nano-gpt, que nunca sale de tu navegador. No hay servidores que guarden tu trabajo ni analíticas que te rastreen. Convierte cualquier flujo en una app que compartes con un simple enlace, o expórtalo a un único archivo HTML que es tuyo para siempre. Toda la interfaz —y las respuestas de los modelos— habla tu idioma.</p>
+  <div class="faq">
+    <p class="q">¿Es gratis?</p>
+    <p class="a">La app en sí es gratuita y abierta. Solo pagas a nano-gpt por las llamadas a los modelos que hagas, por uso y con tu propia clave, sin suscripción.</p>
+  </div>
+  <p><a class="cta" href="/?lang=es">Abrir el editor →</a></p>
+  <footer>
+    <div class="langs">Otros idiomas: <a href="/">English</a> · <strong>Español</strong> · <a href="/fr/">Français</a> · <a href="/de/">Deutsch</a> · <a href="/pt/">Português</a> · <a href="/ja/">日本語</a></div>
+    <div><a href="/legal">Aviso legal y privacidad</a></div>
+  </footer>
+</main>
+</body>
+</html>
