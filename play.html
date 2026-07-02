@@ -2240,7 +2240,10 @@ window.NoodleApp = (function () {
 
   // ns ("in"=user input | "set"=optional setting) namespaces the element id and
   // the data-i index so renderInputs can wire each control back to the right list.
-  function fieldHtml(it, i, ns, grouped){
+  // labelHtml (optional) overrides the visible <label> text with pre-built, already-
+  // escaped HTML (used to surface a renamed node's custom name); the placeholder still
+  // uses the plain field label as a content hint.
+  function fieldHtml(it, i, ns, grouped, labelHtml){
     const id = ns+"_"+i, di = 'data-ns="'+ns+'" data-i="'+i+'"';
     let cur = it.node.fields[it.field];
     // Optional fields / settings ship pre-filled with a sensible default so they
@@ -2298,7 +2301,8 @@ window.NoodleApp = (function () {
       ctrl = '<input id="'+id+'" '+di+' value="'+esc(cur||"")+'" placeholder="'+esc(it.label)+'">';
     if(ownLabel) return '<div class="field">'+ctrl+'</div>';
     const tag = (!grouped && it.em) ? esc(it.em)+' ' : "";
-    return '<div class="field"><label for="'+id+'">'+tag+esc(it.label)+'</label>'+ctrl+'</div>';
+    const labText = (labelHtml != null) ? labelHtml : esc(it.label);
+    return '<div class="field"><label for="'+id+'">'+tag+labText+'</label>'+ctrl+'</div>';
   }
   // resolve a control's (ns, index) back to its live item in STATE
   function itemAt(el){ return (el.dataset.ns==="set" ? STATE.settings : STATE.inputs)[+el.dataset.i]; }
@@ -2309,7 +2313,21 @@ window.NoodleApp = (function () {
     inputs.forEach((it,i)=>{ (it.optional ? opt : req).push(i); });
     // Mandatory fields first; optional inputs + every per-step setting (models,
     // sizes, durations…) tucked into a collapsed, pre-filled disclosure below.
-    let html = req.map(i=> fieldHtml(inputs[i], i, "in")).join("");
+    // A renamed node's custom name is that step's label in the built app (mirrors the
+    // editor's per-node rename). Required inputs render flat with NO step header to
+    // carry that name (the optional section groups under a header that already shows
+    // it), so surface it as the field label here. It's USER DATA, never translated:
+    // wrap it in [data-no-i18n] so any i18n tree-walker skips it (see the editor's
+    // I18N_SKIP in index.html). Only substitute when the node contributes a single
+    // required input, so a node with several distinct fields (e.g. inpaint) doesn't
+    // collapse them all to one name; un-renamed nodes keep their generic label as before.
+    const reqByNode = {};
+    req.forEach(i=>{ const k = inputs[i].nodeId; reqByNode[k] = (reqByNode[k]||0)+1; });
+    let html = req.map(i=>{
+      const it = inputs[i], nm = it.node && it.node.name && String(it.node.name).trim();
+      const lab = (nm && reqByNode[it.nodeId]===1) ? '<span data-no-i18n>'+esc(nm)+'</span>' : null;
+      return fieldHtml(it, i, "in", false, lab);
+    }).join("");
     if(!req.length) html += '<p class="muted">This app takes no inputs — just press Run.</p>';
     const optCount = opt.length + settings.length;
     if(optCount){
