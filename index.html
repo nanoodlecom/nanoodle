@@ -2017,7 +2017,7 @@ const NODE_TYPES = {
       // Avatar models cap audio length (LongCat = 30s) and the cap isn't reliably in the catalog,
       // so send the audio as-is first (a remote song rides full-length as a url, no truncation). If
       // the model rejects it for duration, read its real cap from the error, trim to fit (mono WAV,
-      // sized to inline) and retry once. An oversize local clip that can't inline also trims to 30s.
+      // sized to inline) and retry once. An oversize local clip that can't inline also trims to 15s.
       let trimSec = null;
       for(let attempt=0; attempt<2; attempt++){
         let opts;
@@ -2044,7 +2044,7 @@ const NODE_TYPES = {
           if(cap && /INVALID_AUDIO_DURATION|audio.{0,15}duration/i.test(msg))
             trimSec = Math.min(60, Math.max(1, parseFloat(cap[1]) - 0.1));   // model told us its real cap
           else if(/\blarge\b|MEDIA_INLINE|~4 MB|inline/i.test(msg))
-            trimSec = 30;                                                    // oversize local clip → safe default
+            trimSec = 15;                                                    // oversize local clip → safe default
           // a multi-speaker avatar (left_audio/right_audio) reached here via a saved/shared graph — these
           // are filtered out of the model picker, but a #g= link could still name one. Explain the fix.
           else if(/left.{0,6}audio|right.{0,6}audio|left and right/i.test(msg))
