@@ -93,6 +93,7 @@ const ctx = {
   },
   selected: null,
   redraw: () => {}, save: () => {}, pushUndo: () => {},   // undo-snapshot hook — no-op here
+  updateDelBtn: () => {},   // touch delete-affordance sync — no-op here
   refreshImageInputs: () => {}, recompactImageLinks: () => {},  // not exercised in this scenario
   refreshVideoInputs: () => {}, recompactVideoLinks: () => {},  // combine's clip-port helpers — not exercised here
 };

@@ -28,6 +28,8 @@ touches_editorports=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scrip
 touches_settings=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-app-settings\.mjs)$' || true)
 # index.html carries the quick-add type filter (drop a wire into empty space → only fitting nodes).
 touches_quickadd=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-quickadd\.mjs)$' || true)
+# index.html + play.html carry the i18n maps (editor + app-player/exported chrome) — a chrome string missing from every language map is invisible to users of all five.
+touches_i18n=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-i18n-coverage\.mjs)$' || true)
 # updates.json feeds the in-app "📣 Updates" changelog — a bad hand edit must not ship.
 touches_updates=$(printf '%s\n' "$staged" | grep -E '(^|/)(updates\.json|scripts/check-updates\.mjs)$' || true)
 # index.html + play.html carry the "Create app" handoff state machine (which app a click targets).
@@ -45,7 +47,7 @@ touches_pricing=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.htm
 touches_combine=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-combine\.mjs|scripts/fixtures/clip[AB]\.mp4)$' || true)
 
 # Nothing to check unless an .html file or one of the checkers changed.
-[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && exit 0
+[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_i18n" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && exit 0
 
 if ! command -v node >/dev/null 2>&1; then
   echo "pre-commit: node not found, skipping HTML JS checks" >&2
@@ -178,4 +180,12 @@ fi
 #     two tiny committed fixtures. No browser, no ffmpeg, no API spend.
 if [ -n "$touches_combine" ]; then
   node "$root/scripts/check-combine.mjs"
+fi
+
+# 18) I18N: every static chrome string (title/placeholder/aria-label/group headers) in the editor
+#     (index.html) AND the app player / exported chrome (play.html: PLAY_I18N + PLAY_I18N_B) must
+#     exist in ALL five language maps or be explicitly allowlisted — strings missing from EVERY map
+#     evade cross-language comparisons entirely. Also pins the t()/resolver/baked-lang mechanisms.
+if [ -n "$touches_i18n" ]; then
+  node "$root/scripts/check-i18n-coverage.mjs"
 fi
