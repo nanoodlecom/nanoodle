@@ -636,7 +636,7 @@
   <div class="spacer"></div>
   <span id="status">checking…</span>
   <div id="langmenu">
-    <button id="langbtn" title="Language" aria-label="Language" data-no-i18n><span class="gl">🌐</span><span id="langcur"></span> ▾</button>
+    <button id="langbtn" title="Language" aria-label="Language"><span class="gl">🌐</span><span id="langcur" data-no-i18n></span> ▾</button>
     <div id="langpop" role="menu"></div>
   </div>
   <button id="signin" class="link" style="display:none">sign in</button>
@@ -808,8 +808,8 @@ const esc = (s)=> String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":
 
 /* ======================================================================
    i18n — the editor chrome is translatable; the app runner (play.html) and
-   exported apps stay in English chrome but localize MODEL OUTPUT via the
-   prompt (see localeDirective / genChat). English is the identity language.
+   exported apps are English-only for now (chrome AND model output — the
+   localeDirective below is editor-only). English is the identity language.
 
    Catalog shape: I18N[lang][englishSource] = translation. A missing key
    falls back to the English source, so a partial catalog degrades cleanly.
@@ -836,6 +836,36 @@ const I18N_ENAME = { es:"Spanish", fr:"French", de:"German", pt:"Portuguese", ja
 /* === I18N-MAPS-BEGIN (es/fr/de/pt/ja — generated; English is identity) === */
 const I18N = {
   es:{
+    "strength":"intensidad",
+    "remove":"quitar",
+    "to run":"para ejecutar",
+    "Estimated cost to ▶ Run all — {n} paid node":"Coste estimado de ▶ Ejecutar todo — {n} nodo de pago",
+    "Estimated cost to ▶ Run all — {n} paid nodes":"Coste estimado de ▶ Ejecutar todo — {n} nodos de pago",
+    ", plus {n} with no listed price":", más {n} sin precio listado",
+    "Video, text & audio are estimates: the real bill depends on clip length, tokens and characters.":"Vídeo, texto y audio son estimaciones: la factura real depende de la duración del clip, los tokens y los caracteres.",
+    "Drag a":"Arrastra un",
+    "port onto a matching one to connect — or drop a wire on empty canvas to quick-add.":"puerto sobre otro compatible para conectar — o suelta un cable en el lienzo vacío para añadir rápido.",
+    "no nodes match “{q}”":"ningún nodo coincide con “{q}”",
+    "that {field} is ~{mb} MB — over the 4 MB send limit; use a shorter clip or it won’t reach the model":"ese {field} pesa ~{mb} MB — supera el límite de envío de 4 MB; usa un clip más corto o no llegará al modelo",
+    "Start here":"Empieza aquí",
+    "■ Stop":"■ Detener",
+    "Stop the running workflow":"Detener el flujo en ejecución",
+    "Undo (Ctrl + Z)":"Deshacer (Ctrl + Z)",
+    "Language":"Idioma",
+    "Recommended — handles very long links (workflow links can get big)":"Recomendado — admite enlaces muy largos (los enlaces de flujo pueden crecer mucho)",
+    "Shorter domain, but can fail on very long links":"Dominio más corto, pero puede fallar con enlaces muy largos",
+    "this model can’t hear audio — pick an audio-input model":"este modelo no puede oír audio — elige un modelo con entrada de audio",
+    "Close":"Cerrar",
+    "Close model picker":"Cerrar el selector de modelos",
+    "Fit the whole workflow in view":"Ajustar todo el flujo a la vista",
+    "Rename this node":"Renombrar este nodo",
+    "Sort models":"Ordenar modelos",
+    "Submit to the Noodle Cookoff":"Enviar al Noodle Cookoff",
+    "Undo the last edit":"Deshacer la última edición",
+    "What’s new":"Novedades",
+    "What your link opens":"Qué abre tu enlace",
+    "Workflow canvas":"Lienzo del flujo",
+    "Your entry link":"Tu enlace de participación",
     "audio":"audio",
     "avatar":"avatar",
     "Inpaint":"Inpaint",
@@ -887,7 +917,7 @@ const I18N = {
     "Most Innovative":"Más innovador",
     "Most Useful":"Más útil",
     "Noodle Cookoff — win Nano":"Noodle Cookoff — gana Nano",
-    "Opens June 26 · closes July 12 (23:59 UTC) · max 2 entries each · winners get featured.":"Abre June 26 · cierra July 12 (23:59 UTC) · máx. 2 participaciones cada uno · los ganadores serán destacados.",
+    "Opens June 26 · closes July 12 (23:59 UTC) · max 2 entries each · winners get featured.":"Abre el 26 de junio · cierra el 12 de julio (23:59 UTC) · máx. 2 participaciones cada uno · los ganadores serán destacados.",
     "Opens your creation as a ready-to-run app — what people click to try it. Best for entries.":"Abre tu creación como una app lista para ejecutar — lo que la gente pulsa para probarla. Ideal para participaciones.",
     "People's Choice":"Premio del público",
     "Per-model knobs from the catalog (presets, styles, camera moves…). Defaults apply when untouched.":"Controles por modelo del catálogo (preajustes, estilos, movimientos de cámara…). Se aplican los valores por defecto si no se tocan.",
@@ -934,7 +964,7 @@ const I18N = {
     "length (sec)":"longitud (seg)",
     "low":"bajo",
     "mask":"máscara",
-    "max 2 entries · keep it SFW · closes Jul 12, 23:59 UTC":"máx. 2 entradas · mantenlo SFW · cierra Jul 12, 23:59 UTC",
+    "max 2 entries · keep it SFW · closes Jul 12, 23:59 UTC":"máx. 2 entradas · mantenlo SFW · cierra el 12 de julio, 23:59 UTC",
     "max tokens":"máx. tokens",
     "max tokens (≤ 128000)":"máx. tokens (≤ 128000)",
     "max {cap} for this model":"máx. {cap} para este modelo",
@@ -961,7 +991,7 @@ const I18N = {
     "temperature":"temperatura",
     "they":"ellos",
     "this clip has generated audio":"este clip tiene audio generado",
-    "to build your own.":"para crear la tuya.",
+    "to build your own.":"para crear el tuyo.",
     "trim duplicate seam frame":"recortar fotograma de unión duplicado",
     "upload or capture an image, then brush the area to repaint":"sube o captura una imagen, luego pincela la zona a repintar",
     "variation":"variación",
@@ -985,7 +1015,7 @@ const I18N = {
     "✨ model ▾":"✨ modelo ▾",
     "⬆ Upload":"⬆ Subir",
     "⬆ Upload audio":"⬆ Subir audio",
-    "⬆ Upload video":"⬆ Subir video",
+    "⬆ Upload video":"⬆ Subir vídeo",
     "🏆 Win 3 × 133 XNO (Nano)":"🏆 Gana 3 × 133 XNO (Nano)",
     "💬 Describe changes":"💬 Describir cambios",
     "💬 Post in Discord ↗":"💬 Publica en Discord ↗",
@@ -1064,7 +1094,7 @@ const I18N = {
     "edit instruction":"instrucción de edición",
     "question":"pregunta",
     "duration":"duración",
-    "aspect":"relación",
+    "aspect":"proporción",
     "motion prompt (optional)":"prompt de movimiento (opcional)",
     "style / prompt":"estilo / prompt",
     "text to speak":"texto a leer",
@@ -1123,7 +1153,7 @@ const I18N = {
     "can’t delete while running — Stop first":"no se puede eliminar mientras se ejecuta — detén primero",
     "couldn’t read that file":"no se pudo leer ese archivo",
     "stopping…":"deteniendo…",
-    "couldn’t autosave — an uploaded audio/video clip may be too large for local storage":"no se pudo autoguardar — un clip de audio/video subido podría ser demasiado grande para el almacenamiento local",
+    "couldn’t autosave — an uploaded audio/video clip may be too large for local storage":"no se pudo autoguardar — un clip de audio/vídeo subido podría ser demasiado grande para el almacenamiento local",
     "Couldn't copy — select the link and copy it manually":"No se pudo copiar — selecciona el enlace y cópialo manualmente",
     "that key was rejected — paste a valid nano-gpt.com key":"esa clave fue rechazada — pega una clave válida de nano-gpt.com",
     "sign-in error":"error de inicio de sesión",
@@ -1135,12 +1165,12 @@ const I18N = {
     "create an account →":"crea una cuenta →",
     "— pay-per-use, no subscription needed; your key stays in this browser.":"— pago por uso, sin suscripción; tu clave se queda en este navegador.",
     "couldn't read your clipboard — click the key field and press Ctrl+V to paste":"no se pudo leer tu portapapeles — haz clic en el campo de clave y pulsa Ctrl+V para pegar",
-    "that key has a character that can't be sent — re-copy it from nano-gpt.com → Settings → API and paste again":"esa clave tiene un carácter que no se puede enviar — cópiala de nuevo desde nano-gpt.com → Settings → API y pégala otra vez",
+    "that key has a character that can't be sent — re-copy it from nano-gpt.com → Settings → API and paste again":"esa clave tiene un carácter que no se puede enviar — cópiala de nuevo desde nano-gpt.com → Ajustes → API y pégala otra vez",
     "key saved — but nano-gpt.com can't be reached right now (ad-blocker, VPN or network?), so runs may fail":"clave guardada — pero nano-gpt.com no se puede alcanzar ahora mismo (¿bloqueador de anuncios, VPN o red?), así que las ejecuciones pueden fallar",
     "key saved — you're ready to run":"clave guardada — listo para ejecutar",
     "balance {bal} may not cover this ~{usd} run — top up at nano-gpt.com":"el saldo {bal} podría no cubrir esta ejecución de ~{usd} — recarga en nano-gpt.com",
     "out of balance — this run needs more credit. Top up at nano-gpt.com, then run again.":"sin saldo — esta ejecución necesita más crédito. Recarga en nano-gpt.com y vuelve a ejecutar.",
-    "your saved API key contains a character that can't be sent (usually a smart-dash or an invisible character picked up while typing/copying) — re-copy it from nano-gpt.com → Settings → API and paste it again":"tu clave API guardada contiene un carácter que no se puede enviar (normalmente un guion tipográfico o un carácter invisible al escribir/copiar) — cópiala de nuevo desde nano-gpt.com → Settings → API y pégala otra vez",
+    "your saved API key contains a character that can't be sent (usually a smart-dash or an invisible character picked up while typing/copying) — re-copy it from nano-gpt.com → Settings → API and paste it again":"tu clave API guardada contiene un carácter que no se puede enviar (normalmente un guion tipográfico o un carácter invisible al escribir/copiar) — cópiala de nuevo desde nano-gpt.com → Ajustes → API y pégala otra vez",
     "couldn't reach nano-gpt.com — an ad-blocker, VPN or network filter may be blocking it; check the connection and run again":"no se pudo conectar con nano-gpt.com — un bloqueador de anuncios, VPN o filtro de red podría estar bloqueándolo; comprueba la conexión y vuelve a ejecutar",
     "— this model may have changed on nano-gpt; click the node's model name to pick another":"— este modelo pudo haber cambiado en nano-gpt; haz clic en el nombre del modelo del nodo para elegir otro",
     "your key was rejected — sign in or paste a valid nano-gpt.com key":"tu clave fue rechazada — inicia sesión o pega una clave válida de nano-gpt.com",
@@ -1153,12 +1183,12 @@ const I18N = {
     "Couldn’t load that file:":"No se pudo cargar ese archivo:",
     "Audio input":"Entrada de audio",
     "Upload an audio clip":"Sube un clip de audio",
-    "Video input":"Entrada de video",
-    "Upload a video clip":"Sube un clip de video",
-    "Video edit":"Editar video",
-    "Video (+text) → video — edit / extend / upscale":"Video (+texto) → video — editar / extender / escalar",
+    "Video input":"Entrada de vídeo",
+    "Upload a video clip":"Sube un clip de vídeo",
+    "Video edit":"Editar vídeo",
+    "Video (+text) → video — edit / extend / upscale":"Vídeo (+texto) → vídeo — editar / extender / escalar",
     "Avatar / lipsync":"Avatar / sincronización labial",
-    "Image + audio → talking video":"Imagen + audio → video hablado",
+    "Image + audio → talking video":"Imagen + audio → vídeo hablado",
     "Transcribe":"Transcribir",
     "Audio → text (speech-to-text)":"Audio → texto (voz a texto)",
     "Inputs":"Entradas",
@@ -1170,6 +1200,36 @@ const I18N = {
     "subtle head movement, warm lighting…":"movimiento sutil de cabeza, luz cálida…"
   },
   fr:{
+    "strength":"intensité",
+    "remove":"retirer",
+    "to run":"pour exécuter",
+    "Estimated cost to ▶ Run all — {n} paid node":"Coût estimé de ▶ Tout exécuter — {n} nœud payant",
+    "Estimated cost to ▶ Run all — {n} paid nodes":"Coût estimé de ▶ Tout exécuter — {n} nœuds payants",
+    ", plus {n} with no listed price":", plus {n} sans prix affiché",
+    "Video, text & audio are estimates: the real bill depends on clip length, tokens and characters.":"Vidéo, texte et audio sont des estimations : la facture réelle dépend de la durée du clip, des tokens et des caractères.",
+    "Drag a":"Glissez un",
+    "port onto a matching one to connect — or drop a wire on empty canvas to quick-add.":"port sur un port compatible pour connecter — ou déposez un fil sur le canevas vide pour un ajout rapide.",
+    "no nodes match “{q}”":"aucun nœud ne correspond à “{q}”",
+    "that {field} is ~{mb} MB — over the 4 MB send limit; use a shorter clip or it won’t reach the model":"ce {field} fait ~{mb} MB — au-delà de la limite d’envoi de 4 MB ; utilisez un clip plus court ou il n’atteindra pas le modèle",
+    "Start here":"Commencez ici",
+    "■ Stop":"■ Arrêter",
+    "Stop the running workflow":"Arrêter le workflow en cours",
+    "Undo (Ctrl + Z)":"Annuler (Ctrl + Z)",
+    "Language":"Langue",
+    "Recommended — handles very long links (workflow links can get big)":"Recommandé — gère les liens très longs (les liens de workflow peuvent devenir volumineux)",
+    "Shorter domain, but can fail on very long links":"Domaine plus court, mais peut échouer sur les liens très longs",
+    "this model can’t hear audio — pick an audio-input model":"ce modèle ne peut pas entendre l’audio — choisissez un modèle à entrée audio",
+    "Close":"Fermer",
+    "Close model picker":"Fermer le sélecteur de modèles",
+    "Fit the whole workflow in view":"Ajuster tout le workflow à la vue",
+    "Rename this node":"Renommer ce nœud",
+    "Sort models":"Trier les modèles",
+    "Submit to the Noodle Cookoff":"Participer au Noodle Cookoff",
+    "Undo the last edit":"Annuler la dernière modification",
+    "What’s new":"Nouveautés",
+    "What your link opens":"Ce que votre lien ouvre",
+    "Workflow canvas":"Canevas du workflow",
+    "Your entry link":"Votre lien de participation",
     "image":"image",
     "seed":"graine",
     "variation":"variation",
@@ -1228,7 +1288,7 @@ const I18N = {
     "Most Innovative":"Le plus innovant",
     "Most Useful":"Le plus utile",
     "Noodle Cookoff — win Nano":"Noodle Cookoff — gagnez du Nano",
-    "Opens June 26 · closes July 12 (23:59 UTC) · max 2 entries each · winners get featured.":"Ouverture June 26 · clôture July 12 (23:59 UTC) · 2 participations max chacun · les gagnants sont mis en avant.",
+    "Opens June 26 · closes July 12 (23:59 UTC) · max 2 entries each · winners get featured.":"Ouverture le 26 juin · clôture le 12 juillet (23:59 UTC) · 2 participations max chacun · les gagnants sont mis en avant.",
     "Opens your creation as a ready-to-run app — what people click to try it. Best for entries.":"Ouvre votre création en tant qu’app prête à l’emploi — ce sur quoi les gens cliquent pour l’essayer. Idéal pour les participations.",
     "People's Choice":"Prix du public",
     "Per-model knobs from the catalog (presets, styles, camera moves…). Defaults apply when untouched.":"Réglages spécifiques au modèle issus du catalogue (préréglages, styles, mouvements de caméra…). Les valeurs par défaut s’appliquent si vous n’y touchez pas.",
@@ -1274,7 +1334,7 @@ const I18N = {
     "length (sec)":"durée (s)",
     "low":"faible",
     "mask":"masque",
-    "max 2 entries · keep it SFW · closes Jul 12, 23:59 UTC":"max 2 participations · restez SFW · clôture Jul 12, 23:59 UTC",
+    "max 2 entries · keep it SFW · closes Jul 12, 23:59 UTC":"max 2 participations · restez SFW · clôture le 12 juillet, 23:59 UTC",
     "max tokens":"tokens max",
     "max tokens (≤ 128000)":"tokens max (≤ 128000)",
     "max {cap} for this model":"{cap} max pour ce modèle",
@@ -1469,12 +1529,12 @@ const I18N = {
     "create an account →":"créer un compte →",
     "— pay-per-use, no subscription needed; your key stays in this browser.":"— paiement à l'usage, sans abonnement ; votre clé reste dans ce navigateur.",
     "couldn't read your clipboard — click the key field and press Ctrl+V to paste":"impossible de lire votre presse-papiers — cliquez dans le champ de la clé et appuyez sur Ctrl+V pour coller",
-    "that key has a character that can't be sent — re-copy it from nano-gpt.com → Settings → API and paste again":"cette clé contient un caractère qui ne peut pas être envoyé — recopiez-la depuis nano-gpt.com → Settings → API et collez-la à nouveau",
+    "that key has a character that can't be sent — re-copy it from nano-gpt.com → Settings → API and paste again":"cette clé contient un caractère qui ne peut pas être envoyé — recopiez-la depuis nano-gpt.com → Paramètres → API et collez-la à nouveau",
     "key saved — but nano-gpt.com can't be reached right now (ad-blocker, VPN or network?), so runs may fail":"clé enregistrée — mais nano-gpt.com est actuellement injoignable (bloqueur de pub, VPN ou réseau ?), les exécutions peuvent donc échouer",
     "key saved — you're ready to run":"clé enregistrée — prêt à exécuter",
     "balance {bal} may not cover this ~{usd} run — top up at nano-gpt.com":"le solde {bal} pourrait ne pas couvrir cette exécution de ~{usd} — rechargez sur nano-gpt.com",
     "out of balance — this run needs more credit. Top up at nano-gpt.com, then run again.":"solde insuffisant — cette exécution nécessite plus de crédit. Rechargez sur nano-gpt.com, puis relancez.",
-    "your saved API key contains a character that can't be sent (usually a smart-dash or an invisible character picked up while typing/copying) — re-copy it from nano-gpt.com → Settings → API and paste it again":"votre clé API enregistrée contient un caractère qui ne peut pas être envoyé (souvent un tiret typographique ou un caractère invisible collé en tapant/copiant) — recopiez-la depuis nano-gpt.com → Settings → API et collez-la à nouveau",
+    "your saved API key contains a character that can't be sent (usually a smart-dash or an invisible character picked up while typing/copying) — re-copy it from nano-gpt.com → Settings → API and paste it again":"votre clé API enregistrée contient un caractère qui ne peut pas être envoyé (souvent un tiret typographique ou un caractère invisible collé en tapant/copiant) — recopiez-la depuis nano-gpt.com → Paramètres → API et collez-la à nouveau",
     "couldn't reach nano-gpt.com — an ad-blocker, VPN or network filter may be blocking it; check the connection and run again":"impossible de joindre nano-gpt.com — un bloqueur de pub, un VPN ou un filtre réseau le bloque peut-être ; vérifiez la connexion et relancez",
     "— this model may have changed on nano-gpt; click the node's model name to pick another":"— ce modèle a peut-être changé sur nano-gpt ; cliquez sur le nom du modèle dans le nœud pour en choisir un autre",
     "your key was rejected — sign in or paste a valid nano-gpt.com key":"votre clé a été rejetée — connectez-vous ou collez une clé nano-gpt.com valide",
@@ -1504,6 +1564,36 @@ const I18N = {
     "subtle head movement, warm lighting…":"léger mouvement de tête, lumière chaude…"
   },
   de:{
+    "strength":"Stärke",
+    "remove":"entfernen",
+    "to run":"zum Ausführen",
+    "Estimated cost to ▶ Run all — {n} paid node":"Geschätzte Kosten für ▶ Alles ausführen — {n} kostenpflichtiger Node",
+    "Estimated cost to ▶ Run all — {n} paid nodes":"Geschätzte Kosten für ▶ Alles ausführen — {n} kostenpflichtige Nodes",
+    ", plus {n} with no listed price":", plus {n} ohne gelisteten Preis",
+    "Video, text & audio are estimates: the real bill depends on clip length, tokens and characters.":"Video, Text & Audio sind Schätzungen: die tatsächliche Rechnung hängt von Cliplänge, Tokens und Zeichen ab.",
+    "Drag a":"Ziehe einen",
+    "port onto a matching one to connect — or drop a wire on empty canvas to quick-add.":"Port auf einen passenden, um zu verbinden — oder lass eine Verbindung auf dem leeren Canvas los zum Schnell-Hinzufügen.",
+    "no nodes match “{q}”":"kein Node passt zu “{q}”",
+    "that {field} is ~{mb} MB — over the 4 MB send limit; use a shorter clip or it won’t reach the model":"diese {field}-Datei ist ~{mb} MB groß — über dem 4-MB-Sendelimit; nutze einen kürzeren Clip, sonst erreicht sie das Modell nicht",
+    "Start here":"Starte hier",
+    "■ Stop":"■ Stopp",
+    "Stop the running workflow":"Den laufenden Workflow stoppen",
+    "Undo (Ctrl + Z)":"Rückgängig (Strg + Z)",
+    "Language":"Sprache",
+    "Recommended — handles very long links (workflow links can get big)":"Empfohlen — verarbeitet sehr lange Links (Workflow-Links können groß werden)",
+    "Shorter domain, but can fail on very long links":"Kürzere Domain, kann aber bei sehr langen Links fehlschlagen",
+    "this model can’t hear audio — pick an audio-input model":"dieses Modell kann kein Audio hören — wähle ein Modell mit Audio-Eingang",
+    "Close":"Schließen",
+    "Close model picker":"Modellauswahl schließen",
+    "Fit the whole workflow in view":"Den ganzen Workflow ins Bild einpassen",
+    "Rename this node":"Diesen Node umbenennen",
+    "Sort models":"Modelle sortieren",
+    "Submit to the Noodle Cookoff":"Beim Noodle Cookoff einreichen",
+    "Undo the last edit":"Letzte Änderung rückgängig machen",
+    "What’s new":"Neuigkeiten",
+    "What your link opens":"Was dein Link öffnet",
+    "Workflow canvas":"Workflow-Canvas",
+    "Your entry link":"Dein Teilnahme-Link",
     "Updates":"Neuigkeiten",
     "📷 Webcam":"📷 Webcam",
     "🛠 Workflow":"🛠 Workflow",
@@ -1556,7 +1646,7 @@ const I18N = {
     "Most Innovative":"Innovativster",
     "Most Useful":"Nützlichster",
     "Noodle Cookoff — win Nano":"Noodle Cookoff — Nano gewinnen",
-    "Opens June 26 · closes July 12 (23:59 UTC) · max 2 entries each · winners get featured.":"Beginnt am June 26 · endet am July 12 (23:59 UTC) · max. 2 Beiträge pro Person · Gewinner werden vorgestellt.",
+    "Opens June 26 · closes July 12 (23:59 UTC) · max 2 entries each · winners get featured.":"Beginnt am 26. Juni · endet am 12. Juli (23:59 UTC) · max. 2 Beiträge pro Person · Gewinner werden vorgestellt.",
     "Opens your creation as a ready-to-run app — what people click to try it. Best for entries.":"Öffnet deine Kreation als sofort lauffähige App — das, was Leute anklicken, um sie auszuprobieren. Ideal für Beiträge.",
     "People's Choice":"Publikumsliebling",
     "Per-model knobs from the catalog (presets, styles, camera moves…). Defaults apply when untouched.":"Modellspezifische Regler aus dem Katalog (Presets, Stile, Kamerafahrten…). Standardwerte gelten, solange unverändert.",
@@ -1604,7 +1694,7 @@ const I18N = {
     "length (sec)":"Länge (Sek.)",
     "low":"niedrig",
     "mask":"Maske",
-    "max 2 entries · keep it SFW · closes Jul 12, 23:59 UTC":"max. 2 Beiträge · SFW halten · endet Jul 12, 23:59 UTC",
+    "max 2 entries · keep it SFW · closes Jul 12, 23:59 UTC":"max. 2 Beiträge · SFW halten · endet am 12. Juli, 23:59 UTC",
     "max tokens":"max. Tokens",
     "max tokens (≤ 128000)":"max. Tokens (≤ 128000)",
     "max {cap} for this model":"max. {cap} für dieses Modell",
@@ -1803,12 +1893,12 @@ const I18N = {
     "create an account →":"Konto erstellen →",
     "— pay-per-use, no subscription needed; your key stays in this browser.":"— nutzungsbasiert, kein Abo nötig; dein Schlüssel bleibt in diesem Browser.",
     "couldn't read your clipboard — click the key field and press Ctrl+V to paste":"dein Zwischenspeicher konnte nicht gelesen werden — klicke ins Schlüsselfeld und drücke Strg+V zum Einfügen",
-    "that key has a character that can't be sent — re-copy it from nano-gpt.com → Settings → API and paste again":"dieser Schlüssel enthält ein Zeichen, das nicht gesendet werden kann — kopiere ihn erneut von nano-gpt.com → Settings → API und füge ihn erneut ein",
+    "that key has a character that can't be sent — re-copy it from nano-gpt.com → Settings → API and paste again":"dieser Schlüssel enthält ein Zeichen, das nicht gesendet werden kann — kopiere ihn erneut von nano-gpt.com → Einstellungen → API und füge ihn erneut ein",
     "key saved — but nano-gpt.com can't be reached right now (ad-blocker, VPN or network?), so runs may fail":"Schlüssel gespeichert — aber nano-gpt.com ist gerade nicht erreichbar (Werbeblocker, VPN oder Netzwerk?), Ausführungen könnten fehlschlagen",
     "key saved — you're ready to run":"Schlüssel gespeichert — bereit zum Ausführen",
     "balance {bal} may not cover this ~{usd} run — top up at nano-gpt.com":"Guthaben {bal} deckt diese ~{usd}-Ausführung möglicherweise nicht — bei nano-gpt.com aufladen",
     "out of balance — this run needs more credit. Top up at nano-gpt.com, then run again.":"Guthaben aufgebraucht — diese Ausführung braucht mehr Guthaben. Bei nano-gpt.com aufladen und erneut ausführen.",
-    "your saved API key contains a character that can't be sent (usually a smart-dash or an invisible character picked up while typing/copying) — re-copy it from nano-gpt.com → Settings → API and paste it again":"dein gespeicherter API-Schlüssel enthält ein Zeichen, das nicht gesendet werden kann (meist ein Sonderstrich oder ein unsichtbares Zeichen beim Tippen/Kopieren) — kopiere ihn erneut von nano-gpt.com → Settings → API und füge ihn erneut ein",
+    "your saved API key contains a character that can't be sent (usually a smart-dash or an invisible character picked up while typing/copying) — re-copy it from nano-gpt.com → Settings → API and paste it again":"dein gespeicherter API-Schlüssel enthält ein Zeichen, das nicht gesendet werden kann (meist ein Sonderstrich oder ein unsichtbares Zeichen beim Tippen/Kopieren) — kopiere ihn erneut von nano-gpt.com → Einstellungen → API und füge ihn erneut ein",
     "couldn't reach nano-gpt.com — an ad-blocker, VPN or network filter may be blocking it; check the connection and run again":"nano-gpt.com konnte nicht erreicht werden — ein Werbeblocker, VPN oder Netzwerkfilter blockiert es möglicherweise; Verbindung prüfen und erneut ausführen",
     "— this model may have changed on nano-gpt; click the node's model name to pick another":"— dieses Modell hat sich auf nano-gpt möglicherweise geändert; klicke auf den Modellnamen im Node, um ein anderes zu wählen",
     "your key was rejected — sign in or paste a valid nano-gpt.com key":"dein Schlüssel wurde abgelehnt — melde dich an oder füge einen gültigen nano-gpt.com-Schlüssel ein",
@@ -1838,6 +1928,36 @@ const I18N = {
     "subtle head movement, warm lighting…":"leichte Kopfbewegung, warmes Licht…"
   },
   pt:{
+    "strength":"intensidade",
+    "remove":"remover",
+    "to run":"para executar",
+    "Estimated cost to ▶ Run all — {n} paid node":"Custo estimado de ▶ Executar tudo — {n} nó pago",
+    "Estimated cost to ▶ Run all — {n} paid nodes":"Custo estimado de ▶ Executar tudo — {n} nós pagos",
+    ", plus {n} with no listed price":", mais {n} sem preço listado",
+    "Video, text & audio are estimates: the real bill depends on clip length, tokens and characters.":"Vídeo, texto e áudio são estimativas: a cobrança real depende da duração do clipe, dos tokens e dos caracteres.",
+    "Drag a":"Arraste uma",
+    "port onto a matching one to connect — or drop a wire on empty canvas to quick-add.":"porta sobre outra compatível para conectar — ou solte um fio na tela vazia para adicionar rápido.",
+    "no nodes match “{q}”":"nenhum nó corresponde a “{q}”",
+    "that {field} is ~{mb} MB — over the 4 MB send limit; use a shorter clip or it won’t reach the model":"esse {field} tem ~{mb} MB — acima do limite de envio de 4 MB; use um clipe mais curto ou ele não chegará ao modelo",
+    "Start here":"Comece aqui",
+    "■ Stop":"■ Parar",
+    "Stop the running workflow":"Parar o fluxo em execução",
+    "Undo (Ctrl + Z)":"Desfazer (Ctrl + Z)",
+    "Language":"Idioma",
+    "Recommended — handles very long links (workflow links can get big)":"Recomendado — aceita links muito longos (links de fluxo podem ficar grandes)",
+    "Shorter domain, but can fail on very long links":"Domínio mais curto, mas pode falhar com links muito longos",
+    "this model can’t hear audio — pick an audio-input model":"este modelo não consegue ouvir áudio — escolha um modelo com entrada de áudio",
+    "Close":"Fechar",
+    "Close model picker":"Fechar o seletor de modelos",
+    "Fit the whole workflow in view":"Ajustar todo o fluxo à tela",
+    "Rename this node":"Renomear este nó",
+    "Sort models":"Ordenar modelos",
+    "Submit to the Noodle Cookoff":"Enviar para o Noodle Cookoff",
+    "Undo the last edit":"Desfazer a última edição",
+    "What’s new":"Novidades",
+    "What your link opens":"O que seu link abre",
+    "Workflow canvas":"Tela do fluxo",
+    "Your entry link":"Seu link de participação",
     "seed":"semente",
     "📷 Webcam":"📷 Webcam",
     "avatar":"avatar",
@@ -1890,7 +2010,7 @@ const I18N = {
     "Most Innovative":"Mais Inovador",
     "Most Useful":"Mais Útil",
     "Noodle Cookoff — win Nano":"Noodle Cookoff — ganhe Nano",
-    "Opens June 26 · closes July 12 (23:59 UTC) · max 2 entries each · winners get featured.":"Abre em June 26 · encerra em July 12 (23:59 UTC) · máx. 2 inscrições cada · vencedores em destaque.",
+    "Opens June 26 · closes July 12 (23:59 UTC) · max 2 entries each · winners get featured.":"Abre em 26 de junho · encerra em 12 de julho (23:59 UTC) · máx. 2 inscrições cada · vencedores em destaque.",
     "Opens your creation as a ready-to-run app — what people click to try it. Best for entries.":"Abre sua criação como um app pronto para executar — o que as pessoas clicam para experimentar. Ideal para inscrições.",
     "People's Choice":"Escolha do Público",
     "Per-model knobs from the catalog (presets, styles, camera moves…). Defaults apply when untouched.":"Controles por modelo do catálogo (predefinições, estilos, movimentos de câmera…). Os padrões se aplicam quando não alterados.",
@@ -1938,7 +2058,7 @@ const I18N = {
     "length (sec)":"duração (seg)",
     "low":"baixo",
     "mask":"máscara",
-    "max 2 entries · keep it SFW · closes Jul 12, 23:59 UTC":"máx. 2 inscrições · mantenha SFW · encerra Jul 12, 23:59 UTC",
+    "max 2 entries · keep it SFW · closes Jul 12, 23:59 UTC":"máx. 2 inscrições · mantenha SFW · encerra em 12 de julho, 23:59 UTC",
     "max tokens":"máx. tokens",
     "max tokens (≤ 128000)":"máx. tokens (≤ 128000)",
     "max {cap} for this model":"máx. {cap} para este modelo",
@@ -2020,7 +2140,7 @@ const I18N = {
     "not signed in":"sessão não iniciada",
     "paste NanoGPT API key (sk-nano-… or a UUID)":"cole a chave de API NanoGPT (sk-nano-… ou um UUID)",
     "save":"salvar",
-    "nano-gpt.com → Settings → API":"nano-gpt.com → Definições → API",
+    "nano-gpt.com → Settings → API":"nano-gpt.com → Configurações → API",
     "model":"modelo",
     "Model":"Modelo",
     "Chat":"Chat",
@@ -2137,12 +2257,12 @@ const I18N = {
     "create an account →":"criar uma conta →",
     "— pay-per-use, no subscription needed; your key stays in this browser.":"— pague pelo uso, sem assinatura; sua chave fica neste navegador.",
     "couldn't read your clipboard — click the key field and press Ctrl+V to paste":"não foi possível ler sua área de transferência — clique no campo da chave e pressione Ctrl+V para colar",
-    "that key has a character that can't be sent — re-copy it from nano-gpt.com → Settings → API and paste again":"essa chave tem um caractere que não pode ser enviado — copie-a novamente em nano-gpt.com → Settings → API e cole de novo",
+    "that key has a character that can't be sent — re-copy it from nano-gpt.com → Settings → API and paste again":"essa chave tem um caractere que não pode ser enviado — copie-a novamente em nano-gpt.com → Configurações → API e cole de novo",
     "key saved — but nano-gpt.com can't be reached right now (ad-blocker, VPN or network?), so runs may fail":"chave salva — mas o nano-gpt.com não pôde ser alcançado agora (bloqueador de anúncios, VPN ou rede?), então as execuções podem falhar",
     "key saved — you're ready to run":"chave salva — pronto para executar",
     "balance {bal} may not cover this ~{usd} run — top up at nano-gpt.com":"o saldo {bal} pode não cobrir esta execução de ~{usd} — recarregue em nano-gpt.com",
     "out of balance — this run needs more credit. Top up at nano-gpt.com, then run again.":"sem saldo — esta execução precisa de mais crédito. Recarregue em nano-gpt.com e execute novamente.",
-    "your saved API key contains a character that can't be sent (usually a smart-dash or an invisible character picked up while typing/copying) — re-copy it from nano-gpt.com → Settings → API and paste it again":"sua chave de API salva contém um caractere que não pode ser enviado (geralmente um traço tipográfico ou um caractere invisível pego ao digitar/copiar) — copie-a novamente em nano-gpt.com → Settings → API e cole de novo",
+    "your saved API key contains a character that can't be sent (usually a smart-dash or an invisible character picked up while typing/copying) — re-copy it from nano-gpt.com → Settings → API and paste it again":"sua chave de API salva contém um caractere que não pode ser enviado (geralmente um traço tipográfico ou um caractere invisível pego ao digitar/copiar) — copie-a novamente em nano-gpt.com → Configurações → API e cole de novo",
     "couldn't reach nano-gpt.com — an ad-blocker, VPN or network filter may be blocking it; check the connection and run again":"não foi possível alcançar o nano-gpt.com — um bloqueador de anúncios, VPN ou filtro de rede pode estar bloqueando; verifique a conexão e execute novamente",
     "— this model may have changed on nano-gpt; click the node's model name to pick another":"— este modelo pode ter mudado no nano-gpt; clique no nome do modelo no nó para escolher outro",
     "your key was rejected — sign in or paste a valid nano-gpt.com key":"sua chave foi rejeitada — entre ou cole uma chave válida do nano-gpt.com",
@@ -2172,6 +2292,36 @@ const I18N = {
     "subtle head movement, warm lighting…":"leve movimento da cabeça, iluminação quente…"
   },
   ja:{
+    "strength":"強度",
+    "remove":"削除",
+    "to run":"で実行",
+    "Estimated cost to ▶ Run all — {n} paid node":"▶ すべて実行の推定コスト — 有料ノード {n} 個",
+    "Estimated cost to ▶ Run all — {n} paid nodes":"▶ すべて実行の推定コスト — 有料ノード {n} 個",
+    ", plus {n} with no listed price":"、ほかに価格未掲載 {n} 個",
+    "Video, text & audio are estimates: the real bill depends on clip length, tokens and characters.":"動画・テキスト・音声は概算です。実際の請求はクリップの長さ、トークン数、文字数で変わります。",
+    "Drag a":"接続するには",
+    "port onto a matching one to connect — or drop a wire on empty canvas to quick-add.":"ポートを対応するポートへドラッグしてください — 空のキャンバスに線をドロップするとクイック追加できます。",
+    "no nodes match “{q}”":"“{q}” に一致するノードはありません",
+    "that {field} is ~{mb} MB — over the 4 MB send limit; use a shorter clip or it won’t reach the model":"この{field}は約 {mb} MB あり、送信上限の 4 MB を超えています。短いクリップを使わないとモデルに届きません",
+    "Start here":"まずはここから",
+    "■ Stop":"■ 停止",
+    "Stop the running workflow":"実行中のワークフローを停止",
+    "Undo (Ctrl + Z)":"元に戻す (Ctrl + Z)",
+    "Language":"言語",
+    "Recommended — handles very long links (workflow links can get big)":"推奨 — とても長いリンクにも対応（ワークフローのリンクは大きくなりがちです）",
+    "Shorter domain, but can fail on very long links":"ドメインは短いですが、とても長いリンクでは失敗することがあります",
+    "this model can’t hear audio — pick an audio-input model":"このモデルは音声を聞けません — 音声入力対応のモデルを選んでください",
+    "Close":"閉じる",
+    "Close model picker":"モデル選択を閉じる",
+    "Fit the whole workflow in view":"ワークフロー全体を表示に収める",
+    "Rename this node":"このノードの名前を変更",
+    "Sort models":"モデルを並べ替え",
+    "Submit to the Noodle Cookoff":"Noodle Cookoff に応募",
+    "Undo the last edit":"直前の編集を元に戻す",
+    "What’s new":"新着情報",
+    "What your link opens":"リンクが開く内容",
+    "Workflow canvas":"ワークフローキャンバス",
+    "Your entry link":"あなたの応募リンク",
     "Update {app}":"{app} を更新",
     "Update “{app}” with this workflow":"このワークフローで「{app}」を更新",
     "your app":"あなたのアプリ",
@@ -2220,7 +2370,7 @@ const I18N = {
     "Most Innovative":"最も革新的",
     "Most Useful":"最も便利",
     "Noodle Cookoff — win Nano":"Noodle Cookoff — Nano を獲得",
-    "Opens June 26 · closes July 12 (23:59 UTC) · max 2 entries each · winners get featured.":"June 26 開始 · July 12 締切 (23:59 UTC) · 各自最大2作品 · 受賞者は掲載されます。",
+    "Opens June 26 · closes July 12 (23:59 UTC) · max 2 entries each · winners get featured.":"6月26日開始 · 7月12日締切 (23:59 UTC) · 各自最大2作品 · 受賞者は掲載されます。",
     "Opens your creation as a ready-to-run app — what people click to try it. Best for entries.":"作品をすぐ実行できるアプリとして開きます — 人々がクリックして試すものです。応募に最適。",
     "People's Choice":"人気賞",
     "Per-model knobs from the catalog (presets, styles, camera moves…). Defaults apply when untouched.":"カタログのモデル別の調整項目 (プリセット、スタイル、カメラの動き…)。変更しない場合はデフォルトが適用されます。",
@@ -2269,7 +2419,7 @@ const I18N = {
     "length (sec)":"長さ (秒)",
     "low":"低",
     "mask":"マスク",
-    "max 2 entries · keep it SFW · closes Jul 12, 23:59 UTC":"最大2エントリー · SFW厳守 · Jul 12, 23:59 UTC 締切",
+    "max 2 entries · keep it SFW · closes Jul 12, 23:59 UTC":"最大2エントリー · SFW厳守 · 7月12日 23:59 UTC 締切",
     "max tokens":"最大トークン数",
     "max tokens (≤ 128000)":"最大トークン数 (≤ 128000)",
     "max {cap} for this model":"このモデルの最大 {cap}",
@@ -2471,12 +2621,12 @@ const I18N = {
     "create an account →":"アカウントを作成 →",
     "— pay-per-use, no subscription needed; your key stays in this browser.":"— 従量課金制、サブスクリプション不要。キーはこのブラウザに保存されます。",
     "couldn't read your clipboard — click the key field and press Ctrl+V to paste":"クリップボードを読み取れませんでした — キー欄をクリックしてCtrl+Vで貼り付けてください",
-    "that key has a character that can't be sent — re-copy it from nano-gpt.com → Settings → API and paste again":"そのキーには送信できない文字が含まれています — nano-gpt.com → Settings → API から再度コピーして貼り付け直してください",
+    "that key has a character that can't be sent — re-copy it from nano-gpt.com → Settings → API and paste again":"そのキーには送信できない文字が含まれています — nano-gpt.com → 設定 → API から再度コピーして貼り付け直してください",
     "key saved — but nano-gpt.com can't be reached right now (ad-blocker, VPN or network?), so runs may fail":"キーを保存しました — ただし現在nano-gpt.comに接続できません（広告ブロッカー、VPN、ネットワークの可能性）。実行が失敗するかもしれません",
     "key saved — you're ready to run":"キーを保存しました — 実行の準備ができました",
     "balance {bal} may not cover this ~{usd} run — top up at nano-gpt.com":"残高{bal}ではこの~{usd}の実行を賄えない可能性があります — nano-gpt.comでチャージしてください",
     "out of balance — this run needs more credit. Top up at nano-gpt.com, then run again.":"残高不足 — この実行にはさらにクレジットが必要です。nano-gpt.comでチャージしてから再実行してください。",
-    "your saved API key contains a character that can't be sent (usually a smart-dash or an invisible character picked up while typing/copying) — re-copy it from nano-gpt.com → Settings → API and paste it again":"保存されたAPIキーに送信できない文字が含まれています（多くは特殊なダッシュや、入力・コピー時に紛れ込んだ不可視文字です） — nano-gpt.com → Settings → API から再度コピーして貼り付け直してください",
+    "your saved API key contains a character that can't be sent (usually a smart-dash or an invisible character picked up while typing/copying) — re-copy it from nano-gpt.com → Settings → API and paste it again":"保存されたAPIキーに送信できない文字が含まれています（多くは特殊なダッシュや、入力・コピー時に紛れ込んだ不可視文字です） — nano-gpt.com → 設定 → API から再度コピーして貼り付け直してください",
     "couldn't reach nano-gpt.com — an ad-blocker, VPN or network filter may be blocking it; check the connection and run again":"nano-gpt.comに接続できませんでした — 広告ブロッカー、VPN、ネットワークフィルターが原因の可能性があります。接続を確認して再実行してください",
     "— this model may have changed on nano-gpt; click the node's model name to pick another":"— このモデルはnano-gpt側で変更された可能性があります。ノードのモデル名をクリックして別のモデルを選んでください",
     "your key was rejected — sign in or paste a valid nano-gpt.com key":"キーが拒否されました — サインインするか、有効なnano-gpt.comのキーを貼り付けてください",
@@ -2519,15 +2669,15 @@ function i18nDetect(){
 let LANG = i18nDetect();
 function i18nLookup(s){ if(LANG==="en") return null; const m=I18N[LANG]; const hit=m&&m[String(s).trim()]; return hit!=null?hit:null; }
 // translate a whole JS string (toasts/status/errors/labels); returns input if untranslated.
-function t(s){ if(s==null) return s; const hit=i18nLookup(s); return hit!=null ? String(s).replace(String(s).trim(),hit) : s; }
+function t(s){ if(s==null) return s; const hit=i18nLookup(s); return hit!=null ? String(s).replace(String(s).trim(),()=>hit) : s; }
 // translate the static text/placeholder/title inside a freshly-built chrome subtree.
 // Skips user content, model ids, and generated output.
 const I18N_SKIP = ".modelpick, .result, .mname, .price, [data-no-i18n]";
 function translateTree(root){
   if(LANG==="en" || !root) return;
-  root.querySelectorAll("[placeholder],[title]").forEach(el=>{
+  root.querySelectorAll("[placeholder],[title],[aria-label]").forEach(el=>{
     if(el.closest(I18N_SKIP)) return;
-    ["placeholder","title"].forEach(a=>{ if(!el.hasAttribute(a)) return; const hit=i18nLookup(el.getAttribute(a)); if(hit!=null) el.setAttribute(a,hit); });
+    ["placeholder","title","aria-label"].forEach(a=>{ if(!el.hasAttribute(a)) return; const hit=i18nLookup(el.getAttribute(a)); if(hit!=null) el.setAttribute(a,hit); });
   });
   const tw=document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode(n){
     const p=n.parentElement; if(!p) return NodeFilter.FILTER_REJECT;
@@ -2536,11 +2686,11 @@ function translateTree(root){
     return NodeFilter.FILTER_ACCEPT;
   }});
   const out=[]; while(tw.nextNode()) out.push(tw.currentNode);
-  for(const tn of out){ const raw=tn.nodeValue, k=raw.trim(); if(!k) continue; const hit=i18nLookup(k); if(hit!=null) tn.nodeValue=raw.replace(k,hit); }
+  for(const tn of out){ const raw=tn.nodeValue, k=raw.trim(); if(!k) continue; const hit=i18nLookup(k); if(hit!=null) tn.nodeValue=raw.replace(k,()=>hit); }
 }
 // model-output localization: a system directive to answer in the user's language
-// (""→English, so English prompts stay byte-identical). Used by genChat here and
-// mirrored into the exported-app runtime in play.html.
+// (""→English, so English prompts stay byte-identical). Used by genChat in the editor
+// only — NOT yet mirrored into the exported-app runtime (play.html).
 function localeDirective(code){
   const name=I18N_ENAME[code||LANG];
   return name ? ("Respond in "+name+" unless the user explicitly asks for another language.") : "";
@@ -3392,10 +3542,10 @@ function refreshRunEstimate(){
   const { usd, priced, unpriced, exact } = workflowCost();
   if(!priced){ el.hidden = true; return; }        // nothing priced to run → hide the chip entirely
   el.hidden = false;
-  el.innerHTML = `${exact?"":"~"}<b>${fmtUsd(usd)}</b>&nbsp;to run`;
-  el.title = `Estimated cost to ▶ Run all — ${priced} paid node${priced>1?"s":""}`
-    + (unpriced ? `, plus ${unpriced} with no listed price` : "")
-    + (exact ? "." : `.\nVideo, text & audio are estimates: the real bill depends on clip length, tokens and characters.`);
+  el.innerHTML = `${exact?"":"~"}<b>${fmtUsd(usd)}</b>&nbsp;${esc(t("to run"))}`;
+  el.title = t(priced>1 ? "Estimated cost to ▶ Run all — {n} paid nodes" : "Estimated cost to ▶ Run all — {n} paid node").replace("{n}",()=>priced)
+    + (unpriced ? t(", plus {n} with no listed price").replace("{n}",()=>unpriced) : "")
+    + (exact ? "." : "." + "\n" + t("Video, text & audio are estimates: the real bill depends on clip length, tokens and characters."));
 }
 function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); backfillModel(n); }); refreshRunEstimate(); }
 function backfillModel(n){   // once a catalog arrives, give model nodes a sensible default if none chosen yet
@@ -4382,7 +4532,7 @@ function mountFileUpload(n, field){
   fileInput.addEventListener("change", ()=>{
     const f = fileInput.files?.[0];
     if(f){
-      if(f.size > MEDIA_INLINE_MAX) flash(`that ${field} is ~${(f.size/1048576).toFixed(1)} MB — over the 4 MB send limit; use a shorter clip or it won’t reach the model`);
+      if(f.size > MEDIA_INLINE_MAX) flash(t("that {field} is ~{mb} MB — over the 4 MB send limit; use a shorter clip or it won’t reach the model").replace("{field}", ()=>t(field)).replace("{mb}", ()=>(f.size/1048576).toFixed(1)));
       const fr = new FileReader();
       fr.onload = ()=> setMedia(fr.result);
       fr.onerror = ()=> flash("couldn’t read that file");
@@ -5047,8 +5197,8 @@ function updateRunButtons(){
   const draining = !!runAbort?.signal.aborted;     // stopped, but in-flight nodes are still unwinding
   const run = $("run");
   run.classList.toggle("running", running);        // the Run button itself becomes the Stop button while live
-  run.textContent = running ? "■ Stop" : "▶ Run";
-  run.title = running ? "Stop the running workflow" : "run every flow (Ctrl/⌘+Enter)";
+  run.textContent = running ? t("■ Stop") : t("▶ Run");
+  run.title = running ? t("Stop the running workflow") : t("run every flow (Ctrl/⌘+Enter)");
   run.disabled = draining;                         // mid-stop: ignore clicks until the run unwinds
 }
 
@@ -6147,7 +6297,7 @@ function renderAddList(q){
       .filter(([,,r])=>r>=0)
       .sort((a,b)=>a[2]-b[2]);   // stable sort → ties keep NODE_TYPES order (which mirrors ADD_GROUPS)
     html = hits.length ? hits.map(([k,t])=>nodeRow(k,t)).join("")
-                       : `<div class="nomatch">no nodes match “${esc(q)}”</div>`;
+                       : `<div class="nomatch">${esc(t("no nodes match “{q}”")).replace("{q}", ()=>esc(q))}</div>`;
   }
   list.innerHTML = html;
   list.querySelector("button[data-type]")?.classList.add("sel");
