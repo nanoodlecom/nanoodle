@@ -2944,19 +2944,49 @@ const CATALOG = {
   audio: { url:"/api/v1/audio-models",         norm:normAudio },
 };
 const catalogs = { chat:null, image:null, video:null, audio:null };
-async function loadCatalog(kind){
-  if(catalogs[kind]) return catalogs[kind];
+// SWR cache: the last-good catalog is stashed in localStorage so a fresh page load can paint
+// the graph at its FINAL card sizes/prices instantly, then reconcile when the network reply lands.
+const catCacheKey = (kind)=> "nn_catalog_"+kind;
+function readCatCache(kind){
+  try{ const j = JSON.parse(localStorage.getItem(catCacheKey(kind))||"null");
+       return (j && Array.isArray(j.list)) ? j.list : null; }catch{ return null; }
+}
+function writeCatCache(kind, list){
+  try{ localStorage.setItem(catCacheKey(kind), JSON.stringify({ t:Date.now(), list })); }catch(_){}
+}
+// Seed the in-memory catalogs synchronously from the localStorage copy — no await, no network —
+// so the very first graph paint already has model metadata. Returning visitors never see blank.
+function primeCatalogsFromCache(){
+  for(const kind of Object.keys(catalogs)){
+    if(catalogs[kind]) continue;
+    const list = readCatCache(kind);
+    if(list) catalogs[kind] = list;
+  }
+}
+async function fetchCatalog(kind){
   const cfg = CATALOG[kind];
   const headers={}; const k=getKey(); if(k) headers.Authorization=`Bearer ${k}`;
-  let raw=[];
+  let raw;
   try{ raw = (await (await fetch(`${NANOGPT}${cfg.url}`,{headers})).json()).data || []; }
-  catch{ /* offline — leave empty, ids still typeable */ }
+  catch{ return null; }        // offline / error — caller keeps whatever it already had (cache or empty)
   const list = raw.map(cfg.norm).filter(m=>m.id);
   // newest first by created; on ties keep the API's native order (curated newest-first) via stable sort —
   // audio models all share one created timestamp, so this is what actually orders music/speech by recency
   list.sort((a,b)=> (b.created||0)-(a.created||0));
-  catalogs[kind]=list;
   return list;
+}
+async function loadCatalog(kind){          // lazy callers (pickers, filters): reuse whatever's in memory
+  if(catalogs[kind]) return catalogs[kind];
+  const list = await fetchCatalog(kind);
+  catalogs[kind] = list || [];             // cache empty on failure so ids stay typeable without re-hammering
+  if(list) writeCatCache(kind, list);
+  return catalogs[kind];
+}
+async function refreshCatalog(kind){       // boot SWR revalidate: always hit the network, update cache
+  const list = await fetchCatalog(kind);
+  if(!list) return false;
+  catalogs[kind] = list; writeCatCache(kind, list);
+  return true;
 }
 const catItem = (kind,id)=> (catalogs[kind]||[]).find(m=>m.id===id);
 const KIND_LABEL = { chat:"Chat", image:"Image", video:"Video", audio:"Audio" };
@@ -7388,11 +7418,14 @@ $("signout").onclick = ()=> setKey(null);
   // shows signed-out instead of a false "ready ✓" that explodes on the first Run.
   try{ const k0 = getKey(); if(k0){ const k1 = cleanKey(k0);
     if(k1!==k0 || !keySendable(k1)) setKey(k1 && keySendable(k1) ? k1 : null); } }catch(_){}
-  // Model metadata changes node bodies (dimensions, LoRA/options panels, prices). Load it
-  // before the first graph paint so cards appear at their final size instead of popping
-  // larger a moment later when the background catalog request completes.
-  const catalogReady = Promise.all(["chat","image","video","audio"].map(k=>loadCatalog(k).catch(()=>null)));
-  await catalogReady;
+  // Model metadata changes node bodies (dimensions, LoRA/options panels, prices). We used to
+  // AWAIT the catalog before the first paint so cards landed at final size — but that meant a
+  // blank canvas for the whole 4-request round-trip to nano-gpt on every load. Instead: seed
+  // from the localStorage SWR cache synchronously (instant final-size paint for returning
+  // visitors), and revalidate in the background — the reflow below reconciles any changes and
+  // fills in a brand-new visitor's cards the moment the first catalog arrives. No await = no blank.
+  primeCatalogsFromCache();
+  const catalogReady = Promise.all(["chat","image","video","audio"].map(k=>refreshCatalog(k).catch(()=>false)));
   let restored = false;
   // came back from an OAuth redirect: restore the graph we stashed just before it (consumed once)
   try{ const rs = sessionStorage.getItem(RESUME_KEY); if(rs){ sessionStorage.removeItem(RESUME_KEY); applyGraphData(JSON.parse(rs)); save(); restored = true;
@@ -7413,13 +7446,17 @@ $("signout").onclick = ()=> setKey(null);
   if(!restored) seed();                                           // else built-in starter
   updateTitle();                                                  // reflect whether an app's workflow is loaded
   redraw();
+  // Reconcile once the fresh catalog lands: resize cards, backfill default models, refresh prices/panels
+  // and redraw wires to the new port positions. For a returning visitor this is a no-op-ish nudge; for a
+  // brand-new visitor (empty cache) it's what turns the first paint's placeholder cards into final ones.
+  catalogReady.then(res=>{ if(res.some(Boolean)){ refreshAllPrices(); redraw(); refreshPortFills(); } });
   try{ if(!localStorage.getItem(HINT_KEY)) $("canvashint").hidden = false; }catch{}   // first-run orientation line
   maybeShowConnectHint();   // returning user who never wired by hand → the connect coach (skipped while the first-run line is up)
   // Brand-new visitors land straight on a simple working flow (the default graph).
   renderAuth();   // paint the signed-out chrome first: a handleRedirect() failure below must not be overwritten by this
   try{ await handleRedirect(); }catch(e){ signInErr(e); }   // success re-renders via setKey; failure now stays visible (status + toast) instead of being wiped to "not signed in"
   restoreCachedBalance(); refreshBalance();   // already-signed-in visitor: show cached bal immediately, then refresh if CORS permits
-  refreshAllPrices();              // catalogs were loaded before first paint; keep the estimate/auth chrome in sync
+  refreshAllPrices();              // sync the estimate/auth chrome with the (cached-or-fresh) catalog; catalogReady.then reconciles again if the network reply arrives later
 })();
 
 /* ===================== 💬 Describe changes — graph copilot =====================
