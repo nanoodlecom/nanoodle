@@ -3137,20 +3137,17 @@ window.NoodleApp = (function () {
   function injectAuthIntroStyles(){
     if(document.getElementById("noodle-authintro-style")) return;
     const s = document.createElement("style"); s.id = "noodle-authintro-style";
-    // Deliberately NOT a card: no fill, no radius, no drop shadow — a hairline top/bottom
-    // rule + accent left edge reads as a system note about the page, not app content, and
-    // an uppercase eyebrow makes that explicit at a glance. Width matches #app-tagline's own
-    // 60ch cap so it sits in the page's existing rhythm instead of floating as its own block.
+    // Deliberately NOT a card: no fill, no radius, no top/bottom rule (those still read as a
+    // boxed section) — just a left accent bar, like a blockquote. That's enough to mark it as
+    // an aside about the page rather than app content, without an ALL-CAPS eyebrow label that
+    // reads as a warning. Width matches #app-tagline's own 60ch cap so it sits in the page's
+    // existing rhythm instead of floating as its own block.
     s.textContent =
-      '.auth-intro{margin:.75rem 0 1.4rem;padding:.65rem 0 .65rem .85rem;'
-        + 'border-top:1px solid var(--line,#2a3150);border-bottom:1px solid var(--line,#2a3150);'
-        + 'border-left:2px solid var(--accent,#7c8cff);border-radius:0;background:transparent;'
-        + 'max-width:60ch;text-align:left;}'
-      + '.auth-intro .auth-eyebrow{display:block;font-size:.62rem;font-weight:700;letter-spacing:.11em;'
-        + 'text-transform:uppercase;color:var(--faint,#5d6788);margin-bottom:.4rem;}'
-      + '.auth-intro p{margin:0;}'
-      + '.auth-intro .auth-lede{font-size:.8rem;line-height:1.45;color:var(--dim,#8b93b4);margin-bottom:.4rem;}'
-      + '.auth-intro .auth-cta{font-size:.85rem;line-height:1.5;color:var(--ink,#e6e9f5);}'
+      '.auth-intro{border-left:2px solid var(--accent,#7c8cff);padding:.15rem 0 .15rem .8rem;'
+        + 'margin:.7rem 0 1.3rem;max-width:58ch;text-align:left;}'
+      + '.auth-intro p{margin:0;font-size:.82rem;line-height:1.5;color:var(--dim,#8b93b4);}'
+      + '.auth-intro p+p{margin-top:.35rem;}'
+      + '.auth-intro .auth-cta{color:var(--ink,#e6e9f5);}'
       + '.auth-intro .auth-cta b{color:var(--accent,#7c8cff);font-weight:700;}'
       + '.auth-intro a{color:var(--accent,#7c8cff);text-decoration:none;}'
       + '.auth-intro a:hover{text-decoration:underline;}';
@@ -3166,8 +3163,7 @@ window.NoodleApp = (function () {
       ? '<p class="auth-cta"><b>Sign in</b> from the bar at the top to run this app — new to nano-gpt? creating an account is free.</p>'
       : '<p class="auth-cta">new to nano-gpt? <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">create an account →</a> — it’s free, your key stays in this browser.</p>';
     return '<div class="auth-intro">'
-      + '<span class="auth-eyebrow">Before you run this</span>'
-      + '<p class="auth-lede">nano-gpt is a pay-per-use AI service — hundreds of models, pay only for what you run.</p>'
+      + '<p>nano-gpt is a pay-per-use AI service — hundreds of models, pay only for what you run.</p>'
       + cta
       + '</div>';
   }
