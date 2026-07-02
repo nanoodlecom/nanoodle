@@ -3539,8 +3539,8 @@ const CTX = {
     // fresh, un-aborted signal and resurrect. Our own controller stays aborted → we exit as intended
     // (runId stays in PENDING_VIDEO so the user can re-run to resume — never auto-resumed).
     const sig = runSignal();
-    const t0 = Date.now();
-    while(Date.now()-t0 < 600000){                   // 10 min — the job runs server-side, so patience here is cheap
+    const t0 = Date.now();                           // kept for elapsed-time progress; no deadline — the job runs server-side, so we wait as long as it takes
+    while(true){
       await sleep(5000);
       if(sig?.aborted) throw new DOMException("aborted","AbortError");   // Stop: leave runId in PENDING_VIDEO so a re-run resumes
       let s; try{ s = await (await fetch(`${NANOGPT}/api/video/status?requestId=${encodeURIComponent(runId)}`, {headers:authHeaders(), signal:runSignal()})).json(); }
@@ -3559,10 +3559,6 @@ const CTX = {
         throw new Error("video failed: " + (s.data?.error || st));
       }
     }
-    // Don't discard the job: the runId stays in PENDING_VIDEO so re-running this node picks it back up.
-    throw new Error(runKey
-      ? "Still rendering after 10 min — the job is likely still running on NanoGPT's side. Run this node again to pick up the finished video (you won't be charged twice)."
-      : "video timed out (10 min)");
   },
   // sync audio (speech OR music): /api/v1/audio/speech → binary audio (or JSON with a url for some providers).
   // extra = the dynamic, model-specific params already resolved by the node (lyrics, voice, duration, …).
