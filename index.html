@@ -807,9 +807,11 @@ const clamp = (v,a,b)=> Math.max(a, Math.min(b, v));
 const esc = (s)=> String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 /* ======================================================================
-   i18n — the editor chrome is translatable; the app runner (play.html) and
-   exported apps are English-only for now (chrome AND model output — the
-   localeDirective below is editor-only). English is the identity language.
+   i18n — the editor chrome is translatable here (es/fr/de/pt/ja). The app player
+   and exported-app chrome are ALSO localized now — play.html carries its own compact
+   PLAY_I18N + t()/translateTree twin of this mechanism (see play.html). Model OUTPUT
+   is localized in BOTH surfaces via localeDirective/withLocale (this file's runs in
+   genChat; play.html mirrors it). English is the identity language everywhere.
 
    Catalog shape: I18N[lang][englishSource] = translation. A missing key
    falls back to the English source, so a partial catalog degrades cleanly.
@@ -2689,8 +2691,9 @@ function translateTree(root){
   for(const tn of out){ const raw=tn.nodeValue, k=raw.trim(); if(!k) continue; const hit=i18nLookup(k); if(hit!=null) tn.nodeValue=raw.replace(k,()=>hit); }
 }
 // model-output localization: a system directive to answer in the user's language
-// (""→English, so English prompts stay byte-identical). Used by genChat in the editor
-// only — NOT yet mirrored into the exported-app runtime (play.html).
+// (""→English, so English prompts stay byte-identical). Used by genChat here; the SAME
+// directive is mirrored in play.html's runtime (localeDirective/withLocale), so shared and
+// exported apps localize model output too — this is not editor-only.
 function localeDirective(code){
   const name=I18N_ENAME[code||LANG];
   return name ? ("Respond in "+name+" unless the user explicitly asks for another language.") : "";

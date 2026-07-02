@@ -303,7 +303,7 @@
   <p class="sm-note">The whole app lives in this link — nothing hits a server when someone opens it. That's why it can get long.</p>
 
   <div class="am-head">Make it shorter — optional</div>
-  <p class="sm-warn">Sends this link to a third-party shortener so <em>they</em> host it. They can see the app.</p>
+  <p class="sm-warn" data-no-i18n>Sends this link to a third-party shortener so <em>they</em> host it. They can see the app.</p>
   <div class="sm-svc">
     <button data-svc="dagd" class="sm-primary" title="Recommended — handles very long links (app links can get big)">da.gd</button>
     <button data-svc="tinyurl" title="Shorter domain, but can fail on very long links">TinyURL</button>
@@ -333,7 +333,7 @@
   <div id="empty" hidden>
     <div class="empty-card">
       <h2>Open a workflow from the editor</h2>
-      <p class="dim">Build a flow in nanoodle, then hit <b>✨ Create app</b> to turn it into a shareable app.</p>
+      <p class="dim" data-no-i18n>Build a flow in nanoodle, then hit <b>✨ Create app</b> to turn it into a shareable app.</p>
       <a class="ghost-link" href="index.html">→ Open the editor</a>
     </div>
   </div>
@@ -396,6 +396,106 @@ const RESUME_KEY = "noodle_resume_app";  // sessionStorage: the open app, stashe
                                          // modal iframe and SHARES the tab's sessionStorage, so a shared key would let a stale
                                          // editor stash open here as an "old app" instead of the workflow just handed off.
 const ACCENT = "#7c8cff";
+
+/* ======================================================================
+   i18n — BUILDER-PAGE chrome only (My apps / Share / Export / Customize / share popover).
+   This dict is NEVER bundled into an exported app; the RUNTIME chrome carries its own
+   PLAY_I18N inside RUNTIME_JS. Same mechanism as the editor: PLAY_I18N_B[englishSource][lang],
+   English is identity, tB() = $-safe whole-string replace, translateTreeB() localizes the
+   static chrome while skipping user content (app title, app titles list, versions) via
+   I18N_SKIP_B + data-no-i18n. The 🌐 selector persists localStorage noodle_lang (same key
+   as the editor + runtime) and reloads. Named tB (not t) — the module has local t vars. */
+const PLAY_I18N_B = {
+  "checking…":{es:"comprobando…",fr:"vérification…",de:"wird geprüft…",pt:"verificando…",ja:"確認中…"},
+  "paste key":{es:"pegar clave",fr:"coller la clé",de:"Schlüssel einfügen",pt:"colar chave",ja:"キーを貼り付け"},
+  "sign out":{es:"cerrar sesión",fr:"se déconnecter",de:"abmelden",pt:"sair",ja:"サインアウト"},
+  "Copy":{es:"Copiar",fr:"Copier",de:"Kopieren",pt:"Copiar",ja:"コピー"},
+  "Make it shorter — optional":{es:"Hazlo más corto — opcional",fr:"Raccourcir — facultatif",de:"Kürzer machen — optional",pt:"Torne mais curto — opcional",ja:"短くする — 任意"},
+  "Shorter domain, but can fail on very long links":{es:"Dominio más corto, pero puede fallar con enlaces muy largos",fr:"Domaine plus court, mais peut échouer sur les liens très longs",de:"Kürzere Domain, kann aber bei sehr langen Links fehlschlagen",pt:"Domínio mais curto, mas pode falhar com links muito longos",ja:"ドメインは短いですが、とても長いリンクでは失敗することがあります"},
+  "Share to":{es:"Compartir en",fr:"Partager sur",de:"Teilen auf",pt:"Compartilhar em",ja:"共有先"},
+  "paste NanoGPT API key (sk-nano-… or a UUID)":{es:"pega la clave API de NanoGPT (sk-nano-… o un UUID)",fr:"collez la clé API NanoGPT (sk-nano-… ou un UUID)",de:"NanoGPT API-Schlüssel einfügen (sk-nano-… oder UUID)",pt:"cole a chave de API NanoGPT (sk-nano-… ou um UUID)",ja:"NanoGPT APIキーを貼り付け (sk-nano-… または UUID)"},
+  "✦ Apply":{es:"✦ Aplicar",fr:"✦ Appliquer",de:"✦ Anwenden",pt:"✦ Aplicar",ja:"✦ 適用"},
+  "■ Stop":{es:"■ Detener",fr:"■ Arrêter",de:"■ Stopp",pt:"■ Parar",ja:"■ 停止"},
+  "Model":{es:"Modelo",fr:"Modèle",de:"Modell",pt:"Modelo",ja:"モデル"},
+  "Model for app changes":{es:"Modelo para los cambios de la app",fr:"Modèle pour les modifications de l’app",de:"Modell für App-Änderungen",pt:"Modelo para as mudanças do app",ja:"アプリ変更用のモデル"},
+  "filter the full list, or type an exact id + Enter…":{es:"filtra la lista completa, o escribe un id exacto + Enter…",fr:"filtrer la liste, ou saisir un id exact + Entrée…",de:"Liste filtern oder exakte ID + Enter eingeben…",pt:"filtre a lista completa, ou digite um id exato + Enter…",ja:"一覧を絞り込み、または正確なIDを入力 + Enter…"},
+  "your app":{es:"tu app",fr:"votre app",de:"deine App",pt:"seu app",ja:"あなたのアプリ"},
+  "≡ My apps ▾":{es:"≡ Mis apps ▾",fr:"≡ Mes apps ▾",de:"≡ Meine Apps ▾",pt:"≡ Meus apps ▾",ja:"≡ マイアプリ ▾"},
+  "Apps you've created or imported":{es:"Apps que has creado o importado",fr:"Les apps que vous avez créées ou importées",de:"Von dir erstellte oder importierte Apps",pt:"Apps que você criou ou importou",ja:"作成またはインポートしたアプリ"},
+  "Sign in with NanoGPT":{es:"Iniciar sesión con NanoGPT",fr:"Se connecter avec NanoGPT",de:"Mit NanoGPT anmelden",pt:"Entrar com NanoGPT",ja:"NanoGPTでサインイン"},
+  "🔗 Share":{es:"🔗 Compartir",fr:"🔗 Partager",de:"🔗 Teilen",pt:"🔗 Compartilhar",ja:"🔗 共有"},
+  "Copy a link that loads this exact app — recipients sign in with their own key":{es:"Copia un enlace que carga esta app exacta — los destinatarios inician sesión con su propia clave",fr:"Copier un lien qui charge cette app exacte — les destinataires se connectent avec leur propre clé",de:"Einen Link kopieren, der genau diese App lädt — Empfänger melden sich mit ihrem eigenen Schlüssel an",pt:"Copie um link que carrega exatamente este app — os destinatários entram com a própria chave",ja:"このアプリをそのまま読み込むリンクをコピー — 受け取った人は自分のキーでサインインします"},
+  "⭳ Export":{es:"⭳ Exportar",fr:"⭳ Exporter",de:"⭳ Exportieren",pt:"⭳ Exportar",ja:"⭳ エクスポート"},
+  "Download this app as one self-contained .html (no key inside)":{es:"Descarga esta app como un único .html autónomo (sin clave dentro)",fr:"Télécharger cette app en un seul .html autonome (sans clé à l’intérieur)",de:"Diese App als eine eigenständige .html herunterladen (kein Schlüssel enthalten)",pt:"Baixe este app como um único .html autônomo (sem chave dentro)",ja:"このアプリを単一の自己完結型.htmlとしてダウンロード（キーは含まれません）"},
+  "✎ Edit workflow":{es:"✎ Editar flujo",fr:"✎ Modifier le flux",de:"✎ Workflow bearbeiten",pt:"✎ Editar fluxo",ja:"✎ ワークフローを編集"},
+  "My apps":{es:"Mis apps",fr:"Mes apps",de:"Meine Apps",pt:"Meus apps",ja:"マイアプリ"},
+  "＋ New app from this workflow":{es:"＋ Nueva app desde este flujo",fr:"＋ Nouvelle app depuis ce flux",de:"＋ Neue App aus diesem Workflow",pt:"＋ Novo app a partir deste fluxo",ja:"＋ このワークフローから新規アプリ"},
+  "New app from this workflow":{es:"Nueva app desde este flujo",fr:"Nouvelle app depuis ce flux",de:"Neue App aus diesem Workflow",pt:"Novo app a partir deste fluxo",ja:"このワークフローから新規アプリ"},
+  "Share this app":{es:"Comparte esta app",fr:"Partager cette app",de:"Diese App teilen",pt:"Compartilhe este app",ja:"このアプリを共有"},
+  "Recommended — handles very long links (app links can get big)":{es:"Recomendado — admite enlaces muy largos (los enlaces de apps pueden crecer mucho)",fr:"Recommandé — gère les liens très longs (les liens d’app peuvent devenir gros)",de:"Empfohlen — verarbeitet sehr lange Links (App-Links können groß werden)",pt:"Recomendado — lida com links muito longos (links de apps podem ficar grandes)",ja:"推奨 — とても長いリンクにも対応（アプリのリンクは大きくなることがあります）"},
+  "save key":{es:"guardar clave",fr:"enregistrer la clé",de:"Schlüssel speichern",pt:"salvar chave",ja:"キーを保存"},
+  "Open a workflow from the editor":{es:"Abre un flujo desde el editor",fr:"Ouvrir un flux depuis l’éditeur",de:"Öffne einen Workflow aus dem Editor",pt:"Abra um fluxo no editor",ja:"エディターからワークフローを開く"},
+  "→ Open the editor":{es:"→ Abrir el editor",fr:"→ Ouvrir l’éditeur",de:"→ Editor öffnen",pt:"→ Abrir o editor",ja:"→ エディターを開く"},
+  "✨ Customize this app":{es:"✨ Personaliza esta app",fr:"✨ Personnaliser cette app",de:"✨ Diese App anpassen",pt:"✨ Personalize este app",ja:"✨ このアプリをカスタマイズ"},
+  "Choose the model that writes your app changes":{es:"Elige el modelo que escribe los cambios de tu app",fr:"Choisissez le modèle qui écrit les modifications de votre app",de:"Wähle das Modell, das deine App-Änderungen schreibt",pt:"Escolha o modelo que escreve as mudanças do seu app",ja:"アプリの変更を書き込むモデルを選択"},
+  "↶ undo":{es:"↶ deshacer",fr:"↶ annuler",de:"↶ rückgängig",pt:"↶ desfazer",ja:"↶ 元に戻す"},
+  "✦ Port the UI with AI":{es:"✦ Adaptar la interfaz con IA",fr:"✦ Adapter l’interface avec l’IA",de:"✦ UI mit KI anpassen",pt:"✦ Adaptar a interface com IA",ja:"✦ UIをAIで移植"},
+  "Keep as-is":{es:"Dejar como está",fr:"Garder tel quel",de:"So belassen",pt:"Manter como está",ja:"そのままにする"},
+  "Choose the model that ports your app":{es:"Elige el modelo que adapta tu app",fr:"Choisissez le modèle qui adapte votre app",de:"Wähle das Modell, das deine App portiert",pt:"Escolha o modelo que adapta seu app",ja:"アプリを移植するモデルを選択"},
+  "Each customize adds a version — click one to view it":{es:"Cada personalización añade una versión — haz clic en una para verla",fr:"Chaque personnalisation ajoute une version — cliquez sur l’une pour la voir",de:"Jede Anpassung fügt eine Version hinzu — klicke eine an, um sie anzusehen",pt:"Cada personalização adiciona uma versão — clique em uma para vê-la",ja:"カスタマイズごとにバージョンが追加されます — クリックして表示"},
+  "Delete this app":{es:"Eliminar esta app",fr:"Supprimer cette app",de:"Diese App löschen",pt:"Excluir este app",ja:"このアプリを削除"},
+  "signed in ✓":{es:"sesión iniciada ✓",fr:"connecté ✓",de:"angemeldet ✓",pt:"conectado ✓",ja:"サインイン済み ✓"},
+  "not signed in":{es:"sin iniciar sesión",fr:"non connecté",de:"nicht angemeldet",pt:"não conectado",ja:"サインインしていません"},
+  "✱ edits aren’t shared":{es:"✱ los cambios no se comparten",fr:"✱ les modifications ne sont pas partagées",de:"✱ Änderungen werden nicht geteilt",pt:"✱ as edições não são compartilhadas",ja:"✱ 編集は共有されません"},
+  "The whole app lives in this link — nothing hits a server when someone opens it. That's why it can get long.":{es:"Toda la app vive en este enlace — nada llega a un servidor cuando alguien lo abre. Por eso puede quedar largo.",fr:"Toute l’app tient dans ce lien — rien n’atteint un serveur quand quelqu’un l’ouvre. C’est pourquoi il peut devenir long.",de:"Die ganze App steckt in diesem Link — beim Öffnen wird kein Server kontaktiert. Deshalb kann er lang werden.",pt:"O app inteiro vive neste link — nada chega a um servidor quando alguém o abre. Por isso ele pode ficar longo.",ja:"アプリ全体がこのリンクに含まれています — 誰かが開いてもサーバーには何も送られません。だからリンクは長くなることがあります。"},
+};
+const PLAY_B_LANGS = ["en","es","fr","de","pt","ja"];
+const PLAY_B_ENDONYM = { en:"English", es:"Español", fr:"Français", de:"Deutsch", pt:"Português", ja:"日本語" };
+// Builder-page resolver: the creator's explicit editor pick (localStorage noodle_lang, shared
+// same-origin) then the browser's languages then English. (The inner app iframe has its own
+// resolver in RUNTIME_JS with the NOODLE_LANG / baked-lang sources this page doesn't need.)
+function resolveLangB(){
+  let code=null;
+  try{ const s=localStorage.getItem("noodle_lang"); if(s && PLAY_B_LANGS.indexOf(s)>=0) code=s; }catch(e){}
+  if(!code){ const prefs=(navigator.languages&&navigator.languages.length)?navigator.languages:[navigator.language||"en"];
+    for(const p of prefs){ const base=String(p||"").toLowerCase().split("-")[0]; if(PLAY_B_LANGS.indexOf(base)>=0){ code=base; break; } } }
+  return code||"en";
+}
+const LANG_B = resolveLangB();
+function i18nLookupB(s){ if(LANG_B==="en") return null; const row=PLAY_I18N_B[String(s).trim()]; const hit=row&&row[LANG_B]; return hit!=null?hit:null; }
+function tB(s){ if(s==null) return s; const hit=i18nLookupB(s); return hit!=null ? String(s).replace(String(s).trim(),()=>hit) : s; }
+const I18N_SKIP_B = "#bar-title, #appframe, #am-list, #versions, #cust-suggest, #sm-url, [data-no-i18n]";
+function translateTreeB(root){
+  if(LANG_B==="en" || !root) return;
+  root.querySelectorAll("[placeholder],[title],[aria-label]").forEach(el=>{
+    if(el.closest(I18N_SKIP_B)) return;
+    ["placeholder","title","aria-label"].forEach(a=>{ if(!el.hasAttribute(a)) return; const hit=i18nLookupB(el.getAttribute(a)); if(hit!=null) el.setAttribute(a,hit); });
+  });
+  const tw=document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode(n){
+    const p=n.parentElement; if(!p) return NodeFilter.FILTER_REJECT;
+    const tag=p.tagName; if(tag==="TEXTAREA"||tag==="INPUT"||tag==="SCRIPT"||tag==="STYLE") return NodeFilter.FILTER_REJECT;
+    if(p.closest(I18N_SKIP_B)) return NodeFilter.FILTER_REJECT;
+    return NodeFilter.FILTER_ACCEPT;
+  }});
+  const out=[]; while(tw.nextNode()) out.push(tw.currentNode);
+  for(const tn of out){ const raw=tn.nodeValue, k=raw.trim(); if(!k) continue; const hit=i18nLookupB(k); if(hit!=null) tn.nodeValue=raw.replace(k,()=>hit); }
+}
+// 🌐 viewer/creator language selector for the /play page. An explicit pick persists to
+// localStorage noodle_lang (same key the editor + runtime read) and reloads for a fully
+// retranslated page. Endonyms are marked data-no-i18n so they never get translated.
+function mountLangPickerB(){
+  if(document.getElementById("langbtn-b")) return;
+  const bar=document.getElementById("bar"); if(!bar) return;
+  const wrap=document.createElement("span"); wrap.id="langbtn-b"; wrap.style.cssText="display:inline-flex;align-items:center;margin-left:.3rem;";
+  const sel=document.createElement("select");
+  sel.setAttribute("aria-label", tB("Language"));
+  sel.style.cssText="font:inherit;font-size:.8rem;background:transparent;color:var(--dim,#8b93b4);border:1px solid var(--line,#2a3150);border-radius:.4rem;padding:.1rem .25rem;cursor:pointer;";
+  PLAY_B_LANGS.forEach(c=>{ const o=document.createElement("option"); o.value=c; o.textContent="🌐 "+PLAY_B_ENDONYM[c]; o.setAttribute("data-no-i18n",""); if(c===LANG_B) o.selected=true; sel.appendChild(o); });
+  sel.addEventListener("change", ()=>{ try{ localStorage.setItem("noodle_lang", sel.value); }catch(e){} location.reload(); });
+  wrap.appendChild(sel);
+  const grow=bar.querySelector(".grow"); if(grow&&grow.parentNode) grow.parentNode.insertBefore(wrap, grow); else bar.appendChild(wrap);
+}
+
 
 // One-time migration: retire xiaomi/mimo-v2.5-pro-ultraspeed as a stored Customize pick.
 // nano-gpt started 503ing it, so returning users had a dead model pinned in localStorage from
@@ -466,27 +566,116 @@ window.NoodleApp = (function () {
   /* ---------- esc (verbatim) ---------- */
   const esc = (s)=> String(s ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
+  /* i18n: localize app CHROME. PLAY_I18N[englishSource][lang]; English is identity (missing
+     key falls back to English). t() = $-safe whole-string replace; translateTree() localizes a
+     built subtree, skipping user content via I18N_SKIP. Ships in every export — keep it lean. */
+  const PLAY_I18N = {
+  "▶ Run":{es:"▶ Ejecutar",fr:"▶ Exécuter",de:"▶ Ausführen",pt:"▶ Executar",ja:"▶ 実行"},
+  "■ Stop":{es:"■ Detener",fr:"■ Arrêter",de:"■ Stopp",pt:"■ Parar",ja:"■ 停止"},
+  "Close":{es:"Cerrar",fr:"Fermer",de:"Schließen",pt:"Fechar",ja:"閉じる"},
+  "running…":{es:"ejecutando…",fr:"exécution…",de:"läuft…",pt:"executando…",ja:"実行中…"},
+  "variation":{es:"variación",fr:"variation",de:"Variation",pt:"variação",ja:"バリエーション"},
+  "sign out":{es:"cerrar sesión",fr:"se déconnecter",de:"abmelden",pt:"sair",ja:"サインアウト"},
+  "paste key":{es:"pegar clave",fr:"coller la clé",de:"Schlüssel einfügen",pt:"colar chave",ja:"キーを貼り付け"},
+  "save":{es:"guardar",fr:"enregistrer",de:"speichern",pt:"salvar",ja:"保存"},
+  "checking…":{es:"comprobando…",fr:"vérification…",de:"wird geprüft…",pt:"verificando…",ja:"確認中…"},
+  "key saved — but nano-gpt.com can't be reached right now (ad-blocker, VPN or network?), so runs may fail":{es:"clave guardada — pero nano-gpt.com no se puede alcanzar ahora mismo (¿bloqueador de anuncios, VPN o red?), así que las ejecuciones pueden fallar",fr:"clé enregistrée — mais nano-gpt.com est actuellement injoignable (bloqueur de pub, VPN ou réseau ?), les exécutions peuvent donc échouer",de:"Schlüssel gespeichert — aber nano-gpt.com ist gerade nicht erreichbar (Werbeblocker, VPN oder Netzwerk?), Ausführungen könnten fehlschlagen",pt:"chave salva — mas o nano-gpt.com não pôde ser alcançado agora (bloqueador de anúncios, VPN ou rede?), então as execuções podem falhar",ja:"キーを保存しました — ただし現在nano-gpt.comに接続できません（広告ブロッカー、VPN、ネットワークの可能性）。実行が失敗するかもしれません"},
+  "couldn't read your clipboard — click the key field and press Ctrl+V to paste":{es:"no se pudo leer tu portapapeles — haz clic en el campo de clave y pulsa Ctrl+V para pegar",fr:"impossible de lire votre presse-papiers — cliquez dans le champ de la clé et appuyez sur Ctrl+V pour coller",de:"dein Zwischenspeicher konnte nicht gelesen werden — klicke ins Schlüsselfeld und drücke Strg+V zum Einfügen",pt:"não foi possível ler sua área de transferência — clique no campo da chave e pressione Ctrl+V para colar",ja:"クリップボードを読み取れませんでした — キー欄をクリックしてCtrl+Vで貼り付けてください"},
+  "that key has a character that can't be sent — re-copy it from nano-gpt.com → Settings → API and paste again":{es:"esa clave tiene un carácter que no se puede enviar — cópiala de nuevo desde nano-gpt.com → Ajustes → API y pégala otra vez",fr:"cette clé contient un caractère qui ne peut pas être envoyé — recopiez-la depuis nano-gpt.com → Paramètres → API et collez-la à nouveau",de:"dieser Schlüssel enthält ein Zeichen, das nicht gesendet werden kann — kopiere ihn erneut von nano-gpt.com → Einstellungen → API und füge ihn erneut ein",pt:"essa chave tem um caractere que não pode ser enviado — copie-a novamente em nano-gpt.com → Configurações → API e cole de novo",ja:"そのキーには送信できない文字が含まれています — nano-gpt.com → 設定 → API から再度コピーして貼り付け直してください"},
+  "balance {bal} may not cover this ~{usd} run — top up at nano-gpt.com":{es:"el saldo {bal} podría no cubrir esta ejecución de ~{usd} — recarga en nano-gpt.com",fr:"le solde {bal} pourrait ne pas couvrir cette exécution de ~{usd} — rechargez sur nano-gpt.com",de:"Guthaben {bal} deckt diese ~{usd}-Ausführung möglicherweise nicht — bei nano-gpt.com aufladen",pt:"o saldo {bal} pode não cobrir esta execução de ~{usd} — recarregue em nano-gpt.com",ja:"残高{bal}ではこの~{usd}の実行を賄えない可能性があります — nano-gpt.comでチャージしてください"},
+  "Language":{es:"Idioma",fr:"Langue",de:"Sprache",pt:"Idioma",ja:"言語"},
+  "Keep generating":{es:"Seguir generando",fr:"Continuer à générer",de:"Weiter generieren",pt:"Continuar gerando",ja:"生成を続ける"},
+  "Optional settings":{es:"Ajustes opcionales",fr:"Réglages facultatifs",de:"Optionale Einstellungen",pt:"Configurações opcionais",ja:"オプション設定"},
+  "models &amp; defaults — tap to adjust":{es:"modelos y valores por defecto — toca para ajustar",fr:"modèles et valeurs par défaut — touchez pour ajuster",de:"Modelle und Standardwerte — zum Anpassen tippen",pt:"modelos e padrões — toque para ajustar",ja:"モデルと既定値 — タップして調整"},
+  "Runs":{es:"Ejecuciones",fr:"Exécutions",de:"Durchläufe",pt:"Execuções",ja:"実行回数"},
+  "Stopped.":{es:"Detenido.",fr:"Arrêté.",de:"Gestoppt.",pt:"Parado.",ja:"停止しました。"},
+  "Made with nanoodle — build your own AI app":{es:"Hecho con nanoodle — crea tu propia app de IA",fr:"Créé avec nanoodle — créez votre propre app IA",de:"Erstellt mit nanoodle — bau deine eigene KI-App",pt:"Feito com nanoodle — crie seu próprio app de IA",ja:"nanoodleで作成 — 自分だけのAIアプリを作ろう"},
+  "Run steps":{es:"Pasos de la ejecución",fr:"Étapes de l’exécution",de:"Ausführungsschritte",pt:"Etapas da execução",ja:"実行ステップ"},
+  "✗ failed":{es:"✗ falló",fr:"✗ échec",de:"✗ fehlgeschlagen",pt:"✗ falhou",ja:"✗ 失敗"},
+  "✓ done":{es:"✓ listo",fr:"✓ terminé",de:"✓ fertig",pt:"✓ concluído",ja:"✓ 完了"},
+  "↺ reused":{es:"↺ reutilizado",fr:"↺ réutilisé",de:"↺ wiederverwendet",pt:"↺ reutilizado",ja:"↺ 再利用"},
+  "○ waiting":{es:"○ esperando",fr:"○ en attente",de:"○ wartet",pt:"○ aguardando",ja:"○ 待機中"},
+  "included":{es:"incluido",fr:"inclus",de:"inbegriffen",pt:"incluído",ja:"含まれる"},
+  "reused fixed-seed result — no charge":{es:"resultado con semilla fija reutilizado — sin coste",fr:"résultat à graine fixe réutilisé — sans frais",de:"wiederverwendetes Ergebnis mit fester Seed — kostenlos",pt:"resultado de seed fixa reutilizado — sem cobrança",ja:"固定シードの結果を再利用 — 課金なし"},
+  "cost of this generation":{es:"coste de esta generación",fr:"coût de cette génération",de:"Kosten dieser Generierung",pt:"custo desta geração",ja:"この生成の料金"},
+  "included in your subscription":{es:"incluido en tu suscripción",fr:"inclus dans votre abonnement",de:"in deinem Abo enthalten",pt:"incluído na sua assinatura",ja:"サブスクリプションに含まれます"},
+  "spent on this app":{es:"gastado en esta app",fr:"dépensé sur cette app",de:"für diese App ausgegeben",pt:"gasto neste app",ja:"をこのアプリで使用"},
+  "generation":{es:"generación",fr:"génération",de:"Generierung",pt:"geração",ja:"生成"},
+  "generations":{es:"generaciones",fr:"générations",de:"Generierungen",pt:"gerações",ja:"生成"},
+  "balance":{es:"saldo",fr:"solde",de:"Guthaben",pt:"saldo",ja:"残高"},
+  "/run":{es:"/ejecución",fr:"/exécution",de:"/Durchlauf",pt:"/execução",ja:"/実行"},
+  "signed in ✓":{es:"sesión iniciada ✓",fr:"connecté ✓",de:"angemeldet ✓",pt:"conectado ✓",ja:"サインイン済み ✓"},
+  "Sign in":{es:"Iniciar sesión",fr:"Se connecter",de:"Anmelden",pt:"Entrar",ja:"サインイン"},
+  "search models or paste an id…":{es:"busca modelos o pega un id…",fr:"cherchez un modèle ou collez un id…",de:"Modelle suchen oder eine ID einfügen…",pt:"busque modelos ou cole um id…",ja:"モデルを検索、またはIDを貼り付け…"},
+  "nano-gpt API key":{es:"clave API de nano-gpt",fr:"clé API nano-gpt",de:"nano-gpt API-Schlüssel",pt:"chave de API nano-gpt",ja:"nano-gpt APIキー"},
+  "nano-gpt is a pay-per-use AI service — hundreds of models, pay only for what you run.":{es:"nano-gpt es un servicio de IA de pago por uso — cientos de modelos, paga solo por lo que ejecutas.",fr:"nano-gpt est un service d’IA à l’usage — des centaines de modèles, payez seulement ce que vous exécutez.",de:"nano-gpt ist ein KI-Dienst mit Abrechnung nach Nutzung — Hunderte Modelle, zahle nur, was du ausführst.",pt:"o nano-gpt é um serviço de IA de pagamento por uso — centenas de modelos, pague só pelo que executar.",ja:"nano-gptは従量課金のAIサービスです — 数百のモデル、実行した分だけお支払いです。"},
+  "<b>Sign in</b> from the bar at the top to run this app — new to nano-gpt? creating an account is free.":{es:"<b>Inicia sesión</b> desde la barra superior para ejecutar esta app — ¿nuevo en nano-gpt? crear una cuenta es gratis.",fr:"<b>Connectez-vous</b> depuis la barre du haut pour exécuter cette app — nouveau sur nano-gpt ? créer un compte est gratuit.",de:"<b>Melde dich</b> über die Leiste oben an, um diese App auszuführen — neu bei nano-gpt? ein Konto zu erstellen ist kostenlos.",pt:"<b>Entre</b> pela barra no topo para executar este app — novo no nano-gpt? criar uma conta é grátis.",ja:"このアプリを実行するには上部のバーから<b>サインイン</b>してください — nano-gptは初めてですか？アカウント作成は無料です。"},
+  "new to nano-gpt? <a href=\"https://nano-gpt.com/r/mgzwtqjw\" target=\"_blank\" rel=\"noopener\">create an account →</a> — it’s free, your key stays in this browser.":{es:"¿nuevo en nano-gpt? <a href=\"https://nano-gpt.com/r/mgzwtqjw\" target=\"_blank\" rel=\"noopener\">crea una cuenta →</a> — es gratis, tu clave se queda en este navegador.",fr:"nouveau sur nano-gpt ? <a href=\"https://nano-gpt.com/r/mgzwtqjw\" target=\"_blank\" rel=\"noopener\">créez un compte →</a> — c’est gratuit, votre clé reste dans ce navigateur.",de:"neu bei nano-gpt? <a href=\"https://nano-gpt.com/r/mgzwtqjw\" target=\"_blank\" rel=\"noopener\">erstelle ein Konto →</a> — kostenlos, dein Schlüssel bleibt in diesem Browser.",pt:"novo no nano-gpt? <a href=\"https://nano-gpt.com/r/mgzwtqjw\" target=\"_blank\" rel=\"noopener\">crie uma conta →</a> — é grátis, sua chave fica neste navegador.",ja:"nano-gptは初めてですか？<a href=\"https://nano-gpt.com/r/mgzwtqjw\" target=\"_blank\" rel=\"noopener\">アカウントを作成 →</a> — 無料で、キーはこのブラウザーに保存されます。"},
+  "Paste a nano-gpt.com API key to run this app.":{es:"Pega una clave API de nano-gpt.com para ejecutar esta app.",fr:"Collez une clé API nano-gpt.com pour exécuter cette app.",de:"Füge einen nano-gpt.com API-Schlüssel ein, um diese App auszuführen.",pt:"Cole uma chave de API do nano-gpt.com para executar este app.",ja:"このアプリを実行するにはnano-gpt.comのAPIキーを貼り付けてください。"},
+  "Signing in… press Run again once you're signed in.":{es:"Iniciando sesión… pulsa Ejecutar de nuevo cuando hayas iniciado sesión.",fr:"Connexion… appuyez de nouveau sur Exécuter une fois connecté.",de:"Anmeldung… drücke erneut auf Ausführen, sobald du angemeldet bist.",pt:"Entrando… clique em Executar de novo depois de entrar.",ja:"サインイン中… サインインしたらもう一度実行を押してください。"},
+  "your nano-gpt key was rejected — sign in or paste a valid key to run":{es:"tu clave de nano-gpt fue rechazada — inicia sesión o pega una clave válida para ejecutar",fr:"votre clé nano-gpt a été refusée — connectez-vous ou collez une clé valide pour exécuter",de:"dein nano-gpt-Schlüssel wurde abgelehnt — melde dich an oder füge einen gültigen Schlüssel ein, um auszuführen",pt:"sua chave do nano-gpt foi rejeitada — entre ou cole uma chave válida para executar",ja:"nano-gptキーが拒否されました — サインインするか、有効なキーを貼り付けて実行してください"},
+  "that key was rejected by nano-gpt — check you copied the whole key":{es:"esa clave fue rechazada por nano-gpt — comprueba que copiaste la clave completa",fr:"cette clé a été refusée par nano-gpt — vérifiez que vous avez copié la clé entière",de:"dieser Schlüssel wurde von nano-gpt abgelehnt — prüfe, ob du den ganzen Schlüssel kopiert hast",pt:"essa chave foi rejeitada pelo nano-gpt — verifique se você copiou a chave inteira",ja:"そのキーはnano-gptに拒否されました — キー全体をコピーしたか確認してください"},
+  "sign in to run this app":{es:"inicia sesión para ejecutar esta app",fr:"connectez-vous pour exécuter cette app",de:"melde dich an, um diese App auszuführen",pt:"entre para executar este app",ja:"このアプリを実行するにはサインインしてください"},
+  "See every step of this run, including partial results":{es:"Ver cada paso de esta ejecución, incluidos los resultados parciales",fr:"Voir chaque étape de cette exécution, y compris les résultats partiels",de:"Jeden Schritt dieser Ausführung ansehen, inklusive Teilergebnisse",pt:"Veja cada etapa desta execução, incluindo resultados parciais",ja:"部分的な結果も含め、この実行の各ステップを見る"},
+  };
+  const PLAY_LANGS = ["en","es","fr","de","pt","ja"];
+  const PLAY_ENDONYM = { en:"English", es:"Español", fr:"Français", de:"Deutsch", pt:"Português", ja:"日本語" };
+  // ONE resolver, shared by chrome AND model-output (localeDirective). Priority: (a) viewer pick
+  // localStorage noodle_lang, (b) window.NOODLE_LANG (editor preview seed), (c) baked creator
+  // window.NOODLE_APP_LANG (bundle() injects on export), (d) navigator.languages, (e) en.
+  function resolveLang(){
+    let code=null;
+    try{ const s=localStorage.getItem("noodle_lang"); if(s && PLAY_LANGS.indexOf(s)>=0) code=s; }catch(e){}
+    if(!code && typeof window!=="undefined" && window.NOODLE_LANG && PLAY_LANGS.indexOf(window.NOODLE_LANG)>=0) code=window.NOODLE_LANG;
+    if(!code && typeof window!=="undefined" && window.NOODLE_APP_LANG && PLAY_LANGS.indexOf(window.NOODLE_APP_LANG)>=0) code=window.NOODLE_APP_LANG;
+    if(!code){ const prefs=(navigator.languages&&navigator.languages.length)?navigator.languages:[navigator.language||"en"];
+      for(const p of prefs){ const base=String(p||"").toLowerCase().split("-")[0]; if(PLAY_LANGS.indexOf(base)>=0){ code=base; break; } } }
+    return code||"en";
+  }
+  let LANG = resolveLang();
+  function i18nLookup(s){ if(LANG==="en") return null; const row=PLAY_I18N[String(s).trim()]; const hit=row&&row[LANG]; return hit!=null?hit:null; }
+  // translate a whole JS chrome string (button/status/error/tooltip); returns input if untranslated.
+  function t(s){ if(s==null) return s; const hit=i18nLookup(s); return hit!=null ? String(s).replace(String(s).trim(),()=>hit) : s; }
+  const I18N_SKIP = "#app-title, #app-tagline, [data-no-i18n]";   // user content — never translated
+  // translate the static text/placeholder/title/aria-label inside a freshly built subtree.
+  function translateTree(root){
+    if(LANG==="en" || !root) return;
+    root.querySelectorAll("[placeholder],[title],[aria-label]").forEach(el=>{
+      if(el.closest(I18N_SKIP)) return;
+      ["placeholder","title","aria-label"].forEach(a=>{ if(!el.hasAttribute(a)) return; const hit=i18nLookup(el.getAttribute(a)); if(hit!=null) el.setAttribute(a,hit); });
+    });
+    const tw=document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode(n){
+      const p=n.parentElement; if(!p) return NodeFilter.FILTER_REJECT;
+      const tag=p.tagName; if(tag==="TEXTAREA"||tag==="INPUT"||tag==="SCRIPT"||tag==="STYLE") return NodeFilter.FILTER_REJECT;
+      if(p.closest(I18N_SKIP)) return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    }});
+    const out=[]; while(tw.nextNode()) out.push(tw.currentNode);
+    for(const tn of out){ const raw=tn.nodeValue, k=raw.trim(); if(!k) continue; const hit=i18nLookup(k); if(hit!=null) tn.nodeValue=raw.replace(k,()=>hit); }
+  }
+  // Viewer language picker for STANDALONE/exported apps (skipped when EMBEDDED — the /play page
+  // owns its own and seeds NOODLE_LANG). A pick persists to localStorage + reloads. Endonyms fixed.
+  function mountLangPicker(){
+    if(EMBEDDED || document.getElementById("noodle-lang")) return;
+    const wrap=document.createElement("div"); wrap.id="noodle-lang";
+    wrap.style.cssText="position:fixed;top:.5rem;right:.6rem;z-index:9;font-size:.74rem;opacity:.75;";
+    const sel=document.createElement("select");
+    sel.setAttribute("aria-label", t("Language"));
+    sel.style.cssText="font:inherit;background:rgba(20,24,38,.75);color:var(--dim,#8b93b4);border:1px solid var(--line,#2a3150);border-radius:.4rem;padding:.12rem .3rem;cursor:pointer;";
+    PLAY_LANGS.forEach(c=>{ const o=document.createElement("option"); o.value=c; o.textContent=PLAY_ENDONYM[c]; o.setAttribute("data-no-i18n",""); if(c===LANG) o.selected=true; sel.appendChild(o); });
+    sel.addEventListener("change", ()=>{ try{ localStorage.setItem("noodle_lang", sel.value); }catch(e){} location.reload(); });
+    wrap.appendChild(sel); document.body.appendChild(wrap);
+  }
+
+
   /* ---------- model-output localization ----------
-     The app chrome stays in English, but generated TEXT should come back in the
-     user's language. We detect it from a persisted editor choice (noodle_lang,
-     shared via same-origin localStorage) and otherwise from navigator.languages,
-     limited to the languages nanoodle's editor offers. English → no directive,
-     so English users' prompts are sent byte-identical. */
+     The app chrome AND generated TEXT both come back in the viewer's language.
+     localeDirective reuses the ONE shared resolveLang() above (same priority the
+     chrome uses), so chrome and model output can never disagree. English (LANG==="en")
+     → no directive, so English users' prompts are sent byte-identical. */
   const I18N_ENAME = { es:"Spanish", fr:"French", de:"German", pt:"Portuguese", ja:"Japanese" };
   const i18nDir = (code)=> I18N_ENAME[code] ? ("Respond in "+I18N_ENAME[code]+" unless the user explicitly asks for another language.") : "";
-  function localeDirective(){
-    // An EXPLICIT editor choice wins, including "en" (→ no directive): the live preview
-    // can't read the parent's localStorage from this sandboxed frame, so the parent seeds
-    // window.NOODLE_LANG; a standalone export reads its own noodle_lang. Only with no
-    // explicit choice do we fall back to the viewer's browser language (right for an
-    // exported app opened by someone else).
-    let code = (typeof window!=="undefined" && window.NOODLE_LANG) || null;
-    if(!code){ try{ code = localStorage.getItem("noodle_lang"); }catch(e){} }
-    if(code) return i18nDir(code);
-    const prefs=(navigator.languages&&navigator.languages.length)?navigator.languages:[navigator.language||"en"];
-    for(const p of prefs){ const base=String(p||"").toLowerCase().split("-")[0]; if(I18N_ENAME[base]) return i18nDir(base); }
-    return "";
-  }
+  function localeDirective(){ return (LANG && LANG!=="en") ? i18nDir(LANG) : ""; }
   function withLocale(messages){
     const dir = localeDirective();
     if(!dir || !Array.isArray(messages)) return messages;
@@ -522,7 +711,7 @@ window.NoodleApp = (function () {
   // user won't re-paste). Clear it — setKey(null) re-renders auth, flipping the header back to signed-out/paste —
   // and signpost the fix; mirrors the editor's flagAuth. Embedded preview proxies auth through the parent, so
   // leave that path untouched (the key never lives here when EMBEDDED).
-  function flagAuth(status){ if(!EMBEDDED && (status===401||status===403)){ setKey(null); statusLine("__auth__","error","your nano-gpt key was rejected — sign in or paste a valid key to run"); } }
+  function flagAuth(status){ if(!EMBEDDED && (status===401||status===403)){ setKey(null); statusLine("__auth__","error",t("your nano-gpt key was rejected — sign in or paste a valid key to run")); } }
   // A generation call can fail purely for lack of credit: NanoGPT signals it with 402, or a body that
   // mentions balance/funds/insufficient. Turn that into one actionable line (with the top-up link)
   // instead of a raw "402: {...}" snippet the app surfaces verbatim. Mirrors the editor's httpRunError.
@@ -794,7 +983,7 @@ window.NoodleApp = (function () {
     const el = ensureRunCostEl(); if(!el) return;
     if(!priced){ el.hidden = true; return; }
     el.hidden = false;
-    el.innerHTML = '<span class="rc-amt">' + (exact?"":"~") + fmtUsd(usd) + '</span><span class="rc-lbl">/run</span>';
+    el.innerHTML = '<span class="rc-amt">' + (exact?"":"~") + fmtUsd(usd) + '</span><span class="rc-lbl">'+t("/run")+'</span>';
     let t = "Estimated cost each time you press Run — " + priced + " paid step" + (priced!==1?"s":"");
     if(unpriced) t += ", plus " + unpriced + " with no listed price";
     t += exact ? "." : ". Video, text and audio are estimates; the real cost depends on length and tokens.";
@@ -2290,7 +2479,7 @@ window.NoodleApp = (function () {
       ctrl = '<div class="modelpick">'
            + '<input id="'+id+'" '+di+' class="modelsel" value="'+esc(cur||"")+'"'
            +   ' role="combobox" aria-expanded="false" aria-autocomplete="list"'
-           +   ' placeholder="search models or paste an id…" autocomplete="off" spellcheck="false">'
+           +   ' placeholder="'+t("search models or paste an id…")+'" autocomplete="off" spellcheck="false">'
            + '<div class="modelmenu" hidden></div>'
            + '</div>';
     }
@@ -2328,9 +2517,9 @@ window.NoodleApp = (function () {
                 + '</div>';
       }
       html += '<details class="opt">'
-            + '<summary><span class="opt-tw">▸</span> Optional settings'
+            + '<summary><span class="opt-tw">▸</span> ' + t("Optional settings")
             + '<span class="opt-count">'+optCount+'</span>'
-            + '<span class="opt-hint">models &amp; defaults — tap to adjust</span></summary>'
+            + '<span class="opt-hint">'+t("models &amp; defaults — tap to adjust")+'</span></summary>'
             + '<div class="opt-body">'+groups+'</div></details>';
     }
     box.innerHTML = html;
@@ -2568,7 +2757,7 @@ window.NoodleApp = (function () {
     const nres = L.res ? Object.keys(L.res).length : 0;
     if(!nres && !(L.endAt>0)) return "";
     const label = nres ? (nres + " result" + (nres!==1?"s":"")) : "steps";
-    return '<button type="button" class="peek" data-open-lane="'+L.idx+'" title="See every step of this run, including partial results">⧉ ' + label + ' ›</button>';
+    return '<button type="button" class="peek" data-open-lane="'+L.idx+'" title="'+t("See every step of this run, including partial results")+'">⧉ ' + label + ' ›</button>';
   }
   function singleLaneHtml(L){
     const st = laneStats(L); let now = "";
@@ -2625,7 +2814,7 @@ window.NoodleApp = (function () {
   let KEEP = false;   // keep-generating: keep all N lanes busy until Stop / unchecked
   function renderCount(){
     const box = $("app-count"); if(!box) return;
-    box.innerHTML = '<span class="count-lbl">Runs</span>'
+    box.innerHTML = '<span class="count-lbl">'+t("Runs")+'</span>'
       + RUN_CHOICES.map(function(c){ return '<button type="button" class="cnt'+(c===RUNS_N?" on":"")+'" data-n="'+c+'">'+c+'×</button>'; }).join("");
     box.querySelectorAll("button[data-n]").forEach(function(b){
       b.addEventListener("click", function(){ if(running) return; RUNS_N = +b.dataset.n; renderCount(); });
@@ -2639,7 +2828,7 @@ window.NoodleApp = (function () {
   function renderLoop(){
     const box = $("app-loop"); if(!box) return;
     box.innerHTML = '<input type="checkbox" id="app-loop-cb"'+(KEEP?" checked":"")+'>'
-      + '<span>Keep generating</span>';
+      + '<span>'+t("Keep generating")+'</span>';
     box.querySelector("#app-loop-cb").addEventListener("change", function(e){ KEEP = e.target.checked; });
   }
 
@@ -2686,9 +2875,9 @@ window.NoodleApp = (function () {
     if(COST.count === 0){ el.hidden = true; return; }
     el.hidden = false;
     const total = (COST.exact ? "" : "~") + fmtUsd(COST.total);
-    const bal = COST.balance!=null ? '<span class="cm-bal">· balance ' + fmtUsd(COST.balance) + '</span>' : "";
-    el.innerHTML = '<span class="cm-spent">⌁ ' + total + ' spent on this app</span>'
-                 + '<span class="cm-n">' + COST.count + ' generation' + (COST.count!==1?"s":"") + '</span>'
+    const bal = COST.balance!=null ? '<span class="cm-bal">· ' + t("balance") + ' ' + fmtUsd(COST.balance) + '</span>' : "";
+    el.innerHTML = '<span class="cm-spent">⌁ ' + total + ' ' + t("spent on this app") + '</span>'
+                 + '<span class="cm-n">' + COST.count + ' ' + t(COST.count!==1?"generations":"generation") + '</span>'
                  + bal;
   }
 
@@ -2702,16 +2891,16 @@ window.NoodleApp = (function () {
     const val = out[port.name];
     if(val==null) return null;
     const card = document.createElement("div"); card.className="card";
-    const cost = n.cached ? '<span class="rcost" title="reused fixed-seed result — no charge">↺ reused</span>'
-               : (n.costUsd>0) ? '<span class="rcost" title="cost of this generation">'+fmtUsd(n.costUsd)+'</span>'
-               : n.costKnown ? '<span class="rcost incl" title="included in your subscription">included</span>' : '';
+    const cost = n.cached ? '<span class="rcost" title="'+t("reused fixed-seed result — no charge")+'">'+t("↺ reused")+'</span>'
+               : (n.costUsd>0) ? '<span class="rcost" title="'+t("cost of this generation")+'">'+fmtUsd(n.costUsd)+'</span>'
+               : n.costKnown ? '<span class="rcost incl" title="'+t("included in your subscription")+'">'+t("included")+'</span>' : '';
     const head = '<div class="rhead">'+(badge||"")+esc(NODE_TYPES[n.type].em)+' '+esc(displayName(n))+cost+'</div>';
     const gallery = (port.type==="image" && out.images && out.images.length>1) ? out.images : null;
     let media;
     if(port.type==="image"){
       media = '<img class="rmain" src="'+esc(val)+'" alt="">';
       if(gallery) media += '<div class="varstrip">' + gallery.map(function(u,i){
-        return '<img class="varthumb'+(u===val?" sel":"")+'" data-vi="'+i+'" src="'+esc(u)+'" alt="variation '+(i+1)+'" title="variation '+(i+1)+'">'; }).join("") + '</div>';
+        return '<img class="varthumb'+(u===val?" sel":"")+'" data-vi="'+i+'" src="'+esc(u)+'" alt="'+t("variation")+' '+(i+1)+'" title="'+t("variation")+' '+(i+1)+'">'; }).join("") + '</div>';
     }
     else if(port.type==="video") media = '<video src="'+esc(val)+'" controls playsinline></video>';
     else if(port.type==="audio") media = '<audio src="'+esc(val)+'" controls preload="metadata"></audio>';
@@ -2797,9 +2986,9 @@ window.NoodleApp = (function () {
     injectDetailStyles();
     const w = document.createElement("div"); w.id = "noodle-steps"; w.hidden = true;
     w.innerHTML = '<div class="nd-back"></div>'
-      + '<div class="nd-panel" role="dialog" aria-modal="true" aria-label="Run steps">'
-      + '<div class="nd-head"><span class="nd-title">Run steps</span><span class="nd-sub"></span>'
-      + '<button type="button" class="nd-x" aria-label="Close">✕</button></div>'
+      + '<div class="nd-panel" role="dialog" aria-modal="true" aria-label="'+t("Run steps")+'">'
+      + '<div class="nd-head"><span class="nd-title">'+t("Run steps")+'</span><span class="nd-sub"></span>'
+      + '<button type="button" class="nd-x" aria-label="'+t("Close")+'">✕</button></div>'
       + '<div class="nd-body"></div></div>';
     document.body.appendChild(w);
     w.querySelector(".nd-back").onclick = closeDetail;
@@ -2819,15 +3008,15 @@ window.NoodleApp = (function () {
   }
   function stepStatus(L, id){
     const s = L.state[id] || {};
-    if(s.kind==="error") return { cls:"err", txt:"✗ failed" };
+    if(s.kind==="error") return { cls:"err", txt:t("✗ failed") };
     if(s.kind==="done"){
       const n = L.res && L.res[id];
-      if(n && n.cached) return { cls:"ok", txt:"↺ reused" };
-      const cost = (n && n.costUsd>0) ? (" · " + fmtUsd(n.costUsd)) : (n && n.costKnown) ? " · included" : "";
-      return { cls:"ok", txt:"✓ done" + cost };
+      if(n && n.cached) return { cls:"ok", txt:t("↺ reused") };
+      const cost = (n && n.costUsd>0) ? (" · " + fmtUsd(n.costUsd)) : (n && n.costKnown) ? (" · " + t("included")) : "";
+      return { cls:"ok", txt:t("✓ done") + cost };
     }
-    if(s.kind==="run") return { cls:"run", txt:"● " + (s.msg || "running…") };
-    return { cls:"wait", txt:"○ waiting" };
+    if(s.kind==="run") return { cls:"run", txt:"● " + t(s.msg || "running…") };
+    return { cls:"wait", txt:t("○ waiting") };
   }
   function paintDetail(){
     if(detailOpen == null) return;
@@ -2963,14 +3152,14 @@ window.NoodleApp = (function () {
     const btn = $("app-run"); if(!btn) return;
     btn.disabled = false;
     btn.classList.toggle("stop", !!stopping);
-    btn.innerHTML = stopping ? "■ Stop" : RUN_LABEL;
+    btn.innerHTML = stopping ? t("■ Stop") : RUN_LABEL;
   }
   // Stop: abort the live run immediately. In-flight fetches cancel, pending
   // poll-sleeps wake, and runGraph halts before any dependent step starts.
   function cancelRun(){
     if(ABORT && !ABORT.signal.aborted){
       ABORT.abort();
-      statusLine("__run__","done","Stopped.");
+      statusLine("__run__","done",t("Stopped."));
     }
   }
 
@@ -2980,13 +3169,13 @@ window.NoodleApp = (function () {
       // Don't dead-end on a "sign in first" message — kick off sign-in right here.
       if(EMBEDDED){
         try{ window.parent.postMessage({ type:"__signin__" }, "*"); }catch(_){}
-        statusLine("__auth__","done","Signing in… press Run again once you're signed in.");
+        statusLine("__auth__","done",t("Signing in… press Run again once you're signed in."));
       } else if(/^https?:$/.test(location.protocol)){
         signIn().catch(e=> statusLine("__auth__","error","sign-in error: "+e.message));   // OAuth redirect
       } else {
         renderAuth(); const row=$("auth-keyrow"); if(row) row.hidden=false;   // file:// → no OAuth, reveal paste-key
         const ki=$("auth-keyinput"); if(ki) ki.focus();
-        statusLine("__auth__","error","Paste a nano-gpt.com API key to run this app.");
+        statusLine("__auth__","error",t("Paste a nano-gpt.com API key to run this app."));
       }
       return;
     }
@@ -3006,7 +3195,7 @@ window.NoodleApp = (function () {
     // treat unknown balance as empty) or the forecast is $0. Emitted after the #app-msg clear above so
     // the warning survives run start.
     if(COST.balance!=null && COST.estUsd!=null && COST.estUsd>0 && COST.balance < COST.estUsd){
-      statusLine("__lowbal__","warn","balance " + fmtUsd(COST.balance) + " may not cover this ~" + fmtUsd(COST.estUsd) + " run — top up at nano-gpt.com");
+      statusLine("__lowbal__","warn", t("balance {bal} may not cover this ~{usd} run — top up at nano-gpt.com").replace("{bal}",()=>fmtUsd(COST.balance)).replace("{usd}",()=>fmtUsd(COST.estUsd)));
     }
     const outIds = new Set(STATE.outputs.map(n=>n.id));
 
@@ -3163,7 +3352,7 @@ window.NoodleApp = (function () {
     }
     if(/^(TypeError: )?(Failed to fetch|Load failed|NetworkError)/i.test(m.trim()))
       return "couldn't reach nano-gpt.com — an ad-blocker, VPN or network filter may be blocking it; check the connection and run again";
-    return m;
+    return t(m);   // relayed API/parent messages pass through the chrome dict (e.g. "sign in to run this app"); unknown text stays verbatim
   }
   // Warm landing for a shared-app / exported recipient who lands here without a key:
   // styles injected at runtime (mirroring injectCostStyles, with var() fallbacks) so a
@@ -3194,10 +3383,10 @@ window.NoodleApp = (function () {
     // runs in a sandboxed iframe with no allow-popups, where a target=_blank link is dead
     // — there we point at the top bar, which is un-sandboxed and owns sign-in / sign-up.
     const cta = embedded
-      ? '<p class="auth-cta"><b>Sign in</b> from the bar at the top to run this app — new to nano-gpt? creating an account is free.</p>'
-      : '<p class="auth-cta">new to nano-gpt? <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">create an account →</a> — it’s free, your key stays in this browser.</p>';
+      ? '<p class="auth-cta">' + t('<b>Sign in</b> from the bar at the top to run this app — new to nano-gpt? creating an account is free.') + '</p>'
+      : '<p class="auth-cta">' + t('new to nano-gpt? <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">create an account →</a> — it’s free, your key stays in this browser.') + '</p>';
     return '<div class="auth-intro">'
-      + '<p>nano-gpt is a pay-per-use AI service — hundreds of models, pay only for what you run.</p>'
+      + '<p>' + t("nano-gpt is a pay-per-use AI service — hundreds of models, pay only for what you run.") + '</p>'
       + cta
       + '</div>';
   }
@@ -3220,13 +3409,13 @@ window.NoodleApp = (function () {
     // on a "Sign in" button that 400s.
     const canOAuth = /^https?:$/.test(location.protocol);
     box.innerHTML = ok
-      ? '<span class="authok">signed in ✓</span> <button class="link" id="auth-out">sign out</button>'
+      ? '<span class="authok">'+t("signed in ✓")+'</span> <button class="link" id="auth-out">'+t("sign out")+'</button>'
       : authIntro(false)
-      + (canOAuth ? '<button class="link" id="auth-in">Sign in</button> ' : '')
-      + '<button class="link" id="auth-paste">paste key</button>'
+      + (canOAuth ? '<button class="link" id="auth-in">'+t("Sign in")+'</button> ' : '')
+      + '<button class="link" id="auth-paste">'+t("paste key")+'</button>'
       + ' <span class="keyrow" id="auth-keyrow" hidden>'
-      + '<input id="auth-keyinput" type="text" placeholder="nano-gpt API key" autocomplete="off" spellcheck="false" autocapitalize="off" autocorrect="off" data-1p-ignore data-lpignore="true" data-bwignore>'
-      + ' <button class="link" id="auth-keysave">save</button>'
+      + '<input id="auth-keyinput" type="text" placeholder="'+t("nano-gpt API key")+'" autocomplete="off" spellcheck="false" autocapitalize="off" autocorrect="off" data-1p-ignore data-lpignore="true" data-bwignore>'
+      + ' <button class="link" id="auth-keysave">'+t("save")+'</button>'
       + '</span>'
       + (canOAuth ? '' : ' <span class="dim">— paste a nano-gpt.com key (one-click sign-in needs the app served over http)</span>');
       // (the "new to nano-gpt? create an account" line already lives in authIntro's own
@@ -3238,24 +3427,25 @@ window.NoodleApp = (function () {
       $("auth-paste").onclick = async ()=>{
         $("auth-keyrow").hidden=false; $("auth-keyinput").focus();
         // it says "paste" — fill from the clipboard where allowed (denied/DLP-blocked → say so; manual paste still works)
-        try{ const t = cleanKey(await navigator.clipboard.readText()); if(t) $("auth-keyinput").value = t; }
-        catch(_){ statusLine("__auth__","error","couldn't read your clipboard — click the key field and press Ctrl+V to paste"); }
+        // (local var named clip, NOT t — t is the i18n translator in this scope; shadowing it broke translation once)
+        try{ const clip = cleanKey(await navigator.clipboard.readText()); if(clip) $("auth-keyinput").value = clip; }
+        catch(_){ statusLine("__auth__","error",t("couldn't read your clipboard — click the key field and press Ctrl+V to paste")); }
       };
       $("auth-keysave").onclick = async ()=>{
         const k=cleanKey($("auth-keyinput").value); if(!k) return;
         if(!keySendable(k)){
-          statusLine("__auth__","error","that key has a character that can't be sent — re-copy it from nano-gpt.com → Settings → API and paste again");
+          statusLine("__auth__","error",t("that key has a character that can't be sent — re-copy it from nano-gpt.com → Settings → API and paste again"));
           $("auth-keyinput").focus(); return;
         }
-        const sb=$("auth-keysave"); sb.disabled=true; sb.textContent="checking…";
+        const sb=$("auth-keysave"); sb.disabled=true; sb.textContent=t("checking…");
         const probe = await probeKey(k);                 // 401/403 → reject; 200/400 → keep; offline → keep but say so
         if(probe==="bad"){
-          sb.disabled=false; sb.textContent="save";      // keep the row OPEN, never store → no false "signed in ✓"
-          statusLine("__auth__","error","that key was rejected by nano-gpt — check you copied the whole key");
+          sb.disabled=false; sb.textContent=t("save");      // keep the row OPEN, never store → no false "signed in ✓"
+          statusLine("__auth__","error",t("that key was rejected by nano-gpt — check you copied the whole key"));
           $("auth-keyinput").focus(); return;
         }
         setKey(k);   // validated (or offline-tolerated): setKey() re-renders the header to the true signed-in state
-        if(probe==="unverified") statusLine("__auth__","error","key saved — but nano-gpt.com can't be reached right now (ad-blocker, VPN or network?), so runs may fail");
+        if(probe==="unverified") statusLine("__auth__","error",t("key saved — but nano-gpt.com can't be reached right now (ad-blocker, VPN or network?), so runs may fail"));
       };
       const ki = $("auth-keyinput");
       if(ki) ki.addEventListener("keydown", e=>{ if(e.key==="Enter") $("auth-keysave").click(); });
@@ -3292,6 +3482,13 @@ window.NoodleApp = (function () {
 
     const titleEl = $("app-title");
     if(titleEl && !titleEl.textContent.trim()) titleEl.textContent = "My nanoodle app";
+
+    // Localize the static chrome shell (Run button, footer, any headings) BEFORE the dynamic
+    // renders below — translateTree skips user content (#app-title/#app-tagline, [data-no-i18n]);
+    // everything built dynamically after this localizes at its call site via t(). A standalone
+    // export also gets a viewer language picker (top-right); the /play preview owns its own.
+    translateTree(document.body);
+    mountLangPicker();
 
     // Heal a stored key that predates save-time cleaning (standalone only — embedded auth lives
     // in the parent): clean in place, or drop an unsendable one so auth honestly shows signed-out.
@@ -3422,8 +3619,8 @@ function defaultFiles(graph){
 <body>
 <main class="app">
   <header class="app-head">
-    <h1 id="app-title">${esc(title)}</h1>
-    <p id="app-tagline">${esc(tagline)}</p>
+    <h1 id="app-title" data-no-i18n>${esc(title)}</h1>
+    <p id="app-tagline" data-no-i18n>${esc(tagline)}</p>
     <div id="app-auth" class="auth"></div>
   </header>
 
@@ -3713,6 +3910,12 @@ function bundle(files){
   //    mount() is idempotent, so a stray hand-written call is harmless anyway.
   html = html.replace(/<script>\s*NoodleApp\s*\.\s*mount\s*\(\s*\)\s*;?\s*<\/script>/gi, "");
   html = injectInBody(html, ENGINE.mount);
+  // Carry the creator's language into a STANDALONE export so a fresh viewer (no prior pick, no
+  // editor preview seed) sees chrome + model output in the language the app was built in. It rides
+  // in <head> as a plain global — NOT in the graph — so it never dirties appHandoffSig/contentSig
+  // or a version. Only a deliberate choice is baked ("" → nothing); the viewer's own pick still wins.
+  const _appLang = bakedAppLang();
+  if(_appLang) html = injectInHead(html, '<script>window.NOODLE_APP_LANG=' + JSON.stringify(_appLang) + ';<\/script>');
   return html;
 }
 
@@ -3745,6 +3948,19 @@ function parentLang(){
   for(const p of prefs){ const b=String(p||"").toLowerCase().split("-")[0]; if(SUP[b]) return b; }
   return "en";
 }
+// The creator's EXPLICIT editor language (localStorage noodle_lang), or "" if they never chose
+// one. Distinct from parentLang(): NO navigator fallback — only a DELIBERATE choice is baked into
+// an export / carried in a share link, so otherwise a shared app stays neutral (viewer's own lang).
+function explicitLang(){
+  const SUP={ en:1, es:1, fr:1, de:1, pt:1, ja:1 };
+  let stored=null; try{ stored=localStorage.getItem("noodle_lang"); }catch(e){}
+  return (stored && SUP[stored]) ? stored : "";
+}
+// The language to bake into an export / carry in a share link for the app currently open: the
+// ORIGINAL creator's (APP_STATE.lang, set from spec.lang on import) or, for an app built/edited
+// here, THIS creator's explicit editor choice. "" → carry nothing. Presentation only — it never
+// enters the graph, so it can't dirty appHandoffSig / contentSig / a version signature.
+function bakedAppLang(){ return (typeof APP_STATE!=="undefined" && APP_STATE && APP_STATE.lang) || explicitLang(); }
 function withPreamble(html){
   const pre = '<script>window.NOODLE_LANG=' + JSON.stringify(parentLang()) + ';<\/script>' + PREVIEW_PREAMBLE;
   if(/<head[^>]*>/i.test(html))     return html.replace(/<head[^>]*>/i, (m)=> m + pre);
@@ -3878,7 +4094,7 @@ function renderModelBtn(){ const label = "✨ " + (MODEL || "pick a model…") +
 function setModel(id){ MODEL = id; try{ localStorage.setItem("ngpt_app_model", id); }catch(_){} renderModelBtn(); }
 function openModelPicker(){
   picker = { current: MODEL };
-  $("mpicktitle").textContent = "Model for app changes";
+  $("mpicktitle").textContent = tB("Model for app changes");
   $("mpick").classList.add("open"); $("mpickback").classList.add("show");
   $("mpicksearch").value = ""; $("mpicklist").innerHTML = "<div class='dim' style='padding:.6rem'>loading the full list…</div>";
   $("mpicksearch").focus();
@@ -3913,8 +4129,8 @@ const MOUNT_IDS = ["app-title","app-tagline","app-auth","app-inputs","app-run","
 // Typed fallbacks bundle() re-injects if a diff ever drops a mount point, so the
 // runtime always finds the elements it binds to — no prompt policing required.
 const MOUNT_FALLBACK = {
-  "app-title":   '<h1 id="app-title"></h1>',
-  "app-tagline": '<p id="app-tagline"></p>',
+  "app-title":   '<h1 id="app-title" data-no-i18n></h1>',
+  "app-tagline": '<p id="app-tagline" data-no-i18n></p>',
   "app-auth":    '<div id="app-auth" class="auth"></div>',
   "app-inputs":  '<section id="app-inputs" class="inputs"></section>',
   "app-run":     '<button id="app-run" class="run">▶ Run</button>',
@@ -4288,7 +4504,7 @@ function wireTitle(){
    closing the builder never loses it; the editor is told via __appsaved__ and
    binds to it, so re-creates update in place instead of stacking duplicates.
    ====================================================================== */
-let APP_STATE = { v:1, graph:{ nodes:[], links:[] }, files:{}, versions:[], curVer:0, uiSig:null };
+let APP_STATE = { v:1, graph:{ nodes:[], links:[] }, files:{}, versions:[], curVer:0, uiSig:null, lang:"" };
 let CUR_ID = null;          // library id of the open app, or null for a draft
 let curImported = false;    // open app came in via a share link (#a=)
 let FROM_EDITOR = false;    // open app derives from the host editor's canvas. Only THEN may a
@@ -4314,7 +4530,7 @@ function newId(){ return "app_" + Date.now().toString(36) + Math.random().toStri
 // snapshot the open app as a library entry
 function curEntry(){
   return { id:CUR_ID, title:titleFromFiles(APP_STATE.files), imported:curImported,
-           graph:APP_STATE.graph, files:APP_STATE.files, uiSig:APP_STATE.uiSig,
+           graph:APP_STATE.graph, files:APP_STATE.files, uiSig:APP_STATE.uiSig, lang:APP_STATE.lang||"",
            versions:APP_STATE.versions, curVer:APP_STATE.curVer, updated:Date.now() };
 }
 // write the working state (LS_KEY) and, if this app is in the library, upsert it there
@@ -4356,11 +4572,15 @@ function stashResume(){
 }
 
 // install a freshly-loaded {graph, files} into the builder (used by every load path)
-function installApp({ graph, files, versions, curVer, fresh, id, imported, uiSig, fromEditor }){
+function installApp({ graph, files, versions, curVer, fresh, id, imported, uiSig, fromEditor, lang }){
   if($("portbar")){ $("portbar").hidden = true; setPortMode(false); }   // any (re)load clears a stale "port?" offer
   CUR_ID = id || null;
   FROM_EDITOR = !!fromEditor;   // set BEFORE the commit below — it gates the __appsaved__ post
   curImported = !!imported;
+  // Creator language for THIS app: an explicit value from the caller (a stored app's saved lang,
+  // or an imported share link's spec.lang) wins; otherwise a fresh build/edit here adopts THIS
+  // creator's explicit editor choice. An import with no baked lang stays neutral ("").
+  APP_STATE.lang = (lang!=null) ? lang : (imported ? "" : explicitLang());
   APP_STATE.graph = graph || { nodes:[], links:[] };
   APP_STATE.files = files && files["index.html"] ? files : defaultFiles(APP_STATE.graph);
   // the shape the UI fits: explicit when the caller knows it (a stored app, or an
@@ -4509,7 +4729,7 @@ function renderAppsMenu(){
       + (a.imported ? ' <span class="am-tag">imported</span>' : '') + '</div>'
       + '<div class="am-sub">' + ioHtml + '<span class="am-when">' + esc(relTime(a.updated)) + '</span></div>'
       + '</div>'
-      + '<button class="am-del" title="Delete this app">🗑</button>';
+      + '<button class="am-del" title="'+tB("Delete this app")+'">🗑</button>';
     row.querySelector(".am-main").onclick = ()=> openApp(a.id);
     row.querySelector(".am-del").onclick = (e)=>{ e.stopPropagation(); deleteApp(a.id); };
     list.appendChild(row);
@@ -4521,7 +4741,7 @@ function toggleAppsMenu(){ $("appsmenu").hidden ? openAppsMenu() : closeAppsMenu
 function openApp(id){
   const a = loadApps().find(x=>x.id===id); if(!a) return;
   closeAppsMenu();
-  installApp({ graph:a.graph, files:a.files, versions:a.versions, curVer:a.curVer, id:a.id, imported:a.imported, uiSig:a.uiSig });
+  installApp({ graph:a.graph, files:a.files, versions:a.versions, curVer:a.curVer, id:a.id, imported:a.imported, uiSig:a.uiSig, lang:a.lang });
 }
 function deleteApp(id){
   saveApps(loadApps().filter(a=>a.id!==id));
@@ -4605,7 +4825,7 @@ async function handleRedirect(){
 }
 function renderAuth(){
   const signed = !!getKey();
-  $("auth-status").textContent = signed ? "signed in ✓" : "not signed in";
+  $("auth-status").textContent = signed ? tB("signed in ✓") : tB("not signed in");
   $("signin").style.display  = signed ? "none" : "";
   $("pastebtn").style.display = signed ? "none" : "";
   $("signout").style.display  = signed ? "" : "none";
@@ -4677,7 +4897,8 @@ let longShareUrl = "";  // the FULL long link the popover was opened with — wh
                         // (doShare strips #a= back out of the address bar, so location.hash is empty by then)
 async function doShare(){
   try{
-    const json = JSON.stringify({ v:1, graph:shareableGraph(APP_STATE.graph), files:APP_STATE.files });
+    const _lang = bakedAppLang();   // carry the creator's language in the link (short field); "" → omit, keeps the link neutral + small
+    const json = JSON.stringify({ v:1, graph:shareableGraph(APP_STATE.graph), files:APP_STATE.files, ...(_lang?{lang:_lang}:{}) });
     const packed = await gzip(json).catch(()=>null);
     const hash = packed ? "#a="+bytesToB64url(packed)
                         : "#a=u"+bytesToB64url(new TextEncoder().encode(json)); // 'u' = uncompressed fallback
@@ -4782,7 +5003,7 @@ async function loadFromHash(){
                                 : await gunzip(b64urlToBytes(tag));
       const spec = JSON.parse(json);
       // someone else's app → keep it in "My apps", flagged as imported (it carries its own files)
-      const saved = installApp({ graph:spec.graph, files:spec.files, id:newId(), imported:true });
+      const saved = installApp({ graph:spec.graph, files:spec.files, id:newId(), imported:true, lang:spec.lang });
       if(saved){
         consumeHandoff();   // don't re-import on reload
         toast("Imported — saved to “My apps”");
@@ -5012,6 +5233,12 @@ async function boot(){
       + "</p>";
     return;
   }
+  // Localize the static builder chrome ONCE (bar / Customize / share popover / empty state /
+  // model picker), then add the 🌐 selector. Runs before the dynamic renders below so anything
+  // rebuilt afterwards localizes at its own tB() call site. Skips user content (app title, the
+  // My-apps list, version chips, the running app iframe) via I18N_SKIP_B.
+  translateTreeB(document.body);
+  mountLangPickerB();
   renderAuth();
   if(authErr){ $("auth-status").textContent = "sign-in error: "+authErr.message; toast("sign-in didn't complete: "+authErr.message,"err"); }
   migrateLegacy();

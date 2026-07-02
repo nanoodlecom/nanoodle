@@ -28,8 +28,8 @@ touches_editorports=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scrip
 touches_settings=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-app-settings\.mjs)$' || true)
 # index.html carries the quick-add type filter (drop a wire into empty space → only fitting nodes).
 touches_quickadd=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-quickadd\.mjs)$' || true)
-# index.html carries the i18n maps — a chrome string missing from every language map is invisible to users of all five.
-touches_i18n=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-i18n-coverage\.mjs)$' || true)
+# index.html + play.html carry the i18n maps (editor + app-player/exported chrome) — a chrome string missing from every language map is invisible to users of all five.
+touches_i18n=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-i18n-coverage\.mjs)$' || true)
 # updates.json feeds the in-app "📣 Updates" changelog — a bad hand edit must not ship.
 touches_updates=$(printf '%s\n' "$staged" | grep -E '(^|/)(updates\.json|scripts/check-updates\.mjs)$' || true)
 # index.html + play.html carry the "Create app" handoff state machine (which app a click targets).
@@ -182,9 +182,10 @@ if [ -n "$touches_combine" ]; then
   node "$root/scripts/check-combine.mjs"
 fi
 
-# 18) I18N: every static chrome string (title/placeholder/aria-label/group headers) must exist
-#     in ALL five language maps or be explicitly allowlisted — strings missing from EVERY map
-#     evade cross-language comparisons entirely. Also pins the run-button/cost-chip t() wiring.
+# 18) I18N: every static chrome string (title/placeholder/aria-label/group headers) in the editor
+#     (index.html) AND the app player / exported chrome (play.html: PLAY_I18N + PLAY_I18N_B) must
+#     exist in ALL five language maps or be explicitly allowlisted — strings missing from EVERY map
+#     evade cross-language comparisons entirely. Also pins the t()/resolver/baked-lang mechanisms.
 if [ -n "$touches_i18n" ]; then
   node "$root/scripts/check-i18n-coverage.mjs"
 fi
