@@ -3651,10 +3651,19 @@ function audioUnitUsd(pricing, chars){
 function nodeUnitUsd(n){
   const t = NODE_TYPES[n.type]; if(!t || !t.modelKind) return null;
   const kind = t.modelKind, it = catItem(kind, n.fields.model); if(!it) return null;
-  if(kind==="image"){ const u = imageUnitUsd(n.fields.model, n.fields.size); return u==null ? null : u*Math.max(1, parseInt(n.fields.variations,10)||1); }
+  if(kind==="image"){ const u = imageUnitUsd(n.fields.model, n.fields.size); if(u==null) return null;
+    // Price the images the run will ACTUALLY be billed for (genImage accrues unit×urls.length): fixed_image_count
+    // models (midjourney/higgsfield) always return N regardless of the request; otherwise clamp the requested
+    // variations to what the model can return, so a stale/over-set count can't inflate the estimate either.
+    const maxOut=(it&&it.maxOut)||1, fixed=(it&&it.fixedCount)||0;
+    const count = fixed>0 ? fixed : Math.min(maxOut, Math.max(1, parseInt(n.fields.variations,10)||1));
+    return u*count; }
   if(kind==="video"){ const u = videoUnitUsd(it.pricing, n.fields); return (u!=null && isFinite(u)) ? u : null; }
   if(kind==="chat"){ const f=n.fields||{}; const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(it, inTok, outTok); }
-  if(kind==="audio"){ const chars = t.modelFilter==="stt" ? undefined : (((n.fields||{}).prompt||"").length || EST.ttsChars); return audioUnitUsd(it.pricing, chars); }
+  if(kind==="audio"){ const chars = t.modelFilter==="stt" ? undefined : (((n.fields||{}).prompt||"").length || EST.ttsChars);
+    const u = audioUnitUsd(it.pricing, chars); if(u==null) return null;
+    const songs = Math.max(1, parseInt((n.fields||{}).number_of_songs,10)||1);   // music models bill per song (the API is sent number_of_songs)
+    return u*songs; }
   return null;
 }
 // total across the whole graph — matches ▶ Run all (every disconnected flow fires)
@@ -5832,7 +5841,15 @@ const CTX = {
     }
     const blob = await r.blob();
     const hc = parseFloat(r.headers.get("x-cost") || r.headers.get("x-nano-cost") || "");
-    stats.count++; if(!isNaN(hc)) stats.cost += hc; else stats.exact = false;   // x-cost 0 = known-free (subscription)
+    stats.count++;
+    if(!isNaN(hc)) stats.cost += hc;                                            // real header cost (x-cost 0 = known-free / subscription)
+    else {                                                                      // this endpoint sends no cost header live → fall back to the catalog estimate so a paid TTS/music run isn't metered as $0
+      const it = catItem("audio", model);
+      const songs = Math.max(1, parseInt(extra && (extra.number_of_songs||extra.n), 10)||1);
+      const est = it ? audioUnitUsd(it.pricing, (input||"").length || EST.ttsChars) : null;
+      if(est!=null && isFinite(est)) stats.cost += est*songs;
+      stats.exact = false;                                                      // estimate, not a metered figure → session flagged inexact ("~")
+    }
     const bal = parseFloat(r.headers.get("x-remaining-balance") || ""); if(!isNaN(bal)){ stats.balance = bal; cacheBalance(); }
     paintCost();
     return URL.createObjectURL(blob);

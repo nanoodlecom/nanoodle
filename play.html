@@ -884,6 +884,16 @@ window.NoodleApp = (function () {
       return (isFinite(+durationSec) && perMin!=null && isFinite(+perMin)) ? (+durationSec/60)*(+perMin) : null;
     }catch(e){ return null; }
   }
+  // TTS/music speech endpoint returns binary audio with NO cost header live → estimate from the catalog
+  // (chars × per-1k, or per-generation) × songs, so a paid run isn't metered as $0.
+  async function estSpeechUsd(model, input, extra){
+    try{
+      const m = await rawCatItem("audio", model); if(!m) return null;
+      const songs = Math.max(1, parseInt(extra && (extra.number_of_songs||extra.n), 10)||1);
+      const est = audioUnitUsd(m.pricing, (input||"").length || EST.ttsChars);
+      return (est!=null && isFinite(est)) ? est*songs : null;
+    }catch(e){ return null; }
+  }
 
   /* ---------- PRE-RUN cost estimate ("~$X / run", next to Run) ----------
      A forecast the app can show BEFORE you spend: every NanoGPT pricing shape → one
@@ -1003,10 +1013,17 @@ window.NoodleApp = (function () {
     const id = n.fields && n.fields.model; if(!id) return null;
     const m = await rawCatItem(kind, id); if(!m) return null;
     const pricing = m.pricing, f = n.fields || {};
-    if(kind==="image"){ return imageUsd(pricing, f.size, Math.max(1, parseInt(f.variations,10)||1)); }
+    if(kind==="image"){ const sp=m.supported_parameters||{}, maxOut=sp.max_output_images||1, fixed=sp.fixed_image_count||0;
+      // match the billed image count (genImage bills unit×urls.length): fixed_image_count models always return N;
+      // otherwise clamp requested variations to the model's real max so an over-set count can't inflate the forecast.
+      const count = fixed>0 ? fixed : Math.min(maxOut, Math.max(1, parseInt(f.variations,10)||1));
+      return imageUsd(pricing, f.size, count); }
     if(kind==="video"){ const u = videoUnitUsd(pricing, f); return (u!=null && isFinite(u)) ? u : null; }
     if(kind==="chat"){ const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(pricing, inTok, outTok); }
-    if(kind==="audio"){ const chars = n.type==="transcribe" ? undefined : ((f.prompt||"").length || EST.ttsChars); return audioUnitUsd(pricing, chars); }
+    if(kind==="audio"){ const chars = n.type==="transcribe" ? undefined : ((f.prompt||"").length || EST.ttsChars);
+      const u = audioUnitUsd(pricing, chars); if(u==null) return null;
+      const songs = Math.max(1, parseInt(f.number_of_songs,10)||1);   // music models bill per song
+      return u*songs; }
     return null;
   }
   let _runCostToken = 0;
@@ -1278,7 +1295,9 @@ window.NoodleApp = (function () {
         if(!url) throw new Error("no audio url in response");
         return url;
       }
-      onCost(costFromHeaders(r));   // binary audio: price rides on x-cost / x-remaining-balance
+      const cAud = costFromHeaders(r);   // binary audio: price rides on x-cost / x-remaining-balance (absent live)
+      if(cAud.usd==null){ const est = await estSpeechUsd(model, input, extra); if(est!=null){ cAud.usd = est; cAud.estimate = true; } }
+      onCost(cAud);
       const blob = await r.blob();
       // Some providers hand back the audio with a blank/generic content-type. An
       // <audio> element won't play a blob whose MIME it can't recognise (shows
