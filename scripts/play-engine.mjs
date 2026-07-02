@@ -101,8 +101,12 @@ export function recordingFetch(url, opts = {}) {
     json = { data: Array.from({ length: cnt }, (_, i) => ({ b64_json: "IMG" + i })) };
   }
   // audio/video/transcribe: leave generic — those run()s may throw, runGraph isolates them.
+  // Real NanoGPT responses carry the live balance on the x-remaining-balance header (and x-cost on
+  // binary paths); mirror that so the engines' header-balance capture is exercised, not skipped.
+  const hdr = { "x-remaining-balance": "9.87", "x-cost": "0" };
   return Promise.resolve({
     ok: true, status: 200,
+    headers: { get: (k) => hdr[String(k).toLowerCase()] ?? null },
     json: async () => json,
     text: async () => JSON.stringify(json),
   });

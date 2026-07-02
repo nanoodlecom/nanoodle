@@ -5741,7 +5741,7 @@ const CTX = {
     // /v1/images/generations returns no cost field (live-confirmed), so estimate from the catalog's
     // per-size price × the number of images ACTUALLY returned (some models force N regardless of opts.n).
     const unit = imageUnitUsd(model, size);
-    accrue(j, unit!=null ? unit*urls.length : null); return opts.multi ? urls : urls[0];
+    accrue(j, unit!=null ? unit*urls.length : null, r); return opts.multi ? urls : urls[0];
   },
   async genChat(messages, model, opts){
     opts = opts || {};
@@ -5756,7 +5756,7 @@ const CTX = {
     const r = await fetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
     if(!r.ok){ await throwHttp(r); }
     const j = await r.json();
-    accrue(j);
+    accrue(j, undefined, r);
     const msg = j.choices?.[0]?.message || {};
     const txt = msg.content;
     if(txt==null) throw new Error("no text in response");
@@ -5803,7 +5803,7 @@ const CTX = {
       catch(e){ if(e?.name==="AbortError") throw e;
         throw new Error(`couldn't reach the video API — if the source media is large it may have been rejected for size before CORS applies. Try a shorter clip (the ✂️ Trim node can cut audio down). (${e.message||e})`); }
       if(!r.ok){ await throwHttp(r); }
-      const j = await r.json(); accrue(j);
+      const j = await r.json(); accrue(j, undefined, r);
       runId = j.runId || j.id;
       if(!runId) throw new Error("no runId returned");
       if(runKey) PENDING_VIDEO.set(runKey, {sig:bodySig, runId});   // remember it (with its request sig) the moment it exists, so a timeout is recoverable
@@ -5850,7 +5850,7 @@ const CTX = {
     }
     const ct = r.headers.get("content-type") || "";
     if(ct.includes("application/json")){
-      const j = await r.json(); accrue(j);
+      const j = await r.json(); accrue(j, undefined, r);
       let url = j.url || j.audioUrl || j.data?.url || j.data?.audioUrl;
       if(!url && (j.runId || j.id)) url = await pollAudio(model, j, onProgress);   // async model → poll
       if(!url) throw new Error("no audio url in response");
@@ -5893,7 +5893,7 @@ const CTX = {
     const mUsd = j?.metadata?.cost, dur = +j?.duration;
     const perMin = catItem("audio", model)?.pricing?.per_minute;
     const estUsd = (isFinite(dur) && perMin!=null && isFinite(+perMin)) ? (dur/60)*(+perMin) : null;
-    accrue((mUsd!=null && isFinite(+mUsd)) ? Object.assign({}, j, {cost:+mUsd}) : j, estUsd);
+    accrue((mUsd!=null && isFinite(+mUsd)) ? Object.assign({}, j, {cost:+mUsd}) : j, estUsd, r);
     const txt = j.transcription ?? j.text ?? j.data?.transcription ?? j.data?.text;
     if(txt==null) throw new Error("no transcription in response");
     return txt;
@@ -6488,7 +6488,7 @@ function friendlyRunError(err){
 // (image generations and transcriptions — live-confirmed). Real cost (j.cost / x_nanogpt_pricing)
 // always wins; the estimate only fires when none is present, and it marks the session inexact ("~")
 // so the meter never silently reads $0 for a genuinely paid run.
-function accrue(j, estUsd){
+function accrue(j, estUsd, r){
   stats.count++;
   // images/video/audio price top-level (j.cost); chat completions ride it in
   // x_nanogpt_pricing (costUsd|cost) — without this, LLM calls never bump spend.
@@ -6501,7 +6501,13 @@ function accrue(j, estUsd){
   if(usd!=null) stats.cost += usd;                                                                  // real cost → counted, meter stays exact
   else if(typeof estUsd==="number" && isFinite(estUsd)){ stats.cost += estUsd; stats.exact=false; } // catalog estimate → counted, but flag the session as inexact
   else stats.exact=false;                                                                           // no price at all → total is a lower bound
-  if(typeof j?.remainingBalance==="number") stats.balance = j.remainingBalance;
+  // Live balance: the x-remaining-balance header is NanoGPT's canonical post-charge figure and rides
+  // on EVERY generation (JSON or binary), so it wins; fall back to remainingBalance in the body for
+  // any endpoint that only reports it there. Without reading the header here, chat/image/video JSON
+  // runs never refreshed the balance and it went stale after the sign-in seed.
+  const hdrBal = (r && r.headers) ? parseFloat(r.headers.get("x-remaining-balance") || "") : NaN;
+  if(!isNaN(hdrBal)) stats.balance = hdrBal;
+  else if(typeof j?.remainingBalance==="number") stats.balance = j.remainingBalance;
   else if(p && typeof p.remainingBalance==="number") stats.balance = p.remainingBalance;
   if(stats.balance!=null) cacheBalance();
   paintCost();

@@ -846,10 +846,20 @@ window.NoodleApp = (function () {
     return { usd, balance };
   }
   function costFromHeaders(r){
-    const g = (k)=> r.headers.get(k);
+    const g = (k)=> (r && r.headers) ? r.headers.get(k) : null;
     const c = parseFloat(g("x-cost") || g("x-nano-cost") || "");
     const b = parseFloat(g("x-remaining-balance") || "");
     return { usd: isNaN(c) ? null : c, balance: isNaN(b) ? null : b };   // x-cost 0 = known-free (subscription)
+  }
+  // Fold the response headers into a JSON-body cost: the x-remaining-balance header is NanoGPT's
+  // canonical post-charge balance and rides on EVERY generation, so it wins over any body figure;
+  // x-cost only fills in when the body carried no price. Without this, JSON runs (chat/image/video)
+  // never surfaced a live balance, so the app's balance chip stayed hidden until a binary-audio run.
+  function costWithHeaders(j, r){
+    const c = costFromJson(j), h = costFromHeaders(r);
+    if(h.balance!=null) c.balance = h.balance;
+    if(c.usd==null && h.usd!=null) c.usd = h.usd;
+    return c;
   }
   // Fold one generation's cost into the session total; returns its USD (0 if unknown)
   // so the caller can also attribute it to that node's output card.
@@ -1188,7 +1198,7 @@ window.NoodleApp = (function () {
       const j = await r.json();
       const urls = (j.data||[]).map(function(d){ return d.b64_json ? "data:" + b64ImageMime(d.b64_json) + ";base64," + d.b64_json : d.url; }).filter(Boolean);
       if(!urls.length) throw new Error("no image in response");
-      const c = costFromJson(j);   // /v1/images/generations returns no cost field → estimate from the catalog per-size price × images returned
+      const c = costWithHeaders(j, r);   // /v1/images/generations returns no cost field → estimate from the catalog per-size price × images returned (balance still rides the header)
       if(c.usd==null){ const est = await estImageUsd(model, size, urls.length); if(est!=null){ c.usd = est; c.estimate = true; } }
       onCost(c); return opts.multi ? urls : urls[0];
     },
@@ -1205,7 +1215,7 @@ window.NoodleApp = (function () {
       const r = await apiFetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
       if(!r.ok){ flagAuth(r.status); throw httpRunError(r.status, await r.text()); }
       const j = await r.json();
-      onCost(costFromJson(j));
+      onCost(costWithHeaders(j, r));
       const msg = (j.choices && j.choices[0] && j.choices[0].message) || {};
       const txt = msg.content;
       if(txt==null) throw new Error("no text in response");
@@ -1248,7 +1258,7 @@ window.NoodleApp = (function () {
         try{ r = await apiFetch(NANOGPT + "/api/generate-video", {method:"POST", headers:authHeaders(), body:payload}); }
         catch(e){ throw new Error("couldn't reach the video API — if the source media is large it may have been rejected for size before CORS applies. Try a shorter clip (the ✂️ Trim node can cut audio down). (" + (e.message||e) + ")"); }
         if(!r.ok){ flagAuth(r.status); throw httpRunError(r.status, await r.text()); }
-        const j = await r.json(); onCost(costFromJson(j));
+        const j = await r.json(); onCost(costWithHeaders(j, r));
         runId = j.runId || j.id;
         if(!runId) throw new Error("no runId returned");
         if(runKey) PENDING_VIDEO.set(runKey, {runId:runId, sig:sig});   // remember it the moment it exists, so a timeout is recoverable
@@ -1289,7 +1299,7 @@ window.NoodleApp = (function () {
       }
       const ct = r.headers.get("content-type") || "";
       if(ct.includes("application/json")){
-        const j = await r.json(); onCost(costFromJson(j));
+        const j = await r.json(); onCost(costWithHeaders(j, r));
         let url = j.url || j.audioUrl || (j.data && j.data.url) || (j.data && j.data.audioUrl);
         if(!url && (j.runId || j.id)) url = await pollAudio(model, j, onProgress);   // async model → poll
         if(!url) throw new Error("no audio url in response");
