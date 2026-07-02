@@ -164,6 +164,8 @@
   body.firstrun #customize{ opacity:.55; transition:opacity .18s ease; }
   body.firstrun #customize:hover,
   body.firstrun #customize:focus-within{ opacity:1; }
+  /* touch has no hover, so the composer would read as disabled forever — lift it (focus-within still → 1) */
+  @media (hover:none){ body.firstrun #customize{ opacity:.85; } }
   button.primary{ font:inherit; font-weight:700; padding:.5rem 1rem; border-radius:.5rem; cursor:pointer;
                   background:linear-gradient(180deg,#8b97ff,#6573ef); border:1px solid #8b97ff; color:#0b0e18;
                   box-shadow:0 0 22px #7c8cff33; }
@@ -259,7 +261,44 @@
   @media (pointer:coarse){
     #bar button, button.primary, button.ghost, .ver, .am-row, .am-new, .cnt{ min-height:44px; }
     input, #goal{ font-size:16px; }        /* ≥16px stops iOS auto-zooming the field on focus */
+    #signin, #key button.link{ min-height:44px; display:inline-flex; align-items:center; padding:.4rem .6rem; }   /* sign-in <a> + save-key link escape #bar button rule */
     #appsmenu{ width:min(380px,94vw); }
+    /* share popover: buttons + copy to touch size, url field to 16px (class beats input{16px} + kills iOS zoom) */
+    .sm-svc button, .sm-social a, .sm-copy{ min-height:44px; }
+    .sm-social a{ min-width:44px; }
+    .sm-url{ font-size:16px; }
+    #mpickclose{ min-width:44px; min-height:44px; }   /* the only visible picker close was 11x15px */
+    .am-del{ min-width:44px; min-height:44px; }        /* destructive per-app delete was 23x31px */
+    .sugg{ min-height:38px; }                           /* customize idea chips + shuffle discovery path */
+    .sugg-shuffle{ min-height:38px; min-width:38px; }
+  }
+
+  /* ---------- narrow widths: keep the builder bar + composer from wrapping into ragged rows ---------- */
+  @media (max-width:640px){
+    #bar{ gap:.35rem; padding:.45rem .6rem; }
+    #bar button{ padding:.35rem .55rem; font-size:.78rem; }
+    #bar .sep{ display:none; }
+    #bar #sharehint{ display:none; }
+    #auth-status{ display:none; }        /* the sign-in link / sign-out button carry the state; drop the status text */
+    .title-wrap{ max-width:14ch; }
+    .cust-label{ display:none; }
+    #goal{ min-width:140px; }
+    #modelpick{ max-width:120px; }
+  }
+
+  /* ---------- short viewports (phone landscape): collapse chrome so the app gets the height ---------- */
+  @media (max-height:480px){
+    #bar{ padding:.35rem .6rem; gap:.4rem; }
+    #bar button{ padding:.3rem .55rem; font-size:.78rem; }
+    #bar .sep{ display:none; }
+    #bar #sharehint{ display:none; }
+    #auth-status{ display:none; }
+    .title-wrap{ max-width:16ch; }
+    .cust-label{ display:none; }
+    #customize{ padding:.4rem .8rem; }
+    /* the composer's secondary rows eat scarce vertical space — hide until they have something to say */
+    #cust-suggest, #versions{ display:none; }
+    #cust-status:empty{ display:none; margin:0; }
   }
 </style>
 </head>
@@ -3833,6 +3872,9 @@ ${MADE_WITH_CSS}
   .run{ min-height:48px; }
   .cnt{ min-height:44px; min-width:2.8rem; }
   .opt > summary{ padding:.8rem; }
+  .app-head .auth input{ font-size:16px; min-height:44px; }   /* auth is the only run gate for recipients — 16px kills iOS focus-zoom */
+  .app-head .auth .link{ min-height:44px; padding:.6rem .5rem; display:inline-flex; align-items:center; font-size:16px; }
+  .loop input, .field .setbool input{ width:22px; height:22px; }   /* checkboxes were left desktop-sized (1rem) */
 }
 @media (max-width:600px){
   .output.grid{ grid-template-columns:1fr; }   /* stack parallel-run outputs on narrow screens */
@@ -4753,7 +4795,7 @@ function renderAppsMenu(){
       + '</div>'
       + '<button class="am-del" title="'+tB("Delete this app")+'">🗑</button>';
     row.querySelector(".am-main").onclick = ()=> openApp(a.id);
-    row.querySelector(".am-del").onclick = (e)=>{ e.stopPropagation(); deleteApp(a.id); };
+    row.querySelector(".am-del").onclick = (e)=>{ e.stopPropagation(); if(confirm("Delete this app? This can't be undone.")) deleteApp(a.id); };
     list.appendChild(row);
   }
 }

@@ -83,6 +83,8 @@
   /* ---------- top bar ---------- */
   #top{ position:fixed; inset:0 0 auto 0; height:52px; z-index:30; display:flex; align-items:center; gap:.6rem;
         padding:0 .9rem; background:rgba(18,21,29,.85); backdrop-filter:blur(8px); border-bottom:1px solid var(--line);}
+  #top button{ white-space:nowrap }   /* a toolbar label must never wrap into a multi-line pill — overflow is measured & collapsed into ⋯ (layoutBar) */
+  #makeapp .lbl{ display:inline-block; max-width:14ch; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom }  /* long "Update <title>" can't blow up the bar */
   #top .logo{font-family:"Righteous",ui-sans-serif,system-ui,sans-serif; font-weight:400; letter-spacing:.01em; font-size:1.25rem; margin-right:.3rem;}
   #top .logo .nano{ background:linear-gradient(90deg,#67e8f9,#7c8cff 70%); -webkit-background-clip:text; background-clip:text;
         color:transparent; font-weight:900; filter:drop-shadow(0 0 9px #7c8cff77); }
@@ -95,7 +97,7 @@
   #addpop.open{display:flex}
   #addsearch{ width:100%; box-sizing:border-box; min-height:46px; margin:0 0 .25rem; background:var(--panel2); border:1px solid var(--line);
               border-radius:.5rem; padding:.5rem .6rem; color:inherit; font:inherit }
-  #addlist{ display:flex; flex-direction:column; gap:.05rem; overflow-y:auto; max-height:min(60vh,480px) }
+  #addlist{ display:flex; flex-direction:column; gap:.05rem; overflow-y:auto; max-height:min(60vh, calc(100vh - 52px - var(--db-h,3rem) - 6rem)) }   /* never spill under the fixed describe bar (the extra ~3rem covers the search box that sits above this scroll area) */
   #addpop button{ text-align:left; border:none; background:none; display:flex; gap:.55rem; align-items:center; padding:.45rem .55rem; border-radius:.45rem;}
   #addpop button:hover{background:var(--panel2)}
   #addpop button.sel{ background:#7c8cff22; font-weight:600 }
@@ -106,7 +108,7 @@
   #addpop .addhint{ font-size:.7rem; color:var(--accent); padding:.35rem .55rem .15rem; pointer-events:none; border-top:1px solid var(--line); margin-top:.2rem }
   #addpop .nomatch{ font-size:.74rem; color:var(--dim); padding:.5rem .55rem }
   /* drop-a-wire-in-empty-space quick add: a contextual, type-filtered clone of #addpop, placed at the cursor */
-  #quickadd{ position:fixed; z-index:50; display:none; flex-direction:column; gap:.05rem; min-width:215px; max-height:min(60vh,520px);
+  #quickadd{ position:fixed; z-index:50; display:none; flex-direction:column; gap:.05rem; min-width:215px; max-height:min(60vh, calc(100vh - 52px - var(--db-h,3rem) - 3rem));
              overflow-y:auto; background:var(--panel); border:1px solid var(--line); border-radius:.6rem; padding:.35rem; box-shadow:0 12px 40px #000a }
   #quickadd.open{ display:flex }
   #quickadd button{ text-align:left; border:none; background:none; display:flex; gap:.55rem; align-items:center; padding:.45rem .55rem; border-radius:.45rem }
@@ -190,7 +192,7 @@
 
   /* ---------- 💬 Describe changes: a docked bottom composer that edits the graph (gptdiff engine) ---------- */
   /*    Same placement & shape as the app builder's "Customize" composer (play.html #customize). */
-  #describebar{ position:fixed; left:0; right:0; bottom:0; z-index:120; padding:.55rem .8rem;
+  #describebar{ position:fixed; left:0; right:0; bottom:0; z-index:120; padding:.55rem .8rem calc(.55rem + env(safe-area-inset-bottom));
     background:#11141f; border-top:1px solid var(--line); box-shadow:0 -8px 24px #0005;
     opacity:.5; transition:opacity .18s ease; }   /* soft until you reach for it (like play's composer) */
   #describebar:hover, #describebar:focus-within{ opacity:1; }
@@ -223,8 +225,16 @@
   @keyframes dbpulse{ 0%{ box-shadow:0 0 0 0 var(--accent) } 100%{ box-shadow:0 0 0 14px transparent } }
   .node.db-pulse{ animation:dbpulse 1s ease-out 2 }
   #cookoffbtn{ bottom:calc(var(--db-h,3rem) + .7rem); }   /* lift the (temporary) contest badge above the composer */
+  @media (max-height:480px){ #cookoffbtn{ display:none } }   /* short/landscape: promo pill lands mid-canvas over node content — keep the contest reachable via the 🏆 toolbar button */
+  /* While an add/quick-add popover is open, drop the fixed bottom band below #top's stacking context
+     (z:30) so the popover (and its taps) win, and hide the animated Cookoff pill so it can't flash
+     through / steal taps on list rows. #addpop is trapped in #top's z:30 context, so we demote the
+     bar rather than raise the popover. */
+  body:has(#addpop.open) #describebar, body:has(#quickadd.open) #describebar{ z-index:25 }
+  body:has(#addpop.open) #cookoffbtn, body:has(#quickadd.open) #cookoffbtn{ visibility:hidden }
   @media (prefers-reduced-motion:reduce){ .node.db-pulse{ animation:none } .db-spin{ animation:none } }
   @media (max-width:620px){ .db-label{ display:none } #describemodel{ max-width:120px } #describegoal{ min-width:140px } }
+  @media (max-width:380px){ #describemodel{ max-width:84px } }   /* ≤380px: shrink the model chip so ✦ Apply stays on one row instead of dropping to a stranded 2nd row (doubling bar height) */
   #cookoffmodal[hidden]{ display:none }
   #cookoffmodal{ position:fixed; inset:0; z-index:210; display:flex; padding:min(4vh,2.4rem) min(4vw,2.4rem);
                  background:rgba(4,6,11,.78); backdrop-filter:blur(3px); }
@@ -272,8 +282,8 @@
   .sub-tab{ border:none; background:transparent; color:var(--dim); font-weight:700; font-size:.78rem; padding:.28rem .6rem; border-radius:.4rem; cursor:pointer }
   .sub-tab.on{ background:var(--panel2); color:var(--ink) }
   .sub-linkhint{ display:block; font-size:.72rem; color:var(--dim); margin-bottom:.5rem }
-  .sub-linkrow{ display:flex; gap:.5rem }
-  #submitlink{ flex:1; min-width:0; background:var(--bg); border:1px solid var(--line); border-radius:.5rem;
+  .sub-linkrow{ display:flex; gap:.5rem; flex-wrap:wrap }   /* narrow phones: buttons drop to a 2nd row instead of crushing the link field to ~41px */
+  #submitlink{ flex:1 1 12rem; min-width:0; background:var(--bg); border:1px solid var(--line); border-radius:.5rem;
                padding:.6rem .65rem; font-size:.92rem; color:var(--ink); }
   .sub-copy{ flex:0 0 auto; border:none; border-radius:.5rem; font-weight:800; font-size:.9rem; color:#0b0d12;
              padding:.6rem 1rem; background:linear-gradient(90deg,var(--accent),var(--accent2)); }
@@ -340,23 +350,32 @@
   /* …but let form fields & scrollable results behave normally under touch */
   .node textarea, .node input, .node select, .result .rtext{ touch-action:auto; }
   #editor.panning{cursor:grabbing}
-  #world{ position:absolute; top:0; left:0; transform-origin:0 0; }
+  #world{ position:absolute; top:0; left:0; transform-origin:0 0; --invz:1; }
   /* Fit-to-view: a floating canvas control in the bottom-right (where a fullscreen button would sit),
      revealed on hover over the graph. F / double-click do the same; kept tappable where there's no hover. */
-  #fit, #undo{ position:absolute; bottom:.9rem; z-index:30; width:2.3rem; height:2.3rem;
+  #fit, #undo, #redo{ position:absolute; bottom:.9rem; z-index:30; width:2.3rem; height:2.3rem;
         display:flex; align-items:center; justify-content:center; font-size:1.15rem; line-height:1;
         border-radius:.6rem; background:var(--panel2); border:1px solid var(--line); color:var(--ink);
         cursor:pointer; opacity:0; transition:opacity .14s ease; box-shadow:0 6px 18px #0006; }
   #fit{ right:.9rem }
-  #undo{ right:3.6rem }   /* one button-width + gap to the left of Fit */
-  #editor:hover #fit, #fit:focus-visible, #editor:hover #undo, #undo:focus-visible{ opacity:.85 }
-  #fit:hover, #undo:hover{ opacity:1; border-color:var(--accent) }
-  #undo[disabled]{ opacity:0!important; pointer-events:none }   /* nothing to undo → stay hidden */
-  @media (hover:none){ #fit{ opacity:.6 } #undo:not([disabled]){ opacity:.6 } }   /* touch: no hover to reveal them, so keep them discoverable */
+  #redo{ right:3.6rem }   /* ↺ ↻ ⊡ row, right-aligned */
+  #undo{ right:6.3rem }   /* one button-width + gap to the left of Redo */
+  #editor:hover #fit, #fit:focus-visible, #editor:hover #undo, #undo:focus-visible, #editor:hover #redo, #redo:focus-visible{ opacity:.85 }
+  #fit:hover, #undo:hover, #redo:hover{ opacity:1; border-color:var(--accent) }
+  #undo[disabled], #redo[disabled]{ opacity:0!important; pointer-events:none }   /* nothing to undo/redo → stay hidden */
+  @media (hover:none){ #fit{ opacity:.6 } #undo:not([disabled]), #redo:not([disabled]){ opacity:.6 } #describebar{ opacity:.85 } }   /* touch: no hover to reveal them, so keep them discoverable (composer :focus-within still brightens to 1) */
+  /* Screen-space delete for the selected node — the in-header ✕ shrinks with zoom and sits next to the
+     paid ▶ run, so touch gets a big fixed target that can't mis-fire. Coarse pointers only. */
+  #delnode{ position:fixed; top:58px; right:.6rem; z-index:60; display:none; align-items:center; gap:.35rem;
+            padding:.55rem .75rem; font:inherit; font-size:.82rem; font-weight:600; border-radius:.6rem; cursor:pointer;
+            background:var(--panel2); border:1px solid var(--bad); color:var(--bad); box-shadow:0 6px 18px #0006; }
+  #delnode:active{ filter:brightness(1.15) }
+  @media (pointer:coarse){ #delnode.show{ display:inline-flex } }
   #wires{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:-1; overflow:visible }
   #wires path.wire{ fill:none; stroke-width:2.5; pointer-events:stroke; cursor:pointer; }
   #wires path.hit{ fill:none; stroke:transparent; stroke-width:14; pointer-events:stroke; cursor:pointer; }
   #wires path.hit:hover + path.wire{ stroke:var(--bad); stroke-width:3.5; }   /* hovering a wire previews the snip (click removes it) */
+  #wires path.wire.armed{ stroke:var(--bad); stroke-width:3.5; }   /* touch: first tap arms the snip (red), a second tap removes it */
   #wires path.temp{ fill:none; stroke:#ffffff88; stroke-width:2.5; stroke-dasharray:5 4; pointer-events:none }
 
   /* ---------- node ---------- */
@@ -481,10 +500,15 @@
 
   /* key entry */
   #keyrow{ position:fixed; top:60px; left:50%; transform:translateX(-50%); z-index:50; display:none; gap:.5rem; flex-wrap:wrap;
+           max-width:calc(100vw - .5rem);
            background:var(--panel); border:1px solid var(--line); border-radius:.6rem; padding:.6rem; align-items:center; box-shadow:0 12px 40px #0008}
   #keyrow.open{display:flex}
-  #keynote{ flex-basis:100%; font-size:.72rem }
-  #keyrow input{ width:330px; background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; padding:.45rem .55rem }
+  #keynote{ flex-basis:100%; font-size:.72rem; padding-right:2rem }
+  #keyrow input{ flex:1 1 200px; min-width:0; max-width:330px; background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; padding:.45rem .55rem }
+  #keyx{ position:absolute; top:.3rem; right:.35rem; display:inline-flex; align-items:center; justify-content:center;
+         min-width:36px; min-height:36px; border:none; background:none; color:var(--dim); cursor:pointer;
+         font-size:1.2rem; line-height:1; padding:.2rem; border-radius:.4rem }
+  #keyx:hover{ background:var(--panel2); color:var(--ink) }
   .pill{ font-size:.66rem; padding:.05rem .4rem; border-radius:1rem; background:#7c8cff22; color:#aeb6ff }
   .dim{ color:var(--dim) }
 
@@ -547,35 +571,61 @@
   #morepop #status{ padding:.45rem .65rem; font-size:.76rem; color:var(--dim) }
   #morepop .mdiv{ height:1px; background:var(--line); margin:.25rem .2rem }
 
-  /* ---------- phone layout: collapse the crowded toolbar, never scroll sideways ---------- */
   /* Keep i18n available without making it look like a primary product surface. */
   #langcur{ display:none }              /* globe + ▾ only — the menu still lists every language */
 
-  @media (max-width:640px){
-    #top{ gap:.45rem; padding:0 max(.55rem,env(safe-area-inset-left)) 0 max(.55rem,env(safe-area-inset-right)) }
-    #top .logo{ font-size:1.05rem; margin-right:.1rem }
-    #addbtn .lbl{ display:none }          /* ＋ ▾ only — the popover lists every node anyway */
-    #makeapp .lbl{ display:none }         /* ✨ only — the flagship action stays in the bar, never buried in ⋯ */
-    #appmore{ display:none }              /* no room for the caret; its "Save as a new app" fork moves into ⋯ (layoutBar) */
-    #moremenu{ display:block }            /* reveal the overflow trigger */
-    /* an icon-only ✨ gives the nudge no width to hug — pin it to the viewport instead */
-    #appnudge{ position:fixed; top:58px; left:.5rem; right:.5rem; max-width:none; justify-content:center; white-space:normal }
-    #top .sep{ display:none }
-    #cost{ display:none }                 /* balance is non-essential chrome on a phone */
-  }
+  /* ---------- crowded-toolbar collapse: JS (layoutBar) toggles body.narrowbar by MEASURING real
+       overflow, so the ⋯ menu appears exactly when the one-line bar wouldn't fit — at any auth state
+       or app-title width, not a guessed pixel breakpoint. Never scroll sideways. ---------- */
+  body.narrowbar #top{ gap:.45rem; padding:0 max(.55rem,env(safe-area-inset-left)) 0 max(.55rem,env(safe-area-inset-right)) }
+  body.narrowbar #top .logo{ font-size:1.05rem; margin-right:.1rem }
+  body.narrowbar #addbtn .lbl{ display:none }          /* ＋ ▾ only — the popover lists every node anyway */
+  body.narrowbar #makeapp .lbl{ display:none }         /* ✨ only — the flagship action stays in the bar, never buried in ⋯ */
+  body.narrowbar #appmore{ display:none }              /* no room for the caret; its "Save as a new app" fork moves into ⋯ (layoutBar) */
+  body.narrowbar #moremenu{ display:block }            /* reveal the overflow trigger */
+  /* an icon-only ✨ gives the nudge no width to hug — pin it to the viewport instead */
+  body.narrowbar #appnudge{ position:fixed; top:58px; left:.5rem; right:.5rem; max-width:none; justify-content:center; white-space:normal }
+  body.narrowbar #top .sep{ display:none }
+  body.narrowbar #cost{ display:none }                 /* balance is non-essential chrome when the bar is tight */
 
   /* ---------- touch devices: finger-sized hit targets everywhere ---------- */
   @media (pointer:coarse){
     #top button{ min-height:42px }
     #addpop button, #morepop button{ min-height:46px }
-    /* fatten the wire ports and give each an invisible oversized tap zone */
+    /* fatten the wire ports and give each an invisible oversized tap zone. These sit inside the
+       transformed #world, so their CSS px shrink with zoom — counter-scale by --invz (1/scale,
+       written by applyWorld) so the screen-space hit zone stays ~36px+ even at the 0.4 fit zoom.
+       Horizontal is biased wide (you aim a wire from the side); vertical stays modest so stacked
+       in-ports don't swallow each other. */
     .port{ width:16px; height:16px }
-    .port::after{ content:""; position:absolute; inset:-11px }
+    .port::after{ content:""; position:absolute; inset: calc(-6px * var(--invz,1)) calc(-16px * var(--invz,1)) }
     .col.in{ margin-left:-8px } .col.out{ margin-right:-8px }
     .body .fieldport{ left:-1.25rem }
     .node header{ padding:.6rem .6rem }
     .node header .hbtn{ padding:6px 9px; font-size:1rem }
+    /* NB: the in-header ✕/▶ are NOT counter-scaled — a zoom-compensated zone would swallow the tiny
+       header at fit-zoom and block node-drag, and ✕ sits beside the paid ▶ run. Touch deletes via the
+       screen-space #delnode button instead; ▶ run-branch stays small (non-destructive, zoom to hit). */
+    /* resize grip: no neighbours at the card's bottom-right — grow the zone mostly down+right into
+       empty canvas (safe) and only a little up+left into the card, so it reaches ~36px screen at fit. */
+    .node .rgrip::after{ inset: calc(-6px * var(--invz,1)) calc(-6px * var(--invz,1)) calc(-28px * var(--invz,1)) calc(-28px * var(--invz,1)) }   /* top right bottom left: grow down (into canvas) + left (own card corner); right is unreliable — covered by neighbour cards */
     .result .acts button{ padding:.45rem .65rem; font-size:.8rem }
+    #describeversions .ver{ min-height:36px; min-width:36px; padding:.4rem .6rem; display:inline-flex; align-items:center }
+    /* ≥16px font on every text field so iOS Safari stops auto-zooming the fixed editor on focus
+       (parity with play.html's `input,#goal{font-size:16px}`); explicit selectors because the base
+       #describegoal/#addsearch/.node-name rules out-specify a bare `input{}`. */
+    #keyrow input, #addsearch, #mpicksearch, #describegoal, .node textarea, .node input, .node select, .node-name{ font-size:16px }
+    /* fatten remaining small close/dismiss/overlay controls the coarse pass missed */
+    #updatesclose{ min-width:40px; min-height:40px }
+    #appmodalclose{ width:2.6rem; height:2.6rem }
+    .result .frames .fr button{ min-width:36px; min-height:36px }
+    /* tiny × dismiss glyphs: keep the visual size, inflate the tap zone with an invisible ::after (same idiom as .port) */
+    #hintx, #connecthintx, #cookoffbtn .x{ position:relative }
+    #hintx::after, #connecthintx::after, #cookoffbtn .x::after{ content:""; position:absolute; inset:-10px }
+    /* share popover: 𝕏/social/copy buttons + readonly URL field (index.html half of the dual-file finding) */
+    .sm-svc button, .sm-social a, .sm-copy{ min-height:44px }
+    .sm-social a{ min-width:44px }
+    #sharemenu .sm-url{ font-size:16px }   /* readonly URL field: tapping it to select focuses it → iOS zoom; #sharemenu prefix out-specifies the later base .sm-url{.78rem} */
   }
 
   /* ---------- share popover (ported from play.html's app share) ---------- */
@@ -647,6 +697,7 @@
 </header>
 
 <div id="keyrow">
+  <button id="keyx" title="Close" aria-label="Close">×</button>
   <span id="keynote" class="dim">Running calls models on your NanoGPT key.</span>
   <button id="keysignin" class="btn">sign in</button>
   <span class="dim">or</span>
@@ -793,7 +844,9 @@
   <svg id="wires"></svg>
   <div id="world"></div>
   <button id="undo" title="Undo (Ctrl + Z)" aria-label="Undo the last edit">↺</button>
+  <button id="redo" title="Redo (Ctrl + Y)" aria-label="Redo the last undone edit">↻</button>
   <button id="fit" title="Fit the whole workflow in view (F)" aria-label="Fit the whole workflow in view">⊡</button>
+  <button id="delnode" title="Delete the selected node" aria-label="Delete the selected node">🗑 Delete</button>
   <div id="canvashint" hidden><span class="ht">A live AI workflow — press <b>▶ Run</b>, or <b>＋ Add node</b> to build your own.</span><button id="hintx" title="Got it" aria-label="Dismiss">×</button></div>
   <div id="connecthint" hidden><span>Drag a <b>●</b> port onto a matching one to connect — or drop a wire on empty canvas to quick-add.</span><button id="connecthintx" title="Got it" aria-label="Dismiss">×</button></div>
 </main>
@@ -4132,7 +4185,7 @@ const byId = (id)=> graph.nodes.find(n=>n.id===id);
 /* ---------- view transform ---------- */
 let panX = 40, panY = 30, scale = 1;
 const world = $("world"), editor = $("editor"), svg = $("wires");
-function applyWorld(){ world.style.transform = `translate(${panX}px,${panY}px) scale(${scale})`; }
+function applyWorld(){ world.style.transform = `translate(${panX}px,${panY}px) scale(${scale})`; world.style.setProperty?.("--invz", 1/scale); }   // --invz counter-scales screen-space touch zones inside #world (see coarse block)
 
 /* ======================================================================
    NODE CREATION / RENDERING
@@ -4571,14 +4624,16 @@ function removeNode(id){
   if(selected===n) selected=null;
   for(const aid of affected){ const an = byId(aid); if(an){ recompactImageLinks(an); refreshImageInputs(an); recompactVideoLinks(an); refreshVideoInputs(an); } }
   refreshPortFills();   // a textarea fed by the removed node is now unwired — unlock it (don't leave it disabled)
-  redraw(); save();
+  redraw(); save(); updateDelBtn();
 }
 
+function updateDelBtn(){ const b=$("delnode"); if(b) b.classList.toggle("show", !!(selected && selected.el)); }   // touch: show the screen-space delete only when a node is selected
 function select(n){
   if(selected===n) return;
   if(selected?.el) selected.el.classList.remove("sel");
   selected = n;
   if(n?.el) n.el.classList.add("sel");
+  updateDelBtn();
 }
 
 function setStatus(n, status, msg){
@@ -4697,8 +4752,8 @@ function redraw(){
     const p1 = portCenter(a), p2 = portCenter(b);
     const d = wirePath(p1.x,p1.y,p2.x,p2.y);
     const col = colorForType(a.dataset.ptype);
-    html += `<path class="hit" data-link="${l.id}" d="${d}"><title>click to remove</title></path>`;
-    html += `<path class="wire" data-link="${l.id}" d="${d}" stroke="${col}"></path>`;
+    html += `<path class="hit" data-link="${l.id}" d="${d}"><title>tap to remove</title></path>`;
+    html += `<path class="wire${l.id===armedLinkId?" armed":""}" data-link="${l.id}" d="${d}" stroke="${col}"></path>`;
   }
   if(tempWire){
     const d = wirePath(tempWire.x1, tempWire.y1, tempWire.x2, tempWire.y2);
@@ -4706,8 +4761,43 @@ function redraw(){
   }
   svg.innerHTML = html;
   svg.querySelectorAll("path[data-link]").forEach(p=>{
-    p.addEventListener("click", e=>{ e.stopPropagation(); removeLink(p.dataset.link); });
+    // A drag that starts on a wire pans the canvas (wires are no longer dead zones); a tap deletes.
+    // On coarse pointers a tap ARMS first (turns the wire red + shows the snip), a second tap removes —
+    // so a stray touch near a dense wire can't silently snip it with no warning.
+    p.addEventListener("pointerdown", e=>{
+      e.stopPropagation();                         // we drive pan/tap ourselves — don't let the editor also seed a pan
+      const id=e.pointerId, sx=e.clientX, sy=e.clientY, px=panX, py=panY, lid=p.dataset.link;
+      let moved=false;
+      const mv=(ev)=>{
+        if(ev.pointerId!==id) return;
+        if(!moved && Math.hypot(ev.clientX-sx, ev.clientY-sy) > 6){ moved=true; select(null); }
+        if(moved){ panX=px+(ev.clientX-sx); panY=py+(ev.clientY-sy); applyWorld(); redraw(); }
+      };
+      const up=(ev)=>{
+        if(ev.pointerId!==id) return;
+        window.removeEventListener("pointermove",mv); window.removeEventListener("pointerup",up); window.removeEventListener("pointercancel",up);
+        if(!moved) handleWireTap(lid);             // a genuine tap (not a pan) → arm/remove
+      };
+      window.addEventListener("pointermove",mv); window.addEventListener("pointerup",up); window.addEventListener("pointercancel",up);
+    });
   });
+}
+let armedLinkId=null, armedTimer=null;
+function wireArmOutside(){ disarmWire(); }         // a tap anywhere but the armed wire disarms it (its own pointerdown stops propagation, so it never fires here)
+function armWire(id){
+  clearTimeout(armedTimer); armedLinkId=id; redraw();
+  armedTimer=setTimeout(()=>{ if(armedLinkId===id) disarmWire(); }, 2600);   // auto-disarm so a forgotten armed wire can't be snipped later
+  setTimeout(()=> document.addEventListener("pointerdown", wireArmOutside), 0);
+}
+function disarmWire(){
+  clearTimeout(armedTimer); document.removeEventListener("pointerdown", wireArmOutside);
+  if(armedLinkId!=null){ armedLinkId=null; redraw(); }
+}
+function handleWireTap(id){
+  if(matchMedia("(pointer:coarse)").matches){
+    if(armedLinkId===id){ armedLinkId=null; clearTimeout(armedTimer); document.removeEventListener("pointerdown", wireArmOutside); removeLink(id); }
+    else armWire(id);                              // first tap: arm + preview the snip
+  } else removeLink(id);                           // fine pointers already got the :hover snip preview
 }
 function removeLink(id){
   pushUndo();   // wire-click delete path — the actual confusion source
@@ -4738,6 +4828,7 @@ function refreshPortFills(){
 // Pointers that own an in-progress node gesture (drag/resize). While this is
 // non-empty the editor background ignores new pointerdowns — a second finger on
 // the canvas must not seed a pan / select(null) on top of the live gesture.
+let cancelNodeGest = null;   // set while a node drag/resize is live so a 2nd touch can abort it → pinch (finding: pinch must win over an accidental node grab)
 const nodeGestPtrs = new Set();
 function startNodeDrag(n, e){
   e.preventDefault();
@@ -4753,10 +4844,14 @@ function startNodeDrag(n, e){
     n.el.style.left = n.x+"px"; n.el.style.top = n.y+"px";
     redraw();
   };
-  const up = (ev)=>{
-    if(ev.pointerId!==id) return;
+  const cleanup = ()=>{
     window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up); window.removeEventListener("pointercancel",up);
-    nodeGestPtrs.delete(id); save();
+    nodeGestPtrs.delete(id); cancelNodeGest = null;
+  };
+  const up = (ev)=>{ if(ev.pointerId!==id) return; cleanup(); save(); };
+  cancelNodeGest = ()=>{                             // second finger landed → this drag becomes a pinch; undo the accidental move
+    if(_snapped){ undoStack.pop(); syncUndoBtn(); }
+    n.x=ox; n.y=oy; n.el.style.left=ox+"px"; n.el.style.top=oy+"px"; redraw(); cleanup();
   };
   window.addEventListener("pointermove",move); window.addEventListener("pointerup",up); window.addEventListener("pointercancel",up);
 }
@@ -4771,6 +4866,7 @@ function startNodeResize(n, e){
   // the primary prompt field by name (some nodes render a secondary textarea — e.g. LLM "system" — first)
   const ta = el.querySelector('.body textarea[data-f="prompt"],.body textarea[data-f="text"],.body textarea[data-f="q"]');
   const sx=e.clientX, sy=e.clientY, startW=el.offsetWidth, startH=ta?ta.offsetHeight:0;
+  const w0=n.w, taF=ta?.dataset.f, taH0 = (ta && n.sizes) ? n.sizes[taF] : undefined;   // pre-resize state, restored if a pinch aborts this gesture
   el.style.maxWidth = "none";
   let _snapped=false;
   const move = (ev)=>{
@@ -4784,10 +4880,16 @@ function startNodeResize(n, e){
     }
     redraw();
   };
-  const up = (ev)=>{
-    if(ev.pointerId!==id) return;
+  const cleanup = ()=>{
     window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up); window.removeEventListener("pointercancel",up);
-    nodeGestPtrs.delete(id); save();
+    nodeGestPtrs.delete(id); cancelNodeGest = null;
+  };
+  const up = (ev)=>{ if(ev.pointerId!==id) return; cleanup(); save(); };
+  cancelNodeGest = ()=>{                             // second finger landed → abort the resize, restore the card
+    if(_snapped){ undoStack.pop(); syncUndoBtn(); }
+    n.w = w0; el.style.width = w0 ? w0+"px" : "";
+    if(ta){ if(taH0!=null){ ta.style.height = taH0+"px"; } else { ta.style.height=""; if(n.sizes) delete n.sizes[taF]; } }
+    redraw(); cleanup();
   };
   window.addEventListener("pointermove",move); window.addEventListener("pointerup",up); window.addEventListener("pointercancel",up);
 }
@@ -4953,9 +5055,10 @@ function openQuickAdd(clientX, clientY, originPort){
   // show, then clamp to the viewport
   pop.classList.add("open");
   const pr = pop.getBoundingClientRect();
+  const dbH = $("describebar")?.offsetHeight || 0;   // keep the menu clear of the fixed describe bar
   let px = clientX + 6, py = clientY + 6;
   if(px + pr.width  > innerWidth  - 8) px = Math.max(8, clientX - pr.width - 6);
-  if(py + pr.height > innerHeight - 8) py = Math.max(8, innerHeight - pr.height - 8);
+  if(py + pr.height > innerHeight - dbH - 8) py = Math.max(8, innerHeight - dbH - pr.height - 8);
   pop.style.left = px+"px"; pop.style.top = py+"px";
   // close on the next outside interaction (deferred so this drag's own pointerup doesn't immediately close it)
   setTimeout(()=> document.addEventListener("pointerdown", quickAddOutside), 0);
@@ -5027,7 +5130,7 @@ function seedPinch(){              // anchor the world-point under the two-finge
   const p=[...ptrs.values()].slice(0,2);
   const mid=edPt((p[0].x+p[1].x)/2,(p[0].y+p[1].y)/2);
   gest={ mode:"pinch", d0:Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y)||1, s0:scale,
-         wx:(mid.x-panX)/scale, wy:(mid.y-panY)/scale };
+         wx:(mid.x-panX)/scale, wy:(mid.y-panY)/scale, zmin:fitFloor() };   // dynamic floor once/gesture (no layout reads per touchmove)
 }
 editor.addEventListener("pointerdown", e=>{
   if(!onBg(e.target)) return;
@@ -5042,6 +5145,27 @@ editor.addEventListener("pointerdown", e=>{
     editor.classList.remove("panning"); seedPinch();
   }
 });
+// A second finger anywhere — even on a node card/port — must convert the gesture to pinch-zoom, not
+// keep dragging the node. Capture phase runs before the node/port handlers (which stopPropagation on
+// bubble), so we see every touch: on the 2nd concurrent touch we abort any live node drag/resize
+// (restoring it) and seed a pinch from both fingers, then stop the event so the target can't also
+// start its own drag. Desktop mouse is untouched (touch pointers only).
+const touchPts = new Map();
+editor.addEventListener("pointerdown", e=>{
+  if(e.pointerType!=="touch") return;
+  touchPts.set(e.pointerId, {x:e.clientX, y:e.clientY});
+  if(touchPts.size===2 && !(gest && gest.mode==="pinch")){
+    if(cancelNodeGest) cancelNodeGest();                       // undo the accidental node grab from finger 1
+    ptrs.clear();
+    for(const [pid,p] of touchPts) ptrs.set(pid, {x:p.x, y:p.y});
+    editor.classList.remove("panning");
+    seedPinch();
+    e.stopPropagation();                                       // don't let finger 2's target start a node drag / re-seed pan
+  }
+}, true);
+const dropTouchPt = e=>{ if(e.pointerType==="touch") touchPts.delete(e.pointerId); };
+window.addEventListener("pointerup", dropTouchPt, true);
+window.addEventListener("pointercancel", dropTouchPt, true);
 editor.addEventListener("pointermove", e=>{
   if(!ptrs.has(e.pointerId)) return;
   ptrs.set(e.pointerId, {x:e.clientX, y:e.clientY});
@@ -5053,7 +5177,7 @@ editor.addEventListener("pointermove", e=>{
     const p=[...ptrs.values()].slice(0,2);
     const mid=edPt((p[0].x+p[1].x)/2,(p[0].y+p[1].y)/2);
     const d=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y);
-    scale = clamp(gest.s0 * (d/gest.d0), ZMIN, ZMAX);
+    scale = clamp(gest.s0 * (d/gest.d0), gest.zmin ?? ZMIN, ZMAX);
     panX = mid.x - gest.wx*scale;     // keep that focal world-point pinned under the fingers
     panY = mid.y - gest.wy*scale;
     applyWorld(); redraw();
@@ -5093,7 +5217,7 @@ editor.addEventListener("wheel", e=>{
   const rect=editor.getBoundingClientRect();
   const mx=e.clientX-rect.left, my=e.clientY-rect.top;
   const wx=(mx-panX)/scale, wy=(my-panY)/scale;
-  scale = clamp(scale * (e.deltaY<0 ? 1.1 : 1/1.1), 0.4, 1.8);
+  scale = clamp(scale * (e.deltaY<0 ? 1.1 : 1/1.1), fitFloor(), ZMAX);
   panX = mx - wx*scale; panY = my - wy*scale;
   applyWorld(); redraw();
 }, {passive:false});
@@ -5106,11 +5230,21 @@ function graphBBox(){
     x1=Math.max(x1,n.x+n.el.offsetWidth); y1=Math.max(y1,n.y+n.el.offsetHeight); }
   return isFinite(x0) ? {x0,y0,x1,y1} : null;
 }
+// The zoom floor for THIS graph+viewport: ZMIN normally, but drop to the exact scale the
+// graph needs when it can't otherwise fit (tall/wide graph on a small phone). Kept ≤ ZMIN
+// (never raises the floor) and ≥ nothing hard-coded — bounded by the fit scale, so a visitor
+// can always frame the whole workflow yet can't get lost at 0.01 on a graph that fits at 0.4.
+function fitFloor(){
+  const b=graphBBox(); if(!b) return ZMIN;
+  const M=48;
+  return Math.min(ZMIN, editor.clientWidth/(b.x1-b.x0+M*2), editor.clientHeight/(b.y1-b.y0+M*2), 1);
+}
 // Center the graph with breathing room; clamp to 1x so we never zoom IN past native.
 function fitView(){
   const b=graphBBox(); if(!b) return;
   const M=48, vw=editor.clientWidth, vh=editor.clientHeight, bw=b.x1-b.x0, bh=b.y1-b.y0;
-  scale = clamp(Math.min(vw/(bw+M*2), vh/(bh+M*2)), ZMIN, 1);
+  const f=Math.min(vw/(bw+M*2), vh/(bh+M*2));
+  scale = clamp(f, Math.min(ZMIN, f), 1);   // undershoot ZMIN only when the graph can't fit at the floor
   panX = (vw - bw*scale)/2 - b.x0*scale;
   panY = (vh - bh*scale)/2 - b.y0*scale;
   applyWorld(); redraw();
@@ -5164,9 +5298,13 @@ function restoreCachedBalance(){
     }
   }catch(_){}
 }
+let _costPainted = "";
 function paintCost(){
-  if(stats.balance==null){ $("cost").textContent=""; return; }   // show only the running balance
-  $("cost").innerHTML = `bal $<b>${stats.balance.toFixed(2)}</b>`;
+  const s = stats.balance==null ? "" : `bal $<b>${stats.balance.toFixed(2)}</b>`;   // empty → show only the running balance
+  if(s === _costPainted) return;
+  _costPainted = s;
+  $("cost").innerHTML = s;
+  layoutBar();   // the chip appears/changes width after sign-in — the bar may no longer fit on one line
 }
 // Show the balance the moment you're signed in — before any run prices it in. Generations keep it
 // live via x-remaining-balance headers; this just seeds it from nano-gpt on sign-in / boot.
@@ -6366,8 +6504,9 @@ function buildAddMenu(){
 }
 let spawnN = 0;
 function spawnCenter(type){
-  const cx = (editor.clientWidth/2 - panX)/scale - 105 + (spawnN%4)*26;
-  const cy = (editor.clientHeight/2 - panY)/scale - 60  + (spawnN%4)*26;
+  const step = Math.ceil(56/scale);   // screen-constant cascade that clears the ~46px header at any zoom (else the covered card's ✕/▶ stay untappable — worst at phone zoom)
+  const cx = (editor.clientWidth/2 - panX)/scale - 105 + (spawnN%5)*step;
+  const cy = (editor.clientHeight/2 - panY)/scale - 60  + (spawnN%5)*step;
   spawnN++;
   dismissHint();
   const n = addNode(type, Math.round(cx), Math.round(cy));
@@ -6406,26 +6545,37 @@ document.addEventListener("click", e=>{ if(!$("langmenu").contains(e.target)) $(
 
 /* ---------- responsive toolbar: collapse secondary actions into the ⋯ menu on phones ----------
    Buttons keep their handlers (they're moved, not cloned). On desktop everything sits inline. */
-const RELOC = ["share","submitcontest","save","load","updates","signin","pastebtn","signout","status"];  // order shown in the menu — ✨ Create app stays in the bar (icon-only via CSS)
-const mqMobile = matchMedia("(max-width:640px)");
+const RELOC = ["share","save","load","updates","signin","pastebtn","signout","status"];  // order shown in the menu — ✨ Create app stays in the bar (icon-only via CSS)
 let topOrder = null;
-function layoutBar(){
-  const pop = $("morepop");
-  if(mqMobile.matches){
-    pop.innerHTML = "";
-    $("apppop").classList.remove("open");               // the caret popover would otherwise linger as an empty box once its fork moves out
-    pop.appendChild($("newapp"));                       // the ▾ caret is hidden on phones, so its "Save as a new app" fork lives here (hidden while unbound, like the caret)
-    RELOC.forEach((id,i)=>{ if(id==="signin") pop.appendChild(Object.assign(document.createElement("div"),{className:"mdiv"})); pop.appendChild($(id)); });
-  } else {
-    topOrder.forEach(n=> $("top").appendChild(n));      // re-append originals in order → pulls them back out of the menu
-    $("apppop").appendChild($("newapp"));               // hand the fork back to the caret popover
-    pop.querySelectorAll(".mdiv").forEach(d=> d.remove());
-  }
+// Collapse into ⋯ by MEASURING true one-line overflow, not a fixed media query: the bar's natural width
+// swings ~1100–1300px with auth state and app-title length, so any single px breakpoint is dishonest
+// (leaves 641–909px viewports with wrapped pills + off-screen sign-in). Expand first (so the measure is
+// honest), read scrollWidth, then collapse only if it wouldn't fit. Expand→measure→collapse is one
+// synchronous task, so the user never sees the intermediate expanded frame.
+function expandBar(){
+  const pop = $("morepop"), top = $("top");
+  document.body.classList.remove("narrowbar");
+  topOrder.forEach(n=> top.appendChild(n));            // re-append originals in order → pulls them back out of the menu
+  $("apppop").appendChild($("newapp"));                // hand the "Save as a new app" fork back to the caret popover
+  pop.querySelectorAll(".mdiv").forEach(d=> d.remove());
 }
+function collapseBar(){
+  const pop = $("morepop");
+  document.body.classList.add("narrowbar");
+  $("apppop").classList.remove("open");                // the caret popover would otherwise linger as an empty box once its fork moves out
+  pop.appendChild($("newapp"));                        // the ▾ caret is hidden when collapsed, so its "Save as a new app" fork lives here (hidden while unbound, like the caret)
+  RELOC.forEach((id)=>{ const el=$(id); if(!el) return; if(id==="signin") pop.appendChild(Object.assign(document.createElement("div"),{className:"mdiv"})); pop.appendChild(el); });   // skip ids whose button was removed (e.g. the retired top Cookoff) so one gap can't abort the whole collapse
+}
+function layoutBar(){
+  if(!topOrder) return;                                // boot hasn't snapshotted the original order yet
+  expandBar();
+  if($("top").scrollWidth > $("top").clientWidth + 1) collapseBar();   // one line wouldn't fit → move secondary actions into ⋯
+}
+let barRAF = 0;
+addEventListener("resize", ()=>{ if(barRAF) return; barRAF = requestAnimationFrame(()=>{ barRAF = 0; layoutBar(); }); });
 $("morebtn").onclick = (e)=>{ e.stopPropagation(); $("morepop").classList.toggle("open"); };
 $("morepop").addEventListener("click", e=>{ if(e.target.closest("button")) $("morepop").classList.remove("open"); });
 document.addEventListener("click", e=>{ if(!$("moremenu").contains(e.target)) $("morepop").classList.remove("open"); });
-mqMobile.addEventListener("change", layoutBar);
 
 // picker interactions
 $("mpicksearch").addEventListener("input", renderPicker);
@@ -6541,7 +6691,7 @@ function _restore(from, to){
   try{ applyGraphData(JSON.parse(from.pop())); } finally { undoMuted = false; }
   save();
 }
-function syncUndoBtn(){ const b=$("undo"); if(b) b.disabled = !undoStack.length; }   // hide the button when there's nothing to undo
+function syncUndoBtn(){ const b=$("undo"); if(b) b.disabled = !undoStack.length; const r=$("redo"); if(r) r.disabled = !redoStack.length; }   // hide each button when its stack is empty
 const undo = ()=> { _restore(undoStack, redoStack); syncUndoBtn(); };
 const redo = ()=> { _restore(redoStack, undoStack); syncUndoBtn(); };
 function load(){
@@ -6574,6 +6724,8 @@ $("save").onclick = saveFile;
 $("load").onclick = ()=> $("loadfile").click();
 $("fit").onclick = fitView;
 $("undo").onclick = undo;
+$("redo").onclick = redo;
+$("delnode").onclick = ()=>{ if(!selected) return; if(runningNodes.has(selected.id)){ flash("can’t delete while running — Stop first"); return; } removeNode(selected.id); };
 syncUndoBtn();   // start hidden — no edits yet
 $("loadfile").onchange = (e)=>{ loadFile(e.target.files[0]); e.target.value=""; };
 
@@ -6721,6 +6873,7 @@ function updateTitle(){
   if(nw) nw.hidden = !pendingAppId;
   if(more) more.hidden = !pendingAppId;
   if(!pendingAppId) $("apppop").classList.remove("open");
+  layoutBar();   // binding swaps "Create app" ↔ "Update <title>" → the bar's width changes, re-measure fit
 }
 async function loadFromHash(){
   const h = location.hash; let json=null, ga=false;
@@ -7082,6 +7235,7 @@ function renderAuth(){
   const ok = !!getKey();
   $("status").textContent = ok ? t("ready ✓") : t("not signed in");
   $("signin").style.display = ok?"none":""; $("pastebtn").style.display = ok?"none":""; $("signout").style.display = ok?"":"none";
+  layoutBar();   // auth controls differ in width between states → re-measure the bar's fit
 }
 const REDIRECT_URI = location.origin + location.pathname;
 if (location.hostname === "127.0.0.1") location.hostname = "localhost";
@@ -7141,6 +7295,11 @@ $("pastebtn").onclick = async ()=>{
 };
 $("keysignin").onclick = ()=> signIn().catch(signInErr);
 addEventListener("keydown", e=>{ if(e.key==="Escape" && $("keyrow").classList.contains("open")){ e.preventDefault(); $("keyrow").classList.remove("open"); } });
+$("keyx").onclick = ()=> $("keyrow").classList.remove("open");   // touch-dismissable ✕ (phones have no Escape key)
+// tap-outside dismiss (mirror #morepop line ~4441); closest() guard keeps the opening tap (Run/paste/Apply, which
+// open the row on the same click that bubbles here) from immediately closing it again.
+document.addEventListener("click", e=>{ const kr=$("keyrow");
+  if(kr.classList.contains("open") && !e.target.closest("#keyrow,#run,#pastebtn,#describego")) kr.classList.remove("open"); });
 // Keys are plain ASCII (sk-nano-… or a UUID), but hand-typed/copied ones arrive with mobile-keyboard
 // dashes, NBSP or zero-width junk — ONE non-ISO-8859-1 char makes fetch() itself throw before
 // anything reaches the network (live-reproduced: key saves fine, then every run "fails to fetch").
@@ -7205,7 +7364,9 @@ $("signout").onclick = ()=> setKey(null);
         const ra = sessionStorage.getItem(RESUME_APPID_KEY); if(ra) setPendingApp(ra, sessionStorage.getItem(RESUME_APPTITLE_KEY) || null);   // keep the edit-workflow link across login
       } }catch(_){}
   try{ sessionStorage.removeItem(RESUME_APPID_KEY); sessionStorage.removeItem(RESUME_APPTITLE_KEY); }catch(_){}
-  if(!restored && location.hash.length > 3) restored = await loadFromHash();   // opened a shared link
+  if(!restored && location.hash.length > 3){ restored = await loadFromHash();   // opened a shared link
+    if(restored && !graphFitsViewport()) fitView();   // reframe the sharer's desktop view when it overflows THIS screen (phone/tablet visitor) — same guard as loadDefault
+  }
   if(!restored && (restored = load())){                          // else last local graph...
     // ...and re-link it to the app it was bound to, so a plain reload keeps "Update app"
     // (the binding lives outside noodle_graph; without this the next "Create app" would
