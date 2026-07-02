@@ -321,7 +321,7 @@
 
 <!-- paste-key row (hidden until "paste key") — same pattern as index.html -->
 <div id="key">
-  <input id="keyinput" placeholder="paste NanoGPT API key (sk-nano-… or a UUID)" type="text" autocomplete="off" />
+  <input id="keyinput" placeholder="paste NanoGPT API key (sk-nano-… or a UUID)" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" autocorrect="off" data-1p-ignore data-lpignore="true" data-bwignore />
   <button id="keysave" class="link">save key</button>
   <span class="dim" style="font-size:.78rem">— from <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">nano-gpt.com</a> → Settings → API</span>
   <span class="dim" style="flex-basis:100%;font-size:.72rem">new to nano-gpt? <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">create an account →</a> — pay-per-use, no subscription needed; your key stays in this browser.</span>
@@ -3191,7 +3191,7 @@ window.NoodleApp = (function () {
       + (canOAuth ? '<button class="link" id="auth-in">Sign in</button> ' : '')
       + '<button class="link" id="auth-paste">paste key</button>'
       + ' <span class="keyrow" id="auth-keyrow" hidden>'
-      + '<input id="auth-keyinput" type="text" placeholder="nano-gpt API key" autocomplete="off">'
+      + '<input id="auth-keyinput" type="text" placeholder="nano-gpt API key" autocomplete="off" spellcheck="false" autocapitalize="off" autocorrect="off" data-1p-ignore data-lpignore="true" data-bwignore>'
       + ' <button class="link" id="auth-keysave">save</button>'
       + '</span>'
       + (canOAuth ? '' : ' <span class="dim">— paste a nano-gpt.com key (one-click sign-in needs the app served over http)</span>');
@@ -3203,8 +3203,9 @@ window.NoodleApp = (function () {
       if(canOAuth) $("auth-in").onclick = ()=> signIn().catch(e=> statusLine("__auth__","error","sign-in error: "+e.message));
       $("auth-paste").onclick = async ()=>{
         $("auth-keyrow").hidden=false; $("auth-keyinput").focus();
-        // it says "paste" — fill from the clipboard where allowed (else manual paste still works)
-        try{ const t = cleanKey(await navigator.clipboard.readText()); if(t) $("auth-keyinput").value = t; }catch(_){}
+        // it says "paste" — fill from the clipboard where allowed (denied/DLP-blocked → say so; manual paste still works)
+        try{ const t = cleanKey(await navigator.clipboard.readText()); if(t) $("auth-keyinput").value = t; }
+        catch(_){ statusLine("__auth__","error","couldn't read your clipboard — click the key field and press Ctrl+V to paste"); }
       };
       $("auth-keysave").onclick = async ()=>{
         const k=cleanKey($("auth-keyinput").value); if(!k) return;
@@ -4905,8 +4906,9 @@ $("signin").addEventListener("click",(e)=>{ e.preventDefault(); signIn().catch(e
 window.addEventListener("storage",(e)=>{ if(e.key==="ngpt_key") finishSignIn(); });
 $("pastebtn").addEventListener("click", async ()=>{
   $("key").style.display="flex"; $("keyinput").focus();
-  // it says "paste" — fill from the clipboard where the browser allows it (else manual paste still works)
-  try{ const t = cleanKey(await navigator.clipboard.readText()); if(t) $("keyinput").value = t; }catch(_){}
+  // it says "paste" — fill from the clipboard where the browser allows it (denied/DLP-blocked → say so; manual paste still works)
+  try{ const t = cleanKey(await navigator.clipboard.readText()); if(t) $("keyinput").value = t; }
+  catch(_){ toast("couldn't read your clipboard — click the key field and press Ctrl+V to paste","err"); }
 });
 $("keysave").addEventListener("click", async ()=>{
   const k=cleanKey($("keyinput").value);
@@ -4922,6 +4924,7 @@ $("keysave").addEventListener("click", async ()=>{
     return;
   }
   setKey(k); $("key").style.display="none"; renderAuth(); pushAuthToApp();
+  $("keyinput").value="";   // don't leave the plaintext key in the DOM — reopening the row (streamer on camera) would show it
   toast(probe==="unverified" ? "key saved — but nano-gpt.com can't be reached right now (ad-blocker, VPN or network?), so runs may fail" : "key saved — the app can run now", probe==="unverified" ? "err" : undefined);
 });
 $("keyinput").addEventListener("keydown",(e)=>{ if(e.key==="Enter") $("keysave").click(); });
@@ -4946,7 +4949,8 @@ async function boot(){
   // before the network): clean in place, or drop an unsendable one so auth honestly shows signed-out.
   try{ const k0 = getKey(); if(k0){ const k1 = cleanKey(k0);
     if(k1!==k0 || !keySendable(k1)) setKey(k1 && keySendable(k1) ? k1 : null); } }catch(_){}
-  try{ await handleRedirect(); }catch(e){ $("auth-status").textContent = "sign-in error: "+e.message; }
+  let authErr = null;   // surfaced AFTER renderAuth() below — writing it here would just get wiped to "not signed in"
+  try{ await handleRedirect(); }catch(e){ authErr = e; }
   // OAuth popup (opened from the embedded builder): the key is now in shared localStorage and
   // the opener's poll finishes sign-in there. Close this window. NanoGPT's OAuth page sets
   // Cross-Origin-Opener-Policy, which swaps the browsing-context group across the roundtrip —
@@ -4963,6 +4967,7 @@ async function boot(){
     return;
   }
   renderAuth();
+  if(authErr){ $("auth-status").textContent = "sign-in error: "+authErr.message; toast("sign-in didn't complete: "+authErr.message,"err"); }
   migrateLegacy();
   renderAppsBtn();
 
