@@ -622,7 +622,6 @@
     <div id="appnudge" hidden role="status"><span>Like it? <b>✨ Turn this into an app</b> you can share</span><button id="appnudgex" title="Got it" aria-label="Dismiss">×</button></div>
   </div>
   <button id="share" title="Copy a link that opens this workflow in the node editor so others can remix it">🔗 <span>Share workflow</span></button>
-  <button id="submitcontest" title="Enter this in the Noodle Cookoff">🏆 <span>Cookoff</span></button>
   <button id="save" title="download this graph as JSON">⭳ <span>Save</span></button>
   <button id="load" title="open a graph JSON file">⭱ <span>Load</span></button>
   <button id="updates" title="What’s new in nanoodle">📣 <span>Updates</span><span id="updbadge" hidden></span></button>
@@ -6856,9 +6855,8 @@ addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("appmodal").hidden) c
 
 // 🍜 Noodle Cookoff promo — opens a static announcement modal; the ✕ on the button dismisses it for good.
 const cookoffBtn = $("cookoffbtn");
-// Contest ends Jul 12, 23:59 UTC — after that, retire the entry button + promo so they don't rot for new users.
+// Contest ends Jul 12, 23:59 UTC — after that, retire the promo so it does not rot for new users.
 const COOKOFF_OVER = Date.now() > Date.parse("2026-07-12T23:59:59Z");
-if(COOKOFF_OVER) $("submitcontest").hidden = true;
 try{ if(COOKOFF_OVER || localStorage.getItem("noodle_cookoff_dismissed")) cookoffBtn.hidden = true; }catch(_){}
 function closeCookoff(){ $("cookoffmodal").hidden = true; }
 function dismissCookoff(e){ e.stopPropagation(); cookoffBtn.hidden = true; try{ localStorage.setItem("noodle_cookoff_dismissed","1"); }catch(_){} }
@@ -6870,8 +6868,8 @@ $("cookoffmodal").addEventListener("click", e=>{ if(e.target.id==="cookoffmodal"
 addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("cookoffmodal").hidden) closeCookoff(); });
 
 // 🏆 Submit popup — the conversion path into the Cookoff: prize → your entry link → where to post.
-// Reached three ways: the 🏆 Submit toolbar button, the 🍜 explainer's "Submit your entry →",
-// and an auto-nudge the instant a 🔗 Share copy succeeds (the wow moment).
+// Reached from the 🍜 explainer's "Submit your entry →" CTA and an auto-nudge
+// the instant a 🔗 Share copy succeeds (the wow moment).
 let submitFromShare = false;     // this open was the post-Share auto-nudge (vs. an explicit click)
 let suppressShareNudge = false;  // user dismissed that nudge once → stop auto-popping it this session
 let submitTarget = "app";        // "app" (play.html runtime — the contest default) | "workflow" (editor, for remixers)
@@ -6911,7 +6909,6 @@ $("sublinkwf").onclick  = ()=> setSubmitTarget("workflow");
 // 🍜 floating button → the rich "why enter" explainer; its CTA opens this submit popup.
 cookoffBtn.onclick = ()=>{ $("cookoffmodal").hidden = false; };
 $("cookoffsubmit").onclick = ()=>{ closeCookoff(); openSubmit(); };
-$("submitcontest").onclick = ()=> openSubmit();                       // wrap: never pass the click event as a URL
 $("submitclose").onclick = closeSubmit;
 $("submitmodal").addEventListener("click", e=>{ if(e.target.id==="submitmodal") closeSubmit(); });   // click the dim backdrop
 addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("submitmodal").hidden) closeSubmit(); });
