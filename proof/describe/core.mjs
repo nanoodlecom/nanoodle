@@ -81,11 +81,11 @@ function stripEmpty(f){
 }
 
 // Canvas coords for the NEW nodes in a described change (survivors keep their exact spot).
-// Place each new node one column RIGHT of whatever feeds it, so an added A→B→C chain reads
-// left→right like a hand-built graph instead of dropping into one vertical stack. Fan-outs and
-// source-less adds stagger down. Mirrors index.html placeNew() — keep the two in sync.
+// Each new node lands one column right of whatever feeds it; fan-outs and rootless adds stagger
+// down the same column. COL clears the widest node (max-width 340px) so columns never overlap.
+// Mirrors index.html placeNew() — keep the two in sync.
 function placeNew(simple, prev){
-  const COL = 320, ROW = 200;
+  const COL = 440, ROW = 220;
   const prevIds = new Set((prev.nodes||[]).map(n=>n.id));
   const isNew = id => !prevIds.has(id);
   const maxX = (prev.nodes||[]).length ? Math.max(...prev.nodes.map(n=>n.x||0)) : 60;
