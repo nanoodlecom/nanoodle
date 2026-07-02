@@ -132,6 +132,25 @@
   #langpop button:hover{ background:var(--panel2) }
   #langpop button.sel{ color:var(--accent); font-weight:600 }
   #langpop button .code{ font-size:.66rem; color:var(--dim); font-family:ui-monospace,monospace; text-transform:uppercase }
+  /* ---------- signed-out CTA: a split button — "Sign in with NanoGPT" + a ▾ caret hiding the paste-key path ---------- */
+  #authmenu{ position:relative; display:flex; align-items:stretch }
+  #authmenu #signin{ background:linear-gradient(90deg,#67e8f9,var(--accent)); color:#0b0d12; font-weight:700; border:none;
+                     border-radius:.5rem 0 0 .5rem; padding:.34rem .7rem; font-size:.8rem }
+  #authmenu #authcaret{ background:var(--accent); color:#0b0d12; border:none; border-left:1px solid #0b0d1233;
+                        border-radius:0 .5rem .5rem 0; padding:.34rem .42rem; font-size:.68rem }
+  #authmenu #signin:hover,#authmenu #authcaret:hover{ filter:brightness(1.12) }
+  #authpop{ position:absolute; top:110%; right:0; background:var(--panel); border:1px solid var(--line); border-radius:.6rem;
+            padding:.35rem; display:none; flex-direction:column; gap:.05rem; min-width:200px; box-shadow:0 12px 40px #0008; z-index:40 }
+  #authpop.open{ display:flex }
+  #authpop button{ display:flex; align-items:center; gap:.55rem; width:100%; text-align:left; border:none; background:none;
+                   color:var(--ink); padding:.45rem .55rem; border-radius:.45rem; font-size:.86rem }
+  #authpop button:hover{ background:var(--panel2) }
+  #authpop .k{ font-size:1rem; line-height:1 }
+  #authpop .authnew{ font-size:.72rem; color:var(--dim); padding:.45rem .55rem .35rem; border-top:1px solid var(--line);
+                     margin-top:.2rem; text-decoration:none }
+  #authpop .authnew b{ color:var(--accent); font-weight:600 }
+  /* relocated into the ⋯ menu (narrowbar): keep the CTA readable as a plain row */
+  #morepop #signin{ color:var(--accent); font-weight:600 }
   #status{font-size:.78rem; color:var(--dim)}
   #share.ok{ border-color:var(--good); color:var(--good) }
   /* create-app popup (play.html in a modal iframe over the editor) */
@@ -604,11 +623,12 @@
   body.narrowbar #appnudge{ position:fixed; top:58px; left:.5rem; right:.5rem; max-width:none; justify-content:center; white-space:normal }
   body.narrowbar #top .sep{ display:none }
   body.narrowbar #cost{ display:none }                 /* balance is non-essential chrome when the bar is tight */
+  body.narrowbar #authmenu{ display:none }             /* its sign-in/paste-key buttons move into ⋯ (RELOC); only the empty caret shell stays behind */
 
   /* ---------- touch devices: finger-sized hit targets everywhere ---------- */
   @media (pointer:coarse){
     #top button{ min-height:42px }
-    #addpop button, #morepop button{ min-height:46px }
+    #addpop button, #morepop button, #authpop button{ min-height:46px }
     /* fatten the wire ports and give each an invisible oversized tap zone. These sit inside the
        transformed #world, so their CSS px shrink with zoom — counter-scale by --invz (1/scale,
        written by applyWorld) so the screen-space hit zone stays ~36px+ even at the 0.4 fit zoom.
@@ -708,8 +728,14 @@
     <button id="langbtn" title="Language" aria-label="Language"><span class="gl">🌐</span><span id="langcur" data-no-i18n></span> ▾</button>
     <div id="langpop" role="menu"></div>
   </div>
-  <button id="signin" class="link" style="display:none">sign in</button>
-  <button id="pastebtn" class="link" style="display:none">paste key</button>
+  <div id="authmenu" style="display:none">
+    <button id="signin">Sign in with NanoGPT</button>
+    <button id="authcaret" title="more sign-in options" aria-label="more sign-in options">▾</button>
+    <div id="authpop">
+      <button id="pastebtn" style="display:none"><span class="k">🔑</span> <span>paste key</span></button>
+      <a class="authnew" href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener"><span>new to nano-gpt?</span> <b>create an account →</b></a>
+    </div>
+  </div>
   <button id="signout" class="link" style="display:none">sign out</button>
 </header>
 
@@ -1121,6 +1147,8 @@ const I18N = {
     "Close (Esc)":"Cerrar (Esc)",
     "sign in":"iniciar sesión",
     "paste key":"pegar clave",
+    "Sign in with NanoGPT":"Iniciar sesión con NanoGPT",
+    "more sign-in options":"más opciones de inicio de sesión",
     "sign out":"cerrar sesión",
     "checking…":"comprobando…",
     "ready ✓":"listo ✓",
@@ -1490,6 +1518,8 @@ const I18N = {
     "Close (Esc)":"Fermer (Esc)",
     "sign in":"se connecter",
     "paste key":"coller la clé",
+    "Sign in with NanoGPT":"Se connecter avec NanoGPT",
+    "more sign-in options":"autres options de connexion",
     "sign out":"se déconnecter",
     "checking…":"vérification…",
     "ready ✓":"prêt ✓",
@@ -1859,6 +1889,8 @@ const I18N = {
     "Close (Esc)":"Schließen (Esc)",
     "sign in":"anmelden",
     "paste key":"Schlüssel einfügen",
+    "Sign in with NanoGPT":"Mit NanoGPT anmelden",
+    "more sign-in options":"weitere Anmeldeoptionen",
     "sign out":"abmelden",
     "checking…":"wird geprüft…",
     "ready ✓":"bereit ✓",
@@ -2228,6 +2260,8 @@ const I18N = {
     "Close (Esc)":"Fechar (Esc)",
     "sign in":"entrar",
     "paste key":"colar chave",
+    "Sign in with NanoGPT":"Entrar com NanoGPT",
+    "more sign-in options":"mais opções de login",
     "sign out":"sair",
     "checking…":"verificando…",
     "ready ✓":"pronto ✓",
@@ -2597,6 +2631,8 @@ const I18N = {
     "Close (Esc)":"閉じる (Esc)",
     "sign in":"サインイン",
     "paste key":"キーを貼り付け",
+    "Sign in with NanoGPT":"NanoGPTでサインイン",
+    "more sign-in options":"その他のサインイン方法",
     "sign out":"サインアウト",
     "checking…":"確認中…",
     "ready ✓":"準備完了 ✓",
@@ -6650,6 +6686,9 @@ function buildLangMenu(){
 }
 $("langbtn").onclick = (e)=>{ e.stopPropagation(); $("langpop").classList.toggle("open"); };
 document.addEventListener("click", e=>{ if(!$("langmenu").contains(e.target)) $("langpop").classList.remove("open"); });
+$("authcaret").onclick = (e)=>{ e.stopPropagation(); $("authpop").classList.toggle("open"); };
+document.addEventListener("click", e=>{ if(!$("authmenu").contains(e.target)) $("authpop").classList.remove("open"); });
+$("authpop").addEventListener("click", e=>{ if(e.target.closest("button,a")) $("authpop").classList.remove("open"); });
 
 /* ---------- responsive toolbar: collapse secondary actions into the ⋯ menu on phones ----------
    Buttons keep their handlers (they're moved, not cloned). On desktop everything sits inline. */
@@ -6665,6 +6704,8 @@ function expandBar(){
   document.body.classList.remove("narrowbar");
   topOrder.forEach(n=> top.appendChild(n));            // re-append originals in order → pulls them back out of the menu
   $("apppop").appendChild($("newapp"));                // hand the "Save as a new app" fork back to the caret popover
+  $("authmenu").insertBefore($("signin"), $("authcaret"));   // signin/pastebtn nest INSIDE the auth split-button, so the
+  $("authpop").prepend($("pastebtn"));                       // topOrder re-append above can't restore them — re-nest by hand (paste key sits above the create-account link)
   pop.querySelectorAll(".mdiv").forEach(d=> d.remove());
 }
 function collapseBar(){
@@ -7353,6 +7394,7 @@ function renderAuth(){
   const ok = !!getKey();
   $("status").textContent = ok ? t("ready ✓") : t("not signed in");
   $("signin").style.display = ok?"none":""; $("pastebtn").style.display = ok?"none":""; $("signout").style.display = ok?"":"none";
+  $("authmenu").style.display = ok?"none":"";   // the split-button shell (caret + popover) has no signed-in job; "" defers to the stylesheet (flex, or narrowbar's none)
   layoutBar();   // auth controls differ in width between states → re-measure the bar's fit
 }
 const REDIRECT_URI = location.origin + location.pathname;
