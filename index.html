@@ -628,7 +628,7 @@
   <span id="keynote" class="dim">Running calls models on your NanoGPT key.</span>
   <button id="keysignin" class="btn">sign in</button>
   <span class="dim">or</span>
-  <input id="keyinput" type="password" autocomplete="off" placeholder="paste NanoGPT API key (sk-nano-… or a UUID)" />
+  <input id="keyinput" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" autocorrect="off" data-1p-ignore data-lpignore="true" data-bwignore placeholder="paste NanoGPT API key (sk-nano-… or a UUID)" />
   <button id="keysave" class="btn">save</button>
   <span class="dim" style="font-size:.72rem;color:var(--dim)">nano-gpt.com → Settings → API</span>
   <span class="dim" style="flex-basis:100%;font-size:.72rem">new to nano-gpt? <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">create an account →</a> — pay-per-use, no subscription needed; your key stays in this browser.</span>
@@ -5151,8 +5151,9 @@ $("signin").onclick = ()=> signIn().catch(signInErr);
 $("pastebtn").onclick = async ()=>{
   $("keyrow").classList.add("open"); $("keyinput").focus();
   // the button says "paste" — so paste: fill from the clipboard where the browser allows it
-  // (denied/unsupported → the focused field still takes a manual Ctrl+V / long-press)
-  try{ const t = cleanKey(await navigator.clipboard.readText()); if(t) $("keyinput").value = t; }catch(_){}
+  // (denied/unsupported/DLP-blocked → say so; the focused field still takes a manual Ctrl+V / long-press)
+  try{ const t = cleanKey(await navigator.clipboard.readText()); if(t) $("keyinput").value = t; }
+  catch(_){ toast("couldn't read your clipboard — click the key field and press Ctrl+V to paste", "err"); }
 };
 $("keysignin").onclick = ()=> signIn().catch(signInErr);
 addEventListener("keydown", e=>{ if(e.key==="Escape" && $("keyrow").classList.contains("open")){ e.preventDefault(); $("keyrow").classList.remove("open"); } });
@@ -5183,10 +5184,14 @@ $("keysave").onclick = async ()=>{
   const btn=$("keysave"), label=btn.textContent; btn.disabled=true; btn.textContent="checking…";
   const probe = await probeKey(k);
   btn.disabled=false; btn.textContent=label;
-  if(probe==="bad"){ $("keyrow").classList.add("open"); $("keyinput").focus(); flash("that key was rejected — paste a valid nano-gpt.com key"); return; }
+  if(probe==="bad"){ $("keyrow").classList.add("open"); $("keyinput").focus(); flash("that key was rejected — paste a valid nano-gpt.com key");
+    toast("that key was rejected — paste a valid nano-gpt.com key", "err"); return; }   // #status relocates into ⋯ on narrow screens; the toast is the one channel that's always visible
   setKey(k); $("keyrow").classList.remove("open");      // validated → store + close (renderAuth shows the real "ready ✓")
+  $("keyinput").value = "";   // don't leave the plaintext key in the DOM — reopening the row (streamer on camera) would show it
   if(probe==="unverified") toast("key saved — but nano-gpt.com can't be reached right now (ad-blocker, VPN or network?), so runs may fail", "err");
+  else toast("key saved — you're ready to run");
 };
+$("keyinput").addEventListener("keydown", e=>{ if(e.key==="Enter") $("keysave").click(); });   // paste + Enter must work (parity with play/exported apps)
 $("signout").onclick = ()=> setKey(null);
 
 /* ======================================================================
@@ -5223,8 +5228,8 @@ $("signout").onclick = ()=> setKey(null);
   try{ if(!localStorage.getItem(HINT_KEY)) $("canvashint").hidden = false; }catch{}   // first-run orientation line
   maybeShowConnectHint();   // returning user who never wired by hand → the connect coach (skipped while the first-run line is up)
   // Brand-new visitors land straight on a simple working flow (the default graph).
-  try{ await handleRedirect(); }catch(e){ $("status").textContent="sign-in error: "+e.message; }
-  renderAuth();
+  renderAuth();   // paint the signed-out chrome first: a handleRedirect() failure below must not be overwritten by this
+  try{ await handleRedirect(); }catch(e){ signInErr(e); }   // success re-renders via setKey; failure now stays visible (status + toast) instead of being wiped to "not signed in"
   refreshBalance();                 // already-signed-in visitor: show the bal without waiting for a run
   // pull the full model catalogs in the background, then show per-node prices
   Promise.all([loadCatalog("chat"), loadCatalog("image"), loadCatalog("video"), loadCatalog("audio")]).then(refreshAllPrices);
