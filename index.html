@@ -152,6 +152,23 @@
   .update-items li{ font-size:.9rem; line-height:1.4; padding-left:1.1rem; position:relative }
   .update-items li::before{ content:"–"; position:absolute; left:0; color:var(--accent) }
   #updatesempty{ font-size:.85rem; color:var(--dim); padding:1.4rem 0 }
+  /* 🍜 live-contest notice pinned to the top of the changelog — click opens the Cookoff rules */
+  .update-cookoff{ display:flex; align-items:center; gap:.6rem; width:100%; text-align:left; cursor:pointer;
+                   margin:0 0 1rem; padding:.7rem .85rem; border:1px solid transparent; border-radius:.65rem;
+                   background:linear-gradient(90deg,#ff6b6b22,#ffcf6b22,#3ddc9722,#7c8cff22,#ff79c622);
+                   background-clip:padding-box; color:var(--ink); font:inherit }
+  .update-cookoff::before{ content:""; position:absolute; inset:0; border-radius:.65rem; padding:1px; pointer-events:none;
+                   background:linear-gradient(90deg,#ff6b6b,#ffcf6b,#3ddc97,#7c8cff,#ff79c6); background-size:200% 100%;
+                   -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask-composite:exclude;
+                   animation:cookoff-flow 4s linear infinite }
+  @media (prefers-reduced-motion:reduce){ .update-cookoff::before{ animation:none } }
+  .update-cookoff{ position:relative }
+  .update-cookoff .uc-emoji{ font-size:1.25rem; line-height:1 }
+  .update-cookoff .uc-text{ font-size:.86rem; line-height:1.35 }
+  .update-cookoff .uc-text b{ color:var(--ink) }
+  .update-cookoff .uc-go{ margin-left:auto; font-size:.8rem; font-weight:700; white-space:nowrap;
+                   background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; background-clip:text; color:transparent }
+  .update-cookoff:hover{ filter:brightness(1.06) }
   /* the 📣 Updates button's unseen badge */
   #updates{ position:relative }
   #updbadge[hidden]{ display:none }
@@ -4532,7 +4549,14 @@ async function openUpdates(){
   $("updatesmodal").hidden = false;
   const list = await fetchUpdates();
   body.innerHTML = "";
-  if(!list.length){ body.innerHTML = "<div id='updatesempty'>No updates yet — check back soon.</div>"; }
+  if(!COOKOFF_OVER){                     // pin a live-contest notice above the changelog; click opens the rules
+    const cta = document.createElement("button"); cta.type = "button"; cta.className = "update-cookoff";
+    cta.title = "Open the Noodle Cookoff rules";
+    cta.innerHTML = "<span class='uc-emoji'>🍜</span><span class='uc-text'>The <b>Noodle Cookoff</b> is live — win Nano for your best noodle. <b>Ends Jul 12.</b></span><span class='uc-go'>See the rules →</span>";
+    cta.onclick = ()=>{ closeUpdates(); $("cookoffmodal").hidden = false; };
+    body.appendChild(cta);
+  }
+  if(!list.length){ body.insertAdjacentHTML("beforeend", "<div id='updatesempty'>No updates yet — check back soon.</div>"); }
   else {
     let curDate = null, ul = null;   // group consecutive entries under their date
     list.forEach(e=>{
