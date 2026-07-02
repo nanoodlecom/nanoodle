@@ -490,7 +490,8 @@ function mountLangPickerB(){
   const wrap=document.createElement("span"); wrap.id="langbtn-b"; wrap.style.cssText="display:inline-flex;align-items:center;margin-left:.3rem;";
   const sel=document.createElement("select");
   sel.setAttribute("aria-label", tB("Language"));
-  sel.style.cssText="font:inherit;font-size:.8rem;background:transparent;color:var(--dim,#8b93b4);border:1px solid var(--line,#2a3150);border-radius:.4rem;padding:.1rem .25rem;cursor:pointer;";
+  sel.title = tB("Language");
+  sel.style.cssText="font:inherit;font-size:.8rem;background:transparent;color:var(--dim,#8b93b4);border:1px solid var(--line,#2a3150);border-radius:.4rem;padding:.1rem .25rem;cursor:pointer;width:2.35rem;max-width:2.35rem;";
   PLAY_B_LANGS.forEach(c=>{ const o=document.createElement("option"); o.value=c; o.textContent="🌐 "+PLAY_B_ENDONYM[c]; o.setAttribute("data-no-i18n",""); if(c===LANG_B) o.selected=true; sel.appendChild(o); });
   sel.addEventListener("change", ()=>{ try{ localStorage.setItem("noodle_lang", sel.value); }catch(e){} location.reload(); });
   wrap.appendChild(sel);
@@ -662,7 +663,8 @@ window.NoodleApp = (function () {
     wrap.style.cssText="position:fixed;top:.5rem;right:.6rem;z-index:9;font-size:.74rem;opacity:.75;";
     const sel=document.createElement("select");
     sel.setAttribute("aria-label", t("Language"));
-    sel.style.cssText="font:inherit;background:rgba(20,24,38,.75);color:var(--dim,#8b93b4);border:1px solid var(--line,#2a3150);border-radius:.4rem;padding:.12rem .3rem;cursor:pointer;";
+    sel.title = t("Language");
+    sel.style.cssText="font:inherit;background:rgba(20,24,38,.75);color:var(--dim,#8b93b4);border:1px solid var(--line,#2a3150);border-radius:.4rem;padding:.12rem .3rem;cursor:pointer;width:2.35rem;max-width:2.35rem;";
     PLAY_LANGS.forEach(c=>{ const o=document.createElement("option"); o.value=c; o.textContent=PLAY_ENDONYM[c]; o.setAttribute("data-no-i18n",""); if(c===LANG) o.selected=true; sel.appendChild(o); });
     sel.addEventListener("change", ()=>{ try{ localStorage.setItem("noodle_lang", sel.value); }catch(e){} location.reload(); });
     wrap.appendChild(sel); document.body.appendChild(wrap);
