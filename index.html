@@ -547,6 +547,9 @@
   #morepop .mdiv{ height:1px; background:var(--line); margin:.25rem .2rem }
 
   /* ---------- phone layout: collapse the crowded toolbar, never scroll sideways ---------- */
+  /* Keep i18n available without making it look like a primary product surface. */
+  #langcur{ display:none }              /* globe + ▾ only — the menu still lists every language */
+
   @media (max-width:640px){
     #top{ gap:.45rem; padding:0 max(.55rem,env(safe-area-inset-left)) 0 max(.55rem,env(safe-area-inset-right)) }
     #top .logo{ font-size:1.05rem; margin-right:.1rem }
@@ -558,7 +561,6 @@
     #appnudge{ position:fixed; top:58px; left:.5rem; right:.5rem; max-width:none; justify-content:center; white-space:normal }
     #top .sep{ display:none }
     #cost{ display:none }                 /* balance is non-essential chrome on a phone */
-    #langcur{ display:none }              /* globe + ▾ only — the menu still lists every language */
   }
 
   /* ---------- touch devices: finger-sized hit targets everywhere ---------- */
