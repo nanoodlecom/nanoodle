@@ -3137,18 +3137,21 @@ window.NoodleApp = (function () {
   function injectAuthIntroStyles(){
     if(document.getElementById("noodle-authintro-style")) return;
     const s = document.createElement("style"); s.id = "noodle-authintro-style";
+    // Deliberately NOT a card: no fill, no radius, no drop shadow — a hairline top/bottom
+    // rule + accent left edge reads as a system note about the page, not app content, and
+    // an uppercase eyebrow makes that explicit at a glance. Width matches #app-tagline's own
+    // 60ch cap so it sits in the page's existing rhythm instead of floating as its own block.
     s.textContent =
-      '.auth-intro{margin:.7rem 0 .55rem;padding:.9rem 1rem;border:1px solid var(--accent-line,#7c8cff55);'
-        + 'border-radius:var(--radius,.7rem);background:linear-gradient(180deg,var(--accent-soft,#7c8cff1f),transparent 62%),var(--panel,#161a27);'
-        + 'max-width:46ch;text-align:left;}'
-      + '.auth-intro .auth-hd{display:flex;align-items:baseline;gap:.5rem;margin-bottom:.6rem;}'
-      + '.auth-intro .auth-ic{font-size:1rem;line-height:1;}'
-      + '.auth-intro .auth-why{color:var(--ink,#e6e9f5);font-weight:600;font-size:.92rem;letter-spacing:.01em;}'
-      + '.auth-intro .auth-pts{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:.34rem;}'
-      + '.auth-intro .auth-pts li{position:relative;padding-left:1.15rem;font-size:.8rem;color:var(--dim,#8b93b4);line-height:1.45;}'
-      + '.auth-intro .auth-pts li::before{content:"✓";position:absolute;left:0;top:0;color:var(--accent,#7c8cff);font-weight:700;}'
-      + '.auth-intro .auth-new{margin:.65rem 0 0;padding-top:.6rem;border-top:1px solid var(--line,#252b3d);'
-        + 'font-size:.8rem;line-height:1.5;color:var(--ink,#e6e9f5);}'
+      '.auth-intro{margin:.75rem 0 1.4rem;padding:.65rem 0 .65rem .85rem;'
+        + 'border-top:1px solid var(--line,#2a3150);border-bottom:1px solid var(--line,#2a3150);'
+        + 'border-left:2px solid var(--accent,#7c8cff);border-radius:0;background:transparent;'
+        + 'max-width:60ch;text-align:left;}'
+      + '.auth-intro .auth-eyebrow{display:block;font-size:.62rem;font-weight:700;letter-spacing:.11em;'
+        + 'text-transform:uppercase;color:var(--faint,#5d6788);margin-bottom:.4rem;}'
+      + '.auth-intro p{margin:0;}'
+      + '.auth-intro .auth-lede{font-size:.8rem;line-height:1.45;color:var(--dim,#8b93b4);margin-bottom:.4rem;}'
+      + '.auth-intro .auth-cta{font-size:.85rem;line-height:1.5;color:var(--ink,#e6e9f5);}'
+      + '.auth-intro .auth-cta b{color:var(--accent,#7c8cff);font-weight:700;}'
       + '.auth-intro a{color:var(--accent,#7c8cff);text-decoration:none;}'
       + '.auth-intro a:hover{text-decoration:underline;}';
     (document.head || document.documentElement).appendChild(s);
@@ -3159,18 +3162,13 @@ window.NoodleApp = (function () {
     // app runs un-sandboxed, so a plain new-tab link works. The #a= share-link preview
     // runs in a sandboxed iframe with no allow-popups, where a target=_blank link is dead
     // — there we point at the top bar, which is un-sandboxed and owns sign-in / sign-up.
-    const newAcct = embedded
-      ? '<p class="auth-new"><b>Sign in</b> from the bar at the top to run this app — new to nano-gpt? creating an account is free.</p>'
-      : '<p class="auth-new">new to nano-gpt? <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">create an account →</a></p>';
+    const cta = embedded
+      ? '<p class="auth-cta"><b>Sign in</b> from the bar at the top to run this app — new to nano-gpt? creating an account is free.</p>'
+      : '<p class="auth-cta">new to nano-gpt? <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">create an account →</a> — it’s free, your key stays in this browser.</p>';
     return '<div class="auth-intro">'
-      + '<div class="auth-hd"><span class="auth-ic">🔑</span>'
-        + '<span class="auth-why">runs on your own nano-gpt key</span></div>'
-      + '<ul class="auth-pts">'
-        + '<li>called straight from your browser — no server, no analytics</li>'
-        + '<li>your key never leaves this device</li>'
-        + '<li>pay nano-gpt per run, see the cost each time · setup takes ~a minute</li>'
-      + '</ul>'
-      + newAcct
+      + '<span class="auth-eyebrow">Before you run this</span>'
+      + '<p class="auth-lede">nano-gpt is a pay-per-use AI service — hundreds of models, pay only for what you run.</p>'
+      + cta
       + '</div>';
   }
   function renderAuth(){
@@ -3200,8 +3198,9 @@ window.NoodleApp = (function () {
       + '<input id="auth-keyinput" type="password" placeholder="nano-gpt API key" autocomplete="off">'
       + ' <button class="link" id="auth-keysave">save</button>'
       + '</span>'
-      + (canOAuth ? '' : ' <span class="dim">— paste a nano-gpt.com key (one-click sign-in needs the app served over http)</span>')
-      + '<div class="auth-new">new to nano-gpt? <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">create an account →</a><span class="dim"> — pay-per-use, no subscription needed; your key stays in this browser.</span></div>';
+      + (canOAuth ? '' : ' <span class="dim">— paste a nano-gpt.com key (one-click sign-in needs the app served over http)</span>');
+      // (the "new to nano-gpt? create an account" line already lives in authIntro's own
+      // .auth-cta above — a second copy here was pure duplication)
     if(ok){
       $("auth-out").onclick = ()=> setKey(null);
     } else {
