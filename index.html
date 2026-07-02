@@ -59,7 +59,7 @@
 <style>
   :root{
     color-scheme: dark;
-    --bg:#0b0d12; --panel:#12151d; --panel2:#171b25; --ink:#eef1f7; --dim:#9aa3b2;
+    --bg:#0b0d12; --panel:#12151d; --panel2:#171b25; --ink:#eef1f7; --dim:#aeb7c8; --muted:#c3c9d6;
     --line:#262c3a; --accent:#7c8cff; --accent2:#ff79c6; --good:#3ddc97; --bad:#ff6b6b; --warn:#ffcf6b;
     --text-port:#7c8cff; --image-port:#ff79c6; --video-port:#5ad1e6; --audio-port:#3ddc97;
   }
@@ -386,10 +386,10 @@
   .node header.t-join{ background:linear-gradient(90deg,#9aa3b222,transparent) }
   .node header .em{font-size:1rem}
   .node header .ttl{font-weight:700; font-size:.85rem; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  .node-name{ width:100%; box-sizing:border-box; background:transparent; border:0; border-bottom:1px solid #ffffff12; color:var(--dim); font:inherit; font-size:.76rem; padding:.12rem .55rem; outline:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .node-name{ width:100%; box-sizing:border-box; background:transparent; border:0; border-bottom:1px solid #ffffff12; color:var(--muted); font:inherit; font-size:.76rem; padding:.12rem .55rem; outline:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
   .node-name:hover{ border-bottom-color:#ffffff26 }
   .node-name:focus{ color:var(--ink); border-bottom-color:var(--accent) }
-  .node-name::placeholder{ color:#ffffff33 }
+  .node-name::placeholder{ color:#b8c0d0 }
   .node header .hbtn{ border:none; background:none; padding:2px 4px; color:var(--dim); font-size:.85rem; border-radius:.35rem }
   .node header .hbtn:hover{ background:#ffffff14; color:var(--ink) }
   .node header .dot{ width:8px;height:8px;border-radius:50%; background:var(--dim); flex:0 0 auto }
@@ -401,7 +401,7 @@
 
   .ports{ display:flex; justify-content:space-between; padding:.45rem 0 .2rem; }
   .col{ display:flex; flex-direction:column; gap:.35rem }
-  .prow{ display:flex; align-items:center; gap:.4rem; font-size:.74rem; color:var(--dim) }
+  .prow{ display:flex; align-items:center; gap:.4rem; font-size:.74rem; color:var(--muted) }
   .col.out .prow{ flex-direction:row-reverse }
   .port{ position:relative; width:13px; height:13px; border-radius:50%; border:2px solid var(--bg); background:var(--dim);
          cursor:crosshair; flex:0 0 auto; transition:transform .1s }
@@ -416,20 +416,20 @@
   .port.video{ background:var(--video-port) } .port.audio{ background:var(--audio-port) }
   .port.filled{ box-shadow:0 0 0 3px #ffffff22 }
   /* a disabled image input: the model can't see images, so the socket is inert until a vision model is picked */
-  .port.disabled{ cursor:not-allowed; opacity:.3; background:var(--dim) }
+  .port.disabled{ cursor:not-allowed; opacity:.45; background:var(--dim) }
   .port.disabled:hover{ transform:none }
-  .prow.imgrow.off span{ opacity:.4 }
+  .prow.imgrow.off span{ opacity:.7 }
   /* inline ports: a wirable socket sitting on the left edge next to a text field */
   .body .fieldport{ position:absolute; left:-1.1rem; top:0; z-index:3 }
   /* a field whose port is wired is driven by the connection — lock + dim it */
-  .body textarea.wired{ opacity:.4; border-style:dashed; cursor:not-allowed; color:var(--dim) }
+  .body textarea.wired{ opacity:.72; border-style:dashed; cursor:not-allowed; color:var(--muted) }
   /* magnetism: every valid destination glows, the closest one grabs the wire */
   .port.compatible{ transform:scale(1.25); box-shadow:0 0 0 4px #ffffff26; animation:portpulse 1.1s ease-in-out infinite }
   .port.snap{ transform:scale(1.7); box-shadow:0 0 0 5px #ffffff66, 0 0 12px #fff6; animation:none }
   @keyframes portpulse{ 50%{ box-shadow:0 0 0 6px #ffffff14 } }
 
   .body{ padding:.1rem .6rem .6rem; display:flex; flex-direction:column; gap:.5rem }
-  .body label{ font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); display:block; margin-bottom:.2rem }
+  .body label{ font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); display:block; margin-bottom:.2rem; font-weight:700 }
   .body textarea{ width:100%; resize:vertical; min-width:190px; max-width:min(80vw,760px); min-height:84px;
                   background:var(--panel2); border:1px solid var(--line);
                   border-radius:.45rem; padding:.4rem .5rem; line-height:1.35 }
@@ -438,6 +438,7 @@
   .body input[type=checkbox]{ width:auto }
   .body .chk{ display:flex; align-items:center; gap:.45rem; font-size:.8rem; color:var(--ink); text-transform:none; letter-spacing:0 }
   .body .fhint{ font-size:.68rem; color:var(--dim); margin-top:.2rem; text-transform:none; letter-spacing:0 }
+  .body input::placeholder, .body textarea::placeholder, #addsearch::placeholder, #mpicksearch::placeholder, #keyinput::placeholder, #describegoal::placeholder{ color:#b7bfce; opacity:1 }
   .body .two{ display:flex; gap:.4rem } .body .two > *{ flex:1; min-width:0 }
   /* image upload / webcam panel */
   .body .uprev{ width:100%; min-height:90px; display:flex; align-items:center; justify-content:center;
@@ -454,7 +455,7 @@
                border-radius:.45rem; cursor:pointer; color:var(--ink) }
   .body .ubtn:hover{ border-color:var(--accent) }
   .body .cambox video{ width:100%; border-radius:.45rem; background:#000; display:block; margin-bottom:.4rem }
-  .body details.adv{ margin-top:.1rem } .body details.adv summary{ cursor:pointer; font-size:.72rem; color:var(--dim) }
+  .body details.adv{ margin-top:.1rem } .body details.adv summary{ cursor:pointer; font-size:.72rem; color:var(--muted); font-weight:700 }
   .body details.adv textarea{ margin-top:.35rem; font-family:ui-monospace,monospace; font-size:.76rem }
   .result{ display:none; margin-top:.1rem; border-top:1px dashed var(--line); padding-top:.5rem }
   .result.show{ display:block }

@@ -38,7 +38,7 @@
   :root{
     color-scheme: dark;
     --bg:#0d0f17; --panel:#161a27; --panel2:#1d2236; --line:#2a3150;
-    --ink:#e6e9f5; --dim:#8b93b4; --faint:#5d6788;
+    --ink:#e6e9f5; --dim:#aab3c7; --faint:#8792ad; --muted:#c0c7d6;
     --accent:#7c8cff; --accent-soft:#7c8cff22; --accent-line:#7c8cff66;
     --ok:#46d27a; --danger:#ff6b6b;
   }
@@ -87,7 +87,7 @@
              max-height:70vh; overflow:auto; background:var(--panel); border:1px solid var(--line);
              border-radius:.7rem; box-shadow:0 18px 50px rgba(0,0,0,.5); padding:.45rem; }
   #appsmenu[hidden], #appsback[hidden]{ display:none; }
-  .am-head{ font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--faint);
+  .am-head{ font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); font-weight:700;
             padding:.3rem .5rem .35rem; }
   .am-row{ display:flex; align-items:center; gap:.5rem; padding:.5rem .55rem; border-radius:.5rem; cursor:pointer; }
   .am-row:hover{ background:var(--panel2); }
@@ -142,17 +142,18 @@
   #key{ display:none; align-items:center; flex-wrap:wrap; gap:.5rem; padding:.5rem .8rem; border-bottom:1px solid var(--line); background:#11141f; position:relative; z-index:70; }
   #key input{ max-width:420px; flex:0 1 420px; }
   input{ font:inherit; padding:.5rem .65rem; border-radius:.5rem; background:#0b0e18; border:1px solid var(--line); color:var(--ink); }
+  input::placeholder{ color:#b8c0d0; opacity:1; }
   input:focus{ outline:none; border-color:var(--accent-line); box-shadow:0 0 0 3px var(--accent-soft); }
 
   /* ---------- customize composer (docked at the BOTTOM) ---------- */
   #customize{ padding:.6rem .8rem; border-top:1px solid var(--line); background:#11141f; }
   .cust-row{ display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
-  .cust-label{ font-size:.82rem; color:var(--dim); font-weight:600; }
+  .cust-label{ font-size:.82rem; color:var(--muted); font-weight:700; }
   #goal{ flex:1; min-width:240px; }
   /* the model picker is a power-user control: capped (the id runs long) and recessive
      by default — small and dim — brightening only when you reach for it */
   #modelpick{ max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-              font-size:.8rem; color:var(--dim); }
+              font-size:.8rem; color:var(--muted); }
   #modelpick:hover, #modelpick:focus{ color:var(--ink); }
   /* ---------- first run (the initial moment) ----------
      The live default app is the hero from the first frame — no overlay, no dim.
@@ -170,7 +171,7 @@
   button.primary:disabled{ opacity:.5; box-shadow:none; cursor:default; }
   /* Apply earns its glow only when there's a goal to act on; until then it sits quiet
      like a ghost button so it doesn't compete with the live app for attention */
-  #apply.idle{ background:var(--panel2); border-color:var(--line); color:var(--dim);
+  #apply.idle{ background:var(--panel2); border-color:var(--line); color:var(--muted);
                font-weight:600; box-shadow:none; }
   #apply.idle:hover{ box-shadow:none; }
   /* While a customize/port is running, Apply becomes a ■ Stop control (red) so a stalled LLM
@@ -186,13 +187,13 @@
   /* ---------- click-to-fill idea chips ---------- */
   #cust-suggest{ display:flex; flex-wrap:wrap; gap:.35rem; align-items:center; margin-top:.5rem; }
   #cust-suggest[hidden]{ display:none; }
-  #cust-suggest .sg-lbl{ font-size:.74rem; color:var(--faint); margin-right:.1rem; }
+  #cust-suggest .sg-lbl{ font-size:.74rem; color:var(--muted); margin-right:.1rem; font-weight:600; }
   .sugg{ font:inherit; font-size:.76rem; padding:.26rem .62rem; border-radius:1rem; cursor:pointer;
-         border:1px solid var(--line); background:var(--panel2); color:var(--dim);
+         border:1px solid var(--line); background:var(--panel2); color:var(--muted);
          transition:border-color .15s, color .15s, background .15s; }
   .sugg:hover{ border-color:var(--accent-line); color:var(--ink); background:var(--accent-soft); }
   .sugg-shuffle{ font-size:.82rem; line-height:1; padding:.26rem .5rem; border-radius:1rem; cursor:pointer;
-         border:1px solid var(--line); background:none; color:var(--faint); }
+         border:1px solid var(--line); background:none; color:var(--muted); }
   .sugg-shuffle:hover{ color:var(--ink); border-color:var(--accent-line); }
 
   #cust-status{ font-size:.78rem; min-height:1.1em; margin-top:.4rem; }
@@ -205,14 +206,14 @@
   #portbar[hidden]{ display:none; }
   #portbar{ display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin-top:.5rem;
     padding:.5rem .6rem; border:1px solid var(--line); border-radius:.55rem; background:rgba(255,196,84,.07); }
-  #portbar .pb-msg{ font-size:.8rem; color:var(--dim); flex:1 1 auto; }
+  #portbar .pb-msg{ font-size:.8rem; color:var(--muted); flex:1 1 auto; font-weight:600; }
   /* porting (port offer open or a port running) → the customize composer steps aside */
   #customize.porting .cust-row{ display:none; }
 
   /* ---------- version strip (index.html .ver pattern, re-themed) ---------- */
   #versions{ display:flex; flex-wrap:wrap; gap:.35rem; align-items:center; margin-top:.45rem; }
   #versions:empty{ display:none; }
-  #versions .vlabel{ font-size:.78rem; color:var(--faint); margin-right:.15rem; }
+  #versions .vlabel{ font-size:.78rem; color:var(--muted); margin-right:.15rem; font-weight:600; }
   .ver{ font:inherit; font-size:.78rem; padding:.2rem .6rem; border-radius:1rem; border:1px solid var(--line);
         background:var(--panel2); color:var(--ink); cursor:pointer; }
   .ver:hover{ border-color:var(--accent-line); }
@@ -3668,7 +3669,7 @@ function defaultFiles(graph){
 `:root{
   color-scheme: dark;
   --bg:#0d0f17; --panel:#161a27; --panel2:#1d2236; --line:#2a3150;
-  --ink:#e6e9f5; --dim:#8b93b4; --faint:#5d6788;
+  --ink:#e6e9f5; --dim:#aab3c7; --faint:#8792ad; --muted:#c0c7d6;
   --accent:${ACCENT}; --accent-soft:${ACCENT}22; --accent-line:${ACCENT}66;
   --ok:#46d27a; --danger:#ff6b6b; --radius:.7rem;
 }
@@ -3688,11 +3689,12 @@ body{ background:
 #app-tagline{ color:var(--dim); margin:0; max-width:60ch; }
 
 .inputs{ display:flex; flex-direction:column; gap:1rem; margin:1.6rem 0; }
-.field label{ display:block; font-size:.8rem; color:var(--dim); margin-bottom:.3rem; }
+.field label{ display:block; font-size:.8rem; color:var(--muted); font-weight:700; margin-bottom:.3rem; }
 .field input, .field textarea, .field select{
   width:100%; font:inherit; padding:.6rem .7rem; border-radius:var(--radius);
   background:var(--panel); border:1px solid var(--line); color:var(--ink); }
 .field textarea{ min-height:90px; resize:vertical; }
+.field input::placeholder, .field textarea::placeholder{ color:#b8c0d0; opacity:1; }
 .field input:focus, .field textarea:focus, .field select:focus{
   outline:none; border-color:var(--accent-line); box-shadow:0 0 0 3px var(--accent-soft); }
 .field .file-prev img, .field .file-prev video{ max-width:160px; border-radius:.5rem; border:1px solid var(--line); margin-top:.4rem; display:block; }
@@ -3706,7 +3708,7 @@ body{ background:
 .field .brushrow label{ display:flex; align-items:center; gap:.4rem; margin:0; flex:1; min-width:120px; }
 .field .brushrow input[type=range]{ flex:1; }
 .field .brushrow button{ font:inherit; padding:.4rem .7rem; border-radius:var(--radius); background:var(--panel); border:1px solid var(--line); color:var(--ink); cursor:pointer; width:auto; }
-.muted{ color:var(--faint); font-size:.85rem; }
+.muted{ color:var(--dim); font-size:.85rem; }
 
 .run-row{ display:flex; align-items:center; gap:1rem; margin:.4rem 0 1.2rem; flex-wrap:wrap; }
 .run{ font:inherit; font-weight:700; padding:.7rem 1.6rem; border-radius:var(--radius); cursor:pointer;
