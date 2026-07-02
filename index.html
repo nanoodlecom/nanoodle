@@ -32,6 +32,16 @@
 <link rel="stylesheet" href="/vendor/righteous/righteous.css" />
 <meta name="theme-color" content="#0b0d12" />
 <link rel="canonical" href="https://nanoodle.com/" />
+<!-- hreflang cluster: / is the en member AND x-default; the five /xx/ landing pages
+     (scripts/gen-lang-pages.mjs) carry the identical, reciprocal set. All-or-nothing —
+     check-lang-pages.mjs keeps it complete and mutual. -->
+<link rel="alternate" hreflang="en" href="https://nanoodle.com/" />
+<link rel="alternate" hreflang="es" href="https://nanoodle.com/es/" />
+<link rel="alternate" hreflang="fr" href="https://nanoodle.com/fr/" />
+<link rel="alternate" hreflang="de" href="https://nanoodle.com/de/" />
+<link rel="alternate" hreflang="pt" href="https://nanoodle.com/pt/" />
+<link rel="alternate" hreflang="ja" href="https://nanoodle.com/ja/" />
+<link rel="alternate" hreflang="x-default" href="https://nanoodle.com/" />
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -2798,6 +2808,12 @@ const I18N = {
 function i18nDetect(){
   let stored=null; try{ stored=localStorage.getItem("noodle_lang"); }catch(e){}
   const codes=I18N_LANGS.map(l=>l.code);
+  // A ?lang=xx (or #lang=xx) link — e.g. from the localized landing pages — opens the
+  // editor pre-localized. It wins for THIS load, but persists only when there's no saved
+  // pick, so a shared link never silently overwrites a returning user's chosen language.
+  const pm=location.search.match(/[?&]lang=([a-z-]+)/i)||location.hash.match(/[#&]lang=([a-z-]+)/i);
+  const plang=pm&&pm[1].toLowerCase().split("-")[0];
+  if(plang && codes.includes(plang)){ if(!stored){ try{ localStorage.setItem("noodle_lang", plang); }catch(e){} } return plang; }
   if(stored && codes.includes(stored)) return stored;
   const prefs=(navigator.languages&&navigator.languages.length)?navigator.languages:[navigator.language||"en"];
   for(const p of prefs){ const base=String(p||"").toLowerCase().split("-")[0]; if(codes.includes(base)) return base; }
