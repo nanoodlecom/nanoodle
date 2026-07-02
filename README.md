@@ -4,6 +4,9 @@ Small, self-contained AI web apps — each one is a single `.html` file that run
 entirely in the browser and talks straight to [NanoGPT](https://nano-gpt.com).
 No server, no build step: open the file (or serve the folder) and go.
 
+The UI is available in six languages — English, Español, Français, Deutsch,
+Português and 日本語 — auto-detected from your browser with a manual switcher.
+
 Each app handles its own auth (NanoGPT OAuth PKCE sign-in, or paste an API key)
 and calls the model APIs directly from the browser. You pay per call on your own key.
 
