@@ -6552,6 +6552,14 @@ function addMatchRank(t, q){
   if(title.startsWith(q)) return 0;
   if(title.includes(q)) return 1;
   if((t.desc+" "+(t.kw||"")).toLowerCase().includes(q)) return 2;
+  // In a non-English UI the list shows translated titles/descs (translateTree), so users search
+  // for what they SEE ("imagen"/"画像"). Match those too, mirroring the tiers above; i18nLookup
+  // returns null for unkeyed strings, so this degrades to the English-only match cleanly.
+  if(LANG!=="en"){
+    const tt=i18nLookup(t.title), td=i18nLookup(t.desc);
+    if(tt){ const l=tt.toLowerCase(); if(l.startsWith(q)) return 0; if(l.includes(q)) return 1; }
+    if(td && td.toLowerCase().includes(q)) return 2;
+  }
   return -1;
 }
 // Render the list body for the current query. Empty query → Recent/Start-here tier + the full grouped catalog.
