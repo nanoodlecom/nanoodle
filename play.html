@@ -4,13 +4,13 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>My nanoodle app</title>
-<meta name="description" content="A nanoodle app built from an AI workflow with nano-gpt, refined right in the browser. No analytics, just static HTML and nano-gpt. Make your own at nanoodle.com." />
+<meta name="description" content="A nanoodle app built from an AI workflow with NanoGPT, refined right in the browser. No analytics, just static HTML and NanoGPT. Make your own at nanoodle.com." />
 
 <!-- Open Graph -->
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="nanoodle" />
 <meta property="og:title" content="A nanoodle app" />
-<meta property="og:description" content="An app built from an AI workflow with nano-gpt, refined right in the browser. No analytics, just static HTML. Make your own at nanoodle.com." />
+<meta property="og:description" content="An app built from an AI workflow with NanoGPT, refined right in the browser. No analytics, just static HTML. Make your own at nanoodle.com." />
 <meta property="og:url" content="https://nanoodle.com/play" />
 <meta property="og:image" content="https://nanoodle.com/og-card.png" />
 <meta property="og:image:width" content="1200" />
@@ -20,7 +20,7 @@
 <!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="A nanoodle app" />
-<meta name="twitter:description" content="An app built from an AI workflow with nano-gpt, refined right in the browser. No analytics, just static HTML. Make your own at nanoodle.com." />
+<meta name="twitter:description" content="An app built from an AI workflow with NanoGPT, refined right in the browser. No analytics, just static HTML. Make your own at nanoodle.com." />
 <meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
 <meta name="twitter:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
 
@@ -364,7 +364,7 @@
   <input id="keyinput" placeholder="paste NanoGPT API key (sk-nano-… or a UUID)" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" autocorrect="off" data-1p-ignore data-lpignore="true" data-bwignore />
   <button id="keysave" class="link">save key</button>
   <span class="dim" style="font-size:.78rem">— from <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">nano-gpt.com</a> → Settings → API</span>
-  <span class="dim" style="flex-basis:100%;font-size:.72rem">new to nano-gpt? <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">create an account →</a> — pay-per-use, no subscription needed; your key stays in this browser.</span>
+  <span class="dim" style="flex-basis:100%;font-size:.72rem">new to NanoGPT? <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">create an account →</a> — pay-per-use, no subscription needed; your key stays in this browser.</span>
 </div>
 
 <!-- THE APP — sandboxed, key never travels in srcdoc; the parent postMessages it after load -->
@@ -651,14 +651,14 @@ window.NoodleApp = (function () {
   "signed in ✓":{es:"sesión iniciada ✓",fr:"connecté ✓",de:"angemeldet ✓",pt:"conectado ✓",ja:"サインイン済み ✓"},
   "Sign in":{es:"Iniciar sesión",fr:"Se connecter",de:"Anmelden",pt:"Entrar",ja:"サインイン"},
   "search models or paste an id…":{es:"busca modelos o pega un id…",fr:"cherchez un modèle ou collez un id…",de:"Modelle suchen oder eine ID einfügen…",pt:"busque modelos ou cole um id…",ja:"モデルを検索、またはIDを貼り付け…"},
-  "nano-gpt API key":{es:"clave API de nano-gpt",fr:"clé API nano-gpt",de:"nano-gpt API-Schlüssel",pt:"chave de API nano-gpt",ja:"nano-gpt APIキー"},
-  "nano-gpt is a pay-per-use AI service — hundreds of models, pay only for what you run.":{es:"nano-gpt es un servicio de IA de pago por uso — cientos de modelos, paga solo por lo que ejecutas.",fr:"nano-gpt est un service d’IA à l’usage — des centaines de modèles, payez seulement ce que vous exécutez.",de:"nano-gpt ist ein KI-Dienst mit Abrechnung nach Nutzung — Hunderte Modelle, zahle nur, was du ausführst.",pt:"o nano-gpt é um serviço de IA de pagamento por uso — centenas de modelos, pague só pelo que executar.",ja:"nano-gptは従量課金のAIサービスです — 数百のモデル、実行した分だけお支払いです。"},
-  "<b>Sign in</b> from the bar at the top to run this app — new to nano-gpt? creating an account is free.":{es:"<b>Inicia sesión</b> desde la barra superior para ejecutar esta app — ¿nuevo en nano-gpt? crear una cuenta es gratis.",fr:"<b>Connectez-vous</b> depuis la barre du haut pour exécuter cette app — nouveau sur nano-gpt ? créer un compte est gratuit.",de:"<b>Melde dich</b> über die Leiste oben an, um diese App auszuführen — neu bei nano-gpt? ein Konto zu erstellen ist kostenlos.",pt:"<b>Entre</b> pela barra no topo para executar este app — novo no nano-gpt? criar uma conta é grátis.",ja:"このアプリを実行するには上部のバーから<b>サインイン</b>してください — nano-gptは初めてですか？アカウント作成は無料です。"},
-  "new to nano-gpt? <a href=\"https://nano-gpt.com/r/mgzwtqjw\" target=\"_blank\" rel=\"noopener\">create an account →</a> — it’s free, your key stays in this browser.":{es:"¿nuevo en nano-gpt? <a href=\"https://nano-gpt.com/r/mgzwtqjw\" target=\"_blank\" rel=\"noopener\">crea una cuenta →</a> — es gratis, tu clave se queda en este navegador.",fr:"nouveau sur nano-gpt ? <a href=\"https://nano-gpt.com/r/mgzwtqjw\" target=\"_blank\" rel=\"noopener\">créez un compte →</a> — c’est gratuit, votre clé reste dans ce navigateur.",de:"neu bei nano-gpt? <a href=\"https://nano-gpt.com/r/mgzwtqjw\" target=\"_blank\" rel=\"noopener\">erstelle ein Konto →</a> — kostenlos, dein Schlüssel bleibt in diesem Browser.",pt:"novo no nano-gpt? <a href=\"https://nano-gpt.com/r/mgzwtqjw\" target=\"_blank\" rel=\"noopener\">crie uma conta →</a> — é grátis, sua chave fica neste navegador.",ja:"nano-gptは初めてですか？<a href=\"https://nano-gpt.com/r/mgzwtqjw\" target=\"_blank\" rel=\"noopener\">アカウントを作成 →</a> — 無料で、キーはこのブラウザーに保存されます。"},
+  "NanoGPT API key":{es:"clave API de nano-gpt",fr:"clé API nano-gpt",de:"nano-gpt API-Schlüssel",pt:"chave de API nano-gpt",ja:"nano-gpt APIキー"},
+  "NanoGPT is a pay-per-use AI service — hundreds of models, pay only for what you run.":{es:"nano-gpt es un servicio de IA de pago por uso — cientos de modelos, paga solo por lo que ejecutas.",fr:"nano-gpt est un service d’IA à l’usage — des centaines de modèles, payez seulement ce que vous exécutez.",de:"nano-gpt ist ein KI-Dienst mit Abrechnung nach Nutzung — Hunderte Modelle, zahle nur, was du ausführst.",pt:"o nano-gpt é um serviço de IA de pagamento por uso — centenas de modelos, pague só pelo que executar.",ja:"nano-gptは従量課金のAIサービスです — 数百のモデル、実行した分だけお支払いです。"},
+  "<b>Sign in</b> from the bar at the top to run this app — new to NanoGPT? creating an account is free.":{es:"<b>Inicia sesión</b> desde la barra superior para ejecutar esta app — ¿nuevo en nano-gpt? crear una cuenta es gratis.",fr:"<b>Connectez-vous</b> depuis la barre du haut pour exécuter cette app — nouveau sur nano-gpt ? créer un compte est gratuit.",de:"<b>Melde dich</b> über die Leiste oben an, um diese App auszuführen — neu bei nano-gpt? ein Konto zu erstellen ist kostenlos.",pt:"<b>Entre</b> pela barra no topo para executar este app — novo no nano-gpt? criar uma conta é grátis.",ja:"このアプリを実行するには上部のバーから<b>サインイン</b>してください — nano-gptは初めてですか？アカウント作成は無料です。"},
+  "new to NanoGPT? <a href=\"https://nano-gpt.com/r/mgzwtqjw\" target=\"_blank\" rel=\"noopener\">create an account →</a> — it’s free, your key stays in this browser.":{es:"¿nuevo en nano-gpt? <a href=\"https://nano-gpt.com/r/mgzwtqjw\" target=\"_blank\" rel=\"noopener\">crea una cuenta →</a> — es gratis, tu clave se queda en este navegador.",fr:"nouveau sur nano-gpt ? <a href=\"https://nano-gpt.com/r/mgzwtqjw\" target=\"_blank\" rel=\"noopener\">créez un compte →</a> — c’est gratuit, votre clé reste dans ce navigateur.",de:"neu bei nano-gpt? <a href=\"https://nano-gpt.com/r/mgzwtqjw\" target=\"_blank\" rel=\"noopener\">erstelle ein Konto →</a> — kostenlos, dein Schlüssel bleibt in diesem Browser.",pt:"novo no nano-gpt? <a href=\"https://nano-gpt.com/r/mgzwtqjw\" target=\"_blank\" rel=\"noopener\">crie uma conta →</a> — é grátis, sua chave fica neste navegador.",ja:"nano-gptは初めてですか？<a href=\"https://nano-gpt.com/r/mgzwtqjw\" target=\"_blank\" rel=\"noopener\">アカウントを作成 →</a> — 無料で、キーはこのブラウザーに保存されます。"},
   "Paste a nano-gpt.com API key to run this app.":{es:"Pega una clave API de nano-gpt.com para ejecutar esta app.",fr:"Collez une clé API nano-gpt.com pour exécuter cette app.",de:"Füge einen nano-gpt.com API-Schlüssel ein, um diese App auszuführen.",pt:"Cole uma chave de API do nano-gpt.com para executar este app.",ja:"このアプリを実行するにはnano-gpt.comのAPIキーを貼り付けてください。"},
   "Signing in… press Run again once you're signed in.":{es:"Iniciando sesión… pulsa Ejecutar de nuevo cuando hayas iniciado sesión.",fr:"Connexion… appuyez de nouveau sur Exécuter une fois connecté.",de:"Anmeldung… drücke erneut auf Ausführen, sobald du angemeldet bist.",pt:"Entrando… clique em Executar de novo depois de entrar.",ja:"サインイン中… サインインしたらもう一度実行を押してください。"},
-  "your nano-gpt key was rejected — sign in or paste a valid key to run":{es:"tu clave de nano-gpt fue rechazada — inicia sesión o pega una clave válida para ejecutar",fr:"votre clé nano-gpt a été refusée — connectez-vous ou collez une clé valide pour exécuter",de:"dein nano-gpt-Schlüssel wurde abgelehnt — melde dich an oder füge einen gültigen Schlüssel ein, um auszuführen",pt:"sua chave do nano-gpt foi rejeitada — entre ou cole uma chave válida para executar",ja:"nano-gptキーが拒否されました — サインインするか、有効なキーを貼り付けて実行してください"},
-  "that key was rejected by nano-gpt — check you copied the whole key":{es:"esa clave fue rechazada por nano-gpt — comprueba que copiaste la clave completa",fr:"cette clé a été refusée par nano-gpt — vérifiez que vous avez copié la clé entière",de:"dieser Schlüssel wurde von nano-gpt abgelehnt — prüfe, ob du den ganzen Schlüssel kopiert hast",pt:"essa chave foi rejeitada pelo nano-gpt — verifique se você copiou a chave inteira",ja:"そのキーはnano-gptに拒否されました — キー全体をコピーしたか確認してください"},
+  "your NanoGPT key was rejected — sign in or paste a valid key to run":{es:"tu clave de nano-gpt fue rechazada — inicia sesión o pega una clave válida para ejecutar",fr:"votre clé nano-gpt a été refusée — connectez-vous ou collez une clé valide pour exécuter",de:"dein nano-gpt-Schlüssel wurde abgelehnt — melde dich an oder füge einen gültigen Schlüssel ein, um auszuführen",pt:"sua chave do nano-gpt foi rejeitada — entre ou cole uma chave válida para executar",ja:"nano-gptキーが拒否されました — サインインするか、有効なキーを貼り付けて実行してください"},
+  "that key was rejected by NanoGPT — check you copied the whole key":{es:"esa clave fue rechazada por nano-gpt — comprueba que copiaste la clave completa",fr:"cette clé a été refusée par nano-gpt — vérifiez que vous avez copié la clé entière",de:"dieser Schlüssel wurde von nano-gpt abgelehnt — prüfe, ob du den ganzen Schlüssel kopiert hast",pt:"essa chave foi rejeitada pelo nano-gpt — verifique se você copiou a chave inteira",ja:"そのキーはnano-gptに拒否されました — キー全体をコピーしたか確認してください"},
   "sign in to run this app":{es:"inicia sesión para ejecutar esta app",fr:"connectez-vous pour exécuter cette app",de:"melde dich an, um diese App auszuführen",pt:"entre para executar este app",ja:"このアプリを実行するにはサインインしてください"},
   "See every step of this run, including partial results":{es:"Ver cada paso de esta ejecución, incluidos los resultados parciales",fr:"Voir chaque étape de cette exécution, y compris les résultats partiels",de:"Jeden Schritt dieser Ausführung ansehen, inklusive Teilergebnisse",pt:"Veja cada etapa desta execução, incluindo resultados parciais",ja:"部分的な結果も含め、この実行の各ステップを見る"},
   };
@@ -758,7 +758,7 @@ window.NoodleApp = (function () {
   // user won't re-paste). Clear it — setKey(null) re-renders auth, flipping the header back to signed-out/paste —
   // and signpost the fix; mirrors the editor's flagAuth. Embedded preview proxies auth through the parent, so
   // leave that path untouched (the key never lives here when EMBEDDED).
-  function flagAuth(status){ if(!EMBEDDED && (status===401||status===403)){ setKey(null); statusLine("__auth__","error",t("your nano-gpt key was rejected — sign in or paste a valid key to run")); } }
+  function flagAuth(status){ if(!EMBEDDED && (status===401||status===403)){ setKey(null); statusLine("__auth__","error",t("your NanoGPT key was rejected — sign in or paste a valid key to run")); } }
   // A generation call can fail purely for lack of credit: NanoGPT signals it with 402, or a body that
   // mentions balance/funds/insufficient. Turn that into one actionable line (with the top-up link)
   // instead of a raw "402: {...}" snippet the app surfaces verbatim. Mirrors the editor's httpRunError.
@@ -4305,10 +4305,10 @@ function mp4ParamsMatch(bufs){
     // runs in a sandboxed iframe with no allow-popups, where a target=_blank link is dead
     // — there we point at the top bar, which is un-sandboxed and owns sign-in / sign-up.
     const cta = embedded
-      ? '<p class="auth-cta">' + t('<b>Sign in</b> from the bar at the top to run this app — new to nano-gpt? creating an account is free.') + '</p>'
-      : '<p class="auth-cta">' + t('new to nano-gpt? <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">create an account →</a> — it’s free, your key stays in this browser.') + '</p>';
+      ? '<p class="auth-cta">' + t('<b>Sign in</b> from the bar at the top to run this app — new to NanoGPT? creating an account is free.') + '</p>'
+      : '<p class="auth-cta">' + t('new to NanoGPT? <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">create an account →</a> — it’s free, your key stays in this browser.') + '</p>';
     return '<div class="auth-intro">'
-      + '<p>' + t("nano-gpt is a pay-per-use AI service — hundreds of models, pay only for what you run.") + '</p>'
+      + '<p>' + t("NanoGPT is a pay-per-use AI service — hundreds of models, pay only for what you run.") + '</p>'
       + cta
       + '</div>';
   }
@@ -4336,11 +4336,11 @@ function mp4ParamsMatch(bufs){
       + (canOAuth ? '<button class="link" id="auth-in">'+t("Sign in")+'</button> ' : '')
       + '<button class="link" id="auth-paste">'+t("paste key")+'</button>'
       + ' <span class="keyrow" id="auth-keyrow" hidden>'
-      + '<input id="auth-keyinput" type="text" placeholder="'+t("nano-gpt API key")+'" autocomplete="off" spellcheck="false" autocapitalize="off" autocorrect="off" data-1p-ignore data-lpignore="true" data-bwignore>'
+      + '<input id="auth-keyinput" type="text" placeholder="'+t("NanoGPT API key")+'" autocomplete="off" spellcheck="false" autocapitalize="off" autocorrect="off" data-1p-ignore data-lpignore="true" data-bwignore>'
       + ' <button class="link" id="auth-keysave">'+t("save")+'</button>'
       + '</span>'
       + (canOAuth ? '' : ' <span class="dim">— paste a nano-gpt.com key (one-click sign-in needs the app served over http)</span>');
-      // (the "new to nano-gpt? create an account" line already lives in authIntro's own
+      // (the "new to NanoGPT? create an account" line already lives in authIntro's own
       // .auth-cta above — a second copy here was pure duplication)
     if(ok){
       $("auth-out").onclick = ()=> setKey(null);
@@ -4363,7 +4363,7 @@ function mp4ParamsMatch(bufs){
         const probe = await probeKey(k);                 // 401/403 → reject; 200/400 → keep; offline → keep but say so
         if(probe==="bad"){
           sb.disabled=false; sb.textContent=t("save");      // keep the row OPEN, never store → no false "signed in ✓"
-          statusLine("__auth__","error",t("that key was rejected by nano-gpt — check you copied the whole key"));
+          statusLine("__auth__","error",t("that key was rejected by NanoGPT — check you copied the whole key"));
           $("auth-keyinput").focus(); return;
         }
         setKey(k);   // validated (or offline-tolerated): setKey() re-renders the header to the true signed-in state
@@ -6133,7 +6133,7 @@ $("keysave").addEventListener("click", async ()=>{
   btn.disabled=false; btn.textContent="save key";
   if(probe==="bad"){                                     // rejected → keep the row OPEN, never show "signed in ✓"
     $("keyinput").focus();
-    toast("that key was rejected by nano-gpt — check you copied the whole key","err");
+    toast("that key was rejected by NanoGPT — check you copied the whole key","err");
     return;
   }
   setKey(k); $("key").style.display="none"; renderAuth(); pushAuthToApp();
