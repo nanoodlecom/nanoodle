@@ -614,7 +614,13 @@
   /* the headline conversion — second-tier CTA: accent ring + tint, never a second filled primary (that's Run's) */
   #makeapp, #appmore.caret{ border-color:var(--accent); color:#aeb6ff; background:#7c8cff14; font-weight:600 }
   #makeapp:hover:not(:disabled), #appmore.caret:hover:not(:disabled){ border-color:var(--accent); background:#7c8cff2e }
-  #appmore.caret{ padding:.4rem .35rem; margin-left:-.15rem; font-size:.8rem; line-height:1 }
+  /* joined split button: pull the seam to a single line & flatten the touching corners so the caret reads as one
+     control with the primary, not a detached box (mirrors the #authmenu split button). */
+  /* scoped to :not(.narrowbar) so that when narrowbar hides the caret (display:none) the primary keeps its full pill */
+  body:not(.narrowbar) #makeapp:has(+ #appmore:not([hidden])){ border-radius:.5rem 0 0 .5rem }
+  #appmore.caret{ padding:.4rem .5rem; margin-left:-1px; border-left-color:#7c8cff40; border-radius:0 .5rem .5rem 0;
+                  font-size:.8rem; line-height:1; transition:transform .15s ease }
+  #appmenu:has(#apppop.open) #appmore.caret{ transform:rotate(180deg) }   /* flip to point at the open menu */
   #apppop{ position:absolute; top:110%; right:0; background:var(--panel); border:1px solid var(--line);
            border-radius:.6rem; padding:.35rem; display:none; flex-direction:column; gap:.1rem; min-width:210px;
            box-shadow:0 12px 40px #0008; z-index:40 }
