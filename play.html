@@ -1748,6 +1748,16 @@ window.NoodleApp = (function () {
       em:"📹", title:"Video input", inputs:[], outputs:[{name:"video", type:"video"}],
       async run(n){ if(!n.fields.video) throw new Error("no video — upload a clip first"); return { video: n.fields.video }; }
     },
+    choice: {
+      em:"🔘", title:"Choice", inputs:[], outputs:[{name:"text", type:"text"}],
+      async run(n){
+        const opts = String(n.fields.options||"").split("\n").map(function(s){ return s.trim(); }).filter(Boolean);
+        const sel = n.fields.selected;
+        const val = (sel!=null && opts.indexOf(sel)>=0) ? sel : (opts[0]||"");
+        if(!val) throw new Error("no options — this Choice has no options to pick from");
+        return { text: val };
+      }
+    },
     join: {
       em:"🔗", title:"Join",
       inputs:[{name:"a", type:"text"},{name:"b", type:"text"}], outputs:[{name:"text", type:"text"}],
@@ -2235,6 +2245,15 @@ window.NoodleApp = (function () {
         else if(!maskFed) out.push({ ...base, field:"mask", label:"Mask (white = repaint)", kind:"image" });
         continue;
       }
+      // Choice is a dropdown INPUT: its options are authored on the graph (fields.options, one per
+      // line), so surface a <select> whose values come straight from the node. A renamed node names
+      // the input (single-required-input flat label). The values are user data → data-no-i18n (below).
+      if(n.type==="choice"){
+        const opts = String(n.fields.options||"").split("\n").map(function(s){ return s.trim(); }).filter(Boolean);
+        out.push({ nodeId:n.id, field:"selected", label:"Choice", kind:"choice", options:opts,
+                   node:n, title:displayName(n), em:NODE_TYPES.choice.em });
+        continue;
+      }
       const specs = INPUT_SPECS[n.type]; if(!specs) continue;     // not a knob-bearing source
       for(const s of specs){
         // satisfied if a link feeds this field (fieldOverrides) → hide the control
@@ -2643,6 +2662,18 @@ window.NoodleApp = (function () {
            + '<div class="brushrow"><label>brush <input type="range" min="8" max="140" value="40" data-ip-brush="'+i+'"></label>'
            +   '<button type="button" data-ip-clear="'+i+'">Clear mask</button></div>'
            + '</div>';
+    else if(it.kind==="choice"){
+      // App-input dropdown (the 🔘 Choice node). Options are authored on the graph, so they come
+      // from it.options, not a fixed list. Default the pick to the first option when unset/stale and
+      // write it onto the graph so a run uses it. data-no-i18n keeps the option VALUES (user data)
+      // out of the app's machine-translation pass — the same opt-out the editor's <select> carries.
+      const opts = it.options || [];
+      if((cur==null || cur==="" || opts.indexOf(cur)<0) && opts.length){ cur = opts[0]; it.node.fields[it.field] = cur; }
+      ctrl = '<select id="'+id+'" '+di+' data-no-i18n>'
+           + (opts.length ? opts.map(function(o){ return '<option value="'+esc(o)+'"'+(String(o)===String(cur)?" selected":"")+'>'+esc(o)+'</option>'; }).join("")
+                          : '<option value="">— no options —</option>')
+           + '</select>';
+    }
     else if(it.kind==="select")
       ctrl = '<select id="'+id+'" '+di+'>'
            + (it.options||[]).map(o=>{ const v=Array.isArray(o)?o[0]:o, l=Array.isArray(o)?o[1]:o;
