@@ -4250,6 +4250,47 @@ const NODE_TYPES = {
     async run(n){ if(!n.fields.video) throw new Error("no video — upload a clip first"); return { video: n.fields.video }; }
   },
 
+  choice: {
+    em:"🔘", title:"Choice", desc:"A dropdown the app user picks from", group:"Inputs", kw:"select dropdown option pick menu preset style",
+    inputs:[], outputs:[{name:"text", type:"text"}], preview:"text",
+    // Pure input source (like Text): options are authored, never wired. The <select> is rebuilt
+    // from the options textarea in mount(). data-no-i18n on the <select> keeps the option VALUES
+    // out of the app's machine-translation pass (they're user data — a renamed node names the input).
+    body:(n)=>{
+      const opts = (n.fields.options||"").split("\n").map(s=>s.trim()).filter(Boolean);
+      const cur = opts.indexOf(n.fields.selected)>=0 ? n.fields.selected : (opts[0]||"");
+      const optHTML = opts.length
+        ? opts.map(o=>`<option value="${esc(o)}"${o===cur?" selected":""}>${esc(o)}</option>`).join("")
+        : `<option value="">— add options above —</option>`;
+      return `
+      <div><label>options <span class="dim">· one per line</span></label>
+        <textarea data-f="options" style="min-height:60px">${esc(n.fields.options||"")}</textarea></div>
+      <div><label>selection</label>
+        <select data-f="selected" data-choicesel data-no-i18n style="width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:.45rem;padding:.35rem .5rem">${optHTML}</select></div>`;
+    },
+    mount:(n)=>{
+      const ta = n.el.querySelector('textarea[data-f="options"]'), sel = n.el.querySelector('select[data-choicesel]');
+      if(!ta || !sel) return;
+      // Rebuild the dropdown whenever the options list changes; keep the current pick if it survives,
+      // else fall back to the first option (mirrors run()'s resolution).
+      ta.addEventListener("input", ()=>{
+        const opts = ta.value.split("\n").map(s=>s.trim()).filter(Boolean);
+        const cur = opts.indexOf(n.fields.selected)>=0 ? n.fields.selected : (opts[0]||"");
+        sel.innerHTML = opts.length
+          ? opts.map(o=>`<option value="${esc(o)}"${o===cur?" selected":""}>${esc(o)}</option>`).join("")
+          : `<option value="">— add options above —</option>`;
+        n.fields.selected = cur; sel.value = cur; save();
+      });
+    },
+    async run(n){
+      const opts = (n.fields.options||"").split("\n").map(s=>s.trim()).filter(Boolean);
+      const sel = n.fields.selected;
+      const val = (sel!=null && opts.indexOf(sel)>=0) ? sel : (opts[0]||"");
+      if(!val) throw new Error("no options — add at least one choice (one per line)");
+      return { text: val };
+    }
+  },
+
   join: {
     em:"🔗", title:"Join", desc:"Glue two texts together", group:"Text",
     inputs:[{name:"a", type:"text"},{name:"b", type:"text"}],
@@ -4945,7 +4986,7 @@ function refreshAudioInputs(n){
 // Give every text field an inline input port: wiring it makes the node use the wired
 // value instead of whatever's typed. Idempotent — safe to re-run after the body rebuilds.
 function addFieldPorts(n){
-  if(!n.el || n.type==="text" || NODE_TYPES[n.type].note) return;   // Text is a pure source; a note is a non-graph annotation — neither takes a text override port
+  if(!n.el || n.type==="text" || n.type==="choice" || NODE_TYPES[n.type].note) return;   // Text/Choice are pure sources; a note is a non-graph annotation — none take a text override port
   n.el.querySelectorAll("textarea[data-f], textarea[data-pf]").forEach(ta=>{
     const field = ta.dataset.f || ta.dataset.pf;
     if(field==="extraJson") return;            // advanced JSON isn't a wirable text value
@@ -5674,7 +5715,7 @@ const _qaTextField = {};   // memoised: which node types render a wirable text f
 function bodyHasTextField(k){
   if(k in _qaTextField) return _qaTextField[k];
   let has = false;
-  if(k!=="text"){            // Text is a pure source — its textarea is the value, not a wirable override
+  if(k!=="text" && k!=="choice"){            // Text/Choice are pure sources — their textarea is the value, not a wirable override
     try{ has = /<textarea\b[^>]*\bdata-(?:f|pf)\s*=\s*"(?!extraJson")/i.test(NODE_TYPES[k].body({ type:k, fields:{} })); }
     catch{ has = false; }
   }

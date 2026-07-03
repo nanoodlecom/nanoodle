@@ -106,8 +106,8 @@ eq(keys("in", "audio"), ["aupload", "extractaudio", "music", "trim", "tts"],
   "audio input → nodes that produce audio (extractaudio emits a WAV from a video)");
 eq(keys("in", "video"), ["combine", "ivideo", "lipsync", "tvideo", "vedit", "vupload"],
   "video input → nodes that produce video (combine joins clips into one)");
-eq(keys("in", "text"), ["join", "llm", "text", "transcribe", "vision"],
-  "text input → nodes that produce text");
+eq(keys("in", "text"), ["choice", "join", "llm", "text", "transcribe", "vision"],
+  "text input → nodes that produce text (Choice is a pure text source, like Text)");
 
 // never offer the dragged node's own kind blindly — uploads/text are pure sources, not consumers
 const imgConsumers = keys("out", "image");
