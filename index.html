@@ -244,8 +244,15 @@
   /* 🍜 Noodle Cookoff — floating promo button + announcement modal (time-boxed contest) */
   @keyframes cookoff-flow{ to{ background-position:200% 0 } }
   @keyframes cookoff-bob{ 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(-3px) } }
+  /* bottom-left corner pills — the Cookoff promo and the quiet 📚 Examples entry share one row */
+  #cornerpills{ position:fixed; left:1rem; bottom:1rem; z-index:120; display:flex; align-items:flex-end; gap:.5rem; flex-wrap:wrap; pointer-events:none }
+  #cornerpills > *{ pointer-events:auto }
+  #examples{ display:flex; align-items:center; gap:.4rem; cursor:pointer; padding:.55rem .85rem;
+             border:1px solid var(--line); border-radius:2rem; font:inherit; font-size:.84rem; font-weight:600;
+             color:var(--dim); background:var(--panel); box-shadow:0 4px 14px #0005 }
+  #examples:hover{ color:var(--ink); border-color:var(--accent) }
   #cookoffbtn[hidden]{ display:none }
-  #cookoffbtn{ position:fixed; left:1rem; bottom:1rem; z-index:120; display:flex; align-items:center; gap:.45rem; cursor:pointer;
+  #cookoffbtn{ display:flex; align-items:center; gap:.45rem; cursor:pointer;
                padding:.62rem .9rem; border:0; border-radius:2rem; font-weight:800; font-size:.86rem; color:#0b0d12;
                background:linear-gradient(90deg,#ff6b6b,#ffcf6b,#3ddc97,#7c8cff,#ff79c6,#ff6b6b); background-size:200% 100%;
                box-shadow:0 8px 26px #0007, inset 0 0 0 1px #fff3;
@@ -290,14 +297,14 @@
   @keyframes dbspin{ to{ transform:rotate(360deg) } }
   @keyframes dbpulse{ 0%{ box-shadow:0 0 0 0 var(--accent) } 100%{ box-shadow:0 0 0 14px transparent } }
   .node.db-pulse{ animation:dbpulse 1s ease-out 2 }
-  #cookoffbtn{ bottom:calc(var(--db-h,3rem) + .7rem); }   /* lift the (temporary) contest badge above the composer */
-  @media (max-height:480px){ #cookoffbtn{ display:none } }   /* short/landscape: promo pill lands mid-canvas over node content — keep the contest reachable via the 🏆 toolbar button */
+  #cornerpills{ bottom:calc(var(--db-h,3rem) + .7rem); }   /* lift the corner pills above the composer */
+  @media (max-height:480px){ #cookoffbtn{ display:none } }   /* short/landscape: the animated promo pill lands mid-canvas over node content; the quiet Examples pill stays */
   /* While an add/quick-add popover is open, drop the fixed bottom band below #top's stacking context
      (z:30) so the popover (and its taps) win, and hide the animated Cookoff pill so it can't flash
      through / steal taps on list rows. #addpop is trapped in #top's z:30 context, so we demote the
      bar rather than raise the popover. */
   body:has(#addpop.open) #describebar, body:has(#quickadd.open) #describebar{ z-index:25 }
-  body:has(#addpop.open) #cookoffbtn, body:has(#quickadd.open) #cookoffbtn{ visibility:hidden }
+  body:has(#addpop.open) #cornerpills, body:has(#quickadd.open) #cornerpills{ visibility:hidden }
   @media (prefers-reduced-motion:reduce){ .node.db-pulse{ animation:none } .db-spin{ animation:none } }
   @media (max-width:620px){ .db-label{ display:none } #describemodel{ max-width:120px } #describegoal{ min-width:140px } }
   @media (max-width:380px){ #describemodel{ max-width:84px } }   /* ≤380px: shrink the model chip so ✦ Apply stays on one row instead of dropping to a stranded 2nd row (doubling bar height) */
@@ -767,7 +774,6 @@
   <button id="share" title="Copy a link that opens this workflow in the node editor so others can remix it">🔗 <span>Share workflow</span></button>
   <button id="save" title="download this graph as JSON">⭳ <span>Save</span></button>
   <button id="load" title="open a graph JSON file">⭱ <span>Load</span></button>
-  <button id="examples" title="Load a ready-made example workflow">📚 <span>Examples</span></button>
   <button id="updates" title="What’s new in nanoodle">📣 <span>Updates</span><span id="updbadge" hidden></span></button>
   <input id="loadfile" type="file" accept="application/json,.json" hidden />
   <div id="moremenu">
@@ -880,7 +886,10 @@
 </div>
 
 <!-- 🍜 Noodle Cookoff — floating announcement (left), opens the contest modal -->
+<div id="cornerpills">
 <button id="cookoffbtn" title="Noodle Cookoff — win Nano" aria-haspopup="dialog">🍜 Noodle Cookoff<span class="x" id="cookoffdismiss" role="button" tabindex="0" title="Dismiss" aria-label="Dismiss">✕</span></button>
+<button id="examples" title="Load a ready-made example workflow">📚 <span>Examples</span></button>
+</div>
 <div id="cookoffmodal" hidden>
   <div id="cookoffpanel" role="dialog" aria-label="Noodle Cookoff">
     <button id="cookoffclose" class="hbtn" title="Close (Esc)" aria-label="Close">✕</button>
@@ -7033,7 +7042,7 @@ $("authpop").addEventListener("click", e=>{ if(e.target.closest("button,a")) $("
 
 /* ---------- responsive toolbar: collapse secondary actions into the ⋯ menu on phones ----------
    Buttons keep their handlers (they're moved, not cloned). On desktop everything sits inline. */
-const RELOC = ["share","save","load","examples","updates","signin","pastebtn","signout","status"];  // order shown in the menu — ✨ Create app stays in the bar (icon-only via CSS)
+const RELOC = ["share","save","load","updates","signin","pastebtn","signout","status"];  // order shown in the menu — ✨ Create app stays in the bar (icon-only via CSS)
 let topOrder = null;
 // Collapse into ⋯ by MEASURING true one-line overflow, not a fixed media query: the bar's natural width
 // swings ~1100–1300px with auth state and app-title length, so any single px breakpoint is dishonest
