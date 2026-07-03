@@ -212,8 +212,10 @@
   #portbar{ display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin-top:.5rem;
     padding:.5rem .6rem; border:1px solid var(--line); border-radius:.55rem; background:rgba(255,196,84,.07); }
   #portbar .pb-msg{ font-size:.8rem; color:var(--muted); flex:1 1 auto; font-weight:600; }
-  /* porting (port offer open or a port running) → the customize composer steps aside */
-  #customize.porting .cust-row{ display:none; }
+  /* porting (port offer open or a port running) → the customize composer steps aside.
+     Hide the "Try:" idea chips too — they belong to the goal field, which is gone. */
+  #customize.porting .cust-row,
+  #customize.porting #cust-suggest{ display:none; }
 
   /* ---------- version strip (index.html .ver pattern, re-themed) ---------- */
   #versions{ display:flex; flex-wrap:wrap; gap:.35rem; align-items:center; margin-top:.45rem; }
