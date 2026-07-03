@@ -690,6 +690,10 @@ window.NoodleApp = (function () {
   "that key was rejected by NanoGPT — check you copied the whole key":{es:"esa clave fue rechazada por nano-gpt — comprueba que copiaste la clave completa",fr:"cette clé a été refusée par nano-gpt — vérifiez que vous avez copié la clé entière",de:"dieser Schlüssel wurde von nano-gpt abgelehnt — prüfe, ob du den ganzen Schlüssel kopiert hast",pt:"essa chave foi rejeitada pelo nano-gpt — verifique se você copiou a chave inteira",ja:"そのキーはnano-gptに拒否されました — キー全体をコピーしたか確認してください"},
   "sign in to run this app":{es:"inicia sesión para ejecutar esta app",fr:"connectez-vous pour exécuter cette app",de:"melde dich an, um diese App auszuführen",pt:"entre para executar este app",ja:"このアプリを実行するにはサインインしてください"},
   "See every step of this run, including partial results":{es:"Ver cada paso de esta ejecución, incluidos los resultados parciales",fr:"Voir chaque étape de cette exécution, y compris les résultats partiels",de:"Jeden Schritt dieser Ausführung ansehen, inklusive Teilergebnisse",pt:"Veja cada etapa desta execução, incluindo resultados parciais",ja:"部分的な結果も含め、この実行の各ステップを見る"},
+  "This app costs about {usd} each time you press Run.":{es:"Esta app cuesta alrededor de {usd} cada vez que pulsas Ejecutar.",fr:"Cette app coûte environ {usd} à chaque fois que vous appuyez sur Exécuter.",de:"Diese App kostet etwa {usd} jedes Mal, wenn du auf Ausführen drückst.",pt:"Este app custa cerca de {usd} cada vez que você pressiona Executar.",ja:"このアプリは実行を押すたびに約{usd}かかります。"},
+  "You'll sign in on nano-gpt.com — your key stays in this browser.":{es:"Inicias sesión en nano-gpt.com — tu clave se queda en este navegador.",fr:"Vous vous connectez sur nano-gpt.com — votre clé reste dans ce navigateur.",de:"Du meldest dich auf nano-gpt.com an — dein Schlüssel bleibt in diesem Browser.",pt:"Você entra em nano-gpt.com — sua chave fica neste navegador.",ja:"nano-gpt.com でサインインします — キーはこのブラウザーに保存されます。"},
+  "Continue to nano-gpt.com →":{es:"Continuar a nano-gpt.com →",fr:"Continuer vers nano-gpt.com →",de:"Weiter zu nano-gpt.com →",pt:"Continuar para nano-gpt.com →",ja:"nano-gpt.com へ進む →"},
+  "Cancel":{es:"Cancelar",fr:"Annuler",de:"Abbrechen",pt:"Cancelar",ja:"キャンセル"},
   };
   const PLAY_LANGS = ["en","es","fr","de","pt","ja"];
   const PLAY_ENDONYM = { en:"English", es:"Español", fr:"Français", de:"Deutsch", pt:"Português", ja:"日本語" };
@@ -4179,11 +4183,8 @@ function mp4ParamsMatch(bufs){
     if(running) return;
     if(!hasAuth()){
       // Don't dead-end on a "sign in first" message — kick off sign-in right here.
-      if(EMBEDDED){
-        try{ window.parent.postMessage({ type:"__signin__" }, "*"); }catch(_){}
-        statusLine("__auth__","done",t("Signing in… press Run again once you're signed in."));
-      } else if(/^https?:$/.test(location.protocol)){
-        signIn().catch(e=> statusLine("__auth__","error","sign-in error: "+e.message));   // OAuth redirect
+      if(EMBEDDED || /^https?:$/.test(location.protocol)){
+        showRunPreflight();   // nanoodle-voiced consent before OAuth — Continue routes to the parent (embedded /play) or signIn() (standalone)
       } else {
         renderAuth(); const row=$("auth-keyrow"); if(row) row.hidden=false;   // file:// → no OAuth, reveal paste-key
         const ki=$("auth-keyinput"); if(ki) ki.focus();
@@ -4309,6 +4310,66 @@ function mp4ParamsMatch(bufs){
         if(it && v.value != null) it.node.fields[v.field] = v.value;
       });
     }catch(_){}
+  }
+  // Signed-out Run on a standalone app doesn't cold-jump straight to NanoGPT's login
+  // (which reads like a phishing bounce). Show a short nanoodle-voiced consent panel first:
+  // what it costs, where you're going, and that the key stays local. Continue routes through
+  // the unchanged signIn(), so typed inputs (stashRunInputs) and the referral code survive.
+  function injectPreflightStyles(){
+    if($("pf-styles")) return;
+    var s=document.createElement("style"); s.id="pf-styles";
+    s.textContent =
+      ".preflight{border:1px solid var(--accent,#7c8cff);border-radius:10px;padding:.8rem 1rem;margin:.6rem 0;max-width:60ch;text-align:left;background:rgba(124,140,255,.07);}"
+      + ".preflight p{margin:0 0 .4rem;font-size:.85rem;line-height:1.5;color:var(--dim,#8b93b4);}"
+      + ".preflight .pf-cost{color:var(--ink,#e6e9f5);font-weight:600;}"
+      + ".preflight .pf-actions{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-top:.6rem;}"
+      + ".preflight .pf-go{font-size:.9rem;}"
+      + ".preflight .link{background:none;border:none;color:var(--accent,#7c8cff);cursor:pointer;padding:.2rem 0;font:inherit;}";   // self-contained: exported app.css has no bare .link
+    (document.head||document.documentElement).appendChild(s);
+  }
+  function hideRunPreflight(){ var b=$("app-preflight"); if(b){ b.hidden=true; b.innerHTML=""; } }
+  function showRunPreflight(){
+    injectPreflightStyles();
+    var box=$("app-preflight");
+    if(!box){
+      box=document.createElement("div"); box.id="app-preflight"; box.className="preflight";
+      // Prefer to sit right under the Run control; degrade gracefully so it never lands below the output.
+      var runBtn=$("app-run");
+      var anchor=(runBtn && runBtn.closest && runBtn.closest(".run-row")) || document.querySelector(".run-row");
+      var status=$("app-status");
+      if(anchor && anchor.parentNode){ anchor.parentNode.insertBefore(box, anchor.nextSibling); }
+      else if(status && status.parentNode){ status.parentNode.insertBefore(box, status); }
+      else { var app=document.querySelector(".app"); if(app) app.appendChild(box); else document.body.appendChild(box); }
+    }
+    var costLine = (COST.estUsd!=null && COST.estUsd>0)
+      ? '<p class="pf-cost">' + t("This app costs about {usd} each time you press Run.").replace("{usd}", function(){ return fmtUsd(COST.estUsd); }) + '</p>'
+      : '';
+    box.innerHTML =
+      '<p>' + t("NanoGPT is a pay-per-use AI service — hundreds of models, pay only for what you run.") + '</p>'
+      + costLine
+      + '<p>' + t("You'll sign in on nano-gpt.com — your key stays in this browser.") + '</p>'
+      + '<div class="pf-actions">'
+      + '<button class="run pf-go" id="pf-continue">' + t("Continue to nano-gpt.com →") + '</button>'
+      // paste-key is a standalone-app affordance only: embedded on /play the parent holds
+      // the key, so renderAuth() builds no key row here — offering it would dead-end.
+      + (EMBEDDED ? '' : '<button class="link" id="pf-paste">' + t("paste key") + '</button>')
+      + '<button class="link" id="pf-cancel">' + t("Cancel") + '</button>'
+      + '</div>';
+    box.hidden=false;
+    $("pf-continue").onclick=function(){
+      hideRunPreflight();
+      if(EMBEDDED){
+        // On /play the app is a sandboxed iframe with no key — the parent (real origin) owns OAuth.
+        try{ stashRunInputs(); }catch(_){}
+        try{ window.parent.postMessage({ type:"__signin__" }, "*"); }catch(_){}
+        statusLine("__auth__","done",t("Signing in… press Run again once you're signed in."));
+      } else {
+        signIn().catch(function(e){ statusLine("__auth__","error","sign-in error: "+e.message); });
+      }
+    };
+    var pb=$("pf-paste"); if(pb) pb.onclick=function(){ hideRunPreflight(); renderAuth(); var row=$("auth-keyrow"); if(row) row.hidden=false; var ki=$("auth-keyinput"); if(ki) ki.focus(); };
+    $("pf-cancel").onclick=function(){ hideRunPreflight(); };
+    var c=$("pf-continue"); if(c) c.focus();
   }
   async function signIn(){
     const id = await clientId();
