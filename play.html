@@ -626,6 +626,7 @@ window.NoodleApp = (function () {
   "couldn't read your clipboard — click the key field and press Ctrl+V to paste":{es:"no se pudo leer tu portapapeles — haz clic en el campo de clave y pulsa Ctrl+V para pegar",fr:"impossible de lire votre presse-papiers — cliquez dans le champ de la clé et appuyez sur Ctrl+V pour coller",de:"dein Zwischenspeicher konnte nicht gelesen werden — klicke ins Schlüsselfeld und drücke Strg+V zum Einfügen",pt:"não foi possível ler sua área de transferência — clique no campo da chave e pressione Ctrl+V para colar",ja:"クリップボードを読み取れませんでした — キー欄をクリックしてCtrl+Vで貼り付けてください"},
   "that key has a character that can't be sent — re-copy it from nano-gpt.com → Settings → API and paste again":{es:"esa clave tiene un carácter que no se puede enviar — cópiala de nuevo desde nano-gpt.com → Ajustes → API y pégala otra vez",fr:"cette clé contient un caractère qui ne peut pas être envoyé — recopiez-la depuis nano-gpt.com → Paramètres → API et collez-la à nouveau",de:"dieser Schlüssel enthält ein Zeichen, das nicht gesendet werden kann — kopiere ihn erneut von nano-gpt.com → Einstellungen → API und füge ihn erneut ein",pt:"essa chave tem um caractere que não pode ser enviado — copie-a novamente em nano-gpt.com → Configurações → API e cole de novo",ja:"そのキーには送信できない文字が含まれています — nano-gpt.com → 設定 → API から再度コピーして貼り付け直してください"},
   "balance {bal} may not cover this ~{usd} run — top up at nano-gpt.com":{es:"el saldo {bal} podría no cubrir esta ejecución de ~{usd} — recarga en nano-gpt.com",fr:"le solde {bal} pourrait ne pas couvrir cette exécution de ~{usd} — rechargez sur nano-gpt.com",de:"Guthaben {bal} deckt diese ~{usd}-Ausführung möglicherweise nicht — bei nano-gpt.com aufladen",pt:"o saldo {bal} pode não cobrir esta execução de ~{usd} — recarregue em nano-gpt.com",ja:"残高{bal}ではこの~{usd}の実行を賄えない可能性があります — nano-gpt.comでチャージしてください"},
+  "that {field} is ~{mb} MB — over the 4 MB send limit; use a shorter clip or it won’t reach the model":{es:"ese {field} pesa ~{mb} MB — supera el límite de envío de 4 MB; usa un clip más corto o no llegará al modelo",fr:"ce {field} fait ~{mb} MB — au-delà de la limite d’envoi de 4 MB ; utilisez un clip plus court ou il n’atteindra pas le modèle",de:"diese {field}-Datei ist ~{mb} MB groß — über dem 4-MB-Sendelimit; nutze einen kürzeren Clip, sonst erreicht sie das Modell nicht",pt:"esse {field} tem ~{mb} MB — acima do limite de envio de 4 MB; use um clipe mais curto ou ele não chegará ao modelo",ja:"この{field}は約 {mb} MB あり、送信上限の 4 MB を超えています。短いクリップを使わないとモデルに届きません"},
   "Language":{es:"Idioma",fr:"Langue",de:"Sprache",pt:"Idioma",ja:"言語"},
   "Keep generating":{es:"Seguir generando",fr:"Continuer à générer",de:"Weiter generieren",pt:"Continuar gerando",ja:"生成を続ける"},
   "Optional settings":{es:"Ajustes opcionales",fr:"Réglages facultatifs",de:"Optionale Einstellungen",pt:"Configurações opcionais",ja:"オプション設定"},
@@ -3162,15 +3163,28 @@ function mp4ParamsMatch(bufs){
   function fileToDataUrl(file){
     return new Promise((res, rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=()=>rej(new Error("read failed")); fr.readAsDataURL(file); });
   }
-  // downscale a decoded image to a JPEG data URL (mirror index.html scaledDataURL) so a
-  // full-res phone photo stays under MEDIA_INLINE_MAX and the run doesn't hard-fail.
+  // downscale a decoded image to a data URL (mirror index.html scaledDataURL) so a full-res
+  // phone photo stays under MEDIA_INLINE_MAX and the run doesn't hard-fail. Photos encode as
+  // JPEG q0.9; a source with REAL transparency (a logo/product PNG) keeps its alpha as PNG,
+  // since JPEG has no alpha and would flatten it onto solid black before an Edit/i2v model sees
+  // it. Decided by sampling the drawn canvas's alpha channel — opaque sources stay JPEG.
+  // No backticks (RUNTIME_JS is a String.raw template).
   function scaledDataUrl(src, sw, sh, max){
     max = max || 1024;
     let w=sw, h=sh;
     if(Math.max(w,h) > max){ const r = max/Math.max(w,h); w=Math.round(w*r); h=Math.round(h*r); }
     const c = document.createElement("canvas"); c.width=w; c.height=h;
-    c.getContext("2d").drawImage(src, 0, 0, w, h);
-    return c.toDataURL("image/jpeg", 0.9);
+    const ctx = c.getContext("2d");
+    ctx.drawImage(src, 0, 0, w, h);
+    return canvasHasAlpha(ctx, w, h) ? c.toDataURL("image/png") : c.toDataURL("image/jpeg", 0.9);
+  }
+  // true only if some pixel is actually see-through — a fully-opaque PNG still encodes as JPEG.
+  function canvasHasAlpha(ctx, w, h){
+    try{
+      const d = ctx.getImageData(0, 0, w, h).data;
+      for(let i=3; i<d.length; i+=4) if(d[i] < 255) return true;
+    }catch(e){ /* tainted/cross-origin canvas — assume opaque */ }
+    return false;
   }
   // image uploads decode → downscale (≤1024px long edge, q0.9 JPEG); audio/video keep fileToDataUrl.
   function imageFileToDataUrl(file){
@@ -3327,6 +3341,15 @@ function mp4ParamsMatch(bufs){
       if(el.type==="file"){
         el.addEventListener("change", async ()=>{
           const f = el.files && el.files[0]; if(!f) return;
+          // Audio/video are sent inline; the run-time gate rejects a base64 payload over
+          // MEDIA_INLINE_MAX (~1.37x the raw file). Warn early at that PROJECTED size — 4 base64
+          // chars per 3 bytes plus the "data:<mime>;base64," prefix — so the advisory matches the
+          // real limit instead of firing only at Run (the editor warns here too).
+          if(it.kind==="audio" || it.kind==="video"){
+            const proj = Math.ceil(f.size/3)*4 + ("data:"+(f.type||"")+";base64,").length;
+            if(proj > MEDIA_INLINE_MAX)
+              statusLine("__upsize_"+el.id+"__","warn", t("that {field} is ~{mb} MB — over the 4 MB send limit; use a shorter clip or it won’t reach the model").replace("{field}", ()=>it.kind).replace("{mb}", ()=>(proj/1048576).toFixed(1)));
+          }
           const url = await (it.kind==="image" ? imageFileToDataUrl(f) : fileToDataUrl(f)); it.node.fields[it.field] = url;
           const prev = box.querySelector('[data-prev="'+el.id+'"]');
           if(prev){

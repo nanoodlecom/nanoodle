@@ -5159,13 +5159,28 @@ function prepTextareas(n){
   });
 }
 
-// downscale an <img>/<video> source to a JPEG data URL (keeps localStorage/share payloads small)
+// downscale an <img>/<video> source to a data URL (keeps localStorage/share payloads small).
+// Photos + video frames encode as JPEG q0.9 (far smaller); a source with REAL transparency —
+// a logo/product PNG — keeps its alpha as PNG, because JPEG has no alpha and would flatten it
+// onto solid black before it ever reaches an Edit/i2v model. We decide by sampling the drawn
+// canvas's alpha channel, so it's correct for any source (JPEG + video decode fully opaque and
+// stay JPEG). A transparent PNG can out-weigh its JPEG twin, but the ≤1024px cap bounds it and
+// the send-time MEDIA_INLINE_MAX guards flag any oversize loudly — correct pixels beat bytes.
 function scaledDataURL(src, sw, sh, max=1024){
   let w=sw, h=sh;
   if(Math.max(w,h) > max){ const r = max/Math.max(w,h); w=Math.round(w*r); h=Math.round(h*r); }
   const c = document.createElement("canvas"); c.width=w; c.height=h;
-  c.getContext("2d").drawImage(src, 0, 0, w, h);
-  return c.toDataURL("image/jpeg", 0.9);
+  const ctx = c.getContext("2d");
+  ctx.drawImage(src, 0, 0, w, h);
+  return canvasHasAlpha(ctx, w, h) ? c.toDataURL("image/png") : c.toDataURL("image/jpeg", 0.9);
+}
+// true only if some pixel is actually see-through — a fully-opaque PNG still encodes as JPEG.
+function canvasHasAlpha(ctx, w, h){
+  try{
+    const d = ctx.getImageData(0, 0, w, h).data;
+    for(let i=3; i<d.length; i+=4) if(d[i] < 255) return true;
+  }catch(e){ /* tainted/cross-origin canvas — assume opaque */ }
+  return false;
 }
 
 // Geometry for the 📐 Resize/crop node. Given a source w×h and a target box (tw,th; 0 = blank),
@@ -5419,6 +5434,11 @@ function maskToSource(maskUrl, sourceUrl){
 // Audio/Video input nodes: read a chosen file straight to a data URL (no scaling — bytes are
 // kept as-is) and store it on the node field. Clips are inlined when they feed a model, so the
 // ≤4 MB limit applies downstream; warn early when a file is over it.
+// Projected size of the base64 data URL a file becomes (what the run-time gate actually measures):
+// ~1.37× the raw bytes — 4 base64 chars per 3 bytes, plus the "data:<mime>;base64," prefix.
+function base64PayloadBytes(f){
+  return Math.ceil(f.size/3)*4 + ("data:"+(f.type||"")+";base64,").length;
+}
 function mountFileUpload(n, field){
   const el = n.el;
   const prev = el.querySelector("[data-uprev]");
@@ -5432,7 +5452,10 @@ function mountFileUpload(n, field){
   fileInput.addEventListener("change", ()=>{
     const f = fileInput.files?.[0];
     if(f){
-      if(f.size > MEDIA_INLINE_MAX) flash(t("that {field} is ~{mb} MB — over the 4 MB send limit; use a shorter clip or it won’t reach the model").replace("{field}", ()=>t(field)).replace("{mb}", ()=>(f.size/1048576).toFixed(1)));
+      // The run-time gate checks the base64 data-URL length, which is ~1.37× the raw file: a
+      // ~3.3 MB clip passes f.size but fails at Run. Warn against that PROJECTED size instead.
+      const proj = base64PayloadBytes(f);
+      if(proj > MEDIA_INLINE_MAX) flash(t("that {field} is ~{mb} MB — over the 4 MB send limit; use a shorter clip or it won’t reach the model").replace("{field}", ()=>t(field)).replace("{mb}", ()=>(proj/1048576).toFixed(1)));
       const fr = new FileReader();
       fr.onload = ()=> setMedia(fr.result);
       fr.onerror = ()=> flash("couldn’t read that file");
