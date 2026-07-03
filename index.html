@@ -394,12 +394,17 @@
      pill never floats orphaned when the buttons are hidden, and nothing shifts when they appear. */
   #controlbar{ position:fixed; right:.9rem; bottom:calc(var(--db-h,3rem) + 1rem); z-index:30;
                display:flex; align-items:center; gap:.5rem; pointer-events:none; }
-  #runest{ cursor:default; flex:0 0 auto; order:2;   /* rightmost → sits in the corner */
+  #runest{ cursor:pointer; flex:0 0 auto; order:2;   /* rightmost → sits in the corner */
            display:flex; align-items:center; gap:.4rem; height:2.3rem; box-sizing:border-box;
            font-family:ui-monospace,monospace; font-size:.78rem; line-height:1; color:var(--dim);
            background:var(--panel2,#1a1d24); border:1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
            border-radius:.6rem; padding:0 .7rem; box-shadow:0 4px 16px #0006, 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
-           pointer-events:auto; user-select:none; white-space:nowrap; }
+           pointer-events:auto; user-select:none; white-space:nowrap;
+           transition:border-color .12s ease, box-shadow .12s ease, color .12s ease; }
+  /* it looks like a button, so it IS one — click = ▶ Run all (delegates to #run) */
+  #runest:hover{ color:var(--ink); border-color:color-mix(in srgb, var(--accent) 70%, var(--line));
+                 box-shadow:0 4px 16px #0006, 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent) }
+  #runest:active{ transform:translateY(1px) }
   #runest .rn-run{ color:var(--accent); opacity:.9; font-size:.7rem }   /* ▶ ties the cost to the Run action */
   #runest b{ color:var(--ink); font-weight:800; font-size:.9rem; letter-spacing:-.01em }
   #runest[hidden]{ display:none }
@@ -997,7 +1002,7 @@
   <button id="undo" title="Undo (Ctrl + Z)" aria-label="Undo the last edit">↺</button>
   <button id="redo" title="Redo (Ctrl + Y)" aria-label="Redo the last undone edit">↻</button>
   <button id="fit" title="Fit the whole workflow in view (F)" aria-label="Fit the whole workflow in view">⊡</button>
-  <div id="runest" hidden></div>
+  <button id="runest" type="button" hidden></button>
 </div>
 <a id="legallink" href="/legal" target="_blank" rel="noopener">Terms · Privacy</a>
 
@@ -7035,6 +7040,7 @@ $("run").onclick = ()=>{
   if(runningNodes.size && runAbort && !runAbort.signal.aborted){ runAbort.abort(); flash("stopping…"); updateRunButtons(); }  // ■ Stop
   else runAll();                                                                                                              // ▶ Run
 };
+$("runest").onclick = ()=> $("run").click();   // the cost pill advertises ▶ Run, so clicking it runs (or stops)
 
 /* ---------- language selector ---------- */
 function buildLangMenu(){
