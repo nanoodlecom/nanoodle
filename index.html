@@ -489,6 +489,7 @@
   .node header.t-vframes{ background:linear-gradient(90deg,#5ad1e622,#ff79c614,transparent) }
   .node header.t-music, .node header.t-tts{ background:linear-gradient(90deg,#3ddc9722,transparent) }
   .node header.t-join{ background:linear-gradient(90deg,#9aa3b222,transparent) }
+  .node header.t-comment{ background:linear-gradient(90deg, var(--cmt-tint,#f5d76e22), transparent) }
   .node header .em{font-size:1rem}
   .node header .ttl{font-weight:700; font-size:.85rem; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .node-name{ width:100%; box-sizing:border-box; background:transparent; border:0; border-bottom:1px solid #ffffff12; color:var(--muted); font:inherit; font-size:.76rem; padding:.12rem .55rem; outline:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
@@ -583,6 +584,24 @@
   .result .acts .sndbadge{ font-size:.85rem; line-height:1; cursor:default }
   .spin{ display:inline-block; width:16px;height:16px; border:2px solid #ffffff22; border-top-color:var(--warn); border-radius:50%; animation:sp .8s linear infinite; vertical-align:middle }
   @keyframes sp{to{transform:rotate(360deg)}}
+
+  /* ---------- comment / sticky note (editor-only annotation, no ports, never runs) ---------- */
+  .node.note{ min-width:150px; }
+  .node.note header .ttl{ color:var(--cmt,#f5d76e) }
+  .node.note .body{ padding:.4rem .55rem .55rem; gap:.35rem }
+  .node.note .cmtbar{ display:flex; align-items:center; gap:.3rem; flex-wrap:wrap }
+  .node.note .cmtsws{ display:flex; gap:.2rem; margin-right:.1rem }
+  .node.note .cmtsw{ width:15px; height:15px; padding:0; border-radius:50%; border:2px solid transparent; cursor:pointer }
+  .node.note .cmtsw:hover{ transform:scale(1.12) }
+  .node.note .cmtsw.on{ border-color:var(--ink); box-shadow:0 0 0 1px var(--bg) }
+  .node.note .cmtbtn{ min-width:22px; height:20px; padding:0 .3rem; font-size:.74rem; line-height:1; color:var(--dim);
+                      background:var(--panel2); border:1px solid var(--line); border-radius:.35rem; cursor:pointer }
+  .node.note .cmtbtn:hover{ border-color:var(--accent); color:var(--ink) }
+  .node.note .cmtbtn.cmtbold{ font-weight:800 }
+  .node.note .cmtbtn.on{ color:var(--ink); border-color:var(--accent); background:#ffffff14 }
+  .node.note textarea.cmttext{ min-height:52px; background:transparent; border:1px dashed var(--line); border-radius:.45rem; line-height:1.4 }
+  .node.note textarea.cmttext::placeholder{ color:var(--dim) }
+  .node.note textarea.cmttext:focus{ outline:none; border-style:solid; border-color:var(--cmt,#f5d76e) }
 
   /* key entry */
   #keyrow{ position:fixed; top:60px; left:50%; transform:translateX(-50%); z-index:50; display:none; gap:.5rem; flex-wrap:wrap;
@@ -1057,6 +1076,11 @@ const I18N_ENAME = { es:"Spanish", fr:"French", de:"German", pt:"Portuguese", ja
 const I18N = {
   es:{
     "strength":"intensidad",
+    "Notes":"Notas",
+    "Bold":"Negrita",
+    "Smaller text":"Texto más pequeño",
+    "Bigger text":"Texto más grande",
+    "write a note…":"escribe una nota…",
     "remove":"quitar",
     "to run":"para ejecutar",
     "Estimated cost to ▶ Run all — {n} paid node":"Coste estimado de ▶ Ejecutar todo — {n} nodo de pago",
@@ -1462,6 +1486,11 @@ const I18N = {
   },
   fr:{
     "strength":"intensité",
+    "Notes":"Notes",
+    "Bold":"Gras",
+    "Smaller text":"Texte plus petit",
+    "Bigger text":"Texte plus grand",
+    "write a note…":"écrire une note…",
     "remove":"retirer",
     "to run":"pour exécuter",
     "Estimated cost to ▶ Run all — {n} paid node":"Coût estimé de ▶ Tout exécuter — {n} nœud payant",
@@ -1867,6 +1896,11 @@ const I18N = {
   },
   de:{
     "strength":"Stärke",
+    "Notes":"Notizen",
+    "Bold":"Fett",
+    "Smaller text":"Kleinerer Text",
+    "Bigger text":"Größerer Text",
+    "write a note…":"Notiz schreiben…",
     "remove":"entfernen",
     "to run":"zum Ausführen",
     "Estimated cost to ▶ Run all — {n} paid node":"Geschätzte Kosten für ▶ Alles ausführen — {n} kostenpflichtiger Node",
@@ -2272,6 +2306,11 @@ const I18N = {
   },
   pt:{
     "strength":"intensidade",
+    "Notes":"Notas",
+    "Bold":"Negrito",
+    "Smaller text":"Texto menor",
+    "Bigger text":"Texto maior",
+    "write a note…":"escreva uma nota…",
     "remove":"remover",
     "to run":"para executar",
     "Estimated cost to ▶ Run all — {n} paid node":"Custo estimado de ▶ Executar tudo — {n} nó pago",
@@ -2677,6 +2716,11 @@ const I18N = {
   },
   ja:{
     "strength":"強度",
+    "Notes":"メモ",
+    "Bold":"太字",
+    "Smaller text":"文字を小さく",
+    "Bigger text":"文字を大きく",
+    "write a note…":"メモを書く…",
     "remove":"削除",
     "to run":"で実行",
     "Estimated cost to ▶ Run all — {n} paid node":"▶ すべて実行の推定コスト — 有料ノード {n} 個",
@@ -4620,6 +4664,17 @@ const NODE_TYPES = {
       return { text: await ctx.transcribe(mdl(n), inp.audio, (n.fields.language||"auto").trim()) };
     }
   },
+
+  // A free-text sticky note for labelling the graph. note:true → no ports, no run(),
+  // excluded from the run engine and quick-add. play.html keeps the node and renders
+  // the note above the inputs, but it stays out of the run engine there too.
+  comment: {
+    em:"💬", title:"Comment", desc:"A sticky note to label your graph", group:"Notes",
+    kw:"note sticky annotation label describe remark memo",
+    note:true, inputs:[], outputs:[], preview:"none",
+    body:(n)=> commentBody(n),
+    mount: mountComment,
+  },
 };
 
 /* ======================================================================
@@ -4683,8 +4738,9 @@ function refreshFramePorts(n){
 
 function buildNodeEl(n){
   const t = NODE_TYPES[n.type];
+  const isNote = !!t.note;   // a sticky note: no ports, no run/status chrome, no result panel
   const el = document.createElement("div");
-  el.className = "node"; el.dataset.id = n.id; el.dataset.status = "idle";
+  el.className = "node" + (isNote?" note":""); el.dataset.id = n.id; el.dataset.status = "idle";
   el.style.left = n.x+"px"; el.style.top = n.y+"px";
   if(n.w){ el.style.width = n.w+"px"; el.style.maxWidth = "none"; }   // restore a horizontally-stretched card
   const inRows  = t.inputs.map(p=>portRowHTML(n.id, p, "in")).join("");
@@ -4692,16 +4748,16 @@ function buildNodeEl(n){
   el.innerHTML = `
     <header class="t-${n.type}">
       <span class="em">${t.em}</span><span class="ttl">${t.title}</span>
-      <span class="dot"></span>
-      <button class="hbtn" data-act="run" title="run this branch">▶</button>
+      ${isNote ? "" : `<span class="dot"></span><button class="hbtn" data-act="run" title="run this branch">▶</button>`}
       <button class="hbtn" data-act="del" title="delete (Del)">✕</button>
     </header>
-    <input class="node-name" value="${esc(n.name||"")}" placeholder="${esc(t.title)}" aria-label="Rename this node" maxlength="60" spellcheck="false" />
-    <div class="ports">
+    ${isNote ? "" : `<input class="node-name" value="${esc(n.name||"")}" placeholder="${esc(t.title)}" aria-label="Rename this node" maxlength="60" spellcheck="false" />`}
+    ${isNote ? "" : `<div class="ports">
+
       <div class="col in">${inRows}</div>
       <div class="col out">${outRows}</div>
-    </div>
-    <div class="body">${t.body(n)}<div class="result"></div></div>
+    </div>`}
+    <div class="body">${t.body(n)}${isNote ? "" : `<div class="result"></div>`}</div>
     <i class="rgrip" title="drag to resize"></i>`;
   world.appendChild(el);
   n.el = el;
@@ -4743,7 +4799,7 @@ function buildNodeEl(n){
   if(t.mount) t.mount(n);            // node-specific widget wiring (e.g. upload/webcam)
   // header buttons
   el.querySelector('[data-act=del]').onclick = (e)=>{ e.stopPropagation(); if(runningNodes.has(n.id)){ flash("can’t delete while running — Stop first"); return; } removeNode(n.id); };  // don't discard an in-flight (already-charged) run or orphan a downstream node
-  el.querySelector('[data-act=run]').onclick  = (e)=>{ e.stopPropagation(); runGroup([n.id]); };
+  el.querySelector('[data-act=run]')?.addEventListener("click", (e)=>{ e.stopPropagation(); runGroup([n.id]); });   // notes have no ▶ (they never run)
   // selection + drag
   const header = el.querySelector("header");
   header.addEventListener("pointerdown", e=>{
@@ -4838,7 +4894,7 @@ function refreshAudioInputs(n){
 // Give every text field an inline input port: wiring it makes the node use the wired
 // value instead of whatever's typed. Idempotent — safe to re-run after the body rebuilds.
 function addFieldPorts(n){
-  if(!n.el || n.type==="text") return;        // Text is a pure source — nothing to override
+  if(!n.el || n.type==="text" || NODE_TYPES[n.type].note) return;   // Text is a pure source; a note is a non-graph annotation — neither takes a text override port
   n.el.querySelectorAll("textarea[data-f], textarea[data-pf]").forEach(ta=>{
     const field = ta.dataset.f || ta.dataset.pf;
     if(field==="extraJson") return;            // advanced JSON isn't a wirable text value
@@ -4887,6 +4943,56 @@ function fileToDataURL(file, cb){
   img.onerror = ()=> flash("couldn’t read that image");
   const fr = new FileReader(); fr.onload = ()=> img.src = fr.result; fr.readAsDataURL(file);
 }
+/* ---------- comment / sticky note ---------- */
+// [key, swatch hex] — key is what's persisted (n.fields.color), so renaming a colour never breaks saved notes.
+const COMMENT_COLORS = [["yellow","#f5d76e"],["pink","#ff8fce"],["green","#63d29a"],["blue","#6ea8ff"],["purple","#b28bff"],["gray","#aab3c2"]];
+const commentHex = (n)=> (COMMENT_COLORS.find(c=>c[0]===(n.fields.color||"yellow")) || COMMENT_COLORS[0])[1];
+const commentSize = (n)=> Math.max(11, Math.min(30, parseInt(n.fields.size,10) || 15));
+function commentBody(n){
+  const cur = n.fields.color || "yellow";
+  const sws = COMMENT_COLORS.map(([k,hex])=>
+    `<button type="button" class="cmtsw${k===cur?" on":""}" data-color="${esc(k)}" title="${esc(k)}" style="background:${esc(hex)}" aria-label="${esc(k)}"></button>`).join("");
+  return `
+    <div class="cmtbar">
+      <div class="cmtsws">${sws}</div>
+      <button type="button" class="cmtbtn cmtbold${n.fields.bold?" on":""}" data-cmt="bold" title="Bold" aria-label="Bold">B</button>
+      <button type="button" class="cmtbtn" data-cmt="smaller" title="Smaller text" aria-label="Smaller text">A−</button>
+      <button type="button" class="cmtbtn" data-cmt="bigger" title="Bigger text" aria-label="Bigger text">A+</button>
+    </div>
+    <textarea class="cmttext" data-f="text" placeholder="write a note…">${esc(n.fields.text||"")}</textarea>`;
+}
+// Reflect the note's colour / weight / size onto its DOM. Idempotent — safe to call after any change or on load.
+function applyCommentStyle(n){
+  if(!n.el) return;
+  const hex = commentHex(n);
+  n.el.style.setProperty("--cmt", hex);
+  n.el.style.setProperty("--cmt-tint", hex+"22");   // 0x22 alpha → the header wash, matching the other node headers
+  const ta = n.el.querySelector(".cmttext");
+  if(ta){ ta.style.color = hex; ta.style.fontWeight = n.fields.bold ? "700" : "400"; ta.style.fontSize = commentSize(n)+"px"; }
+}
+// Wire the sticky-note toolbar (colour swatches + bold + size). pointerdown is stopped so a toolbar
+// click never starts a node drag (mirrors the [data-f] fields and upload buttons).
+function mountComment(n){
+  applyCommentStyle(n);
+  n.el.querySelectorAll(".cmtsw").forEach(b=>{
+    b.addEventListener("pointerdown", e=> e.stopPropagation());
+    b.onclick = (e)=>{ e.stopPropagation();
+      n.fields.color = b.dataset.color;
+      n.el.querySelectorAll(".cmtsw").forEach(x=> x.classList.toggle("on", x===b));
+      applyCommentStyle(n); save();
+    };
+  });
+  n.el.querySelectorAll("[data-cmt]").forEach(b=>{
+    b.addEventListener("pointerdown", e=> e.stopPropagation());
+    b.onclick = (e)=>{ e.stopPropagation();
+      const act = b.dataset.cmt;
+      if(act==="bold"){ n.fields.bold = !n.fields.bold; b.classList.toggle("on", n.fields.bold); }
+      else n.fields.size = commentSize(n) + (act==="bigger" ? 2 : -2);
+      applyCommentStyle(n); save();
+    };
+  });
+}
+
 // wire up the Image-input node: file upload + live webcam capture, stored as n.fields.image
 function mountUpload(n){
   const el = n.el;
@@ -5459,6 +5565,7 @@ const nodeProducesType = (k, type)=> nodeOutputs(k).some(o=> o.type===type);
 // and — for text — any wirable text field (every textarea gets an inline text port via addFieldPorts).
 function nodeAcceptsType(k, type){
   const t = NODE_TYPES[k];
+  if(t.note) return false;   // a sticky note isn't part of the graph — never a wire target
   if((t.inputs||[]).some(p=> p.type===type)) return true;
   if(type==="image" && t.imageInputs) return true;
   if(type==="video" && t.videoInputs) return true;
@@ -5825,7 +5932,7 @@ function componentOf(id){
 }
 function components(){
   const seen = new Set(), out = [];
-  for(const n of graph.nodes){ if(seen.has(n.id)) continue; const c = componentOf(n.id); c.forEach(x=>seen.add(x)); out.push(c); }
+  for(const n of graph.nodes){ if(seen.has(n.id) || NODE_TYPES[n.type]?.note) continue; const c = componentOf(n.id); c.forEach(x=>seen.add(x)); out.push(c); }   // notes are annotations — never a run group
   return out;
 }
 
@@ -6982,7 +7089,7 @@ function toast(msg, kind){
 /* ======================================================================
    ADD-NODE MENU
    ====================================================================== */
-const ADD_GROUPS = ["Inputs","Text","Image","Video","Audio"];   // section order in the Add-node menu
+const ADD_GROUPS = ["Inputs","Text","Image","Video","Audio","Notes"];   // section order in the Add-node menu
 // First-timers (no add history yet) open onto this compose-a-wow shortlist instead of the full 20-row wall.
 const ADD_STARTERS = ["text","llm","image","tvideo","upload","edit"];
 // Recently-added node types, most-recent first. On-device only (localStorage) — never sent anywhere (no-analytics promise).

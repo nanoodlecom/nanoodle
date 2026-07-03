@@ -56,6 +56,8 @@ const ctx = {
   mountUpload: () => {},
   mountInpaint: () => {},
   mountFileUpload: () => {},
+  mountComment: () => {},
+  commentBody: () => `<textarea data-f="text"></textarea>`,   // note textarea; nodeAcceptsType short-circuits on t.note so it's never a text sink
   collectImageInputs: () => [],
   setNodeProgress: () => {},
 };
