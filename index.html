@@ -4006,8 +4006,14 @@ function workflowCost(){
   return { usd, priced, unpriced, exact };
 }
 const fmtUsd = (v)=> v>=0.01 ? `$${v.toFixed(2)}` : v>0 ? `<$0.01` : `$0.00`;
+// True while a signed-out visitor is still on the pristine shipped starter — i.e. the exact state
+// where ▶ Run plays the canned sample (see runGroup's demo path), not a real paid run. We hide the
+// price here so the first click reads as "just try it", not "this'll cost you". It returns the
+// instant they sign in or edit past the starter — the moment a run actually bills their own key.
+function inDemoRun(){ return !getKey() && !!demoStarterSig && appHandoffSig() === demoStarterSig; }
 function refreshRunEstimate(){
   const el = $("runest"); if(!el) return;
+  if(inDemoRun()){ el.hidden = true; return; }   // free sample run → no price talk yet
   const { usd, priced, unpriced, exact } = workflowCost();
   if(!priced){ el.hidden = true; return; }        // nothing priced to run → hide the chip entirely
   el.hidden = false;
@@ -7837,7 +7843,8 @@ addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("examplesmodal").hidd
    ====================================================================== */
 const getKey = ()=> localStorage.getItem("ngpt_key");
 const setKey = (k)=>{ k ? localStorage.setItem("ngpt_key",k) : localStorage.removeItem("ngpt_key"); renderAuth();
-  if(k){ restoreCachedBalance(); refreshBalance(); } else { stats.balance=null; cacheBalance(); paintCost(); } };   // seed the bal on sign-in, clear on sign-out
+  if(k){ restoreCachedBalance(); refreshBalance(); } else { stats.balance=null; cacheBalance(); paintCost(); }
+  refreshRunEstimate(); };   // seed the bal on sign-in, clear on sign-out; toggle the run-cost chip (hidden during the free demo run)
 function renderAuth(){
   const ok = !!getKey();
   $("status").textContent = ok ? t("ready ✓") : t("not signed in");
