@@ -6678,6 +6678,16 @@ const CTX = {
     }
     const bal = parseFloat(r.headers.get("x-remaining-balance") || ""); if(!isNaN(bal)){ stats.balance = bal; cacheBalance(); }
     paintCost();
+    // Some providers hand back the audio with a blank/generic content-type. An
+    // <audio> element won't play a blob whose MIME it can't recognise (shows
+    // 0:00, dead play button) even though the bytes download/open fine — so pin
+    // the type from the requested format when it's missing or generic.
+    const t = (blob.type||"").split(";")[0].trim().toLowerCase();
+    if(!t || t==="application/octet-stream" || t==="binary/octet-stream"){
+      const AUDIO_MIME = { mp3:"audio/mpeg", opus:"audio/ogg", aac:"audio/aac", flac:"audio/flac", wav:"audio/wav", pcm:"audio/wav" };
+      const fmt = (extra && extra.response_format) || "mp3";
+      return URL.createObjectURL(new Blob([blob], { type: AUDIO_MIME[fmt] || "audio/mpeg" }));
+    }
     return URL.createObjectURL(blob);
   },
   // speech→text: multipart upload to /api/v1/audio/transcriptions (audio file + model + language).
