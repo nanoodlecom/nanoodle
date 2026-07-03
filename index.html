@@ -414,6 +414,8 @@
                background:var(--panel); border:1px solid var(--line); border-radius:2rem;
                padding:.4rem .45rem .4rem .85rem; font-size:.82rem; color:var(--dim); box-shadow:0 6px 22px #0007 }
   #canvashint .ht{ flex:1; min-width:0 }   /* the sentence fills the row as one wrapping block; the × stays pinned right */
+  #canvashint{ flex-wrap:wrap }
+  #canvashint .ht2{ flex-basis:100%; margin-top:.15rem; font-size:.74rem; line-height:1.3; opacity:.85 }   /* pay-per-use pitch wraps to its own full-width row */
   /* the three inline actions (▶ Run, ✨ Create app, 📚 Examples) are real buttons — same accent-link
      look so it's obvious all three are clickable; bold + nowrap keeps each from breaking mid-token when the line wraps */
   #canvashint .link{ font-weight:600; white-space:nowrap; font-size:inherit; cursor:pointer }
@@ -1030,7 +1032,7 @@
   <svg id="wires"></svg>
   <div id="world"></div>
   <button id="delnode" title="Delete the selected node" aria-label="Delete the selected node">🗑 Delete</button>
-  <div id="canvashint" hidden><span class="ht">nanoodle wires AI models — text, image, video, audio — into workflows. Press <button id="hintrun" class="link">▶ Run</button> to try this one, <button id="hintmake" class="link">✨ Create app</button> to turn it into a shareable app, or browse <button id="hintexamples" class="link">📚 Examples</button>.</span><button id="hintx" title="Got it" aria-label="Dismiss">×</button></div>
+  <div id="canvashint" hidden><span class="ht">nanoodle wires AI models — text, image, video, audio — into workflows. Press <button id="hintrun" class="link">▶ Run</button> to try this one, <button id="hintmake" class="link">✨ Create app</button> to turn it into a shareable app, or browse <button id="hintexamples" class="link">📚 Examples</button>.</span><button id="hintx" title="Got it" aria-label="Dismiss">×</button><span class="ht2">NanoGPT is a pay-per-use AI service — hundreds of models, pay only for what you run.</span></div>
   <div id="connecthint" hidden><span>Drag a <b>●</b> port onto a matching one to connect — or drop a wire on empty canvas to quick-add.</span><button id="connecthintx" title="Got it" aria-label="Dismiss">×</button></div>
 </main>
 <div id="quickadd"></div>
@@ -1146,6 +1148,7 @@ const I18N = {
     "to try this one,":"para probar este,",
     "✨ Create app":"✨ Crear app",
     "to turn it into a shareable app, or browse":"para convertirlo en una app que puedes compartir, o explora",
+    "NanoGPT is a pay-per-use AI service — hundreds of models, pay only for what you run.":"nano-gpt es un servicio de IA de pago por uso — cientos de modelos, paga solo por lo que ejecutas.",
     "A running changelog — one line per change.":"Un registro de cambios continuo — una línea por cambio.",
     "Apply the described change (Enter)":"Aplicar el cambio descrito (Enter)",
     "Audio model":"Modelo de audio",
@@ -1569,6 +1572,7 @@ const I18N = {
     "to try this one,":"pour essayer celui-ci,",
     "✨ Create app":"✨ Créer une app",
     "to turn it into a shareable app, or browse":"pour en faire une app partageable, ou parcourez",
+    "NanoGPT is a pay-per-use AI service — hundreds of models, pay only for what you run.":"nano-gpt est un service d’IA à l’usage — des centaines de modèles, payez seulement ce que vous exécutez.",
     "A running changelog — one line per change.":"Un journal des modifications continu — une ligne par changement.",
     "Apply the described change (Enter)":"Appliquer la modification décrite (Entrée)",
     "Audio model":"Modèle audio",
@@ -1981,6 +1985,7 @@ const I18N = {
     "to try this one,":"um diesen auszuprobieren,",
     "✨ Create app":"✨ App erstellen",
     "to turn it into a shareable app, or browse":"um daraus eine teilbare App zu machen, oder stöbere in",
+    "NanoGPT is a pay-per-use AI service — hundreds of models, pay only for what you run.":"nano-gpt ist ein KI-Dienst mit Abrechnung nach Nutzung — Hunderte Modelle, zahle nur, was du ausführst.",
     "A running changelog — one line per change.":"Ein laufendes Änderungsprotokoll — eine Zeile pro Änderung.",
     "Apply the described change (Enter)":"Beschriebene Änderung anwenden (Enter)",
     "Audio model":"Audio-Modell",
@@ -2395,6 +2400,7 @@ const I18N = {
     "to try this one,":"para testar este,",
     "✨ Create app":"✨ Criar app",
     "to turn it into a shareable app, or browse":"para transformá-lo em um app compartilhável, ou explore",
+    "NanoGPT is a pay-per-use AI service — hundreds of models, pay only for what you run.":"o nano-gpt é um serviço de IA de pagamento por uso — centenas de modelos, pague só pelo que executar.",
     "A running changelog — one line per change.":"Um changelog contínuo — uma linha por alteração.",
     "Apply the described change (Enter)":"Aplicar a alteração descrita (Enter)",
     "Audio model":"Modelo de áudio",
@@ -2806,6 +2812,7 @@ const I18N = {
     "to try this one,":"でこれを試すか、",
     "✨ Create app":"✨ アプリ作成",
     "to turn it into a shareable app, or browse":"で共有できるアプリにするか、",
+    "NanoGPT is a pay-per-use AI service — hundreds of models, pay only for what you run.":"nano-gptは従量課金のAIサービスです — 数百のモデル、実行した分だけお支払いです。",
     "A running changelog — one line per change.":"進行中の変更履歴 — 変更ごとに1行。",
     "Apply the described change (Enter)":"説明した変更を適用 (Enter)",
     "Audio model":"音声モデル",
@@ -6215,7 +6222,7 @@ function fitFloor(){
 // topPad reserves headroom at the top of the viewport (the first-run hint pill sits there);
 // the graph is then centered within the region below it. 0 (default = user-invoked Fit/F/dbl-click)
 // keeps the classic full-viewport centering.
-const FIT_HINT_PAD = 56;   // clears the top:14px first-run hint pill so a framed graph never lands under it
+const FIT_HINT_PAD = 78;   // clears the top:14px first-run hint pill (now 2–3 lines with the pay-per-use pitch) so a framed graph never lands under it
 // The headroom to reserve for the first-run orientation banner. When it's actually on screen, measure
 // it (its height swings with copy length, translation and viewport width — a phone wraps it to several
 // lines) so the framed graph lands cleanly BELOW it, not centered under it. Capped at 45% of the
