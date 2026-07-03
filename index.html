@@ -504,10 +504,11 @@
   .node header.t-comment{ background:linear-gradient(90deg, var(--cmt-tint,#f5d76e22), transparent) }
   .node header .em{font-size:1rem}
   .node header .ttl{font-weight:700; font-size:.85rem; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  .node-name{ width:100%; box-sizing:border-box; background:transparent; border:0; border-bottom:1px solid #ffffff12; color:var(--muted); font:inherit; font-size:.76rem; padding:.12rem .55rem; outline:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
-  .node-name:hover{ border-bottom-color:#ffffff26 }
-  .node-name:focus{ color:var(--ink); border-bottom-color:var(--accent) }
-  .node-name::placeholder{ color:#b8c0d0 }
+  /* at rest the rename field is a quiet subtitle (no chrome); hover/focus reveal an editable box */
+  .node-name{ width:100%; box-sizing:border-box; background:transparent; border:1px solid transparent; border-radius:.4rem; color:var(--muted); font:inherit; font-size:.76rem; padding:.12rem .55rem; outline:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .node-name:hover{ background:var(--panel2); border-color:var(--line) }
+  .node-name:focus{ background:var(--panel2); border-color:var(--line); color:var(--ink) }
+  .node-name::placeholder{ color:#8f97a6 }
   .node header .hbtn{ border:none; background:none; padding:2px 4px; color:var(--dim); font-size:.85rem; border-radius:.35rem }
   .node header .hbtn:hover{ background:#ffffff14; color:var(--ink) }
   .node header .dot{ width:8px;height:8px;border-radius:50%; background:var(--dim); flex:0 0 auto }
@@ -541,6 +542,14 @@
   .body .fieldport{ position:absolute; left:-1.1rem; top:0; z-index:3 }
   /* a field whose port is wired is driven by the connection — lock + dim it */
   .body textarea.wired{ opacity:.72; border-style:dashed; cursor:not-allowed; color:var(--muted) }
+  /* a wired field collapses to a one-line chip naming its source (the textarea is hidden) */
+  .body textarea[hidden]{ display:none }
+  .body .wire-chip{ display:inline-flex; align-items:center; font-size:.72rem; color:var(--dim);
+                    background:var(--panel2); border:1px solid var(--line); border-radius:.4rem;
+                    padding:.18rem .5rem; margin-top:.1rem; max-width:100%; box-sizing:border-box;
+                    white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .body .wire-chip b{ color:var(--muted); font-weight:600 }
+  .body .wire-chip[hidden]{ display:none }
   /* magnetism: every valid destination glows, the closest one grabs the wire */
   .port.compatible{ transform:scale(1.25); box-shadow:0 0 0 4px #ffffff26; animation:portpulse 1.1s ease-in-out infinite }
   .port.snap{ transform:scale(1.7); box-shadow:0 0 0 5px #ffffff66, 0 0 12px #fff6; animation:none }
@@ -556,6 +565,8 @@
   .body input[type=checkbox]{ width:auto }
   .body .chk{ display:flex; align-items:center; gap:.45rem; font-size:.8rem; color:var(--ink); text-transform:none; letter-spacing:0 }
   .body .fhint{ font-size:.68rem; color:var(--dim); margin-top:.2rem; text-transform:none; letter-spacing:0 }
+  /* an inline hint inside an uppercased <label> opts out of the SHOUTING (reads as a sentence) */
+  .body label .lblhint{ text-transform:none; letter-spacing:0; font-weight:400; font-size:.92em }
   .body input::placeholder, .body textarea::placeholder, #addsearch::placeholder, #mpicksearch::placeholder, #keyinput::placeholder, #describegoal::placeholder{ color:#b7bfce; opacity:1 }
   .body .two{ display:flex; gap:.4rem } .body .two > *{ flex:1; min-width:0 }
   /* image upload / webcam panel */
@@ -685,7 +696,11 @@
   .modelpick{ width:100%; text-align:left; background:var(--panel2); border:1px solid var(--line); border-radius:.45rem;
               padding:.35rem .5rem; font-size:.8rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
   .modelpick:hover{ border-color:var(--accent) }
-  .mprice{ font-family:ui-monospace,monospace; font-size:.68rem; color:var(--dim); margin-top:.2rem; min-height:.8rem }
+  /* MODEL label left, price right on one row — the price recedes instead of reading like debug output */
+  .mhead{ display:flex; align-items:baseline; justify-content:space-between; gap:.5rem }
+  .mhead label{ margin-bottom:.15rem }
+  .mprice{ font-family:ui-monospace,monospace; font-size:.7rem; color:var(--muted); text-align:right;
+           white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-height:.8rem }
 
   /* ---------- app action: primary "Create/Update app" + a caret split-button that reveals "Save as a new app" ---------- */
   #appmenu{ position:relative; display:inline-flex; align-items:stretch }
@@ -3580,9 +3595,8 @@ function audioInputPart(url){
 
 /* one model-row in a node body — a button that opens the shared picker */
 function modelFieldHTML(node){
-  return `<div><label>model</label>
-    <button class="modelpick" type="button">${esc(node.fields.model||t("pick a model…"))} ▾</button>
-    <div class="mprice" data-mp></div></div>`;
+  return `<div><div class="mhead"><label>model</label><span class="mprice" data-mp></span></div>
+    <button class="modelpick" type="button">${esc(node.fields.model||t("pick a model…"))} ▾</button></div>`;
 }
 function updateNodePrice(n){
   const t = NODE_TYPES[n.type]; if(!t.modelKind || !n.el) return;
@@ -4486,7 +4500,7 @@ const NODE_TYPES = {
       ${modelFieldHTML(n)}
       <div data-dims></div>
       <div><label>prompt</label><textarea data-f="prompt" placeholder="a red panda astronaut…">${esc(n.fields.prompt||"")}</textarea></div>
-      <div><label>seed <span class="dim">· blank = random, fix to repeat (re-run won't regenerate)</span></label><input type="number" data-f="seed" placeholder="random" value="${esc(n.fields.seed??"")}"/></div>
+      <div><label>seed <span class="dim lblhint">· blank = random, fix to repeat (re-run won't regenerate)</span></label><input type="number" data-f="seed" placeholder="random" value="${esc(n.fields.seed??"")}"/></div>
       <div data-loraparams></div>`,
     async run(n, inp, ctx){
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
@@ -4544,7 +4558,7 @@ const NODE_TYPES = {
       ${modelFieldHTML(n)}
       <div data-dims></div>
       <div><label>edit instruction</label><textarea data-f="prompt" placeholder="make it night-time, add neon…">${esc(n.fields.prompt||"")}</textarea></div>
-      <div><label>seed <span class="dim">· blank = random, fix to repeat (re-run won't regenerate)</span></label><input type="number" data-f="seed" placeholder="random" value="${esc(n.fields.seed??"")}"/></div>
+      <div><label>seed <span class="dim lblhint">· blank = random, fix to repeat (re-run won't regenerate)</span></label><input type="number" data-f="seed" placeholder="random" value="${esc(n.fields.seed??"")}"/></div>
       <div data-loraparams></div>`,
     async run(n, inp, ctx){
       let imgs = collectImageInputs(inp, n);   // wired source images, in port order (image, image2, …)
@@ -4609,7 +4623,7 @@ const NODE_TYPES = {
       ${maskCtrls}
       <div><label>size</label><select data-f="size">${optsHTML(SIZES, n.fields.size||SIZES[0][0])}</select></div>
       <div><label>what to paint in</label><textarea data-f="prompt" placeholder="a red coffee mug, a small bird…">${esc(n.fields.prompt||"")}</textarea></div>
-      <div><label>seed <span class="dim">· blank = random, fix to repeat (re-run won't regenerate)</span></label><input type="number" data-f="seed" placeholder="random" value="${esc(n.fields.seed??"")}"/></div>
+      <div><label>seed <span class="dim lblhint">· blank = random, fix to repeat (re-run won't regenerate)</span></label><input type="number" data-f="seed" placeholder="random" value="${esc(n.fields.seed??"")}"/></div>
       <div data-loraparams></div>`;   // 🎨 LoRA box (model-gated: only p-image/edit-lora carries lora_weights; strong style LoRAs restyle broadly, not just the brushed area)
     },
     mount: mountInpaint,
@@ -5261,6 +5275,14 @@ function addFieldPorts(n){
     Object.assign(port.dataset, { node:n.id, port:field, dir:"in", ptype:"text" });
     port.addEventListener("pointerdown", e=> startWire(port, e));
     wrap.insertBefore(port, wrap.firstChild);
+    // ...and a hidden one-line "connected" chip: refreshPortFills reveals it (and hides the
+    // textarea) while the field is wired. Created here — the only place createElement is allowed
+    // (refreshPortFills runs against a DOM-less fake document in scripts/check-editor-ports.mjs).
+    if(!wrap.querySelector(":scope > .wire-chip")){
+      const chip = document.createElement("span");
+      chip.className = "wire-chip"; chip.hidden = true;
+      ta.insertAdjacentElement("afterend", chip);   // sits where the textarea was — below the field's label
+    }
   });
 }
 
@@ -5790,14 +5812,34 @@ function removeLink(id){
 }
 function refreshPortFills(){
   document.querySelectorAll(".port").forEach(p=> p.classList.remove("filled"));
-  document.querySelectorAll("textarea.wired").forEach(ta=>{ ta.classList.remove("wired"); ta.disabled=false; });
+  document.querySelectorAll("textarea.wired").forEach(ta=>{ ta.classList.remove("wired"); ta.disabled=false; ta.hidden=false; });
+  // collapse-reset: any field that WAS wired returns to its textarea; every source chip re-hides.
+  // (re-populated below for still-live links, so this stays idempotent across the many re-runs)
+  document.querySelectorAll("textarea[hidden]").forEach(ta=>{ ta.hidden=false; });
+  document.querySelectorAll(".wire-chip").forEach(ch=>{ ch.hidden=true; });
   for(const l of graph.links){
     document.querySelector(`.port[data-node="${l.to.node}"][data-port="${l.to.port}"][data-dir="in"]`)?.classList.add("filled");
     document.querySelector(`.port[data-node="${l.from.node}"][data-port="${l.from.port}"][data-dir="out"]`)?.classList.add("filled");
     // a wired text field is driven by the connection — lock its textarea
     const fp = document.querySelector(`.fieldport[data-node="${l.to.node}"][data-port="${l.to.port}"]`);
     const ta = fp?.parentElement.querySelector("textarea[data-f],textarea[data-pf]");
-    if(ta){ ta.classList.add("wired"); ta.disabled=true; }
+    if(ta){
+      ta.classList.add("wired"); ta.disabled=true;
+      // collapse the wired textarea into a one-line chip naming its source. The chip is created
+      // in addFieldPorts (real DOM only); it's absent in the check-editor-ports fake DOM → guard.
+      const chip = ta.parentElement.querySelector(".wire-chip");
+      if(chip){
+        const src = byId(l.from.node);
+        const name = (src && (src.name?.trim() || (NODE_TYPES[src.type] && NODE_TYPES[src.type].title))) || "source";
+        let preview = "";
+        if(src && src.fields && typeof src.fields.text==="string" && src.fields.text.trim()){
+          preview = src.fields.text.replace(/\s+/g," ").trim();
+          if(preview.length>42) preview = preview.slice(0,42)+"…";
+        }
+        chip.innerHTML = "⚡ from <b>"+esc(name)+"</b>" + (preview ? ': "'+esc(preview)+'"' : "");
+        chip.hidden=false; ta.hidden=true;
+      }
+    }
   }
 }
 
