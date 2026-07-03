@@ -1257,6 +1257,7 @@ window.NoodleApp = (function () {
       if(opts.duration) body.duration = opts.duration;
       if(opts.aspect_ratio) body.aspect_ratio = opts.aspect_ratio;
       if(opts.resolution) body.resolution = opts.resolution;
+      if(opts.dims) Object.assign(body, opts.dims);        // per-model dimension params under their real wire names — wins over the legacy keys above
       if(imageDataUrl) body.imageDataUrl = imageDataUrl;
       if(opts.videoUrl) body.videoUrl = opts.videoUrl;
       if(opts.videoDataUrl) body.videoDataUrl = opts.videoDataUrl;
@@ -1967,7 +1968,7 @@ window.NoodleApp = (function () {
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         if(!prompt) throw new Error("no prompt");
         const url = await ctx.genVideo(mdl(n), prompt,
-          { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9", resolution:n.fields.resolution||"", lora:loraParams(n), extra:(n.fields.modelOpts||{}) }, null,
+          { dims:await videoDimParams(n), lora:loraParams(n), extra:(n.fields.modelOpts||{}) }, null,
           (st,ms)=> onProgress && onProgress("rendering video… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
         return { video: url };
       }
@@ -1979,7 +1980,7 @@ window.NoodleApp = (function () {
         if(!inp.image) throw new Error("no image input");
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         const url = await ctx.genVideo(mdl(n), prompt,
-          { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9", resolution:n.fields.resolution||"", lora:loraParams(n), extra:(n.fields.modelOpts||{}) }, inp.image,
+          { dims:await videoDimParams(n), lora:loraParams(n), extra:(n.fields.modelOpts||{}) }, inp.image,
           (st,ms)=> onProgress && onProgress("animating… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
         return { video: url };
       }
@@ -1991,9 +1992,7 @@ window.NoodleApp = (function () {
         if(!inp.video) throw new Error("no video input");
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         const vopts = await videoSourceOpts(inp.video); vopts.lora = loraParams(n); vopts.extra = (n.fields.modelOpts||{});
-        if(n.fields.resolution) vopts.resolution = n.fields.resolution;
-        if(n.fields.aspect) vopts.aspect_ratio = n.fields.aspect;
-        if(n.fields.duration) vopts.duration = n.fields.duration;
+        vopts.dims = await videoDimParams(n);   // resolution/aspect/duration under the model's real wire names (seconds/orientation for Sora/WAN)
         const url = await ctx.genVideo(mdl(n), prompt, vopts, null,
           (st,ms)=> onProgress && onProgress("processing video… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
         return { video: url };
@@ -2546,9 +2545,28 @@ window.NoodleApp = (function () {
     const p = (m.supported_parameters && m.supported_parameters.parameters) || {};
     const sel = (param)=> ((param&&param.options)||[]).filter(o=> o && o.value!=="" && o.value!=null)
       .map(o=> [String(o.value), o.label!=null?String(o.label):String(o.value)]);
-    const r = sel(p.resolution);   if(r.length) out.resolution = [["","model default"], ...r];
-    const a = sel(p.aspect_ratio); if(a.length) out.aspect = a;
-    const d = sel(p.duration);     if(d.length) out.duration = d;
+    const r = sel(p.resolution);                    if(r.length) out.resolution = [["","model default"], ...r];
+    const a = sel(p.aspect_ratio || p.orientation); if(a.length) out.aspect = a;    // Sora/WAN name it orientation (landscape/portrait)
+    const d = sel(p.duration || p.seconds);         if(d.length) out.duration = d;  // Sora names it seconds (4/8/12)
+    return out;
+  }
+  // Map a video node's stored dimension fields (resolution/aspect/duration) to the WIRE param names its
+  // model expects: aspect -> aspect_ratio OR orientation, duration -> duration OR seconds. Mirrors the
+  // editor's videoDimParams so an exported Sora/WAN video actually honours the chosen length/orientation
+  // instead of the model default. Catalog-driven (cached); an unreachable catalog falls back to the
+  // standard names + the model's declared default. No backticks (RUNTIME_JS is a String.raw template).
+  async function videoDimParams(n){
+    var out = {}, m = null;
+    try{ m = await rawCatItem("video", n.fields.model); }catch(e){}
+    var p = (m && m.supported_parameters && m.supported_parameters.parameters) || {};
+    var aP = p.aspect_ratio || p.orientation, aWire = p.aspect_ratio ? "aspect_ratio" : (p.orientation ? "orientation" : "aspect_ratio");
+    var dP = p.duration || p.seconds,         dWire = p.duration ? "duration" : (p.seconds ? "seconds" : "duration");
+    var res = n.fields.resolution, asp = n.fields.aspect, dur = n.fields.duration;
+    if((asp==null||asp==="") && aP && aP.default!=null) asp = aP.default;   // baked-in field should exist; catalog default is the safety net
+    if((dur==null||dur==="") && dP && dP.default!=null) dur = dP.default;
+    if(res!=null && res!=="") out.resolution = res;
+    if(asp!=null && asp!=="") out[aWire] = asp;
+    if(dur!=null && dur!=="") out[dWire] = dur;
     return out;
   }
   // Best-effort: rewrite each dimension <select> from the chosen model's live catalog options. Never

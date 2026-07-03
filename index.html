@@ -3894,14 +3894,31 @@ function dimDefs(type, model){
     const p = (catItem("video", model)||{}).params || {};
     const defs = [], soft = type!=="vedit";   // t2v/i2v always show aspect+duration; vedit only what the model lists
     const rOpts = selOpts(p.resolution);
-    if(rOpts.length) defs.push({ f:"resolution", label:"resolution", options:rOpts, def:paramDef(p.resolution, rOpts) });
-    const aOpts = selOpts(p.aspect_ratio);
-    if(aOpts.length || soft) defs.push({ f:"aspect", label:"aspect", options:(aOpts.length?aOpts:ASPECT_FALLBACK), def:paramDef(p.aspect_ratio, aOpts.length?aOpts:ASPECT_FALLBACK) });
-    const dOpts = selOpts(p.duration);
-    if(dOpts.length || soft) defs.push({ f:"duration", label:"duration", options:(dOpts.length?dOpts:DURATION_FALLBACK), def:paramDef(p.duration, dOpts.length?dOpts:DURATION_FALLBACK) });
+    if(rOpts.length) defs.push({ f:"resolution", wire:"resolution", label:"resolution", options:rOpts, def:paramDef(p.resolution, rOpts) });
+    // aspect dimension: most models name it aspect_ratio, but Sora/WAN-style models call it `orientation`
+    // (landscape/portrait) — same node field, different WIRE key so the model actually honours the choice.
+    const aParam = p.aspect_ratio || p.orientation, aWire = p.aspect_ratio ? "aspect_ratio" : (p.orientation ? "orientation" : "aspect_ratio");
+    const aOpts = selOpts(aParam);
+    if(aOpts.length || soft) defs.push({ f:"aspect", wire:aWire, label:"aspect", options:(aOpts.length?aOpts:ASPECT_FALLBACK), def:paramDef(aParam, aOpts.length?aOpts:ASPECT_FALLBACK) });
+    // duration dimension: most models name it duration, but Sora calls it `seconds` (4/8/12) — same field, real values.
+    const dParam = p.duration || p.seconds, dWire = p.duration ? "duration" : (p.seconds ? "seconds" : "duration");
+    const dOpts = selOpts(dParam);
+    if(dOpts.length || soft) defs.push({ f:"duration", wire:dWire, label:"duration", options:(dOpts.length?dOpts:DURATION_FALLBACK), def:paramDef(dParam, dOpts.length?dOpts:DURATION_FALLBACK) });
     return defs;
   }
   return [];
+}
+// Map a video node's stored dimension fields (resolution/aspect/duration) to the WIRE param names its
+// current model actually expects — aspect→aspect_ratio|orientation, duration→duration|seconds — from the
+// catalog (via dimDefs). Reuses the node's real default when a field is unset, so every video node kind
+// sends the params the model reads instead of a silently-ignored generic duration/aspect_ratio.
+function videoDimParams(n){
+  const out = {};
+  for(const d of dimDefs(n.type, n.fields.model)){
+    const v = (n.fields[d.f]!=null && n.fields[d.f]!=="") ? n.fields[d.f] : d.def;
+    if(v!=null && v!=="") out[d.wire] = v;
+  }
+  return out;
 }
 // rebuild the size/duration/aspect/resolution controls for a node from its current model
 function refreshDims(n){
@@ -4557,7 +4574,7 @@ const NODE_TYPES = {
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       if(!prompt) throw new Error("no prompt — describe the video to generate");
       const url = await ctx.genVideo(mdl(n), prompt,
-        { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9", resolution:n.fields.resolution||"", lora:loraParams(n), extra:(n.fields.modelOpts||{}), runKey:n.id }, null,
+        { dims:videoDimParams(n), lora:loraParams(n), extra:(n.fields.modelOpts||{}), runKey:n.id }, null,
         (st,ms)=> setNodeProgress(n, `${t("rendering video…")} ${Math.round(ms/1000)}s · ${st.toLowerCase()}`));
       return { video: url };
     }
@@ -4578,7 +4595,7 @@ const NODE_TYPES = {
       if(!inp.image) throw new Error("no image — wire an image into the image port");
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       const url = await ctx.genVideo(mdl(n), prompt,
-        { duration:n.fields.duration||"5", aspect_ratio:n.fields.aspect||"16:9", resolution:n.fields.resolution||"", lora:loraParams(n), extra:(n.fields.modelOpts||{}), runKey:n.id }, inp.image,
+        { dims:videoDimParams(n), lora:loraParams(n), extra:(n.fields.modelOpts||{}), runKey:n.id }, inp.image,
         (st,ms)=> setNodeProgress(n, `${t("animating…")} ${Math.round(ms/1000)}s · ${st.toLowerCase()}`));
       return { video: url };
     }
@@ -4599,9 +4616,7 @@ const NODE_TYPES = {
       if(!inp.video) throw new Error("no video — wire a video into the video port");
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       const opts = await videoSourceOpts(inp.video); opts.lora = loraParams(n); opts.extra = (n.fields.modelOpts||{}); opts.runKey = n.id;
-      if(n.fields.resolution) opts.resolution = n.fields.resolution;
-      if(n.fields.aspect) opts.aspect_ratio = n.fields.aspect;
-      if(n.fields.duration) opts.duration = n.fields.duration;
+      opts.dims = videoDimParams(n);   // resolution/aspect/duration under the model's real wire names (seconds/orientation for Sora/WAN)
       const url = await ctx.genVideo(mdl(n), prompt, opts, null,
         (st,ms)=> setNodeProgress(n, `processing video… ${Math.round(ms/1000)}s · ${st.toLowerCase()}`));
       return { video: url };
@@ -6526,6 +6541,7 @@ const CTX = {
     if(opts.duration) body.duration = opts.duration;
     if(opts.aspect_ratio) body.aspect_ratio = opts.aspect_ratio;
     if(opts.resolution) body.resolution = opts.resolution;
+    if(opts.dims) Object.assign(body, opts.dims);        // per-model dimension params under their real wire names (resolution/aspect_ratio|orientation/duration|seconds) — wins over the legacy keys above
     if(imageDataUrl) body.imageDataUrl = imageDataUrl;
     if(opts.videoUrl) body.videoUrl = opts.videoUrl;
     if(opts.videoDataUrl) body.videoDataUrl = opts.videoDataUrl;
