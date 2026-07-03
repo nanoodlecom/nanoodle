@@ -4665,9 +4665,9 @@ const NODE_TYPES = {
     }
   },
 
-  // A free-text sticky note for labelling the graph. Purely an editor annotation:
-  // note:true → no ports, no run(), excluded from the run engine and quick-add, and
-  // dropped by play.html's materialize() (unknown type) so it never touches exported apps.
+  // A free-text sticky note for labelling the graph. note:true → no ports, no run(),
+  // excluded from the run engine and quick-add. play.html keeps the node and renders
+  // the note above the inputs, but it stays out of the run engine there too.
   comment: {
     em:"💬", title:"Comment", desc:"A sticky note to label your graph", group:"Notes",
     kw:"note sticky annotation label describe remark memo",
