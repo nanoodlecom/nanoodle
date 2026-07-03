@@ -89,12 +89,20 @@ function scriptAwareDocument(ctx) {
 // ---- recording fetch: no network, canned NanoGPT responses ----------------
 // Shared `calls` log; a caller resets it with `calls.length = 0` before a run.
 export const calls = [];
+// Seedable model catalogs (default empty → identical to no-catalog behavior). A capability test seeds
+// `catalog.chat = [{ id, capabilities:{…} }]` before a run so the engine's catalog-driven gates
+// (chatModelCan / rawCatItem) see real flags for the model ids it drives.
+export const catalog = { chat: [], image: [], video: [], audio: [] };
 export function recordingFetch(url, opts = {}) {
   let body = null;
   try { body = opts.body ? JSON.parse(opts.body) : null; } catch { body = opts.body; }
   calls.push({ url: String(url), body });
   let json = {};
   if (/\/chat\/completions/.test(url)) json = { choices: [{ message: { content: "CHAT_REPLY", reasoning: "THINK_TRACE" } }] };
+  else if (/\/api\/v1\/models/.test(url)) json = { data: catalog.chat };
+  else if (/\/api\/v1\/image-models/.test(url)) json = { data: catalog.image };
+  else if (/\/api\/v1\/video-models/.test(url)) json = { data: catalog.video };
+  else if (/\/api\/v1\/audio-models/.test(url)) json = { data: catalog.audio };
   else if (/\/images\/generations/.test(url)) {
     // honor the requested batch size so a variations=N graph gets N images back (the real API does this)
     const cnt = Math.max(1, (body && Number(body.n)) || 1);

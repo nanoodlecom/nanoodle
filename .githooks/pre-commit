@@ -18,6 +18,8 @@ touches_sw=$(printf '%s\n' "$staged" | grep -E '(^|/)(sw\.js|scripts/check-sw-ro
 touches_compat=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-workflow-compat\.mjs)$' || true)
 # play.html carries the run engine — old workflows must keep producing identical NanoGPT calls.
 touches_run=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-run-compat\.mjs)$' || true)
+# play.html's exported LLM node must gate response_format / input_audio by the model's real capability.
+touches_llmgate=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-llm-capability-gates\.mjs|scripts/play-engine\.mjs)$' || true)
 # play.html carries the deterministic-skip cache (fixed-seed reuse + keep-mode hot-loop guard).
 touches_seedcache=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-seed-cache\.mjs)$' || true)
 # index.html carries the editor's dynamic image-input port logic (growth, compaction).
@@ -97,6 +99,13 @@ fi
 #    of graphs (+ the shipped noodle-graph.json) with a recording fetch.
 if [ -n "$touches_run" ]; then
   node "$root/scripts/check-run-compat.mjs"
+fi
+
+# 6a) exported-app LLM capability gating: a JSON output-format on a non-structured model, or a wired
+#     audio clip on a text-only model, must be stripped from the PAYLOAD (not just the UI) so an exported
+#     graph can't bill for a request the model returns empty / can't hear. Catalog-driven, permissive offline.
+if [ -n "$touches_llmgate" ]; then
+  node "$root/scripts/check-llm-capability-gates.mjs"
 fi
 
 # 6b) the deterministic-skip cache: a fixed-seed node reuses its output (no re-charge), a frozen

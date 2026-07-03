@@ -1086,6 +1086,17 @@ window.NoodleApp = (function () {
     return o;
   }
 
+  // Chat-model capability probe (catalog-driven, permissive on unknown/offline). Mirrors the editor's
+  // modelSupportsAudio + refreshLlmOpts structured_output gate: returns true for a typed-in or
+  // catalog-absent model so authored exports keep their behavior; only a KNOWN-incapable model has the
+  // gated knob/part stripped. Used to keep an exported graph from billing for a JSON request an
+  // incapable model returns empty, or a 32k-token audio part a text-only model can't hear.
+  // No backticks (RUNTIME_JS is a String.raw template).
+  async function chatModelCan(model, flag){
+    const m = await rawCatItem("chat", model);
+    return !m || !!((m.capabilities||{})[flag]);
+  }
+
   /* ---------- LoRA (image style adapters), verbatim behavior from index.html ----------
      HuggingFace + any direct .safetensors URL; the URL is forwarded to NanoGPT and
      pulled server-side (no CSP origins). CivitAI links are signed/login-gated, so we
@@ -1855,17 +1866,32 @@ window.NoodleApp = (function () {
     },
     llm: {
       em:"🧠", title:"LLM", inputs:[], imageInputs:"vision", audioInput:"audio_input", outputs:[{name:"text", type:"text"}],
-      async run(n, inp, ctx){
+      async run(n, inp, ctx, onProgress){
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         if(!prompt) throw new Error("no prompt");
+        const model = mdl(n);
         const imgs = collectImageInputs(inp);   // wired image ports (vision models) — sent alongside the prompt
-        const aud  = audioInputPart(inp.audio); // wired audio port (audio-input models) — one inline input_audio part
+        // Wired audio port: a text-only chat model can't hear the clip and NanoGPT still bills the (large
+        // ~32k-token) input_audio part, so drop it for a KNOWN text-only model and note it — mirrors the
+        // editor's modelSupportsAudio gate (permissive for typed-in/offline ids, so only a known-incapable
+        // model trips it).
+        let aud = null;
+        if(inp.audio){
+          if(await chatModelCan(model, "audio_input")) aud = audioInputPart(inp.audio);
+          else if(onProgress) onProgress("audio ignored — this model is text-only");
+        }
         const messages = [];
         if((n.fields.system||"").trim()) messages.push({role:"system", content:n.fields.system.trim()});
         messages.push((imgs.length || aud)
           ? { role:"user", content:[{type:"text", text:prompt}, ...imgs.map(url=>({type:"image_url", image_url:{url}})), ...(aud?[aud]:[])] }
           : { role:"user", content:prompt });
-        return { text: await ctx.genChat(messages, mdl(n), llmOpts(n)) };
+        // JSON output-format is only honored by structured_output models; on others response_format
+        // json_object returns empty content (finish_reason tool_calls) yet still bills, so strip the baked
+        // knob for a KNOWN-incapable model. The format can be baked into an exported graph or the model
+        // swapped after authoring, so this gates the PAYLOAD, not just the (already capability-gated) UI.
+        const opts = llmOpts(n);
+        if(opts.response_format && !(await chatModelCan(model, "structured_output"))) delete opts.response_format;
+        return { text: await ctx.genChat(messages, model, opts) };
       }
     },
     image: {
