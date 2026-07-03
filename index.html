@@ -1429,6 +1429,7 @@ const I18N = {
     "share failed":"error al compartir",
     "shorten failed":"error al acortar",
     "audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).":"audio ignorado — este modelo es solo de texto. Elige un modelo con entrada de audio (por ejemplo, un Gemini).",
+    "dropped {n} reference image(s) over this model's limit of {max}":"se descartaron {n} imagen(es) de referencia por encima del límite de {max} de este modelo",
     "can’t delete while running — Stop first":"no se puede eliminar mientras se ejecuta — detén primero",
     "couldn’t read that file":"no se pudo leer ese archivo",
     "stopping…":"deteniendo…",
@@ -1842,6 +1843,7 @@ const I18N = {
     "share failed":"échec du partage",
     "shorten failed":"échec du raccourcissement",
     "audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).":"audio ignoré — ce modèle est uniquement textuel. Choisissez un modèle avec entrée audio (par ex. un Gemini).",
+    "dropped {n} reference image(s) over this model's limit of {max}":"{n} image(s) de référence ignorée(s) — au-delà de la limite de {max} de ce modèle",
     "can’t delete while running — Stop first":"impossible de supprimer pendant l'exécution — arrêtez d'abord",
     "couldn’t read that file":"impossible de lire ce fichier",
     "stopping…":"arrêt…",
@@ -2255,6 +2257,7 @@ const I18N = {
     "share failed":"Teilen fehlgeschlagen",
     "shorten failed":"Kürzen fehlgeschlagen",
     "audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).":"Audio ignoriert — dieses Modell ist reiner Text. Wähle ein Modell mit Audio-Eingabe (z. B. ein Gemini).",
+    "dropped {n} reference image(s) over this model's limit of {max}":"{n} Referenzbild(er) verworfen — über dem Limit von {max} dieses Modells",
     "can’t delete while running — Stop first":"kann nicht löschen, während es läuft — zuerst stoppen",
     "couldn’t read that file":"diese Datei konnte nicht gelesen werden",
     "stopping…":"wird gestoppt…",
@@ -2668,6 +2671,7 @@ const I18N = {
     "share failed":"falha ao compartilhar",
     "shorten failed":"falha ao encurtar",
     "audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).":"áudio ignorado — este modelo é somente texto. Escolha um modelo com entrada de áudio (por exemplo, um Gemini).",
+    "dropped {n} reference image(s) over this model's limit of {max}":"{n} imagem(ns) de referência descartada(s) — acima do limite de {max} deste modelo",
     "can’t delete while running — Stop first":"não é possível excluir durante a execução — pare primeiro",
     "couldn’t read that file":"não foi possível ler esse arquivo",
     "stopping…":"parando…",
@@ -3081,6 +3085,7 @@ const I18N = {
     "share failed":"共有に失敗",
     "shorten failed":"短縮に失敗しました",
     "audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).":"音声は無視されました — このモデルはテキスト専用です。音声入力に対応したモデル（Geminiなど）を選んでください。",
+    "dropped {n} reference image(s) over this model's limit of {max}":"参照画像を{n}枚破棄しました — このモデルの上限は{max}枚です",
     "can’t delete while running — Stop first":"実行中は削除できません — 先に停止してください",
     "couldn’t read that file":"そのファイルを読み込めませんでした",
     "stopping…":"停止中…",
@@ -4473,8 +4478,17 @@ const NODE_TYPES = {
       <div><label>seed <span class="dim">· blank = random, fix to repeat (re-run won't regenerate)</span></label><input type="number" data-f="seed" placeholder="random" value="${esc(n.fields.seed??"")}"/></div>
       <div data-loraparams></div>`,
     async run(n, inp, ctx){
-      const imgs = collectImageInputs(inp, n);   // wired source images, in port order (image, image2, …)
+      let imgs = collectImageInputs(inp, n);   // wired source images, in port order (image, image2, …)
       if(!imgs.length) throw new Error("no image — wire an image into the image port");
+      // A model downgrade hides the ports past its max_input_images (imageInputDefs caps what's
+      // RENDERED) but leaves their LINKS, which still collect here — cap the send so we never post
+      // more references than the model composites (a paid call that errors/misbehaves). imgSpec.cap
+      // is the same maxIn the ports are drawn from, so the send matches the UI. No cap → unchanged.
+      const cap = imgSpec(n).cap;
+      if(imgs.length > cap){
+        toast(t("dropped {n} reference image(s) over this model's limit of {max}").replace("{n}", imgs.length-cap).replace("{max}", cap), "warn");
+        imgs = imgs.slice(0, cap);
+      }
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       if(!prompt) throw new Error("no edit instruction — describe the change to make");
       // N inlined refs add up fast — refuse before any paid call (mirrors the inpaint guard)

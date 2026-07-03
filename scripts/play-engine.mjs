@@ -91,7 +91,8 @@ function scriptAwareDocument(ctx) {
 export const calls = [];
 // Seedable model catalogs (default empty → identical to no-catalog behavior). A capability test seeds
 // `catalog.chat = [{ id, capabilities:{…} }]` before a run so the engine's catalog-driven gates
-// (chatModelCan / rawCatItem) see real flags for the model ids it drives.
+// (chatModelCan / rawCatItem) see real flags for the model ids it drives. The edit node's
+// max_input_images cap reads catalog.image the same way — seed it to exercise the send-cap.
 export const catalog = { chat: [], image: [], video: [], audio: [] };
 export function recordingFetch(url, opts = {}) {
   let body = null;
