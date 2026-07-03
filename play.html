@@ -526,13 +526,14 @@ function translateTreeB(root){
 function mountLangPickerB(){
   if(document.getElementById("langbtn-b")) return;
   const bar=document.getElementById("bar"); if(!bar) return;
-  const wrap=document.createElement("span"); wrap.id="langbtn-b"; wrap.style.cssText="display:inline-flex;align-items:center;gap:.25rem;margin-left:.3rem;border:1px solid var(--line,#2a3150);border-radius:.4rem;padding:.1rem .35rem;color:var(--dim,#8b93b4);";
+  const wrap=document.createElement("span"); wrap.id="langbtn-b"; wrap.style.cssText="display:inline-flex;align-items:center;gap:.25rem;margin-left:.3rem;background:var(--panel,#161a27);border:1px solid var(--line,#2a3150);border-radius:.4rem;padding:.1rem .35rem;color:var(--dim,#8b93b4);";
   const gl=document.createElement("span"); gl.textContent="🌐"; gl.setAttribute("aria-hidden","true"); gl.style.cssText="font-size:.85rem;line-height:1;";
   const sel=document.createElement("select");
   sel.setAttribute("aria-label", tB("Language"));
   sel.title = tB("Language");
-  sel.style.cssText="font:inherit;font-size:.8rem;background:transparent;color:inherit;border:0;padding:0;cursor:pointer;";
-  PLAY_B_LANGS.forEach(c=>{ const o=document.createElement("option"); o.value=c; o.textContent=PLAY_B_ENDONYM[c]; o.setAttribute("data-no-i18n",""); if(c===LANG_B) o.selected=true; sel.appendChild(o); });
+  // Solid dark background so the native option-list popup renders dark, not the OS white default.
+  sel.style.cssText="font:inherit;font-size:.8rem;background:var(--panel,#161a27);color:var(--ink,#e6e9f5);border:0;padding:0;cursor:pointer;";
+  PLAY_B_LANGS.forEach(c=>{ const o=document.createElement("option"); o.value=c; o.textContent=PLAY_B_ENDONYM[c]; o.setAttribute("data-no-i18n",""); o.style.background="var(--panel,#161a27)"; o.style.color="var(--ink,#e6e9f5)"; if(c===LANG_B) o.selected=true; sel.appendChild(o); });
   sel.addEventListener("change", ()=>{ try{ localStorage.setItem("noodle_lang", sel.value); }catch(e){} location.reload(); });
   wrap.appendChild(gl); wrap.appendChild(sel);
   const grow=bar.querySelector(".grow"); if(grow&&grow.parentNode) grow.parentNode.insertBefore(wrap, grow); else bar.appendChild(wrap);
@@ -700,13 +701,14 @@ window.NoodleApp = (function () {
   function mountLangPicker(){
     if(EMBEDDED || document.getElementById("noodle-lang")) return;
     const wrap=document.createElement("div"); wrap.id="noodle-lang";
-    wrap.style.cssText="position:fixed;top:.5rem;right:.6rem;z-index:9;font-size:.74rem;opacity:.75;display:inline-flex;align-items:center;gap:.25rem;background:rgba(20,24,38,.75);border:1px solid var(--line,#2a3150);border-radius:.4rem;padding:.12rem .35rem;color:var(--dim,#8b93b4);";
+    wrap.style.cssText="position:fixed;top:.5rem;right:.6rem;z-index:9;font-size:.74rem;opacity:.9;display:inline-flex;align-items:center;gap:.25rem;background:var(--panel,#161a27);border:1px solid var(--line,#2a3150);border-radius:.4rem;padding:.12rem .35rem;color:var(--dim,#8b93b4);";
     const gl=document.createElement("span"); gl.textContent="🌐"; gl.setAttribute("aria-hidden","true"); gl.style.cssText="line-height:1;";
     const sel=document.createElement("select");
     sel.setAttribute("aria-label", t("Language"));
     sel.title = t("Language");
-    sel.style.cssText="font:inherit;background:transparent;color:inherit;border:0;padding:0;cursor:pointer;";
-    PLAY_LANGS.forEach(c=>{ const o=document.createElement("option"); o.value=c; o.textContent=PLAY_ENDONYM[c]; o.setAttribute("data-no-i18n",""); if(c===LANG) o.selected=true; sel.appendChild(o); });
+    // Solid dark background so the native option-list popup renders dark, not the OS white default.
+    sel.style.cssText="font:inherit;background:var(--panel,#161a27);color:var(--ink,#e6e9f5);border:0;padding:0;cursor:pointer;";
+    PLAY_LANGS.forEach(c=>{ const o=document.createElement("option"); o.value=c; o.textContent=PLAY_ENDONYM[c]; o.setAttribute("data-no-i18n",""); o.style.background="var(--panel,#161a27)"; o.style.color="var(--ink,#e6e9f5)"; if(c===LANG) o.selected=true; sel.appendChild(o); });
     sel.addEventListener("change", ()=>{ try{ localStorage.setItem("noodle_lang", sel.value); }catch(e){} location.reload(); });
     wrap.appendChild(gl); wrap.appendChild(sel); document.body.appendChild(wrap);
   }
