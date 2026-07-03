@@ -2494,6 +2494,8 @@ function mp4ParamsMatch(bufs){
             }
             try{ opts = { audioDataUrl: await urlToDataUrl(tmp) }; } finally { URL.revokeObjectURL(tmp); }
           } else opts = await audioSourceOpts(inp.audio);
+          opts.dims = await videoDimParams(n);      // resolution the avatar model supports (+ any duration/aspect it lists), under its real wire names
+          opts.extra = (n.fields.modelOpts||{});    // per-model knobs baked in from the editor (seed/guidance_scale/…)
           try{
             return { video: await ctx.genVideo(mdl(n), prompt, opts, inp.image, prog) };
           }catch(e){
@@ -2503,7 +2505,11 @@ function mp4ParamsMatch(bufs){
             if(cap && /INVALID_AUDIO_DURATION|audio.{0,15}duration/i.test(msg))
               trimSec = Math.min(60, Math.max(1, parseFloat(cap[1]) - 0.1));
             else if(/\blarge\b|MEDIA_INLINE|~4 MB|inline/i.test(msg))
-              trimSec = 30;
+              trimSec = 15;      // oversize local clip → safe default (aligned with the editor; a 30s guess can re-trip a 30s-cap avatar)
+            // a multi-speaker avatar (left_audio/right_audio) baked into this app reached the API — these are
+            // filtered out of the model picker, but a hand-edited graph could still name one. Explain the fix.
+            else if(/left.{0,6}audio|right.{0,6}audio|left and right/i.test(msg))
+              throw new Error("This avatar model needs two separate audio tracks (multi-speaker). Pick a single-speaker avatar model in the model dropdown.");
             else throw e;
           }
         }
@@ -2850,7 +2856,8 @@ function mp4ParamsMatch(bufs){
               { f:"prompt", label:"Edit instruction", kind:"textarea" },
               { f:"resolution", label:"Resolution", kind:"select", options:RESOLUTIONS, def:"" }],
     lipsync: [{ f:"model", label:"Model", kind:"model" },
-              { f:"prompt", label:"Guidance prompt", kind:"textarea" }],
+              { f:"prompt", label:"Guidance prompt", kind:"textarea" },
+              { f:"resolution", label:"Resolution", kind:"select", options:RESOLUTIONS, def:"" }],
     music:   [{ f:"model", label:"Model", kind:"model" },
               { f:"lyrics", label:"Lyrics", kind:"textarea" },
               { f:"instrumental", label:"Instrumental", kind:"boolean" },
@@ -2924,7 +2931,9 @@ function mp4ParamsMatch(bufs){
       case "tvideo":     { const im = mod.split("->")[0].split("+"); return !!c.text_to_video && !(im.includes("video") && !im.includes("image")); }   // edit/extend models are mislabeled text_to_video but demand a source video
       case "ivideo":     return !!c.image_to_video;
       case "vedit":      return !!c.video_to_video;
-      case "lipsync":    return !!c.image_to_video && !!c.audio_input;
+      case "lipsync":    { const sp = m.supported_parameters||{}, pp = sp.parameters||sp;
+                           const multiAudio = "left_audio" in pp || "right_audio" in pp;   // multi-speaker avatars need two tracks — the single audio input can't drive them (mirrors the editor's normVideo)
+                           return !!c.image_to_video && !!c.audio_input && !multiAudio; }
       case "tts":        return !!c.text_to_speech || m.category==="audio_tts";
       case "music":      return mod.startsWith("text") && /audio|music/.test(out) && !(c.text_to_speech || m.category==="audio_tts");
       case "transcribe": return (!!c.speech_to_text || m.category==="audio_stt") && !/clone/i.test(m.id||"");

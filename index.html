@@ -3728,7 +3728,7 @@ async function audioRun(n, inp, ctx){
    forwards that object, so exports need no catalog. This surfaces only CREATIVE/behavioral knobs:
    the node owns size/length/aspect — and those drive price (per_second_by_resolution), shown on
    the node — so re-exposing them here would silently change the bill. lora_* is the LoRA box. */
-const VIDEO_OPT_NODES = { tvideo:1, ivideo:1, vedit:1 };
+const VIDEO_OPT_NODES = { tvideo:1, ivideo:1, vedit:1, lipsync:1 };
 // size/length/aspect/fps: node-owned and/or price-affecting — never auto-surfaced as a "knob"
 const PRICE_OR_DIM_PARAM = /^(duration|seconds|aspect_ratio|resolution|resolution_ratio|size|orientation|fps|frames_per_second|num_frames)$/;
 // free-text/number params that are really URLs, media references, or JSON lists — they need real
@@ -3882,7 +3882,7 @@ function llmOpts(n){
 const SIZE_FALLBACK     = SIZES;                                       // [[value,label],…]
 const ASPECT_FALLBACK   = [["16:9","16:9"],["9:16","9:16"],["1:1","1:1"]];
 const DURATION_FALLBACK = [["5","5 sec"],["10","10 sec"]];
-const DIM_NODES = { image:1, edit:1, tvideo:1, ivideo:1, vedit:1 };
+const DIM_NODES = { image:1, edit:1, tvideo:1, ivideo:1, vedit:1, lipsync:1 };
 // a catalog select param → [[value,label],…] (real options only)
 function selOpts(param){
   return ((param&&param.options)||[]).filter(o=> o && o.value!=="" && o.value!=null)
@@ -3902,9 +3902,11 @@ function dimDefs(type, model){
     }
     return defs;
   }
-  if(type==="tvideo" || type==="ivideo" || type==="vedit"){
+  if(type==="tvideo" || type==="ivideo" || type==="vedit" || type==="lipsync"){
     const p = (catItem("video", model)||{}).params || {};
-    const defs = [], soft = type!=="vedit";   // t2v/i2v always show aspect+duration; vedit only what the model lists
+    // t2v/i2v always show aspect+duration; vedit + lipsync (avatar) show only what the model lists —
+    // an avatar's output length is driven by the source audio, so never inject a soft duration/aspect it'd ignore.
+    const defs = [], soft = type!=="vedit" && type!=="lipsync";
     const rOpts = selOpts(p.resolution);
     if(rOpts.length) defs.push({ f:"resolution", wire:"resolution", label:"resolution", options:rOpts, def:paramDef(p.resolution, rOpts) });
     // aspect dimension: most models name it aspect_ratio, but Sora/WAN-style models call it `orientation`
@@ -4763,7 +4765,9 @@ const NODE_TYPES = {
     outputs:[{name:"video", type:"video"}], preview:"video",
     body:(n)=>`
       ${modelFieldHTML(n)}
-      <div><label>prompt (optional)</label><textarea data-f="prompt" placeholder="subtle head movement, warm lighting…">${esc(n.fields.prompt||"")}</textarea></div>`,
+      <div data-dims></div>
+      <div><label>prompt (optional)</label><textarea data-f="prompt" placeholder="subtle head movement, warm lighting…">${esc(n.fields.prompt||"")}</textarea></div>
+      <div data-modelopts></div>`,
     async run(n, inp, ctx){
       if(!inp.image) throw new Error("no image — wire an image into the image port");
       if(!inp.audio) throw new Error("no audio — wire an audio clip into the audio port");
@@ -4790,6 +4794,8 @@ const NODE_TYPES = {
           try{ opts = { audioDataUrl: await urlToDataUrl(tmp) }; } finally { URL.revokeObjectURL(tmp); }
         } else opts = await audioSourceOpts(inp.audio);
         opts.runKey = n.id;
+        opts.dims = videoDimParams(n);            // resolution (+ any duration/aspect the avatar model lists) under its real wire names
+        opts.extra = (n.fields.modelOpts||{});    // per-model ⚙️ knobs (seed/guidance_scale/num_inference_steps/…)
         try{
           return { video: await ctx.genVideo(mdl(n), prompt, opts, inp.image, prog) };
         }catch(e){
