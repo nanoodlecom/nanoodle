@@ -1028,6 +1028,13 @@ window.NoodleApp = (function () {
     const lo=_num(p.min_duration), hi=_num(p.max_duration);
     return Math.min(hi!=null?hi:d, Math.max(lo!=null?lo:d, d));
   }
+  // Songs the run is billed for. Only >1 when the model advertises a generation_count_parameter
+  // (collectAudioParams gates the SEND on the same signal); otherwise the count is dropped and one song
+  // is made, so a stale number_of_songs must not inflate the estimate. Mirrors the editor's audioBilledSongs.
+  function audioBilledSongs(sp, fields){
+    if(!(sp && sp.generation_count_parameter)) return 1;
+    return Math.max(1, parseInt((fields||{}).number_of_songs,10)||1);
+  }
   function imageUsd(pricing, size, count){
     const per = (pricing && pricing.per_image) || {};
     const v = per[size] ?? per.square ?? per.square_hd ?? Object.values(per)[0];
@@ -1049,7 +1056,7 @@ window.NoodleApp = (function () {
     if(kind==="audio"){ const chars = n.type==="transcribe" ? undefined : ((f.prompt||"").length || EST.ttsChars);
       const secs = audioBilledSeconds(m.supported_parameters, f);   // per_second music meters off the chosen duration, not a fixed 30s
       const u = audioUnitUsd(pricing, chars, secs); if(u==null) return null;
-      const songs = Math.max(1, parseInt(f.number_of_songs,10)||1);   // music models bill per song
+      const songs = audioBilledSongs(m.supported_parameters, f);   // >1 only when the model advertises a generation count (matches collectAudioParams' send-gate)
       return u*songs; }
     return null;
   }

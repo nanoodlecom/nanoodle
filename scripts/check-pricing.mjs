@@ -33,7 +33,7 @@ function loadResolver(file, endMarker){
   const block = html.slice(start, end);
   const sandbox = {};
   vm.createContext(sandbox);
-  vm.runInContext(block + "\nthis.videoUnitUsd=videoUnitUsd; this.chatUnitUsd=chatUnitUsd; this.audioUnitUsd=audioUnitUsd; this.audioBilledSeconds=audioBilledSeconds;", sandbox);
+  vm.runInContext(block + "\nthis.videoUnitUsd=videoUnitUsd; this.chatUnitUsd=chatUnitUsd; this.audioUnitUsd=audioUnitUsd; this.audioBilledSeconds=audioBilledSeconds; this.audioBilledSongs=audioBilledSongs;", sandbox);
   return sandbox;
 }
 
@@ -66,12 +66,25 @@ for(const eng of ENGINES){
         bad("audioDuration", f.id, `${f.shape} @ duration=${JSON.stringify(c.duration)}`, `${v} (expected ${c.expect})`);
     }
   }
+
+  // Generation-count multiplier (PR #186 follow-up): number_of_songs multiplies the estimate ONLY when
+  // the model advertises a generation_count_parameter — the same catalog signal collectAudioParams gates
+  // the SEND on. A model without it (e.g. ACE-Step) drops a stale count from the request and makes ONE
+  // song, so the "~$X to run" chip must NOT show 3× the price. Both engines must agree on the multiplier.
+  for(const f of fixtures.audioSongs || []){
+    for(const c of (f.cases || [])){
+      const songs = R.audioBilledSongs(f.params, { number_of_songs: c.number_of_songs });
+      if(songs !== c.expect)
+        bad("audioSongs", f.id, `${f.shape} @ number_of_songs=${JSON.stringify(c.number_of_songs)}`, `${songs}× (expected ${c.expect}×)`);
+    }
+  }
 }
 
 const durCases = (fixtures.audioDuration||[]).reduce((n,f)=> n + (f.cases?.length||0), 0);
-const total = ((fixtures.video?.length||0) + (fixtures.audio?.length||0) + (fixtures.chat?.length||0) + durCases) * ENGINES.length;
+const songCases = (fixtures.audioSongs||[]).reduce((n,f)=> n + (f.cases?.length||0), 0);
+const total = ((fixtures.video?.length||0) + (fixtures.audio?.length||0) + (fixtures.chat?.length||0) + durCases + songCases) * ENGINES.length;
 if(fail){
   console.error(`\n✗ ${fail} pricing checks failed across ${ENGINES.length} engines — a resolver branch is missing or the two engines drifted.`);
   process.exit(1);
 }
-console.log(`✓ every pricing shape resolves in both engines (${fixtures.video?.length||0} video, ${fixtures.audio?.length||0} audio, ${fixtures.chat?.length||0} chat, ${durCases} audio-duration × ${ENGINES.length} engines = ${total} checks).`);
+console.log(`✓ every pricing shape resolves in both engines (${fixtures.video?.length||0} video, ${fixtures.audio?.length||0} audio, ${fixtures.chat?.length||0} chat, ${durCases} audio-duration, ${songCases} audio-songs × ${ENGINES.length} engines = ${total} checks).`);

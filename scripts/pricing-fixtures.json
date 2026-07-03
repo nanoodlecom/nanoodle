@@ -821,5 +821,57 @@
     }
    ]
   }
+ ],
+ "audioSongs": [
+  {
+   "id": "mureka-o2/generate-song",
+   "shape": "per_generation + generation_count_parameter -> number_of_songs multiplies the estimate (up to max_generations)",
+   "pricing": {
+    "per_generation": 0.15,
+    "currency": "USD",
+    "multiplier_parameter": "number_of_songs"
+   },
+   "params": {
+    "generation_count_parameter": "number_of_songs",
+    "max_generations": 3
+   },
+   "cases": [
+    {
+     "number_of_songs": 3,
+     "expect": 3
+    },
+    {
+     "number_of_songs": 1,
+     "expect": 1
+    },
+    {
+     "number_of_songs": "",
+     "expect": 1
+    }
+   ]
+  },
+  {
+   "id": "ACE-Step-1.5 (no generation_count_parameter)",
+   "shape": "duration-only music, NO generation count -> a stale number_of_songs must NOT multiply (collectAudioParams drops it from the send); always 1",
+   "pricing": {
+    "per_second": 0.0004,
+    "minimum": 0.05,
+    "currency": "USD"
+   },
+   "params": {
+    "min_duration": 10,
+    "max_duration": 240
+   },
+   "cases": [
+    {
+     "number_of_songs": 3,
+     "expect": 1
+    },
+    {
+     "number_of_songs": "",
+     "expect": 1
+    }
+   ]
+  }
  ]
 }

@@ -4113,6 +4113,13 @@ function audioBilledSeconds(params, fields){
   const lo=_num(p.min_duration), hi=_num(p.max_duration);
   return Math.min(hi!=null?hi:d, Math.max(lo!=null?lo:d, d));
 }
+// Songs the run is actually billed for. A model only generates/bills multiple when it advertises a
+// generation_count_parameter (collectAudioParams gates the SEND on the same signal); without it the
+// count is dropped and one song is made, so the estimate must not multiply a stale number_of_songs.
+function audioBilledSongs(params, fields){
+  if(!(params && params.generation_count_parameter)) return 1;
+  return Math.max(1, parseInt((fields||{}).number_of_songs,10)||1);
+}
 // USD for one execution of a node with its chosen model + settings. null = no price (no model / uncatalogued / omni).
 function nodeUnitUsd(n){
   const t = NODE_TYPES[n.type]; if(!t || !t.modelKind) return null;
@@ -4130,7 +4137,7 @@ function nodeUnitUsd(n){
   if(kind==="audio"){ const chars = t.modelFilter==="stt" ? undefined : (((n.fields||{}).prompt||"").length || EST.ttsChars);
     const secs = audioBilledSeconds(it.params, n.fields||{});   // per_second music meters off the chosen duration, not a fixed 30s
     const u = audioUnitUsd(it.pricing, chars, secs); if(u==null) return null;
-    const songs = Math.max(1, parseInt((n.fields||{}).number_of_songs,10)||1);   // music models bill per song (the API is sent number_of_songs)
+    const songs = audioBilledSongs(it.params, n.fields||{});   // >1 only when the model advertises a generation count (matches collectAudioParams' send-gate)
     return u*songs; }
   return null;
 }
