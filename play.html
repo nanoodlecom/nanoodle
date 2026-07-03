@@ -5879,18 +5879,36 @@ async function clientId(){
   return id;
 }
 async function signIn(){
-  const id = await clientId();
-  const verifier=rand(32), state=rand(16);
+  // PREFERRED TECHNIQUE: full-page redirect (see the standalone/top-level path at the bottom).
+  // It's the OAuth-for-browser-apps BCP default — blocker-proof, survives mobile, and isn't cut
+  // off by COOP. A popup is used in ONE structurally-forced case only: opened as the editor's
+  // modal iframe, a same-frame navigation to nano-gpt.com is blocked by its frame-ancestors
+  // 'none', so this same-origin iframe can't redirect itself out to OAuth. There we run OAuth in
+  // a top-level popup; it stores the key in shared localStorage and the poll below finishes here.
+  const embedded = !!(window.parent && window.parent !== window);
+  // A popup only dodges the blocker when window.open() runs SYNCHRONOUSLY inside the click
+  // gesture — but clientId() may hit the network on a first-ever sign-in, and any await spends
+  // the gesture. So open a blank same-origin popup up front (still in-gesture), then point it at
+  // the OAuth URL once the awaits resolve. Without this, a brand-new user's first sign-in from
+  // the create-app modal is silently popup-blocked at the wow moment.
+  let popup = null;
+  if(embedded){
+    popup = window.open("about:blank", "ngpt_signin", "width=480,height=760");
+    if(!popup) throw new Error('popup blocked — allow popups, or use “paste key”');
+  }
+  let id, verifier, state, u;
+  try{
+    id = await clientId();
+    verifier=rand(32); state=rand(16);
+    u=new URL(`${NANOGPT}/oauth/authorize`);
+    u.search=new URLSearchParams({response_type:"code",client_id:id,redirect_uri:REDIRECT_URI,scope:"api.use models.read",state,code_challenge:await sha256url(verifier),code_challenge_method:"S256",invitation_code:"W3x83yU3"}).toString();
+  }catch(e){ if(popup){ try{ popup.close(); }catch(_){} } throw e; }   // a failed register/challenge must not leave the blank popup orphaned
   const pkce = JSON.stringify({verifier,state,id});
-  const u=new URL(`${NANOGPT}/oauth/authorize`);
-  u.search=new URLSearchParams({response_type:"code",client_id:id,redirect_uri:REDIRECT_URI,scope:"api.use models.read",state,code_challenge:await sha256url(verifier),code_challenge_method:"S256",invitation_code:"W3x83yU3"}).toString();
-  // Opened as the editor's modal iframe, a same-frame navigation to nano-gpt.com is blocked
-  // by its frame-ancestors 'none'. Run OAuth in a top-level popup instead; it stores the key
-  // in shared localStorage and the poll below finishes sign-in here.
-  if(window.parent && window.parent !== window){
+  if(embedded){
     localStorage.setItem("pkce_popup", pkce);
-    const popup = window.open(u.toString(), "ngpt_signin", "width=480,height=760");
-    if(!popup){ localStorage.removeItem("pkce_popup"); throw new Error('popup blocked — allow popups, or use “paste key”'); }
+    try{ popup.location.href = u.toString(); }
+    catch(_){ localStorage.removeItem("pkce_popup"); try{ popup.close(); }catch(__){}
+      throw new Error('couldn’t open sign-in — allow popups, or use “paste key”'); }
     // The popup stores the key in shared (same-origin) localStorage. Its storage event doesn't
     // reliably cross the COOP-severed popup→iframe boundary, so poll localStorage directly here
     // instead of relying on the event. Stop once the key lands, the popup closes, or we time out.
