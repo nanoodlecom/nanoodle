@@ -2279,8 +2279,17 @@ function mp4ParamsMatch(bufs){
       inputs:[], imageInputs:{multi:true, re:EDIT_IMG_RE},   // image, image2, … wired source images (multi-reference compositing)
       outputs:[{name:"image", type:"image"}],
       async run(n, inp, ctx){
-        const imgs = collectImageInputs(inp, EDIT_IMG_RE);   // wired source images, in port order
+        var imgs = collectImageInputs(inp, EDIT_IMG_RE);   // wired source images, in port order
         if(!imgs.length) throw new Error("no image input");
+        // Cap to the model's max_input_images (best-effort, public catalog): a baked graph can carry
+        // more image links than a later-swapped model composites; never send the surplus (a paid call
+        // that errors). Catalog unreachable/unknown -> no cap (unchanged). Mirrors the editor's cap.
+        try{
+          var _m = await rawCatItem("image", n.fields.model);
+          var _mi = _m && _m.supported_parameters && _m.supported_parameters.max_input_images;
+          var _cap = _m ? (_mi > 0 ? _mi : 1) : Infinity;
+          if(imgs.length > _cap) imgs = imgs.slice(0, _cap);
+        }catch(e){}
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         if(!prompt) throw new Error("no edit instruction");
         if(imgs.reduce(function(s,u){ return s + (u?u.length:0); }, 0) > MEDIA_INLINE_MAX)

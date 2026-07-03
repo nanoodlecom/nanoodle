@@ -37,20 +37,46 @@ const reLine      = grab(/const IMG_PORT_RE = \/[^\n]*;/, "IMG_PORT_RE");
 const editReLine  = grab(/const EDIT_IMG_RE = \/[^\n]*;/, "EDIT_IMG_RE");
 const portIdxLine = grab(/const portIdx = [^\n]*;/, "portIdx");
 
+// The edit node's REAL run() — an object-literal method, so brace-match from `async run(` (the
+// first one after the `edit: {` marker) and rename it to a standalone callable. This lets us drive
+// the actual max_input_images capping + drop-toast the editor ships, not a reimplementation.
+function extractEditRun(src) {
+  const anchor = src.indexOf("\n  edit: {");
+  if (anchor === -1) throw new Error("edit node literal not found in index.html");
+  const rs = src.indexOf("async run(", anchor);
+  if (rs === -1) throw new Error("edit.run() not found in index.html");
+  let depth = 0;
+  for (let j = src.indexOf("{", rs); j < src.length; j++) {
+    if (src[j] === "{") depth++;
+    else if (src[j] === "}" && --depth === 0)
+      return src.slice(rs, j + 1).replace(/^async run/, "async function __editRun");
+  }
+  throw new Error("could not brace-match edit.run()");
+}
+
 const bundle =
   reLine + "\n" + editReLine + "\n" + portIdxLine + "\n" +
   ["modelSupportsImages", "imgSpec", "imageInputDefs", "collectImageInputs", "recompactImageLinks"]
     .map((n) => extractFn(SRC, n)).join("\n") + "\n" +
-  "globalThis.__t = { imageInputDefs, collectImageInputs, recompactImageLinks, modelSupportsImages, imgSpec };";
+  extractEditRun(SRC) + "\n" +
+  "globalThis.__t = { imageInputDefs, collectImageInputs, recompactImageLinks, modelSupportsImages, imgSpec, editRun: __editRun };";
 
 // ---- stubs for the globals the extracted code closes over -----------------
 // vision flag for the llm family; maxIn (max_input_images) for the edit family. Unknown id → undefined.
 const MODELS = { vmodel: { vision: true }, tmodel: { vision: false }, emodel: { maxIn: 4 }, e1model: { maxIn: 1 } };
+const toasts = [];   // edit.run pushes a warn toast here when it drops over-cap references
 const ctx = {
   console,
   graph: { links: [] },
   NODE_TYPES: { llm: { imageInputs: "vision", modelKind: "chat" }, edit: { imageInputs: { multi: true }, modelKind: "image" }, text: {}, upload: {} },
   catItem: (_kind, id) => MODELS[id],
+  // stubs the extracted edit.run() closes over (toast + t + the send-path helpers)
+  toast: (msg, kind) => toasts.push({ msg, kind }),
+  t: (s) => s,
+  MEDIA_INLINE_MAX: 4 * 1024 * 1024,
+  mdl: (n) => n.fields.model,
+  SIZES: [["1024x1024", "1024×1024"]],
+  imgExtra: () => ({}),
 };
 vm.createContext(ctx);
 new vm.Script(bundle, { filename: "index.html#image-ports" }).runInContext(ctx);
@@ -129,9 +155,43 @@ ok(JSON.stringify(editWires()) === '["u0->image","u1->image2"]', `edit recompact
 ok(JSON.stringify(T.collectImageInputs({ image2: "B", prompt: "x", image: "A", image10: "J" }, e4)) === '["A","B","J"]',
   "collectImageInputs(edit) must return images in port order image,image2,…");
 
+// ---- F. edit.run() caps the SEND to the model's max_input_images ----------
+// THE BUG: a model downgrade hides the surplus ports (imageInputDefs), but their LINKS survive and
+// still collect at run time — so the paid call carried MORE references than the model composites.
+// Drive the real edit.run() with 3 wired references and assert it never sends more than maxIn, and
+// warns the user when it drops some. genImage is spied; no network.
+const editRun = async (model, inp) => {
+  let sent;
+  toasts.length = 0;
+  const out = await T.editRun(
+    { id: "e1", type: "edit", fields: { model, prompt: "compose" } },
+    inp,
+    { genImage: (_p, _m, _s, src) => { sent = src; return "OUT"; } },
+  );
+  return { sent, out };
+};
+const threeRefs = { image: "A", image2: "B", image3: "C" };
+
+// maxIn=1: three wired refs, only the first is sent — and as a STRING (single-image shape, unchanged)
+const r1 = await editRun("e1model", threeRefs);
+ok(r1.sent === "A", `edit maxIn=1 must send only the first ref as a string, got ${JSON.stringify(r1.sent)}`);
+ok(toasts.length === 1 && /2/.test(toasts[0].msg) && toasts[0].kind === "warn",
+  `dropping 2 refs must warn once ("...2..."), got ${JSON.stringify(toasts)}`);
+
+// maxIn=4: three refs are under the cap → all three sent as an ARRAY in order, no warning
+const r4 = await editRun("emodel", threeRefs);
+ok(Array.isArray(r4.sent) && r4.sent.length === 3 && r4.sent[0] === "A" && r4.sent[2] === "C",
+  `edit maxIn=4 must send all 3 refs in order, got ${JSON.stringify(r4.sent)}`);
+ok(toasts.length === 0, `no drop under the cap → no toast, got ${JSON.stringify(toasts)}`);
+
+// unknown/typed-in model: imgSpec is permissive (cap 14) → all refs kept, no warning (today's behavior)
+const rU = await editRun("typed-in-id", threeRefs);
+ok(Array.isArray(rU.sent) && rU.sent.length === 3, `an uncatalogued model must keep all refs, got ${JSON.stringify(rU.sent)}`);
+ok(toasts.length === 0, `uncatalogued model must not warn, got ${JSON.stringify(toasts)}`);
+
 // ---- report ---------------------------------------------------------------
 if (failures.length) {
   process.stderr.write("✗ image-port logic is wrong:\n\n- " + failures.join("\n- ") + "\n");
   process.exit(1);
 }
-process.stdout.write("✓ image-input port logic holds (growth, disabled stub, hole-free compaction, order).\n");
+process.stdout.write("✓ image-input port logic holds (growth, disabled stub, hole-free compaction, order, max_input_images send-cap).\n");

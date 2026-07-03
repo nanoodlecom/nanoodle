@@ -21,7 +21,15 @@ import { join } from "node:path";
 // The node:vm engine harness (extract play.html → run RUNTIME_JS → real
 // runGraph/materialize/NODE_TYPES) lives in a shared, side-effect-free module so
 // check-gallery.mjs can reuse the exact same engine without re-running this file.
-import { ROOT, loadEngine, calls } from "./play-engine.mjs";
+import { ROOT, loadEngine, calls, catalog } from "./play-engine.mjs";
+
+// Seed the best-effort image catalog so the edit node's max_input_images cap can engage in the
+// exported engine (mirrors the editor's cap). Model "x" is deliberately absent → an uncatalogued
+// model keeps every wired reference (the "no cap → unchanged" path).
+catalog.image.push(
+  { id: "capmodel1", supported_parameters: { max_input_images: 1 } },
+  { id: "capmodel3", supported_parameters: { max_input_images: 3 } },
+);
 
 // ---- graph builders -------------------------------------------------------
 const node = (id, type, fields) => ({ id, type, x: 0, y: 0, fields: fields || {} });
@@ -189,6 +197,47 @@ const SCENARIOS = [
       if (b.imageDataUrl.length !== 2 || b.imageDataUrl[0] !== IMG + "A" || b.imageDataUrl[1] !== IMG + "B")
         fail(`expected [imgA,imgB] in wiring order (image, image2), got ${JSON.stringify(b.imageDataUrl)}`);
       if (b.prompt !== "put the product in the scene") fail("edit instruction not forwarded");
+    },
+  },
+  {
+    // THE BUG: a model downgrade hides the surplus ports but leaves their links, which still
+    // collect at run time. The exported engine must cap the send to the model's max_input_images
+    // (here 1) so it never posts 3 refs a single-image model can't take (a paid call that errors).
+    name: "NEW: Edit caps refs to max_input_images (3 wired, maxIn=1 → 1 image sent as a string)",
+    data: { nodes: [node("a", "upload", { image: IMG + "A" }), node("b", "upload", { image: IMG + "B" }),
+                    node("c", "upload", { image: IMG + "C" }),
+                    node("e1", "edit", { model: "capmodel1", prompt: "compose" })],
+            links: [link("a", "image", "e1", "image"), link("b", "image", "e1", "image2"), link("c", "image", "e1", "image3")] },
+    check(app, g, fail) {
+      const b = imgCalls()[0]?.body;
+      if (!b) return fail("no edit/image call");
+      if (typeof b.imageDataUrl !== "string") return fail(`maxIn=1 must cap to a single STRING image, got ${Array.isArray(b.imageDataUrl) ? `array len ${b.imageDataUrl.length}` : typeof b.imageDataUrl}`);
+      if (b.imageDataUrl !== IMG + "A") fail(`must keep the first port (image), got ${JSON.stringify(b.imageDataUrl).slice(0,40)}`);
+    },
+  },
+  {
+    name: "NEW: Edit with maxIn=3 sends all 3 refs in order (cap doesn't over-trim)",
+    data: { nodes: [node("a", "upload", { image: IMG + "A" }), node("b", "upload", { image: IMG + "B" }),
+                    node("c", "upload", { image: IMG + "C" }),
+                    node("e1", "edit", { model: "capmodel3", prompt: "compose" })],
+            links: [link("a", "image", "e1", "image"), link("b", "image", "e1", "image2"), link("c", "image", "e1", "image3")] },
+    check(app, g, fail) {
+      const b = imgCalls()[0]?.body;
+      if (!b) return fail("no edit/image call");
+      if (!Array.isArray(b.imageDataUrl) || b.imageDataUrl.length !== 3) return fail(`maxIn=3 must send all 3, got ${Array.isArray(b.imageDataUrl) ? `len ${b.imageDataUrl.length}` : typeof b.imageDataUrl}`);
+      if (b.imageDataUrl[0] !== IMG + "A" || b.imageDataUrl[2] !== IMG + "C") fail(`order must be image,image2,image3, got ${JSON.stringify(b.imageDataUrl)}`);
+    },
+  },
+  {
+    name: "NEW: Edit with an uncatalogued model keeps all refs (no cap → unchanged)",
+    data: { nodes: [node("a", "upload", { image: IMG + "A" }), node("b", "upload", { image: IMG + "B" }),
+                    node("c", "upload", { image: IMG + "C" }),
+                    node("e1", "edit", { model: "uncatalogued-x", prompt: "compose" })],
+            links: [link("a", "image", "e1", "image"), link("b", "image", "e1", "image2"), link("c", "image", "e1", "image3")] },
+    check(app, g, fail) {
+      const b = imgCalls()[0]?.body;
+      if (!b) return fail("no edit/image call");
+      if (!Array.isArray(b.imageDataUrl) || b.imageDataUrl.length !== 3) fail(`an unknown model must not cap (today's behavior), got ${Array.isArray(b.imageDataUrl) ? `len ${b.imageDataUrl.length}` : typeof b.imageDataUrl}`);
     },
   },
   {
