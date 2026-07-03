@@ -110,7 +110,7 @@ async function checkFile(file) {
   // record what the shortener was actually handed
   const shortenCalls = [];
   const stubs = {
-    $: () => ({ hidden: false, value: "", select() {} }),
+    $: () => ({ hidden: false, value: "", select() {}, setAttribute() {} }),
     setShareUrl: () => {},
     copyText: async () => true,
     toast: () => {},

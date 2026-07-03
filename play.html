@@ -81,6 +81,14 @@
   #signin{ font-size:.8rem; }
   #myapps{ font-weight:600; }
   #baractions{ display:contents; }   /* desktop: children lay out in #bar exactly as before */
+  /* empty landing (no app loaded): the app-scoped actions would act on a blank default app
+     — Share would mint a link to nothing, Export would bundle it. Hide them until an app exists.
+     (My apps + auth stay, so you can still open a saved app or sign in.) */
+  body.empty #share, body.empty #export, body.empty #openeditor, body.empty #sharehint{ display:none; }
+  /* ...and the title isn't editable while empty (wireTitle early-returns), so drop the edit cues. */
+  body.empty #bar-title{ cursor:default; }
+  body.empty #bar-title::after{ content:none; }
+  body.empty #bar-title:hover{ background:none; }
   #barmore{ display:none; }          /* desktop: no overflow button */
   #custtoggle{ display:none; }       /* desktop: no collapse handle */
 
@@ -333,7 +341,7 @@
   <div class="title-wrap"><span id="bar-title">My nanoodle app</span></div>
 
   <!-- only shown once the user has created/imported at least one app -->
-  <button id="myapps" class="link" style="display:none" title="Apps you've created or imported">≡ My apps ▾</button>
+  <button id="myapps" class="link" style="display:none" aria-haspopup="true" aria-expanded="false" title="Apps you've created or imported">≡ My apps ▾</button>
 
   <div class="grow"></div>
 
@@ -346,7 +354,7 @@
 
   <div class="sep"></div>
   <span id="sharehint" hidden>✱ edits aren’t shared</span>
-  <button id="share" title="Copy a link that loads this exact app — recipients sign in with their own key">🔗 Share</button>
+  <button id="share" aria-haspopup="true" aria-expanded="false" title="Copy a link that loads this exact app — recipients sign in with their own key">🔗 Share</button>
   <button id="export" title="Download this app as one self-contained .html (no key inside)">⭳ Export</button>
   <button id="openeditor" title="Edit this app's underlying workflow in the nanoodle editor — your app UI is kept">✎ Edit workflow</button>
   </div>
@@ -3669,6 +3677,7 @@ function mp4ParamsMatch(bufs){
       const s = L.state[id]; let cls = "seg";
       if(s && s.kind==="done"){ cls += " done"; done++; }
       else if(s && s.kind==="error"){ cls += " error"; done++; errs++; }
+      else if(s && s.kind==="stopped"){ cls += " stopped"; }   // cancelled mid-run: settled, neutral, no shimmer
       else if(s && s.kind==="run"){ cls += " active"; }
       return '<span class="'+cls+'"></span>';
     }).join("");
@@ -3710,7 +3719,9 @@ function mp4ParamsMatch(bufs){
           + '<span class="prog-msg">' + esc(cur.msg || "working…") + '</span>'
           + '<span class="prog-el">' + fmtClock(Date.now()-L.curT0) + '</span></div>';
     } else if(st.finished){
-      now = st.errs
+      now = L.stopped
+        ? '<div class="prog-now">⏹ Stopped · ' + st.done + '/' + st.total + ' steps · ' + fmtClock(L.endAt-L.t0) + '</div>'
+        : st.errs
         ? '<div class="prog-now is-err">Finished with ' + st.errs + ' error' + (st.errs>1?"s":"") + ' · ' + st.done + '/' + st.total + ' steps · ' + fmtClock(L.endAt-L.t0) + '</div>'
         : '<div class="prog-now is-ok">✓ Done · ' + st.total + ' step' + (st.total!==1?"s":"") + ' · ' + fmtClock(L.endAt-L.t0) + '</div>';
     }
@@ -3721,7 +3732,8 @@ function mp4ParamsMatch(bufs){
     const elapsed = fmtClock((L.endAt>0?L.endAt:Date.now()) - L.t0);
     let mid;
     if(st.finished){
-      mid = st.errs ? '<span class="prog-msg is-err">' + st.errs + ' error' + (st.errs>1?"s":"") + '</span>'
+      mid = L.stopped ? '<span class="prog-msg">⏹ stopped</span>'
+          : st.errs ? '<span class="prog-msg is-err">' + st.errs + ' error' + (st.errs>1?"s":"") + '</span>'
                     : '<span class="prog-msg is-ok">✓ done</span>';
     } else if(L.curId != null){
       const cur = L.state[L.curId] || {};
@@ -4034,6 +4046,7 @@ function mp4ParamsMatch(bufs){
       return { cls:"ok", txt:t("✓ done") + cost };
     }
     if(s.kind==="run") return { cls:"run", txt:"● " + t(s.msg || "running…") };
+    if(s.kind==="stopped") return { cls:"wait", txt:t("⏹ stopped") };
     return { cls:"wait", txt:t("○ waiting") };
   }
   function paintDetail(){
@@ -4239,7 +4252,19 @@ function mp4ParamsMatch(bufs){
           nothingNew = !!(res && res.generated===0 && !failed);
         } catch(err){
           // a Stop-triggered abort is expected — swallow it; surface only real errors.
-          if(isAbort(err)) break;
+          if(isAbort(err)){
+            // ...but settle the lane so it doesn't strand: any node still mid-run keeps kind "run"
+            // (runGraph rethrows the abort before its "done"/"error" status lands), which would leave
+            // its progress segment shimmering forever and the steps sheet badged "running…". Flip those
+            // to a neutral "stopped" and stamp endAt so the lane reads as finished, not frozen.
+            const L = RUN && RUN.lanes[i];
+            if(L){
+              for(const sid in L.state){ if(L.state[sid] && L.state[sid].kind==="run") L.state[sid] = { kind:"stopped", msg:"stopped" }; }
+              L.curId = null; L.endAt = Date.now(); L.stopped = true;
+            }
+            paintRuns();
+            break;
+          }
           failed = true;
           statusLine("__run_"+i+"__","error", (N>1?("Run "+(i+1)+": "):"") + friendlyRunError(err));
         }
@@ -4498,6 +4523,11 @@ function mp4ParamsMatch(bufs){
       // .auth-cta above — a second copy here was pure duplication)
     if(ok){
       $("auth-out").onclick = ()=> setKey(null);
+      // Signed in now → clear any stale RED auth error ("key rejected", clipboard/OAuth failure) so it
+      // doesn't sit above the "signed in ✓" header. Only the .error row: the deliberate offline "unverified"
+      // notice is re-added right after setKey() (which called us), and the "press Run again" line is kind=done.
+      const er = $("app-msg") && $("app-msg").querySelector('[data-st="__auth__"].error');
+      if(er) er.remove();
     } else {
       if(canOAuth) $("auth-in").onclick = ()=> signIn().catch(e=> statusLine("__auth__","error","sign-in error: "+e.message));
       $("auth-paste").onclick = async ()=>{
@@ -4823,6 +4853,7 @@ body{ background:
 .seg{ flex:1; border-radius:99px; background:var(--line); transition:background .25s; }
 .seg.done{ background:var(--ok); }
 .seg.error{ background:var(--danger); }
+.seg.stopped{ background:var(--faint,#5d6788); }   /* cancelled mid-run — neutral, no shimmer */
 .seg.active{ background:linear-gradient(90deg,var(--accent-line),var(--accent),var(--accent-line));
   background-size:200% 100%; animation:prog-shimmer 1.1s linear infinite; }
 @keyframes prog-shimmer{ 0%{ background-position:200% 0; } 100%{ background-position:-200% 0; } }
@@ -5461,10 +5492,16 @@ function setPortMode(on){ const c = $("customize"); if(c) c.classList.toggle("po
 // Offer the port as a dismissible bar (never auto-spends on inference).
 function offerPort(oldGraph){
   const bar = $("portbar"); if(!bar) return;
+  const wasOpen = document.body.classList.contains("cust-open");
   bar.hidden = false; setPortMode(true);
   document.body.classList.add("cust-open");   // a shape-change port CTA must never hide under the collapsed handle
-  $("portbar-go").onclick   = ()=>{ bar.hidden = true; portWorkflow(oldGraph).finally(()=> setPortMode(false)); };
-  $("portbar-skip").onclick = ()=>{ bar.hidden = true; setPortMode(false); };
+  // The offer added cust-open just so the CTA clears the mobile collapse handle; if the user hadn't
+  // opened the composer themselves, put it back the way we found it once the offer is done.
+  const restore = ()=>{ if(!wasOpen) document.body.classList.remove("cust-open"); };
+  // Go: leave port mode BEFORE running so the composer's ■ Stop (it lives in .cust-row, which the
+  // .porting rule hides) is reachable — a stalled port must be cancellable like any other customize.
+  $("portbar-go").onclick   = ()=>{ bar.hidden = true; setPortMode(false); portWorkflow(oldGraph).finally(restore); };
+  $("portbar-skip").onclick = ()=>{ bar.hidden = true; setPortMode(false); restore(); };
 }
 
 /* ---------- version strip (index.html .ver pattern; branch-on-edit) ---------- */
@@ -5491,6 +5528,7 @@ function selectVersion(i){
   // non-blocking heads-up only when there were such edits, so the reset is never a silent surprise.
   const hadEdits = appDirty;
   APP_STATE.curVer = i;
+  { const cs = $("cust-status"); if(cs) cs.innerHTML = ""; }   // a prior customize's result line doesn't describe this version
   APP_STATE.files = { ...APP_STATE.files, ...vs[i].files };   // flip the editable files to that version
   syncTitleFromFiles(); renderVersions(); renderApp(); persist();
   $("undo").disabled = APP_STATE.curVer <= 0;
@@ -5675,6 +5713,7 @@ function stashResume(){
 // install a freshly-loaded {graph, files} into the builder (used by every load path)
 function installApp({ graph, files, versions, curVer, fresh, id, imported, uiSig, fromEditor, lang }){
   if($("portbar")){ $("portbar").hidden = true; setPortMode(false); }   // any (re)load clears a stale "port?" offer
+  { const cs = $("cust-status"); if(cs) cs.innerHTML = ""; }   // ...and a prior customize's "✓ Applied"/"Error" line — it described a different app
   CUR_ID = id || null;
   FROM_EDITOR = !!fromEditor;   // set BEFORE the commit below — it gates the __appsaved__ post
   curImported = !!imported;
@@ -5693,7 +5732,7 @@ function installApp({ graph, files, versions, curVer, fresh, id, imported, uiSig
     ? versions
     : [{ files:{ "index.html":APP_STATE.files["index.html"], "app.css":APP_STATE.files["app.css"] }, goal:null }];
   APP_STATE.curVer = (curVer!=null && curVer<APP_STATE.versions.length) ? curVer : APP_STATE.versions.length-1;
-  $("empty").hidden = true; $("appframe").style.display = "";
+  $("empty").hidden = true; $("appframe").style.display = ""; document.body.classList.remove("empty");
   syncTitleFromFiles(); renderVersions(); renderApp();
   // "Create app" creates for real: a fresh graph handoff lands in "My apps" immediately
   // (and commit() tells the editor, which binds ✨ Update to it) — before this, a fresh
@@ -5707,7 +5746,7 @@ function installApp({ graph, files, versions, curVer, fresh, id, imported, uiSig
   if(fresh && APP_STATE.versions.length <= 1) enterFirstRun(); else exitFirstRun();
   return saved;
 }
-function showEmpty(){ exitFirstRun(); document.body.classList.remove("recipient"); $("empty").hidden = false; $("appframe").style.display="none"; $("bar-title").textContent="My nanoodle app"; renderAppsBtn(); }
+function showEmpty(){ exitFirstRun(); document.body.classList.remove("recipient"); document.body.classList.add("empty"); $("empty").hidden = false; $("appframe").style.display="none"; $("bar-title").textContent="My nanoodle app"; renderAppsBtn(); }
 
 /* ---------- re-target an existing app onto an edited workflow ----------
    Called when the editor hands a graph back (#ga=) carrying the app's id. The
@@ -5837,8 +5876,8 @@ function renderAppsMenu(){
     list.appendChild(row);
   }
 }
-function openAppsMenu(){ renderAppsMenu(); $("appsmenu").hidden = false; $("appsback").hidden = false; }
-function closeAppsMenu(){ $("appsmenu").hidden = true; $("appsback").hidden = true; }
+function openAppsMenu(){ renderAppsMenu(); $("appsmenu").hidden = false; $("appsback").hidden = false; $("myapps").setAttribute("aria-expanded","true"); }
+function closeAppsMenu(){ $("appsmenu").hidden = true; $("appsback").hidden = true; $("myapps").setAttribute("aria-expanded","false"); }
 function toggleAppsMenu(){ $("appsmenu").hidden ? openAppsMenu() : closeAppsMenu(); }
 function openApp(id){
   const a = loadApps().find(x=>x.id===id); if(!a) return;
@@ -6033,8 +6072,8 @@ function setShareUrl(u){
   };
   document.querySelectorAll("#sharemenu .sm-social a").forEach(a => a.href = soc[a.dataset.soc]);
 }
-function openShareMenu(url){ longShareUrl = url; setShareUrl(url); $("sharemenu").hidden = false; $("shareback").hidden = false; }
-function closeShareMenu(){ $("sharemenu").hidden = true; $("shareback").hidden = true; }
+function openShareMenu(url){ longShareUrl = url; setShareUrl(url); $("sharemenu").hidden = false; $("shareback").hidden = false; $("share").setAttribute("aria-expanded","true"); }
+function closeShareMenu(){ $("sharemenu").hidden = true; $("shareback").hidden = true; $("share").setAttribute("aria-expanded","false"); }
 
 // SHORTEN — direct client-side fetch to the chosen service (no nanoodle backend in the path).
 // Both return the short URL as plain text and preserve our #a= fragment through the redirect.
@@ -6255,7 +6294,7 @@ $("mpickback").onclick = closePicker;
 $("mpicksearch").addEventListener("input", renderPicker);
 $("mpicksearch").addEventListener("keydown", (e)=>{
   if(e.key==="Enter"){ const v=$("mpicksearch").value.trim(); if(v){ setModel(v); closePicker(); } }
-  else if(e.key==="Escape") closePicker();
+  else if(e.key==="Escape"){ e.stopPropagation(); e.preventDefault(); closePicker(); }   // don't let Escape bubble to the IN_EDITOR __closeapp__ handler and tear down the whole app modal
 });
 
 // click the bar title to rename the open app
