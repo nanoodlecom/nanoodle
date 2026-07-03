@@ -742,5 +742,84 @@
    "prompt": 0,
    "completion": 0
   }
+ ],
+ "audioDuration": [
+  {
+   "id": "Elevenlabs-Music-V1",
+   "shape": "per_second + min/max_duration (300s job really bills ~$3.00, not the old flat 30s->$0.30)",
+   "pricing": {
+    "per_second": 0.01,
+    "minimum": 0.1,
+    "currency": "USD"
+   },
+   "params": {
+    "min_duration": 10,
+    "max_duration": 300
+   },
+   "cases": [
+    {
+     "duration": 300,
+     "expect": 3.0
+    },
+    {
+     "duration": 5,
+     "expect": 0.1
+    },
+    {
+     "duration": 500,
+     "expect": 3.0
+    },
+    {
+     "duration": "",
+     "expect": 0.3
+    }
+   ]
+  },
+  {
+   "id": "mirelo-ai/sfx1.6/text-to-audio",
+   "shape": "per_second + min/max_duration (min floor 0.01)",
+   "pricing": {
+    "per_second": 0.01,
+    "minimum": 0.01,
+    "currency": "USD"
+   },
+   "params": {
+    "min_duration": 1,
+    "max_duration": 60
+   },
+   "cases": [
+    {
+     "duration": 5,
+     "expect": 0.05
+    },
+    {
+     "duration": 300,
+     "expect": 0.6
+    },
+    {
+     "duration": null,
+     "expect": 0.3
+    }
+   ]
+  },
+  {
+   "id": "synthetic-per_second-no-duration",
+   "shape": "per_second but NO min/max_duration -> not duration-metered, always EST.audioSeconds",
+   "pricing": {
+    "per_second": 0.02,
+    "currency": "USD"
+   },
+   "params": {},
+   "cases": [
+    {
+     "duration": 120,
+     "expect": 0.6
+    },
+    {
+     "duration": "",
+     "expect": 0.6
+    }
+   ]
+  }
  ]
 }

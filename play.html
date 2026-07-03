@@ -1007,14 +1007,26 @@ window.NoodleApp = (function () {
     if(pin==null && pout==null) return null;                          // omni "varies_by_modality" → unknown
     return ((pin||0)*(inTok ?? EST.llmInTokens) + (pout||0)*(outTok ?? EST.llmOutTokens))/1e6;
   }
-  function audioUnitUsd(pricing, chars){
+  function audioUnitUsd(pricing, chars, seconds){
     const p = pricing || {}, c = chars ?? EST.ttsChars;
+    const secs = (seconds!=null && isFinite(seconds)) ? seconds : EST.audioSeconds;   // per_second models meter off the node's duration when it sets one
     if(p.per_thousand_chars!=null){ let cost=_num(p.per_thousand_chars)*(c/1000); if(p.per_generation!=null) cost+=_num(p.per_generation); return Math.max(cost, _num(p.minimum)||0); }
     if(p.per_prompt_char_block!=null){ const bs=_num(p.prompt_char_block_size)||1; return Math.max(Math.ceil(c/bs)*_num(p.per_prompt_char_block), _num(p.minimum)||0); }
     if(p.per_generation!=null) return _num(p.per_generation);
-    if(p.per_second!=null) return Math.max(_num(p.per_second)*EST.audioSeconds, _num(p.minimum)||0);
+    if(p.per_second!=null) return Math.max(_num(p.per_second)*secs, _num(p.minimum)||0);
     if(p.per_minute!=null) return _num(p.per_minute)*EST.sttMinutes;
     return null;
+  }
+  // Seconds a per_second audio model is billed for: the node's duration clamped to the model's advertised
+  // min/max_duration. null when the model isn't duration-metered or the field is blank → audioUnitUsd uses
+  // EST.audioSeconds. sp = the audio catalog entry's supported_parameters. Mirrors the editor's audioBilledSeconds.
+  function audioBilledSeconds(sp, fields){
+    const p = sp || {};
+    if(p.min_duration==null || p.max_duration==null) return null;
+    const d = parseFloat(fields && fields.duration);
+    if(!isFinite(d)) return null;
+    const lo=_num(p.min_duration), hi=_num(p.max_duration);
+    return Math.min(hi!=null?hi:d, Math.max(lo!=null?lo:d, d));
   }
   function imageUsd(pricing, size, count){
     const per = (pricing && pricing.per_image) || {};
@@ -1035,7 +1047,8 @@ window.NoodleApp = (function () {
     if(kind==="video"){ const u = videoUnitUsd(pricing, f); return (u!=null && isFinite(u)) ? u : null; }
     if(kind==="chat"){ const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(pricing, inTok, outTok); }
     if(kind==="audio"){ const chars = n.type==="transcribe" ? undefined : ((f.prompt||"").length || EST.ttsChars);
-      const u = audioUnitUsd(pricing, chars); if(u==null) return null;
+      const secs = audioBilledSeconds(m.supported_parameters, f);   // per_second music meters off the chosen duration, not a fixed 30s
+      const u = audioUnitUsd(pricing, chars, secs); if(u==null) return null;
       const songs = Math.max(1, parseInt(f.number_of_songs,10)||1);   // music models bill per song
       return u*songs; }
     return null;
@@ -1687,29 +1700,47 @@ window.NoodleApp = (function () {
     music: [
       { id:"lyrics",          type:"textarea" },
       { id:"instrumental",    type:"boolean" },
-      { id:"duration",        type:"number" },
-      { id:"number_of_songs", type:"number",   default:1 },
+      { id:"duration",        type:"number",   applies:"cat:duration" },
+      { id:"number_of_songs", type:"number",   default:1, applies:"cat:gencount" },
       { id:"negative_prompt", type:"textarea" },
       { id:"seed",            type:"number" },
       { id:"response_format", type:"select",   default:"mp3" },
     ],
     tts: [
-      { id:"voice",           type:"select" },
+      { id:"voice",           type:"select",   applies:"cat:voices" },
       { id:"speed",           type:"number", default:1 },
       { id:"instructions",    type:"textarea" },
       { id:"response_format", type:"select", default:"mp3" },
     ],
   };
   // Faithful to collectAudioParams(): only-when-nonempty, omit defaults, then merge extraJson verbatim.
-  function collectAudioParams(n){
+  // Catalog-gated (mirrors the editor's audioApplies): a param tagged applies:"cat:*" is dropped unless the
+  // chosen model actually advertises it, so a model swap in an exported app can't POST a stale duration/
+  // number_of_songs to a model without those params (which would also skew the cost chip). The catalog is
+  // best-effort — if it's unreachable, sp is null and we fall back to sending every non-empty field (the
+  // prior behavior). Same code path serves music AND tts; tts only gains voice-gating, otherwise unchanged.
+  async function collectAudioParams(n){
     const body = {};
+    let m = null;
+    try{ m = await rawCatItem("audio", n.fields.model); }catch(e){}
+    const sp = (m && m.supported_parameters) || null;
+    const applies = function(f){
+      if(!f.applies || !sp) return true;   // untagged param, or no catalog → send-everything fallback
+      if(f.applies==="cat:duration") return sp.min_duration!=null && sp.max_duration!=null;
+      if(f.applies==="cat:gencount") return !!sp.generation_count_parameter;
+      if(f.applies==="cat:voices")   return Array.isArray(sp.voices) && sp.voices.length>0;
+      return true;
+    };
+    // number_of_songs rides under the model's own wire name (generation_count_parameter), matching the editor
+    const wireKey = function(id){ return (id==="number_of_songs" && sp && sp.generation_count_parameter) ? sp.generation_count_parameter : id; };
     for(const f of (AUDIO_PARAMS[n.type]||[])){
-      let v = n.fields[f.id];
-      if(f.type==="boolean"){ if(v===true||v==="true") body[f.id]=true; continue; }
+      if(!applies(f)) continue;
+      let v = n.fields[f.id], key = wireKey(f.id);
+      if(f.type==="boolean"){ if(v===true||v==="true") body[key]=true; continue; }
       if(v==null || v==="") continue;
-      if(f.type==="number"){ const num=Number(v); if(isNaN(num)) continue; if(f.default!=null && num===f.default) continue; body[f.id]=num; continue; }
+      if(f.type==="number"){ const num=Number(v); if(isNaN(num)) continue; if(f.default!=null && num===f.default) continue; body[key]=num; continue; }
       if(f.default!=null && v===f.default) continue;       // e.g. response_format=mp3 → omit
-      body[f.id] = v;
+      body[key] = v;
     }
     if((n.fields.extraJson||"").trim()){                    // escape hatch: merge any extra keys verbatim
       try{ Object.assign(body, JSON.parse(n.fields.extraJson)); }catch(e){ throw new Error("advanced params: invalid JSON"); }
@@ -1719,7 +1750,7 @@ window.NoodleApp = (function () {
   async function audioRun(n, inp, ctx, onProgress){
     const text = (inp.text != null ? inp.text : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
     if(!text) throw new Error("no text");
-    return { audio: await ctx.genAudio(mdl(n), text, collectAudioParams(n),
+    return { audio: await ctx.genAudio(mdl(n), text, await collectAudioParams(n),
       (q,ms)=> onProgress && onProgress("generating audio… " + Math.round(ms/1000) + "s" + (q!=null?(" · queue "+q):""))) };
   }
 
