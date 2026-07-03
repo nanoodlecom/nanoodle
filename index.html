@@ -304,7 +304,7 @@
      through / steal taps on list rows. #addpop is trapped in #top's z:30 context, so we demote the
      bar rather than raise the popover. */
   body:has(#addpop.open) #describebar, body:has(#quickadd.open) #describebar{ z-index:25 }
-  body:has(#addpop.open) #cornerpills, body:has(#quickadd.open) #cornerpills{ visibility:hidden }
+  body:has(#addpop.open) #cornerpills, body:has(#quickadd.open) #cornerpills, body:has(#mpick.open) #cornerpills{ visibility:hidden }
   @media (prefers-reduced-motion:reduce){ .node.db-pulse{ animation:none } .db-spin{ animation:none } }
   @media (max-width:620px){ .db-label{ display:none } #describemodel{ max-width:120px } #describegoal{ min-width:140px } }
   @media (max-width:380px){ #describemodel{ max-width:84px } }   /* ≤380px: shrink the model chip so ✦ Apply stays on one row instead of dropping to a stranded 2nd row (doubling bar height) */
@@ -466,7 +466,13 @@
             padding:.55rem .75rem; font:inherit; font-size:.82rem; font-weight:600; border-radius:.6rem; cursor:pointer;
             background:var(--panel2); border:1px solid var(--bad); color:var(--bad); box-shadow:0 6px 18px #0006; }
   #delnode:active{ filter:brightness(1.15) }
-  @media (pointer:coarse){ #delnode.show{ display:inline-flex } }
+  @media (pointer:coarse){ #delnode.show{ display:inline-flex }
+    /* ...but this top-right fixed button (z-60) otherwise covers the × of the top-center overlays
+       (key row, demo pill) and pokes through the model-picker backdrop — so you can't dismiss them,
+       or you delete the very node whose picker is open. Stand it down while any of those is up. */
+    body:has(#keyrow.open) #delnode.show,
+    body:has(#demopop:not([hidden])) #delnode.show,
+    body:has(#mpick.open) #delnode.show{ display:none } }
   #wires{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:-1; overflow:visible }
   #wires path.wire{ fill:none; stroke-width:2.5; pointer-events:stroke; cursor:pointer; }
   #wires path.hit{ fill:none; stroke:transparent; stroke-width:14; pointer-events:stroke; cursor:pointer; }
@@ -852,7 +858,7 @@
     <button id="authcaret" title="more sign-in options" aria-label="more sign-in options">▾</button>
     <div id="authpop">
       <button id="pastebtn" style="display:none"><span class="k">🔑</span> <span>paste key</span></button>
-      <a class="authnew" href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener"><span>new to NanoGPT?</span> <b>create an account →</b></a>
+      <a id="authnew" class="authnew" href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener"><span>new to NanoGPT?</span> <b>create an account →</b></a>
     </div>
   </div>
   <button id="signout" class="link" style="display:none">sign out</button>
@@ -6392,6 +6398,11 @@ function updateRunButtons(){
   run.textContent = running ? t("■ Stop") : t("▶ Run");
   run.title = running ? t("Stop the running workflow") : t("run every flow (Ctrl/⌘+Enter)");
   run.disabled = draining;                         // mid-stop: ignore clicks until the run unwinds
+  // The run-cost pill delegates its click to #run, so while the run is live (or draining) it would
+  // read "▶ … to run" yet actually STOP the run — two contradictory affordances. Hide it for the
+  // duration; refreshRunEstimate() restores the correct pill (demo/unpriced/priced) once idle.
+  const est = $("runest");
+  if(est){ if(running || draining) est.hidden = true; else refreshRunEstimate(); }
 }
 
 /* ---------- deterministic-skip cache ----------
@@ -6552,6 +6563,7 @@ function warnLowBalance(){
 // No key needed: runGroup falls back to the sample run (DEMO_CTX) when signed out.
 function runAll(){
   if(!graph.nodes.length){ flash("nothing to run — add a node"); return; }
+  dismissHint();   // first Run clears the orientation banner — covers ⌘/Ctrl+Enter and the demo-teaser run paths, not just the toolbar button
   warnLowBalance();
   for(const c of components()) if(!groupBusy(c)) runGroup([...c]);   // fire-and-forget → groups run in parallel
 }
@@ -7801,7 +7813,7 @@ $("authpop").addEventListener("click", e=>{ if(e.target.closest("button,a")) $("
 
 /* ---------- responsive toolbar: collapse secondary actions into the ⋯ menu on phones ----------
    Buttons keep their handlers (they're moved, not cloned). On desktop everything sits inline. */
-const RELOC = ["share","save","load","updates","signin","pastebtn","signout","status"];  // order shown in the menu — ✨ Create app stays in the bar (icon-only via CSS)
+const RELOC = ["share","save","load","updates","signin","pastebtn","authnew","signout","status"];  // order shown in the menu — ✨ Create app stays in the bar (icon-only via CSS). authnew rides along so the "create an account" CTA isn't stranded in the hidden #authpop on collapse
 let topOrder = null;
 // Collapse into ⋯ by MEASURING true one-line overflow, not a fixed media query: the bar's natural width
 // swings ~1100–1300px with auth state and app-title length, so any single px breakpoint is dishonest
@@ -7815,6 +7827,7 @@ function expandBar(){
   $("apppop").appendChild($("newapp"));                // hand the "Save as a new app" fork back to the caret popover
   $("authmenu").insertBefore($("signin"), $("authcaret"));   // signin/pastebtn nest INSIDE the auth split-button, so the
   $("authpop").prepend($("pastebtn"));                       // topOrder re-append above can't restore them — re-nest by hand (paste key sits above the create-account link)
+  $("authpop").appendChild($("authnew"));                    // ...and put the create-account link back below it (collapseBar moved it into ⋯ via RELOC)
   pop.querySelectorAll(".mdiv").forEach(d=> d.remove());
 }
 function collapseBar(){
@@ -7975,7 +7988,7 @@ function saveFile(){
 function loadFile(file){
   if(!file) return;
   const r = new FileReader();
-  r.onload = ()=>{ try{ setPendingApp(null); applyGraphData(JSON.parse(r.result)); save(); }catch(e){ alert(t("Couldn’t load that file:")+" "+e.message); } };
+  r.onload = ()=>{ try{ setPendingApp(null); applyGraphData(JSON.parse(r.result)); window.resetDescribeVersions?.(); save(); }catch(e){ alert(t("Couldn’t load that file:")+" "+e.message); } };
   r.readAsText(file);
 }
 $("save").onclick = saveFile;
@@ -8151,6 +8164,7 @@ async function loadFromHash(){
       const spec = JSON.parse(json); setPendingApp(spec.appId, spec.title); applyGraphData(spec.graph);
     }
     else { setPendingApp(null); applyGraphData(JSON.parse(json)); }
+    window.resetDescribeVersions?.();   // a shared/handoff graph replaces the workflow → drop the old describe-version chips
     history.replaceState({}, "", location.pathname + location.search); // consume the link; edits now win
     save();
     return true;
@@ -8367,7 +8381,7 @@ addEventListener("message", e=>{
     // one app while the canvas shows another's, and the next save would overwrite the wrong app.
     let ok = !e.data.graph;   // no graph payload → nothing to apply, the binding is all there is
     // snapshot the canvas being replaced — an unbound in-progress noodle must stay one Ctrl+Z away
-    if(e.data.graph){ try{ pushUndo(); applyGraphData(e.data.graph); save(); ok = true; }catch(_){ /* keep current canvas, don't rebind */ } }
+    if(e.data.graph){ try{ pushUndo(); applyGraphData(e.data.graph); window.resetDescribeVersions?.(); save(); ok = true; }catch(_){ /* keep current canvas, don't rebind */ } }
     if(ok) setPendingApp(e.data.appId, e.data.title);
     lastHandoffSig = null;   // the round-trip changed the canvas/binding → next "Create app" re-hands-off
     closeAppModal();
@@ -8558,6 +8572,7 @@ function loadExample(i){
   pushUndo();                                    // BEFORE the mutation — ↺ Undo restores the prior graph
   setPendingApp(null);                           // an example is a fresh workflow, not an app edit (mirrors loadFile)
   applyGraphData(JSON.parse(JSON.stringify(ex.graph)));  // deep-clone: applyGraphData spreads nodes shallowly and mutates them, so a raw template would be corrupted for the next load
+  window.resetDescribeVersions?.();              // fresh workflow → clear the old describe-version chips so they can't overwrite it
   fitView();                                     // frame the freshly loaded example on any screen
   save();                                        // persist as the new autosave
   dismissHint();                                 // loading an example counts as orientation complete
@@ -9082,6 +9097,11 @@ RULES for the diff:
     versEl.innerHTML = html;
   }
   versEl.addEventListener("click", e=>{ const b=e.target.closest("[data-ver]"); if(b) selectVersion(+b.getAttribute("data-ver")); });
+  // A wholesale graph SWAP (open an Example, a shared link, a file, a different app) invalidates this
+  // strip: its chips snapshot the PREVIOUS workflow, and clicking one would overwrite the just-loaded
+  // graph with an unrelated version. External load paths call this to clear it. Deliberately NOT called
+  // from submit()/selectVersion()/undo-redo — those are same-workflow ops that must keep their history.
+  window.resetDescribeVersions = ()=>{ versions.length = 0; curVer = -1; renderVersions(); setStatus(""); };
   function selectVersion(i){
     const v = versions[i]; if(!v || i===curVer || busy) return;
     // Canvas edits made by hand since the current version aren't a snapshot — applyGraphData
