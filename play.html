@@ -1298,6 +1298,8 @@ window.NoodleApp = (function () {
       if(opts.audioDataUrl) body.audioDataUrl = opts.audioDataUrl;
       if(opts.lora) Object.assign(body, opts.lora);        // LoRA params (lora_url_1.. for LTX video)
       if(opts.extra) Object.assign(body, opts.extra);      // per-model catalog options (preset/style/effect/…)
+      // Wired reference images LAST — a wired port must always win the key over a knob (see editor twin).
+      if(opts.refImages && opts.refImages.length && opts.refKey) body[opts.refKey] = opts.refImages;   // ref-image array param
       // NanoGPT inlines media as base64 and the edge rejects bodies over ~4.5 MB with a header-less
       // 413 the browser mislabels as CORS. No upload endpoint → catch oversize locally and explain.
       const payload = JSON.stringify(body);
@@ -2114,6 +2116,12 @@ function mp4ParamsMatch(bufs){
     return Object.keys(inp).filter(k=> VID_PORT_RE.test(k)).sort((a,b)=> +a.slice(3) - +b.slice(3))
       .map(k=> inp[k]).filter(Boolean);
   }
+  // reference-image ports (ref1, ref2, …) on the tvideo node — pulled from inp in numeric order
+  const REF_PORT_RE = /^ref\d+$/;
+  function collectRefInputs(inp){
+    return Object.keys(inp).filter(k=> REF_PORT_RE.test(k)).sort((a,b)=> portIdx(a) - portIdx(b))
+      .map(k=> inp[k]).filter(Boolean);
+  }
   // a wired audio data: URL → the OpenAI-standard inline part audio-input chat models hear
   // (verbatim from index.html audioInputPart). Strips the data-URL prefix, derives the format
   // from the MIME subtype (audio/mpeg→mp3), guards the ~4.4MB edge body cap that bites lipsync.
@@ -2380,12 +2388,15 @@ function mp4ParamsMatch(bufs){
       }
     },
     tvideo: {
-      em:"🎬", title:"Text→Video", inputs:[], outputs:[{name:"video", type:"video"}],
+      em:"🎬", title:"Text→Video", inputs:[], refInputs:true,   // reads optional reference-image wires (ref1…) → the model's ref-image array param (seedance-2.0/luma/kling/wan)
+      outputs:[{name:"video", type:"video"}],
       async run(n, inp, ctx, onProgress){
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         if(!prompt) throw new Error("no prompt");
-        const url = await ctx.genVideo(mdl(n), prompt,
-          { dims:await videoDimParams(n), lora:loraParams(n), extra:(n.fields.modelOpts||{}) }, null,
+        const opts = { dims:await videoDimParams(n), lora:loraParams(n), extra:(n.fields.modelOpts||{}) };
+        const refs = collectRefInputs(inp);
+        if(refs.length){ const spec = await modelAllowsRefs(mdl(n)); if(spec && spec.key){ opts.refImages = refs.slice(0, spec.cap); opts.refKey = spec.key; } }   // honor authored ref wires unless a runtime model swap dropped ref support
+        const url = await ctx.genVideo(mdl(n), prompt, opts, null,
           (st,ms)=> onProgress && onProgress("rendering video… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
         return { video: url };
       }
@@ -2695,6 +2706,12 @@ function mp4ParamsMatch(bufs){
         if(t.endFrame) for(const l of graph.links){
           if(l.to.node===id && l.to.port==="endframe"){ const src = byId(l.from.node); inp.endframe = src && src.out ? src.out[l.from.port] : undefined; }
         }
+        // the growing reference-image ports on the tvideo node → read by run() via collectRefInputs() (twin of the
+        // editor). The exported graph only carries ref wires the editor authored against a ref-image model; run()
+        // re-checks the model (in case of a runtime swap) before sending them.
+        if(t.refInputs) for(const l of graph.links){
+          if(l.to.node===id && REF_PORT_RE.test(l.to.port)){ const src = byId(l.from.node); inp[l.to.port] = src && src.out ? src.out[l.from.port] : undefined; }
+        }
         // a wired field overrides its typed value (n.fields[field]); declared ports handled above
         const fieldOverrides = {};
         for(const l of graph.links){
@@ -2702,6 +2719,7 @@ function mp4ParamsMatch(bufs){
           if(imgRe && imgRe.test(l.to.port)) continue;   // image ports aren't text-field overrides
           if(t.videoInputs && VID_PORT_RE.test(l.to.port)) continue;   // clip ports aren't text-field overrides
           if(t.audioInput && l.to.port==="audio") continue;            // the audio port isn't a text-field override
+          if(t.refInputs && REF_PORT_RE.test(l.to.port)) continue;     // ref-image ports aren't text-field overrides
           const src = byId(l.from.node);
           const v = src && src.out ? src.out[l.from.port] : undefined;
           if(v!=null) fieldOverrides[l.to.port] = v;
@@ -2960,6 +2978,28 @@ function mp4ParamsMatch(bufs){
       const sp = m.supported_parameters||{}, pp = sp.parameters||sp;
       return ("last_image" in pp) || ("end_image" in pp);
     }catch(e){ return true; }
+  }
+  // Does this video model accept reference images? Returns {key,cap}-or-null, mirroring the editor's
+  // videoRefSpec but permissive-ON when the catalog can't be read: the ref wires were authored deliberately
+  // in the editor (gated there), so if we can't verify at runtime we honor them with a best-effort key
+  // rather than silently drop them. null only when a KNOWN model clearly lacks any ref-image param.
+  async function modelAllowsRefs(model){
+    var keys = ["reference_images","reference_image_urls","referenceImages"];
+    try{
+      var raw = await loadCatalogRaw("video");
+      var m = raw.find(function(x){ return x && x.id===model; });
+      // unknown / typed-in / offline → honor the authored wires. We can't see the model's real key here,
+      // so we guess the most common spelling; if the model actually wants reference_image_urls/referenceImages
+      // it ignores this and renders a plain video (a degraded result, NOT a double charge). Only bites when
+      // the catalog fetch fails but generation still works — rare. Mirrors #198's modelAllowsEndFrame.
+      if(!m) return { key:"reference_images", cap:4 };
+      var sp = m.supported_parameters||{}, pp = sp.parameters||sp;
+      var key = keys.find(function(k){ return k in pp; });
+      if(!key) return null;   // known model with no ref-image param
+      var d = pp[key], cap = 4;
+      if(d && typeof d==="object"){ var mx = d.max!=null ? d.max : (d.maxItems!=null ? d.maxItems : d.max_items); if(mx!=null && +mx>0) cap = +mx; }
+      return { key:key, cap:cap };
+    }catch(e){ return { key:"reference_images", cap:4 }; }
   }
   async function modelOptionsFor(type){
     const kind = SETTING_MODEL_KIND[type]; if(!kind) return [];
