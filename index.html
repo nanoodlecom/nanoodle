@@ -5375,13 +5375,17 @@ function fitFloor(){
   return Math.min(ZMIN, editor.clientWidth/(b.x1-b.x0+M*2), editor.clientHeight/(b.y1-b.y0+M*2), 1);
 }
 // Center the graph with breathing room; clamp to 1x so we never zoom IN past native.
-function fitView(){
+// topPad reserves headroom at the top of the viewport (the first-run hint pill sits there);
+// the graph is then centered within the region below it. 0 (default = user-invoked Fit/F/dbl-click)
+// keeps the classic full-viewport centering.
+const FIT_HINT_PAD = 56;   // clears the top:14px first-run hint pill so a framed graph never lands under it
+function fitView(topPad=0){
   const b=graphBBox(); if(!b) return;
-  const M=48, vw=editor.clientWidth, vh=editor.clientHeight, bw=b.x1-b.x0, bh=b.y1-b.y0;
-  const f=Math.min(vw/(bw+M*2), vh/(bh+M*2));
+  const M=48, vw=editor.clientWidth, vh=editor.clientHeight, avh=vh-topPad, bw=b.x1-b.x0, bh=b.y1-b.y0;
+  const f=Math.min(vw/(bw+M*2), avh/(bh+M*2));
   scale = clamp(f, Math.min(ZMIN, f), 1);   // undershoot ZMIN only when the graph can't fit at the floor
   panX = (vw - bw*scale)/2 - b.x0*scale;
-  panY = (vh - bh*scale)/2 - b.y0*scale;
+  panY = topPad + (avh - bh*scale)/2 - b.y0*scale;
   applyWorld(); redraw();
 }
 // Does the whole graph already sit inside the viewport under the CURRENT (just-applied) view?
@@ -6879,7 +6883,7 @@ async function loadDefault(){   // noodle-graph.json shipped alongside the page 
     const r = await fetch("noodle-graph.json", {cache:"no-store"});
     if(!r.ok) return false;
     applyGraphData(await r.json());
-    if(!graphFitsViewport()) fitView();   // first-run framing — only when the shipped view overflows THIS screen
+    fitView(FIT_HINT_PAD);   // always frame the shipped demo for THIS screen — its baked-in view pins top-left on wide monitors; the user hasn't positioned it
     return true;
   }catch{ return false; }      // e.g. opened via file:// — fall back to the built-in seed
 }
@@ -6897,7 +6901,7 @@ function loadFile(file){
 }
 $("save").onclick = saveFile;
 $("load").onclick = ()=> $("loadfile").click();
-$("fit").onclick = fitView;
+$("fit").onclick = ()=> fitView();   // wrap so the click event isn't passed as topPad
 $("undo").onclick = undo;
 $("redo").onclick = redo;
 $("delnode").onclick = ()=>{ if(!selected) return; if(runningNodes.has(selected.id)){ flash("can’t delete while running — Stop first"); return; } removeNode(selected.id); };
@@ -7554,7 +7558,7 @@ $("signout").onclick = ()=> setKey(null);
       } }catch(_){}
   try{ sessionStorage.removeItem(RESUME_APPID_KEY); sessionStorage.removeItem(RESUME_APPTITLE_KEY); }catch(_){}
   if(!restored && location.hash.length > 3){ restored = await loadFromHash();   // opened a shared link
-    if(restored && !graphFitsViewport()) fitView();   // reframe the sharer's desktop view when it overflows THIS screen (phone/tablet visitor) — same guard as loadDefault
+    if(restored) fitView(FIT_HINT_PAD);   // always frame the sharer's graph for THIS screen — the visitor hasn't positioned it (same as loadDefault)
   }
   if(!restored && (restored = load())){                          // else last local graph...
     // ...and re-link it to the app it was bound to, so a plain reload keeps "Update app"
