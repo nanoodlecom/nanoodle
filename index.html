@@ -414,7 +414,10 @@
                background:var(--panel); border:1px solid var(--line); border-radius:2rem;
                padding:.4rem .45rem .4rem .85rem; font-size:.82rem; color:var(--dim); box-shadow:0 6px 22px #0007 }
   #canvashint .ht{ flex:1; min-width:0 }   /* the sentence fills the row as one wrapping block; the × stays pinned right */
-  #canvashint b{ color:var(--ink); font-weight:600; white-space:nowrap }   /* keep ▶ Run / ＋ Add node from breaking mid-token when the line wraps */
+  /* the three inline actions (▶ Run, ✨ Create app, 📚 Examples) are real buttons — same accent-link
+     look so it's obvious all three are clickable; bold + nowrap keeps each from breaking mid-token when the line wraps */
+  #canvashint .link{ font-weight:600; white-space:nowrap; font-size:inherit; cursor:pointer }
+  #canvashint .link:hover{ text-decoration:underline }
   #connecthint b{ color:var(--accent); font-weight:600 }   /* the ● reads as a port dot */
   #connecthint span{ min-width:0 }   /* keep the sentence flowing as prose (not split flex columns) on narrow screens */
   #canvashint #hintx, #connecthint #connecthintx{ border:none; background:none; color:var(--dim); cursor:pointer; font-size:1rem; line-height:1; padding:.1rem .4rem; border-radius:.4rem }
@@ -1027,7 +1030,7 @@
   <svg id="wires"></svg>
   <div id="world"></div>
   <button id="delnode" title="Delete the selected node" aria-label="Delete the selected node">🗑 Delete</button>
-  <div id="canvashint" hidden><span class="ht">nanoodle wires AI models — text, image, video, audio — into workflows. Press <b>▶ Run</b> to try this one, <b>✨ Create app</b> to turn it into a shareable app, or browse <button id="hintexamples" class="link">📚 Examples</button>.</span><button id="hintx" title="Got it" aria-label="Dismiss">×</button></div>
+  <div id="canvashint" hidden><span class="ht">nanoodle wires AI models — text, image, video, audio — into workflows. Press <button id="hintrun" class="link">▶ Run</button> to try this one, <button id="hintmake" class="link">✨ Create app</button> to turn it into a shareable app, or browse <button id="hintexamples" class="link">📚 Examples</button>.</span><button id="hintx" title="Got it" aria-label="Dismiss">×</button></div>
   <div id="connecthint" hidden><span>Drag a <b>●</b> port onto a matching one to connect — or drop a wire on empty canvas to quick-add.</span><button id="connecthintx" title="Got it" aria-label="Dismiss">×</button></div>
 </main>
 <div id="quickadd"></div>
@@ -1140,9 +1143,9 @@ const I18N = {
     "16:9 (Landscape)":"16:9 (Horizontal)",
     "1:1 (Square)":"1:1 (Cuadrado)",
     "nanoodle wires AI models — text, image, video, audio — into workflows. Press":"nanoodle conecta modelos de IA — texto, imagen, vídeo, audio — en flujos de trabajo. Pulsa",
-    "to try this one, or":"para probar este, o",
+    "to try this one,":"para probar este,",
     "✨ Create app":"✨ Crear app",
-    "to turn it into a shareable app.":"para convertirlo en una app que puedes compartir.",
+    "to turn it into a shareable app, or browse":"para convertirlo en una app que puedes compartir, o explora",
     "A running changelog — one line per change.":"Un registro de cambios continuo — una línea por cambio.",
     "Apply the described change (Enter)":"Aplicar el cambio descrito (Enter)",
     "Audio model":"Modelo de audio",
@@ -1560,9 +1563,9 @@ const I18N = {
     "16:9 (Landscape)":"16:9 (Paysage)",
     "1:1 (Square)":"1:1 (Carré)",
     "nanoodle wires AI models — text, image, video, audio — into workflows. Press":"nanoodle relie des modèles d’IA — texte, image, vidéo, audio — en workflows. Appuyez sur",
-    "to try this one, or":"pour essayer celui-ci, ou",
+    "to try this one,":"pour essayer celui-ci,",
     "✨ Create app":"✨ Créer une app",
-    "to turn it into a shareable app.":"pour en faire une app partageable.",
+    "to turn it into a shareable app, or browse":"pour en faire une app partageable, ou parcourez",
     "A running changelog — one line per change.":"Un journal des modifications continu — une ligne par changement.",
     "Apply the described change (Enter)":"Appliquer la modification décrite (Entrée)",
     "Audio model":"Modèle audio",
@@ -1969,9 +1972,9 @@ const I18N = {
     "16:9 (Landscape)":"16:9 (Querformat)",
     "1:1 (Square)":"1:1 (Quadratisch)",
     "nanoodle wires AI models — text, image, video, audio — into workflows. Press":"nanoodle verbindet KI-Modelle — Text, Bild, Video, Audio — zu Workflows. Drücke",
-    "to try this one, or":"um diesen auszuprobieren, oder",
+    "to try this one,":"um diesen auszuprobieren,",
     "✨ Create app":"✨ App erstellen",
-    "to turn it into a shareable app.":"um daraus eine teilbare App zu machen.",
+    "to turn it into a shareable app, or browse":"um daraus eine teilbare App zu machen, oder stöbere in",
     "A running changelog — one line per change.":"Ein laufendes Änderungsprotokoll — eine Zeile pro Änderung.",
     "Apply the described change (Enter)":"Beschriebene Änderung anwenden (Enter)",
     "Audio model":"Audio-Modell",
@@ -2380,9 +2383,9 @@ const I18N = {
     "16:9 (Landscape)":"16:9 (Paisagem)",
     "1:1 (Square)":"1:1 (Quadrado)",
     "nanoodle wires AI models — text, image, video, audio — into workflows. Press":"nanoodle conecta modelos de IA — texto, imagem, vídeo, áudio — em fluxos de trabalho. Pressione",
-    "to try this one, or":"para testar este, ou",
+    "to try this one,":"para testar este,",
     "✨ Create app":"✨ Criar app",
-    "to turn it into a shareable app.":"para transformá-lo em um app compartilhável.",
+    "to turn it into a shareable app, or browse":"para transformá-lo em um app compartilhável, ou explore",
     "A running changelog — one line per change.":"Um changelog contínuo — uma linha por alteração.",
     "Apply the described change (Enter)":"Aplicar a alteração descrita (Enter)",
     "Audio model":"Modelo de áudio",
@@ -2788,9 +2791,9 @@ const I18N = {
     "16:9 (Landscape)":"16:9 (横長)",
     "1:1 (Square)":"1:1 (スクエア)",
     "nanoodle wires AI models — text, image, video, audio — into workflows. Press":"nanoodle はAIモデル（テキスト・画像・動画・音声）をワークフローに繋ぎます。",
-    "to try this one, or":"でこれを試すか、",
+    "to try this one,":"でこれを試すか、",
     "✨ Create app":"✨ アプリ作成",
-    "to turn it into a shareable app.":"で共有できるアプリにしましょう。",
+    "to turn it into a shareable app, or browse":"で共有できるアプリにするか、",
     "A running changelog — one line per change.":"進行中の変更履歴 — 変更ごとに1行。",
     "Apply the described change (Enter)":"説明した変更を適用 (Enter)",
     "Audio model":"音声モデル",
@@ -8316,6 +8319,8 @@ function loadExample(i){
 }
 $("examples").onclick = openExamples;
 $("examplesclose").onclick = closeExamples;
+$("hintrun").onclick = ()=> $("run").click();    // banner "▶ Run" = the toolbar Run (it dismisses the hint, then runs/stops)
+$("hintmake").onclick = openCreateApp;           // banner "✨ Create app" = the toolbar ✨ button (opens the modal, keeps the hint like Examples)
 $("hintexamples").onclick = openExamples;        // first-run banner link — must NOT dismiss the hint
 $("examplesmodal").addEventListener("click", e=>{ if(e.target.id==="examplesmodal") closeExamples(); });   // dim-backdrop close
 addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("examplesmodal").hidden) closeExamples(); });
