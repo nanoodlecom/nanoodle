@@ -361,14 +361,22 @@
   #cost b{color:var(--ink)}
 
   /* ---------- editor surface ---------- */
-  #legallink{ position:fixed; right:.5rem; bottom:calc(var(--db-h,3rem) + .35rem); z-index:20; font-size:.62rem; line-height:1;
-              color:var(--dim); opacity:.4; text-decoration:none; pointer-events:auto; }
+  #legallink{ position:fixed; right:.9rem; bottom:calc(var(--db-h,3rem) + .35rem); z-index:20; font-size:.62rem; line-height:1;
+              color:var(--dim); opacity:.4; text-decoration:none; pointer-events:auto; }   /* right-aligned under the control bar's right edge, clear of the lifted row */
   #legallink:hover{ opacity:.85; text-decoration:underline }
-  #runest{ position:fixed; right:9.2rem; bottom:calc(var(--db-h,3rem) + .9rem); z-index:20; cursor:default;   /* left of the undo+fit buttons (their left edge sits at 8.6rem), same row so it never covers them */
-           font-family:ui-monospace,monospace; font-size:.72rem; line-height:1; color:var(--dim);
-           background:var(--panel2,#1a1d24); border:1px solid var(--line,#2a2e37); border-radius:.5rem;
-           padding:.3rem .5rem; box-shadow:0 6px 18px #0005; pointer-events:auto; user-select:none; }
-  #runest b{ color:var(--ink); font-weight:700; }
+  /* Bottom-right cluster: the persistent run-cost pill owns the corner (the value people care about,
+     always visible), and the transient ↺ ↻ ⊡ canvas controls flow in to its LEFT on hover — so the
+     pill never floats orphaned when the buttons are hidden, and nothing shifts when they appear. */
+  #controlbar{ position:fixed; right:.9rem; bottom:calc(var(--db-h,3rem) + 1rem); z-index:30;
+               display:flex; align-items:center; gap:.5rem; pointer-events:none; }
+  #runest{ cursor:default; flex:0 0 auto; order:2;   /* rightmost → sits in the corner */
+           display:flex; align-items:center; gap:.4rem; height:2.3rem; box-sizing:border-box;
+           font-family:ui-monospace,monospace; font-size:.78rem; line-height:1; color:var(--dim);
+           background:var(--panel2,#1a1d24); border:1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
+           border-radius:.6rem; padding:0 .7rem; box-shadow:0 4px 16px #0006, 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+           pointer-events:auto; user-select:none; white-space:nowrap; }
+  #runest .rn-run{ color:var(--accent); opacity:.9; font-size:.7rem }   /* ▶ ties the cost to the Run action */
+  #runest b{ color:var(--ink); font-weight:800; font-size:.9rem; letter-spacing:-.01em }
   #runest[hidden]{ display:none }
   #canvashint[hidden], #connecthint[hidden]{ display:none }
   #canvashint, #connecthint{ position:absolute; top:14px; left:50%; transform:translateX(-50%); z-index:8;
@@ -381,11 +389,11 @@
   #connecthint span{ min-width:0 }   /* keep the sentence flowing as prose (not split flex columns) on narrow screens */
   #canvashint #hintx, #connecthint #connecthintx{ border:none; background:none; color:var(--dim); cursor:pointer; font-size:1rem; line-height:1; padding:.1rem .4rem; border-radius:.4rem }
   #canvashint #hintx:hover, #connecthint #connecthintx:hover{ background:var(--panel2); color:var(--ink) }
-  /* Phone widths: the run-cost chip and the left-hand 🍜 Cookoff badge share the bottom band and
-     were colliding mid-screen. Lift the cost chip into the bottom-right corner, above the Fit/Undo
-     controls, so it clears the Cookoff badge, the Terms/Privacy link and the Fit button. */
+  /* Phone widths: the right-anchored control bar and the left-hand 🍜 Cookoff badge share the bottom
+     band. On narrow screens a full ↺↻⊡ + pill row could meet the badge mid-screen, so lift the whole
+     bar above the badge's row — it clears the Cookoff badge and the Terms/Privacy link. */
   @media (max-width:480px){
-    #runest{ right:.5rem; bottom:calc(var(--db-h,3rem) + 3.6rem); }
+    #controlbar{ bottom:calc(var(--db-h,3rem) + 3.2rem); }
     /* fill the width so the orientation line flows across the screen instead of into a narrow column */
     #canvashint{ width:calc(100% - 1.2rem); max-width:none; }
   }
@@ -399,19 +407,19 @@
   .node textarea, .node input, .node select, .result .rtext{ touch-action:auto; }
   #editor.panning{cursor:grabbing}
   #world{ position:absolute; top:0; left:0; transform-origin:0 0; --invz:1; }
-  /* Fit-to-view: a floating canvas control in the bottom-right (where a fullscreen button would sit),
-     revealed on hover over the graph. F / double-click do the same; kept tappable where there's no hover. */
-  #fit, #undo, #redo{ position:absolute; bottom:.9rem; z-index:30; width:2.3rem; height:2.3rem;
+  /* Fit-to-view + undo/redo: transient canvas controls that flow to the LEFT of the run-cost pill
+     (order:1). Revealed on hover over the graph or the bar. F / double-click also fit; tappable on touch. */
+  #fit, #undo, #redo{ flex:0 0 auto; order:1; width:2.3rem; height:2.3rem;
         display:flex; align-items:center; justify-content:center; font-size:1.15rem; line-height:1;
         border-radius:.6rem; background:var(--panel2); border:1px solid var(--line); color:var(--ink);
-        cursor:pointer; opacity:0; transition:opacity .14s ease; box-shadow:0 6px 18px #0006; }
-  #fit{ right:.9rem }
-  #redo{ right:3.6rem }   /* ↺ ↻ ⊡ row, right-aligned */
-  #undo{ right:6.3rem }   /* one button-width + gap to the left of Redo */
-  #editor:hover #fit, #fit:focus-visible, #editor:hover #undo, #undo:focus-visible, #editor:hover #redo, #redo:focus-visible{ opacity:.85 }
+        cursor:pointer; opacity:0; pointer-events:none; transition:opacity .14s ease; box-shadow:0 6px 18px #0006; }
+  #undo{ order:0 }   /* ↺ ↻ ⊡ left-to-right, then the pill */
+  #editor:hover ~ #controlbar #fit, #controlbar:hover #fit, #fit:focus-visible,
+  #editor:hover ~ #controlbar #undo, #controlbar:hover #undo, #undo:focus-visible,
+  #editor:hover ~ #controlbar #redo, #controlbar:hover #redo, #redo:focus-visible{ opacity:.85; pointer-events:auto }
   #fit:hover, #undo:hover, #redo:hover{ opacity:1; border-color:var(--accent) }
-  #undo[disabled], #redo[disabled]{ opacity:0!important; pointer-events:none }   /* nothing to undo/redo → stay hidden */
-  @media (hover:none){ #fit{ opacity:.6 } #undo:not([disabled]), #redo:not([disabled]){ opacity:.6 } #describebar{ opacity:.85 } }   /* touch: no hover to reveal them, so keep them discoverable (composer :focus-within still brightens to 1) */
+  #undo[disabled], #redo[disabled]{ display:none }   /* nothing to undo/redo → drop out of the row entirely (no empty slot) */
+  @media (hover:none){ #fit{ opacity:.6; pointer-events:auto } #undo:not([disabled]), #redo:not([disabled]){ opacity:.6; pointer-events:auto } #describebar{ opacity:.85 } }   /* touch: no hover to reveal them, so keep them discoverable (composer :focus-within still brightens to 1) */
   /* Screen-space delete for the selected node — the in-header ✕ shrinks with zoom and sits next to the
      paid ▶ run, so touch gets a big fixed target that can't mis-fire. Coarse pointers only. */
   #delnode{ position:fixed; top:58px; right:.6rem; z-index:60; display:none; align-items:center; gap:.35rem;
@@ -937,9 +945,6 @@
 <main id="editor" aria-label="Workflow canvas">
   <svg id="wires"></svg>
   <div id="world"></div>
-  <button id="undo" title="Undo (Ctrl + Z)" aria-label="Undo the last edit">↺</button>
-  <button id="redo" title="Redo (Ctrl + Y)" aria-label="Redo the last undone edit">↻</button>
-  <button id="fit" title="Fit the whole workflow in view (F)" aria-label="Fit the whole workflow in view">⊡</button>
   <button id="delnode" title="Delete the selected node" aria-label="Delete the selected node">🗑 Delete</button>
   <div id="canvashint" hidden><span class="ht">nanoodle wires AI models — text, image, video, audio — into workflows. Press <b>▶ Run</b> to try this one, or <b>✨ Create app</b> to turn it into a shareable app.</span><button id="hintx" title="Got it" aria-label="Dismiss">×</button></div>
   <div id="connecthint" hidden><span>Drag a <b>●</b> port onto a matching one to connect — or drop a wire on empty canvas to quick-add.</span><button id="connecthintx" title="Got it" aria-label="Dismiss">×</button></div>
@@ -947,7 +952,12 @@
 <div id="quickadd"></div>
 <!-- keep these ABOVE the main script: the boot-time translateTree(document.body) runs
      mid-parse, so anything after the script tag is invisible to it (missed-i18n bug). -->
-<div id="runest" hidden></div>
+<div id="controlbar">
+  <button id="undo" title="Undo (Ctrl + Z)" aria-label="Undo the last edit">↺</button>
+  <button id="redo" title="Redo (Ctrl + Y)" aria-label="Redo the last undone edit">↻</button>
+  <button id="fit" title="Fit the whole workflow in view (F)" aria-label="Fit the whole workflow in view">⊡</button>
+  <div id="runest" hidden></div>
+</div>
 <a id="legallink" href="/legal" target="_blank" rel="noopener">Terms · Privacy</a>
 
 <script>
@@ -3860,7 +3870,7 @@ function refreshRunEstimate(){
   const { usd, priced, unpriced, exact } = workflowCost();
   if(!priced){ el.hidden = true; return; }        // nothing priced to run → hide the chip entirely
   el.hidden = false;
-  el.innerHTML = `${exact?"":"~"}<b>${fmtUsd(usd)}</b>&nbsp;${esc(t("to run"))}`;
+  el.innerHTML = `<span class="rn-run" aria-hidden="true">▶</span>${exact?"":"~"}<b>${fmtUsd(usd)}</b>&nbsp;${esc(t("to run"))}`;
   el.title = t(priced>1 ? "Estimated cost to ▶ Run all — {n} paid nodes" : "Estimated cost to ▶ Run all — {n} paid node").replace("{n}",()=>priced)
     + (unpriced ? t(", plus {n} with no listed price").replace("{n}",()=>unpriced) : "")
     + (exact ? "." : "." + "\n" + t("Video, text & audio are estimates: the real bill depends on clip length, tokens and characters."));
