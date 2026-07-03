@@ -561,17 +561,20 @@
   .dim{ color:var(--dim) }
 
   /* ---------- sample-run pill (signed-out Run) — same shelf as #keyrow ---------- */
-  #demopop{ position:fixed; top:60px; left:50%; transform:translateX(-50%); z-index:49; display:flex; gap:.5rem; flex-wrap:wrap;
-            max-width:min(560px, calc(100vw - .5rem));
-            background:var(--panel); border:1px solid var(--line); border-radius:.6rem; padding:.6rem 2.2rem .6rem .7rem; align-items:center; box-shadow:0 12px 40px #0008 }
+  #demopop{ position:fixed; top:60px; left:50%; transform:translateX(-50%); z-index:49; display:flex; flex-direction:column; gap:.55rem;
+            max-width:min(480px, calc(100vw - .5rem));
+            background:var(--panel); border:1px solid var(--line); border-radius:.6rem; padding:.65rem 2.2rem .65rem .8rem; box-shadow:0 12px 40px #0008 }
   #demopop[hidden]{ display:none }
-  #demopop .dp-b b{ color:var(--accent); white-space:nowrap }
-  #demopop .dp-t{ font-size:.76rem; color:var(--dim); flex:1 1 16rem; min-width:0 }
+  #demopop .dp-txt{ font-size:.76rem; color:var(--dim); line-height:1.45 }
+  #demopop .dp-txt b{ color:var(--accent); white-space:nowrap }
+  #demopop .dp-actions{ display:flex; align-items:center; gap:.8rem; flex-wrap:wrap }
   #demosignin{ background:linear-gradient(90deg,#67e8f9,var(--accent)); color:#0b0d12; font-weight:700; border:none;
                border-radius:.45rem; padding:.45rem .7rem; cursor:pointer; white-space:nowrap }
   #demosignin:hover{ filter:brightness(1.12) }
-  #demopaste{ background:var(--panel2); color:var(--ink); border:1px solid var(--line); border-radius:.45rem; padding:.45rem .6rem; cursor:pointer; white-space:nowrap }
-  #demopaste:hover{ border-color:var(--accent) }
+  /* paste-key is the escape hatch, not the pitch — a quiet inline link, never a second button */
+  #demopaste{ border:none; background:none; color:var(--dim); text-decoration:underline; text-underline-offset:2px;
+              cursor:pointer; font-size:.74rem; padding:.3rem 0; white-space:nowrap }
+  #demopaste:hover{ color:var(--ink) }
   #demox{ position:absolute; top:.3rem; right:.35rem; display:inline-flex; align-items:center; justify-content:center;
           min-width:36px; min-height:36px; border:none; background:none; color:var(--dim); cursor:pointer;
           font-size:1.2rem; line-height:1; padding:.2rem; border-radius:.4rem }
@@ -784,10 +787,11 @@
 
 <!-- Signed-out Run → the workflow plays a canned sample; this pill says so and offers the two real ways in. -->
 <div id="demopop" hidden>
-  <span class="dp-b"><b>Sample run</b></span>
-  <span class="dp-t">results below are canned examples, not live AI — sign in to run it for real, pay-per-use on your own key.</span>
-  <button id="demosignin">Sign in with NanoGPT</button>
-  <button id="demopaste"><span data-no-i18n>🔑</span> paste key</button>
+  <div class="dp-txt"><b>Sample run</b> — <span>results below are canned examples, not live AI — sign in to run it for real, pay-per-use on your own key.</span></div>
+  <div class="dp-actions">
+    <button id="demosignin">Sign in with NanoGPT</button>
+    <button id="demopaste">or paste a key</button>
+  </div>
   <button id="demox" title="Close" aria-label="Close">×</button>
 </div>
 
@@ -1192,6 +1196,7 @@ const I18N = {
     "paste key":"pegar clave",
     "Sign in with NanoGPT":"Iniciar sesión con NanoGPT",
     "Sample run":"Ejecución de muestra",
+    "or paste a key":"o pega una clave",
     "results below are canned examples, not live AI — sign in to run it for real, pay-per-use on your own key.":"los resultados de abajo son ejemplos pregrabados, no IA en vivo — inicia sesión para ejecutarlo de verdad, pago por uso con tu propia clave.",
     "sample result — sign in to run it for real":"resultado de muestra — inicia sesión para ejecutarlo de verdad",
     "samples cover text and images only — sign in to run this node for real":"las muestras solo cubren texto e imágenes — inicia sesión para ejecutar este nodo de verdad",
@@ -1569,6 +1574,7 @@ const I18N = {
     "paste key":"coller la clé",
     "Sign in with NanoGPT":"Se connecter avec NanoGPT",
     "Sample run":"Exécution d’exemple",
+    "or paste a key":"ou collez une clé",
     "results below are canned examples, not live AI — sign in to run it for real, pay-per-use on your own key.":"les résultats ci-dessous sont des exemples préenregistrés, pas de l’IA en direct — connectez-vous pour l’exécuter vraiment, paiement à l’usage avec votre propre clé.",
     "sample result — sign in to run it for real":"résultat d’exemple — connectez-vous pour l’exécuter vraiment",
     "samples cover text and images only — sign in to run this node for real":"les exemples ne couvrent que le texte et les images — connectez-vous pour vraiment exécuter ce nœud",
@@ -1946,6 +1952,7 @@ const I18N = {
     "paste key":"Schlüssel einfügen",
     "Sign in with NanoGPT":"Mit NanoGPT anmelden",
     "Sample run":"Beispiel-Lauf",
+    "or paste a key":"oder Schlüssel einfügen",
     "results below are canned examples, not live AI — sign in to run it for real, pay-per-use on your own key.":"die Ergebnisse unten sind vorbereitete Beispiele, keine echte KI — melde dich an, um es wirklich auszuführen, Bezahlung pro Nutzung mit eigenem Schlüssel.",
     "sample result — sign in to run it for real":"Beispielergebnis — melde dich an, um es wirklich auszuführen",
     "samples cover text and images only — sign in to run this node for real":"Beispiele decken nur Text und Bilder ab — melde dich an, um diesen Knoten wirklich auszuführen",
@@ -2323,6 +2330,7 @@ const I18N = {
     "paste key":"colar chave",
     "Sign in with NanoGPT":"Entrar com NanoGPT",
     "Sample run":"Execução de amostra",
+    "or paste a key":"ou cole uma chave",
     "results below are canned examples, not live AI — sign in to run it for real, pay-per-use on your own key.":"os resultados abaixo são exemplos pré-gravados, não IA ao vivo — entre para executar de verdade, pagamento por uso com a sua própria chave.",
     "sample result — sign in to run it for real":"resultado de amostra — entre para executar de verdade",
     "samples cover text and images only — sign in to run this node for real":"as amostras cobrem apenas texto e imagens — entre para executar este nó de verdade",
@@ -2700,6 +2708,7 @@ const I18N = {
     "paste key":"キーを貼り付け",
     "Sign in with NanoGPT":"NanoGPTでサインイン",
     "Sample run":"サンプル実行",
+    "or paste a key":"またはキーを貼り付け",
     "results below are canned examples, not live AI — sign in to run it for real, pay-per-use on your own key.":"以下の結果はあらかじめ用意されたサンプルで、実際のAIではありません — サインインすると自分のキーで本当に実行できます(従量課金)。",
     "sample result — sign in to run it for real":"サンプル結果 — サインインすると本当に実行できます",
     "samples cover text and images only — sign in to run this node for real":"サンプルはテキストと画像のみ対応 — サインインするとこのノードを本当に実行できます",
