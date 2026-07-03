@@ -1917,7 +1917,11 @@ window.NoodleApp = (function () {
           : { role:"user", content:prompt });
         const res = await ctx.genChatImage(messages, mdl(n), {});
         const sel = Math.min(Math.max(0, parseInt(n.fields.sel,10)||0), res.images.length-1);
-        return { image: res.images[sel], images: res.images, text: res.text };
+        // "reasons, then draws" → surface the trace on the text output by default (opt-out), matching the editor.
+        const showThinking = n.fields.showThinking!==false && n.fields.showThinking!=="false";
+        const fence = String.fromCharCode(96,96,96);   // code fence without literal backticks (RUNTIME_JS rule)
+        const text = (showThinking && res.reasoning) ? fence+"thinking\n"+res.reasoning+"\n"+fence+"\n\n"+(res.text||"") : res.text;
+        return { image: res.images[sel], images: res.images, text };
       }
     },
     inpaint: {
@@ -2420,7 +2424,8 @@ window.NoodleApp = (function () {
               { f:"prompt", label:"Edit instruction", kind:"textarea" },
               { f:"size",  label:"Image size", kind:"select", options:SIZES, def:SIZES[0][0] },
               { f:"seed", label:"Seed", kind:"number" }],
-    draw:    [{ f:"model", label:"Model", kind:"model" }],
+    draw:    [{ f:"model", label:"Model", kind:"model" },
+              { f:"showThinking", label:"Show thinking", kind:"boolean", def:true }],
     tvideo:  [{ f:"model", label:"Model", kind:"model" },
               { f:"resolution", label:"Resolution", kind:"select", options:RESOLUTIONS, def:"" },
               { f:"aspect",   label:"Aspect ratio", kind:"select", options:ASPECTS, def:"16:9" },

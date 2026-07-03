@@ -4426,7 +4426,8 @@ const NODE_TYPES = {
     body:(n)=>`
       ${modelFieldHTML(n)}
       <div><label>system (optional)</label><textarea data-f="system" style="min-height:40px" placeholder="style guide, constraints…">${esc(n.fields.system||"")}</textarea></div>
-      <div><label>prompt</label><textarea data-f="prompt" placeholder="a red panda astronaut, cinematic — or, with images wired in: 'combine these into a poster'">${esc(n.fields.prompt||"")}</textarea></div>`,
+      <div><label>prompt</label><textarea data-f="prompt" placeholder="a red panda astronaut, cinematic — or, with images wired in: 'combine these into a poster'">${esc(n.fields.prompt||"")}</textarea></div>
+      <label class="setbool" style="margin:3px 0"><input type="checkbox" data-f="showThinking"${n.fields.showThinking===false?"":" checked"}/> show thinking <span class="dim">· the model reasons before it draws</span></label>`,
     async run(n, inp, ctx){
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       if(!prompt) throw new Error("no prompt — describe what to draw (or how to edit the wired images)");
@@ -4436,9 +4437,12 @@ const NODE_TYPES = {
       messages.push(imgs.length
         ? { role:"user", content:[{type:"text", text:prompt}, ...imgs.map(url=>({type:"image_url", image_url:{url}}))] }
         : { role:"user", content:prompt });
-      const { images, text } = await ctx.genChatImage(messages, mdl(n), {});
+      const { images, text, reasoning } = await ctx.genChatImage(messages, mdl(n), {});
       const sel = Math.min(Math.max(0, parseInt(n.fields.sel,10)||0), images.length-1);   // remembered pick when the model returns several
-      return { image: images[sel], images, text };
+      // "reasons, then draws" is the node's whole identity → surface the trace on the text output by default (opt-out).
+      const showThinking = n.fields.showThinking!==false && n.fields.showThinking!=="false";
+      const outText = (showThinking && reasoning) ? "```thinking\n"+reasoning+"\n```\n\n"+(text||"") : text;
+      return { image: images[sel], images, text: outText };
     }
   },
 
