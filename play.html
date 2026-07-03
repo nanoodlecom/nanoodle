@@ -1992,6 +1992,8 @@ window.NoodleApp = (function () {
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         const vopts = await videoSourceOpts(inp.video); vopts.lora = loraParams(n); vopts.extra = (n.fields.modelOpts||{});
         if(n.fields.resolution) vopts.resolution = n.fields.resolution;
+        if(n.fields.aspect) vopts.aspect_ratio = n.fields.aspect;
+        if(n.fields.duration) vopts.duration = n.fields.duration;
         const url = await ctx.genVideo(mdl(n), prompt, vopts, null,
           (st,ms)=> onProgress && onProgress("processing video… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
         return { video: url };

@@ -31,6 +31,7 @@ const IMG = "data:image/png;base64,IMGDATA";
 
 const chatCalls = () => calls.filter((c) => /\/chat\/completions/.test(c.url));
 const imgCalls = () => calls.filter((c) => /\/images\/generations/.test(c.url));
+const videoCalls = () => calls.filter((c) => /\/generate-video/.test(c.url));
 const userMsg = (call) => (call.body.messages || []).find((m) => m.role === "user");
 
 // ---- scenarios ------------------------------------------------------------
@@ -248,6 +249,24 @@ const SCENARIOS = [
     check(app, g, fail) {
       const re = chatCalls()[0].body.reasoning_effort;
       if (re !== "high") fail(`reasoning_effort must forward "high", got ${JSON.stringify(re)}`);
+    },
+  },
+  {
+    // Dual-engine parity guard: index.html's vedit.run forwards all three dims (resolution,
+    // aspect_ratio, duration); play.html's RUNTIME_JS twin once forwarded ONLY resolution, so
+    // exported apps silently rendered wrong-length / wrong-ratio v2v clips and still charged for
+    // them. Lock all three into the exported-app generate-video request. (http source URL keeps
+    // videoSourceOpts on the no-decode path so the run reaches genVideo under recordingFetch.)
+    name: "vedit forwards resolution + aspect_ratio + duration to the video API (exported-app parity)",
+    data: { nodes: [node("s1", "vupload", { video: "https://example/clip.mp4" }),
+                    node("v1", "vedit", { model: "x", resolution: "1080p", aspect: "9:16", duration: "8" })],
+            links: [link("s1", "video", "v1", "video")] },
+    check(app, g, fail) {
+      const b = videoCalls()[0]?.body;
+      if (!b) return fail("no generate-video call recorded");
+      if (b.resolution !== "1080p") fail(`resolution not forwarded, got ${JSON.stringify(b.resolution)}`);
+      if (b.aspect_ratio !== "9:16") fail(`aspect_ratio dropped (play.html vedit parity bug), got ${JSON.stringify(b.aspect_ratio)}`);
+      if (b.duration !== "8") fail(`duration dropped (play.html vedit parity bug), got ${JSON.stringify(b.duration)}`);
     },
   },
   {
