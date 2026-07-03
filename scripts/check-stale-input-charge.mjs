@@ -55,8 +55,12 @@ async function run(world, seed, opts = {}) {
     ensureAuth: () => true,
     getKey: () => (opts.signedOut ? null : "k"),          // signed out → runGroup must fall back to DEMO_CTX
     DEMO_CTX: { demo: true },
-    openDemoPop: () => { world.demoPopOpened = true; },
+    openDemoPop: (custom) => { world.demoPopOpened = true; world.demoPopCustom = custom; },
     markDemoResult: (n) => { (world.demoBadged ||= []).push(n.id); },
+    setNodeProgress: () => {},
+    demoRunLabel: () => "loading sample…",
+    demoStarterSig: "STARTER",                             // demo run only serves a sample when the graph matches the starter…
+    appHandoffSig: () => (opts.customGraph ? "OTHER" : "STARTER"),   // …so control this in the test to exercise both paths
     componentOf: () => world.ids.slice(),
     groupBusy: () => false,
     ancestors: () => new Set(world.ids),
@@ -126,6 +130,18 @@ const ok = (c, m) => { if (!c) { fail++; console.log("  ✗ " + m); } else conso
   ok(w.demoPopOpened === true, "sample pill (openDemoPop) surfaced on a signed-out run");
   ok((w.demoBadged || []).includes("n1"), `sample results are badged (badged=${JSON.stringify(w.demoBadged || [])})`);
   ok(w.nodes.n1._sig === undefined, `demo run minted NO seed-cache signature (sig=${w.nodes.n1._sig})`);
+  ok(w.demoPopCustom === false, `sample pill shown in SAMPLE mode for the unedited starter (custom=${w.demoPopCustom})`);
+}
+
+// 5) Signed out on an EDITED / non-starter graph → NO fake result: the sample can't honestly
+//    represent a changed graph, so runGroup opens the pill in "sign in to run your workflow" mode
+//    and runs NOTHING (no canned output, no badge, no charge).
+{
+  const w = makeWorld(2, false);
+  await run(w, "n1", { signedOut: true, customGraph: true });
+  ok(!w.runs.n1 && !w.paid.length, `edited signed-out graph ran no node and charged nothing (runs=${w.runs.n1 || 0}, paid=${w.paid.length})`);
+  ok(w.demoPopOpened === true && w.demoPopCustom === true, `sign-in pill surfaced in CUSTOM mode (opened=${w.demoPopOpened}, custom=${w.demoPopCustom})`);
+  ok(!(w.demoBadged || []).length, `no sample badge on a graph we refused to fake (badged=${JSON.stringify(w.demoBadged || [])})`);
 }
 
 if (fail) { console.error(`\n✗ stale-input-charge: ${fail} assertion(s) failed.`); process.exit(1); }
