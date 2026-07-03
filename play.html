@@ -2505,7 +2505,7 @@ window.NoodleApp = (function () {
       case "vision":     return !!c.vision;
       case "image":      return mod ? mod.startsWith("text") : !c.image_to_image;
       case "edit":       return !!c.image_to_image;
-      case "tvideo":     return !!c.text_to_video;
+      case "tvideo":     { const im = mod.split("->")[0].split("+"); return !!c.text_to_video && !(im.includes("video") && !im.includes("image")); }   // edit/extend models are mislabeled text_to_video but demand a source video
       case "ivideo":     return !!c.image_to_video;
       case "vedit":      return !!c.video_to_video;
       case "lipsync":    return !!c.image_to_video && !!c.audio_input;
@@ -2546,7 +2546,7 @@ window.NoodleApp = (function () {
     const sel = (param)=> ((param&&param.options)||[]).filter(o=> o && o.value!=="" && o.value!=null)
       .map(o=> [String(o.value), o.label!=null?String(o.label):String(o.value)]);
     const r = sel(p.resolution);                    if(r.length) out.resolution = [["","model default"], ...r];
-    const a = sel(p.aspect_ratio || p.orientation); if(a.length) out.aspect = a;    // Sora/WAN name it orientation (landscape/portrait)
+    const a = sel(p.aspect_ratio || p.orientation || p.resolution_ratio); if(a.length) out.aspect = a;    // Sora/WAN name it orientation; PixVerse v5.5/5.6 name it resolution_ratio
     const d = sel(p.duration || p.seconds);         if(d.length) out.duration = d;  // Sora names it seconds (4/8/12)
     return out;
   }
@@ -2559,7 +2559,7 @@ window.NoodleApp = (function () {
     var out = {}, m = null;
     try{ m = await rawCatItem("video", n.fields.model); }catch(e){}
     var p = (m && m.supported_parameters && m.supported_parameters.parameters) || {};
-    var aP = p.aspect_ratio || p.orientation, aWire = p.aspect_ratio ? "aspect_ratio" : (p.orientation ? "orientation" : "aspect_ratio");
+    var aP = p.aspect_ratio || p.orientation || p.resolution_ratio, aWire = p.aspect_ratio ? "aspect_ratio" : (p.orientation ? "orientation" : (p.resolution_ratio ? "resolution_ratio" : "aspect_ratio"));
     var dP = p.duration || p.seconds,         dWire = p.duration ? "duration" : (p.seconds ? "seconds" : "duration");
     var res = n.fields.resolution, asp = n.fields.aspect, dur = n.fields.duration;
     if((asp==null||asp==="") && aP && aP.default!=null) asp = aP.default;   // baked-in field should exist; catalog default is the safety net

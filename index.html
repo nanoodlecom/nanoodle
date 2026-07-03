@@ -3314,9 +3314,16 @@ function normVideo(m){
   // the lipsync node only wires a single audio input, so offering them is a guaranteed dead end. Gate on
   // the real param descriptors rather than the model name.
   const multiAudio = "left_audio" in pp || "right_audio" in pp;
+  // NanoGPT tags edit/extend/lipsync endpoints text_to_video:true even though their modality is
+  // text+video->video — they REQUIRE a source video (the tvideo node sends none → a paid submission
+  // that dead-ends). A model only truly generates from text when it doesn't demand a source video:
+  // video is its sole non-text conditioning input. Image-conditioned generators (text+image+video)
+  // keep t2v — the video is optional there. Data-driven off the catalog modality, no name blocklist.
+  const inMods = ((m.architecture||{}).modality||"").split("->")[0].split("+");
+  const needsSourceVideo = inMods.includes("video") && !inMods.includes("image");
   return { id:m.id, name:m.name||m.id, created:m.created,
     sortUsd: _vu,                                    // resolved $/clip at default res/duration → price sorts
-    t2v:!!c.text_to_video, i2v:!!c.image_to_video,
+    t2v:!!c.text_to_video && !needsSourceVideo, i2v:!!c.image_to_video,
     v2v:!!c.video_to_video,                          // edits/extends/upscales a SOURCE video (→ vedit node)
     avatar:!!c.image_to_video && !!c.audio_input && !multiAudio,    // image + single audio → talking video (→ lipsync node)
     lora,                                            // catalog advertises lora_url_N → the LoRA disclosure is offered
@@ -3896,8 +3903,10 @@ function dimDefs(type, model){
     const rOpts = selOpts(p.resolution);
     if(rOpts.length) defs.push({ f:"resolution", wire:"resolution", label:"resolution", options:rOpts, def:paramDef(p.resolution, rOpts) });
     // aspect dimension: most models name it aspect_ratio, but Sora/WAN-style models call it `orientation`
-    // (landscape/portrait) — same node field, different WIRE key so the model actually honours the choice.
-    const aParam = p.aspect_ratio || p.orientation, aWire = p.aspect_ratio ? "aspect_ratio" : (p.orientation ? "orientation" : "aspect_ratio");
+    // (landscape/portrait) and PixVerse v5.5/5.6 call it `resolution_ratio` (16:9/9:16/… alongside a
+    // separate `resolution`) — same node field, different WIRE key so the model honours the choice.
+    const aParam = p.aspect_ratio || p.orientation || p.resolution_ratio,
+          aWire = p.aspect_ratio ? "aspect_ratio" : (p.orientation ? "orientation" : (p.resolution_ratio ? "resolution_ratio" : "aspect_ratio"));
     const aOpts = selOpts(aParam);
     if(aOpts.length || soft) defs.push({ f:"aspect", wire:aWire, label:"aspect", options:(aOpts.length?aOpts:ASPECT_FALLBACK), def:paramDef(aParam, aOpts.length?aOpts:ASPECT_FALLBACK) });
     // duration dimension: most models name it duration, but Sora calls it `seconds` (4/8/12) — same field, real values.
