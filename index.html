@@ -424,8 +424,13 @@
      bar above the badge's row — it clears the Cookoff badge and the Terms/Privacy link. */
   @media (max-width:480px){
     #controlbar{ bottom:calc(var(--db-h,3rem) + 3.2rem); }
-    /* fill the width so the orientation line flows across the screen instead of into a narrow column */
-    #canvashint{ width:calc(100% - 1.2rem); max-width:none; }
+    /* fill the width so the orientation line flows across the screen instead of into a narrow column,
+       and compact it hard: on a phone the full sentence was ~5 lines eating the top third of the
+       viewport before the graph. Smaller type + tighter leading/padding halves its footprint so the
+       workflow (the actual thing to look at) owns the screen. */
+    #canvashint{ width:calc(100% - 1rem); max-width:none; top:8px;
+                 font-size:.72rem; line-height:1.28; padding:.4rem .4rem .4rem .65rem; gap:.3rem; }
+    #canvashint #hintx{ font-size:.95rem; align-self:flex-start; }
   }
   #editor{ position:fixed; inset:52px 0 var(--db-h,3rem) 0; overflow:hidden; cursor:grab;
            background-color:#0b0d12;
@@ -5800,13 +5805,32 @@ function fitFloor(){
 // the graph is then centered within the region below it. 0 (default = user-invoked Fit/F/dbl-click)
 // keeps the classic full-viewport centering.
 const FIT_HINT_PAD = 56;   // clears the top:14px first-run hint pill so a framed graph never lands under it
+// The headroom to reserve for the first-run orientation banner. When it's actually on screen, measure
+// it (its height swings with copy length, translation and viewport width — a phone wraps it to several
+// lines) so the framed graph lands cleanly BELOW it, not centered under it. Capped at 45% of the
+// viewport so a freak-tall banner can never squeeze the graph to nothing. Falls back to the flat
+// constant when the banner isn't up (returning visitor, or it's been dismissed).
+function hintPad(){
+  const h = $("canvashint");
+  // Only phones need the measured height — there the banner wraps to several lines. On desktop the
+  // banner is a slim 1–2 lines and the flat FIT_HINT_PAD is already tuned (and keeps the demo ghost,
+  // which grows the output node after this fit, from being nudged past the fold).
+  if(editor.clientWidth >= 520 || !h || h.hidden || !h.offsetHeight) return FIT_HINT_PAD;
+  return Math.min(h.offsetHeight + 22, editor.clientHeight*0.45);
+}
 function fitView(topPad=0){
   const b=graphBBox(); if(!b) return;
-  const M=48, vw=editor.clientWidth, vh=editor.clientHeight, avh=vh-topPad, bw=b.x1-b.x0, bh=b.y1-b.y0;
+  const M = editor.clientWidth < 520 ? 20 : 48,   // tighter gutters on a phone → the graph fills more of the narrow width
+        vw=editor.clientWidth, vh=editor.clientHeight, avh=vh-topPad, bw=b.x1-b.x0, bh=b.y1-b.y0;
   const f=Math.min(vw/(bw+M*2), avh/(bh+M*2));
   scale = clamp(f, Math.min(ZMIN, f), 1);   // undershoot ZMIN only when the graph can't fit at the floor
   panX = (vw - bw*scale)/2 - b.x0*scale;
-  panY = topPad + (avh - bh*scale)/2 - b.y0*scale;
+  // Vertical placement: desktop keeps classic centering. Phones anchor the graph just below the pad
+  // instead — a tall phone + a short 3-node graph otherwise centers it in the lower half with a dead
+  // gap under the banner. Cap the top gap so the workflow sits right under the orientation line.
+  const slack = (avh - bh*scale)/2;
+  const topGap = vw < 520 ? Math.min(slack, Math.max(24, vh*0.05)) : slack;
+  panY = topPad + topGap - b.y0*scale;
   applyWorld(); redraw();
 }
 // Does the whole graph already sit inside the viewport under the CURRENT (just-applied) view?
@@ -7382,7 +7406,7 @@ async function loadDefault(){   // noodle-graph.json shipped alongside the page 
     const r = await fetch("noodle-graph.json", {cache:"no-store"});
     if(!r.ok) return false;
     applyGraphData(await r.json());
-    fitView(FIT_HINT_PAD);   // always frame the shipped demo for THIS screen — its baked-in view pins top-left on wide monitors; the user hasn't positioned it
+    fitView(hintPad());   // always frame the shipped demo for THIS screen — its baked-in view pins top-left on wide monitors; the user hasn't positioned it. hintPad() reserves the (already-shown) first-run banner so the graph frames below it, not under it.
     return true;
   }catch{ return false; }      // e.g. opened via file:// — fall back to the built-in seed
 }
@@ -8134,13 +8158,17 @@ $("signout").onclick = ()=> setKey(null);
   primeCatalogsFromCache();
   const catalogReady = Promise.all(["chat","image","video","audio"].map(k=>refreshCatalog(k).catch(()=>false)));
   let restored = false;
+  // Show the first-run orientation banner BEFORE we frame the graph, so the fit calls below can
+  // measure its real height (hintPad) and land the workflow cleanly beneath it — a phone wraps this
+  // banner to several lines, and framing under a 56px guess left the graph floating in the lower half.
+  try{ if(!localStorage.getItem(HINT_KEY)) $("canvashint").hidden = false; }catch{}   // first-run orientation line
   // came back from an OAuth redirect: restore the graph we stashed just before it (consumed once)
   try{ const rs = sessionStorage.getItem(RESUME_KEY); if(rs){ sessionStorage.removeItem(RESUME_KEY); applyGraphData(JSON.parse(rs)); save(); restored = true;
         const ra = sessionStorage.getItem(RESUME_APPID_KEY); if(ra) setPendingApp(ra, sessionStorage.getItem(RESUME_APPTITLE_KEY) || null);   // keep the edit-workflow link across login
       } }catch(_){}
   try{ sessionStorage.removeItem(RESUME_APPID_KEY); sessionStorage.removeItem(RESUME_APPTITLE_KEY); }catch(_){}
   if(!restored && location.hash.length > 3){ restored = await loadFromHash();   // opened a shared link
-    if(restored) fitView(FIT_HINT_PAD);   // always frame the sharer's graph for THIS screen — the visitor hasn't positioned it (same as loadDefault)
+    if(restored) fitView(hintPad());   // always frame the sharer's graph for THIS screen — the visitor hasn't positioned it (same as loadDefault); hintPad() reserves the first-run banner if it's up
   }
   if(!restored && (restored = load())){                          // else last local graph...
     // ...and re-link it to the app it was bound to, so a plain reload keeps "Update app"
@@ -8162,8 +8190,7 @@ $("signout").onclick = ()=> setKey(null);
   // and redraw wires to the new port positions. For a returning visitor this is a no-op-ish nudge; for a
   // brand-new visitor (empty cache) it's what turns the first paint's placeholder cards into final ones.
   catalogReady.then(res=>{ if(res.some(Boolean)){ refreshAllPrices(); redraw(); refreshPortFills(); } });
-  try{ if(!localStorage.getItem(HINT_KEY)) $("canvashint").hidden = false; }catch{}   // first-run orientation line
-  maybeShowConnectHint();   // returning user who never wired by hand → the connect coach (skipped while the first-run line is up)
+  maybeShowConnectHint();   // returning user who never wired by hand → the connect coach (skipped while the first-run line is up, which was shown before the fit above)
   // Brand-new visitors land straight on a simple working flow (the default graph).
   renderAuth();   // paint the signed-out chrome first: a handleRedirect() failure below must not be overwritten by this
   try{ await handleRedirect(); }catch(e){ signInErr(e); }   // success re-renders via setKey; failure now stays visible (status + toast) instead of being wiped to "not signed in"
