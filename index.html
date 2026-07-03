@@ -4395,6 +4395,30 @@ const NODE_TYPES = {
     }
   },
 
+  resize: {
+    em:"📐", title:"Resize / crop", desc:"Image → image — scale, crop, fit an aspect", group:"Image", kw:"resize crop scale shrink aspect ratio fit cover downscale square",
+    inputs:[{name:"image", type:"image"}],
+    outputs:[{name:"image", type:"image"}], preview:"image",
+    body:(n)=>`
+      <div><label>mode</label><select data-f="mode">${optsHTML([["fit","fit within"],["fill","fill & crop"],["exact","exact (stretch)"]], n.fields.mode||"fit")}</select></div>
+      <div class="two">
+        <div><label>width</label><input type="number" min="1" data-f="width" placeholder="1024" value="${esc(n.fields.width ?? "")}"/></div>
+        <div><label>height <span class="dim">· blank = auto</span></label><input type="number" min="1" data-f="height" placeholder="1024" value="${esc(n.fields.height ?? "")}"/></div>
+      </div>
+      <div class="dim" style="font-size:.8em;margin-top:.3rem">fit within scales down keeping aspect (never upscales); blank height derives from the source. Free · runs on your device.</div>`,
+    async run(n, inp){
+      if(!inp.image) throw new Error("no image — wire an image into the image port");
+      const mode = n.fields.mode || "fit";
+      const w = Math.max(0, parseInt(n.fields.width,10)  || 0);
+      const h = Math.max(0, parseInt(n.fields.height,10) || 0);
+      if(!w && !h) throw new Error("set a width or height to resize to");
+      const out = await resizeCropImage(inp.image, mode, w, h);
+      if(out.length > MEDIA_INLINE_MAX)
+        throw new Error("resized image is still over the ~4 MB inline limit — pick smaller dimensions");
+      return { image: out };
+    }
+  },
+
   vision: {
     em:"👁", title:"Vision", desc:"Image → text (describe / ask)", group:"Image",
     modelKind:"chat", modelFilter:"vision",
@@ -4936,6 +4960,52 @@ function scaledDataURL(src, sw, sh, max=1024){
   const c = document.createElement("canvas"); c.width=w; c.height=h;
   c.getContext("2d").drawImage(src, 0, 0, w, h);
   return c.toDataURL("image/jpeg", 0.9);
+}
+
+// Geometry for the 📐 Resize/crop node. Given a source w×h and a target box (tw,th; 0 = blank),
+// return the destination canvas size + draw rect, or null when no target was set.
+//   fit   — scale down to fit inside the box, keep aspect, NEVER upscale, no crop
+//   fill  — cover the box (scale to the larger ratio) then center-crop the overflow
+//   exact — stretch to the box exactly
+// A blank side derives from the source aspect (in fit, from whichever side was given).
+// Pure math (no DOM) so index.html + play.html stay identical — keep it backtick-free for RUNTIME_JS.
+function resizePlan(sw, sh, mode, tw, th){
+  if(!(tw>0) && !(th>0)) return null;
+  if(mode==="fit"){
+    let scale;
+    if(tw>0 && th>0) scale = Math.min(tw/sw, th/sh);
+    else if(tw>0)    scale = tw/sw;
+    else             scale = th/sh;
+    if(scale>1) scale = 1;                                   // never upscale
+    const w = Math.max(1, Math.round(sw*scale)), h = Math.max(1, Math.round(sh*scale));
+    return { cw:w, ch:h, dx:0, dy:0, dw:w, dh:h };
+  }
+  const bw = tw>0 ? tw : Math.max(1, Math.round(th * sw/sh));   // blank side ← source aspect
+  const bh = th>0 ? th : Math.max(1, Math.round(tw * sh/sw));
+  if(mode==="exact") return { cw:bw, ch:bh, dx:0, dy:0, dw:bw, dh:bh };
+  const scale = Math.max(bw/sw, bh/sh);                        // fill & crop: cover, centered
+  const dw = sw*scale, dh = sh*scale;
+  return { cw:bw, ch:bh, dx:(bw-dw)/2, dy:(bh-dh)/2, dw, dh };
+}
+// Resize/crop an image data URL on a canvas. Keeps PNG for PNG sources (preserves alpha),
+// else re-encodes JPEG 0.92. Resolves to a data URL. Free, on-device, no upload.
+function resizeCropImage(dataUrl, mode, tw, th){
+  return new Promise((res, rej)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      try{
+        const p = resizePlan(img.naturalWidth, img.naturalHeight, mode, tw, th);
+        if(!p){ rej(new Error("set a width or height to resize to")); return; }
+        const c = document.createElement("canvas"); c.width=p.cw; c.height=p.ch;
+        const cx = c.getContext("2d"); cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = "high";
+        cx.drawImage(img, p.dx, p.dy, p.dw, p.dh);
+        const png = /^data:image\/png/i.test(dataUrl);
+        res(c.toDataURL(png ? "image/png" : "image/jpeg", png ? undefined : 0.92));
+      }catch(e){ rej(e); }
+    };
+    img.onerror = ()=> rej(new Error("couldn’t read that image to resize"));
+    img.src = dataUrl;
+  });
 }
 function fileToDataURL(file, cb){
   const img = new Image();
@@ -8195,6 +8265,7 @@ $("signout").onclick = ()=> setKey(null);
     image:{ main:"prompt", fields:{ model:"image model id (optional)", prompt:"image prompt", size:"e.g. 1024x1024" } },
     edit:{ main:"prompt", fields:{ model:"edit model id (optional)", prompt:"edit instruction" } },
     inpaint:{ main:"prompt", fields:{ model:"inpaint model id (optional)", prompt:"what to paint in" } },
+    resize:{ fields:{ mode:"fit|fill|exact", width:"target px", height:"target px (blank = derive from aspect)" } },
     tvideo:{ main:"prompt", fields:{ model:"t2v model id (optional)", prompt:"video prompt", duration:"seconds", aspect:"e.g. 16:9" } },
     ivideo:{ main:"prompt", fields:{ model:"i2v model id (optional)", prompt:"motion prompt", duration:"seconds", aspect:"e.g. 16:9" } },
     vedit:{ main:"prompt", fields:{ model:"v2v model id (optional)", prompt:"instruction" } },

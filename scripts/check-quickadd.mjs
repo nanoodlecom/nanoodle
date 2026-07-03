@@ -89,7 +89,7 @@ const eq = (got, want, label) => {
 const ok = (c, m) => { if (!c) failures.push(m); };
 
 // dragging FROM an output → consumers of that type
-eq(keys("out", "image"), ["edit", "inpaint", "ivideo", "llm", "lipsync", "vision"],
+eq(keys("out", "image"), ["edit", "inpaint", "ivideo", "llm", "lipsync", "resize", "vision"],
   "image output → nodes that take an image (incl. LLM's dynamic image ports + Inpaint's image/mask)");
 eq(keys("out", "audio"), ["llm", "lipsync", "transcribe", "trim"],
   "audio output → nodes that take audio (incl. the LLM's audio-input port)");
@@ -100,7 +100,7 @@ eq(keys("out", "text"), ["edit", "image", "inpaint", "ivideo", "join", "llm", "l
   "text output → nodes with a text input OR a wirable text field");
 
 // dragging FROM an input → producers of that type
-eq(keys("in", "image"), ["edit", "image", "inpaint", "upload", "vframes"],
+eq(keys("in", "image"), ["edit", "image", "inpaint", "resize", "upload", "vframes"],
   "image input → nodes that produce an image (inpaint repaints; vframes emits frame stills)");
 eq(keys("in", "audio"), ["aupload", "music", "trim", "tts"],
   "audio input → nodes that produce audio");

@@ -1662,6 +1662,45 @@ window.NoodleApp = (function () {
     });
   }
 
+  // 📐 Resize/crop geometry — verbatim from index.html resizePlan (keep in sync). Pure math, no DOM,
+  // NO backticks (RUNTIME_JS). Returns dest canvas size + draw rect, or null when no target is set.
+  function resizePlan(sw, sh, mode, tw, th){
+    if(!(tw>0) && !(th>0)) return null;
+    if(mode==="fit"){
+      let scale;
+      if(tw>0 && th>0) scale = Math.min(tw/sw, th/sh);
+      else if(tw>0)    scale = tw/sw;
+      else             scale = th/sh;
+      if(scale>1) scale = 1;                                   // never upscale
+      const w = Math.max(1, Math.round(sw*scale)), h = Math.max(1, Math.round(sh*scale));
+      return { cw:w, ch:h, dx:0, dy:0, dw:w, dh:h };
+    }
+    const bw = tw>0 ? tw : Math.max(1, Math.round(th * sw/sh));
+    const bh = th>0 ? th : Math.max(1, Math.round(tw * sh/sw));
+    if(mode==="exact") return { cw:bw, ch:bh, dx:0, dy:0, dw:bw, dh:bh };
+    const scale = Math.max(bw/sw, bh/sh);                        // fill & crop: cover, centered
+    const dw = sw*scale, dh = sh*scale;
+    return { cw:bw, ch:bh, dx:(bw-dw)/2, dy:(bh-dh)/2, dw, dh };
+  }
+  function resizeCropImage(dataUrl, mode, tw, th){
+    return new Promise((res, rej)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        try{
+          const p = resizePlan(img.naturalWidth, img.naturalHeight, mode, tw, th);
+          if(!p){ rej(new Error("set a width or height to resize to")); return; }
+          const c = document.createElement("canvas"); c.width=p.cw; c.height=p.ch;
+          const cx = c.getContext("2d"); cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = "high";
+          cx.drawImage(img, p.dx, p.dy, p.dw, p.dh);
+          const png = /^data:image\/png/i.test(dataUrl);
+          res(c.toDataURL(png ? "image/png" : "image/jpeg", png ? undefined : 0.92));
+        }catch(e){ rej(e); }
+      };
+      img.onerror = ()=> rej(new Error("couldn’t read that image to resize"));
+      img.src = dataUrl;
+    });
+  }
+
   /* =====================================================================
      NODE_TYPES run map (verbatim behavior, index.html).
      setNodeProgress() calls are redirected to the per-run onProgress cb.
@@ -1753,6 +1792,21 @@ window.NoodleApp = (function () {
         if(!prompt) throw new Error("no prompt — say what to paint into the brushed area");
         const mask = await maskToSource(rawMask, source);
         return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], source, mask, imgExtra(n)) };
+      }
+    },
+    resize: {
+      em:"📐", title:"Resize / crop",
+      inputs:[{name:"image", type:"image"}], outputs:[{name:"image", type:"image"}],
+      async run(n, inp){
+        if(!inp.image) throw new Error("no image input");
+        const mode = n.fields.mode || "fit";
+        const w = Math.max(0, parseInt(n.fields.width,10)  || 0);
+        const h = Math.max(0, parseInt(n.fields.height,10) || 0);
+        if(!w && !h) throw new Error("set a width or height to resize to");
+        const out = await resizeCropImage(inp.image, mode, w, h);
+        if(out.length > MEDIA_INLINE_MAX)
+          throw new Error("resized image is still over the ~4 MB inline limit — pick smaller dimensions");
+        return { image: out };
       }
     },
     vision: {
@@ -2220,6 +2274,9 @@ window.NoodleApp = (function () {
               { f:"language", label:"Language", kind:"text", def:"auto" }],
     trim:    [{ f:"start",  label:"Start (s)",  kind:"number", min:0, step:"0.1", def:"0" },
               { f:"length", label:"Length (s)", kind:"number", min:0.1, step:"0.1", def:"30" }],
+    resize:  [{ f:"mode",   label:"Mode",   kind:"select", options:[["fit","fit within"],["fill","fill & crop"],["exact","exact (stretch)"]], def:"fit" },
+              { f:"width",  label:"Width (px)",  kind:"number", min:1 },
+              { f:"height", label:"Height (px)", kind:"number", min:1 }],
     join:    [{ f:"sep", label:"Separator (use \\n for a line break)", kind:"text", def:" " }],
   };
   // node type -> NanoGPT catalog kind, used to populate the model-swap datalist
