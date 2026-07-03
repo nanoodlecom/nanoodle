@@ -33,7 +33,7 @@ function loadResolver(file, endMarker){
   const block = html.slice(start, end);
   const sandbox = {};
   vm.createContext(sandbox);
-  vm.runInContext(block + "\nthis.videoUnitUsd=videoUnitUsd; this.chatUnitUsd=chatUnitUsd; this.audioUnitUsd=audioUnitUsd;", sandbox);
+  vm.runInContext(block + "\nthis.videoUnitUsd=videoUnitUsd; this.chatUnitUsd=chatUnitUsd; this.audioUnitUsd=audioUnitUsd; this.audioBilledSeconds=audioBilledSeconds;", sandbox);
   return sandbox;
 }
 
@@ -54,11 +54,24 @@ for(const eng of ENGINES){
   for(const f of fixtures.video || []){ const v = R.videoUnitUsd(f.pricing, {}); if(v == null || !isFinite(v) || v < 0) bad("video", f.id, f.shape, v); }
   for(const f of fixtures.audio || []){ const v = R.audioUnitUsd(f.pricing);       if(v == null || !isFinite(v) || v < 0) bad("audio", f.id, f.shape, v); }
   for(const f of fixtures.chat  || []){ const v = R.chatUnitUsd(f, undefined, undefined); if(v == null || !isFinite(v) || v < 0) bad("chat", f.id, f.shape, v); }
+
+  // Duration-aware per_second audio (Bug #1): a per_second music model with min/max_duration must meter
+  // off the node's chosen duration (clamped to the model's range), not a flat EST.audioSeconds. A model
+  // with no min/max_duration ignores the field and keeps the default estimate. Both engines must agree.
+  for(const f of fixtures.audioDuration || []){
+    for(const c of (f.cases || [])){
+      const secs = R.audioBilledSeconds(f.params, { duration: c.duration });
+      const v = R.audioUnitUsd(f.pricing, undefined, secs);
+      if(v == null || !isFinite(v) || Math.abs(v - c.expect) > 1e-9)
+        bad("audioDuration", f.id, `${f.shape} @ duration=${JSON.stringify(c.duration)}`, `${v} (expected ${c.expect})`);
+    }
+  }
 }
 
-const total = ((fixtures.video?.length||0) + (fixtures.audio?.length||0) + (fixtures.chat?.length||0)) * ENGINES.length;
+const durCases = (fixtures.audioDuration||[]).reduce((n,f)=> n + (f.cases?.length||0), 0);
+const total = ((fixtures.video?.length||0) + (fixtures.audio?.length||0) + (fixtures.chat?.length||0) + durCases) * ENGINES.length;
 if(fail){
   console.error(`\n✗ ${fail} pricing checks failed across ${ENGINES.length} engines — a resolver branch is missing or the two engines drifted.`);
   process.exit(1);
 }
-console.log(`✓ every pricing shape resolves in both engines (${fixtures.video?.length||0} video, ${fixtures.audio?.length||0} audio, ${fixtures.chat?.length||0} chat × ${ENGINES.length} engines = ${total} checks).`);
+console.log(`✓ every pricing shape resolves in both engines (${fixtures.video?.length||0} video, ${fixtures.audio?.length||0} audio, ${fixtures.chat?.length||0} chat, ${durCases} audio-duration × ${ENGINES.length} engines = ${total} checks).`);

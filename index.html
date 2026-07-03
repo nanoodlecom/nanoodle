@@ -4086,14 +4086,27 @@ function chatUnitUsd(it, inTokens, outTokens){
   return ((pin||0)*(inTokens ?? EST.llmInTokens) + (pout||0)*(outTokens ?? EST.llmOutTokens))/1e6;
 }
 // audio: per-1k-chars / per-char-block / per-generation / per-second / per-minute
-function audioUnitUsd(pricing, chars){
+function audioUnitUsd(pricing, chars, seconds){
   const p = pricing || {}, c = chars ?? EST.ttsChars;
+  const secs = (seconds!=null && isFinite(seconds)) ? seconds : EST.audioSeconds;   // per_second models meter off the node's duration when it sets one
   if(p.per_thousand_chars!=null){ let cost=_num(p.per_thousand_chars)*(c/1000); if(p.per_generation!=null) cost+=_num(p.per_generation); return Math.max(cost, _num(p.minimum)||0); }
   if(p.per_prompt_char_block!=null){ const bs=_num(p.prompt_char_block_size)||1; return Math.max(Math.ceil(c/bs)*_num(p.per_prompt_char_block), _num(p.minimum)||0); }
   if(p.per_generation!=null) return _num(p.per_generation);
-  if(p.per_second!=null) return Math.max(_num(p.per_second)*EST.audioSeconds, _num(p.minimum)||0);
+  if(p.per_second!=null) return Math.max(_num(p.per_second)*secs, _num(p.minimum)||0);
   if(p.per_minute!=null) return _num(p.per_minute)*EST.sttMinutes;
   return null;
+}
+// Seconds a per_second audio model is actually billed for: the node's duration field clamped to the
+// model's advertised min/max_duration. null when the model isn't duration-metered (no min/max_duration)
+// or the field is blank → audioUnitUsd falls back to EST.audioSeconds. params = the audio catalog entry's
+// supported_parameters (it.params).
+function audioBilledSeconds(params, fields){
+  const p = params || {};
+  if(p.min_duration==null || p.max_duration==null) return null;   // model doesn't price by duration
+  const d = parseFloat(fields && fields.duration);
+  if(!isFinite(d)) return null;                                    // blank/irrelevant → use the default estimate
+  const lo=_num(p.min_duration), hi=_num(p.max_duration);
+  return Math.min(hi!=null?hi:d, Math.max(lo!=null?lo:d, d));
 }
 // USD for one execution of a node with its chosen model + settings. null = no price (no model / uncatalogued / omni).
 function nodeUnitUsd(n){
@@ -4110,7 +4123,8 @@ function nodeUnitUsd(n){
   if(kind==="chat"){ if(it.imageOut) return EST.chatImageUsd;   // Draw node: token pricing can't see image_tokens — use the measured per-image figure
     const f=n.fields||{}; const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(it, inTok, outTok); }
   if(kind==="audio"){ const chars = t.modelFilter==="stt" ? undefined : (((n.fields||{}).prompt||"").length || EST.ttsChars);
-    const u = audioUnitUsd(it.pricing, chars); if(u==null) return null;
+    const secs = audioBilledSeconds(it.params, n.fields||{});   // per_second music meters off the chosen duration, not a fixed 30s
+    const u = audioUnitUsd(it.pricing, chars, secs); if(u==null) return null;
     const songs = Math.max(1, parseInt((n.fields||{}).number_of_songs,10)||1);   // music models bill per song (the API is sent number_of_songs)
     return u*songs; }
   return null;
