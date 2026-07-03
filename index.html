@@ -372,7 +372,7 @@
   #runest[hidden]{ display:none }
   #canvashint[hidden], #connecthint[hidden]{ display:none }
   #canvashint, #connecthint{ position:absolute; top:14px; left:50%; transform:translateX(-50%); z-index:8;
-               display:flex; align-items:center; gap:.5rem; max-width:calc(100% - 1.5rem);
+               display:flex; align-items:center; gap:.5rem; max-width:min(calc(100% - 1.5rem), 640px);
                background:var(--panel); border:1px solid var(--line); border-radius:2rem;
                padding:.4rem .45rem .4rem .85rem; font-size:.82rem; color:var(--dim); box-shadow:0 6px 22px #0007 }
   #canvashint .ht{ flex:1; min-width:0 }   /* the sentence fills the row as one wrapping block; the × stays pinned right */
@@ -902,7 +902,7 @@
   <button id="redo" title="Redo (Ctrl + Y)" aria-label="Redo the last undone edit">↻</button>
   <button id="fit" title="Fit the whole workflow in view (F)" aria-label="Fit the whole workflow in view">⊡</button>
   <button id="delnode" title="Delete the selected node" aria-label="Delete the selected node">🗑 Delete</button>
-  <div id="canvashint" hidden><span class="ht">A live AI workflow — press <b>▶ Run</b>, or <b>＋ Add node</b> to build your own.</span><button id="hintx" title="Got it" aria-label="Dismiss">×</button></div>
+  <div id="canvashint" hidden><span class="ht">nanoodle wires AI models — text, image, video, audio — into workflows. Press <b>▶ Run</b> to try this one, or <b>✨ Create app</b> to turn it into a shareable app.</span><button id="hintx" title="Got it" aria-label="Dismiss">×</button></div>
   <div id="connecthint" hidden><span>Drag a <b>●</b> port onto a matching one to connect — or drop a wire on empty canvas to quick-add.</span><button id="connecthintx" title="Got it" aria-label="Dismiss">×</button></div>
 </main>
 <div id="quickadd"></div>
@@ -1000,7 +1000,10 @@ const I18N = {
     ", which takes Nano — so the prize pool stays in the ecosystem.":", que acepta Nano — así el fondo de premios se queda en el ecosistema.",
     "16:9 (Landscape)":"16:9 (Horizontal)",
     "1:1 (Square)":"1:1 (Cuadrado)",
-    "A live AI workflow — press":"Un flujo de IA en vivo — pulsa",
+    "nanoodle wires AI models — text, image, video, audio — into workflows. Press":"nanoodle conecta modelos de IA — texto, imagen, vídeo, audio — en flujos de trabajo. Pulsa",
+    "to try this one, or":"para probar este, o",
+    "✨ Create app":"✨ Crear app",
+    "to turn it into a shareable app.":"para convertirlo en una app que puedes compartir.",
     "A running changelog — one line per change.":"Un registro de cambios continuo — una línea por cambio.",
     "Apply the described change (Enter)":"Aplicar el cambio descrito (Enter)",
     "Audio model":"Modelo de audio",
@@ -1108,7 +1111,6 @@ const I18N = {
     "temperature":"temperatura",
     "they":"ellos",
     "this clip has generated audio":"este clip tiene audio generado",
-    "to build your own.":"para crear el tuyo.",
     "trim duplicate seam frame":"recortar fotograma de unión duplicado",
     "upload or capture an image, then brush the area to repaint":"sube o captura una imagen, luego pincela la zona a repintar",
     "variation":"variación",
@@ -1378,7 +1380,10 @@ const I18N = {
     ", which takes Nano — so the prize pool stays in the ecosystem.":", qui accepte Nano — ainsi la cagnotte reste dans l’écosystème.",
     "16:9 (Landscape)":"16:9 (Paysage)",
     "1:1 (Square)":"1:1 (Carré)",
-    "A live AI workflow — press":"Un workflow IA en direct — appuyez sur",
+    "nanoodle wires AI models — text, image, video, audio — into workflows. Press":"nanoodle relie des modèles d’IA — texte, image, vidéo, audio — en workflows. Appuyez sur",
+    "to try this one, or":"pour essayer celui-ci, ou",
+    "✨ Create app":"✨ Créer une app",
+    "to turn it into a shareable app.":"pour en faire une app partageable.",
     "A running changelog — one line per change.":"Un journal des modifications continu — une ligne par changement.",
     "Apply the described change (Enter)":"Appliquer la modification décrite (Entrée)",
     "Audio model":"Modèle audio",
@@ -1484,7 +1489,6 @@ const I18N = {
     "temperature":"température",
     "they":"ils",
     "this clip has generated audio":"ce clip a un audio généré",
-    "to build your own.":"pour créer la vôtre.",
     "trim duplicate seam frame":"couper l’image de raccord dupliquée",
     "upload or capture an image, then brush the area to repaint":"importer ou capturer une image, puis peindre la zone à repeindre",
     "what to paint in":"ce qu’il faut peindre",
@@ -1745,7 +1749,10 @@ const I18N = {
     ", which takes Nano — so the prize pool stays in the ecosystem.":", das Nano nimmt — so bleibt der Preispool im Ökosystem.",
     "16:9 (Landscape)":"16:9 (Querformat)",
     "1:1 (Square)":"1:1 (Quadratisch)",
-    "A live AI workflow — press":"Ein Live-KI-Workflow — drücke",
+    "nanoodle wires AI models — text, image, video, audio — into workflows. Press":"nanoodle verbindet KI-Modelle — Text, Bild, Video, Audio — zu Workflows. Drücke",
+    "to try this one, or":"um diesen auszuprobieren, oder",
+    "✨ Create app":"✨ App erstellen",
+    "to turn it into a shareable app.":"um daraus eine teilbare App zu machen.",
     "A running changelog — one line per change.":"Ein laufendes Änderungsprotokoll — eine Zeile pro Änderung.",
     "Apply the described change (Enter)":"Beschriebene Änderung anwenden (Enter)",
     "Audio model":"Audio-Modell",
@@ -1852,7 +1859,6 @@ const I18N = {
     "temperature":"Temperatur",
     "they":"sie",
     "this clip has generated audio":"dieser Clip hat generiertes Audio",
-    "to build your own.":"um dein eigenes zu erstellen.",
     "trim duplicate seam frame":"doppelten Nahtframe entfernen",
     "upload or capture an image, then brush the area to repaint":"Bild hochladen oder aufnehmen, dann den neu zu zeichnenden Bereich übermalen",
     "variation":"Variation",
@@ -2114,7 +2120,10 @@ const I18N = {
     ", which takes Nano — so the prize pool stays in the ecosystem.":", que aceita Nano — assim o fundo de prêmios permanece no ecossistema.",
     "16:9 (Landscape)":"16:9 (Paisagem)",
     "1:1 (Square)":"1:1 (Quadrado)",
-    "A live AI workflow — press":"Um fluxo de IA ao vivo — pressione",
+    "nanoodle wires AI models — text, image, video, audio — into workflows. Press":"nanoodle conecta modelos de IA — texto, imagem, vídeo, áudio — em fluxos de trabalho. Pressione",
+    "to try this one, or":"para testar este, ou",
+    "✨ Create app":"✨ Criar app",
+    "to turn it into a shareable app.":"para transformá-lo em um app compartilhável.",
     "A running changelog — one line per change.":"Um changelog contínuo — uma linha por alteração.",
     "Apply the described change (Enter)":"Aplicar a alteração descrita (Enter)",
     "Audio model":"Modelo de áudio",
@@ -2222,7 +2231,6 @@ const I18N = {
     "temperature":"temperatura",
     "they":"eles",
     "this clip has generated audio":"este clipe tem áudio gerado",
-    "to build your own.":"para criar o seu próprio.",
     "trim duplicate seam frame":"cortar quadro de emenda duplicado",
     "upload or capture an image, then brush the area to repaint":"envie ou capture uma imagem, depois pincele a área a repintar",
     "variation":"variação",
@@ -2480,7 +2488,10 @@ const I18N = {
     ", which takes Nano — so the prize pool stays in the ecosystem.":"、Nano を受け取るので、賞金プールはエコシステム内にとどまります。",
     "16:9 (Landscape)":"16:9 (横長)",
     "1:1 (Square)":"1:1 (スクエア)",
-    "A live AI workflow — press":"ライブなAIワークフロー — 押してください",
+    "nanoodle wires AI models — text, image, video, audio — into workflows. Press":"nanoodle はAIモデル（テキスト・画像・動画・音声）をワークフローに繋ぎます。",
+    "to try this one, or":"でこれを試すか、",
+    "✨ Create app":"✨ アプリ作成",
+    "to turn it into a shareable app.":"で共有できるアプリにしましょう。",
     "A running changelog — one line per change.":"進行中の変更履歴 — 変更ごとに1行。",
     "Apply the described change (Enter)":"説明した変更を適用 (Enter)",
     "Audio model":"音声モデル",
@@ -2591,7 +2602,6 @@ const I18N = {
     "temperature":"温度",
     "they":"相手",
     "this clip has generated audio":"このクリップには生成された音声があります",
-    "to build your own.":"自分だけのものを作るために。",
     "trim duplicate seam frame":"重複するつなぎ目フレームをトリミング",
     "upload or capture an image, then brush the area to repaint":"画像をアップロードまたは撮影し、塗り直す領域をブラシで塗る",
     "variation":"バリエーション",
