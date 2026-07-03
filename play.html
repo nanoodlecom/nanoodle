@@ -1417,6 +1417,32 @@ window.NoodleApp = (function () {
     const rendered = await off.startRendering();
     return URL.createObjectURL(encodeWavMono(rendered.getChannelData(0), rate));
   }
+  // Extract-audio node: fetch a video's container bytes and let decodeAudioData demux the audio track
+  // out (Chrome demuxes mp4/webm/mov audio). A silent (generated) clip has no track and throws. On the
+  // sealed /play frame the CDN bytes of a REMOTE clip can't be fetched (connect-src) — mediaFetchError
+  // explains that; an uploaded (blob/data) clip works fine, which is the real use of this node.
+  async function extractAudioToWavUrl(url, start, len, rate){
+    rate = rate || 24000;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    if(!AC || !OAC) throw new Error("this browser can’t process audio (no Web Audio API)");
+    let arr;
+    try{ arr = await (await fetch(url)).arrayBuffer(); }
+    catch(e){ throw mediaFetchError(url, e); }
+    const dec = new AC();
+    let src;
+    try{ src = await dec.decodeAudioData(arr); }
+    catch(e){ throw new Error("this video is silent — generated videos usually have no audio track to extract"); }
+    finally{ try{ dec.close(); }catch(e){} }
+    const dur = src.duration;
+    const s = Math.max(0, Math.min(start||0, Math.max(0, dur-0.05)));
+    const take = Math.max(0.05, Math.min(len>0 ? len : (dur - s), dur - s));
+    const off = new OAC(1, Math.max(1, Math.floor(take*rate)), rate);
+    const node = off.createBufferSource(); node.buffer = src; node.connect(off.destination);
+    node.start(0, s, take);
+    const rendered = await off.startRendering();
+    return URL.createObjectURL(encodeWavMono(rendered.getChannelData(0), rate));
+  }
   // frame extraction helpers (verbatim, index.html): a same-origin handle to paint to a
   // canvas, and a seek that resolves once the frame is decoded (timeout-guarded).
   const MAX_FRAMES = 12;
@@ -1962,6 +1988,19 @@ window.NoodleApp = (function () {
         return { audio: await trimAudioToWavUrl(inp.audio, start, Number.isFinite(length) ? length : 30, 24000) };
       }
     },
+    extractaudio: {
+      em:"🔊", title:"Extract audio",
+      inputs:[{name:"video", type:"video"}], outputs:[{name:"audio", type:"audio"}],
+      async run(n, inp, ctx, onProgress){
+        if(!inp.video) throw new Error("no video input");
+        const start = parseFloat(n.fields.start) || 0;
+        const lenRaw = parseFloat(n.fields.length);
+        const capSec = Math.floor((MEDIA_INLINE_MAX*3/4)/(24000*2)) - 2;   // ~66s of 24 kHz mono WAV still inlines
+        const length = (Number.isFinite(lenRaw) && lenRaw>0) ? lenRaw : capSec;
+        onProgress && onProgress("extracting audio…");
+        return { audio: await extractAudioToWavUrl(inp.video, start, length, 24000) };
+      }
+    },
     transcribe: {
       em:"🎙️", title:"Transcribe",
       inputs:[{name:"audio", type:"audio"}], outputs:[{name:"text", type:"text"}],
@@ -2277,6 +2316,8 @@ window.NoodleApp = (function () {
     resize:  [{ f:"mode",   label:"Mode",   kind:"select", options:[["fit","fit within"],["fill","fill & crop"],["exact","exact (stretch)"]], def:"fit" },
               { f:"width",  label:"Width (px)",  kind:"number", min:1 },
               { f:"height", label:"Height (px)", kind:"number", min:1 }],
+    extractaudio:[{ f:"start",  label:"Start (s)",  kind:"number", min:0, step:"0.1", def:"0" },
+              { f:"length", label:"Length (s)", kind:"number", min:0.1, step:"0.1" }],
     join:    [{ f:"sep", label:"Separator (use \\n for a line break)", kind:"text", def:" " }],
   };
   // node type -> NanoGPT catalog kind, used to populate the model-swap datalist
@@ -2448,6 +2489,7 @@ window.NoodleApp = (function () {
     music:  "generates music from a style/prompt",
     tts:    "reads text aloud as speech",
     trim:   "trims an audio clip to a chosen start and length",
+    extractaudio:"extracts the audio track from a video as a WAV clip",
     combine:"joins several video clips end-to-end into one video",
   };
   function describeGraph(graph){

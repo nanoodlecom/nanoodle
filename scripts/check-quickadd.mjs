@@ -93,8 +93,8 @@ eq(keys("out", "image"), ["edit", "inpaint", "ivideo", "llm", "lipsync", "resize
   "image output → nodes that take an image (incl. LLM's dynamic image ports + Inpaint's image/mask)");
 eq(keys("out", "audio"), ["llm", "lipsync", "transcribe", "trim"],
   "audio output → nodes that take audio (incl. the LLM's audio-input port)");
-eq(keys("out", "video"), ["combine", "vedit", "vframes"],
-  "video output → nodes that take video (combine joins clips; vframes extracts stills)");
+eq(keys("out", "video"), ["combine", "extractaudio", "vedit", "vframes"],
+  "video output → nodes that take video (combine joins clips; vframes extracts stills; extractaudio peels the soundtrack)");
 // transcribe is excluded: its only text field is a plain <input> (language), not a wirable textarea
 eq(keys("out", "text"), ["edit", "image", "inpaint", "ivideo", "join", "llm", "lipsync", "music", "tts", "tvideo", "vedit", "vision"],
   "text output → nodes with a text input OR a wirable text field");
@@ -102,8 +102,8 @@ eq(keys("out", "text"), ["edit", "image", "inpaint", "ivideo", "join", "llm", "l
 // dragging FROM an input → producers of that type
 eq(keys("in", "image"), ["edit", "image", "inpaint", "resize", "upload", "vframes"],
   "image input → nodes that produce an image (inpaint repaints; vframes emits frame stills)");
-eq(keys("in", "audio"), ["aupload", "music", "trim", "tts"],
-  "audio input → nodes that produce audio");
+eq(keys("in", "audio"), ["aupload", "extractaudio", "music", "trim", "tts"],
+  "audio input → nodes that produce audio (extractaudio emits a WAV from a video)");
 eq(keys("in", "video"), ["combine", "ivideo", "lipsync", "tvideo", "vedit", "vupload"],
   "video input → nodes that produce video (combine joins clips into one)");
 eq(keys("in", "text"), ["join", "llm", "text", "transcribe", "vision"],

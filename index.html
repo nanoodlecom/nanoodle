@@ -487,6 +487,7 @@
   .node header.t-edit{ background:linear-gradient(90deg,#ff79c622,#7c8cff14,transparent) }
   .node header.t-tvideo, .node header.t-ivideo, .node header.t-combine{ background:linear-gradient(90deg,#5ad1e622,transparent) }
   .node header.t-vframes{ background:linear-gradient(90deg,#5ad1e622,#ff79c614,transparent) }
+  .node header.t-extractaudio{ background:linear-gradient(90deg,#5ad1e622,#3ddc9714,transparent) }
   .node header.t-music, .node header.t-tts{ background:linear-gradient(90deg,#3ddc9722,transparent) }
   .node header.t-join{ background:linear-gradient(90deg,#9aa3b222,transparent) }
   .node header.t-comment{ background:linear-gradient(90deg, var(--cmt-tint,#f5d76e22), transparent) }
@@ -1235,6 +1236,7 @@ const I18N = {
     "or post it to":"o publícalo en",
     "output format":"formato de salida",
     "outputs mono WAV, sized to inline — handy before Avatar / lipsync when a clip is too long.":"genera WAV mono, ajustado para incrustar — útil antes de Avatar / sincronización labial cuando un clip es demasiado largo.",
+    "video → mono WAV. Leave length blank for the whole clip. Wire into 🎙️ Transcribe or ✂️ Trim. Generated clips are silent — use an uploaded video with sound.":"vídeo → WAV mono. Deja la duración en blanco para todo el clip. Conéctalo a 🎙️ Transcribe o ✂️ Trim. Los clips generados no tienen sonido — usa un vídeo subido con audio.",
     "paste your link":"pega tu enlace",
     "random":"aleatorio",
     "reasoning effort":"esfuerzo de razonamiento",
@@ -1651,6 +1653,7 @@ const I18N = {
     "or post it to":"ou publiez-le sur",
     "output format":"format de sortie",
     "outputs mono WAV, sized to inline — handy before Avatar / lipsync when a clip is too long.":"produit un WAV mono, dimensionné pour l’intégration — pratique avant Avatar / synchro labiale quand un clip est trop long.",
+    "video → mono WAV. Leave length blank for the whole clip. Wire into 🎙️ Transcribe or ✂️ Trim. Generated clips are silent — use an uploaded video with sound.":"vidéo → WAV mono. Laissez la durée vide pour tout le clip. Reliez à 🎙️ Transcribe ou ✂️ Trim. Les clips générés sont muets — utilisez une vidéo importée avec du son.",
     "paste your link":"collez votre lien",
     "random":"aléatoire",
     "reasoning effort":"effort de raisonnement",
@@ -2057,6 +2060,7 @@ const I18N = {
     "or post it to":"oder poste es auf",
     "output format":"Ausgabeformat",
     "outputs mono WAV, sized to inline — handy before Avatar / lipsync when a clip is too long.":"gibt Mono-WAV aus, auf Inline-Größe reduziert — praktisch vor Avatar / Lippensynchro, wenn ein Clip zu lang ist.",
+    "video → mono WAV. Leave length blank for the whole clip. Wire into 🎙️ Transcribe or ✂️ Trim. Generated clips are silent — use an uploaded video with sound.":"Video → Mono-WAV. Länge leer lassen für den ganzen Clip. Verbinde mit 🎙️ Transcribe oder ✂️ Trim. Generierte Clips sind stumm — nutze ein hochgeladenes Video mit Ton.",
     "paste your link":"füge deinen Link ein",
     "random":"zufällig",
     "reasoning effort":"Reasoning-Aufwand",
@@ -2467,6 +2471,7 @@ const I18N = {
     "or post it to":"ou poste em",
     "output format":"formato de saída",
     "outputs mono WAV, sized to inline — handy before Avatar / lipsync when a clip is too long.":"gera WAV mono, dimensionado para inline — útil antes de Avatar / sincronia labial quando um clipe é muito longo.",
+    "video → mono WAV. Leave length blank for the whole clip. Wire into 🎙️ Transcribe or ✂️ Trim. Generated clips are silent — use an uploaded video with sound.":"vídeo → WAV mono. Deixe a duração em branco para o clipe inteiro. Ligue a 🎙️ Transcribe ou ✂️ Trim. Clipes gerados não têm som — use um vídeo enviado com áudio.",
     "paste your link":"cole seu link",
     "random":"aleatório",
     "reasoning effort":"esforço de raciocínio",
@@ -2874,6 +2879,7 @@ const I18N = {
     "or post it to":"または次に投稿:",
     "output format":"出力形式",
     "outputs mono WAV, sized to inline — handy before Avatar / lipsync when a clip is too long.":"モノラルWAVを出力し、インライン用にサイズ調整 — クリップが長すぎる場合、アバター / リップシンクの前に便利。",
+    "video → mono WAV. Leave length blank for the whole clip. Wire into 🎙️ Transcribe or ✂️ Trim. Generated clips are silent — use an uploaded video with sound.":"動画 → モノラルWAV。長さを空欄にするとクリップ全体。🎙️ Transcribe や ✂️ Trim につないでください。生成されたクリップは無音です — 音声付きのアップロード動画を使ってください。",
     "paste your link":"リンクを貼り付け",
     "random":"ランダム",
     "reasoning effort":"推論の強度",
@@ -4658,6 +4664,27 @@ const NODE_TYPES = {
       const length = parseFloat(n.fields.length);
       setNodeProgress(n, "trimming audio…");
       return { audio: await trimAudioToWavUrl(inp.audio, start, Number.isFinite(length) ? length : 30, 24000) };
+    }
+  },
+
+  extractaudio: {
+    em:"🔊", title:"Extract audio", desc:"Pull the soundtrack off a video (→ WAV)", group:"Audio", kw:"audio sound soundtrack wav rip strip demux video transcribe",
+    inputs:[{name:"video", type:"video"}],
+    outputs:[{name:"audio", type:"audio"}], preview:"audio",
+    body:(n)=>`
+      <div class="two">
+        <div><label>start (sec)</label><input type="number" step="0.1" min="0" data-f="start" value="${esc(n.fields.start ?? 0)}"/></div>
+        <div><label>length (sec)</label><input type="number" step="0.1" min="0.1" data-f="length" value="${esc(n.fields.length ?? "")}"/></div>
+      </div>
+      <div style="opacity:.6;font-size:.8em;margin-top:.3rem">video → mono WAV. Leave length blank for the whole clip. Wire into 🎙️ Transcribe or ✂️ Trim. Generated clips are silent — use an uploaded video with sound.</div>`,
+    async run(n, inp){
+      if(!inp.video) throw new Error("no video — wire a video into the video port");
+      const start = parseFloat(n.fields.start) || 0;
+      const lenRaw = parseFloat(n.fields.length);
+      const capSec = Math.floor((MEDIA_INLINE_MAX*3/4)/(24000*2)) - 2;      // ~66s of 24 kHz mono WAV still base64-inlines
+      const length = (Number.isFinite(lenRaw) && lenRaw>0) ? lenRaw : capSec;   // blank ⇒ whole clip, capped to what inlines
+      setNodeProgress(n, "extracting audio…");
+      return { audio: await extractAudioToWavUrl(inp.video, start, length, 24000) };
     }
   },
 
@@ -6604,29 +6631,42 @@ function encodeWavMono(samples, sampleRate){
   for(let i=0;i<n;i++){ const v = Math.max(-1, Math.min(1, samples[i])); dv.setInt16(off, v<0 ? v*0x8000 : v*0x7FFF, true); off += 2; }
   return new Blob([ab], {type:"audio/wav"});
 }
-// Decode any audio url (remote/blob/data), slice [start, start+len] seconds, and re-render to MONO
-// at `rate` Hz via OfflineAudioContext (which downmixes + resamples in one pass). Returns a blob: url.
-async function trimAudioToWavUrl(url, start, len, rate){
+// Decode container/audio bytes, slice [start, start+len] seconds, and re-render to MONO at `rate` Hz
+// via OfflineAudioContext (which downmixes + resamples in one pass). Returns a blob: url. `decodeFail`
+// tailors the error for the caller (unsupported audio vs. a silent video with no audio track).
+async function bytesToMonoWavUrl(arr, start, len, rate, decodeFail){
   rate = rate || 24000;
   const AC = window.AudioContext || window.webkitAudioContext;
   const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
   if(!AC || !OAC) throw new Error("this browser can’t process audio (no Web Audio API)");
-  let arr;
-  try{ arr = await (await fetch(url, {signal:runSignal()})).arrayBuffer(); }
-  catch(e){ if(e?.name==="AbortError") throw e; throw mediaFetchError(url, e); }
   const dec = new AC();
   let src;
   try{ src = await dec.decodeAudioData(arr); }
-  catch{ throw new Error("couldn’t decode that audio for trimming (unsupported format?)"); }
+  catch{ throw new Error(decodeFail); }
   finally{ try{ dec.close(); }catch{} }
   const dur = src.duration;
   const s = Math.max(0, Math.min(start||0, Math.max(0, dur-0.05)));
-  const take = Math.max(0.05, Math.min(len>0 ? len : 30, dur - s));
+  const take = Math.max(0.05, Math.min(len>0 ? len : (dur - s), dur - s));
   const off = new OAC(1, Math.max(1, Math.floor(take*rate)), rate);                 // 1 channel ⇒ downmix
   const node = off.createBufferSource(); node.buffer = src; node.connect(off.destination);
   node.start(0, s, take);
   const rendered = await off.startRendering();
   return URL.createObjectURL(encodeWavMono(rendered.getChannelData(0), rate));
+}
+// Trim node: fetch an audio url (remote/blob/data), slice it, mono WAV out.
+async function trimAudioToWavUrl(url, start, len, rate){
+  let arr;
+  try{ arr = await (await fetch(url, {signal:runSignal()})).arrayBuffer(); }
+  catch(e){ if(e?.name==="AbortError") throw e; throw mediaFetchError(url, e); }
+  return bytesToMonoWavUrl(arr, start, len>0 ? len : 30, rate, "couldn’t decode that audio for trimming (unsupported format?)");
+}
+// Extract-audio node: fetch a video's container bytes and let decodeAudioData demux the audio track
+// out (Chrome demuxes mp4/webm/mov audio). A generated (silent) clip has no track and throws.
+async function extractAudioToWavUrl(url, start, len, rate){
+  let arr;
+  try{ arr = await (await fetch(url, {signal:runSignal()})).arrayBuffer(); }
+  catch(e){ if(e?.name==="AbortError") throw e; throw mediaFetchError(url, e); }
+  return bytesToMonoWavUrl(arr, start, len, rate, "this video is silent — generated videos usually have no audio track to extract");
 }
 
 /* ---- in-browser video concatenation (the Combine node) ---------------------------------
@@ -8275,6 +8315,7 @@ $("signout").onclick = ()=> setKey(null);
     music:{ main:"prompt", fields:{ model:"music model id (optional)", prompt:"style/prompt", lyrics:"lyrics for vocal models", instrumental:"true/false" } },
     tts:{ main:"prompt", fields:{ model:"tts model id (optional)", prompt:"text to speak", voice:"voice id (optional)" } },
     trim:{ fields:{ start:"seconds", length:"seconds" } },
+    extractaudio:{ fields:{ start:"seconds", length:"seconds (blank = whole clip)" }, note:"video → audio; feed 🎙️ Transcribe or ✂️ Trim" },
     transcribe:{ fields:{ model:"stt model id (optional)", language:"auto or a language code" } },
   };
   function schemaLines(){
