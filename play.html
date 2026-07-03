@@ -1062,6 +1062,7 @@ window.NoodleApp = (function () {
     return null;
   }
   let _runCostToken = 0;
+  let _runCost = null;   // last per-run forecast {usd,priced,unpriced,exact}; repainted (×RUNS_N) without recompute
   async function refreshRunCost(){
     if(!STATE || !STATE.graph) return;
     const token = ++_runCostToken;
@@ -1073,15 +1074,29 @@ window.NoodleApp = (function () {
       if(u==null){ unpriced++; continue; }
       usd+=u; priced++; if(SETTING_MODEL_KIND[n.type]!=="image") exact=false;
     }
-    COST.estUsd = priced ? usd : null;   // last known whole-run forecast — read by the pre-flight balance guard
+    COST.estUsd = priced ? usd : null;   // PER-RUN (one lane) forecast — the pre-flight guard scales it by RUNS_N
+    _runCost = { usd:usd, priced:priced, unpriced:unpriced, exact:exact };
+    paintRunCost();
+  }
+  // Paint the "~$X /run" chip from the last forecast, scaled by the selected RUNS
+  // multiplier so an 8× press previews its true total, not one lane's cost. Sync +
+  // cheap: RUNS-button clicks call this directly (no catalog refetch). Unknown price
+  // (nothing priced) → hidden, never "$0". (Tooltip local is named tip, not t — a
+  // local t would TDZ-shadow the global translate fn used just above.)
+  function paintRunCost(){
     const el = ensureRunCostEl(); if(!el) return;
-    if(!priced){ el.hidden = true; return; }
+    const rc = _runCost;
+    if(!rc || !rc.priced){ el.hidden = true; return; }
+    const n = RUNS_N || 1;
+    const total = rc.usd * n;
     el.hidden = false;
-    el.innerHTML = '<span class="rc-amt">' + (exact?"":"~") + fmtUsd(usd) + '</span><span class="rc-lbl">'+t("/run")+'</span>';
-    let t = "Estimated cost each time you press Run — " + priced + " paid step" + (priced!==1?"s":"");
-    if(unpriced) t += ", plus " + unpriced + " with no listed price";
-    t += exact ? "." : ". Video, text and audio are estimates; the real cost depends on length and tokens.";
-    el.title = t;
+    el.innerHTML = '<span class="rc-amt">' + (rc.exact?"":"~") + fmtUsd(total) + '</span>'
+      + '<span class="rc-lbl">' + t("/run") + (n>1 ? " · " + n + "×" : "") + '</span>';
+    var tip = "Estimated cost each time you press Run — " + rc.priced + " paid step" + (rc.priced!==1?"s":"");
+    if(n>1) tip += ", run " + n + " times per press (" + fmtUsd(rc.usd) + " each)";
+    if(rc.unpriced) tip += ", plus " + rc.unpriced + " with no listed price";
+    tip += rc.exact ? "." : ". Video, text and audio are estimates; the real cost depends on length and tokens.";
+    el.title = tip;
   }
   function ensureRunCostEl(){
     let el = $("app-runcost"); if(el) return el;
@@ -3708,7 +3723,7 @@ function mp4ParamsMatch(bufs){
     box.innerHTML = '<span class="count-lbl">'+t("Runs")+'</span>'
       + RUN_CHOICES.map(function(c){ return '<button type="button" class="cnt'+(c===RUNS_N?" on":"")+'" data-n="'+c+'">'+c+'×</button>'; }).join("");
     box.querySelectorAll("button[data-n]").forEach(function(b){
-      b.addEventListener("click", function(){ if(running) return; RUNS_N = +b.dataset.n; renderCount(); });
+      b.addEventListener("click", function(){ if(running) return; RUNS_N = +b.dataset.n; renderCount(); paintRunCost(); });
     });
   }
 
@@ -4116,8 +4131,9 @@ function mp4ParamsMatch(bufs){
     // are fuzzy, so we warn and still run — never block. Silent when either number is unknown (never
     // treat unknown balance as empty) or the forecast is $0. Emitted after the #app-msg clear above so
     // the warning survives run start.
-    if(COST.balance!=null && COST.estUsd!=null && COST.estUsd>0 && COST.balance < COST.estUsd){
-      statusLine("__lowbal__","warn", t("balance {bal} may not cover this ~{usd} run — top up at nano-gpt.com").replace("{bal}",()=>fmtUsd(COST.balance)).replace("{usd}",()=>fmtUsd(COST.estUsd)));
+    const _forecast = COST.estUsd!=null ? COST.estUsd * N : null;   // N lanes this press
+    if(COST.balance!=null && _forecast!=null && _forecast>0 && COST.balance < _forecast){
+      statusLine("__lowbal__","warn", t("balance {bal} may not cover this ~{usd} run — top up at nano-gpt.com").replace("{bal}",()=>fmtUsd(COST.balance)).replace("{usd}",()=>fmtUsd(_forecast)));
     }
     const outIds = new Set(STATE.outputs.map(n=>n.id));
 
