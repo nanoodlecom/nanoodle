@@ -1196,6 +1196,9 @@ const I18N = {
     "paste key":"pegar clave",
     "Sign in with NanoGPT":"Iniciar sesión con NanoGPT",
     "Sample run":"Ejecución de muestra",
+    "Run your workflow":"Ejecuta tu flujo",
+    "the sample only covers the starter — sign in to run your own graph for real, pay-per-use on your own key.":"la muestra solo cubre el ejemplo inicial — inicia sesión para ejecutar tu propio grafo de verdad, pago por uso con tu propia clave.",
+    "loading sample…":"cargando muestra…",
     "or paste a key":"o pega una clave",
     "results below are canned examples, not live AI — sign in to run it for real, pay-per-use on your own key.":"los resultados de abajo son ejemplos pregrabados, no IA en vivo — inicia sesión para ejecutarlo de verdad, pago por uso con tu propia clave.",
     "sample result — sign in to run it for real":"resultado de muestra — inicia sesión para ejecutarlo de verdad",
@@ -1574,6 +1577,9 @@ const I18N = {
     "paste key":"coller la clé",
     "Sign in with NanoGPT":"Se connecter avec NanoGPT",
     "Sample run":"Exécution d’exemple",
+    "Run your workflow":"Lancez votre workflow",
+    "the sample only covers the starter — sign in to run your own graph for real, pay-per-use on your own key.":"l’exemple ne couvre que le graphe de départ — connectez-vous pour exécuter votre propre graphe pour de vrai, paiement à l’usage avec votre propre clé.",
+    "loading sample…":"chargement de l’exemple…",
     "or paste a key":"ou collez une clé",
     "results below are canned examples, not live AI — sign in to run it for real, pay-per-use on your own key.":"les résultats ci-dessous sont des exemples préenregistrés, pas de l’IA en direct — connectez-vous pour l’exécuter vraiment, paiement à l’usage avec votre propre clé.",
     "sample result — sign in to run it for real":"résultat d’exemple — connectez-vous pour l’exécuter vraiment",
@@ -1952,6 +1958,9 @@ const I18N = {
     "paste key":"Schlüssel einfügen",
     "Sign in with NanoGPT":"Mit NanoGPT anmelden",
     "Sample run":"Beispiel-Lauf",
+    "Run your workflow":"Deinen Workflow ausführen",
+    "the sample only covers the starter — sign in to run your own graph for real, pay-per-use on your own key.":"das Beispiel deckt nur den Starter-Graphen ab — melde dich an, um deinen eigenen Graphen wirklich auszuführen, Bezahlung pro Nutzung mit eigenem Schlüssel.",
+    "loading sample…":"Beispiel wird geladen…",
     "or paste a key":"oder Schlüssel einfügen",
     "results below are canned examples, not live AI — sign in to run it for real, pay-per-use on your own key.":"die Ergebnisse unten sind vorbereitete Beispiele, keine echte KI — melde dich an, um es wirklich auszuführen, Bezahlung pro Nutzung mit eigenem Schlüssel.",
     "sample result — sign in to run it for real":"Beispielergebnis — melde dich an, um es wirklich auszuführen",
@@ -2330,6 +2339,9 @@ const I18N = {
     "paste key":"colar chave",
     "Sign in with NanoGPT":"Entrar com NanoGPT",
     "Sample run":"Execução de amostra",
+    "Run your workflow":"Execute o seu fluxo",
+    "the sample only covers the starter — sign in to run your own graph for real, pay-per-use on your own key.":"a amostra cobre apenas o grafo inicial — entre para executar o seu próprio grafo de verdade, pagamento por uso com a sua própria chave.",
+    "loading sample…":"a carregar amostra…",
     "or paste a key":"ou cole uma chave",
     "results below are canned examples, not live AI — sign in to run it for real, pay-per-use on your own key.":"os resultados abaixo são exemplos pré-gravados, não IA ao vivo — entre para executar de verdade, pagamento por uso com a sua própria chave.",
     "sample result — sign in to run it for real":"resultado de amostra — entre para executar de verdade",
@@ -2708,6 +2720,9 @@ const I18N = {
     "paste key":"キーを貼り付け",
     "Sign in with NanoGPT":"NanoGPTでサインイン",
     "Sample run":"サンプル実行",
+    "Run your workflow":"自分のワークフローを実行",
+    "the sample only covers the starter — sign in to run your own graph for real, pay-per-use on your own key.":"サンプルはスターターのグラフのみ対応 — サインインすると自分のグラフを本当に実行できます(自分のキーで従量課金)。",
+    "loading sample…":"サンプルを読み込み中…",
     "or paste a key":"またはキーを貼り付け",
     "results below are canned examples, not live AI — sign in to run it for real, pay-per-use on your own key.":"以下の結果はあらかじめ用意されたサンプルで、実際のAIではありません — サインインすると自分のキーで本当に実行できます(従量課金)。",
     "sample result — sign in to run it for real":"サンプル結果 — サインインすると本当に実行できます",
@@ -5623,7 +5638,14 @@ function nodeSig(n, inp){
 // network, no charge) instead of a dead-end key prompt — the first Run click always shows the wow.
 async function runGroup(seedIds, ctx){
   ctx = ctx || (getKey() ? CTX : DEMO_CTX);
-  if(ctx.demo) openDemoPop();          // say it's a sample up front + offer the two real ways in
+  if(ctx.demo){
+    // The canned sample only honestly represents the pristine shipped starter. If the canvas has
+    // been edited (or is a share link / restored graph), faking it would show a result that ignores
+    // the change — so surface the sign-in choice instead of a lie.
+    const custom = !demoStarterSig || appHandoffSig() !== demoStarterSig;
+    openDemoPop(custom);
+    if(custom) return;
+  }
   const lock = new Set();
   for(const id of seedIds) for(const x of componentOf(id)) lock.add(x);
   if(!lock.size || groupBusy(lock)) return;         // empty, or this group is already running
@@ -5692,6 +5714,7 @@ async function runGroup(seedIds, ctx){
         const sig = nodeSig(rn, inp);
         if(isSeeded(rn) && n._sig===sig && n.out && Object.keys(n.out).length){ showResult(n); setStatus(n, "done"); return; }
         setStatus(n, "run");
+        if(ctx.demo) setNodeProgress(n, demoRunLabel());   // honest: it's a canned preview, not a live model call (t() is shadowed here by the node type)
         try{ n.out = await t.run(rn, inp, ctx) || {};
           // a demo run must never mint a real signature — the first REAL run after sign-in has to
           // regenerate everything, not "skip" onto a canned sample via the seeded-result cache
@@ -6051,10 +6074,14 @@ const CTX = {
    two real ways in — Sign in with NanoGPT, or paste a key. The canned text/image pair was
    generated once with the shipped starter graph's own models (glm-5.2 → nano-banana-2-lite),
    so what a first-timer watches is exactly what a real run of the starter produces. */
+// Set at boot IFF the pristine shipped starter is what loaded (appHandoffSig of it). The canned
+// sample only honestly represents THAT graph — a signed-out Run of anything else (edited starter,
+// share link, restored graph) is asked to sign in rather than shown a result that ignores the change.
+let demoStarterSig = null;
 const DEMO_LLM_TEXT = "A cozy, intimate ramen shop on a rainy night, viewed from the quiet street looking slightly through the steamed glass window. Warm, glowing amber light spills out onto the wet pavement, contrasting beautifully with the cool, moody blue and teal tones of the rainy city. Inside, a lone patron in a yellow raincoat sits at a wooden bar, steam rising in thick, inviting plumes from a large bowl of rich tonkotsu ramen. Paper lanterns emit a soft, nostalgic luminescence over wooden interiors. Puddles on the cobblestone street reflect the vibrant shop signs and passing neon city lights. Cinematic lighting, photorealistic, 8k resolution, ultra-detailed, comforting and atmospheric mood, anime-inspired realism.";
 // Fallback when demo-sample.jpg can't be fetched (file:// open) — a labeled stand-in, never a broken img.
 const DEMO_IMG_FALLBACK = "data:image/svg+xml," + encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="640"><rect width="640" height="640" fill="#12151d"/><text x="320" y="310" fill="#67e8f9" font-family="sans-serif" font-size="30" text-anchor="middle">🍜 sample image</text><text x="320" y="352" fill="#8b93a7" font-family="sans-serif" font-size="18" text-anchor="middle">sign in to generate for real</text></svg>');
+  '<svg xmlns="http://www.w3.org/2000/svg" width="768" height="418"><rect width="768" height="418" fill="#12151d"/><text x="384" y="200" fill="#67e8f9" font-family="sans-serif" font-size="30" text-anchor="middle">🍜 sample image</text><text x="384" y="242" fill="#8b93a7" font-family="sans-serif" font-size="18" text-anchor="middle">sign in to generate for real</text></svg>');
 let _demoImgUrl = null;
 async function demoImage(){                        // shipped alongside the page → data URL, so ⬇ save etc. behave like a real result
   if(_demoImgUrl) return _demoImgUrl;
@@ -6080,16 +6107,24 @@ const DEMO_CTX = { ...CTX, demo:true,
   },
   genVideo: demoDeny, genAudio: demoDeny, transcribe: demoDeny,
 };
+// "loading sample…" — honest running-state text for a demo node (t() is free here, unshadowed).
+function demoRunLabel(){ return t("loading sample…"); }
 // Every canned result carries its own label — the badge is what keeps a sample honest.
 function markDemoResult(n){
   const r = n.el?.querySelector(".result");
   if(!r || !r.classList.contains("show") || r.querySelector(".demobadge")) return;   // pass-through nodes (text/media inputs) show no result — nothing to label
   r.insertAdjacentHTML("beforeend", `<div class="demobadge">✨ ${esc(t("sample result — sign in to run it for real"))}</div>`);
 }
-function openDemoPop(){
+// custom=true → the canvas isn't the starter (edited / share link / restored), so there's no honest
+// sample for it; the pill switches from "here's a sample" to "sign in to run YOUR workflow".
+function openDemoPop(custom){
   const p = $("demopop"); if(!p) return;
   $("demosignin").style.display = /^https?:$/.test(location.protocol) ? "" : "none";   // OAuth needs http(s); file:// keeps paste-key only
   const ch = $("connecthint"); if(ch && !ch.hidden) ch.hidden = true;   // don't stack teaching pills behind the sample pitch (no flag — it can return next load)
+  const txt = p.querySelector(".dp-txt");
+  if(txt) txt.innerHTML = custom
+    ? `<b>${esc(t("Run your workflow"))}</b> — ${esc(t("the sample only covers the starter — sign in to run your own graph for real, pay-per-use on your own key."))}`
+    : `<b>${esc(t("Sample run"))}</b> — ${esc(t("results below are canned examples, not live AI — sign in to run it for real, pay-per-use on your own key."))}`;
   p.hidden = false;
 }
 // turn a blob:/data:/http url into a base64 data URL (for video/audio source payloads)
@@ -7447,7 +7482,7 @@ function seed(){
   // the signed-out sample run (DEMO_LLM_TEXT + demo-sample.jpg) was generated from these exact nodes.
   const a = addNode("text", 60, 130, { text:"a cozy ramen shop on a rainy night" });
   const b = addNode("llm", 340, 70, { model:"zai-org/glm-5.2", system:"You write image prompts. Turn the idea into one vivid, detailed image prompt — scene, lighting, mood, style. Reply with the prompt only." });
-  const c = addNode("image", 650, 100, { model:"nano-banana-2-lite" });
+  const c = addNode("image", 650, 100, { model:"nano-banana-2-lite", size:"1k", variations:"1" });
   connect(a.id, "text", b.id, "prompt");
   connect(b.id, "text", c.id, "prompt");
   undoMuted = false;
@@ -7703,8 +7738,13 @@ $("signout").onclick = ()=> setKey(null);
     try{ const b = JSON.parse(localStorage.getItem(EDITOR_APP_KEY) || "null");
       if(b && b.id) setPendingApp(b.id, b.title || null); }catch(_){}
   }
+  const freshStart = !restored;                                   // nothing personal loaded → we're about to show the shipped starter
   if(!restored) restored = await loadDefault();                   // else noodle-graph.json
   if(!restored) seed();                                           // else built-in starter
+  // Only the pristine shipped starter has a canned sample. Capture its signature so a signed-out
+  // Run knows whether the sample honestly represents what's on the canvas (see runGroup demo path).
+  // A restored graph / share link never matches → those are asked to sign in, never faked.
+  if(freshStart) demoStarterSig = appHandoffSig();
   updateTitle();                                                  // reflect whether an app's workflow is loaded
   redraw();
   // Reconcile once the fresh catalog lands: resize cards, backfill default models, refresh prices/panels
