@@ -3694,7 +3694,7 @@ function refreshAudioParams(n){
 }
 // show the LoRA disclosure on an image/edit node only when its model accepts an adapter,
 // so the plain-image happy path stays untouched. Rebuilt on model-pick like the audio block.
-const LORA_NODES = { image:1, edit:1, tvideo:1, ivideo:1, vedit:1 };   // nodes that can carry a LoRA
+const LORA_NODES = { image:1, edit:1, inpaint:1, tvideo:1, ivideo:1, vedit:1 };   // nodes that can carry a LoRA
 function refreshLoraParams(n){
   if(!LORA_NODES[n.type] || !n.el) return;
   const box = n.el.querySelector("[data-loraparams]"); if(!box) return;
@@ -4609,7 +4609,8 @@ const NODE_TYPES = {
       ${maskCtrls}
       <div><label>size</label><select data-f="size">${optsHTML(SIZES, n.fields.size||SIZES[0][0])}</select></div>
       <div><label>what to paint in</label><textarea data-f="prompt" placeholder="a red coffee mug, a small bird…">${esc(n.fields.prompt||"")}</textarea></div>
-      <div><label>seed <span class="dim">· blank = random, fix to repeat (re-run won't regenerate)</span></label><input type="number" data-f="seed" placeholder="random" value="${esc(n.fields.seed??"")}"/></div>`;
+      <div><label>seed <span class="dim">· blank = random, fix to repeat (re-run won't regenerate)</span></label><input type="number" data-f="seed" placeholder="random" value="${esc(n.fields.seed??"")}"/></div>
+      <div data-loraparams></div>`;   // 🎨 LoRA box (model-gated: only p-image/edit-lora carries lora_weights; strong style LoRAs restyle broadly, not just the brushed area)
     },
     mount: mountInpaint,
     async run(n, inp, ctx){
@@ -6606,7 +6607,7 @@ function loraFamily(model){
   return null;
 }
 // image-vs-video kind for a lora-capable node (image/edit → image; *video → video)
-function loraKind(type){ return (type==="image"||type==="edit") ? "image" : "video"; }
+function loraKind(type){ return (type==="image"||type==="edit"||type==="inpaint") ? "image" : "video"; }
 // the v1 IMAGE catalog hides lora params, so allow-list lora-capable image ids by shape:
 // any *-lora variant + flux-2-klein-*, minus inpainting (no lora_url). check-lora-models
 // audits this against the richer catalog so a new lora image model can't slip through.
@@ -6674,6 +6675,7 @@ function loraParams(n){
 // z-image/flux-2/ltx). "try an example" only renders for families present here; never machine-generated.
 const LORA_EXAMPLES = {
   flux:       { url:"https://huggingface.co/aleksa-codes/flux-ghibsky-illustration/resolve/main/lora.safetensors", prompt:"GHIBSKY style, a cozy cottage by a calm lake at sunset, lush rolling hills, soft clouds" },
+  pimage:     { url:"https://huggingface.co/aleksa-codes/flux-ghibsky-illustration/resolve/main/lora.safetensors", prompt:"GHIBSKY style, soft painterly clouds and warm sunset light" },   // p-image is FLUX-compatible; ghibsky lora live-verified to load + apply on p-image/edit-lora (2026-07-03)
   flux2klein: { url:"https://huggingface.co/joyfox/FLUX.2-klein-AC-Style-LORA/resolve/main/flux2_klein_lowres.safetensors", prompt:"AC style, a portrait of a young woman in a sunlit garden, detailed" },
   zimage:     { url:"https://huggingface.co/tarn59/pixel_art_style_lora_z_image_turbo/resolve/main/pixel_art_style_z_image_turbo.safetensors", prompt:"pixel art, a knight standing in a green forest clearing" },
   ltx:        { url:"https://huggingface.co/vrgamedevgirl84/LTX_2.3_Crisp_Enhance_Style_LoRa/resolve/main/LTX2.3_Crisp_Enhance.safetensors", prompt:"a red fox trotting through a snowy forest, cinematic, crisp detail" },

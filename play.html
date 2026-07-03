@@ -1150,7 +1150,7 @@ window.NoodleApp = (function () {
     if(/lora/i.test(m)) return "flux";
     return null;
   }
-  function loraKind(type){ return (type==="image"||type==="edit") ? "image" : "video"; }
+  function loraKind(type){ return (type==="image"||type==="edit"||type==="inpaint") ? "image" : "video"; }
   function imageTakesLora(id){
     id = String(id||"");
     if(/inpaint/i.test(id)) return false;
