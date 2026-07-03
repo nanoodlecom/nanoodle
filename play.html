@@ -3246,20 +3246,51 @@ window.NoodleApp = (function () {
                  + bal;
   }
 
+  // The little cost/reuse pill shown in a result card header.
+  function costChip(n){
+    return n.cached ? '<span class="rcost" title="'+t("reused fixed-seed result — no charge")+'">'+t("↺ reused")+'</span>'
+         : (n.costUsd>0) ? '<span class="rcost" title="'+t("cost of this generation")+'">'+fmtUsd(n.costUsd)+'</span>'
+         : n.costKnown ? '<span class="rcost incl" title="'+t("included in your subscription")+'">'+t("included")+'</span>' : '';
+  }
+
+  // A Frames node produces N image outputs (frame1..frameN), one per extracted still.
+  // A normal result card only shows its FIRST port, so an exported "video → frames"
+  // app would silently show/download frame1 and drop the rest. Render every frame the
+  // run actually produced (capped by the node's own frame count so a lowered count
+  // doesn't ghost old frames), each with its own download. Returns null before any
+  // frame has landed. Non-sink vframes is unaffected — downstream wires read the ports
+  // directly; this only governs what the funnel / steps sheet show.
+  function vframesCard(n, badge){
+    const out = n.out || {};
+    const count = Math.max(1, Math.min(MAX_FRAMES, parseInt(n.fields.frames,10)||1));
+    const frames = [];
+    for(let i=0;i<count;i++){ const v = out["frame"+(i+1)]; if(v!=null) frames.push({ v:v, k:i+1 }); }
+    if(!frames.length) return null;
+    const card = document.createElement("div"); card.className="card";
+    const head = '<div class="rhead">'+(badge||"")+esc(NODE_TYPES[n.type].em)+' '+esc(displayName(n))+costChip(n)+'</div>';
+    card.innerHTML = head + '<div class="frames"></div>';
+    const grid = card.querySelector(".frames");
+    frames.forEach(function(f){
+      const cell = document.createElement("div"); cell.className="fr";
+      cell.innerHTML = '<img src="'+esc(f.v)+'" alt="'+t("frame")+' '+f.k+'">';
+      grid.appendChild(cell);
+      addDownload(cell, f.v, "image", "frame"+f.k);   // frame1.jpg … frameN.jpg
+    });
+    return card;
+  }
+
   // Build a self-contained result card (media + cost + download + variation
   // picker) for one node. Shared by the #app-output funnel (sink nodes only) and
   // the per-run "steps" sheet (every node), so both render media identically.
   // Returns null when the node produced nothing renderable on its primary port.
   function resultCard(n, badge){
+    if(n.type==="vframes") return vframesCard(n, badge);
     const out = n.out || {};
     const port = (NODE_TYPES[n.type].outputs||[])[0] || {};
     const val = out[port.name];
     if(val==null) return null;
     const card = document.createElement("div"); card.className="card";
-    const cost = n.cached ? '<span class="rcost" title="'+t("reused fixed-seed result — no charge")+'">'+t("↺ reused")+'</span>'
-               : (n.costUsd>0) ? '<span class="rcost" title="'+t("cost of this generation")+'">'+fmtUsd(n.costUsd)+'</span>'
-               : n.costKnown ? '<span class="rcost incl" title="'+t("included in your subscription")+'">'+t("included")+'</span>' : '';
-    const head = '<div class="rhead">'+(badge||"")+esc(NODE_TYPES[n.type].em)+' '+esc(displayName(n))+cost+'</div>';
+    const head = '<div class="rhead">'+(badge||"")+esc(NODE_TYPES[n.type].em)+' '+esc(displayName(n))+costChip(n)+'</div>';
     const gallery = (port.type==="image" && out.images && out.images.length>1) ? out.images : null;
     let media;
     if(port.type==="image"){
@@ -4083,6 +4114,10 @@ body{ background:
 .output .varstrip .varthumb:hover{ opacity:.9; }
 .output .varstrip .varthumb.sel{ opacity:1; border-color:var(--accent); }
 .output .dlrow{ margin-top:.6rem; }
+.output .frames{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:.7rem; }
+.output .frames .fr{ display:flex; flex-direction:column; gap:.4rem; }
+.output .frames .fr .dlrow{ margin-top:0; }
+.output .frames .fr .dl{ width:100%; }
 .output .dl{ font:inherit; font-size:.78rem; padding:.4rem .8rem; border-radius:.45rem; cursor:pointer;
   background:var(--panel2); border:1px solid var(--line); color:var(--dim); }
 .output .dl:hover{ border-color:var(--accent-line); color:var(--ink); }
