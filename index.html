@@ -1352,6 +1352,7 @@ const I18N = {
     "Glue two texts together":"Une dos textos",
     "LLM":"LLM",
     "this model can’t read images — pick a vision model":"este modelo no puede leer imágenes — elige un modelo de visión",
+    "morph target — the clip ends on this image":"objetivo de transición — el clip termina en esta imagen",
     "Text → image":"Texto → imagen",
     "Edit":"Editar",
     "Vision":"Visión",
@@ -1766,6 +1767,7 @@ const I18N = {
     "Glue two texts together":"Assembler deux textes",
     "LLM":"LLM",
     "this model can’t read images — pick a vision model":"ce modèle ne peut pas lire les images — choisissez un modèle de vision",
+    "morph target — the clip ends on this image":"cible du morphing — le clip se termine sur cette image",
     "Text → image":"Texte → image",
     "Edit":"Modifier",
     "Vision":"Vision",
@@ -2180,6 +2182,7 @@ const I18N = {
     "Glue two texts together":"Zwei Texte zusammenfügen",
     "LLM":"LLM",
     "this model can’t read images — pick a vision model":"dieses Modell kann keine Bilder lesen — wähle ein Vision-Modell",
+    "morph target — the clip ends on this image":"Morph-Ziel — der Clip endet auf diesem Bild",
     "Text → image":"Text → Bild",
     "Edit":"Bearbeiten",
     "Vision":"Vision",
@@ -2594,6 +2597,7 @@ const I18N = {
     "Glue two texts together":"Cole dois textos num só",
     "LLM":"LLM",
     "this model can’t read images — pick a vision model":"este modelo não consegue ler imagens — escolha um modelo de visão",
+    "morph target — the clip ends on this image":"alvo da transição — o clipe termina nesta imagem",
     "Text → image":"Texto → imagem",
     "Edit":"Editar",
     "Vision":"Visão",
@@ -3008,6 +3012,7 @@ const I18N = {
     "Glue two texts together":"2つのテキストを結合",
     "LLM":"LLM",
     "this model can’t read images — pick a vision model":"このモデルは画像を読み取れません — ビジョンモデルを選んでください",
+    "morph target — the clip ends on this image":"モーフィング先 — クリップはこの画像で終わります",
     "Text → image":"テキスト → 画像",
     "Edit":"編集",
     "Vision":"ビジョン",
@@ -3459,6 +3464,19 @@ function modelSupportsAudio(n){
   const t = NODE_TYPES[n.type]; if(!t.audioInput) return false;
   const m = catItem(t.modelKind, n.fields.model);
   return !m || !!m[t.audioInput];
+}
+// Video image-role detection: does the picked model expose the catalog param for an EXTRA image role
+// (v1: the "last frame" morph target on the seedance-2.0 family)? Gated purely on param presence — no
+// model-name lists (same philosophy as the ⚙️ model-options block). Permissive-OFF when the model is
+// unknown/offline: an extra image port that a model silently ignores would still be sent and CHARGED,
+// so default to NO extra port until we can see the model advertises it. (last_image is confirmed to
+// accept a data: URL, so the wired image rides inline like imageDataUrl — no upload host needed.)
+const VIDEO_IMG_ROLE_KEYS = { last:["last_image","end_image"] };
+function modelHasImageRole(n, role){
+  const t = NODE_TYPES[n.type]; if(!t.modelKind) return false;
+  const m = catItem(t.modelKind, n.fields.model);
+  if(!m || !m.params) return false;
+  return (VIDEO_IMG_ROLE_KEYS[role]||[]).some(k=> k in m.params);
 }
 /* One engine, two port families. imgSpec resolves a node's dynamic-image-port config:
      • llm  (imageInputs:"vision")     → capability-gated, ports img1,img2,… , unbounded (+1 trailing slot)
@@ -4637,6 +4655,7 @@ const NODE_TYPES = {
     em:"📽️", title:"Image→Video", desc:"Image (+text) → video", group:"Video", kw:"animate motion move bring to life",
     modelKind:"video", modelFilter:"i2v",
     inputs:[{name:"image", type:"image"}],
+    endFrame:true,   // grows an optional "end frame" port when the model exposes last_image (seedance-2.0 morph) — see refreshEndFrameInput
     outputs:[{name:"video", type:"video"}], preview:"video",
     body:(n)=>`
       ${modelFieldHTML(n)}
@@ -4647,8 +4666,9 @@ const NODE_TYPES = {
     async run(n, inp, ctx){
       if(!inp.image) throw new Error("no image — wire an image into the image port");
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
-      const url = await ctx.genVideo(mdl(n), prompt,
-        { dims:videoDimParams(n), lora:loraParams(n), extra:(n.fields.modelOpts||{}), runKey:n.id }, inp.image,
+      const opts = { dims:videoDimParams(n), lora:loraParams(n), extra:(n.fields.modelOpts||{}), runKey:n.id };
+      if(inp.endframe) opts.last_image = inp.endframe;   // end-frame morph target (only collected when the model exposes last_image — see input gather)
+      const url = await ctx.genVideo(mdl(n), prompt, opts, inp.image,
         (st,ms)=> setNodeProgress(n, `${t("animating…")} ${Math.round(ms/1000)}s · ${st.toLowerCase()}`));
       return { video: url };
     }
@@ -5022,7 +5042,7 @@ function buildNodeEl(n){
     mp.onclick = (e)=>{
       e.stopPropagation();
       openPicker(t.modelKind, { current:n.fields.model, filter:t.modelFilter, onPick:(id)=>{
-        n.fields.model = id; mp.textContent = id+" ▾"; updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); save();
+        n.fields.model = id; mp.textContent = id+" ▾"; updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); save();
       }});
     };
     updateNodePrice(n);
@@ -5049,6 +5069,7 @@ function buildNodeEl(n){
   refreshImageInputs(n);             // dynamic image ports + their own wire listeners (after the static-port bind above)
   refreshVideoInputs(n);             // dynamic clip ports on the Combine node (same timing as image ports)
   refreshAudioInputs(n);             // single audio port on audio-input chat models (model-gated)
+  refreshEndFrameInput(n);           // optional end-frame port on the ivideo node (model-gated on last_image)
   addFieldPorts(n);
   refreshPortFills();
   prepTextareas(n);
@@ -5127,6 +5148,26 @@ function refreshAudioInputs(n){
   refreshPortFills();
 }
 
+// Render the optional "end frame" port on the Image→Video node. Shown ONLY when the picked model
+// exposes a last_image/end_image param (the seedance-2.0 family) — wiring it makes the model MORPH
+// from the image port to this end frame. Plain i2v models (incl. gemini-omni) show just the one image
+// port, as before. Idempotent — safe after a model pick or graph load. Lives as a link (named
+// "endframe"), so it serializes/exports for free; a wire left over after switching to a model without
+// last_image stays in the graph but is ignored at run (see input gather). No disabled stub (unlike the
+// audio port): most i2v models are single-image, so a permanent "end frame (locked)" row would be noise.
+function refreshEndFrameInput(n){
+  if(!n.el || !NODE_TYPES[n.type].endFrame) return;
+  const col = n.el.querySelector(".col.in"); if(!col) return;
+  col.querySelectorAll(".prow.endrow").forEach(el=> el.remove());
+  if(!modelHasImageRole(n,"last")) return;   // model can't take an end frame → no port
+  const row = document.createElement("div");
+  row.className = "prow endrow";
+  row.innerHTML = `<i class="port image" data-node="${esc(n.id)}" data-port="endframe" data-dir="in" data-ptype="image" title="morph target — the clip ends on this image"></i><span>end frame</span>`;
+  col.appendChild(row);
+  translateTree(row);
+  row.querySelector(".port").addEventListener("pointerdown", e=> startWire(e.currentTarget, e));
+  refreshPortFills();
+}
 // Give every text field an inline input port: wiring it makes the node use the wired
 // value instead of whatever's typed. Idempotent — safe to re-run after the body rebuilds.
 function addFieldPorts(n){
@@ -6360,6 +6401,12 @@ async function runGroup(seedIds, ctx){
         if(t.audioInput) for(const l of graph.links){
           if(l.to.node===id && l.to.port==="audio") inp.audio = byId(l.from.node)?.out?.[l.from.port];
         }
+        // the optional end-frame port on the ivideo node → read by run() as inp.endframe, but ONLY when the
+        // picked model still exposes last_image. Run-time role clamp: a wire left over from a model that had
+        // an end frame (then swapped for one that doesn't) is ignored here — never sent, never charged.
+        if(t.endFrame && modelHasImageRole(n,"last")) for(const l of graph.links){
+          if(l.to.node===id && l.to.port==="endframe") inp.endframe = byId(l.from.node)?.out?.[l.from.port];
+        }
         // a wired text field overrides its typed value (n.fields[field]); declared ports handled above
         const fieldOverrides = {};
         for(const l of graph.links){
@@ -6622,6 +6669,7 @@ const CTX = {
     if(opts.resolution) body.resolution = opts.resolution;
     if(opts.dims) Object.assign(body, opts.dims);        // per-model dimension params under their real wire names (resolution/aspect_ratio|orientation/duration|seconds) — wins over the legacy keys above
     if(imageDataUrl) body.imageDataUrl = imageDataUrl;
+    if(opts.last_image) body.last_image = opts.last_image;   // end-frame morph target (data: URL or https — NanoGPT honors both; oversize caught by the payload guard below)
     if(opts.videoUrl) body.videoUrl = opts.videoUrl;
     if(opts.videoDataUrl) body.videoDataUrl = opts.videoDataUrl;
     if(opts.audioUrl) body.audioUrl = opts.audioUrl;

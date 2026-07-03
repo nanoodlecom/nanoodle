@@ -1291,6 +1291,7 @@ window.NoodleApp = (function () {
       if(opts.resolution) body.resolution = opts.resolution;
       if(opts.dims) Object.assign(body, opts.dims);        // per-model dimension params under their real wire names — wins over the legacy keys above
       if(imageDataUrl) body.imageDataUrl = imageDataUrl;
+      if(opts.last_image) body.last_image = opts.last_image;   // end-frame morph target (data: URL or https — NanoGPT honors both)
       if(opts.videoUrl) body.videoUrl = opts.videoUrl;
       if(opts.videoDataUrl) body.videoDataUrl = opts.videoDataUrl;
       if(opts.audioUrl) body.audioUrl = opts.audioUrl;
@@ -2391,12 +2392,14 @@ function mp4ParamsMatch(bufs){
     },
     ivideo: {
       em:"📽️", title:"Image→Video",
-      inputs:[{name:"image", type:"image"}], outputs:[{name:"video", type:"video"}],
+      inputs:[{name:"image", type:"image"}], endFrame:true,   // reads an optional end-frame wire → last_image (seedance-2.0 morph)
+      outputs:[{name:"video", type:"video"}],
       async run(n, inp, ctx, onProgress){
         if(!inp.image) throw new Error("no image input");
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
-        const url = await ctx.genVideo(mdl(n), prompt,
-          { dims:await videoDimParams(n), lora:loraParams(n), extra:(n.fields.modelOpts||{}) }, inp.image,
+        const opts = { dims:await videoDimParams(n), lora:loraParams(n), extra:(n.fields.modelOpts||{}) };
+        if(inp.endframe && await modelAllowsEndFrame(mdl(n))) opts.last_image = inp.endframe;   // honor an authored end frame unless a runtime model swap dropped last_image support
+        const url = await ctx.genVideo(mdl(n), prompt, opts, inp.image,
           (st,ms)=> onProgress && onProgress("animating… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
         return { video: url };
       }
@@ -2686,6 +2689,12 @@ function mp4ParamsMatch(bufs){
         if(t.audioInput) for(const l of graph.links){
           if(l.to.node===id && l.to.port==="audio"){ const src = byId(l.from.node); inp.audio = src && src.out ? src.out[l.from.port] : undefined; }
         }
+        // the optional end-frame port on the ivideo node → read by run() as inp.endframe (twin of the editor).
+        // The exported graph only carries an endframe wire the editor authored against a last_image model;
+        // run() re-checks the model (in case of a runtime swap) before sending it.
+        if(t.endFrame) for(const l of graph.links){
+          if(l.to.node===id && l.to.port==="endframe"){ const src = byId(l.from.node); inp.endframe = src && src.out ? src.out[l.from.port] : undefined; }
+        }
         // a wired field overrides its typed value (n.fields[field]); declared ports handled above
         const fieldOverrides = {};
         for(const l of graph.links){
@@ -2939,6 +2948,18 @@ function mp4ParamsMatch(bufs){
       case "transcribe": return (!!c.speech_to_text || m.category==="audio_stt") && !/clone/i.test(m.id||"");
       default:           return true;   // llm — any chat model
     }
+  }
+  // Does this video model accept an end-frame (last_image)? Mirrors the editor's modelHasImageRole, but
+  // permissive-ON when the catalog can't be read: the endframe wire was authored deliberately in the
+  // editor (gated there), so if we can't verify at runtime we honor it rather than silently drop the morph.
+  async function modelAllowsEndFrame(model){
+    try{
+      const raw = await loadCatalogRaw("video");
+      const m = raw.find(x=> x && x.id===model);
+      if(!m) return true;   // unknown / typed-in / offline → honor the authored wire
+      const sp = m.supported_parameters||{}, pp = sp.parameters||sp;
+      return ("last_image" in pp) || ("end_image" in pp);
+    }catch(e){ return true; }
   }
   async function modelOptionsFor(type){
     const kind = SETTING_MODEL_KIND[type]; if(!kind) return [];
