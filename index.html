@@ -620,6 +620,15 @@
   /* the badge a canned result carries — dashed = "not the real thing" */
   .result .demobadge{ margin-top:.35rem; font-size:.68rem; color:var(--accent); border:1px dashed var(--accent);
                       border-radius:.4rem; padding:.25rem .45rem; opacity:.9 }
+  /* Ghosted teaser of what ▶ Run produces — shown on the pristine, signed-out starter so the reward
+     is visible at rest, not just the apparatus. Clearly a preview: faded, dashed, captioned. */
+  .result .ghostwrap{ position:relative; border:1px dashed var(--line); border-radius:.45rem; overflow:hidden;
+                      cursor:pointer }
+  .result .ghostwrap img{ width:100%; display:block; opacity:.4; filter:saturate(.85) }
+  .result .ghostwrap:hover img{ opacity:.55 }
+  .result .ghostcap{ position:absolute; left:0; right:0; bottom:0; padding:.5rem .5rem .4rem; text-align:center;
+                     font-size:.76rem; font-weight:600; color:#fff; letter-spacing:.01em;
+                     background:linear-gradient(transparent, rgba(0,0,0,.72)) }
 
   /* ---------- model picker ---------- */
   #mpickback{ position:fixed; inset:0; z-index:55; background:#0008; display:none }
@@ -1272,6 +1281,7 @@ const I18N = {
     "or paste a key":"o pega una clave",
     "results below are canned examples, not live AI — sign in to run it for real, pay-per-use on your own key.":"los resultados de abajo son ejemplos pregrabados, no IA en vivo — inicia sesión para ejecutarlo de verdad, pago por uso con tu propia clave.",
     "sample result — sign in to run it for real":"resultado de muestra — inicia sesión para ejecutarlo de verdad",
+    "Run to make your own":"Ejecuta para crear el tuyo",
     "samples cover text and images only — sign in to run this node for real":"las muestras solo cubren texto e imágenes — inicia sesión para ejecutar este nodo de verdad",
     "more sign-in options":"más opciones de inicio de sesión",
     "sign out":"cerrar sesión",
@@ -1676,6 +1686,7 @@ const I18N = {
     "or paste a key":"ou collez une clé",
     "results below are canned examples, not live AI — sign in to run it for real, pay-per-use on your own key.":"les résultats ci-dessous sont des exemples préenregistrés, pas de l’IA en direct — connectez-vous pour l’exécuter vraiment, paiement à l’usage avec votre propre clé.",
     "sample result — sign in to run it for real":"résultat d’exemple — connectez-vous pour l’exécuter vraiment",
+    "Run to make your own":"Lancez pour créer le vôtre",
     "samples cover text and images only — sign in to run this node for real":"les exemples ne couvrent que le texte et les images — connectez-vous pour vraiment exécuter ce nœud",
     "more sign-in options":"autres options de connexion",
     "sign out":"se déconnecter",
@@ -2080,6 +2091,7 @@ const I18N = {
     "or paste a key":"oder Schlüssel einfügen",
     "results below are canned examples, not live AI — sign in to run it for real, pay-per-use on your own key.":"die Ergebnisse unten sind vorbereitete Beispiele, keine echte KI — melde dich an, um es wirklich auszuführen, Bezahlung pro Nutzung mit eigenem Schlüssel.",
     "sample result — sign in to run it for real":"Beispielergebnis — melde dich an, um es wirklich auszuführen",
+    "Run to make your own":"Starte, um dein eigenes zu erstellen",
     "samples cover text and images only — sign in to run this node for real":"Beispiele decken nur Text und Bilder ab — melde dich an, um diesen Knoten wirklich auszuführen",
     "more sign-in options":"weitere Anmeldeoptionen",
     "sign out":"abmelden",
@@ -2484,6 +2496,7 @@ const I18N = {
     "or paste a key":"ou cole uma chave",
     "results below are canned examples, not live AI — sign in to run it for real, pay-per-use on your own key.":"os resultados abaixo são exemplos pré-gravados, não IA ao vivo — entre para executar de verdade, pagamento por uso com a sua própria chave.",
     "sample result — sign in to run it for real":"resultado de amostra — entre para executar de verdade",
+    "Run to make your own":"Execute para criar o seu",
     "samples cover text and images only — sign in to run this node for real":"as amostras cobrem apenas texto e imagens — entre para executar este nó de verdade",
     "more sign-in options":"mais opções de login",
     "sign out":"sair",
@@ -2888,6 +2901,7 @@ const I18N = {
     "or paste a key":"またはキーを貼り付け",
     "results below are canned examples, not live AI — sign in to run it for real, pay-per-use on your own key.":"以下の結果はあらかじめ用意されたサンプルで、実際のAIではありません — サインインすると自分のキーで本当に実行できます(従量課金)。",
     "sample result — sign in to run it for real":"サンプル結果 — サインインすると本当に実行できます",
+    "Run to make your own":"実行して自分だけの作品を",
     "samples cover text and images only — sign in to run this node for real":"サンプルはテキストと画像のみ対応 — サインインするとこのノードを本当に実行できます",
     "more sign-in options":"その他のサインイン方法",
     "sign out":"サインアウト",
@@ -4011,7 +4025,36 @@ const fmtUsd = (v)=> v>=0.01 ? `$${v.toFixed(2)}` : v>0 ? `<$0.01` : `$0.00`;
 // price here so the first click reads as "just try it", not "this'll cost you". It returns the
 // instant they sign in or edit past the starter — the moment a run actually bills their own key.
 function inDemoRun(){ return !getKey() && !!demoStarterSig && appHandoffSig() === demoStarterSig; }
+// Paint a faded, captioned teaser of what ▶ Run produces into an output node's result area, so a
+// first-run visitor sees the reward at rest — not just the wired-up apparatus. View-only: never sets
+// n.out, so serialization / appHandoffSig are untouched. Clicking it just runs (the caption promises it).
+async function showDemoGhost(n){
+  const r = n.el && n.el.querySelector(".result"); if(!r || r.dataset.ghost) return;
+  r.dataset.ghost = "1";                                  // claim it before awaiting, so we don't double-paint
+  const url = await demoImage();
+  if(r.dataset.ghost !== "1") return;                     // state flipped mid-await (ran / signed in) → drop it
+  r.classList.add("show","ghost");
+  r.innerHTML = `<div class="ghostwrap" title="${esc(t("Run to make your own"))}">`
+    + `<img src="${esc(url)}" alt="sample output"/>`
+    + `<div class="ghostcap">▶&nbsp;${esc(t("Run to make your own"))}</div></div>`;
+  const w = r.querySelector(".ghostwrap"); if(w) w.onclick = ()=> runAll();
+}
+function clearDemoGhost(n){
+  const r = n.el && n.el.querySelector(".result"); if(!r || !r.dataset.ghost) return;
+  delete r.dataset.ghost; r.classList.remove("show","ghost"); r.innerHTML = "";
+}
+// Sync every image-output node's teaser to the current demo state. Piggybacks on refreshRunEstimate,
+// which already fires at the three sites where the demo state can flip (load, edit, sign in/out).
+function refreshDemoGhosts(){
+  const on = inDemoRun();
+  for(const n of graph.nodes){
+    const ty = NODE_TYPES[n.type];
+    if(on && ty && ty.preview==="image" && !(n.out && n.out.image)) showDemoGhost(n);
+    else clearDemoGhost(n);
+  }
+}
 function refreshRunEstimate(){
+  refreshDemoGhosts();                             // demo teaser shares this function's three trigger sites
   const el = $("runest"); if(!el) return;
   if(inDemoRun()){ el.hidden = true; return; }   // free sample run → no price talk yet
   const { usd, priced, unpriced, exact } = workflowCost();
@@ -5088,6 +5131,7 @@ async function downloadUrl(url, filename){
 }
 function showResult(n){
   const ty = NODE_TYPES[n.type], r = n.el.querySelector(".result");
+  r.classList.remove("ghost"); delete r.dataset.ghost;   // a real result supersedes the demo teaser (and stops refreshDemoGhosts from wiping it)
   if(ty.preview==="none"){ r.classList.remove("show"); r.innerHTML=""; return; }
   r.classList.add("show");
   if(ty.preview==="frames"){
