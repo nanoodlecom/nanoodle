@@ -60,6 +60,7 @@ const ctx = {
   commentBody: () => `<textarea data-f="text"></textarea>`,   // note textarea; nodeAcceptsType short-circuits on t.note so it's never a text sink
   collectImageInputs: () => [],
   setNodeProgress: () => {},
+  t: (s) => s,
 };
 vm.createContext(ctx);
 
@@ -91,10 +92,10 @@ const ok = (c, m) => { if (!c) failures.push(m); };
 // dragging FROM an output → consumers of that type
 eq(keys("out", "image"), ["edit", "inpaint", "ivideo", "llm", "lipsync", "resize", "vision"],
   "image output → nodes that take an image (incl. LLM's dynamic image ports + Inpaint's image/mask)");
-eq(keys("out", "audio"), ["llm", "lipsync", "transcribe", "trim"],
-  "audio output → nodes that take audio (incl. the LLM's audio-input port)");
-eq(keys("out", "video"), ["combine", "extractaudio", "vedit", "vframes"],
-  "video output → nodes that take video (combine joins clips; vframes extracts stills; extractaudio peels the soundtrack)");
+eq(keys("out", "audio"), ["llm", "lipsync", "soundtrack", "transcribe", "trim"],
+  "audio output → nodes that take audio (incl. the LLM's audio-input port + Soundtrack's audio port)");
+eq(keys("out", "video"), ["combine", "extractaudio", "soundtrack", "vedit", "vframes"],
+  "video output → nodes that take video (combine joins clips; soundtrack adds audio; vframes extracts stills; extractaudio peels the soundtrack)");
 // transcribe is excluded: its only text field is a plain <input> (language), not a wirable textarea
 eq(keys("out", "text"), ["edit", "image", "inpaint", "ivideo", "join", "llm", "lipsync", "music", "tts", "tvideo", "vedit", "vision"],
   "text output → nodes with a text input OR a wirable text field");
@@ -104,8 +105,8 @@ eq(keys("in", "image"), ["edit", "image", "inpaint", "resize", "upload", "vframe
   "image input → nodes that produce an image (inpaint repaints; vframes emits frame stills)");
 eq(keys("in", "audio"), ["aupload", "extractaudio", "music", "trim", "tts"],
   "audio input → nodes that produce audio (extractaudio emits a WAV from a video)");
-eq(keys("in", "video"), ["combine", "ivideo", "lipsync", "tvideo", "vedit", "vupload"],
-  "video input → nodes that produce video (combine joins clips into one)");
+eq(keys("in", "video"), ["combine", "ivideo", "lipsync", "soundtrack", "tvideo", "vedit", "vupload"],
+  "video input → nodes that produce video (combine joins clips into one; soundtrack outputs the scored video)");
 eq(keys("in", "text"), ["choice", "join", "llm", "text", "transcribe", "vision"],
   "text input → nodes that produce text (Choice is a pure text source, like Text)");
 

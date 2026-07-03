@@ -486,6 +486,7 @@
   .node header.t-vision{ background:linear-gradient(90deg,#ffcf6b22,transparent) }
   .node header.t-edit{ background:linear-gradient(90deg,#ff79c622,#7c8cff14,transparent) }
   .node header.t-tvideo, .node header.t-ivideo, .node header.t-combine{ background:linear-gradient(90deg,#5ad1e622,transparent) }
+  .node header.t-soundtrack{ background:linear-gradient(90deg,#5ad1e622,#7c8cff14,transparent) }
   .node header.t-vframes{ background:linear-gradient(90deg,#5ad1e622,#ff79c614,transparent) }
   .node header.t-extractaudio{ background:linear-gradient(90deg,#5ad1e622,#3ddc9714,transparent) }
   .node header.t-music, .node header.t-tts{ background:linear-gradient(90deg,#3ddc9722,transparent) }
@@ -4617,6 +4618,22 @@ const NODE_TYPES = {
     }
   },
 
+  soundtrack: {
+    em:"🎚", title:"Soundtrack", desc:"Video + audio → video (add music / narration)", group:"Video", kw:"music audio sound score dub overlay song add track voiceover",
+    inputs:[{name:"video", type:"video"},{name:"audio", type:"audio"}],
+    outputs:[{name:"video", type:"video"}], preview:"video",
+    body:(n)=>`
+      <label style="display:flex;align-items:center;gap:.45rem;cursor:pointer"
+        title="${esc(t("Repeat the audio to fill the whole video. Off: the audio plays once, then the rest of the video is silent. Audio longer than the video is always trimmed to the video's length."))}">
+        <input type="checkbox" data-f="loop" ${(n.fields.loop ?? false)?"checked":""}/>
+        <span>${esc(t("loop audio to fill video"))}</span></label>`,
+    async run(n, inp){
+      if(!inp.video) throw new Error("no video — wire a video into the video port");
+      if(!inp.audio) throw new Error("no audio — wire an audio clip into the audio port");
+      return { video: await muxSoundtrack(inp.video, inp.audio, n.fields.loop ?? false, (msg)=> setNodeProgress(n, msg)) };
+    }
+  },
+
   lipsync: {
     em:"🎭", title:"Avatar / lipsync", desc:"Image + audio → talking video", group:"Video", kw:"talk talking face mouth speak portrait",
     modelKind:"video", modelFilter:"avatar",
@@ -7139,6 +7156,80 @@ async function concatViaRecorder(urls, dedup, onProgress){
     return URL.createObjectURL(new Blob(chunks, { type: mime.split(";")[0] }));
   } finally { vids.forEach(v=>{ try{ v.pause(); v.removeAttribute("src"); v.load(); }catch{} }); handles.forEach(h=> h.revoke && h.revoke()); try{ ac && ac.close(); }catch{} }
 }
+/* ---- Soundtrack node: mux ONE audio track onto a (usually silent) video --------------------------
+   Reuses the Combine recorder's real-time pipeline rather than a second muxer: paint the video's
+   frames onto a canvas (captureStream drives one video track) and mix a single <audio> element
+   through a Web Audio destination that's added to the recorded stream. The video's own end bounds the
+   recording, so the audio is trimmed to the video's length for free; `loop` repeats a short track to
+   fill, otherwise it just ends (the keep-alive source holds the track open → trailing silence). The
+   video stays MUTED (we only want its picture; any existing audio is dropped). Output is mp4 where the
+   browser records it (current Chrome/Edge/Safari), else webm — same as Combine. Same-origin throughout.
+   A generated song on the provider's audio CDN has no CORS, so its bytes can't be captured untainted
+   (the track would come out silent) — refuse it up front with the way out, exactly like lipsync. */
+async function muxSoundtrack(videoUrl, audioUrl, loop, onProgress){
+  if(/^https?:/.test(audioUrl))
+    throw new Error("can’t add that generated song as a soundtrack — it lives on the provider’s audio CDN, whose bytes the browser can’t read (CORS), so the track would come out silent. Use a 🗣️ Speech node, a ✂️ Trim node, or an Audio upload for the soundtrack.");
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if(!AC) throw new Error("this browser can’t process audio (no Web Audio API)");
+  const vh = await toLocalMediaUrl(videoUrl);
+  const ah = await toLocalMediaUrl(audioUrl);
+  let ac = null, vid = null, el = null;
+  try{
+    const mime = pickVideoMime();
+    const meta = await loadVideoMeta(vh.src); const W = meta.w, H = meta.h;
+    const canvas = document.createElement("canvas"); canvas.width = W; canvas.height = H;
+    const c2d = canvas.getContext("2d");
+    if(typeof canvas.captureStream !== "function") throw new Error("this browser can’t capture a canvas stream");
+    const stream = canvas.captureStream(0);            // 0 fps = we drive every frame by hand
+    const vtrack = stream.getVideoTracks()[0];
+    ac = new AC();
+    // Nudge the context awake, but never block on it (resume() can stall where there's no audio device).
+    if(ac.state === "suspended"){ await Promise.race([ Promise.resolve(ac.resume()).catch(()=>{}), new Promise(r=> setTimeout(r, 1500)) ]); }
+    const dest = ac.createMediaStreamDestination();
+    const atrack = dest.stream.getAudioTracks()[0];
+    if(!atrack) throw new Error("this browser can’t capture an audio stream");
+    stream.addTrack(atrack);
+    // Silent keep-alive so the audio track never starves — an unfed track collapses captureStream(0)'s
+    // pacing and truncates the video (same guard as the Combine recorder). It also fills the gap after
+    // a short, non-looped track finishes before the video ends.
+    const keep = ac.createConstantSource(); keep.offset.value = 0; keep.connect(dest); keep.start();
+    el = new Audio(); el.crossOrigin = "anonymous"; el.loop = !!loop; el.preload = "auto"; el.src = ah.src;
+    await new Promise((res, rej)=>{ el.oncanplaythrough = res; el.oncanplay = res; el.onerror = ()=> rej(new Error("could not load the audio clip")); el.load(); });
+    try{ ac.createMediaElementSource(el).connect(dest); }
+    catch(e){ throw new Error("could not route the audio for muxing"); }
+    // Video: muted; we only paint its frames and use its end to bound the mux.
+    vid = document.createElement("video"); vid.muted = true; vid.playsInline = true; vid.crossOrigin = "anonymous"; vid.preload = "auto"; vid.src = vh.src;
+    await new Promise((res, rej)=>{ vid.onloadeddata = ()=>{ if(typeof vid.requestVideoFrameCallback !== "function") rej(new Error("this browser can’t read video frames (no requestVideoFrameCallback)")); else res(); }; vid.onerror = ()=> rej(new Error("could not load the video")); });
+    const vbps = Math.max(3_000_000, Math.min(12_000_000, Math.round(W * H * 30 * 0.2)));
+    const rec = new MediaRecorder(stream, { mimeType:mime, videoBitsPerSecond: vbps });
+    const chunks = []; rec.ondataavailable = e=>{ if(e.data && e.data.size) chunks.push(e.data); };
+    const stopped = new Promise((res, rej)=>{ rec.onstop = res; rec.onerror = e=> rej((e && e.error) || new Error("recording failed")); });
+    onProgress && onProgress("adding soundtrack…");
+    rec.start();
+    await new Promise((resolve, reject)=>{
+      let started = false, finished = false;
+      const finish = ()=>{ if(finished) return; finished = true; try{ vid.pause(); }catch{} try{ el.pause(); }catch{} resolve(); };
+      const onFrame = ()=>{
+        if(finished) return;
+        if(!started){ started = true; try{ el.currentTime = 0; }catch{} el.play().catch(()=>{}); }   // start the track as the first frame paints
+        c2d.drawImage(vid, 0, 0, W, H); vtrack.requestFrame();
+        if(vid.ended) return finish();
+        vid.requestVideoFrameCallback(onFrame);
+      };
+      vid.onended = finish;
+      vid.onerror = ()=> reject(new Error("could not play the video"));
+      vid.requestVideoFrameCallback(onFrame);
+      vid.play().catch(reject);
+    });
+    rec.stop(); await stopped; vtrack.stop();
+    return URL.createObjectURL(new Blob(chunks, { type: mime.split(";")[0] }));
+  } finally {
+    if(vid){ try{ vid.pause(); vid.removeAttribute("src"); vid.load(); }catch{} }
+    if(el){ try{ el.pause(); el.removeAttribute("src"); el.load(); }catch{} }
+    vh.revoke && vh.revoke(); ah.revoke && ah.revoke();
+    try{ ac && ac.close(); }catch{}
+  }
+}
 const sleep = (ms)=> new Promise(res=> setTimeout(res, ms));
 // async audio (music / some TTS): submit returns {status:"pending", runId} → poll /api/tts/status until completed
 async function pollAudio(model, j, onProgress){
@@ -8352,6 +8443,7 @@ $("signout").onclick = ()=> setKey(null);
     vedit:{ main:"prompt", fields:{ model:"v2v model id (optional)", prompt:"instruction" } },
     vframes:{ fields:{ frames:"how many", gap:"seconds between frames", dir:"end|start" } },
     combine:{ fields:{ dedup:"trim duplicate seam frame (true/false)" } },
+    soundtrack:{ fields:{ loop:"loop audio to fill the video (true/false)" } },
     lipsync:{ fields:{ model:"avatar model id (optional)", prompt:"optional direction" } },
     music:{ main:"prompt", fields:{ model:"music model id (optional)", prompt:"style/prompt", lyrics:"lyrics for vocal models", instrumental:"true/false" } },
     tts:{ main:"prompt", fields:{ model:"tts model id (optional)", prompt:"text to speak", voice:"voice id (optional)" } },

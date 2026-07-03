@@ -1558,6 +1558,73 @@ window.NoodleApp = (function () {
       if(audio){ try{ audio.track.stop(); }catch(e){} try{ audio.ctx.close(); }catch(e){} }
     }
   }
+  // Soundtrack node (twin of index.html): mux ONE audio track onto a (usually silent) video by
+  // re-recording the video's frames plus a single <audio> element mixed through Web Audio. The video's
+  // end bounds the recording, so the audio is trimmed to the video's length; loop repeats a short
+  // track, else the keep-alive source holds the track open (trailing silence). A provider-CDN song has
+  // no CORS, so its bytes can't be captured untainted (silent track) — refuse it with the way out.
+  // No backticks (RUNTIME_JS is a String.raw template).
+  async function muxSoundtrack(videoUrl, audioUrl, loop, onProgress){
+    if(/^https?:/.test(audioUrl))
+      throw new Error("can’t add that generated song as a soundtrack — it lives on the provider’s audio CDN, whose bytes the browser can’t read (CORS), so the track would come out silent. Use a Speech node, a Trim node, or an Audio upload for the soundtrack.");
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) throw new Error("this browser can’t process audio (no Web Audio API)");
+    const vh = await toLocalMediaUrl(videoUrl);
+    const ah = await toLocalMediaUrl(audioUrl);
+    let ac = null, vid = null, el = null;
+    try{
+      const mime = pickVideoMime();
+      const meta = await loadVideoMeta(vh.src), W = meta.w, H = meta.h;
+      const canvas = document.createElement("canvas"); canvas.width = W; canvas.height = H;
+      const c2d = canvas.getContext("2d");
+      if(typeof canvas.captureStream !== "function") throw new Error("this browser can’t capture a canvas stream");
+      const stream = canvas.captureStream(0);
+      const vtrack = stream.getVideoTracks()[0];
+      ac = new AC();
+      if(ac.state === "suspended"){ try{ await ac.resume(); }catch(e){} }
+      const dest = ac.createMediaStreamDestination();
+      const atrack = dest.stream.getAudioTracks()[0];
+      if(!atrack) throw new Error("this browser can’t capture an audio stream");
+      stream.addTrack(atrack);
+      // silent keep-alive so the audio track never starves (an unfed track collapses pacing +
+      // truncates the video) and so a short, non-looped track leaves trailing silence, not a stall.
+      const keep = ac.createConstantSource(); keep.offset.value = 0; keep.connect(dest); keep.start();
+      el = new Audio(); el.crossOrigin = "anonymous"; el.loop = !!loop; el.preload = "auto"; el.src = ah.src;
+      await new Promise((res, rej)=>{ el.oncanplaythrough = res; el.oncanplay = res; el.onerror = ()=> rej(new Error("could not load the audio clip")); el.load(); });
+      try{ ac.createMediaElementSource(el).connect(dest); }
+      catch(e){ throw new Error("could not route the audio for muxing"); }
+      vid = document.createElement("video"); vid.muted = true; vid.playsInline = true; vid.crossOrigin = "anonymous"; vid.preload = "auto"; vid.src = vh.src;
+      await new Promise((res, rej)=>{ vid.onloadeddata = ()=>{ if(typeof vid.requestVideoFrameCallback !== "function") rej(new Error("this browser can’t read video frames (no requestVideoFrameCallback)")); else res(); }; vid.onerror = ()=> rej(new Error("could not load the video")); });
+      const vbps = Math.max(3000000, Math.min(12000000, Math.round(W * H * 30 * 0.2)));
+      const rec = new MediaRecorder(stream, { mimeType:mime, videoBitsPerSecond: vbps });
+      const chunks = []; rec.ondataavailable = e=>{ if(e.data && e.data.size) chunks.push(e.data); };
+      const stopped = new Promise((res, rej)=>{ rec.onstop = res; rec.onerror = e=> rej((e && e.error) || new Error("recording failed")); });
+      onProgress && onProgress("adding soundtrack…");
+      rec.start();
+      await new Promise((resolve, reject)=>{
+        let started = false, finished = false;
+        const finish = ()=>{ if(finished) return; finished = true; try{ vid.pause(); }catch(e){} try{ el.pause(); }catch(e){} resolve(); };
+        const onFrame = ()=>{
+          if(finished) return;
+          if(!started){ started = true; try{ el.currentTime = 0; }catch(e){} el.play().catch(()=>{}); }
+          c2d.drawImage(vid, 0, 0, W, H); vtrack.requestFrame();
+          if(vid.ended) return finish();
+          vid.requestVideoFrameCallback(onFrame);
+        };
+        vid.onended = finish;
+        vid.onerror = ()=> reject(new Error("could not play the video"));
+        vid.requestVideoFrameCallback(onFrame);
+        vid.play().catch(reject);
+      });
+      rec.stop(); await stopped; vtrack.stop();
+      return URL.createObjectURL(new Blob(chunks, { type: mime.split(";")[0] }));
+    } finally {
+      if(vid){ try{ vid.pause(); vid.removeAttribute("src"); vid.load(); }catch(e){} }
+      if(el){ try{ el.pause(); el.removeAttribute("src"); el.load(); }catch(e){} }
+      vh.revoke && vh.revoke(); ah.revoke && ah.revoke();
+      try{ ac && ac.close(); }catch(e){}
+    }
+  }
   // async audio (music / some TTS): submit returns {status:"pending", runId} → poll /api/tts/status until completed
   async function pollAudio(model, j, onProgress){
     const runId = j.runId || j.id;
@@ -1936,6 +2003,16 @@ window.NoodleApp = (function () {
         if(clips.length < 2) throw new Error("wire at least two clips to combine");
         const dedup = n.fields.dedup != null ? n.fields.dedup : true;
         return { video: await concatVideos(clips, dedup, onProgress) };
+      }
+    },
+    soundtrack: {
+      em:"🎚", title:"Soundtrack",
+      inputs:[{name:"video", type:"video"},{name:"audio", type:"audio"}], outputs:[{name:"video", type:"video"}],
+      async run(n, inp, ctx, onProgress){
+        if(!inp.video) throw new Error("no video input");
+        if(!inp.audio) throw new Error("no audio input");
+        const loop = n.fields.loop != null ? n.fields.loop : false;
+        return { video: await muxSoundtrack(inp.video, inp.audio, loop, onProgress) };
       }
     },
     lipsync: {
@@ -2510,6 +2587,7 @@ window.NoodleApp = (function () {
     trim:   "trims an audio clip to a chosen start and length",
     extractaudio:"extracts the audio track from a video as a WAV clip",
     combine:"joins several video clips end-to-end into one video",
+    soundtrack:"adds an audio track (music or narration) onto a video",
   };
   function describeGraph(graph){
     const clip = (s, n)=>{ s = String(s).replace(/\s+/g," ").trim(); return s.length>n ? s.slice(0,n-1)+"…" : s; };
