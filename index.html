@@ -4458,6 +4458,9 @@ const NODE_TYPES = {
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       if(!prompt) throw new Error("no prompt — describe what to draw (or how to edit the wired images)");
       const imgs = collectImageInputs(inp, n);   // wired image ports, in order — the model edits/composes from them when present
+      // N inlined refs add up fast — refuse before any paid call (mirrors the edit/inpaint guard)
+      if(imgs.reduce((s,u)=> s + (u?u.length:0), 0) > MEDIA_INLINE_MAX)
+        throw new Error("reference images too large (~4 MB combined limit) — use fewer or smaller images");
       const messages = [];
       if((n.fields.system||"").trim()) messages.push({role:"system", content:n.fields.system.trim()});
       messages.push(imgs.length

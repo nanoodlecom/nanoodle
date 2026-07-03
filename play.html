@@ -1275,7 +1275,7 @@ window.NoodleApp = (function () {
       const images = (msg.images||[]).map(function(im){ return (im && im.image_url && im.image_url.url) || (im && im.url) || (typeof im==="string"?im:null); }).filter(Boolean);
       const text = typeof msg.content==="string" ? msg.content : Array.isArray(msg.content) ? msg.content.map(p=>p.text||"").join("") : "";
       if(!images.length) throw new Error(text ? "this model replied with text, not an image — pick an image-output model" : "no image in response");
-      const c = costFromJson(j);   // chat endpoint reports no usable image cost → fall back to the measured per-image estimate
+      const c = costWithHeaders(j, r);   // chat endpoint reports no usable image cost → fall back to the measured per-image estimate; the header still carries the fresh balance (matches genImage/genChat/genVideo)
       if(c.usd==null){ c.usd = EST.chatImageUsd*images.length; c.estimate = true; }
       onCost(c);
       return { images, text, reasoning: msg.reasoning||"" };
@@ -2318,6 +2318,9 @@ function mp4ParamsMatch(bufs){
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         if(!prompt) throw new Error("no prompt");
         const imgs = collectImageInputs(inp);   // wired image ports (img1, img2, …) — the model edits/composes from them when present
+        // N inlined refs add up fast — refuse before any paid call (mirrors the edit/inpaint guard)
+        if(imgs.reduce(function(s,u){ return s + (u?u.length:0); }, 0) > MEDIA_INLINE_MAX)
+          throw new Error("reference images too large (~4 MB combined limit) — use fewer or smaller images");
         const messages = [];
         if((n.fields.system||"").trim()) messages.push({role:"system", content:n.fields.system.trim()});
         messages.push(imgs.length
