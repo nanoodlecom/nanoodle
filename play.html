@@ -106,6 +106,12 @@
   body.empty #bar-title{ cursor:default; }
   body.empty #bar-title::after{ content:none; }
   body.empty #bar-title:hover{ background:none; }
+  /* share-link recipient, before the first successful run: hide Export and the whole Customize
+     composer (handle included) so Run is the one call to action. Share + Edit workflow stay (viral
+     loop + curiosity path). Applies on desktop AND inside the mobile ⋯ menu — #export is a flex-column
+     child there, so a hidden row just collapses, leaving no gap. Revealed on first paid run / editor
+     round-trip. Never set for owner, preview or empty states. */
+  body.prerun #export, body.prerun #customize{ display:none; }
   #barmore{ display:none; }          /* desktop: no overflow button */
   #custtoggle{ display:none; }       /* desktop: no collapse handle */
 
@@ -574,6 +580,7 @@ const PLAY_I18N_B = {
   "The whole app lives in this link — nothing hits a server when someone opens it. That's why it can get long.":{es:"Toda la app vive en este enlace — nada llega a un servidor cuando alguien lo abre. Por eso puede quedar largo.",fr:"Toute l’app tient dans ce lien — rien n’atteint un serveur quand quelqu’un l’ouvre. C’est pourquoi il peut devenir long.",de:"Die ganze App steckt in diesem Link — beim Öffnen wird kein Server kontaktiert. Deshalb kann er lang werden.",pt:"O app inteiro vive neste link — nada chega a um servidor quando alguém o abre. Por isso ele pode ficar longo.",ja:"アプリ全体がこのリンクに含まれています — 誰かが開いてもサーバーには何も送られません。だからリンクは長くなることがあります。"},
   "This shared-app link looks incomplete or damaged — ask the sender for a fresh one. Shortened links survive messengers better.":{es:"Este enlace de app compartida parece incompleto o dañado — pídele al remitente uno nuevo. Los enlaces acortados aguantan mejor en los mensajeros.",fr:"Ce lien d’app partagée semble incomplet ou endommagé — demandez-en un nouveau à l’expéditeur. Les liens raccourcis résistent mieux aux messageries.",de:"Dieser geteilte App-Link scheint unvollständig oder beschädigt — bitte den Absender um einen neuen. Gekürzte Links überstehen Messenger besser.",pt:"Este link de app compartilhado parece incompleto ou danificado — peça um novo ao remetente. Links encurtados resistem melhor aos mensageiros.",ja:"この共有アプリのリンクは不完全か壊れているようです — 送信者に新しいリンクをもらってください。短縮リンクの方がメッセンジャーで壊れにくいです。"},
   "Dismiss":{es:"Descartar",fr:"Fermer",de:"Schließen",pt:"Dispensar",ja:"閉じる"},
+  "✨ Like it? Make it yours — customize this app or export it.":{es:"✨ ¿Te gusta? Hazla tuya — personaliza esta app o expórtala.",fr:"✨ Ça vous plaît ? Faites-la vôtre — personnalisez cette app ou exportez-la.",de:"✨ Gefällt sie dir? Mach sie zu deiner — passe diese App an oder exportiere sie.",pt:"✨ Gostou? Torne-a sua — personalize este app ou exporte-o.",ja:"✨ 気に入りましたか？ 自分のものに — このアプリをカスタマイズするかエクスポートしましょう。"},
 };
 const PLAY_B_LANGS = ["en","es","fr","de","pt","ja"];
 const PLAY_B_ENDONYM = { en:"English", es:"Español", fr:"Français", de:"Deutsch", pt:"Português", ja:"日本語" };
@@ -5326,6 +5333,8 @@ addEventListener("message", async (e) => {
       const body = await r.arrayBuffer();
       const hdrs = {}; r.headers.forEach((v,kk)=> hdrs[kk.toLowerCase()]=v);
       reply({ ok:r.ok, status:r.status, headers:hdrs, body });   // ArrayBuffer → structured clone
+      // A completed paid request = the recipient actually ran the shared app → unlock Export + Customize.
+      if(kind === "charge" && r.ok) markRanOnce({ toast:true });
     }catch(err){ reply({ error:(err && err.message) || String(err) }); }
     return;
   }
@@ -5784,6 +5793,8 @@ function wireTitle(){
 let APP_STATE = { v:1, graph:{ nodes:[], links:[] }, files:{}, versions:[], curVer:0, uiSig:null, lang:"" };
 let CUR_ID = null;          // library id of the open app, or null for a draft
 let curImported = false;    // open app came in via a share link (#a=)
+let curRanOnce = false;     // a recipient's shared app has had its first successful run (or editor round-trip)
+                            // — until then Export + Customize stay hidden so Run is the only call to action
 let FROM_EDITOR = false;    // open app derives from the host editor's canvas. Only THEN may a
                             // commit post __appsaved__ — binding the editor to an app whose
                             // graph was never on the canvas (e.g. one merely browsed in the
@@ -5806,7 +5817,7 @@ function newId(){ return "app_" + Date.now().toString(36) + Math.random().toStri
 
 // snapshot the open app as a library entry
 function curEntry(){
-  return { id:CUR_ID, title:titleFromFiles(APP_STATE.files), imported:curImported,
+  return { id:CUR_ID, title:titleFromFiles(APP_STATE.files), imported:curImported, ranOnce:curRanOnce,
            graph:APP_STATE.graph, files:APP_STATE.files, uiSig:APP_STATE.uiSig, lang:APP_STATE.lang||"",
            versions:APP_STATE.versions, curVer:APP_STATE.curVer, updated:Date.now() };
 }
@@ -5849,12 +5860,13 @@ function stashResume(){
 }
 
 // install a freshly-loaded {graph, files} into the builder (used by every load path)
-function installApp({ graph, files, versions, curVer, fresh, id, imported, uiSig, fromEditor, lang }){
+function installApp({ graph, files, versions, curVer, fresh, id, imported, uiSig, fromEditor, lang, ranOnce }){
   if($("portbar")){ $("portbar").hidden = true; setPortMode(false); }   // any (re)load clears a stale "port?" offer
   { const cs = $("cust-status"); if(cs) cs.innerHTML = ""; }   // ...and a prior customize's "✓ Applied"/"Error" line — it described a different app
   CUR_ID = id || null;
   FROM_EDITOR = !!fromEditor;   // set BEFORE the commit below — it gates the __appsaved__ post
   curImported = !!imported;
+  curRanOnce = !!ranOnce;   // absent on legacy/imported records → false (locked); recomputed per app on every (re)load
   document.body.classList.toggle("recipient", curImported);   // non-owner recipient → hide owner-only Export on mobile
   // A share-link visitor has no idea this app is built on a visual node workflow, so "Edit
   // workflow" reads as jargon and hides the biggest aha — this thing was snapped together from
@@ -5869,6 +5881,7 @@ function installApp({ graph, files, versions, curVer, fresh, id, imported, uiSig
       ? "See the visual node workflow behind this app — open it in the nanoodle editor to remix your own copy. The original stays untouched."
       : "Edit this app's underlying workflow in the nanoodle editor — your app UI is kept");
   } }
+  applyDisclosure();   // hide Export + Customize for a recipient who hasn't run the shared app yet
   // Creator language for THIS app: an explicit value from the caller (a stored app's saved lang,
   // or an imported share link's spec.lang) wins; otherwise a fresh build/edit here adopts THIS
   // creator's explicit editor choice. An import with no baked lang stays neutral ("").
@@ -5897,7 +5910,7 @@ function installApp({ graph, files, versions, curVer, fresh, id, imported, uiSig
   if(fresh && APP_STATE.versions.length <= 1) enterFirstRun(); else exitFirstRun();
   return saved;
 }
-function showEmpty(){ exitFirstRun(); document.body.classList.remove("recipient"); document.body.classList.add("empty"); $("empty").hidden = false; $("appframe").style.display="none"; $("bar-title").textContent="My nanoodle app"; renderAppsBtn(); }
+function showEmpty(){ exitFirstRun(); document.body.classList.remove("recipient"); document.body.classList.remove("prerun"); document.body.classList.add("empty"); $("empty").hidden = false; $("appframe").style.display="none"; $("bar-title").textContent="My nanoodle app"; renderAppsBtn(); }
 
 /* ---------- re-target an existing app onto an edited workflow ----------
    Called when the editor hands a graph back (#ga=) carrying the app's id. The
@@ -5919,7 +5932,11 @@ function updateAppWorkflow(appId, newGraph, fromEditor){
   // their graph's signature (best-effort: assume the UI matched when it was saved).
   const uiSig = app.uiSig != null ? app.uiSig : ioSignature(oldGraph);
   // open the existing app, on the NEW graph, keeping its UI / versions / identity / uiSig
-  installApp({ graph:newGraph, files:app.files, versions:app.versions, curVer:app.curVer, id:app.id, imported:app.imported, uiSig, fromEditor });
+  installApp({ graph:newGraph, files:app.files, versions:app.versions, curVer:app.curVer, id:app.id, imported:app.imported, uiSig, fromEditor, ranOnce:app.ranOnce });
+  // A visitor who round-tripped through the editor is already deeply engaged — unlock the chrome
+  // (silently: the port/kept-UI toast below is this path's own beat, and a forced-open portbar
+  // needs Customize visible). No-op unless this is a locked imported app.
+  markRanOnce();
   if(uiFitsGraph(uiSig, newGraph)){
     toast("Workflow updated — your app UI was kept");
   }else{
@@ -6033,7 +6050,7 @@ function toggleAppsMenu(){ $("appsmenu").hidden ? openAppsMenu() : closeAppsMenu
 function openApp(id){
   const a = loadApps().find(x=>x.id===id); if(!a) return;
   closeAppsMenu();
-  installApp({ graph:a.graph, files:a.files, versions:a.versions, curVer:a.curVer, id:a.id, imported:a.imported, uiSig:a.uiSig, lang:a.lang });
+  installApp({ graph:a.graph, files:a.files, versions:a.versions, curVer:a.curVer, id:a.id, imported:a.imported, uiSig:a.uiSig, lang:a.lang, ranOnce:a.ranOnce });
 }
 function deleteApp(id){
   saveApps(loadApps().filter(a=>a.id!==id));
@@ -6052,6 +6069,22 @@ function newAppFromGraph(){
 // it; the first focus settles it bright for good (the focus listener drops the class).
 function enterFirstRun(){ document.body.classList.add("firstrun"); }
 function exitFirstRun(){ document.body.classList.remove("firstrun"); }
+
+// PROGRESSIVE DISCLOSURE for share-link recipients: a first-timer who just opened someone
+// else's shared app should see Run and nothing competing with it. Export (owner-y) and the
+// Customize composer stay hidden until the app has earned the "make it yours" beat — its first
+// completed paid request, or a round-trip through the editor. Owner/preview/empty states are
+// never gated. Recomputed on every (re)load so switching apps in "My apps" recomputes per app.
+function applyDisclosure(){ document.body.classList.toggle("prerun", curImported && !curRanOnce); }
+// Flip locked→unlocked for the open shared app: reveal the chrome, persist so a reload keeps it
+// unlocked, and (optionally) nudge once. No-op for owner/preview apps and once already unlocked.
+function markRanOnce(opts){
+  if(!curImported || curRanOnce) return;
+  curRanOnce = true;
+  document.body.classList.remove("prerun");
+  writeState();   // into the app record + working state — reload stays unlocked (plain JSON, no signature)
+  if(opts && opts.toast) toast(tB("✨ Like it? Make it yours — customize this app or export it."));
+}
 
 /* ======================================================================
    BUILDER AUTH CHROME — same flow + localStorage keys as index.html.
