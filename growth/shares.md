@@ -13,6 +13,7 @@ Columns: date · venue · angle used · result (upvotes, comments, signups, what
 | Jun 26 | nano-gpt Discord #community-projects | Cookoff launch, primary entry channel (3×133 XNO, 3 categories) | posted ✓ (confirmed by author) |
 | Jun 26 | "posted everywhere" — other venues | Cookoff launch blast (venues TBD — fill in from history) | posted — list TBD |
 | Jul 2 | r/SideProject (subreddit) | "ComfyUI-style AI playground, 100% in-browser, exports to a single .html you own" — 30s demo video + live link + soft Cookoff mention; honest BYO-key disclosure (draft: 2026-07-02-r-SideProject.md) | drafted — pending human post |
+| Jul 4 | r/StableDiffusion — weekly workflow-share sticky | LoRA support just landed in Inpaint node (#200) — "in-browser LoRA inpainting, zero install, BYO NanoGPT key, exports to shareable .html" | drafted — pending human post (Slack nudge sent) |
 
 > Jul 2: Rule-checked r/InternetIsBeautiful and killed it — their content-must-be-freely-usable rule trips on the funded-key requirement to actually run models, and IIB doesn't take video posts (wasting the 30s demo asset). Chose r/SideProject: native video support fits the demo clip, builder self-promo is the norm, and BYO-key + Cookoff are welcome. Passed on r/LocalLLaMA (its local-model ethos clashes with a hosted pay-per-call API).
 
