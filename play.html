@@ -3881,6 +3881,7 @@ function mp4ParamsMatch(bufs){
     if(loop) loop.hidden = !authed;
     if(cnt) cnt.hidden = !authed;
     renderCount(); renderLoop();   // keep the DOM in sync with the (possibly reset) RUNS_N/KEEP
+    paintRunCost();   // the chip scales by RUNS_N, so a gating reset must repaint it (no-op while unpriced)
   }
 
   /* ---------- session cost meter ----------
