@@ -67,10 +67,10 @@ for(const eng of ENGINES){
     }
   }
 
-  // Generation-count multiplier (PR #186 follow-up): number_of_songs multiplies the estimate ONLY when
-  // the model advertises a generation_count_parameter — the same catalog signal collectAudioParams gates
-  // the SEND on. A model without it (e.g. ACE-Step) drops a stale count from the request and makes ONE
-  // song, so the "~$X to run" chip must NOT show 3× the price. Both engines must agree on the multiplier.
+  // Generation-count clamp (music-n-songs fix): collectAudioParams clamps the SENT number_of_songs to 1
+  // (the /audio/speech endpoint returns a single track and the node surfaces only that one), so a run is
+  // always billed for exactly one song. audioBilledSongs therefore returns 1 regardless of the field —
+  // the "~$X to run" chip must never show 3× the price for songs the node can't deliver. Both engines agree.
   for(const f of fixtures.audioSongs || []){
     for(const c of (f.cases || [])){
       const songs = R.audioBilledSongs(f.params, { number_of_songs: c.number_of_songs });
