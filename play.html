@@ -56,7 +56,9 @@
         background:linear-gradient(180deg,#161a27,#11141f);
         position:relative; z-index:70; }   /* stays above the first-run overlay (sign-in / Share remain usable) */
   /* ---------- incomplete/damaged share-link banner (shown when an #a= link won't decode) ---------- */
-  #linkerr{ display:flex; align-items:flex-start; gap:.6rem; padding:.7rem 1rem;
+  /* :not([hidden]) so the `hidden` attribute actually hides it — a bare `display:flex`
+     (id specificity) overrides the UA [hidden]{display:none} and the bar shows on every load. */
+  #linkerr:not([hidden]){ display:flex; align-items:flex-start; gap:.6rem; padding:.7rem 1rem;
             background:linear-gradient(180deg,#3a2a12,#2f2210); border-bottom:1px solid #7a5a1e;
             color:#ffdca3; font-size:.9rem; line-height:1.45; z-index:69; }
   #linkerr .le-icon{ flex:0 0 auto; font-size:1rem; line-height:1.45; }
