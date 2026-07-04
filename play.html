@@ -279,6 +279,14 @@
           box-shadow:0 8px 30px #0008; opacity:0; transition:opacity .35s; pointer-events:none; }
   #toast.err{ border-color:var(--danger); }
 
+  #pacenotice{ position:fixed; left:50%; bottom:1.1rem; transform:translateX(-50%);
+          display:flex; align-items:center; gap:.7rem; z-index:60;
+          background:var(--panel); border:1px solid var(--danger); color:var(--ink);
+          padding:.55rem .9rem; border-radius:.6rem; font-size:.82rem; max-width:80ch;
+          box-shadow:0 8px 30px #0008; }
+  #pacenotice[hidden]{ display:none; }
+  #pacenotice #pacenotice-go{ white-space:nowrap; }
+
   /* ---------- touch devices: comfortable tap targets + no iOS focus-zoom ---------- */
   @media (pointer:coarse){
     #bar button, button.primary, button.ghost, .ver, .am-row, .am-new, .cnt{ min-height:44px; }
@@ -462,6 +470,13 @@
 
 <div id="toast"></div>
 
+<!-- Shown only if a shared (imported) app's paid API requests exceed a generous budget — the parent
+     holds those requests until the viewer explicitly resumes them. Never appears in the normal flow. -->
+<div id="pacenotice" role="status" aria-live="polite" hidden>
+  <span id="pacenotice-msg"></span>
+  <button id="pacenotice-go" class="link" type="button">Continue</button>
+</div>
+
 <!-- model picker (ported from the editor's shared picker) — choose the LLM that writes app changes -->
 <div id="mpickback"></div>
 <div id="mpick">
@@ -501,6 +516,8 @@ const ACCENT = "#7c8cff";
    as the editor + runtime) and reloads. Named tB (not t) — the module has local t vars. */
 const PLAY_I18N_B = {
   "More":{es:"Más",fr:"Plus",de:"Mehr",pt:"Mais",ja:"その他"},
+  "Continue":{es:"Continuar",fr:"Continuer",de:"Fortfahren",pt:"Continuar",ja:"続行"},
+  "This app is making an unusual number of paid requests, so they've been paused. Continue to allow them.":{es:"Esta app está haciendo un número inusual de solicitudes de pago, así que se han pausado. Continúa para permitirlas.",fr:"Cette app effectue un nombre inhabituel de requêtes payantes, elles ont donc été mises en pause. Continuez pour les autoriser.",de:"Diese App stellt ungewöhnlich viele kostenpflichtige Anfragen und wurde deshalb pausiert. Fortfahren, um sie zuzulassen.",pt:"Este app está fazendo um número incomum de solicitações pagas, então elas foram pausadas. Continue para permiti-las.",ja:"このアプリは異常に多くの有料リクエストを行っているため一時停止しました。許可するには続行してください。"},
   "checking…":{es:"comprobando…",fr:"vérification…",de:"wird geprüft…",pt:"verificando…",ja:"確認中…"},
   "paste key":{es:"pegar clave",fr:"coller la clé",de:"Schlüssel einfügen",pt:"colar chave",ja:"キーを貼り付け"},
   "sign out":{es:"cerrar sesión",fr:"se déconnecter",de:"abmelden",pt:"sair",ja:"サインアウト"},
@@ -5159,6 +5176,7 @@ function setShareDirty(on){
 function renderApp(){
   const frame = $("appframe");
   setShareDirty(false);   // a fresh mount starts clean and won't re-post until it diverges, so clear our flag
+  paceReset();            // every mount reboots the app's JS from scratch, so hand it a full request budget
   frame.sandbox = "allow-scripts allow-downloads";   // allow-downloads: the output cards' ⭳ Download button
   frame.onload = () => pushAuthToApp();
   frame.srcdoc = withPreamble(bundle(APP_STATE.files));
@@ -5166,6 +5184,65 @@ function renderApp(){
 function postToApp(msg){ try{ $("appframe").contentWindow.postMessage(msg, "*"); }catch(_){} }
 // tell the app whether WE (the parent) are signed in — never the key itself
 function pushAuthToApp(){ postToApp({ type:"__auth__", signedIn: !!getKey() }); }
+
+// ----- imported-app request pacing -----
+// A shared (#a=) app is arbitrary JS in a null-origin sandbox that can reach NanoGPT only by asking
+// the bridge below to proxy the call with the signed-in viewer's key. It can never READ the key — but
+// left unmetered it could fire paid generation calls in a tight loop and quietly spend the viewer's
+// balance with no interaction. So for IMPORTED apps only (curImported — the viewer's own builds and
+// editor previews are never metered) we run the spend-INITIATING endpoints through a generous token
+// bucket. Status polling and read-only catalog reads never spend, so they pass unmetered (a long video
+// job polls for minutes). The budget sits far above any real Run: nodes fire as their inputs resolve,
+// so a wide graph can burst many generate calls at once, and one Run press launches up to 8 concurrent
+// lanes (RUN_CHOICES) — the worst realistic single press is graph-width x 8, and "keep generating"
+// only re-fires a lane after its calls settle (latency-bounded). cap and refill both clear that with
+// wide margin, so a legitimate app never empties the bucket. Only a runaway loop does — and THEN
+// (never in the normal flow) we hold its paid calls and surface one safe-by-default notice: the viewer
+// can Continue (spending resumes for this app) or ignore it (the app stays held).
+//   cap    = burst budget before the notice can appear (>= a very wide graph x 8 lanes, plus margin)
+//   refill = tokens/sec restored, set above the fastest sustained legit keep-generate rate so a real
+//            app tops the bucket up faster than it draws and never reaches empty
+// PACE_GUARD_START
+const PACE = { cap:120, refill:40, tokens:120, last:0, held:false, lifted:false };
+// Classify a bridge-bound NanoGPT path: "charge" initiates spend (metered for imported apps),
+// "poll" is job-status polling and "catalog" is a read-only public model list (both always free).
+// null = not on the allowlist. Kept as one pure function so the offline check can pin it.
+function classifyBridgePath(pathname){
+  const CHARGE = ["/v1/images/generations", "/api/v1/chat/completions", "/api/generate-video", "/api/v1/audio/speech"];
+  const POLL_PREFIXES = ["/api/video/status", "/api/tts/status"];   // long jobs poll for minutes — never spend
+  const CATALOG = ["/api/v1/models", "/api/v1/image-models", "/api/v1/video-models", "/api/v1/audio-models"];
+  if(CHARGE.includes(pathname)) return "charge";
+  if(CATALOG.includes(pathname)) return "catalog";
+  if(POLL_PREFIXES.some(p=> pathname.startsWith(p))) return "poll";   // startsWith: ids ride in the query string
+  return null;
+}
+// Full budget on each fresh mount. Called from renderApp() (the one place an app's JS (re)boots).
+function paceReset(){ PACE.tokens = PACE.cap; PACE.last = Date.now(); PACE.held = false; PACE.lifted = false; hidePaceNotice(); }
+// true = let this charge call through; false = it's being held (budget spent and the viewer hasn't
+// resumed). Own apps and viewer-approved apps are never metered. Once the budget runs dry we LATCH
+// (held) and hold EVERY later charge call until the viewer resumes — so a persistent loop can't keep
+// leaking calls at the refill rate after the notice appears. refill's job is upstream of that: it
+// keeps a legitimate sustained flow (draw below refill) off the floor, so it never latches at all.
+function paceChargeCall(){
+  if(!curImported || PACE.lifted) return true;
+  if(PACE.held) return false;   // already ran dry and awaiting the viewer's decision — hold everything
+  const now = Date.now();
+  PACE.tokens = Math.min(PACE.cap, PACE.tokens + (now - PACE.last) / 1000 * PACE.refill);
+  PACE.last = now;
+  if(PACE.tokens >= 1){ PACE.tokens -= 1; return true; }
+  PACE.held = true; showPaceNotice();   // first time we run dry → latch + surface the notice once
+  return false;
+}
+// PACE_GUARD_END
+function showPaceNotice(){
+  const n = $("pacenotice"); if(!n) return;
+  const m = $("pacenotice-msg");
+  if(m) m.textContent = tB("This app is making an unusual number of paid requests, so they've been paused. Continue to allow them.");
+  n.hidden = false;
+}
+function hidePaceNotice(){ const n = $("pacenotice"); if(n) n.hidden = true; }
+// Continue = the viewer accepts this app's paid requests: lift the meter for the rest of its session.
+{ const g = $("pacenotice-go"); if(g) g.addEventListener("click", ()=>{ PACE.lifted = true; PACE.held = false; hidePaceNotice(); }); }
 
 // ----- parent <- iframe bridge -----
 addEventListener("message", async (e) => {
@@ -5206,20 +5283,19 @@ addEventListener("message", async (e) => {
     try{
       let u; try{ u = new URL(d.url, NANOGPT); }catch(_){ return reply({ error:"bad request url" }); }
       if(u.origin !== NANOGPT) return reply({ error:"blocked: apps may only call nano-gpt.com" });
-      // Path allowlist: the runtime only ever hits these endpoints (across all modalities —
-      // chat/vision, image gen+edit, video submit/poll, audio speech+music+poll). Anything else
-      // (account, billing, balance, keys, settings, subscription, …) is rejected so a malicious
-      // shared app can't burn credits or touch the account with the viewer's key. startsWith for
-      // the *status endpoints because they carry ids/params in the query string.
-      const ALLOW_PATHS = ["/v1/images/generations", "/api/v1/chat/completions", "/api/generate-video", "/api/v1/audio/speech"];
-      const ALLOW_PREFIXES = ["/api/video/status", "/api/tts/status"];
-      // Read-only public model catalogs (no key needed, no account/billing surface).
-      // Allowed so a node's model-swap dropdown can populate — even before sign-in.
-      const ALLOW_CATALOG = ["/api/v1/models", "/api/v1/image-models", "/api/v1/video-models", "/api/v1/audio-models"];
-      const isCatalog = ALLOW_CATALOG.includes(u.pathname);
-      const okPath = isCatalog || ALLOW_PATHS.includes(u.pathname) || ALLOW_PREFIXES.some(p=> u.pathname.startsWith(p));
-      if(!okPath) return reply({ error:"blocked: this app endpoint is not permitted" });
+      // Path allowlist (classifyBridgePath): the runtime only ever hits these endpoints (across all
+      // modalities — chat/vision, image gen+edit, video submit/poll, audio speech+music+poll). Anything
+      // else (account, billing, balance, keys, settings, subscription, …) is rejected so a malicious
+      // shared app can't burn credits or touch the account with the viewer's key. "charge" endpoints
+      // initiate spend, "poll"/"catalog" never do.
+      const kind = classifyBridgePath(u.pathname);
+      if(!kind) return reply({ error:"blocked: this app endpoint is not permitted" });
+      const isCatalog = kind === "catalog";
       const k = getKey(); if(!k && !isCatalog) return reply({ error:"sign in to run this app" });
+      // Meter only spend-initiating calls, and only for imported apps (own/preview apps run unmetered).
+      // Polling and catalog reads always pass. A held call spends nothing — the app's runtime just sees a
+      // failed request until the viewer resumes it via the notice.
+      if(kind === "charge" && !paceChargeCall()) return reply({ error:"paused: this app is making an unusual number of paid requests" });
       const headers = Object.assign({}, d.headers, k ? { Authorization:"Bearer "+k, "x-api-key":k } : {});
       const r = await fetch(u.href, { method:d.method||"GET", headers, body:(d.body!=null?d.body:undefined) });
       const body = await r.arrayBuffer();

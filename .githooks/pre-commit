@@ -49,9 +49,11 @@ touches_share=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|
 touches_pricing=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-pricing\.mjs|scripts/pricing-fixtures\.json)$' || true)
 # index.html + play.html carry the Combine node's lossless mp4 remux (MP4CAT); the check runs BOTH engines' copies on fixtures.
 touches_combine=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-combine\.mjs|scripts/fixtures/clip[AB]\.mp4)$' || true)
+# play.html's __api__ bridge paces spend-initiating calls from imported apps (token bucket); the check pins the charge/free split + budget.
+touches_pacing=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-import-pacing\.mjs)$' || true)
 
 # Nothing to check unless an .html file or one of the checkers changed.
-[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_langpages" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_i18n" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && exit 0
+[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_langpages" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_i18n" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && [ -z "$touches_pacing" ] && exit 0
 
 if ! command -v node >/dev/null 2>&1; then
   echo "pre-commit: node not found, skipping HTML JS checks" >&2
@@ -198,6 +200,14 @@ fi
 #     two tiny committed fixtures. No browser, no ffmpeg, no API spend.
 if [ -n "$touches_combine" ]; then
   node "$root/scripts/check-combine.mjs"
+fi
+
+# 19) IMPORTED-APP PACING: the __api__ bridge must run spend-initiating calls from imported apps
+#     through a generous token bucket (own/preview apps + polling/catalog reads unmetered), so a
+#     runaway loop is bounded and surfaced once instead of silently draining the viewer's balance.
+#     Offline: lifts the real PACE bucket + classifyBridgePath() out of play.html and drives them.
+if [ -n "$touches_pacing" ]; then
+  node "$root/scripts/check-import-pacing.mjs"
 fi
 
 # 18) I18N: every static chrome string (title/placeholder/aria-label/group headers) in the editor
