@@ -2941,6 +2941,22 @@ function mp4ParamsMatch(bufs){
     music:  [{ f:"prompt", label:"Style / prompt", kind:"textarea" }],
     tts:    [{ f:"prompt", label:"Text to speak",  kind:"textarea" }],
   };
+  // A bare upload node that feeds a single role-bearing image port (an ivideo end
+  // frame, a tvideo reference slot, or an edit multi-reference slot beyond the first)
+  // should name itself for that role — otherwise a morph / multi-image compositing app
+  // surfaces N identical "Image" inputs the user can't tell apart. Only fire when the
+  // upload has exactly one downstream port (so the role is unambiguous); a renamed node
+  // still wins over this in renderInputs (its custom [data-no-i18n] name is used first).
+  function uploadRoleLabel(graph, n){
+    if(n.type!=="upload") return null;
+    const outs = graph.links.filter(l=> l.from.node===n.id);
+    if(outs.length!==1) return null;
+    const p = outs[0].to.port;
+    if(p==="endframe") return "End frame";
+    if(REF_PORT_RE.test(p)) return "Reference " + portIdx(p);
+    if(EDIT_IMG_RE.test(p) && portIdx(p) > 1) return "Image " + portIdx(p);
+    return null;
+  }
   function deriveInputs(graph){
     const out = [];
     for(const n of graph.nodes){
@@ -2970,7 +2986,8 @@ function mp4ParamsMatch(bufs){
         // satisfied if a link feeds this field (fieldOverrides) → hide the control
         const fed = graph.links.some(l=> l.to.node===n.id && l.to.port===s.f);
         if(fed) continue;
-        out.push({ nodeId:n.id, field:s.f, label:s.label, kind:s.kind, optional:!!s.optional, def:s.def,
+        const role = (s.f==="image") ? uploadRoleLabel(graph, n) : null;
+        out.push({ nodeId:n.id, field:s.f, label:role || s.label, kind:s.kind, optional:!!s.optional, def:s.def,
                    node:n, title:displayName(n), em:NODE_TYPES[n.type].em });
       }
     }
