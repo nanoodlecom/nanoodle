@@ -5261,7 +5261,7 @@ addEventListener("message", async (e) => {
   // The app's Run was pressed while signed out — it owns no key, so the parent (which
   // does) starts the OAuth popup. finishSignIn() then pushes __auth__ back to the app.
   if(d && d.type === "__signin__"){
-    signIn().catch(err=>{ try{ $("auth-status").textContent = "sign-in error: " + err.message; }catch(_){} });
+    signIn().catch(err=>{ try{ $("auth-status").textContent = "sign-in error: " + err.message; }catch(_){} toast("sign-in error: " + err.message, "err"); });
     return;
   }
   // Save a generated media URL the sandboxed preview can't pull into a blob itself
@@ -5514,7 +5514,7 @@ function setCustBusy(on){
 // Signed-out users shouldn't dead-end on a toast — launch the same sign-in the ✨ Sign in button
 // uses (https → OAuth popup; file:// → reveal the paste-key row), so Customize has a way forward like Run.
 function kickBuilderSignIn(){
-  if(/^https?:$/.test(location.protocol)) signIn().catch(err=>{ try{ $("auth-status").textContent = "sign-in error: " + err.message; }catch(_){} });
+  if(/^https?:$/.test(location.protocol)) signIn().catch(err=>{ try{ $("auth-status").textContent = "sign-in error: " + err.message; }catch(_){} toast("sign-in error: " + err.message, "err"); });
   else { $("key").style.display = "flex"; $("keyinput").focus(); toast("paste a nano-gpt.com API key to customize", "err"); }
 }
 
@@ -6466,7 +6466,7 @@ $("am-new").onclick = newAppFromGraph;
 document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && !$("appsmenu").hidden){ e.stopPropagation(); closeAppsMenu(); } }, true);
 document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && !$("sharemenu").hidden){ e.stopPropagation(); closeShareMenu(); } }, true);
 
-$("signin").addEventListener("click",(e)=>{ e.preventDefault(); signIn().catch(err=>$("auth-status").textContent="sign-in error: "+err.message); });
+$("signin").addEventListener("click",(e)=>{ e.preventDefault(); signIn().catch(err=>{ $("auth-status").textContent="sign-in error: "+err.message; toast("sign-in error: "+err.message,"err"); }); });
 // The OAuth popup (or another tab) stores the key from another window — reflect it the moment it
 // lands. The poll in signIn() is the primary path for the popup; this covers cross-tab changes.
 window.addEventListener("storage",(e)=>{ if(e.key==="ngpt_key") finishSignIn(); });
