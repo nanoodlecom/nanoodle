@@ -1188,7 +1188,7 @@ window.NoodleApp = (function () {
     if(kind==="audio"){ const chars = n.type==="transcribe" ? undefined : ((f.prompt||"").length || EST.ttsChars);
       const secs = audioBilledSeconds(m.supported_parameters, f);   // per_second music meters off the chosen duration, not a fixed 30s
       const u = audioUnitUsd(pricing, chars, secs); if(u==null) return null;
-      const songs = audioBilledSongs(m.supported_parameters, f);   // >1 only when the model advertises a generation count (matches collectAudioParams' send-gate)
+      const songs = audioBilledSongs(m.supported_parameters, f);   // always 1 — collectAudioParams clamps the sent song count so a run only ever bills for one track
       return u*songs; }
     return null;
   }
