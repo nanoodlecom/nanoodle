@@ -6621,10 +6621,14 @@ function runAll(){
     const arr = [...c];
     // Run the whole flow, but only its OUTPUT (sink) nodes count as explicitly targeted, so a Run-again
     // re-rolls the outputs while REUSING unchanged, already-succeeded upstream nodes (runGroup's reuse
-    // rule) instead of paying to recompute them — the single biggest surprise-spend on a retry. A cyclic
-    // component has no sink → run it whole so its "cycle detected" status still surfaces.
+    // rule) instead of paying to recompute them — the single biggest surprise-spend on a retry.
     const sinks = arr.filter(id=> !graph.links.some(l=> l.from.node===id && c.has(l.to.node)));
-    runGroup(sinks.length ? sinks : arr);   // fire-and-forget → groups run in parallel
+    // Only target the sinks when they actually reach every node in the component (always true for a healthy
+    // DAG). If they don't — no sinks at all, or a cyclic branch off to the side that feeds no sink — run the
+    // component WHOLE so those otherwise-dropped nodes still get their status ("cycle detected" included)
+    // rather than sitting silently idle.
+    const cover = sinks.length ? ancestors(sinks) : null;
+    runGroup(cover && cover.size === c.size ? sinks : arr);   // fire-and-forget → groups run in parallel
   }
 }
 
