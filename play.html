@@ -544,6 +544,8 @@ const PLAY_I18N_B = {
   "⭳ Export":{es:"⭳ Exportar",fr:"⭳ Exporter",de:"⭳ Exportieren",pt:"⭳ Exportar",ja:"⭳ エクスポート"},
   "Download this app as one self-contained .html (no key inside)":{es:"Descarga esta app como un único .html autónomo (sin clave dentro)",fr:"Télécharger cette app en un seul .html autonome (sans clé à l’intérieur)",de:"Diese App als eine eigenständige .html herunterladen (kein Schlüssel enthalten)",pt:"Baixe este app como um único .html autônomo (sem chave dentro)",ja:"このアプリを単一の自己完結型.htmlとしてダウンロード（キーは含まれません）"},
   "✎ Edit workflow":{es:"✎ Editar flujo",fr:"✎ Modifier le flux",de:"✎ Workflow bearbeiten",pt:"✎ Editar fluxo",ja:"✎ ワークフローを編集"},
+  "🪄 See how it’s made":{es:"🪄 Mira cómo está hecho",fr:"🪄 Voir comment c’est fait",de:"🪄 So ist es gebaut",pt:"🪄 Veja como foi feito",ja:"🪄 作り方を見る"},
+  "See the visual node workflow behind this app — open it in the nanoodle editor to remix your own copy. The original stays untouched.":{es:"Mira el flujo visual de nodos detrás de esta app — ábrelo en el editor de nanoodle para remezclar tu propia copia. El original queda intacto.",fr:"Découvre le flux visuel de nœuds derrière cette app — ouvre-le dans l’éditeur nanoodle pour remixer ta propre copie. L’original reste intact.",de:"Sieh den visuellen Node-Workflow hinter dieser App — öffne ihn im nanoodle-Editor, um deine eigene Kopie zu remixen. Das Original bleibt unberührt.",pt:"Veja o fluxo visual de nós por trás deste app — abra-o no editor do nanoodle para remixar sua própria cópia. O original permanece intacto.",ja:"このアプリの裏側にあるビジュアルなノードワークフローを見てみましょう — nanoodleエディタで開けば、自分のコピーを自由に作り替えられます。元のアプリはそのまま残ります。"},
   "My apps":{es:"Mis apps",fr:"Mes apps",de:"Meine Apps",pt:"Meus apps",ja:"マイアプリ"},
   "＋ New app from this workflow":{es:"＋ Nueva app desde este flujo",fr:"＋ Nouvelle app depuis ce flux",de:"＋ Neue App aus diesem Workflow",pt:"＋ Novo app a partir deste fluxo",ja:"＋ このワークフローから新規アプリ"},
   "New app from this workflow":{es:"Nueva app desde este flujo",fr:"Nouvelle app depuis ce flux",de:"Neue App aus diesem Workflow",pt:"Novo app a partir deste fluxo",ja:"このワークフローから新規アプリ"},
@@ -5835,6 +5837,19 @@ function installApp({ graph, files, versions, curVer, fresh, id, imported, uiSig
   FROM_EDITOR = !!fromEditor;   // set BEFORE the commit below — it gates the __appsaved__ post
   curImported = !!imported;
   document.body.classList.toggle("recipient", curImported);   // non-owner recipient → hide owner-only Export on mobile
+  // A share-link visitor has no idea this app is built on a visual node workflow, so "Edit
+  // workflow" reads as jargon and hides the biggest aha — this thing was snapped together from
+  // draggable nodes and they can open it up and remix it. Recompute the #openeditor label/title
+  // here (runs after the boot-time translateTreeB and on every My-apps switch, so an imported and
+  // an own app opened back-to-back each get the right one) and lead recipients with curiosity.
+  // The same #openeditor element lives in the mobile ⋯ menu, so this covers it too. Honest: the
+  // editor DOES let them edit — their changes round-trip to THEIR imported copy, not the sender's.
+  { const oe = $("openeditor"); if(oe){
+    oe.textContent = tB(curImported ? "🪄 See how it’s made" : "✎ Edit workflow");
+    oe.title = tB(curImported
+      ? "See the visual node workflow behind this app — open it in the nanoodle editor to remix your own copy. The original stays untouched."
+      : "Edit this app's underlying workflow in the nanoodle editor — your app UI is kept");
+  } }
   // Creator language for THIS app: an explicit value from the caller (a stored app's saved lang,
   // or an imported share link's spec.lang) wins; otherwise a fresh build/edit here adopts THIS
   // creator's explicit editor choice. An import with no baked lang stays neutral ("").
