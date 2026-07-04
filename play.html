@@ -382,7 +382,9 @@
      messenger / corrupted). The hash is kept in the URL so a reload can retry a fixed link. -->
 <div id="linkerr" hidden role="alert">
   <span class="le-icon" aria-hidden="true">🔗</span>
-  <span id="linkerr-msg" class="le-msg"></span>
+  <!-- Baked-in copy (also a PLAY_I18N_B key, so translateTreeB localizes it at boot) so the
+       banner can NEVER render as a bare brown bar if showLinkError's text-set is skipped. -->
+  <span id="linkerr-msg" class="le-msg">This shared-app link looks incomplete or damaged — ask the sender for a fresh one. Shortened links survive messengers better.</span>
   <button id="linkerr-x" class="le-x" aria-label="Dismiss" title="Dismiss">✕</button>
 </div>
 
@@ -6273,7 +6275,9 @@ let shareLinkBroken = false;
 function showLinkError(){
   const box = $("linkerr"); if(!box) return;
   const msg = $("linkerr-msg");
-  if(msg) msg.textContent = tB("This shared-app link looks incomplete or damaged — ask the sender for a fresh one. Shortened links survive messengers better.");
+  // Only overwrite with a non-empty translation — never blank the baked-in fallback copy.
+  const t = tB("This shared-app link looks incomplete or damaged — ask the sender for a fresh one. Shortened links survive messengers better.");
+  if(msg && t) msg.textContent = t;
   box.hidden = false;
 }
 async function loadFromHash(){
