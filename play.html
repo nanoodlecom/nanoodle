@@ -66,6 +66,17 @@
   #linkerr .le-x{ flex:0 0 auto; background:transparent; border:0; color:inherit; cursor:pointer;
                   font-size:1rem; line-height:1; opacity:.65; padding:.15rem .35rem; border-radius:.3rem; }
   #linkerr .le-x:hover{ opacity:1; background:#ffffff14; }
+  /* ---------- one-time welcome for share-link recipients (subtle page-level note, not an alert) ---------- */
+  #recwelcome:not([hidden]){ display:flex; align-items:center; gap:.6rem; padding:.55rem 1rem;
+            background:var(--panel2); border-bottom:1px solid var(--line);
+            color:var(--dim); font-size:.85rem; line-height:1.45; z-index:68; }
+  #recwelcome .rw-icon{ flex:0 0 auto; font-size:1rem; line-height:1.45; }
+  #recwelcome .rw-msg{ flex:1 1 auto; }
+  #recwelcome .rw-cta{ color:var(--accent); text-decoration:none; white-space:nowrap; }
+  #recwelcome .rw-cta:hover{ text-decoration:underline; }
+  #recwelcome .rw-x{ flex:0 0 auto; background:transparent; border:0; color:inherit; cursor:pointer;
+                  font-size:1rem; line-height:1; opacity:.65; padding:.15rem .35rem; border-radius:.3rem; }
+  #recwelcome .rw-x:hover{ opacity:1; background:#ffffff14; }
   .brand{ font-family:"Righteous", ui-sans-serif, system-ui, sans-serif;
           font-weight:400; font-size:1.2rem; letter-spacing:.01em; }
   .brand .nano{ color:var(--accent); }
@@ -315,10 +326,12 @@
     .am-del{ min-width:44px; min-height:44px; }        /* destructive per-app delete was 23x31px */
     .sugg{ min-height:38px; }                           /* customize idea chips + shuffle discovery path */
     .sugg-shuffle{ min-height:38px; min-width:38px; }
+    #recwelcome .rw-x{ min-width:44px; min-height:44px; }   /* dismiss reaches a real tap target */
   }
 
   /* ---------- narrow widths: keep the builder bar + composer from wrapping into ragged rows ---------- */
   @media (max-width:640px){
+    #recwelcome{ font-size:.8rem; padding:.5rem .75rem; align-items:flex-start; }   /* wraps to a few lines — keep ✕ pinned top */
     #bar{ gap:.35rem; padding:.45rem .6rem; }
     #bar button{ padding:.35rem .55rem; font-size:.78rem; }
     #bar .sep{ display:none; }
@@ -442,6 +455,16 @@
   <button id="keysave" class="link">save key</button>
   <span class="dim" style="font-size:.78rem">— from <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">nano-gpt.com</a> → Settings → API</span>
   <span class="dim" style="flex-basis:100%;font-size:.72rem">new to NanoGPT? <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">create an account →</a> — pay-per-use, no subscription needed; your key stays in this browser.</span>
+</div>
+
+<!-- One-time orientation for share-link visitors (recipients of an #a= import). Shown once via
+     installApp → syncRecipientWelcome(), dismissed to localStorage noodle_welcome_seen. The
+     descriptive line and the CTA are separate text nodes so translateTreeB() localizes each as
+     its own PLAY_I18N_B key at boot (even while hidden). -->
+<div id="recwelcome" hidden role="note">
+  <span class="rw-icon" aria-hidden="true">🍜</span>
+  <span class="rw-msg">Someone built this mini AI app with nanoodle and shared it with you. It runs right here in your browser with your own NanoGPT key — there's no nanoodle server in the middle. <a class="rw-cta" href="index.html">Build your own →</a></span>
+  <button id="recwelcome-x" class="rw-x" aria-label="Dismiss" title="Dismiss">✕</button>
 </div>
 
 <!-- THE APP — sandboxed, key never travels in srcdoc; the parent postMessages it after load -->
@@ -581,6 +604,8 @@ const PLAY_I18N_B = {
   "This shared-app link looks incomplete or damaged — ask the sender for a fresh one. Shortened links survive messengers better.":{es:"Este enlace de app compartida parece incompleto o dañado — pídele al remitente uno nuevo. Los enlaces acortados aguantan mejor en los mensajeros.",fr:"Ce lien d’app partagée semble incomplet ou endommagé — demandez-en un nouveau à l’expéditeur. Les liens raccourcis résistent mieux aux messageries.",de:"Dieser geteilte App-Link scheint unvollständig oder beschädigt — bitte den Absender um einen neuen. Gekürzte Links überstehen Messenger besser.",pt:"Este link de app compartilhado parece incompleto ou danificado — peça um novo ao remetente. Links encurtados resistem melhor aos mensageiros.",ja:"この共有アプリのリンクは不完全か壊れているようです — 送信者に新しいリンクをもらってください。短縮リンクの方がメッセンジャーで壊れにくいです。"},
   "Dismiss":{es:"Descartar",fr:"Fermer",de:"Schließen",pt:"Dispensar",ja:"閉じる"},
   "✨ Like it? Make it yours — customize this app or export it.":{es:"✨ ¿Te gusta? Hazla tuya — personaliza esta app o expórtala.",fr:"✨ Ça vous plaît ? Faites-la vôtre — personnalisez cette app ou exportez-la.",de:"✨ Gefällt sie dir? Mach sie zu deiner — passe diese App an oder exportiere sie.",pt:"✨ Gostou? Torne-a sua — personalize este app ou exporte-o.",ja:"✨ 気に入りましたか？ 自分のものに — このアプリをカスタマイズするかエクスポートしましょう。"},
+  "Someone built this mini AI app with nanoodle and shared it with you. It runs right here in your browser with your own NanoGPT key — there's no nanoodle server in the middle.":{es:"Alguien creó esta mini app de IA con nanoodle y la compartió contigo. Se ejecuta aquí mismo, en tu navegador, con tu propia clave de NanoGPT — no hay ningún servidor de nanoodle de por medio.",fr:"Quelqu'un a créé cette mini app d'IA avec nanoodle et l'a partagée avec vous. Elle s'exécute directement ici, dans votre navigateur, avec votre propre clé NanoGPT — il n'y a aucun serveur nanoodle au milieu.",de:"Jemand hat diese Mini-KI-App mit nanoodle gebaut und mit dir geteilt. Sie läuft direkt hier in deinem Browser mit deinem eigenen NanoGPT-Schlüssel — es gibt keinen nanoodle-Server dazwischen.",pt:"Alguém criou este mini app de IA com o nanoodle e compartilhou com você. Ele roda aqui mesmo, no seu navegador, com a sua própria chave da NanoGPT — não há nenhum servidor nanoodle no meio.",ja:"誰かが nanoodle でこのミニAIアプリを作り、あなたに共有しました。あなた自身の NanoGPT キーを使って、このブラウザー内でそのまま動きます — 間に nanoodle のサーバーはありません。"},
+  "Build your own →":{es:"Crea la tuya →",fr:"Créez la vôtre →",de:"Bau deine eigene →",pt:"Crie o seu →",ja:"自分のアプリを作る →"},
 };
 const PLAY_B_LANGS = ["en","es","fr","de","pt","ja"];
 const PLAY_B_ENDONYM = { en:"English", es:"Español", fr:"Français", de:"Deutsch", pt:"Português", ja:"日本語" };
@@ -5882,6 +5907,7 @@ function installApp({ graph, files, versions, curVer, fresh, id, imported, uiSig
       : "Edit this app's underlying workflow in the nanoodle editor — your app UI is kept");
   } }
   applyDisclosure();   // hide Export + Customize for a recipient who hasn't run the shared app yet
+  syncRecipientWelcome();   // first-visit orientation strip: recipients only, until dismissed (own apps / empty state never show it)
   // Creator language for THIS app: an explicit value from the caller (a stored app's saved lang,
   // or an imported share link's spec.lang) wins; otherwise a fresh build/edit here adopts THIS
   // creator's explicit editor choice. An import with no baked lang stays neutral ("").
@@ -5910,7 +5936,14 @@ function installApp({ graph, files, versions, curVer, fresh, id, imported, uiSig
   if(fresh && APP_STATE.versions.length <= 1) enterFirstRun(); else exitFirstRun();
   return saved;
 }
-function showEmpty(){ exitFirstRun(); document.body.classList.remove("recipient"); document.body.classList.remove("prerun"); document.body.classList.add("empty"); $("empty").hidden = false; $("appframe").style.display="none"; $("bar-title").textContent="My nanoodle app"; renderAppsBtn(); }
+function showEmpty(){ exitFirstRun(); document.body.classList.remove("recipient"); document.body.classList.remove("prerun"); document.body.classList.add("empty"); { const rw=$("recwelcome"); if(rw) rw.hidden=true; } $("empty").hidden = false; $("appframe").style.display="none"; $("bar-title").textContent="My nanoodle app"; renderAppsBtn(); }
+
+/* ---------- one-time welcome strip for share-link recipients ----------
+   Shown once per browser (global flag, not per app — a returning visitor who opens a second
+   shared link shouldn't see it again). All storage access is guarded: storage can be blocked. */
+function recWelcomeSeen(){ try{ return localStorage.getItem("noodle_welcome_seen")==="1"; }catch(_){ return false; } }
+function syncRecipientWelcome(){ const el=$("recwelcome"); if(el) el.hidden = !(curImported && !recWelcomeSeen()); }
+function dismissRecipientWelcome(){ try{ localStorage.setItem("noodle_welcome_seen","1"); }catch(_){} const el=$("recwelcome"); if(el) el.hidden=true; }
 
 /* ---------- re-target an existing app onto an edited workflow ----------
    Called when the editor hands a graph back (#ga=) carrying the app's id. The
@@ -6405,6 +6438,7 @@ async function loadFromHash(){
    ====================================================================== */
 const IN_EDITOR = window.parent && window.parent !== window;   // opened as a popup inside the editor
 $("share").onclick = doShare;
+$("recwelcome-x").onclick = dismissRecipientWelcome;
 $("shareback").onclick = closeShareMenu;
 $("sm-copy").onclick = async ()=>{ const ok = await copyText(shareUrl); toast(ok?"✓ Copied":"copy failed", ok?"":"err"); };
 $("sm-url").onclick = ()=> $("sm-url").select();
