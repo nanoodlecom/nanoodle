@@ -4933,7 +4933,7 @@ const NODE_TYPES = {
       const start = parseFloat(n.fields.start) || 0;
       const length = parseFloat(n.fields.length);
       setNodeProgress(n, "trimming audio…");
-      return { audio: await trimAudioToWavUrl(inp.audio, start, Number.isFinite(length) ? length : 30, 24000) };
+      return { audio: await trimAudioToWavUrl(inp.audio, start, Number.isFinite(length) ? length : 30, 16000) };
     }
   },
 
@@ -4946,14 +4946,14 @@ const NODE_TYPES = {
         <div><label>start (sec)</label><input type="number" step="0.1" min="0" data-f="start" value="${esc(n.fields.start ?? 0)}"/></div>
         <div><label>length (sec)</label><input type="number" step="0.1" min="0.1" data-f="length" value="${esc(n.fields.length ?? "")}"/></div>
       </div>
-      <div style="opacity:.6;font-size:.8em;margin-top:.3rem">video → mono WAV. Leave length blank for the whole clip. Wire into 🎙️ Transcribe or ✂️ Trim. Generated clips are silent — use an uploaded video with sound.</div>`,
+      <div style="opacity:.6;font-size:.8em;margin-top:.3rem">video → mono WAV. Leave length blank for the whole clip. Wire into 🎙️ Transcribe or ✂️ Trim. Transcribe fits about 2 min of audio per run — for a longer video, use ✂️ Trim (or set a length) to grab a section. Generated clips are silent — use an uploaded video with sound.</div>`,
     async run(n, inp){
       if(!inp.video) throw new Error("no video — wire a video into the video port");
       const start = parseFloat(n.fields.start) || 0;
       const lenRaw = parseFloat(n.fields.length);
       const length = (Number.isFinite(lenRaw) && lenRaw>0) ? lenRaw : 0;   // blank ⇒ genuinely whole clip (0 ⇒ dur-start locally); over-limit clips are flagged at send time by Transcribe/LLM, which point at ✂️ Trim
       setNodeProgress(n, "extracting audio…");
-      return { audio: await extractAudioToWavUrl(inp.video, start, length, 24000) };
+      return { audio: await extractAudioToWavUrl(inp.video, start, length, 16000) };
     }
   },
 

@@ -2692,7 +2692,7 @@ function mp4ParamsMatch(bufs){
         const start = parseFloat(n.fields.start) || 0;
         const length = parseFloat(n.fields.length);
         onProgress && onProgress("trimming audio…");
-        return { audio: await trimAudioToWavUrl(inp.audio, start, Number.isFinite(length) ? length : 30, 24000) };
+        return { audio: await trimAudioToWavUrl(inp.audio, start, Number.isFinite(length) ? length : 30, 16000) };
       }
     },
     extractaudio: {
@@ -2704,7 +2704,7 @@ function mp4ParamsMatch(bufs){
         const lenRaw = parseFloat(n.fields.length);
         const length = (Number.isFinite(lenRaw) && lenRaw>0) ? lenRaw : 0;   // blank ⇒ genuinely whole clip (0 ⇒ dur-start locally); over-limit clips are flagged at send time by Transcribe/LLM, which point at Trim
         onProgress && onProgress("extracting audio…");
-        return { audio: await extractAudioToWavUrl(inp.video, start, length, 24000) };
+        return { audio: await extractAudioToWavUrl(inp.video, start, length, 16000) };
       }
     },
     transcribe: {
