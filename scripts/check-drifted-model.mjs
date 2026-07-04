@@ -86,6 +86,9 @@ const line = (src, needle) => {
 {
   const src = block(PLAY, "async function assertModelAvailable(n){");
   let RAW = null;   // stubbed catalog the extracted fn awaits via loadCatalogRaw
+  // Deliberately OMIT inpaint from the stub map — it's absent from the real SETTING_MODEL_KIND too.
+  // The fn must still resolve inpaint's kind ("image") via its explicit fallback, or a drifted inpaint
+  // model would slip past the play preflight while the editor's mdl() still blocks it (parity gap).
   const ctx = {
     SETTING_MODEL_KIND: { llm: "chat" },
     loadCatalogRaw: async () => RAW,
@@ -109,6 +112,15 @@ const line = (src, needle) => {
   RAW = [];   // catalog unavailable/offline
   if (await rejects(node("dead-model-v1"))) fail("play: empty catalog false-blocked a typed-in id (offline regression)");
   else ok("play: empty catalog stays permissive (no false block)");
+
+  // inpaint is a paid image sender that's absent from SETTING_MODEL_KIND → its kind must still resolve
+  // so a drifted inpaint model is blocked in play too (parity with the editor's mdl() guard).
+  RAW = [{ id: "good-model" }];
+  const inpaintNode = (model) => ({ type: "inpaint", fields: { model } });
+  if (await rejects(inpaintNode("good-model"))) fail("play: live inpaint model was blocked");
+  else ok("play: live inpaint model passes preflight");
+  if (!(await rejects(inpaintNode("dead-inpaint-v0")))) fail("play: drifted inpaint model slipped past the preflight (parity gap with editor)");
+  else ok("play: drifted inpaint model throws before any send");
 }
 
 if (failed) { console.error("\ncheck-drifted-model: " + failed + " failure(s)"); process.exit(1); }

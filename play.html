@@ -3102,7 +3102,10 @@ function mp4ParamsMatch(bufs){
   // Permissive when the catalog can't be read (offline / blocked / empty) so a valid typed-in id and
   // an offline run are never falsely blocked — mirrors modelDrifted()'s catalog-loaded gate.
   async function assertModelAvailable(n){
-    const kind = SETTING_MODEL_KIND[n.type], id = n.fields && n.fields.model;
+    // inpaint runs a paid image send (mdl(n)→genImage) but is absent from SETTING_MODEL_KIND (its model
+    // isn't a runtime-swappable setting), so map it explicitly — otherwise a drifted inpaint model would
+    // slip past this preflight in play while the editor's mdl() still blocks it (dual-engine parity).
+    const kind = SETTING_MODEL_KIND[n.type] || (n.type==="inpaint" ? "image" : null), id = n.fields && n.fields.model;
     if(!kind || !id) return;                       // not a model-bearing node, or empty (mdl() reports that)
     let raw; try{ raw = await loadCatalogRaw(kind); }catch(e){ return; }
     if(!raw || !raw.length) return;                // catalog unavailable → honor the authored id
