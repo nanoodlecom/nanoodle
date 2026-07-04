@@ -1218,8 +1218,8 @@ window.NoodleApp = (function () {
     if(kind==="video"){
       // reference-image ports actually wired (and the model still exposes a ref-image param) flip the estimate
       // to the with-reference tier — twin of the editor's refWired, off STATE.graph's wiring.
-      const t = NODE_TYPES[n.type] || {}, sp = m.supported_parameters || {};
-      const modelHasRefs = ["reference_images","reference_image_urls","referenceImages"].some(k=> k in sp);
+      const t = NODE_TYPES[n.type] || {}, sp = m.supported_parameters || {}, pp = sp.parameters||sp;   // ref-image descriptors live under .parameters (see modelAllowsRefs)
+      const modelHasRefs = ["reference_images","reference_image_urls","referenceImages"].some(k=> k in pp);
       const refWired = !!(t.refInputs && modelHasRefs && STATE && STATE.graph && STATE.graph.links.some(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port)));
       const u = videoUnitUsd(pricing, f, refWired); return (u!=null && isFinite(u)) ? u : null; }
     if(kind==="chat"){ const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(pricing, inTok, outTok); }
