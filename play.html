@@ -778,6 +778,7 @@ window.NoodleApp = (function () {
   "New to NanoGPT? <a href=\"https://nano-gpt.com/r/mgzwtqjw\" target=\"_blank\" rel=\"noopener\">Create an account →</a> to run this app — takes a minute, your key stays in this browser.":{es:"¿Nuevo en nano-gpt? <a href=\"https://nano-gpt.com/r/mgzwtqjw\" target=\"_blank\" rel=\"noopener\">Crea una cuenta →</a> para ejecutar esta app — lleva un minuto, tu clave se queda en este navegador.",fr:"Nouveau sur nano-gpt ? <a href=\"https://nano-gpt.com/r/mgzwtqjw\" target=\"_blank\" rel=\"noopener\">Créez un compte →</a> pour exécuter cette app — ça prend une minute, votre clé reste dans ce navigateur.",de:"Neu bei nano-gpt? <a href=\"https://nano-gpt.com/r/mgzwtqjw\" target=\"_blank\" rel=\"noopener\">Erstelle ein Konto →</a>, um diese App auszuführen — in einer Minute erledigt, dein Schlüssel bleibt in diesem Browser.",pt:"Novo no nano-gpt? <a href=\"https://nano-gpt.com/r/mgzwtqjw\" target=\"_blank\" rel=\"noopener\">Crie uma conta →</a> para executar este app — leva um minuto, sua chave fica neste navegador.",ja:"nano-gptは初めてですか？<a href=\"https://nano-gpt.com/r/mgzwtqjw\" target=\"_blank\" rel=\"noopener\">アカウントを作成 →</a>してこのアプリを実行 — 1分ほどで完了、キーはこのブラウザーに保存されます。"},
   "Paste a nano-gpt.com API key to run this app.":{es:"Pega una clave API de nano-gpt.com para ejecutar esta app.",fr:"Collez une clé API nano-gpt.com pour exécuter cette app.",de:"Füge einen nano-gpt.com API-Schlüssel ein, um diese App auszuführen.",pt:"Cole uma chave de API do nano-gpt.com para executar este app.",ja:"このアプリを実行するにはnano-gpt.comのAPIキーを貼り付けてください。"},
   "Signing in… press Run again once you're signed in.":{es:"Iniciando sesión… pulsa Ejecutar de nuevo cuando hayas iniciado sesión.",fr:"Connexion… appuyez de nouveau sur Exécuter une fois connecté.",de:"Anmeldung… drücke erneut auf Ausführen, sobald du angemeldet bist.",pt:"Entrando… clique em Executar de novo depois de entrar.",ja:"サインイン中… サインインしたらもう一度実行を押してください。"},
+  "Connect your NanoGPT key to run — sign in above, then press Run again.":{es:"Conecta tu clave de nano-gpt para ejecutar — inicia sesión arriba y pulsa Ejecutar de nuevo.",fr:"Connectez votre clé nano-gpt pour exécuter — connectez-vous ci-dessus, puis appuyez de nouveau sur Exécuter.",de:"Verbinde deinen nano-gpt-Schlüssel zum Ausführen — melde dich oben an und drücke erneut auf Ausführen.",pt:"Conecte sua chave do nano-gpt para executar — entre acima e pressione Executar de novo.",ja:"実行するにはnano-gptキーを接続してください — 上でサインインしてから、もう一度実行を押してください。"},
   "your NanoGPT key was rejected — sign in or paste a valid key to run":{es:"tu clave de nano-gpt fue rechazada — inicia sesión o pega una clave válida para ejecutar",fr:"votre clé nano-gpt a été refusée — connectez-vous ou collez une clé valide pour exécuter",de:"dein nano-gpt-Schlüssel wurde abgelehnt — melde dich an oder füge einen gültigen Schlüssel ein, um auszuführen",pt:"sua chave do nano-gpt foi rejeitada — entre ou cole uma chave válida para executar",ja:"nano-gptキーが拒否されました — サインインするか、有効なキーを貼り付けて実行してください"},
   "that key was rejected by NanoGPT — check you copied the whole key":{es:"esa clave fue rechazada por nano-gpt — comprueba que copiaste la clave completa",fr:"cette clé a été refusée par nano-gpt — vérifiez que vous avez copié la clé entière",de:"dieser Schlüssel wurde von nano-gpt abgelehnt — prüfe, ob du den ganzen Schlüssel kopiert hast",pt:"essa chave foi rejeitada pelo nano-gpt — verifique se você copiou a chave inteira",ja:"そのキーはnano-gptに拒否されました — キー全体をコピーしたか確認してください"},
   "sign in to run this app":{es:"inicia sesión para ejecutar esta app",fr:"connectez-vous pour exécuter cette app",de:"melde dich an, um diese App auszuführen",pt:"entre para executar este app",ja:"このアプリを実行するにはサインインしてください"},
@@ -4279,12 +4280,17 @@ function mp4ParamsMatch(bufs){
   async function run(){
     if(running) return;
     if(!hasAuth()){
-      // Don't dead-end on a "sign in first" message — kick off sign-in right here.
+      // Don't dead-end on a "sign in first" message — route forward AND make the connection visible:
+      // a status line right under the Run button plus a brief pulse on the header auth block, so the
+      // big live-looking Run press points the eye at where sign-in / the key field actually lives.
       if(EMBEDDED || /^https?:$/.test(location.protocol)){
+        statusLine("__needkey__","warn",t("Connect your NanoGPT key to run — sign in above, then press Run again."));
+        flashAuth();
         showRunPreflight();   // nanoodle-voiced consent before OAuth — Continue routes to the parent (embedded /play) or signIn() (standalone)
       } else {
         renderAuth(); const row=$("auth-keyrow"); if(row) row.hidden=false;   // file:// → no OAuth, reveal paste-key
         const ki=$("auth-keyinput"); if(ki) ki.focus();
+        flashAuth();          // pulse the header where the paste-key field now lives
         statusLine("__auth__","error",t("Paste a nano-gpt.com API key to run this app."));
       }
       return;
@@ -4437,6 +4443,16 @@ function mp4ParamsMatch(bufs){
     (document.head||document.documentElement).appendChild(s);
   }
   function hideRunPreflight(){ var b=$("app-preflight"); if(b){ b.hidden=true; b.innerHTML=""; } }
+  // Draw the eye from a signed-out Run press up to the header auth block: a brief accent-ring
+  // pulse (see injectAuthIntroStyles). No scroll — pairs with the status line under the button, so
+  // a viewer whose auth block is already on screen sees the connection without the page jumping.
+  function flashAuth(){
+    var el=$("app-auth"); if(!el) return;
+    injectAuthIntroStyles();                 // guarantee the keyframe rule exists even in a restyled shell
+    el.classList.remove("auth-flash"); void el.offsetWidth;   // restart the pulse if it is already mid-run
+    el.classList.add("auth-flash");
+    setTimeout(function(){ el.classList.remove("auth-flash"); }, 2700);
+  }
   function showRunPreflight(){
     injectPreflightStyles();
     var box=$("app-preflight");
@@ -4564,7 +4580,13 @@ function mp4ParamsMatch(bufs){
       // The primary action (create account) carries a persistent underline so it reads as the
       // lead call to action; the companion "Sign in" only underlines on hover/focus. Same accent
       // color — no new heavy UI, just a weight-of-attention cue between the two.
-      + '.auth-intro .cta-primary{text-decoration:underline;text-underline-offset:2px;}';
+      + '.auth-intro .cta-primary{text-decoration:underline;text-underline-offset:2px;}'
+      // A signed-out Run press pulses the header auth block (flashAuth) so the eye ties the
+      // prominent Run button to where sign-in actually lives. Brief double accent ring, then gone —
+      // box-shadow (not outline) so it never nudges layout. Injected here, with the var() fallback,
+      // so a gptdiff-restyled shell that dropped app.css still shows the cue.
+      + '@keyframes noodle-authpulse{0%,100%{box-shadow:0 0 0 0 rgba(124,140,255,0);}30%{box-shadow:0 0 0 4px var(--accent,#7c8cff);}}'
+      + '.auth-flash{border-radius:8px;animation:noodle-authpulse 1.3s ease-out 2;}';
     (document.head || document.documentElement).appendChild(s);
   }
   function authIntro(embedded){
@@ -4594,6 +4616,9 @@ function mp4ParamsMatch(bufs){
       box.innerHTML = parentAuthed
         ? ''
         : authIntro(true);
+      // A live key can arrive from the parent WITHOUT a reload (preview-without-reauth) — clear the
+      // stale "connect your key to run" nudge so it can't sit under the button once we're signed in.
+      if(parentAuthed){ const nk=$("app-msg") && $("app-msg").querySelector('[data-st="__needkey__"]'); if(nk) nk.remove(); }
       // Make the banner's "Sign in" clickable — the sandboxed app owns no key, so it asks the
       // parent (real origin) to start OAuth, exactly like the Run preflight's Continue button.
       if(!parentAuthed){
@@ -4639,6 +4664,8 @@ function mp4ParamsMatch(bufs){
       // notice is re-added right after setKey() (which called us), and the "press Run again" line is kind=done.
       const er = $("app-msg") && $("app-msg").querySelector('[data-st="__auth__"].error');
       if(er) er.remove();
+      const nk = $("app-msg") && $("app-msg").querySelector('[data-st="__needkey__"]');
+      if(nk) nk.remove();   // signed in now → drop the "connect your key to run" nudge
     } else {
       if(canOAuth) $("auth-in").onclick = ()=> signIn().catch(e=> statusLine("__auth__","error","sign-in error: "+e.message));
       $("auth-paste").onclick = async ()=>{
