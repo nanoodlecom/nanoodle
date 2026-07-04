@@ -78,13 +78,26 @@ for(const eng of ENGINES){
         bad("audioSongs", f.id, `${f.shape} @ number_of_songs=${JSON.stringify(c.number_of_songs)}`, `${songs}× (expected ${c.expect}×)`);
     }
   }
+
+  // Reference/audio price tiers (this fix): wiring reference images or flipping the model's audio switch
+  // bills a HIGHER tier (…WithReference… / with_audio / audio_multiplier). videoUnitUsd must pick it, and a
+  // base case (no flags) must NOT regress. The third arg is the caller's refWired; the audio switch rides in
+  // fields.modelOpts. Both engines must agree on every tier and the base rate.
+  for(const f of fixtures.videoTiers || []){
+    for(const c of (f.cases || [])){
+      const v = R.videoUnitUsd(f.pricing, c.fields || {}, c.refWired);
+      if(v == null || !isFinite(v) || Math.abs(v - c.expect) > 1e-9)
+        bad("videoTier", f.id, `${c.desc}`, `${v} (expected ${c.expect})`);
+    }
+  }
 }
 
 const durCases = (fixtures.audioDuration||[]).reduce((n,f)=> n + (f.cases?.length||0), 0);
 const songCases = (fixtures.audioSongs||[]).reduce((n,f)=> n + (f.cases?.length||0), 0);
-const total = ((fixtures.video?.length||0) + (fixtures.audio?.length||0) + (fixtures.chat?.length||0) + durCases + songCases) * ENGINES.length;
+const tierCases = (fixtures.videoTiers||[]).reduce((n,f)=> n + (f.cases?.length||0), 0);
+const total = ((fixtures.video?.length||0) + (fixtures.audio?.length||0) + (fixtures.chat?.length||0) + durCases + songCases + tierCases) * ENGINES.length;
 if(fail){
   console.error(`\n✗ ${fail} pricing checks failed across ${ENGINES.length} engines — a resolver branch is missing or the two engines drifted.`);
   process.exit(1);
 }
-console.log(`✓ every pricing shape resolves in both engines (${fixtures.video?.length||0} video, ${fixtures.audio?.length||0} audio, ${fixtures.chat?.length||0} chat, ${durCases} audio-duration, ${songCases} audio-songs × ${ENGINES.length} engines = ${total} checks).`);
+console.log(`✓ every pricing shape resolves in both engines (${fixtures.video?.length||0} video, ${fixtures.audio?.length||0} audio, ${fixtures.chat?.length||0} chat, ${durCases} audio-duration, ${songCases} audio-songs, ${tierCases} video-tier × ${ENGINES.length} engines = ${total} checks).`);

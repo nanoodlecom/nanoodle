@@ -4099,7 +4099,25 @@ function pickDur(p, raw, fields){
 // Estimated USD for one video clip, for ANY NanoGPT video pricing shape (35+ variants live).
 // Handlers run most-specific first; a generic deep-scan at the end guarantees a number for any
 // future shape rather than a blank. fields.resolution / fields.duration drive the live number.
-function videoUnitUsd(pricing, fields){
+// A video run bills a HIGHER tier when reference images are wired (reference-to-video) or the model's
+// audio switch is on (with-audio). refWired comes from the caller (it needs the graph wiring); the audio
+// switch and any reference `mode` ride in fields.modelOpts. We pick the with-reference / with-audio price
+// table where the catalog carries one, and fall back to a flat pricing.audio_multiplier otherwise — so the
+// "~$X to run" chip stops quoting the base rate for a run that will reserve ~2×. No tier/flag ⇒ unchanged.
+function videoUnitUsd(pricing, fields, refWired){
+  const p = pricing || {};
+  const f = fields || {};
+  const opts = (f.modelOpts && typeof f.modelOpts==="object") ? f.modelOpts : {};
+  let audioOn = false;
+  for(const k in opts){ if(/audio/i.test(k) && !/^(no|disable|without|mute)/i.test(k)){ const val=opts[k]; if(val===true||val==="true"||val===1||val==="1"||val==="on"||val==="yes"){ audioOn=true; break; } } }
+  const refOn = !!refWired || /reference/i.test(String(opts.mode||""));
+  const usd = videoBaseUsd(p, f, audioOn, refOn);
+  // Models that surcharge audio as a flat multiplier (audio_multiplier) rather than a separate tier: apply
+  // it once — those shapes never carry a with-audio table, so a tier branch can't have already handled it.
+  if(usd!=null && isFinite(usd) && audioOn && p.audio_multiplier!=null) return usd * (_num(p.audio_multiplier) ?? 1);
+  return usd;
+}
+function videoBaseUsd(pricing, fields, audioOn, refOn){
   const p = pricing || {}, raw = (p.raw && typeof p.raw==="object") ? p.raw : {};
   const f = fields || {};
   const res = f.resolution, defRes = p.default_resolution ?? raw.defaultResolution;
@@ -4109,7 +4127,12 @@ function videoUnitUsd(pricing, fields){
   // ---- $/second families (× duration) ----
   if((v=rp(p.per_second_by_resolution))!=null) return v*dur;
   if((v=rp(p.standard_prices_per_second))!=null) return v*dur;               // sora (standard tier)
-  if(p.per_second_by_mode){ v=_num(p.per_second_by_mode.text_to_video) ?? pickByRes(p.per_second_by_mode); if(v!=null) return v*dur; }
+  if(p.per_second_by_mode){ const mm=p.per_second_by_mode;
+    v = refOn ? (_num(mm.reference_to_video_image) ?? _num(mm.reference_to_video_video)) : null;   // reference-to-video tier when refs are wired
+    if(v==null) v = _num(mm.text_to_video) ?? pickByRes(mm);
+    if(v!=null) return v*dur; }
+  if(audioOn){ for(const k of ["text_image_with_audio_per_second","image_to_video_with_audio_per_second","text_to_video_with_audio_per_second"]){
+    if(p[k]!=null){ v = (typeof p[k]==="object") ? rp(p[k]) : _num(p[k]); if(v!=null) return v*dur; } } }   // with-audio per-second tier (veo3.x)
   for(const k of ["text_to_video_per_second","text_image_without_audio_per_second","image_to_video_without_audio_per_second"]){
     if(p[k]!=null){ v = (typeof p[k]==="object") ? rp(p[k]) : _num(p[k]); if(v!=null) return v*dur; }
   }
@@ -4117,7 +4140,7 @@ function videoUnitUsd(pricing, fields){
   if(p.per_second!=null){ v=_num(p.per_second); if(v!=null) return v*dur; }
   // ---- per-clip lookups (no × duration) ----
   if(p.per_duration){ const dk=String(Math.round(dur)); v=_num(p.per_duration[dk]) ?? _num(p.per_duration[String(dur)]) ?? pickByRes(p.per_duration); if(v!=null) return v; }
-  if(p.without_audio!=null || p.with_audio!=null){ v=_num(p.without_audio) ?? _num(p.with_audio); if(v!=null) return v; }
+  if(p.without_audio!=null || p.with_audio!=null){ v = audioOn ? (_num(p.with_audio) ?? _num(p.without_audio)) : (_num(p.without_audio) ?? _num(p.with_audio)); if(v!=null) return v; }
   if(p.base_prices_by_resolution){
     const dk=String(Math.round(dur));
     if(p.duration_overrides && p.duration_overrides[dk]){ v=rp(p.duration_overrides[dk]); if(v!=null) return v; }
@@ -4135,6 +4158,19 @@ function videoUnitUsd(pricing, fields){
   if(p.base_price!=null){ v=_num(p.base_price); if(v!=null) return v; }
   // ---- raw.type dynamic shapes (wan / seedance / skyreels / ltx …) ----
   if(Object.keys(raw).length){
+    // with-reference tier (seedance-2.0/mini per-second, wan26 per-clip): pick it before the base tables
+    // so a reference-to-video run isn't quoted at the text-to-video rate.
+    if(refOn){
+      if(raw.referenceToVideoPrices){ const inner=pickObjByRes(raw.referenceToVideoPrices, res, defRes); if(inner){ const dk=String(Math.round(dur)); v=_num(inner[dk]) ?? pickByRes(inner); if(v!=null) return v; } }
+      for(const k of ["textToVideoWithReferenceVideoPricesPerSecond","standardTextToVideoWithReferenceVideoPricesPerSecond","turboTextToVideoWithReferenceVideoPricesPerSecond",
+                      "standardReferenceVideoPricesPerSecond","fastReferenceVideoPricesPerSecond"]){
+        if(raw[k]){ v=pickByRes(raw[k], res, defRes); if(v!=null) return v*dur; }
+      }
+    }
+    if(audioOn){   // with-audio tier (wan flash per-second / per-clip) beats the without-audio table
+      if(raw.withAudioPricesPerSecond){ v=pickByRes(raw.withAudioPricesPerSecond, res, defRes); if(v!=null) return v*dur; }
+      if(raw.withAudioPrices){ const inner=pickObjByRes(raw.withAudioPrices, res, defRes); if(inner){ const dk=String(Math.round(dur)); v=_num(inner[dk]) ?? pickByRes(inner); if(v!=null) return v; } }
+    }
     for(const k of ["pricesPerSecond","textToVideoPricesPerSecond","withoutAudioPricesPerSecond",
                     "standardPricesPerSecond","standardTextToVideoPricesPerSecond","outputPricesPerSecond","fastPricesPerSecond"]){
       if(raw[k]){ v=pickByRes(raw[k], res, defRes); if(v!=null) return v*dur; }
@@ -4210,7 +4246,11 @@ function nodeUnitUsd(n){
     const maxOut=(it&&it.maxOut)||1, fixed=(it&&it.fixedCount)||0;
     const count = fixed>0 ? fixed : Math.min(maxOut, Math.max(1, parseInt(n.fields.variations,10)||1));
     return u*count; }
-  if(kind==="video"){ const u = videoUnitUsd(it.pricing, n.fields); return (u!=null && isFinite(u)) ? u : null; }
+  if(kind==="video"){
+    // ref-image ports actually wired (and the model still exposes a ref-image param) flip the estimate to
+    // the with-reference tier — mirrors run()'s role clamp so a stale wire on a non-ref model can't inflate it.
+    const refWired = !!(t.refInputs && modelHasImageRole(n,"refs") && graph.links.some(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port)));
+    const u = videoUnitUsd(it.pricing, n.fields, refWired); return (u!=null && isFinite(u)) ? u : null; }
   if(kind==="chat"){ if(it.imageOut) return EST.chatImageUsd;   // Draw node: token pricing can't see image_tokens — use the measured per-image figure
     const f=n.fields||{}; const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(it, inTok, outTok); }
   if(kind==="audio"){ const chars = t.modelFilter==="stt" ? undefined : (((n.fields||{}).prompt||"").length || EST.ttsChars);
