@@ -13,10 +13,29 @@ Columns: date · venue · angle used · result (upvotes, comments, signups, what
 | Jun 26 | nano-gpt Discord #community-projects | Cookoff launch, primary entry channel (3×133 XNO, 3 categories) | posted ✓ (confirmed by author) |
 | Jun 26 | "posted everywhere" — other venues | Cookoff launch blast (venues TBD — fill in from history) | posted — list TBD |
 | Jul 2 | r/SideProject (subreddit) | "ComfyUI-style AI playground, 100% in-browser, exports to a single .html you own" — 30s demo video + live link + soft Cookoff mention; honest BYO-key disclosure (draft: 2026-07-02-r-SideProject.md) | drafted — pending human post |
+| Jul 3 | X / Twitter ($XNO cashtag) | 🍳 Cookoff-first thread + 26s cat demo (text→image→animated cat); planned replies = nanoodle "like ComfyUI but simpler" + NanoGPT/OAuth-PKCE value prop. Video = flicker-free recut (clean cat clip spliced over screen-capture, 24fps CFR) | posted ✓ — bad timing (Jul 3→4 US holiday), expect slow accrual over the Jul 12 deadline runway |
+| Jul 3 | r/nanotrade (subreddit) | cross-post of the same Cookoff cat demo | posted ✓ |
+| Jul 4 | — (skipped) | deliberate skip: US holiday, family time | n/a — do NOT auto-propose a venue for Jul 4 |
+
+> Jul 4: Tweet is outperforming the dead-zone expectation — ~a dozen likes + several retweets within a day, and the planned value-prop replies (nanoodle "like ComfyUI but simpler" + NanoGPT/OAuth-PKCE) are confirmed posted. Re-bump moved up: ride the live engagement Jul 5 rather than waiting to Jul 6. Closed draft PR #214 (proposed r/StableDiffusion, which the plan of record vetoes — it was created before this plan landed on main).
+
+> Jul 3: Twitter thread + r/nanotrade cross-post, Cookoff-led. Used $XNO cashtag for Nano-community discoverability. Dropped "no signup" (inaccurate — needs a NanoGPT account) and "free" per copy guidance. Timing is the July-4th dead zone — treat low early numbers as calendar, not content. Plan: re-bump the thread ~Jul 5–6 when people are back; HOLD the strong untapped venues (r/StableDiffusion workflow thread, Show HN single-file-export angle, Product Hunt/AlternativeTo) for post-holiday so they don't get wasted on an empty timeline.
 
 > Jul 2: Rule-checked r/InternetIsBeautiful and killed it — their content-must-be-freely-usable rule trips on the funded-key requirement to actually run models, and IIB doesn't take video posts (wasting the 30s demo asset). Chose r/SideProject: native video support fits the demo clip, builder self-promo is the norm, and BYO-key + Cookoff are welcome. Passed on r/LocalLLaMA (its local-model ethos clashes with a hosted pay-per-call API).
 
 > Jun 26: 🍜 Noodle Cookoff went live. Also shipped a rainbow floating-button announcement + modal in-app (index.html, on main) and wired the Discord invite into it. Contest window: Jun 26 → Jul 12 (23:59 UTC).
+
+## Plan of record (Fable-ranked, Jul 3) — Cookoff ends Jul 12
+
+Cross-cutting rule: **Cookoff/crypto framing ONLY in Nano venues.** Elsewhere lead with single-file .html export + no-analytics/no-server + OAuth-PKCE. "win crypto" costs credibility on HN/PH/webdev; "one HTML file you own" buys it.
+
+- **Now (holiday-immune):** Official Nano Discord (chat.nano.org, community-projects channel, Cookoff-urgency hook) · AlternativeTo (list as ComfyUI alternative, evergreen long tail, disclose maker)
+- **Jul 7–9:** Show HN (single-file export + privacy hook; NO crypto mention; live in comments) · Product Hunt (signed-out demo-run is the asset; honest pay-per-call pricing) · Banodoco Discord (banodoco.ai — creative-AI heartland; post a *piece* not a pitch, e.g. multi-image morph graph) · r/nocode (graph→app build story + GIF)
+- **Sat Jul 11:** r/webdev Showoff Saturday (engineering flex: one HTML file, no build step)
+- **Jul 11:** "last 24h" Cookoff urgency push across warmest Nano venues
+- **Directory/bench:** There's An AI For That (paid listing — only if cheap) · Indie Hackers · dev.to single-file-architecture writeup (feeds the HN post)
+
+Avoid (double hostility = hosted-API + self-promo, or anti-genAI, or shill-pattern): r/LocalLLaMA, r/StableDiffusion + Lemmy mirror, lobste.rs (invite-only, launches flagged), r/InternetIsBeautiful (paywall-to-run = bait), Mastodon/Bluesky art & creative-coding scenes (anti-genAI pile-on), r/CryptoCurrency (shill pattern-match), r/artificial / r/ArtificialIntelligence (no trust).
 
 ## Ideas / candidate venues
 
