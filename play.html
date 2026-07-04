@@ -89,7 +89,13 @@
   #bar #sharehint{ font-size:.74rem; color:var(--accent); white-space:nowrap; }
   #bar #sharehint[hidden]{ display:none; }
   button.link{ background:none; border:none; color:var(--accent); cursor:pointer; padding:0; font-size:.8rem; }
-  #signin{ font-size:.8rem; }
+  /* Signed-out sign-in is the gate to the whole app — give it primary-button weight
+     (reuses the #apply.primary accent language) instead of a dim text link. */
+  #signin{ font-size:.82rem; font-weight:700; padding:.4rem .85rem; border-radius:.5rem;
+           background:linear-gradient(180deg,#8b97ff,#6573ef); border:1px solid #8b97ff; color:#0b0e18;
+           text-decoration:none; box-shadow:0 0 18px #7c8cff33; white-space:nowrap;
+           display:inline-flex; align-items:center; }
+  #signin:hover{ text-decoration:none; box-shadow:0 0 28px #7c8cff55; }
   #myapps{ font-weight:600; }
   #baractions{ display:contents; }   /* desktop: children lay out in #bar exactly as before */
   /* empty landing (no app loaded): the app-scoped actions would act on a blank default app
@@ -6102,6 +6108,9 @@ async function handleRedirect(){
 function renderAuth(){
   const signed = !!getKey();
   $("auth-status").textContent = signed ? tB("signed in ✓") : tB("not signed in");
+  // Signed out, the primary Sign-in button already carries the state — a dim "not signed in"
+  // beside it is redundant. Hide the status then; keep "signed in ✓" as the signed-in confirmation.
+  $("auth-status").style.display = signed ? "" : "none";
   $("signin").style.display  = signed ? "none" : "";
   $("pastebtn").style.display = signed ? "none" : "";
   $("signout").style.display  = signed ? "" : "none";
