@@ -7560,7 +7560,7 @@ async function concatViaRecorder(urls, dedup, onProgress){
    (the track would come out silent) — refuse it up front with the way out, exactly like lipsync. */
 async function muxSoundtrack(videoUrl, audioUrl, loop, onProgress){
   if(/^https?:/.test(audioUrl))
-    throw new Error("can’t add that generated song as a soundtrack — it lives on the provider’s audio CDN, whose bytes the browser can’t read (CORS), so the track would come out silent. Use a 🗣️ Speech node, a ✂️ Trim node, or an Audio upload for the soundtrack.");
+    throw new Error("can’t add that generated song as a soundtrack — it lives on the provider’s audio CDN, whose bytes the browser can’t read (CORS), so the track would come out silent. Lower the 🎵 Music node’s length so the song fits at the source, or download the song and re-add it through a 🎤 Audio input node.");
   const AC = window.AudioContext || window.webkitAudioContext;
   if(!AC) throw new Error("this browser can’t process audio (no Web Audio API)");
   const vh = await toLocalMediaUrl(videoUrl);
