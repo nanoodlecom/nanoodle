@@ -144,5 +144,35 @@ const ok = (c, m) => { if (!c) { fail++; console.log("  ✗ " + m); } else conso
   ok(!(w.demoBadged || []).length, `no sample badge on a graph we refused to fake (badged=${JSON.stringify(w.demoBadged || [])})`);
 }
 
+// 6) Retry reuse: after a downstream failure the user re-runs (or per-node Runs the failed node).
+//    Succeeded UPSTREAM nodes — even ones with no visible seed (LLM, video) — that still hold their
+//    output at an unchanged signature must be REUSED, not re-executed and re-charged. Only the node
+//    the user explicitly targeted (the seedIds) is re-run. Here n0,n1 already succeeded (out + _sig
+//    present); n2 is the retried target. n1 is a PAID edit node, so a reuse miss would re-charge it.
+{
+  const w = makeWorld(3, false);
+  w.nodes.n0._sig = 0;                                   // nodeSig() stub is ()=>0, so _sig=0 == "unchanged"
+  w.nodes.n1._sig = 0; w.nodes.n1.out = { image: "PRIOR_EDIT_n1" };   // n1 succeeded on the prior run
+  // n2.out stays {} — it's the node being retried
+  await run(w, "n2");                                    // Run targeting only n2 (per-node retry on the failed node)
+  ok(!w.runs.n0 && !w.runs.n1, `succeeded upstream REUSED, not re-executed on retry (n0=${w.runs.n0 || 0}, n1=${w.runs.n1 || 0})`);
+  ok(w.runs.n2 === 1, `the explicitly targeted (retried) node re-executes (run count=${w.runs.n2})`);
+  ok(w.paid.length === 1 && w.paid[0] === "n2<=PRIOR_EDIT_n1", `only the target charged, on the REUSED upstream output (paid=${JSON.stringify(w.paid)})`);
+  ok(w.nodes.n1._st === "done", `reused upstream node shown 'done' (status=${w.nodes.n1._st})`);
+}
+
+// 7) Preserved re-roll: a per-node Run on a node the user explicitly targets ALWAYS re-executes it,
+//    even when its signature is unchanged and it still holds output — that's an intentional re-roll.
+//    Its own upstream is still reused (not re-charged), so the two rules coexist.
+{
+  const w = makeWorld(2, false);
+  w.nodes.n0._sig = 0;                                   // n0 succeeded previously (unchanged) → reusable
+  w.nodes.n1._sig = 0; w.nodes.n1.out = { image: "PRIOR_n1" };   // n1 also already has an output…
+  await run(w, "n1");                                    // …but the user explicitly re-runs n1
+  ok(w.runs.n1 === 1, `explicitly targeted node re-rolls despite unchanged sig + present output (run count=${w.runs.n1})`);
+  ok(!w.runs.n0, `the targeted node's own upstream is still reused, not re-charged (n0=${w.runs.n0 || 0})`);
+  ok(w.nodes.n1.out.image === "EDITED_n1", `the re-roll produced fresh output (got ${w.nodes.n1.out.image})`);
+}
+
 if (fail) { console.error(`\n✗ stale-input-charge: ${fail} assertion(s) failed.`); process.exit(1); }
-console.log("\n✓ stale-input-charge: failed/cyclic upstream poisons dependents — no stale-input charge; healthy graphs unaffected.");
+console.log("\n✓ stale-input-charge: failed/cyclic upstream poisons dependents — no stale-input charge; succeeded upstream is reused (not re-charged) on retry while the explicit target re-rolls; healthy graphs unaffected.");

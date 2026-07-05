@@ -6578,6 +6578,7 @@ async function runGroup(seedIds, ctx){
   for(const id of seedIds) for(const x of componentOf(id)) lock.add(x);
   if(!lock.size || groupBusy(lock)) return;         // empty, or this group is already running
   const ids = ancestors(seedIds);                    // what we actually compute (seed + upstream)
+  const seedSet = new Set(seedIds);                  // the node(s) the user explicitly targeted → always re-roll (never reuse)
   const wasIdle = !runningNodes.size;
   lock.forEach(id=>runningNodes.add(id));
   // Fresh controller when idle, OR when the prior one is still aborted (we're inside the post-Stop
@@ -6654,6 +6655,14 @@ async function runGroup(seedIds, ctx){
         // output, so surface it as done — no second charge. Blank seed = random, so never skip.
         const sig = nodeSig(rn, inp);
         if(isSeeded(rn) && n._sig===sig && n.out && Object.keys(n.out).length){ showResult(n); setStatus(n, "done"); return; }
+        // Retry reuse: an ANCESTOR the user did NOT explicitly target this run (not in seedSet) that
+        // already SUCCEEDED (has output) with an unchanged signature is surfaced as-is — re-executing
+        // it would just re-charge for a byte-identical result. This is what stops a Run-again after a
+        // downstream failure (or a per-node Run on a leaf) from re-billing every succeeded node above
+        // it, even when that node has no visible seed (LLM, video). The explicitly targeted node(s)
+        // still re-roll (excluded here); poison-propagation already ran above, so a failed upstream
+        // never reaches this path; a demo run is excluded (it never mints n._sig, so this can't fire).
+        if(!ctx.demo && !seedSet.has(id) && n._sig===sig && n.out && Object.keys(n.out).length){ showResult(n); setStatus(n, "done"); return; }
         setStatus(n, "run");
         if(ctx.demo) setNodeProgress(n, demoRunLabel());   // honest: it's a canned preview, not a live model call (t() is shadowed here by the node type)
         try{ n.out = await t.run(rn, inp, ctx) || {};
@@ -6701,7 +6710,20 @@ function runAll(){
   if(!graph.nodes.length){ flash("nothing to run — add a node"); return; }
   dismissHint();   // first Run clears the orientation banner — covers ⌘/Ctrl+Enter and the demo-teaser run paths, not just the toolbar button
   warnLowBalance();
-  for(const c of components()) if(!groupBusy(c)) runGroup([...c]);   // fire-and-forget → groups run in parallel
+  for(const c of components()){
+    if(groupBusy(c)) continue;
+    const arr = [...c];
+    // Run the whole flow, but only its OUTPUT (sink) nodes count as explicitly targeted, so a Run-again
+    // re-rolls the outputs while REUSING unchanged, already-succeeded upstream nodes (runGroup's reuse
+    // rule) instead of paying to recompute them — the single biggest surprise-spend on a retry.
+    const sinks = arr.filter(id=> !graph.links.some(l=> l.from.node===id && c.has(l.to.node)));
+    // Only target the sinks when they actually reach every node in the component (always true for a healthy
+    // DAG). If they don't — no sinks at all, or a cyclic branch off to the side that feeds no sink — run the
+    // component WHOLE so those otherwise-dropped nodes still get their status ("cycle detected" included)
+    // rather than sitting silently idle.
+    const cover = sinks.length ? ancestors(sinks) : null;
+    runGroup(cover && cover.size === c.size ? sinks : arr);   // fire-and-forget → groups run in parallel
+  }
 }
 
 /* ---------- NanoGPT calls (browser → NanoGPT directly) ---------- */
