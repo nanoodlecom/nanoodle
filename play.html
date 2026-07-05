@@ -1161,12 +1161,11 @@ window.NoodleApp = (function () {
     const lo=_num(p.min_duration), hi=_num(p.max_duration);
     return Math.min(hi!=null?hi:d, Math.max(lo!=null?lo:d, d));
   }
-  // Songs the run is billed for. Only >1 when the model advertises a generation_count_parameter
-  // (collectAudioParams gates the SEND on the same signal); otherwise the count is dropped and one song
-  // is made, so a stale number_of_songs must not inflate the estimate. Mirrors the editor's audioBilledSongs.
-  function audioBilledSongs(sp, fields){
-    if(!(sp && sp.generation_count_parameter)) return 1;
-    return Math.max(1, parseInt((fields||{}).number_of_songs,10)||1);
+  // Songs the run is billed for. collectAudioParams clamps the SENT count to 1 (the endpoint returns a
+  // single track and the app surfaces only that one), so a run always bills for exactly one song — a
+  // stale/over-set number_of_songs must not inflate the estimate. Mirrors the editor's audioBilledSongs.
+  function audioBilledSongs(_sp, _fields){
+    return 1;
   }
   function imageUsd(pricing, size, count){
     const per = (pricing && pricing.per_image) || {};
@@ -1189,7 +1188,7 @@ window.NoodleApp = (function () {
     if(kind==="audio"){ const chars = n.type==="transcribe" ? undefined : ((f.prompt||"").length || EST.ttsChars);
       const secs = audioBilledSeconds(m.supported_parameters, f);   // per_second music meters off the chosen duration, not a fixed 30s
       const u = audioUnitUsd(pricing, chars, secs); if(u==null) return null;
-      const songs = audioBilledSongs(m.supported_parameters, f);   // >1 only when the model advertises a generation count (matches collectAudioParams' send-gate)
+      const songs = audioBilledSongs(m.supported_parameters, f);   // always 1 — collectAudioParams clamps the sent song count so a run only ever bills for one track
       return u*songs; }
     return null;
   }
@@ -2231,7 +2230,9 @@ function mp4ParamsMatch(bufs){
       let v = n.fields[f.id], key = wireKey(f.id);
       if(f.type==="boolean"){ if(v===true||v==="true") body[key]=true; continue; }
       if(v==null || v==="") continue;
-      if(f.type==="number"){ const num=Number(v); if(isNaN(num)) continue; if(f.default!=null && num===f.default) continue; body[key]=num; continue; }
+      if(f.type==="number"){ let num=Number(v); if(isNaN(num)) continue;
+        if(f.applies==="cat:gencount") num=1;   // never request more songs than the node can surface (one) — mirrors the editor's collectAudioParams clamp
+        if(f.default!=null && num===f.default) continue; body[key]=num; continue; }
       if(f.default!=null && v===f.default) continue;       // e.g. response_format=mp3 → omit
       body[key] = v;
     }
