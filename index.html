@@ -9180,17 +9180,47 @@ $("signout").onclick = ()=> setKey(null);
   // ---- validation: known types, unique ids, resolvable links, feed-forward (no cycles) ----
   function validate(simple){
     const errs = []; const ids = new Set();
+    const byId = {};
     for(const n of simple.nodes||[]){
       if(!n.id){ errs.push("a node is missing an id"); continue; }
       if(ids.has(n.id)) errs.push(`duplicate node id ${n.id}`);
-      ids.add(n.id);
+      ids.add(n.id); byId[n.id] = n;
       if(!NODE_TYPES[n.type]) errs.push(`unknown node type “${n.type}”`);
     }
+    // A node's REAL port set, derived the SAME way the editor builds ports — so we reject a wire the
+    // planner aimed at a port that doesn't exist (which serializes to a phantom wire: it renders as
+    // connected but the run engine finds no such input/output and carries nothing). Output ports come
+    // from the node's OWN outputs (frame ports depend on its `frames`); input ports are the static
+    // ports + the dynamic image/clip/audio/end-frame/ref slots + every wirable <textarea> field port.
+    const outPortNames = node=>{ const o = NODE_TYPES[node.type].outputs;
+      return ((typeof o==="function" ? o(node) : o) || []).map(p=> p.name); };
+    const textFieldPorts = type=>{
+      if(type==="text" || type==="choice" || NODE_TYPES[type].note) return [];   // pure sources / notes take no wirable text override (mirrors addFieldPorts)
+      let html=""; try{ html = NODE_TYPES[type].body({ type, fields:{} }) || ""; }catch(_){ return []; }
+      const out=[], re=/<textarea\b[^>]*\bdata-(?:f|pf)\s*=\s*\x22([^\x22]+)\x22/g; let m;   // \x22 = the attr quote — a literal " here would confuse check-describe-apply's brace matcher
+      while((m=re.exec(html))) if(m[1]!=="extraJson") out.push(m[1]);   // extraJson is advanced-only, never a wire target
+      return out;
+    };
+    const inPortOk = (type, port)=>{
+      const t = NODE_TYPES[type];
+      if((t.inputs||[]).some(p=> p.name===port)) return true;
+      if(t.imageInputs && (typeof t.imageInputs==="string" ? IMG_PORT_RE : EDIT_IMG_RE).test(port)) return true;
+      if(t.videoInputs && VID_PORT_RE.test(port)) return true;
+      if(t.audioInput && port==="audio") return true;
+      if(t.endFrame  && port==="endframe") return true;
+      if(t.refInputs && REF_PORT_RE.test(port)) return true;
+      return textFieldPorts(type).includes(port);
+    };
     for(const l of simple.links||[]){
       const [f, fp] = String(l.from).split("."); const [t, tp] = String(l.to).split(".");
       if(!ids.has(f)) errs.push(`a wire starts from a missing node (${f})`);
       if(!ids.has(t)) errs.push(`a wire ends at a missing node (${t})`);
-      if(!fp || !tp) errs.push(`a wire is missing its port — name each end as nodeId.port (e.g. n1.image)`);
+      if(!fp || !tp){ errs.push(`a wire is missing its port — name each end as nodeId.port (e.g. n1.image)`); continue; }
+      const fromN = byId[f], toN = byId[t];   // both ends resolved above; only port-check a node whose type we know
+      if(fromN && NODE_TYPES[fromN.type] && !outPortNames(fromN).includes(fp))
+        errs.push(`a wire starts at a port “${f}.${fp}” that a ${fromN.type} node doesn't have`);
+      if(toN && NODE_TYPES[toN.type] && !inPortOk(toN.type, tp))
+        errs.push(`a wire ends at a port “${t}.${tp}” that a ${toN.type} node doesn't have`);
     }
     const adj = {}; (simple.links||[]).forEach(l=>{ const f=String(l.from).split(".")[0], t=String(l.to).split(".")[0]; (adj[f]||(adj[f]=[])).push(t); });
     const color = {}; let cyclic = false;

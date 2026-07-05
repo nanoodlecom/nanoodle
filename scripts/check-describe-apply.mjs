@@ -82,10 +82,24 @@ function buildModule(src) {
   const program = `
     "use strict";
     const MEDIA_KEYS = new Set(["image","audio","video","mask"]);
+    // Port-name regexes lifted verbatim from index.html — validate()'s port check reads them.
+    const IMG_PORT_RE = /^img\\d+$/, EDIT_IMG_RE = /^image\\d*$/, VID_PORT_RE = /^vid\\d+$/, REF_PORT_RE = /^ref\\d+$/;
+    // Stubs of the live registry. validate() now derives a type's REAL ports from outputs/body/the
+    // dynamic-port flags, so those must be present (the extracted functions are the logic under test,
+    // not these shapes). bodies use single quotes so their attr quotes survive this template literal.
+    const P = (name)=> '<textarea data-f="' + name + '"></textarea>';   // one wirable field port
     const NODE_TYPES = {
-      text:{}, edit:{modelKind:true}, llm:{modelKind:true}, image:{modelKind:true},
-      tvideo:{modelKind:true}, ivideo:{modelKind:true}, inpaint:{modelKind:true},
-      vframes:{}, music:{modelKind:true}, tts:{modelKind:true}, transcribe:{modelKind:true},
+      text:{ outputs:[{name:"text",type:"text"}], body:()=> P("text") },
+      edit:{ modelKind:true, imageInputs:{multi:true}, outputs:[{name:"image",type:"image"}], body:()=> P("system")+P("prompt") },
+      llm:{ modelKind:true, imageInputs:"vision", audioInput:"audio_input", outputs:[{name:"text",type:"text"}], body:()=> P("system")+P("prompt") },
+      image:{ modelKind:true, outputs:[{name:"image",type:"image"}], body:()=> P("prompt") },
+      tvideo:{ modelKind:true, refInputs:true, outputs:[{name:"video",type:"video"}], body:()=> P("prompt") },
+      ivideo:{ modelKind:true, endFrame:true, outputs:[{name:"video",type:"video"}], body:()=> P("prompt") },
+      inpaint:{ modelKind:true, imageInputs:{multi:true}, outputs:[{name:"image",type:"image"}], body:()=> P("prompt") },
+      vframes:{ inputs:[{name:"video",type:"video"}], outputs:(n)=> [{name:"frame1",type:"image"}], body:()=> "" },
+      music:{ modelKind:true, outputs:[{name:"audio",type:"audio"}], body:()=> P("prompt") },
+      tts:{ modelKind:true, outputs:[{name:"audio",type:"audio"}], body:()=> P("prompt") },
+      transcribe:{ modelKind:true, audioInput:"audio_input", outputs:[{name:"text",type:"text"}], body:()=> "" },
     };
     function defModelFor(type){ return "stub-default-model"; }
     // real dimDefs returns [{ f, options:[[value,label],…], def }]; stub the shape,
@@ -174,8 +188,10 @@ function runInvariants(mod) {
     if (!validate(okG).ok)
       F.push(`VALIDATE: a legal feed-forward graph was rejected (${validate(okG).errs.join("; ")})`);
 
-    const cyc = { nodes: [{ id: "n1", type: "text", fields: {} }, { id: "n2", type: "llm", fields: {} }],
-      links: [{ from: "n1.text", to: "n2.prompt" }, { from: "n2.text", to: "n1.seed" }] };
+    // two llm nodes wired prompt↔text: every port is REAL, so the ONLY defect is the loop —
+    // keeps this pin measuring the cycle check, not the new port check.
+    const cyc = { nodes: [{ id: "n1", type: "llm", fields: {} }, { id: "n2", type: "llm", fields: {} }],
+      links: [{ from: "n1.text", to: "n2.prompt" }, { from: "n2.text", to: "n1.prompt" }] };
     const cr = validate(cyc);
     if (cr.ok) F.push("VALIDATE: a cyclic graph was accepted — the run engine would loop");
     else if (!cr.errs.some((e) => /loop|flow one way/.test(e)))
@@ -232,6 +248,33 @@ function runInvariants(mod) {
       F.push(`DIFF: a changed prompt field was not reported (${JSON.stringify(d.changed)})`);
   }
 
+  // 6. PORT EXISTS (audit L3) — a wire aimed at a port the target type doesn't have is rejected
+  //    (else it applies as a phantom wire that looks connected but the run engine reads nothing
+  //    from), while a wire to a REAL structural/field port still passes (no false alarm).
+  {
+    const phantom = { nodes: [{ id: "n1", type: "text", fields: {} }, { id: "n2", type: "image", fields: {} }],
+      links: [{ from: "n1.text", to: "n2.styl" }] };   // image nodes have no "styl" input port
+    const pr = validate(phantom);
+    if (pr.ok) F.push("PORT EXISTS: a wire to a non-existent input port (n2.styl on an image node) was accepted — a phantom dead wire");
+    else if (!pr.errs.some((e) => /port/.test(e) && /styl/.test(e)))
+      F.push(`PORT EXISTS: the phantom input port was rejected but not named in the recap (${pr.errs.join("; ")})`);
+
+    const badOut = { nodes: [{ id: "n1", type: "text", fields: {} }, { id: "n2", type: "image", fields: {} }],
+      links: [{ from: "n1.imagine", to: "n2.prompt" }] };   // a text node only outputs "text"
+    if (validate(badOut).ok) F.push("PORT EXISTS: a wire FROM a non-existent output port (n1.imagine) was accepted");
+
+    const good = { nodes: [{ id: "n1", type: "text", fields: {} }, { id: "n2", type: "image", fields: {} }],
+      links: [{ from: "n1.text", to: "n2.prompt" }] };   // image DOES have a wirable prompt field port
+    if (!validate(good).ok)
+      F.push(`PORT EXISTS: a legal wire to a real field port was wrongly rejected (${validate(good).errs.join("; ")})`);
+
+    // dynamic slots still resolve: an edit node's image2 port and a tvideo ref1 port are real.
+    const dyn = { nodes: [{ id: "n1", type: "image", fields: {} }, { id: "n2", type: "edit", fields: {} }],
+      links: [{ from: "n1.image", to: "n2.image2" }] };
+    if (!validate(dyn).ok)
+      F.push(`PORT EXISTS: a real dynamic image slot (n2.image2) was wrongly rejected (${validate(dyn).errs.join("; ")})`);
+  }
+
   return F;
 }
 
@@ -252,6 +295,15 @@ function selfTest() {
       // drop the cycle error
       from: 'if(cyclic) errs.push("that change would create a loop — workflows must flow one way");',
       to:   'if(cyclic) void 0;' },
+    { name: "phantom-port", need: /PORT EXISTS/,
+      // stop rejecting a wire to a port the target type doesn't have (audit L3)
+      from: "if(toN && NODE_TYPES[toN.type] && !inPortOk(toN.type, tp))",
+      to:   "if(false && toN && NODE_TYPES[toN.type] && !inPortOk(toN.type, tp))" },
+    { name: "deletion-respected", need: /DELETION RESPECTED/,
+      // the pre-04520f1 regression: merge ALL old fields under the planner's, resurrecting
+      // a field the planner deliberately omitted (audit M4)
+      from: "const fields = { ...carried, ...(sn.fields||{}) };",
+      to:   "const fields = { ...(old ? old.fields : {}), ...(sn.fields||{}) };" },
   ];
   const out = [];
   for (const c of cases) {
