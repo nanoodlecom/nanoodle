@@ -469,7 +469,10 @@
 
 <!-- THE APP — sandboxed, key never travels in srcdoc; the parent postMessages it after load -->
 <div id="stage">
-  <iframe id="appframe" sandbox="allow-scripts allow-downloads" title="your app"></iframe>
+  <!-- allow=autoplay: the ONLY autoplay we want is resuming the user's own track after a
+     customize/version remount (__resume__); without the delegation the fresh null-origin
+     document's play() is rejected and the track parks paused instead. -->
+<iframe id="appframe" sandbox="allow-scripts allow-downloads" allow="autoplay *" title="your app"></iframe>
   <div id="empty" hidden>
     <div class="empty-card">
       <h2>Open a workflow from the editor</h2>
@@ -4095,6 +4098,7 @@ function mp4ParamsMatch(bufs){
     const val = out[port.name];
     if(val==null) return null;
     const card = document.createElement("div"); card.className="card";
+    card.dataset.node = n.id;   // playback continuity: lets a remount find "the 2nd card of node X" again
     const head = '<div class="rhead">'+(badge||"")+esc(NODE_TYPES[n.type].em)+' '+esc(displayName(n))+costChip(n)+'</div>';
     const gallery = (port.type==="image" && out.images && out.images.length>1) ? out.images : null;
     let media;
@@ -4311,6 +4315,50 @@ function mp4ParamsMatch(bufs){
     if(restored) clearOutputPlaceholder();
   }
 
+  /* ---------- playback continuity (via the parent) ----------
+     Applying a customize / switching versions rebuilds this whole iframe document,
+     which used to cut off whatever track was playing mid-listen. The document can't
+     survive the teardown, but the parent can carry the session across it: we report
+     which output card's track is playing (node id + which of that node's cards +
+     position), the parent keeps that in RAM (nothing stored, nothing leaves the page),
+     and after the fresh mount restores the stored history it asks us (__resume__) to
+     seek that card and pick playback back up. Best-effort at every step: no matching
+     card, or an autoplay refusal, just leaves the track parked at the right spot. */
+  let MEDIA_REPORT_AT = 0;
+  function nodeMedia(node){
+    const box = $("app-output"), els = [];
+    if(!box) return els;
+    box.querySelectorAll(".card audio, .card video").forEach(function(el){
+      const card = el.closest && el.closest(".card");
+      if(card && card.dataset.node===String(node)) els.push(el);
+    });
+    return els;
+  }
+  function reportMedia(el, ev){
+    if(!EMBEDDED) return;   // standalone exports never remount — nothing to hand the session to
+    const now = Date.now();
+    if(ev==="timeupdate" && now - MEDIA_REPORT_AT < 1000) return;   // ~4/s natively — 1/s is plenty for a resume point
+    const card = el.closest && el.closest(".card");
+    const box = $("app-output");
+    if(!card || !box || !box.contains(card) || !card.dataset.node) return;   // steps-sheet media isn't restored after a remount, so it can't resume
+    const ord = nodeMedia(card.dataset.node).indexOf(el);
+    if(ord < 0) return;
+    MEDIA_REPORT_AT = now;
+    try{ window.parent.postMessage({ type:"__media__", node:card.dataset.node, ord:ord,
+      t:el.currentTime||0, playing:!(el.paused||el.ended) }, "*"); }catch(_){}
+  }
+  function resumeMedia(m){
+    const kin = nodeMedia(m.node);
+    const el = kin[m.ord|0] || kin[0]; if(!el) return;
+    const go = ()=>{
+      try{ if(m.t>0 && isFinite(m.t)) el.currentTime = m.t; }catch(_){}
+      if(m.playing) el.play().catch(function(_){ /* autoplay refused → parked at the right spot, one tap resumes */ });
+    };
+    if(el.tagName==="AUDIO" && !el._durSettled) el.addEventListener("noodle-durfix", go, { once:true });
+    else if(el.readyState >= 1) go();
+    else el.addEventListener("loadedmetadata", go, { once:true });
+  }
+
   /* ---------- run "steps" sheet ----------
      The #app-output funnel deliberately shows only the sink nodes, to keep the
      app clean for end users. But a run makes (and pays for) intermediate outputs
@@ -4385,7 +4433,12 @@ function mp4ParamsMatch(bufs){
   }
   function closeDetail(){
     detailOpen = null; detailLaneRef = null;
-    if(detailSheet) detailSheet.hidden = true;
+    if(detailSheet){
+      detailSheet.hidden = true;
+      // [hidden] hides but doesn't silence — without this a track playing in the sheet
+      // kept going invisibly, with no way to stop it short of reopening the sheet.
+      detailSheet.querySelectorAll("audio,video").forEach(function(m){ try{ m.pause(); }catch(_){} });
+    }
   }
   function stepStatus(L, id){
     const s = L.state[id] || {};
@@ -4405,8 +4458,18 @@ function mp4ParamsMatch(bufs){
     const L = RUN && RUN.lanes[detailOpen];
     if(!L){ closeDetail(); return; }
     const root = ensureDetailSheet(), body = root.querySelector(".nd-body");
-    // A fresh lane object (first open, or a keep-generating reset) → rebuild from scratch.
-    if(L !== detailLaneRef){ detailLaneRef = L; body.innerHTML = ""; body._steps = {}; }
+    // A fresh lane object (first open, or a keep-generating reset) → rebuild from scratch…
+    // …unless the listener is mid-track: a keep-generating reset used to wipe the sheet here and
+    // cut the song off. Freeze the sheet on the pass being played instead; the first repaint after
+    // the track pauses/ends (paintRuns ticks every second) catches it up to the live pass.
+    if(L !== detailLaneRef){
+      if(detailLaneRef){
+        let playing = false;
+        body.querySelectorAll("audio,video").forEach(function(m){ if(!m.paused && !m.ended) playing = true; });
+        if(playing) return;
+      }
+      detailLaneRef = L; body.innerHTML = ""; body._steps = {};
+    }
     const steps = body._steps || (body._steps = {});
     const st = laneStats(L);
     root.querySelector(".nd-title").textContent = RUN.n>1 ? ("Run " + (L.idx+1) + " · steps") : "Run steps";
@@ -4517,10 +4580,13 @@ function mp4ParamsMatch(bufs){
   // the real duration, after which playback and seeking work.
   function fixAudioDuration(el){
     if(!el) return;
+    // _durSettled + "noodle-durfix": resumeMedia must not seek while the scan below is mid-flight —
+    // the scan's own "rewind to 0" would land AFTER the resume seek and clobber it back to the start.
+    const settle = ()=>{ el._durSettled = true; try{ el.dispatchEvent(new Event("noodle-durfix")); }catch(_){} };
     const fix = ()=>{
-      if(el.duration!==Infinity) return;
+      if(el.duration!==Infinity){ settle(); return; }
       el.currentTime = 1e101;
-      const back = ()=>{ el.removeEventListener("timeupdate", back); el.currentTime = 0; };
+      const back = ()=>{ el.removeEventListener("timeupdate", back); el.currentTime = 0; settle(); };
       el.addEventListener("timeupdate", back);
     };
     if(el.readyState >= 1) fix();
@@ -4972,9 +5038,18 @@ function mp4ParamsMatch(bufs){
       if(m && m.type==="__auth__"){ const was=parentAuthed; parentAuthed = !!m.signedIn; renderAuth();
         if(parentAuthed && !was && STATE) fillModelLists(); }   // key just arrived → fill the model dropdowns
       if(m && m.type==="__restore__" && m.outs){ try{ restoreOutputs(m.outs); }catch(_){ /* stored results are a bonus, never a boot blocker */ } }
+      if(m && m.type==="__resume__" && m.node!=null){ try{ resumeMedia(m); }catch(_){ /* continuity is a bonus */ } }
     });
     document.addEventListener("keydown", (e)=>{
       if(e.key==="Escape"){ try{ parent.postMessage({type:"__escape__"}, "*"); }catch(_){} }
+    });
+    // Media events don't bubble — capture them. Every output-funnel <audio>/<video> reports its
+    // play/pause/seek/position upward so the parent always holds a fresh resume point.
+    ["play","pause","ended","seeked","timeupdate"].forEach(function(ev){
+      document.addEventListener(ev, function(e){
+        const el = e.target;
+        if(el && (el.tagName==="AUDIO" || el.tagName==="VIDEO")) reportMedia(el, ev);
+      }, true);
     });
   }
 
@@ -5563,15 +5638,23 @@ function setShareDirty(on){
 }
 function renderApp(){
   const frame = $("appframe");
+  // Playback continuity: snapshot the listening session BEFORE the teardown below. If the outgoing
+  // document was mid-track (a customize apply / version switch used to just cut the song off), the
+  // fresh mount is asked to seek that card and keep playing once its stored results are restored.
+  const resume = (NOW_MEDIA && NOW_MEDIA.app!=null && NOW_MEDIA.app===CUR_ID) ? NOW_MEDIA : null;
+  NOW_MEDIA = null;
   setShareDirty(false);   // a fresh mount starts clean and won't re-post until it diverges, so clear our flag
   paceReset();            // every mount reboots the app's JS from scratch, so hand it a full request budget
   frame.sandbox = "allow-scripts allow-downloads";   // allow-downloads: the output cards' ⭳ Download button
-  frame.onload = () => { pushAuthToApp(); pushOutputsToApp(); };   // auth state + last visit's stored results
+  frame.onload = () => { pushAuthToApp(); pushOutputsToApp(resume); };   // auth state + last visit's stored results
   frame.srcdoc = withPreamble(bundle(APP_STATE.files));
 }
 function postToApp(msg){ try{ $("appframe").contentWindow.postMessage(msg, "*"); }catch(_){} }
 // tell the app whether WE (the parent) are signed in — never the key itself
 function pushAuthToApp(){ postToApp({ type:"__auth__", signedIn: !!getKey() }); }
+// What the app's output funnel is playing right now (__media__ reports). RAM only — never stored,
+// never sent anywhere — and pinned to the app it was heard in so an app switch can't mis-resume.
+let NOW_MEDIA = null;
 
 // ----- imported-app request pacing -----
 // A shared (#a=) app is arbitrary JS in a null-origin sandbox that can reach NanoGPT only by asking
@@ -5741,6 +5824,12 @@ addEventListener("message", async (e) => {
     if(CUR_ID && d.node && e.source === $("appframe").contentWindow) persistNodeOut(CUR_ID, d);
     return;
   }
+  // the app's output funnel started/paused/progressed a track — remember the freshest resume
+  // point so a customize/version remount can hand the listening session back (renderApp).
+  if(d && d.type === "__media__"){
+    if(d.node!=null) NOW_MEDIA = { app:CUR_ID, node:String(d.node), ord:d.ord|0, t:+d.t||0, playing:!!d.playing, at:Date.now() };
+    return;
+  }
   // the running app diverged from (or returned to) its template — flag/unflag Share so a
   // viewer who swapped a model or edited a prefilled prompt knows the link copies the app, not their session
   if(d && d.type === "__dirty__"){ setShareDirty(d.dirty); return; }
@@ -5840,6 +5929,9 @@ How the app works, so you can build on it safely:
   fields (inside #app-inputs), enhance the result cards in #app-output (zoom, download, compare,
   grid), drive #app-run, persist to localStorage, add shortcuts or animation. Do NOT redefine or
   remove the engine, and do NOT touch the embedded workflow.
+- Never rebuild, re-append, re-sort or innerHTML-replace the result cards already inside
+  #app-output: moving or recreating a card's <audio>/<video> stops the user's playback mid-listen.
+  The engine only ever PREPENDS new cards there — style and decorate existing cards in place.
 
 How to answer — this is a non-interactive pipeline, so:
 - ALWAYS respond with a unified git diff in a fenced code block whose language tag is exactly "diff".
@@ -6375,13 +6467,21 @@ async function trimOuts(db, appId){
   }
   if(drop.length){ const st = otx(db, "readwrite"); for(const k of drop) st.delete(k); }
 }
-async function pushOutputsToApp(){
+async function pushOutputsToApp(resume){
   if(!CUR_ID) return;
   const appId = CUR_ID;
   try{
     const db = await odb();
     const recs = await oreq(otx(db, "readonly").index("app").getAll(appId));
-    if(recs && recs.length && CUR_ID===appId) postToApp({ type:"__restore__", outs: recs });
+    if(recs && recs.length && CUR_ID===appId){
+      postToApp({ type:"__restore__", outs: recs });
+      // the pre-remount document was mid-track on this app → hand the session back. The song
+      // notionally kept playing while the customize applied, so project the position forward
+      // from the last report; a seek past the end just parks the card at its final second.
+      if(resume && resume.app===appId)
+        postToApp({ type:"__resume__", node:resume.node, ord:resume.ord,
+                    t: resume.t + (resume.playing ? (Date.now()-resume.at)/1000 : 0), playing:resume.playing });
+    }
   }catch(_){ /* no stored outputs is a perfectly fine boot */ }
 }
 async function dropOuts(appId){
