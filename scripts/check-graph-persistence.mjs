@@ -166,6 +166,7 @@ const ctx = {
   applyWorld() {}, buildNodeEl() {}, redraw() {}, refreshPortFills() {}, refreshAllPrices() {},
   recompactImageLinks() {}, refreshImageInputs() {}, recompactVideoLinks() {}, refreshVideoInputs() {},
   refreshRunEstimate() {}, syncUndoBtn() {}, flash() {}, toast() {}, appHandoffSig() { return ""; },
+  refreshAppButton() { return false; }, layoutBar() {},   // save() live-refreshes the ✨ Open↔Update label (UI touchpoint, stubbed like refreshRunEstimate)
   t: (s) => s,
   // save() debounces via setTimeout(…,250); run it synchronously so the write lands before we assert
   setTimeout: (fn) => { fn(); return 0; }, clearTimeout() {},

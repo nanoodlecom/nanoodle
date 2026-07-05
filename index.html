@@ -1159,6 +1159,8 @@ const I18N = {
     "🚀 App":"🚀 App",
     "Update {app}":"Actualizar {app}",
     "Update “{app}” with this workflow":"Actualizar “{app}” con este flujo",
+    "Open {app}":"Abrir {app}",
+    "Open “{app}” — it already has this workflow":"Abrir “{app}” — ya tiene este flujo",
     "your app":"tu app",
     "✓ Copied":"✓ Copiado",
     "✓ Short":"✓ Acortado",
@@ -1590,6 +1592,8 @@ const I18N = {
     "🚀 App":"🚀 App",
     "Update {app}":"Mettre à jour {app}",
     "Update “{app}” with this workflow":"Mettre à jour « {app} » avec ce workflow",
+    "Open {app}":"Ouvrir {app}",
+    "Open “{app}” — it already has this workflow":"Ouvrir « {app} » — elle a déjà ce workflow",
     "your app":"votre app",
     "✓ Copied":"✓ Copié",
     "✓ Short":"✓ Raccourci",
@@ -2010,6 +2014,8 @@ const I18N = {
     "🚀 App":"🚀 App",
     "Update {app}":"{app} aktualisieren",
     "Update “{app}” with this workflow":"„{app}“ mit diesem Workflow aktualisieren",
+    "Open {app}":"{app} öffnen",
+    "Open “{app}” — it already has this workflow":"„{app}“ öffnen — hat bereits diesen Workflow",
     "your app":"deine App",
     "✓ Copied":"✓ Kopiert",
     "✓ Short":"✓ Gekürzt",
@@ -2432,6 +2438,8 @@ const I18N = {
     "🚀 App":"🚀 App",
     "Update {app}":"Atualizar {app}",
     "Update “{app}” with this workflow":"Atualizar “{app}” com este fluxo",
+    "Open {app}":"Abrir {app}",
+    "Open “{app}” — it already has this workflow":"Abrir “{app}” — já tem este fluxo",
     "your app":"seu app",
     "✓ Copied":"✓ Copiado",
     "✓ Short":"✓ Encurtado",
@@ -2851,6 +2859,8 @@ const I18N = {
     "Your entry link":"あなたの応募リンク",
     "Update {app}":"{app} を更新",
     "Update “{app}” with this workflow":"このワークフローで「{app}」を更新",
+    "Open {app}":"{app} を開く",
+    "Open “{app}” — it already has this workflow":"「{app}」を開く — すでにこのワークフローが含まれています",
     "your app":"あなたのアプリ",
     "✓ Copied":"✓ コピー済み",
     "✓ Short":"✓ 短縮済み",
@@ -8202,6 +8212,7 @@ const EDITOR_APP_KEY = "noodle_editor_app";  // localStorage: {id,title} of the 
 let saveT=null;
 function save(){
   refreshRunEstimate();                 // keep the bottom-right run cost live as the graph is edited
+  if(refreshAppButton()) layoutBar();   // flip ✨ Open↔Update live: an edit that diverges from (or re-matches) the bound app's saved graph — only re-measure the bar when the label text actually changed
   clearTimeout(saveT);
   saveT = setTimeout(()=>{
     try{ localStorage.setItem("noodle_graph", JSON.stringify(serializeGraph())); }
@@ -8416,22 +8427,59 @@ function setPendingApp(id, title){
   }catch(_){}
   updateTitle();
 }
+// True only when the canvas is bound to an app AND that app's SAVED graph matches the canvas —
+// i.e. there is genuinely nothing to Update. appHandoffSig("what the app consumes") ignores
+// layout/pan/zoom, and its app: field is the SAME pendingAppId on both sides so it cancels out
+// (identical comparison to buildShareUrl's divergence warning). When in doubt — app missing from
+// the library, unreadable store, or sigs differ — return false so the button still says "Update"
+// and never falsely claims up-to-date.
+function boundAppUpToDate(){
+  if(!pendingAppId) return false;
+  try{
+    const apps = JSON.parse(localStorage.getItem("noodle_apps") || "[]");
+    const app = (Array.isArray(apps) ? apps : []).find(a=> a && a.id===pendingAppId);
+    if(!app || !app.graph) return false;
+    return appHandoffSig(app.graph) === appHandoffSig();
+  }catch(_){ return false; }
+}
+// Just the primary app-action button's label + tooltip — the slice of updateTitle() that must
+// stay live as the graph is edited (save() calls this on every change). When bound and already
+// up to date it says "✨ Open <app>" (clicking still just re-opens the builder — the openCreateApp
+// same-graph fast path — so the label finally tells the truth); a divergent canvas keeps "Update".
+// Returns true iff the visible label TEXT changed (Open↔Update↔Create flips the button width →
+// the caller re-runs layoutBar()); the tooltip is refreshed unconditionally (cheap, no reflow).
+let _appBtnLabel = null;
+function refreshAppButton(){
+  const mk = $("makeapp");
+  if(!mk) return false;
+  const appTitle = (pendingAppTitle || "").trim();   // NB: not named `t` — that's the global translation fn
+  // Name the destination so the primary can never quietly overwrite the wrong app.
+  // The label rides in a .lbl span so phones can collapse the button to ✨ (title keeps the words).
+  const short = appTitle ? (appTitle.length > 20 ? appTitle.slice(0,19)+"…" : appTitle) : "app";
+  let label, title;
+  if(!pendingAppId){
+    label = t("Create app");
+    title = t("Turn this workflow into a shareable app");
+  } else if(boundAppUpToDate()){
+    label = t("Open {app}").replace("{app}", esc(short));
+    title = t("Open “{app}” — it already has this workflow").replace("{app}", appTitle || t("your app"));
+  } else {
+    label = t("Update {app}").replace("{app}", esc(short));
+    title = t("Update “{app}” with this workflow").replace("{app}", appTitle || t("your app"));
+  }
+  mk.title = title;
+  const changed = label !== _appBtnLabel;
+  if(changed){ _appBtnLabel = label; mk.innerHTML = `✨<span class="lbl"> ${label}</span>`; }
+  return changed;
+}
 // "nanoodle — like ComfyUI, but way simpler" while noodling; "nanoodle - <app> app" once an app's workflow is loaded.
 // Also keeps the action button honest: it says "Update app" (and reveals a "New" escape hatch)
 // whenever a binding is live, so "Create app" can never quietly overwrite an app you forgot about.
 function updateTitle(){
   const appTitle = (pendingAppTitle || "").trim();   // NB: not named `t` — that's the global translation fn
   document.title = pendingAppId ? `nanoodle - ${appTitle || "app"} app` : "nanoodle — like ComfyUI, but way simpler";
-  const mk = $("makeapp"), nw = $("newapp"), more = $("appmore");
-  if(mk){
-    // Name the destination so the primary can never quietly overwrite the wrong app.
-    // The label rides in a .lbl span so phones can collapse the button to ✨ (title keeps the words).
-    const short = appTitle ? (appTitle.length > 20 ? appTitle.slice(0,19)+"…" : appTitle) : "app";
-    mk.innerHTML = `✨<span class="lbl"> ${pendingAppId ? t("Update {app}").replace("{app}", esc(short)) : t("Create app")}</span>`;
-    mk.title = pendingAppId
-      ? t("Update “{app}” with this workflow").replace("{app}", appTitle || t("your app"))
-      : t("Turn this workflow into a shareable app");
-  }
+  const nw = $("newapp"), more = $("appmore");
+  refreshAppButton();
   // The caret opens for two reasons: a live binding (the "Save as a new app" escape hatch)
   // or a non-empty app library ("≡ My apps" — the way back to your apps from the editor).
   // Each fork hides on its own condition, so the popover only ever lists what applies.
