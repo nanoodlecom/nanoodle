@@ -971,10 +971,11 @@ window.NoodleApp = (function () {
   function costFromJson(j){
     if(!j) return { usd:null, balance:null };
     // images/video/audio price top-level (j.cost); chat completions ride it in
-    // x_nanogpt_pricing (costUsd|cost) — without this, LLM calls never bump spend.
+    // x_nanogpt_pricing (costUsd|cost|amount — Anthropic routes send only {amount,currency})
+    // — without this, LLM calls never bump spend.
     // A present-but-ZERO price is known-free (subscription-included), NOT unknown:
     // keep it as 0 so the meter stays exact and the node can show "included".
-    const p = j.x_nanogpt_pricing, pUsd = p && (p.costUsd!=null ? p.costUsd : p.cost);
+    const p = j.x_nanogpt_pricing, pUsd = p && (p.costUsd!=null ? p.costUsd : (p.cost!=null ? p.cost : p.amount));
     const mUsd = j.metadata && j.metadata.cost;        // the transcription endpoint reports price here
     const usd = (typeof j.cost==="number" && j.cost>0) ? j.cost
               : (pUsd!=null && isFinite(Number(pUsd))) ? Number(pUsd)
@@ -3849,9 +3850,26 @@ function mp4ParamsMatch(bufs){
   }
   function laneStep(i, id, kind, msg){
     const L = RUN && RUN.lanes[i]; if(!L) return;
-    L.state[id] = { kind:kind, msg:msg };
+    const prev = L.state[id];
+    // Per-node start stamp: set once when a node first enters "run", preserved across
+    // later "run" msg updates, so the now-line timer clocks THAT node — not the most
+    // recently started one (nodes run in parallel and can settle out of start order).
+    const t0 = (kind==="run") ? ((prev && prev.kind==="run" && prev.t0) ? prev.t0 : Date.now())
+                              : (prev ? prev.t0 : 0);
+    L.state[id] = { kind:kind, msg:msg, t0:t0 };
     if(kind==="run" && L.curId!==id){ L.curId = id; L.curT0 = Date.now(); }
     paintRuns();
+  }
+  // Which node to surface as "now running". Nodes execute in parallel and can settle
+  // out of the order they started, so the last-STARTED node (L.curId) may already be
+  // done while an earlier-order node is still running. Prefer L.curId while it's still
+  // running; else the first still-running node in graph order; else (between steps,
+  // nothing running) fall back to L.curId — the prior behavior.
+  function liveNowId(L){
+    if(L.curId != null){ const c = L.state[L.curId]; if(c && c.kind==="run") return L.curId; }
+    const order = L.order || [];
+    for(let k=0; k<order.length; k++){ const s = L.state[order[k]]; if(s && s.kind==="run") return order[k]; }
+    return L.curId;
   }
   function laneStats(L){
     const order = L.order || [], total = order.length; let done = 0, errs = 0;
@@ -3893,13 +3911,14 @@ function mp4ParamsMatch(bufs){
   }
   function singleLaneHtml(L){
     const st = laneStats(L); let now = "";
-    if(!st.finished && L.curId != null){
-      const cur = L.state[L.curId] || {}, idx = st.order.indexOf(L.curId) + 1;
+    const nowId = st.finished ? null : liveNowId(L);
+    if(!st.finished && nowId != null){
+      const cur = L.state[nowId] || {}, idx = st.order.indexOf(nowId) + 1;
       now = '<div class="prog-now">'
           + '<span class="prog-step">Step ' + idx + ' / ' + st.total + '</span>'
-          + '<b class="prog-node">' + esc(stepLabel(L.curId)) + '</b>'
+          + '<b class="prog-node">' + esc(stepLabel(nowId)) + '</b>'
           + '<span class="prog-msg">' + esc(cur.msg || "working…") + '</span>'
-          + '<span class="prog-el">' + fmtClock(Date.now()-L.curT0) + '</span></div>';
+          + '<span class="prog-el">' + fmtClock(Date.now()-(cur.t0 || L.curT0)) + '</span></div>';
     } else if(st.finished){
       now = L.stopped
         ? '<div class="prog-now">⏹ Stopped · ' + st.done + '/' + st.total + ' steps · ' + fmtClock(L.endAt-L.t0) + '</div>'
@@ -3917,9 +3936,9 @@ function mp4ParamsMatch(bufs){
       mid = L.stopped ? '<span class="prog-msg">⏹ stopped</span>'
           : st.errs ? '<span class="prog-msg is-err">' + st.errs + ' error' + (st.errs>1?"s":"") + '</span>'
                     : '<span class="prog-msg is-ok">✓ done</span>';
-    } else if(L.curId != null){
-      const cur = L.state[L.curId] || {};
-      mid = '<b class="prog-node">' + esc(stepLabel(L.curId)) + '</b> <span class="prog-msg">' + esc(cur.msg || "working…") + '</span>';
+    } else if(liveNowId(L) != null){
+      const nowId = liveNowId(L), cur = L.state[nowId] || {};
+      mid = '<b class="prog-node">' + esc(stepLabel(nowId)) + '</b> <span class="prog-msg">' + esc(cur.msg || "working…") + '</span>';
     } else { mid = '<span class="prog-msg">starting…</span>'; }
     return '<div class="lane' + (st.finished?" is-done":"") + '">'
          + '<span class="lane-no">Run ' + (L.idx+1) + '</span>'
@@ -4215,9 +4234,10 @@ function mp4ParamsMatch(bufs){
      Generated results are what the user paid for, and they used to live only in this
      document's memory — switching apps or reloading emptied every card. The sandboxed
      iframe has no storage of its own (opaque origin), so each finished OUTPUT-node result
-     is posted to the parent (Blobs ride the structured clone) and the parent keeps the
-     latest one per node in IndexedDB. On every (re)mount the parent posts them back and
-     they render as ordinary cards with a "from your last visit" badge. Standalone exports
+     is posted to the parent (Blobs ride the structured clone) and the parent keeps a
+     rolling history per node in IndexedDB. On every (re)mount the parent posts them back
+     and they render as ordinary cards, newest on top — the newest wears the "from your
+     last visit" badge, older ones a local timestamp. Standalone exports
      have no parent — persistOut is EMBEDDED-gated and restore simply never arrives.
      Serialization notes: data: URLs are decoded by hand (fetch(data:) is blocked by the
      iframe's sealed connect-src; atob isn't network); blob: URLs are re-read via fetch
@@ -4280,7 +4300,13 @@ function mp4ParamsMatch(bufs){
       }
       if(!Object.keys(out).length) continue;
       var node = Object.assign({}, gn, { out:out });   // real node (fields/name intact) wearing the stored result
-      var card = resultCard(node, '<span class="run-badge" title="'+esc(t("made here last time — stored only in this browser"))+'">'+esc(t("↺ from your last visit"))+'</span> ');
+      // Newest card keeps the friendly badge; older history is stamped with its local time —
+      // dates self-localize (toLocaleString), so no dictionary entry per language is needed.
+      var label = esc(t("↺ from your last visit"));
+      if(i < list.length - 1 && rec.updated){
+        try{ label = "↺ " + esc(new Date(rec.updated).toLocaleString(undefined, { dateStyle:"short", timeStyle:"short" })); }catch(_){}
+      }
+      var card = resultCard(node, '<span class="run-badge" title="'+esc(t("made here last time — stored only in this browser"))+'">'+label+'</span> ');
       if(card){ box.insertBefore(card, box.firstChild); restored++; }
     }
     if(restored) clearOutputPlaceholder();
@@ -5134,7 +5160,17 @@ const RUNTIME_WIDGET_CSS =
 .loop[hidden], .count[hidden]{ display:none !important; }
 .loop{ display:flex; align-items:center; gap:.4rem; font-size:.8rem; color:var(--dim); cursor:pointer; user-select:none; }
 .loop input{ accent-color:var(--accent); width:1rem; height:1rem; cursor:pointer; margin:0; }
-.loop:hover{ color:var(--ink); }`;
+.loop:hover{ color:var(--ink); }
+
+/* run-progress "working" segment — a blue/violet shimmer, clearly distinct from
+   .seg.error (red) and .seg.done (green) so an in-flight step never reads as failing.
+   The extra .prog-track qualifier bumps specificity above the single-class .seg.active
+   copy frozen into every pre-existing app's stored app.css — bundle() emits this block
+   BEFORE that stored css, so at equal specificity the old rule would win and the recolor
+   would be invisible in exactly the apps that already exist. Higher specificity wins it. */
+.prog-track .seg.active{ background:linear-gradient(90deg,var(--accent-line,#7c8cff),#5b9bff,var(--accent-line,#7c8cff));
+  background-size:200% 100%; animation:prog-shimmer 1.1s linear infinite; }
+@keyframes prog-shimmer{ 0%{ background-position:200% 0; } 100%{ background-position:-200% 0; } }`;
 
 function defaultFiles(graph){
   const title = deriveTitle(graph);
@@ -5286,7 +5322,7 @@ body{ background:
 .seg.done{ background:var(--ok); }
 .seg.error{ background:var(--danger); }
 .seg.stopped{ background:var(--faint,#5d6788); }   /* cancelled mid-run — neutral, no shimmer */
-.seg.active{ background:linear-gradient(90deg,var(--accent-line),var(--accent),var(--accent-line));
+.seg.active{ background:linear-gradient(90deg,var(--accent-line,#7c8cff),#5b9bff,var(--accent-line,#7c8cff));
   background-size:200% 100%; animation:prog-shimmer 1.1s linear infinite; }
 @keyframes prog-shimmer{ 0%{ background-position:200% 0; } 100%{ background-position:-200% 0; } }
 .prog-now{ display:flex; align-items:center; gap:.55rem; flex-wrap:wrap; font-size:.82rem; color:var(--ink); }
@@ -5806,6 +5842,15 @@ How the app works, so you can build on it safely:
   grid), drive #app-run, persist to localStorage, add shortcuts or animation. Do NOT redefine or
   remove the engine, and do NOT touch the embedded workflow.
 
+How to answer — this is a non-interactive pipeline, so:
+- ALWAYS respond with a unified git diff in a fenced code block whose language tag is exactly "diff".
+  Never ask clarifying questions, never answer in prose, and never conclude that no change is needed.
+- If the goal is broad or vague ("make it awesome", "improve it"), do not bounce it back: choose 2–4
+  concrete, high-impact upgrades yourself (a fitting visual identity, a delightful output gallery,
+  presets, keyboard shortcuts, saved history…) and implement those.
+- Keep the diff focused: emit hunks only for the lines you actually change, with a few lines of
+  context. Do not restate whole files or rewrite sections you are not changing.
+
 Keep it self-contained, responsive and accessible. Below is a description of the workflow this app is
 a front-end for — use it to give the app a fitting identity and to reason about what the user is
 trying to accomplish, then make their requested change in a way that genuinely serves that goal.`;
@@ -5832,12 +5877,7 @@ function resetUsage(){ USAGE.inTok = USAGE.outTok = USAGE.cost = 0; USAGE.exact 
 function streamingCallLlm(phase){
   return async ({ apiKey, baseUrl, model, messages, maxTokens=null, temperature=1.0 }) => {
     const inEst = estMsgs(messages);
-    let usedModel = model;                                     // may switch to FALLBACK_MODEL if the chosen model is overloaded
     const priceFor = (m)=>{ const p = priceOf(m) || {}; return [(Number(p.pin)||0)/1e6, (Number(p.pout)||0)/1e6]; };
-    let [inPer, outPer] = priceFor(usedModel);                // per-1M USD from the catalog
-    let outTok = 0, liveCost = inEst*inPer;
-    const paint = ()=> $("cust-status").innerHTML = '<span class="spin">◐</span> ' + esc(phase) + '… ' + usageMeter({ inTok:inEst, outTok, cost:liveCost });
-    paint();
     const endpoint = (baseUrl || (NANOGPT + "/api/v1/")).replace(/\/+$/,"") + "/chat/completions";
     // No max_tokens by default → avoids silent truncation that yields an unparseable diff.
     const send = (m)=> fetch(endpoint, {
@@ -5846,48 +5886,85 @@ function streamingCallLlm(phase){
       body: JSON.stringify({ model:m, messages, ...(maxTokens?{max_tokens:maxTokens}:{}), temperature, stream:true }),
       signal: custAbort && custAbort.signal,   // ■ Stop aborts the request; reader.read() below then rejects with AbortError
     });
-    let r = await send(usedModel);
-    // Chosen model is overloaded or down (429 / 503 / any 5xx) → fall back to a reliable model and retry once,
-    // so a flaky default never kills the customize. The user's own pick still gets first crack.
-    if(!r.ok && (r.status===429 || r.status>=500) && usedModel!==FALLBACK_MODEL){
-      try{ await r.body?.cancel(); }catch(_){}
-      usedModel = FALLBACK_MODEL; [inPer, outPer] = priceFor(usedModel); liveCost = inEst*inPer;
-      $("cust-status").innerHTML = '<span class="spin">◐</span> ' + esc(model) + ' is busy — retrying with ' + esc(FALLBACK_MODEL) + '…';
-      r = await send(usedModel);
-    }
-    if(!r.ok) throw new Error("LLM " + r.status + ": " + (await r.text()).slice(0,300));
-    const reader = r.body.getReader(), dec = new TextDecoder();
-    let buf="", content="", reasoning="", pricing=null, lastPaint=0;
-    for(;;){
-      const { value, done } = await reader.read();
-      if(done) break;
-      buf += dec.decode(value, { stream:true });
-      const lines = buf.split("\n"); buf = lines.pop();
-      for(const line of lines){
-        const t = line.trim();
-        if(!t.startsWith("data:")) continue;
-        const data = t.slice(5).trim();
-        if(data === "[DONE]") continue;
-        let j; try{ j = JSON.parse(data); }catch{ continue; }
-        const d = j.choices && j.choices[0] && j.choices[0].delta;
-        if(d){
-          if(d.content) content += d.content;
-          if(d.reasoning) reasoning += d.reasoning;          // thinking tokens still cost output
-          outTok = estTok(content)+estTok(reasoning);
-          liveCost = inEst*inPer + outTok*outPer;
-          const now = performance.now();
-          if(now - lastPaint > 120){ lastPaint = now; paint(); }
+    // Some upstreams (the Anthropic routes especially) fail INSIDE a 200 SSE stream: the gateway
+    // holds the connection ~90s with keep-alive chunks, then emits {error:{code:"upstream_timeout"}}
+    // + finish_reason:"error" having produced NO content. The flake is transient, so the chosen
+    // model gets a second chance — otherwise an empty stream would surface as the misleading
+    // "No applicable change". In-stream flakes NEVER walk past the user's own pick (no silent
+    // model swap); the FALLBACK_MODEL rung is reachable only via the HTTP 429/5xx jump below,
+    // which announces the switch in the status line.
+    const plan = model===FALLBACK_MODEL ? [model, model] : [model, model, FALLBACK_MODEL];
+    let lastErr = null;
+    for(let a=0; a<plan.length; a++){
+      const usedModel = plan[a];
+      const [inPer, outPer] = priceFor(usedModel);            // per-1M USD from the catalog
+      let outTok = 0, liveCost = inEst*inPer;
+      const paint = ()=> $("cust-status").innerHTML = '<span class="spin">◐</span> ' + esc(phase) + '… ' + usageMeter({ inTok:inEst, outTok, cost:liveCost });
+      paint();
+      const r = await send(usedModel);
+      // Chosen model is overloaded or down (429 / 503 / any 5xx) → skip straight to the last rung
+      // (FALLBACK_MODEL), so a flaky default never kills the customize. The user's own pick still
+      // gets first crack; anything non-retryable (401 etc.) throws immediately.
+      if(!r.ok){
+        if((r.status===429 || r.status>=500) && a < plan.length-1){
+          try{ await r.body?.cancel(); }catch(_){}
+          lastErr = new Error("LLM " + r.status);
+          $("cust-status").innerHTML = '<span class="spin">◐</span> ' + esc(usedModel) + ' is busy — retrying with ' + esc(plan[plan.length-1]) + '…';
+          a = plan.length-2;                                  // next loop iteration = final rung
+          continue;
         }
-        if(j.x_nanogpt_pricing) pricing = j.x_nanogpt_pricing;   // exact tokens + USD (final chunk, when present)
+        throw new Error("LLM " + r.status + ": " + (await r.text().catch(()=>"")).slice(0,300));
       }
+      const reader = r.body.getReader(), dec = new TextDecoder();
+      let buf="", content="", reasoning="", pricing=null, lastPaint=0, streamErr=null;
+      for(;;){
+        const { value, done } = await reader.read();
+        if(done) break;
+        buf += dec.decode(value, { stream:true });
+        const lines = buf.split("\n"); buf = lines.pop();
+        for(const line of lines){
+          const t = line.trim();
+          if(!t.startsWith("data:")) continue;
+          const data = t.slice(5).trim();
+          if(data === "[DONE]") continue;
+          let j; try{ j = JSON.parse(data); }catch{ continue; }
+          if(j.error) streamErr = j.error.message || j.error.code || "upstream error";   // error-in-stream: HTTP was 200, the failure rides in a chunk
+          const c0 = j.choices && j.choices[0];
+          if(c0 && c0.finish_reason === "error" && !streamErr) streamErr = "upstream error";
+          const d = c0 && c0.delta;
+          if(d){
+            if(d.content) content += d.content;
+            if(d.reasoning) reasoning += d.reasoning;                          // thinking tokens still cost output
+            else if(d.reasoning_content) reasoning += d.reasoning_content;     // some providers use this key instead
+            outTok = estTok(content)+estTok(reasoning);
+            liveCost = inEst*inPer + outTok*outPer;
+            const now = performance.now();
+            if(now - lastPaint > 120){ lastPaint = now; paint(); }
+          }
+          if(j.x_nanogpt_pricing) pricing = j.x_nanogpt_pricing;   // exact tokens + USD (final chunk, when present)
+        }
+      }
+      // the stream died before producing anything → nothing was (or will be) charged; retry, but
+      // only while the next rung is still the model the user picked (never swap models silently)
+      if(streamErr && !content.trim()){
+        if(a < plan.length-1 && plan[a+1]===usedModel){
+          $("cust-status").innerHTML = '<span class="spin">◐</span> ' + esc(usedModel) + ' timed out — retrying…';
+          continue;
+        }
+        throw new Error(usedModel + " didn't answer (" + streamErr + ") — try again or pick a different model");
+      }
+      // commit this call: prefer exact pricing, else the per-1M price-table estimate.
+      // (Anthropic routes report only {amount,currency} — no token counts.)
+      const exactCost = pricing && (pricing.costUsd != null ? pricing.costUsd : (pricing.cost != null ? pricing.cost : pricing.amount));
+      USAGE.inTok  += (pricing && pricing.inputTokens  != null) ? pricing.inputTokens  : inEst;
+      USAGE.outTok += (pricing && pricing.outputTokens != null) ? pricing.outputTokens : outTok;
+      if(exactCost != null){ USAGE.cost += Number(exactCost); }
+      else { USAGE.cost += inEst*inPer + outTok*outPer; USAGE.exact = false; }   // estimate → keep the ~
+      // died mid-generation with partial output → a truncated diff must not be half-applied
+      if(streamErr) throw new Error(usedModel + "'s reply was cut off mid-stream (" + streamErr + ") — try again");
+      return { choices:[{ message:{ content } }] };   // shape gptdiff-js expects
     }
-    // commit this call: prefer exact pricing, else the per-1M price-table estimate
-    const exactCost = pricing && (pricing.costUsd != null ? pricing.costUsd : pricing.cost);
-    USAGE.inTok  += (pricing && pricing.inputTokens  != null) ? pricing.inputTokens  : inEst;
-    USAGE.outTok += (pricing && pricing.outputTokens != null) ? pricing.outputTokens : outTok;
-    if(exactCost != null){ USAGE.cost += Number(exactCost); }
-    else { USAGE.cost += inEst*inPer + outTok*outPer; USAGE.exact = false; }   // estimate → keep the ~
-    return { choices:[{ message:{ content } }] };   // shape gptdiff-js expects
+    throw lastErr || new Error("LLM call failed");
   };
 }
 
@@ -6190,8 +6267,9 @@ function newId(){ return "app_" + Date.now().toString(36) + Math.random().toStri
    Generated results are the thing the user actually paid for, and they used to live only in the
    app iframe's memory — a reload or an app switch emptied every card. The sandboxed iframe can't
    store anything itself (opaque origin), so the runtime posts each finished output up here
-   (__persist__, Blobs ride the structured clone), we keep the LATEST result per (app, node) in
-   IndexedDB, and every (re)mount pushes that app's records back down (__restore__). localStorage
+   (__persist__, Blobs ride the structured clone), we keep a rolling HISTORY of results per
+   (app, node) in IndexedDB — every run appends; per-node count and per-app byte caps roll the
+   oldest off — and every (re)mount pushes that app's records back down (__restore__). localStorage
    can't carry this (≈5MB, strings only — one generated image is 1–3MB of base64); IDB stores
    Blobs natively with a quota in the gigabytes. Everything stays on this device — nothing is
    uploaded anywhere, same promise as the rest of the product. All of it is best-effort: private
@@ -6199,7 +6277,9 @@ function newId(){ return "app_" + Date.now().toString(36) + Math.random().toStri
    session), never to a broken run. */
 const ODB_NAME = "noodle_outputs", ODB_STORE = "outs";
 const ODB_CAP = 400 * 1024 * 1024;      // global budget across all apps — LRU-evicted by app past this
-const ODB_REC_MAX = 80 * 1024 * 1024;   // one record (one node's latest result) can't hog the budget
+const ODB_REC_MAX = 80 * 1024 * 1024;   // one record (one result) can't hog the budget
+const ODB_NODE_KEEP = 25;               // history depth per (app, node) — oldest results roll off
+const ODB_APP_CAP = 250 * 1024 * 1024;  // one app's history can't starve every other app of the global budget
 let _odbp = null;
 function odb(){
   if(_odbp) return _odbp;
@@ -6261,7 +6341,11 @@ async function persistNodeOut(appId, d){
         }
       }
     }
-    const rec = { k: appId + "|" + d.node, app: appId, node: d.node, ntype: d.ntype, ports, updated: Date.now() };
+    // Unique key per result → every run APPENDS to the node's history instead of replacing it
+    // (pre-history records keyed appId|node still load and restore as ordinary history entries).
+    const now = Date.now();
+    const rec = { k: appId + "|" + d.node + "|" + now.toString(36) + Math.random().toString(36).slice(2, 7),
+                  app: appId, node: d.node, ntype: d.ntype, ports, updated: now };
     rec.bytes = recBytes(rec);
     if(rec.bytes > ODB_REC_MAX) return;
     const db = await odb();
@@ -6271,8 +6355,23 @@ async function persistNodeOut(appId, d){
       await oreq(otx(db, "readwrite").put(rec));
     }
     askPersistOnce();
+    await trimOuts(db, appId);
     await enforceOutCap(db, appId, ODB_CAP);
   }catch(_){ /* persistence is a bonus — never let it break or slow a run */ }
+}
+// Bound one app's history: newest result per node ALWAYS survives (never worse than the old
+// latest-only behavior); beyond that, history rolls off per node by count and per app by bytes.
+async function trimOuts(db, appId){
+  const recs = await oreq(otx(db, "readonly").index("app").getAll(appId));
+  recs.sort((a, b)=> (b.updated||0) - (a.updated||0));   // newest first
+  const perNode = {}, drop = [];
+  let bytes = 0;
+  for(const r of recs){
+    const nth = perNode[r.node] = (perNode[r.node]||0) + 1;
+    if(nth > 1 && (nth > ODB_NODE_KEEP || bytes + (r.bytes||0) > ODB_APP_CAP)) drop.push(r.k);
+    else bytes += r.bytes||0;
+  }
+  if(drop.length){ const st = otx(db, "readwrite"); for(const k of drop) st.delete(k); }
 }
 async function pushOutputsToApp(){
   if(!CUR_ID) return;
