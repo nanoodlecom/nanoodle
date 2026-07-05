@@ -536,7 +536,6 @@ import { buildEnvironment, generateDiff, smartapply, parseDiffPerFile, callLlmFo
 const $ = (id) => document.getElementById(id);
 const NANOGPT = "https://nano-gpt.com";
 const DEFAULT_MODEL = "zai-org/glm-5.2:thinking";            // writes the changes (user-selectable)
-const APPLY_DEFAULT = "xiaomi/mimo-v2.5-pro-ultraspeed";      // applies the diff (fast, mechanical)
 const FALLBACK_MODEL = "openai/gpt-5.4-mini";                 // auto-retry here when the chosen model is overloaded/down (429 / 5xx)
 const LS_KEY = "noodle_app_state";   // working state of the app currently open {id,title,imported,graph,files,versions,curVer}
 const RESUME_KEY = "noodle_resume_app";  // sessionStorage: the open app, stashed across an OAuth full-page redirect. NOTE the
@@ -661,12 +660,12 @@ function mountLangPickerB(){
 // One-time migration: retire xiaomi/mimo-v2.5-pro-ultraspeed as a stored Customize pick.
 // nano-gpt started 503ing it, so returning users had a dead model pinned in localStorage from
 // when it was the default. Drop the stale pick so it falls through to the live DEFAULT_MODEL.
-// Only the diff-writer key — APPLY_DEFAULT still points at ultraspeed, so ngpt_apply_model
-// matching it is expected (the apply step's 5xx fallback handles the outage).
+// ngpt_apply_model is gone too: the mechanical diff-apply phase now rides FALLBACK_MODEL
+// (fast + reliable) instead of carrying its own dead pin.
 try{ if(localStorage.getItem("ngpt_app_model") === "xiaomi/mimo-v2.5-pro-ultraspeed") localStorage.removeItem("ngpt_app_model"); }catch(_){}
+try{ localStorage.removeItem("ngpt_apply_model"); }catch(_){}
 
 let MODEL = localStorage.getItem("ngpt_app_model") || DEFAULT_MODEL;
-let APPLY = localStorage.getItem("ngpt_apply_model") || APPLY_DEFAULT;
 
 // escape exactly like index.html's esc() — used for every graph/user string put into HTML
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -6024,7 +6023,10 @@ async function runDiffPass(goal, opts){
     const applyLlm = streamingCallLlm(opts.applyLabel || "Applying changes");
     const before = { "index.html": APP_STATE.files["index.html"], "app.css": APP_STATE.files["app.css"] };
     const updated = await smartapply(diff, before, {
-      apiKey:key, model:APPLY,
+      // Applying a diff is mechanical whole-file rewriting — the fast, reliable FALLBACK_MODEL
+      // beats the user's (possibly slow thinking) pick here, and only runs at all when the
+      // deterministic patcher couldn't apply a hunk cleanly.
+      apiKey:key, model:FALLBACK_MODEL,
       callLlmForApply: (p,o,d,m,o2) => callLlmForApply(p,o,d,m,{ ...o2, callLlm:applyLlm }),
     });
 
