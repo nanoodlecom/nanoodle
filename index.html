@@ -4708,7 +4708,10 @@ const NODE_TYPES = {
       if(!prompt) throw new Error("no prompt — describe the video to generate");
       const opts = { dims:videoDimParams(n), lora:loraParams(n), extra:(n.fields.modelOpts||{}), runKey:n.id };
       const refs = collectRefInputs(inp), rspec = videoRefSpec(n);   // subject/style reference images → sent as an array under the model's ref param
-      if(refs.length && rspec){ opts.refImages = refs.slice(0, rspec.cap); opts.refKey = rspec.key; }   // clamp to the model's max so an over-wired graph never posts a paid over-limit call
+      if(refs.length && rspec){   // clamp to the model's max so an over-wired graph never posts a paid over-limit call — warn on drop, mirroring the edit node and the play twin
+        if(refs.length > rspec.cap) toast(t("dropped {n} reference image(s) over this model's limit of {max}").replace("{n}", refs.length-rspec.cap).replace("{max}", rspec.cap), "warn");
+        opts.refImages = refs.slice(0, rspec.cap); opts.refKey = rspec.key;
+      }
       const url = await ctx.genVideo(mdl(n), prompt, opts, null,
         (st,ms)=> setNodeProgress(n, `${t("rendering video…")} ${Math.round(ms/1000)}s · ${st.toLowerCase()}`));
       return { video: url };
