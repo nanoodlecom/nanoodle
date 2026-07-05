@@ -9193,6 +9193,7 @@ $("signout").onclick = ()=> setKey(null);
   // so "the model that writes your changes" is one consistent choice across Describe + Customize.
   const DESCRIBE_DEFAULT_MODEL = "zai-org/glm-5.2:thinking";
   const DESCRIBE_MODEL_KEY = "ngpt_app_model";
+  const DESCRIBE_APPLY_MODEL = "openai/gpt-5.4-mini";   // mechanical diff-apply fallback — same model play's apply phase rides (#253)
   const MEDIA_KEYS = new Set(["image","audio","video","mask"]);
 
   // Per-type field hints; structure (ports/output/modelKind) is read live from NODE_TYPES so a
@@ -9466,7 +9467,11 @@ RULES for the diff:
 - Keep every EXISTING node id stable. Give NEW nodes ids n100, n101, … (never reuse an existing id).
 - Leave a node's "model" field OUT unless the user explicitly names a model — the app fills the best current default.
 - Make sure every generator node actually gets its input: wire its main port, or set its prompt/text field.
-- Change as little as needed; don't restructure or reformat unrelated parts of the file.`;
+- Change as little as needed; don't restructure or reformat unrelated parts of the file.
+- This is a non-interactive pipeline: ALWAYS answer with the unified diff in the required fenced
+  block — never ask clarifying questions, never reply in prose, and never conclude that nothing
+  needs changing. For a broad or vague request ("make it better"), choose a small set of sensible,
+  concrete improvements yourself and make them.`;
   }
   function normalizeLinks(links){
     return (links||[]).map(l=> typeof l.from==="string" ? { from:l.from, to:l.to } : { from:`${l.from.node}.${l.from.port}`, to:`${l.to.node}.${l.to.port}` });
@@ -9481,8 +9486,11 @@ RULES for the diff:
     const parsed = gd.parseDiffPerFile(rawDiff);
     if(!rawDiff.trim() || !parsed.length) throw new Error("no applicable change — try rephrasing the request");
     // smartapply: deterministic patch first, LLM-assisted apply (metered) if it doesn't land cleanly.
+    // The apply model MUST be passed explicitly: gptdiff's own default is the retired
+    // xiaomi/mimo-v2.5-pro-ultraspeed (nano-gpt 503s it). Applying a diff is mechanical, so it
+    // rides the same fast model the play-side apply uses (Mikkel's pick), not the user's LLM.
     const applyLlm = clients && clients.apply;
-    const updated = await gd.smartapply(rawDiff, before, { apiKey:key,
+    const updated = await gd.smartapply(rawDiff, before, { apiKey:key, model: DESCRIBE_APPLY_MODEL,
       callLlmForApply: applyLlm ? (pa,or,fd,mo,op)=> gd.callLlmForApply(pa,or,fd,mo,{ ...op, callLlm: applyLlm }) : undefined });
     const outText = updated[GRAPH_FILE];
     if(outText==null) throw new Error("the diff didn’t touch the workflow");
@@ -9602,45 +9610,56 @@ RULES for the diff:
   function meteredCallLlm(phaseLabel){
     return async ({ model, messages, maxTokens=null, temperature=1.0 })=>{
       const inEst = (messages||[]).reduce((n,m)=> n+estTok(typeof m.content==="string"?m.content:JSON.stringify(m.content)), 0);
-      let outTok = 0;
-      const paint = ()=> setStatus(`<span class="db-spin"></span>${esc(phaseLabel)}… ${usageMeter({inTok:inEst,outTok,cost:0,live:true})}`);
-      paint();
-      const body = { model, messages, temperature, stream:true, ...(maxTokens?{max_tokens:maxTokens}:{}) };
-      const r = await fetch(CHAT_ENDPOINT, { method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal: dbAbort?.signal });
-      if(!r.ok){ await throwHttp(r); }
-      const reader = r.body.getReader(), dec = new TextDecoder();
-      let buf="", content="", reasoning="", pricing=null, lastPaint=0, streamErr=null;
-      for(;;){
-        const { value, done } = await reader.read(); if(done) break;
-        buf += dec.decode(value, { stream:true });
-        const lines = buf.split("\n"); buf = lines.pop();
-        for(const line of lines){
-          const t = line.trim(); if(!t.startsWith("data:")) continue;
-          const data = t.slice(5).trim(); if(data==="[DONE]") continue;
-          let j; try{ j = JSON.parse(data); }catch{ continue; }
-          // some upstreams fail INSIDE a 200 SSE stream (e.g. upstream_timeout after ~90s of
-          // keep-alives, zero content) — without this an empty reply reads as "nothing to change"
-          if(j.error) streamErr = j.error.message || j.error.code || "upstream error";
-          const c0 = j.choices?.[0];
-          if(c0?.finish_reason==="error" && !streamErr) streamErr = "upstream error";
-          const d = c0?.delta;
-          if(d){ if(d.content) content+=d.content;
-            if(d.reasoning) reasoning+=d.reasoning; else if(d.reasoning_content) reasoning+=d.reasoning_content;
-            outTok = estTok(content)+estTok(reasoning);
-            const now = (typeof performance!=="undefined"?performance.now():0);
-            if(now-lastPaint>120){ lastPaint=now; paint(); } }
-          if(j.x_nanogpt_pricing) pricing = j.x_nanogpt_pricing;
+      // Some upstreams (the Anthropic routes especially) fail INSIDE a 200 SSE stream: ~90s of
+      // keep-alive chunks, then {error:{code:"upstream_timeout"}} + finish_reason:"error" with
+      // zero content. The flake is transient, so the model gets ONE same-model retry (mirrors
+      // play's streamingCallLlm — never a silent swap to a model the user didn't pick); without
+      // this an empty reply reads as "nothing to change".
+      for(let attempt=0; attempt<2; attempt++){
+        let outTok = 0;
+        const paint = ()=> setStatus(`<span class="db-spin"></span>${esc(phaseLabel)}… ${usageMeter({inTok:inEst,outTok,cost:0,live:true})}`);
+        paint();
+        const body = { model, messages, temperature, stream:true, ...(maxTokens?{max_tokens:maxTokens}:{}) };
+        const r = await fetch(CHAT_ENDPOINT, { method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal: dbAbort?.signal });
+        if(!r.ok){ await throwHttp(r); }
+        const reader = r.body.getReader(), dec = new TextDecoder();
+        let buf="", content="", reasoning="", pricing=null, lastPaint=0, streamErr=null;
+        for(;;){
+          const { value, done } = await reader.read(); if(done) break;
+          buf += dec.decode(value, { stream:true });
+          const lines = buf.split("\n"); buf = lines.pop();
+          for(const line of lines){
+            const t = line.trim(); if(!t.startsWith("data:")) continue;
+            const data = t.slice(5).trim(); if(data==="[DONE]") continue;
+            let j; try{ j = JSON.parse(data); }catch{ continue; }
+            if(j.error) streamErr = j.error.message || j.error.code || "upstream error";   // error-in-stream: HTTP was 200
+            const c0 = j.choices?.[0];
+            if(c0?.finish_reason==="error" && !streamErr) streamErr = "upstream error";
+            const d = c0?.delta;
+            if(d){ if(d.content) content+=d.content;
+              if(d.reasoning) reasoning+=d.reasoning; else if(d.reasoning_content) reasoning+=d.reasoning_content;
+              outTok = estTok(content)+estTok(reasoning);
+              const now = (typeof performance!=="undefined"?performance.now():0);
+              if(now-lastPaint>120){ lastPaint=now; paint(); } }
+            if(j.x_nanogpt_pricing) pricing = j.x_nanogpt_pricing;
+          }
         }
+        // the stream died before producing anything → nothing was (or will be) charged, so don't
+        // commit usage; retry once, then throw a real error instead of surfacing an empty reply
+        if(streamErr && !content.trim()){
+          if(attempt===0){ setStatus(`<span class="db-spin"></span>${esc(model)} timed out — retrying…`); continue; }
+          throw new Error(model + " didn't answer (" + streamErr + ") — try again or pick a different model");
+        }
+        USAGE.inTok  += (pricing && pricing.inputTokens!=null)  ? pricing.inputTokens  : inEst;
+        USAGE.outTok += (pricing && pricing.outputTokens!=null) ? pricing.outputTokens : outTok;
+        // Anthropic routes report only {amount,currency} — no token counts
+        const exactCost = pricing && (pricing.costUsd!=null ? pricing.costUsd : (pricing.cost!=null ? pricing.cost : pricing.amount));
+        if(exactCost!=null) USAGE.cost += Number(exactCost); else USAGE.exact = false;
+        if(pricing){ try{ accrue({ x_nanogpt_pricing: pricing }); }catch(_){} }   // editor top-bar spend
+        // died mid-generation with partial output → a truncated reply must not half-apply to the graph
+        if(streamErr) throw new Error(model + "'s reply was cut off mid-stream (" + streamErr + ") — try again");
+        return { choices:[{ message:{ content: content.trim() ? content : reasoning } }] };
       }
-      USAGE.inTok  += (pricing && pricing.inputTokens!=null)  ? pricing.inputTokens  : inEst;
-      USAGE.outTok += (pricing && pricing.outputTokens!=null) ? pricing.outputTokens : outTok;
-      // Anthropic routes report only {amount,currency} — no token counts
-      const exactCost = pricing && (pricing.costUsd!=null ? pricing.costUsd : (pricing.cost!=null ? pricing.cost : pricing.amount));
-      if(exactCost!=null) USAGE.cost += Number(exactCost); else USAGE.exact = false;
-      if(pricing){ try{ accrue({ x_nanogpt_pricing: pricing }); }catch(_){} }   // editor top-bar spend
-      if(streamErr && !content.trim()) throw new Error(model + " didn't answer (" + streamErr + ") — try again");
-      if(streamErr) throw new Error(model + "'s reply was cut off mid-stream (" + streamErr + ") — try again");
-      return { choices:[{ message:{ content: content.trim() ? content : reasoning } }] };
     };
   }
 
