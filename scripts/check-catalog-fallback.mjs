@@ -197,12 +197,22 @@ async function runChecks(src) {
       fail("INV1 a failed fetch wrote an empty list into the localStorage cache (would mask a later good fetch)");
   } catch (e) { fail("INV1 threw: " + (e && e.message ? e.message : e)); }
 
-  // ---- Invariant 1b: FAILURE FALLBACK (500 body, no .data) ------------------
+  // ---- Invariant 1b: FAILURE FALLBACK (malformed 200 body, no .data) --------
+  // A 200 whose body lacks a usable model array must behave EXACTLY like the offline
+  // path: a stable empty catalog for this session and — critically — NO persisted cache
+  // entry. A cached [] would poison every future page load until it self-heals.
   try {
     const s = buildSandbox(src, { fetchMode: "500", nodeTypes: NODE_TYPES });
     const list = await s.api.loadCatalog("chat");
     if (!Array.isArray(list) || list.length !== 0)
-      fail(`INV1b a 500 (no .data) body should yield an empty list, got ${JSON.stringify(list)}`);
+      fail(`INV1b a malformed 200 (no .data) body should yield an empty list, got ${JSON.stringify(list)}`);
+    if (s.store.has(s.api.catCacheKey("chat")))
+      fail("INV1b a malformed 200 (no .data) wrote an empty catalog into the localStorage cache — it would poison every future session until it self-heals");
+    // stable for this session: the next lazy call must not re-hammer the endpoint
+    const before = s.fetchCount;
+    await s.api.loadCatalog("chat");
+    if (s.fetchCount !== before)
+      fail(`INV1b loadCatalog re-fetched after a malformed 200 (fetchCount ${before}→${s.fetchCount}) — the empty result should be cached in-memory like the offline path`);
   } catch (e) { fail("INV1b threw: " + (e && e.message ? e.message : e)); }
 
   // ---- Invariant 2: CACHE PRIME (synchronous first paint) -------------------
@@ -291,6 +301,10 @@ async function selfTest() {
       name: "INV1 broken (fetchCatalog re-throws instead of returning null)",
       mutate: (s) => s.replace("catch{ return null; }        // offline",
                                "catch{ throw new Error('boom'); }  // offline"),
+    },
+    {
+      name: "INV1b broken (a malformed 200 persists an empty catalog — poisons future sessions)",
+      mutate: (s) => s.replace("if(!list.length) return null;", "if(false) return null; /* mutation: cache the empty list */"),
     },
     {
       name: "INV4 broken (defModelFor ignores the node filter)",

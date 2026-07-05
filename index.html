@@ -3466,6 +3466,11 @@ async function fetchCatalog(kind){
   try{ raw = (await (await fetch(`${NANOGPT}${cfg.url}`,{headers})).json()).data || []; }
   catch{ return null; }        // offline / error — caller keeps whatever it already had (cache or empty)
   const list = raw.map(cfg.norm).filter(m=>m.id);
+  // A 200 whose body lacks a usable model array (malformed / half-deployed proxy) normalizes to
+  // []. Treat that exactly like the offline path (return null) so the caller keeps whatever it had
+  // and NEVER persists an empty catalog — a cached [] would poison every future session until it
+  // self-heals. Only a genuinely non-empty list is worth caching.
+  if(!list.length) return null;
   // newest first by created; on ties keep the API's native order (curated newest-first) via stable sort —
   // audio models all share one created timestamp, so this is what actually orders music/speech by recency
   list.sort((a,b)=> (b.created||0)-(a.created||0));
@@ -8256,7 +8261,8 @@ async function copyText(t){
 async function buildShareUrl(target){
   if(target==="app" && pendingAppId){
     try{
-      const app = (JSON.parse(localStorage.getItem("noodle_apps") || "[]") || []).find(a=> a && a.id===pendingAppId);
+      const apps = JSON.parse(localStorage.getItem("noodle_apps") || "[]");
+      const app = (Array.isArray(apps) ? apps : []).find(a=> a && a.id===pendingAppId);
       if(app && app.graph && app.files && app.files["index.html"]){
         // It ships the app AS SAVED: canvas edits not yet pushed via ✨ Update won't be in
         // the link, so flag the divergence (play.html's doShare toasts the same case).

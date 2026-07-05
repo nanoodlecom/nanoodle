@@ -6030,7 +6030,7 @@ let FROM_EDITOR = false;    // open app derives from the host editor's canvas. O
                             // "My apps" drawer) would make its next Update overwrite that app.
 
 const APPS_KEY = "noodle_apps";   // [{id,title,imported,graph,files,versions,curVer,updated}]
-function loadApps(){ try{ return JSON.parse(localStorage.getItem(APPS_KEY) || "[]") || []; }catch{ return []; } }
+function loadApps(){ try{ const a = JSON.parse(localStorage.getItem(APPS_KEY) || "[]"); return Array.isArray(a) ? a : []; }catch{ return []; } }
 // localStorage.setItem that REPORTS success and warns the user once when storage
 // is full — silent failures here mean a reload/close quietly loses customizations.
 let lsQuotaWarned = false;
