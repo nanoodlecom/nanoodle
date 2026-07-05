@@ -4216,9 +4216,10 @@ function mp4ParamsMatch(bufs){
      Generated results are what the user paid for, and they used to live only in this
      document's memory — switching apps or reloading emptied every card. The sandboxed
      iframe has no storage of its own (opaque origin), so each finished OUTPUT-node result
-     is posted to the parent (Blobs ride the structured clone) and the parent keeps the
-     latest one per node in IndexedDB. On every (re)mount the parent posts them back and
-     they render as ordinary cards with a "from your last visit" badge. Standalone exports
+     is posted to the parent (Blobs ride the structured clone) and the parent keeps a
+     rolling history per node in IndexedDB. On every (re)mount the parent posts them back
+     and they render as ordinary cards, newest on top — the newest wears the "from your
+     last visit" badge, older ones a local timestamp. Standalone exports
      have no parent — persistOut is EMBEDDED-gated and restore simply never arrives.
      Serialization notes: data: URLs are decoded by hand (fetch(data:) is blocked by the
      iframe's sealed connect-src; atob isn't network); blob: URLs are re-read via fetch
@@ -4281,7 +4282,13 @@ function mp4ParamsMatch(bufs){
       }
       if(!Object.keys(out).length) continue;
       var node = Object.assign({}, gn, { out:out });   // real node (fields/name intact) wearing the stored result
-      var card = resultCard(node, '<span class="run-badge" title="'+esc(t("made here last time — stored only in this browser"))+'">'+esc(t("↺ from your last visit"))+'</span> ');
+      // Newest card keeps the friendly badge; older history is stamped with its local time —
+      // dates self-localize (toLocaleString), so no dictionary entry per language is needed.
+      var label = esc(t("↺ from your last visit"));
+      if(i < list.length - 1 && rec.updated){
+        try{ label = "↺ " + esc(new Date(rec.updated).toLocaleString(undefined, { dateStyle:"short", timeStyle:"short" })); }catch(_){}
+      }
+      var card = resultCard(node, '<span class="run-badge" title="'+esc(t("made here last time — stored only in this browser"))+'">'+label+'</span> ');
       if(card){ box.insertBefore(card, box.firstChild); restored++; }
     }
     if(restored) clearOutputPlaceholder();
@@ -6232,8 +6239,9 @@ function newId(){ return "app_" + Date.now().toString(36) + Math.random().toStri
    Generated results are the thing the user actually paid for, and they used to live only in the
    app iframe's memory — a reload or an app switch emptied every card. The sandboxed iframe can't
    store anything itself (opaque origin), so the runtime posts each finished output up here
-   (__persist__, Blobs ride the structured clone), we keep the LATEST result per (app, node) in
-   IndexedDB, and every (re)mount pushes that app's records back down (__restore__). localStorage
+   (__persist__, Blobs ride the structured clone), we keep a rolling HISTORY of results per
+   (app, node) in IndexedDB — every run appends; per-node count and per-app byte caps roll the
+   oldest off — and every (re)mount pushes that app's records back down (__restore__). localStorage
    can't carry this (≈5MB, strings only — one generated image is 1–3MB of base64); IDB stores
    Blobs natively with a quota in the gigabytes. Everything stays on this device — nothing is
    uploaded anywhere, same promise as the rest of the product. All of it is best-effort: private
@@ -6241,7 +6249,9 @@ function newId(){ return "app_" + Date.now().toString(36) + Math.random().toStri
    session), never to a broken run. */
 const ODB_NAME = "noodle_outputs", ODB_STORE = "outs";
 const ODB_CAP = 400 * 1024 * 1024;      // global budget across all apps — LRU-evicted by app past this
-const ODB_REC_MAX = 80 * 1024 * 1024;   // one record (one node's latest result) can't hog the budget
+const ODB_REC_MAX = 80 * 1024 * 1024;   // one record (one result) can't hog the budget
+const ODB_NODE_KEEP = 25;               // history depth per (app, node) — oldest results roll off
+const ODB_APP_CAP = 250 * 1024 * 1024;  // one app's history can't starve every other app of the global budget
 let _odbp = null;
 function odb(){
   if(_odbp) return _odbp;
@@ -6303,7 +6313,11 @@ async function persistNodeOut(appId, d){
         }
       }
     }
-    const rec = { k: appId + "|" + d.node, app: appId, node: d.node, ntype: d.ntype, ports, updated: Date.now() };
+    // Unique key per result → every run APPENDS to the node's history instead of replacing it
+    // (pre-history records keyed appId|node still load and restore as ordinary history entries).
+    const now = Date.now();
+    const rec = { k: appId + "|" + d.node + "|" + now.toString(36) + Math.random().toString(36).slice(2, 7),
+                  app: appId, node: d.node, ntype: d.ntype, ports, updated: now };
     rec.bytes = recBytes(rec);
     if(rec.bytes > ODB_REC_MAX) return;
     const db = await odb();
@@ -6313,8 +6327,23 @@ async function persistNodeOut(appId, d){
       await oreq(otx(db, "readwrite").put(rec));
     }
     askPersistOnce();
+    await trimOuts(db, appId);
     await enforceOutCap(db, appId, ODB_CAP);
   }catch(_){ /* persistence is a bonus — never let it break or slow a run */ }
+}
+// Bound one app's history: newest result per node ALWAYS survives (never worse than the old
+// latest-only behavior); beyond that, history rolls off per node by count and per app by bytes.
+async function trimOuts(db, appId){
+  const recs = await oreq(otx(db, "readonly").index("app").getAll(appId));
+  recs.sort((a, b)=> (b.updated||0) - (a.updated||0));   // newest first
+  const perNode = {}, drop = [];
+  let bytes = 0;
+  for(const r of recs){
+    const nth = perNode[r.node] = (perNode[r.node]||0) + 1;
+    if(nth > 1 && (nth > ODB_NODE_KEEP || bytes + (r.bytes||0) > ODB_APP_CAP)) drop.push(r.k);
+    else bytes += r.bytes||0;
+  }
+  if(drop.length){ const st = otx(db, "readwrite"); for(const k of drop) st.delete(k); }
 }
 async function pushOutputsToApp(){
   if(!CUR_ID) return;
