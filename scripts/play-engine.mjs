@@ -33,7 +33,7 @@ function extractScript(html) {
 // ---- make it runnable under node:vm, exposing the engine ------------------
 function prepare(code) {
   code = code.replace(
-    /import\s*\{[^}]*\}\s*from\s*["'][^"']*gptdiff-js[^"']*["'];?/,
+    /import\s*\{[^}]*\}\s*from\s*["'][^"']*patchling[^"']*["'];?/,
     "const buildEnvironment=()=>({}),generateDiff=()=>{},smartapply=()=>{},parseDiffPerFile=()=>{},callLlmForApply=()=>{},setEnv=()=>{};",
   );
   const anchor = "// SHARE: pack";

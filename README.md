@@ -78,7 +78,7 @@ Replace the code with your own (or delete the parameter and use bare
 - **`play.html`** — the app builder (`/play`, or ✨ **Create app** in the
   editor). Turns any workflow into a standalone app: auto-generated inputs
   → Run → outputs. Restyle it with
-  [gptdiff-js](https://github.com/255BITS/gptdiff-js), share via `#a=`
+  [patchling](https://github.com/255BITS/patchling), share via `#a=`
   link, or export a self-contained `.html`.
 - **`legal.html`** — terms, privacy, FAQ (`/legal`).
 

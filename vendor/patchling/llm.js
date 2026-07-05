@@ -16,6 +16,10 @@ function joinUrl(baseUrl, path) {
   return `${base}${path}`;
 }
 
+/**
+ * @param {string} baseUrl
+ * @returns {string}
+ */
 function domainForUrl(baseUrl) {
   try {
     return new URL(baseUrl).host || baseUrl;
@@ -53,6 +57,89 @@ function convertOpenAiMessageToAnthropic(message) {
 }
 
 /**
+ * Consume an OpenAI-compatible SSE stream (`stream: true`) from a fetch
+ * Response, invoking `onToken(text)` for every content delta.
+ *
+ * Handles `data:` events split across network chunks, multi-line `data:`
+ * events (lines are joined with `\n` per the SSE spec), and the terminal
+ * `data: [DONE]` sentinel. Accumulates the full content and the final
+ * `usage` object (requested via `stream_options: { include_usage: true }`)
+ * and returns the same shape as a non-streaming chat completion.
+ *
+ * @param {Response} resp
+ * @param {(text: string) => void} onToken
+ * @returns {Promise<{choices: Array<{message: {content: string}}>, usage: object}>}
+ */
+async function consumeSseStream(resp, onToken) {
+  if (!resp.body || typeof resp.body.getReader !== 'function') {
+    throw new Error('Streaming requested but the response body is not a readable stream.');
+  }
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let content = '';
+  let usage = null;
+  let dataLines = [];
+
+  // Dispatch one SSE event; returns true when the [DONE] sentinel is seen.
+  const dispatch = () => {
+    if (!dataLines.length) return false;
+    const payload = dataLines.join('\n');
+    dataLines = [];
+    if (payload.trim() === '[DONE]') return true;
+    let json;
+    try {
+      json = JSON.parse(payload);
+    } catch {
+      return false; // ignore keep-alives / unparseable fragments
+    }
+    if (json.error) {
+      throw new Error(`LLM API error (stream): ${JSON.stringify(json.error)}`);
+    }
+    const text = json.choices?.[0]?.delta?.content;
+    if (typeof text === 'string' && text.length) {
+      content += text;
+      onToken(text);
+    }
+    if (json.usage) usage = json.usage;
+    return false;
+  };
+
+  // Process one line; returns true when the stream is logically finished.
+  const handleLine = (rawLine) => {
+    const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine;
+    if (line === '') return dispatch(); // blank line terminates an event
+    if (line.startsWith('data:')) {
+      dataLines.push(line.startsWith('data: ') ? line.slice(6) : line.slice(5));
+    }
+    // `event:`, `id:` and `:` comment lines are ignored.
+    return false;
+  };
+
+  let finished = false;
+  while (!finished) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let idx;
+    while ((idx = buffer.indexOf('\n')) !== -1) {
+      const line = buffer.slice(0, idx);
+      buffer = buffer.slice(idx + 1);
+      if (handleLine(line)) {
+        finished = true;
+        break;
+      }
+    }
+  }
+  // Flush any trailing bytes / final event lacking a terminating blank line.
+  buffer += decoder.decode();
+  if (!finished && buffer) handleLine(buffer);
+  if (!finished) dispatch();
+
+  return { choices: [{ message: { content } }], usage };
+}
+
+/**
  * Call a chat-completions endpoint.
  *
  * @param {object} opts
@@ -63,6 +150,11 @@ function convertOpenAiMessageToAnthropic(message) {
  * @param {number} [opts.maxTokens]
  * @param {number} [opts.temperature]
  * @param {number} [opts.budgetTokens] Anthropic extended-thinking budget
+ * @param {(text: string) => void} [opts.onToken] when provided, the request is
+ *   made with `stream: true` and this is called once per content delta as
+ *   tokens arrive. The resolved value keeps the exact non-streaming shape
+ *   (`{ choices: [{ message: { content } }], usage }`), so callers work
+ *   unchanged. Ignored on the Anthropic branch (which stays non-streaming).
  * @param {typeof fetch} [opts.fetchImpl] override for testing
  * @param {number} [opts.maxRetries] retries on transient 429/5xx (default 3)
  * @param {number} [opts.retryBaseMs] base backoff in ms (default 1500, exponential, capped 30s)
@@ -76,6 +168,7 @@ export async function callLlm({
   maxTokens = null,
   temperature = 1.0,
   budgetTokens = null,
+  onToken = null,
   fetchImpl,
   maxRetries = 3,
   retryBaseMs = 1500,
@@ -137,7 +230,14 @@ export async function callLlm({
   // OpenAI-compatible (NanoGPT) path, with backoff on transient errors.
   const endpoint = joinUrl(url, '/chat/completions');
   // Only send max_tokens when explicitly capped; otherwise let the model emit its full output.
-  const requestBody = JSON.stringify({ model, messages, temperature, ...(maxTokens ? { max_tokens: maxTokens } : {}) });
+  const requestBody = JSON.stringify({
+    model,
+    messages,
+    temperature,
+    ...(maxTokens ? { max_tokens: maxTokens } : {}),
+    // Streaming: ask for SSE deltas plus a final usage chunk.
+    ...(onToken ? { stream: true, stream_options: { include_usage: true } } : {}),
+  });
   let resp;
   for (let attempt = 0; ; attempt++) {
     resp = await doFetch(endpoint, {
@@ -161,6 +261,11 @@ export async function callLlm({
     const body = await resp.text().catch(() => '');
     throw new Error(`LLM request failed (${resp.status}) from ${domainForUrl(url)}: ${body}`);
   }
+  if (onToken) {
+    // Retry/backoff above covered the initial request; an error mid-stream
+    // (after tokens have flowed) simply propagates to the caller.
+    return consumeSseStream(resp, onToken);
+  }
   const json = await resp.json();
   if (json.error) {
     throw new Error(`LLM API error from ${domainForUrl(url)}: ${JSON.stringify(json.error)}`);
@@ -171,6 +276,8 @@ export async function callLlm({
 /**
  * Resolve the effective API key, preferring an explicit override then the
  * GPTDIFF_LLM_API_KEY environment variable.
+ * @param {string} [apiKey]
+ * @returns {string | undefined}
  */
 export function resolveApiKey(apiKey) {
   return apiKey || getEnv('GPTDIFF_LLM_API_KEY');
@@ -179,6 +286,8 @@ export function resolveApiKey(apiKey) {
 /**
  * Resolve the effective base URL, preferring an explicit override then the
  * GPTDIFF_LLM_BASE_URL environment variable, then the NanoGPT default.
+ * @param {string} [baseUrl]
+ * @returns {string}
  */
 export function resolveBaseUrl(baseUrl) {
   return baseUrl || getEnv('GPTDIFF_LLM_BASE_URL', DEFAULT_BASE_URL) || DEFAULT_BASE_URL;

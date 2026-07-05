@@ -263,7 +263,7 @@
   #cookoffbtn .x:hover{ background:#0b0d1255; opacity:1 }
   @media (prefers-reduced-motion:reduce){ #cookoffbtn{ animation:none } }
 
-  /* ---------- 💬 Describe changes: a docked bottom composer that edits the graph (gptdiff engine) ---------- */
+  /* ---------- 💬 Describe changes: a docked bottom composer that edits the graph (patchling engine) ---------- */
   /*    Same placement & shape as the app builder's "Customize" composer (play.html #customize). */
   #describebar{ position:fixed; left:0; right:0; bottom:0; z-index:120; padding:.55rem .8rem calc(.55rem + env(safe-area-inset-bottom));
     background:#11141f; border-top:1px solid var(--line); box-shadow:0 -8px 24px #0005;
@@ -960,7 +960,7 @@
 </div>
 
 <!-- 💬 Describe changes — docked bottom composer (same shape as the app builder's Customize bar);
-     describes a change to the workflow and applies it via the vendored gptdiff engine. -->
+     describes a change to the workflow and applies it via the vendored patchling engine. -->
 <div id="describebar">
   <div class="db-row">
     <span class="db-label">💬 Describe changes</span>
@@ -9184,7 +9184,7 @@ $("signout").onclick = ()=> setKey(null);
 
 /* ===================== 💬 Describe changes — graph copilot =====================
    A docked bottom composer (same shape/placement as the app builder's Customize bar) that edits
-   the workflow by description. Powered by the vendored gptdiff engine (generateDiff → smartapply)
+   the workflow by description. Powered by the vendored patchling engine (generateDiff → smartapply)
    over the graph as a file. We feed the model the simplified semantic graph (layout + media
    stripped) and re-inject layout/media on apply. The user sees the RESULT — the change lands on
    the canvas with a one-line recap + one-click undo. NOT a unified-diff view. */
@@ -9435,13 +9435,13 @@ $("signout").onclick = ()=> setKey(null);
     return { added, removed, changed, linksAdded, linksRemoved, count, removes: removed.length };
   }
 
-  // ---- gptdiff engine (the SAME vendored gptdiff-js that powers "Create app" / Customize) ----
+  // ---- patchling engine (the SAME vendored patchling that powers "Create app" / Customize) ----
   // We treat the workflow as a file (noodle-graph.json, simplified view) and run the real
   // generateDiff → parseDiffPerFile → smartapply loop. smartapply's deterministic patch with an
   // LLM-assisted fallback is what makes a JSON diff robust — the bit a naive patcher can't do.
   const GRAPH_FILE = "noodle-graph.json";
   let _gd = null;
-  async function lib(){ return _gd || (_gd = await import("./vendor/gptdiff-js/index.js")); }
+  async function lib(){ return _gd || (_gd = await import("./vendor/patchling/index.js")); }
   async function modelHint(){
     await Promise.all(["chat","image","video","audio"].map(k=>loadCatalog(k).catch(()=>null)));
     const pick = (kind,filter,n=6)=> (catalogs[kind]||[]).filter(m=>passesFilter(m,filter)).slice(0,n).map(m=>m.id);
@@ -9453,7 +9453,7 @@ $("signout").onclick = ()=> setKey(null);
     const mus=pick("audio","music"); if(mus.length) L.push(`  music: ${mus.join(", ")}`);
     return L.length ? `\nExample model ids you MAY use (newest first) — only if the user names a model, otherwise leave "model" out:\n${L.join("\n")}` : "";
   }
-  // Prepended to gptdiff's own system prompt (which already asks for a unified ```diff block).
+  // Prepended to patchling's own system prompt (which already asks for a unified ```diff block).
   async function contract(){
     return `You are editing a node-graph workflow for "nanoodle", a browser tool that wires nano-gpt AI models into pipelines. The workflow lives in ${GRAPH_FILE}, a SIMPLIFIED view of the graph: {"nodes":[{"id","type","fields"}],"links":[{"from":"nodeId.port","to":"nodeId.port"}]}. Node positions and uploaded media are deliberately omitted — do NOT add x/y/coordinates or media data. It is a feed-forward DAG (NO cycles); a link connects an output port to an input port of the SAME type (text/image/audio/video).
 
@@ -9486,7 +9486,7 @@ RULES for the diff:
     const parsed = gd.parseDiffPerFile(rawDiff);
     if(!rawDiff.trim() || !parsed.length) throw new Error("no applicable change — try rephrasing the request");
     // smartapply: deterministic patch first, LLM-assisted apply (metered) if it doesn't land cleanly.
-    // The apply model MUST be passed explicitly: gptdiff's own default is the retired
+    // The apply model MUST be passed explicitly: patchling's own default is the retired
     // xiaomi/mimo-v2.5-pro-ultraspeed (nano-gpt 503s it). Applying a diff is mechanical, so it
     // rides the same fast model the play-side apply uses (Mikkel's pick), not the user's LLM.
     const applyLlm = clients && clients.apply;
@@ -9604,7 +9604,7 @@ RULES for the diff:
     const approx = !USAGE.exact || (live && live.live);
     return `<span class="meter">↑ ${fmtTok(inT)} · ↓ ${fmtTok(outT)}${cost?` · ${approx?"~":""}$${cost.toFixed(4)}`:""}</span>`;
   }
-  // streaming LLM client injected into gptdiff-js (same role as play's streamingCallLlm): streams the
+  // streaming LLM client injected into patchling (same role as play's streamingCallLlm): streams the
   // reply, repaints the meter live, then commits exact tokens + cost from x_nanogpt_pricing and bumps
   // the editor's top-bar spend via accrue(). Uses the editor's own key/endpoint (no new origin).
   function meteredCallLlm(phaseLabel){

@@ -17,7 +17,7 @@
 #
 # Shared notes for the CSPs below:
 # script-src keeps 'unsafe-inline' (every app is one big inline <script> with inline onclick handlers).
-# gptdiff-js is vendored at /vendor/gptdiff-js (self-hosted ESM), so no third-party script origin is needed.
+# patchling (formerly gptdiff-js) is vendored at /vendor/patchling (self-hosted ESM), so no third-party script origin is needed.
 # img-src/media-src allow blob:/data: used for generated images (returned as b64 data: URLs) and
 # download URLs. media-src additionally allows https: because generated music/video come back as
 # URLs on provider CDNs (e.g. *.cloudfront.net) we don't control and can't enumerate — without it

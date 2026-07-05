@@ -32,7 +32,11 @@ function getCrypto() {
   return c;
 }
 
-/** Base64url-encode an ArrayBuffer or Uint8Array (no padding). */
+/**
+ * Base64url-encode an ArrayBuffer or Uint8Array (no padding).
+ * @param {ArrayBuffer | Uint8Array} buffer
+ * @returns {string}
+ */
 export function base64UrlEncode(buffer) {
   const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
   let binary = '';
@@ -50,7 +54,11 @@ export function generateCodeVerifier(byteLength = 64) {
   return base64UrlEncode(random);
 }
 
-/** Compute the S256 code challenge for a verifier. */
+/**
+ * Compute the S256 code challenge for a verifier.
+ * @param {string} verifier
+ * @returns {Promise<string>}
+ */
 export async function generateCodeChallenge(verifier) {
   const data = new TextEncoder().encode(verifier);
   const digest = await getCrypto().subtle.digest('SHA-256', data);
@@ -73,6 +81,10 @@ export async function generatePkce() {
 
 /**
  * Dynamically register a public client with NanoGPT.
+ * @param {object} [opts]
+ * @param {string} [opts.clientName]
+ * @param {string} [opts.redirectUri]
+ * @param {typeof fetch} [opts.fetchImpl]
  * @returns {Promise<{ client_id: string, [k: string]: any }>}
  */
 export async function registerClient({ clientName, redirectUri, fetchImpl } = {}) {
@@ -95,7 +107,16 @@ export async function registerClient({ clientName, redirectUri, fetchImpl } = {}
   return resp.json();
 }
 
-/** Build the authorization URL the user's browser should be sent to. */
+/**
+ * Build the authorization URL the user's browser should be sent to.
+ * @param {object} opts
+ * @param {string} opts.clientId
+ * @param {string} opts.redirectUri
+ * @param {string} [opts.scope]
+ * @param {string} opts.state
+ * @param {string} opts.codeChallenge
+ * @returns {string}
+ */
 export function buildAuthorizeUrl({
   clientId,
   redirectUri,
@@ -117,6 +138,12 @@ export function buildAuthorizeUrl({
 
 /**
  * Exchange an authorization code for an access token.
+ * @param {object} opts
+ * @param {string} opts.clientId
+ * @param {string} opts.redirectUri
+ * @param {string} opts.code
+ * @param {string} opts.codeVerifier
+ * @param {typeof fetch} [opts.fetchImpl]
  * @returns {Promise<{ access_token: string, token_type: string, scope: string }>}
  */
 export async function exchangeCodeForToken({
@@ -161,7 +188,7 @@ function requireBrowser() {
  * redirect_uri in sessionStorage and navigates the browser to NanoGPT.
  *
  * @param {object} opts
- * @param {string} opts.clientId  a pre-registered NanoGPT client_id (ngpt_...)
+ * @param {string} [opts.clientId]  a pre-registered NanoGPT client_id (ngpt_...)
  * @param {string} [opts.redirectUri] defaults to the current page URL
  * @param {string} [opts.scope]
  * @param {boolean} [opts.redirect=true] navigate automatically

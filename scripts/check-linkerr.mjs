@@ -43,7 +43,7 @@ function extractMainScript(html, needle) {
 
 function prepare(code) {
   code = code.replace(
-    /import\s*\{[^}]*\}\s*from\s*["'][^"']*gptdiff-js[^"']*["'];?/,
+    /import\s*\{[^}]*\}\s*from\s*["'][^"']*patchling[^"']*["'];?/,
     "const buildEnvironment=()=>({}),generateDiff=async()=>'',smartapply=async()=>({}),parseDiffPerFile=()=>({}),callLlmForApply=async()=>'',setEnv=()=>{};",
   );
   if (!/\nboot\(\);/.test(code)) throw new Error("play.html: boot() call not found");

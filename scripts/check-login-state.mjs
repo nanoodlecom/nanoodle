@@ -40,10 +40,10 @@ function extractMainScript(html, needle) {
 }
 
 function prepare(code, kind) {
-  // gptdiff-js is only used inside event handlers (never during boot); stub it
+  // patchling is only used inside event handlers (never during boot); stub it
   // so the module can run as a classic script (function decls leak to global).
   code = code.replace(
-    /import\s*\{[^}]*\}\s*from\s*["'][^"']*gptdiff-js[^"']*["'];?/,
+    /import\s*\{[^}]*\}\s*from\s*["'][^"']*patchling[^"']*["'];?/,
     "const buildEnvironment=()=>({}),generateDiff=async()=>'',smartapply=async()=>({}),parseDiffPerFile=()=>({}),callLlmForApply=async()=>'',setEnv=()=>{};",
   );
   // Capture boot's promise so we can await it, instead of letting it run unobserved.
