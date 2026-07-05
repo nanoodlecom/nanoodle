@@ -825,7 +825,7 @@
  "audioSongs": [
   {
    "id": "mureka-o2/generate-song",
-   "shape": "per_generation + generation_count_parameter -> number_of_songs multiplies the estimate (up to max_generations)",
+   "shape": "per_generation + generation_count_parameter -> number_of_songs is CLAMPED to 1 on the send (the node surfaces a single track), so even a model that advertises a generation count must NOT multiply the estimate; always 1",
    "pricing": {
     "per_generation": 0.15,
     "currency": "USD",
@@ -838,7 +838,7 @@
    "cases": [
     {
      "number_of_songs": 3,
-     "expect": 3
+     "expect": 1
     },
     {
      "number_of_songs": 1,
