@@ -10,7 +10,7 @@
 //
 // Usage:
 //   NANOGPT_API_KEY=sk-... node scripts/translate-updates.mjs        # backfill
-//   node scripts/translate-updates.mjs --key sk-... --model gpt-4o    # explicit
+//   node scripts/translate-updates.mjs --key sk-... --model zai-org/glm-5.2:thinking  # explicit
 //   node scripts/translate-updates.mjs --dry-run                      # list gaps, no spend
 //
 // The editor UI languages (index.html I18N_LANGS). Keep in sync with check-updates.mjs.
@@ -32,7 +32,9 @@ const flag = (name, short) => {
 };
 const dryRun = argv.includes("--dry-run");
 const key = flag("--key", "-k") || process.env.NANOGPT_API_KEY || "";
-const model = flag("--model", "-m") || process.env.NANOGPT_MODEL || "gpt-4o";
+// Default to GLM-5.2's thinking variant for higher translation fidelity across the
+// five languages. Override with --model / NANOGPT_MODEL (e.g. plain zai-org/glm-5.2).
+const model = flag("--model", "-m") || process.env.NANOGPT_MODEL || "zai-org/glm-5.2:thinking";
 
 // don't-translate protected tokens — mirrors the localizer brief used to seed the backlog.
 const KEEP = "emoji; brand/product names (nanoodle, nano-gpt, NanoGPT, Nano, Cookoff, Noodle Cookoff, LoRA, HuggingFace, Flux, FLUX.2, Z-Image, LTX, TinyURL, da.gd, Veo 3, Kling, Seedance, Nano-Banana, Seedream, Mureka, Discord, Reddit, r/nanocurrency, X, Facebook); keyboard keys (F, Z, Y, Ctrl/Cmd/⌘); clickable UI button labels (Run, Fit, Gallery, Create app, My apps, Updates, Submit, Trim, Image, Edit, Inpaint, Video, LLM, Speech, Transcribe, Combine, Describe changes); $ prices; model ids; URLs";
