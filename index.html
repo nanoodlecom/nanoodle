@@ -3514,19 +3514,24 @@ function modelHasImageRole(n, role){
 // Resolve a video node's reference-image port config: does the picked model expose one of the ref-image
 // array params (seedance-2.0 reference_images / luma reference_image_urls / kling|wan referenceImages)?
 // Returns {key, cap} — key = the FIRST ref param the model advertises, cap = the model's declared max
-// (max/maxItems on the descriptor) or 4 (luma's "up to 4"). null when no model/param (permissive-OFF,
-// same reasoning as modelHasImageRole: an ignored-but-sent array would still be CHARGED).
+// (max/maxItems on the descriptor), else a per-family known max (VIDEO_REF_MAX), else 4. null when no
+// model/param (permissive-OFF, same reasoning as modelHasImageRole: an ignored-but-sent array is CHARGED).
+// The catalog advertises NO machine-readable ref maxima (live-scanned, 136 video models 2026-07-04), so
+// the family table is what actually caps things: seedance-2.0's marquee feature is up to 9 refs — the
+// generic 4 silently sliced refs 5-9. luma ray/v3.2 = 4 (matches the generic default; listed for clarity).
+const VIDEO_REF_MAX = [ [/seedance/i, 9], [/luma|ray/i, 4] ];
 function videoRefSpec(n){
   const t = NODE_TYPES[n.type]; if(!t || !t.modelKind) return null;
   const m = catItem(t.modelKind, n.fields.model);
   if(!m || !m.params) return null;
   const key = VIDEO_IMG_ROLE_KEYS.refs.find(k=> k in m.params);
   if(!key) return null;
-  const d = m.params[key]; let cap = 4;
+  const d = m.params[key]; let cap = null;
   if(d && typeof d==="object"){
     const mx = d.max!=null ? d.max : (d.maxItems!=null ? d.maxItems : d.max_items);
     if(mx!=null && +mx>0) cap = +mx;
   }
+  if(cap==null){ const id = String(n.fields.model||""); const hit = VIDEO_REF_MAX.find(([re])=> re.test(id)); cap = hit ? hit[1] : 4; }
   return { key, cap };
 }
 // pull wired ref ports (ref1, ref2, …) out of a run's inp map, in numeric port order, dropping empties

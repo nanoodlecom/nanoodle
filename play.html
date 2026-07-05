@@ -2584,7 +2584,7 @@ function mp4ParamsMatch(bufs){
           const spec = await modelAllowsRefs(mdl(n));
           if(spec && spec.key){
             opts.refImages = refs.slice(0, spec.cap); opts.refKey = spec.key;
-            if(refs.length > spec.cap && onProgress) onProgress("dropped " + (refs.length - spec.cap) + " reference image(s) over this model's limit");
+            if(refs.length > spec.cap && onProgress) onProgress("dropped " + (refs.length - spec.cap) + " reference image(s) over this model's limit of " + spec.cap);
           } else if(onProgress) onProgress("reference image(s) ignored — this model doesn't support them");
         }
         const url = await ctx.genVideo(mdl(n), prompt, opts, null,
@@ -3194,6 +3194,14 @@ function mp4ParamsMatch(bufs){
   // videoRefSpec but permissive-ON when the catalog can't be read: the ref wires were authored deliberately
   // in the editor (gated there), so if we can't verify at runtime we honor them with a best-effort key
   // rather than silently drop them. null only when a KNOWN model clearly lacks any ref-image param.
+  // Per-family known ref maxima — the catalog advertises NO machine-readable maxima (mirrors the editor's
+  // VIDEO_REF_MAX): seedance-2.0 takes up to 9 refs (its marquee feature; the generic 4 sliced 5-9), luma = 4.
+  function refMaxFor(model){
+    var id = String(model||"");
+    if(/seedance/i.test(id)) return 9;
+    if(/luma|ray/i.test(id)) return 4;
+    return 4;
+  }
   async function modelAllowsRefs(model){
     var keys = ["reference_images","reference_image_urls","referenceImages"];
     try{
@@ -3203,14 +3211,14 @@ function mp4ParamsMatch(bufs){
       // so we guess the most common spelling; if the model actually wants reference_image_urls/referenceImages
       // it ignores this and renders a plain video (a degraded result, NOT a double charge). Only bites when
       // the catalog fetch fails but generation still works — rare. Mirrors #198's modelAllowsEndFrame.
-      if(!m) return { key:"reference_images", cap:4 };
+      if(!m) return { key:"reference_images", cap:refMaxFor(model) };
       var sp = m.supported_parameters||{}, pp = sp.parameters||sp;
       var key = keys.find(function(k){ return k in pp; });
       if(!key) return null;   // known model with no ref-image param
-      var d = pp[key], cap = 4;
+      var d = pp[key], cap = null;
       if(d && typeof d==="object"){ var mx = d.max!=null ? d.max : (d.maxItems!=null ? d.maxItems : d.max_items); if(mx!=null && +mx>0) cap = +mx; }
-      return { key:key, cap:cap };
-    }catch(e){ return { key:"reference_images", cap:4 }; }
+      return { key:key, cap:(cap!=null?cap:refMaxFor(model)) };
+    }catch(e){ return { key:"reference_images", cap:refMaxFor(model) }; }
   }
   async function modelOptionsFor(type){
     const kind = SETTING_MODEL_KIND[type]; if(!kind) return [];
