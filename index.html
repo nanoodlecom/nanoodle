@@ -853,6 +853,7 @@
     <button id="appmore" class="caret" title="More app options" aria-label="More app options" aria-haspopup="true" hidden>▾</button>
     <div id="apppop">
       <button id="newapp" title="Save this as a brand-new app — the one you’re editing stays untouched">✨ <span>Save as a new app</span></button>
+      <button id="openapps" hidden title="Open one of your saved apps — created or imported">≡ <span>My apps</span></button>
     </div>
     <div id="appnudge" hidden role="status"><span>Like it? <b>✨ Turn this into an app</b> you can share</span><button id="appnudgex" title="Got it" aria-label="Dismiss">×</button></div>
   </div>
@@ -1215,6 +1216,8 @@ const I18N = {
     "Running calls models on your NanoGPT key.":"Ejecutar llama a modelos con tu clave de NanoGPT.",
     "Sampling + reasoning knobs. Defaults apply when untouched.":"Controles de muestreo + razonamiento. Se aplican los valores por defecto si no se tocan.",
     "Save as a new app":"Guardar como app nueva",
+    "My apps":"Mis apps",
+    "Open one of your saved apps — created or imported":"Abre una de tus apps guardadas — creadas o importadas",
     "Save this as a brand-new app — the one you’re editing stays untouched":"Guarda esto como una app totalmente nueva — la que estás editando queda intacta",
     "Search nodes… (image, voice, video)":"Buscar nodos… (imagen, voz, vídeo)",
     "Sends this link to a third-party shortener so":"Envía este enlace a un acortador de terceros para que",
@@ -1644,6 +1647,8 @@ const I18N = {
     "Running calls models on your NanoGPT key.":"L’exécution appelle les modèles avec votre clé NanoGPT.",
     "Sampling + reasoning knobs. Defaults apply when untouched.":"Réglages d’échantillonnage + de raisonnement. Les valeurs par défaut s’appliquent si vous n’y touchez pas.",
     "Save as a new app":"Enregistrer comme nouvelle app",
+    "My apps":"Mes apps",
+    "Open one of your saved apps — created or imported":"Ouvrez une de vos apps enregistrées — créées ou importées",
     "Save this as a brand-new app — the one you’re editing stays untouched":"Enregistrer ceci comme une toute nouvelle app — celle que vous modifiez reste inchangée",
     "Search nodes… (image, voice, video)":"Rechercher des nœuds… (image, voix, vidéo)",
     "Sends this link to a third-party shortener so":"Envoie ce lien à un raccourcisseur tiers pour que",
@@ -2062,6 +2067,8 @@ const I18N = {
     "Running calls models on your NanoGPT key.":"Beim Ausführen werden Modelle über deinen NanoGPT-Schlüssel aufgerufen.",
     "Sampling + reasoning knobs. Defaults apply when untouched.":"Sampling- und Reasoning-Regler. Standardwerte gelten, solange unverändert.",
     "Save as a new app":"Als neue App speichern",
+    "My apps":"Meine Apps",
+    "Open one of your saved apps — created or imported":"Öffne eine deiner gespeicherten Apps — erstellt oder importiert",
     "Save this as a brand-new app — the one you’re editing stays untouched":"Dies als brandneue App speichern — die, die du gerade bearbeitest, bleibt unverändert",
     "Search nodes… (image, voice, video)":"Nodes suchen… (Bild, Stimme, Video)",
     "Sends this link to a third-party shortener so":"Sendet diesen Link an einen Drittanbieter-Kürzungsdienst, damit",
@@ -2482,6 +2489,8 @@ const I18N = {
     "Running calls models on your NanoGPT key.":"A execução chama modelos usando sua chave NanoGPT.",
     "Sampling + reasoning knobs. Defaults apply when untouched.":"Controles de amostragem + raciocínio. Os padrões se aplicam quando não alterados.",
     "Save as a new app":"Salvar como novo app",
+    "My apps":"Meus apps",
+    "Open one of your saved apps — created or imported":"Abra um dos seus apps salvos — criados ou importados",
     "Save this as a brand-new app — the one you’re editing stays untouched":"Salve isto como um app totalmente novo — o que você está editando permanece inalterado",
     "Search nodes… (image, voice, video)":"Buscar nós… (imagem, voz, vídeo)",
     "Sends this link to a third-party shortener so":"Envia este link para um encurtador de terceiros para",
@@ -2900,6 +2909,8 @@ const I18N = {
     "Running calls models on your NanoGPT key.":"実行するとあなたの NanoGPT キーでモデルが呼び出されます。",
     "Sampling + reasoning knobs. Defaults apply when untouched.":"サンプリング + 推論の調整項目。変更しない場合はデフォルトが適用されます。",
     "Save as a new app":"新しいアプリとして保存",
+    "My apps":"マイアプリ",
+    "Open one of your saved apps — created or imported":"保存したアプリを開く — 作成またはインポートしたもの",
     "Save this as a brand-new app — the one you’re editing stays untouched":"これを新しいアプリとして保存 — 編集中のアプリはそのまま残ります",
     "Search nodes… (image, voice, video)":"ノードを検索… (画像、音声、動画)",
     "Sends this link to a third-party shortener so":"このリンクをサードパーティの短縮サービスに送信するので",
@@ -8046,6 +8057,7 @@ function expandBar(){
   document.body.classList.remove("narrowbar");
   topOrder.forEach(n=> top.appendChild(n));            // re-append originals in order → pulls them back out of the menu
   $("apppop").appendChild($("newapp"));                // hand the "Save as a new app" fork back to the caret popover
+  $("apppop").appendChild($("openapps"));              // ...and the "≡ My apps" entry alongside it
   $("authmenu").insertBefore($("signin"), $("authcaret"));   // signin/pastebtn nest INSIDE the auth split-button, so the
   $("authpop").prepend($("pastebtn"));                       // topOrder re-append above can't restore them — re-nest by hand (paste key sits above the create-account link)
   $("authpop").appendChild($("authnew"));                    // ...and put the create-account link back below it (collapseBar moved it into ⋯ via RELOC)
@@ -8056,6 +8068,7 @@ function collapseBar(){
   document.body.classList.add("narrowbar");
   $("apppop").classList.remove("open");                // the caret popover would otherwise linger as an empty box once its fork moves out
   pop.appendChild($("newapp"));                        // the ▾ caret is hidden when collapsed, so its "Save as a new app" fork lives here (hidden while unbound, like the caret)
+  pop.appendChild($("openapps"));                      // "≡ My apps" rides along (hidden while the library is empty, like the caret)
   RELOC.forEach((id)=>{ const el=$(id); if(!el) return; if(id==="signin") pop.appendChild(Object.assign(document.createElement("div"),{className:"mdiv"})); pop.appendChild(el); });   // skip ids whose button was removed (e.g. the retired top Cookoff) so one gap can't abort the whole collapse
 }
 function layoutBar(){
@@ -8395,10 +8408,15 @@ function updateTitle(){
       ? t("Update “{app}” with this workflow").replace("{app}", appTitle || t("your app"))
       : t("Turn this workflow into a shareable app");
   }
-  // The "Save as a new app" escape hatch (and its caret) only make sense while a binding is live.
+  // The caret opens for two reasons: a live binding (the "Save as a new app" escape hatch)
+  // or a non-empty app library ("≡ My apps" — the way back to your apps from the editor).
+  // Each fork hides on its own condition, so the popover only ever lists what applies.
+  let lib = 0;
+  try{ const a = JSON.parse(localStorage.getItem("noodle_apps") || "[]"); lib = Array.isArray(a) ? a.length : 0; }catch(_){}
   if(nw) nw.hidden = !pendingAppId;
-  if(more) more.hidden = !pendingAppId;
-  if(!pendingAppId) $("apppop").classList.remove("open");
+  const oa = $("openapps"); if(oa) oa.hidden = !lib;
+  if(more) more.hidden = !pendingAppId && !lib;
+  if(!pendingAppId && !lib) $("apppop").classList.remove("open");
   layoutBar();   // binding swaps "Create app" ↔ "Update <title>" → the bar's width changes, re-measure fit
 }
 async function loadFromHash(){
@@ -8486,6 +8504,7 @@ let appFrameLoaded = false;     // play.html finished booting in the iframe (it 
 let appFrameBooting = false;    // src assigned but boot unconfirmed — a postMessage now would be
                                 // lost (no listener) or clobbered by the in-flight boot's hash graph
 let queuedHandoff = null;       // __handoff__ parked during that window; flushed on __appready__
+let queuedMyApps = false;       // "open the My apps menu" parked during that window; flushed after any parked handoff
 let lastHandoffSig = null;      // signature of the graph last handed to the builder
 // What the builder actually consumes: node identity/type/name/fields + links + which app we're
 // editing. INCLUDES the custom name — it's a step's label in the built app, so renaming a node
@@ -8503,13 +8522,34 @@ function appHandoffSig(g, appOverride){
 function closeAppModal(){
   $("appmodal").hidden = true;   // hide, but keep the builder loaded so you can come back to it
   try{ $("appmodalframe").contentWindow.postMessage({ type:"__appmodalhidden__" }, "*"); }catch(_){}   // pause any builder-chrome media
+  updateTitle();   // a builder session can grow/empty the app library → recompute the ▾/My-apps reveal
 }
 // First load only: boots play.html into the iframe off the hash. Later handoffs must NOT
 // come through here — a same-URL-different-fragment src write doesn't reload the iframe.
 function openAppModal(hash){ $("appmodalframe").src = "play.html"+hash; appFrameBooting = true; lastHandoffSig = appHandoffSig(); $("appmodal").hidden = false; try{ if(!localStorage.getItem("noodle_appbuilder_intro_seen")) $("appmodalhint").hidden = false; }catch(_){} }
+// "≡ My apps": bring up the builder over whatever it last had open and pop its library menu —
+// browsing must NOT hand off the canvas (no draft minted, no binding touched; play.html only
+// posts __appsaved__ for canvas-derived apps, so opening one from the list can't rebind us).
+function openMyApps(){
+  $("apppop").classList.remove("open"); $("morepop").classList.remove("open");
+  if(appFrameLoaded || appFrameBooting){
+    $("appmodal").hidden = false;
+    if(appFrameLoaded){ try{ $("appmodalframe").contentWindow.postMessage({ type:"__openmyapps__" }, "*"); }catch(_){} }
+    else queuedMyApps = true;   // still booting — the __appready__ handler below delivers it
+    return;
+  }
+  // First boot, and bare on purpose: play.html restores its last-open app underneath the menu.
+  // Deliberately NOT openAppModal(): that stamps lastHandoffSig with the CURRENT canvas sig, and
+  // since no handoff actually happened, a later ✨ Create app would false-match its "same graph →
+  // just re-show" fast path and silently skip handing the canvas over.
+  $("appmodalframe").src = "play.html";
+  appFrameBooting = true; queuedMyApps = true;
+  $("appmodal").hidden = false;
+}
 async function openCreateApp(){
   if(!graph.nodes.length){ flash("add a node first"); return; }
   dismissAppNudge();   // they've reached the builder — the post-run nudge is spent
+  queuedMyApps = false;   // a Create/Update supersedes a parked menu-open — don't pop the library over the fresh handoff
 
   // Same graph + builder loaded (or still booting off this very graph) → just bring your
   // app back (no reload, no fresh draft).
@@ -8549,6 +8589,7 @@ $("makeapp").onclick = openCreateApp;
 // "✨ New" (shown only while this workflow is bound to an app): unlink first, then open the
 // builder on a plain #g= handoff so it mints a brand-new app instead of updating the bound one.
 $("newapp").onclick = ()=>{ $("apppop").classList.remove("open"); setPendingApp(null); openCreateApp(); };
+$("openapps").onclick = openMyApps;
 // Caret next to "Update app": reveal the "Save as a new app" fork (desktop only — phones hide the caret and layoutBar moves the fork into ⋯).
 $("appmore").onclick = (e)=>{ e.stopPropagation(); $("apppop").classList.toggle("open"); };
 document.addEventListener("click", e=>{ if(!$("appmenu").contains(e.target)) $("apppop").classList.remove("open"); });
@@ -8684,6 +8725,13 @@ addEventListener("message", e=>{
       const q = queuedHandoff; queuedHandoff = null;
       q.appId = pendingAppId || q.appId || null;
       try{ $("appmodalframe").contentWindow.postMessage(q, "*"); }catch(_){}
+    }
+    // "My apps" clicked during the boot window: pop the library menu now that the builder can
+    // hear us. AFTER any parked handoff — if both are queued, the menu opens over the applied
+    // graph (the handoff was the older intent; the menu click was the last thing they asked for).
+    if(queuedMyApps){
+      queuedMyApps = false;
+      try{ $("appmodalframe").contentWindow.postMessage({ type:"__openmyapps__" }, "*"); }catch(_){}
     }
   }
 });

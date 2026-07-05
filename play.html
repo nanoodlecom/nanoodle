@@ -6752,6 +6752,8 @@ if(IN_EDITOR){
       if(busy){ pendingHandoff = e.data; toast("Workflow received — applying it when this customize finishes"); }
       else applyHandoff(e.data);
     }
+    // the editor's "≡ My apps" entry: surface the library menu over whatever is open
+    else if(e.data.type==="__openmyapps__"){ openAppsMenu(); }
   });
 }
 
