@@ -8311,19 +8311,27 @@ async function shareUrl(){
 let curShareUrl = "";    // the link the popover currently reflects (long, or a shortened one)
 let curLongShareUrl = ""; // the FULL long link the popover was opened with — what shortening always acts on
                           // (the editor keeps its own URL clean, so location.hash is empty/stale by shorten time)
-function setShareUrl(u){
-  curShareUrl = u;
-  $("sm-url").value = u;
+// Build the share-to-<service> intent URLs for a given link. Factored out so the social
+// buttons can rebuild them against a freshly-shortened link at click time (see below).
+function socLinks(u){
   const text = "Built this workflow with nanoodle — open it to remix (bring your own key, runs in your browser):";
   const eu = encodeURIComponent(u), et = encodeURIComponent(text), ti = encodeURIComponent("A nanoodle workflow");
-  const soc = {
+  return {
     x:        `https://twitter.com/intent/tweet?text=${et}&url=${eu}`,
     reddit:   `https://www.reddit.com/submit?url=${eu}&title=${ti}`,
     facebook: `https://www.facebook.com/sharer/sharer.php?u=${eu}`,
     email:    `mailto:?subject=${ti}&body=${et}%0A%0A${eu}`,
   };
+}
+function setShareUrl(u){
+  curShareUrl = u;
+  $("sm-url").value = u;
+  const soc = socLinks(u);
   document.querySelectorAll("#sharemenu .sm-social a").forEach(a => a.href = soc[a.dataset.soc]);
 }
+// twitter/reddit/facebook reject or truncate multi-KB URLs — a raw #g= link kills the share at
+// the exact moment someone tries to spread the workflow. Above this length, auto-shorten first.
+const SOCIAL_SHORTEN_MAX = 2000;
 function openShareMenu(url){ curLongShareUrl = url; setShareUrl(url); $("sharemenu").hidden = false; $("shareback").hidden = false; }
 function closeShareMenu(){ $("sharemenu").hidden = true; $("shareback").hidden = true; }
 // Set when this editor session is editing the workflow of an existing app (carried in
@@ -8415,6 +8423,25 @@ document.querySelectorAll("#sharemenu .sm-svc button").forEach(btn => btn.onclic
   }finally{ btn.textContent = o; others.forEach(b=> b.disabled = false); }
 });
 document.querySelectorAll('#sharemenu .sm-social a[data-soc="email"]').forEach(a=> a.onclick = ()=> closeShareMenu());
+// x/reddit/facebook: when the link the popover reflects is still long (a raw #g= workflow link),
+// auto-shorten it before opening the intent — the social sites reject/truncate multi-KB URLs. The
+// window is opened SYNCHRONOUSLY on click (so the async shorten doesn't trip the popup blocker),
+// then pointed at the short intent once da.gd resolves. On shortener failure we fall back to the
+// long intent (unchanged behavior) rather than block the share. If the link was already shortened
+// (manual ✂ button), curShareUrl is short, so the anchor just opens normally.
+document.querySelectorAll('#sharemenu .sm-social a:not([data-soc="email"])').forEach(a=> a.onclick = (e)=>{
+  if(curShareUrl.length <= SOCIAL_SHORTEN_MAX){ closeShareMenu(); return; }   // short enough → let the anchor open
+  e.preventDefault();
+  const soc = a.dataset.soc, win = window.open("about:blank", "_blank");
+  if(win){ try{ win.opener = null; }catch(_){} }
+  const go = (href)=>{
+    if(win){ win.location.replace(href); return; }
+    const t = document.createElement("a"); t.href = href; t.target = "_blank"; t.rel = "noopener";   // popup blocked: best-effort new tab
+    document.body.appendChild(t); t.click(); t.remove();
+  };
+  shortenWith("dagd", curLongShareUrl).then(short => go(socLinks(short)[soc])).catch(()=> go(a.href));
+  closeShareMenu();
+});
 document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && !$("sharemenu").hidden){ e.stopPropagation(); closeShareMenu(); } }, true);
 // Turn this workflow into a standalone app (play.html). Hand off the graph via the
 // existing #g= packing; stash a localStorage copy as a belt-and-suspenders fallback.
