@@ -52,11 +52,14 @@ const SCENARIOS = [
     },
   },
   {
-    name: "unknown/typed-in model is permissive — keeps a baked format:JSON (authored behavior preserved)",
+    // Drift preflight (assertModelAvailable) supersedes the old permissive-keep for a catalog-MISSING
+    // model: a saved/shared graph naming a renamed/retired id is blocked before any send (no opaque
+    // 4xx, no charge on a dead id). The capability-STRIP path above is unaffected — it gates on
+    // catalogued models whose flags are known. (Twin pinned in check-drifted-model.mjs.)
+    name: "catalog-missing (drifted) model is blocked before any send — no chat call",
     data: { nodes: [node("m1", "llm", { model: "not-in-catalog", prompt: "hi", format: "JSON" })], links: [] },
     check(g, fail) {
-      const rf = chatCalls()[0].body.response_format;
-      if (!rf || rf.type !== "json_object") fail(`a catalog-absent model must keep the authored response_format (permissive), got ${JSON.stringify(rf)}`);
+      if (chatCalls().length) fail("a catalog-missing model must be blocked before any paid chat send");
     },
   },
   {
@@ -80,11 +83,12 @@ const SCENARIOS = [
     },
   },
   {
-    name: "unknown/typed-in model is permissive — keeps wired audio (authored behavior preserved)",
+    // Same drift preflight for a wired-audio graph: a catalog-missing model never reaches the sender.
+    name: "catalog-missing (drifted) model with wired audio is blocked before any send — no chat call",
     data: { nodes: [node("u1", "aupload", { audio: WAV }), node("t1", "text", { text: "Transcribe" }), node("m1", "llm", { model: "not-in-catalog" })],
             links: [link("u1", "audio", "m1", "audio"), link("t1", "text", "m1", "prompt")] },
     check(g, fail) {
-      if (!audioPart(chatCalls()[0])) fail("a catalog-absent model must keep the wired audio part (permissive)");
+      if (chatCalls().length) fail("a catalog-missing model must be blocked before any paid chat send");
     },
   },
 ];

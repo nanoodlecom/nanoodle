@@ -702,6 +702,11 @@
   .modelpick{ width:100%; text-align:left; background:var(--panel2); border:1px solid var(--line); border-radius:.45rem;
               padding:.35rem .5rem; font-size:.8rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
   .modelpick:hover{ border-color:var(--accent) }
+  /* drifted (renamed/retired) model id: warn on the button + one-click swap to the node default */
+  .modelwarn{ margin-top:.3rem; font-size:.72rem; line-height:1.35; color:#ffb454; flex-wrap:wrap; align-items:center; gap:.35rem }
+  .modelwarn:not([hidden]){ display:flex }   /* an author display: rule would defeat [hidden] — gate it on :not([hidden]) */
+  .mwswap{ background:#ffb45422; border:1px solid #ffb45455; color:#ffce8a; border-radius:.35rem; padding:.1rem .4rem; font-size:.7rem; cursor:pointer }
+  .mwswap:hover{ border-color:#ffb454 }
   /* MODEL label left, price right on one row — the price recedes instead of reading like debug output */
   .mhead{ display:flex; align-items:baseline; justify-content:space-between; gap:.5rem }
   .mhead label{ margin-bottom:.15rem }
@@ -1483,6 +1488,9 @@ const I18N = {
     "your key was rejected — sign in or paste a valid nano-gpt.com key":"tu clave fue rechazada — inicia sesión o pega una clave válida de nano-gpt.com",
     "Link opens the app as last saved — hit ✨ Update first to include your newest canvas edits":"El enlace abre la app tal como se guardó — pulsa ✨ Actualizar primero para incluir tus últimos cambios del lienzo",
     "pick a model first":"elige un modelo primero",
+    "model unavailable — pick another":"modelo no disponible — elige otro",
+    "use default":"usar predeterminado",
+    "this model is no longer available on NanoGPT — click the node’s model name to pick another":"este modelo ya no está disponible en NanoGPT — haz clic en el nombre del modelo del nodo para elegir otro",
     "no prompt":"sin prompt",
     "no text":"sin texto",
     "no edit instruction":"sin instrucción de edición",
@@ -1901,6 +1909,9 @@ const I18N = {
     "your key was rejected — sign in or paste a valid nano-gpt.com key":"votre clé a été rejetée — connectez-vous ou collez une clé nano-gpt.com valide",
     "Link opens the app as last saved — hit ✨ Update first to include your newest canvas edits":"Le lien ouvre l'app telle qu'enregistrée — appuyez d'abord sur ✨ Mettre à jour pour inclure vos derniers changements du canevas",
     "pick a model first":"choisissez d’abord un modèle",
+    "model unavailable — pick another":"modèle indisponible — choisissez-en un autre",
+    "use default":"modèle par défaut",
+    "this model is no longer available on NanoGPT — click the node’s model name to pick another":"ce modèle n’est plus disponible sur NanoGPT — cliquez sur le nom du modèle du nœud pour en choisir un autre",
     "no prompt":"aucun prompt",
     "no text":"aucun texte",
     "no edit instruction":"aucune instruction de modification",
@@ -2319,6 +2330,9 @@ const I18N = {
     "your key was rejected — sign in or paste a valid nano-gpt.com key":"dein Schlüssel wurde abgelehnt — melde dich an oder füge einen gültigen nano-gpt.com-Schlüssel ein",
     "Link opens the app as last saved — hit ✨ Update first to include your newest canvas edits":"Der Link öffnet die App im zuletzt gespeicherten Stand — tippe zuerst auf ✨ Aktualisieren, um deine neuesten Canvas-Änderungen einzuschließen",
     "pick a model first":"zuerst Modell wählen",
+    "model unavailable — pick another":"Modell nicht verfügbar — wähle ein anderes",
+    "use default":"Standard verwenden",
+    "this model is no longer available on NanoGPT — click the node’s model name to pick another":"dieses Modell ist auf NanoGPT nicht mehr verfügbar — klicke auf den Modellnamen des Knotens, um ein anderes zu wählen",
     "no prompt":"kein Prompt",
     "no text":"kein Text",
     "no edit instruction":"keine Bearbeitungsanweisung",
@@ -2737,6 +2751,9 @@ const I18N = {
     "your key was rejected — sign in or paste a valid nano-gpt.com key":"sua chave foi rejeitada — entre ou cole uma chave válida do nano-gpt.com",
     "Link opens the app as last saved — hit ✨ Update first to include your newest canvas edits":"O link abre o app como foi salvo por último — toque em ✨ Atualizar primeiro para incluir suas edições mais recentes da tela",
     "pick a model first":"escolha um modelo primeiro",
+    "model unavailable — pick another":"modelo indisponível — escolha outro",
+    "use default":"usar padrão",
+    "this model is no longer available on NanoGPT — click the node’s model name to pick another":"este modelo não está mais disponível no NanoGPT — clique no nome do modelo do nó para escolher outro",
     "no prompt":"sem prompt",
     "no text":"sem texto",
     "no edit instruction":"sem instrução de edição",
@@ -3155,6 +3172,9 @@ const I18N = {
     "your key was rejected — sign in or paste a valid nano-gpt.com key":"キーが拒否されました — サインインするか、有効なnano-gpt.comのキーを貼り付けてください",
     "Link opens the app as last saved — hit ✨ Update first to include your newest canvas edits":"リンクは最後に保存された状態のアプリを開きます — 最新のキャンバスの変更を含めるには、先に✨アップデートをタップしてください",
     "pick a model first":"先にモデルを選択",
+    "model unavailable — pick another":"モデルは利用できません — 別のモデルを選択",
+    "use default":"デフォルトを使用",
+    "this model is no longer available on NanoGPT — click the node’s model name to pick another":"このモデルはNanoGPTで利用できなくなりました — ノードのモデル名をクリックして別のモデルを選択してください",
     "no prompt":"プロンプトなし",
     "no text":"テキストなし",
     "no edit instruction":"編集指示なし",
@@ -3477,6 +3497,15 @@ function defModelFor(type){
   const m = (catalogs[t.modelKind]||[]).find(x=> passesFilter(x, t.modelFilter));
   return m ? m.id : "";
 }
+// A saved/shared graph's fields.model can name a model NanoGPT has since renamed or retired.
+// True only when the catalog for that kind is actually LOADED (non-empty) yet the id is absent —
+// so an offline / not-yet-fetched catalog (or an empty node) never false-flags a valid typed-in id.
+function modelDrifted(n){
+  const t = NODE_TYPES[n.type]; if(!t.modelKind || !n.fields.model) return false;
+  const list = catalogs[t.modelKind];
+  if(!list || !list.length) return false;   // catalog unavailable → stay permissive
+  return !catItem(t.modelKind, n.fields.model);
+}
 
 /* ---------- dynamic image inputs (vision-capable chat models) ----------
    A node with `imageInputs:"<capFlag>"` grows image input ports that get sent to the
@@ -3612,12 +3641,31 @@ function audioInputPart(url){
 /* one model-row in a node body — a button that opens the shared picker */
 function modelFieldHTML(node){
   return `<div><div class="mhead"><label>model</label><span class="mprice" data-mp></span></div>
-    <button class="modelpick" type="button">${esc(node.fields.model||t("pick a model…"))} ▾</button></div>`;
+    <button class="modelpick" type="button">${esc(node.fields.model||t("pick a model…"))} ▾</button>
+    <div class="modelwarn" data-mw hidden></div></div>`;
 }
 function updateNodePrice(n){
   const t = NODE_TYPES[n.type]; if(!t.modelKind || !n.el) return;
   const el = n.el.querySelector("[data-mp]"); if(!el) return;
   el.textContent = livePrice(t.modelKind, n.fields) || catItem(t.modelKind, n.fields.model)?.price || "";
+  updateModelWarn(n);
+}
+// Surface a drifted model id on the node's model button so a saved/shared graph doesn't rot
+// silently: a badge + a one-click swap to the node's default (newest catalog model of its kind).
+function updateModelWarn(n){
+  if(!n.el) return;
+  const w = n.el.querySelector("[data-mw]"); if(!w) return;
+  if(!modelDrifted(n)){ w.hidden = true; w.textContent = ""; return; }
+  w.hidden = false;
+  w.innerHTML = `⚠ ${esc(t("model unavailable — pick another"))} <button type="button" class="mwswap" data-mws>${esc(t("use default"))}</button>`;
+  const swap = w.querySelector("[data-mws]");
+  if(swap) swap.onclick = (e)=>{
+    e.stopPropagation();
+    const id = defModelFor(n.type); if(!id) return;
+    n.fields.model = id;
+    const mp = n.el.querySelector(".modelpick"); if(mp) mp.textContent = id+" ▾";
+    updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); save();
+  };
 }
 /* ---------- dynamic audio parameters (from the model catalog + a researched spec) ----------
    Music & Speech both POST to /api/v1/audio/speech with { model, input, ...extra }. Every extra key is
@@ -4415,7 +4463,11 @@ function renderPicker(){
    input values -> output values. Ports are typed ('text' | 'image') and
    only matching types can connect.
    ====================================================================== */
-const mdl = (n)=>{ if(!n.fields.model) throw new Error("pick a model first"); return n.fields.model; };
+const mdl = (n)=>{ if(!n.fields.model) throw new Error("pick a model first");
+  // Run preflight: a drifted (renamed/retired) model id must never reach a paid sender —
+  // block the node here, before any request, so there's no opaque 4xx and no charge on a dead id.
+  if(modelDrifted(n)) throw new Error(t("this model is no longer available on NanoGPT — click the node’s model name to pick another"));
+  return n.fields.model; };
 const NODE_TYPES = {
   text: {
     em:"📝", title:"Text", desc:"A string source", group:"Inputs",

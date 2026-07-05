@@ -99,9 +99,11 @@ touches_resize=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html
 # empty (no re-hammer), the cache primes first paint, and an empty catalog stays permissive (signed-off).
 touches_catalog=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-catalog-fallback\.mjs)$' || true)
 
-# Nothing to check unless an .html file or one of the checkers changed.
-[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_langpages" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_i18n" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && [ -z "$touches_pacing" ] && [ -z "$touches_graphpersist" ] && [ -z "$touches_graphsigs" ] && [ -z "$touches_describeapply" ] && [ -z "$touches_authlc" ] && [ -z "$touches_mediapriv" ] && [ -z "$touches_verhist" ] && [ -z "$touches_rungating" ] && [ -z "$touches_appsstorage" ] && [ -z "$touches_linkerr" ] && [ -z "$touches_deploy" ] && [ -z "$touches_hiddencss" ] && [ -z "$touches_connect" ] && [ -z "$touches_undo" ] && [ -z "$touches_costaccrue" ] && [ -z "$touches_resize" ] && [ -z "$touches_catalog" ] && [ -z "$touches_upscale" ] && exit 0
+# both engines run a drift preflight: a saved/shared graph's fields.model that's missing from the LIVE catalog must be blocked before any paid send.
+touches_drift=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-drifted-model\.mjs)$' || true)
 
+# Nothing to check unless an .html file or one of the checkers changed.
+[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_langpages" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_i18n" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && [ -z "$touches_pacing" ] && [ -z "$touches_graphpersist" ] && [ -z "$touches_graphsigs" ] && [ -z "$touches_describeapply" ] && [ -z "$touches_authlc" ] && [ -z "$touches_mediapriv" ] && [ -z "$touches_verhist" ] && [ -z "$touches_rungating" ] && [ -z "$touches_appsstorage" ] && [ -z "$touches_linkerr" ] && [ -z "$touches_deploy" ] && [ -z "$touches_hiddencss" ] && [ -z "$touches_connect" ] && [ -z "$touches_undo" ] && [ -z "$touches_costaccrue" ] && [ -z "$touches_resize" ] && [ -z "$touches_catalog" ] && [ -z "$touches_upscale" ] && [ -z "$touches_drift" ] && exit 0
 if ! command -v node >/dev/null 2>&1; then
   echo "pre-commit: node not found, skipping HTML JS checks" >&2
   exit 0
@@ -385,4 +387,12 @@ fi
 #     model, and an empty catalog stays permissive for typed-in ids (signed-off product decision).
 if [ -n "$touches_catalog" ]; then
   node "$root/scripts/check-catalog-fallback.mjs"
+fi
+
+# 36) DRIFTED MODEL PREFLIGHT: a saved/shared graph's fields.model can name an id NanoGPT has renamed
+#     or retired. Both engines must block that node BEFORE any request (no opaque 4xx, no charge on a
+#     dead id) — editor mdl()/modelDrifted(), play assertModelAvailable() — and stay permissive when
+#     the catalog is offline/empty. Offline: extracts the real helpers and drives them.
+if [ -n "$touches_drift" ]; then
+  node "$root/scripts/check-drifted-model.mjs"
 fi

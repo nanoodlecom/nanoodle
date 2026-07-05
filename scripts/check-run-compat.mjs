@@ -24,11 +24,15 @@ import { join } from "node:path";
 import { ROOT, loadEngine, calls, catalog } from "./play-engine.mjs";
 
 // Seed the best-effort image catalog so the edit node's max_input_images cap can engage in the
-// exported engine (mirrors the editor's cap). Model "x" is deliberately absent → an uncatalogued
-// model keeps every wired reference (the "no cap → unchanged" path).
+// exported engine (mirrors the editor's cap). capmodel1/3 advertise a small cap; "x" is the
+// payload-shape placeholder every image/edit fixture uses — it carries GENEROUS caps so those
+// fixtures exercise the uncapped path (n:2 honored, all refs kept). "x" MUST be catalogued: the
+// drift preflight (assertModelAvailable) now blocks a run whose model is missing from the LOADED
+// catalog, so a bare uncatalogued id would be stopped before any send (proven below).
 catalog.image.push(
   { id: "capmodel1", supported_parameters: { max_input_images: 1 } },
   { id: "capmodel3", supported_parameters: { max_input_images: 3 } },
+  { id: "x", supported_parameters: { max_input_images: 9, max_output_images: 9 } },
 );
 
 // ---- graph builders -------------------------------------------------------
@@ -229,15 +233,27 @@ const SCENARIOS = [
     },
   },
   {
-    name: "NEW: Edit with an uncatalogued model keeps all refs (no cap → unchanged)",
+    name: "NEW: Edit with a high-cap model keeps all wired refs (cap doesn't over-trim)",
     data: { nodes: [node("a", "upload", { image: IMG + "A" }), node("b", "upload", { image: IMG + "B" }),
                     node("c", "upload", { image: IMG + "C" }),
-                    node("e1", "edit", { model: "uncatalogued-x", prompt: "compose" })],
+                    node("e1", "edit", { model: "x", prompt: "compose" })],   // "x" advertises max_input_images:9 → no effective cap on 3 refs
             links: [link("a", "image", "e1", "image"), link("b", "image", "e1", "image2"), link("c", "image", "e1", "image3")] },
     check(app, g, fail) {
       const b = imgCalls()[0]?.body;
       if (!b) return fail("no edit/image call");
-      if (!Array.isArray(b.imageDataUrl) || b.imageDataUrl.length !== 3) fail(`an unknown model must not cap (today's behavior), got ${Array.isArray(b.imageDataUrl) ? `len ${b.imageDataUrl.length}` : typeof b.imageDataUrl}`);
+      if (!Array.isArray(b.imageDataUrl) || b.imageDataUrl.length !== 3) fail(`a high-cap model must not over-trim, got ${Array.isArray(b.imageDataUrl) ? `len ${b.imageDataUrl.length}` : typeof b.imageDataUrl}`);
+    },
+  },
+  {
+    // A saved/shared graph can carry a model NanoGPT has renamed or retired. The drift preflight must
+    // block that node BEFORE any request — no opaque 4xx, no charge on a dead id. (Twin pinned offline
+    // in check-drifted-model.mjs; this proves it through the REAL exported run loop.)
+    name: "NEW: Edit with a catalog-missing (drifted) model is blocked before any send",
+    data: { nodes: [node("a", "upload", { image: IMG + "A" }),
+                    node("e1", "edit", { model: "retired-model-v0", prompt: "compose" })],
+            links: [link("a", "image", "e1", "image")] },
+    check(app, g, fail) {
+      if (imgCalls().length) fail("a drifted (catalog-missing) model must be blocked before any paid image send");
     },
   },
   {
