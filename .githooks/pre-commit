@@ -40,6 +40,8 @@ touches_updates=$(printf '%s\n' "$staged" | grep -E '(^|/)(updates\.json|scripts
 touches_createapp=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-create-app\.mjs)$' || true)
 # index.html runGroup must not run/charge a downstream node on a failed upstream's stale output.
 touches_stale=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-stale-input-charge\.mjs)$' || true)
+# index.html + play.html carry the AI-upscale-through-Edit path (prompt-optional for /upscal/ models, blank prompt omitted from genImage) — the check pins both engines in lockstep.
+touches_upscale=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-upscale\.mjs)$' || true)
 # play.html runtime must resume a timed-out video job instead of re-submitting (double charge).
 touches_vresume=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-video-resume\.mjs)$' || true)
 # index.html + play.html carry the Share→Shorten flow; the short link must keep the #g=/#a= payload.
@@ -51,12 +53,57 @@ touches_pricing=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.htm
 touches_combine=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-combine\.mjs|scripts/fixtures/clip[AB]\.mp4)$' || true)
 # play.html's __api__ bridge paces spend-initiating calls from imported apps (token bucket); the check pins the charge/free split + budget.
 touches_pacing=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-import-pacing\.mjs)$' || true)
+# index.html carries graph persistence + share-payload packing (serialize/apply round-trip, legacy migrations,
+# autosave-wipe protection, >64KB #g=/#j= pack) — drift silently loses work.
+touches_graphpersist=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-graph-persistence\.mjs)$' || true)
+# index.html signs the graph in three places (serializeGraph persists, appHandoffSig gates app-handoff/resume,
+# contentSig gates copilot versioning) — a persisted node prop missing from the two sigs is silently dropped (PR #114).
+touches_graphsigs=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-graph-sigs\.mjs)$' || true)
+# index.html carries the "describe changes" copilot apply path (NL edit → graph rewrite → local validate/diff);
+# its pure pre/post-processing must not destroy uploaded media or let an illegal paid option through.
+touches_describeapply=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-describe-apply\.mjs)$' || true)
+# index.html carries the API-key lifecycle & auth-clear state machine — a wrong clear condition
+# logs a paying user out mid-run; a wrong accept condition stores an unsendable key that fails every run.
+touches_authlc=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-auth-lifecycle\.mjs)$' || true)
+# index.html carries the media-privacy sanitizers (strip remote beacons on import,
+# blank the sharer's own uploads/inpaint media out of every share link).
+touches_mediapriv=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-media-privacy\.mjs)$' || true)
+# index.html + play.html carry the two append-only version strips (app-builder + Describe-changes copilot);
+# the check pins no-truncation, media-aware park (H1), and every graph swap resetting the copilot chips.
+touches_verhist=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-version-history\.mjs)$' || true)
+# play.html carries the keyless/signed-out spend gating (PRs #216-#219): a fresh recipient must not be one
+# click from an 8x/loop spend, and a signed-out Run must fire no API call.
+touches_rungating=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-run-gating\.mjs)$' || true)
+# play.html carries the "My apps" localStorage library — the user's ONLY durable copy of their built apps (no server).
+touches_appsstorage=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-apps-storage\.mjs)$' || true)
+# play.html carries the malformed/legacy #a= share-link path (#linkerr banner, hash retry, apps untouched).
+touches_linkerr=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-linkerr\.mjs)$' || true)
+# the deploy-config files (_headers CSP, sw.js cache stamp, _redirects, sitemap/robots/manifest) — the layer
+# every in-page check passes AROUND; a drift here breaks prod while all other hooks stay green (PR #81 class).
+touches_deploy=$(printf '%s\n' "$staged" | grep -E '(^|/)(_headers|_redirects|sw\.js|sitemap\.xml|robots\.txt|site\.webmanifest|index\.html|scripts/(check-deploy-config|stamp-sw|check-policy)\.mjs|scripts/fixtures/deploy-headers-csp\.golden\.json)$' || true)
+# index.html + play.html carry the `hidden`-attribute vs author-`display:` hazard (an unguarded visible
+# display: rule on a JS-hidden id keeps it visible — shipped once as /play's always-on #linkerr banner).
+touches_hiddencss=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-hidden-css\.mjs)$' || true)
+# index.html carries connect() (one wire per input, self-drop no-op) + topoOrder (run-time cycle guard).
+touches_connect=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-connect-wires\.mjs)$' || true)
+# index.html carries the undo/redo snapshot machine — the safety net that makes destructive edits
+# (shared-link overwrite, 📂 Load file, describe-apply, delete) reversible.
+touches_undo=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-undo-history\.mjs)$' || true)
+# index.html + play.html carry the session cost-meter aggregation (spend total + balance chip) — the layer
+# above check-pricing's per-unit estimators; zero-price must read known-free, never unknown.
+touches_costaccrue=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-cost-accrue\.mjs)$' || true)
+# index.html + play.html carry twin copies of resizePlan (Resize/crop geometry) — engine drift ships wrong
+# dimensions into paid image/video jobs on one surface but not the other.
+touches_resize=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-resize-plan\.mjs)$' || true)
+# index.html carries the model-catalog fetch/fallback/default-resolution layer — offline must yield a stable
+# empty (no re-hammer), the cache primes first paint, and an empty catalog stays permissive (signed-off).
+touches_catalog=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-catalog-fallback\.mjs)$' || true)
+
 # both engines run a drift preflight: a saved/shared graph's fields.model that's missing from the LIVE catalog must be blocked before any paid send.
 touches_drift=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-drifted-model\.mjs)$' || true)
 
 # Nothing to check unless an .html file or one of the checkers changed.
-[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_langpages" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_i18n" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && [ -z "$touches_pacing" ] && [ -z "$touches_drift" ] && exit 0
-
+[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_langpages" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_i18n" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && [ -z "$touches_pacing" ] && [ -z "$touches_graphpersist" ] && [ -z "$touches_graphsigs" ] && [ -z "$touches_describeapply" ] && [ -z "$touches_authlc" ] && [ -z "$touches_mediapriv" ] && [ -z "$touches_verhist" ] && [ -z "$touches_rungating" ] && [ -z "$touches_appsstorage" ] && [ -z "$touches_linkerr" ] && [ -z "$touches_deploy" ] && [ -z "$touches_hiddencss" ] && [ -z "$touches_connect" ] && [ -z "$touches_undo" ] && [ -z "$touches_costaccrue" ] && [ -z "$touches_resize" ] && [ -z "$touches_catalog" ] && [ -z "$touches_upscale" ] && [ -z "$touches_drift" ] && exit 0
 if ! command -v node >/dev/null 2>&1; then
   echo "pre-commit: node not found, skipping HTML JS checks" >&2
   exit 0
@@ -173,6 +220,13 @@ if [ -n "$touches_stale" ]; then
   node "$root/scripts/check-stale-input-charge.mjs"
 fi
 
+# 13b) AI upscale runs through the Edit node: /upscal/ models take no instruction, so the
+#      "no edit instruction" throw must be gated and genImage must omit a blank prompt — in
+#      BOTH engines (recurring twin-drift risk). Source-assertion, no browser/network.
+if [ -n "$touches_upscale" ]; then
+  node "$root/scripts/check-upscale.mjs"
+fi
+
 # 14) the exported/standalone runtime must RESUME a video job that outlived the 10-min poll window
 #     instead of re-submitting (and re-charging) it — while an edited node still submits afresh.
 #     Drives the real runGraph() over a timing-out video graph with a recording fetch.
@@ -220,7 +274,122 @@ if [ -n "$touches_i18n" ]; then
   node "$root/scripts/check-i18n-coverage.mjs"
 fi
 
-# 20) DRIFTED MODEL PREFLIGHT: a saved/shared graph's fields.model can name an id NanoGPT has renamed
+# 20) GRAPH PERSISTENCE: serializeGraph/applyGraphData must round-trip a modern graph, migrate legacy
+#     graphs (audio→tts, unknown-type skip, dangling-link prune, text→prompt port, id-counter rebuild),
+#     protect the autosave from a throwing payload, and pack a >64KB graph byte-exact (#g= gzip + #j=
+#     fallback). Offline: lifts the real functions out of index.html and runs them in a node:vm sandbox.
+if [ -n "$touches_graphpersist" ]; then
+  node "$root/scripts/check-graph-persistence.mjs"
+fi
+
+# 21) GRAPH SIGNATURES: serializeGraph (persist), appHandoffSig (app-handoff/resume) and contentSig
+#     (copilot versioning) must cover the same node props — a new persisted prop missing from the sigs
+#     is silently dropped from handoff/versioning (the PR #114 rename bug), and a signed-but-unpersisted
+#     prop spuriously breaks identity. Mutation matrix over the real extracted functions.
+if [ -n "$touches_graphsigs" ]; then
+  node "$root/scripts/check-graph-sigs.mjs"
+fi
+
+# 22) DESCRIBE-CHANGES APPLY: the copilot's pure pre/post-processing must preserve a survivor's uploaded
+#     media, respect the planner's deletions, snap out-of-range paid options to legal defaults, and
+#     reject a cyclic/portless graph — all offline, no LLM.
+if [ -n "$touches_describeapply" ]; then
+  node "$root/scripts/check-describe-apply.mjs"
+fi
+
+# 23) AUTH LIFECYCLE: the stored key is cleared ONLY on a real 401/403 (never a benign 400/402/429/500
+#     or network blip), a low-funds body can't masquerade as an auth error, an unsendable (non-ascii)
+#     key is refused at paste time, and an unreachable nano-gpt leaves a good key "unverified" not "bad".
+if [ -n "$touches_authlc" ]; then
+  node "$root/scripts/check-auth-lifecycle.mjs"
+fi
+
+# 24) MEDIA PRIVACY: imported #g=/#j= links must have remote (beacon) upload/inpaint media stripped
+#     BEFORE any element mounts (viewer IP/UA leak), and share links must blank the sharer's own
+#     uploads/inpaint media — with both sanitizers pinned at their call sites.
+if [ -n "$touches_mediapriv" ]; then
+  node "$root/scripts/check-media-privacy.mjs"
+fi
+
+# 25) VERSION HISTORY: the two append-only version strips (play.html app-builder + index.html copilot)
+#     must never truncate forward versions (the PR #63 "v4 lost my changes" bug), must park unsaved
+#     media-only edits before jumping (audit H1), and every wholesale graph swap must reset the chips.
+if [ -n "$touches_verhist" ]; then
+  node "$root/scripts/check-version-history.mjs"
+fi
+
+# 26) KEYLESS SPEND GATING: with no key, run multipliers are forced to 1×/KEEP-off and hidden; the
+#     run-cost chip scales usd × RUNS_N (never "$0"); a signed-out Run routes to the preflight and
+#     fires ZERO fetch; typed inputs are stashed for the OAuth resume. (PRs #216-#219.)
+if [ -n "$touches_rungating" ]; then
+  node "$root/scripts/check-run-gating.mjs"
+fi
+
+# 27) MY-APPS STORAGE: the noodle_apps library (the user's only durable copy — no server) must load
+#     corrupt-tolerantly, refuse-and-warn-once on quota (never silent-drop), delete only the target,
+#     and round-trip every persisted field.
+if [ -n "$touches_appsstorage" ]; then
+  node "$root/scripts/check-apps-storage.mjs"
+fi
+
+# 28) MALFORMED SHARE LINKS: a truncated #a= (messengers wrap long URLs) must show the #linkerr banner —
+#     never a blank page — keep the hash for a retry, and leave the recipient's saved apps untouched;
+#     legacy 'u'-prefix links still open.
+if [ -n "$touches_linkerr" ]; then
+  node "$root/scripts/check-linkerr.mjs"
+fi
+
+# 29) DEPLOY CONFIG: _headers per-route CSP (single line per route, no cross-block /* intersection,
+#     shortener + nano-gpt origins present, golden drift snapshot), sw.js CACHE stamp matches
+#     stamp-sw.mjs's own regex + SHELL paths exist, /app + /editor rewrites, manifest/robots/sitemap
+#     consistency, sitemap ↔ I18N_LANGS. The layer every in-page check passes AROUND (PR #81 class).
+if [ -n "$touches_deploy" ]; then
+  node "$root/scripts/check-deploy-config.mjs"
+fi
+
+# 30) HIDDEN vs display CSS: an author display: rule must not defeat the `hidden` attribute (element
+#     shows while JS thinks it's hidden — shipped once as /play's always-on #linkerr banner). Static
+#     scan of both pages' <style> subjects + JS hidden-toggles.
+if [ -n "$touches_hiddencss" ]; then
+  node "$root/scripts/check-hidden-css.mjs"
+fi
+
+# 31) CONNECT WIRES: connect() keeps exactly one wire per input (newest wins), self-drops are no-ops
+#     (no phantom undo), dynamic-port refreshes stay wired, and topoOrder excludes cycles from the run
+#     order. First offline harness around connect(); loop-refusal stanza ready for PR #231.
+if [ -n "$touches_connect" ]; then
+  node "$root/scripts/check-connect-wires.mjs"
+fi
+
+# 32) UNDO/REDO: the snapshot machine must round-trip a graph exactly on undo (+ redo reapply), fork
+#     history on a fresh edit, mute during restore, cap at UNDO_DEPTH, and PARK the prior workflow —
+#     uploaded photos included — before a shared #g=/#j= link or a 📂 Load file overwrites the canvas.
+if [ -n "$touches_undo" ]; then
+  node "$root/scripts/check-undo-history.mjs"
+fi
+
+# 33) COST-METER AGGREGATION: real cost > x_nanogpt_pricing > estimate; a present-but-zero price is
+#     KNOWN-FREE (meter stays exact) while a missing price flips a sticky "~"; the x-remaining-balance
+#     header is canonical. Both engines pinned in lockstep.
+if [ -n "$touches_costaccrue" ]; then
+  node "$root/scripts/check-cost-accrue.mjs"
+fi
+
+# 34) RESIZE GEOMETRY: resizePlan (fit/fill/exact math behind the Resize/crop node) must stay
+#     parity-locked across both engines and geometrically exact — drift ships wrong dimensions into
+#     paid image/video jobs. Also pins the shared 1024px downscale cap.
+if [ -n "$touches_resize" ]; then
+  node "$root/scripts/check-resize-plan.mjs"
+fi
+
+# 35) CATALOG FALLBACK: offline/500 → stable empty catalog (no re-hammer, no cache poisoning), the
+#     localStorage cache primes first paint, SWR revalidates, defModelFor picks the newest passing
+#     model, and an empty catalog stays permissive for typed-in ids (signed-off product decision).
+if [ -n "$touches_catalog" ]; then
+  node "$root/scripts/check-catalog-fallback.mjs"
+fi
+
+# 36) DRIFTED MODEL PREFLIGHT: a saved/shared graph's fields.model can name an id NanoGPT has renamed
 #     or retired. Both engines must block that node BEFORE any request (no opaque 4xx, no charge on a
 #     dead id) — editor mdl()/modelDrifted(), play assertModelAvailable() — and stay permissive when
 #     the catalog is offline/empty. Offline: extracts the real helpers and drives them.

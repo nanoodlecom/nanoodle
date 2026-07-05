@@ -1075,7 +1075,22 @@ window.NoodleApp = (function () {
     if(p.fixed_duration_seconds!=null) return _num(p.fixed_duration_seconds) || 5;
     return 5;
   }
-  function videoUnitUsd(pricing, fields){
+  // Twin of the editor: a video run bills a HIGHER tier when reference images are wired or the model's audio
+  // switch is on. refWired is passed by the caller (needs the graph wiring); the audio switch / reference mode
+  // ride in fields.modelOpts. Pick the with-reference / with-audio table where the catalog carries one, else a
+  // flat pricing.audio_multiplier — so the run-cost chip stops quoting base for a run that reserves ~2×.
+  function videoUnitUsd(pricing, fields, refWired){
+    const p = pricing || {};
+    const f = fields || {};
+    const opts = (f.modelOpts && typeof f.modelOpts==="object") ? f.modelOpts : {};
+    let audioOn = false;
+    for(const k in opts){ if(/audio/i.test(k) && !/^(no|disable|without|mute)/i.test(k)){ const val=opts[k]; if(val===true||val==="true"||val===1||val==="1"||val==="on"||val==="yes"){ audioOn=true; break; } } }
+    const refOn = !!refWired || /reference/i.test(String(opts.mode||""));
+    const usd = videoBaseUsd(p, f, audioOn, refOn);
+    if(usd!=null && isFinite(usd) && audioOn && p.audio_multiplier!=null) return usd * (_num(p.audio_multiplier) ?? 1);
+    return usd;
+  }
+  function videoBaseUsd(pricing, fields, audioOn, refOn){
     const p = pricing || {}, raw = (p.raw && typeof p.raw==="object") ? p.raw : {};
     const f = fields || {};
     const res = f.resolution, defRes = p.default_resolution ?? raw.defaultResolution;
@@ -1084,14 +1099,19 @@ window.NoodleApp = (function () {
     let v;
     if((v=rp(p.per_second_by_resolution))!=null) return v*dur;
     if((v=rp(p.standard_prices_per_second))!=null) return v*dur;
-    if(p.per_second_by_mode){ v=_num(p.per_second_by_mode.text_to_video) ?? pickByRes(p.per_second_by_mode); if(v!=null) return v*dur; }
+    if(p.per_second_by_mode){ const mm=p.per_second_by_mode;
+      v = refOn ? (_num(mm.reference_to_video_image) ?? _num(mm.reference_to_video_video)) : null;
+      if(v==null) v = _num(mm.text_to_video) ?? pickByRes(mm);
+      if(v!=null) return v*dur; }
+    if(audioOn){ for(const k of ["text_image_with_audio_per_second","image_to_video_with_audio_per_second","text_to_video_with_audio_per_second"]){
+      if(p[k]!=null){ v = (typeof p[k]==="object") ? rp(p[k]) : _num(p[k]); if(v!=null) return v*dur; } } }
     for(const k of ["text_to_video_per_second","text_image_without_audio_per_second","image_to_video_without_audio_per_second"]){
       if(p[k]!=null){ v = (typeof p[k]==="object") ? rp(p[k]) : _num(p[k]); if(v!=null) return v*dur; }
     }
     if(p.base_price_per_second!=null){ const m = p.resolution_multipliers ? (rp(p.resolution_multipliers) ?? 1) : 1; v=_num(p.base_price_per_second); if(v!=null) return v*dur*m; }
     if(p.per_second!=null){ v=_num(p.per_second); if(v!=null) return v*dur; }
     if(p.per_duration){ const dk=String(Math.round(dur)); v=_num(p.per_duration[dk]) ?? _num(p.per_duration[String(dur)]) ?? pickByRes(p.per_duration); if(v!=null) return v; }
-    if(p.without_audio!=null || p.with_audio!=null){ v=_num(p.without_audio) ?? _num(p.with_audio); if(v!=null) return v; }
+    if(p.without_audio!=null || p.with_audio!=null){ v = audioOn ? (_num(p.with_audio) ?? _num(p.without_audio)) : (_num(p.without_audio) ?? _num(p.with_audio)); if(v!=null) return v; }
     if(p.base_prices_by_resolution){
       const dk=String(Math.round(dur));
       if(p.duration_overrides && p.duration_overrides[dk]){ v=rp(p.duration_overrides[dk]); if(v!=null) return v; }
@@ -1108,6 +1128,17 @@ window.NoodleApp = (function () {
     if(p.per_frame_unit!=null){ const fpu=_num(p.frames_per_unit)||1; return (dur*EST.videoFps/fpu)*_num(p.per_frame_unit); }
     if(p.base_price!=null){ v=_num(p.base_price); if(v!=null) return v; }
     if(Object.keys(raw).length){
+      if(refOn){   // with-reference tier (seedance-2.0/mini per-second, wan26 per-clip) beats the base tables
+        if(raw.referenceToVideoPrices){ const inner=pickObjByRes(raw.referenceToVideoPrices, res, defRes); if(inner){ const dk=String(Math.round(dur)); v=_num(inner[dk]) ?? pickByRes(inner); if(v!=null) return v; } }
+        for(const k of ["textToVideoWithReferenceVideoPricesPerSecond","standardTextToVideoWithReferenceVideoPricesPerSecond","turboTextToVideoWithReferenceVideoPricesPerSecond",
+                        "standardReferenceVideoPricesPerSecond","fastReferenceVideoPricesPerSecond"]){
+          if(raw[k]){ v=pickByRes(raw[k], res, defRes); if(v!=null) return v*dur; }
+        }
+      }
+      if(audioOn){   // with-audio tier (wan flash per-second / per-clip) beats the without-audio table
+        if(raw.withAudioPricesPerSecond){ v=pickByRes(raw.withAudioPricesPerSecond, res, defRes); if(v!=null) return v*dur; }
+        if(raw.withAudioPrices){ const inner=pickObjByRes(raw.withAudioPrices, res, defRes); if(inner){ const dk=String(Math.round(dur)); v=_num(inner[dk]) ?? pickByRes(inner); if(v!=null) return v; } }
+      }
       for(const k of ["pricesPerSecond","textToVideoPricesPerSecond","withoutAudioPricesPerSecond",
                       "standardPricesPerSecond","standardTextToVideoPricesPerSecond","outputPricesPerSecond","fastPricesPerSecond"]){
         if(raw[k]){ v=pickByRes(raw[k], res, defRes); if(v!=null) return v*dur; }
@@ -1161,12 +1192,11 @@ window.NoodleApp = (function () {
     const lo=_num(p.min_duration), hi=_num(p.max_duration);
     return Math.min(hi!=null?hi:d, Math.max(lo!=null?lo:d, d));
   }
-  // Songs the run is billed for. Only >1 when the model advertises a generation_count_parameter
-  // (collectAudioParams gates the SEND on the same signal); otherwise the count is dropped and one song
-  // is made, so a stale number_of_songs must not inflate the estimate. Mirrors the editor's audioBilledSongs.
-  function audioBilledSongs(sp, fields){
-    if(!(sp && sp.generation_count_parameter)) return 1;
-    return Math.max(1, parseInt((fields||{}).number_of_songs,10)||1);
+  // Songs the run is billed for. collectAudioParams clamps the SENT count to 1 (the endpoint returns a
+  // single track and the app surfaces only that one), so a run always bills for exactly one song — a
+  // stale/over-set number_of_songs must not inflate the estimate. Mirrors the editor's audioBilledSongs.
+  function audioBilledSongs(_sp, _fields){
+    return 1;
   }
   function imageUsd(pricing, size, count){
     const per = (pricing && pricing.per_image) || {};
@@ -1184,12 +1214,18 @@ window.NoodleApp = (function () {
       // otherwise clamp requested variations to the model's real max so an over-set count can't inflate the forecast.
       const count = fixed>0 ? fixed : Math.min(maxOut, Math.max(1, parseInt(f.variations,10)||1));
       return imageUsd(pricing, f.size, count); }
-    if(kind==="video"){ const u = videoUnitUsd(pricing, f); return (u!=null && isFinite(u)) ? u : null; }
+    if(kind==="video"){
+      // reference-image ports actually wired (and the model still exposes a ref-image param) flip the estimate
+      // to the with-reference tier — twin of the editor's refWired, off STATE.graph's wiring.
+      const t = NODE_TYPES[n.type] || {}, sp = m.supported_parameters || {}, pp = sp.parameters||sp;   // ref-image descriptors live under .parameters (see modelAllowsRefs)
+      const modelHasRefs = ["reference_images","reference_image_urls","referenceImages"].some(k=> k in pp);
+      const refWired = !!(t.refInputs && modelHasRefs && STATE && STATE.graph && STATE.graph.links.some(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port)));
+      const u = videoUnitUsd(pricing, f, refWired); return (u!=null && isFinite(u)) ? u : null; }
     if(kind==="chat"){ const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(pricing, inTok, outTok); }
     if(kind==="audio"){ const chars = n.type==="transcribe" ? undefined : ((f.prompt||"").length || EST.ttsChars);
       const secs = audioBilledSeconds(m.supported_parameters, f);   // per_second music meters off the chosen duration, not a fixed 30s
       const u = audioUnitUsd(pricing, chars, secs); if(u==null) return null;
-      const songs = audioBilledSongs(m.supported_parameters, f);   // >1 only when the model advertises a generation count (matches collectAudioParams' send-gate)
+      const songs = audioBilledSongs(m.supported_parameters, f);   // always 1 — collectAudioParams clamps the sent song count so a run only ever bills for one track
       return u*songs; }
     return null;
   }
@@ -1372,7 +1408,8 @@ window.NoodleApp = (function () {
     // models always return 4 regardless of n — multi callers surface them all instead of discarding 3.
     async genImage(prompt, model, size, imageDataUrl, maskDataUrl, extra, opts){
       opts = opts || {};
-      const body = { model, prompt, size, n: opts.n||1, response_format:"b64_json" };
+      const body = { model, size, n: opts.n||1, response_format:"b64_json" };
+      if(prompt) body.prompt = prompt;                     // omit when blank — upscalers run with no instruction; every other path guarantees a non-empty prompt before reaching here
       if(imageDataUrl) body.imageDataUrl = imageDataUrl;   // present → image edit (img2img)
       if(maskDataUrl)  body.maskDataUrl  = maskDataUrl;    // present → inpaint; WHITE areas = the region to repaint
       if(extra) Object.assign(body, extra);                // LoRA (and any future per-model image params)
@@ -2103,7 +2140,7 @@ function mp4ParamsMatch(bufs){
   // No backticks (RUNTIME_JS is a String.raw template).
   async function muxSoundtrack(videoUrl, audioUrl, loop, onProgress){
     if(/^https?:/.test(audioUrl))
-      throw new Error("can’t add that generated song as a soundtrack — it lives on the provider’s audio CDN, whose bytes the browser can’t read (CORS), so the track would come out silent. Use a Speech node, a Trim node, or an Audio upload for the soundtrack.");
+      throw new Error("can’t add that generated song as a soundtrack — it lives on the provider’s audio CDN, whose bytes the browser can’t read (CORS), so the track would come out silent. Lower the Music node’s length so the song fits at the source, or download the song and re-add it through an Audio input node.");
     const AC = window.AudioContext || window.webkitAudioContext;
     if(!AC) throw new Error("this browser can’t process audio (no Web Audio API)");
     const vh = await toLocalMediaUrl(videoUrl);
@@ -2231,7 +2268,9 @@ function mp4ParamsMatch(bufs){
       let v = n.fields[f.id], key = wireKey(f.id);
       if(f.type==="boolean"){ if(v===true||v==="true") body[key]=true; continue; }
       if(v==null || v==="") continue;
-      if(f.type==="number"){ const num=Number(v); if(isNaN(num)) continue; if(f.default!=null && num===f.default) continue; body[key]=num; continue; }
+      if(f.type==="number"){ let num=Number(v); if(isNaN(num)) continue;
+        if(f.applies==="cat:gencount") num=1;   // never request more songs than the node can surface (one) — mirrors the editor's collectAudioParams clamp
+        if(f.default!=null && num===f.default) continue; body[key]=num; continue; }
       if(f.default!=null && v===f.default) continue;       // e.g. response_format=mp3 → omit
       body[key] = v;
     }
@@ -2448,7 +2487,7 @@ function mp4ParamsMatch(bufs){
       em:"✂️", title:"Edit",
       inputs:[], imageInputs:{multi:true, re:EDIT_IMG_RE},   // image, image2, … wired source images (multi-reference compositing)
       outputs:[{name:"image", type:"image"}],
-      async run(n, inp, ctx){
+      async run(n, inp, ctx, onProgress){
         var imgs = collectImageInputs(inp, EDIT_IMG_RE);   // wired source images, in port order
         if(!imgs.length) throw new Error("no image input");
         // Cap to the model's max_input_images (best-effort, public catalog): a baked graph can carry
@@ -2458,10 +2497,11 @@ function mp4ParamsMatch(bufs){
           var _m = await rawCatItem("image", n.fields.model);
           var _mi = _m && _m.supported_parameters && _m.supported_parameters.max_input_images;
           var _cap = _m ? (_mi > 0 ? _mi : 1) : Infinity;
-          if(imgs.length > _cap) imgs = imgs.slice(0, _cap);
+          if(imgs.length > _cap){ var _drop = imgs.length - _cap; imgs = imgs.slice(0, _cap); if(onProgress) onProgress("dropped " + _drop + " image(s) over this model's limit"); }
         }catch(e){}
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
-        if(!prompt) throw new Error("no edit instruction");
+        // Upscalers just enlarge — they need no instruction. Every other edit model requires one.
+        if(!prompt && !/upscal/i.test(n.fields.model||"")) throw new Error("no edit instruction");
         if(imgs.reduce(function(s,u){ return s + (u?u.length:0); }, 0) > MEDIA_INLINE_MAX)
           throw new Error("reference images too large (~4 MB combined limit) — use fewer or smaller images");
         const src = imgs.length>1 ? imgs : imgs[0];   // array → multi-image composite; string → single edit (unchanged)
@@ -2542,7 +2582,13 @@ function mp4ParamsMatch(bufs){
         if(!prompt) throw new Error("no prompt");
         const opts = { dims:await videoDimParams(n), lora:loraParams(n), extra:(n.fields.modelOpts||{}) };
         const refs = collectRefInputs(inp);
-        if(refs.length){ const spec = await modelAllowsRefs(mdl(n)); if(spec && spec.key){ opts.refImages = refs.slice(0, spec.cap); opts.refKey = spec.key; } }   // honor authored ref wires unless a runtime model swap dropped ref support
+        if(refs.length){   // honor authored ref wires unless a runtime model swap dropped ref support — say so, never silently discard
+          const spec = await modelAllowsRefs(mdl(n));
+          if(spec && spec.key){
+            opts.refImages = refs.slice(0, spec.cap); opts.refKey = spec.key;
+            if(refs.length > spec.cap && onProgress) onProgress("dropped " + (refs.length - spec.cap) + " reference image(s) over this model's limit of " + spec.cap);
+          } else if(onProgress) onProgress("reference image(s) ignored — this model doesn't support them");
+        }
         const url = await ctx.genVideo(mdl(n), prompt, opts, null,
           (st,ms)=> onProgress && onProgress("rendering video… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
         return { video: url };
@@ -2556,7 +2602,10 @@ function mp4ParamsMatch(bufs){
         if(!inp.image) throw new Error("no image input");
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         const opts = { dims:await videoDimParams(n), lora:loraParams(n), extra:(n.fields.modelOpts||{}) };
-        if(inp.endframe && await modelAllowsEndFrame(mdl(n))) opts.last_image = inp.endframe;   // honor an authored end frame unless a runtime model swap dropped last_image support
+        if(inp.endframe){   // honor an authored end frame unless a runtime model swap dropped last_image support — say so, never silently discard
+          if(await modelAllowsEndFrame(mdl(n))) opts.last_image = inp.endframe;
+          else if(onProgress) onProgress("end frame ignored — this model can't morph");
+        }
         const url = await ctx.genVideo(mdl(n), prompt, opts, inp.image,
           (st,ms)=> onProgress && onProgress("animating… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
         return { video: url };
@@ -2692,7 +2741,7 @@ function mp4ParamsMatch(bufs){
         const start = parseFloat(n.fields.start) || 0;
         const length = parseFloat(n.fields.length);
         onProgress && onProgress("trimming audio…");
-        return { audio: await trimAudioToWavUrl(inp.audio, start, Number.isFinite(length) ? length : 30, 24000) };
+        return { audio: await trimAudioToWavUrl(inp.audio, start, Number.isFinite(length) ? length : 30, 16000) };
       }
     },
     extractaudio: {
@@ -2704,7 +2753,7 @@ function mp4ParamsMatch(bufs){
         const lenRaw = parseFloat(n.fields.length);
         const length = (Number.isFinite(lenRaw) && lenRaw>0) ? lenRaw : 0;   // blank ⇒ genuinely whole clip (0 ⇒ dur-start locally); over-limit clips are flagged at send time by Transcribe/LLM, which point at Trim
         onProgress && onProgress("extracting audio…");
-        return { audio: await extractAudioToWavUrl(inp.video, start, length, 24000) };
+        return { audio: await extractAudioToWavUrl(inp.video, start, length, 16000) };
       }
     },
     transcribe: {
@@ -2942,6 +2991,22 @@ function mp4ParamsMatch(bufs){
     music:  [{ f:"prompt", label:"Style / prompt", kind:"textarea" }],
     tts:    [{ f:"prompt", label:"Text to speak",  kind:"textarea" }],
   };
+  // A bare upload node that feeds a single role-bearing image port (an ivideo end
+  // frame, a tvideo reference slot, or an edit multi-reference slot beyond the first)
+  // should name itself for that role — otherwise a morph / multi-image compositing app
+  // surfaces N identical "Image" inputs the user can't tell apart. Only fire when the
+  // upload has exactly one downstream port (so the role is unambiguous); a renamed node
+  // still wins over this in renderInputs (its custom [data-no-i18n] name is used first).
+  function uploadRoleLabel(graph, n){
+    if(n.type!=="upload") return null;
+    const outs = graph.links.filter(l=> l.from.node===n.id);
+    if(outs.length!==1) return null;
+    const p = outs[0].to.port;
+    if(p==="endframe") return "End frame";
+    if(REF_PORT_RE.test(p)) return "Reference " + portIdx(p);
+    if(EDIT_IMG_RE.test(p) && portIdx(p) > 1) return "Image " + portIdx(p);
+    return null;
+  }
   function deriveInputs(graph){
     const out = [];
     for(const n of graph.nodes){
@@ -2971,7 +3036,8 @@ function mp4ParamsMatch(bufs){
         // satisfied if a link feeds this field (fieldOverrides) → hide the control
         const fed = graph.links.some(l=> l.to.node===n.id && l.to.port===s.f);
         if(fed) continue;
-        out.push({ nodeId:n.id, field:s.f, label:s.label, kind:s.kind, optional:!!s.optional, def:s.def,
+        const role = (s.f==="image") ? uploadRoleLabel(graph, n) : null;
+        out.push({ nodeId:n.id, field:s.f, label:role || s.label, kind:s.kind, optional:!!s.optional, def:s.def,
                    node:n, title:displayName(n), em:NODE_TYPES[n.type].em });
       }
     }
@@ -3147,6 +3213,14 @@ function mp4ParamsMatch(bufs){
   // videoRefSpec but permissive-ON when the catalog can't be read: the ref wires were authored deliberately
   // in the editor (gated there), so if we can't verify at runtime we honor them with a best-effort key
   // rather than silently drop them. null only when a KNOWN model clearly lacks any ref-image param.
+  // Per-family known ref maxima — the catalog advertises NO machine-readable maxima (mirrors the editor's
+  // VIDEO_REF_MAX): seedance-2.0 takes up to 9 refs (its marquee feature; the generic 4 sliced 5-9), luma = 4.
+  function refMaxFor(model){
+    var id = String(model||"");
+    if(/seedance/i.test(id)) return 9;
+    if(/luma|ray/i.test(id)) return 4;
+    return 4;
+  }
   async function modelAllowsRefs(model){
     var keys = ["reference_images","reference_image_urls","referenceImages"];
     try{
@@ -3156,14 +3230,14 @@ function mp4ParamsMatch(bufs){
       // so we guess the most common spelling; if the model actually wants reference_image_urls/referenceImages
       // it ignores this and renders a plain video (a degraded result, NOT a double charge). Only bites when
       // the catalog fetch fails but generation still works — rare. Mirrors #198's modelAllowsEndFrame.
-      if(!m) return { key:"reference_images", cap:4 };
+      if(!m) return { key:"reference_images", cap:refMaxFor(model) };
       var sp = m.supported_parameters||{}, pp = sp.parameters||sp;
       var key = keys.find(function(k){ return k in pp; });
       if(!key) return null;   // known model with no ref-image param
-      var d = pp[key], cap = 4;
+      var d = pp[key], cap = null;
       if(d && typeof d==="object"){ var mx = d.max!=null ? d.max : (d.maxItems!=null ? d.maxItems : d.max_items); if(mx!=null && +mx>0) cap = +mx; }
-      return { key:key, cap:cap };
-    }catch(e){ return { key:"reference_images", cap:4 }; }
+      return { key:key, cap:(cap!=null?cap:refMaxFor(model)) };
+    }catch(e){ return { key:"reference_images", cap:refMaxFor(model) }; }
   }
   async function modelOptionsFor(type){
     const kind = SETTING_MODEL_KIND[type]; if(!kind) return [];
