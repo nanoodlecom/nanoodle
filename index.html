@@ -448,7 +448,8 @@
   #editor.panning{cursor:grabbing}
   #world{ position:absolute; top:0; left:0; transform-origin:0 0; --invz:1; }
   /* Fit-to-view + undo/redo: transient canvas controls that flow to the LEFT of the run-cost pill
-     (order:1). Revealed on hover over the graph or the bar. F / double-click also fit; tappable on touch. */
+     (order:1). Revealed on hover over the graph or the bar. F / double-click also fit; tappable on touch.
+     ⊡ additionally drops out (disabled, below) whenever fitting wouldn't change the frame — see syncFitBtn(). */
   #fit, #undo, #redo{ flex:0 0 auto; order:1; width:2.3rem; height:2.3rem;
         display:flex; align-items:center; justify-content:center; font-size:1.15rem; line-height:1;
         border-radius:.6rem; background:var(--panel2); border:1px solid var(--line); color:var(--ink);
@@ -458,8 +459,8 @@
   #editor:hover ~ #controlbar #undo, #controlbar:hover #undo, #undo:focus-visible,
   #editor:hover ~ #controlbar #redo, #controlbar:hover #redo, #redo:focus-visible{ opacity:.85; pointer-events:auto }
   #fit:hover, #undo:hover, #redo:hover{ opacity:1; border-color:var(--accent) }
-  #undo[disabled], #redo[disabled]{ display:none }   /* nothing to undo/redo → drop out of the row entirely (no empty slot) */
-  @media (hover:none){ #fit{ opacity:.6; pointer-events:auto } #undo:not([disabled]), #redo:not([disabled]){ opacity:.6; pointer-events:auto } #describebar{ opacity:.85 } }   /* touch: no hover to reveal them, so keep them discoverable (composer :focus-within still brightens to 1) */
+  #undo[disabled], #redo[disabled], #fit[disabled]{ display:none }   /* nothing to undo/redo/fit → drop out of the row entirely (no empty slot) */
+  @media (hover:none){ #fit:not([disabled]){ opacity:.6; pointer-events:auto } #undo:not([disabled]), #redo:not([disabled]){ opacity:.6; pointer-events:auto } #describebar{ opacity:.85 } }   /* touch: no hover to reveal them, so keep them discoverable (composer :focus-within still brightens to 1) */
   /* Screen-space delete for the selected node — the in-header ✕ shrinks with zoom and sits next to the
      paid ▶ run, so touch gets a big fixed target that can't mis-fire. Coarse pointers only. */
   #delnode{ position:fixed; top:58px; right:.6rem; z-index:60; display:none; align-items:center; gap:.35rem;
@@ -1068,7 +1069,7 @@
 <div id="controlbar">
   <button id="undo" title="Undo (Ctrl + Z)" aria-label="Undo the last edit">↺</button>
   <button id="redo" title="Redo (Ctrl + Y)" aria-label="Redo the last undone edit">↻</button>
-  <button id="fit" title="Fit the whole workflow in view (F)" aria-label="Fit the whole workflow in view">⊡</button>
+  <button id="fit" disabled title="Fit the whole workflow in view (F)" aria-label="Fit the whole workflow in view">⊡</button>
   <button id="runest" type="button" hidden></button>
 </div>
 <a id="legallink" href="/legal" target="_blank" rel="noopener">Terms · Privacy</a>
@@ -5138,7 +5139,7 @@ const byId = (id)=> graph.nodes.find(n=>n.id===id);
 /* ---------- view transform ---------- */
 let panX = 40, panY = 30, scale = 1;
 const world = $("world"), editor = $("editor"), svg = $("wires");
-function applyWorld(){ world.style.transform = `translate(${panX}px,${panY}px) scale(${scale})`; world.style.setProperty?.("--invz", 1/scale); }   // --invz counter-scales screen-space touch zones inside #world (see coarse block)
+function applyWorld(){ world.style.transform = `translate(${panX}px,${panY}px) scale(${scale})`; world.style.setProperty?.("--invz", 1/scale); syncFitBtn(); }   // --invz counter-scales screen-space touch zones inside #world (see coarse block)
 
 /* ======================================================================
    NODE CREATION / RENDERING
@@ -5910,6 +5911,7 @@ function redraw(){
     html += `<path class="temp" d="${d}"></path>`;
   }
   svg.innerHTML = html;
+  syncFitBtn();   // node drags/adds/removals and resizes reroute wires through here — re-judge whether ⊡ earns its slot
   svg.querySelectorAll("path[data-link]").forEach(p=>{
     // A drag that starts on a wire pans the canvas (wires are no longer dead zones); a tap deletes.
     // On coarse pointers a tap ARMS first (turns the wire red + shows the snip), a second tap removes —
@@ -6468,11 +6470,27 @@ function fitView(topPad=0){
   applyWorld(); redraw();
 }
 // Does the whole graph already sit inside the viewport under the CURRENT (just-applied) view?
-function graphFitsViewport(){
+// slop (screen px) forgives sliver overhangs — a node bottom poking a few px past the
+// fold isn't "lost", and the demo ghost's post-fit growth routinely overhangs ~8px.
+function graphFitsViewport(slop=0){
   const b=graphBBox(); if(!b) return true;
-  return b.x0*scale+panX>=0 && b.y0*scale+panY>=0 &&
-         b.x1*scale+panX<=editor.clientWidth && b.y1*scale+panY<=editor.clientHeight;
+  return b.x0*scale+panX>=-slop && b.y0*scale+panY>=-slop &&
+         b.x1*scale+panX<=editor.clientWidth+slop && b.y1*scale+panY<=editor.clientHeight+slop;
 }
+// The ⊡ button only earns its slot when pressing it would actually change the frame:
+// part of the graph sits off-screen, or the view is zoomed out to under half of what
+// fit would give (a small graph adrift on a big canvas). An empty canvas or an
+// already-framed graph disables it — [disabled] drops it from the row like undo/redo,
+// so when ⊡ does appear it reliably means "some of your workflow is out of view".
+// F / double-click still fit unconditionally.
+function fitUseful(){
+  const b=graphBBox(); if(!b) return false;
+  if(!graphFitsViewport(16)) return true;
+  const M = editor.clientWidth < 520 ? 20 : 48;   // mirror fitView's gutters
+  const f = Math.min(editor.clientWidth/(b.x1-b.x0+M*2), editor.clientHeight/(b.y1-b.y0+M*2), 1);
+  return scale < f*0.5;   // <0.5 keeps it hidden right after a hintPad() boot-fit (pad caps at 45% of the viewport) while still catching a genuinely lost zoom-out
+}
+function syncFitBtn(){ const el=$("fit"); if(el) el.disabled = !fitUseful(); }
 // Bring a specific set of nodes into view (used after a described change adds nodes that flow
 // off the right edge on a busy canvas). Centers on just those nodes, only zooming OUT if they
 // don't fit; no-ops when they're already fully visible so we never yank a settled camera.
