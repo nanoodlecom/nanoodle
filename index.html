@@ -8086,7 +8086,8 @@ function serializeGraph(){
   };
 }
 // A graph for handing off to others: uploaded media inputs are the sharer's own
-// data, so blank them out of share links and downloaded files. (Local autosave keeps them.)
+// data, so blank them out of share links and exported apps. (Local autosave AND the
+// 💾 Save-file backup keep them — a backup that drops your own photos is worthless.)
 const UPLOAD_FIELD = { upload:"image", aupload:"audio", vupload:"video" };
 function shareableGraph(graph){          // no arg → the canvas; pass a stored app's graph to blank that instead
   const g = graph || serializeGraph();
@@ -8195,7 +8196,10 @@ async function loadDefault(){   // noodle-graph.json shipped alongside the page 
   return true;
 }
 function saveFile(){
-  const blob = new Blob([JSON.stringify(shareableGraph(), null, 2)], {type:"application/json"});
+  // FULL fidelity: this is the user's own local backup, not a hand-off — serializeGraph()
+  // keeps their uploaded photos/audio/video + inpaint masks so 📂 Load restores everything.
+  // (Share links / exported apps still go through shareableGraph() to blank that private media.)
+  const blob = new Blob([JSON.stringify(serializeGraph(), null, 2)], {type:"application/json"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob); a.download = "noodle-graph.json"; a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
