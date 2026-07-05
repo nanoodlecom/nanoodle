@@ -7905,10 +7905,11 @@ function friendlyRunError(err){
 function accrue(j, estUsd, r){
   stats.count++;
   // images/video/audio price top-level (j.cost); chat completions ride it in
-  // x_nanogpt_pricing (costUsd|cost) — without this, LLM calls never bump spend.
+  // x_nanogpt_pricing (costUsd|cost|amount — Anthropic routes send only {amount,currency})
+  // — without this, LLM calls never bump spend.
   // A present-but-ZERO price is known-free (subscription-included), NOT unknown —
   // keep it as 0 so the spend meter stays exact instead of flipping to "~".
-  const p = j?.x_nanogpt_pricing, pUsd = p && (p.costUsd!=null ? p.costUsd : p.cost);
+  const p = j?.x_nanogpt_pricing, pUsd = p && (p.costUsd!=null ? p.costUsd : (p.cost!=null ? p.cost : p.amount));
   const usd = (typeof j?.cost==="number" && j.cost>0) ? j.cost
             : (pUsd!=null && isFinite(Number(pUsd))) ? Number(pUsd)
             : (typeof j?.cost==="number") ? j.cost : null;
@@ -9560,7 +9561,7 @@ RULES for the diff:
       const r = await fetch(CHAT_ENDPOINT, { method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal: dbAbort?.signal });
       if(!r.ok){ await throwHttp(r); }
       const reader = r.body.getReader(), dec = new TextDecoder();
-      let buf="", content="", reasoning="", pricing=null, lastPaint=0;
+      let buf="", content="", reasoning="", pricing=null, lastPaint=0, streamErr=null;
       for(;;){
         const { value, done } = await reader.read(); if(done) break;
         buf += dec.decode(value, { stream:true });
@@ -9569,8 +9570,15 @@ RULES for the diff:
           const t = line.trim(); if(!t.startsWith("data:")) continue;
           const data = t.slice(5).trim(); if(data==="[DONE]") continue;
           let j; try{ j = JSON.parse(data); }catch{ continue; }
-          const d = j.choices?.[0]?.delta;
-          if(d){ if(d.content) content+=d.content; if(d.reasoning) reasoning+=d.reasoning; outTok = estTok(content)+estTok(reasoning);
+          // some upstreams fail INSIDE a 200 SSE stream (e.g. upstream_timeout after ~90s of
+          // keep-alives, zero content) — without this an empty reply reads as "nothing to change"
+          if(j.error) streamErr = j.error.message || j.error.code || "upstream error";
+          const c0 = j.choices?.[0];
+          if(c0?.finish_reason==="error" && !streamErr) streamErr = "upstream error";
+          const d = c0?.delta;
+          if(d){ if(d.content) content+=d.content;
+            if(d.reasoning) reasoning+=d.reasoning; else if(d.reasoning_content) reasoning+=d.reasoning_content;
+            outTok = estTok(content)+estTok(reasoning);
             const now = (typeof performance!=="undefined"?performance.now():0);
             if(now-lastPaint>120){ lastPaint=now; paint(); } }
           if(j.x_nanogpt_pricing) pricing = j.x_nanogpt_pricing;
@@ -9578,9 +9586,12 @@ RULES for the diff:
       }
       USAGE.inTok  += (pricing && pricing.inputTokens!=null)  ? pricing.inputTokens  : inEst;
       USAGE.outTok += (pricing && pricing.outputTokens!=null) ? pricing.outputTokens : outTok;
-      const exactCost = pricing && (pricing.costUsd!=null ? pricing.costUsd : pricing.cost);
+      // Anthropic routes report only {amount,currency} — no token counts
+      const exactCost = pricing && (pricing.costUsd!=null ? pricing.costUsd : (pricing.cost!=null ? pricing.cost : pricing.amount));
       if(exactCost!=null) USAGE.cost += Number(exactCost); else USAGE.exact = false;
       if(pricing){ try{ accrue({ x_nanogpt_pricing: pricing }); }catch(_){} }   // editor top-bar spend
+      if(streamErr && !content.trim()) throw new Error(model + " didn't answer (" + streamErr + ") — try again");
+      if(streamErr) throw new Error(model + "'s reply was cut off mid-stream (" + streamErr + ") — try again");
       return { choices:[{ message:{ content: content.trim() ? content : reasoning } }] };
     };
   }

@@ -971,10 +971,11 @@ window.NoodleApp = (function () {
   function costFromJson(j){
     if(!j) return { usd:null, balance:null };
     // images/video/audio price top-level (j.cost); chat completions ride it in
-    // x_nanogpt_pricing (costUsd|cost) — without this, LLM calls never bump spend.
+    // x_nanogpt_pricing (costUsd|cost|amount — Anthropic routes send only {amount,currency})
+    // — without this, LLM calls never bump spend.
     // A present-but-ZERO price is known-free (subscription-included), NOT unknown:
     // keep it as 0 so the meter stays exact and the node can show "included".
-    const p = j.x_nanogpt_pricing, pUsd = p && (p.costUsd!=null ? p.costUsd : p.cost);
+    const p = j.x_nanogpt_pricing, pUsd = p && (p.costUsd!=null ? p.costUsd : (p.cost!=null ? p.cost : p.amount));
     const mUsd = j.metadata && j.metadata.cost;        // the transcription endpoint reports price here
     const usd = (typeof j.cost==="number" && j.cost>0) ? j.cost
               : (pUsd!=null && isFinite(Number(pUsd))) ? Number(pUsd)
@@ -5806,6 +5807,15 @@ How the app works, so you can build on it safely:
   grid), drive #app-run, persist to localStorage, add shortcuts or animation. Do NOT redefine or
   remove the engine, and do NOT touch the embedded workflow.
 
+How to answer — this is a non-interactive pipeline, so:
+- ALWAYS respond with a unified git diff in a fenced code block whose language tag is exactly "diff".
+  Never ask clarifying questions, never answer in prose, and never conclude that no change is needed.
+- If the goal is broad or vague ("make it awesome", "improve it"), do not bounce it back: choose 2–4
+  concrete, high-impact upgrades yourself (a fitting visual identity, a delightful output gallery,
+  presets, keyboard shortcuts, saved history…) and implement those.
+- Keep the diff focused: emit hunks only for the lines you actually change, with a few lines of
+  context. Do not restate whole files or rewrite sections you are not changing.
+
 Keep it self-contained, responsive and accessible. Below is a description of the workflow this app is
 a front-end for — use it to give the app a fitting identity and to reason about what the user is
 trying to accomplish, then make their requested change in a way that genuinely serves that goal.`;
@@ -5832,12 +5842,7 @@ function resetUsage(){ USAGE.inTok = USAGE.outTok = USAGE.cost = 0; USAGE.exact 
 function streamingCallLlm(phase){
   return async ({ apiKey, baseUrl, model, messages, maxTokens=null, temperature=1.0 }) => {
     const inEst = estMsgs(messages);
-    let usedModel = model;                                     // may switch to FALLBACK_MODEL if the chosen model is overloaded
     const priceFor = (m)=>{ const p = priceOf(m) || {}; return [(Number(p.pin)||0)/1e6, (Number(p.pout)||0)/1e6]; };
-    let [inPer, outPer] = priceFor(usedModel);                // per-1M USD from the catalog
-    let outTok = 0, liveCost = inEst*inPer;
-    const paint = ()=> $("cust-status").innerHTML = '<span class="spin">◐</span> ' + esc(phase) + '… ' + usageMeter({ inTok:inEst, outTok, cost:liveCost });
-    paint();
     const endpoint = (baseUrl || (NANOGPT + "/api/v1/")).replace(/\/+$/,"") + "/chat/completions";
     // No max_tokens by default → avoids silent truncation that yields an unparseable diff.
     const send = (m)=> fetch(endpoint, {
@@ -5846,48 +5851,83 @@ function streamingCallLlm(phase){
       body: JSON.stringify({ model:m, messages, ...(maxTokens?{max_tokens:maxTokens}:{}), temperature, stream:true }),
       signal: custAbort && custAbort.signal,   // ■ Stop aborts the request; reader.read() below then rejects with AbortError
     });
-    let r = await send(usedModel);
-    // Chosen model is overloaded or down (429 / 503 / any 5xx) → fall back to a reliable model and retry once,
-    // so a flaky default never kills the customize. The user's own pick still gets first crack.
-    if(!r.ok && (r.status===429 || r.status>=500) && usedModel!==FALLBACK_MODEL){
-      try{ await r.body?.cancel(); }catch(_){}
-      usedModel = FALLBACK_MODEL; [inPer, outPer] = priceFor(usedModel); liveCost = inEst*inPer;
-      $("cust-status").innerHTML = '<span class="spin">◐</span> ' + esc(model) + ' is busy — retrying with ' + esc(FALLBACK_MODEL) + '…';
-      r = await send(usedModel);
-    }
-    if(!r.ok) throw new Error("LLM " + r.status + ": " + (await r.text()).slice(0,300));
-    const reader = r.body.getReader(), dec = new TextDecoder();
-    let buf="", content="", reasoning="", pricing=null, lastPaint=0;
-    for(;;){
-      const { value, done } = await reader.read();
-      if(done) break;
-      buf += dec.decode(value, { stream:true });
-      const lines = buf.split("\n"); buf = lines.pop();
-      for(const line of lines){
-        const t = line.trim();
-        if(!t.startsWith("data:")) continue;
-        const data = t.slice(5).trim();
-        if(data === "[DONE]") continue;
-        let j; try{ j = JSON.parse(data); }catch{ continue; }
-        const d = j.choices && j.choices[0] && j.choices[0].delta;
-        if(d){
-          if(d.content) content += d.content;
-          if(d.reasoning) reasoning += d.reasoning;          // thinking tokens still cost output
-          outTok = estTok(content)+estTok(reasoning);
-          liveCost = inEst*inPer + outTok*outPer;
-          const now = performance.now();
-          if(now - lastPaint > 120){ lastPaint = now; paint(); }
+    // Some upstreams (the Anthropic routes especially) fail INSIDE a 200 SSE stream: the gateway
+    // holds the connection ~90s with keep-alive chunks, then emits {error:{code:"upstream_timeout"}}
+    // + finish_reason:"error" having produced NO content. The flake is transient, so the chosen
+    // model gets a second chance before FALLBACK_MODEL — otherwise an empty stream would surface
+    // as the misleading "No applicable change".
+    const plan = model===FALLBACK_MODEL ? [model, model] : [model, model, FALLBACK_MODEL];
+    let lastErr = null;
+    for(let a=0; a<plan.length; a++){
+      const usedModel = plan[a];
+      const [inPer, outPer] = priceFor(usedModel);            // per-1M USD from the catalog
+      let outTok = 0, liveCost = inEst*inPer;
+      const paint = ()=> $("cust-status").innerHTML = '<span class="spin">◐</span> ' + esc(phase) + '… ' + usageMeter({ inTok:inEst, outTok, cost:liveCost });
+      paint();
+      const r = await send(usedModel);
+      // Chosen model is overloaded or down (429 / 503 / any 5xx) → skip straight to the last rung
+      // (FALLBACK_MODEL), so a flaky default never kills the customize. The user's own pick still
+      // gets first crack; anything non-retryable (401 etc.) throws immediately.
+      if(!r.ok){
+        if((r.status===429 || r.status>=500) && a < plan.length-1){
+          try{ await r.body?.cancel(); }catch(_){}
+          lastErr = new Error("LLM " + r.status);
+          $("cust-status").innerHTML = '<span class="spin">◐</span> ' + esc(usedModel) + ' is busy — retrying with ' + esc(plan[plan.length-1]) + '…';
+          a = plan.length-2;                                  // next loop iteration = final rung
+          continue;
         }
-        if(j.x_nanogpt_pricing) pricing = j.x_nanogpt_pricing;   // exact tokens + USD (final chunk, when present)
+        throw new Error("LLM " + r.status + ": " + (await r.text().catch(()=>"")).slice(0,300));
       }
+      const reader = r.body.getReader(), dec = new TextDecoder();
+      let buf="", content="", reasoning="", pricing=null, lastPaint=0, streamErr=null;
+      for(;;){
+        const { value, done } = await reader.read();
+        if(done) break;
+        buf += dec.decode(value, { stream:true });
+        const lines = buf.split("\n"); buf = lines.pop();
+        for(const line of lines){
+          const t = line.trim();
+          if(!t.startsWith("data:")) continue;
+          const data = t.slice(5).trim();
+          if(data === "[DONE]") continue;
+          let j; try{ j = JSON.parse(data); }catch{ continue; }
+          if(j.error) streamErr = j.error.message || j.error.code || "upstream error";   // error-in-stream: HTTP was 200, the failure rides in a chunk
+          const c0 = j.choices && j.choices[0];
+          if(c0 && c0.finish_reason === "error" && !streamErr) streamErr = "upstream error";
+          const d = c0 && c0.delta;
+          if(d){
+            if(d.content) content += d.content;
+            if(d.reasoning) reasoning += d.reasoning;                          // thinking tokens still cost output
+            else if(d.reasoning_content) reasoning += d.reasoning_content;     // some providers use this key instead
+            outTok = estTok(content)+estTok(reasoning);
+            liveCost = inEst*inPer + outTok*outPer;
+            const now = performance.now();
+            if(now - lastPaint > 120){ lastPaint = now; paint(); }
+          }
+          if(j.x_nanogpt_pricing) pricing = j.x_nanogpt_pricing;   // exact tokens + USD (final chunk, when present)
+        }
+      }
+      // the stream died before producing anything → nothing was (or will be) charged; try the next rung
+      if(streamErr && !content.trim()){
+        lastErr = new Error(usedModel + " didn't answer (" + streamErr + ")");
+        if(a < plan.length-1){
+          $("cust-status").innerHTML = '<span class="spin">◐</span> ' + esc(usedModel) + ' timed out — retrying' + (plan[a+1]!==usedModel ? ' with ' + esc(plan[a+1]) : '') + '…';
+          continue;
+        }
+        throw lastErr;
+      }
+      // commit this call: prefer exact pricing, else the per-1M price-table estimate.
+      // (Anthropic routes report only {amount,currency} — no token counts.)
+      const exactCost = pricing && (pricing.costUsd != null ? pricing.costUsd : (pricing.cost != null ? pricing.cost : pricing.amount));
+      USAGE.inTok  += (pricing && pricing.inputTokens  != null) ? pricing.inputTokens  : inEst;
+      USAGE.outTok += (pricing && pricing.outputTokens != null) ? pricing.outputTokens : outTok;
+      if(exactCost != null){ USAGE.cost += Number(exactCost); }
+      else { USAGE.cost += inEst*inPer + outTok*outPer; USAGE.exact = false; }   // estimate → keep the ~
+      // died mid-generation with partial output → a truncated diff must not be half-applied
+      if(streamErr) throw new Error(usedModel + "'s reply was cut off mid-stream (" + streamErr + ") — try again");
+      return { choices:[{ message:{ content } }] };   // shape gptdiff-js expects
     }
-    // commit this call: prefer exact pricing, else the per-1M price-table estimate
-    const exactCost = pricing && (pricing.costUsd != null ? pricing.costUsd : pricing.cost);
-    USAGE.inTok  += (pricing && pricing.inputTokens  != null) ? pricing.inputTokens  : inEst;
-    USAGE.outTok += (pricing && pricing.outputTokens != null) ? pricing.outputTokens : outTok;
-    if(exactCost != null){ USAGE.cost += Number(exactCost); }
-    else { USAGE.cost += inEst*inPer + outTok*outPer; USAGE.exact = false; }   // estimate → keep the ~
-    return { choices:[{ message:{ content } }] };   // shape gptdiff-js expects
+    throw lastErr || new Error("LLM call failed");
   };
 }
 
