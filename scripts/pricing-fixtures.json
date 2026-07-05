@@ -825,7 +825,7 @@
  "audioSongs": [
   {
    "id": "mureka-o2/generate-song",
-   "shape": "per_generation + generation_count_parameter -> number_of_songs multiplies the estimate (up to max_generations)",
+   "shape": "per_generation + generation_count_parameter -> number_of_songs is CLAMPED to 1 on the send (the node surfaces a single track), so even a model that advertises a generation count must NOT multiply the estimate; always 1",
    "pricing": {
     "per_generation": 0.15,
     "currency": "USD",
@@ -838,7 +838,7 @@
    "cases": [
     {
      "number_of_songs": 3,
-     "expect": 3
+     "expect": 1
     },
     {
      "number_of_songs": 1,
@@ -871,6 +871,62 @@
      "number_of_songs": "",
      "expect": 1
     }
+   ]
+  }
+ ],
+ "videoTiers": [
+  {
+   "id": "bytedance-seedance-2-0-mini (with-reference tier)",
+   "shape": "raw:seedance20-mini-dynamic -> wiring ref images flips standardTextToVideoPricesPerSecond to standardTextToVideoWithReferenceVideoPricesPerSecond (~2x)",
+   "pricing": {
+    "currency": "USD",
+    "raw": {
+     "type": "seedance20-mini-dynamic",
+     "standardTextToVideoPricesPerSecond": { "720p": 0.07058823529411765, "1080p": 0.17647058823529413 },
+     "standardTextToVideoWithReferenceVideoPricesPerSecond": { "720p": 0.1411764705882353, "1080p": 0.35294117647058826 },
+     "defaultDuration": 5,
+     "defaultResolution": "720p"
+    }
+   },
+   "cases": [
+    { "desc": "base 720p (no refs)", "fields": { "resolution": "720p" }, "refWired": false, "expect": 0.35294117647058826 },
+    { "desc": "with refs 720p", "fields": { "resolution": "720p" }, "refWired": true, "expect": 0.7058823529411765 }
+   ]
+  },
+  {
+   "id": "skywork-ai/skyreels-v4 (with-reference tier)",
+   "shape": "raw:skyreels-v4-dynamic -> refs flip standardPricesPerSecond to standardReferenceVideoPricesPerSecond",
+   "pricing": {
+    "currency": "USD",
+    "raw": {
+     "type": "skyreels-v4-dynamic",
+     "standardPricesPerSecond": { "480p": 0.06470588235294118, "720p": 0.0823529411764706, "1080p": 0.20588235294117646 },
+     "standardReferenceVideoPricesPerSecond": { "480p": 0.10588235294117647, "720p": 0.14705882352941177, "1080p": 0.36764705882352944 },
+     "defaultDuration": 5,
+     "defaultResolution": "1080p"
+    }
+   },
+   "cases": [
+    { "desc": "base 1080p (no refs)", "fields": {}, "refWired": false, "expect": 1.0294117647058822 },
+    { "desc": "with refs 1080p", "fields": {}, "refWired": true, "expect": 1.8382352941176472 }
+   ]
+  },
+  {
+   "id": "veo3-video (with-audio tier)",
+   "shape": "with_audio/without_audio flat -> the audio switch in modelOpts picks with_audio",
+   "pricing": { "currency": "USD", "with_audio": 4.8, "without_audio": 3.2, "fixed_duration_seconds": 8 },
+   "cases": [
+    { "desc": "base (audio off)", "fields": {}, "refWired": false, "expect": 3.2 },
+    { "desc": "audio switch on", "fields": { "modelOpts": { "generate_audio": true } }, "refWired": false, "expect": 4.8 }
+   ]
+  },
+  {
+   "id": "kling-v26-pro (audio_multiplier fallback)",
+   "shape": "per_duration + audio_multiplier -> no separate tier, so audio on multiplies the base rate",
+   "pricing": { "currency": "USD", "per_duration": { "5": 0.35, "10": 0.7 }, "unit": "per_video", "audio_multiplier": 2 },
+   "cases": [
+    { "desc": "base (audio off)", "fields": {}, "refWired": false, "expect": 0.35 },
+    { "desc": "audio switch on", "fields": { "modelOpts": { "generate_audio": true } }, "refWired": false, "expect": 0.7 }
    ]
   }
  ]
