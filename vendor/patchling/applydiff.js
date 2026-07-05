@@ -17,18 +17,23 @@ import { splitLines } from './text.js';
  * @returns {Array<[string, string]>} list of [filePath, patch] tuples
  */
 export function parseDiffPerFile(diffText) {
+  /**
+   * @param {Array<[string, string]>} diffs
+   * @returns {Array<[string, string]>}
+   */
   const dedupDiffs = (diffs) => {
     const groups = new Map();
     for (const [key, value] of diffs) {
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(value);
     }
-    return Array.from(groups.entries()).map(([key, values]) => [key, values.join('\n')]);
+    return Array.from(groups.entries()).map(([key, values]) => /** @type {[string, string]} */ ([key, values.join('\n')]));
   };
 
   // Special case: handle LLM-style patch delimiters.
   if (diffText.includes('*** Begin Patch')) {
     const lines = splitLines(diffText);
+    /** @type {Array<[string, string]>} */
     const diffs = [];
     let currentLines = [];
     let currentFile = null;
@@ -59,6 +64,7 @@ export function parseDiffPerFile(diffText) {
   // Check if any header line exists.
   if (!lines.some((line) => headerRe.test(line))) {
     // Fallback strategy: detect file headers from '---' / '+++' pairs.
+    /** @type {Array<[string, string]>} */
     const diffs = [];
     let currentLines = [];
     let currentFile = null;
@@ -121,6 +127,7 @@ export function parseDiffPerFile(diffText) {
   }
 
   // Header-based strategy.
+  /** @type {Array<[string, string]>} */
   const diffs = [];
   let currentLines = [];
   let currentFile = null;
@@ -192,21 +199,37 @@ export function applyPatchToFile(originalContent, patch) {
     const line = patchLines[i];
     if (line.replace(/^\s+/, '').startsWith('@@')) {
       let origStart;
+      let declaredNewCount = null;
       if (line.trim() === '@@') {
         origStart = 1;
       } else {
         const m = line.trim().match(HUNK_HEADER_RE);
         if (!m) return null;
         origStart = m[1] !== undefined ? parseInt(m[1], 10) : 1;
+        if (m[3] !== undefined) {
+          declaredNewCount = m[4] !== undefined ? parseInt(m[4], 10) : 1;
+        }
       }
+      /** @type {Array<{kind: string, text: string, noNewline?: boolean}>} */
       const ops = [];
       i += 1;
       while (i < patchLines.length && !patchLines[i].replace(/^\s+/, '').startsWith('@@')) {
         const pline = patchLines[i];
         if (pline.startsWith('\\')) {
-          // "\ No newline at end of file" marker — ignore.
+          // "\ No newline at end of file" marker — record it on the op it
+          // annotates (the previous body line) so the collapse rule below can
+          // recognize git's end-of-file newline-change pattern and the final
+          // assembly step knows not to append a trailing newline there.
+          if (ops.length) ops[ops.length - 1].noNewline = true;
         } else if (pline.startsWith(' ')) {
           ops.push({ kind: 'context', text: pline.slice(1) });
+        } else if (pline.startsWith('++') && !pline.startsWith('+++')) {
+          // A `++`-prefixed body line is ambiguous: it may be a malformed
+          // double-plus addition (LLM emitted `++foo` meaning "add foo") or a
+          // legitimate addition of a line whose content itself starts with
+          // `+`. Applying either reading risks silent corruption under the
+          // other, so refuse and let the caller fall back to the LLM.
+          return null;
         } else if (pline.startsWith('-')) {
           ops.push({ kind: 'del', text: pline.slice(1) });
         } else if (pline.startsWith('+')) {
@@ -217,6 +240,37 @@ export function applyPatchToFile(originalContent, patch) {
         }
         i += 1;
       }
+
+      // Git's "last line loses its trailing newline" pattern is canonically a
+      // del/add pair with identical text plus `\ No newline` markers. Sloppy
+      // diffs write the old copy as *context* instead, leaving a trailing
+      // `+<line>` that duplicates the last context line:
+      //     ` const Retries = 3`      <- kept line
+      //     `-const Debug = true`     <- \ No newline at end of file
+      //     `+const Retries = 3`      <- \ No newline at end of file
+      // Applied literally this duplicates "const Retries = 3". When the final
+      // op is such a no-newline add restating the last context line across
+      // only deletions, and the @@ header's new-line count confirms the
+      // collapsed reading (one line fewer than the literal reading), drop the
+      // redundant add — it only re-states the kept line's newline status.
+      if (declaredNewCount !== null && ops.length) {
+        const last = ops[ops.length - 1];
+        if (last.kind === 'add' && last.noNewline) {
+          let ctxIdx = -1;
+          for (let j = ops.length - 2; j >= 0; j--) {
+            if (ops[j].kind === 'context') {
+              ctxIdx = j;
+              break;
+            }
+            if (ops[j].kind !== 'del') break; // only deletions may intervene
+          }
+          if (ctxIdx !== -1 && ctxIdx < ops.length - 2 && ops[ctxIdx].text === last.text) {
+            const literalNewCount = ops.filter((o) => o.kind !== 'del').length;
+            if (declaredNewCount === literalNewCount - 1) ops.pop();
+          }
+        }
+      }
+
       hunks.push({ hint: origStart - 1, ops });
     } else {
       i += 1;
@@ -249,24 +303,41 @@ export function applyPatchToFile(originalContent, patch) {
     return best;
   };
 
+  // Track whether the final line pushed to `newLines` should be left without a
+  // trailing newline in the reassembled output. This is true either because
+  // the patch explicitly marks that line with "\ No newline at end of file",
+  // or because the line is carried over verbatim from the original file's own
+  // unmodified last line and the original file itself had no trailing newline.
+  const originalNoTrailingNewline =
+    !!originalContent && originalContent.length > 0 && !/[\n\r]$/.test(originalContent);
+  let endsWithoutNewline = false;
+
   const newLines = [];
   let cursor = 0;
+
+  const pushOriginal = (k) => {
+    newLines.push(originalLines[k]);
+    endsWithoutNewline = k === originalLines.length - 1 && originalNoTrailingNewline;
+  };
+
   for (const hunk of hunks) {
     const block = oldBlockOf(hunk.ops);
     const pos = findBlock(block, cursor, hunk.hint);
     if (pos === null) return null;
 
     // Copy untouched lines between the previous hunk and this one.
-    for (let k = cursor; k < pos; k++) newLines.push(originalLines[k]);
+    for (let k = cursor; k < pos; k++) pushOriginal(k);
 
     let idx = pos;
     for (const op of hunk.ops) {
       if (op.kind === 'add') {
         newLines.push(op.text);
+        endsWithoutNewline = !!op.noNewline;
       } else if (op.kind === 'del') {
         idx += 1; // consume the original line without emitting it
       } else {
-        newLines.push(originalLines[idx]); // context: keep the original line
+        pushOriginal(idx); // context: keep the original line
+        if (op.noNewline) endsWithoutNewline = true;
         idx += 1;
       }
     }
@@ -274,10 +345,10 @@ export function applyPatchToFile(originalContent, patch) {
   }
 
   // Append remaining original lines.
-  for (let k = cursor; k < originalLines.length; k++) newLines.push(originalLines[k]);
+  for (let k = cursor; k < originalLines.length; k++) pushOriginal(k);
 
   let content = newLines.join('\n');
-  if (content) content += '\n';
+  if (content && !endsWithoutNewline) content += '\n';
   return content;
 }
 

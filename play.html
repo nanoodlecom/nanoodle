@@ -482,7 +482,7 @@
   </div>
 </div>
 
-<!-- CUSTOMIZE composer: goal + Apply drives the gptdiff loop over index.html + app.css.
+<!-- CUSTOMIZE composer: goal + Apply drives the patchling loop over index.html + app.css.
      Docked at the bottom; floats centered as the "describe your app" prompt on first run. -->
 <div id="customize">
   <button id="custtoggle" class="link">✨ Customize this app</button>
@@ -530,7 +530,7 @@
 
 <script type="module">
 import { buildEnvironment, generateDiff, smartapply, parseDiffPerFile, callLlmForApply, setEnv }
-  from "./vendor/gptdiff-js/index.js";  // vendored from github.com/255BITS/gptdiff-js v0.2.0 — self-hosted, no third-party gateway
+  from "./vendor/patchling/index.js";  // vendored from github.com/255BITS/patchling v0.2.0 — self-hosted, no third-party gateway
 
 /* ======================================================================
    SHARED HELPERS — mirror index.html exactly so signing in once works
@@ -704,7 +704,7 @@ function toast(msg, kind){ const el=$("toast"); el.className = kind==="err" ? "e
 
 /* ======================================================================
    FIXED RUNTIME — the faithful headless engine extracted from index.html.
-   This string is injected into the app bundle by the bundler; gptdiff
+   This string is injected into the app bundle by the bundler; patchling
    never sees it, so a diff can never break the engine. Runs inside the
    sandboxed iframe with no imports except fetch to nano-gpt.com.
    ====================================================================== */
@@ -4249,7 +4249,7 @@ function mp4ParamsMatch(bufs){
   // the builder/share preview (EMBEDDED: the target=_blank link is dead in the sandbox and the parent
   // chrome already IS nanoodle — same trap the made-with footer documents at mount()). The quiet
   // #app-made-with footer stays; this is its bright, timed twin. Runtime-injected so every app gets
-  // it: default, gptdiff-customized, and exported standalone.
+  // it: default, patchling-customized, and exported standalone.
   function injectMakeCtaStyles(){
     if(document.getElementById("noodle-makecta-style")) return;
     const s = document.createElement("style"); s.id = "noodle-makecta-style";
@@ -4297,7 +4297,7 @@ function mp4ParamsMatch(bufs){
      telling them what will land here. Removed the instant a run starts (run() calls
      clearOutputPlaceholder), so it never fights output mounting, lanes or keep-generating
      — and results only ever accumulate, so it never comes back. Styles are injected at
-     runtime (like the make-cta) so default, gptdiff-customized and exported apps all get
+     runtime (like the make-cta) so default, patchling-customized and exported apps all get
      it without depending on stored app.css. No backticks (RUNTIME_JS is a String.raw template). */
   function injectOutputPlaceholderStyles(){
     if(document.getElementById("noodle-outempty-style")) return;
@@ -4475,7 +4475,7 @@ function mp4ParamsMatch(bufs){
      see every step in pipeline order, with its status and its output — live while
      running, and preserved after an error so nothing paid-for is lost.
      Self-styled + self-mounted (like the cost meter) so every app gets it,
-     including gptdiff-customized and exported standalones that never had a mount
+     including patchling-customized and exported standalones that never had a mount
      point for it. Updates idempotently (one DOM node per step, media inserted
      once) so live repaints never re-fetch media or reset a playing <video>. */
   let detailOpen = null, detailLaneRef = null, detailSheet = null;
@@ -5000,7 +5000,7 @@ function mp4ParamsMatch(bufs){
   }
   // Warm landing for a shared-app / exported recipient who lands here without a key:
   // styles injected at runtime (mirroring injectCostStyles, with var() fallbacks) so a
-  // gptdiff-customized shell that rewrote its CSS still renders the card themed.
+  // patchling-customized shell that rewrote its CSS still renders the card themed.
   function injectAuthIntroStyles(){
     if(document.getElementById("noodle-authintro-style")) return;
     const s = document.createElement("style"); s.id = "noodle-authintro-style";
@@ -5029,7 +5029,7 @@ function mp4ParamsMatch(bufs){
       // A signed-out Run press pulses the header auth block (flashAuth) so the eye ties the
       // prominent Run button to where sign-in actually lives. Brief double accent ring, then gone —
       // box-shadow (not outline) so it never nudges layout. Injected here, with the var() fallback,
-      // so a gptdiff-restyled shell that dropped app.css still shows the cue.
+      // so a patchling-restyled shell that dropped app.css still shows the cue.
       + '@keyframes noodle-authpulse{0%,100%{box-shadow:0 0 0 0 rgba(124,140,255,0);}30%{box-shadow:0 0 0 4px var(--accent,#7c8cff);}}'
       + '.auth-flash{border-radius:8px;animation:noodle-authpulse 1.3s ease-out 2;}';
     (document.head || document.documentElement).appendChild(s);
@@ -5360,7 +5360,7 @@ const RUNTIME_WIDGET_CSS =
    The freshest volley renders full-size; the instant the next run starts, older cards flip to
    the compact "earlier" form. The frozen app.css sizes every ".output .card" identically, so
    every rule here is #app-output-prefixed (id beats class) to outrank it in pre-existing and
-   gptdiff-customized apps. Recede / expand / clamp are pure class toggles — no card ever moves —
+   patchling-customized apps. Recede / expand / clamp are pure class toggles — no card ever moves —
    so a playing track keeps playing as it shrinks. The steps sheet renders the SAME cards OUTSIDE
    #app-output, so none of this reaches it (its stray affordances are hidden there too). */
 
@@ -5442,7 +5442,7 @@ function defaultFiles(graph){
   const tagline = deriveTagline(graph);
 
   // index.html holds ONLY mount points + include markers. The runtime binds to
-  // the ids by name; gptdiff may restyle/relayout/rewrite copy but must keep these ids.
+  // the ids by name; patchling may restyle/relayout/rewrite copy but must keep these ids.
   const indexHtml =
 `<!doctype html>
 <html lang="en">
@@ -6080,7 +6080,7 @@ function renderPicker(){
 }
 
 /* ======================================================================
-   CUSTOMIZE LOOP (gptdiff): goal -> generateDiff -> guard -> smartapply
+   CUSTOMIZE LOOP (patchling): goal -> generateDiff -> guard -> smartapply
    -> push version -> re-render. The engine contract (mount-point ids, build
    markers, the mount call, no external scripts) is enforced in bundle(), NOT
    in the prompt — so a diff can never break the app and the CONTRACT below is
@@ -6137,7 +6137,7 @@ Keep it self-contained, responsive and accessible. Below is a description of the
 a front-end for — use it to give the app a fitting identity and to reason about what the user is
 trying to accomplish, then make their requested change in a way that genuinely serves that goal.`;
 
-// streaming SSE client injected into gptdiff-js (Bearer key, returns the shape it expects)
+// streaming SSE client injected into patchling (Bearer key, returns the shape it expects)
 /* ---- usage meter: tokens in/out + cost across a whole customize run (both LLM
    phases). Cost updates LIVE from the model's per-1M price (NanoGPT catalog);
    exact figures + USD replace the estimate from x_nanogpt_pricing when it lands.
@@ -6244,7 +6244,7 @@ function streamingCallLlm(phase){
       else { USAGE.cost += inEst*inPer + outTok*outPer; USAGE.exact = false; }   // estimate → keep the ~
       // died mid-generation with partial output → a truncated diff must not be half-applied
       if(streamErr) throw new Error(usedModel + "'s reply was cut off mid-stream (" + streamErr + ") — try again");
-      return { choices:[{ message:{ content } }] };   // shape gptdiff-js expects
+      return { choices:[{ message:{ content } }] };   // shape patchling expects
     }
     throw lastErr || new Error("LLM call failed");
   };
@@ -6269,7 +6269,7 @@ function kickBuilderSignIn(){
   else { $("key").style.display = "flex"; $("keyinput").focus(); toast("paste a nano-gpt.com API key to customize", "err"); }
 }
 
-// Shared gptdiff loop: generate a diff for `goal` against the current index.html +
+// Shared patchling loop: generate a diff for `goal` against the current index.html +
 // app.css, smart-apply it, push the result as a new version, and persist. Both the
 // Customize composer and the workflow Port reuse this — only the goal/labels differ.
 // opts: { preamble, genLabel, applyLabel, okLabel, versionGoal }
@@ -6343,7 +6343,7 @@ async function applyCustomize(){
   if(ok){ $("goal").value = ""; if(typeof newSuggestion==="function"){ newSuggestion(); syncSuggest(); } }
 }
 
-// PORT — re-fit the app's UI to a workflow whose shape changed. Always uses gptdiff
+// PORT — re-fit the app's UI to a workflow whose shape changed. Always uses patchling
 // (runDiffPass): it tells the model what the workflow USED to be vs what it is now,
 // and asks it to refresh the title/labels/copy/layout while keeping the visual style.
 // Lands as a new, undoable version (the existing version strip handles rollback).
@@ -6795,7 +6795,7 @@ function dismissRecipientWelcome(){ try{ localStorage.setItem("noodle_welcome_se
    app keeps its files, versions, title and slot; only the graph is swapped. If
    the user-facing shape is unchanged we keep the UI verbatim; if it changed we
    open on the new graph (the runtime still rebuilds the controls, so it RUNS)
-   and offer a gptdiff port to refresh the now-mismatched copy/layout. */
+   and offer a patchling port to refresh the now-mismatched copy/layout. */
 function updateAppWorkflow(appId, newGraph, fromEditor){
   newGraph = newGraph || { nodes:[], links:[] };
   const app = appId ? loadApps().find(a=> a.id===appId) : null;

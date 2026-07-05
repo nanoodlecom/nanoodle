@@ -7,7 +7,7 @@
 // Why a dedicated check: settings are how the runtime lets a user swap a model
 // at run time, but they must stay OUT of deriveInputs() — ioSignature() maps
 // deriveInputs().kind, and a swapped model / different size must read as
-// shape-PRESERVING (no gptdiff port). One typo that leaks a knob into
+// shape-PRESERVING (no patchling port). One typo that leaks a knob into
 // deriveInputs would silently make every model swap look like a breaking edit.
 //
 // Same cheap technique as check-workflow-compat.mjs (no browser, no inference):
@@ -40,7 +40,7 @@ function extractScript(html) {
 // ---- 2. make it runnable under node:vm ------------------------------------
 function prepare(code) {
   code = code.replace(
-    /import\s*\{[^}]*\}\s*from\s*["'][^"']*gptdiff-js[^"']*["'];?/,
+    /import\s*\{[^}]*\}\s*from\s*["'][^"']*patchling[^"']*["'];?/,
     "const buildEnvironment=()=>({}),generateDiff=()=>{},smartapply=()=>{},parseDiffPerFile=()=>{},callLlmForApply=()=>{},setEnv=()=>{};",
   );
   const anchor = "// SHARE: pack";

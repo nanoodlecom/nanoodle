@@ -38,10 +38,10 @@ function extractBundlerScript(html) {
 
 // ---- 2. make it runnable under node:vm ------------------------------------
 function prepare(code) {
-  // Drop the gptdiff-js import (only used inside event handlers, never before
+  // Drop the patchling import (only used inside event handlers, never before
   // our hook) and stub the names so nothing can ReferenceError.
   code = code.replace(
-    /import\s*\{[^}]*\}\s*from\s*["'][^"']*gptdiff-js[^"']*["'];?/,
+    /import\s*\{[^}]*\}\s*from\s*["'][^"']*patchling[^"']*["'];?/,
     "const buildEnvironment=()=>({}),generateDiff=()=>{},smartapply=()=>{},parseDiffPerFile=()=>{},callLlmForApply=()=>{},setEnv=()=>{};",
   );
 

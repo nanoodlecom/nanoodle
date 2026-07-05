@@ -19,7 +19,7 @@ function extractScript(html) {
   throw new Error("could not find the inline <script> defining bundle() in play.html");
 }
 function prepare(code) {
-  code = code.replace(/import\s*\{[^}]*\}\s*from\s*["'][^"']*gptdiff-js[^"']*["'];?/,
+  code = code.replace(/import\s*\{[^}]*\}\s*from\s*["'][^"']*patchling[^"']*["'];?/,
     "const buildEnvironment=()=>({}),generateDiff=()=>{},smartapply=()=>{},parseDiffPerFile=()=>{},callLlmForApply=()=>{},setEnv=()=>{};");
   const at = code.indexOf("// SHARE: pack");
   if (at === -1) throw new Error("anchor '// SHARE: pack' not found in play.html — update scripts/check-video-resume.mjs");

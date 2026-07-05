@@ -2,7 +2,7 @@
 // Verifies the workflow-compatibility classifier in play.html: when an app's
 // underlying graph is edited, does the builder correctly decide whether the
 // customized UI still fits (keep it) or whether the app's input/output SHAPE
-// changed (offer a gptdiff port)?
+// changed (offer a patchling port)?
 //
 // This is the rule the round-trip hinges on, and it must hold WITHOUT any
 // inference — so we test it directly. Same cheap technique as check-export.mjs:
@@ -33,9 +33,9 @@ function extractScript(html) {
 
 // ---- 2. make it runnable under node:vm ------------------------------------
 function prepare(code) {
-  // Drop the gptdiff-js import (only used inside event handlers) and stub the names.
+  // Drop the patchling import (only used inside event handlers) and stub the names.
   code = code.replace(
-    /import\s*\{[^}]*\}\s*from\s*["'][^"']*gptdiff-js[^"']*["'];?/,
+    /import\s*\{[^}]*\}\s*from\s*["'][^"']*patchling[^"']*["'];?/,
     "const buildEnvironment=()=>({}),generateDiff=()=>{},smartapply=()=>{},parseDiffPerFile=()=>{},callLlmForApply=()=>{},setEnv=()=>{};",
   );
   // Inject the hook after shareableGraph()'s definition — by then NoodleApp,
