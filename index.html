@@ -1450,6 +1450,7 @@ const I18N = {
     "nothing to run — add a node":"nada que ejecutar — añade un nodo",
     "add a node first":"añade un nodo primero",
     "cycle detected":"ciclo detectado",
+    "that wire would make a loop — workflows flow one way":"ese cable formaría un bucle — los flujos van en un solo sentido",
     "couldn’t read that image":"no se pudo leer esa imagen",
     "webcam unavailable":"cámara no disponible",
     "share failed":"error al compartir",
@@ -1867,6 +1868,7 @@ const I18N = {
     "nothing to run — add a node":"rien à exécuter — ajoutez un nœud",
     "add a node first":"ajoutez d’abord un nœud",
     "cycle detected":"cycle détecté",
+    "that wire would make a loop — workflows flow one way":"ce câble créerait une boucle — les flux vont dans un seul sens",
     "couldn’t read that image":"impossible de lire cette image",
     "webcam unavailable":"webcam indisponible",
     "share failed":"échec du partage",
@@ -2284,6 +2286,7 @@ const I18N = {
     "nothing to run — add a node":"nichts auszuführen — Node hinzufügen",
     "add a node first":"zuerst Node hinzufügen",
     "cycle detected":"Zyklus erkannt",
+    "that wire would make a loop — workflows flow one way":"diese Verbindung würde eine Schleife bilden — Abläufe fließen nur in eine Richtung",
     "couldn’t read that image":"Bild konnte nicht gelesen werden",
     "webcam unavailable":"Webcam nicht verfügbar",
     "share failed":"Teilen fehlgeschlagen",
@@ -2701,6 +2704,7 @@ const I18N = {
     "nothing to run — add a node":"nada para executar — adicione um nó",
     "add a node first":"adicione um nó primeiro",
     "cycle detected":"ciclo detectado",
+    "that wire would make a loop — workflows flow one way":"esse fio formaria um laço — os fluxos seguem num só sentido",
     "couldn’t read that image":"não foi possível ler essa imagem",
     "webcam unavailable":"webcam indisponível",
     "share failed":"falha ao compartilhar",
@@ -3118,6 +3122,7 @@ const I18N = {
     "nothing to run — add a node":"実行対象なし — ノードを追加",
     "add a node first":"先にノードを追加",
     "cycle detected":"循環を検出",
+    "that wire would make a loop — workflows flow one way":"この配線はループになります — ワークフローは一方向にのみ流れます",
     "couldn’t read that image":"画像を読み込めませんでした",
     "webcam unavailable":"ウェブカメラを利用できません",
     "share failed":"共有に失敗",
@@ -6045,11 +6050,12 @@ function startWire(port, e){
         const inn = adir==="in"  ? anchor : other;
         if(pickup && inn.dataset.node===pickup.to.node && inn.dataset.port===pickup.to.port){
           connected = true;                           // dropped back on its own input → no-op restore (link still in graph)
-        }else{
-          if(pickup) removeLink(pickup.id);           // grab-move: drop the old endpoint (recompaction + save handled there)
-          connect(out.dataset.node, out.dataset.port, inn.dataset.node, inn.dataset.port);
+        }else if(connect(out.dataset.node, out.dataset.port, inn.dataset.node, inn.dataset.port)){
+          if(pickup) removeLink(pickup.id);            // wire landed → NOW drop the old endpoint (checked first so a refused loop keeps the original wire)
           dismissConnectHint();                        // they've made a wire by hand — retire the coach line
           connected = true;
+        }else if(pickup){
+          connected = true;                            // connect refused (loop) — leave the grabbed wire in place, don't let the exit path detach it
         }
       }
     }
@@ -6068,9 +6074,31 @@ function startWire(port, e){
 // state — e.g. the Inpaint node folds its upload/brush UI away once a port is wired.
 function rerenderNode(n){ if(!n?.el) return; n.el.remove(); buildNodeEl(n); redraw(); refreshPortFills(); }
 
+// Would wiring fromNode's output into (toNode,toPort) close a directed loop? Walk UPSTREAM from
+// fromNode (same visited-set pattern as ancestors()); if toNode is reachable, the new edge feeds
+// back into its own supply chain. Skip the link this input already holds — connect() replaces it,
+// and removing that edge can only break a cycle, so counting it would flag a legitimate re-wire.
+function wouldCycle(fromNode, toNode, toPort){
+  if(fromNode===toNode) return true;                 // a direct self-link is the degenerate loop
+  const seen = new Set([fromNode]), stack = [fromNode];
+  while(stack.length){
+    const n = stack.pop();
+    for(const l of graph.links){
+      if(l.to.node===toNode && l.to.port===toPort) continue;   // about to be replaced — ignore
+      if(l.to.node===n && !seen.has(l.from.node)){
+        if(l.from.node===toNode) return true;
+        seen.add(l.from.node); stack.push(l.from.node);
+      }
+    }
+  }
+  return false;
+}
+
+// Returns true when the wire was made. A cycle (or self-link) is refused with a notice and
+// nothing mutates — the graph must stay a feed-forward DAG (topoOrder is the run-time backstop).
 function connect(fromNode, fromPort, toNode, toPort){
-  if(fromNode===toNode) return;
-  pushUndo();   // after the self-drop no-op guard, so a no-op doesn't snapshot
+  if(wouldCycle(fromNode, toNode, toPort)){ toast("that wire would make a loop — workflows flow one way", "warn"); return false; }
+  pushUndo();   // after the loop guard, so a refused drop doesn't snapshot
   // each input takes a single link — drop any existing one
   graph.links = graph.links.filter(l=> !(l.to.node===toNode && l.to.port===toPort));
   graph.links.push({ id:"l"+(lid++), from:{node:fromNode, port:fromPort}, to:{node:toNode, port:toPort} });
@@ -6079,6 +6107,7 @@ function connect(fromNode, fromPort, toNode, toPort){
   refreshVideoInputs(tn||{});   // …same for the Combine node's clip ports
   if(tn?.type==="inpaint") rerenderNode(tn);   // reflect wired source/mask in the body
   redraw(); refreshPortFills(); save();
+  return true;
 }
 
 /* ======================================================================
