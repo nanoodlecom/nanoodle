@@ -4710,7 +4710,10 @@ const NODE_TYPES = {
       if(!prompt) throw new Error("no prompt — describe the video to generate");
       const opts = { dims:videoDimParams(n), lora:loraParams(n), extra:(n.fields.modelOpts||{}), runKey:n.id };
       const refs = collectRefInputs(inp), rspec = videoRefSpec(n);   // subject/style reference images → sent as an array under the model's ref param
-      if(refs.length && rspec){ opts.refImages = refs.slice(0, rspec.cap); opts.refKey = rspec.key; }   // clamp to the model's max so an over-wired graph never posts a paid over-limit call
+      if(refs.length && rspec){   // clamp to the model's max so an over-wired graph never posts a paid over-limit call — warn on drop, mirroring the edit node and the play twin
+        if(refs.length > rspec.cap) toast(t("dropped {n} reference image(s) over this model's limit of {max}").replace("{n}", refs.length-rspec.cap).replace("{max}", rspec.cap), "warn");
+        opts.refImages = refs.slice(0, rspec.cap); opts.refKey = rspec.key;
+      }
       const url = await ctx.genVideo(mdl(n), prompt, opts, null,
         (st,ms)=> setNodeProgress(n, `${t("rendering video…")} ${Math.round(ms/1000)}s · ${st.toLowerCase()}`));
       return { video: url };
@@ -4725,6 +4728,7 @@ const NODE_TYPES = {
     outputs:[{name:"video", type:"video"}], preview:"video",
     body:(n)=>`
       ${modelFieldHTML(n)}
+      <div data-refhint></div>
       <div data-dims></div>
       <div><label>motion prompt (optional)</label><textarea data-f="prompt" placeholder="slow push-in, hair blowing in the wind…">${esc(n.fields.prompt||"")}</textarea></div>
       <div data-modelopts></div>
@@ -5108,7 +5112,7 @@ function buildNodeEl(n){
     mp.onclick = (e)=>{
       e.stopPropagation();
       openPicker(t.modelKind, { current:n.fields.model, filter:t.modelFilter, onPick:(id)=>{
-        n.fields.model = id; mp.textContent = id+" ▾"; updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); save();
+        n.fields.model = id; mp.textContent = id+" ▾"; updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); save();
       }});
     };
     updateNodePrice(n);
@@ -5137,6 +5141,7 @@ function buildNodeEl(n){
   refreshAudioInputs(n);             // single audio port on audio-input chat models (model-gated)
   refreshEndFrameInput(n);           // optional end-frame port on the ivideo node (model-gated on last_image)
   refreshRefInputs(n);               // growing reference-image ports on the tvideo node (model-gated on a ref-image array param)
+  refreshRefHint(n);                 // "refs live on Text→Video" nudge on the ivideo node (model-gated on videoRefSpec)
   addFieldPorts(n);
   refreshPortFills();
   prepTextareas(n);
@@ -5241,6 +5246,18 @@ function refreshEndFrameInput(n){
   translateTree(row);
   row.querySelector(".port").addEventListener("pointerdown", e=> startWire(e.currentTarget, e));
   refreshPortFills();
+}
+// Discoverability nudge on the Image→Video node: some i2v models (seedance-2.0 & co.)
+// ALSO advertise a reference-image array param (videoRefSpec non-null). ivideo deliberately
+// does NOT expose ref ports — the start-image + reference_images combined call is unverified
+// upstream (kling bills the modes separately) — so when such a model is picked, point the user
+// at the 🎬 Text→Video node, which DOES carry ref ports (#199), for character/subject pinning.
+// Editor-only: app builders don't pick models, so exported/shared apps never surface this.
+function refreshRefHint(n){
+  if(!n.el || n.type!=="ivideo") return;
+  const box = n.el.querySelector("[data-refhint]"); if(!box) return;
+  if(!videoRefSpec(n)){ box.innerHTML=""; return; }
+  box.innerHTML = `<div class="fhint">${esc(t("this model can pin a character/subject from reference images — use the 🎬 Text→Video node's ref ports for that"))}</div>`;
 }
 // Render the GROWING reference-image ports on the Text→Video node. Shown ONLY when the picked model
 // exposes a ref-image array param (seedance-2.0 / luma / kling / wan — see videoRefSpec); a plain t2v
@@ -7562,7 +7579,7 @@ async function concatViaRecorder(urls, dedup, onProgress){
    (the track would come out silent) — refuse it up front with the way out, exactly like lipsync. */
 async function muxSoundtrack(videoUrl, audioUrl, loop, onProgress){
   if(/^https?:/.test(audioUrl))
-    throw new Error("can’t add that generated song as a soundtrack — it lives on the provider’s audio CDN, whose bytes the browser can’t read (CORS), so the track would come out silent. Use a 🗣️ Speech node, a ✂️ Trim node, or an Audio upload for the soundtrack.");
+    throw new Error("can’t add that generated song as a soundtrack — it lives on the provider’s audio CDN, whose bytes the browser can’t read (CORS), so the track would come out silent. Lower the 🎵 Music node’s length so the song fits at the source, or download the song and re-add it through a 🎤 Audio input node.");
   const AC = window.AudioContext || window.webkitAudioContext;
   if(!AC) throw new Error("this browser can’t process audio (no Web Audio API)");
   const vh = await toLocalMediaUrl(videoUrl);

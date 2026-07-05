@@ -2102,7 +2102,7 @@ function mp4ParamsMatch(bufs){
   // No backticks (RUNTIME_JS is a String.raw template).
   async function muxSoundtrack(videoUrl, audioUrl, loop, onProgress){
     if(/^https?:/.test(audioUrl))
-      throw new Error("can’t add that generated song as a soundtrack — it lives on the provider’s audio CDN, whose bytes the browser can’t read (CORS), so the track would come out silent. Use a Speech node, a Trim node, or an Audio upload for the soundtrack.");
+      throw new Error("can’t add that generated song as a soundtrack — it lives on the provider’s audio CDN, whose bytes the browser can’t read (CORS), so the track would come out silent. Lower the Music node’s length so the song fits at the source, or download the song and re-add it through an Audio input node.");
     const AC = window.AudioContext || window.webkitAudioContext;
     if(!AC) throw new Error("this browser can’t process audio (no Web Audio API)");
     const vh = await toLocalMediaUrl(videoUrl);
@@ -2449,7 +2449,7 @@ function mp4ParamsMatch(bufs){
       em:"✂️", title:"Edit",
       inputs:[], imageInputs:{multi:true, re:EDIT_IMG_RE},   // image, image2, … wired source images (multi-reference compositing)
       outputs:[{name:"image", type:"image"}],
-      async run(n, inp, ctx){
+      async run(n, inp, ctx, onProgress){
         var imgs = collectImageInputs(inp, EDIT_IMG_RE);   // wired source images, in port order
         if(!imgs.length) throw new Error("no image input");
         // Cap to the model's max_input_images (best-effort, public catalog): a baked graph can carry
@@ -2459,7 +2459,7 @@ function mp4ParamsMatch(bufs){
           var _m = await rawCatItem("image", n.fields.model);
           var _mi = _m && _m.supported_parameters && _m.supported_parameters.max_input_images;
           var _cap = _m ? (_mi > 0 ? _mi : 1) : Infinity;
-          if(imgs.length > _cap) imgs = imgs.slice(0, _cap);
+          if(imgs.length > _cap){ var _drop = imgs.length - _cap; imgs = imgs.slice(0, _cap); if(onProgress) onProgress("dropped " + _drop + " image(s) over this model's limit"); }
         }catch(e){}
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         if(!prompt) throw new Error("no edit instruction");
@@ -2543,7 +2543,13 @@ function mp4ParamsMatch(bufs){
         if(!prompt) throw new Error("no prompt");
         const opts = { dims:await videoDimParams(n), lora:loraParams(n), extra:(n.fields.modelOpts||{}) };
         const refs = collectRefInputs(inp);
-        if(refs.length){ const spec = await modelAllowsRefs(mdl(n)); if(spec && spec.key){ opts.refImages = refs.slice(0, spec.cap); opts.refKey = spec.key; } }   // honor authored ref wires unless a runtime model swap dropped ref support
+        if(refs.length){   // honor authored ref wires unless a runtime model swap dropped ref support — say so, never silently discard
+          const spec = await modelAllowsRefs(mdl(n));
+          if(spec && spec.key){
+            opts.refImages = refs.slice(0, spec.cap); opts.refKey = spec.key;
+            if(refs.length > spec.cap && onProgress) onProgress("dropped " + (refs.length - spec.cap) + " reference image(s) over this model's limit");
+          } else if(onProgress) onProgress("reference image(s) ignored — this model doesn't support them");
+        }
         const url = await ctx.genVideo(mdl(n), prompt, opts, null,
           (st,ms)=> onProgress && onProgress("rendering video… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
         return { video: url };
@@ -2557,7 +2563,10 @@ function mp4ParamsMatch(bufs){
         if(!inp.image) throw new Error("no image input");
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         const opts = { dims:await videoDimParams(n), lora:loraParams(n), extra:(n.fields.modelOpts||{}) };
-        if(inp.endframe && await modelAllowsEndFrame(mdl(n))) opts.last_image = inp.endframe;   // honor an authored end frame unless a runtime model swap dropped last_image support
+        if(inp.endframe){   // honor an authored end frame unless a runtime model swap dropped last_image support — say so, never silently discard
+          if(await modelAllowsEndFrame(mdl(n))) opts.last_image = inp.endframe;
+          else if(onProgress) onProgress("end frame ignored — this model can't morph");
+        }
         const url = await ctx.genVideo(mdl(n), prompt, opts, inp.image,
           (st,ms)=> onProgress && onProgress("animating… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
         return { video: url };
@@ -2942,6 +2951,22 @@ function mp4ParamsMatch(bufs){
     music:  [{ f:"prompt", label:"Style / prompt", kind:"textarea" }],
     tts:    [{ f:"prompt", label:"Text to speak",  kind:"textarea" }],
   };
+  // A bare upload node that feeds a single role-bearing image port (an ivideo end
+  // frame, a tvideo reference slot, or an edit multi-reference slot beyond the first)
+  // should name itself for that role — otherwise a morph / multi-image compositing app
+  // surfaces N identical "Image" inputs the user can't tell apart. Only fire when the
+  // upload has exactly one downstream port (so the role is unambiguous); a renamed node
+  // still wins over this in renderInputs (its custom [data-no-i18n] name is used first).
+  function uploadRoleLabel(graph, n){
+    if(n.type!=="upload") return null;
+    const outs = graph.links.filter(l=> l.from.node===n.id);
+    if(outs.length!==1) return null;
+    const p = outs[0].to.port;
+    if(p==="endframe") return "End frame";
+    if(REF_PORT_RE.test(p)) return "Reference " + portIdx(p);
+    if(EDIT_IMG_RE.test(p) && portIdx(p) > 1) return "Image " + portIdx(p);
+    return null;
+  }
   function deriveInputs(graph){
     const out = [];
     for(const n of graph.nodes){
@@ -2971,7 +2996,8 @@ function mp4ParamsMatch(bufs){
         // satisfied if a link feeds this field (fieldOverrides) → hide the control
         const fed = graph.links.some(l=> l.to.node===n.id && l.to.port===s.f);
         if(fed) continue;
-        out.push({ nodeId:n.id, field:s.f, label:s.label, kind:s.kind, optional:!!s.optional, def:s.def,
+        const role = (s.f==="image") ? uploadRoleLabel(graph, n) : null;
+        out.push({ nodeId:n.id, field:s.f, label:role || s.label, kind:s.kind, optional:!!s.optional, def:s.def,
                    node:n, title:displayName(n), em:NODE_TYPES[n.type].em });
       }
     }
