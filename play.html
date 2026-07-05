@@ -5854,8 +5854,10 @@ function streamingCallLlm(phase){
     // Some upstreams (the Anthropic routes especially) fail INSIDE a 200 SSE stream: the gateway
     // holds the connection ~90s with keep-alive chunks, then emits {error:{code:"upstream_timeout"}}
     // + finish_reason:"error" having produced NO content. The flake is transient, so the chosen
-    // model gets a second chance before FALLBACK_MODEL — otherwise an empty stream would surface
-    // as the misleading "No applicable change".
+    // model gets a second chance — otherwise an empty stream would surface as the misleading
+    // "No applicable change". In-stream flakes NEVER walk past the user's own pick (no silent
+    // model swap); the FALLBACK_MODEL rung is reachable only via the HTTP 429/5xx jump below,
+    // which announces the switch in the status line.
     const plan = model===FALLBACK_MODEL ? [model, model] : [model, model, FALLBACK_MODEL];
     let lastErr = null;
     for(let a=0; a<plan.length; a++){
@@ -5907,14 +5909,14 @@ function streamingCallLlm(phase){
           if(j.x_nanogpt_pricing) pricing = j.x_nanogpt_pricing;   // exact tokens + USD (final chunk, when present)
         }
       }
-      // the stream died before producing anything → nothing was (or will be) charged; try the next rung
+      // the stream died before producing anything → nothing was (or will be) charged; retry, but
+      // only while the next rung is still the model the user picked (never swap models silently)
       if(streamErr && !content.trim()){
-        lastErr = new Error(usedModel + " didn't answer (" + streamErr + ")");
-        if(a < plan.length-1){
-          $("cust-status").innerHTML = '<span class="spin">◐</span> ' + esc(usedModel) + ' timed out — retrying' + (plan[a+1]!==usedModel ? ' with ' + esc(plan[a+1]) : '') + '…';
+        if(a < plan.length-1 && plan[a+1]===usedModel){
+          $("cust-status").innerHTML = '<span class="spin">◐</span> ' + esc(usedModel) + ' timed out — retrying…';
           continue;
         }
-        throw lastErr;
+        throw new Error(usedModel + " didn't answer (" + streamErr + ") — try again or pick a different model");
       }
       // commit this call: prefer exact pricing, else the per-1M price-table estimate.
       // (Anthropic routes report only {amount,currency} — no token counts.)
