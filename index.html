@@ -1463,6 +1463,7 @@ const I18N = {
     "audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).":"audio ignorado — este modelo es solo de texto. Elige un modelo con entrada de audio (por ejemplo, un Gemini).",
     "dropped {n} reference image(s) over this model's limit of {max}":"se descartaron {n} imagen(es) de referencia por encima del límite de {max} de este modelo",
     "can’t delete while running — Stop first":"no se puede eliminar mientras se ejecuta — detén primero",
+    "can’t change the workflow while running — Stop first":"no se puede cambiar el flujo de trabajo mientras se ejecuta — detén primero",
     "couldn’t read that file":"no se pudo leer ese archivo",
     "stopping…":"deteniendo…",
     "couldn’t autosave — an uploaded audio/video clip may be too large for local storage":"no se pudo autoguardar — un clip de audio/vídeo subido podría ser demasiado grande para el almacenamiento local",
@@ -1884,6 +1885,7 @@ const I18N = {
     "audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).":"audio ignoré — ce modèle est uniquement textuel. Choisissez un modèle avec entrée audio (par ex. un Gemini).",
     "dropped {n} reference image(s) over this model's limit of {max}":"{n} image(s) de référence ignorée(s) — au-delà de la limite de {max} de ce modèle",
     "can’t delete while running — Stop first":"impossible de supprimer pendant l'exécution — arrêtez d'abord",
+    "can’t change the workflow while running — Stop first":"impossible de modifier le flux de travail pendant l'exécution — arrêtez d'abord",
     "couldn’t read that file":"impossible de lire ce fichier",
     "stopping…":"arrêt…",
     "couldn’t autosave — an uploaded audio/video clip may be too large for local storage":"échec de l'enregistrement automatique — un clip audio/vidéo importé est peut-être trop volumineux pour le stockage local",
@@ -2305,6 +2307,7 @@ const I18N = {
     "audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).":"Audio ignoriert — dieses Modell ist reiner Text. Wähle ein Modell mit Audio-Eingabe (z. B. ein Gemini).",
     "dropped {n} reference image(s) over this model's limit of {max}":"{n} Referenzbild(er) verworfen — über dem Limit von {max} dieses Modells",
     "can’t delete while running — Stop first":"kann nicht löschen, während es läuft — zuerst stoppen",
+    "can’t change the workflow while running — Stop first":"Arbeitsablauf kann während der Ausführung nicht geändert werden — zuerst stoppen",
     "couldn’t read that file":"diese Datei konnte nicht gelesen werden",
     "stopping…":"wird gestoppt…",
     "couldn’t autosave — an uploaded audio/video clip may be too large for local storage":"automatisches Speichern fehlgeschlagen — ein hochgeladener Audio-/Videoclip ist möglicherweise zu groß für den lokalen Speicher",
@@ -2726,6 +2729,7 @@ const I18N = {
     "audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).":"áudio ignorado — este modelo é somente texto. Escolha um modelo com entrada de áudio (por exemplo, um Gemini).",
     "dropped {n} reference image(s) over this model's limit of {max}":"{n} imagem(ns) de referência descartada(s) — acima do limite de {max} deste modelo",
     "can’t delete while running — Stop first":"não é possível excluir durante a execução — pare primeiro",
+    "can’t change the workflow while running — Stop first":"não é possível alterar o fluxo de trabalho durante a execução — pare primeiro",
     "couldn’t read that file":"não foi possível ler esse arquivo",
     "stopping…":"parando…",
     "couldn’t autosave — an uploaded audio/video clip may be too large for local storage":"não foi possível salvar automaticamente — um clipe de áudio/vídeo enviado pode ser grande demais para o armazenamento local",
@@ -3147,6 +3151,7 @@ const I18N = {
     "audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).":"音声は無視されました — このモデルはテキスト専用です。音声入力に対応したモデル（Geminiなど）を選んでください。",
     "dropped {n} reference image(s) over this model's limit of {max}":"参照画像を{n}枚破棄しました — このモデルの上限は{max}枚です",
     "can’t delete while running — Stop first":"実行中は削除できません — 先に停止してください",
+    "can’t change the workflow while running — Stop first":"実行中はワークフローを変更できません — 先に停止してください",
     "couldn’t read that file":"そのファイルを読み込めませんでした",
     "stopping…":"停止中…",
     "couldn’t autosave — an uploaded audio/video clip may be too large for local storage":"自動保存に失敗しました — アップロードした音声/動画クリップがローカルストレージには大きすぎる可能性があります",
@@ -8117,6 +8122,12 @@ function stripInjectedMedia(n){
     if(n.fields[k] && !SAFE_MEDIA_RE.test(n.fields[k])) n.fields[k] = "";
 }
 function applyGraphData(d){
+  // Carry generated results + seed-skip signatures across the rebuild. serializeGraph() never
+  // persists n.out/n._sig, so without this an undo/redo/version-jump/example-load would wipe every
+  // paid result and force a full re-run. Keyed by id AND type — same node identity — so a model/type
+  // swap under a reused id can't inherit a stale output. The engine's signature staleness still
+  // decides re-runs (and PR #229's retry-reuse reads exactly these fields), so carrying them is safe.
+  const prevById = new Map(graph.nodes.map(n=>[n.id+" "+n.type, n]));
   world.innerHTML=""; selected=null;
   graph = { nodes:[], links:[] };
   if(d.view){ panX=d.view.panX??panX; panY=d.view.panY??panY; scale=d.view.scale??scale; applyWorld(); }
@@ -8124,7 +8135,10 @@ function applyGraphData(d){
   for(const sn of (d.nodes||[])){
     const type = ALIAS[sn.type] || sn.type;
     if(!NODE_TYPES[type]) continue;               // skip unknown node types gracefully
-    const n={ ...sn, type, out:{}, el:null }; stripInjectedMedia(n); graph.nodes.push(n); buildNodeEl(n);
+    const n={ ...sn, type, out:{}, el:null }; stripInjectedMedia(n);
+    const prev = prevById.get(n.id+" "+type);   // same id AND type → carry its result + seed signature so this apply doesn't force a paid re-run
+    if(prev && prev.out && Object.keys(prev.out).length){ n.out = prev.out; if(prev._sig!=null) n._sig = prev._sig; }
+    graph.nodes.push(n); buildNodeEl(n);
   }
   // keep only links whose endpoints survived
   const ids = new Set(graph.nodes.map(n=>n.id));
@@ -8140,6 +8154,8 @@ function applyGraphData(d){
   lid = Math.max(num(d.lid), 0, ...graph.links.map(l=>num(l.id))) + 1;
   graph.nodes.forEach(n=>{ recompactImageLinks(n); refreshImageInputs(n); recompactVideoLinks(n); refreshVideoInputs(n); });   // links loaded → compact + grow image/clip ports
   redraw(); refreshPortFills(); refreshAllPrices();
+  // repaint carried-over results into their (freshly built) node bodies — buildNodeEl starts blank
+  graph.nodes.forEach(n=>{ if(n.out && Object.keys(n.out).length){ showResult(n); setStatus(n, "done"); } });
 }
 
 const RESUME_KEY = "noodle_resume";  // sessionStorage: the graph, stashed across an OAuth full-page redirect
@@ -8174,6 +8190,7 @@ function pushUndo(){              // call BEFORE a structural mutation — recor
 }
 function _restore(from, to){
   if(!from.length) return;
+  if(runningNodes.size){ flash("can’t change the workflow while running — Stop first"); return; }   // an undo/redo mid-run replaces the graph out from under in-flight (already-charged) nodes — their results would write into detached objects and vanish (mirrors the per-node delete guard)
   to.push(_snap());
   undoMuted = true;
   try{ applyGraphData(JSON.parse(from.pop())); } finally { undoMuted = false; }
@@ -8829,6 +8846,7 @@ function openExamples(){
 function closeExamples(){ $("examplesmodal").hidden=true; }
 function loadExample(i){
   const ex=EXAMPLES[i]; if(!ex) return;
+  if(runningNodes.size){ flash("can’t change the workflow while running — Stop first"); return; }   // replacing the graph mid-run would strand in-flight (already-charged) results (mirrors the per-node delete guard)
   closeExamples();
   pushUndo();                                    // BEFORE the mutation — ↺ Undo restores the prior graph
   setPendingApp(null);                           // an example is a fresh workflow, not an app edit (mirrors loadFile)
@@ -9412,6 +9430,7 @@ RULES for the diff:
   window.resetDescribeVersions = ()=>{ versions.length = 0; curVer = -1; renderVersions(); setStatus(""); };
   function selectVersion(i){
     const v = versions[i]; if(!v || i===curVer || busy) return;
+    if(runningNodes.size){ flash("can’t change the workflow while running — Stop first"); return; }   // a version jump mid-run replaces the graph under in-flight (already-charged) nodes — strand-proof, like the per-node delete guard
     // Canvas edits made by hand since the current version aren't a snapshot — applyGraphData
     // below would replace the live graph and drop them. Don't interrupt to ask: just capture
     // them as a version first, so jumping away always keeps your work and parks it in the strip

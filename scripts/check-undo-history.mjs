@@ -125,6 +125,9 @@ const prelude = `
   var NODE_TYPES = { text:1, llm:1, image:1, edit:1, tts:1, music:1, upload:1 };
   var buildHookPushes = false;                    // MUTE test: make buildNodeEl attempt a pushUndo
   function buildNodeEl(n){ if(buildHookPushes) pushUndo(); }
+  var runningNodes = new Set();                     // run-guard: undo/redo refuse while any node is executing
+  function showResult(){}                           // applyGraphData repaints carried-over n.out through this (DOM no-op here)
+  function setStatus(){}
   function redraw(){}
   function refreshPortFills(){}
   function refreshAllPrices(){}
@@ -169,6 +172,10 @@ const surface = `
     setNodeX: (id, x) => { const n = byId(id); if(n) n.x = x; },
     addNode: (node) => { graph.nodes.push(node); const num = s=>parseInt(String(s).replace(/\\D/g,''),10)||0; nid = Math.max(nid, num(node.id)+1); },
     addLink: (l) => { graph.links.push(l); },
+    setRunning: (ids) => { runningNodes.clear(); (ids||[]).forEach(id=>runningNodes.add(id)); },
+    setOut: (id, out, sig) => { const n = byId(id); if(n){ n.out = out; if(sig!=null) n._sig = sig; } },
+    outOf: (id) => { const n = byId(id); return n && n.out; },
+    sigOf: (id) => { const n = byId(id); return n && n._sig; },
   };
 `;
 
@@ -337,6 +344,53 @@ T.reset();
 T.applyGraphData({ nodes: [], links: [] });
 T.loadFile({ __text: JSON.stringify(strangerGraph) });
 ok(T.stacks().undo.length === 0, "PARK/file: loading a file over an empty canvas must not park an empty snapshot");
+
+// =============================================================================
+// 6. RESULT CARRY-OVER — an undo/redo (or any applyGraphData) must NOT wipe a
+//    node's generated output + seed-skip signature. serializeGraph never persists
+//    n.out/n._sig, so without the carry-over an undo would force a paid re-run of
+//    every result — the P1 money bug this fix closes.
+// =============================================================================
+T.reset();
+T.setRunning([]);
+T.applyGraphData(SPEC());
+T.setOut("n2", { text: "EXPENSIVE_LLM_OUTPUT" }, "sig-n2");   // n2 has a paid result + its skip signature
+T.pushUndo();
+T.setNodeX("n1", 999);                                        // a trivial layout edit
+T.undo();                                                     // ↺ Undo — must bring back the graph WITHOUT dropping n2's output
+ok(T.outOf("n2") && T.outOf("n2").text === "EXPENSIVE_LLM_OUTPUT",
+  "CARRY-OVER: undo must preserve a node's generated result (not force a paid re-run)");
+ok(T.sigOf("n2") === "sig-n2",
+  "CARRY-OVER: undo must preserve the fixed-seed skip signature so the result isn't recomputed");
+// a type swap under a reused id must NOT inherit the stale output
+T.reset();
+T.applyGraphData(SPEC());
+T.setOut("n1", { text: "STALE" }, "sig-n1");
+T.applyGraphData({ v:1, nodes:[{ id:"n1", type:"image", x:10, y:20, fields:{} }], links:[], nid:"2", lid:"1", view:{} });
+ok(!T.outOf("n1") || !T.outOf("n1").text,
+  "CARRY-OVER: a different node TYPE under a reused id must not inherit the prior node's output");
+
+// =============================================================================
+// 7. RUN-GUARD — undo/redo must be refused while a node is executing, so a paid
+//    in-flight result can't write into a detached node object and vanish (mirrors
+//    the per-node delete guard).
+// =============================================================================
+T.reset();
+T.setRunning([]);
+T.applyGraphData(SPEC());
+T.pushUndo();
+T.setNodeX("n1", 555);
+const guardBefore = T.snap();
+T.setRunning(["n2"]);                                         // a run is now in flight
+T.undo();
+ok(content(T.snap()) === content(guardBefore),
+  "RUN-GUARD: undo must be REFUSED while a node is running (graph unchanged)");
+ok(T.stacks().undo.length === 1,
+  "RUN-GUARD: a refused undo must not pop the undo stack");
+T.setRunning([]);                                             // run finished
+T.undo();
+ok(T.snap().nodes[0].x !== 555,
+  "RUN-GUARD: once idle, undo works normally again");
 
 // ---- report -----------------------------------------------------------------
 if (failures.length) {

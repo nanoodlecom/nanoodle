@@ -170,6 +170,8 @@ function checkIndex(root, fail) {
       versions: [{ graph: G0, goal: "start" }, { graph: clone(V1), goal: "change" }],
       curVer: 1,
       busy: false,
+      runningNodes: new Set(),        // idle: the run-guard added to selectVersion is a no-op here
+      flash: () => {},
       serializeGraph: () => clone(EDITED),
       applyGraphData: (g) => applied.push(g),
       clone,
