@@ -735,6 +735,13 @@ window.NoodleApp = (function () {
   const PLAY_I18N = {
   "▶ Run":{es:"▶ Ejecutar",fr:"▶ Exécuter",de:"▶ Ausführen",pt:"▶ Executar",ja:"▶ 実行"},
   "↺ from your last visit":{es:"↺ de tu última visita",fr:"↺ de votre dernière visite",de:"↺ von deinem letzten Besuch",pt:"↺ da sua última visita",ja:"↺ 前回の結果"},
+  "Earlier results":{es:"Resultados anteriores",fr:"Résultats précédents",de:"Frühere Ergebnisse",pt:"Resultados anteriores",ja:"以前の結果"},
+  "Tap to expand":{es:"Toca para ampliar",fr:"Toucher pour agrandir",de:"Zum Vergrößern tippen",pt:"Toque para ampliar",ja:"タップで拡大"},
+  "Collapse":{es:"Contraer",fr:"Réduire",de:"Einklappen",pt:"Recolher",ja:"閉じる"},
+  "Show more":{es:"Ver más",fr:"Voir plus",de:"Mehr anzeigen",pt:"Ver mais",ja:"もっと見る"},
+  "Show less":{es:"Ver menos",fr:"Voir moins",de:"Weniger anzeigen",pt:"Ver menos",ja:"折りたたむ"},
+  "step":{es:"paso",fr:"étape",de:"Schritt",pt:"etapa",ja:"ステップ"},
+  "steps":{es:"pasos",fr:"étapes",de:"Schritte",pt:"etapas",ja:"ステップ"},
   "made here last time — stored only in this browser":{es:"generado aquí la última vez — guardado solo en este navegador",fr:"généré ici la dernière fois — stocké uniquement dans ce navigateur",de:"beim letzten Mal hier erstellt — nur in diesem Browser gespeichert",pt:"gerado aqui da última vez — salvo apenas neste navegador",ja:"前回ここで生成されたもの — このブラウザにのみ保存されています"},
   "■ Stop":{es:"■ Detener",fr:"■ Arrêter",de:"■ Stopp",pt:"■ Parar",ja:"■ 停止"},
   "Close":{es:"Cerrar",fr:"Fermer",de:"Schließen",pt:"Fechar",ja:"閉じる"},
@@ -3908,7 +3915,10 @@ function mp4ParamsMatch(bufs){
   function peekBtnHtml(L){
     const nres = L.res ? Object.keys(L.res).length : 0;
     if(!nres && !(L.endAt>0)) return "";
-    const label = nres ? (nres + " result" + (nres!==1?"s":"")) : "steps";
+    // Honest label: this chip opens the steps sheet and counts run STEPS (nodes that
+    // produced output), NOT the visible result cards in #app-output (which stack across
+    // runs/history). Calling it "results" collided with that card stack; "steps" doesn't.
+    const label = nres ? (nres + " " + t(nres!==1?"steps":"step")) : t("steps");
     return '<button type="button" class="peek" data-open-lane="'+L.idx+'" title="'+t("See every step of this run, including partial results")+'">⧉ ' + label + ' ›</button>';
   }
   function singleLaneHtml(L){
@@ -4126,14 +4136,112 @@ function mp4ParamsMatch(bufs){
         };
       });
     }
+    // Compact "earlier" affordance: a real expand/collapse control (styled + labelled), only
+    // visible once this card recedes into the shelf. Its own handler toggles nd-open IN PLACE
+    // (a class flip — no DOM move — so a playing track keeps playing) and re-labels itself. The
+    // steps sheet renders these same cards OUTSIDE #app-output and hides the button in CSS.
+    var exp = document.createElement("button"); exp.type = "button"; exp.className = "nd-exp";
+    exp.textContent = "⤢"; exp.title = t("Tap to expand"); exp.setAttribute("aria-label", t("Tap to expand"));
+    exp.addEventListener("click", function(ev){ ev.stopPropagation(); card.classList.toggle("nd-open"); updateExpBtn(card); });
+    card.appendChild(exp);
+    // Long text output clamps to ~12 lines with a Show more / Show less toggle. The nd-text marker
+    // carries the max-height via #app-output-scoped css, so the clamp is live BEFORE we measure
+    // overflow (and absent in the steps sheet, which lives outside #app-output → no clamp, no toggle).
+    if(port.type!=="image" && port.type!=="video" && port.type!=="audio"){ card.classList.add("nd-text"); applyTextClamp(card); }
     return card;
+  }
+  // Keep the earlier-card expand control's glyph + label in sync with the card's open state,
+  // whichever path toggled it (the ⤢/⤡ button itself, or a tap on the compact row body).
+  function updateExpBtn(card){
+    var b = card.querySelector(".nd-exp"); if(!b) return;
+    var open = card.classList.contains("nd-open");
+    b.textContent = open ? "⤡" : "⤢";
+    var lbl = open ? t("Collapse") : t("Tap to expand");
+    b.title = lbl; b.setAttribute("aria-label", lbl);
+  }
+  // Clamp long text output to ~12 lines with a Show more / Show less toggle. The toggle is added
+  // ONLY when the text actually overflows the clamp — measured after a frame so layout has settled.
+  // The clamp css is #app-output-scoped, so a card rendered into the steps sheet (outside it) is
+  // unclamped, measures no overflow, and gets no button.
+  function applyTextClamp(card){
+    var box = card.querySelector(".text"); if(!box) return;
+    requestAnimationFrame(function(){
+      if(box.scrollHeight - box.clientHeight <= 4) return;   // already fits the clamp
+      card.classList.add("clamped");
+      var btn = document.createElement("button"); btn.type = "button"; btn.className = "tmore";
+      btn.textContent = t("Show more");
+      btn.addEventListener("click", function(ev){
+        ev.stopPropagation();
+        var ex = card.classList.toggle("expanded");
+        btn.textContent = ex ? t("Show less") : t("Show more");
+      });
+      box.insertAdjacentElement("afterend", btn);
+    });
   }
   function renderResult(n, runNo){
     const box = $("app-output"); if(!box) return;
     const badge = runNo ? '<span class="run-badge">Run '+runNo+'</span> ' : '';
     const card = resultCard(n, badge); if(!card) return;
+    card.classList.add("nd-latest");            // freshest volley renders at hero size; recedeLatest() demotes it next press
+    ensureRecedeWiring(box);
     box.insertBefore(card, box.firstChild);   // newest at the top; nothing is removed
+    layoutRecede();                            // keep the "Earlier results · N" divider in the right place + counted
     maybeShowMakeCta();                         // one-time wow-moment nudge, only after a real card lands
+  }
+
+  /* ---------- latest-run hero + earlier-results shelf ----------
+     The freshest run is the star: its cards render full-size (nd-latest). The instant the
+     NEXT run STARTS (recedeLatest, called from run()), every currently-hero card flips to the
+     compact "earlier" form (nd-earlier) — smaller media, dimmed, tighter — with ZERO DOM moves:
+     we only toggle a class, so a playing <audio>/<video> keeps playing while it visually shrinks
+     (detaching would reload it; forbidden). A "volley" = one Run press, all N lanes, and every
+     keep-generating pass until Stop — the whole live session stays hero, then recedes together on
+     the next press. Restored last-visit history boots straight into the earlier form (below). A
+     quiet divider marks the boundary. Tapping an earlier card re-expands it IN PLACE (nd-open) —
+     it never moves to the top. All class toggles + CSS; the divider is the only element that moves,
+     and it is never a card (no media, safe to reposition). */
+  function recedeLatest(){
+    const box = $("app-output"); if(!box) return;
+    box.querySelectorAll(".card.nd-latest").forEach(function(c){
+      c.classList.remove("nd-latest"); c.classList.add("nd-earlier");
+      // Drop the hero text-clamp state so the compact 2-line teaser wins cleanly (an expanded hero
+      // text card must not carry its full-height override into the shelf); nd-open re-collapses too.
+      c.classList.remove("nd-open","expanded","clamped");
+      var tm = c.querySelector(".tmore"); if(tm) tm.textContent = t("Show more");
+      updateExpBtn(c);                 // reset the ⤢/⤡ control to its collapsed label
+    });
+    layoutRecede();
+  }
+  function layoutRecede(){
+    const box = $("app-output"); if(!box) return;
+    let div = box.querySelector(".nd-shelf-div");
+    const earlier = box.querySelectorAll(".card.nd-earlier");
+    const hasLatest = !!box.querySelector(".card.nd-latest");
+    // Divider only earns its place when a hero group sits ABOVE a shelf. Pure restored history
+    // (all earlier, nothing hero yet) already reads as "old" via its badges — no divider needed.
+    if(!earlier.length || !hasLatest){ if(div) div.remove(); return; }
+    if(!div){
+      div = document.createElement("div"); div.className = "nd-shelf-div"; div.setAttribute("aria-hidden","true");
+      div.innerHTML = '<span class="nd-shelf-lbl"></span>';
+    }
+    // Count = every card below the divider, whether or not it's currently re-expanded (nd-open is
+    // additive to nd-earlier), so expand/collapse never changes the tally.
+    div.querySelector(".nd-shelf-lbl").textContent = t("Earlier results") + " · " + earlier.length;
+    const firstEarlier = earlier[0];   // earlier cards are always the contiguous BOTTOM block, so [0] is the boundary
+    if(div.nextSibling !== firstEarlier || div.parentNode !== box) box.insertBefore(div, firstEarlier);
+  }
+  function ensureRecedeWiring(box){
+    if(!box || box.__ndRecedeWired) return; box.__ndRecedeWired = true;
+    // One delegated listener (survives card churn): tap an earlier card's body to re-expand it in
+    // place. Ignore taps on real controls (media transport, download, gallery thumbs, links, the
+    // expand button, the Show-more toggle) so seeking a slim audio row or grabbing a thumbnail is
+    // never hijacked into an expand toggle.
+    box.addEventListener("click", function(e){
+      if(e.target.closest("audio,video,a,input,select,.dl,.varthumb,[data-vi],.nd-exp,.tmore")) return;
+      const card = e.target.closest && e.target.closest(".card.nd-earlier");
+      if(!card || !box.contains(card)) return;
+      card.classList.toggle("nd-open"); updateExpBtn(card);
+    });
   }
 
   // One-time viral nudge at the WOW moment. The first time a real result card renders, slip a
@@ -4310,9 +4418,9 @@ function mp4ParamsMatch(bufs){
         try{ label = "↺ " + esc(new Date(rec.updated).toLocaleString(undefined, { dateStyle:"short", timeStyle:"short" })); }catch(_){}
       }
       var card = resultCard(node, '<span class="run-badge" title="'+esc(t("made here last time — stored only in this browser"))+'">'+label+'</span> ');
-      if(card){ box.insertBefore(card, box.firstChild); restored++; }
+      if(card){ card.classList.add("nd-earlier"); ensureRecedeWiring(box); box.insertBefore(card, box.firstChild); restored++; }
     }
-    if(restored) clearOutputPlaceholder();
+    if(restored){ clearOutputPlaceholder(); layoutRecede(); }
   }
 
   /* ---------- playback continuity (via the parent) ----------
@@ -4407,7 +4515,8 @@ function mp4ParamsMatch(bufs){
       + '.nd-step .nd-errmsg{font-size:.77rem;color:#ff9a9a;background:#ff6b6b12;'
         + 'border:1px solid #ff6b6b30;border-radius:8px;padding:.45rem .6rem;}'
       + '.nd-step .card{margin:0;}'
-      + '.nd-step .card .rhead{display:none;}';   // the step header already labels + costs it
+      + '.nd-step .card .rhead{display:none;}'   // the step header already labels + costs it
+      + '.nd-step .card .nd-exp,.nd-step .card .tmore{display:none;}';   // hero/shelf-only affordances never belong in the steps sheet
     (document.head || document.documentElement).appendChild(s);
   }
   function ensureDetailSheet(){
@@ -4637,6 +4746,7 @@ function mp4ParamsMatch(bufs){
     ensureStatus();
     const mbox = $("app-msg"), obox = $("app-output");
     clearOutputPlaceholder();   // drop the pre-run "your X will appear here" card the moment real output starts
+    recedeLatest();             // this press starts a new volley → last volley's hero cards recede into the shelf
     // Results accumulate — never cleared. New cards land at the top (renderResult
     // prepends), so each run, or continuous generation, just stacks onto history.
     if(mbox) mbox.innerHTML = ""; if(obox) obox.classList.toggle("grid", N>1);
@@ -5244,7 +5354,88 @@ const RUNTIME_WIDGET_CSS =
    would be invisible in exactly the apps that already exist. Higher specificity wins it. */
 .prog-track .seg.active{ background:linear-gradient(90deg,var(--accent-line,#7c8cff),#5b9bff,var(--accent-line,#7c8cff));
   background-size:200% 100%; animation:prog-shimmer 1.1s linear infinite; }
-@keyframes prog-shimmer{ 0%{ background-position:200% 0; } 100%{ background-position:-200% 0; } }`;
+@keyframes prog-shimmer{ 0%{ background-position:200% 0; } 100%{ background-position:-200% 0; } }
+
+/* latest-run HERO + earlier-results SHELF -------------------------------------
+   The freshest volley renders full-size; the instant the next run starts, older cards flip to
+   the compact "earlier" form. The frozen app.css sizes every ".output .card" identically, so
+   every rule here is #app-output-prefixed (id beats class) to outrank it in pre-existing and
+   gptdiff-customized apps. Recede / expand / clamp are pure class toggles — no card ever moves —
+   so a playing track keeps playing as it shrinks. The steps sheet renders the SAME cards OUTSIDE
+   #app-output, so none of this reaches it (its stray affordances are hidden there too). */
+
+/* --- HERO text: clamp long output to ~12 lines with a soft fade + Show more toggle.
+   The max-height rides the creation-time .nd-text marker so the clamp is live when applyTextClamp()
+   measures overflow; .clamped only adds the fade, .expanded lifts the cap. --- */
+#app-output .card.nd-text .text{ max-height:19.5em; overflow:hidden; position:relative; }
+#app-output .card.nd-text.clamped .text::after{ content:""; position:absolute; left:0; right:0; bottom:0;
+  height:2.8em; background:linear-gradient(180deg,transparent,var(--panel,#161a27)); pointer-events:none; }
+#app-output .card.nd-text.expanded .text{ max-height:none; }
+#app-output .card.nd-text.expanded .text::after{ display:none; }
+#app-output .card .tmore{ font:inherit; font-size:.78rem; margin-top:.55rem; padding:.3rem .7rem;
+  cursor:pointer; background:var(--panel2,#1b2030); border:1px solid var(--line,#2a3150);
+  color:var(--dim,#8b93b4); border-radius:.45rem; }
+#app-output .card .tmore:hover{ border-color:var(--accent-line,#7c8cff); color:var(--ink,#e6e9f5); }
+
+/* --- HERO image: cap height so a portrait never eats two screens; single-image wow intact --- */
+#app-output .card img.rmain{ width:auto; max-width:100%; max-height:62vh; object-fit:contain;
+  display:block; margin-inline:auto; }
+
+/* --- shelf divider: the ONLY element that ever moves; a text-only div we own (never a card) --- */
+#app-output .nd-shelf-div{ display:flex; align-items:center; gap:.6rem; margin:.35rem 0 .15rem;
+  font-size:.7rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+  color:var(--faint,#8792ad); grid-column:1 / -1; }
+#app-output .nd-shelf-div::after{ content:""; flex:1 1 auto; height:1px;
+  background:linear-gradient(90deg,var(--line,#2a3150),transparent); }
+
+/* --- earlier card: one compact dimmed row — [thumb] [label ....... $cost], media on its own line --- */
+#app-output .card.nd-earlier{ display:flex; flex-wrap:wrap; align-items:center; gap:.4rem .7rem;
+  padding:.5rem .7rem; opacity:.62; cursor:zoom-in; position:relative; transition:opacity .18s ease; }
+#app-output .card.nd-earlier:hover,
+#app-output .card.nd-earlier:focus-within{ opacity:.95; }
+#app-output .card.nd-earlier .rhead{ order:1; flex:1 1 auto; min-width:0; margin:0;
+  display:flex; align-items:center; gap:.4rem; font-size:.74rem; white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis; padding-right:1.9rem; }
+#app-output .card.nd-earlier .rhead .rcost{ float:none; margin-left:auto; padding-left:.5rem; flex:0 0 auto; }
+#app-output .card.nd-earlier img.rmain,
+#app-output .card.nd-earlier video{ order:0; width:56px; max-width:56px; height:56px; min-height:0;
+  object-fit:cover; border-radius:.35rem; margin:0; flex:0 0 auto; }
+#app-output .card.nd-earlier audio{ order:2; flex:1 1 100%; width:100%; height:34px; margin:0; }
+#app-output .card.nd-earlier .text{ order:2; flex:1 1 100%; margin:0; white-space:normal;
+  display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden;
+  font-size:.82rem; line-height:1.5; color:var(--dim,#8b93b4); }
+#app-output .card.nd-earlier .text::after{ display:none; }   /* drop the hero fade in the 2-line teaser */
+#app-output .card.nd-earlier .varstrip,
+#app-output .card.nd-earlier .dlrow,
+#app-output .card.nd-earlier .tmore{ display:none; }
+
+/* --- expand / collapse control: small, discoverable, keyboard-labelled; brightens on hover/focus --- */
+#app-output .card .nd-exp{ display:none; }   /* meaningful only once a card has receded */
+#app-output .card.nd-earlier .nd-exp{ display:flex; align-items:center; justify-content:center;
+  position:absolute; top:.3rem; right:.35rem; width:1.65rem; height:1.65rem; padding:0;
+  font-size:.82rem; line-height:1; color:var(--faint,#8792ad); cursor:pointer;
+  background:var(--panel2,#1b2030); border:1px solid var(--line,#2a3150); border-radius:.4rem;
+  opacity:.5; transition:opacity .15s,border-color .15s,color .15s; }
+#app-output .card.nd-earlier:hover .nd-exp,
+#app-output .card.nd-earlier:focus-within .nd-exp,
+#app-output .card.nd-earlier .nd-exp:hover,
+#app-output .card.nd-earlier .nd-exp:focus-visible{ opacity:1; border-color:var(--accent-line,#7c8cff); color:var(--ink,#e6e9f5); }
+
+/* --- tapped-open earlier card: restored to hero size exactly where it sits (still no DOM move) --- */
+#app-output .card.nd-earlier.nd-open{ display:block; opacity:1; cursor:auto; padding:1rem; }
+#app-output .card.nd-earlier.nd-open .rhead{ display:block; margin-bottom:.5rem; white-space:normal;
+  overflow:visible; padding-right:2.2rem; font-size:.78rem; }
+#app-output .card.nd-earlier.nd-open .rhead .rcost{ float:right; margin-left:0; }
+#app-output .card.nd-earlier.nd-open img.rmain,
+#app-output .card.nd-earlier.nd-open video{ width:auto; max-width:100%; height:auto; max-height:62vh;
+  object-fit:contain; border-radius:.5rem; margin-inline:auto; }
+#app-output .card.nd-earlier.nd-open audio{ width:100%; height:auto; }
+#app-output .card.nd-earlier.nd-open .text{ display:block; -webkit-line-clamp:none; max-height:none;
+  white-space:pre-wrap; font-size:inherit; line-height:1.6; color:inherit; }
+#app-output .card.nd-earlier.nd-open .dlrow{ display:block; }
+#app-output .card.nd-earlier.nd-open .varstrip{ display:flex; }
+#app-output .card.nd-earlier.nd-open .nd-exp{ opacity:.7; }
+@media(prefers-reduced-motion:reduce){ #app-output .card.nd-earlier{ transition:none; } }`;
 
 function defaultFiles(graph){
   const title = deriveTitle(graph);
