@@ -60,17 +60,20 @@
 # inputs or API key to an attacker origin. legal.html is plain content but defaults to the same
 # tight policy.
 #
-# EXCEPTION — /play + /play.html add two URL-shortener origins (tinyurl.com, da.gd) to
-# connect-src, and ONLY connect-src (never img/media/script/frame). These are for the TRUSTED
-# parent chrome's opt-in "shorten this share link" button. The UNTRUSTED shared app does NOT get
-# them: it runs in a srcdoc iframe that re-seals its OWN connect-src back to 'self' blob: nano-gpt
+# EXCEPTION — /play + /play.html widen connect-src (and ONLY connect-src — never
+# img/media/script/frame) to https:, for TWO trusted-parent-chrome features: the opt-in "shorten
+# this share link" button (tinyurl.com, da.gd) and output persistence (the parent fetches a
+# generated video/music result's bytes off the provider CDN — e.g. *.cloudfront.net, hosts we
+# can't enumerate — to store them in IndexedDB before the CDN URL expires; same rationale as the
+# editor's connect-src https: for its media "save"). The UNTRUSTED shared app does NOT get any of
+# this: it runs in a srcdoc iframe that re-seals its OWN connect-src back to 'self' blob: nano-gpt
 # via a <meta> CSP (PREVIEW_CSP in play.html), and the browser enforces every delivered policy by
-# intersection — so a malicious app still cannot reach the shorteners to exfiltrate viewer
-# inputs/outputs. Exact 3-host list, never a wildcard. legal.html stays fully tight.
+# intersection — so a malicious app still cannot fetch-exfiltrate viewer inputs/outputs anywhere.
+# legal.html stays fully tight.
 /play
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://nano-gpt.com; media-src 'self' data: blob: https:; connect-src 'self' blob: https://nano-gpt.com https://tinyurl.com https://da.gd; frame-src 'self' blob:; child-src blob:; worker-src 'self' blob:; font-src 'self' data:; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'self'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://nano-gpt.com; media-src 'self' data: blob: https:; connect-src 'self' blob: https://nano-gpt.com https:; frame-src 'self' blob:; child-src blob:; worker-src 'self' blob:; font-src 'self' data:; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'self'; upgrade-insecure-requests
 /play.html
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://nano-gpt.com; media-src 'self' data: blob: https:; connect-src 'self' blob: https://nano-gpt.com https://tinyurl.com https://da.gd; frame-src 'self' blob:; child-src blob:; worker-src 'self' blob:; font-src 'self' data:; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'self'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://nano-gpt.com; media-src 'self' data: blob: https:; connect-src 'self' blob: https://nano-gpt.com https:; frame-src 'self' blob:; child-src blob:; worker-src 'self' blob:; font-src 'self' data:; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'self'; upgrade-insecure-requests
 /legal
   Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://nano-gpt.com; media-src 'self' data: blob: https:; connect-src 'self' blob: https://nano-gpt.com; frame-src 'self' blob:; child-src blob:; worker-src 'self' blob:; font-src 'self' data:; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'self'; upgrade-insecure-requests
 /legal.html

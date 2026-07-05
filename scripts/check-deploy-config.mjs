@@ -185,12 +185,14 @@ for (const route of EDITOR_ROUTES) {
 }
 
 // /play(.html) connect-src must include every shortener host check-policy.mjs allows.
+// A bare "https:" scheme source covers ANY https origin (CSP scheme-source semantics) —
+// /play carries it since output persistence fetches generated media bytes off provider CDNs.
 const SHORTENERS = shortenerHosts();
 for (const route of PLAY_ROUTES) {
   const cs = directive(cspOf(route), "connect-src") || [];
   for (const host of SHORTENERS) {
     const token = "https://" + host;
-    if (!cs.includes(token))
+    if (!cs.includes(token) && !cs.includes("https:"))
       fail(`_headers "${route}" connect-src is missing ${token} — check-policy.mjs allows it as a shortener sink but the deployed CSP would block it (the PR #81 class)`);
   }
 }

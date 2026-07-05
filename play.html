@@ -732,6 +732,8 @@ window.NoodleApp = (function () {
      built subtree, skipping user content via I18N_SKIP. Ships in every export — keep it lean. */
   const PLAY_I18N = {
   "▶ Run":{es:"▶ Ejecutar",fr:"▶ Exécuter",de:"▶ Ausführen",pt:"▶ Executar",ja:"▶ 実行"},
+  "↺ from your last visit":{es:"↺ de tu última visita",fr:"↺ de votre dernière visite",de:"↺ von deinem letzten Besuch",pt:"↺ da sua última visita",ja:"↺ 前回の結果"},
+  "made here last time — stored only in this browser":{es:"generado aquí la última vez — guardado solo en este navegador",fr:"généré ici la dernière fois — stocké uniquement dans ce navigateur",de:"beim letzten Mal hier erstellt — nur in diesem Browser gespeichert",pt:"gerado aqui da última vez — salvo apenas neste navegador",ja:"前回ここで生成されたもの — このブラウザにのみ保存されています"},
   "■ Stop":{es:"■ Detener",fr:"■ Arrêter",de:"■ Stopp",pt:"■ Parar",ja:"■ 停止"},
   "Close":{es:"Cerrar",fr:"Fermer",de:"Schließen",pt:"Fechar",ja:"閉じる"},
   "running…":{es:"ejecutando…",fr:"exécution…",de:"läuft…",pt:"executando…",ja:"実行中…"},
@@ -4209,6 +4211,81 @@ function mp4ParamsMatch(bufs){
   }
   function clearOutputPlaceholder(){ const el = $("app-output-empty"); if(el) el.remove(); }
 
+  /* ---------- output persistence (via the parent) ----------
+     Generated results are what the user paid for, and they used to live only in this
+     document's memory — switching apps or reloading emptied every card. The sandboxed
+     iframe has no storage of its own (opaque origin), so each finished OUTPUT-node result
+     is posted to the parent (Blobs ride the structured clone) and the parent keeps the
+     latest one per node in IndexedDB. On every (re)mount the parent posts them back and
+     they render as ordinary cards with a "from your last visit" badge. Standalone exports
+     have no parent — persistOut is EMBEDDED-gated and restore simply never arrives.
+     Serialization notes: data: URLs are decoded by hand (fetch(data:) is blocked by the
+     iframe's sealed connect-src; atob isn't network); blob: URLs are re-read via fetch
+     (connect-src blob: is allowed — a local read, not egress); remote https URLs pass as
+     URLs and the PARENT decides whether it can durably fetch the bytes. */
+  function dataUrlToBlob(u){
+    var m = /^data:([^;,]+)?(;base64)?,([\s\S]*)$/.exec(u); if(!m) return null;
+    var mime = m[1] || "application/octet-stream";
+    try{
+      if(m[2]){ var bin = atob(m[3]); var a = new Uint8Array(bin.length); for(var i=0;i<bin.length;i++) a[i]=bin.charCodeAt(i); return new Blob([a], { type:mime }); }
+      return new Blob([decodeURIComponent(m[3])], { type:mime });
+    }catch(_){ return null; }
+  }
+  async function packVal(v){
+    if(typeof v === "string"){
+      if(v.slice(0,5)==="data:"){ var b = dataUrlToBlob(v); return b ? { p:"b", blob:b } : { p:"v", v:v }; }
+      if(v.slice(0,5)==="blob:"){ try{ var bb = await (await fetch(v)).blob(); return { p:"b", blob:bb }; }catch(_){ return null; } }
+      if(/^https?:/.test(v)) return { p:"u", v:v };
+      return { p:"v", v:v };
+    }
+    return { p:"v", v:v };
+  }
+  async function packOut(out){
+    var ports = {};
+    for(var k in out){
+      var v = out[k];
+      if(Array.isArray(v)){
+        var items = []; for(var i=0;i<v.length;i++){ var pv = await packVal(v[i]); if(pv) items.push(pv); }
+        if(items.length) ports[k] = { p:"a", items:items };
+      } else { var s = await packVal(v); if(s!=null) ports[k] = s; }
+    }
+    return ports;
+  }
+  function persistOut(n){
+    if(!EMBEDDED) return;
+    packOut(n.out || {}).then(function(ports){
+      try{ window.parent.postMessage({ type:"__persist__", node:n.id, ntype:n.type, ports:ports }, "*"); }catch(_){}
+    }).catch(function(_){ /* best-effort — a result that can't be packed just isn't kept */ });
+  }
+  function unpackVal(s){
+    if(!s) return null;
+    if(s.p==="b" && s.blob){ try{ return URL.createObjectURL(s.blob); }catch(_){ return null; } }
+    return s.v!=null ? s.v : null;
+  }
+  function restoreOutputs(outs){
+    if(running) return;                                                    // they're already generating — don't interleave history
+    var box = $("app-output"); if(!box || box.querySelector(".card")) return;   // fresh results beat stored ones
+    if(!STATE || !STATE.graph) return;
+    var list = (outs || []).slice().sort(function(a,b){ return (a.updated||0)-(b.updated||0); });   // oldest first → newest ends on top
+    var restored = 0;
+    for(var i=0;i<list.length;i++){
+      var rec = list[i]; if(!rec) continue;
+      var gn = STATE.graph.byId(rec.node);
+      if(!gn || gn.type !== rec.ntype) continue;   // the workflow moved on — a stale result would mislead
+      var out = {};
+      for(var k in (rec.ports || {})){
+        var s = rec.ports[k];
+        if(s && s.p==="a"){ var arr = []; for(var j=0;j<(s.items||[]).length;j++){ var u = unpackVal(s.items[j]); if(u!=null) arr.push(u); } if(arr.length) out[k] = arr; }
+        else { var u2 = unpackVal(s); if(u2!=null) out[k] = u2; }
+      }
+      if(!Object.keys(out).length) continue;
+      var node = Object.assign({}, gn, { out:out });   // real node (fields/name intact) wearing the stored result
+      var card = resultCard(node, '<span class="run-badge" title="'+esc(t("made here last time — stored only in this browser"))+'">'+esc(t("↺ from your last visit"))+'</span> ');
+      if(card){ box.insertBefore(card, box.firstChild); restored++; }
+    }
+    if(restored) clearOutputPlaceholder();
+  }
+
   /* ---------- run "steps" sheet ----------
      The #app-output funnel deliberately shows only the sink nodes, to keep the
      app clean for end users. But a run makes (and pays for) intermediate outputs
@@ -4497,7 +4574,7 @@ function mp4ParamsMatch(bufs){
           const res = await runGraph(cloneGraph(), {
             onStart: (order)=> laneStart(i, order),
             onStatus: (id,kind,msg)=> laneStep(i, id, kind, msg),
-            onResult: (n)=>{ laneCapture(i, n); if(outIds.has(n.id)) renderResult(n, N>1 ? i+1 : 0); },
+            onResult: (n)=>{ laneCapture(i, n); if(outIds.has(n.id)){ renderResult(n, N>1 ? i+1 : 0); persistOut(n); } },
           });
           // per-node errors are isolated (not thrown), so the run "succeeds" even when
           // every node failed — count them as a failure so keep mode backs off instead
@@ -4869,6 +4946,7 @@ function mp4ParamsMatch(bufs){
       const m = e.data || {};
       if(m && m.type==="__auth__"){ const was=parentAuthed; parentAuthed = !!m.signedIn; renderAuth();
         if(parentAuthed && !was && STATE) fillModelLists(); }   // key just arrived → fill the model dropdowns
+      if(m && m.type==="__restore__" && m.outs){ try{ restoreOutputs(m.outs); }catch(_){ /* stored results are a bonus, never a boot blocker */ } }
     });
     document.addEventListener("keydown", (e)=>{
       if(e.key==="Escape"){ try{ parent.postMessage({type:"__escape__"}, "*"); }catch(_){} }
@@ -5453,7 +5531,7 @@ function renderApp(){
   setShareDirty(false);   // a fresh mount starts clean and won't re-post until it diverges, so clear our flag
   paceReset();            // every mount reboots the app's JS from scratch, so hand it a full request budget
   frame.sandbox = "allow-scripts allow-downloads";   // allow-downloads: the output cards' ⭳ Download button
-  frame.onload = () => pushAuthToApp();
+  frame.onload = () => { pushAuthToApp(); pushOutputsToApp(); };   // auth state + last visit's stored results
   frame.srcdoc = withPreamble(bundle(APP_STATE.files));
 }
 function postToApp(msg){ try{ $("appframe").contentWindow.postMessage(msg, "*"); }catch(_){} }
@@ -5617,6 +5695,15 @@ addEventListener("message", async (e) => {
       // A completed paid request = the recipient actually ran the shared app → unlock Export + Customize.
       if(kind === "charge" && r.ok) markRanOnce({ toast:true });
     }catch(err){ reply({ error:(err && err.message) || String(err) }); }
+    return;
+  }
+  // the app finished generating an output — keep it (IndexedDB) so a reload/app-switch/return
+  // visit reopens on what they made. Guards: only the app frame itself may file records (not a
+  // popup), only under a real library identity, and the appId is pinned HERE — persistNodeOut
+  // awaits network (CDN byte upgrade), and CUR_ID may point at a different app by the time it
+  // lands. Size/eviction caps bound a hostile app's writes; worst case is local disk churn.
+  if(d && d.type === "__persist__"){
+    if(CUR_ID && d.node && e.source === $("appframe").contentWindow) persistNodeOut(CUR_ID, d);
     return;
   }
   // the running app diverged from (or returned to) its template — flag/unflag Share so a
@@ -6099,6 +6186,111 @@ function lsSet(key, val){
 function saveApps(apps){ return lsSet(APPS_KEY, JSON.stringify(apps)); }
 function newId(){ return "app_" + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 
+/* ---------- generated-output persistence (IndexedDB) ----------
+   Generated results are the thing the user actually paid for, and they used to live only in the
+   app iframe's memory — a reload or an app switch emptied every card. The sandboxed iframe can't
+   store anything itself (opaque origin), so the runtime posts each finished output up here
+   (__persist__, Blobs ride the structured clone), we keep the LATEST result per (app, node) in
+   IndexedDB, and every (re)mount pushes that app's records back down (__restore__). localStorage
+   can't carry this (≈5MB, strings only — one generated image is 1–3MB of base64); IDB stores
+   Blobs natively with a quota in the gigabytes. Everything stays on this device — nothing is
+   uploaded anywhere, same promise as the rest of the product. All of it is best-effort: private
+   mode / blocked storage / quota pressure degrade to today's behavior (outputs live for the
+   session), never to a broken run. */
+const ODB_NAME = "noodle_outputs", ODB_STORE = "outs";
+const ODB_CAP = 400 * 1024 * 1024;      // global budget across all apps — LRU-evicted by app past this
+const ODB_REC_MAX = 80 * 1024 * 1024;   // one record (one node's latest result) can't hog the budget
+let _odbp = null;
+function odb(){
+  if(_odbp) return _odbp;
+  _odbp = new Promise((res, rej)=>{
+    let rq; try{ rq = indexedDB.open(ODB_NAME, 1); }catch(e){ return rej(e); }
+    rq.onupgradeneeded = ()=>{ const st = rq.result.createObjectStore(ODB_STORE, { keyPath:"k" }); st.createIndex("app", "app"); };
+    rq.onsuccess = ()=> res(rq.result);
+    rq.onerror = ()=> rej(rq.error);
+  });
+  return _odbp;
+}
+const otx = (db, mode)=> db.transaction(ODB_STORE, mode).objectStore(ODB_STORE);
+const oreq = (r)=> new Promise((res, rej)=>{ r.onsuccess = ()=> res(r.result); r.onerror = ()=> rej(r.error); });
+// Chromium/Firefox may evict best-effort origins under disk pressure — losing paid-for artifacts.
+// persist() is silent in Chromium (heuristic grant) and at worst a one-time prompt elsewhere; ask
+// once, only after something worth keeping was actually stored.
+let _persistAsked = false;
+function askPersistOnce(){
+  if(_persistAsked) return; _persistAsked = true;
+  try{ navigator.storage && navigator.storage.persist && navigator.storage.persist(); }catch(_){}
+}
+const recBytes = (rec)=>{
+  let b = 0;
+  for(const k in (rec.ports || {})){
+    const p = rec.ports[k], es = p && p.p==="a" ? (p.items||[]) : [p];
+    for(const s of es){ if(s && s.p==="b" && s.blob) b += s.blob.size; else if(s && typeof s.v==="string") b += s.v.length; }
+  }
+  return b;
+};
+// Over budget → drop whole apps, least-recently-generated first, never the one still open.
+async function enforceOutCap(db, keepApp, cap){
+  const all = await oreq(otx(db, "readonly").getAll());
+  let total = all.reduce((s, r)=> s + (r.bytes||0), 0);
+  if(total <= cap) return;
+  const latest = {};
+  for(const r of all) latest[r.app] = Math.max(latest[r.app]||0, r.updated||0);
+  const order = Object.keys(latest).filter(a=> a!==keepApp).sort((a,b)=> latest[a]-latest[b]);
+  const st = otx(db, "readwrite");
+  for(const app of order){
+    if(total <= cap) break;
+    for(const r of all) if(r.app===app){ st.delete(r.k); total -= (r.bytes||0); }
+  }
+}
+async function persistNodeOut(appId, d){
+  try{
+    const ports = d.ports || {};
+    // Best-effort upgrade: remote CDN URLs (video/music results) expire server-side, so a stored
+    // URL is a future 404. Fetch the bytes while they exist — needs /play's connect-src https:
+    // AND the CDN sending CORS headers; when either says no, keep the URL (it plays while it lives).
+    for(const k in ports){
+      const es = ports[k] && ports[k].p==="a" ? ports[k].items : [ports[k]];
+      for(let i = 0; i < es.length; i++){
+        const s = es[i];
+        if(s && s.p==="u"){
+          try{
+            const r = await fetch(s.v, { signal: AbortSignal.timeout(30000) });
+            if(r.ok){ const b = await r.blob(); if(b.size) es[i] = { p:"b", blob:b }; }
+          }catch(_){ /* keep the URL */ }
+        }
+      }
+    }
+    const rec = { k: appId + "|" + d.node, app: appId, node: d.node, ntype: d.ntype, ports, updated: Date.now() };
+    rec.bytes = recBytes(rec);
+    if(rec.bytes > ODB_REC_MAX) return;
+    const db = await odb();
+    try{ await oreq(otx(db, "readwrite").put(rec)); }
+    catch(_){  // quota — make room (aggressively: half the budget) and try once more
+      await enforceOutCap(db, appId, ODB_CAP / 2);
+      await oreq(otx(db, "readwrite").put(rec));
+    }
+    askPersistOnce();
+    await enforceOutCap(db, appId, ODB_CAP);
+  }catch(_){ /* persistence is a bonus — never let it break or slow a run */ }
+}
+async function pushOutputsToApp(){
+  if(!CUR_ID) return;
+  const appId = CUR_ID;
+  try{
+    const db = await odb();
+    const recs = await oreq(otx(db, "readonly").index("app").getAll(appId));
+    if(recs && recs.length && CUR_ID===appId) postToApp({ type:"__restore__", outs: recs });
+  }catch(_){ /* no stored outputs is a perfectly fine boot */ }
+}
+async function dropOuts(appId){
+  try{
+    const db = await odb();
+    const keys = await oreq(otx(db, "readonly").index("app").getAllKeys(appId));
+    if(keys && keys.length){ const st = otx(db, "readwrite"); for(const k of keys) st.delete(k); }
+  }catch(_){}
+}
+
 // snapshot the open app as a library entry
 function curEntry(){
   return { id:CUR_ID, title:titleFromFiles(APP_STATE.files), imported:curImported, ranOnce:curRanOnce, armed:curArmed,
@@ -6348,6 +6540,7 @@ function openApp(id){
 }
 function deleteApp(id){
   saveApps(loadApps().filter(a=>a.id!==id));
+  dropOuts(id);                      // deleting the app deletes its stored outputs too
   if(CUR_ID===id) CUR_ID = null;     // the open app becomes an uncommitted draft again
   renderAppsBtn(); renderAppsMenu();
   if(!loadApps().length) closeAppsMenu();
