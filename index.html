@@ -1523,6 +1523,7 @@ const I18N = {
     "instruction (optional)":"instrucción (opcional)",
     "prompt (optional)":"prompt (opcional)",
     "language":"idioma",
+    "auto detects it — or type a language code like en or ja":"auto lo detecta — o escribe un código de idioma como es o en",
     "restyle as claymation · extend the clip · upscale to 4K…":"reestiliza como plastilina · extiende el clip · escala a 4K…",
     "subtle head movement, warm lighting…":"movimiento sutil de cabeza, luz cálida…",
     "Load a ready-made example workflow":"Cargar un flujo de ejemplo ya preparado",
@@ -1954,6 +1955,7 @@ const I18N = {
     "instruction (optional)":"instruction (facultatif)",
     "prompt (optional)":"prompt (facultatif)",
     "language":"langue",
+    "auto detects it — or type a language code like en or ja":"auto la détecte — ou saisissez un code de langue comme fr ou en",
     "restyle as claymation · extend the clip · upscale to 4K…":"style pâte à modeler · prolonger le clip · passer en 4K…",
     "subtle head movement, warm lighting…":"léger mouvement de tête, lumière chaude…",
     "Load a ready-made example workflow":"Charger un workflow d'exemple prêt à l'emploi",
@@ -2385,6 +2387,7 @@ const I18N = {
     "instruction (optional)":"Anweisung (optional)",
     "prompt (optional)":"Prompt (optional)",
     "language":"Sprache",
+    "auto detects it — or type a language code like en or ja":"auto erkennt sie — oder gib einen Sprachcode wie de oder en ein",
     "restyle as claymation · extend the clip · upscale to 4K…":"im Knetfilm-Stil · Clip verlängern · auf 4K hochskalieren…",
     "subtle head movement, warm lighting…":"leichte Kopfbewegung, warmes Licht…",
     "Load a ready-made example workflow":"Lade einen fertigen Beispiel-Workflow",
@@ -2816,6 +2819,7 @@ const I18N = {
     "instruction (optional)":"instrução (opcional)",
     "prompt (optional)":"prompt (opcional)",
     "language":"idioma",
+    "auto detects it — or type a language code like en or ja":"auto detecta — ou digite um código de idioma como pt ou en",
     "restyle as claymation · extend the clip · upscale to 4K…":"reestilizar como massinha · estender o clipe · ampliar para 4K…",
     "subtle head movement, warm lighting…":"leve movimento da cabeça, iluminação quente…",
     "Load a ready-made example workflow":"Carregar um fluxo de exemplo pronto",
@@ -3247,6 +3251,7 @@ const I18N = {
     "instruction (optional)":"指示(任意)",
     "prompt (optional)":"プロンプト(任意)",
     "language":"言語",
+    "auto detects it — or type a language code like en or ja":"auto なら自動検出 — ja や en などの言語コードも入力できます",
     "restyle as claymation · extend the clip · upscale to 4K…":"クレイアニメ風に変換 · クリップを延長 · 4Kに高画質化…",
     "subtle head movement, warm lighting…":"わずかな頭の動き、温かみのある照明…",
     "Load a ready-made example workflow":"すぐ使えるサンプルワークフローを読み込む",
@@ -3725,7 +3730,7 @@ function updateModelWarn(n){
     const id = defModelFor(n.type); if(!id) return;
     n.fields.model = id;
     const mp = n.el.querySelector(".modelpick"); if(mp) mp.textContent = id+" ▾";
-    updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); save();
+    updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); save();
   };
 }
 /* ---------- dynamic audio parameters (from the model catalog + a researched spec) ----------
@@ -4187,6 +4192,31 @@ function refreshDims(n){
   });
   updateNodePrice(n);
 }
+// Transcribe's language control: models that advertise a fixed language list → pick from it;
+// the rest only auto-detect → free text. Rebuilt like refreshDims on model pick / catalog
+// arrival, so the control never shows a stale model's list.
+function refreshTranscribeLang(n){
+  if(n.type!=="transcribe" || !n.el) return;
+  const box = n.el.querySelector("[data-langbox]"); if(!box) return;
+  const cur = n.fields.language||"auto";
+  const langs = (catItem("audio", n.fields.model)||{}).langs || [];
+  let ctrl, hint = "";
+  if(Array.isArray(langs) && langs.length){
+    const opts = ["auto", ...langs.filter(l=>l!=="auto")];
+    if(cur && !opts.includes(cur)) opts.push(cur);   // keep a stored value pickable
+    ctrl = `<select data-f="language">${opts.map(l=>`<option value="${esc(l)}"${l===cur?" selected":""}>${esc(l)}</option>`).join("")}</select>`;
+  } else {
+    ctrl = `<input data-f="language" value="${esc(cur)}" placeholder="auto"/>`;
+    hint = `<div class="fhint">auto detects it — or type a language code like en or ja</div>`;
+  }
+  box.innerHTML = `<div><label>language</label>${ctrl}${hint}</div>`;
+  translateTree(box);   // localize the label + hint (option codes / user value stay as-is)
+  box.querySelectorAll("[data-f]").forEach(inp=>{
+    const ev = inp.tagName==="SELECT" ? "change" : "input";
+    inp.addEventListener(ev, ()=>{ n.fields.language = inp.value; save(); });
+    inp.addEventListener("pointerdown", e=> e.stopPropagation());   // don't drag the node while editing
+  });
+}
 // live price for a node from its chosen dimensions (image: per-size; video: per_second_by_resolution × duration);
 // other pricing shapes keep the catalog's precomputed string.
 function livePrice(kind, fields){
@@ -4466,12 +4496,12 @@ function refreshRunEstimate(){
     + (unpriced ? t(", plus {n} with no listed price").replace("{n}",()=>unpriced) : "")
     + (exact ? "." : "." + "\n" + t("Video, text & audio are estimates: the real bill depends on clip length, tokens and characters."));
 }
-function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); backfillModel(n); }); refreshRunEstimate(); }
+function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshLoraParams(n); refreshModelOpts(n); backfillModel(n); }); refreshRunEstimate(); }
 function backfillModel(n){   // once a catalog arrives, give model nodes a sensible default if none chosen yet
   const t = NODE_TYPES[n.type];
   if(t.modelKind && !n.fields.model){
     const id = defModelFor(n.type);
-    if(id){ n.fields.model = id; const mp = n.el?.querySelector(".modelpick"); if(mp) mp.textContent = id+" ▾"; updateNodePrice(n); refreshAudioParams(n); }
+    if(id){ n.fields.model = id; const mp = n.el?.querySelector(".modelpick"); if(mp) mp.textContent = id+" ▾"; updateNodePrice(n); refreshAudioParams(n); refreshTranscribeLang(n); }
   }
 }
 
@@ -5166,26 +5196,15 @@ const NODE_TYPES = {
 
   transcribe: {
     em:"🎙️", title:"Transcribe", desc:"Audio → text (speech-to-text)", group:"Audio",
+    kw:"stt speech recognition whisper voice dictation captions subtitles listen",
     modelKind:"audio", modelFilter:"stt",
     inputs:[{name:"audio", type:"audio"}],
     outputs:[{name:"text", type:"text"}], preview:"text",
-    body:(n)=>{
-      const cur = n.fields.language||"auto";
-      const langs = (catItem("audio", n.fields.model)||{}).langs || [];
-      const style = "width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:.45rem;padding:.35rem .5rem";
-      // models that advertise a fixed language list → pick from it; the rest only auto-detect → free text
-      let langCtrl;
-      if(Array.isArray(langs) && langs.length){
-        const opts = ["auto", ...langs.filter(l=>l!=="auto")];
-        if(cur && !opts.includes(cur)) opts.push(cur);   // keep a stored value pickable
-        langCtrl = `<select data-f="language" style="${style}">${opts.map(l=>`<option value="${esc(l)}"${l===cur?" selected":""}>${esc(l)}</option>`).join("")}</select>`;
-      } else {
-        langCtrl = `<input data-f="language" value="${esc(cur)}" placeholder="auto" style="${style}"/>`;
-      }
-      return `
+    // the language control is model-shaped (select vs free text) — refreshTranscribeLang
+    // fills [data-langbox] at mount and again on every model pick / catalog arrival
+    body:(n)=> `
       ${modelFieldHTML(n)}
-      <div><label>language</label>${langCtrl}</div>`;
-    },
+      <div data-langbox></div>`,
     async run(n, inp, ctx){
       if(!inp.audio) throw new Error("no audio — wire an audio clip into the audio port");
       return { text: await ctx.transcribe(mdl(n), inp.audio, (n.fields.language||"auto").trim()) };
@@ -5314,13 +5333,14 @@ function buildNodeEl(n){
     mp.onclick = (e)=>{
       e.stopPropagation();
       openPicker(t.modelKind, { current:n.fields.model, filter:t.modelFilter, onPick:(id)=>{
-        n.fields.model = id; mp.textContent = id+" ▾"; updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); save();
+        n.fields.model = id; mp.textContent = id+" ▾"; updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); save();
       }});
     };
     updateNodePrice(n);
   }
   refreshDims(n);                  // size/resolution/aspect/duration controls (catalog-driven)
   refreshAudioParams(n);
+  refreshTranscribeLang(n);        // Transcribe's language control (select vs free text, model-shaped)
   refreshLoraParams(n);            // LoRA disclosure on image/edit nodes (model-gated)
   refreshModelOpts(n);            // ⚙️ Model options disclosure on video nodes (catalog-driven)
   refreshLlmOpts(n);              // ⚙️ advanced (sampling/reasoning) disclosure on the LLM node
