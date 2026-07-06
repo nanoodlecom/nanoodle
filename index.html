@@ -9221,6 +9221,8 @@ $("signout").onclick = ()=> setKey(null);
     trim:{ fields:{ start:"seconds", length:"seconds" } },
     extractaudio:{ fields:{ start:"seconds", length:"seconds (blank = whole clip)" }, note:"video → audio; feed 🎙️ Transcribe or ✂️ Trim" },
     transcribe:{ fields:{ model:"stt model id (optional)", language:"auto or a language code" } },
+    choice:{ fields:{ options:"the choices, one per line", selected:"the pre-picked option (optional)" } },
+    comment:{ fields:{ text:"the note text" } },
   };
   function schemaLines(){
     return Object.keys(NODE_TYPES).map(type=>{
