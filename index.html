@@ -1299,6 +1299,7 @@ const I18N = {
     "variations":"variaciones",
     "vision":"visión",
     "what to paint in":"qué pintar dentro",
+    "wire two or more clips — they join in order, top to bottom":"conecta dos o más clips — se unen en orden, de arriba abajo",
     "· blank = random, fix to repeat (re-run won't regenerate)":"· vacío = aleatorio, fija para repetir (re-ejecutar no regenerará)",
     "— made NanoGPT do something nobody expected":"— hizo que nano-gpt hiciera algo que nadie esperaba",
     "— most hearts on Discord + upvotes on Reddit (summed if you post both!)":"— más corazones en Discord + votos a favor en Reddit (¡sumados si publicas en ambos!)",
@@ -1732,6 +1733,7 @@ const I18N = {
     "trim duplicate seam frame":"couper l’image de raccord dupliquée",
     "upload or capture an image, then brush the area to repaint":"importer ou capturer une image, puis peindre la zone à repeindre",
     "what to paint in":"ce qu’il faut peindre",
+    "wire two or more clips — they join in order, top to bottom":"branche deux clips ou plus — ils s’enchaînent dans l’ordre, de haut en bas",
     "· blank = random, fix to repeat (re-run won't regenerate)":"· vide = aléatoire, fixer pour répéter (relancer ne régénère pas)",
     "— made NanoGPT do something nobody expected":"— a fait faire à nano-gpt une chose que personne n’attendait",
     "— most hearts on Discord + upvotes on Reddit (summed if you post both!)":"— le plus de cœurs sur Discord + votes positifs sur Reddit (additionnés si vous postez sur les deux !)",
@@ -2163,6 +2165,7 @@ const I18N = {
     "variations":"Variationen",
     "vision":"Vision",
     "what to paint in":"was hineingemalt werden soll",
+    "wire two or more clips — they join in order, top to bottom":"verbinde zwei oder mehr Clips — sie werden der Reihe nach zusammengefügt, von oben nach unten",
     "· blank = random, fix to repeat (re-run won't regenerate)":"· leer = zufällig, festlegen zum Wiederholen (erneutes Ausführen regeneriert nicht)",
     "— made NanoGPT do something nobody expected":"— nano-gpt zu etwas gebracht, das niemand erwartet hat",
     "— most hearts on Discord + upvotes on Reddit (summed if you post both!)":"— die meisten Herzen auf Discord + Upvotes auf Reddit (summiert, wenn du beides postest!)",
@@ -2593,6 +2596,7 @@ const I18N = {
     "variations":"variações",
     "vision":"visão",
     "what to paint in":"o que pintar na área",
+    "wire two or more clips — they join in order, top to bottom":"conecte dois ou mais clipes — eles se unem em ordem, de cima para baixo",
     "· blank = random, fix to repeat (re-run won't regenerate)":"· vazio = aleatório, fixe para repetir (reexecutar não regenera)",
     "— made NanoGPT do something nobody expected":"— fez o nano-gpt fazer algo que ninguém esperava",
     "— most hearts on Discord + upvotes on Reddit (summed if you post both!)":"— mais corações no Discord + upvotes no Reddit (somados se você postar nos dois!)",
@@ -3022,6 +3026,7 @@ const I18N = {
     "variations":"バリエーション",
     "vision":"ビジョン",
     "what to paint in":"何を描き込むか",
+    "wire two or more clips — they join in order, top to bottom":"クリップを2つ以上つないでください — 上から下の順に結合されます",
     "· blank = random, fix to repeat (re-run won't regenerate)":"· 空欄=ランダム、固定すると繰り返す（再実行で再生成されない）",
     "— made NanoGPT do something nobody expected":"— nano-gptで誰も予想しなかったことを実現",
     "— most hearts on Discord + upvotes on Reddit (summed if you post both!)":"— Discordのハート＋Redditのupvoteが最多（両方投稿すれば合算！）",
@@ -5012,6 +5017,7 @@ const NODE_TYPES = {
     inputs:[], videoInputs:true,                       // grows clip1, clip2, … input ports (see refreshVideoInputs)
     outputs:[{name:"video", type:"video"}], preview:"video",
     body:(n)=>`
+      <div style="opacity:.6;font-size:.8em;margin-bottom:.35rem">wire two or more clips — they join in order, top to bottom</div>
       <label style="display:flex;align-items:center;gap:.45rem;cursor:pointer"
         title="When clips are chained, each clip's first frame repeats the previous clip's last frame. Trimming it removes the freeze at the seam.">
         <input type="checkbox" data-f="dedup" ${(n.fields.dedup ?? true)?"checked":""}/>
