@@ -1,5 +1,14 @@
 # Bug report — model catalog mislabels modality / input_modalities / output_modalities
 
+> **RESOLVED UPSTREAM (verified 2026-07-05, never filed).** NanoGPT fixed every mislabel below on
+> their own: the audio→audio models now report `text+audio->audio/music` with
+> `audio_to_audio`/`music_cover`/`music_extension` capabilities, lyrics models are `text->text`,
+> and `create-upload-id` was delisted. Live re-verification in `docs/audio-remix-probe-2026-07-05.md`.
+> Of the two "separate issues": Gemini TTS (all 3 models) is also FIXED — 200 with binary wav
+> (the pro model 400s on non-speech-like prompts; prompt sensitivity, not an outage).
+> `Elevenlabs-Music-V1` is STILL broken (502, verbatim unchanged) — the only item left to raise.
+> Kept for historical reference only.
+
 **Endpoints:** `GET /api/v1/audio-models` and `GET /api/v1/image-models` (same in `?detailed=true`)
 
 **Summary:** 15 models declare an `architecture.modality` (and `input_modalities` / `output_modalities`)
