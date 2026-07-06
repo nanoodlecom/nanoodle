@@ -629,6 +629,7 @@
   .node.note .cmtbtn:hover{ border-color:var(--accent); color:var(--ink) }
   .node.note .cmtbtn.cmtbold{ font-weight:800 }
   .node.note .cmtbtn.on{ color:var(--ink); border-color:var(--accent); background:#ffffff14 }
+  .node.note .cmtbtn:disabled{ opacity:.35; cursor:default; color:var(--dim); border-color:var(--line) }
   .node.note textarea.cmttext{ min-height:52px; background:transparent; border:1px dashed var(--line); border-radius:.45rem; line-height:1.4 }
   .node.note textarea.cmttext::placeholder{ color:var(--dim) }
   .node.note textarea.cmttext:focus{ outline:none; border-style:solid; border-color:var(--cmt,#f5d76e) }
@@ -1120,6 +1121,12 @@ const I18N = {
     "Bold":"Negrita",
     "Smaller text":"Texto más pequeño",
     "Bigger text":"Texto más grande",
+    "Yellow":"Amarillo",
+    "Pink":"Rosa",
+    "Green":"Verde",
+    "Blue":"Azul",
+    "Purple":"Morado",
+    "Gray":"Gris",
     "write a note…":"escribe una nota…",
     "remove":"quitar",
     "to run":"para ejecutar",
@@ -1552,6 +1559,12 @@ const I18N = {
     "Bold":"Gras",
     "Smaller text":"Texte plus petit",
     "Bigger text":"Texte plus grand",
+    "Yellow":"Jaune",
+    "Pink":"Rose",
+    "Green":"Vert",
+    "Blue":"Bleu",
+    "Purple":"Violet",
+    "Gray":"Gris",
     "write a note…":"écrire une note…",
     "remove":"retirer",
     "to run":"pour exécuter",
@@ -1984,6 +1997,12 @@ const I18N = {
     "Bold":"Fett",
     "Smaller text":"Kleinerer Text",
     "Bigger text":"Größerer Text",
+    "Yellow":"Gelb",
+    "Pink":"Rosa",
+    "Green":"Grün",
+    "Blue":"Blau",
+    "Purple":"Lila",
+    "Gray":"Grau",
     "write a note…":"Notiz schreiben…",
     "remove":"entfernen",
     "to run":"zum Ausführen",
@@ -2416,6 +2435,12 @@ const I18N = {
     "Bold":"Negrito",
     "Smaller text":"Texto menor",
     "Bigger text":"Texto maior",
+    "Yellow":"Amarelo",
+    "Pink":"Rosa",
+    "Green":"Verde",
+    "Blue":"Azul",
+    "Purple":"Roxo",
+    "Gray":"Cinza",
     "write a note…":"escreva uma nota…",
     "remove":"remover",
     "to run":"para executar",
@@ -2848,6 +2873,12 @@ const I18N = {
     "Bold":"太字",
     "Smaller text":"文字を小さく",
     "Bigger text":"文字を大きく",
+    "Yellow":"黄色",
+    "Pink":"ピンク",
+    "Green":"緑",
+    "Blue":"青",
+    "Purple":"紫",
+    "Gray":"グレー",
     "write a note…":"メモを書く…",
     "remove":"削除",
     "to run":"で実行",
@@ -5629,14 +5660,16 @@ function fileToDataURL(file, cb){
   const fr = new FileReader(); fr.onload = ()=> img.src = fr.result; fr.readAsDataURL(file);
 }
 /* ---------- comment / sticky note ---------- */
-// [key, swatch hex] — key is what's persisted (n.fields.color), so renaming a colour never breaks saved notes.
-const COMMENT_COLORS = [["yellow","#f5d76e"],["pink","#ff8fce"],["green","#63d29a"],["blue","#6ea8ff"],["purple","#b28bff"],["gray","#aab3c2"]];
+// [key, swatch hex, tooltip label] — key is what's persisted (n.fields.color), so renaming a colour never
+// breaks saved notes; the label is display-only chrome (translated at build time, dicts have all six).
+const COMMENT_COLORS = [["yellow","#f5d76e","Yellow"],["pink","#ff8fce","Pink"],["green","#63d29a","Green"],["blue","#6ea8ff","Blue"],["purple","#b28bff","Purple"],["gray","#aab3c2","Gray"]];
 const commentHex = (n)=> (COMMENT_COLORS.find(c=>c[0]===(n.fields.color||"yellow")) || COMMENT_COLORS[0])[1];
-const commentSize = (n)=> Math.max(11, Math.min(30, parseInt(n.fields.size,10) || 15));
+const CMT_MIN_SIZE = 11, CMT_MAX_SIZE = 30;
+const commentSize = (n)=> Math.max(CMT_MIN_SIZE, Math.min(CMT_MAX_SIZE, parseInt(n.fields.size,10) || 15));
 function commentBody(n){
   const cur = n.fields.color || "yellow";
-  const sws = COMMENT_COLORS.map(([k,hex])=>
-    `<button type="button" class="cmtsw${k===cur?" on":""}" data-color="${esc(k)}" title="${esc(k)}" style="background:${esc(hex)}" aria-label="${esc(k)}"></button>`).join("");
+  const sws = COMMENT_COLORS.map(([k,hex,label])=>
+    `<button type="button" class="cmtsw${k===cur?" on":""}" data-color="${esc(k)}" title="${esc(t(label))}" style="background:${esc(hex)}" aria-label="${esc(t(label))}"></button>`).join("");
   return `
     <div class="cmtbar">
       <div class="cmtsws">${sws}</div>
@@ -5667,12 +5700,19 @@ function mountComment(n){
       applyCommentStyle(n); save();
     };
   });
+  // grey out A− / A+ once the size clamp is hit, so the buttons never look clickable-but-dead
+  const syncSizeBtns = ()=>{
+    const s = commentSize(n);
+    n.el.querySelector('[data-cmt="smaller"]').disabled = s <= CMT_MIN_SIZE;
+    n.el.querySelector('[data-cmt="bigger"]').disabled  = s >= CMT_MAX_SIZE;
+  };
+  syncSizeBtns();
   n.el.querySelectorAll("[data-cmt]").forEach(b=>{
     b.addEventListener("pointerdown", e=> e.stopPropagation());
     b.onclick = (e)=>{ e.stopPropagation();
       const act = b.dataset.cmt;
       if(act==="bold"){ n.fields.bold = !n.fields.bold; b.classList.toggle("on", n.fields.bold); }
-      else n.fields.size = commentSize(n) + (act==="bigger" ? 2 : -2);
+      else { n.fields.size = commentSize(n) + (act==="bigger" ? 2 : -2); syncSizeBtns(); }
       applyCommentStyle(n); save();
     };
   });
