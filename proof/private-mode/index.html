@@ -1,0 +1,74 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>nanoodle × NanoGPT Private Mode — in-browser PoC</title>
+<style>body{font:14px/1.5 monospace;background:#111;color:#dfd;padding:2rem;max-width:72rem;margin:auto}
+ .fail{color:#f88}.ok{color:#8f8}.dim{color:#888}h1{font-size:1.1rem}</style>
+<h1>🔒 in-browser Private Mode PoC (attestation + EHBP, no proxy)</h1>
+<pre id="log"></pre>
+<script type="module">
+// PoC: run the whole NanoGPT Private Mode flow from page JS.
+// Expected result as of 2026-07-05: attestation + client-side encryption succeed;
+// the chat POST dies on TWO precise CORS gaps at nano-gpt.com (see proof/private-mode/README.md).
+const log = (cls, ...a) => {
+  const line = a.map(x => typeof x === 'string' ? x : JSON.stringify(x)).join(' ');
+  document.getElementById('log').insertAdjacentHTML('beforeend', `<span class="${cls}">${line.replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'})[c])}</span>\n`);
+  (window.__LINES ||= []).push(line);
+};
+const RESULT = window.__RESULT = { attestation: null, chatWithHeaders: null, chatCorsOnly: null, done: false };
+
+try {
+  const KEY = window.NANOGPT_API_KEY;             // injected by run.mjs, never committed
+  const API = 'https://nano-gpt.com';
+  const { SecureClient } = await import('./tinfoil-browser.min.js');
+
+  log('dim', '→ SecureClient.ready() (fetch attestation bundle, verify enclave, EHBP handshake)…');
+  const t0 = performance.now();
+  const client = new SecureClient({
+    baseURL: `${API}/api/v1/private/tinfoil/`,
+    attestationBundleURL: `${API}/api/v1/private/tinfoil`,
+    transport: 'ehbp',
+  });
+  await client.ready();
+  const doc = client.getVerificationDocument();
+  RESULT.attestation = { verified: doc.securityVerified === true, enclave: doc.enclaveHost || null, ms: Math.round(performance.now() - t0) };
+  log(RESULT.attestation.verified ? 'ok' : 'fail', `attestation: verified=${RESULT.attestation.verified} enclave=${RESULT.attestation.enclave} (${RESULT.attestation.ms}ms)`);
+
+  const chat = async (slot, label, extraHeaders) => {
+    const body = JSON.stringify({ model: 'gemma4-31b', messages: [{ role: 'user', content: `Reply with exactly: ${label} ok` }], temperature: 0 });
+    try {
+      const pf = await fetch(`${API}/api/v1/private/tinfoil/preflight`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${KEY}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ model: 'private/gemma4-31b', requestBodyBytes: new Blob([body]).size }),
+      });
+      log(pf.ok ? 'ok' : 'fail', `${label}: NanoGPT preflight ${pf.status}`);
+      if (!pf.ok) { RESULT[slot] = { stage: 'preflight', status: pf.status }; return; }
+      const r = await client.fetch(`${API}/api/v1/private/tinfoil/v1/chat/completions`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${KEY}`, 'content-type': 'application/json', accept: 'application/json', ...extraHeaders },
+        body,
+      });
+      const j = await r.json();
+      RESULT[slot] = { stage: 'done', status: r.status, reply: j?.choices?.[0]?.message?.content ?? null };
+      log(r.ok ? 'ok' : 'fail', `${label}: chat ${r.status} reply=${RESULT[slot].reply}`);
+    } catch (e) {
+      RESULT[slot] = { stage: 'error', error: String(e) };
+      log('fail', `${label}: ${e}`);
+    }
+  };
+
+  // A: the headers the reference proxy sends — x-nanogpt-private-model is REQUIRED server-side
+  //    but absent from Access-Control-Allow-Headers, so the browser should refuse at CORS preflight.
+  await chat('chatWithHeaders', 'with-private-headers', {
+    'x-nanogpt-private-model': 'private/gemma4-31b', 'x-nanogpt-private-stream': 'false', 'x-query-source': 'api',
+  });
+  // B: only CORS-allowed headers — request goes through, but (verified in Node) the server then
+  //    doesn't run the EHBP response path, and Ehbp-Response-Nonce isn't CORS-exposed anyway.
+  await chat('chatCorsOnly', 'cors-only-headers', { 'x-query-source': 'api' });
+} catch (e) {
+  log('fail', `fatal: ${e}`);
+  RESULT.fatal = String(e);
+}
+RESULT.done = true;
+log('dim', '— done —');
+</script>
