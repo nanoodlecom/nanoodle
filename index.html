@@ -1453,6 +1453,8 @@ const I18N = {
     "Voice":"Voz",
     "Speed":"Velocidad",
     "Instructions":"Instrucciones",
+    "how to speak — tone, accent, emotion (some models ignore this)":"cómo hablar — tono, acento, emoción (algunos modelos lo ignoran)",
+    "e.g. warm and cheerful, slight British accent":"p. ej. cálido y alegre, ligero acento británico",
     "required by vocal song models (e.g. Mureka); leave empty for instrumental/BGM":"requerido por modelos de canción vocal (p. ej. Mureka); déjalo vacío para instrumental/BGM",
     "run this branch":"ejecutar esta rama",
     "delete":"eliminar",
@@ -1891,6 +1893,8 @@ const I18N = {
     "Voice":"Voix",
     "Speed":"Vitesse",
     "Instructions":"Instructions",
+    "how to speak — tone, accent, emotion (some models ignore this)":"comment parler — ton, accent, émotion (certains modèles l'ignorent)",
+    "e.g. warm and cheerful, slight British accent":"ex. chaleureux et enjoué, léger accent britannique",
     "required by vocal song models (e.g. Mureka); leave empty for instrumental/BGM":"requis par les modèles vocaux (ex. Mureka) ; laisser vide pour instrumental/BGM",
     "run this branch":"exécuter cette branche",
     "delete":"supprimer",
@@ -2329,6 +2333,8 @@ const I18N = {
     "Voice":"Stimme",
     "Speed":"Geschwindigkeit",
     "Instructions":"Anweisungen",
+    "how to speak — tone, accent, emotion (some models ignore this)":"Sprechweise — Ton, Akzent, Emotion (manche Modelle ignorieren dies)",
+    "e.g. warm and cheerful, slight British accent":"z. B. warm und fröhlich, leichter britischer Akzent",
     "required by vocal song models (e.g. Mureka); leave empty for instrumental/BGM":"erforderlich für Gesangsmodelle (z.B. Mureka); leer lassen für Instrumental/BGM",
     "run this branch":"diesen Zweig ausführen",
     "delete":"löschen",
@@ -2767,6 +2773,8 @@ const I18N = {
     "Voice":"Voz",
     "Speed":"Velocidade",
     "Instructions":"Instruções",
+    "how to speak — tone, accent, emotion (some models ignore this)":"como falar — tom, sotaque, emoção (alguns modelos ignoram)",
+    "e.g. warm and cheerful, slight British accent":"ex.: caloroso e alegre, leve sotaque britânico",
     "required by vocal song models (e.g. Mureka); leave empty for instrumental/BGM":"exigido por modelos com vocal (ex.: Mureka); deixe vazio para instrumental/BGM",
     "run this branch":"executar este ramo",
     "delete":"excluir",
@@ -3205,6 +3213,8 @@ const I18N = {
     "Voice":"声",
     "Speed":"速度",
     "Instructions":"指示",
+    "how to speak — tone, accent, emotion (some models ignore this)":"話し方 — トーン、アクセント、感情（一部のモデルでは無視されます）",
+    "e.g. warm and cheerful, slight British accent":"例: 温かく明るい口調、少しイギリス訛り",
     "required by vocal song models (e.g. Mureka); leave empty for instrumental/BGM":"ボーカル曲モデル (例: Mureka) に必須。インスト/BGMの場合は空欄に",
     "run this branch":"このブランチを実行",
     "delete":"削除",
@@ -3784,9 +3794,9 @@ const AUDIO_PARAMS = {
   ],
   tts: [
     { id:"voice",           label:"Voice",           type:"select",   appliesTo:"cat:voices" },
-    { id:"speed",           label:"Speed",           type:"number",   appliesTo:"all", min:0.25, max:2, default:1 },
-    { id:"instructions",    label:"Instructions",    type:"textarea", appliesTo:"all" },
-    { id:"response_format", label:"Format",          type:"select",   appliesTo:"all", options:["mp3","opus","aac","flac","wav","pcm"], default:"mp3" },
+    { id:"speed",           label:"Speed",           type:"number",   appliesTo:"all", min:0.25, max:2, default:1, advanced:true },
+    { id:"instructions",    label:"Instructions",    type:"textarea", appliesTo:"all", advanced:true, ph:"e.g. warm and cheerful, slight British accent", hint:"how to speak — tone, accent, emotion (some models ignore this)" },
+    { id:"response_format", label:"Format",          type:"select",   appliesTo:"all", options:["mp3","opus","aac","flac","wav","pcm"], default:"mp3", advanced:true },
   ],
   remix: [
     { id:"lyrics",          label:"Lyrics",          type:"textarea", appliesTo:"all", hint:"song-extend models (e.g. Mureka) continue these lyrics; leave empty for instrumental" },
@@ -3839,7 +3849,7 @@ function audioFieldHTML(n, f){
   }
   const v = cur!=null ? cur : "";
   if(f.type==="textarea")
-    return `<div><label>${esc(f.label)}</label><textarea data-pf="${f.id}" style="min-height:40px" placeholder="${esc(f.label)}">${esc(v)}</textarea>${hint}</div>`;
+    return `<div><label>${esc(f.label)}</label><textarea data-pf="${f.id}" style="min-height:40px" placeholder="${esc(f.ph||f.label)}">${esc(v)}</textarea>${hint}</div>`;
   return `<div><label>${esc(f.label)}</label><input data-pf="${f.id}" value="${esc(v)}" placeholder="${esc(f.label)}"/>${hint}</div>`;
 }
 // rebuild the parameter block for an audio node from its current model
@@ -3856,8 +3866,10 @@ function refreshAudioParams(n){
   const advancedFields = fields.filter(f=>f.advanced);
   box.innerHTML = basicFields.map(f=>audioFieldHTML(n,f)).join("");
   if(advBox){
+    // open the disclosure when a saved value differs from the default, so tucked-away settings stay visible
+    const advOpen = advancedFields.some(f=>{ const v=n.fields[f.id]; return v!=null && v!=="" && v!==false && String(v)!==String(f.default??""); });
     advBox.innerHTML = advancedFields.length
-      ? `<details class="adv"><summary>⚙️ advanced</summary>${advancedFields.map(f=>audioFieldHTML(n,f)).join("")}</details>`
+      ? `<details class="adv"${advOpen?" open":""}><summary>⚙️ advanced</summary>${advancedFields.map(f=>audioFieldHTML(n,f)).join("")}</details>`
       : "";
   }
   const bindBox = advBox ? [box, advBox] : [box];
