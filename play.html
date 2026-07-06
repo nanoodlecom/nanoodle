@@ -738,6 +738,7 @@ window.NoodleApp = (function () {
   "Earlier results":{es:"Resultados anteriores",fr:"Résultats précédents",de:"Frühere Ergebnisse",pt:"Resultados anteriores",ja:"以前の結果"},
   "Tap to expand":{es:"Toca para ampliar",fr:"Toucher pour agrandir",de:"Zum Vergrößern tippen",pt:"Toque para ampliar",ja:"タップで拡大"},
   "Collapse":{es:"Contraer",fr:"Réduire",de:"Einklappen",pt:"Recolher",ja:"閉じる"},
+  "Download":{es:"Descargar",fr:"Télécharger",de:"Herunterladen",pt:"Baixar",ja:"ダウンロード"},
   "Show more":{es:"Ver más",fr:"Voir plus",de:"Mehr anzeigen",pt:"Ver mais",ja:"もっと見る"},
   "Show less":{es:"Ver menos",fr:"Voir moins",de:"Weniger anzeigen",pt:"Ver menos",ja:"折りたたむ"},
   "step":{es:"paso",fr:"étape",de:"Schritt",pt:"etapa",ja:"ステップ"},
@@ -4177,6 +4178,19 @@ function mp4ParamsMatch(bufs){
         };
       });
     }
+    // Quick ⭳ on shelved media: saving an earlier image/video/track is ONE tap, not
+    // expand-then-download. A proxy that clicks the live .dl button — a gallery pick rebuilds
+    // .dlrow to re-point Download at the chosen variation, and a click-time lookup honors that.
+    // Appended before the ⤢ control so tab order matches the visual left→right pair.
+    if(port.type==="image" || port.type==="video" || port.type==="audio"){
+      var qdl = document.createElement("button"); qdl.type = "button"; qdl.className = "nd-dl";
+      qdl.textContent = "⭳"; qdl.title = t("Download"); qdl.setAttribute("aria-label", t("Download"));
+      qdl.addEventListener("click", function(ev){
+        ev.stopPropagation();
+        var dl = card.querySelector(".dlrow .dl"); if(dl) dl.click();
+      });
+      card.appendChild(qdl);
+    }
     // Compact "earlier" affordance: a real expand/collapse control (styled + labelled), only
     // visible once this card recedes into the shelf. Its own handler toggles nd-open IN PLACE
     // (a class flip — no DOM move — so a playing track keeps playing) and re-labels itself. The
@@ -4278,7 +4292,7 @@ function mp4ParamsMatch(bufs){
     // expand button, the Show-more toggle) so seeking a slim audio row or grabbing a thumbnail is
     // never hijacked into an expand toggle.
     box.addEventListener("click", function(e){
-      if(e.target.closest("audio,video,a,input,select,.dl,.varthumb,[data-vi],.nd-exp,.tmore")) return;
+      if(e.target.closest("audio,video,a,input,select,.dl,.varthumb,[data-vi],.nd-exp,.nd-dl,.tmore")) return;
       const card = e.target.closest && e.target.closest(".card.nd-earlier");
       if(!card || !box.contains(card)) return;
       card.classList.toggle("nd-open"); updateExpBtn(card);
@@ -4557,7 +4571,7 @@ function mp4ParamsMatch(bufs){
         + 'border:1px solid #ff6b6b30;border-radius:8px;padding:.45rem .6rem;}'
       + '.nd-step .card{margin:0;}'
       + '.nd-step .card .rhead{display:none;}'   // the step header already labels + costs it
-      + '.nd-step .card .nd-exp,.nd-step .card .tmore{display:none;}';   // hero/shelf-only affordances never belong in the steps sheet
+      + '.nd-step .card .nd-exp,.nd-step .card .nd-dl,.nd-step .card .tmore{display:none;}';   // hero/shelf-only affordances never belong in the steps sheet
     (document.head || document.documentElement).appendChild(s);
   }
   function ensureDetailSheet(){
@@ -5450,17 +5464,26 @@ const RUNTIME_WIDGET_CSS =
 #app-output .card.nd-earlier .dlrow,
 #app-output .card.nd-earlier .tmore{ display:none; }
 
-/* --- expand / collapse control: small, discoverable, keyboard-labelled; brightens on hover/focus --- */
-#app-output .card .nd-exp{ display:none; }   /* meaningful only once a card has receded */
-#app-output .card.nd-earlier .nd-exp{ display:flex; align-items:center; justify-content:center;
+/* --- corner chips: ⭳ quick-save (media cards) + ⤢ expand — a matched top-right pair, small,
+   discoverable, keyboard-labelled; both brighten on hover/focus --- */
+#app-output .card .nd-exp,
+#app-output .card .nd-dl{ display:none; }   /* meaningful only once a card has receded */
+#app-output .card.nd-earlier .nd-exp,
+#app-output .card.nd-earlier .nd-dl{ display:flex; align-items:center; justify-content:center;
   position:absolute; top:.3rem; right:.35rem; width:1.65rem; height:1.65rem; padding:0;
   font-size:.82rem; line-height:1; color:var(--faint,#8792ad); cursor:pointer;
   background:var(--panel2,#1b2030); border:1px solid var(--line,#2a3150); border-radius:.4rem;
   opacity:.5; transition:opacity .15s,border-color .15s,color .15s; }
+#app-output .card.nd-earlier .nd-dl{ right:2.3rem; }
+#app-output .card.nd-earlier:has(.nd-dl) .rhead{ padding-right:4.1rem; }   /* clear BOTH chips (media cards only) */
 #app-output .card.nd-earlier:hover .nd-exp,
 #app-output .card.nd-earlier:focus-within .nd-exp,
 #app-output .card.nd-earlier .nd-exp:hover,
-#app-output .card.nd-earlier .nd-exp:focus-visible{ opacity:1; border-color:var(--accent-line,#7c8cff); color:var(--ink,#e6e9f5); }
+#app-output .card.nd-earlier .nd-exp:focus-visible,
+#app-output .card.nd-earlier:hover .nd-dl,
+#app-output .card.nd-earlier:focus-within .nd-dl,
+#app-output .card.nd-earlier .nd-dl:hover,
+#app-output .card.nd-earlier .nd-dl:focus-visible{ opacity:1; border-color:var(--accent-line,#7c8cff); color:var(--ink,#e6e9f5); }
 
 /* --- tapped-open earlier card: restored to hero size exactly where it sits (still no DOM move) --- */
 #app-output .card.nd-earlier.nd-open{ display:block; opacity:1; cursor:auto; padding:1rem; }
@@ -5476,6 +5499,7 @@ const RUNTIME_WIDGET_CSS =
 #app-output .card.nd-earlier.nd-open .dlrow{ display:block; }
 #app-output .card.nd-earlier.nd-open .varstrip{ display:flex; }
 #app-output .card.nd-earlier.nd-open .nd-exp{ opacity:.7; }
+#app-output .card.nd-earlier.nd-open .nd-dl{ display:none; }   /* the full ⭳ Download row is back — no twin needed */
 @media(prefers-reduced-motion:reduce){ #app-output .card.nd-earlier{ transition:none; } }`;
 
 function defaultFiles(graph){
