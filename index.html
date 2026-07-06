@@ -1256,7 +1256,7 @@ const I18N = {
     "drag to resize":"arrastra para redimensionar",
     "e.g. “add a node that speaks the result aloud”":"p. ej. “añade un nodo que diga el resultado en voz alta”",
     "edit":"editar",
-    "frames":"fotogramas",
+    "how many frames":"cuántos fotogramas",
     "gap between frames (sec)":"intervalo entre fotogramas (seg)",
     "high":"alto",
     "host it. They can see the workflow.":"lo alojan. Pueden ver el flujo.",
@@ -1694,7 +1694,7 @@ const I18N = {
     "drag to resize":"glisser pour redimensionner",
     "e.g. “add a node that speaks the result aloud”":"ex. « ajouter un nœud qui lit le résultat à voix haute »",
     "edit":"modifier",
-    "frames":"images",
+    "how many frames":"combien d'images",
     "gap between frames (sec)":"écart entre les images (s)",
     "high":"élevé",
     "host it. They can see the workflow.":"l’héberge. Ils peuvent voir le workflow.",
@@ -2120,7 +2120,7 @@ const I18N = {
     "drag to resize":"ziehen, um die Größe zu ändern",
     "e.g. “add a node that speaks the result aloud”":"z. B. „einen Node hinzufügen, der das Ergebnis laut vorliest“",
     "edit":"bearbeiten",
-    "frames":"Frames",
+    "how many frames":"wie viele Frames",
     "gap between frames (sec)":"Abstand zwischen Frames (Sek.)",
     "high":"hoch",
     "host it. They can see the workflow.":"es hosten. Der Dienst kann den Workflow sehen.",
@@ -2551,7 +2551,7 @@ const I18N = {
     "drag to resize":"arraste para redimensionar",
     "e.g. “add a node that speaks the result aloud”":"ex.: “adicione um nó que fala o resultado em voz alta”",
     "edit":"editar",
-    "frames":"quadros",
+    "how many frames":"quantos quadros",
     "gap between frames (sec)":"intervalo entre quadros (seg)",
     "high":"alto",
     "host it. They can see the workflow.":"hospede-o. Eles podem ver o fluxo.",
@@ -2979,7 +2979,7 @@ const I18N = {
     "drag to resize":"ドラッグしてサイズ変更",
     "e.g. “add a node that speaks the result aloud”":"例: 「結果を読み上げるノードを追加」",
     "edit":"編集",
-    "frames":"フレーム",
+    "how many frames":"フレーム数",
     "gap between frames (sec)":"フレーム間の間隔 (秒)",
     "high":"高",
     "host it. They can see the workflow.":"ホストします。相手はワークフローを見ることができます。",
@@ -4965,12 +4965,17 @@ const NODE_TYPES = {
     body:(n)=>`
       <div class="two">
         <div><label>start from</label><select data-f="dir">${optsHTML([["end","last frame"],["start","beginning"]], n.fields.dir||"end")}</select></div>
-        <div><label>frames</label><input type="number" data-f="frames" min="1" max="${MAX_FRAMES}" value="${esc(n.fields.frames ?? 1)}"/></div>
+        <div><label>how many frames</label><input type="number" data-f="frames" min="1" max="${MAX_FRAMES}" value="${esc(n.fields.frames ?? 1)}"/></div>
       </div>
-      <div><label>gap between frames (sec)</label><input type="number" step="0.1" min="0" data-f="gap" value="${esc(n.fields.gap ?? 0.5)}"/></div>`,
+      <div data-gaprow ${(parseInt(n.fields.frames,10)||1)>1?"":"hidden"}><label>gap between frames (sec)</label><input type="number" step="0.1" min="0" data-f="gap" value="${esc(n.fields.gap ?? 0.5)}"/></div>`,
     mount:(n)=>{
       const fr = n.el.querySelector('[data-f="frames"]');
-      if(fr) fr.addEventListener("change", ()=> refreshFramePorts(n));   // grow/shrink the image output ports
+      const gap = n.el.querySelector("[data-gaprow]");
+      const syncGap = ()=>{ if(gap && fr) gap.hidden = (parseInt(fr.value,10)||1) <= 1; };   // spacing is meaningless for a single frame
+      if(fr){
+        fr.addEventListener("change", ()=>{ refreshFramePorts(n); syncGap(); });   // grow/shrink the image output ports
+        fr.addEventListener("input", syncGap);
+      }
     },
     async run(n, inp){
       if(!inp.video) throw new Error("no video — wire a video into the video port");
