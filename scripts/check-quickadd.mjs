@@ -53,6 +53,7 @@ const ctx = {
   audioBody: (n, label, ph) =>
     `<div><label>${label}</label><textarea data-f="prompt" placeholder="${ph}"></textarea></div>`,
   audioRun: () => {},
+  remixRun: () => {},
   mountUpload: () => {},
   mountInpaint: () => {},
   mountFileUpload: () => {},
@@ -92,19 +93,19 @@ const ok = (c, m) => { if (!c) failures.push(m); };
 // dragging FROM an output → consumers of that type
 eq(keys("out", "image"), ["draw", "edit", "inpaint", "ivideo", "llm", "lipsync", "resize", "vision"],
   "image output → nodes that take an image (incl. LLM's + Draw's dynamic image ports + Inpaint's image/mask)");
-eq(keys("out", "audio"), ["llm", "lipsync", "soundtrack", "transcribe", "trim"],
-  "audio output → nodes that take audio (incl. the LLM's audio-input port + Soundtrack's audio port)");
+eq(keys("out", "audio"), ["llm", "lipsync", "remix", "soundtrack", "transcribe", "trim"],
+  "audio output → nodes that take audio (incl. the LLM's audio-input port + Soundtrack's audio port + Remix's source track)");
 eq(keys("out", "video"), ["combine", "extractaudio", "soundtrack", "vedit", "vframes"],
   "video output → nodes that take video (combine joins clips; soundtrack adds audio; vframes extracts stills; extractaudio peels the soundtrack)");
 // transcribe is excluded: its only text field is a plain <input> (language), not a wirable textarea
-eq(keys("out", "text"), ["draw", "edit", "image", "inpaint", "ivideo", "join", "llm", "lipsync", "music", "tts", "tvideo", "vedit", "vision"],
+eq(keys("out", "text"), ["draw", "edit", "image", "inpaint", "ivideo", "join", "llm", "lipsync", "music", "remix", "tts", "tvideo", "vedit", "vision"],
   "text output → nodes with a text input OR a wirable text field");
 
 // dragging FROM an input → producers of that type
 eq(keys("in", "image"), ["draw", "edit", "image", "inpaint", "resize", "upload", "vframes"],
   "image input → nodes that produce an image (draw reasons then draws; inpaint repaints; vframes emits frame stills)");
-eq(keys("in", "audio"), ["aupload", "extractaudio", "music", "trim", "tts"],
-  "audio input → nodes that produce audio (extractaudio emits a WAV from a video)");
+eq(keys("in", "audio"), ["aupload", "extractaudio", "music", "remix", "trim", "tts"],
+  "audio input → nodes that produce audio (extractaudio emits a WAV from a video; remix transforms one)");
 eq(keys("in", "video"), ["combine", "ivideo", "lipsync", "soundtrack", "tvideo", "vedit", "vupload"],
   "video input → nodes that produce video (combine joins clips into one; soundtrack outputs the scored video)");
 eq(keys("in", "text"), ["choice", "draw", "join", "llm", "text", "transcribe", "vision"],

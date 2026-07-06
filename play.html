@@ -1547,6 +1547,9 @@ window.NoodleApp = (function () {
         flagAuth(r.status);
         const t = (await r.text()).slice(0,220);
         if(/lyric/i.test(t)) throw new Error("This model needs lyrics — fill the Lyrics field (vocal models require them; leave empty / use a BGM model for instrumentals).");
+        // cover-family models take only a HOSTED source ("requires a valid http(s) audio URL") — an
+        // uploaded clip rides as data: and is rejected for free at submit. Point at the chained path.
+        if(/valid https?\(?s?\)? audio url/i.test(t)) throw new Error("This model needs a hosted track — chain its audio from a Music node (uploaded clips can't reach it), or pick another model.");
         const req = t.match(/["']?([a-z_]+)["']?\s+(?:is\s+)?required|missing[^a-z]+["']?([a-z_]+)/i);
         const field = req && (req[1]||req[2]);
         if(field) throw new Error('This model requires "' + field + '" — set it in the node, or add it under advanced params.');
@@ -2254,6 +2257,12 @@ function mp4ParamsMatch(bufs){
       { id:"instructions",    type:"textarea" },
       { id:"response_format", type:"select", default:"mp3" },
     ],
+    remix: [
+      { id:"lyrics",          type:"textarea" },
+      // duration only when the model both prices per second and advertises a range — for cover models
+      // min/max_duration constrain the SOURCE track, not an output knob (mirrors the editor's audioApplies)
+      { id:"duration",        type:"number",   applies:"cat:secduration" },
+    ],
   };
   // Faithful to collectAudioParams(): only-when-nonempty, omit defaults, then merge extraJson verbatim.
   // Catalog-gated (mirrors the editor's audioApplies): a param tagged applies:"cat:*" is dropped unless the
@@ -2269,6 +2278,7 @@ function mp4ParamsMatch(bufs){
     const applies = function(f){
       if(!f.applies || !sp) return true;   // untagged param, or no catalog → send-everything fallback
       if(f.applies==="cat:duration") return sp.min_duration!=null && sp.max_duration!=null;
+      if(f.applies==="cat:secduration") return sp.min_duration!=null && sp.max_duration!=null && +(((m||{}).pricing||{}).per_second)>0;   // duration is a real output knob only when it's what's billed
       if(f.applies==="cat:gencount") return !!sp.generation_count_parameter;
       if(f.applies==="cat:voices")   return Array.isArray(sp.voices) && sp.voices.length>0;
       return true;
@@ -2295,6 +2305,26 @@ function mp4ParamsMatch(bufs){
     const text = (inp.text != null ? inp.text : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
     if(!text) throw new Error("no text");
     return { audio: await ctx.genAudio(mdl(n), text, await collectAudioParams(n),
+      (q,ms)=> onProgress && onProgress("generating audio… " + Math.round(ms/1000) + "s" + (q!=null?(" · queue "+q):""))) };
+  }
+  // Source track for the Remix node's "audio" param (verbatim twin of the editor's remixSourceAudio):
+  // a chained https output rides as-is — every provider takes a hosted URL; anything local (upload
+  // data:, Trim/Speech blob:) is inlined as a data URL under the ~4.4MB edge body cap.
+  async function remixSourceAudio(url){
+    if(typeof url!=="string" || !url) throw new Error("no audio — wire a source track into the audio port");
+    if(/^https?:/.test(url)) return url;
+    const du = await urlToDataUrl(url);
+    if(du.length > MEDIA_INLINE_MAX)
+      throw new Error("source audio is too large to inline (~4 MB send limit) — shorten it with the Trim node, or chain straight from a Music node");
+    return du;
+  }
+  async function remixRun(n, inp, ctx, onProgress){
+    if(!inp.audio) throw new Error("no audio — wire a source track into the audio port");
+    const text = (inp.text != null ? inp.text : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
+    if(!text) throw new Error("no prompt — describe the cover / extension first");
+    const extra = await collectAudioParams(n);
+    extra.audio = await remixSourceAudio(inp.audio);
+    return { audio: await ctx.genAudio(mdl(n), text, extra,
       (q,ms)=> onProgress && onProgress("generating audio… " + Math.round(ms/1000) + "s" + (q!=null?(" · queue "+q):""))) };
   }
 
@@ -2741,6 +2771,10 @@ function mp4ParamsMatch(bufs){
       em:"🎵", title:"Music", inputs:[], outputs:[{name:"audio", type:"audio"}],
       run: audioRun,
     },
+    remix: {
+      em:"🎛", title:"Remix audio", inputs:[{name:"audio", type:"audio"}], outputs:[{name:"audio", type:"audio"}],
+      run: remixRun,
+    },
     tts: {
       em:"🗣️", title:"Speech", inputs:[], outputs:[{name:"audio", type:"audio"}],
       run: audioRun,
@@ -3001,6 +3035,7 @@ function mp4ParamsMatch(bufs){
              { f:"system", label:"System prompt", kind:"textarea", optional:true }],
     tvideo: [{ f:"prompt", label:"Video prompt", kind:"textarea" }],
     music:  [{ f:"prompt", label:"Style / prompt", kind:"textarea" }],
+    remix:  [{ f:"prompt", label:"Style / direction", kind:"textarea" }],
     tts:    [{ f:"prompt", label:"Text to speak",  kind:"textarea" }],
   };
   // A bare upload node that feeds a single role-bearing image port (an ivideo end
@@ -3117,6 +3152,9 @@ function mp4ParamsMatch(bufs){
               { f:"duration", label:"Duration (s)", kind:"number", min:1 },
               { f:"negative_prompt", label:"Negative prompt", kind:"textarea" },
               { f:"seed", label:"Seed", kind:"number" }],
+    remix:   [{ f:"model", label:"Model", kind:"model" },
+              { f:"lyrics", label:"Lyrics", kind:"textarea" },
+              { f:"duration", label:"Duration (s)", kind:"number", min:1 }],
     tts:     [{ f:"model", label:"Model", kind:"model" },
               { f:"voice", label:"Voice", kind:"text" },
               { f:"speed", label:"Speed", kind:"number", min:0, step:"0.1", def:"1" },
@@ -3136,7 +3174,7 @@ function mp4ParamsMatch(bufs){
   const SETTING_MODEL_KIND = {
     llm:"chat", vision:"chat", image:"image", edit:"image", draw:"chat",
     tvideo:"video", ivideo:"video", vedit:"video", lipsync:"video",
-    music:"audio", tts:"audio", transcribe:"audio",
+    music:"audio", remix:"audio", tts:"audio", transcribe:"audio",
   };
   function deriveSettings(graph){
     const out = [];
@@ -3204,7 +3242,9 @@ function mp4ParamsMatch(bufs){
                            const multiAudio = "left_audio" in pp || "right_audio" in pp;   // multi-speaker avatars need two tracks — the single audio input can't drive them (mirrors the editor's normVideo)
                            return !!c.image_to_video && !!c.audio_input && !multiAudio; }
       case "tts":        return !!c.text_to_speech || m.category==="audio_tts";
-      case "music":      return mod.startsWith("text") && /audio|music/.test(out) && !(c.text_to_speech || m.category==="audio_tts");
+      case "music":      { const am = mod.split("->")[0].split("+");   // cover/extend models are text+audio-> and demand a source track — keep them out of a plain Music swap
+                           return am.includes("text") && !am.includes("audio") && /audio|music/.test(out) && !(c.text_to_speech || m.category==="audio_tts"); }
+      case "remix":      return !!(c.music_cover || c.audio_to_music || c.music_extension || c.audio_extension || c.audio_inpainting);   // mirrors the editor's normAudio remix flag
       case "transcribe": return (!!c.speech_to_text || m.category==="audio_stt") && !/clone/i.test(m.id||"");
       default:           return true;   // llm — any chat model
     }
@@ -3379,6 +3419,7 @@ function mp4ParamsMatch(bufs){
     vframes:"pulls still frames out of a video",
     ivideo: "animates a still image into a video",
     music:  "generates music from a style/prompt",
+    remix:  "remixes a source track — covers or extends it following a style/direction",
     tts:    "reads text aloud as speech",
     trim:   "trims an audio clip to a chosen start and length",
     extractaudio:"extracts the audio track from a video as a WAV clip",
@@ -4311,7 +4352,7 @@ function mp4ParamsMatch(bufs){
     (document.head || document.documentElement).appendChild(s);
   }
   function outputKinds(){
-    const KIND = { image:"image", tvideo:"video", ivideo:"video", music:"music",
+    const KIND = { image:"image", tvideo:"video", ivideo:"video", music:"music", remix:"music",
                    tts:"speech", llm:"text", vision:"descriptions" };
     const set = [];
     for(const n of (STATE.outputs || [])){ const k = KIND[n.type]; if(k && set.indexOf(k)<0) set.push(k); }
@@ -5275,7 +5316,7 @@ function deriveTitle(graph){
     if(w) return w.charAt(0).toUpperCase()+w.slice(1);   // capitalize the derived name
   }
   // 2) Output kinds -> "<Kind> Generator", or "<A> & <B> Generator" for a mixed pipeline.
-  const kinds=[...new Set(nodes.map(n=>({image:"Image",tvideo:"Video",ivideo:"Video",music:"Music",
+  const kinds=[...new Set(nodes.map(n=>({image:"Image",tvideo:"Video",ivideo:"Video",music:"Music",remix:"Music",
     tts:"Speech",llm:"Text",vision:"Vision"}[n.type])).filter(Boolean))];
   if(kinds.length===1) return kinds[0]+" Generator";
   if(kinds.length>1)  return kinds.slice(0,2).join(" & ")+" Generator";
@@ -5284,7 +5325,7 @@ function deriveTitle(graph){
 }
 function deriveTagline(graph){
   const out=new Set((graph.nodes||[]).map(n=>({image:"images",tvideo:"video",ivideo:"video",
-    music:"music",tts:"speech",llm:"text",vision:"descriptions"}[n.type])).filter(Boolean));
+    music:"music",remix:"music",tts:"speech",llm:"text",vision:"descriptions"}[n.type])).filter(Boolean));
   return out.size ? "Fill in the inputs, hit Run, and get "+[...out].join(", ")+"."
                   : "Fill in the inputs and hit Run.";
 }

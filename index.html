@@ -1401,6 +1401,11 @@ const I18N = {
     "Text → music":"Texto → música",
     "Speech":"Voz",
     "Text → speech (TTS)":"Texto → voz (TTS)",
+    "Remix audio":"Remezclar audio",
+    "Audio + text → audio (cover / extend)":"Audio + texto → audio (versión / extender)",
+    "style / direction":"estilo / dirección",
+    "a jazzy late-night lo-fi cover, brushed drums, warm keys":"una versión lo-fi jazzy nocturna, batería con escobillas, teclados cálidos",
+    "song-extend models (e.g. Mureka) continue these lyrics; leave empty for instrumental":"los modelos de extensión de canciones (p. ej. Mureka) continúan esta letra; déjalo vacío para instrumental",
     "system (optional)":"sistema (opcional)",
     "prompt":"prompt",
     "separator":"separador",
@@ -1827,6 +1832,11 @@ const I18N = {
     "Text → music":"Texte → musique",
     "Speech":"Voix",
     "Text → speech (TTS)":"Texte → voix (TTS)",
+    "Remix audio":"Remixer l’audio",
+    "Audio + text → audio (cover / extend)":"Audio + texte → audio (reprise / prolonger)",
+    "style / direction":"style / direction",
+    "a jazzy late-night lo-fi cover, brushed drums, warm keys":"une reprise lo-fi jazzy de fin de soirée, batterie aux balais, claviers chaleureux",
+    "song-extend models (e.g. Mureka) continue these lyrics; leave empty for instrumental":"les modèles d’extension de chanson (ex. Mureka) prolongent ces paroles ; laisser vide pour un instrumental",
     "system (optional)":"système (facultatif)",
     "prompt":"prompt",
     "separator":"séparateur",
@@ -2253,6 +2263,11 @@ const I18N = {
     "Text → music":"Text → Musik",
     "Speech":"Sprache",
     "Text → speech (TTS)":"Text → Sprache (TTS)",
+    "Remix audio":"Audio remixen",
+    "Audio + text → audio (cover / extend)":"Audio + Text → Audio (Cover / verlängern)",
+    "style / direction":"Stil / Richtung",
+    "a jazzy late-night lo-fi cover, brushed drums, warm keys":"ein jazziges Late-Night-Lo-Fi-Cover, Besen-Schlagzeug, warme Keys",
+    "song-extend models (e.g. Mureka) continue these lyrics; leave empty for instrumental":"Song-Verlängerungs-Modelle (z. B. Mureka) führen diesen Songtext fort; leer lassen für Instrumental",
     "system (optional)":"System (optional)",
     "prompt":"Prompt",
     "separator":"Trennzeichen",
@@ -2679,6 +2694,11 @@ const I18N = {
     "Text → music":"Texto → música",
     "Speech":"Fala",
     "Text → speech (TTS)":"Texto → fala (TTS)",
+    "Remix audio":"Remixar áudio",
+    "Audio + text → audio (cover / extend)":"Áudio + texto → áudio (cover / estender)",
+    "style / direction":"estilo / direção",
+    "a jazzy late-night lo-fi cover, brushed drums, warm keys":"um cover lo-fi jazzy de madrugada, bateria com vassourinhas, teclados quentes",
+    "song-extend models (e.g. Mureka) continue these lyrics; leave empty for instrumental":"modelos de extensão de música (ex.: Mureka) continuam esta letra; deixe vazio para instrumental",
     "system (optional)":"sistema (opcional)",
     "prompt":"prompt",
     "separator":"separador",
@@ -3105,6 +3125,11 @@ const I18N = {
     "Text → music":"テキスト → 音楽",
     "Speech":"音声",
     "Text → speech (TTS)":"テキスト → 音声 (TTS)",
+    "Remix audio":"音声リミックス",
+    "Audio + text → audio (cover / extend)":"音声 + テキスト → 音声（カバー / 延長）",
+    "style / direction":"スタイル / 方向性",
+    "a jazzy late-night lo-fi cover, brushed drums, warm keys":"ジャジーな深夜ローファイカバー、ブラシドラム、温かいキーボード",
+    "song-extend models (e.g. Mureka) continue these lyrics; leave empty for instrumental":"楽曲延長モデル (例: Mureka) はこの歌詞の続きを生成。インストの場合は空欄に",
     "system (optional)":"システム (任意)",
     "prompt":"プロンプト",
     "separator":"区切り文字",
@@ -3439,11 +3464,11 @@ function normAudio(m){
   const voices = Array.isArray(sp.voices) ? sp.voices.filter(v=>typeof v==="string") : [];
   // some STT models advertise a fixed language list → the Transcribe node offers a <select> instead of free text
   const langs = Array.isArray(sp.supported_languages) ? sp.supported_languages.filter(x=>typeof x==="string") : [];
-  // TODO(nanogpt): drop this guard once /api/v1/audio-models reports real modality (see
-  // NANOGPT-audio-modality-bug.md). NanoGPT tags ~12 audio endpoints "text->music" that aren't:
-  // lyrics generators (text->text), song analyzers (audio->text), stem/clone, the upload helper,
-  // and source-needing cover/extend/inpaint (audio+text->…). No metadata distinguishes them, so we
-  // match the action verb in the id — same approach as the /clone/ stt guard below.
+  // NanoGPT fixed the catalog's modality mislabels (2026-07-05 — see NANOGPT-audio-modality-bug.md,
+  // resolved upstream), but this verb guard still earns its keep for the MUSIC filter: cover models
+  // (minimax/music-cover) advertise text_to_music while genuinely requiring a source track, so
+  // capability flags alone would still leak them into the Music node. The verbs also keep the guard
+  // working against stale localStorage catalog caches normalized before the fix.
   const usable = !/lyric|describe|recognize|stem|clone|upload|cover|extend|inpaint/i.test(m.id);
   // TODO(nanogpt): hide models whose generation service errors on *every* call — they're correctly
   // labeled but currently dead, so picking one is a guaranteed dead end. Elevenlabs-Music-V1 returns
@@ -3455,9 +3480,13 @@ function normAudio(m){
   // speech→text (transcription). voice-clone models are mislabeled audio_stt but emit a voice-id,
   // not a transcript — exclude them by id so they don't pollute the Transcribe node.
   const stt = (!!c.speech_to_text || m.category==="audio_stt") && !/clone/i.test(m.id);
+  // audio→audio remixers: models that TRANSFORM a source track (cover / extend / inpaint). Capability
+  // verbs only — no model ids. stem_separation (ships ZIP archives no browser can play) and
+  // voice_clone (returns a voice id, not audio) are deliberately not remix verbs.
+  const remix = !dead && !!(c.music_cover || c.audio_to_music || c.music_extension || c.audio_extension || c.audio_inpainting);
   return { id:m.id, name:m.name||m.id, created:m.created, owner:m.owned_by||"", voices, langs, params:sp,
     sortUsd: audioUnitUsd(p, EST.ttsChars),          // resolved $ at assumed usage → price sorts (mixed units, rough)
-    tts, gen, music: gen && !tts, stt, pricing:p, price };   // raw pricing kept so transcribe can estimate from per_minute
+    tts, gen, music: gen && !tts, remix, stt, pricing:p, price };   // raw pricing kept so transcribe can estimate from per_minute
 }
 
 const CATALOG = {
@@ -3521,7 +3550,7 @@ const KIND_LABEL = { chat:"Chat", image:"Image", video:"Video", audio:"Audio" };
 // capability filter shared by the picker and the default-model resolver — metadata only, no model names
 function passesFilter(m, filter){
   if(!filter) return true;
-  return !!m[filter];   // vision | edit | t2v | i2v | music | tts are all boolean flags on the catalog item
+  return !!m[filter];   // vision | edit | t2v | i2v | music | tts | remix are all boolean flags on the catalog item
 }
 // a node's default model = newest catalog entry of the right kind that passes the node's filter (or none yet)
 function defModelFor(type){
@@ -3723,6 +3752,12 @@ const AUDIO_PARAMS = {
     { id:"instructions",    label:"Instructions",    type:"textarea", appliesTo:"all" },
     { id:"response_format", label:"Format",          type:"select",   appliesTo:"all", options:["mp3","opus","aac","flac","wav","pcm"], default:"mp3" },
   ],
+  remix: [
+    { id:"lyrics",          label:"Lyrics",          type:"textarea", appliesTo:"all", hint:"song-extend models (e.g. Mureka) continue these lyrics; leave empty for instrumental" },
+    // duration ONLY when the model both prices per second and advertises a range — for cover models
+    // min/max_duration constrain the SOURCE track, not an output knob, so a plain cat:duration would lie
+    { id:"duration",        label:"Duration (sec)",  type:"number",   appliesTo:"cat:secduration" },
+  ],
 };
 // resolve a param's appliesTo against the selected model's live catalog entry (catalog metadata only)
 function audioApplies(at, it){
@@ -3731,6 +3766,7 @@ function audioApplies(at, it){
     case "all":          return true;
     case "cat:voices":   return it.voices.length>0;
     case "cat:duration": return p.min_duration!=null && p.max_duration!=null;
+    case "cat:secduration": return p.min_duration!=null && p.max_duration!=null && +((it.pricing||{}).per_second)>0;   // duration is a real output knob only when it's what's billed
     case "cat:gencount": return !!p.generation_count_parameter;
   }
   return false;
@@ -3742,7 +3778,7 @@ function audioFields(kind, it){
     if(!audioApplies(p.appliesTo, it)) continue;
     const f = { ...p, jsonKey:p.id };
     if(p.appliesTo==="cat:voices")   f.options = it.voices;
-    if(p.appliesTo==="cat:duration"){ f.min = it.params.min_duration; f.max = it.params.max_duration; }
+    if(p.appliesTo==="cat:duration" || p.appliesTo==="cat:secduration"){ f.min = it.params.min_duration; f.max = it.params.max_duration; }
     if(p.appliesTo==="cat:gencount"){ f.jsonKey = it.params.generation_count_parameter || p.id; f.min=1; f.max=1;   // capped at 1: the endpoint surfaces a single track, so requesting (and paying for) more would silently drop the extras
       f.hint = "One song per run — nanoodle keeps a single track, so extra songs would be billed but dropped."; }
     out.push(f);
@@ -3772,7 +3808,7 @@ function audioFieldHTML(n, f){
 }
 // rebuild the parameter block for an audio node from its current model
 function refreshAudioParams(n){
-  if((n.type!=="music" && n.type!=="tts") || !n.el) return;
+  if(!AUDIO_PARAMS[n.type] || !n.el) return;
   const box = n.el.querySelector("[data-params]"); if(!box) return;
   const it = catItem("audio", n.fields.model);
   const advBox = n.el.querySelector("[data-advparams]");
@@ -3884,6 +3920,27 @@ async function audioRun(n, inp, ctx){
   const text = (inp.text ?? n.fields.prompt ?? "").trim();
   if(!text) throw new Error("no text — type something in the prompt field first");
   return { audio: await ctx.genAudio(mdl(n), text, collectAudioParams(n),
+    (q,ms)=> setNodeProgress(n, `${t("generating audio…")} ${Math.round(ms/1000)}s${q!=null?` · queue ${q}`:""}`)) };
+}
+// Source track for the Remix node's `audio` param. A chained https output (Music, an earlier Remix)
+// rides as-is — every provider takes a hosted URL. Anything local (upload data:, Trim/Speech blob:)
+// is inlined as a data URL and hits the same ~4.4MB edge body cap as lipsync. (Mureka verified to
+// take data: mp3; models that insist on a hosted URL 400 for free and genAudio maps that error.)
+async function remixSourceAudio(url){
+  if(typeof url!=="string" || !url) throw new Error("no audio — wire a source track into the audio port");
+  if(/^https?:/.test(url)) return url;
+  const du = await urlToDataUrl(url);
+  if(du.length > MEDIA_INLINE_MAX)
+    throw new Error("source audio is too large to inline (~4 MB send limit) — shorten it with the ✂️ Trim node, or chain straight from a 🎵 Music node");
+  return du;
+}
+async function remixRun(n, inp, ctx){
+  if(!inp.audio) throw new Error("no audio — wire a source track into the audio port (🎤 upload a clip or chain a 🎵 Music node)");
+  const text = (inp.text ?? n.fields.prompt ?? "").trim();
+  if(!text) throw new Error("no prompt — describe the cover / extension (style, mood, direction) first");
+  const extra = collectAudioParams(n);
+  extra.audio = await remixSourceAudio(inp.audio);
+  return { audio: await ctx.genAudio(mdl(n), text, extra,
     (q,ms)=> setNodeProgress(n, `${t("generating audio…")} ${Math.round(ms/1000)}s${q!=null?` · queue ${q}`:""}`)) };
 }
 /* ---------- general per-model options (from the catalog's own param descriptors) ----------
@@ -5048,6 +5105,15 @@ const NODE_TYPES = {
     outputs:[{name:"audio", type:"audio"}], preview:"audio",
     body:(n)=> audioBody(n, "style / prompt", "upbeat lo-fi hip hop, mellow piano, vinyl crackle, 90 BPM"),
     run: audioRun,
+  },
+
+  remix: {
+    em:"🎛", title:"Remix audio", desc:"Audio + text → audio (cover / extend)", group:"Audio", kw:"cover extend continue restyle song track audio2audio",
+    modelKind:"audio", modelFilter:"remix",
+    inputs:[{name:"audio", type:"audio"}],
+    outputs:[{name:"audio", type:"audio"}], preview:"audio",
+    body:(n)=> audioBody(n, "style / direction", "a jazzy late-night lo-fi cover, brushed drums, warm keys"),
+    run: remixRun,
   },
 
   tts: {
@@ -7106,6 +7172,9 @@ const CTX = {
       flagAuth(r);
       const t = (await r.text()).slice(0,220);
       if(/lyric/i.test(t)) throw new Error("This model needs lyrics — fill the Lyrics field (vocal models require them; leave empty / use a BGM model for instrumentals).");
+      // cover-family models take only a HOSTED source ("requires a valid http(s) audio URL") — an
+      // uploaded clip rides as data: and is rejected for free at submit. Point at the chained path.
+      if(/valid https?\(?s?\)? audio url/i.test(t)) throw new Error("This model needs a hosted track — chain its audio from a 🎵 Music node (uploaded clips can't reach it), or pick another model.");
       const req = t.match(/["']?([a-z_]+)["']?\s+(?:is\s+)?required|missing[^a-z]+["']?([a-z_]+)/i);
       const field = req && (req[1]||req[2]);
       if(field) throw new Error(`This model requires "${field}" — set it in the node, or add it under advanced params.`);
@@ -9217,6 +9286,7 @@ $("signout").onclick = ()=> setKey(null);
     soundtrack:{ fields:{ loop:"loop audio to fill the video (true/false)" } },
     lipsync:{ fields:{ model:"avatar model id (optional)", prompt:"optional direction" } },
     music:{ main:"prompt", fields:{ model:"music model id (optional)", prompt:"style/prompt", lyrics:"lyrics for vocal models", instrumental:"true/false" } },
+    remix:{ main:"prompt", fields:{ model:"remix model id (optional)", prompt:"style/direction for the cover or extension", lyrics:"lyrics to continue (song-extend models)" }, note:"audio + text → audio; wire the source track into the audio port" },
     tts:{ main:"prompt", fields:{ model:"tts model id (optional)", prompt:"text to speak", voice:"voice id (optional)" } },
     trim:{ fields:{ start:"seconds", length:"seconds" } },
     extractaudio:{ fields:{ start:"seconds", length:"seconds (blank = whole clip)" }, note:"video → audio; feed 🎙️ Transcribe or ✂️ Trim" },
@@ -9328,8 +9398,8 @@ $("signout").onclick = ()=> setKey(null);
         if(cur!=null && cur!=="" && !d.options.some(o=> String(o[0])===String(cur))) f[d.f] = d.def;
       }
     }
-    // audio params (music / tts): selects must be in-set, numbers in-range, booleans real
-    if((t==="music" || t==="tts") && typeof audioFields==="function" && typeof catItem==="function"){
+    // audio params (music / tts / remix): selects must be in-set, numbers in-range, booleans real
+    if(typeof AUDIO_PARAMS!=="undefined" && AUDIO_PARAMS[t] && typeof audioFields==="function" && typeof catItem==="function"){
       const it = catItem("audio", f.model);
       if(it) for(const af of audioFields(t, it)){
         const key = af.jsonKey || af.id, cur = f[key];
@@ -9451,6 +9521,7 @@ $("signout").onclick = ()=> setKey(null);
     const v=pick("video","t2v"); if(v.length) L.push(`  video: ${v.join(", ")}`);
     const tts=pick("audio","tts"); if(tts.length) L.push(`  tts: ${tts.join(", ")}`);
     const mus=pick("audio","music"); if(mus.length) L.push(`  music: ${mus.join(", ")}`);
+    const rmx=pick("audio","remix"); if(rmx.length) L.push(`  remix: ${rmx.join(", ")}`);
     return L.length ? `\nExample model ids you MAY use (newest first) — only if the user names a model, otherwise leave "model" out:\n${L.join("\n")}` : "";
   }
   // Prepended to patchling's own system prompt (which already asks for a unified ```diff block).

@@ -40,10 +40,12 @@ const node = (id, type, fields) => ({ id, type, x: 0, y: 0, fields: fields || {}
 let _l = 0;
 const link = (from, fromPort, to, toPort) => ({ id: "l" + (++_l), from: { node: from, port: fromPort }, to: { node: to, port: toPort } });
 const IMG = "data:image/png;base64,IMGDATA";
+const AUD = "data:audio/mpeg;base64,AUDDATA";
 
 const chatCalls = () => calls.filter((c) => /\/chat\/completions/.test(c.url));
 const imgCalls = () => calls.filter((c) => /\/images\/generations/.test(c.url));
 const videoCalls = () => calls.filter((c) => /\/generate-video/.test(c.url));
+const audioCalls = () => calls.filter((c) => /\/audio\/speech/.test(c.url));
 const userMsg = (call) => (call.body.messages || []).find((m) => m.role === "user");
 
 // ---- scenarios ------------------------------------------------------------
@@ -332,6 +334,34 @@ const SCENARIOS = [
       if (b.resolution !== "1080p") fail(`resolution not forwarded, got ${JSON.stringify(b.resolution)}`);
       if (b.aspect_ratio !== "9:16") fail(`aspect_ratio dropped (play.html vedit parity bug), got ${JSON.stringify(b.aspect_ratio)}`);
       if (b.duration !== "8") fail(`duration dropped (play.html vedit parity bug), got ${JSON.stringify(b.duration)}`);
+    },
+  },
+  {
+    // Remix node (audio+text→audio) rides the same /audio/speech wire as Music, plus a source track
+    // under `audio`. An UPLOADED clip is a data: URL and must ride inline exactly as wired.
+    name: "Remix node: uploaded data: source rides inline as body.audio (+ input, + lyrics)",
+    data: { nodes: [node("a1", "aupload", { audio: AUD }), node("r1", "remix", { model: "x", prompt: "jazzy cover", lyrics: "la la" })],
+            links: [link("a1", "audio", "r1", "audio")] },
+    check(app, g, fail) {
+      const b = audioCalls()[0]?.body;
+      if (!b) return fail("no /audio/speech call recorded for the remix node");
+      if (b.model !== "x") fail(`remix model not forwarded, got ${JSON.stringify(b.model)}`);
+      if (b.input !== "jazzy cover") fail(`remix style prompt must ride as input, got ${JSON.stringify(b.input)}`);
+      if (b.audio !== AUD) fail(`remix source track must ride as body.audio, got ${JSON.stringify(b.audio).slice(0, 60)}`);
+      if (b.lyrics !== "la la") fail(`remix lyrics not forwarded, got ${JSON.stringify(b.lyrics)}`);
+    },
+  },
+  {
+    // A CHAINED source (a Music/Remix output on the provider CDN) is an https URL and must pass
+    // through untouched — inlining it would re-download CORS-blocked bytes and blow the body cap.
+    name: "Remix node: chained https source passes through as a URL (never inlined)",
+    data: { nodes: [node("a1", "aupload", { audio: "https://cdn.example/track.mp3" }), node("r1", "remix", { model: "x", prompt: "extend it" })],
+            links: [link("a1", "audio", "r1", "audio")] },
+    check(app, g, fail) {
+      const b = audioCalls()[0]?.body;
+      if (!b) return fail("no /audio/speech call recorded for the chained remix");
+      if (b.audio !== "https://cdn.example/track.mp3") fail(`https source must pass through verbatim, got ${JSON.stringify(b.audio).slice(0, 60)}`);
+      if ("lyrics" in b) fail("empty lyrics must be omitted (only-when-nonempty)");
     },
   },
   {
