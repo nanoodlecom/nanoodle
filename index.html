@@ -551,7 +551,8 @@
   .body textarea.wired{ opacity:.72; border-style:dashed; cursor:not-allowed; color:var(--muted) }
   /* a wired field collapses to a one-line chip naming its source (the textarea is hidden) */
   .body textarea[hidden]{ display:none }
-  .body .wire-chip{ display:inline-flex; align-items:center; font-size:.72rem; color:var(--dim);
+  /* inline-block, NOT flex: flex drops the whitespace between "⚡ from" and the <b> ("fromLLM") and breaks single-line ellipsis */
+  .body .wire-chip{ display:inline-block; font-size:.72rem; color:var(--dim);
                     background:var(--panel2); border:1px solid var(--line); border-radius:.4rem;
                     padding:.18rem .5rem; margin-top:.1rem; max-width:100%; box-sizing:border-box;
                     white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
@@ -629,6 +630,7 @@
   .node.note .cmtbtn:hover{ border-color:var(--accent); color:var(--ink) }
   .node.note .cmtbtn.cmtbold{ font-weight:800 }
   .node.note .cmtbtn.on{ color:var(--ink); border-color:var(--accent); background:#ffffff14 }
+  .node.note .cmtbtn:disabled{ opacity:.35; cursor:default; color:var(--dim); border-color:var(--line) }
   .node.note textarea.cmttext{ min-height:52px; background:transparent; border:1px dashed var(--line); border-radius:.45rem; line-height:1.4 }
   .node.note textarea.cmttext::placeholder{ color:var(--dim) }
   .node.note textarea.cmttext:focus{ outline:none; border-style:solid; border-color:var(--cmt,#f5d76e) }
@@ -1120,6 +1122,12 @@ const I18N = {
     "Bold":"Negrita",
     "Smaller text":"Texto más pequeño",
     "Bigger text":"Texto más grande",
+    "Yellow":"Amarillo",
+    "Pink":"Rosa",
+    "Green":"Verde",
+    "Blue":"Azul",
+    "Purple":"Morado",
+    "Gray":"Gris",
     "write a note…":"escribe una nota…",
     "remove":"quitar",
     "to run":"para ejecutar",
@@ -1217,7 +1225,7 @@ const I18N = {
     "Pull still frames out of a video":"Extrae fotogramas fijos de un vídeo",
     "Recent":"Recientes",
     "Running calls models on your NanoGPT key.":"Ejecutar llama a modelos con tu clave de NanoGPT.",
-    "Sampling + reasoning knobs. Defaults apply when untouched.":"Controles de muestreo + razonamiento. Se aplican los valores por defecto si no se tocan.",
+    "· higher = more creative":"· más alto = más creativo",
     "Save as a new app":"Guardar como app nueva",
     "My apps":"Mis apps",
     "Open one of your saved apps — created or imported":"Abre una de tus apps guardadas — creadas o importadas",
@@ -1254,9 +1262,16 @@ const I18N = {
     "build something here → hit":"construye algo aquí → pulsa",
     "delete (Del)":"eliminar (Del)",
     "drag to resize":"arrastra para redimensionar",
+    "mode":"modo",
+    "fit within":"encajar dentro",
+    "fill & crop":"llenar y recortar",
+    "exact (stretch)":"exacto (estirar)",
+    "width (px)":"anchura (px)",
+    "height (px)":"altura (px)",
+    "Set width, height, or both — a blank side keeps the image’s aspect. fit within never upscales. Free · runs on your device.":"Indica anchura, altura o ambas — el lado en blanco conserva la proporción de la imagen. encajar dentro nunca amplía. Gratis · se ejecuta en tu dispositivo.",
     "e.g. “add a node that speaks the result aloud”":"p. ej. “añade un nodo que diga el resultado en voz alta”",
     "edit":"editar",
-    "frames":"fotogramas",
+    "how many frames":"cuántos fotogramas",
     "gap between frames (sec)":"intervalo entre fotogramas (seg)",
     "high":"alto",
     "host it. They can see the workflow.":"lo alojan. Pueden ver el flujo.",
@@ -1276,11 +1291,13 @@ const I18N = {
     "nanoodle — AI workflow editor":"nanoodle — editor de flujos de IA",
     "no audio yet":"aún sin audio",
     "no video yet":"aún sin vídeo",
+    "keep clips under ~3 MB — larger won’t reach the model":"mantén los clips por debajo de ~3 MB — los más grandes no llegarán al modelo",
     "or":"o",
     "or post it to":"o publícalo en",
     "output format":"formato de salida",
     "outputs mono WAV, sized to inline — handy before Avatar / lipsync when a clip is too long.":"genera WAV mono, ajustado para incrustar — útil antes de Avatar / sincronización labial cuando un clip es demasiado largo.",
-    "video → mono WAV. Leave length blank for the whole clip. Wire into 🎙️ Transcribe or ✂️ Trim. Transcribe fits about 2 min of audio per run — for a longer video, use ✂️ Trim (or set a length) to grab a section. Generated clips are silent — use an uploaded video with sound.":"vídeo → WAV mono. Deja la duración en blanco para todo el clip. Conéctalo a 🎙️ Transcribe o ✂️ Trim. Transcribe admite unos 2 min de audio por ejecución — para un vídeo más largo, usa ✂️ Trim (o define una duración) para tomar una sección. Los clips generados no tienen sonido — usa un vídeo subido con audio.",
+    "video → mono WAV — wire into 🎙️ Transcribe to get text. Transcribe fits about 2 min per run, so set a length for a longer video. AI-generated videos are silent — use an uploaded video with sound.":"vídeo → WAV mono — conéctalo a 🎙️ Transcribe para obtener texto. Transcribe admite unos 2 min por ejecución, así que define una duración para un vídeo más largo. Los vídeos generados por IA no tienen sonido — usa un vídeo subido con audio.",
+    "whole clip":"clip completo",
     "paste your link":"pega tu enlace",
     "random":"aleatorio",
     "reasoning effort":"esfuerzo de razonamiento",
@@ -1288,17 +1305,22 @@ const I18N = {
     "save frame":"guardar fotograma",
     "seed":"semilla",
     "show thinking":"mostrar razonamiento",
+    "source comes from the wire — run once to load it here, then brush":"la imagen fuente llega por la conexión — ejecuta una vez para cargarla aquí, luego pincela",
     "start (sec)":"inicio (seg)",
     "start from":"empezar desde",
     "temperature":"temperatura",
     "they":"ellos",
     "this clip has generated audio":"este clip tiene audio generado",
+    "loop audio to fill video":"repetir el audio hasta llenar el vídeo",
+    "Repeat the audio to fill the whole video. Off: the audio plays once, then the rest of the video is silent. Audio longer than the video is always trimmed to the video's length.":"Repite el audio hasta llenar todo el vídeo. Desactivado: el audio suena una vez y el resto del vídeo queda en silencio. Un audio más largo que el vídeo siempre se recorta a la duración del vídeo.",
+    "the new audio replaces the video's existing sound.":"el audio nuevo sustituye al sonido existente del vídeo.",
     "trim duplicate seam frame":"recortar fotograma de unión duplicado",
     "upload or capture an image, then brush the area to repaint":"sube o captura una imagen, luego pincela la zona a repintar",
     "variation":"variación",
     "variations":"variaciones",
     "vision":"visión",
     "what to paint in":"qué pintar dentro",
+    "wire two or more clips — they join in order, top to bottom":"conecta dos o más clips — se unen en orden, de arriba abajo",
     "· blank = random, fix to repeat (re-run won't regenerate)":"· vacío = aleatorio, fija para repetir (re-ejecutar no regenerará)",
     "— made NanoGPT do something nobody expected":"— hizo que nano-gpt hiciera algo que nadie esperaba",
     "— most hearts on Discord + upvotes on Reddit (summed if you post both!)":"— más corazones en Discord + votos a favor en Reddit (¡sumados si publicas en ambos!)",
@@ -1323,6 +1345,8 @@ const I18N = {
     "📣 What’s new":"📣 Novedades",
     "📨 Submit your entry →":"📨 Envía tu participación →",
     "📷 Webcam":"📷 Cámara",
+    "🔌 mask ← wired (white = repaint)":"🔌 máscara ← conectada (blanco = repintar)",
+    "🔌 source image ← wired":"🔌 imagen fuente ← conectada",
     "🔗 Share workflow":"🔗 Compartir flujo",
     "🛠 Most Useful · 💡 Most Innovative · ❤️ People's Choice":"🛠 Más útil · 💡 Más innovador · ❤️ Elección del público",
     "🛠 Workflow":"🛠 Flujo",
@@ -1380,7 +1404,7 @@ const I18N = {
     "cheapest":"más baratos",
     "priciest":"más caros",
     "Text":"Texto",
-    "A string source":"Una fuente de texto",
+    "Text you type — usually a prompt":"Texto que escribes — normalmente un prompt",
     "Image input":"Entrada de imagen",
     "Upload or capture an image":"Sube o captura una imagen",
     "Join":"Unir",
@@ -1394,7 +1418,7 @@ const I18N = {
     "Vision":"Visión",
     "Image → text (describe / ask)":"Imagen → texto (describir / preguntar)",
     "Text→Video":"Texto→Vídeo",
-    "Text → video (renders ~1 min)":"Texto → vídeo (renderiza ~1 min)",
+    "Text → video (takes ~1 min to generate)":"Texto → vídeo (tarda ~1 min en generarse)",
     "Image→Video":"Imagen→Vídeo",
     "Image (+text) → video (renders ~1 min)":"Imagen (+texto) → vídeo (renderiza ~1 min)",
     "Music":"Música",
@@ -1409,6 +1433,14 @@ const I18N = {
     "system (optional)":"sistema (opcional)",
     "prompt":"prompt",
     "separator":"separador",
+    "options":"opciones",
+    "· one per line":"· una por línea",
+    "selection":"selección",
+    "· the default pick":"· la opción predeterminada",
+    "— add options above —":"— añade opciones arriba —",
+    "watercolor\noil painting\npixel art":"acuarela\npintura al óleo\npixel art",
+    "no separator":"sin separador",
+    "Goes between a and b — a space by default; type \\n for a new line.":"Va entre a y b — un espacio por defecto; escribe \\n para un salto de línea.",
     "size":"tamaño",
     "edit instruction":"instrucción de edición",
     "question":"pregunta",
@@ -1418,11 +1450,13 @@ const I18N = {
     "style / prompt":"estilo / prompt",
     "text to speak":"texto a leer",
     "advanced params (JSON)":"parámetros avanzados (JSON)",
-    "type some text…":"escribe algo…",
-    "you are a helpful…":"eres un asistente útil…",
-    "ask something…":"pregunta algo…",
+    "type a prompt or any text…":"escribe un prompt o cualquier texto…",
+    "system prompt (optional)":"prompt de sistema (opcional)",
+    "how the model should act — e.g. you are a strict editor":"cómo debe actuar el modelo — p. ej. eres un editor estricto",
+    "ask a question or give an instruction…":"haz una pregunta o da una instrucción…",
     "a red panda astronaut…":"un panda rojo astronauta…",
     "style guide, constraints…":"guía de estilo, restricciones…",
+    "· adds its reasoning to the text output":"· añade su razonamiento a la salida de texto",
     "a red panda astronaut, cinematic — or, with images wired in: 'combine these into a poster'":"un panda rojo astronauta, cinematográfico — o, con imágenes conectadas: 'combínalas en un póster'",
     "make it night-time, add neon…":"hazlo de noche, añade neón…",
     "Describe this image.":"Describe esta imagen.",
@@ -1441,11 +1475,14 @@ const I18N = {
     "Duration (sec)":"Duración (seg)",
     "Number of songs":"Número de canciones",
     "Negative prompt":"Prompt negativo",
+    "what to avoid — e.g. harsh noise, distortion, muffled vocals":"qué evitar — p. ej. ruido áspero, distorsión, voces apagadas",
     "Seed":"Semilla",
     "Format":"Formato",
     "Voice":"Voz",
     "Speed":"Velocidad",
     "Instructions":"Instrucciones",
+    "how to speak — tone, accent, emotion (some models ignore this)":"cómo hablar — tono, acento, emoción (algunos modelos lo ignoran)",
+    "e.g. warm and cheerful, slight British accent":"p. ej. cálido y alegre, ligero acento británico",
     "required by vocal song models (e.g. Mureka); leave empty for instrumental/BGM":"requerido por modelos de canción vocal (p. ej. Mureka); déjalo vacío para instrumental/BGM",
     "run this branch":"ejecutar esta rama",
     "delete":"eliminar",
@@ -1457,7 +1494,7 @@ const I18N = {
     "Webcam":"Cámara",
     "Capture":"Capturar",
     "Cancel":"Cancelar",
-    "no image yet":"aún sin imagen",
+    "no image yet — drop one here":"aún sin imagen — suelta una aquí",
     "running…":"ejecutando…",
     "error":"error",
     "generating audio…":"generando audio…",
@@ -1521,8 +1558,10 @@ const I18N = {
     "Inputs":"Entradas",
     "Other":"Otros",
     "instruction (optional)":"instrucción (opcional)",
-    "prompt (optional)":"prompt (opcional)",
+    "direction (optional)":"dirección (opcional)",
+    "the spoken words come from the audio input — this guides movement and mood":"las palabras habladas vienen de la entrada de audio — esto guía el movimiento y el tono",
     "language":"idioma",
+    "auto detects it — or type a language code like en or ja":"auto lo detecta — o escribe un código de idioma como es o en",
     "restyle as claymation · extend the clip · upscale to 4K…":"reestiliza como plastilina · extiende el clip · escala a 4K…",
     "subtle head movement, warm lighting…":"movimiento sutil de cabeza, luz cálida…",
     "Load a ready-made example workflow":"Cargar un flujo de ejemplo ya preparado",
@@ -1551,6 +1590,12 @@ const I18N = {
     "Bold":"Gras",
     "Smaller text":"Texte plus petit",
     "Bigger text":"Texte plus grand",
+    "Yellow":"Jaune",
+    "Pink":"Rose",
+    "Green":"Vert",
+    "Blue":"Bleu",
+    "Purple":"Violet",
+    "Gray":"Gris",
     "write a note…":"écrire une note…",
     "remove":"retirer",
     "to run":"pour exécuter",
@@ -1655,7 +1700,7 @@ const I18N = {
     "Pull still frames out of a video":"Extraire des images fixes d’une vidéo",
     "Recent":"Récent",
     "Running calls models on your NanoGPT key.":"L’exécution appelle les modèles avec votre clé NanoGPT.",
-    "Sampling + reasoning knobs. Defaults apply when untouched.":"Réglages d’échantillonnage + de raisonnement. Les valeurs par défaut s’appliquent si vous n’y touchez pas.",
+    "· higher = more creative":"· plus élevé = plus créatif",
     "Save as a new app":"Enregistrer comme nouvelle app",
     "My apps":"Mes apps",
     "Open one of your saved apps — created or imported":"Ouvrez une de vos apps enregistrées — créées ou importées",
@@ -1692,9 +1737,16 @@ const I18N = {
     "build something here → hit":"créez quelque chose ici → appuyez sur",
     "delete (Del)":"supprimer (Del)",
     "drag to resize":"glisser pour redimensionner",
+    "mode":"mode",
+    "fit within":"ajuster à l’intérieur",
+    "fill & crop":"remplir et rogner",
+    "exact (stretch)":"exact (étirer)",
+    "width (px)":"largeur (px)",
+    "height (px)":"hauteur (px)",
+    "Set width, height, or both — a blank side keeps the image’s aspect. fit within never upscales. Free · runs on your device.":"Indiquez la largeur, la hauteur ou les deux — le côté vide conserve les proportions de l’image. ajuster à l’intérieur n’agrandit jamais. Gratuit · s’exécute sur votre appareil.",
     "e.g. “add a node that speaks the result aloud”":"ex. « ajouter un nœud qui lit le résultat à voix haute »",
     "edit":"modifier",
-    "frames":"images",
+    "how many frames":"combien d'images",
     "gap between frames (sec)":"écart entre les images (s)",
     "high":"élevé",
     "host it. They can see the workflow.":"l’héberge. Ils peuvent voir le workflow.",
@@ -1713,25 +1765,32 @@ const I18N = {
     "nanoodle — AI workflow editor":"nanoodle — éditeur de workflows IA",
     "no audio yet":"aucun audio",
     "no video yet":"aucune vidéo",
+    "keep clips under ~3 MB — larger won’t reach the model":"gardez les clips sous ~3 MB — au-delà, ils n’atteindront pas le modèle",
     "or":"ou",
     "or post it to":"ou publiez-le sur",
     "output format":"format de sortie",
     "outputs mono WAV, sized to inline — handy before Avatar / lipsync when a clip is too long.":"produit un WAV mono, dimensionné pour l’intégration — pratique avant Avatar / synchro labiale quand un clip est trop long.",
-    "video → mono WAV. Leave length blank for the whole clip. Wire into 🎙️ Transcribe or ✂️ Trim. Transcribe fits about 2 min of audio per run — for a longer video, use ✂️ Trim (or set a length) to grab a section. Generated clips are silent — use an uploaded video with sound.":"vidéo → WAV mono. Laissez la durée vide pour tout le clip. Reliez à 🎙️ Transcribe ou ✂️ Trim. Transcribe traite environ 2 min d’audio par exécution — pour une vidéo plus longue, utilisez ✂️ Trim (ou définissez une durée) pour en prendre une section. Les clips générés sont muets — utilisez une vidéo importée avec du son.",
+    "video → mono WAV — wire into 🎙️ Transcribe to get text. Transcribe fits about 2 min per run, so set a length for a longer video. AI-generated videos are silent — use an uploaded video with sound.":"vidéo → WAV mono — reliez à 🎙️ Transcribe pour obtenir du texte. Transcribe traite environ 2 min par exécution, définissez donc une durée pour une vidéo plus longue. Les vidéos générées par IA sont muettes — utilisez une vidéo importée avec du son.",
+    "whole clip":"clip entier",
     "paste your link":"collez votre lien",
     "random":"aléatoire",
     "reasoning effort":"effort de raisonnement",
     "resolution":"résolution",
     "save frame":"enregistrer l’image",
     "show thinking":"afficher le raisonnement",
+    "source comes from the wire — run once to load it here, then brush":"l’image source arrive par la connexion — lancer une fois pour la charger ici, puis peindre",
     "start (sec)":"début (s)",
     "start from":"démarrer depuis",
     "temperature":"température",
     "they":"ils",
     "this clip has generated audio":"ce clip a un audio généré",
+    "loop audio to fill video":"répéter l'audio pour remplir la vidéo",
+    "Repeat the audio to fill the whole video. Off: the audio plays once, then the rest of the video is silent. Audio longer than the video is always trimmed to the video's length.":"Répète l'audio pour remplir toute la vidéo. Désactivé : l'audio est joué une fois, puis le reste de la vidéo est silencieux. Un audio plus long que la vidéo est toujours coupé à la durée de la vidéo.",
+    "the new audio replaces the video's existing sound.":"le nouvel audio remplace le son existant de la vidéo.",
     "trim duplicate seam frame":"couper l’image de raccord dupliquée",
     "upload or capture an image, then brush the area to repaint":"importer ou capturer une image, puis peindre la zone à repeindre",
     "what to paint in":"ce qu’il faut peindre",
+    "wire two or more clips — they join in order, top to bottom":"branche deux clips ou plus — ils s’enchaînent dans l’ordre, de haut en bas",
     "· blank = random, fix to repeat (re-run won't regenerate)":"· vide = aléatoire, fixer pour répéter (relancer ne régénère pas)",
     "— made NanoGPT do something nobody expected":"— a fait faire à nano-gpt une chose que personne n’attendait",
     "— most hearts on Discord + upvotes on Reddit (summed if you post both!)":"— le plus de cœurs sur Discord + votes positifs sur Reddit (additionnés si vous postez sur les deux !)",
@@ -1755,6 +1814,8 @@ const I18N = {
     "💬 Post in Discord ↗":"💬 Publier sur Discord ↗",
     "📣 What’s new":"📣 Nouveautés",
     "📨 Submit your entry →":"📨 Soumettre votre participation →",
+    "🔌 mask ← wired (white = repaint)":"🔌 masque ← branché (blanc = à repeindre)",
+    "🔌 source image ← wired":"🔌 image source ← branchée",
     "🔗 Share workflow":"🔗 Partager le workflow",
     "🛠 Most Useful · 💡 Most Innovative · ❤️ People's Choice":"🛠 Le plus utile · 💡 Le plus innovant · ❤️ Choix du public",
     "🤖 Post to r/nanocurrency ↗":"🤖 Publier sur r/nanocurrency ↗",
@@ -1811,7 +1872,7 @@ const I18N = {
     "cheapest":"moins chers",
     "priciest":"plus chers",
     "Text":"Texte",
-    "A string source":"Une source de texte",
+    "Text you type — usually a prompt":"Du texte que vous saisissez — souvent un prompt",
     "Image input":"Entrée image",
     "Upload or capture an image":"Importer ou capturer une image",
     "Join":"Joindre",
@@ -1825,7 +1886,7 @@ const I18N = {
     "Vision":"Vision",
     "Image → text (describe / ask)":"Image → texte (décrire / demander)",
     "Text→Video":"Texte→Vidéo",
-    "Text → video (renders ~1 min)":"Texte → vidéo (rendu ~1 min)",
+    "Text → video (takes ~1 min to generate)":"Texte → vidéo (génération en ~1 min)",
     "Image→Video":"Image→Vidéo",
     "Image (+text) → video (renders ~1 min)":"Image (+texte) → vidéo (rendu ~1 min)",
     "Music":"Musique",
@@ -1840,6 +1901,14 @@ const I18N = {
     "system (optional)":"système (facultatif)",
     "prompt":"prompt",
     "separator":"séparateur",
+    "options":"options",
+    "· one per line":"· une par ligne",
+    "selection":"sélection",
+    "· the default pick":"· le choix par défaut",
+    "— add options above —":"— ajoutez des options ci-dessus —",
+    "watercolor\noil painting\npixel art":"aquarelle\npeinture à l'huile\npixel art",
+    "no separator":"sans séparateur",
+    "Goes between a and b — a space by default; type \\n for a new line.":"S'insère entre a et b — un espace par défaut ; tapez \\n pour un saut de ligne.",
     "size":"taille",
     "edit instruction":"instruction de modification",
     "question":"question",
@@ -1849,11 +1918,13 @@ const I18N = {
     "style / prompt":"style / prompt",
     "text to speak":"texte à dire",
     "advanced params (JSON)":"params avancés (JSON)",
-    "type some text…":"saisissez du texte…",
-    "you are a helpful…":"vous êtes un assistant…",
-    "ask something…":"posez une question…",
+    "type a prompt or any text…":"saisissez un prompt ou tout autre texte…",
+    "system prompt (optional)":"prompt système (facultatif)",
+    "how the model should act — e.g. you are a strict editor":"comment le modèle doit agir — p. ex. vous êtes un correcteur strict",
+    "ask a question or give an instruction…":"posez une question ou donnez une instruction…",
     "a red panda astronaut…":"un panda roux astronaute…",
     "style guide, constraints…":"guide de style, contraintes…",
+    "· adds its reasoning to the text output":"· ajoute son raisonnement à la sortie texte",
     "a red panda astronaut, cinematic — or, with images wired in: 'combine these into a poster'":"un panda roux astronaute, cinématique — ou, avec des images branchées : 'combine-les en une affiche'",
     "make it night-time, add neon…":"passe en mode nuit, ajoute des néons…",
     "Describe this image.":"Décrivez cette image.",
@@ -1872,11 +1943,14 @@ const I18N = {
     "Duration (sec)":"Durée (s)",
     "Number of songs":"Nombre de morceaux",
     "Negative prompt":"Prompt négatif",
+    "what to avoid — e.g. harsh noise, distortion, muffled vocals":"à éviter — ex. bruit strident, distorsion, voix étouffées",
     "Seed":"Seed",
     "Format":"Format",
     "Voice":"Voix",
     "Speed":"Vitesse",
     "Instructions":"Instructions",
+    "how to speak — tone, accent, emotion (some models ignore this)":"comment parler — ton, accent, émotion (certains modèles l'ignorent)",
+    "e.g. warm and cheerful, slight British accent":"ex. chaleureux et enjoué, léger accent britannique",
     "required by vocal song models (e.g. Mureka); leave empty for instrumental/BGM":"requis par les modèles vocaux (ex. Mureka) ; laisser vide pour instrumental/BGM",
     "run this branch":"exécuter cette branche",
     "delete":"supprimer",
@@ -1888,7 +1962,7 @@ const I18N = {
     "Webcam":"Webcam",
     "Capture":"Capturer",
     "Cancel":"Annuler",
-    "no image yet":"aucune image",
+    "no image yet — drop one here":"aucune image — déposez-en une ici",
     "running…":"exécution…",
     "error":"erreur",
     "generating audio…":"génération de l’audio…",
@@ -1952,8 +2026,10 @@ const I18N = {
     "Inputs":"Entrées",
     "Other":"Autre",
     "instruction (optional)":"instruction (facultatif)",
-    "prompt (optional)":"prompt (facultatif)",
+    "direction (optional)":"direction (facultatif)",
+    "the spoken words come from the audio input — this guides movement and mood":"les paroles viennent de l’entrée audio — ceci guide le mouvement et l’ambiance",
     "language":"langue",
+    "auto detects it — or type a language code like en or ja":"auto la détecte — ou saisissez un code de langue comme fr ou en",
     "restyle as claymation · extend the clip · upscale to 4K…":"style pâte à modeler · prolonger le clip · passer en 4K…",
     "subtle head movement, warm lighting…":"léger mouvement de tête, lumière chaude…",
     "Load a ready-made example workflow":"Charger un workflow d'exemple prêt à l'emploi",
@@ -1982,6 +2058,12 @@ const I18N = {
     "Bold":"Fett",
     "Smaller text":"Kleinerer Text",
     "Bigger text":"Größerer Text",
+    "Yellow":"Gelb",
+    "Pink":"Rosa",
+    "Green":"Grün",
+    "Blue":"Blau",
+    "Purple":"Lila",
+    "Gray":"Grau",
     "write a note…":"Notiz schreiben…",
     "remove":"entfernen",
     "to run":"zum Ausführen",
@@ -2082,7 +2164,7 @@ const I18N = {
     "Pull still frames out of a video":"Standbilder aus einem Video ziehen",
     "Recent":"Zuletzt verwendet",
     "Running calls models on your NanoGPT key.":"Beim Ausführen werden Modelle über deinen NanoGPT-Schlüssel aufgerufen.",
-    "Sampling + reasoning knobs. Defaults apply when untouched.":"Sampling- und Reasoning-Regler. Standardwerte gelten, solange unverändert.",
+    "· higher = more creative":"· höher = kreativer",
     "Save as a new app":"Als neue App speichern",
     "My apps":"Meine Apps",
     "Open one of your saved apps — created or imported":"Öffne eine deiner gespeicherten Apps — erstellt oder importiert",
@@ -2118,9 +2200,16 @@ const I18N = {
     "build something here → hit":"baue hier etwas → drücke",
     "delete (Del)":"löschen (Del)",
     "drag to resize":"ziehen, um die Größe zu ändern",
+    "mode":"Modus",
+    "fit within":"einpassen",
+    "fill & crop":"füllen & zuschneiden",
+    "exact (stretch)":"exakt (verzerren)",
+    "width (px)":"Breite (px)",
+    "height (px)":"Höhe (px)",
+    "Set width, height, or both — a blank side keeps the image’s aspect. fit within never upscales. Free · runs on your device.":"Gib Breite, Höhe oder beides an — eine leere Seite behält das Seitenverhältnis des Bildes. einpassen vergrößert nie. Kostenlos · läuft auf deinem Gerät.",
     "e.g. “add a node that speaks the result aloud”":"z. B. „einen Node hinzufügen, der das Ergebnis laut vorliest“",
     "edit":"bearbeiten",
-    "frames":"Frames",
+    "how many frames":"wie viele Frames",
     "gap between frames (sec)":"Abstand zwischen Frames (Sek.)",
     "high":"hoch",
     "host it. They can see the workflow.":"es hosten. Der Dienst kann den Workflow sehen.",
@@ -2140,11 +2229,13 @@ const I18N = {
     "nanoodle — AI workflow editor":"nanoodle — KI-Workflow-Editor",
     "no audio yet":"noch kein Audio",
     "no video yet":"noch kein Video",
+    "keep clips under ~3 MB — larger won’t reach the model":"Clips unter ~3 MB halten — größere erreichen das Modell nicht",
     "or":"oder",
     "or post it to":"oder poste es auf",
     "output format":"Ausgabeformat",
     "outputs mono WAV, sized to inline — handy before Avatar / lipsync when a clip is too long.":"gibt Mono-WAV aus, auf Inline-Größe reduziert — praktisch vor Avatar / Lippensynchro, wenn ein Clip zu lang ist.",
-    "video → mono WAV. Leave length blank for the whole clip. Wire into 🎙️ Transcribe or ✂️ Trim. Transcribe fits about 2 min of audio per run — for a longer video, use ✂️ Trim (or set a length) to grab a section. Generated clips are silent — use an uploaded video with sound.":"Video → Mono-WAV. Länge leer lassen für den ganzen Clip. Verbinde mit 🎙️ Transcribe oder ✂️ Trim. Transcribe verarbeitet etwa 2 Min. Audio pro Lauf — für ein längeres Video nutze ✂️ Trim (oder gib eine Länge an), um einen Abschnitt zu erfassen. Generierte Clips sind stumm — nutze ein hochgeladenes Video mit Ton.",
+    "video → mono WAV — wire into 🎙️ Transcribe to get text. Transcribe fits about 2 min per run, so set a length for a longer video. AI-generated videos are silent — use an uploaded video with sound.":"Video → Mono-WAV — verbinde mit 🎙️ Transcribe, um Text zu erhalten. Transcribe verarbeitet etwa 2 Min. pro Lauf — gib also für ein längeres Video eine Länge an. KI-generierte Videos sind stumm — nutze ein hochgeladenes Video mit Ton.",
+    "whole clip":"ganzer Clip",
     "paste your link":"füge deinen Link ein",
     "random":"zufällig",
     "reasoning effort":"Reasoning-Aufwand",
@@ -2152,17 +2243,22 @@ const I18N = {
     "save frame":"Frame speichern",
     "seed":"Seed",
     "show thinking":"Denken anzeigen",
+    "source comes from the wire — run once to load it here, then brush":"die Quelle kommt über die Verbindung — einmal ausführen, um sie hier zu laden, dann übermalen",
     "start (sec)":"Start (Sek.)",
     "start from":"beginnen ab",
     "temperature":"Temperatur",
     "they":"sie",
     "this clip has generated audio":"dieser Clip hat generiertes Audio",
+    "loop audio to fill video":"Audio wiederholen, bis das Video gefüllt ist",
+    "Repeat the audio to fill the whole video. Off: the audio plays once, then the rest of the video is silent. Audio longer than the video is always trimmed to the video's length.":"Wiederholt das Audio, bis das ganze Video gefüllt ist. Aus: Das Audio spielt einmal, danach bleibt der Rest des Videos stumm. Audio, das länger als das Video ist, wird immer auf die Videolänge gekürzt.",
+    "the new audio replaces the video's existing sound.":"das neue Audio ersetzt den vorhandenen Ton des Videos.",
     "trim duplicate seam frame":"doppelten Nahtframe entfernen",
     "upload or capture an image, then brush the area to repaint":"Bild hochladen oder aufnehmen, dann den neu zu zeichnenden Bereich übermalen",
     "variation":"Variation",
     "variations":"Variationen",
     "vision":"Vision",
     "what to paint in":"was hineingemalt werden soll",
+    "wire two or more clips — they join in order, top to bottom":"verbinde zwei oder mehr Clips — sie werden der Reihe nach zusammengefügt, von oben nach unten",
     "· blank = random, fix to repeat (re-run won't regenerate)":"· leer = zufällig, festlegen zum Wiederholen (erneutes Ausführen regeneriert nicht)",
     "— made NanoGPT do something nobody expected":"— nano-gpt zu etwas gebracht, das niemand erwartet hat",
     "— most hearts on Discord + upvotes on Reddit (summed if you post both!)":"— die meisten Herzen auf Discord + Upvotes auf Reddit (summiert, wenn du beides postest!)",
@@ -2186,6 +2282,8 @@ const I18N = {
     "💬 Post in Discord ↗":"💬 In Discord posten ↗",
     "📣 What’s new":"📣 Was ist neu",
     "📨 Submit your entry →":"📨 Beitrag einreichen →",
+    "🔌 mask ← wired (white = repaint)":"🔌 Maske ← verbunden (weiß = wird neu gezeichnet)",
+    "🔌 source image ← wired":"🔌 Quellbild ← verbunden",
     "🔗 Share workflow":"🔗 Workflow teilen",
     "🛠 Most Useful · 💡 Most Innovative · ❤️ People's Choice":"🛠 Nützlichste · 💡 Innovativste · ❤️ Publikumsliebling",
     "🤖 Post to r/nanocurrency ↗":"🤖 In r/nanocurrency posten ↗",
@@ -2242,7 +2340,7 @@ const I18N = {
     "cheapest":"günstigste",
     "priciest":"teuerste",
     "Text":"Text",
-    "A string source":"Eine Textquelle",
+    "Text you type — usually a prompt":"Text, den du eingibst — meist ein Prompt",
     "Image input":"Bildeingabe",
     "Upload or capture an image":"Bild hochladen oder aufnehmen",
     "Join":"Verbinden",
@@ -2256,7 +2354,7 @@ const I18N = {
     "Vision":"Vision",
     "Image → text (describe / ask)":"Bild → Text (beschreiben / fragen)",
     "Text→Video":"Text→Video",
-    "Text → video (renders ~1 min)":"Text → Video (rendert ~1 Min.)",
+    "Text → video (takes ~1 min to generate)":"Text → Video (Erzeugung dauert ~1 Min.)",
     "Image→Video":"Bild→Video",
     "Image (+text) → video (renders ~1 min)":"Bild (+Text) → Video (rendert ~1 Min.)",
     "Music":"Musik",
@@ -2271,6 +2369,14 @@ const I18N = {
     "system (optional)":"System (optional)",
     "prompt":"Prompt",
     "separator":"Trennzeichen",
+    "options":"Optionen",
+    "· one per line":"· eine pro Zeile",
+    "selection":"Auswahl",
+    "· the default pick":"· die Standardauswahl",
+    "— add options above —":"— oben Optionen hinzufügen —",
+    "watercolor\noil painting\npixel art":"Aquarell\nÖlgemälde\nPixel-Art",
+    "no separator":"kein Trennzeichen",
+    "Goes between a and b — a space by default; type \\n for a new line.":"Steht zwischen a und b — standardmäßig ein Leerzeichen; \\n eingeben für einen Zeilenumbruch.",
     "size":"Größe",
     "edit instruction":"Bearbeitungsanweisung",
     "question":"Frage",
@@ -2280,11 +2386,13 @@ const I18N = {
     "style / prompt":"Stil / Prompt",
     "text to speak":"Text zum Sprechen",
     "advanced params (JSON)":"erweiterte Parameter (JSON)",
-    "type some text…":"Text eingeben…",
-    "you are a helpful…":"du bist ein hilfreicher…",
-    "ask something…":"etwas fragen…",
+    "type a prompt or any text…":"Prompt oder beliebigen Text eingeben…",
+    "system prompt (optional)":"System-Prompt (optional)",
+    "how the model should act — e.g. you are a strict editor":"wie sich das Modell verhalten soll — z. B. du bist ein strenger Lektor",
+    "ask a question or give an instruction…":"eine Frage stellen oder eine Anweisung geben…",
     "a red panda astronaut…":"ein Roter Panda als Astronaut…",
     "style guide, constraints…":"Stilvorgaben, Einschränkungen…",
+    "· adds its reasoning to the text output":"· fügt die Überlegungen der Textausgabe hinzu",
     "a red panda astronaut, cinematic — or, with images wired in: 'combine these into a poster'":"ein Roter Panda als Astronaut, filmisch — oder, mit verbundenen Bildern: 'kombiniere sie zu einem Poster'",
     "make it night-time, add neon…":"mach es Nacht, füge Neon hinzu…",
     "Describe this image.":"Beschreibe dieses Bild.",
@@ -2303,11 +2411,14 @@ const I18N = {
     "Duration (sec)":"Dauer (Sek.)",
     "Number of songs":"Anzahl Songs",
     "Negative prompt":"Negativer Prompt",
+    "what to avoid — e.g. harsh noise, distortion, muffled vocals":"was vermieden werden soll — z. B. schrilles Rauschen, Verzerrung, dumpfer Gesang",
     "Seed":"Seed",
     "Format":"Format",
     "Voice":"Stimme",
     "Speed":"Geschwindigkeit",
     "Instructions":"Anweisungen",
+    "how to speak — tone, accent, emotion (some models ignore this)":"Sprechweise — Ton, Akzent, Emotion (manche Modelle ignorieren dies)",
+    "e.g. warm and cheerful, slight British accent":"z. B. warm und fröhlich, leichter britischer Akzent",
     "required by vocal song models (e.g. Mureka); leave empty for instrumental/BGM":"erforderlich für Gesangsmodelle (z.B. Mureka); leer lassen für Instrumental/BGM",
     "run this branch":"diesen Zweig ausführen",
     "delete":"löschen",
@@ -2319,7 +2430,7 @@ const I18N = {
     "Webcam":"Webcam",
     "Capture":"Aufnehmen",
     "Cancel":"Abbrechen",
-    "no image yet":"noch kein Bild",
+    "no image yet — drop one here":"noch kein Bild — eins hier ablegen",
     "running…":"läuft…",
     "error":"Fehler",
     "generating audio…":"Audio wird erzeugt…",
@@ -2383,8 +2494,10 @@ const I18N = {
     "Inputs":"Eingaben",
     "Other":"Sonstiges",
     "instruction (optional)":"Anweisung (optional)",
-    "prompt (optional)":"Prompt (optional)",
+    "direction (optional)":"Regie (optional)",
+    "the spoken words come from the audio input — this guides movement and mood":"Der gesprochene Text kommt vom Audio-Eingang — dies steuert Bewegung und Stimmung",
     "language":"Sprache",
+    "auto detects it — or type a language code like en or ja":"auto erkennt sie — oder gib einen Sprachcode wie de oder en ein",
     "restyle as claymation · extend the clip · upscale to 4K…":"im Knetfilm-Stil · Clip verlängern · auf 4K hochskalieren…",
     "subtle head movement, warm lighting…":"leichte Kopfbewegung, warmes Licht…",
     "Load a ready-made example workflow":"Lade einen fertigen Beispiel-Workflow",
@@ -2413,6 +2526,12 @@ const I18N = {
     "Bold":"Negrito",
     "Smaller text":"Texto menor",
     "Bigger text":"Texto maior",
+    "Yellow":"Amarelo",
+    "Pink":"Rosa",
+    "Green":"Verde",
+    "Blue":"Azul",
+    "Purple":"Roxo",
+    "Gray":"Cinza",
     "write a note…":"escreva uma nota…",
     "remove":"remover",
     "to run":"para executar",
@@ -2511,7 +2630,7 @@ const I18N = {
     "Pull still frames out of a video":"Extraia quadros estáticos de um vídeo",
     "Recent":"Recentes",
     "Running calls models on your NanoGPT key.":"A execução chama modelos usando sua chave NanoGPT.",
-    "Sampling + reasoning knobs. Defaults apply when untouched.":"Controles de amostragem + raciocínio. Os padrões se aplicam quando não alterados.",
+    "· higher = more creative":"· mais alto = mais criativo",
     "Save as a new app":"Salvar como novo app",
     "My apps":"Meus apps",
     "Open one of your saved apps — created or imported":"Abra um dos seus apps salvos — criados ou importados",
@@ -2549,9 +2668,16 @@ const I18N = {
     "build something here → hit":"construa algo aqui → clique em",
     "delete (Del)":"excluir (Del)",
     "drag to resize":"arraste para redimensionar",
+    "mode":"modo",
+    "fit within":"caber dentro",
+    "fill & crop":"preencher e cortar",
+    "exact (stretch)":"exato (esticar)",
+    "width (px)":"largura (px)",
+    "height (px)":"altura (px)",
+    "Set width, height, or both — a blank side keeps the image’s aspect. fit within never upscales. Free · runs on your device.":"Defina largura, altura ou ambas — o lado em branco mantém a proporção da imagem. caber dentro nunca amplia. Grátis · roda no seu dispositivo.",
     "e.g. “add a node that speaks the result aloud”":"ex.: “adicione um nó que fala o resultado em voz alta”",
     "edit":"editar",
-    "frames":"quadros",
+    "how many frames":"quantos quadros",
     "gap between frames (sec)":"intervalo entre quadros (seg)",
     "high":"alto",
     "host it. They can see the workflow.":"hospede-o. Eles podem ver o fluxo.",
@@ -2571,28 +2697,35 @@ const I18N = {
     "nanoodle — AI workflow editor":"nanoodle — editor de fluxos de IA",
     "no audio yet":"nenhum áudio ainda",
     "no video yet":"nenhum vídeo ainda",
+    "keep clips under ~3 MB — larger won’t reach the model":"mantenha os clipes abaixo de ~3 MB — maiores não chegarão ao modelo",
     "or":"ou",
     "or post it to":"ou poste em",
     "output format":"formato de saída",
     "outputs mono WAV, sized to inline — handy before Avatar / lipsync when a clip is too long.":"gera WAV mono, dimensionado para inline — útil antes de Avatar / sincronia labial quando um clipe é muito longo.",
-    "video → mono WAV. Leave length blank for the whole clip. Wire into 🎙️ Transcribe or ✂️ Trim. Transcribe fits about 2 min of audio per run — for a longer video, use ✂️ Trim (or set a length) to grab a section. Generated clips are silent — use an uploaded video with sound.":"vídeo → WAV mono. Deixe a duração em branco para o clipe inteiro. Ligue a 🎙️ Transcribe ou ✂️ Trim. O Transcribe processa cerca de 2 min de áudio por execução — para um vídeo mais longo, use ✂️ Trim (ou defina uma duração) para pegar um trecho. Clipes gerados não têm som — use um vídeo enviado com áudio.",
+    "video → mono WAV — wire into 🎙️ Transcribe to get text. Transcribe fits about 2 min per run, so set a length for a longer video. AI-generated videos are silent — use an uploaded video with sound.":"vídeo → WAV mono — ligue a 🎙️ Transcribe para obter texto. O Transcribe processa cerca de 2 min por execução, então defina uma duração para um vídeo mais longo. Vídeos gerados por IA não têm som — use um vídeo enviado com áudio.",
+    "whole clip":"clipe inteiro",
     "paste your link":"cole seu link",
     "random":"aleatório",
     "reasoning effort":"esforço de raciocínio",
     "resolution":"resolução",
     "save frame":"salvar quadro",
     "show thinking":"mostrar raciocínio",
+    "source comes from the wire — run once to load it here, then brush":"a imagem de origem vem da conexão — execute uma vez para carregá-la aqui, depois pincele",
     "start (sec)":"início (seg)",
     "start from":"começar de",
     "temperature":"temperatura",
     "they":"eles",
     "this clip has generated audio":"este clipe tem áudio gerado",
+    "loop audio to fill video":"repetir o áudio até preencher o vídeo",
+    "Repeat the audio to fill the whole video. Off: the audio plays once, then the rest of the video is silent. Audio longer than the video is always trimmed to the video's length.":"Repete o áudio até preencher o vídeo inteiro. Desligado: o áudio toca uma vez e o resto do vídeo fica em silêncio. Um áudio mais longo que o vídeo é sempre cortado para a duração do vídeo.",
+    "the new audio replaces the video's existing sound.":"o novo áudio substitui o som existente do vídeo.",
     "trim duplicate seam frame":"cortar quadro de emenda duplicado",
     "upload or capture an image, then brush the area to repaint":"envie ou capture uma imagem, depois pincele a área a repintar",
     "variation":"variação",
     "variations":"variações",
     "vision":"visão",
     "what to paint in":"o que pintar na área",
+    "wire two or more clips — they join in order, top to bottom":"conecte dois ou mais clipes — eles se unem em ordem, de cima para baixo",
     "· blank = random, fix to repeat (re-run won't regenerate)":"· vazio = aleatório, fixe para repetir (reexecutar não regenera)",
     "— made NanoGPT do something nobody expected":"— fez o nano-gpt fazer algo que ninguém esperava",
     "— most hearts on Discord + upvotes on Reddit (summed if you post both!)":"— mais corações no Discord + upvotes no Reddit (somados se você postar nos dois!)",
@@ -2616,6 +2749,8 @@ const I18N = {
     "💬 Post in Discord ↗":"💬 Publicar no Discord ↗",
     "📣 What’s new":"📣 Novidades",
     "📨 Submit your entry →":"📨 Envie sua inscrição →",
+    "🔌 mask ← wired (white = repaint)":"🔌 máscara ← conectada (branco = repintar)",
+    "🔌 source image ← wired":"🔌 imagem de origem ← conectada",
     "🔗 Share workflow":"🔗 Compartilhar fluxo",
     "🛠 Most Useful · 💡 Most Innovative · ❤️ People's Choice":"🛠 Mais Útil · 💡 Mais Inovador · ❤️ Escolha do Público",
     "🛠 Workflow":"🛠 Fluxo",
@@ -2673,7 +2808,7 @@ const I18N = {
     "cheapest":"mais baratos",
     "priciest":"mais caros",
     "Text":"Texto",
-    "A string source":"Uma fonte de texto",
+    "Text you type — usually a prompt":"Texto que você digita — geralmente um prompt",
     "Image input":"Entrada de imagem",
     "Upload or capture an image":"Envie ou capture uma imagem",
     "Join":"Juntar",
@@ -2687,7 +2822,7 @@ const I18N = {
     "Vision":"Visão",
     "Image → text (describe / ask)":"Imagem → texto (descrever / perguntar)",
     "Text→Video":"Texto→Vídeo",
-    "Text → video (renders ~1 min)":"Texto → vídeo (renderiza ~1 min)",
+    "Text → video (takes ~1 min to generate)":"Texto → vídeo (leva ~1 min para gerar)",
     "Image→Video":"Imagem→Vídeo",
     "Image (+text) → video (renders ~1 min)":"Imagem (+texto) → vídeo (renderiza ~1 min)",
     "Music":"Música",
@@ -2702,6 +2837,14 @@ const I18N = {
     "system (optional)":"sistema (opcional)",
     "prompt":"prompt",
     "separator":"separador",
+    "options":"opções",
+    "· one per line":"· uma por linha",
+    "selection":"seleção",
+    "· the default pick":"· a escolha padrão",
+    "— add options above —":"— adicione opções acima —",
+    "watercolor\noil painting\npixel art":"aquarela\npintura a óleo\npixel art",
+    "no separator":"sem separador",
+    "Goes between a and b — a space by default; type \\n for a new line.":"Fica entre a e b — um espaço por padrão; digite \\n para uma nova linha.",
     "size":"tamanho",
     "edit instruction":"instrução de edição",
     "question":"pergunta",
@@ -2711,11 +2854,13 @@ const I18N = {
     "style / prompt":"estilo / prompt",
     "text to speak":"texto a falar",
     "advanced params (JSON)":"parâmetros avançados (JSON)",
-    "type some text…":"digite um texto…",
-    "you are a helpful…":"você é um assistente prestativo…",
-    "ask something…":"pergunte algo…",
+    "type a prompt or any text…":"digite um prompt ou qualquer texto…",
+    "system prompt (optional)":"prompt de sistema (opcional)",
+    "how the model should act — e.g. you are a strict editor":"como o modelo deve agir — p. ex. você é um editor rigoroso",
+    "ask a question or give an instruction…":"faça uma pergunta ou dê uma instrução…",
     "a red panda astronaut…":"um panda-vermelho astronauta…",
     "style guide, constraints…":"guia de estilo, restrições…",
+    "· adds its reasoning to the text output":"· adiciona seu raciocínio à saída de texto",
     "a red panda astronaut, cinematic — or, with images wired in: 'combine these into a poster'":"um panda-vermelho astronauta, cinematográfico — ou, com imagens conectadas: 'combine-as em um pôster'",
     "make it night-time, add neon…":"transforme em noite, adicione néon…",
     "Describe this image.":"Descreva esta imagem.",
@@ -2734,11 +2879,14 @@ const I18N = {
     "Duration (sec)":"Duração (seg)",
     "Number of songs":"Número de músicas",
     "Negative prompt":"Prompt negativo",
+    "what to avoid — e.g. harsh noise, distortion, muffled vocals":"o que evitar — ex.: ruído áspero, distorção, vocais abafados",
     "Seed":"Seed",
     "Format":"Formato",
     "Voice":"Voz",
     "Speed":"Velocidade",
     "Instructions":"Instruções",
+    "how to speak — tone, accent, emotion (some models ignore this)":"como falar — tom, sotaque, emoção (alguns modelos ignoram)",
+    "e.g. warm and cheerful, slight British accent":"ex.: caloroso e alegre, leve sotaque britânico",
     "required by vocal song models (e.g. Mureka); leave empty for instrumental/BGM":"exigido por modelos com vocal (ex.: Mureka); deixe vazio para instrumental/BGM",
     "run this branch":"executar este ramo",
     "delete":"excluir",
@@ -2750,7 +2898,7 @@ const I18N = {
     "Webcam":"Webcam",
     "Capture":"Capturar",
     "Cancel":"Cancelar",
-    "no image yet":"nenhuma imagem ainda",
+    "no image yet — drop one here":"nenhuma imagem ainda — solte uma aqui",
     "running…":"executando…",
     "error":"erro",
     "generating audio…":"gerando áudio…",
@@ -2814,8 +2962,10 @@ const I18N = {
     "Inputs":"Entradas",
     "Other":"Outros",
     "instruction (optional)":"instrução (opcional)",
-    "prompt (optional)":"prompt (opcional)",
+    "direction (optional)":"direção (opcional)",
+    "the spoken words come from the audio input — this guides movement and mood":"as palavras faladas vêm da entrada de áudio — isto orienta o movimento e o tom",
     "language":"idioma",
+    "auto detects it — or type a language code like en or ja":"auto detecta — ou digite um código de idioma como pt ou en",
     "restyle as claymation · extend the clip · upscale to 4K…":"reestilizar como massinha · estender o clipe · ampliar para 4K…",
     "subtle head movement, warm lighting…":"leve movimento da cabeça, iluminação quente…",
     "Load a ready-made example workflow":"Carregar um fluxo de exemplo pronto",
@@ -2844,6 +2994,12 @@ const I18N = {
     "Bold":"太字",
     "Smaller text":"文字を小さく",
     "Bigger text":"文字を大きく",
+    "Yellow":"黄色",
+    "Pink":"ピンク",
+    "Green":"緑",
+    "Blue":"青",
+    "Purple":"紫",
+    "Gray":"グレー",
     "write a note…":"メモを書く…",
     "remove":"削除",
     "to run":"で実行",
@@ -2938,7 +3094,7 @@ const I18N = {
     "Pull still frames out of a video":"動画から静止フレームを抽出",
     "Recent":"最近",
     "Running calls models on your NanoGPT key.":"実行するとあなたの NanoGPT キーでモデルが呼び出されます。",
-    "Sampling + reasoning knobs. Defaults apply when untouched.":"サンプリング + 推論の調整項目。変更しない場合はデフォルトが適用されます。",
+    "· higher = more creative":"· 高いほど創造的",
     "Save as a new app":"新しいアプリとして保存",
     "My apps":"マイアプリ",
     "Open one of your saved apps — created or imported":"保存したアプリを開く — 作成またはインポートしたもの",
@@ -2977,9 +3133,16 @@ const I18N = {
     "build something here → hit":"ここで何か作って → 押す",
     "delete (Del)":"削除 (Del)",
     "drag to resize":"ドラッグしてサイズ変更",
+    "mode":"モード",
+    "fit within":"内側に収める",
+    "fill & crop":"埋めて切り抜き",
+    "exact (stretch)":"指定どおり（引き伸ばし）",
+    "width (px)":"幅 (px)",
+    "height (px)":"高さ (px)",
+    "Set width, height, or both — a blank side keeps the image’s aspect. fit within never upscales. Free · runs on your device.":"幅・高さのどちらか、または両方を指定 — 空欄の側は画像の縦横比を保ちます。内側に収めるは拡大しません。無料 · お使いの端末で実行されます。",
     "e.g. “add a node that speaks the result aloud”":"例: 「結果を読み上げるノードを追加」",
     "edit":"編集",
-    "frames":"フレーム",
+    "how many frames":"フレーム数",
     "gap between frames (sec)":"フレーム間の間隔 (秒)",
     "high":"高",
     "host it. They can see the workflow.":"ホストします。相手はワークフローを見ることができます。",
@@ -2999,11 +3162,13 @@ const I18N = {
     "nanoodle — AI workflow editor":"nanoodle — AI ワークフローエディター",
     "no audio yet":"音声なし",
     "no video yet":"動画なし",
+    "keep clips under ~3 MB — larger won’t reach the model":"クリップは約 3 MB 以下に — 超えるとモデルに届きません",
     "or":"または",
     "or post it to":"または次に投稿:",
     "output format":"出力形式",
     "outputs mono WAV, sized to inline — handy before Avatar / lipsync when a clip is too long.":"モノラルWAVを出力し、インライン用にサイズ調整 — クリップが長すぎる場合、アバター / リップシンクの前に便利。",
-    "video → mono WAV. Leave length blank for the whole clip. Wire into 🎙️ Transcribe or ✂️ Trim. Transcribe fits about 2 min of audio per run — for a longer video, use ✂️ Trim (or set a length) to grab a section. Generated clips are silent — use an uploaded video with sound.":"動画 → モノラルWAV。長さを空欄にするとクリップ全体。🎙️ Transcribe や ✂️ Trim につないでください。Transcribe は1回で約2分の音声を扱えます — 長い動画は ✂️ Trim（または長さを指定）で一部分だけを切り出してください。生成されたクリップは無音です — 音声付きのアップロード動画を使ってください。",
+    "video → mono WAV — wire into 🎙️ Transcribe to get text. Transcribe fits about 2 min per run, so set a length for a longer video. AI-generated videos are silent — use an uploaded video with sound.":"動画 → モノラルWAV — 🎙️ Transcribe につなぐとテキストになります。Transcribe は1回で約2分まで扱えるので、長い動画では長さを指定してください。AI生成の動画は無音です — 音声付きのアップロード動画を使ってください。",
+    "whole clip":"クリップ全体",
     "paste your link":"リンクを貼り付け",
     "random":"ランダム",
     "reasoning effort":"推論の強度",
@@ -3011,17 +3176,22 @@ const I18N = {
     "save frame":"フレームを保存",
     "seed":"シード",
     "show thinking":"思考を表示",
+    "source comes from the wire — run once to load it here, then brush":"ソース画像は接続から届きます — 一度実行してここに読み込み、その後ブラシで塗る",
     "start (sec)":"開始 (秒)",
     "start from":"開始位置",
     "temperature":"温度",
     "they":"相手",
     "this clip has generated audio":"このクリップには生成された音声があります",
+    "loop audio to fill video":"動画の長さに合わせて音声をループ",
+    "Repeat the audio to fill the whole video. Off: the audio plays once, then the rest of the video is silent. Audio longer than the video is always trimmed to the video's length.":"動画全体を満たすまで音声を繰り返します。オフ: 音声は一度だけ再生され、残りの動画は無音になります。動画より長い音声は常に動画の長さに合わせてカットされます。",
+    "the new audio replaces the video's existing sound.":"新しい音声が動画の既存の音に置き換わります。",
     "trim duplicate seam frame":"重複するつなぎ目フレームをトリミング",
     "upload or capture an image, then brush the area to repaint":"画像をアップロードまたは撮影し、塗り直す領域をブラシで塗る",
     "variation":"バリエーション",
     "variations":"バリエーション",
     "vision":"ビジョン",
     "what to paint in":"何を描き込むか",
+    "wire two or more clips — they join in order, top to bottom":"クリップを2つ以上つないでください — 上から下の順に結合されます",
     "· blank = random, fix to repeat (re-run won't regenerate)":"· 空欄=ランダム、固定すると繰り返す（再実行で再生成されない）",
     "— made NanoGPT do something nobody expected":"— nano-gptで誰も予想しなかったことを実現",
     "— most hearts on Discord + upvotes on Reddit (summed if you post both!)":"— Discordのハート＋Redditのupvoteが最多（両方投稿すれば合算！）",
@@ -3046,6 +3216,8 @@ const I18N = {
     "📣 What’s new":"📣 新着情報",
     "📨 Submit your entry →":"📨 エントリーを送信 →",
     "📷 Webcam":"📷 ウェブカメラ",
+    "🔌 mask ← wired (white = repaint)":"🔌 マスク ← 接続済み（白 = 塗り直す部分）",
+    "🔌 source image ← wired":"🔌 ソース画像 ← 接続済み",
     "🔗 Share workflow":"🔗 ワークフローを共有",
     "🚀 App":"🚀 アプリ",
     "🛠 Most Useful · 💡 Most Innovative · ❤️ People's Choice":"🛠 最も便利 · 💡 最も革新的 · ❤️ 人気賞",
@@ -3104,7 +3276,7 @@ const I18N = {
     "cheapest":"安い順",
     "priciest":"高い順",
     "Text":"テキスト",
-    "A string source":"文字列ソース",
+    "Text you type — usually a prompt":"自分で入力するテキスト — 多くはプロンプト",
     "Image input":"画像入力",
     "Upload or capture an image":"画像をアップロードまたは撮影",
     "Join":"結合",
@@ -3118,7 +3290,7 @@ const I18N = {
     "Vision":"ビジョン",
     "Image → text (describe / ask)":"画像 → テキスト (説明 / 質問)",
     "Text→Video":"テキスト→動画",
-    "Text → video (renders ~1 min)":"テキスト → 動画 (生成 約1分)",
+    "Text → video (takes ~1 min to generate)":"テキスト → 動画（生成に約1分かかります）",
     "Image→Video":"画像→動画",
     "Image (+text) → video (renders ~1 min)":"画像 (+テキスト) → 動画 (生成 約1分)",
     "Music":"音楽",
@@ -3133,6 +3305,14 @@ const I18N = {
     "system (optional)":"システム (任意)",
     "prompt":"プロンプト",
     "separator":"区切り文字",
+    "options":"選択肢",
+    "· one per line":"· 1行に1つ",
+    "selection":"選択",
+    "· the default pick":"· 既定の選択",
+    "— add options above —":"— 上に選択肢を追加 —",
+    "watercolor\noil painting\npixel art":"水彩\n油絵\nピクセルアート",
+    "no separator":"区切りなし",
+    "Goes between a and b — a space by default; type \\n for a new line.":"a と b の間に入ります — 既定は半角スペース。改行にするには \\n と入力。",
     "size":"サイズ",
     "edit instruction":"編集指示",
     "question":"質問",
@@ -3142,11 +3322,13 @@ const I18N = {
     "style / prompt":"スタイル / プロンプト",
     "text to speak":"読み上げるテキスト",
     "advanced params (JSON)":"詳細パラメータ (JSON)",
-    "type some text…":"テキストを入力…",
-    "you are a helpful…":"あなたは親切なアシスタントです…",
-    "ask something…":"質問を入力…",
+    "type a prompt or any text…":"プロンプトや任意のテキストを入力…",
+    "system prompt (optional)":"システムプロンプト (任意)",
+    "how the model should act — e.g. you are a strict editor":"モデルの振る舞い — 例: あなたは厳格な編集者です",
+    "ask a question or give an instruction…":"質問または指示を入力…",
     "a red panda astronaut…":"宇宙飛行士のレッサーパンダ…",
     "style guide, constraints…":"スタイルガイド、制約…",
+    "· adds its reasoning to the text output":"· 思考過程をテキスト出力に追加",
     "a red panda astronaut, cinematic — or, with images wired in: 'combine these into a poster'":"宇宙飛行士のレッサーパンダ、映画的に — または画像をつないで：'これらをポスターに合成'",
     "make it night-time, add neon…":"夜にして、ネオンを追加…",
     "Describe this image.":"この画像を説明してください。",
@@ -3165,11 +3347,14 @@ const I18N = {
     "Duration (sec)":"長さ (秒)",
     "Number of songs":"曲数",
     "Negative prompt":"ネガティブプロンプト",
+    "what to avoid — e.g. harsh noise, distortion, muffled vocals":"避けたい要素 — 例: 耳障りなノイズ、歪み、こもったボーカル",
     "Seed":"シード",
     "Format":"形式",
     "Voice":"声",
     "Speed":"速度",
     "Instructions":"指示",
+    "how to speak — tone, accent, emotion (some models ignore this)":"話し方 — トーン、アクセント、感情（一部のモデルでは無視されます）",
+    "e.g. warm and cheerful, slight British accent":"例: 温かく明るい口調、少しイギリス訛り",
     "required by vocal song models (e.g. Mureka); leave empty for instrumental/BGM":"ボーカル曲モデル (例: Mureka) に必須。インスト/BGMの場合は空欄に",
     "run this branch":"このブランチを実行",
     "delete":"削除",
@@ -3181,7 +3366,7 @@ const I18N = {
     "Webcam":"ウェブカメラ",
     "Capture":"撮影",
     "Cancel":"キャンセル",
-    "no image yet":"画像なし",
+    "no image yet — drop one here":"画像なし — ここに画像をドロップ",
     "running…":"実行中…",
     "error":"エラー",
     "generating audio…":"音声を生成中…",
@@ -3245,8 +3430,10 @@ const I18N = {
     "Inputs":"入力",
     "Other":"その他",
     "instruction (optional)":"指示(任意)",
-    "prompt (optional)":"プロンプト(任意)",
+    "direction (optional)":"演出(任意)",
+    "the spoken words come from the audio input — this guides movement and mood":"話す内容は音声入力から — ここでは動きや雰囲気を指定します",
     "language":"言語",
+    "auto detects it — or type a language code like en or ja":"auto なら自動検出 — ja や en などの言語コードも入力できます",
     "restyle as claymation · extend the clip · upscale to 4K…":"クレイアニメ風に変換 · クリップを延長 · 4Kに高画質化…",
     "subtle head movement, warm lighting…":"わずかな頭の動き、温かみのある照明…",
     "Load a ready-made example workflow":"すぐ使えるサンプルワークフローを読み込む",
@@ -3515,6 +3702,23 @@ function primeCatalogsFromCache(){
     if(list) catalogs[kind] = list;
   }
 }
+// Version-family tiebreak for tied "created" stamps. The audio catalog carries NO recency
+// signal (upstream ask drafted in NANOGPT-audio-created-timestamp.md) — every model shares one
+// response-time created value, and the API's native order runs
+// oldest-first within families (Minimax-Music-02 → 2.5 → 2.6), so a plain created sort showed
+// OLD versions on top under "newest". Cross-family recency is unknowable client-side, but within
+// a family a higher version number is reliably newer: same-family ids (version tokens stripped)
+// sort version-DESC while each family keeps its native (curated) position in the list.
+const VER_RE = /\d+(?:\.\d+)*/g;
+const famSig = (id)=> id.toLowerCase().replace(VER_RE, "#");   // "Minimax-Music-2.6" → "minimax-music-#"
+const verParts = (id)=> (id.match(VER_RE)||[]).join(".").split(".").map(Number);
+function verDesc(a, b){                     // segment-wise numeric compare: 2.6 > 2.5 > 02
+  const va = verParts(a), vb = verParts(b);
+  for(let i=0; i<Math.max(va.length, vb.length); i++){
+    const d = (vb[i]||0) - (va[i]||0); if(d) return d;
+  }
+  return 0;
+}
 async function fetchCatalog(kind){
   const cfg = CATALOG[kind];
   const headers={}; const k=getKey(); if(k) headers.Authorization=`Bearer ${k}`;
@@ -3527,9 +3731,13 @@ async function fetchCatalog(kind){
   // and NEVER persists an empty catalog — a cached [] would poison every future session until it
   // self-heals. Only a genuinely non-empty list is worth caching.
   if(!list.length) return null;
-  // newest first by created; on ties keep the API's native order (curated newest-first) via stable sort —
-  // audio models all share one created timestamp, so this is what actually orders music/speech by recency
-  list.sort((a,b)=> (b.created||0)-(a.created||0));
+  // newest first by created; ties (the whole audio catalog) fall back to family position +
+  // version-DESC so music/speech still read newest-first — see the helpers above.
+  const nat = new Map();       // family signature → first native index (anchors the family)
+  list.forEach((m,i)=>{ const s = famSig(m.id); if(!nat.has(s)) nat.set(s, i); });
+  list.sort((a,b)=> (b.created||0)-(a.created||0)
+                 || nat.get(famSig(a.id)) - nat.get(famSig(b.id))
+                 || verDesc(a.id, b.id));
   return list;
 }
 async function loadCatalog(kind){          // lazy callers (pickers, filters): reuse whatever's in memory
@@ -3725,7 +3933,7 @@ function updateModelWarn(n){
     const id = defModelFor(n.type); if(!id) return;
     n.fields.model = id;
     const mp = n.el.querySelector(".modelpick"); if(mp) mp.textContent = id+" ▾";
-    updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); save();
+    updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); save();
   };
 }
 /* ---------- dynamic audio parameters (from the model catalog + a researched spec) ----------
@@ -3742,15 +3950,15 @@ const AUDIO_PARAMS = {
     { id:"instrumental",    label:"Instrumental",    type:"boolean",  appliesTo:"all" },
     { id:"duration",        label:"Duration (sec)",  type:"number",   appliesTo:"cat:duration" },
     { id:"number_of_songs", label:"Number of songs", type:"number",   appliesTo:"cat:gencount", default:1 },
-    { id:"negative_prompt", label:"Negative prompt", type:"textarea", appliesTo:"all" },
+    { id:"negative_prompt", label:"Negative prompt", type:"textarea", appliesTo:"all", ph:"what to avoid — e.g. harsh noise, distortion, muffled vocals" },
     { id:"seed",            label:"Seed",            type:"number",   appliesTo:"all", advanced:true, hint:"blank = random; set a fixed seed to repeat this song and reuse cached results" },
-    { id:"response_format", label:"Format",          type:"select",   appliesTo:"all", options:["mp3","opus","aac","flac","wav","pcm"], default:"mp3" },
+    { id:"response_format", label:"Format",          type:"select",   appliesTo:"all", options:["mp3","opus","aac","flac","wav","pcm"], default:"mp3", advanced:true },
   ],
   tts: [
     { id:"voice",           label:"Voice",           type:"select",   appliesTo:"cat:voices" },
-    { id:"speed",           label:"Speed",           type:"number",   appliesTo:"all", min:0.25, max:2, default:1 },
-    { id:"instructions",    label:"Instructions",    type:"textarea", appliesTo:"all" },
-    { id:"response_format", label:"Format",          type:"select",   appliesTo:"all", options:["mp3","opus","aac","flac","wav","pcm"], default:"mp3" },
+    { id:"speed",           label:"Speed",           type:"number",   appliesTo:"all", min:0.25, max:2, default:1, advanced:true },
+    { id:"instructions",    label:"Instructions",    type:"textarea", appliesTo:"all", advanced:true, ph:"e.g. warm and cheerful, slight British accent", hint:"how to speak — tone, accent, emotion (some models ignore this)" },
+    { id:"response_format", label:"Format",          type:"select",   appliesTo:"all", options:["mp3","opus","aac","flac","wav","pcm"], default:"mp3", advanced:true },
   ],
   remix: [
     { id:"lyrics",          label:"Lyrics",          type:"textarea", appliesTo:"all", hint:"song-extend models (e.g. Mureka) continue these lyrics; leave empty for instrumental" },
@@ -3779,8 +3987,7 @@ function audioFields(kind, it){
     const f = { ...p, jsonKey:p.id };
     if(p.appliesTo==="cat:voices")   f.options = it.voices;
     if(p.appliesTo==="cat:duration" || p.appliesTo==="cat:secduration"){ f.min = it.params.min_duration; f.max = it.params.max_duration; }
-    if(p.appliesTo==="cat:gencount"){ f.jsonKey = it.params.generation_count_parameter || p.id; f.min=1; f.max=1;   // capped at 1: the endpoint surfaces a single track, so requesting (and paying for) more would silently drop the extras
-      f.hint = "One song per run — nanoodle keeps a single track, so extra songs would be billed but dropped."; }
+    if(p.appliesTo==="cat:gencount") continue;   // nanoodle surfaces a single track and collectAudioParams clamps the count to 1 (= default → never sent), so a "(1–1)" input is a dead control — don't render it
     out.push(f);
   }
   return out;
@@ -3803,7 +4010,7 @@ function audioFieldHTML(n, f){
   }
   const v = cur!=null ? cur : "";
   if(f.type==="textarea")
-    return `<div><label>${esc(f.label)}</label><textarea data-pf="${f.id}" style="min-height:40px" placeholder="${esc(f.label)}">${esc(v)}</textarea>${hint}</div>`;
+    return `<div><label>${esc(f.label)}</label><textarea data-pf="${f.id}" style="min-height:40px" placeholder="${esc(f.ph||f.label)}">${esc(v)}</textarea>${hint}</div>`;
   return `<div><label>${esc(f.label)}</label><input data-pf="${f.id}" value="${esc(v)}" placeholder="${esc(f.label)}"/>${hint}</div>`;
 }
 // rebuild the parameter block for an audio node from its current model
@@ -3820,8 +4027,10 @@ function refreshAudioParams(n){
   const advancedFields = fields.filter(f=>f.advanced);
   box.innerHTML = basicFields.map(f=>audioFieldHTML(n,f)).join("");
   if(advBox){
+    // open the disclosure when a saved value differs from the default, so tucked-away settings stay visible
+    const advOpen = advancedFields.some(f=>{ const v=n.fields[f.id]; return v!=null && v!=="" && v!==false && String(v)!==String(f.default??""); });
     advBox.innerHTML = advancedFields.length
-      ? `<details class="adv"><summary>⚙️ advanced</summary>${advancedFields.map(f=>audioFieldHTML(n,f)).join("")}</details>`
+      ? `<details class="adv"${advOpen?" open":""}><summary>⚙️ advanced</summary>${advancedFields.map(f=>audioFieldHTML(n,f)).join("")}</details>`
       : "";
   }
   const bindBox = advBox ? [box, advBox] : [box];
@@ -3889,10 +4098,14 @@ function refreshLoraParams(n){
   };
 }
 // shared body + run for the Music and Speech nodes
-function audioBody(n, promptLabel, ph){
+// promptFirst puts the main prompt right under the model picker, ahead of the per-model
+// param block — for Music the required style prompt must not hide below Lyrics/Duration.
+function audioBody(n, promptLabel, ph, promptFirst){
+  const prompt = `<div><label>${promptLabel}</label><textarea data-f="prompt" placeholder="${esc(ph)}">${esc(n.fields.prompt||"")}</textarea></div>`;
   return `${modelFieldHTML(n)}
+    ${promptFirst ? prompt : ""}
     <div data-params></div>
-    <div><label>${promptLabel}</label><textarea data-f="prompt" placeholder="${esc(ph)}">${esc(n.fields.prompt||"")}</textarea></div>
+    ${promptFirst ? "" : prompt}
     <div data-advparams></div>
     <details class="adv"><summary>advanced params (JSON)</summary>
       <textarea data-f="extraJson" style="min-height:34px" placeholder='{"any_extra_key": 123}'>${esc(n.fields.extraJson||"")}</textarea></details>`;
@@ -4073,11 +4286,10 @@ function refreshLlmOpts(n){
   const open = (f.temperature!=null && +f.temperature!==0.8) || (f.maxTokens||"") || f.format==="JSON"
             || (f.reasoningEffort && f.reasoningEffort!=="default") || f.showThinking===true || f.showThinking==="true" ? " open" : "";
   box.innerHTML = `<details class="adv"${open}><summary>⚙️ ${esc(t("advanced"))}</summary>
-    <div style="margin:3px 0"><label data-ltlab>${esc(t("temperature"))} · ${temp.toFixed(1)}</label><input type="range" data-lf="temperature" min="0" max="2" step="0.1" value="${esc(temp)}" style="width:100%"/></div>
+    <div style="margin:3px 0"><label><span data-ltlab>${esc(t("temperature"))} · ${temp.toFixed(1)}</span> <span class="dim lblhint">${esc(t("· higher = more creative"))}</span></label><input type="range" data-lf="temperature" min="0" max="2" step="0.1" value="${esc(temp)}" style="width:100%"/></div>
     <div style="margin:3px 0"><label>${esc(t("max tokens"))}${it.maxOut?` (≤ ${it.maxOut})`:""}</label><input type="number" data-lf="maxTokens" min="1"${it.maxOut?` max="${it.maxOut}"`:""} value="${esc(f.maxTokens??"")}" placeholder="default"/></div>
-    ${fmtRow}${reasonRows}
-    <div class="fhint">Sampling + reasoning knobs. Defaults apply when untouched.</div></details>`;
-  translateTree(box);   // localize plain labels (output format / reasoning effort / show thinking / fhint / max-tokens placeholder)
+    ${fmtRow}${reasonRows}</details>`;
+  translateTree(box);   // localize plain labels (output format / reasoning effort / show thinking / max-tokens placeholder)
   box.querySelectorAll("[data-lf]").forEach(el=>{
     const key = el.dataset.lf;
     el.addEventListener(el.type==="checkbox" ? "change" : "input", ()=>{
@@ -4186,6 +4398,31 @@ function refreshDims(n){
     el.addEventListener("pointerdown", e=> e.stopPropagation());   // don't drag the node while choosing
   });
   updateNodePrice(n);
+}
+// Transcribe's language control: models that advertise a fixed language list → pick from it;
+// the rest only auto-detect → free text. Rebuilt like refreshDims on model pick / catalog
+// arrival, so the control never shows a stale model's list.
+function refreshTranscribeLang(n){
+  if(n.type!=="transcribe" || !n.el) return;
+  const box = n.el.querySelector("[data-langbox]"); if(!box) return;
+  const cur = n.fields.language||"auto";
+  const langs = (catItem("audio", n.fields.model)||{}).langs || [];
+  let ctrl, hint = "";
+  if(Array.isArray(langs) && langs.length){
+    const opts = ["auto", ...langs.filter(l=>l!=="auto")];
+    if(cur && !opts.includes(cur)) opts.push(cur);   // keep a stored value pickable
+    ctrl = `<select data-f="language">${opts.map(l=>`<option value="${esc(l)}"${l===cur?" selected":""}>${esc(l)}</option>`).join("")}</select>`;
+  } else {
+    ctrl = `<input data-f="language" value="${esc(cur)}" placeholder="auto"/>`;
+    hint = `<div class="fhint">auto detects it — or type a language code like en or ja</div>`;
+  }
+  box.innerHTML = `<div><label>language</label>${ctrl}${hint}</div>`;
+  translateTree(box);   // localize the label + hint (option codes / user value stay as-is)
+  box.querySelectorAll("[data-f]").forEach(inp=>{
+    const ev = inp.tagName==="SELECT" ? "change" : "input";
+    inp.addEventListener(ev, ()=>{ n.fields.language = inp.value; save(); });
+    inp.addEventListener("pointerdown", e=> e.stopPropagation());   // don't drag the node while editing
+  });
 }
 // live price for a node from its chosen dimensions (image: per-size; video: per_second_by_resolution × duration);
 // other pricing shapes keep the catalog's precomputed string.
@@ -4466,12 +4703,12 @@ function refreshRunEstimate(){
     + (unpriced ? t(", plus {n} with no listed price").replace("{n}",()=>unpriced) : "")
     + (exact ? "." : "." + "\n" + t("Video, text & audio are estimates: the real bill depends on clip length, tokens and characters."));
 }
-function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); backfillModel(n); }); refreshRunEstimate(); }
+function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshLoraParams(n); refreshModelOpts(n); backfillModel(n); }); refreshRunEstimate(); }
 function backfillModel(n){   // once a catalog arrives, give model nodes a sensible default if none chosen yet
   const t = NODE_TYPES[n.type];
   if(t.modelKind && !n.fields.model){
     const id = defModelFor(n.type);
-    if(id){ n.fields.model = id; const mp = n.el?.querySelector(".modelpick"); if(mp) mp.textContent = id+" ▾"; updateNodePrice(n); refreshAudioParams(n); }
+    if(id){ n.fields.model = id; const mp = n.el?.querySelector(".modelpick"); if(mp) mp.textContent = id+" ▾"; updateNodePrice(n); refreshAudioParams(n); refreshTranscribeLang(n); }
   }
 }
 
@@ -4559,17 +4796,19 @@ const mdl = (n)=>{ if(!n.fields.model) throw new Error("pick a model first");
   return n.fields.model; };
 const NODE_TYPES = {
   text: {
-    em:"📝", title:"Text", desc:"A string source", group:"Inputs",
+    em:"📝", title:"Text", desc:"Text you type — usually a prompt", group:"Inputs",
+    kw:"prompt string write paste words caption phrase input",
     inputs:[], outputs:[{name:"text", type:"text"}], preview:"none",
-    body:(n)=>`<div><textarea data-f="text" placeholder="type some text…">${esc(n.fields.text||"")}</textarea></div>`,
+    body:(n)=>`<div><textarea data-f="text" placeholder="type a prompt or any text…">${esc(n.fields.text||"")}</textarea></div>`,
     async run(n){ return { text: n.fields.text||"" }; }
   },
 
   upload: {
     em:"📷", title:"Image input", desc:"Upload or capture an image", group:"Inputs",
+    kw:"photo picture camera webcam capture file drop png jpg selfie",
     inputs:[], outputs:[{name:"image", type:"image"}], preview:"none",
     body:(n)=>`
-      <div class="uprev" data-uprev>${n.fields.image ? `<img src="${esc(n.fields.image)}" alt="image"/>` : `<span class="dim">no image yet</span>`}</div>
+      <div class="uprev" data-uprev>${n.fields.image ? `<img src="${esc(n.fields.image)}" alt="image"/>` : `<span class="dim">no image yet — drop one here</span>`}</div>
       <div class="two">
         <button class="ubtn" data-up="file">⬆ <span>Upload</span></button>
         <button class="ubtn" data-up="cam">📷 <span>Webcam</span></button>
@@ -4584,7 +4823,7 @@ const NODE_TYPES = {
   },
 
   aupload: {
-    em:"🎤", title:"Audio input", desc:"Upload an audio clip", group:"Inputs",
+    em:"🎤", title:"Audio input", desc:"Upload an audio clip", group:"Inputs", kw:"sound music voice song track recording mp3 wav file",
     inputs:[], outputs:[{name:"audio", type:"audio"}], preview:"none",
     body:(n)=>`
       <div class="uprev" data-uprev>${n.fields.audio ? `<audio src="${esc(n.fields.audio)}" controls></audio>` : `<span class="dim">no audio yet</span>`}</div>
@@ -4595,11 +4834,12 @@ const NODE_TYPES = {
   },
 
   vupload: {
-    em:"📹", title:"Video input", desc:"Upload a video clip", group:"Inputs",
+    em:"📹", title:"Video input", desc:"Upload a video clip", group:"Inputs", kw:"movie clip mp4 mov webm file",
     inputs:[], outputs:[{name:"video", type:"video"}], preview:"none",
     body:(n)=>`
       <div class="uprev" data-uprev>${n.fields.video ? `<video src="${esc(n.fields.video)}" controls playsinline></video>` : `<span class="dim">no video yet</span>`}</div>
       <div><button class="ubtn" data-up="file">⬆ Upload video</button></div>
+      <div class="fhint">keep clips under ~3 MB — larger won’t reach the model</div>
       <input type="file" accept="video/*" hidden data-upfile/>`,
     mount:(n)=> mountFileUpload(n, "video"),
     async run(n){ if(!n.fields.video) throw new Error("no video — upload a clip first"); return { video: n.fields.video }; }
@@ -4616,11 +4856,11 @@ const NODE_TYPES = {
       const cur = opts.indexOf(n.fields.selected)>=0 ? n.fields.selected : (opts[0]||"");
       const optHTML = opts.length
         ? opts.map(o=>`<option value="${esc(o)}"${o===cur?" selected":""}>${esc(o)}</option>`).join("")
-        : `<option value="">— add options above —</option>`;
+        : `<option value="">${esc(t("— add options above —"))}</option>`;
       return `
       <div><label>options <span class="dim">· one per line</span></label>
-        <textarea data-f="options" style="min-height:60px">${esc(n.fields.options||"")}</textarea></div>
-      <div><label>selection</label>
+        <textarea data-f="options" placeholder="${esc(t("watercolor\noil painting\npixel art"))}" style="min-height:60px">${esc(n.fields.options||"")}</textarea></div>
+      <div><label>selection <span class="dim">· the default pick</span></label>
         <select data-f="selected" data-choicesel data-no-i18n style="width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:.45rem;padding:.35rem .5rem">${optHTML}</select></div>`;
     },
     mount:(n)=>{
@@ -4633,7 +4873,7 @@ const NODE_TYPES = {
         const cur = opts.indexOf(n.fields.selected)>=0 ? n.fields.selected : (opts[0]||"");
         sel.innerHTML = opts.length
           ? opts.map(o=>`<option value="${esc(o)}"${o===cur?" selected":""}>${esc(o)}</option>`).join("")
-          : `<option value="">— add options above —</option>`;
+          : `<option value="">${esc(t("— add options above —"))}</option>`;
         n.fields.selected = cur; sel.value = cur; save();
       });
     },
@@ -4647,11 +4887,12 @@ const NODE_TYPES = {
   },
 
   join: {
-    em:"🔗", title:"Join", desc:"Glue two texts together", group:"Text",
+    em:"🔗", title:"Join", desc:"Glue two texts together", group:"Text", kw:"concat concatenate merge combine append separator newline",
     inputs:[{name:"a", type:"text"},{name:"b", type:"text"}],
     outputs:[{name:"text", type:"text"}], preview:"text",
     body:(n)=>`<div><label>separator</label>
-      <input data-f="sep" value="${esc(n.fields.sep ?? " ")}" style="width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:.45rem;padding:.35rem .5rem"/></div>`,
+      <input data-f="sep" value="${esc(n.fields.sep ?? " ")}" placeholder="no separator" style="width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:.45rem;padding:.35rem .5rem"/>
+      <div class="fhint">Goes between a and b — a space by default; type \\n for a new line.</div></div>`,
     async run(n, inp){
       const sep = (n.fields.sep ?? " ").replace(/\\n/g,"\n");
       return { text: [inp.a, inp.b].filter(v=>v!=null && v!=="").join(sep) };
@@ -4667,8 +4908,8 @@ const NODE_TYPES = {
     outputs:[{name:"text", type:"text"}], preview:"text",
     body:(n)=>`
       ${modelFieldHTML(n)}
-      <div><label>system (optional)</label><textarea data-f="system" style="min-height:40px" placeholder="you are a helpful…">${esc(n.fields.system||"")}</textarea></div>
-      <div><label>prompt</label><textarea data-f="prompt" placeholder="ask something…">${esc(n.fields.prompt||"")}</textarea></div>
+      <div><label>prompt</label><textarea data-f="prompt" placeholder="ask a question or give an instruction…">${esc(n.fields.prompt||"")}</textarea></div>
+      <div><label>system prompt (optional)</label><textarea data-f="system" style="min-height:40px" placeholder="how the model should act — e.g. you are a strict editor">${esc(n.fields.system||"")}</textarea></div>
       <div data-llmadv></div>`,
     async run(n, inp, ctx){
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
@@ -4697,8 +4938,8 @@ const NODE_TYPES = {
     outputs:[{name:"image", type:"image"}], preview:"image",
     body:(n)=>`
       ${modelFieldHTML(n)}
-      <div data-dims></div>
       <div><label>prompt</label><textarea data-f="prompt" placeholder="a red panda astronaut…">${esc(n.fields.prompt||"")}</textarea></div>
+      <div data-dims></div>
       <div><label>seed <span class="dim lblhint">· blank = random, fix to repeat (re-run won't regenerate)</span></label><input type="number" data-f="seed" placeholder="random" value="${esc(n.fields.seed??"")}"/></div>
       <div data-loraparams></div>`,
     async run(n, inp, ctx){
@@ -4725,7 +4966,7 @@ const NODE_TYPES = {
       ${modelFieldHTML(n)}
       <div><label>system (optional)</label><textarea data-f="system" style="min-height:40px" placeholder="style guide, constraints…">${esc(n.fields.system||"")}</textarea></div>
       <div><label>prompt</label><textarea data-f="prompt" placeholder="a red panda astronaut, cinematic — or, with images wired in: 'combine these into a poster'">${esc(n.fields.prompt||"")}</textarea></div>
-      <label class="setbool" style="margin:3px 0"><input type="checkbox" data-f="showThinking"${n.fields.showThinking===false?"":" checked"}/> show thinking <span class="dim">· the model reasons before it draws</span></label>`,
+      <label class="setbool" style="margin:3px 0"><input type="checkbox" data-f="showThinking"${n.fields.showThinking===false?"":" checked"}/> show thinking <span class="dim">· adds its reasoning to the text output</span></label>`,
     async run(n, inp, ctx){
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       if(!prompt) throw new Error("no prompt — describe what to draw (or how to edit the wired images)");
@@ -4749,6 +4990,7 @@ const NODE_TYPES = {
 
   edit: {
     em:"✂️", title:"Edit", desc:"Image(s) + text → image", group:"Image",
+    kw:"change modify retouch photoshop remove background replace combine composite merge restyle upscale enhance img2img",
     modelKind:"image", modelFilter:"edit",
     inputs:[],
     imageInputs:{multi:true},   // grows image, image2, … up to the model's max_input_images (multi-reference compositing); 1 = single image port, as before
@@ -4784,6 +5026,7 @@ const NODE_TYPES = {
 
   inpaint: {
     em:"🩹", title:"Inpaint", desc:"Brush a region of an image → repaint just that area", group:"Image",
+    kw:"remove erase replace object retouch fill fix repair restore mask brush background",
     modelKind:"image", modelFilter:"inpaint",
     // Both optional: leave them unwired to upload + brush inline (the easy default), or wire them to
     // drive the source / mask from upstream nodes (a B/W mask image, a generated source, etc.). Wire
@@ -4848,10 +5091,10 @@ const NODE_TYPES = {
     body:(n)=>`
       <div><label>mode</label><select data-f="mode">${optsHTML([["fit","fit within"],["fill","fill & crop"],["exact","exact (stretch)"]], n.fields.mode||"fit")}</select></div>
       <div class="two">
-        <div><label>width</label><input type="number" min="1" data-f="width" placeholder="1024" value="${esc(n.fields.width ?? "")}"/></div>
-        <div><label>height <span class="dim">· blank = auto</span></label><input type="number" min="1" data-f="height" placeholder="1024" value="${esc(n.fields.height ?? "")}"/></div>
+        <div><label>width (px)</label><input type="number" min="1" data-f="width" placeholder="1024" value="${esc(n.fields.width ?? "")}"/></div>
+        <div><label>height (px)</label><input type="number" min="1" data-f="height" placeholder="auto" value="${esc(n.fields.height ?? "")}"/></div>
       </div>
-      <div class="dim" style="font-size:.8em;margin-top:.3rem">fit within scales down keeping aspect (never upscales); blank height derives from the source. Free · runs on your device.</div>`,
+      <div class="dim" style="font-size:.8em;margin-top:.3rem">Set width, height, or both — a blank side keeps the image’s aspect. fit within never upscales. Free · runs on your device.</div>`,
     async run(n, inp){
       if(!inp.image) throw new Error("no image — wire an image into the image port");
       const mode = n.fields.mode || "fit";
@@ -4867,6 +5110,7 @@ const NODE_TYPES = {
 
   vision: {
     em:"👁", title:"Vision", desc:"Image → text (describe / ask)", group:"Image",
+    kw:"caption ocr read text analyze look see understand photo picture what",
     modelKind:"chat", modelFilter:"vision",
     inputs:[{name:"image", type:"image"}],
     outputs:[{name:"text", type:"text"}], preview:"text",
@@ -4885,7 +5129,7 @@ const NODE_TYPES = {
   },
 
   tvideo: {
-    em:"🎬", title:"Text→Video", desc:"Text → video (renders ~1 min)", group:"Video",
+    em:"🎬", title:"Text→Video", desc:"Text → video (takes ~1 min to generate)", group:"Video",
     kw:"reference style subject consistent character",
     modelKind:"video", modelFilter:"t2v",
     inputs:[],
@@ -4893,8 +5137,8 @@ const NODE_TYPES = {
     outputs:[{name:"video", type:"video"}], preview:"video",
     body:(n)=>`
       ${modelFieldHTML(n)}
-      <div data-dims></div>
       <div><label>prompt</label><textarea data-f="prompt" placeholder="a drone shot over neon Tokyo at night…">${esc(n.fields.prompt||"")}</textarea></div>
+      <div data-dims></div>
       <div data-modelopts></div>
       <div data-loraparams></div>`,
     async run(n, inp, ctx){
@@ -4938,6 +5182,7 @@ const NODE_TYPES = {
 
   vedit: {
     em:"🎞️", title:"Video edit", desc:"Video (+text) → video — edit / extend / upscale", group:"Video",
+    kw:"restyle stylize transform longer enhance quality 4k v2v",
     modelKind:"video", modelFilter:"v2v",
     inputs:[{name:"video", type:"video"}],
     outputs:[{name:"video", type:"video"}], preview:"video",
@@ -4965,12 +5210,17 @@ const NODE_TYPES = {
     body:(n)=>`
       <div class="two">
         <div><label>start from</label><select data-f="dir">${optsHTML([["end","last frame"],["start","beginning"]], n.fields.dir||"end")}</select></div>
-        <div><label>frames</label><input type="number" data-f="frames" min="1" max="${MAX_FRAMES}" value="${esc(n.fields.frames ?? 1)}"/></div>
+        <div><label>how many frames</label><input type="number" data-f="frames" min="1" max="${MAX_FRAMES}" value="${esc(n.fields.frames ?? 1)}"/></div>
       </div>
-      <div><label>gap between frames (sec)</label><input type="number" step="0.1" min="0" data-f="gap" value="${esc(n.fields.gap ?? 0.5)}"/></div>`,
+      <div data-gaprow ${(parseInt(n.fields.frames,10)||1)>1?"":"hidden"}><label>gap between frames (sec)</label><input type="number" step="0.1" min="0" data-f="gap" value="${esc(n.fields.gap ?? 0.5)}"/></div>`,
     mount:(n)=>{
       const fr = n.el.querySelector('[data-f="frames"]');
-      if(fr) fr.addEventListener("change", ()=> refreshFramePorts(n));   // grow/shrink the image output ports
+      const gap = n.el.querySelector("[data-gaprow]");
+      const syncGap = ()=>{ if(gap && fr) gap.hidden = (parseInt(fr.value,10)||1) <= 1; };   // spacing is meaningless for a single frame
+      if(fr){
+        fr.addEventListener("change", ()=>{ refreshFramePorts(n); syncGap(); });   // grow/shrink the image output ports
+        fr.addEventListener("input", syncGap);
+      }
     },
     async run(n, inp){
       if(!inp.video) throw new Error("no video — wire a video into the video port");
@@ -5012,6 +5262,7 @@ const NODE_TYPES = {
     inputs:[], videoInputs:true,                       // grows clip1, clip2, … input ports (see refreshVideoInputs)
     outputs:[{name:"video", type:"video"}], preview:"video",
     body:(n)=>`
+      <div style="opacity:.6;font-size:.8em;margin-bottom:.35rem">wire two or more clips — they join in order, top to bottom</div>
       <label style="display:flex;align-items:center;gap:.45rem;cursor:pointer"
         title="When clips are chained, each clip's first frame repeats the previous clip's last frame. Trimming it removes the freeze at the seam.">
         <input type="checkbox" data-f="dedup" ${(n.fields.dedup ?? true)?"checked":""}/>
@@ -5032,7 +5283,8 @@ const NODE_TYPES = {
       <label style="display:flex;align-items:center;gap:.45rem;cursor:pointer"
         title="${esc(t("Repeat the audio to fill the whole video. Off: the audio plays once, then the rest of the video is silent. Audio longer than the video is always trimmed to the video's length."))}">
         <input type="checkbox" data-f="loop" ${(n.fields.loop ?? false)?"checked":""}/>
-        <span>${esc(t("loop audio to fill video"))}</span></label>`,
+        <span>${esc(t("loop audio to fill video"))}</span></label>
+      <div style="opacity:.6;font-size:.8em;margin-top:.3rem">${esc(t("the new audio replaces the video's existing sound."))}</div>`,
     async run(n, inp){
       if(!inp.video) throw new Error("no video — wire a video into the video port");
       if(!inp.audio) throw new Error("no audio — wire an audio clip into the audio port");
@@ -5048,7 +5300,8 @@ const NODE_TYPES = {
     body:(n)=>`
       ${modelFieldHTML(n)}
       <div data-dims></div>
-      <div><label>prompt (optional)</label><textarea data-f="prompt" placeholder="subtle head movement, warm lighting…">${esc(n.fields.prompt||"")}</textarea></div>
+      <div><label>direction (optional)</label><textarea data-f="prompt" placeholder="subtle head movement, warm lighting…">${esc(n.fields.prompt||"")}</textarea>
+      <div class="fhint">the spoken words come from the audio input — this guides movement and mood</div></div>
       <div data-modelopts></div>`,
     async run(n, inp, ctx){
       if(!inp.image) throw new Error("no image — wire an image into the image port");
@@ -5103,7 +5356,7 @@ const NODE_TYPES = {
     modelKind:"audio", modelFilter:"music",
     inputs:[],
     outputs:[{name:"audio", type:"audio"}], preview:"audio",
-    body:(n)=> audioBody(n, "style / prompt", "upbeat lo-fi hip hop, mellow piano, vinyl crackle, 90 BPM"),
+    body:(n)=> audioBody(n, "style / prompt", "upbeat lo-fi hip hop, mellow piano, vinyl crackle, 90 BPM", true),
     run: audioRun,
   },
 
@@ -5151,9 +5404,9 @@ const NODE_TYPES = {
     body:(n)=>`
       <div class="two">
         <div><label>start (sec)</label><input type="number" step="0.1" min="0" data-f="start" value="${esc(n.fields.start ?? 0)}"/></div>
-        <div><label>length (sec)</label><input type="number" step="0.1" min="0.1" data-f="length" value="${esc(n.fields.length ?? "")}"/></div>
+        <div><label>length (sec)</label><input type="number" step="0.1" min="0.1" data-f="length" placeholder="whole clip" value="${esc(n.fields.length ?? "")}"/></div>
       </div>
-      <div style="opacity:.6;font-size:.8em;margin-top:.3rem">video → mono WAV. Leave length blank for the whole clip. Wire into 🎙️ Transcribe or ✂️ Trim. Transcribe fits about 2 min of audio per run — for a longer video, use ✂️ Trim (or set a length) to grab a section. Generated clips are silent — use an uploaded video with sound.</div>`,
+      <div style="opacity:.6;font-size:.8em;margin-top:.3rem">video → mono WAV — wire into 🎙️ Transcribe to get text. Transcribe fits about 2 min per run, so set a length for a longer video. AI-generated videos are silent — use an uploaded video with sound.</div>`,
     async run(n, inp){
       if(!inp.video) throw new Error("no video — wire a video into the video port");
       const start = parseFloat(n.fields.start) || 0;
@@ -5166,26 +5419,15 @@ const NODE_TYPES = {
 
   transcribe: {
     em:"🎙️", title:"Transcribe", desc:"Audio → text (speech-to-text)", group:"Audio",
+    kw:"stt speech recognition whisper voice dictation captions subtitles listen",
     modelKind:"audio", modelFilter:"stt",
     inputs:[{name:"audio", type:"audio"}],
     outputs:[{name:"text", type:"text"}], preview:"text",
-    body:(n)=>{
-      const cur = n.fields.language||"auto";
-      const langs = (catItem("audio", n.fields.model)||{}).langs || [];
-      const style = "width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:.45rem;padding:.35rem .5rem";
-      // models that advertise a fixed language list → pick from it; the rest only auto-detect → free text
-      let langCtrl;
-      if(Array.isArray(langs) && langs.length){
-        const opts = ["auto", ...langs.filter(l=>l!=="auto")];
-        if(cur && !opts.includes(cur)) opts.push(cur);   // keep a stored value pickable
-        langCtrl = `<select data-f="language" style="${style}">${opts.map(l=>`<option value="${esc(l)}"${l===cur?" selected":""}>${esc(l)}</option>`).join("")}</select>`;
-      } else {
-        langCtrl = `<input data-f="language" value="${esc(cur)}" placeholder="auto" style="${style}"/>`;
-      }
-      return `
+    // the language control is model-shaped (select vs free text) — refreshTranscribeLang
+    // fills [data-langbox] at mount and again on every model pick / catalog arrival
+    body:(n)=> `
       ${modelFieldHTML(n)}
-      <div><label>language</label>${langCtrl}</div>`;
-    },
+      <div data-langbox></div>`,
     async run(n, inp, ctx){
       if(!inp.audio) throw new Error("no audio — wire an audio clip into the audio port");
       return { text: await ctx.transcribe(mdl(n), inp.audio, (n.fields.language||"auto").trim()) };
@@ -5314,13 +5556,14 @@ function buildNodeEl(n){
     mp.onclick = (e)=>{
       e.stopPropagation();
       openPicker(t.modelKind, { current:n.fields.model, filter:t.modelFilter, onPick:(id)=>{
-        n.fields.model = id; mp.textContent = id+" ▾"; updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); save();
+        n.fields.model = id; mp.textContent = id+" ▾"; updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); save();
       }});
     };
     updateNodePrice(n);
   }
   refreshDims(n);                  // size/resolution/aspect/duration controls (catalog-driven)
   refreshAudioParams(n);
+  refreshTranscribeLang(n);        // Transcribe's language control (select vs free text, model-shaped)
   refreshLoraParams(n);            // LoRA disclosure on image/edit nodes (model-gated)
   refreshModelOpts(n);            // ⚙️ Model options disclosure on video nodes (catalog-driven)
   refreshLlmOpts(n);              // ⚙️ advanced (sampling/reasoning) disclosure on the LLM node
@@ -5609,14 +5852,16 @@ function fileToDataURL(file, cb){
   const fr = new FileReader(); fr.onload = ()=> img.src = fr.result; fr.readAsDataURL(file);
 }
 /* ---------- comment / sticky note ---------- */
-// [key, swatch hex] — key is what's persisted (n.fields.color), so renaming a colour never breaks saved notes.
-const COMMENT_COLORS = [["yellow","#f5d76e"],["pink","#ff8fce"],["green","#63d29a"],["blue","#6ea8ff"],["purple","#b28bff"],["gray","#aab3c2"]];
+// [key, swatch hex, tooltip label] — key is what's persisted (n.fields.color), so renaming a colour never
+// breaks saved notes; the label is display-only chrome (translated at build time, dicts have all six).
+const COMMENT_COLORS = [["yellow","#f5d76e","Yellow"],["pink","#ff8fce","Pink"],["green","#63d29a","Green"],["blue","#6ea8ff","Blue"],["purple","#b28bff","Purple"],["gray","#aab3c2","Gray"]];
 const commentHex = (n)=> (COMMENT_COLORS.find(c=>c[0]===(n.fields.color||"yellow")) || COMMENT_COLORS[0])[1];
-const commentSize = (n)=> Math.max(11, Math.min(30, parseInt(n.fields.size,10) || 15));
+const CMT_MIN_SIZE = 11, CMT_MAX_SIZE = 30;
+const commentSize = (n)=> Math.max(CMT_MIN_SIZE, Math.min(CMT_MAX_SIZE, parseInt(n.fields.size,10) || 15));
 function commentBody(n){
   const cur = n.fields.color || "yellow";
-  const sws = COMMENT_COLORS.map(([k,hex])=>
-    `<button type="button" class="cmtsw${k===cur?" on":""}" data-color="${esc(k)}" title="${esc(k)}" style="background:${esc(hex)}" aria-label="${esc(k)}"></button>`).join("");
+  const sws = COMMENT_COLORS.map(([k,hex,label])=>
+    `<button type="button" class="cmtsw${k===cur?" on":""}" data-color="${esc(k)}" title="${esc(t(label))}" style="background:${esc(hex)}" aria-label="${esc(t(label))}"></button>`).join("");
   return `
     <div class="cmtbar">
       <div class="cmtsws">${sws}</div>
@@ -5647,12 +5892,19 @@ function mountComment(n){
       applyCommentStyle(n); save();
     };
   });
+  // grey out A− / A+ once the size clamp is hit, so the buttons never look clickable-but-dead
+  const syncSizeBtns = ()=>{
+    const s = commentSize(n);
+    n.el.querySelector('[data-cmt="smaller"]').disabled = s <= CMT_MIN_SIZE;
+    n.el.querySelector('[data-cmt="bigger"]').disabled  = s >= CMT_MAX_SIZE;
+  };
+  syncSizeBtns();
   n.el.querySelectorAll("[data-cmt]").forEach(b=>{
     b.addEventListener("pointerdown", e=> e.stopPropagation());
     b.onclick = (e)=>{ e.stopPropagation();
       const act = b.dataset.cmt;
       if(act==="bold"){ n.fields.bold = !n.fields.bold; b.classList.toggle("on", n.fields.bold); }
-      else n.fields.size = commentSize(n) + (act==="bigger" ? 2 : -2);
+      else { n.fields.size = commentSize(n) + (act==="bigger" ? 2 : -2); syncSizeBtns(); }
       applyCommentStyle(n); save();
     };
   });
@@ -5676,6 +5928,7 @@ function mountUpload(n){
       const act = b.dataset.up;
       if(act==="file") fileInput.click();
       else if(act==="cam"){
+        stopCam();                                           // re-click while open: release the old stream first
         try{ stream = await navigator.mediaDevices.getUserMedia({video:true}); video.srcObject=stream; cambox.hidden=false; }
         catch(err){ flash(t("webcam unavailable")+": "+err.message); }
       }
@@ -5684,6 +5937,14 @@ function mountUpload(n){
     };
   });
   fileInput.addEventListener("change", ()=>{ const f=fileInput.files?.[0]; if(f) fileToDataURL(f, setImage); fileInput.value=""; });
+  // Drag-and-drop onto the preview box — the gesture a first-time user tries before finding the button.
+  // Without preventDefault the browser would navigate the whole tab to the dropped file.
+  prev.addEventListener("dragover", (e)=> e.preventDefault());
+  prev.addEventListener("drop", (e)=>{
+    e.preventDefault(); e.stopPropagation();
+    const f = [...(e.dataTransfer?.files||[])].find(f=> /^image\//.test(f.type));
+    if(f) fileToDataURL(f, setImage);
+  });
 }
 
 // Inpaint node: a source image (uploaded/captured inline, OR wired in) with a mask over it (brushed
