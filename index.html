@@ -1394,7 +1394,7 @@ const I18N = {
     "Vision":"Visión",
     "Image → text (describe / ask)":"Imagen → texto (describir / preguntar)",
     "Text→Video":"Texto→Vídeo",
-    "Text → video (renders ~1 min)":"Texto → vídeo (renderiza ~1 min)",
+    "Text → video (takes ~1 min to generate)":"Texto → vídeo (tarda ~1 min en generarse)",
     "Image→Video":"Imagen→Vídeo",
     "Image (+text) → video":"Imagen (+texto) → vídeo",
     "Music":"Música",
@@ -1825,7 +1825,7 @@ const I18N = {
     "Vision":"Vision",
     "Image → text (describe / ask)":"Image → texte (décrire / demander)",
     "Text→Video":"Texte→Vidéo",
-    "Text → video (renders ~1 min)":"Texte → vidéo (rendu ~1 min)",
+    "Text → video (takes ~1 min to generate)":"Texte → vidéo (génération en ~1 min)",
     "Image→Video":"Image→Vidéo",
     "Image (+text) → video":"Image (+texte) → vidéo",
     "Music":"Musique",
@@ -2256,7 +2256,7 @@ const I18N = {
     "Vision":"Vision",
     "Image → text (describe / ask)":"Bild → Text (beschreiben / fragen)",
     "Text→Video":"Text→Video",
-    "Text → video (renders ~1 min)":"Text → Video (rendert ~1 Min.)",
+    "Text → video (takes ~1 min to generate)":"Text → Video (Erzeugung dauert ~1 Min.)",
     "Image→Video":"Bild→Video",
     "Image (+text) → video":"Bild (+Text) → Video",
     "Music":"Musik",
@@ -2687,7 +2687,7 @@ const I18N = {
     "Vision":"Visão",
     "Image → text (describe / ask)":"Imagem → texto (descrever / perguntar)",
     "Text→Video":"Texto→Vídeo",
-    "Text → video (renders ~1 min)":"Texto → vídeo (renderiza ~1 min)",
+    "Text → video (takes ~1 min to generate)":"Texto → vídeo (leva ~1 min para gerar)",
     "Image→Video":"Imagem→Vídeo",
     "Image (+text) → video":"Imagem (+texto) → vídeo",
     "Music":"Música",
@@ -3118,7 +3118,7 @@ const I18N = {
     "Vision":"ビジョン",
     "Image → text (describe / ask)":"画像 → テキスト (説明 / 質問)",
     "Text→Video":"テキスト→動画",
-    "Text → video (renders ~1 min)":"テキスト → 動画 (生成 約1分)",
+    "Text → video (takes ~1 min to generate)":"テキスト → 動画（生成に約1分かかります）",
     "Image→Video":"画像→動画",
     "Image (+text) → video":"画像 (+テキスト) → 動画",
     "Music":"音楽",
@@ -4885,7 +4885,7 @@ const NODE_TYPES = {
   },
 
   tvideo: {
-    em:"🎬", title:"Text→Video", desc:"Text → video (renders ~1 min)", group:"Video",
+    em:"🎬", title:"Text→Video", desc:"Text → video (takes ~1 min to generate)", group:"Video",
     kw:"reference style subject consistent character",
     modelKind:"video", modelFilter:"t2v",
     inputs:[],
@@ -4893,8 +4893,8 @@ const NODE_TYPES = {
     outputs:[{name:"video", type:"video"}], preview:"video",
     body:(n)=>`
       ${modelFieldHTML(n)}
-      <div data-dims></div>
       <div><label>prompt</label><textarea data-f="prompt" placeholder="a drone shot over neon Tokyo at night…">${esc(n.fields.prompt||"")}</textarea></div>
+      <div data-dims></div>
       <div data-modelopts></div>
       <div data-loraparams></div>`,
     async run(n, inp, ctx){
