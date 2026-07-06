@@ -1441,6 +1441,7 @@ const I18N = {
     "Duration (sec)":"Duración (seg)",
     "Number of songs":"Número de canciones",
     "Negative prompt":"Prompt negativo",
+    "what to avoid — e.g. harsh noise, distortion, muffled vocals":"qué evitar — p. ej. ruido áspero, distorsión, voces apagadas",
     "Seed":"Semilla",
     "Format":"Formato",
     "Voice":"Voz",
@@ -1872,6 +1873,7 @@ const I18N = {
     "Duration (sec)":"Durée (s)",
     "Number of songs":"Nombre de morceaux",
     "Negative prompt":"Prompt négatif",
+    "what to avoid — e.g. harsh noise, distortion, muffled vocals":"à éviter — ex. bruit strident, distorsion, voix étouffées",
     "Seed":"Seed",
     "Format":"Format",
     "Voice":"Voix",
@@ -2303,6 +2305,7 @@ const I18N = {
     "Duration (sec)":"Dauer (Sek.)",
     "Number of songs":"Anzahl Songs",
     "Negative prompt":"Negativer Prompt",
+    "what to avoid — e.g. harsh noise, distortion, muffled vocals":"was vermieden werden soll — z. B. schrilles Rauschen, Verzerrung, dumpfer Gesang",
     "Seed":"Seed",
     "Format":"Format",
     "Voice":"Stimme",
@@ -2734,6 +2737,7 @@ const I18N = {
     "Duration (sec)":"Duração (seg)",
     "Number of songs":"Número de músicas",
     "Negative prompt":"Prompt negativo",
+    "what to avoid — e.g. harsh noise, distortion, muffled vocals":"o que evitar — ex.: ruído áspero, distorção, vocais abafados",
     "Seed":"Seed",
     "Format":"Formato",
     "Voice":"Voz",
@@ -3165,6 +3169,7 @@ const I18N = {
     "Duration (sec)":"長さ (秒)",
     "Number of songs":"曲数",
     "Negative prompt":"ネガティブプロンプト",
+    "what to avoid — e.g. harsh noise, distortion, muffled vocals":"避けたい要素 — 例: 耳障りなノイズ、歪み、こもったボーカル",
     "Seed":"シード",
     "Format":"形式",
     "Voice":"声",
@@ -3742,9 +3747,9 @@ const AUDIO_PARAMS = {
     { id:"instrumental",    label:"Instrumental",    type:"boolean",  appliesTo:"all" },
     { id:"duration",        label:"Duration (sec)",  type:"number",   appliesTo:"cat:duration" },
     { id:"number_of_songs", label:"Number of songs", type:"number",   appliesTo:"cat:gencount", default:1 },
-    { id:"negative_prompt", label:"Negative prompt", type:"textarea", appliesTo:"all" },
+    { id:"negative_prompt", label:"Negative prompt", type:"textarea", appliesTo:"all", ph:"what to avoid — e.g. harsh noise, distortion, muffled vocals" },
     { id:"seed",            label:"Seed",            type:"number",   appliesTo:"all", advanced:true, hint:"blank = random; set a fixed seed to repeat this song and reuse cached results" },
-    { id:"response_format", label:"Format",          type:"select",   appliesTo:"all", options:["mp3","opus","aac","flac","wav","pcm"], default:"mp3" },
+    { id:"response_format", label:"Format",          type:"select",   appliesTo:"all", options:["mp3","opus","aac","flac","wav","pcm"], default:"mp3", advanced:true },
   ],
   tts: [
     { id:"voice",           label:"Voice",           type:"select",   appliesTo:"cat:voices" },
@@ -3803,7 +3808,7 @@ function audioFieldHTML(n, f){
   }
   const v = cur!=null ? cur : "";
   if(f.type==="textarea")
-    return `<div><label>${esc(f.label)}</label><textarea data-pf="${f.id}" style="min-height:40px" placeholder="${esc(f.label)}">${esc(v)}</textarea>${hint}</div>`;
+    return `<div><label>${esc(f.label)}</label><textarea data-pf="${f.id}" style="min-height:40px" placeholder="${esc(f.ph||f.label)}">${esc(v)}</textarea>${hint}</div>`;
   return `<div><label>${esc(f.label)}</label><input data-pf="${f.id}" value="${esc(v)}" placeholder="${esc(f.label)}"/>${hint}</div>`;
 }
 // rebuild the parameter block for an audio node from its current model
@@ -3889,10 +3894,14 @@ function refreshLoraParams(n){
   };
 }
 // shared body + run for the Music and Speech nodes
-function audioBody(n, promptLabel, ph){
+// promptFirst puts the main prompt right under the model picker, ahead of the per-model
+// param block — for Music the required style prompt must not hide below Lyrics/Duration.
+function audioBody(n, promptLabel, ph, promptFirst){
+  const prompt = `<div><label>${promptLabel}</label><textarea data-f="prompt" placeholder="${esc(ph)}">${esc(n.fields.prompt||"")}</textarea></div>`;
   return `${modelFieldHTML(n)}
+    ${promptFirst ? prompt : ""}
     <div data-params></div>
-    <div><label>${promptLabel}</label><textarea data-f="prompt" placeholder="${esc(ph)}">${esc(n.fields.prompt||"")}</textarea></div>
+    ${promptFirst ? "" : prompt}
     <div data-advparams></div>
     <details class="adv"><summary>advanced params (JSON)</summary>
       <textarea data-f="extraJson" style="min-height:34px" placeholder='{"any_extra_key": 123}'>${esc(n.fields.extraJson||"")}</textarea></details>`;
@@ -5103,7 +5112,7 @@ const NODE_TYPES = {
     modelKind:"audio", modelFilter:"music",
     inputs:[],
     outputs:[{name:"audio", type:"audio"}], preview:"audio",
-    body:(n)=> audioBody(n, "style / prompt", "upbeat lo-fi hip hop, mellow piano, vinyl crackle, 90 BPM"),
+    body:(n)=> audioBody(n, "style / prompt", "upbeat lo-fi hip hop, mellow piano, vinyl crackle, 90 BPM", true),
     run: audioRun,
   },
 
