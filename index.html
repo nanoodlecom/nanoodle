@@ -1423,6 +1423,7 @@ const I18N = {
     "ask something…":"pregunta algo…",
     "a red panda astronaut…":"un panda rojo astronauta…",
     "style guide, constraints…":"guía de estilo, restricciones…",
+    "· adds its reasoning to the text output":"· añade su razonamiento a la salida de texto",
     "a red panda astronaut, cinematic — or, with images wired in: 'combine these into a poster'":"un panda rojo astronauta, cinematográfico — o, con imágenes conectadas: 'combínalas en un póster'",
     "make it night-time, add neon…":"hazlo de noche, añade neón…",
     "Describe this image.":"Describe esta imagen.",
@@ -1854,6 +1855,7 @@ const I18N = {
     "ask something…":"posez une question…",
     "a red panda astronaut…":"un panda roux astronaute…",
     "style guide, constraints…":"guide de style, contraintes…",
+    "· adds its reasoning to the text output":"· ajoute son raisonnement à la sortie texte",
     "a red panda astronaut, cinematic — or, with images wired in: 'combine these into a poster'":"un panda roux astronaute, cinématique — ou, avec des images branchées : 'combine-les en une affiche'",
     "make it night-time, add neon…":"passe en mode nuit, ajoute des néons…",
     "Describe this image.":"Décrivez cette image.",
@@ -2285,6 +2287,7 @@ const I18N = {
     "ask something…":"etwas fragen…",
     "a red panda astronaut…":"ein Roter Panda als Astronaut…",
     "style guide, constraints…":"Stilvorgaben, Einschränkungen…",
+    "· adds its reasoning to the text output":"· fügt die Überlegungen der Textausgabe hinzu",
     "a red panda astronaut, cinematic — or, with images wired in: 'combine these into a poster'":"ein Roter Panda als Astronaut, filmisch — oder, mit verbundenen Bildern: 'kombiniere sie zu einem Poster'",
     "make it night-time, add neon…":"mach es Nacht, füge Neon hinzu…",
     "Describe this image.":"Beschreibe dieses Bild.",
@@ -2716,6 +2719,7 @@ const I18N = {
     "ask something…":"pergunte algo…",
     "a red panda astronaut…":"um panda-vermelho astronauta…",
     "style guide, constraints…":"guia de estilo, restrições…",
+    "· adds its reasoning to the text output":"· adiciona seu raciocínio à saída de texto",
     "a red panda astronaut, cinematic — or, with images wired in: 'combine these into a poster'":"um panda-vermelho astronauta, cinematográfico — ou, com imagens conectadas: 'combine-as em um pôster'",
     "make it night-time, add neon…":"transforme em noite, adicione néon…",
     "Describe this image.":"Descreva esta imagem.",
@@ -3147,6 +3151,7 @@ const I18N = {
     "ask something…":"質問を入力…",
     "a red panda astronaut…":"宇宙飛行士のレッサーパンダ…",
     "style guide, constraints…":"スタイルガイド、制約…",
+    "· adds its reasoning to the text output":"· 思考過程をテキスト出力に追加",
     "a red panda astronaut, cinematic — or, with images wired in: 'combine these into a poster'":"宇宙飛行士のレッサーパンダ、映画的に — または画像をつないで：'これらをポスターに合成'",
     "make it night-time, add neon…":"夜にして、ネオンを追加…",
     "Describe this image.":"この画像を説明してください。",
@@ -4725,7 +4730,7 @@ const NODE_TYPES = {
       ${modelFieldHTML(n)}
       <div><label>system (optional)</label><textarea data-f="system" style="min-height:40px" placeholder="style guide, constraints…">${esc(n.fields.system||"")}</textarea></div>
       <div><label>prompt</label><textarea data-f="prompt" placeholder="a red panda astronaut, cinematic — or, with images wired in: 'combine these into a poster'">${esc(n.fields.prompt||"")}</textarea></div>
-      <label class="setbool" style="margin:3px 0"><input type="checkbox" data-f="showThinking"${n.fields.showThinking===false?"":" checked"}/> show thinking <span class="dim">· the model reasons before it draws</span></label>`,
+      <label class="setbool" style="margin:3px 0"><input type="checkbox" data-f="showThinking"${n.fields.showThinking===false?"":" checked"}/> show thinking <span class="dim">· adds its reasoning to the text output</span></label>`,
     async run(n, inp, ctx){
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       if(!prompt) throw new Error("no prompt — describe what to draw (or how to edit the wired images)");
