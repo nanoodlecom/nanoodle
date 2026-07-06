@@ -307,6 +307,36 @@ function runInvariants(mod) {
   return F;
 }
 
+// ---- 6. CONTRACT COVERAGE (pure text; PR #259 regression) — every NODE_TYPE must have a
+//      DESC_FIELDS entry, or the planner contract advertises "fields: —" and the LLM dutifully
+//      emits the node EMPTY ("add a comment that says X" → blank sticky note). Types whose only
+//      field is user media (stripped from the contract by design) are allowlisted instead. ----
+const CONTRACT_FIELDLESS_OK = new Set(["aupload", "vupload"]); // media-only: the user records/uploads in the app; nothing for the planner to set
+function contractCoverage(src) {
+  const F = [];
+  const keysOf = (blockRe, label) => {
+    const m = src.match(blockRe);
+    if (!m) { F.push(`CONTRACT: could not locate ${label} in index.html — the extractor is stale`); return null; }
+    return [...m[1].matchAll(/^ {4}([a-z]+):\s*\{/gm)].map((k) => k[1]);
+  };
+  // NODE_TYPES entries sit at 2-space indent; DESC_FIELDS entries at 4-space.
+  const ntm = src.match(/NODE_TYPES = \{([\s\S]*?)\n\};/);
+  const nodeTypes = ntm ? [...ntm[1].matchAll(/^ {2}([a-z]+): \{/gm)].map((k) => k[1]) : null;
+  if (!nodeTypes) F.push("CONTRACT: could not locate NODE_TYPES in index.html — the extractor is stale");
+  const descKeys = keysOf(/const DESC_FIELDS = \{([\s\S]*?)\n {2}\};/, "DESC_FIELDS");
+  if (!nodeTypes || !descKeys) return F;
+  if (nodeTypes.length < 20) F.push(`CONTRACT: NODE_TYPES extractor found only ${nodeTypes.length} types — the extractor is stale`);
+  for (const t of nodeTypes) {
+    if (!descKeys.includes(t) && !CONTRACT_FIELDLESS_OK.has(t))
+      F.push(`CONTRACT COVERAGE: node type "${t}" has no DESC_FIELDS entry — the describe-changes planner is told it has NO fields and will emit it empty. Add one (or allowlist it in CONTRACT_FIELDLESS_OK if its only field is user media).`);
+  }
+  for (const k of descKeys) {
+    if (!nodeTypes.includes(k))
+      F.push(`CONTRACT COVERAGE: DESC_FIELDS entry "${k}" has no matching NODE_TYPE — dead entry or typo'd type name.`);
+  }
+  return F;
+}
+
 // ---- self-test: mutate the source for the 3 load-bearing invariants and confirm
 //      each mutation produces a POINTED failure (proves the check actually bites). ----
 function selfTest() {
@@ -333,6 +363,14 @@ function selfTest() {
       // PR #238 regression that false-rejected a valid wire into music.lyrics / tts.instructions
       from: 'for(const p of (AUDIO_PARAMS[type]||[])) if(p.type==="textarea" && !out.includes(p.id)) out.push(p.id);',
       to:   'for(const p of []) if(p.type==="textarea" && !out.includes(p.id)) out.push(p.id);' },
+    { name: "contract-missing-type", need: /CONTRACT COVERAGE: node type "comment"/,
+      // drop the comment entry from the planner contract — the PR #259 bug reintroduced
+      from: '    comment:{ fields:{ text:"the note text" } },',
+      to:   "" },
+    { name: "contract-dead-entry", need: /CONTRACT COVERAGE: DESC_FIELDS entry "commment"/,
+      // typo the type name — the entry goes dead AND the real type loses coverage
+      from: '    comment:{ fields:{ text:"the note text" } },',
+      to:   '    commment:{ fields:{ text:"the note text" } },' },
     { name: "deletion-respected", need: /DELETION RESPECTED/,
       // the pre-04520f1 regression: merge ALL old fields under the planner's, resurrecting
       // a field the planner deliberately omitted (audit M4)
@@ -344,7 +382,7 @@ function selfTest() {
     if (!src.includes(c.from)) { out.push(`  ✗ ${c.name}: anchor not found — the mutation is stale`); continue; }
     const mutated = src.replace(c.from, c.to);
     let failures;
-    try { failures = runInvariants(buildModule(mutated)); }
+    try { failures = runInvariants(buildModule(mutated)).concat(contractCoverage(mutated)); }
     catch (e) { out.push(`  ✗ ${c.name}: mutated build threw ${e.message}`); continue; }
     const hit = failures.some((f) => c.need.test(f));
     out.push(hit
@@ -352,7 +390,7 @@ function selfTest() {
       : `  ✗ ${c.name}: mutation NOT caught — check is blind here (got: ${failures.join(" | ") || "no failures"})`);
   }
   // sanity: the UNMUTATED source must pass clean, or the self-test proves nothing.
-  const clean = runInvariants(buildModule(src));
+  const clean = runInvariants(buildModule(src)).concat(contractCoverage(src));
   out.push(clean.length ? `  ✗ baseline: clean source has failures — ${clean.join(" | ")}` : "  ✓ baseline: clean source passes");
   return out;
 }
@@ -367,7 +405,7 @@ if (process.argv.includes("--self-test")) {
 let failures;
 try {
   const src = readFileSync(join(ROOT, "index.html"), "utf8");
-  failures = runInvariants(buildModule(src));
+  failures = runInvariants(buildModule(src)).concat(contractCoverage(src));
 } catch (e) {
   process.stderr.write("✗ check-describe-apply harness error: " + (e && e.stack ? e.stack : e) + "\n");
   process.exit(1);
@@ -377,4 +415,4 @@ if (failures.length) {
   process.stderr.write("✗ the describe-changes copilot apply path is broken:\n\n- " + failures.join("\n- ") + "\n");
   process.exit(1);
 }
-process.stdout.write("✓ describe-changes apply path holds (media carry, deletion, sanitize, validate, placement).\n");
+process.stdout.write("✓ describe-changes apply path holds (media carry, deletion, sanitize, validate, placement, contract coverage).\n");
