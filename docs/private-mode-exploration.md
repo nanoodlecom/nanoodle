@@ -96,7 +96,22 @@ Estimated effort: ~1 focused day including the pre-commit harness stubs and a CD
 - **Proxy availability ≠ attestation success**: status can return with `verified:false` + error. Treat unverified as *down* (never send prompts to an unverified tunnel — that would invert the entire promise).
 - Model list drift between proxy versions is guaranteed (0.1.4's README vs its own JSON already differs) — always enumerate from `/v1/models`.
 
-## 6. Phase 2 (spike, separate PR): zero-proxy private mode
+## 6. How the crypto works — and what could leak
+
+The question every skeptical reader (and every r/selfhosted commenter) will ask: *if the browser encrypts, doesn't it hold a key that could be exposed?* The answer is that **there is no long-lived secret on the client side at all.** EHBP is HPKE (hybrid public-key encryption):
+
+1. **The decryption key is born inside the enclave and never leaves.** The TEE generates its keypair in hardware; the private half physically stays there. NanoGPT, Tinfoil, nanoodle — nobody holds it.
+2. **The client fetches the enclave's *public* key and verifies it before trusting it.** This attestation step is the security core: the key is bound to a report signed by the CPU vendor's hardware root of trust, proving it was minted inside genuine TEE hardware running exactly the measured, sigstore-published code. Without this, NanoGPT could substitute its own public key and read everything — attestation is what makes that impossible.
+3. **Every request uses a throwaway key.** The client generates an ephemeral keypair, encapsulates against the enclave's public key (the encapsulated key rides openly in a request header — useless without the enclave's private half, per the `ehbp` source), derives a symmetric key, encrypts the body. Responses come back encrypted with a per-response nonce.
+
+So the only client-side secrets are the ephemeral request key and its derived symmetric key — in memory for one request, then gone. In-browser they'd live in the same page memory that already holds the user's prompts and NanoGPT API key: nothing that couldn't already steal everything gains anything new, and per-request keys mean a compromise tomorrow can't decrypt today's traffic.
+
+Two trust facts to state honestly in any copy:
+
+- **The API key is not hidden by any of this** — `ehbp` encrypts bodies "while preserving HTTP headers for routing," so `Authorization` travels (TLS-protected) to nano-gpt.com exactly as it does on every current call, because billing needs it. Private Mode hides *content*, not *identity*. Same in both the proxy and in-browser paths; the key goes nowhere new.
+- **Whoever runs the verification code is the trust anchor.** Proxy path: NanoGPT's auditable npm package on the user's machine. In-browser path: the tinfoil verifier inside *our served bundle* — users already extend that trust by pasting a key into us, but it makes two rules non-negotiable: pin + hash the vendored crypto, and **attestation failure = refuse to send** (never fall back to plaintext behind a 🔒).
+
+## 7. Phase 2 (spike, separate PR): zero-proxy private mode
 
 `tinfoil@1.1.3` ships an **official browser build** (`exports.browser` → `index.browser.js`, with `@freedomofpress/sigstore-browser`, `ehbp`; ~2 MB unpacked source across the four packages, no WASM files) — NanoGPT's own web app does attestation + EHBP entirely in the browser (`browser_frontend_local_proxy_required: false` in the status contract). nanoodle could do the same: vendor a tinfoil browser bundle (patchling precedent) and offer Private Mode with **zero install, zero terminal, zero LNA prompt** — the full "nobody can read your data" story at one-toggle friction, with the user's existing pasted key.
 
@@ -104,7 +119,7 @@ Estimated effort: ~1 focused day including the pre-commit harness stubs and a CD
 - The play srcdoc iframe re-seals `connect-src` to `'self' blob: nano-gpt.com` — widening it to `https:` would gut the anti-exfiltration gate, so in play/exported contexts the encrypted call must run in the trusted parent (bridge), not the app iframe. That's a real design task; hence: spike, not slice.
 - Open questions for the spike: bundle size once built+minified; `String.raw`/no-backtick constraint if any of it must ride inside `RUNTIME_JS`; auditability of vendored crypto (pin version + document hash, same discipline as the receipts CLI `npx @nanogpt/private-mode verify`).
 
-## 7. Verification transcript (for reproducibility)
+## 8. Verification transcript (for reproducibility)
 
 - Proxy: `NANOGPT_API_KEY=… NANOGPT_PRIVATE_ALLOWED_ORIGINS=https://nanoodle.com npx @nanogpt/private-mode` → boot log shows attestation verified.
 - `curl -X OPTIONS -H "Origin: https://nanoodle.com" http://127.0.0.1:8787/v1/chat/completions` → 204 + correct CORS headers; evil origin → 403.
