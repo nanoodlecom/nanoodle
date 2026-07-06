@@ -5429,7 +5429,7 @@ const RUNTIME_WIDGET_CSS =
 #app-output .card.nd-earlier.nd-open img.rmain,
 #app-output .card.nd-earlier.nd-open video{ width:auto; max-width:100%; height:auto; max-height:62vh;
   object-fit:contain; border-radius:.5rem; margin-inline:auto; }
-#app-output .card.nd-earlier.nd-open audio{ width:100%; height:auto; }
+#app-output .card.nd-earlier.nd-open audio{ width:100%; height:revert; }   /* NOT auto: <audio controls> has no intrinsic height, so auto computes to 0px and the player vanishes */
 #app-output .card.nd-earlier.nd-open .text{ display:block; -webkit-line-clamp:none; max-height:none;
   white-space:pre-wrap; font-size:inherit; line-height:1.6; color:inherit; }
 #app-output .card.nd-earlier.nd-open .dlrow{ display:block; }
