@@ -1420,7 +1420,7 @@ const I18N = {
     "Text→Video":"Texto→Vídeo",
     "Text → video (takes ~1 min to generate)":"Texto → vídeo (tarda ~1 min en generarse)",
     "Image→Video":"Imagen→Vídeo",
-    "Image (+text) → video":"Imagen (+texto) → vídeo",
+    "Image (+text) → video (renders ~1 min)":"Imagen (+texto) → vídeo (renderiza ~1 min)",
     "Music":"Música",
     "Text → music":"Texto → música",
     "Speech":"Voz",
@@ -1888,7 +1888,7 @@ const I18N = {
     "Text→Video":"Texte→Vidéo",
     "Text → video (takes ~1 min to generate)":"Texte → vidéo (génération en ~1 min)",
     "Image→Video":"Image→Vidéo",
-    "Image (+text) → video":"Image (+texte) → vidéo",
+    "Image (+text) → video (renders ~1 min)":"Image (+texte) → vidéo (rendu ~1 min)",
     "Music":"Musique",
     "Text → music":"Texte → musique",
     "Speech":"Voix",
@@ -2356,7 +2356,7 @@ const I18N = {
     "Text→Video":"Text→Video",
     "Text → video (takes ~1 min to generate)":"Text → Video (Erzeugung dauert ~1 Min.)",
     "Image→Video":"Bild→Video",
-    "Image (+text) → video":"Bild (+Text) → Video",
+    "Image (+text) → video (renders ~1 min)":"Bild (+Text) → Video (rendert ~1 Min.)",
     "Music":"Musik",
     "Text → music":"Text → Musik",
     "Speech":"Sprache",
@@ -2824,7 +2824,7 @@ const I18N = {
     "Text→Video":"Texto→Vídeo",
     "Text → video (takes ~1 min to generate)":"Texto → vídeo (leva ~1 min para gerar)",
     "Image→Video":"Imagem→Vídeo",
-    "Image (+text) → video":"Imagem (+texto) → vídeo",
+    "Image (+text) → video (renders ~1 min)":"Imagem (+texto) → vídeo (renderiza ~1 min)",
     "Music":"Música",
     "Text → music":"Texto → música",
     "Speech":"Fala",
@@ -3292,7 +3292,7 @@ const I18N = {
     "Text→Video":"テキスト→動画",
     "Text → video (takes ~1 min to generate)":"テキスト → 動画（生成に約1分かかります）",
     "Image→Video":"画像→動画",
-    "Image (+text) → video":"画像 (+テキスト) → 動画",
+    "Image (+text) → video (renders ~1 min)":"画像 (+テキスト) → 動画 (生成 約1分)",
     "Music":"音楽",
     "Text → music":"テキスト → 音楽",
     "Speech":"音声",
@@ -3933,7 +3933,7 @@ function updateModelWarn(n){
     const id = defModelFor(n.type); if(!id) return;
     n.fields.model = id;
     const mp = n.el.querySelector(".modelpick"); if(mp) mp.textContent = id+" ▾";
-    updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); save();
+    updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); save();
   };
 }
 /* ---------- dynamic audio parameters (from the model catalog + a researched spec) ----------
@@ -5157,7 +5157,7 @@ const NODE_TYPES = {
   },
 
   ivideo: {
-    em:"📽️", title:"Image→Video", desc:"Image (+text) → video", group:"Video", kw:"animate motion move bring to life",
+    em:"📽️", title:"Image→Video", desc:"Image (+text) → video (renders ~1 min)", group:"Video", kw:"animate motion move bring to life",
     modelKind:"video", modelFilter:"i2v",
     inputs:[{name:"image", type:"image"}],
     endFrame:true,   // grows an optional "end frame" port when the model exposes last_image (seedance-2.0 morph) — see refreshEndFrameInput
