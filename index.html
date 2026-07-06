@@ -701,6 +701,7 @@
   #mpicklist .price{ opacity:.6; white-space:nowrap; font-family:ui-monospace,monospace; font-size:.74rem }
   .tag{ font-size:.62rem; padding:.02rem .35rem; border-radius:1rem; background:#7c8cff22; color:#aeb6ff; white-space:nowrap }
   .tag.edit{ background:#ff79c622; color:#ffb4e2 }
+  .tag.nsfw{ background:#ff5e5e22; color:#ff9a9a; }
 
   .modelpick{ width:100%; text-align:left; background:var(--panel2); border:1px solid var(--line); border-radius:.45rem;
               padding:.35rem .5rem; font-size:.8rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
@@ -921,6 +922,7 @@
       <option value="premium">Priciest</option>
       <option value="name">Name A→Z</option>
     </select>
+    <label id="mpicknsfw" style="display:none; font-size:.72rem; white-space:nowrap; user-select:none; align-items:center; gap:.2rem; margin-right:.25rem; color:var(--dim)"><input type="checkbox" id="mpicknsfwtog" style="vertical-align:middle; margin-right:.2rem"> NSFW / spicy</label>
     <button id="mpickclose" class="hbtn" aria-label="Close model picker">✕</button>
   </div>
   <input id="mpicksearch" placeholder="filter the full list, or type an exact id + Enter…" autocomplete="off" />
@@ -3542,6 +3544,7 @@ function normChat(m){
     // NOT m.cost_estimate: it's 0 for routers/auto-model that actually charge, which would fake them as "cheapest".
     sortUsd: (p.prompt!=null || p.completion!=null) ? ((+p.prompt||0)*EST.llmInTokens + (+p.completion||0)*EST.llmOutTokens)/1e6 : null,
     vision:!!c.vision,
+    nsfw:!!c.nsfw,
     reasoning:!!c.reasoning, structured_output:!!c.structured_output,   // gate JSON mode + reasoning controls
     audio_input:!!c.audio_input, video_input:!!c.video_input, pdf_upload:!!c.pdf_upload,
     maxOut: m.max_output_tokens,   // max_tokens ceiling (present on most models)
@@ -3607,6 +3610,7 @@ function normImg(m){
     maxOut: m.supported_parameters?.max_output_images || 1,             // can return N images per call → the "variations" control (gen only)
     fixedCount: m.supported_parameters?.fixed_image_count || 0,          // ALWAYS returns this many (e.g. midjourney/higgsfield = 4), regardless of n
     sizePrices: per,                                                     // per-size price map → live price as the size changes
+    nsfw: !!m.capabilities?.nsfw,
     price: v!=null ? `$${(+v).toFixed(3)}/img` : "" };
 }
 function normVideo(m){
@@ -3638,6 +3642,7 @@ function normVideo(m){
     params: pp,                                      // per-model param descriptors → the ⚙️ Model options block
     defaults: sp.defaults || {},                     // catalog's per-param default values → placeholders in ⚙️ Model options
     pricing: p,                                      // raw pricing → live price recomputed as resolution/duration change
+    nsfw: !!c.nsfw,
     price };
 }
 function normAudio(m){
@@ -3673,7 +3678,7 @@ function normAudio(m){
   const remix = !dead && !!(c.music_cover || c.audio_to_music || c.music_extension || c.audio_extension || c.audio_inpainting);
   return { id:m.id, name:m.name||m.id, created:m.created, owner:m.owned_by||"", voices, langs, params:sp,
     sortUsd: audioUnitUsd(p, EST.ttsChars),          // resolved $ at assumed usage → price sorts (mixed units, rough)
-    tts, gen, music: gen && !tts, remix, stt, pricing:p, price };   // raw pricing kept so transcribe can estimate from per_minute
+    tts, gen, music: gen && !tts, remix, stt, pricing:p, nsfw: !!c.nsfw, price };   // raw pricing kept so transcribe can estimate from per_minute
 }
 
 const CATALOG = {
@@ -3763,7 +3768,8 @@ function passesFilter(m, filter){
 // a node's default model = newest catalog entry of the right kind that passes the node's filter (or none yet)
 function defModelFor(type){
   const t = NODE_TYPES[type]; if(!t.modelKind) return "";
-  const m = (catalogs[t.modelKind]||[]).find(x=> passesFilter(x, t.modelFilter));
+  const isMedia = t.modelKind==="image" || t.modelKind==="video";
+  const m = (catalogs[t.modelKind]||[]).find(x=> passesFilter(x, t.modelFilter) && (!isMedia || !x.nsfw));
   return m ? m.id : "";
 }
 // A saved/shared graph's fields.model can name a model NanoGPT has since renamed or retired.
@@ -4725,6 +4731,12 @@ function setPickerSort(s){
   try{ localStorage.setItem("nn_picksort", s); }catch{}
   renderPicker();
 }
+let showNsfw = (()=>{ try{ return localStorage.getItem("nn_shownsfw")==="1"; }catch{ return false; } })();
+function setShowNsfw(v){
+  showNsfw = !!v;
+  try{ localStorage.setItem("nn_shownsfw", showNsfw ? "1" : "0"); }catch{}
+  renderPicker();
+}
 // order the already-filtered matches by the current sort. created (native newest-first order)
 // is the tiebreak everywhere, so equal prices still read newest-first.
 function sortMatches(list){
@@ -4748,6 +4760,10 @@ function openPicker(kind, opts){
   // whole-phrase key so non-English can reorder ("Modelo de imagen", not the word-salad "Imagen modelo")
   $("mpicktitle").textContent = t(KIND_LABEL[kind] ? `${KIND_LABEL[kind]} model` : "Model") + (opts.filter ? ` · ${t(opts.filter)}` : "");
   $("mpicksort").value = pickerSort;
+  const nsfwWrap = $("mpicknsfw");
+  const nsfwtog = $("mpicknsfwtog");
+  if(nsfwWrap) nsfwWrap.style.display = (kind==="image" || kind==="video") ? "inline-flex" : "none";
+  if(nsfwtog) nsfwtog.checked = showNsfw;
   $("mpick").classList.add("open");
   $("mpickback").classList.add("show");
   $("mpicksearch").value = "";
@@ -4761,13 +4777,18 @@ function closePicker(){ $("mpick").classList.remove("open"); $("mpickback").clas
 function pickerMatches(){
   if(!picker) return [];
   const q = $("mpicksearch").value.trim().toLowerCase();
-  const list = (catalogs[picker.kind] || []).filter(m=> passesFilter(m, picker.filter));
+  let list = (catalogs[picker.kind] || []).filter(m=> passesFilter(m, picker.filter));
+  if((picker.kind==="image" || picker.kind==="video") && !showNsfw){
+    list = list.filter(m => !m.nsfw || m.id === picker.current);
+  }
   return q ? list.filter(m=> m.id.toLowerCase().includes(q) || m.name.toLowerCase().includes(q)) : list;
 }
 function renderPicker(){
   if(!picker) return;
   const matches = sortMatches(pickerMatches());
   $("mpickcount").textContent = `${matches.length} ${matches.length===1?t("model"):t("models")} · ${t(PICK_SORTS[pickerSort])}`;
+  const nsfwtog = $("mpicknsfwtog");
+  if(nsfwtog && (picker.kind==="image" || picker.kind==="video")) nsfwtog.checked = !!showNsfw;
   const frag = document.createDocumentFragment();
   for(const m of matches.slice(0,400)){
     const b = document.createElement("button");
@@ -4775,7 +4796,8 @@ function renderPicker(){
     const tags = `${m.vision?'<span class="tag">vision</span>':''}${m.edit?'<span class="tag edit">edit</span>':''}`
       + `${m.t2v?'<span class="tag">t2v</span>':''}${m.i2v?'<span class="tag edit">i2v</span>':''}`
       + `${m.v2v?'<span class="tag edit">v2v</span>':''}${m.avatar?'<span class="tag">avatar</span>':''}`
-      + `${m.tts?'<span class="tag">tts</span>':''}${m.music?'<span class="tag edit">music</span>':''}${m.stt?'<span class="tag">stt</span>':''}`;
+      + `${m.tts?'<span class="tag">tts</span>':''}${m.music?'<span class="tag edit">music</span>':''}${m.stt?'<span class="tag">stt</span>':''}`
+      + `${m.nsfw?'<span class="tag nsfw">nsfw</span>':''}`;
     b.innerHTML = `<span class="mname">${esc(m.id)} ${tags}</span><span class="price">${esc(m.price)}</span>`;
     b.onclick = ()=>{ picker.onPick(m.id); closePicker(); };
     frag.appendChild(b);
@@ -8450,6 +8472,8 @@ document.addEventListener("click", e=>{ if(!$("moremenu").contains(e.target)) $(
 // picker interactions
 $("mpicksearch").addEventListener("input", renderPicker);
 $("mpicksort").addEventListener("change", e=> setPickerSort(e.target.value));
+const nsfwt = $("mpicknsfwtog");
+if(nsfwt) nsfwt.addEventListener("change", e=> setShowNsfw(e.target.checked));
 $("mpicksearch").addEventListener("keydown", e=>{
   if(e.key==="Enter"){
     e.preventDefault();
@@ -9792,7 +9816,7 @@ $("signout").onclick = ()=> setKey(null);
   async function lib(){ return _gd || (_gd = await import("./vendor/patchling/index.js")); }
   async function modelHint(){
     await Promise.all(["chat","image","video","audio"].map(k=>loadCatalog(k).catch(()=>null)));
-    const pick = (kind,filter,n=6)=> (catalogs[kind]||[]).filter(m=>passesFilter(m,filter)).slice(0,n).map(m=>m.id);
+    const pick = (kind,filter,n=6)=> (catalogs[kind]||[]).filter(m=>passesFilter(m,filter) && (kind!=="image" && kind!=="video" || !m.nsfw)).slice(0,n).map(m=>m.id);
     const L = [];
     const c=pick("chat",null); if(c.length) L.push(`  chat: ${c.join(", ")}`);
     const i=pick("image","gen"); if(i.length) L.push(`  image: ${i.join(", ")}`);
