@@ -557,10 +557,11 @@ async function run() {
      "closed the modal, lost my app" bug.
      -------------------------------------------------------------------------- */
 
-  /* R0 (unit): appHandoffSig() is the change-detector. It MUST ignore canvas view
-     (pan/zoom) and node positions/sizes — else navigating the canvas reads as an edit
-     and the resume never fires — and MUST flip on node type/fields, links, or the bound
-     app id. Run the REAL function in isolation over hand-built graphs. */
+  /* R0 (unit): appHandoffSig() is the CONTENT change-detector (demo-starter baseline +
+     share-divergence warning). It MUST ignore canvas view (pan/zoom) and node
+     positions/sizes — else a signed-out visitor who nudges a node loses the canned demo —
+     and MUST flip on node type/fields, links, or the bound app id. Run the REAL function
+     in isolation over hand-built graphs. */
   {
     const sigFn = extractFn(INDEX_SRC, "appHandoffSig");
     const sctx = { JSON, graph: null, pendingAppId: null };
@@ -583,7 +584,7 @@ async function run() {
     const nameEdit = base(); nameEdit.nodes[0].name = "Headline";           // custom label → shown in the built app
     const wsName = base(); wsName.nodes[0].name = "   ";                     // whitespace-only → trims to "" (no change)
     const b0 = sig(base());
-    record("R0 appHandoffSig ignores pan/zoom + node positions (resume fast-path can fire)",
+    record("R0 appHandoffSig ignores pan/zoom + node positions (demo survives a nudge)",
       sig(moved) === b0, `moved sig ${sig(moved) === b0 ? "==" : "!="} base — view/x/y/w/sizes must be excluded`);
     record("R0 appHandoffSig flips on a field edit", sig(fieldEdit) !== b0, "model change must read as a change");
     record("R0 appHandoffSig flips on a node-type change", sig(typeEdit) !== b0, "type change must read as a change");
@@ -591,6 +592,24 @@ async function run() {
     record("R0 appHandoffSig flips on a node rename", sig(nameEdit) !== b0, "custom name is the app's step label — must re-hand-off");
     record("R0 appHandoffSig ignores a whitespace-only name", sig(wsName) === b0, "blank name trims to '' — not an edit");
     record("R0 appHandoffSig flips on the bound app id", sig(base(), "app_X") !== b0, "pendingAppId must be folded in");
+
+    /* R0b (unit): appSyncSig() gates the ✨ Open↔Update label + the re-handoff fast path.
+       It MUST flip on node x/y/w — a rearranged canvas is an update the app hasn't received,
+       and the fast path swallowing it loses the layout on the next Customize-workflow round
+       trip (the "always says Open" bug) — and MUST ignore pan/zoom (camera) and n.sizes
+       (stamped by a ResizeObserver on any reflow, so signing them flaps the label). */
+    new vm.Script(extractFn(INDEX_SRC, "appSyncSig"), { filename: "appSyncSig" }).runInContext(sctx);
+    const ssig = (graph, app = "") => { sctx.graph = graph; sctx.pendingAppId = app; return sctx.appSyncSig(); };
+    const s0 = ssig(base());
+    const nodeMoved = base(); nodeMoved.nodes[0].x = 999; nodeMoved.nodes[1].y = -42;
+    const cardResized = base(); cardResized.nodes[0].w = 480;
+    const cameraOnly = base(); cameraOnly.view = { panX: 800, panY: -300, scale: 2.5 };
+    const taStretch = base(); taStretch.nodes[1].sizes = { 9: 9 };
+    record("R0b appSyncSig flips on a node move (x/y)", ssig(nodeMoved) !== s0, "a dragged node is pending work — Open would lie and the fast path would drop the move");
+    record("R0b appSyncSig flips on a card resize (w)", ssig(cardResized) !== s0, "a resized card is pending work");
+    record("R0b appSyncSig ignores pan/zoom", ssig(cameraOnly) === s0, "the camera isn't the workflow — looking around must not flip the button");
+    record("R0b appSyncSig ignores textarea sizes", ssig(taStretch) === s0, "n.sizes is ResizeObserver-stamped on any reflow — signing it flaps the label");
+    record("R0b appSyncSig flips on a field edit (content flows through)", ssig(fieldEdit) !== s0, "content changes must reach the sync sig via appHandoffSig");
   }
 
   /* R1: reopening Create app on the UNCHANGED graph resumes the live builder — it emits
@@ -774,10 +793,10 @@ async function run() {
     const create = extractFn(INDEX_SRC, "openCreateApp");
     record("R4 closeAppModal keeps the iframe (no about:blank)", !/about:blank/.test(close), "closeAppModal must not blank src");
     record("R4 openAppModal records resume bookkeeping",
-      /appFrameBooting\s*=\s*true/.test(open) && /lastHandoffSig\s*=\s*appHandoffSig\(\)/.test(open),
+      /appFrameBooting\s*=\s*true/.test(open) && /lastHandoffSig\s*=\s*appSyncSig\(\)/.test(open),
       "openAppModal must mark the frame booting + set lastHandoffSig (loaded is only set by __appready__)");
     record("R4 openCreateApp has the same-graph resume fast-path",
-      /appFrameLoaded\s*\|\|\s*appFrameBooting\)\s*&&\s*appHandoffSig\(\)\s*===\s*lastHandoffSig/.test(create) && /return/.test(create),
+      /appFrameLoaded\s*\|\|\s*appFrameBooting\)\s*&&\s*appSyncSig\(\)\s*===\s*lastHandoffSig/.test(create) && /return/.test(create),
       "openCreateApp must short-circuit on an unchanged graph (loaded OR still booting)");
     record("R4 play.html pauses chrome media when hidden",
       /__appmodalhidden__/.test(PLAY_SRC) && /querySelectorAll\((?:"|')audio,\s*video/.test(PLAY_SRC),

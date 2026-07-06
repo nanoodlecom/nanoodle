@@ -1,13 +1,16 @@
 #!/usr/bin/env node
 // Pins the multi-place "graph identity" signature invariant in index.html.
 //
-// A nanoodle workflow is signed in three places, each answering a different
+// A nanoodle workflow is signed in four places, each answering a different
 // question about the SAME graph:
 //   • serializeGraph()  — everything persisted to localStorage / share files
 //     (node id,type,x,y,fields,w,sizes,name + view/pan/zoom).
 //   • appHandoffSig()   — "what a bound app actually consumes": id,type,name,
-//     fields + links. NO layout. Gates the editor↔app-builder resume + the
-//     demo-starter baseline.
+//     fields + links. NO layout. Anchors the demo-starter baseline + the
+//     share-link divergence warning.
+//   • appSyncSig()      — "does the bound app's SAVED copy match the canvas":
+//     appHandoffSig + node x/y/w. Gates the ✨ Open↔Update label and the
+//     editor↔app-builder re-handoff fast path. NO view/pan/zoom, NO n.sizes.
 //   • contentSig (inside selectVersion) — "did the canvas change in an
 //     app-meaningful way since this copilot version": id,type,name,fields +
 //     links. NO layout.
@@ -109,6 +112,7 @@ function nodeMapProps(fnText, where) {
 function buildSigs(src) {
   const serializeFn = extractFunction(src, "serializeGraph");
   const handoffFn = extractFunction(src, "appHandoffSig");
+  const syncFn = extractFunction(src, "appSyncSig");
   const shareFn = extractFunction(src, "shareableGraph");
   const contentDecl = extractContentSig(src);
   const uploadDecl = extractUploadField(src);
@@ -129,9 +133,10 @@ function buildSigs(src) {
     uploadDecl + "\n" +
     serializeFn + "\n" +
     handoffFn + "\n" +
+    syncFn + "\n" +
     shareFn + "\n" +
     contentDecl + "\n" +
-    "return { serializeGraph, appHandoffSig, contentSig, shareableGraph };\n";
+    "return { serializeGraph, appHandoffSig, appSyncSig, contentSig, shareableGraph };\n";
 
   const mod = new Function(program)();
   return { ...mod, props };
@@ -176,7 +181,7 @@ function runChecks(src, label = "index.html") {
   try { S = buildSigs(src); }
   catch (e) { return [`${label}: could not lift the signature functions — ${e.message}`]; }
 
-  const { appHandoffSig, contentSig, shareableGraph, props } = S;
+  const { appHandoffSig, appSyncSig, contentSig, shareableGraph, props } = S;
 
   // --- Invariant 2a: the two sigs gate the same concept → same prop set ---
   const eqSet = (a, b) => a.size === b.size && [...a].every(x => b.has(x));
@@ -217,6 +222,42 @@ function runChecks(src, label = "index.html") {
     }
   } catch (e) {
     fail(`mutation matrix threw while running the sigs: ${e.message}`);
+  }
+
+  // --- Invariant 1c: appSyncSig = content + NODE layout (x/y/w). It gates "does the bound
+  // app already have this canvas?" (✨ Open↔Update label + the re-handoff fast path), so a
+  // node drag/card-resize MUST move it (or the move is silently never saved into the app —
+  // the "always says Open" bug), while pan/zoom (camera) and n.sizes (textarea heights,
+  // stamped by a ResizeObserver on any reflow, not only user drags) must NOT.
+  try {
+    const base = baseGraph();
+    const baseS = appSyncSig(clone(base));
+    const SYNC_MUTATIONS = [
+      ["edit a field",       g => { g.nodes[0].fields.prompt = "bye"; },            true],
+      ["move a node (x,y)",  g => { g.nodes[0].x = 999; g.nodes[0].y = 888; },      true],
+      ["resize a card (w)",  g => { g.nodes[0].w = 512; },                          true],
+      ["stretch a textarea (sizes)", g => { g.nodes[0].sizes = { h: 999 }; },       false],
+      ["pan/zoom (view)",    g => { g.view.panX = 77; g.view.scale = 2.5; },        false],
+    ];
+    for (const [name, mutate, expect] of SYNC_MUTATIONS) {
+      const g = clone(base); mutate(g);
+      const changed = appSyncSig(g) !== baseS;
+      if (changed !== expect)
+        fail(expect
+          ? `mutation "${name}" must move appSyncSig but didn't — the ✨ button would claim "Open" while the app's saved workflow is missing this change, and the fast path would swallow the update`
+          : `mutation "${name}" moved appSyncSig but must not — the ✨ button would flap to "Update" (and the builder resume would break) without a real edit`);
+    }
+    // untouched-canvas identity through a store round-trip: a live node that was never
+    // resized has w:undefined, and JSON.stringify DROPS undefined keys on the way into
+    // noodle_apps — appSyncSig must normalize both to the same value, or a freshly saved
+    // app would immediately read as out-of-date ("Update" with nothing to update).
+    const live = clone(base);
+    live.nodes[0].w = undefined;               // never-resized card on the canvas
+    const stored = clone(live);                // JSON round-trip: the w key vanishes
+    if (appSyncSig(live) !== appSyncSig(stored))
+      fail("appSyncSig treats a live w:undefined differently from its JSON-stored (absent) form — a freshly saved app would immediately read as out-of-date");
+  } catch (e) {
+    fail(`appSyncSig matrix threw: ${e.message}`);
   }
 
   // --- Invariant 1b: contentSig flattens links to "node.port" strings, so the node/port
@@ -284,6 +325,20 @@ function selfTest(src) {
         "w:n.w,sizes:n.sizes,",
         "w:n.w,sizes:n.sizes,flag:n.flag,"),
       expect: /new persisted node prop flag must be added to appHandoffSig \+ contentSig or the layout allowlist/,
+    },
+    {
+      name: "appSyncSig stops signing node position (x/y/w)",
+      mutate: s => s.replace(
+        "return appHandoffSig(g) + JSON.stringify((g.nodes||[]).map(n=>[n.x, n.y, n.w??null]));",
+        "return appHandoffSig(g) + JSON.stringify((g.nodes||[]).map(n=>[n.w??null]));"),
+      expect: /must move appSyncSig but didn't/,
+    },
+    {
+      name: "appSyncSig starts signing the view (pan/zoom)",
+      mutate: s => s.replace(
+        "return appHandoffSig(g) + JSON.stringify((g.nodes||[]).map(n=>[n.x, n.y, n.w??null]));",
+        "return appHandoffSig(g) + JSON.stringify([(g.view||{}).panX, (g.view||{}).scale, (g.nodes||[]).map(n=>[n.x, n.y, n.w??null])]);"),
+      expect: /moved appSyncSig but must not/,
     },
     {
       name: "appHandoffSig starts signing layout (x)",

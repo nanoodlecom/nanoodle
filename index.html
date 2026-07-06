@@ -8759,18 +8759,18 @@ function setPendingApp(id, title){
   updateTitle();
 }
 // True only when the canvas is bound to an app AND that app's SAVED graph matches the canvas —
-// i.e. there is genuinely nothing to Update. appHandoffSig("what the app consumes") ignores
-// layout/pan/zoom, and its app: field is the SAME pendingAppId on both sides so it cancels out
-// (identical comparison to buildShareUrl's divergence warning). When in doubt — app missing from
-// the library, unreadable store, or sigs differ — return false so the button still says "Update"
-// and never falsely claims up-to-date.
+// i.e. there is genuinely nothing to Update. appSyncSig = content + node layout: rearranging
+// nodes counts (the stored workflow keeps positions, so a moved node IS pending work), while
+// pan/zoom doesn't. Its app: field is the SAME pendingAppId on both sides so it cancels out.
+// When in doubt — app missing from the library, unreadable store, or sigs differ — return
+// false so the button still says "Update" and never falsely claims up-to-date.
 function boundAppUpToDate(){
   if(!pendingAppId) return false;
   try{
     const apps = JSON.parse(localStorage.getItem("noodle_apps") || "[]");
     const app = (Array.isArray(apps) ? apps : []).find(a=> a && a.id===pendingAppId);
     if(!app || !app.graph) return false;
-    return appHandoffSig(app.graph) === appHandoffSig();
+    return appSyncSig(app.graph) === appSyncSig();
   }catch(_){ return false; }
 }
 // Just the primary app-action button's label + tooltip — the slice of updateTitle() that must
@@ -8909,11 +8909,14 @@ let appFrameBooting = false;    // src assigned but boot unconfirmed — a postM
 let queuedHandoff = null;       // __handoff__ parked during that window; flushed on __appready__
 let queuedMyApps = false;       // "open the My apps menu" parked during that window; flushed after any parked handoff
 let lastHandoffSig = null;      // signature of the graph last handed to the builder
-// What the builder actually consumes: node identity/type/name/fields + links + which app we're
+// What the built app actually consumes: node identity/type/name/fields + links + which app we're
 // editing. INCLUDES the custom name — it's a step's label in the built app, so renaming a node
 // is an app-meaningful change and must re-hand-off. Deliberately EXCLUDES the canvas view
-// (panX/panY/scale) and node positions/sizes — panning, zooming or nudging a node must NOT
-// count as a change, or the resume never fires. Trim to match serializeGraph/displayName.
+// (panX/panY/scale) and node positions/sizes — this content-only sig anchors the demo-starter
+// baseline (a signed-out visitor who nudges a node must keep the canned demo Run) and the
+// share-link divergence warning, where layout genuinely doesn't matter. Anything that decides
+// "does the BOUND APP already have this canvas?" uses appSyncSig below instead.
+// Trim to match serializeGraph/displayName.
 function appHandoffSig(g, appOverride){
   g = g || graph;   // no arg → the live canvas; pass a stored app's graph to sign that instead
   return JSON.stringify({
@@ -8922,6 +8925,18 @@ function appHandoffSig(g, appOverride){
     links: (g.links||[]).map(l=>({ f:l.from, t:l.to }))
   });
 }
+// "Does the app's SAVED copy match the canvas?" — appHandoffSig's content PLUS node layout
+// (x/y and card width). The stored workflow keeps positions and "Customize workflow" hands
+// them back, so a rearranged canvas IS an update the app hasn't received: both the ✨ label
+// and the re-handoff fast path must see it, or a drag is silently lost on the next round-trip
+// (the "always says Open" bug). Still EXCLUDES the view (pan/zoom is the camera, not the
+// workflow — it must never flip the button while you just look around) and n.sizes (textarea
+// heights are stamped by a ResizeObserver on ANY reflow, not only user drags — signing them
+// would make the label flap without an edit).
+function appSyncSig(g){
+  g = g || graph;   // no arg → the live canvas; pass a stored app's graph to sign that instead
+  return appHandoffSig(g) + JSON.stringify((g.nodes||[]).map(n=>[n.x, n.y, n.w??null]));
+}
 function closeAppModal(){
   $("appmodal").hidden = true;   // hide, but keep the builder loaded so you can come back to it
   try{ $("appmodalframe").contentWindow.postMessage({ type:"__appmodalhidden__" }, "*"); }catch(_){}   // pause any builder-chrome media
@@ -8929,7 +8944,7 @@ function closeAppModal(){
 }
 // First load only: boots play.html into the iframe off the hash. Later handoffs must NOT
 // come through here — a same-URL-different-fragment src write doesn't reload the iframe.
-function openAppModal(hash){ $("appmodalframe").src = "play.html"+hash; appFrameBooting = true; lastHandoffSig = appHandoffSig(); $("appmodal").hidden = false; try{ if(!localStorage.getItem("noodle_appbuilder_intro_seen")) $("appmodalhint").hidden = false; }catch(_){} }
+function openAppModal(hash){ $("appmodalframe").src = "play.html"+hash; appFrameBooting = true; lastHandoffSig = appSyncSig(); $("appmodal").hidden = false; try{ if(!localStorage.getItem("noodle_appbuilder_intro_seen")) $("appmodalhint").hidden = false; }catch(_){} }
 // "≡ My apps": bring up the builder over whatever it last had open and pop its library menu —
 // browsing must NOT hand off the canvas (no draft minted, no binding touched; play.html only
 // posts __appsaved__ for canvas-derived apps, so opening one from the list can't rebind us).
@@ -8956,7 +8971,7 @@ async function openCreateApp(){
 
   // Same graph + builder loaded (or still booting off this very graph) → just bring your
   // app back (no reload, no fresh draft).
-  if((appFrameLoaded || appFrameBooting) && appHandoffSig()===lastHandoffSig){
+  if((appFrameLoaded || appFrameBooting) && appSyncSig()===lastHandoffSig){
     $("appmodal").hidden = false;
     try{ $("appmodalframe").contentWindow.postMessage({ type:"__appmodalshown__" }, "*"); }catch(_){}
     return;
@@ -8973,7 +8988,7 @@ async function openCreateApp(){
     const payload = { type:"__handoff__", graph:graphData, appId:pendingAppId||null };
     if(appFrameLoaded){ try{ $("appmodalframe").contentWindow.postMessage(payload, "*"); }catch(_){} }
     else queuedHandoff = payload;
-    lastHandoffSig = appHandoffSig();
+    lastHandoffSig = appSyncSig();
     $("appmodal").hidden = false;
     return;
   }
@@ -9114,9 +9129,9 @@ addEventListener("message", e=>{
   // flips to "✨ Update <name>" the moment the app durably exists and later handoffs update
   // THAT app instead of minting duplicate defaults. setPendingApp stays the single chokepoint.
   else if(e.data.type==="__appsaved__"){
-    const mirrored = (appFrameLoaded || appFrameBooting) && appHandoffSig()===lastHandoffSig;   // builder still shows exactly this canvas
+    const mirrored = (appFrameLoaded || appFrameBooting) && appSyncSig()===lastHandoffSig;   // builder still shows exactly this canvas
     setPendingApp(e.data.appId, e.data.title);
-    if(mirrored) lastHandoffSig = appHandoffSig();   // only the binding changed → keep the reopen-resume path alive
+    if(mirrored) lastHandoffSig = appSyncSig();   // only the binding changed → keep the reopen-resume path alive
   }
   // builder finished booting → it can hear postMessage now. Flush any handoff parked during
   // the load window; the boot installed the STALE hash graph, and if it committed, its
