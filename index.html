@@ -3889,10 +3889,14 @@ function refreshLoraParams(n){
   };
 }
 // shared body + run for the Music and Speech nodes
-function audioBody(n, promptLabel, ph){
+// promptFirst: nodes whose main field IS the prompt (Remix) show it right under the model,
+// above the model's param block (lyrics/duration), matching the order a user fills things in
+function audioBody(n, promptLabel, ph, promptFirst){
+  const prompt = `<div><label>${promptLabel}</label><textarea data-f="prompt" placeholder="${esc(ph)}">${esc(n.fields.prompt||"")}</textarea></div>`;
   return `${modelFieldHTML(n)}
+    ${promptFirst ? prompt : ""}
     <div data-params></div>
-    <div><label>${promptLabel}</label><textarea data-f="prompt" placeholder="${esc(ph)}">${esc(n.fields.prompt||"")}</textarea></div>
+    ${promptFirst ? "" : prompt}
     <div data-advparams></div>
     <details class="adv"><summary>advanced params (JSON)</summary>
       <textarea data-f="extraJson" style="min-height:34px" placeholder='{"any_extra_key": 123}'>${esc(n.fields.extraJson||"")}</textarea></details>`;
@@ -5112,7 +5116,7 @@ const NODE_TYPES = {
     modelKind:"audio", modelFilter:"remix",
     inputs:[{name:"audio", type:"audio"}],
     outputs:[{name:"audio", type:"audio"}], preview:"audio",
-    body:(n)=> audioBody(n, "style / direction", "a jazzy late-night lo-fi cover, brushed drums, warm keys"),
+    body:(n)=> audioBody(n, "style / direction", "a jazzy late-night lo-fi cover, brushed drums, warm keys", true),
     run: remixRun,
   },
 
