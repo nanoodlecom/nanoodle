@@ -3515,6 +3515,23 @@ function primeCatalogsFromCache(){
     if(list) catalogs[kind] = list;
   }
 }
+// Version-family tiebreak for tied "created" stamps. The audio catalog carries NO recency
+// signal (upstream ask drafted in NANOGPT-audio-created-timestamp.md) — every model shares one
+// response-time created value, and the API's native order runs
+// oldest-first within families (Minimax-Music-02 → 2.5 → 2.6), so a plain created sort showed
+// OLD versions on top under "newest". Cross-family recency is unknowable client-side, but within
+// a family a higher version number is reliably newer: same-family ids (version tokens stripped)
+// sort version-DESC while each family keeps its native (curated) position in the list.
+const VER_RE = /\d+(?:\.\d+)*/g;
+const famSig = (id)=> id.toLowerCase().replace(VER_RE, "#");   // "Minimax-Music-2.6" → "minimax-music-#"
+const verParts = (id)=> (id.match(VER_RE)||[]).join(".").split(".").map(Number);
+function verDesc(a, b){                     // segment-wise numeric compare: 2.6 > 2.5 > 02
+  const va = verParts(a), vb = verParts(b);
+  for(let i=0; i<Math.max(va.length, vb.length); i++){
+    const d = (vb[i]||0) - (va[i]||0); if(d) return d;
+  }
+  return 0;
+}
 async function fetchCatalog(kind){
   const cfg = CATALOG[kind];
   const headers={}; const k=getKey(); if(k) headers.Authorization=`Bearer ${k}`;
@@ -3527,9 +3544,13 @@ async function fetchCatalog(kind){
   // and NEVER persists an empty catalog — a cached [] would poison every future session until it
   // self-heals. Only a genuinely non-empty list is worth caching.
   if(!list.length) return null;
-  // newest first by created; on ties keep the API's native order (curated newest-first) via stable sort —
-  // audio models all share one created timestamp, so this is what actually orders music/speech by recency
-  list.sort((a,b)=> (b.created||0)-(a.created||0));
+  // newest first by created; ties (the whole audio catalog) fall back to family position +
+  // version-DESC so music/speech still read newest-first — see the helpers above.
+  const nat = new Map();       // family signature → first native index (anchors the family)
+  list.forEach((m,i)=>{ const s = famSig(m.id); if(!nat.has(s)) nat.set(s, i); });
+  list.sort((a,b)=> (b.created||0)-(a.created||0)
+                 || nat.get(famSig(a.id)) - nat.get(famSig(b.id))
+                 || verDesc(a.id, b.id));
   return list;
 }
 async function loadCatalog(kind){          // lazy callers (pickers, filters): reuse whatever's in memory

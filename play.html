@@ -3291,12 +3291,30 @@ function mp4ParamsMatch(bufs){
       return { key:key, cap:(cap!=null?cap:refMaxFor(model)) };
     }catch(e){ return { key:"reference_images", cap:refMaxFor(model) }; }
   }
+  // "Newest" tiebreak for the swap list — audio models all share ONE created stamp (upstream
+  // gap, see NANOGPT-audio-created-timestamp.md) and the API's native order runs oldest-first within
+  // families, so a plain created sort listed Minimax-Music-02 above -2.6. Tied models fall back
+  // to family position + version-DESC. Mirrors the editor's fetchCatalog sort.
+  const VER_RE = /\d+(?:\.\d+)*/g;
+  const famSig = (id)=> id.toLowerCase().replace(VER_RE, "#");
+  const verParts = (id)=> (id.match(VER_RE)||[]).join(".").split(".").map(Number);
+  function verDesc(a, b){
+    const va = verParts(a), vb = verParts(b);
+    for(let i=0; i<Math.max(va.length, vb.length); i++){
+      const d = (vb[i]||0) - (va[i]||0); if(d) return d;
+    }
+    return 0;
+  }
   async function modelOptionsFor(type){
     const kind = SETTING_MODEL_KIND[type]; if(!kind) return [];
     const raw = await loadCatalogRaw(kind);
-    return raw.filter(m=> m && m.id && modelSuits(type, m))
-              .sort((a,b)=> (b.created||0)-(a.created||0))
-              .map(m=> m.id);
+    const pool = raw.filter(m=> m && m.id && modelSuits(type, m));
+    const nat = new Map();   // family signature → first native index (anchors the family)
+    pool.forEach((m,i)=>{ const s = famSig(m.id); if(!nat.has(s)) nat.set(s, i); });
+    return pool.sort((a,b)=> (b.created||0)-(a.created||0)
+                          || nat.get(famSig(a.id)) - nat.get(famSig(b.id))
+                          || verDesc(a.id, b.id))
+               .map(m=> m.id);
   }
   /* ---------- per-model DIMENSION options (size / resolution / aspect / duration) ----------
      Each model's REAL dimension options ride in the public catalog — image models list their
