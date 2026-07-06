@@ -1254,6 +1254,13 @@ const I18N = {
     "build something here → hit":"construye algo aquí → pulsa",
     "delete (Del)":"eliminar (Del)",
     "drag to resize":"arrastra para redimensionar",
+    "mode":"modo",
+    "fit within":"encajar dentro",
+    "fill & crop":"llenar y recortar",
+    "exact (stretch)":"exacto (estirar)",
+    "width (px)":"anchura (px)",
+    "height (px)":"altura (px)",
+    "Set width, height, or both — a blank side keeps the image’s aspect. fit within never upscales. Free · runs on your device.":"Indica anchura, altura o ambas — el lado en blanco conserva la proporción de la imagen. encajar dentro nunca amplía. Gratis · se ejecuta en tu dispositivo.",
     "e.g. “add a node that speaks the result aloud”":"p. ej. “añade un nodo que diga el resultado en voz alta”",
     "edit":"editar",
     "frames":"fotogramas",
@@ -1692,6 +1699,13 @@ const I18N = {
     "build something here → hit":"créez quelque chose ici → appuyez sur",
     "delete (Del)":"supprimer (Del)",
     "drag to resize":"glisser pour redimensionner",
+    "mode":"mode",
+    "fit within":"ajuster à l’intérieur",
+    "fill & crop":"remplir et rogner",
+    "exact (stretch)":"exact (étirer)",
+    "width (px)":"largeur (px)",
+    "height (px)":"hauteur (px)",
+    "Set width, height, or both — a blank side keeps the image’s aspect. fit within never upscales. Free · runs on your device.":"Indiquez la largeur, la hauteur ou les deux — le côté vide conserve les proportions de l’image. ajuster à l’intérieur n’agrandit jamais. Gratuit · s’exécute sur votre appareil.",
     "e.g. “add a node that speaks the result aloud”":"ex. « ajouter un nœud qui lit le résultat à voix haute »",
     "edit":"modifier",
     "frames":"images",
@@ -2118,6 +2132,13 @@ const I18N = {
     "build something here → hit":"baue hier etwas → drücke",
     "delete (Del)":"löschen (Del)",
     "drag to resize":"ziehen, um die Größe zu ändern",
+    "mode":"Modus",
+    "fit within":"einpassen",
+    "fill & crop":"füllen & zuschneiden",
+    "exact (stretch)":"exakt (verzerren)",
+    "width (px)":"Breite (px)",
+    "height (px)":"Höhe (px)",
+    "Set width, height, or both — a blank side keeps the image’s aspect. fit within never upscales. Free · runs on your device.":"Gib Breite, Höhe oder beides an — eine leere Seite behält das Seitenverhältnis des Bildes. einpassen vergrößert nie. Kostenlos · läuft auf deinem Gerät.",
     "e.g. “add a node that speaks the result aloud”":"z. B. „einen Node hinzufügen, der das Ergebnis laut vorliest“",
     "edit":"bearbeiten",
     "frames":"Frames",
@@ -2549,6 +2570,13 @@ const I18N = {
     "build something here → hit":"construa algo aqui → clique em",
     "delete (Del)":"excluir (Del)",
     "drag to resize":"arraste para redimensionar",
+    "mode":"modo",
+    "fit within":"caber dentro",
+    "fill & crop":"preencher e cortar",
+    "exact (stretch)":"exato (esticar)",
+    "width (px)":"largura (px)",
+    "height (px)":"altura (px)",
+    "Set width, height, or both — a blank side keeps the image’s aspect. fit within never upscales. Free · runs on your device.":"Defina largura, altura ou ambas — o lado em branco mantém a proporção da imagem. caber dentro nunca amplia. Grátis · roda no seu dispositivo.",
     "e.g. “add a node that speaks the result aloud”":"ex.: “adicione um nó que fala o resultado em voz alta”",
     "edit":"editar",
     "frames":"quadros",
@@ -2977,6 +3005,13 @@ const I18N = {
     "build something here → hit":"ここで何か作って → 押す",
     "delete (Del)":"削除 (Del)",
     "drag to resize":"ドラッグしてサイズ変更",
+    "mode":"モード",
+    "fit within":"内側に収める",
+    "fill & crop":"埋めて切り抜き",
+    "exact (stretch)":"指定どおり（引き伸ばし）",
+    "width (px)":"幅 (px)",
+    "height (px)":"高さ (px)",
+    "Set width, height, or both — a blank side keeps the image’s aspect. fit within never upscales. Free · runs on your device.":"幅・高さのどちらか、または両方を指定 — 空欄の側は画像の縦横比を保ちます。内側に収めるは拡大しません。無料 · お使いの端末で実行されます。",
     "e.g. “add a node that speaks the result aloud”":"例: 「結果を読み上げるノードを追加」",
     "edit":"編集",
     "frames":"フレーム",
@@ -4848,10 +4883,10 @@ const NODE_TYPES = {
     body:(n)=>`
       <div><label>mode</label><select data-f="mode">${optsHTML([["fit","fit within"],["fill","fill & crop"],["exact","exact (stretch)"]], n.fields.mode||"fit")}</select></div>
       <div class="two">
-        <div><label>width</label><input type="number" min="1" data-f="width" placeholder="1024" value="${esc(n.fields.width ?? "")}"/></div>
-        <div><label>height <span class="dim">· blank = auto</span></label><input type="number" min="1" data-f="height" placeholder="1024" value="${esc(n.fields.height ?? "")}"/></div>
+        <div><label>width (px)</label><input type="number" min="1" data-f="width" placeholder="1024" value="${esc(n.fields.width ?? "")}"/></div>
+        <div><label>height (px)</label><input type="number" min="1" data-f="height" placeholder="auto" value="${esc(n.fields.height ?? "")}"/></div>
       </div>
-      <div class="dim" style="font-size:.8em;margin-top:.3rem">fit within scales down keeping aspect (never upscales); blank height derives from the source. Free · runs on your device.</div>`,
+      <div class="dim" style="font-size:.8em;margin-top:.3rem">Set width, height, or both — a blank side keeps the image’s aspect. fit within never upscales. Free · runs on your device.</div>`,
     async run(n, inp){
       if(!inp.image) throw new Error("no image — wire an image into the image port");
       const mode = n.fields.mode || "fit";
