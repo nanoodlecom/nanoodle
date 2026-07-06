@@ -1276,6 +1276,7 @@ const I18N = {
     "nanoodle — AI workflow editor":"nanoodle — editor de flujos de IA",
     "no audio yet":"aún sin audio",
     "no video yet":"aún sin vídeo",
+    "keep clips under ~3 MB — larger won’t reach the model":"mantén los clips por debajo de ~3 MB — los más grandes no llegarán al modelo",
     "or":"o",
     "or post it to":"o publícalo en",
     "output format":"formato de salida",
@@ -1713,6 +1714,7 @@ const I18N = {
     "nanoodle — AI workflow editor":"nanoodle — éditeur de workflows IA",
     "no audio yet":"aucun audio",
     "no video yet":"aucune vidéo",
+    "keep clips under ~3 MB — larger won’t reach the model":"gardez les clips sous ~3 MB — au-delà, ils n’atteindront pas le modèle",
     "or":"ou",
     "or post it to":"ou publiez-le sur",
     "output format":"format de sortie",
@@ -2140,6 +2142,7 @@ const I18N = {
     "nanoodle — AI workflow editor":"nanoodle — KI-Workflow-Editor",
     "no audio yet":"noch kein Audio",
     "no video yet":"noch kein Video",
+    "keep clips under ~3 MB — larger won’t reach the model":"Clips unter ~3 MB halten — größere erreichen das Modell nicht",
     "or":"oder",
     "or post it to":"oder poste es auf",
     "output format":"Ausgabeformat",
@@ -2571,6 +2574,7 @@ const I18N = {
     "nanoodle — AI workflow editor":"nanoodle — editor de fluxos de IA",
     "no audio yet":"nenhum áudio ainda",
     "no video yet":"nenhum vídeo ainda",
+    "keep clips under ~3 MB — larger won’t reach the model":"mantenha os clipes abaixo de ~3 MB — maiores não chegarão ao modelo",
     "or":"ou",
     "or post it to":"ou poste em",
     "output format":"formato de saída",
@@ -2999,6 +3003,7 @@ const I18N = {
     "nanoodle — AI workflow editor":"nanoodle — AI ワークフローエディター",
     "no audio yet":"音声なし",
     "no video yet":"動画なし",
+    "keep clips under ~3 MB — larger won’t reach the model":"クリップは約 3 MB 以下に — 超えるとモデルに届きません",
     "or":"または",
     "or post it to":"または次に投稿:",
     "output format":"出力形式",
@@ -4595,11 +4600,12 @@ const NODE_TYPES = {
   },
 
   vupload: {
-    em:"📹", title:"Video input", desc:"Upload a video clip", group:"Inputs",
+    em:"📹", title:"Video input", desc:"Upload a video clip", group:"Inputs", kw:"movie clip mp4 mov webm file",
     inputs:[], outputs:[{name:"video", type:"video"}], preview:"none",
     body:(n)=>`
       <div class="uprev" data-uprev>${n.fields.video ? `<video src="${esc(n.fields.video)}" controls playsinline></video>` : `<span class="dim">no video yet</span>`}</div>
       <div><button class="ubtn" data-up="file">⬆ Upload video</button></div>
+      <div class="fhint">keep clips under ~3 MB — larger won’t reach the model</div>
       <input type="file" accept="video/*" hidden data-upfile/>`,
     mount:(n)=> mountFileUpload(n, "video"),
     async run(n){ if(!n.fields.video) throw new Error("no video — upload a clip first"); return { video: n.fields.video }; }
