@@ -1301,6 +1301,9 @@ const I18N = {
     "temperature":"temperatura",
     "they":"ellos",
     "this clip has generated audio":"este clip tiene audio generado",
+    "loop audio to fill video":"repetir el audio hasta llenar el vídeo",
+    "Repeat the audio to fill the whole video. Off: the audio plays once, then the rest of the video is silent. Audio longer than the video is always trimmed to the video's length.":"Repite el audio hasta llenar todo el vídeo. Desactivado: el audio suena una vez y el resto del vídeo queda en silencio. Un audio más largo que el vídeo siempre se recorta a la duración del vídeo.",
+    "the new audio replaces the video's existing sound.":"el audio nuevo sustituye al sonido existente del vídeo.",
     "trim duplicate seam frame":"recortar fotograma de unión duplicado",
     "upload or capture an image, then brush the area to repaint":"sube o captura una imagen, luego pincela la zona a repintar",
     "variation":"variación",
@@ -1749,6 +1752,9 @@ const I18N = {
     "temperature":"température",
     "they":"ils",
     "this clip has generated audio":"ce clip a un audio généré",
+    "loop audio to fill video":"répéter l'audio pour remplir la vidéo",
+    "Repeat the audio to fill the whole video. Off: the audio plays once, then the rest of the video is silent. Audio longer than the video is always trimmed to the video's length.":"Répète l'audio pour remplir toute la vidéo. Désactivé : l'audio est joué une fois, puis le reste de la vidéo est silencieux. Un audio plus long que la vidéo est toujours coupé à la durée de la vidéo.",
+    "the new audio replaces the video's existing sound.":"le nouvel audio remplace le son existant de la vidéo.",
     "trim duplicate seam frame":"couper l’image de raccord dupliquée",
     "upload or capture an image, then brush the area to repaint":"importer ou capturer une image, puis peindre la zone à repeindre",
     "what to paint in":"ce qu’il faut peindre",
@@ -2189,6 +2195,9 @@ const I18N = {
     "temperature":"Temperatur",
     "they":"sie",
     "this clip has generated audio":"dieser Clip hat generiertes Audio",
+    "loop audio to fill video":"Audio wiederholen, bis das Video gefüllt ist",
+    "Repeat the audio to fill the whole video. Off: the audio plays once, then the rest of the video is silent. Audio longer than the video is always trimmed to the video's length.":"Wiederholt das Audio, bis das ganze Video gefüllt ist. Aus: Das Audio spielt einmal, danach bleibt der Rest des Videos stumm. Audio, das länger als das Video ist, wird immer auf die Videolänge gekürzt.",
+    "the new audio replaces the video's existing sound.":"das neue Audio ersetzt den vorhandenen Ton des Videos.",
     "trim duplicate seam frame":"doppelten Nahtframe entfernen",
     "upload or capture an image, then brush the area to repaint":"Bild hochladen oder aufnehmen, dann den neu zu zeichnenden Bereich übermalen",
     "variation":"Variation",
@@ -2631,6 +2640,9 @@ const I18N = {
     "temperature":"temperatura",
     "they":"eles",
     "this clip has generated audio":"este clipe tem áudio gerado",
+    "loop audio to fill video":"repetir o áudio até preencher o vídeo",
+    "Repeat the audio to fill the whole video. Off: the audio plays once, then the rest of the video is silent. Audio longer than the video is always trimmed to the video's length.":"Repete o áudio até preencher o vídeo inteiro. Desligado: o áudio toca uma vez e o resto do vídeo fica em silêncio. Um áudio mais longo que o vídeo é sempre cortado para a duração do vídeo.",
+    "the new audio replaces the video's existing sound.":"o novo áudio substitui o som existente do vídeo.",
     "trim duplicate seam frame":"cortar quadro de emenda duplicado",
     "upload or capture an image, then brush the area to repaint":"envie ou capture uma imagem, depois pincele a área a repintar",
     "variation":"variação",
@@ -3072,6 +3084,9 @@ const I18N = {
     "temperature":"温度",
     "they":"相手",
     "this clip has generated audio":"このクリップには生成された音声があります",
+    "loop audio to fill video":"動画の長さに合わせて音声をループ",
+    "Repeat the audio to fill the whole video. Off: the audio plays once, then the rest of the video is silent. Audio longer than the video is always trimmed to the video's length.":"動画全体を満たすまで音声を繰り返します。オフ: 音声は一度だけ再生され、残りの動画は無音になります。動画より長い音声は常に動画の長さに合わせてカットされます。",
+    "the new audio replaces the video's existing sound.":"新しい音声が動画の既存の音に置き換わります。",
     "trim duplicate seam frame":"重複するつなぎ目フレームをトリミング",
     "upload or capture an image, then brush the area to repaint":"画像をアップロードまたは撮影し、塗り直す領域をブラシで塗る",
     "variation":"バリエーション",
@@ -5129,7 +5144,8 @@ const NODE_TYPES = {
       <label style="display:flex;align-items:center;gap:.45rem;cursor:pointer"
         title="${esc(t("Repeat the audio to fill the whole video. Off: the audio plays once, then the rest of the video is silent. Audio longer than the video is always trimmed to the video's length."))}">
         <input type="checkbox" data-f="loop" ${(n.fields.loop ?? false)?"checked":""}/>
-        <span>${esc(t("loop audio to fill video"))}</span></label>`,
+        <span>${esc(t("loop audio to fill video"))}</span></label>
+      <div style="opacity:.6;font-size:.8em;margin-top:.3rem">${esc(t("the new audio replaces the video's existing sound."))}</div>`,
     async run(n, inp){
       if(!inp.video) throw new Error("no video — wire a video into the video port");
       if(!inp.audio) throw new Error("no audio — wire an audio clip into the audio port");
