@@ -4771,7 +4771,7 @@ const NODE_TYPES = {
   },
 
   aupload: {
-    em:"🎤", title:"Audio input", desc:"Upload an audio clip", group:"Inputs",
+    em:"🎤", title:"Audio input", desc:"Upload an audio clip", group:"Inputs", kw:"sound music voice song track recording mp3 wav file",
     inputs:[], outputs:[{name:"audio", type:"audio"}], preview:"none",
     body:(n)=>`
       <div class="uprev" data-uprev>${n.fields.audio ? `<audio src="${esc(n.fields.audio)}" controls></audio>` : `<span class="dim">no audio yet</span>`}</div>
