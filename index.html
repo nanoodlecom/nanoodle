@@ -922,7 +922,7 @@
       <option value="premium">Priciest</option>
       <option value="name">Name A→Z</option>
     </select>
-    <label id="mpicknsfw" style="display:none; font-size:.72rem; white-space:nowrap; user-select:none; align-items:center; gap:.2rem; margin-right:.25rem; color:var(--dim)"><input type="checkbox" id="mpicknsfwtog" style="vertical-align:middle; margin-right:.2rem"> NSFW / spicy</label>
+    <label id="mpicknsfw" style="display:none; font-size:.72rem; white-space:nowrap; user-select:none; align-items:center; gap:.2rem; margin-right:.25rem; color:var(--dim)"><input type="checkbox" id="mpicknsfwtog" style="vertical-align:middle; margin-right:.2rem"> NSFW only</label>
     <button id="mpickclose" class="hbtn" aria-label="Close model picker">✕</button>
   </div>
   <input id="mpicksearch" placeholder="filter the full list, or type an exact id + Enter…" autocomplete="off" />
@@ -4731,10 +4731,10 @@ function setPickerSort(s){
   try{ localStorage.setItem("nn_picksort", s); }catch{}
   renderPicker();
 }
-let showNsfw = (()=>{ try{ return localStorage.getItem("nn_shownsfw")==="1"; }catch{ return false; } })();
-function setShowNsfw(v){
-  showNsfw = !!v;
-  try{ localStorage.setItem("nn_shownsfw", showNsfw ? "1" : "0"); }catch{}
+let nsfwOnly = (()=>{ try{ return localStorage.getItem("nn_nsfwonly")==="1"; }catch{ return false; } })();
+function setNsfwOnly(v){
+  nsfwOnly = !!v;
+  try{ localStorage.setItem("nn_nsfwonly", nsfwOnly ? "1" : "0"); }catch{}
   renderPicker();
 }
 // order the already-filtered matches by the current sort. created (native newest-first order)
@@ -4763,7 +4763,7 @@ function openPicker(kind, opts){
   const nsfwWrap = $("mpicknsfw");
   const nsfwtog = $("mpicknsfwtog");
   if(nsfwWrap) nsfwWrap.style.display = (kind==="image" || kind==="video") ? "inline-flex" : "none";
-  if(nsfwtog) nsfwtog.checked = showNsfw;
+  if(nsfwtog) nsfwtog.checked = nsfwOnly;
   $("mpick").classList.add("open");
   $("mpickback").classList.add("show");
   $("mpicksearch").value = "";
@@ -4778,8 +4778,8 @@ function pickerMatches(){
   if(!picker) return [];
   const q = $("mpicksearch").value.trim().toLowerCase();
   let list = (catalogs[picker.kind] || []).filter(m=> passesFilter(m, picker.filter));
-  if((picker.kind==="image" || picker.kind==="video") && !showNsfw){
-    list = list.filter(m => !m.nsfw || m.id === picker.current);
+  if(picker.kind==="image" || picker.kind==="video"){
+    list = list.filter(m => !!m.nsfw === nsfwOnly || m.id === picker.current);
   }
   return q ? list.filter(m=> m.id.toLowerCase().includes(q) || m.name.toLowerCase().includes(q)) : list;
 }
@@ -4788,7 +4788,7 @@ function renderPicker(){
   const matches = sortMatches(pickerMatches());
   $("mpickcount").textContent = `${matches.length} ${matches.length===1?t("model"):t("models")} · ${t(PICK_SORTS[pickerSort])}`;
   const nsfwtog = $("mpicknsfwtog");
-  if(nsfwtog && (picker.kind==="image" || picker.kind==="video")) nsfwtog.checked = !!showNsfw;
+  if(nsfwtog && (picker.kind==="image" || picker.kind==="video")) nsfwtog.checked = !!nsfwOnly;
   const frag = document.createDocumentFragment();
   for(const m of matches.slice(0,400)){
     const b = document.createElement("button");
@@ -8473,7 +8473,7 @@ document.addEventListener("click", e=>{ if(!$("moremenu").contains(e.target)) $(
 $("mpicksearch").addEventListener("input", renderPicker);
 $("mpicksort").addEventListener("change", e=> setPickerSort(e.target.value));
 const nsfwt = $("mpicknsfwtog");
-if(nsfwt) nsfwt.addEventListener("change", e=> setShowNsfw(e.target.checked));
+if(nsfwt) nsfwt.addEventListener("change", e=> setNsfwOnly(e.target.checked));
 $("mpicksearch").addEventListener("keydown", e=>{
   if(e.key==="Enter"){
     e.preventDefault();
