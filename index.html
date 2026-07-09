@@ -97,6 +97,9 @@
         padding:0 .9rem; background:rgba(18,21,29,.85); backdrop-filter:blur(8px); border-bottom:1px solid var(--line);}
   #top button{ white-space:nowrap }   /* a toolbar label must never wrap into a multi-line pill — overflow is measured & collapsed into ⋯ (layoutBar) */
   #makeapp .lbl{ display:inline-block; max-width:14ch; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom }  /* long "Update <title>" can't blow up the bar */
+  /* Flagship conversion next to Run: accent outline so Create app isn't chrome-identical to Save/Load */
+  #makeapp{ border-color:color-mix(in srgb, var(--accent) 55%, var(--line)); color:var(--accent); }
+  #makeapp:hover{ border-color:var(--accent); filter:brightness(1.06) }
   #top .logo{font-family:"Righteous",ui-sans-serif,system-ui,sans-serif; font-weight:400; letter-spacing:.01em; font-size:1.25rem; margin-right:.3rem;}
   #top .logo .nano{ background:linear-gradient(90deg,#67e8f9,#7c8cff 70%); -webkit-background-clip:text; background-clip:text;
         color:transparent; font-weight:900; filter:drop-shadow(0 0 9px #7c8cff77); }
@@ -948,7 +951,7 @@
   <div id="examplespanel" role="dialog" aria-label="Examples">
     <div id="exampleshead">
       <h2>📚 Examples</h2>
-      <span class="sub">ready-made workflows, built right into the page — click one to load it, then ▶ Run on your own key.</span>
+      <span class="sub">ready-made workflows — click one to load it. Signed out? free sample covers the starter on the canvas; examples need your NanoGPT key to Run.</span>
       <button id="examplesclose" class="hbtn" title="Close (Esc)" aria-label="Close">✕</button>
     </div>
     <div id="exampleslist"></div>
@@ -960,7 +963,7 @@
 <div id="appmodal" hidden>
   <button id="appmodalclose" title="Close — your app stays here (Esc)" aria-label="Close">✕</button>
   <iframe id="appmodalframe" title="Create app" allow="clipboard-write; fullscreen"></iframe>
-  <div id="appmodalhint" hidden><span>✎ <b>Edit workflow</b> (in the top bar) takes you back to the graph and keeps this app.</span><button id="appmodalhintok" title="Got it">Got it</button></div>
+  <div id="appmodalhint" hidden><span>This is your app. <b>Customize</b> restyles it; ✎ <b>Edit workflow</b> returns to the graph and keeps this app bound.</span><button id="appmodalhintok" title="Got it">Got it</button></div>
 </div>
 
 <!-- 💬 Describe changes — docked bottom composer (same shape as the app builder's Customize bar);
@@ -1064,7 +1067,7 @@
   <svg id="wires"></svg>
   <div id="world"></div>
   <button id="delnode" title="Delete the selected node" aria-label="Delete the selected node">🗑 Delete</button>
-  <div id="canvashint" hidden><span class="ht">nanoodle wires AI models — text, image, video, audio — into workflows. Press <button id="hintrun" class="link">▶ Run</button> to try this one, <button id="hintmake" class="link">✨ Create app</button> to turn it into a shareable app, or browse <button id="hintexamples" class="link">📚 Examples</button>.</span><button id="hintx" title="Got it" aria-label="Dismiss">×</button><span class="ht2">NanoGPT is a pay-per-use AI service — hundreds of models, pay only for what you run.</span></div>
+  <div id="canvashint" hidden><span class="ht">A live AI workflow. Press <button id="hintrun" class="link">▶ Run</button> for a free sample, or browse <button id="hintexamples" class="link">📚 Examples</button>.</span><button id="hintx" title="Got it" aria-label="Dismiss">×</button><span class="ht2">Like it? <button id="hintmake" class="link">✨ Create app</button> turns this into a shareable mini app.</span></div>
   <div id="connecthint" hidden><span>Drag a <b>●</b> port onto a matching one to connect — or drop a wire on empty canvas to quick-add.</span><button id="connecthintx" title="Got it" aria-label="Dismiss">×</button></div>
 </main>
 <div id="quickadd"></div>
@@ -1184,9 +1187,18 @@ const I18N = {
     ", which takes Nano — so the prize pool stays in the ecosystem.":", que acepta Nano — así el fondo de premios se queda en el ecosistema.",
     "16:9 (Landscape)":"16:9 (Horizontal)",
     "1:1 (Square)":"1:1 (Cuadrado)",
+    "A live AI workflow. Press":"Un flujo de IA en vivo. Pulsa",
+    "for a free sample, or browse":"para una muestra gratis, o explora",
+    "turns this into a shareable mini app.":"lo convierte en una mini app compartible.",
+    "Sample preview":"Vista previa de muestra",
+    "your edits aren’t reflected yet — results below are still the starter sample. Sign in to run YOUR prompt for real, pay-per-use on your own key.":"tus cambios aún no se reflejan — abajo sigue la muestra del ejemplo inicial. Inicia sesión para ejecutar TU prompt de verdad, pago por uso con tu propia clave.",
+    "This is your app.":"Esta es tu app.",
+    "restyles it;":"la rediseña;",
+    "returns to the graph and keeps this app bound.":"vuelve al grafo y mantiene esta app vinculada.",
+    "ready-made workflows — click one to load it. Signed out? free sample covers the starter on the canvas; examples need your NanoGPT key to Run.":"flujos listos — haz clic para cargar. ¿Sin sesión? la muestra gratis cubre el ejemplo del lienzo; los ejemplos necesitan tu clave NanoGPT para Ejecutar.",
+    "✨ Create app":"✨ Crear app",
     "nanoodle wires AI models — text, image, video, audio — into workflows. Press":"nanoodle conecta modelos de IA — texto, imagen, vídeo, audio — en flujos de trabajo. Pulsa",
     "to try this one,":"para probar este,",
-    "✨ Create app":"✨ Crear app",
     "to turn it into a shareable app, or browse":"para convertirlo en una app que puedes compartir, o explora",
     "NanoGPT is a pay-per-use AI service — hundreds of models, pay only for what you run.":"nano-gpt es un servicio de IA de pago por uso — cientos de modelos, paga solo por lo que ejecutas.",
     "A running changelog — one line per change.":"Un registro de cambios continuo — una línea por cambio.",
@@ -1205,6 +1217,7 @@ const I18N = {
     "Dismiss":"Descartar",
     "Each change adds a version — click one to jump back to it":"Cada cambio añade una versión — haz clic en una para volver a ella",
     "Edit workflow":"Editar flujo",
+    "Customize":"Personalizar",
     "Email":"Correo",
     "Enter this in the Noodle Cookoff":"Participa con esto en el Noodle Cookoff",
     "Fit the whole workflow in view (F)":"Ajustar todo el flujo a la vista (F)",
@@ -1659,6 +1672,15 @@ const I18N = {
     ", which takes Nano — so the prize pool stays in the ecosystem.":", qui accepte Nano — ainsi la cagnotte reste dans l’écosystème.",
     "16:9 (Landscape)":"16:9 (Paysage)",
     "1:1 (Square)":"1:1 (Carré)",
+    "A live AI workflow. Press":"Un workflow d’IA en direct. Appuyez sur",
+    "for a free sample, or browse":"pour un échantillon gratuit, ou parcourir",
+    "turns this into a shareable mini app.":"en fait une mini app partageable.",
+    "Sample preview":"Aperçu d’exemple",
+    "your edits aren’t reflected yet — results below are still the starter sample. Sign in to run YOUR prompt for real, pay-per-use on your own key.":"vos modifications ne sont pas encore prises en compte — les résultats ci-dessous restent l’exemple de départ. Connectez-vous pour exécuter VOTRE prompt pour de vrai, paiement à l’usage avec votre clé.",
+    "This is your app.":"Voici votre app.",
+    "restyles it;":"la restyle ;",
+    "returns to the graph and keeps this app bound.":"revient au graphe et garde cette app liée.",
+    "ready-made workflows — click one to load it. Signed out? free sample covers the starter on the canvas; examples need your NanoGPT key to Run.":"workflows prêts à l’emploi — cliquez pour charger. Déconnecté ? l’échantillon gratuit couvre le starter sur le canevas ; les exemples ont besoin de votre clé NanoGPT pour Exécuter.",
     "nanoodle wires AI models — text, image, video, audio — into workflows. Press":"nanoodle relie des modèles d’IA — texte, image, vidéo, audio — en workflows. Appuyez sur",
     "to try this one,":"pour essayer celui-ci,",
     "✨ Create app":"✨ Créer une app",
@@ -1680,6 +1702,7 @@ const I18N = {
     "Dismiss":"Ignorer",
     "Each change adds a version — click one to jump back to it":"Chaque modification ajoute une version — cliquez sur l’une d’elles pour y revenir",
     "Edit workflow":"Modifier le workflow",
+    "Customize":"Personnaliser",
     "Email":"E-mail",
     "Enter this in the Noodle Cookoff":"Inscrivez ceci au Noodle Cookoff",
     "Fit the whole workflow in view (F)":"Ajuster tout le workflow à la vue (F)",
@@ -2123,6 +2146,15 @@ const I18N = {
     ", which takes Nano — so the prize pool stays in the ecosystem.":", das Nano nimmt — so bleibt der Preispool im Ökosystem.",
     "16:9 (Landscape)":"16:9 (Querformat)",
     "1:1 (Square)":"1:1 (Quadratisch)",
+    "A live AI workflow. Press":"Ein live KI-Workflow. Drücke",
+    "for a free sample, or browse":"für ein kostenloses Beispiel, oder durchstöbere",
+    "turns this into a shareable mini app.":"macht daraus eine teilbare Mini-App.",
+    "Sample preview":"Beispiel-Vorschau",
+    "your edits aren’t reflected yet — results below are still the starter sample. Sign in to run YOUR prompt for real, pay-per-use on your own key.":"deine Änderungen sind noch nicht drin — unten ist noch das Starter-Beispiel. Melde dich an, um DEINEN Prompt wirklich auszuführen, Bezahlung pro Nutzung mit eigenem Schlüssel.",
+    "This is your app.":"Das ist deine App.",
+    "restyles it;":"gestaltet sie um;",
+    "returns to the graph and keeps this app bound.":"kehrt zum Graph zurück und behält diese App gebunden.",
+    "ready-made workflows — click one to load it. Signed out? free sample covers the starter on the canvas; examples need your NanoGPT key to Run.":"fertige Workflows — klicke zum Laden. Abgemeldet? das kostenlose Beispiel deckt den Starter auf der Fläche ab; Beispiele brauchen deinen NanoGPT-Schlüssel zum Ausführen.",
     "nanoodle wires AI models — text, image, video, audio — into workflows. Press":"nanoodle verbindet KI-Modelle — Text, Bild, Video, Audio — zu Workflows. Drücke",
     "to try this one,":"um diesen auszuprobieren,",
     "✨ Create app":"✨ App erstellen",
@@ -2144,6 +2176,7 @@ const I18N = {
     "Dismiss":"Ausblenden",
     "Each change adds a version — click one to jump back to it":"Jede Änderung fügt eine Version hinzu — klicke eine an, um dorthin zurückzuspringen",
     "Edit workflow":"Workflow bearbeiten",
+    "Customize":"Anpassen",
     "Email":"E-Mail",
     "Enter this in the Noodle Cookoff":"Reiche dies beim Noodle Cookoff ein",
     "Fit the whole workflow in view (F)":"Ganzen Workflow ins Bild einpassen (F)",
@@ -2589,6 +2622,15 @@ const I18N = {
     ", which takes Nano — so the prize pool stays in the ecosystem.":", que aceita Nano — assim o fundo de prêmios permanece no ecossistema.",
     "16:9 (Landscape)":"16:9 (Paisagem)",
     "1:1 (Square)":"1:1 (Quadrado)",
+    "A live AI workflow. Press":"Um fluxo de IA ao vivo. Pressione",
+    "for a free sample, or browse":"para uma amostra grátis, ou explore",
+    "turns this into a shareable mini app.":"transforma isto numa mini app partilhável.",
+    "Sample preview":"Pré-visualização de amostra",
+    "your edits aren’t reflected yet — results below are still the starter sample. Sign in to run YOUR prompt for real, pay-per-use on your own key.":"as suas edições ainda não se reflectem — abaixo continua a amostra inicial. Entre para executar O SEU prompt de verdade, pagamento por uso com a sua própria chave.",
+    "This is your app.":"Esta é a sua app.",
+    "restyles it;":"redesenha-a;",
+    "returns to the graph and keeps this app bound.":"volta ao grafo e mantém esta app ligada.",
+    "ready-made workflows — click one to load it. Signed out? free sample covers the starter on the canvas; examples need your NanoGPT key to Run.":"fluxos prontos — clique para carregar. Sem sessão? a amostra grátis cobre o inicial no ecrã; exemplos precisam da sua chave NanoGPT para Executar.",
     "nanoodle wires AI models — text, image, video, audio — into workflows. Press":"nanoodle conecta modelos de IA — texto, imagem, vídeo, áudio — em fluxos de trabalho. Pressione",
     "to try this one,":"para testar este,",
     "✨ Create app":"✨ Criar app",
@@ -2610,6 +2652,7 @@ const I18N = {
     "Dismiss":"Dispensar",
     "Each change adds a version — click one to jump back to it":"Cada alteração adiciona uma versão — clique em uma para voltar a ela",
     "Edit workflow":"Editar fluxo",
+    "Customize":"Personalizar",
     "Email":"E-mail",
     "Enter this in the Noodle Cookoff":"Inscreva isto no Noodle Cookoff",
     "Fit the whole workflow in view (F)":"Ajustar todo o fluxo à vista (F)",
@@ -3052,9 +3095,18 @@ const I18N = {
     ", which takes Nano — so the prize pool stays in the ecosystem.":"、Nano を受け取るので、賞金プールはエコシステム内にとどまります。",
     "16:9 (Landscape)":"16:9 (横長)",
     "1:1 (Square)":"1:1 (スクエア)",
+    "A live AI workflow. Press":"ライブのAIワークフローです。",
+    "for a free sample, or browse":"で無料サンプルを試すか、",
+    "turns this into a shareable mini app.":"で共有できるミニアプリにします。",
+    "Sample preview":"サンプルプレビュー",
+    "your edits aren’t reflected yet — results below are still the starter sample. Sign in to run YOUR prompt for real, pay-per-use on your own key.":"編集はまだ反映されていません — 下はスターターのサンプルのままです。サインインすると自分のプロンプトを本当に実行できます(自分のキーで従量課金)。",
+    "This is your app.":"これがあなたのアプリです。",
+    "restyles it;":"見た目を変え、",
+    "returns to the graph and keeps this app bound.":"でグラフに戻り、このアプリの紐づけは保たれます。",
+    "ready-made workflows — click one to load it. Signed out? free sample covers the starter on the canvas; examples need your NanoGPT key to Run.":"すぐ使えるワークフロー — クリックで読み込み。未サインインならキャンバス上のスターターだけ無料サンプル対応。サンプル集の実行にはNanoGPTキーが必要です。",
+    "✨ Create app":"✨ アプリ作成",
     "nanoodle wires AI models — text, image, video, audio — into workflows. Press":"nanoodle はAIモデル（テキスト・画像・動画・音声）をワークフローに繋ぎます。",
     "to try this one,":"でこれを試すか、",
-    "✨ Create app":"✨ アプリ作成",
     "to turn it into a shareable app, or browse":"で共有できるアプリにするか、",
     "NanoGPT is a pay-per-use AI service — hundreds of models, pay only for what you run.":"nano-gptは従量課金のAIサービスです — 数百のモデル、実行した分だけお支払いです。",
     "A running changelog — one line per change.":"進行中の変更履歴 — 変更ごとに1行。",
@@ -3073,6 +3125,7 @@ const I18N = {
     "Dismiss":"閉じる",
     "Each change adds a version — click one to jump back to it":"変更ごとにバージョンが追加されます — クリックでそのバージョンに戻れます",
     "Edit workflow":"ワークフローを編集",
+    "Customize":"カスタマイズ",
     "Email":"メール",
     "Enter this in the Noodle Cookoff":"これを Noodle Cookoff に応募",
     "Fit the whole workflow in view (F)":"ワークフロー全体を表示に収める (F)",
@@ -4664,11 +4717,9 @@ function workflowCost(){
   return { usd, priced, unpriced, exact };
 }
 const fmtUsd = (v)=> v>=0.01 ? `$${v.toFixed(2)}` : v>0 ? `<$0.01` : `$0.00`;
-// True while a signed-out visitor is still on the pristine shipped starter — i.e. the exact state
-// where ▶ Run plays the canned sample (see runGroup's demo path), not a real paid run. We hide the
-// price here so the first click reads as "just try it", not "this'll cost you". It returns the
-// instant they sign in or edit past the starter — the moment a run actually bills their own key.
-function inDemoRun(){ return !getKey() && !!demoStarterSig && appHandoffSig() === demoStarterSig; }
+// True while a signed-out visitor can still free-sample Run (pristine starter OR same topology with
+// only field tweaks — see demoMode). We hide the price so the first click reads as "just try it".
+function inDemoRun(){ return !getKey() && !!demoMode(); }
 // Paint a faded, captioned teaser of what ▶ Run produces into an output node's result area, so a
 // first-run visitor sees the reward at rest — not just the wired-up apparatus. View-only: never sets
 // n.out, so serialization / appHandoffSig are untouched. Clicking it just runs (the caption promises it).
@@ -7023,12 +7074,14 @@ function nodeSig(n, inp){
 async function runGroup(seedIds, ctx){
   ctx = ctx || (getKey() ? CTX : DEMO_CTX);
   if(ctx.demo){
-    // The canned sample only honestly represents the pristine shipped starter. If the canvas has
-    // been edited (or is a share link / restored graph), faking it would show a result that ignores
-    // the change — so surface the sign-in choice instead of a lie.
-    const custom = !demoStarterSig || appHandoffSig() !== demoStarterSig;
-    openDemoPop(custom);
-    if(custom) return;
+    // Free sample when the canvas is the starter shape (exact or light field edits). Topology
+    // changes / other graphs → sign-in wall (no fake result that ignores their graph).
+    // demoMode is the single chokepoint (tests may stub it); fall back to exact-sig match.
+    const mode = (typeof demoMode === "function")
+      ? demoMode()
+      : (demoStarterSig && appHandoffSig() === demoStarterSig ? "exact" : null);
+    openDemoPop(mode);
+    if(!mode) return;
   }
   const lock = new Set();
   for(const id of seedIds) for(const x of componentOf(id)) lock.add(x);
@@ -7532,11 +7585,30 @@ const CTX = {
    results (badged on every node, zero network calls, zero charge) while #demopop offers the
    two real ways in — Sign in with NanoGPT, or paste a key. The canned text/image pair was
    generated once with the shipped starter graph's own models (glm-5.2 → nano-banana-2-lite),
-   so what a first-timer watches is exactly what a real run of the starter produces. */
-// Set at boot IFF the pristine shipped starter is what loaded (appHandoffSig of it). The canned
-// sample only honestly represents THAT graph — a signed-out Run of anything else (edited starter,
-// share link, restored graph) is asked to sign in rather than shown a result that ignores the change.
+   so what a first-timer watches is exactly what a real run of the starter produces.
+
+   Two sigs, set at boot from the canonical starter:
+     demoStarterSig   — full content (fields + types + links); exact match → sample as-is
+     demoStarterShape — topology only (ids/types/links); same shape with field tweaks still
+                        free-samples, but the pill warns that canned results ignore the edit.
+   Topology changes, share links, examples, etc. still get the honest sign-in wall. */
 let demoStarterSig = null;
+let demoStarterShape = null;
+// Topology fingerprint (ids + types + wire ends). Field edits don't change it; add/remove/rewire do.
+function demoShapeSig(g){
+  g = g || graph;
+  return JSON.stringify({
+    nodes: (g.nodes||[]).map(n=>({ id:n.id, type:n.type })),
+    links: (g.links||[]).map(l=>({ f:l.from, t:l.to })),
+  });
+}
+// 'exact' | 'shape' | null — whether a signed-out Run may free-sample this canvas.
+function demoMode(){
+  if(!demoStarterShape) return null;
+  if(demoStarterSig && appHandoffSig() === demoStarterSig) return "exact";
+  if(demoShapeSig() === demoStarterShape) return "shape";
+  return null;
+}
 const DEMO_LLM_TEXT = "A cozy, intimate ramen shop on a rainy night, viewed from the quiet street looking slightly through the steamed glass window. Warm, glowing amber light spills out onto the wet pavement, contrasting beautifully with the cool, moody blue and teal tones of the rainy city. Inside, a lone patron in a yellow raincoat sits at a wooden bar, steam rising in thick, inviting plumes from a large bowl of rich tonkotsu ramen. Paper lanterns emit a soft, nostalgic luminescence over wooden interiors. Puddles on the cobblestone street reflect the vibrant shop signs and passing neon city lights. Cinematic lighting, photorealistic, 8k resolution, ultra-detailed, comforting and atmospheric mood, anime-inspired realism.";
 // Fallback when demo-sample.jpg can't be fetched (file:// open) — a labeled stand-in, never a broken img.
 const DEMO_IMG_FALLBACK = "data:image/svg+xml," + encodeURIComponent(
@@ -7574,16 +7646,24 @@ function markDemoResult(n){
   if(!r || !r.classList.contains("show") || r.querySelector(".demobadge")) return;   // pass-through nodes (text/media inputs) show no result — nothing to label
   r.insertAdjacentHTML("beforeend", `<div class="demobadge">✨ ${esc(t("sample result — sign in to run it for real"))}</div>`);
 }
-// custom=true → the canvas isn't the starter (edited / share link / restored), so there's no honest
-// sample for it; the pill switches from "here's a sample" to "sign in to run YOUR workflow".
-function openDemoPop(custom){
+// mode: 'exact' (pristine starter) | 'shape' (same topology, field tweaks) | null (not sampleable).
+// Legacy booleans still work: true → wall, false → exact sample (older tests / call sites).
+function openDemoPop(mode){
+  if(mode === true) mode = null;
+  if(mode === false) mode = "exact";
   const p = $("demopop"); if(!p) return;
   $("demosignin").style.display = /^https?:$/.test(location.protocol) ? "" : "none";   // OAuth needs http(s); file:// keeps paste-key only
   const ch = $("connecthint"); if(ch && !ch.hidden) ch.hidden = true;   // don't stack teaching pills behind the sample pitch (no flag — it can return next load)
   const txt = p.querySelector(".dp-txt");
-  if(txt) txt.innerHTML = custom
-    ? `<b>${esc(t("Run your workflow"))}</b> — ${esc(t("the sample only covers the starter — sign in to run your own graph for real, pay-per-use on your own key."))}`
-    : `<b>${esc(t("Sample run"))}</b> — ${esc(t("results below are canned examples, not live AI — sign in to run it for real, pay-per-use on your own key."))}`;
+  if(txt){
+    if(!mode){
+      txt.innerHTML = `<b>${esc(t("Run your workflow"))}</b> — ${esc(t("the sample only covers the starter — sign in to run your own graph for real, pay-per-use on your own key."))}`;
+    }else if(mode === "shape"){
+      txt.innerHTML = `<b>${esc(t("Sample preview"))}</b> — ${esc(t("your edits aren’t reflected yet — results below are still the starter sample. Sign in to run YOUR prompt for real, pay-per-use on your own key."))}`;
+    }else{
+      txt.innerHTML = `<b>${esc(t("Sample run"))}</b> — ${esc(t("results below are canned examples, not live AI — sign in to run it for real, pay-per-use on your own key."))}`;
+    }
+  }
   p.hidden = false;
 }
 // turn a blob:/data:/http url into a base64 data URL (for video/audio source payloads)
@@ -9070,14 +9150,10 @@ $("cookoffmodal").addEventListener("click", e=>{ if(e.target.id==="cookoffmodal"
 addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("cookoffmodal").hidden) closeCookoff(); });
 
 // 🏆 Submit popup — the conversion path into the Cookoff: prize → your entry link → where to post.
-// Reached from the 🍜 explainer's "Submit your entry →" CTA and an auto-nudge
-// the instant a 🔗 Share copy succeeds (the wow moment).
-let submitFromShare = false;     // this open was the post-Share auto-nudge (vs. an explicit click)
-let suppressShareNudge = false;  // user dismissed that nudge once → stop auto-popping it this session
+// Opt-in only (🍜 explainer CTA / explicit Submit). Never auto-opens on Share — casual share
+// is a product action, not a contest funnel.
 let submitTarget = "app";        // "app" (play.html runtime — the contest default) | "workflow" (editor, for remixers)
 function closeSubmit(){
-  if(submitFromShare) suppressShareNudge = true;   // dismissed the post-Share nudge → don't re-pop it this session
-  submitFromShare = false;
   $("submitmodal").hidden = true;
 }
 const SUBMIT_HINT = {
@@ -9099,8 +9175,8 @@ function setSubmitTarget(tgt){                        // NB: not `t` — that's 
   const cb = $("submitcopy"); cb.textContent = t("Copy link"); cb.classList.remove("ok");
   fillSubmitLink();
 }
-async function openSubmit(fromShare){
-  submitFromShare = !!fromShare;
+async function openSubmit(){
+  if(COOKOFF_OVER) return;   // contest retired — don't surface a dead modal
   $("submitmodal").hidden = false;
   const copyBtn = $("submitcopy");
   copyBtn.textContent = t("Copy link"); copyBtn.classList.remove("ok");   // reset from any prior copy
@@ -9522,19 +9598,21 @@ $("signout").onclick = ()=> setKey(null);
   const freshStart = !restored;                                   // nothing personal loaded → we're about to show the shipped starter
   if(!restored) restored = await loadDefault();                   // else noodle-graph.json
   if(!restored) seed();                                           // else built-in starter
-  // Only the pristine shipped starter has a canned sample. Capture its signature so a signed-out Run
-  // knows whether the sample honestly represents what's on the canvas (see runGroup / inDemoRun).
-  // Compute it from the CANONICAL noodle-graph.json, not from whatever's on the canvas: autosave makes
-  // a returning visitor's boot a "restore" (not a freshStart), so gating on freshStart hid the demo
-  // forever once a signed-out visitor touched the canvas even once — even after they returned it to the
-  // pristine starter. The shipped ids (n1/n2/n3) are deterministic and survive save/restore, so a plain
-  // sig comparison is id-stable — no normalization needed. Signed-out only: demo affordances never apply
-  // to a signed-in user (inDemoRun gates on !getKey), so don't spend a fetch computing a baseline for them.
+  // Capture the starter's full + topology signatures so a signed-out Run can free-sample the
+  // pristine starter AND light field edits on the same shape (see demoMode / runGroup / inDemoRun).
+  // Compute from the CANONICAL noodle-graph.json, not the live canvas: autosave makes a returning
+  // visitor's boot a "restore", so gating on freshStart hid the demo forever after one touch.
+  // Shipped ids (n1/n2/n3) are deterministic and survive save/restore. Signed-out only.
   if(!getKey()){
     try{
       const starter = await starterGraphData();
-      if(starter) demoStarterSig = appHandoffSig(starter, "");       // app:"" — the shipped starter is never app-bound
-      else if(freshStart) demoStarterSig = appHandoffSig(undefined, "");   // file://: the fetch is blocked, but seed() just mounted the starter live
+      if(starter){
+        demoStarterSig = appHandoffSig(starter, "");       // app:"" — the shipped starter is never app-bound
+        demoStarterShape = demoShapeSig(starter);
+      }else if(freshStart){
+        demoStarterSig = appHandoffSig(undefined, "");   // file://: the fetch is blocked, but seed() just mounted the starter live
+        demoStarterShape = demoShapeSig();
+      }
     }catch(_){}
   }
   updateTitle();                                                  // reflect whether an app's workflow is loaded

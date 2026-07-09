@@ -55,12 +55,14 @@ async function run(world, seed, opts = {}) {
     ensureAuth: () => true,
     getKey: () => (opts.signedOut ? null : "k"),          // signed out → runGroup must fall back to DEMO_CTX
     DEMO_CTX: { demo: true },
-    openDemoPop: (custom) => { world.demoPopOpened = true; world.demoPopCustom = custom; },
+    openDemoPop: (mode) => { world.demoPopOpened = true; world.demoPopMode = mode; },
     markDemoResult: (n) => { (world.demoBadged ||= []).push(n.id); },
     setNodeProgress: () => {},
     demoRunLabel: () => "loading sample…",
-    demoStarterSig: "STARTER",                             // demo run only serves a sample when the graph matches the starter…
-    appHandoffSig: () => (opts.customGraph ? "OTHER" : "STARTER"),   // …so control this in the test to exercise both paths
+    // demoMode is the single free-sample chokepoint: exact starter, same-shape field edit, or wall.
+    demoMode: () => (opts.customGraph ? null : (opts.shapeEdit ? "shape" : "exact")),
+    demoStarterSig: "STARTER",
+    appHandoffSig: () => (opts.customGraph ? "OTHER" : "STARTER"),
     componentOf: () => world.ids.slice(),
     groupBusy: () => false,
     ancestors: () => new Set(world.ids),
@@ -130,18 +132,30 @@ const ok = (c, m) => { if (!c) { fail++; console.log("  ✗ " + m); } else conso
   ok(w.demoPopOpened === true, "sample pill (openDemoPop) surfaced on a signed-out run");
   ok((w.demoBadged || []).includes("n1"), `sample results are badged (badged=${JSON.stringify(w.demoBadged || [])})`);
   ok(w.nodes.n1._sig === undefined, `demo run minted NO seed-cache signature (sig=${w.nodes.n1._sig})`);
-  ok(w.demoPopCustom === false, `sample pill shown in SAMPLE mode for the unedited starter (custom=${w.demoPopCustom})`);
+  ok(w.demoPopMode === "exact", `sample pill shown in exact mode for the unedited starter (mode=${w.demoPopMode})`);
 }
 
-// 5) Signed out on an EDITED / non-starter graph → NO fake result: the sample can't honestly
-//    represent a changed graph, so runGroup opens the pill in "sign in to run your workflow" mode
-//    and runs NOTHING (no canned output, no badge, no charge).
+// 5) Signed out on a TOPOLOGY-changed / non-starter graph → NO fake result: the sample can't
+//    honestly represent a different graph, so runGroup opens the pill in wall mode and runs NOTHING.
 {
   const w = makeWorld(2, false);
   await run(w, "n1", { signedOut: true, customGraph: true });
-  ok(!w.runs.n1 && !w.paid.length, `edited signed-out graph ran no node and charged nothing (runs=${w.runs.n1 || 0}, paid=${w.paid.length})`);
-  ok(w.demoPopOpened === true && w.demoPopCustom === true, `sign-in pill surfaced in CUSTOM mode (opened=${w.demoPopOpened}, custom=${w.demoPopCustom})`);
+  ok(!w.runs.n1 && !w.paid.length, `topology-changed signed-out graph ran no node and charged nothing (runs=${w.runs.n1 || 0}, paid=${w.paid.length})`);
+  ok(w.demoPopOpened === true && w.demoPopMode === null, `sign-in pill surfaced in wall mode (opened=${w.demoPopOpened}, mode=${w.demoPopMode})`);
   ok(!(w.demoBadged || []).length, `no sample badge on a graph we refused to fake (badged=${JSON.stringify(w.demoBadged || [])})`);
+}
+
+// 5b) Signed out on the starter SHAPE with field tweaks → still free-samples (canned results),
+//     but the pill uses "shape" mode so the UI can warn that edits aren't reflected yet.
+{
+  const w = makeWorld(2, false);
+  const seen = [];
+  const origRun = w.NODE_TYPES.edit.run;
+  w.NODE_TYPES.edit.run = async (n, inp, c) => { seen.push(c && c.demo === true); return origRun(n, inp, c); };
+  await run(w, "n1", { signedOut: true, shapeEdit: true });
+  ok(seen.length === 1 && seen[0] === true, `shape-edit signed-out run still uses DEMO_CTX (saw demo=${seen[0]})`);
+  ok(w.demoPopMode === "shape", `sample pill shown in shape mode for light field edits (mode=${w.demoPopMode})`);
+  ok((w.demoBadged || []).includes("n1"), `shape-edit sample results are still badged`);
 }
 
 // 6) Retry reuse: after a downstream failure the user re-runs (or per-node Runs the failed node).

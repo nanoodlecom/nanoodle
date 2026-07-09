@@ -762,6 +762,7 @@ window.NoodleApp = (function () {
   "Language":{es:"Idioma",fr:"Langue",de:"Sprache",pt:"Idioma",ja:"言語"},
   "Keep generating":{es:"Seguir generando",fr:"Continuer à générer",de:"Weiter generieren",pt:"Continuar gerando",ja:"生成を続ける"},
   "Your image will appear here — fill in the inputs and hit Run.":{es:"Tu imagen aparecerá aquí — completa los campos y pulsa Ejecutar.",fr:"Votre image apparaîtra ici — remplissez les champs et appuyez sur Exécuter.",de:"Dein Bild erscheint hier — fülle die Felder aus und drücke auf Ausführen.",pt:"Sua imagem aparecerá aqui — preencha os campos e clique em Executar.",ja:"ここに画像が表示されます — 入力欄を埋めて実行を押してください。"},
+  "Needs a NanoGPT key to run — pay-per-use, sign in above, then hit Run.":{es:"Necesita una clave NanoGPT para ejecutarse — pago por uso; inicia sesión arriba y pulsa Ejecutar.",fr:"Nécessite une clé NanoGPT pour s’exécuter — paiement à l’usage ; connectez-vous en haut, puis appuyez sur Exécuter.",de:"Braucht einen NanoGPT-Schlüssel zum Ausführen — Bezahlung pro Nutzung; oben anmelden, dann Ausführen.",pt:"Precisa de uma chave NanoGPT para executar — pagamento por uso; entre acima e clique em Executar.",ja:"実行にはNanoGPTキーが必要です — 従量課金。上でサインインしてから実行を押してください。"},
   "Your video will appear here — fill in the inputs and hit Run.":{es:"Tu vídeo aparecerá aquí — completa los campos y pulsa Ejecutar.",fr:"Votre vidéo apparaîtra ici — remplissez les champs et appuyez sur Exécuter.",de:"Dein Video erscheint hier — fülle die Felder aus und drücke auf Ausführen.",pt:"Seu vídeo aparecerá aqui — preencha os campos e clique em Executar.",ja:"ここに動画が表示されます — 入力欄を埋めて実行を押してください。"},
   "Your music will appear here — fill in the inputs and hit Run.":{es:"Tu música aparecerá aquí — completa los campos y pulsa Ejecutar.",fr:"Votre musique apparaîtra ici — remplissez les champs et appuyez sur Exécuter.",de:"Deine Musik erscheint hier — fülle die Felder aus und drücke auf Ausführen.",pt:"Sua música aparecerá aqui — preencha os campos e clique em Executar.",ja:"ここに音楽が表示されます — 入力欄を埋めて実行を押してください。"},
   "Your audio will appear here — fill in the inputs and hit Run.":{es:"Tu audio aparecerá aquí — completa los campos y pulsa Ejecutar.",fr:"Votre audio apparaîtra ici — remplissez les champs et appuyez sur Exécuter.",de:"Dein Audio erscheint hier — fülle die Felder aus und drücke auf Ausführen.",pt:"Seu áudio aparecerá aqui — preencha os campos e clique em Executar.",ja:"ここに音声が表示されます — 入力欄を埋めて実行を押してください。"},
@@ -4387,6 +4388,7 @@ function mp4ParamsMatch(bufs){
         + 'border:1.5px dashed var(--line,#2a3150);border-radius:var(--radius,.7rem);color:var(--dim,#aab3c7);}'
       + '#app-output-empty .oe-icon{font-size:2rem;line-height:1;opacity:.92;}'
       + '#app-output-empty .oe-msg{font-size:.9rem;max-width:34ch;line-height:1.5;color:var(--faint,#8792ad);}'
+      + '#app-output-empty .oe-sub{font-size:.78rem;max-width:36ch;line-height:1.4;color:var(--accent,#7c8cff);margin-top:.45rem;opacity:.95;}'
       + '#app-output .card.nd-sample{border:1.5px dashed var(--accent,#7c8cff);cursor:pointer;}'
       + '#app-output .card.nd-sample .run-badge{border-style:dashed;color:var(--accent,#7c8cff);}'
       + '#app-output .card.nd-sample img.rmain{opacity:.88;}'
@@ -4418,8 +4420,14 @@ function mp4ParamsMatch(bufs){
     if(kinds.length===1){ icon = ICON[kinds[0]]; msg = MSG[kinds[0]]; }
     else { icon = "✨"; msg = "Your results will appear here — fill in the inputs and hit Run."; }   // mixed / unrecognized pipeline
     injectOutputPlaceholderStyles();
+    // Signed-out recipients (no baked sample) need the auth story here — empty card alone reads
+    // as broken. One soft line; the full sign-in control still lives in authIntro / the top bar.
+    const needsKey = EMBEDDED ? !parentAuthed : !getKey();
+    const sub = needsKey
+      ? '<div class="oe-sub">'+esc(t("Needs a NanoGPT key to run — pay-per-use, sign in above, then hit Run."))+'</div>'
+      : '';
     const el = document.createElement("div"); el.id = "app-output-empty"; el.setAttribute("aria-hidden","true");
-    el.innerHTML = '<div class="oe-icon">'+icon+'</div><div class="oe-msg">'+esc(t(msg))+'</div>';
+    el.innerHTML = '<div class="oe-icon">'+icon+'</div><div class="oe-msg">'+esc(t(msg))+'</div>'+sub;
     box.appendChild(el);
   }
   function clearOutputPlaceholder(){ const el = $("app-output-empty"); if(el) el.remove(); }
@@ -7452,7 +7460,11 @@ async function doShare(){
     // handoff hash means a later reload re-imports it as a fresh "imported" library entry — a duplicate.
     if(ok){ try{ history.replaceState({}, "", location.origin + location.pathname); }catch(_){} }
     const big = url.length>8000 ? ` (${(url.length/1024).toFixed(0)}kB)` : "";
-    const sampleNote = hasSample ? " · includes a sample of what it makes" : "";
+    // Pack samples by default when the creator has run; otherwise nudge them so the next share
+    // can show recipients a preview before sign-in (the viral #a= path's biggest drop-off).
+    const sampleNote = hasSample
+      ? " · includes a sample of what it makes"
+      : " · tip: Run once first to pack a sample recipients see before signing in";
     toast(ok ? (appDirty
                  ? `✓ Link copied — the app as built, not your in-app edits${big}${sampleNote} · shorten or share below`
                  : `✓ Link copied${big}${sampleNote} · shorten it or share below — recipients sign in with their own key`)
