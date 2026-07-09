@@ -4691,7 +4691,11 @@ function mp4ParamsMatch(bufs){
     clearShareSamples();
     clearOutputPlaceholder();
     injectOutputPlaceholderStyles();
-    var label = esc(t("sample result — sign in to run it for real"));
+    // Same auth check as the empty placeholder: a signed-in viewer doesn't need the
+    // sign-in nudge — point them at Run instead (both keys already ship in PLAY_I18N).
+    var needsKey = EMBEDDED ? !parentAuthed : !getKey();
+    var label = esc(t(needsKey ? "sample result — sign in to run it for real"
+                               : "Creator’s sample — Run to make your own"));
     var tip = esc(t("Creator’s sample — Run to make your own"));
     // paint oldest→newest so insertBefore(firstChild) ends with newest on top
     for(var i = samples.length - 1; i >= 0; i--){
@@ -4775,7 +4779,6 @@ function mp4ParamsMatch(bufs){
     // Real (non-sample) cards already on screen beat stored history. Creator-sample cards do NOT
     // block restore — a recipient who later ran the app should see THEIR last visit, not the sample.
     if(box.querySelector(".card:not(.nd-sample)")) return;
-    clearShareSamples();
     if(!STATE || !STATE.graph) return;
     var list = (outs || []).slice().sort(function(a,b){ return (a.updated||0)-(b.updated||0); });   // oldest first → newest ends on top
     var restored = 0;
@@ -4800,7 +4803,11 @@ function mp4ParamsMatch(bufs){
       var card = resultCard(node, '<span class="run-badge" title="'+esc(t("made here last time — stored only in this browser"))+'">'+label+'</span> ');
       if(card){ card.classList.add("nd-earlier"); ensureRecedeWiring(box); box.insertBefore(card, box.firstChild); restored++; }
     }
-    if(restored){ clearOutputPlaceholder(); layoutRecede(); }
+    // Drop the creator samples only once a stored card actually replaced them. When every
+    // record is skipped (e.g. the app round-tripped through the editor and the output node
+    // was replaced, so no stored node/type matches), the samples — or the empty-state
+    // placeholder — must stay, or the output area goes blank with no way back.
+    if(restored){ clearShareSamples(); clearOutputPlaceholder(); layoutRecede(); }
   }
 
   /* ---------- playback continuity (via the parent) ----------
@@ -7620,11 +7627,15 @@ function askAppSamples(){
 async function doShare(){
   try{
     const _lang = bakedAppLang();   // carry the creator's language in the link (short field); "" → omit, keeps the link neutral + small
+    // Snapshot the app being shared BEFORE the (up to 2s) sample ask: switching apps
+    // mid-wait must never pack — or stamp samples onto — the newly opened app.
+    const _id = CUR_ID, _graph = APP_STATE.graph, _files = APP_STATE.files, _stored = APP_STATE.samples;
     // Prefer live results (creator just ran); fall back to samples already on this library entry
     // (re-share of an imported app that still carries its sample).
     let samples = await askAppSamples();
-    if((!samples || !samples.length) && APP_STATE.samples && APP_STATE.samples.length) samples = APP_STATE.samples;
-    const base = { v:1, graph:shareableGraph(APP_STATE.graph), files:APP_STATE.files, ...(_lang?{lang:_lang}:{}) };
+    if(CUR_ID !== _id){ toast("app changed while packing the link — press Share again", "err"); return; }
+    if((!samples || !samples.length) && _stored && _stored.length) samples = _stored;
+    const base = { v:1, graph:shareableGraph(_graph), files:_files, ...(_lang?{lang:_lang}:{}) };
     let payload = base;
     let hasSample = false;
     if(samples && samples.length){
@@ -7708,11 +7719,17 @@ async function shortenWith(svc, longUrl){
 // Best-effort: pack the same creator samples Share would, so a cold open of the .html still
 // shows what the app makes before the viewer pastes a key. Never blocks export on sample fail.
 async function doExport(){
+  const _id = CUR_ID;   // the app the user asked to export — the sample ask below can take up to 2s
   try{
     let samples = await askAppSamples();
-    if((!samples || !samples.length) && APP_STATE.samples && APP_STATE.samples.length) samples = APP_STATE.samples;
-    if(samples && samples.length){ APP_STATE.samples = samples; try{ persist(); }catch(_){} }
+    if(CUR_ID === _id){
+      if((!samples || !samples.length) && APP_STATE.samples && APP_STATE.samples.length) samples = APP_STATE.samples;
+      if(samples && samples.length){ APP_STATE.samples = samples; try{ persist(); }catch(_){} }
+    }
   }catch(_){}
+  // Switching apps mid-ask means APP_STATE/bar-title now belong to a different app — bundling
+  // them would silently download the WRONG app. Discard; the button works again immediately.
+  if(CUR_ID !== _id){ toast("app changed while packing the export — press Export again", "err"); return; }
   const safe = ($("bar-title").textContent || "nanoodle-app").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"") || "nanoodle-app";
   const blob = new Blob([bundle(APP_STATE.files)], { type:"text/html" });
   const a = document.createElement("a");

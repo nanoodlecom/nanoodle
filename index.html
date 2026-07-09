@@ -8936,7 +8936,14 @@ async function buildShareUrl(target){
         // Pack like play.html's doShare: include creator samples (pre-sign-in preview) + lang
         // when the library entry has them. Drop samples if they would bloat the URL past ~200kB
         // of extra JSON (same soft ceiling as doShare).
-        const _lang = (typeof app.lang === "string" && app.lang) ? app.lang : "";
+        // Mirror play.html's bakedAppLang(): the ORIGINAL creator's stored app.lang, else THIS
+        // creator's explicit editor choice (localStorage noodle_lang, supported set only — never
+        // the navigator fallback), so editor and play share links bake the same language.
+        const _lang = (typeof app.lang === "string" && app.lang) ? app.lang : (()=>{
+          const SUP={ en:1, es:1, fr:1, de:1, pt:1, ja:1 };
+          let stored=null; try{ stored=localStorage.getItem("noodle_lang"); }catch(e){}
+          return (stored && SUP[stored]) ? stored : "";
+        })();
         const base = { v:1, graph:shareableGraph(app.graph), files:app.files, ...(_lang?{lang:_lang}:{}) };
         let payload = base;
         const samples = Array.isArray(app.samples) ? app.samples : null;

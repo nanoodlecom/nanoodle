@@ -20,7 +20,8 @@
 //   S7. size caps exist (SAMPLE_BUDGET / SAMPLE_MAX / SAMPLE_TEXT_MAX / SAMPLE_IMG_EDGE)
 //   S8. sanitizeSamples drops oversize / non-portable values
 //   S9. shareableGraph still blanks uploads — samples must never be the upload path
-//  S10. sample badge i18n key exists in PLAY_I18N (5 languages)
+//  S10. sample badge i18n keys exist in PLAY_I18N (5 languages) + badge is auth-aware
+//  S11. pre-commit trigger fires on every file this checker asserts (index.html too)
 
 import { readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
@@ -100,6 +101,32 @@ ok("S1f", /200000/.test(doShare), "doShare missing soft size ceiling for samples
     "editor buildShareUrl does not pack app.lang into the #a= payload");
   ok("S1i", /200000/.test(buildShare),
     "editor buildShareUrl missing soft size ceiling for samples (must match doShare)");
+  // Lang parity with play's bakedAppLang(): stored app.lang, else the creator's EXPLICIT
+  // editor choice (localStorage noodle_lang) — the two share paths must bake the same lang.
+  ok("S1j", /noodle_lang/.test(buildShare),
+    "editor buildShareUrl lacks the explicit noodle_lang fallback (parity with play bakedAppLang)");
+}
+
+// ---- S1k: share/export must not race an app switch ----------------------------
+// doShare/doExport await askAppSamples() for up to 2s; APP_STATE reads after that
+// await belong to whatever app is open THEN. Both must snapshot CUR_ID before the
+// await and discard when it changed — never share/export/stamp the wrong app.
+{
+  ok("S1k-share", /CUR_ID\s*!==\s*_id/.test(doShare),
+    "doShare has no CUR_ID app-switch guard across the askAppSamples await");
+  const shareAsk = doShare.indexOf("askAppSamples");
+  const shareSnap = doShare.indexOf("_id = CUR_ID");
+  ok("S1k-share-order", shareSnap >= 0 && shareAsk > shareSnap,
+    "doShare must snapshot CUR_ID BEFORE awaiting askAppSamples");
+  let doExportFn = "";
+  try { doExportFn = extractFn(html, "doExport"); }
+  catch (e) { fail("S1k-export", "doExport missing: " + e.message); }
+  ok("S1k-export", /CUR_ID\s*!==\s*_id/.test(doExportFn),
+    "doExport has no CUR_ID app-switch guard across the askAppSamples await");
+  const expAsk = doExportFn.indexOf("askAppSamples");
+  const expSnap = doExportFn.indexOf("_id = CUR_ID");
+  ok("S1k-export-order", expSnap >= 0 && expAsk > expSnap,
+    "doExport must snapshot CUR_ID BEFORE awaiting askAppSamples");
 }
 
 // ---- S2: import carries samples ---------------------------------------------
@@ -132,6 +159,17 @@ ok("S5c", /rememberLiveOut\s*\(/.test(renderResult), "renderResult does not feed
 const restore = extractFn(html, "restoreOutputs");
 ok("S6", /\.card:not\(\.nd-sample\)/.test(restore) || /nd-sample/.test(restore),
   "restoreOutputs does not exempt sample cards");
+// S6b/S6c: restore must never clear the samples (or leave the placeholder gone) UNLESS a
+// stored record actually produced a card. Clearing up-front blanks the whole output area
+// when every record is skipped (node replaced in the editor → id/type no longer matches).
+ok("S6b", /if\s*\(\s*restored\s*\)\s*\{\s*clearShareSamples\s*\(\s*\)/.test(restore),
+  "restoreOutputs must clear share samples only once restored > 0");
+{
+  const idxClear = restore.indexOf("clearShareSamples");
+  const idxLoop = restore.search(/for\s*\(/);
+  ok("S6c", idxClear > 0 && idxLoop > 0 && idxClear > idxLoop,
+    "restoreOutputs clears samples before knowing whether anything restores (blank-void bug)");
+}
 
 // ---- S7: size caps present --------------------------------------------------
 ok("S7a", /SAMPLE_BUDGET\s*=\s*\d+/.test(html), "SAMPLE_BUDGET missing");
@@ -206,22 +244,43 @@ ok("S9c", /shareableGraph\s*\(/.test(doShare), "doShare must still call shareabl
 
 // ---- S10: i18n coverage for the sample badge --------------------------------
 {
-  // PLAY_I18N is inside RUNTIME_JS; require the english key with all 5 lang maps.
-  const key = "sample result — sign in to run it for real";
-  const re = new RegExp(
-    JSON.stringify(key).slice(1, -1) // escape for regex via JSON string body
-      .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-    + "\\s*:\\s*\\{[^}]*\\bes\\b[^}]*\\bfr\\b[^}]*\\bde\\b[^}]*\\bpt\\b[^}]*\\bja\\b"
-  );
-  // looser: just check the key has a row with es/fr/de/pt/ja nearby
-  const idx = html.indexOf(key);
-  ok("S10a", idx >= 0, "sample badge key missing from play.html");
-  if (idx >= 0) {
-    const slice = html.slice(idx, idx + 800);
-    for (const lang of ["es", "fr", "de", "pt", "ja"]) {
-      ok("S10-" + lang, new RegExp("\\b" + lang + "\\s*:").test(slice),
-        `sample badge missing ${lang} translation near key`);
+  // PLAY_I18N is inside RUNTIME_JS; require the english keys with all 5 lang maps.
+  const keys = [
+    "sample result — sign in to run it for real",     // signed-out badge
+    "Creator’s sample — Run to make your own",        // signed-in badge (+ tooltip)
+  ];
+  for (const key of keys) {
+    const idx = html.indexOf(key);
+    ok("S10a", idx >= 0, `sample badge key missing from play.html: ${key}`);
+    if (idx >= 0) {
+      const slice = html.slice(idx, idx + 800);
+      for (const lang of ["es", "fr", "de", "pt", "ja"]) {
+        ok("S10-" + lang, new RegExp("\\b" + lang + "\\s*:").test(slice),
+          `sample badge missing ${lang} translation near key: ${key}`);
+      }
     }
+  }
+  // S10b: the badge must be auth-aware — signed-in viewers get the "Run" phrasing,
+  // not a stale "sign in to run it" nudge (same needsKey check as the placeholder).
+  const rss = extractFn(html, "renderShareSamples");
+  ok("S10b", /needsKey/.test(rss) && /Creator’s sample — Run to make your own/.test(rss),
+    "renderShareSamples badge is not auth-aware (needsKey branch missing)");
+}
+
+// ---- S11: pre-commit trigger covers every guarded file ------------------------
+// The checker asserts index.html (buildShareUrl parity) as well as play.html, so an
+// index.html-only commit must still fire it. Pin the hook's trigger line.
+{
+  let hook = "";
+  try { hook = readFileSync(join(ROOT, ".githooks", "pre-commit"), "utf8"); }
+  catch (e) { fail("S11", "cannot read .githooks/pre-commit: " + e.message); }
+  const m = hook.match(/touches_sharesamples=.*/);
+  ok("S11a", !!m, "pre-commit has no touches_sharesamples trigger");
+  if (m) {
+    ok("S11b", m[0].includes("index\\.html"),
+      "pre-commit touches_sharesamples must include index.html (checker asserts buildShareUrl)");
+    ok("S11c", m[0].includes("play\\.html"),
+      "pre-commit touches_sharesamples must include play.html");
   }
 }
 
@@ -233,5 +292,5 @@ if (failures.length) {
 }
 console.log("check-share-samples: ok (" + [
   "S1 pack", "S2 import", "S3 inject", "S4 paint", "S5 clear",
-  "S6 restore", "S7 caps", "S8 sanitize", "S9 privacy", "S10 i18n",
+  "S6 restore", "S7 caps", "S8 sanitize", "S9 privacy", "S10 i18n", "S11 hook",
 ].join(", ") + ")");
