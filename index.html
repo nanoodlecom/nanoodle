@@ -244,6 +244,32 @@
   .ex-card .ex-tt{ font-weight:600; font-size:.9rem; display:block }
   .ex-card .ex-ds{ font-size:.78rem; color:var(--dim); line-height:1.35; margin-top:.1rem; display:block }
   #examplesnote{ font-size:.72rem; color:var(--dim); margin-top:1rem }
+  /* 🏆 community shelf — podium cards for the top 3, a scrollable rail for the rest.
+     display rules ride :not([hidden]) so the hidden attribute always wins. */
+  #communityshelf{ margin-top:1.15rem; border-top:1px solid var(--line); padding-top:1rem }
+  #communityhead{ display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap }
+  #communityhead h3{ margin:0; font-size:.95rem }
+  #communityhead .sub{ font-size:.72rem; color:var(--dim) }
+  #communitytop:not([hidden]){ margin-top:.7rem; display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:.55rem }
+  .cn-card{ display:flex; flex-direction:column; gap:.28rem; padding:.7rem .75rem; background:var(--panel);
+            border:1px solid var(--line); border-radius:.6rem }
+  .cn-card:hover{ border-color:var(--accent) }
+  .cn-badge{ align-self:flex-start; padding:.16rem .5rem; border-radius:1rem; font-size:.68rem; font-weight:700; line-height:1.25;
+             background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#0b0d12 }
+  .cn-main{ color:inherit; text-decoration:none }
+  .cn-card .cn-main{ display:flex; flex-direction:column; gap:.22rem }
+  .cn-main:hover .cn-tt{ color:var(--accent) }
+  .cn-tt{ font-weight:600; font-size:.88rem }
+  .cn-ds{ font-size:.76rem; color:var(--dim); line-height:1.35 }
+  .cn-by{ font-size:.72rem; color:var(--dim) }
+  .cn-by a{ color:var(--dim) }
+  .cn-by a:hover{ color:var(--ink) }
+  #communitymore:not([hidden]){ margin-top:.6rem; display:flex; flex-direction:column; gap:.4rem;
+                                max-height:11.5rem; overflow-y:auto; padding-right:.15rem }
+  .cn-row{ display:flex; align-items:baseline; gap:.5rem; flex-wrap:wrap; padding:.45rem .6rem;
+           background:var(--panel); border:1px solid var(--line); border-radius:.5rem }
+  .cn-row:hover{ border-color:var(--accent) }
+  .cn-row .cn-ds{ flex:1 1 10rem }
   /* 🍜 Noodle Cookoff — floating promo button + announcement modal (time-boxed contest) */
   @keyframes cookoff-flow{ to{ background-position:200% 0 } }
   @keyframes cookoff-bob{ 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(-3px) } }
@@ -955,6 +981,13 @@
       <button id="examplesclose" class="hbtn" title="Close (Esc)" aria-label="Close">✕</button>
     </div>
     <div id="exampleslist"></div>
+    <!-- 🏆 community shelf — hand-curated winner/showcase noodles (share links, so they open in a
+         new tab and never touch the current canvas). Stays hidden while COMMUNITY_NOODLES is empty. -->
+    <div id="communityshelf" hidden>
+      <div id="communityhead"><h3>🏆 From the community</h3><span class="sub">built by nanoodle users — opens in a new tab</span></div>
+      <div id="communitytop" data-no-i18n hidden></div>
+      <div id="communitymore" data-no-i18n hidden></div>
+    </div>
     <div id="examplesnote">loading replaces your current workflow — it’s autosaved, and ↺ Undo brings it back.</div>
   </div>
 </div>
@@ -1582,6 +1615,9 @@ const I18N = {
     "Load a ready-made example workflow":"Cargar un flujo de ejemplo ya preparado",
     "Examples":"Ejemplos",
     "📚 Examples":"📚 Ejemplos",
+    "🏆 From the community":"🏆 De la comunidad",
+    "built by nanoodle users — opens in a new tab":"creado por usuarios de nanoodle — se abre en una pestaña nueva",
+    "by":"por",
     "ready-made workflows, built right into the page — click one to load it, then ▶ Run on your own key.":"flujos ya preparados, integrados directamente en la página — haz clic en uno para cargarlo, luego pulsa ▶ Ejecutar con tu propia clave.",
     "loading replaces your current workflow — it’s autosaved, and ↺ Undo brings it back.":"cargarlo reemplaza tu flujo actual — se autoguarda, y ↺ Deshacer lo recupera.",
     "↺ Undo restores your previous workflow":"↺ Deshacer restaura tu flujo anterior",
@@ -2060,6 +2096,9 @@ const I18N = {
     "Load a ready-made example workflow":"Charger un workflow d'exemple prêt à l'emploi",
     "Examples":"Exemples",
     "📚 Examples":"📚 Exemples",
+    "🏆 From the community":"🏆 De la communauté",
+    "built by nanoodle users — opens in a new tab":"créé par des utilisateurs de nanoodle — s'ouvre dans un nouvel onglet",
+    "by":"par",
     "ready-made workflows, built right into the page — click one to load it, then ▶ Run on your own key.":"des workflows prêts à l'emploi, intégrés directement dans la page — cliquez sur l'un d'eux pour le charger, puis appuyez sur ▶ Exécuter avec votre propre clé.",
     "loading replaces your current workflow — it’s autosaved, and ↺ Undo brings it back.":"le chargement remplace votre workflow actuel — il est autosauvegardé, et ↺ Annuler le restaure.",
     "↺ Undo restores your previous workflow":"↺ Annuler restaure votre workflow précédent",
@@ -2538,6 +2577,9 @@ const I18N = {
     "Load a ready-made example workflow":"Lade einen fertigen Beispiel-Workflow",
     "Examples":"Beispiele",
     "📚 Examples":"📚 Beispiele",
+    "🏆 From the community":"🏆 Aus der Community",
+    "built by nanoodle users — opens in a new tab":"von nanoodle-Nutzern gebaut — öffnet in einem neuen Tab",
+    "by":"von",
     "ready-made workflows, built right into the page — click one to load it, then ▶ Run on your own key.":"fertige Workflows, direkt in die Seite eingebaut — klicke auf einen, um ihn zu laden, und drücke dann ▶ Ausführen mit deinem eigenen Schlüssel.",
     "loading replaces your current workflow — it’s autosaved, and ↺ Undo brings it back.":"das Laden ersetzt deinen aktuellen Workflow — er wird automatisch gespeichert, und ↺ Rückgängig holt ihn zurück.",
     "↺ Undo restores your previous workflow":"↺ Rückgängig stellt deinen vorherigen Workflow wieder her",
@@ -3016,6 +3058,9 @@ const I18N = {
     "Load a ready-made example workflow":"Carregar um fluxo de exemplo pronto",
     "Examples":"Exemplos",
     "📚 Examples":"📚 Exemplos",
+    "🏆 From the community":"🏆 Da comunidade",
+    "built by nanoodle users — opens in a new tab":"criado por usuários do nanoodle — abre em uma nova aba",
+    "by":"por",
     "ready-made workflows, built right into the page — click one to load it, then ▶ Run on your own key.":"fluxos prontos, embutidos direto na página — clique em um para carregá-lo, depois pressione ▶ Executar com sua própria chave.",
     "loading replaces your current workflow — it’s autosaved, and ↺ Undo brings it back.":"carregar substitui seu fluxo atual — ele é autossalvo, e ↺ Desfazer o traz de volta.",
     "↺ Undo restores your previous workflow":"↺ Desfazer restaura seu fluxo anterior",
@@ -3494,6 +3539,9 @@ const I18N = {
     "Load a ready-made example workflow":"すぐ使えるサンプルワークフローを読み込む",
     "Examples":"サンプル",
     "📚 Examples":"📚 サンプル",
+    "🏆 From the community":"🏆 コミュニティから",
+    "built by nanoodle users — opens in a new tab":"nanoodleユーザーの作品 — 新しいタブで開きます",
+    "by":"作:",
     "ready-made workflows, built right into the page — click one to load it, then ▶ Run on your own key.":"ページに内蔵されたすぐ使えるワークフロー集 — クリックして読み込み、自分のキーで ▶ 実行 を押してください。",
     "loading replaces your current workflow — it’s autosaved, and ↺ Undo brings it back.":"読み込むと今のワークフローが置き換わります — 自動保存されているので、↺ 元に戻す で元に戻せます。",
     "↺ Undo restores your previous workflow":"↺ 元に戻す で前のワークフローに戻せます",
@@ -9452,11 +9500,51 @@ const EXAMPLES = [
            {id:"l2",from:{node:"n2",port:"text"},to:{node:"n3",port:"prompt"}},
            {id:"l3",from:{node:"n3",port:"text"},to:{node:"n4",port:"prompt"}} ] } },
 ];
+/* ---- 🏆 community shelf data — hand-curated, edited in place (no fetch, no build step).
+   `top` = up to 3 podium spots (Cookoff winners now; whatever earns the spotlight later).
+   `more` = the rotating rail below — append fresh community noodles, prune stale ones.
+   Every `link` is a nanoodle share link (the whole graph rides the URL fragment), so entries
+   open in a new tab without touching the visitor's canvas. `byUrl` is optional and links the
+   builder's handle. Entry text is user content — it renders under data-no-i18n, untranslated.
+   The shelf (and the modal section) stays invisible while both arrays are empty. ---- */
+const COMMUNITY_NOODLES = {
+  top: [
+    // { badge:"🛠 Most Useful",    title:"", by:"", byUrl:"", blurb:"", link:"" },
+    // { badge:"💡 Most Innovative", title:"", by:"", byUrl:"", blurb:"", link:"" },
+    // { badge:"❤️ People's Choice", title:"", by:"", byUrl:"", blurb:"", link:"" },
+  ],
+  more: [
+    // { title:"", by:"", byUrl:"", blurb:"", link:"" },
+  ],
+};
+function cnEntry(e, podium){                     // one community entry → podium card or rail row
+  const c=document.createElement("div"); c.className = podium ? "cn-card" : "cn-row";
+  if(podium && e.badge){ const b=document.createElement("span"); b.className="cn-badge"; b.textContent=e.badge; c.appendChild(b); }
+  const a=document.createElement("a"); a.className="cn-main"; a.href=e.link; a.target="_blank"; a.rel="noopener";
+  const tt=document.createElement("span"); tt.className="cn-tt"; tt.textContent=e.title; a.appendChild(tt);
+  if(podium && e.blurb){ const d=document.createElement("span"); d.className="cn-ds"; d.textContent=e.blurb; a.appendChild(d); }
+  c.appendChild(a);
+  if(!podium && e.blurb){ const d=document.createElement("span"); d.className="cn-ds"; d.textContent=e.blurb; c.appendChild(d); }
+  if(e.by){                                      // credit — a nested <a> inside the card link is invalid HTML, so it lives beside it
+    const s=document.createElement("span"); s.className="cn-by"; s.append(t("by")+" ");
+    if(e.byUrl){ const ba=document.createElement("a"); ba.href=e.byUrl; ba.target="_blank"; ba.rel="noopener"; ba.textContent=e.by; s.appendChild(ba); }
+    else s.append(e.by);
+    c.appendChild(s);
+  }
+  return c;
+}
+function renderCommunity(){
+  const topE=COMMUNITY_NOODLES.top.slice(0,3), moreE=COMMUNITY_NOODLES.more;
+  const shelf=$("communityshelf"); shelf.hidden=!(topE.length||moreE.length); if(shelf.hidden) return;
+  const top=$("communitytop");  top.innerHTML="";  top.hidden=!topE.length;  topE.forEach(e=> top.appendChild(cnEntry(e,true)));
+  const more=$("communitymore"); more.innerHTML=""; more.hidden=!moreE.length; moreE.forEach(e=> more.appendChild(cnEntry(e,false)));
+}
 function openExamples(){
   const list=$("exampleslist"); list.innerHTML="";
   EXAMPLES.forEach((ex,i)=>{ const c=document.createElement("button"); c.className="ex-card";
     c.innerHTML=`<span class="ex-em">${ex.em}</span><span><span class="ex-tt">${esc(t(ex.title))}</span><span class="ex-ds">${esc(t(ex.desc))}</span></span>`;
     c.onclick=()=>loadExample(i); list.appendChild(c); });
+  renderCommunity();
   $("examplesmodal").hidden=false;
 }
 function closeExamples(){ $("examplesmodal").hidden=true; }
