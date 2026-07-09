@@ -4237,7 +4237,8 @@ function collectAudioParams(n){
   // Re-enforce the surface-one-track contract AFTER extraJson: the advanced-params escape hatch used
   // to reintroduce number_of_songs / generation_count / n and bill N songs while audioRun only keeps
   // the single returned URL. Drop every song-count key (omit = one track at the model default).
-  if(n.type==="music"){
+  // remix shares audioBody's extraJson textarea and surfaces one URL too, so it needs the same clamp.
+  if(n.type==="music" || n.type==="remix"){
     for(const k of Object.keys(body)){
       if(/^(number_of_songs|n|num_songs|song_count|generation_count|generation_count_parameter)$/i.test(k)
          || /generation_count|num_?songs|song_?count/i.test(k)) delete body[k];

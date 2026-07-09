@@ -388,6 +388,26 @@ const SCENARIOS = [
     },
   },
   {
+    // Trust: the song-count strip landed for Music only, but Remix shares audioBody's extraJson
+    // textarea and the same collectAudioParams. A remix extraJson could still bill N tracks while
+    // remixRun surfaces one URL and audioBilledSongs() quotes 1 → silent overcharge.
+    name: "Remix extraJson cannot reintroduce number_of_songs (bill-N surface-1 guard)",
+    data: { nodes: [node("a1", "aupload", { audio: AUD }), node("r1", "remix", {
+              model: "x", prompt: "jazzy cover",
+              extraJson: JSON.stringify({ number_of_songs: 4, n: 3, generation_count: 2, style: "chill" }),
+            })],
+            links: [link("a1", "audio", "r1", "audio")] },
+    check(app, g, fail) {
+      const b = audioCalls()[0]?.body;
+      if (!b) return fail("no /audio/speech call recorded for remix");
+      if (b.audio !== AUD) fail(`remix source track must still ride as body.audio, got ${JSON.stringify(b.audio).slice(0, 60)}`);
+      for (const k of ["number_of_songs", "n", "generation_count", "num_songs", "song_count"]) {
+        if (k in b) fail(`song-count key ${k} must be stripped after extraJson, got ${JSON.stringify(b[k])}`);
+      }
+      if (b.style !== "chill") fail(`non-count extraJson keys must still forward, got ${JSON.stringify(b.style)}`);
+    },
+  },
+  {
     // A CHAINED source (a Music/Remix output on the provider CDN) is an https URL and must pass
     // through untouched — inlining it would re-download CORS-blocked bytes and blow the body cap.
     name: "Remix node: chained https source passes through as a URL (never inlined)",
