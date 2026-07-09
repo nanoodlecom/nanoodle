@@ -738,6 +738,8 @@ window.NoodleApp = (function () {
   const PLAY_I18N = {
   "▶ Run":{es:"▶ Ejecutar",fr:"▶ Exécuter",de:"▶ Ausführen",pt:"▶ Executar",ja:"▶ 実行"},
   "↺ from your last visit":{es:"↺ de tu última visita",fr:"↺ de votre dernière visite",de:"↺ von deinem letzten Besuch",pt:"↺ da sua última visita",ja:"↺ 前回の結果"},
+  "sample result — sign in to run it for real":{es:"resultado de muestra — inicia sesión para ejecutarlo de verdad",fr:"résultat d’exemple — connectez-vous pour l’exécuter vraiment",de:"Beispielergebnis — melde dich an, um es wirklich auszuführen",pt:"resultado de amostra — entre para executar de verdade",ja:"サンプル結果 — サインインすると本当に実行できます"},
+  "Creator’s sample — Run to make your own":{es:"Muestra del creador — pulsa Ejecutar para hacer la tuya",fr:"Exemple du créateur — appuyez sur Exécuter pour faire le vôtre",de:"Beispiel des Erstellers — Ausführen, um deins zu erzeugen",pt:"Amostra do criador — Executar para fazer a sua",ja:"作者のサンプル — 実行して自分のを作る"},
   "Earlier results":{es:"Resultados anteriores",fr:"Résultats précédents",de:"Frühere Ergebnisse",pt:"Resultados anteriores",ja:"以前の結果"},
   "Tap to expand":{es:"Toca para ampliar",fr:"Toucher pour agrandir",de:"Zum Vergrößern tippen",pt:"Toque para ampliar",ja:"タップで拡大"},
   "Collapse":{es:"Contraer",fr:"Réduire",de:"Einklappen",pt:"Recolher",ja:"閉じる"},
@@ -763,6 +765,7 @@ window.NoodleApp = (function () {
   "Language":{es:"Idioma",fr:"Langue",de:"Sprache",pt:"Idioma",ja:"言語"},
   "Keep generating":{es:"Seguir generando",fr:"Continuer à générer",de:"Weiter generieren",pt:"Continuar gerando",ja:"生成を続ける"},
   "Your image will appear here — fill in the inputs and hit Run.":{es:"Tu imagen aparecerá aquí — completa los campos y pulsa Ejecutar.",fr:"Votre image apparaîtra ici — remplissez les champs et appuyez sur Exécuter.",de:"Dein Bild erscheint hier — fülle die Felder aus und drücke auf Ausführen.",pt:"Sua imagem aparecerá aqui — preencha os campos e clique em Executar.",ja:"ここに画像が表示されます — 入力欄を埋めて実行を押してください。"},
+  "Needs a NanoGPT key to run — pay-per-use, sign in above, then hit Run.":{es:"Necesita una clave NanoGPT para ejecutarse — pago por uso; inicia sesión arriba y pulsa Ejecutar.",fr:"Nécessite une clé NanoGPT pour s’exécuter — paiement à l’usage ; connectez-vous en haut, puis appuyez sur Exécuter.",de:"Braucht einen NanoGPT-Schlüssel zum Ausführen — Bezahlung pro Nutzung; oben anmelden, dann Ausführen.",pt:"Precisa de uma chave NanoGPT para executar — pagamento por uso; entre acima e clique em Executar.",ja:"実行にはNanoGPTキーが必要です — 従量課金。上でサインインしてから実行を押してください。"},
   "Your video will appear here — fill in the inputs and hit Run.":{es:"Tu vídeo aparecerá aquí — completa los campos y pulsa Ejecutar.",fr:"Votre vidéo apparaîtra ici — remplissez les champs et appuyez sur Exécuter.",de:"Dein Video erscheint hier — fülle die Felder aus und drücke auf Ausführen.",pt:"Seu vídeo aparecerá aqui — preencha os campos e clique em Executar.",ja:"ここに動画が表示されます — 入力欄を埋めて実行を押してください。"},
   "Your music will appear here — fill in the inputs and hit Run.":{es:"Tu música aparecerá aquí — completa los campos y pulsa Ejecutar.",fr:"Votre musique apparaîtra ici — remplissez les champs et appuyez sur Exécuter.",de:"Deine Musik erscheint hier — fülle die Felder aus und drücke auf Ausführen.",pt:"Sua música aparecerá aqui — preencha os campos e clique em Executar.",ja:"ここに音楽が表示されます — 入力欄を埋めて実行を押してください。"},
   "Your audio will appear here — fill in the inputs and hit Run.":{es:"Tu audio aparecerá aquí — completa los campos y pulsa Ejecutar.",fr:"Votre audio apparaîtra ici — remplissez les champs et appuyez sur Exécuter.",de:"Dein Audio erscheint hier — fülle die Felder aus und drücke auf Ausführen.",pt:"Seu áudio aparecerá aqui — preencha os campos e clique em Executar.",ja:"ここに音声が表示されます — 入力欄を埋めて実行を押してください。"},
@@ -4332,8 +4335,10 @@ function mp4ParamsMatch(bufs){
   }
   function renderResult(n, runNo){
     const box = $("app-output"); if(!box) return;
+    clearShareSamples();                       // a real paid result supersedes any baked creator sample
     const badge = runNo ? '<span class="run-badge">Run '+runNo+'</span> ' : '';
     const card = resultCard(n, badge); if(!card) return;
+    rememberLiveOut(n);                        // feed Share's sample packer (what recipients see pre-sign-in)
     card.classList.add("nd-latest");            // freshest volley renders at hero size; recedeLatest() demotes it next press
     ensureRecedeWiring(box);
     box.insertBefore(card, box.firstChild);   // newest at the top; nothing is removed
@@ -4441,16 +4446,18 @@ function mp4ParamsMatch(bufs){
     else document.body.appendChild(el);
   }
 
-  /* ---------- pre-run output placeholder ----------
-     Before the first run, #app-output is an empty dark void — a share-link recipient
-     (or an exported app's visitor) can't tell what the app even makes until they sign
-     in and spend. We can't bake sample media (the whole app ships in the #a= fragment),
-     so paint a zero-payload, kind-aware empty-state card instead: an icon + one line
-     telling them what will land here. Removed the instant a run starts (run() calls
-     clearOutputPlaceholder), so it never fights output mounting, lanes or keep-generating
-     — and results only ever accumulate, so it never comes back. Styles are injected at
-     runtime (like the make-cta) so default, patchling-customized and exported apps all get
-     it without depending on stored app.css. No backticks (RUNTIME_JS is a String.raw template). */
+  /* ---------- pre-run output placeholder + creator samples ----------
+     Before the first run, #app-output used to be an empty dark void — a share-link
+     recipient couldn't tell what the app makes until they signed in and spent.
+     Two layers now:
+       1) Creator SAMPLES baked into the #a= share (window.NOODLE_SAMPLES) — real
+          thumbnails / text from a run the creator already paid for, shown ghosted
+          with a "sample result" badge. Click → Run → the existing sign-in path.
+       2) Kind-aware empty-state card (icon + one line) when no sample was packed
+          (creator never ran, or samples exceeded the URL budget).
+     Both are cleared the instant a real run starts. Styles are injected at runtime
+     so default / patchling / exported apps all get them. No backticks (RUNTIME_JS
+     is a String.raw template). */
   function injectOutputPlaceholderStyles(){
     if(document.getElementById("noodle-outempty-style")) return;
     const s = document.createElement("style"); s.id = "noodle-outempty-style";
@@ -4459,7 +4466,12 @@ function mp4ParamsMatch(bufs){
         + 'gap:.55rem;text-align:center;box-sizing:border-box;min-height:170px;padding:2.4rem 1.2rem;'
         + 'border:1.5px dashed var(--line,#2a3150);border-radius:var(--radius,.7rem);color:var(--dim,#aab3c7);}'
       + '#app-output-empty .oe-icon{font-size:2rem;line-height:1;opacity:.92;}'
-      + '#app-output-empty .oe-msg{font-size:.9rem;max-width:34ch;line-height:1.5;color:var(--faint,#8792ad);}';
+      + '#app-output-empty .oe-msg{font-size:.9rem;max-width:34ch;line-height:1.5;color:var(--faint,#8792ad);}'
+      + '#app-output-empty .oe-sub{font-size:.78rem;max-width:36ch;line-height:1.4;color:var(--accent,#7c8cff);margin-top:.45rem;opacity:.95;}'
+      + '#app-output .card.nd-sample{border:1.5px dashed var(--accent,#7c8cff);cursor:pointer;}'
+      + '#app-output .card.nd-sample .run-badge{border-style:dashed;color:var(--accent,#7c8cff);}'
+      + '#app-output .card.nd-sample img.rmain{opacity:.88;}'
+      + '#app-output .card.nd-sample:hover{border-color:var(--ink,#e6e9f5);}';
     (document.head || document.documentElement).appendChild(s);
   }
   function outputKinds(){
@@ -4471,7 +4483,7 @@ function mp4ParamsMatch(bufs){
   }
   function renderOutputPlaceholder(){
     const box = $("app-output"); if(!box) return;
-    if(box.children.length) return;                          // real results (or an existing card) already here — never overwrite
+    if(box.children.length) return;                          // real results / samples already here — never overwrite
     if(!STATE.graph || !STATE.graph.nodes.length) return;     // a workflow-less app shows its own status note instead
     const ICON = { image:"🖼️", video:"🎬", music:"🎵", speech:"🔊", text:"📝", descriptions:"👁️" };
     const MSG = {
@@ -4487,11 +4499,164 @@ function mp4ParamsMatch(bufs){
     if(kinds.length===1){ icon = ICON[kinds[0]]; msg = MSG[kinds[0]]; }
     else { icon = "✨"; msg = "Your results will appear here — fill in the inputs and hit Run."; }   // mixed / unrecognized pipeline
     injectOutputPlaceholderStyles();
+    // Signed-out recipients (no baked sample) need the auth story here — empty card alone reads
+    // as broken. One soft line; the full sign-in control still lives in authIntro / the top bar.
+    const needsKey = EMBEDDED ? !parentAuthed : !getKey();
+    const sub = needsKey
+      ? '<div class="oe-sub">'+esc(t("Needs a NanoGPT key to run — pay-per-use, sign in above, then hit Run."))+'</div>'
+      : '';
     const el = document.createElement("div"); el.id = "app-output-empty"; el.setAttribute("aria-hidden","true");
-    el.innerHTML = '<div class="oe-icon">'+icon+'</div><div class="oe-msg">'+esc(t(msg))+'</div>';
+    el.innerHTML = '<div class="oe-icon">'+icon+'</div><div class="oe-msg">'+esc(t(msg))+'</div>'+sub;
     box.appendChild(el);
   }
   function clearOutputPlaceholder(){ const el = $("app-output-empty"); if(el) el.remove(); }
+
+  /* Creator-sample bake-into-share. LIVE_OUT remembers the latest portable value per
+     output node as results render; buildShareSamples shrinks images and caps size so
+     the #a= URL stays shareable. Parent asks via __getsamples__ / __samples__. */
+  var LIVE_OUT = Object.create(null);
+  var SAMPLE_BUDGET = 140000;   // max chars across all sample .v fields (gzip helps the #a= a bit more)
+  var SAMPLE_MAX = 3;
+  var SAMPLE_TEXT_MAX = 1500;
+  var SAMPLE_IMG_EDGE = 480;
+  var SAMPLE_IMG_Q = 0.72;
+  function rememberLiveOut(n){
+    if(!n || !n.id) return;
+    var port = ((NODE_TYPES[n.type]||{}).outputs||[])[0] || {};
+    var val = n.out && n.out[port.name];
+    if(val==null) return;
+    var entry = { id:n.id, type:n.type, port:port.name||"out", ptype:port.type||"text", v:null };
+    if(port.type==="image"){
+      entry.v = (typeof val==="string") ? val : null;
+    } else if(port.type==="video" || port.type==="audio"){
+      entry.v = (typeof val==="string") ? val : null;
+    } else {
+      entry.v = (typeof val==="string") ? val : (function(){ try{ return JSON.stringify(val); }catch(_){ return String(val); } })();
+    }
+    if(entry.v!=null) LIVE_OUT[n.id] = entry;
+  }
+  function shrinkImg(src){
+    return new Promise(function(resolve){
+      if(!src || typeof src!=="string") return resolve(null);
+      // already a compact data jpeg under ~24k chars — keep as-is (re-encode costs quality)
+      if(/^data:image\/jpe?g;base64,/i.test(src) && src.length < 24000) return resolve(src);
+      var img = new Image();
+      var done = false;
+      function finish(v){ if(done) return; done = true; resolve(v); }
+      img.onload = function(){
+        try{
+          var w = img.naturalWidth||0, h = img.naturalHeight||0;
+          if(!w || !h) return finish(null);
+          var max = SAMPLE_IMG_EDGE;
+          if(w>max || h>max){ var s = max/Math.max(w,h); w = Math.round(w*s); h = Math.round(h*s); }
+          var c = document.createElement("canvas"); c.width = w; c.height = h;
+          c.getContext("2d").drawImage(img, 0, 0, w, h);
+          finish(c.toDataURL("image/jpeg", SAMPLE_IMG_Q));
+        }catch(_){ finish(null); }
+      };
+      img.onerror = function(){ finish(null); };
+      // remote CDN thumbs need CORS to re-encode; without it canvas taints and toDataURL throws
+      if(/^https?:/i.test(src)) img.crossOrigin = "anonymous";
+      try{ img.src = src; }catch(_){ finish(null); }
+    });
+  }
+  function sanitizeSamples(arr){
+    if(!Array.isArray(arr)) return [];
+    var out = [], budget = SAMPLE_BUDGET;
+    for(var i=0;i<arr.length && out.length<SAMPLE_MAX;i++){
+      var s = arr[i]; if(!s || s.v==null) continue;
+      var ptype = s.ptype || "text";
+      var v = s.v;
+      if(typeof v!=="string" || !v) continue;
+      if(ptype==="image"){
+        if(!(/^data:image\//i.test(v) || /^https?:/i.test(v))) continue;
+        if(v.length > budget) continue;
+      } else if(ptype==="video" || ptype==="audio"){
+        // only short remote URLs — never inline multi-MB media into a share fragment
+        if(!/^https?:/i.test(v) || v.length > 2000 || v.length > budget) continue;
+      } else {
+        if(v.length > SAMPLE_TEXT_MAX) v = v.slice(0, SAMPLE_TEXT_MAX) + "\u2026";
+        if(v.length > budget) v = v.slice(0, Math.max(0, budget));
+        if(!v) continue;
+      }
+      budget -= v.length;
+      out.push({ id:s.id||("s"+i), type:s.type||"llm", port:s.port||"text", ptype:ptype, v:v });
+    }
+    return out;
+  }
+  function buildShareSamples(){
+    var list = [];
+    var outs = (STATE && STATE.outputs) ? STATE.outputs : [];
+    for(var i=0;i<outs.length;i++){ if(LIVE_OUT[outs[i].id]) list.push(LIVE_OUT[outs[i].id]); }
+    if(!list.length){ for(var k in LIVE_OUT) list.push(LIVE_OUT[k]); }
+    if(!list.length && typeof window!=="undefined" && window.NOODLE_SAMPLES && window.NOODLE_SAMPLES.length)
+      return Promise.resolve(sanitizeSamples(window.NOODLE_SAMPLES));
+    var budget = SAMPLE_BUDGET;
+    var packed = [];
+    var chain = Promise.resolve();
+    list.slice(0, SAMPLE_MAX + 2).forEach(function(e){
+      chain = chain.then(function(){
+        if(packed.length >= SAMPLE_MAX || budget <= 0) return;
+        var item = { id:e.id, type:e.type, port:e.port, ptype:e.ptype };
+        if(e.ptype==="image"){
+          return shrinkImg(e.v).then(function(thumb){
+            if(!thumb && e.v && e.v.length < 80000 && (/^https?:/i.test(e.v) || /^data:image\//i.test(e.v))) thumb = e.v;
+            if(!thumb || thumb.length > budget) return;
+            item.v = thumb; budget -= thumb.length; packed.push(item);
+          });
+        }
+        if(e.ptype==="video" || e.ptype==="audio"){
+          if(typeof e.v==="string" && /^https?:/i.test(e.v) && e.v.length < 2000 && e.v.length <= budget){
+            item.v = e.v; budget -= e.v.length; packed.push(item);
+          }
+          return;
+        }
+        var tx = String(e.v||"");
+        if(tx.length > SAMPLE_TEXT_MAX) tx = tx.slice(0, SAMPLE_TEXT_MAX) + "\u2026";
+        if(tx.length > budget) tx = tx.slice(0, Math.max(0, budget));
+        if(!tx) return;
+        item.v = tx; budget -= tx.length; packed.push(item);
+      });
+    });
+    return chain.then(function(){ return packed; });
+  }
+  function clearShareSamples(){
+    var box = $("app-output"); if(!box) return;
+    box.querySelectorAll(".card.nd-sample").forEach(function(c){ c.remove(); });
+  }
+  function renderShareSamples(samples){
+    var box = $("app-output"); if(!box) return;
+    if(box.querySelector(".card:not(.nd-sample)")) return;   // real results (live or restored) win
+    samples = sanitizeSamples(samples);
+    if(!samples.length) return false;
+    clearShareSamples();
+    clearOutputPlaceholder();
+    injectOutputPlaceholderStyles();
+    var label = esc(t("sample result — sign in to run it for real"));
+    var tip = esc(t("Creator’s sample — Run to make your own"));
+    // paint oldest→newest so insertBefore(firstChild) ends with newest on top
+    for(var i = samples.length - 1; i >= 0; i--){
+      var s = samples[i];
+      var gn = STATE.graph && STATE.graph.byId ? STATE.graph.byId(s.id) : null;
+      var nodeType = (gn && gn.type) || s.type;
+      if(!NODE_TYPES[nodeType]) continue;
+      var port = ((NODE_TYPES[nodeType].outputs)||[])[0] || {};
+      var out = {};
+      out[s.port || port.name || "text"] = s.v;
+      var node = Object.assign({}, gn || { id:s.id, type:nodeType, fields:{} }, { type:nodeType, out:out });
+      var card = resultCard(node, '<span class="run-badge" title="'+tip+'">'+label+'</span> ');
+      if(!card) continue;
+      card.classList.add("nd-sample", "nd-latest");
+      card.title = t("Creator’s sample — Run to make your own");
+      card.addEventListener("click", function(ev){
+        var t = ev.target;
+        if(t && t.closest && t.closest("a,button,audio,video,input,textarea,select,.dlrow,.varstrip")) return;
+        run();
+      });
+      box.insertBefore(card, box.firstChild);
+    }
+    return !!box.querySelector(".card.nd-sample");
+  }
 
   /* ---------- output persistence (via the parent) ----------
      Generated results are what the user paid for, and they used to live only in this
@@ -4547,7 +4712,11 @@ function mp4ParamsMatch(bufs){
   }
   function restoreOutputs(outs){
     if(running) return;                                                    // they're already generating — don't interleave history
-    var box = $("app-output"); if(!box || box.querySelector(".card")) return;   // fresh results beat stored ones
+    var box = $("app-output"); if(!box) return;
+    // Real (non-sample) cards already on screen beat stored history. Creator-sample cards do NOT
+    // block restore — a recipient who later ran the app should see THEIR last visit, not the sample.
+    if(box.querySelector(".card:not(.nd-sample)")) return;
+    clearShareSamples();
     if(!STATE || !STATE.graph) return;
     var list = (outs || []).slice().sort(function(a,b){ return (a.updated||0)-(b.updated||0); });   // oldest first → newest ends on top
     var restored = 0;
@@ -4898,6 +5067,7 @@ function mp4ParamsMatch(bufs){
     ensureStatus();
     const mbox = $("app-msg"), obox = $("app-output");
     clearOutputPlaceholder();   // drop the pre-run "your X will appear here" card the moment real output starts
+    clearShareSamples();        // drop baked creator samples the moment THIS viewer starts generating
     recedeLatest();             // this press starts a new volley → last volley's hero cards recede into the shelf
     // Results accumulate — never cleared. New cards land at the top (renderResult
     // prepends), so each run, or continuous generation, just stacks onto history.
@@ -5301,6 +5471,14 @@ function mp4ParamsMatch(bufs){
         if(parentAuthed && !was && STATE) fillModelLists(); }   // key just arrived → fill the model dropdowns
       if(m && m.type==="__restore__" && m.outs){ try{ restoreOutputs(m.outs); }catch(_){ /* stored results are a bonus, never a boot blocker */ } }
       if(m && m.type==="__resume__" && m.node!=null){ try{ resumeMedia(m); }catch(_){ /* continuity is a bonus */ } }
+      // Parent is packing a Share link and wants the latest portable sample of what this app makes.
+      if(m && m.type==="__getsamples__"){
+        buildShareSamples().then(function(samples){
+          try{ parent.postMessage({ type:"__samples__", reqId:m.reqId, samples:samples||[] }, "*"); }catch(_){}
+        }).catch(function(){
+          try{ parent.postMessage({ type:"__samples__", reqId:m.reqId, samples:[] }, "*"); }catch(_){}
+        });
+      }
     });
     document.addEventListener("keydown", (e)=>{
       if(e.key==="Escape"){ try{ parent.postMessage({type:"__escape__"}, "*"); }catch(_){} }
@@ -5382,7 +5560,11 @@ function mp4ParamsMatch(bufs){
       if(runBtn) runBtn.disabled = true;
     }
 
-    renderOutputPlaceholder();   // paint the zero-payload "your X will appear here" empty state until the first run
+    // Creator samples (baked into #a= / export as window.NOODLE_SAMPLES) beat the empty-state
+    // placeholder — recipients see what the app makes before signing in. Falls back to the
+    // kind-aware empty card when the share has no sample (creator never ran, or budget cut it).
+    var bakedSamples = (typeof window!=="undefined" && window.NOODLE_SAMPLES) ? window.NOODLE_SAMPLES : null;
+    if(!(bakedSamples && renderShareSamples(bakedSamples))) renderOutputPlaceholder();
   }
 
   return { mount, runGraph, materialize, describeGraph, deriveInputs, deriveSettings, deriveOutputs, NODE_TYPES, CTX:makeCtx(function(){}) };
@@ -5844,6 +6026,16 @@ const ENGINE = {
       .replace(/[\u2028\u2029]/g, m => m === "\u2028" ? "\\u2028" : "\\u2029");
     return "<script>window.NOODLE_GRAPH = " + json + ";<\/script>";
   },
+  // Creator sample results (portable thumbs/text) — optional. Empty when the app has never
+  // been run (or Share dropped them for budget). Recipients see them before signing in.
+  samples: ()=> {
+    const samples = Array.isArray(APP_STATE.samples) ? APP_STATE.samples : [];
+    if(!samples.length) return "";
+    const json = JSON.stringify(samples)
+      .replace(/</g, "\\u003c").replace(/>/g, "\\u003e")
+      .replace(/[\u2028\u2029]/g, m => m === "\u2028" ? "\\u2028" : "\\u2029");
+    return "<script>window.NOODLE_SAMPLES = " + json + ";<\/script>";
+  },
 };
 const injectInHead = (html, s)=> /<\/head>/i.test(html) ? html.replace(/<\/head>/i, s + "</head>")
                                : /<body[^>]*>/i.test(html) ? html.replace(/<body[^>]*>/i, m=> m + s) : s + html;
@@ -5905,6 +6097,10 @@ function bundle(files){
   //    no matter where (or whether) the marker survived.
   if(!cssDone)     html = injectInHead(html, ENGINE.css());
   if(!graphDone)   html = injectInHead(html, ENGINE.graph());
+  // Samples ride next to the graph so mount() can paint them before the first Run. Always
+  // re-inject (not marker-driven): a customize that dropped a prior script must not keep a
+  // stale sample, and a share that just packed fresh samples must land in the preview.
+  { const s = ENGINE.samples(); if(s) html = injectInHead(html, s); }
   if(!runtimeDone) html = injectInHead(html, ENGINE.runtime());
   // 3) the mount call runs dead-last: strip any existing one, re-add at end of body
   //    so the DOM (incl. any shimmed mount points) and the engine are fully ready.
@@ -6685,7 +6881,7 @@ function wireTitle(){
    closing the builder never loses it; the editor is told via __appsaved__ and
    binds to it, so re-creates update in place instead of stacking duplicates.
    ====================================================================== */
-let APP_STATE = { v:1, graph:{ nodes:[], links:[] }, files:{}, versions:[], curVer:0, uiSig:null, lang:"" };
+let APP_STATE = { v:1, graph:{ nodes:[], links:[] }, files:{}, versions:[], curVer:0, uiSig:null, lang:"", samples:null };
 let CUR_ID = null;          // library id of the open app, or null for a draft
 let curImported = false;    // open app came in via a share link (#a=)
 let curRanOnce = false;     // a recipient's shared app has had its first successful run (or editor round-trip)
@@ -6852,7 +7048,10 @@ async function dropOuts(appId){
 function curEntry(){
   return { id:CUR_ID, title:titleFromFiles(APP_STATE.files), imported:curImported, ranOnce:curRanOnce, armed:curArmed,
            graph:APP_STATE.graph, files:APP_STATE.files, uiSig:APP_STATE.uiSig, lang:APP_STATE.lang||"",
-           versions:APP_STATE.versions, curVer:APP_STATE.curVer, updated:Date.now() };
+           versions:APP_STATE.versions, curVer:APP_STATE.curVer,
+           // creator sample(s) baked into #a= shares / exports — optional; omitted when null so legacy entries stay small
+           ...(APP_STATE.samples && APP_STATE.samples.length ? { samples:APP_STATE.samples } : {}),
+           updated:Date.now() };
 }
 // write the working state (LS_KEY) and, if this app is in the library, upsert it there
 function writeState(){
@@ -6893,7 +7092,7 @@ function stashResume(){
 }
 
 // install a freshly-loaded {graph, files} into the builder (used by every load path)
-function installApp({ graph, files, versions, curVer, fresh, id, imported, uiSig, fromEditor, lang, ranOnce, armed }){
+function installApp({ graph, files, versions, curVer, fresh, id, imported, uiSig, fromEditor, lang, ranOnce, armed, samples }){
   if($("portbar")){ $("portbar").hidden = true; setPortMode(false); }   // any (re)load clears a stale "port?" offer
   { const cs = $("cust-status"); if(cs) cs.innerHTML = ""; }   // ...and a prior customize's "✓ Applied"/"Error" line — it described a different app
   CUR_ID = id || null;
@@ -6902,6 +7101,10 @@ function installApp({ graph, files, versions, curVer, fresh, id, imported, uiSig
   curRanOnce = !!ranOnce;   // absent on legacy/imported records → false (locked); recomputed per app on every (re)load
   curArmed = !!armed;       // spend consent: absent on a FRESH import → false (locked until a real Run gesture); a
                             // previously-armed app carries armed:true, so a reload/switch stays armed. Own apps: unused.
+  // Creator samples ride the share/export (and the library entry after import). Always reset on
+  // install so switching apps never leaks the previous app's sample into this one's Share/Export.
+  // Sanitized at pack time: only portable strings, size-capped.
+  APP_STATE.samples = (Array.isArray(samples) && samples.length) ? samples : null;
   document.body.classList.toggle("recipient", curImported);   // non-owner recipient → hide owner-only Export on mobile
   // A share-link visitor has no idea this app is built on a visual node workflow, so "Edit
   // workflow" reads as jargon and hides the biggest aha — this thing was snapped together from
@@ -6975,7 +7178,7 @@ function updateAppWorkflow(appId, newGraph, fromEditor){
   // their graph's signature (best-effort: assume the UI matched when it was saved).
   const uiSig = app.uiSig != null ? app.uiSig : ioSignature(oldGraph);
   // open the existing app, on the NEW graph, keeping its UI / versions / identity / uiSig
-  installApp({ graph:newGraph, files:app.files, versions:app.versions, curVer:app.curVer, id:app.id, imported:app.imported, uiSig, fromEditor, ranOnce:app.ranOnce, armed:app.armed });
+  installApp({ graph:newGraph, files:app.files, versions:app.versions, curVer:app.curVer, id:app.id, imported:app.imported, uiSig, fromEditor, ranOnce:app.ranOnce, armed:app.armed, samples:app.samples });
   // A visitor who round-tripped through the editor is already deeply engaged — unlock the chrome
   // (silently: the port/kept-UI toast below is this path's own beat, and a forced-open portbar
   // needs Customize visible). No-op unless this is a locked imported app.
@@ -7093,7 +7296,7 @@ function toggleAppsMenu(){ $("appsmenu").hidden ? openAppsMenu() : closeAppsMenu
 function openApp(id){
   const a = loadApps().find(x=>x.id===id); if(!a) return;
   closeAppsMenu();
-  installApp({ graph:a.graph, files:a.files, versions:a.versions, curVer:a.curVer, id:a.id, imported:a.imported, uiSig:a.uiSig, lang:a.lang, ranOnce:a.ranOnce, armed:a.armed });
+  installApp({ graph:a.graph, files:a.files, versions:a.versions, curVer:a.curVer, id:a.id, imported:a.imported, uiSig:a.uiSig, lang:a.lang, ranOnce:a.ranOnce, armed:a.armed, samples:a.samples });
 }
 function deleteApp(id){
   saveApps(loadApps().filter(a=>a.id!==id));
@@ -7327,14 +7530,54 @@ function shareableGraph(g){
   }) };
 }
 
-// SHARE: pack {v:1, graph, files} -> gzip -> b64url -> #a= ; copy + open the share popover. NO key inside.
+// SHARE: pack {v:1, graph, files, samples?} -> gzip -> b64url -> #a= ; copy + open the share popover. NO key inside.
+// Optional `samples` = portable creator results (thumbs/text) so recipients see what the app makes
+// before signing in. Collected live from the iframe; falls back to the library's last packed set.
 let shareUrl = "";      // the link the popover currently reflects (long, or a shortened one)
 let longShareUrl = "";  // the FULL long link the popover was opened with — what shortening always acts on
                         // (doShare strips #a= back out of the address bar, so location.hash is empty by then)
+// Ask the live app iframe for portable samples of its latest outputs. Times out empty so Share
+// never hangs if the iframe is mid-boot or not listening.
+function askAppSamples(){
+  return new Promise((resolve)=>{
+    const frame = $("appframe");
+    if(!frame || !frame.contentWindow){ resolve([]); return; }
+    const reqId = "smp_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    let done = false;
+    const finish = (s)=>{ if(done) return; done = true; clearTimeout(tm); window.removeEventListener("message", onMsg); resolve(Array.isArray(s) ? s : []); };
+    const tm = setTimeout(()=> finish([]), 2000);
+    function onMsg(e){
+      if(e.source !== frame.contentWindow) return;
+      const d = e.data; if(!d || d.type!=="__samples__" || d.reqId!==reqId) return;
+      finish(d.samples);
+    }
+    window.addEventListener("message", onMsg);
+    try{ frame.contentWindow.postMessage({ type:"__getsamples__", reqId }, "*"); }
+    catch(_){ finish([]); }
+  });
+}
 async function doShare(){
   try{
     const _lang = bakedAppLang();   // carry the creator's language in the link (short field); "" → omit, keeps the link neutral + small
-    const json = JSON.stringify({ v:1, graph:shareableGraph(APP_STATE.graph), files:APP_STATE.files, ...(_lang?{lang:_lang}:{}) });
+    // Prefer live results (creator just ran); fall back to samples already on this library entry
+    // (re-share of an imported app that still carries its sample).
+    let samples = await askAppSamples();
+    if((!samples || !samples.length) && APP_STATE.samples && APP_STATE.samples.length) samples = APP_STATE.samples;
+    const base = { v:1, graph:shareableGraph(APP_STATE.graph), files:APP_STATE.files, ...(_lang?{lang:_lang}:{}) };
+    let payload = base;
+    let hasSample = false;
+    if(samples && samples.length){
+      // Soft ceiling: never let samples blow the share past ~200kB of extra JSON. Drop them
+      // rather than produce a link messengers/browsers reject. (gzip still applies below.)
+      const withS = { ...base, samples };
+      if(JSON.stringify(withS).length <= JSON.stringify(base).length + 200000){
+        payload = withS;
+        hasSample = true;
+        APP_STATE.samples = samples;   // remember for re-share / export without re-running
+        try{ persist(); }catch(_){}
+      }
+    }
+    const json = JSON.stringify(payload);
     const packed = await gzip(json).catch(()=>null);
     const hash = packed ? "#a="+bytesToB64url(packed)
                         : "#a=u"+bytesToB64url(new TextEncoder().encode(json)); // 'u' = uncompressed fallback
@@ -7345,9 +7588,14 @@ async function doShare(){
     // handoff hash means a later reload re-imports it as a fresh "imported" library entry — a duplicate.
     if(ok){ try{ history.replaceState({}, "", location.origin + location.pathname); }catch(_){} }
     const big = url.length>8000 ? ` (${(url.length/1024).toFixed(0)}kB)` : "";
+    // Pack samples by default when the creator has run; otherwise nudge them so the next share
+    // can show recipients a preview before sign-in (the viral #a= path's biggest drop-off).
+    const sampleNote = hasSample
+      ? " · includes a sample of what it makes"
+      : " · tip: Run once first to pack a sample recipients see before signing in";
     toast(ok ? (appDirty
-                 ? `✓ Link copied — the app as built, not your in-app edits${big} · shorten or share below`
-                 : `✓ Link copied${big} · shorten it or share below — recipients sign in with their own key`)
+                 ? `✓ Link copied — the app as built, not your in-app edits${big}${sampleNote} · shorten or share below`
+                 : `✓ Link copied${big}${sampleNote} · shorten it or share below — recipients sign in with their own key`)
              : `App link is in the address bar — copy it below${big}`, ok?"":"err");
     openShareMenu(url);                                    // fast path stays one-click; options live in the popover
   }catch(e){ toast("share failed: "+e.message, "err"); }
@@ -7396,14 +7644,22 @@ async function shortenWith(svc, longUrl){
 }
 
 // EXPORT: download bundle(files) as "<title>.html". No key inside (bundle never embeds it).
-function doExport(){
+// Best-effort: pack the same creator samples Share would, so a cold open of the .html still
+// shows what the app makes before the viewer pastes a key. Never blocks export on sample fail.
+async function doExport(){
+  try{
+    let samples = await askAppSamples();
+    if((!samples || !samples.length) && APP_STATE.samples && APP_STATE.samples.length) samples = APP_STATE.samples;
+    if(samples && samples.length){ APP_STATE.samples = samples; try{ persist(); }catch(_){} }
+  }catch(_){}
   const safe = ($("bar-title").textContent || "nanoodle-app").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"") || "nanoodle-app";
   const blob = new Blob([bundle(APP_STATE.files)], { type:"text/html" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob); a.download = safe + ".html";
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
-  toast("exported — that .html is self-contained (no key inside)" + (appDirty ? " · not your in-app edits" : ""));
+  toast("exported — that .html is self-contained (no key inside)" + (appDirty ? " · not your in-app edits" : "")
+    + (APP_STATE.samples && APP_STATE.samples.length ? " · includes a sample of what it makes" : ""));
 }
 
 // EDIT WORKFLOW: hand the graph back to the editor for node-level editing, carrying
@@ -7460,7 +7716,7 @@ async function loadFromHash(){
                                 : await gunzip(b64urlToBytes(tag));
       const spec = JSON.parse(json);
       // someone else's app → keep it in "My apps", flagged as imported (it carries its own files)
-      const saved = installApp({ graph:spec.graph, files:spec.files, id:newId(), imported:true, lang:spec.lang });
+      const saved = installApp({ graph:spec.graph, files:spec.files, id:newId(), imported:true, lang:spec.lang, samples:spec.samples });
       if(saved){
         consumeHandoff();   // don't re-import on reload
         toast("Imported — saved to “My apps”");
