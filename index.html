@@ -8728,7 +8728,11 @@ function applyGraphData(d, opts){
   // graph swaps reuse the same n1/n2 ids across unrelated workflows — carrying would glue the
   // previous session's images onto the new graph as if they belonged there. Default off.
   const carryResults = !!(opts && opts.carryResults);
-  const prevById = carryResults ? new Map(graph.nodes.map(n=>[n.id+" "+n.type, n])) : null;
+  // opts.resultStash: a Map of "id type" → {out,_sig} captured EARLIER (an undo boundary
+  // entry's parked results — see pushUndo) — same carry rules keyed by node identity, but
+  // sourced from the stash instead of the graph being replaced.
+  const prevById = carryResults ? new Map(graph.nodes.map(n=>[n.id+" "+n.type, n]))
+                 : (opts && opts.resultStash) || null;
   world.innerHTML=""; selected=null;
   graph = { nodes:[], links:[] };
   if(d.view){ panX=d.view.panX??panX; panY=d.view.panY??panY; scale=d.view.scale??scale; applyWorld(); }
@@ -8785,9 +8789,23 @@ const undoStack = [], redoStack = [];
 const UNDO_DEPTH = 25;            // bounded: snapshots can be large when nodes hold uploaded media (base64)
 let undoMuted = false;            // suppress snapshots during programmatic builds (seed) AND during restore
 const _snap = ()=> JSON.stringify(serializeGraph());
-function pushUndo(){              // call BEFORE a structural mutation — records the state to return to
+// Paid results (n.out) + seed-skip sigs of the CURRENT canvas, keyed by node identity (id+type).
+// In-memory references ONLY — a boundary entry parks these next to its snapshot so popping it
+// rehydrates them; never serialized (media outputs are huge) and GC'd with the entry.
+function _stashResults(){
+  const st = new Map();
+  for(const n of graph.nodes) if(n.out && Object.keys(n.out).length) st.set(n.id+" "+n.type, { out:n.out, _sig:n._sig });
+  return st.size ? st : null;
+}
+function pushUndo(boundary){      // call BEFORE a structural mutation — records the state to return to
   if(undoMuted) return;
-  undoStack.push(_snap());
+  // boundary=true marks a WHOLESALE graph swap (📂 Load, example, share link, a foreign app's
+  // "edit workflow"): the parked snapshot and the incoming graph are UNRELATED workflows that
+  // reuse n1/n2… ids, so _restore must NOT carry results across it (#309 via undo) — instead
+  // the OUTGOING graph's paid results ride the entry itself and come back only when this exact
+  // entry pops. That's what makes the "↺ Undo restores your previous workflow" toast honest:
+  // structure AND paid results return.
+  undoStack.push({ s:_snap(), boundary:!!boundary, stash: boundary ? _stashResults() : null });
   if(undoStack.length > UNDO_DEPTH) undoStack.shift();   // oldest steps fall off
   redoStack.length = 0;          // a fresh edit forks history — drop the redo tail
   syncUndoBtn();
@@ -8795,9 +8813,14 @@ function pushUndo(){              // call BEFORE a structural mutation — recor
 function _restore(from, to){
   if(!from.length) return;
   if(runningNodes.size){ flash("can’t change the workflow while running — Stop first"); return; }   // an undo/redo mid-run replaces the graph out from under in-flight (already-charged) nodes — their results would write into detached objects and vanish (mirrors the per-node delete guard)
-  to.push(_snap());
+  const entry = from.pop();
+  // A boundary crossed in either direction stays a boundary: park the outgoing side's results
+  // on the counterpart entry (so redo/undo brings them back too) and rehydrate the entry's own
+  // stash instead of carrying the unrelated current graph's results onto the restored one.
+  to.push({ s:_snap(), boundary:entry.boundary, stash: entry.boundary ? _stashResults() : null });
   undoMuted = true;
-  try{ applyGraphData(JSON.parse(from.pop()), {carryResults:true}); } finally { undoMuted = false; }
+  try{ applyGraphData(JSON.parse(entry.s), entry.boundary ? {resultStash:entry.stash} : {carryResults:true}); }
+  finally { undoMuted = false; }
   save();
 }
 function syncUndoBtn(){ const b=$("undo"); if(b) b.disabled = !undoStack.length; const r=$("redo"); if(r) r.disabled = !redoStack.length; }   // hide each button when its stack is empty
@@ -8835,7 +8858,7 @@ function loadFile(file){
   const r = new FileReader();
   r.onload = ()=>{ try{
     const had = graph.nodes.length > 0;   // only park + reassure if there's a workflow to bring back (mirrors loadExample; skip an empty canvas)
-    if(had) pushUndo();                    // BEFORE the mutation — ↺ Undo restores the prior graph
+    if(had) pushUndo(true);                // BEFORE the mutation — boundary: an unrelated file replaces the graph; ↺ Undo restores the prior graph + its paid results
     setPendingApp(null); applyGraphData(JSON.parse(r.result)); window.resetDescribeVersions?.(); save();
     if(had) toast(t("↺ Undo restores your previous workflow"));   // opening a file replaced your graph — one Ctrl+Z away
   }catch(e){ alert(t("Couldn’t load that file:")+" "+e.message); } };
@@ -9073,7 +9096,7 @@ async function loadFromHash(){
     // JSON) instead: the save() below overwrites the noodle someone left on this browser, and Ctrl+Z
     // must bring it back. (Skip when there's nothing stored — no snapshot of an empty canvas.)
     let parked = false;
-    try{ const prev = localStorage.getItem("noodle_graph"); if(prev){ undoStack.push(prev); syncUndoBtn(); parked = true; } }catch(_){}
+    try{ const prev = localStorage.getItem("noodle_graph"); if(prev){ undoStack.push({ s:prev, boundary:true, stash:null }); syncUndoBtn(); parked = true; } }catch(_){}   // boundary, no stash: fresh boot — the old session's results were memory-only and are already gone
     if(ga){
       const spec = JSON.parse(json); setPendingApp(spec.appId, spec.title); applyGraphData(spec.graph);
     }
@@ -9350,8 +9373,19 @@ addEventListener("message", e=>{
     // Bind the id ONLY if the graph actually applies — otherwise "Update app" would point at
     // one app while the canvas shows another's, and the next save would overwrite the wrong app.
     let ok = !e.data.graph;   // no graph payload → nothing to apply, the binding is all there is
-    // snapshot the canvas being replaced — an unbound in-progress noodle must stay one Ctrl+Z away
-    if(e.data.graph){ try{ pushUndo(); applyGraphData(e.data.graph); window.resetDescribeVersions?.(); save(); ok = true; }catch(_){ /* keep current canvas, don't rebind */ } }
+    // Same workflow coming back from its own round-trip (this canvas → "Create app" → "edit
+    // workflow")? Then carry the paid results (n.out) + seed-skip sigs — the handed-back graph
+    // is serializeGraph output (no outs inside), so applying it bare wipes every generated
+    // result and forces a re-billed re-run; undo can't help (snapshots never hold n.out).
+    // Two signals, either proves it: the incoming graph belongs to the app THIS canvas is
+    // bound to, or it's content+layout identical to the canvas (fresh unbound draft — no
+    // __appsaved__ yet). A foreign app opened via "My apps" matches neither → carry stays
+    // default-off (#309: unrelated graphs reuse n1/n2 ids).
+    let sameFlow = false;
+    if(e.data.graph){ try{ sameFlow = (!!e.data.appId && e.data.appId===pendingAppId) || appSyncSig(e.data.graph)===appSyncSig(); }catch(_){} }
+    // snapshot the canvas being replaced — an unbound in-progress noodle must stay one Ctrl+Z
+    // away (a foreign graph is a wholesale swap → boundary entry parks its results too)
+    if(e.data.graph){ try{ pushUndo(!sameFlow); applyGraphData(e.data.graph, sameFlow ? {carryResults:true} : undefined); window.resetDescribeVersions?.(); save(); ok = true; }catch(_){ /* keep current canvas, don't rebind */ } }
     if(ok) setPendingApp(e.data.appId, e.data.title);
     lastHandoffSig = null;   // the round-trip changed the canvas/binding → next "Create app" re-hands-off
     closeAppModal();
@@ -9586,7 +9620,7 @@ function loadExample(i){
   const ex=EXAMPLES[i]; if(!ex) return;
   if(runningNodes.size){ flash("can’t change the workflow while running — Stop first"); return; }   // replacing the graph mid-run would strand in-flight (already-charged) results (mirrors the per-node delete guard)
   closeExamples();
-  pushUndo();                                    // BEFORE the mutation — ↺ Undo restores the prior graph
+  pushUndo(true);                                // BEFORE the mutation — boundary: an example is an unrelated graph; ↺ Undo restores the prior graph + its paid results
   setPendingApp(null);                           // an example is a fresh workflow, not an app edit (mirrors loadFile)
   applyGraphData(JSON.parse(JSON.stringify(ex.graph)));  // deep-clone: applyGraphData spreads nodes shallowly and mutates them, so a raw template would be corrupted for the next load
   window.resetDescribeVersions?.();              // fresh workflow → clear the old describe-version chips so they can't overwrite it

@@ -264,7 +264,7 @@ function checkIndex(root, fail) {
   // internal callers: same-workflow ops + boot restores (the strip is empty at boot).
   // Keyed on a stable substring that appears ON the call's own line.
   const INTERNAL = [
-    { tag: "undo/redo (_restore)",        snippet: "applyGraphData(JSON.parse(from.pop()), {carryResults:true})" },
+    { tag: "undo/redo (_restore)",        snippet: "applyGraphData(JSON.parse(entry.s), entry.boundary ? {resultStash:entry.stash} : {carryResults:true})" },
     { tag: "boot local-graph load()",     snippet: "applyGraphData(JSON.parse(raw))" },
     { tag: "boot default graph",          snippet: "applyGraphData(JSON.parse(JSON.stringify(d)))" },
     { tag: "OAuth-redirect resume",       snippet: "applyGraphData(JSON.parse(rs))" },
@@ -277,7 +277,7 @@ function checkIndex(root, fail) {
     { tag: "loadFile (open a .json)",     snippet: "applyGraphData(JSON.parse(r.result))" },
     { tag: "loadFromHash (shared link)",  snippet: "applyGraphData(spec.graph)" },
     { tag: "loadFromHash (bare graph)",   snippet: "applyGraphData(JSON.parse(json))" },
-    { tag: "editor→app postMessage",      snippet: "applyGraphData(e.data.graph)" },
+    { tag: "editor→app postMessage",      snippet: "applyGraphData(e.data.graph, sameFlow ? {carryResults:true} : undefined)" },
     { tag: "open an Example",             snippet: "applyGraphData(JSON.parse(JSON.stringify(ex.graph)))" },
   ];
   const WINDOW = 8;  // reset may trail the call by a few lines (loadFromHash: two calls, one reset)

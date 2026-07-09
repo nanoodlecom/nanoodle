@@ -25,6 +25,14 @@
 //   5. PARK        loadFromHash(#g=/#j=/#ga=) parks the previously-stored graph so
 //      one undo() after opening a stranger's link brings YOUR workflow back; and
 //      loadFile() parks the live canvas before replacing it.
+//   6. CARRY       undo/redo keep n.out/_sig (same workflow); wholesale swaps don't
+//      glue outputs onto unrelated same-id nodes.
+//   8. BOUNDARY    a wholesale swap parks the outgoing graph's paid results on its
+//      boundary entry (in-memory refs); undo across it rehydrates THOSE — never the
+//      new graph's results (#309 via undo) — and redo restores the new side's own.
+//   9. EDITFLOW    builder→editor "edit workflow" round-trips of the SAME workflow
+//      (bound app id match, or graph identical to the canvas) carry paid results;
+//      a foreign app's graph does not (and parks a boundary entry instead).
 
 import { readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
@@ -104,6 +112,16 @@ try {
     b64urlToBytes: extractFunction(SRC, "b64urlToBytes"),
     loadFile: extractFunction(SRC, "loadFile"),
     loadFromHash: extractFunction(SRC, "loadFromHash"),
+    // the builder round-trip signature pair + the __editflow__ message handler (EDITFLOW test)
+    appHandoffSig: extractFunction(SRC, "appHandoffSig"),
+    appSyncSig: extractFunction(SRC, "appSyncSig"),
+    messageHandler: (() => {
+      const anchor = 'addEventListener("message", e=>{';
+      const s = SRC.indexOf(anchor);
+      if (s === -1) throw new Error("message-listener anchor not found");
+      const close = matchBrace(SRC, s + anchor.length - 1);
+      return SRC.slice(s, SRC.indexOf(";", close) + 1);
+    })(),
     // the whole undo machine, verbatim, as one span
     undoBlock: sliceBetween(
       SRC,
@@ -137,7 +155,13 @@ const prelude = `
   function refreshVideoInputs(){}
   function applyWorld(){}
   function save(){}
-  function setPendingApp(){}
+  var pendingAppId = null;                          // the real binding var appHandoffSig/the __editflow__ handler read
+  function setPendingApp(id){ pendingAppId = id || null; }
+  function closeAppModal(){}
+  function updateTitle(){}
+  var lastHandoffSig = null, appFrameLoaded = false, appFrameBooting = false, queuedHandoff = null, queuedMyApps = false;
+  var __evh = {};
+  function addEventListener(type, fn){ __evh[type] = fn; }   // captures the lifted "message" handler
   function toast(){}
   function flash(){}
   function alert(){}
@@ -145,6 +169,7 @@ const prelude = `
   function byId(id){ return graph.nodes.find(n=>n.id===id); }
   var __ub = {};
   function $(id){ return (__ub[id] || (__ub[id] = { disabled:false })); }
+  __ub["appmodalframe"] = { disabled:false, contentWindow: { postMessage(){} } };   // the builder iframe the message handler source-checks against
   var __ls = new Map();
   var localStorage = {
     getItem: k => (__ls.has(k) ? __ls.get(k) : null),
@@ -176,6 +201,9 @@ const surface = `
     setOut: (id, out, sig) => { const n = byId(id); if(n){ n.out = out; if(sig!=null) n._sig = sig; } },
     outOf: (id) => { const n = byId(id); return n && n.out; },
     sigOf: (id) => { const n = byId(id); return n && n._sig; },
+    setPending: (id) => { pendingAppId = id || null; },
+    pendingId: () => pendingAppId,
+    dispatchMessage: (data) => { __evh["message"]({ source: __ub["appmodalframe"].contentWindow, data }); },
   };
 `;
 
@@ -186,6 +214,7 @@ const bundle = [
   PIECES.b64urlToBytes,
   PIECES.undoBlock,
   PIECES.loadFile, PIECES.loadFromHash,
+  PIECES.appHandoffSig, PIECES.appSyncSig, PIECES.messageHandler,
   surface,
 ].join("\n");
 
@@ -292,7 +321,7 @@ const N = T.depth + 5;
 for (let i = 1; i <= N; i++) { T.setNodeX("n1", i); T.pushUndo(); }
 const stack = T.stacks().undo;
 ok(stack.length === T.depth, `DEPTH: the undo stack must cap at UNDO_DEPTH (${T.depth}), got ${stack.length}`);
-const xs = stack.map((s) => JSON.parse(s).nodes[0].x);
+const xs = stack.map((e) => JSON.parse(e.s).nodes[0].x);   // entries are {s, boundary, stash}
 const expected = Array.from({ length: T.depth }, (_, k) => k + 1 + (N - T.depth)); // oldest (N-depth) dropped
 ok(JSON.stringify(xs) === JSON.stringify(expected),
   `DEPTH: overflow must drop the OLDEST snapshots and keep order (expected x=${expected[0]}..${expected[expected.length-1]}, got ${xs[0]}..${xs[xs.length-1]})`);
@@ -311,8 +340,10 @@ const applied = await T.loadFromHash();
 ok(applied === true, "PARK/#j=: opening a valid shared link must apply it");
 ok(T.snap().nodes.some((n) => n.id === "s1"), "PARK/#j=: the stranger's graph must be on the canvas after open");
 const parked = T.stacks().undo;
-ok(parked.length === 1 && parked[0] === prevStored,
+ok(parked.length === 1 && parked[0].s === prevStored,
   "PARK/#j=: the previously-stored graph must be parked verbatim into the undo stack before overwrite");
+ok(parked[0].boundary === true,
+  "PARK/#j=: a share-link park is a wholesale-swap BOUNDARY — undoing across it must not carry the stranger's results backward");
 T.undo();
 ok(T.snap().nodes.some((n) => n.id === "p1"),
   "PARK/#j=: one undo after opening a stranger's link must restore YOUR previous workflow");
@@ -413,9 +444,95 @@ T.undo();
 ok(T.snap().nodes[0].x !== 555,
   "RUN-GUARD: once idle, undo works normally again");
 
+// =============================================================================
+// 8. BOUNDARY — a wholesale swap (📂 Load here) parks the OUTGOING graph's paid
+//    results on its boundary entry; undo across it rehydrates those (making the
+//    "↺ Undo restores your previous workflow" toast honest), never the new
+//    graph's same-id results (#309 via undo); redo restores the new side's own.
+// =============================================================================
+T.reset();
+T.setRunning([]);
+T.applyGraphData(SPEC());
+T.setOut("n2", { text: "OLD_PAID" }, "sig-old");              // paid result on the ORIGINAL workflow
+T.loadFile({ __text: JSON.stringify({ v:1, nodes:[
+  { id: "n1", type: "text", x: 0, y: 0, fields: { text: "unrelated" } },
+  { id: "n2", type: "llm", x: 1, y: 1, fields: { prompt: "other" } },   // same id+type, DIFFERENT workflow
+], links: [], nid: "3", lid: "1", view: {} }) });
+ok(!T.outOf("n2") || !T.outOf("n2").text,
+  "BOUNDARY: the wholesale load itself must not glue the old result onto the new graph's n2");
+T.setOut("n2", { text: "NEW_PAID" }, "sig-new");              // user then runs the NEW workflow
+T.undo();                                                     // back across the boundary
+ok(T.snap().nodes.some((n) => n.fields && n.fields.text === "hello"),
+  "BOUNDARY: undo must restore the prior graph's structure");
+ok(T.outOf("n2") && T.outOf("n2").text === "OLD_PAID" && T.sigOf("n2") === "sig-old",
+  "BOUNDARY: undo across a wholesale load must rehydrate the PRIOR graph's own paid result + seed sig from the boundary stash");
+T.redo();                                                     // forward across it again
+ok(T.outOf("n2") && T.outOf("n2").text === "NEW_PAID" && T.sigOf("n2") === "sig-new",
+  "BOUNDARY: redo must bring back the NEW graph's own result (parked on the counterpart entry), not the old one's");
+
+// =============================================================================
+// 9. EDITFLOW — builder→editor "edit workflow" round trip. The handed-back graph
+//    is serializeGraph output (never contains n.out), so the handler must carry
+//    the canvas's paid results when it's the SAME workflow coming home: (a) the
+//    incoming appId matches the bound app, or (b) the graph is content+layout
+//    identical to the canvas (fresh unbound draft). A foreign app's graph gets
+//    no carry and parks a boundary entry.
+// =============================================================================
+// 9a. bound-app round trip (appId match) — builder may hand back moved positions
+T.reset();
+T.setRunning([]);
+T.setPending("app1");
+T.applyGraphData(SPEC());
+T.setOut("n2", { text: "EXPENSIVE_LLM_OUTPUT" }, "sig-n2");
+{
+  const back = T.snap(); back.nodes.find((n) => n.id === "n1").x = 555;   // builder returns stored layout
+  T.dispatchMessage({ type: "__editflow__", appId: "app1", title: "My app", graph: back });
+}
+ok(T.snap().nodes.find((n) => n.id === "n1").x === 555,
+  "EDITFLOW/bound: the handed-back graph must actually apply (handler ran)");
+ok(T.outOf("n2") && T.outOf("n2").text === "EXPENSIVE_LLM_OUTPUT" && T.sigOf("n2") === "sig-n2",
+  "EDITFLOW/bound: a round trip of the BOUND workflow must keep paid results + seed sigs (no re-billed re-run)");
+// 9b. fresh unbound draft (no __appsaved__ yet) — same graph, sig-identity carries
+T.reset();
+T.setRunning([]);
+T.setPending(null);
+T.applyGraphData(SPEC());
+T.setOut("n2", { text: "DRAFT_PAID" }, "sig-d");
+{
+  const back = T.snap(); back.view = { panX: 777, panY: 6, scale: 1.5 };   // view is excluded from the sig — proves apply ran without breaking identity
+  T.dispatchMessage({ type: "__editflow__", appId: "draft-9", title: null, graph: back });
+}
+ok(T.snap().view.panX === 777, "EDITFLOW/draft: the handed-back graph must actually apply (handler ran)");
+ok(T.outOf("n2") && T.outOf("n2").text === "DRAFT_PAID",
+  "EDITFLOW/draft: an unbound draft round trip (canvas-identical graph) must keep paid results");
+ok(T.pendingId() === "draft-9", "EDITFLOW/draft: the round trip must bind the canvas to the draft's app id");
+// 9c. FOREIGN app from "My apps" — same ids, unrelated workflow → NO carry, boundary parked
+T.reset();
+T.setRunning([]);
+T.setPending("app1");
+T.applyGraphData(SPEC());
+T.setOut("n1", { text: "MINE" }, "sig-mine");
+T.setOut("n2", { text: "MINE_TOO" }, "sig-mine2");
+T.dispatchMessage({ type: "__editflow__", appId: "app-other", title: "Someone else's", graph: { v:1, nodes:[
+  { id: "n1", type: "text", x: 0, y: 0, fields: { text: "foreign" } },
+  { id: "n2", type: "llm", x: 1, y: 1, fields: { prompt: "foreign" } },
+  { id: "z9", type: "image", x: 2, y: 2, fields: {} },
+], links: [], nid: "10", lid: "1", view: {} } });
+ok(T.snap().nodes.some((n) => n.id === "z9"), "EDITFLOW/foreign: the foreign graph must still apply (handler ran)");
+ok((!T.outOf("n1") || !T.outOf("n1").text) && (!T.outOf("n2") || !T.outOf("n2").text),
+  "EDITFLOW/foreign: a DIFFERENT app's graph must not inherit this canvas's results via reused n1/n2 ids (#309)");
+{
+  const st = T.stacks().undo;
+  ok(st.length && st[st.length - 1].boundary === true,
+    "EDITFLOW/foreign: loading a foreign app's workflow must park a BOUNDARY entry");
+}
+T.undo();
+ok(T.outOf("n1") && T.outOf("n1").text === "MINE" && T.outOf("n2") && T.outOf("n2").text === "MINE_TOO",
+  "EDITFLOW/foreign: one undo must bring back YOUR workflow with its paid results rehydrated");
+
 // ---- report -----------------------------------------------------------------
 if (failures.length) {
   process.stderr.write("✗ undo/redo history is broken (↺ Undo no longer restores the previous workflow):\n\n- " + failures.join("\n- ") + "\n");
   process.exit(1);
 }
-process.stdout.write("✓ undo/redo restores the previous workflow (round-trip, fork, mute, depth cap, shared-link + file park).\n");
+process.stdout.write("✓ undo/redo restores the previous workflow (round-trip, fork, mute, depth cap, shared-link + file park, boundary result stash, editflow carry).\n");
