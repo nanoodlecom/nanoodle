@@ -2323,6 +2323,15 @@ function mp4ParamsMatch(bufs){
     if((n.fields.extraJson||"").trim()){                    // escape hatch: merge any extra keys verbatim
       try{ Object.assign(body, JSON.parse(n.fields.extraJson)); }catch(e){ throw new Error("advanced params: invalid JSON"); }
     }
+    // Re-enforce the surface-one-track contract AFTER extraJson (twin of the editor): advanced params
+    // used to reintroduce number_of_songs / generation_count / n and bill N songs while audioRun only
+    // keeps the single returned URL. Drop every song-count key (omit = one track at the model default).
+    if(n.type==="music"){
+      for(const k of Object.keys(body)){
+        if(/^(number_of_songs|n|num_songs|song_count|generation_count|generation_count_parameter)$/i.test(k)
+           || /generation_count|num_?songs|song_?count/i.test(k)) delete body[k];
+      }
+    }
     return body;
   }
   async function audioRun(n, inp, ctx, onProgress){
