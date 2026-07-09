@@ -2931,7 +2931,9 @@ function mp4ParamsMatch(bufs){
   // await that one generation instead of each issuing a byte-identical second charge. Signature
   // drops display-only knobs (sel/brush).
   var SEED_FIELD = { image:1, edit:1, inpaint:1, music:1 };   // seed lives in n.fields.seed
-  var VIDEO_SEED_NODE = { tvideo:1, ivideo:1, vedit:1 };      // seed rides in n.fields.modelOpts.seed
+  // seed rides in n.fields.modelOpts.seed — keep in lockstep with the editor's VIDEO_OPT_NODES
+  // (tvideo/ivideo/vedit/lipsync). lipsync was missing: a fixed seed re-ran and re-billed every time.
+  var VIDEO_SEED_NODE = { tvideo:1, ivideo:1, vedit:1, lipsync:1 };
   function nodeSeed(n){
     if(SEED_FIELD[n.type]) return n.fields.seed;
     if(VIDEO_SEED_NODE[n.type]) return n.fields.modelOpts && n.fields.modelOpts.seed;

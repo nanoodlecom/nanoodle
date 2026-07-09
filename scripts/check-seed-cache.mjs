@@ -52,6 +52,8 @@ function recordingFetch(url, opts = {}) {
   let json = {};
   if (/\/images\/generations/.test(url)) { const cnt = Math.max(1, (body && Number(body.n)) || 1);
     json = { data: Array.from({ length: cnt }, (_, i) => ({ b64_json: "IMG" + i })) }; }
+  else if (/\/generate-video/.test(url)) json = { runId: "vid-" + calls.filter((c) => /\/generate-video/.test(c.url)).length, cost: 0.1 };
+  else if (/\/video\/status/.test(url)) json = { data: { status: "COMPLETED", output: { url: "https://example.com/v.mp4" } } };
   return Promise.resolve({ ok: true, status: 200, json: async () => json, text: async () => JSON.stringify(json) });
 }
 function loadEngine() {
@@ -116,6 +118,32 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.log("  ✗ " + msg); 
   g.byId("sx").fields.seed = "2";
   await app.runGraph(g, {});
   ok(imgCount() === 2, `seed change: must regenerate on a new seed, got ${imgCount()} calls`);
+}
+// 5) FIXED-seed lipsync is seed-cached (parity with the editor's VIDEO_OPT_NODES).
+//    Without lipsync in VIDEO_SEED_NODE every re-run re-billed a paid genVideo.
+{
+  calls.length = 0;
+  const vidCount = () => calls.filter((c) => /\/generate-video/.test(c.url)).length;
+  // lipsync needs image+audio inputs — wire upload sources that yield data: media on run.
+  const g = app.materialize({
+    nodes: [
+      { id: "img", type: "upload", x: 0, y: 0, fields: { image: "data:image/png;base64,AA" } },
+      { id: "aud", type: "aupload", x: 0, y: 0, fields: { audio: "data:audio/wav;base64,AA" } },
+      { id: "ls", type: "lipsync", x: 0, y: 0, fields: { model: "avatar-x", prompt: "", modelOpts: { seed: "42" } } },
+    ],
+    links: [
+      { id: "L1", from: { node: "img", port: "image" }, to: { node: "ls", port: "image" } },
+      { id: "L2", from: { node: "aud", port: "audio" }, to: { node: "ls", port: "audio" } },
+    ],
+  });
+  const r1 = await app.runGraph(g, {});
+  const after1 = vidCount();
+  const r2 = await app.runGraph(g, {});
+  const after2 = vidCount();
+  ok(after1 === 1, `lipsync fixed seed: expected 1 genVideo on pass 1, got ${after1}`);
+  ok(after2 === 1, `lipsync fixed seed: pass 2 must reuse cache (no new genVideo), total now ${after2}`);
+  ok(r1.generated >= 1 && r2.generated === 0,
+    `lipsync fixed seed: generated should be >=1 then 0, got ${r1.generated}/${r2.generated}`);
 }
 
 if (failed) { console.error(`✗ seed-cache: ${failed} assertion(s) failed`); process.exit(1); }
