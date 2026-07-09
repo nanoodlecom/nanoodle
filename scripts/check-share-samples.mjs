@@ -85,6 +85,23 @@ ok("S1e", /\bsamples\b/.test(doShare) && /JSON\.stringify\s*\(\s*payload\s*\)/.t
   "doShare does not pack samples into the #a= payload");
 ok("S1f", /200000/.test(doShare), "doShare missing soft size ceiling for samples");
 
+// ---- S1g: editor buildShareUrl("app") packs samples + lang (parity with doShare)
+// Cookoff Submit / editor "share as app" used to ship {v,graph,files} only, so
+// recipients of contest/editor #a= links never got the pre-sign-in sample preview.
+{
+  const IDX = join(ROOT, "index.html");
+  const idxHtml = readFileSync(IDX, "utf8");
+  let buildShare;
+  try { buildShare = extractFn(idxHtml, "buildShareUrl"); }
+  catch (e) { fail("S1g", "index.html buildShareUrl missing: " + e.message); buildShare = ""; }
+  ok("S1g", /\bsamples\b/.test(buildShare) && /app\.samples/.test(buildShare),
+    "editor buildShareUrl does not pack app.samples into the #a= payload (parity with play doShare)");
+  ok("S1h", /app\.lang/.test(buildShare) || /\blang\b/.test(buildShare),
+    "editor buildShareUrl does not pack app.lang into the #a= payload");
+  ok("S1i", /200000/.test(buildShare),
+    "editor buildShareUrl missing soft size ceiling for samples (must match doShare)");
+}
+
 // ---- S2: import carries samples ---------------------------------------------
 ok("S2", /installApp\(\{[^}]*samples:\s*spec\.samples/.test(html.replace(/\s+/g, " ")),
   "#a= import does not pass spec.samples into installApp");

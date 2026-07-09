@@ -8890,7 +8890,18 @@ async function buildShareUrl(target){
         // appHandoffSig = "what the app consumes" — layout/pan/zoom don't count as edits.
         try{ if(appHandoffSig(app.graph) !== appHandoffSig())
           toast("Link opens the app as last saved — hit ✨ Update first to include your newest canvas edits", "warn"); }catch(_){}
-        const json = JSON.stringify({ v:1, graph:shareableGraph(app.graph), files:app.files });
+        // Pack like play.html's doShare: include creator samples (pre-sign-in preview) + lang
+        // when the library entry has them. Drop samples if they would bloat the URL past ~200kB
+        // of extra JSON (same soft ceiling as doShare).
+        const _lang = (typeof app.lang === "string" && app.lang) ? app.lang : "";
+        const base = { v:1, graph:shareableGraph(app.graph), files:app.files, ...(_lang?{lang:_lang}:{}) };
+        let payload = base;
+        const samples = Array.isArray(app.samples) ? app.samples : null;
+        if(samples && samples.length){
+          const withS = { ...base, samples };
+          if(JSON.stringify(withS).length <= JSON.stringify(base).length + 200000) payload = withS;
+        }
+        const json = JSON.stringify(payload);
         const packed = await gzip(json).catch(()=>null);
         const hash = packed ? "#a="+bytesToB64url(packed)
                             : "#a=u"+bytesToB64url(new TextEncoder().encode(json));   // 'u' = uncompressed (mirror doShare)
