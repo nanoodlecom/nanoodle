@@ -44,6 +44,8 @@ touches_stale=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/che
 touches_upscale=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-upscale\.mjs)$' || true)
 # play.html runtime must resume a timed-out video job instead of re-submitting (double charge).
 touches_vresume=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-video-resume\.mjs)$' || true)
+# async music/TTS must resume a timed-out job instead of re-submitting (double charge) — twin of video-resume.
+touches_aresume=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-audio-resume\.mjs)$' || true)
 # index.html + play.html carry the Share→Shorten flow; the short link must keep the #g=/#a= payload.
 touches_share=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-share-link\.mjs)$' || true)
 # index.html + play.html both carry the universal pricing resolver (every NanoGPT shape → a USD number:

@@ -4139,7 +4139,7 @@ async function audioRun(n, inp, ctx){
   const text = (inp.text ?? n.fields.prompt ?? "").trim();
   if(!text) throw new Error("no text — type something in the prompt field first");
   return { audio: await ctx.genAudio(mdl(n), text, collectAudioParams(n),
-    (q,ms)=> setNodeProgress(n, `${t("generating audio…")} ${Math.round(ms/1000)}s${q!=null?` · queue ${q}`:""}`)) };
+    (q,ms)=> setNodeProgress(n, `${t("generating audio…")} ${Math.round(ms/1000)}s${q!=null?` · queue ${q}`:""}`), n.id) };
 }
 // Source track for the Remix node's `audio` param. A chained https output (Music, an earlier Remix)
 // rides as-is — every provider takes a hosted URL. Anything local (upload data:, Trim/Speech blob:)
@@ -4160,7 +4160,7 @@ async function remixRun(n, inp, ctx){
   const extra = collectAudioParams(n);
   extra.audio = await remixSourceAudio(inp.audio);
   return { audio: await ctx.genAudio(mdl(n), text, extra,
-    (q,ms)=> setNodeProgress(n, `${t("generating audio…")} ${Math.round(ms/1000)}s${q!=null?` · queue ${q}`:""}`)) };
+    (q,ms)=> setNodeProgress(n, `${t("generating audio…")} ${Math.round(ms/1000)}s${q!=null?` · queue ${q}`:""}`), n.id) };
 }
 /* ---------- general per-model options (from the catalog's own param descriptors) ----------
    Video models advertise rich params (preset, style, effect, cameraMovement, mode, switches…)
@@ -7311,6 +7311,10 @@ const LORA_EXAMPLES = {
 // runId keyed by the calling node so the next run resumes the same job instead of paying to
 // re-submit. In-memory only; a transient runId has no business in a saved or shared graph.
 const PENDING_VIDEO = new Map();   // nodeId → {sig, runId} of an in-flight (timed-out) video job
+// Same idea for async music/TTS: submit returns runId + charges immediately, then we poll
+// /api/tts/status. A 5-min client timeout used to throw and drop the runId — re-run re-submitted
+// and double-charged. PENDING_AUDIO keeps the job so an unchanged re-run resumes the poll only.
+const PENDING_AUDIO = new Map();   // nodeId → {sig, job:{runId,cost,paymentSource,isApiRequest,model}}
 const CTX = {
   // opts.n = how many images to request (default 1). opts.multi=true returns ALL images as an
   // array (the gen node, which shows a pick-one gallery); every other caller omits opts and gets a
@@ -7448,8 +7452,18 @@ const CTX = {
   },
   // sync audio (speech OR music): /api/v1/audio/speech → binary audio (or JSON with a url for some providers).
   // extra = the dynamic, model-specific params already resolved by the node (lyrics, voice, duration, …).
-  async genAudio(model, input, extra, onProgress){
+  // runKey = calling node id — enables resume of a timed-out async job without a second charge.
+  async genAudio(model, input, extra, onProgress, runKey){
     const body = Object.assign({ model, input }, extra||{});
+    const bodySig = sigHash(JSON.stringify(body));
+    // Resume a timed-out async job for THIS node when the request is unchanged (mirror PENDING_VIDEO).
+    const pend = runKey && PENDING_AUDIO.get(runKey);
+    if(pend && pend.sig===bodySig && pend.job){
+      const url = await pollAudio(model, pend.job, onProgress, runKey, bodySig);
+      if(!url) throw new Error("no audio url in response");
+      return url;
+    }
+    if(pend && runKey) PENDING_AUDIO.delete(runKey);   // stale (request changed) — drop and submit fresh
     const r = await fetch(`${NANOGPT}/api/v1/audio/speech`, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
     if(!r.ok){
       flagAuth(r);
@@ -7467,7 +7481,7 @@ const CTX = {
     if(ct.includes("application/json")){
       const j = await r.json(); accrue(j, undefined, r);
       let url = j.url || j.audioUrl || j.data?.url || j.data?.audioUrl;
-      if(!url && (j.runId || j.id)) url = await pollAudio(model, j, onProgress);   // async model → poll
+      if(!url && (j.runId || j.id)) url = await pollAudio(model, j, onProgress, runKey, bodySig);   // async model → poll (resume-aware)
       if(!url) throw new Error("no audio url in response");
       return url;
     }
@@ -8199,9 +8213,11 @@ async function muxSoundtrack(videoUrl, audioUrl, loop, onProgress){
   }
 }
 const sleep = (ms)=> new Promise(res=> setTimeout(res, ms));
-// async audio (music / some TTS): submit returns {status:"pending", runId} → poll /api/tts/status until completed
-async function pollAudio(model, j, onProgress){
+// async audio (music / some TTS): submit returns {status:"pending", runId} → poll /api/tts/status until completed.
+// runKey + bodySig: on client timeout, stash the job in PENDING_AUDIO so a re-run resumes without re-charging.
+async function pollAudio(model, j, onProgress, runKey, bodySig){
   const runId = j.runId || j.id;
+  const job = { runId, model, cost:j.cost, paymentSource:j.paymentSource, isApiRequest:j.isApiRequest };
   const qs = new URLSearchParams({ runId, model });
   if(j.cost!=null) qs.set("cost", j.cost);                 // these let the server auto-refund on failure
   if(j.paymentSource) qs.set("paymentSource", j.paymentSource);
@@ -8214,12 +8230,21 @@ async function pollAudio(model, j, onProgress){
     let s; try{ s = await (await fetch(`${NANOGPT}/api/tts/status?${qs}`, {headers:authHeaders(), signal:runSignal()})).json(); }
     catch(e){ if(e?.name==="AbortError") throw e; continue; }
     const st = String(s.status||"").toLowerCase();
-    if(st==="completed" || st==="succeeded")
+    if(st==="completed" || st==="succeeded"){
+      if(runKey) PENDING_AUDIO.delete(runKey);
       return s.audioUrl || s.url || s.data?.audioUrl || s.data?.url || (()=>{ throw new Error("completed but no audio url"); })();
-    if(["error","failed","content_policy_violation"].includes(st)) throw new Error("audio failed: " + (s.error || s.message || st));
+    }
+    if(["error","failed","content_policy_violation"].includes(st)){
+      if(runKey) PENDING_AUDIO.delete(runKey);   // genuinely dead — don't resume
+      throw new Error("audio failed: " + (s.error || s.message || st));
+    }
     onProgress && onProgress(s.queuePosition, Date.now()-t0);
   }
-  throw new Error("audio timed out (5 min)");
+  // Keep the job so an unchanged re-run of this node polls the same runId (no second charge).
+  if(runKey && bodySig!=null) PENDING_AUDIO.set(runKey, { sig:bodySig, job });
+  throw new Error(runKey
+    ? "Still generating audio after 5 min — the job is likely still running on NanoGPT's side. Run this node again to pick up the finished track (you won't be charged twice)."
+    : "audio timed out (5 min)");
 }
 function authHeaders(){ const k=getKey(); return { Authorization:`Bearer ${k}`, "x-api-key":k, "Content-Type":"application/json" }; }
 // A 401/403 from a generation call means the stored key is dead (revoked, or an expired OAuth token the

@@ -1408,6 +1408,10 @@ window.NoodleApp = (function () {
   // stale render. Set on submit, kept on the 10-min timeout, deleted on COMPLETED/FAILED. Module-level,
   // so it survives re-runs in both the exported file and the builder preview iframe.
   const PENDING_VIDEO = new Map();   // nodeId -> {runId, sig} of an in-flight (possibly timed-out) video job
+  // Async music/TTS: submit charges + returns runId, then we poll /api/tts/status. A 5-min client
+  // timeout used to drop the runId — re-run re-submitted and double-charged. PENDING_AUDIO keeps
+  // the job so an unchanged re-run resumes the poll only (twin of PENDING_VIDEO / the editor).
+  const PENDING_AUDIO = new Map();   // nodeId -> {sig, job:{runId,cost,paymentSource,isApiRequest,model}}
   function videoSig(s){              // djb2, tiny + backtick-free; detects input edits so we never resume a stale job
     let h = 5381;
     for(let i=0;i<s.length;i++) h = ((h<<5)+h+s.charCodeAt(i))|0;
@@ -1541,8 +1545,17 @@ window.NoodleApp = (function () {
         : "Still rendering after 10 min — the job is likely still running on NanoGPT's side. Try running it again in a bit; a finished render usually returns fast.");
     },
     // sync audio (speech OR music): /api/v1/audio/speech → binary audio (or JSON with a url for some providers).
+    // runKey (from makeCtx) enables resume of a timed-out async job without a second charge.
     async genAudio(model, input, extra, onProgress){
       const body = Object.assign({ model, input }, extra||{});
+      const bodySig = videoSig(JSON.stringify(body));
+      const pend = runKey ? PENDING_AUDIO.get(runKey) : null;
+      if(pend && pend.sig===bodySig && pend.job){
+        const url = await pollAudio(model, pend.job, onProgress, runKey, bodySig);
+        if(!url) throw new Error("no audio url in response");
+        return url;   // resume — no second onCost
+      }
+      if(pend && runKey) PENDING_AUDIO.delete(runKey);
       const r = await apiFetch(NANOGPT + "/api/v1/audio/speech", {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
       if(!r.ok){
         flagAuth(r.status);
@@ -1560,7 +1573,7 @@ window.NoodleApp = (function () {
       if(ct.includes("application/json")){
         const j = await r.json(); onCost(costWithHeaders(j, r));
         let url = j.url || j.audioUrl || (j.data && j.data.url) || (j.data && j.data.audioUrl);
-        if(!url && (j.runId || j.id)) url = await pollAudio(model, j, onProgress);   // async model → poll
+        if(!url && (j.runId || j.id)) url = await pollAudio(model, j, onProgress, runKey, bodySig);   // async model → poll (resume-aware)
         if(!url) throw new Error("no audio url in response");
         return url;
       }
@@ -2215,10 +2228,12 @@ function mp4ParamsMatch(bufs){
       try{ ac && ac.close(); }catch(e){}
     }
   }
-  // async audio (music / some TTS): submit returns {status:"pending", runId} → poll /api/tts/status until completed
-  async function pollAudio(model, j, onProgress){
+  // async audio (music / some TTS): submit returns {status:"pending", runId} → poll /api/tts/status until completed.
+  // runKey + bodySig: on client timeout, stash the job in PENDING_AUDIO so a re-run resumes without re-charging.
+  async function pollAudio(model, j, onProgress, runKey, bodySig){
     const runId = j.runId || j.id;
-    const qs = new URLSearchParams({ runId, model });
+    const job = { runId:runId, model:model, cost:j.cost, paymentSource:j.paymentSource, isApiRequest:j.isApiRequest };
+    const qs = new URLSearchParams({ runId:runId, model:model });
     if(j.cost!=null) qs.set("cost", j.cost);                 // these let the server auto-refund on failure
     if(j.paymentSource) qs.set("paymentSource", j.paymentSource);
     if(j.isApiRequest!=null) qs.set("isApiRequest", j.isApiRequest);
@@ -2228,12 +2243,20 @@ function mp4ParamsMatch(bufs){
       let s; try{ s = await (await apiFetch(NANOGPT + "/api/tts/status?" + qs, {headers:authHeaders()})).json(); }
       catch(e){ continue; }
       const st = String(s.status||"").toLowerCase();
-      if(st==="completed" || st==="succeeded")
+      if(st==="completed" || st==="succeeded"){
+        if(runKey) PENDING_AUDIO.delete(runKey);
         return s.audioUrl || s.url || (s.data && s.data.audioUrl) || (s.data && s.data.url) || (()=>{ throw new Error("completed but no audio url"); })();
-      if(["error","failed","content_policy_violation"].includes(st)) throw new Error("audio failed: " + (s.error || s.message || st));
+      }
+      if(["error","failed","content_policy_violation"].includes(st)){
+        if(runKey) PENDING_AUDIO.delete(runKey);
+        throw new Error("audio failed: " + (s.error || s.message || st));
+      }
       onProgress && onProgress(s.queuePosition, Date.now()-t0);
     }
-    throw new Error("audio timed out (5 min)");
+    if(runKey && bodySig!=null) PENDING_AUDIO.set(runKey, { sig:bodySig, job:job });
+    throw new Error(runKey
+      ? "Still generating audio after 5 min — the job is likely still running on NanoGPT's side. Run this node again to pick up the finished track (you won't be charged twice)."
+      : "audio timed out (5 min)");
   }
 
   /* =====================================================================
