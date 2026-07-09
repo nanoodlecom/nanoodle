@@ -33,6 +33,8 @@ Columns: date · venue · angle used · result (upvotes, comments, signups, what
 
 ## Plan of record (Fable-ranked, Jul 3) — Cookoff ends Jul 12
 
+> **Jul 5 supersede note:** the day-by-day final-week execution plan (fitted to Mikkel's 30m/2h availability Jul 6–10, all posts pre-drafted) is in **`plan-final-week.md`** — that file wins where it and the bullets below disagree (notably: Show HN + Product Hunt moved to Jul 14–15, post-Cookoff, so the maker can live in comments).
+
 Cross-cutting rule: **Cookoff/crypto framing ONLY in Nano venues.** Elsewhere lead with single-file .html export + no-analytics/no-server + OAuth-PKCE. "win crypto" costs credibility on HN/PH/webdev; "one HTML file you own" buys it.
 
 - **Now (holiday-immune):** Official Nano Discord (chat.nano.org, community-projects channel, Cookoff-urgency hook)
