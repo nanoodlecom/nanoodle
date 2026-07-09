@@ -285,5 +285,129 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.log("  ✗ " + msg); 
   ok(parsed && parsed[1] && parsed[1].value === "hello", "resume stash: second input's typed value is preserved");
 }
 
+// ---- 5. AUTH-ARRIVAL PLACEHOLDER REFRESH --------------------------------------------------------
+// The pre-run empty-state card (#305) bakes its "needs a NanoGPT key" line at mount() time. But
+// embedded, the parent's __auth__ postMessage only arrives AFTER the iframe loaded (frame.onload)
+// — mount always saw parentAuthed=false — and standalone, a pasted/OAuth key lands later still.
+// A signed-in creator was told to "sign in above" at the exact activation moment. Pin that the
+// __auth__ handler and the runtime setKey() both refresh the card — and that the refresh never
+// invents a placeholder when real results / baked sample cards are showing.
+{
+  // the RUNTIME setKey (the one that renderAuth()s) — play.html has an outer-page setKey too
+  function extractRuntimeSetKey(src) {
+    const re = /const\s+setKey\s*=\s*\(k\)\s*=>\s*\{/g;
+    let m;
+    while ((m = re.exec(src))) {
+      const open = m.index + m[0].length - 1;
+      const close = matchBrace(src, open);
+      const text = src.slice(m.index, close + 1) + ";";
+      if (text.includes("renderAuth")) return text;
+    }
+    throw new Error("could not find the RUNTIME setKey (the renderAuth()ing one) in play.html");
+  }
+
+  let lift2;
+  try {
+    lift2 = {
+      outputKinds: extractFn(html, "outputKinds"),
+      renderOutputPlaceholder: extractFn(html, "renderOutputPlaceholder"),
+      clearOutputPlaceholder: extractFn(html, "clearOutputPlaceholder"),
+      refreshOutputPlaceholder: extractFn(html, "refreshOutputPlaceholder"),
+      wireParentBridge: extractFn(html, "wireParentBridge"),
+      setKey: extractRuntimeSetKey(html),
+    };
+  } catch (e) {
+    console.error("✗ check-run-gating: " + e.message);
+    process.exit(1);
+  }
+
+  // mini-DOM with a REAL id registry: $ returns null for absent elements (like getElementById),
+  // appendChild registers by id, remove() unregisters — so "is the placeholder present" is real.
+  const preamble2 = `
+    let EMBEDDED = false, parentAuthed = false, STATE = null;
+    let __msgHandler = null;
+    const localStorage = { _s: {}, setItem(k, v){ this._s[k] = String(v); }, removeItem(k){ delete this._s[k]; }, getItem(k){ return k in this._s ? this._s[k] : null; } };
+    const getKey = () => localStorage.getItem("ngpt_key");
+    function t(s){ return s; }
+    const esc = (s) => String(s == null ? "" : s);
+    function renderAuth(){}
+    function fillModelLists(){}
+    function injectOutputPlaceholderStyles(){}
+    const __byId = {};
+    function mkNode(){
+      return {
+        id: "", innerHTML: "", children: [], __parent: null,
+        setAttribute(){},
+        appendChild(c){ this.children.push(c); c.__parent = this; if(c.id) __byId[c.id] = c; },
+        remove(){ if(this.__parent){ const i = this.__parent.children.indexOf(this); if(i >= 0) this.__parent.children.splice(i, 1); } if(this.id) delete __byId[this.id]; },
+      };
+    }
+    __byId["app-output"] = mkNode(); __byId["app-output"].id = "app-output";
+    function $(id){ return __byId[id] || null; }
+    const document = { createElement: () => mkNode(), getElementById: (id) => __byId[id] || null, addEventListener(){}, head: null, documentElement: mkNode() };
+    const window = { addEventListener(type, fn){ if(type === "message") __msgHandler = fn; } };
+  `;
+  const epilogue2 = `
+    globalThis.__T2 = {
+      setEmbedded(v){ EMBEDDED = v; }, setParentAuthed(v){ parentAuthed = v; }, setSTATE(v){ STATE = v; },
+      renderOutputPlaceholder, wireParentBridge, setKey,
+      msg(data){ __msgHandler({ data }); },
+      out(){ return __byId["app-output"]; },
+      empty(){ return __byId["app-output-empty"] || null; },
+      addChild(id){ const n = mkNode(); n.id = id; __byId["app-output"].appendChild(n); return n; },
+      reset(){ const o = __byId["app-output"]; for(const k in __byId) delete __byId[k]; o.children.length = 0; __byId["app-output"] = o; },
+    };
+  `;
+  const program2 =
+    preamble2 + "\n" + lift2.outputKinds + "\n" + lift2.renderOutputPlaceholder + "\n" +
+    lift2.clearOutputPlaceholder + "\n" + lift2.refreshOutputPlaceholder + "\n" +
+    lift2.wireParentBridge + "\n" + lift2.setKey + "\n" + epilogue2;
+  const ctx2 = { globalThis: null };
+  ctx2.globalThis = ctx2;
+  vm.createContext(ctx2);
+  try {
+    new vm.Script(program2, { filename: "play.html#placeholder-auth" }).runInContext(ctx2);
+  } catch (e) {
+    console.error("✗ check-run-gating: lifted placeholder/auth source failed to load in the sandbox: " + e.message);
+    process.exit(1);
+  }
+  const T2 = ctx2.__T2;
+
+  // 5a. embedded: mount renders signed-out (parent's __auth__ hasn't arrived yet) → nag shows;
+  //     __auth__ signedIn:true must REFRESH the card and drop the nag; sign-out brings it back.
+  T2.setEmbedded(true); T2.setParentAuthed(false);
+  T2.setSTATE({ graph: { nodes: [{ type: "llm" }] }, outputs: [{ type: "llm" }] });
+  T2.wireParentBridge();
+  T2.renderOutputPlaceholder();
+  ok(T2.empty() && T2.empty().innerHTML.includes("oe-sub"),
+    "embedded pre-__auth__ mount: placeholder must carry the needs-a-key line");
+  T2.msg({ type: "__auth__", signedIn: true });
+  ok(!!T2.empty(), "embedded __auth__ signedIn: the empty-state card must survive the refresh (still pre-results)");
+  ok(T2.empty() && !T2.empty().innerHTML.includes("oe-sub"),
+    "embedded __auth__ signedIn: the needs-a-key nag must be refreshed away — a signed-in creator was told to sign in");
+  T2.msg({ type: "__auth__", signedIn: false });
+  ok(T2.empty() && T2.empty().innerHTML.includes("oe-sub"),
+    "embedded __auth__ signed-OUT: the needs-a-key line must come back");
+
+  // 5b. baked samples / real results showing → no placeholder exists → __auth__ must NOT invent one.
+  T2.reset();
+  T2.addChild("some-sample-card");
+  T2.msg({ type: "__auth__", signedIn: true });
+  ok(!T2.empty(), "baked-samples path: __auth__ must not conjure a placeholder over sample/result cards");
+  ok(T2.out().children.length === 1, "baked-samples path: the existing card must be untouched by the auth refresh");
+
+  // 5c. standalone: key pasted AFTER mount via the runtime setKey() → nag refreshed away; sign-out restores it.
+  T2.reset(); T2.setEmbedded(false);
+  T2.renderOutputPlaceholder();
+  ok(T2.empty() && T2.empty().innerHTML.includes("oe-sub"),
+    "standalone keyless mount: placeholder must carry the needs-a-key line");
+  T2.setKey("sk-nano-x");
+  ok(T2.empty() && !T2.empty().innerHTML.includes("oe-sub"),
+    "standalone setKey: pasting a key must refresh the stale needs-a-key nag away");
+  T2.setKey(null);
+  ok(T2.empty() && T2.empty().innerHTML.includes("oe-sub"),
+    "standalone setKey(null): signing out must restore the needs-a-key line");
+}
+
 if (failed) { console.error(`\n✗ check-run-gating: ${failed} assertion(s) failed`); process.exit(1); }
-console.log("✓ keyless/signed-out spend gating holds (keyless forces 1×/KEEP-off + hides multipliers; chip = usd×RUNS_N, never $0; signed-out Run = zero fetch → preflight; typed inputs stashed for OAuth resume).");
+console.log("✓ keyless/signed-out spend gating holds (keyless forces 1×/KEEP-off + hides multipliers; chip = usd×RUNS_N, never $0; signed-out Run = zero fetch → preflight; typed inputs stashed for OAuth resume; auth arrival refreshes the pre-run placeholder).");

@@ -902,6 +902,7 @@ window.NoodleApp = (function () {
   const isAbort = (e)=> e && (e.name==="AbortError" || runAborted());
   const getKey = ()=> localStorage.getItem("ngpt_key");
   const setKey = (k)=>{ k ? localStorage.setItem("ngpt_key",k) : localStorage.removeItem("ngpt_key"); renderAuth();
+    refreshOutputPlaceholder();   // pre-run empty card baked a "needs a key" line (or its absence) — keep it truthful both ways
     if(k && typeof STATE!=="undefined" && STATE) fillModelLists(); };   // standalone: a pasted/OAuth key fills the model dropdowns
   const hasAuth = ()=> EMBEDDED ? parentAuthed : !!getKey();
   // A 401/403 from a standalone run means the stored key is dead (revoked, or an expired OAuth token the
@@ -4513,6 +4514,17 @@ function mp4ParamsMatch(bufs){
     box.appendChild(el);
   }
   function clearOutputPlaceholder(){ const el = $("app-output-empty"); if(el) el.remove(); }
+  // Auth changes AFTER mount: embedded, the parent's __auth__ postMessage only arrives once the
+  // iframe has loaded — mount() already rendered the placeholder as signed-out — and standalone,
+  // a pasted/OAuth key lands later still. The "needs a key" line was baked in at render time, so
+  // rebuild the card when auth flips. ONLY when the empty-state card is what's showing: real
+  // results and baked sample cards must never be replaced, and the samples path (which renders
+  // no placeholder at all) must not grow one here.
+  function refreshOutputPlaceholder(){
+    if(!$("app-output-empty")) return;
+    clearOutputPlaceholder();
+    renderOutputPlaceholder();
+  }
 
   /* Creator-sample bake-into-share. LIVE_OUT remembers the latest portable value per
      output node as results render; buildShareSamples shrinks images and caps size so
@@ -5471,6 +5483,7 @@ function mp4ParamsMatch(bufs){
     window.addEventListener("message", (e)=>{
       const m = e.data || {};
       if(m && m.type==="__auth__"){ const was=parentAuthed; parentAuthed = !!m.signedIn; renderAuth();
+        refreshOutputPlaceholder();   // pre-run empty card baked "needs a key" at mount — retell it truthfully
         if(parentAuthed && !was && STATE) fillModelLists(); }   // key just arrived → fill the model dropdowns
       if(m && m.type==="__restore__" && m.outs){ try{ restoreOutputs(m.outs); }catch(_){ /* stored results are a bonus, never a boot blocker */ } }
       if(m && m.type==="__resume__" && m.node!=null){ try{ resumeMedia(m); }catch(_){ /* continuity is a bonus */ } }
