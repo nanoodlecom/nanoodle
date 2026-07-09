@@ -4387,15 +4387,27 @@ const REASONING_EFFORTS = ["default","low","medium","high"];
 function refreshLlmOpts(n){
   if(n.type!=="llm" || !n.el) return;
   const box = n.el.querySelector("[data-llmadv]"); if(!box) return;
-  const it = catItem("chat", n.fields.model) || {};
+  // catItem is null when the catalog is empty/offline OR the id isn't listed. Mirror
+  // modelDrifted's empty-catalog rule: stay permissive — only strip knobs when we KNOW
+  // the loaded model lacks the capability. (Was: `|| {}` treated miss as "no capability"
+  // and wiped format/reasoningEffort/showThinking on every cold boot before catalog arrives,
+  // then save() persisted the stripped graph.)
+  const it = catItem("chat", n.fields.model);
   const f = n.fields;
-  if(!it.structured_output) delete f.format;                         // drop a knob the new model can't use
-  if(!it.reasoning){ delete f.reasoningEffort; delete f.showThinking; }
+  if(it){
+    if(!it.structured_output) delete f.format;                       // drop a knob the new model can't use
+    if(!it.reasoning){ delete f.reasoningEffort; delete f.showThinking; }
+  }
+  // Show gated rows when known-capable, OR when unknown and the field is already set
+  // (preserves the UI for a typed-in / offline model that had JSON mode enabled).
+  const showFormat = it ? !!it.structured_output : (f.format === "JSON");
+  const showReason = it ? !!it.reasoning
+    : (!!(f.reasoningEffort && f.reasoningEffort!=="default") || f.showThinking===true || f.showThinking==="true");
   const temp = (f.temperature!=null && f.temperature!=="") ? +f.temperature : 0.8;
-  const fmtRow = it.structured_output
+  const fmtRow = showFormat
     ? `<div style="margin:3px 0"><label>output format</label><select data-lf="format">${
         optsHTML([["Text","Text"],["JSON","JSON"]], f.format||"Text")}</select></div>` : "";
-  const reasonRows = it.reasoning
+  const reasonRows = showReason
     ? `<div style="margin:3px 0"><label>reasoning effort</label><select data-lf="reasoningEffort">${
         REASONING_EFFORTS.map(o=>`<option value="${esc(o)}"${(f.reasoningEffort||"default")===o?" selected":""}>${esc(o)}</option>`).join("")}</select></div>
        <label class="setbool" style="margin:3px 0"><input type="checkbox" data-lf="showThinking"${(f.showThinking===true||f.showThinking==="true")?" checked":""}/> show thinking</label>` : "";
@@ -4403,7 +4415,7 @@ function refreshLlmOpts(n){
             || (f.reasoningEffort && f.reasoningEffort!=="default") || f.showThinking===true || f.showThinking==="true" ? " open" : "";
   box.innerHTML = `<details class="adv"${open}><summary>⚙️ ${esc(t("advanced"))}</summary>
     <div style="margin:3px 0"><label><span data-ltlab>${esc(t("temperature"))} · ${temp.toFixed(1)}</span> <span class="dim lblhint">${esc(t("· higher = more creative"))}</span></label><input type="range" data-lf="temperature" min="0" max="2" step="0.1" value="${esc(temp)}" style="width:100%"/></div>
-    <div style="margin:3px 0"><label>${esc(t("max tokens"))}${it.maxOut?` (≤ ${it.maxOut})`:""}</label><input type="number" data-lf="maxTokens" min="1"${it.maxOut?` max="${it.maxOut}"`:""} value="${esc(f.maxTokens??"")}" placeholder="default"/></div>
+    <div style="margin:3px 0"><label>${esc(t("max tokens"))}${it&&it.maxOut?` (≤ ${it.maxOut})`:""}</label><input type="number" data-lf="maxTokens" min="1"${it&&it.maxOut?` max="${it.maxOut}"`:""} value="${esc(f.maxTokens??"")}" placeholder="default"/></div>
     ${fmtRow}${reasonRows}</details>`;
   translateTree(box);   // localize plain labels (output format / reasoning effort / show thinking / max-tokens placeholder)
   box.querySelectorAll("[data-lf]").forEach(el=>{

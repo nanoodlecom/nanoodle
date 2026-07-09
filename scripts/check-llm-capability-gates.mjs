@@ -113,6 +113,30 @@ if (app) {
   }
 }
 
+// ---- Editor twin: refreshLlmOpts must not wipe knobs on catalog miss --------
+// Was: `const it = catItem(...) || {}` then `if(!it.structured_output) delete f.format`
+// treated an empty/offline catalog as "no capability" and permanently stripped
+// format/reasoningEffort/showThinking (save() then persisted the stripped graph).
+// Must only strip when catItem returns a known model without the flag.
+{
+  const { readFileSync } = await import("node:fs");
+  const { resolve, dirname, join } = await import("node:path");
+  const { fileURLToPath } = await import("node:url");
+  const IDX = readFileSync(join(resolve(dirname(fileURLToPath(import.meta.url)), ".."), "index.html"), "utf8");
+  // Non-greedy match stops at the first top-level `}` of the function — enough to see the strip logic.
+  const m = IDX.match(/function\s+refreshLlmOpts\s*\([\s\S]*?\n\}/);
+  if (!m) failures.push("editor: could not find refreshLlmOpts() in index.html");
+  else {
+    const fn = m[0];
+    // The bad pattern is an assignment that coerces a miss to {} then deletes knobs on falsy flags.
+    if (/const\s+it\s*=\s*catItem\s*\(\s*["']chat["'][^)]*\)\s*\|\|\s*\{\s*\}/.test(fn))
+      failures.push("editor refreshLlmOpts: `catItem(...) || {}` treats catalog miss as no-capability (wipes JSON mode on cold boot)");
+    if (!/if\s*\(\s*it\s*\)\s*\{/.test(fn) || !/delete\s+f\.format/.test(fn))
+      failures.push("editor refreshLlmOpts: must only strip format/reasoning knobs inside `if(it){...}` (known model)");
+    else process.stdout.write("  ✓ editor refreshLlmOpts only strips knobs when catItem returns a known model\n");
+  }
+}
+
 if (failures.length) {
   process.stderr.write("\n✗ llm-capability-gates: exported LLM node would send an ungated paid request:\n\n- " + failures.join("\n- ") + "\n");
   process.exit(1);
