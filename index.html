@@ -3908,6 +3908,14 @@ function modelSupportsAudio(n){
   const m = catItem(t.modelKind, n.fields.model);
   return !m || !!m[t.audioInput];
 }
+// Request-time chat capability probe — play.html's chatModelCan twin (dual-engine parity; keep the
+// semantics identical). Permissive on catalog miss so a typed-in / offline id is never blocked;
+// only a KNOWN-incapable model has the gated payload field stripped. normChat flattens capability
+// flags onto the item, so `m[flag]` here reads the same bit play's `m.capabilities[flag]` does.
+function chatModelCan(model, flag){
+  const m = catItem("chat", model);
+  return !m || !!m[flag];
+}
 // Video image-role detection: does the picked model expose the catalog param for an EXTRA image role
 // (v1: the "last frame" morph target on the seedance-2.0 family)? Gated purely on param presence — no
 // model-name lists (same philosophy as the ⚙️ model-options block). Permissive-OFF when the model is
@@ -4830,7 +4838,7 @@ function refreshRunEstimate(){
     + (unpriced ? t(", plus {n} with no listed price").replace("{n}",()=>unpriced) : "")
     + (exact ? "." : "." + "\n" + t("Video, text & audio are estimates: the real bill depends on clip length, tokens and characters."));
 }
-function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshLoraParams(n); refreshModelOpts(n); backfillModel(n); }); refreshRunEstimate(); }
+function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); backfillModel(n); }); refreshRunEstimate(); }   // refreshLlmOpts: reconcile knobs kept during a catalog miss (#311) once real capability flags exist
 function backfillModel(n){   // once a catalog arrives, give model nodes a sensible default if none chosen yet
   const t = NODE_TYPES[n.type];
   if(t.modelKind && !n.fields.model){
@@ -5070,7 +5078,15 @@ const NODE_TYPES = {
       messages.push((imgs.length || aud)
         ? { role:"user", content:[{type:"text", text:prompt}, ...imgs.map(url=>({type:"image_url", image_url:{url}})), ...(aud?[aud]:[])] }
         : { role:"user", content:prompt });
-      return { text: await ctx.genChat(messages, mdl(n), llmOpts(n)) };
+      // JSON output-format is only honored by structured_output models; on others response_format
+      // json_object returns empty content (finish_reason tool_calls) yet STILL BILLS. The UI keeps
+      // the knob on catalog miss by design (#311) and only reconciles when catalogReady fires, so a
+      // Run racing the catalog fetch would still send it — gate the PAYLOAD here too (play.html
+      // runGraph twin): strip it from the outgoing request only — never from n.fields, the knob
+      // must survive for a model that can use it.
+      const opts = llmOpts(n);
+      if(opts.response_format && !chatModelCan(mdl(n), "structured_output")) delete opts.response_format;
+      return { text: await ctx.genChat(messages, mdl(n), opts) };
     }
   },
 

@@ -135,6 +135,39 @@ if (app) {
       failures.push("editor refreshLlmOpts: must only strip format/reasoning knobs inside `if(it){...}` (known model)");
     else process.stdout.write("  ✓ editor refreshLlmOpts only strips knobs when catItem returns a known model\n");
   }
+
+  // -- Editor REQUEST-time gate (play.html runGraph twin) ---------------------
+  // The UI strip above is permissive on catalog miss BY DESIGN (#311), so a knob kept during a
+  // miss reaches Run time — the editor must gate the PAYLOAD like play.html does, or a shared
+  // #g= graph with format:JSON on an incapable model bills an empty response ("no text in response").
+  // 1. chatModelCan must exist and be permissive on catalog miss (`!m || !!m[flag]`) — the
+  //    same semantics as play.html's chatModelCan (only a KNOWN-incapable model strips).
+  const cmc = IDX.match(/function\s+chatModelCan\s*\([\s\S]*?\n\}/);
+  if (!cmc) failures.push("editor: request-time gate needs chatModelCan() in index.html (play.html twin)");
+  else if (!/return\s+!m\s*\|\|\s*!!m\[flag\]/.test(cmc[0]))
+    failures.push("editor chatModelCan: must stay permissive on catalog miss (`return !m || !!m[flag]`) — never block a typed-in/offline id");
+  else process.stdout.write("  ✓ editor chatModelCan exists and is permissive on catalog miss\n");
+  // 2. The llm node's run() must strip response_format from the OUTGOING opts (never n.fields)
+  //    when the model is known to lack structured_output, and send those gated opts to genChat.
+  const run = IDX.match(/llm:\s*\{[\s\S]*?async run\(n, inp, ctx\)\{[\s\S]*?\n    \}\n  \},/);
+  if (!run) failures.push("editor: could not find the llm node's run() in index.html");
+  else {
+    const fn = run[0];
+    if (!/if\s*\(\s*opts\.response_format\s*&&\s*!chatModelCan\(\s*mdl\(n\)\s*,\s*["']structured_output["']\s*\)\s*\)\s*delete\s+opts\.response_format/.test(fn))
+      failures.push("editor llm run(): must delete opts.response_format for a KNOWN non-structured_output model before genChat (request-time gate, play.html parity)");
+    else if (!/ctx\.genChat\(messages,\s*mdl\(n\),\s*opts\)/.test(fn))
+      failures.push("editor llm run(): genChat must receive the GATED opts object, not a fresh llmOpts(n)");
+    else if (/delete\s+(f|n\.fields)\.format/.test(fn))
+      failures.push("editor llm run(): the request-time gate must strip the PAYLOAD only — never delete the node's stored format field");
+    else process.stdout.write("  ✓ editor llm run() strips response_format from the request for a known-incapable model\n");
+  }
+  // 3. The catalog-arrival sweep must reconcile the UI: a knob kept during a catalog miss stays
+  //    stale forever unless refreshAllPrices re-runs refreshLlmOpts once real flags exist.
+  const rap = IDX.match(/function\s+refreshAllPrices\s*\(\)[^\n]*/);
+  if (!rap) failures.push("editor: could not find refreshAllPrices() in index.html");
+  else if (!/refreshLlmOpts\(n\)/.test(rap[0]))
+    failures.push("editor refreshAllPrices: catalog-arrival sweep must include refreshLlmOpts(n) so knobs kept during a catalog miss reconcile when flags arrive");
+  else process.stdout.write("  ✓ editor refreshAllPrices reconciles LLM knobs on catalog arrival\n");
 }
 
 if (failures.length) {
