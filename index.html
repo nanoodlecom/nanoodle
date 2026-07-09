@@ -5332,8 +5332,11 @@ const NODE_TYPES = {
       const prog = (st,ms)=> setNodeProgress(n, `lip-syncing… ${Math.round(ms/1000)}s · ${st.toLowerCase()}`);
       // Avatar models cap audio length (LongCat = 30s) and the cap isn't reliably in the catalog,
       // so send the audio as-is first (a remote song rides full-length as a url, no truncation). If
-      // the model rejects it for duration, read its real cap from the error, trim to fit (mono WAV,
-      // sized to inline) and retry once. An oversize local clip that can't inline also trims to 15s.
+      // the model REJECTS the submit for duration (HTTP error — not yet charged), read its real cap
+      // from the error, trim to fit (mono WAV, sized to inline) and retry once. An oversize local
+      // clip that can't inline also trims to 15s. NEVER auto-retry after a post-submit job failure
+      // ("video failed: …"): that path already reserved credits, and a second genVideo would
+      // double-charge.
       let trimSec = null;
       for(let attempt=0; attempt<2; attempt++){
         let opts;
@@ -5358,6 +5361,8 @@ const NODE_TYPES = {
         }catch(e){
           if(attempt>0) throw e;
           const msg = e.message || "";
+          // Post-submit poll failure already charged (and may refund later) — do not issue a second job.
+          if(/^video failed:/i.test(msg)) throw e;
           const cap = /up to\s+(\d+(?:\.\d+)?)\s*second/i.exec(msg);
           if(cap && /INVALID_AUDIO_DURATION|audio.{0,15}duration/i.test(msg))
             trimSec = Math.min(60, Math.max(1, parseFloat(cap[1]) - 0.1));   // model told us its real cap

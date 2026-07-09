@@ -2752,8 +2752,10 @@ function mp4ParamsMatch(bufs){
         if(!inp.audio) throw new Error("no audio input");
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         const prog = (st,ms)=> onProgress && onProgress("lip-syncing… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase());
-        // Send audio as-is first (a remote song rides full-length); if the model rejects it for
-        // duration, read its real cap from the error, trim to fit (mono WAV) and retry once.
+        // Send audio as-is first (a remote song rides full-length); if the model REJECTS the submit
+        // for duration (HTTP error — not yet charged), read its real cap, trim, and retry once.
+        // NEVER auto-retry after a post-submit job failure ("video failed: …") — that path already
+        // reserved credits and a second genVideo would double-charge (twin of the editor).
         let trimSec = null;
         for(let attempt=0; attempt<2; attempt++){
           let opts;
@@ -2777,6 +2779,7 @@ function mp4ParamsMatch(bufs){
           }catch(e){
             if(attempt>0) throw e;
             const msg = e.message || "";
+            if(/^video failed:/i.test(msg)) throw e;   // already charged — no second submit
             const cap = /up to\s+(\d+(?:\.\d+)?)\s*second/i.exec(msg);
             if(cap && /INVALID_AUDIO_DURATION|audio.{0,15}duration/i.test(msg))
               trimSec = Math.min(60, Math.max(1, parseFloat(cap[1]) - 0.1));
