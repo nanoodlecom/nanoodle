@@ -264,12 +264,12 @@ function checkIndex(root, fail) {
   // internal callers: same-workflow ops + boot restores (the strip is empty at boot).
   // Keyed on a stable substring that appears ON the call's own line.
   const INTERNAL = [
-    { tag: "undo/redo (_restore)",        snippet: "applyGraphData(JSON.parse(from.pop()))" },
+    { tag: "undo/redo (_restore)",        snippet: "applyGraphData(JSON.parse(from.pop()), {carryResults:true})" },
     { tag: "boot local-graph load()",     snippet: "applyGraphData(JSON.parse(raw))" },
     { tag: "boot default graph",          snippet: "applyGraphData(JSON.parse(JSON.stringify(d)))" },
     { tag: "OAuth-redirect resume",       snippet: "applyGraphData(JSON.parse(rs))" },
-    { tag: "copilot selectVersion",       snippet: "applyGraphData(clone(v.graph))" },
-    { tag: "copilot submit",              snippet: "applyGraphData(appliedInternal)" },
+    { tag: "copilot selectVersion",       snippet: "applyGraphData(clone(v.graph), {carryResults:true})" },
+    { tag: "copilot submit",              snippet: "applyGraphData(appliedInternal, {carryResults:true})" },
   ];
   // external callers (wholesale swaps): must have resetDescribeVersions nearby. Named so a
   // dropped reset on any of them is caught explicitly, not just via the unclassified path.

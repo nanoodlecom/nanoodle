@@ -8702,13 +8702,17 @@ function stripInjectedMedia(n){
   if(n.type==="inpaint") for(const k of ["image","mask"])           // source photo + brushed mask, both data: locally
     if(n.fields[k] && !SAFE_MEDIA_RE.test(n.fields[k])) n.fields[k] = "";
 }
-function applyGraphData(d){
-  // Carry generated results + seed-skip signatures across the rebuild. serializeGraph() never
-  // persists n.out/n._sig, so without this an undo/redo/version-jump/example-load would wipe every
-  // paid result and force a full re-run. Keyed by id AND type — same node identity — so a model/type
-  // swap under a reused id can't inherit a stale output. The engine's signature staleness still
-  // decides re-runs (and PR #229's retry-reuse reads exactly these fields), so carrying them is safe.
-  const prevById = new Map(graph.nodes.map(n=>[n.id+" "+n.type, n]));
+function applyGraphData(d, opts){
+  // Carry generated results + seed-skip signatures across SAME-WORKFLOW rebuilds (undo/redo,
+  // version-jump, describe-apply). serializeGraph() never persists n.out/n._sig, so without this
+  // those ops would wipe every paid result and force a full re-run. Keyed by id AND type — same
+  // node identity — so a model/type swap under a reused id can't inherit a stale output.
+  //
+  // OPT-IN only (opts.carryResults): examples, 📂 Load, shared #g=/#j= links, and other wholesale
+  // graph swaps reuse the same n1/n2 ids across unrelated workflows — carrying would glue the
+  // previous session's images onto the new graph as if they belonged there. Default off.
+  const carryResults = !!(opts && opts.carryResults);
+  const prevById = carryResults ? new Map(graph.nodes.map(n=>[n.id+" "+n.type, n])) : null;
   world.innerHTML=""; selected=null;
   graph = { nodes:[], links:[] };
   if(d.view){ panX=d.view.panX??panX; panY=d.view.panY??panY; scale=d.view.scale??scale; applyWorld(); }
@@ -8717,8 +8721,10 @@ function applyGraphData(d){
     const type = ALIAS[sn.type] || sn.type;
     if(!NODE_TYPES[type]) continue;               // skip unknown node types gracefully
     const n={ ...sn, type, out:{}, el:null }; stripInjectedMedia(n);
-    const prev = prevById.get(n.id+" "+type);   // same id AND type → carry its result + seed signature so this apply doesn't force a paid re-run
-    if(prev && prev.out && Object.keys(prev.out).length){ n.out = prev.out; if(prev._sig!=null) n._sig = prev._sig; }
+    if(prevById){
+      const prev = prevById.get(n.id+" "+type);   // same id AND type → carry result + seed signature
+      if(prev && prev.out && Object.keys(prev.out).length){ n.out = prev.out; if(prev._sig!=null) n._sig = prev._sig; }
+    }
     graph.nodes.push(n); buildNodeEl(n);
   }
   // keep only links whose endpoints survived
@@ -8775,7 +8781,7 @@ function _restore(from, to){
   if(runningNodes.size){ flash("can’t change the workflow while running — Stop first"); return; }   // an undo/redo mid-run replaces the graph out from under in-flight (already-charged) nodes — their results would write into detached objects and vanish (mirrors the per-node delete guard)
   to.push(_snap());
   undoMuted = true;
-  try{ applyGraphData(JSON.parse(from.pop())); } finally { undoMuted = false; }
+  try{ applyGraphData(JSON.parse(from.pop()), {carryResults:true}); } finally { undoMuted = false; }
   save();
 }
 function syncUndoBtn(){ const b=$("undo"); if(b) b.disabled = !undoStack.length; const r=$("redo"); if(r) r.disabled = !redoStack.length; }   // hide each button when its stack is empty
@@ -10215,7 +10221,7 @@ RULES for the diff:
       versions.push({ graph: clone(serializeGraph()), goal: "your canvas edits" });
       savedAt = versions.length - 1;
     }
-    applyGraphData(clone(v.graph)); save();
+    applyGraphData(clone(v.graph), {carryResults:true}); save();
     curVer = i; renderVersions();
     const back = i===0 ? "↩ Back to the starting workflow." : `↩ Back to v${i} — ${esc(v.goal)}`;
     setStatus(savedAt >= 0 ? `${back} Your edits are safe in v${savedAt}.` : back);
@@ -10339,7 +10345,7 @@ RULES for the diff:
       const appliedInternal = fromSimple(next, prevInternal);   // pure → safe to compute once and reuse
       const dif = diff(prevSimple, toSimple(appliedInternal));
       if(dif.count===0){ setStatus(`No change needed — try being more specific. ${usageMeter()}`); return; }
-      applyGraphData(appliedInternal); save();
+      applyGraphData(appliedInternal, {carryResults:true}); save();
       // record versions: seed v0 from the pre-change graph on the first change. Append-only —
       // a change applied from an older version lands at the END and becomes current; we never
       // truncate the versions after it (that silently destroyed work you could still want back).

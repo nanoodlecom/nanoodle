@@ -346,10 +346,11 @@ T.loadFile({ __text: JSON.stringify(strangerGraph) });
 ok(T.stacks().undo.length === 0, "PARK/file: loading a file over an empty canvas must not park an empty snapshot");
 
 // =============================================================================
-// 6. RESULT CARRY-OVER — an undo/redo (or any applyGraphData) must NOT wipe a
-//    node's generated output + seed-skip signature. serializeGraph never persists
-//    n.out/n._sig, so without the carry-over an undo would force a paid re-run of
-//    every result — the P1 money bug this fix closes.
+// 6. RESULT CARRY-OVER — undo/redo must NOT wipe a node's generated output +
+//    seed-skip signature (opts.carryResults). serializeGraph never persists
+//    n.out/n._sig, so without the carry-over an undo would force a paid re-run.
+//    Wholesale swaps (📂 Load / Examples / #g=) must NOT glue prior outs onto a
+//    different graph that happens to reuse n1/n2 ids.
 // =============================================================================
 T.reset();
 T.setRunning([]);
@@ -369,6 +370,26 @@ T.setOut("n1", { text: "STALE" }, "sig-n1");
 T.applyGraphData({ v:1, nodes:[{ id:"n1", type:"image", x:10, y:20, fields:{} }], links:[], nid:"2", lid:"1", view:{} });
 ok(!T.outOf("n1") || !T.outOf("n1").text,
   "CARRY-OVER: a different node TYPE under a reused id must not inherit the prior node's output");
+// loadFile / plain applyGraphData (no carryResults) must NOT glue prior outs onto an unrelated graph
+T.reset();
+T.applyGraphData(SPEC());
+T.setOut("n1", { text: "WRONG_WORKFLOW" }, "sig-wrong");
+T.setOut("n2", { text: "WRONG_LLM" }, "sig-wrong2");
+T.loadFile({ __text: JSON.stringify({ v:1, nodes:[
+  { id: "n1", type: "text", x: 0, y: 0, fields: { text: "other file" } },
+  { id: "n2", type: "llm", x: 1, y: 1, fields: { prompt: "q" } },
+], links: [], nid: "3", lid: "1", view: {} }) });
+ok(!T.outOf("n1") || !T.outOf("n1").text,
+  "NO-CROSS-CARRY: loadFile must not attach the previous workflow's output to same-id nodes");
+ok(!T.outOf("n2") || !T.outOf("n2").text,
+  "NO-CROSS-CARRY: loadFile must not attach the previous LLM result to the new graph's n2");
+// explicit carryResults still works for same-workflow apply
+T.reset();
+T.applyGraphData(SPEC());
+T.setOut("n2", { text: "KEEP_ME" }, "sig-keep");
+T.applyGraphData(SPEC(), { carryResults: true });
+ok(T.outOf("n2") && T.outOf("n2").text === "KEEP_ME",
+  "CARRY-OVER: applyGraphData(..., {carryResults:true}) still preserves same-id+type outputs");
 
 // =============================================================================
 // 7. RUN-GUARD — undo/redo must be refused while a node is executing, so a paid
