@@ -7720,12 +7720,24 @@ async function doShare(){
     // Snapshot the app being shared BEFORE the (up to 2s) sample ask: switching apps
     // mid-wait must never pack — or stamp samples onto — the newly opened app.
     const _id = CUR_ID, _graph = APP_STATE.graph, _files = APP_STATE.files, _stored = APP_STATE.samples;
+    // Never-Customized apps ride files-less: the default shell+css are regenerable from the
+    // graph by the recipient's play.html (installApp already falls back to defaultFiles()),
+    // and they dominate the link — ~9.0k of a ~9.6k basic-app #a=, past the 9k da.gd ceiling
+    // on their own, so every basic share read "Too long to shorten". Only the creator's name
+    // isn't graph-derivable, so it rides as a tiny `name` field instead. A Customize pass
+    // (any version beyond the base) is real hand-made polish — those keep shipping files.
+    // (Rename alone edits files without pushing a version; `name` carries it either way.
+    // Editor twin: buildShareUrl("app") applies the same versions>1 rule off the library entry.)
+    const _customized = Array.isArray(APP_STATE.versions) && APP_STATE.versions.length > 1;
+    const _name = titleFromFiles(_files);
     // Prefer live results (creator just ran); fall back to samples already on this library entry
     // (re-share of an imported app that still carries its sample).
     let samples = await askAppSamples();
     if(CUR_ID !== _id){ toast("app changed while packing the link — press Share again", "err"); return; }
     if((!samples || !samples.length) && _stored && _stored.length) samples = _stored;
-    const base = { v:1, graph:shareableGraph(_graph), files:_files, ...(_lang?{lang:_lang}:{}) };
+    const base = { v:1, graph:shareableGraph(_graph),
+                   ...(_customized ? { files:_files } : (_name ? { name:_name } : {})),
+                   ...(_lang?{lang:_lang}:{}) };
     if(samples && samples.length){
       APP_STATE.samples = samples;   // remember the FULL set for re-share / export, even when the link ships less
       try{ persist(); }catch(_){}
@@ -7925,8 +7937,18 @@ async function loadFromHash(){
       const json = tag[0]==="u" ? new TextDecoder().decode(b64urlToBytes(tag.slice(1)))
                                 : await gunzip(b64urlToBytes(tag));
       const spec = JSON.parse(json);
-      // someone else's app → keep it in "My apps", flagged as imported (it carries its own files)
-      const saved = installApp({ graph:spec.graph, files:spec.files, id:newId(), imported:true, lang:spec.lang, samples:spec.samples });
+      // someone else's app → keep it in "My apps", flagged as imported. Customized apps carry
+      // their own files; compact (never-Customized) shares ship files-less and rebuild the
+      // default shell from the graph here — only the creator's name isn't graph-derivable, so
+      // re-apply it when the spec carries one. withName escapes it (title tag + heading), so a
+      // hostile `name` can't inject markup. No name / no files → installApp's defaultFiles
+      // fallback covers it with the derived title.
+      let files = spec.files;
+      if(!(files && files["index.html"]) && typeof spec.name === "string" && spec.name.trim()){
+        files = defaultFiles(spec.graph || { nodes:[], links:[] });
+        files = { ...files, "index.html": withName(files["index.html"], spec.name.replace(/\s+/g," ").trim().slice(0, 120)) };
+      }
+      const saved = installApp({ graph:spec.graph, files, id:newId(), imported:true, lang:spec.lang, samples:spec.samples });
       if(saved){
         consumeHandoff();   // don't re-import on reload
         toast("Imported — saved to “My apps”");

@@ -9026,7 +9026,18 @@ async function buildShareUrl(target){
           let stored=null; try{ stored=localStorage.getItem("noodle_lang"); }catch(e){}
           return (stored && SUP[stored]) ? stored : "";
         })();
-        const base = { v:1, graph:shareableGraph(app.graph), files:app.files, ...(_lang?{lang:_lang}:{}) };
+        // Never-Customized apps ride files-less (twin of play.html doShare): the default
+        // shell+css are regenerable from the graph by play.html at open time, and they
+        // dominate the link (~9.0k of a ~9.6k basic-app #a= — past the 9k da.gd ceiling on
+        // their own, so every basic share read "Too long to shorten"). Only the app's name
+        // isn't graph-derivable — ship it as the tiny `name` field. Any version beyond the
+        // base means a Customize pass (library entries always persist versions), so those —
+        // and legacy entries with no versions array — keep shipping their files verbatim.
+        const customized = !Array.isArray(app.versions) || app.versions.length > 1;
+        const _name = (typeof app.title === "string" && app.title.trim()) ? app.title.trim() : "";
+        const base = { v:1, graph:shareableGraph(app.graph),
+                       ...(customized ? { files:app.files } : (_name ? { name:_name } : {})),
+                       ...(_lang?{lang:_lang}:{}) };
         const fit = await packShareFit(base, app.samples, location.origin + "/play.html", shrinkShareMedia);
         lastShareStripped = fit.stripped;
         return fit.url;

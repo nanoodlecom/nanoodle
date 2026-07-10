@@ -22,6 +22,8 @@
 //   S9. shareableGraph still blanks uploads — samples must never be the upload path
 //  S10. sample badge i18n keys exist in PLAY_I18N (5 languages) + badge is auth-aware
 //  S11. pre-commit trigger fires on every file this checker asserts (index.html too)
+//  S12. never-Customized apps share files-less (name field + graph rebuild) so a basic
+//       app's #a= link fits the 9k da.gd shortener ceiling; old files links still decode
 
 import { readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
@@ -276,6 +278,33 @@ ok("S9c", /shareableGraph\s*\(/.test(doShare), "doShare must still call shareabl
     "renderShareSamples badge is not auth-aware (needsKey branch missing)");
 }
 
+// ---- S12: never-Customized apps share files-less ------------------------------
+// The default shell+css (files, dominated by the ~21k app.css) were ~9.0k of a ~9.6k
+// basic-app #a= link — past the 9k da.gd ceiling on their own, so EVERY uncustomized
+// share read "Too long to shorten". Both encoders must gate `files` on a real Customize
+// pass (any version beyond the base) and ship the tiny `name` field instead; the #a=
+// decoder rebuilds the default shell from the graph and re-applies the name. Old links
+// that carry files must keep decoding through the same installApp call (back-compat).
+{
+  ok("S12a", /\.\.\.\(\s*_customized\s*\?\s*\{\s*files\s*:\s*_files\s*\}/.test(doShare)
+          && /versions\)\s*&&\s*APP_STATE\.versions\.length\s*>\s*1/.test(doShare),
+    "doShare no longer gates files on a Customize pass (versions>1) — basic-app links regress past the 9k da.gd ceiling");
+  ok("S12b", /name\s*:\s*_name/.test(doShare),
+    "doShare's files-less share must carry the app name (the one non-graph-derivable piece)");
+  let loadHash = "";
+  try { loadHash = extractFn(html, "loadFromHash"); }
+  catch (e) { fail("S12c", "loadFromHash missing: " + e.message); }
+  ok("S12c", /spec\.name/.test(loadHash) && /defaultFiles\(/.test(loadHash) && /withName\(/.test(loadHash),
+    "#a= decode must rebuild the default shell for files-less shares and re-apply spec.name via withName");
+  const IDX = join(ROOT, "index.html");
+  let buildShare2 = "";
+  try { buildShare2 = extractFn(readFileSync(IDX, "utf8"), "buildShareUrl"); }
+  catch (e) { fail("S12d", "index.html buildShareUrl missing: " + e.message); }
+  ok("S12d", /\.\.\.\(\s*customized\s*\?\s*\{\s*files\s*:\s*app\.files\s*\}/.test(buildShare2)
+          && /app\.versions\)\s*\|\|\s*app\.versions\.length\s*>\s*1/.test(buildShare2),
+    "editor buildShareUrl no longer gates files on a Customize pass (parity with doShare) — basic-app links regress");
+}
+
 // ---- S11: pre-commit trigger covers every guarded file ------------------------
 // The checker asserts index.html (buildShareUrl parity) as well as play.html, so an
 // index.html-only commit must still fire it. Pin the hook's trigger line.
@@ -301,5 +330,5 @@ if (failures.length) {
 }
 console.log("check-share-samples: ok (" + [
   "S1 pack", "S2 import", "S3 inject", "S4 paint", "S5 clear",
-  "S6 restore", "S7 caps", "S8 sanitize", "S9 privacy", "S10 i18n", "S11 hook",
+  "S6 restore", "S7 caps", "S8 sanitize", "S9 privacy", "S10 i18n", "S11 hook", "S12 files-less",
 ].join(", ") + ")");
