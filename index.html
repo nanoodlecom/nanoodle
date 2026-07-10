@@ -8923,15 +8923,45 @@ async function copyText(t){
 //                 Customize polish, not a default rebuild that silently discards it.
 // target other  → this editor page: opens the editable WORKFLOW (the 🔗 Share default, for remixing).
 // One packer so the 🔗 Share button and the 🏆 Submit popup never drift.
+// Re-encode one inlined preview image smaller (data: URLs only — no CORS taint) so packShareFit
+// can try a leaner preview before dropping it entirely. null on any failure/timeout: the caller
+// just falls through to stripping. (Twin of play.html's.)
+function shrinkShareMedia(src){
+  return new Promise((resolve)=>{
+    if(!/^data:image\//i.test(src)) return resolve(null);
+    const img = new Image();
+    let done = false;
+    const finish = (v)=>{ if(done) return; done = true; resolve(v); };
+    setTimeout(()=> finish(null), 3000);
+    img.onload = ()=>{
+      try{
+        let w = img.naturalWidth, h = img.naturalHeight;
+        if(!w || !h) return finish(null);
+        const max = 320;
+        if(w>max || h>max){ const sc = max/Math.max(w,h); w = Math.round(w*sc); h = Math.round(h*sc); }
+        const c = document.createElement("canvas"); c.width = w; c.height = h;
+        c.getContext("2d").drawImage(img, 0, 0, w, h);
+        finish(c.toDataURL("image/jpeg", 0.5));
+      }catch(_){ finish(null); }
+    };
+    img.onerror = ()=> finish(null);
+    try{ img.src = src; }catch(_){ finish(null); }
+  });
+}
 // Samples are the recipient's pre-sign-in preview, but a link the pipeline can't carry shows
 // nobody anything: past the da.gd ceiling no shortener accepts it and the social intents reject
-// it outright. Pack full samples → samples minus inlined media (data: thumbs are the only heavy
-// values; play.html's sample packer caps text ~1.5k, remote media URLs ≤2k) → none, and ship the
-// first link that fits. play.html's SAMPLE_BUDGET already bounds tier 1, so no raw-size cap here.
-// When even the bare app overflows, return the full-sample link — nothing fits anyway, and the
-// popover greys the dead ends. `stripped` = "media" | "all" | null says what was cut, so the
-// caller can tell the creator instead of thinning their share silently. (Twin of play.html's.)
-async function packShareFit(base, samples, urlPrefix){
+// it outright. Pack full samples → samples with inlined media re-encoded smaller (via the
+// injected shrinkMedia, browser-canvas only — the offline guard runs this function without it)
+// → samples minus inlined media (data: thumbs are the only heavy values; play.html's sample
+// packer caps text ~1.5k, remote media URLs ≤2k) → none, and ship the first link that fits.
+// play.html's SAMPLE_BUDGET already bounds tier 1, so no raw-size cap here. When even the bare
+// app overflows, return the full-sample link — nothing fits anyway, and the popover greys the
+// dead ends. `stripped` = "shrunk" | "media" | "all" | null says what was compressed/cut, so
+// the caller can tell the creator instead of thinning their share silently. When the share has
+// inlined media at all, `alt` carries both endpoints — the best link WITH the preview image and
+// the same link without it — for play.html's popover preview toggle. (Twin of play.html's.)
+// NOTE for edits: no regex literals in this function body — check-share-link extracts it as text.
+async function packShareFit(base, samples, urlPrefix, shrinkMedia){
   const pack = async (payload)=>{
     const json = JSON.stringify(payload);
     const packed = await gzip(json).catch(()=>null);
@@ -8940,18 +8970,37 @@ async function packShareFit(base, samples, urlPrefix){
   };
   const all = (Array.isArray(samples) ? samples : []).filter(s=> s && typeof s.v==="string");
   const compact = all.filter(s=> s.v.length <= 2500);
+  const hasMedia = compact.length < all.length;
   const tiers = [{ s:all, stripped:null }];
-  if(compact.length && compact.length < all.length) tiers.push({ s:compact, stripped:"media" });
-  if(all.length) tiers.push({ s:[], stripped:"all" });
-  let first = null;
-  for(const t of tiers){
-    const url = await pack(t.s.length ? { ...base, samples:t.s } : base);
-    if(!first) first = { url, hasSample: all.length>0, stripped:null };
-    if(url.length <= SHORTEN_CEILING.dagd) return { url, hasSample: t.s.length>0, stripped: t.stripped };
+  if(hasMedia && typeof shrinkMedia === "function"){
+    const shrunk = []; let changed = false;
+    for(const s of all){
+      let v = s.v;
+      if(v.length > 2500 && v.slice(0,11) === "data:image/"){
+        const sm = await Promise.resolve(shrinkMedia(v)).catch(()=>null);
+        if(typeof sm === "string" && sm.length < v.length){ v = sm; changed = true; }
+      }
+      shrunk.push(v === s.v ? s : { ...s, v });
+    }
+    if(changed) tiers.push({ s:shrunk, stripped:"shrunk" });
   }
-  return first;
+  if(compact.length && hasMedia) tiers.push({ s:compact, stripped:"media" });
+  if(all.length) tiers.push({ s:[], stripped:"all" });
+  const packed = [];
+  for(const t of tiers) packed.push({ ...t, url: await pack(t.s.length ? { ...base, samples:t.s } : base) });
+  const fitT = packed.find(p=> p.url.length <= SHORTEN_CEILING.dagd) || packed[0];
+  const out = { url: fitT.url, hasSample: fitT.s.length>0, stripped: fitT.stripped };
+  if(hasMedia){
+    const isMediaTier = (p)=> p.stripped===null || p.stripped==="shrunk";
+    const withMedia = packed.filter(isMediaTier), sansMedia = packed.filter(p=> !isMediaTier(p));
+    if(withMedia.length && sansMedia.length){
+      const m = withMedia.find(p=> p.url.length <= SHORTEN_CEILING.dagd) || withMedia[0];
+      out.alt = { media: m.url, noMedia: sansMedia[0].url };
+    }
+  }
+  return out;
 }
-// What the last buildShareUrl("app") had to cut to fit ("media" | "all" | null) — read by the
+// What the last buildShareUrl("app") had to cut to fit ("shrunk" | "media" | "all" | null) — read by the
 // callers (🏆 Submit fill) to tell the creator, since buildShareUrl itself only returns the URL.
 let lastShareStripped = null;
 async function buildShareUrl(target){
@@ -8978,7 +9027,7 @@ async function buildShareUrl(target){
           return (stored && SUP[stored]) ? stored : "";
         })();
         const base = { v:1, graph:shareableGraph(app.graph), files:app.files, ...(_lang?{lang:_lang}:{}) };
-        const fit = await packShareFit(base, app.samples, location.origin + "/play.html");
+        const fit = await packShareFit(base, app.samples, location.origin + "/play.html", shrinkShareMedia);
         lastShareStripped = fit.stripped;
         return fit.url;
       }
@@ -9393,8 +9442,10 @@ async function fillSubmitLink(){               // (re)generate the link for the 
   const inp = $("submitlink"); inp.value = "…";
   try{
     inp.value = await buildShareUrl(submitTarget);
-    // packShareFit had to cut samples to keep the link shortenable/postable — tell the entrant.
-    if(lastShareStripped) toast("sample images left out of this link — with them it's too long to shorten or post", "warn");
+    // packShareFit had to compress or cut samples to keep the link shortenable/postable — tell the entrant.
+    if(lastShareStripped) toast(lastShareStripped==="shrunk"
+      ? "preview image compressed so this link stays shortenable and postable"
+      : "sample images left out of this link — with them it's too long to shorten or post", "warn");
   }catch(e){ inp.value = ""; }
   inp.focus(); inp.select();                   // keyboard users can copy immediately
 }
