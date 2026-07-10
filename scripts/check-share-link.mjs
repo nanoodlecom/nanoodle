@@ -74,6 +74,13 @@ function extractFunction(src, name) {
   return src.slice(m.index, close + 1);
 }
 
+// pull `const <name> = { ... };` out as text (single-level object literal)
+function extractConst(src, name) {
+  const m = new RegExp("const\\s+" + name + "\\s*=\\s*\\{[^{}]*\\};?").exec(src);
+  if (!m) throw new Error(`could not find const ${name}`);
+  return m[0];
+}
+
 // pull the shorten button's click handler BODY out as text (the async arrow
 // wired onto each .sm-svc button). Anchored on the exact wiring line.
 function extractShortenHandlerBody(src) {
@@ -97,11 +104,13 @@ const FRAG_MARK = "#a=PAYLOAD_MUST_SURVIVE_123";
 
 async function checkFile(file) {
   const src = readFileSync(join(ROOT, file), "utf8");
-  let openFn, handlerBody, capVar;
+  let openFn, handlerBody, capVar, syncFn, ceilings;
   try {
     openFn = extractFunction(src, "openShareMenu");
     handlerBody = extractShortenHandlerBody(src);
     capVar = captureVar(openFn);
+    syncFn = extractFunction(src, "syncShortenButtons");
+    ceilings = extractConst(src, "SHORTEN_CEILING");
   } catch (e) {
     fail(file, e.message);
     return;
@@ -109,8 +118,10 @@ async function checkFile(file) {
 
   // record what the shortener was actually handed
   const shortenCalls = [];
+  // memoized per-id elements so assertions can observe what the shipped code set
+  const els = {};
   const stubs = {
-    $: () => ({ hidden: false, value: "", select() {}, setAttribute() {} }),
+    $: (id) => els[id] || (els[id] = { hidden: false, value: "", textContent: "", select() {}, setAttribute() {} }),
     setShareUrl: () => {},
     copyText: async () => true,
     toast: () => {},
@@ -122,23 +133,31 @@ async function checkFile(file) {
   stubs.document = { querySelectorAll: () => [btn] };
 
   // Assemble a runnable program from the SHIPPED source pieces. `capVar` is the
-  // module-level capture var openShareMenu writes and the handler reads.
+  // module-level capture var openShareMenu writes and the handler reads. After the
+  // normal flow, re-open the popover with a link past every shortener's ceiling —
+  // the buttons must grey out and the "too long" note must appear (2026-07-10 fix:
+  // baked-in-image links used to surface the services' raw HTML error pages).
   const program =
     `let ${capVar} = "";\n` +
+    ceilings + "\n" +
+    syncFn + "\n" +
     openFn + "\n" +
     `const __click = async (btn) => {${handlerBody}};\n` +
     `return (async () => {\n` +
     `  openShareMenu(FRAG);\n` +           // popover captures the full link
     `  location.hash = "";\n` +            // share flow strips the address-bar hash
     `  await __click(btn);\n` +            // user clicks "Shorten → TinyURL"
-    `  return ${capVar};\n` +
+    `  const got = ${capVar};\n` +
+    `  openShareMenu(BIG);\n` +            // media-heavy link: past every ceiling
+    `  return got;\n` +
     `})();`;
 
-  const names = Object.keys(stubs).concat(["btn", "FRAG"]);
+  const BIG = "https://nanoodle.example/APP#a=" + "A".repeat(70000);
+  const names = Object.keys(stubs).concat(["btn", "FRAG", "BIG"]);
   let captured;
   try {
     const fn = new Function(...names, program);
-    captured = await fn(...names.map((k) => (k === "btn" ? btn : k === "FRAG" ? FRAG : stubs[k])));
+    captured = await fn(...names.map((k) => (k === "btn" ? btn : k === "FRAG" ? FRAG : k === "BIG" ? BIG : stubs[k])));
   } catch (e) {
     fail(file, "share/shorten flow threw: " + (e && e.message ? e.message : e));
     return;
@@ -155,6 +174,12 @@ async function checkFile(file) {
     fail(file, `the shortener was handed a link with NO payload fragment (${JSON.stringify(sent)}) — short links would open an empty app`);
   else if (sent !== FRAG)
     fail(file, `the shortener was handed an altered link: ${JSON.stringify(sent)}`);
+  // the over-ceiling reopen: no dead-end buttons, and the note says why
+  if (!btn.disabled)
+    fail(file, "a link past the shortener ceilings left the shorten button enabled — clicking it is a guaranteed dead end");
+  const note = els["sm-toolong"];
+  if (!note || note.hidden !== false || !/kB/.test(note.textContent))
+    fail(file, "a link past the shortener ceilings did not surface the too-long note (#sm-toolong with a kB size)");
 }
 
 try {

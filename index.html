@@ -1085,6 +1085,7 @@
     <button data-svc="dagd" class="sm-primary" title="Recommended — handles very long links (workflow links can get big)">da.gd</button>
     <button data-svc="tinyurl" title="Shorter domain, but can fail on very long links">TinyURL</button>
   </div>
+  <p id="sm-toolong" class="sm-warn" hidden></p>
 
   <div class="sm-head">Share to</div>
   <div class="sm-social">
@@ -8968,7 +8969,13 @@ async function buildShareUrl(target){
 // URL shorteners (TinyURL GET, da.gd POST for long links). The editor's connect-src allows https:
 // and runs only first-party code over declarative graphs — no untrusted app — so calling a
 // shortener here has no exfiltration surface (unlike play.html's preview, sealed by PREVIEW_CSP).
+// Hard ceilings, probed 2026-07-10: TinyURL's GET 431/520s past ~20k URL chars; da.gd's POST
+// 500s past ~64k. A workflow with images baked in beats both easily — grey the buttons and say
+// why up front instead of letting the click surface the services' raw HTML error pages.
+const SHORTEN_CEILING = { tinyurl: 19000, dagd: 62000 };
 async function shortenWith(svc, longUrl){
+  const max = SHORTEN_CEILING[svc];   // fail fast (and cheap) on links the service is known to reject
+  if(max && longUrl.length > max) throw new Error(`link is ${(longUrl.length/1024).toFixed(0)} kB — past the ~${Math.round(max/1000)} kB ${svc==="dagd"?"da.gd":"TinyURL"} accepts`);
   let r, t;
   if(svc==="tinyurl"){
     r = await fetch("https://tinyurl.com/api-create.php?url="+encodeURIComponent(longUrl));
@@ -8978,7 +8985,8 @@ async function shortenWith(svc, longUrl){
         headers:{ "Content-Type":"application/x-www-form-urlencoded" }, body:"url="+encodeURIComponent(longUrl) });
     t = (await r.text()).trim();
   } else { throw new Error("unknown service"); }
-  if(!/^https?:\/\/\S+$/.test(t)) throw new Error(t.slice(0,80) || "no link returned");
+  // Failure bodies are often whole HTML error pages — report the status, not tag soup.
+  if(!/^https?:\/\/\S+$/.test(t)) throw new Error(t.startsWith("<") ? "HTTP "+r.status : (t.slice(0,80) || "no link returned"));
   return t;
 }
 async function shareUrl(){
@@ -9020,7 +9028,17 @@ function setShareUrl(u){
 // twitter/reddit/facebook reject or truncate multi-KB URLs — a raw #g= link kills the share at
 // the exact moment someone tries to spread the workflow. Above this length, auto-shorten first.
 const SOCIAL_SHORTEN_MAX = 2000;
-function openShareMenu(url){ curLongShareUrl = url; setShareUrl(url); $("sharemenu").hidden = false; $("shareback").hidden = false; }
+// Reflect what the shorteners can actually take for the CURRENT link: per-service disable,
+// plus a note when no service can help. The attempt handler blanket-disables the buttons
+// while a shorten is in flight, so its finally must restore through here too.
+function syncShortenButtons(){
+  const len = curLongShareUrl.length, over = len > SHORTEN_CEILING.dagd;
+  document.querySelectorAll("#sharemenu .sm-svc button").forEach(b=> b.disabled = len > (SHORTEN_CEILING[b.dataset.svc] || Infinity));
+  const note = $("sm-toolong");
+  note.hidden = !over;
+  if(over) note.textContent = `Too long to shorten (${(len/1024).toFixed(0)} kB — baked-in images do that). Chat apps can also cut a link this long — ✨ Create app, then Export it as a file, to share something this big.`;
+}
+function openShareMenu(url){ curLongShareUrl = url; setShareUrl(url); syncShortenButtons(); $("sharemenu").hidden = false; $("shareback").hidden = false; }
 function closeShareMenu(){ $("sharemenu").hidden = true; $("shareback").hidden = true; }
 // Set when this editor session is editing the workflow of an existing app (carried in
 // via #ga= or the modal's __editflow__ message). "Create app" hands the graph back under
@@ -9149,8 +9167,10 @@ document.querySelectorAll("#sharemenu .sm-svc button").forEach(btn => btn.onclic
     const ok = await copyText(short);
     toast(ok ? `✓ Short link copied — via ${label}` : `Short link ready — copy it above`, ok?"":"err");
   }catch(e){
-    toast(`${label} couldn't shorten it (${e.message}) — try da.gd for very long links, or share the full link`, "err");
-  }finally{ btn.textContent = o; others.forEach(b=> b.disabled = false); }
+    toast(longUrl.length > SHORTEN_CEILING.dagd
+      ? `Too long to shorten (${(longUrl.length/1024).toFixed(0)} kB) — share the full link, or ✨ Create app + Export to share a file`
+      : `${label} couldn't shorten it (${e.message}) — try da.gd for very long links, or share the full link`, "err");
+  }finally{ btn.textContent = o; syncShortenButtons(); }
 });
 document.querySelectorAll('#sharemenu .sm-social a[data-soc="email"]').forEach(a=> a.onclick = ()=> closeShareMenu());
 // x/reddit/facebook: when the link the popover reflects is still long (a raw #g= workflow link),
