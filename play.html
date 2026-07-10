@@ -181,6 +181,9 @@
   .sm-svc button.sm-primary::before{ content:"✓"; color:var(--accent); font-weight:700; }
   .sm-svc button.sm-primary:hover{ background:var(--accent-soft); border-color:var(--accent); filter:brightness(1.1); }
   .sm-svc button:disabled{ opacity:.5; cursor:progress; }
+  /* :not([hidden]) — a bare display rule would defeat the hidden attr (row only shows when the link has a baked-in preview image) */
+  #sm-preview:not([hidden]){ display:flex; gap:.45rem; align-items:center; cursor:pointer; }
+  #sm-preview input{ accent-color:var(--accent); margin:0; }
   .sm-flag{ font-size:.66rem; color:var(--faint); }
 
   /* ---------- paste-key row ---------- */
@@ -434,6 +437,11 @@
     <button id="sm-copy" class="sm-copy">Copy</button>
   </div>
   <p class="sm-note">The whole app lives in this link — nothing hits a server when someone opens it. That's why it can get long.</p>
+  <!-- only shown when the link carries an inlined preview image the creator can trade for a much shorter link -->
+  <label class="sm-note" id="sm-preview" hidden>
+    <input type="checkbox" id="sm-previewcb" checked />
+    <span>Keep the preview image in the link</span> <span id="sm-previewkb" data-no-i18n></span>
+  </label>
 
   <div class="am-head">Make it shorter — optional</div>
   <p class="sm-warn" data-no-i18n>Sends this link to a third-party shortener so <em>they</em> host it. They can see the app.</p>
@@ -568,6 +576,7 @@ const PLAY_I18N_B = {
   "sign out":{es:"cerrar sesión",fr:"se déconnecter",de:"abmelden",pt:"sair",ja:"サインアウト"},
   "Copy":{es:"Copiar",fr:"Copier",de:"Kopieren",pt:"Copiar",ja:"コピー"},
   "Make it shorter — optional":{es:"Hazlo más corto — opcional",fr:"Raccourcir — facultatif",de:"Kürzer machen — optional",pt:"Torne mais curto — opcional",ja:"短くする — 任意"},
+  "Keep the preview image in the link":{es:"Mantener la imagen de vista previa en el enlace",fr:"Garder l’image d’aperçu dans le lien",de:"Vorschaubild im Link behalten",pt:"Manter a imagem de prévia no link",ja:"プレビュー画像をリンクに残す"},
   "Shorter domain, but can fail on very long links":{es:"Dominio más corto, pero puede fallar con enlaces muy largos",fr:"Domaine plus court, mais peut échouer sur les liens très longs",de:"Kürzere Domain, kann aber bei sehr langen Links fehlschlagen",pt:"Domínio mais curto, mas pode falhar com links muito longos",ja:"ドメインは短いですが、とても長いリンクでは失敗することがあります"},
   "Share to":{es:"Compartir en",fr:"Partager sur",de:"Teilen auf",pt:"Compartilhar em",ja:"共有先"},
   "paste NanoGPT API key (sk-nano-… or a UUID)":{es:"pega la clave API de NanoGPT (sk-nano-… o un UUID)",fr:"collez la clé API NanoGPT (sk-nano-… ou un UUID)",de:"NanoGPT API-Schlüssel einfügen (sk-nano-… oder UUID)",pt:"cole a chave de API NanoGPT (sk-nano-… ou um UUID)",ja:"NanoGPT APIキーを貼り付け (sk-nano-… または UUID)"},
@@ -7605,6 +7614,8 @@ function shareableGraph(g){
 let shareUrl = "";      // the link the popover currently reflects (long, or a shortened one)
 let longShareUrl = "";  // the FULL long link the popover was opened with — what shortening always acts on
                         // (doShare strips #a= back out of the address bar, so location.hash is empty by then)
+let shareAlt = null;    // packShareFit's alt endpoints ({media, noMedia}) when the share carries an
+                        // inlined preview image — powers the popover's "keep the preview" toggle; null hides it
 // Ask the live app iframe for portable samples of its latest outputs. Times out empty so Share
 // never hangs if the iframe is mid-boot or not listening.
 function askAppSamples(){
@@ -7625,15 +7636,46 @@ function askAppSamples(){
     catch(_){ finish([]); }
   });
 }
+// Re-encode one inlined preview image smaller (data: URLs only — no CORS taint) so packShareFit
+// can try a leaner preview before dropping it entirely. null on any failure/timeout: the caller
+// just falls through to stripping. Smaller than the runtime's 480px sample thumb on purpose —
+// this tier only runs when the link is already fighting the shortener ceilings.
+function shrinkShareMedia(src){
+  return new Promise((resolve)=>{
+    if(!/^data:image\//i.test(src)) return resolve(null);
+    const img = new Image();
+    let done = false;
+    const finish = (v)=>{ if(done) return; done = true; resolve(v); };
+    setTimeout(()=> finish(null), 3000);
+    img.onload = ()=>{
+      try{
+        let w = img.naturalWidth, h = img.naturalHeight;
+        if(!w || !h) return finish(null);
+        const max = 320;
+        if(w>max || h>max){ const sc = max/Math.max(w,h); w = Math.round(w*sc); h = Math.round(h*sc); }
+        const c = document.createElement("canvas"); c.width = w; c.height = h;
+        c.getContext("2d").drawImage(img, 0, 0, w, h);
+        finish(c.toDataURL("image/jpeg", 0.5));
+      }catch(_){ finish(null); }
+    };
+    img.onerror = ()=> finish(null);
+    try{ img.src = src; }catch(_){ finish(null); }
+  });
+}
 // Samples are the recipient's pre-sign-in preview, but a link the pipeline can't carry shows
 // nobody anything: past the da.gd ceiling no shortener accepts it and the social intents reject
-// it outright. Pack full samples → samples minus inlined media (data: thumbs are the only heavy
-// values; text is capped ~1.5k, remote media URLs ≤2k) → none, and ship the first link that
-// fits. sanitizeSamples' SAMPLE_BUDGET already bounds tier 1, so no raw-size cap here. When even
-// the bare app overflows, return the full-sample link — nothing fits anyway, and the popover
-// greys the dead ends. `stripped` = "media" | "all" | null says what was cut, so the caller can
-// tell the creator instead of thinning their share silently.
-async function packShareFit(base, samples, urlPrefix){
+// it outright. Pack full samples → samples with inlined media re-encoded smaller (via the
+// injected shrinkMedia, browser-canvas only — the offline guard runs this function without it)
+// → samples minus inlined media (data: thumbs are the only heavy values; text is capped ~1.5k,
+// remote media URLs ≤2k) → none, and ship the first link that fits. sanitizeSamples'
+// SAMPLE_BUDGET already bounds tier 1, so no raw-size cap here. When even the bare app
+// overflows, return the full-sample link — nothing fits anyway, and the popover greys the
+// dead ends. `stripped` = "shrunk" | "media" | "all" | null says what was compressed/cut, so
+// the caller can tell the creator instead of thinning their share silently. When the share has
+// inlined media at all, `alt` carries both endpoints — the best link WITH the preview image and
+// the same link without it — so the popover's preview toggle can swap between them.
+// NOTE for edits: no regex literals in this function body — check-share-link extracts it as text.
+async function packShareFit(base, samples, urlPrefix, shrinkMedia){
   const pack = async (payload)=>{
     const json = JSON.stringify(payload);
     const packed = await gzip(json).catch(()=>null);
@@ -7642,16 +7684,35 @@ async function packShareFit(base, samples, urlPrefix){
   };
   const all = (Array.isArray(samples) ? samples : []).filter(s=> s && typeof s.v==="string");
   const compact = all.filter(s=> s.v.length <= 2500);
+  const hasMedia = compact.length < all.length;
   const tiers = [{ s:all, stripped:null }];
-  if(compact.length && compact.length < all.length) tiers.push({ s:compact, stripped:"media" });
-  if(all.length) tiers.push({ s:[], stripped:"all" });
-  let first = null;
-  for(const t of tiers){
-    const url = await pack(t.s.length ? { ...base, samples:t.s } : base);
-    if(!first) first = { url, hasSample: all.length>0, stripped:null };
-    if(url.length <= SHORTEN_CEILING.dagd) return { url, hasSample: t.s.length>0, stripped: t.stripped };
+  if(hasMedia && typeof shrinkMedia === "function"){
+    const shrunk = []; let changed = false;
+    for(const s of all){
+      let v = s.v;
+      if(v.length > 2500 && v.slice(0,11) === "data:image/"){
+        const sm = await Promise.resolve(shrinkMedia(v)).catch(()=>null);
+        if(typeof sm === "string" && sm.length < v.length){ v = sm; changed = true; }
+      }
+      shrunk.push(v === s.v ? s : { ...s, v });
+    }
+    if(changed) tiers.push({ s:shrunk, stripped:"shrunk" });
   }
-  return first;
+  if(compact.length && hasMedia) tiers.push({ s:compact, stripped:"media" });
+  if(all.length) tiers.push({ s:[], stripped:"all" });
+  const packed = [];
+  for(const t of tiers) packed.push({ ...t, url: await pack(t.s.length ? { ...base, samples:t.s } : base) });
+  const fitT = packed.find(p=> p.url.length <= SHORTEN_CEILING.dagd) || packed[0];
+  const out = { url: fitT.url, hasSample: fitT.s.length>0, stripped: fitT.stripped };
+  if(hasMedia){
+    const isMediaTier = (p)=> p.stripped===null || p.stripped==="shrunk";
+    const withMedia = packed.filter(isMediaTier), sansMedia = packed.filter(p=> !isMediaTier(p));
+    if(withMedia.length && sansMedia.length){
+      const m = withMedia.find(p=> p.url.length <= SHORTEN_CEILING.dagd) || withMedia[0];
+      out.alt = { media: m.url, noMedia: sansMedia[0].url };
+    }
+  }
+  return out;
 }
 async function doShare(){
   try{
@@ -7669,7 +7730,7 @@ async function doShare(){
       APP_STATE.samples = samples;   // remember the FULL set for re-share / export, even when the link ships less
       try{ persist(); }catch(_){}
     }
-    const fit = await packShareFit(base, samples, location.origin + location.pathname);
+    const fit = await packShareFit(base, samples, location.origin + location.pathname, shrinkShareMedia);
     const url = fit.url;
     history.replaceState({}, "", url);                       // surface it so a failed copy can still be grabbed
     const ok = await copyText(url);
@@ -7682,8 +7743,10 @@ async function doShare(){
     // When packShareFit stripped media to keep the link deliverable, say so — a silently
     // thinner share reads as a bug when the recipient sees no preview.
     const sampleNote = fit.stripped
-      ? (fit.stripped==="media"
-           ? " · sample images left out (with them the link is too long to shorten or post — Export keeps them)"
+      ? (fit.stripped==="shrunk"
+           ? " · preview image compressed to keep the link shareable (Export keeps the original)"
+           : fit.stripped==="media"
+           ? " · sample images left out (with them the link is too long to shorten or post — the preview box below puts them back, Export keeps them)"
            : " · sample left out (with it the link is too long to shorten or post — Export keeps it)")
       : (fit.hasSample
            ? " · includes a sample of what it makes"
@@ -7692,7 +7755,7 @@ async function doShare(){
                  ? `✓ Link copied — the app as built, not your in-app edits${big}${sampleNote} · shorten or share below`
                  : `✓ Link copied${big}${sampleNote} · shorten it or share below — recipients sign in with their own key`)
              : `App link is in the address bar — copy it below${big}`, ok?"":"err");
-    openShareMenu(url);                                    // fast path stays one-click; options live in the popover
+    openShareMenu(url, fit.alt);                           // fast path stays one-click; options (incl. the preview toggle) live in the popover
   }catch(e){ toast("share failed: "+e.message, "err"); }
 }
 
@@ -7730,14 +7793,31 @@ function syncShortenButtons(){
   document.querySelectorAll("#sharemenu .sm-svc button").forEach(b=> b.disabled = len > (SHORTEN_CEILING[b.dataset.svc] || Infinity));
   const note = $("sm-toolong");
   note.hidden = !over;
-  if(over) note.textContent = `Too long to shorten (${(len/1024).toFixed(0)} kB — baked-in images do that). Chat apps can also cut a link this long — Export shares the app as a file instead.`;
+  if(over) note.textContent = `Too long to shorten (${(len/1024).toFixed(0)} kB — baked-in images do that). ` +
+    (shareAlt && shareAlt.noMedia.length <= SHORTEN_CEILING.dagd
+      ? "Untick the preview image above and this link slims right down."
+      : "Chat apps can also cut a link this long — Export shares the app as a file instead.");
   // Social intents need a short link, and past the da.gd ceiling no shortener can make one — the
   // whole "Share to" row is a guaranteed dead end (X/Reddit/Facebook reject multi-kB URLs, mail
   // clients cut multi-kB bodies). Blank the row (and its heading) rather than dangle broken buttons.
   const social = document.querySelector("#sharemenu .sm-social");
   if(social){ social.hidden = over; if(social.previousElementSibling) social.previousElementSibling.hidden = over; }
 }
-function openShareMenu(url){ longShareUrl = url; setShareUrl(url); syncShortenButtons(); $("sharemenu").hidden = false; $("shareback").hidden = false; $("share").setAttribute("aria-expanded","true"); }
+function openShareMenu(url, alt){
+  longShareUrl = url;
+  shareAlt = (alt && typeof alt.media==="string" && typeof alt.noMedia==="string") ? alt : null;
+  // preview toggle row: only when there's an inlined preview image to trade away. Checked state
+  // mirrors which variant this link is; the +kB chip says what the preview image costs.
+  const prow = $("sm-preview");
+  if(prow){
+    prow.hidden = !shareAlt;
+    if(shareAlt){
+      $("sm-previewcb").checked = (url === shareAlt.media);
+      $("sm-previewkb").textContent = "(+" + Math.max(1, Math.round((shareAlt.media.length - shareAlt.noMedia.length)/1024)) + " kB)";
+    }
+  }
+  setShareUrl(url); syncShortenButtons(); $("sharemenu").hidden = false; $("shareback").hidden = false; $("share").setAttribute("aria-expanded","true");
+}
 function closeShareMenu(){ $("sharemenu").hidden = true; $("shareback").hidden = true; $("share").setAttribute("aria-expanded","false"); }
 
 // SHORTEN — direct client-side fetch to the chosen service (no nanoodle backend in the path).
@@ -7886,6 +7966,20 @@ $("recwelcome-x").onclick = dismissRecipientWelcome;
 $("shareback").onclick = closeShareMenu;
 $("sm-copy").onclick = async ()=>{ const ok = await copyText(shareUrl); toast(ok?"✓ Copied":"copy failed", ok?"":"err"); };
 $("sm-url").onclick = ()=> $("sm-url").select();
+// preview toggle: swap the popover (and clipboard) between the with-preview and no-preview
+// variants of the SAME share. Everything downstream — shorten buttons, social row, too-long
+// note — re-syncs against the swapped link, so ticking it off revives the shorteners.
+$("sm-previewcb").onchange = async ()=>{
+  if(!shareAlt) return;
+  const on = $("sm-previewcb").checked;
+  const u = on ? shareAlt.media : shareAlt.noMedia;
+  longShareUrl = u; setShareUrl(u); syncShortenButtons();
+  const saved = Math.max(1, Math.round((shareAlt.media.length - shareAlt.noMedia.length)/1024));
+  const ok = await copyText(u);
+  toast(on ? (ok ? "✓ Link with the preview image copied" : "Preview image is back in — copy the link above")
+           : (ok ? `✓ Leaner link copied — preview image left out (${saved} kB smaller)`
+                 : "Preview image left out — copy the leaner link above"));
+};
 document.querySelectorAll("#sharemenu .sm-svc button").forEach(btn => btn.onclick = async ()=>{
   const svc = btn.dataset.svc, label = btn.textContent.trim();
   const longUrl = longShareUrl || (location.origin + location.pathname + location.hash);   // the full link the popover was opened with (NOT location.hash — doShare already stripped it)

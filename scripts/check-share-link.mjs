@@ -202,8 +202,10 @@ async function checkFile(file) {
     fail(file, "a link past the shortener ceilings left the social share row visible — X/Reddit/Facebook reject multi-kB URLs, so every click is a dead end");
 }
 
-// ---- packShareFit: strip baked-in media (not the whole sample set) to fit the da.gd
-// ceiling, and report what was cut so the share toast can tell the creator. ----
+// ---- packShareFit: shrink baked-in media (given a shrinker) or strip it (never the compact
+// text samples) to fit the da.gd ceiling, report what was compressed/cut so the share toast
+// can tell the creator, and expose alt {media, noMedia} endpoints for the popover's
+// preview-image toggle. ----
 async function checkPackFit(file) {
   const src = readFileSync(join(ROOT, file), "utf8");
   let program;
@@ -211,7 +213,7 @@ async function checkPackFit(file) {
     program =
       extractConst(src, "SHORTEN_CEILING") + "\n" +
       extractFunction(src, "packShareFit") + "\n" +
-      "return packShareFit(base, samples, prefix);";
+      "return packShareFit(base, samples, prefix, shrinkMedia);";
   } catch (e) {
     fail(file, e.message);
     return;
@@ -222,9 +224,9 @@ async function checkPackFit(file) {
   const { gzipSync } = await import("node:zlib");
   const gzip = async (str) => gzipSync(Buffer.from(str));
   const bytesToB64url = (bytes) => Buffer.from(bytes).toString("base64url");
-  const run = (base, samples) =>
-    new Function("base", "samples", "prefix", "gzip", "bytesToB64url", program)(
-      base, samples, "https://nanoodle.example/play.html", gzip, bytesToB64url);
+  const run = (base, samples, shrinkMedia) =>
+    new Function("base", "samples", "prefix", "gzip", "bytesToB64url", "shrinkMedia", program)(
+      base, samples, "https://nanoodle.example/play.html", gzip, bytesToB64url, shrinkMedia);
   // incompressible junk (sha256 chain — deterministic run to run) so gzip can't rescue the link
   const { createHash } = await import("node:crypto");
   const junk = (n) => {
@@ -244,6 +246,17 @@ async function checkPackFit(file) {
       fail(file, `packShareFit cut media without reporting it (stripped=${JSON.stringify(stripped.stripped)}) — the creator hears nothing`);
     if (stripped.hasSample !== true)
       fail(file, "packShareFit dropped the compact text sample too — only baked-in media needed to go");
+    // …and the popover's preview toggle gets both endpoints: the (over-ceiling) with-media
+    // link and the stripped one it shipped.
+    if (!stripped.alt || typeof stripped.alt.media !== "string" || stripped.alt.noMedia !== stripped.url)
+      fail(file, "packShareFit did not expose alt {media, noMedia} for the preview toggle on a media-bearing share");
+    // given a shrinker, media gets re-encoded smaller instead of dropped — the preview survives
+    const shrunk = await run(base, [mediaSample, textSample],
+      async () => "data:image/jpeg;base64," + junk(9000));
+    if (shrunk.stripped !== "shrunk" || shrunk.hasSample !== true || shrunk.url.length > 62000)
+      fail(file, `packShareFit ignored the media shrinker (stripped=${JSON.stringify(shrunk.stripped)}, ${shrunk.url.length} chars) — it dropped a preview it could have compressed`);
+    if (!shrunk.alt || shrunk.alt.media !== shrunk.url || !(shrunk.alt.noMedia.length < shrunk.alt.media.length))
+      fail(file, "packShareFit's alt endpoints are wrong on a shrunk share — the preview toggle would swap to the wrong link");
     // everything fits → nothing stripped, sample rides along
     const fits = await run(base, [textSample]);
     if (fits.stripped !== null || fits.hasSample !== true)
