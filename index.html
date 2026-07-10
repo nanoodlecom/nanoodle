@@ -857,7 +857,7 @@
   .sm-note{ font-size:.74rem; color:var(--dim); margin:.4rem .15rem .1rem; line-height:1.4; }
   .sm-warn{ font-size:.74rem; color:var(--dim); margin:.15rem .15rem .35rem; line-height:1.45;
             border-left:2px solid var(--accent); padding:.1rem .5rem; }
-  .sm-svc, .sm-social{ display:flex; gap:.4rem; flex-wrap:wrap; }
+  .sm-svc, .sm-social:not([hidden]){ display:flex; gap:.4rem; flex-wrap:wrap; }   /* :not([hidden]) — a bare display rule would defeat the hidden attr when the social row is blanked */
   .sm-svc button, .sm-social a{ font-size:.82rem; padding:.4rem .6rem; border-radius:.5rem; cursor:pointer;
             background:var(--panel2); border:1px solid var(--line); color:var(--ink); text-decoration:none;
             display:inline-flex; align-items:center; gap:.3rem; }
@@ -1085,6 +1085,7 @@
     <button data-svc="dagd" class="sm-primary" title="Recommended — handles very long links (workflow links can get big)">da.gd</button>
     <button data-svc="tinyurl" title="Shorter domain, but can fail on very long links">TinyURL</button>
   </div>
+  <p id="sm-toolong" class="sm-warn" hidden></p>
 
   <div class="sm-head">Share to</div>
   <div class="sm-social">
@@ -8922,7 +8923,39 @@ async function copyText(t){
 //                 Customize polish, not a default rebuild that silently discards it.
 // target other  → this editor page: opens the editable WORKFLOW (the 🔗 Share default, for remixing).
 // One packer so the 🔗 Share button and the 🏆 Submit popup never drift.
+// Samples are the recipient's pre-sign-in preview, but a link the pipeline can't carry shows
+// nobody anything: past the da.gd ceiling no shortener accepts it and the social intents reject
+// it outright. Pack full samples → samples minus inlined media (data: thumbs are the only heavy
+// values; play.html's sample packer caps text ~1.5k, remote media URLs ≤2k) → none, and ship the
+// first link that fits. play.html's SAMPLE_BUDGET already bounds tier 1, so no raw-size cap here.
+// When even the bare app overflows, return the full-sample link — nothing fits anyway, and the
+// popover greys the dead ends. `stripped` = "media" | "all" | null says what was cut, so the
+// caller can tell the creator instead of thinning their share silently. (Twin of play.html's.)
+async function packShareFit(base, samples, urlPrefix){
+  const pack = async (payload)=>{
+    const json = JSON.stringify(payload);
+    const packed = await gzip(json).catch(()=>null);
+    return urlPrefix + (packed ? "#a="+bytesToB64url(packed)
+                               : "#a=u"+bytesToB64url(new TextEncoder().encode(json))); // 'u' = uncompressed fallback
+  };
+  const all = (Array.isArray(samples) ? samples : []).filter(s=> s && typeof s.v==="string");
+  const compact = all.filter(s=> s.v.length <= 2500);
+  const tiers = [{ s:all, stripped:null }];
+  if(compact.length && compact.length < all.length) tiers.push({ s:compact, stripped:"media" });
+  if(all.length) tiers.push({ s:[], stripped:"all" });
+  let first = null;
+  for(const t of tiers){
+    const url = await pack(t.s.length ? { ...base, samples:t.s } : base);
+    if(!first) first = { url, hasSample: all.length>0, stripped:null };
+    if(url.length <= SHORTEN_CEILING.dagd) return { url, hasSample: t.s.length>0, stripped: t.stripped };
+  }
+  return first;
+}
+// What the last buildShareUrl("app") had to cut to fit ("media" | "all" | null) — read by the
+// callers (🏆 Submit fill) to tell the creator, since buildShareUrl itself only returns the URL.
+let lastShareStripped = null;
 async function buildShareUrl(target){
+  lastShareStripped = null;
   if(target==="app" && pendingAppId){
     try{
       const apps = JSON.parse(localStorage.getItem("noodle_apps") || "[]");
@@ -8934,8 +8967,8 @@ async function buildShareUrl(target){
         try{ if(appHandoffSig(app.graph) !== appHandoffSig())
           toast("Link opens the app as last saved — hit ✨ Update first to include your newest canvas edits", "warn"); }catch(_){}
         // Pack like play.html's doShare: include creator samples (pre-sign-in preview) + lang
-        // when the library entry has them. Drop samples if they would bloat the URL past ~200kB
-        // of extra JSON (same soft ceiling as doShare).
+        // when the library entry has them, stripping media via packShareFit when the link
+        // wouldn't fit the shortener/social pipeline otherwise.
         // Mirror play.html's bakedAppLang(): the ORIGINAL creator's stored app.lang, else THIS
         // creator's explicit editor choice (localStorage noodle_lang, supported set only — never
         // the navigator fallback), so editor and play share links bake the same language.
@@ -8945,17 +8978,9 @@ async function buildShareUrl(target){
           return (stored && SUP[stored]) ? stored : "";
         })();
         const base = { v:1, graph:shareableGraph(app.graph), files:app.files, ...(_lang?{lang:_lang}:{}) };
-        let payload = base;
-        const samples = Array.isArray(app.samples) ? app.samples : null;
-        if(samples && samples.length){
-          const withS = { ...base, samples };
-          if(JSON.stringify(withS).length <= JSON.stringify(base).length + 200000) payload = withS;
-        }
-        const json = JSON.stringify(payload);
-        const packed = await gzip(json).catch(()=>null);
-        const hash = packed ? "#a="+bytesToB64url(packed)
-                            : "#a=u"+bytesToB64url(new TextEncoder().encode(json));   // 'u' = uncompressed (mirror doShare)
-        return location.origin + "/play.html" + hash;
+        const fit = await packShareFit(base, app.samples, location.origin + "/play.html");
+        lastShareStripped = fit.stripped;
+        return fit.url;
       }
     }catch(_){ /* unreadable library → fall back to the default-app link below */ }
   }
@@ -8968,7 +8993,13 @@ async function buildShareUrl(target){
 // URL shorteners (TinyURL GET, da.gd POST for long links). The editor's connect-src allows https:
 // and runs only first-party code over declarative graphs — no untrusted app — so calling a
 // shortener here has no exfiltration surface (unlike play.html's preview, sealed by PREVIEW_CSP).
+// Hard ceilings, probed 2026-07-10: TinyURL's GET 431/520s past ~20k URL chars; da.gd's POST
+// 500s past ~64k. A workflow with images baked in beats both easily — grey the buttons and say
+// why up front instead of letting the click surface the services' raw HTML error pages.
+const SHORTEN_CEILING = { tinyurl: 19000, dagd: 62000 };
 async function shortenWith(svc, longUrl){
+  const max = SHORTEN_CEILING[svc];   // fail fast (and cheap) on links the service is known to reject
+  if(max && longUrl.length > max) throw new Error(`link is ${(longUrl.length/1024).toFixed(0)} kB — past the ~${Math.round(max/1000)} kB ${svc==="dagd"?"da.gd":"TinyURL"} accepts`);
   let r, t;
   if(svc==="tinyurl"){
     r = await fetch("https://tinyurl.com/api-create.php?url="+encodeURIComponent(longUrl));
@@ -8978,7 +9009,8 @@ async function shortenWith(svc, longUrl){
         headers:{ "Content-Type":"application/x-www-form-urlencoded" }, body:"url="+encodeURIComponent(longUrl) });
     t = (await r.text()).trim();
   } else { throw new Error("unknown service"); }
-  if(!/^https?:\/\/\S+$/.test(t)) throw new Error(t.slice(0,80) || "no link returned");
+  // Failure bodies are often whole HTML error pages — report the status, not tag soup.
+  if(!/^https?:\/\/\S+$/.test(t)) throw new Error(t.startsWith("<") ? "HTTP "+r.status : (t.slice(0,80) || "no link returned"));
   return t;
 }
 async function shareUrl(){
@@ -9020,7 +9052,22 @@ function setShareUrl(u){
 // twitter/reddit/facebook reject or truncate multi-KB URLs — a raw #g= link kills the share at
 // the exact moment someone tries to spread the workflow. Above this length, auto-shorten first.
 const SOCIAL_SHORTEN_MAX = 2000;
-function openShareMenu(url){ curLongShareUrl = url; setShareUrl(url); $("sharemenu").hidden = false; $("shareback").hidden = false; }
+// Reflect what the shorteners can actually take for the CURRENT link: per-service disable,
+// plus a note when no service can help. The attempt handler blanket-disables the buttons
+// while a shorten is in flight, so its finally must restore through here too.
+function syncShortenButtons(){
+  const len = curLongShareUrl.length, over = len > SHORTEN_CEILING.dagd;
+  document.querySelectorAll("#sharemenu .sm-svc button").forEach(b=> b.disabled = len > (SHORTEN_CEILING[b.dataset.svc] || Infinity));
+  const note = $("sm-toolong");
+  note.hidden = !over;
+  if(over) note.textContent = `Too long to shorten (${(len/1024).toFixed(0)} kB — baked-in images do that). Chat apps can also cut a link this long — ✨ Create app, then Export it as a file, to share something this big.`;
+  // Social intents need a short link, and past the da.gd ceiling no shortener can make one — the
+  // whole "Share to" row is a guaranteed dead end (X/Reddit/Facebook reject multi-kB URLs, mail
+  // clients cut multi-kB bodies). Blank the row (and its heading) rather than dangle broken buttons.
+  const social = document.querySelector("#sharemenu .sm-social");
+  if(social){ social.hidden = over; if(social.previousElementSibling) social.previousElementSibling.hidden = over; }
+}
+function openShareMenu(url){ curLongShareUrl = url; setShareUrl(url); syncShortenButtons(); $("sharemenu").hidden = false; $("shareback").hidden = false; }
 function closeShareMenu(){ $("sharemenu").hidden = true; $("shareback").hidden = true; }
 // Set when this editor session is editing the workflow of an existing app (carried in
 // via #ga= or the modal's __editflow__ message). "Create app" hands the graph back under
@@ -9149,15 +9196,18 @@ document.querySelectorAll("#sharemenu .sm-svc button").forEach(btn => btn.onclic
     const ok = await copyText(short);
     toast(ok ? `✓ Short link copied — via ${label}` : `Short link ready — copy it above`, ok?"":"err");
   }catch(e){
-    toast(`${label} couldn't shorten it (${e.message}) — try da.gd for very long links, or share the full link`, "err");
-  }finally{ btn.textContent = o; others.forEach(b=> b.disabled = false); }
+    toast(longUrl.length > SHORTEN_CEILING.dagd
+      ? `Too long to shorten (${(longUrl.length/1024).toFixed(0)} kB) — share the full link, or ✨ Create app + Export to share a file`
+      : `${label} couldn't shorten it (${e.message}) — try da.gd for very long links, or share the full link`, "err");
+  }finally{ btn.textContent = o; syncShortenButtons(); }
 });
 document.querySelectorAll('#sharemenu .sm-social a[data-soc="email"]').forEach(a=> a.onclick = ()=> closeShareMenu());
 // x/reddit/facebook: when the link the popover reflects is still long (a raw #g= workflow link),
 // auto-shorten it before opening the intent — the social sites reject/truncate multi-KB URLs. The
 // window is opened SYNCHRONOUSLY on click (so the async shorten doesn't trip the popup blocker),
-// then pointed at the short intent once da.gd resolves. On shortener failure we fall back to the
-// long intent (unchanged behavior) rather than block the share. If the link was already shortened
+// then pointed at the short intent once da.gd resolves. On shortener failure we CLOSE the window
+// and say why — the long intent is a guaranteed reject at the social site, so "falling back" to it
+// just moves the failure somewhere we can't explain it. If the link was already shortened
 // (manual ✂ button), curShareUrl is short, so the anchor just opens normally.
 document.querySelectorAll('#sharemenu .sm-social a:not([data-soc="email"])').forEach(a=> a.onclick = (e)=>{
   if(curShareUrl.length <= SOCIAL_SHORTEN_MAX){ closeShareMenu(); return; }   // short enough → let the anchor open
@@ -9169,7 +9219,8 @@ document.querySelectorAll('#sharemenu .sm-social a:not([data-soc="email"])').for
     const t = document.createElement("a"); t.href = href; t.target = "_blank"; t.rel = "noopener";   // popup blocked: best-effort new tab
     document.body.appendChild(t); t.click(); t.remove();
   };
-  shortenWith("dagd", curLongShareUrl).then(short => go(socLinks(short)[soc])).catch(()=> go(a.href));
+  shortenWith("dagd", curLongShareUrl).then(short => go(socLinks(short)[soc]))
+    .catch(()=>{ try{ if(win) win.close(); }catch(_){} toast("couldn't shorten the link for the post, and the full one is too long to post raw — copy it from Share instead", "err"); });
   closeShareMenu();
 });
 document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && !$("sharemenu").hidden){ e.stopPropagation(); closeShareMenu(); } }, true);
@@ -9340,7 +9391,11 @@ const SUBMIT_HINT = {
 };
 async function fillSubmitLink(){               // (re)generate the link for the active target
   const inp = $("submitlink"); inp.value = "…";
-  try{ inp.value = await buildShareUrl(submitTarget); }catch(e){ inp.value = ""; }
+  try{
+    inp.value = await buildShareUrl(submitTarget);
+    // packShareFit had to cut samples to keep the link shortenable/postable — tell the entrant.
+    if(lastShareStripped) toast("sample images left out of this link — with them it's too long to shorten or post", "warn");
+  }catch(e){ inp.value = ""; }
   inp.focus(); inp.select();                   // keyboard users can copy immediately
 }
 function setSubmitTarget(tgt){                        // NB: not `t` — that's the global translation fn

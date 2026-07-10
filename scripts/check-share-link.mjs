@@ -10,7 +10,14 @@
 // an EMPTY app. Every prettified share link (the ones people actually paste
 // into Reddit/Discord/tweets) silently pointed at nothing.
 //
-// No browser, no network, no inference. We lift the two shipped code pieces
+// Also pinned here (2026-07-10):
+//   - packShareFit strips baked-in media samples (never the compact text ones)
+//     when the link would overflow every shortener, and REPORTS the cut so the
+//     share toast can tell the creator.
+//   - past the da.gd ceiling the shorten buttons grey out with a note, and the
+//     social row blanks (X/Reddit/Facebook reject multi-kB URLs outright).
+//
+// No browser, no network, no inference. We lift the shipped code pieces
 // out of the HTML as text and run them against stubs, reproducing the exact
 // bug condition:
 //   1. openShareMenu(LONG_URL_WITH_FRAGMENT)  — the popover captures the link
@@ -64,14 +71,22 @@ function matchBrace(src, openIdx) {
   throw new Error("unbalanced braces from index " + openIdx);
 }
 
-// pull `function <name>(...) { ... }` out as text
+// pull `[async] function <name>(...) { ... }` out as text (keep `async` — dropping it
+// turns every `await` in the body into a syntax error)
 function extractFunction(src, name) {
-  const sig = new RegExp("function\\s+" + name + "\\s*\\([^)]*\\)\\s*\\{");
+  const sig = new RegExp("(?:async\\s+)?function\\s+" + name + "\\s*\\([^)]*\\)\\s*\\{");
   const m = sig.exec(src);
   if (!m) throw new Error(`could not find function ${name}()`);
   const open = src.indexOf("{", m.index);
   const close = matchBrace(src, open);
   return src.slice(m.index, close + 1);
+}
+
+// pull `const <name> = { ... };` out as text (single-level object literal)
+function extractConst(src, name) {
+  const m = new RegExp("const\\s+" + name + "\\s*=\\s*\\{[^{}]*\\};?").exec(src);
+  if (!m) throw new Error(`could not find const ${name}`);
+  return m[0];
 }
 
 // pull the shorten button's click handler BODY out as text (the async arrow
@@ -97,11 +112,13 @@ const FRAG_MARK = "#a=PAYLOAD_MUST_SURVIVE_123";
 
 async function checkFile(file) {
   const src = readFileSync(join(ROOT, file), "utf8");
-  let openFn, handlerBody, capVar;
+  let openFn, handlerBody, capVar, syncFn, ceilings;
   try {
     openFn = extractFunction(src, "openShareMenu");
     handlerBody = extractShortenHandlerBody(src);
     capVar = captureVar(openFn);
+    syncFn = extractFunction(src, "syncShortenButtons");
+    ceilings = extractConst(src, "SHORTEN_CEILING");
   } catch (e) {
     fail(file, e.message);
     return;
@@ -109,36 +126,54 @@ async function checkFile(file) {
 
   // record what the shortener was actually handed
   const shortenCalls = [];
+  // memoized per-id elements so assertions can observe what the shipped code set
+  const els = {};
   const stubs = {
-    $: () => ({ hidden: false, value: "", select() {}, setAttribute() {} }),
+    $: (id) => els[id] || (els[id] = { hidden: false, value: "", textContent: "", select() {}, setAttribute() {} }),
     setShareUrl: () => {},
     copyText: async () => true,
     toast: () => {},
     shortenWith: async (_svc, url) => { shortenCalls.push(url); return "https://sh.rt/x"; },
     location: { origin: "https://nanoodle.example", pathname: "/APP", search: "", hash: "" },
   };
-  // one fake shorten button (TinyURL); document.querySelectorAll returns [it]
+  // one fake shorten button (TinyURL) + the social row syncShortenButtons blanks when
+  // no shortener can serve the link (social intents reject multi-kB URLs outright)
   const btn = { dataset: { svc: "tinyurl" }, textContent: "TinyURL", disabled: false };
-  stubs.document = { querySelectorAll: () => [btn] };
+  const socialHead = { hidden: false };
+  const socialRow = { hidden: false, previousElementSibling: socialHead };
+  stubs.document = {
+    querySelectorAll: (sel) => (/sm-social/.test(sel) ? [] : [btn]),
+    querySelector: (sel) => (/sm-social/.test(sel) ? socialRow : null),
+  };
 
   // Assemble a runnable program from the SHIPPED source pieces. `capVar` is the
-  // module-level capture var openShareMenu writes and the handler reads.
+  // module-level capture var openShareMenu writes and the handler reads. After the
+  // normal flow, re-open the popover with a link past every shortener's ceiling —
+  // the buttons must grey out and the "too long" note must appear (2026-07-10 fix:
+  // baked-in-image links used to surface the services' raw HTML error pages).
   const program =
     `let ${capVar} = "";\n` +
+    ceilings + "\n" +
+    syncFn + "\n" +
     openFn + "\n" +
     `const __click = async (btn) => {${handlerBody}};\n` +
     `return (async () => {\n` +
     `  openShareMenu(FRAG);\n` +           // popover captures the full link
+    `  const socialSmall = socialRow.hidden;\n` +  // a shortenable link must keep the social row
     `  location.hash = "";\n` +            // share flow strips the address-bar hash
     `  await __click(btn);\n` +            // user clicks "Shorten → TinyURL"
-    `  return ${capVar};\n` +
+    `  const got = ${capVar};\n` +
+    `  openShareMenu(BIG);\n` +            // media-heavy link: past every ceiling
+    `  return { got, socialSmall };\n` +
     `})();`;
 
-  const names = Object.keys(stubs).concat(["btn", "FRAG"]);
-  let captured;
+  const BIG = "https://nanoodle.example/APP#a=" + "A".repeat(70000);
+  const extras = { btn, FRAG, BIG, socialRow };
+  const names = Object.keys(stubs).concat(Object.keys(extras));
+  let captured, socialSmall;
   try {
     const fn = new Function(...names, program);
-    captured = await fn(...names.map((k) => (k === "btn" ? btn : k === "FRAG" ? FRAG : stubs[k])));
+    ({ got: captured, socialSmall } = await fn(...names.map((k) => (k in extras ? extras[k] : stubs[k]))));
   } catch (e) {
     fail(file, "share/shorten flow threw: " + (e && e.message ? e.message : e));
     return;
@@ -146,6 +181,8 @@ async function checkFile(file) {
 
   if (captured !== FRAG)
     fail(file, `openShareMenu did not capture the full link (${capVar}=${JSON.stringify(captured)})`);
+  if (socialSmall !== false)
+    fail(file, "a comfortably-shortenable link hid the social share row — it should only blank past the da.gd ceiling");
   if (shortenCalls.length !== 1) {
     fail(file, `expected exactly one shorten call, got ${shortenCalls.length}`);
     return;
@@ -155,11 +192,80 @@ async function checkFile(file) {
     fail(file, `the shortener was handed a link with NO payload fragment (${JSON.stringify(sent)}) — short links would open an empty app`);
   else if (sent !== FRAG)
     fail(file, `the shortener was handed an altered link: ${JSON.stringify(sent)}`);
+  // the over-ceiling reopen: no dead-end buttons, and the note says why
+  if (!btn.disabled)
+    fail(file, "a link past the shortener ceilings left the shorten button enabled — clicking it is a guaranteed dead end");
+  const note = els["sm-toolong"];
+  if (!note || note.hidden !== false || !/kB/.test(note.textContent))
+    fail(file, "a link past the shortener ceilings did not surface the too-long note (#sm-toolong with a kB size)");
+  if (socialRow.hidden !== true || socialHead.hidden !== true)
+    fail(file, "a link past the shortener ceilings left the social share row visible — X/Reddit/Facebook reject multi-kB URLs, so every click is a dead end");
+}
+
+// ---- packShareFit: strip baked-in media (not the whole sample set) to fit the da.gd
+// ceiling, and report what was cut so the share toast can tell the creator. ----
+async function checkPackFit(file) {
+  const src = readFileSync(join(ROOT, file), "utf8");
+  let program;
+  try {
+    program =
+      extractConst(src, "SHORTEN_CEILING") + "\n" +
+      extractFunction(src, "packShareFit") + "\n" +
+      "return packShareFit(base, samples, prefix);";
+  } catch (e) {
+    fail(file, e.message);
+    return;
+  }
+  // Node-native stand-ins for the browser helpers packShareFit leans on (matchBrace can't
+  // lex the shipped bytesToB64url — its /\//g regex literal reads as a line comment — and
+  // their exact bytes aren't the contract here; the tiering logic is).
+  const { gzipSync } = await import("node:zlib");
+  const gzip = async (str) => gzipSync(Buffer.from(str));
+  const bytesToB64url = (bytes) => Buffer.from(bytes).toString("base64url");
+  const run = (base, samples) =>
+    new Function("base", "samples", "prefix", "gzip", "bytesToB64url", program)(
+      base, samples, "https://nanoodle.example/play.html", gzip, bytesToB64url);
+  // incompressible junk (sha256 chain — deterministic run to run) so gzip can't rescue the link
+  const { createHash } = await import("node:crypto");
+  const junk = (n) => {
+    let out = "", block = Buffer.from("nanoodle-share-fit-seed");
+    while (out.length < n) { block = createHash("sha256").update(block).digest(); out += block.toString("base64"); }
+    return out.slice(0, n);
+  };
+  const base = { v: 1, graph: { nodes: [], wires: [] }, files: { "index.html": "<html>app</html>" } };
+  const mediaSample = { id: "n1", type: "image", port: "image", ptype: "image", v: "data:image/jpeg;base64," + junk(90000) };
+  const textSample = { id: "n2", type: "llm", port: "text", ptype: "text", v: "a tiny text preview" };
+  try {
+    // media blows the ceiling → the image goes, the text preview stays, the link fits
+    const stripped = await run(base, [mediaSample, textSample]);
+    if (stripped.url.length > 62000 || !stripped.url.includes("#a="))
+      fail(file, `packShareFit shipped a link no shortener can take (${stripped.url.length} chars) instead of stripping media`);
+    if (stripped.stripped !== "media")
+      fail(file, `packShareFit cut media without reporting it (stripped=${JSON.stringify(stripped.stripped)}) — the creator hears nothing`);
+    if (stripped.hasSample !== true)
+      fail(file, "packShareFit dropped the compact text sample too — only baked-in media needed to go");
+    // everything fits → nothing stripped, sample rides along
+    const fits = await run(base, [textSample]);
+    if (fits.stripped !== null || fits.hasSample !== true)
+      fail(file, `packShareFit touched a link that already fit (stripped=${JSON.stringify(fits.stripped)}, hasSample=${fits.hasSample})`);
+    // no samples at all → still packs, flags nothing
+    const bare = await run(base, []);
+    if (bare.stripped !== null || bare.hasSample !== false || !bare.url.includes("#a="))
+      fail(file, "packShareFit mishandled a sample-less share");
+    // even the bare app overflows → return the full-fidelity link (popover greys the dead ends)
+    const huge = await run({ ...base, files: { "index.html": junk(120000) } }, [mediaSample]);
+    if (huge.stripped !== null || huge.url.length <= 62000)
+      fail(file, "packShareFit stripped samples from a link that overflows either way — that loses the preview for nothing");
+  } catch (e) {
+    fail(file, "packShareFit threw: " + (e && e.message ? e.message : e));
+  }
 }
 
 try {
   await checkFile("index.html");
   await checkFile("play.html");
+  await checkPackFit("index.html");
+  await checkPackFit("play.html");
 } catch (e) {
   fail("check-share-link", "harness error: " + (e && e.stack ? e.stack : e));
 }

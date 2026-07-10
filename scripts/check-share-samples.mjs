@@ -82,9 +82,15 @@ ok("S1b", /type:\s*["']__getsamples__["']/.test(html), "parent never posts __get
 ok("S1c", /type:\s*["']__samples__["']/.test(html), "__samples__ reply missing");
 const doShare = extractFn(html, "doShare");
 ok("S1d", /askAppSamples\s*\(/.test(doShare), "doShare does not ask for samples");
-ok("S1e", /\bsamples\b/.test(doShare) && /JSON\.stringify\s*\(\s*payload\s*\)/.test(doShare),
-  "doShare does not pack samples into the #a= payload");
-ok("S1f", /200000/.test(doShare), "doShare missing soft size ceiling for samples");
+// Since 2026-07-10 the packing (and its size ceiling) live in packShareFit: it fits the
+// link under the da.gd shortener ceiling by stripping inlined media first, whole samples
+// second, and reports the cut. check-share-link.mjs runs its tiering logic for real; here
+// we pin that doShare actually routes through it and that samples reach the payload.
+const packFit = extractFn(html, "packShareFit");
+ok("S1e", /packShareFit\s*\(/.test(doShare) && /\bsamples\b/.test(doShare) && /samples\s*:/.test(packFit),
+  "doShare does not pack samples into the #a= payload via packShareFit");
+ok("S1f", /SHORTEN_CEILING\.dagd/.test(packFit),
+  "packShareFit missing the shortener-ceiling size fit for samples");
 
 // ---- S1g: editor buildShareUrl("app") packs samples + lang (parity with doShare)
 // Cookoff Submit / editor "share as app" used to ship {v,graph,files} only, so
@@ -99,8 +105,11 @@ ok("S1f", /200000/.test(doShare), "doShare missing soft size ceiling for samples
     "editor buildShareUrl does not pack app.samples into the #a= payload (parity with play doShare)");
   ok("S1h", /app\.lang/.test(buildShare) || /\blang\b/.test(buildShare),
     "editor buildShareUrl does not pack app.lang into the #a= payload");
-  ok("S1i", /200000/.test(buildShare),
-    "editor buildShareUrl missing soft size ceiling for samples (must match doShare)");
+  let idxPackFit = "";
+  try { idxPackFit = extractFn(idxHtml, "packShareFit"); }
+  catch (e) { fail("S1i", "index.html packShareFit missing: " + e.message); }
+  ok("S1i", /packShareFit\s*\(/.test(buildShare) && /SHORTEN_CEILING\.dagd/.test(idxPackFit),
+    "editor buildShareUrl missing the packShareFit size fit for samples (must match doShare)");
   // Lang parity with play's bakedAppLang(): stored app.lang, else the creator's EXPLICIT
   // editor choice (localStorage noodle_lang) — the two share paths must bake the same lang.
   ok("S1j", /noodle_lang/.test(buildShare),
