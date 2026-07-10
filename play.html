@@ -1409,9 +1409,27 @@ window.NoodleApp = (function () {
   }
   // per-call image params: LoRA + a fixed seed when set (only-when-nonempty). Mirrors index.html's
   // imgExtra so an exported/standalone run produces the same request as the editor.
+  // custom-civitai requires a full AIR (civitai:modelId@versionId) — live-verified.
+  function needsCustomCivitai(model){ return model === "custom-civitai"; }
+  function normalizeCustomCivitaiAir(raw){
+    var s = String(raw||"").trim(); if(!s) return "";
+    if(/^civitai:\d+@\d+/i.test(s)) return s.replace(/^civitai:/i, "civitai:");
+    var bare = /^(\d+)@(\d+)$/.exec(s); if(bare) return "civitai:"+bare[1]+"@"+bare[2];
+    var mid = /civitai\.com\/models\/(\d+)/i.exec(s);
+    var vid = /[?&]modelVersionId=(\d+)/i.exec(s);
+    if(mid && vid) return "civitai:"+mid[1]+"@"+vid[1];
+    return s;
+  }
   function imgExtra(n){
     var e = loraParams(n), s = n.fields.seed;
     if(s!=null && String(s).trim()!=="" && !isNaN(Number(s))) e.seed = Number(s);
+    if(needsCustomCivitai(n.fields.model)){
+      var air = normalizeCustomCivitaiAir(n.fields.customCivitaiAir);
+      if(!air) throw new Error("select a CivitAI model — use AIR format civitai:modelId@versionId");
+      if(!/^civitai:\d+@\d+/i.test(air))
+        throw new Error("CivitAI model must be AIR format civitai:modelId@versionId — both numbers are required");
+      e.customCivitaiAir = air;
+    }
     return e;
   }
 
@@ -3298,6 +3316,12 @@ function mp4ParamsMatch(bufs){
                    options:s.options, def:s.def, min:min, max:s.max, step:s.step,
                    modelKind:(s.kind==="model" ? SETTING_MODEL_KIND[n.type] : null),
                    node:n, title:displayName(n), em:NODE_TYPES[n.type].em });
+      }
+      // custom-civitai needs a CivitAI model URL/ID (sent as customCivitaiAir) — only surface when
+      // that model is selected so other image apps stay uncluttered.
+      if(n.type==="image" && n.fields && n.fields.model==="custom-civitai"){
+        out.push({ nodeId:n.id, field:"customCivitaiAir", label:"CivitAI model", kind:"text",
+                   def:"", modelKind:null, node:n, title:displayName(n), em:NODE_TYPES[n.type].em });
       }
     }
     return out;
