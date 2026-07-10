@@ -7781,10 +7781,17 @@ function setShareUrl(u){
 // twitter/reddit/facebook reject or truncate multi-KB URLs — a raw #a= app link kills the share at
 // the exact moment someone tries to spread it. Above this length, auto-shorten first.
 const SOCIAL_SHORTEN_MAX = 2000;
-// Hard ceilings, probed 2026-07-10: TinyURL's GET 431/520s past ~20k URL chars; da.gd's POST
-// 500s past ~64k. An app with images baked in beats both easily — grey the buttons and say
-// why up front instead of letting the click surface the services' raw HTML error pages.
-const SHORTEN_CEILING = { tinyurl: 19000, dagd: 62000 };
+// Hard ceilings, probed 2026-07-10. TinyURL's GET 431/520s past ~20k URL chars. da.gd's POST
+// *accepts* ~64k — but the short link it hands back then HANGS on load for most recipients:
+// da.gd is Cloudflare-fronted and speaks HTTP/3, and CF's h3 edge silently stalls mid-response
+// once the 302's header block gets big (da.gd echoes the FULL target URL twice — Location +
+// x-original-url). Forced-h3 netlog bisect: a ~10k target loads, ~12k hangs forever. So the
+// binding da.gd limit is the recipient-loadable one (~9k, with margin), NOT what da.gd will
+// store — do NOT raise it back toward 64k or you mint links that 302 into a dead spinner. (Our
+// own zone is the same CF edge but serves small headers, so direct long links load fine; don't
+// disable h3 on our side — wrong hop.) An app with images baked in beats this easily — grey the
+// buttons and say why up front instead of handing out a redirect that hangs.
+const SHORTEN_CEILING = { tinyurl: 19000, dagd: 9000 };
 // Reflect what the shorteners can actually take for the CURRENT link: per-service disable,
 // plus a note when no service can help. The attempt handler blanket-disables the buttons
 // while a shorten is in flight, so its finally must restore through here too.
@@ -7824,7 +7831,7 @@ function closeShareMenu(){ $("sharemenu").hidden = true; $("shareback").hidden =
 // Both return the short URL as plain text and preserve our #a= fragment through the redirect.
 async function shortenWith(svc, longUrl){
   const max = SHORTEN_CEILING[svc];   // fail fast (and cheap) on links the service is known to reject
-  if(max && longUrl.length > max) throw new Error(`link is ${(longUrl.length/1024).toFixed(0)} kB — past the ~${Math.round(max/1000)} kB ${svc==="dagd"?"da.gd":"TinyURL"} accepts`);
+  if(max && longUrl.length > max) throw new Error(`link is ${(longUrl.length/1024).toFixed(0)} kB — past the ~${Math.round(max/1000)} kB ${svc==="dagd"?"da.gd":"TinyURL"} shortens to a link that reliably loads`);
   let r, t;
   if(svc==="tinyurl"){
     r = await fetch("https://tinyurl.com/api-create.php?url="+encodeURIComponent(longUrl));

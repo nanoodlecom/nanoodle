@@ -218,6 +218,9 @@ async function checkPackFit(file) {
     fail(file, e.message);
     return;
   }
+  // Track the shipped da.gd ceiling instead of hardcoding it — it's the recipient-loadable
+  // limit (~9k), well under what da.gd will store (see the SHORTEN_CEILING comment in the HTML).
+  const DAGD = Number((extractConst(src, "SHORTEN_CEILING").match(/dagd:\s*(\d+)/) || [])[1]);
   // Node-native stand-ins for the browser helpers packShareFit leans on (matchBrace can't
   // lex the shipped bytesToB64url — its /\//g regex literal reads as a line comment — and
   // their exact bytes aren't the contract here; the tiering logic is).
@@ -240,7 +243,7 @@ async function checkPackFit(file) {
   try {
     // media blows the ceiling → the image goes, the text preview stays, the link fits
     const stripped = await run(base, [mediaSample, textSample]);
-    if (stripped.url.length > 62000 || !stripped.url.includes("#a="))
+    if (stripped.url.length > DAGD || !stripped.url.includes("#a="))
       fail(file, `packShareFit shipped a link no shortener can take (${stripped.url.length} chars) instead of stripping media`);
     if (stripped.stripped !== "media")
       fail(file, `packShareFit cut media without reporting it (stripped=${JSON.stringify(stripped.stripped)}) — the creator hears nothing`);
@@ -252,8 +255,8 @@ async function checkPackFit(file) {
       fail(file, "packShareFit did not expose alt {media, noMedia} for the preview toggle on a media-bearing share");
     // given a shrinker, media gets re-encoded smaller instead of dropped — the preview survives
     const shrunk = await run(base, [mediaSample, textSample],
-      async () => "data:image/jpeg;base64," + junk(9000));
-    if (shrunk.stripped !== "shrunk" || shrunk.hasSample !== true || shrunk.url.length > 62000)
+      async () => "data:image/jpeg;base64," + junk(2000));
+    if (shrunk.stripped !== "shrunk" || shrunk.hasSample !== true || shrunk.url.length > DAGD)
       fail(file, `packShareFit ignored the media shrinker (stripped=${JSON.stringify(shrunk.stripped)}, ${shrunk.url.length} chars) — it dropped a preview it could have compressed`);
     if (!shrunk.alt || shrunk.alt.media !== shrunk.url || !(shrunk.alt.noMedia.length < shrunk.alt.media.length))
       fail(file, "packShareFit's alt endpoints are wrong on a shrunk share — the preview toggle would swap to the wrong link");
@@ -267,7 +270,7 @@ async function checkPackFit(file) {
       fail(file, "packShareFit mishandled a sample-less share");
     // even the bare app overflows → return the full-fidelity link (popover greys the dead ends)
     const huge = await run({ ...base, files: { "index.html": junk(120000) } }, [mediaSample]);
-    if (huge.stripped !== null || huge.url.length <= 62000)
+    if (huge.stripped !== null || huge.url.length <= DAGD)
       fail(file, "packShareFit stripped samples from a link that overflows either way — that loses the preview for nothing");
   } catch (e) {
     fail(file, "packShareFit threw: " + (e && e.message ? e.message : e));
