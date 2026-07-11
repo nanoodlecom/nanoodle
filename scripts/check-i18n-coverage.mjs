@@ -27,6 +27,9 @@ const fail = (msg) => { console.error("✗ " + msg); failed++; };
 // every entry here is invisible to non-English users.
 const ALLOW = new Set([
   "Noodle Cookoff",
+  // <link rel="alternate" type="application/atom+xml" title=…> in <head>: feed-reader
+  // metadata, never rendered as page chrome; the feed itself is English-only.
+  "nanoodle changelog",
 ]);
 
 // ---- parse the maps -------------------------------------------------------

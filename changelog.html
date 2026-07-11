@@ -1,0 +1,342 @@
+<!doctype html>
+<!-- GENERATED FILE — do not edit by hand. Source: updates.json via scripts/gen-changelog.mjs -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>nanoodle - Changelog</title>
+<meta name="description" content="Every nanoodle update in one place — new nodes, models and fixes for the browser-only AI workflow playground. Follow along via the Atom feed, no account or tracking involved." />
+
+<!-- Open Graph -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="nanoodle - Changelog" />
+<meta property="og:description" content="Every nanoodle update in one place — new nodes, models and fixes for the browser-only AI workflow playground. Follow along via the Atom feed, no account or tracking involved." />
+<meta property="og:url" content="https://nanoodle.com/changelog" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="nanoodle - Changelog" />
+<meta name="twitter:description" content="Every nanoodle update in one place — new nodes, models and fixes for the browser-only AI workflow playground. Follow along via the Atom feed, no account or tracking involved." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+<meta name="twitter:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/changelog" />
+<link rel="alternate" type="application/atom+xml" title="nanoodle changelog" href="/feed.xml" />
+<style>
+  :root{
+    color-scheme: dark;
+    --bg:#0b0d12; --panel:#12151d; --panel2:#171b25; --ink:#eef1f7; --dim:#9aa3b2;
+    --line:#262c3a; --accent:#7c8cff; --accent2:#ff79c6; --cyan:#67e8f9;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0; height:100%}
+  body{ background:radial-gradient(1100px 540px at 70% -10%, #1a1f3a55, transparent), var(--bg);
+        color:var(--ink); font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+        min-height:100vh; display:flex; flex-direction:column; }
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{ max-width:760px; margin:0 auto; padding:1.4rem 1.2rem; flex:1; display:flex; flex-direction:column; width:100%; }
+
+  header{ display:flex; align-items:center; gap:.5rem; }
+  .logo{ font-weight:800; letter-spacing:-.02em; font-size:1.25rem; }
+  .logo .nano{ background:linear-gradient(90deg,var(--cyan),var(--accent) 70%); -webkit-background-clip:text; background-clip:text;
+        color:transparent; font-weight:900; filter:drop-shadow(0 0 9px #7c8cff77); }
+  .spacer{flex:1}
+  .ghost{ font:inherit; font-size:.85rem; color:var(--dim); border:1px solid var(--line); border-radius:.55rem; padding:.35rem .7rem; }
+  .ghost:hover{ border-color:#3a425a; color:var(--ink); text-decoration:none }
+
+  main{ flex:1; padding:2.4rem 0; }
+  h1{ font-size:clamp(1.8rem, 5vw, 2.6rem); line-height:1.08; letter-spacing:-.03em; margin:0 0 .4rem; font-weight:850; }
+  h1 .grad{ background:linear-gradient(90deg,var(--cyan),var(--accent) 55%,var(--accent2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .sub{ color:var(--dim); font-size:.95rem; margin:0 0 .8rem; }
+  .feedrow{ display:flex; flex-wrap:wrap; gap:.45rem; margin:0 0 2.2rem; }
+  .feedrow a{ font-size:.82rem; border:1px solid var(--line); background:var(--panel2); color:var(--ink);
+         padding:.32rem .7rem; border-radius:2rem; }
+  .feedrow a:hover{ border-color:#3a425a; text-decoration:none }
+
+  section{ border-top:1px solid var(--line); padding:1.6rem 0 .4rem; }
+  section:first-of-type{ border-top:none; padding-top:0; }
+  h2{ font-size:1.15rem; letter-spacing:-.01em; margin:0 0 .7rem; font-weight:800; scroll-margin-top:1rem; }
+  h2 a{ color:var(--ink); }
+  h2 a:hover{ color:var(--accent); text-decoration:none }
+  ul{ margin:0 0 1rem; padding-left:1.2rem; }
+  li{ margin:.45rem 0; color:#cdd3df; scroll-margin-top:1rem; }
+  li:target{ color:var(--ink); }
+
+  footer{ border-top:1px solid var(--line); color:var(--dim); font-size:.82rem; padding:1.1rem 0 .3rem;
+          display:flex; gap:.4rem 1rem; flex-wrap:wrap; align-items:center; }
+  footer .spacer{flex:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <main>
+    <h1>Change<span class="grad">log</span></h1>
+    <p class="sub">Everything that ships to nanoodle, newest first — the same entries as the in-app 📣 Updates panel. Last update: 11 July 2026.</p>
+    <nav class="feedrow">
+      <a href="/feed.xml" type="application/atom+xml">Follow via Atom feed</a>
+      <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">Source on GitHub</a>
+    </nav>
+
+    <section>
+      <h2 id="d-2026-07-11"><a href="#d-2026-07-11">11 July 2026</a></h2>
+      <ul>
+        <li id="u-2026-07-11-004e3a7121c4">nanoodle is open source — read the code on GitHub (new link next to Terms · Privacy)</li>
+        <li id="u-2026-07-11-09668575083b">Inpaint: running a wired source now loads it into the brush canvas even when the run stops at &quot;no mask&quot; — brush and run again, no dead-end.</li>
+      </ul>
+    </section>
+    <section>
+      <h2 id="d-2026-07-10"><a href="#d-2026-07-10">10 July 2026</a></h2>
+      <ul>
+        <li id="u-2026-07-10-b60648ab3228">🎞️ Video edit can now take reference images — wire a face, object, or style into the new ref ports (Seedance 2.0 Video Edit) to keep it consistent through the edit.</li>
+        <li id="u-2026-07-10-3b39045291ec">🩹 Inpaint apps got smoother — brush controls appear when your photo does, and the whole control now speaks all 5 languages.</li>
+        <li id="u-2026-07-10-f99f2d268e69">🩹 Inpaint just got friendlier — wire an Image input and its photo is instantly brushable, no run needed.</li>
+        <li id="u-2026-07-10-eb35bcadaa2b">Image nodes with custom-civitai now ask for a CivitAI model ID (AIR format: civitai:modelId@versionId) and link you to browse models — no more cryptic missing-model errors.</li>
+        <li id="u-2026-07-10-342d820a0567">Share links for uncustomized apps are now ~600 characters instead of ~9,600 — every basic app link can be shortened again.</li>
+        <li id="u-2026-07-10-21fcfc1c39fe">Sharing an app with a preview image now packs a compressed thumbnail so the link stays short enough to shorten and post — and the share menu has a new checkbox to leave the preview image out entirely for the shortest possible link.</li>
+        <li id="u-2026-07-10-7065d564ff43">New LLM model: Perplexity Academic Researcher — built for literature reviews, evidence synthesis, and research-heavy questions, prioritizing scholarly and peer-reviewed sources and returning citations so you can inspect the underlying research.</li>
+        <li id="u-2026-07-10-efb423f1da69">Sharing an app with big baked-in result images now quietly slims the link so it stays shortenable and postable — and tells you when it does.</li>
+      </ul>
+    </section>
+    <section>
+      <h2 id="d-2026-07-09"><a href="#d-2026-07-09">9 July 2026</a></h2>
+      <ul>
+        <li id="u-2026-07-09-a01dae492416">New LLM model: Muse Spark 1.1 — Muse Spark 1.1 is now available! Muse Spark marks Meta&#39;s return to the top-tier model race, with a strong focus on agent-style coding work: keeping track of long multi-turn sessions, debugging and editing across…</li>
+        <li id="u-2026-07-09-733effc049e7">New LLM model: GPT 5.6 — GPT 5.6 is now available. Sol is the flagship tier for complex reasoning, coding, and agentic workflows, and is OpenAI&#39;s answer to Claude&#39;s Fable. Terra is the balanced everyday tier, and Luna is the fast lower-cost…</li>
+        <li id="u-2026-07-09-7edc486b0d94">New LLM model: Mellum 2 12B A2.5B Instruct — Mellum 2 12B A2.5B Instruct is now available! JetBrains built Mellum for coding workflows, making it a lightweight option for code completion, editing, repository Q&amp;A, and developer-assistant tasks where quick…</li>
+      </ul>
+    </section>
+    <section>
+      <h2 id="d-2026-07-08"><a href="#d-2026-07-08">8 July 2026</a></h2>
+      <ul>
+        <li id="u-2026-07-08-4dfc7b56d03f">Onboarding polish: thinner first-run banner, free sample still works after light starter edits, share packs samples by default, and cookoff never hijacks Share</li>
+        <li id="u-2026-07-08-ef7d1d0443ae">shared apps show a sample of what they make before you sign in</li>
+        <li id="u-2026-07-08-cd9232eb8260">New LLM model: Grok 4.5 — Grok 4.5 is now available! xAI recommends Grok 4.5 for code and general chat, calling it their most intelligent and fastest model. It supports text, image, and file inputs, with reasoning, tool calling, structured…</li>
+      </ul>
+    </section>
+    <section>
+      <h2 id="d-2026-07-07"><a href="#d-2026-07-07">7 July 2026</a></h2>
+      <ul>
+        <li id="u-2026-07-07-009e30903232">New LLM model: Aion 3.0 — Aion 3.0 and Aion 3.0 Mini are now available! They are built for immersive roleplay and storytelling with stronger narrative structure, tension, conflict, and nuanced mature themes. Use Aion 3.0 for the strongest…</li>
+        <li id="u-2026-07-07-66fbf6cd669a">New LLM model: Aion 3.0 Mini — Aion 3.0 and Aion 3.0 Mini are now available! They are built for immersive roleplay and storytelling with stronger narrative structure, tension, conflict, and nuanced mature themes. Use Aion 3.0 for the strongest…</li>
+      </ul>
+    </section>
+    <section>
+      <h2 id="d-2026-07-06"><a href="#d-2026-07-06">6 July 2026</a></h2>
+      <ul>
+        <li id="u-2026-07-06-14f90a22b604">New LLM model: Nex N2 Mini — It is an open-source agentic Mixture-of-Experts model in the Nex N2 family, built for coding, tool use, structured outputs, vision input, and long-context workflows.</li>
+        <li id="u-2026-07-06-91c34caac342">New LLM model: Tencent Hy3 — Hy3 is a large Mixture-of-Experts reasoning model built for coding, long-context comprehension, multi-turn dialogue, and agentic task execution. It replaces the preview version and is included in the subscription.</li>
+        <li id="u-2026-07-06-5d93292791b1">Moving or resizing nodes now counts as a change — the ✨ button flips back to &quot;Update &lt;app&gt;&quot; and saves your new arrangement into the app.</li>
+        <li id="u-2026-07-06-918d630fa89d">Every node just got a copy pass — clearer hints and placeholders, prompt fields moved up top, and the Add menu now finds nodes by what you want to do (try “remove”, “cut”, “caption”, or “mp3”). The Image node also accepts drag-and-drop.</li>
+      </ul>
+    </section>
+    <section>
+      <h2 id="d-2026-07-05"><a href="#d-2026-07-05">5 July 2026</a></h2>
+      <ul>
+        <li id="u-2026-07-05-c2897e012f27">Music and speech models now list newest versions first in the model picker</li>
+        <li id="u-2026-07-05-7d25b81b0e56">Older results now save in one tap — every image, video, and track on the &quot;Earlier results&quot; shelf has its own ⭳ download button.</li>
+        <li id="u-2026-07-05-c9110ecc2e31">New 🎛 Remix audio node — hand it a track (uploaded, or chained from 🎵 Music) plus a style prompt to make a cover or extend the song</li>
+        <li id="u-2026-07-05-c420e938beb1">The play page now shows your NanoGPT balance in the top bar as soon as you&#39;re signed in — no need to run the app first or go back to the editor to check your credit.</li>
+        <li id="u-2026-07-05-dfb3a1496a29">Your newest result now takes the spotlight at full size, while earlier results tuck into a compact &quot;Earlier results&quot; shelf — tap any card to reopen it. Long text and tall images stay tidy too.</li>
+        <li id="u-2026-07-05-b2ebe291933e">Generated songs keep playing while you work — applying a Customize or switching versions no longer cuts the track off; it picks back up right where it was.</li>
+        <li id="u-2026-07-05-abb6b216e794">The ✨ button now says &quot;Open&quot; instead of &quot;Update&quot; when your app already has this exact workflow — so it only offers to Update when there&#39;s actually something new to save.</li>
+        <li id="u-2026-07-05-12d3ab17cf0a">Run progress now highlights the step that&#39;s actually running — and the progress bar&#39;s &quot;working&quot; color no longer looks like an error.</li>
+        <li id="u-2026-07-05-232a1a5d78ad">Apps now keep a history of everything they&#39;ve made — every past result comes back when you return, newest on top (still stored only in your own browser).</li>
+        <li id="u-2026-07-05-5ede3d49f6e8">Apps now remember what they made — your generated results are waiting for you when you come back, stored only in your own browser.</li>
+        <li id="u-2026-07-05-a07aeb325b78">Apps saved a while ago (or restyled by Customize) show tidy model pickers and checkboxes again — the app player now carries the styles its own controls need.</li>
+        <li id="u-2026-07-05-32db13feaf0e">Your saved apps are now one click from the editor — the ▾ next to ✨ opens &quot;≡ My apps&quot;</li>
+      </ul>
+    </section>
+    <section>
+      <h2 id="d-2026-07-04"><a href="#d-2026-07-04">4 July 2026</a></h2>
+      <ul>
+        <li id="u-2026-07-04-feac8b6e3755">Shared apps you open from a link can no longer make paid requests on their own — they stay blocked until you click Run, and can&#39;t auto-download files on load.</li>
+        <li id="u-2026-07-04-58e96e7bef09">Undo, redo, and switching versions no longer wipe your generated results or force a paid re-run — and they&#39;re blocked during a run so nothing is lost.</li>
+        <li id="u-2026-07-04-43b8b8a9c84f">💾 Save file now keeps your uploaded photos, audio, video, and inpaint masks, so loading a saved backup restores your workflow completely (share links still leave your private media out).</li>
+        <li id="u-2026-07-04-3018e73d5cbe">Sharing a workflow or app to X, Reddit, or Facebook now auto-shortens long links so they are no longer rejected or truncated.</li>
+        <li id="u-2026-07-04-393b5ef26e44">Describe-changes copilot: AI edits that wire to a port a node doesn&#39;t have are now caught and explained, instead of silently applying a dead wire.</li>
+        <li id="u-2026-07-04-1fcf327224e2">Nodes now warn when their saved model is no longer available, with one click to swap in a working one — no more silent failures on old graphs.</li>
+        <li id="u-2026-07-04-1015b148f47b">Re-running after a failed step no longer re-charges upstream steps that already succeeded.</li>
+        <li id="u-2026-07-04-d40c5de77543">Upscaler models now work in the Edit node — wire an image, pick an upscaler, and run with no instruction needed</li>
+        <li id="u-2026-07-04-7a041b55df07">Seedance video now keeps up to 9 reference images (was 4), and you&#39;re told when extra refs are dropped instead of losing them silently.</li>
+        <li id="u-2026-07-04-0d0db0b61884">The run-cost estimate now reflects reference-image and audio surcharges instead of the base rate.</li>
+        <li id="u-2026-07-04-57ba53ae6dcc">Extract/Trim now output 16 kHz audio, so Transcribe handles ~2 min per run instead of ~1.</li>
+        <li id="u-2026-07-04-8fc5bc66a924">Music node no longer bills for extra songs it couldn&#39;t deliver — the &quot;Number of songs&quot; field is capped at 1.</li>
+        <li id="u-2026-07-04-42421e02cd63">Multi-image apps now label each upload by role (End frame, Reference 1, …)</li>
+        <li id="u-2026-07-04-cfb65347bcc7">/play now tells you when a shared app&#39;s model ignores your reference images, end frame, or extra images instead of dropping them silently.</li>
+        <li id="u-2026-07-04-3eae64f9d7f1">Image→Video now points you at Text→Video for character/subject reference images when the picked model supports them.</li>
+        <li id="u-2026-07-04-f95bf8d1ad34">Soundtrack error now suggests a fix that actually works</li>
+      </ul>
+    </section>
+    <section>
+      <h2 id="d-2026-07-03"><a href="#d-2026-07-03">3 July 2026</a></h2>
+      <ul>
+        <li id="u-2026-07-03-4ceb3126b623">Signing in to run a shared app now starts with a friendly heads-up — what it costs and where you&#39;re headed — instead of jumping straight to a login screen</li>
+        <li id="u-2026-07-03-98f2144c5923">Shared apps are much cleaner on phones — the Run button is front-and-center and the editing controls tuck into a ⋯ menu</li>
+        <li id="u-2026-07-03-48b1895b563b">Shared apps now show a gentle &quot;make your own app&quot; link after your first result — closing the loop back to nanoodle</li>
+        <li id="u-2026-07-03-203e1cd80a16">Shared apps now show the estimated run cost next to the Run button — and it scales when you pick 2x/4x/8x runs</li>
+        <li id="u-2026-07-03-9c9de36ae886">Shared apps now get a descriptive name — from your prompt or the models used — instead of the generic &quot;My nanoodle app&quot;</li>
+        <li id="u-2026-07-03-84b486813754">🎨🎬 Text→Video reference images — on seedance/luma models, wire in reference images to guide the subject, character, or style of a generated video</li>
+        <li id="u-2026-07-03-7fc0cc4514b6">🖼️→🖼️ Image→Video morph — wire a second &quot;end frame&quot; image on seedance-2.0 models and the clip animates from the first image to the last</li>
+        <li id="u-2026-07-03-a6655113122a">TTS previews now play in the editor even when the provider returns audio with a missing or generic content-type (no more dead 0:00 player).</li>
+        <li id="u-2026-07-03-6562a6975c4b">The run-cost estimate no longer overcharges for &quot;number of songs&quot; on music models that don&#39;t support it — swap to a model without a song count and the price drops to a single song, matching what actually runs.</li>
+        <li id="u-2026-07-03-0cb53d0e65ad">Clearer errors — Trim now tells you when your start point is past the end of the clip (with its real length) instead of producing a silent sliver, Transcribe explains a blocked audio download honestly, and the Vision node now sends exactly the question shown on screen.</li>
+        <li id="u-2026-07-03-c3aa9949f237">Draw now warns before sending if wired reference images are too large (instead of failing with a confusing error), and running Draw in an exported app keeps your balance up to date.</li>
+        <li id="u-2026-07-03-9d2da7e2e193">Uploaded transparent PNGs keep their transparency (no more black background), and oversized audio/video now warns you at upload time instead of only when you press Run — in the editor and in exported apps.</li>
+        <li id="u-2026-07-03-f45529b3931c">Avatar / lipsync now lets you pick the output resolution (and per-model options) for models that support it, and only lists single-speaker avatar models that actually work.</li>
+      </ul>
+    </section>
+    <section>
+      <h2 id="d-2026-07-02"><a href="#d-2026-07-02">2 July 2026</a></h2>
+      <ul>
+        <li id="u-2026-07-02-8497ea00f4d1">🔊 Extract audio with a blank length now really does grab the whole clip — it used to silently stop at ~70 seconds, so long talking-head videos lost everything past the first minute before Transcribe ever saw it. Very long clips still get a clear heads-up (with a ✂️ Trim tip) only when a model&#39;s size limit is actually hit.</li>
+        <li id="u-2026-07-02-42254ffc02b1">The 🎨 Draw node now shows its thinking — Gemini&#39;s reasoning appears on the node&#39;s text output, so you can see how it planned your image before drawing it. Switch it off with the new &quot;show thinking&quot; toggle.</li>
+        <li id="u-2026-07-02-b56152f55c52">Edit node now trims reference images to what the chosen model actually accepts, so a model switch never sends extra images (and charges) the model can&#39;t use.</li>
+        <li id="u-2026-07-02-7fdd20e38e1e">Text→Video model picker no longer lists edit/extend-only models that can&#39;t run from a text prompt, and PixVerse v5.5/5.6 now honor your chosen aspect ratio.</li>
+        <li id="u-2026-07-02-a1cee555aab6">Exported apps no longer waste a paid request when a model can&#39;t do JSON output or can&#39;t hear wired audio — the JSON format and audio are dropped for models that don&#39;t support them (a text-only model shows an &quot;audio ignored&quot; note) instead of billing you for empty output.</li>
+        <li id="u-2026-07-02-efc5d186dafa">The run-cost estimate for music now reflects the length you set - a 5-minute song shows its real price, not a flat 30-second guess - and exported apps no longer send leftover settings when you switch a music node to a different model.</li>
+        <li id="u-2026-07-02-b59f82fbdc05">Combine now stitches matching video clips losslessly in exported apps — no more re-encode, so no audio glitches, slow-motion, or padded length. Mismatched clips still combine via the recorder, now at the right bitrate.</li>
+        <li id="u-2026-07-02-fc9b165d78d9">Sora and WAN video nodes now actually honor the length and orientation you pick (they were silently rendering the model default before).</li>
+        <li id="u-2026-07-02-f653a769e909">Exported apps now honor the length and aspect ratio you set on a Video-edit node — extend/restyle clips render at the duration you asked for, not the model&#39;s default.</li>
+        <li id="u-2026-07-02-8898bdff3c77">Video → Frames apps now show and download every extracted frame, not just the first one.</li>
+        <li id="u-2026-07-02-bbe21e746aa7">New 🎨 Draw node — a Gemini omni model that reasons, then draws: text → image, or wire in images to edit and compose them in one step. Find it in the Image group.</li>
+        <li id="u-2026-07-02-1e784ba2dff8">New 🎚 Soundtrack node — drop a music or narration track onto any video (with an optional loop-to-fill), turning a generated clip + a song into a shareable music video.</li>
+        <li id="u-2026-07-02-c26321e47877">New 🔘 Choice node — add a dropdown your app users pick from (e.g. a style: watercolor / neon / claymation)</li>
+        <li id="u-2026-07-02-33afcbbec6bc">New 🔊 Extract audio node peels the soundtrack off a video (→ WAV) so you can wire it into Transcribe or Trim.</li>
+        <li id="u-2026-07-02-046c43f5acf9">New 📐 Resize / crop node — scale, crop, or fit an image to any aspect on your device (free, no API).</li>
+        <li id="u-2026-07-02-69a84ea1e4e5">The price pill in the corner is now a Run button — click it to run your workflow.</li>
+        <li id="u-2026-07-02-b0ca5aa665b4">Not signed in? Press ▶ Run anyway — nanoodle now plays a sample of the starter workflow so you can see it work, then sign in to run it for real.</li>
+        <li id="u-2026-07-02-c0639b7e72ed">signing in is clearer — one &quot;Sign in with NanoGPT&quot; button, with paste-key and account creation under its ▾ menu</li>
+        <li id="u-2026-07-02-983e9d30b0df">This changelog now reads in your language — Spanish, French, German, Portuguese and Japanese, matching the editor.</li>
+        <li id="u-2026-07-02-8392309d67a3">Your nano-gpt balance now updates live after every generation, in the editor and in shared apps</li>
+        <li id="u-2026-07-02-dcb486c53b07">nanoodle now works properly on phones and tablets — shared links frame the whole workflow on your screen, every control is finger-sized, and building graphs by touch (wires, pinch-zoom, undo/redo, delete) finally feels right.</li>
+      </ul>
+    </section>
+    <section>
+      <h2 id="d-2026-07-01"><a href="#d-2026-07-01">1 July 2026</a></h2>
+      <ul>
+        <li id="u-2026-07-01-9c2bb79fbb12">New 📚 Examples gallery — load a ready-made text→image, video, song, or vision→speech workflow in one click.</li>
+        <li id="u-2026-07-01-5187c6e5257a">sign-in and key problems now tell you what went wrong — cancelled sign-ins, rejected keys and blocked clipboards all show a clear message instead of failing silently.</li>
+        <li id="u-2026-07-01-4a51faf7de55">Create app now saves your app to My apps right away, and reopening the builder always picks up your latest workflow edits.</li>
+        <li id="u-2026-07-01-4e2a14d9fc2c">Submitting your contest entry now shares the app exactly as you customized it, and exported apps carry a small &quot;Made with nanoodle&quot; footer.</li>
+        <li id="u-2026-07-01-de503d6cb1be">After your first successful run, nanoodle now offers to turn the workflow into a shareable app — and the ✨ Create app button stands out and stays visible on phones.</li>
+        <li id="u-2026-07-01-c591bd5262cd">Clearer first-run errors — a mistyped or mispasted API key is caught when you save it (and healed on load), and failures now say what to do instead of &quot;Failed to fetch&quot;.</li>
+        <li id="u-2026-07-01-d6caa7834f48">Signed out? The Customize Apply button now takes you to sign-in — and keeps your typed goal — instead of doing nothing.</li>
+        <li id="u-2026-07-01-8a60c5940a63">Mobile: the run-cost chip no longer overlaps the Cookoff badge, and the first-run tip wraps cleanly.</li>
+        <li id="u-2026-07-01-b5d8d4208cff">New one-time hint teaches you to drag between ● ports to connect, or drop a wire on empty canvas to quick-add a node.</li>
+        <li id="u-2026-07-01-e812209e5a71">Heads-up before a run your balance can&#39;t cover, and clear &quot;out of balance — top up at nano-gpt.com&quot; errors instead of raw 402s.</li>
+        <li id="u-2026-07-01-b77ae3e38fc8">Shared and exported apps now greet signed-out visitors with a short, honest note — this runs AI on your own nano-gpt key, the key stays in your browser, and each run shows what it cost.</li>
+        <li id="u-2026-07-01-74fdaf4a870d">New to nano-gpt? The sign-in panel now offers a friendly &quot;create an account&quot; link — pay-per-use, no subscription needed, key stays in your browser.</li>
+        <li id="u-2026-07-01-c060b3a263be">Described changes now scroll the new nodes into view so you see what was added.</li>
+        <li id="u-2026-07-01-8620af3208c9">Described changes now add nodes in a tidy left-to-right flow instead of a vertical stack.</li>
+        <li id="u-2026-07-01-210273c4fc07">Combine is fixed — clips now join instantly and exactly, with audio locked to picture: no more freezing partway, drifting out of sync, dropped frames at seams, or over-long output. Matching formats stitch losslessly.</li>
+        <li id="u-2026-07-01-66692e7542b5">Rename any node — type a name under its header and it shows wherever that step appears in your exported app.</li>
+        <li id="u-2026-07-01-f49ac051d47a">Sort the model picker — pick Cheapest, Priciest, Newest or A→Z from the header dropdown (your choice is remembered).</li>
+        <li id="u-2026-07-01-59a549f6a7d6">See what a workflow costs before you run it — a live &quot;~$X to run&quot; estimate in the editor and next to Run in shared/exported apps, and every model now lists its price in the picker.</li>
+      </ul>
+    </section>
+    <section>
+      <h2 id="d-2026-06-30"><a href="#d-2026-06-30">30 June 2026</a></h2>
+      <ul>
+        <li id="u-2026-06-30-a2fb53165374">New Comment node — drop a colourful sticky note to label your workflow (pick a colour, bold, and size). Notes ride along in shared workflows and exported apps, showing as read-only captions above the inputs.</li>
+        <li id="u-2026-06-30-f814ee523221">Runs that stop partway keep their work — click ⧉ to open Run steps and see every step&#39;s output, even results made before the error.</li>
+        <li id="u-2026-06-30-143c807ae267">Rename an app from the builder — click its title, type a new name, press Enter. It sticks across reloads and in &quot;My apps&quot;.</li>
+        <li id="u-2026-06-30-3d56a7266bfc">Editing an app shows one &quot;Update &lt;name&gt;&quot; button with a ▾ &quot;Save as a new app&quot; — no more confusing twin buttons.</li>
+        <li id="u-2026-06-30-89791b680b14">Clicking Run while signed out now offers an inline choice — sign in or paste your NanoGPT key — instead of redirecting to login.</li>
+        <li id="u-2026-06-30-72263dc4041c">Drag a wire off an input to move it elsewhere, or onto empty canvas to detach it — fixes inputs stuck to two sources.</li>
+        <li id="u-2026-06-30-4477a34bb7f9">Scrolling to the end of a prompt box no longer zooms the canvas out (zoom back with Ctrl/⌘ + scroll).</li>
+        <li id="u-2026-06-30-9f52a86e93be">First time in the app builder, a one-time hint explains that ✎ Edit workflow returns to the graph and keeps your app.</li>
+        <li id="u-2026-06-30-1787e676dd59">New visitors get a one-time &quot;press ▶ Run, or ＋ Add node&quot; hint and a 🖼️ Gallery button to browse &amp; remix examples.</li>
+        <li id="u-2026-06-30-dfbdb4930d23">New ⊡ Fit button (F key, or double-click empty canvas) frames your whole workflow; the demo graph auto-fits on load.</li>
+        <li id="u-2026-06-30-7111ceb260d3">Undo/redo the canvas — Ctrl/Cmd+Z restores a deleted node or wire, Shift+Z (or Ctrl+Y) redoes; hover a wire to remove it.</li>
+        <li id="u-2026-06-30-2f5c7a88352e">Shorter share links + share-to-social — shrink a link (TinyURL/da.gd) and post to X, Reddit, Facebook or email; exported apps get a title card.</li>
+        <li id="u-2026-06-30-9909977cd3af">Resize any node by dragging its bottom-right corner — and prompt boxes start bigger.</li>
+      </ul>
+    </section>
+    <section>
+      <h2 id="d-2026-06-29"><a href="#d-2026-06-29">29 June 2026</a></h2>
+      <ul>
+        <li id="u-2026-06-29-d2682dc08faa">Version history no longer loses work — applying a change off an older version adds a new one instead of wiping later ones, and unsaved canvas edits auto-save first.</li>
+        <li id="u-2026-06-29-67be70e47a59">Shared &amp; exported apps now respect a fixed Seed too — an unchanged result won&#39;t regenerate or re-charge.</li>
+        <li id="u-2026-06-29-d86478c4473e">Set a Seed on Image/Edit/Inpaint to lock a result (no regenerate, no re-charge); leave it blank for a fresh roll each run.</li>
+        <li id="u-2026-06-29-cbf7dee384c4">New 💬 Describe changes — edit your workflow in plain words and it updates the canvas instantly (undo in one click).</li>
+        <li id="u-2026-06-29-fcdc7854e7c0">Video nodes hide modes they can&#39;t use — a Text→Video node no longer offers &quot;Edit Video&quot; or &quot;Reference to Video&quot;.</li>
+        <li id="u-2026-06-29-83a720955745">New 🏆 Submit button — grab your Cookoff entry link, see the prizes, and post to Discord or r/nanocurrency in one place.</li>
+        <li id="u-2026-06-29-2a6a8c25e77d">Fixed the 🎙️ Transcribe node — speech-to-text was failing every run; it returns text again.</li>
+        <li id="u-2026-06-29-fdbc356bc490">LLM node now takes audio — wire a clip (or a 🗣️ Speech node) into a listening model to transcribe, describe or critique it.</li>
+        <li id="u-2026-06-29-ec786acb8069">Edit node now takes multiple reference images — composite a product, scene and face on models that support it (Nano-Banana, Seedream…).</li>
+        <li id="u-2026-06-29-bfe39e21d95c">Image nodes can make several variations at once — pick the best from a thumbnail strip.</li>
+        <li id="u-2026-06-29-2759036fa283">Transcribe: models with a fixed language list now use a dropdown, so you can&#39;t mistype a code.</li>
+        <li id="u-2026-06-29-21fbca74d2ca">Video nodes expose more per-model knobs — negative prompt, seed, CFG and more under ⚙️ Model options.</li>
+        <li id="u-2026-06-29-9a66118e02ac">Video models that generate sound (Veo 3, Kling, Seedance…) now play their audio in the preview instead of staying muted.</li>
+        <li id="u-2026-06-29-2d5b8c851553">LLM node ⚙️ advanced — set temperature &amp; max tokens, force JSON output, and pick reasoning effort, per model.</li>
+        <li id="u-2026-06-29-d278a1c98571">Avatar / lipsync now works with a 🗣️ Speech node&#39;s audio — fixed a &quot;Failed to fetch&quot; when turning TTS into a talking video.</li>
+        <li id="u-2026-06-29-a13eb385dd7f">Lipsync now explains how to fix a too-long chained song instead of just failing.</li>
+      </ul>
+    </section>
+    <section>
+      <h2 id="d-2026-06-28"><a href="#d-2026-06-28">28 June 2026</a></h2>
+      <ul>
+        <li id="u-2026-06-28-3135713afa31">Lipsync hides multi-speaker avatars that need two voices — the picker only offers ones that run on a single TTS track.</li>
+        <li id="u-2026-06-28-f9a0f58d11e5">Sharing an app flags when you&#39;ve tweaked a model or prompt — a heads-up that the link copies the app, not your current session.</li>
+        <li id="u-2026-06-28-3cd79547e9cd">Add-node menu is now searchable — type to filter (↑↓/Enter), with your recent nodes and a &quot;Start here&quot; list pinned up top.</li>
+        <li id="u-2026-06-28-6d0abb97f0fb">New ✂️ Trim node to cut audio to a start + length — and lipsync now takes long songs, auto-trimming to the avatar model&#39;s limit.</li>
+        <li id="u-2026-06-28-bf9e908b230b">Apps built from an Edit node now let people type their own edit instruction, not just the baked-in style.</li>
+        <li id="u-2026-06-28-8612e66a619d">Closing the ✨ Create app window no longer loses your app — reopen and pick up where you left off.</li>
+        <li id="u-2026-06-28-1a525dc4d9c4">Image &amp; video nodes show each model&#39;s real sizes, resolutions, aspect ratios and durations — and the price tracks your choice.</li>
+      </ul>
+    </section>
+    <section>
+      <h2 id="d-2026-06-27"><a href="#d-2026-06-27">27 June 2026</a></h2>
+      <ul>
+        <li id="u-2026-06-27-d57604ebd93d">New 🎨 LoRA on Image, Edit &amp; Video nodes — paste any HuggingFace .safetensors URL to restyle, and stack several to blend. Works on Flux, FLUX.2, Z-Image and LTX; hit &quot;try an example&quot; for a one-click demo.</li>
+        <li id="u-2026-06-27-14f08316e4a3">New 📣 Updates button — a running changelog of what&#39;s new, right in the editor.</li>
+      </ul>
+    </section>
+    <section>
+      <h2 id="d-2026-06-26"><a href="#d-2026-06-26">26 June 2026</a></h2>
+      <ul>
+        <li id="u-2026-06-26-92c4cdf0cea4">Added a 🍜 Noodle Cookoff contest announcement.</li>
+        <li id="u-2026-06-26-47141bdf604a">Simplified the first run — you land straight on a clean canvas.</li>
+        <li id="u-2026-06-26-edfcb636f937">Inpaint: widened the picker to 17 verified mask-honoring edit models.</li>
+      </ul>
+    </section>
+    <section>
+      <h2 id="d-2026-06-25"><a href="#d-2026-06-25">25 June 2026</a></h2>
+      <ul>
+        <li id="u-2026-06-25-647e70531dce">New Inpaint node — brush a region of an image and repaint just that area.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· 100% in your browser, no server</span>
+    <div class="spacer"></div>
+    <a href="/feed.xml">Atom feed</a>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="/legal">Legal</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>
