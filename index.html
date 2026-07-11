@@ -1375,6 +1375,7 @@ const I18N = {
     "seed":"semilla",
     "show thinking":"mostrar razonamiento",
     "source comes from the wire — run once to load it here, then brush":"la imagen fuente llega por la conexión — ejecuta una vez para cargarla aquí, luego pincela",
+    "the wired Image input is empty — add a photo there and it shows up here, ready to brush":"la entrada de imagen conectada está vacía — añade una foto allí y aparecerá aquí, lista para pincelar",
     "start (sec)":"inicio (seg)",
     "start from":"empezar desde",
     "temperature":"temperatura",
@@ -1881,6 +1882,7 @@ const I18N = {
     "save frame":"enregistrer l’image",
     "show thinking":"afficher le raisonnement",
     "source comes from the wire — run once to load it here, then brush":"l’image source arrive par la connexion — lancer une fois pour la charger ici, puis peindre",
+    "the wired Image input is empty — add a photo there and it shows up here, ready to brush":"l’entrée image branchée est vide — ajoutez-y une photo et elle apparaîtra ici, prête à peindre",
     "start (sec)":"début (s)",
     "start from":"démarrer depuis",
     "temperature":"température",
@@ -2379,6 +2381,7 @@ const I18N = {
     "seed":"Seed",
     "show thinking":"Denken anzeigen",
     "source comes from the wire — run once to load it here, then brush":"die Quelle kommt über die Verbindung — einmal ausführen, um sie hier zu laden, dann übermalen",
+    "the wired Image input is empty — add a photo there and it shows up here, ready to brush":"der verbundene Bild-Eingang ist leer — dort ein Foto hinzufügen, und es erscheint hier, bereit zum Übermalen",
     "start (sec)":"Start (Sek.)",
     "start from":"beginnen ab",
     "temperature":"Temperatur",
@@ -2879,6 +2882,7 @@ const I18N = {
     "save frame":"salvar quadro",
     "show thinking":"mostrar raciocínio",
     "source comes from the wire — run once to load it here, then brush":"a imagem de origem vem da conexão — execute uma vez para carregá-la aqui, depois pincele",
+    "the wired Image input is empty — add a photo there and it shows up here, ready to brush":"a entrada de imagem conectada está vazia — adicione uma foto lá e ela aparecerá aqui, pronta para pincelar",
     "start (sec)":"início (seg)",
     "start from":"começar de",
     "temperature":"temperatura",
@@ -3378,6 +3382,7 @@ const I18N = {
     "seed":"シード",
     "show thinking":"思考を表示",
     "source comes from the wire — run once to load it here, then brush":"ソース画像は接続から届きます — 一度実行してここに読み込み、その後ブラシで塗る",
+    "the wired Image input is empty — add a photo there and it shows up here, ready to brush":"接続された画像入力が空です — そこに写真を追加するとここに表示され、ブラシで塗れます",
     "start (sec)":"開始 (秒)",
     "start from":"開始位置",
     "temperature":"温度",
@@ -5800,13 +5805,20 @@ const NODE_TYPES = {
       const links = (typeof graph!=="undefined" && graph && graph.links) || [];   // defensive: body() may run outside the live graph
       const imgWired  = links.some(l=> l.to.node===n.id && l.to.port==="image");
       const maskWired = links.some(l=> l.to.node===n.id && l.to.port==="mask");
+      const wired    = imgWired ? inpaintWiredUpstream(n) : null;
+      const wiredSrc = wired ? inpaintWiredSource(n) : null;     // wired pixels available NOW (mount renders them, no run needed)
+      const srcNow   = !!(n.fields.image || wiredSrc);
+      const wiredHint = wired?.up?.type==="upload" && !wiredSrc
+        ? "the wired Image input is empty — add a photo there and it shows up here, ready to brush"
+        : "source comes from the wire — run once to load it here, then brush";
       const canvasHTML = n.fields.image
         ? `<img src="${esc(n.fields.image)}" alt="source"/><canvas data-mcanvas></canvas>`
         : `<span class="dim">${imgWired
-            ? "source comes from the wire — run once to load it here, then brush"
+            ? (wiredSrc ? "" : wiredHint)
             : "upload or capture an image, then brush the area to repaint"}</span>`;
       const sourceCtrls = imgWired
-        ? `<div class="fhint">🔌 source image ← wired</div>`
+        // empty canvas already explains the wire — the chip only earns its row once pixels are showing
+        ? `<div class="fhint"${srcNow?"":" hidden"} data-wiredhint>🔌 source image ← wired</div>`
         : `<div class="two">
              <button class="ubtn" data-up="file">⬆ Upload</button>
              <button class="ubtn" data-up="cam">📷 Webcam</button>
@@ -5818,10 +5830,11 @@ const NODE_TYPES = {
            </div>`;
       const maskCtrls = maskWired
         ? `<div class="fhint">🔌 mask ← wired (white = repaint)</div>`
-        : `<div class="two">
+        // nothing to brush yet → keep the brush knobs out of sight; mount un-hides them when a source renders
+        : `<div${srcNow?"":" hidden"} data-maskctrls><div class="two">
              <div><label>brush size</label><input type="range" min="8" max="140" value="${+n.fields.brush||40}" data-f="brush"/></div>
              <button class="ubtn" data-clearmask>Clear mask</button>
-           </div>`;
+           </div></div>`;
       return `
       ${modelFieldHTML(n)}
       <div class="maskwrap" data-maskwrap>${canvasHTML}</div>
@@ -6687,7 +6700,13 @@ function mountUpload(n){
   const cambox = el.querySelector("[data-cambox]");
   const video = el.querySelector("[data-upvid]");
   let stream = null;
-  const setImage = (url)=>{ n.fields.image = url; prev.innerHTML = `<img src="${esc(url)}" alt="image"/>`; save(); };
+  const setImage = (url)=>{ n.fields.image = url; prev.innerHTML = `<img src="${esc(url)}" alt="image"/>`; save();
+    // a downstream Inpaint node brushing this WIRED photo can load its canvas right now — no run needed
+    for(const l of (graph.links||[])){
+      const dn = l.from.node===n.id ? byId(l.to.node) : null;
+      if(dn?.type==="inpaint" && dn.el && !dn.fields.image && !runningNodes.has(dn.id)) rerenderNode(dn);
+    }
+  };
   const stopCam = ()=>{ if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } if(video) video.srcObject=null; cambox.hidden=true; };
   n._stopCam = stopCam;                                    // so removeNode can release the camera
   el.querySelectorAll("[data-up]").forEach(b=>{
@@ -6722,8 +6741,19 @@ function mountUpload(n){
 // mask, exported (composited onto black) only at run. Inline source+mask live on n.fields so they're
 // present synchronously and serialize for free. When the image port is wired, the source isn't known
 // until the upstream node runs — so we hydrate the brush canvas from its last output (n.out) when it
-// exists, and show a "run once to load it" hint until then. When the mask port is wired, brushing is
+// exists, or straight from an 🖼 Image-input upstream's fields (pixels exist before any run), and show
+// a "run once to load it" hint only when neither is available. When the mask port is wired, brushing is
 // disabled (the wire supplies the mask) and we just preview the source.
+function inpaintWiredUpstream(n){                          // the node feeding the image port, if any
+  const links = (typeof graph!=="undefined" && graph && graph.links) || [];
+  const l = links.find(x=> x.to.node===n.id && x.to.port==="image");
+  const up = l && graph.nodes ? byId(l.from.node) : null;
+  return up ? { up, port:l.from.port } : null;
+}
+function inpaintWiredSource(n){                            // wired source pixels available without a run
+  const w = inpaintWiredUpstream(n); if(!w) return null;
+  return w.up.out?.[w.port] ?? (w.up.type==="upload" ? w.up.fields.image : null) ?? null;
+}
 function mountInpaint(n){
   const el = n.el;
   const wrap = el.querySelector("[data-maskwrap]");
@@ -6778,6 +6808,9 @@ function mountInpaint(n){
       initMask(img.naturalWidth, img.naturalHeight);
       if(n.fields.mask){ const m=new Image(); m.onload=()=>{ octx.drawImage(m,0,0,off.width,off.height); bindCanvas(); }; m.src=n.fields.mask; }
       else bindCanvas();
+      // pixels are on screen → surface the brush knobs / wired chip the body kept hidden
+      el.querySelector("[data-maskctrls]")?.removeAttribute("hidden");
+      el.querySelector("[data-wiredhint]")?.removeAttribute("hidden");
       if(store) save();
     };
     img.onerror = ()=> flash("couldn’t read that image");
@@ -6805,12 +6838,12 @@ function mountInpaint(n){
     if(off) octx.clearRect(0,0,off.width,off.height);
     n.fields.mask = null; tintOverlay(); save(); });
 
-  // Hydrate the canvas: inline source if present, else the wired source's last output (so brushing a
-  // generated image works after one run). The body already rendered the hint when neither is available.
+  // Hydrate the canvas: inline source if present, else whatever the wire can supply right now — the
+  // upstream's last output, or an 🖼 Image-input's photo (brushable before any run, the common first
+  // wiring). The body already rendered the hint when neither is available.
   if(n.fields.image){ render(n.fields.image, false); }
   else if(imgWired){
-    const l = (graph.links||[]).find(x=> x.to.node===n.id && x.to.port==="image");
-    const upstream = l ? byId(l.from.node)?.out?.[l.from.port] : null;
+    const upstream = inpaintWiredSource(n);
     if(upstream) render(upstream, false);
   }
 }
@@ -9394,6 +9427,9 @@ function applyGraphData(d, opts){
   nid = Math.max(num(d.nid), 0, ...graph.nodes.map(n=>num(n.id))) + 1;
   lid = Math.max(num(d.lid), 0, ...graph.links.map(l=>num(l.id))) + 1;
   graph.nodes.forEach(n=>{ recompactImageLinks(n); refreshImageInputs(n); recompactVideoLinks(n); refreshVideoInputs(n); });   // links loaded → compact + grow image/clip ports
+  // Inpaint bodies render wired-vs-inline UI from graph.links, but buildNodeEl above ran with links
+  // still empty — every reloaded wired inpaint showed the inline upload UI. Rebuild them now.
+  graph.nodes.forEach(n=>{ if(n.type==="inpaint" && graph.links.some(l=> l.to.node===n.id)) rerenderNode(n); });
   redraw(); refreshPortFills(); refreshAllPrices();
   // repaint carried-over results into their (freshly built) node bodies — buildNodeEl starts blank
   graph.nodes.forEach(n=>{ if(n.out && Object.keys(n.out).length){ showResult(n); setStatus(n, "done"); } });
