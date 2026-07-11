@@ -5446,7 +5446,7 @@ function refreshRunEstimate(){
     + (unpriced ? t(", plus {n} with no listed price").replace("{n}",()=>unpriced) : "")
     + (exact ? "." : "." + "\n" + t("Video, text & audio are estimates: the real bill depends on clip length, tokens and characters."));
 }
-function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); backfillModel(n); }); refreshRunEstimate(); }   // refreshLlmOpts: reconcile knobs kept during a catalog miss (#311) once real capability flags exist
+function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); backfillModel(n); }); refreshRunEstimate(); }   // refreshLlmOpts: reconcile knobs kept during a catalog miss (#311) once real capability flags exist; the dynamic port families (img/audio/endframe/ref) are catalog-gated too — without them a cold-cache boot (shared link, cleared storage) paints a saved ref-model graph portless until a reload
 function backfillModel(n){   // once a catalog arrives, give model nodes a sensible default if none chosen yet
   const t = NODE_TYPES[n.type];
   if(t.modelKind && !n.fields.model){
@@ -5958,9 +5958,10 @@ const NODE_TYPES = {
 
   vedit: {
     em:"🎞️", title:"Video edit", desc:"Video (+text) → video — edit / extend / upscale", group:"Video",
-    kw:"restyle stylize transform longer enhance quality 4k v2v",
+    kw:"restyle stylize transform longer enhance quality 4k v2v reference character swap",
     modelKind:"video", modelFilter:"v2v",
     inputs:[{name:"video", type:"video"}],
+    refInputs:true,   // grows reference-image ports when the model exposes a ref-image array param (seedance-2.0 video-edit family) — see refreshRefInputs
     outputs:[{name:"video", type:"video"}], preview:"video",
     body:(n)=>`
       ${modelFieldHTML(n)}
@@ -5973,6 +5974,11 @@ const NODE_TYPES = {
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       const opts = await videoSourceOpts(inp.video); opts.lora = loraParams(n); opts.extra = (n.fields.modelOpts||{}); opts.runKey = n.id;
       opts.dims = videoDimParams(n);   // resolution/aspect/duration under the model's real wire names (seconds/orientation for Sora/WAN)
+      const refs = collectRefInputs(inp), rspec = videoRefSpec(n);   // subject/style reference images (seedance video-edit) → sent as an array under the model's ref param
+      if(refs.length && rspec){   // clamp to the model's max so an over-wired graph never posts a paid over-limit call — warn on drop, mirroring tvideo and the play twin
+        if(refs.length > rspec.cap) toast(t("dropped {n} reference image(s) over this model's limit of {max}").replace("{n}", refs.length-rspec.cap).replace("{max}", rspec.cap), "warn");
+        opts.refImages = refs.slice(0, rspec.cap); opts.refKey = rspec.key;
+      }
       const url = await ctx.genVideo(mdl(n), prompt, opts, null,
         (st,ms)=> setNodeProgress(n, `processing video… ${Math.round(ms/1000)}s · ${st.toLowerCase()}`));
       return { video: url };
@@ -10694,7 +10700,7 @@ $("signout").onclick = ()=> setKey(null);
     vedit:{ main:"prompt", fields:{
       model:"v2v model id (optional)", prompt:"instruction (restyle / extend / upscale)",
       resolution:"catalog resolution tier (optional)",
-    } },
+    }, note:"ref-capable edit models (seedance-2.0 video-edit) grow ref1… reference-image ports for character/subject swaps" },
     vframes:{ fields:{ frames:"how many (1–12)", gap:"seconds between frames", dir:"end|start" }, note:"grows frame1…frameN image output ports" },
     combine:{ fields:{ dedup:"trim duplicate seam frame (true/false, default true)" }, note:"grows clip1, clip2, … video input ports" },
     soundtrack:{ fields:{ loop:"loop audio to fill the video (true/false)" }, note:"replaces the video's existing soundtrack" },

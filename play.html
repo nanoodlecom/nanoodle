@@ -2763,12 +2763,21 @@ function mp4ParamsMatch(bufs){
     },
     vedit: {
       em:"🎞️", title:"Video edit",
-      inputs:[{name:"video", type:"video"}], outputs:[{name:"video", type:"video"}],
+      inputs:[{name:"video", type:"video"}], refInputs:true,   // reads optional reference-image wires (ref1…) → the model's ref-image array param (seedance-2.0 video-edit family)
+      outputs:[{name:"video", type:"video"}],
       async run(n, inp, ctx, onProgress){
         if(!inp.video) throw new Error("no video input");
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         const vopts = await videoSourceOpts(inp.video); vopts.lora = loraParams(n); vopts.extra = (n.fields.modelOpts||{});
         vopts.dims = await videoDimParams(n);   // resolution/aspect/duration under the model's real wire names (seconds/orientation for Sora/WAN)
+        const refs = collectRefInputs(inp);
+        if(refs.length){   // honor authored ref wires unless a runtime model swap dropped ref support — say so, never silently discard
+          const spec = await modelAllowsRefs(mdl(n));
+          if(spec && spec.key){
+            vopts.refImages = refs.slice(0, spec.cap); vopts.refKey = spec.key;
+            if(refs.length > spec.cap && onProgress) onProgress("dropped " + (refs.length - spec.cap) + " reference image(s) over this model's limit of " + spec.cap);
+          } else if(onProgress) onProgress("reference image(s) ignored — this model doesn't support them");
+        }
         const url = await ctx.genVideo(mdl(n), prompt, vopts, null,
           (st,ms)=> onProgress && onProgress("processing video… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
         return { video: url };
