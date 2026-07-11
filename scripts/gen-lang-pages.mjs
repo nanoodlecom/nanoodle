@@ -59,6 +59,7 @@ export const PAGES = {
     cta: "Abrir el editor",
     otherLabel: "Otros idiomas",
     legalLabel: "Aviso legal y privacidad",
+    srcLabel: "Código abierto (MIT) — lee el código en GitHub",
   },
   fr: {
     ogLocale: "fr_FR",
@@ -75,6 +76,7 @@ export const PAGES = {
     cta: "Ouvrir l’éditeur",
     otherLabel: "Autres langues",
     legalLabel: "Mentions légales et confidentialité",
+    srcLabel: "Open source (MIT) — lisez le code sur GitHub",
   },
   de: {
     ogLocale: "de_DE",
@@ -91,6 +93,7 @@ export const PAGES = {
     cta: "Editor öffnen",
     otherLabel: "Andere Sprachen",
     legalLabel: "Rechtliches und Datenschutz",
+    srcLabel: "Open Source (MIT) — lies den Code auf GitHub",
   },
   pt: {
     ogLocale: "pt_BR",
@@ -107,6 +110,7 @@ export const PAGES = {
     cta: "Abrir o editor",
     otherLabel: "Outros idiomas",
     legalLabel: "Aviso legal e privacidade",
+    srcLabel: "Código aberto (MIT) — leia o código no GitHub",
   },
   ja: {
     ogLocale: "ja_JP",
@@ -123,6 +127,7 @@ export const PAGES = {
     cta: "エディターを開く",
     otherLabel: "他の言語",
     legalLabel: "利用規約とプライバシー",
+    srcLabel: "オープンソース（MIT）— コードは GitHub で",
   },
 };
 
@@ -228,6 +233,7 @@ ${altLinks()}
   <p><a class="cta" href="/?lang=${code}">${esc(p.cta)} →</a></p>
   <footer>
     <div class="langs">${p.otherLabel}: ${otherLangs(code)}</div>
+    <div><a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">${esc(p.srcLabel)}</a></div>
     <div><a href="/legal">${esc(p.legalLabel)}</a></div>
   </footer>
 </main>

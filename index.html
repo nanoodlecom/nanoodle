@@ -415,9 +415,12 @@
   #cost b{color:var(--ink)}
 
   /* ---------- editor surface ---------- */
-  #legallink{ position:fixed; right:.9rem; bottom:calc(var(--db-h,3rem) + .35rem); z-index:20; font-size:.62rem; line-height:1;
-              color:var(--dim); opacity:.4; text-decoration:none; pointer-events:auto; }   /* right-aligned under the control bar's right edge, clear of the lifted row */
-  #legallink:hover{ opacity:.85; text-decoration:underline }
+  /* the quiet site-links row: "Open source" (the no-tracking promise is verifiable — the whole
+     site is served from the public GitHub repo) + Terms/Privacy */
+  #sitelinks{ position:fixed; right:.9rem; bottom:calc(var(--db-h,3rem) + .35rem); z-index:20;
+              display:flex; gap:.7rem; font-size:.62rem; line-height:1; pointer-events:auto; }   /* right-aligned under the control bar's right edge, clear of the lifted row */
+  #sitelinks a{ color:var(--dim); opacity:.4; text-decoration:none }
+  #sitelinks a:hover{ opacity:.85; text-decoration:underline }
   /* Bottom-right cluster: the persistent run-cost pill owns the corner (the value people care about,
      always visible), and the transient ↺ ↻ ⊡ canvas controls flow in to its LEFT on hover — so the
      pill never floats orphaned when the buttons are hidden, and nothing shifts when they appear. */
@@ -1113,7 +1116,10 @@
   <button id="fit" disabled title="Fit the whole workflow in view (F)" aria-label="Fit the whole workflow in view">⊡</button>
   <button id="runest" type="button" hidden></button>
 </div>
-<a id="legallink" href="/legal" target="_blank" rel="noopener">Terms · Privacy</a>
+<div id="sitelinks">
+  <a id="ghlink" href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener" title="Read the code on GitHub — MIT licensed">Open source</a>
+  <a id="legallink" href="/legal" target="_blank" rel="noopener">Terms · Privacy</a>
+</div>
 
 <script>
 const NANOGPT = "https://nano-gpt.com";
@@ -1284,6 +1290,8 @@ const I18N = {
     "Open the Noodle Cookoff rules":"Abrir las reglas del Noodle Cookoff",
     "See the rules →":"Ver las reglas →",
     "Terms · Privacy":"Términos · Privacidad",
+    "Open source":"Código abierto",
+    "Read the code on GitHub — MIT licensed":"Lee el código en GitHub — licencia MIT",
     "The <b>Noodle Cookoff</b> is live — win Nano for your best noodle. <b>Ends Jul 12.</b>":"El <b>Noodle Cookoff</b> está en marcha — gana Nano con tu mejor noodle. <b>Termina el 12 de julio.</b>",
     "Share this workflow":"Compartir este flujo",
     "Share to":"Compartir en",
@@ -1793,6 +1801,8 @@ const I18N = {
     "Open the Noodle Cookoff rules":"Ouvrir les règles du Noodle Cookoff",
     "See the rules →":"Voir les règles →",
     "Terms · Privacy":"Conditions · Confidentialité",
+    "Open source":"Open source",
+    "Read the code on GitHub — MIT licensed":"Lisez le code sur GitHub — sous licence MIT",
     "The <b>Noodle Cookoff</b> is live — win Nano for your best noodle. <b>Ends Jul 12.</b>":"Le <b>Noodle Cookoff</b> est en cours — gagnez du Nano avec votre meilleur noodle. <b>Fin le 12 juillet.</b>",
     "Share this workflow":"Partager ce workflow",
     "Share to":"Partager sur",
@@ -2291,6 +2301,8 @@ const I18N = {
     "Open the Noodle Cookoff rules":"Regeln des Noodle Cookoff öffnen",
     "See the rules →":"Zu den Regeln →",
     "Terms · Privacy":"AGB · Datenschutz",
+    "Open source":"Open Source",
+    "Read the code on GitHub — MIT licensed":"Lies den Code auf GitHub — MIT-lizenziert",
     "The <b>Noodle Cookoff</b> is live — win Nano for your best noodle. <b>Ends Jul 12.</b>":"Der <b>Noodle Cookoff</b> läuft — gewinne Nano mit deiner besten Noodle. <b>Endet am 12. Juli.</b>",
     "Share this workflow":"Diesen Workflow teilen",
     "Share to":"Teilen auf",
@@ -2791,6 +2803,8 @@ const I18N = {
     "Open the Noodle Cookoff rules":"Abrir as regras do Noodle Cookoff",
     "See the rules →":"Ver as regras →",
     "Terms · Privacy":"Termos · Privacidade",
+    "Open source":"Código aberto",
+    "Read the code on GitHub — MIT licensed":"Leia o código no GitHub — licença MIT",
     "The <b>Noodle Cookoff</b> is live — win Nano for your best noodle. <b>Ends Jul 12.</b>":"O <b>Noodle Cookoff</b> está no ar — ganhe Nano com o seu melhor noodle. <b>Termina em 12 de julho.</b>",
     "Share this workflow":"Compartilhar este fluxo",
     "Share to":"Compartilhar em",
@@ -3289,6 +3303,8 @@ const I18N = {
     "Open the Noodle Cookoff rules":"Noodle Cookoffのルールを開く",
     "See the rules →":"ルールを見る →",
     "Terms · Privacy":"利用規約 · プライバシー",
+    "Open source":"オープンソース",
+    "Read the code on GitHub — MIT licensed":"GitHub でコードを読めます — MIT ライセンス",
     "The <b>Noodle Cookoff</b> is live — win Nano for your best noodle. <b>Ends Jul 12.</b>":"<b>Noodle Cookoff</b> 開催中 — 自慢のヌードルで Nano を獲得。<b>7月12日まで。</b>",
     "Share this workflow":"このワークフローを共有",
     "Share to":"共有先",
