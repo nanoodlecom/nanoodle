@@ -7923,7 +7923,15 @@ async function runGroup(seedIds, ctx){
         }
         catch(err){
           if(ctl.signal.aborted || err?.name==="AbortError") setStopped(n);   // user hit Stop — not a failure
-          else { setStatus(n, "error", friendlyRunError(err)); failed.add(id); }   // real failure → poison dependents (no stale-input charge)
+          else {
+            // An Inpaint node that just failed "no mask" is the FIRST run of the wire-then-brush flow:
+            // its upstream produced the source within this same group, but the loop above skips nodes
+            // still in runningNodes — which this one always is on its own branch run. Hydrate the brush
+            // canvas here (rebuild → mount reads the upstream output), THEN set the error on the fresh
+            // el so "brush the area" shows next to a canvas that can finally be brushed.
+            if(n.type==="inpaint" && !n.fields.image && !n.el?.querySelector("[data-maskwrap] img") && inpaintWiredSource(n)) rerenderNode(n);
+            setStatus(n, "error", friendlyRunError(err)); failed.add(id);   // real failure → poison dependents (no stale-input charge)
+          }
         }
       })();
     }
