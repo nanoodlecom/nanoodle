@@ -28,7 +28,7 @@ then export the graph as a standalone single-file .html app you can host anywher
 or open from disk.
 
 The whole product is one static HTML page — no build step, no bundler, no backend.
-It's open source (MIT): https://github.com/255BITS/nanoodle
+It's open source (MIT): https://github.com/nanoodlecom/nanoodle
 Constraints that fell out of that, which turned out to be the interesting part:
 
 - Exported apps embed their own runtime, so the runtime JS lives in a String.raw
@@ -54,7 +54,7 @@ design decisions than any feature did.
 ## Comment FAQ (prep — answer in your own words, don't paste)
 
 - **"Why not open-source it?"** — Moot as of Jul 10: it IS open source, MIT, full
-  commit history — https://github.com/255BITS/nanoodle. If asked why the repo also
+  commit history — https://github.com/nanoodlecom/nanoodle. If asked why the repo also
   contains marketing notes (`growth/`) and an AI output style: shrug honestly —
   solo project, everything lives in one repo, planned the launch in the open.
 - **"BYO-key is a paywall."** — Yes, effectively. The alternative is me proxying

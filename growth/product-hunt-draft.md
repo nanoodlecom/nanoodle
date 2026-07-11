@@ -25,7 +25,7 @@ nano-gpt key, pay per call.
 
 **Topics:** Artificial Intelligence · No-Code · Privacy · Developer Tools · Open Source
 
-**Links:** add the GitHub repo (https://github.com/255BITS/nanoodle — public + MIT
+**Links:** add the GitHub repo (https://github.com/nanoodlecom/nanoodle — public + MIT
 as of Jul 10) in the listing's links section; PH surfaces it as an "Open Source"
 badge and it pre-answers the trust question.
 
