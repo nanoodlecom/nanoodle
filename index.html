@@ -9796,35 +9796,41 @@ function refuelSawBalance(usd){  // write a freshly-polled figure through the no
 // (→ today's link-only error text stands unchanged).
 async function offerRefuel(){
   const m = $("refuelmodal");
-  if(!m || !m.hidden || !getKey()) return;
+  const key = getKey();
+  if(!m || !m.hidden || !key) return;
   if(Date.now() - _refuelClosedAt < 60000) return;   // parallel groups fail together — closing once means closed
   let info; try{ info = await fetchBalanceInfo(); }catch(_){ return; }
-  if(!info.addr || !m.hidden || !getKey()) return;
+  if(!info.addr || !m.hidden || getKey()!==key) return;
   refuelSawBalance(info.usd);
   $("refueladdr").value = info.addr;
   const cb = $("refuelcopy"); cb.textContent = t("Copy"); cb.classList.remove("ok");
   renderNanoQr("nano:"+info.addr, $("refuelqr"));
   $("refuelwait").hidden = false; $("refuelok").hidden = true;
   m.hidden = false;
-  refuelPoll(isNaN(info.usd) ? null : info.usd);
+  refuelPoll(isNaN(info.usd) ? null : info.usd, key);
 }
 // Poll while the panel is visible: ~9s cadence, skipped while the tab is in the background.
-// "Enough" = covers the current priced estimate when there is one, else any rise above the
-// balance the panel opened with.
-function refuelPoll(baseline){
+// "Enough" = a deposit actually landed (balance rose above what the panel opened with) AND it
+// covers the current priced estimate when there is one — low-funds errors can fire with the
+// balance already at the (under-asking) estimate, so >= estimate alone would flip to success
+// on the first tick with no deposit.
+function refuelPoll(baseline, key){
   const token = ++_refuelToken;
   (async ()=>{
     while(true){
       await sleep(9000);
       if(token!==_refuelToken || $("refuelmodal").hidden) return;   // closed or superseded → stop for good
-      if(document.hidden || !getKey()) continue;                    // background tab / signed out → skip this tick
+      if(getKey()!==key){                                           // signed out / account switched — the QR on
+        $("refuelmodal").hidden = true; _refuelToken++; return;     // screen belongs to the old key: drop the panel
+      }
+      if(document.hidden) continue;                                 // background tab → skip this tick
       let info; try{ info = await fetchBalanceInfo(); }catch(_){ continue; }   // transient failure → try again next tick
       if(token!==_refuelToken || $("refuelmodal").hidden) return;
       if(isNaN(info.usd)) continue;
       refuelSawBalance(info.usd);
-      if(baseline==null) baseline = info.usd;
+      if(baseline==null){ baseline = info.usd; continue; }          // no opening figure — this tick becomes it
       const { usd:need, priced } = workflowCost();
-      if((priced && need>0) ? info.usd >= need : info.usd > baseline){
+      if(info.usd > baseline && (!(priced && need>0) || info.usd >= need)){
         _refuelToken++;                                             // stop polling; the panel stays up showing success
         $("refuelwait").hidden = true; $("refuelok").hidden = false;
         refreshRunEstimate();
