@@ -290,6 +290,10 @@
   #cookoffbtn .x{ display:flex; align-items:center; justify-content:center; width:1.15rem; height:1.15rem; border-radius:50%;
                   background:#0b0d1233; font-size:.72rem; opacity:.85 }
   #cookoffbtn .x:hover{ background:#0b0d1255; opacity:1 }
+  /* ⏳ live deadline chip inside the pill — the closing window is the pitch in the final stretch */
+  #cookoffbtn .tmr{ background:#0b0d1266; color:#fff; border-radius:1rem; padding:.12rem .5rem;
+                    font-size:.72rem; font-weight:800; white-space:nowrap }
+  #cookoffbtn .tmr:empty{ display:none }
   @media (prefers-reduced-motion:reduce){ #cookoffbtn{ animation:none } }
 
   /* ---------- 💬 Describe changes: a docked bottom composer that edits the graph (patchling engine) ---------- */
@@ -351,6 +355,8 @@
   #cookoffpanel h2{ margin:.1rem 0 .15rem; font-size:1.4rem; background:linear-gradient(90deg,#ff6b6b,#ffcf6b,#3ddc97,#7c8cff,#ff79c6);
                  -webkit-background-clip:text; background-clip:text; color:transparent }
   #cookoffpanel .prize{ font-weight:800; font-size:1.05rem; color:var(--ink); margin:0 0 .7rem }
+  #cookoffpanel .ends{ font-weight:800; font-size:.9rem; color:#ffcf6b; margin:0 0 .55rem }
+  #cookoffpanel .ends:empty{ display:none }
   #cookoffpanel p{ font-size:.86rem; line-height:1.5; color:var(--ink); margin:.5rem 0 }
   #cookoffpanel .cats{ list-style:none; padding:0; margin:.6rem 0; display:flex; flex-direction:column; gap:.45rem }
   #cookoffpanel .cats li{ font-size:.84rem; background:var(--panel); border:1px solid var(--line); border-radius:.55rem; padding:.5rem .65rem }
@@ -378,6 +384,8 @@
   .sub-prizetop{ font-weight:800; font-size:1.12rem; background:linear-gradient(90deg,#ff6b6b,#ffcf6b,#3ddc97,#7c8cff,#ff79c6);
                 -webkit-background-clip:text; background-clip:text; color:transparent }
   .sub-cats{ font-size:.76rem; color:var(--dim) }
+  .sub-ends{ font-size:.78rem; font-weight:800; color:#ffcf6b }
+  .sub-ends:empty{ display:none }
   .sub-link{ background:var(--panel); border:1px solid var(--line); border-radius:.65rem; padding:.7rem .75rem .8rem }
   .sub-link label{ display:block; font-size:.7rem; letter-spacing:.07em; text-transform:uppercase; color:var(--dim); font-weight:700; margin-bottom:.4rem }
   .sub-linktabs{ display:inline-flex; gap:.2rem; background:var(--bg); border:1px solid var(--line); border-radius:.5rem; padding:.18rem; margin-bottom:.45rem }
@@ -1017,7 +1025,7 @@
 
 <!-- 🍜 Noodle Cookoff — floating announcement (left), opens the contest modal -->
 <div id="cornerpills">
-<button id="cookoffbtn" title="Noodle Cookoff — win Nano" aria-haspopup="dialog">🍜 Noodle Cookoff<span class="x" id="cookoffdismiss" role="button" tabindex="0" title="Dismiss" aria-label="Dismiss">✕</span></button>
+<button id="cookoffbtn" title="Noodle Cookoff — win Nano" aria-haspopup="dialog">🍜 Noodle Cookoff<span class="tmr" id="cookofftimer" data-no-i18n></span><span class="x" id="cookoffdismiss" role="button" tabindex="0" title="Dismiss" aria-label="Dismiss">✕</span></button>
 <button id="examples" title="Load a ready-made example workflow">📚 <span>Examples</span></button>
 </div>
 <div id="cookoffmodal" hidden>
@@ -1025,6 +1033,7 @@
     <button id="cookoffclose" class="hbtn" title="Close (Esc)" aria-label="Close">✕</button>
     <h2>🍜 Noodle Cookoff</h2>
     <div class="prize">Win 3 × 133 XNO (Nano) — a feeless crypto</div>
+    <div class="ends" id="cookoffends" data-no-i18n></div>
     <p>You're already in the kitchen. Wire up a noodle, share it, and win Nano (XNO) — a feeless cryptocurrency, sent straight to your wallet.</p>
     <ul class="cats">
       <li>🛠 <b>Most Useful</b> — the one you'd actually open every week</li>
@@ -1049,6 +1058,7 @@
     <div class="sub-prize">
       <span class="sub-prizetop">🏆 Win 3 × 133 XNO (Nano) — a feeless crypto</span>
       <span class="sub-cats">🛠 Most Useful · 💡 Most Innovative · ❤️ People's Choice</span>
+      <span class="sub-ends" id="submitends" data-no-i18n></span>
     </div>
     <div class="sub-link">
       <div class="sub-linktabs" role="tablist" aria-label="What your link opens">
@@ -1289,6 +1299,7 @@ const I18N = {
     "Sends this link to a third-party shortener so":"Envía este enlace a un acortador de terceros para que",
     "Open the Noodle Cookoff rules":"Abrir las reglas del Noodle Cookoff",
     "See the rules →":"Ver las reglas →",
+    "⏳ ends in {t}":"⏳ termina en {t}",
     "Terms · Privacy":"Términos · Privacidad",
     "Open source":"Código abierto",
     "Read the code on GitHub — MIT licensed":"Lee el código en GitHub — licencia MIT",
@@ -1800,6 +1811,7 @@ const I18N = {
     "Sends this link to a third-party shortener so":"Envoie ce lien à un raccourcisseur tiers pour que",
     "Open the Noodle Cookoff rules":"Ouvrir les règles du Noodle Cookoff",
     "See the rules →":"Voir les règles →",
+    "⏳ ends in {t}":"⏳ se termine dans {t}",
     "Terms · Privacy":"Conditions · Confidentialité",
     "Open source":"Open source",
     "Read the code on GitHub — MIT licensed":"Lisez le code sur GitHub — sous licence MIT",
@@ -2300,6 +2312,7 @@ const I18N = {
     "Sends this link to a third-party shortener so":"Sendet diesen Link an einen Drittanbieter-Kürzungsdienst, damit",
     "Open the Noodle Cookoff rules":"Regeln des Noodle Cookoff öffnen",
     "See the rules →":"Zu den Regeln →",
+    "⏳ ends in {t}":"⏳ endet in {t}",
     "Terms · Privacy":"AGB · Datenschutz",
     "Open source":"Open Source",
     "Read the code on GitHub — MIT licensed":"Lies den Code auf GitHub — MIT-lizenziert",
@@ -2802,6 +2815,7 @@ const I18N = {
     "Sends this link to a third-party shortener so":"Envia este link para um encurtador de terceiros para",
     "Open the Noodle Cookoff rules":"Abrir as regras do Noodle Cookoff",
     "See the rules →":"Ver as regras →",
+    "⏳ ends in {t}":"⏳ termina em {t}",
     "Terms · Privacy":"Termos · Privacidade",
     "Open source":"Código aberto",
     "Read the code on GitHub — MIT licensed":"Leia o código no GitHub — licença MIT",
@@ -3302,6 +3316,7 @@ const I18N = {
     "Sends this link to a third-party shortener so":"このリンクをサードパーティの短縮サービスに送信するので",
     "Open the Noodle Cookoff rules":"Noodle Cookoffのルールを開く",
     "See the rules →":"ルールを見る →",
+    "⏳ ends in {t}":"⏳ 終了まで {t}",
     "Terms · Privacy":"利用規約 · プライバシー",
     "Open source":"オープンソース",
     "Read the code on GitHub — MIT licensed":"GitHub でコードを読めます — MIT ライセンス",
@@ -10117,8 +10132,21 @@ addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("appmodal").hidden) c
 // 🍜 Noodle Cookoff promo — opens a static announcement modal; the ✕ on the button dismisses it for good.
 const cookoffBtn = $("cookoffbtn");
 // Contest ends Jul 12, 23:59 UTC — after that, retire the promo so it does not rot for new users.
-const COOKOFF_OVER = Date.now() > Date.parse("2026-07-12T23:59:59Z");
+const COOKOFF_END = Date.parse("2026-07-12T23:59:59Z");
+const COOKOFF_OVER = Date.now() > COOKOFF_END;
 try{ if(COOKOFF_OVER || localStorage.getItem("noodle_cookoff_dismissed")) cookoffBtn.hidden = true; }catch(_){}
+// ⏳ live deadline countdown on the pill and inside both contest modals — in the final stretch the
+// closing window IS the pitch. Hits zero mid-session → retire the pill, same as COOKOFF_OVER on load.
+let cookoffTickId = 0;
+function cookoffCountdown(){
+  const left = COOKOFF_END - Date.now();
+  if(left <= 0){ cookoffBtn.hidden = true; clearInterval(cookoffTickId); return; }
+  const d = Math.floor(left/864e5), h = Math.floor(left%864e5/36e5), m = Math.floor(left%36e5/6e4);
+  const span = d > 0 ? d+"d "+h+"h" : h > 0 ? h+"h "+m+"m" : Math.max(1,m)+"m";
+  const msg = t("⏳ ends in {t}").replace("{t}",()=>span);
+  for(const id of ["cookofftimer","cookoffends","submitends"]) $(id).textContent = msg;
+}
+if(!COOKOFF_OVER){ cookoffCountdown(); cookoffTickId = setInterval(cookoffCountdown, 30000); }
 function closeCookoff(){ $("cookoffmodal").hidden = true; }
 function dismissCookoff(e){ e.stopPropagation(); cookoffBtn.hidden = true; try{ localStorage.setItem("noodle_cookoff_dismissed","1"); }catch(_){} }
 $("cookoffdismiss").onclick = dismissCookoff;
