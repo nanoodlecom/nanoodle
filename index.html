@@ -287,9 +287,18 @@
                box-shadow:0 8px 26px #0007, inset 0 0 0 1px #fff3;
                animation:cookoff-flow 4s linear infinite, cookoff-bob 2.8s ease-in-out infinite; }
   #cookoffbtn:hover{ filter:brightness(1.08) saturate(1.12) }
-  #cookoffbtn .x{ display:flex; align-items:center; justify-content:center; width:1.15rem; height:1.15rem; border-radius:50%;
+  #cookoffbtn .x, #winnersbtn .x{ display:flex; align-items:center; justify-content:center; width:1.15rem; height:1.15rem; border-radius:50%;
                   background:#0b0d1233; font-size:.72rem; opacity:.85 }
-  #cookoffbtn .x:hover{ background:#0b0d1255; opacity:1 }
+  #cookoffbtn .x:hover, #winnersbtn .x:hover{ background:#0b0d1255; opacity:1 }
+  /* 🏆 winners pill — the Cookoff's victory-lap tail: same corner slot, quieter gold, no bob */
+  #winnersbtn[hidden]{ display:none }
+  #winnersbtn{ display:flex; align-items:center; gap:.45rem; cursor:pointer;
+               padding:.62rem .9rem; border:0; border-radius:2rem; font-weight:800; font-size:.86rem; color:#0b0d12;
+               background:linear-gradient(90deg,#ffcf6b,#ffe9b0,#f7b733,#ffcf6b); background-size:200% 100%;
+               box-shadow:0 8px 26px #0007, inset 0 0 0 1px #fff3;
+               animation:cookoff-flow 6s linear infinite; }
+  #winnersbtn:hover{ filter:brightness(1.06) saturate(1.1) }
+  @media (prefers-reduced-motion:reduce){ #winnersbtn{ animation:none } }
   /* ⏳ live deadline chip inside the pill — the closing window is the pitch in the final stretch */
   #cookoffbtn .tmr{ background:#0b0d1266; color:#fff; border-radius:1rem; padding:.12rem .5rem;
                     font-size:.72rem; font-weight:800; white-space:nowrap }
@@ -331,7 +340,7 @@
   @keyframes dbpulse{ 0%{ box-shadow:0 0 0 0 var(--accent) } 100%{ box-shadow:0 0 0 14px transparent } }
   .node.db-pulse{ animation:dbpulse 1s ease-out 2 }
   #cornerpills{ bottom:calc(var(--db-h,3rem) + .7rem); }   /* lift the corner pills above the composer */
-  @media (max-height:480px){ #cookoffbtn{ display:none } }   /* short/landscape: the animated promo pill lands mid-canvas over node content; the quiet Examples pill stays */
+  @media (max-height:480px){ #cookoffbtn, #winnersbtn{ display:none } }   /* short/landscape: the animated promo pills land mid-canvas over node content; the quiet Examples pill stays */
   /* While an add/quick-add popover is open, drop the fixed bottom band below #top's stacking context
      (z:30) so the popover (and its taps) win, and hide the animated Cookoff pill so it can't flash
      through / steal taps on list rows. #addpop is trapped in #top's z:30 context, so we demote the
@@ -846,8 +855,8 @@
     #appmodalclose{ width:2.6rem; height:2.6rem }
     .result .frames .fr button{ min-width:36px; min-height:36px }
     /* tiny × dismiss glyphs: keep the visual size, inflate the tap zone with an invisible ::after (same idiom as .port) */
-    #hintx, #connecthintx, #cookoffbtn .x{ position:relative }
-    #hintx::after, #connecthintx::after, #cookoffbtn .x::after{ content:""; position:absolute; inset:-10px }
+    #hintx, #connecthintx, #cookoffbtn .x, #winnersbtn .x{ position:relative }
+    #hintx::after, #connecthintx::after, #cookoffbtn .x::after, #winnersbtn .x::after{ content:""; position:absolute; inset:-10px }
     /* share popover: 𝕏/social/copy buttons + readonly URL field (index.html half of the dual-file finding) */
     .sm-svc button, .sm-social a, .sm-copy{ min-height:44px }
     .sm-social a{ min-width:44px }
@@ -1026,6 +1035,7 @@
 <!-- 🍜 Noodle Cookoff — floating announcement (left), opens the contest modal -->
 <div id="cornerpills">
 <button id="cookoffbtn" title="Noodle Cookoff — win Nano" aria-haspopup="dialog">🍜 Noodle Cookoff<span class="tmr" id="cookofftimer" data-no-i18n></span><span class="x" id="cookoffdismiss" role="button" tabindex="0" title="Dismiss" aria-label="Dismiss">✕</span></button>
+<button id="winnersbtn" title="Cookoff winners — the community's best noodles" aria-haspopup="dialog" hidden>🏆 <span>See what won</span><span class="x" id="winnersdismiss" role="button" tabindex="0" title="Dismiss" aria-label="Dismiss">✕</span></button>
 <button id="examples" title="Load a ready-made example workflow">📚 <span>Examples</span></button>
 </div>
 <div id="cookoffmodal" hidden>
@@ -1300,6 +1310,8 @@ const I18N = {
     "Open the Noodle Cookoff rules":"Abrir las reglas del Noodle Cookoff",
     "See the rules →":"Ver las reglas →",
     "⏳ ends in {t}":"⏳ termina en {t}",
+    "See what won":"Ver qué ganó",
+    "Cookoff winners — the community's best noodles":"Ganadores del Cookoff — los mejores noodles de la comunidad",
     "Terms · Privacy":"Términos · Privacidad",
     "Open source":"Código abierto",
     "Read the code on GitHub — MIT licensed":"Lee el código en GitHub — licencia MIT",
@@ -1812,6 +1824,8 @@ const I18N = {
     "Open the Noodle Cookoff rules":"Ouvrir les règles du Noodle Cookoff",
     "See the rules →":"Voir les règles →",
     "⏳ ends in {t}":"⏳ se termine dans {t}",
+    "See what won":"Voir ce qui a gagné",
+    "Cookoff winners — the community's best noodles":"Gagnants du Cookoff — les meilleurs noodles de la communauté",
     "Terms · Privacy":"Conditions · Confidentialité",
     "Open source":"Open source",
     "Read the code on GitHub — MIT licensed":"Lisez le code sur GitHub — sous licence MIT",
@@ -2313,6 +2327,8 @@ const I18N = {
     "Open the Noodle Cookoff rules":"Regeln des Noodle Cookoff öffnen",
     "See the rules →":"Zu den Regeln →",
     "⏳ ends in {t}":"⏳ endet in {t}",
+    "See what won":"Gewinner ansehen",
+    "Cookoff winners — the community's best noodles":"Cookoff-Gewinner — die besten Noodles der Community",
     "Terms · Privacy":"AGB · Datenschutz",
     "Open source":"Open Source",
     "Read the code on GitHub — MIT licensed":"Lies den Code auf GitHub — MIT-lizenziert",
@@ -2816,6 +2832,8 @@ const I18N = {
     "Open the Noodle Cookoff rules":"Abrir as regras do Noodle Cookoff",
     "See the rules →":"Ver as regras →",
     "⏳ ends in {t}":"⏳ termina em {t}",
+    "See what won":"Veja o que ganhou",
+    "Cookoff winners — the community's best noodles":"Vencedores do Cookoff — os melhores noodles da comunidade",
     "Terms · Privacy":"Termos · Privacidade",
     "Open source":"Código aberto",
     "Read the code on GitHub — MIT licensed":"Leia o código no GitHub — licença MIT",
@@ -3317,6 +3335,8 @@ const I18N = {
     "Open the Noodle Cookoff rules":"Noodle Cookoffのルールを開く",
     "See the rules →":"ルールを見る →",
     "⏳ ends in {t}":"⏳ 終了まで {t}",
+    "See what won":"受賞作を見る",
+    "Cookoff winners — the community's best noodles":"Cookoff受賞作 — コミュニティの選りすぐりのヌードル",
     "Terms · Privacy":"利用規約 · プライバシー",
     "Open source":"オープンソース",
     "Read the code on GitHub — MIT licensed":"GitHub でコードを読めます — MIT ライセンス",
@@ -10140,7 +10160,7 @@ try{ if(COOKOFF_OVER || localStorage.getItem("noodle_cookoff_dismissed")) cookof
 let cookoffTickId = 0;
 function cookoffCountdown(){
   const left = COOKOFF_END - Date.now();
-  if(left <= 0){ cookoffBtn.hidden = true; clearInterval(cookoffTickId); return; }
+  if(left <= 0){ cookoffBtn.hidden = true; clearInterval(cookoffTickId); try{ refreshWinnersPill(); }catch(_){} return; }   // hand the corner slot to the winners pill live
   const d = Math.floor(left/864e5), h = Math.floor(left%864e5/36e5), m = Math.floor(left%36e5/6e4);
   const span = d > 0 ? d+"d "+h+"h" : h > 0 ? h+"h "+m+"m" : Math.max(1,m)+"m";
   const msg = t("⏳ ends in {t}").replace("{t}",()=>span);
@@ -10474,6 +10494,21 @@ function openExamples(){
   $("examplesmodal").hidden=false;
 }
 function closeExamples(){ $("examplesmodal").hidden=true; }
+// 🏆 winners pill — once the Cookoff closes, the corner slot points at the winners shelf for a
+// week (victory-lap tail instead of a hard stop). Inert until the podium is hand-filled:
+// COMMUNITY_NOODLES.top empty → no pill, so this ships before the winners commit and lights up
+// with it. Reads the clock live (not COOKOFF_OVER) so the mid-session handoff above works.
+const WINNERS_PILL_UNTIL = Date.parse("2026-07-20T23:59:59Z");
+function refreshWinnersPill(){
+  let dismissed = false; try{ dismissed = !!localStorage.getItem("noodle_winners_dismissed"); }catch(_){}
+  const now = Date.now();
+  $("winnersbtn").hidden = !(now > COOKOFF_END && now < WINNERS_PILL_UNTIL && COMMUNITY_NOODLES.top.length && !dismissed);
+}
+function dismissWinners(e){ e.stopPropagation(); $("winnersbtn").hidden = true; try{ localStorage.setItem("noodle_winners_dismissed","1"); }catch(_){} }
+$("winnersbtn").onclick = ()=>{ openExamples(); $("communityshelf").scrollIntoView({block:"start"}); };
+$("winnersdismiss").onclick = dismissWinners;
+$("winnersdismiss").addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" ") dismissWinners(e); });
+refreshWinnersPill();
 function loadExample(i){
   const ex=EXAMPLES[i]; if(!ex) return;
   if(runningNodes.size){ flash("can’t change the workflow while running — Stop first"); return; }   // replacing the graph mid-run would strand in-flight (already-charged) results (mirrors the per-node delete guard)
