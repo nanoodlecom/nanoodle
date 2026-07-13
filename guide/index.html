@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>nanoodle guide — how it works</title>
+<meta name="description" content="Documentation for nanoodle: the noodle-graph.json workflow format, running workflows headlessly from JavaScript and Python, how #g= and #a= share links keep your data in the URL fragment, and self-hosting the static site." />
+
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="nanoodle guide — how it works" />
+<meta property="og:description" content="The workflow file format, headless JS/Python execution, share-link privacy, and self-hosting — documentation for the browser-only AI node playground." />
+<meta property="og:url" content="https://nanoodle.com/guide/" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="nanoodle guide — how it works" />
+<meta name="twitter:description" content="The workflow file format, headless JS/Python execution, share-link privacy, and self-hosting." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <span>Guide</span></nav>
+
+  <main>
+    <h1>The nanoodle <span class="grad">guide</span></h1>
+    <p class="lede">How the pieces fit together — and why there is no server in any of them.</p>
+
+    <section>
+      <p><strong>nanoodle is a node-graph playground for AI models that runs entirely in your
+      browser.</strong> You wire text, image, video, audio and LLM nodes into a workflow on a
+      canvas, hit Run, and each node calls <a href="https://nano-gpt.com" target="_blank" rel="noopener">NanoGPT</a>
+      directly from your browser on your own API key. Any workflow can be turned into a
+      standalone app with auto-generated inputs, shared as a URL, or exported as a single
+      self-contained <code>.html</code> file.</p>
+
+      <p>There is no backend, no account system, and no analytics — the site is a handful of
+      static HTML pages, and the <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">source
+      repository</a> (MIT) is exactly what <a href="https://nanoodle.com">nanoodle.com</a> serves.
+      Your API key and your workflows live in your browser's localStorage; model requests go
+      straight from your machine to nano-gpt.com. These pages document the parts you might want
+      to build on: the workflow file format, the headless executors, the share-link mechanics,
+      and how to host it yourself.</p>
+    </section>
+
+    <section>
+      <h2>Pages in this guide</h2>
+      <div class="cards">
+        <a class="card" href="/guide/graph-format">
+          <b>The workflow file format</b>
+          <small>What's inside <code>noodle-graph.json</code>: nodes, links, ports, fields — every
+          key grounded in the editor's serializer.</small>
+        </a>
+        <a class="card" href="/guide/run-headless">
+          <b>Run workflows headlessly</b>
+          <small>Re-run a saved graph from Node.js or Python with the zero-dependency
+          <code>nanoodle</code> packages — library and CLI.</small>
+        </a>
+        <a class="card" href="/guide/share-links">
+          <b>How share links work</b>
+          <small>The whole workflow or app rides in the URL fragment (<code>#g=</code> /
+          <code>#a=</code>) — which browsers never send to any server.</small>
+        </a>
+        <a class="card" href="/guide/self-hosting">
+          <b>Self-hosting</b>
+          <small>It's a static site: clone the repo, serve the folder, done. The repo is the
+          privacy proof.</small>
+        </a>
+      </div>
+    </section>
+
+    <section>
+      <h2>Elsewhere</h2>
+      <ul>
+        <li><a href="/">The editor</a> — build and run workflows (also at <code>/app</code>).</li>
+        <li><a href="/play">The app builder</a> — turn a workflow into a shareable app.</li>
+        <li><a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">github.com/nanoodlecom/nanoodle</a> — the site's source (MIT).</li>
+        <li><a href="https://github.com/nanoodlecom/nanoodle-js" target="_blank" rel="noopener">nanoodle-js</a> and
+            <a href="https://github.com/nanoodlecom/nanoodle-py" target="_blank" rel="noopener">nanoodle-py</a> — headless executors (npm / PyPI, both named <code>nanoodle</code>).</li>
+        <li><a href="/llms.txt">/llms.txt</a> — a machine-readable summary of the site for LLMs.</li>
+        <li><a href="/legal">Terms, Privacy &amp; FAQ</a>.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· 100% in your browser, no server</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>

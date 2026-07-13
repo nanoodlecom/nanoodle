@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>The noodle-graph.json workflow format — nanoodle guide</title>
+<meta name="description" content="Reference for nanoodle's noodle-graph.json format: the top-level shape, node and link objects, port kinds, the full node-type table, and the loader rules editors and headless executors both follow." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="The noodle-graph.json workflow format" />
+<meta property="og:description" content="Nodes, links, ports and fields — nanoodle's workflow save format, documented from the serializer that writes it." />
+<meta property="og:url" content="https://nanoodle.com/guide/graph-format" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="The noodle-graph.json workflow format" />
+<meta name="twitter:description" content="Nodes, links, ports and fields — nanoodle's workflow save format." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/graph-format" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <span>Workflow file format</span></nav>
+
+  <main>
+    <h1>The <span class="grad">noodle-graph.json</span> format</h1>
+    <p class="lede">What the editor's 💾 Save button writes, and what everything else — the app
+    builder, the share links, the headless JS/Python executors — reads.</p>
+
+    <section>
+      <p>A saved workflow is plain JSON with no wrapper: the file is exactly the editor's
+      serialized graph, pretty-printed. It is deliberately small and boring — nodes, links
+      between their ports, and a little editor state you can ignore. The same file loads back
+      into the <a href="/">editor</a>, drives apps in the <a href="/play">app builder</a>, and
+      re-executes from code via the
+      <a href="https://github.com/nanoodlecom/nanoodle-js" target="_blank" rel="noopener">nanoodle-js</a> and
+      <a href="https://github.com/nanoodlecom/nanoodle-py" target="_blank" rel="noopener">nanoodle-py</a> packages
+      (see <a href="/guide/run-headless">Run workflows headlessly</a>).</p>
+
+      <h2>Top-level shape</h2>
+      <p>This is the starter workflow that ships with the app (text idea → LLM prompt-writer →
+      image), verbatim:</p>
+<pre><code>{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "text",
+      "x": 60,
+      "y": 130,
+      "fields": { "text": "a cozy ramen shop on a rainy night" },
+      "w": 220
+    },
+    {
+      "id": "n2",
+      "type": "llm",
+      "x": 340,
+      "y": 70,
+      "fields": {
+        "model": "zai-org/glm-5.2",
+        "system": "You write image prompts. Turn the idea into one vivid, detailed image prompt — scene, lighting, mood, style. Reply with the prompt only."
+      },
+      "w": 250,
+      "sizes": { "system": 120 }
+    },
+    {
+      "id": "n3",
+      "type": "image",
+      "x": 650,
+      "y": 100,
+      "fields": { "model": "nano-banana-2-lite", "size": "1k", "variations": "1" },
+      "w": 250
+    }
+  ],
+  "links": [
+    { "id": "l1", "from": { "node": "n1", "port": "text" }, "to": { "node": "n2", "port": "prompt" } },
+    { "id": "l2", "from": { "node": "n2", "port": "text" }, "to": { "node": "n3", "port": "prompt" } }
+  ],
+  "nid": 4,
+  "lid": 3,
+  "view": { "panX": 40, "panY": 60, "scale": 1 }
+}</code></pre>
+
+      <div class="tablewrap"><table>
+        <tr><th>key</th><th>meaning</th></tr>
+        <tr><td><code>v</code></td><td>Format version — always <code>1</code>.</td></tr>
+        <tr><td><code>nodes</code></td><td>Array of node objects (below). The only key a loader strictly requires.</td></tr>
+        <tr><td><code>links</code></td><td>Array of wires: <code>{ "id", "from": {"node","port"}, "to": {"node","port"} }</code>.</td></tr>
+        <tr><td><code>nid</code>, <code>lid</code></td><td>Next node/link id counters, so newly added nodes never collide with loaded ids. Loaders recompute them from the ids anyway.</td></tr>
+        <tr><td><code>view</code></td><td>Editor camera: <code>{ "panX", "panY", "scale" }</code>. Layout only — irrelevant to execution.</td></tr>
+      </table></div>
+
+      <h2>Node objects</h2>
+      <div class="tablewrap"><table>
+        <tr><th>key</th><th>meaning</th></tr>
+        <tr><td><code>id</code></td><td>String id, <code>"n1"</code>, <code>"n2"</code>, … referenced by links.</td></tr>
+        <tr><td><code>type</code></td><td>One of the node types in the table below.</td></tr>
+        <tr><td><code>fields</code></td><td>The node's parameter bag — type-specific (model, prompt, size, …). Uploaded media (image/audio/video/mask fields) is stored inline as <code>data:</code> URLs; share links may blank these to <code>""</code> (see <a href="/guide/share-links">share links</a>).</td></tr>
+        <tr><td><code>name</code></td><td>Optional user-given label. Display name resolution everywhere is: <code>name</code> (trimmed, if set) → the type's title → the type key.</td></tr>
+        <tr><td><code>x</code>, <code>y</code>, <code>w</code>, <code>sizes</code></td><td>Canvas position, node width, per-textarea heights. Layout only — executors ignore them.</td></tr>
+      </table></div>
+      <p>Generated results are <strong>not</strong> part of the format: the serializer never
+      persists node outputs, so a saved file contains your workflow, not your previous runs.</p>
+
+      <h2>Ports and wires</h2>
+      <p>Every port has one of four kinds — <code>text</code>, <code>image</code>,
+      <code>audio</code>, <code>video</code> — and only matching kinds connect. A link's
+      <code>from.port</code> names an output port on the source node; <code>to.port</code> names
+      an input on the target.</p>
+      <p>Two kinds of input ports exist:</p>
+      <ul>
+        <li><strong>Declared inputs</strong> — fixed per type (e.g. <code>inpaint</code> takes
+        <code>image</code> and <code>mask</code>), plus dynamic families that grow as you wire
+        more: <code>img1</code>, <code>img2</code>, … (LLM/Draw vision references),
+        <code>image</code>, <code>image2</code>, … (Edit references), <code>ref1</code>, …
+        (Text→Video references), <code>clip1</code>, … (Combine), and <code>endframe</code>
+        (Image→Video) / <code>audio</code> (LLM audio input).</li>
+        <li><strong>Field overrides</strong> — every multi-line text field is also a wireable
+        text port whose port name equals the field name (<code>prompt</code>,
+        <code>system</code>, <code>lyrics</code>, <code>q</code>, …). A wire into a field port
+        overrides the typed value at run time. Exceptions: the <code>text</code> /
+        <code>choice</code> / <code>comment</code> nodes' own fields and <code>extraJson</code>
+        are not wireable.</li>
+      </ul>
+
+      <h2>Node types</h2>
+      <p>"local" runs without any network call; "NanoGPT" calls the API (and spends);
+      "browser-only" nodes do media processing with browser APIs — they work in the app but the
+      headless executors reject them up front, before any paid call.</p>
+      <div class="tablewrap"><table>
+        <tr><th>type</th><th>node</th><th>runs</th><th>inputs</th><th>outputs</th><th>key fields</th></tr>
+        <tr><td><code>text</code></td><td>Text</td><td>local</td><td>—</td><td>text</td><td><code>text</code></td></tr>
+        <tr><td><code>upload</code></td><td>Image input</td><td>local</td><td>—</td><td>image</td><td><code>image</code> (data: URL)</td></tr>
+        <tr><td><code>aupload</code></td><td>Audio input</td><td>local</td><td>—</td><td>audio</td><td><code>audio</code> (data: URL)</td></tr>
+        <tr><td><code>vupload</code></td><td>Video input</td><td>local</td><td>—</td><td>video</td><td><code>video</code> (data: URL)</td></tr>
+        <tr><td><code>choice</code></td><td>Choice</td><td>local</td><td>—</td><td>text</td><td><code>options</code>, <code>selected</code></td></tr>
+        <tr><td><code>join</code></td><td>Join</td><td>local</td><td>a, b (text)</td><td>text</td><td><code>sep</code></td></tr>
+        <tr><td><code>llm</code></td><td>LLM</td><td>NanoGPT</td><td>img1… (image), audio</td><td>text</td><td><code>model</code>, <code>system</code>, <code>prompt</code>, <code>temperature</code>, <code>maxTokens</code>, <code>format</code>, <code>reasoningEffort</code>, <code>showThinking</code></td></tr>
+        <tr><td><code>image</code></td><td>Image</td><td>NanoGPT</td><td>—</td><td>image</td><td><code>model</code>, <code>prompt</code>, <code>size</code>, <code>variations</code>, <code>seed</code>, <code>customCivitaiAir</code></td></tr>
+        <tr><td><code>draw</code></td><td>Draw</td><td>NanoGPT</td><td>img1… (image)</td><td>image, text</td><td><code>model</code>, <code>system</code>, <code>prompt</code>, <code>showThinking</code></td></tr>
+        <tr><td><code>edit</code></td><td>Edit</td><td>NanoGPT</td><td>image, image2…</td><td>image</td><td><code>model</code>, <code>prompt</code>, <code>size</code>, <code>seed</code></td></tr>
+        <tr><td><code>inpaint</code></td><td>Inpaint</td><td>NanoGPT</td><td>image, mask</td><td>image</td><td><code>model</code>, <code>prompt</code>, <code>size</code>, <code>seed</code></td></tr>
+        <tr><td><code>resize</code></td><td>Resize / crop</td><td>browser-only</td><td>image</td><td>image</td><td><code>mode</code>, <code>width</code>, <code>height</code></td></tr>
+        <tr><td><code>vision</code></td><td>Vision</td><td>NanoGPT</td><td>image</td><td>text</td><td><code>model</code>, <code>q</code></td></tr>
+        <tr><td><code>tvideo</code></td><td>Text→Video</td><td>NanoGPT</td><td>ref1… (image)</td><td>video</td><td><code>model</code>, <code>prompt</code>, <code>duration</code>, <code>aspect</code>, <code>resolution</code>, <code>modelOpts</code></td></tr>
+        <tr><td><code>ivideo</code></td><td>Image→Video</td><td>NanoGPT</td><td>image, endframe</td><td>video</td><td><code>model</code>, <code>prompt</code>, <code>duration</code>, <code>aspect</code>, <code>resolution</code>, <code>modelOpts</code></td></tr>
+        <tr><td><code>vedit</code></td><td>Video edit</td><td>NanoGPT</td><td>video</td><td>video</td><td><code>model</code>, <code>prompt</code>, <code>resolution</code>, <code>modelOpts</code></td></tr>
+        <tr><td><code>vframes</code></td><td>Video → frames</td><td>browser-only</td><td>video</td><td>frame1…frameN (image)</td><td><code>frames</code>, <code>gap</code>, <code>dir</code></td></tr>
+        <tr><td><code>combine</code></td><td>Combine videos</td><td>browser-only</td><td>clip1… (video)</td><td>video</td><td><code>dedup</code></td></tr>
+        <tr><td><code>soundtrack</code></td><td>Soundtrack</td><td>browser-only</td><td>video, audio</td><td>video</td><td><code>loop</code></td></tr>
+        <tr><td><code>lipsync</code></td><td>Avatar / lipsync</td><td>NanoGPT</td><td>image, audio</td><td>video</td><td><code>model</code>, <code>prompt</code>, <code>resolution</code>, <code>modelOpts</code></td></tr>
+        <tr><td><code>music</code></td><td>Music</td><td>NanoGPT</td><td>—</td><td>audio</td><td><code>model</code>, <code>prompt</code>, <code>lyrics</code>, <code>instrumental</code>, <code>duration</code>, <code>negative_prompt</code>, <code>seed</code>, <code>extraJson</code></td></tr>
+        <tr><td><code>remix</code></td><td>Remix audio</td><td>NanoGPT</td><td>audio</td><td>audio</td><td><code>model</code>, <code>prompt</code>, <code>lyrics</code>, <code>duration</code>, <code>extraJson</code></td></tr>
+        <tr><td><code>tts</code></td><td>Speech</td><td>NanoGPT</td><td>—</td><td>audio</td><td><code>model</code>, <code>prompt</code>, <code>voice</code>, <code>speed</code>, <code>instructions</code>, <code>extraJson</code></td></tr>
+        <tr><td><code>trim</code></td><td>Trim audio</td><td>browser-only</td><td>audio</td><td>audio</td><td><code>start</code>, <code>length</code></td></tr>
+        <tr><td><code>extractaudio</code></td><td>Extract audio</td><td>browser-only</td><td>video</td><td>audio</td><td><code>start</code>, <code>length</code></td></tr>
+        <tr><td><code>transcribe</code></td><td>Transcribe</td><td>NanoGPT</td><td>audio</td><td>text</td><td><code>model</code>, <code>language</code></td></tr>
+        <tr><td><code>comment</code></td><td>Comment</td><td>local (never runs)</td><td>—</td><td>—</td><td><code>text</code>, <code>color</code></td></tr>
+      </table></div>
+
+      <h2>Loader rules</h2>
+      <p>If you write your own reader, these are the rules the editor and the headless
+      executors already follow:</p>
+      <ul>
+        <li>Only <code>nodes</code> is required; treat <code>links</code> and everything else
+        as optional (<code>{"nodes": [...], "links": [...]}</code> is a valid minimal graph).</li>
+        <li>Legacy alias: node type <code>audio</code> loads as <code>tts</code> (older graphs
+        had a single combined audio node).</li>
+        <li>Unknown node types don't crash a load — the editor skips them; the headless
+        libraries keep them, warn, and fail fast at run time.</li>
+        <li>Keep a link only if <em>both</em> endpoint nodes exist after filtering.</li>
+        <li>Migration: a link into a <code>music</code> or <code>tts</code> node's
+        <code>"text"</code> port is rewritten to <code>"prompt"</code>.</li>
+      </ul>
+
+      <p>The normative spec — including execution semantics (topological order, concurrent
+      lanes) and the exact NanoGPT request each node produces — lives with the executors:
+      <a href="https://github.com/nanoodlecom/nanoodle-js/blob/main/docs/SPEC-format.md" target="_blank" rel="noopener">SPEC-format.md</a>,
+      <a href="https://github.com/nanoodlecom/nanoodle-js/blob/main/docs/SPEC-engine.md" target="_blank" rel="noopener">SPEC-engine.md</a> and
+      <a href="https://github.com/nanoodlecom/nanoodle-js/blob/main/docs/SPEC-io.md" target="_blank" rel="noopener">SPEC-io.md</a>.</p>
+
+      <nav class="next">
+        <a href="/guide/">← Guide</a>
+        <a href="/guide/run-headless">Run workflows headlessly →</a>
+        <a href="/guide/share-links">How share links work</a>
+        <a href="/guide/self-hosting">Self-hosting</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· 100% in your browser, no server</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>

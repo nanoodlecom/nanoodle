@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Self-hosting nanoodle — nanoodle guide</title>
+<meta name="description" content="nanoodle is a static site: clone the MIT-licensed repo and serve the folder with any file server. What the hosted site adds, what to know about OAuth, headers and referral codes — the repo is the privacy proof." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="Self-hosting nanoodle" />
+<meta property="og:description" content="Clone the repo, serve the folder, done. No build step, no backend — nanoodle.com serves exactly the files in the public repository." />
+<meta property="og:url" content="https://nanoodle.com/guide/self-hosting" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Self-hosting nanoodle" />
+<meta name="twitter:description" content="Clone the repo, serve the folder, done. No build step, no backend." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/self-hosting" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <span>Self-hosting</span></nav>
+
+  <main>
+    <h1>Self-hosting <span class="grad">nanoodle</span></h1>
+    <p class="lede">The hosted site and the repository are the same files. If you'd rather not
+    take our word for the privacy claims, don't — run it yourself.</p>
+
+    <section>
+      <h2>Hosted vs. self-hosted</h2>
+      <p><a href="https://nanoodle.com">nanoodle.com</a> serves exactly the files in the
+      <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">public repo</a>
+      (MIT) as a static site on Cloudflare — see <code>wrangler.jsonc</code>,
+      <code>_headers</code>, <code>_redirects</code> and <code>sw.js</code> in the repo. There
+      is no server-side code; hosting adds nothing but HTTPS and security headers.</p>
+
+      <h2>Run it yourself</h2>
+<pre><code>git clone https://github.com/nanoodlecom/nanoodle.git
+cd nanoodle
+python3 -m http.server 8000
+# http://localhost:8000/           → the editor
+# http://localhost:8000/play.html  → the app builder</code></pre>
+      <p>Any static file server works — there is no build step. Edit the HTML files, refresh
+      the browser.</p>
+
+      <h3>Notes</h3>
+      <ul>
+        <li><strong>Sign-in:</strong> NanoGPT OAuth needs an <code>http(s)</code> origin;
+        pasting an API key also works from plain <code>file://</code>.</li>
+        <li><strong>Headers:</strong> <code>_headers</code> and <code>_redirects</code> are
+        Cloudflare conventions. On another host, reproduce the CSP headers yourself or skip
+        them — the app works without, you just lose the browser-enforced guarantee.</li>
+        <li><strong>Exported apps:</strong> the standalone <code>.html</code> files nanoodle
+        exports need no hosting at all.</li>
+      </ul>
+
+      <h2>Referral codes</h2>
+      <p>The default config routes 10% of usage as referral credits to the maintainer —
+      NanoGPT pays this out of their side, and per their program, signing up through a referral
+      link gives you a 5% discount. If you self-host and would rather not, two things carry the
+      code: <code>invitation_code</code> in the OAuth authorize URL (search
+      <code>index.html</code> / <code>play.html</code> for <code>invitation_code</code>) and the
+      "create an account" links to <code>nano-gpt.com/r/…</code>. Replace the code with your
+      own, or delete the parameter and use bare <code>nano-gpt.com</code> links.</p>
+
+      <h2>Why the repo is the privacy proof</h2>
+      <p>nanoodle's privacy story isn't a policy, it's an architecture — and every piece of it
+      is inspectable in the repo you just cloned:</p>
+      <ul>
+        <li><strong>No analytics, no tracking, no third-party scripts.</strong> The only
+        dependency that isn't hand-written is vendored into <code>vendor/</code> and served
+        from the same origin — no CDNs.</li>
+        <li><strong>Model calls go directly from the browser to
+        <a href="https://nano-gpt.com" target="_blank" rel="noopener">nano-gpt.com</a></strong> on your
+        own key. There is no nanoodle server to see your prompts, outputs, or key.</li>
+        <li><strong>Keys and workflows live in localStorage</strong>, on your machine.</li>
+        <li><strong>A per-path Content-Security-Policy</strong> (<code>_headers</code>) pins
+        which origins each page may talk to, so "no tracking" is enforced by the browser, not
+        just promised in a README.</li>
+      </ul>
+      <p>The <a href="/legal">privacy page</a> states the same things in plain terms.</p>
+
+      <nav class="next">
+        <a href="/guide/">← Guide</a>
+        <a href="/guide/graph-format">The workflow file format</a>
+        <a href="/guide/run-headless">Run workflows headlessly</a>
+        <a href="/guide/share-links">How share links work</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· 100% in your browser, no server</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>How share links work (#g= and #a=) — nanoodle guide</title>
+<meta name="description" content="nanoodle share links carry the entire workflow or app inside the URL fragment — the part browsers never send to any server. What's in a #g= or #a= link, what's deliberately left out, and what shortening does." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="How nanoodle share links work (#g= and #a=)" />
+<meta property="og:description" content="The whole workflow rides in the URL fragment, which never reaches a server. No key, none of your uploads — here's exactly what a share link contains." />
+<meta property="og:url" content="https://nanoodle.com/guide/share-links" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="How nanoodle share links work (#g= and #a=)" />
+<meta name="twitter:description" content="The whole workflow rides in the URL fragment, which never reaches a server." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/share-links" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <span>Share links</span></nav>
+
+  <main>
+    <h1>How <span class="grad">share links</span> work</h1>
+    <p class="lede">There is no database of shared workflows, because the workflow itself
+    <em>is</em> the link.</p>
+
+    <section>
+      <h2>Two kinds of link</h2>
+      <ul>
+        <li><strong><code>#g=</code> — a workflow link.</strong> Opens the <a href="/">editor</a>
+        with the shared graph on the canvas, ready to remix. This is what the 🔗 Share button
+        makes by default.</li>
+        <li><strong><code>#a=</code> — an app link.</strong> Opens the
+        <a href="/play">app player</a> with a standalone, ready-to-run app: auto-generated
+        inputs, a Run button, outputs. Beyond the graph it can carry the app's name or its
+        customized HTML/CSS, the creator's language choice, and small sample outputs shown as a
+        preview before the recipient signs in.</li>
+      </ul>
+      <p>In both cases the payload is the serialized graph or app, gzip-compressed and
+      base64url-encoded into the URL <em>fragment</em> — the part after <code>#</code>. (When
+      compression isn't available there are uncompressed fallbacks: <code>#j=</code> for
+      workflows, a <code>u</code>-prefixed <code>#a=</code> for apps.)</p>
+
+      <h2>Why the fragment matters</h2>
+      <p>Browsers never send the fragment over the network: an HTTP request for
+      <code>https://nanoodle.com/play.html#a=…</code> asks the server for
+      <code>/play.html</code> and nothing more. The <code>#a=…</code> part exists only in your
+      address bar and in the recipient's browser, where the page decodes it locally. Combined
+      with nanoodle being a static site with <a href="/legal">no analytics</a>, that means the
+      contents of a shared workflow are never observable by nanoodle's hosting — there is
+      nothing server-side that could log, store, or index them.</p>
+
+      <h2>What a link never contains</h2>
+      <ul>
+        <li><strong>Your API key.</strong> It is not part of the graph and is never serialized
+        into a link or an exported app. Recipients bring their own key.</li>
+        <li><strong>Your uploaded media.</strong> Photos, audio and video you dropped into
+        upload nodes (and inpaint sources/masks) are blanked out of share links and exported
+        apps — they stay in your local save only.</li>
+        <li><strong>Your previous results.</strong> Generated outputs aren't part of the saved
+        graph format (app links may carry the small preview samples the creator chose to
+        include).</li>
+      </ul>
+      <p>The import side is defensive too: because upload-node media is always a local
+      <code>data:</code> URL when it's legitimate, any <em>remote</em> URL found in those fields
+      of an incoming link is stripped before the graph is applied — so a crafted link can't use
+      a media URL as a tracking beacon that fires when you open it.</p>
+
+      <h2>Shortening — the one deliberate exception</h2>
+      <p>Because the whole workflow rides in the URL, links can get long — too long for some
+      chat apps and social sites. The share dialog has an opt-in <strong>✂ Shorten</strong>
+      button using <a href="https://da.gd" target="_blank" rel="noopener">da.gd</a> (the default —
+      it handles very long links) or <a href="https://tinyurl.com" target="_blank" rel="noopener">TinyURL</a>.</p>
+      <div class="callout">
+        <p><strong>Be aware of the trade-off:</strong> a shortener works by storing your full
+        long URL — including the fragment — and redirecting to it. If you click Shorten, that
+        third-party service holds a copy of the link (and therefore the workflow encoded in it).
+        Nothing is sent anywhere unless you click; the plain long link keeps the
+        fragment-never-leaves-the-browser property end to end.</p>
+      </div>
+      <p>When an app link with inline preview images won't fit the shortener's limit, the share
+      flow re-encodes the preview smaller or drops it — and tells you it did — rather than
+      failing silently.</p>
+
+      <h2>For recipients</h2>
+      <p>Treat shared apps as untrusted, like any web page. Shared apps run sandboxed and never
+      carry the sharer's key; review what an app does before connecting your own key and
+      running it. Nothing runs or spends without your explicit Run.</p>
+
+      <nav class="next">
+        <a href="/guide/">← Guide</a>
+        <a href="/guide/graph-format">The workflow file format</a>
+        <a href="/guide/run-headless">Run workflows headlessly</a>
+        <a href="/guide/self-hosting">Self-hosting</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· 100% in your browser, no server</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Run nanoodle workflows headlessly (JavaScript &amp; Python) — nanoodle guide</title>
+<meta name="description" content="Re-run a saved nanoodle workflow from Node.js or Python: npm install nanoodle / pip install nanoodle, set NANOGPT_API_KEY, load noodle-graph.json and run. Zero-dependency library + CLI quickstarts." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="Run nanoodle workflows headlessly (JavaScript &amp; Python)" />
+<meta property="og:description" content="Design a workflow in the browser, save it, then re-run it from scripts, servers and agents with the zero-dependency nanoodle packages." />
+<meta property="og:url" content="https://nanoodle.com/guide/run-headless" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Run nanoodle workflows headlessly (JavaScript &amp; Python)" />
+<meta name="twitter:description" content="npm install nanoodle / pip install nanoodle — same graphs, same results, from code." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/run-headless" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <span>Run headlessly</span></nav>
+
+  <main>
+    <h1>Run workflows <span class="grad">headlessly</span></h1>
+    <p class="lede">The browser app is for designing and testing. Two zero-dependency sibling
+    packages re-run the same saved graph from code — same
+    <a href="/guide/graph-format">noodle-graph.json</a>, same NanoGPT API, your own key.</p>
+
+    <section>
+      <p>Design a workflow in the <a href="/">editor</a>, hit 💾 to download
+      <code>noodle-graph.json</code>, then load and re-run it from
+      <a href="https://github.com/nanoodlecom/nanoodle-js" target="_blank" rel="noopener">Node.js</a> or
+      <a href="https://github.com/nanoodlecom/nanoodle-py" target="_blank" rel="noopener">Python</a>.
+      Both packages are named <code>nanoodle</code>, ship a library <em>and</em> a CLI, have zero
+      runtime dependencies (Node ≥ 20 with built-in <code>fetch</code>; Python ≥ 3.9, stdlib
+      only), and implement the same contract — same graphs, same semantics.</p>
+
+      <div class="callout">
+        <p><strong>Every <code>run()</code> spends real money</strong> from your
+        <a href="https://nano-gpt.com" target="_blank" rel="noopener">NanoGPT</a> balance — NanoGPT
+        bills per generation. Loading, validating and inspecting workflows never calls the API,
+        and bad inputs (unknown node types, missing required inputs, missing API key) fail
+        <em>before</em> anything is spent. No telemetry, no analytics; the key is never logged.</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>JavaScript (Node ≥ 20)</h2>
+<pre><code>npm install nanoodle     # library + CLI
+npx nanoodle --help      # or run the CLI without installing</code></pre>
+
+      <h3>Library</h3>
+<pre><code>import { Workflow } from "nanoodle";
+
+const wf = await Workflow.load("noodle-graph.json");           // key from NANOGPT_API_KEY
+const result = await wf.run({ Text: "a cozy ramen shop on a rainy night" });
+await result.get("Image").save("ramen.png");                   // media: MediaRef (url + bytes()/save())
+console.log(result.costUsd, result.remainingBalance);</code></pre>
+      <p>With the app's starter graph (text → LLM prompt-writer → image), that's the whole
+      program.</p>
+
+      <h3>CLI</h3>
+      <p>Inspect first — offline; shows inputs, outputs, and settings:</p>
+<pre><code>npx nanoodle inspect graph.json</code></pre>
+      <p>Then run (calls NanoGPT and spends from your balance):</p>
+<pre><code>export NANOGPT_API_KEY=...   # or --key K, or --env-file .env
+npx nanoodle run graph.json --input Text="a cozy ramen shop" --out ./out
+npx nanoodle run graph.json --input n2.system=@style.txt --set n3.size=1k --json</code></pre>
+      <ul>
+        <li><code>--env-file path</code> — load <code>NANOGPT_API_KEY</code> from a <code>.env</code>-style file (<code>--key</code> wins if both are set)</li>
+        <li><code>--input k=@path</code> — read a file (media as media; <code>.txt</code> / <code>.md</code> / <code>.json</code> as text)</li>
+        <li><code>--out dir</code> — save media outputs to disk</li>
+        <li><code>--json</code> — machine-readable result</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Python (≥ 3.9, stdlib only)</h2>
+<pre><code>pip install nanoodle
+export NANOGPT_API_KEY=...   # nano-gpt.com API key (or OAuth access token)</code></pre>
+
+      <h3>Library</h3>
+<pre><code>from nanoodle import Workflow
+
+wf = Workflow.load("noodle-graph.json")
+result = wf.run({"Text": "a cozy ramen shop on a rainy night"})
+result["Image"].save("ramen.png")            # media: MediaRef (url + bytes()/save())
+print(result.cost_usd, result.remaining_balance)</code></pre>
+
+      <h3>CLI</h3>
+      <p>Installed as <code>nanoodle-py</code> (and <code>python -m nanoodle</code> always
+      works):</p>
+<pre><code>nanoodle-py inspect graph.json
+nanoodle-py run graph.json --input Text="a cozy ramen shop" --set n3.size=1k --out ./out
+nanoodle-py run graph.json --input n2.system=@style.txt --json
+nanoodle-py run graph.json --env-file .env --input Text="hello"</code></pre>
+    </section>
+
+    <section>
+      <h2>Inputs, outputs, settings</h2>
+      <p>Both packages expose the workflow's interface before you run it —
+      <code>wf.inputs</code>, <code>wf.outputs</code>, <code>wf.settings</code>. Input keys are
+      flexible (case-insensitive): the node's custom name (<code>"Text"</code>),
+      <code>nodeId.field</code> (<code>"n2.system"</code>), or the input's label. A workflow
+      with exactly one required input also accepts a bare value:
+      <code>wf.run("hello")</code>. Settings use <code>nodeId.field</code> keys
+      (<code>"n3.model"</code>).</p>
+      <p>Media inputs take a local file (<code>mediaFromFile</code> /
+      <code>media_from_file</code>), a hosted URL, or raw bytes (MIME sniffed). Media is sent
+      inline as base64 (NanoGPT has no upload endpoint); files over ~4.4&nbsp;MB (~3.5&nbsp;MB
+      for transcription) are refused locally with a clear error before any paid call.</p>
+
+      <h2>What runs where</h2>
+      <p>Pure-logic nodes (text, uploads, choice, join, comment) run locally; generation nodes
+      (llm, image, draw, edit, inpaint, vision, video, lipsync, music, remix, tts, transcribe)
+      call NanoGPT. Browser-only media-processing nodes (resize, vframes, combine, soundtrack,
+      trim, extractaudio) are <em>not</em> supported headlessly: workflows containing them load
+      with a warning and fail fast at <code>run()</code>, before any network call. The full
+      table is on the <a href="/guide/graph-format">format page</a>.</p>
+
+      <h2>Use a workflow as an agent skill</h2>
+      <p>A saved workflow plus a short <code>SKILL.md</code> playbook is a skill any coding
+      agent can run — anything that reads markdown and runs shell. Recipe, template and a
+      working example (idea → LLM prompt → poster image) ship in both repos:
+      <a href="https://github.com/nanoodlecom/nanoodle-js/blob/main/docs/agent-skills.md" target="_blank" rel="noopener">docs/agent-skills.md</a>.</p>
+
+      <nav class="next">
+        <a href="/guide/">← Guide</a>
+        <a href="/guide/graph-format">The workflow file format</a>
+        <a href="/guide/share-links">How share links work</a>
+        <a href="/guide/self-hosting">Self-hosting</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· 100% in your browser, no server</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>
