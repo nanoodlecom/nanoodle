@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>nanoodle vs ComfyUI — an honest comparison | nanoodle</title>
+<meta name="description" content="nanoodle vs ComfyUI, honestly: browser-based hosted-model workflows vs local GPU control. Full comparison table, where each wins, and which to pick for your job." />
+
+<!-- Open Graph -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="nanoodle vs ComfyUI — an honest comparison" />
+<meta property="og:description" content="Browser-based hosted-model workflows vs local GPU control. Full comparison table, where each wins, and which to pick for your job." />
+<meta property="og:url" content="https://nanoodle.com/nanoodle-vs-comfyui" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="nanoodle vs ComfyUI — an honest comparison" />
+<meta name="twitter:description" content="Browser-based hosted-model workflows vs local GPU control. Full comparison table, where each wins, and which to pick for your job." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+<meta name="twitter:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/nanoodle-vs-comfyui" />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Can nanoodle import ComfyUI workflows?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. The two tools have different graph formats and different node sets, and there is no converter. A ComfyUI workflow describes local model execution steps (checkpoints, samplers, latents) that have no equivalent in nanoodle's hosted-API nodes, so a faithful import isn't possible even in principle." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I use my own checkpoints or LoRA files in nanoodle?",
+      "acceptedAnswer": { "@type": "Answer", "text": "You can't point nanoodle at files on your disk. Model choice comes from the hosted NanoGPT catalog. If your workflow depends on a specific local checkpoint or fine-tune, ComfyUI on your own hardware is the right tool for that job." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is nanoodle trying to replace ComfyUI?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. ComfyUI is the deeper tool: a huge custom-node ecosystem, local model control, and sampler-level tuning that nanoodle deliberately does not attempt. nanoodle covers a different job — quick multi-modal pipelines with zero setup that share as a plain URL. Many people reasonably use both." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is nanoodle really tracking-free?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes — no analytics, no backend, no accounts. The site is static files served straight from its public MIT-licensed repository at github.com/nanoodlecom/nanoodle, so you can read every line that runs in your browser and verify the claim rather than trust it." }
+    },
+    {
+      "@type": "Question",
+      "name": "Do I pay for nanoodle on top of model costs?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. nanoodle adds no charge, no subscription, and no markup. You pay only NanoGPT's per-call price for the models your graph uses, billed to your own NanoGPT account, and the editor shows an estimate before each run." }
+    }
+  ]
+}
+</script>
+<style>
+  :root{
+    color-scheme: dark;
+    --bg:#0b0d12; --panel:#12151d; --panel2:#171b25; --ink:#eef1f7; --dim:#9aa3b2;
+    --line:#262c3a; --accent:#7c8cff; --accent2:#ff79c6; --cyan:#67e8f9; --good:#3ddc97;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0; height:100%}
+  body{ background:radial-gradient(1100px 540px at 70% -10%, #1a1f3a55, transparent), var(--bg);
+        color:var(--ink); font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+        min-height:100vh; display:flex; flex-direction:column; }
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{ max-width:800px; margin:0 auto; padding:1.4rem 1.2rem; flex:1; display:flex; flex-direction:column; width:100%; }
+
+  header{ display:flex; align-items:center; gap:.5rem; }
+  .logo{ font-weight:800; letter-spacing:-.02em; font-size:1.25rem; }
+  .logo .nano{ background:linear-gradient(90deg,var(--cyan),var(--accent) 70%); -webkit-background-clip:text; background-clip:text;
+        color:transparent; font-weight:900; filter:drop-shadow(0 0 9px #7c8cff77); }
+  .spacer{flex:1}
+  .ghost{ font:inherit; font-size:.85rem; color:var(--dim); border:1px solid var(--line); border-radius:.55rem; padding:.35rem .7rem; }
+  .ghost:hover{ border-color:#3a425a; color:var(--ink); text-decoration:none }
+
+  main{ flex:1; padding:2.4rem 0; }
+  h1{ font-size:clamp(1.7rem, 5vw, 2.5rem); line-height:1.1; letter-spacing:-.03em; margin:0 0 1rem; font-weight:850; }
+  h1 .grad{ background:linear-gradient(90deg,var(--cyan),var(--accent) 55%,var(--accent2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .lead{ font-size:1.05rem; color:#cdd3df; margin:0 0 2rem; }
+
+  section{ border-top:1px solid var(--line); padding:2rem 0 .4rem; }
+  section:first-of-type{ border-top:none; padding-top:0; }
+  h2{ font-size:1.4rem; letter-spacing:-.02em; margin:0 0 1rem; font-weight:800; scroll-margin-top:1rem; }
+  h3{ font-size:1.05rem; margin:1.6rem 0 .5rem; font-weight:700; }
+  p,li{ color:#cdd3df; }
+  p{ margin:0 0 1rem; }
+  ul{ margin:0 0 1rem; padding-left:1.2rem; }
+  li{ margin:.35rem 0; }
+  strong{ color:var(--ink); }
+  .callout{ background:var(--panel2); border:1px solid var(--line); border-left:3px solid var(--accent2);
+            border-radius:.6rem; padding:.9rem 1.1rem; margin:0 0 1.2rem; }
+  .callout p:last-child{ margin-bottom:0; }
+
+  .tablewrap{ overflow-x:auto; margin:0 0 1.2rem; border:1px solid var(--line); border-radius:.6rem; }
+  table{ border-collapse:collapse; width:100%; min-width:600px; font-size:.9rem; }
+  th,td{ text-align:left; padding:.6rem .8rem; border-bottom:1px solid var(--line); vertical-align:top; }
+  tr:last-child td{ border-bottom:none; }
+  th{ font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); background:var(--panel2); }
+  td:first-child{ color:var(--ink); font-weight:600; white-space:nowrap; }
+  td{ color:#cdd3df; }
+
+  .cta{ display:inline-block; background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#0b0d12;
+        font-weight:700; border-radius:.6rem; padding:.6rem 1.1rem; margin:.2rem 0 1rem; }
+  .cta:hover{ text-decoration:none; filter:brightness(1.08); }
+
+  nav.more{ display:flex; flex-wrap:wrap; gap:.45rem; margin:1.2rem 0 0; }
+  nav.more a{ font-size:.82rem; border:1px solid var(--line); background:var(--panel2); color:var(--ink);
+         padding:.32rem .7rem; border-radius:2rem; }
+  nav.more a:hover{ border-color:#3a425a; text-decoration:none }
+
+  footer{ border-top:1px solid var(--line); color:var(--dim); font-size:.82rem; padding:1.1rem 0 .3rem;
+          display:flex; gap:.4rem 1rem; flex-wrap:wrap; align-items:center; }
+  footer .spacer{flex:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <main>
+    <h1>nanoodle vs ComfyUI: <span class="grad">an honest comparison</span></h1>
+
+    <p class="lead">nanoodle and ComfyUI are both node-based AI workflow editors — you wire
+    nodes into a graph and run it — but they differ on the single decision that shapes
+    everything else: <strong>where the models run</strong>. ComfyUI executes models locally
+    on your own GPU, which buys deep control at the cost of setup and hardware. nanoodle runs
+    entirely in your browser and calls hosted models through your own
+    <a href="https://nano-gpt.com" target="_blank" rel="noopener">NanoGPT</a> key, which buys
+    zero setup at the cost of that control. Neither is a superset of the other; this page
+    maps where each one genuinely wins.</p>
+
+    <section id="table">
+      <h2>How do they compare, row by row?</h2>
+      <div class="tablewrap">
+        <table>
+          <tr><th></th><th>nanoodle</th><th>ComfyUI</th></tr>
+          <tr><td>Where models run</td><td>Hosted, via the NanoGPT API and your key</td><td>Locally, on your own GPU</td></tr>
+          <tr><td>Install</td><td>None — a static web page</td><td>Local install (Python or desktop app), plus model downloads</td></tr>
+          <tr><td>Hardware</td><td>Anything with a modern browser, phones included</td><td>A capable GPU recommended; VRAM gates which models you can run</td></tr>
+          <tr><td>Modalities in one graph</td><td>Chat/LLM, image, video, music, speech, transcription</td><td>Image and video generation focus; extensible via custom nodes</td></tr>
+          <tr><td>Custom nodes</td><td>No — curated built-in set (~27 node types)</td><td>Huge community ecosystem; its defining strength</td></tr>
+          <tr><td>Depth of control</td><td>Model-level settings and prices, chosen from a hosted catalog</td><td>Checkpoints, LoRAs, samplers, schedulers, seeds — tunable per stage</td></tr>
+          <tr><td>Sharing a workflow</td><td>Plain URL (the graph travels in the URL fragment) or a single-file HTML app</td><td>Workflow JSON / embedded PNG; recipient needs ComfyUI, the same custom nodes, and the same models</td></tr>
+          <tr><td>Offline use</td><td>No — model calls need connectivity</td><td>Yes, once models are downloaded</td></tr>
+          <tr><td>Data path</td><td>Browser → nano-gpt.com directly; no other server, zero analytics</td><td>Everything can stay on your machine — the strongest privacy posture possible</td></tr>
+          <tr><td>Cost model</td><td>Pay per model call via your NanoGPT account; no subscription, no markup</td><td>Hardware and power; no per-generation fee once you own the GPU</td></tr>
+          <tr><td>License</td><td>MIT (<a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">source</a>)</td><td>GPL-3.0 open source</td></tr>
+          <tr><td>Best for</td><td>Quick multi-modal pipelines, sharing, working from any device</td><td>Power users, fine-grained diffusion control, local model ecosystems</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <section id="comfyui-better">
+      <h2>What does ComfyUI do better?</h2>
+      <p>Three things, and they're big. First, the <strong>custom-node ecosystem</strong>:
+      ComfyUI's community has wrapped nearly every technique in the diffusion world as an
+      installable node, and no curated tool can match that surface area — if you need
+      ControlNet variants, exotic upscalers, or last week's research paper, ComfyUI has it
+      first. Second, <strong>local model control</strong>: your own checkpoints, your own
+      LoRAs and fine-tunes, samplers and schedulers and seeds exposed at every stage — the
+      difference between driving the model and ordering from it. Third, <strong>the local
+      posture itself</strong>: fully offline operation, nothing leaving your machine, and no
+      per-generation cost once the hardware is yours, which changes the economics entirely at
+      high volume. If any of these is central to your work, ComfyUI is not just the better
+      choice — it's the only one on this page that does the job at all.</p>
+    </section>
+
+    <section id="nanoodle-better">
+      <h2>What does nanoodle do better?</h2>
+      <p>The parts that come before and after the model call. <strong>Getting started</strong>:
+      there is no install, no GPU, no account, and no configuration — the editor is a web
+      page that works the same on a workstation, a Chromebook, or a phone.
+      <strong>Breadth in one graph</strong>: chat models, image generation and editing,
+      video, music, speech, and transcription are all first-class nodes against one API and
+      one key, so a "describe → illustrate → animate → narrate" pipeline is a single small
+      graph. <strong>Sharing</strong>: a workflow travels as a plain URL — the graph is
+      encoded in the URL fragment, which never reaches a server — and any graph can be
+      exported as a single self-contained HTML file that runs on its own, no nanoodle
+      required. And <strong>verifiability</strong>: the site has zero analytics and is
+      served directly from its MIT-licensed
+      <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">public repo</a>,
+      so the privacy claims are auditable in the source rather than asserted in a policy.</p>
+    </section>
+
+    <section id="pick">
+      <h2>Which one should you use?</h2>
+      <p>Pick by job, not by tribe. Choose <strong>ComfyUI</strong> if you own or rent a
+      capable GPU and your work needs custom nodes, specific checkpoints, sampler-level
+      tuning, offline operation, or strict everything-stays-local privacy — and accept the
+      setup time as the fair price of that power. Choose <strong>nanoodle</strong> if you
+      want to sketch and run multi-modal pipelines in the next two minutes, work from
+      whatever device is in front of you, hand a working workflow to someone as a link, or
+      pay only for the calls you actually make. The overlap is real but smaller than it
+      looks: ComfyUI is an instrument you learn; nanoodle is a notepad you open. Plenty of
+      people prototype an idea in the browser, then rebuild the image stages in ComfyUI when
+      they need control the API doesn't expose — that's not a failure of either tool, it's
+      the intended division of labor.</p>
+      <a class="cta" href="/">Open the nanoodle editor →</a>
+    </section>
+
+    <section id="faq">
+      <h2>Frequently asked questions</h2>
+
+      <h3>Can nanoodle import ComfyUI workflows?</h3>
+      <p>No. The two tools have different graph formats and different node sets, and there is
+      no converter. A ComfyUI workflow describes local model execution steps (checkpoints,
+      samplers, latents) that have no equivalent in nanoodle's hosted-API nodes, so a
+      faithful import isn't possible even in principle.</p>
+
+      <h3>Can I use my own checkpoints or LoRA files in nanoodle?</h3>
+      <p>You can't point nanoodle at files on your disk. Model choice comes from the hosted
+      NanoGPT catalog. If your workflow depends on a specific local checkpoint or fine-tune,
+      ComfyUI on your own hardware is the right tool for that job.</p>
+
+      <h3>Is nanoodle trying to replace ComfyUI?</h3>
+      <p>No. ComfyUI is the deeper tool: a huge custom-node ecosystem, local model control,
+      and sampler-level tuning that nanoodle deliberately does not attempt. nanoodle covers a
+      different job — quick multi-modal pipelines with zero setup that share as a plain URL.
+      Many people reasonably use both.</p>
+
+      <h3>Is nanoodle really tracking-free?</h3>
+      <p>Yes — no analytics, no backend, no accounts. The site is static files served
+      straight from its public MIT-licensed repository at
+      <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">github.com/nanoodlecom/nanoodle</a>,
+      so you can read every line that runs in your browser and verify the claim rather than
+      trust it.</p>
+
+      <h3>Do I pay for nanoodle on top of model costs?</h3>
+      <p>No. nanoodle adds no charge, no subscription, and no markup. You pay only NanoGPT's
+      per-call price for the models your graph uses, billed to your own NanoGPT account, and
+      the editor shows an estimate before each run.</p>
+    </section>
+
+    <nav class="more" aria-label="Related pages">
+      <a href="/comfyui-alternative">ComfyUI alternatives: which fits?</a>
+      <a href="/comfyui-alternative-no-gpu">ComfyUI alternative without a GPU</a>
+      <a href="/nanoodle-vs-n8n">nanoodle vs n8n</a>
+      <a href="/">nanoodle home</a>
+    </nav>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· 100% in your browser, no server</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="/legal">Legal &amp; privacy</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>

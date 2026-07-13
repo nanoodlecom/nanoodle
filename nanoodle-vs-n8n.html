@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>nanoodle vs n8n — different jobs, honestly compared | nanoodle</title>
+<meta name="description" content="nanoodle vs n8n: media-generation graphs in your browser vs business automation on a server. An honest comparison of two node editors built for different jobs." />
+
+<!-- Open Graph -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="nanoodle vs n8n — different jobs, honestly compared" />
+<meta property="og:description" content="Media-generation graphs in your browser vs business automation on a server. An honest comparison of two node editors built for different jobs." />
+<meta property="og:url" content="https://nanoodle.com/nanoodle-vs-n8n" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="nanoodle vs n8n — different jobs, honestly compared" />
+<meta name="twitter:description" content="Media-generation graphs in your browser vs business automation on a server. An honest comparison of two node editors built for different jobs." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+<meta name="twitter:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/nanoodle-vs-n8n" />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Is nanoodle an n8n alternative?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Only for one specific job: interactively wiring AI models into media-generation pipelines. If you need to connect business apps, react to webhooks, or run workflows unattended on a schedule, nanoodle does not do that — n8n or a similar automation platform is the right category." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can nanoodle run workflows on a schedule or unattended?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Not in the browser — a noodle runs when you press Run, and there is no server to keep it alive. If you want to re-run a saved graph from scripts or your own server, the open-source JS and Python executor packages (published as nanoodle on npm and PyPI) load the same noodle-graph.json files and run them headlessly with your NanoGPT key; scheduling is then up to whatever runs your script." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can n8n generate images and video too?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes — n8n has AI capabilities and can call model APIs like any other service it integrates. The difference is emphasis: n8n treats a model call as one step in an automation, while nanoodle's whole canvas is built around iterating on multi-modal media pipelines interactively — previews, per-run cost estimates, and remixing outputs between image, video, and audio nodes." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is either tool open source?",
+      "acceptedAnswer": { "@type": "Answer", "text": "nanoodle is MIT-licensed, with the site served directly from its public repository at github.com/nanoodlecom/nanoodle. n8n is source-available under its own fair-code Sustainable Use License — you can read and self-host it, but it is not an OSI-approved open-source license. Both are honest models; they're just different." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does nanoodle integrate with other apps the way n8n does?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. nanoodle talks to exactly one external service: the NanoGPT API, using your own key. There are no connectors for email, spreadsheets, CRMs, or databases, and none are planned as browser features — that integration surface is n8n's home turf." }
+    }
+  ]
+}
+</script>
+<style>
+  :root{
+    color-scheme: dark;
+    --bg:#0b0d12; --panel:#12151d; --panel2:#171b25; --ink:#eef1f7; --dim:#9aa3b2;
+    --line:#262c3a; --accent:#7c8cff; --accent2:#ff79c6; --cyan:#67e8f9; --good:#3ddc97;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0; height:100%}
+  body{ background:radial-gradient(1100px 540px at 70% -10%, #1a1f3a55, transparent), var(--bg);
+        color:var(--ink); font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+        min-height:100vh; display:flex; flex-direction:column; }
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{ max-width:800px; margin:0 auto; padding:1.4rem 1.2rem; flex:1; display:flex; flex-direction:column; width:100%; }
+
+  header{ display:flex; align-items:center; gap:.5rem; }
+  .logo{ font-weight:800; letter-spacing:-.02em; font-size:1.25rem; }
+  .logo .nano{ background:linear-gradient(90deg,var(--cyan),var(--accent) 70%); -webkit-background-clip:text; background-clip:text;
+        color:transparent; font-weight:900; filter:drop-shadow(0 0 9px #7c8cff77); }
+  .spacer{flex:1}
+  .ghost{ font:inherit; font-size:.85rem; color:var(--dim); border:1px solid var(--line); border-radius:.55rem; padding:.35rem .7rem; }
+  .ghost:hover{ border-color:#3a425a; color:var(--ink); text-decoration:none }
+
+  main{ flex:1; padding:2.4rem 0; }
+  h1{ font-size:clamp(1.7rem, 5vw, 2.5rem); line-height:1.1; letter-spacing:-.03em; margin:0 0 1rem; font-weight:850; }
+  h1 .grad{ background:linear-gradient(90deg,var(--cyan),var(--accent) 55%,var(--accent2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .lead{ font-size:1.05rem; color:#cdd3df; margin:0 0 2rem; }
+
+  section{ border-top:1px solid var(--line); padding:2rem 0 .4rem; }
+  section:first-of-type{ border-top:none; padding-top:0; }
+  h2{ font-size:1.4rem; letter-spacing:-.02em; margin:0 0 1rem; font-weight:800; scroll-margin-top:1rem; }
+  h3{ font-size:1.05rem; margin:1.6rem 0 .5rem; font-weight:700; }
+  p,li{ color:#cdd3df; }
+  p{ margin:0 0 1rem; }
+  ul{ margin:0 0 1rem; padding-left:1.2rem; }
+  li{ margin:.35rem 0; }
+  strong{ color:var(--ink); }
+  .callout{ background:var(--panel2); border:1px solid var(--line); border-left:3px solid var(--accent2);
+            border-radius:.6rem; padding:.9rem 1.1rem; margin:0 0 1.2rem; }
+  .callout p:last-child{ margin-bottom:0; }
+
+  .tablewrap{ overflow-x:auto; margin:0 0 1.2rem; border:1px solid var(--line); border-radius:.6rem; }
+  table{ border-collapse:collapse; width:100%; min-width:600px; font-size:.9rem; }
+  th,td{ text-align:left; padding:.6rem .8rem; border-bottom:1px solid var(--line); vertical-align:top; }
+  tr:last-child td{ border-bottom:none; }
+  th{ font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); background:var(--panel2); }
+  td:first-child{ color:var(--ink); font-weight:600; white-space:nowrap; }
+  td{ color:#cdd3df; }
+
+  .cta{ display:inline-block; background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#0b0d12;
+        font-weight:700; border-radius:.6rem; padding:.6rem 1.1rem; margin:.2rem 0 1rem; }
+  .cta:hover{ text-decoration:none; filter:brightness(1.08); }
+
+  nav.more{ display:flex; flex-wrap:wrap; gap:.45rem; margin:1.2rem 0 0; }
+  nav.more a{ font-size:.82rem; border:1px solid var(--line); background:var(--panel2); color:var(--ink);
+         padding:.32rem .7rem; border-radius:2rem; }
+  nav.more a:hover{ border-color:#3a425a; text-decoration:none }
+
+  footer{ border-top:1px solid var(--line); color:var(--dim); font-size:.82rem; padding:1.1rem 0 .3rem;
+          display:flex; gap:.4rem 1rem; flex-wrap:wrap; align-items:center; }
+  footer .spacer{flex:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <main>
+    <h1>nanoodle vs n8n: <span class="grad">different jobs</span>, honestly compared</h1>
+
+    <p class="lead">nanoodle and n8n are both node-based workflow editors, but they automate
+    different things: <strong>n8n connects business apps and APIs into automations that run
+    unattended on a server</strong>, while <strong>nanoodle wires AI models into media
+    pipelines that run interactively in your browser</strong>. People land on this comparison
+    because the canvases look alike — boxes, wires, a Run button — but the resemblance is
+    mostly visual. If you know which job you're hiring for, the choice is usually obvious,
+    and this page will try to make it obvious fast.</p>
+
+    <section id="jobs">
+      <h2>What job is each tool built for?</h2>
+      <p><strong>n8n's job is automation.</strong> Something happens — a webhook fires, a
+      schedule ticks, an email arrives — and a workflow reacts: moving data between the
+      hundreds of services it integrates, transforming records, calling APIs (including AI
+      models), and running reliably without a human watching. That requires a server,
+      persistent credentials, and operational features like retries and error handling, all
+      of which n8n provides whether self-hosted or on its cloud.
+      <strong>nanoodle's job is creation.</strong> You sit in front of it and iterate: prompt
+      → image → video → soundtrack, previewing each node's output, adjusting, and re-running
+      until the result is right — then you share the graph as a plain URL or export it as a
+      single HTML file someone else can use. It's a stateless graph that runs when you press
+      Run, holds everything in your browser, and talks to exactly one API
+      (<a href="https://nano-gpt.com" target="_blank" rel="noopener">NanoGPT</a>, with your
+      own key). Same shape of tool; opposite center of gravity.</p>
+    </section>
+
+    <section id="n8n-better">
+      <h2>What does n8n do better?</h2>
+      <p>Everything that makes automation dependable. It has a large catalog of built-in
+      integrations, so "when a form is submitted, update the CRM and post to Slack" is
+      assembled rather than programmed. It runs on a server — yours or theirs — so workflows
+      trigger from webhooks, schedules, and app events, and keep running while you sleep. It
+      stores credentials, queues work, retries failures, and versions workflows, which is the
+      unglamorous machinery real business processes need. And its AI features slot model
+      calls into those automations, so an LLM step can sit between a database read and an
+      email send. nanoodle has none of this and doesn't pretend to: there are no triggers, no
+      schedules, no integrations, no server, and workflows run only while your tab is open.
+      If your sentence starts with "whenever X happens, automatically…", n8n is the right
+      category and nanoodle is the wrong one.</p>
+    </section>
+
+    <section id="nanoodle-better">
+      <h2>What does nanoodle do better?</h2>
+      <p>The interactive, multi-modal middle of a creative pipeline. All of nanoodle's nodes
+      are aimed at media work — chat/LLM, image generation and editing, inpainting,
+      text-to-video and image-to-video, music, speech, transcription — with previews on the
+      canvas, a cost estimate before each run, and one key for every model. Because there is
+      no server, there is also nothing to deploy or maintain: the editor is a static page
+      with zero analytics, your API key never leaves the browser, and a finished workflow
+      shares as a URL (the graph rides in the URL fragment, which never reaches a server) or
+      exports as a self-contained single-file HTML app anyone can open. It is also
+      MIT-licensed with the deployed site served straight from the
+      <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">public repository</a>.
+      For sketching an AI media idea in front of you right now, that zero-friction loop is
+      the whole point — and it's a loop a server-based automation platform isn't shaped for.</p>
+    </section>
+
+    <section id="table">
+      <h2>How do they compare side by side?</h2>
+      <div class="tablewrap">
+        <table>
+          <tr><th></th><th>nanoodle</th><th>n8n</th></tr>
+          <tr><td>Primary job</td><td>Interactive AI media pipelines</td><td>Business and data automation</td></tr>
+          <tr><td>Where it runs</td><td>Entirely in your browser</td><td>On a server (self-hosted or n8n Cloud)</td></tr>
+          <tr><td>How a run starts</td><td>You press Run</td><td>Triggers: webhooks, schedules, app events, or manual</td></tr>
+          <tr><td>Integrations</td><td>One: the NanoGPT model API (your key)</td><td>A large catalog of app and service connectors</td></tr>
+          <tr><td>Unattended runs</td><td>No (browser); saved graphs can be scripted via the open-source JS/Python executors</td><td>Yes — that's the product</td></tr>
+          <tr><td>State &amp; credentials</td><td>Your browser's local storage; no accounts</td><td>Server-side storage and credential management</td></tr>
+          <tr><td>Sharing</td><td>Plain URL or single-file HTML export</td><td>Workflow export/import; server access for collaborators</td></tr>
+          <tr><td>License</td><td>MIT open source</td><td>Fair-code (Sustainable Use License), source-available</td></tr>
+          <tr><td>Cost model</td><td>No charge for the tool; pay NanoGPT per model call</td><td>Self-host on your infrastructure, or paid cloud plans</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <section id="together">
+      <h2>Can they work together?</h2>
+      <p>Reasonably, yes — at the file level. A noodle saved from the editor is a plain
+      <code>noodle-graph.json</code> file, and the open-source executor packages (published
+      as <code>nanoodle</code> on
+      <a href="https://github.com/nanoodlecom/nanoodle-js" target="_blank" rel="noopener">npm</a> and
+      <a href="https://github.com/nanoodlecom/nanoodle-py" target="_blank" rel="noopener">PyPI</a>)
+      load and run that same graph from Node.js or Python with your NanoGPT key. So a
+      sensible division of labor is: design and iterate on the media pipeline in the nanoodle
+      editor, where previewing and tweaking is fast, then have your automation layer —
+      n8n, a cron job, or any script runner — execute the saved graph headlessly when its
+      trigger fires. The browser tool never becomes an automation platform, and the
+      automation platform never becomes a media canvas; the JSON file is the handshake
+      between them. That's the honest extent of the integration: a clean file format, not a
+      button.</p>
+      <a class="cta" href="/">Open the nanoodle editor →</a>
+    </section>
+
+    <section id="faq">
+      <h2>Frequently asked questions</h2>
+
+      <h3>Is nanoodle an n8n alternative?</h3>
+      <p>Only for one specific job: interactively wiring AI models into media-generation
+      pipelines. If you need to connect business apps, react to webhooks, or run workflows
+      unattended on a schedule, nanoodle does not do that — n8n or a similar automation
+      platform is the right category.</p>
+
+      <h3>Can nanoodle run workflows on a schedule or unattended?</h3>
+      <p>Not in the browser — a noodle runs when you press Run, and there is no server to
+      keep it alive. If you want to re-run a saved graph from scripts or your own server, the
+      open-source JS and Python executor packages (published as <code>nanoodle</code> on npm
+      and PyPI) load the same <code>noodle-graph.json</code> files and run them headlessly
+      with your NanoGPT key; scheduling is then up to whatever runs your script.</p>
+
+      <h3>Can n8n generate images and video too?</h3>
+      <p>Yes — n8n has AI capabilities and can call model APIs like any other service it
+      integrates. The difference is emphasis: n8n treats a model call as one step in an
+      automation, while nanoodle's whole canvas is built around iterating on multi-modal
+      media pipelines interactively — previews, per-run cost estimates, and remixing outputs
+      between image, video, and audio nodes.</p>
+
+      <h3>Is either tool open source?</h3>
+      <p>nanoodle is MIT-licensed, with the site served directly from its public repository
+      at <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">github.com/nanoodlecom/nanoodle</a>.
+      n8n is source-available under its own fair-code Sustainable Use License — you can read
+      and self-host it, but it is not an OSI-approved open-source license. Both are honest
+      models; they're just different.</p>
+
+      <h3>Does nanoodle integrate with other apps the way n8n does?</h3>
+      <p>No. nanoodle talks to exactly one external service: the NanoGPT API, using your own
+      key. There are no connectors for email, spreadsheets, CRMs, or databases, and none are
+      planned as browser features — that integration surface is n8n's home turf.</p>
+    </section>
+
+    <nav class="more" aria-label="Related pages">
+      <a href="/comfyui-alternative">ComfyUI alternatives: which fits?</a>
+      <a href="/comfyui-alternative-no-gpu">ComfyUI alternative without a GPU</a>
+      <a href="/nanoodle-vs-comfyui">nanoodle vs ComfyUI</a>
+      <a href="/">nanoodle home</a>
+    </nav>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· 100% in your browser, no server</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="/legal">Legal &amp; privacy</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>
