@@ -112,6 +112,19 @@ const result = await wf.run({ Text: "a cozy ramen shop on a rainy night" });
 await result.get("Image").save("ramen.png");
 ```
 
+## Ecosystem
+
+Everything lives under the [nanoodlecom](https://github.com/nanoodlecom) GitHub org:
+
+| Repo | What it is |
+| --- | --- |
+| [nanoodle](https://github.com/nanoodlecom/nanoodle) | The playground — editor, app builder, the whole site (this repo) |
+| [nanoodle-js](https://github.com/nanoodlecom/nanoodle-js) | Zero-dependency JS executor — run saved noodle graphs from Node |
+| [nanoodle-py](https://github.com/nanoodlecom/nanoodle-py) | Zero-dependency Python executor — same graphs, same results |
+
+Naming note: the package is `nanoodle` on **both** registries while the repos are
+`nanoodle-js` / `nanoodle-py` — so it's `npm install nanoodle` and `pip install nanoodle`.
+
 ## Development
 
 No build step. Edit the HTML files, refresh the browser.

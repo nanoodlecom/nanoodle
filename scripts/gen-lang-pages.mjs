@@ -131,7 +131,51 @@ export const PAGES = {
   },
 };
 
+// Official profiles for the JSON-LD sameAs — mirrors index.html's list exactly.
+export const SAME_AS = [
+  "https://x.com/nanosapien1",
+  "https://github.com/nanoodlecom",
+  "https://github.com/nanoodlecom/nanoodle",
+  "https://www.npmjs.com/package/nanoodle",
+  "https://pypi.org/project/nanoodle/",
+];
+
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+// Localized structured data per page: the same WebSite + SoftwareApplication pair
+// index.html carries, but inLanguage pinned to THIS page's language and the
+// description reusing the page's own localized meta description. JSON.stringify
+// handles all escaping; JSON-LD data blocks are inert to CSP (never executed).
+function jsonLd(code) {
+  const p = PAGES[code];
+  const url = `${SITE}/${code}/`;
+  const data = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": `${url}#website`,
+        "url": url,
+        "name": "nanoodle",
+        "inLanguage": code,
+        "description": p.desc,
+        "sameAs": SAME_AS,
+      },
+      {
+        "@type": "SoftwareApplication",
+        "name": "nanoodle",
+        "url": SITE + "/",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Web",
+        "inLanguage": code,
+        "description": p.desc,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "sameAs": SAME_AS,
+      },
+    ],
+  };
+  return `<script type="application/ld+json">\n${JSON.stringify(data, null, 2)}\n</script>`;
+}
 
 function altLinks() {
   return CLUSTER.map((c) => `<link rel="alternate" hreflang="${c.hreflang}" href="${c.href}" />`).join("\n");
@@ -187,6 +231,7 @@ export function renderPage(code) {
 <meta name="theme-color" content="#0b0d12" />
 <link rel="canonical" href="${url}" />
 ${altLinks()}
+${jsonLd(code)}
 <style>
   :root{
     color-scheme: dark;
