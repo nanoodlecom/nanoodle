@@ -138,6 +138,22 @@ nanoodle-py run graph.json --env-file .env --input Text="hello"</code></pre>
       with a warning and fail fast at <code>run()</code>, before any network call. The full
       table is on the <a href="/guide/graph-format">format page</a>.</p>
 
+      <h2>No account: pay per run in Nano (x402)</h2>
+      <p>Skip the API key entirely. With <code>--pay</code> (or a library
+      <code>payment</code> callback), each paid call returns an HTTP 402 Nano (XNO)
+      invoice — scan/pay from a self-custody wallet; nanoodle waits for the deposit
+      and continues. The library never holds funds or keys.</p>
+<pre><code># JavaScript
+npx nanoodle run graph.json --input Text="hello" --pay
+
+# Python
+python -m nanoodle run graph.json --input Text="hello" --pay</code></pre>
+      <p>Worked examples (QR / print invoice, wallet stub, bare chat) live in both
+      packages:
+      <a href="https://github.com/nanoodlecom/nanoodle-js/tree/main/examples/x402" target="_blank" rel="noopener">nanoodle-js/examples/x402</a>
+      ·
+      <a href="https://github.com/nanoodlecom/nanoodle-py/tree/main/examples/x402" target="_blank" rel="noopener">nanoodle-py/examples/x402</a>.</p>
+
       <h2>Use a workflow as an agent skill</h2>
       <p>A saved workflow plus a short <code>SKILL.md</code> playbook is a skill any coding
       agent can run — anything that reads markdown and runs shell. Recipe, template and a
