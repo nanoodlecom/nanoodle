@@ -47,10 +47,36 @@ const GRAPHS = [
     nodes: [node("u1", "upload", { image: IMG }), node("u2", "upload", { image: IMG }), node("e1", "edit", { model: "x", prompt: "merge" })],
     links: [link("u1", "image", "e1", "image"), link("u2", "image", "e1", "image2")],
   }, ["edit"]],
-  ["image variations", {
+  ["image single", {
+    nodes: [node("i1", "image", { model: "x", prompt: "a fox", variations: "1" })],
+    links: [],
+  }, ["image"]],
+];
+
+// Veto shapes (mirrors check-njs-editor-delegation.mjs): the library doesn't yet match the
+// built-in for these, so the shim must fall back — the spy must NOT see the type, and the
+// flag-on request set must still equal flag-off (both ran the built-in runner).
+const VETO_GRAPHS = [
+  ["image variations>1 vetoed (gallery clamp)", {
     nodes: [node("i1", "image", { model: "x", prompt: "a fox", variations: "2" })],
     links: [],
   }, ["image"]],
+  ["tvideo wired refs vetoed (hardcoded key, no cap)", {
+    nodes: [node("u1", "upload", { image: IMG }), node("v1", "tvideo", { model: "x", prompt: "pan" })],
+    links: [link("u1", "image", "v1", "ref1")],
+  }, ["tvideo"]],
+  ["blob: media input vetoed (posted verbatim by the library)", {
+    nodes: [node("u1", "upload", { image: "blob:null/dead" }), node("e1", "edit", { model: "x", prompt: "fix" })],
+    links: [link("u1", "image", "e1", "image")],
+  }, ["edit"]],
+  ["vedit excluded from NJS_TYPES (library drops wired refs)", {
+    nodes: [node("u1", "vupload", { video: IMG }), node("v1", "vedit", { model: "x", prompt: "restyle" })],
+    links: [link("u1", "video", "v1", "video")],
+  }, ["vedit"]],
+  ["lipsync excluded from NJS_TYPES (no trim-retry ladder)", {
+    nodes: [node("u1", "upload", { image: IMG }), node("a1", "aupload", { audio: IMG }), node("l1", "lipsync", { model: "x" })],
+    links: [link("u1", "image", "l1", "image"), link("a1", "audio", "l1", "audio")],
+  }, ["lipsync"]],
 ];
 
 function flaggedEngine(on, spy) {
@@ -104,8 +130,62 @@ for (const [name, data, expectTypes] of GRAPHS) {
   console.log(`✓ ${name} (${onReqs.length} req, delegated: ${[...new Set(spy)].join(", ")})`);
 }
 
+for (const [name, data, vetoTypes] of VETO_GRAPHS) {
+  calls.length = 0;
+  const offApp = flaggedEngine(false, []);
+  await offApp.runGraph(offApp.materialize(data), {}).catch(() => {});
+  const offReqs = calls.filter(paid).map(norm).sort();
+
+  calls.length = 0;
+  const spy = [];
+  const onApp = flaggedEngine(true, spy);
+  await onApp.runGraph(onApp.materialize(data), {}).catch(() => {});
+  const onReqs = calls.filter(paid).map(norm).sort();
+
+  const leaked = vetoTypes.filter((t) => spy.includes(t));
+  if (leaked.length) {
+    failed++;
+    console.log(`✗ ${name}: delegation engaged for ${leaked.join(", ")} — the veto did not hold`);
+    continue;
+  }
+  if (JSON.stringify(offReqs) !== JSON.stringify(onReqs)) {
+    failed++;
+    console.log(`✗ ${name}: flag-on requests differ from flag-off\n  off: ${offReqs.join("\n       ")}\n  on:  ${onReqs.join("\n       ")}`);
+    continue;
+  }
+  console.log(`✓ ${name} (built-in path, ${onReqs.length} req identical)`);
+}
+
+// Direct veto matrix on the REAL shim (NoodleApp.__njs), including the pending-job guard the
+// graph scenarios can't reach — twin of check-njs-editor-delegation.mjs's veto block.
+{
+  const spy = [];
+  const app = flaggedEngine(true, spy);
+  const { runFor, PENDING_VIDEO, PENDING_AUDIO } = app.__njs;
+  const rn = (type, fields) => ({ id: "n1", type, fields: fields || {} });
+  assert.equal(runFor("image", rn("image", { model: "x", prompt: "p", variations: "2" }), {}, "n1"), null, "image variations>1 must not delegate");
+  assert.notEqual(runFor("image", rn("image", { model: "x", prompt: "p", variations: "1" }), {}, "n1"), null, "image variations=1 still delegates");
+  assert.equal(runFor("tvideo", rn("tvideo", { model: "x", prompt: "p" }), { ref1: IMG }, "n1"), null, "tvideo with wired refs must not delegate");
+  assert.notEqual(runFor("tvideo", rn("tvideo", { model: "x", prompt: "p" }), {}, "n1"), null, "tvideo without refs still delegates");
+  assert.equal(runFor("remix", rn("remix", { model: "x", prompt: "p" }), { audio: "blob:null/abc" }, "n1"), null, "blob: media input must not delegate");
+  assert.equal(runFor("vedit", rn("vedit", { model: "x", prompt: "p" }), {}, "n1"), null, "vedit is excluded from NJS_TYPES");
+  assert.equal(runFor("lipsync", rn("lipsync", { model: "x" }), {}, "n1"), null, "lipsync is excluded from NJS_TYPES");
+  PENDING_VIDEO.set("n1", { sig: 1, runId: "r1" });   // a BUILT-IN engine's pending job (no njs tag)
+  assert.equal(runFor("ivideo", rn("ivideo", { model: "x", prompt: "p" }), { image: IMG }, "n1"), null, "a built-in pending video job keeps the node on the built-in engine");
+  PENDING_VIDEO.set("n1", { sig: 1, runId: "r1", njs: true });
+  assert.notEqual(runFor("ivideo", rn("ivideo", { model: "x", prompt: "p" }), { image: IMG }, "n1"), null, "an njs-tagged pending video job still delegates");
+  PENDING_VIDEO.delete("n1");
+  PENDING_AUDIO.set("n1", { sig: 1, job: { runId: "r1" } });
+  assert.equal(runFor("music", rn("music", { model: "x", prompt: "p" }), {}, "n1"), null, "a built-in pending audio job keeps the node on the built-in engine");
+  PENDING_AUDIO.set("n1", { sig: 1, job: { runId: "r1" }, njs: true });
+  assert.notEqual(runFor("music", rn("music", { model: "x", prompt: "p" }), {}, "n1"), null, "an njs-tagged pending audio job still delegates");
+  PENDING_AUDIO.delete("n1");
+  console.log("✓ vetoes: gallery clamp / tvideo refs / blob: media / excluded types / foreign pending jobs all fall back to built-in");
+}
+
+const total = GRAPHS.length + VETO_GRAPHS.length;
 if (failed) {
-  console.log(`\n${failed}/${GRAPHS.length} delegation scenarios failed`);
+  console.log(`\n${failed}/${total} delegation scenarios failed`);
   process.exit(1);
 }
-console.log(`\n✓ njs-delegation: flag-gated runGraph delegation matches the built-in path (${GRAPHS.length} scenarios)`);
+console.log(`\n✓ njs-delegation: flag-gated runGraph delegation matches the built-in path (${GRAPHS.length} scenarios + ${VETO_GRAPHS.length} veto scenarios)`);

@@ -7207,7 +7207,11 @@ function mp4ParamsMatch(bufs){
      the keyless x402 flow — both fall back to the built-in runners.
      No backticks (RUNTIME_JS is a String.raw template).
      ===================================================================== */
-  const NJS_TYPES = { llm:1, vision:1, image:1, edit:1, draw:1, inpaint:1, tvideo:1, ivideo:1, vedit:1, lipsync:1, music:1, tts:1, remix:1, transcribe:1 };
+  // vedit and lipsync are NOT delegated yet (twin of the editor): the library's vedit drops wired
+  // reference-image ports, and its lipsync lacks the built-in's charged-aware duration-trim retry
+  // ladder — both would change what a paid request does. Re-add once nanoodle-js closes those gaps
+  // (see njsRunFor's vetoes too).
+  const NJS_TYPES = { llm:1, vision:1, image:1, edit:1, draw:1, inpaint:1, tvideo:1, ivideo:1, music:1, tts:1, remix:1, transcribe:1 };
   function njsOn(){
     try{
       const q = new URLSearchParams(location.search).get("engine");
@@ -7248,7 +7252,7 @@ function mp4ParamsMatch(bufs){
         const prev = runKey ? PENDING_VIDEO.get(runKey) : null;
         const io2 = Object.assign({}, io, {
           resume: (prev && prev.sig===sig) ? prev.runId : undefined,
-          onRunId: (id)=>{ if(runKey) PENDING_VIDEO.set(runKey, {runId:id, sig:sig}); },
+          onRunId: (id)=>{ if(runKey) PENDING_VIDEO.set(runKey, {runId:id, sig:sig, njs:true}); },   // njs tag: signatures are engine-shaped, only this shim can resume it (see njsRunFor's foreign-pending veto)
         });
         return client.video(model, prompt, opts, imageDataUrl, io2).then(
           (url)=>{ if(runKey) PENDING_VIDEO.delete(runKey); return url; },
@@ -7259,7 +7263,7 @@ function mp4ParamsMatch(bufs){
         const pend = runKey ? PENDING_AUDIO.get(runKey) : null;
         const io2 = Object.assign({}, io, {
           resume: (pend && pend.sig===sig && pend.job) ? pend.job : undefined,
-          onRunId: (job)=>{ if(runKey) PENDING_AUDIO.set(runKey, {sig:sig, job:job}); },
+          onRunId: (job)=>{ if(runKey) PENDING_AUDIO.set(runKey, {sig:sig, job:job, njs:true}); },   // njs tag: see njsRunFor's foreign-pending veto
         });
         return client.audio(model, input, extra, io2).then(
           (url)=>{ if(runKey) PENDING_AUDIO.delete(runKey); return url; },
@@ -7274,12 +7278,32 @@ function mp4ParamsMatch(bufs){
       progress: (msg)=> note && note(msg),
     };
   }
-  // The delegated run for a node type, or null → the built-in runner runs.
-  function njsRunFor(type){
+  // The delegated run for a node type, or null → the built-in runner runs. Takes the resolved
+  // (rn, inp, runKey) so it can veto per-run shapes the library doesn't yet handle like the
+  // built-in does — delegation must NEVER change what a paid request sends or costs (twin of
+  // the editor's njsRunFor vetoes; keep the two in lockstep).
+  function njsRunFor(type, rn, inp, runKey){
     if(!NJS_TYPES[type] || !njsOn() || EMBEDDED) return null;
     if(!getKey()) return null;
     const E = window.NanoodleEngine;
     if(!E || !E.RUNNERS || !E.RUNNERS[type]) return null;
+    // Gallery clamp: on a raw-catalog miss the library sends n=variations UNCLAMPED. This runtime's
+    // built-in does the same today, but the library is adopting the editor's conservative clamp-to-1
+    // default — multi-variation requests stay on the built-in path so what a run bills never depends
+    // on which engine ran it.
+    if(type==="image" && (parseInt(rn.fields.variations,10)||1) > 1) return null;
+    // tvideo refs: the library hardcodes the reference_images wire key and applies no per-model cap;
+    // the built-in resolves the model's REAL param name (modelAllowsRefs) and clamps. Wired refs → built-in.
+    if(type==="tvideo"){ for(const k in inp){ if(REF_PORT_RE.test(k)) return null; } }
+    // blob: media (Trim / Extract audio / Combine / Soundtrack outputs): the library posts the
+    // object URL verbatim — dead outside this page; the built-in runners inline to data: first.
+    for(const k in inp){ if(typeof inp[k]==="string" && inp[k].slice(0,5)==="blob:") return null; }
+    // A pending video/audio job submitted by the BUILT-IN engine (e.g. a run started under
+    // ?engine=play in another tab flipping njs_engine, or a veto that no longer applies) uses a
+    // body-shaped signature this shim can't match — delegating now would orphan that paid job and
+    // re-submit. Let the engine that owns it resume it.
+    const pv = runKey ? PENDING_VIDEO.get(runKey) : null, pa = runKey ? PENDING_AUDIO.get(runKey) : null;
+    if((pv && !pv.njs) || (pa && !pa.njs)) return null;
     return async function(rn, inp, onCost, runKey, note){
       const ctx = njsCtx(E, onCost, runKey, note);
       ctx.catalog = await njsCatalogs();
@@ -7400,7 +7424,7 @@ function mp4ParamsMatch(bufs){
           // one. Read→register is synchronous (no await between), so exactly one lane ever generates.
           await assertModelAvailable(rn);   // run preflight: block a drifted (renamed/retired) model id before any paid request (twin of the editor's mdl() guard)
           const noteCb = (msg)=> onStatus && onStatus(id, "run", msg);
-          const njsR = njsRunFor(n.type);   // flag-gated nanoodle-js delegation (see the block above runGraph)
+          const njsR = njsRunFor(n.type, rn, inp, runKey);   // flag-gated nanoodle-js delegation + per-run vetoes (see the block above runGraph)
           p = njsR ? njsR(rn, inp, onCostCb, runKey, noteCb) : t.run(rn, inp, ctx, noteCb);
           if(seeded) RUN_CACHE.set(id, { sig, pending: p });
           n.out = await p || {};
@@ -9972,7 +9996,8 @@ function mp4ParamsMatch(bufs){
     if(!(bakedSamples && renderShareSamples(bakedSamples))) renderOutputPlaceholder();
   }
 
-  return { mount, runGraph, materialize, describeGraph, deriveInputs, deriveSettings, deriveOutputs, NODE_TYPES, CTX:makeCtx(function(){}) };
+  // __njs: internals for scripts/check-njs-delegation.mjs's veto matrix — not app API
+  return { mount, runGraph, materialize, describeGraph, deriveInputs, deriveSettings, deriveOutputs, NODE_TYPES, CTX:makeCtx(function(){}), __njs:{ runFor:njsRunFor, PENDING_VIDEO, PENDING_AUDIO } };
 })();
 `;
 
