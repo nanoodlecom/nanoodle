@@ -82,6 +82,9 @@ const ENGINES = [
 for (const e of ENGINES) {
   try {
     e.src = readFileSync(join(ROOT, e.file), "utf8");
+    // drop the generated njs-engine bundle — it carries the LIBRARY's resizePlan copy;
+    // this check pins the editor ↔ RUNTIME_JS twins (the library copy has its own tests)
+    e.src = e.src.replace(/<script id="njs-engine"[\s\S]*?<\/script>/, "");
     e.text = extractFunction(e.src, "resizePlan");
     e.fn = compile(e.text);
   } catch (err) {

@@ -32,6 +32,8 @@ function extractScript(html) {
   const re = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
   let m;
   while ((m = re.exec(html))) {
+    // skip the generated njs-engine bundle — it carries the library's own deriveSettings
+    if (/njs-engine/.test(m[1])) continue;
     if (!/\bsrc=/i.test(m[1]) && /\bfunction deriveSettings\s*\(/.test(m[2])) return m[2];
   }
   throw new Error("could not find the inline <script> defining deriveSettings() in play.html");
