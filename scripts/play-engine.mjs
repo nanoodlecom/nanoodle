@@ -118,11 +118,18 @@ export function recordingFetch(url, opts = {}) {
   // Real NanoGPT responses carry the live balance on the x-remaining-balance header (and x-cost on
   // binary paths); mirror that so the engines' header-balance capture is exercised, not skipped.
   const hdr = { "x-remaining-balance": "9.87", "x-cost": "0" };
+  // media downloads (urlToDataUrl on blob:/https sources): non-API URLs serve stable fake
+  // audio bytes so both engines inline the SAME data: URL and body parity stays literal
+  const isApi = /\/(api|v1)\//.test(url) || /\/api\/v1\//.test(url);
+  if (!isApi) hdr["content-type"] = "audio/mpeg";
+  const mediaBytes = () => new TextEncoder().encode("fake-audio-bytes");
   return Promise.resolve({
     ok: true, status: 200,
     headers: { get: (k) => hdr[String(k).toLowerCase()] ?? null },
     json: async () => json,
     text: async () => JSON.stringify(json),
+    arrayBuffer: async () => mediaBytes().buffer,
+    blob: async () => new Blob([mediaBytes()], { type: isApi ? "" : "audio/mpeg" }),
   });
 }
 
@@ -144,6 +151,20 @@ export function loadEngine(extend) {
     fetch: recordingFetch,
     console, TextEncoder, TextDecoder, URL, btoa, atob, crypto, performance: { now: () => 0 },
     DOMException: globalThis.DOMException || class DOMException extends Error {},
+    // urlToDataUrl support: real Blob + a minimal FileReader (readAsDataURL like Chrome:
+    // typeless blobs surface as application/octet-stream)
+    Blob,
+    FileReader: class {
+      readAsDataURL(blob) {
+        blob.arrayBuffer().then(
+          (ab) => {
+            this.result = "data:" + (blob.type || "application/octet-stream") + ";base64," + Buffer.from(ab).toString("base64");
+            this.onload && this.onload();
+          },
+          (e) => { this.onerror && this.onerror(e); },
+        );
+      }
+    },
   };
   ctx.window = ctx; ctx.globalThis = ctx; ctx.window.parent = ctx; // parent===window → EMBEDDED false
   ctx.document = scriptAwareDocument(ctx);

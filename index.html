@@ -5896,7 +5896,10 @@ const NODE_TYPES = {
       // warn rather than POST audio the model can't hear. modelSupportsAudio is permissive for
       // typed-in/unknown ids, so only a known text-only model trips this.
       const hearsAudio = modelSupportsAudio(n);
-      const aud  = hearsAudio ? audioInputPart(inp.audio) : null;
+      // input_audio.data must be base64 BYTES: a chained https song (Music/Speech CDN) or a local
+      // blob: (Trim) has to be downloaded + inlined first — posting the URL string as "base64
+      // data" makes a paid call with garbage audio (twin of the library's fetchMedia step).
+      const aud  = hearsAudio && inp.audio ? audioInputPart(/^data:/.test(inp.audio) ? inp.audio : await urlToDataUrl(inp.audio)) : null;
       if(inp.audio && !hearsAudio) toast("audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).", "err");
       const messages = [];
       if((n.fields.system||"").trim()) messages.push({role:"system", content:n.fields.system.trim()});
@@ -8034,10 +8037,8 @@ function nodeSig(n, inp){
    Opt out: ?engine=play or localStorage njs_engine="0"; ?engine=js forces
    on. Demo runs and custom run contexts always use the built-in path.
    ===================================================================== */
-// vedit and lipsync are NOT delegated yet: the library's vedit drops wired reference-image ports,
-// and its lipsync lacks the built-in's charged-aware duration-trim retry ladder — both would change
-// what a paid request does. Re-add once nanoodle-js closes those gaps (see njsRunFor's vetoes too).
-const NJS_TYPES = { llm:1, vision:1, image:1, edit:1, draw:1, inpaint:1, tvideo:1, ivideo:1, music:1, tts:1, remix:1, transcribe:1 };
+// every network type delegates (wired video refs stay vetoed per-run — see njsRunFor)
+const NJS_TYPES = { llm:1, vision:1, image:1, edit:1, draw:1, inpaint:1, tvideo:1, ivideo:1, vedit:1, lipsync:1, music:1, tts:1, remix:1, transcribe:1 };
 function njsOn(){
   try{
     const q = new URLSearchParams(location.search).get("engine");
@@ -8125,6 +8126,13 @@ function njsCtx(E, n){
     signal: io.signal,
     catalog: null,   // filled per run by njsRunFor (async prefetch, then cached)
     maskToSource: (mask, source)=> maskToSource(mask, source),   // canvas compositor — handles JPEG/WebP sources
+    // lipsync's charged-aware retry ladder trims with THIS page's Web Audio decoder, so the
+    // retry bytes are identical to the built-in runner's (the library's pure-JS/ffmpeg trimmer
+    // isn't available in a browser)
+    trimAudio: async (url, start, len, rate)=>{
+      const tmp = await trimAudioToWavUrl(url, start, len, rate);
+      try{ return await urlToDataUrl(tmp); } finally { URL.revokeObjectURL(tmp); }
+    },
     progress: (msg)=> setNodeProgress(n, msg),
   };
 }
@@ -8139,12 +8147,12 @@ function njsRunFor(type, rn, inp, n){
   // editor clamps to 1 — a silent over-bill. Until the library adopts the conservative default,
   // multi-variation requests stay on the built-in path.
   if(type==="image" && (parseInt(rn.fields.variations,10)||1) > 1) return null;
-  // tvideo refs: the library hardcodes the reference_images wire key and applies no per-model cap;
-  // the editor resolves the model's REAL param name and clamps. Wired refs → built-in.
-  if(type==="tvideo") for(const k in inp){ if(REF_PORT_RE.test(k)) return null; }
-  // blob: media (Trim / Extract audio / Combine / Soundtrack outputs): the library posts the
-  // object URL verbatim — dead outside this page; the built-in runners inline to data: first.
-  for(const k in inp){ if(typeof inp[k]==="string" && inp[k].slice(0,5)==="blob:") return null; }
+  // tvideo/vedit refs: the library now resolves the real ref key + cap from the raw catalog
+  // (modelRefSpec), but on a catalog MISS it stays permissive-ON (send under the most common
+  // spelling, like play) where this editor is permissive-OFF (videoRefSpec null → refs dropped,
+  // never sent-and-charged). A transient raw-catalog failure inside a delegated run would
+  // therefore send refs the built-in wouldn't — wired refs stay on the built-in path.
+  if(type==="tvideo" || type==="vedit"){ for(const k in inp){ if(REF_PORT_RE.test(k)) return null; } }
   // A pending video/audio job submitted by the BUILT-IN engine (lazy bundle load race: first run
   // fires before vendor/njs-engine.js arrives) uses a body-shaped signature this shim can't match —
   // delegating now would orphan that paid job and re-submit. Let the engine that owns it resume it.
@@ -8152,9 +8160,20 @@ function njsRunFor(type, rn, inp, n){
   if((pv && !pv.njs) || (pa && !pa.njs)) return null;
   return async function(){
     mdl(rn);   // run preflight: a missing model AND a drifted (renamed/retired) id both block BEFORE any paid request — the library can't know what NanoGPT renamed
+    // Materialize page-local blob: media (Trim / Extract audio / Combine / Soundtrack outputs)
+    // into data: URLs before the library sees them — its runners post non-https strings verbatim,
+    // and an object URL is dead outside this page. Same urlToDataUrl the built-in senders use,
+    // so delegated bodies stay byte-identical.
+    let inp2 = inp;
+    for(const k in inp){
+      if(typeof inp[k]==="string" && inp[k].slice(0,5)==="blob:"){
+        if(inp2===inp) inp2 = Object.assign({}, inp);
+        inp2[k] = await urlToDataUrl(inp[k]);
+      }
+    }
     const ctx = njsCtx(E, n);
     ctx.catalog = await njsCatalogs();
-    return E.RUNNERS[type](rn, inp, ctx);
+    return E.RUNNERS[type](rn, inp2, ctx);
   };
 }
 

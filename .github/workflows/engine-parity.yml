@@ -1,0 +1,49 @@
+name: engine parity
+
+# Dual-checkout gate for the one-engine effort (replace-prep Phases E/F, default ON):
+# the embedded nanoodle-js bundle's freshness, play RUNTIME_JS ↔ nanoodle-js payload
+# parity, and the flag-gated delegation shims on both surfaces. Locally these run from
+# .githooks/pre-commit and SKIP when the sibling checkout is missing — here both repos
+# are checked out, and the skip path is asserted to never fire, so drift between the
+# repos' default branches can't hide. A FAILING run after a nanoodle-js merge usually
+# means: regenerate the bundle (scripts/gen-js-engine.mjs) and re-run the checks.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: {}
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    env:
+      NANOODLE_JS: ${{ github.workspace }}/nanoodle-js
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: nanoodle
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/nanoodle-js
+          path: nanoodle-js
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      # No npm install: both repos are dependency-free; the checks use Node built-ins only.
+      - name: embedded bundle is current (play block ↔ vendor/njs-engine.js ↔ nanoodle-js src)
+        working-directory: nanoodle
+        run: node scripts/gen-js-engine.mjs --check
+      - name: dual-engine payload parity (play RUNTIME_JS ↔ Workflow.run)
+        working-directory: nanoodle
+        run: |
+          node scripts/check-js-parity.mjs | tee parity.out
+          if grep -q "skip js-engine-parity" parity.out; then
+            echo "::error::sibling nanoodle-js not seen — the local-only skip path must never run in CI"
+            exit 1
+          fi
+      - name: play delegation shim (flag-on ↔ flag-off, veto matrix, pending-job guards)
+        working-directory: nanoodle
+        run: node scripts/check-njs-delegation.mjs
+      - name: editor delegation shim (flag-on ↔ flag-off, veto matrix, pending-job guards)
+        working-directory: nanoodle
+        run: node scripts/check-njs-editor-delegation.mjs

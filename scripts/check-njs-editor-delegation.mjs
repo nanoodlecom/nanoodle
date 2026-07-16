@@ -86,6 +86,14 @@ const respond = (json) => ({
   headers: { get: () => null },
 });
 function fakeFetch(url, opts = {}) {
+  // page-local media (urlToDataUrl on a blob: source) — served, not recorded (not an API call)
+  if (/^blob:/.test(String(url))) {
+    return Promise.resolve({
+      ok: true, status: 200, headers: { get: () => null },
+      blob: async () => new Blob([new TextEncoder().encode("fake-audio-bytes")], { type: "audio/wav" }),
+      arrayBuffer: async () => new TextEncoder().encode("fake-audio-bytes").buffer,
+    });
+  }
   const path = String(url).replace(/^https?:\/\/[^/]+/i, "");
   const raw = RAW_CAT[path];
   if (raw) return Promise.resolve(respond({ data: raw }));
@@ -103,6 +111,7 @@ function fakeFetch(url, opts = {}) {
 const REAL = [
   extractFn("njsOn"), extractFn("njsCatalogRaw"), extractFn("njsCatalogs"),
   extractFn("njsCtx"), extractFn("njsRunFor"),
+  extractFn("urlToDataUrl"), extractFn("mediaFetchError"),
   grab(/const NJS_TYPES = \{[^\n]*\};/, "NJS_TYPES"),
   grab(/const REF_PORT_RE = \/[^\n]*;/, "REF_PORT_RE"),
   extractFn("withLocale"), extractFn("collectImageInputs"), extractFn("llmOpts"),
@@ -125,6 +134,19 @@ const REAL = [
 function makeCtx({ flagOn, key = "test-api-key", drifted = false, spy = [], directive = null }) {
   const ctx = {
     console, URLSearchParams, JSON, Promise, Object, Array, Math, Number, String, isNaN, isFinite, parseInt, parseFloat, Error, DOMException: Error,
+    // urlToDataUrl support: real Blob + a minimal FileReader (readAsDataURL like Chrome)
+    Blob,
+    FileReader: class {
+      readAsDataURL(blob) {
+        blob.arrayBuffer().then(
+          (ab) => {
+            this.result = "data:" + (blob.type || "application/octet-stream") + ";base64," + Buffer.from(ab).toString("base64");
+            this.onload && this.onload();
+          },
+          (e) => { this.onerror && this.onerror(e); },
+        );
+      }
+    },
     fetch: fakeFetch,
     location: { search: "" },
     localStorage: { getItem: (k) => (k === "ngpt_key" ? key : k === "njs_engine" ? (flagOn ? "1" : "0") : null), setItem() {}, removeItem() {} },   // flag defaults ON, so "off" is the explicit "0" opt-out
@@ -168,6 +190,10 @@ const SCENARIOS = [
   ["llm chat localized", "llm", { model: "x", system: "You are terse.", prompt: "Hola" }, {}, "Respond in Spanish."],
   ["image seed", "image", { model: "x", prompt: "a fox", seed: "7" }, {}, null],
   ["edit multi-ref", "edit", { model: "x", prompt: "merge" }, { image: IMG, image2: IMG }, null],
+  // blob: audio must reach the model as base64 BYTES on both paths: built-in inlines via
+  // urlToDataUrl, the shim materializes before the library runner ("y" is catalog-absent, so
+  // the audio-input gate stays permissive on both engines)
+  ["llm blob audio inlined", "llm", { model: "y", system: "", prompt: "what is said?" }, { audio: "blob:vm/clip" }, null],
 ];
 const norm = (c) => JSON.stringify(c);
 
@@ -227,16 +253,17 @@ for (const [name, type, fields, inp, directive] of SCENARIOS) {
   const rf = (type, fields, inp, node) => on.njsRunFor(type, { id: "n1", type, fields }, inp, node || { id: "n1", type, fields });
   assert.equal(rf("image", { model: "x", prompt: "p", variations: "2" }, {}), null, "image variations>1 must not delegate (library skips the clamp on catalog miss)");
   assert.notEqual(rf("image", { model: "x", prompt: "p", variations: "1" }, {}), null, "image variations=1 still delegates");
-  assert.equal(rf("tvideo", { model: "x", prompt: "p" }, { ref1: IMG }), null, "tvideo with wired refs must not delegate (hardcoded key, no cap)");
+  assert.equal(rf("tvideo", { model: "x", prompt: "p" }, { ref1: IMG }), null, "tvideo with wired refs must not delegate (editor is permissive-OFF on catalog miss, library permissive-ON)");
   assert.notEqual(rf("tvideo", { model: "x", prompt: "p" }, {}), null, "tvideo without refs still delegates");
-  assert.equal(rf("remix", { model: "x", prompt: "p" }, { audio: "blob:null/abc" }), null, "blob: media input must not delegate (library posts the object URL verbatim)");
-  assert.equal(rf("vedit", { model: "x", prompt: "p" }, {}), null, "vedit is excluded from NJS_TYPES (library drops wired refs)");
-  assert.equal(rf("lipsync", { model: "x" }, {}), null, "lipsync is excluded from NJS_TYPES (library lacks the trim-retry ladder)");
+  assert.equal(rf("vedit", { model: "x", prompt: "p" }, { video: IMG, ref1: IMG }), null, "vedit with wired refs must not delegate (same permissive-OFF reasoning as tvideo)");
+  assert.notEqual(rf("vedit", { model: "x", prompt: "p" }, { video: IMG }), null, "vedit without refs delegates (library ref/dims parity landed)");
+  assert.notEqual(rf("remix", { model: "x", prompt: "p" }, { audio: "blob:null/abc" }), null, "blob: media delegates (the shim materializes it to a data: URL)");
+  assert.notEqual(rf("lipsync", { model: "x" }, {}), null, "lipsync delegates (library ladder + ctx.trimAudio landed)");
   on.PENDING_VIDEO.set("n1", { sig: 1, runId: "r1" });   // a BUILT-IN engine's pending job (no njs tag)
   assert.equal(rf("ivideo", { model: "x", prompt: "p" }, { image: IMG }), null, "a built-in pending job keeps the node on the built-in engine (resume, don't re-submit)");
   on.PENDING_VIDEO.set("n1", { sig: 1, runId: "r1", njs: true });
   assert.notEqual(rf("ivideo", { model: "x", prompt: "p" }, { image: IMG }), null, "an njs-tagged pending job still delegates (this engine can resume it)");
-  console.log("✓ vetoes: gallery clamp / tvideo refs / blob: media / excluded types / foreign pending jobs all fall back to built-in");
+  console.log("✓ vetoes: gallery clamp / wired video refs / foreign pending jobs fall back to built-in (blob: media and lipsync delegate)");
 }
 
 // keep-pending-on-abort: Stop must NOT delete a submitted (charged) job's pending entry — only a

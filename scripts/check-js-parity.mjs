@@ -187,6 +187,9 @@ function recordingFetchFactory(bucket) {
       json = { data: [] };
     }
     const hdr = { "x-remaining-balance": "9.87", "x-cost": "0" };
+    // media downloads (fetchMediaDataUrl): same content-type + bytes play-engine's recording
+    // fetch serves, so both engines inline the SAME data: URL
+    if (!/\/(api|v1)\//.test(String(url))) hdr["content-type"] = "audio/mpeg";
     return {
       ok: true, status: 200,
       headers: { get: (k) => hdr[String(k).toLowerCase()] ?? null },
@@ -248,6 +251,20 @@ const SCENARIOS = [
       nodes: [
         node("u1", "aupload", { audio: "data:audio/wav;base64,QUJD" }),
         node("t1", "text", { text: "Transcribe this" }),
+        node("m1", "llm", { model: "x" }),
+      ],
+      links: [
+        link("u1", "audio", "m1", "audio"),
+        link("t1", "text", "m1", "prompt"),
+      ],
+    },
+  },
+  {
+    name: "LLM audio from an https URL (downloaded + inlined to bytes on both engines)",
+    data: {
+      nodes: [
+        node("u1", "aupload", { audio: "https://cdn.example/song.mp3" }),
+        node("t1", "text", { text: "What is being said?" }),
         node("m1", "llm", { model: "x" }),
       ],
       links: [
@@ -339,6 +356,17 @@ const SCENARIOS = [
     },
   },
   {
+    name: "lipsync: image + local audio + dims (happy path, no retry)",
+    data: {
+      nodes: [
+        node("u1", "upload", { image: IMG }),
+        node("a1", "aupload", { audio: AUD }),
+        node("l1", "lipsync", { model: "x", prompt: "subtle head movement", resolution: "720p" }),
+      ],
+      links: [link("u1", "image", "l1", "image"), link("a1", "audio", "l1", "audio")],
+    },
+  },
+  {
     name: "inpaint: mask composited onto black @ source size (pixel-level)",
     data: {
       nodes: [node("p1", "inpaint", { model: "x", prompt: "a straw hat", image: INPAINT_SRC, mask: INPAINT_MASK })],
@@ -379,6 +407,51 @@ const SCENARIOS = [
     data: {
       nodes: [node("i1", "image", { model: "gen", prompt: "a fox", variations: "4" })],
       links: [],
+    },
+  },
+  {
+    name: "tvideo refs without catalog → most-common spelling (reference_images, family cap)",
+    data: {
+      nodes: [
+        node("u1", "upload", { image: IMG + "R1" }), node("u2", "upload", { image: IMG + "R2" }),
+        node("v1", "tvideo", { model: "seedance-2.0", prompt: "morph" }),
+      ],
+      links: [link("u1", "image", "v1", "ref1"), link("u2", "image", "v1", "ref2")],
+    },
+  },
+  {
+    name: "catalog: tvideo refs ride the model's real key, clamped to its declared max",
+    catalog: { video: [{ id: "luma-like", supported_parameters: { parameters: {
+      reference_image_urls: { max: 1 },
+    } } }] },
+    data: {
+      nodes: [
+        node("u1", "upload", { image: IMG + "R1" }), node("u2", "upload", { image: IMG + "R2" }),
+        node("v1", "tvideo", { model: "luma-like", prompt: "morph" }),
+      ],
+      links: [link("u1", "image", "v1", "ref1"), link("u2", "image", "v1", "ref2")],
+    },
+  },
+  {
+    name: "catalog: tvideo refs dropped for a KNOWN no-ref model",
+    catalog: { video: [{ id: "plain-t2v", supported_parameters: { parameters: {} } }] },
+    data: {
+      nodes: [node("u1", "upload", { image: IMG }), node("v1", "tvideo", { model: "plain-t2v", prompt: "pan" })],
+      links: [link("u1", "image", "v1", "ref1")],
+    },
+  },
+  {
+    name: "catalog: vedit refs ride the model's real key (video-edit family)",
+    catalog: { video: [{ id: "seedance-edit", supported_parameters: { parameters: {
+      reference_images: { max: 9 },
+    } } }] },
+    data: {
+      nodes: [
+        node("s1", "vupload", { video: "https://example/clip.mp4" }),
+        node("u1", "upload", { image: IMG }),
+        node("v1", "vedit", { model: "seedance-edit", prompt: "swap the character" }),
+      ],
+      links: [link("s1", "video", "v1", "video"), link("u1", "image", "v1", "ref1")],
     },
   },
   {
