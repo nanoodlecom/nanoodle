@@ -8034,10 +8034,10 @@ function nodeSig(n, inp){
    Opt out: ?engine=play or localStorage njs_engine="0"; ?engine=js forces
    on. Demo runs and custom run contexts always use the built-in path.
    ===================================================================== */
-// vedit and lipsync are NOT delegated yet: the library's vedit drops wired reference-image ports,
-// and its lipsync lacks the built-in's charged-aware duration-trim retry ladder — both would change
-// what a paid request does. Re-add once nanoodle-js closes those gaps (see njsRunFor's vetoes too).
-const NJS_TYPES = { llm:1, vision:1, image:1, edit:1, draw:1, inpaint:1, tvideo:1, ivideo:1, music:1, tts:1, remix:1, transcribe:1 };
+// lipsync is NOT delegated yet: the library lacks the built-in's charged-aware duration-trim retry
+// ladder — delegating would change what a paid request does. Re-add once nanoodle-js closes that
+// gap (see njsRunFor's vetoes too — wired video refs stay vetoed here for a different reason).
+const NJS_TYPES = { llm:1, vision:1, image:1, edit:1, draw:1, inpaint:1, tvideo:1, ivideo:1, vedit:1, music:1, tts:1, remix:1, transcribe:1 };
 function njsOn(){
   try{
     const q = new URLSearchParams(location.search).get("engine");
@@ -8139,9 +8139,12 @@ function njsRunFor(type, rn, inp, n){
   // editor clamps to 1 — a silent over-bill. Until the library adopts the conservative default,
   // multi-variation requests stay on the built-in path.
   if(type==="image" && (parseInt(rn.fields.variations,10)||1) > 1) return null;
-  // tvideo refs: the library hardcodes the reference_images wire key and applies no per-model cap;
-  // the editor resolves the model's REAL param name and clamps. Wired refs → built-in.
-  if(type==="tvideo") for(const k in inp){ if(REF_PORT_RE.test(k)) return null; }
+  // tvideo/vedit refs: the library now resolves the real ref key + cap from the raw catalog
+  // (modelRefSpec), but on a catalog MISS it stays permissive-ON (send under the most common
+  // spelling, like play) where this editor is permissive-OFF (videoRefSpec null → refs dropped,
+  // never sent-and-charged). A transient raw-catalog failure inside a delegated run would
+  // therefore send refs the built-in wouldn't — wired refs stay on the built-in path.
+  if(type==="tvideo" || type==="vedit"){ for(const k in inp){ if(REF_PORT_RE.test(k)) return null; } }
   // blob: media (Trim / Extract audio / Combine / Soundtrack outputs): the library posts the
   // object URL verbatim — dead outside this page; the built-in runners inline to data: first.
   for(const k in inp){ if(typeof inp[k]==="string" && inp[k].slice(0,5)==="blob:") return null; }

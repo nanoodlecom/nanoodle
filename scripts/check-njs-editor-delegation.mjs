@@ -227,16 +227,17 @@ for (const [name, type, fields, inp, directive] of SCENARIOS) {
   const rf = (type, fields, inp, node) => on.njsRunFor(type, { id: "n1", type, fields }, inp, node || { id: "n1", type, fields });
   assert.equal(rf("image", { model: "x", prompt: "p", variations: "2" }, {}), null, "image variations>1 must not delegate (library skips the clamp on catalog miss)");
   assert.notEqual(rf("image", { model: "x", prompt: "p", variations: "1" }, {}), null, "image variations=1 still delegates");
-  assert.equal(rf("tvideo", { model: "x", prompt: "p" }, { ref1: IMG }), null, "tvideo with wired refs must not delegate (hardcoded key, no cap)");
+  assert.equal(rf("tvideo", { model: "x", prompt: "p" }, { ref1: IMG }), null, "tvideo with wired refs must not delegate (editor is permissive-OFF on catalog miss, library permissive-ON)");
   assert.notEqual(rf("tvideo", { model: "x", prompt: "p" }, {}), null, "tvideo without refs still delegates");
+  assert.equal(rf("vedit", { model: "x", prompt: "p" }, { video: IMG, ref1: IMG }), null, "vedit with wired refs must not delegate (same permissive-OFF reasoning as tvideo)");
+  assert.notEqual(rf("vedit", { model: "x", prompt: "p" }, { video: IMG }), null, "vedit without refs delegates (library ref/dims parity landed)");
   assert.equal(rf("remix", { model: "x", prompt: "p" }, { audio: "blob:null/abc" }), null, "blob: media input must not delegate (library posts the object URL verbatim)");
-  assert.equal(rf("vedit", { model: "x", prompt: "p" }, {}), null, "vedit is excluded from NJS_TYPES (library drops wired refs)");
   assert.equal(rf("lipsync", { model: "x" }, {}), null, "lipsync is excluded from NJS_TYPES (library lacks the trim-retry ladder)");
   on.PENDING_VIDEO.set("n1", { sig: 1, runId: "r1" });   // a BUILT-IN engine's pending job (no njs tag)
   assert.equal(rf("ivideo", { model: "x", prompt: "p" }, { image: IMG }), null, "a built-in pending job keeps the node on the built-in engine (resume, don't re-submit)");
   on.PENDING_VIDEO.set("n1", { sig: 1, runId: "r1", njs: true });
   assert.notEqual(rf("ivideo", { model: "x", prompt: "p" }, { image: IMG }), null, "an njs-tagged pending job still delegates (this engine can resume it)");
-  console.log("✓ vetoes: gallery clamp / tvideo refs / blob: media / excluded types / foreign pending jobs all fall back to built-in");
+  console.log("✓ vetoes: gallery clamp / wired video refs / blob: media / excluded types / foreign pending jobs all fall back to built-in");
 }
 
 // keep-pending-on-abort: Stop must NOT delete a submitted (charged) job's pending entry — only a

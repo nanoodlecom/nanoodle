@@ -1,5 +1,5 @@
-/* data-hash=91ee480bc4f07d73 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-a868fc31757a (15 modules) */
+/* data-hash=6b4f5876d7eac4cb */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-988cefa05bc4 (15 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -1500,6 +1500,53 @@ function videoDims(n, ctx) {
   return out;
 }
 
+/* ---------- reference-image wire key + cap (mirrors play's modelAllowsRefs) ----------
+   Video models disagree on the ref-array param name AND its size limit; sending the wrong
+   key silently degrades to a plain video, sending too many can over-bill. Resolve the
+   model's REAL key from the catalog and clamp to its declared max. */
+function refMaxFor(model) {
+  const id = String(model || "");
+  if (/seedance/i.test(id)) return 9;
+  if (/luma|ray/i.test(id)) return 4;
+  return 4;
+}
+
+/**
+ * {key, cap} for the model's reference-image param, or null when the model is KNOWN
+ * not to take refs. Catalog-absent / no-catalog models honor authored wires under the
+ * most common spelling (a wrong guess degrades the render, it never double-charges).
+ */
+function modelRefSpec(model, ctx) {
+  const keys = ["reference_images", "reference_image_urls", "referenceImages"];
+  const m = catItem(ctx && ctx.catalog, "video", model);
+  if (!m) return { key: "reference_images", cap: refMaxFor(model) };
+  const sp = m.supported_parameters || {}, pp = sp.parameters || sp;
+  const key = keys.find((k) => k in pp);
+  if (!key) return null; // known model with no ref-image param
+  const d = pp[key];
+  let cap = null;
+  if (d && typeof d === "object") {
+    const mx = d.max != null ? d.max : d.maxItems != null ? d.maxItems : d.max_items;
+    if (mx != null && +mx > 0) cap = +mx;
+  }
+  return { key, cap: cap != null ? cap : refMaxFor(model) };
+}
+
+/** Attach wired refs to video opts under the model's real key, clamped to its cap (twin of the app runtimes: say so, never silently discard). */
+function applyRefs(opts, refs, n, ctx) {
+  if (!refs.length) return;
+  const spec = modelRefSpec(mdl(n), ctx);
+  if (spec && spec.key) {
+    opts.refImages = refs.slice(0, spec.cap);
+    opts.refKey = spec.key;
+    if (refs.length > spec.cap && ctx && ctx.progress) {
+      ctx.progress("dropped " + (refs.length - spec.cap) + " reference image(s) over this model's limit of " + spec.cap);
+    }
+  } else if (ctx && ctx.progress) {
+    ctx.progress("reference image(s) ignored — this model doesn't support them");
+  }
+}
+
 function videoSourceOpts(url) {
   return /^https?:/i.test(url) ? { videoUrl: url } : { videoDataUrl: url };
 }
@@ -1778,8 +1825,7 @@ const RUNNERS = {
   async tvideo(n, inp, ctx) {
     const prompt = promptOf(n, inp, "no prompt");
     const opts = { ...videoDims(n, ctx), lora: loraParams(n), extra: n.fields.modelOpts || {} };
-    const refs = collectPorts(inp, REF_PORT_RE);
-    if (refs.length) { opts.refImages = refs; opts.refKey = "reference_images"; }
+    applyRefs(opts, collectPorts(inp, REF_PORT_RE), n, ctx);
     return { video: await ctx.video(mdl(n), prompt, opts, null) };
   },
 
@@ -1795,6 +1841,7 @@ const RUNNERS = {
     if (!inp.video) throw new NanoodleError("no video input");
     const prompt = promptOf(n, inp);
     const opts = { ...videoSourceOpts(inp.video), ...videoDims(n, ctx), lora: loraParams(n), extra: n.fields.modelOpts || {} };
+    applyRefs(opts, collectPorts(inp, REF_PORT_RE), n, ctx); // ref wires (seedance video-edit family) — same key/cap resolution as tvideo
     return { video: await ctx.video(mdl(n), prompt, opts, null) };
   },
 
@@ -4167,5 +4214,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-a868fc31757a";
+  window.NanoodleEngine.version = "src-988cefa05bc4";
 })();

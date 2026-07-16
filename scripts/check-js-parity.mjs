@@ -382,6 +382,51 @@ const SCENARIOS = [
     },
   },
   {
+    name: "tvideo refs without catalog → most-common spelling (reference_images, family cap)",
+    data: {
+      nodes: [
+        node("u1", "upload", { image: IMG + "R1" }), node("u2", "upload", { image: IMG + "R2" }),
+        node("v1", "tvideo", { model: "seedance-2.0", prompt: "morph" }),
+      ],
+      links: [link("u1", "image", "v1", "ref1"), link("u2", "image", "v1", "ref2")],
+    },
+  },
+  {
+    name: "catalog: tvideo refs ride the model's real key, clamped to its declared max",
+    catalog: { video: [{ id: "luma-like", supported_parameters: { parameters: {
+      reference_image_urls: { max: 1 },
+    } } }] },
+    data: {
+      nodes: [
+        node("u1", "upload", { image: IMG + "R1" }), node("u2", "upload", { image: IMG + "R2" }),
+        node("v1", "tvideo", { model: "luma-like", prompt: "morph" }),
+      ],
+      links: [link("u1", "image", "v1", "ref1"), link("u2", "image", "v1", "ref2")],
+    },
+  },
+  {
+    name: "catalog: tvideo refs dropped for a KNOWN no-ref model",
+    catalog: { video: [{ id: "plain-t2v", supported_parameters: { parameters: {} } }] },
+    data: {
+      nodes: [node("u1", "upload", { image: IMG }), node("v1", "tvideo", { model: "plain-t2v", prompt: "pan" })],
+      links: [link("u1", "image", "v1", "ref1")],
+    },
+  },
+  {
+    name: "catalog: vedit refs ride the model's real key (video-edit family)",
+    catalog: { video: [{ id: "seedance-edit", supported_parameters: { parameters: {
+      reference_images: { max: 9 },
+    } } }] },
+    data: {
+      nodes: [
+        node("s1", "vupload", { video: "https://example/clip.mp4" }),
+        node("u1", "upload", { image: IMG }),
+        node("v1", "vedit", { model: "seedance-edit", prompt: "swap the character" }),
+      ],
+      links: [link("s1", "video", "v1", "video"), link("u1", "image", "v1", "ref1")],
+    },
+  },
+  {
     name: "catalog: video dims ride the model's wire names (orientation/seconds) + default backfill",
     catalog: { video: [{ id: "sora-like", supported_parameters: { parameters: {
       orientation: { options: [{ value: "landscape" }, { value: "portrait" }], default: "landscape" },
