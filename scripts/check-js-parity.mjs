@@ -49,10 +49,13 @@ const AUD = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACA
 // resampling is implementation-defined in real browsers, so scaled-mask parity
 // is pixel-contract territory the library's own tests cover, not this harness).
 
-function pngDataUrl(w, h, rgba) {
-  return "data:image/png;base64," + Buffer.from(encodePngRgba(w, h, rgba)).toString("base64");
+// await-wrapped: the sibling's PNG codec is sync today but goes async in the
+// browser-safe local-media split (DecompressionStream has no sync form) — await
+// keeps this harness working across both versions.
+async function pngDataUrl(w, h, rgba) {
+  return "data:image/png;base64," + Buffer.from(await encodePngRgba(w, h, rgba)).toString("base64");
 }
-function decodePngUrl(u) {
+async function decodePngUrl(u) {
   return decodePng(Buffer.from(String(u).replace(/^data:[^,]*,/, ""), "base64"));
 }
 function px(w, h, paint) { // paint(x, y) → [r, g, b, a]
@@ -63,20 +66,20 @@ function px(w, h, paint) { // paint(x, y) → [r, g, b, a]
   }
   return out;
 }
-const INPAINT_SRC = pngDataUrl(4, 4, px(4, 4, () => [200, 30, 30, 255]));           // opaque red
-const INPAINT_MASK = pngDataUrl(4, 4, px(4, 4, (x, y) => y < 2 ? [255, 255, 255, 255] : [0, 0, 0, 0])); // brush: top half white, rest transparent
+const INPAINT_SRC = await pngDataUrl(4, 4, px(4, 4, () => [200, 30, 30, 255]));           // opaque red
+const INPAINT_MASK = await pngDataUrl(4, 4, px(4, 4, (x, y) => y < 2 ? [255, 255, 255, 255] : [0, 0, 0, 0])); // brush: top half white, rest transparent
 
 class ImageShim {
   set src(u) {
-    try {
-      this.__px = decodePngUrl(u);
-      this.naturalWidth = this.__px.w;
-      this.naturalHeight = this.__px.h;
-    } catch (e) {
-      Promise.resolve().then(() => this.onerror && this.onerror(e));
-      return;
-    }
-    Promise.resolve().then(() => this.onload && this.onload());
+    decodePngUrl(u).then(
+      (p) => {
+        this.__px = p;
+        this.naturalWidth = p.w;
+        this.naturalHeight = p.h;
+        this.onload && this.onload();
+      },
+      (e) => { this.onerror && this.onerror(e); },
+    );
   }
 }
 function makeCanvasShim() {
@@ -107,6 +110,7 @@ function makeCanvasShim() {
         },
       };
     },
+    // returns a Promise — play's maskToSource resolve()s it, which flattens fine
     toDataURL() { return pngDataUrl(c.width, c.height, c.__buf); },
   };
   return c;
@@ -135,14 +139,14 @@ function canon(v) {
  * (play's UI materializes input defs into node.fields before running — the
  * engine itself never backfills). Parity here is literal.
  */
-function normReq(r) {
+async function normReq(r) {
   const url = String(r.url).replace(/\/+$/, "");
   const path = url.replace(/^https?:\/\/[^/]+/i, "");
   const body = r.body == null ? null : JSON.parse(JSON.stringify(r.body));
   // maskDataUrl is engine-encoded PNG (canvas toDataURL vs the library's encoder):
   // the API contract is the PIXELS, not the encoder's byte stream — compare decoded.
   if (body && typeof body.maskDataUrl === "string" && body.maskDataUrl.startsWith("data:image/png")) {
-    const { w, h, rgba } = decodePngUrl(body.maskDataUrl);
+    const { w, h, rgba } = await decodePngUrl(body.maskDataUrl);
     body.maskDataUrl = `png-pixels:${w}x${h}:${Buffer.from(rgba).toString("base64")}`;
   }
   return { path, body: canon(body) };
@@ -153,8 +157,9 @@ function stableKey(req) {
 }
 
 /** Sort requests so parallel-lane ordering differences don't false-fail. */
-function sortReqs(reqs) {
-  return reqs.map(normReq).sort((a, b) => stableKey(a).localeCompare(stableKey(b)));
+async function sortReqs(reqs) {
+  const normed = await Promise.all(reqs.map(normReq));
+  return normed.sort((a, b) => stableKey(a).localeCompare(stableKey(b)));
 }
 
 function recordingFetchFactory(bucket) {
@@ -369,7 +374,7 @@ async function main() {
     const g = playApp.materialize(sc.data);
     await playApp.runGraph(g, {}).catch(() => {});
     // Filter to paid API traffic only (skip catalog GETs if any)
-    const playReqs = sortReqs(calls.filter((c) =>
+    const playReqs = await sortReqs(calls.filter((c) =>
       /\/(chat\/completions|images\/generations|generate-video|audio\/speech|transcriptions)/.test(c.url)));
 
     const jsReqs = (await runJs(sc.data)).filter((r) =>
