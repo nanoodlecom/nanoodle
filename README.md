@@ -141,6 +141,13 @@ package and asserts identical NanoGPT request bodies — the safety net for
 eventually replacing the inlined processor with the package. Skips if
 `nanoodle-js` isn’t checked out next to this repo (or set `NANOODLE_JS`).
 
+play.html also embeds a generated bundle of that package (the `njs-engine`
+script block, `scripts/gen-js-engine.mjs`, freshness-checked pre-commit).
+`?engine=js` (or `localStorage.njs_engine = "1"`) routes network nodes
+through it — experimental, default off; `scripts/check-njs-delegation.mjs`
+asserts the flagged path produces byte-identical requests. Exported apps
+carry the bundle too, so the same flag works there.
+
 `updates.json` is the in-app changelog behind the 📣 button. It's opt-in
 per commit: add an `Update: one polished line` to a commit message and the
 `post-commit` hook folds it in. Commits without one stay silent. Edit the

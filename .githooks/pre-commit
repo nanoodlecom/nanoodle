@@ -170,6 +170,18 @@ if [ -n "$touches_jsparity" ]; then
   node "$root/scripts/check-js-parity.mjs"
 fi
 
+# 6-engine) the embedded njs-engine bundle (window.NanoodleEngine) must match a fresh
+# regeneration from the sibling nanoodle-js. Skips cleanly without the sibling checkout.
+if [ -n "$touches_jsparity" ]; then
+  node "$root/scripts/gen-js-engine.mjs" --check
+fi
+
+# 6-delegation) flag-gated nanoodle-js delegation: runGraph with njs_engine=1 must route
+# network nodes through the embedded bundle AND produce byte-identical request bodies.
+if [ -n "$touches_jsparity" ]; then
+  node "$root/scripts/check-njs-delegation.mjs"
+fi
+
 # 6a) exported-app LLM capability gating: a JSON output-format on a non-structured model, or a wired
 #     audio clip on a text-only model, must be stripped from the PAYLOAD (not just the UI) so an exported
 #     graph can't bill for a request the model returns empty / can't hear. Catalog-driven, permissive offline.
