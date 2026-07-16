@@ -16,8 +16,7 @@
 //   --check  regenerate in memory and diff against the embedded block
 //            (exit 1 on drift, exit 0 + skip message when no sibling repo)
 
-import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
-import { execSync } from "node:child_process";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -113,8 +112,11 @@ while (queue.length) {
   queue.push(...t.deps);
 }
 
-let version = "unknown";
-try { version = execSync("git rev-parse --short HEAD", { cwd: JS_ROOT }).toString().trim(); } catch {}
+// Version = hash of the bundled SOURCES, not the sibling's git HEAD — a docs-only
+// commit over there must not flag the embedded bundle as stale.
+const srcHash = createHash("sha256");
+for (const [name] of [...modules.entries()].sort()) srcHash.update(name).update(readFileSync(join(SRC, name)));
+const version = "src-" + srcHash.digest("hex").slice(0, 12);
 
 const defs = [...modules.entries()].map(([name, m]) =>
   `__def(${JSON.stringify(name)}, function (__x, __req) {\n${m.body}\n});`).join("\n");
