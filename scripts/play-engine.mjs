@@ -76,10 +76,15 @@ function scriptAwareDocument(ctx) {
   return new Proxy(base, {
     get(_t, prop) {
       if (prop === "createElement")
-        return (tag) =>
-          String(tag).toLowerCase() === "script"
-            ? { set textContent(v) { this.__text = v; }, setAttribute() {}, style: {} }
-            : inert();
+        return (tag) => {
+          const t = String(tag).toLowerCase();
+          if (t === "script")
+            return { set textContent(v) { this.__text = v; }, setAttribute() {}, style: {} };
+          // a checker can supply real elements (e.g. a pixel-backed canvas shim
+          // for maskToSource) via loadEngine(extend) setting ctx.__createElement
+          const custom = ctx.__createElement && ctx.__createElement(t);
+          return custom || inert();
+        };
       if (prop === "head" || prop === "body") return head;
       return base[prop];
     },
@@ -121,7 +126,9 @@ export function recordingFetch(url, opts = {}) {
   });
 }
 
-export function loadEngine() {
+// extend(ctx): optional hook to add globals (Image, __createElement, …) to the
+// vm context before the engine script runs — see check-js-parity.mjs's canvas shim.
+export function loadEngine(extend) {
   const code = prepare(extractScript(readFileSync(PLAY, "utf8")));
   const localStorage = {
     _k: "test-api-key",
@@ -140,6 +147,7 @@ export function loadEngine() {
   };
   ctx.window = ctx; ctx.globalThis = ctx; ctx.window.parent = ctx; // parent===window → EMBEDDED false
   ctx.document = scriptAwareDocument(ctx);
+  if (extend) extend(ctx);
   vm.createContext(ctx);
   try {
     new vm.Script(code, { filename: "play.html#module" }).runInContext(ctx);
