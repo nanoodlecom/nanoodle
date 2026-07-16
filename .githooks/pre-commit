@@ -164,6 +164,12 @@ if [ -n "$touches_run" ]; then
   node "$root/scripts/check-run-compat.mjs"
 fi
 
+# 6-parity) play RUNTIME_JS ↔ sibling nanoodle-js request bodies (replace-prep).
+# Skips cleanly when nanoodle-js is not checked out next to this repo.
+if [ -n "$touches_jsparity" ]; then
+  node "$root/scripts/check-js-parity.mjs"
+fi
+
 # 6a) exported-app LLM capability gating: a JSON output-format on a non-structured model, or a wired
 #     audio clip on a text-only model, must be stripped from the PAYLOAD (not just the UI) so an exported
 #     graph can't bill for a request the model returns empty / can't hear. Catalog-driven, permissive offline.
