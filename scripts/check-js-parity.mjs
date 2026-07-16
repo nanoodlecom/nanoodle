@@ -15,7 +15,7 @@ import { pathToFileURL } from "node:url";
 import { existsSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ROOT, loadEngine, calls } from "./play-engine.mjs";
+import { ROOT, loadEngine, calls, catalog as playCatalog } from "./play-engine.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const JS_ROOT = process.env.NANOODLE_JS
@@ -197,10 +197,10 @@ function recordingFetchFactory(bucket) {
   };
 }
 
-async function runJs(data) {
+async function runJs(data, catalog) {
   const bucket = [];
   const fetchFn = recordingFetchFactory(bucket);
-  const wf = Workflow.fromJSON(data, { apiKey: "test-key", fetch: fetchFn, quiet: true });
+  const wf = Workflow.fromJSON(data, { apiKey: "test-key", fetch: fetchFn, quiet: true, catalog });
   try {
     // defaults:false = the play-delegation contract: fields are authoritative,
     // the engine never backfills input defs (play's UI does that itself)
@@ -345,6 +345,53 @@ const SCENARIOS = [
       links: [],
     },
   },
+  // ---- catalog-gated scenarios: both engines seeded with the SAME catalog ----
+  {
+    name: "catalog: llm audio gate — KNOWN text-only model drops input_audio",
+    catalog: { chat: [{ id: "text-only", capabilities: {} }] },
+    data: {
+      nodes: [node("a1", "aupload", { audio: AUD }), node("m1", "llm", { model: "text-only", prompt: "listen", system: "" })],
+      links: [link("a1", "audio", "m1", "audio")],
+    },
+  },
+  {
+    name: "catalog: llm JSON format stripped for a non-structured_output model",
+    catalog: { chat: [{ id: "plain", capabilities: {} }] },
+    data: {
+      nodes: [node("m1", "llm", { model: "plain", prompt: "hi", system: "", format: "JSON" })],
+      links: [],
+    },
+  },
+  {
+    name: "catalog: edit refs capped to max_input_images",
+    catalog: { image: [{ id: "compositor", supported_parameters: { max_input_images: 2 } }] },
+    data: {
+      nodes: [
+        node("u1", "upload", { image: IMG }), node("u2", "upload", { image: IMG }), node("u3", "upload", { image: IMG }),
+        node("e1", "edit", { model: "compositor", prompt: "merge" }),
+      ],
+      links: [link("u1", "image", "e1", "image"), link("u2", "image", "e1", "image2"), link("u3", "image", "e1", "image3")],
+    },
+  },
+  {
+    name: "catalog: image variations clamped to max_output_images",
+    catalog: { image: [{ id: "gen", supported_parameters: { max_output_images: 2 } }] },
+    data: {
+      nodes: [node("i1", "image", { model: "gen", prompt: "a fox", variations: "4" })],
+      links: [],
+    },
+  },
+  {
+    name: "catalog: video dims ride the model's wire names (orientation/seconds) + default backfill",
+    catalog: { video: [{ id: "sora-like", supported_parameters: { parameters: {
+      orientation: { options: [{ value: "landscape" }, { value: "portrait" }], default: "landscape" },
+      seconds: { options: [{ value: "4" }, { value: "8" }], default: "8" },
+    } } }] },
+    data: {
+      nodes: [node("t1", "text", { text: "waves" }), node("v1", "tvideo", { model: "sora-like", aspect: "9:16", duration: "" })],
+      links: [link("t1", "text", "v1", "prompt")],
+    },
+  },
 ];
 
 function diffReqs(playReqs, jsReqs) {
@@ -370,6 +417,8 @@ async function main() {
   for (const sc of SCENARIOS) {
     _l = 0;
     calls.length = 0;
+    // seed the SAME catalog into both engines (empty arrays = no catalog, permissive)
+    for (const k of ["chat", "image", "video", "audio"]) playCatalog[k] = (sc.catalog && sc.catalog[k]) || [];
     const playApp = loadEngine(extendDom);
     const g = playApp.materialize(sc.data);
     await playApp.runGraph(g, {}).catch(() => {});
@@ -377,7 +426,7 @@ async function main() {
     const playReqs = await sortReqs(calls.filter((c) =>
       /\/(chat\/completions|images\/generations|generate-video|audio\/speech|transcriptions)/.test(c.url)));
 
-    const jsReqs = (await runJs(sc.data)).filter((r) =>
+    const jsReqs = (await runJs(sc.data, sc.catalog)).filter((r) =>
       /\/(chat\/completions|images\/generations|generate-video|audio\/speech|transcriptions)/.test(r.path));
 
     const err = diffReqs(playReqs, jsReqs);
