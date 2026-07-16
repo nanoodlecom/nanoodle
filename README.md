@@ -135,6 +135,12 @@ bundler, the OAuth flow, run-engine compatibility, pricing, i18n coverage
 and more. They spend no API credits — everything runs against recorded
 fixtures.
 
+`scripts/check-js-parity.mjs` dual-runs the same graphs through play.html’s
+`RUNTIME_JS` and the sibling [`nanoodle-js`](https://github.com/nanoodlecom/nanoodle-js)
+package and asserts identical NanoGPT request bodies — the safety net for
+eventually replacing the inlined processor with the package. Skips if
+`nanoodle-js` isn’t checked out next to this repo (or set `NANOODLE_JS`).
+
 `updates.json` is the in-app changelog behind the 📣 button. It's opt-in
 per commit: add an `Update: one polished line` to a commit message and the
 `post-commit` hook folds it in. Commits without one stay silent. Edit the
