@@ -218,23 +218,6 @@
   .update-items li{ font-size:.9rem; line-height:1.4; padding-left:1.1rem; position:relative }
   .update-items li::before{ content:"–"; position:absolute; left:0; color:var(--accent) }
   #updatesempty{ font-size:.85rem; color:var(--dim); padding:1.4rem 0 }
-  /* 🍜 live-contest notice pinned to the top of the changelog — click opens the Cookoff rules */
-  .update-cookoff{ display:flex; align-items:center; gap:.6rem; width:100%; text-align:left; cursor:pointer;
-                   margin:0 0 1rem; padding:.7rem .85rem; border:1px solid transparent; border-radius:.65rem;
-                   background:linear-gradient(90deg,#ff6b6b22,#ffcf6b22,#3ddc9722,#7c8cff22,#ff79c622);
-                   background-clip:padding-box; color:var(--ink); font:inherit }
-  .update-cookoff::before{ content:""; position:absolute; inset:0; border-radius:.65rem; padding:1px; pointer-events:none;
-                   background:linear-gradient(90deg,#ff6b6b,#ffcf6b,#3ddc97,#7c8cff,#ff79c6); background-size:200% 100%;
-                   -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask-composite:exclude;
-                   animation:cookoff-flow 4s linear infinite }
-  @media (prefers-reduced-motion:reduce){ .update-cookoff::before{ animation:none } }
-  .update-cookoff{ position:relative }
-  .update-cookoff .uc-emoji{ font-size:1.25rem; line-height:1 }
-  .update-cookoff .uc-text{ font-size:.86rem; line-height:1.35 }
-  .update-cookoff .uc-text b{ color:var(--ink) }
-  .update-cookoff .uc-go{ margin-left:auto; font-size:.8rem; font-weight:700; white-space:nowrap;
-                   background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; background-clip:text; color:transparent }
-  .update-cookoff:hover{ filter:brightness(1.06) }
   /* the 📣 Updates button's unseen badge */
   #updates{ position:relative }
   #updbadge[hidden]{ display:none }
@@ -242,7 +225,7 @@
              padding:0 .28rem; margin-left:.3rem; border-radius:1rem; font-size:.66rem; font-weight:700; line-height:1;
              background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#0b0d12; vertical-align:middle }
   /* examples — a small gallery of one-click starter workflows (embedded graphs, no fetch).
-     Mirrors the updates modal's look; z-index 206 sits above Updates (205), below cookoff (210). */
+     Mirrors the updates modal's look; z-index 206 sits above Updates (205). */
   #examplesmodal[hidden]{ display:none }
   #examplesmodal{ position:fixed; inset:0; z-index:206; display:flex; padding:min(4vh,2.4rem) min(4vw,2.4rem);
                   background:rgba(4,6,11,.74); backdrop-filter:blur(3px); }
@@ -285,64 +268,13 @@
            background:var(--panel); border:1px solid var(--line); border-radius:.5rem }
   .cn-row:hover{ border-color:var(--accent) }
   .cn-row .cn-ds{ flex:1 1 10rem }
-  /* 🍜 Noodle Cookoff — floating promo button + announcement modal (time-boxed contest) */
-  @keyframes cookoff-flow{ to{ background-position:200% 0 } }
-  @keyframes cookoff-bob{ 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(-3px) } }
-  /* bottom-left corner pills — the Cookoff promo and the quiet 📚 Examples entry share one row */
+  /* bottom-left corner pills — the quiet 📚 Examples entry lives here */
   #cornerpills{ position:fixed; left:1rem; bottom:1rem; z-index:120; display:flex; align-items:flex-end; gap:.5rem; flex-wrap:wrap; pointer-events:none }
   #cornerpills > *{ pointer-events:auto }
   #examples{ display:flex; align-items:center; gap:.4rem; cursor:pointer; padding:.55rem .85rem;
              border:1px solid var(--line); border-radius:2rem; font:inherit; font-size:.84rem; font-weight:600;
              color:var(--dim); background:var(--panel); box-shadow:0 4px 14px #0005 }
   #examples:hover{ color:var(--ink); border-color:var(--accent) }
-  #cookoffbtn[hidden]{ display:none }
-  #cookoffbtn{ display:flex; align-items:center; gap:.45rem; cursor:pointer;
-               padding:.62rem .9rem; border:0; border-radius:2rem; font-weight:800; font-size:.86rem; color:#0b0d12;
-               background:linear-gradient(90deg,#ff6b6b,#ffcf6b,#3ddc97,#7c8cff,#ff79c6,#ff6b6b); background-size:200% 100%;
-               box-shadow:0 8px 26px #0007, inset 0 0 0 1px #fff3;
-               animation:cookoff-flow 4s linear infinite, cookoff-bob 2.8s ease-in-out infinite; }
-  #cookoffbtn:hover{ filter:brightness(1.08) saturate(1.12) }
-  #cookoffbtn .x, #winnersbtn .x{ display:flex; align-items:center; justify-content:center; width:1.15rem; height:1.15rem; border-radius:50%;
-                  background:#0b0d1233; font-size:.72rem; opacity:.85 }
-  #cookoffbtn .x:hover, #winnersbtn .x:hover{ background:#0b0d1255; opacity:1 }
-  /* 🏆 winners pill — post-close “announced this week” notice (no podium yet) */
-  #winnersbtn[hidden]{ display:none }
-  #winnersbtn{ display:flex; align-items:center; gap:.45rem; cursor:pointer;
-               padding:.62rem .9rem; border:0; border-radius:2rem; font-weight:800; font-size:.86rem; color:#0b0d12;
-               background:linear-gradient(90deg,#ffcf6b,#ffe9b0,#f7b733,#ffcf6b); background-size:200% 100%;
-               box-shadow:0 8px 26px #0007, inset 0 0 0 1px #fff3;
-               animation:cookoff-flow 6s linear infinite; }
-  #winnersbtn:hover{ filter:brightness(1.06) saturate(1.1) }
-  @media (prefers-reduced-motion:reduce){ #winnersbtn{ animation:none } }
-  #winnersmodal[hidden]{ display:none }
-  #winnersmodal{ position:fixed; inset:0; z-index:210; display:flex; padding:min(4vh,2.4rem) min(4vw,2.4rem);
-                 background:#000a; backdrop-filter:blur(4px) }
-  #winnerspanel{ position:relative; margin:auto; width:100%; max-width:480px; max-height:92vh; overflow:auto;
-                 background:var(--panel); border:1px solid var(--line); border-radius:.9rem; padding:1.25rem 1.35rem 1.4rem;
-                 box-shadow:0 24px 60px #000a }
-  #winnerspanel::before{ content:""; position:absolute; inset:0; border-radius:.9rem; padding:2px; pointer-events:none;
-                 background:linear-gradient(90deg,#ffcf6b,#ffe9b0,#f7b733,#ffcf6b); background-size:200% 100%;
-                 -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-                 mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-                 -webkit-mask-composite:xor; mask-composite:exclude;
-                 animation:cookoff-flow 6s linear infinite; }
-  @media (prefers-reduced-motion:reduce){ #winnerspanel::before{ animation:none } }
-  #winnerspanel h2{ margin:.1rem 0 .35rem; font-size:1.35rem; background:linear-gradient(90deg,#ffcf6b,#f7b733,#ffcf6b);
-                    -webkit-background-clip:text; background-clip:text; color:transparent; font-weight:900 }
-  #winnerspanel .prize{ font-weight:800; font-size:1.02rem; color:var(--ink); margin:0 0 .55rem }
-  #winnerspanel p{ font-size:.86rem; line-height:1.5; color:var(--ink); margin:.5rem 0 }
-  #winnerspanel a{ color:var(--accent) }
-  #winnerspanel .cta{ display:inline-block; margin-top:.9rem; padding:.6rem 1.05rem; border:0; border-radius:.6rem; cursor:pointer;
-                      background:linear-gradient(90deg,#ffcf6b,#f7b733); color:#0b0d12; font-weight:800; text-decoration:none }
-  #winnerspanel .cookoff-actions{ display:flex; gap:.55rem; flex-wrap:wrap; align-items:center }
-  #winnerspanel .cta.secondary{ background:transparent; color:var(--ink); border:1px solid var(--line) }
-  #winnersclose{ position:absolute; top:.6rem; right:.7rem; width:2.1rem; height:2.1rem; border-radius:.55rem;
-                 border:1px solid var(--line); background:var(--panel2); color:var(--ink); cursor:pointer; font-size:1rem }
-  /* ⏳ live deadline chip inside the pill — the closing window is the pitch in the final stretch */
-  #cookoffbtn .tmr{ background:#0b0d1266; color:#fff; border-radius:1rem; padding:.12rem .5rem;
-                    font-size:.72rem; font-weight:800; white-space:nowrap }
-  #cookoffbtn .tmr:empty{ display:none }
-  @media (prefers-reduced-motion:reduce){ #cookoffbtn{ animation:none } }
 
   /* ---------- 💬 Describe changes: a docked bottom composer that edits the graph (patchling engine) ---------- */
   /*    Same placement & shape as the app builder's "Customize" composer (play.html #customize). */
@@ -379,9 +311,8 @@
   @keyframes dbpulse{ 0%{ box-shadow:0 0 0 0 var(--accent) } 100%{ box-shadow:0 0 0 14px transparent } }
   .node.db-pulse{ animation:dbpulse 1s ease-out 2 }
   #cornerpills{ bottom:calc(var(--db-h,3rem) + .7rem); }   /* lift the corner pills above the composer */
-  @media (max-height:480px){ #cookoffbtn, #winnersbtn{ display:none } }   /* short/landscape: the animated promo pills land mid-canvas over node content; the quiet Examples pill stays */
   /* While an add/quick-add popover is open, drop the fixed bottom band below #top's stacking context
-     (z:30) so the popover (and its taps) win, and hide the animated Cookoff pill so it can't flash
+     (z:30) so the popover (and its taps) win, and hide the corner pills so they can't flash
      through / steal taps on list rows. #addpop is trapped in #top's z:30 context, so we demote the
      bar rather than raise the popover. */
   body:has(#addpop.open) #describebar, body:has(#quickadd.open) #describebar{ z-index:25 }
@@ -389,77 +320,12 @@
   @media (prefers-reduced-motion:reduce){ .node.db-pulse{ animation:none } .db-spin{ animation:none } }
   @media (max-width:620px){ .db-label{ display:none } #describemodel{ max-width:120px } #describegoal{ min-width:140px } }
   @media (max-width:380px){ #describemodel{ max-width:84px } }   /* ≤380px: shrink the model chip so ✦ Apply stays on one row instead of dropping to a stranded 2nd row (doubling bar height) */
-  #cookoffmodal[hidden]{ display:none }
-  #cookoffmodal{ position:fixed; inset:0; z-index:210; display:flex; padding:min(4vh,2.4rem) min(4vw,2.4rem);
-                 background:rgba(4,6,11,.78); backdrop-filter:blur(3px); }
-  #cookoffpanel{ position:relative; margin:auto; width:100%; max-width:540px; max-height:92vh; overflow:auto;
-                 background:var(--bg); border-radius:.9rem; padding:1.5rem 1.5rem 1.5rem; box-shadow:0 30px 90px #000c; }
-  #cookoffpanel::before{ content:""; position:absolute; inset:0; border-radius:.9rem; padding:2px; pointer-events:none;
-                 background:linear-gradient(90deg,#ff6b6b,#ffcf6b,#3ddc97,#7c8cff,#ff79c6,#ff6b6b); background-size:200% 100%;
-                 -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); -webkit-mask-composite:xor;
-                 mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); mask-composite:exclude;
-                 animation:cookoff-flow 4s linear infinite; }
-  @media (prefers-reduced-motion:reduce){ #cookoffpanel::before{ animation:none } }
-  #cookoffpanel h2{ margin:.1rem 0 .15rem; font-size:1.4rem; background:linear-gradient(90deg,#ff6b6b,#ffcf6b,#3ddc97,#7c8cff,#ff79c6);
-                 -webkit-background-clip:text; background-clip:text; color:transparent }
-  #cookoffpanel .prize{ font-weight:800; font-size:1.05rem; color:var(--ink); margin:0 0 .7rem }
-  #cookoffpanel .ends{ font-weight:800; font-size:.9rem; color:#ffcf6b; margin:0 0 .55rem }
-  #cookoffpanel .ends:empty{ display:none }
-  #cookoffpanel p{ font-size:.86rem; line-height:1.5; color:var(--ink); margin:.5rem 0 }
-  #cookoffpanel .cats{ list-style:none; padding:0; margin:.6rem 0; display:flex; flex-direction:column; gap:.45rem }
-  #cookoffpanel .cats li{ font-size:.84rem; background:var(--panel); border:1px solid var(--line); border-radius:.55rem; padding:.5rem .65rem }
-  #cookoffpanel .meta{ font-size:.75rem; color:var(--dim); line-height:1.55; margin-top:.7rem }
-  #cookoffpanel a{ color:var(--accent) }
-  #cookoffpanel .cta{ display:inline-block; margin-top:.9rem; padding:.6rem 1.05rem; border:0; border-radius:.6rem; cursor:pointer;
-                 font-weight:800; color:#0b0d12; background:linear-gradient(90deg,var(--accent),var(--accent2)) }
-  #cookoffclose{ position:absolute; top:.6rem; right:.7rem; width:2.1rem; height:2.1rem; border-radius:.55rem;
-                 display:flex; align-items:center; justify-content:center; font-size:1.05rem; z-index:2 }
-  /* 🏆 Submit popup — tight conversion-first "checkout": prize banner → entry link → where to post */
-  #submitmodal[hidden]{ display:none }
-  #submitmodal{ position:fixed; inset:0; z-index:215; display:flex; padding:min(4vh,2.4rem) min(4vw,2.4rem);
-                background:rgba(4,6,11,.78); backdrop-filter:blur(3px); }
-  #submitpanel{ position:relative; margin:auto; width:100%; max-width:460px; max-height:92vh; overflow:auto;
-                background:var(--bg); border-radius:.9rem; padding:1.35rem 1.35rem 1.25rem; box-shadow:0 30px 90px #000c; }
-  #submitpanel::before{ content:""; position:absolute; inset:0; border-radius:.9rem; padding:2px; pointer-events:none;
-                background:linear-gradient(90deg,#ff6b6b,#ffcf6b,#3ddc97,#7c8cff,#ff79c6,#ff6b6b); background-size:200% 100%;
-                -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); -webkit-mask-composite:xor;
-                mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); mask-composite:exclude;
-                animation:cookoff-flow 4s linear infinite; }
-  @media (prefers-reduced-motion:reduce){ #submitpanel::before{ animation:none } }
-  #submitclose{ position:absolute; top:.55rem; right:.6rem; width:2rem; height:2rem; border-radius:.55rem;
-                display:flex; align-items:center; justify-content:center; font-size:1.05rem; z-index:2 }
-  .sub-prize{ display:flex; flex-direction:column; gap:.15rem; text-align:center; margin:.1rem 1.6rem .95rem }
-  .sub-prizetop{ font-weight:800; font-size:1.12rem; background:linear-gradient(90deg,#ff6b6b,#ffcf6b,#3ddc97,#7c8cff,#ff79c6);
-                -webkit-background-clip:text; background-clip:text; color:transparent }
-  .sub-cats{ font-size:.76rem; color:var(--dim) }
-  .sub-ends{ font-size:.78rem; font-weight:800; color:#ffcf6b }
-  .sub-ends:empty{ display:none }
-  .sub-link{ background:var(--panel); border:1px solid var(--line); border-radius:.65rem; padding:.7rem .75rem .8rem }
-  .sub-link label{ display:block; font-size:.7rem; letter-spacing:.07em; text-transform:uppercase; color:var(--dim); font-weight:700; margin-bottom:.4rem }
-  .sub-linktabs{ display:inline-flex; gap:.2rem; background:var(--bg); border:1px solid var(--line); border-radius:.5rem; padding:.18rem; margin-bottom:.45rem }
-  .sub-tab{ border:none; background:transparent; color:var(--dim); font-weight:700; font-size:.78rem; padding:.28rem .6rem; border-radius:.4rem; cursor:pointer }
-  .sub-tab.on{ background:var(--panel2); color:var(--ink) }
-  .sub-linkhint{ display:block; font-size:.72rem; color:var(--dim); margin-bottom:.5rem }
-  .sub-linkrow{ display:flex; gap:.5rem; flex-wrap:wrap }   /* narrow phones: buttons drop to a 2nd row instead of crushing the link field to ~41px */
-  #submitlink{ flex:1 1 12rem; min-width:0; background:var(--bg); border:1px solid var(--line); border-radius:.5rem;
-               padding:.6rem .65rem; font-size:.92rem; color:var(--ink); }
+  /* gradient copy button — used by the ⛽ Refuel dialog's address row */
   .sub-copy{ flex:0 0 auto; border:none; border-radius:.5rem; font-weight:800; font-size:.9rem; color:#0b0d12;
              padding:.6rem 1rem; background:linear-gradient(90deg,var(--accent),var(--accent2)); }
   .sub-copy.ok{ background:var(--good) }
-  .sub-where{ margin-top:1rem }
-  .sub-wheretitle{ display:block; font-size:.7rem; letter-spacing:.07em; text-transform:uppercase; color:var(--dim); font-weight:700; margin-bottom:.5rem }
-  .sub-anchors{ display:flex; gap:.5rem; flex-wrap:wrap }
-  .sub-anchor{ flex:1 1 0; min-width:140px; display:flex; flex-direction:column; gap:.12rem; text-align:center; text-decoration:none;
-               color:var(--ink); background:var(--panel2); border:1px solid var(--line); border-radius:.55rem; padding:.55rem .7rem }
-  .sub-anchor:hover{ border-color:#3a425a }
-  .sub-anchor .t{ font-weight:700; font-size:.86rem }
-  .sub-anchor .s{ font-size:.72rem; color:var(--dim) }
-  .sub-rules{ font-size:.74rem; color:var(--dim); text-align:center; margin:.8rem 0 .1rem }
-  /* explainer modal: side-by-side actions (primary "Submit" + secondary "Start cooking") */
-  #cookoffpanel .cookoff-actions{ display:flex; gap:.55rem; flex-wrap:wrap; align-items:center }
-  #cookoffpanel .cta.secondary{ background:transparent; color:var(--ink); border:1px solid var(--line) }
   /* toast — a clearly-visible transient confirmation */
-  #toast{ position:fixed; top:64px; left:50%; transform:translateX(-50%) translateY(-14px) scale(.98); z-index:240;   /* above every modal (200-215) — Submit/Share toast feedback must show over them; pointer-events:none keeps it click-through */
+  #toast{ position:fixed; top:64px; left:50%; transform:translateX(-50%) translateY(-14px) scale(.98); z-index:240;   /* above every modal — Share toast feedback must show over them; pointer-events:none keeps it click-through */
           display:flex; align-items:center; gap:.5rem; max-width:min(92vw,560px);
           background:var(--panel); border:1px solid var(--good); color:var(--ink);
           padding:.7rem 1rem; border-radius:.6rem; box-shadow:0 16px 44px #000b; font-size:.9rem; font-weight:600;
@@ -532,9 +398,9 @@
   #connecthint span{ min-width:0 }   /* keep the sentence flowing as prose (not split flex columns) on narrow screens */
   #canvashint #hintx, #connecthint #connecthintx{ border:none; background:none; color:var(--dim); cursor:pointer; font-size:1rem; line-height:1; padding:.1rem .4rem; border-radius:.4rem }
   #canvashint #hintx:hover, #connecthint #connecthintx:hover{ background:var(--panel2); color:var(--ink) }
-  /* Phone widths: the right-anchored control bar and the left-hand 🍜 Cookoff badge share the bottom
-     band. On narrow screens a full ↺↻⊡ + pill row could meet the badge mid-screen, so lift the whole
-     bar above the badge's row — it clears the Cookoff badge and the Terms/Privacy link. */
+  /* Phone widths: the right-anchored control bar and the left-hand corner pills share the bottom
+     band. On narrow screens a full ↺↻⊡ + pill row could meet the pills mid-screen, so lift the whole
+     bar above their row — it clears the corner pills and the Terms/Privacy link. */
   @media (max-width:480px){
     #controlbar{ bottom:calc(var(--db-h,3rem) + 3.2rem); }
     /* fill the width so the orientation line flows across the screen instead of into a narrow column,
@@ -914,8 +780,8 @@
     #appmodalclose{ width:2.6rem; height:2.6rem }
     .result .frames .fr button{ min-width:36px; min-height:36px }
     /* tiny × dismiss glyphs: keep the visual size, inflate the tap zone with an invisible ::after (same idiom as .port) */
-    #hintx, #connecthintx, #cookoffbtn .x, #winnersbtn .x{ position:relative }
-    #hintx::after, #connecthintx::after, #cookoffbtn .x::after, #winnersbtn .x::after{ content:""; position:absolute; inset:-10px }
+    #hintx, #connecthintx{ position:relative }
+    #hintx::after, #connecthintx::after{ content:""; position:absolute; inset:-10px }
     /* share popover: 𝕏/social/copy buttons + readonly URL field (index.html half of the dual-file finding) */
     .sm-svc button, .sm-social a, .sm-copy{ min-height:44px }
     .sm-social a{ min-width:44px }
@@ -1091,78 +957,9 @@
   <div id="describeversions" title="Each change adds a version — click one to jump back to it"></div>
 </div>
 
-<!-- 🍜 Noodle Cookoff — floating announcement (left), opens the contest modal -->
+<!-- bottom-left corner pills -->
 <div id="cornerpills">
-<button id="cookoffbtn" title="Noodle Cookoff — win Nano" aria-haspopup="dialog">🍜 Noodle Cookoff<span class="tmr" id="cookofftimer" data-no-i18n></span><span class="x" id="cookoffdismiss" role="button" tabindex="0" title="Dismiss" aria-label="Dismiss">✕</span></button>
-<button id="winnersbtn" title="Cookoff winners — announced this week" aria-haspopup="dialog" hidden>🏆 <span>Winners this week</span><span class="x" id="winnersdismiss" role="button" tabindex="0" title="Dismiss" aria-label="Dismiss">✕</span></button>
 <button id="examples" title="Load a ready-made example workflow">📚 <span>Examples</span></button>
-</div>
-<div id="winnersmodal" hidden>
-  <div id="winnerspanel" role="dialog" aria-label="Cookoff winners">
-    <button id="winnersclose" class="hbtn" title="Close (Esc)" aria-label="Close">✕</button>
-    <h2>🏆 Cookoff winners</h2>
-    <div class="prize">Winners will be announced this week.</div>
-    <p>Judging is done — hang tight. The podium goes up once prizes are ready to send.</p>
-    <p>Questions or concerns? Message <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">u/dividebynano</a> on Reddit.</p>
-    <div class="cookoff-actions">
-      <a class="cta" id="winnersreddit" href="https://www.reddit.com/message/compose/?to=dividebynano" target="_blank" rel="noopener">Message on Reddit →</a>
-      <button class="cta secondary" id="winnersok">Got it</button>
-    </div>
-  </div>
-</div>
-<div id="cookoffmodal" hidden>
-  <div id="cookoffpanel" role="dialog" aria-label="Noodle Cookoff">
-    <button id="cookoffclose" class="hbtn" title="Close (Esc)" aria-label="Close">✕</button>
-    <h2>🍜 Noodle Cookoff</h2>
-    <div class="prize">Win 3 × 133 XNO (Nano) — a feeless crypto</div>
-    <div class="ends" id="cookoffends" data-no-i18n></div>
-    <p>You're already in the kitchen. Wire up a noodle, share it, and win Nano (XNO) — a feeless cryptocurrency, sent straight to your wallet.</p>
-    <ul class="cats">
-      <li>🛠 <b>Most Useful</b> — the one you'd actually open every week</li>
-      <li>💡 <b>Most Innovative</b> — made NanoGPT do something nobody expected</li>
-      <li>❤️ <b>People's Choice</b> — most hearts on Discord + upvotes on Reddit (summed if you post both!)</li>
-    </ul>
-    <p><b>How to enter:</b> build something here → hit <b>🔗 Share workflow</b> → drop the link in NanoGPT's <a href="https://discord.gg/KaQt8gPG6V" target="_blank" rel="noopener">Discord</a> <b>#community-projects</b> or post it to <b>r/nanocurrency</b> (or both!).</p>
-    <p class="meta">Opens June 26 · closes July 12 (23:59 UTC) · max 2 entries each · winners get featured.<br>
-      Keep entries SFW — no copyright violations, nothing illegal. Prizes can only be sent to wallets in countries not under active US sanctions.<br>
-      nanoodle is a community project on <a href="https://nano-gpt.com" target="_blank" rel="noopener">NanoGPT</a>, which takes Nano — so the prize pool stays in the ecosystem.</p>
-    <div class="cookoff-actions">
-      <button class="cta" id="cookoffsubmit">📨 Submit your entry →</button>
-      <button class="cta secondary" id="cookoffstart">Start cooking →</button>
-    </div>
-  </div>
-</div>
-
-<!-- 🏆 Submit to the Noodle Cookoff — conversion-first popup: prize → your link → where to post -->
-<div id="submitmodal" hidden>
-  <div id="submitpanel" role="dialog" aria-modal="true" aria-label="Submit to the Noodle Cookoff">
-    <button id="submitclose" class="hbtn" title="Close (Esc)" aria-label="Close">✕</button>
-    <div class="sub-prize">
-      <span class="sub-prizetop">🏆 Win 3 × 133 XNO (Nano) — a feeless crypto</span>
-      <span class="sub-cats">🛠 Most Useful · 💡 Most Innovative · ❤️ People's Choice</span>
-      <span class="sub-ends" id="submitends" data-no-i18n></span>
-    </div>
-    <div class="sub-link">
-      <div class="sub-linktabs" role="tablist" aria-label="What your link opens">
-        <button id="sublinkapp" class="sub-tab on" role="tab" aria-selected="true">🚀 App</button>
-        <button id="sublinkwf" class="sub-tab" role="tab" aria-selected="false">🛠 Workflow</button>
-      </div>
-      <span id="sublinkhint" class="sub-linkhint">Opens your creation as a ready-to-run app — what people click to try it. Best for entries.</span>
-      <div class="sub-linkrow">
-        <input id="submitlink" type="text" readonly value="" aria-label="Your entry link" />
-        <button id="submitshort" class="sub-copy" title="Shorten this link (via da.gd) — nicer to post">✂ Shorten</button>
-        <button id="submitcopy" class="sub-copy">Copy link</button>
-      </div>
-    </div>
-    <div class="sub-where">
-      <span class="sub-wheretitle">Where to post</span>
-      <div class="sub-anchors">
-        <a class="sub-anchor" href="https://discord.gg/KaQt8gPG6V" target="_blank" rel="noopener"><span class="t">💬 Post in Discord ↗</span><span class="s">#community-projects</span></a>
-        <a class="sub-anchor" href="https://www.reddit.com/r/nanocurrency/submit" target="_blank" rel="noopener"><span class="t">🤖 Post to r/nanocurrency ↗</span><span class="s">paste your link</span></a>
-      </div>
-      <p class="sub-rules">max 2 entries · keep it SFW · closes Jul 12, 23:59 UTC</p>
-    </div>
-  </div>
 </div>
 
 <!-- ⛽ Refuel — opens ONLY when a run just failed for lack of credit: the account's permanent
@@ -1311,16 +1108,12 @@ const I18N = {
     "Fit the whole workflow in view":"Ajustar todo el flujo a la vista",
     "Rename this node":"Renombrar este nodo",
     "Sort models":"Ordenar modelos",
-    "Submit to the Noodle Cookoff":"Enviar al Noodle Cookoff",
     "Undo the last edit":"Deshacer la última edición",
     "What’s new":"Novedades",
-    "What your link opens":"Qué abre tu enlace",
     "Workflow canvas":"Lienzo del flujo",
-    "Your entry link":"Tu enlace de participación",
     "audio":"audio",
     "avatar":"avatar",
     "Inpaint":"Inpaint",
-    "🚀 App":"🚀 App",
     "Update {app}":"Actualizar {app}",
     "Update “{app}” with this workflow":"Actualizar “{app}” con este flujo",
     "Open {app}":"Abrir {app}",
@@ -1328,14 +1121,11 @@ const I18N = {
     "your app":"tu app",
     "✓ Copied":"✓ Copiado",
     "✓ Short":"✓ Acortado",
-    "Opens in the editor so others can remix or learn from your noodle.":"Se abre en el editor para que otros puedan remezclar o aprender de tu noodle.",
     "9:16 (Portrait)":"9:16 (Vertical)",
     "default":"predeterminado",
     "(in the top bar) takes you back to the graph and keeps this app.":"(en la barra superior) te lleva de vuelta al grafo y conserva esta app.",
-    "(or both!).":"(¡o ambos!).",
     "(style adapter)":"(adaptador de estilo)",
     ", or":", o",
-    ", which takes Nano — so the prize pool stays in the ecosystem.":", que acepta Nano — así el fondo de premios se queda en el ecosistema.",
     "16:9 (Landscape)":"16:9 (Horizontal)",
     "1:1 (Square)":"1:1 (Cuadrado)",
     "A live AI workflow. Press":"Un flujo de IA en vivo. Pulsa",
@@ -1363,30 +1153,20 @@ const I18N = {
     "Combine videos":"Combinar vídeos",
     "Copy":"Copiar",
     "Copy a link that opens this workflow in the node editor so others can remix it":"Copia un enlace que abre este flujo en el editor de nodos para que otros puedan remezclarlo",
-    "Copy link":"Copiar enlace",
     "Cut audio to a start + length":"Recorta el audio a un inicio + longitud",
     "Dismiss":"Descartar",
     "Each change adds a version — click one to jump back to it":"Cada cambio añade una versión — haz clic en una para volver a ella",
     "Edit workflow":"Editar flujo",
     "Customize":"Personalizar",
     "Email":"Correo",
-    "Enter this in the Noodle Cookoff":"Participa con esto en el Noodle Cookoff",
     "Fit the whole workflow in view (F)":"Ajustar todo el flujo a la vista (F)",
     "Got it":"Entendido",
-    "How to enter:":"Cómo participar:",
     "Image model":"Modelo de imagen",
     "Image(s) + text → image":"Imagen(es) + texto → imagen",
     "Join clips end-to-end into one video":"Une los clips uno tras otro en un solo vídeo",
-    "Keep entries SFW — no copyright violations, nothing illegal. Prizes can only be sent to wallets in countries not under active US sanctions.":"Mantén las participaciones SFW — sin violaciones de derechos de autor, nada ilegal. Los premios solo pueden enviarse a monederos en países no sujetos a sanciones activas de EE. UU.",
     "Make it shorter — optional":"Hazlo más corto — opcional",
     "Model options":"Opciones de modelo",
     "More app options":"Más opciones de app",
-    "Most Innovative":"Más innovador",
-    "Most Useful":"Más útil",
-    "Noodle Cookoff — win Nano":"Noodle Cookoff — gana Nano",
-    "Opens June 26 · closes July 12 (23:59 UTC) · max 2 entries each · winners get featured.":"Abre el 26 de junio · cierra el 12 de julio (23:59 UTC) · máx. 2 participaciones cada uno · los ganadores serán destacados.",
-    "Opens your creation as a ready-to-run app — what people click to try it. Best for entries.":"Abre tu creación como una app lista para ejecutar — lo que la gente pulsa para probarla. Ideal para participaciones.",
-    "People's Choice":"Premio del público",
     "Per-model knobs from the catalog (presets, styles, camera moves…). Defaults apply when untouched.":"Controles por modelo del catálogo (preajustes, estilos, movimientos de cámara…). Se aplican los valores por defecto si no se tocan.",
     "Pull still frames out of a video":"Extrae fotogramas fijos de un vídeo",
     "Recent":"Recientes",
@@ -1398,28 +1178,13 @@ const I18N = {
     "Save this as a brand-new app — the one you’re editing stays untouched":"Guarda esto como una app totalmente nueva — la que estás editando queda intacta",
     "Search nodes… (image, voice, video)":"Buscar nodos… (imagen, voz, vídeo)",
     "Sends this link to a third-party shortener so":"Envía este enlace a un acortador de terceros para que",
-    "Open the Noodle Cookoff rules":"Abrir las reglas del Noodle Cookoff",
-    "See the rules →":"Ver las reglas →",
-    "⏳ ends in {t}":"⏳ termina en {t}",
-    "Winners this week":"Ganadores esta semana",
-    "Cookoff winners — announced this week":"Ganadores del Cookoff — se anuncian esta semana",
-    "🏆 Cookoff winners":"🏆 Ganadores del Cookoff",
-    "Cookoff winners":"Ganadores del Cookoff",
-    "Winners will be announced this week.":"Los ganadores se anunciarán esta semana.",
-    "Judging is done — hang tight. The podium goes up once prizes are ready to send.":"El jurado ya terminó — un poco de paciencia. El podio sube cuando los premios estén listos para enviar.",
-    "Questions or concerns? Message":"¿Preguntas o dudas? Escribe a",
-    "on Reddit.":"en Reddit.",
-    "Message on Reddit →":"Mensaje en Reddit →",
     "Got it":"Entendido",
     "Terms · Privacy":"Términos · Privacidad",
     "Open source":"Código abierto",
     "Read the code on GitHub — MIT licensed":"Lee el código en GitHub — licencia MIT",
-    "The <b>Noodle Cookoff</b> is live — win Nano for your best noodle. <b>Ends Jul 12.</b>":"El <b>Noodle Cookoff</b> está en marcha — gana Nano con tu mejor noodle. <b>Termina el 12 de julio.</b>",
     "Share this workflow":"Compartir este flujo",
     "Share to":"Compartir en",
     "Share workflow":"Compartir flujo",
-    "Shorten this link (via da.gd) — nicer to post":"Acorta este enlace (vía da.gd) — mejor para publicar",
-    "Start cooking →":"Empezar a cocinar →",
     "Text (+ images, audio) → text — any chat model":"Texto (+ imágenes, audio) → texto — cualquier modelo de chat",
     "This link opens your exact workflow for anyone to run or remix.":"Este enlace abre tu flujo exacto para que cualquiera lo ejecute o remezcle.",
     "Trim audio":"Recortar audio",
@@ -1430,15 +1195,11 @@ const I18N = {
     "Video → frames":"Vídeo → fotogramas",
     "What’s new in nanoodle":"Novedades de nanoodle",
     "When clips are chained, each clip's first frame repeats the previous clip's last frame. Trimming it removes the freeze at the seam.":"Cuando los clips se encadenan, el primer fotograma de cada clip repite el último fotograma del clip anterior. Recortarlo elimina el congelado en la unión.",
-    "Where to post":"Dónde publicar",
-    "Win 3 × 133 XNO (Nano) — a feeless crypto":"Gana 3 × 133 XNO (Nano) — una cripto sin comisiones",
     "Workflow link is in the address bar — copy it below":"El enlace del flujo está en la barra de direcciones — cópialo abajo",
-    "You're already in the kitchen. Wire up a noodle, share it, and win Nano (XNO) — a feeless cryptocurrency, sent straight to your wallet.":"Ya estás en la cocina. Conecta un noodle, compártelo y gana Nano (XNO) — una criptomoneda sin comisiones, enviada directo a tu billetera.",
     "a red coffee mug, a small bird…":"una taza de café roja, un pájaro pequeño…",
     "advanced":"avanzado",
     "beginning":"principio",
     "brush size":"tamaño de pincel",
-    "build something here → hit":"construye algo aquí → pulsa",
     "delete (Del)":"eliminar (Del)",
     "drag to resize":"arrastra para redimensionar",
     "mode":"modo",
@@ -1459,25 +1220,21 @@ const I18N = {
     "length (sec)":"longitud (seg)",
     "low":"bajo",
     "mask":"máscara",
-    "max 2 entries · keep it SFW · closes Jul 12, 23:59 UTC":"máx. 2 entradas · mantenlo SFW · cierra el 12 de julio, 23:59 UTC",
     "max tokens":"máx. tokens",
     "max tokens (≤ 128000)":"máx. tokens (≤ 128000)",
     "max {cap} for this model":"máx. {cap} para este modelo",
     "medium":"medio",
     "models":"modelos",
     "music":"música",
-    "nanoodle is a community project on":"nanoodle es un proyecto comunitario en",
     "nanoodle — AI workflow editor":"nanoodle — editor de flujos de IA",
     "no audio yet":"aún sin audio",
     "no video yet":"aún sin vídeo",
     "keep clips under ~3 MB — larger won’t reach the model":"mantén los clips por debajo de ~3 MB — los más grandes no llegarán al modelo",
     "or":"o",
-    "or post it to":"o publícalo en",
     "output format":"formato de salida",
     "outputs mono WAV, small enough to send to models — handy before 🎭 Avatar / lipsync when a clip is too long.":"genera WAV mono, lo bastante pequeño para enviarlo a los modelos — útil antes de 🎭 Avatar / sincronización labial cuando un clip es demasiado largo.",
     "video → mono WAV — wire into 🎙️ Transcribe to get text. Transcribe fits about 2 min per run, so set a length for a longer video. AI-generated videos are silent — use an uploaded video with sound.":"vídeo → WAV mono — conéctalo a 🎙️ Transcribe para obtener texto. Transcribe admite unos 2 min por ejecución, así que define una duración para un vídeo más largo. Los vídeos generados por IA no tienen sonido — usa un vídeo subido con audio.",
     "whole clip":"clip completo",
-    "paste your link":"pega tu enlace",
     "random":"aleatorio",
     "CivitAI model":"Modelo CivitAI",
     "AIR model":"Modelo AIR",
@@ -1522,16 +1279,11 @@ const I18N = {
     "what to paint in":"qué pintar dentro",
     "wire two or more clips — they join in order, top to bottom":"conecta dos o más clips — se unen en orden, de arriba abajo",
     "· blank = random, fix to repeat (re-run won't regenerate)":"· vacío = aleatorio, fija para repetir (re-ejecutar no regenerará)",
-    "— made NanoGPT do something nobody expected":"— hizo que nano-gpt hiciera algo que nadie esperaba",
-    "— most hearts on Discord + upvotes on Reddit (summed if you post both!)":"— más corazones en Discord + votos a favor en Reddit (¡sumados si publicas en ambos!)",
-    "— the one you'd actually open every week":"— la que de verdad abrirías cada semana",
     "↑↓ move · ↵ add · esc close":"↑↓ mover · ↵ añadir · esc cerrar",
-    "→ drop the link in NanoGPT's":"→ suelta el enlace en el de nano-gpt",
     "▶ Run":"▶ Ejecutar",
     "● Capture":"● Capturar",
     "⚙️ Model options":"⚙️ Opciones de modelo",
     "⚙️ advanced":"⚙️ avanzado",
-    "✂ Shorten":"✂ Acortar",
     "✓ Workflow link copied — shorten or share it below":"✓ Enlace del flujo copiado — acórtalo o compártelo abajo",
     "✕ Cancel":"✕ Cancelar",
     "✦ Apply":"✦ Aplicar",
@@ -1539,18 +1291,11 @@ const I18N = {
     "⬆ Upload":"⬆ Subir",
     "⬆ Upload audio":"⬆ Subir audio",
     "⬆ Upload video":"⬆ Subir vídeo",
-    "🏆 Win 3 × 133 XNO (Nano) — a feeless crypto":"🏆 Gana 3 × 133 XNO (Nano) — una cripto sin comisiones",
     "💬 Describe changes":"💬 Describir cambios",
-    "💬 Post in Discord ↗":"💬 Publica en Discord ↗",
     "📣 What’s new":"📣 Novedades",
-    "📨 Submit your entry →":"📨 Envía tu participación →",
     "📷 Webcam":"📷 Cámara",
     "🔌 mask ← wired (white = repaint)":"🔌 máscara ← conectada (blanco = repintar)",
     "🔌 source image ← wired":"🔌 imagen fuente ← conectada",
-    "🔗 Share workflow":"🔗 Compartir flujo",
-    "🛠 Most Useful · 💡 Most Innovative · ❤️ People's Choice":"🛠 Más útil · 💡 Más innovador · ❤️ Elección del público",
-    "🛠 Workflow":"🛠 Flujo",
-    "🤖 Post to r/nanocurrency ↗":"🤖 Publica en r/nanocurrency ↗",
     "＋ Add node":"＋ Añadir nodo",
     "Add node":"Añadir nodo",
     "Add a node":"Añadir un nodo",
@@ -1707,7 +1452,6 @@ const I18N = {
     "couldn’t read that image":"no se pudo leer esa imagen",
     "webcam unavailable":"cámara no disponible",
     "share failed":"error al compartir",
-    "shorten failed":"error al acortar",
     "audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).":"audio ignorado — este modelo es solo de texto. Elige un modelo con entrada de audio (por ejemplo, un Gemini).",
     "dropped {n} reference image(s) over this model's limit of {max}":"se descartaron {n} imagen(es) de referencia por encima del límite de {max} de este modelo",
     "can’t delete while running — Stop first":"no se puede eliminar mientras se ejecuta — detén primero",
@@ -1715,7 +1459,6 @@ const I18N = {
     "couldn’t read that file":"no se pudo leer ese archivo",
     "stopping…":"deteniendo…",
     "couldn’t autosave — an uploaded audio/video clip may be too large for local storage":"no se pudo autoguardar — un clip de audio/vídeo subido podría ser demasiado grande para el almacenamiento local",
-    "Couldn't copy — select the link and copy it manually":"No se pudo copiar — selecciona el enlace y cópialo manualmente",
     "that key was rejected — paste a valid nano-gpt.com key":"esa clave fue rechazada — pega una clave válida de nano-gpt.com",
     "sign-in error":"error de inicio de sesión",
     "sign-in didn't complete":"el inicio de sesión no se completó",
@@ -1833,23 +1576,18 @@ const I18N = {
     "Fit the whole workflow in view":"Ajuster tout le workflow à la vue",
     "Rename this node":"Renommer ce nœud",
     "Sort models":"Trier les modèles",
-    "Submit to the Noodle Cookoff":"Participer au Noodle Cookoff",
     "Undo the last edit":"Annuler la dernière modification",
     "What’s new":"Nouveautés",
-    "What your link opens":"Ce que votre lien ouvre",
     "Workflow canvas":"Canevas du workflow",
-    "Your entry link":"Votre lien de participation",
     "image":"image",
     "seed":"graine",
     "variation":"variation",
     "variations":"variations",
     "vision":"vision",
     "📷 Webcam":"📷 Webcam",
-    "🛠 Workflow":"🛠 Flux",
     "audio":"audio",
     "avatar":"avatar",
     "Inpaint":"Inpaint",
-    "🚀 App":"🚀 App",
     "Update {app}":"Mettre à jour {app}",
     "Update “{app}” with this workflow":"Mettre à jour « {app} » avec ce workflow",
     "Open {app}":"Ouvrir {app}",
@@ -1857,14 +1595,11 @@ const I18N = {
     "your app":"votre app",
     "✓ Copied":"✓ Copié",
     "✓ Short":"✓ Raccourci",
-    "Opens in the editor so others can remix or learn from your noodle.":"S’ouvre dans l’éditeur pour que d’autres puissent remixer ou apprendre de votre noodle.",
     "9:16 (Portrait)":"9:16 (Portrait)",
     "default":"par défaut",
     "(in the top bar) takes you back to the graph and keeps this app.":"(dans la barre du haut) vous ramène au graphe et conserve cette app.",
-    "(or both!).":"(ou les deux !).",
     "(style adapter)":"(adaptateur de style)",
     ", or":", ou",
-    ", which takes Nano — so the prize pool stays in the ecosystem.":", qui accepte Nano — ainsi la cagnotte reste dans l’écosystème.",
     "16:9 (Landscape)":"16:9 (Paysage)",
     "1:1 (Square)":"1:1 (Carré)",
     "A live AI workflow. Press":"Un workflow d’IA en direct. Appuyez sur",
@@ -1892,30 +1627,20 @@ const I18N = {
     "Combine videos":"Combiner les vidéos",
     "Copy":"Copier",
     "Copy a link that opens this workflow in the node editor so others can remix it":"Copier un lien qui ouvre ce workflow dans l’éditeur de nœuds pour que d’autres puissent le remixer",
-    "Copy link":"Copier le lien",
     "Cut audio to a start + length":"Couper l’audio selon un début + une longueur",
     "Dismiss":"Ignorer",
     "Each change adds a version — click one to jump back to it":"Chaque modification ajoute une version — cliquez sur l’une d’elles pour y revenir",
     "Edit workflow":"Modifier le workflow",
     "Customize":"Personnaliser",
     "Email":"E-mail",
-    "Enter this in the Noodle Cookoff":"Inscrivez ceci au Noodle Cookoff",
     "Fit the whole workflow in view (F)":"Ajuster tout le workflow à la vue (F)",
     "Got it":"Compris",
-    "How to enter:":"Comment participer :",
     "Image model":"Modèle d’image",
     "Image(s) + text → image":"Image(s) + texte → image",
     "Join clips end-to-end into one video":"Assembler les clips bout à bout en une seule vidéo",
-    "Keep entries SFW — no copyright violations, nothing illegal. Prizes can only be sent to wallets in countries not under active US sanctions.":"Gardez les participations SFW — aucune violation de droits d’auteur, rien d’illégal. Les prix ne peuvent être envoyés qu’à des portefeuilles situés dans des pays qui ne font pas l’objet de sanctions américaines actives.",
     "Make it shorter — optional":"Raccourcir — facultatif",
     "Model options":"Options du modèle",
     "More app options":"Plus d’options d’app",
-    "Most Innovative":"Le plus innovant",
-    "Most Useful":"Le plus utile",
-    "Noodle Cookoff — win Nano":"Noodle Cookoff — gagnez du Nano",
-    "Opens June 26 · closes July 12 (23:59 UTC) · max 2 entries each · winners get featured.":"Ouverture le 26 juin · clôture le 12 juillet (23:59 UTC) · 2 participations max chacun · les gagnants sont mis en avant.",
-    "Opens your creation as a ready-to-run app — what people click to try it. Best for entries.":"Ouvre votre création en tant qu’app prête à l’emploi — ce sur quoi les gens cliquent pour l’essayer. Idéal pour les participations.",
-    "People's Choice":"Prix du public",
     "Per-model knobs from the catalog (presets, styles, camera moves…). Defaults apply when untouched.":"Réglages spécifiques au modèle issus du catalogue (préréglages, styles, mouvements de caméra…). Les valeurs par défaut s’appliquent si vous n’y touchez pas.",
     "Pull still frames out of a video":"Extraire des images fixes d’une vidéo",
     "Recent":"Récent",
@@ -1927,28 +1652,13 @@ const I18N = {
     "Save this as a brand-new app — the one you’re editing stays untouched":"Enregistrer ceci comme une toute nouvelle app — celle que vous modifiez reste inchangée",
     "Search nodes… (image, voice, video)":"Rechercher des nœuds… (image, voix, vidéo)",
     "Sends this link to a third-party shortener so":"Envoie ce lien à un raccourcisseur tiers pour que",
-    "Open the Noodle Cookoff rules":"Ouvrir les règles du Noodle Cookoff",
-    "See the rules →":"Voir les règles →",
-    "⏳ ends in {t}":"⏳ se termine dans {t}",
-    "Winners this week":"Gagnants cette semaine",
-    "Cookoff winners — announced this week":"Gagnants du Cookoff — annoncés cette semaine",
-    "🏆 Cookoff winners":"🏆 Gagnants du Cookoff",
-    "Cookoff winners":"Gagnants du Cookoff",
-    "Winners will be announced this week.":"Les gagnants seront annoncés cette semaine.",
-    "Judging is done — hang tight. The podium goes up once prizes are ready to send.":"Le jury a tranché — un peu de patience. Le podium s’affiche quand les prix sont prêts à partir.",
-    "Questions or concerns? Message":"Questions ou soucis ? Écrivez à",
-    "on Reddit.":"sur Reddit.",
-    "Message on Reddit →":"Message sur Reddit →",
     "Got it":"Compris",
     "Terms · Privacy":"Conditions · Confidentialité",
     "Open source":"Open source",
     "Read the code on GitHub — MIT licensed":"Lisez le code sur GitHub — sous licence MIT",
-    "The <b>Noodle Cookoff</b> is live — win Nano for your best noodle. <b>Ends Jul 12.</b>":"Le <b>Noodle Cookoff</b> est en cours — gagnez du Nano avec votre meilleur noodle. <b>Fin le 12 juillet.</b>",
     "Share this workflow":"Partager ce workflow",
     "Share to":"Partager sur",
     "Share workflow":"Partager le workflow",
-    "Shorten this link (via da.gd) — nicer to post":"Raccourcir ce lien (via da.gd) — plus agréable à publier",
-    "Start cooking →":"Commencer à cuisiner →",
     "Text (+ images, audio) → text — any chat model":"Texte (+ images, audio) → texte — tout modèle chat",
     "This link opens your exact workflow for anyone to run or remix.":"Ce lien ouvre votre workflow exact pour que quiconque puisse l’exécuter ou le remixer.",
     "Trim audio":"Rogner l’audio",
@@ -1959,15 +1669,11 @@ const I18N = {
     "Video → frames":"Vidéo → images",
     "What’s new in nanoodle":"Nouveautés de nanoodle",
     "When clips are chained, each clip's first frame repeats the previous clip's last frame. Trimming it removes the freeze at the seam.":"Quand les clips sont enchaînés, la première image de chaque clip répète la dernière image du clip précédent. La rogner supprime le gel à la jonction.",
-    "Where to post":"Où publier",
-    "Win 3 × 133 XNO (Nano) — a feeless crypto":"Gagnez 3 × 133 XNO (Nano) — une crypto sans frais",
     "Workflow link is in the address bar — copy it below":"Le lien du workflow est dans la barre d’adresse — copiez-le ci-dessous",
-    "You're already in the kitchen. Wire up a noodle, share it, and win Nano (XNO) — a feeless cryptocurrency, sent straight to your wallet.":"Vous êtes déjà en cuisine. Branchez un noodle, partagez-le et gagnez du Nano (XNO) — une cryptomonnaie sans frais, envoyée directement dans votre portefeuille.",
     "a red coffee mug, a small bird…":"une tasse à café rouge, un petit oiseau…",
     "advanced":"avancé",
     "beginning":"début",
     "brush size":"taille du pinceau",
-    "build something here → hit":"créez quelque chose ici → appuyez sur",
     "delete (Del)":"supprimer (Del)",
     "drag to resize":"glisser pour redimensionner",
     "mode":"mode",
@@ -1987,25 +1693,21 @@ const I18N = {
     "length (sec)":"durée (s)",
     "low":"faible",
     "mask":"masque",
-    "max 2 entries · keep it SFW · closes Jul 12, 23:59 UTC":"max 2 participations · restez SFW · clôture le 12 juillet, 23:59 UTC",
     "max tokens":"tokens max",
     "max tokens (≤ 128000)":"tokens max (≤ 128000)",
     "max {cap} for this model":"{cap} max pour ce modèle",
     "medium":"moyen",
     "models":"modèles",
     "music":"musique",
-    "nanoodle is a community project on":"nanoodle est un projet communautaire sur",
     "nanoodle — AI workflow editor":"nanoodle — éditeur de workflows IA",
     "no audio yet":"aucun audio",
     "no video yet":"aucune vidéo",
     "keep clips under ~3 MB — larger won’t reach the model":"gardez les clips sous ~3 MB — au-delà, ils n’atteindront pas le modèle",
     "or":"ou",
-    "or post it to":"ou publiez-le sur",
     "output format":"format de sortie",
     "outputs mono WAV, small enough to send to models — handy before 🎭 Avatar / lipsync when a clip is too long.":"produit un WAV mono, assez petit pour être envoyé aux modèles — pratique avant 🎭 Avatar / synchro labiale quand un clip est trop long.",
     "video → mono WAV — wire into 🎙️ Transcribe to get text. Transcribe fits about 2 min per run, so set a length for a longer video. AI-generated videos are silent — use an uploaded video with sound.":"vidéo → WAV mono — reliez à 🎙️ Transcribe pour obtenir du texte. Transcribe traite environ 2 min par exécution, définissez donc une durée pour une vidéo plus longue. Les vidéos générées par IA sont muettes — utilisez une vidéo importée avec du son.",
     "whole clip":"clip entier",
-    "paste your link":"collez votre lien",
     "random":"aléatoire",
     "CivitAI model":"Modèle CivitAI",
     "AIR model":"Modèle AIR",
@@ -2046,16 +1748,11 @@ const I18N = {
     "what to paint in":"ce qu’il faut peindre",
     "wire two or more clips — they join in order, top to bottom":"branche deux clips ou plus — ils s’enchaînent dans l’ordre, de haut en bas",
     "· blank = random, fix to repeat (re-run won't regenerate)":"· vide = aléatoire, fixer pour répéter (relancer ne régénère pas)",
-    "— made NanoGPT do something nobody expected":"— a fait faire à nano-gpt une chose que personne n’attendait",
-    "— most hearts on Discord + upvotes on Reddit (summed if you post both!)":"— le plus de cœurs sur Discord + votes positifs sur Reddit (additionnés si vous postez sur les deux !)",
-    "— the one you'd actually open every week":"— celui que vous ouvririez vraiment chaque semaine",
     "↑↓ move · ↵ add · esc close":"↑↓ déplacer · ↵ ajouter · esc fermer",
-    "→ drop the link in NanoGPT's":"→ déposez le lien dans le nano-gpt",
     "▶ Run":"▶ Exécuter",
     "● Capture":"● Capturer",
     "⚙️ Model options":"⚙️ Options du modèle",
     "⚙️ advanced":"⚙️ avancé",
-    "✂ Shorten":"✂ Raccourcir",
     "✓ Workflow link copied — shorten or share it below":"✓ Lien du workflow copié — raccourcissez-le ou partagez-le ci-dessous",
     "✕ Cancel":"✕ Annuler",
     "✦ Apply":"✦ Appliquer",
@@ -2063,16 +1760,10 @@ const I18N = {
     "⬆ Upload":"⬆ Importer",
     "⬆ Upload audio":"⬆ Importer l’audio",
     "⬆ Upload video":"⬆ Importer la vidéo",
-    "🏆 Win 3 × 133 XNO (Nano) — a feeless crypto":"🏆 Gagnez 3 × 133 XNO (Nano) — une crypto sans frais",
     "💬 Describe changes":"💬 Décrire les changements",
-    "💬 Post in Discord ↗":"💬 Publier sur Discord ↗",
     "📣 What’s new":"📣 Nouveautés",
-    "📨 Submit your entry →":"📨 Soumettre votre participation →",
     "🔌 mask ← wired (white = repaint)":"🔌 masque ← branché (blanc = à repeindre)",
     "🔌 source image ← wired":"🔌 image source ← branchée",
-    "🔗 Share workflow":"🔗 Partager le workflow",
-    "🛠 Most Useful · 💡 Most Innovative · ❤️ People's Choice":"🛠 Le plus utile · 💡 Le plus innovant · ❤️ Choix du public",
-    "🤖 Post to r/nanocurrency ↗":"🤖 Publier sur r/nanocurrency ↗",
     "＋ Add node":"＋ Ajouter un nœud",
     "Add node":"Ajouter un nœud",
     "Add a node":"Ajouter un nœud",
@@ -2229,7 +1920,6 @@ const I18N = {
     "couldn’t read that image":"impossible de lire cette image",
     "webcam unavailable":"webcam indisponible",
     "share failed":"échec du partage",
-    "shorten failed":"échec du raccourcissement",
     "audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).":"audio ignoré — ce modèle est uniquement textuel. Choisissez un modèle avec entrée audio (par ex. un Gemini).",
     "dropped {n} reference image(s) over this model's limit of {max}":"{n} image(s) de référence ignorée(s) — au-delà de la limite de {max} de ce modèle",
     "can’t delete while running — Stop first":"impossible de supprimer pendant l'exécution — arrêtez d'abord",
@@ -2237,7 +1927,6 @@ const I18N = {
     "couldn’t read that file":"impossible de lire ce fichier",
     "stopping…":"arrêt…",
     "couldn’t autosave — an uploaded audio/video clip may be too large for local storage":"échec de l'enregistrement automatique — un clip audio/vidéo importé est peut-être trop volumineux pour le stockage local",
-    "Couldn't copy — select the link and copy it manually":"Impossible de copier — sélectionnez le lien et copiez-le manuellement",
     "that key was rejected — paste a valid nano-gpt.com key":"cette clé a été rejetée — collez une clé nano-gpt.com valide",
     "sign-in error":"erreur de connexion",
     "sign-in didn't complete":"la connexion ne s'est pas terminée",
@@ -2355,19 +2044,14 @@ const I18N = {
     "Fit the whole workflow in view":"Den ganzen Workflow ins Bild einpassen",
     "Rename this node":"Diesen Node umbenennen",
     "Sort models":"Modelle sortieren",
-    "Submit to the Noodle Cookoff":"Beim Noodle Cookoff einreichen",
     "Undo the last edit":"Letzte Änderung rückgängig machen",
     "What’s new":"Neuigkeiten",
-    "What your link opens":"Was dein Link öffnet",
     "Workflow canvas":"Workflow-Canvas",
-    "Your entry link":"Dein Teilnahme-Link",
     "Updates":"Neuigkeiten",
     "Loading…":"Wird geladen…",
     "No updates yet — check back soon.":"Noch keine Neuigkeiten — schau bald wieder vorbei.",
     "📷 Webcam":"📷 Webcam",
-    "🛠 Workflow":"🛠 Workflow",
     "Inpaint":"Inpaint",
-    "🚀 App":"🚀 App",
     "Update {app}":"{app} aktualisieren",
     "Update “{app}” with this workflow":"„{app}“ mit diesem Workflow aktualisieren",
     "Open {app}":"{app} öffnen",
@@ -2375,14 +2059,11 @@ const I18N = {
     "your app":"deine App",
     "✓ Copied":"✓ Kopiert",
     "✓ Short":"✓ Gekürzt",
-    "Opens in the editor so others can remix or learn from your noodle.":"Öffnet sich im Editor, damit andere deinen Noodle remixen oder daraus lernen können.",
     "9:16 (Portrait)":"9:16 (Hochformat)",
     "default":"Standard",
     "(in the top bar) takes you back to the graph and keeps this app.":"(in der oberen Leiste) bringt dich zurück zum Graphen und behält diese App.",
-    "(or both!).":"(oder beides!).",
     "(style adapter)":"(Stil-Adapter)",
     ", or":", oder",
-    ", which takes Nano — so the prize pool stays in the ecosystem.":", das Nano nimmt — so bleibt der Preispool im Ökosystem.",
     "16:9 (Landscape)":"16:9 (Querformat)",
     "1:1 (Square)":"1:1 (Quadratisch)",
     "A live AI workflow. Press":"Ein live KI-Workflow. Drücke",
@@ -2410,30 +2091,20 @@ const I18N = {
     "Combine videos":"Videos kombinieren",
     "Copy":"Kopieren",
     "Copy a link that opens this workflow in the node editor so others can remix it":"Einen Link kopieren, der diesen Workflow im Node-Editor öffnet, damit andere ihn remixen können",
-    "Copy link":"Link kopieren",
     "Cut audio to a start + length":"Audio auf Start + Länge zuschneiden",
     "Dismiss":"Ausblenden",
     "Each change adds a version — click one to jump back to it":"Jede Änderung fügt eine Version hinzu — klicke eine an, um dorthin zurückzuspringen",
     "Edit workflow":"Workflow bearbeiten",
     "Customize":"Anpassen",
     "Email":"E-Mail",
-    "Enter this in the Noodle Cookoff":"Reiche dies beim Noodle Cookoff ein",
     "Fit the whole workflow in view (F)":"Ganzen Workflow ins Bild einpassen (F)",
     "Got it":"Verstanden",
-    "How to enter:":"So nimmst du teil:",
     "Image model":"Bild-Modell",
     "Image(s) + text → image":"Bild(er) + Text → Bild",
     "Join clips end-to-end into one video":"Clips hintereinander zu einem Video zusammenfügen",
-    "Keep entries SFW — no copyright violations, nothing illegal. Prizes can only be sent to wallets in countries not under active US sanctions.":"Beiträge SFW halten — keine Urheberrechtsverletzungen, nichts Illegales. Preise können nur an Wallets in Ländern gesendet werden, die nicht unter aktiven US-Sanktionen stehen.",
     "Make it shorter — optional":"Kürzer machen — optional",
     "Model options":"Modelloptionen",
     "More app options":"Weitere App-Optionen",
-    "Most Innovative":"Innovativster",
-    "Most Useful":"Nützlichster",
-    "Noodle Cookoff — win Nano":"Noodle Cookoff — Nano gewinnen",
-    "Opens June 26 · closes July 12 (23:59 UTC) · max 2 entries each · winners get featured.":"Beginnt am 26. Juni · endet am 12. Juli (23:59 UTC) · max. 2 Beiträge pro Person · Gewinner werden vorgestellt.",
-    "Opens your creation as a ready-to-run app — what people click to try it. Best for entries.":"Öffnet deine Kreation als sofort lauffähige App — das, was Leute anklicken, um sie auszuprobieren. Ideal für Beiträge.",
-    "People's Choice":"Publikumsliebling",
     "Per-model knobs from the catalog (presets, styles, camera moves…). Defaults apply when untouched.":"Modellspezifische Regler aus dem Katalog (Presets, Stile, Kamerafahrten…). Standardwerte gelten, solange unverändert.",
     "Pull still frames out of a video":"Standbilder aus einem Video ziehen",
     "Recent":"Zuletzt verwendet",
@@ -2445,28 +2116,13 @@ const I18N = {
     "Save this as a brand-new app — the one you’re editing stays untouched":"Dies als brandneue App speichern — die, die du gerade bearbeitest, bleibt unverändert",
     "Search nodes… (image, voice, video)":"Nodes suchen… (Bild, Stimme, Video)",
     "Sends this link to a third-party shortener so":"Sendet diesen Link an einen Drittanbieter-Kürzungsdienst, damit",
-    "Open the Noodle Cookoff rules":"Regeln des Noodle Cookoff öffnen",
-    "See the rules →":"Zu den Regeln →",
-    "⏳ ends in {t}":"⏳ endet in {t}",
-    "Winners this week":"Gewinner diese Woche",
-    "Cookoff winners — announced this week":"Cookoff-Gewinner — diese Woche bekannt",
-    "🏆 Cookoff winners":"🏆 Cookoff-Gewinner",
-    "Cookoff winners":"Cookoff-Gewinner",
-    "Winners will be announced this week.":"Die Gewinner werden diese Woche bekannt gegeben.",
-    "Judging is done — hang tight. The podium goes up once prizes are ready to send.":"Die Jury ist durch — kurz warten. Das Podium erscheint, sobald die Preise rausgehen können.",
-    "Questions or concerns? Message":"Fragen oder Anliegen? Schreib an",
-    "on Reddit.":"auf Reddit.",
-    "Message on Reddit →":"Nachricht auf Reddit →",
     "Got it":"Alles klar",
     "Terms · Privacy":"AGB · Datenschutz",
     "Open source":"Open Source",
     "Read the code on GitHub — MIT licensed":"Lies den Code auf GitHub — MIT-lizenziert",
-    "The <b>Noodle Cookoff</b> is live — win Nano for your best noodle. <b>Ends Jul 12.</b>":"Der <b>Noodle Cookoff</b> läuft — gewinne Nano mit deiner besten Noodle. <b>Endet am 12. Juli.</b>",
     "Share this workflow":"Diesen Workflow teilen",
     "Share to":"Teilen auf",
     "Share workflow":"Workflow teilen",
-    "Shorten this link (via da.gd) — nicer to post":"Diesen Link kürzen (via da.gd) — schöner zum Posten",
-    "Start cooking →":"Loskochen →",
     "Text (+ images, audio) → text — any chat model":"Text (+ Bilder, Audio) → Text — beliebiges Chat-Modell",
     "This link opens your exact workflow for anyone to run or remix.":"Dieser Link öffnet deinen genauen Workflow, damit ihn jeder ausführen oder remixen kann.",
     "Trim audio":"Audio zuschneiden",
@@ -2474,17 +2130,13 @@ const I18N = {
     "Video → frames":"Video → Frames",
     "What’s new in nanoodle":"Was ist neu in nanoodle",
     "When clips are chained, each clip's first frame repeats the previous clip's last frame. Trimming it removes the freeze at the seam.":"Wenn Clips verkettet sind, wiederholt das erste Frame jedes Clips das letzte Frame des vorherigen Clips. Durch Trimmen wird das Einfrieren an der Naht entfernt.",
-    "Where to post":"Wo posten",
-    "Win 3 × 133 XNO (Nano) — a feeless crypto":"Gewinne 3 × 133 XNO (Nano) — eine gebührenfreie Krypto",
     "Workflow link is in the address bar — copy it below":"Workflow-Link ist in der Adressleiste — kopiere ihn unten",
-    "You're already in the kitchen. Wire up a noodle, share it, and win Nano (XNO) — a feeless cryptocurrency, sent straight to your wallet.":"Du bist schon in der Küche. Verdrahte eine Noodle, teile sie und gewinne Nano (XNO) — eine gebührenfreie Kryptowährung, direkt an deine Wallet gesendet.",
     "a red coffee mug, a small bird…":"eine rote Kaffeetasse, ein kleiner Vogel…",
     "advanced":"erweitert",
     "audio":"Audio",
     "avatar":"Avatar",
     "beginning":"Anfang",
     "brush size":"Pinselgröße",
-    "build something here → hit":"baue hier etwas → drücke",
     "delete (Del)":"löschen (Del)",
     "drag to resize":"ziehen, um die Größe zu ändern",
     "mode":"Modus",
@@ -2505,25 +2157,21 @@ const I18N = {
     "length (sec)":"Länge (Sek.)",
     "low":"niedrig",
     "mask":"Maske",
-    "max 2 entries · keep it SFW · closes Jul 12, 23:59 UTC":"max. 2 Beiträge · SFW halten · endet am 12. Juli, 23:59 UTC",
     "max tokens":"max. Tokens",
     "max tokens (≤ 128000)":"max. Tokens (≤ 128000)",
     "max {cap} for this model":"max. {cap} für dieses Modell",
     "medium":"mittel",
     "models":"Modelle",
     "music":"Musik",
-    "nanoodle is a community project on":"nanoodle ist ein Community-Projekt auf",
     "nanoodle — AI workflow editor":"nanoodle — KI-Workflow-Editor",
     "no audio yet":"noch kein Audio",
     "no video yet":"noch kein Video",
     "keep clips under ~3 MB — larger won’t reach the model":"Clips unter ~3 MB halten — größere erreichen das Modell nicht",
     "or":"oder",
-    "or post it to":"oder poste es auf",
     "output format":"Ausgabeformat",
     "outputs mono WAV, small enough to send to models — handy before 🎭 Avatar / lipsync when a clip is too long.":"gibt Mono-WAV aus, klein genug zum Senden an Modelle — praktisch vor 🎭 Avatar / Lippensynchro, wenn ein Clip zu lang ist.",
     "video → mono WAV — wire into 🎙️ Transcribe to get text. Transcribe fits about 2 min per run, so set a length for a longer video. AI-generated videos are silent — use an uploaded video with sound.":"Video → Mono-WAV — verbinde mit 🎙️ Transcribe, um Text zu erhalten. Transcribe verarbeitet etwa 2 Min. pro Lauf — gib also für ein längeres Video eine Länge an. KI-generierte Videos sind stumm — nutze ein hochgeladenes Video mit Ton.",
     "whole clip":"ganzer Clip",
-    "paste your link":"füge deinen Link ein",
     "random":"zufällig",
     "CivitAI model":"CivitAI-Modell",
     "AIR model":"AIR-Modell",
@@ -2568,16 +2216,11 @@ const I18N = {
     "what to paint in":"was hineingemalt werden soll",
     "wire two or more clips — they join in order, top to bottom":"verbinde zwei oder mehr Clips — sie werden der Reihe nach zusammengefügt, von oben nach unten",
     "· blank = random, fix to repeat (re-run won't regenerate)":"· leer = zufällig, festlegen zum Wiederholen (erneutes Ausführen regeneriert nicht)",
-    "— made NanoGPT do something nobody expected":"— nano-gpt zu etwas gebracht, das niemand erwartet hat",
-    "— most hearts on Discord + upvotes on Reddit (summed if you post both!)":"— die meisten Herzen auf Discord + Upvotes auf Reddit (summiert, wenn du beides postest!)",
-    "— the one you'd actually open every week":"— die App, die du wirklich jede Woche öffnen würdest",
     "↑↓ move · ↵ add · esc close":"↑↓ bewegen · ↵ hinzufügen · esc schließen",
-    "→ drop the link in NanoGPT's":"→ den Link in nano-gpts einfügen",
     "▶ Run":"▶ Ausführen",
     "● Capture":"● Aufnehmen",
     "⚙️ Model options":"⚙️ Modelloptionen",
     "⚙️ advanced":"⚙️ erweitert",
-    "✂ Shorten":"✂ Kürzen",
     "✓ Workflow link copied — shorten or share it below":"✓ Workflow-Link kopiert — unten kürzen oder teilen",
     "✕ Cancel":"✕ Abbrechen",
     "✦ Apply":"✦ Anwenden",
@@ -2585,16 +2228,10 @@ const I18N = {
     "⬆ Upload":"⬆ Hochladen",
     "⬆ Upload audio":"⬆ Audio hochladen",
     "⬆ Upload video":"⬆ Video hochladen",
-    "🏆 Win 3 × 133 XNO (Nano) — a feeless crypto":"🏆 Gewinne 3 × 133 XNO (Nano) — eine gebührenfreie Krypto",
     "💬 Describe changes":"💬 Änderungen beschreiben",
-    "💬 Post in Discord ↗":"💬 In Discord posten ↗",
     "📣 What’s new":"📣 Was ist neu",
-    "📨 Submit your entry →":"📨 Beitrag einreichen →",
     "🔌 mask ← wired (white = repaint)":"🔌 Maske ← verbunden (weiß = wird neu gezeichnet)",
     "🔌 source image ← wired":"🔌 Quellbild ← verbunden",
-    "🔗 Share workflow":"🔗 Workflow teilen",
-    "🛠 Most Useful · 💡 Most Innovative · ❤️ People's Choice":"🛠 Nützlichste · 💡 Innovativste · ❤️ Publikumsliebling",
-    "🤖 Post to r/nanocurrency ↗":"🤖 In r/nanocurrency posten ↗",
     "＋ Add node":"＋ Node hinzufügen",
     "Add node":"Node hinzufügen",
     "Add a node":"Node hinzufügen",
@@ -2751,7 +2388,6 @@ const I18N = {
     "couldn’t read that image":"Bild konnte nicht gelesen werden",
     "webcam unavailable":"Webcam nicht verfügbar",
     "share failed":"Teilen fehlgeschlagen",
-    "shorten failed":"Kürzen fehlgeschlagen",
     "audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).":"Audio ignoriert — dieses Modell ist reiner Text. Wähle ein Modell mit Audio-Eingabe (z. B. ein Gemini).",
     "dropped {n} reference image(s) over this model's limit of {max}":"{n} Referenzbild(er) verworfen — über dem Limit von {max} dieses Modells",
     "can’t delete while running — Stop first":"kann nicht löschen, während es läuft — zuerst stoppen",
@@ -2759,7 +2395,6 @@ const I18N = {
     "couldn’t read that file":"diese Datei konnte nicht gelesen werden",
     "stopping…":"wird gestoppt…",
     "couldn’t autosave — an uploaded audio/video clip may be too large for local storage":"automatisches Speichern fehlgeschlagen — ein hochgeladener Audio-/Videoclip ist möglicherweise zu groß für den lokalen Speicher",
-    "Couldn't copy — select the link and copy it manually":"Kopieren fehlgeschlagen — wähle den Link aus und kopiere ihn manuell",
     "that key was rejected — paste a valid nano-gpt.com key":"dieser Schlüssel wurde abgelehnt — füge einen gültigen nano-gpt.com-Schlüssel ein",
     "sign-in error":"Anmeldefehler",
     "sign-in didn't complete":"Anmeldung nicht abgeschlossen",
@@ -2877,17 +2512,13 @@ const I18N = {
     "Fit the whole workflow in view":"Ajustar todo o fluxo à tela",
     "Rename this node":"Renomear este nó",
     "Sort models":"Ordenar modelos",
-    "Submit to the Noodle Cookoff":"Enviar para o Noodle Cookoff",
     "Undo the last edit":"Desfazer a última edição",
     "What’s new":"Novidades",
-    "What your link opens":"O que seu link abre",
     "Workflow canvas":"Tela do fluxo",
-    "Your entry link":"Seu link de participação",
     "seed":"semente",
     "📷 Webcam":"📷 Webcam",
     "avatar":"avatar",
     "Inpaint":"Inpaint",
-    "🚀 App":"🚀 App",
     "Update {app}":"Atualizar {app}",
     "Update “{app}” with this workflow":"Atualizar “{app}” com este fluxo",
     "Open {app}":"Abrir {app}",
@@ -2895,14 +2526,11 @@ const I18N = {
     "your app":"seu app",
     "✓ Copied":"✓ Copiado",
     "✓ Short":"✓ Encurtado",
-    "Opens in the editor so others can remix or learn from your noodle.":"Abre no editor para que outros possam remixar ou aprender com o seu noodle.",
     "9:16 (Portrait)":"9:16 (Retrato)",
     "default":"padrão",
     "(in the top bar) takes you back to the graph and keeps this app.":"(na barra superior) leva você de volta ao grafo e mantém este app.",
-    "(or both!).":"(ou ambos!).",
     "(style adapter)":"(adaptador de estilo)",
     ", or":", ou",
-    ", which takes Nano — so the prize pool stays in the ecosystem.":", que aceita Nano — assim o fundo de prêmios permanece no ecossistema.",
     "16:9 (Landscape)":"16:9 (Paisagem)",
     "1:1 (Square)":"1:1 (Quadrado)",
     "A live AI workflow. Press":"Um fluxo de IA ao vivo. Pressione",
@@ -2930,30 +2558,20 @@ const I18N = {
     "Combine videos":"Combinar vídeos",
     "Copy":"Copiar",
     "Copy a link that opens this workflow in the node editor so others can remix it":"Copie um link que abre este fluxo no editor de nós para que outros possam remixá-lo",
-    "Copy link":"Copiar link",
     "Cut audio to a start + length":"Cortar o áudio para um início + duração",
     "Dismiss":"Dispensar",
     "Each change adds a version — click one to jump back to it":"Cada alteração adiciona uma versão — clique em uma para voltar a ela",
     "Edit workflow":"Editar fluxo",
     "Customize":"Personalizar",
     "Email":"E-mail",
-    "Enter this in the Noodle Cookoff":"Inscreva isto no Noodle Cookoff",
     "Fit the whole workflow in view (F)":"Ajustar todo o fluxo à vista (F)",
     "Got it":"Entendi",
-    "How to enter:":"Como participar:",
     "Image model":"Modelo de imagem",
     "Image(s) + text → image":"Imagem(ns) + texto → imagem",
     "Join clips end-to-end into one video":"Junte clipes de ponta a ponta em um único vídeo",
-    "Keep entries SFW — no copyright violations, nothing illegal. Prizes can only be sent to wallets in countries not under active US sanctions.":"Mantenha as inscrições SFW — sem violações de direitos autorais, nada ilegal. Os prêmios só podem ser enviados para carteiras em países não sujeitos a sanções ativas dos EUA.",
     "Make it shorter — optional":"Torne mais curto — opcional",
     "Model options":"Opções de modelo",
     "More app options":"Mais opções de app",
-    "Most Innovative":"Mais Inovador",
-    "Most Useful":"Mais Útil",
-    "Noodle Cookoff — win Nano":"Noodle Cookoff — ganhe Nano",
-    "Opens June 26 · closes July 12 (23:59 UTC) · max 2 entries each · winners get featured.":"Abre em 26 de junho · encerra em 12 de julho (23:59 UTC) · máx. 2 inscrições cada · vencedores em destaque.",
-    "Opens your creation as a ready-to-run app — what people click to try it. Best for entries.":"Abre sua criação como um app pronto para executar — o que as pessoas clicam para experimentar. Ideal para inscrições.",
-    "People's Choice":"Escolha do Público",
     "Per-model knobs from the catalog (presets, styles, camera moves…). Defaults apply when untouched.":"Controles por modelo do catálogo (predefinições, estilos, movimentos de câmera…). Os padrões se aplicam quando não alterados.",
     "Pull still frames out of a video":"Extraia quadros estáticos de um vídeo",
     "Recent":"Recentes",
@@ -2965,28 +2583,13 @@ const I18N = {
     "Save this as a brand-new app — the one you’re editing stays untouched":"Salve isto como um app totalmente novo — o que você está editando permanece inalterado",
     "Search nodes… (image, voice, video)":"Buscar nós… (imagem, voz, vídeo)",
     "Sends this link to a third-party shortener so":"Envia este link para um encurtador de terceiros para",
-    "Open the Noodle Cookoff rules":"Abrir as regras do Noodle Cookoff",
-    "See the rules →":"Ver as regras →",
-    "⏳ ends in {t}":"⏳ termina em {t}",
-    "Winners this week":"Vencedores esta semana",
-    "Cookoff winners — announced this week":"Vencedores do Cookoff — anunciados esta semana",
-    "🏆 Cookoff winners":"🏆 Vencedores do Cookoff",
-    "Cookoff winners":"Vencedores do Cookoff",
-    "Winners will be announced this week.":"Os vencedores serão anunciados esta semana.",
-    "Judging is done — hang tight. The podium goes up once prizes are ready to send.":"O julgamento acabou — aguarde. O pódio sobe quando os prêmios estiverem prontos para enviar.",
-    "Questions or concerns? Message":"Dúvidas ou preocupações? Escreva para",
-    "on Reddit.":"no Reddit.",
-    "Message on Reddit →":"Mensagem no Reddit →",
     "Got it":"Entendi",
     "Terms · Privacy":"Termos · Privacidade",
     "Open source":"Código aberto",
     "Read the code on GitHub — MIT licensed":"Leia o código no GitHub — licença MIT",
-    "The <b>Noodle Cookoff</b> is live — win Nano for your best noodle. <b>Ends Jul 12.</b>":"O <b>Noodle Cookoff</b> está no ar — ganhe Nano com o seu melhor noodle. <b>Termina em 12 de julho.</b>",
     "Share this workflow":"Compartilhar este fluxo",
     "Share to":"Compartilhar em",
     "Share workflow":"Compartilhar fluxo",
-    "Shorten this link (via da.gd) — nicer to post":"Encurtar este link (via da.gd) — melhor para postar",
-    "Start cooking →":"Comece a cozinhar →",
     "Text (+ images, audio) → text — any chat model":"Texto (+ imagens, áudio) → texto — qualquer modelo de chat",
     "This link opens your exact workflow for anyone to run or remix.":"Este link abre exatamente seu fluxo para qualquer pessoa executar ou remixar.",
     "Trim audio":"Cortar áudio",
@@ -2997,16 +2600,12 @@ const I18N = {
     "Video → frames":"Vídeo → quadros",
     "What’s new in nanoodle":"Novidades no nanoodle",
     "When clips are chained, each clip's first frame repeats the previous clip's last frame. Trimming it removes the freeze at the seam.":"Quando clipes são encadeados, o primeiro quadro de cada clipe repete o último quadro do clipe anterior. Cortá-lo remove o congelamento na emenda.",
-    "Where to post":"Onde postar",
-    "Win 3 × 133 XNO (Nano) — a feeless crypto":"Ganhe 3 × 133 XNO (Nano) — uma cripto sem taxas",
     "Workflow link is in the address bar — copy it below":"O link do fluxo está na barra de endereço — copie-o abaixo",
-    "You're already in the kitchen. Wire up a noodle, share it, and win Nano (XNO) — a feeless cryptocurrency, sent straight to your wallet.":"Você já está na cozinha. Monte um noodle, compartilhe e ganhe Nano (XNO) — uma criptomoeda sem taxas, enviada direto para sua carteira.",
     "a red coffee mug, a small bird…":"uma caneca de café vermelha, um passarinho…",
     "advanced":"avançado",
     "audio":"áudio",
     "beginning":"início",
     "brush size":"tamanho do pincel",
-    "build something here → hit":"construa algo aqui → clique em",
     "delete (Del)":"excluir (Del)",
     "drag to resize":"arraste para redimensionar",
     "mode":"modo",
@@ -3027,25 +2626,21 @@ const I18N = {
     "length (sec)":"duração (seg)",
     "low":"baixo",
     "mask":"máscara",
-    "max 2 entries · keep it SFW · closes Jul 12, 23:59 UTC":"máx. 2 inscrições · mantenha SFW · encerra em 12 de julho, 23:59 UTC",
     "max tokens":"máx. tokens",
     "max tokens (≤ 128000)":"máx. tokens (≤ 128000)",
     "max {cap} for this model":"máx. {cap} para este modelo",
     "medium":"médio",
     "models":"modelos",
     "music":"música",
-    "nanoodle is a community project on":"o nanoodle é um projeto comunitário no",
     "nanoodle — AI workflow editor":"nanoodle — editor de fluxos de IA",
     "no audio yet":"nenhum áudio ainda",
     "no video yet":"nenhum vídeo ainda",
     "keep clips under ~3 MB — larger won’t reach the model":"mantenha os clipes abaixo de ~3 MB — maiores não chegarão ao modelo",
     "or":"ou",
-    "or post it to":"ou poste em",
     "output format":"formato de saída",
     "outputs mono WAV, small enough to send to models — handy before 🎭 Avatar / lipsync when a clip is too long.":"gera WAV mono, pequeno o suficiente para enviar aos modelos — útil antes de 🎭 Avatar / sincronia labial quando um clipe é muito longo.",
     "video → mono WAV — wire into 🎙️ Transcribe to get text. Transcribe fits about 2 min per run, so set a length for a longer video. AI-generated videos are silent — use an uploaded video with sound.":"vídeo → WAV mono — ligue a 🎙️ Transcribe para obter texto. O Transcribe processa cerca de 2 min por execução, então defina uma duração para um vídeo mais longo. Vídeos gerados por IA não têm som — use um vídeo enviado com áudio.",
     "whole clip":"clipe inteiro",
-    "paste your link":"cole seu link",
     "random":"aleatório",
     "CivitAI model":"Modelo CivitAI",
     "AIR model":"Modelo AIR",
@@ -3089,16 +2684,11 @@ const I18N = {
     "what to paint in":"o que pintar na área",
     "wire two or more clips — they join in order, top to bottom":"conecte dois ou mais clipes — eles se unem em ordem, de cima para baixo",
     "· blank = random, fix to repeat (re-run won't regenerate)":"· vazio = aleatório, fixe para repetir (reexecutar não regenera)",
-    "— made NanoGPT do something nobody expected":"— fez o nano-gpt fazer algo que ninguém esperava",
-    "— most hearts on Discord + upvotes on Reddit (summed if you post both!)":"— mais corações no Discord + upvotes no Reddit (somados se você postar nos dois!)",
-    "— the one you'd actually open every week":"— aquele que você abriria toda semana",
     "↑↓ move · ↵ add · esc close":"↑↓ mover · ↵ adicionar · esc fechar",
-    "→ drop the link in NanoGPT's":"→ cole o link no nano-gpt",
     "▶ Run":"▶ Executar",
     "● Capture":"● Capturar",
     "⚙️ Model options":"⚙️ Opções do modelo",
     "⚙️ advanced":"⚙️ avançado",
-    "✂ Shorten":"✂ Encurtar",
     "✓ Workflow link copied — shorten or share it below":"✓ Link do fluxo copiado — encurte ou compartilhe abaixo",
     "✕ Cancel":"✕ Cancelar",
     "✦ Apply":"✦ Aplicar",
@@ -3106,17 +2696,10 @@ const I18N = {
     "⬆ Upload":"⬆ Enviar",
     "⬆ Upload audio":"⬆ Enviar áudio",
     "⬆ Upload video":"⬆ Enviar vídeo",
-    "🏆 Win 3 × 133 XNO (Nano) — a feeless crypto":"🏆 Ganhe 3 × 133 XNO (Nano) — uma cripto sem taxas",
     "💬 Describe changes":"💬 Descrever alterações",
-    "💬 Post in Discord ↗":"💬 Publicar no Discord ↗",
     "📣 What’s new":"📣 Novidades",
-    "📨 Submit your entry →":"📨 Envie sua inscrição →",
     "🔌 mask ← wired (white = repaint)":"🔌 máscara ← conectada (branco = repintar)",
     "🔌 source image ← wired":"🔌 imagem de origem ← conectada",
-    "🔗 Share workflow":"🔗 Compartilhar fluxo",
-    "🛠 Most Useful · 💡 Most Innovative · ❤️ People's Choice":"🛠 Mais Útil · 💡 Mais Inovador · ❤️ Escolha do Público",
-    "🛠 Workflow":"🛠 Fluxo",
-    "🤖 Post to r/nanocurrency ↗":"🤖 Publicar em r/nanocurrency ↗",
     "＋ Add node":"＋ Adicionar nó",
     "Add node":"Adicionar nó",
     "Add a node":"Adicionar um nó",
@@ -3273,7 +2856,6 @@ const I18N = {
     "couldn’t read that image":"não foi possível ler essa imagem",
     "webcam unavailable":"webcam indisponível",
     "share failed":"falha ao compartilhar",
-    "shorten failed":"falha ao encurtar",
     "audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).":"áudio ignorado — este modelo é somente texto. Escolha um modelo com entrada de áudio (por exemplo, um Gemini).",
     "dropped {n} reference image(s) over this model's limit of {max}":"{n} imagem(ns) de referência descartada(s) — acima do limite de {max} deste modelo",
     "can’t delete while running — Stop first":"não é possível excluir durante a execução — pare primeiro",
@@ -3281,7 +2863,6 @@ const I18N = {
     "couldn’t read that file":"não foi possível ler esse arquivo",
     "stopping…":"parando…",
     "couldn’t autosave — an uploaded audio/video clip may be too large for local storage":"não foi possível salvar automaticamente — um clipe de áudio/vídeo enviado pode ser grande demais para o armazenamento local",
-    "Couldn't copy — select the link and copy it manually":"Não foi possível copiar — selecione o link e copie manualmente",
     "that key was rejected — paste a valid nano-gpt.com key":"essa chave foi rejeitada — cole uma chave válida do nano-gpt.com",
     "sign-in error":"erro ao entrar",
     "sign-in didn't complete":"o login não foi concluído",
@@ -3399,12 +2980,9 @@ const I18N = {
     "Fit the whole workflow in view":"ワークフロー全体を表示に収める",
     "Rename this node":"このノードの名前を変更",
     "Sort models":"モデルを並べ替え",
-    "Submit to the Noodle Cookoff":"Noodle Cookoff に応募",
     "Undo the last edit":"直前の編集を元に戻す",
     "What’s new":"新着情報",
-    "What your link opens":"リンクが開く内容",
     "Workflow canvas":"ワークフローキャンバス",
-    "Your entry link":"あなたの応募リンク",
     "Update {app}":"{app} を更新",
     "Update “{app}” with this workflow":"このワークフローで「{app}」を更新",
     "Open {app}":"{app} を開く",
@@ -3412,14 +2990,11 @@ const I18N = {
     "your app":"あなたのアプリ",
     "✓ Copied":"✓ コピー済み",
     "✓ Short":"✓ 短縮済み",
-    "Opens in the editor so others can remix or learn from your noodle.":"エディタで開き、他の人があなたのnoodleをリミックスしたり学んだりできます。",
     "9:16 (Portrait)":"9:16 (縦長)",
     "default":"デフォルト",
     "(in the top bar) takes you back to the graph and keeps this app.":"(上部バーの) を押すとグラフに戻り、このアプリはそのまま残ります。",
-    "(or both!).":"(または両方！)。",
     "(style adapter)":"(スタイルアダプター)",
     ", or":"、または",
-    ", which takes Nano — so the prize pool stays in the ecosystem.":"、Nano を受け取るので、賞金プールはエコシステム内にとどまります。",
     "16:9 (Landscape)":"16:9 (横長)",
     "1:1 (Square)":"1:1 (スクエア)",
     "A live AI workflow. Press":"ライブのAIワークフローです。",
@@ -3447,31 +3022,21 @@ const I18N = {
     "Combine videos":"動画を結合",
     "Copy":"コピー",
     "Copy a link that opens this workflow in the node editor so others can remix it":"このワークフローをノードエディタで開くリンクをコピー — 他の人がリミックスできます",
-    "Copy link":"リンクをコピー",
     "Cut audio to a start + length":"音声を開始位置 + 長さで切り出し",
     "Dismiss":"閉じる",
     "Each change adds a version — click one to jump back to it":"変更ごとにバージョンが追加されます — クリックでそのバージョンに戻れます",
     "Edit workflow":"ワークフローを編集",
     "Customize":"カスタマイズ",
     "Email":"メール",
-    "Enter this in the Noodle Cookoff":"これを Noodle Cookoff に応募",
     "Fit the whole workflow in view (F)":"ワークフロー全体を表示に収める (F)",
     "Got it":"了解",
-    "How to enter:":"応募方法:",
     "Image model":"画像モデル",
     "Image(s) + text → image":"画像 + テキスト → 画像",
     "Inpaint":"インペイント",
     "Join clips end-to-end into one video":"クリップをつなげて1つの動画に結合",
-    "Keep entries SFW — no copyright violations, nothing illegal. Prizes can only be sent to wallets in countries not under active US sanctions.":"応募作品はSFWに保ってください — 著作権侵害や違法なものは禁止。賞金は米国の制裁対象国以外のウォレットにのみ送金できます。",
     "Make it shorter — optional":"短くする — 任意",
     "Model options":"モデルオプション",
     "More app options":"その他のアプリオプション",
-    "Most Innovative":"最も革新的",
-    "Most Useful":"最も便利",
-    "Noodle Cookoff — win Nano":"Noodle Cookoff — Nano を獲得",
-    "Opens June 26 · closes July 12 (23:59 UTC) · max 2 entries each · winners get featured.":"6月26日開始 · 7月12日締切 (23:59 UTC) · 各自最大2作品 · 受賞者は掲載されます。",
-    "Opens your creation as a ready-to-run app — what people click to try it. Best for entries.":"作品をすぐ実行できるアプリとして開きます — 人々がクリックして試すものです。応募に最適。",
-    "People's Choice":"人気賞",
     "Per-model knobs from the catalog (presets, styles, camera moves…). Defaults apply when untouched.":"カタログのモデル別の調整項目 (プリセット、スタイル、カメラの動き…)。変更しない場合はデフォルトが適用されます。",
     "Pull still frames out of a video":"動画から静止フレームを抽出",
     "Recent":"最近",
@@ -3483,28 +3048,13 @@ const I18N = {
     "Save this as a brand-new app — the one you’re editing stays untouched":"これを新しいアプリとして保存 — 編集中のアプリはそのまま残ります",
     "Search nodes… (image, voice, video)":"ノードを検索… (画像、音声、動画)",
     "Sends this link to a third-party shortener so":"このリンクをサードパーティの短縮サービスに送信するので",
-    "Open the Noodle Cookoff rules":"Noodle Cookoffのルールを開く",
-    "See the rules →":"ルールを見る →",
-    "⏳ ends in {t}":"⏳ 終了まで {t}",
-    "Winners this week":"今週の受賞発表",
-    "Cookoff winners — announced this week":"Cookoff受賞者 — 今週発表",
-    "🏆 Cookoff winners":"🏆 Cookoff受賞者",
-    "Cookoff winners":"Cookoff受賞者",
-    "Winners will be announced this week.":"受賞者は今週発表します。",
-    "Judging is done — hang tight. The podium goes up once prizes are ready to send.":"審査は完了 — もう少しお待ちください。賞金の準備ができたら表彰台を公開します。",
-    "Questions or concerns? Message":"質問やご心配は",
-    "on Reddit.":"まで Reddit でどうぞ。",
-    "Message on Reddit →":"Reddit でメッセージ →",
     "Got it":"了解",
     "Terms · Privacy":"利用規約 · プライバシー",
     "Open source":"オープンソース",
     "Read the code on GitHub — MIT licensed":"GitHub でコードを読めます — MIT ライセンス",
-    "The <b>Noodle Cookoff</b> is live — win Nano for your best noodle. <b>Ends Jul 12.</b>":"<b>Noodle Cookoff</b> 開催中 — 自慢のヌードルで Nano を獲得。<b>7月12日まで。</b>",
     "Share this workflow":"このワークフローを共有",
     "Share to":"共有先",
     "Share workflow":"ワークフローを共有",
-    "Shorten this link (via da.gd) — nicer to post":"このリンクを短縮 (da.gd 経由) — 投稿に便利",
-    "Start cooking →":"料理を始める →",
     "Text (+ images, audio) → text — any chat model":"テキスト (+ 画像、音声) → テキスト — 任意のチャットモデル",
     "This link opens your exact workflow for anyone to run or remix.":"このリンクは、誰でも実行またはリミックスできるあなたのワークフローそのものを開きます。",
     "Trim audio":"音声をトリム",
@@ -3515,17 +3065,13 @@ const I18N = {
     "Video → frames":"動画 → フレーム",
     "What’s new in nanoodle":"nanoodleの新着情報",
     "When clips are chained, each clip's first frame repeats the previous clip's last frame. Trimming it removes the freeze at the seam.":"クリップを連結すると、各クリップの最初のフレームが前のクリップの最後のフレームを繰り返します。トリミングすると継ぎ目のフリーズが除去されます。",
-    "Where to post":"投稿先",
-    "Win 3 × 133 XNO (Nano) — a feeless crypto":"3 × 133 XNO (Nano) を獲得 — 手数料無料の暗号資産",
     "Workflow link is in the address bar — copy it below":"ワークフローのリンクはアドレスバーにあります — 下からコピー",
-    "You're already in the kitchen. Wire up a noodle, share it, and win Nano (XNO) — a feeless cryptocurrency, sent straight to your wallet.":"あなたはすでにキッチンにいます。ヌードルをつないで共有し、Nano（XNO）を獲得しましょう — 手数料無料の暗号資産で、あなたのウォレットに直接届きます。",
     "a red coffee mug, a small bird…":"赤いコーヒーマグ、小さな鳥…",
     "advanced":"詳細",
     "audio":"音声",
     "avatar":"アバター",
     "beginning":"先頭",
     "brush size":"ブラシサイズ",
-    "build something here → hit":"ここで何か作って → 押す",
     "delete (Del)":"削除 (Del)",
     "drag to resize":"ドラッグしてサイズ変更",
     "mode":"モード",
@@ -3546,25 +3092,21 @@ const I18N = {
     "length (sec)":"長さ (秒)",
     "low":"低",
     "mask":"マスク",
-    "max 2 entries · keep it SFW · closes Jul 12, 23:59 UTC":"最大2エントリー · SFW厳守 · 7月12日 23:59 UTC 締切",
     "max tokens":"最大トークン数",
     "max tokens (≤ 128000)":"最大トークン数 (≤ 128000)",
     "max {cap} for this model":"このモデルの最大 {cap}",
     "medium":"中",
     "models":"モデル",
     "music":"音楽",
-    "nanoodle is a community project on":"nanoodle は次の場所のコミュニティプロジェクトです:",
     "nanoodle — AI workflow editor":"nanoodle — AI ワークフローエディター",
     "no audio yet":"音声なし",
     "no video yet":"動画なし",
     "keep clips under ~3 MB — larger won’t reach the model":"クリップは約 3 MB 以下に — 超えるとモデルに届きません",
     "or":"または",
-    "or post it to":"または次に投稿:",
     "output format":"出力形式",
     "outputs mono WAV, small enough to send to models — handy before 🎭 Avatar / lipsync when a clip is too long.":"モノラルWAVを出力し、モデルに送れる小ささに — クリップが長すぎる場合、🎭 アバター / リップシンクの前に便利。",
     "video → mono WAV — wire into 🎙️ Transcribe to get text. Transcribe fits about 2 min per run, so set a length for a longer video. AI-generated videos are silent — use an uploaded video with sound.":"動画 → モノラルWAV — 🎙️ Transcribe につなぐとテキストになります。Transcribe は1回で約2分まで扱えるので、長い動画では長さを指定してください。AI生成の動画は無音です — 音声付きのアップロード動画を使ってください。",
     "whole clip":"クリップ全体",
-    "paste your link":"リンクを貼り付け",
     "random":"ランダム",
     "CivitAI model":"CivitAIモデル",
     "AIR model":"AIRモデル",
@@ -3609,16 +3151,11 @@ const I18N = {
     "what to paint in":"何を描き込むか",
     "wire two or more clips — they join in order, top to bottom":"クリップを2つ以上つないでください — 上から下の順に結合されます",
     "· blank = random, fix to repeat (re-run won't regenerate)":"· 空欄=ランダム、固定すると繰り返す（再実行で再生成されない）",
-    "— made NanoGPT do something nobody expected":"— nano-gptで誰も予想しなかったことを実現",
-    "— most hearts on Discord + upvotes on Reddit (summed if you post both!)":"— Discordのハート＋Redditのupvoteが最多（両方投稿すれば合算！）",
-    "— the one you'd actually open every week":"— 毎週実際に開きたくなるもの",
     "↑↓ move · ↵ add · esc close":"↑↓ 移動 · ↵ 追加 · esc 閉じる",
-    "→ drop the link in NanoGPT's":"→ nano-gptにリンクをドロップ",
     "▶ Run":"▶ 実行",
     "● Capture":"● 撮影",
     "⚙️ Model options":"⚙️ モデルオプション",
     "⚙️ advanced":"⚙️ 詳細設定",
-    "✂ Shorten":"✂ 短縮",
     "✓ Workflow link copied — shorten or share it below":"✓ ワークフローのリンクをコピーしました — 下で短縮または共有",
     "✕ Cancel":"✕ キャンセル",
     "✦ Apply":"✦ 適用",
@@ -3626,19 +3163,11 @@ const I18N = {
     "⬆ Upload":"⬆ アップロード",
     "⬆ Upload audio":"⬆ 音声をアップロード",
     "⬆ Upload video":"⬆ 動画をアップロード",
-    "🏆 Win 3 × 133 XNO (Nano) — a feeless crypto":"🏆 3 × 133 XNO (Nano) を獲得 — 手数料無料の暗号資産",
     "💬 Describe changes":"💬 変更を説明",
-    "💬 Post in Discord ↗":"💬 Discordに投稿 ↗",
     "📣 What’s new":"📣 新着情報",
-    "📨 Submit your entry →":"📨 エントリーを送信 →",
     "📷 Webcam":"📷 ウェブカメラ",
     "🔌 mask ← wired (white = repaint)":"🔌 マスク ← 接続済み（白 = 塗り直す部分）",
     "🔌 source image ← wired":"🔌 ソース画像 ← 接続済み",
-    "🔗 Share workflow":"🔗 ワークフローを共有",
-    "🚀 App":"🚀 アプリ",
-    "🛠 Most Useful · 💡 Most Innovative · ❤️ People's Choice":"🛠 最も便利 · 💡 最も革新的 · ❤️ 人気賞",
-    "🛠 Workflow":"🛠 ワークフロー",
-    "🤖 Post to r/nanocurrency ↗":"🤖 r/nanocurrencyに投稿 ↗",
     "＋ Add node":"＋ ノード追加",
     "Add node":"ノード追加",
     "Add a node":"ノードを追加",
@@ -3795,7 +3324,6 @@ const I18N = {
     "couldn’t read that image":"画像を読み込めませんでした",
     "webcam unavailable":"ウェブカメラを利用できません",
     "share failed":"共有に失敗",
-    "shorten failed":"短縮に失敗しました",
     "audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).":"音声は無視されました — このモデルはテキスト専用です。音声入力に対応したモデル（Geminiなど）を選んでください。",
     "dropped {n} reference image(s) over this model's limit of {max}":"参照画像を{n}枚破棄しました — このモデルの上限は{max}枚です",
     "can’t delete while running — Stop first":"実行中は削除できません — 先に停止してください",
@@ -3803,7 +3331,6 @@ const I18N = {
     "couldn’t read that file":"そのファイルを読み込めませんでした",
     "stopping…":"停止中…",
     "couldn’t autosave — an uploaded audio/video clip may be too large for local storage":"自動保存に失敗しました — アップロードした音声/動画クリップがローカルストレージには大きすぎる可能性があります",
-    "Couldn't copy — select the link and copy it manually":"コピーできませんでした — リンクを選択して手動でコピーしてください",
     "that key was rejected — paste a valid nano-gpt.com key":"そのキーは拒否されました — 有効なnano-gpt.comのキーを貼り付けてください",
     "sign-in error":"サインインエラー",
     "sign-in didn't complete":"サインインが完了しませんでした",
@@ -10175,7 +9702,7 @@ function collapseBar(){
   $("apppop").classList.remove("open");                // the caret popover would otherwise linger as an empty box once its fork moves out
   pop.appendChild($("newapp"));                        // the ▾ caret is hidden when collapsed, so its "Save as a new app" fork lives here (hidden while unbound, like the caret)
   pop.appendChild($("openapps"));                      // "≡ My apps" rides along (hidden while the library is empty, like the caret)
-  RELOC.forEach((id)=>{ const el=$(id); if(!el) return; if(id==="signin") pop.appendChild(Object.assign(document.createElement("div"),{className:"mdiv"})); pop.appendChild(el); });   // skip ids whose button was removed (e.g. the retired top Cookoff) so one gap can't abort the whole collapse
+  RELOC.forEach((id)=>{ const el=$(id); if(!el) return; if(id==="signin") pop.appendChild(Object.assign(document.createElement("div"),{className:"mdiv"})); pop.appendChild(el); });   // skip ids whose button was removed so one gap can't abort the whole collapse
 }
 function layoutBar(){
   if(!topOrder) return;                                // boot hasn't snapshotted the original order yet
@@ -10941,99 +10468,6 @@ $("appmodalhintok").onclick = ()=>{ $("appmodalhint").hidden = true; try{ localS
 $("appmodal").addEventListener("click", e=>{ if(e.target.id==="appmodal") closeAppModal(); });   // click the dim backdrop
 addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("appmodal").hidden) closeAppModal(); });
 
-// 🍜 Noodle Cookoff promo — opens a static announcement modal; the ✕ on the button dismisses it for good.
-const cookoffBtn = $("cookoffbtn");
-// Contest ends Jul 12, 23:59 UTC — after that, retire the promo so it does not rot for new users.
-const COOKOFF_END = Date.parse("2026-07-12T23:59:59Z");
-const COOKOFF_OVER = Date.now() > COOKOFF_END;
-try{ if(COOKOFF_OVER || localStorage.getItem("noodle_cookoff_dismissed")) cookoffBtn.hidden = true; }catch(_){}
-// ⏳ live deadline countdown on the pill and inside both contest modals — in the final stretch the
-// closing window IS the pitch. Hits zero mid-session → retire the pill, same as COOKOFF_OVER on load.
-let cookoffTickId = 0;
-function cookoffCountdown(){
-  const left = COOKOFF_END - Date.now();
-  if(left <= 0){ cookoffBtn.hidden = true; clearInterval(cookoffTickId); try{ refreshWinnersPill(); }catch(_){} return; }   // hand the corner slot to the winners pill live
-  const d = Math.floor(left/864e5), h = Math.floor(left%864e5/36e5), m = Math.floor(left%36e5/6e4);
-  const span = d > 0 ? d+"d "+h+"h" : h > 0 ? h+"h "+m+"m" : Math.max(1,m)+"m";
-  const msg = t("⏳ ends in {t}").replace("{t}",()=>span);
-  for(const id of ["cookofftimer","cookoffends","submitends"]) $(id).textContent = msg;
-}
-if(!COOKOFF_OVER){ cookoffCountdown(); cookoffTickId = setInterval(cookoffCountdown, 30000); }
-function closeCookoff(){ $("cookoffmodal").hidden = true; }
-function dismissCookoff(e){ e.stopPropagation(); cookoffBtn.hidden = true; try{ localStorage.setItem("noodle_cookoff_dismissed","1"); }catch(_){} }
-$("cookoffdismiss").onclick = dismissCookoff;
-$("cookoffdismiss").addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" ") dismissCookoff(e); });
-$("cookoffclose").onclick = closeCookoff;
-$("cookoffstart").onclick = closeCookoff;
-$("cookoffmodal").addEventListener("click", e=>{ if(e.target.id==="cookoffmodal") closeCookoff(); });   // click the dim backdrop
-addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("cookoffmodal").hidden) closeCookoff(); });
-
-// 🏆 Submit popup — the conversion path into the Cookoff: prize → your entry link → where to post.
-// Opt-in only (🍜 explainer CTA / explicit Submit). Never auto-opens on Share — casual share
-// is a product action, not a contest funnel.
-let submitTarget = "app";        // "app" (play.html runtime — the contest default) | "workflow" (editor, for remixers)
-function closeSubmit(){
-  $("submitmodal").hidden = true;
-}
-const SUBMIT_HINT = {
-  app: "Opens your creation as a ready-to-run app — what people click to try it. Best for entries.",
-  workflow: "Opens in the editor so others can remix or learn from your noodle.",
-};
-async function fillSubmitLink(){               // (re)generate the link for the active target
-  const inp = $("submitlink"); inp.value = "…";
-  try{
-    inp.value = await buildShareUrl(submitTarget);
-    // packShareFit had to compress or cut samples to keep the link shortenable/postable — tell the entrant.
-    if(lastShareStripped) toast(lastShareStripped==="shrunk"
-      ? "preview image compressed so this link stays shortenable and postable"
-      : "sample images left out of this link — with them it's too long to shorten or post", "warn");
-  }catch(e){ inp.value = ""; }
-  inp.focus(); inp.select();                   // keyboard users can copy immediately
-}
-function setSubmitTarget(tgt){                        // NB: not `t` — that's the global translation fn
-  submitTarget = tgt;
-  $("sublinkapp").classList.toggle("on", tgt==="app");
-  $("sublinkwf").classList.toggle("on", tgt==="workflow");
-  $("sublinkapp").setAttribute("aria-selected", tgt==="app");
-  $("sublinkwf").setAttribute("aria-selected", tgt==="workflow");
-  $("sublinkhint").textContent = t(SUBMIT_HINT[tgt]);
-  const cb = $("submitcopy"); cb.textContent = t("Copy link"); cb.classList.remove("ok");
-  fillSubmitLink();
-}
-async function openSubmit(){
-  if(COOKOFF_OVER) return;   // contest retired — don't surface a dead modal
-  $("submitmodal").hidden = false;
-  const copyBtn = $("submitcopy");
-  copyBtn.textContent = t("Copy link"); copyBtn.classList.remove("ok");   // reset from any prior copy
-  await fillSubmitLink();                                              // uses the sticky submitTarget (default: app)
-}
-$("sublinkapp").onclick = ()=> setSubmitTarget("app");
-$("sublinkwf").onclick  = ()=> setSubmitTarget("workflow");
-// 🍜 floating button → the rich "why enter" explainer; its CTA opens this submit popup.
-cookoffBtn.onclick = ()=>{ $("cookoffmodal").hidden = false; };
-$("cookoffsubmit").onclick = ()=>{ closeCookoff(); openSubmit(); };
-$("submitclose").onclick = closeSubmit;
-$("submitmodal").addEventListener("click", e=>{ if(e.target.id==="submitmodal") closeSubmit(); });   // click the dim backdrop
-addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("submitmodal").hidden) closeSubmit(); });
-$("submitcopy").onclick = async ()=>{
-  const inp = $("submitlink"); inp.select();
-  const ok = await copyText(inp.value);
-  const b = $("submitcopy");
-  if(ok){ b.textContent = t("✓ Copied"); b.classList.add("ok"); setTimeout(()=>{ b.textContent=t("Copy link"); b.classList.remove("ok"); }, 1800); }
-  else { toast("Couldn't copy — select the link and copy it manually", "err"); }
-};
-$("submitshort").onclick = async ()=>{
-  const inp = $("submitlink"), b = $("submitshort"), o = b.textContent;
-  if(!/^https?:\/\//.test(inp.value)) return;            // nothing to shorten yet
-  b.textContent = "…"; b.disabled = true;
-  try{
-    inp.value = await shortenWith("dagd", inp.value);    // replace in place so Copy/post uses the short one
-    inp.select();
-    b.textContent = t("✓ Short"); b.classList.add("ok");
-    setTimeout(()=>{ b.textContent = o; b.classList.remove("ok"); }, 1800);
-  }catch(e){ b.textContent = o; toast(t("shorten failed")+": "+e.message, "err"); }
-  finally{ b.disabled = false; }
-};
 addEventListener("message", e=>{
   if(e.source!==$("appmodalframe").contentWindow || !e.data) return;
   if(e.data.type==="__closeapp__") closeAppModal();
@@ -11165,15 +10599,6 @@ async function openUpdates(){
   $("updatesmodal").hidden = false;
   const list = await fetchUpdates();
   body.innerHTML = "";
-  if(!COOKOFF_OVER){                     // pin a live-contest notice above the changelog; click opens the rules
-    const cta = document.createElement("button"); cta.type = "button"; cta.className = "update-cookoff";
-    cta.title = t("Open the Noodle Cookoff rules");
-    cta.innerHTML = "<span class='uc-emoji'>🍜</span><span class='uc-text'>"
-      + t("The <b>Noodle Cookoff</b> is live — win Nano for your best noodle. <b>Ends Jul 12.</b>")
-      + "</span><span class='uc-go'>" + t("See the rules →") + "</span>";
-    cta.onclick = ()=>{ closeUpdates(); $("cookoffmodal").hidden = false; };
-    body.appendChild(cta);
-  }
   if(!list.length){ body.insertAdjacentHTML("beforeend", "<div id='updatesempty'>"+t("No updates yet — check back soon.")+"</div>"); }
   else {
     let curDate = null, ul = null;   // group consecutive entries under their date
@@ -11239,7 +10664,7 @@ const EXAMPLES = [
            {id:"l3",from:{node:"n3",port:"text"},to:{node:"n4",port:"prompt"}} ] } },
 ];
 /* ---- 🏆 community shelf data — hand-curated, edited in place (no fetch, no build step).
-   `top` = up to 3 podium spots (Cookoff winners now; whatever earns the spotlight later).
+   `top` = up to 3 podium spots for whatever earns the spotlight.
    `more` = the rotating rail below — append fresh community noodles, prune stale ones.
    Every `link` is a nanoodle share link (the whole graph rides the URL fragment), so entries
    open in a new tab without touching the visitor's canvas. `byUrl` is optional and links the
@@ -11286,26 +10711,6 @@ function openExamples(){
   $("examplesmodal").hidden=false;
 }
 function closeExamples(){ $("examplesmodal").hidden=true; }
-// 🏆 winners pill — once the Cookoff closes, the corner slot carries a “announced this week”
-// notice (no podium yet). Reads the clock live (not COOKOFF_OVER) so the mid-session handoff works.
-// Through Jul 20 so “this week” has room; dismissable + persisted.
-const WINNERS_PILL_UNTIL = Date.parse("2026-07-20T23:59:59Z");
-function refreshWinnersPill(){
-  let dismissed = false; try{ dismissed = !!localStorage.getItem("noodle_winners_dismissed"); }catch(_){}
-  const now = Date.now();
-  $("winnersbtn").hidden = !(now > COOKOFF_END && now < WINNERS_PILL_UNTIL && !dismissed);
-}
-function closeWinners(){ $("winnersmodal").hidden = true; }
-function openWinners(){ $("winnersmodal").hidden = false; }
-function dismissWinners(e){ e.stopPropagation(); $("winnersbtn").hidden = true; try{ localStorage.setItem("noodle_winners_dismissed","1"); }catch(_){} }
-$("winnersbtn").onclick = openWinners;
-$("winnersdismiss").onclick = dismissWinners;
-$("winnersdismiss").addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" ") dismissWinners(e); });
-$("winnersclose").onclick = closeWinners;
-$("winnersok").onclick = closeWinners;
-$("winnersmodal").addEventListener("click", e=>{ if(e.target.id==="winnersmodal") closeWinners(); });
-addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("winnersmodal").hidden) closeWinners(); });
-refreshWinnersPill();
 function loadExample(i){
   const ex=EXAMPLES[i]; if(!ex) return;
   if(runningNodes.size){ flash("can’t change the workflow while running — Stop first"); return; }   // replacing the graph mid-run would strand in-flight (already-charged) results (mirrors the per-node delete guard)
