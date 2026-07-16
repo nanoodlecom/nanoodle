@@ -10,7 +10,7 @@
 //
 // Output is idempotent: the block sits between NJS-ENGINE markers in play.html
 // and embeds a version stamp (sibling commit) plus a content hash that
-// scripts/check-js-engine.mjs verifies.
+// this script's own --check mode verifies.
 //
 // Usage: node scripts/gen-js-engine.mjs [--check]
 //   --check  regenerate in memory and diff against the embedded block
@@ -23,6 +23,7 @@ import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PLAY = join(HERE, "..", "play.html");
+const VENDOR = join(HERE, "..", "vendor", "njs-engine.js");   // editor lazy-loads this (index.html stays lean)
 const JS_ROOT = process.env.NANOODLE_JS ? resolve(process.env.NANOODLE_JS) : resolve(HERE, "../../nanoodle-js");
 const SRC = join(JS_ROOT, "src");
 const ENTRY = "browser.mjs";
@@ -32,7 +33,27 @@ const END = "<!-- NJS-ENGINE:END -->";
 const check = process.argv.includes("--check");
 
 if (!existsSync(join(SRC, ENTRY))) {
-  console.log(`⊘ skip njs-engine ${check ? "check" : "gen"}: nanoodle-js not found at ${JS_ROOT}`);
+  // No sibling checkout → can't regenerate, but --check can still prove the SHIPPED artifacts are
+  // self-consistent: each embeds a content hash of its own payload, and both must carry the same
+  // bundle. Catches a hand-edited/corrupted play block or vendor file that would otherwise ship
+  // with every hook green.
+  if (check) {
+    const sha16 = (s) => createHash("sha256").update(s).digest("hex").slice(0, 16);
+    const bad = [];
+    const pm = /<script id="njs-engine" data-hash="([0-9a-f]{16})">\n([\s\S]*?)\n<\/script>/.exec(readFileSync(PLAY, "utf8"));
+    if (pm && sha16(pm[2]) !== pm[1]) bad.push("play.html njs-engine block content does not match its data-hash");
+    let vm = null;
+    if (existsSync(VENDOR)) {
+      vm = /^\/\* data-hash=([0-9a-f]{16}) \*\/\n([\s\S]*)\n$/.exec(readFileSync(VENDOR, "utf8"));
+      if (!vm) bad.push("vendor/njs-engine.js has no data-hash header");
+      else if (sha16(vm[2]) !== vm[1]) bad.push("vendor/njs-engine.js content does not match its data-hash");
+    }
+    if (pm && vm && pm[1] !== vm[1]) bad.push("play.html block and vendor/njs-engine.js carry different bundles");
+    if (bad.length) { console.error(`✗ njs-engine (no sibling checkout): ${bad.join("; ")} — restore from git or regenerate with nanoodle-js checked out`); process.exit(1); }
+    console.log(`⊘ skip njs-engine check: nanoodle-js not found at ${JS_ROOT} (shipped artifacts are self-consistent)`);
+    process.exit(0);
+  }
+  console.log(`⊘ skip njs-engine gen: nanoodle-js not found at ${JS_ROOT}`);
   process.exit(0);
 }
 
@@ -162,15 +183,25 @@ if (re.test(html)) {
   next = html.slice(0, at) + block + "\n" + html.slice(at);
 }
 
+// Same bundle as a standalone file for the EDITOR (index.html lazy-loads it only when the
+// njs_engine flag is on, so the landing page never carries the bundle's weight). Byte-identical
+// payload to the play block — one generator, one source of truth. data-hash rides in a comment.
+const vendorFile = `/* data-hash=${hash} */\n${bundle}\n`;
+const vendorCur = existsSync(VENDOR) ? readFileSync(VENDOR, "utf8") : null;
+
 if (check) {
-  if (next === html) { console.log(`✓ njs-engine: embedded bundle is current (nanoodle-js@${version}, ${modules.size} modules, ${(bundle.length / 1024).toFixed(0)} KB)`); process.exit(0); }
-  console.error("✗ njs-engine: embedded bundle is stale — run: node scripts/gen-js-engine.mjs");
+  const stale = [];
+  if (next !== html) stale.push("play.html");
+  if (vendorCur !== vendorFile) stale.push("vendor/njs-engine.js");
+  if (!stale.length) { console.log(`✓ njs-engine: embedded bundle is current (nanoodle-js@${version}, ${modules.size} modules, ${(bundle.length / 1024).toFixed(0)} KB)`); process.exit(0); }
+  console.error(`✗ njs-engine: ${stale.join(" + ")} stale — run: node scripts/gen-js-engine.mjs`);
   process.exit(1);
 }
 
-if (next === html) {
+if (next === html && vendorCur === vendorFile) {
   console.log(`✓ njs-engine: already current (nanoodle-js@${version})`);
 } else {
-  writeFileSync(PLAY, next);
-  console.log(`✓ njs-engine: embedded nanoodle-js@${version} (${modules.size} modules, ${(bundle.length / 1024).toFixed(0)} KB) into play.html`);
+  if (next !== html) writeFileSync(PLAY, next);
+  if (vendorCur !== vendorFile) writeFileSync(VENDOR, vendorFile);
+  console.log(`✓ njs-engine: embedded nanoodle-js@${version} (${modules.size} modules, ${(bundle.length / 1024).toFixed(0)} KB) into play.html + vendor/njs-engine.js`);
 }

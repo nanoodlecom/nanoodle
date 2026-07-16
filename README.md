@@ -146,7 +146,11 @@ script block, `scripts/gen-js-engine.mjs`, freshness-checked pre-commit).
 `?engine=js` (or `localStorage.njs_engine = "1"`) routes network nodes
 through it — experimental, default off; `scripts/check-njs-delegation.mjs`
 asserts the flagged path produces byte-identical requests. Exported apps
-carry the bundle too, so the same flag works there.
+carry the bundle too, so the same flag works there. The editor honors the
+same flag: index.html lazy-loads the same bundle as `vendor/njs-engine.js`
+(emitted by the same generator) only when enabled, so the landing page
+stays lean; `scripts/check-njs-editor-delegation.mjs` pins that path to
+the built-in runners byte-for-byte.
 
 `updates.json` is the in-app changelog behind the 📣 button. It's opt-in
 per commit: add an `Update: one polished line` to a commit message and the

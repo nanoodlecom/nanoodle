@@ -19,7 +19,9 @@ touches_compat=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/che
 # play.html carries the run engine — old workflows must keep producing identical NanoGPT calls.
 touches_run=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-run-compat\.mjs)$' || true)
 # Dual-engine payload parity: play RUNTIME_JS ↔ sibling nanoodle-js (skips if package not checked out).
-touches_jsparity=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-js-parity\.mjs|scripts/play-engine\.mjs)$' || true)
+touches_jsparity=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|vendor/njs-engine\.js|scripts/check-js-parity\.mjs|scripts/play-engine\.mjs)$' || true)
+# index.html's flag-gated editor delegation (Phase F): shim + built-in runners must stay byte-identical.
+touches_njseditor=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|vendor/njs-engine\.js|scripts/check-njs-editor-delegation\.mjs)$' || true)
 # play.html's exported LLM node must gate response_format / input_audio by the model's real capability.
 touches_llmgate=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-llm-capability-gates\.mjs|scripts/play-engine\.mjs)$' || true)
 # play.html carries the deterministic-skip cache (fixed-seed reuse + keep-mode hot-loop guard).
@@ -115,7 +117,7 @@ touches_consent=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/ch
 touches_sharesamples=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-share-samples\.mjs)$' || true)
 
 # Nothing to check unless an .html file or one of the checkers changed.
-[ -z "$staged_html" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_jsparity" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_langpages" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_i18n" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_lipsync" ] && [ -z "$touches_aresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && [ -z "$touches_pacing" ] && [ -z "$touches_graphpersist" ] && [ -z "$touches_graphsigs" ] && [ -z "$touches_describeapply" ] && [ -z "$touches_authlc" ] && [ -z "$touches_mediapriv" ] && [ -z "$touches_verhist" ] && [ -z "$touches_rungating" ] && [ -z "$touches_appsstorage" ] && [ -z "$touches_linkerr" ] && [ -z "$touches_deploy" ] && [ -z "$touches_hiddencss" ] && [ -z "$touches_connect" ] && [ -z "$touches_undo" ] && [ -z "$touches_costaccrue" ] && [ -z "$touches_resize" ] && [ -z "$touches_catalog" ] && [ -z "$touches_upscale" ] && [ -z "$touches_drift" ] && [ -z "$touches_consent" ] && [ -z "$touches_sharesamples" ] && exit 0
+[ -z "$staged_html" ] && [ -z "$touches_njseditor" ] && [ -z "$touches_llmgate" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_jsparity" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_langpages" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_i18n" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_lipsync" ] && [ -z "$touches_aresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && [ -z "$touches_pacing" ] && [ -z "$touches_graphpersist" ] && [ -z "$touches_graphsigs" ] && [ -z "$touches_describeapply" ] && [ -z "$touches_authlc" ] && [ -z "$touches_mediapriv" ] && [ -z "$touches_verhist" ] && [ -z "$touches_rungating" ] && [ -z "$touches_appsstorage" ] && [ -z "$touches_linkerr" ] && [ -z "$touches_deploy" ] && [ -z "$touches_hiddencss" ] && [ -z "$touches_connect" ] && [ -z "$touches_undo" ] && [ -z "$touches_costaccrue" ] && [ -z "$touches_resize" ] && [ -z "$touches_catalog" ] && [ -z "$touches_upscale" ] && [ -z "$touches_drift" ] && [ -z "$touches_consent" ] && [ -z "$touches_sharesamples" ] && exit 0
 if ! command -v node >/dev/null 2>&1; then
   echo "pre-commit: node not found, skipping HTML JS checks" >&2
   exit 0
@@ -180,6 +182,13 @@ fi
 # network nodes through the embedded bundle AND produce byte-identical request bodies.
 if [ -n "$touches_jsparity" ]; then
   node "$root/scripts/check-njs-delegation.mjs"
+fi
+
+# 6-editor-delegation) the EDITOR twin (Phase F): index.html's njs shim with the flag on must
+# route network nodes through vendor/njs-engine.js and match the built-in runners byte-for-byte,
+# keep the mdl() drift preflight, and never delegate keyless/demo runs.
+if [ -n "$touches_njseditor" ]; then
+  node "$root/scripts/check-njs-editor-delegation.mjs"
 fi
 
 # 6a) exported-app LLM capability gating: a JSON output-format on a non-structured model, or a wired

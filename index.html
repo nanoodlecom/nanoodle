@@ -8019,6 +8019,145 @@ function nodeSig(n, inp){
   const f = {...n.fields}; delete f.sel; delete f.brush;   // display-only knobs (variation pick, inpaint brush radius) don't change the output
   return sigHash(JSON.stringify({ t:n.type, f, inp }));
 }
+/* =====================================================================
+   nanoodle-js DELEGATION (experimental, default OFF) — replace-prep Phase F.
+   Twin of play.html's Phase-E shim: when enabled, NETWORK nodes' payload
+   building + response parsing run through the nanoodle-js RUNNERS — the
+   surface scripts/check-js-parity.mjs locks — while ALL orchestration
+   stays here: groups, seed cache (n._sig), retry reuse, poison-propagate,
+   pending-job resume, demo mode, statuses, DOM. Local media nodes keep
+   the canvas / Web Audio paths. Unlike play (a self-contained export),
+   the editor lazy-loads the bundle from vendor/njs-engine.js (generated
+   by scripts/gen-js-engine.mjs) only when the flag is on — the landing
+   page never pays its ~185 KB. Until it loads (or if it fails / hasn't
+   been fetched yet), njsRunFor() returns null → built-in runners.
+   Enable: ?engine=js or localStorage njs_engine="1"; ?engine=play forces
+   off. Demo runs and custom run contexts always use the built-in path.
+   ===================================================================== */
+// vedit and lipsync are NOT delegated yet: the library's vedit drops wired reference-image ports,
+// and its lipsync lacks the built-in's charged-aware duration-trim retry ladder — both would change
+// what a paid request does. Re-add once nanoodle-js closes those gaps (see njsRunFor's vetoes too).
+const NJS_TYPES = { llm:1, vision:1, image:1, edit:1, draw:1, inpaint:1, tvideo:1, ivideo:1, music:1, tts:1, remix:1, transcribe:1 };
+function njsOn(){
+  try{
+    const q = new URLSearchParams(location.search).get("engine");
+    if(q==="js") return true;
+    if(q==="play") return false;
+    return localStorage.getItem("njs_engine")==="1";
+  }catch(e){ return false; }
+}
+try{ if(njsOn()){ const s = document.createElement("script"); s.src = "vendor/njs-engine.js"; s.async = true; document.head.appendChild(s); } }catch(e){}
+// The library's payload gates (max_output_images, max_input_images, per-model video/audio
+// options) read RAW catalog items (supported_parameters …), not the editor's normalized ones.
+const _njsRaw = {};   // kind → Promise<rawItem[]> (cached only once it resolves non-empty)
+function njsCatalogRaw(kind){
+  if(_njsRaw[kind]) return _njsRaw[kind];
+  return (_njsRaw[kind] = (async()=>{
+    try{
+      const headers = {}; const k = getKey(); if(k) headers.Authorization = `Bearer ${k}`;
+      const data = (await (await fetch(`${NANOGPT}${CATALOG[kind].url}`, {headers})).json()).data || [];
+      if(!data.length) delete _njsRaw[kind];   // empty (blocked / transient) → allow a later retry
+      return data;
+    }catch(e){ delete _njsRaw[kind]; return []; }
+  })());
+}
+// Rebuilt per run (NOT memoized as a whole): a transient failure must not freeze empty catalogs
+// for the session — that would disable the library's billing clamps (max_output_images,
+// max_input_images) on every later run. Per-kind caching in _njsRaw keeps this cheap.
+function njsCatalogs(){
+  return (async()=>{
+    const out = {};
+    await Promise.all(["chat","image","video","audio"].map(async (k)=>{ try{ out[k] = await njsCatalogRaw(k); }catch(e){ out[k] = []; } }));
+    return out;
+  })();
+}
+// Library-shaped ctx bridging to THIS runtime's auth, abort signal, pending-job
+// registries (keyed by node id, same as the built-in senders), spend meter and
+// canvas media. Plain fetch + apiKey (never authHeaders on media): the client
+// adds auth to API calls only, so media CDN downloads never see the key.
+function njsCtx(E, n){
+  const client = new E.NanoClient({ apiKey: getKey(), baseUrl: NANOGPT, fetch: (u,o)=> fetch(u,o) });
+  // library cost objects ({usd, balance}) → accrue(): spend meter + live balance; a null usd
+  // flags the session total as inexact, exactly like a priceless built-in response.
+  const onCost = (c)=>{
+    const j = {};
+    if(c && c.usd!=null) j.cost = c.usd;
+    if(c && c.balance!=null) j.remainingBalance = c.balance;
+    accrue(j);
+  };
+  const io = { onCost, onPoll: (info)=> setNodeProgress(n, String(info.status||"") + (info.queuePosition!=null ? " #"+info.queuePosition : "")), signal: runSignal() };
+  // A pending entry must SURVIVE Stop and the poll timeout — the job is already submitted and
+  // charged, and the next unchanged run resumes it (built-in twin: genVideo/pollAudio keep the
+  // entry on abort). Only a genuine job failure may delete it. The library's abort rejection is
+  // a DOMException named AbortError or a NanoodleError code "aborted" — never code "timeout".
+  const keepPending = (e)=> !!(e && (e.code==="timeout" || e.code==="aborted" || e.name==="AbortError")) || !!(io.signal && io.signal.aborted);
+  return {
+    // built-in genChat twin: inject the "respond in <UI language>" directive (the library is
+    // deliberately locale-less), except in JSON/structured mode where it corrupts the output.
+    chat: (messages, model, opts)=> client.chat((opts && opts.response_format) ? messages : withLocale(messages), model, opts, io),
+    chatImage: (messages, model, opts)=> client.chatImage(messages, model, opts, io),
+    image: (args)=> client.image(args, io),
+    video: (model, prompt, opts, imageDataUrl)=>{
+      const sig = sigHash(JSON.stringify([model, prompt, opts, imageDataUrl]));
+      const prev = PENDING_VIDEO.get(n.id);
+      const io2 = { ...io,
+        resume: (prev && prev.sig===sig) ? prev.runId : undefined,
+        onRunId: (id)=> PENDING_VIDEO.set(n.id, {sig, runId:id, njs:true}),
+      };
+      return client.video(model, prompt, opts, imageDataUrl, io2).then(
+        (url)=>{ PENDING_VIDEO.delete(n.id); return url; },
+        (e)=>{ if(!keepPending(e)) PENDING_VIDEO.delete(n.id); throw e; });
+    },
+    audio: (model, input, extra)=>{
+      const sig = sigHash(JSON.stringify([model, input, extra]));
+      const pend = PENDING_AUDIO.get(n.id);
+      const io2 = { ...io,
+        resume: (pend && pend.sig===sig && pend.job) ? pend.job : undefined,
+        onRunId: (job)=> PENDING_AUDIO.set(n.id, {sig, job, njs:true}),
+      };
+      return client.audio(model, input, extra, io2).then(
+        (url)=>{ PENDING_AUDIO.delete(n.id); return url; },
+        (e)=>{ if(!keepPending(e)) PENDING_AUDIO.delete(n.id); throw e; });
+    },
+    transcribe: (model, audioUrl, language)=> client.transcribe(model, audioUrl, language, io),
+    fetchMedia: (url)=> client.fetchMediaDataUrl(url, io),
+    fetch: (u,o)=> fetch(u,o),
+    signal: io.signal,
+    catalog: null,   // filled per run by njsRunFor (async prefetch, then cached)
+    maskToSource: (mask, source)=> maskToSource(mask, source),   // canvas compositor — handles JPEG/WebP sources
+    progress: (msg)=> setNodeProgress(n, msg),
+  };
+}
+// The delegated run for this node, or null → the built-in runner runs. Takes the resolved
+// (rn, inp, n) so it can veto per-run shapes the library doesn't yet handle like the built-in
+// does — delegation must NEVER change what a paid request sends or costs.
+function njsRunFor(type, rn, inp, n){
+  if(!NJS_TYPES[type] || !njsOn() || !getKey()) return null;
+  const E = window.NanoodleEngine;
+  if(!E || !E.RUNNERS || !E.RUNNERS[type]) return null;
+  // Gallery clamp: on a raw-catalog miss the library sends n=variations UNCLAMPED where the
+  // editor clamps to 1 — a silent over-bill. Until the library adopts the conservative default,
+  // multi-variation requests stay on the built-in path.
+  if(type==="image" && (parseInt(rn.fields.variations,10)||1) > 1) return null;
+  // tvideo refs: the library hardcodes the reference_images wire key and applies no per-model cap;
+  // the editor resolves the model's REAL param name and clamps. Wired refs → built-in.
+  if(type==="tvideo") for(const k in inp){ if(REF_PORT_RE.test(k)) return null; }
+  // blob: media (Trim / Extract audio / Combine / Soundtrack outputs): the library posts the
+  // object URL verbatim — dead outside this page; the built-in runners inline to data: first.
+  for(const k in inp){ if(typeof inp[k]==="string" && inp[k].slice(0,5)==="blob:") return null; }
+  // A pending video/audio job submitted by the BUILT-IN engine (lazy bundle load race: first run
+  // fires before vendor/njs-engine.js arrives) uses a body-shaped signature this shim can't match —
+  // delegating now would orphan that paid job and re-submit. Let the engine that owns it resume it.
+  const pv = PENDING_VIDEO.get(n.id), pa = PENDING_AUDIO.get(n.id);
+  if((pv && !pv.njs) || (pa && !pa.njs)) return null;
+  return async function(){
+    mdl(rn);   // run preflight: a missing model AND a drifted (renamed/retired) id both block BEFORE any paid request — the library can't know what NanoGPT renamed
+    const ctx = njsCtx(E, n);
+    ctx.catalog = await njsCatalogs();
+    return E.RUNNERS[type](rn, inp, ctx);
+  };
+}
+
 // Run one group: lock its whole connected component, execute the ancestors of `seedIds` in topo order.
 // Multiple groups run concurrently because callers don't await each other.
 // Signed out → the group still "runs", against DEMO_CTX: canned results (badged as samples, no
@@ -8126,7 +8265,11 @@ async function runGroup(seedIds, ctx){
         if(!ctx.demo && !seedSet.has(id) && n._sig===sig && n.out && Object.keys(n.out).length){ showResult(n); setStatus(n, "done"); return; }
         setStatus(n, "run");
         if(ctx.demo) setNodeProgress(n, demoRunLabel());   // honest: it's a canned preview, not a live model call (t() is shadowed here by the node type)
-        try{ n.out = await t.run(rn, inp, ctx) || {};
+        // Flag-gated nanoodle-js delegation (see the block above runGroup). Only for the real CTX:
+        // demo runs and injected test contexts must keep the built-in runners they were handed.
+        // typeof guard: check harnesses extract runGroup alone, without the delegation shim.
+        const njsR = (ctx===CTX && typeof njsRunFor==="function") ? njsRunFor(n.type, rn, inp, n) : null;
+        try{ n.out = await (njsR ? njsR() : t.run(rn, inp, ctx)) || {};
           // a demo run must never mint a real signature — the first REAL run after sign-in has to
           // regenerate everything, not "skip" onto a canned sample via the seeded-result cache
           if(ctx.demo) delete n._sig; else n._sig = sig;
