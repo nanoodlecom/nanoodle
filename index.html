@@ -10933,7 +10933,7 @@ $("signout").onclick = ()=> setKey(null);
 (function(){
   // Same default + persisted key the app builder uses (play.html DEFAULT_MODEL / ngpt_app_model),
   // so "the model that writes your changes" is one consistent choice across Describe + Customize.
-  const DESCRIBE_DEFAULT_MODEL = "zai-org/glm-5.2:thinking";
+  const DESCRIBE_DEFAULT_MODEL = "moonshotai/kimi-k3";
   const DESCRIBE_MODEL_KEY = "ngpt_app_model";
   const DESCRIBE_APPLY_MODEL = "openai/gpt-5.4-mini";   // mechanical diff-apply fallback — same model play's apply phase rides (#253)
   const MEDIA_KEYS = new Set(["image","audio","video","mask"]);
@@ -11314,7 +11314,7 @@ RULES for the diff:
   else if(typeof addEventListener==="function") addEventListener("resize", syncHeight);
 
   // Model = the full searchable LLM list — the SAME popover the editor uses for nodes (openPicker).
-  // Default + persisted with the app builder's setting (ngpt_app_model / glm-5.2:thinking).
+  // Default + persisted with the app builder's setting (ngpt_app_model / kimi-k3).
   let descModel = "";
   try{ descModel = localStorage.getItem(DESCRIBE_MODEL_KEY) || ""; }catch(_){}
   if(!descModel) descModel = DESCRIBE_DEFAULT_MODEL;

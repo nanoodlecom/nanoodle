@@ -10,7 +10,7 @@
 //
 // Usage:
 //   NANOGPT_API_KEY=sk-... node scripts/translate-updates.mjs        # backfill
-//   node scripts/translate-updates.mjs --key sk-... --model zai-org/glm-5.2:thinking  # explicit
+//   node scripts/translate-updates.mjs --key sk-... --model moonshotai/kimi-k3  # explicit
 //   node scripts/translate-updates.mjs --dry-run                      # list gaps, no spend
 //
 // The editor UI languages (index.html I18N_LANGS). Keep in sync with check-updates.mjs.
@@ -34,7 +34,7 @@ const dryRun = argv.includes("--dry-run");
 const key = flag("--key", "-k") || process.env.NANOGPT_API_KEY || "";
 // Default to GLM-5.2's thinking variant for higher translation fidelity across the
 // five languages. Override with --model / NANOGPT_MODEL (e.g. plain zai-org/glm-5.2).
-const model = flag("--model", "-m") || process.env.NANOGPT_MODEL || "zai-org/glm-5.2:thinking";
+const model = flag("--model", "-m") || process.env.NANOGPT_MODEL || "moonshotai/kimi-k3";
 
 // don't-translate protected tokens — mirrors the localizer brief used to seed the backlog.
 // NOTE: labels the editor UI localizes (Run, My apps, Create app, Updates, Examples) are
