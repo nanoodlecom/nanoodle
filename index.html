@@ -807,7 +807,7 @@
             background:var(--panel2); border:1px solid var(--line); color:var(--ink); text-decoration:none;
             display:inline-flex; align-items:center; gap:.3rem; }
   .sm-svc button:hover, .sm-social a:hover{ background:var(--panel); border-color:var(--accent); }
-  /* da.gd is the default: it POSTs, so it survives the big #g=/#a= links TinyURL's GET can truncate.
+  /* nanolink — nanoodle's own first-party shortener — is the one shorten button.
      Emphasized (bright accent ring + ✓) but still clearly a button in the row, not a filled tag. */
   .sm-svc button.sm-primary{ background:#7c8cff22; border-color:var(--accent); color:var(--ink);
             font-weight:700; box-shadow:inset 0 0 0 1px var(--accent); }
@@ -981,7 +981,7 @@
   </div>
 </div>
 
-<!-- SHARE popover — copy / shorten (opt-in, 3rd-party) / share-to-social. Same as the app share. -->
+<!-- SHARE popover — copy / shorten (opt-in, first-party nanolink) / share-to-social. Same as the app share. -->
 <div id="sharemenu" hidden>
   <div class="sm-head">Share this workflow</div>
   <div class="sm-urlrow">
@@ -991,10 +991,9 @@
   <p class="sm-note">This link opens your exact workflow for anyone to run or remix.</p>
 
   <div class="sm-head">Make it shorter — optional</div>
-  <p class="sm-warn">Sends this link to a third-party shortener so <em>they</em> host it. They can see the workflow.</p>
+  <p class="sm-warn">Shortened by nanoodle’s own link service — no third party ever sees the workflow.</p>
   <div class="sm-svc">
-    <button data-svc="dagd" class="sm-primary" title="Recommended — handles very long links (workflow links can get big)">da.gd</button>
-    <button data-svc="tinyurl" title="Shorter domain, but can fail on very long links">TinyURL</button>
+    <button data-svc="nanolink" class="sm-primary" title="nanoodle’s own first-party shortener — handles very long links (workflow links can get big)">nanolink</button>
   </div>
   <p id="sm-toolong" class="sm-warn" hidden></p>
 
@@ -1100,8 +1099,7 @@ const I18N = {
     "Redo the last undone edit":"Rehacer la última edición deshecha",
     "Delete the selected node":"Eliminar el nodo seleccionado",
     "Language":"Idioma",
-    "Recommended — handles very long links (workflow links can get big)":"Recomendado — admite enlaces muy largos (los enlaces de flujo pueden crecer mucho)",
-    "Shorter domain, but can fail on very long links":"Dominio más corto, pero puede fallar con enlaces muy largos",
+    "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"El acortador propio de nanoodle — admite enlaces muy largos (los enlaces de flujo pueden crecer mucho)",
     "this model can’t hear audio — pick an audio-input model":"este modelo no puede oír audio — elige un modelo con entrada de audio",
     "Close":"Cerrar",
     "Close model picker":"Cerrar el selector de modelos",
@@ -1177,7 +1175,7 @@ const I18N = {
     "Open one of your saved apps — created or imported":"Abre una de tus apps guardadas — creadas o importadas",
     "Save this as a brand-new app — the one you’re editing stays untouched":"Guarda esto como una app totalmente nueva — la que estás editando queda intacta",
     "Search nodes… (image, voice, video)":"Buscar nodos… (imagen, voz, vídeo)",
-    "Sends this link to a third-party shortener so":"Envía este enlace a un acortador de terceros para que",
+    "Shortened by nanoodle’s own link service — no third party ever sees the workflow.":"Acortado por el propio servicio de enlaces de nanoodle — ningún tercero ve nunca el flujo.",
     "Got it":"Entendido",
     "Terms · Privacy":"Términos · Privacidad",
     "Open source":"Código abierto",
@@ -1214,7 +1212,6 @@ const I18N = {
     "how many frames":"cuántos fotogramas",
     "gap between frames (sec)":"intervalo entre fotogramas (seg)",
     "high":"alto",
-    "host it. They can see the workflow.":"lo alojan. Pueden ver el flujo.",
     "image":"imagen",
     "last frame":"último fotograma",
     "length (sec)":"longitud (seg)",
@@ -1568,8 +1565,7 @@ const I18N = {
     "Redo the last undone edit":"Rétablir la dernière modification annulée",
     "Delete the selected node":"Supprimer le nœud sélectionné",
     "Language":"Langue",
-    "Recommended — handles very long links (workflow links can get big)":"Recommandé — gère les liens très longs (les liens de workflow peuvent devenir volumineux)",
-    "Shorter domain, but can fail on very long links":"Domaine plus court, mais peut échouer sur les liens très longs",
+    "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"Le raccourcisseur maison de nanoodle — gère les liens très longs (les liens de workflow peuvent devenir volumineux)",
     "this model can’t hear audio — pick an audio-input model":"ce modèle ne peut pas entendre l’audio — choisissez un modèle à entrée audio",
     "Close":"Fermer",
     "Close model picker":"Fermer le sélecteur de modèles",
@@ -1651,7 +1647,7 @@ const I18N = {
     "Open one of your saved apps — created or imported":"Ouvrez une de vos apps enregistrées — créées ou importées",
     "Save this as a brand-new app — the one you’re editing stays untouched":"Enregistrer ceci comme une toute nouvelle app — celle que vous modifiez reste inchangée",
     "Search nodes… (image, voice, video)":"Rechercher des nœuds… (image, voix, vidéo)",
-    "Sends this link to a third-party shortener so":"Envoie ce lien à un raccourcisseur tiers pour que",
+    "Shortened by nanoodle’s own link service — no third party ever sees the workflow.":"Raccourci par le service de liens de nanoodle — aucun tiers ne voit jamais le workflow.",
     "Got it":"Compris",
     "Terms · Privacy":"Conditions · Confidentialité",
     "Open source":"Open source",
@@ -1688,7 +1684,6 @@ const I18N = {
     "how many frames":"combien d'images",
     "gap between frames (sec)":"écart entre les images (s)",
     "high":"élevé",
-    "host it. They can see the workflow.":"l’héberge. Ils peuvent voir le workflow.",
     "last frame":"dernière image",
     "length (sec)":"durée (s)",
     "low":"faible",
@@ -2036,8 +2031,7 @@ const I18N = {
     "Redo the last undone edit":"Letzte rückgängig gemachte Änderung wiederholen",
     "Delete the selected node":"Ausgewählten Knoten löschen",
     "Language":"Sprache",
-    "Recommended — handles very long links (workflow links can get big)":"Empfohlen — verarbeitet sehr lange Links (Workflow-Links können groß werden)",
-    "Shorter domain, but can fail on very long links":"Kürzere Domain, kann aber bei sehr langen Links fehlschlagen",
+    "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"nanoodles eigener Kürzungsdienst — verarbeitet sehr lange Links (Workflow-Links können groß werden)",
     "this model can’t hear audio — pick an audio-input model":"dieses Modell kann kein Audio hören — wähle ein Modell mit Audio-Eingang",
     "Close":"Schließen",
     "Close model picker":"Modellauswahl schließen",
@@ -2115,7 +2109,7 @@ const I18N = {
     "Open one of your saved apps — created or imported":"Öffne eine deiner gespeicherten Apps — erstellt oder importiert",
     "Save this as a brand-new app — the one you’re editing stays untouched":"Dies als brandneue App speichern — die, die du gerade bearbeitest, bleibt unverändert",
     "Search nodes… (image, voice, video)":"Nodes suchen… (Bild, Stimme, Video)",
-    "Sends this link to a third-party shortener so":"Sendet diesen Link an einen Drittanbieter-Kürzungsdienst, damit",
+    "Shortened by nanoodle’s own link service — no third party ever sees the workflow.":"Gekürzt über nanoodles eigenen Link-Dienst — kein Drittanbieter sieht jemals den Workflow.",
     "Got it":"Alles klar",
     "Terms · Privacy":"AGB · Datenschutz",
     "Open source":"Open Source",
@@ -2151,7 +2145,6 @@ const I18N = {
     "how many frames":"wie viele Frames",
     "gap between frames (sec)":"Abstand zwischen Frames (Sek.)",
     "high":"hoch",
-    "host it. They can see the workflow.":"es hosten. Der Dienst kann den Workflow sehen.",
     "image":"Bild",
     "last frame":"letztes Frame",
     "length (sec)":"Länge (Sek.)",
@@ -2504,8 +2497,7 @@ const I18N = {
     "Redo the last undone edit":"Refazer a última edição desfeita",
     "Delete the selected node":"Excluir o nó selecionado",
     "Language":"Idioma",
-    "Recommended — handles very long links (workflow links can get big)":"Recomendado — aceita links muito longos (links de fluxo podem ficar grandes)",
-    "Shorter domain, but can fail on very long links":"Domínio mais curto, mas pode falhar com links muito longos",
+    "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"O encurtador próprio do nanoodle — aceita links muito longos (links de fluxo podem ficar grandes)",
     "this model can’t hear audio — pick an audio-input model":"este modelo não consegue ouvir áudio — escolha um modelo com entrada de áudio",
     "Close":"Fechar",
     "Close model picker":"Fechar o seletor de modelos",
@@ -2582,7 +2574,7 @@ const I18N = {
     "Open one of your saved apps — created or imported":"Abra um dos seus apps salvos — criados ou importados",
     "Save this as a brand-new app — the one you’re editing stays untouched":"Salve isto como um app totalmente novo — o que você está editando permanece inalterado",
     "Search nodes… (image, voice, video)":"Buscar nós… (imagem, voz, vídeo)",
-    "Sends this link to a third-party shortener so":"Envia este link para um encurtador de terceiros para",
+    "Shortened by nanoodle’s own link service — no third party ever sees the workflow.":"Encurtado pelo próprio serviço de links do nanoodle — nenhum terceiro jamais vê o fluxo.",
     "Got it":"Entendi",
     "Terms · Privacy":"Termos · Privacidade",
     "Open source":"Código aberto",
@@ -2620,7 +2612,6 @@ const I18N = {
     "how many frames":"quantos quadros",
     "gap between frames (sec)":"intervalo entre quadros (seg)",
     "high":"alto",
-    "host it. They can see the workflow.":"hospede-o. Eles podem ver o fluxo.",
     "image":"imagem",
     "last frame":"último quadro",
     "length (sec)":"duração (seg)",
@@ -2972,8 +2963,7 @@ const I18N = {
     "Redo the last undone edit":"元に戻した編集をやり直す",
     "Delete the selected node":"選択したノードを削除",
     "Language":"言語",
-    "Recommended — handles very long links (workflow links can get big)":"推奨 — とても長いリンクにも対応（ワークフローのリンクは大きくなりがちです）",
-    "Shorter domain, but can fail on very long links":"ドメインは短いですが、とても長いリンクでは失敗することがあります",
+    "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"nanoodle自身の短縮サービス — とても長いリンクにも対応（ワークフローのリンクは大きくなりがちです）",
     "this model can’t hear audio — pick an audio-input model":"このモデルは音声を聞けません — 音声入力対応のモデルを選んでください",
     "Close":"閉じる",
     "Close model picker":"モデル選択を閉じる",
@@ -3047,7 +3037,7 @@ const I18N = {
     "Open one of your saved apps — created or imported":"保存したアプリを開く — 作成またはインポートしたもの",
     "Save this as a brand-new app — the one you’re editing stays untouched":"これを新しいアプリとして保存 — 編集中のアプリはそのまま残ります",
     "Search nodes… (image, voice, video)":"ノードを検索… (画像、音声、動画)",
-    "Sends this link to a third-party shortener so":"このリンクをサードパーティの短縮サービスに送信するので",
+    "Shortened by nanoodle’s own link service — no third party ever sees the workflow.":"nanoodle自身のリンクサービスで短縮 — 第三者がワークフローを見ることはありません。",
     "Got it":"了解",
     "Terms · Privacy":"利用規約 · プライバシー",
     "Open source":"オープンソース",
@@ -3086,7 +3076,6 @@ const I18N = {
     "how many frames":"フレーム数",
     "gap between frames (sec)":"フレーム間の間隔 (秒)",
     "high":"高",
-    "host it. They can see the workflow.":"ホストします。相手はワークフローを見ることができます。",
     "image":"画像",
     "last frame":"最後のフレーム",
     "length (sec)":"長さ (秒)",
@@ -9986,8 +9975,9 @@ function shrinkShareMedia(src){
   });
 }
 // Samples are the recipient's pre-sign-in preview, but a link the pipeline can't carry shows
-// nobody anything: past the da.gd ceiling no shortener accepts it and the social intents reject
-// it outright. Pack full samples → samples with inlined media re-encoded smaller (via the
+// nobody anything: past the SHARE_FIT_MAX budget messengers cut the raw link and the social
+// intents reject it outright (nanolink could store far more — the RAW link is the constraint).
+// Pack full samples → samples with inlined media re-encoded smaller (via the
 // injected shrinkMedia, browser-canvas only — the offline guard runs this function without it)
 // → samples minus inlined media (data: thumbs are the only heavy values; play.html's sample
 // packer caps text ~1.5k, remote media URLs ≤2k) → none, and ship the first link that fits.
@@ -10025,13 +10015,13 @@ async function packShareFit(base, samples, urlPrefix, shrinkMedia){
   if(all.length) tiers.push({ s:[], stripped:"all" });
   const packed = [];
   for(const t of tiers) packed.push({ ...t, url: await pack(t.s.length ? { ...base, samples:t.s } : base) });
-  const fitT = packed.find(p=> p.url.length <= SHORTEN_CEILING.dagd) || packed[0];
+  const fitT = packed.find(p=> p.url.length <= SHARE_FIT_MAX) || packed[0];
   const out = { url: fitT.url, hasSample: fitT.s.length>0, stripped: fitT.stripped };
   if(hasMedia){
     const isMediaTier = (p)=> p.stripped===null || p.stripped==="shrunk";
     const withMedia = packed.filter(isMediaTier), sansMedia = packed.filter(p=> !isMediaTier(p));
     if(withMedia.length && sansMedia.length){
-      const m = withMedia.find(p=> p.url.length <= SHORTEN_CEILING.dagd) || withMedia[0];
+      const m = withMedia.find(p=> p.url.length <= SHARE_FIT_MAX) || withMedia[0];
       out.alt = { media: m.url, noMedia: sansMedia[0].url };
     }
   }
@@ -10065,7 +10055,7 @@ async function buildShareUrl(target){
         })();
         // Never-Customized apps ride files-less (twin of play.html doShare): the default
         // shell+css are regenerable from the graph by play.html at open time, and they
-        // dominate the link (~9.0k of a ~9.6k basic-app #a= — past the 9k da.gd ceiling on
+        // dominate the link (~9.0k of a ~9.6k basic-app #a= — past the 9k share-fit budget on
         // their own, so every basic share read "Too long to shorten"). Only the app's name
         // isn't graph-derivable — ship it as the tiny `name` field. Any version beyond the
         // base means a Customize pass (library entries always persist versions), so those —
@@ -10087,34 +10077,38 @@ async function buildShareUrl(target){
   if(target==="app") return location.origin + "/play.html" + hash;     // real file → resolves on the live site and locally
   return location.origin + location.pathname + location.search + hash;
 }
-// URL shorteners (TinyURL GET, da.gd POST for long links). The editor's connect-src allows https:
-// and runs only first-party code over declarative graphs — no untrusted app — so calling a
-// shortener here has no exfiltration surface (unlike play.html's preview, sealed by PREVIEW_CSP).
-// Hard ceilings, probed 2026-07-10. TinyURL's GET 431/520s past ~20k URL chars. da.gd's POST
-// *accepts* ~64k — but the short link it hands back then HANGS on load for most recipients:
-// da.gd is Cloudflare-fronted and speaks HTTP/3, and CF's h3 edge silently stalls mid-response
-// once the 302's header block gets big (da.gd echoes the FULL target URL twice — Location +
-// x-original-url). Forced-h3 netlog bisect: a ~10k target loads, ~12k hangs forever. So the
-// binding da.gd limit is the recipient-loadable one (~9k, with margin), NOT what da.gd will
-// store — do NOT raise it back toward 64k or you mint links that 302 into a dead spinner. (Our
-// own zone is the same CF edge but serves small headers, so direct long links load fine; don't
-// disable h3 on our side — wrong hop.) A workflow with images baked in beats this easily — grey
-// the buttons and say why up front instead of handing out a redirect that hangs.
-const SHORTEN_CEILING = { tinyurl: 19000, dagd: 9000 };
+// URL shortening — FIRST-PARTY via nanolink (github.com/nanoodlecom/nanolink), our own
+// Cloudflare Worker + KV. It replaced the third-party shorteners (da.gd/TinyURL), which saw
+// every shortened workflow — a privacy hole in a product whose promise is "no third parties".
+// The editor's connect-src allows https: and runs only first-party code over declarative
+// graphs — no untrusted app — so calling the shortener here has no exfiltration surface
+// (unlike play.html's preview, sealed by PREVIEW_CSP).
+// NANOLINK_ORIGIN is the deployed worker (canonical host; see the nanolink repo's
+// "Deploy for nanoodle.com" quickstart). If it isn't deployed or reachable, shortenWith
+// fails fast and the popover keeps offering the full-length link — which always works.
+const NANOLINK_ORIGIN = "https://link.nanoodle.com";
+// nanolink stores URLs up to 128 KiB (its MAX_URL_LENGTH) and answers GET /<slug> with a
+// 200 HTML "body bounce" — the target URL rides in the response BODY — so the old da.gd
+// hazard (Cloudflare's h3 edge stalling on >~10k Location headers) doesn't apply. Past the
+// ceiling the button greys out with a note instead of round-tripping into a guaranteed 4xx.
+const SHORTEN_CEILING = { nanolink: 131072 };
+// Even though nanolink can store ~128 kB, the RAW link is what most people paste into chat
+// apps, and messengers reliably cut multi-kB URLs — so packShareFit keeps trimming the share
+// payload toward this budget (the same ~9k figure the old shortener pipeline imposed).
+const SHARE_FIT_MAX = 9000;
 async function shortenWith(svc, longUrl){
   const max = SHORTEN_CEILING[svc];   // fail fast (and cheap) on links the service is known to reject
-  if(max && longUrl.length > max) throw new Error(`link is ${(longUrl.length/1024).toFixed(0)} kB — past the ~${Math.round(max/1000)} kB ${svc==="dagd"?"da.gd":"TinyURL"} shortens to a link that reliably loads`);
-  let r, t;
-  if(svc==="tinyurl"){
-    r = await fetch("https://tinyurl.com/api-create.php?url="+encodeURIComponent(longUrl));
-    t = (await r.text()).trim();
-  } else if(svc==="dagd"){
-    r = await fetch("https://da.gd/shorten", { method:"POST",
-        headers:{ "Content-Type":"application/x-www-form-urlencoded" }, body:"url="+encodeURIComponent(longUrl) });
-    t = (await r.text()).trim();
-  } else { throw new Error("unknown service"); }
-  // Failure bodies are often whole HTML error pages — report the status, not tag soup.
-  if(!/^https?:\/\/\S+$/.test(t)) throw new Error(t.startsWith("<") ? "HTTP "+r.status : (t.slice(0,80) || "no link returned"));
+  if(max && longUrl.length > max) throw new Error(`link is ${(longUrl.length/1024).toFixed(0)} kB — past the ~${Math.round(max/1024)} kB nanolink can store`);
+  if(svc!=="nanolink") throw new Error("unknown service");
+  // POST /api/links → {slug, shortUrl}. A few-second timeout: shortening is a nicety and the
+  // full-length link in the popover always works, so ANY failure just falls back to it.
+  const r = await fetch(NANOLINK_ORIGIN + "/api/links", { method:"POST",
+      headers:{ "Content-Type":"application/json" }, body:JSON.stringify({ url: longUrl }),
+      signal: AbortSignal.timeout(5000) });
+  let d = null; try{ d = await r.json(); }catch(_){}
+  if(!r.ok) throw new Error((d && d.error) ? d.error : "HTTP "+r.status);
+  const t = (d && typeof d.shortUrl==="string") ? d.shortUrl.trim() : "";
+  if(!/^https?:\/\/\S+$/.test(t)) throw new Error("no link returned");
   return t;
 }
 async function shareUrl(){
@@ -10156,16 +10150,16 @@ function setShareUrl(u){
 // twitter/reddit/facebook reject or truncate multi-KB URLs — a raw #g= link kills the share at
 // the exact moment someone tries to spread the workflow. Above this length, auto-shorten first.
 const SOCIAL_SHORTEN_MAX = 2000;
-// Reflect what the shorteners can actually take for the CURRENT link: per-service disable,
-// plus a note when no service can help. The attempt handler blanket-disables the buttons
+// Reflect what the shortener can actually take for the CURRENT link: disable the button,
+// plus a note when shortening can't help. The attempt handler blanket-disables the buttons
 // while a shorten is in flight, so its finally must restore through here too.
 function syncShortenButtons(){
-  const len = curLongShareUrl.length, over = len > SHORTEN_CEILING.dagd;
+  const len = curLongShareUrl.length, over = len > SHORTEN_CEILING.nanolink;
   document.querySelectorAll("#sharemenu .sm-svc button").forEach(b=> b.disabled = len > (SHORTEN_CEILING[b.dataset.svc] || Infinity));
   const note = $("sm-toolong");
   note.hidden = !over;
   if(over) note.textContent = `Too long to shorten (${(len/1024).toFixed(0)} kB — baked-in images do that). Chat apps can also cut a link this long — ✨ Create app, then Export it as a file, to share something this big.`;
-  // Social intents need a short link, and past the da.gd ceiling no shortener can make one — the
+  // Social intents need a short link, and past the nanolink ceiling no shortener can make one — the
   // whole "Share to" row is a guaranteed dead end (X/Reddit/Facebook reject multi-kB URLs, mail
   // clients cut multi-kB bodies). Blank the row (and its heading) rather than dangle broken buttons.
   const social = document.querySelector("#sharemenu .sm-social");
@@ -10300,16 +10294,16 @@ document.querySelectorAll("#sharemenu .sm-svc button").forEach(btn => btn.onclic
     const ok = await copyText(short);
     toast(ok ? `✓ Short link copied — via ${label}` : `Short link ready — copy it above`, ok?"":"err");
   }catch(e){
-    toast(longUrl.length > SHORTEN_CEILING.dagd
+    toast(longUrl.length > SHORTEN_CEILING.nanolink
       ? `Too long to shorten (${(longUrl.length/1024).toFixed(0)} kB) — share the full link, or ✨ Create app + Export to share a file`
-      : `${label} couldn't shorten it (${e.message}) — try da.gd for very long links, or share the full link`, "err");
+      : `${label} couldn't shorten it (${e.message}) — share the full link instead, it always works`, "err");
   }finally{ btn.textContent = o; syncShortenButtons(); }
 });
 document.querySelectorAll('#sharemenu .sm-social a[data-soc="email"]').forEach(a=> a.onclick = ()=> closeShareMenu());
 // x/reddit/facebook: when the link the popover reflects is still long (a raw #g= workflow link),
 // auto-shorten it before opening the intent — the social sites reject/truncate multi-KB URLs. The
 // window is opened SYNCHRONOUSLY on click (so the async shorten doesn't trip the popup blocker),
-// then pointed at the short intent once da.gd resolves. On shortener failure we CLOSE the window
+// then pointed at the short intent once nanolink resolves. On shortener failure we CLOSE the window
 // and say why — the long intent is a guaranteed reject at the social site, so "falling back" to it
 // just moves the failure somewhere we can't explain it. If the link was already shortened
 // (manual ✂ button), curShareUrl is short, so the anchor just opens normally.
@@ -10323,7 +10317,7 @@ document.querySelectorAll('#sharemenu .sm-social a:not([data-soc="email"])').for
     const t = document.createElement("a"); t.href = href; t.target = "_blank"; t.rel = "noopener";   // popup blocked: best-effort new tab
     document.body.appendChild(t); t.click(); t.remove();
   };
-  shortenWith("dagd", curLongShareUrl).then(short => go(socLinks(short)[soc]))
+  shortenWith("nanolink", curLongShareUrl).then(short => go(socLinks(short)[soc]))
     .catch(()=>{ try{ if(win) win.close(); }catch(_){} toast("couldn't shorten the link for the post, and the full one is too long to post raw — copy it from Share instead", "err"); });
   closeShareMenu();
 });

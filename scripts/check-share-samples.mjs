@@ -23,7 +23,7 @@
 //  S10. sample badge i18n keys exist in PLAY_I18N (5 languages) + badge is auth-aware
 //  S11. pre-commit trigger fires on every file this checker asserts (index.html too)
 //  S12. never-Customized apps share files-less (name field + graph rebuild) so a basic
-//       app's #a= link fits the 9k da.gd shortener ceiling; old files links still decode
+//       app's #a= link fits the 9k SHARE_FIT_MAX raw-link budget; old files links still decode
 
 import { readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
@@ -85,14 +85,15 @@ ok("S1c", /type:\s*["']__samples__["']/.test(html), "__samples__ reply missing")
 const doShare = extractFn(html, "doShare");
 ok("S1d", /askAppSamples\s*\(/.test(doShare), "doShare does not ask for samples");
 // Since 2026-07-10 the packing (and its size ceiling) live in packShareFit: it fits the
-// link under the da.gd shortener ceiling by stripping inlined media first, whole samples
-// second, and reports the cut. check-share-link.mjs runs its tiering logic for real; here
+// link under the SHARE_FIT_MAX raw-link budget (messengers cut multi-kB URLs; nanolink
+// could store far more) by stripping inlined media first, whole samples second, and
+// reports the cut. check-share-link.mjs runs its tiering logic for real; here
 // we pin that doShare actually routes through it and that samples reach the payload.
 const packFit = extractFn(html, "packShareFit");
 ok("S1e", /packShareFit\s*\(/.test(doShare) && /\bsamples\b/.test(doShare) && /samples\s*:/.test(packFit),
   "doShare does not pack samples into the #a= payload via packShareFit");
-ok("S1f", /SHORTEN_CEILING\.dagd/.test(packFit),
-  "packShareFit missing the shortener-ceiling size fit for samples");
+ok("S1f", /SHARE_FIT_MAX/.test(packFit),
+  "packShareFit missing the SHARE_FIT_MAX size fit for samples");
 
 // ---- S1g: editor buildShareUrl("app") packs samples + lang (parity with doShare)
 // Cookoff Submit / editor "share as app" used to ship {v,graph,files} only, so
@@ -110,7 +111,7 @@ ok("S1f", /SHORTEN_CEILING\.dagd/.test(packFit),
   let idxPackFit = "";
   try { idxPackFit = extractFn(idxHtml, "packShareFit"); }
   catch (e) { fail("S1i", "index.html packShareFit missing: " + e.message); }
-  ok("S1i", /packShareFit\s*\(/.test(buildShare) && /SHORTEN_CEILING\.dagd/.test(idxPackFit),
+  ok("S1i", /packShareFit\s*\(/.test(buildShare) && /SHARE_FIT_MAX/.test(idxPackFit),
     "editor buildShareUrl missing the packShareFit size fit for samples (must match doShare)");
   // Lang parity with play's bakedAppLang(): stored app.lang, else the creator's EXPLICIT
   // editor choice (localStorage noodle_lang) — the two share paths must bake the same lang.
@@ -280,7 +281,7 @@ ok("S9c", /shareableGraph\s*\(/.test(doShare), "doShare must still call shareabl
 
 // ---- S12: never-Customized apps share files-less ------------------------------
 // The default shell+css (files, dominated by the ~21k app.css) were ~9.0k of a ~9.6k
-// basic-app #a= link — past the 9k da.gd ceiling on their own, so EVERY uncustomized
+// basic-app #a= link — past the 9k share-fit budget on their own, so EVERY uncustomized
 // share read "Too long to shorten". Both encoders must gate `files` on a real Customize
 // pass (any version beyond the base) and ship the tiny `name` field instead; the #a=
 // decoder rebuilds the default shell from the graph and re-applies the name. Old links
@@ -288,7 +289,7 @@ ok("S9c", /shareableGraph\s*\(/.test(doShare), "doShare must still call shareabl
 {
   ok("S12a", /\.\.\.\(\s*_customized\s*\?\s*\{\s*files\s*:\s*_files\s*\}/.test(doShare)
           && /versions\)\s*&&\s*APP_STATE\.versions\.length\s*>\s*1/.test(doShare),
-    "doShare no longer gates files on a Customize pass (versions>1) — basic-app links regress past the 9k da.gd ceiling");
+    "doShare no longer gates files on a Customize pass (versions>1) — basic-app links regress past the 9k share-fit budget");
   ok("S12b", /name\s*:\s*_name/.test(doShare),
     "doShare's files-less share must carry the app name (the one non-graph-derivable piece)");
   let loadHash = "";

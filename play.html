@@ -174,7 +174,7 @@
             background:var(--panel2); border:1px solid var(--line); color:var(--text); text-decoration:none;
             display:inline-flex; align-items:center; gap:.3rem; }
   .sm-svc button:hover, .sm-social a:hover{ background:var(--accent-soft); border-color:var(--accent-line); }
-  /* da.gd is the default: it POSTs, so it survives the big #a= links TinyURL's GET can truncate.
+  /* nanolink — nanoodle's own first-party shortener — is the one shorten button.
      Emphasized (bright accent ring + ✓) but still clearly a button in the row, not a filled tag. */
   .sm-svc button.sm-primary{ background:var(--accent-soft); border-color:var(--accent); color:var(--text);
             font-weight:700; box-shadow:inset 0 0 0 1px var(--accent); }
@@ -429,7 +429,7 @@
 </div>
 <div id="appsback" hidden></div>
 
-<!-- SHARE popover — copy / shorten (opt-in, 3rd-party) / share-to-social. All client-side. -->
+<!-- SHARE popover — copy / shorten (opt-in, first-party nanolink) / share-to-social. All client-side. -->
 <div id="sharemenu" hidden>
   <div class="am-head">Share this app</div>
   <div class="sm-urlrow">
@@ -444,10 +444,9 @@
   </label>
 
   <div class="am-head">Make it shorter — optional</div>
-  <p class="sm-warn" data-no-i18n>Sends this link to a third-party shortener so <em>they</em> host it. They can see the app.</p>
+  <p class="sm-warn" data-no-i18n>Shortened by nanoodle’s own link service — no third party ever sees the app.</p>
   <div class="sm-svc">
-    <button data-svc="dagd" class="sm-primary" title="Recommended — handles very long links (app links can get big)">da.gd</button>
-    <button data-svc="tinyurl" title="Shorter domain, but can fail on very long links">TinyURL</button>
+    <button data-svc="nanolink" class="sm-primary" title="nanoodle’s own first-party shortener — handles very long links (app links can get big)">nanolink</button>
   </div>
   <p id="sm-toolong" class="sm-warn" hidden></p>
 
@@ -4842,7 +4841,6 @@ const PLAY_I18N_B = {
   "Copy":{es:"Copiar",fr:"Copier",de:"Kopieren",pt:"Copiar",ja:"コピー"},
   "Make it shorter — optional":{es:"Hazlo más corto — opcional",fr:"Raccourcir — facultatif",de:"Kürzer machen — optional",pt:"Torne mais curto — opcional",ja:"短くする — 任意"},
   "Keep the preview image in the link":{es:"Mantener la imagen de vista previa en el enlace",fr:"Garder l’image d’aperçu dans le lien",de:"Vorschaubild im Link behalten",pt:"Manter a imagem de prévia no link",ja:"プレビュー画像をリンクに残す"},
-  "Shorter domain, but can fail on very long links":{es:"Dominio más corto, pero puede fallar con enlaces muy largos",fr:"Domaine plus court, mais peut échouer sur les liens très longs",de:"Kürzere Domain, kann aber bei sehr langen Links fehlschlagen",pt:"Domínio mais curto, mas pode falhar com links muito longos",ja:"ドメインは短いですが、とても長いリンクでは失敗することがあります"},
   "Share to":{es:"Compartir en",fr:"Partager sur",de:"Teilen auf",pt:"Compartilhar em",ja:"共有先"},
   "paste NanoGPT API key (sk-nano-… or a UUID)":{es:"pega la clave API de NanoGPT (sk-nano-… o un UUID)",fr:"collez la clé API NanoGPT (sk-nano-… ou un UUID)",de:"NanoGPT API-Schlüssel einfügen (sk-nano-… oder UUID)",pt:"cole a chave de API NanoGPT (sk-nano-… ou um UUID)",ja:"NanoGPT APIキーを貼り付け (sk-nano-… または UUID)"},
   "✦ Apply":{es:"✦ Aplicar",fr:"✦ Appliquer",de:"✦ Anwenden",pt:"✦ Aplicar",ja:"✦ 適用"},
@@ -4865,7 +4863,7 @@ const PLAY_I18N_B = {
   "＋ New app from this workflow":{es:"＋ Nueva app desde este flujo",fr:"＋ Nouvelle app depuis ce flux",de:"＋ Neue App aus diesem Workflow",pt:"＋ Novo app a partir deste fluxo",ja:"＋ このワークフローから新規アプリ"},
   "New app from this workflow":{es:"Nueva app desde este flujo",fr:"Nouvelle app depuis ce flux",de:"Neue App aus diesem Workflow",pt:"Novo app a partir deste fluxo",ja:"このワークフローから新規アプリ"},
   "Share this app":{es:"Comparte esta app",fr:"Partager cette app",de:"Diese App teilen",pt:"Compartilhe este app",ja:"このアプリを共有"},
-  "Recommended — handles very long links (app links can get big)":{es:"Recomendado — admite enlaces muy largos (los enlaces de apps pueden crecer mucho)",fr:"Recommandé — gère les liens très longs (les liens d’app peuvent devenir gros)",de:"Empfohlen — verarbeitet sehr lange Links (App-Links können groß werden)",pt:"Recomendado — lida com links muito longos (links de apps podem ficar grandes)",ja:"推奨 — とても長いリンクにも対応（アプリのリンクは大きくなることがあります）"},
+  "nanoodle’s own first-party shortener — handles very long links (app links can get big)":{es:"El acortador propio de nanoodle — admite enlaces muy largos (los enlaces de apps pueden crecer mucho)",fr:"Le raccourcisseur maison de nanoodle — gère les liens très longs (les liens d’app peuvent devenir gros)",de:"nanoodles eigener Kürzungsdienst — verarbeitet sehr lange Links (App-Links können groß werden)",pt:"O encurtador próprio do nanoodle — lida com links muito longos (links de apps podem ficar grandes)",ja:"nanoodle自身の短縮サービス — とても長いリンクにも対応（アプリのリンクは大きくなることがあります）"},
   "save key":{es:"guardar clave",fr:"enregistrer la clé",de:"Schlüssel speichern",pt:"salvar chave",ja:"キーを保存"},
   "Open a workflow from the editor":{es:"Abre un flujo desde el editor",fr:"Ouvrir un flux depuis l’éditeur",de:"Öffne einen Workflow aus dem Editor",pt:"Abra um fluxo no editor",ja:"エディターからワークフローを開く"},
   "→ Open the editor":{es:"→ Abrir el editor",fr:"→ Ouvrir l’éditeur",de:"→ Editor öffnen",pt:"→ Abrir o editor",ja:"→ エディターを開く"},
@@ -10668,9 +10666,9 @@ function bundle(files){
 // PREVIEW_CSP: a per-app <meta> CSP that re-seals the iframe's network egress to exactly
 // what an app legitimately needs (self / blob: / nano-gpt). The srcdoc inherits the parent
 // /play header CSP, and the browser enforces EVERY delivered policy — so even though that
-// header now also lists the URL shorteners (for the trusted Share UI in the parent chrome),
-// this tighter connect-src wins by intersection and a malicious shared app still cannot
-// fetch-exfiltrate the viewer's inputs/outputs to da.gd/tinyurl. Preview-only: the
+// header allows https: (for the trusted Share UI's nanolink shorten call and output
+// persistence in the parent chrome), this tighter connect-src wins by intersection and a
+// malicious shared app still cannot fetch-exfiltrate the viewer's inputs/outputs anywhere. Preview-only: the
 // exported bundle never carries this (it sets its own headers / runs standalone from file://).
 const PREVIEW_CSP =
   '<meta http-equiv="Content-Security-Policy" content="connect-src \'self\' blob: https://nano-gpt.com">';
@@ -12131,8 +12129,9 @@ function shrinkShareMedia(src){
   });
 }
 // Samples are the recipient's pre-sign-in preview, but a link the pipeline can't carry shows
-// nobody anything: past the da.gd ceiling no shortener accepts it and the social intents reject
-// it outright. Pack full samples → samples with inlined media re-encoded smaller (via the
+// nobody anything: past the SHARE_FIT_MAX budget messengers cut the raw link and the social
+// intents reject it outright (nanolink could store far more — the RAW link is the constraint).
+// Pack full samples → samples with inlined media re-encoded smaller (via the
 // injected shrinkMedia, browser-canvas only — the offline guard runs this function without it)
 // → samples minus inlined media (data: thumbs are the only heavy values; text is capped ~1.5k,
 // remote media URLs ≤2k) → none, and ship the first link that fits. sanitizeSamples'
@@ -12170,13 +12169,13 @@ async function packShareFit(base, samples, urlPrefix, shrinkMedia){
   if(all.length) tiers.push({ s:[], stripped:"all" });
   const packed = [];
   for(const t of tiers) packed.push({ ...t, url: await pack(t.s.length ? { ...base, samples:t.s } : base) });
-  const fitT = packed.find(p=> p.url.length <= SHORTEN_CEILING.dagd) || packed[0];
+  const fitT = packed.find(p=> p.url.length <= SHARE_FIT_MAX) || packed[0];
   const out = { url: fitT.url, hasSample: fitT.s.length>0, stripped: fitT.stripped };
   if(hasMedia){
     const isMediaTier = (p)=> p.stripped===null || p.stripped==="shrunk";
     const withMedia = packed.filter(isMediaTier), sansMedia = packed.filter(p=> !isMediaTier(p));
     if(withMedia.length && sansMedia.length){
-      const m = withMedia.find(p=> p.url.length <= SHORTEN_CEILING.dagd) || withMedia[0];
+      const m = withMedia.find(p=> p.url.length <= SHARE_FIT_MAX) || withMedia[0];
       out.alt = { media: m.url, noMedia: sansMedia[0].url };
     }
   }
@@ -12190,7 +12189,7 @@ async function doShare(){
     const _id = CUR_ID, _graph = APP_STATE.graph, _files = APP_STATE.files, _stored = APP_STATE.samples;
     // Never-Customized apps ride files-less: the default shell+css are regenerable from the
     // graph by the recipient's play.html (installApp already falls back to defaultFiles()),
-    // and they dominate the link — ~9.0k of a ~9.6k basic-app #a=, past the 9k da.gd ceiling
+    // and they dominate the link — ~9.0k of a ~9.6k basic-app #a=, past the 9k share-fit budget
     // on their own, so every basic share read "Too long to shorten". Only the creator's name
     // isn't graph-derivable, so it rides as a tiny `name` field instead. A Customize pass
     // (any version beyond the base) is real hand-made polish — those keep shipping files.
@@ -12239,7 +12238,7 @@ async function doShare(){
   }catch(e){ toast("share failed: "+e.message, "err"); }
 }
 
-// ---- share popover: copy / shorten (opt-in 3rd-party) / share-to-social. All client-side. ----
+// ---- share popover: copy / shorten (opt-in, first-party nanolink) / share-to-social. All client-side. ----
 // Build the share-to-<service> intent URLs for a given link. Factored out so the social
 // buttons can rebuild them against a freshly-shortened link at click time (see below).
 function socLinks(u){
@@ -12261,30 +12260,35 @@ function setShareUrl(u){
 // twitter/reddit/facebook reject or truncate multi-KB URLs — a raw #a= app link kills the share at
 // the exact moment someone tries to spread it. Above this length, auto-shorten first.
 const SOCIAL_SHORTEN_MAX = 2000;
-// Hard ceilings, probed 2026-07-10. TinyURL's GET 431/520s past ~20k URL chars. da.gd's POST
-// *accepts* ~64k — but the short link it hands back then HANGS on load for most recipients:
-// da.gd is Cloudflare-fronted and speaks HTTP/3, and CF's h3 edge silently stalls mid-response
-// once the 302's header block gets big (da.gd echoes the FULL target URL twice — Location +
-// x-original-url). Forced-h3 netlog bisect: a ~10k target loads, ~12k hangs forever. So the
-// binding da.gd limit is the recipient-loadable one (~9k, with margin), NOT what da.gd will
-// store — do NOT raise it back toward 64k or you mint links that 302 into a dead spinner. (Our
-// own zone is the same CF edge but serves small headers, so direct long links load fine; don't
-// disable h3 on our side — wrong hop.) An app with images baked in beats this easily — grey the
-// buttons and say why up front instead of handing out a redirect that hangs.
-const SHORTEN_CEILING = { tinyurl: 19000, dagd: 9000 };
-// Reflect what the shorteners can actually take for the CURRENT link: per-service disable,
-// plus a note when no service can help. The attempt handler blanket-disables the buttons
+// URL shortening — FIRST-PARTY via nanolink (github.com/nanoodlecom/nanolink), our own
+// Cloudflare Worker + KV. It replaced the third-party shorteners (da.gd/TinyURL), which saw
+// every shortened app — a privacy hole in a product whose promise is "no third parties".
+// NANOLINK_ORIGIN is the deployed worker (canonical host; see the nanolink repo's
+// "Deploy for nanoodle.com" quickstart). If it isn't deployed or reachable, shortenWith
+// fails fast and the popover keeps offering the full-length link — which always works.
+const NANOLINK_ORIGIN = "https://link.nanoodle.com";
+// nanolink stores URLs up to 128 KiB (its MAX_URL_LENGTH) and answers GET /<slug> with a
+// 200 HTML "body bounce" — the target URL rides in the response BODY — so the old da.gd
+// hazard (Cloudflare's h3 edge stalling on >~10k Location headers) doesn't apply. Past the
+// ceiling the button greys out with a note instead of round-tripping into a guaranteed 4xx.
+const SHORTEN_CEILING = { nanolink: 131072 };
+// Even though nanolink can store ~128 kB, the RAW link is what most people paste into chat
+// apps, and messengers reliably cut multi-kB URLs — so packShareFit keeps trimming the share
+// payload toward this budget (the same ~9k figure the old shortener pipeline imposed).
+const SHARE_FIT_MAX = 9000;
+// Reflect what the shortener can actually take for the CURRENT link: disable the button,
+// plus a note when shortening can't help. The attempt handler blanket-disables the buttons
 // while a shorten is in flight, so its finally must restore through here too.
 function syncShortenButtons(){
-  const len = longShareUrl.length, over = len > SHORTEN_CEILING.dagd;
+  const len = longShareUrl.length, over = len > SHORTEN_CEILING.nanolink;
   document.querySelectorAll("#sharemenu .sm-svc button").forEach(b=> b.disabled = len > (SHORTEN_CEILING[b.dataset.svc] || Infinity));
   const note = $("sm-toolong");
   note.hidden = !over;
   if(over) note.textContent = `Too long to shorten (${(len/1024).toFixed(0)} kB — baked-in images do that). ` +
-    (shareAlt && shareAlt.noMedia.length <= SHORTEN_CEILING.dagd
+    (shareAlt && shareAlt.noMedia.length <= SHORTEN_CEILING.nanolink
       ? "Untick the preview image above and this link slims right down."
       : "Chat apps can also cut a link this long — Export shares the app as a file instead.");
-  // Social intents need a short link, and past the da.gd ceiling no shortener can make one — the
+  // Social intents need a short link, and past the nanolink ceiling no shortener can make one — the
   // whole "Share to" row is a guaranteed dead end (X/Reddit/Facebook reject multi-kB URLs, mail
   // clients cut multi-kB bodies). Blank the row (and its heading) rather than dangle broken buttons.
   const social = document.querySelector("#sharemenu .sm-social");
@@ -12307,23 +12311,21 @@ function openShareMenu(url, alt){
 }
 function closeShareMenu(){ $("sharemenu").hidden = true; $("shareback").hidden = true; $("share").setAttribute("aria-expanded","false"); }
 
-// SHORTEN — direct client-side fetch to the chosen service (no nanoodle backend in the path).
-// Both return the short URL as plain text and preserve our #a= fragment through the redirect.
+// SHORTEN — direct client-side fetch to our own nanolink worker (first-party; no third
+// party in the path). The body-bounce short link preserves our #a= fragment on load.
 async function shortenWith(svc, longUrl){
   const max = SHORTEN_CEILING[svc];   // fail fast (and cheap) on links the service is known to reject
-  if(max && longUrl.length > max) throw new Error(`link is ${(longUrl.length/1024).toFixed(0)} kB — past the ~${Math.round(max/1000)} kB ${svc==="dagd"?"da.gd":"TinyURL"} shortens to a link that reliably loads`);
-  let r, t;
-  if(svc==="tinyurl"){
-    r = await fetch("https://tinyurl.com/api-create.php?url="+encodeURIComponent(longUrl));
-    t = (await r.text()).trim();
-  } else if(svc==="dagd"){                                 // POST → handles very long links (GET ceilings don't apply)
-    r = await fetch("https://da.gd/shorten", { method:"POST",
-        headers:{ "Content-Type":"application/x-www-form-urlencoded" },
-        body:"url="+encodeURIComponent(longUrl) });
-    t = (await r.text()).trim();
-  } else { throw new Error("unknown service"); }
-  // Failure bodies are often whole HTML error pages — report the status, not tag soup.
-  if(!/^https?:\/\/\S+$/.test(t)) throw new Error(t.startsWith("<") ? "HTTP "+r.status : (t.slice(0,80) || "no link returned"));
+  if(max && longUrl.length > max) throw new Error(`link is ${(longUrl.length/1024).toFixed(0)} kB — past the ~${Math.round(max/1024)} kB nanolink can store`);
+  if(svc!=="nanolink") throw new Error("unknown service");
+  // POST /api/links → {slug, shortUrl}. A few-second timeout: shortening is a nicety and the
+  // full-length link in the popover always works, so ANY failure just falls back to it.
+  const r = await fetch(NANOLINK_ORIGIN + "/api/links", { method:"POST",
+      headers:{ "Content-Type":"application/json" }, body:JSON.stringify({ url: longUrl }),
+      signal: AbortSignal.timeout(5000) });
+  let d = null; try{ d = await r.json(); }catch(_){}
+  if(!r.ok) throw new Error((d && d.error) ? d.error : "HTTP "+r.status);
+  const t = (d && typeof d.shortUrl==="string") ? d.shortUrl.trim() : "";
+  if(!/^https?:\/\/\S+$/.test(t)) throw new Error("no link returned");
   return t;
 }
 
@@ -12489,16 +12491,16 @@ document.querySelectorAll("#sharemenu .sm-svc button").forEach(btn => btn.onclic
     const ok = await copyText(short);
     toast(ok ? `✓ Short link copied — via ${label}` : `Short link ready — copy it above`, ok?"":"err");
   }catch(e){
-    toast(longUrl.length > SHORTEN_CEILING.dagd
+    toast(longUrl.length > SHORTEN_CEILING.nanolink
       ? `Too long to shorten (${(longUrl.length/1024).toFixed(0)} kB) — share the full link, or Export the app as a file`
-      : `${label} couldn't shorten it (${e.message}) — try da.gd for very long links, or share the full link`, "err");
+      : `${label} couldn't shorten it (${e.message}) — share the full link instead, it always works`, "err");
   }finally{ btn.textContent = o; syncShortenButtons(); }
 });
 document.querySelectorAll('#sharemenu .sm-social a[data-soc="email"]').forEach(a=> a.onclick = ()=> closeShareMenu());
 // x/reddit/facebook: when the link the popover reflects is still long (a raw #a= app link),
 // auto-shorten it before opening the intent — the social sites reject/truncate multi-KB URLs. The
 // window is opened SYNCHRONOUSLY on click (so the async shorten doesn't trip the popup blocker),
-// then pointed at the short intent once da.gd resolves. On shortener failure we CLOSE the window
+// then pointed at the short intent once nanolink resolves. On shortener failure we CLOSE the window
 // and say why — the long intent is a guaranteed reject at the social site, so "falling back" to it
 // just moves the failure somewhere we can't explain it. If the link was already shortened
 // (manual ✂ button), shareUrl is short, so the anchor just opens normally.
@@ -12512,7 +12514,7 @@ document.querySelectorAll('#sharemenu .sm-social a:not([data-soc="email"])').for
     const t = document.createElement("a"); t.href = href; t.target = "_blank"; t.rel = "noopener";   // popup blocked: best-effort new tab
     document.body.appendChild(t); t.click(); t.remove();
   };
-  shortenWith("dagd", longShareUrl).then(short => go(socLinks(short)[soc]))
+  shortenWith("nanolink", longShareUrl).then(short => go(socLinks(short)[soc]))
     .catch(()=>{ try{ if(win) win.close(); }catch(_){} toast("couldn't shorten the link for the post, and the full one is too long to post raw — copy it from Share instead", "err"); });
   closeShareMenu();
 });

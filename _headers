@@ -62,7 +62,9 @@
 #
 # EXCEPTION — /play + /play.html widen connect-src (and ONLY connect-src — never
 # img/media/script/frame) to https:, for TWO trusted-parent-chrome features: the opt-in "shorten
-# this share link" button (tinyurl.com, da.gd) and output persistence (the parent fetches a
+# this share link" button (first-party nanolink worker — NANOLINK_ORIGIN in play.html, canonical
+# host https://link.nanoodle.com; https: keeps the CSP valid whichever workers.dev/custom host
+# the worker is deployed on) and output persistence (the parent fetches a
 # generated video/music result's bytes off the provider CDN — e.g. *.cloudfront.net, hosts we
 # can't enumerate — to store them in IndexedDB before the CDN URL expires; same rationale as the
 # editor's connect-src https: for its media "save"). The UNTRUSTED shared app does NOT get any of

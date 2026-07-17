@@ -87,19 +87,22 @@
       of an incoming link is stripped before the graph is applied — so a crafted link can't use
       a media URL as a tracking beacon that fires when you open it.</p>
 
-      <h2>Shortening — the one deliberate exception</h2>
+      <h2>Shortening — first-party too</h2>
       <p>Because the whole workflow rides in the URL, links can get long — too long for some
       chat apps and social sites. The share dialog has an opt-in <strong>✂ Shorten</strong>
-      button using <a href="https://da.gd" target="_blank" rel="noopener">da.gd</a> (the default —
-      it handles very long links) or <a href="https://tinyurl.com" target="_blank" rel="noopener">TinyURL</a>.</p>
+      button using <a href="https://github.com/nanoodlecom/nanolink" target="_blank" rel="noopener">nanolink</a>,
+      nanoodle’s own self-hosted shortener (a tiny Cloudflare Worker + KV with no analytics and
+      no logs) — it handles even very long links.</p>
       <div class="callout">
-        <p><strong>Be aware of the trade-off:</strong> a shortener works by storing your full
-        long URL — including the fragment — and redirecting to it. If you click Shorten, that
-        third-party service holds a copy of the link (and therefore the workflow encoded in it).
-        Nothing is sent anywhere unless you click; the plain long link keeps the
+        <p><strong>No third party in the path:</strong> a shortener works by storing your full
+        long URL — including the fragment — and bouncing visitors to it. nanolink is nanoodle
+        infrastructure, so no external service ever holds a copy of the link (or the workflow
+        encoded in it); earlier versions used third-party shorteners (da.gd/TinyURL), and those
+        are gone. Nothing is sent anywhere unless you click Shorten — and if the shortener is
+        unreachable, the dialog simply keeps offering the plain long link, which keeps the
         fragment-never-leaves-the-browser property end to end.</p>
       </div>
-      <p>When an app link with inline preview images won't fit the shortener's limit, the share
+      <p>When an app link with inline preview images gets unwieldy, the share
       flow re-encodes the preview smaller or drops it — and tells you it did — rather than
       failing silently.</p>
 

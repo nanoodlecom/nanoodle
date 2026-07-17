@@ -89,11 +89,15 @@ function directive(csp, name) {
 // Cross-file constants, parsed (not imported — those files run side effects) so
 // the two checks can never diverge from their source of truth.
 // ---------------------------------------------------------------------------
-function shortenerHosts() {
-  const src = read("scripts/check-policy.mjs");
-  const m = src.match(/const SHORTENER_HOSTS\s*=\s*\[([^\]]*)\]/);
-  if (!m) { fail("could not parse SHORTENER_HOSTS from scripts/check-policy.mjs"); return []; }
-  return [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]);
+// The share popover's shorten button POSTs to our own nanolink worker; both pages
+// declare the deployed origin as NANOLINK_ORIGIN. Parse it from each page and require
+// the two surfaces to agree, so the CSP check below can't silently test the wrong host.
+function nanolinkOrigin() {
+  const get = (f) => (read(f).match(/const NANOLINK_ORIGIN\s*=\s*"(https:\/\/[^"]+)"/) || [])[1];
+  const play = get("play.html"), idx = get("index.html");
+  if (!play || !idx) { fail("could not parse NANOLINK_ORIGIN from play.html/index.html"); return null; }
+  if (play !== idx) { fail(`NANOLINK_ORIGIN differs between index.html (${idx}) and play.html (${play})`); return null; }
+  return play;
 }
 
 function cacheRegexFromStamp() {
@@ -184,16 +188,17 @@ for (const route of EDITOR_ROUTES) {
     if (!cs.includes(need)) fail(`_headers "${route}" connect-src is missing ${need} (editor must reach the nano-gpt API)`);
 }
 
-// /play(.html) connect-src must include every shortener host check-policy.mjs allows.
-// A bare "https:" scheme source covers ANY https origin (CSP scheme-source semantics) —
-// /play carries it since output persistence fetches generated media bytes off provider CDNs.
-const SHORTENERS = shortenerHosts();
-for (const route of PLAY_ROUTES) {
-  const cs = directive(cspOf(route), "connect-src") || [];
-  for (const host of SHORTENERS) {
-    const token = "https://" + host;
-    if (!cs.includes(token) && !cs.includes("https:"))
-      fail(`_headers "${route}" connect-src is missing ${token} — check-policy.mjs allows it as a shortener sink but the deployed CSP would block it (the PR #81 class)`);
+// Editor AND /play(.html) connect-src must reach the first-party nanolink shortener
+// (NANOLINK_ORIGIN in both pages). A bare "https:" scheme source covers ANY https origin
+// (CSP scheme-source semantics) — both surfaces carry it (editor media "save", /play output
+// persistence), but pin the requirement so a future CSP tightening can't silently break
+// the shorten button in production (the PR #81 class).
+const NANOLINK = nanolinkOrigin();
+if (NANOLINK) {
+  for (const route of [...EDITOR_ROUTES, ...PLAY_ROUTES]) {
+    const cs = directive(cspOf(route), "connect-src") || [];
+    if (!cs.includes(NANOLINK) && !cs.includes("https:"))
+      fail(`_headers "${route}" connect-src is missing ${NANOLINK} — the share popover's shorten button fetches it but the deployed CSP would block it (the PR #81 class)`);
   }
 }
 

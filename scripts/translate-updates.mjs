@@ -40,7 +40,7 @@ const model = flag("--model", "-m") || process.env.NANOGPT_MODEL || "zai-org/glm
 // NOTE: labels the editor UI localizes (Run, My apps, Create app, Updates, Examples) are
 // deliberately NOT in this list — see UI_LABELS below; the changelog should show what the
 // user's localized UI actually shows. "My nanoodle app" is a literal string in the product.
-const KEEP = "emoji; brand/product names (nanoodle, nano-gpt, NanoGPT, Nano, Cookoff, Noodle Cookoff, LoRA, HuggingFace, Flux, FLUX.2, Z-Image, LTX, TinyURL, da.gd, Veo 3, Kling, Seedance, Nano-Banana, Seedream, Mureka, Discord, Reddit, r/nanocurrency, X, Facebook); the literal default app name \"My nanoodle app\"; keyboard keys (F, Z, Y, Ctrl/Cmd/⌘); English-only UI button/node labels (Fit, Gallery, Submit, Trim, Image, Edit, Inpaint, Video, LLM, Speech, Transcribe, Combine, Describe changes, Customize, Save file); $ prices; model ids; URLs";
+const KEEP = "emoji; brand/product names (nanoodle, nano-gpt, NanoGPT, Nano, Cookoff, Noodle Cookoff, nanolink, LoRA, HuggingFace, Flux, FLUX.2, Z-Image, LTX, TinyURL, da.gd, Veo 3, Kling, Seedance, Nano-Banana, Seedream, Mureka, Discord, Reddit, r/nanocurrency, X, Facebook); the literal default app name \"My nanoodle app\"; keyboard keys (F, Z, Y, Ctrl/Cmd/⌘); English-only UI button/node labels (Fit, Gallery, Submit, Trim, Image, Edit, Inpaint, Video, LLM, Speech, Transcribe, Combine, Describe changes, Customize, Save file); $ prices; model ids; URLs";
 
 // Labels the editor UI localizes (index.html I18N dict) — the translation must use these
 // exact strings so the changelog matches the buttons the reader actually sees.

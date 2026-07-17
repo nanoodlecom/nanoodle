@@ -288,7 +288,7 @@ fi
 # 15) SHARE→SHORTEN: the copied link is fine, but the share flow strips the #a=/#g=
 #     payload out of the address bar right after copying — so the shortener must be
 #     handed the CAPTURED long link, not a rebuild from location.hash (empty by then),
-#     or every TinyURL/da.gd short link opens an empty app. No browser, no network:
+#     or every nanolink short link opens an empty app. No browser, no network:
 #     lifts openShareMenu() + the shorten handler out of both pages and drives them.
 if [ -n "$touches_share" ]; then
   node "$root/scripts/check-share-link.mjs"

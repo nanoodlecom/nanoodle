@@ -23,14 +23,11 @@ import { execFileSync } from "node:child_process";
 // The ONLY external origin any page may load or connect to. Subdomains allowed.
 const ALLOWED_HOSTS = ["nano-gpt.com"];
 
-// URL shorteners the user can OPT INTO from the Share popover. These are NOT
-// analytics or auto-loaded assets — nothing is sent unless the user clicks a
-// specific "shorten" button, the UI states plainly that the link goes to that
-// third party, and no key is ever in the link. They are therefore allowed ONLY
-// as outbound fetch() sinks (the shorten request), and STILL forbidden as
-// resource loaders (<script>/<img>/font/style) so the no-3rd-party-asset
-// promise stays intact. Keep this list tiny and CORS-verified.
-const SHORTENER_HOSTS = ["tinyurl.com", "da.gd"];
+// NOTE: the Share popover's opt-in "shorten" button used to be the one allowed
+// third-party fetch sink (tinyurl.com, da.gd). It now calls our own nanolink
+// worker (NANOLINK_ORIGIN, a first-party Cloudflare Worker + KV), so there is
+// no shortener exception anymore — every literal third-party connection sink
+// is a violation again.
 
 function htmlFiles(argv) {
   if (argv.length) return argv;
@@ -90,7 +87,7 @@ function scan(file, html, out) {
   let s;
   while ((s = sink.exec(html))) {
     const host = disallowedHost(s[1]);
-    if (host && !SHORTENER_HOSTS.includes(host)) add(s.index, `connects to third-party origin "${host}" — only ${ALLOWED_HOSTS.join(", ")} is allowed`);
+    if (host) add(s.index, `connects to third-party origin "${host}" — only ${ALLOWED_HOSTS.join(", ")} is allowed`);
   }
 
   // CSP-unsafe: eval / new Function / string-argument timers (all blocked by CSP).
