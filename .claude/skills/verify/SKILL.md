@@ -38,6 +38,12 @@ worktrees). Copy its structure for one-off verifications:
 
 ## Gotchas
 
+- **Serve real MIME types.** play.html's module imports `/vendor/*.js`; a
+  harness server that answers everything as `text/html` kills the entire
+  module graph silently (strict MIME checking) — the page renders its static
+  chrome, zero handlers, zero console output, and looks "booted but broken".
+  Enable the CDP `Log` domain to see the module-load error; Runtime alone
+  won't show it.
 - Page JS is not reachable as globals from Runtime.evaluate (module-scoped) —
   drive the UI through DOM clicks, not by calling internal functions.
 - Wait for handlers: clicking `#share` etc. right after load can race the

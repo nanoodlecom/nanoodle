@@ -12313,14 +12313,95 @@ function closeShareMenu(){ $("sharemenu").hidden = true; $("shareback").hidden =
 
 // SHORTEN — direct client-side fetch to our own nanolink worker (first-party; no third
 // party in the path). The body-bounce short link preserves our #a= fragment on load.
+// ---- share card (per-link og:image) --------------------------------------------------------
+// When shortening, we also render a 1200×630 PNG of the workflow's STRUCTURE — node cards and
+// wires only, never field contents or media — and send it alongside the URL. nanolink stores
+// it once at slug creation and serves it as the short link's og:image, so a shared noodle
+// unfurls as a picture of itself instead of the generic ramen card. Best-effort everywhere:
+// any failure (or an implausibly large PNG) just means no card, and shortening proceeds.
+// Emoji/labels mirror NODE_TYPES (kept inline: play.html's registry lives inside RUNTIME_JS).
+const CARD_TYPE_META = { text:["📝","Text"], upload:["📷","Image input"], aupload:["🎤","Audio input"], vupload:["📹","Video input"], choice:["🔘","Choice"], join:["🔗","Join"], llm:["🧠","LLM"], image:["🖼","Image"], draw:["🎨","Draw"], edit:["✂️","Edit"], inpaint:["🩹","Inpaint"], resize:["📐","Resize / crop"], vision:["👁","Vision"], tvideo:["🎬","Text→Video"], ivideo:["📽️","Image→Video"], vedit:["🎞️","Video edit"], vframes:["🎞","Video → frames"], combine:["🎬","Combine videos"], soundtrack:["🎚","Soundtrack"], lipsync:["🎭","Avatar / lipsync"], music:["🎵","Music"], remix:["🎛","Remix audio"], tts:["🗣️","Speech"], trim:["✂️","Trim audio"], extractaudio:["🔊","Extract audio"], transcribe:["🎙️","Transcribe"], comment:["💬","Comment"] };
+// Decode the graph out of the link being shortened (not live editor state) so the card always
+// depicts exactly what the link opens. Returns null on anything unexpected.
+async function shareCardGraph(longUrl){
+  try{
+    const h = new URL(longUrl).hash; let m;
+    if((m = h.match(/^#([gj])=(.+)$/))){
+      const bytes = b64urlToBytes(m[2]);
+      return JSON.parse(m[1]==="g" ? await gunzip(bytes) : new TextDecoder().decode(bytes));
+    }
+    if((m = h.match(/^#a=(u?)(.+)$/))){
+      const bytes = b64urlToBytes(m[2]);
+      const app = JSON.parse(m[1] ? new TextDecoder().decode(bytes) : await gunzip(bytes));
+      return (app && app.graph) || null;
+    }
+  }catch(_){}
+  return null;
+}
+function drawShareCard(graph){
+  const nodes = (graph && Array.isArray(graph.nodes) ? graph.nodes : [])
+    .filter(n => n && typeof n.x==="number" && typeof n.y==="number" && typeof n.type==="string");
+  if(!nodes.length) return null;
+  const W=1200, H=630, PAD=80, BW=200, BH=64;
+  const c = document.createElement("canvas"); c.width=W; c.height=H;
+  const g = c.getContext("2d"); if(!g || typeof g.roundRect!=="function") return null;
+  // Flat fills only: a gradient here balloons the PNG ~10x past nanolink's card cap.
+  g.fillStyle="#111116"; g.fillRect(0,0,W,H);
+  g.fillStyle="#16161d"; g.fillRect(0,H-92,W,92);
+  // Map node centers into the safe area (footer strip reserved), preserving layout shape.
+  const cx = n => n.x + (typeof n.w==="number" ? n.w : 220)/2, cy = n => n.y + 60;
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  for(const n of nodes){ x0=Math.min(x0,cx(n)); x1=Math.max(x1,cx(n)); y0=Math.min(y0,cy(n)); y1=Math.max(y1,cy(n)); }
+  const iw = W-2*PAD-BW, ih = H-2*PAD-BH-40;
+  const s = Math.min(iw/Math.max(1,x1-x0), ih/Math.max(1,y1-y0));
+  const px = n => PAD+BW/2 + (cx(n)-x0)*s + (iw-(x1-x0)*s)/2;
+  const py = n => PAD+BH/2 + (cy(n)-y0)*s + (ih-(y1-y0)*s)/2;
+  const at = new Map(nodes.map(n=>[n.id,{x:px(n),y:py(n)}]));
+  g.lineWidth=3; g.strokeStyle="#4c4c5c";
+  for(const l of (Array.isArray(graph.links)?graph.links:[])){
+    const a = l&&l.from&&at.get(l.from.node), b = l&&l.to&&at.get(l.to.node);
+    if(!a||!b) continue;
+    const dx = Math.max(40,(b.x-a.x)/2);
+    g.beginPath(); g.moveTo(a.x+BW/2,a.y);
+    g.bezierCurveTo(a.x+BW/2+dx,a.y, b.x-BW/2-dx,b.y, b.x-BW/2,b.y); g.stroke();
+  }
+  g.textBaseline="middle";
+  for(const n of nodes){
+    const p = at.get(n.id), meta = CARD_TYPE_META[n.type] || ["·", n.type];
+    const x = p.x-BW/2, y = p.y-BH/2;
+    g.fillStyle="#1e1e26"; g.strokeStyle="#3c3c4a"; g.lineWidth=2;
+    g.beginPath(); g.roundRect(x,y,BW,BH,14); g.fill(); g.stroke();
+    g.font="28px system-ui, sans-serif"; g.fillStyle="#ececf2"; g.textAlign="left";
+    g.fillText(meta[0], x+16, p.y);
+    g.font="600 22px system-ui, sans-serif";
+    const label = (typeof n.name==="string" && n.name.trim()) ? n.name.trim() : meta[1];
+    g.fillText(label.length>14 ? label.slice(0,13)+"…" : label, x+56, p.y, BW-70);
+  }
+  g.textBaseline="alphabetic"; g.textAlign="left";
+  g.font="600 34px system-ui, sans-serif"; g.fillStyle="#f4f4f8";
+  g.fillText("🍜 nanoodle", PAD-20, H-46);
+  g.font="22px system-ui, sans-serif"; g.fillStyle="#9a9aa8"; g.textAlign="right";
+  g.fillText("runs in your browser — bring your own key", W-PAD+20, H-46);
+  return c;
+}
+async function shareCardB64(longUrl){
+  try{
+    const c = drawShareCard(await shareCardGraph(longUrl));
+    if(!c) return null;
+    const b64 = c.toDataURL("image/png").split(",")[1] || "";
+    // nanolink caps cards at 200 kB decoded; stay well clear (flat art is ~30–60 kB).
+    return (b64 && b64.length*0.75 <= 190*1024) ? b64 : null;
+  }catch(_){ return null; }
+}
 async function shortenWith(svc, longUrl){
   const max = SHORTEN_CEILING[svc];   // fail fast (and cheap) on links the service is known to reject
   if(max && longUrl.length > max) throw new Error(`link is ${(longUrl.length/1024).toFixed(0)} kB — past the ~${Math.round(max/1024)} kB nanolink can store`);
   if(svc!=="nanolink") throw new Error("unknown service");
   // POST /api/links → {slug, shortUrl}. A few-second timeout: shortening is a nicety and the
   // full-length link in the popover always works, so ANY failure just falls back to it.
+  const card = await shareCardB64(longUrl);   // best-effort per-link og:image; null is fine
   const r = await fetch(NANOLINK_ORIGIN + "/api/links", { method:"POST",
-      headers:{ "Content-Type":"application/json" }, body:JSON.stringify({ url: longUrl }),
+      headers:{ "Content-Type":"application/json" }, body:JSON.stringify(card ? { url: longUrl, card } : { url: longUrl }),
       signal: AbortSignal.timeout(5000) });
   let d = null; try{ d = await r.json(); }catch(_){}
   if(!r.ok) throw new Error((d && d.error) ? d.error : "HTTP "+r.status);
