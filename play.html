@@ -10946,6 +10946,7 @@ async function loadChatCatalog(){
   const list = raw.map(m=>{ const p = m.pricing || {};
     return { id:m.id, name:m.name||m.id, created:m.created,
       pin: p.prompt!=null ? +p.prompt : null, pout: p.completion!=null ? +p.completion : null,  // USD per 1M
+      maxOut: m.max_output_tokens!=null ? +m.max_output_tokens : null,   // max_tokens ceiling — bounds the explicit output budget below
       price: p.prompt!=null ? "$"+(+p.prompt).toFixed(2)+"/$"+(+p.completion).toFixed(2)+" ·1M" : "" }; })
     .filter(m=>m.id);
   list.sort((a,b)=> (b.created||0)-(a.created||0));   // newest first
@@ -11065,13 +11066,25 @@ function streamingCallLlm(phase){
     const inEst = estMsgs(messages);
     const priceFor = (m)=>{ const p = priceOf(m) || {}; return [(Number(p.pin)||0)/1e6, (Number(p.pout)||0)/1e6]; };
     const endpoint = (baseUrl || (NANOGPT + "/api/v1/")).replace(/\/+$/,"") + "/chat/completions";
-    // No max_tokens by default → avoids silent truncation that yields an unparseable diff.
-    const send = (m)=> fetch(endpoint, {
-      method:"POST",
-      headers:{ Authorization:"Bearer "+apiKey, "Content-Type":"application/json" },
-      body: JSON.stringify({ model:m, messages, ...(maxTokens?{max_tokens:maxTokens}:{}), temperature, stream:true }),
-      signal: custAbort && custAbort.signal,   // ■ Stop aborts the request; reader.read() below then rejects with AbortError
-    });
+    // The Moonshot route applies a TINY default output cap when a request carries no max_tokens
+    // (live-confirmed 2026-07-17: kimi-k3 cut at ~4.8k output despite a 1M ceiling) — an
+    // always-thinking model burns it all reasoning and ends with finish_reason "length" and zero
+    // content. For Moonshot models ONLY, ask for real room explicitly. Other routes are
+    // live-probed fine uncapped (gpt-5.4-mini 23k out, glm-5.2 29k, both finish=stop) — an
+    // explicit cap would CREATE a ceiling they don't have, so don't send one. (The model's full
+    // maxOut also 400s: input + requested output must fit the context window.)
+    const OUT_BUDGET = 240000;   // app files are big — a whole-file rewrite must fit
+    const send = (m)=>{
+      const quirky = /^moonshotai\//.test(String(m||""));
+      const cat = priceOf(m), ceil = cat && +cat.maxOut;
+      const cap = maxTokens || (quirky ? Math.min(ceil || OUT_BUDGET, OUT_BUDGET) : null);   // kimi's ceiling is 1M — 240k always fits
+      return fetch(endpoint, {
+        method:"POST",
+        headers:{ Authorization:"Bearer "+apiKey, "Content-Type":"application/json" },
+        body: JSON.stringify({ model:m, messages, ...(cap?{max_tokens:cap}:{}), temperature, stream:true }),
+        signal: custAbort && custAbort.signal,   // ■ Stop aborts the request; reader.read() below then rejects with AbortError
+      });
+    };
     // Some upstreams (the Anthropic routes especially) fail INSIDE a 200 SSE stream: the gateway
     // holds the connection ~90s with keep-alive chunks, then emits {error:{code:"upstream_timeout"}}
     // + finish_reason:"error" having produced NO content. The flake is transient, so the chosen
@@ -11103,7 +11116,7 @@ function streamingCallLlm(phase){
       }
       { const hb = parseFloat(r.headers.get("x-remaining-balance") || ""); if(!isNaN(hb)) noteBalance(hb); }   // customize spends too — headers land before the stream
       const reader = r.body.getReader(), dec = new TextDecoder();
-      let buf="", content="", reasoning="", pricing=null, lastPaint=0, streamErr=null;
+      let buf="", content="", reasoning="", pricing=null, lastPaint=0, streamErr=null, finish=null;
       for(;;){
         const { value, done } = await reader.read();
         if(done) break;
@@ -11117,6 +11130,7 @@ function streamingCallLlm(phase){
           let j; try{ j = JSON.parse(data); }catch{ continue; }
           if(j.error) streamErr = j.error.message || j.error.code || "upstream error";   // error-in-stream: HTTP was 200, the failure rides in a chunk
           const c0 = j.choices && j.choices[0];
+          if(c0 && c0.finish_reason) finish = c0.finish_reason;
           if(c0 && c0.finish_reason === "error" && !streamErr) streamErr = "upstream error";
           const d = c0 && c0.delta;
           if(d){
@@ -11149,7 +11163,15 @@ function streamingCallLlm(phase){
       else { USAGE.cost += inEst*inPer + outTok*outPer; USAGE.exact = false; }   // estimate → keep the ~
       // died mid-generation with partial output → a truncated diff must not be half-applied
       if(streamErr) throw new Error(usedModel + "'s reply was cut off mid-stream (" + streamErr + ") — try again");
-      return { choices:[{ message:{ content } }] };   // shape patchling expects
+      // finish_reason "length": the reply hit the output cap (charged, so committed above). A
+      // reasoning model that burned it all THINKING ends with zero content — don't scrape the
+      // truncated chain-of-thought (or half a diff) into the app; fail loudly instead.
+      if(finish==="length") throw new Error(content.trim()
+        ? usedModel + "'s reply hit its output limit and was cut off — try again"
+        : usedModel + " spent its whole output budget thinking and never answered — try again or pick a different model");
+      // some routes (kimi-k3 live-confirmed) stream the ENTIRE reply as reasoning deltas with empty
+      // content — mirror the editor's fallback so the answer isn't dropped on the floor
+      return { choices:[{ message:{ content: content.trim() ? content : reasoning } }] };   // shape patchling expects
     }
     throw lastErr || new Error("LLM call failed");
   };

@@ -298,6 +298,13 @@
   #describestatus:empty{ display:none }
   #describestatus .ok{ color:var(--good) } #describestatus .err{ color:var(--bad) }
   #describestatus .meter{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--dim); opacity:.9; white-space:nowrap; margin-left:.35rem; }
+  #describestatus .dd-toggle{ font:inherit; font-size:.74rem; background:transparent; border:1px solid var(--line); border-radius:.4rem; color:var(--dim); padding:.08rem .4rem; margin-left:.35rem; cursor:pointer; }
+  #describestatus .dd-toggle:hover{ color:var(--ink); border-color:var(--accent); }
+  /* the ⚠ "show the model's reply" expander — raw reply + thinking behind a failed change */
+  #describedetail{ margin-top:.45rem; max-height:38vh; overflow:auto; background:var(--panel2); border:1px solid var(--line); border-radius:.5rem; padding:.5rem .6rem; }
+  #describedetail[hidden]{ display:none }
+  #describedetail pre{ margin:.2rem 0 .5rem; white-space:pre-wrap; word-break:break-word; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.72rem; color:var(--ink); }
+  #describedetail .dd-h{ font-size:.72rem; color:var(--dim); font-weight:700; margin:.15rem 0; }
   #describeversions{ display:flex; flex-wrap:wrap; gap:.3rem; align-items:center; margin-top:.45rem; }
   #describeversions:empty{ display:none }
   #describeversions .vlabel{ font-size:.74rem; color:var(--dim); margin-right:.05rem; }
@@ -954,6 +961,7 @@
     <button id="describego" class="primary" title="Apply the described change (Enter)">✦ Apply</button>
   </div>
   <div id="describestatus"></div>
+  <div id="describedetail" data-no-i18n hidden></div>
   <div id="describeversions" title="Each change adds a version — click one to jump back to it"></div>
 </div>
 
@@ -11017,6 +11025,19 @@ $("signout").onclick = ()=> setKey(null);
   const DESCRIBE_DEFAULT_MODEL = "moonshotai/kimi-k3";
   const DESCRIBE_MODEL_KEY = "ngpt_app_model";
   const DESCRIBE_APPLY_MODEL = "openai/gpt-5.4-mini";   // mechanical diff-apply fallback — same model play's apply phase rides (#253)
+  // The Moonshot route applies a TINY default output cap when a request carries no max_tokens
+  // (live-confirmed 2026-07-17: kimi-k3 cut at ~4.8k output despite a 1M ceiling) — an
+  // always-thinking model spends that whole budget reasoning and finishes with finish_reason
+  // "length" and ZERO content, which used to be scraped as an empty/truncated reply. So for
+  // Moonshot models ONLY, ask for real room explicitly. Other routes are live-probed fine
+  // uncapped (gpt-5.4-mini ran to 23k out, glm-5.2 to 29k, both finish=stop), and an explicit
+  // cap would CREATE a ceiling they don't have — don't send one. (Never send the model's full
+  // maxOut either: input + requested output must fit the context window or the API 400s.)
+  const DESCRIBE_OUT_BUDGET = 128000;
+  const outBudget = (model)=>{
+    if(!/^moonshotai\//.test(String(model||""))) return null;   // quirky-route list, not a universal cap
+    const m = catItem("chat", model); const ceil = m && +m.maxOut;
+    return ceil ? Math.min(ceil, DESCRIBE_OUT_BUDGET) : DESCRIBE_OUT_BUDGET; };   // kimi's ceiling is 1M — 128k always fits
   const MEDIA_KEYS = new Set(["image","audio","video","mask"]);
 
   // Per-type field hints; structure (ports/output/modelKind) is read live from NODE_TYPES so a
@@ -11361,7 +11382,12 @@ RULES for the diff:
     const env = gd.buildEnvironment(before);
     const rawDiff = await gd.generateDiff(env, instruction, { apiKey:key, model, prepend: await contract(), temperature:0, callLlm: clients && clients.gen });
     const parsed = gd.parseDiffPerFile(rawDiff);
-    if(!rawDiff.trim() || !parsed.length) throw new Error("no applicable change — try rephrasing the request");
+    if(!rawDiff.trim() || !parsed.length){
+      // distinguish "the model said something, just not a change" from a genuinely empty reply —
+      // the ⚠ status offers the raw reply either way, so nothing is swallowed
+      const said = lastReply && String(lastReply.content||lastReply.reasoning||"").trim();
+      throw new Error(said ? "the model replied without a usable change" : "no applicable change — try rephrasing the request");
+    }
     // smartapply: deterministic patch first, LLM-assisted apply (metered) if it doesn't land cleanly.
     // The apply model MUST be passed explicitly: patchling's own default is the retired
     // xiaomi/mimo-v2.5-pro-ultraspeed (nano-gpt 503s it). Applying a diff is mechanical, so it
@@ -11380,10 +11406,12 @@ RULES for the diff:
 
   // ---- UI: docked bottom composer (same shape/placement as the app builder's Customize bar) ----
   const bar = $("describebar"), input = $("describegoal"), goBtn = $("describego"),
-        modelBtn = $("describemodel"), statusEl = $("describestatus"), versEl = $("describeversions");
+        modelBtn = $("describemodel"), statusEl = $("describestatus"), versEl = $("describeversions"),
+        detailEl = $("describedetail");
   if(!bar || !input) return;   // defensive
   let busy = false;
   let dbAbort = null;          // AbortController for the in-flight run; the ■ Stop button aborts it (mirrors the main Run/Stop)
+  let lastReply = null;        // { model, phase, content, reasoning } — the raw reply behind the latest LLM call, for the ⚠ expander
   const esc = s=> String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
   const clone = o=> JSON.parse(JSON.stringify(o));   // immutable version snapshots (later edits can't mutate history)
 
@@ -11433,7 +11461,7 @@ RULES for the diff:
   // strip: its chips snapshot the PREVIOUS workflow, and clicking one would overwrite the just-loaded
   // graph with an unrelated version. External load paths call this to clear it. Deliberately NOT called
   // from submit()/selectVersion()/undo-redo — those are same-workflow ops that must keep their history.
-  window.resetDescribeVersions = ()=>{ versions.length = 0; curVer = -1; renderVersions(); setStatus(""); };
+  window.resetDescribeVersions = ()=>{ versions.length = 0; curVer = -1; renderVersions(); setStatus(""); hideDetail(); };
   function selectVersion(i){
     const v = versions[i]; if(!v || i===curVer || busy) return;
     if(runningNodes.size){ flash("can’t change the workflow while running — Stop first"); return; }   // a version jump mid-run replaces the graph under in-flight (already-charged) nodes — strand-proof, like the per-node delete guard
@@ -11468,6 +11496,21 @@ RULES for the diff:
     goBtn.title = on ? "Stop this change" : "";
   }
   function setStatus(html, cls){ statusEl.innerHTML = html ? `<span class="${cls||""}">${html}</span>` : ""; }
+  // ⚠ expander: a failed change offers "show the model's reply" — the raw content + thinking behind
+  // the failure, in a scrollable panel. Nothing the model sent is ever silently discarded again.
+  function hideDetail(){ if(detailEl){ detailEl.hidden = true; detailEl.innerHTML = ""; } }
+  function toggleDetail(){
+    if(!detailEl) return;
+    if(!detailEl.hidden){ hideDetail(); return; }
+    if(!lastReply) return;
+    const parts = [`<div class="dd-h">${esc(lastReply.model)} — ${esc(lastReply.phase)}</div>`];
+    if(String(lastReply.content||"").trim())   parts.push(`<pre>${esc(lastReply.content)}</pre>`);
+    if(String(lastReply.reasoning||"").trim()) parts.push(`<div class="dd-h">thinking</div><pre>${esc(lastReply.reasoning)}</pre>`);
+    if(parts.length===1) parts.push(`<pre>(the model sent nothing back)</pre>`);
+    detailEl.innerHTML = parts.join("");
+    detailEl.hidden = false;
+  }
+  statusEl.addEventListener("click", e=>{ const b = e.target && e.target.closest && e.target.closest("#dbwhy"); if(b) toggleDetail(); });
 
   // ---- token-usage meter (parity with the app builder): ↑ in · ↓ out · $cost, live during the run ----
   const USAGE = { inTok:0, outTok:0, cost:0, exact:true };
@@ -11492,15 +11535,16 @@ RULES for the diff:
       // zero content. The flake is transient, so the model gets ONE same-model retry (mirrors
       // play's streamingCallLlm — never a silent swap to a model the user didn't pick); without
       // this an empty reply reads as "nothing to change".
+      const cap = maxTokens || outBudget(model);
       for(let attempt=0; attempt<2; attempt++){
         let outTok = 0;
         const paint = ()=> setStatus(`<span class="db-spin"></span>${esc(phaseLabel)}… ${usageMeter({inTok:inEst,outTok,cost:0,live:true})}`);
         paint();
-        const body = { model, messages, temperature, stream:true, ...(maxTokens?{max_tokens:maxTokens}:{}) };
+        const body = { model, messages, temperature, stream:true, ...(cap?{max_tokens:cap}:{}) };
         const r = await fetch(CHAT_ENDPOINT, { method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal: dbAbort?.signal });
         if(!r.ok){ await throwHttp(r); }
         const reader = r.body.getReader(), dec = new TextDecoder();
-        let buf="", content="", reasoning="", pricing=null, lastPaint=0, streamErr=null;
+        let buf="", content="", reasoning="", pricing=null, lastPaint=0, streamErr=null, finish=null;
         for(;;){
           const { value, done } = await reader.read(); if(done) break;
           buf += dec.decode(value, { stream:true });
@@ -11511,6 +11555,7 @@ RULES for the diff:
             let j; try{ j = JSON.parse(data); }catch{ continue; }
             if(j.error) streamErr = j.error.message || j.error.code || "upstream error";   // error-in-stream: HTTP was 200
             const c0 = j.choices?.[0];
+            if(c0?.finish_reason) finish = c0.finish_reason;
             if(c0?.finish_reason==="error" && !streamErr) streamErr = "upstream error";
             const d = c0?.delta;
             if(d){ if(d.content) content+=d.content;
@@ -11521,6 +11566,7 @@ RULES for the diff:
             if(j.x_nanogpt_pricing) pricing = j.x_nanogpt_pricing;
           }
         }
+        lastReply = { model, phase: phaseLabel, content, reasoning };   // whatever happens next, the ⚠ expander can show what the model actually said
         // the stream died before producing anything → nothing was (or will be) charged, so don't
         // commit usage; retry once, then throw a real error instead of surfacing an empty reply
         if(streamErr && !content.trim()){
@@ -11535,6 +11581,12 @@ RULES for the diff:
         if(pricing){ try{ accrue({ x_nanogpt_pricing: pricing }); }catch(_){} }   // editor top-bar spend
         // died mid-generation with partial output → a truncated reply must not half-apply to the graph
         if(streamErr) throw new Error(model + "'s reply was cut off mid-stream (" + streamErr + ") — try again");
+        // finish_reason "length": the reply hit the output cap (charged, so committed above).
+        // A reasoning model that burned it all THINKING ends with zero content — scraping the
+        // truncated chain-of-thought for a diff produces garbage, so fail loudly instead.
+        if(finish==="length") throw new Error(content.trim()
+          ? model + "'s reply hit its output limit and was cut off — try again"
+          : model + " spent its whole output budget thinking and never answered — try again or pick a different model");
         return { choices:[{ message:{ content: content.trim() ? content : reasoning } }] };
       }
     };
@@ -11566,6 +11618,7 @@ RULES for the diff:
     const prevInternal = serializeGraph();
     const prevSimple = toSimple(prevInternal);
     dbAbort = new AbortController();
+    lastReply = null; hideDetail();
     setBusy(true); resetUsage(); setStatus(`<span class="db-spin"></span>planning your change…`);
     const clients = { gen: meteredCallLlm("planning your change"), apply: meteredCallLlm("applying the change") };
     try{
@@ -11593,7 +11646,12 @@ RULES for the diff:
       setStatus(`✓ ${esc(summarize(dif))}. ${usageMeter()}`, "ok");
     }catch(e){
       if(e && e.name==="AbortError") setStatus(`Stopped. ${usageMeter()}`);   // you hit ■ Stop — neutral, not an error
-      else setStatus(`⚠ ${esc(friendlyRunError(e))} ${usageMeter()}`, "err");   // same translation as run errors (reachability/key)
+      else{
+        try{ console.warn("[describe] change failed:", e, lastReply); }catch(_){}
+        const more = lastReply && String(lastReply.content||lastReply.reasoning||"").trim()
+          ? ` <button id="dbwhy" class="dd-toggle" type="button">show the model’s reply</button>` : "";
+        setStatus(`⚠ ${esc(friendlyRunError(e))}${more} ${usageMeter()}`, "err");   // same translation as run errors (reachability/key)
+      }
     }finally{ setBusy(false); dbAbort = null; }
   }
 })();
