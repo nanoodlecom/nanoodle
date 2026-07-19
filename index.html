@@ -559,6 +559,7 @@
   .body input{ width:100%; background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; padding:.35rem .5rem }
   .body input[type=checkbox]{ width:auto }
   .body .chk{ display:flex; align-items:center; gap:.45rem; font-size:.8rem; color:var(--ink); text-transform:none; letter-spacing:0 }
+  .body .optflag{ margin-top:.35rem; font-size:.72rem; color:var(--dim) }
   .body .fhint{ font-size:.68rem; color:var(--dim); margin-top:.2rem; text-transform:none; letter-spacing:0 }
   /* an inline hint inside an uppercased <label> opts out of the SHOUTING (reads as a sentence) */
   .body label .lblhint{ text-transform:none; letter-spacing:0; font-weight:400; font-size:.92em }
@@ -1277,6 +1278,8 @@ const I18N = {
     "save frame":"guardar fotograma",
     "seed":"semilla",
     "show thinking":"mostrar razonamiento",
+    "optional input":"entrada opcional",
+    "an app or agent running this workflow may leave this input empty":"una app o agente que ejecute este flujo puede dejar esta entrada vacía",
     "source comes from the wire — run once to load it here, then brush":"la imagen fuente llega por la conexión — ejecuta una vez para cargarla aquí, luego pincela",
     "the wired Image input is empty — add a photo there and it shows up here, ready to brush":"la entrada de imagen conectada está vacía — añade una foto allí y aparecerá aquí, lista para pincelar",
     "start (sec)":"inicio (seg)",
@@ -1756,6 +1759,8 @@ const I18N = {
     "resolution":"résolution",
     "save frame":"enregistrer l’image",
     "show thinking":"afficher le raisonnement",
+    "optional input":"entrée facultative",
+    "an app or agent running this workflow may leave this input empty":"une app ou un agent exécutant ce flux peut laisser cette entrée vide",
     "source comes from the wire — run once to load it here, then brush":"l’image source arrive par la connexion — lancer une fois pour la charger ici, puis peindre",
     "the wired Image input is empty — add a photo there and it shows up here, ready to brush":"l’entrée image branchée est vide — ajoutez-y une photo et elle apparaîtra ici, prête à peindre",
     "start (sec)":"début (s)",
@@ -2228,6 +2233,8 @@ const I18N = {
     "save frame":"Frame speichern",
     "seed":"Seed",
     "show thinking":"Denken anzeigen",
+    "optional input":"optionale Eingabe",
+    "an app or agent running this workflow may leave this input empty":"eine App oder ein Agent, der diesen Workflow ausführt, darf diese Eingabe leer lassen",
     "source comes from the wire — run once to load it here, then brush":"die Quelle kommt über die Verbindung — einmal ausführen, um sie hier zu laden, dann übermalen",
     "the wired Image input is empty — add a photo there and it shows up here, ready to brush":"der verbundene Bild-Eingang ist leer — dort ein Foto hinzufügen, und es erscheint hier, bereit zum Übermalen",
     "start (sec)":"Start (Sek.)",
@@ -2703,6 +2710,8 @@ const I18N = {
     "resolution":"resolução",
     "save frame":"salvar quadro",
     "show thinking":"mostrar raciocínio",
+    "optional input":"entrada opcional",
+    "an app or agent running this workflow may leave this input empty":"um app ou agente que executar este fluxo pode deixar esta entrada vazia",
     "source comes from the wire — run once to load it here, then brush":"a imagem de origem vem da conexão — execute uma vez para carregá-la aqui, depois pincele",
     "the wired Image input is empty — add a photo there and it shows up here, ready to brush":"a entrada de imagem conectada está vazia — adicione uma foto lá e ela aparecerá aqui, pronta para pincelar",
     "start (sec)":"início (seg)",
@@ -3177,6 +3186,8 @@ const I18N = {
     "save frame":"フレームを保存",
     "seed":"シード",
     "show thinking":"思考を表示",
+    "optional input":"任意の入力",
+    "an app or agent running this workflow may leave this input empty":"このワークフローを実行するアプリやエージェントは、この入力を空のままにできます",
     "source comes from the wire — run once to load it here, then brush":"ソース画像は接続から届きます — 一度実行してここに読み込み、その後ブラシで塗る",
     "the wired Image input is empty — add a photo there and it shows up here, ready to brush":"接続された画像入力が空です — そこに写真を追加するとここに表示され、ブラシで塗れます",
     "start (sec)":"開始 (秒)",
@@ -5445,12 +5456,18 @@ const mdl = (n)=>{ if(!n.fields.model) throw new Error("pick a model first");
   // block the node here, before any request, so there's no opaque 4xx and no charge on a dead id.
   if(modelDrifted(n)) throw new Error(t("this model is no longer available on NanoGPT — click the node’s model name to pick another"));
   return n.fields.model; };
+/* Author-set required/optional on input nodes. Saved as fields.optional (rides the normal
+   fields serialization → save files, share links, exported apps, nanoodle-js, MCP). An
+   optional input may be left empty: the run proceeds and the node yields an empty value
+   (downstream ref-style consumers drop empty media). Mirrors nanoodle-js optionalNode(). */
+const optNode = (n)=> n.fields.optional===true || n.fields.optional==="true";
+const optFlagHtml = (n)=>`<label class="chk optflag" title="an app or agent running this workflow may leave this input empty"><input type="checkbox" data-f="optional"${optNode(n)?" checked":""}/> optional input</label>`;
 const NODE_TYPES = {
   text: {
     em:"📝", title:"Text", desc:"Text you type — usually a prompt", group:"Inputs",
     kw:"prompt string write paste words caption phrase input",
     inputs:[], outputs:[{name:"text", type:"text"}], preview:"none",
-    body:(n)=>`<div><textarea data-f="text" placeholder="type a prompt or any text…">${esc(n.fields.text||"")}</textarea></div>`,
+    body:(n)=>`<div><textarea data-f="text" placeholder="type a prompt or any text…">${esc(n.fields.text||"")}</textarea></div>${optFlagHtml(n)}`,
     async run(n){ return { text: n.fields.text||"" }; }
   },
 
@@ -5468,9 +5485,9 @@ const NODE_TYPES = {
       <div class="cambox" data-cambox hidden>
         <video data-upvid autoplay playsinline muted></video>
         <div class="two"><button class="ubtn" data-up="snap">● <span>Capture</span></button><button class="ubtn" data-up="stop">✕ <span>Cancel</span></button></div>
-      </div>`,
+      </div>${optFlagHtml(n)}`,
     mount: mountUpload,
-    async run(n){ if(!n.fields.image) throw new Error("no image — upload or capture one first"); return { image: n.fields.image }; }
+    async run(n){ if(!n.fields.image){ if(optNode(n)) return { image:"" }; throw new Error("no image — upload or capture one first"); } return { image: n.fields.image }; }
   },
 
   aupload: {
@@ -5479,9 +5496,9 @@ const NODE_TYPES = {
     body:(n)=>`
       <div class="uprev" data-uprev>${n.fields.audio ? `<audio src="${esc(n.fields.audio)}" controls></audio>` : `<span class="dim">no audio yet</span>`}</div>
       <div><button class="ubtn" data-up="file">⬆ Upload audio</button></div>
-      <input type="file" accept="audio/*" hidden data-upfile/>`,
+      <input type="file" accept="audio/*" hidden data-upfile/>${optFlagHtml(n)}`,
     mount:(n)=> mountFileUpload(n, "audio"),
-    async run(n){ if(!n.fields.audio) throw new Error("no audio — upload a clip first"); return { audio: n.fields.audio }; }
+    async run(n){ if(!n.fields.audio){ if(optNode(n)) return { audio:"" }; throw new Error("no audio — upload a clip first"); } return { audio: n.fields.audio }; }
   },
 
   vupload: {
@@ -5491,9 +5508,9 @@ const NODE_TYPES = {
       <div class="uprev" data-uprev>${n.fields.video ? `<video src="${esc(n.fields.video)}" controls playsinline></video>` : `<span class="dim">no video yet</span>`}</div>
       <div><button class="ubtn" data-up="file">⬆ Upload video</button></div>
       <div class="fhint">keep clips under ~3 MB — larger won’t reach the model</div>
-      <input type="file" accept="video/*" hidden data-upfile/>`,
+      <input type="file" accept="video/*" hidden data-upfile/>${optFlagHtml(n)}`,
     mount:(n)=> mountFileUpload(n, "video"),
-    async run(n){ if(!n.fields.video) throw new Error("no video — upload a clip first"); return { video: n.fields.video }; }
+    async run(n){ if(!n.fields.video){ if(optNode(n)) return { video:"" }; throw new Error("no video — upload a clip first"); } return { video: n.fields.video }; }
   },
 
   choice: {

@@ -1,5 +1,5 @@
-/* data-hash=62ff5318af367fc8 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-3e2d2be6fa3c (15 modules) */
+/* data-hash=d9431d73a74f23a1 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-15c5709152b7 (15 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -1200,6 +1200,17 @@ function displayName(node) {
   return (t && t.title) || node.type || "?";
 }
 
+/**
+ * Author-marked optional node: fields.optional (the editor's "optional" checkbox on
+ * input nodes) makes every input this node surfaces skippable — the run proceeds and
+ * the node yields an empty value instead of failing. Serialized inside fields so it
+ * survives save/share/materialize with zero format changes.
+ */
+function optionalNode(node) {
+  const v = node && node.fields && node.fields.optional;
+  return v === true || v === "true";
+}
+
 /** Is a wire landing on `port` of `node` a data input (vs a field override)? */
 function isInputPort(node, port) {
   const t = NODE_TYPES[node.type];
@@ -1276,12 +1287,12 @@ function topoSort(graph) {
   return order;
 }
 
-__x.IMG_PORT_RE = IMG_PORT_RE; __x.EDIT_IMG_RE = EDIT_IMG_RE; __x.VID_PORT_RE = VID_PORT_RE; __x.CLIP_PORT_RE = CLIP_PORT_RE; __x.REF_PORT_RE = REF_PORT_RE; __x.FRAME_PORT_RE = FRAME_PORT_RE; __x.MAX_FRAMES = MAX_FRAMES; __x.wiredFramesFloor = wiredFramesFloor; __x.NODE_TYPES = NODE_TYPES; __x.displayName = displayName; __x.isInputPort = isInputPort; __x.materialize = materialize; __x.topoSort = topoSort;
+__x.IMG_PORT_RE = IMG_PORT_RE; __x.EDIT_IMG_RE = EDIT_IMG_RE; __x.VID_PORT_RE = VID_PORT_RE; __x.CLIP_PORT_RE = CLIP_PORT_RE; __x.REF_PORT_RE = REF_PORT_RE; __x.FRAME_PORT_RE = FRAME_PORT_RE; __x.MAX_FRAMES = MAX_FRAMES; __x.wiredFramesFloor = wiredFramesFloor; __x.NODE_TYPES = NODE_TYPES; __x.displayName = displayName; __x.optionalNode = optionalNode; __x.isInputPort = isInputPort; __x.materialize = materialize; __x.topoSort = topoSort;
 });
 __def("nodes.mjs", function (__x, __req) {
 const { NanoodleError } = __req("errors.mjs");
 const { catItem, chatModelCan } = __req("catalog.mjs");
-const { IMG_PORT_RE, EDIT_IMG_RE, REF_PORT_RE, CLIP_PORT_RE, VID_PORT_RE } = __req("graph.mjs");
+const { IMG_PORT_RE, EDIT_IMG_RE, REF_PORT_RE, CLIP_PORT_RE, VID_PORT_RE, optionalNode } = __req("graph.mjs");
 const { MEDIA_INLINE_MAX } = __req("media.mjs");
 const { resizeCropImage, trimAudioToWav, extractAudioToWav, extractVideoFrames, concatVideos, muxSoundtrack, maskToSource } = __req("local-media.mjs");
 
@@ -1663,15 +1674,24 @@ const RUNNERS = {
   async text(n) { return { text: n.fields.text || "" }; },
 
   async upload(n) {
-    if (!n.fields.image) throw new NanoodleError("no image — this Image input has no image");
+    if (!n.fields.image) {
+      if (optionalNode(n)) return { image: "" }; // skipped optional input — consumers drop empty media (collectPorts)
+      throw new NanoodleError("no image — this Image input has no image");
+    }
     return { image: n.fields.image };
   },
   async aupload(n) {
-    if (!n.fields.audio) throw new NanoodleError("no audio — this Audio input has no clip");
+    if (!n.fields.audio) {
+      if (optionalNode(n)) return { audio: "" };
+      throw new NanoodleError("no audio — this Audio input has no clip");
+    }
     return { audio: n.fields.audio };
   },
   async vupload(n) {
-    if (!n.fields.video) throw new NanoodleError("no video — this Video input has no clip");
+    if (!n.fields.video) {
+      if (optionalNode(n)) return { video: "" };
+      throw new NanoodleError("no video — this Video input has no clip");
+    }
     return { video: n.fields.video };
   },
 
@@ -1983,7 +2003,7 @@ __x.catItem = catItem; __x.chatModelCan = chatModelCan;
 });
 __def("io.mjs", function (__x, __req) {
 const { NanoodleError } = __req("errors.mjs");
-const { NODE_TYPES, displayName, topoSort, wiredFramesFloor, MAX_FRAMES } = __req("graph.mjs");
+const { NODE_TYPES, displayName, optionalNode, topoSort, wiredFramesFloor, MAX_FRAMES } = __req("graph.mjs");
 
 /* ============================== INPUTS ============================== */
 
@@ -2015,7 +2035,7 @@ function deriveInputs(graph) {
   const mk = (n, field, label, kind, optional, specDef) => {
     const cur = n.fields[field];
     return {
-      nodeId: n.id, field, label, kind, optional: !!optional,
+      nodeId: n.id, field, label, kind, optional: !!optional || optionalNode(n),
       def: cur != null && String(cur) !== "" ? cur : specDef,
       title: displayName(n), _node: n,
     };
@@ -2051,13 +2071,17 @@ function deriveInputs(graph) {
     }
   }
   // Friendly keys: a node's custom name labels its input when it contributes exactly one
-  // REQUIRED input (app PR #138); otherwise the generic spec label. Dedupe with " 2", " 3".
+  // REQUIRED input (app PR #138) — or exactly one input at all, so an author-optional
+  // renamed node (e.g. an optional "Style reference" upload) keeps its name as the key.
+  // Otherwise the generic spec label. Dedupe with " 2", " 3".
   const used = new Map();
   for (const e of entries) {
     const nodeEntries = entries.filter((x) => x.nodeId === e.nodeId);
     const required = nodeEntries.filter((x) => !x.optional);
     const custom = (e._node.name || "").trim();
-    let key = custom && required.length === 1 && required[0] === e ? custom : e.label;
+    const names = (required.length === 1 && required[0] === e) ||
+                  (required.length === 0 && nodeEntries.length === 1);
+    let key = custom && names ? custom : e.label;
     const lower = key.toLowerCase();
     const count = (used.get(lower) || 0) + 1;
     used.set(lower, count);
@@ -4283,5 +4307,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-3e2d2be6fa3c";
+  window.NanoodleEngine.version = "src-15c5709152b7";
 })();
