@@ -296,6 +296,13 @@
   #agentpop .ap-links{ font-size:.72rem; color:var(--dim); line-height:1.5; margin:.35rem .15rem .1rem }
   #agentpop a{ color:var(--dim) }
   #agentpop a:hover{ color:var(--ink) }
+  /* the MCP path folds behind one conditional line — native <details>, no JS state */
+  #agentpop details{ margin:.55rem .15rem .1rem }
+  #agentpop summary{ list-style:none; cursor:pointer; font-size:.75rem; color:var(--dim); line-height:1.45 }
+  #agentpop summary::-webkit-details-marker{ display:none }
+  #agentpop summary::before{ content:"▸ " }
+  #agentpop details[open] summary::before{ content:"▾ " }
+  #agentpop summary:hover, #agentpop details[open] summary{ color:var(--ink) }
   @media (max-width:700px){ #agentpill .lbl{ display:none } #agentpill > a, #agentpill > button{ padding:.55rem .7rem } }
 
   /* ---------- 💬 Describe changes: a docked bottom composer that edits the graph (patchling engine) ---------- */
@@ -1005,9 +1012,11 @@
 </div>
 </div>
 
-<!-- 🤖 "use in your agent" popover — one npx command installs the nanoodle Agent Skill
-     (github.com/nanoodlecom/nanoodle-skill) into Claude Code / Grok build / Cursor / Gemini CLI
-     / any Agent Skills reader. A quiet popover, not a modal: closes on outside click or Esc. -->
+<!-- 🤖 "use in your agent" popover — the skill is the hero (one npx command installs the
+     nanoodle Agent Skill into Claude Code / Grok build / Cursor / Gemini CLI / any Agent Skills
+     reader); the MCP server is the upgrade path once you've saved a folder of graphs, folded
+     behind one conditional <details> line so first-timers never face a choice. A quiet popover,
+     not a modal: closes on outside click or Esc. -->
 <div id="agentpop" hidden role="dialog" aria-label="Use nanoodle in your coding agent">
   <div class="sm-head">🤖 <span>nanoodle in your coding agent</span></div>
   <p class="ap-note">One command teaches your agent to design and run nanoodle workflows — from your terminal, on your own NanoGPT key.</p>
@@ -1015,8 +1024,17 @@
     <input id="agentcmd" class="sm-url" type="text" readonly value="npx skills add nanoodlecom/nanoodle-skill" aria-label="skill install command" data-no-i18n />
     <button id="agentcopy" class="sm-copy">Copy</button>
   </div>
+  <details id="agentmcp">
+    <summary>Built up a folder of saved graphs? Serve them all as tools with the MCP server.</summary>
+    <p class="ap-note">Every graph in the folder becomes a typed tool your agent can call.</p>
+    <div class="sm-urlrow">
+      <input id="agentmcpcmd" class="sm-url" type="text" readonly value="claude mcp add nanoodle --env NANOGPT_API_KEY=your-key -- npx -y nanoodle-mcp --graphs ~/noodles" aria-label="MCP install command" data-no-i18n />
+      <button id="agentmcpcopy" class="sm-copy">Copy</button>
+    </div>
+    <p class="ap-links"><a href="https://github.com/nanoodlecom/nanoodle-mcp#install" target="_blank" rel="noopener">other agents &amp; wallet mode → setup guide</a></p>
+  </details>
   <p class="ap-agents"><span>works in</span> <b data-no-i18n>Claude Code, Grok build, Cursor, Gemini CLI</b> <a href="https://agentskills.io" target="_blank" rel="noopener">&amp; more</a></p>
-  <p class="ap-links"><a href="https://github.com/nanoodlecom/nanoodle-skill" target="_blank" rel="noopener">skill source</a> · <a href="https://github.com/nanoodlecom/noodle-skills" target="_blank" rel="noopener">prebuilt skills</a> · <a href="https://github.com/nanoodlecom/nanoodle-mcp" target="_blank" rel="noopener">MCP server</a></p>
+  <p class="ap-links"><a href="https://github.com/nanoodlecom/nanoodle-skill" target="_blank" rel="noopener">skill source</a> · <a href="https://github.com/nanoodlecom/noodle-skills" target="_blank" rel="noopener">prebuilt skills</a></p>
 </div>
 
 <!-- ⛽ Refuel — opens when a run just failed for lack of credit, or from a click on the balance
@@ -1623,8 +1641,11 @@ const I18N = {
     "& more":"y más",
     "skill source":"código de la skill",
     "prebuilt skills":"skills listas para usar",
-    "MCP server":"servidor MCP",
+    "Built up a folder of saved graphs? Serve them all as tools with the MCP server.":"¿Ya tienes una carpeta de grafos guardados? Sírvelos todos como herramientas con el servidor MCP.",
+    "Every graph in the folder becomes a typed tool your agent can call.":"Cada grafo de la carpeta se convierte en una herramienta tipada que tu agente puede invocar.",
+    "other agents & wallet mode → setup guide":"otros agentes y modo cartera → guía de instalación",
     "skill install command":"comando de instalación de la skill",
+    "MCP install command":"comando de instalación del MCP",
     "Use nanoodle in your coding agent":"Usa nanoodle en tu agente de código",
     "Star nanoodle on GitHub — this whole site is one MIT-licensed repo":"Dale una estrella a nanoodle en GitHub — todo este sitio es un único repo con licencia MIT",
     "Load nanoodle into your coding agent":"Carga nanoodle en tu agente de código"
@@ -2126,8 +2147,11 @@ const I18N = {
     "& more":"et plus",
     "skill source":"code de la skill",
     "prebuilt skills":"skills prêtes à l’emploi",
-    "MCP server":"serveur MCP",
+    "Built up a folder of saved graphs? Serve them all as tools with the MCP server.":"Vous avez accumulé un dossier de graphes enregistrés ? Servez-les tous comme outils avec le serveur MCP.",
+    "Every graph in the folder becomes a typed tool your agent can call.":"Chaque graphe du dossier devient un outil typé que votre agent peut appeler.",
+    "other agents & wallet mode → setup guide":"autres agents & mode portefeuille → guide d’installation",
     "skill install command":"commande d’installation de la skill",
+    "MCP install command":"commande d’installation du MCP",
     "Use nanoodle in your coding agent":"Utilisez nanoodle dans votre agent de code",
     "Star nanoodle on GitHub — this whole site is one MIT-licensed repo":"Mettez une étoile à nanoodle sur GitHub — tout ce site tient dans un seul dépôt sous licence MIT",
     "Load nanoodle into your coding agent":"Chargez nanoodle dans votre agent de code"
@@ -2629,8 +2653,11 @@ const I18N = {
     "& more":"& mehr",
     "skill source":"Skill-Quellcode",
     "prebuilt skills":"fertige Skills",
-    "MCP server":"MCP-Server",
+    "Built up a folder of saved graphs? Serve them all as tools with the MCP server.":"Schon einen Ordner voller gespeicherter Graphen? Stelle sie alle als Tools über den MCP-Server bereit.",
+    "Every graph in the folder becomes a typed tool your agent can call.":"Jeder Graph im Ordner wird zu einem typisierten Tool, das dein Agent aufrufen kann.",
+    "other agents & wallet mode → setup guide":"weitere Agents & Wallet-Modus → Setup-Anleitung",
     "skill install command":"Skill-Installationsbefehl",
+    "MCP install command":"MCP-Installationsbefehl",
     "Use nanoodle in your coding agent":"Nutze nanoodle in deinem Coding-Agenten",
     "Star nanoodle on GitHub — this whole site is one MIT-licensed repo":"Gib nanoodle einen Stern auf GitHub — die ganze Seite ist ein einziges MIT-lizenziertes Repo",
     "Load nanoodle into your coding agent":"Lade nanoodle in deinen Coding-Agenten"
@@ -3132,8 +3159,11 @@ const I18N = {
     "& more":"e mais",
     "skill source":"código da skill",
     "prebuilt skills":"skills prontas",
-    "MCP server":"servidor MCP",
+    "Built up a folder of saved graphs? Serve them all as tools with the MCP server.":"Já tem uma pasta de grafos guardados? Sirva-os todos como ferramentas com o servidor MCP.",
+    "Every graph in the folder becomes a typed tool your agent can call.":"Cada grafo da pasta torna-se uma ferramenta tipada que o seu agente pode chamar.",
+    "other agents & wallet mode → setup guide":"outros agentes e modo carteira → guia de instalação",
     "skill install command":"comando de instalação da skill",
+    "MCP install command":"comando de instalação do MCP",
     "Use nanoodle in your coding agent":"Use o nanoodle no seu agente de código",
     "Star nanoodle on GitHub — this whole site is one MIT-licensed repo":"Dê uma estrela ao nanoodle no GitHub — este site inteiro é um único repositório com licença MIT",
     "Load nanoodle into your coding agent":"Carregue o nanoodle no seu agente de código"
@@ -3635,8 +3665,11 @@ const I18N = {
     "& more":"ほか多数",
     "skill source":"スキルのソース",
     "prebuilt skills":"既製スキル",
-    "MCP server":"MCP サーバー",
+    "Built up a folder of saved graphs? Serve them all as tools with the MCP server.":"保存したグラフがフォルダに溜まってきたら？MCP サーバーでまとめてツールとして提供できます。",
+    "Every graph in the folder becomes a typed tool your agent can call.":"フォルダ内の各グラフが、エージェントが呼び出せる型付きツールになります。",
+    "other agents & wallet mode → setup guide":"他のエージェント & ウォレットモード → セットアップガイド",
     "skill install command":"スキルのインストールコマンド",
+    "MCP install command":"MCP のインストールコマンド",
     "Use nanoodle in your coding agent":"コーディングエージェントで nanoodle を使う",
     "Star nanoodle on GitHub — this whole site is one MIT-licensed repo":"GitHub で nanoodle にスターを — このサイト全体が MIT ライセンスの単一リポジトリです",
     "Load nanoodle into your coding agent":"コーディングエージェントに nanoodle を読み込む"
@@ -11304,6 +11337,7 @@ $("agentbtn").onclick = ()=> setAgentPop($("agentpop").hidden);
 document.addEventListener("click", e=>{ if(!$("agentpop").hidden && !$("agentpop").contains(e.target) && !$("agentpill").contains(e.target)) setAgentPop(false); });
 addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("agentpop").hidden) setAgentPop(false); });
 $("agentcopy").onclick = async ()=>{ const ok = await copyText($("agentcmd").value); toast(ok?"✓ Copied":"copy failed", ok?"":"err"); };
+$("agentmcpcopy").onclick = async ()=>{ const ok = await copyText($("agentmcpcmd").value); toast(ok?"✓ Copied":"copy failed", ok?"":"err"); };
 
 /* ======================================================================
    AUTH  (OAuth PKCE + paste key — identical pattern to the other examples)
