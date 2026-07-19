@@ -1,5 +1,5 @@
-/* data-hash=7b51b61783b90c77 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-bdff3a08fc89 (15 modules) */
+/* data-hash=db4dbe32cb03e720 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-d61de1baa98c (15 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -1460,6 +1460,11 @@ function isValidCustomAir(air) {
   return /^(civitai:\d+@\d+|persona:\d+@\d+|runware:[^\s@]+@[^\s@]+)$/i.test(air);
 }
 
+// FLUX-family platform AIRs are guidance-distilled (CFG=1) — a negative prompt has no effect, so
+// omit it. Ids: 100/101 FLUX.1, 103/104 depth/canny, 106 kontext, 107 krea, 111 SRPO, 160 Flex.1,
+// 400 FLUX.2/klein. Mirrors the app.
+function airTakesNegative(air) { return !/^runware:(100|101|103|104|106|107|111|160|400)@/i.test(String(air || "")); }
+
 /** Per-call image extras: LoRA params + fixed seed (when numeric) + custom-civitai AIR. */
 function imgExtra(n) {
   const e = loraParams(n);
@@ -1472,6 +1477,10 @@ function imgExtra(n) {
       throw new NanoodleError("AIR must look like civitai:MODEL@VERSION, runware:id@rev, or persona:MODEL@VERSION");
     }
     e.customCivitaiAir = air;
+    // snake_case only — negativePrompt (camelCase) is silently dropped by the API; same-seed
+    // probe on persona:376130@2456367 confirmed negative_prompt reaches the sampler (2026-07-18)
+    const np = String(n.fields.negativePrompt || "").trim();
+    if (np && airTakesNegative(air)) e.negative_prompt = np;
   }
   return e;
 }
@@ -4258,5 +4267,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-bdff3a08fc89";
+  window.NanoodleEngine.version = "src-d61de1baa98c";
 })();
