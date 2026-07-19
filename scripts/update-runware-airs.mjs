@@ -102,6 +102,7 @@ async function fetchRunwareContent() {
       source: "runware-content",
       creator: m.creator || "",
       headline: m.headline || "",
+      architecture: m.architecture || "",
     });
   }
   return out;
@@ -194,6 +195,7 @@ function upsert(byAir, entry) {
       : prev.name || entry.name,
     creator: entry.creator || prev.creator || "",
     headline: entry.headline || prev.headline || "",
+    architecture: entry.architecture || prev.architecture || "",
     source: prefNew ? entry.source : prev.source,
   });
 }
@@ -264,6 +266,7 @@ async function main() {
     const row = { air: m.air, name: m.name, source: m.source };
     if (m.creator) row.creator = m.creator;
     if (m.headline) row.headline = m.headline;
+    if (m.architecture) row.architecture = m.architecture;   // gates the negative-prompt field (FLUX-family ignores it)
     groupsMap.get(meta.id).models.push(row);
   }
   const groups = [...groupsMap.values()]
