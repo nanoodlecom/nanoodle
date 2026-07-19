@@ -1,5 +1,5 @@
-/* data-hash=db4dbe32cb03e720 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-d61de1baa98c (15 modules) */
+/* data-hash=c82821b37ed52e3c */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-e479622a9b36 (15 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -1465,6 +1465,13 @@ function isValidCustomAir(air) {
 // 400 FLUX.2/klein. Mirrors the app.
 function airTakesNegative(air) { return !/^runware:(100|101|103|104|106|107|111|160|400)@/i.test(String(air || "")); }
 
+// The NanoGPT catalog also lists AIR-style ids as DIRECT models (e.g. persona:376130@2456367) —
+// same Runware path, same negative_prompt support, same FLUX gate.
+function airModelTakesNegative(model) {
+  const m = String(model || "");
+  return /^(persona:|civitai:|runware:)/i.test(m) && airTakesNegative(m);
+}
+
 /** Per-call image extras: LoRA params + fixed seed (when numeric) + custom-civitai AIR. */
 function imgExtra(n) {
   const e = loraParams(n);
@@ -1481,6 +1488,9 @@ function imgExtra(n) {
     // probe on persona:376130@2456367 confirmed negative_prompt reaches the sampler (2026-07-18)
     const np = String(n.fields.negativePrompt || "").trim();
     if (np && airTakesNegative(air)) e.negative_prompt = np;
+  } else if (airModelTakesNegative(n.fields.model)) {
+    const np = String(n.fields.negativePrompt || "").trim();
+    if (np) e.negative_prompt = np;
   }
   return e;
 }
@@ -4267,5 +4277,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-d61de1baa98c";
+  window.NanoodleEngine.version = "src-e479622a9b36";
 })();
