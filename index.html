@@ -4466,6 +4466,13 @@ function isValidCustomAir(air){
 // civitai:/persona:, plus z-image/qwen/hidream/… platform AIRs) runs real CFG and honors it.
 // Ids: 100/101 FLUX.1, 103/104 depth/canny, 106 kontext, 107 krea, 111 SRPO, 160 Flex.1, 400 FLUX.2/klein.
 function airTakesNegative(air){ return !/^runware:(100|101|103|104|106|107|111|160|400)@/i.test(String(air||"")); }
+// The NanoGPT catalog also lists AIR-style ids as DIRECT models (e.g. persona:376130@2456367
+// "Nova Anime XL") — same Runware path, same negative_prompt support (live-verified), no
+// custom-civitai wrapper. Same FLUX gate applies.
+function airModelTakesNegative(model){
+  const m = String(model||"");
+  return /^(persona:|civitai:|runware:)/i.test(m) && airTakesNegative(m);
+}
 // UI gate: prefer the live catalog's architecture/name when we have them (covers future FLUX AIRs
 // the static id list can't know about); fall back to the shared id check for pastes/seeds.
 function airShowsNegative(m, air){
@@ -4550,10 +4557,27 @@ function ensureRunwareLiveCatalog(){
     });
   return _runwareLive.promise;
 }
+function negPromptHtml(n){
+  return `<div style="margin-top:4px">
+        <label>${esc(t("Negative prompt"))} <span class="dim lblhint">· ${esc(t("optional"))}</span></label>
+        <textarea data-civit-neg placeholder="${esc(t("what to avoid — e.g. lowres, bad anatomy, extra fingers, watermark"))}" spellcheck="false">${esc(n.fields.negativePrompt||"")}</textarea>
+      </div>`;
+}
+function wireNegPrompt(box, n){
+  const neg = box.querySelector("[data-civit-neg]");
+  if(!neg) return;
+  neg.addEventListener("input", ()=>{ n.fields.negativePrompt = neg.value; save(); });
+  neg.addEventListener("pointerdown", e=> e.stopPropagation());
+}
 function refreshCivitParams(n){
   if(n.type!=="image" || !n.el) return;
   const box = n.el.querySelector("[data-civitparams]"); if(!box) return;
-  if(!needsCustomCivitai(n.fields.model)){ box.innerHTML=""; return; }
+  if(!needsCustomCivitai(n.fields.model)){
+    // Direct AIR-style catalog models (persona:… etc.) take a negative prompt too — just that field
+    box.innerHTML = airModelTakesNegative(n.fields.model) ? negPromptHtml(n) : "";
+    wireNegPrompt(box, n);
+    return;
+  }
   // Kick a live refresh of the Runware group (non-blocking; stamped list shows immediately)
   if(_runwareLive.status==="idle") ensureRunwareLiveCatalog();
   const groups = (RUNWARE_AIRS && Array.isArray(RUNWARE_AIRS.groups)) ? RUNWARE_AIRS.groups : [];
@@ -4590,10 +4614,7 @@ function refreshCivitParams(n){
         ${showPick ? `<select data-civit-pick>${mOpts}</select>` : ""}
         <input type="text" data-civit value="${esc(v)}" placeholder="${esc(t("civitai:modelId@versionId or runware:id@rev"))}" spellcheck="false" autocomplete="off"/>
       </div>
-      ${airShowsNegative(matched, v) ? `<div style="margin-top:4px">
-        <label>${esc(t("Negative prompt"))} <span class="dim lblhint">· ${esc(t("optional"))}</span></label>
-        <textarea data-civit-neg placeholder="${esc(t("what to avoid — e.g. lowres, bad anatomy, extra fingers, watermark"))}" spellcheck="false">${esc(n.fields.negativePrompt||"")}</textarea>
-      </div>` : ""}
+      ${airShowsNegative(matched, v) ? negPromptHtml(n) : ""}
       <div class="fhint">${esc(t("Pick a Runware, CivitAI, or Persona preset — or paste an AIR (civitai:MODEL@VERSION, runware:…, persona:…). Not every CivitAI model or version is supported — if one fails, try another."))} <a href="https://civitai.com/models" target="_blank" rel="noopener">${esc(t("Browse CivitAI models ↗"))}</a>${_runwareLive.status==="loading" ? " · "+esc(t("loading catalog…")) : ""}</div>
     </div>`;
   translateTree(box);
@@ -4640,11 +4661,7 @@ function refreshCivitParams(n){
     });
     inp.addEventListener("pointerdown", e=> e.stopPropagation());
   }
-  const neg = box.querySelector("[data-civit-neg]");
-  if(neg){
-    neg.addEventListener("input", ()=>{ n.fields.negativePrompt = neg.value; save(); });
-    neg.addEventListener("pointerdown", e=> e.stopPropagation());
-  }
+  wireNegPrompt(box, n);
 }
 // show the LoRA disclosure on an image/edit node only when its model accepts an adapter,
 // so the plain-image happy path stays untouched. Rebuilt on model-pick like the audio block.
@@ -8155,6 +8172,9 @@ function imgExtra(n){
     // FLUX-family AIRs ignore negatives (server accepts silently) — omit so the request is honest.
     const np = String(n.fields.negativePrompt||"").trim();
     if(np && airTakesNegative(air)) e.negative_prompt = np;
+  } else if(airModelTakesNegative(n.fields.model)){
+    const np = String(n.fields.negativePrompt||"").trim();
+    if(np) e.negative_prompt = np;
   }
   return e;
 }

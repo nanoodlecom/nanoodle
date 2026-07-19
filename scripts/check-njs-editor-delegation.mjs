@@ -167,7 +167,7 @@ function makeCtx({ flagOn, key = "test-api-key", drifted = false, spy = [], dire
     NODE_TYPES: { llm: { audioInput: "audio_input", modelKind: "chat" }, image: { modelKind: "image" }, edit: { modelKind: "image" } },
     // normalized catalog (the editor helpers' view): capability flags flattened, maxOut for the gallery clamp
     catalogs: { chat: [{ id: "x" }], image: [{ id: "x", maxOut: 9, sizePrices: {} }], video: [], audio: [] },
-    loraParams: () => ({}), needsCustomCivitai: () => false,
+    loraParams: () => ({}), needsCustomCivitai: () => false, airModelTakesNegative: () => false,
     MEDIA_INLINE_MAX: 4.4 * 1024 * 1024,
   };
   ctx.window = ctx;
