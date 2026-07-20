@@ -9,7 +9,7 @@ export const meta = {
   ],
 }
 
-const REPO = '/home/ntc/dev/nanoodle'
+const REPO = '/home/ntc/dev/nanoodlecom/nanoodle'
 
 // ----------------------------------------------------------------------------
 // AUTHORITATIVE SPEC — every agent gets this verbatim. Do not diverge from it.
