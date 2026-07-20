@@ -107,8 +107,10 @@ async function translateBatch(lang, indices) {
   const data = await r.json();
   const content = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
   if (!content) throw new Error(`${lang}: empty response`);
+  // Models sometimes wrap the JSON in a ```json fence despite the instruction — unwrap it.
+  const bare = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
   let map;
-  try { map = JSON.parse(content); } catch { throw new Error(`${lang}: model did not return JSON — ${content.slice(0, 200)}`); }
+  try { map = JSON.parse(bare); } catch { throw new Error(`${lang}: model did not return JSON — ${content.slice(0, 200)}`); }
   return map;
 }
 

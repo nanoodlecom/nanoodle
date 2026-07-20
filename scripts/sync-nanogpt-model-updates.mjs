@@ -140,17 +140,35 @@ function extractEntries(html) {
 }
 
 // --- 3. Compose a nanoodle-facing changelog line from NanoGPT's announcement --
-function toChangelogText(entry) {
-  // NanoGPT's copy reads like "<Model> is now available! <details…>" or
-  // "<Model> is available again. <details…>" — keep just the details clause.
-  let detail = (entry.description || "").replace(/^[^!.]*(?:is now available!|is available again\.)\s*/i, "").trim();
+function trimDetail(description) {
+  const parts = (description || "").trim().split(/(?<=[.!?])\s+/).filter(Boolean);
+  // Drop leading pure-availability sentences ("<Model> is now available!") — the
+  // entry title already says exactly that. Sentence-level, NOT a prefix regex:
+  // dotted model names ("Qwen3.8", "Grok 4.5") defeat any [^.]* lead-in match.
+  while (parts.length && /^.{0,80}?\b(?:is|are)(?: now)? available(?: again)?[.!]$/.test(parts[0])) parts.shift();
+  // The scraped card copy is itself cut off mid-sentence ("… It uses…"), so a
+  // raw length cap ships a dangling fragment into a "one line per change" log.
+  // Keep whole sentences up to ~200 chars and drop any trailing fragment —
+  // unless the fragment is all there is.
+  const kept = [];
+  for (const s of parts) {
+    if (kept.length && (kept.join(" ").length + s.length + 1 > 200 || /…$/.test(s))) break;
+    kept.push(s);
+  }
   // Smooth "<Title> — It is a …" into "<Title> — a …" — the title already named
   // the subject, so the pronoun just repeats it awkwardly after the em dash.
-  detail = detail.replace(/^It(?:'s| is)\s+/, "");
+  let detail = kept.join(" ").replace(/^(?:It(?:'s| is)|They(?:'re| are))\s+/, "");
   if (detail.length > 220) detail = detail.slice(0, 217).replace(/\s+\S*$/, "") + "…";
+  return detail;
+}
+
+function toChangelogText(titles, description) {
+  const detail = trimDetail(description);
+  const title = titles.join(" & ");
+  const label = titles.length > 1 ? "New LLM models" : "New LLM model";
   const text = detail
-    ? `New LLM model: ${entry.title} — ${detail}`
-    : `New LLM model: ${entry.title} is now available for the LLM node.`;
+    ? `${label}: ${title} — ${detail}`
+    : `${label}: ${title} ${titles.length > 1 ? "are" : "is"} now available for the LLM node.`;
   return text.replace(/\s+/g, " ").trim();
 }
 
@@ -205,15 +223,26 @@ if (!pending.length) {
 
 log(`${pending.length} new entr${pending.length === 1 ? "y" : "ies"} to add: ${pending.map(p => p.title).join(", ")}`);
 
+// One NanoGPT announcement often covers several models (each gets its own card
+// with the same date + description) — mirror it as ONE line ("New LLM models:
+// A & B — …"), not near-duplicate neighbours.
+const groups = [];
+for (const entry of pending) {
+  const g = groups.find(g => g.date === entry.date && g.description === entry.description);
+  if (g) g.titles.push(entry.title);
+  else groups.push({ date: entry.date, description: entry.description, titles: [entry.title] });
+}
+
 if (dryRun) {
-  for (const p of pending) log(`  [dry-run] ${p.date} — ${toChangelogText(p)}`);
+  for (const g of groups) log(`  [dry-run] ${g.date} — ${toChangelogText(g.titles, g.description)}`);
   process.exit(0);
 }
 
-// Oldest-of-the-batch first, so the final prepends leave the newest on top.
-for (const entry of [...pending].reverse()) {
-  const text = toChangelogText(entry);
-  execFileSync("node", [join(root, "scripts", "add-update.mjs"), entry.date, text], { stdio: "inherit" });
+// Oldest-of-the-batch first so newest ends up on top; --day-end keeps mirrored
+// model news below any hand-written product update sharing the same date.
+for (const g of [...groups].reverse()) {
+  const text = toChangelogText(g.titles, g.description);
+  execFileSync("node", [join(root, "scripts", "add-update.mjs"), "--day-end", g.date, text], { stdio: "inherit" });
 }
 
 saveSeen(seen, pending.map(p => p.key));
