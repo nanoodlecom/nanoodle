@@ -310,6 +310,14 @@
                             font-size:1.05rem; line-height:1; transition:transform .15s }
   #agentpop details[open] summary::after{ transform:rotate(90deg) }
   #agentpop summary:hover, #agentpop details[open] summary{ color:var(--ink) }
+  /* the MCP command wraps in full view (a clipped <input> hid the your-key placeholder mid-string);
+     the swap-me token — or the injected, masked key — is highlighted so the one variable part is obvious */
+  #agentpop .ap-cmd{ flex:1; min-width:0; font-size:.72rem; font-family:ui-monospace,monospace; color:var(--dim);
+                     background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; padding:.4rem .5rem;
+                     line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; user-select:all }
+  #agentpop .ap-cmd .ap-key{ background:color-mix(in srgb, var(--accent) 18%, transparent); color:var(--ink);
+                             border-radius:.25rem; padding:0 .15rem }
+  #agentpop .ap-keyhint{ font-size:.72rem; color:var(--dim); line-height:1.5; margin:.35rem .15rem .1rem }
   @media (max-width:700px){ #agentpill .lbl{ display:none } #agentpill > a, #agentpill > button{ padding:.55rem .7rem } }
 
   /* ---------- 💬 Describe changes: a docked bottom composer that edits the graph (patchling engine) ---------- */
@@ -1023,7 +1031,11 @@
      nanoodle Agent Skill into Claude Code / Grok build / Cursor / Gemini CLI / any Agent Skills
      reader); the MCP server is the upgrade path once you've saved a folder of graphs, folded
      behind one conditional <details> line so first-timers never face a choice. A quiet popover,
-     not a modal: closes on outside click or Esc. -->
+     not a modal: closes on outside click or Esc.
+     The MCP command needs the user's NanoGPT key inside it, so it's built per-open
+     (renderAgentMcp): signed in → their key is baked into the copy (masked on screen),
+     signed out → the your-key placeholder stays highlighted in a wrapping <code> with a
+     hint naming the swap. The key never leaves the browser except onto their clipboard. -->
 <div id="agentpop" hidden role="dialog" aria-label="Use nanoodle in your coding agent">
   <div class="sm-head">🤖 <span>nanoodle in your coding agent</span></div>
   <p class="ap-note">One command teaches your agent to design and run nanoodle workflows — from your terminal, on your own NanoGPT key.</p>
@@ -1035,9 +1047,10 @@
     <summary>Built up a folder of saved graphs? Serve them all as tools with the MCP server.</summary>
     <p class="ap-note">Every graph in the folder becomes a typed tool your agent can call.</p>
     <div class="sm-urlrow">
-      <input id="agentmcpcmd" class="sm-url" type="text" readonly value="claude mcp add nanoodle --env NANOGPT_API_KEY=your-key -- npx -y nanoodle-mcp --graphs ~/noodles" aria-label="MCP install command" data-no-i18n />
+      <code id="agentmcpcmd" class="ap-cmd" aria-label="MCP install command" data-no-i18n>claude mcp add nanoodle --env NANOGPT_API_KEY=<mark class="ap-key">your-key</mark> -- npx -y nanoodle-mcp --graphs ~/noodles</code>
       <button id="agentmcpcopy" class="sm-copy">Copy</button>
     </div>
+    <p class="ap-keyhint" id="agentmcphint">swap your-key for your NanoGPT API key — or sign in here first and it's filled in for you</p>
     <p class="ap-links"><a href="https://github.com/nanoodlecom/nanoodle-mcp#install" target="_blank" rel="noopener">other agents &amp; wallet mode → setup guide</a></p>
   </details>
   <p class="ap-agents"><span>works in</span> <b data-no-i18n>Claude Code, Grok build, Cursor, Gemini CLI</b> <a href="https://agentskills.io" target="_blank" rel="noopener">&amp; more</a></p>
@@ -1651,6 +1664,10 @@ const I18N = {
     "Built up a folder of saved graphs? Serve them all as tools with the MCP server.":"¿Ya tienes una carpeta de grafos guardados? Sírvelos todos como herramientas con el servidor MCP.",
     "Every graph in the folder becomes a typed tool your agent can call.":"Cada grafo de la carpeta se convierte en una herramienta tipada que tu agente puede invocar.",
     "other agents & wallet mode → setup guide":"otros agentes y modo cartera → guía de instalación",
+    "swap your-key for your NanoGPT API key — or sign in here first and it's filled in for you":"cambia your-key por tu clave API de NanoGPT — o inicia sesión aquí primero y se rellena sola",
+    "your key is filled in (shortened on screen — Copy grabs the full command, ready to paste)":"tu clave ya está puesta (abreviada en pantalla — Copiar toma el comando completo, listo para pegar)",
+    "✓ Copied — your key is in it, just paste into your terminal":"✓ Copiado — tu clave va incluida, solo pégalo en tu terminal",
+    "✓ Copied — now swap your-key for your NanoGPT API key":"✓ Copiado — ahora cambia your-key por tu clave API de NanoGPT",
     "skill install command":"comando de instalación de la skill",
     "MCP install command":"comando de instalación del MCP",
     "Use nanoodle in your coding agent":"Usa nanoodle en tu agente de código",
@@ -2157,6 +2174,10 @@ const I18N = {
     "Built up a folder of saved graphs? Serve them all as tools with the MCP server.":"Vous avez accumulé un dossier de graphes enregistrés ? Servez-les tous comme outils avec le serveur MCP.",
     "Every graph in the folder becomes a typed tool your agent can call.":"Chaque graphe du dossier devient un outil typé que votre agent peut appeler.",
     "other agents & wallet mode → setup guide":"autres agents & mode portefeuille → guide d’installation",
+    "swap your-key for your NanoGPT API key — or sign in here first and it's filled in for you":"remplacez your-key par votre clé API NanoGPT — ou connectez-vous d’abord ici et elle se remplit toute seule",
+    "your key is filled in (shortened on screen — Copy grabs the full command, ready to paste)":"votre clé est déjà en place (raccourcie à l’écran — Copier prend la commande complète, prête à coller)",
+    "✓ Copied — your key is in it, just paste into your terminal":"✓ Copié — votre clé est incluse, collez-le simplement dans votre terminal",
+    "✓ Copied — now swap your-key for your NanoGPT API key":"✓ Copié — remplacez maintenant your-key par votre clé API NanoGPT",
     "skill install command":"commande d’installation de la skill",
     "MCP install command":"commande d’installation du MCP",
     "Use nanoodle in your coding agent":"Utilisez nanoodle dans votre agent de code",
@@ -2663,6 +2684,10 @@ const I18N = {
     "Built up a folder of saved graphs? Serve them all as tools with the MCP server.":"Schon einen Ordner voller gespeicherter Graphen? Stelle sie alle als Tools über den MCP-Server bereit.",
     "Every graph in the folder becomes a typed tool your agent can call.":"Jeder Graph im Ordner wird zu einem typisierten Tool, das dein Agent aufrufen kann.",
     "other agents & wallet mode → setup guide":"weitere Agents & Wallet-Modus → Setup-Anleitung",
+    "swap your-key for your NanoGPT API key — or sign in here first and it's filled in for you":"ersetze your-key durch deinen NanoGPT-API-Schlüssel — oder melde dich zuerst hier an, dann wird er automatisch eingesetzt",
+    "your key is filled in (shortened on screen — Copy grabs the full command, ready to paste)":"dein Schlüssel ist schon eingesetzt (am Bildschirm gekürzt — Kopieren nimmt den vollständigen Befehl, bereit zum Einfügen)",
+    "✓ Copied — your key is in it, just paste into your terminal":"✓ Kopiert — dein Schlüssel ist enthalten, einfach ins Terminal einfügen",
+    "✓ Copied — now swap your-key for your NanoGPT API key":"✓ Kopiert — ersetze jetzt your-key durch deinen NanoGPT-API-Schlüssel",
     "skill install command":"Skill-Installationsbefehl",
     "MCP install command":"MCP-Installationsbefehl",
     "Use nanoodle in your coding agent":"Nutze nanoodle in deinem Coding-Agenten",
@@ -3169,6 +3194,10 @@ const I18N = {
     "Built up a folder of saved graphs? Serve them all as tools with the MCP server.":"Já tem uma pasta de grafos guardados? Sirva-os todos como ferramentas com o servidor MCP.",
     "Every graph in the folder becomes a typed tool your agent can call.":"Cada grafo da pasta torna-se uma ferramenta tipada que o seu agente pode chamar.",
     "other agents & wallet mode → setup guide":"outros agentes e modo carteira → guia de instalação",
+    "swap your-key for your NanoGPT API key — or sign in here first and it's filled in for you":"troque your-key pela sua chave de API NanoGPT — ou entre aqui primeiro e ela se preenche sozinha",
+    "your key is filled in (shortened on screen — Copy grabs the full command, ready to paste)":"sua chave já está preenchida (encurtada na tela — Copiar pega o comando completo, pronto para colar)",
+    "✓ Copied — your key is in it, just paste into your terminal":"✓ Copiado — sua chave vai incluída, é só colar no terminal",
+    "✓ Copied — now swap your-key for your NanoGPT API key":"✓ Copiado — agora troque your-key pela sua chave de API NanoGPT",
     "skill install command":"comando de instalação da skill",
     "MCP install command":"comando de instalação do MCP",
     "Use nanoodle in your coding agent":"Use o nanoodle no seu agente de código",
@@ -3675,6 +3704,10 @@ const I18N = {
     "Built up a folder of saved graphs? Serve them all as tools with the MCP server.":"保存したグラフがフォルダに溜まってきたら？MCP サーバーでまとめてツールとして提供できます。",
     "Every graph in the folder becomes a typed tool your agent can call.":"フォルダ内の各グラフが、エージェントが呼び出せる型付きツールになります。",
     "other agents & wallet mode → setup guide":"他のエージェント & ウォレットモード → セットアップガイド",
+    "swap your-key for your NanoGPT API key — or sign in here first and it's filled in for you":"your-key をあなたの NanoGPT API キーに置き換えてください — 先にここでサインインすれば自動で入ります",
+    "your key is filled in (shortened on screen — Copy grabs the full command, ready to paste)":"あなたのキーは入力済みです（画面では短縮表示 — コピーで完全なコマンドが取れます。貼り付けるだけ）",
+    "✓ Copied — your key is in it, just paste into your terminal":"✓ コピーしました — キー入り。ターミナルに貼り付けるだけです",
+    "✓ Copied — now swap your-key for your NanoGPT API key":"✓ コピーしました — your-key をあなたの NanoGPT API キーに置き換えてください",
     "skill install command":"スキルのインストールコマンド",
     "MCP install command":"MCP のインストールコマンド",
     "Use nanoodle in your coding agent":"コーディングエージェントで nanoodle を使う",
@@ -11350,12 +11383,32 @@ addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("examplesmodal").hidd
 /* ⭐/🤖 corner pill — the "use in your agent" popover (installs the nanoodle Agent Skill).
    No stopPropagation dance: the document-level closer skips clicks inside the pill/popover,
    so the toggle below wins on the trigger itself (same idiom as #moremenu). */
-function setAgentPop(open){ $("agentpop").hidden = !open; $("agentbtn").setAttribute("aria-expanded", String(open)); }
+function setAgentPop(open){ if(open) renderAgentMcp(); $("agentpop").hidden = !open; $("agentbtn").setAttribute("aria-expanded", String(open)); }
 $("agentbtn").onclick = ()=> setAgentPop($("agentpop").hidden);
 document.addEventListener("click", e=>{ if(!$("agentpop").hidden && !$("agentpop").contains(e.target) && !$("agentpill").contains(e.target)) setAgentPop(false); });
 addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("agentpop").hidden) setAgentPop(false); });
 $("agentcopy").onclick = async ()=>{ const ok = await copyText($("agentcmd").value); toast(ok?"✓ Copied":"copy failed", ok?"":"err"); };
-$("agentmcpcopy").onclick = async ()=>{ const ok = await copyText($("agentmcpcmd").value); toast(ok?"✓ Copied":"copy failed", ok?"":"err"); };
+/* The MCP command carries the user's NanoGPT key, so it's rebuilt on every open: signed in →
+   their real key goes in the copy (masked on screen so screen-shares don't leak it), signed
+   out → the your-key placeholder stays highlighted with a hint naming the swap. */
+const agentMcpCmd = (k)=> "claude mcp add nanoodle --env NANOGPT_API_KEY="+k+" -- npx -y nanoodle-mcp --graphs ~/noodles";
+function renderAgentMcp(){
+  const key = getKey();
+  const el = $("agentmcpcmd"); el.textContent = "";
+  const mark = document.createElement("mark"); mark.className = "ap-key";
+  mark.textContent = key ? (key.slice(0,4)+"…"+key.slice(-4)) : "your-key";
+  el.append("claude mcp add nanoodle --env NANOGPT_API_KEY=", mark, " -- npx -y nanoodle-mcp --graphs ~/noodles");
+  $("agentmcphint").textContent = t(key
+    ? "your key is filled in (shortened on screen — Copy grabs the full command, ready to paste)"
+    : "swap your-key for your NanoGPT API key — or sign in here first and it's filled in for you");
+}
+$("agentmcpcopy").onclick = async ()=>{
+  const key = getKey();
+  const ok = await copyText(agentMcpCmd(key || "your-key"));
+  toast(ok ? (key ? "✓ Copied — your key is in it, just paste into your terminal"
+                  : "✓ Copied — now swap your-key for your NanoGPT API key")
+           : "copy failed", ok?"":"err");
+};
 
 /* ======================================================================
    AUTH  (OAuth PKCE + paste key — identical pattern to the other examples)
