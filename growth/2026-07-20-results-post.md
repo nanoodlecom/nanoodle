@@ -26,8 +26,11 @@ it (runbook: Nano crowd loves receipts). Handles are in.
 > Any photo → monochrome 8-bit handheld screen. Two nodes, instant nostalgia,
 > most votes. [share link]
 >
-> 🌀 **Chaos Award (unplanned) — u/blaketran** — 13.3 XNO
-> Strictly speaking, not a noodle. Absolutely not disqualified enough to ignore.
+> 🌀 **Chaos Award — u/blaketran** — 13.3 XNO
+> This category did not exist until they made it necessary. (No, it wasn't
+> planned — it's a *Chaos* Award, planning one would disqualify it.) Their
+> entry was, strictly speaking, not a noodle. It was also too good to ignore,
+> so it gets 10% of a prize for being 0% of a noodle.
 > [one line on what it actually was]
 >
 > 🛠 **Most Useful — LOST, and I need your help.** Someone submitted a video
@@ -44,11 +47,20 @@ it (runbook: Nano crowd loves receipts). Handles are in.
 ## Reply to the Telephone Game winner's feature ask
 (they asked for "output to Excel file" / "output to executable Python script")
 
-> On the "executable Python script" wish — you can already run any noodle
-> outside the browser: `pip install nanoodle`, then point it at your share
-> link and it executes the whole graph headlessly on your key. Your telephone
-> game as a cron job, basically. Excel/CSV output is a genuinely good idea for
-> the workflow-tool direction — logged it.
+> On the "executable Python script" wish — that shipped, just quietly. Your
+> share link IS the script:
+>
+> ```python
+> # pip install nanoodle
+> from nanoodle import Workflow
+> wf = Workflow.load("https://nanoodle.com/#g=<your-telephone-game-link>")
+> result = wf.run({"image": "webcam.jpg"})     # your NanoGPT key via env
+> result["Image"].save("round2.png")
+> ```
+>
+> Whole graph runs headlessly — telephone game as a cron job, basically.
+> (Same for JS: `npm i nanoodle`.) Excel/CSV output doesn't exist yet — it's
+> a genuinely good idea and it's on the list now.
 
 ## Checklist
 - [ ] Recover Most Useful: check your Reddit **inbox → comment replies ~Jul 11–12**
