@@ -3,8 +3,8 @@
 Venue: **r/nanocurrency** (new post), then link it from nano-gpt Discord
 #community-projects + quote-tweet the original contest thread from @nanosapien1.
 
-Fill before posting: the three `u/???` handles, the chaos one-liner, tx receipts
-if winners are cool with it (runbook: Nano crowd loves receipts).
+Fill before posting: the chaos one-liner, tx receipts if winners are cool with
+it (runbook: Nano crowd loves receipts). Handles are in.
 
 ---
 
@@ -15,18 +15,18 @@ if winners are cool with it (runbook: Nano crowd loves receipts).
 > The Cookoff closed Jul 12 and I'm a week late posting results — that's on me;
 > the prizes themselves already went out on-chain. Here's who cooked:
 >
-> 💡 **Most Innovative — "AI Telephone Game" by u/???** — 133 XNO
+> 💡 **Most Innovative — "AI Telephone Game" by u/yuppienetwork1996** — 133 XNO
 > A photo gets described by one vision model, redrawn by another from that
 > description alone, described again, redrawn again. Generation loss, but for
 > AI — watching what survives the whispering is genuinely fascinating (and a
 > little unsettling when the photo is *you*).
 > Try it on your own webcam photo: [share link]
 >
-> ❤️ **People's Choice — "RetroHandheldVision" by u/???** — 133 XNO
+> ❤️ **People's Choice — "RetroHandheldVision" by @NanoCharts (Twitter)** — 133 XNO
 > Any photo → monochrome 8-bit handheld screen. Two nodes, instant nostalgia,
 > most votes. [share link]
 >
-> 🌀 **Chaos Award (unplanned) — u/???** — 13.3 XNO
+> 🌀 **Chaos Award (unplanned) — u/blaketran** — 13.3 XNO
 > Strictly speaking, not a noodle. Absolutely not disqualified enough to ignore.
 > [one line on what it actually was]
 >
@@ -51,7 +51,6 @@ if winners are cool with it (runbook: Nano crowd loves receipts).
 > the workflow-tool direction — logged it.
 
 ## Checklist
-- [ ] Fill handles here AND in `index.html` `COMMUNITY_NOODLES` (`by:`/`byUrl:`)
 - [ ] Recover Most Useful: check your Reddit **inbox → comment replies ~Jul 11–12**
       — the notification keeps the text+author even after automod removal; else
       modmail r/nanocurrency for the removed-comment queue
