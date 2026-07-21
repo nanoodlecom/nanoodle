@@ -59,8 +59,13 @@ it (runbook: Nano crowd loves receipts). Handles are in.
 > ```
 >
 > Whole graph runs headlessly — telephone game as a cron job, basically.
-> (Same for JS: `npm i nanoodle`.) Excel/CSV output doesn't exist yet — it's
-> a genuinely good idea and it's on the list now.
+> `Workflow.load` also takes a saved `noodle-graph.json` (💾 Save workflow in
+> the editor) if you'd rather keep it as a file than a link. Same for JS:
+> `npm i nanoodle`. And if you use a coding agent (Claude Code, Cursor, …),
+> `npx skills add nanoodlecom/nanoodle-skill` teaches it to build and run
+> noodles for you — "run my telephone game on this photo" becomes a prompt.
+> Excel/CSV output doesn't exist yet — it's a genuinely good idea and it's
+> on the list now.
 
 ## Checklist
 - [ ] Recover Most Useful: check your Reddit **inbox → comment replies ~Jul 11–12**
