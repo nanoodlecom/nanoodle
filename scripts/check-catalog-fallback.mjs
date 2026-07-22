@@ -93,21 +93,11 @@ function extractSlab(src, startAnchor, endFnName) {
   return src.slice(start, close + 1);
 }
 
-// pull `const CHAT_IMAGE_OUT = new Set([ ... ]);` as text (simple string members)
-function extractSetLiteral(src, anchor) {
-  const start = src.indexOf(anchor);
-  if (start === -1) throw new Error(`could not find set literal: ${anchor}`);
-  const end = src.indexOf("]);", start);
-  if (end === -1) throw new Error(`unterminated set literal: ${anchor}`);
-  return src.slice(start, end + 3);
-}
-
 // Build a runnable sandbox from the shipped catalog pieces + minimal stubs. The
 // returned object exposes the module-level catalog surface plus mutable stubs so
 // each invariant can drive fetch/localStorage independently. NODE_TYPES is a
 // fixture (we test the resolver's rule, not the real node table).
 function buildSandbox(src, opts = {}) {
-  const chatImageOut = extractSetLiteral(src, "const CHAT_IMAGE_OUT = new Set([");
   const normChat = extractFunction(src, "normChat");
   // CATALOG .. modelSupportsAudio, verbatim (CATALOG, catalogs, cache fns,
   // fetch/load/refresh, catItem, passesFilter, defModelFor, modelSupports*).
@@ -144,9 +134,8 @@ function buildSandbox(src, opts = {}) {
   const NODE_TYPES = opts.nodeTypes || {};
 
   const names = ["localStorage", "fetch", "EST", "getKey", "NANOGPT",
-    "normChat", "normImg", "normVideo", "normAudio", "NODE_TYPES", "CHAT_IMAGE_OUT_SRC"];
+    "normChat", "normImg", "normVideo", "normAudio", "NODE_TYPES"];
   const program =
-    `${chatImageOut}\n` +
     `${normChat}\n` +
     `${slab}\n` +
     `return { catalogs, CATALOG, primeCatalogsFromCache, fetchCatalog, loadCatalog,` +
@@ -155,7 +144,7 @@ function buildSandbox(src, opts = {}) {
 
   const fn = new Function(...names, program);
   const api = fn(localStorage, fetch, EST, getKey, NANOGPT,
-    normChat, normImg, normVideo, normAudio, NODE_TYPES, chatImageOut);
+    normChat, normImg, normVideo, normAudio, NODE_TYPES);
   return { api, store, get fetchCount() { return fetchCount; }, fetchState, localStorage };
 }
 

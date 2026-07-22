@@ -3777,16 +3777,6 @@ function withLocale(messages){
 const SIZES = [["1024x1024","square"],["1024x1536","portrait"],["1536x1024","landscape"],["auto","auto"]];
 const optsHTML = (items, def)=> items.map(([v,l])=>`<option value="${esc(v)}"${v===def?" selected":""}>${esc(l)}</option>`).join("");
 
-// Chat models that return an IMAGE inline (message.images[]) instead of text — Google's "omni"
-// Gemini image models exposed on the /chat/completions endpoint (NOT the image-generations one, so
-// they never appear in the Image/Edit pickers). They reason, then draw, and take text + optional
-// source images (generate OR conversationally edit in one call). Live-verified this returns
-// content:null + message.images[0] as a data URL (2026-07-01). Allowlist, not metadata-derivable:
-// NanoGPT tags these as modality "text->text" with no image-output flag. The Draw node filters on it.
-const CHAT_IMAGE_OUT = new Set([
-  "gemini-3-pro-image-preview",
-]);
-
 // Chat models that take NO temperature — OpenAI's reasoning line (gpt-5 family + o-series)
 // rejects any non-default value, and NanoGPT quietly strips the param before forwarding
 // (live-verified 2026-07-21: gpt-5-nano accepts temperature 0.8 through NanoGPT while OpenAI
@@ -3800,7 +3790,7 @@ const tempLocked = id => TEMP_LOCKED.test(String(id||""));
 
 function normChat(m){
   const p = m.pricing||{}, c = m.capabilities||{};
-  return { id:m.id, name:m.name||m.id, created:m.created, imageOut: CHAT_IMAGE_OUT.has(m.id),   // returns an image inline → pickable in the Draw node
+  return { id:m.id, name:m.name||m.id, created:m.created,
     // blended $/run from the shown prompt+completion prices (same EST mix as the run estimate) → price sorts.
     // NOT m.cost_estimate: it's 0 for routers/auto-model that actually charge, which would fake them as "cheapest".
     sortUsd: (p.prompt!=null || p.completion!=null) ? ((+p.prompt||0)*EST.llmInTokens + (+p.completion||0)*EST.llmOutTokens)/1e6 : null,
@@ -5359,8 +5349,7 @@ function imageUnitUsd(model, size){
    known until the run, so we assume typical sizes (EST) and read the node's
    own prompt length where we can. videoUnitUsd() below is also what fixed the
    ~40% of video models that used to render a blank price in the picker. */
-const EST = { llmInTokens:1000, llmOutTokens:500, ttsChars:600, audioSeconds:30, sttMinutes:1, videoFps:30,
-  chatImageUsd:0.14 };   // Draw node: chat-endpoint image models bill mostly image_tokens, which the catalog's $/token can't predict — live-measured ~$0.14/image (gemini-3-pro-image-preview, 2026-07-01)
+const EST = { llmInTokens:1000, llmOutTokens:500, ttsChars:600, audioSeconds:30, sttMinutes:1, videoFps:30 };
 const _num = (x)=> (x!=null && isFinite(+x)) ? +x : null;
 // pick a price from a {resolutionKey: price} map, honouring the chosen/default resolution (else first/lowest tier)
 function pickByRes(map, reqRes, defRes){
@@ -5542,7 +5531,7 @@ function nodeUnitUsd(n){
     // the with-reference tier — mirrors run()'s role clamp so a stale wire on a non-ref model can't inflate it.
     const refWired = !!(t.refInputs && modelHasImageRole(n,"refs") && graph.links.some(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port)));
     const u = videoUnitUsd(it.pricing, n.fields, refWired); return (u!=null && isFinite(u)) ? u : null; }
-  if(kind==="chat"){ if(it.imageOut) return EST.chatImageUsd;   // Draw node: token pricing can't see image_tokens — use the measured per-image figure
+  if(kind==="chat"){
     const f=n.fields||{}; const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(it, inTok, outTok); }
   if(kind==="audio"){ const chars = t.modelFilter==="stt" ? undefined : (((n.fields||{}).prompt||"").length || EST.ttsChars);
     const secs = audioBilledSeconds(it.params, n.fields||{});   // per_second music meters off the chosen duration, not a fixed 30s
@@ -5889,39 +5878,6 @@ const NODE_TYPES = {
       const urls = await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], undefined, undefined, imgExtra(n), {n:want, multi:true});
       const sel = Math.min(Math.max(0, parseInt(n.fields.sel,10)||0), urls.length-1);   // remembered pick, clamped to what came back
       return { image: urls[sel], images: urls };
-    }
-  },
-
-  draw: {
-    em:"🎨", title:"Draw", desc:"Prompt (+ images) → image — Gemini omni: reasons, then draws or edits", group:"Image",
-    kw:"gemini omni draw reason think image generate edit compose nano banana chat picture",
-    modelKind:"chat", modelFilter:"imageOut",
-    inputs:[],
-    imageInputs:"vision",   // optional wired images → conversational edit / multi-image compositing in the SAME call
-    outputs:[{name:"image", type:"image"},{name:"text", type:"text"}], preview:"image",
-    body:(n)=>`
-      ${modelFieldHTML(n)}
-      <div><label>system (optional)</label><textarea data-f="system" style="min-height:40px" placeholder="style guide, constraints…">${esc(n.fields.system||"")}</textarea></div>
-      <div><label>prompt</label><textarea data-f="prompt" placeholder="a red panda astronaut, cinematic — or, with images wired in: 'combine these into a poster'">${esc(n.fields.prompt||"")}</textarea></div>
-      <label class="setbool" style="margin:3px 0"><input type="checkbox" data-f="showThinking"${n.fields.showThinking===false?"":" checked"}/> show thinking <span class="dim">· adds its reasoning to the text output</span></label>`,
-    async run(n, inp, ctx){
-      const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
-      if(!prompt) throw new Error("no prompt — describe what to draw (or how to edit the wired images)");
-      const imgs = collectImageInputs(inp, n);   // wired image ports, in order — the model edits/composes from them when present
-      // N inlined refs add up fast — refuse before any paid call (mirrors the edit/inpaint guard)
-      if(imgs.reduce((s,u)=> s + (u?u.length:0), 0) > MEDIA_INLINE_MAX)
-        throw new Error("reference images too large (~4 MB combined limit) — use fewer or smaller images");
-      const messages = [];
-      if((n.fields.system||"").trim()) messages.push({role:"system", content:n.fields.system.trim()});
-      messages.push(imgs.length
-        ? { role:"user", content:[{type:"text", text:prompt}, ...imgs.map(url=>({type:"image_url", image_url:{url}}))] }
-        : { role:"user", content:prompt });
-      const { images, text, reasoning } = await ctx.genChatImage(messages, mdl(n), {});
-      const sel = Math.min(Math.max(0, parseInt(n.fields.sel,10)||0), images.length-1);   // remembered pick when the model returns several
-      // "reasons, then draws" is the node's whole identity → surface the trace on the text output by default (opt-out).
-      const showThinking = n.fields.showThinking!==false && n.fields.showThinking!=="false";
-      const outText = (showThinking && reasoning) ? "```thinking\n"+reasoning+"\n```\n\n"+(text||"") : text;
-      return { image: images[sel], images, text: outText };
     }
   },
 
@@ -8010,7 +7966,7 @@ function nodeSig(n, inp){
    on. Demo runs and custom run contexts always use the built-in path.
    ===================================================================== */
 // every network type delegates (wired video refs stay vetoed per-run — see njsRunFor)
-const NJS_TYPES = { llm:1, vision:1, image:1, edit:1, draw:1, inpaint:1, tvideo:1, ivideo:1, vedit:1, lipsync:1, music:1, tts:1, remix:1, transcribe:1 };
+const NJS_TYPES = { llm:1, vision:1, image:1, edit:1, inpaint:1, tvideo:1, ivideo:1, vedit:1, lipsync:1, music:1, tts:1, remix:1, transcribe:1 };
 function njsOn(){
   try{
     const q = new URLSearchParams(location.search).get("engine");
@@ -8068,7 +8024,6 @@ function njsCtx(E, n){
     // built-in genChat twin: inject the "respond in <UI language>" directive (the library is
     // deliberately locale-less), except in JSON/structured mode where it corrupts the output.
     chat: (messages, model, opts)=> client.chat((opts && opts.response_format) ? messages : withLocale(messages), model, opts, io),
-    chatImage: (messages, model, opts)=> client.chatImage(messages, model, opts, io),
     image: (args)=> client.image(args, io),
     video: (model, prompt, opts, imageDataUrl)=>{
       const sig = sigHash(JSON.stringify([model, prompt, opts, imageDataUrl]));
@@ -8524,23 +8479,6 @@ const CTX = {
       out = "```thinking\n"+msg.reasoning+"\n```\n\n"+out;
     return out;
   },
-  // Draw node: same /chat/completions call, but the model answers with an IMAGE (or several) in
-  // message.images[] rather than text (content is null). Returns every image as a data URL plus any
-  // interleaved text. Live-verified: gemini-3-pro-image-preview replies content:null + images:[{image_url:{url:"data:image/png;base64,…"}}].
-  async genChatImage(messages, model, opts){
-    opts = opts || {};
-    const body = { model, messages };
-    body.temperature = (opts.temperature!=null && opts.temperature!=="") ? +opts.temperature : 0.8;
-    const r = await fetch(CHAT_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
-    if(!r.ok){ flagAuth(r); throw new Error(`${r.status}: ${(await r.text()).slice(0,160)}`); }
-    const j = await r.json();
-    const msg = j.choices?.[0]?.message || {};
-    const images = (msg.images||[]).map(im=> im?.image_url?.url || im?.url || (typeof im==="string"?im:null)).filter(Boolean);
-    const text = typeof msg.content==="string" ? msg.content : Array.isArray(msg.content) ? msg.content.map(p=>p.text||"").join("") : "";
-    if(!images.length) throw new Error(text ? "this model replied with text, not an image — pick an image-output model" : "no image in response");
-    accrue(j, EST.chatImageUsd*images.length, r);   // chat endpoint reports no usable image cost (image_tokens) → count the measured per-image estimate
-    return { images, text, reasoning: msg.reasoning||"" };
-  },
   // async video: submit → poll /api/video/status until COMPLETED (up to 10 min)
   // opts also carries optional source media for editing models: videoUrl/videoDataUrl
   // (extend/edit/upscale) and audioDataUrl (lipsync/avatar). duration/aspect only sent when set.
@@ -8766,12 +8704,6 @@ const DEMO_CTX = { ...CTX, demo:true,
   async genImage(prompt, model, size, imageDataUrl, maskDataUrl, extra, opts){
     const [url] = await Promise.all([demoImage(), demoPause(2800 + Math.random()*1600)]);
     return (opts && opts.multi) ? [url] : url;
-  },
-  // Draw node uses genChatImage (not genImage). Stub it so a shape-mode sample never hits the live
-  // chat-image endpoint (DEMO_CTX spreads CTX, which would otherwise call NanoGPT without a key).
-  async genChatImage(){
-    const [url] = await Promise.all([demoImage(), demoPause(2800 + Math.random()*1600)]);
-    return { images:[url], text:"(sample draw — sign in to generate for real)", reasoning:"" };
   },
   genVideo: demoDeny, genAudio: demoDeny, transcribe: demoDeny,
 };
@@ -10588,7 +10520,7 @@ const SHARE_FIT_MAX = 9000;
 // unfurls as a picture of itself instead of the generic ramen card. Best-effort everywhere:
 // any failure (or an implausibly large PNG) just means no card, and shortening proceeds.
 // Emoji/labels mirror NODE_TYPES (kept inline: play.html's registry lives inside RUNTIME_JS).
-const CARD_TYPE_META = { text:["📝","Text"], upload:["📷","Image input"], aupload:["🎤","Audio input"], vupload:["📹","Video input"], choice:["🔘","Choice"], join:["🔗","Join"], llm:["🧠","LLM"], image:["🖼","Image"], draw:["🎨","Draw"], edit:["✂️","Edit"], inpaint:["🩹","Inpaint"], resize:["📐","Resize / crop"], vision:["👁","Vision"], tvideo:["🎬","Text→Video"], ivideo:["📽️","Image→Video"], vedit:["🎞️","Video edit"], vframes:["🎞","Video → frames"], combine:["🎬","Combine videos"], soundtrack:["🎚","Soundtrack"], lipsync:["🎭","Avatar / lipsync"], music:["🎵","Music"], remix:["🎛","Remix audio"], tts:["🗣️","Speech"], trim:["✂️","Trim audio"], extractaudio:["🔊","Extract audio"], transcribe:["🎙️","Transcribe"], comment:["💬","Comment"] };
+const CARD_TYPE_META = { text:["📝","Text"], upload:["📷","Image input"], aupload:["🎤","Audio input"], vupload:["📹","Video input"], choice:["🔘","Choice"], join:["🔗","Join"], llm:["🧠","LLM"], image:["🖼","Image"], edit:["✂️","Edit"], inpaint:["🩹","Inpaint"], resize:["📐","Resize / crop"], vision:["👁","Vision"], tvideo:["🎬","Text→Video"], ivideo:["📽️","Image→Video"], vedit:["🎞️","Video edit"], vframes:["🎞","Video → frames"], combine:["🎬","Combine videos"], soundtrack:["🎚","Soundtrack"], lipsync:["🎭","Avatar / lipsync"], music:["🎵","Music"], remix:["🎛","Remix audio"], tts:["🗣️","Speech"], trim:["✂️","Trim audio"], extractaudio:["🔊","Extract audio"], transcribe:["🎙️","Transcribe"], comment:["💬","Comment"] };
 // Decode the graph out of the link being shortened (not live editor state) so the card always
 // depicts exactly what the link opens. Returns null on anything unexpected.
 async function shareCardGraph(longUrl){
@@ -11659,11 +11591,6 @@ $("signout").onclick = ()=> setKey(null);
       model:"edit model id (optional)", prompt:"edit instruction", size:"output size tier",
       seed:"fixed seed (blank = random)",
     }, note:"multi-reference models grow image, image2, … up to max_input_images" },
-    draw:{ main:"prompt", fields:{
-      model:"image-output chat model id (optional — currently gemini-3-pro-image-preview)",
-      system:"system prompt", prompt:"what to draw (or how to edit wired images)",
-      showThinking:"true/false — include reasoning in the text output (default true)",
-    }, note:"reasons, then draws; wired image ports (img1…) are edited/composed in the same call" },
     inpaint:{ main:"prompt", fields:{
       model:"inpaint model id (optional)", prompt:"what to paint in", size:"usually follows source",
       seed:"fixed seed (blank = random)", brush:"brush size when painting inline",
@@ -11713,7 +11640,7 @@ $("signout").onclick = ()=> setKey(null);
       if(t.endFrame) ins.push("endframe:image (when model supports last_image morph)");
       if(t.imageInputs){
         if(t.imageInputs === "vision" || t.imageInputs === true)
-          ins.push("img1:image, … (vision / draw models grow ports as needed)");
+          ins.push("img1:image, … (vision models grow ports as needed)");
         else if(t.imageInputs.multi)
           ins.push("image, image2, … (up to model's max_input_images)");
       }

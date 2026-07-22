@@ -1,5 +1,5 @@
-/* data-hash=0fd40149485b2145 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-16918736f067 (15 modules) */
+/* data-hash=ace4247b677a41e8 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-8b06f4f3ad06 (15 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -301,7 +301,6 @@ class Workflow {
       const io = { onCost, onPoll, signal: ac.signal };
       return {
         chat: (messages, model, opts) => this.client.chat(messages, model, opts, io),
-        chatImage: (messages, model, opts) => this.client.chatImage(messages, model, opts, io),
         image: (args) => this.client.image(args, io),
         video: (model, prompt, opts, imageDataUrl) => this.client.video(model, prompt, opts, imageDataUrl, io),
         audio: (model, input, extra) => this.client.audio(model, input, extra, io),
@@ -908,26 +907,6 @@ class NanoClient {
     return out;
   }
 
-  /** Draw-node twin of chat(): the model answers with images in message.images[]. */
-  async chatImage(messages, model, opts = {}, { onCost, signal } = {}) {
-    const body = { model, messages };
-    body.temperature = opts.temperature != null && opts.temperature !== "" ? +opts.temperature : 0.8;
-    const r = await this._postJson("/api/v1/chat/completions", body, signal);
-    if (!r.ok) throw httpError(r.status, await r.text());
-    const j = await r.json();
-    if (onCost) onCost(costWithHeaders(j, r));
-    const msg = (j.choices && j.choices[0] && j.choices[0].message) || {};
-    const images = (msg.images || [])
-      .map((im) => (im && im.image_url && im.image_url.url) || (im && im.url) || (typeof im === "string" ? im : null))
-      .filter(Boolean);
-    const text = typeof msg.content === "string" ? msg.content
-      : Array.isArray(msg.content) ? msg.content.map((p) => p.text || "").join("") : "";
-    if (!images.length) {
-      throw new NanoodleError(text ? "this model replied with text, not an image — pick an image-output model" : "no image in response");
-    }
-    return { images, text, reasoning: msg.reasoning || "" };
-  }
-
   /** POST /v1/images/generations (NOTE: not /api/v1). Returns data: / https URL(s). */
   async image({ prompt, model, size, imageDataUrl, maskDataUrl, extra, n = 1, multi = false }, { onCost, signal } = {}) {
     const body = { model, size: size || "1024x1024", n, response_format: "b64_json" };
@@ -1139,7 +1118,7 @@ const { NanoodleError } = __req("errors.mjs");
 /* Dynamic input-port families (mirrors the nanoodle app's runGraph). A wire landing on one of
    these ports — or on a port declared in NODE_TYPES[type].inputs — is a data input; a wire
    landing on ANY other port is a field override (wired prompt/system/lyrics/q/...). */
-const IMG_PORT_RE = /^img\d+$/;      // llm / draw vision references
+const IMG_PORT_RE = /^img\d+$/;      // llm vision references
 const EDIT_IMG_RE = /^image\d*$/;    // edit multi-reference: image, image2, ...
 const VID_PORT_RE = /^vid\d+$/;
 const CLIP_PORT_RE = /^clip\d+$/;    // combine clips
@@ -1180,7 +1159,6 @@ const NODE_TYPES = {
   join:    { title: "Join",            inputs: ["a", "b"], outputs: [{ name: "text", type: "text" }], local: true },
   llm:     { title: "LLM",             inputs: [], outputs: [{ name: "text", type: "text" }], network: true },
   image:   { title: "Image",           inputs: [], outputs: [{ name: "image", type: "image" }], network: true },
-  draw:    { title: "Draw",            inputs: [], outputs: [{ name: "image", type: "image" }, { name: "text", type: "text" }], network: true },
   edit:    { title: "Edit",            inputs: [], outputs: [{ name: "image", type: "image" }], network: true },
   inpaint: { title: "Inpaint",         inputs: ["image", "mask"], outputs: [{ name: "image", type: "image" }], network: true },
   resize:  { title: "Resize / crop",   inputs: ["image"], outputs: [{ name: "image", type: "image" }], local: true },
@@ -1725,7 +1703,7 @@ function guardRefsSize(imgs) {
 /**
  * Per-node executors. Each: async run(node, inp, ctx) → out map keyed by output port name.
  * `node.fields` already carries wired field overrides + user inputs + settings.
- * ctx = { chat, chatImage, image, video, audio, transcribe, progress } (cost/poll wired by the engine).
+ * ctx = { chat, image, video, audio, transcribe, progress } (cost/poll wired by the engine).
  */
 const RUNNERS = {
   async text(n) { return { text: n.fields.text || "" }; },
@@ -1899,20 +1877,6 @@ const RUNNERS = {
     return { image: await ctx.image({ prompt, model: mdl(n), size: n.fields.size || "1024x1024", imageDataUrl: src, extra: imgExtra(n) }) };
   },
 
-  async draw(n, inp, ctx) {
-    const prompt = promptOf(n, inp, "no prompt");
-    const imgs = await Promise.all(collectPorts(inp, IMG_PORT_RE).map((u) => fitImage(u, ctx, "wired image")));
-    guardRefsSize(imgs);
-    const messages = chatMessages(n, prompt, imgs, null);
-    const res = await ctx.chatImage(messages, mdl(n), {});
-    const sel = Math.min(Math.max(0, parseInt(n.fields.sel, 10) || 0), res.images.length - 1);
-    const showThinking = n.fields.showThinking !== false && n.fields.showThinking !== "false";
-    const text = showThinking && res.reasoning
-      ? "```thinking\n" + res.reasoning + "\n```\n\n" + (res.text || "")
-      : res.text;
-    return { image: res.images[sel], images: res.images, text };
-  },
-
   async inpaint(n, inp, ctx) {
     const source = inp.image != null ? inp.image : n.fields.image;
     const rawMask = inp.mask != null ? inp.mask : n.fields.mask;
@@ -2076,8 +2040,6 @@ const INPUT_SPECS = {
   llm:     [{ f: "prompt", label: "Prompt", kind: "textarea" },
             { f: "system", label: "System prompt", kind: "textarea", optional: true, def: "You are a helpful, concise assistant." }],
   image:   [{ f: "prompt", label: "Image prompt", kind: "textarea" }],
-  draw:    [{ f: "prompt", label: "Prompt", kind: "textarea" },
-            { f: "system", label: "System prompt", kind: "textarea", optional: true }],
   tvideo:  [{ f: "prompt", label: "Video prompt", kind: "textarea" }],
   music:   [{ f: "prompt", label: "Style / prompt", kind: "textarea" }],
   remix:   [{ f: "prompt", label: "Style / direction", kind: "textarea" }],
@@ -2264,10 +2226,6 @@ const SETTING_SPECS = {
     { f: "prompt", label: "Edit instruction", kind: "textarea" },
     { f: "size", label: "Image size", kind: "select", options: SIZES, def: "1024x1024" },
     { f: "seed", label: "Seed", kind: "number" },
-  ],
-  draw: [
-    { f: "model", label: "Model", kind: "model" },
-    { f: "showThinking", label: "Show thinking", kind: "boolean", def: true },
   ],
   tvideo: [
     { f: "model", label: "Model", kind: "model" },
@@ -4579,5 +4537,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-16918736f067";
+  window.NanoodleEngine.version = "src-8b06f4f3ad06";
 })();
