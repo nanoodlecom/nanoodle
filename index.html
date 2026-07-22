@@ -3925,9 +3925,11 @@ function normAudio(m){
   const usable = !/lyric|describe|recognize|stem|clone|upload|cover|extend|inpaint/i.test(m.id);
   // TODO(nanogpt): hide models whose generation service errors on *every* call — they're correctly
   // labeled but currently dead, so picking one is a guaranteed dead end. Elevenlabs-Music-V1 returns
-  // 502 "Music generation service error" on every request (its TTS siblings work). Remove each id once
-  // upstream recovers — see NANOGPT-audio-modality-bug.md.
-  const dead = /^Elevenlabs-Music-V1$/i.test(m.id);
+  // 502 "Music generation service error" on every request (its TTS siblings work).
+  // ACE-Step-v1.5-Base 502s "Runware ACE-Step submission failed" on every request (verified 3x
+  // 2026-07-20) — and as the newest music entry it was the Music node's DEFAULT, so every fresh
+  // lyrics-to-song run died. Remove each id once upstream recovers — see NANOGPT-audio-modality-bug.md.
+  const dead = /^(Elevenlabs-Music-V1|ACE-Step-v1\.5-Base)$/i.test(m.id);
   const gen = usable && !dead && mod.startsWith("text") && /audio|music/.test(out);   // text-driven audio (speech / music / sfx)
   const tts = !!c.text_to_speech || m.category==="audio_tts";
   // speech→text (transcription). voice-clone models are mislabeled audio_stt but emit a voice-id,
