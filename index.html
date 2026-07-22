@@ -620,6 +620,9 @@
                 background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; overflow:hidden; font-size:.74rem }
   .body .uprev img, .body .uprev video{ width:100%; display:block; border-radius:.45rem }
   .body .uprev audio{ width:100% }
+  /* empty media input: not broken, an input slot — second line says empty = asked for at run time */
+  .body .uprev .empt{ text-align:center; padding:.4rem }
+  .body .uprev .empt small{ display:block; margin-top:.2rem; font-size:.68rem; opacity:.75 }
   .body .maskwrap{ position:relative; line-height:0; width:100%; min-height:90px; display:flex; align-items:center;
                    justify-content:center; background:var(--panel2); border:1px solid var(--line); border-radius:.45rem;
                    overflow:hidden; font-size:.74rem; text-align:center }
@@ -1546,6 +1549,7 @@ const I18N = {
     "Capture":"Capturar",
     "Cancel":"Cancelar",
     "no image yet — drop one here":"aún sin imagen — suelta una aquí",
+    "leave empty: it’s asked for when the app runs":"déjalo vacío: se pedirá al ejecutar la app",
     "running…":"ejecutando…",
     "error":"error",
     "generating audio…":"generando audio…",
@@ -2056,6 +2060,7 @@ const I18N = {
     "Capture":"Capturer",
     "Cancel":"Annuler",
     "no image yet — drop one here":"aucune image — déposez-en une ici",
+    "leave empty: it’s asked for when the app runs":"laissez vide : ce sera demandé à l’exécution de l’app",
     "running…":"exécution…",
     "error":"erreur",
     "generating audio…":"génération de l’audio…",
@@ -2566,6 +2571,7 @@ const I18N = {
     "Capture":"Aufnehmen",
     "Cancel":"Abbrechen",
     "no image yet — drop one here":"noch kein Bild — eins hier ablegen",
+    "leave empty: it’s asked for when the app runs":"leer lassen: wird beim Ausführen der App abgefragt",
     "running…":"läuft…",
     "error":"Fehler",
     "generating audio…":"Audio wird erzeugt…",
@@ -3076,6 +3082,7 @@ const I18N = {
     "Capture":"Capturar",
     "Cancel":"Cancelar",
     "no image yet — drop one here":"nenhuma imagem ainda — solte uma aqui",
+    "leave empty: it’s asked for when the app runs":"deixe vazio: será pedido quando o app rodar",
     "running…":"executando…",
     "error":"erro",
     "generating audio…":"gerando áudio…",
@@ -3586,6 +3593,7 @@ const I18N = {
     "Capture":"撮影",
     "Cancel":"キャンセル",
     "no image yet — drop one here":"画像なし — ここに画像をドロップ",
+    "leave empty: it’s asked for when the app runs":"空のままならアプリ実行時に入力を求めます",
     "running…":"実行中…",
     "error":"エラー",
     "generating audio…":"音声を生成中…",
@@ -5743,7 +5751,7 @@ const NODE_TYPES = {
     kw:"photo picture camera webcam capture file drop png jpg selfie",
     inputs:[], outputs:[{name:"image", type:"image"}], preview:"none",
     body:(n)=>`
-      <div class="uprev" data-uprev>${n.fields.image ? `<img src="${esc(n.fields.image)}" alt="image"/>` : `<span class="dim">no image yet — drop one here</span>`}</div>
+      <div class="uprev" data-uprev>${n.fields.image ? `<img src="${esc(n.fields.image)}" alt="image"/>` : `<span class="dim empt">no image yet — drop one here<small>leave empty: it’s asked for when the app runs</small></span>`}</div>
       <div class="two">
         <button class="ubtn" data-up="file">⬆ <span>Upload</span></button>
         <button class="ubtn" data-up="cam">📷 <span>Webcam</span></button>
@@ -5761,7 +5769,7 @@ const NODE_TYPES = {
     em:"🎤", title:"Audio input", desc:"Upload an audio clip", group:"Inputs", kw:"sound music voice song track recording mp3 wav file",
     inputs:[], outputs:[{name:"audio", type:"audio"}], preview:"none",
     body:(n)=>`
-      <div class="uprev" data-uprev>${n.fields.audio ? `<audio src="${esc(n.fields.audio)}" controls></audio>` : `<span class="dim">no audio yet</span>`}</div>
+      <div class="uprev" data-uprev>${n.fields.audio ? `<audio src="${esc(n.fields.audio)}" controls></audio>` : `<span class="dim empt">no audio yet<small>leave empty: it’s asked for when the app runs</small></span>`}</div>
       <div><button class="ubtn" data-up="file">⬆ Upload audio</button></div>
       <input type="file" accept="audio/*" hidden data-upfile/>${optFlagHtml(n)}`,
     mount:(n)=> mountFileUpload(n, "audio"),
@@ -5772,7 +5780,7 @@ const NODE_TYPES = {
     em:"📹", title:"Video input", desc:"Upload a video clip", group:"Inputs", kw:"movie clip mp4 mov webm file",
     inputs:[], outputs:[{name:"video", type:"video"}], preview:"none",
     body:(n)=>`
-      <div class="uprev" data-uprev>${n.fields.video ? `<video src="${esc(n.fields.video)}" controls playsinline></video>` : `<span class="dim">no video yet</span>`}</div>
+      <div class="uprev" data-uprev>${n.fields.video ? `<video src="${esc(n.fields.video)}" controls playsinline></video>` : `<span class="dim empt">no video yet<small>leave empty: it’s asked for when the app runs</small></span>`}</div>
       <div><button class="ubtn" data-up="file">⬆ Upload video</button></div>
       <div class="fhint">keep clips under ~3 MB — larger won’t reach the model</div>
       <input type="file" accept="video/*" hidden data-upfile/>${optFlagHtml(n)}`,
