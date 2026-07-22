@@ -8248,7 +8248,7 @@ function mp4ParamsMatch(bufs){
       case "music":      { const am = mod.split("->")[0].split("+");   // cover/extend models are text+audio-> and demand a source track — keep them out of a plain Music swap
                            // verb guard mirrors editor normAudio.usable: cover/extend/clone ids would leak in via modality alone
                            const usable = !/lyric|describe|recognize|stem|clone|upload|cover|extend|inpaint/i.test(m.id||"");
-                           const dead = /^Elevenlabs-Music-V1$/i.test(m.id||"");
+                           const dead = /^(Elevenlabs-Music-V1|ACE-Step-v1\.5-Base)$/i.test(m.id||"");
                            return usable && !dead && am.includes("text") && !am.includes("audio") && /audio|music/.test(out) && !(c.text_to_speech || m.category==="audio_tts"); }
       case "remix":      return !!(c.music_cover || c.audio_to_music || c.music_extension || c.audio_extension || c.audio_inpainting);   // mirrors the editor's normAudio remix flag
       case "transcribe": return (!!c.speech_to_text || m.category==="audio_stt") && !/clone/i.test(m.id||"");
