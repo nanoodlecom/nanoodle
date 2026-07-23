@@ -64,6 +64,16 @@ const escHtml = (s) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 const escXml = escHtml;
 
+// Bare https:// URLs in an entry render as real links on the HTML page (each
+// fragment still escaped; trailing punctuation stays text). Mirrors the in-app
+// 📣 modal's linkifier. The Atom feed keeps plain escaped text.
+const linkifyHtml = (s) =>
+  s.split(/(https:\/\/[^\s]*[^\s.,;:)!?»」。])/)
+    .map((part) => /^https:\/\//.test(part)
+      ? `<a href="${escHtml(part)}">${escHtml(part.replace(/^https:\/\//, ""))}</a>`
+      : escHtml(part))
+    .join("");
+
 const MONTHS = ["January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"];
 function humanDate(iso) {
@@ -90,7 +100,7 @@ const sections = byDate
     ({ date, items }) => `    <section>
       <h2 id="d-${date}"><a href="#d-${date}">${humanDate(date)}</a></h2>
       <ul>
-${items.map((e) => `        <li id="u-${e.slug}">${escHtml(e.text)}</li>`).join("\n")}
+${items.map((e) => `        <li id="u-${e.slug}">${linkifyHtml(e.text)}</li>`).join("\n")}
       </ul>
     </section>`
   )

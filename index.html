@@ -217,6 +217,8 @@
   .update-items{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:.4rem }
   .update-items li{ font-size:.9rem; line-height:1.4; padding-left:1.1rem; position:relative }
   .update-items li::before{ content:"–"; position:absolute; left:0; color:var(--accent) }
+  .update-items a{ color:var(--accent); font-weight:600; text-decoration:none; overflow-wrap:anywhere }
+  .update-items a:hover{ color:var(--ink); text-decoration:underline }
   #updatesempty{ font-size:.85rem; color:var(--dim); padding:1.4rem 0 }
   /* the 📣 Updates button's unseen badge */
   #updates{ position:relative }
@@ -291,6 +293,12 @@
              border-radius:.7rem; box-shadow:0 18px 50px rgba(0,0,0,.5); padding:.55rem .6rem }
   #agentpop[hidden]{ display:none }
   #agentpop .ap-note{ font-size:.78rem; color:var(--ink); line-height:1.45; margin:.2rem .15rem .5rem }
+  /* the hosted-server lead — accent-tinted so the zero-setup path reads first */
+  #agentpop .ap-hosted{ font-size:.78rem; color:var(--ink); line-height:1.45; margin:.2rem .15rem .5rem;
+                        padding:.45rem .55rem; border:1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+                        border-radius:.55rem; background:color-mix(in srgb, var(--accent) 9%, transparent) }
+  #agentpop .ap-hosted a{ color:var(--accent); font-weight:700; text-decoration:none; white-space:nowrap }
+  #agentpop .ap-hosted a:hover{ color:var(--ink); text-decoration:underline }
   #agentpop .ap-agents{ font-size:.72rem; color:var(--dim); line-height:1.5; margin:.45rem .15rem .1rem }
   #agentpop .ap-agents b{ color:var(--ink); font-weight:600 }
   #agentpop .ap-links{ font-size:.72rem; color:var(--dim); line-height:1.5; margin:.35rem .15rem .1rem }
@@ -1036,17 +1044,20 @@
 </div>
 </div>
 
-<!-- 🤖 "use in your agent" popover — the skill is the hero (one npx command installs the
-     nanoodle Agent Skill into Claude Code / Grok build / Cursor / Gemini CLI / any Agent Skills
-     reader); the MCP server is the upgrade path once you've saved a folder of graphs, folded
-     behind one conditional <details> line so first-timers never face a choice. A quiet popover,
-     not a modal: closes on outside click or Esc.
+<!-- 🤖 "use in your agent" popover — a highlighted mcp.nanoodle.com line leads (the hosted
+     MCP server: every awesome-noodles workflow as a ready-to-call tool, zero setup, pays per
+     run in Nano over x402 — the easiest on-ramp); below it the skill (one npx command installs
+     the nanoodle Agent Skill into Claude Code / Grok build / Cursor / Gemini CLI / any Agent
+     Skills reader); the self-hosted MCP server is the power-user path once you've saved a
+     folder of graphs, folded behind one conditional <details> line so first-timers never face
+     a choice. A quiet popover, not a modal: closes on outside click or Esc.
      The MCP command needs the user's NanoGPT key inside it, so it's built per-open
      (renderAgentMcp): signed in → their key is baked into the copy (masked on screen),
      signed out → the your-key placeholder stays highlighted in a wrapping <code> with a
      hint naming the swap. The key never leaves the browser except onto their clipboard. -->
 <div id="agentpop" hidden role="dialog" aria-label="Use nanoodle in your coding agent">
   <div class="sm-head">🤖 <span>nanoodle in your coding agent</span></div>
+  <p class="ap-hosted"><a href="https://mcp.nanoodle.com" target="_blank" rel="noopener" data-no-i18n>⚡ mcp.nanoodle.com</a> <span>— the easiest way in: every awesome-noodles workflow, hosted as a tool your agent can call right now. Nothing to install, no key, no signup — it pays per run in Nano.</span></p>
   <p class="ap-note">One command teaches your agent to design and run nanoodle workflows — from your terminal, on your own NanoGPT key.</p>
   <div class="sm-urlrow">
     <input id="agentcmd" class="sm-url" type="text" readonly value="npx skills add nanoodlecom/nanoodle-skill" aria-label="skill install command" data-no-i18n />
@@ -1663,6 +1674,7 @@ const I18N = {
     "Use in your agent":"Úsalo en tu agente",
     "nanoodle in your coding agent":"nanoodle en tu agente de código",
     "One command teaches your agent to design and run nanoodle workflows — from your terminal, on your own NanoGPT key.":"Un solo comando enseña a tu agente a diseñar y ejecutar flujos de nanoodle — desde tu terminal, con tu propia clave de NanoGPT.",
+    "— the easiest way in: every awesome-noodles workflow, hosted as a tool your agent can call right now. Nothing to install, no key, no signup — it pays per run in Nano.":"— la vía más fácil: cada flujo de awesome-noodles, alojado como una herramienta que tu agente puede invocar ahora mismo. Nada que instalar, sin clave, sin registro — paga por ejecución en Nano.",
     "works in":"funciona en",
     "& more":"y más",
     "skill source":"código de la skill",
@@ -2170,6 +2182,7 @@ const I18N = {
     "Use in your agent":"Utiliser dans votre agent",
     "nanoodle in your coding agent":"nanoodle dans votre agent de code",
     "One command teaches your agent to design and run nanoodle workflows — from your terminal, on your own NanoGPT key.":"Une seule commande apprend à votre agent à concevoir et exécuter des flux nanoodle — depuis votre terminal, avec votre propre clé NanoGPT.",
+    "— the easiest way in: every awesome-noodles workflow, hosted as a tool your agent can call right now. Nothing to install, no key, no signup — it pays per run in Nano.":"— la voie la plus simple : chaque flux d’awesome-noodles, hébergé comme un outil que votre agent peut appeler tout de suite. Rien à installer, pas de clé, pas d’inscription — il paie à l’exécution en Nano.",
     "works in":"fonctionne dans",
     "& more":"et plus",
     "skill source":"code de la skill",
@@ -2677,6 +2690,7 @@ const I18N = {
     "Use in your agent":"In deinem Agenten nutzen",
     "nanoodle in your coding agent":"nanoodle in deinem Coding-Agenten",
     "One command teaches your agent to design and run nanoodle workflows — from your terminal, on your own NanoGPT key.":"Ein Befehl bringt deinem Agenten bei, nanoodle-Workflows zu entwerfen und auszuführen — direkt im Terminal, mit deinem eigenen NanoGPT-Schlüssel.",
+    "— the easiest way in: every awesome-noodles workflow, hosted as a tool your agent can call right now. Nothing to install, no key, no signup — it pays per run in Nano.":"— der einfachste Einstieg: jeder awesome-noodles-Workflow, gehostet als Tool, das dein Agent sofort aufrufen kann. Nichts zu installieren, kein Schlüssel, keine Anmeldung — bezahlt wird pro Lauf in Nano.",
     "works in":"funktioniert in",
     "& more":"& mehr",
     "skill source":"Skill-Quellcode",
@@ -3184,6 +3198,7 @@ const I18N = {
     "Use in your agent":"Use no seu agente",
     "nanoodle in your coding agent":"nanoodle no seu agente de código",
     "One command teaches your agent to design and run nanoodle workflows — from your terminal, on your own NanoGPT key.":"Um único comando ensina o seu agente a criar e executar fluxos do nanoodle — do seu terminal, com a sua própria chave NanoGPT.",
+    "— the easiest way in: every awesome-noodles workflow, hosted as a tool your agent can call right now. Nothing to install, no key, no signup — it pays per run in Nano.":"— o caminho mais fácil: cada fluxo do awesome-noodles, hospedado como uma ferramenta que o seu agente pode chamar agora mesmo. Nada para instalar, sem chave, sem cadastro — paga por execução em Nano.",
     "works in":"funciona no",
     "& more":"e mais",
     "skill source":"código da skill",
@@ -3691,6 +3706,7 @@ const I18N = {
     "Use in your agent":"エージェントで使う",
     "nanoodle in your coding agent":"コーディングエージェントで nanoodle",
     "One command teaches your agent to design and run nanoodle workflows — from your terminal, on your own NanoGPT key.":"コマンド1つで、エージェントが nanoodle ワークフローを設計・実行できるようになります — ターミナルから、自分の NanoGPT キーで。",
+    "— the easiest way in: every awesome-noodles workflow, hosted as a tool your agent can call right now. Nothing to install, no key, no signup — it pays per run in Nano.":"— いちばん手軽な入口：awesome-noodles の全ワークフローが、エージェントが今すぐ呼び出せるツールとしてホスト済み。インストール不要、キー不要、登録不要 — 実行ごとに Nano で支払います。",
     "works in":"対応:",
     "& more":"ほか多数",
     "skill source":"スキルのソース",
@@ -11111,7 +11127,18 @@ async function openUpdates(){
         const h = document.createElement("div"); h.className = "update-date"; h.textContent = e.date; body.appendChild(h);
         ul = document.createElement("ul"); ul.className = "update-items"; body.appendChild(ul);
       }
-      const li = document.createElement("li"); li.textContent = updText(e); ul.appendChild(li);
+      // bare https:// URLs in an entry become real links — built with createElement
+      // (never innerHTML: entry text must stay inert). Trailing punctuation stays text.
+      const li = document.createElement("li");
+      updText(e).split(/(https:\/\/[^\s]*[^\s.,;:)!?»」。])/).forEach(part=>{
+        if(/^https:\/\//.test(part)){
+          const a = document.createElement("a");
+          a.href = part; a.target = "_blank"; a.rel = "noopener";
+          a.textContent = part.replace(/^https:\/\//,"");
+          li.appendChild(a);
+        } else if(part) li.appendChild(document.createTextNode(part));
+      });
+      ul.appendChild(li);
     });
   }
   markUpdatesSeen(list);
