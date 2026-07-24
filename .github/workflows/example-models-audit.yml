@@ -1,0 +1,28 @@
+name: Example model audit
+
+# Monthly check that the 📚 Examples gallery's pinned model ids still exist on NanoGPT. The
+# gallery mirrors awesome-noodles verbatim, pinned models included, because the pinned model IS
+# the example (the arena races four real models; photo→video's prompt guide is written for its
+# video model). The trade is that ids age: a retired one still loads but refuses to run, and
+# nothing else would tell us.
+#
+# Build/audit-time only — it fetches the public catalog and never touches the deployed app, users,
+# or exported apps. A FAILING run is the alert: refresh the graph upstream in awesome-noodles,
+# then re-run scripts/sync-examples.mjs here. The repo owner gets the standard scheduled-workflow
+# failure email. A catalog outage exits 0 rather than crying wolf.
+on:
+  schedule:
+    - cron: "0 9 1 * *"   # 09:00 UTC on the 1st of each month, alongside the LoRA audit
+  workflow_dispatch: {}     # also runnable on demand from the Actions tab
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      # No npm install: the repo has no dependencies and the script uses only Node built-ins.
+      - name: Audit the gallery's pinned model ids against the live catalog
+        run: node scripts/check-example-models.mjs
