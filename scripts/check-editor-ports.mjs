@@ -96,6 +96,7 @@ const ctx = {
   updateDelBtn: () => {},   // touch delete-affordance sync — no-op here
   refreshImageInputs: () => {}, recompactImageLinks: () => {},  // not exercised in this scenario
   refreshVideoInputs: () => {}, recompactVideoLinks: () => {},  // combine's clip-port helpers — not exercised here
+  refreshPromptCaps: () => {},   // prompt-room notes (PROMPT LENGTH CAPS) — DOM chrome, not port wiring
 };
 ctx.byId = (id) => ctx.graph.nodes.find((n) => n.id === id);
 vm.createContext(ctx);

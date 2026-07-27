@@ -603,6 +603,9 @@
                     white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
   .body .wire-chip b{ color:var(--muted); font-weight:600 }
   .body .wire-chip[hidden]{ display:none }
+  /* prompt-length budget: how much room this model leaves, or what an LLM above is told to write within */
+  .body .capnote{ font-size:.7rem; color:var(--dim); text-align:right; margin-top:.2rem; line-height:1.3 }
+  .body .capnote.over{ color:var(--warn) }
   /* magnetism: every valid destination glows, the closest one grabs the wire */
   .port.compatible{ transform:scale(1.25); box-shadow:0 0 0 4px #ffffff26; animation:portpulse 1.1s ease-in-out infinite }
   .port.snap{ transform:scale(1.7); box-shadow:0 0 0 5px #ffffff66, 0 0 12px #fff6; animation:none }
@@ -1575,6 +1578,11 @@ const I18N = {
     "share failed":"error al compartir",
     "audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).":"audio ignorado — este modelo es solo de texto. Elige un modelo con entrada de audio (por ejemplo, un Gemini).",
     "dropped {n} reference image(s) over this model's limit of {max}":"se descartaron {n} imagen(es) de referencia por encima del límite de {max} de este modelo",
+    "prompt limit {cap} characters — a longer wired prompt is trimmed to fit":"límite de prompt: {cap} caracteres — un prompt conectado más largo se recorta para que quepa",
+    "prompt trimmed to {cap} characters for {model} (was {from})":"prompt recortado a {cap} caracteres para {model} (era de {from})",
+    "this model":"este modelo",
+    "✂ trimmed {from} → {to} characters to fit":"✂ recortado de {from} → {to} caracteres para que quepa",
+    "{model} takes prompts of at most {cap} characters — noted. Run again: a longer prompt is trimmed to fit, and the node says so.":"{model} admite prompts de como máximo {cap} caracteres — anotado. Ejecuta de nuevo: un prompt más largo se recorta para que quepa, y el nodo lo indica.",
     "can’t delete while running — Stop first":"no se puede eliminar mientras se ejecuta — detén primero",
     "can’t change the workflow while running — Stop first":"no se puede cambiar el flujo de trabajo mientras se ejecuta — detén primero",
     "couldn’t read that file":"no se pudo leer ese archivo",
@@ -2081,6 +2089,11 @@ const I18N = {
     "share failed":"échec du partage",
     "audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).":"audio ignoré — ce modèle est uniquement textuel. Choisissez un modèle avec entrée audio (par ex. un Gemini).",
     "dropped {n} reference image(s) over this model's limit of {max}":"{n} image(s) de référence ignorée(s) — au-delà de la limite de {max} de ce modèle",
+    "prompt limit {cap} characters — a longer wired prompt is trimmed to fit":"limite du prompt : {cap} caractères — un prompt branché plus long est raccourci pour tenir",
+    "prompt trimmed to {cap} characters for {model} (was {from})":"prompt raccourci à {cap} caractères pour {model} (il en faisait {from})",
+    "this model":"ce modèle",
+    "✂ trimmed {from} → {to} characters to fit":"✂ raccourci de {from} → {to} caractères pour tenir",
+    "{model} takes prompts of at most {cap} characters — noted. Run again: a longer prompt is trimmed to fit, and the node says so.":"{model} accepte des prompts de {cap} caractères au maximum — noté. Relancez : un prompt plus long est raccourci pour tenir, et le nœud le signale.",
     "can’t delete while running — Stop first":"impossible de supprimer pendant l'exécution — arrêtez d'abord",
     "can’t change the workflow while running — Stop first":"impossible de modifier le flux de travail pendant l'exécution — arrêtez d'abord",
     "couldn’t read that file":"impossible de lire ce fichier",
@@ -2587,6 +2600,11 @@ const I18N = {
     "share failed":"Teilen fehlgeschlagen",
     "audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).":"Audio ignoriert — dieses Modell ist reiner Text. Wähle ein Modell mit Audio-Eingabe (z. B. ein Gemini).",
     "dropped {n} reference image(s) over this model's limit of {max}":"{n} Referenzbild(er) verworfen — über dem Limit von {max} dieses Modells",
+    "prompt limit {cap} characters — a longer wired prompt is trimmed to fit":"Prompt-Limit {cap} Zeichen — ein längerer verbundener Prompt wird passend gekürzt",
+    "prompt trimmed to {cap} characters for {model} (was {from})":"Prompt auf {cap} Zeichen gekürzt für {model} (vorher {from})",
+    "this model":"dieses Modell",
+    "✂ trimmed {from} → {to} characters to fit":"✂ von {from} → {to} Zeichen gekürzt, damit es passt",
+    "{model} takes prompts of at most {cap} characters — noted. Run again: a longer prompt is trimmed to fit, and the node says so.":"{model} nimmt Prompts von höchstens {cap} Zeichen — notiert. Erneut ausführen: ein längerer Prompt wird passend gekürzt, und der Node sagt es.",
     "can’t delete while running — Stop first":"kann nicht löschen, während es läuft — zuerst stoppen",
     "can’t change the workflow while running — Stop first":"Arbeitsablauf kann während der Ausführung nicht geändert werden — zuerst stoppen",
     "couldn’t read that file":"diese Datei konnte nicht gelesen werden",
@@ -3093,6 +3111,11 @@ const I18N = {
     "share failed":"falha ao compartilhar",
     "audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).":"áudio ignorado — este modelo é somente texto. Escolha um modelo com entrada de áudio (por exemplo, um Gemini).",
     "dropped {n} reference image(s) over this model's limit of {max}":"{n} imagem(ns) de referência descartada(s) — acima do limite de {max} deste modelo",
+    "prompt limit {cap} characters — a longer wired prompt is trimmed to fit":"limite do prompt: {cap} caracteres — um prompt conectado maior é cortado para caber",
+    "prompt trimmed to {cap} characters for {model} (was {from})":"prompt cortado para {cap} caracteres para {model} (tinha {from})",
+    "this model":"este modelo",
+    "✂ trimmed {from} → {to} characters to fit":"✂ cortado de {from} → {to} caracteres para caber",
+    "{model} takes prompts of at most {cap} characters — noted. Run again: a longer prompt is trimmed to fit, and the node says so.":"{model} aceita prompts de no máximo {cap} caracteres — anotado. Execute de novo: um prompt maior é cortado para caber, e o node avisa.",
     "can’t delete while running — Stop first":"não é possível excluir durante a execução — pare primeiro",
     "can’t change the workflow while running — Stop first":"não é possível alterar o fluxo de trabalho durante a execução — pare primeiro",
     "couldn’t read that file":"não foi possível ler esse arquivo",
@@ -3599,6 +3622,11 @@ const I18N = {
     "share failed":"共有に失敗",
     "audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).":"音声は無視されました — このモデルはテキスト専用です。音声入力に対応したモデル（Geminiなど）を選んでください。",
     "dropped {n} reference image(s) over this model's limit of {max}":"参照画像を{n}枚破棄しました — このモデルの上限は{max}枚です",
+    "prompt limit {cap} characters — a longer wired prompt is trimmed to fit":"プロンプト上限{cap}文字 — 接続された値が長い場合は収まるよう短縮されます",
+    "prompt trimmed to {cap} characters for {model} (was {from})":"{model}向けにプロンプトを{cap}文字へ短縮しました（元は{from}文字）",
+    "this model":"このモデル",
+    "✂ trimmed {from} → {to} characters to fit":"✂ 収めるため{from} → {to}文字に短縮",
+    "{model} takes prompts of at most {cap} characters — noted. Run again: a longer prompt is trimmed to fit, and the node says so.":"{model}のプロンプト上限は{cap}文字です — 記録しました。もう一度実行すると、長いプロンプトは収まるよう短縮され、ノードにその旨が表示されます。",
     "can’t delete while running — Stop first":"実行中は削除できません — 先に停止してください",
     "can’t change the workflow while running — Stop first":"実行中はワークフローを変更できません — 先に停止してください",
     "couldn’t read that file":"そのファイルを読み込めませんでした",
@@ -4039,6 +4067,144 @@ function modelDrifted(n){
   const list = catalogs[t.modelKind];
   if(!list || !list.length) return false;   // catalog unavailable → stay permissive
   return !catItem(t.modelKind, n.fields.model);
+}
+
+/* ======================================================================
+   PROMPT LENGTH CAPS  —  the wired prompt you can't shorten
+   Many image/video models reject an over-long prompt at NanoGPT's route with
+   400 prompt_too_long, before anything is charged. Free, but a dead end: the
+   Image node's prompt is usually WIRED from an LLM, so "please shorten it to
+   800 characters" points at a field the user can't type into.
+
+   What we do: trim it to fit, at a sentence boundary, and SAY SO — a toast the
+   moment it happens plus a note that stays on the node, and, before any run,
+   the cap and what will happen to a long prompt right under the field. What we
+   deliberately DON'T do is edit anyone's prompt to prevent it: an LLM node's
+   system prompt is the user's text and stays exactly as written, wired or not.
+   A trim is a visible, stated consequence of the model they picked, never a
+   silent rewrite upstream of it.
+
+   A cap we didn't know is learned from the live 400 (promptCapFromError) and
+   remembered, so the same model states its limit up front next time.
+
+   The image/video catalogs advertise NO prompt limit (checked live
+   2026-07-26 — docs/NANOGPT-prompt-length-metadata.md is the upstream ask),
+   so those caps come from the probe table below, generated by
+   scripts/probe-prompt-caps.mjs. Audio's caps ARE catalog metadata
+   (supported_parameters.max_chars) and are read live — never listed here.
+   ====================================================================== */
+/* === PROMPT-CAPS-BEGIN === */
+// Generated by scripts/probe-prompt-caps.mjs — do not hand-edit.
+// Route-enforced prompt character caps, live-probed. Absent id = no cap found
+// (or never probed): unknown stays unconstrained until a live 400 teaches us.
+const PROMPT_CAPS = {
+  "generated": "2026-07-26",
+  "image": {
+    "step-image-edit-2": 512,
+    "qwen-image-3": 800,
+    "z-image-turbo": 1200,
+    "z-image-turbo-image-to-image": 1200,
+    "z-image-turbo-lora": 1200,
+    "2dn-pony-v2": 3000,
+    "aniflatmix-anime": 3000,
+    "aniflatmix-anime-sfwnsfw": 3000,
+    "animagine-xl-31": 3000,
+    "artiwaifu-diffusion": 3000,
+    "atomix-xl": 3000,
+    "boltning": 3000,
+    "crystal-clear-xl": 3000,
+    "crystal-clear-xlightning": 3000,
+    "cyberrealistic-pony-v9": 3000,
+    "cyberrealistic-xl": 3000,
+    "dreamshaper-v1": 3000,
+    "dreamshaper-xl": 3000,
+    "fluently-xl": 3000,
+    "flux-schnell": 3000,
+    "hassaku-hentai": 3000,
+    "hidream": 3000,
+    "hidream-i1-fast": 3000,
+    "ideogram:4@0": 3000,
+    "infinite-illustrious": 3000,
+    "juggernaut-lightning-flux": 3000,
+    "juggernaut-pro-flux": 3000,
+    "juggernaut-z": 3000,
+    "miusmius-xl": 3000,
+    "nsfw-gen-illustrious": 3000,
+    "persona:376130@2456367": 3000,
+    "pixelwave": 3000,
+    "proteus": 3000,
+    "prunaai:1@1": 3000,
+    "qwen-image": 3000,
+    "realpony-xl": 3000,
+    "rev-animated": 3000,
+    "riverflow-2-fast": 3000,
+    "riverflow-2-max": 3000,
+    "riverflow-2-standard": 3000,
+    "runware:106@1": 3000,
+    "runware:107@1": 3000,
+    "stable-diffusion-xl-turbo": 3000,
+    "stoiqo-new-reality": 3000,
+    "wai-illustrious-sdxl": 3000
+  },
+  "video": {
+    "minimax-hailuo-02": 2000,
+    "lightricks-ltx-2-fast": 3000
+  }
+};
+/* === PROMPT-CAPS-END === */
+// Caps taught to us by a live 400 (new model, changed limit, or one the probe never reached).
+// localStorage so the lesson survives a reload — the whole point is that the SECOND run works.
+const LEARNED_CAPS_KEY = "nn_prompt_caps";
+let learnedCaps = (()=>{ try{ return JSON.parse(localStorage.getItem(LEARNED_CAPS_KEY)||"{}") || {}; }catch(e){ return {}; } })();
+function learnPromptCap(kind, id, cap){
+  if(!kind || !id || !(cap>0) || learnedCaps[kind+":"+id]===cap) return false;
+  learnedCaps[kind+":"+id] = cap;
+  try{ localStorage.setItem(LEARNED_CAPS_KEY, JSON.stringify(learnedCaps)); }catch(e){}
+  return true;
+}
+// This node's prompt character cap, or null when the model has none / we don't know one.
+// A learned cap wins over the table: it came from THIS account hitting THIS model today.
+function promptCap(n){
+  const ty = NODE_TYPES[n?.type], id = n?.fields?.model;
+  if(!ty || !ty.modelKind || !id) return null;
+  const kind = ty.modelKind;
+  if(kind==="audio") return catItem("audio", id)?.params?.max_chars || null;   // catalog metadata, always current
+  return learnedCaps[kind+":"+id] || (PROMPT_CAPS[kind] && PROMPT_CAPS[kind][id]) || null;
+}
+const modelLabel = (n)=>{ const ty = NODE_TYPES[n?.type]; return (ty && catItem(ty.modelKind, n.fields.model)?.name) || n?.fields?.model || ""; };
+// Cut to the last sentence end inside the cap, then the last word — never mid-word, and never below
+// 70% of the cap, where honouring a boundary would throw away far more than the overflow did.
+function fitPromptText(s, cap){
+  if(s.length<=cap) return s;
+  const head = s.slice(0, cap), floor = Math.floor(cap*0.7);
+  const sent = Math.max(head.lastIndexOf(". "), head.lastIndexOf("! "), head.lastIndexOf("? "), head.lastIndexOf("\n"));
+  if(sent>=floor) return head.slice(0, sent+1).trim();
+  const word = head.lastIndexOf(" ");
+  return (word>=floor ? head.slice(0, word) : head).trim();
+}
+// Fit the prompt to the cap rather than lose the run to a 400 nobody can act on. Pure, and it
+// returns what it cut — the caller is REQUIRED to announce it (announcePromptFit), which is the
+// deal that makes trimming acceptable at all. Split from the announcement so a node the seed/reuse
+// cache skips doesn't report a trim on a request it never sent.
+function withFittedPrompt(rn, n){
+  const cap = promptCap(rn), p = rn.fields && rn.fields.prompt;
+  if(!cap || typeof p!=="string" || p.length<=cap) return { rn, trimmed:null };
+  const cut = fitPromptText(p, cap);
+  return { rn: { ...rn, fields:{ ...rn.fields, prompt:cut } },
+           trimmed: { from:p.length, to:cut.length, cap, model:modelLabel(rn) } };
+}
+// NanoGPT phrases the rejection three ways (all live-verified 2026-07-26):
+//   {"error":"…Please shorten it to 800 characters or less (current: 831 characters).","code":"prompt_too_long"}
+//   {"error":{"message":"…512 characters or less…","code":"prompt_too_long"}}   ← step-image-edit-2, nested
+//   {"error":"Prompt is too long. Please keep it under 3000 characters."}        ← ltx-2 video, no code at all
+// so match the sentence, not the envelope. "current:" is skipped deliberately — it's the length we
+// SENT, and reading it as the cap would teach a limit that grows with every failure.
+const PROMPT_TOO_LONG_RE = /(?:shorten (?:it )?to|keep it under|at most|maximum of|limit of)\s*([\d,]{2,})\s*characters/i;
+const isPromptTooLong = (m)=> /prompt_too_long/i.test(m) || /prompt is too long|prompt is too long for|your prompt is too long/i.test(m);
+function promptCapFromError(msg){
+  const m = PROMPT_TOO_LONG_RE.exec(String(msg||""));
+  const v = m ? +m[1].replace(/,/g,"") : 0;
+  return v>0 ? v : null;
 }
 
 /* ---------- dynamic image inputs (vision-capable chat models) ----------
@@ -5601,7 +5767,7 @@ function refreshRunEstimate(){
     + (unpriced ? t(", plus {n} with no listed price").replace("{n}",()=>unpriced) : "")
     + (exact ? "." : "." + "\n" + t("Video, text & audio are estimates: the real bill depends on clip length, tokens and characters."));
 }
-function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); backfillModel(n); }); refreshRunEstimate(); }   // refreshLlmOpts: reconcile knobs kept during a catalog miss (#311) once real capability flags exist; the dynamic port families (img/audio/endframe/ref) are catalog-gated too — without them a cold-cache boot (shared link, cleared storage) paints a saved ref-model graph portless until a reload
+function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); backfillModel(n); }); refreshRunEstimate(); refreshPromptCaps(); }   // refreshPromptCaps: audio caps ARE catalog metadata (max_chars) and every note names the model, so both are blank until the catalog lands. refreshLlmOpts: reconcile knobs kept during a catalog miss (#311) once real capability flags exist; the dynamic port families (img/audio/endframe/ref) are catalog-gated too — without them a cold-cache boot (shared link, cleared storage) paints a saved ref-model graph portless until a reload
 function backfillModel(n){   // once a catalog arrives, give model nodes a sensible default if none chosen yet
   const t = NODE_TYPES[n.type];
   if(t.modelKind && !n.fields.model){
@@ -7269,6 +7435,53 @@ function refreshPortFills(){
       }
     }
   }
+  refreshPromptCaps();   // wiring a prompt is exactly when "a longer wired prompt is trimmed to fit" has to appear
+}
+
+/* ---- prompt-cap chrome -------------------------------------------------
+   The disclosure half of the deal: trimming is only acceptable because it is
+   stated BEFORE it happens, not just reported after. One note per capped node,
+   driven off the same promptCap() the run uses so the two can never disagree:
+     · wired prompt — the cap, and plainly that a longer one gets trimmed to
+       fit (its length isn't visible until the run, so this is the only warning
+       there can be);
+     · typed prompt — a live counter once it's close, red once it's over.
+   Idempotent: it owns the .capnote element and removes it when the cap goes
+   away (model swap, wire pulled). */
+function capNoteFor(n){
+  const cap = promptCap(n); if(!cap) return null;
+  const wired = ((typeof graph!=="undefined" && graph && graph.links) || []).some(l=> l.to.node===n.id && l.to.port==="prompt");
+  if(wired) return { sel:'textarea[data-f="prompt"]',
+    text: t("prompt limit {cap} characters — a longer wired prompt is trimmed to fit").replace("{cap}", String(cap)) };
+  const len = String(n.fields.prompt||"").length;
+  if(len < cap*0.75) return null;                       // plenty of room left — don't clutter the node
+  return { sel:'textarea[data-f="prompt"]', over: len>cap, text: len + " / " + cap };
+}
+function refreshPromptCaps(){
+  if(typeof document==="undefined" || typeof graph==="undefined" || !graph) return;
+  for(const n of (graph.nodes||[])){
+    if(!n.el) continue;
+    const note = capNoteFor(n);
+    n.el.querySelectorAll(".capnote").forEach(el=> el.remove());   // reset-then-repopulate, like refreshPortFills
+    if(!note) continue;
+    const ta = n.el.querySelector(note.sel); const wrap = ta && ta.parentElement; if(!wrap) continue;
+    let el = wrap.querySelector(".capnote");
+    if(!el){ el = document.createElement("div"); el.className = "capnote"; wrap.appendChild(el); }
+    el.textContent = note.text;
+    el.classList.toggle("over", !!note.over);
+  }
+}
+// A fitted prompt changed what the user's money bought — say so twice (a toast they see now, a note
+// that survives on the node) rather than quietly shipping a shorter prompt than they wrote.
+function announcePromptFit(n, tr){
+  toast(t("prompt trimmed to {cap} characters for {model} (was {from})")
+    .replace("{cap}", String(tr.cap)).replace("{model}", tr.model || t("this model")).replace("{from}", String(tr.from)), "warn");
+  if(!n.el) return;
+  const ta = n.el.querySelector('textarea[data-f="prompt"]'), wrap = ta && ta.parentElement; if(!wrap) return;
+  let el = wrap.querySelector(".capnote");
+  if(!el){ el = document.createElement("div"); el.className = "capnote"; wrap.appendChild(el); }
+  el.textContent = t("✂ trimmed {from} → {to} characters to fit").replace("{from}", String(tr.from)).replace("{to}", String(tr.to));
+  el.classList.add("over");
 }
 
 /* ======================================================================
@@ -8202,7 +8415,13 @@ async function runGroup(seedIds, ctx){
           const v = byId(l.from.node)?.out?.[l.from.port];
           if(v!=null) fieldOverrides[l.to.port] = v;
         }
-        const rn = Object.keys(fieldOverrides).length ? { ...n, fields:{...n.fields, ...fieldOverrides} } : n;
+        const rn0 = Object.keys(fieldOverrides).length ? { ...n, fields:{...n.fields, ...fieldOverrides} } : n;
+        // Prompt-length caps (see the PROMPT LENGTH CAPS block): a prompt over this model's cap is
+        // trimmed to fit rather than sent to a certain 400. Lands before nodeSig so the signature
+        // describes what actually goes out — switch the Image node to a tighter model and the run
+        // correctly re-rolls instead of reusing a result the new model would have rejected.
+        const fitted = withFittedPrompt(rn0, n);
+        const rn = fitted.rn;
         // Deterministic skip: a seeded node with unchanged inputs would just reproduce its existing
         // output, so surface it as done — no second charge. Blank seed = random, so never skip.
         const sig = nodeSig(rn, inp);
@@ -8216,6 +8435,10 @@ async function runGroup(seedIds, ctx){
         // never reaches this path; a demo run is excluded (it never mints n._sig, so this can't fire).
         if(!ctx.demo && !seedSet.has(id) && n._sig===sig && n.out && Object.keys(n.out).length){ showResult(n); setStatus(n, "done"); return; }
         setStatus(n, "run");
+        // Announce a fit only for a request we're actually about to send (the skips above return
+        // before this): a trimmed prompt is a real change to what the user paid for, so it gets a
+        // toast AND a note that stays on the node after the run.
+        if(fitted.trimmed) announcePromptFit(n, fitted.trimmed);
         if(ctx.demo) setNodeProgress(n, demoRunLabel());   // honest: it's a canned preview, not a live model call (t() is shadowed here by the node type)
         // Flag-gated nanoodle-js delegation (see the block above runGroup). Only for the real CTX:
         // demo runs and injected test contexts must keep the built-in runners they were handed.
@@ -8242,7 +8465,7 @@ async function runGroup(seedIds, ctx){
             // canvas here (rebuild → mount reads the upstream output), THEN set the error on the fresh
             // el so "brush the area" shows next to a canvas that can finally be brushed.
             if(n.type==="inpaint" && !n.fields.image && !n.el?.querySelector("[data-maskwrap] img") && inpaintWiredSource(n)) rerenderNode(n);
-            setStatus(n, "error", friendlyRunError(err)); failed.add(id);   // real failure → poison dependents (no stale-input charge)
+            setStatus(n, "error", friendlyRunError(err, n)); failed.add(id);   // real failure → poison dependents (no stale-input charge)
           }
         }
       })();
@@ -9416,8 +9639,18 @@ async function throwHttp(r){ flagAuth(r); throw httpRunError(r.status, await r.t
 // fetch", "non ISO-8859-1 code point") that read like nanoodle bugs — translate them at the one
 // place every run error lands. Only the BARE browser messages are mapped (anchored), so curated
 // errors that quote them in parentheses (mediaFetchError et al.) pass through untouched.
-function friendlyRunError(err){
+function friendlyRunError(err, n){
   const m = err?.message || String(err);
+  // Prompt-length rejection: free (nothing was generated) but useless as written — it asks the user
+  // to shorten a field that is usually wired, so there's nothing to type into. Bank the cap instead:
+  // from here on this model is prevented (and any LLM writing its prompt is told the budget), so the
+  // honest thing to say is "run it again".
+  if(isPromptTooLong(m)){
+    const cap = promptCapFromError(m), kind = n && NODE_TYPES[n.type]?.modelKind;
+    if(cap && kind && n?.fields?.model && learnPromptCap(kind, n.fields.model, cap)) refreshPromptCaps();
+    if(cap) return t("{model} takes prompts of at most {cap} characters — noted. Run again: a longer prompt is trimmed to fit, and the node says so.")
+      .replace("{model}", (n && modelLabel(n)) || t("this model")).replace("{cap}", String(cap));
+  }
   // TypeError gate is load-bearing: our own thrown "STATUS: body" errors relay API bodies
   // verbatim, and a body saying "Invalid value" must NOT wipe a perfectly good key —
   // browser-internal header/network failures are always TypeErrors, ours never are.
@@ -10233,6 +10466,7 @@ const EDITOR_APP_KEY = "noodle_editor_app";  // localStorage: {id,title} of the 
 let saveT=null;
 function save(){
   refreshRunEstimate();                 // keep the bottom-right run cost live as the graph is edited
+  refreshPromptCaps();                  // …and the prompt-room notes: model swaps, typing and wiring all land here
   if(refreshAppButton()) layoutBar();   // flip ✨ Open↔Update live: an edit that diverges from (or re-matches) the bound app's saved graph — only re-measure the bar when the label text actually changed
   clearTimeout(saveT);
   saveT = setTimeout(()=>{

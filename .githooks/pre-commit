@@ -111,6 +111,9 @@ touches_catalog=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/c
 
 # both engines run a drift preflight: a saved/shared graph's fields.model that's missing from the LIVE catalog must be blocked before any paid send.
 touches_drift=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-drifted-model\.mjs)$' || true)
+# Prompt-length caps: a wired prompt over a model's character cap must be budgeted upstream / fitted,
+# never sent to a 400 the user can't act on — and both engines must read the same generated table.
+touches_promptcaps=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-prompt-caps\.mjs)$' || true)
 
 # an imported (#a=) app's spend-capable bridge calls must be refused until a real Run gesture arms it (consent gate).
 touches_consent=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-bridge-consent\.mjs)$' || true)
@@ -119,7 +122,7 @@ touches_consent=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/ch
 touches_sharesamples=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-share-samples\.mjs)$' || true)
 
 # Nothing to check unless an .html file or one of the checkers changed.
-[ -z "$staged_html" ] && [ -z "$touches_njseditor" ] && [ -z "$touches_llmgate" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_jsparity" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_langpages" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_i18n" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_lipsync" ] && [ -z "$touches_aresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && [ -z "$touches_pacing" ] && [ -z "$touches_graphpersist" ] && [ -z "$touches_graphsigs" ] && [ -z "$touches_describeapply" ] && [ -z "$touches_authlc" ] && [ -z "$touches_mediapriv" ] && [ -z "$touches_verhist" ] && [ -z "$touches_rungating" ] && [ -z "$touches_appsstorage" ] && [ -z "$touches_linkerr" ] && [ -z "$touches_deploy" ] && [ -z "$touches_hiddencss" ] && [ -z "$touches_connect" ] && [ -z "$touches_undo" ] && [ -z "$touches_costaccrue" ] && [ -z "$touches_resize" ] && [ -z "$touches_catalog" ] && [ -z "$touches_upscale" ] && [ -z "$touches_drift" ] && [ -z "$touches_consent" ] && [ -z "$touches_sharesamples" ] && [ -z "$touches_examples" ] && exit 0
+[ -z "$staged_html" ] && [ -z "$touches_njseditor" ] && [ -z "$touches_llmgate" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_jsparity" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_langpages" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_i18n" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_lipsync" ] && [ -z "$touches_aresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && [ -z "$touches_pacing" ] && [ -z "$touches_graphpersist" ] && [ -z "$touches_graphsigs" ] && [ -z "$touches_describeapply" ] && [ -z "$touches_authlc" ] && [ -z "$touches_mediapriv" ] && [ -z "$touches_verhist" ] && [ -z "$touches_rungating" ] && [ -z "$touches_appsstorage" ] && [ -z "$touches_linkerr" ] && [ -z "$touches_deploy" ] && [ -z "$touches_hiddencss" ] && [ -z "$touches_connect" ] && [ -z "$touches_undo" ] && [ -z "$touches_costaccrue" ] && [ -z "$touches_resize" ] && [ -z "$touches_catalog" ] && [ -z "$touches_upscale" ] && [ -z "$touches_drift" ] && [ -z "$touches_promptcaps" ] && [ -z "$touches_consent" ] && [ -z "$touches_sharesamples" ] && [ -z "$touches_examples" ] && exit 0
 if ! command -v node >/dev/null 2>&1; then
   echo "pre-commit: node not found, skipping HTML JS checks" >&2
   exit 0
@@ -473,4 +476,13 @@ fi
 #     sibling awesome-noodles checkout is absent, so a contributor without it is never blocked.
 if [ -n "$touches_examples" ]; then
   node "$root/scripts/sync-examples.mjs" --check
+fi
+
+# 40) PROMPT LENGTH CAPS: many image/video models reject an over-long prompt at the route (400
+#     prompt_too_long) — free, but a dead end when the prompt is WIRED from an LLM and there is
+#     nothing to type into. The LLM upstream must be budgeted, an overflow fitted at a sentence
+#     boundary AND announced, an unknown cap learned from the live 400, and both engines must
+#     read the same generated table. Offline: extracts the real helpers and drives them.
+if [ -n "$touches_promptcaps" ]; then
+  node "$root/scripts/check-prompt-caps.mjs"
 fi

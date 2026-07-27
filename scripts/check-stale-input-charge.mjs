@@ -78,6 +78,9 @@ async function run(world, seed, opts = {}) {
     graph: { links: world.links },
     imgSpec: () => ({ re: /never/ }), VID_PORT_RE: /^vid\d+$/,
     nodeSig: () => 0, isSeeded: () => false, showResult: () => {}, rerenderNode: () => {}, CTX: {},
+    // prompt-length caps (PROMPT LENGTH CAPS): identity here — this harness is about stale inputs
+    // reaching a paid call, not about how long the prompt that reaches it is.
+    withPromptBudget: (rn) => rn, withFittedPrompt: (rn) => ({ rn, trimmed: null }), announcePromptFit: () => {},
     friendlyRunError: (e) => e?.message || String(e),   // identity here — the real mapper is UX-only
     maybeAppNudge: () => {},   // post-first-wow "Create app" nudge — UI-only, inert here
 
