@@ -1580,6 +1580,7 @@ const I18N = {
     "dropped {n} reference image(s) over this model's limit of {max}":"se descartaron {n} imagen(es) de referencia por encima del límite de {max} de este modelo",
     "prompt limit {cap} characters — a longer wired prompt is trimmed to fit":"límite de prompt: {cap} caracteres — un prompt conectado más largo se recorta para que quepa",
     "prompt trimmed to {cap} characters for {model} (was {from})":"prompt recortado a {cap} caracteres para {model} (era de {from})",
+    "{model} doesn’t offer that — switched {changes}":"{model} no ofrece eso: se cambió {changes}",
     "this model":"este modelo",
     "✂ trimmed {from} → {to} characters to fit":"✂ recortado de {from} → {to} caracteres para que quepa",
     "{model} takes prompts of at most {cap} characters — noted. Run again: a longer prompt is trimmed to fit, and the node says so.":"{model} admite prompts de como máximo {cap} caracteres — anotado. Ejecuta de nuevo: un prompt más largo se recorta para que quepa, y el nodo lo indica.",
@@ -2091,6 +2092,7 @@ const I18N = {
     "dropped {n} reference image(s) over this model's limit of {max}":"{n} image(s) de référence ignorée(s) — au-delà de la limite de {max} de ce modèle",
     "prompt limit {cap} characters — a longer wired prompt is trimmed to fit":"limite du prompt : {cap} caractères — un prompt branché plus long est raccourci pour tenir",
     "prompt trimmed to {cap} characters for {model} (was {from})":"prompt raccourci à {cap} caractères pour {model} (il en faisait {from})",
+    "{model} doesn’t offer that — switched {changes}":"{model} ne propose pas cette valeur : {changes}",
     "this model":"ce modèle",
     "✂ trimmed {from} → {to} characters to fit":"✂ raccourci de {from} → {to} caractères pour tenir",
     "{model} takes prompts of at most {cap} characters — noted. Run again: a longer prompt is trimmed to fit, and the node says so.":"{model} accepte des prompts de {cap} caractères au maximum — noté. Relancez : un prompt plus long est raccourci pour tenir, et le nœud le signale.",
@@ -2602,6 +2604,7 @@ const I18N = {
     "dropped {n} reference image(s) over this model's limit of {max}":"{n} Referenzbild(er) verworfen — über dem Limit von {max} dieses Modells",
     "prompt limit {cap} characters — a longer wired prompt is trimmed to fit":"Prompt-Limit {cap} Zeichen — ein längerer verbundener Prompt wird passend gekürzt",
     "prompt trimmed to {cap} characters for {model} (was {from})":"Prompt auf {cap} Zeichen gekürzt für {model} (vorher {from})",
+    "{model} doesn’t offer that — switched {changes}":"{model} bietet das nicht an — geändert: {changes}",
     "this model":"dieses Modell",
     "✂ trimmed {from} → {to} characters to fit":"✂ von {from} → {to} Zeichen gekürzt, damit es passt",
     "{model} takes prompts of at most {cap} characters — noted. Run again: a longer prompt is trimmed to fit, and the node says so.":"{model} nimmt Prompts von höchstens {cap} Zeichen — notiert. Erneut ausführen: ein längerer Prompt wird passend gekürzt, und der Node sagt es.",
@@ -3113,6 +3116,7 @@ const I18N = {
     "dropped {n} reference image(s) over this model's limit of {max}":"{n} imagem(ns) de referência descartada(s) — acima do limite de {max} deste modelo",
     "prompt limit {cap} characters — a longer wired prompt is trimmed to fit":"limite do prompt: {cap} caracteres — um prompt conectado maior é cortado para caber",
     "prompt trimmed to {cap} characters for {model} (was {from})":"prompt cortado para {cap} caracteres para {model} (tinha {from})",
+    "{model} doesn’t offer that — switched {changes}":"{model} não oferece isso: {changes}",
     "this model":"este modelo",
     "✂ trimmed {from} → {to} characters to fit":"✂ cortado de {from} → {to} caracteres para caber",
     "{model} takes prompts of at most {cap} characters — noted. Run again: a longer prompt is trimmed to fit, and the node says so.":"{model} aceita prompts de no máximo {cap} caracteres — anotado. Execute de novo: um prompt maior é cortado para caber, e o node avisa.",
@@ -3624,6 +3628,7 @@ const I18N = {
     "dropped {n} reference image(s) over this model's limit of {max}":"参照画像を{n}枚破棄しました — このモデルの上限は{max}枚です",
     "prompt limit {cap} characters — a longer wired prompt is trimmed to fit":"プロンプト上限{cap}文字 — 接続された値が長い場合は収まるよう短縮されます",
     "prompt trimmed to {cap} characters for {model} (was {from})":"{model}向けにプロンプトを{cap}文字へ短縮しました（元は{from}文字）",
+    "{model} doesn’t offer that — switched {changes}":"{model}はその値に対応していません — {changes}に変更しました",
     "this model":"このモデル",
     "✂ trimmed {from} → {to} characters to fit":"✂ 収めるため{from} → {to}文字に短縮",
     "{model} takes prompts of at most {cap} characters — noted. Run again: a longer prompt is trimmed to fit, and the node says so.":"{model}のプロンプト上限は{cap}文字です — 記録しました。もう一度実行すると、長いプロンプトは収まるよう短縮され、ノードにその旨が表示されます。",
@@ -4372,7 +4377,7 @@ function updateModelWarn(n){
     const id = defModelFor(n.type); if(!id) return;
     n.fields.model = id;
     const mp = n.el.querySelector(".modelpick"); if(mp) mp.textContent = id+" ▾";
-    updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); save();
+    updateNodePrice(n); refreshDims(n, true); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); save();
   };
 }
 /* ---------- dynamic audio parameters (from the model catalog + a researched spec) ----------
@@ -5395,6 +5400,58 @@ function selOpts(param){
     .map(o=> [String(o.value), o.label!=null?String(o.label):String(o.value)]);
 }
 function paramDef(param, opts){ return (param && param.default!=null) ? String(param.default) : (opts[0]||[""])[0]; }
+/* ---------- reconcile a stored dimension value against a NEW model's options ----------
+   A dimension value only means something for the model it was chosen for: nano-banana-2 sizes are
+   tiers (1k/2k/4k), qwen-image-3 wants 1024x1024, Sora counts length in `seconds` (4/8/12) while
+   most models offer 5/10, and Sora/WAN name the aspect dimension `orientation` (landscape/portrait).
+   So on a model SWAP the old value must not survive as an injected fake option — the model either
+   rejects it or silently substitutes its own, and the user pays for a run they didn't ask for.
+   Snap it to the closest REAL option of the new model instead: same picture first (aspect ratio,
+   then pixel count), else the nearest number, else the model's own default. Hydration keeps the old
+   behaviour — there the model didn't change, so a stored value stays exactly as the author chose it. */
+const DIM_TIER_PX = {                                                  // named size tiers → their real pixels
+  "1k":[1024,1024], "2k":[2048,2048], "4k":[4096,4096], "8k":[8192,8192],
+  square:[1024,1024], square_hd:[1536,1536], portrait:[1024,1536], landscape:[1536,1024],
+  portrait_4_3:[1024,1365], landscape_4_3:[1365,1024], portrait_16_9:[1080,1920], landscape_16_9:[1920,1080] };
+// value → { ar: width/height, px: total pixels } — px is null for a bare ratio ("16:9"), which
+// carries no size, so ratio-vs-ratio never scores on an imaginary pixel count.
+function dimShape(v){
+  const s = String(v==null?"":v).trim().toLowerCase();
+  const tier = DIM_TIER_PX[s];
+  if(tier) return { ar: tier[0]/tier[1], px: tier[0]*tier[1] };
+  let m = /^(\d+)\s*[x×*]\s*(\d+)$/.exec(s);
+  if(m && +m[1]>0 && +m[2]>0) return { ar:+m[1]/+m[2], px:+m[1]*+m[2] };
+  m = /^(\d+)\s*:\s*(\d+)$/.exec(s);
+  if(m && +m[1]>0 && +m[2]>0) return { ar:+m[1]/+m[2], px:null };
+  return null;
+}
+const dimNum = (v)=>{ const m = /-?\d+(?:\.\d+)?/.exec(String(v==null?"":v)); return m ? +m[0] : null; };
+function nearestDimOption(cur, options, def){
+  const vals = options.map(o=> String(o[0]));
+  if(cur==null || cur==="") return def;
+  cur = String(cur);
+  if(vals.includes(cur)) return cur;                        // the new model offers it → keep the user's choice
+  const best = (score)=>{
+    let win = null, bs = Infinity;
+    for(const v of vals){ const s = score(v); if(s!=null && s < bs){ bs = s; win = v; } }
+    return win;
+  };
+  const c = dimShape(cur);
+  if(c){
+    // aspect dominates (a portrait must never become a landscape), pixel count breaks the tie
+    const hit = best(v=>{ const d = dimShape(v); if(!d) return null;
+      return Math.abs(Math.log(c.ar/d.ar))*4 + ((c.px && d.px) ? Math.abs(Math.log(c.px/d.px)) : 0); });
+    if(hit!=null) return hit;
+    const named = c.ar===1 ? "square" : (c.ar>1 ? "landscape" : "portrait");   // WxH → an orientation list
+    if(vals.includes(named)) return named;
+  }
+  const cn = dimNum(cur);
+  if(cn!=null){                                             // durations (5 → 4) and resolutions (720p → 1080p)
+    const hit = best(v=>{ const n = dimNum(v); return n==null ? null : Math.abs(n-cn); });
+    if(hit!=null) return hit;
+  }
+  return def;
+}
 // the dimension fields a node should show, resolved from its model's catalog entry
 function dimDefs(type, model){
   if(type==="image" || type==="edit"){
@@ -5442,17 +5499,30 @@ function videoDimParams(n){
   }
   return out;
 }
-// rebuild the size/duration/aspect/resolution controls for a node from its current model
-function refreshDims(n){
+// rebuild the size/duration/aspect/resolution controls for a node from its current model.
+// swapped=true means the USER just picked a different model → reconcile values the new model
+// can't accept (see nearestDimOption); the hydration path leaves stored values alone.
+function refreshDims(n, swapped){
   if(!DIM_NODES[n.type] || !n.el) return;
   const box = n.el.querySelector("[data-dims]"); if(!box) return;
   const defs = dimDefs(n.type, n.fields.model);
   if(!defs.length){ box.innerHTML=""; return; }
+  const moved = [];
   for(const d of defs){               // seed a default when unset; never clobber a stored (e.g. pre-catalog) value
     const cur = n.fields[d.f];
     if(cur==null || cur==="") n.fields[d.f] = d.def;
-    else if(!d.options.some(o=> String(o[0])===String(cur))) d.options = [[String(cur), String(cur)], ...d.options];
+    else if(!d.options.some(o=> String(o[0])===String(cur))){
+      if(swapped){                    // model swap → snap to a real option of the new model
+        const next = nearestDimOption(cur, d.options, d.def);
+        n.fields[d.f] = next;
+        if(String(next)!==String(cur)) moved.push(`${t(d.label)} ${cur} → ${next}`);
+      }
+      else d.options = [[String(cur), String(cur)], ...d.options];
+    }
   }
+  // a changed dimension changes what the run costs and what comes back — say so, like a trimmed prompt does
+  if(moved.length) toast(t("{model} doesn’t offer that — switched {changes}")
+    .replace("{model}", n.fields.model || t("this model")).replace("{changes}", moved.join(", ")), "warn");
   const ctl = (d)=> `<div><label>${esc(d.label)}</label><select data-df="${esc(d.f)}">${
     d.options.map(o=>`<option value="${esc(o[0])}"${String(o[0])===String(n.fields[d.f])?" selected":""}>${esc(o[1])}</option>`).join("")}</select></div>`;
   box.innerHTML = defs.length>1
@@ -6640,7 +6710,7 @@ function buildNodeEl(n){
     mp.onclick = (e)=>{
       e.stopPropagation();
       openPicker(t.modelKind, { current:n.fields.model, filter:t.modelFilter, onPick:(id)=>{
-        n.fields.model = id; mp.textContent = id+" ▾"; updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); save();
+        n.fields.model = id; mp.textContent = id+" ▾"; updateNodePrice(n); refreshDims(n, true); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); save();
       }});
     };
     updateNodePrice(n);

@@ -8568,6 +8568,55 @@ const PROMPT_CAPS = {
     const raw = await loadCatalogRaw(kind);
     return raw.find(m=> m && m.id===id) || null;
   }
+  // A dimension value only means something for the model it was chosen for: nano-banana-2 sizes are
+  // tiers (1k/2k/4k) while qwen-image-3 wants 1024x1024, and Sora counts length in seconds (4/8/12)
+  // while most models offer 5/10. So when the app user SWAPS the model, the previous value must not
+  // survive as an injected fake option — the model rejects it or silently substitutes its own, and
+  // the user pays for a run they didn't ask for. Snap it to the closest REAL option instead: same
+  // picture first (aspect ratio, then pixel count), else the nearest number, else the model default.
+  // Mirrors the editor's nearestDimOption. The first render leaves the author's baked value alone —
+  // there the model didn't change. No backticks (RUNTIME_JS is a String.raw template).
+  var DIM_TIER_PX = { "1k":[1024,1024], "2k":[2048,2048], "4k":[4096,4096], "8k":[8192,8192],
+    square:[1024,1024], square_hd:[1536,1536], portrait:[1024,1536], landscape:[1536,1024],
+    portrait_4_3:[1024,1365], landscape_4_3:[1365,1024], portrait_16_9:[1080,1920], landscape_16_9:[1920,1080] };
+  // value -> { ar: width/height, px: total pixels }; px is null for a bare ratio ("16:9"), which
+  // carries no size, so ratio-vs-ratio never scores on an imaginary pixel count.
+  function dimShape(v){
+    var s = String(v==null?"":v).trim().toLowerCase(), tier = DIM_TIER_PX[s];
+    if(tier) return { ar:tier[0]/tier[1], px:tier[0]*tier[1] };
+    var m = /^(\d+)\s*[x×*]\s*(\d+)$/.exec(s);
+    if(m && +m[1]>0 && +m[2]>0) return { ar:+m[1]/+m[2], px:+m[1]*+m[2] };
+    m = /^(\d+)\s*:\s*(\d+)$/.exec(s);
+    if(m && +m[1]>0 && +m[2]>0) return { ar:+m[1]/+m[2], px:null };
+    return null;
+  }
+  function dimNum(v){ var m = /-?\d+(?:\.\d+)?/.exec(String(v==null?"":v)); return m ? +m[0] : null; }
+  function nearestDimOption(cur, options, def){
+    var vals = options.map(function(o){ return String(o[0]); });
+    if(cur==null || cur==="") return def;
+    cur = String(cur);
+    if(vals.indexOf(cur)>=0) return cur;          // the new model offers it -> keep the user's choice
+    function best(score){
+      var win = null, bs = Infinity;
+      for(var i=0;i<vals.length;i++){ var s = score(vals[i]); if(s!=null && s < bs){ bs = s; win = vals[i]; } }
+      return win;
+    }
+    var c = dimShape(cur), hit;
+    if(c){
+      // aspect dominates (a portrait must never become a landscape), pixel count breaks the tie
+      hit = best(function(v){ var d = dimShape(v); if(!d) return null;
+        return Math.abs(Math.log(c.ar/d.ar))*4 + ((c.px && d.px) ? Math.abs(Math.log(c.px/d.px)) : 0); });
+      if(hit!=null) return hit;
+      var named = c.ar===1 ? "square" : (c.ar>1 ? "landscape" : "portrait");   // WxH -> an orientation list
+      if(vals.indexOf(named)>=0) return named;
+    }
+    var cn = dimNum(cur);
+    if(cn!=null){                                 // durations (5 -> 4) and resolutions (720p -> 1080p)
+      hit = best(function(v){ var n = dimNum(v); return n==null ? null : Math.abs(n-cn); });
+      if(hit!=null) return hit;
+    }
+    return def;
+  }
   function dimOptionsFromItem(type, m){
     const out = {}; if(!m) return out;
     if(type==="image" || type==="edit"){
@@ -8605,7 +8654,10 @@ const PROMPT_CAPS = {
   }
   // Best-effort: rewrite each dimension <select> from the chosen model's live catalog options. Never
   // blocks the run; an absent/empty catalog just leaves the fallback options in place.
-  function fillDimLists(){
+  // swapped=true means the app user just picked a different model -> reconcile a value the new model
+  // can't accept (nearestDimOption) instead of keeping it as a fake option. The new value lands in
+  // the same <select> the user is looking at, and the run cost updates with it.
+  function fillDimLists(swapped){
     (STATE.settings || []).forEach((it,i)=>{
       if(it.kind!=="select" || !DIM_FIELDS[it.field]) return;
       const kind = SETTING_MODEL_KIND[it.node.type]; if(!kind) return;
@@ -8614,10 +8666,17 @@ const PROMPT_CAPS = {
         if(!opts || !opts.length) return;
         const el = document.getElementById("set_"+i);
         if(!el || el.tagName!=="SELECT") return;
-        const cur = it.node.fields[it.field];
-        const list = (cur!=null && cur!=="" && !opts.some(o=> String(o[0])===String(cur)))
-          ? [[String(cur),String(cur)], ...opts] : opts;   // keep a stored (e.g. baked-in) value pickable
+        let cur = it.node.fields[it.field], list = opts, moved = false;
+        if(cur!=null && cur!=="" && !opts.some(o=> String(o[0])===String(cur))){
+          if(swapped){
+            const next = nearestDimOption(cur, opts, String(opts[0][0]));
+            moved = String(next)!==String(cur);
+            cur = next; it.node.fields[it.field] = next;
+          }
+          else list = [[String(cur),String(cur)], ...opts];   // first render: keep the author's baked-in value pickable
+        }
         el.innerHTML = list.map(o=> '<option value="'+esc(o[0])+'"'+(String(o[0])===String(cur)?" selected":"")+'>'+esc(o[1])+'</option>').join("");
+        if(moved){ checkDirty(); refreshRunCost(); }   // the catalog answered after the pick — re-price on the new value
       }).catch(()=>{});
     });
   }
@@ -9042,7 +9101,7 @@ const PROMPT_CAPS = {
       menu.hidden = false; input.setAttribute("aria-expanded","true");
     }
     function close(){ menu.hidden = true; input.setAttribute("aria-expanded","false"); active = -1; }
-    function pick(id){ input.value = id; it.node.fields[it.field] = id; close(); fillDimLists(); fillLangLists(); refreshTempRows(); checkDirty(); refreshRunCost(); }   // new model → refresh its dim/language options + temperature row + price
+    function pick(id){ input.value = id; it.node.fields[it.field] = id; close(); fillDimLists(true); fillLangLists(); refreshTempRows(); checkDirty(); refreshRunCost(); }   // new model → reconcile its dim options (size/duration the new model can't accept) + language row + temperature row + price
     input.addEventListener("focus", ()=> open(true));
     input.addEventListener("modelrefresh", ()=> open(true));   // catalog arrived while focused
     input.addEventListener("input", ()=>{ it.node.fields[it.field] = input.value.trim(); open(false); refreshTempRows(); checkDirty(); refreshRunCost(); });   // temp row is a pure id check → cheap enough per keystroke (dim/lang rewrites wait for a pick)
