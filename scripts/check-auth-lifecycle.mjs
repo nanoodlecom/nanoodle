@@ -102,6 +102,12 @@ try {
   const flagAuthText        = extractFunction(src, "flagAuth");
   const isLowFundsText      = extractFunction(src, "isLowFundsError");
   const friendlyRunErrText  = extractFunction(src, "friendlyRunError");
+  // friendlyRunError now routes prompt-length rejections first (PROMPT LENGTH CAPS). Lift the two
+  // PURE helpers for real so this harness proves a prompt_too_long body doesn't fall through to the
+  // key-clearing branch; the stateful side (learnPromptCap / chrome / catalog) is stubbed below.
+  const promptTooLongRe     = extractConstLine(src, "PROMPT_TOO_LONG_RE");
+  const isPromptTooLongText = extractConstLine(src, "isPromptTooLong");
+  const promptCapFromErrText= extractFunction(src, "promptCapFromError");
   const probeKeyText        = extractFunction(src, "probeKey");
   const keysaveText         = extractKeysaveHandler(src);
 
@@ -110,16 +116,23 @@ try {
     `${keySendableText}\n` +
     `${flagAuthText}\n` +
     `${isLowFundsText}\n` +
+    `${promptTooLongRe}\n` +
+    `${isPromptTooLongText}\n` +
+    `${promptCapFromErrText}\n` +
     `${friendlyRunErrText}\n` +
     `${probeKeyText}\n` +
     `const keysaveHandler = ${keysaveText};\n` +
     `return { cleanKey, keySendable, flagAuth, isLowFundsError, friendlyRunError, probeKey, keysaveHandler };\n`;
 
   const factory = new Function(
-    "setKey", "flash", "t", "toast", "$", "fetch", "CHAT_ENDPOINT", program
+    "setKey", "flash", "t", "toast", "$", "fetch", "CHAT_ENDPOINT",
+    // prompt-cap collaborators friendlyRunError reaches for: learning a cap and repainting the
+    // node chrome are someone else's invariant (scripts/check-prompt-caps.mjs), not this one's.
+    "learnPromptCap", "refreshPromptCaps", "modelLabel", "NODE_TYPES", program
   );
   build = (stubs) => factory(
-    stubs.setKey, stubs.flash, stubs.t, stubs.toast, stubs.$, stubs.fetch, stubs.CHAT_ENDPOINT
+    stubs.setKey, stubs.flash, stubs.t, stubs.toast, stubs.$, stubs.fetch, stubs.CHAT_ENDPOINT,
+    () => false, () => {}, () => "the model", {}
   );
 } catch (e) {
   process.stderr.write("✗ auth-lifecycle: could not lift the shipped functions — the state machine moved or was renamed:\n  " + (e && e.message ? e.message : e) + "\n");
