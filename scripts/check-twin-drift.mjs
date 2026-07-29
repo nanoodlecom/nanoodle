@@ -3,8 +3,9 @@
 // play.html (the app player + the self-contained .html export).
 //
 // WHY THIS EXISTS
-// The two files are 26,000 lines together and they share a large body of byte-identical,
-// HAND-MAINTAINED code (pricing resolver, Combine/MP4CAT remux, resize geometry, audio helpers,
+// The two files are 26,000 lines together and they share a large body of character-for-character
+// identical, HAND-MAINTAINED code — identical after a leading/trailing whitespace strip, because
+// play.html nests it deeper (pricing resolver, Combine/MP4CAT remux, resize geometry, audio helpers,
 // the balance cache, the njs delegation shim). Every engine change is therefore a 2-surface edit.
 // Dual-engine drift is the dominant historical bug class in this repo (PRs #64, #74, #88 and the
 // whole node audit).
@@ -16,25 +17,39 @@
 // not name shipped silently. This guard closes that hole.
 //
 // WHAT IT MEASURES
-// The SHARED SET: every distinct line, stripped, longer than 40 characters, that appears
-// byte-identically in both files. Generated regions are blanked first, so the generated
-// nanoodle-js bundle and the probe-written prompt-cap table never count as hand-maintained
-// duplication. Both the distinct lines AND the per-surface OCCURRENCE COUNT of each line live in
-// scripts/twin-drift-baseline.json, because a line that appears twice in one surface can be edited
-// in one place and still be "present".
+// The SHARED SET: every distinct line that appears in both files IDENTICALLY AFTER LEADING AND
+// TRAILING WHITESPACE IS STRIPPED, and that is longer than 40 characters once stripped. The strip
+// is load-bearing, not cosmetic: play.html nests the same code one or two levels deeper than
+// index.html, so most twins are NOT byte-identical in the files — only after the trim. Generated
+// regions are blanked first, so the generated nanoodle-js bundle and the probe-written prompt-cap
+// table never count as hand-maintained duplication.
+// scripts/twin-drift-baseline.json stores three things per line: the hash, the per-surface
+// OCCURRENCE COUNT (a line that appears twice in one surface can be edited in one place and still
+// be "present"), and THE STRIPPED TEXT ITSELF. The text is what makes section 4b able to ask
+// whether the two surfaces still agree about a line that left both of them.
 //
 // WHAT IT FAILS ON  (see section 4 for the exact rules)
-//   DRIFT     — a baseline line left the shared set, or lost an occurrence on one surface only,
-//               because ONE surface edited it and the other did not. The edited replacement is still
-//               sitting in the file that moved. The guard names both file:line positions.
-//   DELETION  — a baseline line is gone from one surface and still LIVE on the other. Nothing
-//               replaced it. The code did not move; one engine simply stopped doing it.
-//   GROWTH    — the shared-line COUNT went up, or a shared line gained an occurrence.
-// It does NOT fail on real EXTRACTION: a line that left BOTH hand-maintained surfaces only prints a
-// note. There is no other exemption. A line still live on one surface always fails, even when the
-// generated bundle happens to carry the same text (see section 4b). It does NOT fail on a correctly
-// MIRRORED edit either (both surfaces changed together): membership moves, the count holds, and the
-// guard only asks for a baseline refresh.
+//   DRIFT      — a baseline line left the shared set, or lost an occurrence on one surface only,
+//                because ONE surface edited it and the other did not. The edited replacement is
+//                still sitting in the file that moved. The guard names both file:line positions.
+//   DELETION   — a baseline line is gone from one surface and still LIVE on the other. Nothing
+//                replaced it. The code did not move; one engine simply stopped doing it.
+//   DIVERGENCE — a baseline line left BOTH surfaces, and each surface now carries its OWN,
+//                DIFFERENT near-identical replacement. Both engines still do the work; they now do
+//                it differently. Leaving both surfaces is not proof of extraction.
+//   GROWTH     — the shared-line COUNT went up, or a shared line gained an occurrence.
+// THE ONE EXEMPTION, stated exactly. A departure that left BOTH surfaces prints a note instead of
+// failing UNLESS all 3 of these hold: index.html carries a near-identical replacement, play.html
+// carries one too, and those 2 replacements are near-identical to each other. So the exemption
+// covers every departure from both surfaces where at most ONE surface kept a look-alike line. That
+// includes the case where 1 engine edited the line and the other dropped it outright: the guard
+// cannot fail that, and section 4b says why (a real extraction control produced exactly that shape
+// by coincidence). On the tree as it stands the exemption covers 0 lines, because nothing departs;
+// it is a rule about future departures, not a list of excused twins.
+// A line still live on one surface always fails, even when the generated bundle happens to carry
+// the same text (see section 4b). It does NOT fail on a correctly MIRRORED edit either (both
+// surfaces changed together, to the SAME new text): membership moves, the count holds, the new twin
+// is in the shared set, and the guard only asks for a baseline refresh.
 //
 // REFRESH (deliberate, same shape as the CSP golden in check-deploy-config.mjs):
 //   TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs
@@ -42,16 +57,18 @@
 // STATS (every figure docs/twin-drift.md quotes about the shared set, printed):
 //   TWIN_DRIFT_STATS=1 node scripts/check-twin-drift.mjs
 //
-// RUNTIME. No network, no API spend. A clean tree is 0.2 s on a quiet machine. The cost that
-// matters is the drift classifier: it scores every DEPARTING line against every candidate line of
-// the surface that moved, so the worst case is a refactor that moves many twins at once, not a
-// normal commit. MAX_CLASSIFY caps that work at 200 departures; 201 reports totals instead.
-// Measured on the review machine, which held a load average of 25 to 34 throughout:
-//   clean tree              0.9 s wall  (0.6 s CPU)
-//   200 departures          3.5-5.7 s wall  (3.1-4.9 s CPU); 1.5 s was the fastest run observed
-//   200 departures, before  23-30 s wall  (22-27 s CPU)
-// "Before" is this same guard with the old bestMatch, which rebuilt every candidate's bigram
-// profile on every call. The header claimed "well under 2 seconds" while it did that.
+// RUNTIME. No network, no API spend. The cost that matters is the drift classifier: it scores every
+// DEPARTING line against every candidate line of the surface that moved, so the worst case is a
+// refactor that moves many twins at once, not a normal commit. A departure that left BOTH surfaces
+// is the dearest kind, because it is scored against BOTH surfaces. MAX_CLASSIFY caps the work at
+// 200 departures; 201 reports totals instead. Measured 2026-07-29 on a machine that held a load
+// average of 2.9 to 3.9 throughout, 5 runs each:
+//   clean tree, nothing departs          0.19-0.23 s wall  (0.19-0.23 s CPU)
+//   200 departures, gone from both       3.29-3.83 s wall  (3.44-4.05 s CPU)
+//   200 departures, gone from 1 surface  1.61-2.12 s wall  (1.66-2.23 s CPU)
+// An earlier round measured the same 200-departure ceiling at 23-30 s, on a machine under a load
+// average of 25 to 34, before bestMatch got its candidate index — it rebuilt every candidate's
+// bigram profile on every call. Those runs are not repeated here; the numbers above are.
 //
 // index.html and play.html carry committed NUL bytes; Node readFileSync(...,"utf8") reads them fine
 // (shell grep would need -a). ROOT resolves relative to THIS file so the check relocates into a
@@ -65,6 +82,9 @@ import { fileURLToPath } from "node:url";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const BASELINE = join(ROOT, "scripts", "twin-drift-baseline.json");
 
+// "Stripped" everywhere in this file means String.prototype.trim(): leading and trailing whitespace
+// only. Nothing inside the line is normalised, so a changed space between two tokens is still drift.
+//
 // A line must be longer than this (after strip) to enter the shared set. Short lines ("});",
 // "return out;", a lone brace) collide between unrelated code and would make the guard cry wolf.
 const MIN_LEN = 40;
@@ -168,15 +188,18 @@ function loadSurface(file) {
   }
   const raw = readFileSync(path, "utf8");
   const lines = blankGenerated(raw, file).split("\n");
-  // hash -> { text, at: [1-based line numbers] }   ... at.length IS the occurrence count
+  // hash -> { text, at: [1-based line numbers], raw: Set of the UNSTRIPPED text of each occurrence }
+  // at.length IS the occurrence count. `raw` is for the STATS block only: it is what lets the stats
+  // say how many twins are identical WITH their indentation and how many are identical only after
+  // the strip.
   const sig = new Map();
   lines.forEach((line, i) => {
     const t = line.trim();
     if (t.length <= MIN_LEN) return;
     const h = hash(t);
     const e = sig.get(h);
-    if (e) e.at.push(i + 1);
-    else sig.set(h, { text: t, at: [i + 1] });
+    if (e) { e.at.push(i + 1); e.raw.add(line); }
+    else sig.set(h, { text: t, at: [i + 1], raw: new Set([line]) });
   });
   return { file, lines, sig };
 }
@@ -204,9 +227,12 @@ const nPlay = (h) => PLAY.sig.get(h).at.length;
 const occIdx = sharedNow.reduce((n, h) => n + nIdx(h), 0);
 const occPlay = sharedNow.reduce((n, h) => n + nPlay(h), 0);
 
-// A baseline entry is "<hash> <occurrences in index.html> <occurrences in play.html>". Encoding the
-// counts INTO the line list means the stored digest covers them too.
-const entryOf = (h) => `${h} ${nIdx(h)} ${nPlay(h)}`;
+// A baseline entry is
+//   "<hash> <occurrences in index.html> <occurrences in play.html> <the stripped line>".
+// Encoding the counts and the text INTO the line list means the stored digest covers them too, and
+// the hash is a checksum of the text: the reader re-hashes the text and refuses an entry whose hash
+// does not describe it, so the stored text cannot be hand-swapped for a friendlier line.
+const entryOf = (h) => `${h} ${nIdx(h)} ${nPlay(h)} ${IDX.sig.get(h).text}`;
 const nowEntries = sharedNow.map(entryOf);
 const digest = createHash("sha256").update(nowEntries.join("\n")).digest("hex").slice(0, 32);
 
@@ -219,11 +245,19 @@ if (process.env.TWIN_DRIFT_STATS) {
   const multiPlay = sharedNow.filter((h) => nPlay(h) > 1).length;
   const multiEither = sharedNow.filter((h) => nIdx(h) > 1 || nPlay(h) > 1).length;
   const alsoInBundle = sharedNow.filter((h) => GEN_LINES.has(h)).length;
+  const sameRaw = sharedNow.filter((h) => {
+    const b = PLAY.sig.get(h).raw;
+    for (const r of IDX.sig.get(h).raw) if (b.has(r)) return true;
+    return false;
+  }).length;
   console.log(
     `  stats: ${sharedNow.length} distinct shared lines, ${occIdx} occurrences in index.html, ` +
       `${occPlay} in play.html\n` +
       `  stats: ${multiEither} appear more than once inside a surface ` +
       `(${multiIdx} in index.html, ${multiPlay} in play.html)\n` +
+      `  stats: ${sameRaw} are identical WITH their indentation; the other ${sharedNow.length - sameRaw}\n` +
+      `         match only after the leading/trailing whitespace strip, because play.html nests the\n` +
+      `         same code deeper\n` +
       `  stats: ${alsoInBundle} are ALSO carried by the generated njs-engine bundle while both hand\n` +
       `         copies stay live — that is why bundle text presence is not proof of extraction`
   );
@@ -238,9 +272,12 @@ if (process.env.TWIN_DRIFT_UPDATE) {
       "Baseline for scripts/check-twin-drift.mjs — the hand-maintained duplication between",
       "index.html and play.html. `count` is a RATCHET: extraction may lower it freely, new",
       "duplication may not raise it silently. Each `lines` entry is `<hash> <n in index.html>",
-      "<n in play.html>`, where the hash is a 16-hex sha256 of the stripped line. The per-surface",
-      "counts matter: a line that appears twice in one file can be edited in one place and still",
-      "be present. Refresh deliberately with: TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs",
+      "<n in play.html> <the line>`, where the hash is a 16-hex sha256 of the stripped line and the",
+      "guard re-hashes the text to prove the two agree. The per-surface counts matter: a line that",
+      "appears twice in one file can be edited in one place and still be present. The text matters:",
+      "without it the guard cannot tell a real extraction from a line that both surfaces replaced",
+      "with DIFFERENT text. Do not hand edit this file.",
+      "Refresh deliberately with: TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs",
       "Ranked extraction plan: docs/twin-drift.md",
     ].join(" "),
     count: sharedNow.length,
@@ -282,15 +319,25 @@ if (!baseLines.length) {
 }
 // hash -> [occurrences in index.html, occurrences in play.html]
 const baseCount = new Map();
+// hash -> the stripped text of that line, as it stood when the baseline was written. Section 4b
+// needs it: a line gone from BOTH surfaces has no text left in either file to compare against.
+const baseText = new Map();
+const ENTRY = /^([0-9a-f]{16}) ([1-9][0-9]*) ([1-9][0-9]*) (.+)$/;
+let mismatched = 0;
 for (const raw of baseLines) {
-  const [h, a, b] = String(raw).trim().split(/\s+/);
-  if (!/^[0-9a-f]{16}$/.test(h || "")) continue;
-  baseCount.set(h, [Number(a) > 0 ? Number(a) : 1, Number(b) > 0 ? Number(b) : 1]);
+  const m = ENTRY.exec(String(raw).trimEnd());
+  if (!m) continue;
+  // The hash is the checksum of the text. An entry whose text does not hash to its own hash was
+  // hand edited, and every rule below would then be measuring the wrong line.
+  if (hash(m[4]) !== m[1]) { mismatched++; continue; }
+  baseCount.set(m[1], [Number(m[2]), Number(m[3])]);
+  baseText.set(m[1], m[4]);
 }
 if (baseCount.size !== baseLines.length) {
   fail(
-    `baseline has ${baseLines.length - baseCount.size} malformed "lines" entries ` +
-      `(${relative(ROOT, BASELINE)}) — each must be "<16-hex hash> <n index> <n play>".\n` +
+    `baseline has ${baseLines.length - baseCount.size} unusable "lines" entries ` +
+      `(${relative(ROOT, BASELINE)}), ${mismatched} of them because the stored text does not hash\n` +
+      `      to the stored hash. Each entry must be "<16-hex hash> <n index> <n play> <the line>".\n` +
       `      Regenerate: TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs`
   );
   report();
@@ -366,28 +413,57 @@ if (sharedNow.length > baseTotal) {
   );
 }
 
-// --- 4b. departures: DRIFT / one-sided DELETION (fail) vs EXTRACTION (allowed) ---
-// A baseline line can leave the shared set three ways.
-//   EXTRACTION  the line left BOTH hand-maintained surfaces. That is the work we want. Allowed,
-//               note only. The baseline stores hashes, not text, so a line gone from both surfaces
-//               cannot be told apart from the old half of a mirrored edit — the note names both
-//               readings instead of guessing. When the same text is also inside the generated
-//               bundle, the note says so, because then "extracted into the library" is the reading.
+// --- 4b. departures: DRIFT / one-sided DELETION / DIVERGENCE (fail) vs EXTRACTION (allowed) ---
+// A baseline line can leave the shared set four ways.
 //   DRIFT       the line is still on both surfaces, but one side EDITED it. The keeper still carries
-//               the original byte-for-byte; the mover carries a near-identical variant.
+//               the original; the mover carries a near-identical variant.
 //   DELETION    the line is gone from one surface and still LIVE on the other, and nothing
 //               near-identical replaced it. The code did not move — one engine stopped doing it and
 //               the other did not. Calling that "deduplication" was a lie: it IS drift.
+//   DIVERGENCE  the line is gone from BOTH surfaces, and EACH surface now carries its own
+//               near-identical replacement, and the 2 replacements look like each other as well.
+//               Two replacements that survive that test are always DIFFERENT from each other:
+//               identical replacements would be in the shared set, and candidatesOf() excludes every
+//               shared line. So both engines still do the work, and they now do it differently. This
+//               is the drift the guard exists to catch and it must fail. It reaches here through no
+//               fault of its own — a divergent 2-sided edit does remove the twin from both files,
+//               and "left both surfaces" alone cannot tell it from real extraction.
+//   EXTRACTION  every other departure from both surfaces. Allowed, note only. This reading also
+//               covers the old half of a correctly mirrored edit, because the new twin is shared and
+//               is therefore not a candidate replacement — the note names both readings instead of
+//               guessing between them.
 //
-// GEN_LINES IS NOT AN EXEMPTION FROM DELETION. Presence of the same text inside the generated
+// THE RULE. Leaving both surfaces is NOT what makes a departure an extraction. Leaving both
+// surfaces WHILE THE TWO SURFACES STILL AGREE is. "Agree" is decided by the same near-identical
+// match the DRIFT rule already uses (bestMatch, Dice over character bigrams, DRIFT_SIMILARITY), run
+// once against each surface, PLUS the same test between the 2 replacements themselves. The baseline
+// therefore has to store the departed line's TEXT: nothing in either file carries it any more.
+//
+// WHAT THAT RULE STILL LETS THROUGH, and why. The 3-way test is deliberately narrow. A departure
+// where only ONE surface keeps a near-identical line does NOT fail. It looks like divergence in
+// principle — 1 engine edited the work, the other stopped doing it — and an earlier draft of this
+// rule failed it. Measured against a real extraction control (delete the whole MP4CAT block,
+// index.html:9099-9376 and play.html:6657-6934, 123 shared lines gone from both surfaces at once),
+// that draft raised a FALSE failure on 1 of the 123: the banner comment
+//   /* ---- Lossless in-browser mp4 concatenation (Combine node) -------------------------------
+// scored 0.840 against the unrelated surviving banner at index.html:9086
+//   /* ---- in-browser video concatenation (the Combine node) ---------------------------------
+// because a run of dashes carries the bigram profile and the 2 banners share their opening words.
+// A guard that fails a correct extraction is a guard that gets bypassed. So a
+// single-sided match alone is not enough; the 2 replacements must also look like each other, which
+// is what makes them 2 versions of ONE line instead of 2 coincidences. The blind spot is real and
+// docs/twin-drift.md states it.
+//
+// GEN_LINES IS NOT AN EXEMPTION FROM ANYTHING. Presence of the same text inside the generated
 // bundle is a property of the tree TODAY, not evidence that anything moved: 131 of the 893 baseline
-// lines are byte-identical to a line already inside the bundle while BOTH hand copies are still
-// live (MP4CAT, the pricing resolver, resize geometry — the library ships them too). Treating that
-// text presence as "extracted" exited 0 on a one-sided deletion of live MP4CAT code, which is the
-// exact failure the DELETION rule exists to catch. So the bundle only sharpens the wording of the
-// note on a line that already left BOTH surfaces; it never suppresses a failure.
+// lines are identical to a line already inside the bundle while BOTH hand copies are still live
+// (MP4CAT, the pricing resolver, resize geometry — the library ships them too). Treating that text
+// presence as "extracted" exited 0 on a one-sided deletion of live MP4CAT code, and — one level
+// down — on a 2-sided DIVERGENT edit of the same line. The bundle now only sharpens the wording of
+// the note on a departure that is already classified as extraction; it never suppresses a failure.
 const drifted = [];
 const removed = [];
+const diverged = [];
 let extracted = 0;
 let vanished = 0;
 
@@ -403,7 +479,14 @@ if (left.length > MAX_CLASSIFY) {
     const inPlay = PLAY.sig.get(h);
     if (inIdx && inPlay) continue; // still shared — cannot happen, guard anyway
     if (!inIdx && !inPlay) {
-      // gone from BOTH hand-maintained surfaces: extraction. The bundle only picks the wording.
+      // Gone from BOTH hand-maintained surfaces. Extraction ONLY IF the surfaces still agree.
+      const was = baseText.get(h);
+      const repIdx = bestMatch(was, IDX);
+      const repPlay = bestMatch(was, PLAY);
+      if (repIdx && repPlay) {
+        const pair = dice(bigrams(repIdx.text), bigrams(repPlay.text));
+        if (pair >= DRIFT_SIMILARITY) { diverged.push({ was, repIdx, repPlay, pair }); continue; }
+      }
       if (GEN_LINES.has(h)) extracted++;
       else vanished++;
       continue;
@@ -445,8 +528,32 @@ if (extracted || vanished) {
   if (vanished) bits.push(`${vanished} left both surfaces (extraction, or the old half of a mirrored edit)`);
   if (extracted) bits.push(`${extracted} left both surfaces and are carried by the generated bundle`);
   notes.push(
-    `${bits.join(", ")} — the ratchet allows this. Lower the baseline when convenient:\n` +
+    `${bits.join(", ")} — none of them left a near-identical\n` +
+      `    replacement on BOTH surfaces, so the surfaces still agree. The ratchet allows this. Lower\n` +
+      `    the baseline when convenient:\n` +
       `    TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs`
+  );
+}
+
+if (diverged.length) {
+  const shown = diverged.slice(0, 12).map((d, i) => {
+    const pad = Math.max(`index.html:${d.repIdx.line}`.length, `play.html:${d.repPlay.line}`.length);
+    return (
+      `      ${i + 1}. both surfaces dropped:  ${clip(d.was)}\n` +
+      `         ${`index.html:${d.repIdx.line}`.padEnd(pad)}  ${clip(d.repIdx.text)}\n` +
+      `         ${`play.html:${d.repPlay.line}`.padEnd(pad)}  ${clip(d.repPlay.text)}`
+    );
+  });
+  fail(
+    `TWIN DIVERGENCE — ${diverged.length} line(s) left BOTH surfaces, but the surfaces no longer\n` +
+      `      AGREE: each one replaced the line with its OWN different version. Leaving both surfaces\n` +
+      `      is only extraction when the 2 surfaces still agree afterwards. Both engines still run\n` +
+      `      this code, and they now run it differently. Mirror the edit, or delete the twin on both\n` +
+      `      surfaces.\n` +
+      shown.join("\n") +
+      (diverged.length > shown.length ? `\n      … and ${diverged.length - shown.length} more` : "") +
+      `\n      If the two surfaces are MEANT to diverge here, say so deliberately:\n` +
+      `        TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs`
   );
 }
 
@@ -461,7 +568,7 @@ if (drifted.length) {
     );
   });
   fail(
-    `TWIN DRIFT — ${drifted.length} line(s) that both engines carried byte-identically now differ.\n` +
+    `TWIN DRIFT — ${drifted.length} line(s) that both engines carried identically now differ.\n` +
       `      One surface was edited and the other was not. Mirror the edit, or delete the twin.\n` +
       shown.join("\n") +
       (drifted.length > shown.length ? `\n      … and ${drifted.length - shown.length} more` : "") +
@@ -531,8 +638,18 @@ if (rose.length) {
 }
 
 // --- 4e. cheap sanity: the stored digest must describe the stored lines ----
+// The digest is REQUIRED, not optional. `if (baseline.digest && …)` made deleting the field a way to
+// switch the whole check off, which is the same hand-edit escape the derived `count` closes: inflate
+// a line's stored occurrence counts, move `occurrencesIndexHtml` and `occurrencesPlayHtml` to match,
+// drop `digest`, and the ratchet rises on a clean tree with exit 0. A missing digest is an error.
 const baseDigest = createHash("sha256").update([...baseLines].sort().join("\n")).digest("hex").slice(0, 32);
-if (baseline.digest && baseline.digest !== baseDigest) {
+if (typeof baseline.digest !== "string" || !/^[0-9a-f]{32}$/.test(baseline.digest)) {
+  fail(
+    `baseline has no usable "digest" field (${relative(ROOT, BASELINE)}) — it is required, because it\n` +
+      `      is the only thing that pins the per-line occurrence counts and the stored text.\n` +
+      `      Regenerate: TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs`
+  );
+} else if (baseline.digest !== baseDigest) {
   fail(
     `baseline digest does not match its own "lines" array (${relative(ROOT, BASELINE)}) — hand edited?\n` +
       `      Regenerate: TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs`
@@ -590,8 +707,9 @@ function dice(a, b) {
 // departures the guard took 23-30 s while the header promised "well under 2 seconds". It was
 // bounded, not hung, but that is the wrong surprise to hand a developer mid-refactor.
 // Building each candidate's bigram profile once, and sorting the candidates by length so the length
-// band becomes a binary-searched slice, takes the same case to 3.5-5.7 s under the same load. The
-// classification output is byte-identical before and after. RUNTIME in the header has the numbers.
+// band becomes a binary-searched slice, took the same case to seconds instead of half a minute. The
+// classification output is byte-identical before and after. RUNTIME in the header has the numbers
+// this branch measured.
 function candidatesOf(mover) {
   let list = CAND_INDEX.get(mover.file);
   if (list) return list;

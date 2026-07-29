@@ -115,9 +115,10 @@ touches_drift=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|
 # never sent to a 400 the user can't act on — and both engines must read the same generated table.
 touches_promptcaps=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-prompt-caps\.mjs)$' || true)
 
-# index.html + play.html share 893 hand-maintained byte-identical lines; the targeted twin checks
-# (resize/pricing/combine/cost) only pin named functions. This one pins the WHOLE overlap: a one-sided
-# edit to any shared line fails, and new duplication cannot enter silently.
+# index.html + play.html share 893 hand-maintained identical lines (identical after the leading and
+# trailing whitespace strip); the targeted twin checks (resize/pricing/combine/cost) only pin named
+# functions. This one pins the WHOLE overlap: a one-sided edit to any shared line fails, a 2-sided
+# DIVERGENT edit fails, and new duplication cannot enter silently.
 touches_twindrift=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-twin-drift\.mjs|scripts/twin-drift-baseline\.json)$' || true)
 
 # an imported (#a=) app's spend-capable bridge calls must be refused until a real Run gesture arms it (consent gate).
@@ -493,21 +494,29 @@ if [ -n "$touches_promptcaps" ]; then
 fi
 
 # 41) TWIN DRIFT: index.html (editor) and play.html (app player + export) carry 893 hand-maintained
-#     byte-identical lines. The other twin checks each pin ONE named function; nothing compared the
-#     two files as wholes, so a one-sided edit anywhere else shipped silently. This guard pins the
-#     whole shared set against scripts/twin-drift-baseline.json. It FAILS on a line that leaves the
-#     set because one surface moved and the other did not, on a line deleted from one surface while
-#     still live on the other, and on a line that loses a copy on one surface only (the baseline
-#     stores per-surface occurrence counts, because a line can appear twice in one file). The count
-#     is a ratchet — extraction may lower it freely, new duplication may not raise it silently. The
-#     ratchet number is DERIVED from the baseline line list, so a hand-raised count cannot lift it.
-#     The ONLY thing that leaves the set without failing is a line gone from BOTH surfaces.
+#     identical lines — identical after a leading/trailing whitespace strip, because play.html nests
+#     the same code deeper; only 415 of the 893 are byte-identical in the files. The other twin
+#     checks each pin ONE named function; nothing compared the two files as wholes, so a one-sided
+#     edit anywhere else shipped silently. This guard pins the whole shared set against
+#     scripts/twin-drift-baseline.json. It FAILS on a line that leaves the set because one surface
+#     moved and the other did not, on a line deleted from one surface while still live on the other,
+#     on a line that loses a copy on one surface only (the baseline stores per-surface occurrence
+#     counts, because a line can appear twice in one file), and on a line that leaves BOTH surfaces
+#     while each surface keeps its own DIFFERENT replacement of it. The count is a ratchet —
+#     extraction may lower it freely, new duplication may not raise it silently. The ratchet number
+#     is DERIVED from the baseline line list, and the required digest pins the per-line counts and
+#     the stored text, so no hand edit of the baseline can lift it.
+#     What leaves the set without failing: a line gone from BOTH surfaces where at most ONE surface
+#     kept a near-identical replacement. docs/twin-drift.md states that exemption and why it is not
+#     narrower.
 #     Generated regions are excluded, so the library is never booked as hand duplication; the
 #     njs-engine block is found by its data-hash, NOT by a script-tag regex that play.html's own
-#     export-builder string literal can trigger. Offline. A clean tree is 0.2s on a quiet machine.
-#     The worst case is a refactor that moves many twins at once: at the 200-departure classification
-#     ceiling it measured 3.5s to 5.7s on a machine under a load average of 25 to 34, and 1.5s at its
-#     fastest. Never a hang: 201 departures reports totals instead. Refresh deliberately:
+#     export-builder string literal can trigger. Offline. Measured 2026-07-29 at a load average of
+#     2.9 to 3.9: a clean tree is 0.19s to 0.23s. The worst case is a refactor that moves many twins
+#     at once: at the 200-departure classification ceiling it measured 3.29s to 3.83s when every
+#     departure left both surfaces, 1.61s to 2.12s when they left one. Never a hang: 201 departures
+#     reports totals instead. Each failure list NAMES its first 12 lines and counts the rest.
+#     Refresh deliberately:
 #       TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs
 #     Ranked extraction plan: docs/twin-drift.md
 if [ -n "$touches_twindrift" ]; then

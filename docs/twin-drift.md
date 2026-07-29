@@ -1,6 +1,8 @@
 # Twin drift: the index.html ↔ play.html extraction map
 
-Date: 2026-07-28. Measured at commit `dbd4543`.
+Date: 2026-07-28, revised 2026-07-29. Line ranges are from commit `dbd4543`; every count and every
+timing here was re-measured on this branch with `scripts/check-twin-drift.mjs` and
+`scripts/twin-drift-worklist.mjs`.
 
 ## The measurement
 
@@ -9,12 +11,20 @@ Date: 2026-07-28. Measured at commit `dbd4543`.
 - `index.html` — the editor. It may load files from `vendor/`.
 - `play.html` — the app player and the single-file `.html` export. It must stay 1 self-contained file.
 
-**893 distinct lines longer than 40 characters appear byte-identically in both files.** They occur
+**893 distinct lines longer than 40 characters are identical in both files.** They occur
 957 times in `index.html` and 1,011 times in `play.html`. The generated `<script id="njs-engine">`
 bundle, the probe-written `PROMPT-CAPS` table, the generated i18n maps and the Runware AIR table are
 excluded from that count, so the number is hand-maintained duplication only.
 
-Reproduce every number in this section:
+**"Identical" means identical after `String.prototype.trim()`** — leading and trailing whitespace
+stripped, nothing inside the line touched. That is not a detail. `play.html` nests most of the
+shared code 1 or 2 levels deeper than `index.html`, so only **415 of the 893 lines are
+byte-identical in the files; the other 478 match only after the strip**. `seekVideo` is the visible
+case: `index.html:8995` starts at column 0 and `play.html:6639` starts at column 2. The guard is
+right to strip — an indentation change is not drift — and the older wording of this document, which
+said "byte-identical" throughout, was wrong about more than half the set.
+
+Reproduce the counts above:
 
 ```sh
 TWIN_DRIFT_STATS=1 node scripts/check-twin-drift.mjs
@@ -22,7 +32,11 @@ TWIN_DRIFT_STATS=1 node scripts/check-twin-drift.mjs
 
 538 of the 893 lines sit in 87 contiguous blocks of 4 lines or more, counted on `index.html` line
 numbers with at most 1 non-shared line inside a block. The other 355 are scattered single lines and
-pairs. This document ranks 16 of the 87 blocks.
+pairs. This document ranks 16 of the 87 blocks. Reproduce those 3 figures:
+
+```sh
+node scripts/twin-drift-worklist.mjs
+```
 
 ### What this map does NOT cover
 
@@ -38,8 +52,8 @@ The ranked list below is a map, not an exhaustive partition. Read it that way.
   set and not on this document's blocks.
 - **Lines of 40 characters or fewer are outside the shared set by design, on every block.** That
   threshold buys the guard its very low false-positive rate, and it costs coverage. `seekVideo` shows
-  the trade in 1 place: 10 lines, byte-identical on both surfaces, but only 2 of them are longer than
-  40 characters. Those 2 are guarded. The other 8 (`let settled = false;`,
+  the trade in 1 place: 10 lines, identical on both surfaces after the strip, but only 2 of them are
+  longer than 40 characters. Those 2 are guarded. The other 8 (`let settled = false;`,
   `vid.addEventListener("seeked", done);` and the like) are not, on either surface.
 - **The deliberately per-page `<head>` lines are guarded by nothing.** `og:title`, `og:description`,
   `og:url`, `twitter:title` and `twitter:description` differ per page on purpose, so they were never
@@ -80,27 +94,78 @@ It **fails** on:
   than once inside a surface (28 in `index.html`, 65 in `play.html`), so presence alone is not
   enough: editing 1 of 2 identical copies leaves the hash present. The baseline stores the
   per-surface count of every line.
+- **Divergence.** A shared line left BOTH surfaces, and each surface now carries its own,
+  **different** replacement of it. Both engines still do the work and they now do it differently.
+  See "The one exemption" below for the exact test.
 - **Growth.** The distinct shared-line count went up, or a shared line gained a copy.
 
 It **passes** on:
 
-- **Extraction.** A line that left BOTH hand-maintained surfaces. The baseline stores hashes and not
-  text, so a line gone from both surfaces cannot be told apart from the old half of a mirrored edit.
-  The note names both readings instead of guessing. When the generated bundle carries the same text,
-  the note says so, because then "extracted into the library" is the reading.
-- **A correctly mirrored edit.** Both surfaces change together, the count holds, and the guard asks
-  for a baseline refresh in a note.
+- **Extraction.** A line that left both surfaces and left no matching pair of replacements behind.
+  The note names both readings — a real extraction, or the old half of a mirrored edit — instead of
+  guessing. When the generated bundle carries the same text, the note says so, because then
+  "extracted into the library" is the reading.
+- **A correctly mirrored edit.** Both surfaces change together, to the same new text, the count
+  holds, and the guard asks for a baseline refresh in a note.
 
-**There is no other exemption.** A line still live on 1 surface always fails, and it fails even when
-the generated bundle happens to carry the same text. That last clause is load-bearing. An earlier
-version of the guard read "the text is somewhere inside the bundle" as proof of extraction. It is
-not: **131 of the 893 baseline lines are byte-identical to a line already inside the bundle while
-both hand copies are still live**, because the library ships MP4CAT, the pricing resolver and the
-resize geometry too. Under that rule a one-sided deletion of live MP4CAT code
+Every departure is **classified**, up to the `MAX_CLASSIFY` ceiling of 200. Each failure list
+**names its first 12 lines and reports the rest as a count** — at 200 one-sided departures the run
+prints `TWIN DRIFT — 12 line(s)…` and `ONE-SIDED DELETION — 188 line(s)…`, with 12 named under the
+second heading and `… and 176 more`. The guard classifies 200 and names 24. It does not name every
+line, and no part of it claims to.
+
+### The one exemption, stated exactly
+
+Leaving both surfaces is **not** what makes a departure an extraction. Leaving both surfaces **while
+the 2 surfaces still agree afterwards** is. A departure from both surfaces fails as divergence when
+all 3 of these hold, and passes otherwise:
+
+1. `index.html` carries a line near-identical to the departed line,
+2. `play.html` carries one too,
+3. those 2 replacements are near-identical **to each other**.
+
+"Near-identical" is one number in one place: `DRIFT_SIMILARITY = 0.72`, a Dice coefficient over
+character bigrams, the same test the drift rule already used. Condition 3 makes the 2 replacements 2
+versions of 1 line rather than 2 coincidences, and the surviving pair is always *different*, because
+an identical pair would be in the shared set.
+
+**So the exemption is: a departure from both surfaces where at most 1 surface kept a look-alike
+line.** That includes a case the guard would ideally fail — 1 engine edits the line while the other
+drops it outright. Condition 3 is what keeps that case out, and it is there for a measured reason.
+An earlier draft failed a single-sided match. Run against a genuine extraction control — delete the
+whole MP4CAT block, `index.html:9099-9376` and `play.html:6657-6934`, 123 shared lines gone from both
+surfaces at once — that draft raised 1 FALSE failure out of the 123. The departing banner comment
+`/* ---- Lossless in-browser mp4 concatenation (Combine node) ----…` scored **0.840** against the
+unrelated banner still sitting at `index.html:9086`,
+`/* ---- in-browser video concatenation (the Combine node) ----…`, because a run of dashes carries
+the bigram profile. A guard that fails a correct extraction is a guard that gets bypassed.
+
+**How many lines does the exemption cover today? Zero.** It is a rule about future departures, and
+on the current tree nothing departs. Its size on any given commit is the number of departures from
+both surfaces in that commit where fewer than 2 look-alike replacements remain.
+
+Three measured controls, all re-run on the code in this branch:
+
+| Scenario | Result |
+|----------|--------|
+| Edit `index.html:9292` to `a+s.durIDX` and `play.html:6850` to `a+s.durPLAY` | **fails**, `TWIN DIVERGENCE`, exit 1, both replacements named |
+| Delete the whole MP4CAT block from both surfaces (123 twins depart at once) | **passes**, exit 0, 893 → 770, note only |
+| Delete 200 unrelated shared lines from both surfaces | **passes**, exit 0, no false divergence |
+
+### The bundle is never an exemption
+
+A line still live on 1 surface always fails, and it fails even when the generated bundle happens to
+carry the same text. That clause is load-bearing. An earlier version of the guard read "the text is
+somewhere inside the bundle" as proof of extraction. It is not: **131 of the 893 baseline lines are
+identical to a line already inside the bundle while both hand copies are still live**, because the
+library ships MP4CAT, the pricing resolver and the resize geometry too. Under that rule a one-sided
+deletion of live MP4CAT code
 (`play.html:6850`, `const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);`) exited 0 with a
 "moved into the generated bundle" note, so the one-sided-deletion rule was off on 15% of the guarded
-set. Presence in the bundle now only picks the wording of a note on a line that already left both
-surfaces. Count the 131 for yourself:
+set. The same text-presence rule, 1 level down, also exited 0 on the **2-sided divergent** edit of
+that same line, which is the hole the exemption above closes. Presence in the bundle now only picks
+the wording of a note on a departure that is already classified as extraction. Count the 131 for
+yourself:
 
 ```sh
 TWIN_DRIFT_STATS=1 node scripts/check-twin-drift.mjs
@@ -112,11 +177,25 @@ Refresh the baseline deliberately:
 TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs
 ```
 
-The count is a ratchet, and the ratchet number is **derived from the baseline `lines` array**, never
-read from the `count:` field. The stored digest hashes `lines` only, so a hand-raised `count:` would
-otherwise lift the ratchet with no digest mismatch. The `count`, `occurrencesIndexHtml` and
-`occurrencesPlayHtml` fields stay in the JSON for a human reader, and the guard fails if any of them
-stops describing `lines`.
+### What the baseline stores, and why it cannot be hand edited
+
+Each `lines` entry is `<hash> <n in index.html> <n in play.html> <the stripped line>`.
+
+- The **text** is there because a line gone from both surfaces has no copy left in either file. The
+  divergence test above cannot run without it. That is what took the baseline from 25 KB to 102 KB.
+- The **hash is a checksum of the text**: the guard re-hashes every stored line and refuses the
+  baseline if any entry's text does not hash to its own hash. A stored line cannot be swapped for a
+  friendlier one.
+- The **count is a ratchet, derived from the `lines` array**, never read from the `count:` field. The
+  `count`, `occurrencesIndexHtml` and `occurrencesPlayHtml` fields stay in the JSON for a human
+  reader, and the guard fails if any of them stops describing `lines`.
+- The **`digest` field is required**. It hashes the `lines` array, which now carries the per-line
+  occurrence counts and the text, so it is the only thing pinning those. It used to be checked as
+  `if (baseline.digest && …)`, which made *deleting the field* a way to switch the check off:
+  inflate 1 line's stored counts from `1 1` to `2 2` (the guard reads a drop on both surfaces as a
+  mirrored deletion and allows it), move `occurrencesIndexHtml` and `occurrencesPlayHtml` to match,
+  delete `digest`, and a clean tree exited 0 with that line's ratchet silently raised. A missing or
+  malformed digest is now an error.
 
 The pre-commit hook runs the guard when `index.html`, `play.html`, the guard, or the baseline is
 staged.
@@ -126,21 +205,25 @@ staged.
 Offline, no network, no API spend.
 
 The cost that matters is the drift classifier: for every baseline line that left the shared set it
-scores the departing text against every candidate line of the surface that moved. `MAX_CLASSIFY`
-caps that work at 200 departures; at 201 the guard reports totals instead, so the run is always
-bounded. The ceiling is not free, and a normal commit never reaches it. Measured on the review
-machine, which held a load average of 25 to 34 throughout:
+scores the departing text against every candidate line of the surface that moved. A departure that
+left BOTH surfaces is now the dearest kind, because the divergence test scores it against both.
+`MAX_CLASSIFY` caps the work at 200 departures; at 201 the guard reports totals instead, so the run
+is always bounded. The ceiling is not free, and a normal commit never reaches it.
+
+Measured 2026-07-29 on a machine that held a load average of 2.9 to 3.9 throughout, 5 runs of each
+case:
 
 | Case | Wall clock | CPU time |
 |------|------------|----------|
-| Clean tree, nothing departs | 0.9 s (0.2 s on a quiet machine) | 0.5-0.6 s |
-| 200 departures, the `MAX_CLASSIFY` ceiling | 3.5-5.7 s, fastest run 1.5 s | 3.1-4.9 s |
-| 200 departures, before the candidate index | 23-30 s | 22-27 s |
+| Clean tree, nothing departs | 0.19-0.23 s | 0.19-0.23 s |
+| 200 departures, all gone from BOTH surfaces | 3.29-3.83 s | 3.44-4.05 s |
+| 200 departures, all gone from 1 surface | 1.61-2.12 s | 1.66-2.23 s |
 
-The first version of the guard rebuilt the bigram profile of every candidate line on every call.
-That is where the 23-30 s came from, while the header claimed "well under 2 seconds" and the hook
-claimed "~0.2s". The candidate index builds each profile once and binary-searches the length band.
-The classification output is byte-identical before and after the change.
+An earlier round measured the same 200-departure ceiling at 23-30 s wall, on a machine under a load
+average of 25 to 34, before `bestMatch` got its candidate index — it rebuilt the bigram profile of
+every candidate line on every call, while the header claimed "well under 2 seconds" and the hook
+claimed "~0.2s". Those runs are not repeated here; the 3 rows above are this branch's own numbers,
+and they are not comparable to the 23-30 s figure, which was taken on a far busier machine.
 
 Reproduce the clean-tree figure:
 
@@ -176,9 +259,9 @@ either surface today.
 ## Ranked blocks
 
 `sig` is the number of distinct shared lines longer than 40 characters that have a hit inside the
-`index.html` range **and** a hit inside the paired `play.html` range. Line ranges are from commit
-`dbd4543`. "Baseline after" is the 893 count minus the lines whose every occurrence, on both
-surfaces, sits inside the block.
+`index.html` range **and** a hit inside the paired `play.html` range. It measures how much of the
+shared set a block touches; it is **not** a deletion count, and the work-list table below explains
+where the 2 differ. Line ranges are from commit `dbd4543`.
 
 ### 1. Share packer, share card and shorteners — sig 140
 
@@ -268,13 +351,18 @@ presence, to stay protected.
 
 ### 6. Vision, LLM and frame-extraction node bodies — sig 54
 
-- `index.html:4345-4358` (`audioInputPart`), `5181-5189`, `5380-5389` (chat sampling options),
-  `6024-6100` (message assembly, the 4 MB reference-image guard), `6183-6212` (Vision node),
-  `6316-6344` (Extract-frames stepping), `7165-7183` (`maskToSource`)
-- `play.html:7216-7224`, `7301-7319`, `7418-7518`, `7583-7608`, `6138-6147`, `7277-7290`
+Paired range by range, because a later row of the work list needs 1 of these pairs exactly:
+
+- `index.html:4345-4358` (`audioInputPart`) ↔ `play.html:7277-7290`
+- `index.html:5181-5189` (the music/remix song-count clamp) ↔ `play.html:7216-7224`
+- `index.html:5380-5389` (`llmOpts`, the chat sampling options) ↔ `play.html:6138-6147`
+- `index.html:6024-6100` (message assembly, the 4 MB reference-image guard) and `6183-6212` (the
+  Resize node body) ↔ `play.html:7418-7518`
+- `index.html:6316-6344` (Extract-frames stepping) ↔ `play.html:7583-7608`
+- `index.html:7165-7183` (`maskToSource`) ↔ `play.html:7301-7319`
 
 **Verdict: mixed.** `maskToSource` is already exported from `browser.mjs` — extract it now, it is
-the cheapest win in the whole list at 5 lines. The message-assembly lines belong to block 4's
+the cheapest win in the whole list at 5 shared lines. The message-assembly lines belong to block 4's
 delegation surface. The Extract-frames stepping is local media and needs a library module first.
 
 ### 7. njs delegation shim — sig 35
@@ -385,27 +473,51 @@ lines belong to block 4's delegation surface.
 
 ## The work list, in order
 
-Each row deletes only lines that no earlier row already deleted, so "new" is the row's own
-contribution and "Baseline after" is cumulative. `sig` is the count of shared lines that sit inside
-BOTH quoted ranges of that block.
+Three different numbers, one definition each. Nothing in this table is hand arithmetic — every cell
+comes from `node scripts/twin-drift-worklist.mjs`, which reads the same shared set the guard pins and
+prints the table below verbatim.
 
-| # | Block | sig | new | Baseline after | Blocker |
-|---|-------|-----|-----|----------------|---------|
-| 1 | Resize and crop geometry | 25 | 25 | 868 | flag-off fallback only |
-| 2 | `maskToSource` | 5 | 5 | 863 | flag-off fallback only |
-| 3 | `encodeWavMono` + `mediaFetchError` | 23 | 23 | 840 | `mediaFetchError` has no library home |
-| 4 | Prompt-cap helpers | 9 | 9 | 831 | 1-line `browser.mjs` re-export |
-| 5 | Pricing resolver | 68 | 68 | 763 | `estimate.mjs` not in the browser bundle |
-| 6 | MP4CAT | 123 | 123 | 640 | `MP4CAT` not re-exported; `check-combine.mjs` must move |
-| 7 | Local media recorder path | 64 | 63 | 577 | needs a new library module |
-| 8 | Share packer, card and shorteners | 140 | 140 | 437 | needs a new `share-pack.mjs` |
-| 9 | Share-menu wiring | 24 | 24 | 413 | only after row 8 |
+- **`sig`** — distinct shared lines with at least 1 occurrence inside the row's `index.html` range
+  **and** at least 1 inside its `play.html` range. How much of the shared set the block touches.
+- **`deletes`** — distinct shared lines whose **every** occurrence, on **both** surfaces, sits inside
+  the row's ranges. Only these leave the shared set when the block goes. A twin with a copy outside
+  the ranges survives the deletion, so `deletes` ≤ `sig`.
+- **`new`** — this row's `deletes`, minus everything the rows above it already deleted.
+- **`Baseline after`** — 893 minus the running union of `new`.
 
-Row 7 is the only row that overlaps an earlier row: 1 of its 64 lines is already deleted by row 3.
+The old version of this table stated the `deletes` rule in prose and then subtracted `sig`. The 2
+rules disagree on rows 3, 7 and 8, so every "Baseline after" cell from row 3 down was wrong, by 1
+line at row 3 and by 5 by row 9.
+
+| # | Block | sig | deletes | new | Baseline after | Blocker |
+|---|-------|-----|---------|-----|----------------|---------|
+| 1 | Resize and crop geometry | 25 | 25 | 25 | 868 | flag-off fallback only |
+| 2 | `maskToSource` | 5 | 5 | 5 | 863 | flag-off fallback only |
+| 3 | `encodeWavMono` + `mediaFetchError` | 23 | 22 | 22 | 841 | `mediaFetchError` has no library home |
+| 4 | Prompt-cap helpers | 9 | 9 | 9 | 832 | 1-line `browser.mjs` re-export |
+| 5 | Pricing resolver | 68 | 68 | 68 | 764 | `estimate.mjs` not in the browser bundle |
+| 6 | MP4CAT | 123 | 123 | 123 | 641 | `MP4CAT` not re-exported; `check-combine.mjs` must move |
+| 7 | Local media recorder path | 64 | 63 | 63 | 578 | needs a new library module |
+| 8 | Share packer, card and shorteners | 140 | 136 | 136 | 442 | needs a new `share-pack.mjs` |
+| 9 | Share-menu wiring | 24 | 24 | 24 | 418 | only after row 8 |
+
+**No row overlaps another.** The earlier claim that row 7 loses 1 line to row 3 was wrong: the line
+in question is `const AC = window.AudioContext || window.webkitAudioContext;`, which sits at
+`index.html:9051,9466,9528` and `play.html:6537,6565,7004,7055`. Rows 3 and 7 each hold some of those
+copies and neither holds all of them, so **neither row deletes it** — that 1 line is why row 3 is
+23/22 and row 7 is 64/63. Row 8's 140/136 gap is 4 more lines of the same kind, including
+`const packed = await gzip(json).catch(()=>null);`, which also lives outside the share packer at
+`index.html:11191` and `play.html:13273`.
 
 Rows 1 to 6 all sit behind the same decision: **does `index.html` load `vendor/njs-engine.js`
-unconditionally, and does the built-in fallback survive?** Answer that once and 253 of the 893 shared
-lines become deletable (893 down to 640).
+unconditionally, and does the built-in fallback survive?** Answer that once and 252 of the 893 shared
+lines become deletable (893 down to 641).
+
+Recompute the whole table, including the agreement check against the guard's baseline:
+
+```sh
+node scripts/twin-drift-worklist.mjs
+```
 
 Blocks 4, 7, 10, 13, 15 and 16 are not on the list. They are covered by the delegation design or they
 genuinely belong to 2 separate documents.
