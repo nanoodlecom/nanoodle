@@ -30,17 +30,29 @@
 //   DELETION  — a baseline line is gone from one surface and still LIVE on the other. Nothing
 //               replaced it. The code did not move; one engine simply stopped doing it.
 //   GROWTH    — the shared-line COUNT went up, or a shared line gained an occurrence.
-// It does NOT fail on real EXTRACTION: a line that left BOTH surfaces, or that moved into the
-// generated nanoodle-js bundle, only prints a note. It does NOT fail on a correctly MIRRORED edit
-// either (both surfaces changed together): membership moves, the count holds, and the guard only
-// asks for a baseline refresh.
+// It does NOT fail on real EXTRACTION: a line that left BOTH hand-maintained surfaces only prints a
+// note. There is no other exemption. A line still live on one surface always fails, even when the
+// generated bundle happens to carry the same text (see section 4b). It does NOT fail on a correctly
+// MIRRORED edit either (both surfaces changed together): membership moves, the count holds, and the
+// guard only asks for a baseline refresh.
 //
 // REFRESH (deliberate, same shape as the CSP golden in check-deploy-config.mjs):
 //   TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs
 //
-// No network, no API spend, well under 2 seconds. index.html and play.html carry committed NUL
-// bytes; Node readFileSync(...,"utf8") reads them fine (shell grep would need -a). ROOT resolves
-// relative to THIS file so the check relocates into a sandbox copy.
+// STATS (every figure docs/twin-drift.md quotes about the shared set, printed):
+//   TWIN_DRIFT_STATS=1 node scripts/check-twin-drift.mjs
+//
+// RUNTIME. No network, no API spend. A clean tree is 0.2 s. The cost that matters is the drift
+// classifier: it scores every DEPARTING line against every candidate line of the surface that
+// moved, so the worst case is a refactor that moves many twins at once, not a normal commit.
+// MAX_CLASSIFY caps that work at 199 departures, and 199 departures measures 1.5 s. Both figures
+// rise on a busy machine: on the same box under a load average of 34 they were 1.0 s and 6.1 s.
+// Before the candidate index in the helpers section, that same 199-departure case took 36-40 s
+// under that load, and the header claimed "well under 2 seconds" while it did.
+//
+// index.html and play.html carry committed NUL bytes; Node readFileSync(...,"utf8") reads them fine
+// (shell grep would need -a). ROOT resolves relative to THIS file so the check relocates into a
+// sandbox copy.
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -67,14 +79,20 @@ const failures = [];
 const notes = [];
 const fail = (msg) => failures.push(msg);
 
+// Caches for bestMatch(), declared here because the top-level comparison in section 4 runs before
+// the helpers section and `const` does not hoist. See the helpers for what they hold.
+const CAND_INDEX = new Map(); // surface.file -> candidate lines, sorted by length, bigrams prebuilt
+const MATCH_MEMO = new Map(); // "<file> <text>" -> the bestMatch result for that pair
+
 // ---------------------------------------------------------------------------
 // 1. read both surfaces and blank the GENERATED regions
 // ---------------------------------------------------------------------------
 // Blanking keeps line numbering true: each match becomes the same number of newlines, so every
 // file:line the guard prints is the real line number in the real file.
 //
-// The generated lines are NOT thrown away. They go into GEN_LINES, because "the line moved into the
-// library bundle" is the one legitimate way for a shared line to leave a single surface.
+// The generated lines are NOT thrown away. They go into GEN_LINES, which is used for ONE thing: to
+// word the note when a line leaves BOTH surfaces and the library already carries the same text.
+// GEN_LINES never suppresses a failure — see section 4b for why that was wrong.
 
 const GEN_LINES = new Set(); // hashes of every line inside a generated region, either file
 
@@ -189,6 +207,25 @@ const entryOf = (h) => `${h} ${nIdx(h)} ${nPlay(h)}`;
 const nowEntries = sharedNow.map(entryOf);
 const digest = createHash("sha256").update(nowEntries.join("\n")).digest("hex").slice(0, 32);
 
+// Every figure docs/twin-drift.md quotes about the shared set is printed here, so the document can
+// be re-verified with one command instead of trusted:
+//   TWIN_DRIFT_STATS=1 node scripts/check-twin-drift.mjs
+// This only prints. It never changes what the guard fails on.
+if (process.env.TWIN_DRIFT_STATS) {
+  const multiIdx = sharedNow.filter((h) => nIdx(h) > 1).length;
+  const multiPlay = sharedNow.filter((h) => nPlay(h) > 1).length;
+  const multiEither = sharedNow.filter((h) => nIdx(h) > 1 || nPlay(h) > 1).length;
+  const alsoInBundle = sharedNow.filter((h) => GEN_LINES.has(h)).length;
+  console.log(
+    `  stats: ${sharedNow.length} distinct shared lines, ${occIdx} occurrences in index.html, ` +
+      `${occPlay} in play.html\n` +
+      `  stats: ${multiEither} appear more than once inside a surface ` +
+      `(${multiIdx} in index.html, ${multiPlay} in play.html)\n` +
+      `  stats: ${alsoInBundle} are ALSO carried by the generated njs-engine bundle while both hand\n` +
+      `         copies stay live — that is why bundle text presence is not proof of extraction`
+  );
+}
+
 // ---------------------------------------------------------------------------
 // 3. refresh mode
 // ---------------------------------------------------------------------------
@@ -257,6 +294,32 @@ if (baseCount.size !== baseLines.length) {
 }
 const baseSet = new Set(baseCount.keys());
 
+// The ratchet number is DERIVED from the `lines` array. It is never read from the file.
+// The stored digest hashes `lines` only, so a hand-raised `count:` field would otherwise lift the
+// ratchet with no digest mismatch at all — and the count is the one number this guard advertises as
+// a ratchet. Deriving it means the file cannot disagree with itself. The `count`,
+// `occurrencesIndexHtml` and `occurrencesPlayHtml` fields stay in the JSON for a human reader, and
+// the guard fails if any of them stops describing `lines`.
+const baseTotal = baseSet.size;
+const baseOccIdx = [...baseCount.values()].reduce((n, c) => n + c[0], 0);
+const baseOccPlay = [...baseCount.values()].reduce((n, c) => n + c[1], 0);
+for (const [field, stored, derived] of [
+  ["count", baseline.count, baseTotal],
+  ["occurrencesIndexHtml", baseline.occurrencesIndexHtml, baseOccIdx],
+  ["occurrencesPlayHtml", baseline.occurrencesPlayHtml, baseOccPlay],
+]) {
+  if (stored === undefined) continue;
+  if (Number(stored) !== derived) {
+    fail(
+      `baseline "${field}" says ${stored}, but its own "lines" array says ${derived} ` +
+        `(${relative(ROOT, BASELINE)}) — hand edited?\n` +
+        `      The guard uses the derived number, so this edit did not move the ratchet.\n` +
+        `      Regenerate: TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs`
+    );
+    report();
+  }
+}
+
 // ---------------------------------------------------------------------------
 // 4. compare
 // ---------------------------------------------------------------------------
@@ -275,10 +338,10 @@ const enteredList = (n) =>
     return `        index.html:${a.at[0]} / play.html:${b.at[0]}  ${clip(a.text)}`;
   });
 
-if (sharedNow.length > baseline.count) {
+if (sharedNow.length > baseTotal) {
   const shown = enteredList(12);
   fail(
-    `duplication went UP: ${baseline.count} → ${sharedNow.length} shared lines ` +
+    `duplication went UP: ${baseTotal} → ${sharedNow.length} shared lines ` +
       `(${entered.length} entered, ${left.length} left).\n` +
       `      Every new shared line is a line some future edit must change in two places.\n` +
       `      Put the code in ONE surface, or route it through the nanoodle-js bundle\n` +
@@ -292,7 +355,7 @@ if (sharedNow.length > baseline.count) {
   const shown = enteredList(6);
   notes.push(
     `${entered.length} line(s) entered the shared set while the count held at ` +
-      `${sharedNow.length} (${baseline.count} before) — this is what a correctly MIRRORED edit\n` +
+      `${sharedNow.length} (${baseTotal} before) — this is what a correctly MIRRORED edit\n` +
       `    looks like. Refresh the baseline so the new twins are tracked:\n` +
       `      TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs\n` +
       shown.join("\n") +
@@ -302,15 +365,24 @@ if (sharedNow.length > baseline.count) {
 
 // --- 4b. departures: DRIFT / one-sided DELETION (fail) vs EXTRACTION (allowed) ---
 // A baseline line can leave the shared set three ways.
-//   EXTRACTION  the line left BOTH surfaces, or it moved into the generated nanoodle-js bundle.
-//               That is the work we want. Allowed, note only. The baseline stores hashes, not text,
-//               so a line gone from both surfaces cannot be told apart from the old half of a
-//               mirrored edit — the note names both readings instead of guessing.
+//   EXTRACTION  the line left BOTH hand-maintained surfaces. That is the work we want. Allowed,
+//               note only. The baseline stores hashes, not text, so a line gone from both surfaces
+//               cannot be told apart from the old half of a mirrored edit — the note names both
+//               readings instead of guessing. When the same text is also inside the generated
+//               bundle, the note says so, because then "extracted into the library" is the reading.
 //   DRIFT       the line is still on both surfaces, but one side EDITED it. The keeper still carries
 //               the original byte-for-byte; the mover carries a near-identical variant.
 //   DELETION    the line is gone from one surface and still LIVE on the other, and nothing
 //               near-identical replaced it. The code did not move — one engine stopped doing it and
 //               the other did not. Calling that "deduplication" was a lie: it IS drift.
+//
+// GEN_LINES IS NOT AN EXEMPTION FROM DELETION. Presence of the same text inside the generated
+// bundle is a property of the tree TODAY, not evidence that anything moved: 131 of the 893 baseline
+// lines are byte-identical to a line already inside the bundle while BOTH hand copies are still
+// live (MP4CAT, the pricing resolver, resize geometry — the library ships them too). Treating that
+// text presence as "extracted" exited 0 on a one-sided deletion of live MP4CAT code, which is the
+// exact failure the DELETION rule exists to catch. So the bundle only sharpens the wording of the
+// note on a line that already left BOTH surfaces; it never suppresses a failure.
 const drifted = [];
 const removed = [];
 let extracted = 0;
@@ -318,7 +390,7 @@ let vanished = 0;
 
 if (left.length > MAX_CLASSIFY) {
   fail(
-    `${left.length} baseline lines left the shared set (baseline count ${baseline.count}, now ${sharedNow.length}).\n` +
+    `${left.length} baseline lines left the shared set (baseline count ${baseTotal}, now ${sharedNow.length}).\n` +
       `      That is too large a move to attribute line by line. Review the diff, then refresh:\n` +
       `        TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs`
   );
@@ -327,14 +399,18 @@ if (left.length > MAX_CLASSIFY) {
     const inIdx = IDX.sig.get(h);
     const inPlay = PLAY.sig.get(h);
     if (inIdx && inPlay) continue; // still shared — cannot happen, guard anyway
-    if (!inIdx && !inPlay) { vanished++; continue; } // removed from BOTH surfaces
+    if (!inIdx && !inPlay) {
+      // gone from BOTH hand-maintained surfaces: extraction. The bundle only picks the wording.
+      if (GEN_LINES.has(h)) extracted++;
+      else vanished++;
+      continue;
+    }
     const keeper = inIdx ? IDX : PLAY;
     const mover = inIdx ? PLAY : IDX;
     const text = (inIdx || inPlay).text;
     const at = (inIdx || inPlay).at[0];
     const cand = bestMatch(text, mover);
     if (cand) { drifted.push({ keeper, mover, text, at, cand }); continue; }
-    if (GEN_LINES.has(h)) { extracted++; continue; } // moved into the generated bundle
     removed.push({ keeper, mover, text, at });
   }
 }
@@ -364,7 +440,7 @@ for (const h of sharedNow) {
 if (extracted || vanished) {
   const bits = [];
   if (vanished) bits.push(`${vanished} left both surfaces (extraction, or the old half of a mirrored edit)`);
-  if (extracted) bits.push(`${extracted} moved into the generated bundle`);
+  if (extracted) bits.push(`${extracted} left both surfaces and are carried by the generated bundle`);
   notes.push(
     `${bits.join(", ")} — the ratchet allows this. Lower the baseline when convenient:\n` +
       `    TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs`
@@ -466,42 +542,97 @@ report();
 // helpers
 // ---------------------------------------------------------------------------
 
-// Dice coefficient over character bigrams. Deterministic, dependency-free, O(n).
+// Dice coefficient over character bigrams. Deterministic, dependency-free.
+//
+// A bigram is packed into 1 integer (first char << 16 | second char) and the profile of a line is
+// 2 sorted typed arrays: the bigram keys, and how many times each occurs. Sorted keys let dice()
+// intersect 2 profiles with a plain merge over integers. The earlier Map-of-2-character-strings
+// version paid a string hash per lookup, and this is the inner loop of the whole guard.
 function bigrams(s) {
-  const set = new Map();
+  const counts = new Map();
   for (let i = 0; i < s.length - 1; i++) {
-    const g = s.slice(i, i + 2);
-    set.set(g, (set.get(g) || 0) + 1);
+    const g = (s.charCodeAt(i) << 16) | s.charCodeAt(i + 1);
+    counts.set(g, (counts.get(g) || 0) + 1);
   }
-  return set;
+  const keys = Int32Array.from(counts.keys()).sort();
+  const mult = new Int32Array(keys.length);
+  let size = 0;
+  for (let i = 0; i < keys.length; i++) {
+    mult[i] = counts.get(keys[i]);
+    size += mult[i];
+  }
+  return { keys, mult, size };
 }
-function dice(aGrams, aSize, b) {
-  if (aSize === 0 || b.length < 2) return 0;
-  const bGrams = bigrams(b);
-  let bSize = 0, hits = 0;
-  for (const [g, n] of bGrams) {
-    bSize += n;
-    const m = aGrams.get(g);
-    if (m) hits += Math.min(m, n);
+function dice(a, b) {
+  if (a.size === 0 || b.size === 0) return 0;
+  const ak = a.keys, bk = b.keys, an = ak.length, bn = bk.length;
+  let i = 0, j = 0, hits = 0;
+  while (i < an && j < bn) {
+    const x = ak[i], y = bk[j];
+    if (x === y) {
+      const m = a.mult[i], n = b.mult[j];
+      hits += m < n ? m : n;
+      i++; j++;
+    } else if (x < y) i++;
+    else j++;
   }
-  return (2 * hits) / (aSize + bSize);
+  return (2 * hits) / (a.size + b.size);
+}
+
+// Candidate index, built ONCE per surface.
+//
+// bestMatch used to rebuild the bigram map of every candidate line on every call, so the cost was
+// O(departures x lines-in-the-mover x line-length). A clean tree never sees it, because nothing
+// departs. A big mirrored-but-not-quite refactor does: at the MAX_CLASSIFY ceiling of 199
+// departures the guard took 36-40 s while the header promised "well under 2 seconds". It was
+// bounded, not hung, but that is the wrong surprise to hand a developer mid-refactor.
+// Building each candidate's bigram profile once, and sorting the candidates by length so the length
+// band becomes a binary-searched slice, takes the same case to 5-6 s under the same load. The
+// classification output is byte-identical before and after. RUNTIME in the header has the numbers.
+function candidatesOf(mover) {
+  let list = CAND_INDEX.get(mover.file);
+  if (list) return list;
+  list = [];
+  for (const [h, e] of mover.sig) {
+    // A shared line is a twin in its own right, not the replacement we are hunting.
+    if (sharedNowSet.has(h)) continue;
+    list.push({ text: e.text, line: e.at[0], len: e.text.length, grams: bigrams(e.text) });
+  }
+  list.sort((x, y) => x.len - y.len || x.line - y.line);
+  CAND_INDEX.set(mover.file, list);
+  return list;
+}
+
+// First index in the length-sorted list whose len >= target.
+function lowerBound(list, target) {
+  let lo = 0, hi = list.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (list[mid].len < target) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
 }
 
 // Find the line in `mover` that looks like an edited copy of `text`.
-// A candidate must NOT itself be in the shared set (a shared line is a twin in its own right, not
-// the replacement we are hunting) and must be within a plausible length band of the original.
+// A candidate must not itself be in the shared set and must be within a plausible length band of
+// the original. Results are memoised: the occurrence-drift report asks for the same match again.
 function bestMatch(text, mover) {
+  const key = mover.file + "\u0000" + text;
+  if (MATCH_MEMO.has(key)) return MATCH_MEMO.get(key);
   const aGrams = bigrams(text);
-  let aSize = 0;
-  for (const n of aGrams.values()) aSize += n;
-  const lo = text.length * 0.6, hi = text.length * 1.7;
+  const list = candidatesOf(mover);
+  const hi = text.length * 1.7;
   let best = null;
-  for (const [h, e] of mover.sig) {
-    if (sharedNowSet.has(h)) continue;
-    if (e.text.length < lo || e.text.length > hi) continue;
-    const r = dice(aGrams, aSize, e.text);
-    if (r >= DRIFT_SIMILARITY && (!best || r > best.ratio)) best = { ratio: r, text: e.text, line: e.at[0] };
+  for (let i = lowerBound(list, text.length * 0.6); i < list.length && list[i].len <= hi; i++) {
+    const c = list[i];
+    const r = dice(aGrams, c.grams);
+    if (r < DRIFT_SIMILARITY) continue;
+    if (!best || r > best.ratio || (r === best.ratio && c.line < best.line)) {
+      best = { ratio: r, text: c.text, line: c.line };
+    }
   }
+  MATCH_MEMO.set(key, best);
   return best;
 }
 

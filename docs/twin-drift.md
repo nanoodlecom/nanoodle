@@ -14,15 +14,31 @@ Date: 2026-07-28. Measured at commit `dbd4543`.
 bundle, the probe-written `PROMPT-CAPS` table, the generated i18n maps and the Runware AIR table are
 excluded from that count, so the number is hand-maintained duplication only.
 
-Reproduce every number in this document:
+Reproduce every number in this section:
 
 ```sh
-node scripts/check-twin-drift.mjs
+TWIN_DRIFT_STATS=1 node scripts/check-twin-drift.mjs
 ```
 
 538 of the 893 lines sit in 87 contiguous blocks of 4 lines or more, counted on `index.html` line
 numbers with at most 1 non-shared line inside a block. The other 355 are scattered single lines and
-pairs. This document ranks the blocks.
+pairs. This document ranks 16 of the 87 blocks.
+
+### What this map does NOT cover
+
+The ranked list below is a map, not an exhaustive partition. Read it that way.
+
+- **16 of 87 blocks are ranked.** The other 71 blocks and all 355 scattered lines are guarded by
+  `check-twin-drift.mjs` exactly like the ranked ones, but this document does not give them a
+  verdict.
+- **A twin can fall between 2 block ranges and be in neither block's `sig` count.** `seekVideo`
+  (`index.html:8995`, `play.html:6639`) is the known example: it sits between the range of block 3
+  and the range of block 12, so no ranked block counts it. The guard still holds it, because the
+  guard works on the whole shared set and not on this document's blocks.
+- **The deliberately per-page `<head>` lines are guarded by nothing.** `og:title`, `og:description`,
+  `og:url`, `twitter:title` and `twitter:description` differ per page on purpose, so they were never
+  in the shared set, so no whole-file twin guard can cover them. No other check covers them either.
+  Block 10 says this again in place.
 
 ### How the generated bundle is identified
 
@@ -62,11 +78,27 @@ It **fails** on:
 
 It **passes** on:
 
-- **Extraction.** A line that left BOTH surfaces, or that moved into the generated bundle. The
-  baseline stores hashes and not text, so a line gone from both surfaces cannot be told apart from
-  the old half of a mirrored edit. The note names both readings instead of guessing.
+- **Extraction.** A line that left BOTH hand-maintained surfaces. The baseline stores hashes and not
+  text, so a line gone from both surfaces cannot be told apart from the old half of a mirrored edit.
+  The note names both readings instead of guessing. When the generated bundle carries the same text,
+  the note says so, because then "extracted into the library" is the reading.
 - **A correctly mirrored edit.** Both surfaces change together, the count holds, and the guard asks
   for a baseline refresh in a note.
+
+**There is no other exemption.** A line still live on 1 surface always fails, and it fails even when
+the generated bundle happens to carry the same text. That last clause is load-bearing. An earlier
+version of the guard read "the text is somewhere inside the bundle" as proof of extraction. It is
+not: **131 of the 893 baseline lines are byte-identical to a line already inside the bundle while
+both hand copies are still live**, because the library ships MP4CAT, the pricing resolver and the
+resize geometry too. Under that rule a one-sided deletion of live MP4CAT code
+(`play.html:6850`, `const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);`) exited 0 with a
+"moved into the generated bundle" note, so the one-sided-deletion rule was off on 15% of the guarded
+set. Presence in the bundle now only picks the wording of a note on a line that already left both
+surfaces. Count the 131 for yourself:
+
+```sh
+TWIN_DRIFT_STATS=1 node scripts/check-twin-drift.mjs
+```
 
 Refresh the baseline deliberately:
 
@@ -74,8 +106,40 @@ Refresh the baseline deliberately:
 TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs
 ```
 
+The count is a ratchet, and the ratchet number is **derived from the baseline `lines` array**, never
+read from the `count:` field. The stored digest hashes `lines` only, so a hand-raised `count:` would
+otherwise lift the ratchet with no digest mismatch. The `count`, `occurrencesIndexHtml` and
+`occurrencesPlayHtml` fields stay in the JSON for a human reader, and the guard fails if any of them
+stops describing `lines`.
+
 The pre-commit hook runs the guard when `index.html`, `play.html`, the guard, or the baseline is
 staged.
+
+### Runtime
+
+Offline, no network, no API spend.
+
+The cost that matters is the drift classifier: for every baseline line that left the shared set it
+scores the departing text against every candidate line of the surface that moved. `MAX_CLASSIFY`
+caps that work at 199 departures and reports totals beyond it, so the run is always bounded. The
+ceiling is not free, and a normal commit never reaches it. Measured on the review machine:
+
+| Case | Idle machine | Under a load average of 34 |
+|------|--------------|----------------------------|
+| Clean tree, nothing departs | 0.2 s | 1.0 s |
+| 199 departures, the `MAX_CLASSIFY` ceiling | 1.5 s | 6.1 s |
+| 199 departures, before the candidate index | not measured idle | 36-40 s |
+
+The first version of the guard rebuilt the bigram profile of every candidate line on every call.
+That is where the 36-40 s came from, while the header claimed "well under 2 seconds" and the hook
+claimed "~0.2s". The candidate index builds each profile once and binary-searches the length band.
+The classification output is byte-identical before and after the change.
+
+Reproduce the clean-tree figure:
+
+```sh
+time node scripts/check-twin-drift.mjs
+```
 
 ## Why extraction is hard here
 
