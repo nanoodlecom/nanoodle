@@ -42,13 +42,16 @@
 // STATS (every figure docs/twin-drift.md quotes about the shared set, printed):
 //   TWIN_DRIFT_STATS=1 node scripts/check-twin-drift.mjs
 //
-// RUNTIME. No network, no API spend. A clean tree is 0.2 s. The cost that matters is the drift
-// classifier: it scores every DEPARTING line against every candidate line of the surface that
-// moved, so the worst case is a refactor that moves many twins at once, not a normal commit.
-// MAX_CLASSIFY caps that work at 199 departures, and 199 departures measures 1.5 s. Both figures
-// rise on a busy machine: on the same box under a load average of 34 they were 1.0 s and 6.1 s.
-// Before the candidate index in the helpers section, that same 199-departure case took 36-40 s
-// under that load, and the header claimed "well under 2 seconds" while it did.
+// RUNTIME. No network, no API spend. A clean tree is 0.2 s on a quiet machine. The cost that
+// matters is the drift classifier: it scores every DEPARTING line against every candidate line of
+// the surface that moved, so the worst case is a refactor that moves many twins at once, not a
+// normal commit. MAX_CLASSIFY caps that work at 200 departures; 201 reports totals instead.
+// Measured on the review machine, which held a load average of 25 to 34 throughout:
+//   clean tree              0.9 s wall  (0.6 s CPU)
+//   200 departures          3.5-5.7 s wall  (3.1-4.9 s CPU); 1.5 s was the fastest run observed
+//   200 departures, before  23-30 s wall  (22-27 s CPU)
+// "Before" is this same guard with the old bestMatch, which rebuilt every candidate's bigram
+// profile on every call. The header claimed "well under 2 seconds" while it did that.
 //
 // index.html and play.html carry committed NUL bytes; Node readFileSync(...,"utf8") reads them fine
 // (shell grep would need -a). ROOT resolves relative to THIS file so the check relocates into a
@@ -583,11 +586,11 @@ function dice(a, b) {
 //
 // bestMatch used to rebuild the bigram map of every candidate line on every call, so the cost was
 // O(departures x lines-in-the-mover x line-length). A clean tree never sees it, because nothing
-// departs. A big mirrored-but-not-quite refactor does: at the MAX_CLASSIFY ceiling of 199
-// departures the guard took 36-40 s while the header promised "well under 2 seconds". It was
+// departs. A big mirrored-but-not-quite refactor does: at the MAX_CLASSIFY ceiling of 200
+// departures the guard took 23-30 s while the header promised "well under 2 seconds". It was
 // bounded, not hung, but that is the wrong surprise to hand a developer mid-refactor.
 // Building each candidate's bigram profile once, and sorting the candidates by length so the length
-// band becomes a binary-searched slice, takes the same case to 5-6 s under the same load. The
+// band becomes a binary-searched slice, takes the same case to 3.5-5.7 s under the same load. The
 // classification output is byte-identical before and after. RUNTIME in the header has the numbers.
 function candidatesOf(mover) {
   let list = CAND_INDEX.get(mover.file);

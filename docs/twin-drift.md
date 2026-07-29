@@ -121,17 +121,18 @@ Offline, no network, no API spend.
 
 The cost that matters is the drift classifier: for every baseline line that left the shared set it
 scores the departing text against every candidate line of the surface that moved. `MAX_CLASSIFY`
-caps that work at 199 departures and reports totals beyond it, so the run is always bounded. The
-ceiling is not free, and a normal commit never reaches it. Measured on the review machine:
+caps that work at 200 departures; at 201 the guard reports totals instead, so the run is always
+bounded. The ceiling is not free, and a normal commit never reaches it. Measured on the review
+machine, which held a load average of 25 to 34 throughout:
 
-| Case | Idle machine | Under a load average of 34 |
-|------|--------------|----------------------------|
-| Clean tree, nothing departs | 0.2 s | 1.0 s |
-| 199 departures, the `MAX_CLASSIFY` ceiling | 1.5 s | 6.1 s |
-| 199 departures, before the candidate index | not measured idle | 36-40 s |
+| Case | Wall clock | CPU time |
+|------|------------|----------|
+| Clean tree, nothing departs | 0.9 s (0.2 s on a quiet machine) | 0.5-0.6 s |
+| 200 departures, the `MAX_CLASSIFY` ceiling | 3.5-5.7 s, fastest run 1.5 s | 3.1-4.9 s |
+| 200 departures, before the candidate index | 23-30 s | 22-27 s |
 
 The first version of the guard rebuilt the bigram profile of every candidate line on every call.
-That is where the 36-40 s came from, while the header claimed "well under 2 seconds" and the hook
+That is where the 23-30 s came from, while the header claimed "well under 2 seconds" and the hook
 claimed "~0.2s". The candidate index builds each profile once and binary-searches the length band.
 The classification output is byte-identical before and after the change.
 

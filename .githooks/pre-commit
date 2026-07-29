@@ -504,9 +504,10 @@ fi
 #     The ONLY thing that leaves the set without failing is a line gone from BOTH surfaces.
 #     Generated regions are excluded, so the library is never booked as hand duplication; the
 #     njs-engine block is found by its data-hash, NOT by a script-tag regex that play.html's own
-#     export-builder string literal can trigger. Offline. A clean tree is 0.2s. The worst case is a
-#     refactor that moves many twins at once: at the 199-departure classification ceiling it is 1.5s,
-#     and 6.1s on a machine under a load average of 34. Refresh deliberately:
+#     export-builder string literal can trigger. Offline. A clean tree is 0.2s on a quiet machine.
+#     The worst case is a refactor that moves many twins at once: at the 200-departure classification
+#     ceiling it measured 3.5s to 5.7s on a machine under a load average of 25 to 34, and 1.5s at its
+#     fastest. Never a hang: 201 departures reports totals instead. Refresh deliberately:
 #       TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs
 #     Ranked extraction plan: docs/twin-drift.md
 if [ -n "$touches_twindrift" ]; then
