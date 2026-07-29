@@ -114,6 +114,9 @@ touches_drift=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|
 # Prompt-length caps: a wired prompt over a model's character cap must be budgeted upstream / fitted,
 # never sent to a 400 the user can't act on — and both engines must read the same generated table.
 touches_promptcaps=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-prompt-caps\.mjs)$' || true)
+# growth/ launch drafts are paste-ready public copy; index.html + README are where their figures come from.
+# growth/ is gitignored, so these paths only appear here when someone force-adds them — which is when it matters.
+touches_launchfacts=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|README\.md|growth/(launch-checklist|show-hn-draft|product-hunt-draft|launch-alternativeto|2026-07-17-ecosystem-shares|shares)\.md|scripts/check-launch-facts\.mjs)$' || true)
 
 # an imported (#a=) app's spend-capable bridge calls must be refused until a real Run gesture arms it (consent gate).
 touches_consent=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-bridge-consent\.mjs)$' || true)
@@ -485,4 +488,15 @@ fi
 #     read the same generated table. Offline: extracts the real helpers and drives them.
 if [ -n "$touches_promptcaps" ]; then
   node "$root/scripts/check-prompt-caps.mjs"
+fi
+
+# 41) LAUNCH FACTS: growth/'s four launch drafts are copy a human pastes on Hacker News, Product
+#     Hunt, AlternativeTo and Reddit. Nothing read them, so they rotted: a cleared gate was still
+#     called a blocker 11 days later, three drafts quoted package versions two releases old, and one
+#     revision claimed the 20% markup on a paid MCP call reaches the workflow's author when no
+#     published workflow claims it. Asserts every version, count and repo figure against index.html,
+#     README and the checklist's own re-check block, bans the sentences already proved false, and
+#     keeps each post body in exactly one file. Offline, no API spend.
+if [ -n "$touches_launchfacts" ]; then
+  node "$root/scripts/check-launch-facts.mjs"
 fi

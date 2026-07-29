@@ -3,7 +3,9 @@
 > DRAFT — for a human to post. Nothing here is submitted anywhere.
 > Refreshed **2026-07-28**. Fact-checked against the live product on that date.
 > The Jul 14 and Jul 17 slots both slipped. Pick the next weekday you can block.
-> Paste-ready copy also lives in `launch-checklist.md` (single-file launch page).
+> **The paste-ready title and first comment live in `launch-checklist.md` § 3,
+> and only there.** This file holds the framing, the dupe check and the comment
+> FAQ. One copy of the body is deliberate — two copies drift.
 
 **Where:** https://news.ycombinator.com/submit — Show HN post with URL.
 **When:** ~8–10am ET on a weekday. Do NOT post and leave; the first two hours of
@@ -17,54 +19,15 @@ coordinate around. The old PR #32 Show HN proposal is superseded by this draft.
 
 ---
 
-**Title (≤80 chars, no superlatives — HN mods edit hype):**
+## Title, URL and first comment
 
-Show HN: Nanoodle – node-graph AI workflows in one HTML file, no server
+Paste them from **`launch-checklist.md` § 3**. Do not copy them back here.
 
-**URL:** https://nanoodle.com
-(Live product in the URL field; the repo link goes in the text — the app is the
-demo, the source is the receipt.)
+**URL field:** `https://nanoodle.com` — the live product goes in the URL field and
+the repo link goes in the text. The app is the demo, the source is the receipt.
 
-**Text (first comment, post immediately after submitting):**
-
-Hi HN — solo builder here. Nanoodle is a ComfyUI-style node canvas that runs
-entirely in the browser: wire text/image/video/audio models into a graph, run it,
-then export the graph as a standalone single-file .html app you can host anywhere
-or open from disk.
-
-The whole product is one static HTML page — no build step, no bundler, no backend.
-It's open source (MIT): https://github.com/nanoodlecom/nanoodle
-Constraints that fell out of that, which turned out to be the interesting part:
-
-- Exported apps embed their own runtime, so the runtime JS lives in a String.raw
-  template inside the page. A single backtick anywhere in it breaks every export;
-  there's a pre-commit hook whose only job is hunting backticks.
-- The editor and the exported app are two run-engines that must behave identically.
-  Engine drift became the dominant bug class, so parity is enforced by hooks too.
-- No server means auth is OAuth PKCE browser→provider, persistence is the
-  browser's localStorage + share-links in URL fragments (the fragment never hits
-  any server), and there's zero analytics — not as a policy, but because there's
-  nothing to receive it.
-
-The graph format is portable beyond the browser: the same noodle-graph.json runs
-headlessly via `npm install nanoodle` (a zero-dependency Node library/CLI) or
-`pip install nanoodle` (stdlib-only Python), and there's an MCP server and a
-GitHub Action. Everything lives under https://github.com/nanoodlecom — 13 public
-repos, all MIT.
-
-If you'd rather see the format than the canvas, the 📚 Examples panel in the
-editor loads ten ready-made graphs straight from an open gallery repo
-(https://github.com/nanoodlecom/awesome-noodles) — every entry is a plain JSON
-file, so you can read a workflow before you run one.
-
-The honest tradeoff: it's bring-your-own-key. Building and browsing need no
-signup, but running models goes through your own nano-gpt.com key, pay-per-call.
-I built it this way so I never host anyone's data or keys — but it does put the
-"wow" moment behind funding an account, and I'm still working on softening that
-(there's a canned demo run for signed-out visitors).
-
-Happy to answer anything about the single-file architecture — it forced more
-design decisions than any feature did.
+**Title length:** HN caps titles at 80 characters and moderators edit hype out, so
+if you change the title, count the characters and keep it flat.
 
 ---
 
@@ -78,8 +41,12 @@ design decisions than any feature did.
   keys through a server, which breaks the entire privacy model and makes me a
   custodian. Chose the tradeoff eyes-open.
 - **"How do you make money?"** — Provider referral on sign-ups routed through the
-  app. No subscription, no markup on calls, no data. If that ever changes it'll be
-  said out loud.
+  app (the OAuth link carries a referral code; it's in the source). No
+  subscription, no data, and nothing added to a call you make with your own key.
+  The one place I do take a cut is the hosted MCP endpoint, which charges the
+  model's cost plus 20% because it fronts the money for you — say that out loud
+  if it comes up, because the 20% is documented on mcp.nanoodle.com and someone
+  will find it. If any of this changes it'll be said out loud too.
 - **"Isn't this just an API wrapper?"** — The models are the provider's, yes. The
   product is the graph editor, the dual-engine runtime, and the single-file export.
   Same sense in which a spreadsheet is "just" a wrapper over arithmetic.

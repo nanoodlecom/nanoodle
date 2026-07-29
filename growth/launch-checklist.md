@@ -1,10 +1,14 @@
 # Launch checklist — the four pending launches
 
-One page. Everything to post all four venues is here. You do not need to open
-another file.
+One page. Everything to paste at all four venues is here, and this is the only
+copy of it. The four draft files hold the framing, the comment FAQ and the asset
+notes; none of them repeats a post body, so a correction here is the whole
+correction.
 
 Written 2026-07-28. Every fact below was checked against the live product on
-that date. Only Mikkel can post. A pull request cannot.
+that date. `scripts/check-launch-facts.mjs` re-checks the load-bearing figures
+on every commit, so a stale draft fails the hook instead of reaching a reader.
+Only Mikkel can post. A pull request cannot.
 
 **Suggested order:** AlternativeTo → r/mcp → Show HN → Product Hunt.
 Reasons are in `shares.md`. You can do 1 and 2 today in under an hour.
@@ -71,9 +75,10 @@ self-listings get removed.
 >
 > Workflows are shared as URLs (the graph is encoded in the URL fragment, which
 > never reaches a server) or exported as a single self-contained .html file you
-> can host anywhere or open from disk. A built-in Examples panel loads ready-made
-> workflows straight from an open gallery repository, so there is something to run
-> on the first visit. The same graph format also runs headlessly via the
+> can host anywhere or open from disk. A built-in Examples panel carries ten
+> ready-made workflows, mirrored from an open gallery repository and shipped
+> inside the page, so there is something to run on the first visit and the panel
+> itself needs no network. The same graph format also runs headlessly via the
 > `nanoodle` package on npm (0.8.0) and PyPI (0.4.0), and there's an MCP server
 > and a GitHub Action.
 >
@@ -81,7 +86,8 @@ self-listings get removed.
 > whole ecosystem (13 public repos) is public at https://github.com/nanoodlecom.
 
 **License:** Open Source (MIT)
-**Platforms:** Online (web); Self-Hosted
+**Platforms:** Online (web); Self-Hosted (nanoodle is a static folder, so any
+file server hosts it)
 **Pricing:** pick "Free • Open Source". Note the BYO-key cost in the description.
 Do not present it as fully free to operate.
 **Tags:** ai-workflow, node-editor, no-code, privacy, browser-based,
@@ -154,7 +160,11 @@ the rail. Never lead with the coin, a price chart, or an investment angle.
 >
 > - What you pay up front is a **deposit**. The run settles at the model's actual
 >   metered cost + 20%, and the difference goes back to the paying wallet on-chain.
-> - The 20% goes to whoever authored the workflow, not to the platform.
+> - That 20% is routable to the person who wrote the workflow: a graph that names
+>   a Nano address in its JSON collects the whole markup of every paid run,
+>   on-chain, automatically. None of the ten published workflows claims one yet,
+>   so right now it lands in the server wallet. Add a workflow to the gallery
+>   with your address in it and that changes.
 > - A failed run refunds the whole payment automatically. Quotes expire after 15
 >   minutes.
 > - The server can also sit on the *paying* side: with no API key set, it runs in
@@ -211,8 +221,10 @@ someone finds the Nano angle, answer honestly — the prepared answer is in
 > Constraints that fell out of that, which turned out to be the interesting part:
 >
 > - Exported apps embed their own runtime, so the runtime JS lives in a String.raw
->   template inside the page. A single backtick anywhere in it breaks every export;
->   there's a pre-commit hook whose only job is hunting backticks.
+>   template inside the page. A single backtick anywhere in it silently ends the
+>   template and breaks every export, so a pre-commit hook pulls every inline
+>   script out of the HTML and syntax-checks it. That hook exists because of the
+>   backtick.
 > - The editor and the exported app are two run-engines that must behave identically.
 >   Engine drift became the dominant bug class, so parity is enforced by hooks too.
 > - No server means auth is OAuth PKCE browser→provider, persistence is the
@@ -227,9 +239,10 @@ someone finds the Nano angle, answer honestly — the prepared answer is in
 > repos, all MIT.
 >
 > If you'd rather see the format than the canvas, the 📚 Examples panel in the
-> editor loads ten ready-made graphs straight from an open gallery repo
-> (https://github.com/nanoodlecom/awesome-noodles) — every entry is a plain JSON
-> file, so you can read a workflow before you run one.
+> editor holds ten ready-made graphs, mirrored from an open gallery repo
+> (https://github.com/nanoodlecom/awesome-noodles) and shipped inline, so opening
+> the panel costs no network at all. Every entry is a plain JSON file in that
+> repo, so you can read a workflow before you run one.
 >
 > The honest tradeoff: it's bring-your-own-key. Building and browsing need no
 > signup, but running models goes through your own nano-gpt.com key, pay-per-call.

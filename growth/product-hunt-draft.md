@@ -3,7 +3,10 @@
 > DRAFT — for a human to post. Nothing here is submitted anywhere.
 > Refreshed **2026-07-28**. Fact-checked against the live product on that date.
 > The Jul 15 and Jul 17 slots both slipped. Re-pick a Tue/Wed.
-> Paste-ready copy also lives in `launch-checklist.md` (single-file launch page).
+> **The paste-ready listing and maker's first comment live in
+> `launch-checklist.md` § 4, and only there.** This file holds the timing, the
+> asset notes and the PH-specific FAQ. One copy of the body is deliberate — two
+> copies drift.
 
 **When:** PH days roll over at **12:01am PT**. Set the launch up the evening
 before (ideally after the Show HN day winds down). Tue/Wed are the
@@ -16,20 +19,9 @@ is not a zero-history account's first act. This is the one item with a lead time
 
 ## Listing
 
-**Name:** nanoodle
-
-**Tagline (≤60 chars):**
-
-Wire AI models into apps — in your browser, no server
-
-**Description (≤260 chars):**
-
-A node canvas for chaining text, image, video & audio AI models. Runs entirely
-in your browser — no server, no analytics, no subscription. Export any workflow
-as a standalone single-file .html app you own, or share it as a link. BYO
-nano-gpt key, pay per call.
-
-**Topics:** Artificial Intelligence · No-Code · Privacy · Developer Tools · Open Source
+Name, tagline, description and topics: paste them from `launch-checklist.md` § 4.
+The tagline field caps at 60 characters and the description at 260, so count
+them again if you edit either one.
 
 **Links:** add the GitHub repo (https://github.com/nanoodlecom/nanoodle — public + MIT
 since Jul 10) in the listing's links section; PH surfaces it as an "Open Source"
@@ -63,32 +55,8 @@ API key, pay-per-call (typically cents)". Don't use bare "Free" language.
 
 ## Maker's first comment
 
-Hey PH 👋 — solo builder here.
-
-nanoodle started from a constraint: what's the most capable AI tool I can build
-with NO backend at all? The answer turned out to be a node-graph playground —
-drag models onto a canvas (LLMs, image gen/edit, video, TTS, music), wire them
-together, hit run. Everything executes in your browser.
-
-Two things I care most about:
-
-🗂 **You own the output.** Any workflow exports to a single .html file — a real
-app you can email, host anywhere, or open from a USB stick in ten years. No
-platform lock-in, nothing phoning home, zero analytics anywhere.
-
-💳 **No subscription.** You bring your own nano-gpt.com key and pay per model
-call (usually cents). No monthly fee, no expiring credits, and your key never
-touches a server of mine because there isn't one.
-
-The honest tradeoff: the bring-your-own-key step is real friction before your
-first run — there's a signed-out demo run so you can see it work first, but I
-won't pretend the setup step isn't there.
-
-Earlier this month the community ran a little build contest, and the two winners
-are now on the shelf inside the app's 📚 Examples panel, credited — a photo
-whispered between vision models until the details drift, and a one-node retro
-handheld-screen filter. Ask me anything, especially about the single-file /
-no-server architecture. 🍜
+Paste it from `launch-checklist.md` § 4. Post it right after the listing goes
+live, then stay in the thread.
 
 ## Comment FAQ
 
