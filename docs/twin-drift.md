@@ -31,10 +31,16 @@ The ranked list below is a map, not an exhaustive partition. Read it that way.
 - **16 of 87 blocks are ranked.** The other 71 blocks and all 355 scattered lines are guarded by
   `check-twin-drift.mjs` exactly like the ranked ones, but this document does not give them a
   verdict.
-- **A twin can fall between 2 block ranges and be in neither block's `sig` count.** `seekVideo`
-  (`index.html:8995`, `play.html:6639`) is the known example: it sits between the range of block 3
-  and the range of block 12, so no ranked block counts it. The guard still holds it, because the
-  guard works on the whole shared set and not on this document's blocks.
+- **A twin can fall between 2 block ranges and be in no block's `sig` count.** `seekVideo`
+  (`index.html:8995-9004`, `play.html:6639-6648`) is the known example. It sits after block 4's range
+  (which ends at `index.html:8870`) and before block 12's range (which starts at `index.html:9009`),
+  so no ranked block counts it. The guard still holds it, because the guard works on the whole shared
+  set and not on this document's blocks.
+- **Lines of 40 characters or fewer are outside the shared set by design, on every block.** That
+  threshold buys the guard its very low false-positive rate, and it costs coverage. `seekVideo` shows
+  the trade in 1 place: 10 lines, byte-identical on both surfaces, but only 2 of them are longer than
+  40 characters. Those 2 are guarded. The other 8 (`let settled = false;`,
+  `vid.addEventListener("seeked", done);` and the like) are not, on either surface.
 - **The deliberately per-page `<head>` lines are guarded by nothing.** `og:title`, `og:description`,
   `og:url`, `twitter:title` and `twitter:description` differ per page on purpose, so they were never
   in the shared set, so no whole-file twin guard can cover them. No other check covers them either.
@@ -337,8 +343,10 @@ paste-key path intact.
 
 **Verdict: partly covered.** `browser.mjs` already exports `encodeWavMono` from `local-media.mjs`.
 `mediaFetchError` is not in the library. Extract `encodeWavMono` with block 8; the other needs a home
-first. `seekVideo` (`index.html:8995`, `play.html:6639`) is a third twin that falls between this
-block's range and block 3's, so it is in neither count.
+first. `seekVideo` (`index.html:8995-9004`, `play.html:6639-6648`) is a third twin. It sits before
+this block's range and after block 4's, so no ranked block counts it. Only 2 of its 10 lines are
+longer than 40 characters, so only those 2 are in the shared set at all. See "What this map does NOT
+cover".
 
 ### 13. i18n `translateTree` and `withLocale` — sig 12
 
@@ -377,23 +385,27 @@ lines belong to block 4's delegation surface.
 
 ## The work list, in order
 
-Each row deletes only lines that no earlier row already deleted, so "Baseline after" is cumulative.
+Each row deletes only lines that no earlier row already deleted, so "new" is the row's own
+contribution and "Baseline after" is cumulative. `sig` is the count of shared lines that sit inside
+BOTH quoted ranges of that block.
 
-| # | Block | sig | Baseline after | Blocker |
-|---|-------|-----|----------------|---------|
-| 1 | Resize and crop geometry | 25 | 868 | flag-off fallback only |
-| 2 | `maskToSource` | 5 | 863 | flag-off fallback only |
-| 3 | `encodeWavMono` + `mediaFetchError` | 23 | 841 | `mediaFetchError` has no library home |
-| 4 | Prompt-cap helpers | 9 | 832 | 1-line `browser.mjs` re-export |
-| 5 | Pricing resolver | 68 | 764 | `estimate.mjs` not in the browser bundle |
-| 6 | MP4CAT | 123 | 641 | `MP4CAT` not re-exported; `check-combine.mjs` must move |
-| 7 | Local media recorder path | 64 | 578 | needs a new library module |
-| 8 | Share packer, card and shorteners | 140 | 442 | needs a new `share-pack.mjs` |
-| 9 | Share-menu wiring | 24 | 418 | only after row 8 |
+| # | Block | sig | new | Baseline after | Blocker |
+|---|-------|-----|-----|----------------|---------|
+| 1 | Resize and crop geometry | 25 | 25 | 868 | flag-off fallback only |
+| 2 | `maskToSource` | 5 | 5 | 863 | flag-off fallback only |
+| 3 | `encodeWavMono` + `mediaFetchError` | 23 | 23 | 840 | `mediaFetchError` has no library home |
+| 4 | Prompt-cap helpers | 9 | 9 | 831 | 1-line `browser.mjs` re-export |
+| 5 | Pricing resolver | 68 | 68 | 763 | `estimate.mjs` not in the browser bundle |
+| 6 | MP4CAT | 123 | 123 | 640 | `MP4CAT` not re-exported; `check-combine.mjs` must move |
+| 7 | Local media recorder path | 64 | 63 | 577 | needs a new library module |
+| 8 | Share packer, card and shorteners | 140 | 140 | 437 | needs a new `share-pack.mjs` |
+| 9 | Share-menu wiring | 24 | 24 | 413 | only after row 8 |
+
+Row 7 is the only row that overlaps an earlier row: 1 of its 64 lines is already deleted by row 3.
 
 Rows 1 to 6 all sit behind the same decision: **does `index.html` load `vendor/njs-engine.js`
-unconditionally, and does the built-in fallback survive?** Answer that once and 252 of the 893 shared
-lines become deletable.
+unconditionally, and does the built-in fallback survive?** Answer that once and 253 of the 893 shared
+lines become deletable (893 down to 640).
 
 Blocks 4, 7, 10, 13, 15 and 16 are not on the list. They are covered by the delegation design or they
 genuinely belong to 2 separate documents.
