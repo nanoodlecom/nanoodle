@@ -112,10 +112,14 @@ It **passes** on:
   holds, and the guard asks for a baseline refresh in a note.
 
 Every departure is **classified**, up to the `MAX_CLASSIFY` ceiling of 200. Each failure list
-**names its first 12 lines and reports the rest as a count**, so at the ceiling the guard classifies
-200 departures and names at most 24 of them — 12 under each heading that fires. How the 200 split
-between `TWIN DRIFT` and `ONE-SIDED DELETION` depends on which lines departed, so no fixed split
-belongs in this document. The guard does not name every line, and no part of it claims to.
+**names its first 12 lines and reports the rest as a count**. A departure lands under 1 of 3
+headings — `TWIN DIVERGENCE`, `TWIN DRIFT` or `ONE-SIDED DELETION` — and all 3 can fire in the same
+run, so at the ceiling the guard classifies 200 departures and names **at most 36** of them, 12 under
+each. (An earlier revision of this document said 24. That assumed only 2 headings could fire at
+once. Edit `index.html:9292`/`play.html:6850` divergently, rename `play.html:12698` on 1 surface, and
+delete `play.html:7330` from 1 surface: all 3 headings print together.) How the 200 split between the
+3 headings depends on which lines departed, so no fixed split belongs in this document. The guard
+does not name every line, and no part of it claims to.
 
 ### The one exemption, stated exactly
 
@@ -185,7 +189,7 @@ anyway. It is the cheaper guarantee and it holds even when the baseline is stale
 
 ### The sandbox matrix
 
-`scripts/check-twin-drift-cases.mjs` is 15 mutations of the 2 surfaces with the verdict the guard
+`scripts/check-twin-drift-cases.mjs` is 16 mutations of the 2 surfaces with the verdict the guard
 must return for each. It copies both files, the guard and the baseline into a scratch directory,
 mutates the copies and runs the guard there. Nothing touches the working tree. The 2 directions sit
 in one table on purpose: a change that fixes one of them can silently break the other, which is
@@ -286,39 +290,37 @@ left BOTH surfaces is the dearest kind, because the divergence test scores it ag
 `MAX_CLASSIFY` caps the work at 200 departures; at 201 the guard reports totals instead, so the run
 is always bounded. The ceiling is not free, and a normal commit never reaches it.
 
-**Every figure below is from ONE machine and this branch. Timings vary by machine and by load —
-measure your own before you quote one.** 130 samples of each case, 26 runs of 5, on 2026-07-29, on a
-shared 18-core machine whose 1-minute load average ran between 2.56 and 12.11 across those runs. Each
-range is the full spread of the 130, outliers included. Unrelated load on that machine, not the
-guard, is what makes each range as wide as it is: the low end of every row came from the
-lightest-loaded runs. That is why no single number belongs in this table.
+**Every range below is scoped to the load band it was measured in. Outside that band it says
+nothing, and none of it is a promise about your machine — on this evidence the load matters more than
+the code. Measure your own before you quote one.** 160 samples of each case, 32 runs of 5, on
+2026-07-29, on a shared 18-core machine whose 1-minute load average ran between **2.6 and 12.1**
+across those runs. Each range is the full spread of the 160: the low end of every row came from the
+lightest-loaded runs and the high end from the busiest.
 
 | Case | Wall clock | CPU time |
 |------|------------|----------|
-| Clean tree, nothing departs | 0.13-0.48 s | 0.15-0.57 s |
-| 200 departures, all gone from BOTH surfaces | 2.07-6.02 s | 2.15-6.23 s |
-| 200 departures, all gone from 1 surface | 0.98-2.89 s | 1.03-3.09 s |
-
-Across those 130 the 6.02 s is a single outlier. The next slowest sample of that row was 4.52 s.
+| Clean tree, nothing departs | 0.13-0.57 s | 0.15-0.67 s |
+| 200 departures, all gone from BOTH surfaces | 2.07-8.21 s | 2.15-8.38 s |
+| 200 departures, all gone from 1 surface | 0.98-4.64 s | 1.03-5.14 s |
 
 CPU exceeds wall on the clean-tree row because Node's own startup runs on more than 1 thread.
 
 Two costs are NOT in that table, and both are paid on purpose:
 
-- **The baseline refresh takes 9.22-19.05 s wall** (26 samples, same machine, load average 2.6-8.6),
+- **The baseline refresh takes 9.22-28.15 s wall** (36 samples, same machine, load average 2.6-9.5),
   because it scores every one of the 893 shared lines against every line of both surfaces to build
   the look-alike sets. It runs only when someone asks for it.
-- **The sandbox matrix takes 9.6-17.8 s wall** (25 samples, same machine, load average 3.8-9.9): it
-  runs the guard 15 times over mutated copies of 1.7 MB of HTML. The pre-commit hook runs it when
+- **The sandbox matrix takes 12.2-29.9 s wall** (25 samples, same machine, load average 3.0-14.8):
+  it runs the guard 16 times over mutated copies of 1.7 MB of HTML. The pre-commit hook runs it when
   the RULES change — the guard, the baseline or the matrix itself — not on every surface edit. It is
   the slowest check in the hook, which is why it is not on every surface edit.
 
-**How much of every range on this page is the machine and not the code:** 1 further run of the
-sandbox matrix, made while an unrelated Rust build held this box at a load average of **23.5** and
-6 GB into swap, took **65.9 s** — against 9.6-17.8 s for the 25 runs before it, on the same commit,
-returning the same 15 verdicts. That single sample is not in the range above, because the range above
-states the load it was measured under and 23.5 is not in it. It is here as the reason every figure on
-this page names its load average, and the reason you should measure your own.
+**How little of any of this is the code.** While that matrix still had 15 cases it ran in 9.6-17.8 s
+over 25 samples at a load average of 3.8-9.9. One further 15-case run, made while an unrelated Rust
+build held this box at a load average of **23.5** and 6 GB into swap, took **65.9 s** — same commit,
+same verdicts, nearly 4 times the slowest of the other 25. Those 15-case figures are labelled as such
+because they do not describe the 16-case matrix above. They are here to make one point: every figure
+on this page carries a load band, and you should quote your own numbers rather than any of these.
 
 An earlier round measured the 200-departure ceiling at 23-30 s wall, on a machine under a load
 average of 25 to 34, before `bestMatch` got its candidate index — it rebuilt the bigram profile of

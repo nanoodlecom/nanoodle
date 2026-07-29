@@ -72,28 +72,31 @@
 // refactor that moves many twins at once, not a normal commit. A departure that left BOTH surfaces
 // is the dearest kind, because it is scored against BOTH surfaces. MAX_CLASSIFY caps the work at
 // 200 departures; 201 reports totals instead.
-// TIMINGS VARY BY MACHINE AND BY LOAD. Measure your own before you quote one. The numbers below
-// describe ONE shared 18-core machine on 2026-07-29, and unrelated load on that machine — not the
-// guard — is what makes each range as wide as it is. From scripts/twin-drift-bench.mjs, 130 samples
-// of each case (26 runs of 5), with the 1-minute load average between 2.56 and 12.11 across the
-// runs. Each range is the FULL spread of the 130, outliers included; the low end of every row came
-// from the lightest-loaded runs:
-//   clean tree, nothing departs          0.13-0.48 s wall  (0.15-0.57 s CPU)
-//   200 departures, gone from both       2.07-6.02 s wall  (2.15-6.23 s CPU)
-//   200 departures, gone from 1 surface  0.98-2.89 s wall  (1.03-3.09 s CPU)
-// Across those 130 the 6.02 s is a single outlier: the next slowest sample of that row was 4.52 s.
+// TIMINGS VARY BY MACHINE AND BY LOAD, and on this evidence the LOAD MATTERS MORE THAN THE CODE.
+// Every range below is scoped to the load band it was measured in. Outside that band it says
+// nothing, and none of it is a promise about your machine. Measure your own.
+// From scripts/twin-drift-bench.mjs on 2026-07-29, on ONE shared 18-core box, 160 samples of each
+// case (32 runs of 5), with the 1-minute load average between 2.6 and 12.1 across the runs. Each
+// range is the FULL spread of the 160; the low end of every row came from the lightest-loaded runs
+// and the high end from the busiest:
+//   clean tree, nothing departs          0.13-0.57 s wall  (0.15-0.67 s CPU)
+//   200 departures, gone from both       2.07-8.21 s wall  (2.15-8.38 s CPU)
+//   200 departures, gone from 1 surface  0.98-4.64 s wall  (1.03-5.14 s CPU)
 // CPU beats wall on the clean row because Node starts on more than 1 thread.
-// TWIN_DRIFT_UPDATE is far dearer — 9.22-19.05 s wall over 26 samples on the same machine at a load
-// average of 2.6 to 8.6 — because it scores all 893 shared lines against every line of both surfaces
+// TWIN_DRIFT_UPDATE is far dearer — 9.22-28.15 s wall over 36 samples on the same box at a load
+// average of 2.6 to 9.5 — because it scores all 893 shared lines against every line of both surfaces
 // to build the look-alike sets. It runs only when someone asks for it.
-// How much of that spread is the machine and not the code: 1 further run of the sandbox matrix, made
-// while an unrelated Rust build held this box at a load average of 23.5 and 6 GB into swap, took
-// 65.9 s against the 9.6-17.8 s of the 25 runs before it. Same code, same verdicts. Quote your own.
+// The sandbox matrix takes 12.2-29.9 s wall over 25 samples at a load average of 3.0 to 14.8.
+// How little of any of this is the code: while that matrix still had 15 cases it ran in 9.6-17.8 s
+// over 25 samples at a load average of 3.8 to 9.9 — and 1 further 15-case run, made while an
+// unrelated Rust build held the box at a load average of 23.5 and 6 GB into swap, took 65.9 s. Same
+// commit, same verdicts, nearly 4 times the slowest of the other 25. That is why every figure here
+// carries a load band, and why you should quote your own numbers and not these.
 // An earlier round measured the same 200-departure ceiling at 23-30 s, before bestMatch got its
 // candidate index — it rebuilt every candidate's bigram profile on every call. Those runs are not
 // comparable to the numbers above: different code, and a load average of 25 to 34.
 //
-// CASES. scripts/check-twin-drift-cases.mjs runs this guard over 15 mutated copies of the 2
+// CASES. scripts/check-twin-drift-cases.mjs runs this guard over 16 mutated copies of the 2
 // surfaces and checks the verdict of each, so neither direction of the rule can regress alone.
 //
 // index.html and play.html carry committed NUL bytes; Node readFileSync(...,"utf8") reads them fine

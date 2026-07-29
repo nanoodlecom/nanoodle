@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The SANDBOX MATRIX for scripts/check-twin-drift.mjs: 15 mutations of the 2 engine surfaces, each
+// The SANDBOX MATRIX for scripts/check-twin-drift.mjs: 16 mutations of the 2 engine surfaces, each
 // with the verdict the guard must return. It copies index.html, play.html, the guard and the
 // baseline into a scratch directory, mutates the copies, runs the guard there, and compares its exit
 // code and its per-rule counts against this file. Nothing here touches the working tree.
@@ -179,6 +179,36 @@ const CASES = [
       },
     ],
     expect: { exit: 0 },
+  },
+  {
+    // Pins the NAMING CEILING docs/twin-drift.md quotes. A departure lands under 1 of 3 headings,
+    // and each heading prints its first 12 lines, so at MAX_CLASSIFY the guard can name 36 lines,
+    // not 24. 24 assumed that only 2 of the 3 headings could fire at once. They can all fire.
+    name: "all 3 departure headings at once",
+    why: "one divergent 2-sided edit, one 1-sided edit and one 1-sided deletion in the same tree. " +
+      "The guard must report all 3 separately, which is why the ceiling names up to 12 x 3 = 36",
+    play: [[7330, 7330]], // twin of index.html:6912 — one-sided deletion
+    edits: [
+      {
+        file: "index.html",
+        line: 9292,
+        from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
+        to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durIDX, 0);",
+      },
+      {
+        file: "play.html",
+        line: 6850,
+        from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
+        to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durPLAY, 0);",
+      },
+      {
+        file: "play.html",
+        line: 12698,
+        from: "    const usd = parseFloat((await r.json()).usd_balance);",
+        to: "    const usd = parseFloat((await r.json()).usdBalance);",
+      },
+    ],
+    expect: { exit: 1, divergence: 1, drift: 1, oneSided: 1 },
   },
   {
     name: "new duplication",

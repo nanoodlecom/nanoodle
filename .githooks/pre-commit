@@ -120,7 +120,7 @@ touches_promptcaps=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.
 # functions. This one pins the WHOLE overlap: a one-sided edit to any shared line fails, a 2-sided
 # DIVERGENT edit fails, and new duplication cannot enter silently.
 touches_twindrift=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-twin-drift\.mjs|scripts/twin-drift-baseline\.json)$' || true)
-# The sandbox matrix behind that guard: 15 mutations of the 2 surfaces, each with the verdict the
+# The sandbox matrix behind that guard: 16 mutations of the 2 surfaces, each with the verdict the
 # guard must return — the 9 planned extractions of docs/twin-drift.md report 0 divergences (8 of them
 # are fully silent; row 8 keeps the 5 one-sided deletions it cannot avoid), and a 2-sided DIVERGENT
 # edit must still fail. It re-reads both surfaces, so it runs when the RULES move (the guard, the
@@ -518,13 +518,13 @@ fi
 #     without that memory the guard failed 4 of the 9 planned extractions in docs/twin-drift.md.
 #     Generated regions are excluded, so the library is never booked as hand duplication; the
 #     njs-engine block is found by its data-hash, NOT by a script-tag regex that play.html's own
-#     export-builder string literal can trigger. Offline. Timings vary by machine and by load — load
-#     alone is what makes each range below as wide as it is. On 2026-07-29, over 130 samples of each
-#     case on a shared 18-core machine with the load average between 2.56 and 12.11, a clean tree
-#     took 0.13s to 0.48s. The worst case is a refactor that moves many twins at once: at the
-#     200-departure classification ceiling it took 2.07s to 6.02s when every departure left both
-#     surfaces (the 6.02s is one outlier; the next slowest was 4.52s), and 0.98s to 2.89s when they
-#     left one. Never a hang:
+#     export-builder string literal can trigger. Offline. Timings vary by machine and by load, and
+#     the load matters more than the code: each range below is scoped to the load band it was
+#     measured in and says nothing outside it. On 2026-07-29, over 160 samples of each case on a
+#     shared 18-core machine with the load average between 2.6 and 12.1, a clean tree took 0.13s to
+#     0.57s. The worst case is a refactor that moves many twins at once: at the 200-departure
+#     classification ceiling it took 2.07s to 8.21s when every departure left both surfaces, and
+#     0.98s to 4.64s when they left one. Never a hang:
 #     201 departures reports totals instead. Each failure list NAMES its first 12 lines and counts
 #     the rest.
 #     Refresh deliberately:
@@ -534,17 +534,18 @@ if [ -n "$touches_twindrift" ]; then
   node "$root/scripts/check-twin-drift.mjs"
 fi
 
-# 42) The sandbox matrix behind check 41. 15 mutations of index.html + play.html in a scratch copy,
+# 42) The sandbox matrix behind check 41. 16 mutations of index.html + play.html in a scratch copy,
 #     each with the verdict the guard must return: the clean tree, the 9 planned extractions of
 #     docs/twin-drift.md deleted from BOTH surfaces (8 silent, row 8 with the 5 one-sided reports it
 #     cannot avoid), a 2-sided DIVERGENT edit, a 1-sided edit, a 1-sided deletion, a correctly
 #     mirrored edit, and a fresh duplication. It exists because the guard's 2 directions pull against
 #     each other: the first divergence rule failed 4 of those 9 extractions, row 1 included, where
 #     the deletion is perfectly mirrored and sig = deletes = 25. Runs when the RULES change (the
-#     guard, the baseline, or the matrix), not on every surface edit: it runs the guard 15 times over
-#     mutated copies of 1.7 MB of HTML, which took 9.6s to 17.8s wall over 25 samples on 2026-07-29
-#     at a load average of 3.8 to 9.9, against the guard's own 0.13s to 0.48s. Load dominates that
-#     figure: 1 further run, at a load average of 23.5 and 6 GB into swap, took 65.9s.
+#     guard, the baseline, or the matrix), not on every surface edit: it runs the guard 16 times over
+#     mutated copies of 1.7 MB of HTML, which took 12.2s to 29.9s wall over 25 samples on 2026-07-29
+#     at a load average of 3.0 to 14.8, against the guard's own 0.13s to 0.57s. Load dominates that
+#     figure: an earlier 15-case run of the same matrix, at a load average of 23.5 and 6 GB into
+#     swap, took 65.9s against 9.6s to 17.8s for the 25 15-case runs before it.
 if [ -n "$touches_twindriftcases" ]; then
   node "$root/scripts/check-twin-drift-cases.mjs"
 fi
