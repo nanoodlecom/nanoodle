@@ -2,8 +2,10 @@
 
 Date: 2026-07-28, revised 2026-07-29. Line ranges are from commit `dbd4543`; every count here comes
 from `scripts/check-twin-drift.mjs` or `scripts/twin-drift-worklist.mjs`, every verdict from
-`scripts/check-twin-drift-cases.mjs`, and every timing from `scripts/twin-drift-bench.mjs` on the
-machine named next to the numbers.
+`scripts/check-twin-drift-cases.mjs`, and every timing in the Runtime table from
+`scripts/twin-drift-bench.mjs`. The 2 timings outside that table — the baseline refresh and the
+sandbox matrix — were timed by running those 2 commands directly. Every timing states the load
+average of the machine it was measured on.
 
 ## The measurement
 
@@ -285,28 +287,38 @@ left BOTH surfaces is the dearest kind, because the divergence test scores it ag
 is always bounded. The ceiling is not free, and a normal commit never reaches it.
 
 **Every figure below is from ONE machine and this branch. Timings vary by machine and by load —
-measure your own before you quote one.** 40 samples of each case, 8 runs of 5, on 2026-07-29, while
-the load average went from 0.12 to 1.89. Each range is the full spread of the 40, and the spread is
-mostly the load: the low end of every row came from the idle runs, the high end from runs that
-shared the machine with an unrelated `ffmpeg`. That is a factor of 2.5 on one machine, which is why
-no single number belongs in this table.
+measure your own before you quote one.** 130 samples of each case, 26 runs of 5, on 2026-07-29, on a
+shared 18-core machine whose 1-minute load average ran between 2.56 and 12.11 across those runs. Each
+range is the full spread of the 130, outliers included. Unrelated load on that machine, not the
+guard, is what makes each range as wide as it is: the low end of every row came from the
+lightest-loaded runs. That is why no single number belongs in this table.
 
 | Case | Wall clock | CPU time |
 |------|------------|----------|
-| Clean tree, nothing departs | 0.08-0.20 s | 0.10-0.25 s |
-| 200 departures, all gone from BOTH surfaces | 0.98-2.53 s | 1.04-2.72 s |
-| 200 departures, all gone from 1 surface | 0.51-1.55 s | 0.56-1.62 s |
+| Clean tree, nothing departs | 0.13-0.48 s | 0.15-0.57 s |
+| 200 departures, all gone from BOTH surfaces | 2.07-6.02 s | 2.15-6.23 s |
+| 200 departures, all gone from 1 surface | 0.98-2.89 s | 1.03-3.09 s |
+
+Across those 130 the 6.02 s is a single outlier. The next slowest sample of that row was 4.52 s.
 
 CPU exceeds wall on the clean-tree row because Node's own startup runs on more than 1 thread.
 
 Two costs are NOT in that table, and both are paid on purpose:
 
-- **The baseline refresh takes 7.3-10.9 s wall** (13 samples, same machine, load average 0.9-1.9),
+- **The baseline refresh takes 9.22-19.05 s wall** (26 samples, same machine, load average 2.6-8.6),
   because it scores every one of the 893 shared lines against every line of both surfaces to build
   the look-alike sets. It runs only when someone asks for it.
-- **The sandbox matrix takes 5.4-10.9 s wall** (13 samples, same machine, load average 0.9-1.9): it
+- **The sandbox matrix takes 9.6-17.8 s wall** (25 samples, same machine, load average 3.8-9.9): it
   runs the guard 15 times over mutated copies of 1.7 MB of HTML. The pre-commit hook runs it when
-  the RULES change — the guard, the baseline or the matrix itself — not on every surface edit.
+  the RULES change — the guard, the baseline or the matrix itself — not on every surface edit. It is
+  the slowest check in the hook, which is why it is not on every surface edit.
+
+**How much of every range on this page is the machine and not the code:** 1 further run of the
+sandbox matrix, made while an unrelated Rust build held this box at a load average of **23.5** and
+6 GB into swap, took **65.9 s** — against 9.6-17.8 s for the 25 runs before it, on the same commit,
+returning the same 15 verdicts. That single sample is not in the range above, because the range above
+states the load it was measured under and 23.5 is not in it. It is here as the reason every figure on
+this page names its load average, and the reason you should measure your own.
 
 An earlier round measured the 200-departure ceiling at 23-30 s wall, on a machine under a load
 average of 25 to 34, before `bestMatch` got its candidate index — it rebuilt the bigram profile of

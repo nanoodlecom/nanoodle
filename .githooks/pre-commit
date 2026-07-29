@@ -121,9 +121,10 @@ touches_promptcaps=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.
 # DIVERGENT edit fails, and new duplication cannot enter silently.
 touches_twindrift=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-twin-drift\.mjs|scripts/twin-drift-baseline\.json)$' || true)
 # The sandbox matrix behind that guard: 15 mutations of the 2 surfaces, each with the verdict the
-# guard must return — the 9 planned extractions of docs/twin-drift.md must stay silent, and a 2-sided
-# DIVERGENT edit must still fail. It re-reads both surfaces, so it runs when the RULES move (the
-# guard, the baseline or the matrix), not on every index.html edit.
+# guard must return — the 9 planned extractions of docs/twin-drift.md report 0 divergences (8 of them
+# are fully silent; row 8 keeps the 5 one-sided deletions it cannot avoid), and a 2-sided DIVERGENT
+# edit must still fail. It re-reads both surfaces, so it runs when the RULES move (the guard, the
+# baseline or the matrix), not on every index.html edit.
 touches_twindriftcases=$(printf '%s\n' "$staged" | grep -E '(^|/)(scripts/check-twin-drift\.mjs|scripts/check-twin-drift-cases\.mjs|scripts/twin-drift-baseline\.json)$' || true)
 
 # an imported (#a=) app's spend-capable bridge calls must be refused until a real Run gesture arms it (consent gate).
@@ -518,10 +519,12 @@ fi
 #     Generated regions are excluded, so the library is never booked as hand duplication; the
 #     njs-engine block is found by its data-hash, NOT by a script-tag regex that play.html's own
 #     export-builder string literal can trigger. Offline. Timings vary by machine and by load — load
-#     alone moved these by a factor of 2.5. On 2026-07-29, over 40 samples of each case with the load
-#     average between 0.12 and 1.89, a clean tree took 0.08s to 0.20s. The worst case is a refactor
-#     that moves many twins at once: at the 200-departure classification ceiling it took 0.98s to
-#     2.53s when every departure left both surfaces, 0.51s to 1.55s when they left one. Never a hang:
+#     alone is what makes each range below as wide as it is. On 2026-07-29, over 130 samples of each
+#     case on a shared 18-core machine with the load average between 2.56 and 12.11, a clean tree
+#     took 0.13s to 0.48s. The worst case is a refactor that moves many twins at once: at the
+#     200-departure classification ceiling it took 2.07s to 6.02s when every departure left both
+#     surfaces (the 6.02s is one outlier; the next slowest was 4.52s), and 0.98s to 2.89s when they
+#     left one. Never a hang:
 #     201 departures reports totals instead. Each failure list NAMES its first 12 lines and counts
 #     the rest.
 #     Refresh deliberately:
@@ -539,8 +542,9 @@ fi
 #     each other: the first divergence rule failed 4 of those 9 extractions, row 1 included, where
 #     the deletion is perfectly mirrored and sig = deletes = 25. Runs when the RULES change (the
 #     guard, the baseline, or the matrix), not on every surface edit: it runs the guard 15 times over
-#     mutated copies of 1.7 MB of HTML, which took 5.4s to 10.9s wall over 13 samples on 2026-07-29
-#     at a load average of 0.9 to 1.9, against the guard's own 0.08s to 0.20s.
+#     mutated copies of 1.7 MB of HTML, which took 9.6s to 17.8s wall over 25 samples on 2026-07-29
+#     at a load average of 3.8 to 9.9, against the guard's own 0.13s to 0.48s. Load dominates that
+#     figure: 1 further run, at a load average of 23.5 and 6 GB into swap, took 65.9s.
 if [ -n "$touches_twindriftcases" ]; then
   node "$root/scripts/check-twin-drift-cases.mjs"
 fi
