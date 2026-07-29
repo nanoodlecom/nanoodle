@@ -115,6 +115,11 @@ touches_drift=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|
 # never sent to a 400 the user can't act on — and both engines must read the same generated table.
 touches_promptcaps=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-prompt-caps\.mjs)$' || true)
 
+# index.html + play.html share ~700 hand-maintained byte-identical lines; the targeted twin checks
+# (resize/pricing/combine/cost) only pin named functions. This one pins the WHOLE overlap: a one-sided
+# edit to any shared line fails, and new duplication cannot enter silently.
+touches_twindrift=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-twin-drift\.mjs|scripts/twin-drift-baseline\.json)$' || true)
+
 # an imported (#a=) app's spend-capable bridge calls must be refused until a real Run gesture arms it (consent gate).
 touches_consent=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-bridge-consent\.mjs)$' || true)
 # play.html bakes creator sample results into #a= shares so keyless recipients see what the app makes;
@@ -485,4 +490,18 @@ fi
 #     read the same generated table. Offline: extracts the real helpers and drives them.
 if [ -n "$touches_promptcaps" ]; then
   node "$root/scripts/check-prompt-caps.mjs"
+fi
+
+# 41) TWIN DRIFT: index.html (editor) and play.html (app player + export) carry ~700 hand-maintained
+#     byte-identical lines. The other twin checks each pin ONE named function; nothing compared the
+#     two files as wholes, so a one-sided edit anywhere else shipped silently. This guard pins the
+#     whole shared set against scripts/twin-drift-baseline.json: a line that leaves the set because
+#     one surface moved and the other did not FAILS with both file:line positions. The count is a
+#     ratchet — extraction may lower it freely, new duplication may not raise it silently. Generated
+#     regions (the njs-engine bundle, the probed prompt-cap table) are excluded, so the library is
+#     never booked as hand duplication. Offline, ~0.2s. Refresh deliberately:
+#       TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs
+#     Ranked extraction plan: docs/twin-drift.md
+if [ -n "$touches_twindrift" ]; then
+  node "$root/scripts/check-twin-drift.mjs"
 fi
