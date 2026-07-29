@@ -143,8 +143,11 @@
 
       <h2>Node types</h2>
       <p>"local" runs without any network call; "NanoGPT" calls the API (and spends);
-      "browser-only" nodes do media processing with browser APIs — they work in the app but the
-      headless executors reject them up front, before any paid call.</p>
+      "local media" nodes process media on your own machine and never spend. The browser app
+      does that work with canvas, Web Audio and MediaRecorder. The headless executors run the
+      same 6 node types, but some of them need <code>ffmpeg</code> and <code>ffprobe</code> on
+      <code>PATH</code> — see <a href="/guide/run-headless#what-runs-where">what runs where</a>
+      for the per-node detail.</p>
       <div class="tablewrap"><table>
         <tr><th>type</th><th>node</th><th>runs</th><th>inputs</th><th>outputs</th><th>key fields</th></tr>
         <tr><td><code>text</code></td><td>Text</td><td>local</td><td>—</td><td>text</td><td><code>text</code></td></tr>
@@ -157,20 +160,20 @@
         <tr><td><code>image</code></td><td>Image</td><td>NanoGPT</td><td>—</td><td>image</td><td><code>model</code>, <code>prompt</code>, <code>size</code>, <code>variations</code>, <code>seed</code>, <code>customCivitaiAir</code>, <code>negativePrompt</code></td></tr>
         <tr><td><code>edit</code></td><td>Edit</td><td>NanoGPT</td><td>image, image2…</td><td>image</td><td><code>model</code>, <code>prompt</code>, <code>size</code>, <code>seed</code></td></tr>
         <tr><td><code>inpaint</code></td><td>Inpaint</td><td>NanoGPT</td><td>image, mask</td><td>image</td><td><code>model</code>, <code>prompt</code>, <code>size</code>, <code>seed</code></td></tr>
-        <tr><td><code>resize</code></td><td>Resize / crop</td><td>browser-only</td><td>image</td><td>image</td><td><code>mode</code>, <code>width</code>, <code>height</code></td></tr>
+        <tr><td><code>resize</code></td><td>Resize / crop</td><td>local media</td><td>image</td><td>image</td><td><code>mode</code>, <code>width</code>, <code>height</code></td></tr>
         <tr><td><code>vision</code></td><td>Vision</td><td>NanoGPT</td><td>image</td><td>text</td><td><code>model</code>, <code>q</code></td></tr>
         <tr><td><code>tvideo</code></td><td>Text→Video</td><td>NanoGPT</td><td>ref1… (image)</td><td>video</td><td><code>model</code>, <code>prompt</code>, <code>duration</code>, <code>aspect</code>, <code>resolution</code>, <code>modelOpts</code></td></tr>
         <tr><td><code>ivideo</code></td><td>Image→Video</td><td>NanoGPT</td><td>image, endframe</td><td>video</td><td><code>model</code>, <code>prompt</code>, <code>duration</code>, <code>aspect</code>, <code>resolution</code>, <code>modelOpts</code></td></tr>
         <tr><td><code>vedit</code></td><td>Video edit</td><td>NanoGPT</td><td>video</td><td>video</td><td><code>model</code>, <code>prompt</code>, <code>resolution</code>, <code>modelOpts</code></td></tr>
-        <tr><td><code>vframes</code></td><td>Video → frames</td><td>browser-only</td><td>video</td><td>frame1…frameN (image)</td><td><code>frames</code>, <code>gap</code>, <code>dir</code></td></tr>
-        <tr><td><code>combine</code></td><td>Combine videos</td><td>browser-only</td><td>clip1… (video)</td><td>video</td><td><code>dedup</code></td></tr>
-        <tr><td><code>soundtrack</code></td><td>Soundtrack</td><td>browser-only</td><td>video, audio</td><td>video</td><td><code>loop</code></td></tr>
+        <tr><td><code>vframes</code></td><td>Video → frames</td><td>local media</td><td>video</td><td>frame1…frameN (image)</td><td><code>frames</code>, <code>gap</code>, <code>dir</code></td></tr>
+        <tr><td><code>combine</code></td><td>Combine videos</td><td>local media</td><td>clip1… (video)</td><td>video</td><td><code>dedup</code></td></tr>
+        <tr><td><code>soundtrack</code></td><td>Soundtrack</td><td>local media</td><td>video, audio</td><td>video</td><td><code>loop</code></td></tr>
         <tr><td><code>lipsync</code></td><td>Avatar / lipsync</td><td>NanoGPT</td><td>image, audio</td><td>video</td><td><code>model</code>, <code>prompt</code>, <code>resolution</code>, <code>modelOpts</code></td></tr>
         <tr><td><code>music</code></td><td>Music</td><td>NanoGPT</td><td>—</td><td>audio</td><td><code>model</code>, <code>prompt</code>, <code>lyrics</code>, <code>instrumental</code>, <code>duration</code>, <code>negative_prompt</code>, <code>seed</code>, <code>extraJson</code></td></tr>
         <tr><td><code>remix</code></td><td>Remix audio</td><td>NanoGPT</td><td>audio</td><td>audio</td><td><code>model</code>, <code>prompt</code>, <code>lyrics</code>, <code>duration</code>, <code>extraJson</code></td></tr>
         <tr><td><code>tts</code></td><td>Speech</td><td>NanoGPT</td><td>—</td><td>audio</td><td><code>model</code>, <code>prompt</code>, <code>voice</code>, <code>speed</code>, <code>instructions</code>, <code>extraJson</code></td></tr>
-        <tr><td><code>trim</code></td><td>Trim audio</td><td>browser-only</td><td>audio</td><td>audio</td><td><code>start</code>, <code>length</code></td></tr>
-        <tr><td><code>extractaudio</code></td><td>Extract audio</td><td>browser-only</td><td>video</td><td>audio</td><td><code>start</code>, <code>length</code></td></tr>
+        <tr><td><code>trim</code></td><td>Trim audio</td><td>local media</td><td>audio</td><td>audio</td><td><code>start</code>, <code>length</code></td></tr>
+        <tr><td><code>extractaudio</code></td><td>Extract audio</td><td>local media</td><td>video</td><td>audio</td><td><code>start</code>, <code>length</code></td></tr>
         <tr><td><code>transcribe</code></td><td>Transcribe</td><td>NanoGPT</td><td>audio</td><td>text</td><td><code>model</code>, <code>language</code></td></tr>
         <tr><td><code>comment</code></td><td>Comment</td><td>local (never runs)</td><td>—</td><td>—</td><td><code>text</code>, <code>color</code></td></tr>
       </table></div>

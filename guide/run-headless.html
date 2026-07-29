@@ -130,13 +130,31 @@ nanoodle-py run graph.json --env-file .env --input Text="hello"</code></pre>
       inline as base64 (NanoGPT has no upload endpoint); files over ~4.4&nbsp;MB (~3.5&nbsp;MB
       for transcription) are refused locally with a clear error before any paid call.</p>
 
-      <h2>What runs where</h2>
+      <h2 id="what-runs-where">What runs where</h2>
       <p>Pure-logic nodes (text, uploads, choice, join, comment) run locally; generation nodes
       (llm, image, edit, inpaint, vision, video, lipsync, music, remix, tts, transcribe)
-      call NanoGPT. Browser-only media-processing nodes (resize, vframes, combine, soundtrack,
-      trim, extractaudio) are <em>not</em> supported headlessly: workflows containing them load
-      with a warning and fail fast at <code>run()</code>, before any network call. The full
-      table is on the <a href="/guide/graph-format">format page</a>.</p>
+      call NanoGPT. The 6 media-processing nodes (resize, vframes, combine, soundtrack, trim,
+      extractaudio) also run headlessly. They do their work on your machine and never spend.
+      Some of them need <code>ffmpeg</code> and <code>ffprobe</code> on <code>PATH</code>:</p>
+      <div class="tablewrap"><table>
+        <tr><th>node</th><th>JavaScript</th><th>Python</th></tr>
+        <tr><td><code>resize</code></td><td>Pure JS for a PNG source; ffmpeg for any other format</td><td>ffmpeg</td></tr>
+        <tr><td><code>trim</code></td><td>Pure JS for a PCM WAV source; ffmpeg for any other format</td><td>ffmpeg</td></tr>
+        <tr><td><code>combine</code></td><td>Pure JS (lossless mp4 remux) when every clip is mp4 with matching stream parameters; ffmpeg otherwise</td><td>ffmpeg</td></tr>
+        <tr><td><code>vframes</code></td><td>ffmpeg</td><td>ffmpeg</td></tr>
+        <tr><td><code>soundtrack</code></td><td>ffmpeg</td><td>ffmpeg</td></tr>
+        <tr><td><code>extractaudio</code></td><td>ffmpeg</td><td>ffmpeg</td></tr>
+      </table></div>
+      <p><code>ffmpeg</code> is a soft dependency, not a package dependency. Install it with
+      <code>apt install ffmpeg</code> or <code>brew install ffmpeg</code>. If a node needs it
+      and it is absent, that node stops the run with a clear error that names it. The error
+      arrives when the node's turn comes, so paid nodes earlier in the graph have already
+      spent — run a media-only graph once to prove your setup before you wire a paid node in
+      front of it.</p>
+      <p>Only an <em>unknown</em> node type is refused up front: the libraries warn at load and
+      throw at <code>run()</code> before any network call. That is how a graph saved before
+      2026-07-22 with the retired <code>draw</code> node behaves. The full node table is on the
+      <a href="/guide/graph-format">format page</a>.</p>
 
       <h2>No account: pay per run in Nano (x402)</h2>
       <p>Skip the API key entirely. With <code>--pay</code> (or a library
