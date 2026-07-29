@@ -132,7 +132,7 @@ nanoodle-py run graph.json --env-file .env --input Text="hello"</code></pre>
 
       <h2>What runs where</h2>
       <p>Pure-logic nodes (text, uploads, choice, join, comment) run locally; generation nodes
-      (llm, image, draw, edit, inpaint, vision, video, lipsync, music, remix, tts, transcribe)
+      (llm, image, edit, inpaint, vision, video, lipsync, music, remix, tts, transcribe)
       call NanoGPT. Browser-only media-processing nodes (resize, vframes, combine, soundtrack,
       trim, extractaudio) are <em>not</em> supported headlessly: workflows containing them load
       with a warning and fail fast at <code>run()</code>, before any network call. The full

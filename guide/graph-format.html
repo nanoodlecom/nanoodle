@@ -129,7 +129,7 @@
       <ul>
         <li><strong>Declared inputs</strong> — fixed per type (e.g. <code>inpaint</code> takes
         <code>image</code> and <code>mask</code>), plus dynamic families that grow as you wire
-        more: <code>img1</code>, <code>img2</code>, … (LLM/Draw vision references),
+        more: <code>img1</code>, <code>img2</code>, … (LLM vision references),
         <code>image</code>, <code>image2</code>, … (Edit references), <code>ref1</code>, …
         (Text→Video references), <code>clip1</code>, … (Combine), and <code>endframe</code>
         (Image→Video) / <code>audio</code> (LLM audio input).</li>
@@ -155,7 +155,6 @@
         <tr><td><code>join</code></td><td>Join</td><td>local</td><td>a, b (text)</td><td>text</td><td><code>sep</code></td></tr>
         <tr><td><code>llm</code></td><td>LLM</td><td>NanoGPT</td><td>img1… (image), audio</td><td>text</td><td><code>model</code>, <code>system</code>, <code>prompt</code>, <code>temperature</code>, <code>maxTokens</code>, <code>format</code>, <code>reasoningEffort</code>, <code>showThinking</code></td></tr>
         <tr><td><code>image</code></td><td>Image</td><td>NanoGPT</td><td>—</td><td>image</td><td><code>model</code>, <code>prompt</code>, <code>size</code>, <code>variations</code>, <code>seed</code>, <code>customCivitaiAir</code>, <code>negativePrompt</code></td></tr>
-        <tr><td><code>draw</code></td><td>Draw</td><td>NanoGPT</td><td>img1… (image)</td><td>image, text</td><td><code>model</code>, <code>system</code>, <code>prompt</code>, <code>showThinking</code></td></tr>
         <tr><td><code>edit</code></td><td>Edit</td><td>NanoGPT</td><td>image, image2…</td><td>image</td><td><code>model</code>, <code>prompt</code>, <code>size</code>, <code>seed</code></td></tr>
         <tr><td><code>inpaint</code></td><td>Inpaint</td><td>NanoGPT</td><td>image, mask</td><td>image</td><td><code>model</code>, <code>prompt</code>, <code>size</code>, <code>seed</code></td></tr>
         <tr><td><code>resize</code></td><td>Resize / crop</td><td>browser-only</td><td>image</td><td>image</td><td><code>mode</code>, <code>width</code>, <code>height</code></td></tr>
@@ -186,6 +185,12 @@
         had a single combined audio node).</li>
         <li>Unknown node types don't crash a load — the editor skips them; the headless
         libraries keep them, warn, and fail fast at run time.</li>
+        <li>Retired type: <code>draw</code> (🎨 Draw) retired on 2026-07-22, because its
+        Gemini omni model left the NanoGPT catalog. It is not in the table above and you
+        cannot add it. A graph saved before that date still loads — the editor skips the
+        node and the headless libraries warn on load, then refuse the run. To repair such a
+        graph, replace the <code>draw</code> node with <code>image</code> (generate) or
+        <code>edit</code> (edit an image you wire in).</li>
         <li>Keep a link only if <em>both</em> endpoint nodes exist after filtering.</li>
         <li>Migration: a link into a <code>music</code> or <code>tts</code> node's
         <code>"text"</code> port is rewritten to <code>"prompt"</code>.</li>

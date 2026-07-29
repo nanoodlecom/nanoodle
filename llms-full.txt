@@ -23,7 +23,8 @@ self-contained `.html` file.
 
 ### Privacy architecture
 
-nanoodle is three static HTML pages. There is no backend, and that is the
+nanoodle is a folder of static HTML pages — three core pages plus a
+changelog, guides and landing pages. There is no backend, and that is the
 design, not a limitation:
 
 - **No analytics, no tracking, no third-party scripts.** Nothing phones home.
@@ -97,6 +98,16 @@ Replace the code with your own (or delete the parameter and use bare
   [patchling](https://github.com/255BITS/patchling), share via `#a=`
   link, or export a self-contained `.html`.
 - **`legal.html`** — terms, privacy, FAQ (`/legal`).
+- **`changelog.html`** — release notes (`/changelog`), generated from
+  `updates.json` by `scripts/gen-changelog.mjs`, plus an Atom feed
+  (`feed.xml`).
+- **`guide/`** — static docs (`/guide/`): the `noodle-graph.json` format,
+  running workflows headlessly, self-hosting, and how share links work.
+  Zero scripts, zero network.
+- The rest is landing pages: comparisons (`nanoodle-vs-comfyui.html`,
+  `nanoodle-vs-n8n.html`, `comfyui-alternative.html`,
+  `comfyui-alternative-no-gpu.html`) and localized home pages (`es/`,
+  `fr/`, `de/`, `pt/`, `ja/`).
 
 ### Run workflows from code
 
@@ -116,6 +127,27 @@ const result = await wf.run({ Text: "a cozy ramen shop on a rainy night" });
 await result.get("Image").save("ramen.png");
 ```
 
+### Ecosystem
+
+Everything lives under the [nanoodlecom](https://github.com/nanoodlecom) GitHub org:
+
+| Repo | What it is |
+| --- | --- |
+| [nanoodle](https://github.com/nanoodlecom/nanoodle) | The playground — editor, app builder, the whole site (this repo) |
+| [nanoodle-js](https://github.com/nanoodlecom/nanoodle-js) | Zero-dependency JS executor — use when running saved graphs from Node or the CLI |
+| [nanoodle-py](https://github.com/nanoodlecom/nanoodle-py) | Zero-dependency Python executor — use when your scripts speak Python |
+| [nanoodle-mcp](https://github.com/nanoodlecom/nanoodle-mcp) | MCP server exposing saved graphs as tools — use when an AI agent should run your workflows |
+| [run-noodle-action](https://github.com/nanoodlecom/run-noodle-action) | GitHub Action — use when a graph should run in CI |
+| [nanoodle-skill](https://github.com/nanoodlecom/nanoodle-skill) | One agent skill that teaches an agent to build any graph — use when the agent should author workflows itself |
+| [noodle-skills](https://github.com/nanoodlecom/noodle-skills) | Prebuilt one-task agent skills — use when you want a ready-made skill, no graph editing |
+| [awesome-noodles](https://github.com/nanoodlecom/awesome-noodles) | Gallery of ready-to-open graphs — use when you want examples to start from |
+| [built-with-nanoodle](https://github.com/nanoodlecom/built-with-nanoodle) | Showcase of apps people shipped — use when you want to see (or show) what nanoodle makes |
+| [noodle-embed](https://github.com/nanoodlecom/noodle-embed) | `<noodle-embed>` web component — use when a page should render a workflow read-only |
+| [mp4cat](https://github.com/nanoodlecom/mp4cat) | Lossless mp4 concat, browser or Node — use when you just need to join clips, no ffmpeg |
+
+Naming note: the package is `nanoodle` on **both** registries while the repos are
+`nanoodle-js` / `nanoodle-py` — so it's `npm install nanoodle` and `pip install nanoodle`.
+
 ### Development
 
 No build step. Edit the HTML files, refresh the browser.
@@ -125,6 +157,24 @@ No build step. Edit the HTML files, refresh the browser.
 bundler, the OAuth flow, run-engine compatibility, pricing, i18n coverage
 and more. They spend no API credits — everything runs against recorded
 fixtures.
+
+`scripts/check-js-parity.mjs` dual-runs the same graphs through play.html’s
+`RUNTIME_JS` and the sibling [`nanoodle-js`](https://github.com/nanoodlecom/nanoodle-js)
+package and asserts identical NanoGPT request bodies — the safety net for
+eventually replacing the inlined processor with the package. Skips if
+`nanoodle-js` isn’t checked out next to this repo (or set `NANOODLE_JS`).
+
+play.html also embeds a generated bundle of that package (the `njs-engine`
+script block, `scripts/gen-js-engine.mjs`, freshness-checked pre-commit)
+and routes network nodes through it by default — `?engine=play` (or
+`localStorage.njs_engine = "0"`) opts back into the built-in runners;
+`scripts/check-njs-delegation.mjs` asserts the delegated path produces
+byte-identical requests. Exported apps carry the bundle too, so the same
+flag works there. The editor honors the same flag: index.html lazy-loads
+the same bundle as `vendor/njs-engine.js` (emitted by the same generator),
+and known library gaps are vetoed back to the built-in runners per run;
+`scripts/check-njs-editor-delegation.mjs` pins that path to the built-in
+runners byte-for-byte.
 
 `updates.json` is the in-app changelog behind the 📣 button. It's opt-in
 per commit: add an `Update: one polished line` to a commit message and the
@@ -137,7 +187,7 @@ JSON by hand anytime; `scripts/check-updates.mjs` keeps it valid.
 
 ## Node types in the editor
 
-The editor registers 27 node types. Titles and one-line descriptions below are taken verbatim from the node registry in index.html (the same text the in-editor quick-add menu shows); the `key` is the type identifier used in noodle-graph.json and in the executor libraries' supported-node tables.
+The editor registers 26 node types. Titles and one-line descriptions below are taken verbatim from the node registry in index.html (the same text the in-editor quick-add menu shows); the `key` is the type identifier used in noodle-graph.json and in the executor libraries' supported-node tables.
 
 ### Inputs
 
@@ -155,7 +205,6 @@ The editor registers 27 node types. Titles and one-line descriptions below are t
 ### Image
 
 - `image` — 🖼 Image: Text → image
-- `draw` — 🎨 Draw: Prompt (+ images) → image — Gemini omni: reasons, then draws or edits
 - `edit` — ✂️ Edit: Image(s) + text → image
 - `inpaint` — 🩹 Inpaint: Brush a region of an image → repaint just that area
 - `resize` — 📐 Resize / crop: Image → image — scale, crop, fit an aspect
@@ -223,6 +272,8 @@ npx nanoodle --help      # or run the CLI without installing
 import { Workflow } from "nanoodle";
 
 const wf = await Workflow.load("noodle-graph.json");           // key from NANOGPT_API_KEY
+// …or load any nanoodle share link — the URL is the package:
+// const wf = await Workflow.load("https://nanoodle.com/#g=…");
 const result = await wf.run({ Text: "a cozy ramen shop on a rainy night" });
 await result.get("Image").save("ramen.png");                   // media: MediaRef (url + bytes()/save())
 console.log(result.costUsd, result.remainingBalance);
@@ -232,39 +283,66 @@ With the app’s starter graph (text → LLM prompt-writer → image), that’s 
 
 ### Quickstart (CLI)
 
-Inspect first — offline; shows inputs, outputs, and settings:
+No graph yet? Scaffold the starter (text → LLM prompt-writer → image) and
+inspect it — both offline, no key needed:
 
 ```bash
-npx nanoodle inspect graph.json
+npx nanoodle init                        # writes ./noodle-graph.json
+npx nanoodle inspect noodle-graph.json   # shows inputs, outputs, settings
 ```
 
 Then run (calls NanoGPT and spends from your balance):
 
 ```bash
 export NANOGPT_API_KEY=...   # or --key K, or --env-file .env
-npx nanoodle run graph.json --input Text="a cozy ramen shop" --out ./out
-npx nanoodle run graph.json --input n2.system=@style.txt --set n3.size=1k --json
+npx nanoodle run noodle-graph.json --input Text="a cozy ramen shop on a rainy night"
+npx nanoodle run graph.json --input n2.system=@style.txt --set n3.size=1k --out ./renders
 ```
 
-- `--env-file path` — load `NANOGPT_API_KEY` from a `.env`-style file (`--key` wins if both are set)
+Media outputs are saved under `--out` (default `./noodle-out`, created only
+when there is media to save); a JSON run summary always goes to stdout,
+progress lines to stderr; exit code `0` on success, `1` on failure.
+
 - `--input k=@path` — read a file (media as media; `.txt` / `.md` / `.json` as text)
-- `--out dir` — save media outputs to disk
-- `--json` — machine-readable result
+- `--set k=v` — override a setting (`n3.model=flux-pro`)
+- `--out dir` — where media outputs land (default `./noodle-out`)
+- `--timeout ms` — overall run timeout
+- `--json` — quiet mode: skip the stderr progress lines (the JSON summary is printed either way)
+- `--env-file path` — load `NANOGPT_API_KEY` from a `.env`-style file (`--key` wins if both are set)
+
+#### The URL is the package
+
+Every nanoodle share link is a runnable artifact — paste one straight from a
+README, a chat, or a tweet, wherever a `graph.json` path is accepted:
+
+```bash
+npx nanoodle inspect "https://nanoodle.com/#g=..."                       # what does it need? (offline)
+npx nanoodle run "https://nanoodle.com/play.html#a=..." --input Text=hi  # run it
+```
+
+Workflow links (`#g=`/`#j=`) and app links (`#a=`, graph only — the app shell
+stays in the browser) both work, as do da.gd/TinyURL short links (resolved by
+reading redirect headers; no credentials are ever sent). Direct links decode
+fully offline. Quote the URL — `#` starts a comment in most shells.
+
+Links mangled in transit (a character flipped or dropped by a chat app or a
+copy/paste) are recovered best-effort: the graph's nodes and wires are salvaged
+and a warning is printed. Only damage inside the graph itself makes a link
+unrecoverable.
 
 ### Supported nodes
 
 | runs | node types |
 |---|---|
 | local | text, upload (image/audio/video), choice, join, comment |
-| NanoGPT | llm (incl. vision + audio input), image, draw, edit, inpaint*, vision, tvideo, ivideo, vedit, lipsync, music, remix, tts, transcribe |
-| **not supported** (browser-only media processing) | resize, vframes, combine, soundtrack, trim, extractaudio |
+| local media† | resize, vframes, combine, soundtrack, trim, extractaudio |
+| NanoGPT | llm (incl. vision + audio input), image, edit, inpaint*, vision, tvideo, ivideo, vedit, lipsync, music, remix, tts, transcribe |
 
-Workflows with unsupported node types load with a warning and fail fast at
-`run()` with `UnsupportedNodeError` — before any network call.
+† **local media** prefers a pure-JS path that matches the browser (lossless mp4 remux, PCM-WAV trim, PNG resize). **ffmpeg** on `PATH` is the fallback for everything else (soft dependency — not an npm package); clear error if it’s required and missing.
 
-\* **inpaint:** the browser app composites the mask onto black at the source
-pixel size; this library passes your mask through verbatim. Supply a
-black/white mask matching the source dimensions.
+\* **inpaint:** the mask is composited onto black at the source image’s pixel
+size before send (same as the browser app) — white = repaint, black = keep.
+Brush-style white-on-transparent masks and plain B/W masks both work.
 
 ## nanoodle-py — run workflows from Python
 
@@ -278,6 +356,7 @@ your own key.
 Zero runtime dependencies (stdlib only). Library + CLI in one install.
 
 Looking for JavaScript / Node? → **[nanoodle-js](https://github.com/nanoodlecom/nanoodle-js)**
+Running graphs in GitHub CI → [run-noodle-action](https://github.com/nanoodlecom/run-noodle-action) · saved graphs as AI-agent tools → [nanoodle-mcp](https://github.com/nanoodlecom/nanoodle-mcp) · Agent Skills → [nanoodle-skill](https://github.com/nanoodlecom/nanoodle-skill) / [noodle-skills](https://github.com/nanoodlecom/noodle-skills)
 
 ### At a glance
 
@@ -299,6 +378,9 @@ pip install nanoodle
 export NANOGPT_API_KEY=...   # nano-gpt.com API key (or OAuth access token)
 ```
 
+Requires **0.2.0+** for share-link loading, the local media nodes
+(resize/vframes/combine/soundtrack/trim/extractaudio), and x402 `--pay`.
+
 ### Quickstart (library)
 
 ```python
@@ -306,11 +388,33 @@ from nanoodle import Workflow
 
 wf = Workflow.load("noodle-graph.json")
 result = wf.run({"Text": "a cozy ramen shop on a rainy night"})
-result["Image"].save("ramen.png")            # media: MediaRef (url + bytes()/save())
+img = result["Image"]                        # media: MediaRef (url + bytes()/save())
+img.save("ramen." + img.suggested_extension())   # extension matches the actual MIME (often jpg)
 print(result.cost_usd, result.remaining_balance)
 ```
 
 With the app’s starter graph (text → LLM prompt-writer → image), that’s the whole program.
+
+#### The URL is the package
+
+Every nanoodle share link is a runnable artifact. Anywhere a `graph.json` path
+is accepted — `Workflow.load` or the CLI — a share link works just as well:
+
+```python
+wf = Workflow.load("https://nanoodle.com/#g=...")          # workflow link
+wf = Workflow.load("https://nanoodle.com/play.html#a=...")  # app link (graph only)
+```
+
+Workflow links (`#g=`/`#j=`) and app links (`#a=`, graph only — the app shell
+stays in the browser) both decode, as do `da.gd`/TinyURL short links (resolved
+by reading redirect headers; no credentials are ever sent). Direct fragment
+links decode **fully offline** — zero network I/O, stdlib only. Paste one
+straight from a README, a chat, or a tweet.
+
+Links mangled in transit (a character flipped or dropped by a chat app or a
+copy/paste) are recovered best-effort: the graph's nodes and wires are salvaged
+and a warning is surfaced on `wf.warnings`. Only damage inside the graph itself
+makes a link unrecoverable.
 
 #### Discover a workflow’s interface
 
@@ -364,6 +468,7 @@ nanoodle-py inspect graph.json
 nanoodle-py run graph.json --input Text="a cozy ramen shop" --set n3.size=1k --out ./out
 nanoodle-py run graph.json --input n2.system=@style.txt --json
 nanoodle-py run graph.json --env-file .env --input Text="hello"   # NANOGPT_API_KEY from a .env file
+nanoodle-py inspect "https://nanoodle.com/#g=..."                 # a share link works too (quote it — # is a shell comment)
 ```
 
 - `--out DIR` — save media outputs to files
@@ -375,11 +480,10 @@ nanoodle-py run graph.json --env-file .env --input Text="hello"   # NANOGPT_API_
 | runs | node types |
 |---|---|
 | local | text, upload (image/audio/video), choice, join, comment |
-| NanoGPT | llm (incl. vision + audio input), image, draw, edit, inpaint*, vision, tvideo, ivideo, vedit, lipsync, music, remix, tts, transcribe |
-| **not supported** (browser-only media processing) | resize, vframes, combine, soundtrack, trim, extractaudio |
+| local media† | resize, vframes, combine, soundtrack, trim, extractaudio |
+| NanoGPT | llm (incl. vision + audio input), image, edit, inpaint*, vision, tvideo, ivideo, vedit, lipsync, music, remix, tts, transcribe |
 
-Workflows with unsupported node types load with a warning and fail fast at
-`run()` with `UnsupportedNodeError` — before any network call.
+† **local media** needs **ffmpeg** on `PATH` (soft dependency — not a PyPI package). Same behaviour as the browser app; clear error if ffmpeg is missing.
 
 \* **inpaint:** the browser app composites the mask onto black at the source
 pixel size; this library passes your mask through verbatim. Supply a
