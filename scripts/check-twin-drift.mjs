@@ -503,7 +503,11 @@ if (sharedNow.length > baseTotal) {
 // those lines have at least 1 look-alike before anything is edited at all. Deleting the block ranges
 // docs/twin-drift.md itself recommends, from BOTH surfaces, then failed 4 of its own 9 planned
 // extractions —
-//   row 1 "Resize and crop geometry" 2 false divergences, row 3 one, row 7 three, row 8 two.
+//   row 1 "Resize and crop geometry" 2 false divergences, row 3 one, row 7 one, row 8 two.
+// (Measured by running this guard with baseLook switched off, which is what the first rule was,
+// against the ranges the work list publishes TODAY. An earlier note said row 7 raised three. That
+// figure belongs to row 7's OLD ranges, play.html:6616-6660 + 6960-7150, which the work list no
+// longer publishes; the corrected ranges raise 1. Either way the headline is 4 of the 9 rows.)
 // Row 1 is the plainest case there is (sig = deletes = 25, a pure mirrored removal), and the guard
 // called it divergence, naming as the "replacements" 2 canvas lines that had been sitting at
 // index.html:7084 and play.html:9744 all along. scripts/check-twin-drift-cases.mjs holds all 9. With

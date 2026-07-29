@@ -140,16 +140,34 @@ an identical pair would be in the shared set.
 Deleting a twin block from both surfaces and editing a twin divergently on both surfaces leave trees
 that differ in exactly one way: the divergent edit **adds text**. Nothing else separates them, so a
 rule that matches a departed line against whatever happens to survive must eventually match a
-coincidence — and coincidences are not rare here. There are **796 look-alike pairs over the 893
-baseline lines** in the tree as it stands, before anything is edited. Deleting the block ranges of
-the work list below, from both surfaces, then produced:
+coincidence — and coincidences are not rare here. The baseline stores **796 look-alike hashes over
+the 893 lines, on 218 of them**, in the tree as it stands, before anything is edited. Deleting the
+block ranges of the work list below, from both surfaces, then produced this. Re-measured for this
+revision by running the current guard with its look-alike memory switched off, which is exactly what
+the first rule was, against the ranges the work list publishes **today**:
 
 | Row | Verdict of the first divergence rule | The "replacements" it named (positions in the files as committed) |
 |-----|--------------------------------------|-----------------------------|
 | 1 Resize and crop geometry | exit 1, **2 false divergences** | `index.html:7084` and `play.html:9744`, 2 unrelated canvas lines that had been sitting there all along |
 | 3 `encodeWavMono` + `mediaFetchError` | exit 1, **1 false divergence** | `index.html:8929`, a `FileReader` line in the demo-image path |
-| 7 Local media recorder path | exit 1, **3 false divergences** | `index.html:6328` / `play.html:6946`, an unrelated `onerror` pair |
+| 7 Local media recorder path | exit 1, **1 false divergence** | `index.html:6605` / `play.html:10791`, an unrelated `createElement` pair |
 | 8 Share packer, card and shorteners | exit 1, **2 false divergences** | the same canvas pair as row 1 |
+
+An earlier revision of this table gave row 7 **3** false divergences, at `index.html:6328` /
+`play.html:6946`, an `onerror` pair. That figure is real but it belongs to row 7's **old** ranges
+(`play.html:6616-6660` + `6960-7150`), which this document no longer publishes. Against the corrected
+ranges the same rule raises 1. Rows 1, 3 and 8 are unchanged, and the headline — **4 of the 9 planned
+extractions failed** — holds under either set of ranges.
+
+Reproduce the table: copy `scripts/check-twin-drift.mjs` into a scratch directory, replace the one
+line in `bestMatch()` that reads the look-alike memory,
+
+```js
+const already = (baseLook.get(baseHash) || {})[mover.file] || new Set();   // becomes: new Set()
+```
+
+then delete each row's ranges from both surfaces and run that copy. The `build()` helper of
+`scripts/check-twin-drift-cases.mjs` does the deleting.
 
 Rows 3, 7 and 9 also reported one-sided deletions, and those were **true**: the ranges those rows
 published paired regions that are not twins. They are corrected below, and the guard is what found
