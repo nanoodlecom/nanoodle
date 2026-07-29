@@ -93,13 +93,21 @@ const BLOCKS = [
   // is audioInputPart — the block-6 range lists are not in the same order on the 2 surfaces, and the
   // work list copied the wrong one. With the wrong range this row measured sig 0.
   { row: 2, name: "`maskToSource`", idx: [[7165, 7183]], play: [[7301, 7319]] },
-  { row: 3, name: "`encodeWavMono` + `mediaFetchError`", idx: [[9009, 9070]], play: [[6497, 6614]] },
+  // index.html's range used to end at 9070. play.html:6497-6614 also carries the twins of
+  // trimAudioToWavUrl and extractAudioToWavUrl (index.html:9071-9084), so the short range deleted
+  // them from play.html only. scripts/check-twin-drift-cases.mjs holds the proof.
+  { row: 3, name: "`encodeWavMono` + `mediaFetchError`", idx: [[9009, 9084]], play: [[6497, 6614]] },
   { row: 4, name: "Prompt-cap helpers", idx: [[4169, 4219]], play: [[7861, 7910]] },
   { row: 5, name: "Pricing resolver", idx: [[5537, 5681]], play: [[5910, 6039]] },
   { row: 6, name: "MP4CAT", idx: [[9099, 9376]], play: [[6657, 6934]] },
-  { row: 7, name: "Local media recorder path", idx: [[9378, 9630]], play: [[6616, 6660], [6960, 7150]] },
+  // play.html used to read 6616-6660 + 6960-7150. 6616-6660 swallowed toLocalMediaUrl, seekVideo and
+  // MP4CAT's opening 4 lines, none of which index.html:9378-9630 holds; 6960-7150 started AFTER
+  // prepClip and recordClip (6935-6975), which index.html:9378-9630 does hold.
+  { row: 7, name: "Local media recorder path", idx: [[9378, 9630]], play: [[6616, 6621], [6649, 6656], [6935, 7148]] },
   { row: 8, name: "Share packer, card and shorteners", idx: [[10614, 10930]], play: [[12804, 13123]] },
-  { row: 9, name: "Share-menu wiring", idx: [[11043, 11083]], play: [[13262, 13500]] },
+  // play.html used to read 13262-13500, which swallowed the whole agent-pill popover (13264-13343)
+  // and the model-picker search — code index.html keeps at 11583-11599 and 10369.
+  { row: 9, name: "Share-menu wiring", idx: [[11043, 11083]], play: [[13262, 13262], [13344, 13396], [13500, 13500]] },
 ];
 
 const inside = (n, ranges) => ranges.some(([a, b]) => n >= a && n <= b);

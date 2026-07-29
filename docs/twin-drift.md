@@ -1,8 +1,9 @@
 # Twin drift: the index.html ↔ play.html extraction map
 
-Date: 2026-07-28, revised 2026-07-29. Line ranges are from commit `dbd4543`; every count and every
-timing here was re-measured on this branch with `scripts/check-twin-drift.mjs` and
-`scripts/twin-drift-worklist.mjs`.
+Date: 2026-07-28, revised 2026-07-29. Line ranges are from commit `dbd4543`; every count here comes
+from `scripts/check-twin-drift.mjs` or `scripts/twin-drift-worklist.mjs`, every verdict from
+`scripts/check-twin-drift-cases.mjs`, and every timing from `scripts/twin-drift-bench.mjs` on the
+machine named next to the numbers.
 
 ## The measurement
 
@@ -94,9 +95,9 @@ It **fails** on:
   than once inside a surface (28 in `index.html`, 65 in `play.html`), so presence alone is not
   enough: editing 1 of 2 identical copies leaves the hash present. The baseline stores the
   per-surface count of every line.
-- **Divergence.** A shared line left BOTH surfaces, and each surface now carries its own,
+- **Divergence.** A shared line left BOTH surfaces, and each surface now carries its own, **new**,
   **different** replacement of it. Both engines still do the work and they now do it differently.
-  See "The one exemption" below for the exact test.
+  See "The one exemption" below for the exact test, and for what **new** costs.
 - **Growth.** The distinct shared-line count went up, or a shared line gained a copy.
 
 It **passes** on:
@@ -109,10 +110,10 @@ It **passes** on:
   holds, and the guard asks for a baseline refresh in a note.
 
 Every departure is **classified**, up to the `MAX_CLASSIFY` ceiling of 200. Each failure list
-**names its first 12 lines and reports the rest as a count** — at 200 one-sided departures the run
-prints `TWIN DRIFT — 12 line(s)…` and `ONE-SIDED DELETION — 188 line(s)…`, with 12 named under the
-second heading and `… and 176 more`. The guard classifies 200 and names 24. It does not name every
-line, and no part of it claims to.
+**names its first 12 lines and reports the rest as a count**, so at the ceiling the guard classifies
+200 departures and names at most 24 of them — 12 under each heading that fires. How the 200 split
+between `TWIN DRIFT` and `ONE-SIDED DELETION` depends on which lines departed, so no fixed split
+belongs in this document. The guard does not name every line, and no part of it claims to.
 
 ### The one exemption, stated exactly
 
@@ -120,7 +121,7 @@ Leaving both surfaces is **not** what makes a departure an extraction. Leaving b
 the 2 surfaces still agree afterwards** is. A departure from both surfaces fails as divergence when
 all 3 of these hold, and passes otherwise:
 
-1. `index.html` carries a line near-identical to the departed line,
+1. `index.html` carries a **new** line near-identical to the departed line,
 2. `play.html` carries one too,
 3. those 2 replacements are near-identical **to each other**.
 
@@ -129,7 +130,38 @@ character bigrams, the same test the drift rule already used. Condition 3 makes 
 versions of 1 line rather than 2 coincidences, and the surviving pair is always *different*, because
 an identical pair would be in the shared set.
 
-**So the exemption is: a departure from both surfaces where at most 1 surface kept a look-alike
+**"New" is the whole rule, and leaving it out failed 4 of the 9 extractions this document plans.**
+Deleting a twin block from both surfaces and editing a twin divergently on both surfaces leave trees
+that differ in exactly one way: the divergent edit **adds text**. Nothing else separates them, so a
+rule that matches a departed line against whatever happens to survive must eventually match a
+coincidence — and coincidences are not rare here. There are **796 look-alike pairs over the 893
+baseline lines** in the tree as it stands, before anything is edited. Deleting the block ranges of
+the work list below, from both surfaces, then produced:
+
+| Row | Verdict of the first divergence rule | The "replacements" it named (positions in the files as committed) |
+|-----|--------------------------------------|-----------------------------|
+| 1 Resize and crop geometry | exit 1, **2 false divergences** | `index.html:7084` and `play.html:9744`, 2 unrelated canvas lines that had been sitting there all along |
+| 3 `encodeWavMono` + `mediaFetchError` | exit 1, **1 false divergence** | `index.html:8929`, a `FileReader` line in the demo-image path |
+| 7 Local media recorder path | exit 1, **3 false divergences** | `index.html:6328` / `play.html:6946`, an unrelated `onerror` pair |
+| 8 Share packer, card and shorteners | exit 1, **2 false divergences** | the same canvas pair as row 1 |
+
+Rows 3, 7 and 9 also reported one-sided deletions, and those were **true**: the ranges those rows
+published paired regions that are not twins. They are corrected below, and the guard is what found
+them.
+
+Row 1 is the plainest mirrored removal in the plan — `sig` = `deletes` = 25, every occurrence of
+every twin inside the 2 ranges — and the guard called it divergence.
+
+So the baseline now stores, per line, the **look-alike set**: the hash of every other line on that
+surface that already scored 0.72 or more against it when the baseline was written. A candidate
+replacement from that set replaced nothing; it was there first. With the sets in place all 4 rows
+above pass, and the 2-sided divergent edit still fails. Both directions are pinned:
+
+```sh
+node scripts/check-twin-drift-cases.mjs
+```
+
+**So the exemption is: a departure from both surfaces where at most 1 surface grew a NEW look-alike
 line.** That includes a case the guard would ideally fail — 1 engine edits the line while the other
 drops it outright. Condition 3 is what keeps that case out, and it is there for a measured reason.
 An earlier draft failed a single-sided match. Run against a genuine extraction control — delete the
@@ -142,15 +174,46 @@ the bigram profile. A guard that fails a correct extraction is a guard that gets
 
 **How many lines does the exemption cover today? Zero.** It is a rule about future departures, and
 on the current tree nothing departs. Its size on any given commit is the number of departures from
-both surfaces in that commit where fewer than 2 look-alike replacements remain.
+both surfaces in that commit where fewer than 2 NEW look-alike replacements appeared.
 
-Three measured controls, all re-run on the code in this branch:
+The look-alike sets also close the MP4CAT banner case above on their own: the surviving banner
+(`index.html:9086`, hash `7f8cbc2c5d8093fb`) is the whole `index.html` look-alike set of the
+departing one (`48b64f163787aa57`), so it can no longer be read as a replacement. Condition 3 stays
+anyway. It is the cheaper guarantee and it holds even when the baseline is stale.
 
-| Scenario | Result |
-|----------|--------|
-| Edit `index.html:9292` to `a+s.durIDX` and `play.html:6850` to `a+s.durPLAY` | **fails**, `TWIN DIVERGENCE`, exit 1, both replacements named |
-| Delete the whole MP4CAT block from both surfaces (123 twins depart at once) | **passes**, exit 0, 893 → 770, note only |
-| Delete 200 unrelated shared lines from both surfaces | **passes**, exit 0, no false divergence |
+### The sandbox matrix
+
+`scripts/check-twin-drift-cases.mjs` is 15 mutations of the 2 surfaces with the verdict the guard
+must return for each. It copies both files, the guard and the baseline into a scratch directory,
+mutates the copies and runs the guard there. Nothing touches the working tree. The 2 directions sit
+in one table on purpose: a change that fixes one of them can silently break the other, which is
+exactly what the first divergence rule did.
+
+| Case | Must |
+|------|------|
+| Clean tree | pass |
+| The 9 planned extractions, each deleted from BOTH surfaces | 8 pass; row 8 fails, see below |
+| Edit `index.html:9292` to `a+s.durIDX` **and** `play.html:6850` to `a+s.durPLAY` | fail, 1 `TWIN DIVERGENCE` |
+| Edit `index.html:9292` only | fail, 1 `TWIN DRIFT` |
+| Delete `play.html:6850` only | fail, 1 `ONE-SIDED DELETION` |
+| Edit both surfaces to the SAME new text | pass, note asks for a refresh |
+| Paste an `index.html`-only line into `play.html` as well | fail, the ratchet |
+
+**Row 8 is the one planned extraction that cannot be silent, and the guard is right.** Deleting the
+2 share blocks leaves 5 twins live on exactly 1 surface, because their other copy is in unrelated
+code:
+
+- `index.html:10714` and `10716` are an inline copy of `play.html`'s `explicitLang()`
+  (`play.html:11362-11375`). `index.html` has no other copy; `play.html` keeps its function.
+- `index.html:10631` and `10636` (the share card's thumbnail downscale) twin `play.html:9745,9752`,
+  a thumbnail helper outside the share block.
+- `play.html:13056` twins `index.html:7937,8018`, the canvas fit bounds.
+
+Plus 1 occurrence drift: the `noodle_lang` read lives twice in each file, and only `index.html`'s
+second copy is inside the block. No choice of ranges fixes this — the extra copies are somewhere
+else entirely. Whoever does row 8 refreshes the baseline as part of the move, deliberately, which is
+what the guard's own remedy line asks for. The matrix pins the exact counts, so if that extraction
+ever starts reporting something *else*, it fails the matrix.
 
 ### The bundle is never an exemption
 
@@ -179,10 +242,16 @@ TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs
 
 ### What the baseline stores, and why it cannot be hand edited
 
-Each `lines` entry is `<hash> <n in index.html> <n in play.html> <the stripped line>`.
+Each `lines` entry is `<hash> <n in index.html> <n in play.html> <look-alikes in index.html>
+<look-alikes in play.html> <the stripped line>`, each look-alike field being `-` or a
+comma-separated list of hashes.
 
 - The **text** is there because a line gone from both surfaces has no copy left in either file. The
   divergence test above cannot run without it. That is what took the baseline from 25 KB to 102 KB.
+- The **look-alike sets** are the guard's memory of what the tree looked like when the baseline was
+  written, and the divergence test is wrong without them: it reads a line that was already there as
+  a "replacement". 796 hashes over the 893 entries, which took the file from 101,630 to 118,241
+  bytes. They are written at refresh only, because each one costs a scan of both surfaces.
 - The **hash is a checksum of the text**: the guard re-hashes every stored line and refuses the
   baseline if any entry's text does not hash to its own hash. A stored line cannot be swapped for a
   friendlier one.
@@ -197,8 +266,13 @@ Each `lines` entry is `<hash> <n in index.html> <n in play.html> <the stripped l
   delete `digest`, and a clean tree exited 0 with that line's ratchet silently raised. A missing or
   malformed digest is now an error.
 
-The pre-commit hook runs the guard when `index.html`, `play.html`, the guard, or the baseline is
-staged.
+The pre-commit hook runs the guard when `index.html`, `play.html`, the guard or the baseline is
+staged, and the sandbox matrix when the guard, the baseline or the matrix is staged.
+
+`touches_twindrift` was missing from the hook's early-exit condition, so a commit that staged **only**
+`scripts/twin-drift-baseline.json` returned before any check ran — the one file to edit to defeat the
+ratchet was the one file that skipped it. Both variables are in the condition now. Reproduce the old
+behaviour by removing them: stage a baseline with its `digest` field deleted, on its own, and commit.
 
 ### Runtime
 
@@ -206,29 +280,45 @@ Offline, no network, no API spend.
 
 The cost that matters is the drift classifier: for every baseline line that left the shared set it
 scores the departing text against every candidate line of the surface that moved. A departure that
-left BOTH surfaces is now the dearest kind, because the divergence test scores it against both.
+left BOTH surfaces is the dearest kind, because the divergence test scores it against both.
 `MAX_CLASSIFY` caps the work at 200 departures; at 201 the guard reports totals instead, so the run
 is always bounded. The ceiling is not free, and a normal commit never reaches it.
 
-Measured 2026-07-29 on a machine that held a load average of 2.9 to 3.9 throughout, 5 runs of each
-case:
+**Every figure below is from ONE machine and this branch. Timings vary by machine and by load —
+measure your own before you quote one.** 40 samples of each case, 8 runs of 5, on 2026-07-29, while
+the load average went from 0.12 to 1.89. Each range is the full spread of the 40, and the spread is
+mostly the load: the low end of every row came from the idle runs, the high end from runs that
+shared the machine with an unrelated `ffmpeg`. That is a factor of 2.5 on one machine, which is why
+no single number belongs in this table.
 
 | Case | Wall clock | CPU time |
 |------|------------|----------|
-| Clean tree, nothing departs | 0.19-0.23 s | 0.19-0.23 s |
-| 200 departures, all gone from BOTH surfaces | 3.29-3.83 s | 3.44-4.05 s |
-| 200 departures, all gone from 1 surface | 1.61-2.12 s | 1.66-2.23 s |
+| Clean tree, nothing departs | 0.08-0.20 s | 0.10-0.25 s |
+| 200 departures, all gone from BOTH surfaces | 0.98-2.53 s | 1.04-2.72 s |
+| 200 departures, all gone from 1 surface | 0.51-1.55 s | 0.56-1.62 s |
 
-An earlier round measured the same 200-departure ceiling at 23-30 s wall, on a machine under a load
+CPU exceeds wall on the clean-tree row because Node's own startup runs on more than 1 thread.
+
+Two costs are NOT in that table, and both are paid on purpose:
+
+- **The baseline refresh takes 7.3-10.9 s wall** (13 samples, same machine, load average 0.9-1.9),
+  because it scores every one of the 893 shared lines against every line of both surfaces to build
+  the look-alike sets. It runs only when someone asks for it.
+- **The sandbox matrix takes 5.4-10.9 s wall** (13 samples, same machine, load average 0.9-1.9): it
+  runs the guard 15 times over mutated copies of 1.7 MB of HTML. The pre-commit hook runs it when
+  the RULES change — the guard, the baseline or the matrix itself — not on every surface edit.
+
+An earlier round measured the 200-departure ceiling at 23-30 s wall, on a machine under a load
 average of 25 to 34, before `bestMatch` got its candidate index — it rebuilt the bigram profile of
 every candidate line on every call, while the header claimed "well under 2 seconds" and the hook
-claimed "~0.2s". Those runs are not repeated here; the 3 rows above are this branch's own numbers,
-and they are not comparable to the 23-30 s figure, which was taken on a far busier machine.
+claimed "~0.2s". That figure is not comparable to the table above: different code, and a far busier
+machine.
 
-Reproduce the clean-tree figure:
+Reproduce the whole table:
 
 ```sh
-time node scripts/check-twin-drift.mjs
+node scripts/twin-drift-bench.mjs        # 5 samples of each case, prints the load average too
+time node scripts/check-twin-drift.mjs   # just the clean-tree row
 ```
 
 ## Why extraction is hard here
@@ -303,13 +393,20 @@ both surfaces plus `nanoodle-js/src/mp4cat.mjs`, which the bundle already carrie
 Removing this block alone drops the baseline from 893 to 770. That is 14% of the duplication in
 1 move.
 
-### 3. Local media: the MediaRecorder fallback — sig 64
+### 3. Local media: the MediaRecorder fallback — sig 68
 
-- `index.html:9378-9630` (`pickVideoMime`, `loadVideoMeta`, `concatViaRecorder`, the MediaRecorder
-  and AudioContext fallback path, async audio polling)
-- `play.html:6616-6660` and `play.html:6960-7150`
+- `index.html:9378-9630` (`pickVideoMime`, `loadVideoMeta`, `prepClip`, `recordClip`,
+  `concatViaRecorder`, the MediaRecorder and AudioContext fallback path, async audio polling)
+- `play.html:6616-6621`, `play.html:6649-6656` and `play.html:6935-7148`
 
 The MediaRecorder fallback runs when the clips are not matching mp4s.
+
+The `play.html` ranges used to read `6616-6660` and `6960-7150`, and both ends were wrong. The first
+swallowed `toLocalMediaUrl`, `seekVideo` and MP4CAT's opening 4 lines, none of which
+`index.html:9378-9630` holds; the second started **after** `prepClip` and `recordClip`
+(`play.html:6935-6975`), which `index.html:9378-9630` does hold. Deleting the old pair from both
+surfaces reported 11 one-sided deletions. `scripts/check-twin-drift-cases.mjs` holds the corrected
+pair and proves it is silent.
 
 **Verdict: needs a new library module first.** This path is not in nanoodle-js at all, because the
 library's `local-media.mjs` uses ffmpeg for the same case in Node. A browser has no ffmpeg, so the
@@ -390,7 +487,11 @@ tested today.
 
 - `index.html:11043-11083` (the `#sharemenu` button handlers, the shorten-in-flight disable, the
   Escape closer)
-- `play.html:13262-13500`
+- `play.html:13262`, `play.html:13344-13396` and `play.html:13500`
+
+The `play.html` range used to read `13262-13500` in one piece. That swallowed the whole agent-pill
+popover (`play.html:13264-13343`) and the model-picker search, which `index.html` keeps at
+`11583-11599` and `10369` — so deleting the pair reported 6 one-sided deletions.
 
 **Verdict: extract with block 1, not before.** These are DOM handlers over the same 2 element ids on
 2 separate documents. They only collapse if the share popover itself becomes a shared component,
@@ -424,10 +525,15 @@ one this guard can close.
 also runs this code from `file://`, where OAuth does not work, so any move must keep the
 paste-key path intact.
 
-### 12. Local media: WAV encode and fetch-error text — sig 23
+### 12. Local media: WAV encode and fetch-error text — sig 26
 
-- `index.html:9009-9070` (`mediaFetchError`, `encodeWavMono` and its header writes)
+- `index.html:9009-9084` (`mediaFetchError`, `encodeWavMono` and its header writes,
+  `trimAudioToWavUrl`, `extractAudioToWavUrl`)
 - `play.html:6497-6614`
+
+The `index.html` range used to stop at `9070`. `play.html:6497-6614` carries the twins of
+`trimAudioToWavUrl` and `extractAudioToWavUrl` as well (`index.html:9071-9084`), so the short range
+deleted those 3 shared lines from `play.html` only.
 
 **Verdict: partly covered.** `browser.mjs` already exports `encodeWavMono` from `local-media.mjs`.
 `mediaFetchError` is not in the library. Extract `encodeWavMono` with block 8; the other needs a home
@@ -486,32 +592,38 @@ prints the table below verbatim.
 - **`Baseline after`** — 893 minus the running union of `new`.
 
 The old version of this table stated the `deletes` rule in prose and then subtracted `sig`. The 2
-rules disagree on rows 3, 7 and 8, so every "Baseline after" cell from row 3 down was wrong, by 1
-line at row 3 and by 5 by row 9.
+rules disagree on rows 3, 7 and 8, so every "Baseline after" cell from row 3 down was wrong. The
+numbers below also move because rows 3, 7 and 9 now quote **corrected ranges**: the sandbox matrix
+deleted the old ones from both surfaces and the guard reported one-sided deletions, which is what a
+range that pairs 2 regions that are not twins looks like.
 
 | # | Block | sig | deletes | new | Baseline after | Blocker |
 |---|-------|-----|---------|-----|----------------|---------|
 | 1 | Resize and crop geometry | 25 | 25 | 25 | 868 | flag-off fallback only |
 | 2 | `maskToSource` | 5 | 5 | 5 | 863 | flag-off fallback only |
-| 3 | `encodeWavMono` + `mediaFetchError` | 23 | 22 | 22 | 841 | `mediaFetchError` has no library home |
-| 4 | Prompt-cap helpers | 9 | 9 | 9 | 832 | 1-line `browser.mjs` re-export |
-| 5 | Pricing resolver | 68 | 68 | 68 | 764 | `estimate.mjs` not in the browser bundle |
-| 6 | MP4CAT | 123 | 123 | 123 | 641 | `MP4CAT` not re-exported; `check-combine.mjs` must move |
-| 7 | Local media recorder path | 64 | 63 | 63 | 578 | needs a new library module |
-| 8 | Share packer, card and shorteners | 140 | 136 | 136 | 442 | needs a new `share-pack.mjs` |
-| 9 | Share-menu wiring | 24 | 24 | 24 | 418 | only after row 8 |
+| 3 | `encodeWavMono` + `mediaFetchError` | 26 | 25 | 25 | 838 | `mediaFetchError` has no library home |
+| 4 | Prompt-cap helpers | 9 | 9 | 9 | 829 | 1-line `browser.mjs` re-export |
+| 5 | Pricing resolver | 68 | 68 | 68 | 761 | `estimate.mjs` not in the browser bundle |
+| 6 | MP4CAT | 123 | 123 | 123 | 638 | `MP4CAT` not re-exported; `check-combine.mjs` must move |
+| 7 | Local media recorder path | 68 | 66 | 66 | 572 | needs a new library module |
+| 8 | Share packer, card and shorteners | 140 | 136 | 136 | 436 | needs a new `share-pack.mjs` |
+| 9 | Share-menu wiring | 24 | 24 | 24 | 412 | only after row 8 |
 
-**No row overlaps another.** The earlier claim that row 7 loses 1 line to row 3 was wrong: the line
-in question is `const AC = window.AudioContext || window.webkitAudioContext;`, which sits at
-`index.html:9051,9466,9528` and `play.html:6537,6565,7004,7055`. Rows 3 and 7 each hold some of those
-copies and neither holds all of them, so **neither row deletes it** — that 1 line is why row 3 is
-23/22 and row 7 is 64/63. Row 8's 140/136 gap is 4 more lines of the same kind, including
-`const packed = await gzip(json).catch(()=>null);`, which also lives outside the share packer at
-`index.html:11191` and `play.html:13273`.
+**No row overlaps another.** The rows where `sig` and `deletes` disagree are 3 (26/25), 7 (68/66) and
+8 (140/136), and every line in the gap is named here:
+
+- `const AC = window.AudioContext || window.webkitAudioContext;` — `index.html:9051,9466,9528`,
+  `play.html:6537,6565,7004,7055`. Rows 3 and 7 each hold some of those copies and neither holds all
+  of them, so **neither row deletes it**. It is the whole of row 3's gap and half of row 7's.
+- `const vid = document.createElement("video");` — `index.html:6322,9400`, `play.html:6944,7589`.
+  The other half of row 7's gap.
+- Row 8's 4: `let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;`,
+  `c.getContext("2d").drawImage(img, 0, 0, w, h);`, `try{ img.src = src; }catch(_){ finish(null); }`
+  and `const packed = await gzip(json).catch(()=>null);`, each with a copy outside the share packer.
 
 Rows 1 to 6 all sit behind the same decision: **does `index.html` load `vendor/njs-engine.js`
-unconditionally, and does the built-in fallback survive?** Answer that once and 252 of the 893 shared
-lines become deletable (893 down to 641).
+unconditionally, and does the built-in fallback survive?** Answer that once and 255 of the 893 shared
+lines become deletable (893 down to 638).
 
 Recompute the whole table, including the agreement check against the guard's baseline:
 

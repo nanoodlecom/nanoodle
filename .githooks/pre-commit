@@ -120,6 +120,11 @@ touches_promptcaps=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.
 # functions. This one pins the WHOLE overlap: a one-sided edit to any shared line fails, a 2-sided
 # DIVERGENT edit fails, and new duplication cannot enter silently.
 touches_twindrift=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-twin-drift\.mjs|scripts/twin-drift-baseline\.json)$' || true)
+# The sandbox matrix behind that guard: 15 mutations of the 2 surfaces, each with the verdict the
+# guard must return — the 9 planned extractions of docs/twin-drift.md must stay silent, and a 2-sided
+# DIVERGENT edit must still fail. It re-reads both surfaces, so it runs when the RULES move (the
+# guard, the baseline or the matrix), not on every index.html edit.
+touches_twindriftcases=$(printf '%s\n' "$staged" | grep -E '(^|/)(scripts/check-twin-drift\.mjs|scripts/check-twin-drift-cases\.mjs|scripts/twin-drift-baseline\.json)$' || true)
 
 # an imported (#a=) app's spend-capable bridge calls must be refused until a real Run gesture arms it (consent gate).
 touches_consent=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-bridge-consent\.mjs)$' || true)
@@ -128,7 +133,7 @@ touches_consent=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/ch
 touches_sharesamples=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-share-samples\.mjs)$' || true)
 
 # Nothing to check unless an .html file or one of the checkers changed.
-[ -z "$staged_html" ] && [ -z "$touches_njseditor" ] && [ -z "$touches_llmgate" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_jsparity" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_langpages" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_i18n" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_lipsync" ] && [ -z "$touches_aresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && [ -z "$touches_pacing" ] && [ -z "$touches_graphpersist" ] && [ -z "$touches_graphsigs" ] && [ -z "$touches_describeapply" ] && [ -z "$touches_authlc" ] && [ -z "$touches_mediapriv" ] && [ -z "$touches_verhist" ] && [ -z "$touches_rungating" ] && [ -z "$touches_appsstorage" ] && [ -z "$touches_linkerr" ] && [ -z "$touches_deploy" ] && [ -z "$touches_hiddencss" ] && [ -z "$touches_connect" ] && [ -z "$touches_undo" ] && [ -z "$touches_costaccrue" ] && [ -z "$touches_resize" ] && [ -z "$touches_catalog" ] && [ -z "$touches_upscale" ] && [ -z "$touches_drift" ] && [ -z "$touches_promptcaps" ] && [ -z "$touches_consent" ] && [ -z "$touches_sharesamples" ] && [ -z "$touches_examples" ] && exit 0
+[ -z "$staged_html" ] && [ -z "$touches_njseditor" ] && [ -z "$touches_llmgate" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_jsparity" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_langpages" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_i18n" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_lipsync" ] && [ -z "$touches_aresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && [ -z "$touches_pacing" ] && [ -z "$touches_graphpersist" ] && [ -z "$touches_graphsigs" ] && [ -z "$touches_describeapply" ] && [ -z "$touches_authlc" ] && [ -z "$touches_mediapriv" ] && [ -z "$touches_verhist" ] && [ -z "$touches_rungating" ] && [ -z "$touches_appsstorage" ] && [ -z "$touches_linkerr" ] && [ -z "$touches_deploy" ] && [ -z "$touches_hiddencss" ] && [ -z "$touches_connect" ] && [ -z "$touches_undo" ] && [ -z "$touches_costaccrue" ] && [ -z "$touches_resize" ] && [ -z "$touches_catalog" ] && [ -z "$touches_upscale" ] && [ -z "$touches_drift" ] && [ -z "$touches_promptcaps" ] && [ -z "$touches_consent" ] && [ -z "$touches_sharesamples" ] && [ -z "$touches_examples" ] && [ -z "$touches_twindrift" ] && [ -z "$touches_twindriftcases" ] && exit 0
 if ! command -v node >/dev/null 2>&1; then
   echo "pre-commit: node not found, skipping HTML JS checks" >&2
   exit 0
@@ -507,18 +512,35 @@ fi
 #     is DERIVED from the baseline line list, and the required digest pins the per-line counts and
 #     the stored text, so no hand edit of the baseline can lift it.
 #     What leaves the set without failing: a line gone from BOTH surfaces where at most ONE surface
-#     kept a near-identical replacement. docs/twin-drift.md states that exemption and why it is not
-#     narrower.
+#     grew a NEW near-identical replacement. The baseline stores, per line, the hashes of the lines
+#     that ALREADY looked like it, because a "replacement" that was there first replaced nothing —
+#     without that memory the guard failed 4 of the 9 planned extractions in docs/twin-drift.md.
 #     Generated regions are excluded, so the library is never booked as hand duplication; the
 #     njs-engine block is found by its data-hash, NOT by a script-tag regex that play.html's own
-#     export-builder string literal can trigger. Offline. Measured 2026-07-29 at a load average of
-#     2.9 to 3.9: a clean tree is 0.19s to 0.23s. The worst case is a refactor that moves many twins
-#     at once: at the 200-departure classification ceiling it measured 3.29s to 3.83s when every
-#     departure left both surfaces, 1.61s to 2.12s when they left one. Never a hang: 201 departures
-#     reports totals instead. Each failure list NAMES its first 12 lines and counts the rest.
+#     export-builder string literal can trigger. Offline. Timings vary by machine and by load — load
+#     alone moved these by a factor of 2.5. On 2026-07-29, over 40 samples of each case with the load
+#     average between 0.12 and 1.89, a clean tree took 0.08s to 0.20s. The worst case is a refactor
+#     that moves many twins at once: at the 200-departure classification ceiling it took 0.98s to
+#     2.53s when every departure left both surfaces, 0.51s to 1.55s when they left one. Never a hang:
+#     201 departures reports totals instead. Each failure list NAMES its first 12 lines and counts
+#     the rest.
 #     Refresh deliberately:
 #       TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs
 #     Ranked extraction plan: docs/twin-drift.md
 if [ -n "$touches_twindrift" ]; then
   node "$root/scripts/check-twin-drift.mjs"
+fi
+
+# 42) The sandbox matrix behind check 41. 15 mutations of index.html + play.html in a scratch copy,
+#     each with the verdict the guard must return: the clean tree, the 9 planned extractions of
+#     docs/twin-drift.md deleted from BOTH surfaces (8 silent, row 8 with the 5 one-sided reports it
+#     cannot avoid), a 2-sided DIVERGENT edit, a 1-sided edit, a 1-sided deletion, a correctly
+#     mirrored edit, and a fresh duplication. It exists because the guard's 2 directions pull against
+#     each other: the first divergence rule failed 4 of those 9 extractions, row 1 included, where
+#     the deletion is perfectly mirrored and sig = deletes = 25. Runs when the RULES change (the
+#     guard, the baseline, or the matrix), not on every surface edit: it runs the guard 15 times over
+#     mutated copies of 1.7 MB of HTML, which took 5.4s to 10.9s wall over 13 samples on 2026-07-29
+#     at a load average of 0.9 to 1.9, against the guard's own 0.08s to 0.20s.
+if [ -n "$touches_twindriftcases" ]; then
+  node "$root/scripts/check-twin-drift-cases.mjs"
 fi

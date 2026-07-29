@@ -23,10 +23,13 @@
 // index.html, so most twins are NOT byte-identical in the files — only after the trim. Generated
 // regions are blanked first, so the generated nanoodle-js bundle and the probe-written prompt-cap
 // table never count as hand-maintained duplication.
-// scripts/twin-drift-baseline.json stores three things per line: the hash, the per-surface
+// scripts/twin-drift-baseline.json stores four things per line: the hash, the per-surface
 // OCCURRENCE COUNT (a line that appears twice in one surface can be edited in one place and still
-// be "present"), and THE STRIPPED TEXT ITSELF. The text is what makes section 4b able to ask
-// whether the two surfaces still agree about a line that left both of them.
+// be "present"), THE STRIPPED TEXT ITSELF, and the per-surface LOOK-ALIKE SET — the hash of every
+// OTHER line already on that surface that scores DRIFT_SIMILARITY or more against this one. The text
+// is what makes section 4b able to ask whether the two surfaces still agree about a line that left
+// both of them. The look-alike set is what makes that answer correct: without it the guard reads a
+// coincidental line that was ALREADY THERE as a "replacement", and fails a plain mirrored deletion.
 //
 // WHAT IT FAILS ON  (see section 4 for the exact rules)
 //   DRIFT      — a baseline line left the shared set, or lost an occurrence on one surface only,
@@ -34,18 +37,25 @@
 //                still sitting in the file that moved. The guard names both file:line positions.
 //   DELETION   — a baseline line is gone from one surface and still LIVE on the other. Nothing
 //                replaced it. The code did not move; one engine simply stopped doing it.
-//   DIVERGENCE — a baseline line left BOTH surfaces, and each surface now carries its OWN,
+//   DIVERGENCE — a baseline line left BOTH surfaces, and each surface now carries its OWN, NEW,
 //                DIFFERENT near-identical replacement. Both engines still do the work; they now do
 //                it differently. Leaving both surfaces is not proof of extraction.
 //   GROWTH     — the shared-line COUNT went up, or a shared line gained an occurrence.
 // THE ONE EXEMPTION, stated exactly. A departure that left BOTH surfaces prints a note instead of
-// failing UNLESS all 3 of these hold: index.html carries a near-identical replacement, play.html
-// carries one too, and those 2 replacements are near-identical to each other. So the exemption
-// covers every departure from both surfaces where at most ONE surface kept a look-alike line. That
-// includes the case where 1 engine edited the line and the other dropped it outright: the guard
-// cannot fail that, and section 4b says why (a real extraction control produced exactly that shape
-// by coincidence). On the tree as it stands the exemption covers 0 lines, because nothing departs;
-// it is a rule about future departures, not a list of excused twins.
+// failing UNLESS all 3 of these hold: index.html carries a NEW near-identical replacement,
+// play.html carries one too, and those 2 replacements are near-identical to each other. So the
+// exemption covers every departure from both surfaces where at most ONE surface grew a look-alike
+// line. That includes the case where 1 engine edited the line and the other dropped it outright:
+// the guard cannot fail that, and section 4b says why (a real extraction control produced exactly
+// that shape by coincidence). On the tree as it stands the exemption covers 0 lines, because
+// nothing departs; it is a rule about future departures, not a list of excused twins.
+// NEW is the word that carries the rule, and it is why the baseline stores a look-alike set per
+// line. Deleting a twin block from both surfaces and editing a twin divergently on both surfaces
+// differ in exactly ONE observable way: the divergent edit ADDS text that was not in the tree
+// before. Nothing else separates them, because coincidental look-alikes of a twin are already
+// sitting in both files (796 of them over the 893 baseline lines). Matching a departed line against
+// whatever survives, with no memory of what was there before, therefore reads a mirrored deletion
+// as divergence: section 4b names the 4 documented extractions that failed that way.
 // A line still live on one surface always fails, even when the generated bundle happens to carry
 // the same text (see section 4b). It does NOT fail on a correctly MIRRORED edit either (both
 // surfaces changed together, to the SAME new text): membership moves, the count holds, the new twin
@@ -61,14 +71,24 @@
 // DEPARTING line against every candidate line of the surface that moved, so the worst case is a
 // refactor that moves many twins at once, not a normal commit. A departure that left BOTH surfaces
 // is the dearest kind, because it is scored against BOTH surfaces. MAX_CLASSIFY caps the work at
-// 200 departures; 201 reports totals instead. Measured 2026-07-29 on a machine that held a load
-// average of 2.9 to 3.9 throughout, 5 runs each:
-//   clean tree, nothing departs          0.19-0.23 s wall  (0.19-0.23 s CPU)
-//   200 departures, gone from both       3.29-3.83 s wall  (3.44-4.05 s CPU)
-//   200 departures, gone from 1 surface  1.61-2.12 s wall  (1.66-2.23 s CPU)
+// 200 departures; 201 reports totals instead. TIMINGS VARY BY MACHINE AND BY LOAD, and load alone
+// moved these by a factor of 2.5 on ONE machine: the low end of every range came from an idle run
+// (load average 0.1), the high end from runs sharing the box with an unrelated ffmpeg (load average
+// 1.7). From scripts/twin-drift-bench.mjs on 2026-07-29, 40 samples of each case (8 runs of 5);
+// each range is the full spread of the 35:
+//   clean tree, nothing departs          0.08-0.20 s wall  (0.10-0.25 s CPU)
+//   200 departures, gone from both       0.98-2.53 s wall  (1.04-2.72 s CPU)
+//   200 departures, gone from 1 surface  0.51-1.55 s wall  (0.56-1.62 s CPU)
+// CPU beats wall on the clean row because Node starts on more than 1 thread.
+// TWIN_DRIFT_UPDATE is far dearer — 7.3-10.9 s wall over 13 samples on the same machine — because it
+// scores all 893 shared lines against every line of both surfaces to build the look-alike sets. It
+// runs only when someone asks for it.
 // An earlier round measured the same 200-departure ceiling at 23-30 s, on a machine under a load
 // average of 25 to 34, before bestMatch got its candidate index — it rebuilt every candidate's
-// bigram profile on every call. Those runs are not repeated here; the numbers above are.
+// bigram profile on every call. Those runs are not comparable to the numbers above.
+//
+// CASES. scripts/check-twin-drift-cases.mjs runs this guard over 15 mutated copies of the 2
+// surfaces and checks the verdict of each, so neither direction of the rule can regress alone.
 //
 // index.html and play.html carry committed NUL bytes; Node readFileSync(...,"utf8") reads them fine
 // (shell grep would need -a). ROOT resolves relative to THIS file so the check relocates into a
@@ -105,7 +125,8 @@ const fail = (msg) => failures.push(msg);
 // Caches for bestMatch(), declared here because the top-level comparison in section 4 runs before
 // the helpers section and `const` does not hoist. See the helpers for what they hold.
 const CAND_INDEX = new Map(); // surface.file -> candidate lines, sorted by length, bigrams prebuilt
-const MATCH_MEMO = new Map(); // "<file> <text>" -> the bestMatch result for that pair
+const ALL_INDEX = new Map(); // surface.file -> EVERY line of the surface, same shape. Refresh only.
+const MATCH_MEMO = new Map(); // "<file> <baseline hash> <text>" -> the bestMatch result for that ask
 
 // ---------------------------------------------------------------------------
 // 1. read both surfaces and blank the GENERATED regions
@@ -228,13 +249,24 @@ const occIdx = sharedNow.reduce((n, h) => n + nIdx(h), 0);
 const occPlay = sharedNow.reduce((n, h) => n + nPlay(h), 0);
 
 // A baseline entry is
-//   "<hash> <occurrences in index.html> <occurrences in play.html> <the stripped line>".
-// Encoding the counts and the text INTO the line list means the stored digest covers them too, and
-// the hash is a checksum of the text: the reader re-hashes the text and refuses an entry whose hash
-// does not describe it, so the stored text cannot be hand-swapped for a friendlier line.
-const entryOf = (h) => `${h} ${nIdx(h)} ${nPlay(h)} ${IDX.sig.get(h).text}`;
-const nowEntries = sharedNow.map(entryOf);
-const digest = createHash("sha256").update(nowEntries.join("\n")).digest("hex").slice(0, 32);
+//   "<hash> <occ in index.html> <occ in play.html> <look-alikes in index.html> <look-alikes in
+//    play.html> <the stripped line>",
+// each look-alike field being "-" or a comma-separated list of hashes.
+// Encoding the counts, the look-alikes and the text INTO the line list means the stored digest
+// covers them too, and the hash is a checksum of the text: the reader re-hashes the text and refuses
+// an entry whose hash does not describe it, so the stored text cannot be hand-swapped for a
+// friendlier line.
+//
+// THE LOOK-ALIKE SET is every OTHER line already on that surface that scores DRIFT_SIMILARITY or
+// more against this line. It is the guard's memory of what the tree looked like when the baseline
+// was written, and section 4b needs it: a "replacement" that was already there replaces nothing.
+// It is written at refresh only, because it costs a full scan of both surfaces per baseline line.
+const lookOf = (h, surface) => {
+  const out = lookAlikes(IDX.sig.get(h).text, h, surface);
+  return out.length ? out.join(",") : "-";
+};
+const entryOf = (h) =>
+  `${h} ${nIdx(h)} ${nPlay(h)} ${lookOf(h, IDX)} ${lookOf(h, PLAY)} ${IDX.sig.get(h).text}`;
 
 // Every figure docs/twin-drift.md quotes about the shared set is printed here, so the document can
 // be re-verified with one command instead of trusted:
@@ -267,16 +299,21 @@ if (process.env.TWIN_DRIFT_STATS) {
 // 3. refresh mode
 // ---------------------------------------------------------------------------
 if (process.env.TWIN_DRIFT_UPDATE) {
+  const nowEntries = sharedNow.map(entryOf);
+  const digest = createHash("sha256").update(nowEntries.join("\n")).digest("hex").slice(0, 32);
   const next = {
     _comment: [
       "Baseline for scripts/check-twin-drift.mjs — the hand-maintained duplication between",
       "index.html and play.html. `count` is a RATCHET: extraction may lower it freely, new",
       "duplication may not raise it silently. Each `lines` entry is `<hash> <n in index.html>",
-      "<n in play.html> <the line>`, where the hash is a 16-hex sha256 of the stripped line and the",
-      "guard re-hashes the text to prove the two agree. The per-surface counts matter: a line that",
-      "appears twice in one file can be edited in one place and still be present. The text matters:",
-      "without it the guard cannot tell a real extraction from a line that both surfaces replaced",
-      "with DIFFERENT text. Do not hand edit this file.",
+      "<n in play.html> <look-alikes in index.html> <look-alikes in play.html> <the line>`, where the",
+      "hash is a 16-hex sha256 of the stripped line and the guard re-hashes the text to prove the two",
+      "agree. The per-surface counts matter: a line that appears twice in one file can be edited in",
+      "one place and still be present. The text matters: without it the guard cannot tell a real",
+      "extraction from a line that both surfaces replaced with DIFFERENT text. The look-alike sets",
+      "matter: they are the hashes of the lines that ALREADY resembled this one when the baseline was",
+      "written, and without them the guard reads one of those as a `replacement` and fails a plain",
+      "mirrored deletion. `-` means none. Do not hand edit this file.",
       "Refresh deliberately with: TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs",
       "Ranked extraction plan: docs/twin-drift.md",
     ].join(" "),
@@ -322,22 +359,30 @@ const baseCount = new Map();
 // hash -> the stripped text of that line, as it stood when the baseline was written. Section 4b
 // needs it: a line gone from BOTH surfaces has no text left in either file to compare against.
 const baseText = new Map();
-const ENTRY = /^([0-9a-f]{16}) ([1-9][0-9]*) ([1-9][0-9]*) (.+)$/;
+// hash -> { "index.html": Set of hashes, "play.html": Set of hashes } — the lines that already
+// looked like this one when the baseline was written. Section 4b subtracts them from the candidate
+// replacements, which is the whole difference between a mirrored deletion and a divergent edit.
+const baseLook = new Map();
+const HASHES = "(?:-|[0-9a-f]{16}(?:,[0-9a-f]{16})*)";
+const ENTRY = new RegExp(`^([0-9a-f]{16}) ([1-9][0-9]*) ([1-9][0-9]*) (${HASHES}) (${HASHES}) (.+)$`);
+const hashSet = (field) => new Set(field === "-" ? [] : field.split(","));
 let mismatched = 0;
 for (const raw of baseLines) {
   const m = ENTRY.exec(String(raw).trimEnd());
   if (!m) continue;
   // The hash is the checksum of the text. An entry whose text does not hash to its own hash was
   // hand edited, and every rule below would then be measuring the wrong line.
-  if (hash(m[4]) !== m[1]) { mismatched++; continue; }
+  if (hash(m[6]) !== m[1]) { mismatched++; continue; }
   baseCount.set(m[1], [Number(m[2]), Number(m[3])]);
-  baseText.set(m[1], m[4]);
+  baseText.set(m[1], m[6]);
+  baseLook.set(m[1], { "index.html": hashSet(m[4]), "play.html": hashSet(m[5]) });
 }
 if (baseCount.size !== baseLines.length) {
   fail(
     `baseline has ${baseLines.length - baseCount.size} unusable "lines" entries ` +
       `(${relative(ROOT, BASELINE)}), ${mismatched} of them because the stored text does not hash\n` +
-      `      to the stored hash. Each entry must be "<16-hex hash> <n index> <n play> <the line>".\n` +
+      `      to the stored hash. Each entry must be "<16-hex hash> <n index> <n play>\n` +
+      `      <look-alikes in index.html> <look-alikes in play.html> <the line>".\n` +
       `      Regenerate: TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs`
   );
   report();
@@ -416,11 +461,11 @@ if (sharedNow.length > baseTotal) {
 // --- 4b. departures: DRIFT / one-sided DELETION / DIVERGENCE (fail) vs EXTRACTION (allowed) ---
 // A baseline line can leave the shared set four ways.
 //   DRIFT       the line is still on both surfaces, but one side EDITED it. The keeper still carries
-//               the original; the mover carries a near-identical variant.
-//   DELETION    the line is gone from one surface and still LIVE on the other, and nothing
-//               near-identical replaced it. The code did not move — one engine stopped doing it and
-//               the other did not. Calling that "deduplication" was a lie: it IS drift.
-//   DIVERGENCE  the line is gone from BOTH surfaces, and EACH surface now carries its own
+//               the original; the mover carries a NEW near-identical variant.
+//   DELETION    the line is gone from one surface and still LIVE on the other, and no NEW
+//               near-identical line replaced it. The code did not move — one engine stopped doing it
+//               and the other did not. Calling that "deduplication" was a lie: it IS drift.
+//   DIVERGENCE  the line is gone from BOTH surfaces, and EACH surface now carries its own NEW
 //               near-identical replacement, and the 2 replacements look like each other as well.
 //               Two replacements that survive that test are always DIFFERENT from each other:
 //               identical replacements would be in the shared set, and candidatesOf() excludes every
@@ -439,6 +484,21 @@ if (sharedNow.length > baseTotal) {
 // once against each surface, PLUS the same test between the 2 replacements themselves. The baseline
 // therefore has to store the departed line's TEXT: nothing in either file carries it any more.
 //
+// NEW IS PART OF THE RULE, and leaving it out is what made the guard fail correct work. A candidate
+// replacement only counts if its text was NOT already on that surface when the baseline was
+// written — that is what baseLook holds. Deleting a twin block from both surfaces and editing a twin
+// divergently on both surfaces produce trees that differ in exactly one way: the divergent edit ADDS
+// text. Every other signal is shared between them. Without the look-alike sets the guard matched a
+// departing twin against whatever coincidentally survived, and coincidences are not rare in a
+// 26,000-line house style: 796 look-alike pairs already exist over the 893 baseline lines. Deleting
+// the block ranges docs/twin-drift.md itself recommends, from BOTH surfaces, then failed 4 of its
+// own 9 planned extractions —
+//   row 1 "Resize and crop geometry" 2 false divergences, row 3 one, row 7 three, row 8 two.
+// Row 1 is the plainest case there is (sig = deletes = 25, a pure mirrored removal), and the guard
+// called it divergence, naming as the "replacements" 2 canvas lines that had been sitting at
+// index.html:7084 and play.html:9744 all along. scripts/twin-drift-sandbox.mjs holds all 9, and the
+// look-alike sets take all 9 to exit 0 while the divergent-edit case still exits 1.
+//
 // WHAT THAT RULE STILL LETS THROUGH, and why. The 3-way test is deliberately narrow. A departure
 // where only ONE surface keeps a near-identical line does NOT fail. It looks like divergence in
 // principle — 1 engine edited the work, the other stopped doing it — and an earlier draft of this
@@ -452,7 +512,9 @@ if (sharedNow.length > baseTotal) {
 // A guard that fails a correct extraction is a guard that gets bypassed. So a
 // single-sided match alone is not enough; the 2 replacements must also look like each other, which
 // is what makes them 2 versions of ONE line instead of 2 coincidences. The blind spot is real and
-// docs/twin-drift.md states it.
+// docs/twin-drift.md states it. Note that the look-alike sets close that particular case as well —
+// both banners are in each other's set — but condition 3 stays, because it is the cheaper guarantee
+// and it does not depend on the baseline being fresh.
 //
 // GEN_LINES IS NOT AN EXEMPTION FROM ANYTHING. Presence of the same text inside the generated
 // bundle is a property of the tree TODAY, not evidence that anything moved: 131 of the 893 baseline
@@ -481,8 +543,8 @@ if (left.length > MAX_CLASSIFY) {
     if (!inIdx && !inPlay) {
       // Gone from BOTH hand-maintained surfaces. Extraction ONLY IF the surfaces still agree.
       const was = baseText.get(h);
-      const repIdx = bestMatch(was, IDX);
-      const repPlay = bestMatch(was, PLAY);
+      const repIdx = bestMatch(was, IDX, h);
+      const repPlay = bestMatch(was, PLAY, h);
       if (repIdx && repPlay) {
         const pair = dice(bigrams(repIdx.text), bigrams(repPlay.text));
         if (pair >= DRIFT_SIMILARITY) { diverged.push({ was, repIdx, repPlay, pair }); continue; }
@@ -495,7 +557,7 @@ if (left.length > MAX_CLASSIFY) {
     const mover = inIdx ? PLAY : IDX;
     const text = (inIdx || inPlay).text;
     const at = (inIdx || inPlay).at[0];
-    const cand = bestMatch(text, mover);
+    const cand = bestMatch(text, mover, h);
     if (cand) { drifted.push({ keeper, mover, text, at, cand }); continue; }
     removed.push({ keeper, mover, text, at });
   }
@@ -597,7 +659,7 @@ if (removed.length) {
 
 if (dropped.length) {
   const shown = dropped.slice(0, 12).map((d, i) => {
-    const cand = bestMatch(d.text, d.mover);
+    const cand = bestMatch(d.text, d.mover, d.h);
     const where = d.mover.sig.get(d.h).at.join(", ");
     return (
       `      ${i + 1}. ${d.mover.file} went from ${d.was[d.mover === IDX ? 0 : 1]} to ` +
@@ -717,11 +779,41 @@ function candidatesOf(mover) {
   for (const [h, e] of mover.sig) {
     // A shared line is a twin in its own right, not the replacement we are hunting.
     if (sharedNowSet.has(h)) continue;
-    list.push({ text: e.text, line: e.at[0], len: e.text.length, grams: bigrams(e.text) });
+    list.push({ h, text: e.text, line: e.at[0], len: e.text.length, grams: bigrams(e.text) });
   }
   list.sort((x, y) => x.len - y.len || x.line - y.line);
   CAND_INDEX.set(mover.file, list);
   return list;
+}
+
+// EVERY line of a surface, in the same shape. Refresh mode only: the look-alike set has to remember
+// the shared lines too, because a line that is shared today can stop being shared tomorrow and would
+// then become a candidate replacement for a departing twin.
+function allOf(surface) {
+  let list = ALL_INDEX.get(surface.file);
+  if (list) return list;
+  list = [];
+  for (const [h, e] of surface.sig) {
+    list.push({ h, text: e.text, line: e.at[0], len: e.text.length, grams: bigrams(e.text) });
+  }
+  list.sort((x, y) => x.len - y.len || x.line - y.line);
+  ALL_INDEX.set(surface.file, list);
+  return list;
+}
+
+// Every OTHER line on `surface` that already scores DRIFT_SIMILARITY or more against `text`.
+// Written into the baseline at refresh; read by section 4b as "these are not replacements, they
+// were here first". Sorted, so the baseline entry is stable between runs.
+function lookAlikes(text, selfHash, surface) {
+  const aGrams = bigrams(text);
+  const list = allOf(surface);
+  const hi = text.length * 1.7;
+  const out = [];
+  for (let i = lowerBound(list, text.length * 0.6); i < list.length && list[i].len <= hi; i++) {
+    if (list[i].h === selfHash) continue;
+    if (dice(aGrams, list[i].grams) >= DRIFT_SIMILARITY) out.push(list[i].h);
+  }
+  return out.sort();
 }
 
 // First index in the length-sorted list whose len >= target.
@@ -735,18 +827,24 @@ function lowerBound(list, target) {
   return lo;
 }
 
-// Find the line in `mover` that looks like an edited copy of `text`.
-// A candidate must not itself be in the shared set and must be within a plausible length band of
-// the original. Results are memoised: the occurrence-drift report asks for the same match again.
-function bestMatch(text, mover) {
-  const key = mover.file + "\u0000" + text;
+// Find the line in `mover` that looks like an edited copy of the baseline line `baseHash`, whose
+// stored text is `text`. A candidate must not itself be in the shared set, must be within a
+// plausible length band of the original, and must be NEW: a line that already looked like this one
+// when the baseline was written replaces nothing, it was there first. Results are memoised per
+// (surface, baseline line), because the occurrence-drift report asks for the same match again.
+function bestMatch(text, mover, baseHash) {
+  const key = mover.file + "\u0000" + baseHash + "\u0000" + text;
   if (MATCH_MEMO.has(key)) return MATCH_MEMO.get(key);
+  // The look-alike set the baseline stored for THIS line on THIS surface: text that was already
+  // here when the baseline was written, and that therefore replaced nothing.
+  const already = (baseLook.get(baseHash) || {})[mover.file] || new Set();
   const aGrams = bigrams(text);
   const list = candidatesOf(mover);
   const hi = text.length * 1.7;
   let best = null;
   for (let i = lowerBound(list, text.length * 0.6); i < list.length && list[i].len <= hi; i++) {
     const c = list[i];
+    if (already.has(c.h)) continue;
     const r = dice(aGrams, c.grams);
     if (r < DRIFT_SIMILARITY) continue;
     if (!best || r > best.ratio || (r === best.ratio && c.line < best.line)) {

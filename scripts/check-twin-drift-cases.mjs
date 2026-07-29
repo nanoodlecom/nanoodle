@@ -1,0 +1,299 @@
+#!/usr/bin/env node
+// The SANDBOX MATRIX for scripts/check-twin-drift.mjs: 15 mutations of the 2 engine surfaces, each
+// with the verdict the guard must return. It copies index.html, play.html, the guard and the
+// baseline into a scratch directory, mutates the copies, runs the guard there, and compares its exit
+// code and its per-rule counts against this file. Nothing here touches the working tree.
+//
+// WHY IT EXISTS. This guard has 2 failure directions and they pull against each other:
+//   it must FAIL a 2-sided DIVERGENT edit (each surface keeps its own version of one twin), and
+//   it must PASS a 2-sided mirrored DELETION (both surfaces drop the same twins — an extraction).
+// A change that fixes one direction can silently break the other. The first divergence rule did
+// exactly that: it failed 4 of the 9 extractions docs/twin-drift.md itself plans, including row 1,
+// where sig = deletes = 25 and the deletion is perfectly mirrored. Both directions are in the table
+// below, so neither can regress unnoticed.
+//
+// HOW A MUTATION IS WRITTEN. Line ranges are 1-based and inclusive, on the file as committed. The
+// deletions are the block ranges of the work list in docs/twin-drift.md, so this matrix also proves
+// that the ranges that document publishes really are mirrored pairs. Three of them were not, and the
+// guard is what found it — see the row notes.
+//
+// Offline. No network, no API spend, no writes outside the scratch directory.
+//   node scripts/check-twin-drift-cases.mjs
+
+import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, rmSync, copyFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { resolve, dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { tmpdir } from "node:os";
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+// A case is { name, why, idx, play, edits, expect }.
+//   idx / play  line ranges to DELETE from that surface, [from, to] inclusive, 1-based.
+//   edits       [{ file, line, from, to }] — an exact-text replacement, so a shifted line fails loud
+//               instead of editing the wrong code.
+//   expect      { exit, divergence, drift, oneSided, occurrence, growth } — every rule's count. A
+//               missing key means 0.
+const CASES = [
+  {
+    name: "clean tree",
+    why: "no mutation at all: the committed tree must be silent",
+    expect: { exit: 0 },
+  },
+
+  // ---- the 9 planned extractions of docs/twin-drift.md, deleted from BOTH surfaces ----------
+  {
+    name: "extract row 1 — resize and crop geometry",
+    why: "sig = deletes = 25, the plainest mirrored removal in the plan",
+    idx: [[6882, 6942]],
+    play: [[7323, 7358], [8803, 8817]],
+    expect: { exit: 0 },
+  },
+  {
+    name: "extract row 2 — maskToSource",
+    why: "5 twins, already exported from browser.mjs",
+    idx: [[7165, 7183]],
+    play: [[7301, 7319]],
+    expect: { exit: 0 },
+  },
+  {
+    name: "extract row 3 — encodeWavMono + mediaFetchError",
+    why: "index.html range ends at 9084, not 9070: play.html:6497-6614 carries the twins of " +
+      "trimAudioToWavUrl and extractAudioToWavUrl too, and the shorter range left them one-sided",
+    idx: [[9009, 9084]],
+    play: [[6497, 6614]],
+    expect: { exit: 0 },
+  },
+  {
+    name: "extract row 4 — prompt-cap helpers",
+    why: "9 twins, library copy already in the bundle",
+    idx: [[4169, 4219]],
+    play: [[7861, 7910]],
+    expect: { exit: 0 },
+  },
+  {
+    name: "extract row 5 — pricing resolver",
+    why: "68 twins, and 1 of them is a line index.html carries twice",
+    idx: [[5537, 5681]],
+    play: [[5910, 6039]],
+    expect: { exit: 0 },
+  },
+  {
+    name: "extract row 6 — MP4CAT",
+    why: "123 twins leave at once — the largest single mirrored deletion in the plan",
+    idx: [[9099, 9376]],
+    play: [[6657, 6934]],
+    expect: { exit: 0 },
+  },
+  {
+    name: "extract row 7 — local media recorder path",
+    why: "play.html ranges corrected to 6616-6621 / 6649-6656 / 6935-7148. The old 6616-6660 " +
+      "swallowed toLocalMediaUrl, seekVideo and MP4CAT's first 4 lines, and the old 6960-7150 " +
+      "started AFTER prepClip and recordClip, whose index.html twins are inside 9378-9630",
+    idx: [[9378, 9630]],
+    play: [[6616, 6621], [6649, 6656], [6935, 7148]],
+    expect: { exit: 0 },
+  },
+  {
+    name: "extract row 8 — share packer, card and shorteners",
+    why: "the one planned extraction that cannot be silent, and the guard is right. 5 twins have " +
+      "their OTHER copy in unrelated code on one surface only, so deleting the 2 share blocks " +
+      "leaves each of them live on exactly 1 surface:\n" +
+      "        index.html:10714,10716 inline play.html's explicitLang() (play.html:11362-11375)\n" +
+      "        index.html:10631,10636 twin play.html:9745,9752, a thumbnail helper outside the block\n" +
+      "        play.html:13056 twins index.html:7937,8018, the canvas fit bounds\n" +
+      "      Plus 1 occurrence drift: index.html carries the noodle_lang read twice (3759 and 10715)\n" +
+      "      and play.html twice, and only index.html's second copy is inside the block.\n" +
+      "      Whoever does row 8 refreshes the baseline as part of it — deliberately, which is what\n" +
+      "      the guard's own remedy line asks for",
+    idx: [[10614, 10930]],
+    play: [[12804, 13123]],
+    expect: { exit: 1, oneSided: 5, occurrence: 1 },
+  },
+  {
+    name: "extract row 9 — share-menu wiring",
+    why: "play.html ranges corrected to 13262 / 13344-13396 / 13500. The old 13262-13500 swallowed " +
+      "the whole agent-pill popover (13264-13343) and the model-picker search, which index.html " +
+      "keeps at 11583-11599 and 10369",
+    idx: [[11043, 11083]],
+    play: [[13262, 13262], [13344, 13396], [13500, 13500]],
+    expect: { exit: 0 },
+  },
+
+  // ---- the drift the guard exists to catch ---------------------------------------------------
+  {
+    name: "2-sided DIVERGENT edit",
+    why: "each surface keeps its OWN version of one twin. The twin leaves both surfaces, exactly " +
+      "like an extraction, and only the NEW text on each side separates the 2 cases",
+    edits: [
+      {
+        file: "index.html",
+        line: 9292,
+        from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
+        to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durIDX, 0);",
+      },
+      {
+        file: "play.html",
+        line: 6850,
+        from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
+        to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durPLAY, 0);",
+      },
+    ],
+    expect: { exit: 1, divergence: 1 },
+  },
+  {
+    name: "1-sided edit",
+    why: "the original case: index.html moves, play.html does not",
+    edits: [
+      {
+        file: "index.html",
+        line: 9292,
+        from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
+        to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durIDX, 0);",
+      },
+    ],
+    expect: { exit: 1, drift: 1 },
+  },
+  {
+    name: "1-sided deletion",
+    why: "play.html stops doing the work, index.html still does it, and nothing replaced it",
+    play: [[6850, 6850]],
+    expect: { exit: 1, oneSided: 1 },
+  },
+  {
+    name: "correctly MIRRORED edit",
+    why: "both surfaces move to the SAME new text: the count holds, so the guard only asks for a " +
+      "baseline refresh",
+    edits: [
+      {
+        file: "index.html",
+        line: 9292,
+        from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
+        to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durTicks, 0);",
+      },
+      {
+        file: "play.html",
+        line: 6850,
+        from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
+        to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durTicks, 0);",
+      },
+    ],
+    expect: { exit: 0 },
+  },
+  {
+    name: "new duplication",
+    why: "a line that lives only in index.html is pasted into play.html as well — the ratchet",
+    edits: [
+      {
+        file: "play.html",
+        line: 6850,
+        from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
+        to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);\n" +
+          "    // Seek a <video> to a time and resolve once that frame is decoded and drawable. Falls back",
+      },
+    ],
+    expect: { exit: 1, growth: 1 },
+  },
+];
+
+// Every rule the guard can fail on, and the heading it prints. The counts are read back out of the
+// guard's own output, so a renamed heading fails this matrix instead of quietly matching nothing.
+const RULES = [
+  ["divergence", /TWIN DIVERGENCE — (\d+) line/],
+  ["drift", /TWIN DRIFT — (\d+) line/],
+  ["oneSided", /ONE-SIDED DELETION — (\d+) line/],
+  ["occurrence", /TWIN DRIFT \(occurrence count\) — (\d+) shared line/],
+  ["growth", /duplication went UP/],
+];
+
+const SURFACES = ["index.html", "play.html"];
+const GUARD = "check-twin-drift.mjs";
+const BASE = "twin-drift-baseline.json";
+
+function build(dir, c) {
+  mkdirSync(join(dir, "scripts"), { recursive: true });
+  for (const f of [GUARD, BASE]) copyFileSync(join(ROOT, "scripts", f), join(dir, "scripts", f));
+  const lines = {};
+  for (const f of SURFACES) lines[f] = readFileSync(join(ROOT, f), "utf8").split("\n");
+  for (const e of c.edits || []) {
+    const at = lines[e.file][e.line - 1];
+    if (at !== e.from) {
+      throw new Error(
+        `${c.name}: ${e.file}:${e.line} is not the line this case edits.\n` +
+          `  expected: ${e.from}\n  found:    ${at}\n` +
+          `  The file moved. Re-anchor the case on the line it means to edit.`
+      );
+    }
+    lines[e.file][e.line - 1] = e.to;
+  }
+  for (const [f, ranges] of [["index.html", c.idx], ["play.html", c.play]]) {
+    if (!ranges) continue;
+    const kill = new Set();
+    for (const [a, b] of ranges) for (let n = a; n <= b; n++) kill.add(n);
+    lines[f] = lines[f].filter((_, i) => !kill.has(i + 1));
+  }
+  for (const f of SURFACES) writeFileSync(join(dir, f), lines[f].join("\n"));
+}
+
+function runGuard(dir) {
+  try {
+    const out = execFileSync("node", [join(dir, "scripts", GUARD)], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    return { exit: 0, out };
+  } catch (e) {
+    if (e.status === undefined) throw e;
+    return { exit: e.status, out: (e.stdout || "") + (e.stderr || "") };
+  }
+}
+
+let failed = 0;
+const t0 = Date.now();
+for (const c of CASES) {
+  const dir = mkdtempSync(join(tmpdir(), "twin-drift-case-"));
+  let got;
+  try {
+    build(dir, c);
+    got = runGuard(dir);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+  const want = c.expect;
+  const bad = [];
+  if (got.exit !== want.exit) bad.push(`exit ${got.exit}, expected ${want.exit}`);
+  for (const [key, re] of RULES) {
+    const m = re.exec(got.out);
+    const n = m ? (m[1] === undefined ? 1 : Number(m[1])) : 0;
+    if (n !== (want[key] || 0)) bad.push(`${key} ${n}, expected ${want[key] || 0}`);
+  }
+  if (bad.length) {
+    failed++;
+    console.error(`✗ ${c.name}\n    ${bad.join("\n    ")}\n    why this case exists: ${c.why}`);
+    console.error(
+      got.out
+        .split("\n")
+        .map((l) => "    | " + l)
+        .join("\n")
+    );
+  } else {
+    const shape = [`exit ${want.exit}`]
+      .concat(RULES.filter(([k]) => want[k]).map(([k]) => `${k} ${want[k]}`))
+      .join(", ");
+    console.log(`✓ ${c.name.padEnd(46)} ${shape}`);
+  }
+}
+
+const secs = ((Date.now() - t0) / 1000).toFixed(1);
+if (failed) {
+  console.error(
+    `\n✗ check-twin-drift-cases: ${failed} of ${CASES.length} case(s) returned the wrong verdict ` +
+      `(${secs}s).\n` +
+      `  A case that now FAILS where it used to pass means the guard cries wolf on correct work,\n` +
+      `  which is how a guard gets bypassed. A case that now PASSES where it used to fail means the\n` +
+      `  guard has a hole. Fix the guard, not the table — or state in docs/twin-drift.md why the\n` +
+      `  verdict changed.\n`
+  );
+  process.exit(1);
+}
+console.log(`✓ twin-drift cases: ${CASES.length} verdicts, all as expected (${secs}s)`);
