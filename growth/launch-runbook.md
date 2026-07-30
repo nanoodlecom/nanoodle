@@ -1,5 +1,11 @@
 # Repo launch runbook (repeatable, ~1 day per launch)
 
+> **Not the file you want for the four launches that are pending right now.**
+> This runbook covers *future repo* launches (mp4cat, nanoodle-mcp, awesome-noodles,
+> nanolink — the table at the bottom). For the four drafted-and-waiting posts
+> (AlternativeTo, r/mcp, Show HN, Product Hunt) use `launch-checklist.md`, which
+> holds the exact paste-ready copy. Added 2026-07-28.
+
 Rev 1 — 2026-07-11. Companion to `plan-q3-distribution.md` Phase 2
 ("write once, ~1 day per launch"). Every public-repo launch walks this list
 top to bottom; no silent launches. This folder is public — the checklist is
