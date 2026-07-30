@@ -22,6 +22,12 @@ jobs:
           repository: nanoodlecom/nanoodle-js
           path: nanoodle-js-sibling
 
+      - name: Checkout nanoodle-py (llms-full.txt source)
+        uses: actions/checkout@v4
+        with:
+          repository: nanoodlecom/nanoodle-py
+          path: nanoodle-py-sibling
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -45,3 +51,13 @@ jobs:
             fails=$((fails+1))
           fi
           exit $fails
+
+      # The pre-commit guard can only diff the sections llms-full.txt takes from THIS
+      # repo; the two library sections need the sibling READMEs. Here they are checked
+      # out fresh, so this is the check that catches a library README moving on without
+      # a regeneration. Reads the siblings from disk — no clone, no network.
+      - name: llms-full.txt matches the library READMEs
+        env:
+          NANOODLE_JS: ${{ github.workspace }}/nanoodle-js-sibling
+          NANOODLE_PY: ${{ github.workspace }}/nanoodle-py-sibling
+        run: node scripts/gen-llms-full.mjs --check
