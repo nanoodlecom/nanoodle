@@ -27,7 +27,7 @@ them again if you edit either one.
 since Jul 10) in the listing's links section; PH surfaces it as an "Open Source"
 badge and it pre-answers the trust question. The whole org is public (13 public
 repos at https://github.com/nanoodlecom): headless runners on npm (`nanoodle`
-0.8.0) and PyPI (`nanoodle` 0.4.0), an MCP server (`nanoodle-mcp` 0.4.0 on npm)
+0.8.0) and PyPI (`nanoodle` 0.5.0), an MCP server (`nanoodle-mcp` 0.4.0 on npm)
 and a GitHub Action (run-noodle-action) — worth a line in the description or
 first comment for the developer crowd.
 *Version numbers verified 2026-07-28. Re-check with `npm view nanoodle version`
