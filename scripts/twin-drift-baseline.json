@@ -1,9 +1,9 @@
 {
   "_comment": "Baseline for scripts/check-twin-drift.mjs — the hand-maintained duplication between index.html and play.html. `count` is a RATCHET: extraction may lower it freely, new duplication may not raise it silently. Each `lines` entry is `<hash> <n in index.html> <n in play.html> <look-alikes in index.html> <look-alikes in play.html> <the line>`, where the hash is a 16-hex sha256 of the stripped line and the guard re-hashes the text to prove the two agree. The per-surface counts matter: a line that appears twice in one file can be edited in one place and still be present. The text matters: without it the guard cannot tell a real extraction from a line that both surfaces replaced with DIFFERENT text. The look-alike sets matter: they are the hashes of the lines that ALREADY resembled this one when the baseline was written, and without them the guard reads one of those as a `replacement` and fails a plain mirrored deletion. `-` means none. Do not hand edit this file. Refresh deliberately with: TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs Ranked extraction plan: docs/twin-drift.md",
   "count": 893,
-  "occurrencesIndexHtml": 957,
+  "occurrencesIndexHtml": 958,
   "occurrencesPlayHtml": 1011,
-  "digest": "b91154f85775b585c4a65d8d632a5f47",
+  "digest": "e160a17b39b786e49005c7a2126fc56b",
   "lines": [
     "002720750bb5da1d 1 1 - - Emphasized (bright accent ring + ✓) but still clearly a button in the row, not a filled tag. */",
     "00a12dd8e0743550 1 1 - - const all = (Array.isArray(samples) ? samples : []).filter(s=> s && typeof s.v===\"string\");",
@@ -70,7 +70,7 @@
     "131772d60e79e918 1 1 - - if(p.per_duration){ const k=Object.keys(p.per_duration)[0]; if(k && isFinite(+k)) return +k; }",
     "136c2ba28a3514e5 1 1 - - shrunk.push(v === s.v ? s : { ...s, v });",
     "13a55953e270c416 1 1 - - const tiers = [{ s:all, stripped:null }];",
-    "13bf56b401845707 1 1 - - async genVideo(model, prompt, opts, imageDataUrl, onProgress){",
+    "13bf56b401845707 2 1 - - async genVideo(model, prompt, opts, imageDataUrl, onProgress){",
     "14353c8a9ec6cdb3 1 2 - - const rand = (n)=>b64url(crypto.getRandomValues(new Uint8Array(n)));",
     "146a7f7524cfee31 1 1 - - if(p.per_generation!=null) return _num(p.per_generation);",
     "149e340bf7697a50 1 1 - - throw new Error(\"CivitAI links can't be fetched directly — download the .safetensors and re-host it (e.g. on HuggingFace), then paste that URL.\");",
@@ -847,7 +847,7 @@
     "f2a11776c87781a7 2 2 - - if(raw[k]){ v=pickByRes(raw[k], res, defRes); if(v!=null) return v*dur; }",
     "f3753f27e4cc1a7d 1 1 - - else if(fmt===\"x-wav\" || fmt===\"wave\") fmt = \"wav\";",
     "f3ad386ac884c309 1 1 - - const NJS_TYPES = { llm:1, vision:1, image:1, edit:1, inpaint:1, tvideo:1, ivideo:1, vedit:1, lipsync:1, music:1, tts:1, remix:1, transcribe:1 };",
-    "f41097131bdb8b86 1 2 - - if(!r.ok) throw new Error(\"register \"+r.status);",
+    "f41097131bdb8b86 1 2 b29365ebbbe290c1 - if(!r.ok) throw new Error(\"register \"+r.status);",
     "f43f6f9b1275ef58 1 1 - - if(typeof MediaRecorder === \"undefined\") throw new Error(\"this browser can’t record video (no MediaRecorder)\");",
     "f4410ede37897987 1 1 - - const r = await fetch(\"https://da.gd/shorten\", { method:\"POST\",",
     "f48f74ca1120b4a6 1 1 8bca111c0612bd5b 8bca111c0612bd5b try{ opts = { audioDataUrl: await urlToDataUrl(tmp) }; } finally { URL.revokeObjectURL(tmp); }",
@@ -897,6 +897,6 @@
     "ff95f3dedfe97e80 1 1 - - email:    `mailto:?subject=${ti}&body=${et}%0A%0A${eu}`,",
     "ff9601592f311d6d 1 1 - - const PROMPT_TOO_LONG_RE = /(?:shorten (?:it )?to|keep it under|at most|maximum of|limit of)\\s*([\\d,]{2,})\\s*characters/i;",
     "ff9cbe9df52f83ee 2 1 - ce7e4133cabaa6ba const keep = ac.createConstantSource(); keep.offset.value = 0; keep.connect(dest); keep.start();",
-    "ff9da164ae5801c5 1 1 701cc0c09cc321be d47f6dda1839565b return await new Promise((res, rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=()=>rej(new Error(\"could not read media\")); fr.readAsDataURL(blob); });"
+    "ff9da164ae5801c5 1 1 4df74c231697ebe4,701cc0c09cc321be d47f6dda1839565b return await new Promise((res, rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=()=>rej(new Error(\"could not read media\")); fr.readAsDataURL(blob); });"
   ]
 }

@@ -53,7 +53,7 @@
 // line. Deleting a twin block from both surfaces and editing a twin divergently on both surfaces
 // differ in exactly ONE observable way: the divergent edit ADDS text that was not in the tree
 // before. Nothing else separates them, because coincidental look-alikes of a twin are already
-// sitting in both files (796 stored hashes over the 893 baseline lines, on 218 of them). Matching a
+// sitting in both files (798 stored hashes over the 893 baseline lines, on 219 of them). Matching a
 // departed line against whatever survives, with no memory of what was there before, reads a MIRRORED
 // DELETION as divergence: section 4b names the 4 documented extractions that failed that way.
 // A line still live on one surface always fails, even when the generated bundle happens to carry
@@ -75,22 +75,24 @@
 // TIMINGS VARY BY MACHINE AND BY LOAD, and on this evidence the LOAD MATTERS MORE THAN THE CODE.
 // Every range below is scoped to the load band it was measured in. Outside that band it says
 // nothing, and none of it is a promise about your machine. Measure your own.
-// From scripts/twin-drift-bench.mjs on 2026-07-29, on ONE shared 18-core box, 160 samples of each
-// case (32 runs of 5), with the 1-minute load average between 2.6 and 12.1 across the runs. Each
-// range is the FULL spread of the 160; the low end of every row came from the lightest-loaded runs
-// and the high end from the busiest:
-//   clean tree, nothing departs          0.13-0.57 s wall  (0.15-0.67 s CPU)
-//   200 departures, gone from both       2.07-8.21 s wall  (2.15-8.38 s CPU)
-//   200 departures, gone from 1 surface  0.98-4.64 s wall  (1.03-5.14 s CPU)
+// From scripts/twin-drift-bench.mjs on 2026-07-29, after origin/main was merged into this branch, on
+// ONE shared 18-core box, 30 samples of each case (6 runs of 5), with the 1-minute load average
+// between 3.19 and 5.68 across the runs. Each range is the FULL spread of the 30; the low end of
+// every row came from the lightest-loaded runs and the high end from the busiest:
+//   clean tree, nothing departs          0.14-0.18 s wall  (0.16-0.20 s CPU)
+//   200 departures, gone from both       1.99-3.19 s wall  (2.08-3.39 s CPU)
+//   200 departures, gone from 1 surface  0.91-1.64 s wall  (0.94-1.72 s CPU)
 // CPU beats wall on the clean row because Node starts on more than 1 thread.
-// TWIN_DRIFT_UPDATE is far dearer — 9.22-28.15 s wall over 36 samples on the same box at a load
-// average of 2.6 to 9.5 — because it scores all 893 shared lines against every line of both surfaces
-// to build the look-alike sets. It runs only when someone asks for it.
-// The sandbox matrix takes 12.2-29.9 s wall over 25 samples at a load average of 3.0 to 14.8.
-// How little of any of this is the code: while that matrix still had 15 cases it ran in 9.6-17.8 s
-// over 25 samples at a load average of 3.8 to 9.9 — and 1 further 15-case run, made while an
-// unrelated Rust build held the box at a load average of 23.5 and 6 GB into swap, took 65.9 s. Same
-// commit, same verdicts, nearly 4 times the slowest of the other 25. That is why every figure here
+// TWIN_DRIFT_UPDATE is far dearer — 9.50-11.83 s wall over 6 samples on the same box at a load
+// average of 3.63 to 4.17 — because it scores all 893 shared lines against every line of both
+// surfaces to build the look-alike sets. It runs only when someone asks for it.
+// The sandbox matrix takes 10.38-13.13 s wall over 6 samples at a load average of 3.18 to 5.19.
+// How little of any of this is the code: every range here was re-measured after that merge and every
+// one came in FASTER and NARROWER than the same commands gave before it, on identical guard code —
+// the clean tree from a 0.13-0.57 s spread at a load average of 2.6-12.1 down to 0.14-0.18 s at
+// 3.19-5.68. Nothing got faster; the box got quieter. An earlier 15-case run of the matrix, made
+// while an unrelated Rust build held the box at a load average of 23.5 and 6 GB into swap, took
+// 65.9 s — same verdicts, roughly 5 times today's slowest sample. That is why every figure here
 // carries a load band, and why you should quote your own numbers and not these.
 // An earlier round measured the same 200-departure ceiling at 23-30 s, before bestMatch got its
 // candidate index — it rebuilt every candidate's bigram profile on every call. Those runs are not
@@ -499,18 +501,18 @@ if (sharedNow.length > baseTotal) {
 // divergently on both surfaces produce trees that differ in exactly one way: the divergent edit ADDS
 // text. Every other signal is shared between them. Without the look-alike sets the guard matched a
 // departing twin against whatever coincidentally survived, and coincidences are not rare in a
-// 26,000-line house style: the baseline stores 796 look-alike hashes over the 893 lines, and 218 of
+// 26,000-line house style: the baseline stores 798 look-alike hashes over the 893 lines, and 219 of
 // those lines have at least 1 look-alike before anything is edited at all. Deleting the block ranges
 // docs/twin-drift.md itself recommends, from BOTH surfaces, then failed 4 of its own 9 planned
 // extractions —
 //   row 1 "Resize and crop geometry" 2 false divergences, row 3 one, row 7 one, row 8 two.
 // (Measured by running this guard with baseLook switched off, which is what the first rule was,
 // against the ranges the work list publishes TODAY. An earlier note said row 7 raised three. That
-// figure belongs to row 7's OLD ranges, play.html:6616-6660 + 6960-7150, which the work list no
+// figure belongs to row 7's OLD ranges, play.html:6635-6679 + 6979-7169, which the work list no
 // longer publishes; the corrected ranges raise 1. Either way the headline is 4 of the 9 rows.)
 // Row 1 is the plainest case there is (sig = deletes = 25, a pure mirrored removal), and the guard
 // called it divergence, naming as the "replacements" 2 canvas lines that had been sitting at
-// index.html:7084 and play.html:9744 all along. scripts/check-twin-drift-cases.mjs holds all 9. With
+// index.html:7130 and play.html:9763 all along. scripts/check-twin-drift-cases.mjs holds all 9. With
 // the look-alike sets those 4 rows report NOTHING, the divergent-edit case still exits 1, and 8 of
 // the 9 rows are silent. Row 8 still exits 1, and correctly: it is not divergence (that count is 0
 // on all 9 rows) but 5 ONE-SIDED DELETIONS plus 1 occurrence drift, because 5 twins inside the 2
@@ -522,10 +524,10 @@ if (sharedNow.length > baseTotal) {
 // where only ONE surface keeps a near-identical line does NOT fail. It looks like divergence in
 // principle — 1 engine edited the work, the other stopped doing it — and an earlier draft of this
 // rule failed it. Measured against a real extraction control (delete the whole MP4CAT block,
-// index.html:9099-9376 and play.html:6657-6934, 123 shared lines gone from both surfaces at once),
+// index.html:9210-9487 and play.html:6676-6953, 123 shared lines gone from both surfaces at once),
 // that draft raised a FALSE failure on 1 of the 123: the banner comment
 //   /* ---- Lossless in-browser mp4 concatenation (Combine node) -------------------------------
-// scored 0.840 against the unrelated surviving banner at index.html:9086
+// scored 0.840 against the unrelated surviving banner at index.html:9197
 //   /* ---- in-browser video concatenation (the Combine node) ---------------------------------
 // because a run of dashes carries the bigram profile and the 2 banners share their opening words.
 // A guard that fails a correct extraction is a guard that gets bypassed. So a
@@ -583,7 +585,7 @@ if (left.length > MAX_CLASSIFY) {
 }
 
 // --- 4c. OCCURRENCE counts: a line can stay "present" and still drift ------
-// Membership by presence is not enough. 74 of the 893 shared lines appear more than once inside a
+// Membership by presence is not enough. 75 of the 893 shared lines appear more than once inside a
 // surface (28 in index.html, 65 in play.html).
 // Editing 1 of 2 identical copies in index.html leaves the hash present, so nothing leaves the
 // shared set — and the pricing resolver's per_duration branch is one of those lines. Counts may only

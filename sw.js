@@ -2,6 +2,10 @@
 // Network-first for same-origin GETs (so new deploys always show when online),
 // cache fallback when offline. Cross-origin requests (the NanoGPT API) are never touched.
 const CACHE = "nanoodle-v6"; // bump this version on every release to purge stale offline caches
+// demo-sample.mp4 is deliberately NOT here. It is the signed-out sample clip, ~220 KB, and only
+// one path needs it (the starter plus an Image→Video node). Precaching it would cost every install
+// 4x the whole rest of this list for a screen most visitors never open. The fetch handler below
+// caches it on first use instead, and index.html degrades to the sign-in wall when it is missing.
 const SHELL = [
   "/", "/index.html", "/play", "/legal", "/site.webmanifest", "/noodle-graph.json", "/demo-sample.jpg",
   "/favicon.ico", "/favicon-16.png", "/favicon-32.png", "/apple-touch-icon.png", "/icon-192.png", "/icon-512.png",

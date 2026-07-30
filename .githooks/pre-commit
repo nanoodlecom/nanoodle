@@ -114,6 +114,9 @@ touches_drift=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|
 # Prompt-length caps: a wired prompt over a model's character cap must be budgeted upstream / fitted,
 # never sent to a 400 the user can't act on — and both engines must read the same generated table.
 touches_promptcaps=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-prompt-caps\.mjs)$' || true)
+# growth/ launch drafts are paste-ready public copy; index.html + README are where their figures come from.
+# growth/ is gitignored, so these paths only appear here when someone force-adds them — which is when it matters.
+touches_launchfacts=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|README\.md|growth/(launch-checklist|show-hn-draft|product-hunt-draft|launch-alternativeto|2026-07-17-ecosystem-shares|shares)\.md|scripts/check-launch-facts\.mjs)$' || true)
 
 # index.html + play.html share 893 hand-maintained identical lines (identical after the leading and
 # trailing whitespace strip); the targeted twin checks (resize/pricing/combine/cost) only pin named
@@ -132,9 +135,14 @@ touches_consent=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/ch
 # play.html bakes creator sample results into #a= shares so keyless recipients see what the app makes;
 # index.html's buildShareUrl("app") packs the same envelope (samples + lang parity, asserted by the checker).
 touches_sharesamples=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-share-samples\.mjs)$' || true)
+# llms-full.txt is generated and says "do not edit by hand", so only a re-run of the generator keeps it
+# true. It once advertised the retired draw node for days after every source had dropped it.
+touches_llmsfull=$(printf '%s\n' "$staged" | grep -E '(^|/)(llms-full\.txt|llms\.txt|README\.md|index\.html|scripts/(gen-llms-full|check-llms-full)\.mjs)$' || true)
 
-# Nothing to check unless an .html file or one of the checkers changed.
-[ -z "$staged_html" ] && [ -z "$touches_njseditor" ] && [ -z "$touches_llmgate" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_jsparity" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_langpages" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_i18n" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_lipsync" ] && [ -z "$touches_aresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && [ -z "$touches_pacing" ] && [ -z "$touches_graphpersist" ] && [ -z "$touches_graphsigs" ] && [ -z "$touches_describeapply" ] && [ -z "$touches_authlc" ] && [ -z "$touches_mediapriv" ] && [ -z "$touches_verhist" ] && [ -z "$touches_rungating" ] && [ -z "$touches_appsstorage" ] && [ -z "$touches_linkerr" ] && [ -z "$touches_deploy" ] && [ -z "$touches_hiddencss" ] && [ -z "$touches_connect" ] && [ -z "$touches_undo" ] && [ -z "$touches_costaccrue" ] && [ -z "$touches_resize" ] && [ -z "$touches_catalog" ] && [ -z "$touches_upscale" ] && [ -z "$touches_drift" ] && [ -z "$touches_promptcaps" ] && [ -z "$touches_consent" ] && [ -z "$touches_sharesamples" ] && [ -z "$touches_examples" ] && [ -z "$touches_twindrift" ] && [ -z "$touches_twindriftcases" ] && exit 0
+# Nothing to check unless an .html file, one of the checkers, or a guarded doc changed.
+# Every touches_* variable belongs in this chain — a gate left out of it never runs on a
+# commit that stages only its own files, which is exactly the commit it exists to catch.
+[ -z "$staged_html" ] && [ -z "$touches_launchfacts" ] && [ -z "$touches_njseditor" ] && [ -z "$touches_llmgate" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_jsparity" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_langpages" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_i18n" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_lipsync" ] && [ -z "$touches_aresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && [ -z "$touches_pacing" ] && [ -z "$touches_graphpersist" ] && [ -z "$touches_graphsigs" ] && [ -z "$touches_describeapply" ] && [ -z "$touches_authlc" ] && [ -z "$touches_mediapriv" ] && [ -z "$touches_verhist" ] && [ -z "$touches_rungating" ] && [ -z "$touches_appsstorage" ] && [ -z "$touches_linkerr" ] && [ -z "$touches_deploy" ] && [ -z "$touches_hiddencss" ] && [ -z "$touches_connect" ] && [ -z "$touches_undo" ] && [ -z "$touches_costaccrue" ] && [ -z "$touches_resize" ] && [ -z "$touches_catalog" ] && [ -z "$touches_upscale" ] && [ -z "$touches_drift" ] && [ -z "$touches_promptcaps" ] && [ -z "$touches_consent" ] && [ -z "$touches_sharesamples" ] && [ -z "$touches_llmsfull" ] && [ -z "$touches_examples" ] && [ -z "$touches_twindrift" ] && [ -z "$touches_twindriftcases" ] && exit 0
 if ! command -v node >/dev/null 2>&1; then
   echo "pre-commit: node not found, skipping HTML JS checks" >&2
   exit 0
@@ -499,7 +507,29 @@ if [ -n "$touches_promptcaps" ]; then
   node "$root/scripts/check-prompt-caps.mjs"
 fi
 
-# 41) TWIN DRIFT: index.html (editor) and play.html (app player + export) carry 893 hand-maintained
+# 41) LAUNCH FACTS: growth/'s four launch drafts are copy a human pastes on Hacker News, Product
+#     Hunt, AlternativeTo and Reddit. Nothing read them, so they rotted: a cleared gate was still
+#     called a blocker 11 days later, three drafts quoted package versions two releases old, and one
+#     revision claimed the 20% markup on a paid MCP call reaches the workflow's author when no
+#     published workflow claims it. Asserts every version, count and repo figure against index.html,
+#     README and the checklist's own re-check block, bans the sentences already proved false, and
+#     keeps each post body in exactly one file. Offline, no API spend.
+if [ -n "$touches_launchfacts" ]; then
+  node "$root/scripts/check-launch-facts.mjs"
+fi
+
+# 42) LLMS-FULL FRESHNESS: llms-full.txt is the single-file reference agents fetch, it is generated,
+#     and it says "do not edit by hand" — so nothing keeps it true except somebody re-running the
+#     generator. Nobody did, and it advertised the retired draw node after every source had dropped
+#     it. Offline: regenerates the sections sourced from THIS repo (llms.txt, README.md, index.html)
+#     and diffs them byte for byte, then asserts every node type named in the two libraries'
+#     supported-node tables is still registered in index.html. Regenerate with
+#     `node scripts/gen-llms-full.mjs`. CI diffs the library sections too, against fresh checkouts.
+if [ -n "$touches_llmsfull" ]; then
+  node "$root/scripts/check-llms-full.mjs"
+fi
+
+# 43) TWIN DRIFT: index.html (editor) and play.html (app player + export) carry 893 hand-maintained
 #     identical lines — identical after a leading/trailing whitespace strip, because play.html nests
 #     the same code deeper; only 415 of the 893 are byte-identical in the files. The other twin
 #     checks each pin ONE named function; nothing compared the two files as wholes, so a one-sided
@@ -520,11 +550,11 @@ fi
 #     njs-engine block is found by its data-hash, NOT by a script-tag regex that play.html's own
 #     export-builder string literal can trigger. Offline. Timings vary by machine and by load, and
 #     the load matters more than the code: each range below is scoped to the load band it was
-#     measured in and says nothing outside it. On 2026-07-29, over 160 samples of each case on a
-#     shared 18-core machine with the load average between 2.6 and 12.1, a clean tree took 0.13s to
-#     0.57s. The worst case is a refactor that moves many twins at once: at the 200-departure
-#     classification ceiling it took 2.07s to 8.21s when every departure left both surfaces, and
-#     0.98s to 4.64s when they left one. Never a hang:
+#     measured in and says nothing outside it. On 2026-07-29, over 30 samples of each case on a
+#     shared 18-core machine with the load average between 3.19 and 5.68, a clean tree took 0.14s to
+#     0.18s. The worst case is a refactor that moves many twins at once: at the 200-departure
+#     classification ceiling it took 1.99s to 3.19s when every departure left both surfaces, and
+#     0.91s to 1.64s when they left one. Never a hang:
 #     201 departures reports totals instead. Each failure list NAMES its first 12 lines and counts
 #     the rest.
 #     Refresh deliberately:
@@ -534,7 +564,7 @@ if [ -n "$touches_twindrift" ]; then
   node "$root/scripts/check-twin-drift.mjs"
 fi
 
-# 42) The sandbox matrix behind check 41. 16 mutations of index.html + play.html in a scratch copy,
+# 44) The sandbox matrix behind check 43. 16 mutations of index.html + play.html in a scratch copy,
 #     each with the verdict the guard must return: the clean tree, the 9 planned extractions of
 #     docs/twin-drift.md deleted from BOTH surfaces (8 silent, row 8 with the 5 one-sided reports it
 #     cannot avoid), a 2-sided DIVERGENT edit, a 1-sided edit, a 1-sided deletion, a correctly
@@ -542,10 +572,10 @@ fi
 #     each other: the first divergence rule failed 4 of those 9 extractions, row 1 included, where
 #     the deletion is perfectly mirrored and sig = deletes = 25. Runs when the RULES change (the
 #     guard, the baseline, or the matrix), not on every surface edit: it runs the guard 16 times over
-#     mutated copies of 1.7 MB of HTML, which took 12.2s to 29.9s wall over 25 samples on 2026-07-29
-#     at a load average of 3.0 to 14.8, against the guard's own 0.13s to 0.57s. Load dominates that
+#     mutated copies of 1.7 MB of HTML, which took 10.38s to 13.13s wall over 6 samples on 2026-07-29
+#     at a load average of 3.18 to 5.19, against the guard's own 0.14s to 0.18s. Load dominates that
 #     figure: an earlier 15-case run of the same matrix, at a load average of 23.5 and 6 GB into
-#     swap, took 65.9s against 9.6s to 17.8s for the 25 15-case runs before it.
+#     swap, took 65.9s — roughly 5 times today's slowest sample, on the same verdicts.
 if [ -n "$touches_twindriftcases" ]; then
   node "$root/scripts/check-twin-drift-cases.mjs"
 fi
