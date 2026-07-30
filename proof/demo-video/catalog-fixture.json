@@ -1,0 +1,147 @@
+{
+  "note": "Normalized catalog entries for the 3 models the covered demo path uses, read out of the app's own localStorage cache. Re-record with --capture; prices move.",
+  "captured": "2026-07-30",
+  "catalogs": {
+    "chat": [
+      {
+        "id": "zai-org/glm-5.2",
+        "name": "GLM 5.2",
+        "created": 1781481600,
+        "sortUsd": 0.00108,
+        "vision": false,
+        "nsfw": false,
+        "reasoning": true,
+        "structured_output": true,
+        "audio_input": false,
+        "video_input": false,
+        "pdf_upload": false,
+        "maxOut": 131072,
+        "promptUsd1M": 0.42000000000000004,
+        "completionUsd1M": 1.32,
+        "price": "$0.42/$1.32 ·1M"
+      }
+    ],
+    "image": [
+      {
+        "id": "nano-banana-2-lite",
+        "name": "Nano Banana 2 Lite",
+        "created": 1782777600,
+        "sortUsd": 0.04,
+        "edit": true,
+        "gen": true,
+        "inpaint": false,
+        "maxIn": 14,
+        "lora": false,
+        "resolutions": [
+          "1k"
+        ],
+        "maxOut": 4,
+        "fixedCount": 0,
+        "sizePrices": {
+          "1k": 0.04,
+          "auto": 0.04
+        },
+        "nsfw": false,
+        "price": "$0.040/img"
+      }
+    ],
+    "video": [
+      {
+        "id": "google/gemini-omni-flash",
+        "name": "Gemini Omni Flash",
+        "created": 1782777600,
+        "sortUsd": 1.04,
+        "t2v": true,
+        "i2v": true,
+        "v2v": true,
+        "avatar": false,
+        "lora": false,
+        "audioGen": false,
+        "params": {
+          "duration": {
+            "label": "Duration",
+            "description": "Video duration in seconds",
+            "type": "select",
+            "options": [
+              {
+                "value": "3",
+                "label": "3 seconds"
+              },
+              {
+                "value": "4",
+                "label": "4 seconds"
+              },
+              {
+                "value": "5",
+                "label": "5 seconds"
+              },
+              {
+                "value": "6",
+                "label": "6 seconds"
+              },
+              {
+                "value": "7",
+                "label": "7 seconds"
+              },
+              {
+                "value": "8",
+                "label": "8 seconds"
+              },
+              {
+                "value": "9",
+                "label": "9 seconds"
+              },
+              {
+                "value": "10",
+                "label": "10 seconds"
+              }
+            ],
+            "default": "8"
+          },
+          "aspect_ratio": {
+            "label": "Aspect Ratio",
+            "description": "Output aspect ratio",
+            "type": "select",
+            "options": [
+              {
+                "value": "16:9",
+                "label": "Landscape (16:9)"
+              },
+              {
+                "value": "9:16",
+                "label": "Portrait (9:16)"
+              }
+            ],
+            "default": "16:9"
+          }
+        },
+        "defaults": {
+          "duration": "8",
+          "aspect_ratio": "16:9"
+        },
+        "pricing": {
+          "currency": "USD",
+          "per_second_by_mode": {
+            "text_to_video": 0.13,
+            "image_to_video": 0.14,
+            "reference_to_video": 0.16,
+            "video_edit": 0.16
+          },
+          "default_duration": 8,
+          "supported_durations": [
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        "nsfw": false,
+        "price": "~$1.04/clip"
+      }
+    ]
+  }
+}

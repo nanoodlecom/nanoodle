@@ -1206,6 +1206,8 @@ const I18N = {
     "write a note…":"escribe una nota…",
     "remove":"quitar",
     "to run":"para ejecutar",
+    "to run for real":"para ejecutar de verdad",
+    "The sample results are canned, so this run isn’t billed. This is what running the graph on your own key costs.":"Los resultados de muestra son pregrabados, así que esta ejecución no se cobra. Esto es lo que cuesta ejecutar el flujo con tu propia clave.",
     "Estimated cost to ▶ Run all — {n} paid node":"Coste estimado de ▶ Ejecutar todo — {n} nodo de pago",
     "Estimated cost to ▶ Run all — {n} paid nodes":"Coste estimado de ▶ Ejecutar todo — {n} nodos de pago",
     ", plus {n} with no listed price":", más {n} sin precio listado",
@@ -1723,6 +1725,8 @@ const I18N = {
     "write a note…":"écrire une note…",
     "remove":"retirer",
     "to run":"pour exécuter",
+    "to run for real":"pour exécuter vraiment",
+    "The sample results are canned, so this run isn’t billed. This is what running the graph on your own key costs.":"Les résultats d’exemple sont préenregistrés, donc cette exécution n’est pas facturée. Voici ce que coûte l’exécution du graphe avec votre propre clé.",
     "Estimated cost to ▶ Run all — {n} paid node":"Coût estimé de ▶ Tout exécuter — {n} nœud payant",
     "Estimated cost to ▶ Run all — {n} paid nodes":"Coût estimé de ▶ Tout exécuter — {n} nœuds payants",
     ", plus {n} with no listed price":", plus {n} sans prix affiché",
@@ -2240,6 +2244,8 @@ const I18N = {
     "write a note…":"Notiz schreiben…",
     "remove":"entfernen",
     "to run":"zum Ausführen",
+    "to run for real":"um wirklich auszuführen",
+    "The sample results are canned, so this run isn’t billed. This is what running the graph on your own key costs.":"Die Beispielergebnisse sind vorbereitet, deshalb wird dieser Lauf nicht berechnet. So viel kostet es, den Graphen mit eigenem Schlüssel auszuführen.",
     "Estimated cost to ▶ Run all — {n} paid node":"Geschätzte Kosten für ▶ Alles ausführen — {n} kostenpflichtiger Node",
     "Estimated cost to ▶ Run all — {n} paid nodes":"Geschätzte Kosten für ▶ Alles ausführen — {n} kostenpflichtige Nodes",
     ", plus {n} with no listed price":", plus {n} ohne gelisteten Preis",
@@ -2757,6 +2763,8 @@ const I18N = {
     "write a note…":"escreva uma nota…",
     "remove":"remover",
     "to run":"para executar",
+    "to run for real":"para executar de verdade",
+    "The sample results are canned, so this run isn’t billed. This is what running the graph on your own key costs.":"Os resultados de amostra são pré-gravados, por isso esta execução não é cobrada. Isto é o que custa executar o fluxo com a sua própria chave.",
     "Estimated cost to ▶ Run all — {n} paid node":"Custo estimado de ▶ Executar tudo — {n} nó pago",
     "Estimated cost to ▶ Run all — {n} paid nodes":"Custo estimado de ▶ Executar tudo — {n} nós pagos",
     ", plus {n} with no listed price":", mais {n} sem preço listado",
@@ -3274,6 +3282,8 @@ const I18N = {
     "write a note…":"メモを書く…",
     "remove":"削除",
     "to run":"で実行",
+    "to run for real":"を実際に実行",
+    "The sample results are canned, so this run isn’t billed. This is what running the graph on your own key costs.":"サンプル結果はあらかじめ用意されたものなので、この実行は課金されません。自分のキーでこのグラフを実行するとこの費用がかかります。",
     "Estimated cost to ▶ Run all — {n} paid node":"▶ すべて実行の推定コスト — 有料ノード {n} 個",
     "Estimated cost to ▶ Run all — {n} paid nodes":"▶ すべて実行の推定コスト — 有料ノード {n} 個",
     ", plus {n} with no listed price":"、ほかに価格未掲載 {n} 個",
@@ -5758,8 +5768,10 @@ function workflowCost(){
   return { usd, priced, unpriced, exact };
 }
 const fmtUsd = (v)=> v>=0.01 ? `$${v.toFixed(2)}` : v>0 ? `<$0.01` : `$0.00`;
-// True while a signed-out visitor can still free-sample Run (pristine starter OR same topology with
-// only field tweaks — see demoMode). We hide the price so the first click reads as "just try it".
+// True while a signed-out visitor can still free-sample Run (pristine starter, same topology with
+// only field tweaks, or the covered Image→Video extension — see demoMode). The run-cost chip stays
+// VISIBLE here, relabelled "to run for real": this click is not billed, but the figure is exactly
+// what the visitor wants before they sign in. See refreshRunEstimate.
 function inDemoRun(){ return !getKey() && !!demoMode(); }
 // Paint a faded, captioned teaser of what ▶ Run produces into an output node's result area, so a
 // first-run visitor sees the reward at rest — not just the wired-up apparatus. View-only: never sets
@@ -5792,14 +5804,24 @@ function refreshDemoGhosts(){
 function refreshRunEstimate(){
   refreshDemoGhosts();                             // demo teaser shares this function's three trigger sites
   const el = $("runest"); if(!el) return;
-  if(inDemoRun()){ el.hidden = true; return; }   // free sample run → no price talk yet
+  // A demo run is not billed, but the chip STAYS UP — relabelled so it clearly prices the real
+  // run, not this click. Hiding it used to look harmless (nothing is charged, so nothing is
+  // concealed) and is not: the one thing a signed-out visitor can add to the starter is an
+  // Image→Video node, the priciest node on the canvas, and the cost figure vanished at exactly
+  // the moment it became worth reading. A price that disappears when it gets big reads as a dark
+  // pattern however it got there, so we show it and say which run it is for.
+  const demo = inDemoRun();
   const { usd, priced, unpriced, exact } = workflowCost();
   if(!priced){ el.hidden = true; return; }        // nothing priced to run → hide the chip entirely
   el.hidden = false;
-  el.innerHTML = `<span class="rn-run" aria-hidden="true">▶</span>${exact?"":"~"}<b>${fmtUsd(usd)}</b>&nbsp;${esc(t("to run"))}`;
-  el.title = t(priced>1 ? "Estimated cost to ▶ Run all — {n} paid nodes" : "Estimated cost to ▶ Run all — {n} paid node").replace("{n}",()=>priced)
-    + (unpriced ? t(", plus {n} with no listed price").replace("{n}",()=>unpriced) : "")
-    + (exact ? "." : "." + "\n" + t("Video, text & audio are estimates: the real bill depends on clip length, tokens and characters."));
+  const amt = `<span class="rn-run" aria-hidden="true">▶</span>${exact?"":"~"}<b>${fmtUsd(usd)}</b>&nbsp;`;
+  el.innerHTML = demo ? amt + `${esc(t("to run for real"))}` : amt + `${esc(t("to run"))}`;
+  el.title = (demo
+      ? t("The sample results are canned, so this run isn’t billed. This is what running the graph on your own key costs.")
+      : t(priced>1 ? "Estimated cost to ▶ Run all — {n} paid nodes" : "Estimated cost to ▶ Run all — {n} paid node").replace("{n}",()=>priced)
+        + (unpriced ? t(", plus {n} with no listed price").replace("{n}",()=>unpriced) : "")
+        + ".")
+    + (exact ? "" : "\n" + t("Video, text & audio are estimates: the real bill depends on clip length, tokens and characters."));
 }
 function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); backfillModel(n); }); refreshRunEstimate(); refreshPromptCaps(); }   // refreshPromptCaps: audio caps ARE catalog metadata (max_chars) and every note names the model, so both are blank until the catalog lands. refreshLlmOpts: reconcile knobs kept during a catalog miss (#311) once real capability flags exist; the dynamic port families (img/audio/endframe/ref) are catalog-gated too — without them a cold-cache boot (shared link, cleared storage) paints a saved ref-model graph portless until a reload
 function backfillModel(n){   // once a catalog arrives, give model nodes a sensible default if none chosen yet
