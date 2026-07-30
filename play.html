@@ -197,6 +197,11 @@
            background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; padding:.4rem .5rem; }
   .sm-copy{ flex:none; }
   .sm-note{ font-size:.74rem; color:var(--faint); margin:.4rem .15rem .1rem; line-height:1.4; }
+  /* the showcase nudge is owner-only: a recipient sharing someone else's app has nothing of
+     their own to submit. display:none can never reveal a hidden element, so no [hidden] guard
+     is needed here (see scripts/check-hidden-css.mjs). */
+  #sm-showcase{ margin-top:.7rem; }
+  body.recipient #sm-showcase{ display:none; }
   .sm-warn{ font-size:.74rem; color:var(--dim); margin:.15rem .15rem .35rem; line-height:1.45;
             border-left:2px solid var(--accent-line); padding:.1rem .5rem; }
   .sm-svc, .sm-social:not([hidden]){ display:flex; gap:.4rem; flex-wrap:wrap; }   /* :not([hidden]) — a bare display rule would defeat the hidden attr when the social row is blanked */
@@ -490,6 +495,17 @@
     <a data-soc="facebook" target="_blank" rel="noopener">Facebook</a>
     <a data-soc="email">Email</a>
   </div>
+
+  <!-- The showcase nudge sits LAST, after the link exists and the sharing options are done —
+       the one moment the reader already has the #a= link on their clipboard, which is the
+       only thing a showcase entry needs. Hidden for share-link recipients (body.recipient):
+       they didn't build this app, so it isn't theirs to submit.
+       The trailing clause is load-bearing, not decoration: "Make it shorter" sits a few lines
+       above, and a click there calls setShareUrl(short), so the box now holds a short link. The
+       showcase decodes the #a= payload out of the fragment and rejects a shortened entry, so a
+       reader who works down the popover would submit exactly the link that fails. Say which
+       form it takes, here, before they copy the wrong one. Own text node = own i18n key. -->
+  <p class="sm-note" id="sm-showcase">Proud of it? <a href="https://github.com/nanoodlecom/built-with-nanoodle" target="_blank" rel="noopener">add your app to the showcase ↗</a> <span>— it needs the full link, not a shortened one.</span></p>
 </div>
 <div id="shareback" hidden></div>
 
@@ -5419,6 +5435,9 @@ const PLAY_I18N_B = {
   "not signed in":{es:"sin iniciar sesión",fr:"non connecté",de:"nicht angemeldet",pt:"não conectado",ja:"サインインしていません"},
   "✱ edits aren’t shared":{es:"✱ los cambios no se comparten",fr:"✱ les modifications ne sont pas partagées",de:"✱ Änderungen werden nicht geteilt",pt:"✱ as edições não são compartilhadas",ja:"✱ 編集は共有されません"},
   "The whole app lives in this link — nothing hits a server when someone opens it. That's why it can get long.":{es:"Toda la app vive en este enlace — nada llega a un servidor cuando alguien lo abre. Por eso puede quedar largo.",fr:"Toute l’app tient dans ce lien — rien n’atteint un serveur quand quelqu’un l’ouvre. C’est pourquoi il peut devenir long.",de:"Die ganze App steckt in diesem Link — beim Öffnen wird kein Server kontaktiert. Deshalb kann er lang werden.",pt:"O app inteiro vive neste link — nada chega a um servidor quando alguém o abre. Por isso ele pode ficar longo.",ja:"アプリ全体がこのリンクに含まれています — 誰かが開いてもサーバーには何も送られません。だからリンクは長くなることがあります。"},
+  "Proud of it?":{es:"¿Orgulloso del resultado?",fr:"Fier du résultat ?",de:"Stolz darauf?",pt:"Orgulhoso do resultado?",ja:"自信作ですか？"},
+  "add your app to the showcase ↗":{es:"añade tu app a la vitrina ↗",fr:"ajoutez votre app à la vitrine ↗",de:"füge deine App dem Schaufenster hinzu ↗",pt:"adicione seu app à vitrine ↗",ja:"あなたのアプリをショーケースに追加 ↗"},
+  "— it needs the full link, not a shortened one.":{es:"— necesita el enlace completo, no uno acortado.",fr:"— il lui faut le lien complet, pas un lien raccourci.",de:"— dafür braucht es den vollständigen Link, keinen gekürzten.",pt:"— ele precisa do link completo, não de um encurtado.",ja:"— 必要なのは短縮リンクではなく完全なリンクです。"},
   "This shared-app link looks incomplete or damaged — ask the sender for a fresh one. Shortened links survive messengers better.":{es:"Este enlace de app compartida parece incompleto o dañado — pídele al remitente uno nuevo. Los enlaces acortados aguantan mejor en los mensajeros.",fr:"Ce lien d’app partagée semble incomplet ou endommagé — demandez-en un nouveau à l’expéditeur. Les liens raccourcis résistent mieux aux messageries.",de:"Dieser geteilte App-Link scheint unvollständig oder beschädigt — bitte den Absender um einen neuen. Gekürzte Links überstehen Messenger besser.",pt:"Este link de app compartilhado parece incompleto ou danificado — peça um novo ao remetente. Links encurtados resistem melhor aos mensageiros.",ja:"この共有アプリのリンクは不完全か壊れているようです — 送信者に新しいリンクをもらってください。短縮リンクの方がメッセンジャーで壊れにくいです。"},
   "Dismiss":{es:"Descartar",fr:"Fermer",de:"Schließen",pt:"Dispensar",ja:"閉じる"},
   "✨ Like it? Make it yours — customize this app or export it.":{es:"✨ ¿Te gusta? Hazla tuya — personaliza esta app o expórtala.",fr:"✨ Ça vous plaît ? Faites-la vôtre — personnalisez cette app ou exportez-la.",de:"✨ Gefällt sie dir? Mach sie zu deiner — passe diese App an oder exportiere sie.",pt:"✨ Gostou? Torne-a sua — personalize este app ou exporte-o.",ja:"✨ 気に入りましたか？ 自分のものに — このアプリをカスタマイズするかエクスポートしましょう。"},
