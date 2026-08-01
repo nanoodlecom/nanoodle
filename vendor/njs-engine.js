@@ -1,5 +1,5 @@
-/* data-hash=8d8bef5d2178a9d5 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-0383c1114ccf (16 modules) */
+/* data-hash=9f98a928b26bb175 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-7338a9e395fd (16 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -1334,7 +1334,7 @@ __x.IMG_PORT_RE = IMG_PORT_RE; __x.EDIT_IMG_RE = EDIT_IMG_RE; __x.VID_PORT_RE = 
 });
 __def("nodes.mjs", function (__x, __req) {
 const { NanoodleError } = __req("errors.mjs");
-const { catItem, chatModelCan } = __req("catalog.mjs");
+const { catItem, chatModelCan, pricingAdvertisesRefs } = __req("catalog.mjs");
 const { IMG_PORT_RE, EDIT_IMG_RE, REF_PORT_RE, CLIP_PORT_RE, VID_PORT_RE, optionalNode } = __req("graph.mjs");
 const { MEDIA_INLINE_MAX } = __req("media.mjs");
 const { resizeCropImage, trimAudioToWav, extractAudioToWav, extractVideoFrames, concatVideos, muxSoundtrack, maskToSource, fitImageInline } = __req("local-media.mjs");
@@ -1600,10 +1600,13 @@ function videoDims(n, ctx) {
    Video models disagree on the ref-array param name AND its size limit; sending the wrong
    key silently degrades to a plain video, sending too many can over-bill. Resolve the
    model's REAL key from the catalog and clamp to its declared max. */
-function refMaxFor(model) {
+function refMaxFor(model, pricing) {
   const id = String(model || "");
   if (/seedance/i.test(id)) return 9;
+  if (/minimax-h3/i.test(id)) return 9; // upstream cap; the first 5 are included, 6-9 bill extra_reference_image each
   if (/luma|ray/i.test(id)) return 4;
+  const inc = pricing && +pricing.included_reference_images;
+  if (inc > 0) return inc; // no family entry: the included count is the only number the catalog gives us
   return 4;
 }
 
@@ -1617,15 +1620,15 @@ function modelRefSpec(model, ctx) {
   const m = catItem(ctx && ctx.catalog, "video", model);
   if (!m) return { key: "reference_images", cap: refMaxFor(model) };
   const sp = m.supported_parameters || {}, pp = sp.parameters || sp;
-  const key = keys.find((k) => k in pp);
-  if (!key) return null; // known model with no ref-image param
+  const key = keys.find((k) => k in pp) || (pricingAdvertisesRefs(m.pricing) ? "reference_images" : null);
+  if (!key) return null; // known model with no ref-image param and no ref pricing
   const d = pp[key];
   let cap = null;
   if (d && typeof d === "object") {
     const mx = d.max != null ? d.max : d.maxItems != null ? d.maxItems : d.max_items;
     if (mx != null && +mx > 0) cap = +mx;
   }
-  return { key, cap: cap != null ? cap : refMaxFor(model) };
+  return { key, cap: cap != null ? cap : refMaxFor(model, m.pricing) };
 }
 
 /** Attach wired refs to video opts under the model's real key, clamped to its cap (twin of the app runtimes: say so, never silently discard). */
@@ -2042,13 +2045,24 @@ function catItem(catalog, kind, id) {
   return (Array.isArray(raw) && raw.find((m) => m && m.id === id)) || null;
 }
 
+/**
+ * True when a video model's PRICING block prices reference images even though its
+ * supported_parameters never names the param (minimax-h3 ships that way). A billing
+ * line for refs is the catalog stating the model takes them, so the ref gates accept
+ * it as evidence; models with neither the param nor the pricing stay "no refs",
+ * because an ignored-but-sent ref array is still charged.
+ */
+function pricingAdvertisesRefs(pricing) {
+  return !!(pricing && (pricing.included_reference_images != null || pricing.extra_reference_image != null));
+}
+
 /** Permissive capability probe: true unless the model is in the catalog AND lacks the flag. */
 function chatModelCan(catalog, model, flag) {
   const m = catItem(catalog, "chat", model);
   return !m || !!((m.capabilities || {})[flag]);
 }
 
-__x.catItem = catItem; __x.chatModelCan = chatModelCan;
+__x.catItem = catItem; __x.pricingAdvertisesRefs = pricingAdvertisesRefs; __x.chatModelCan = chatModelCan;
 });
 __def("io.mjs", function (__x, __req) {
 const { NanoodleError } = __req("errors.mjs");
@@ -4735,5 +4749,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-0383c1114ccf";
+  window.NanoodleEngine.version = "src-7338a9e395fd";
 })();

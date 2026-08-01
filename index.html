@@ -4291,33 +4291,53 @@ function chatModelCan(model, flag){
 // so default to NO extra port until we can see the model advertises it. (last_image is confirmed to
 // accept a data: URL, so the wired image rides inline like imageDataUrl — no upload host needed.)
 const VIDEO_IMG_ROLE_KEYS = { last:["last_image","end_image"], refs:["reference_images","reference_image_urls","referenceImages"] };
+// Two narrow exceptions to "param presence or no port", each backed by evidence rather than a wish —
+// permissive-OFF is unchanged for every other model (no param and no evidence still means no port):
+//   refs — pricing that METERS reference images (included_reference_images / extra_reference_image) is
+//     the catalog stating machine-readably that the model takes them, so read it as advertising
+//     reference_images. A model that ignored them wouldn't be billing for the 6th one.
+//   last — minimax-h3 shipped advertising only duration + aspect_ratio, but last_image is live-verified
+//     (2026-07-31: the clip starts on the first image and ends on the last). Day-one catalog gap; drop
+//     the family fallback once NanoGPT advertises the param.
+const VIDEO_REF_PRICE_KEYS = ["included_reference_images","extra_reference_image"];
+const videoRefsPriced = (m)=> { const p = m && m.pricing; return !!p && VIDEO_REF_PRICE_KEYS.some(k=> p[k]!=null); };
+const VIDEO_LAST_FRAME_FAMILIES = /^minimax-h3$/i;
 function modelHasImageRole(n, role){
   const t = NODE_TYPES[n.type]; if(!t.modelKind) return false;
   const m = catItem(t.modelKind, n.fields.model);
   if(!m || !m.params) return false;
-  return (VIDEO_IMG_ROLE_KEYS[role]||[]).some(k=> k in m.params);
+  if((VIDEO_IMG_ROLE_KEYS[role]||[]).some(k=> k in m.params)) return true;
+  if(role==="refs") return videoRefsPriced(m);
+  if(role==="last") return VIDEO_LAST_FRAME_FAMILIES.test(String(n.fields.model||""));
+  return false;
 }
 // Resolve a video node's reference-image port config: does the picked model expose one of the ref-image
-// array params (seedance-2.0 reference_images / luma reference_image_urls / kling|wan referenceImages)?
+// array params (seedance-2.0 reference_images / luma reference_image_urls / kling|wan referenceImages),
+// or price them (videoRefsPriced — minimax-h3 advertises no param but bills per extra ref)?
 // Returns {key, cap} — key = the FIRST ref param the model advertises, cap = the model's declared max
-// (max/maxItems on the descriptor), else a per-family known max (VIDEO_REF_MAX), else 4. null when no
-// model/param (permissive-OFF, same reasoning as modelHasImageRole: an ignored-but-sent array is CHARGED).
+// (max/maxItems on the descriptor), else a per-family known max (VIDEO_REF_MAX), else what pricing says
+// it includes, else 4. null when no model/param/ref-pricing (permissive-OFF, same reasoning as
+// modelHasImageRole: an ignored-but-sent array is CHARGED).
 // The catalog advertises NO machine-readable ref maxima (live-scanned, 136 video models 2026-07-04), so
 // the family table is what actually caps things: seedance-2.0's marquee feature is up to 9 refs — the
-// generic 4 silently sliced refs 5-9. luma ray/v3.2 = 4 (matches the generic default; listed for clarity).
-const VIDEO_REF_MAX = [ [/seedance/i, 9], [/luma|ray/i, 4] ];
+// generic 4 silently sliced refs 5-9. minimax-h3 also takes 9 (refs 6-9 bill extra_reference_image each
+// on top of the 5 its pricing includes, so included_reference_images is a floor, not the cap).
+// luma ray/v3.2 = 4 (matches the generic default; listed for clarity).
+const VIDEO_REF_MAX = [ [/seedance/i, 9], [/minimax-h3/i, 9], [/luma|ray/i, 4] ];
 function videoRefSpec(n){
   const t = NODE_TYPES[n.type]; if(!t || !t.modelKind) return null;
   const m = catItem(t.modelKind, n.fields.model);
   if(!m || !m.params) return null;
-  const key = VIDEO_IMG_ROLE_KEYS.refs.find(k=> k in m.params);
+  const key = VIDEO_IMG_ROLE_KEYS.refs.find(k=> k in m.params) || (videoRefsPriced(m) ? "reference_images" : null);
   if(!key) return null;
   const d = m.params[key]; let cap = null;
   if(d && typeof d==="object"){
     const mx = d.max!=null ? d.max : (d.maxItems!=null ? d.maxItems : d.max_items);
     if(mx!=null && +mx>0) cap = +mx;
   }
-  if(cap==null){ const id = String(n.fields.model||""); const hit = VIDEO_REF_MAX.find(([re])=> re.test(id)); cap = hit ? hit[1] : 4; }
+  if(cap==null){ const id = String(n.fields.model||""); const hit = VIDEO_REF_MAX.find(([re])=> re.test(id));
+    const inc = +((m.pricing||{}).included_reference_images);   // an unlisted family at least takes what it bundles
+    cap = hit ? hit[1] : (inc>0 ? inc : 4); }
   return { key, cap };
 }
 // pull wired ref ports (ref1, ref2, …) out of a run's inp map, in numeric port order, dropping empties
