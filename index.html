@@ -5595,11 +5595,14 @@ function refreshDims(n){
     else if(!d.options.some(o=> String(o[0])===String(cur))) d.options = [[String(cur), String(cur)], ...d.options];
   }
   const ctl = (d)=> `<div><label>${esc(d.label)}</label><select data-df="${esc(d.f)}"${d.locked?" disabled":""}>${
-    d.options.map(o=>`<option value="${esc(o[0])}"${String(o[0])===String(n.fields[d.f])?" selected":""}>${esc(o[1])}</option>`).join("")}</select>${
-    d.locked?`<div class="fhint">${esc(t("this model always returns {n} images — you pay for all {n}").replace(/\{n\}/g, String(d.locked)))}</div>`:``}</div>`;
-  box.innerHTML = defs.length>1
+    d.options.map(o=>`<option value="${esc(o[0])}"${String(o[0])===String(n.fields[d.f])?" selected":""}>${esc(o[1])}</option>`).join("")}</select></div>`;
+  // A locked def's disclosure is a sentence, so it goes FULL WIDTH under the row — the first two
+  // controls sit in a half-width `.two` grid, where it would wrap to three cramped lines.
+  const hints = defs.filter(d=> d.locked).map(d=>
+    `<div class="fhint">${esc(t("this model always returns {n} images — you pay for all {n}").replace(/\{n\}/g, String(d.locked)))}</div>`).join("");
+  box.innerHTML = (defs.length>1
     ? `<div class="two">${defs.slice(0,2).map(ctl).join("")}</div>${defs.slice(2).map(ctl).join("")}`
-    : ctl(defs[0]);
+    : ctl(defs[0])) + hints;
   translateTree(box);   // localize size/resolution/aspect/duration labels + option text (mirror refreshAudioParams)
   box.querySelectorAll("[data-df]").forEach(el=>{
     const f = el.dataset.df;
@@ -5842,8 +5845,11 @@ function nodeUnitUsd(n){
     // Price the images the run will ACTUALLY be billed for (genImage accrues unit×urls.length): fixed_image_count
     // models (midjourney/higgsfield) always return N regardless of the request; otherwise clamp the requested
     // variations to what the model can return, so a stale/over-set count can't inflate the estimate either.
+    // fixed>1 is the ONE predicate for "the model dictates the count" — shared with dimDefs' locked variations
+    // field, image run()'s want, and livePrice's ×N. fixed===1 falls through to the variations clamp so a
+    // 1-per-call model that still allows several images bills what the user actually asked for.
     const maxOut=(it&&it.maxOut)||1, fixed=(it&&it.fixedCount)||0;
-    const count = fixed>0 ? fixed : Math.min(maxOut, Math.max(1, parseInt(n.fields.variations,10)||1));
+    const count = fixed>1 ? fixed : Math.min(maxOut, Math.max(1, parseInt(n.fields.variations,10)||1));
     return u*count; }
   if(kind==="video"){
     // ref-image ports actually wired (and the model still exposes a ref-image param) flip the estimate to

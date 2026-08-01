@@ -6158,7 +6158,9 @@ window.NoodleApp = (function () {
     if(kind==="image"){ const sp=m.supported_parameters||{}, maxOut=sp.max_output_images||1, fixed=sp.fixed_image_count||0;
       // match the billed image count (genImage bills unit×urls.length): fixed_image_count models always return N;
       // otherwise clamp requested variations to the model's real max so an over-set count can't inflate the forecast.
-      const count = fixed>0 ? fixed : Math.min(maxOut, Math.max(1, parseInt(f.variations,10)||1));
+      // fixed>1 is the ONE predicate for "the model dictates the count" — twin of the editor's nodeUnitUsd and of
+      // fillDimLists' locked variations pin; fixed===1 falls through to the clamp, so it bills what was asked.
+      const count = fixed>1 ? fixed : Math.min(maxOut, Math.max(1, parseInt(f.variations,10)||1));
       return imageUsd(pricing, f.size, count); }
     if(kind==="video"){
       // reference-image ports actually wired (and the model still exposes a ref-image param) flip the estimate
@@ -8686,9 +8688,11 @@ const PROMPT_CAPS = {
   async function modelOptionsFor(type, node){
     const kind = SETTING_MODEL_KIND[type]; if(!kind) return [];
     const raw = await loadCatalogRaw(kind);
-    const wiredImgPorts = (node && STATE && STATE.graph)
-      ? STATE.graph.links.filter(l=> l.to.node===node.id && EDIT_IMG_RE.test(l.to.port)).length : 0;
-    const roleFits = (id)=>{ const r = IMG_INPUT_ROLES[id]; return !r || (type!=="edit") || wiredImgPorts >= r.length; };
+    // Slot COVERAGE, not link count: an app wired image + image3 has two links but leaves image2 empty,
+    // which is exactly what the runner guard refuses — so every role's own port has to be wired.
+    const wiredLinks = (node && STATE && STATE.graph) ? STATE.graph.links : null;
+    const roleFits = (id)=>{ const r = IMG_INPUT_ROLES[id]; if(!r || type!=="edit") return true;
+      return !!wiredLinks && r.every((_,i)=> wiredLinks.some(l=> l.to.node===node.id && l.to.port===(i ? "image"+(i+1) : "image"))); };
     const pool = raw.filter(m=> m && m.id && modelSuits(type, m) && roleFits(m.id));
     const nat = new Map();   // family signature → first native index (anchors the family)
     pool.forEach((m,i)=>{ const s = famSig(m.id); if(!nat.has(s)) nat.set(s, i); });
@@ -11021,6 +11025,12 @@ const RUNTIME_WIDGET_CSS =
 `/* inpaint brush knobs hide until a source image renders; old apps' frozen app.css has a plain
    display:flex on .brushrow, so this [hidden] guard needs the higher specificity to win. */
 .field .brushrow[hidden]{ display:none; }
+/* per-setting disclosure the RUNTIME renders (fillDimLists' "always returns 4 images"), plus the
+   disabled look of the control it pins. Both must ride with the runtime: every app exported before
+   the fixed_image_count disclosure existed has a frozen app.css with no .fhint rule at all, and
+   would show the sentence as unstyled body text next to a control with no sign it's locked. */
+.field .fhint{ font-size:.75rem; color:var(--dim); margin-top:.3rem; }
+.field input:disabled, .field select:disabled{ opacity:.65; cursor:not-allowed; }
 /* optional inputs — collapsed, pre-filled disclosure under the mandatory fields */
 .opt{ border:1px solid var(--line); border-radius:var(--radius); background:var(--panel); }
 .opt > summary{ list-style:none; cursor:pointer; user-select:none; display:flex; align-items:center; gap:.5rem;
@@ -11249,8 +11259,6 @@ body{ background:
 .field input::placeholder, .field textarea::placeholder{ color:#b8c0d0; opacity:1; }
 .field input:focus, .field textarea:focus, .field select:focus{
   outline:none; border-color:var(--accent-line); box-shadow:0 0 0 3px var(--accent-soft); }
-.field .fhint{ font-size:.75rem; color:var(--dim); margin-top:.3rem; }   /* per-setting disclosure, e.g. "always returns 4 images" */
-.field input:disabled, .field select:disabled{ opacity:.65; cursor:not-allowed; }
 .field .file-prev img, .field .file-prev video{ max-width:160px; border-radius:.5rem; border:1px solid var(--line); margin-top:.4rem; display:block; }
 .field .file-prev audio{ width:100%; max-width:280px; margin-top:.4rem; display:block; }
 /* Inpaint control: brush canvas overlaid exactly on the source image */
