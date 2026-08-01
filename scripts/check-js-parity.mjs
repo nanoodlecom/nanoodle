@@ -410,6 +410,26 @@ const SCENARIOS = [
     },
   },
   {
+    // Role-ordered min-input guard: both engines must refuse a 1-image flux-pro/v1/vto run BEFORE
+    // the send (zero requests on both sides), so the guard can never be a play-only behavior that
+    // makes the same graph cost money through the library.
+    name: "min-count: vto with one image sends NOTHING on both engines",
+    catalog: { image: [{ id: "flux-pro/v1/vto", supported_parameters: { max_input_images: 2 } }] },
+    data: {
+      nodes: [node("u1", "upload", { image: IMG }), node("e1", "edit", { model: "flux-pro/v1/vto", prompt: "try it on" })],
+      links: [link("u1", "image", "e1", "image")],
+    },
+  },
+  {
+    name: "min-count: vto with both roles wired sends the SAME [person, garment] body",
+    catalog: { image: [{ id: "flux-pro/v1/vto", supported_parameters: { max_input_images: 2 } }] },
+    data: {
+      nodes: [node("u1", "upload", { image: IMG }), node("u2", "upload", { image: IMG }),
+              node("e1", "edit", { model: "flux-pro/v1/vto", prompt: "try it on" })],
+      links: [link("u1", "image", "e1", "image"), link("u2", "image", "e1", "image2")],
+    },
+  },
+  {
     name: "tvideo refs without catalog → most-common spelling (reference_images, family cap)",
     data: {
       nodes: [

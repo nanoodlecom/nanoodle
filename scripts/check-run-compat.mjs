@@ -18,6 +18,7 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import vm from "node:vm";
 // The node:vm engine harness (extract play.html → run RUNTIME_JS → real
 // runGraph/materialize/NODE_TYPES) lives in a shared, side-effect-free module so
 // check-gallery.mjs can reuse the exact same engine without re-running this file.
@@ -33,6 +34,13 @@ catalog.image.push(
   { id: "capmodel1", supported_parameters: { max_input_images: 1 } },
   { id: "capmodel3", supported_parameters: { max_input_images: 3 } },
   { id: "x", supported_parameters: { max_input_images: 9, max_output_images: 9 } },
+  // the real role-ordered model: catalog says max_items 2 and NOTHING about a minimum (no min_items
+  // field exists upstream), which is exactly why the runtime carries the curated IMG_INPUT_ROLES map.
+  { id: "flux-pro/v1/vto", supported_parameters: { max_input_images: 2, fixed_image_count: 1 } },
+  // the two REAL forced-count shapes: midjourney/higgsfield always return 4 (fixed_image_count 4);
+  // fix1model is the fixed_image_count:1 shape that must behave exactly like no forced count at all.
+  { id: "fix4model", supported_parameters: { max_output_images: 4, fixed_image_count: 4 } },
+  { id: "fix1model", supported_parameters: { max_output_images: 4, fixed_image_count: 1 } },
 );
 
 // ---- graph builders -------------------------------------------------------
@@ -137,6 +145,34 @@ const SCENARIOS = [
       const o = g.byId("i1").out;
       if (!Array.isArray(o.images) || o.images.length !== 2) fail(`expected 2 result images, got ${JSON.stringify(o.images)}`);
       if (o.image !== o.images[0]) fail("the first variation must be selected by default");
+    },
+  },
+  {
+    // A fixed_image_count model returns — and BILLS FOR — N images whatever `n` says. An exported app
+    // carrying variations:"1" (baked before the model swap, or from a catalog that hadn't landed) used
+    // to request 1, get 4, and show 1: three paid images silently discarded. The runtime must ask for
+    // the real number so the send matches the invoice and every image reaches the gallery.
+    name: "NEW: fixed_image_count model requests N even when the app says variations=1",
+    data: { nodes: [node("t1", "text", { text: "a red panda" }), node("i1", "image", { model: "fix4model", size: "1024x1024", variations: "1" })],
+            links: [link("t1", "text", "i1", "prompt")] },
+    check(app, g, fail) {
+      const b = imgCalls()[0]?.body;
+      if (!b) return fail("no image generation call");
+      if (b.n !== 4) fail(`fixed_image_count:4 must request n:4 (the count it bills), got ${JSON.stringify(b.n)}`);
+      const o = g.byId("i1").out;
+      if (!Array.isArray(o.images) || o.images.length !== 4) fail(`all 4 paid images must be surfaced, got ${JSON.stringify(o.images)}`);
+    },
+  },
+  {
+    // fixed_image_count:1 is NOT a forced count — it must fall through to the ordinary variations
+    // clamp (fixed>1 is the single predicate), or a 3-variation run bills 3 while the quote says 1.
+    name: "NEW: fixed_image_count:1 still honours the picked variations",
+    data: { nodes: [node("t1", "text", { text: "a red panda" }), node("i1", "image", { model: "fix1model", size: "1024x1024", variations: "3" })],
+            links: [link("t1", "text", "i1", "prompt")] },
+    check(app, g, fail) {
+      const b = imgCalls()[0]?.body;
+      if (!b) return fail("no image generation call");
+      if (b.n !== 3) fail(`fixed_image_count:1 must send the picked n:3, got ${JSON.stringify(b.n)}`);
     },
   },
   {
@@ -256,6 +292,42 @@ const SCENARIOS = [
             links: [link("a", "image", "e1", "image")] },
     check(app, g, fail) {
       if (imgCalls().length) fail("a drifted (catalog-missing) model must be blocked before any paid image send");
+    },
+  },
+  {
+    // flux-pro/v1/vto needs [person, garment], person first: one image is a live-verified 400
+    // ("FLUX Virtual Try-On requires two input images…", uncharged). The exported runtime must
+    // refuse it locally — a 400 the app could have predicted is still a round trip the user waits on.
+    name: "NEW: vto with only the person image never reaches the API (zero fetches)",
+    data: { nodes: [node("p", "upload", { image: IMG + "PERSON" }),
+                    node("e1", "edit", { model: "flux-pro/v1/vto", prompt: "try it on" })],
+            links: [link("p", "image", "e1", "image")] },
+    check(app, g, fail) {
+      if (imgCalls().length) fail(`a role-ordered model missing a slot must send NOTHING, got ${imgCalls().length} call(s)`);
+    },
+  },
+  {
+    // A HOLE is not coverage: image + image3 is two images by length but the garment slot (image2)
+    // is empty, and the runtime deliberately does not re-pack role models' ports.
+    name: "NEW: vto with a port hole (image + image3) also sends nothing",
+    data: { nodes: [node("p", "upload", { image: IMG + "PERSON" }), node("gm", "upload", { image: IMG + "GARMENT" }),
+                    node("e1", "edit", { model: "flux-pro/v1/vto", prompt: "try it on" })],
+            links: [link("p", "image", "e1", "image"), link("gm", "image", "e1", "image3")] },
+    check(app, g, fail) {
+      if (imgCalls().length) fail(`a role hole must send NOTHING, got ${imgCalls().length} call(s)`);
+    },
+  },
+  {
+    name: "NEW: vto with both roles wired sends [person, garment] in that order",
+    data: { nodes: [node("p", "upload", { image: IMG + "PERSON" }), node("gm", "upload", { image: IMG + "GARMENT" }),
+                    node("e1", "edit", { model: "flux-pro/v1/vto", prompt: "try it on" })],
+            links: [link("p", "image", "e1", "image"), link("gm", "image", "e1", "image2")] },
+    check(app, g, fail) {
+      const b = imgCalls()[0]?.body;
+      if (!b) return fail("both roles wired must produce exactly one image call");
+      if (!Array.isArray(b.imageDataUrl) || b.imageDataUrl.length !== 2) return fail(`expected a 2-image array, got ${JSON.stringify(b.imageDataUrl).slice(0, 80)}`);
+      if (b.imageDataUrl[0] !== IMG + "PERSON") fail("person must be sent FIRST (order is load-bearing for vto)");
+      if (b.imageDataUrl[1] !== IMG + "GARMENT") fail("garment must be sent SECOND");
     },
   },
   {
@@ -477,6 +549,84 @@ function shippedGraphCheck(app, fail) {
   })();
 }
 
+// ---- the exported app's variations control is pinned by the catalog -------
+// fillDimLists lives inside RUNTIME_JS's IIFE (not on window.NoodleApp), so pull the REAL function
+// out of play.html by brace-matching and drive it in its own sandbox with a paper DOM. It is the
+// play-side twin of the editor's locked dimDefs: on a fixed_image_count model the box is set to N,
+// disabled, and captioned — otherwise the run would quietly bill 4× what the box promises.
+function extractRuntimeFn(src, name) {
+  const start = src.indexOf("\n  function " + name + "(");
+  if (start === -1) throw new Error("function " + name + "() not found in play.html");
+  let depth = 0;
+  for (let j = src.indexOf("{", start); j < src.length; j++) {
+    if (src[j] === "{") depth++;
+    else if (src[j] === "}" && --depth === 0) return src.slice(start + 1, j + 1);
+  }
+  throw new Error("could not brace-match " + name + "()");
+}
+async function fillDimListsCheck(fail) {
+  const PLAY_SRC = readFileSync(join(ROOT, "play.html"), "utf8");
+  // paper DOM: one row holding one <select>, exactly the shape renderSettings builds
+  const mkRow = () => {
+    const kids = [];
+    const row = {
+      kids,
+      querySelector: (sel) => kids.find((k) => String(k.className).split(/\s+/).some((c) => "." + c === sel)) || null,
+      appendChild: (k) => { k.parentRow = row; kids.push(k); return k; },
+    };
+    return row;
+  };
+  const row = mkRow();
+  const el = { tagName: "SELECT", value: "1", disabled: false, innerHTML: "", closest: () => row };
+  const ctx = {
+    console, STATE: { settings: [] },
+    document: {
+      getElementById: (id) => (id === "set_0" ? el : null),
+      createElement: () => ({ className: "", textContent: "", remove() { const i = this.parentRow.kids.indexOf(this); if (i >= 0) this.parentRow.kids.splice(i, 1); } }),
+    },
+    t: (s) => s, esc: (s) => String(s),
+    DIM_FIELDS: {}, SETTING_MODEL_KIND: { image: "image" },
+    dimOptionsFromItem: () => ({}),
+    rawCatItem: async (_kind, id) => CAT[id] || null,
+  };
+  const CAT = {
+    fix4model: { supported_parameters: { fixed_image_count: 4 } },
+    fix1model: { supported_parameters: { fixed_image_count: 1 } },
+    plainmodel: { supported_parameters: { max_output_images: 4 } },
+  };
+  vm.createContext(ctx);
+  new vm.Script(extractRuntimeFn(PLAY_SRC, "fillDimLists") + "\nglobalThis.__fill = fillDimLists;",
+    { filename: "play.html#fillDimLists" }).runInContext(ctx);
+
+  const drive = async (model) => {
+    const nd = { type: "image", fields: { model, variations: "1" } };
+    ctx.STATE.settings = [{ node: nd, field: "variations", kind: "select" }];
+    ctx.__fill();
+    await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setImmediate(r));
+    return nd;
+  };
+  const hint = () => row.querySelector(".fixedhint");
+
+  const n4 = await drive("fix4model");
+  if (el.disabled !== true) fail("fixed_image_count must DISABLE the variations box (it is not a choice)");
+  if (el.value !== "4") fail(`the box must be pinned to the forced count, got ${JSON.stringify(el.value)}`);
+  if (n4.fields.variations !== "4") fail(`the graph field must be pinned too (the estimate reads it), got ${JSON.stringify(n4.fields.variations)}`);
+  if (!hint()) fail("a forced count must be disclosed with a .fixedhint caption");
+  else if (!/4/.test(hint().textContent)) fail(`the caption must name the count, got ${JSON.stringify(hint().textContent)}`);
+
+  // swapping to a plain model releases the box and drops the caption (no stale "always returns 4")
+  const np = await drive("plainmodel");
+  if (el.disabled !== false) fail("a non-fixed model must leave the variations box editable");
+  if (hint()) fail("the forced-count caption must be removed when the model no longer forces a count");
+  if (np.fields.variations !== "1") fail(`a non-fixed model must not rewrite the stored variations, got ${JSON.stringify(np.fields.variations)}`);
+
+  // fixed_image_count:1 is not a forced count — same unlocked, uncaptioned box (the fixed>1 invariant)
+  await drive("fix1model");
+  if (el.disabled !== false) fail("fixed_image_count:1 must NOT lock the box (fixed>1 is the predicate)");
+  if (hint()) fail("fixed_image_count:1 must not claim the model always returns 1");
+}
+
 // ---- run ------------------------------------------------------------------
 const failures = [];
 const app = (() => { try { return loadEngine(); } catch (e) { failures.push("could not load engine: " + (e && e.stack || e)); return null; } })();
@@ -503,6 +653,13 @@ if (app) {
   const fail = (m) => failures.push(`shipped graph: ${m}`);
   try { await shippedGraphCheck(app, fail); if (failures.length === n) process.stdout.write("  ✓ shipped noodle-graph.json still runs (LLM calls stay string-content)\n"); }
   catch (e) { failures.push("shipped graph check threw: " + (e && e.message || e)); }
+}
+
+{
+  const n = failures.length;
+  const fail = (m) => failures.push(`fillDimLists: ${m}`);
+  try { await fillDimListsCheck(fail); if (failures.length === n) process.stdout.write("  ✓ exported app pins + discloses a fixed_image_count variations box\n"); }
+  catch (e) { failures.push("fillDimLists check threw: " + (e && e.stack || e)); }
 }
 
 if (failures.length) {

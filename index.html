@@ -1586,6 +1586,11 @@ const I18N = {
     "share failed":"error al compartir",
     "audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).":"audio ignorado — este modelo es solo de texto. Elige un modelo con entrada de audio (por ejemplo, un Gemini).",
     "dropped {n} reference image(s) over this model's limit of {max}":"se descartaron {n} imagen(es) de referencia por encima del límite de {max} de este modelo",
+    "person":"persona",
+    "garment":"prenda",
+    "needs {n} images ({roles})":"necesita {n} imágenes ({roles})",
+    "this model needs {n} images ({roles}) — wire all of them":"este modelo necesita {n} imágenes ({roles}) — conéctalas todas",
+    "this model always returns {n} images — you pay for all {n}":"este modelo siempre devuelve {n} imágenes — pagas por las {n}",
     "prompt limit {cap} characters — a longer wired prompt is trimmed to fit":"límite de prompt: {cap} caracteres — un prompt conectado más largo se recorta para que quepa",
     "prompt trimmed to {cap} characters for {model} (was {from})":"prompt recortado a {cap} caracteres para {model} (era de {from})",
     "this model":"este modelo",
@@ -2105,6 +2110,11 @@ const I18N = {
     "share failed":"échec du partage",
     "audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).":"audio ignoré — ce modèle est uniquement textuel. Choisissez un modèle avec entrée audio (par ex. un Gemini).",
     "dropped {n} reference image(s) over this model's limit of {max}":"{n} image(s) de référence ignorée(s) — au-delà de la limite de {max} de ce modèle",
+    "person":"personne",
+    "garment":"vêtement",
+    "needs {n} images ({roles})":"nécessite {n} images ({roles})",
+    "this model needs {n} images ({roles}) — wire all of them":"ce modèle nécessite {n} images ({roles}) — reliez-les toutes",
+    "this model always returns {n} images — you pay for all {n}":"ce modèle renvoie toujours {n} images — vous payez les {n}",
     "prompt limit {cap} characters — a longer wired prompt is trimmed to fit":"limite du prompt : {cap} caractères — un prompt branché plus long est raccourci pour tenir",
     "prompt trimmed to {cap} characters for {model} (was {from})":"prompt raccourci à {cap} caractères pour {model} (il en faisait {from})",
     "this model":"ce modèle",
@@ -2624,6 +2634,11 @@ const I18N = {
     "share failed":"Teilen fehlgeschlagen",
     "audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).":"Audio ignoriert — dieses Modell ist reiner Text. Wähle ein Modell mit Audio-Eingabe (z. B. ein Gemini).",
     "dropped {n} reference image(s) over this model's limit of {max}":"{n} Referenzbild(er) verworfen — über dem Limit von {max} dieses Modells",
+    "person":"Person",
+    "garment":"Kleidungsstück",
+    "needs {n} images ({roles})":"braucht {n} Bilder ({roles})",
+    "this model needs {n} images ({roles}) — wire all of them":"dieses Modell braucht {n} Bilder ({roles}) — verbinde alle",
+    "this model always returns {n} images — you pay for all {n}":"dieses Modell liefert immer {n} Bilder — du zahlst für alle {n}",
     "prompt limit {cap} characters — a longer wired prompt is trimmed to fit":"Prompt-Limit {cap} Zeichen — ein längerer verbundener Prompt wird passend gekürzt",
     "prompt trimmed to {cap} characters for {model} (was {from})":"Prompt auf {cap} Zeichen gekürzt für {model} (vorher {from})",
     "this model":"dieses Modell",
@@ -3143,6 +3158,11 @@ const I18N = {
     "share failed":"falha ao compartilhar",
     "audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).":"áudio ignorado — este modelo é somente texto. Escolha um modelo com entrada de áudio (por exemplo, um Gemini).",
     "dropped {n} reference image(s) over this model's limit of {max}":"{n} imagem(ns) de referência descartada(s) — acima do limite de {max} deste modelo",
+    "person":"pessoa",
+    "garment":"peça de roupa",
+    "needs {n} images ({roles})":"precisa de {n} imagens ({roles})",
+    "this model needs {n} images ({roles}) — wire all of them":"este modelo precisa de {n} imagens ({roles}) — conecte todas",
+    "this model always returns {n} images — you pay for all {n}":"este modelo sempre retorna {n} imagens — você paga pelas {n}",
     "prompt limit {cap} characters — a longer wired prompt is trimmed to fit":"limite do prompt: {cap} caracteres — um prompt conectado maior é cortado para caber",
     "prompt trimmed to {cap} characters for {model} (was {from})":"prompt cortado para {cap} caracteres para {model} (tinha {from})",
     "this model":"este modelo",
@@ -3662,6 +3682,11 @@ const I18N = {
     "share failed":"共有に失敗",
     "audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).":"音声は無視されました — このモデルはテキスト専用です。音声入力に対応したモデル（Geminiなど）を選んでください。",
     "dropped {n} reference image(s) over this model's limit of {max}":"参照画像を{n}枚破棄しました — このモデルの上限は{max}枚です",
+    "person":"人物",
+    "garment":"衣服",
+    "needs {n} images ({roles})":"画像が{n}枚必要です（{roles}）",
+    "this model needs {n} images ({roles}) — wire all of them":"このモデルには画像が{n}枚必要です（{roles}）— すべて接続してください",
+    "this model always returns {n} images — you pay for all {n}":"このモデルは常に画像を{n}枚返します — {n}枚すべてに課金されます",
     "prompt limit {cap} characters — a longer wired prompt is trimmed to fit":"プロンプト上限{cap}文字 — 接続された値が長い場合は収まるよう短縮されます",
     "prompt trimmed to {cap} characters for {model} (was {from})":"{model}向けにプロンプトを{cap}文字へ短縮しました（元は{from}文字）",
     "this model":"このモデル",
@@ -3900,6 +3925,24 @@ const INPAINT_OK = new Set([
   "kling-image-o1", "fal-ai/boogu-image/edit", "gemini-flash-edit", "flux-kontext",
   "imagineart/imagineart-2.0-edit-preview/image-to-image",
 ]);
+// Edit models that REQUIRE more than one input image, with the ROLE of each slot. The image catalog
+// exposes input_image_constraints.max_items but NO min_items anywhere (live-scanned 2026-07-31, all
+// 215 models) — the only machine-visible signal is a free-text provider note we deliberately do not
+// parse: flux-pro/v1/vto → "Requires exactly two images: person first (max 2MP), garment second".
+// Live-verified 2026-07-31: one image → HTTP 400 "FLUX Virtual Try-On requires two input images:
+// upload a person image first, then a garment image." (uncharged). Reversed order still renders —
+// the API auto-detects the wearer — but the result drifts toward the garment photo's model, so slot
+// ORDER is load-bearing and drives the port labels. Upstream ask filed as
+// docs/NANOGPT-image-input-count-metadata.md; drop this map once min_items/roles ship.
+const IMG_INPUT_ROLES = { "flux-pro/v1/vto": ["person", "garment"] };
+// Edit-only models the catalog labels "text+image->image" that HARD-FAIL without a source image,
+// where the id carries no upscal/img2img tell. Live-probed 2026-07-31: hidream-e1-1 → "No input
+// image data provided … attach an image to edit", wan-2.6-image-edit → INVALID_IMAGE_INPUT,
+// vidu-q2-reference → fails with no reference images. Modality CANNOT separate them: the same
+// "text+image->image" string covers optional-image editors that DO work text-only (nano-banana-2-lite,
+// seedream-v4.5, qwen-image-3 all verified generating from a bare prompt), so this is an id list by
+// necessity. Same curated-map contract as INPAINT_OK: verified per model, dated, catalog-first.
+const NEEDS_SRC_IDS = new Set(["hidream-e1-1", "wan-2.6-image-edit", "vidu-q2-reference"]);
 function normImg(m){
   const per = m.pricing?.per_image||{};
   const v = per.square ?? per.square_hd ?? Object.values(per)[0];
@@ -3908,8 +3951,9 @@ function normImg(m){
   // so they'd surface as text-to-image generators and fail without a source image (verified live:
   // "Image upload is required", "No input image data provided"). Detect the ones that truly need a
   // source by id and route them to the edit node instead. Remove once upstream modality is correct —
-  // see NANOGPT-audio-modality-bug.md.
-  const needsSrc = /upscal|inpaint|image-to-image|img2img/i.test(m.id);
+  // see NANOGPT-audio-modality-bug.md. NEEDS_SRC_IDS covers the same defect for ids whose NAME
+  // carries no tell (hidream-e1-1, wan-2.6-image-edit, vidu-q2-reference) — see the map above.
+  const needsSrc = NEEDS_SRC_IDS.has(m.id) || /upscal|inpaint|image-to-image|img2img/i.test(m.id);
   // True inpainting models (flux-lora/inpainting, any future *inpaint*) report image_to_image too, but
   // they REQUIRE a maskDataUrl marking the region to repaint — and we don't send one. Verified live:
   // image+prompt with no mask hard-errors 400 "No mask image data provided. Flux LoRA Inpainting
@@ -3934,6 +3978,8 @@ function normImg(m){
     gen: needsSrc ? false : (mod ? mod.startsWith("text") : !m.capabilities?.image_to_image),  // text-only generators; excludes edit-only models
     inpaint: inpaintOk,                                                  // needs/honors image + mask → the Inpaint node
     maxIn: m.supported_parameters?.max_input_images || 1,               // # reference images this model composites (1 = single-image edit)
+    minIn: (IMG_INPUT_ROLES[m.id]||[]).length || 1,                     // # it REQUIRES (no min_items upstream → curated); 1 = the normal case
+    roles: IMG_INPUT_ROLES[m.id] || null,                               // per-slot meaning when order matters (vto: person, then garment)
     lora: imageTakesLora(m.id),                                          // accepts a LoRA (v1 image catalog hides lora params → name allow-list)
     resolutions,                                                         // real supported sizes → the size control's options
     maxOut: m.supported_parameters?.max_output_images || 1,             // can return N images per call → the "variations" control (gen only)
@@ -4352,9 +4398,13 @@ function collectRefInputs(inp){
 function imgSpec(n){
   const t = n && NODE_TYPES[n.type], ii = t && t.imageInputs; if(!ii) return null;
   if(typeof ii==="string")
-    return { re:IMG_PORT_RE, name:(i)=> "img"+i, capable:modelSupportsImages(n), cap:Infinity };
+    return { re:IMG_PORT_RE, name:(i)=> "img"+i, capable:modelSupportsImages(n), cap:Infinity, min:1, roles:null };
   const m = catItem(t.modelKind, n.fields.model);
-  return { re:EDIT_IMG_RE, name:(i)=> i===1?"image":"image"+i, capable:true, cap:(m ? (m.maxIn||1) : 14) };  // permissive when offline/unknown
+  // roles/min are curated (IMG_INPUT_ROLES), so read the map directly when the catalog hasn't landed —
+  // a vto node must still draw BOTH ports on a cold cache, where cap stays permissive at 14.
+  const roles = (m && m.roles) || IMG_INPUT_ROLES[n.fields.model] || null;
+  return { re:EDIT_IMG_RE, name:(i)=> i===1?"image":"image"+i, capable:true, cap:(m ? (m.maxIn||1) : 14),
+           min:(roles ? roles.length : 1), roles };  // permissive when offline/unknown
 }
 function imageInputDefs(n){
   const s = imgSpec(n); if(!s) return [];
@@ -4362,8 +4412,10 @@ function imageInputDefs(n){
   const maxIdx = wired.length ? Math.max(...wired) : 0;
   if(!s.capable)
     return Array.from({length:Math.max(1,maxIdx)}, (_,i)=> ({ name:s.name(i+1), disabled:true }));
-  const count = Math.max(1, Math.min(maxIdx+1, s.cap));   // wired ports + one empty trailing slot, capped at the model's max
-  return Array.from({length:count}, (_,i)=> ({ name:s.name(i+1) }));
+  // wired ports + one empty trailing slot, capped at the model's max — but never FEWER than the
+  // model requires, so a role model (vto) shows both labelled slots the instant it's picked.
+  const count = Math.max(s.min||1, Math.min(maxIdx+1, s.cap));
+  return Array.from({length:count}, (_,i)=> ({ name:s.name(i+1), label:(s.roles && s.roles[i]) || null }));
 }
 // pull wired image ports out of a run's inp map, in port order (n selects the port family)
 function collectImageInputs(inp, n){
@@ -4427,7 +4479,21 @@ function updateNodePrice(n){
 function updateModelWarn(n){
   if(!n.el) return;
   const w = n.el.querySelector("[data-mw]"); if(!w) return;
-  if(!modelDrifted(n)){ w.hidden = true; w.textContent = ""; return; }
+  if(!modelDrifted(n)){
+    // Not drifted, but possibly under-wired: a role-ordered model (vto) 400s upstream unless EVERY
+    // slot is filled, so say so on the node instead of letting Run be the place they find out.
+    const s = imgSpec(n), roles = s && s.roles;
+    if(roles){
+      const gaps = roles.filter((_,i)=> !(graph.links||[]).some(l=> l.to.node===n.id && l.to.port===s.name(i+1)));
+      if(gaps.length){
+        w.hidden = false;
+        w.textContent = "⚠ " + t("needs {n} images ({roles})").replace("{n}", roles.length)
+          .replace("{roles}", roles.map(r=> t(r)).join(", "));
+        return;
+      }
+    }
+    w.hidden = true; w.textContent = ""; return;
+  }
   w.hidden = false;
   w.innerHTML = `⚠ ${esc(t("model unavailable — pick another"))} <button type="button" class="mwswap" data-mws>${esc(t("use default"))}</button>`;
   const swap = w.querySelector("[data-mws]");
@@ -5466,7 +5532,14 @@ function dimDefs(type, model){
     const res = (it && it.resolutions && it.resolutions.length) ? it.resolutions.map(r=>[r,r]) : SIZE_FALLBACK;
     const defs = [{ f:"size", label:"size", options:res, def:res[0][0] }];
     const maxOut = (it && it.maxOut) || 1;                  // generate-N-pick-one — gen node only, when the model supports it
-    if(type==="image" && maxOut>1){
+    const fixed = (it && it.fixedCount) || 0;               // ALWAYS returns this many (catalog: midjourney/higgsfield = 4)
+    // A fixed_image_count model ignores n entirely — it returns N and bills for N. Offering a 1..N
+    // picker defaulting to "1" is the UI lying about what the run costs, so lock the control to the
+    // real number and let refreshDims disclose it. Live-probed 2026-07-31: no other model dishonors
+    // n=1, so the catalog field is the whole truth here — no curated override list.
+    if(type==="image" && fixed>1){
+      defs.push({ f:"variations", label:"variations", options:[[String(fixed), String(fixed)]], def:String(fixed), locked:fixed });
+    } else if(type==="image" && maxOut>1){
       const vopts=[]; for(let i=1;i<=maxOut;i++) vopts.push([String(i), String(i)]);
       defs.push({ f:"variations", label:"variations", options:vopts, def:"1" });
     }
@@ -5514,14 +5587,22 @@ function refreshDims(n){
   if(!defs.length){ box.innerHTML=""; return; }
   for(const d of defs){               // seed a default when unset; never clobber a stored (e.g. pre-catalog) value
     const cur = n.fields[d.f];
-    if(cur==null || cur==="") n.fields[d.f] = d.def;
+    // …except a LOCKED def (fixed_image_count), which is not a preference: a stored variations:"1"
+    // from before the model swap would keep the estimate — and the user's expectation — at one image
+    // while the model returns and bills for N. Overwrite it, then disclose the number below.
+    if(d.locked) n.fields[d.f] = d.def;
+    else if(cur==null || cur==="") n.fields[d.f] = d.def;
     else if(!d.options.some(o=> String(o[0])===String(cur))) d.options = [[String(cur), String(cur)], ...d.options];
   }
-  const ctl = (d)=> `<div><label>${esc(d.label)}</label><select data-df="${esc(d.f)}">${
+  const ctl = (d)=> `<div><label>${esc(d.label)}</label><select data-df="${esc(d.f)}"${d.locked?" disabled":""}>${
     d.options.map(o=>`<option value="${esc(o[0])}"${String(o[0])===String(n.fields[d.f])?" selected":""}>${esc(o[1])}</option>`).join("")}</select></div>`;
-  box.innerHTML = defs.length>1
+  // A locked def's disclosure is a sentence, so it goes FULL WIDTH under the row — the first two
+  // controls sit in a half-width `.two` grid, where it would wrap to three cramped lines.
+  const hints = defs.filter(d=> d.locked).map(d=>
+    `<div class="fhint">${esc(t("this model always returns {n} images — you pay for all {n}").replace(/\{n\}/g, String(d.locked)))}</div>`).join("");
+  box.innerHTML = (defs.length>1
     ? `<div class="two">${defs.slice(0,2).map(ctl).join("")}</div>${defs.slice(2).map(ctl).join("")}`
-    : ctl(defs[0]);
+    : ctl(defs[0])) + hints;
   translateTree(box);   // localize size/resolution/aspect/duration labels + option text (mirror refreshAudioParams)
   box.querySelectorAll("[data-df]").forEach(el=>{
     const f = el.dataset.df;
@@ -5562,7 +5643,12 @@ function livePrice(kind, fields){
   if(kind==="image"){
     const per = it.sizePrices||{};
     const v = per[fields.size] ?? per.square ?? per.square_hd ?? Object.values(per)[0];
-    return v!=null ? `$${(+v).toFixed(3)}/img` : (it.price||"");
+    if(v==null) return it.price||"";
+    // A fixed_image_count model bills unit × N every single run, so "$0.020/img" is the headline lie
+    // on the node chip — show what one Run actually costs, with the ×N that makes it.
+    const fixed = it.fixedCount||0;
+    if(fixed>1) return `$${(+v*fixed).toFixed(3)}/run ×${fixed}`;
+    return `$${(+v).toFixed(3)}/img`;
   }
   if(kind==="video"){
     const u = videoUnitUsd(it.pricing, fields);   // all shapes; recomputes live as resolution/duration change
@@ -5759,8 +5845,11 @@ function nodeUnitUsd(n){
     // Price the images the run will ACTUALLY be billed for (genImage accrues unit×urls.length): fixed_image_count
     // models (midjourney/higgsfield) always return N regardless of the request; otherwise clamp the requested
     // variations to what the model can return, so a stale/over-set count can't inflate the estimate either.
+    // fixed>1 is the ONE predicate for "the model dictates the count" — shared with dimDefs' locked variations
+    // field, image run()'s want, and livePrice's ×N. fixed===1 falls through to the variations clamp so a
+    // 1-per-call model that still allows several images bills what the user actually asked for.
     const maxOut=(it&&it.maxOut)||1, fixed=(it&&it.fixedCount)||0;
-    const count = fixed>0 ? fixed : Math.min(maxOut, Math.max(1, parseInt(n.fields.variations,10)||1));
+    const count = fixed>1 ? fixed : Math.min(maxOut, Math.max(1, parseInt(n.fields.variations,10)||1));
     return u*count; }
   if(kind==="video"){
     // ref-image ports actually wired (and the model still exposes a ref-image param) flip the estimate to
@@ -6119,8 +6208,10 @@ const NODE_TYPES = {
     async run(n, inp, ctx){
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       if(!prompt) throw new Error("no prompt — describe the image to generate");
-      const it = catItem("image", n.fields.model), maxOut = (it && it.maxOut) || 1;
-      const want = Math.max(1, Math.min(maxOut, parseInt(n.fields.variations,10)||1));
+      const it = catItem("image", n.fields.model), maxOut = (it && it.maxOut) || 1, fixed = (it && it.fixedCount) || 0;
+      // fixed_image_count models return (and bill) N whatever n says — request the real number so the
+      // send matches the invoice; everything else clamps the picked variations to the model's max.
+      const want = fixed>1 ? fixed : Math.max(1, Math.min(maxOut, parseInt(n.fields.variations,10)||1));
       // always take the multi path: even a single-image request can come back with N (fixed_image_count
       // models return 4), and we want to surface every image the user paid for, not discard them.
       const urls = await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], undefined, undefined, imgExtra(n), {n:want, multi:true});
@@ -6145,11 +6236,22 @@ const NODE_TYPES = {
     async run(n, inp, ctx){
       let imgs = collectImageInputs(inp, n);   // wired source images, in port order (image, image2, …)
       if(!imgs.length) throw new Error("no image — wire an image into the image port");
+      // Role-ordered models (flux-pro/v1/vto) need EVERY slot filled, in order: one image is a
+      // guaranteed 400 upstream. Refuse here, before any paid call — throwing costs nothing because
+      // runGroup isolates the failure and ctx.genImage below never fires. Check the RAW ports, not
+      // the compacted array: recompactImageLinks deliberately skips role models, so image+image3 is
+      // "2 images" by length yet leaves the garment slot empty.
+      const spec = imgSpec(n);
+      if(spec.roles){
+        const gaps = spec.roles.filter((_,i)=> !inp[spec.name(i+1)]);
+        if(gaps.length) throw new Error(t("this model needs {n} images ({roles}) — wire all of them")
+          .replace("{n}", String(spec.roles.length)).replace("{roles}", spec.roles.map(r=> t(r)).join(", ")));
+      }
       // A model downgrade hides the ports past its max_input_images (imageInputDefs caps what's
       // RENDERED) but leaves their LINKS, which still collect here — cap the send so we never post
       // more references than the model composites (a paid call that errors/misbehaves). imgSpec.cap
       // is the same maxIn the ports are drawn from, so the send matches the UI. No cap → unchanged.
-      const cap = imgSpec(n).cap;
+      const cap = spec.cap;
       if(imgs.length > cap){
         toast(t("dropped {n} reference image(s) over this model's limit of {max}").replace("{n}", imgs.length-cap).replace("{max}", cap), "warn");
         imgs = imgs.slice(0, cap);
@@ -6758,6 +6860,10 @@ function buildNodeEl(n){
 // links in place, preserving order. Safe no-op for nodes without image inputs.
 function recompactImageLinks(n){
   const s = imgSpec(n); if(!s) return;
+  // NOT for role-ordered models: there the slot IS the meaning (image = person, image2 = garment),
+  // so re-packing after unwiring slot 1 would silently promote the garment into the person slot and
+  // ship a wrong-but-plausible paid render. Leave the hole; edit.run() refuses to send with one.
+  if(s.roles) return;
   graph.links.filter(l=> l.to.node===n.id && s.re.test(l.to.port))
     .sort((a,b)=> portIdx(a.to.port) - portIdx(b.to.port))
     .forEach((l,i)=>{ l.to.port = s.name(i+1); });
@@ -6776,12 +6882,13 @@ function refreshImageInputs(n){
     row.className = "prow imgrow" + (d.disabled?" off":"");
     row.innerHTML = `<i class="port image${d.disabled?" disabled":""}" data-node="${esc(n.id)}" data-port="${esc(d.name)}" data-dir="in" data-ptype="image"`
       + (d.disabled?` title="this model can’t read images — pick a vision model"`:``) + `></i>`
-      + `<span>${multi?("image "+(i+1)):"image"}</span>`;
+      + `<span>${d.label ? esc(d.label) : (multi?("image "+(i+1)):"image")}</span>`;   // role models label the slot (person / garment) — order is load-bearing
     col.appendChild(row);
     translateTree(row);   // localize the disabled-port tooltip (port label stays English, like the static ports)
     if(!d.disabled) row.querySelector(".port").addEventListener("pointerdown", e=> startWire(e.currentTarget, e));
   });
   refreshPortFills();
+  updateModelWarn(n);   // wiring changed → re-evaluate the "needs 2 images (person, garment)" badge
 }
 // Re-pack vid1..vidN after a disconnect so there's never a hole (mirror of recompactImageLinks).
 function recompactVideoLinks(n){
@@ -8368,7 +8475,14 @@ function njsRunFor(type, rn, inp, n){
   // Gallery clamp: on a raw-catalog miss the library sends n=variations UNCLAMPED where the
   // editor clamps to 1 — a silent over-bill. Until the library adopts the conservative default,
   // multi-variation requests stay on the built-in path.
+  // A fixed_image_count model is now auto-pinned to variations=N (dimDefs' locked def), so every such
+  // run takes this same veto and stays on the built-in path — correct, and the reason the gallery
+  // clamp above is written as ">1" rather than a variations!==1 equality.
   if(type==="image" && (parseInt(rn.fields.variations,10)||1) > 1) return null;
+  // Role-ordered edit models (IMG_INPUT_ROLES): the library's edit runner has its own min-input guard
+  // now, but the ROLE→port mapping is curated here and the two lists can drift — a delegated run that
+  // disagreed would either send a wrong-slot pair or spend where the built-in refused. Stay built-in.
+  if(type==="edit" && IMG_INPUT_ROLES[rn.fields.model]) return null;
   // tvideo/vedit refs: the library now resolves the real ref key + cap from the raw catalog
   // (modelRefSpec), but on a catalog MISS it stays permissive-ON (send under the most common
   // spelling, like play) where this editor is permissive-OFF (videoRefSpec null → refs dropped,

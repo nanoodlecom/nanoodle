@@ -9,6 +9,8 @@
 //   • recompactImageLinks — renumbers surviving image links so removing the source
 //                        of a middle port (img2) leaves NO hole (the reported bug).
 //   • collectImageInputs — pulls wired image ports out of a run in index order.
+//   • fixed_image_count  — dimDefs locks the variations control, image.run() requests the
+//                        forced count, and livePrice shows the ×N run price, all off fixed>1.
 
 import { readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
@@ -36,34 +38,54 @@ const grab = (re, what) => { const m = SRC.match(re); if (!m) throw new Error(wh
 const reLine      = grab(/const IMG_PORT_RE = \/[^\n]*;/, "IMG_PORT_RE");
 const editReLine  = grab(/const EDIT_IMG_RE = \/[^\n]*;/, "EDIT_IMG_RE");
 const portIdxLine = grab(/const portIdx = [^\n]*;/, "portIdx");
+// The REAL curated role map, so the min-input tests run against the shipped model list, not a mock.
+const rolesLine   = grab(/const IMG_INPUT_ROLES = \{[^\n]*\};/, "IMG_INPUT_ROLES");
+// dimension fallbacks the REAL dimDefs closes over (SIZE_FALLBACK reads the SIZES stub below).
+const sizeFbLine  = grab(/const SIZE_FALLBACK\s+= [^\n]*;/, "SIZE_FALLBACK");
+const aspectFbLine= grab(/const ASPECT_FALLBACK\s+= [^\n]*;/, "ASPECT_FALLBACK");
+const durFbLine   = grab(/const DURATION_FALLBACK = [^\n]*;/, "DURATION_FALLBACK");
 
-// The edit node's REAL run() — an object-literal method, so brace-match from `async run(` (the
-// first one after the `edit: {` marker) and rename it to a standalone callable. This lets us drive
-// the actual max_input_images capping + drop-toast the editor ships, not a reimplementation.
-function extractEditRun(src) {
-  const anchor = src.indexOf("\n  edit: {");
-  if (anchor === -1) throw new Error("edit node literal not found in index.html");
+// A node's REAL run() — an object-literal method, so brace-match from `async run(` (the first one
+// after the `<type>: {` marker) and rename it to a standalone callable. This lets us drive the
+// actual editor code (edit's max_input_images capping + drop-toast, image's fixed-count request),
+// not a reimplementation.
+function extractNodeRun(src, type, alias) {
+  const anchor = src.indexOf("\n  " + type + ": {\n");   // the node literal, not the same-named CATALOGS entry
+  if (anchor === -1) throw new Error(type + " node literal not found in index.html");
   const rs = src.indexOf("async run(", anchor);
-  if (rs === -1) throw new Error("edit.run() not found in index.html");
+  if (rs === -1) throw new Error(type + ".run() not found in index.html");
   let depth = 0;
   for (let j = src.indexOf("{", rs); j < src.length; j++) {
     if (src[j] === "{") depth++;
     else if (src[j] === "}" && --depth === 0)
-      return src.slice(rs, j + 1).replace(/^async run/, "async function __editRun");
+      return src.slice(rs, j + 1).replace(/^async run/, "async function " + alias);
   }
-  throw new Error("could not brace-match edit.run()");
+  throw new Error("could not brace-match " + type + ".run()");
 }
 
 const bundle =
-  reLine + "\n" + editReLine + "\n" + portIdxLine + "\n" +
-  ["modelSupportsImages", "imgSpec", "imageInputDefs", "collectImageInputs", "recompactImageLinks"]
+  reLine + "\n" + editReLine + "\n" + portIdxLine + "\n" + rolesLine + "\n" +
+  sizeFbLine + "\n" + aspectFbLine + "\n" + durFbLine + "\n" +
+  ["modelSupportsImages", "imgSpec", "imageInputDefs", "collectImageInputs", "recompactImageLinks",
+   "selOpts", "paramDef", "dimDefs", "livePrice"]
     .map((n) => extractFn(SRC, n)).join("\n") + "\n" +
-  extractEditRun(SRC) + "\n" +
-  "globalThis.__t = { imageInputDefs, collectImageInputs, recompactImageLinks, modelSupportsImages, imgSpec, editRun: __editRun };";
+  extractNodeRun(SRC, "edit", "__editRun") + "\n" +
+  extractNodeRun(SRC, "image", "__imageRun") + "\n" +
+  "globalThis.__t = { imageInputDefs, collectImageInputs, recompactImageLinks, modelSupportsImages, imgSpec, dimDefs, livePrice, editRun: __editRun, imageRun: __imageRun };";
 
 // ---- stubs for the globals the extracted code closes over -----------------
 // vision flag for the llm family; maxIn (max_input_images) for the edit family. Unknown id → undefined.
-const MODELS = { vmodel: { vision: true }, tmodel: { vision: false }, emodel: { maxIn: 4 }, e1model: { maxIn: 1 } };
+// "flux-pro/v1/vto" is the REAL id from index.html's IMG_INPUT_ROLES — normImg derives minIn/roles
+// from that map, so the stub mirrors what the live catalog entry normalizes to (max_input_images 2).
+// fix4model mirrors midjourney/text-to-image + higgsfield-soul (fixed_image_count 4); batch4model is the
+// ordinary generate-N model; fix1model is the fixed_image_count:1 shape that must behave like no fix at all.
+const MODELS = {
+  vmodel: { vision: true }, tmodel: { vision: false }, emodel: { maxIn: 4 }, e1model: { maxIn: 1 },
+  "flux-pro/v1/vto": { maxIn: 2, minIn: 2, roles: ["person", "garment"] },
+  fix4model:   { maxOut: 4, fixedCount: 4, sizePrices: { "1024x1024": 0.02 } },
+  batch4model: { maxOut: 4, fixedCount: 0, sizePrices: { "1024x1024": 0.02 } },
+  fix1model:   { maxOut: 4, fixedCount: 1, sizePrices: { "1024x1024": 0.02 } },
+};
 const toasts = [];   // edit.run pushes a warn toast here when it drops over-cap references
 const ctx = {
   console,
@@ -189,9 +211,104 @@ const rU = await editRun("typed-in-id", threeRefs);
 ok(Array.isArray(rU.sent) && rU.sent.length === 3, `an uncatalogued model must keep all refs, got ${JSON.stringify(rU.sent)}`);
 ok(toasts.length === 0, `uncatalogued model must not warn, got ${JSON.stringify(toasts)}`);
 
+// ---- G. role-ordered models need every slot: ports + a PRE-CHARGE refusal --
+// flux-pro/v1/vto 400s upstream unless it gets [person, garment] in that order (live-verified
+// 2026-07-31, uncharged). Both slots must RENDER the moment the model is picked — a lone "image"
+// port is the UI failing to ask for the second image — and edit.run() must refuse before genImage.
+const vto = edit("flux-pro/v1/vto");
+editLinks();
+ok(JSON.stringify(names(vto)) === '["image","image2"]', `role model must render BOTH ports unwired, got ${JSON.stringify(names(vto))}`);
+const vtoLabels = T.imageInputDefs(vto).map((d) => d.label);
+ok(JSON.stringify(vtoLabels) === '["person","garment"]', `role model ports must carry role labels, got ${JSON.stringify(vtoLabels)}`);
+editLinks("image", "image2");
+ok(JSON.stringify(names(vto)) === '["image","image2"]', `role model must not grow past its roles, got ${JSON.stringify(names(vto))}`);
+// a normal edit model still has no labels (the generic "image N" rendering is unchanged)
+editLinks("image"); ok(T.imageInputDefs(e4).every((d) => !d.label), "non-role edit models must not gain port labels");
+
+// recompaction must NOT renumber a role model: promoting image3 → image would silently move the
+// garment photo into the person slot and ship a wrong-but-plausible paid render.
+editLinks("image3");
+T.recompactImageLinks(vto);
+ok(JSON.stringify(editWires()) === '["u0->image3"]', `role model must NOT be recompacted (slot = role), got ${JSON.stringify(editWires())}`);
+T.recompactImageLinks(e4);   // …while a normal edit model still packs down to slot 1
+ok(JSON.stringify(editWires()) === '["u0->image"]', `non-role edit model must still recompact, got ${JSON.stringify(editWires())}`);
+
+// edit.run() throws BEFORE any genImage call when a role slot is empty (zero spend).
+const runRole = async (inp) => {
+  let called = 0, err = null;
+  try {
+    await T.editRun({ id: "e1", type: "edit", fields: { model: "flux-pro/v1/vto", prompt: "try it on" } }, inp,
+      { genImage: () => { called++; return "OUT"; } });
+  } catch (e) { err = e; }
+  return { called, err };
+};
+const only1 = await runRole({ image: "PERSON" });
+ok(only1.called === 0, "vto with 1 image must NOT reach genImage (pre-charge refusal)");
+ok(only1.err && /2 images/.test(only1.err.message) && /person/.test(only1.err.message) && /garment/.test(only1.err.message),
+  `vto 1-image error must name the count and both roles, got ${only1.err && only1.err.message}`);
+// a HOLE (image + image3) is 2 images by length but leaves the garment slot empty — must still refuse
+const holed = await runRole({ image: "PERSON", image3: "GARMENT" });
+ok(holed.called === 0, "vto with a hole (image+image3) must NOT reach genImage — length is not slot coverage");
+// both roles wired → the run proceeds and sends the pair as an ARRAY, person first
+let vtoSent;
+await T.editRun({ id: "e1", type: "edit", fields: { model: "flux-pro/v1/vto", prompt: "try it on" } },
+  { image: "PERSON", image2: "GARMENT" }, { genImage: (_p, _m, _s, src) => { vtoSent = src; return "OUT"; } });
+ok(Array.isArray(vtoSent) && vtoSent[0] === "PERSON" && vtoSent[1] === "GARMENT",
+  `vto must send [person, garment] in that order, got ${JSON.stringify(vtoSent)}`);
+
+// ---- H. fixed_image_count: the control, the request and the price must agree
+// midjourney/higgsfield ALWAYS return (and bill) 4 images whatever `n` says. Three sites carry that
+// fact and they have to stay in lockstep — a picker that says "1", a request for 1, or a "$0.020/img"
+// chip each turn a 4× charge into a surprise. All three keyed on fixed>1 (fixed:1 is not a forced
+// count: it must fall through to the normal variations clamp, or a 3-variation run bills 3 and quotes 1).
+const dimVar = (model) => T.dimDefs("image", model).find((d) => d.f === "variations");
+
+// (a) the variations control is LOCKED to the forced number — one option, that number, marked locked
+const lockedVar = dimVar("fix4model");
+ok(lockedVar && lockedVar.locked === 4 && lockedVar.def === "4",
+  `fixed_image_count must lock the variations control to 4, got ${JSON.stringify(lockedVar)}`);
+ok(lockedVar && JSON.stringify(lockedVar.options) === '[["4","4"]]',
+  `a locked variations control must offer ONLY the forced count (no 1..N picker), got ${JSON.stringify(lockedVar && lockedVar.options)}`);
+// an ordinary batch model still gets the full 1..maxOut picker, defaulting to 1 and NOT locked
+const batchVar = dimVar("batch4model");
+ok(batchVar && !batchVar.locked && batchVar.def === "1" && batchVar.options.length === 4,
+  `a non-fixed model must keep the 1..4 picker unlocked, got ${JSON.stringify(batchVar)}`);
+// fixed_image_count:1 is NOT a forced count — same unlocked picker (the fixed>1 invariant)
+const fix1Var = dimVar("fix1model");
+ok(fix1Var && !fix1Var.locked && fix1Var.options.length === 4,
+  `fixed_image_count:1 must not lock the control (fixed>1 is the predicate), got ${JSON.stringify(fix1Var)}`);
+// edit nodes never show variations (the multi path is a gen-node affordance)
+ok(!T.dimDefs("edit", "fix4model").some((d) => d.f === "variations"), "edit nodes must not grow a variations control");
+
+// (b) image.run() REQUESTS the forced count, even with a stale variations:"1" stored on the node
+const imageRun = async (model, fields) => {
+  let opts, n = null;
+  await T.imageRun({ id: "i1", type: "image", fields: { model, prompt: "a red panda", size: "1024x1024", ...fields } }, {},
+    { genImage: (_p, _m, _s, _src, _mask, _extra, o) => { opts = o; n = o && o.n; return ["U1", "U2", "U3", "U4"]; } });
+  return { opts, n };
+};
+ok((await imageRun("fix4model", { variations: "1" })).n === 4,
+  "fixed_image_count must request the forced count even when the stored variations say 1 (send must match the invoice)");
+ok((await imageRun("fix4model", {})).n === 4, "fixed_image_count must request N with no stored variations at all");
+ok((await imageRun("batch4model", { variations: "3" })).n === 3, "a non-fixed model must request the picked variations");
+ok((await imageRun("batch4model", { variations: "9" })).n === 4, "an over-set variations count must clamp to max_output_images");
+ok((await imageRun("fix1model", { variations: "3" })).n === 3,
+  "fixed_image_count:1 must honour the picked variations (fixed>1 is the predicate)");
+ok((await imageRun("fix4model", { variations: "1" })).opts.multi === true,
+  "the image run must always take the multi path so every paid image survives");
+
+// (c) the node chip prices a RUN, not an image, and says where the multiplier comes from
+const lp4 = T.livePrice("image", { model: "fix4model", size: "1024x1024" });
+ok(/×4/.test(lp4) && /\/run/.test(lp4) && /0\.080/.test(lp4),
+  `fixed_image_count chip must read "$0.080/run ×4", got ${JSON.stringify(lp4)}`);
+ok(/0\.020\/img/.test(T.livePrice("image", { model: "batch4model", size: "1024x1024" })),
+  "a non-fixed model must keep the per-image chip");
+ok(/0\.020\/img/.test(T.livePrice("image", { model: "fix1model", size: "1024x1024" })),
+  "fixed_image_count:1 must keep the per-image chip (fixed>1 is the predicate)");
+
 // ---- report ---------------------------------------------------------------
 if (failures.length) {
   process.stderr.write("✗ image-port logic is wrong:\n\n- " + failures.join("\n- ") + "\n");
   process.exit(1);
 }
-process.stdout.write("✓ image-input port logic holds (growth, disabled stub, hole-free compaction, order, max_input_images send-cap).\n");
+process.stdout.write("✓ image-input port logic holds (growth, disabled stub, hole-free compaction, order, max_input_images send-cap, role-ordered min-input refusal, fixed_image_count lock+request+price).\n");
