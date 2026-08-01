@@ -1,5 +1,5 @@
-/* data-hash=9f98a928b26bb175 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-7338a9e395fd (16 modules) */
+/* data-hash=1822dd3d159d8c4d */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-ef3e90b5d8c3 (16 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -30,7 +30,7 @@ __def("browser.mjs", function (__x, __req) {
 { const __m = __req("media.mjs"); __x.MediaRef = __m.MediaRef; __x.MEDIA_INLINE_MAX = __m.MEDIA_INLINE_MAX; __x.coerceMediaInput = __m.coerceMediaInput; __x.assertInlineMediaSize = __m.assertInlineMediaSize; __x.bytesToDataUrl = __m.bytesToDataUrl; __x.dataUrlBytes = __m.dataUrlBytes; __x.bytesToBase64 = __m.bytesToBase64; __x.base64ToBytes = __m.base64ToBytes; __x.sniffMime = __m.sniffMime; __x.b64ImageMime = __m.b64ImageMime; __x.extForMime = __m.extForMime; }
 { const __m = __req("client.mjs"); __x.NanoClient = __m.NanoClient; __x.httpError = __m.httpError; __x.costFromJson = __m.costFromJson; __x.costFromHeaders = __m.costFromHeaders; __x.costWithHeaders = __m.costWithHeaders; __x.sleep = __m.sleep; }
 { const __m = __req("graph.mjs"); __x.NODE_TYPES = __m.NODE_TYPES; __x.displayName = __m.displayName; __x.materialize = __m.materialize; __x.topoSort = __m.topoSort; __x.wiredFramesFloor = __m.wiredFramesFloor; __x.MAX_FRAMES = __m.MAX_FRAMES; }
-{ const __m = __req("nodes.mjs"); __x.RUNNERS = __m.RUNNERS; } // per-node executors — the play delegation shim drives these directly
+{ const __m = __req("nodes.mjs"); __x.RUNNERS = __m.RUNNERS; __x.IMG_INPUT_ROLES = __m.IMG_INPUT_ROLES; } // per-node executors — the play delegation shim drives these directly
 { const __m = __req("catalog.mjs"); __x.catItem = __m.catItem; __x.chatModelCan = __m.chatModelCan; }
 { const __m = __req("io.mjs"); __x.deriveInputs = __m.deriveInputs; __x.deriveOutputs = __m.deriveOutputs; __x.deriveSettings = __m.deriveSettings; __x.INPUT_SPECS = __m.INPUT_SPECS; __x.SETTING_SPECS = __m.SETTING_SPECS; }
 { const __m = __req("share.mjs"); __x.decodeShareUrl = __m.decodeShareUrl; __x.decodeShareFragment = __m.decodeShareFragment; __x.isShareRef = __m.isShareRef; }
@@ -1384,6 +1384,46 @@ function collectPorts(inp, re) {
     .filter(Boolean);
 }
 
+/**
+ * Edit models that demand a FIXED, ORDERED set of input images. Nothing in the live catalog
+ * declares a minimum — a full 215-model scan (2026-07-31) found no min_items/min_input_images
+ * field, only free text — so the roles live here. The order IS the slot order: role 1 = the
+ * `image` port, role 2 = `image2`, … (flux vto auto-detects the wearer either way, but a
+ * garment-first send drifts the identity toward the garment photo's model).
+ */
+const IMG_INPUT_ROLES = {
+  "flux-pro/v1/vto": ["person", "garment"],
+};
+
+const imgSlot = (i) => (i === 1 ? "image" : "image" + i); // slot index → EDIT_IMG_RE port name
+
+/**
+ * Refuse a role-model edit BEFORE the paid call unless every slot is wired. Read the RAW inp
+ * keys, never collectPorts: that compacts (.filter(Boolean)), so wiring only `image2` promotes
+ * the garment into the person slot and buys a silently wrong result.
+ */
+function guardInputRoles(model, inp) {
+  const roles = IMG_INPUT_ROLES[String(model || "").trim()];
+  if (!roles) return;
+  const missing = roles.filter((r, i) => !inp[imgSlot(i + 1)]);
+  if (!missing.length) return;
+  const slots = roles.map((r, i) => `${r} (${imgSlot(i + 1)})`).join(", ");
+  throw new NanoodleError(
+    `${model} needs ${roles.length} images: ${slots} — ${roles.length - missing.length} wired (missing: ${missing.join(", ")})`,
+  );
+}
+
+/**
+ * edit/inpaint have a single image output, but some models always bill (and return) a fixed
+ * batch — midjourney/text-to-image and higgsfield-soul declare fixed_image_count: 4. Ask with
+ * multi so we can SEE the extras and say we dropped them; the return shape stays one url.
+ */
+function keptFirst(urls, ctx) {
+  if (!Array.isArray(urls)) return urls; // host-injected ctx.image that ignores multi → already one url
+  if (urls.length > 1 && ctx && ctx.progress) ctx.progress(`model returned ${urls.length} images, kept the first`);
+  return urls[0];
+}
+
 function promptOf(n, inp, errMsg) {
   const raw = inp.prompt != null ? inp.prompt : n.fields.prompt != null ? n.fields.prompt : "";
   const p = String(raw).trim();
@@ -1884,6 +1924,7 @@ const RUNNERS = {
   },
 
   async edit(n, inp, ctx) {
+    guardInputRoles(n.fields.model, inp); // role models: refuse holes before spending
     let imgs = collectPorts(inp, EDIT_IMG_RE);
     if (!imgs.length) throw new NanoodleError("no image input");
     // cap to the model's max_input_images (item present but silent → 1; absent → no cap):
@@ -1902,7 +1943,8 @@ const RUNNERS = {
     imgs = await Promise.all(imgs.map((u) => fitImage(u, ctx, "source image")));
     guardRefsSize(imgs);
     const src = imgs.length > 1 ? imgs : imgs[0]; // array → multi-image composite; string → single edit
-    return { image: await ctx.image({ prompt, model: mdl(n), size: n.fields.size || "1024x1024", imageDataUrl: src, extra: imgExtra(n) }) };
+    const urls = await ctx.image({ prompt, model: mdl(n), size: n.fields.size || "1024x1024", imageDataUrl: src, extra: imgExtra(n), multi: true });
+    return { image: keptFirst(urls, ctx) };
   },
 
   async inpaint(n, inp, ctx) {
@@ -1915,7 +1957,8 @@ const RUNNERS = {
     // ctx.maskToSource lets a browser host inject its canvas compositor (handles JPEG/WebP
     // sources the pure-PNG path can't, where ffmpeg isn't an option).
     const mask = await (ctx.maskToSource || maskToSource)(rawMask, source, mediaOpts(ctx));
-    return { image: await ctx.image({ prompt, model: mdl(n), size: n.fields.size || "1024x1024", imageDataUrl: source, maskDataUrl: mask, extra: imgExtra(n) }) };
+    const urls = await ctx.image({ prompt, model: mdl(n), size: n.fields.size || "1024x1024", imageDataUrl: source, maskDataUrl: mask, extra: imgExtra(n), multi: true });
+    return { image: keptFirst(urls, ctx) };
   },
 
   async tvideo(n, inp, ctx) {
@@ -2025,7 +2068,7 @@ const RUNNERS = {
   },
 };
 
-__x.loraParams = loraParams; __x.RUNNERS = RUNNERS;
+__x.IMG_INPUT_ROLES = IMG_INPUT_ROLES; __x.loraParams = loraParams; __x.RUNNERS = RUNNERS;
 });
 __def("catalog.mjs", function (__x, __req) {
 /**
@@ -4749,5 +4792,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-7338a9e395fd";
+  window.NanoodleEngine.version = "src-ef3e90b5d8c3";
 })();

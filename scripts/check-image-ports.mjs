@@ -36,6 +36,8 @@ const grab = (re, what) => { const m = SRC.match(re); if (!m) throw new Error(wh
 const reLine      = grab(/const IMG_PORT_RE = \/[^\n]*;/, "IMG_PORT_RE");
 const editReLine  = grab(/const EDIT_IMG_RE = \/[^\n]*;/, "EDIT_IMG_RE");
 const portIdxLine = grab(/const portIdx = [^\n]*;/, "portIdx");
+// The REAL curated role map, so the min-input tests run against the shipped model list, not a mock.
+const rolesLine   = grab(/const IMG_INPUT_ROLES = \{[^\n]*\};/, "IMG_INPUT_ROLES");
 
 // The edit node's REAL run() — an object-literal method, so brace-match from `async run(` (the
 // first one after the `edit: {` marker) and rename it to a standalone callable. This lets us drive
@@ -55,7 +57,7 @@ function extractEditRun(src) {
 }
 
 const bundle =
-  reLine + "\n" + editReLine + "\n" + portIdxLine + "\n" +
+  reLine + "\n" + editReLine + "\n" + portIdxLine + "\n" + rolesLine + "\n" +
   ["modelSupportsImages", "imgSpec", "imageInputDefs", "collectImageInputs", "recompactImageLinks"]
     .map((n) => extractFn(SRC, n)).join("\n") + "\n" +
   extractEditRun(SRC) + "\n" +
@@ -63,7 +65,12 @@ const bundle =
 
 // ---- stubs for the globals the extracted code closes over -----------------
 // vision flag for the llm family; maxIn (max_input_images) for the edit family. Unknown id → undefined.
-const MODELS = { vmodel: { vision: true }, tmodel: { vision: false }, emodel: { maxIn: 4 }, e1model: { maxIn: 1 } };
+// "flux-pro/v1/vto" is the REAL id from index.html's IMG_INPUT_ROLES — normImg derives minIn/roles
+// from that map, so the stub mirrors what the live catalog entry normalizes to (max_input_images 2).
+const MODELS = {
+  vmodel: { vision: true }, tmodel: { vision: false }, emodel: { maxIn: 4 }, e1model: { maxIn: 1 },
+  "flux-pro/v1/vto": { maxIn: 2, minIn: 2, roles: ["person", "garment"] },
+};
 const toasts = [];   // edit.run pushes a warn toast here when it drops over-cap references
 const ctx = {
   console,
@@ -189,9 +196,54 @@ const rU = await editRun("typed-in-id", threeRefs);
 ok(Array.isArray(rU.sent) && rU.sent.length === 3, `an uncatalogued model must keep all refs, got ${JSON.stringify(rU.sent)}`);
 ok(toasts.length === 0, `uncatalogued model must not warn, got ${JSON.stringify(toasts)}`);
 
+// ---- G. role-ordered models need every slot: ports + a PRE-CHARGE refusal --
+// flux-pro/v1/vto 400s upstream unless it gets [person, garment] in that order (live-verified
+// 2026-07-31, uncharged). Both slots must RENDER the moment the model is picked — a lone "image"
+// port is the UI failing to ask for the second image — and edit.run() must refuse before genImage.
+const vto = edit("flux-pro/v1/vto");
+editLinks();
+ok(JSON.stringify(names(vto)) === '["image","image2"]', `role model must render BOTH ports unwired, got ${JSON.stringify(names(vto))}`);
+const vtoLabels = T.imageInputDefs(vto).map((d) => d.label);
+ok(JSON.stringify(vtoLabels) === '["person","garment"]', `role model ports must carry role labels, got ${JSON.stringify(vtoLabels)}`);
+editLinks("image", "image2");
+ok(JSON.stringify(names(vto)) === '["image","image2"]', `role model must not grow past its roles, got ${JSON.stringify(names(vto))}`);
+// a normal edit model still has no labels (the generic "image N" rendering is unchanged)
+editLinks("image"); ok(T.imageInputDefs(e4).every((d) => !d.label), "non-role edit models must not gain port labels");
+
+// recompaction must NOT renumber a role model: promoting image3 → image would silently move the
+// garment photo into the person slot and ship a wrong-but-plausible paid render.
+editLinks("image3");
+T.recompactImageLinks(vto);
+ok(JSON.stringify(editWires()) === '["u0->image3"]', `role model must NOT be recompacted (slot = role), got ${JSON.stringify(editWires())}`);
+T.recompactImageLinks(e4);   // …while a normal edit model still packs down to slot 1
+ok(JSON.stringify(editWires()) === '["u0->image"]', `non-role edit model must still recompact, got ${JSON.stringify(editWires())}`);
+
+// edit.run() throws BEFORE any genImage call when a role slot is empty (zero spend).
+const runRole = async (inp) => {
+  let called = 0, err = null;
+  try {
+    await T.editRun({ id: "e1", type: "edit", fields: { model: "flux-pro/v1/vto", prompt: "try it on" } }, inp,
+      { genImage: () => { called++; return "OUT"; } });
+  } catch (e) { err = e; }
+  return { called, err };
+};
+const only1 = await runRole({ image: "PERSON" });
+ok(only1.called === 0, "vto with 1 image must NOT reach genImage (pre-charge refusal)");
+ok(only1.err && /2 images/.test(only1.err.message) && /person/.test(only1.err.message) && /garment/.test(only1.err.message),
+  `vto 1-image error must name the count and both roles, got ${only1.err && only1.err.message}`);
+// a HOLE (image + image3) is 2 images by length but leaves the garment slot empty — must still refuse
+const holed = await runRole({ image: "PERSON", image3: "GARMENT" });
+ok(holed.called === 0, "vto with a hole (image+image3) must NOT reach genImage — length is not slot coverage");
+// both roles wired → the run proceeds and sends the pair as an ARRAY, person first
+let vtoSent;
+await T.editRun({ id: "e1", type: "edit", fields: { model: "flux-pro/v1/vto", prompt: "try it on" } },
+  { image: "PERSON", image2: "GARMENT" }, { genImage: (_p, _m, _s, src) => { vtoSent = src; return "OUT"; } });
+ok(Array.isArray(vtoSent) && vtoSent[0] === "PERSON" && vtoSent[1] === "GARMENT",
+  `vto must send [person, garment] in that order, got ${JSON.stringify(vtoSent)}`);
+
 // ---- report ---------------------------------------------------------------
 if (failures.length) {
   process.stderr.write("✗ image-port logic is wrong:\n\n- " + failures.join("\n- ") + "\n");
   process.exit(1);
 }
-process.stdout.write("✓ image-input port logic holds (growth, disabled stub, hole-free compaction, order, max_input_images send-cap).\n");
+process.stdout.write("✓ image-input port logic holds (growth, disabled stub, hole-free compaction, order, max_input_images send-cap, role-ordered min-input refusal).\n");

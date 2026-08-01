@@ -33,6 +33,9 @@ catalog.image.push(
   { id: "capmodel1", supported_parameters: { max_input_images: 1 } },
   { id: "capmodel3", supported_parameters: { max_input_images: 3 } },
   { id: "x", supported_parameters: { max_input_images: 9, max_output_images: 9 } },
+  // the real role-ordered model: catalog says max_items 2 and NOTHING about a minimum (no min_items
+  // field exists upstream), which is exactly why the runtime carries the curated IMG_INPUT_ROLES map.
+  { id: "flux-pro/v1/vto", supported_parameters: { max_input_images: 2, fixed_image_count: 1 } },
 );
 
 // ---- graph builders -------------------------------------------------------
@@ -256,6 +259,42 @@ const SCENARIOS = [
             links: [link("a", "image", "e1", "image")] },
     check(app, g, fail) {
       if (imgCalls().length) fail("a drifted (catalog-missing) model must be blocked before any paid image send");
+    },
+  },
+  {
+    // flux-pro/v1/vto needs [person, garment], person first: one image is a live-verified 400
+    // ("FLUX Virtual Try-On requires two input images…", uncharged). The exported runtime must
+    // refuse it locally — a 400 the app could have predicted is still a round trip the user waits on.
+    name: "NEW: vto with only the person image never reaches the API (zero fetches)",
+    data: { nodes: [node("p", "upload", { image: IMG + "PERSON" }),
+                    node("e1", "edit", { model: "flux-pro/v1/vto", prompt: "try it on" })],
+            links: [link("p", "image", "e1", "image")] },
+    check(app, g, fail) {
+      if (imgCalls().length) fail(`a role-ordered model missing a slot must send NOTHING, got ${imgCalls().length} call(s)`);
+    },
+  },
+  {
+    // A HOLE is not coverage: image + image3 is two images by length but the garment slot (image2)
+    // is empty, and the runtime deliberately does not re-pack role models' ports.
+    name: "NEW: vto with a port hole (image + image3) also sends nothing",
+    data: { nodes: [node("p", "upload", { image: IMG + "PERSON" }), node("gm", "upload", { image: IMG + "GARMENT" }),
+                    node("e1", "edit", { model: "flux-pro/v1/vto", prompt: "try it on" })],
+            links: [link("p", "image", "e1", "image"), link("gm", "image", "e1", "image3")] },
+    check(app, g, fail) {
+      if (imgCalls().length) fail(`a role hole must send NOTHING, got ${imgCalls().length} call(s)`);
+    },
+  },
+  {
+    name: "NEW: vto with both roles wired sends [person, garment] in that order",
+    data: { nodes: [node("p", "upload", { image: IMG + "PERSON" }), node("gm", "upload", { image: IMG + "GARMENT" }),
+                    node("e1", "edit", { model: "flux-pro/v1/vto", prompt: "try it on" })],
+            links: [link("p", "image", "e1", "image"), link("gm", "image", "e1", "image2")] },
+    check(app, g, fail) {
+      const b = imgCalls()[0]?.body;
+      if (!b) return fail("both roles wired must produce exactly one image call");
+      if (!Array.isArray(b.imageDataUrl) || b.imageDataUrl.length !== 2) return fail(`expected a 2-image array, got ${JSON.stringify(b.imageDataUrl).slice(0, 80)}`);
+      if (b.imageDataUrl[0] !== IMG + "PERSON") fail("person must be sent FIRST (order is load-bearing for vto)");
+      if (b.imageDataUrl[1] !== IMG + "GARMENT") fail("garment must be sent SECOND");
     },
   },
   {
