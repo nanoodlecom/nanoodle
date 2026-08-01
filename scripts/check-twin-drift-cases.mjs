@@ -45,44 +45,44 @@ const CASES = [
   {
     name: "extract row 1 — resize and crop geometry",
     why: "sig = deletes = 25, the plainest mirrored removal in the plan",
-    idx: [[7049, 7109]],
-    play: [[7413, 7448], [8965, 8979]],
+    idx: [[7055, 7115]],
+    play: [[7415, 7450], [8969, 8983]],
     expect: { exit: 0 },
   },
   {
     name: "extract row 2 — maskToSource",
     why: "5 twins, already exported from browser.mjs",
-    idx: [[7332, 7350]],
-    play: [[7391, 7409]],
+    idx: [[7338, 7356]],
+    play: [[7393, 7411]],
     expect: { exit: 0 },
   },
   {
     name: "extract row 3 — encodeWavMono + mediaFetchError",
     why: "index.html range ends at 9323, not 9309: play.html:6587-6704 carries the twins of " +
       "trimAudioToWavUrl and extractAudioToWavUrl too, and the shorter range left them one-sided",
-    idx: [[9248, 9323]],
-    play: [[6587, 6704]],
+    idx: [[9254, 9329]],
+    play: [[6589, 6706]],
     expect: { exit: 0 },
   },
   {
     name: "extract row 4 — prompt-cap helpers",
     why: "9 twins, library copy already in the bundle",
     idx: [[4249, 4299]],
-    play: [[7966, 8015]],
+    play: [[7968, 8017]],
     expect: { exit: 0 },
   },
   {
     name: "extract row 5 — pricing resolver",
     why: "68 twins, and 1 of them is a line index.html carries twice",
-    idx: [[5674, 5818]],
+    idx: [[5677, 5821]],
     play: [[6000, 6129]],
     expect: { exit: 0 },
   },
   {
     name: "extract row 6 — MP4CAT",
     why: "123 twins leave at once — the largest single mirrored deletion in the plan",
-    idx: [[9338, 9615]],
-    play: [[6747, 7024]],
+    idx: [[9344, 9621]],
+    play: [[6749, 7026]],
     expect: { exit: 0 },
   },
   {
@@ -90,8 +90,8 @@ const CASES = [
     why: "play.html ranges corrected to 6706-6711 / 6739-6746 / 7025-7238. The old 6635-6679 " +
       "swallowed toLocalMediaUrl, seekVideo and MP4CAT's first 4 lines, and the old 6979-7169 " +
       "started AFTER prepClip and recordClip, whose index.html twins are inside 9617-9869",
-    idx: [[9617, 9869]],
-    play: [[6706, 6711], [6739, 6746], [7025, 7238]],
+    idx: [[9623, 9875]],
+    play: [[6708, 6713], [6741, 6748], [7027, 7240]],
     expect: { exit: 0 },
   },
   {
@@ -106,8 +106,8 @@ const CASES = [
       "      and play.html twice, and only index.html's second copy is inside the block.\n" +
       "      Whoever does row 8 refreshes the baseline as part of it — deliberately, which is what\n" +
       "      the guard's own remedy line asks for",
-    idx: [[10853, 11169]],
-    play: [[12968, 13287]],
+    idx: [[10859, 11175]],
+    play: [[12976, 13295]],
     expect: { exit: 1, oneSided: 5, occurrence: 1 },
   },
   {
@@ -115,8 +115,8 @@ const CASES = [
     why: "play.html ranges corrected to 13426 / 13508-13560 / 13664. The old 13292-13530 swallowed " +
       "the whole agent-pill popover (13294-13373) and the model-picker search, which index.html " +
       "keeps at 11822-11838 and 10608",
-    idx: [[11282, 11322]],
-    play: [[13426, 13426], [13508, 13560], [13664, 13664]],
+    idx: [[11288, 11328]],
+    play: [[13434, 13434], [13516, 13568], [13672, 13672]],
     expect: { exit: 0 },
   },
 
@@ -128,13 +128,13 @@ const CASES = [
     edits: [
       {
         file: "index.html",
-        line: 9531,
+        line: 9537,
         from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
         to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durIDX, 0);",
       },
       {
         file: "play.html",
-        line: 6940,
+        line: 6942,
         from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
         to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durPLAY, 0);",
       },
@@ -147,7 +147,7 @@ const CASES = [
     edits: [
       {
         file: "index.html",
-        line: 9531,
+        line: 9537,
         from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
         to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durIDX, 0);",
       },
@@ -157,7 +157,7 @@ const CASES = [
   {
     name: "1-sided deletion",
     why: "play.html stops doing the work, index.html still does it, and nothing replaced it",
-    play: [[6940, 6940]],
+    play: [[6942, 6942]],
     expect: { exit: 1, oneSided: 1 },
   },
   {
@@ -167,13 +167,13 @@ const CASES = [
     edits: [
       {
         file: "index.html",
-        line: 9531,
+        line: 9537,
         from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
         to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durTicks, 0);",
       },
       {
         file: "play.html",
-        line: 6940,
+        line: 6942,
         from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
         to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durTicks, 0);",
       },
@@ -187,23 +187,23 @@ const CASES = [
     name: "all 3 departure headings at once",
     why: "one divergent 2-sided edit, one 1-sided edit and one 1-sided deletion in the same tree. " +
       "The guard must report all 3 separately, which is why the ceiling names up to 12 x 3 = 36",
-    play: [[7420, 7420]], // twin of index.html:7079 — one-sided deletion
+    play: [[7422, 7422]], // twin of index.html:7085 — one-sided deletion
     edits: [
       {
         file: "index.html",
-        line: 9531,
+        line: 9537,
         from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
         to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durIDX, 0);",
       },
       {
         file: "play.html",
-        line: 6940,
+        line: 6942,
         from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
         to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durPLAY, 0);",
       },
       {
         file: "play.html",
-        line: 12862,
+        line: 12870,
         from: "    const usd = parseFloat((await r.json()).usd_balance);",
         to: "    const usd = parseFloat((await r.json()).usdBalance);",
       },
@@ -216,7 +216,7 @@ const CASES = [
     edits: [
       {
         file: "play.html",
-        line: 6940,
+        line: 6942,
         from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
         to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);\n" +
           "    // Seek a <video> to a time and resolve once that frame is decoded and drawable. Falls back",
