@@ -88,26 +88,26 @@ const shared = [...IDX.keys()].filter((h) => PLAY.has(h));
 
 // Line ranges are inclusive, from docs/twin-drift.md. A block may quote more than 1 range per file.
 const BLOCKS = [
-  { row: 1, name: "Resize and crop geometry", idx: [[6928, 6988]], play: [[7342, 7377], [8822, 8836]] },
+  { row: 1, name: "Resize and crop geometry", idx: [[6948, 7008]], play: [[7342, 7377], [8833, 8847]] },
   // play.html's maskToSource is 7320-7338. docs/twin-drift.md used to quote 7296-7309 for it, which
   // is audioInputPart — the block-6 range lists are not in the same order on the 2 surfaces, and the
   // work list copied the wrong one. With the wrong range this row measured sig 0.
-  { row: 2, name: "`maskToSource`", idx: [[7211, 7229]], play: [[7320, 7338]] },
-  // index.html's range used to end at 9181. play.html:6516-6633 also carries the twins of
-  // trimAudioToWavUrl and extractAudioToWavUrl (index.html:9182-9195), so the short range deleted
+  { row: 2, name: "`maskToSource`", idx: [[7231, 7249]], play: [[7320, 7338]] },
+  // index.html's range used to end at 9201. play.html:6516-6633 also carries the twins of
+  // trimAudioToWavUrl and extractAudioToWavUrl (index.html:9202-9215), so the short range deleted
   // them from play.html only. scripts/check-twin-drift-cases.mjs holds the proof.
-  { row: 3, name: "`encodeWavMono` + `mediaFetchError`", idx: [[9120, 9195]], play: [[6516, 6633]] },
+  { row: 3, name: "`encodeWavMono` + `mediaFetchError`", idx: [[9140, 9215]], play: [[6516, 6633]] },
   { row: 4, name: "Prompt-cap helpers", idx: [[4203, 4253]], play: [[7880, 7929]] },
-  { row: 5, name: "Pricing resolver", idx: [[5571, 5715]], play: [[5929, 6058]] },
-  { row: 6, name: "MP4CAT", idx: [[9210, 9487]], play: [[6676, 6953]] },
+  { row: 5, name: "Pricing resolver", idx: [[5591, 5735]], play: [[5929, 6058]] },
+  { row: 6, name: "MP4CAT", idx: [[9230, 9507]], play: [[6676, 6953]] },
   // play.html used to read 6635-6679 + 6979-7169. 6635-6679 swallowed toLocalMediaUrl, seekVideo and
-  // MP4CAT's opening 4 lines, none of which index.html:9489-9741 holds; 6979-7169 started AFTER
-  // prepClip and recordClip (6954-6994), which index.html:9489-9741 does hold.
-  { row: 7, name: "Local media recorder path", idx: [[9489, 9741]], play: [[6635, 6640], [6668, 6675], [6954, 7167]] },
-  { row: 8, name: "Share packer, card and shorteners", idx: [[10725, 11041]], play: [[12823, 13142]] },
-  // play.html used to read 13281-13519, which swallowed the whole agent-pill popover (13283-13362)
-  // and the model-picker search — code index.html keeps at 11694-11710 and 10480.
-  { row: 9, name: "Share-menu wiring", idx: [[11154, 11194]], play: [[13281, 13281], [13363, 13415], [13519, 13519]] },
+  // MP4CAT's opening 4 lines, none of which index.html:9509-9761 holds; 6979-7169 started AFTER
+  // prepClip and recordClip (6954-6994), which index.html:9509-9761 does hold.
+  { row: 7, name: "Local media recorder path", idx: [[9509, 9761]], play: [[6635, 6640], [6668, 6675], [6954, 7167]] },
+  { row: 8, name: "Share packer, card and shorteners", idx: [[10745, 11061]], play: [[12834, 13153]] },
+  // play.html used to read 13292-13530, which swallowed the whole agent-pill popover (13294-13373)
+  // and the model-picker search — code index.html keeps at 11714-11730 and 10500.
+  { row: 9, name: "Share-menu wiring", idx: [[11174, 11214]], play: [[13292, 13292], [13374, 13426], [13530, 13530]] },
 ];
 
 const inside = (n, ranges) => ranges.some(([a, b]) => n >= a && n <= b);

@@ -6093,7 +6093,7 @@ window.NoodleApp = (function () {
       // reference-image ports actually wired (and the model still exposes a ref-image param) flip the estimate
       // to the with-reference tier — twin of the editor's refWired, off STATE.graph's wiring.
       const t = NODE_TYPES[n.type] || {}, sp = m.supported_parameters || {}, pp = sp.parameters||sp;   // ref-image descriptors live under .parameters (see modelAllowsRefs)
-      const modelHasRefs = ["reference_images","reference_image_urls","referenceImages"].some(k=> k in pp);
+      const modelHasRefs = ["reference_images","reference_image_urls","referenceImages"].some(k=> k in pp) || videoRefsPriced(m);   // ref pricing counts as advertising them (see videoRefsPriced)
       const refWired = !!(t.refInputs && modelHasRefs && STATE && STATE.graph && STATE.graph.links.some(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port)));
       const u = videoUnitUsd(pricing, f, refWired); return (u!=null && isFinite(u)) ? u : null; }
     if(kind==="chat"){ const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(pricing, inTok, outTok); }
@@ -8508,6 +8508,13 @@ const PROMPT_CAPS = {
       default:           return true;   // llm — any chat model
     }
   }
+  // Twins of the editor's videoRefsPriced / VIDEO_LAST_FRAME_FAMILIES — the two evidence-backed exceptions
+  // to "param presence or no port". Pricing that METERS reference images is the catalog advertising them
+  // machine-readably; minimax-h3 ships that way, and its last_image is live-verified (2026-07-31) though
+  // supported_parameters lists only duration + aspect_ratio. Drop the family regex once NanoGPT lists it.
+  var VIDEO_REF_PRICE_KEYS = ["included_reference_images","extra_reference_image"];
+  function videoRefsPriced(m){ var p = m && m.pricing; return !!p && VIDEO_REF_PRICE_KEYS.some(function(k){ return p[k]!=null; }); }
+  var VIDEO_LAST_FRAME_FAMILIES = /^minimax-h3$/i;
   // Does this video model accept an end-frame (last_image)? Mirrors the editor's modelHasImageRole, but
   // permissive-ON when the catalog can't be read: the endframe wire was authored deliberately in the
   // editor (gated there), so if we can't verify at runtime we honor it rather than silently drop the morph.
@@ -8517,7 +8524,7 @@ const PROMPT_CAPS = {
       const m = raw.find(x=> x && x.id===model);
       if(!m) return true;   // unknown / typed-in / offline → honor the authored wire
       const sp = m.supported_parameters||{}, pp = sp.parameters||sp;
-      return ("last_image" in pp) || ("end_image" in pp);
+      return ("last_image" in pp) || ("end_image" in pp) || VIDEO_LAST_FRAME_FAMILIES.test(String(model||""));
     }catch(e){ return true; }
   }
   // Does this video model accept reference images? Returns {key,cap}-or-null, mirroring the editor's
@@ -8525,12 +8532,16 @@ const PROMPT_CAPS = {
   // in the editor (gated there), so if we can't verify at runtime we honor them with a best-effort key
   // rather than silently drop them. null only when a KNOWN model clearly lacks any ref-image param.
   // Per-family known ref maxima — the catalog advertises NO machine-readable maxima (mirrors the editor's
-  // VIDEO_REF_MAX): seedance-2.0 takes up to 9 refs (its marquee feature; the generic 4 sliced 5-9), luma = 4.
-  function refMaxFor(model){
+  // VIDEO_REF_MAX): seedance-2.0 takes up to 9 refs (its marquee feature; the generic 4 sliced 5-9),
+  // minimax-h3 likewise 9 (refs 6-9 bill extra_reference_image each beyond the 5 it includes), luma = 4.
+  // Pricing is the last word before the generic 4: a model at least takes the refs it bundles.
+  function refMaxFor(model, pricing){
     var id = String(model||"");
     if(/seedance/i.test(id)) return 9;
+    if(/minimax-h3/i.test(id)) return 9;
     if(/luma|ray/i.test(id)) return 4;
-    return 4;
+    var inc = +((pricing||{}).included_reference_images);
+    return inc>0 ? inc : 4;
   }
   async function modelAllowsRefs(model){
     var keys = ["reference_images","reference_image_urls","referenceImages"];
@@ -8543,11 +8554,11 @@ const PROMPT_CAPS = {
       // the catalog fetch fails but generation still works — rare. Mirrors #198's modelAllowsEndFrame.
       if(!m) return { key:"reference_images", cap:refMaxFor(model) };
       var sp = m.supported_parameters||{}, pp = sp.parameters||sp;
-      var key = keys.find(function(k){ return k in pp; });
-      if(!key) return null;   // known model with no ref-image param
+      var key = keys.find(function(k){ return k in pp; }) || (videoRefsPriced(m) ? "reference_images" : null);
+      if(!key) return null;   // known model with no ref-image param and no ref pricing
       var d = pp[key], cap = null;
       if(d && typeof d==="object"){ var mx = d.max!=null ? d.max : (d.maxItems!=null ? d.maxItems : d.max_items); if(mx!=null && +mx>0) cap = +mx; }
-      return { key:key, cap:(cap!=null?cap:refMaxFor(model)) };
+      return { key:key, cap:(cap!=null?cap:refMaxFor(model, m.pricing)) };
     }catch(e){ return { key:"reference_images", cap:refMaxFor(model) }; }
   }
   // "Newest" tiebreak for the swap list — audio models all share ONE created stamp (upstream

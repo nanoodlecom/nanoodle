@@ -650,6 +650,33 @@
     },
     "default_duration": 5
    }
+  },
+  {
+   "id": "minimax-h3",
+   "shape": "default_duration,extra_reference_image,included_reference_images,max_duration,min_duration,output_per_second,reference_video_input_per_second,supported_durations",
+   "pricing": {
+    "currency": "USD",
+    "output_per_second": 0.13,
+    "reference_video_input_per_second": 0.13,
+    "extra_reference_image": 0.04,
+    "included_reference_images": 5,
+    "default_duration": 5,
+    "min_duration": 5,
+    "max_duration": 15,
+    "supported_durations": [
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13,
+     14,
+     15
+    ]
+   }
   }
  ],
  "audio": [
@@ -1049,6 +1076,59 @@
      },
      "refWired": false,
      "expect": 0.7
+    }
+   ]
+  },
+  {
+   "id": "minimax-h3 (per-second output, refs metered per image)",
+   "shape": "output_per_second has no named handler -> the generic per-second scan carries it; refs bill per EXTRA image (extra_reference_image), not as a separate rate table, so refWired must not move the number",
+   "pricing": {
+    "currency": "USD",
+    "output_per_second": 0.13,
+    "reference_video_input_per_second": 0.13,
+    "extra_reference_image": 0.04,
+    "included_reference_images": 5,
+    "default_duration": 5,
+    "min_duration": 5,
+    "max_duration": 15,
+    "supported_durations": [
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13,
+     14,
+     15
+    ]
+   },
+   "cases": [
+    {
+     "desc": "5s base",
+     "fields": {
+      "duration": "5"
+     },
+     "refWired": false,
+     "expect": 0.65
+    },
+    {
+     "desc": "5s with refs wired (first 5 included -> same rate)",
+     "fields": {
+      "duration": "5"
+     },
+     "refWired": true,
+     "expect": 0.65
+    },
+    {
+     "desc": "15s (max duration)",
+     "fields": {
+      "duration": "15"
+     },
+     "refWired": false,
+     "expect": 1.95
     }
    ]
   }

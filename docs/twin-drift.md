@@ -24,7 +24,7 @@ excluded from that count, so the number is hand-maintained duplication only.
 stripped, nothing inside the line touched. That is not a detail. `play.html` nests most of the
 shared code 1 or 2 levels deeper than `index.html`, so only **415 of the 893 lines are
 byte-identical in the files; the other 478 match only after the strip**. `seekVideo` is the visible
-case: `index.html:9106` starts at column 0 and `play.html:6658` starts at column 2. The guard is
+case: `index.html:9126` starts at column 0 and `play.html:6658` starts at column 2. The guard is
 right to strip — an indentation change is not drift — and the older wording of this document, which
 said "byte-identical" throughout, was wrong about more than half the set.
 
@@ -50,8 +50,8 @@ The ranked list below is a map, not an exhaustive partition. Read it that way.
   `check-twin-drift.mjs` exactly like the ranked ones, but this document does not give them a
   verdict.
 - **A twin can fall between 2 block ranges and be in no block's `sig` count.** `seekVideo`
-  (`index.html:9106-9115`, `play.html:6658-6667`) is the known example. It sits after block 4's range
-  (which ends at `index.html:8916`) and before block 12's range (which starts at `index.html:9120`),
+  (`index.html:9126-9135`, `play.html:6658-6667`) is the known example. It sits after block 4's range
+  (which ends at `index.html:8936`) and before block 12's range (which starts at `index.html:9140`),
   so no ranked block counts it. The guard still holds it, because the guard works on the whole shared
   set and not on this document's blocks.
 - **Lines of 40 characters or fewer are outside the shared set by design, on every block.** That
@@ -75,7 +75,7 @@ const engTag = engText ? '<script id="njs-engine">\n' + engText.replace(/<\/scri
 
 Every `</script` inside `RUNTIME_JS` is written escaped, so a lazy
 `/<script id="njs-engine"[\s\S]*?<\/script>/` that starts on that literal does not close until the
-last real `</script>` in the file. That match blanked `play.html:11259-13656`: 2,398 lines, 17.6% of
+last real `</script>` in the file. That match blanked `play.html:11270-13667`: 2,398 lines, 17.6% of
 the file, all of it hand-written player code. 197 shared lines were invisible while it did.
 
 The guard therefore matches `<script id="njs-engine" data-hash="…">` and **re-derives the hash**.
@@ -117,7 +117,7 @@ Every departure is **classified**, up to the `MAX_CLASSIFY` ceiling of 200. Each
 headings — `TWIN DIVERGENCE`, `TWIN DRIFT` or `ONE-SIDED DELETION` — and all 3 can fire in the same
 run, so at the ceiling the guard classifies 200 departures and names **at most 36** of them, 12 under
 each. (An earlier revision of this document said 24. That assumed only 2 headings could fire at
-once. Edit `index.html:9403`/`play.html:6869` divergently, rename `play.html:12717` on 1 surface, and
+once. Edit `index.html:9423`/`play.html:6869` divergently, rename `play.html:12728` on 1 surface, and
 delete `play.html:7349` from 1 surface: all 3 headings print together.) How the 200 split between the
 3 headings depends on which lines departed, so no fixed split belongs in this document. The guard
 does not name every line, and no part of it claims to.
@@ -149,12 +149,12 @@ the first rule was, against the ranges the work list publishes **today**:
 
 | Row | Verdict of the first divergence rule | The "replacements" it named (positions in the files as committed) |
 |-----|--------------------------------------|-----------------------------|
-| 1 Resize and crop geometry | exit 1, **2 false divergences** | `index.html:7130` and `play.html:9763`, 2 unrelated canvas lines that had been sitting there all along |
-| 3 `encodeWavMono` + `mediaFetchError` | exit 1, **1 false divergence** | `index.html:9006` / `play.html:8812`, an unrelated `FileReader` pair — the demo-image path and the export reader |
-| 7 Local media recorder path | exit 1, **1 false divergence** | `index.html:6651` / `play.html:10810`, an unrelated `createElement` pair |
+| 1 Resize and crop geometry | exit 1, **2 false divergences** | `index.html:7150` and `play.html:9774`, 2 unrelated canvas lines that had been sitting there all along |
+| 3 `encodeWavMono` + `mediaFetchError` | exit 1, **1 false divergence** | `index.html:9026` / `play.html:8823`, an unrelated `FileReader` pair — the demo-image path and the export reader |
+| 7 Local media recorder path | exit 1, **1 false divergence** | `index.html:6671` / `play.html:10821`, an unrelated `createElement` pair |
 | 8 Share packer, card and shorteners | exit 1, **2 false divergences** | the same canvas pair as row 1 |
 
-An earlier revision of this table gave row 7 **3** false divergences, at `index.html:6374` /
+An earlier revision of this table gave row 7 **3** false divergences, at `index.html:6394` /
 `play.html:6965`, an `onerror` pair. That figure is real but it belongs to row 7's **old** ranges
 (`play.html:6635-6679` + `6979-7169`), which this document no longer publishes. Against the corrected
 ranges the same rule raises 1. Rows 1, 3 and 8 are unchanged, and the headline — **4 of the 9 planned
@@ -190,10 +190,10 @@ node scripts/check-twin-drift-cases.mjs
 line.** That includes a case the guard would ideally fail — 1 engine edits the line while the other
 drops it outright. Condition 3 is what keeps that case out, and it is there for a measured reason.
 An earlier draft failed a single-sided match. Run against a genuine extraction control — delete the
-whole MP4CAT block, `index.html:9210-9487` and `play.html:6676-6953`, 123 shared lines gone from both
+whole MP4CAT block, `index.html:9230-9507` and `play.html:6676-6953`, 123 shared lines gone from both
 surfaces at once — that draft raised 1 FALSE failure out of the 123. The departing banner comment
 `/* ---- Lossless in-browser mp4 concatenation (Combine node) ----…` scored **0.840** against the
-unrelated banner still sitting at `index.html:9197`,
+unrelated banner still sitting at `index.html:9217`,
 `/* ---- in-browser video concatenation (the Combine node) ----…`, because a run of dashes carries
 the bigram profile. A guard that fails a correct extraction is a guard that gets bypassed.
 
@@ -202,7 +202,7 @@ on the current tree nothing departs. Its size on any given commit is the number 
 both surfaces in that commit where fewer than 2 NEW look-alike replacements appeared.
 
 The look-alike sets also close the MP4CAT banner case above on their own: the surviving banner
-(`index.html:9197`, hash `7f8cbc2c5d8093fb`) is the whole `index.html` look-alike set of the
+(`index.html:9217`, hash `7f8cbc2c5d8093fb`) is the whole `index.html` look-alike set of the
 departing one (`48b64f163787aa57`), so it can no longer be read as a replacement. Condition 3 stays
 anyway. It is the cheaper guarantee and it holds even when the baseline is stale.
 
@@ -218,8 +218,8 @@ exactly what the first divergence rule did.
 |------|------|
 | Clean tree | pass |
 | The 9 planned extractions, each deleted from BOTH surfaces | 8 pass; row 8 fails, see below |
-| Edit `index.html:9403` to `a+s.durIDX` **and** `play.html:6869` to `a+s.durPLAY` | fail, 1 `TWIN DIVERGENCE` |
-| Edit `index.html:9403` only | fail, 1 `TWIN DRIFT` |
+| Edit `index.html:9423` to `a+s.durIDX` **and** `play.html:6869` to `a+s.durPLAY` | fail, 1 `TWIN DIVERGENCE` |
+| Edit `index.html:9423` only | fail, 1 `TWIN DRIFT` |
 | Delete `play.html:6869` only | fail, 1 `ONE-SIDED DELETION` |
 | Edit both surfaces to the SAME new text | pass, note asks for a refresh |
 | Paste an `index.html`-only line into `play.html` as well | fail, the ratchet |
@@ -228,11 +228,11 @@ exactly what the first divergence rule did.
 2 share blocks leaves 5 twins live on exactly 1 surface, because their other copy is in unrelated
 code:
 
-- `index.html:10825` and `10827` are an inline copy of `play.html`'s `explicitLang()`
-  (`play.html:11381-11394`). `index.html` has no other copy; `play.html` keeps its function.
-- `index.html:10742` and `10747` (the share card's thumbnail downscale) twin `play.html:9764,9771`,
+- `index.html:10845` and `10847` are an inline copy of `play.html`'s `explicitLang()`
+  (`play.html:11392-11405`). `index.html` has no other copy; `play.html` keeps its function.
+- `index.html:10762` and `10767` (the share card's thumbnail downscale) twin `play.html:9775,9782`,
   a thumbnail helper outside the share block.
-- `play.html:13075` twins `index.html:7983,8064`, the canvas fit bounds.
+- `play.html:13086` twins `index.html:8003,8084`, the canvas fit bounds.
 
 Plus 1 occurrence drift: the `noodle_lang` read lives twice in each file, and only `index.html`'s
 second copy is inside the block. No choice of ranges fixes this — the extra copies are somewhere
@@ -369,10 +369,10 @@ Both surfaces run the nanoodle-js bundle **behind a flag**. `njsOn()` reads `?en
 `?engine=play` and `localStorage.njs_engine`. When the flag is off, or before the bundle arrives,
 both engines fall back to their built-in copies:
 
-- `index.html:8253` appends `vendor/njs-engine.js` **asynchronously**, and only when the flag is on.
-  `index.html:8234-8239` states the contract: until the bundle loads, `njsRunFor()` returns null and
+- `index.html:8273` appends `vendor/njs-engine.js` **asynchronously**, and only when the flag is on.
+  `index.html:8254-8259` states the contract: until the bundle loads, `njsRunFor()` returns null and
   the built-in runners execute.
-- `play.html` embeds the bundle inline, but `play.html:11257-11260` copies it into an export only
+- `play.html` embeds the bundle inline, but `play.html:11268-11271` copies it into an export only
   when the script element carries text.
 
 So the built-in copy on each surface is a **live fallback path**, not dead code. You cannot delete a
@@ -383,7 +383,7 @@ duplicated block until one of these is true:
 
 Both are architecture decisions with a first-paint cost. Neither belongs in a drive-by refactor.
 
-Local media is a second constraint. `index.html:8234` and `play.html:7966` both say local media nodes
+Local media is a second constraint. `index.html:8254` and `play.html:7966` both say local media nodes
 keep the canvas and Web Audio paths, because a browser has no ffmpeg fallback. The library's
 `local-media.mjs` therefore does not drive the Combine, Resize, Extract-frames or Trim nodes on
 either surface today.
@@ -397,12 +397,12 @@ where the 2 differ. Line ranges are on both surfaces as this branch commits them
 
 ### 1. Share packer, share card and shorteners — sig 140
 
-- `index.html:10725-11041` (`shrinkShareMedia`, `packShareFit`, `buildShareUrl`, `drawShareCard`,
+- `index.html:10745-11061` (`shrinkShareMedia`, `packShareFit`, `buildShareUrl`, `drawShareCard`,
   `shareCardB64`, `shortenWith`, `socLinks`, `setShareUrl`, `syncShortenButtons`, `openShareMenu`)
-- `play.html:12823-13142`
+- `play.html:12834-13153`
 
 This block was invisible until the region detection was fixed, and it is now the largest single
-duplicated block in the repo. The code itself says so: `index.html:10727` and `index.html:10762`
+duplicated block in the repo. The code itself says so: `index.html:10747` and `index.html:10782`
 both end a header comment with "(Twin of play.html's.)".
 
 **Verdict: extractable, and nothing in the library covers it yet.** `nanoodle-js/src/share.mjs`
@@ -415,7 +415,7 @@ flag-off decision as block 2.
 
 ### 2. MP4CAT lossless mp4 remux — sig 123
 
-- `index.html:9210-9487`
+- `index.html:9230-9507`
 - `play.html:6676-6953`
 
 The Combine node copies compressed H.264 and AAC samples onto 1 timeline. It is duplicated 3 times:
@@ -437,7 +437,7 @@ Removing this block alone drops the baseline from 893 to 770. That is 14% of the
 
 ### 3. Local media: the MediaRecorder fallback — sig 68
 
-- `index.html:9489-9741` (`pickVideoMime`, `loadVideoMeta`, `prepClip`, `recordClip`,
+- `index.html:9509-9761` (`pickVideoMime`, `loadVideoMeta`, `prepClip`, `recordClip`,
   `concatViaRecorder`, the MediaRecorder and AudioContext fallback path, async audio polling)
 - `play.html:6635-6640`, `play.html:6668-6675` and `play.html:6954-7167`
 
@@ -445,8 +445,8 @@ The MediaRecorder fallback runs when the clips are not matching mp4s.
 
 The `play.html` ranges used to read `6635-6679` and `6979-7169`, and both ends were wrong. The first
 swallowed `toLocalMediaUrl`, `seekVideo` and MP4CAT's opening 4 lines, none of which
-`index.html:9489-9741` holds; the second started **after** `prepClip` and `recordClip`
-(`play.html:6954-6994`), which `index.html:9489-9741` does hold. Deleting the old pair from both
+`index.html:9509-9761` holds; the second started **after** `prepClip` and `recordClip`
+(`play.html:6954-6994`), which `index.html:9509-9761` does hold. Deleting the old pair from both
 surfaces reported 11 one-sided deletions. `scripts/check-twin-drift-cases.mjs` holds the corrected
 pair and proves it is silent.
 
@@ -456,7 +456,7 @@ library needs a browser-only recorder module before either hand copy can go.
 
 ### 4. NanoGPT client, built-in runner fallback — sig 81
 
-- `index.html:8576-8916` (`b64ImageMime`, `normalizeLoraUrl`, `nodeLoras`, `genImage`, `genVideo`,
+- `index.html:8596-8936` (`b64ImageMime`, `normalizeLoraUrl`, `nodeLoras`, `genImage`, `genVideo`,
   the chat body build, audio content-type repair, blob size guards)
 - `play.html:6179-6499`
 
@@ -468,7 +468,7 @@ disappears, not before.
 
 ### 5. Pricing resolver — sig 68
 
-- `index.html:5571-5715` (`pickByRes`, `pickObjByRes`, `videoUnitUsd`, `genericScanUsd`,
+- `index.html:5591-5735` (`pickByRes`, `pickObjByRes`, `videoUnitUsd`, `genericScanUsd`,
   `audioUnitUsd`, the `per_duration` and `referenceToVideoPrices` branches)
 - `play.html:5929-6058`
 
@@ -492,13 +492,13 @@ presence, to stay protected.
 
 Paired range by range, because a later row of the work list needs 1 of these pairs exactly:
 
-- `index.html:4379-4392` (`audioInputPart`) ↔ `play.html:7296-7309`
-- `index.html:5215-5223` (the music/remix song-count clamp) ↔ `play.html:7235-7243`
-- `index.html:5414-5423` (`llmOpts`, the chat sampling options) ↔ `play.html:6157-6166`
-- `index.html:6070-6146` (message assembly, the 4 MB reference-image guard) and `6229-6258` (the
+- `index.html:4399-4412` (`audioInputPart`) ↔ `play.html:7296-7309`
+- `index.html:5235-5243` (the music/remix song-count clamp) ↔ `play.html:7235-7243`
+- `index.html:5434-5443` (`llmOpts`, the chat sampling options) ↔ `play.html:6157-6166`
+- `index.html:6090-6166` (message assembly, the 4 MB reference-image guard) and `6249-6278` (the
   Resize node body) ↔ `play.html:7437-7537`
-- `index.html:6362-6390` (Extract-frames stepping) ↔ `play.html:7602-7627`
-- `index.html:7211-7229` (`maskToSource`) ↔ `play.html:7320-7338`
+- `index.html:6382-6410` (Extract-frames stepping) ↔ `play.html:7602-7627`
+- `index.html:7231-7249` (`maskToSource`) ↔ `play.html:7320-7338`
 
 **Verdict: mixed.** `maskToSource` is already exported from `browser.mjs` — extract it now, it is
 the cheapest win in the whole list at 5 shared lines. The message-assembly lines belong to block 4's
@@ -506,19 +506,19 @@ delegation surface. The Extract-frames stepping is local media and needs a libra
 
 ### 7. njs delegation shim — sig 35
 
-- `index.html:8163-8170` (`topoOrder`), `8244-8252` (`NJS_TYPES`), `8300-8375`, `8464-8470`
+- `index.html:8183-8190` (`topoOrder`), `8264-8272` (`NJS_TYPES`), `8320-8395`, `8484-8490`
   (`fieldOverrides`)
 - `play.html:7768-7775`, `7972-8079`, `8145-8151`
 
-**Verdict: deliberate twin. Leave it.** `index.html:8228-8242` names it "Twin of play.html's Phase-E
+**Verdict: deliberate twin. Leave it.** `index.html:8248-8262` names it "Twin of play.html's Phase-E
 shim". `scripts/check-njs-editor-delegation.mjs` exists to hold the 2 copies byte-identical. Note
 that `topoSort` and `MAX_FRAMES` are already exported from `browser.mjs`, so `topoOrder` could go if
 the shim ever collapses.
 
 ### 8. Resize and crop geometry — sig 25
 
-- `index.html:6928-6988` (`resizePlan`, `resizeCropImage`, the aspect derivation)
-- `play.html:7342-7377` and `play.html:8822-8836`
+- `index.html:6948-7008` (`resizePlan`, `resizeCropImage`, the aspect derivation)
+- `play.html:7342-7377` and `play.html:8833-8847`
 
 **Verdict: extractable, blocked only by the flag.** `browser.mjs` already exports `resizePlan` and
 `resizeCropImage`. `scripts/check-resize-plan.mjs` already proves the 2 hand copies agree with each
@@ -527,13 +527,13 @@ tested today.
 
 ### 9. Share-menu wiring — sig 24
 
-- `index.html:11154-11194` (the `#sharemenu` button handlers, the shorten-in-flight disable, the
+- `index.html:11174-11214` (the `#sharemenu` button handlers, the shorten-in-flight disable, the
   Escape closer)
-- `play.html:13281`, `play.html:13363-13415` and `play.html:13519`
+- `play.html:13292`, `play.html:13374-13426` and `play.html:13530`
 
-The `play.html` range used to read `13281-13519` in one piece. That swallowed the whole agent-pill
-popover (`play.html:13283-13362`) and the model-picker search, which `index.html` keeps at
-`11694-11710` and `10480` — so deleting the pair reported 6 one-sided deletions.
+The `play.html` range used to read `13292-13530` in one piece. That swallowed the whole agent-pill
+popover (`play.html:13294-13373`) and the model-picker search, which `index.html` keeps at
+`11714-11730` and `10500` — so deleting the pair reported 6 one-sided deletions.
 
 **Verdict: extract with block 1, not before.** These are DOM handlers over the same 2 element ids on
 2 separate documents. They only collapse if the share popover itself becomes a shared component,
@@ -559,8 +559,8 @@ one this guard can close.
 
 ### 11. OAuth PKCE login — sig 17
 
-- `index.html:11778-11815`
-- `play.html:10371-10505`
+- `index.html:11798-11835`
+- `play.html:10382-10516`
 
 **Verdict: extractable in principle, low priority.** The library has no auth module.
 `scripts/check-login-state.mjs` already replays a sign-in round-trip on both files. The exported app
@@ -569,17 +569,17 @@ paste-key path intact.
 
 ### 12. Local media: WAV encode and fetch-error text — sig 26
 
-- `index.html:9120-9195` (`mediaFetchError`, `encodeWavMono` and its header writes,
+- `index.html:9140-9215` (`mediaFetchError`, `encodeWavMono` and its header writes,
   `trimAudioToWavUrl`, `extractAudioToWavUrl`)
 - `play.html:6516-6633`
 
-The `index.html` range used to stop at `9181`. `play.html:6516-6633` carries the twins of
-`trimAudioToWavUrl` and `extractAudioToWavUrl` as well (`index.html:9182-9195`), so the short range
+The `index.html` range used to stop at `9201`. `play.html:6516-6633` carries the twins of
+`trimAudioToWavUrl` and `extractAudioToWavUrl` as well (`index.html:9202-9215`), so the short range
 deleted those 3 shared lines from `play.html` only.
 
 **Verdict: partly covered.** `browser.mjs` already exports `encodeWavMono` from `local-media.mjs`.
 `mediaFetchError` is not in the library. Extract `encodeWavMono` with block 8; the other needs a home
-first. `seekVideo` (`index.html:9106-9115`, `play.html:6658-6667`) is a third twin. It sits before
+first. `seekVideo` (`index.html:9126-9135`, `play.html:6658-6667`) is a third twin. It sits before
 this block's range and after block 4's, so no ranked block counts it. Only 2 of its 10 lines are
 longer than 40 characters, so only those 2 are in the shared set at all. See "What this map does NOT
 cover".
@@ -606,15 +606,15 @@ excluded from the drift count, because `scripts/probe-prompt-caps.mjs` writes it
 
 ### 15. Small shared helpers — sig 6
 
-- `index.html:4052-4057` (`verParts` version compare), `index.html:9745-9750` (`isLowFundsError`)
-- `play.html:8561-8566`, `play.html:5771-5776`
+- `index.html:4052-4057` (`verParts` version compare), `index.html:9765-9770` (`isLowFundsError`)
+- `play.html:8572-8577`, `play.html:5771-5776`
 
 **Verdict: leave them.** 6 lines. The guard is cheaper than the extraction.
 
 ### 16. Chat SSE stream loop — sig 5, agent-pill popover — sig 5
 
-- `index.html:12487-12496` / `play.html:11814-11826`
-- `index.html:11731-11756` / `play.html:13314-13354`
+- `index.html:12507-12516` / `play.html:11825-11837`
+- `index.html:11751-11776` / `play.html:13325-13365`
 
 Both were invisible before the region fix. 10 lines between them. **Verdict: leave them.** The SSE
 lines belong to block 4's delegation surface.
@@ -654,10 +654,10 @@ range that pairs 2 regions that are not twins looks like.
 **No row overlaps another.** The rows where `sig` and `deletes` disagree are 3 (26/25), 7 (68/66) and
 8 (140/136), and every line in the gap is named here:
 
-- `const AC = window.AudioContext || window.webkitAudioContext;` — `index.html:9162,9577,9639`,
+- `const AC = window.AudioContext || window.webkitAudioContext;` — `index.html:9182,9597,9659`,
   `play.html:6556,6584,7023,7074`. Rows 3 and 7 each hold some of those copies and neither holds all
   of them, so **neither row deletes it**. It is the whole of row 3's gap and half of row 7's.
-- `const vid = document.createElement("video");` — `index.html:6368,9511`, `play.html:6963,7608`.
+- `const vid = document.createElement("video");` — `index.html:6388,9531`, `play.html:6963,7608`.
   The other half of row 7's gap.
 - Row 8's 4: `let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;`,
   `c.getContext("2d").drawImage(img, 0, 0, w, h);`, `try{ img.src = src; }catch(_){ finish(null); }`
