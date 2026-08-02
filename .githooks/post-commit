@@ -26,7 +26,17 @@ parents=$(git cat-file -p HEAD | grep -c '^parent ')
 
 # Opt in: only a commit with an "Update: <line>" reaches the changelog. No line,
 # no entry — silence is the default, so random commits never spam the panel.
-text=$(git log -1 --format=%B HEAD | sed -n 's/^[Uu]pdate:[[:space:]]*//p' | head -1)
+# The whole paragraph counts: wrapped continuation lines are joined until a
+# blank line or a trailer, so a 72-column commit body can't truncate the entry
+# mid-sentence (that shipped once — a half sentence sat at the top of 📣).
+text=$(git log -1 --format=%B HEAD | awk '
+  !grab && sub(/^[Uu]pdate:[[:space:]]*/, "") { grab = 1; text = $0; next }
+  grab {
+    if ($0 ~ /^[[:space:]]*$/ || $0 ~ /^(Co-[Aa]uthored-[Bb]y|Signed-off-by):/) exit
+    gsub(/^[[:space:]]+|[[:space:]]+$/, ""); text = text " " $0
+  }
+  END { print text }
+')
 [ -z "$text" ] && exit 0
 
 # Respect a hand-written changelog edit already in this commit.
