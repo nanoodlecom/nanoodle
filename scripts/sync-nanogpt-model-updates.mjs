@@ -286,7 +286,11 @@ if (!doPush) {
 }
 
 try {
-  const branch = execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
+  // NOODLE_SYNC_PUSH_BRANCH pins the push target regardless of the checked-out
+  // branch name — the cron worktree sits on a local "cron-sync" branch but must
+  // land its commits on origin/main.
+  const branch = process.env.NOODLE_SYNC_PUSH_BRANCH
+    || execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
   execFileSync("git", ["fetch", "origin", branch], { cwd: root, stdio: "inherit" });
   execFileSync("git", ["rebase", `origin/${branch}`], { cwd: root, stdio: "inherit" });
   execFileSync("git", ["push", "origin", `HEAD:${branch}`], { cwd: root, stdio: "inherit" });
