@@ -453,6 +453,41 @@
   #runest .rn-run{ color:var(--accent); opacity:.9; font-size:.7rem }   /* ▶ ties the cost to the Run action */
   #runest b{ color:var(--ink); font-weight:800; font-size:.9rem; letter-spacing:-.01em }
   #runest[hidden]{ display:none }
+  /* Live "what's running" strip — fixed left, above the corner pills. Large graphs zoom the
+     cards down to a few screen-pixels of border; this strip is the only place you can always
+     see which nodes are mid-call, their progress text, and elapsed time. Click a row to frame
+     that node (revealNodes). Hidden when nothing is executing. */
+  #runlive{ position:fixed; left:1rem; bottom:calc(var(--db-h,3rem) + 4.1rem); z-index:40;
+            width:min(22rem, calc(100vw - 2rem - 8rem)); max-height:min(40vh, 16rem);
+            display:flex; flex-direction:column; gap:.3rem;
+            background:var(--panel); border:1px solid color-mix(in srgb, var(--warn) 55%, var(--line));
+            border-radius:.65rem; box-shadow:0 10px 28px #0008, 0 0 0 1px color-mix(in srgb, var(--warn) 18%, transparent);
+            padding:.4rem .45rem .45rem; pointer-events:auto; overflow:hidden }
+  #runlive[hidden]{ display:none }
+  #runlive .rl-head{ display:flex; align-items:center; gap:.4rem; font-size:.7rem; font-weight:700;
+                     letter-spacing:.03em; text-transform:uppercase; color:var(--warn); padding:0 .15rem .1rem }
+  #runlive .rl-head .rl-sum{ margin-left:auto; font-weight:600; text-transform:none; letter-spacing:0;
+                             color:var(--dim); font-size:.68rem; font-variant-numeric:tabular-nums }
+  #runlive .rl-list{ display:flex; flex-direction:column; gap:.25rem; overflow-y:auto; min-height:0 }
+  #runlive .rl-row{ display:grid; grid-template-columns:auto 1fr auto; gap:.15rem .45rem; align-items:center;
+                    width:100%; text-align:left; cursor:pointer; border:1px solid transparent;
+                    border-radius:.45rem; background:var(--panel2,#1a1d24); color:var(--ink);
+                    font:inherit; font-size:.78rem; padding:.35rem .45rem; line-height:1.25 }
+  #runlive .rl-row:hover, #runlive .rl-row:focus-visible{ border-color:var(--warn); outline:none }
+  #runlive .rl-em{ font-size:.95rem; line-height:1 }
+  #runlive .rl-meta{ grid-column:2 / 3; min-width:0; display:flex; flex-direction:column; gap:.08rem }
+  #runlive .rl-name{ font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  #runlive .rl-msg{ font-size:.7rem; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  #runlive .rl-el{ grid-column:3; grid-row:1 / span 2; align-self:center;
+                   font-family:ui-monospace,monospace; font-size:.72rem; color:var(--warn);
+                   font-variant-numeric:tabular-nums; white-space:nowrap }
+  #runlive .rl-empty{ font-size:.76rem; color:var(--dim); padding:.25rem .2rem }
+  @media (max-width:700px){
+    #runlive{ width:min(18rem, calc(100vw - 1.5rem)); bottom:calc(var(--db-h,3rem) + 3.6rem); max-height:28vh }
+  }
+  @media (prefers-reduced-motion:reduce){
+    .node[data-status=run]{ box-shadow:0 0 0 calc(2px * var(--invz,1)) color-mix(in srgb, var(--warn) 70%, transparent), 0 10px 30px #0006 }
+  }
   #canvashint[hidden], #connecthint[hidden]{ display:none }
   #canvashint, #connecthint{ position:absolute; top:14px; left:50%; transform:translateX(-50%); z-index:8;
                display:flex; align-items:center; gap:.5rem; max-width:min(calc(100% - 1.5rem), 640px);
@@ -536,7 +571,11 @@
                 background:linear-gradient(135deg, transparent 0 50%, var(--dim) 50% 62%, transparent 62% 74%, var(--dim) 74% 86%, transparent 86%); }
   .node .rgrip:hover{ opacity:1 }
   .node .rgrip::after{ content:""; position:absolute; inset:-7px -7px 0 0; }  /* fat touch target */
-  .node[data-status=run]{ border-color:var(--warn) }
+  /* run glow uses --invz (1/zoom on #world) so the ring stays screen-visible when the graph is fit-zoomed out */
+  .node[data-status=run]{ border-color:var(--warn);
+    box-shadow:0 0 0 calc(2px * var(--invz,1)) color-mix(in srgb, var(--warn) 70%, transparent),
+               0 0 calc(14px * var(--invz,1)) color-mix(in srgb, var(--warn) 40%, transparent),
+               0 10px 30px #0006 }
   .node[data-status=done]{ border-color:var(--good) }
   .node[data-status=error]{ border-color:var(--bad) }
   .node[data-status=skip]{ border-color:var(--dim); border-style:dashed }
@@ -1147,6 +1186,8 @@
   <button id="fit" disabled title="Fit the whole workflow in view (F)" aria-label="Fit the whole workflow in view">⊡</button>
   <button id="runest" type="button" hidden></button>
 </div>
+<!-- Live run HUD: which nodes are mid-call right now (large graphs lose the on-card spinner). -->
+<div id="runlive" hidden role="status" aria-live="polite" aria-label="Currently running nodes"></div>
 <div id="sitelinks">
   <a id="legallink" href="/legal" target="_blank" rel="noopener">Terms · Privacy</a>
 </div>
@@ -1573,6 +1614,14 @@ const I18N = {
     "no image yet — drop one here":"aún sin imagen — suelta una aquí",
     "leave empty: it’s asked for when the app runs":"déjalo vacío: se pedirá al ejecutar la app",
     "running…":"ejecutando…",
+    "Now running":"En ejecución",
+    "Currently running nodes":"Nodos en ejecución",
+    "Show this node on the canvas":"Mostrar este nodo en el lienzo",
+    "waiting on next step…":"esperando el siguiente paso…",
+    "live":"en vivo",
+    "done":"listos",
+    "errors":"errores",
+    "skipped":"omitidos",
     "error":"error",
     "generating audio…":"generando audio…",
     "rendering video…":"renderizando vídeo…",
@@ -2097,6 +2146,14 @@ const I18N = {
     "no image yet — drop one here":"aucune image — déposez-en une ici",
     "leave empty: it’s asked for when the app runs":"laissez vide : ce sera demandé à l’exécution de l’app",
     "running…":"exécution…",
+    "Now running":"En cours",
+    "Currently running nodes":"Nœuds en cours d’exécution",
+    "Show this node on the canvas":"Afficher ce nœud sur le canevas",
+    "waiting on next step…":"en attente de l’étape suivante…",
+    "live":"actifs",
+    "done":"terminés",
+    "errors":"erreurs",
+    "skipped":"ignorés",
     "error":"erreur",
     "generating audio…":"génération de l’audio…",
     "rendering video…":"rendu de la vidéo…",
@@ -2621,6 +2678,14 @@ const I18N = {
     "no image yet — drop one here":"noch kein Bild — eins hier ablegen",
     "leave empty: it’s asked for when the app runs":"leer lassen: wird beim Ausführen der App abgefragt",
     "running…":"läuft…",
+    "Now running":"Läuft gerade",
+    "Currently running nodes":"Aktuell laufende Knoten",
+    "Show this node on the canvas":"Diesen Knoten auf der Fläche zeigen",
+    "waiting on next step…":"warte auf nächsten Schritt…",
+    "live":"aktiv",
+    "done":"fertig",
+    "errors":"Fehler",
+    "skipped":"übersprungen",
     "error":"Fehler",
     "generating audio…":"Audio wird erzeugt…",
     "rendering video…":"Video wird gerendert…",
@@ -3145,6 +3210,14 @@ const I18N = {
     "no image yet — drop one here":"nenhuma imagem ainda — solte uma aqui",
     "leave empty: it’s asked for when the app runs":"deixe vazio: será pedido quando o app rodar",
     "running…":"executando…",
+    "Now running":"Em execução",
+    "Currently running nodes":"Nós em execução",
+    "Show this node on the canvas":"Mostrar este nó no canvas",
+    "waiting on next step…":"aguardando o próximo passo…",
+    "live":"ativos",
+    "done":"concluídos",
+    "errors":"erros",
+    "skipped":"ignorados",
     "error":"erro",
     "generating audio…":"gerando áudio…",
     "rendering video…":"renderizando vídeo…",
@@ -3669,6 +3742,14 @@ const I18N = {
     "no image yet — drop one here":"画像なし — ここに画像をドロップ",
     "leave empty: it’s asked for when the app runs":"空のままならアプリ実行時に入力を求めます",
     "running…":"実行中…",
+    "Now running":"実行中",
+    "Currently running nodes":"実行中のノード",
+    "Show this node on the canvas":"このノードをキャンバスで表示",
+    "waiting on next step…":"次のステップを待機中…",
+    "live":"稼働中",
+    "done":"完了",
+    "errors":"エラー",
+    "skipped":"スキップ",
     "error":"エラー",
     "generating audio…":"音声を生成中…",
     "rendering video…":"動画を生成中…",
@@ -7416,34 +7497,47 @@ function setStatus(n, status, msg){
   if(!n?.el) return;
   n.el.dataset.status = status;
   if(status==="run"){
+    // stamp start once so the live strip clocks THIS node, not the most recent paint
+    if(n._runT0==null) n._runT0 = Date.now();
+    n._runMsg = t("running…");
     const r = n.el.querySelector(".result");
     r.classList.add("show"); r.innerHTML = `<span class="spin"></span> ${esc(t("running…"))}`;
+  } else {
+    delete n._runT0; delete n._runMsg;
   }
   if(status==="error"){
     const r = n.el.querySelector(".result");
     r.classList.add("show"); r.innerHTML = `<div class="err">⚠ ${esc(t(msg||"error"))}</div>`;   // translate user-facing run errors at the display site
   }
+  paintRunLive();
 }
 
 // A node the user stopped mid-run: clear the "running…" spinner and mark it idle (not an error).
 function setStopped(n){
   if(!n?.el) return;
   n.el.dataset.status = "idle";
+  delete n._runT0; delete n._runMsg;
   const r = n.el.querySelector(".result");
   if(r){ r.classList.add("show"); r.innerHTML = `<div style="color:var(--dim)">■ stopped</div>`; }
+  paintRunLive();
 }
 // A node we never ran because an upstream node failed/cycled: not its own fault and never charged,
 // so show it as blocked — no stale-input run, no misleading "missing input" error.
 function setSkipped(n){
   if(!n?.el) return;
   n.el.dataset.status = "skip";
+  delete n._runT0; delete n._runMsg;
   const r = n.el.querySelector(".result");
   if(r){ r.classList.add("show"); r.innerHTML = `<div style="color:var(--dim)">⤼ skipped — upstream failed</div>`; }
+  paintRunLive();
 }
 function setNodeProgress(n, msg){
   if(!n.el) return;
+  if(n._runT0==null) n._runT0 = Date.now();
+  n._runMsg = msg;
   const r = n.el.querySelector(".result");
   r.classList.add("show"); r.innerHTML = `<span class="spin"></span> ${esc(msg)}`;
+  paintRunLive();
 }
 function openUrl(url){ window.open(url, "_blank", "noopener"); }
 async function downloadUrl(url, filename){
@@ -8331,6 +8425,98 @@ function updateRunButtons(){
   // duration; refreshRunEstimate() restores the correct pill (demo/unpriced/priced) once idle.
   const est = $("runest");
   if(est){ if(running || draining) est.hidden = true; else refreshRunEstimate(); }
+  paintRunLive();
+}
+
+/* ---------- live run strip (#runlive) ----------
+   On a large / zoomed-out graph the per-node "running…" spinner is a few screen-pixels of
+   orange. This strip lists every node currently mid-call (data-status=run), with progress
+   text + elapsed, and click-to-frame via revealNodes. Visible while any group is locked in
+   runningNodes — even between steps (shows "waiting on next step…") so the user never
+   wonders whether the run is still alive.
+   Full rebuild only on status/progress changes; the 1s timer only patches .rl-el clocks so
+   the spinner animation doesn't restart every second. */
+let runLiveTimer = null;
+let runLiveSig = "";   // last-built active-id + msg signature — skip rebuild when unchanged
+function liveNodeLabel(n){
+  const ty = NODE_TYPES[n.type];
+  const name = (typeof n.name==="string" && n.name.trim()) ? n.name.trim() : (ty?.title || n.type);
+  return { em: ty?.em || "●", name };
+}
+// Editor-only elapsed label for the live run strip (kept distinct from play's fmtClock
+// so twin-drift doesn't count a second copy of the same two-line helper).
+function fmtRunClock(ms){
+  let sec = (ms / 1000) | 0; if(sec < 0) sec = 0;
+  if(sec < 60) return sec + "s";
+  return ((sec / 60) | 0) + ":" + String(sec % 60).padStart(2, "0");
+}
+function tickRunLiveClocks(){
+  const box = $("runlive"); if(!box || box.hidden) return;
+  box.querySelectorAll(".rl-row[data-rid]").forEach(row=>{
+    const n = byId(row.dataset.rid); if(!n || n._runT0==null) return;
+    const el = row.querySelector(".rl-el");
+    if(el) el.textContent = fmtRunClock(Date.now()-n._runT0);
+  });
+}
+function paintRunLive(){
+  const box = $("runlive"); if(!box) return;
+  const busy = runningNodes.size > 0;
+  const active = graph.nodes.filter(n=> n.el?.dataset.status==="run");
+  if(!busy && !active.length){
+    box.hidden = true; box.innerHTML = ""; runLiveSig = "";
+    if(runLiveTimer){ clearInterval(runLiveTimer); runLiveTimer = null; }
+    return;
+  }
+  box.hidden = false;
+  if(!runLiveTimer) runLiveTimer = setInterval(tickRunLiveClocks, 1000);
+  // signature: which nodes are live + their progress text + group tally (done/err/skip)
+  let done=0, errs=0, skip=0;
+  for(const id of runningNodes){
+    const st = byId(id)?.el?.dataset.status;
+    if(st==="done") done++;
+    else if(st==="error") errs++;
+    else if(st==="skip") skip++;
+  }
+  const sig = active.map(n=> n.id+"\0"+(n._runMsg||"")).join("\n") + "\n#"+done+"/"+errs+"/"+skip+"/"+busy;
+  if(sig === runLiveSig){ tickRunLiveClocks(); return; }
+  runLiveSig = sig;
+  const sumBits = [];
+  if(active.length>1) sumBits.push(active.length + " " + t("live"));
+  if(done) sumBits.push(done + " " + t("done"));
+  if(errs) sumBits.push(errs + " " + t(errs===1?"error":"errors"));
+  if(skip) sumBits.push(skip + " " + t("skipped"));
+  const head = '<div class="rl-head"><span class="spin" style="width:12px;height:12px;border-width:2px"></span>'
+             + esc(t("Now running"))
+             + (sumBits.length ? '<span class="rl-sum">' + esc(sumBits.join(" · ")) + '</span>' : '')
+             + '</div>';
+  let body;
+  if(active.length){
+    body = '<div class="rl-list">' + active.map(n=>{
+      const { em, name } = liveNodeLabel(n);
+      const msg = n._runMsg || t("running…");
+      const el = n._runT0!=null ? fmtRunClock(Date.now()-n._runT0) : "";
+      // template-literal title= so the i18n coverage guard treats it as dynamic (${…})
+      return `<button type="button" class="rl-row" data-rid="${esc(String(n.id))}" title="${esc(t("Show this node on the canvas"))}">`
+           + `<span class="rl-em">${em}</span>`
+           + `<span class="rl-meta"><span class="rl-name">${esc(name)}</span>`
+           + `<span class="rl-msg">${esc(msg)}</span></span>`
+           + `<span class="rl-el">${esc(el)}</span>`
+           + `</button>`;
+    }).join("") + '</div>';
+  } else {
+    body = '<div class="rl-empty">'+esc(t("waiting on next step…"))+'</div>';
+  }
+  box.innerHTML = head + body;
+  if(!box._bound){
+    box._bound = true;
+    box.addEventListener("click", (e)=>{
+      const row = e.target.closest("[data-rid]"); if(!row) return;
+      const n = byId(row.dataset.rid);
+      if(!n) return;
+      select(n);
+      revealNodes([n.id]);
+    });
+  }
 }
 
 /* ---------- deterministic-skip cache ----------
@@ -8546,7 +8732,10 @@ async function runGroup(seedIds, ctx){
   try{
     const { order, cyclic } = topoOrder(ids);
     cyclic.forEach(id=> setStatus(byId(id), "error", "cycle detected"));
-    ids.forEach(id=>{ if(order.includes(id) && byId(id)?.el) byId(id).el.dataset.status="idle"; });
+    ids.forEach(id=>{
+      const n = byId(id);
+      if(order.includes(id) && n?.el){ n.el.dataset.status="idle"; delete n._runT0; delete n._runMsg; }
+    });
     // Each node fires as soon as its OWN inputs resolve, so sibling branches
     // (a→b, a→c) run concurrently rather than serializing down the topo order.
     const done = {};                                  // id → promise, so dependents await just their inputs
