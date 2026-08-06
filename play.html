@@ -5663,6 +5663,9 @@ window.NoodleApp = (function () {
   "Tap to expand":{es:"Toca para ampliar",fr:"Toucher pour agrandir",de:"Zum Vergrößern tippen",pt:"Toque para ampliar",ja:"タップで拡大"},
   "Collapse":{es:"Contraer",fr:"Réduire",de:"Einklappen",pt:"Recolher",ja:"閉じる"},
   "Download":{es:"Descargar",fr:"Télécharger",de:"Herunterladen",pt:"Baixar",ja:"ダウンロード"},
+  "Copy":{es:"Copiar",fr:"Copier",de:"Kopieren",pt:"Copiar",ja:"コピー"},
+  "Copied":{es:"Copiado",fr:"Copié",de:"Kopiert",pt:"Copiado",ja:"コピー済み"},
+  "Failed":{es:"Falló",fr:"Échec",de:"Fehlgeschlagen",pt:"Falhou",ja:"失敗"},
   "Show more":{es:"Ver más",fr:"Voir plus",de:"Mehr anzeigen",pt:"Ver mais",ja:"もっと見る"},
   "Show less":{es:"Ver menos",fr:"Voir moins",de:"Weniger anzeigen",pt:"Ver menos",ja:"折りたたむ"},
   "step":{es:"paso",fr:"étape",de:"Schritt",pt:"etapa",ja:"ステップ"},
@@ -9674,9 +9677,23 @@ const PROMPT_CAPS = {
     exp.addEventListener("click", function(ev){ ev.stopPropagation(); card.classList.toggle("nd-open"); updateExpBtn(card); });
     card.appendChild(exp);
     // Long text output clamps to ~12 lines with a Show more / Show less toggle. The nd-text marker
-    // carries the max-height via #app-output-scoped css, so the clamp is live BEFORE we measure
-    // overflow (and absent in the steps sheet, which lives outside #app-output → no clamp, no toggle).
-    if(port.type!=="image" && port.type!=="video" && port.type!=="audio"){ card.classList.add("nd-text"); applyTextClamp(card); }
+    // carries max-height via #app-output-scoped css (and twin rules under #noodle-steps), so the
+    // clamp is live BEFORE we measure overflow — including intermediate steps in the run sheet.
+    if(port.type!=="image" && port.type!=="video" && port.type!=="audio"){
+      card.classList.add("nd-text"); applyTextClamp(card);
+      // One-tap copy for text/LLM intermediates (media already has Download).
+      const crow = document.createElement("div"); crow.className = "dlrow";
+      const cbtn = document.createElement("button"); cbtn.type = "button"; cbtn.className = "dl";
+      cbtn.textContent = t("Copy"); cbtn.title = t("Copy"); cbtn.setAttribute("aria-label", t("Copy"));
+      cbtn.addEventListener("click", async function(ev){
+        ev.stopPropagation();
+        const box = card.querySelector(".text");
+        const ok = await copyText(box ? box.textContent : "");
+        cbtn.textContent = ok ? t("Copied") : t("Failed");
+        setTimeout(function(){ cbtn.textContent = t("Copy"); }, 1200);
+      });
+      crow.appendChild(cbtn); card.appendChild(crow);
+    }
     return card;
   }
   // Keep the earlier-card expand control's glyph + label in sync with the card's open state,
@@ -9690,8 +9707,7 @@ const PROMPT_CAPS = {
   }
   // Clamp long text output to ~12 lines with a Show more / Show less toggle. The toggle is added
   // ONLY when the text actually overflows the clamp — measured after a frame so layout has settled.
-  // The clamp css is #app-output-scoped, so a card rendered into the steps sheet (outside it) is
-  // unclamped, measures no overflow, and gets no button.
+  // Clamp max-height is scoped under #app-output and #noodle-steps (injectDetailStyles twin).
   function applyTextClamp(card){
     var box = card.querySelector(".text"); if(!box) return;
     requestAnimationFrame(function(){
@@ -10230,10 +10246,48 @@ const PROMPT_CAPS = {
       + '.nd-badge.nd-ok{color:var(--ok,#46d27a);}.nd-badge.nd-run{color:var(--accent,#7c8cff);}'
       + '.nd-badge.nd-err{color:#ff6b6b;}.nd-badge.nd-wait{color:var(--faint,#5d6788);}'
       + '.nd-step .nd-errmsg{font-size:.77rem;color:#ff9a9a;background:#ff6b6b12;'
-        + 'border:1px solid #ff6b6b30;border-radius:8px;padding:.45rem .6rem;}'
-      + '.nd-step .card{margin:0;}'
+        + 'border:1px solid #ff6b6b30;border-radius:8px;padding:.45rem .6rem;'
+        + 'white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;}'
+      // Card chrome + text/media rules scoped to the sheet — resultCard mounts outside .output,
+      // so app.css .output .card / .text / media never reach intermediate steps.
+      + '#noodle-steps .nd-step .card{background:var(--panel2,#1d2236);border:1px solid var(--line,#2a3150);'
+        + 'border-radius:var(--radius,.7rem);padding:.75rem;margin:0;}'
+      + '#noodle-steps .nd-step .text{white-space:pre-wrap;line-height:1.6;overflow-wrap:anywhere;}'
+      + '#noodle-steps .nd-step img,#noodle-steps .nd-step video{max-width:100%;max-height:40vh;'
+        + 'width:auto;object-fit:contain;border-radius:.5rem;display:block;margin-inline:auto;}'
+      + '#noodle-steps .nd-step audio{width:100%;display:block;border-radius:.5rem;}'
+      + '#noodle-steps .nd-step .varstrip{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem;}'
+      + '#noodle-steps .nd-step .varstrip .varthumb{width:auto;flex:0 0 auto;height:60px;aspect-ratio:1;'
+        + 'object-fit:cover;border-radius:.4rem;cursor:pointer;opacity:.6;border:2px solid transparent;}'
+      + '#noodle-steps .nd-step .varstrip .varthumb.sel{opacity:1;border-color:var(--accent,#7c8cff);}'
+      + '#noodle-steps .nd-step .dlrow{margin-top:.6rem;}'
+      + '#noodle-steps .nd-step .dl{font:inherit;font-size:.78rem;padding:.4rem .8rem;border-radius:.45rem;'
+        + 'cursor:pointer;background:var(--panel,#161a27);border:1px solid var(--line,#2a3150);color:var(--dim,#8b93b4);}'
+      + '#noodle-steps .nd-step .dl:hover{border-color:var(--accent-line,#7c8cff);color:var(--ink,#e6e9f5);}'
+      + '#noodle-steps .nd-step .frames{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.7rem;}'
+      + '#noodle-steps .nd-step .frames .fr{display:flex;flex-direction:column;gap:.4rem;}'
+      // Glue (join/text/choice) bodies fold closed by default — header+badge stay outside.
+      + '#noodle-steps .nd-fold{margin:0;}'
+      + '#noodle-steps .nd-fold>summary{cursor:pointer;font-size:.76rem;color:var(--dim,#8b93b4);'
+        + 'list-style:none;display:flex;align-items:center;gap:.35rem;user-select:none;padding:.1rem 0;'
+        + 'min-width:0;}'
+      + '#noodle-steps .nd-fold>summary::-webkit-details-marker{display:none;}'
+      + '#noodle-steps .nd-fold>summary::before{content:"▸";font-size:.68rem;color:var(--faint,#5d6788);flex:0 0 auto;}'
+      + '#noodle-steps .nd-fold[open]>summary::before{content:"▾";}'
+      + '#noodle-steps .nd-fold[open]>summary{margin-bottom:.45rem;}'
+      + '#noodle-steps .nd-fold>summary .nd-teaser{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}'
+      // Long text clamp in the sheet (applyTextClamp already marks .nd-text / .clamped / .tmore).
+      + '#noodle-steps .card.nd-text .text{max-height:19.5em;overflow:hidden;position:relative;}'
+      + '#noodle-steps .card.nd-text.clamped .text::after{content:"";position:absolute;left:0;right:0;bottom:0;'
+        + 'height:2.8em;background:linear-gradient(180deg,transparent,var(--panel2,#1d2236));pointer-events:none;}'
+      + '#noodle-steps .card.nd-text.expanded .text{max-height:none;}'
+      + '#noodle-steps .card.nd-text.expanded .text::after{display:none;}'
+      + '#noodle-steps .card .tmore{font:inherit;font-size:.78rem;margin-top:.55rem;padding:.3rem .7rem;'
+        + 'cursor:pointer;background:var(--panel,#161a27);border:1px solid var(--line,#2a3150);'
+        + 'color:var(--dim,#8b93b4);border-radius:.45rem;}'
+      + '#noodle-steps .card .tmore:hover{border-color:var(--accent-line,#7c8cff);color:var(--ink,#e6e9f5);}'
       + '.nd-step .card .rhead{display:none;}'   // the step header already labels + costs it
-      + '.nd-step .card .nd-exp,.nd-step .card .nd-dl,.nd-step .card .tmore{display:none;}';   // hero/shelf-only affordances never belong in the steps sheet
+      + '.nd-step .card .nd-exp,.nd-step .card .nd-dl{display:none;}';   // hero/shelf-only affordances never belong in the steps sheet (.tmore allowed for clamp)
     (document.head || document.documentElement).appendChild(s);
   }
   function ensureDetailSheet(){
@@ -10312,11 +10366,37 @@ const PROMPT_CAPS = {
       }
       const ss = stepStatus(L, id), badge = step.querySelector(".nd-badge");
       badge.className = "nd-badge nd-" + ss.cls; badge.textContent = ss.txt;
-      // media card inserted ONCE, when this node's output first lands (never re-fetched)
+      // media/text card inserted ONCE, when this node's output first lands (never re-fetched).
+      // Pure local text-glue (join/text/choice) bodies default-collapse behind <details> so
+      // intermediate concat noise doesn't drown generative steps; .nd-shead stays always visible.
+      // Errors stay expanded (errmsg is outside the fold; glue+error leaves the card unfolder).
       const n = L.res && L.res[id];
-      if(n && !step._carded){ const card = resultCard(n, ""); if(card) step.appendChild(card); step._carded = true; }
-      // error detail inserted ONCE
       const es = L.state[id] || {};
+      if(n && !step._carded){
+        const card = resultCard(n, "");
+        if(card){
+          const glue = n.type==="join" || n.type==="text" || n.type==="choice";
+          if(glue && es.kind!=="error"){
+            const det = document.createElement("details"); det.className = "nd-fold";
+            const sum = document.createElement("summary");
+            const teaser = document.createElement("span"); teaser.className = "nd-teaser";
+            const raw = ((card.querySelector(".text") || {}).textContent) || "";
+            if(n.type==="join") teaser.textContent = "joined text · " + raw.length + " chars";
+            else {
+              const first = raw.split("\n")[0].trim();
+              teaser.textContent = first
+                ? (first.length>72 ? first.slice(0,72)+"…" : first)
+                : (raw.length + " chars");
+            }
+            sum.appendChild(teaser); det.appendChild(sum); det.appendChild(card);
+            step.appendChild(det);
+          } else {
+            step.appendChild(card);
+          }
+        }
+        step._carded = true;
+      }
+      // error detail inserted ONCE (always outside any fold)
       if(es.kind==="error" && !step._errShown){
         const em = document.createElement("div"); em.className = "nd-errmsg";
         em.textContent = es.msg || "failed"; step.appendChild(em); step._errShown = true;
