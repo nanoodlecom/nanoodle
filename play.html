@@ -6025,24 +6025,53 @@ window.NoodleApp = (function () {
   // switch is on. refWired is passed by the caller (needs the graph wiring); the audio switch / reference mode
   // ride in fields.modelOpts. Pick the with-reference / with-audio table where the catalog carries one, else a
   // flat pricing.audio_multiplier — so the run-cost chip stops quoting base for a run that reserves ~2×.
-  function videoUnitUsd(pricing, fields, refWired){
+  // videoWired (source video on the node) selects extend-mode rates on nested mode×resolution tables
+  // (FLUX.3 full_per_second_by_mode_and_resolution / draft_per_second_by_mode).
+  function videoUnitUsd(pricing, fields, refWired, videoWired){
     const p = pricing || {};
     const f = fields || {};
     const opts = (f.modelOpts && typeof f.modelOpts==="object") ? f.modelOpts : {};
     let audioOn = false;
     for(const k in opts){ if(/audio/i.test(k) && !/^(no|disable|without|mute)/i.test(k)){ const val=opts[k]; if(val===true||val==="true"||val===1||val==="1"||val==="on"||val==="yes"){ audioOn=true; break; } } }
     const refOn = !!refWired || /reference/i.test(String(opts.mode||""));
-    const usd = videoBaseUsd(p, f, audioOn, refOn);
+    const videoOn = !!videoWired || /extend/i.test(String(opts.mode||""));
+    const usd = videoBaseUsd(p, f, audioOn, refOn, videoOn);
     if(usd!=null && isFinite(usd) && audioOn && p.audio_multiplier!=null) return usd * (_num(p.audio_multiplier) ?? 1);
     return usd;
   }
-  function videoBaseUsd(pricing, fields, audioOn, refOn){
+  function videoBaseUsd(pricing, fields, audioOn, refOn, videoOn){
     const p = pricing || {}, raw = (p.raw && typeof p.raw==="object") ? p.raw : {};
     const f = fields || {};
     const res = f.resolution, defRes = p.default_resolution ?? raw.defaultResolution;
     const dur = pickDur(p, raw, f);
     const rp = (m)=> pickByRes(m, res, defRes);
     let v;
+    // FLUX.3-style nested tables (quality × mode × resolution) — twin of the editor.
+    // Without this branch genericScanUsd latches onto enhance_per_second alone and quotes the same
+    // number for every resolution and quality. quality rides in modelOpts; videoOn → extend mode.
+    if(p.full_per_second_by_mode_and_resolution || p.draft_per_second_by_mode){
+      const opts = (f.modelOpts && typeof f.modelOpts==="object") ? f.modelOpts : {};
+      const q = String(opts.quality!=null ? opts.quality : "full").toLowerCase();
+      const modeKey = videoOn ? "extend" : "standard";
+      const pickMode = (table)=>{
+        if(!table || typeof table!=="object") return null;
+        if(table[modeKey]!=null) return table[modeKey];
+        if(table.standard!=null) return table.standard;
+        const k = Object.keys(table)[0]; return k!=null ? table[k] : null;
+      };
+      if(q==="draft" && p.draft_per_second_by_mode){
+        v = _num(pickMode(p.draft_per_second_by_mode)); if(v!=null) return v*dur;
+      }
+      if(q==="enhance" && p.enhance_per_second!=null){
+        v = _num(p.enhance_per_second); if(v!=null) return v*dur;
+      }
+      if(p.full_per_second_by_mode_and_resolution){
+        const byRes = pickMode(p.full_per_second_by_mode_and_resolution);
+        if(byRes!=null && typeof byRes==="object"){ v = rp(byRes); if(v!=null) return v*dur; }
+        else if((v=_num(byRes))!=null) return v*dur;
+      }
+      if(p.enhance_per_second!=null){ v=_num(p.enhance_per_second); if(v!=null) return v*dur; }
+    }
     if((v=rp(p.per_second_by_resolution))!=null) return v*dur;
     if((v=rp(p.standard_prices_per_second))!=null) return v*dur;
     if(p.per_second_by_mode){ const mm=p.per_second_by_mode;
@@ -6168,7 +6197,9 @@ window.NoodleApp = (function () {
       const t = NODE_TYPES[n.type] || {}, sp = m.supported_parameters || {}, pp = sp.parameters||sp;   // ref-image descriptors live under .parameters (see modelAllowsRefs)
       const modelHasRefs = ["reference_images","reference_image_urls","referenceImages"].some(k=> k in pp) || videoRefsPriced(m);   // ref pricing counts as advertising them (see videoRefsPriced)
       const refWired = !!(t.refInputs && modelHasRefs && STATE && STATE.graph && STATE.graph.links.some(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port)));
-      const u = videoUnitUsd(pricing, f, refWired); return (u!=null && isFinite(u)) ? u : null; }
+      // source-video input wired → extend-mode rates (FLUX.3) — twin of the editor.
+      const videoWired = !!(STATE && STATE.graph && STATE.graph.links.some(l=> l.to.node===n.id && l.to.port==="video"));
+      const u = videoUnitUsd(pricing, f, refWired, videoWired); return (u!=null && isFinite(u)) ? u : null; }
     if(kind==="chat"){ const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(pricing, inTok, outTok); }
     if(kind==="audio"){ const chars = n.type==="transcribe" ? undefined : ((f.prompt||"").length || EST.ttsChars);
       const secs = audioBilledSeconds(m.supported_parameters, f);   // per_second music meters off the chosen duration, not a fixed 30s
