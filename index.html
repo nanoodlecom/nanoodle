@@ -5515,6 +5515,8 @@ function refreshModelOpts(n){
       else if(el.value==="") delete cur[key];                      // omit empty → the model's own default applies (send-only-when-nonempty)
       else if(el.type==="number"){ const num=Number(el.value); cur[key] = isNaN(num) ? el.value : num; }
       else cur[key] = el.value;                                    // select / text / textarea
+      // quality (draft/full), audio switch, mode, … can flip the billing tier — recompute the chip + run estimate
+      updateNodePrice(n); refreshRunEstimate();
       save();
     });
     el.addEventListener("pointerdown", e=> e.stopPropagation());   // don't drag the node while choosing
@@ -5788,26 +5790,58 @@ function pickDur(p, raw, fields){
 // switch and any reference `mode` ride in fields.modelOpts. We pick the with-reference / with-audio price
 // table where the catalog carries one, and fall back to a flat pricing.audio_multiplier otherwise — so the
 // "~$X to run" chip stops quoting the base rate for a run that will reserve ~2×. No tier/flag ⇒ unchanged.
-function videoUnitUsd(pricing, fields, refWired){
+// videoWired (source video on the node) selects extend-mode rates on nested mode×resolution tables
+// (FLUX.3 full_per_second_by_mode_and_resolution / draft_per_second_by_mode).
+function videoUnitUsd(pricing, fields, refWired, videoWired){
   const p = pricing || {};
   const f = fields || {};
   const opts = (f.modelOpts && typeof f.modelOpts==="object") ? f.modelOpts : {};
   let audioOn = false;
   for(const k in opts){ if(/audio/i.test(k) && !/^(no|disable|without|mute)/i.test(k)){ const val=opts[k]; if(val===true||val==="true"||val===1||val==="1"||val==="on"||val==="yes"){ audioOn=true; break; } } }
   const refOn = !!refWired || /reference/i.test(String(opts.mode||""));
-  const usd = videoBaseUsd(p, f, audioOn, refOn);
+  const videoOn = !!videoWired || /extend/i.test(String(opts.mode||""));
+  const usd = videoBaseUsd(p, f, audioOn, refOn, videoOn);
   // Models that surcharge audio as a flat multiplier (audio_multiplier) rather than a separate tier: apply
   // it once — those shapes never carry a with-audio table, so a tier branch can't have already handled it.
   if(usd!=null && isFinite(usd) && audioOn && p.audio_multiplier!=null) return usd * (_num(p.audio_multiplier) ?? 1);
   return usd;
 }
-function videoBaseUsd(pricing, fields, audioOn, refOn){
+function videoBaseUsd(pricing, fields, audioOn, refOn, videoOn){
   const p = pricing || {}, raw = (p.raw && typeof p.raw==="object") ? p.raw : {};
   const f = fields || {};
   const res = f.resolution, defRes = p.default_resolution ?? raw.defaultResolution;
   const dur = pickDur(p, raw, f);
   const rp = (m)=> pickByRes(m, res, defRes);
   let v;
+  // ---- FLUX.3-style nested tables (quality × mode × resolution) ----
+  // full_per_second_by_mode_and_resolution + draft_per_second_by_mode + enhance_per_second.
+  // Without this branch, genericScanUsd latches onto enhance_per_second alone (the only leaf whose
+  // KEY matches /second/) and quotes the same number for every resolution and quality — so 720p
+  // equals 1080p and draft never cheapens the estimate. Draft is resolution-flat; full is
+  // per-mode×resolution; enhance is a flat $/s (draft→full upgrade). quality rides in modelOpts.
+  if(p.full_per_second_by_mode_and_resolution || p.draft_per_second_by_mode){
+    const opts = (f.modelOpts && typeof f.modelOpts==="object") ? f.modelOpts : {};
+    const q = String(opts.quality!=null ? opts.quality : "full").toLowerCase();
+    const modeKey = videoOn ? "extend" : "standard";
+    const pickMode = (table)=>{
+      if(!table || typeof table!=="object") return null;
+      if(table[modeKey]!=null) return table[modeKey];
+      if(table.standard!=null) return table.standard;
+      const k = Object.keys(table)[0]; return k!=null ? table[k] : null;
+    };
+    if(q==="draft" && p.draft_per_second_by_mode){
+      v = _num(pickMode(p.draft_per_second_by_mode)); if(v!=null) return v*dur;
+    }
+    if(q==="enhance" && p.enhance_per_second!=null){
+      v = _num(p.enhance_per_second); if(v!=null) return v*dur;
+    }
+    if(p.full_per_second_by_mode_and_resolution){
+      const byRes = pickMode(p.full_per_second_by_mode_and_resolution);
+      if(byRes!=null && typeof byRes==="object"){ v = rp(byRes); if(v!=null) return v*dur; }
+      else if((v=_num(byRes))!=null) return v*dur;
+    }
+    if(p.enhance_per_second!=null){ v=_num(p.enhance_per_second); if(v!=null) return v*dur; }
+  }
   // ---- $/second families (× duration) ----
   if((v=rp(p.per_second_by_resolution))!=null) return v*dur;
   if((v=rp(p.standard_prices_per_second))!=null) return v*dur;               // sora (standard tier)
@@ -5936,7 +5970,9 @@ function nodeUnitUsd(n){
     // ref-image ports actually wired (and the model still exposes a ref-image param) flip the estimate to
     // the with-reference tier — mirrors run()'s role clamp so a stale wire on a non-ref model can't inflate it.
     const refWired = !!(t.refInputs && modelHasImageRole(n,"refs") && graph.links.some(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port)));
-    const u = videoUnitUsd(it.pricing, n.fields, refWired); return (u!=null && isFinite(u)) ? u : null; }
+    // source-video input wired → extend-mode rates on nested mode×resolution tables (FLUX.3).
+    const videoWired = graph.links.some(l=> l.to.node===n.id && l.to.port==="video");
+    const u = videoUnitUsd(it.pricing, n.fields, refWired, videoWired); return (u!=null && isFinite(u)) ? u : null; }
   if(kind==="chat"){
     const f=n.fields||{}; const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(it, inTok, outTok); }
   if(kind==="audio"){ const chars = t.modelFilter==="stt" ? undefined : (((n.fields||{}).prompt||"").length || EST.ttsChars);

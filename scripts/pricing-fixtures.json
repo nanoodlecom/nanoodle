@@ -677,6 +677,30 @@
      15
     ]
    }
+  },
+  {
+   "id": "flux-3",
+   "shape": "full_per_second_by_mode_and_resolution,draft_per_second_by_mode,enhance_per_second",
+   "pricing": {
+    "currency": "USD",
+    "full_per_second_by_mode_and_resolution": {
+     "standard": {
+      "720p": 0.17,
+      "1080p": 0.29
+     },
+     "extend": {
+      "720p": 0.41,
+      "1080p": 0.53
+     }
+    },
+    "draft_per_second_by_mode": {
+     "standard": 0.06,
+     "extend": 0.12
+    },
+    "enhance_per_second": 0.29,
+    "default_duration": 5,
+    "default_resolution": "720p"
+   }
   }
  ],
  "audio": [
@@ -1129,6 +1153,136 @@
      },
      "refWired": false,
      "expect": 1.95
+    }
+   ]
+  },
+  {
+   "id": "flux-3 (quality \u00d7 mode \u00d7 resolution)",
+   "shape": "full_per_second_by_mode_and_resolution + draft_per_second_by_mode -> quality in modelOpts, resolution field, videoWired\u2192extend",
+   "pricing": {
+    "currency": "USD",
+    "full_per_second_by_mode_and_resolution": {
+     "standard": {
+      "720p": 0.17,
+      "1080p": 0.29
+     },
+     "extend": {
+      "720p": 0.41,
+      "1080p": 0.53
+     }
+    },
+    "draft_per_second_by_mode": {
+     "standard": 0.06,
+     "extend": 0.12
+    },
+    "enhance_per_second": 0.29,
+    "default_duration": 5,
+    "default_resolution": "720p"
+   },
+   "cases": [
+    {
+     "desc": "full standard 720p 5s (default)",
+     "fields": {},
+     "refWired": false,
+     "expect": 0.85
+    },
+    {
+     "desc": "full standard 720p 5s explicit",
+     "fields": {
+      "resolution": "720p",
+      "duration": "5"
+     },
+     "refWired": false,
+     "expect": 0.85
+    },
+    {
+     "desc": "full standard 1080p 5s",
+     "fields": {
+      "resolution": "1080p",
+      "duration": "5"
+     },
+     "refWired": false,
+     "expect": 1.45
+    },
+    {
+     "desc": "draft standard (res ignored)",
+     "fields": {
+      "resolution": "1080p",
+      "duration": "5",
+      "modelOpts": {
+       "quality": "draft"
+      }
+     },
+     "refWired": false,
+     "expect": 0.3
+    },
+    {
+     "desc": "draft standard 720p",
+     "fields": {
+      "resolution": "720p",
+      "duration": "5",
+      "modelOpts": {
+       "quality": "draft"
+      }
+     },
+     "refWired": false,
+     "expect": 0.3
+    },
+    {
+     "desc": "full quality explicit 720p",
+     "fields": {
+      "resolution": "720p",
+      "duration": "5",
+      "modelOpts": {
+       "quality": "full"
+      }
+     },
+     "refWired": false,
+     "expect": 0.85
+    },
+    {
+     "desc": "full standard 1080p 10s",
+     "fields": {
+      "resolution": "1080p",
+      "duration": "10"
+     },
+     "refWired": false,
+     "expect": 2.9
+    },
+    {
+     "desc": "enhance 5s",
+     "fields": {
+      "duration": "5",
+      "modelOpts": {
+       "quality": "enhance"
+      }
+     },
+     "refWired": false,
+     "expect": 1.45
+    },
+    {
+     "desc": "full extend 720p via mode",
+     "fields": {
+      "resolution": "720p",
+      "duration": "5",
+      "modelOpts": {
+       "mode": "extend"
+      }
+     },
+     "refWired": false,
+     "expect": 2.05
+    },
+    {
+     "desc": "draft extend via mode",
+     "fields": {
+      "duration": "5",
+      "modelOpts": {
+       "quality": "draft",
+       "mode": "extend"
+      }
+     },
+     "refWired": false,
+     "expect": 0.6
     }
    ]
   }
