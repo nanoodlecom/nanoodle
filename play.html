@@ -6431,6 +6431,22 @@ window.NoodleApp = (function () {
     for(let i=0;i<s.length;i++) h = ((h<<5)+h+s.charCodeAt(i))|0;
     return h.toString(36);
   }
+  // Long async polls (video can be 10–20+ min): put elapsed, last check, job id, and status URL in the
+  // progress line so the steps strip shows something probeable while waiting.
+  function pollProgressMsg(label, st, ms, meta){
+    const sec = Math.max(0, Math.round((ms||0)/1000));
+    const clock = sec >= 60 ? (((sec/60)|0) + ":" + String(sec%60).padStart(2,"0")) : (sec + "s");
+    let msg = label + " " + clock + " · " + String(st||"…").toLowerCase();
+    if(meta && meta.polledAt){
+      try{ msg += " · last check " + new Date(meta.polledAt).toLocaleTimeString([], { hour:"2-digit", minute:"2-digit", second:"2-digit" }); }
+      catch(_){}
+    }
+    if(meta && meta.runId){
+      msg += " · job " + meta.runId;
+      msg += " · " + NANOGPT + "/api/video/status?requestId=" + encodeURIComponent(meta.runId);
+    }
+    return msg;
+  }
   // Per-run cost-tracking context: each node gets its own makeCtx(onCost) so a
   // generation's price lands on the right card even when siblings/lanes run at once.
   function makeCtx(onCost, runKey){ return {
@@ -6522,12 +6538,14 @@ window.NoodleApp = (function () {
         if(runKey) PENDING_VIDEO.set(runKey, {runId:runId, sig:sig});   // remember it the moment it exists, so a timeout is recoverable
       }
       const t0 = Date.now();                           // elapsed progress only — no poll deadline
+      // Job id + status URL immediately (before the first 5s sleep) so a long queue is still probeable.
+      onProgress && onProgress("SUBMITTED", 0, { runId:runId, polledAt:Date.now() });
       while(true){                                     // wait for COMPLETED/FAILED/Stop; server keeps the job
         await sleep(5000);
         let s; try{ s = await (await apiFetch(NANOGPT + "/api/video/status?requestId=" + encodeURIComponent(runId), {headers:authHeaders()})).json(); }
         catch(e){ if(isAbort(e)) throw e; continue; }
         const st = String((s.data && s.data.status) || s.status || "").toUpperCase();
-        onProgress && onProgress(st, Date.now()-t0);
+        onProgress && onProgress(st, Date.now()-t0, { runId:runId, polledAt:Date.now() });
         if(st==="COMPLETED" || st==="SUCCEEDED"){
           const out = (s.data && s.data.output) || s.output || {};
           const url = (out.video && out.video.url) || out.url || (Array.isArray(out.video) ? out.video[0] && out.video[0].url : null);
@@ -7674,7 +7692,7 @@ function mp4ParamsMatch(bufs){
           } else if(onProgress) onProgress("reference image(s) ignored — this model doesn't support them");
         }
         const url = await ctx.genVideo(mdl(n), prompt, opts, null,
-          (st,ms)=> onProgress && onProgress("rendering video… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
+          (st,ms,meta)=> onProgress && onProgress(pollProgressMsg("rendering video…", st, ms, meta)));
         return { video: url };
       }
     },
@@ -7691,7 +7709,7 @@ function mp4ParamsMatch(bufs){
           else if(onProgress) onProgress("end frame ignored — this model can't morph");
         }
         const url = await ctx.genVideo(mdl(n), prompt, opts, inp.image,
-          (st,ms)=> onProgress && onProgress("animating… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
+          (st,ms,meta)=> onProgress && onProgress(pollProgressMsg("animating…", st, ms, meta)));
         return { video: url };
       }
     },
@@ -7713,7 +7731,7 @@ function mp4ParamsMatch(bufs){
           } else if(onProgress) onProgress("reference image(s) ignored — this model doesn't support them");
         }
         const url = await ctx.genVideo(mdl(n), prompt, vopts, null,
-          (st,ms)=> onProgress && onProgress("processing video… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase()));
+          (st,ms,meta)=> onProgress && onProgress(pollProgressMsg("processing video…", st, ms, meta)));
         return { video: url };
       }
     },
@@ -7778,7 +7796,7 @@ function mp4ParamsMatch(bufs){
         if(!inp.image) throw new Error("no image input");
         if(!inp.audio) throw new Error("no audio input");
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
-        const prog = (st,ms)=> onProgress && onProgress("lip-syncing… " + Math.round(ms/1000) + "s · " + String(st).toLowerCase());
+        const prog = (st,ms,meta)=> onProgress && onProgress(pollProgressMsg("lip-syncing…", st, ms, meta));
         // Send audio as-is first (a remote song rides full-length); if the model REJECTS the submit
         // for duration (HTTP error — not yet charged), read its real cap, trim, and retry once.
         // NEVER auto-retry after a post-submit job failure ("video failed: …") — that path already
@@ -8116,7 +8134,14 @@ const PROMPT_CAPS = {
   // adds auth to API calls only, so media CDN downloads never see the key.
   function njsCtx(E, onCost, runKey, note){
     const client = new E.NanoClient({ apiKey: getKey(), baseUrl: NANOGPT, fetch: (u,o)=> fetch(u,o) });
-    const io = { onCost: onCost, onPoll: (info)=> note && note(String(info.status||"") + (info.queuePosition!=null ? " #"+info.queuePosition : "")), signal: ABORT ? ABORT.signal : undefined };
+    const io = { onCost: onCost, onPoll: (info)=>{
+      if(!note) return;
+      const st = String((info && info.status) || "…");
+      const ms = (info && info.elapsedMs) || 0;
+      const meta = (info && info.runId) ? { runId: info.runId, polledAt: Date.now() } : null;
+      const q = (info && info.queuePosition!=null) ? (" · queue " + info.queuePosition) : "";
+      note(pollProgressMsg("polling…", st, ms, meta) + q);
+    }, signal: ABORT ? ABORT.signal : undefined };
     // A pending entry must SURVIVE Stop and the poll timeout — the job is already submitted and
     // charged, and the next unchanged run resumes it (built-in twin keeps the entry on abort).
     // Only a genuine job failure may delete it. The library's abort rejection is a DOMException
@@ -11434,7 +11459,8 @@ body{ background:
 .prog-now{ display:flex; align-items:center; gap:.55rem; flex-wrap:wrap; font-size:.82rem; color:var(--ink); }
 .prog-step{ font-variant-numeric:tabular-nums; color:var(--dim); font-size:.72rem; letter-spacing:.04em; text-transform:uppercase; }
 .prog-node{ font-weight:700; }
-.prog-msg{ color:var(--dim); }
+/* Long video poll lines carry job id + status URL — allow wrap so they stay readable. */
+.prog-msg{ color:var(--dim); word-break:break-word; white-space:normal; max-width:100%; }
 .prog-el{ margin-left:auto; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.78rem;
   color:var(--faint); font-variant-numeric:tabular-nums; }
 .prog-now.is-ok{ color:var(--ok); } .prog-now.is-err{ color:var(--danger); }
