@@ -478,10 +478,26 @@
   #runlive .rl-meta{ grid-column:2 / 3; min-width:0; display:flex; flex-direction:column; gap:.08rem }
   #runlive .rl-name{ font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
   #runlive .rl-msg{ font-size:.7rem; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  #runlive .rl-poll{ font-size:.65rem; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+                     font-family:ui-monospace,monospace; font-variant-numeric:tabular-nums }
+  #runlive .rl-poll a{ color:var(--accent); text-decoration:none }
+  #runlive .rl-poll a:hover{ text-decoration:underline }
   #runlive .rl-el{ grid-column:3; grid-row:1 / span 2; align-self:center;
                    font-family:ui-monospace,monospace; font-size:.72rem; color:var(--warn);
                    font-variant-numeric:tabular-nums; white-space:nowrap }
   #runlive .rl-empty{ font-size:.76rem; color:var(--dim); padding:.25rem .2rem }
+  /* In-progress poll diagnostics on the node card (long video/audio jobs): last check, job id, status URL. */
+  .result .run-poll{ margin-top:.35rem; padding:.35rem .45rem; border-radius:.4rem; background:var(--panel2,#1a1d24);
+                     border:1px solid var(--line); font-size:.72rem; color:var(--dim); line-height:1.35;
+                     font-family:ui-monospace,monospace; font-variant-numeric:tabular-nums; word-break:break-all }
+  .result .run-poll-line{ display:flex; flex-wrap:wrap; align-items:center; gap:.25rem .4rem }
+  .result .run-poll-line + .run-poll-line{ margin-top:.2rem }
+  .result .run-poll-id{ color:var(--ink); font-size:.7rem }
+  .result .run-poll a{ color:var(--accent); text-decoration:none }
+  .result .run-poll a:hover{ text-decoration:underline }
+  .result .run-poll-copy{ border:1px solid var(--line); background:transparent; color:var(--muted); font:inherit;
+                          font-size:.68rem; padding:.05rem .35rem; border-radius:.3rem; cursor:pointer }
+  .result .run-poll-copy:hover{ color:var(--ink); border-color:var(--accent) }
   @media (max-width:700px){
     #runlive{ width:min(18rem, calc(100vw - 1.5rem)); bottom:calc(var(--db-h,3rem) + 3.6rem); max-height:28vh }
   }
@@ -6519,7 +6535,7 @@ const NODE_TYPES = {
         opts.refImages = refs.slice(0, rspec.cap); opts.refKey = rspec.key;
       }
       const url = await ctx.genVideo(mdl(n), prompt, opts, null,
-        (st,ms)=> setNodeProgress(n, `${t("rendering video…")} ${Math.round(ms/1000)}s · ${st.toLowerCase()}`));
+        (st,ms,meta)=> setNodeProgress(n, fmtPollHeadline(t("rendering video…"), st, ms), meta));
       return { video: url };
     }
   },
@@ -6543,7 +6559,7 @@ const NODE_TYPES = {
       const opts = { dims:videoDimParams(n), lora:loraParams(n), extra:(n.fields.modelOpts||{}), runKey:n.id };
       if(inp.endframe) opts.last_image = inp.endframe;   // end-frame morph target (only collected when the model exposes last_image — see input gather)
       const url = await ctx.genVideo(mdl(n), prompt, opts, inp.image,
-        (st,ms)=> setNodeProgress(n, `${t("animating…")} ${Math.round(ms/1000)}s · ${st.toLowerCase()}`));
+        (st,ms,meta)=> setNodeProgress(n, fmtPollHeadline(t("animating…"), st, ms), meta));
       return { video: url };
     }
   },
@@ -6572,7 +6588,7 @@ const NODE_TYPES = {
         opts.refImages = refs.slice(0, rspec.cap); opts.refKey = rspec.key;
       }
       const url = await ctx.genVideo(mdl(n), prompt, opts, null,
-        (st,ms)=> setNodeProgress(n, `processing video… ${Math.round(ms/1000)}s · ${st.toLowerCase()}`));
+        (st,ms,meta)=> setNodeProgress(n, fmtPollHeadline("processing video…", st, ms), meta));
       return { video: url };
     }
   },
@@ -6681,7 +6697,7 @@ const NODE_TYPES = {
       if(!inp.image) throw new Error("no image — wire an image into the image port");
       if(!inp.audio) throw new Error("no audio — wire an audio clip into the audio port");
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
-      const prog = (st,ms)=> setNodeProgress(n, `lip-syncing… ${Math.round(ms/1000)}s · ${st.toLowerCase()}`);
+      const prog = (st,ms,meta)=> setNodeProgress(n, fmtPollHeadline("lip-syncing…", st, ms), meta);
       // Avatar models cap audio length (LongCat = 30s) and the cap isn't reliably in the catalog,
       // so send the audio as-is first (a remote song rides full-length as a url, no truncation). If
       // the model REJECTS the submit for duration (HTTP error — not yet charged), read its real cap
@@ -7539,7 +7555,7 @@ function setStatus(n, status, msg){
     const r = n.el.querySelector(".result");
     r.classList.add("show"); r.innerHTML = `<span class="spin"></span> ${esc(t("running…"))}`;
   } else {
-    delete n._runT0; delete n._runMsg;
+    delete n._runT0; delete n._runMsg; delete n._pollMeta;
   }
   if(status==="error"){
     const r = n.el.querySelector(".result");
@@ -7552,7 +7568,7 @@ function setStatus(n, status, msg){
 function setStopped(n){
   if(!n?.el) return;
   n.el.dataset.status = "idle";
-  delete n._runT0; delete n._runMsg;
+  delete n._runT0; delete n._runMsg; delete n._pollMeta;
   const r = n.el.querySelector(".result");
   if(r){ r.classList.add("show"); r.innerHTML = `<div style="color:var(--dim)">■ stopped</div>`; }
   paintRunLive();
@@ -7562,17 +7578,66 @@ function setStopped(n){
 function setSkipped(n){
   if(!n?.el) return;
   n.el.dataset.status = "skip";
-  delete n._runT0; delete n._runMsg;
+  delete n._runT0; delete n._runMsg; delete n._pollMeta;
   const r = n.el.querySelector(".result");
   if(r){ r.classList.add("show"); r.innerHTML = `<div style="color:var(--dim)">⤼ skipped — upstream failed</div>`; }
   paintRunLive();
 }
-function setNodeProgress(n, msg){
+// Status URL for a NanoGPT async video job (needs the API key when fetched; useful for curl/devtools).
+function videoStatusUrl(runId){
+  return `${NANOGPT}/api/video/status?requestId=${encodeURIComponent(runId)}`;
+}
+function fmtCheckTime(ts){
+  try{ return new Date(ts).toLocaleTimeString([], { hour:"2-digit", minute:"2-digit", second:"2-digit" }); }
+  catch{ return ""; }
+}
+// Primary line for a long async poll: "rendering video… 12:34 · in_progress".
+function fmtPollHeadline(label, st, ms){
+  const clock = (typeof fmtRunClock==="function") ? fmtRunClock(ms) : (Math.round((ms||0)/1000) + "s");
+  const stLow = String(st||"…").toLowerCase();
+  return `${label} ${clock} · ${stLow}`;
+}
+// meta: { runId, polledAt, statusUrl?, kind? } — kind "video"|"audio" picks the status URL shape.
+function setNodeProgress(n, msg, meta){
   if(!n.el) return;
   if(n._runT0==null) n._runT0 = Date.now();
   n._runMsg = msg;
+  if(meta && meta.runId){
+    n._pollMeta = {
+      runId: String(meta.runId),
+      polledAt: meta.polledAt != null ? meta.polledAt : Date.now(),
+      statusUrl: meta.statusUrl || (meta.kind==="audio" ? null : videoStatusUrl(meta.runId)),
+      kind: meta.kind || "video",
+    };
+  } else if(meta === null){
+    delete n._pollMeta;
+  }
   const r = n.el.querySelector(".result");
-  r.classList.add("show"); r.innerHTML = `<span class="spin"></span> ${esc(msg)}`;
+  r.classList.add("show");
+  let html = `<span class="spin"></span> ${esc(msg)}`;
+  const pm = n._pollMeta;
+  if(pm && pm.runId){
+    const when = pm.polledAt != null ? fmtCheckTime(pm.polledAt) : "";
+    const url = pm.statusUrl || videoStatusUrl(pm.runId);
+    html += `<div class="run-poll" data-no-i18n>`
+      + (when ? `<div class="run-poll-line">last check ${esc(when)}</div>` : "")
+      + `<div class="run-poll-line">job <code class="run-poll-id">${esc(pm.runId)}</code>`
+      + (url ? ` <a href="${esc(url)}" target="_blank" rel="noopener">status ↗</a>`
+             + ` <button type="button" class="run-poll-copy" data-copy-poll="${esc(url)}">copy URL</button>` : "")
+      + `</div></div>`;
+  }
+  r.innerHTML = html;
+  r.querySelectorAll("[data-copy-poll]").forEach(btn=>{
+    btn.onclick = (e)=>{
+      e.preventDefault(); e.stopPropagation();
+      const u = btn.getAttribute("data-copy-poll") || "";
+      if(!u) return;
+      const ok = ()=> toast("✓ Copied status URL");
+      if(navigator.clipboard && navigator.clipboard.writeText)
+        navigator.clipboard.writeText(u).then(ok).catch(()=> toast("copy failed", "err"));
+      else toast("copy failed", "err");
+    };
+  });
   paintRunLive();
 }
 function openUrl(url){ window.open(url, "_blank", "noopener"); }
@@ -8513,7 +8578,7 @@ function paintRunLive(){
     else if(st==="error") errs++;
     else if(st==="skip") skip++;
   }
-  const sig = active.map(n=> n.id+"\0"+(n._runMsg||"")).join("\n") + "\n#"+done+"/"+errs+"/"+skip+"/"+busy;
+  const sig = active.map(n=> n.id+"\0"+(n._runMsg||"")+"\0"+(n._pollMeta?.polledAt||"")+"\0"+(n._pollMeta?.runId||"")).join("\n") + "\n#"+done+"/"+errs+"/"+skip+"/"+busy;
   if(sig === runLiveSig){ tickRunLiveClocks(); return; }
   runLiveSig = sig;
   const sumBits = [];
@@ -8531,11 +8596,22 @@ function paintRunLive(){
       const { em, name } = liveNodeLabel(n);
       const msg = n._runMsg || t("running…");
       const el = n._runT0!=null ? fmtRunClock(Date.now()-n._runT0) : "";
+      const pm = n._pollMeta;
+      let poll = "";
+      if(pm && pm.runId){
+        const when = pm.polledAt != null ? fmtCheckTime(pm.polledAt) : "";
+        const url = pm.statusUrl || videoStatusUrl(pm.runId);
+        poll = `<span class="rl-poll" data-no-i18n>`
+          + (when ? `last check ${esc(when)} · ` : "")
+          + `job ${esc(pm.runId.length>18 ? pm.runId.slice(0,16)+"…" : pm.runId)}`
+          + (url ? ` · <a href="${esc(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">status ↗</a>` : "")
+          + `</span>`;
+      }
       // template-literal title= so the i18n coverage guard treats it as dynamic (${…})
       return `<button type="button" class="rl-row" data-rid="${esc(String(n.id))}" title="${esc(t("Show this node on the canvas"))}">`
            + `<span class="rl-em">${em}</span>`
            + `<span class="rl-meta"><span class="rl-name">${esc(name)}</span>`
-           + `<span class="rl-msg">${esc(msg)}</span></span>`
+           + `<span class="rl-msg">${esc(msg)}</span>${poll}</span>`
            + `<span class="rl-el">${esc(el)}</span>`
            + `</button>`;
     }).join("") + '</div>';
@@ -8638,7 +8714,13 @@ function njsCtx(E, n){
     if(c && c.balance!=null) j.remainingBalance = c.balance;
     accrue(j);
   };
-  const io = { onCost, onPoll: (info)=> setNodeProgress(n, String(info.status||"") + (info.queuePosition!=null ? " #"+info.queuePosition : "")), signal: runSignal() };
+  const io = { onCost, onPoll: (info)=>{
+    const st = String(info && info.status || "…");
+    const ms = (info && info.elapsedMs) || 0;
+    const q = info && info.queuePosition!=null ? " · queue " + info.queuePosition : "";
+    const meta = (info && info.runId) ? { runId: info.runId, polledAt: Date.now() } : undefined;
+    setNodeProgress(n, fmtPollHeadline("polling…", st, ms) + q, meta);
+  }, signal: runSignal() };
   // A pending entry must SURVIVE Stop and the poll timeout — the job is already submitted and
   // charged, and the next unchanged run resumes it (built-in twin: genVideo/pollAudio keep the
   // entry on abort). Only a genuine job failure may delete it. The library's abort rejection is
@@ -8770,7 +8852,7 @@ async function runGroup(seedIds, ctx){
     cyclic.forEach(id=> setStatus(byId(id), "error", "cycle detected"));
     ids.forEach(id=>{
       const n = byId(id);
-      if(order.includes(id) && n?.el){ n.el.dataset.status="idle"; delete n._runT0; delete n._runMsg; }
+      if(order.includes(id) && n?.el){ n.el.dataset.status="idle"; delete n._runT0; delete n._runMsg; delete n._pollMeta; }
     });
     // Each node fires as soon as its OWN inputs resolve, so sibling branches
     // (a→b, a→c) run concurrently rather than serializing down the topo order.
@@ -9182,13 +9264,15 @@ const CTX = {
     // (runId stays in PENDING_VIDEO so the user can re-run to resume — never auto-resumed).
     const sig = runSignal();
     const t0 = Date.now();                           // kept for elapsed-time progress; no deadline — the job runs server-side, so we wait as long as it takes
+    // Surface job id immediately (before the first 5s sleep) so a long queue still shows a probeable URL.
+    onProgress && onProgress("SUBMITTED", 0, { runId, polledAt: Date.now() });
     while(true){
       await sleep(5000);
       if(sig?.aborted) throw new DOMException("aborted","AbortError");   // Stop: leave runId in PENDING_VIDEO so a re-run resumes
       let s; try{ s = await (await fetch(`${NANOGPT}/api/video/status?requestId=${encodeURIComponent(runId)}`, {headers:authHeaders(), signal:runSignal()})).json(); }
       catch(e){ if(e?.name==="AbortError") throw e; continue; }
       const st = String(s.data?.status || s.status || "").toUpperCase();
-      onProgress && onProgress(st, Date.now()-t0);
+      onProgress && onProgress(st, Date.now()-t0, { runId, polledAt: Date.now() });
       if(st==="COMPLETED" || st==="SUCCEEDED"){
         const out = s.data?.output || s.output || {};
         const url = out.video?.url || out.url || (Array.isArray(out.video) ? out.video[0]?.url : null);
