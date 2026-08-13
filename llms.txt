@@ -30,10 +30,13 @@ Everything is MIT-licensed under the nanoodlecom GitHub org. Naming note: the in
 
 ## For coding agents
 
-Two ways to plug nanoodle into a coding agent — pick by how many workflows are involved:
+Three ways to plug nanoodle into a coding agent:
 
+- Hosted (easiest, no install, no key): add `https://mcp.nanoodle.com/mcp` — paid per call in Nano.
+  - `claude mcp add --transport http noodles https://mcp.nanoodle.com/mcp`
+  - `grok mcp add --transport http noodles https://mcp.nanoodle.com/mcp`
 - One workflow (or designing new ones): install the [Agent Skill](https://github.com/nanoodlecom/nanoodle-skill) — `npx skills add nanoodlecom/nanoodle-skill` teaches the agent to design and run nanoodle graphs.
-- A library of saved workflows: run [nanoodle-mcp](https://github.com/nanoodlecom/nanoodle-mcp) pointed at a folder of `noodle-graph.json` saves — every graph becomes one typed MCP tool the agent can call.
+- A library of saved workflows: run [nanoodle-mcp](https://github.com/nanoodlecom/nanoodle-mcp) pointed at a folder of `noodle-graph.json` saves (`nanoodle-mcp --graphs`) — every graph becomes one typed MCP tool the agent can call. Local is BYO-key (or a Nano wallet).
 
 ## Languages
 The interface is available in six languages: English, Español, Français, Deutsch, Português and 日本語. The language is auto-detected from your browser and can be changed with a manual switcher; your choice is remembered. Generated model output also replies in your chosen language, and apps you export keep that language built in.
