@@ -46,7 +46,7 @@ const CASES = [
     name: "extract row 1 — resize and crop geometry",
     why: "sig = deletes = 25, the plainest mirrored removal in the plan",
     idx: [[7107, 7167]],
-    play: [[7470, 7505], [9031, 9045]],
+    play: [[7469, 7504], [9030, 9044]],
     // Ranges re-anchored after FLUX.3 pricing twin growth; surfaces still share resize helpers
     // outside this block, so a paired delete is not silent (same class as row 8).
     expect: { exit: 1, oneSided: 25, occurrence: 1 },
@@ -55,7 +55,7 @@ const CASES = [
     name: "extract row 2 — maskToSource",
     why: "5 twins, already exported from browser.mjs",
     idx: [[7390, 7408]],
-    play: [[7448, 7466]],
+    play: [[7447, 7465]],
     expect: { exit: 1, oneSided: 6 },
   },
   {
@@ -63,28 +63,28 @@ const CASES = [
     why: "index.html range ends at 9323, not 9309: play.html:6587-6704 carries the twins of " +
       "trimAudioToWavUrl and extractAudioToWavUrl too, and the shorter range left them one-sided",
     idx: [[9375, 9450]],
-    play: [[6644, 6761]],
+    play: [[6643, 6760]],
     expect: { exit: 1, oneSided: 26, occurrence: 1 },
   },
   {
     name: "extract row 4 — prompt-cap helpers",
     why: "9 twins, library copy already in the bundle",
     idx: [[4265, 4315]],
-    play: [[8023, 8072]],
+    play: [[8022, 8071]],
     expect: { exit: 1, oneSided: 9, occurrence: 1 },
   },
   {
     name: "extract row 5 — pricing resolver",
     why: "pricing twins grew with FLUX.3 quality×mode×resolution tables; 1 line index.html carries twice",
     idx: [[5695, 5871]],
-    play: [[6009, 6167]],
+    play: [[6008, 6166]],
     expect: { exit: 1, oneSided: 43, occurrence: 1 },
   },
   {
     name: "extract row 6 — MP4CAT",
     why: "123 twins leave at once — the largest single mirrored deletion in the plan",
     idx: [[9465, 9742]],
-    play: [[6804, 7081]],
+    play: [[6803, 7080]],
     expect: { exit: 1, oneSided: 112, occurrence: 3 },
   },
   {
@@ -93,7 +93,7 @@ const CASES = [
       "swallowed toLocalMediaUrl, seekVideo and MP4CAT's first 4 lines, and the old 6979-7169 " +
       "started AFTER prepClip and recordClip, whose index.html twins are inside 9617-9869",
     idx: [[9744, 9996]],
-    play: [[6763, 6768], [6796, 6803], [7082, 7295]],
+    play: [[6762, 6767], [6795, 6802], [7081, 7294]],
     expect: { exit: 1, oneSided: 128, occurrence: 1 },
   },
   {
@@ -109,7 +109,7 @@ const CASES = [
       "      Whoever does row 8 refreshes the baseline as part of it — deliberately, which is what\n" +
       "      the guard's own remedy line asks for",
     idx: [[10980, 11296]],
-    play: [[13116, 13435]],
+    play: [[13115, 13434]],
     expect: { exit: 1, oneSided: 107, occurrence: 1 },
   },
   {
@@ -118,7 +118,7 @@ const CASES = [
       "the whole agent-pill popover (13294-13373) and the model-picker search, which index.html " +
       "keeps at 11822-11838 and 10608",
     idx: [[11409, 11449]],
-    play: [[13574, 13574], [13656, 13708], [13812, 13812]],
+    play: [[13573, 13573], [13655, 13707], [13811, 13811]],
     expect: { exit: 1, oneSided: 38 },
   },
 
@@ -136,7 +136,7 @@ const CASES = [
       },
       {
         file: "play.html",
-        line: 6997,
+        line: 6996,
         from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
         to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durPLAY, 0);",
       },
@@ -159,7 +159,7 @@ const CASES = [
   {
     name: "1-sided deletion",
     why: "play.html stops doing the work, index.html still does it, and nothing replaced it",
-    play: [[6997, 6997]],
+    play: [[6996, 6996]],
     expect: { exit: 1, oneSided: 1 },
   },
   {
@@ -175,7 +175,7 @@ const CASES = [
       },
       {
         file: "play.html",
-        line: 6997,
+        line: 6996,
         from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
         to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durTicks, 0);",
       },
@@ -189,7 +189,7 @@ const CASES = [
     name: "all 3 departure headings at once",
     why: "one divergent 2-sided edit, one 1-sided edit and one 1-sided deletion in the same tree. " +
       "The guard must report all 3 separately, which is why the ceiling names up to 12 x 3 = 36",
-    play: [[7477, 7477]], // twin of index.html resizePlan scale clamp — one-sided deletion
+    play: [[7476, 7476]], // twin of index.html resizePlan scale clamp — one-sided deletion
     edits: [
       {
         file: "index.html",
@@ -199,13 +199,13 @@ const CASES = [
       },
       {
         file: "play.html",
-        line: 6997,
+        line: 6996,
         from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
         to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durPLAY, 0);",
       },
       {
         file: "play.html",
-        line: 13010,
+        line: 13009,
         from: "    const usd = parseFloat((await r.json()).usd_balance);",
         to: "    const usd = parseFloat((await r.json()).usdBalance);",
       },
@@ -218,7 +218,7 @@ const CASES = [
     edits: [
       {
         file: "play.html",
-        line: 6997,
+        line: 6996,
         from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
         to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);\n" +
           "    // Seek a <video> to a time and resolve once that frame is decoded and drawable. Falls back",

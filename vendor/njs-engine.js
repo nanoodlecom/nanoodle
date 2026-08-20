@@ -1,5 +1,5 @@
-/* data-hash=bc554e13c7612e85 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-18dcd5048cd1 (16 modules) */
+/* data-hash=b9608a9ef88cc55a */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-8b723f3a544e (16 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -1503,8 +1503,7 @@ function loraFamily(model) {
   if (/flux-2/i.test(m)) return "flux2dev";
   if (/z-image/i.test(m)) return "zimage";
   if (/ltx/i.test(m)) return "ltx";
-  if (/krea/i.test(m) && /lora/i.test(m)) return "krea";
-  if (/lora/i.test(m)) return "flux";
+  if (/lora/i.test(m)) return /krea/i.test(m) ? "krea" : "flux";
   return null;
 }
 
@@ -4798,5 +4797,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-18dcd5048cd1";
+  window.NanoodleEngine.version = "src-8b723f3a544e";
 })();
