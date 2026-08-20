@@ -6317,7 +6317,8 @@ window.NoodleApp = (function () {
     if(/flux-2/i.test(m)) return "flux2dev";
     if(/z-image/i.test(m)) return "zimage";
     if(/ltx/i.test(m)) return "ltx";
-    if(/lora/i.test(m)) return /krea/i.test(m) ? "krea" : "flux";
+    if(/krea/i.test(m) && /lora/i.test(m)) return "krea";    // wavespeed krea-v2/turbo-lora: lora_url_1..3
+    if(/lora/i.test(m)) return "flux";
     return null;
   }
   function loraKind(type){ return (type==="image"||type==="edit"||type==="inpaint") ? "image" : "video"; }

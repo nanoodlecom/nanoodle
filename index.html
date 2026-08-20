@@ -9057,7 +9057,8 @@ function loraFamily(model){
   if(/flux-2/i.test(m)) return "flux2dev";
   if(/z-image/i.test(m)) return "zimage";
   if(/ltx/i.test(m)) return "ltx";                         // LTX video (lora_url_N); ids lack "lora"
-  if(/lora/i.test(m)) return /krea/i.test(m) ? "krea" : "flux"; // krea-v2/turbo-lora stacks 3; flux-lora is 1
+  if(/krea/i.test(m) && /lora/i.test(m)) return "krea";    // wavespeed krea-v2/turbo-lora: lora_url_1..3
+  if(/lora/i.test(m)) return "flux";                       // flux-lora + generic *-lora
   return null;
 }
 // image-vs-video kind for a lora-capable node (image/edit → image; *video → video)

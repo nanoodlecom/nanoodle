@@ -1,9 +1,9 @@
 {
   "_comment": "Baseline for scripts/check-twin-drift.mjs — the hand-maintained duplication between index.html and play.html. `count` is a RATCHET: extraction may lower it freely, new duplication may not raise it silently. Each `lines` entry is `<hash> <n in index.html> <n in play.html> <look-alikes in index.html> <look-alikes in play.html> <the line>`, where the hash is a 16-hex sha256 of the stripped line and the guard re-hashes the text to prove the two agree. The per-surface counts matter: a line that appears twice in one file can be edited in one place and still be present. The text matters: without it the guard cannot tell a real extraction from a line that both surfaces replaced with DIFFERENT text. The look-alike sets matter: they are the hashes of the lines that ALREADY resembled this one when the baseline was written, and without them the guard reads one of those as a `replacement` and fails a plain mirrored deletion. `-` means none. Do not hand edit this file. Refresh deliberately with: TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs Ranked extraction plan: docs/twin-drift.md",
-  "count": 914,
-  "occurrencesIndexHtml": 980,
-  "occurrencesPlayHtml": 1033,
-  "digest": "78306a388368dc3deca1d8bbbf0535df",
+  "count": 915,
+  "occurrencesIndexHtml": 981,
+  "occurrencesPlayHtml": 1034,
+  "digest": "a24459bfa142390e545bb724bd33da47",
   "lines": [
     "002720750bb5da1d 1 1 - - Emphasized (bright accent ring + ✓) but still clearly a button in the row, not a filled tag. */",
     "00a12dd8e0743550 1 1 - - const all = (Array.isArray(samples) ? samples : []).filter(s=> s && typeof s.v===\"string\");",
@@ -461,6 +461,7 @@
     "7d893d95cdc0139f 1 1 - - // samples in this chunk = spc from the applicable stsc entry",
     "7ddcb7069cd2b423 1 1 - - // while a shorten is in flight, so its finally must restore through here too.",
     "7e24bda9d7cb2dde 1 1 - - function airTakesNegative(air){ return !/^runware:(100|101|103|104|106|107|111|160|400)@/i.test(String(air||\"\")); }",
+    "7e94740806cafc67 1 1 - - if(/krea/i.test(m) && /lora/i.test(m)) return \"krea\";    // wavespeed krea-v2/turbo-lora: lora_url_1..3",
     "7ee32d84416fc33b 1 1 - - // just moves the failure somewhere we can't explain it. If the link was already shortened",
     "7f2365e08846d35a 1 2 - - if(/^(TypeError: )?(Failed to fetch|Load failed|NetworkError)/i.test(m.trim()))",
     "7f26f04d7e7bf574 1 1 - - // Cloudflare Worker + KV. It replaced the third-party shorteners (da.gd/TinyURL), which saw",
