@@ -9057,7 +9057,7 @@ function loraFamily(model){
   if(/flux-2/i.test(m)) return "flux2dev";
   if(/z-image/i.test(m)) return "zimage";
   if(/ltx/i.test(m)) return "ltx";                         // LTX video (lora_url_N); ids lack "lora"
-  if(/lora/i.test(m)) return "flux";                       // flux-lora + generic *-lora
+  if(/lora/i.test(m)) return /krea/i.test(m) ? "krea" : "flux"; // krea-v2/turbo-lora stacks 3; flux-lora is 1
   return null;
 }
 // image-vs-video kind for a lora-capable node (image/edit → image; *video → video)
@@ -9086,7 +9086,7 @@ function modelTakesLora(kind, id){
 function loraCap(model){
   switch(loraFamily(model)){
     case "flux2dev": return 4;
-    case "flux2klein": case "zimage": case "ltx": return 3;
+    case "flux2klein": case "zimage": case "ltx": case "krea": return 3;
     default: return 1;                                      // flux-lora, pimage — single slot
   }
 }
@@ -9101,7 +9101,7 @@ function nodeLoras(n){
 function loraBodyFor(model, items){       // items: [{url,scale}], 1..cap, already normalized
   var fam = loraFamily(model), sc = function(v){ return isNaN(v) ? 1 : v; };
   if(fam==="pimage") return { lora_weights:items[0].url, lora_scale:sc(items[0].scale) };
-  if(fam==="flux2dev" || fam==="flux2klein" || fam==="zimage" || fam==="ltx"){
+  if(fam==="flux2dev" || fam==="flux2klein" || fam==="zimage" || fam==="ltx" || fam==="krea"){
     var b = {}; items.forEach(function(it,i){ b["lora_url_"+(i+1)]=it.url; b["lora_scale_"+(i+1)]=sc(it.scale); }); return b;
   }
   if(items.length===1) return { lora_url:items[0].url, lora_strength:sc(items[0].scale) };  // proven single shape

@@ -1,5 +1,5 @@
-/* data-hash=cb3147937ada61b2 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-18dcd5048cd1 (16 modules) */
+/* data-hash=b9608a9ef88cc55a */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-8b723f3a544e (16 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -1503,7 +1503,7 @@ function loraFamily(model) {
   if (/flux-2/i.test(m)) return "flux2dev";
   if (/z-image/i.test(m)) return "zimage";
   if (/ltx/i.test(m)) return "ltx";
-  if (/lora/i.test(m)) return "flux";
+  if (/lora/i.test(m)) return /krea/i.test(m) ? "krea" : "flux";
   return null;
 }
 
@@ -1526,7 +1526,7 @@ function modelTakesLora(kind, id) {
 function loraCap(model) {
   switch (loraFamily(model)) {
     case "flux2dev": return 4;
-    case "flux2klein": case "zimage": case "ltx": return 3;
+    case "flux2klein": case "zimage": case "ltx": case "krea": return 3;
     default: return 1; // flux-lora, pimage — single slot
   }
 }
@@ -1542,7 +1542,7 @@ function nodeLoras(n) {
 function loraBodyFor(model, items) {
   const fam = loraFamily(model), sc = (v) => (isNaN(v) ? 1 : v);
   if (fam === "pimage") return { lora_weights: items[0].url, lora_scale: sc(items[0].scale) };
-  if (fam === "flux2dev" || fam === "flux2klein" || fam === "zimage" || fam === "ltx") {
+  if (fam === "flux2dev" || fam === "flux2klein" || fam === "zimage" || fam === "ltx" || fam === "krea") {
     const b = {};
     items.forEach((it, i) => { b["lora_url_" + (i + 1)] = it.url; b["lora_scale_" + (i + 1)] = sc(it.scale); });
     return b;
@@ -4797,5 +4797,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-18dcd5048cd1";
+  window.NanoodleEngine.version = "src-8b723f3a544e";
 })();
