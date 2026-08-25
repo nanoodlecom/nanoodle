@@ -41,7 +41,8 @@ touches_examples=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/
 # index.html + play.html carry the i18n maps (editor + app-player/exported chrome) — a chrome string missing from every language map is invisible to users of all five.
 touches_i18n=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-i18n-coverage\.mjs)$' || true)
 # updates.json feeds the in-app "📣 Updates" changelog — a bad hand edit must not ship.
-touches_updates=$(printf '%s\n' "$staged" | grep -E '(^|/)(updates\.json|scripts/check-updates\.mjs)$' || true)
+# changelog.html + feed.xml are generated from it; they must stay in lockstep.
+touches_updates=$(printf '%s\n' "$staged" | grep -E '(^|/)(updates\.json|changelog\.html|feed\.xml|scripts/(check-updates|check-changelog|gen-changelog)\.mjs)$' || true)
 # index.html + play.html carry the "Create app" handoff state machine (which app a click targets).
 touches_createapp=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-create-app\.mjs)$' || true)
 # index.html runGroup must not run/charge a downstream node on a failed upstream's stale output.
@@ -264,9 +265,11 @@ if [ -n "$touches_quickadd" ]; then
 fi
 
 # 11) the Updates changelog data must stay valid (newest-first array of
-#     { date:"YYYY-MM-DD", text:"one line" }) so the in-app panel renders.
+#     { date:"YYYY-MM-DD", text:"one line" }) so the in-app panel renders,
+#     and the generated public page / Atom feed must match it.
 if [ -n "$touches_updates" ]; then
   node "$root/scripts/check-updates.mjs"
+  node "$root/scripts/check-changelog.mjs"
 fi
 
 # 12) the "Create app" handoff must route to the RIGHT app: a fresh workflow makes a NEW

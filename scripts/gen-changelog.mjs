@@ -17,17 +17,21 @@
 // so re-running the generator on an unchanged input is a byte-identical no-op —
 // CI/pre-commit can diff freely. Run it after editing updates.json:
 //
-//   node scripts/gen-changelog.mjs
+//   node scripts/gen-changelog.mjs            # write changelog.html + feed.xml
+//   node scripts/gen-changelog.mjs --check    # compare committed files, write nothing
 //
 // and commit changelog.html + feed.xml alongside.
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const SITE = "https://nanoodle.com";
+const CHECK = process.argv.includes("--check");
+const HTML_PATH = path.join(ROOT, "changelog.html");
+const FEED_PATH = path.join(ROOT, "feed.xml");
 
 // ---------------------------------------------------------------------------
 // Load + order entries: newest date first; file order preserved within a date
@@ -311,6 +315,34 @@ if (new Set(ids).size !== ids.length) {
   process.exit(1);
 }
 
-writeFileSync(path.join(ROOT, "changelog.html"), html);
-writeFileSync(path.join(ROOT, "feed.xml"), feed);
+function firstDiff(have, want, label) {
+  const a = have.split("\n"), b = want.split("\n");
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    if (a[i] !== b[i]) {
+      return `  ${label}: first difference at line ${i + 1}\n` +
+             `    on disk:   ${a[i] === undefined ? "<end of file>" : JSON.stringify(a[i].slice(0, 160))}\n` +
+             `    generated: ${b[i] === undefined ? "<end of file>" : JSON.stringify(b[i].slice(0, 160))}`;
+    }
+  }
+  return `  ${label}: files are identical`;
+}
+
+if (CHECK) {
+  const haveHtml = existsSync(HTML_PATH) ? readFileSync(HTML_PATH, "utf8") : "";
+  const haveFeed = existsSync(FEED_PATH) ? readFileSync(FEED_PATH, "utf8") : "";
+  const htmlOk = haveHtml === html;
+  const feedOk = haveFeed === feed;
+  if (htmlOk && feedOk) {
+    console.log(`✓ gen-changelog: changelog.html + feed.xml match updates.json (updated ${newestDate})`);
+    process.exit(0);
+  }
+  console.error("✗ gen-changelog: changelog.html / feed.xml are stale vs updates.json.");
+  console.error("  Regenerate with:  node scripts/gen-changelog.mjs");
+  if (!htmlOk) console.error(firstDiff(haveHtml, html, "changelog.html"));
+  if (!feedOk) console.error(firstDiff(haveFeed, feed, "feed.xml"));
+  process.exit(1);
+}
+
+writeFileSync(HTML_PATH, html);
+writeFileSync(FEED_PATH, feed);
 console.log(`✓ gen-changelog: wrote changelog.html (${byDate.length} days) + feed.xml (${sorted.length} entries, well-formed, updated ${newestDate})`);
