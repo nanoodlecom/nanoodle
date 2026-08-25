@@ -9,6 +9,8 @@
 // --day-end is for automated feeds (the NanoGPT model-sync cron): hand-written
 // product updates keep the top of their day, mirrored model news files in under
 // them. updates.json is plain JSON — edit, reword, reorder, or delete freely.
+// Callers that commit the write (post-commit hook, model-sync cron) must also
+// run scripts/gen-changelog.mjs so changelog.html + feed.xml stay in lockstep.
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";

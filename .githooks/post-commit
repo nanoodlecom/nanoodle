@@ -46,11 +46,14 @@ fi
 
 date=$(git log -1 --format=%cs HEAD) # commit date, YYYY-MM-DD
 node "$root/scripts/add-update.mjs" "$date" "$text" || exit 0
+# Public /changelog + Atom feed are generated from updates.json. The model-sync
+# cron once committed the JSON alone and the live page froze; keep them in lockstep.
+node "$root/scripts/gen-changelog.mjs" || exit 0
 
 # Nothing changed (e.g. dedup of an identical top entry) → leave the commit as-is.
-[ -z "$(git status --porcelain -- "$root/updates.json")" ] && exit 0
+[ -z "$(git status --porcelain -- "$root/updates.json" "$root/changelog.html" "$root/feed.xml")" ] && exit 0
 
-NOODLE_SKIP_UPDATE_HOOK=1 git add "$root/updates.json"
+NOODLE_SKIP_UPDATE_HOOK=1 git add "$root/updates.json" "$root/changelog.html" "$root/feed.xml"
 NOODLE_SKIP_UPDATE_HOOK=1 git commit --amend --no-edit --no-verify
 
 # The new entry ships English-only (the 📣 panel falls back to English for any
