@@ -24,6 +24,12 @@ touches_jsparity=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|vendor/nj
 touches_njseditor=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|vendor/njs-engine\.js|scripts/check-njs-editor-delegation\.mjs)$' || true)
 # play.html's exported LLM node must gate response_format / input_audio by the model's real capability.
 touches_llmgate=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-llm-capability-gates\.mjs|scripts/play-engine\.mjs)$' || true)
+# custom-civitai / direct-AIR extras: parse+validate before charge; FLUX-family AIRs omit
+# negative_prompt; the POST must use snake_case (camelCase is silently dropped by the API).
+touches_airneg=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|vendor/njs-engine\.js|scripts/check-air-negative\.mjs|scripts/play-engine\.mjs)$' || true)
+# library materialize must blank non-URL media placeholders (prose / file paths) so a graph
+# cannot skip the required-input check and POST garbage to NanoGPT (PR #364).
+touches_mediaplaceholders=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|vendor/njs-engine\.js|scripts/check-media-placeholders\.mjs)$' || true)
 # play.html carries the deterministic-skip cache (fixed-seed reuse + keep-mode hot-loop guard).
 touches_seedcache=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-seed-cache\.mjs)$' || true)
 # index.html carries the editor's dynamic image-input port logic (growth, compaction).
@@ -155,7 +161,7 @@ touches_nanogptsync=$(printf '%s\n' "$staged" | grep -E '(^|/)(scripts/sync-nano
 # Nothing to check unless an .html file, one of the checkers, or a guarded doc changed.
 # Every touches_* variable belongs in this chain — a gate left out of it never runs on a
 # commit that stages only its own files, which is exactly the commit it exists to catch.
-[ -z "$staged_html" ] && [ -z "$touches_launchfacts" ] && [ -z "$touches_njseditor" ] && [ -z "$touches_llmgate" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_jsparity" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_videoroles" ] && [ -z "$touches_videomode" ] && [ -z "$touches_knobclamp" ] && [ -z "$touches_langpages" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_i18n" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_lipsync" ] && [ -z "$touches_aresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && [ -z "$touches_pacing" ] && [ -z "$touches_graphpersist" ] && [ -z "$touches_graphsigs" ] && [ -z "$touches_describeapply" ] && [ -z "$touches_authlc" ] && [ -z "$touches_mediapriv" ] && [ -z "$touches_verhist" ] && [ -z "$touches_rungating" ] && [ -z "$touches_appsstorage" ] && [ -z "$touches_linkerr" ] && [ -z "$touches_deploy" ] && [ -z "$touches_hiddencss" ] && [ -z "$touches_connect" ] && [ -z "$touches_undo" ] && [ -z "$touches_costaccrue" ] && [ -z "$touches_resize" ] && [ -z "$touches_catalog" ] && [ -z "$touches_upscale" ] && [ -z "$touches_drift" ] && [ -z "$touches_promptcaps" ] && [ -z "$touches_consent" ] && [ -z "$touches_sharesamples" ] && [ -z "$touches_llmsfull" ] && [ -z "$touches_examples" ] && [ -z "$touches_twindrift" ] && [ -z "$touches_twindriftcases" ] && [ -z "$touches_nanogptsync" ] && exit 0
+[ -z "$staged_html" ] && [ -z "$touches_launchfacts" ] && [ -z "$touches_njseditor" ] && [ -z "$touches_llmgate" ] && [ -z "$touches_airneg" ] && [ -z "$touches_mediaplaceholders" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_jsparity" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_videoroles" ] && [ -z "$touches_videomode" ] && [ -z "$touches_knobclamp" ] && [ -z "$touches_langpages" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_i18n" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_lipsync" ] && [ -z "$touches_aresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && [ -z "$touches_pacing" ] && [ -z "$touches_graphpersist" ] && [ -z "$touches_graphsigs" ] && [ -z "$touches_describeapply" ] && [ -z "$touches_authlc" ] && [ -z "$touches_mediapriv" ] && [ -z "$touches_verhist" ] && [ -z "$touches_rungating" ] && [ -z "$touches_appsstorage" ] && [ -z "$touches_linkerr" ] && [ -z "$touches_deploy" ] && [ -z "$touches_hiddencss" ] && [ -z "$touches_connect" ] && [ -z "$touches_undo" ] && [ -z "$touches_costaccrue" ] && [ -z "$touches_resize" ] && [ -z "$touches_catalog" ] && [ -z "$touches_upscale" ] && [ -z "$touches_drift" ] && [ -z "$touches_promptcaps" ] && [ -z "$touches_consent" ] && [ -z "$touches_sharesamples" ] && [ -z "$touches_llmsfull" ] && [ -z "$touches_examples" ] && [ -z "$touches_twindrift" ] && [ -z "$touches_twindriftcases" ] && [ -z "$touches_nanogptsync" ] && exit 0
 if ! command -v node >/dev/null 2>&1; then
   echo "pre-commit: node not found, skipping HTML JS checks" >&2
   exit 0
@@ -234,6 +240,19 @@ fi
 #     graph can't bill for a request the model returns empty / can't hear. Catalog-driven, permissive offline.
 if [ -n "$touches_llmgate" ]; then
   node "$root/scripts/check-llm-capability-gates.mjs"
+fi
+
+# 6a-air) custom-civitai AIR parse/validate + FLUX negative_prompt gate. A drifted family
+#     regex or a camelCase payload key either hides a working knob or bills a request the
+#     API silently ignores. Editor predicates + play runGraph POST body.
+if [ -n "$touches_airneg" ]; then
+  node "$root/scripts/check-air-negative.mjs"
+fi
+
+# 6a-media) library materialize blanks prose/file-path media so inspect/run cannot treat
+#     a placeholder as filled and POST it. vendor/njs-engine.js is the source of truth.
+if [ -n "$touches_mediaplaceholders" ]; then
+  node "$root/scripts/check-media-placeholders.mjs"
 fi
 
 # 6b) the deterministic-skip cache: a fixed-seed node reuses its output (no re-charge), a frozen
