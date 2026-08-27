@@ -5710,6 +5710,7 @@ window.NoodleApp = (function () {
   "✓ done":{es:"✓ listo",fr:"✓ terminé",de:"✓ fertig",pt:"✓ concluído",ja:"✓ 完了"},
   "↺ reused":{es:"↺ reutilizado",fr:"↺ réutilisé",de:"↺ wiederverwendet",pt:"↺ reutilizado",ja:"↺ 再利用"},
   "○ waiting":{es:"○ esperando",fr:"○ en attente",de:"○ wartet",pt:"○ aguardando",ja:"○ 待機中"},
+  "skipped — upstream failed":{es:"omitido — falló el paso anterior",fr:"ignoré — l’étape précédente a échoué",de:"übersprungen — vorheriger Schritt fehlgeschlagen",pt:"ignorado — etapa anterior falhou",ja:"スキップ — 上流が失敗"},
   "included":{es:"incluido",fr:"inclus",de:"inbegriffen",pt:"incluído",ja:"含まれる"},
   "reused fixed-seed result — no charge":{es:"resultado con semilla fija reutilizado — sin coste",fr:"résultat à graine fixe réutilisé — sans frais",de:"wiederverwendetes Ergebnis mit fester Seed — kostenlos",pt:"resultado de seed fixa reutilizado — sem cobrança",ja:"固定シードの結果を再利用 — 課金なし"},
   "cost of this generation":{es:"coste de esta generación",fr:"coût de cette génération",de:"Kosten dieser Generierung",pt:"custo desta geração",ja:"この生成の料金"},
@@ -8251,6 +8252,7 @@ const PROMPT_CAPS = {
     // parent (a→b, a→c) run concurrently instead of serializing down topo order.
     const done = {};                                   // id → promise, keyed so dependents can await their inputs
     let nodeErrors = 0;                                // per-node failures (isolated, not thrown) — reported for keep-mode backoff
+    const failed = new Set(r.cyclic);                   // errored/cyclic ids → dependents must not run (no leftover-field charge)
     let generated = 0;                                 // model calls made this pass (not cache reuses, not instant local nodes) — keep mode stops when 0
     const depsOf = (id)=>{                              // upstream node ids feeding this node (within the run set)
       const s = new Set();
@@ -8265,6 +8267,8 @@ const PROMPT_CAPS = {
         const n = byId(id); if(!n) return;
         const t = NODE_TYPES[n.type], inp = {};
         if(t.note) return;   // annotation node — nothing to run, no cost, no status
+        // Poison-propagate (editor runGroup twin): failed/cyclic upstream → leftover typed fields would still reach a paid call. Skip.
+        if(deps.some(d=> failed.has(d))){ failed.add(id); onStatus && onStatus(id, "skip", "skipped — upstream failed"); return; }
         for(const port of t.inputs){
           const l = graph.links.find(x=> x.to.node===id && x.to.port===port.name);
           if(l){ const src = byId(l.from.node); inp[port.name] = src && src.out ? src.out[l.from.port] : undefined; }
@@ -8334,7 +8338,7 @@ const PROMPT_CAPS = {
             onResult && onResult(n);
           }
           // the owning lane deletes the entry if its generation fails; here just isolate per-node.
-          catch(err){ if(isAbort(err)) throw err; nodeErrors++; onStatus && onStatus(id, "error", friendlyRunError(err, n)); }
+          catch(err){ if(isAbort(err)) throw err; failed.add(id); nodeErrors++; onStatus && onStatus(id, "error", friendlyRunError(err, n)); }
           return;
         }
         onStatus && onStatus(id, "run", "running…");
@@ -8373,7 +8377,7 @@ const PROMPT_CAPS = {
           // don't poison the cache with a failed/aborted promise — drop our pending entry so a
           // later lane or run can retry (only if it's still ours, not already swapped/overwritten).
           if(seeded){ const c = RUN_CACHE.get(id); if(c && c.pending===p) RUN_CACHE.delete(id); }
-          if(isAbort(err)) throw err; nodeErrors++; onStatus && onStatus(id, "error", friendlyRunError(err, n));
+          if(isAbort(err)) throw err; failed.add(id); nodeErrors++; onStatus && onStatus(id, "error", friendlyRunError(err, n));
         }
       })();
     }
@@ -9431,6 +9435,7 @@ const PROMPT_CAPS = {
       const s = L.state[id]; let cls = "seg";
       if(s && s.kind==="done"){ cls += " done"; done++; }
       else if(s && s.kind==="error"){ cls += " error"; done++; errs++; }
+      else if(s && s.kind==="skip"){ cls += " skipped"; done++; }   // upstream failed — settled, not billed
       else if(s && s.kind==="stopped"){ cls += " stopped"; }   // cancelled mid-run: settled, neutral, no shimmer
       else if(s && s.kind==="run"){ cls += " active"; }
       return '<span class="'+cls+'"></span>';
@@ -10352,6 +10357,7 @@ const PROMPT_CAPS = {
   function stepStatus(L, id){
     const s = L.state[id] || {};
     if(s.kind==="error") return { cls:"err", txt:t("✗ failed") };
+    if(s.kind==="skip") return { cls:"wait", txt:t("skipped — upstream failed") };
     if(s.kind==="done"){
       const n = L.res && L.res[id];
       if(n && n.cached) return { cls:"ok", txt:t("↺ reused") };
@@ -11456,6 +11462,7 @@ body{ background:
 .seg.done{ background:var(--ok); }
 .seg.error{ background:var(--danger); }
 .seg.stopped{ background:var(--faint,#5d6788); }   /* cancelled mid-run — neutral, no shimmer */
+.seg.skipped{ background:var(--faint,#5d6788); }   /* upstream failed — settled, not billed */
 .seg.active{ background:linear-gradient(90deg,var(--accent-line,#7c8cff),#5b9bff,var(--accent-line,#7c8cff));
   background-size:200% 100%; animation:prog-shimmer 1.1s linear infinite; }
 @keyframes prog-shimmer{ 0%{ background-position:200% 0; } 100%{ background-position:-200% 0; } }
