@@ -8681,10 +8681,12 @@ const PROMPT_CAPS = {
   // Twins of the editor's videoRefsPriced / VIDEO_LAST_FRAME_FAMILIES — the two evidence-backed exceptions
   // to "param presence or no port". Pricing that METERS reference images is the catalog advertising them
   // machine-readably; minimax-h3 ships that way, and its last_image is live-verified (2026-07-31) though
-  // supported_parameters lists only duration + aspect_ratio. Drop the family regex once NanoGPT lists it.
+  // supported_parameters lists only duration + aspect_ratio. minimax/h3-max, alibaba/wan-3.0-prime and
+  // alibaba/wan-3.0/image-to-video ship the same gap (confirmed against the underlying providers' own API
+  // docs — fal.ai/WaveSpeedAI document last_image/end_image_url on both). Drop each id once NanoGPT lists it.
   var VIDEO_REF_PRICE_KEYS = ["included_reference_images","extra_reference_image"];
   function videoRefsPriced(m){ var p = m && m.pricing; return !!p && VIDEO_REF_PRICE_KEYS.some(function(k){ return p[k]!=null; }); }
-  var VIDEO_LAST_FRAME_FAMILIES = /^minimax-h3$/i;
+  var VIDEO_LAST_FRAME_FAMILIES = /^(minimax-h3|minimax\/h3-max|alibaba\/wan-3\.0-prime|alibaba\/wan-3\.0\/image-to-video)$/i;
   // Does this video model accept an end-frame (last_image)? Mirrors the editor's modelHasImageRole, but
   // permissive-ON when the catalog can't be read: the endframe wire was authored deliberately in the
   // editor (gated there), so if we can't verify at runtime we honor it rather than silently drop the morph.
