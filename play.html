@@ -5746,6 +5746,13 @@ window.NoodleApp = (function () {
   "Image — brush the area to repaint":{es:"Imagen — pincela la zona a repintar",fr:"Image — peignez la zone à repeindre",de:"Bild — den neu zu zeichnenden Bereich übermalen",pt:"Imagem — pincele a área a repintar",ja:"画像 — 塗り直す領域をブラシで塗る"},
   "Image":{es:"Imagen",fr:"Image",de:"Bild",pt:"Imagem",ja:"画像"},
   "Mask (white = repaint)":{es:"Máscara (blanco = repintar)",fr:"Masque (blanc = repeindre)",de:"Maske (weiß = neu zeichnen)",pt:"Máscara (branco = repintar)",ja:"マスク（白 = 塗り直し）"},
+  "URL":{es:"URL",fr:"URL",de:"URL",pt:"URL",ja:"URL"},
+  "Mode":{es:"Modo",fr:"Mode",de:"Modus",pt:"Modo",ja:"モード"},
+  "Prompt":{es:"Prompt",fr:"Invite",de:"Prompt",pt:"Prompt",ja:"プロンプト"},
+  "Authorization (optional)":{es:"Authorization (opcional)",fr:"Authorization (facultatif)",de:"Authorization (optional)",pt:"Authorization (opcional)",ja:"Authorization（任意）"},
+  "Custom endpoint":{es:"Endpoint personalizado",fr:"Endpoint personnalisé",de:"Eigener Endpoint",pt:"Endpoint personalizado",ja:"カスタムエンドポイント"},
+  "URL required — set the custom endpoint URL":{es:"URL obligatoria — indica la URL del endpoint",fr:"URL obligatoire — indiquez l’URL de l’endpoint",de:"URL erforderlich — setze die Endpoint-URL",pt:"URL obrigatória — defina a URL do endpoint",ja:"URLが必要です — カスタムエンドポイントのURLを設定してください"},
+  "blocked by CORS — your server needs Access-Control-Allow-Origin":{es:"bloqueado por CORS — tu servidor necesita Access-Control-Allow-Origin",fr:"bloqué par CORS — votre serveur doit envoyer Access-Control-Allow-Origin",de:"von CORS blockiert — dein Server braucht Access-Control-Allow-Origin",pt:"bloqueado por CORS — seu servidor precisa de Access-Control-Allow-Origin",ja:"CORSでブロックされました — サーバーに Access-Control-Allow-Origin が必要です"},
   };
   const PLAY_LANGS = ["en","es","fr","de","pt","ja"];
   const PLAY_ENDONYM = { en:"English", es:"Español", fr:"Français", de:"Deutsch", pt:"Português", ja:"日本語" };
@@ -7510,6 +7517,209 @@ function mp4ParamsMatch(bufs){
     });
   }
 
+  /* ======================================================================
+     CUSTOM ENDPOINT (NanoGPT-shaped BYO URL)
+     Shared helpers — index.html + play.html RUNTIME_JS twins (no backticks).
+     Fetch goes from this page straight to the user URL. Never apiFetch,
+     never getKey(), never x-api-key. Custom auth is only fields.auth.
+     ====================================================================== */
+  var ENDPOINT_DEF_URL = "http://127.0.0.1:8787/v1/chat/completions";
+  var ENDPOINT_MODES = ["chat","image","video","audio","json"];
+  function endpointMode(n){
+    var m = String((n && n.fields && n.fields.mode) || "chat").toLowerCase();
+    return ENDPOINT_MODES.indexOf(m) >= 0 ? m : "chat";
+  }
+  function endpointOutPort(n){
+    var m = endpointMode(n);
+    if(m==="image") return { name:"image", type:"image" };
+    if(m==="video") return { name:"video", type:"video" };
+    if(m==="audio") return { name:"audio", type:"audio" };
+    return { name:"text", type:"text" };
+  }
+  function endpointIsLoopbackHost(host){
+    var h = String(host||"").toLowerCase().replace(/^\[|\]$/g,"");
+    return h==="localhost" || h==="127.0.0.1" || h==="::1";
+  }
+  function endpointIsPrivateIPv4(host){
+    var p = String(host||"").split(".");
+    if(p.length!==4) return false;
+    if(!p.every(function(x){ return /^\d+$/.test(x) && +x>=0 && +x<=255; })) return false;
+    var a = +p[0], b = +p[1];
+    if(a===10) return true;
+    if(a===192 && b===168) return true;
+    if(a===172 && b>=16 && b<=31) return true;
+    if(a===169 && b===254) return true;
+    return false;
+  }
+  function endpointUrlOk(url){
+    var s = String(url||"").trim();
+    if(!s) return "URL required — set the custom endpoint URL";
+    var u;
+    try{ u = new URL(s); }catch(e){ return "that URL isn’t allowed — use http://localhost, 127.0.0.1, a LAN host, or https"; }
+    if(u.protocol!=="http:" && u.protocol!=="https:") return "that URL isn’t allowed — use http://localhost, 127.0.0.1, a LAN host, or https";
+    if(u.username || u.password) return "that URL isn’t allowed — don’t put credentials in the URL; use the Authorization field";
+    if(u.protocol==="https:") return true;
+    var host = u.hostname;
+    if(endpointIsLoopbackHost(host) || endpointIsPrivateIPv4(host) || /\.local$/i.test(host)) return true;
+    return "that URL isn’t allowed — http is only for localhost, 127.0.0.1, or a LAN host; use https for a public host";
+  }
+  function endpointHeaders(auth){
+    var headers = { "Content-Type":"application/json" };
+    var a = String(auth||"").trim();
+    if(a) headers.Authorization = /\s/.test(a) ? a : ("Bearer "+a);
+    return headers;
+  }
+  function endpointPrompt(n, inp){
+    var v = inp && inp.prompt != null ? inp.prompt : (n.fields && n.fields.prompt);
+    return String(v == null ? "" : v).trim();
+  }
+  function endpointModel(n){
+    var m = String((n.fields && n.fields.model) || "").trim();
+    return m || "local";
+  }
+  function endpointRequestBody(mode, n, inp){
+    inp = inp || {};
+    var model = endpointModel(n);
+    if(mode==="chat"){
+      var prompt = endpointPrompt(n, inp);
+      var messages = [];
+      var sys = String((n.fields && n.fields.system) || "").trim();
+      if(sys) messages.push({ role:"system", content:sys });
+      var imgs = [];
+      if(inp.image) imgs = Array.isArray(inp.image) ? inp.image : [inp.image];
+      var aud = inp.audio ? { type:"input_audio", input_audio:{ data: String(inp.audio).replace(/^data:[^,]*,/, ""), format:"wav" } } : null;
+      if(imgs.length || aud){
+        var parts = [{ type:"text", text:prompt || "" }];
+        imgs.forEach(function(url){ parts.push({ type:"image_url", image_url:{ url:url } }); });
+        if(aud) parts.push(aud);
+        messages.push({ role:"user", content:parts });
+      } else {
+        messages.push({ role:"user", content:prompt });
+      }
+      return { model:model, messages:messages, temperature:0.8 };
+    }
+    if(mode==="image"){
+      var ib = { model:model, size:(n.fields && n.fields.size) || "1024x1024", n:1, response_format:"b64_json" };
+      var ip = endpointPrompt(n, inp);
+      if(ip) ib.prompt = ip;
+      if(inp.image) ib.imageDataUrl = inp.image;
+      return ib;
+    }
+    if(mode==="video"){
+      var vb = { model:model, prompt:endpointPrompt(n, inp) };
+      if(inp.image) vb.imageDataUrl = inp.image;
+      if(inp.video){
+        if(/^https?:/i.test(inp.video)) vb.videoUrl = inp.video;
+        else vb.videoDataUrl = inp.video;
+      }
+      return vb;
+    }
+    if(mode==="audio"){
+      var ab = { model:model, input:endpointPrompt(n, inp) };
+      if(inp.audio){
+        if(/^https?:/i.test(inp.audio)) ab.audioUrl = inp.audio;
+        else ab.audioDataUrl = inp.audio;
+      }
+      return ab;
+    }
+    var jb = {};
+    if(inp.text != null && inp.text !== "") jb.text = inp.text;
+    else {
+      var tp = endpointPrompt(n, inp);
+      if(tp) jb.text = tp;
+    }
+    if(inp.image) jb.image = inp.image;
+    if(inp.video) jb.video = inp.video;
+    if(inp.audio) jb.audio = inp.audio;
+    return jb;
+  }
+  function endpointExpectedReturn(mode){
+    if(mode==="chat") return { choices:[{ message:{ content:"hello from your server" } }] };
+    if(mode==="image") return { data:[{ b64_json:"<png-or-jpeg-base64>" }] };
+    if(mode==="video") return { url:"https://example.com/out.mp4" };
+    if(mode==="audio") return { url:"https://example.com/out.mp3" };
+    return { text:"hello from your server" };
+  }
+  function endpointFetchError(e){
+    var m = (e && e.message) || String(e);
+    if(/^(TypeError: )?(Failed to fetch|Load failed|NetworkError)/i.test(m.trim()))
+      return "blocked by CORS — your server needs Access-Control-Allow-Origin";
+    return m;
+  }
+  function endpointParseChat(j){
+    var msg = (j && j.choices && j.choices[0] && j.choices[0].message) || {};
+    var txt = msg.content;
+    if(txt==null) throw new Error("no text in response");
+    return { text: typeof txt==="string" ? txt : txt.map(function(p){ return p.text||""; }).join("") };
+  }
+  function endpointParseImage(j){
+    var urls = ((j && j.data) || []).map(function(d){
+      if(d.b64_json) return "data:image/png;base64,"+d.b64_json;
+      return d.url;
+    }).filter(Boolean);
+    if(!urls.length) throw new Error("no image in response");
+    return { image:urls[0], images:urls };
+  }
+  function endpointParseVideo(j){
+    var out = (j && j.data && j.data.output) || (j && j.output) || {};
+    var url = (j && (j.url || j.videoUrl)) || (out.video && out.video.url) || out.url || (Array.isArray(out.video) ? (out.video[0] && out.video[0].url) : null) || (j && j.data && j.data.url);
+    if(!url) throw new Error("no video url in response — return { \"url\" } or NanoGPT { output: { video: { url } } }");
+    return { video:url };
+  }
+  function endpointParseAudioJson(j){
+    var url = (j && (j.url || j.audioUrl)) || (j && j.data && (j.data.url || j.data.audioUrl));
+    if(!url) throw new Error("no audio url in response — return { \"url\" } or a binary audio body");
+    return { audio:url };
+  }
+  function endpointParseJsonMode(j){
+    if(j && j.text != null) return { text:String(j.text) };
+    if(j && Object.prototype.hasOwnProperty.call(j, "data"))
+      return { text: typeof j.data==="string" ? j.data : JSON.stringify(j.data) };
+    throw new Error("json mode expected { \"text\" } or { \"data\": ... }");
+  }
+  async function endpointParseResponse(mode, r){
+    var ct = (r.headers && r.headers.get && r.headers.get("content-type")) || "";
+    if(mode==="audio" && !/json/i.test(ct)){
+      var blob = await r.blob();
+      var t = (blob.type||"").split(";")[0].trim().toLowerCase();
+      if(!t || t==="application/octet-stream" || t==="binary/octet-stream") t = "audio/mpeg";
+      return { audio: URL.createObjectURL(new Blob([blob], { type:t })) };
+    }
+    var j = await r.json();
+    if(mode==="chat") return endpointParseChat(j);
+    if(mode==="image") return endpointParseImage(j);
+    if(mode==="video") return endpointParseVideo(j);
+    if(mode==="audio") return endpointParseAudioJson(j);
+    return endpointParseJsonMode(j);
+  }
+  function endpointRunSignal(){
+    if(typeof runSignal==="function") return runSignal();
+    if(typeof ABORT!=="undefined" && ABORT) return ABORT.signal;
+    return undefined;
+  }
+  async function runEndpoint(n, inp){
+    var raw = (n.fields && Object.prototype.hasOwnProperty.call(n.fields, "url")) ? n.fields.url : ENDPOINT_DEF_URL;
+    var url = String(raw == null ? "" : raw).trim();
+    var ok = endpointUrlOk(url);
+    if(ok!==true) throw new Error(ok);
+    var mode = endpointMode(n);
+    var body = endpointRequestBody(mode, n, inp||{});
+    var headers = endpointHeaders(n.fields && n.fields.auth);
+    var r;
+    try{
+      r = await fetch(url, { method:"POST", headers:headers, body:JSON.stringify(body), signal:endpointRunSignal() });
+    }catch(e){
+      if(e && e.name==="AbortError") throw e;
+      throw new Error(endpointFetchError(e));
+    }
+    if(!r.ok){
+      var errBody = "";
+      try{ errBody = (await r.text()).slice(0,220); }catch(e2){}
+      throw new Error(r.status + ": " + errBody);
+    }
+    return endpointParseResponse(mode, r);
+  }
+
   /* =====================================================================
      NODE_TYPES run map (verbatim behavior, index.html).
      setNodeProgress() calls are redirected to the per-run onProgress cb.
@@ -7890,6 +8100,12 @@ function mp4ParamsMatch(bufs){
         return { text: await ctx.transcribe(mdl(n), inp.audio, (n.fields.language||"auto").trim()) };
       }
     },
+    endpoint: {
+      em:"🔌", title:"Custom endpoint",
+      inputs:[{name:"text", type:"text"},{name:"image", type:"image"},{name:"audio", type:"audio"},{name:"video", type:"video"}],
+      outputs:function(n){ return [endpointOutPort(n)]; },
+      async run(n, inp){ return runEndpoint(n, inp); }
+    },
     // Editor sticky note. note:true → no ports, no run(); kept by materialize() so it
     // survives into shared/exported apps and renders as a read-only caption (renderInputs).
     // Excluded from inputs/settings/outputs (not in INPUT_SPECS/SETTING_SPECS, outputs:[])
@@ -8243,10 +8459,16 @@ const PROMPT_CAPS = {
     };
   }
 
+  function isPaidNanoType(type){
+    return /^(llm|vision|image|edit|inpaint|tvideo|ivideo|vedit|lipsync|music|remix|tts|transcribe)$/.test(type);
+  }
+  function graphNeedsNanoKey(graph){
+    return ((graph && graph.nodes) || []).some(function(n){ return n && isPaidNanoType(n.type); });
+  }
   async function runGraph(graph, opts){
     opts = opts || {};
     const onStatus = opts.onStatus, onResult = opts.onResult;
-    if(!hasAuth()) throw new Error("sign in or paste an API key first");
+    if(!hasAuth() && graphNeedsNanoKey(graph)) throw new Error("sign in or paste an API key first");
     const byId = graph.byId;
     const all = new Set(graph.nodes.map(n=>n.id));
     const ids = ancestors(graph, all);                 // everything (no seed subset → run whole graph)
@@ -8408,6 +8630,7 @@ const PROMPT_CAPS = {
     music:  [{ f:"prompt", label:"Style / prompt", kind:"textarea" }],
     remix:  [{ f:"prompt", label:"Style / direction", kind:"textarea" }],
     tts:    [{ f:"prompt", label:"Text to speak",  kind:"textarea" }],
+    endpoint:[{ f:"prompt", label:"Prompt",         kind:"textarea" }],
   };
   // A bare upload node that feeds a single role-bearing image port (an ivideo end
   // frame, a tvideo reference slot, or an edit multi-reference slot beyond the first)
@@ -8564,6 +8787,10 @@ const PROMPT_CAPS = {
     inpaint: [{ f:"model", label:"Model", kind:"model" },
               { f:"size", label:"Image size", kind:"select", options:SIZES, def:SIZES[0][0] },
               { f:"seed", label:"Seed", kind:"number" }],
+    endpoint:[{ f:"url", label:"URL", kind:"text", def:"http://127.0.0.1:8787/v1/chat/completions" },
+              { f:"mode", label:"Mode", kind:"select", options:[["chat","chat"],["image","image"],["video","video"],["audio","audio"],["json","json"]], def:"chat" },
+              { f:"model", label:"Model", kind:"text", def:"local" },
+              { f:"auth", label:"Authorization (optional)", kind:"text", def:"" }],
   };
   // node type -> NanoGPT catalog kind, used to populate the model-swap datalist
   const SETTING_MODEL_KIND = {
@@ -8937,6 +9164,7 @@ const PROMPT_CAPS = {
     extractaudio:"extracts the audio track from a video as a WAV clip",
     combine:"joins several video clips end-to-end into one video",
     soundtrack:"adds an audio track (music or narration) onto a video",
+    endpoint:"calls a NanoGPT-shaped custom URL (typically localhost)",
   };
   function describeGraph(graph){
     const clip = (s, n)=>{ s = String(s).replace(/\s+/g," ").trim(); return s.length>n ? s.slice(0,n-1)+"…" : s; };
@@ -9668,7 +9896,9 @@ const PROMPT_CAPS = {
   function resultCard(n, badge){
     if(n.type==="vframes") return vframesCard(n, badge);
     const out = n.out || {};
-    const port = (NODE_TYPES[n.type].outputs||[])[0] || {};
+    var outs = NODE_TYPES[n.type].outputs;
+    if(typeof outs==="function") outs = outs(n);
+    const port = (outs||[])[0] || {};
     const val = out[port.name];
     if(val==null) return null;
     const card = document.createElement("div"); card.className="card";
@@ -10565,7 +10795,7 @@ const PROMPT_CAPS = {
 
   async function run(){
     if(running) return;
-    if(!hasAuth()){
+    if(!hasAuth() && graphNeedsNanoKey(STATE && STATE.graph)){
       // Don't dead-end on a "sign in first" message — route forward AND make the connection visible:
       // a status line right under the Run button plus a brief pulse on the header auth block, so the
       // big live-looking Run press points the eye at where sign-in / the key field actually lives.
@@ -11678,13 +11908,27 @@ function bundle(files){
 // persistence in the parent chrome), this tighter connect-src wins by intersection and a
 // malicious shared app still cannot fetch-exfiltrate the viewer's inputs/outputs anywhere. Preview-only: the
 // exported bundle never carries this (it sets its own headers / runs standalone from file://).
+function previewCspForGraph(graph){
+  const extra = ["http://127.0.0.1:*", "http://localhost:*", "http://[::1]:*"];
+  ((graph && graph.nodes) || []).forEach(n=>{
+    if(!n || n.type!=="endpoint") return;
+    try{
+      const u = new URL(String(n.fields && n.fields.url || "").trim());
+      if(u.protocol==="http:" || u.protocol==="https:") extra.push(u.origin);
+    }catch(_){}
+  });
+  const uniq = [];
+  extra.forEach(o=>{ if(uniq.indexOf(o)<0) uniq.push(o); });
+  return '<meta http-equiv="Content-Security-Policy" content="connect-src \'self\' blob: https://nano-gpt.com ' + uniq.join(" ") + '">';
+}
 const PREVIEW_CSP =
   '<meta http-equiv="Content-Security-Policy" content="connect-src \'self\' blob: https://nano-gpt.com">';
-const PREVIEW_PREAMBLE = PREVIEW_CSP +
+const PREVIEW_SHIMS =
   '<script>(function(){function s(){var m={};return{getItem:function(k){return Object.prototype.hasOwnProperty.call(m,k)?m[k]:null;},setItem:function(k,v){m[k]=String(v);},removeItem:function(k){delete m[k];},clear:function(){m={};},key:function(i){return Object.keys(m)[i]||null;},get length(){return Object.keys(m).length;}};}' +
   'try{window.localStorage.getItem("x");}catch(e){try{Object.defineProperty(window,"localStorage",{value:s(),configurable:true});}catch(_){}}' +
   'try{window.sessionStorage.getItem("x");}catch(e){try{Object.defineProperty(window,"sessionStorage",{value:s(),configurable:true});}catch(_){}}})();' +
   'addEventListener("keydown",function(e){if(e.key==="Escape"){parent.postMessage("__esc__","*");}});<\/script>';
+const PREVIEW_PREAMBLE = PREVIEW_CSP + PREVIEW_SHIMS;
 
 // The editor's UI language (persisted at our real origin) or the browser's, limited to
 // what nanoodle offers. Seeded into the PREVIEW only (never the export), so the sandboxed
@@ -11711,7 +11955,8 @@ function explicitLang(){
 // enters the graph, so it can't dirty appHandoffSig / contentSig / a version signature.
 function bakedAppLang(){ return (typeof APP_STATE!=="undefined" && APP_STATE && APP_STATE.lang) || explicitLang(); }
 function withPreamble(html){
-  const pre = '<script>window.NOODLE_LANG=' + JSON.stringify(parentLang()) + ';<\/script>' + PREVIEW_PREAMBLE;
+  const csp = previewCspForGraph(typeof STATE!=="undefined" && STATE && STATE.graph);
+  const pre = '<script>window.NOODLE_LANG=' + JSON.stringify(parentLang()) + ';<\/script>' + csp + PREVIEW_SHIMS;
   if(/<head[^>]*>/i.test(html))     return html.replace(/<head[^>]*>/i, (m)=> m + pre);
   if(/<!doctype[^>]*>/i.test(html)) return html.replace(/<!doctype[^>]*>/i, (m)=> m + pre);
   if(/<html[^>]*>/i.test(html))     return html.replace(/<html[^>]*>/i, (m)=> m + pre);
@@ -13100,6 +13345,7 @@ function shareableGraph(g){
   g = g || { nodes:[], links:[] };
   return { ...g, nodes:(g.nodes||[]).map(n => {
     if(n.type==="inpaint") return {...n, fields:{...(n.fields||{}), image:"", mask:""}};   // don't leak the user's photo/mask (mirror index.html shareableGraph)
+    if(n.type==="endpoint") return {...n, fields:{...(n.fields||{}), auth:""}};   // optional Authorization — never ride a share card / export
     return UPLOAD_FIELD[n.type] ? {...n, fields:{...(n.fields||{}), [UPLOAD_FIELD[n.type]]:""}} : n;
   }) };
 }

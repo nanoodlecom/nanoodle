@@ -24,7 +24,18 @@ function extractAsyncFn(src, name) {
   }
   throw new Error(`could not brace-match ${name}()`);
 }
+function extractFn(src, name) {
+  const start = src.indexOf("function " + name + "(");
+  if (start === -1) throw new Error(`function ${name}() not found in index.html`);
+  let depth = 0;
+  for (let j = src.indexOf("{", start); j < src.length; j++) {
+    if (src[j] === "{") depth++;
+    else if (src[j] === "}" && --depth === 0) return src.slice(start, j + 1);
+  }
+  throw new Error(`could not brace-match ${name}()`);
+}
 const runGroupSrc = extractAsyncFn(SRC, "runGroup");
+const isPaidNanoTypeSrc = extractFn(SRC, "isPaidNanoType");
 
 const elStub = () => ({ dataset: {}, querySelector: () => ({ classList: { add() {} }, set innerHTML(_v) {} }) });
 
@@ -88,7 +99,7 @@ async function run(world, seed, opts = {}) {
   };
   ctx.globalThis = ctx;
   vm.createContext(ctx);
-  new vm.Script(runGroupSrc + `\nglobalThis.__p = runGroup(['${seed}']);`).runInContext(ctx);
+  new vm.Script(isPaidNanoTypeSrc + "\n" + runGroupSrc + `\nglobalThis.__p = runGroup(['${seed}']);`).runInContext(ctx);
   await ctx.__p;
 }
 

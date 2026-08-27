@@ -98,8 +98,8 @@ Replace the code with your own (or delete the parameter and use bare
   `updates.json` by `scripts/gen-changelog.mjs`, plus an Atom feed
   (`feed.xml`).
 - **`guide/`** — static docs (`/guide/`): the `noodle-graph.json` format,
-  running workflows headlessly, self-hosting, and how share links work.
-  Zero scripts, zero network.
+  running workflows headlessly, self-hosting, share links, and the Custom
+  endpoint localhost contract. Zero scripts, zero network.
 - The rest is landing pages: comparisons (`nanoodle-vs-comfyui.html`,
   `nanoodle-vs-n8n.html`, `comfyui-alternative.html`,
   `comfyui-alternative-no-gpu.html`) and localized home pages (`es/`,
