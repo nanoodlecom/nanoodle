@@ -1613,6 +1613,7 @@ const I18N = {
     "Instructions":"Instrucciones",
     "how to speak — tone, accent, emotion (gpt-4o-mini-tts & Gemini 2.5 TTS follow this; most other models ignore it)":"cómo hablar — tono, acento, emoción (gpt-4o-mini-tts y Gemini 2.5 TTS lo siguen; la mayoría de los demás modelos lo ignoran)",
     "pick a voice — or “custom voice ID…” to paste one (e.g. from a voice-clone model)":"elige una voz — o “ID de voz personalizado…” para pegar uno (p. ej. de un modelo de clonación de voz)",
+    "pin the spoken language — the model's own docs say naming it beats Auto-detect for single-language text (only offered where the model advertises language control)":"fija el idioma hablado — la documentación del propio modelo dice que nombrarlo supera a la detección automática (Auto) para texto de un solo idioma (solo se ofrece donde el modelo anuncia control de idioma)",
     "custom voice ID…":"ID de voz personalizado…",
     "paste a voice ID (e.g. from a voice-clone model)":"pega un ID de voz (p. ej. de un modelo de clonación de voz)",
     "e.g. warm and cheerful, slight British accent":"p. ej. cálido y alegre, ligero acento británico",
@@ -2145,6 +2146,7 @@ const I18N = {
     "Instructions":"Instructions",
     "how to speak — tone, accent, emotion (gpt-4o-mini-tts & Gemini 2.5 TTS follow this; most other models ignore it)":"comment parler — ton, accent, émotion (gpt-4o-mini-tts et Gemini 2.5 TTS le suivent ; la plupart des autres modèles l'ignorent)",
     "pick a voice — or “custom voice ID…” to paste one (e.g. from a voice-clone model)":"choisissez une voix — ou « ID de voix personnalisé… » pour en coller un (ex. d'un modèle de clonage vocal)",
+    "pin the spoken language — the model's own docs say naming it beats Auto-detect for single-language text (only offered where the model advertises language control)":"fixe la langue parlée — la documentation du modèle indique que la nommer explicitement surpasse la détection automatique (Auto) pour un texte monolingue (proposé uniquement quand le modèle annonce un contrôle de la langue)",
     "custom voice ID…":"ID de voix personnalisé…",
     "paste a voice ID (e.g. from a voice-clone model)":"collez un ID de voix (ex. d'un modèle de clonage vocal)",
     "e.g. warm and cheerful, slight British accent":"ex. chaleureux et enjoué, léger accent britannique",
@@ -2677,6 +2679,7 @@ const I18N = {
     "Instructions":"Anweisungen",
     "how to speak — tone, accent, emotion (gpt-4o-mini-tts & Gemini 2.5 TTS follow this; most other models ignore it)":"Sprechweise — Ton, Akzent, Emotion (gpt-4o-mini-tts & Gemini 2.5 TTS folgen dem; die meisten anderen Modelle ignorieren es)",
     "pick a voice — or “custom voice ID…” to paste one (e.g. from a voice-clone model)":"Stimme wählen — oder „eigene Voice-ID…“, um eine einzufügen (z. B. aus einem Voice-Clone-Modell)",
+    "pin the spoken language — the model's own docs say naming it beats Auto-detect for single-language text (only offered where the model advertises language control)":"legt die gesprochene Sprache fest — die Dokumentation des Modells selbst sagt, dass die explizite Angabe bei einsprachigem Text besser ist als Auto-Erkennung (nur verfügbar, wenn das Modell Sprachsteuerung anbietet)",
     "custom voice ID…":"eigene Voice-ID…",
     "paste a voice ID (e.g. from a voice-clone model)":"Voice-ID einfügen (z. B. aus einem Voice-Clone-Modell)",
     "e.g. warm and cheerful, slight British accent":"z. B. warm und fröhlich, leichter britischer Akzent",
@@ -3209,6 +3212,7 @@ const I18N = {
     "Instructions":"Instruções",
     "how to speak — tone, accent, emotion (gpt-4o-mini-tts & Gemini 2.5 TTS follow this; most other models ignore it)":"como falar — tom, sotaque, emoção (gpt-4o-mini-tts e Gemini 2.5 TTS seguem isso; a maioria dos outros modelos ignora)",
     "pick a voice — or “custom voice ID…” to paste one (e.g. from a voice-clone model)":"escolha uma voz — ou “ID de voz personalizado…” para colar um (ex.: de um modelo de clonagem de voz)",
+    "pin the spoken language — the model's own docs say naming it beats Auto-detect for single-language text (only offered where the model advertises language control)":"fixa o idioma falado — a própria documentação do modelo diz que nomeá-lo explicitamente supera a detecção automática (Auto) para texto de um único idioma (oferecido apenas quando o modelo anuncia controle de idioma)",
     "custom voice ID…":"ID de voz personalizado…",
     "paste a voice ID (e.g. from a voice-clone model)":"cole um ID de voz (ex.: de um modelo de clonagem de voz)",
     "e.g. warm and cheerful, slight British accent":"ex.: caloroso e alegre, leve sotaque britânico",
@@ -3741,6 +3745,7 @@ const I18N = {
     "Instructions":"指示",
     "how to speak — tone, accent, emotion (gpt-4o-mini-tts & Gemini 2.5 TTS follow this; most other models ignore it)":"話し方 — トーン、アクセント、感情（gpt-4o-mini-tts と Gemini 2.5 TTS は従います。他の多くのモデルでは無視されます）",
     "pick a voice — or “custom voice ID…” to paste one (e.g. from a voice-clone model)":"ボイスを選択 — または「カスタムボイスID…」でIDを貼り付け（例: ボイスクローンモデルから）",
+    "pin the spoken language — the model's own docs say naming it beats Auto-detect for single-language text (only offered where the model advertises language control)":"話す言語を固定 — モデル自身のドキュメントによると、単一言語のテキストでは明示的に指定する方が自動検出（Auto）より優れているとのこと（モデルが言語制御を公開している場合のみ表示）",
     "custom voice ID…":"カスタムボイスID…",
     "paste a voice ID (e.g. from a voice-clone model)":"ボイスIDを貼り付け（例: ボイスクローンモデルから）",
     "e.g. warm and cheerful, slight British accent":"例: 温かく明るい口調、少しイギリス訛り",
@@ -4128,6 +4133,14 @@ function normAudio(m){
   const voices = Array.isArray(sp.voices) ? sp.voices.filter(v=>typeof v==="string") : [];
   // some STT models advertise a fixed language list → the Transcribe node offers a <select> instead of free text
   const langs = Array.isArray(sp.supported_languages) ? sp.supported_languages.filter(x=>typeof x==="string") : [];
+  // some TTS models (Qwen Audio 3.0 TTS Flash, Qwen-3-TTS-1.7B, bytedance/seed-speech-tts-2.0) advertise
+  // an EXPLICIT language control — a {default, values} object under supported_parameters.language, distinct
+  // from the STT models' flat supported_languages array above. Auto-detect is their default, but the
+  // provider's own docs say naming the language explicitly measurably improves pronunciation — so this is
+  // a real quality knob the Speech node was missing, not a cosmetic one. Catalog-gated (cat:language in
+  // audioApplies), no model names.
+  const language = (sp.language && typeof sp.language==="object" && Array.isArray(sp.language.values)
+    && sp.language.values.every(v=>typeof v==="string")) ? sp.language : null;
   // NanoGPT fixed the catalog's modality mislabels (2026-07-05 — see NANOGPT-audio-modality-bug.md,
   // resolved upstream), but this verb guard still earns its keep for the MUSIC filter: cover models
   // (minimax/music-cover) advertise text_to_music while genuinely requiring a source track, so
@@ -4150,7 +4163,7 @@ function normAudio(m){
   // verbs only — no model ids. stem_separation (ships ZIP archives no browser can play) and
   // voice_clone (returns a voice id, not audio) are deliberately not remix verbs.
   const remix = !dead && !!(c.music_cover || c.audio_to_music || c.music_extension || c.audio_extension || c.audio_inpainting);
-  return { id:m.id, name:m.name||m.id, created:m.created, owner:m.owned_by||"", voices, langs, params:sp,
+  return { id:m.id, name:m.name||m.id, created:m.created, owner:m.owned_by||"", voices, langs, language, params:sp,
     sortUsd: audioUnitUsd(p, EST.ttsChars),          // resolved $ at assumed usage → price sorts (mixed units, rough)
     tts, gen, music: gen && !tts, remix, stt, pricing:p, nsfw: !!c.nsfw, price };   // raw pricing kept so transcribe can estimate from per_minute
 }
@@ -4628,6 +4641,7 @@ const AUDIO_PARAMS = {
   ],
   tts: [
     { id:"voice",           label:"Voice",           type:"combo",    appliesTo:"cat:voices", hint:"pick a voice — or “custom voice ID…” to paste one (e.g. from a voice-clone model)" },
+    { id:"language",        label:"Language",        type:"select",   appliesTo:"cat:language", hint:"pin the spoken language — the model's own docs say naming it beats Auto-detect for single-language text (only offered where the model advertises language control)" },
     { id:"speed",           label:"Speed",           type:"number",   appliesTo:"all", min:0.25, max:2, default:1, advanced:true },
     { id:"instructions",    label:"Instructions",    type:"textarea", appliesTo:"all", advanced:true, ph:"e.g. warm and cheerful, slight British accent", hint:"how to speak — tone, accent, emotion (gpt-4o-mini-tts & Gemini 2.5 TTS follow this; most other models ignore it)" },
     { id:"response_format", label:"Format",          type:"select",   appliesTo:"all", options:["mp3","opus","aac","flac","wav","pcm"], default:"mp3", advanced:true },
@@ -4645,6 +4659,7 @@ function audioApplies(at, it){
   switch(at){
     case "all":          return true;
     case "cat:voices":   return it.voices.length>0;
+    case "cat:language": return !!it.language && it.language.values.length>0;
     case "cat:duration": return p.min_duration!=null && p.max_duration!=null;
     case "cat:secduration": return p.min_duration!=null && p.max_duration!=null && +((it.pricing||{}).per_second)>0;   // duration is a real output knob only when it's what's billed
     case "cat:gencount": return !!p.generation_count_parameter;
@@ -4658,6 +4673,7 @@ function audioFields(kind, it){
     if(!audioApplies(p.appliesTo, it)) continue;
     const f = { ...p, jsonKey:p.id };
     if(p.appliesTo==="cat:voices")   f.options = it.voices;
+    if(p.appliesTo==="cat:language"){ f.options = it.language.values; if(it.language.default!=null) f.default = it.language.default; }
     if(p.appliesTo==="cat:duration" || p.appliesTo==="cat:secduration"){ f.min = it.params.min_duration; f.max = it.params.max_duration; }
     if(p.appliesTo==="cat:gencount") continue;   // nanoodle surfaces a single track and collectAudioParams clamps the count to 1 (= default → never sent), so a "(1–1)" input is a dead control — don't render it
     out.push(f);
@@ -4670,8 +4686,11 @@ function audioFieldHTML(n, f){
   if(f.type==="select"){
     const opts = f.options || [];
     const val = opts.includes(cur) ? cur : (f.default ?? opts[0] ?? "");
+    // some catalog enums use "" as their own auto-detect sentinel (e.g. bytedance/seed-speech-tts-2.0's
+    // language list: ["","zh","en",…]) — an empty <option> renders as a blank, unreadable row, so give
+    // it a real label without changing the value sent on the wire.
     return `<div><label>${esc(f.label)}</label><select data-pf="${f.id}">${
-      opts.map(o=>`<option value="${esc(o)}"${o===val?" selected":""}>${esc(o)}</option>`).join("")}</select>${hint}</div>`;
+      opts.map(o=>`<option value="${esc(o)}"${o===val?" selected":""}>${esc(o||"Auto")}</option>`).join("")}</select>${hint}</div>`;
   }
   if(f.type==="combo"){   // real <select> of catalog options + a "custom…" row that reveals a paste-friendly
     // input for cloned voice IDs. (The previous <input list> datalist filtered its dropdown by the

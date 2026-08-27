@@ -43,6 +43,30 @@ catalog.image.push(
   { id: "fix1model", supported_parameters: { max_output_images: 4, fixed_image_count: 1 } },
 );
 
+// Seed the best-effort audio catalog. loadCatalogRaw() caches its first NON-EMPTY fetch for the
+// whole engine instance (an empty result is treated as transient and retried), so every audio id a
+// later scenario needs must be pushed here, BEFORE any scenario runs — a prep()-time push arriving
+// after the first audio fetch has already resolved (and cached) would never be seen.
+//
+// - langmodel/nolangmodel: the TTS "explicit language control" knob (Qwen Audio 3.0 TTS Flash,
+//   Qwen-3-TTS-1.7B, bytedance/seed-speech-tts-2.0 all advertise supported_parameters.language as a
+//   {default, values} object). langmodel has it; nolangmodel is a plain TTS model that doesn't (most
+//   TTS models) — collectAudioParams must gate the field on the REAL catalog entry, not send it
+//   unconditionally, exactly like it already does for voices/duration.
+// - music3shape: MiniMax Music 3's real catalog shape — supported_parameters:{} (no min/max_duration,
+//   unlike its 02/2.5/2.6 siblings), matching the real upstream API, which has no duration parameter
+//   at all (song length is model-chosen).
+// "x" is the pre-existing payload-shape placeholder every music/tts/remix fixture below uses — once
+// the audio catalog is non-empty it MUST be catalogued too, or the drift preflight blocks it as
+// missing (the same rule proven for images above). Generous params keep every existing fixture's
+// send-everything assumptions intact.
+catalog.audio.push(
+  { id: "x", supported_parameters: { voices: ["alloy"], min_duration: 1, max_duration: 300 } },
+  { id: "langmodel", supported_parameters: { language: { default: "Auto", values: ["Auto", "English", "Chinese"] } } },
+  { id: "nolangmodel", supported_parameters: { voices: ["alloy"] } },
+  { id: "music3shape", supported_parameters: {} },
+);
+
 // ---- graph builders -------------------------------------------------------
 const node = (id, type, fields) => ({ id, type, x: 0, y: 0, fields: fields || {} });
 let _l = 0;
@@ -477,6 +501,73 @@ const SCENARIOS = [
         if (k in b) fail(`song-count key ${k} must be stripped after extraJson, got ${JSON.stringify(b[k])}`);
       }
       if (b.style !== "chill") fail(`non-count extraJson keys must still forward, got ${JSON.stringify(b.style)}`);
+    },
+  },
+  {
+    // MiniMax Music 3's catalog entry declares NO min/max_duration (unlike its 02/2.5/2.6 siblings) —
+    // matching the real upstream API, which has no duration parameter at all (length is model-chosen).
+    // The Music node must not invent a duration control the catalog doesn't advertise: instrumental
+    // mode + free-text lyrics (structured [Verse]/[Chorus] tags included) are "all" params, so they
+    // still ride through untouched, but duration/number_of_songs stay gated off.
+    name: "Music node: MiniMax-Music-3-shaped model (no duration in catalog) still forwards lyrics + instrumental",
+    data: { nodes: [node("m1", "music", {
+              model: "music3shape", prompt: "warm acoustic pop, intimate lead vocal",
+              lyrics: "[Verse]\nMorning light across the road\n[Chorus]\nCarry the spark and bring it home",
+              instrumental: false, duration: "45",
+            })], links: [] },
+    check(app, g, fail) {
+      const b = audioCalls()[0]?.body;
+      if (!b) return fail("no /audio/speech call recorded for music3shape");
+      if (b.lyrics !== "[Verse]\nMorning light across the road\n[Chorus]\nCarry the spark and bring it home")
+        fail(`structured lyrics must forward verbatim, got ${JSON.stringify(b.lyrics)}`);
+      if ("instrumental" in b) fail(`instrumental:false must be omitted (only sent when true), got ${JSON.stringify(b.instrumental)}`);
+      if ("duration" in b) fail(`a model with no min/max_duration in its catalog entry must not receive a duration knob, got ${JSON.stringify(b.duration)}`);
+    },
+  },
+  {
+    // Same shape, instrumental mode on and no lyrics (MiniMax Music 3's other documented mode).
+    name: "Music node: instrumental mode sends instrumental:true and omits empty lyrics",
+    data: { nodes: [node("m1", "music", { model: "music3shape", prompt: "lofi instrumental beat", instrumental: true })], links: [] },
+    check(app, g, fail) {
+      const b = audioCalls()[0]?.body;
+      if (!b) return fail("no /audio/speech call recorded for music3shape");
+      if (b.instrumental !== true) fail(`instrumental:true must forward, got ${JSON.stringify(b.instrumental)}`);
+      if ("lyrics" in b) fail(`empty lyrics must be omitted, got ${JSON.stringify(b.lyrics)}`);
+    },
+  },
+  {
+    // TTS "Language" knob (Qwen Audio 3.0 TTS Flash / Qwen-3-TTS-1.7B / bytedance/seed-speech-tts-2.0):
+    // the model's own docs say naming the language explicitly beats Auto-detect. Catalog-gated exactly
+    // like voices/duration — send it only when the picked model actually advertises language control.
+    name: "Speech node: language forwards when the model advertises explicit language control",
+    data: { nodes: [node("t1", "tts", { model: "langmodel", prompt: "Hello there", language: "English" })], links: [] },
+    check(app, g, fail) {
+      const b = audioCalls()[0]?.body;
+      if (!b) return fail("no /audio/speech call recorded for langmodel");
+      if (b.language !== "English") fail(`language must forward, got ${JSON.stringify(b.language)}`);
+    },
+  },
+  {
+    // The catalog's own default (Auto) is the no-op value — omitted exactly like response_format:"mp3".
+    name: "Speech node: language omitted when left at the catalog default (Auto)",
+    data: { nodes: [node("t1", "tts", { model: "langmodel", prompt: "Hello there", language: "Auto" })], links: [] },
+    check(app, g, fail) {
+      const b = audioCalls()[0]?.body;
+      if (!b) return fail("no /audio/speech call recorded for langmodel");
+      if ("language" in b) fail(`language:"Auto" (the catalog default) must be omitted, got ${JSON.stringify(b.language)}`);
+    },
+  },
+  {
+    // A model that does NOT advertise language control (most TTS models) must never receive the key,
+    // even if a stale field value survives a model swap — mirrors the voices/duration cat: gates, and
+    // stops a client-invented param from being silently no-op'd (or worse) on a provider that doesn't
+    // expect it.
+    name: "Speech node: language withheld from a model with no language in its catalog entry",
+    data: { nodes: [node("t1", "tts", { model: "nolangmodel", prompt: "Hello there", language: "English" })], links: [] },
+    check(app, g, fail) {
+      const b = audioCalls()[0]?.body;
+      if (!b) return fail("no /audio/speech call recorded for nolangmodel");
+      if ("language" in b) fail(`a model without catalog language support must not receive the language key, got ${JSON.stringify(b.language)}`);
     },
   },
   {
