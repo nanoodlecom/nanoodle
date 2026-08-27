@@ -7,6 +7,7 @@
 // pattern) and runs them in node:vm. No browser, no network, no API spend.
 
 import { readFileSync } from "node:fs";
+import { createServer } from "node:http";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
@@ -224,6 +225,43 @@ ok(!/apiFetch\s*\(/.test(extractFn(IDX, "runEndpoint")), "index runEndpoint sour
 ok(!/x-api-key/.test(extractFn(IDX, "runEndpoint") + extractFn(IDX, "endpointHeaders")),
   "index endpoint send path never mentions x-api-key");
 ok(!/authHeaders\s*\(/.test(extractFn(IDX, "runEndpoint")), "index runEndpoint source never calls authHeaders");
+
+// ---- live localhost server (zero NanoGPT spend) --------------------------------
+console.log("• live localhost chat server");
+{
+  const seen = [];
+  const srv = createServer((req, res) => {
+    const cors = {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "content-type,authorization",
+      "Access-Control-Allow-Methods": "POST,OPTIONS",
+    };
+    if (req.method === "OPTIONS") { res.writeHead(204, cors); return res.end(); }
+    let b = "";
+    req.on("data", (c) => { b += c; });
+    req.on("end", () => {
+      seen.push({ url: req.url, auth: req.headers.authorization, body: b });
+      const j = JSON.parse(b || "{}");
+      const last = (j.messages || []).at(-1);
+      const text = typeof last?.content === "string" ? last.content : "ok";
+      res.writeHead(200, { ...cors, "Content-Type": "application/json" });
+      res.end(JSON.stringify({ choices: [{ message: { content: "echo: " + text } }] }));
+    });
+  });
+  await new Promise((r) => srv.listen(0, "127.0.0.1", r));
+  const port = srv.address().port;
+  const url = `http://127.0.0.1:${port}/v1/chat/completions`;
+  S.fetch = fetch;
+  const live = await S.runEndpoint(
+    { fields: { url, mode: "chat", prompt: "hello local", auth: "user-tok" } },
+    {},
+  );
+  ok(live && live.text === "echo: hello local", "live localhost chat completions lights the text result");
+  ok(seen.length === 1 && seen[0].url === "/v1/chat/completions", "POST path is the typed URL path");
+  ok(seen[0].auth === "Bearer user-tok", "live request carries only the user Authorization");
+  ok(!String(seen[0].body).includes("sk-nano"), "live body has no NanoGPT key");
+  srv.close();
+}
 
 if (failures.length) {
   console.error("✗ check-endpoint: " + failures.length + " assertion(s) failed.");
