@@ -58,6 +58,9 @@ const ctx = {
   mountInpaint: () => {},
   mountFileUpload: () => {},
   mountComment: () => {},
+  mountEndpoint: () => {},
+  endpointOutPort: () => ({ name: "text", type: "text" }),
+  runEndpoint: () => {},
   commentBody: () => `<textarea data-f="text"></textarea>`,   // note textarea; nodeAcceptsType short-circuits on t.note so it's never a text sink
   collectImageInputs: () => [],
   setNodeProgress: () => {},
@@ -91,14 +94,14 @@ const eq = (got, want, label) => {
 const ok = (c, m) => { if (!c) failures.push(m); };
 
 // dragging FROM an output → consumers of that type
-eq(keys("out", "image"), ["edit", "inpaint", "ivideo", "llm", "lipsync", "resize", "vision"],
-  "image output → nodes that take an image (incl. LLM's dynamic image ports + Inpaint's image/mask)");
-eq(keys("out", "audio"), ["llm", "lipsync", "remix", "soundtrack", "transcribe", "trim"],
-  "audio output → nodes that take audio (incl. the LLM's audio-input port + Soundtrack's audio port + Remix's source track)");
-eq(keys("out", "video"), ["combine", "extractaudio", "soundtrack", "vedit", "vframes"],
-  "video output → nodes that take video (combine joins clips; soundtrack adds audio; vframes extracts stills; extractaudio peels the soundtrack)");
+eq(keys("out", "image"), ["edit", "endpoint", "inpaint", "ivideo", "llm", "lipsync", "resize", "vision"],
+  "image output → nodes that take an image (incl. LLM's dynamic image ports + Inpaint's image/mask + Custom endpoint)");
+eq(keys("out", "audio"), ["endpoint", "llm", "lipsync", "remix", "soundtrack", "transcribe", "trim"],
+  "audio output → nodes that take audio (incl. the LLM's audio-input port + Soundtrack's audio port + Remix's source track + Custom endpoint)");
+eq(keys("out", "video"), ["combine", "endpoint", "extractaudio", "soundtrack", "vedit", "vframes"],
+  "video output → nodes that take video (combine joins clips; soundtrack adds audio; vframes extracts stills; extractaudio peels the soundtrack + Custom endpoint)");
 // transcribe is excluded: its only text field is a plain <input> (language), not a wirable textarea
-eq(keys("out", "text"), ["edit", "image", "inpaint", "ivideo", "join", "llm", "lipsync", "music", "remix", "tts", "tvideo", "vedit", "vision"],
+eq(keys("out", "text"), ["edit", "endpoint", "image", "inpaint", "ivideo", "join", "llm", "lipsync", "music", "remix", "tts", "tvideo", "vedit", "vision"],
   "text output → nodes with a text input OR a wirable text field");
 
 // dragging FROM an input → producers of that type
@@ -108,8 +111,8 @@ eq(keys("in", "audio"), ["aupload", "extractaudio", "music", "remix", "trim", "t
   "audio input → nodes that produce audio (extractaudio emits a WAV from a video; remix transforms one)");
 eq(keys("in", "video"), ["combine", "ivideo", "lipsync", "soundtrack", "tvideo", "vedit", "vupload"],
   "video input → nodes that produce video (combine joins clips into one; soundtrack outputs the scored video)");
-eq(keys("in", "text"), ["choice", "join", "llm", "text", "transcribe", "vision"],
-  "text input → nodes that produce text (Choice is a pure text source)");
+eq(keys("in", "text"), ["choice", "endpoint", "join", "llm", "text", "transcribe", "vision"],
+  "text input → nodes that produce text (Choice is a pure text source; Custom endpoint defaults to chat → text)");
 
 // never offer the dragged node's own kind blindly — uploads/text are pure sources, not consumers
 const imgConsumers = keys("out", "image");

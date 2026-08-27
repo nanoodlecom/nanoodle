@@ -87,6 +87,8 @@ try {
     applyRunGating: extractFn(html, "applyRunGating"),
     stashRunInputs: extractFn(html, "stashRunInputs"),
     run: extractFn(html, "run"),
+    isPaidNanoType: extractFn(html, "isPaidNanoType"),
+    graphNeedsNanoKey: extractFn(html, "graphNeedsNanoKey"),
     RUN_CHOICES: extractConst(html, /const\s+RUN_CHOICES\s*=\s*\[[^\]]*\]\s*;/, "const RUN_CHOICES"),
     RUN_RESUME_KEY: extractConst(html, /const\s+RUN_RESUME_KEY\s*=\s*"[^"]*"\s*;/, "const RUN_RESUME_KEY"),
     hasAuth: extractConst(html, /const\s+hasAuth\s*=\s*\(\)\s*=>[^;]*;/, "const hasAuth"),
@@ -146,7 +148,7 @@ const epilogue = `
     setKeep(v){ KEEP = v; }, getKeep(){ return KEEP; },
     setRunCost(v){ _runCost = v; }, setLocation(v){ location = v; }, setSTATE(v){ STATE = v; },
     RESUME_KEY: RUN_RESUME_KEY, RUN_CHOICES: RUN_CHOICES,
-    applyRunGating, paintRunCost, run, stashRunInputs,
+    applyRunGating, paintRunCost, run, stashRunInputs, graphNeedsNanoKey,
     el(id){ return __els[id]; }, spies(){ return __spies; },
     resetSpies(){ __spies = { fetch: 0, preflight: 0, statusLine: 0, flashAuth: 0, renderAuth: 0 }; },
     session(){ return __session; },
@@ -158,6 +160,7 @@ const program =
   lift.RUN_CHOICES + "\n" + lift.RUN_RESUME_KEY + "\n" + lift.hasAuth + "\n" +
   lift.fmtUsd + "\n" + lift.paintRunCost + "\n" + lift.renderCount + "\n" +
   lift.renderLoop + "\n" + lift.applyRunGating + "\n" + lift.stashRunInputs + "\n" +
+  lift.isPaidNanoType + "\n" + lift.graphNeedsNanoKey + "\n" +
   lift.run + "\n" + epilogue;
 
 const ctx = { globalThis: null };
@@ -242,6 +245,7 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.log("  ✗ " + msg); 
 {
   T.setEmbedded(false); T.setKey(null); T.setParentAuthed(false);
   T.setLocation({ protocol: "https:", origin: "https://x", pathname: "/" });
+  T.setSTATE({ graph: { nodes: [{ type: "llm" }] }, outputs: [] });
   T.resetSpies();
   await T.run();
   const s = T.spies();
@@ -252,6 +256,7 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.log("  ✗ " + msg); 
 {
   T.setEmbedded(false); T.setKey(null); T.setParentAuthed(false);
   T.setLocation({ protocol: "file:", origin: "null", pathname: "/app.html" });
+  T.setSTATE({ graph: { nodes: [{ type: "llm" }] }, outputs: [] });
   T.resetSpies();
   await T.run();
   const s = T.spies();
@@ -267,6 +272,19 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.log("  ✗ " + msg); 
   T.resetSpies();
   try { await T.run(); } catch (_) { /* downstream run machinery is stubbed away; the gate is what we pin */ }
   ok(T.spies().preflight === 0, "authed run: must NOT show the signed-out preflight");
+}
+{
+  ok(T.graphNeedsNanoKey({ nodes: [{ type: "llm" }] }) === true, "graphNeedsNanoKey: an LLM node needs a NanoGPT key");
+  ok(T.graphNeedsNanoKey({ nodes: [{ type: "endpoint" }] }) === false, "graphNeedsNanoKey: Custom endpoint alone does not");
+  ok(T.graphNeedsNanoKey({ nodes: [{ type: "text" }, { type: "endpoint" }] }) === false,
+    "graphNeedsNanoKey: text + Custom endpoint does not");
+  T.setEmbedded(false); T.setKey(null); T.setParentAuthed(false);
+  T.setLocation({ protocol: "https:", origin: "https://x", pathname: "/" });
+  T.setSTATE({ graph: { nodes: [{ type: "endpoint" }] }, outputs: [] });
+  T.resetSpies();
+  try { await T.run(); } catch (_) { /* run machinery past the gate is stubbed */ }
+  ok(T.spies().preflight === 0, "signed-out Custom-endpoint-only graph must NOT hit the NanoGPT key wall");
+  ok(T.spies().fetch === 0, "signed-out Custom-endpoint-only graph still fires ZERO fetch in this harness");
 }
 
 // ---- 4. RESUME STASH: typed inputs are written to the single-use resume key ---------------------

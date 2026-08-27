@@ -102,8 +102,8 @@ Replace the code with your own (or delete the parameter and use bare
   `updates.json` by `scripts/gen-changelog.mjs`, plus an Atom feed
   (`feed.xml`).
 - **`guide/`** — static docs (`/guide/`): the `noodle-graph.json` format,
-  running workflows headlessly, self-hosting, and how share links work.
-  Zero scripts, zero network.
+  running workflows headlessly, self-hosting, share links, and the Custom
+  endpoint localhost contract. Zero scripts, zero network.
 - The rest is landing pages: comparisons (`nanoodle-vs-comfyui.html`,
   `nanoodle-vs-n8n.html`, `comfyui-alternative.html`,
   `comfyui-alternative-no-gpu.html`) and localized home pages (`es/`,
@@ -187,7 +187,7 @@ JSON by hand anytime; `scripts/check-updates.mjs` keeps it valid.
 
 ## Node types in the editor
 
-The editor registers 26 node types. Titles and one-line descriptions below are taken verbatim from the node registry in index.html (the same text the in-editor quick-add menu shows); the `key` is the type identifier used in noodle-graph.json and in the executor libraries' supported-node tables.
+The editor registers 27 node types. Titles and one-line descriptions below are taken verbatim from the node registry in index.html (the same text the in-editor quick-add menu shows); the `key` is the type identifier used in noodle-graph.json and in the executor libraries' supported-node tables.
 
 ### Inputs
 
@@ -201,6 +201,7 @@ The editor registers 26 node types. Titles and one-line descriptions below are t
 
 - `join` — 🔗 Join: Glue two texts together
 - `llm` — 🧠 LLM: Text (+ images, audio) → text — any chat model
+- `endpoint` — 🔌 Custom endpoint: Call a NanoGPT-shaped URL — typically localhost
 
 ### Image
 
