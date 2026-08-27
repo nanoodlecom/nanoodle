@@ -4441,10 +4441,16 @@ const VIDEO_IMG_ROLE_KEYS = { last:["last_image","end_image"], refs:["reference_
 //     reference_images. A model that ignored them wouldn't be billing for the 6th one.
 //   last — minimax-h3 shipped advertising only duration + aspect_ratio, but last_image is live-verified
 //     (2026-07-31: the clip starts on the first image and ends on the last). Day-one catalog gap; drop
-//     the family fallback once NanoGPT advertises the param.
+//     the family fallback once NanoGPT advertises the param. minimax/h3-max, alibaba/wan-3.0-prime and
+//     alibaba/wan-3.0/image-to-video ship the exact same gap (mode/duration/resolution/etc. only, no
+//     last_image/end_image key) on 2026-08-2{4,7} launch — confirmed against the underlying providers'
+//     own API docs rather than a live NanoGPT call: fal.ai's minimax-h3-max page states the image-to-video
+//     endpoint "also handles first-to-last keyframes through an optional end_image_url", and fal.ai /
+//     WaveSpeedAI's wan-3.0-prime/image-to-video both document a `last_image`/`end_image_url` param.
+//     Drop each id once NanoGPT's own catalog lists the param.
 const VIDEO_REF_PRICE_KEYS = ["included_reference_images","extra_reference_image"];
 const videoRefsPriced = (m)=> { const p = m && m.pricing; return !!p && VIDEO_REF_PRICE_KEYS.some(k=> p[k]!=null); };
-const VIDEO_LAST_FRAME_FAMILIES = /^minimax-h3$/i;
+const VIDEO_LAST_FRAME_FAMILIES = /^(minimax-h3|minimax\/h3-max|alibaba\/wan-3\.0-prime|alibaba\/wan-3\.0\/image-to-video)$/i;
 function modelHasImageRole(n, role){
   const t = NODE_TYPES[n.type]; if(!t.modelKind) return false;
   const m = catItem(t.modelKind, n.fields.model);
@@ -5457,15 +5463,26 @@ function videoOptDefs(model, nodeType){
   const it = catItem("video", model) || {};
   const p = it.params || {}, dflt = it.defaults || {};
   // omni video models expose a `mode` select of GENERATION TYPES; drop the ones this node can't feed —
-  // reference-to-video needs reference images (no port anywhere), video-edit needs a source video (only
-  // the v2v "Edit video" node supplies one). "auto" stays and lets the model detect from the wiring, so
-  // a plain Text→Video node stops offering a dead-end "Reference to Video" / "Edit Video" choice.
+  // reference-to-video needs reference images (no port anywhere), video-edit/video-extend both need a
+  // source video (only the v2v "Edit video" node supplies one), image-to-video needs a source image
+  // (only the i2v "Image→Video" node supplies one). "auto" stays and lets the model detect from the
+  // wiring, so a plain Text→Video node stops offering a dead-end "Reference to Video" / "Edit Video" /
+  // "Video Extend" / "Image to Video" choice — the last of those is a real footgun, not just a decoy:
+  // forcing it on tvideo (no image port at all) sends mode:"image-to-video" with no image, and forcing
+  // "text-to-video" on ivideo/vedit (which always send the wired image/video as the primary input) tells
+  // the model to ignore what was just paid to send. Catalog-driven off the node's OWN input shape, no
+  // model names.
   const isVedit = !!(nodeType && NODE_TYPES[nodeType] && NODE_TYPES[nodeType].modelFilter==="v2v");
+  const isIvideo = !!(nodeType && NODE_TYPES[nodeType] && NODE_TYPES[nodeType].modelFilter==="i2v");
   // reference-to-video is a live choice now that the tvideo node grows ref-image ports — offer it when the
   // node carries ref inputs AND this model actually advertises a ref-image param (else it stays hidden).
   const canRef = !!(nodeType && NODE_TYPES[nodeType] && NODE_TYPES[nodeType].refInputs)
                  && VIDEO_IMG_ROLE_KEYS.refs.some(k=> k in p);
-  const modeOK = (o)=> (o.value!=="reference-to-video" || canRef) && (o.value!=="video-edit" || isVedit);
+  const modeOK = (o)=> (o.value!=="reference-to-video" || canRef)
+                 && (o.value!=="video-edit" || isVedit)
+                 && (o.value!=="video-extend" || isVedit)
+                 && (o.value!=="image-to-video" || isIvideo)
+                 && (o.value!=="text-to-video" || !(isIvideo || isVedit));
   const defs = [];
   for(const [key,d] of Object.entries(p)){
     if(!d || typeof d!=="object") continue;

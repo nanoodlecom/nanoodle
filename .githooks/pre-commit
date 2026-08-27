@@ -28,6 +28,13 @@ touches_llmgate=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/ch
 touches_seedcache=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/check-seed-cache\.mjs)$' || true)
 # index.html carries the editor's dynamic image-input port logic (growth, compaction).
 touches_imgports=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-image-ports\.mjs)$' || true)
+# index.html + play.html carry the video last_image / ref-image role gates (family fallback for
+# day-one catalog gaps: minimax-h3, minimax/h3-max, alibaba/wan-3.0-prime + pricing-as-advertising).
+# A one-sided edit silently drops a billed morph/extra ref.
+touches_videoroles=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|vendor/njs-engine\.js|scripts/check-video-image-roles\.mjs|scripts/play-engine\.mjs)$' || true)
+# index.html carries the video "mode" knob's per-node gate (videoOptDefs/modeOK) — a generation-type
+# option the current node can't feed (e.g. "image-to-video" on Text→Video) is a silent-drop footgun.
+touches_videomode=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-video-mode-gate\.mjs)$' || true)
 # index.html (I18N_LANGS) + the /xx/ landing pages + their generator carry the per-language SEO cluster.
 touches_langpages=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|(es|fr|de|pt|ja)/index\.html|scripts/(gen|check)-lang-pages\.mjs)$' || true)
 # index.html carries the link-removal path (unlocking text fields when their source is deleted).
@@ -143,7 +150,7 @@ touches_llmsfull=$(printf '%s\n' "$staged" | grep -E '(^|/)(llms-full\.txt|llms\
 # Nothing to check unless an .html file, one of the checkers, or a guarded doc changed.
 # Every touches_* variable belongs in this chain — a gate left out of it never runs on a
 # commit that stages only its own files, which is exactly the commit it exists to catch.
-[ -z "$staged_html" ] && [ -z "$touches_launchfacts" ] && [ -z "$touches_njseditor" ] && [ -z "$touches_llmgate" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_jsparity" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_langpages" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_i18n" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_lipsync" ] && [ -z "$touches_aresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && [ -z "$touches_pacing" ] && [ -z "$touches_graphpersist" ] && [ -z "$touches_graphsigs" ] && [ -z "$touches_describeapply" ] && [ -z "$touches_authlc" ] && [ -z "$touches_mediapriv" ] && [ -z "$touches_verhist" ] && [ -z "$touches_rungating" ] && [ -z "$touches_appsstorage" ] && [ -z "$touches_linkerr" ] && [ -z "$touches_deploy" ] && [ -z "$touches_hiddencss" ] && [ -z "$touches_connect" ] && [ -z "$touches_undo" ] && [ -z "$touches_costaccrue" ] && [ -z "$touches_resize" ] && [ -z "$touches_catalog" ] && [ -z "$touches_upscale" ] && [ -z "$touches_drift" ] && [ -z "$touches_promptcaps" ] && [ -z "$touches_consent" ] && [ -z "$touches_sharesamples" ] && [ -z "$touches_llmsfull" ] && [ -z "$touches_examples" ] && [ -z "$touches_twindrift" ] && [ -z "$touches_twindriftcases" ] && exit 0
+[ -z "$staged_html" ] && [ -z "$touches_launchfacts" ] && [ -z "$touches_njseditor" ] && [ -z "$touches_llmgate" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_jsparity" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_videoroles" ] && [ -z "$touches_videomode" ] && [ -z "$touches_langpages" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_i18n" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_lipsync" ] && [ -z "$touches_aresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && [ -z "$touches_pacing" ] && [ -z "$touches_graphpersist" ] && [ -z "$touches_graphsigs" ] && [ -z "$touches_describeapply" ] && [ -z "$touches_authlc" ] && [ -z "$touches_mediapriv" ] && [ -z "$touches_verhist" ] && [ -z "$touches_rungating" ] && [ -z "$touches_appsstorage" ] && [ -z "$touches_linkerr" ] && [ -z "$touches_deploy" ] && [ -z "$touches_hiddencss" ] && [ -z "$touches_connect" ] && [ -z "$touches_undo" ] && [ -z "$touches_costaccrue" ] && [ -z "$touches_resize" ] && [ -z "$touches_catalog" ] && [ -z "$touches_upscale" ] && [ -z "$touches_drift" ] && [ -z "$touches_promptcaps" ] && [ -z "$touches_consent" ] && [ -z "$touches_sharesamples" ] && [ -z "$touches_llmsfull" ] && [ -z "$touches_examples" ] && [ -z "$touches_twindrift" ] && [ -z "$touches_twindriftcases" ] && exit 0
 if ! command -v node >/dev/null 2>&1; then
   echo "pre-commit: node not found, skipping HTML JS checks" >&2
   exit 0
@@ -235,6 +242,22 @@ fi
 #    index.html and unit-tests them in a node:vm sandbox.
 if [ -n "$touches_imgports" ]; then
   node "$root/scripts/check-image-ports.mjs"
+fi
+
+# 7c) video extra-image roles: last_image family fallback (minimax-h3, minimax/h3-max,
+#     alibaba/wan-3.0-prime, alibaba/wan-3.0/image-to-video) + ref-image pricing evidence and family
+#     caps. Editor is permissive-OFF offline; play honors authored wires unless a known model clearly
+#     lacks the role. Extracts the editor predicates and drives play NODE_TYPES.tvideo/ivideo.run with
+#     a spy genVideo.
+if [ -n "$touches_videoroles" ]; then
+  node "$root/scripts/check-video-image-roles.mjs"
+fi
+
+# 7d) video "mode" knob per-node gate: a generation-type option (image-to-video/video-edit/
+#     video-extend/text-to-video) the current node structurally cannot feed must not render — it's a
+#     silent-drop footgun (mode set, no matching port wired), not just a decoy choice.
+if [ -n "$touches_videomode" ]; then
+  node "$root/scripts/check-video-mode-gate.mjs"
 fi
 
 # 7b) the per-language landing pages (/es/ … /ja/) must exist for every app language, carry the
