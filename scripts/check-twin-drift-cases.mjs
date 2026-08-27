@@ -46,7 +46,7 @@ const CASES = [
     name: "extract row 1 — resize and crop geometry",
     why: "sig = deletes = 25, the plainest mirrored removal in the plan",
     idx: [[7468, 7528]],
-    play: [[7482, 7517], [9325, 9339]],
+    play: [[7482, 7517], [9331, 9345]],
     // Ranges re-anchored after FLUX.3 pricing twin growth; surfaces still share resize helpers
     // outside this block, so a paired delete is not silent (same class as row 8).
     expect: { exit: 1, oneSided: 25, occurrence: 1 },
@@ -109,7 +109,7 @@ const CASES = [
       "      Whoever does row 8 refreshes the baseline as part of it — deliberately, which is what\n" +
       "      the guard's own remedy line asks for",
     idx: [[11462, 11778]],
-    play: [[13433, 13752]],
+    play: [[13439, 13758]],
     expect: { exit: 1, oneSided: 106, occurrence: 1 },
   },
   {
@@ -118,7 +118,7 @@ const CASES = [
       "the whole agent-pill popover (13294-13373) and the model-picker search, which index.html " +
       "keeps at 11822-11838 and 10608",
     idx: [[11891, 11931]],
-    play: [[13891, 13891], [13973, 14025], [14129, 14129]],
+    play: [[13897, 13897], [13979, 14031], [14135, 14135]],
     expect: { exit: 1, oneSided: 38 },
   },
 
@@ -205,7 +205,7 @@ const CASES = [
       },
       {
         file: "play.html",
-        line: 13326,
+        line: 13332,
         from: "    const usd = parseFloat((await r.json()).usd_balance);",
         to: "    const usd = parseFloat((await r.json()).usdBalance);",
       },

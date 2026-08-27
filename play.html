@@ -8566,18 +8566,24 @@ const PROMPT_CAPS = {
         }
         // In-flight share: another targeted Play already started this node. Await it
         // BEFORE any paid work so two Plays can't both miss and double-charge A.
-        if(NODE_WORK.has(id)){
+        // Key includes lane so a multi-count Run (identical node ids, N cloned graphs)
+        // still submits one paid job per lane — NODE_WORK is only shared across
+        // sibling Plays that omit lane (Play B + Play C awaiting A).
+        const workKey = opts.lane!=null ? (id + ":" + opts.lane) : id;
+        if(NODE_WORK.has(workKey)){
           try{
-            const out = await NODE_WORK.get(id) || {};
-            n.out = out; n.costUsd = 0; n.cached = true;
-            onStatus && onStatus(id, "done", "done");
-            onResult && onResult(n);
+            const out = await NODE_WORK.get(workKey) || {};
+            if(out && Object.keys(out).length){
+              n.out = out; n.costUsd = 0; n.cached = true;
+              onStatus && onStatus(id, "done", "done");
+              onResult && onResult(n);
+            } else { failed.add(id); onStatus && onStatus(id, "skip", "skipped — upstream failed"); }
           }catch(err){ if(isAbort(err)) throw err; failed.add(id); nodeErrors++; onStatus && onStatus(id, "error", friendlyRunError(err, n)); }
           return;
         }
         let settleWork, work;
         work = new Promise(function(res, rej){ settleWork = { res:res, rej:rej }; });
-        NODE_WORK.set(id, work);   // sync — before withFittedPrompt's await — so a sibling Play waits
+        NODE_WORK.set(workKey, work);   // sync — before withFittedPrompt's await — so a sibling Play waits
         // Prompt-length caps (see the PROMPT LENGTH CAPS block): a prompt over this model's cap is
         // trimmed to fit rather than sent to a certain 400 the app's user can neither see nor edit.
         // Lands before nodeSig so the signature describes what actually goes out.
@@ -8594,7 +8600,7 @@ const PROMPT_CAPS = {
           onStatus && onStatus(id, "done", "done");
           onResult && onResult(n);
           if(settleWork) settleWork.res(n.out);
-          if(NODE_WORK.get(id)===work) NODE_WORK.delete(id);
+          if(NODE_WORK.get(workKey)===work) NODE_WORK.delete(workKey);
           return;
         }
         if(seeded && cached && cached.sig===sig){
@@ -8610,10 +8616,10 @@ const PROMPT_CAPS = {
           }
           // the owning lane deletes the entry if its generation fails; here just isolate per-node.
           catch(err){
-            if(settleWork) settleWork.rej(err);
+            if(settleWork) settleWork.res(null);   // resolve, never reject — no waiter must not see an unhandled abort
             if(isAbort(err)) throw err; failed.add(id); nodeErrors++; onStatus && onStatus(id, "error", friendlyRunError(err, n));
           }
-          if(NODE_WORK.get(id)===work) NODE_WORK.delete(id);
+          if(NODE_WORK.get(workKey)===work) NODE_WORK.delete(workKey);
           return;
         }
         onStatus && onStatus(id, "run", "running…");
@@ -8646,7 +8652,7 @@ const PROMPT_CAPS = {
           onStatus && onStatus(id, "done", "done");
           onResult && onResult(n);
           if(settleWork) settleWork.res(n.out);
-          if(NODE_WORK.get(id)===work) NODE_WORK.delete(id);
+          if(NODE_WORK.get(workKey)===work) NODE_WORK.delete(workKey);
         }
         // editor parity (runGroup): isolate per-node failures — mark error and keep going so
         // independent flows / other sinks still produce output. Do NOT rethrow.
@@ -8655,8 +8661,8 @@ const PROMPT_CAPS = {
           // don't poison the cache with a failed/aborted promise — drop our pending entry so a
           // later lane or run can retry (only if it's still ours, not already swapped/overwritten).
           if(seeded){ const c = RUN_CACHE.get(id); if(c && c.pending===p) RUN_CACHE.delete(id); }
-          if(settleWork){ if(isAbort(err)) settleWork.rej(err); else settleWork.res(null); }
-          if(NODE_WORK.get(id)===work) NODE_WORK.delete(id);
+          if(settleWork) settleWork.res(n.out && Object.keys(n.out).length ? n.out : null);   // resolve, never reject (un-awaited abort used to crash check-video-resume)
+          if(NODE_WORK.get(workKey)===work) NODE_WORK.delete(workKey);
           if(isAbort(err)) throw err; failed.add(id); nodeErrors++; onStatus && onStatus(id, "error", friendlyRunError(err, n));
         }
       })();
