@@ -139,11 +139,13 @@ touches_sharesamples=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play
 # llms-full.txt is generated and says "do not edit by hand", so only a re-run of the generator keeps it
 # true. It once advertised the retired draw node for days after every source had dropped it.
 touches_llmsfull=$(printf '%s\n' "$staged" | grep -E '(^|/)(llms-full\.txt|llms\.txt|README\.md|index\.html|scripts/(gen-llms-full|check-llms-full)\.mjs)$' || true)
+# NanoGPT changelog sync (chat + image/video/audio + retired/pricing) — fixture pins, no network.
+touches_nanogptsync=$(printf '%s\n' "$staged" | grep -E '(^|/)(scripts/sync-nanogpt-model-updates\.mjs|scripts/lib/nanogpt-updates\.mjs|scripts/check-sync-nanogpt-model-updates\.mjs|scripts/fixtures/nanogpt-updates\.json)$' || true)
 
 # Nothing to check unless an .html file, one of the checkers, or a guarded doc changed.
 # Every touches_* variable belongs in this chain — a gate left out of it never runs on a
 # commit that stages only its own files, which is exactly the commit it exists to catch.
-[ -z "$staged_html" ] && [ -z "$touches_launchfacts" ] && [ -z "$touches_njseditor" ] && [ -z "$touches_llmgate" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_jsparity" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_langpages" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_i18n" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_lipsync" ] && [ -z "$touches_aresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && [ -z "$touches_pacing" ] && [ -z "$touches_graphpersist" ] && [ -z "$touches_graphsigs" ] && [ -z "$touches_describeapply" ] && [ -z "$touches_authlc" ] && [ -z "$touches_mediapriv" ] && [ -z "$touches_verhist" ] && [ -z "$touches_rungating" ] && [ -z "$touches_appsstorage" ] && [ -z "$touches_linkerr" ] && [ -z "$touches_deploy" ] && [ -z "$touches_hiddencss" ] && [ -z "$touches_connect" ] && [ -z "$touches_undo" ] && [ -z "$touches_costaccrue" ] && [ -z "$touches_resize" ] && [ -z "$touches_catalog" ] && [ -z "$touches_upscale" ] && [ -z "$touches_drift" ] && [ -z "$touches_promptcaps" ] && [ -z "$touches_consent" ] && [ -z "$touches_sharesamples" ] && [ -z "$touches_llmsfull" ] && [ -z "$touches_examples" ] && [ -z "$touches_twindrift" ] && [ -z "$touches_twindriftcases" ] && exit 0
+[ -z "$staged_html" ] && [ -z "$touches_launchfacts" ] && [ -z "$touches_njseditor" ] && [ -z "$touches_llmgate" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_jsparity" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_langpages" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_i18n" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_lipsync" ] && [ -z "$touches_aresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && [ -z "$touches_pacing" ] && [ -z "$touches_graphpersist" ] && [ -z "$touches_graphsigs" ] && [ -z "$touches_describeapply" ] && [ -z "$touches_authlc" ] && [ -z "$touches_mediapriv" ] && [ -z "$touches_verhist" ] && [ -z "$touches_rungating" ] && [ -z "$touches_appsstorage" ] && [ -z "$touches_linkerr" ] && [ -z "$touches_deploy" ] && [ -z "$touches_hiddencss" ] && [ -z "$touches_connect" ] && [ -z "$touches_undo" ] && [ -z "$touches_costaccrue" ] && [ -z "$touches_resize" ] && [ -z "$touches_catalog" ] && [ -z "$touches_upscale" ] && [ -z "$touches_drift" ] && [ -z "$touches_promptcaps" ] && [ -z "$touches_consent" ] && [ -z "$touches_sharesamples" ] && [ -z "$touches_llmsfull" ] && [ -z "$touches_examples" ] && [ -z "$touches_twindrift" ] && [ -z "$touches_twindriftcases" ] && [ -z "$touches_nanogptsync" ] && exit 0
 if ! command -v node >/dev/null 2>&1; then
   echo "pre-commit: node not found, skipping HTML JS checks" >&2
   exit 0
@@ -270,6 +272,12 @@ fi
 if [ -n "$touches_updates" ]; then
   node "$root/scripts/check-updates.mjs"
   node "$root/scripts/check-changelog.mjs"
+fi
+
+# 11b) NanoGPT changelog sync classifier (chat + image/video/audio + retired/pricing).
+#     Offline fixture — no network, no browser, no NANOGPT_API_KEY.
+if [ -n "$touches_nanogptsync" ]; then
+  node "$root/scripts/check-sync-nanogpt-model-updates.mjs"
 fi
 
 # 12) the "Create app" handoff must route to the RIGHT app: a fresh workflow makes a NEW
