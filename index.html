@@ -1635,6 +1635,7 @@ const I18N = {
     "e.g. warm and cheerful, slight British accent":"p. ej. cálido y alegre, ligero acento británico",
     "required by vocal song models (e.g. Mureka); leave empty for instrumental/BGM":"requerido por modelos de canción vocal (p. ej. Mureka); déjalo vacío para instrumental/BGM",
     "run this branch":"ejecutar esta rama",
+    "Stop this branch":"Detener esta rama",
     "delete":"eliminar",
     "open":"abrir",
     "copy":"copiar",
@@ -2181,6 +2182,7 @@ const I18N = {
     "e.g. warm and cheerful, slight British accent":"ex. chaleureux et enjoué, léger accent britannique",
     "required by vocal song models (e.g. Mureka); leave empty for instrumental/BGM":"requis par les modèles vocaux (ex. Mureka) ; laisser vide pour instrumental/BGM",
     "run this branch":"exécuter cette branche",
+    "Stop this branch":"Arrêter cette branche",
     "delete":"supprimer",
     "open":"ouvrir",
     "copy":"copier",
@@ -2727,6 +2729,7 @@ const I18N = {
     "e.g. warm and cheerful, slight British accent":"z. B. warm und fröhlich, leichter britischer Akzent",
     "required by vocal song models (e.g. Mureka); leave empty for instrumental/BGM":"erforderlich für Gesangsmodelle (z.B. Mureka); leer lassen für Instrumental/BGM",
     "run this branch":"diesen Zweig ausführen",
+    "Stop this branch":"diesen Zweig stoppen",
     "delete":"löschen",
     "open":"öffnen",
     "copy":"kopieren",
@@ -3273,6 +3276,7 @@ const I18N = {
     "e.g. warm and cheerful, slight British accent":"ex.: caloroso e alegre, leve sotaque britânico",
     "required by vocal song models (e.g. Mureka); leave empty for instrumental/BGM":"exigido por modelos com vocal (ex.: Mureka); deixe vazio para instrumental/BGM",
     "run this branch":"executar este ramo",
+    "Stop this branch":"parar este ramo",
     "delete":"excluir",
     "open":"abrir",
     "copy":"copiar",
@@ -3819,6 +3823,7 @@ const I18N = {
     "e.g. warm and cheerful, slight British accent":"例: 温かく明るい口調、少しイギリス訛り",
     "required by vocal song models (e.g. Mureka); leave empty for instrumental/BGM":"ボーカル曲モデル (例: Mureka) に必須。インスト/BGMの場合は空欄に",
     "run this branch":"このブランチを実行",
+    "Stop this branch":"このブランチを停止",
     "delete":"削除",
     "open":"開く",
     "copy":"コピー",
@@ -7177,6 +7182,18 @@ const NODE_TYPES = {
   },
 };
 
+// Source / input kinds: the user types or drops into these (text, uploads, choice,
+// sticky note). Playing them is meaningless — they don't call a model. group:"Inputs"
+// is the Add-menu class; note:true is the comment annotation. The explicit set keeps
+// play.html's slimmer NODE_TYPES (no group field) aligned. Do NOT use "empty inputs"
+// as the test: Image / LLM / Music also have inputs:[] but they generate.
+const INPUT_KINDS = { text:1, upload:1, aupload:1, vupload:1, choice:1, comment:1 };
+function isInputKind(type){
+  if(INPUT_KINDS[type]) return true;
+  const t = NODE_TYPES[type];
+  return !!(t && (t.note || t.group==="Inputs"));
+}
+
 /* ======================================================================
    GRAPH STATE
    ====================================================================== */
@@ -7240,6 +7257,7 @@ function refreshFramePorts(n){
 function buildNodeEl(n){
   const t = NODE_TYPES[n.type];
   const isNote = !!t.note;   // a sticky note: no ports, no run/status chrome, no result panel
+  const hidePlay = isNote || isInputKind(n.type);   // input/source kinds have no ▶ — playing them is meaningless
   const el = document.createElement("div");
   el.className = "node" + (isNote?" note":""); el.dataset.id = n.id; el.dataset.status = "idle";
   el.style.left = n.x+"px"; el.style.top = n.y+"px";
@@ -7249,7 +7267,7 @@ function buildNodeEl(n){
   el.innerHTML = `
     <header class="t-${n.type}">
       <span class="em">${t.em}</span><span class="ttl">${t.title}</span>
-      ${isNote ? "" : `<span class="dot"></span><button class="hbtn" data-act="run" title="run this branch">▶</button>`}
+      ${isNote ? "" : `<span class="dot"></span>${hidePlay ? "" : `<button class="hbtn" data-act="run" title="run this branch">▶</button>`}`}
       <button class="hbtn" data-act="del" title="delete (Del)">✕</button>
     </header>
     ${isNote ? "" : `<input class="node-name" value="${esc(n.name||"")}" placeholder="${esc(t.title)}" aria-label="Rename this node" maxlength="60" spellcheck="false" />`}
@@ -7303,7 +7321,13 @@ function buildNodeEl(n){
   if(t.mount) t.mount(n);            // node-specific widget wiring (e.g. upload/webcam)
   // header buttons
   el.querySelector('[data-act=del]').onclick = (e)=>{ e.stopPropagation(); if(runningNodes.has(n.id)){ flash("can’t delete while running — Stop first"); return; } removeNode(n.id); };  // don't discard an in-flight (already-charged) run or orphan a downstream node
-  el.querySelector('[data-act=run]')?.addEventListener("click", (e)=>{ e.stopPropagation(); runGroup([n.id]); });   // notes have no ▶ (they never run)
+  el.querySelector('[data-act=run]')?.addEventListener("click", (e)=>{
+    e.stopPropagation();
+    // A second press on the seed that started this run stops THAT run only — a
+    // sibling branch started with its own ▶ keeps going (its own AbortController).
+    if(seedRuns.has(n.id)){ stopSeedRun(n.id); return; }
+    runGroup([n.id]);
+  });   // input/source kinds and notes have no ▶ (they never run)
   // selection + drag
   const header = el.querySelector("header");
   header.addEventListener("pointerdown", e=>{
@@ -8887,14 +8911,48 @@ function components(){
   return out;
 }
 
-const runningNodes = new Set();   // nodes whose group is currently executing — play is disabled for these
-let runAbort = null;              // AbortController shared by every group in the current run; Stop aborts it
-const runSignal = ()=> runAbort?.signal;   // pass to fetch() during a run; undefined when nothing is running
+const runningNodes = new Set();   // nodes in an in-flight subgraph (delete/undo refuse these)
+const seedRuns = new Set();       // seeds of in-flight per-node Plays — their ▶ becomes ■ Stop
+const seedCtl = new Map();        // seed id → that Play's AbortController (Stop on B does not abort C)
+const nodeWork = new Map();       // node id → in-flight exec promise (sibling Plays await, never re-charge)
+const runLockCount = new Map();   // node id → # of in-flight groups holding it (shared ancestor A)
+const liveAborts = new Set();     // every group's controller; toolbar Stop aborts them all
+let runAbort = null;              // last-started controller (runSignal fallback when only one group is live)
+const runSignal = ()=> liveAborts.size===1 ? [...liveAborts][0].signal : runAbort?.signal;
+function lockRunIds(ids){
+  for(const id of ids){ runningNodes.add(id); runLockCount.set(id, (runLockCount.get(id)||0)+1); }
+}
+function unlockRunIds(ids){
+  for(const id of ids){
+    const n = (runLockCount.get(id)||1)-1;
+    if(n<=0){ runLockCount.delete(id); runningNodes.delete(id); }
+    else runLockCount.set(id, n);
+  }
+}
+function stopSeedRun(id){
+  const c = seedCtl.get(id);
+  if(c && !c.signal.aborted){ c.abort(); flash("stopping…"); updateRunButtons(); }
+}
+function abortAllRuns(){
+  let n = 0;
+  for(const c of liveAborts){ if(!c.signal.aborted){ c.abort(); n++; } }
+  if(n){ flash("stopping…"); updateRunButtons(); }
+  return n>0;
+}
 function groupBusy(ids){ for(const id of ids) if(runningNodes.has(id)) return true; return false; }
 function updateRunButtons(){
-  for(const n of graph.nodes){ const b = n.el?.querySelector("[data-act=run]"); if(b) b.disabled = runningNodes.has(n.id); }
+  // Sibling Plays stay clickable: only the seed that started a run flips to ■.
+  // The old lock disabled every node in the undirected component, so Play on B
+  // also claimed C (A→B, A→C).
+  for(const n of graph.nodes){
+    const b = n.el?.querySelector("[data-act=run]"); if(!b) continue;
+    const live = seedRuns.has(n.id);
+    b.disabled = false;
+    b.textContent = live ? "■" : "▶";
+    b.title = live ? t("Stop this branch") : t("run this branch");
+  }
   const running = runningNodes.size > 0;
-  const draining = !!runAbort?.signal.aborted;     // stopped, but in-flight nodes are still unwinding
+  const draining = [...liveAborts].some(c=> c.signal.aborted) && running;   // stopped, but in-flight nodes are still unwinding
   const run = $("run");
   run.classList.toggle("running", running);        // the Run button itself becomes the Stop button while live
   run.textContent = running ? t("■ Stop") : t("▶ Run");
@@ -9099,7 +9157,7 @@ function njsCtx(E, n){
     const q = info && info.queuePosition!=null ? " · queue " + info.queuePosition : "";
     const meta = (info && info.runId) ? { runId: info.runId, polledAt: Date.now() } : undefined;
     setNodeProgress(n, fmtPollHeadline("polling…", st, ms) + q, meta);
-  }, signal: runSignal() };
+  }, signal: (n && n._runCtl && n._runCtl.signal) || runSignal() };
   // A pending entry must SURVIVE Stop and the poll timeout — the job is already submitted and
   // charged, and the next unchanged run resumes it (built-in twin: genVideo/pollAudio keep the
   // entry on abort). Only a genuine job failure may delete it. The library's abort rejection is
@@ -9196,7 +9254,11 @@ function njsRunFor(type, rn, inp, n){
   };
 }
 
-// Run one group: lock its whole connected component, execute the ancestors of `seedIds` in topo order.
+// Run one group: execute the ancestors of `seedIds` in topo order. Lock the seed(s)
+// plus that subgraph — NOT the undirected connected component — so Play on B (A→B)
+// leaves Play on sibling C (A→C) enabled. Shared upstream A is reused if it already
+// succeeded, or awaited if another Play already started it (never a second paid run).
+// Each Play owns its own AbortController: Stop on B does not abort C.
 // Multiple groups run concurrently because callers don't await each other.
 // Signed out → the group still "runs", against DEMO_CTX: canned results (badged as samples, no
 // network, no charge) instead of a dead-end key prompt — the first Run click always shows the wow.
@@ -9225,24 +9287,30 @@ async function runGroup(seedIds, ctx){
     if(!mode) return;
     }
   }
-  const lock = new Set();
-  for(const id of seedIds) for(const x of componentOf(id)) lock.add(x);
-  if(!lock.size || groupBusy(lock)) return;         // empty, or this group is already running
-  const ids = ancestors(seedIds);                    // what we actually compute (seed + upstream)
-  const seedSet = new Set(seedIds);                  // the node(s) the user explicitly targeted → always re-roll (never reuse)
-  const wasIdle = !runningNodes.size;
-  lock.forEach(id=>runningNodes.add(id));
-  // Fresh controller when idle, OR when the prior one is still aborted (we're inside the post-Stop
-  // drain window): a new run must NOT adopt a Stopped run's aborted controller, or its very first
-  // fetch instantly rejects with AbortError and the run silently does nothing. A LIVE (non-aborted)
-  // controller is still shared, so groups added to an in-flight run keep aborting together.
-  if(wasIdle || runAbort?.signal.aborted) runAbort = new AbortController();
-  const ctl = runAbort;                               // capture so a later run can't confuse our own abort check
+  const seedSet = new Set(seedIds.filter(id=> byId(id)));   // the node(s) the user explicitly targeted → always re-roll (never reuse) unless already in-flight
+  if(!seedSet.size) return;
+  // A second Play on the same seed is Stop (handled by the click handler). Don't start a twin.
+  if([...seedSet].some(id=> seedRuns.has(id))) return;
+  const ids = ancestors([...seedSet]);                    // what we actually compute (seed + upstream)
+  if(!ids.size) return;
+  // Lock the subgraph being computed — not the undirected component — so sibling C stays playable.
+  const lock = ids;
+  seedSet.forEach(id=> seedRuns.add(id));
+  lockRunIds(lock);
+  // Each Play gets its own controller. Sharing one across in-flight groups made Stop-on-B
+  // abort C, and a new Play during drain used to adopt an already-aborted controller.
+  const ctl = new AbortController();
+  liveAborts.add(ctl);
+  runAbort = ctl;
+  seedSet.forEach(id=> seedCtl.set(id, ctl));
   updateRunButtons();
   try{
     const { order, cyclic } = topoOrder(ids);
     cyclic.forEach(id=> setStatus(byId(id), "error", "cycle detected"));
     ids.forEach(id=>{
+      // Another in-flight Play already holds this node (shared ancestor) — don't idle its spinner.
+      if(typeof runLockCount!=="undefined" && (runLockCount.get(id)||0) > 1) return;
+      if(typeof nodeWork!=="undefined" && nodeWork.has(id)) return;
       const n = byId(id);
       if(order.includes(id) && n?.el){ n.el.dataset.status="idle"; delete n._runT0; delete n._runMsg; delete n._pollMeta; }
     });
@@ -9323,6 +9391,15 @@ async function runGroup(seedIds, ctx){
         // still re-roll (excluded here); poison-propagation already ran above, so a failed upstream
         // never reaches this path; a demo run is excluded (it never mints n._sig, so this can't fire).
         if(!ctx.demo && !seedSet.has(id) && n._sig===sig && n.out && Object.keys(n.out).length){ showResult(n); setStatus(n, "done"); return; }
+        // In-flight share: another Play already started this node (usually shared upstream A).
+        // Await that promise — never a second paid run. Registered synchronously below so two
+        // Plays that reach A in the same turn can't both slip through.
+        if(typeof nodeWork!=="undefined" && nodeWork.has(id)){
+          try{ await nodeWork.get(id); }catch(_){}
+          if(ctl.signal.aborted){ setStopped(n); return; }
+          if(n.out && Object.keys(n.out).length){ showResult(n); setStatus(n, "done"); return; }
+          if(!seedSet.has(id)){ failed.add(id); setSkipped(n); return; }
+        }
         setStatus(n, "run");
         // Announce a fit only for a request we're actually about to send (the skips above return
         // before this): a trimmed prompt is a real change to what the user paid for, so it gets a
@@ -9332,30 +9409,40 @@ async function runGroup(seedIds, ctx){
         // Flag-gated nanoodle-js delegation (see the block above runGroup). Only for the real CTX:
         // demo runs and injected test contexts must keep the built-in runners they were handed.
         // typeof guard: check harnesses extract runGroup alone, without the delegation shim.
-        const njsR = (ctx===CTX && typeof njsRunFor==="function") ? njsRunFor(n.type, rn, inp, n) : null;
-        try{ n.out = await (njsR ? njsR() : t.run(rn, inp, ctx)) || {};
-          // a demo run must never mint a real signature — the first REAL run after sign-in has to
-          // regenerate everything, not "skip" onto a canned sample via the seeded-result cache
-          if(ctx.demo) delete n._sig; else n._sig = sig;
-          showResult(n); setStatus(n, "done");
-          if(ctx.demo) markDemoResult(n);
-          // a downstream Inpaint node brushing a WIRED source can now load its canvas from this output
-          for(const l of graph.links){
-            const dn = l.from.node===n.id ? byId(l.to.node) : null;
-            if(dn?.type==="inpaint" && dn.el && !dn.fields.image && !runningNodes.has(dn.id)) rerenderNode(dn);
+        n._runCtl = ctl;   // this Play's abort — njsCtx + Stop-on-this-seed read it
+        let settleWork, work;
+        if(typeof nodeWork!=="undefined"){ work = new Promise(r=>{ settleWork = r; }); nodeWork.set(id, work); }
+        try{
+          const njsR = (ctx===CTX && typeof njsRunFor==="function") ? njsRunFor(n.type, rn, inp, n) : null;
+          try{ n.out = await (njsR ? njsR() : t.run(rn, inp, ctx)) || {};
+            if(ctl.signal.aborted){ setStopped(n); return; }   // Stop landed during the call — don't stamp done
+            // a demo run must never mint a real signature — the first REAL run after sign-in has to
+            // regenerate everything, not "skip" onto a canned sample via the seeded-result cache
+            if(ctx.demo) delete n._sig; else n._sig = sig;
+            showResult(n); setStatus(n, "done");
+            if(ctx.demo) markDemoResult(n);
+            // a downstream Inpaint node brushing a WIRED source can now load its canvas from this output
+            for(const l of graph.links){
+              const dn = l.from.node===n.id ? byId(l.to.node) : null;
+              if(dn?.type==="inpaint" && dn.el && !dn.fields.image && !runningNodes.has(dn.id)) rerenderNode(dn);
+            }
           }
-        }
-        catch(err){
-          if(ctl.signal.aborted || err?.name==="AbortError") setStopped(n);   // user hit Stop — not a failure
-          else {
-            // An Inpaint node that just failed "no mask" is the FIRST run of the wire-then-brush flow:
-            // its upstream produced the source within this same group, but the loop above skips nodes
-            // still in runningNodes — which this one always is on its own branch run. Hydrate the brush
-            // canvas here (rebuild → mount reads the upstream output), THEN set the error on the fresh
-            // el so "brush the area" shows next to a canvas that can finally be brushed.
-            if(n.type==="inpaint" && !n.fields.image && !n.el?.querySelector("[data-maskwrap] img") && inpaintWiredSource(n)) rerenderNode(n);
-            setStatus(n, "error", friendlyRunError(err, n)); failed.add(id);   // real failure → poison dependents (no stale-input charge)
+          catch(err){
+            if(ctl.signal.aborted || err?.name==="AbortError") setStopped(n);   // user hit Stop — not a failure
+            else {
+              // An Inpaint node that just failed "no mask" is the FIRST run of the wire-then-brush flow:
+              // its upstream produced the source within this same group, but the loop above skips nodes
+              // still in runningNodes — which this one always is on its own branch run. Hydrate the brush
+              // canvas here (rebuild → mount reads the upstream output), THEN set the error on the fresh
+              // el so "brush the area" shows next to a canvas that can finally be brushed.
+              if(n.type==="inpaint" && !n.fields.image && !n.el?.querySelector("[data-maskwrap] img") && inpaintWiredSource(n)) rerenderNode(n);
+              setStatus(n, "error", friendlyRunError(err, n)); failed.add(id);   // real failure → poison dependents (no stale-input charge)
+            }
           }
+        } finally {
+          if(settleWork) settleWork();
+          if(typeof nodeWork!=="undefined" && work && nodeWork.get(id)===work) nodeWork.delete(id);
+          delete n._runCtl;
         }
       })();
     }
@@ -9365,8 +9452,10 @@ async function runGroup(seedIds, ctx){
     // next step there is signing in (the demo popover already owns that CTA).
     if(!ctx.demo && !failed.size && !ctl.signal.aborted && order.some(id=>{ const n = byId(id); return n?.out && Object.keys(n.out).length; })) maybeAppNudge();
   } finally {
-    lock.forEach(id=>runningNodes.delete(id));
-    if(!runningNodes.size && runAbort===ctl) runAbort = null;   // last group out clears the shared controller
+    seedSet.forEach(id=>{ seedRuns.delete(id); if(seedCtl.get(id)===ctl) seedCtl.delete(id); });
+    unlockRunIds(lock);
+    liveAborts.delete(ctl);
+    if(runAbort===ctl) runAbort = liveAborts.size ? liveAborts.values().next().value : null;
     updateRunButtons();
   }
 }
@@ -11248,8 +11337,8 @@ $("addbtn").onclick = (e)=>{
 document.addEventListener("click", e=>{ if(!$("addmenu").contains(e.target)) $("addpop").classList.remove("open"); });
 $("run").onclick = ()=>{
   dismissHint();
-  if(runningNodes.size && runAbort && !runAbort.signal.aborted){ runAbort.abort(); flash("stopping…"); updateRunButtons(); }  // ■ Stop
-  else runAll();                                                                                                              // ▶ Run
+  if(abortAllRuns()) return;   // ■ Stop — abort every in-flight Play (each sibling has its own controller)
+  else runAll();               // ▶ Run
 };
 $("runest").onclick = ()=> $("run").click();   // the cost pill advertises ▶ Run, so clicking it runs (or stops)
 

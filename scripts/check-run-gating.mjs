@@ -427,5 +427,27 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.log("  ✗ " + msg); 
     "standalone setKey(null): signing out must restore the needs-a-key line");
 }
 
+// ---- 6. INPUT KINDS HAVE NO PLAY — source nodes are not generate nodes ----------
+{
+  function extractInputKinds(src) {
+    const m = src.match(/const\s+INPUT_KINDS\s*=\s*\{[^}]*\}/);
+    if (!m) throw new Error("could not find const INPUT_KINDS in play.html");
+    return m[0] + ";";
+  }
+  const ik = extractInputKinds(html);
+  const ikFn = extractFn(html, "isInputKind");
+  const ikCtx = { NODE_TYPES: { text: {}, upload: {}, comment: { note: true }, image: {}, llm: {}, join: {} } };
+  ikCtx.globalThis = ikCtx;
+  vm.createContext(ikCtx);
+  new vm.Script(ik + "\n" + ikFn + "\nglobalThis.isInputKind = isInputKind; globalThis.INPUT_KINDS = INPUT_KINDS;",
+    { filename: "play.html#isInputKind" }).runInContext(ikCtx);
+  ok(ikCtx.isInputKind("text") && ikCtx.isInputKind("upload") && ikCtx.isInputKind("aupload")
+    && ikCtx.isInputKind("vupload") && ikCtx.isInputKind("choice") && ikCtx.isInputKind("comment"),
+    "isInputKind: text/upload/aupload/vupload/choice/comment are source kinds (no Play)");
+  ok(!ikCtx.isInputKind("image") && !ikCtx.isInputKind("llm"),
+    "isInputKind: image and llm stay generate kinds even with empty inputs");
+  ok(!ikCtx.isInputKind("join"), "isInputKind: join is a processor, not a source");
+}
+
 if (failed) { console.error(`\n✗ check-run-gating: ${failed} assertion(s) failed`); process.exit(1); }
-console.log("✓ keyless/signed-out spend gating holds (keyless forces 1×/KEEP-off + hides multipliers; chip = usd×RUNS_N, never $0; signed-out Run = zero fetch → preflight; typed inputs stashed for OAuth resume; auth arrival refreshes the pre-run placeholder).");
+console.log("✓ keyless/signed-out spend gating holds (keyless forces 1×/KEEP-off + hides multipliers; chip = usd×RUNS_N, never $0; signed-out Run = zero fetch → preflight; typed inputs stashed for OAuth resume; auth arrival refreshes the pre-run placeholder; input kinds have no Play).");
