@@ -38,6 +38,11 @@ const runGroupSrc = extractAsyncFn(SRC, "runGroup");
 const isPaidNanoTypeSrc = extractFn(SRC, "isPaidNanoType");
 const ancestorsSrc = extractFn(SRC, "ancestors");
 const topoOrderSrc = extractFn(SRC, "topoOrder");
+const groupBusySrc = extractFn(SRC, "groupBusy");
+const playBusySrc = extractFn(SRC, "playBusy");
+const updateRunButtonsSrc = extractFn(SRC, "updateRunButtons");
+const dropWorkHolderSrc = extractFn(SRC, "dropWorkHolder");
+const stopSeedRunSrc = extractFn(SRC, "stopSeedRun");
 const isInputKindSrc = extractFn(SRC, "isInputKind");
 const INPUT_KINDSSrc = (() => {
   const m = SRC.match(/const\s+INPUT_KINDS\s*=\s*\{[^}]*\}/);
@@ -45,7 +50,17 @@ const INPUT_KINDSSrc = (() => {
   return m[0] + ";";
 })();
 
-const elStub = () => ({ dataset: {}, querySelector: () => ({ classList: { add() {} }, set innerHTML(_v) {} }) });
+const elStub = () => {
+  const run = { disabled: false, textContent: "▶", title: "" };
+  return {
+    dataset: {},
+    querySelector: (sel) => {
+      if (typeof sel === "string" && sel.includes("data-act=run")) return run;
+      return { classList: { add() {} }, set innerHTML(_v) {} };
+    },
+    _run: run,
+  };
+};
 
 // Build a linear chain of `len` nodes (n0 -> n1 -> ... wired image->image). n0's run is a spy that
 // optionally throws; every node records run-count + would-be paid call. order/ancestors cover all.
@@ -105,7 +120,6 @@ function bindWorld(world, opts = {}) {
       }
       return seen;
     },
-    groupBusy: (ids) => { for (const id of ids) if (runningNodes.has(id)) return true; return false; },
     runningNodes, seedRuns, seedCtl, nodeWork, runLockCount, liveAborts,
     lockRunIds: (ids) => { for (const id of ids) { runningNodes.add(id); runLockCount.set(id, (runLockCount.get(id) || 0) + 1); } },
     unlockRunIds: (ids) => {
@@ -116,7 +130,20 @@ function bindWorld(world, opts = {}) {
       }
     },
     runAbort: null, AbortController,
-    updateRunButtons: () => { world.playDisabled = [...runningNodes]; world.seedLive = [...seedRuns]; },
+    t: (s) => s,
+    $: (id) => {
+      world.dom = world.dom || {};
+      if (!world.dom[id]) {
+        world.dom[id] = {
+          hidden: false, textContent: "", title: "", disabled: false,
+          classList: { toggle() {}, add() {}, remove() {} },
+        };
+      }
+      return world.dom[id];
+    },
+    paintRunLive: () => {},
+    refreshRunEstimate: () => {},
+    flash: () => {},
     setStatus: (n, s) => { n.el.dataset.status = s; n._st = s; },
     setStopped: (n) => { n.el.dataset.status = "idle"; n._st = "stopped"; },
     setSkipped: (n) => { n.el.dataset.status = "skip"; n._st = "skip"; },
@@ -130,14 +157,19 @@ function bindWorld(world, opts = {}) {
     withPromptBudget: (rn) => rn, withFittedPrompt: (rn) => ({ rn, trimmed: null }), announcePromptFit: () => {},
     friendlyRunError: (e) => e?.message || String(e),   // identity here — the real mapper is UX-only
     maybeAppNudge: () => {},   // post-first-wow "Create app" nudge — UI-only, inert here
-    flash: () => {},
     console,
   };
   ctx.globalThis = ctx;
   vm.createContext(ctx);
   new vm.Script(
-    isPaidNanoTypeSrc + "\n" + ancestorsSrc + "\n" + topoOrderSrc + "\n" + runGroupSrc +
-    "\nglobalThis.runGroup = runGroup;",
+    isPaidNanoTypeSrc + "\n" + ancestorsSrc + "\n" + topoOrderSrc + "\n" +
+    groupBusySrc + "\n" + playBusySrc + "\n" + updateRunButtonsSrc + "\n" +
+    dropWorkHolderSrc + "\n" + stopSeedRunSrc + "\n" + runGroupSrc +
+    "\nglobalThis.runGroup = runGroup;" +
+    "\nglobalThis.groupBusy = groupBusy;" +
+    "\nglobalThis.playBusy = playBusy;" +
+    "\nglobalThis.updateRunButtons = updateRunButtons;" +
+    "\nglobalThis.stopSeedRun = stopSeedRun;",
   ).runInContext(ctx);
   return ctx;
 }
@@ -287,9 +319,17 @@ const ok = (c, m) => { if (!c) { fail++; console.log("  ✗ " + m); } else conso
     `Play on B must mark only B as a live seed, not sibling C (seeds=${[...w.seedRuns]})`);
   ok(!w.runningNodes.has("nC"),
     `Play on B must NOT lock sibling C (running=${[...w.runningNodes]})`);
+  ok(w.runningNodes.has("nA"), "shared ancestor A is in runningNodes while B waits");
+  ok(!ctx.playBusy("nC"), "C's Play is not playBusy — a joinable ancestor must not block it");
+  ok(!ctx.groupBusy(ctx.ancestors(["nC"])),
+    "groupBusy(ancestors(C)) must be false while A runs for B (joinable ancestor ≠ dead Play)");
+  ok(!w.nodes.nC.el._run.disabled, "C's Play button stays enabled while A is in flight for B");
+  ok(w.nodes.nC.el._run.textContent === "▶", `C's Play stays ▶, not Stop (got ${w.nodes.nC.el._run.textContent})`);
   const pC = ctx.runGroup(["nC"]);                  // start C while A (and B's wait) are live
   ok(w.seedRuns.has("nB") && w.seedRuns.has("nC"),
     `B and C can be in flight at once (seeds=${[...w.seedRuns]})`);
+  ok(!w.nodes.nC.el._run.disabled && w.nodes.nC.el._run.textContent === "■",
+    "pressing C joins A: C's button becomes ■ Stop, still enabled");
   aGo();
   await Promise.all([pB, pC]);
   ok(w.runs.nA === 1, `shared upstream A must run once, not twice (nA=${w.runs.nA || 0})`);
@@ -340,7 +380,97 @@ const ok = (c, m) => { if (!c) { fail++; console.log("  ✗ " + m); } else conso
   ok(!w.runs.nA, `succeeded A still reused, not re-charged (nA=${w.runs.nA || 0})`);
 }
 
-// 10) Input / source kinds have no Play control — generate nodes with empty inputs still do.
+// 10) Stop on B after C has joined: A keeps going (not a second charge), then C runs.
+{
+  let aGo;
+  const aHold = new Promise((r) => { aGo = r; });
+  let aBegan;
+  const aBeganP = new Promise((r) => { aBegan = r; });
+  const nodes = {
+    nA: { id: "nA", type: "img", fields: {}, out: {}, el: elStub() },
+    nB: { id: "nB", type: "edit", fields: {}, out: {}, el: elStub() },
+    nC: { id: "nC", type: "edit", fields: {}, out: {}, el: elStub() },
+  };
+  const runs = {}, paid = [];
+  const NODE_TYPES = {
+    img: { inputs: [], async run(n) {
+      runs[n.id] = (runs[n.id] || 0) + 1;
+      paid.push(n.id);
+      aBegan();
+      const sig = n._runCtl && n._runCtl.signal;
+      await new Promise((res, rej) => {
+        if (sig && sig.aborted) return rej(Object.assign(new Error("aborted"), { name: "AbortError" }));
+        const onAbort = () => rej(Object.assign(new Error("aborted"), { name: "AbortError" }));
+        if (sig) sig.addEventListener("abort", onAbort);
+        aHold.then(() => { if (sig) sig.removeEventListener("abort", onAbort); res(); }, rej);
+      });
+      return { image: "FRESH_A" };
+    } },
+    edit: { inputs: [{ name: "image", type: "image" }], async run(n, inp) {
+      runs[n.id] = (runs[n.id] || 0) + 1;
+      paid.push(n.id + "<=" + inp.image);
+      return { image: "EDITED_" + n.id };
+    } },
+  };
+  const links = [
+    { id: "l1", from: { node: "nA", port: "image" }, to: { node: "nB", port: "image" } },
+    { id: "l2", from: { node: "nA", port: "image" }, to: { node: "nC", port: "image" } },
+  ];
+  const w = { nodes, ids: ["nA", "nB", "nC"], runs, paid, NODE_TYPES, links };
+  const ctx = bindWorld(w);
+  const pB = ctx.runGroup(["nB"]);
+  await aBeganP;
+  const pC = ctx.runGroup(["nC"]);                  // C joins in-flight A
+  await Promise.resolve();
+  ctx.stopSeedRun("nB");                            // Stop B; C already holds A
+  aGo();
+  await Promise.all([pB, pC]);
+  ok(w.runs.nA === 1, `Stop B after C joined must not cancel/re-run A (nA=${w.runs.nA || 0})`);
+  ok(!w.runs.nB, `stopped seed B must not run after C joined (nB=${w.runs.nB || 0})`);
+  ok(w.runs.nC === 1, `C still runs after Stop on B (nC=${w.runs.nC || 0})`);
+  ok(w.nodes.nA._st === "done", `A must finish done, not stopped, when C still holds it (st=${w.nodes.nA._st})`);
+  ok(w.nodes.nC.out.image === "EDITED_nC", "C produced output from the shared A result after Stop on B");
+  ok(w.paid.filter((x) => x === "nA").length === 1, `A still charged once (paid=${JSON.stringify(w.paid)})`);
+}
+
+// 11) Stop on B with no joiner may cancel in-flight A.
+{
+  let aBegan;
+  const aBeganP = new Promise((r) => { aBegan = r; });
+  const nodes = {
+    nA: { id: "nA", type: "img", fields: {}, out: {}, el: elStub() },
+    nB: { id: "nB", type: "edit", fields: {}, out: {}, el: elStub() },
+  };
+  const runs = {};
+  const NODE_TYPES = {
+    img: { inputs: [], async run(n) {
+      runs[n.id] = (runs[n.id] || 0) + 1;
+      aBegan();
+      const sig = n._runCtl && n._runCtl.signal;
+      await new Promise((res, rej) => {
+        if (sig && sig.aborted) return rej(Object.assign(new Error("aborted"), { name: "AbortError" }));
+        const onAbort = () => rej(Object.assign(new Error("aborted"), { name: "AbortError" }));
+        if (sig) sig.addEventListener("abort", onAbort);
+      });
+      return { image: "FRESH_A" };
+    } },
+    edit: { inputs: [{ name: "image", type: "image" }], async run(n, inp) {
+      runs[n.id] = (runs[n.id] || 0) + 1;
+      return { image: "EDITED_" + n.id };
+    } },
+  };
+  const links = [{ id: "l1", from: { node: "nA", port: "image" }, to: { node: "nB", port: "image" } }];
+  const w = { nodes, ids: ["nA", "nB"], runs, paid: [], NODE_TYPES, links };
+  const ctx = bindWorld(w);
+  const pB = ctx.runGroup(["nB"]);
+  await aBeganP;
+  ctx.stopSeedRun("nB");
+  await pB;
+  ok(w.nodes.nA._st === "stopped", `Stop B with no joiner may cancel A (st=${w.nodes.nA._st})`);
+  ok(!w.runs.nB, `B must not run after Stop cancelled A (nB=${w.runs.nB || 0})`);
+}
+
+// 12) Input / source kinds have no Play control — generate nodes with empty inputs still do.
 {
   const ikCtx = { NODE_TYPES: { text: { group: "Inputs" }, upload: { group: "Inputs" }, aupload: { group: "Inputs" },
     vupload: { group: "Inputs" }, choice: { group: "Inputs" }, comment: { note: true },
@@ -359,4 +489,4 @@ const ok = (c, m) => { if (!c) { fail++; console.log("  ✗ " + m); } else conso
 }
 
 if (fail) { console.error(`\n✗ stale-input-charge: ${fail} assertion(s) failed.`); process.exit(1); }
-console.log("\n✓ stale-input-charge: failed/cyclic upstream poisons dependents — no stale-input charge; succeeded upstream is reused (not re-charged) on retry while the explicit target re-rolls; sibling Plays run concurrently without double-charging A; input kinds have no Play; healthy graphs unaffected.");
+console.log("\n✓ stale-input-charge: failed/cyclic upstream poisons dependents — no stale-input charge; succeeded upstream is reused (not re-charged) on retry while the explicit target re-rolls; sibling Plays stay enabled while a shared ancestor is in flight and join it without double-charging A; Stop on B after C joined keeps A alive; input kinds have no Play; healthy graphs unaffected.");
