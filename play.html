@@ -7311,6 +7311,11 @@ function mp4ParamsMatch(bufs){
     ],
     tts: [
       { id:"voice",           type:"select",   applies:"cat:voices" },
+      // every model advertising supported_parameters.language currently defaults it to "Auto" (Qwen
+      // Audio 3.0 TTS Flash, Qwen-3-TTS-1.7B, bytedance/seed-speech-tts-2.0) — a static default here
+      // (like response_format:"mp3" below) omits the no-op value without needing a per-call catalog
+      // read; mirrors the editor's audioFields(), which resolves it from supported_parameters.language.default.
+      { id:"language",        type:"select",   default:"Auto", applies:"cat:language" },
       { id:"speed",           type:"number", default:1 },
       { id:"instructions",    type:"textarea" },
       { id:"response_format", type:"select", default:"mp3" },
@@ -7339,6 +7344,7 @@ function mp4ParamsMatch(bufs){
       if(f.applies==="cat:secduration") return sp.min_duration!=null && sp.max_duration!=null && +(((m||{}).pricing||{}).per_second)>0;   // duration is a real output knob only when it's what's billed
       if(f.applies==="cat:gencount") return !!sp.generation_count_parameter;
       if(f.applies==="cat:voices")   return Array.isArray(sp.voices) && sp.voices.length>0;
+      if(f.applies==="cat:language") return !!(sp.language && typeof sp.language==="object" && Array.isArray(sp.language.values) && sp.language.values.length>0);
       return true;
     };
     // number_of_songs rides under the model's own wire name (generation_count_parameter), matching the editor
@@ -8530,6 +8536,11 @@ const PROMPT_CAPS = {
               { f:"duration", label:"Duration (s)", kind:"number", min:1 }],
     tts:     [{ f:"model", label:"Model", kind:"model" },
               { f:"voice", label:"Voice", kind:"text" },
+              // free text like Voice above — only a handful of TTS models (Qwen Audio 3.0 TTS Flash and
+              // siblings) advertise explicit language control, and naming it beats their own Auto-detect
+              // default for single-language text; collectAudioParams sends it only when the picked model
+              // actually supports it (cat:language), so it's a harmless no-op field on every other model.
+              { f:"language", label:"Language", kind:"text" },
               { f:"speed", label:"Speed", kind:"number", min:0, step:"0.1", def:"1" },
               { f:"instructions", label:"Voice instructions", kind:"textarea" }],
     transcribe:[{ f:"model", label:"Model", kind:"model" },
