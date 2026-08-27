@@ -1,9 +1,9 @@
 {
   "_comment": "Baseline for scripts/check-twin-drift.mjs — the hand-maintained duplication between index.html and play.html. `count` is a RATCHET: extraction may lower it freely, new duplication may not raise it silently. Each `lines` entry is `<hash> <n in index.html> <n in play.html> <look-alikes in index.html> <look-alikes in play.html> <the line>`, where the hash is a 16-hex sha256 of the stripped line and the guard re-hashes the text to prove the two agree. The per-surface counts matter: a line that appears twice in one file can be edited in one place and still be present. The text matters: without it the guard cannot tell a real extraction from a line that both surfaces replaced with DIFFERENT text. The look-alike sets matter: they are the hashes of the lines that ALREADY resembled this one when the baseline was written, and without them the guard reads one of those as a `replacement` and fails a plain mirrored deletion. `-` means none. Do not hand edit this file. Refresh deliberately with: TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs Ranked extraction plan: docs/twin-drift.md",
-  "count": 997,
-  "occurrencesIndexHtml": 1068,
-  "occurrencesPlayHtml": 1121,
-  "digest": "afd41f3def69cde6c848f97d3659f86f",
+  "count": 998,
+  "occurrencesIndexHtml": 1069,
+  "occurrencesPlayHtml": 1122,
+  "digest": "a0819d72f19c6593f367f2455e5ee04e",
   "lines": [
     "002720750bb5da1d 1 1 - - Emphasized (bright accent ring + ✓) but still clearly a button in the row, not a filled tag. */",
     "0032d4132e67eee1 1 1 - - if(mode===\"image\") return { data:[{ b64_json:\"<png-or-jpeg-base64>\" }] };",
@@ -96,6 +96,7 @@
     "15bb5fccbefbf5e5 1 2 - - history.replaceState({},\"\",REDIRECT_URI);",
     "15cdd27fae0c4bdb 1 1 - - const tempLocked = id => TEMP_LOCKED.test(String(id||\"\"));",
     "16023637b0fa827f 1 1 521b78dfa387925c 521b78dfa387925c if(mode===\"exact\") return { cw:bw, ch:bh, dx:0, dy:0, dw:bw, dh:bh };",
+    "163a2a9386c6582a 1 1 - - const INPUT_KINDS = { text:1, upload:1, aupload:1, vupload:1, choice:1, comment:1 };",
     "1692c942a432583e 1 1 9f39bfc54b20dfce,af882b199644f235 9f39bfc54b20dfce,af882b199644f235 if(t.refInputs && REF_PORT_RE.test(l.to.port)) continue;     // ref-image ports aren't text-field overrides",
     "169b28c2b3e60bff 1 1 - - if(p.base_price_per_second!=null){ const m = p.resolution_multipliers ? (rp(p.resolution_multipliers) ?? 1) : 1; v=_num(p.base_price_per_second); if(v!=null) return v*dur*m; }",
     "17243f7dce68b215 1 1 - - // unfurls as a picture of itself instead of the generic ramen card. Best-effort everywhere:",

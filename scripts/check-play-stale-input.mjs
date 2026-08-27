@@ -123,8 +123,79 @@ const ok = (c, m) => {
   );
 }
 
+// 5) Targeted sibling Plays: A(llm)→B(image), A→C(image). Play B then Play C
+//    concurrently; shared A is charged once. Input kinds have no play control.
+{
+  ok(typeof app.isInputKind === "function", "play engine exports isInputKind");
+  ok(app.isInputKind("text") && app.isInputKind("upload") && app.isInputKind("aupload")
+    && app.isInputKind("vupload") && app.isInputKind("choice") && app.isInputKind("comment"),
+    "input/source kinds are isInputKind (no Play)");
+  ok(!app.isInputKind("image") && !app.isInputKind("llm") && !app.isInputKind("join"),
+    "generate/processor kinds keep Play (empty inputs on image/llm do not hide it)");
+
+  calls.length = 0;
+  const g = app.materialize(
+    graph(
+      [
+        node("a", "llm", { model: "ok-llm", prompt: "shared" }),
+        node("b", "image", { model: "ok-img", prompt: "B" }),
+        node("c", "image", { model: "ok-img", prompt: "C" }),
+      ],
+      [link("a", "text", "b", "prompt"), link("a", "text", "c", "prompt")],
+    ),
+  );
+  await Promise.all([
+    app.runGraph(g, { seeds: ["b"] }),
+    app.runGraph(g, { seeds: ["c"] }),
+  ]);
+  ok(chatCalls().length === 1, `shared upstream LLM charged once across sibling Plays (chats=${chatCalls().length})`);
+  ok(imgCalls().length === 2, `both sibling images ran (POSTs=${imgCalls().length}, want 2)`);
+}
+
+// 6) Sequential sibling Play: after B finished, Play C reuses A (no second chat).
+{
+  calls.length = 0;
+  const g = app.materialize(
+    graph(
+      [
+        node("a", "llm", { model: "ok-llm", prompt: "shared" }),
+        node("b", "image", { model: "ok-img", prompt: "B" }),
+        node("c", "image", { model: "ok-img", prompt: "C" }),
+      ],
+      [link("a", "text", "b", "prompt"), link("a", "text", "c", "prompt")],
+    ),
+  );
+  await app.runGraph(g, { seeds: ["b"] });
+  const chatsAfterB = chatCalls().length;
+  await app.runGraph(g, { seeds: ["c"] });
+  ok(chatCalls().length === chatsAfterB, `Play C after B must not re-chat A (chats ${chatsAfterB} → ${chatCalls().length})`);
+  ok(imgCalls().length === 2, `B then C each billed an image (POSTs=${imgCalls().length})`);
+}
+
+// 7) Stale-input (PR #391): editing shared A after Play B means Play C must re-run A,
+//    not reuse the old chat. Empty-input generate nodes are still generate nodes.
+{
+  calls.length = 0;
+  const g = app.materialize(
+    graph(
+      [
+        node("a", "llm", { model: "ok-llm", prompt: "shared" }),
+        node("b", "image", { model: "ok-img", prompt: "B" }),
+        node("c", "image", { model: "ok-img", prompt: "C" }),
+      ],
+      [link("a", "text", "b", "prompt"), link("a", "text", "c", "prompt")],
+    ),
+  );
+  await app.runGraph(g, { seeds: ["b"] });
+  const chatsAfterB = chatCalls().length;
+  g.byId("a").fields.prompt = "edited";
+  await app.runGraph(g, { seeds: ["c"] });
+  ok(chatCalls().length === chatsAfterB + 1, `edited A must re-chat on Play C (chats ${chatsAfterB} → ${chatCalls().length})`);
+  ok(imgCalls().length === 2, `B then C each billed an image after A changed (POSTs=${imgCalls().length})`);
+}
+
 if (fail) {
   console.error(`\n✗ play-stale-input: ${fail} assertion(s) failed.`);
   process.exit(1);
 }
-console.log("\n✓ play-stale-input: failed upstream poisons dependents — no leftover-field charge; siblings and healthy graphs unaffected.");
+console.log("\n✓ play-stale-input: failed upstream poisons dependents — no leftover-field charge; sibling Plays run independently without double-charging shared upstream; input kinds have no Play; healthy graphs unaffected.");

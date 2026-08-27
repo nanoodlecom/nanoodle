@@ -8112,6 +8112,16 @@ function mp4ParamsMatch(bufs){
     // and skipped by runGraph (if(t.note) return).
     comment: { em:"💬", title:"Comment", note:true, inputs:[], outputs:[] },
   };
+  // Source / input kinds: the user types or drops into these. Playing them is
+  // meaningless (no model call). Twin of index.html's isInputKind — explicit set
+  // because this runtime NODE_TYPES has no group:"Inputs" field. Do NOT use
+  // "empty inputs": Image / LLM / Music also have inputs:[] but they generate.
+  const INPUT_KINDS = { text:1, upload:1, aupload:1, vupload:1, choice:1, comment:1 };
+  function isInputKind(type){
+    if(INPUT_KINDS[type]) return true;
+    const t = NODE_TYPES[type];
+    return !!(t && t.note);
+  }
   // sticky-note colour palette (mirror of index.html's COMMENT_COLORS); key is what's stored
   var COMMENT_COLORS = { yellow:"#f5d76e", pink:"#ff8fce", green:"#63d29a", blue:"#6ea8ff", purple:"#b28bff", gray:"#aab3c2" };
   function commentHex(c){ return COMMENT_COLORS[c] || COMMENT_COLORS.yellow; }
@@ -8293,8 +8303,10 @@ const PROMPT_CAPS = {
   }
 
   /* =====================================================================
-     RUN LOOP — ported from runGroup(), minus the editor's DOM, locking,
-     and group-concurrency. Port wiring + fieldOverrides preserved.
+     RUN LOOP — ported from runGroup(), minus the editor's DOM. opts.seeds
+     runs a subgraph (Play on B = B + ancestors) so sibling Plays (A→B, A→C)
+     stay independent; shared upstream is reused / awaited, never double-charged.
+     Port wiring + fieldOverrides preserved.
      ===================================================================== */
   // Deterministic-skip cache (mirrors the editor's runGroup n._sig skip): a node with a FIXED
   // seed reproduces the same output for the same inputs, so re-running it is pure waste — reuse
@@ -8319,6 +8331,7 @@ const PROMPT_CAPS = {
   function sigHash(s){ var h=5381; for(var i=0;i<s.length;i++) h=((h*33) ^ s.charCodeAt(i))>>>0; return h; }
   function nodeSig(n, inp){ var f = Object.assign({}, n.fields); delete f.sel; delete f.brush; return sigHash(JSON.stringify({ t:n.type, f:f, inp:inp })); }
   var RUN_CACHE = new Map();   // id -> {sig, out} (resolved) | {sig, pending} (in-flight, shared across concurrent lanes)
+  var NODE_WORK = new Map();   // id -> Promise<out> — sibling targeted runs await a shared ancestor instead of re-charging
   /* =====================================================================
      nanoodle-js DELEGATION (default ON) — replace-prep Phase E.
      window.NanoodleEngine is the embedded nanoodle-js bundle (the njs-engine
@@ -8470,12 +8483,16 @@ const PROMPT_CAPS = {
     const onStatus = opts.onStatus, onResult = opts.onResult;
     if(!hasAuth() && graphNeedsNanoKey(graph)) throw new Error("sign in or paste an API key first");
     const byId = graph.byId;
-    const all = new Set(graph.nodes.map(n=>n.id));
-    const ids = ancestors(graph, all);                 // everything (no seed subset → run whole graph)
+    const seedList = (opts.seeds && opts.seeds.length) ? opts.seeds : graph.nodes.map(n=>n.id);
+    const seedSet = new Set(seedList);
+    const ids = ancestors(graph, seedSet);             // Play on B → B + upstream; no seeds → whole graph
     const r = topoOrder(graph, ids);
     if(opts.onStart) opts.onStart(r.order.slice());
     r.cyclic.forEach(id=> onStatus && onStatus(id, "error", "cycle detected"));
-    graph.nodes.forEach(n=>{ n.out = {}; });           // fresh run
+    // A targeted Play re-rolls only its seed(s); succeeded ancestors keep .out so the
+    // skip-paid-dependents rule can reuse them. A full Run still wipes everything.
+    if(opts.seeds && opts.seeds.length) graph.nodes.forEach(n=>{ if(seedSet.has(n.id)) n.out = {}; });
+    else graph.nodes.forEach(n=>{ n.out = {}; });           // fresh run
     // Each node runs as soon as its OWN inputs are ready — siblings that share a
     // parent (a→b, a→c) run concurrently instead of serializing down topo order.
     const done = {};                                   // id → promise, keyed so dependents can await their inputs
@@ -8547,6 +8564,20 @@ const PROMPT_CAPS = {
           const floor = wiredFramesFloor(graph, id);
           if(floor > (parseInt(rn.fields.frames,10)||1)) rn = { ...rn, fields:{ ...rn.fields, frames:floor } };
         }
+        // In-flight share: another targeted Play already started this node. Await it
+        // BEFORE any paid work so two Plays can't both miss and double-charge A.
+        if(NODE_WORK.has(id)){
+          try{
+            const out = await NODE_WORK.get(id) || {};
+            n.out = out; n.costUsd = 0; n.cached = true;
+            onStatus && onStatus(id, "done", "done");
+            onResult && onResult(n);
+          }catch(err){ if(isAbort(err)) throw err; failed.add(id); nodeErrors++; onStatus && onStatus(id, "error", friendlyRunError(err, n)); }
+          return;
+        }
+        let settleWork, work;
+        work = new Promise(function(res, rej){ settleWork = { res:res, rej:rej }; });
+        NODE_WORK.set(id, work);   // sync — before withFittedPrompt's await — so a sibling Play waits
         // Prompt-length caps (see the PROMPT LENGTH CAPS block): a prompt over this model's cap is
         // trimmed to fit rather than sent to a certain 400 the app's user can neither see nor edit.
         // Lands before nodeSig so the signature describes what actually goes out.
@@ -8555,6 +8586,17 @@ const PROMPT_CAPS = {
         // second charge, no "running…" flash. Blank seed = random, so it always regenerates.
         const seeded = isSeeded(rn);
         const sig = nodeSig(rn, inp), cached = RUN_CACHE.get(id);
+        // Retry reuse (editor runGroup / PR #391 twin): a non-seed ancestor that already
+        // SUCCEEDED with an unchanged signature is surfaced as-is — Play on C after Play
+        // on B must not re-charge shared upstream A. Signature (not mere .out) is the
+        // stale-input test: a changed prompt on A still re-runs A.
+        if(!seedSet.has(id) && n._sig===sig && n.out && Object.keys(n.out).length){
+          onStatus && onStatus(id, "done", "done");
+          onResult && onResult(n);
+          if(settleWork) settleWork.res(n.out);
+          if(NODE_WORK.get(id)===work) NODE_WORK.delete(id);
+          return;
+        }
         if(seeded && cached && cached.sig===sig){
           // Reuse a fixed-seed result: either already RESOLVED (cached.out) or an IN-FLIGHT sibling
           // lane's generation we await instead of paying for an identical second call. Marked
@@ -8564,9 +8606,14 @@ const PROMPT_CAPS = {
             n.out = out; n.costUsd = 0; n.cached = true;
             onStatus && onStatus(id, "done", "done");
             onResult && onResult(n);
+            if(settleWork) settleWork.res(out);
           }
           // the owning lane deletes the entry if its generation fails; here just isolate per-node.
-          catch(err){ if(isAbort(err)) throw err; failed.add(id); nodeErrors++; onStatus && onStatus(id, "error", friendlyRunError(err, n)); }
+          catch(err){
+            if(settleWork) settleWork.rej(err);
+            if(isAbort(err)) throw err; failed.add(id); nodeErrors++; onStatus && onStatus(id, "error", friendlyRunError(err, n));
+          }
+          if(NODE_WORK.get(id)===work) NODE_WORK.delete(id);
           return;
         }
         onStatus && onStatus(id, "run", "running…");
@@ -8592,11 +8639,14 @@ const PROMPT_CAPS = {
           p = njsR ? njsR(rn, inp, onCostCb, runKey, noteCb) : t.run(rn, inp, ctx, noteCb);
           if(seeded) RUN_CACHE.set(id, { sig, pending: p });
           n.out = await p || {};
+          n._sig = sig;   // so a later sibling Play can reuse this ancestor (PR #391) without a second charge
           if(seeded) RUN_CACHE.set(id, { sig, out:n.out });   // resolved → swap pending for the result, reused next pass
           if(didGen) generated++;                          // a real model call happened — NOT a cache reuse or an instant local node (so keep mode keeps pacing only on real generations)
           n.costUsd = nodeCost; n.costKnown = nodeKnown; n.cached = false;   // genuine generation, not a reused cache hit
           onStatus && onStatus(id, "done", "done");
           onResult && onResult(n);
+          if(settleWork) settleWork.res(n.out);
+          if(NODE_WORK.get(id)===work) NODE_WORK.delete(id);
         }
         // editor parity (runGroup): isolate per-node failures — mark error and keep going so
         // independent flows / other sinks still produce output. Do NOT rethrow.
@@ -8605,6 +8655,8 @@ const PROMPT_CAPS = {
           // don't poison the cache with a failed/aborted promise — drop our pending entry so a
           // later lane or run can retry (only if it's still ours, not already swapped/overwritten).
           if(seeded){ const c = RUN_CACHE.get(id); if(c && c.pending===p) RUN_CACHE.delete(id); }
+          if(settleWork){ if(isAbort(err)) settleWork.rej(err); else settleWork.res(null); }
+          if(NODE_WORK.get(id)===work) NODE_WORK.delete(id);
           if(isAbort(err)) throw err; failed.add(id); nodeErrors++; onStatus && onStatus(id, "error", friendlyRunError(err, n));
         }
       })();
@@ -11330,7 +11382,7 @@ const PROMPT_CAPS = {
   }
 
   // __njs: internals for scripts/check-njs-delegation.mjs's veto matrix — not app API
-  return { mount, runGraph, materialize, describeGraph, deriveInputs, deriveSettings, deriveOutputs, NODE_TYPES, CTX:makeCtx(function(){}), __njs:{ runFor:njsRunFor, PENDING_VIDEO, PENDING_AUDIO } };
+  return { mount, runGraph, materialize, describeGraph, deriveInputs, deriveSettings, deriveOutputs, NODE_TYPES, isInputKind, INPUT_KINDS, CTX:makeCtx(function(){}), __njs:{ runFor:njsRunFor, PENDING_VIDEO, PENDING_AUDIO } };
 })();
 `;
 
