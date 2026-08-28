@@ -224,6 +224,23 @@ try {
     if (mediaExport.includes(marker)) failures.push(`export leaks the ${what} — shareableGraph did not strip it from the exported graph`);
   }
 
+  // Privacy: Custom endpoint Authorization is a secret the recipient must not inherit.
+  // shareableGraph blanks fields.auth; a missed call site would bake the token into the .html.
+  const AUTH_LEAK = "ENDPOINTAUTHLEAK";
+  const authExport = buildExport({
+    nodes: [
+      { id: "e1", type: "endpoint", fields: {
+        url: "http://127.0.0.1:8787/v1/chat/completions",
+        auth: AUTH_LEAK,
+        prompt: "hi",
+      } },
+    ],
+    links: [],
+  });
+  if (authExport.includes(AUTH_LEAK)) {
+    failures.push("export leaks endpoint Authorization — shareableGraph did not blank fields.auth");
+  }
+
   // Adversarial graph: a field value that tries to break out of the <script>
   // and a line/paragraph separator that would corrupt an unescaped JS string.
   const evil = { id: "p1", text: "</script><img src=x onerror=alert(1)>   & <b>ok</b>" };
