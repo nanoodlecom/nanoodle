@@ -8918,7 +8918,16 @@ const nodeWork = new Map();       // node id → in-flight exec promise (sibling
 const runLockCount = new Map();   // node id → # of in-flight groups holding it (shared ancestor A)
 const liveAborts = new Set();     // every group's controller; toolbar Stop aborts them all
 let runAbort = null;              // last-started controller (runSignal fallback when only one group is live)
-const runSignal = ()=> liveAborts.size===1 ? [...liveAborts][0].signal : runAbort?.signal;
+const runSignal = ()=>{
+  // Prefer the single in-flight nodeWork controller (join-aware: Stop on B
+  // does not abort A if C has already joined that work).
+  if(typeof nodeWork!=="undefined"){
+    const lives = [];
+    for(const w of nodeWork.values()) if(w && w.ctl && !w.ctl.signal.aborted) lives.push(w);
+    if(lives.length===1) return lives[0].ctl.signal;
+  }
+  return liveAborts.size===1 ? [...liveAborts][0].signal : runAbort?.signal;
+};
 function lockRunIds(ids){
   for(const id of ids){ runningNodes.add(id); runLockCount.set(id, (runLockCount.get(id)||0)+1); }
 }
@@ -8929,24 +8938,41 @@ function unlockRunIds(ids){
     else runLockCount.set(id, n);
   }
 }
+function dropWorkHolder(seedId, abortIfLast){
+  if(typeof nodeWork==="undefined") return;
+  for(const w of nodeWork.values()){
+    if(!w.holders) continue;
+    w.holders.delete(seedId);
+    if(abortIfLast && !w.holders.size && w.ctl && !w.ctl.signal.aborted) w.ctl.abort();
+  }
+}
 function stopSeedRun(id){
   const c = seedCtl.get(id);
-  if(c && !c.signal.aborted){ c.abort(); flash("stopping…"); updateRunButtons(); }
+  if(c && !c.signal.aborted){ c.abort(); flash("stopping…"); }
+  dropWorkHolder(id, true);   // last waiter of A may cancel A; a joined sibling keeps A alive
+  updateRunButtons();
 }
 function abortAllRuns(){
   let n = 0;
   for(const c of liveAborts){ if(!c.signal.aborted){ c.abort(); n++; } }
+  if(typeof nodeWork!=="undefined"){
+    for(const w of nodeWork.values()){ if(w.ctl && !w.ctl.signal.aborted){ w.ctl.abort(); n++; } }
+  }
   if(n){ flash("stopping…"); updateRunButtons(); }
   return n>0;
 }
-function groupBusy(ids){ for(const id of ids) if(runningNodes.has(id)) return true; return false; }
+// A set is busy only if it contains a live Play seed. runningNodes also holds
+// joinable ancestors (A while Play B is in flight) — that must NOT lock sibling
+// Play on C (A→B, A→C). C joins A's nodeWork instead of starting a second paid run.
+function groupBusy(ids){ for(const id of ids) if(seedRuns.has(id)) return true; return false; }
+function playBusy(id){ return seedRuns.has(id); }   // this node's Play is ■ Stop; ancestors-in-runningNodes are not
 function updateRunButtons(){
   // Sibling Plays stay clickable: only the seed that started a run flips to ■.
-  // The old lock disabled every node in the undirected component, so Play on B
-  // also claimed C (A→B, A→C).
+  // runningNodes includes ancestors (delete/undo refuse those). That set must
+  // NOT disable Play — C's ancestor A being busy is how C joins A.
   for(const n of graph.nodes){
     const b = n.el?.querySelector("[data-act=run]"); if(!b) continue;
-    const live = seedRuns.has(n.id);
+    const live = playBusy(n.id);
     b.disabled = false;
     b.textContent = live ? "■" : "▶";
     b.title = live ? t("Stop this branch") : t("run this branch");
@@ -9303,6 +9329,14 @@ async function runGroup(seedIds, ctx){
   liveAborts.add(ctl);
   runAbort = ctl;
   seedSet.forEach(id=> seedCtl.set(id, ctl));
+  // Join in-flight shared ancestors NOW (before any await) so Stop-on-B cannot
+  // cancel A after C has already started — holders keep A's work.ctl alive.
+  if(typeof nodeWork!=="undefined"){
+    for(const id of ids){
+      const w = nodeWork.get(id);
+      if(w && w.holders) seedSet.forEach(s=> w.holders.add(s));
+    }
+  }
   updateRunButtons();
   try{
     const { order, cyclic } = topoOrder(ids);
@@ -9328,6 +9362,9 @@ async function runGroup(seedIds, ctx){
       done[id] = (async ()=>{
         await Promise.all(deps.map(d=> done[d]));       // wait on this node's inputs only
         const n = byId(id); if(!n) return;
+        // Stop on this Play's seed: don't start (or re-roll) the seed itself.
+        // Shared ancestors keep going when another Play still holds them.
+        if(ctl.signal.aborted && seedSet.has(id)){ setStopped(n); return; }
         // Poison-propagate: a failed/cyclic upstream node has no valid output, so running here would
         // feed this node the parent's STALE .out and reach a PAID call. Skip (transitively) instead.
         if(deps.some(d=> failed.has(d))){ failed.add(id); setSkipped(n); return; }
@@ -9395,8 +9432,9 @@ async function runGroup(seedIds, ctx){
         // Await that promise — never a second paid run. Registered synchronously below so two
         // Plays that reach A in the same turn can't both slip through.
         if(typeof nodeWork!=="undefined" && nodeWork.has(id)){
-          try{ await nodeWork.get(id); }catch(_){}
-          if(ctl.signal.aborted){ setStopped(n); return; }
+          const w = nodeWork.get(id); if(w.holders) seedSet.forEach(s=> w.holders.add(s));
+          try{ await w; }catch(_){}
+          if(ctl.signal.aborted && !(w.holders && w.holders.size)){ setStopped(n); return; }
           if(n.out && Object.keys(n.out).length){ showResult(n); setStatus(n, "done"); return; }
           if(!seedSet.has(id)){ failed.add(id); setSkipped(n); return; }
         }
@@ -9409,13 +9447,20 @@ async function runGroup(seedIds, ctx){
         // Flag-gated nanoodle-js delegation (see the block above runGroup). Only for the real CTX:
         // demo runs and injected test contexts must keep the built-in runners they were handed.
         // typeof guard: check harnesses extract runGroup alone, without the delegation shim.
-        n._runCtl = ctl;   // this Play's abort — njsCtx + Stop-on-this-seed read it
         let settleWork, work;
-        if(typeof nodeWork!=="undefined"){ work = new Promise(r=>{ settleWork = r; }); nodeWork.set(id, work); }
+        if(typeof nodeWork!=="undefined"){
+          work = new Promise(r=>{ settleWork = r; });
+          work.holders = new Set(seedSet);
+          work.ctl = new AbortController();
+          nodeWork.set(id, work);
+        }
+        n._runCtl = (work && work.ctl) || ctl;   // join-aware work abort — njsCtx + runSignal read it
         try{
           const njsR = (ctx===CTX && typeof njsRunFor==="function") ? njsRunFor(n.type, rn, inp, n) : null;
           try{ n.out = await (njsR ? njsR() : t.run(rn, inp, ctx)) || {};
-            if(ctl.signal.aborted){ setStopped(n); return; }   // Stop landed during the call — don't stamp done
+            const workCancelled = !!(work && work.ctl && work.ctl.signal.aborted);
+            const seedAlone = ctl.signal.aborted && !(work && work.holders && work.holders.size);
+            if(workCancelled || seedAlone){ setStopped(n); return; }   // Stop cancelled THIS work — don't stamp done
             // a demo run must never mint a real signature — the first REAL run after sign-in has to
             // regenerate everything, not "skip" onto a canned sample via the seeded-result cache
             if(ctx.demo) delete n._sig; else n._sig = sig;
@@ -9428,7 +9473,9 @@ async function runGroup(seedIds, ctx){
             }
           }
           catch(err){
-            if(ctl.signal.aborted || err?.name==="AbortError") setStopped(n);   // user hit Stop — not a failure
+            const workCancelled = !!(work && work.ctl && work.ctl.signal.aborted);
+            const seedAlone = ctl.signal.aborted && !(work && work.holders && work.holders.size);
+            if(workCancelled || seedAlone || err?.name==="AbortError") setStopped(n);   // user hit Stop — not a failure
             else {
               // An Inpaint node that just failed "no mask" is the FIRST run of the wire-then-brush flow:
               // its upstream produced the source within this same group, but the loop above skips nodes
@@ -9452,7 +9499,7 @@ async function runGroup(seedIds, ctx){
     // next step there is signing in (the demo popover already owns that CTA).
     if(!ctx.demo && !failed.size && !ctl.signal.aborted && order.some(id=>{ const n = byId(id); return n?.out && Object.keys(n.out).length; })) maybeAppNudge();
   } finally {
-    seedSet.forEach(id=>{ seedRuns.delete(id); if(seedCtl.get(id)===ctl) seedCtl.delete(id); });
+    seedSet.forEach(id=>{ seedRuns.delete(id); if(seedCtl.get(id)===ctl) seedCtl.delete(id); if(typeof dropWorkHolder==="function") dropWorkHolder(id, false); });
     unlockRunIds(lock);
     liveAborts.delete(ctl);
     if(runAbort===ctl) runAbort = liveAborts.size ? liveAborts.values().next().value : null;

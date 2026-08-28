@@ -62,7 +62,7 @@ const CASES = [
     name: "extract row 3 — encodeWavMono + mediaFetchError",
     why: "index.html range ends at 9323, not 9309: play.html:6587-6704 carries the twins of " +
       "trimAudioToWavUrl and extractAudioToWavUrl too, and the shorter range left them one-sided",
-    idx: [[9856, 9931]],
+    idx: [[9903, 9978]],
     play: [[6651, 6768]],
     expect: { exit: 1, oneSided: 26, occurrence: 1 },
   },
@@ -83,7 +83,7 @@ const CASES = [
   {
     name: "extract row 6 — MP4CAT",
     why: "123 twins leave at once — the largest single mirrored deletion in the plan",
-    idx: [[9946, 10223]],
+    idx: [[9993, 10270]],
     play: [[6811, 7088]],
     expect: { exit: 1, oneSided: 112, occurrence: 3 },
   },
@@ -92,7 +92,7 @@ const CASES = [
     why: "play.html ranges corrected to 6706-6711 / 6739-6746 / 7025-7238. The old 6635-6679 " +
       "swallowed toLocalMediaUrl, seekVideo and MP4CAT's first 4 lines, and the old 6979-7169 " +
       "started AFTER prepClip and recordClip, whose index.html twins are inside 9617-9869",
-    idx: [[10225, 10477]],
+    idx: [[10272, 10524]],
     play: [[6770, 6775], [6803, 6810], [7089, 7302]],
     expect: { exit: 1, oneSided: 128, occurrence: 1 },
   },
@@ -101,14 +101,14 @@ const CASES = [
     why: "the one planned extraction that cannot be silent, and the guard is right. 5 twins have " +
       "their OTHER copy in unrelated code on one surface only, so deleting the 2 share blocks " +
       "leaves each of them live on exactly 1 surface:\n" +
-      "        index.html:10953,10955 inline play.html's explicitLang() (play.html:11536-11540)\n" +
-      "        index.html:10870,10875 twin play.html:9893,9900, a thumbnail helper outside the block\n" +
+      "        index.html:11000,11002 inline play.html's explicitLang() (play.html:11536-11540)\n" +
+      "        index.html:10917,10922 twin play.html:9893,9900, a thumbnail helper outside the block\n" +
       "        play.html:13206 twins index.html:8104,8185, the canvas fit bounds\n" +
-      "      Plus 1 occurrence drift: index.html carries the noodle_lang read twice (3793 and 10954)\n" +
+      "      Plus 1 occurrence drift: index.html carries the noodle_lang read twice (3793 and 11001)\n" +
       "      and play.html twice, and only index.html's second copy is inside the block.\n" +
       "      Whoever does row 8 refreshes the baseline as part of it — deliberately, which is what\n" +
       "      the guard's own remedy line asks for",
-    idx: [[11462, 11778]],
+    idx: [[11509, 11825]],
     play: [[13439, 13758]],
     expect: { exit: 1, oneSided: 106, occurrence: 1 },
   },
@@ -117,7 +117,7 @@ const CASES = [
     why: "play.html ranges corrected to 13426 / 13508-13560 / 13664. The old 13292-13530 swallowed " +
       "the whole agent-pill popover (13294-13373) and the model-picker search, which index.html " +
       "keeps at 11822-11838 and 10608",
-    idx: [[11891, 11931]],
+    idx: [[11938, 11978]],
     play: [[13897, 13897], [13979, 14031], [14135, 14135]],
     expect: { exit: 1, oneSided: 38 },
   },
@@ -130,7 +130,7 @@ const CASES = [
     edits: [
       {
         file: "index.html",
-        line: 10328,
+        line: 10375,
         from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
         to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durIDX, 0);",
       },
@@ -149,7 +149,7 @@ const CASES = [
     edits: [
       {
         file: "index.html",
-        line: 10328,
+        line: 10375,
         from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
         to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durIDX, 0);",
       },
@@ -169,7 +169,7 @@ const CASES = [
     edits: [
       {
         file: "index.html",
-        line: 10328,
+        line: 10375,
         from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
         to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durTicks, 0);",
       },
@@ -193,7 +193,7 @@ const CASES = [
     edits: [
       {
         file: "index.html",
-        line: 10328,
+        line: 10375,
         from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
         to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durIDX, 0);",
       },
