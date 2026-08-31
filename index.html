@@ -5616,6 +5616,17 @@ function refreshModelOpts(n){
   if(!defs.length){ box.innerHTML=""; return; }
   const cur = n.fields.modelOpts || (n.fields.modelOpts = {});
   for(const k of Object.keys(cur)) if(!defs.some(d=>d.key===k)) delete cur[k];   // drop other models' knobs
+  for(const d of defs){               // quality / mode / similar selects: same clamp as duration/size
+    if(d.type!=="select") continue;
+    const v = cur[d.key];
+    if(v==null || v==="") continue;
+    const pairs = d.options.map(o=> [String(o.value), o.label!=null?String(o.label):String(o.value)]);
+    if(!pairs.some(o=> o[0]===String(v))){
+      const next = nearestDimOption(v, pairs, d.def!=null?String(d.def):(pairs[0]||[""])[0]);
+      if(next==="") delete cur[d.key];
+      else cur[d.key] = next;
+    }
+  }
   const ctl = (d)=>{
     const v = cur[d.key];
     const hint = d.desc ? `<div class="fhint">${esc(d.desc)}</div>` : "";   // the catalog's own explanation
@@ -5743,12 +5754,86 @@ function selOpts(param){
     .map(o=> [String(o.value), o.label!=null?String(o.label):String(o.value)]);
 }
 function paramDef(param, opts){ return (param && param.default!=null) ? String(param.default) : (opts[0]||[""])[0]; }
+/* ---------- snap a stored choice onto a model's real option list ----------
+   A size / duration / quality / mode value only means something for the model it
+   was chosen for: MiniMax H3 lists duration 5–15 (incl. 8); Wan Prime advertises
+   a number-range duration and the UI therefore falls back to 5/10; nano-banana-2
+   sizes are 1k/2k/4k while qwen-image-3 wants 1024x1024. Both engines used to
+   KEEP the old value and inject it as a fake <option>, so Play sent 8s to a
+   model whose dropdown is 5s/10s. Snap to a real option instead — on a model
+   swap AND when hydrating a saved graph against the live catalog (same helper,
+   one path). Keep the value if the new list still has it; else nearest
+   (duration / size / aspect), else the catalog default, else the first option.
+   Uncatalogued / offline models keep the stored value pickable — we don't know
+   their list yet. Shape is the #370 nearestDimOption helper. */
+const DIM_TIER_PX = {                                                  // named size tiers → their real pixels
+  "1k":[1024,1024], "2k":[2048,2048], "4k":[4096,4096], "8k":[8192,8192],
+  square:[1024,1024], square_hd:[1536,1536], portrait:[1024,1536], landscape:[1536,1024],
+  portrait_4_3:[1024,1365], landscape_4_3:[1365,1024], portrait_16_9:[1080,1920], landscape_16_9:[1920,1080] };
+// value → { ar: width/height, px: total pixels } — px is null for a bare ratio ("16:9"), which
+// carries no size, so ratio-vs-ratio never scores on an imaginary pixel count.
+function dimShape(v){
+  const s = String(v==null?"":v).trim().toLowerCase();
+  const tier = DIM_TIER_PX[s];
+  if(tier) return { ar: tier[0]/tier[1], px: tier[0]*tier[1] };
+  let m = /^(\d+)\s*[x×*]\s*(\d+)$/.exec(s);
+  if(m && +m[1]>0 && +m[2]>0) return { ar:+m[1]/+m[2], px:+m[1]*+m[2] };
+  m = /^(\d+)\s*:\s*(\d+)$/.exec(s);
+  if(m && +m[1]>0 && +m[2]>0) return { ar:+m[1]/+m[2], px:null };
+  return null;
+}
+const dimNum = (v)=>{ const m = /-?\d+(?:\.\d+)?/.exec(String(v==null?"":v)); return m ? +m[0] : null; };
+function nearestDimOption(cur, options, def){
+  const vals = options.map(o=> String(Array.isArray(o) ? o[0] : (o && o.value!=null ? o.value : o)));
+  if(cur==null || cur==="") return def;
+  cur = String(cur);
+  if(vals.includes(cur)) return cur;                        // the new model offers it → keep the user's choice
+  if(def!=null && def!=="" && vals.includes(String(def))) return String(def);  // catalog default, if it's in the list
+  const best = (score)=>{
+    let win = null, bs = Infinity;
+    for(const v of vals){ const s = score(v); if(s!=null && s < bs){ bs = s; win = v; } }
+    return win;
+  };
+  const c = dimShape(cur);
+  if(c){
+    // aspect dominates (a portrait must never become a landscape), pixel count breaks the tie
+    const hit = best(v=>{ const d = dimShape(v); if(!d) return null;
+      return Math.abs(Math.log(c.ar/d.ar))*4 + ((c.px && d.px) ? Math.abs(Math.log(c.px/d.px)) : 0); });
+    if(hit!=null) return hit;
+    const named = c.ar===1 ? "square" : (c.ar>1 ? "landscape" : "portrait");   // WxH → an orientation list
+    if(vals.includes(named)) return named;
+  }
+  const cn = dimNum(cur);
+  if(cn!=null){                                             // durations (8 → 10) and resolutions (720p → 480p)
+    const hit = best(v=>{ const n = dimNum(v); return n==null ? null : Math.abs(n-cn); });
+    if(hit!=null) return hit;
+  }
+  return (vals[0]!=null ? vals[0] : def);
+}
+// Write each dim def onto `fields`: seed a default when unset; when the current
+// value is not in the model's list, snap (known catalog) or keep it pickable
+// (offline / uncatalogued). Mutates `fields` and, on the keep-pickable path,
+// `defs[i].options`. Called from refreshDims so a model swap AND a saved-graph
+// load go through the same clamp — tests drive this without a DOM.
+function applyDimFields(fields, defs){
+  for(const d of defs){
+    const cur = fields[d.f];
+    if(d.locked) fields[d.f] = d.def;
+    else if(cur==null || cur==="") fields[d.f] = d.def;
+    else if(!d.options.some(o=> String(o[0])===String(cur))){
+      if(d.known) fields[d.f] = nearestDimOption(cur, d.options, d.def);
+      else d.options = [[String(cur), String(cur)], ...d.options];
+    }
+  }
+  return fields;
+}
 // the dimension fields a node should show, resolved from its model's catalog entry
 function dimDefs(type, model){
   if(type==="image" || type==="edit"){
     const it = catItem("image", model);
-    const res = (it && it.resolutions && it.resolutions.length) ? it.resolutions.map(r=>[r,r]) : SIZE_FALLBACK;
-    const defs = [{ f:"size", label:"size", options:res, def:res[0][0] }];
+    const listed = !!(it && it.resolutions && it.resolutions.length);
+    const res = listed ? it.resolutions.map(r=>[r,r]) : SIZE_FALLBACK;
+    const defs = [{ f:"size", label:"size", options:res, def:res[0][0], known:listed }];
     const maxOut = (it && it.maxOut) || 1;                  // generate-N-pick-one — gen node only, when the model supports it
     const fixed = (it && it.fixedCount) || 0;               // ALWAYS returns this many (catalog: midjourney/higgsfield = 4)
     // A fixed_image_count model ignores n entirely — it returns N and bills for N. Offering a 1..N
@@ -5756,31 +5841,36 @@ function dimDefs(type, model){
     // real number and let refreshDims disclose it. Live-probed 2026-07-31: no other model dishonors
     // n=1, so the catalog field is the whole truth here — no curated override list.
     if(type==="image" && fixed>1){
-      defs.push({ f:"variations", label:"variations", options:[[String(fixed), String(fixed)]], def:String(fixed), locked:fixed });
+      defs.push({ f:"variations", label:"variations", options:[[String(fixed), String(fixed)]], def:String(fixed), locked:fixed, known:true });
     } else if(type==="image" && maxOut>1){
       const vopts=[]; for(let i=1;i<=maxOut;i++) vopts.push([String(i), String(i)]);
-      defs.push({ f:"variations", label:"variations", options:vopts, def:"1" });
+      defs.push({ f:"variations", label:"variations", options:vopts, def:"1", known:true });
     }
     return defs;
   }
   if(type==="tvideo" || type==="ivideo" || type==="vedit" || type==="lipsync"){
-    const p = (catItem("video", model)||{}).params || {};
+    const it = catItem("video", model);
+    const p = (it||{}).params || {};
+    const known = !!it;   // live catalog entry → clamp to the list we actually render (real opts or the 5/10 fallback)
     // t2v/i2v always show aspect+duration; vedit + lipsync (avatar) show only what the model lists —
     // an avatar's output length is driven by the source audio, so never inject a soft duration/aspect it'd ignore.
     const defs = [], soft = type!=="vedit" && type!=="lipsync";
     const rOpts = selOpts(p.resolution);
-    if(rOpts.length) defs.push({ f:"resolution", wire:"resolution", label:"resolution", options:rOpts, def:paramDef(p.resolution, rOpts) });
+    if(rOpts.length) defs.push({ f:"resolution", wire:"resolution", label:"resolution", options:rOpts, def:paramDef(p.resolution, rOpts), known });
     // aspect dimension: most models name it aspect_ratio, but Sora/WAN-style models call it `orientation`
     // (landscape/portrait) and PixVerse v5.5/5.6 call it `resolution_ratio` (16:9/9:16/… alongside a
     // separate `resolution`) — same node field, different WIRE key so the model honours the choice.
     const aParam = p.aspect_ratio || p.orientation || p.resolution_ratio,
           aWire = p.aspect_ratio ? "aspect_ratio" : (p.orientation ? "orientation" : (p.resolution_ratio ? "resolution_ratio" : "aspect_ratio"));
     const aOpts = selOpts(aParam);
-    if(aOpts.length || soft) defs.push({ f:"aspect", wire:aWire, label:"aspect", options:(aOpts.length?aOpts:ASPECT_FALLBACK), def:paramDef(aParam, aOpts.length?aOpts:ASPECT_FALLBACK) });
+    if(aOpts.length || soft) defs.push({ f:"aspect", wire:aWire, label:"aspect", options:(aOpts.length?aOpts:ASPECT_FALLBACK), def:paramDef(aParam, aOpts.length?aOpts:ASPECT_FALLBACK), known });
     // duration dimension: most models name it duration, but Sora calls it `seconds` (4/8/12) — same field, real values.
+    // Wan Prime ships type:number min/max (no select options) → DURATION_FALLBACK 5/10; known=true so 8 snaps off.
     const dParam = p.duration || p.seconds, dWire = p.duration ? "duration" : (p.seconds ? "seconds" : "duration");
     const dOpts = selOpts(dParam);
-    if(dOpts.length || soft) defs.push({ f:"duration", wire:dWire, label:"duration", options:(dOpts.length?dOpts:DURATION_FALLBACK), def:paramDef(dParam, dOpts.length?dOpts:DURATION_FALLBACK) });
+    if(dOpts.length || soft) defs.push({ f:"duration", wire:dWire, label:"duration", options:(dOpts.length?dOpts:DURATION_FALLBACK), def:paramDef(dParam, dOpts.length?dOpts:DURATION_FALLBACK), known });
+    const fParam = p.fps || p.frames_per_second, fOpts = selOpts(fParam);
+    if(fOpts.length) defs.push({ f:"fps", wire:p.fps ? "fps" : "frames_per_second", label:"fps", options:fOpts, def:paramDef(fParam, fOpts), known });
     return defs;
   }
   return [];
@@ -5803,15 +5893,7 @@ function refreshDims(n){
   const box = n.el.querySelector("[data-dims]"); if(!box) return;
   const defs = dimDefs(n.type, n.fields.model);
   if(!defs.length){ box.innerHTML=""; return; }
-  for(const d of defs){               // seed a default when unset; never clobber a stored (e.g. pre-catalog) value
-    const cur = n.fields[d.f];
-    // …except a LOCKED def (fixed_image_count), which is not a preference: a stored variations:"1"
-    // from before the model swap would keep the estimate — and the user's expectation — at one image
-    // while the model returns and bills for N. Overwrite it, then disclose the number below.
-    if(d.locked) n.fields[d.f] = d.def;
-    else if(cur==null || cur==="") n.fields[d.f] = d.def;
-    else if(!d.options.some(o=> String(o[0])===String(cur))) d.options = [[String(cur), String(cur)], ...d.options];
-  }
+  applyDimFields(n.fields, defs);     // clamp invalid stored values to this model's list (swap AND load)
   const ctl = (d)=> `<div><label>${esc(d.label)}</label><select data-df="${esc(d.f)}"${d.locked?" disabled":""}>${
     d.options.map(o=>`<option value="${esc(o[0])}"${String(o[0])===String(n.fields[d.f])?" selected":""}>${esc(o[1])}</option>`).join("")}</select></div>`;
   // A locked def's disclosure is a sentence, so it goes FULL WIDTH under the row — the first two
