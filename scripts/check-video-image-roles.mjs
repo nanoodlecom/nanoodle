@@ -88,6 +88,9 @@ function loadAssigns(src, name) {
     "minimax/h3-max", "MiniMax/H3-Max",
     "alibaba/wan-3.0-prime",
     "alibaba/wan-3.0/image-to-video",
+    "google/gemini-omni-flash",
+    "google/gemini-omni-flash/v1.1",
+    "Google/Gemini-Omni-Flash/v1.1",
   ];
   const LAST_NO = [
     "minimax-hailuo", "hailuo-02", "seedance-2.0", "luma-ray", "kling-v2", "",
@@ -96,6 +99,10 @@ function loadAssigns(src, name) {
     "alibaba/wan-3.0/text-to-video",       // no image input at all — last-frame is meaningless here
     "alibaba/wan-3.0/reference-to-video",  // takes image/video/audio REFERENCES, not a first/last-frame pair
     "alibaba/wan-3.0",
+    "google/gemini-omni",                  // family prefix without -flash
+    "gemini-omni-flash",                   // missing google/ owner
+    "google/gemini-omni-flash/v2",         // unlisted future version — don't over-match
+    "google/gemini-omni-flash-lite",
   ];
   for (const id of LAST_YES) {
     const drifted = lasts.map((re, i) => re.test(id) ? null : i).filter((i) => i != null);
@@ -126,6 +133,7 @@ function loadAssigns(src, name) {
   const bundle = [
     grab(/const VIDEO_IMG_ROLE_KEYS = \{[^}]*\};/, "VIDEO_IMG_ROLE_KEYS"),
     grab(/const VIDEO_REF_PRICE_KEYS = \[[^\]]*\];/, "VIDEO_REF_PRICE_KEYS"),
+    grab(/const videoRefsModePriced = \(p\)=>[\s\S]*?;/, "videoRefsModePriced"),
     grab(/const videoRefsPriced = \(m\)=> \{[^}]*\};/, "videoRefsPriced"),
     grab(/const VIDEO_LAST_FRAME_FAMILIES = \/[^\n]+\/i;/, "VIDEO_LAST_FRAME_FAMILIES"),
     grab(/const VIDEO_REF_MAX = \[[\s\S]*?\];/, "VIDEO_REF_MAX"),
@@ -199,6 +207,48 @@ function loadAssigns(src, name) {
     "editor: alibaba/wan-3.0-prime has no image-ref port under this app's design (video+audio refs unsupported) — must stay OFF, not silently mis-keyed");
   ok(T.videoRefSpec(node("alibaba/wan-3.0-prime")) === null,
     "editor: alibaba/wan-3.0-prime ref spec is null (no reachable ref param under the current single-array port design)");
+
+  // google/gemini-omni-flash as /api/v1/video-models ships it (fetched 2026-09-01): duration +
+  // aspect only, no last_image/end_image, no reference_images key, no extra_reference_image —
+  // but pricing.per_second_by_mode.reference_to_video is a billed r2v mode (catalog advertising
+  // refs). last_image via family; refs via that mode key (exact `reference_to_video` only).
+  MODELS["google/gemini-omni-flash"] = {
+    params: { duration: {}, aspect_ratio: {} },
+    pricing: { per_second_by_mode: { text_to_video: 0.13, image_to_video: 0.14, reference_to_video: 0.16, video_edit: 0.16 } },
+  };
+  ok(T.modelHasImageRole(node("google/gemini-omni-flash", "ivideo"), "last") === true,
+    "editor: gemini-omni-flash last_image via family fallback (catalog hides the param)");
+  ok(T.modelHasImageRole(node("google/gemini-omni-flash"), "refs") === true,
+    "editor: gemini-omni-flash refs via per_second_by_mode.reference_to_video (no reference_images param)");
+  const omni = T.videoRefSpec(node("google/gemini-omni-flash"));
+  ok(omni && omni.key === "reference_images" && omni.cap === 4,
+    `editor: gemini-omni-flash ref spec is reference_images/4 (generic cap; catalog lists no max), got ${JSON.stringify(omni)}`);
+
+  MODELS["google/gemini-omni-flash/v1.1"] = {
+    params: { duration: {}, resolution: {}, aspect_ratio: {} },
+    pricing: { per_second_by_mode_and_resolution: {
+      text_to_video: { "720p": 0.13, "4k": 0.39 },
+      image_to_video: { "720p": 0.14, "4k": 0.42 },
+      reference_to_video: { "720p": 0.16, "4k": 0.48 },
+      video_edit: { "720p": 0.16, "4k": 0.48 },
+    } },
+  };
+  ok(T.modelHasImageRole(node("google/gemini-omni-flash/v1.1", "ivideo"), "last") === true,
+    "editor: gemini-omni-flash/v1.1 last_image via family fallback (catalog hides the param)");
+  ok(T.modelHasImageRole(node("google/gemini-omni-flash/v1.1"), "refs") === true,
+    "editor: gemini-omni-flash/v1.1 refs via per_second_by_mode_and_resolution.reference_to_video");
+  const omni11 = T.videoRefSpec(node("google/gemini-omni-flash/v1.1"));
+  ok(omni11 && omni11.key === "reference_images" && omni11.cap === 4,
+    `editor: gemini-omni-flash/v1.1 ref spec is reference_images/4, got ${JSON.stringify(omni11)}`);
+
+  // kling-o1 bills reference_to_video_image / _video — not the exact reference_to_video key.
+  // Must stay OFF (those keys are a different shape; canRef already hid the mode).
+  MODELS["kling-video-o1"] = {
+    params: { duration: {}, aspect_ratio: {}, mode: {} },
+    pricing: { per_second_by_mode: { text_to_video: 0.112, reference_to_video_image: 0.112, reference_to_video_video: 0.168 } },
+  };
+  ok(T.modelHasImageRole(node("kling-video-o1"), "refs") === false,
+    "editor: kling-o1 reference_to_video_image/_video is not the Omni-style reference_to_video key — refs stay OFF");
 
   // param presence still wins for families that advertise last_image / a ref key
   MODELS["seedance-2.0"] = { params: { last_image: {}, reference_images: { max: 9 } }, pricing: {} };
@@ -282,6 +332,19 @@ catalog.video = [
     supported_parameters: { parameters: { mode: {}, resolution: {}, aspect_ratio: {}, duration: {}, enable_audio: {}, seed: {} } },
     pricing: { per_second_by_resolution: { "480p": 0.0625, "720p": 0.125, "1080p": 0.25 } },
   },
+  {
+    id: "google/gemini-omni-flash",
+    supported_parameters: { parameters: { duration: {}, aspect_ratio: {} } },
+    pricing: { per_second_by_mode: { text_to_video: 0.13, image_to_video: 0.14, reference_to_video: 0.16, video_edit: 0.16 } },
+  },
+  {
+    id: "google/gemini-omni-flash/v1.1",
+    supported_parameters: { parameters: { duration: {}, resolution: {}, aspect_ratio: {} } },
+    pricing: { per_second_by_mode_and_resolution: {
+      text_to_video: { "720p": 0.13, "4k": 0.39 },
+      reference_to_video: { "720p": 0.16, "4k": 0.48 },
+    } },
+  },
   { id: "plain-t2v", supported_parameters: { parameters: {} } },
   {
     id: "seedance-2.0",
@@ -331,6 +394,19 @@ async function spyRun(type, fields, inp) {
 }
 
 {
+  const { sent } = await spyRun("ivideo", { model: "google/gemini-omni-flash/v1.1" }, { image: START, endframe: END });
+  ok(sent && sent.opts.last_image === END,
+    `play: gemini-omni-flash/v1.1 (catalog hides last_image) still sends end frame, got ${JSON.stringify(sent && sent.opts && sent.opts.last_image)}`);
+  ok(sent && sent.img === START, "play: gemini-omni-flash/v1.1 ivideo still sends the start image");
+}
+
+{
+  const { sent } = await spyRun("ivideo", { model: "google/gemini-omni-flash" }, { image: START, endframe: END });
+  ok(sent && sent.opts.last_image === END,
+    `play: gemini-omni-flash v1 (family pair; catalog hides last_image) still sends end frame, got ${JSON.stringify(sent && sent.opts && sent.opts.last_image)}`);
+}
+
+{
   const { sent, notes } = await spyRun("ivideo", { model: "plain-t2v" }, { image: START, endframe: END });
   ok(sent && sent.opts.last_image == null,
     `play: known no-last model must omit last_image, keys=${sent && Object.keys(sent.opts)}`);
@@ -350,6 +426,14 @@ async function spyRun(type, fields, inp) {
     `play: minimax-h3 refs ride reference_images (pricing evidence), got ${JSON.stringify(sent && sent.opts.refKey)}`);
   ok(sent && Array.isArray(sent.opts.refImages) && sent.opts.refImages.join(",") === "R1,R2",
     `play: minimax-h3 keeps both refs, got ${JSON.stringify(sent && sent.opts.refImages)}`);
+}
+
+{
+  const { sent } = await spyRun("tvideo", { model: "google/gemini-omni-flash/v1.1" }, { ref1: "R1", ref2: "R2" });
+  ok(sent && sent.opts.refKey === "reference_images",
+    `play: omni 1.1 refs ride reference_images (reference_to_video mode pricing), got ${JSON.stringify(sent && sent.opts.refKey)}`);
+  ok(sent && Array.isArray(sent.opts.refImages) && sent.opts.refImages.join(",") === "R1,R2",
+    `play: omni 1.1 keeps both refs, got ${JSON.stringify(sent && sent.opts.refImages)}`);
 }
 
 {
@@ -398,4 +482,4 @@ if (fail) {
   console.error(`\n✗ video-image-roles: ${fail} assertion(s) failed.`);
   process.exit(1);
 }
-console.log("\n✓ video-image-roles: last_image family fallback (incl. minimax/h3-max + alibaba/wan-3.0-prime/image-to-video) + ref pricing/cap twins agree; play payload honors authored wires and drops only when the model is known-incapable.");
+console.log("\n✓ video-image-roles: last_image family fallback (incl. minimax/h3-max + alibaba/wan-3.0-prime/image-to-video + google/gemini-omni-flash) + ref pricing/cap twins agree; play payload honors authored wires and drops only when the model is known-incapable.");

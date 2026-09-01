@@ -55,6 +55,30 @@ const MINIMAX_H3 = {
   id: "minimax-h3",
   params: { duration: { type: "select", default: "5", options: H3_DUR_OPTS } },
 };
+const OMNI_DUR_OPTS = [3, 4, 5, 6, 7, 8, 9, 10].map((n) => ({
+  value: String(n),
+  label: n + " seconds",
+}));
+const OMNI_V1 = {
+  id: "google/gemini-omni-flash",
+  params: {
+    duration: { type: "select", default: "8", options: OMNI_DUR_OPTS },
+    aspect_ratio: { type: "select", default: "16:9", options: [{ value: "16:9" }, { value: "9:16" }] },
+  },
+};
+const OMNI_11 = {
+  id: "google/gemini-omni-flash/v1.1",
+  params: {
+    duration: { type: "select", default: "8", options: OMNI_DUR_OPTS },
+    resolution: { type: "select", default: "720p", options: [
+      { value: "360p", label: "360p" },
+      { value: "720p", label: "720p" },
+      { value: "1080p", label: "1080p" },
+      { value: "4k", label: "4K" },
+    ] },
+    aspect_ratio: { type: "select", default: "16:9", options: [{ value: "16:9" }, { value: "9:16" }] },
+  },
+};
 const BANANA = { id: "nano-banana-2", resolutions: ["1k", "2k", "4k"] };
 const QWEN = { id: "qwen-image-3", resolutions: ["auto", "1024x1024", "512x512", "768x1024"] };
 
@@ -142,7 +166,7 @@ const play = loadPlay();
 }
 
 // ---- 2. editor dimDefs + applyDimFields (the Wan Prime repro) -------------
-editor.catalogs.video = [WAN_PRIME, MINIMAX_H3];
+editor.catalogs.video = [WAN_PRIME, MINIMAX_H3, OMNI_V1, OMNI_11];
 editor.catalogs.image = [BANANA, QWEN];
 
 {
@@ -171,6 +195,52 @@ editor.catalogs.image = [BANANA, QWEN];
   editor.applyDimFields(fields, defs);
   if (String(fields.duration) !== "8") fail("editor: still-valid 8s on MiniMax H3 was reset to " + fields.duration);
   else ok("editor: still-valid 8s on MiniMax H3 is kept");
+}
+
+{
+  const fields = { model: "google/gemini-omni-flash/v1.1" };
+  const defs = editor.dimDefs("tvideo", fields.model);
+  const dur = defs.find((d) => d.f === "duration");
+  const res = defs.find((d) => d.f === "resolution");
+  if (!dur) fail("editor: Omni 1.1 tvideo has no duration def");
+  else {
+    const listed = dur.options.map((o) => String(o[0]));
+    const want = ["3", "4", "5", "6", "7", "8", "9", "10"];
+    if (want.some((v) => !listed.includes(v))) fail("editor: Omni 1.1 duration list is " + listed.join(",") + " (want 3–10)");
+    else if (listed.includes("15")) fail("editor: Omni 1.1 duration list leaked a leftover 15");
+    else ok("editor: Omni 1.1 duration options are 3–10 (not the 5/10 fallback)");
+    if (String(dur.def) !== "8") fail("editor: Omni 1.1 duration default is " + dur.def + " (want 8)");
+    else ok("editor: Omni 1.1 duration default is 8");
+  }
+  if (!res) fail("editor: Omni 1.1 tvideo has no resolution def");
+  else {
+    const listed = res.options.map((o) => String(o[0]));
+    if (!["360p", "720p", "1080p", "4k"].every((v) => listed.includes(v))) {
+      fail("editor: Omni 1.1 resolution list is " + listed.join(",") + " (want 360p/720p/1080p/4k)");
+    } else if (String(res.def) !== "720p") fail("editor: Omni 1.1 resolution default is " + res.def + " (want 720p)");
+    else ok("editor: Omni 1.1 resolution options include 4k, default 720p");
+  }
+  editor.applyDimFields(fields, defs);
+  if (String(fields.duration) !== "8") fail("editor: fresh Omni 1.1 seeded duration " + fields.duration + " (want 8)");
+  else ok("editor: fresh Omni 1.1 seeds duration 8");
+}
+
+{
+  const fields = { model: "google/gemini-omni-flash/v1.1", duration: "5" };
+  editor.applyDimFields(fields, editor.dimDefs("tvideo", fields.model));
+  if (String(fields.duration) !== "5") fail("editor: still-valid 5s on Omni 1.1 was reset to " + fields.duration);
+  else ok("editor: still-valid 5s on Omni 1.1 is kept (listed, not leftover-only)");
+}
+
+{
+  const fields = { model: "google/gemini-omni-flash", duration: "8" };
+  const defs = editor.dimDefs("tvideo", fields.model);
+  const res = defs.find((d) => d.f === "resolution");
+  if (res) fail("editor: Omni v1 must not grow a resolution knob (catalog has none)");
+  else ok("editor: Omni v1 has no resolution knob");
+  editor.applyDimFields(fields, defs);
+  if (String(fields.duration) !== "8") fail("editor: still-valid 8s on Omni v1 was reset to " + fields.duration);
+  else ok("editor: still-valid 8s on Omni v1 is kept");
 }
 
 {
@@ -232,6 +302,30 @@ editor.catalogs.image = [BANANA, QWEN];
   const next = play.nearestDimOption("8", pack.duration, pack.def.duration);
   if (String(next) !== "8") fail("play: still-valid 8s on MiniMax H3 was reset to " + next);
   else ok("play: still-valid 8s on MiniMax H3 is kept");
+}
+
+{
+  const omniRaw = {
+    supported_parameters: {
+      parameters: {
+        duration: { type: "select", default: "8", options: OMNI_DUR_OPTS },
+        resolution: { type: "select", default: "720p", options: [
+          { value: "360p" }, { value: "720p" }, { value: "1080p" }, { value: "4k" },
+        ] },
+        aspect_ratio: { type: "select", default: "16:9", options: [{ value: "16:9" }, { value: "9:16" }] },
+      },
+    },
+  };
+  const pack = play.dimOptionsFromItem("tvideo", omniRaw);
+  const listed = (pack.duration || []).map((o) => String(o[0]));
+  if (!["3", "4", "5", "6", "7", "8", "9", "10"].every((v) => listed.includes(v))) {
+    fail("play: Omni 1.1 duration list is " + listed.join(",") + " (want 3–10)");
+  } else if (String(pack.def.duration) !== "8") fail("play: Omni 1.1 duration default is " + pack.def.duration + " (want 8)");
+  else ok("play: Omni 1.1 duration options are 3–10, default 8");
+  const resListed = (pack.resolution || []).map((o) => String(o[0]));
+  if (!["360p", "720p", "1080p", "4k"].every((v) => resListed.includes(v))) {
+    fail("play: Omni 1.1 resolution list is " + resListed.join(",") + " (want 360p–4k)");
+  } else ok("play: Omni 1.1 resolution options include 4k");
 }
 
 {
