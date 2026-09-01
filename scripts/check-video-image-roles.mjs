@@ -88,7 +88,6 @@ function loadAssigns(src, name) {
     "minimax/h3-max", "MiniMax/H3-Max",
     "alibaba/wan-3.0-prime",
     "alibaba/wan-3.0/image-to-video",
-    "google/gemini-omni-flash",
     "google/gemini-omni-flash/v1.1",
     "Google/Gemini-Omni-Flash/v1.1",
   ];
@@ -99,6 +98,7 @@ function loadAssigns(src, name) {
     "alibaba/wan-3.0/text-to-video",       // no image input at all — last-frame is meaningless here
     "alibaba/wan-3.0/reference-to-video",  // takes image/video/audio REFERENCES, not a first/last-frame pair
     "alibaba/wan-3.0",
+    "google/gemini-omni-flash",            // v1: no supportsLastImage, no first-last-frame tag — not a last-frame model
     "google/gemini-omni",                  // family prefix without -flash
     "gemini-omni-flash",                   // missing google/ owner
     "google/gemini-omni-flash/v2",         // unlisted future version — don't over-match
@@ -211,13 +211,14 @@ function loadAssigns(src, name) {
   // google/gemini-omni-flash as /api/v1/video-models ships it (fetched 2026-09-01): duration +
   // aspect only, no last_image/end_image, no reference_images key, no extra_reference_image —
   // but pricing.per_second_by_mode.reference_to_video is a billed r2v mode (catalog advertising
-  // refs). last_image via family; refs via that mode key (exact `reference_to_video` only).
+  // refs). v1 does NOT advertise last-frame (no supportsLastImage, no first-last-frame tag) —
+  // last stays OFF; refs via that mode key (exact `reference_to_video` only).
   MODELS["google/gemini-omni-flash"] = {
     params: { duration: {}, aspect_ratio: {} },
     pricing: { per_second_by_mode: { text_to_video: 0.13, image_to_video: 0.14, reference_to_video: 0.16, video_edit: 0.16 } },
   };
-  ok(T.modelHasImageRole(node("google/gemini-omni-flash", "ivideo"), "last") === true,
-    "editor: gemini-omni-flash last_image via family fallback (catalog hides the param)");
+  ok(T.modelHasImageRole(node("google/gemini-omni-flash", "ivideo"), "last") === false,
+    "editor: gemini-omni-flash v1 must not grow an end-frame port (no last-frame evidence)");
   ok(T.modelHasImageRole(node("google/gemini-omni-flash"), "refs") === true,
     "editor: gemini-omni-flash refs via per_second_by_mode.reference_to_video (no reference_images param)");
   const omni = T.videoRefSpec(node("google/gemini-omni-flash"));
@@ -401,9 +402,11 @@ async function spyRun(type, fields, inp) {
 }
 
 {
-  const { sent } = await spyRun("ivideo", { model: "google/gemini-omni-flash" }, { image: START, endframe: END });
-  ok(sent && sent.opts.last_image === END,
-    `play: gemini-omni-flash v1 (family pair; catalog hides last_image) still sends end frame, got ${JSON.stringify(sent && sent.opts && sent.opts.last_image)}`);
+  const { sent, notes } = await spyRun("ivideo", { model: "google/gemini-omni-flash" }, { image: START, endframe: END });
+  ok(sent && sent.opts.last_image == null,
+    `play: gemini-omni-flash v1 must omit last_image (no supportsLastImage / no first-last-frame), got ${JSON.stringify(sent && sent.opts && sent.opts.last_image)}`);
+  ok(notes.some((m) => /end frame ignored/i.test(m)),
+    `play: dropping an end frame on Omni v1 must say so, notes=${JSON.stringify(notes)}`);
 }
 
 {
@@ -482,4 +485,4 @@ if (fail) {
   console.error(`\n✗ video-image-roles: ${fail} assertion(s) failed.`);
   process.exit(1);
 }
-console.log("\n✓ video-image-roles: last_image family fallback (incl. minimax/h3-max + alibaba/wan-3.0-prime/image-to-video + google/gemini-omni-flash) + ref pricing/cap twins agree; play payload honors authored wires and drops only when the model is known-incapable.");
+console.log("\n✓ video-image-roles: last_image family fallback (incl. minimax/h3-max + alibaba/wan-3.0-prime/image-to-video + google/gemini-omni-flash/v1.1; v1 stays OFF) + ref pricing/cap twins agree; play payload honors authored wires and drops only when the model is known-incapable.");

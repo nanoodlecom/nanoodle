@@ -13,7 +13,7 @@ key at all:
 | `minimax/h3-max` | "…from a text prompt or a first-frame image, with optional first/last-frame transitions." | `duration`, `resolution`, `aspect_ratio`, `prompt_expansion_mode`, `enable_safety_checker`, `seed` |
 | `alibaba/wan-3.0-prime` | "Automatically routes text, first/last-frame images, or multimodal image, video, and audio references…" | `mode`, `resolution`, `aspect_ratio`, `duration`, `thinking_mode`, `enable_audio`, `seed` |
 | `alibaba/wan-3.0/image-to-video` (sibling, non-Prime) | description: "…with optional last-frame guidance…"; **tags include `first-last-frame`** | `resolution`, `aspect_ratio`, `duration`, `thinking_mode`, `enable_audio`, `seed` |
-| `google/gemini-omni-flash` | marketing `/api/models` omits `supportsLastImage`; video-models tags have no `first-last-frame` (hypothesis: same family gap as v1.1) | `duration`, `aspect_ratio` |
+| `google/gemini-omni-flash` | marketing `/api/models` omits `supportsLastImage`; video-models tags have no `first-last-frame` — **not** a last-frame model; do not send `last_image` | `duration`, `aspect_ratio` |
 | `google/gemini-omni-flash/v1.1` | description: "image animation with optional end frames"; **tags include `first-last-frame`**; marketing `supportsLastImage: true` | `duration`, `resolution`, `aspect_ratio` |
 
 `minimax-h3`'s gap was closed client-side by live-testing the field (2026-07-31: sending `last_image`
@@ -33,7 +33,9 @@ already used for `minimax-h3`) so the end-frame port keeps working for these ids
 launch repeats the same investigation from scratch, and a wrong guess here either hides a real
 capability (no port drawn) or risks an unverified param on someone's paid request. A one-line catalog
 fix removes both risks. Omni 1.1's evidence is the marketing `supportsLastImage` flag plus the
-`first-last-frame` tag (2026-09-01 catalog GET); v1 is included as the unversioned family pair.
+`first-last-frame` tag (2026-09-01 catalog GET). v1 is **not** on the allowlist: it advertises
+neither the flag nor the tag, so a family-pair guess would send a charged extra image the model
+never claimed to take.
 
 **Ask:** when `supported_parameters` is generated from the upstream provider schema, either forward
 the provider's own optional frame/keyframe params under nano-gpt's existing `last_image`/`end_image`

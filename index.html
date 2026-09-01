@@ -4553,10 +4553,10 @@ const VIDEO_IMG_ROLE_KEYS = { last:["last_image","end_image"], refs:["reference_
 //     own API docs rather than a live NanoGPT call: fal.ai's minimax-h3-max page states the image-to-video
 //     endpoint "also handles first-to-last keyframes through an optional end_image_url", and fal.ai /
 //     WaveSpeedAI's wan-3.0-prime/image-to-video both document a `last_image`/`end_image_url` param.
-//     google/gemini-omni-flash and /v1.1 ship the same gap (2026-09-01): /api/v1/video-models lists
-//     duration/aspect(/resolution) only; marketing /api/models sets supportsLastImage on v1.1 and the
-//     video-models tags include first-last-frame. Hypothesis: v1 accepts last_image too (user-asked
-//     family pair) even though only v1.1 advertises the flag. Drop each id once NanoGPT lists the param.
+//     google/gemini-omni-flash/v1.1 ships the same gap (2026-09-01): /api/v1/video-models lists
+//     duration/aspect/resolution only; marketing /api/models sets supportsLastImage on v1.1 and the
+//     video-models tags include first-last-frame. v1 has neither flag nor tag — do not send last_image
+//     on v1 (an ignored extra image is charged). Drop v1.1 once NanoGPT lists the param.
 const VIDEO_REF_PRICE_KEYS = ["included_reference_images","extra_reference_image"];
 // A billed `reference_to_video` MODE (Omni v1 / v1.1) is the catalog advertising refs the same way
 // extra_reference_image does for minimax-h3 — no reference_images param. Exact key only; kling-o1's
@@ -4564,7 +4564,7 @@ const VIDEO_REF_PRICE_KEYS = ["included_reference_images","extra_reference_image
 const videoRefsModePriced = (p)=> !!(p && ((p.per_second_by_mode && p.per_second_by_mode.reference_to_video!=null)
   || (p.per_second_by_mode_and_resolution && p.per_second_by_mode_and_resolution.reference_to_video!=null)));
 const videoRefsPriced = (m)=> { const p = m && m.pricing; return !!p && (VIDEO_REF_PRICE_KEYS.some(k=> p[k]!=null) || videoRefsModePriced(p)); };
-const VIDEO_LAST_FRAME_FAMILIES = /^(minimax-h3|minimax\/h3-max|alibaba\/wan-3\.0-prime|alibaba\/wan-3\.0\/image-to-video|google\/gemini-omni-flash(\/v1\.1)?)$/i;
+const VIDEO_LAST_FRAME_FAMILIES = /^(minimax-h3|minimax\/h3-max|alibaba\/wan-3\.0-prime|alibaba\/wan-3\.0\/image-to-video|google\/gemini-omni-flash\/v1\.1)$/i;
 function modelHasImageRole(n, role){
   const t = NODE_TYPES[n.type]; if(!t.modelKind) return false;
   const m = catItem(t.modelKind, n.fields.model);
