@@ -7,7 +7,7 @@
 //
 // Offline node:vm, same harness as check-run-compat.mjs. No network, no API spend.
 
-import { loadEngine, calls, catalog } from "./play-engine.mjs";
+import { loadEngine, calls, catalog, recordingFetch } from "./play-engine.mjs";
 
 catalog.chat = [{ id: "ok-llm", capabilities: {} }];
 catalog.image = [{ id: "ok-img", supported_parameters: { max_output_images: 1 } }];
@@ -194,8 +194,58 @@ const ok = (c, m) => {
   ok(imgCalls().length === 2, `B then C each billed an image after A changed (POSTs=${imgCalls().length})`);
 }
 
+// 8) In-flight join + leftover out: A succeeded once, prompt changed, then A fails
+//    while B and C share NODE_WORK. Joining C must skip — not bill an image on the
+//    leftover chat (settleWork used to resolve leftover n.out as success).
+{
+  let chats = 0;
+  const failApp = loadEngine((ctx) => {
+    ctx.fetch = (url, opts) => {
+      if (/\/chat\/completions/.test(String(url))) {
+        chats++;
+        if (chats >= 2) {
+          return Promise.resolve({
+            ok: false, status: 500,
+            headers: { get: () => null },
+            json: async () => ({ error: { message: "upstream 500" } }),
+            text: async () => "upstream 500",
+            arrayBuffer: async () => new ArrayBuffer(0),
+          });
+        }
+      }
+      return recordingFetch(url, opts);
+    };
+  });
+  calls.length = 0;
+  const g = failApp.materialize(
+    graph(
+      [
+        node("a", "llm", { model: "ok-llm", prompt: "shared" }),
+        node("b", "image", { model: "ok-img", prompt: "B" }),
+        node("c", "image", { model: "ok-img", prompt: "C" }),
+      ],
+      [link("a", "text", "b", "prompt"), link("a", "text", "c", "prompt")],
+    ),
+  );
+  await failApp.runGraph(g, { seeds: ["b"] });
+  ok(chatCalls().length === 1 && imgCalls().length === 1, "first Play B succeeds (chat + image B)");
+  g.byId("a").fields.prompt = "edited";
+  const imgsAfterB = imgCalls().length;
+  const statuses = [];
+  await Promise.all([
+    failApp.runGraph(g, { seeds: ["b"], onStatus: (id, kind) => statuses.push({ id, kind, seed: "b" }) }),
+    failApp.runGraph(g, { seeds: ["c"], onStatus: (id, kind) => statuses.push({ id, kind, seed: "c" }) }),
+  ]);
+  ok(chats === 2, `edited A re-chats once and fails (chats=${chats})`);
+  ok(imgCalls().length === imgsAfterB, `neither sibling image billed on leftover chat (POSTs ${imgsAfterB} → ${imgCalls().length})`);
+  ok(
+    statuses.some((s) => s.id === "c" && s.kind === "skip") || statuses.some((s) => s.id === "c" && s.kind === "error"),
+    `Play C must skip/error, not done (statuses=${JSON.stringify(statuses.filter((s) => s.id === "c" || s.id === "b"))})`,
+  );
+}
+
 if (fail) {
   console.error(`\n✗ play-stale-input: ${fail} assertion(s) failed.`);
   process.exit(1);
 }
-console.log("\n✓ play-stale-input: failed upstream poisons dependents — no leftover-field charge; sibling Plays run independently without double-charging shared upstream; input kinds have no Play; healthy graphs unaffected.");
+console.log("\n✓ play-stale-input: failed upstream poisons dependents — no leftover-field charge; sibling Plays run independently without double-charging shared upstream; a joined sibling does not bill on leftover .out when the shared run fails; input kinds have no Play; healthy graphs unaffected.");

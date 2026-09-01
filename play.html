@@ -8676,7 +8676,10 @@ const PROMPT_CAPS = {
           // don't poison the cache with a failed/aborted promise — drop our pending entry so a
           // later lane or run can retry (only if it's still ours, not already swapped/overwritten).
           if(seeded){ const c = RUN_CACHE.get(id); if(c && c.pending===p) RUN_CACHE.delete(id); }
-          if(settleWork) settleWork.res(n.out && Object.keys(n.out).length ? n.out : null);   // resolve, never reject (un-awaited abort used to crash check-video-resume)
+          // resolve empty — leftover n.out is a prior success, not THIS run. A joiner
+          // that treated leftover as done would bill dependents on stale input (PR #391
+          // class across sibling Plays). Never reject (un-awaited abort used to crash check-video-resume).
+          if(settleWork) settleWork.res(null);
           if(NODE_WORK.get(workKey)===work) NODE_WORK.delete(workKey);
           if(isAbort(err)) throw err; failed.add(id); nodeErrors++; onStatus && onStatus(id, "error", friendlyRunError(err, n));
         }
