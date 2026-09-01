@@ -32,6 +32,9 @@ touches_imgports=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/
 # day-one catalog gaps: minimax-h3, minimax/h3-max, alibaba/wan-3.0-prime + pricing-as-advertising).
 # A one-sided edit silently drops a billed morph/extra ref.
 touches_videoroles=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|vendor/njs-engine\.js|scripts/check-video-image-roles\.mjs|scripts/play-engine\.mjs)$' || true)
+# index.html + play.html + njs-engine carry LoRA URL validation + family/cap/body (CivitAI / bare
+# HF repo / HF file-page must throw before the paid pull; krea stacks 3; spicy is excluded).
+touches_loragates=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|vendor/njs-engine\.js|scripts/check-lora-url-gates\.mjs|scripts/play-engine\.mjs)$' || true)
 # index.html carries the video "mode" knob's per-node gate (videoOptDefs/modeOK) — a generation-type
 # option the current node can't feed (e.g. "image-to-video" on Text→Video) is a silent-drop footgun.
 touches_videomode=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-video-mode-gate\.mjs)$' || true)
@@ -155,7 +158,7 @@ touches_nanogptsync=$(printf '%s\n' "$staged" | grep -E '(^|/)(scripts/sync-nano
 # Nothing to check unless an .html file, one of the checkers, or a guarded doc changed.
 # Every touches_* variable belongs in this chain — a gate left out of it never runs on a
 # commit that stages only its own files, which is exactly the commit it exists to catch.
-[ -z "$staged_html" ] && [ -z "$touches_launchfacts" ] && [ -z "$touches_njseditor" ] && [ -z "$touches_llmgate" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_jsparity" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_videoroles" ] && [ -z "$touches_videomode" ] && [ -z "$touches_knobclamp" ] && [ -z "$touches_langpages" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_i18n" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_lipsync" ] && [ -z "$touches_aresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && [ -z "$touches_pacing" ] && [ -z "$touches_graphpersist" ] && [ -z "$touches_graphsigs" ] && [ -z "$touches_describeapply" ] && [ -z "$touches_authlc" ] && [ -z "$touches_mediapriv" ] && [ -z "$touches_verhist" ] && [ -z "$touches_rungating" ] && [ -z "$touches_appsstorage" ] && [ -z "$touches_linkerr" ] && [ -z "$touches_deploy" ] && [ -z "$touches_hiddencss" ] && [ -z "$touches_connect" ] && [ -z "$touches_undo" ] && [ -z "$touches_costaccrue" ] && [ -z "$touches_resize" ] && [ -z "$touches_catalog" ] && [ -z "$touches_upscale" ] && [ -z "$touches_drift" ] && [ -z "$touches_promptcaps" ] && [ -z "$touches_consent" ] && [ -z "$touches_sharesamples" ] && [ -z "$touches_llmsfull" ] && [ -z "$touches_examples" ] && [ -z "$touches_twindrift" ] && [ -z "$touches_twindriftcases" ] && [ -z "$touches_nanogptsync" ] && exit 0
+[ -z "$staged_html" ] && [ -z "$touches_launchfacts" ] && [ -z "$touches_njseditor" ] && [ -z "$touches_llmgate" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_jsparity" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_videoroles" ] && [ -z "$touches_loragates" ] && [ -z "$touches_videomode" ] && [ -z "$touches_knobclamp" ] && [ -z "$touches_langpages" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_i18n" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_lipsync" ] && [ -z "$touches_aresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && [ -z "$touches_pacing" ] && [ -z "$touches_graphpersist" ] && [ -z "$touches_graphsigs" ] && [ -z "$touches_describeapply" ] && [ -z "$touches_authlc" ] && [ -z "$touches_mediapriv" ] && [ -z "$touches_verhist" ] && [ -z "$touches_rungating" ] && [ -z "$touches_appsstorage" ] && [ -z "$touches_linkerr" ] && [ -z "$touches_deploy" ] && [ -z "$touches_hiddencss" ] && [ -z "$touches_connect" ] && [ -z "$touches_undo" ] && [ -z "$touches_costaccrue" ] && [ -z "$touches_resize" ] && [ -z "$touches_catalog" ] && [ -z "$touches_upscale" ] && [ -z "$touches_drift" ] && [ -z "$touches_promptcaps" ] && [ -z "$touches_consent" ] && [ -z "$touches_sharesamples" ] && [ -z "$touches_llmsfull" ] && [ -z "$touches_examples" ] && [ -z "$touches_twindrift" ] && [ -z "$touches_twindriftcases" ] && [ -z "$touches_nanogptsync" ] && exit 0
 if ! command -v node >/dev/null 2>&1; then
   echo "pre-commit: node not found, skipping HTML JS checks" >&2
   exit 0
@@ -256,6 +259,13 @@ fi
 #     a spy genVideo.
 if [ -n "$touches_videoroles" ]; then
   node "$root/scripts/check-video-image-roles.mjs"
+fi
+
+# 7c2) LoRA URL + family/cap/body lockstep: CivitAI / bare HF repo / HF file-page must throw
+#     before /images/generations; krea stacks 3; spicy is excluded. Extracts the shipped
+#     helpers and drives play runGraph so a bad URL never bills.
+if [ -n "$touches_loragates" ]; then
+  node "$root/scripts/check-lora-url-gates.mjs"
 fi
 
 # 7d) video "mode" knob per-node gate: a generation-type option (image-to-video/video-edit/
