@@ -5,8 +5,15 @@ copy of it. The four draft files hold the framing, the comment FAQ and the asset
 notes; none of them repeats a post body, so a correction here is the whole
 correction.
 
-Written 2026-07-28. Every fact below was checked against the live product on
-that date. `scripts/check-launch-facts.mjs` re-checks the load-bearing figures
+Written 2026-07-29. The published version figures were verified live on that
+date. Every other fact carries forward from the 2026-07-28 pass against the live
+product.
+
+Five pull requests merged on 2026-07-29, after that pass. None of them makes a
+claim below false, and one of them is worth adding to the copy: a signed-out
+visitor can now reach a **video** result in the sample run, with no account and no
+key. Before, the sample covered text and images only. The showcase is also linked
+from the product now. Re-read the hooks with that in mind before you post. `scripts/check-launch-facts.mjs` re-checks the load-bearing figures
 on every commit, so a stale draft fails the hook instead of reaching a reader.
 Only Mikkel can post. A pull request cannot.
 
@@ -24,9 +31,9 @@ Reasons are in `shares.md`. You can do 1 and 2 today in under an hour.
 **Re-check on the day** (both packages ship often, and a wrong version number in
 a launch post is the kind of error people quote back at you):
 ```
-npm view nanoodle version          # 0.8.0 on 2026-07-28
-npm view nanoodle-mcp version      # 0.4.0 on 2026-07-28
-pip index versions nanoodle        # 0.4.0 on 2026-07-28
+npm view nanoodle version          # 0.8.0 on 2026-07-29
+npm view nanoodle-mcp version      # 0.4.0 on 2026-07-29
+pip index versions nanoodle        # 0.5.0 on 2026-07-29
 ```
 
 **Do not show the 🎨 Draw node in any screenshot.** That node retired on
@@ -79,7 +86,7 @@ self-listings get removed.
 > ready-made workflows, mirrored from an open gallery repository and shipped
 > inside the page, so there is something to run on the first visit and the panel
 > itself needs no network. The same graph format also runs headlessly via the
-> `nanoodle` package on npm (0.8.0) and PyPI (0.4.0), and there's an MCP server
+> `nanoodle` package on npm (0.8.0) and PyPI (0.5.0), and there's an MCP server
 > and a GitHub Action.
 >
 > Open source (MIT) — the site is served straight from its repository, and the
