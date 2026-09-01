@@ -46,10 +46,10 @@ const CASES = [
     name: "extract row 1 — resize and crop geometry",
     why: "sig = deletes = 25, the plainest mirrored removal in the plan",
     idx: [[7586, 7646]],
-    play: [[7497, 7532], [9424, 9438]],
-    // Ranges re-anchored after Omni Flash family/pricing twin growth (on FIBO gallery main)
-    // plus the join-failure line shift; surfaces still share resize helpers outside this
-    // block, so a paired delete is not silent (same class as row 8).
+    play: [[7497, 7532], [9437, 9451]],
+    // Ranges re-anchored after Omni Flash family/pricing twin growth, the join-failure
+    // line shift (#409: +3 play), and snapImageSize (+13 play). Surfaces still share
+    // resize helpers outside this block, so a paired delete is not silent.
     expect: { exit: 1, oneSided: 25, occurrence: 1 },
   },
   {
@@ -102,15 +102,15 @@ const CASES = [
     why: "the one planned extraction that cannot be silent, and the guard is right. 5 twins have " +
       "their OTHER copy in unrelated code on one surface only, so deleting the 2 share blocks " +
       "leaves each of them live on exactly 1 surface:\n" +
-      "        index.html:11000,11002 inline play.html's explicitLang() (play.html:11536-11540)\n" +
-      "        index.html:10917,10922 twin play.html:9893,9900, a thumbnail helper outside the block\n" +
-      "        play.html:13206 twins index.html:8104,8185, the canvas fit bounds\n" +
+      "        index.html:11000,11002 inline play.html's explicitLang() (play.html:11552-11556)\n" +
+      "        index.html:10917,10922 twin play.html:9909,9916, a thumbnail helper outside the block\n" +
+      "        play.html:13222 twins index.html:8104,8185, the canvas fit bounds\n" +
       "      Plus 1 occurrence drift: index.html carries the noodle_lang read twice (3793 and 11001)\n" +
       "      and play.html twice, and only index.html's second copy is inside the block.\n" +
       "      Whoever does row 8 refreshes the baseline as part of it — deliberately, which is what\n" +
       "      the guard's own remedy line asks for",
     idx: [[11636, 11952]],
-    play: [[13532, 13851]],
+    play: [[13545, 13864]],
     expect: { exit: 1, oneSided: 106, occurrence: 1 },
   },
   {
@@ -119,7 +119,7 @@ const CASES = [
       "the whole agent-pill popover (13294-13373) and the model-picker search, which index.html " +
       "keeps at 11822-11838 and 10608",
     idx: [[12065, 12105]],
-    play: [[13990, 13990], [14072, 14124], [14228, 14228]],
+    play: [[14003, 14003], [14085, 14137], [14241, 14241]],
     expect: { exit: 1, oneSided: 38 },
   },
 
@@ -206,7 +206,7 @@ const CASES = [
       },
       {
         file: "play.html",
-        line: 13425,
+        line: 13438,
         from: "    const usd = parseFloat((await r.json()).usd_balance);",
         to: "    const usd = parseFloat((await r.json()).usdBalance);",
       },

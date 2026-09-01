@@ -5765,7 +5765,7 @@ function llmOpts(n){
 const SIZE_FALLBACK     = SIZES;                                       // [[value,label],…]
 const ASPECT_FALLBACK   = [["16:9","16:9"],["9:16","9:16"],["1:1","1:1"]];
 const DURATION_FALLBACK = [["5","5 sec"],["10","10 sec"]];
-const DIM_NODES = { image:1, edit:1, tvideo:1, ivideo:1, vedit:1, lipsync:1 };
+const DIM_NODES = { image:1, edit:1, inpaint:1, tvideo:1, ivideo:1, vedit:1, lipsync:1 };
 // a catalog select param → [[value,label],…] (real options only)
 function selOpts(param){
   return ((param&&param.options)||[]).filter(o=> o && o.value!=="" && o.value!=null)
@@ -5847,7 +5847,7 @@ function applyDimFields(fields, defs){
 }
 // the dimension fields a node should show, resolved from its model's catalog entry
 function dimDefs(type, model){
-  if(type==="image" || type==="edit"){
+  if(type==="image" || type==="edit" || type==="inpaint"){
     const it = catItem("image", model);
     const listed = !!(it && it.resolutions && it.resolutions.length);
     const res = listed ? it.resolutions.map(r=>[r,r]) : SIZE_FALLBACK;
@@ -5898,8 +5898,8 @@ function dimDefs(type, model){
 // catalog (via dimDefs). Reuses the node's real default when a field is unset, so every video node kind
 // sends the params the model reads instead of a silently-ignored generic duration/aspect_ratio.
 function videoDimParams(n){
-  const out = {};
-  for(const d of dimDefs(n.type, n.fields.model)){
+  const out = {}, defs = dimDefs(n.type, n.fields.model); applyDimFields(n.fields, defs);
+  for(const d of defs){
     const v = (n.fields[d.f]!=null && n.fields[d.f]!=="") ? n.fields[d.f] : d.def;
     if(v!=null && v!=="") out[d.wire] = v;
   }
@@ -6777,7 +6777,7 @@ const NODE_TYPES = {
       const want = fixed>1 ? fixed : Math.max(1, Math.min(maxOut, parseInt(n.fields.variations,10)||1));
       // always take the multi path: even a single-image request can come back with N (fixed_image_count
       // models return 4), and we want to surface every image the user paid for, not discard them.
-      const urls = await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], undefined, undefined, imgExtra(n), {n:want, multi:true});
+      const urls = await ctx.genImage(prompt, mdl(n), (applyDimFields(n.fields, dimDefs(n.type, n.fields.model)), n.fields.size||SIZES[0][0]), undefined, undefined, imgExtra(n), {n:want, multi:true});
       const sel = Math.min(Math.max(0, parseInt(n.fields.sel,10)||0), urls.length-1);   // remembered pick, clamped to what came back
       return { image: urls[sel], images: urls };
     }
@@ -6826,7 +6826,7 @@ const NODE_TYPES = {
       if(imgs.reduce((s,u)=> s + (u?u.length:0), 0) > MEDIA_INLINE_MAX)
         throw new Error("reference images too large (~4 MB combined limit) — use fewer or smaller images");
       const src = imgs.length>1 ? imgs : imgs[0];   // array → multi-image composite; string → single edit (unchanged)
-      return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], src, undefined, imgExtra(n)) };
+      return { image: await ctx.genImage(prompt, mdl(n), (applyDimFields(n.fields, dimDefs(n.type, n.fields.model)), n.fields.size||SIZES[0][0]), src, undefined, imgExtra(n)) };
     }
   },
 
@@ -6878,7 +6878,7 @@ const NODE_TYPES = {
       <div class="maskwrap" data-maskwrap>${canvasHTML}</div>
       ${sourceCtrls}
       ${maskCtrls}
-      <div><label>size</label><select data-f="size">${optsHTML(SIZES, n.fields.size||SIZES[0][0])}</select></div>
+      <div data-dims></div>
       <div><label>what to paint in</label><textarea data-f="prompt" placeholder="a red coffee mug, a small bird…">${esc(n.fields.prompt||"")}</textarea></div>
       <div><label>seed <span class="dim lblhint">· blank = random, fix to repeat (re-run won't regenerate)</span></label><input type="number" data-f="seed" placeholder="random" value="${esc(n.fields.seed??"")}"/></div>
       <div data-loraparams></div>`;   // 🎨 LoRA box (model-gated: only p-image/edit-lora carries lora_weights; strong style LoRAs restyle broadly, not just the brushed area)
@@ -6894,7 +6894,7 @@ const NODE_TYPES = {
       const mask = await maskToSource(rawMask, source);   // composite onto black at the source's pixel size
       if((source.length + mask.length) > MEDIA_INLINE_MAX)
         throw new Error("image too large (~4 MB limit) — use a smaller source image");
-      return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], source, mask, imgExtra(n)) };
+      return { image: await ctx.genImage(prompt, mdl(n), (applyDimFields(n.fields, dimDefs(n.type, n.fields.model)), n.fields.size||SIZES[0][0]), source, mask, imgExtra(n)) };
     }
   },
 
@@ -13291,7 +13291,7 @@ $("signout").onclick = ()=> setKey(null);
   // fields (prompt/system/lyrics/text) are never touched. ----
   function sanitizeFields(node){
     const t = node.type, f = node.fields || {};
-    // size / resolution / aspect / duration — straight from the live catalog entry (image+edit+video)
+    // size / resolution / aspect / duration — straight from the live catalog entry (image+edit+inpaint+video)
     if(typeof dimDefs==="function"){
       for(const d of dimDefs(t, f.model)){
         const cur = f[d.f];
@@ -13310,7 +13310,7 @@ $("signout").onclick = ()=> setKey(null);
         else if(af.type==="boolean" && typeof cur!=="boolean"){ f[key] = (cur==="true" || cur===true); }
       }
     }
-    if(t==="inpaint" && f.size!=null && typeof SIZES!=="undefined" && !SIZES.some(s=> s[0]===f.size)) delete f.size;
+    // inpaint size is catalog-driven via dimDefs above — never strip against the SIZES fallback list
     if(t==="vframes"){
       if(f.dir!=null && f.dir!=="end" && f.dir!=="start") delete f.dir;
       if(f.frames!=null){ const x=parseInt(f.frames,10); const cap = (typeof MAX_FRAMES!=="undefined"?MAX_FRAMES:8);

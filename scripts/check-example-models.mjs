@@ -71,7 +71,8 @@ function pinnedModels(kinds) {
       const kind = kinds[n[2]];
       if (!kind) continue;                                   // not a model-bearing node
       const mm = /"?model"?:"([^"]+)"/.exec(n[3]);
-      if (mm) out.push({ slug, node: n[1], type: n[2], kind, id: mm[1] });
+      const sm = /"?size"?:"([^"]+)"/.exec(n[3]);
+      if (mm) out.push({ slug, node: n[1], type: n[2], kind, id: mm[1], size: sm ? sm[1] : null });
     }
   }
   return out;
@@ -83,6 +84,26 @@ if (!pins.length) {
   console.error("check-example-models: parsed 0 pinned models out of EXAMPLES — the entry shape changed. Audited nothing; refusing to report success.");
   process.exit(1);
 }
+
+const FIBO_PIN = {
+  slug: "fibo-studio-still",
+  id: "bria/fibo-generate-1.5/text-to-image",
+  size: "1mp",
+};
+const fiboCard = pins.find((p) => p.slug === FIBO_PIN.slug && p.type === "image");
+if (!fiboCard) {
+  console.error("check-example-models: EXAMPLES is missing the fibo-studio-still image card — the gallery pin drifted.");
+  process.exit(1);
+}
+if (fiboCard.id !== FIBO_PIN.id) {
+  console.error(`check-example-models: fibo-studio-still pins "${fiboCard.id}" — want "${FIBO_PIN.id}" (do not use bria-fibo)`);
+  process.exit(1);
+}
+if (fiboCard.size !== FIBO_PIN.size) {
+  console.error(`check-example-models: fibo-studio-still size is ${JSON.stringify(fiboCard.size)} — want "${FIBO_PIN.size}" (send-path clamp would rewrite any other leftover)`);
+  process.exit(1);
+}
+console.log(`check-example-models: FIBO card pins ${FIBO_PIN.id} at ${FIBO_PIN.size}`);
 
 const need = [...new Set(pins.map((p) => p.kind))];
 const live = {};
@@ -99,6 +120,17 @@ for (const kind of need) {
       process.exit(1);
     }
     live[kind] = new Set(ids);
+    if (kind === "image") {
+      const fibo = data.find((m) => m && m.id === FIBO_PIN.id);
+      const res = fibo && fibo.supported_parameters && fibo.supported_parameters.resolutions;
+      if (Array.isArray(res) && res.length && !res.map(String).includes(FIBO_PIN.size)) {
+        console.error(`check-example-models: live ${FIBO_PIN.id} resolutions are ${res.join(", ")} — pinned size "${FIBO_PIN.size}" is gone; send-path clamp would silently rewrite the gallery card`);
+        process.exit(1);
+      }
+      if (Array.isArray(res) && res.length) {
+        console.log(`check-example-models: live ${FIBO_PIN.id} still lists ${FIBO_PIN.size} (among ${res.join("/")})`);
+      }
+    }
   } catch (e) {
     console.error(`check-example-models: ${kind} catalog fetch failed (${e.message}) — skipping audit`);
     process.exit(0);
@@ -118,4 +150,5 @@ if (gone.length || rotten.length) {
   console.error(`\nRefresh the graph(s) in github.com/nanoodlecom/awesome-noodles, then: node scripts/sync-examples.mjs`);
   process.exit(1);
 }
-console.log(`check-example-models: OK (${pins.length} pinned ids across ${need.length} catalogs, all live)`);
+const cardCount = [...src.slice(src.indexOf("const EXAMPLES = ["), src.indexOf("\n];", src.indexOf("const EXAMPLES = ["))).matchAll(/slug:"/g)].length;
+console.log(`check-example-models: OK (${pins.length} pinned ids across ${need.length} catalogs, all live; ${cardCount} gallery cards)`);

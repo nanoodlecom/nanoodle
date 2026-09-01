@@ -13,6 +13,10 @@
 //   * refreshDims / fillDimLists never inject a fake option once the catalog is known
 //   * load path (refreshAllPrices / fillDimLists) clamps, not only the picker
 //   * play tvideo.run / videoDimParams SEND path snaps (the original "Play sent 8s" bug)
+//   * editor videoDimParams SEND path snaps leftover 8s without a prior applyDimFields
+//   * editor image/edit/inpaint SEND path snaps leftover 2k (dimDefs includes inpaint)
+//   * play image.run / snapImageSize SEND path snaps leftover 2k (fillDimLists is async)
+//   * play dimOptionsFromItem treats inpaint like image/edit
 //   * fps / frames_per_second wire-name remap + unlisted fps snap
 //   * unlisted 9:16 on an orientation model snaps (not forwarded as aspect_ratio)
 //
@@ -119,6 +123,7 @@ function loadPlay() {
     dimNumLine(PLAY),
     block(PLAY, "function nearestDimOption(cur, options, def){"),
     block(PLAY, "function dimOptionsFromItem(type, m){"),
+    block(PLAY, "function snapImageSize(n, raw){"),
   ].join("\n");
   const ctx = { console, Math };
   vm.createContext(ctx);
@@ -269,13 +274,36 @@ editor.catalogs.image = [BANANA, QWEN];
 }
 
 {
-  // editor send helper reads the clamped fields (refreshDims → applyDimFields → videoDimParams)
-  const fields = { model: "alibaba/wan-3.0-prime", duration: "8" };
-  editor.applyDimFields(fields, editor.dimDefs("tvideo", fields.model));
-  const wire = editor.videoDimParams({ type: "tvideo", fields });
-  if (String(wire.duration) === "8") fail("editor: videoDimParams still packs 8s after the Wan Prime clamp");
-  else if (wire.duration == null || wire.duration === "") fail("editor: videoDimParams dropped duration after clamp");
-  else ok("editor: videoDimParams packs clamped Wan Prime duration " + wire.duration);
+  // SEND path must clamp even when refreshDims never ran (n.el missing / catalog raced Run).
+  const n = { type: "tvideo", fields: { model: "alibaba/wan-3.0-prime", duration: "8" } };
+  const wire = editor.videoDimParams(n);
+  if (String(wire.duration) === "8") fail("editor send: videoDimParams still packs leftover 8s on Wan Prime");
+  else if (wire.duration == null || wire.duration === "") fail("editor send: videoDimParams dropped duration");
+  else if (String(n.fields.duration) === "8") fail("editor send: videoDimParams left fields.duration=8");
+  else ok("editor send: videoDimParams clamps leftover 8s on Wan Prime to " + wire.duration + " (no prior applyDimFields)");
+}
+
+{
+  const fields = { model: "qwen-image-3", size: "2k" };
+  const n = { type: "image", fields };
+  editor.applyDimFields(fields, editor.dimDefs(n.type, n.fields.model));
+  if (String(fields.size) === "2k") fail("editor send: leftover 2k survived dimDefs+applyDimFields on qwen-image-3");
+  else ok("editor send: leftover 2k on qwen-image-3 snaps to " + fields.size);
+}
+
+{
+  const fields = { model: "qwen-image-3", size: "2k" };
+  const defs = editor.dimDefs("inpaint", fields.model);
+  const size = defs.find((d) => d.f === "size");
+  if (!size) fail("editor: dimDefs(inpaint) has no size def");
+  else {
+    editor.applyDimFields(fields, defs);
+    const listed = (size.options || []).map((o) => String(o[0]));
+    if (String(fields.size) === "2k") fail("editor: leftover 2k survived on inpaint/qwen-image-3");
+    else if (!listed.includes(String(fields.size))) fail("editor: inpaint clamp \"" + fields.size + "\" is not in qwen-image-3's list");
+    else if (size.options.some((o) => String(o[0]) === "2k")) fail("editor: inpaint applyDimFields injected 2k as a fake option");
+    else ok("editor: leftover 2k on inpaint/qwen-image-3 snaps to " + fields.size);
+  }
 }
 
 {
@@ -393,6 +421,39 @@ editor.catalogs.image = [BANANA, QWEN];
   else ok("play: still-valid 2k on nano-banana-2 is kept");
 }
 
+{
+  const qwenRaw = { supported_parameters: { resolutions: ["auto", "1024x1024", "512x512", "768x1024"] } };
+  const pack = play.dimOptionsFromItem("inpaint", qwenRaw);
+  const listed = (pack.size || []).map((o) => String(o[0]));
+  if (!listed.length) fail("play: dimOptionsFromItem(inpaint) produced no size list");
+  else if (listed.includes("2k")) fail("play: inpaint/qwen size list leaked 2k");
+  else ok("play: dimOptionsFromItem(inpaint) lists qwen sizes " + listed.join("/"));
+}
+
+{
+  const qwenRaw = { supported_parameters: { resolutions: ["auto", "1024x1024", "512x512", "768x1024"] } };
+  const n = { type: "image", fields: { model: "qwen-image-3", size: "2k" } };
+  const got = play.snapImageSize(n, qwenRaw);
+  if (String(got) === "2k") fail("play: snapImageSize kept leftover 2k on qwen");
+  else if (String(n.fields.size) === "2k") fail("play: snapImageSize left fields.size=2k");
+  else ok("play: snapImageSize leftover 2k → qwen snaps to " + got);
+}
+
+{
+  const bananaRaw = { supported_parameters: { resolutions: ["1k", "2k", "4k"] } };
+  const n = { type: "image", fields: { model: "nano-banana-2", size: "2k" } };
+  const got = play.snapImageSize(n, bananaRaw);
+  if (String(got) !== "2k") fail("play: snapImageSize reset still-valid 2k on banana to " + got);
+  else ok("play: snapImageSize keeps still-valid 2k on banana");
+}
+
+{
+  const n = { type: "image", fields: { model: "missing", size: "2k" } };
+  const got = play.snapImageSize(n, null);
+  if (String(got) !== "2k") fail("play: snapImageSize catalog-miss clobbered 2k to " + got);
+  else ok("play: snapImageSize catalog-miss keeps stored 2k (no false clamp)");
+}
+
 // ---- 4. wiring: one clamp path, on swap AND on load -----------------------
 {
   if (!/applyDimFields\(n\.fields, defs\)/.test(IDX)) fail("editor: refreshDims no longer calls applyDimFields");
@@ -444,8 +505,56 @@ editor.catalogs.image = [BANANA, QWEN];
   if (!/videoDimParams\(n\);      \/\/ resolution the avatar model supports/.test(PLAY)) {
     fail("play: lipsync.run no longer calls videoDimParams");
   } else ok("play: lipsync.run packs dims through videoDimParams");
+
+  const evdp = block(IDX, "function videoDimParams(n){");
+  if (!/applyDimFields\(n\.fields, defs\)/.test(evdp)) fail("editor: videoDimParams no longer clamps via applyDimFields on send");
+  else ok("editor: videoDimParams clamps through applyDimFields on the paid send path");
+
+  if (!/inpaint:1/.test(IDX.slice(IDX.indexOf("const DIM_NODES"), IDX.indexOf("const DIM_NODES") + 140))) {
+    fail("editor: DIM_NODES no longer includes inpaint (load-path refreshDims would skip it)");
+  } else ok("editor: DIM_NODES includes inpaint (load-path refreshDims)");
+
+  if (/t==="inpaint" && f\.size!=null && typeof SIZES/.test(IDX)) {
+    fail("editor: sanitizeFields still strips inpaint size against SIZES (would delete 1mp/2k after dimDefs accepted them)");
+  } else ok("editor: sanitizeFields does not strip inpaint size against SIZES");
+
+  if (!/type==="image" \|\| type==="edit" \|\| type==="inpaint"/.test(block(IDX, "function dimDefs(type, model){"))) {
+    fail("editor: dimDefs no longer treats inpaint as an image-size node");
+  } else ok("editor: dimDefs treats inpaint like image/edit");
+
+  if (!/type==="image" \|\| type==="edit" \|\| type==="inpaint"/.test(block(PLAY, "function dimOptionsFromItem(type, m){"))) {
+    fail("play: dimOptionsFromItem no longer treats inpaint as an image-size node");
+  } else ok("play: dimOptionsFromItem treats inpaint like image/edit");
+
+  const playNT = PLAY.slice(PLAY.lastIndexOf("const NODE_TYPES = {"));
+  const idxNT = IDX.slice(IDX.indexOf("const NODE_TYPES = {"));
+  for (const kind of ["image", "edit", "inpaint"]) {
+    const run = block(playNT, kind + ": {");
+    if (!/snapImageSize\(n/.test(run)) fail("play: " + kind + ".run no longer calls snapImageSize");
+    else ok("play: " + kind + ".run snaps size through snapImageSize");
+  }
+  for (const kind of ["image", "edit", "inpaint"]) {
+    const run = block(idxNT, kind + ": {");
+    if (!/applyDimFields\(n\.fields, dimDefs\(n\.type, n\.fields\.model\)\)/.test(run)) {
+      fail("editor: " + kind + ".run no longer clamps size via applyDimFields on send");
+    } else ok("editor: " + kind + ".run clamps size through applyDimFields on send");
+  }
 }
 
+catalog.image = [
+  {
+    id: "qwen-image-3",
+    supported_parameters: { resolutions: ["auto", "1024x1024", "512x512", "768x1024"] },
+  },
+  {
+    id: "nano-banana-2",
+    supported_parameters: { resolutions: ["1k", "2k", "4k"] },
+  },
+  {
+    id: "bria/fibo-generate-1.5/text-to-image",
+    supported_parameters: { resolutions: ["1mp", "4mp"] },
+  },
+];
 catalog.video = [
   {
     id: "alibaba/wan-3.0-prime",
@@ -554,6 +663,42 @@ async function spyTvideo(fields) {
   const dur = sent && sent.opts && sent.opts.dims && sent.opts.dims.duration;
   if (String(dur) !== "8") fail("play send: catalog-missing model clobbered a stored 8s (got " + dur + ")");
   else ok("play send: catalog-missing model still posts the stored 8s (no false clamp)");
+}
+
+async function spyImage(fields) {
+  let sent = null;
+  await app.NODE_TYPES.image.run(
+    { id: "i1", type: "image", fields: { prompt: "a cat", variations: "1", ...fields } },
+    {},
+    { genImage: (prompt, model, size) => { sent = { prompt, model, size }; return ["https://cdn.example/i.png"]; } },
+  );
+  return sent;
+}
+
+{
+  const sent = await spyImage({ model: "qwen-image-3", size: "2k" });
+  const size = sent && sent.size;
+  if (String(size) === "2k") fail("play send: leftover 2k on qwen-image-3 was still posted");
+  else if (size == null || size === "") fail("play send: qwen-image-3 generate dropped size");
+  else ok("play send: leftover 2k → qwen-image-3 posts size " + size);
+}
+
+{
+  const sent = await spyImage({ model: "nano-banana-2", size: "2k" });
+  if (String(sent && sent.size) !== "2k") fail("play send: still-valid 2k on banana was reset to " + (sent && sent.size));
+  else ok("play send: still-valid 2k on nano-banana-2 is posted");
+}
+
+{
+  const sent = await spyImage({ model: "bria/fibo-generate-1.5/text-to-image", size: "1mp" });
+  if (String(sent && sent.size) !== "1mp") fail("play send: FIBO pin 1mp was rewritten to " + (sent && sent.size));
+  else ok("play send: FIBO 1mp stays 1mp (still listed)");
+}
+
+{
+  const sent = await spyImage({ model: "not-in-catalog", size: "2k" });
+  if (String(sent && sent.size) !== "2k") fail("play send: catalog-missing image clobbered stored 2k (got " + (sent && sent.size) + ")");
+  else ok("play send: catalog-missing image still posts stored 2k (no false clamp)");
 }
 
 if (failed) { console.error("\ncheck-model-knob-clamp: " + failed + " failure(s)"); process.exit(1); }
