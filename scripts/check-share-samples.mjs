@@ -245,7 +245,7 @@ ok("S7d", /SAMPLE_IMG_EDGE\s*=\s*\d+/.test(html), "SAMPLE_IMG_EDGE missing");
   }
 }
 
-// ---- S9: shareableGraph still blanks uploads (samples are not that path) ----
+// ---- S9: shareableGraph still blanks uploads + endpoint auth (samples are not that path) ----
 const shareable = extractFn(html, "shareableGraph");
 ok("S9a", /UPLOAD_FIELD/.test(shareable) || /upload/.test(shareable),
   "shareableGraph no longer blanks uploads");
@@ -253,6 +253,46 @@ ok("S9b", /inpaint/.test(shareable), "shareableGraph must still blank inpaint im
 // samples live on the #a= envelope, not inside the graph — assert doShare still
 // routes the graph through shareableGraph
 ok("S9c", /shareableGraph\s*\(/.test(doShare), "doShare must still call shareableGraph");
+// Custom endpoint Authorization is a secret. index.html share cards already pin this;
+// play's #a= / agent-URL / JSON-download / exported-graph paths were source-only.
+{
+  ok("S9d", /type\s*===\s*["']endpoint["']/.test(shareable) && /auth\s*:\s*["']["']/.test(shareable),
+    "play shareableGraph source must still blank endpoint.fields.auth");
+  const ctx = { UPLOAD_FIELD: { upload: "image", aupload: "audio", vupload: "video" } };
+  vm.createContext(ctx);
+  vm.runInContext(shareable + "\nthis.shareableGraph = shareableGraph;", ctx);
+  const liveFields = { url: "http://127.0.0.1:9", auth: "secret-tok", prompt: "hi" };
+  const gIn = {
+    nodes: [
+      { type: "endpoint", fields: liveFields },
+      { type: "upload", fields: { image: "data:image/png;base64,KEEPME", label: "pic" } },
+      { type: "text", fields: { text: "keep" } },
+    ],
+    links: [{ from: "n1", to: "n2" }],
+  };
+  const before = JSON.stringify(gIn);
+  const out = ctx.shareableGraph(gIn);
+  const ep = (out.nodes || []).find((n) => n.type === "endpoint");
+  const up = (out.nodes || []).find((n) => n.type === "upload");
+  ok("S9e", ep && ep.fields.auth === "",
+    "play shareableGraph must blank endpoint.fields.auth (the #a= / agent / export secret)");
+  ok("S9f", ep && ep.fields.url === "http://127.0.0.1:9" && ep.fields.prompt === "hi",
+    "play shareableGraph must keep the endpoint URL and prompt");
+  ok("S9g", up && up.fields.image === "" && up.fields.label === "pic",
+    "play shareableGraph still blanks upload media and keeps non-media fields");
+  ok("S9h", JSON.stringify(gIn) === before && liveFields.auth === "secret-tok",
+    "play shareableGraph must blank a spread copy — mutating live fields would wipe the creator's token");
+  let agentShare = "";
+  try { agentShare = extractFn(html, "agentShareUrl"); }
+  catch (e) { fail("S9i", "agentShareUrl missing: " + e.message); }
+  ok("S9i", /shareableGraph\s*\(/.test(agentShare),
+    "agentShareUrl (#a= for the CLI) must route through shareableGraph");
+  const engineGraph = html.slice(html.indexOf("graph:   ()=>"), html.indexOf("graph:   ()=>") + 400);
+  ok("S9j", /shareableGraph\s*\(APP_STATE\.graph\)/.test(engineGraph),
+    "ENGINE.graph (exported HTML) must stringify shareableGraph(APP_STATE.graph)");
+  ok("S9k", /JSON\.stringify\(\s*shareableGraph\s*\(\s*APP_STATE\.graph/.test(html),
+    "JSON download / export paths must still stringify shareableGraph(APP_STATE.graph)");
+}
 
 // ---- S10: i18n coverage for the sample badge --------------------------------
 {
