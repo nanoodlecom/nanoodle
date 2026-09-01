@@ -46,10 +46,10 @@ const CASES = [
     name: "extract row 1 — resize and crop geometry",
     why: "sig = deletes = 25, the plainest mirrored removal in the plan",
     idx: [[7586, 7646]],
-    play: [[7497, 7532], [9437, 9451]],
+    play: [[7497, 7532], [9454, 9468]],
     // Ranges re-anchored after Omni Flash family/pricing twin growth, the join-failure
-    // line shift (#409: +3 play), and snapImageSize (+13 play). Surfaces still share
-    // resize helpers outside this block, so a paired delete is not silent.
+    // line shift (#409: +3 play), snapImageSize (+13 play), and applyDimFields (+17 play).
+    // Surfaces still share resize helpers outside this block, so a paired delete is not silent.
     expect: { exit: 1, oneSided: 25, occurrence: 1 },
   },
   {
@@ -110,7 +110,7 @@ const CASES = [
       "      Whoever does row 8 refreshes the baseline as part of it — deliberately, which is what\n" +
       "      the guard's own remedy line asks for",
     idx: [[11636, 11952]],
-    play: [[13545, 13864]],
+    play: [[13562, 13881]],
     expect: { exit: 1, oneSided: 106, occurrence: 1 },
   },
   {
@@ -119,7 +119,7 @@ const CASES = [
       "the whole agent-pill popover (13294-13373) and the model-picker search, which index.html " +
       "keeps at 11822-11838 and 10608",
     idx: [[12065, 12105]],
-    play: [[14003, 14003], [14085, 14137], [14241, 14241]],
+    play: [[14020, 14020], [14102, 14154], [14258, 14258]],
     expect: { exit: 1, oneSided: 38 },
   },
 
@@ -206,7 +206,7 @@ const CASES = [
       },
       {
         file: "play.html",
-        line: 13438,
+        line: 13455,
         from: "    const usd = parseFloat((await r.json()).usd_balance);",
         to: "    const usd = parseFloat((await r.json()).usdBalance);",
       },

@@ -9137,6 +9137,23 @@ const PROMPT_CAPS = {
     }
     return (vals[0]!=null ? vals[0] : def);
   }
+  // Write each dim def onto fields: seed a default when unset; when the current
+  // value is not in the model's list, snap (known catalog) or keep it pickable
+  // (offline / uncatalogued). Mutates fields and, on the keep-pickable path,
+  // defs[i].options. Called from refreshDims so a model swap AND a saved-graph
+  // load go through the same clamp — tests drive this without a DOM.
+  function applyDimFields(fields, defs){
+    for(const d of defs){
+      const cur = fields[d.f];
+      if(d.locked) fields[d.f] = d.def;
+      else if(cur==null || cur==="") fields[d.f] = d.def;
+      else if(!d.options.some(o=> String(o[0])===String(cur))){
+        if(d.known) fields[d.f] = nearestDimOption(cur, d.options, d.def);
+        else d.options = [[String(cur), String(cur)], ...d.options];
+      }
+    }
+    return fields;
+  }
   async function rawCatItem(kind, id){
     if(!id) return null;
     const raw = await loadCatalogRaw(kind);

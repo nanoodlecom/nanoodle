@@ -122,6 +122,7 @@ function loadPlay() {
     block(PLAY, "function dimShape(v){"),
     dimNumLine(PLAY),
     block(PLAY, "function nearestDimOption(cur, options, def){"),
+    block(PLAY, "function applyDimFields(fields, defs){"),
     block(PLAY, "function dimOptionsFromItem(type, m){"),
     block(PLAY, "function snapImageSize(n, raw){"),
   ].join("\n");
@@ -452,6 +453,17 @@ editor.catalogs.image = [BANANA, QWEN];
   const got = play.snapImageSize(n, null);
   if (String(got) !== "2k") fail("play: snapImageSize catalog-miss clobbered 2k to " + got);
   else ok("play: snapImageSize catalog-miss keeps stored 2k (no false clamp)");
+}
+
+{
+  if (typeof play.applyDimFields !== "function") fail("play: applyDimFields is not in the extracted RUNTIME_JS");
+  else {
+    const fields = { size: "2k" };
+    const defs = [{ f: "size", options: [["auto", "auto"], ["1024x1024", "1024x1024"]], def: "auto", known: true }];
+    play.applyDimFields(fields, defs);
+    if (String(fields.size) === "2k") fail("play: applyDimFields kept leftover 2k on a WxH list");
+    else ok("play: applyDimFields leftover 2k → " + fields.size + " (extracted twin, not a dangling name)");
+  }
 }
 
 // ---- 4. wiring: one clamp path, on swap AND on load -----------------------
