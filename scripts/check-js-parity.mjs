@@ -10,6 +10,10 @@
 // Known intentional diffs (NOT asserted equal yet — catalog lives only in play):
 //   - max_input_images caps / drifted-model preflight
 //   - seed skip-cache / demo / locale suffixes (library has none by design)
+//   - play snaps a stored dim that the live catalog does not list (8s on Wan Prime,
+//     9:16 on a landscape/portrait orientation model). nanoodle-js still forwards
+//     the raw field. The orientation/seconds scenario below uses a listed value so
+//     it pins wire-name remapping + empty-duration backfill, not that pass-through.
 
 import { pathToFileURL } from "node:url";
 import { existsSync } from "node:fs";
@@ -480,8 +484,10 @@ const SCENARIOS = [
       orientation: { options: [{ value: "landscape" }, { value: "portrait" }], default: "landscape" },
       seconds: { options: [{ value: "4" }, { value: "8" }], default: "8" },
     } } }] },
+    // portrait is in the model's orientation list (9:16 is not — play would snap it
+    // to the catalog default). Empty duration still backfills seconds=8.
     data: {
-      nodes: [node("t1", "text", { text: "waves" }), node("v1", "tvideo", { model: "sora-like", aspect: "9:16", duration: "" })],
+      nodes: [node("t1", "text", { text: "waves" }), node("v1", "tvideo", { model: "sora-like", aspect: "portrait", duration: "" })],
       links: [link("t1", "text", "v1", "prompt")],
     },
   },

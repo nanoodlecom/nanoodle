@@ -9070,26 +9070,75 @@ const PROMPT_CAPS = {
      duration as select params. We rewrite the dimension <select>s from the live catalog so the user
      only sees sizes/resolutions the chosen model actually supports (mirrors the editor's dimDefs).
      The chosen value lives on n.fields and runs without a catalog, so exports keep working offline. */
-  const DIM_FIELDS = { size:1, resolution:1, aspect:1, duration:1 };
+  const DIM_FIELDS = { size:1, resolution:1, aspect:1, duration:1, fps:1 };
+  // Snap a stored size/duration/aspect onto the new model's real options (twin of the
+  // editor's nearestDimOption). Keep if still listed; else the catalog default; else
+  // nearest number/shape; else the first option. Never inject a fake <option> — Play
+  // would send it. No backticks (RUNTIME_JS is a String.raw template).
+  var DIM_TIER_PX = { "1k":[1024,1024], "2k":[2048,2048], "4k":[4096,4096], "8k":[8192,8192],
+    square:[1024,1024], square_hd:[1536,1536], portrait:[1024,1536], landscape:[1536,1024],
+    portrait_4_3:[1024,1365], landscape_4_3:[1365,1024], portrait_16_9:[1080,1920], landscape_16_9:[1920,1080] };
+  function dimShape(v){
+    var s = String(v==null?"":v).trim().toLowerCase(), tier = DIM_TIER_PX[s];
+    if(tier) return { ar:tier[0]/tier[1], px:tier[0]*tier[1] };
+    var m = /^(\d+)\s*[x×*]\s*(\d+)$/.exec(s);
+    if(m && +m[1]>0 && +m[2]>0) return { ar:+m[1]/+m[2], px:+m[1]*+m[2] };
+    m = /^(\d+)\s*:\s*(\d+)$/.exec(s);
+    if(m && +m[1]>0 && +m[2]>0) return { ar:+m[1]/+m[2], px:null };
+    return null;
+  }
+  function dimNum(v){ var m = /-?\d+(?:\.\d+)?/.exec(String(v==null?"":v)); return m ? +m[0] : null; }
+  function nearestDimOption(cur, options, def){
+    var vals = options.map(function(o){ return String(Array.isArray(o) ? o[0] : (o && o.value!=null ? o.value : o)); });
+    if(cur==null || cur==="") return def;
+    cur = String(cur);
+    if(vals.indexOf(cur)>=0) return cur;          // the new model offers it -> keep the user's choice
+    if(def!=null && def!=="" && vals.indexOf(String(def))>=0) return String(def);  // catalog default
+    function best(score){
+      var win = null, bs = Infinity;
+      for(var i=0;i<vals.length;i++){ var s = score(vals[i]); if(s!=null && s < bs){ bs = s; win = vals[i]; } }
+      return win;
+    }
+    var c = dimShape(cur), hit;
+    if(c){
+      hit = best(function(v){ var d = dimShape(v); if(!d) return null;
+        return Math.abs(Math.log(c.ar/d.ar))*4 + ((c.px && d.px) ? Math.abs(Math.log(c.px/d.px)) : 0); });
+      if(hit!=null) return hit;
+      var named = c.ar===1 ? "square" : (c.ar>1 ? "landscape" : "portrait");
+      if(vals.indexOf(named)>=0) return named;
+    }
+    var cn = dimNum(cur);
+    if(cn!=null){
+      hit = best(function(v){ var n = dimNum(v); return n==null ? null : Math.abs(n-cn); });
+      if(hit!=null) return hit;
+    }
+    return (vals[0]!=null ? vals[0] : def);
+  }
   async function rawCatItem(kind, id){
     if(!id) return null;
     const raw = await loadCatalogRaw(kind);
     return raw.find(m=> m && m.id===id) || null;
   }
   function dimOptionsFromItem(type, m){
-    const out = {}; if(!m) return out;
+    const out = { def:{} }; if(!m) return out;
     if(type==="image" || type==="edit"){
       const res = Array.isArray(m.supported_parameters && m.supported_parameters.resolutions)
         ? m.supported_parameters.resolutions.filter(x=> typeof x==="string" && x) : [];
-      if(res.length) out.size = res.map(r=>[r,r]);
+      if(res.length){ out.size = res.map(r=>[r,r]); out.def.size = res[0]; }
       return out;
     }
     const p = (m.supported_parameters && m.supported_parameters.parameters) || {};
     const sel = (param)=> ((param&&param.options)||[]).filter(o=> o && o.value!=="" && o.value!=null)
       .map(o=> [String(o.value), o.label!=null?String(o.label):String(o.value)]);
-    const r = sel(p.resolution);                    if(r.length) out.resolution = [["","model default"], ...r];
-    const a = sel(p.aspect_ratio || p.orientation || p.resolution_ratio); if(a.length) out.aspect = a;    // Sora/WAN name it orientation; PixVerse v5.5/5.6 name it resolution_ratio
-    const d = sel(p.duration || p.seconds);         if(d.length) out.duration = d;  // Sora names it seconds (4/8/12)
+    const r = sel(p.resolution);                    if(r.length){ out.resolution = [["","model default"], ...r]; out.def.resolution = p.resolution && p.resolution.default!=null ? String(p.resolution.default) : ""; }
+    const aP = p.aspect_ratio || p.orientation || p.resolution_ratio;
+    const a = sel(aP); if(a.length){ out.aspect = a; out.def.aspect = aP && aP.default!=null ? String(aP.default) : a[0][0]; }    // Sora/WAN name it orientation; PixVerse v5.5/5.6 name it resolution_ratio
+    const dP = p.duration || p.seconds;
+    const d = sel(dP);
+    if(d.length){ out.duration = d; out.def.duration = dP && dP.default!=null ? String(dP.default) : d[0][0]; }  // Sora names it seconds (4/8/12)
+    else if(dP){ out.duration = DURATIONS; out.def.duration = dP.default!=null ? String(dP.default) : DURATIONS[0][0]; }  // catalogued number-range (Wan Prime) — same 5/10 the editor falls back to
+    const fP = p.fps || p.frames_per_second, f = sel(fP);
+    if(f.length){ out.fps = f; out.def.fps = fP && fP.default!=null ? String(fP.default) : f[0][0]; }
     return out;
   }
   // Map a video node's stored dimension fields (resolution/aspect/duration) to the WIRE param names its
@@ -9103,12 +9152,26 @@ const PROMPT_CAPS = {
     var p = (m && m.supported_parameters && m.supported_parameters.parameters) || {};
     var aP = p.aspect_ratio || p.orientation || p.resolution_ratio, aWire = p.aspect_ratio ? "aspect_ratio" : (p.orientation ? "orientation" : (p.resolution_ratio ? "resolution_ratio" : "aspect_ratio"));
     var dP = p.duration || p.seconds,         dWire = p.duration ? "duration" : (p.seconds ? "seconds" : "duration");
-    var res = n.fields.resolution, asp = n.fields.aspect, dur = n.fields.duration;
+    var pack = dimOptionsFromItem(n.type, m);
+    var res = n.fields.resolution, asp = n.fields.aspect, dur = n.fields.duration, fps = n.fields.fps;
+    function snapField(field, list, fallback){
+      var cur = n.fields[field];
+      if(cur==null || cur==="" || !list || !list.length) return cur;
+      if(list.some(function(o){ return String(o[0])===String(cur); })) return cur;
+      var next = nearestDimOption(cur, list, fallback);
+      n.fields[field] = next;
+      return next;
+    }
+    res = snapField("resolution", pack.resolution, pack.def && pack.def.resolution);
+    asp = snapField("aspect", pack.aspect, pack.def && pack.def.aspect);
+    dur = snapField("duration", pack.duration, pack.def && pack.def.duration);
+    fps = snapField("fps", pack.fps, pack.def && pack.def.fps);
     if((asp==null||asp==="") && aP && aP.default!=null) asp = aP.default;   // baked-in field should exist; catalog default is the safety net
     if((dur==null||dur==="") && dP && dP.default!=null) dur = dP.default;
     if(res!=null && res!=="") out.resolution = res;
     if(asp!=null && asp!=="") out[aWire] = asp;
     if(dur!=null && dur!=="") out[dWire] = dur;
+    if(pack.fps && fps!=null && fps!=="") out[p.fps ? "fps" : "frames_per_second"] = fps;
     return out;
   }
   // Best-effort: rewrite each dimension <select> from the chosen model's live catalog options. Never
@@ -9139,14 +9202,21 @@ const PROMPT_CAPS = {
       if(it.kind!=="select" || !DIM_FIELDS[it.field]) return;
       const kind = SETTING_MODEL_KIND[it.node.type]; if(!kind) return;
       rawCatItem(kind, it.node.fields.model).then(m=>{
-        const opts = dimOptionsFromItem(it.node.type, m)[it.field];
+        const pack = dimOptionsFromItem(it.node.type, m);
+        const opts = pack[it.field];
         if(!opts || !opts.length) return;
         const el = document.getElementById("set_"+i);
         if(!el || el.tagName!=="SELECT") return;
-        const cur = it.node.fields[it.field];
-        const list = (cur!=null && cur!=="" && !opts.some(o=> String(o[0])===String(cur)))
-          ? [[String(cur),String(cur)], ...opts] : opts;   // keep a stored (e.g. baked-in) value pickable
-        el.innerHTML = list.map(o=> '<option value="'+esc(o[0])+'"'+(String(o[0])===String(cur)?" selected":"")+'>'+esc(o[1])+'</option>').join("");
+        let cur = it.node.fields[it.field];
+        const def = (pack.def && pack.def[it.field]!=null && pack.def[it.field]!=="") ? String(pack.def[it.field]) : String(opts[0][0]);
+        // catalog answered → this list is authoritative. Snap an invalid stored value
+        // (swap AND load of an old graph) instead of injecting it as a fake option.
+        if(cur!=null && cur!=="" && !opts.some(o=> String(o[0])===String(cur))){
+          const next = nearestDimOption(cur, opts, def);
+          cur = next; it.node.fields[it.field] = next;
+          checkDirty(); refreshRunCost();
+        }
+        el.innerHTML = opts.map(o=> '<option value="'+esc(o[0])+'"'+(String(o[0])===String(cur)?" selected":"")+'>'+esc(o[1])+'</option>').join("");
       }).catch(()=>{});
     });
   }

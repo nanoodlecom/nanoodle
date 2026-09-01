@@ -35,6 +35,9 @@ touches_videoroles=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.
 # index.html carries the video "mode" knob's per-node gate (videoOptDefs/modeOK) — a generation-type
 # option the current node can't feed (e.g. "image-to-video" on Text→Video) is a silent-drop footgun.
 touches_videomode=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-video-mode-gate\.mjs)$' || true)
+# index.html + play.html: a size/duration/quality/mode value is only valid for the model it was
+# chosen for. A model swap (and loading an old graph) must snap an invalid value, not inject it.
+touches_knobclamp=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-model-knob-clamp\.mjs)$' || true)
 # index.html (I18N_LANGS) + the /xx/ landing pages + their generator carry the per-language SEO cluster.
 touches_langpages=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|(es|fr|de|pt|ja)/index\.html|scripts/(gen|check)-lang-pages\.mjs)$' || true)
 # index.html carries the link-removal path (unlocking text fields when their source is deleted).
@@ -152,7 +155,7 @@ touches_nanogptsync=$(printf '%s\n' "$staged" | grep -E '(^|/)(scripts/sync-nano
 # Nothing to check unless an .html file, one of the checkers, or a guarded doc changed.
 # Every touches_* variable belongs in this chain — a gate left out of it never runs on a
 # commit that stages only its own files, which is exactly the commit it exists to catch.
-[ -z "$staged_html" ] && [ -z "$touches_launchfacts" ] && [ -z "$touches_njseditor" ] && [ -z "$touches_llmgate" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_jsparity" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_videoroles" ] && [ -z "$touches_videomode" ] && [ -z "$touches_langpages" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_i18n" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_lipsync" ] && [ -z "$touches_aresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && [ -z "$touches_pacing" ] && [ -z "$touches_graphpersist" ] && [ -z "$touches_graphsigs" ] && [ -z "$touches_describeapply" ] && [ -z "$touches_authlc" ] && [ -z "$touches_mediapriv" ] && [ -z "$touches_verhist" ] && [ -z "$touches_rungating" ] && [ -z "$touches_appsstorage" ] && [ -z "$touches_linkerr" ] && [ -z "$touches_deploy" ] && [ -z "$touches_hiddencss" ] && [ -z "$touches_connect" ] && [ -z "$touches_undo" ] && [ -z "$touches_costaccrue" ] && [ -z "$touches_resize" ] && [ -z "$touches_catalog" ] && [ -z "$touches_upscale" ] && [ -z "$touches_drift" ] && [ -z "$touches_promptcaps" ] && [ -z "$touches_consent" ] && [ -z "$touches_sharesamples" ] && [ -z "$touches_llmsfull" ] && [ -z "$touches_examples" ] && [ -z "$touches_twindrift" ] && [ -z "$touches_twindriftcases" ] && [ -z "$touches_nanogptsync" ] && exit 0
+[ -z "$staged_html" ] && [ -z "$touches_launchfacts" ] && [ -z "$touches_njseditor" ] && [ -z "$touches_llmgate" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_jsparity" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_videoroles" ] && [ -z "$touches_videomode" ] && [ -z "$touches_knobclamp" ] && [ -z "$touches_langpages" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_i18n" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_lipsync" ] && [ -z "$touches_aresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && [ -z "$touches_pacing" ] && [ -z "$touches_graphpersist" ] && [ -z "$touches_graphsigs" ] && [ -z "$touches_describeapply" ] && [ -z "$touches_authlc" ] && [ -z "$touches_mediapriv" ] && [ -z "$touches_verhist" ] && [ -z "$touches_rungating" ] && [ -z "$touches_appsstorage" ] && [ -z "$touches_linkerr" ] && [ -z "$touches_deploy" ] && [ -z "$touches_hiddencss" ] && [ -z "$touches_connect" ] && [ -z "$touches_undo" ] && [ -z "$touches_costaccrue" ] && [ -z "$touches_resize" ] && [ -z "$touches_catalog" ] && [ -z "$touches_upscale" ] && [ -z "$touches_drift" ] && [ -z "$touches_promptcaps" ] && [ -z "$touches_consent" ] && [ -z "$touches_sharesamples" ] && [ -z "$touches_llmsfull" ] && [ -z "$touches_examples" ] && [ -z "$touches_twindrift" ] && [ -z "$touches_twindriftcases" ] && [ -z "$touches_nanogptsync" ] && exit 0
 if ! command -v node >/dev/null 2>&1; then
   echo "pre-commit: node not found, skipping HTML JS checks" >&2
   exit 0
@@ -260,6 +263,14 @@ fi
 #     silent-drop footgun (mode set, no matching port wired), not just a decoy choice.
 if [ -n "$touches_videomode" ]; then
   node "$root/scripts/check-video-mode-gate.mjs"
+fi
+
+# 7e) MODEL KNOB CLAMP: a size/duration/quality/mode value is only valid for the model it was
+#     chosen for (MiniMax H3 lists 8s; Wan Prime's UI list is 5/10). Both engines used to keep
+#     the OLD value and inject it as a fake <option>, so Play sent 8s to a model that doesn't
+#     offer it. A swap AND a saved-graph load must snap to a real option. Offline unit test.
+if [ -n "$touches_knobclamp" ]; then
+  node "$root/scripts/check-model-knob-clamp.mjs"
 fi
 
 # 7b) the per-language landing pages (/es/ … /ja/) must exist for every app language, carry the
