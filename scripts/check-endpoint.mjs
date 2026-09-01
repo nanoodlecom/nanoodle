@@ -94,6 +94,18 @@ ok(S.endpointUrlOk("https://example.com/v1/chat/completions") === true, "https c
 ok(S.endpointUrlOk("http://example.com/v1") !== true, "public http host is refused");
 ok(S.endpointUrlOk("javascript:alert(1)") !== true, "javascript: is refused");
 ok(S.endpointUrlOk("http://user:pass@127.0.0.1:9/") !== true, "embedded credentials are refused");
+ok(S.endpointUrlOk("http://[::1]:8787/v1") === true, "IPv6 ::1 http is allowed");
+ok(S.endpointUrlOk("http://10.0.0.8:9/v1") === true, "10.x LAN http is allowed");
+ok(S.endpointUrlOk("http://172.16.0.1:9/v1") === true, "172.16 LAN http is allowed");
+ok(S.endpointUrlOk("http://172.31.255.1:9/v1") === true, "172.31 LAN http is allowed");
+ok(S.endpointUrlOk("http://169.254.1.1:9/v1") === true, "link-local 169.254 http is allowed");
+ok(S.endpointUrlOk("http://172.15.0.1:9/v1") !== true, "172.15 is not RFC1918 — http refused");
+ok(S.endpointUrlOk("http://172.32.0.1:9/v1") !== true, "172.32 is not RFC1918 — http refused");
+ok(S.endpointUrlOk("http://8.8.8.8/v1") !== true, "public IPv4 http is refused");
+ok(S.endpointUrlOk("http://0.0.0.0:9/v1") !== true, "0.0.0.0 http is refused");
+ok(S.endpointUrlOk("file:///etc/passwd") !== true, "file: is refused");
+ok(S.endpointUrlOk("data:text/plain,hi") !== true, "data: is refused");
+ok(S.endpointUrlOk("ftp://127.0.0.1/") !== true, "ftp: is refused");
 
 // ---- mode → output port -------------------------------------------------------
 eq(S.endpointOutPort({ fields: { mode: "chat" } }), { name: "text", type: "text" }, "chat → text port");
@@ -114,6 +126,9 @@ ok(chat.messages[0].role === "system" && chat.messages[1].role === "user" && cha
 const chatImg = S.endpointRequestBody("chat", n, { image: "data:image/png;base64,xx" });
 ok(Array.isArray(chatImg.messages[1].content) && chatImg.messages[1].content.some((p) => p.type === "image_url"),
   "wired image becomes an image_url part (NanoGPT chat shape)");
+const chatAud = S.endpointRequestBody("chat", n, { audio: "data:audio/wav;base64,abc" });
+ok(Array.isArray(chatAud.messages[1].content) && chatAud.messages[1].content.some((p) => p.type === "input_audio"),
+  "wired audio becomes an input_audio part (NanoGPT chat shape)");
 
 const img = S.endpointRequestBody("image", n, {});
 ok(img.model === "local" && img.prompt === "hello" && img.size === "1024x1024" && img.response_format === "b64_json" && img.n === 1,
@@ -134,6 +149,8 @@ eq(S.endpointParseChat({ choices: [{ message: { content: "ok" } }] }), { text: "
 eq(S.endpointParseImage({ data: [{ b64_json: "abc" }] }), { image: "data:image/png;base64,abc", images: ["data:image/png;base64,abc"] },
   "image generations parse");
 eq(S.endpointParseVideo({ url: "https://x/v.mp4" }), { video: "https://x/v.mp4" }, "video {url} parse");
+eq(S.endpointParseVideo({ output: { video: { url: "https://x/nested.mp4" } } }), { video: "https://x/nested.mp4" },
+  "video NanoGPT {output.video.url} parse");
 eq(S.endpointParseJsonMode({ text: "hi" }), { text: "hi" }, "json {text} parse");
 eq(S.endpointParseJsonMode({ data: { a: 1 } }), { text: "{\"a\":1}" }, "json {data} parse");
 
@@ -189,6 +206,20 @@ ok(!Object.values(S.endpointHeaders("tok")).some((v) => /x-api-key/i.test(String
   );
   ok(fromDef && fromDef.text === "from-local", "runEndpoint uses the default URL when the field is omitted");
   ok(calls[0] && calls[0].url === S.ENDPOINT_DEF_URL, "omitted URL field POSTs to ENDPOINT_DEF_URL");
+
+  let httpErr = "";
+  S.fetch = () => Promise.resolve({
+    ok: false,
+    status: 502,
+    headers: { get: () => "text/plain" },
+    text: async () => "upstream exploded " + "x".repeat(300),
+    json: async () => ({}),
+  });
+  try { await S.runEndpoint({ fields: { url: "http://127.0.0.1:9/", mode: "chat" } }, {}); }
+  catch (e) { httpErr = e.message; }
+  ok(/^502: /.test(httpErr), "HTTP error names the status");
+  ok(httpErr.includes("upstream exploded"), "HTTP error includes a body snippet");
+  ok(httpErr.length <= 230, "HTTP error body snippet is capped (~220 chars)");
 }
 
 // ---- CORS error line ----------------------------------------------------------
@@ -263,8 +294,55 @@ console.log("• live localhost chat server");
   srv.close();
 }
 
+// ---- play preview iframe CSP: loopback + this graph's origin, never an open https: hole ----
+console.log("• play.html previewCspForGraph");
+{
+  const fn = extractFn(PLAY, "previewCspForGraph");
+  const ctx = { URL };
+  vm.createContext(ctx);
+  vm.runInContext(fn + "\n;this.previewCspForGraph=previewCspForGraph;", ctx);
+  const tokens = (graph) => {
+    const meta = ctx.previewCspForGraph(graph);
+    const content = /content="([^"]+)"/.exec(meta);
+    if (!content) throw new Error("preview CSP meta has no content=");
+    const cs = /connect-src\s+(.+)/.exec(content[1]);
+    if (!cs) throw new Error("preview CSP has no connect-src");
+    return cs[1].trim().split(/\s+/);
+  };
+  const empty = tokens({ nodes: [] });
+  ok(empty.includes("'self'") && empty.includes("blob:") && empty.includes("https://nano-gpt.com"),
+    "preview CSP always allows self / blob: / nano-gpt");
+  ok(empty.includes("http://127.0.0.1:*") && empty.includes("http://localhost:*") && empty.includes("http://[::1]:*"),
+    "preview CSP always allows loopback http (localhost / 127.0.0.1 / ::1)");
+  ok(!empty.includes("https:") && !empty.includes("http:"),
+    "preview CSP must not open a bare http:/https: hole");
+
+  const custom = tokens({ nodes: [{ type: "endpoint", fields: { url: "https://api.mybox.dev/v1/chat/completions" } }] });
+  ok(custom.includes("https://api.mybox.dev"),
+    "preview CSP adds the graph's https endpoint origin so the iframe can POST there");
+  ok(!custom.includes("https:"), "a custom https origin is not widened to bare https:");
+
+  const lan = tokens({ nodes: [{ type: "endpoint", fields: { url: "http://192.168.1.9:8787/v1" } }] });
+  ok(lan.includes("http://192.168.1.9:8787"), "preview CSP adds the graph's LAN http origin + port");
+
+  const dup = tokens({ nodes: [
+    { type: "endpoint", fields: { url: "https://api.mybox.dev/v1/chat" } },
+    { type: "endpoint", fields: { url: "https://api.mybox.dev/v1/images" } },
+  ] });
+  ok(dup.filter((t) => t === "https://api.mybox.dev").length === 1, "duplicate endpoint origins are unique");
+
+  const bad = tokens({ nodes: [{ type: "endpoint", fields: { url: "not a url" } }] });
+  ok(bad.includes("http://127.0.0.1:*"), "an unparseable endpoint URL is ignored, loopback extras remain");
+
+  ok(/previewCspForGraph\s*\(/.test(PLAY) && /function withPreamble/.test(PLAY),
+    "withPreamble exists alongside previewCspForGraph");
+  const withPreamble = extractFn(PLAY, "withPreamble");
+  ok(/previewCspForGraph\s*\(/.test(withPreamble),
+    "withPreamble injects previewCspForGraph (not the sealed-default PREVIEW_CSP alone)");
+}
+
 if (failures.length) {
   console.error("✗ check-endpoint: " + failures.length + " assertion(s) failed.");
   process.exit(1);
 }
-console.log("✓ custom endpoint node: payload shape, mode→port, URL required, key does not leak");
+console.log("✓ custom endpoint node: payload shape, mode→port, URL allow-list, preview CSP, key does not leak");

@@ -535,5 +535,50 @@ const ok = (c, m) => { if (!c) { fail++; console.log("  ✗ " + m); } else conso
     "editor Play button is gated on isInputKind / hidePlay");
 }
 
+// 14) Signed out + Custom-endpoint-only branch: never talks to NanoGPT — run against real CTX
+//     (not DEMO / not the sign-in wall). A regression here either dead-ends localhost graphs
+//     behind a key prompt, or (if the paid-ancestor check flips) lets an LLM run keyless.
+{
+  const seen = [];
+  const nodes = {
+    nT: { id: "nT", type: "text", fields: { text: "hi" }, out: {}, el: elStub() },
+    nE: { id: "nE", type: "endpoint", fields: { url: "http://127.0.0.1:9" }, out: {}, el: elStub() },
+  };
+  const NODE_TYPES = {
+    text: { inputs: [], async run(n, _inp, c) { seen.push({ id: n.id, demo: !!(c && c.demo) }); return { text: n.fields.text }; } },
+    endpoint: { inputs: [{ name: "prompt", type: "text" }], async run(n, _inp, c) {
+      seen.push({ id: n.id, demo: !!(c && c.demo) });
+      return { text: "from-local" };
+    } },
+  };
+  const links = [{ id: "l1", from: { node: "nT", port: "text" }, to: { node: "nE", port: "prompt" } }];
+  const w = { nodes, ids: ["nT", "nE"], runs: {}, paid: [], NODE_TYPES, links };
+  await run(w, "nE", { signedOut: true, customGraph: true });
+  ok(seen.some((s) => s.id === "nE" && s.demo === false),
+    "signed-out endpoint-only branch runs against CTX, not DEMO");
+  ok(!w.demoPopOpened, "signed-out endpoint-only must not open the sign-in/sample pill");
+  ok(w.nodes.nE.out.text === "from-local", "endpoint node produced a real result while signed out");
+}
+
+// 15) Signed out + paid LLM ancestor + endpoint: still walls. Mixing a NanoGPT type into
+//     the branch must not inherit the endpoint-only CTX swap (that would skip the key gate).
+{
+  const runs = {};
+  const nodes = {
+    nL: { id: "nL", type: "llm", fields: {}, out: {}, el: elStub() },
+    nE: { id: "nE", type: "endpoint", fields: {}, out: {}, el: elStub() },
+  };
+  const NODE_TYPES = {
+    llm: { inputs: [], async run(n) { runs[n.id] = (runs[n.id] || 0) + 1; return { text: "CHAT" }; } },
+    endpoint: { inputs: [{ name: "prompt", type: "text" }], async run(n) { runs[n.id] = (runs[n.id] || 0) + 1; return { text: "x" }; } },
+  };
+  const links = [{ id: "l1", from: { node: "nL", port: "text" }, to: { node: "nE", port: "prompt" } }];
+  const w = { nodes, ids: ["nL", "nE"], runs, paid: [], NODE_TYPES, links };
+  await run(w, "nE", { signedOut: true, customGraph: true });
+  ok(!runs.nL && !runs.nE, `signed-out LLM+endpoint must not run (nL=${runs.nL || 0}, nE=${runs.nE || 0})`);
+  ok(w.demoPopOpened === true && w.demoPopMode === null,
+    `LLM+endpoint signed-out surfaces the sign-in wall (opened=${w.demoPopOpened}, mode=${w.demoPopMode})`);
+}
+
 if (fail) { console.error(`\n✗ stale-input-charge: ${fail} assertion(s) failed.`); process.exit(1); }
-console.log("\n✓ stale-input-charge: failed/cyclic upstream poisons dependents — no stale-input charge; succeeded upstream is reused (not re-charged) on retry while the explicit target re-rolls; sibling Plays stay enabled while a shared ancestor is in flight and join it without double-charging A; Stop on B after C joined keeps A alive; a joined sibling does not bill on leftover .out when the shared run fails; input kinds have no Play; healthy graphs unaffected.");
+console.log("\n✓ stale-input-charge: failed/cyclic upstream poisons dependents — no stale-input charge; succeeded upstream is reused (not re-charged) on retry while the explicit target re-rolls; sibling Plays stay enabled while a shared ancestor is in flight and join it without double-charging A; Stop on B after C joined keeps A alive; a joined sibling does not bill on leftover .out when the shared run fails; input kinds have no Play; signed-out endpoint-only runs for real; healthy graphs unaffected.");
