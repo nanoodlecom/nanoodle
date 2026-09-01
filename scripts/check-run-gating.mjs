@@ -449,5 +449,19 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.log("  ✗ " + msg); 
   ok(!ikCtx.isInputKind("join"), "isInputKind: join is a processor, not a source");
 }
 
+// ---- 7. JOINED SIBLING MUST NOT RESOLVE LEFTOVER .out ON FAILURE ----------
+// Play B + Play C share NODE_WORK for A. If A fails after a prior success, the
+// catch used to settleWork.res(n.out) and joiners billed dependents on stale
+// input (PR #391 class across sibling Plays). Failure must resolve empty.
+{
+  const catchIdx = html.lastIndexOf("if(isAbort(err)) throw err; failed.add(id);");
+  ok(catchIdx > 0, "runGraph catch (NODE_WORK failure) is present in play.html");
+  const window = html.slice(Math.max(0, catchIdx - 400), catchIdx + 80);
+  ok(/settleWork\.res\(null\)/.test(window),
+    "NODE_WORK failure must settleWork.res(null), not leftover n.out");
+  ok(!/settleWork\.res\(n\.out\s*&&/.test(window),
+    "NODE_WORK failure must not resolve leftover n.out as a success payload");
+}
+
 if (failed) { console.error(`\n✗ check-run-gating: ${failed} assertion(s) failed`); process.exit(1); }
-console.log("✓ keyless/signed-out spend gating holds (keyless forces 1×/KEEP-off + hides multipliers; chip = usd×RUNS_N, never $0; signed-out Run = zero fetch → preflight; typed inputs stashed for OAuth resume; auth arrival refreshes the pre-run placeholder; input kinds have no Play).");
+console.log("✓ keyless/signed-out spend gating holds (keyless forces 1×/KEEP-off + hides multipliers; chip = usd×RUNS_N, never $0; signed-out Run = zero fetch → preflight; typed inputs stashed for OAuth resume; auth arrival refreshes the pre-run placeholder; input kinds have no Play; NODE_WORK failure does not resolve leftover .out).");

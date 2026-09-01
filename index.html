@@ -9553,8 +9553,15 @@ async function runGroup(seedIds, ctx){
           const w = nodeWork.get(id); if(w.holders) seedSet.forEach(s=> w.holders.add(s));
           try{ await w; }catch(_){}
           if(ctl.signal.aborted && !(w.holders && w.holders.size)){ setStopped(n); return; }
-          if(n.out && Object.keys(n.out).length){ showResult(n); setStatus(n, "done"); return; }
-          if(!seedSet.has(id)){ failed.add(id); setSkipped(n); return; }
+          // w.ok is THIS run succeeding. Leftover n.out from a prior success must not
+          // count — Play C joining a failing A would otherwise bill C on stale input
+          // (PR #391 class, across sibling Plays).
+          if(w.ok && n.out && Object.keys(n.out).length){ showResult(n); setStatus(n, "done"); return; }
+          if(!seedSet.has(id)){
+            failed.add(id);
+            if(n.el?.dataset.status !== "error") setSkipped(n);   // keep the owner's error; just poison this Play
+            return;
+          }
         }
         setStatus(n, "run");
         // Announce a fit only for a request we're actually about to send (the skips above return
@@ -9570,6 +9577,7 @@ async function runGroup(seedIds, ctx){
           work = new Promise(r=>{ settleWork = r; });
           work.holders = new Set(seedSet);
           work.ctl = new AbortController();
+          work.ok = false;   // joiners wait on success of THIS run, not leftover n.out
           nodeWork.set(id, work);
         }
         n._runCtl = (work && work.ctl) || ctl;   // join-aware work abort — njsCtx + runSignal read it
@@ -9582,6 +9590,7 @@ async function runGroup(seedIds, ctx){
             // a demo run must never mint a real signature — the first REAL run after sign-in has to
             // regenerate everything, not "skip" onto a canned sample via the seeded-result cache
             if(ctx.demo) delete n._sig; else n._sig = sig;
+            if(work) work.ok = true;
             showResult(n); setStatus(n, "done");
             if(ctx.demo) markDemoResult(n);
             // a downstream Inpaint node brushing a WIRED source can now load its canvas from this output

@@ -470,7 +470,54 @@ const ok = (c, m) => { if (!c) { fail++; console.log("  ✗ " + m); } else conso
   ok(!w.runs.nB, `B must not run after Stop cancelled A (nB=${w.runs.nB || 0})`);
 }
 
-// 12) Input / source kinds have no Play control — generate nodes with empty inputs still do.
+// 12) In-flight join after a failed re-run must not treat leftover .out as success.
+//     A→B, A→C. A still holds STALE_PRIOR from a previous success. Play B starts A;
+//     Play C joins that in-flight work. A throws. C must skip — not bill on STALE_PRIOR
+//     (the join path used to see leftover n.out and mark A done).
+{
+  let aGo;
+  const aHold = new Promise((r) => { aGo = r; });
+  let aBegan;
+  const aBeganP = new Promise((r) => { aBegan = r; });
+  const nodes = {
+    nA: { id: "nA", type: "img", fields: {}, out: { image: "STALE_PRIOR" }, el: elStub() },
+    nB: { id: "nB", type: "edit", fields: {}, out: {}, el: elStub() },
+    nC: { id: "nC", type: "edit", fields: {}, out: {}, el: elStub() },
+  };
+  const runs = {}, paid = [];
+  const NODE_TYPES = {
+    img: { inputs: [], async run(n) {
+      runs[n.id] = (runs[n.id] || 0) + 1;
+      aBegan();
+      await aHold;
+      throw new Error("nano-gpt 500 — transient");
+    } },
+    edit: { inputs: [{ name: "image", type: "image" }], async run(n, inp) {
+      runs[n.id] = (runs[n.id] || 0) + 1;
+      paid.push(n.id + "<=" + inp.image);
+      return { image: "EDITED_" + n.id };
+    } },
+  };
+  const links = [
+    { id: "l1", from: { node: "nA", port: "image" }, to: { node: "nB", port: "image" } },
+    { id: "l2", from: { node: "nA", port: "image" }, to: { node: "nC", port: "image" } },
+  ];
+  const w = { nodes, ids: ["nA", "nB", "nC"], runs, paid, NODE_TYPES, links };
+  const ctx = bindWorld(w);
+  const pB = ctx.runGroup(["nB"]);
+  await aBeganP;
+  const pC = ctx.runGroup(["nC"]);
+  aGo();
+  await Promise.all([pB, pC]);
+  ok(w.runs.nA === 1, `shared A ran once and failed (nA=${w.runs.nA || 0})`);
+  ok(!w.runs.nB && !w.runs.nC, `neither sibling billed on leftover A out (nB=${w.runs.nB || 0}, nC=${w.runs.nC || 0})`);
+  ok(w.paid.length === 0, `zero paid calls on stale input after joined failure (paid=${JSON.stringify(w.paid)})`);
+  ok(w.nodes.nA._st === "error", `failed A shown error (st=${w.nodes.nA._st})`);
+  ok(w.nodes.nB._st === "skip" && w.nodes.nC._st === "skip",
+    `both siblings skipped, not done (B=${w.nodes.nB._st}, C=${w.nodes.nC._st})`);
+}
+
+// 13) Input / source kinds have no Play control — generate nodes with empty inputs still do.
 {
   const ikCtx = { NODE_TYPES: { text: { group: "Inputs" }, upload: { group: "Inputs" }, aupload: { group: "Inputs" },
     vupload: { group: "Inputs" }, choice: { group: "Inputs" }, comment: { note: true },
@@ -489,4 +536,4 @@ const ok = (c, m) => { if (!c) { fail++; console.log("  ✗ " + m); } else conso
 }
 
 if (fail) { console.error(`\n✗ stale-input-charge: ${fail} assertion(s) failed.`); process.exit(1); }
-console.log("\n✓ stale-input-charge: failed/cyclic upstream poisons dependents — no stale-input charge; succeeded upstream is reused (not re-charged) on retry while the explicit target re-rolls; sibling Plays stay enabled while a shared ancestor is in flight and join it without double-charging A; Stop on B after C joined keeps A alive; input kinds have no Play; healthy graphs unaffected.");
+console.log("\n✓ stale-input-charge: failed/cyclic upstream poisons dependents — no stale-input charge; succeeded upstream is reused (not re-charged) on retry while the explicit target re-rolls; sibling Plays stay enabled while a shared ancestor is in flight and join it without double-charging A; Stop on B after C joined keeps A alive; a joined sibling does not bill on leftover .out when the shared run fails; input kinds have no Play; healthy graphs unaffected.");
