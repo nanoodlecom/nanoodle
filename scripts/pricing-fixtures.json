@@ -637,6 +637,37 @@
    }
   },
   {
+   "id": "google/gemini-omni-flash",
+   "shape": "default_duration,per_second_by_mode,supported_durations",
+   "pricing": {
+    "currency": "USD",
+    "per_second_by_mode": {
+     "text_to_video": 0.13,
+     "image_to_video": 0.14,
+     "reference_to_video": 0.16,
+     "video_edit": 0.16
+    },
+    "default_duration": 8,
+    "supported_durations": [3, 4, 5, 6, 7, 8, 9, 10]
+   }
+  },
+  {
+   "id": "google/gemini-omni-flash/v1.1",
+   "shape": "default_duration,default_resolution,per_second_by_mode_and_resolution,supported_durations",
+   "pricing": {
+    "currency": "USD",
+    "per_second_by_mode_and_resolution": {
+     "text_to_video": { "360p": 0.039, "720p": 0.13, "1080p": 0.195, "4k": 0.39 },
+     "image_to_video": { "360p": 0.042, "720p": 0.14, "1080p": 0.21, "4k": 0.42 },
+     "reference_to_video": { "360p": 0.048, "720p": 0.16, "1080p": 0.24, "4k": 0.48 },
+     "video_edit": { "360p": 0.048, "720p": 0.16, "1080p": 0.24, "4k": 0.48 }
+    },
+    "default_resolution": "720p",
+    "default_duration": 8,
+    "supported_durations": [3, 4, 5, 6, 7, 8, 9, 10]
+   }
+  },
+  {
    "id": "kling-video-o1",
    "shape": "default_duration,per_second_by_mode",
    "pricing": {
@@ -1283,6 +1314,47 @@
      },
      "refWired": false,
      "expect": 0.6
+    }
+   ]
+  },
+  {
+   "id": "google/gemini-omni-flash/v1.1 (mode × resolution)",
+   "shape": "per_second_by_mode_and_resolution -> refWired picks reference_to_video; resolution field picks 360p–4k",
+   "pricing": {
+    "currency": "USD",
+    "per_second_by_mode_and_resolution": {
+     "text_to_video": { "360p": 0.039, "720p": 0.13, "1080p": 0.195, "4k": 0.39 },
+     "image_to_video": { "360p": 0.042, "720p": 0.14, "1080p": 0.21, "4k": 0.42 },
+     "reference_to_video": { "360p": 0.048, "720p": 0.16, "1080p": 0.24, "4k": 0.48 },
+     "video_edit": { "360p": 0.048, "720p": 0.16, "1080p": 0.24, "4k": 0.48 }
+    },
+    "default_resolution": "720p",
+    "default_duration": 8
+   },
+   "cases": [
+    {
+     "desc": "base 720p 8s t2v",
+     "fields": { "resolution": "720p", "duration": "8" },
+     "refWired": false,
+     "expect": 1.04
+    },
+    {
+     "desc": "4k 8s t2v",
+     "fields": { "resolution": "4k", "duration": "8" },
+     "refWired": false,
+     "expect": 3.12
+    },
+    {
+     "desc": "360p 8s t2v",
+     "fields": { "resolution": "360p", "duration": "8" },
+     "refWired": false,
+     "expect": 0.312
+    },
+    {
+     "desc": "refs 720p 8s r2v",
+     "fields": { "resolution": "720p", "duration": "8" },
+     "refWired": true,
+     "expect": 1.28
     }
    ]
   }

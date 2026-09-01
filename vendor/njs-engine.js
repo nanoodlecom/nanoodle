@@ -1,5 +1,5 @@
-/* data-hash=b9608a9ef88cc55a */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-8b723f3a544e (16 modules) */
+/* data-hash=4ceac35dc89496c2 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-91b4bf425be9 (16 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -2099,9 +2099,17 @@ function catItem(catalog, kind, id) {
  * line for refs is the catalog stating the model takes them, so the ref gates accept
  * it as evidence; models with neither the param nor the pricing stay "no refs",
  * because an ignored-but-sent ref array is still charged.
+ *
+ * Also true for a billed `reference_to_video` MODE under per_second_by_mode or
+ * per_second_by_mode_and_resolution (Gemini Omni Flash v1 / v1.1) — same class of
+ * evidence as extra_reference_image. Exact key only; kling-o1's
+ * reference_to_video_image / _video stay on the mode gate (different shape).
  */
 function pricingAdvertisesRefs(pricing) {
-  return !!(pricing && (pricing.included_reference_images != null || pricing.extra_reference_image != null));
+  if (!pricing) return false;
+  if (pricing.included_reference_images != null || pricing.extra_reference_image != null) return true;
+  const mm = pricing.per_second_by_mode || pricing.per_second_by_mode_and_resolution;
+  return !!(mm && mm.reference_to_video != null);
 }
 
 /** Permissive capability probe: true unless the model is in the catalog AND lacks the flag. */
@@ -4797,5 +4805,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-8b723f3a544e";
+  window.NanoodleEngine.version = "src-91b4bf425be9";
 })();

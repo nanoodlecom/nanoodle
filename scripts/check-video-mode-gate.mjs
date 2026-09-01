@@ -57,6 +57,9 @@ const grab = (re, what) => {
 const bundle = [
   grab(/const PRICE_OR_DIM_PARAM = \/[^\n]*;/, "PRICE_OR_DIM_PARAM"),
   grab(/const VIDEO_IMG_ROLE_KEYS = \{[^}]*\};/, "VIDEO_IMG_ROLE_KEYS"),
+  grab(/const VIDEO_REF_PRICE_KEYS = \[[^\]]*\];/, "VIDEO_REF_PRICE_KEYS"),
+  grab(/const videoRefsModePriced = \(p\)=>[\s\S]*?;/, "videoRefsModePriced"),
+  grab(/const videoRefsPriced = \(m\)=> \{[^}]*\};/, "videoRefsPriced"),
   extractFn(IDX, "videoFreetextSkip"),
   extractFn(IDX, "videoOptDefs"),
   "globalThis.__t = { videoOptDefs };",
@@ -171,6 +174,51 @@ const modeValues = (nodeType) => {
     ok(!(modeDef && modeDef.options.some((o) => o.value === "reference-to-video")),
       `${nt}: reference-to-video stays hidden without a ref-image param (unchanged canRef gate), got ${JSON.stringify(modeDef && modeDef.options.map((o) => o.value))}`);
   }
+}
+
+// ---- Omni-shaped catalog: no mode param at all (live 2026-09-01) ------------
+{
+  ctx.catItem = (_kind, id) => id === "google/gemini-omni-flash/v1.1" ? {
+    params: {
+      duration: { type: "select", options: [{ value: "8" }], default: "8" },
+      resolution: { type: "select", options: [{ value: "720p" }, { value: "4k" }], default: "720p" },
+      aspect_ratio: { type: "select", options: [{ value: "16:9" }], default: "16:9" },
+    },
+    pricing: { per_second_by_mode_and_resolution: { reference_to_video: { "720p": 0.16 } } },
+    defaults: {},
+  } : null;
+  for (const nt of ["tvideo", "ivideo", "vedit"]) {
+    const defs = T.videoOptDefs("google/gemini-omni-flash/v1.1", nt);
+    ok(!defs.some((d) => d.key === "mode"),
+      `${nt}: Omni 1.1 has no mode param — no mode knob (got ${JSON.stringify(defs.map((d) => d.key))})`);
+  }
+}
+
+// ---- Omni-shaped pricing + a Seedance-style mode select: canRef via billed r2v mode ----
+{
+  ctx.catItem = (_kind, id) => id === "omni-with-mode" ? {
+    params: {
+      mode: {
+        type: "select",
+        options: [
+          { value: "auto", label: "Automatic" },
+          { value: "text-to-video", label: "Text to video" },
+          { value: "reference-to-video", label: "Reference to video" },
+        ],
+        default: "auto",
+      },
+    },
+    pricing: { per_second_by_mode: { text_to_video: 0.13, reference_to_video: 0.16 } },
+    defaults: { mode: "auto" },
+  } : null;
+  const tvideo = T.videoOptDefs("omni-with-mode", "tvideo");
+  const modeDef = tvideo.find((d) => d.key === "mode");
+  ok(modeDef && modeDef.options.some((o) => o.value === "reference-to-video"),
+    `tvideo: billed reference_to_video mode (no reference_images param) still offers the mode — got ${JSON.stringify(modeDef && modeDef.options.map((o) => o.value))}`);
+  const ivideo = T.videoOptDefs("omni-with-mode", "ivideo");
+  const iMode = ivideo.find((d) => d.key === "mode");
+  ok(!(iMode && iMode.options.some((o) => o.value === "reference-to-video")),
+    `ivideo: still no refInputs — reference-to-video stays hidden even when pricing advertises r2v, got ${JSON.stringify(iMode && iMode.options.map((o) => o.value))}`);
 }
 
 if (fail) {

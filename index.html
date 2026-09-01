@@ -4553,10 +4553,18 @@ const VIDEO_IMG_ROLE_KEYS = { last:["last_image","end_image"], refs:["reference_
 //     own API docs rather than a live NanoGPT call: fal.ai's minimax-h3-max page states the image-to-video
 //     endpoint "also handles first-to-last keyframes through an optional end_image_url", and fal.ai /
 //     WaveSpeedAI's wan-3.0-prime/image-to-video both document a `last_image`/`end_image_url` param.
-//     Drop each id once NanoGPT's own catalog lists the param.
+//     google/gemini-omni-flash and /v1.1 ship the same gap (2026-09-01): /api/v1/video-models lists
+//     duration/aspect(/resolution) only; marketing /api/models sets supportsLastImage on v1.1 and the
+//     video-models tags include first-last-frame. Hypothesis: v1 accepts last_image too (user-asked
+//     family pair) even though only v1.1 advertises the flag. Drop each id once NanoGPT lists the param.
 const VIDEO_REF_PRICE_KEYS = ["included_reference_images","extra_reference_image"];
-const videoRefsPriced = (m)=> { const p = m && m.pricing; return !!p && VIDEO_REF_PRICE_KEYS.some(k=> p[k]!=null); };
-const VIDEO_LAST_FRAME_FAMILIES = /^(minimax-h3|minimax\/h3-max|alibaba\/wan-3\.0-prime|alibaba\/wan-3\.0\/image-to-video)$/i;
+// A billed `reference_to_video` MODE (Omni v1 / v1.1) is the catalog advertising refs the same way
+// extra_reference_image does for minimax-h3 — no reference_images param. Exact key only; kling-o1's
+// reference_to_video_image / _video stay on the existing mode gate (different shape).
+const videoRefsModePriced = (p)=> !!(p && ((p.per_second_by_mode && p.per_second_by_mode.reference_to_video!=null)
+  || (p.per_second_by_mode_and_resolution && p.per_second_by_mode_and_resolution.reference_to_video!=null)));
+const videoRefsPriced = (m)=> { const p = m && m.pricing; return !!p && (VIDEO_REF_PRICE_KEYS.some(k=> p[k]!=null) || videoRefsModePriced(p)); };
+const VIDEO_LAST_FRAME_FAMILIES = /^(minimax-h3|minimax\/h3-max|alibaba\/wan-3\.0-prime|alibaba\/wan-3\.0\/image-to-video|google\/gemini-omni-flash(\/v1\.1)?)$/i;
 function modelHasImageRole(n, role){
   const t = NODE_TYPES[n.type]; if(!t.modelKind) return false;
   const m = catItem(t.modelKind, n.fields.model);
@@ -5589,7 +5597,7 @@ function videoOptDefs(model, nodeType){
   // reference-to-video is a live choice now that the tvideo node grows ref-image ports — offer it when the
   // node carries ref inputs AND this model actually advertises a ref-image param (else it stays hidden).
   const canRef = !!(nodeType && NODE_TYPES[nodeType] && NODE_TYPES[nodeType].refInputs)
-                 && VIDEO_IMG_ROLE_KEYS.refs.some(k=> k in p);
+                 && (VIDEO_IMG_ROLE_KEYS.refs.some(k=> k in p) || videoRefsPriced(it));
   const modeOK = (o)=> (o.value!=="reference-to-video" || canRef)
                  && (o.value!=="video-edit" || isVedit)
                  && (o.value!=="video-extend" || isVedit)
@@ -6073,8 +6081,15 @@ function videoBaseUsd(pricing, fields, audioOn, refOn, videoOn){
   if((v=rp(p.per_second_by_resolution))!=null) return v*dur;
   if((v=rp(p.standard_prices_per_second))!=null) return v*dur;               // sora (standard tier)
   if(p.per_second_by_mode){ const mm=p.per_second_by_mode;
-    v = refOn ? (_num(mm.reference_to_video_image) ?? _num(mm.reference_to_video_video)) : null;   // reference-to-video tier when refs are wired
+    v = refOn ? (_num(mm.reference_to_video) ?? _num(mm.reference_to_video_image) ?? _num(mm.reference_to_video_video)) : null;   // Omni bills reference_to_video; kling-o1 splits _image/_video
+    if(v==null && videoOn) v = _num(mm.video_edit);
     if(v==null) v = _num(mm.text_to_video) ?? pickByRes(mm);
+    if(v!=null) return v*dur; }
+  if(p.per_second_by_mode_and_resolution){ const mm=p.per_second_by_mode_and_resolution;   // Omni 1.1: t2v/i2v/r2v/video_edit × 360p–4k
+    const pickMode = (k)=>{ const t=mm[k]; if(t==null) return null; return (typeof t==="object") ? rp(t) : _num(t); };
+    v = refOn ? pickMode("reference_to_video") : null;
+    if(v==null && videoOn) v = pickMode("video_edit");
+    if(v==null) v = pickMode("text_to_video") ?? pickMode("image_to_video");
     if(v!=null) return v*dur; }
   if(audioOn){ for(const k of ["text_image_with_audio_per_second","image_to_video_with_audio_per_second","text_to_video_with_audio_per_second"]){
     if(p[k]!=null){ v = (typeof p[k]==="object") ? rp(p[k]) : _num(p[k]); if(v!=null) return v*dur; } } }   // with-audio per-second tier (veo3.x)
@@ -7538,8 +7553,9 @@ function refreshAudioInputs(n){
 
 // Render the optional "end frame" port on the Image→Video node. Shown ONLY when the picked model
 // exposes a last_image/end_image param (the seedance-2.0 family) — wiring it makes the model MORPH
-// from the image port to this end frame. Plain i2v models (incl. gemini-omni) show just the one image
-// port, as before. Idempotent — safe after a model pick or graph load. Lives as a link (named
+// from the image port to this end frame. Plain i2v models (no last_image param and not in
+// VIDEO_LAST_FRAME_FAMILIES) show just the one image port. Idempotent — safe after a model pick
+// or graph load. Lives as a link (named
 // "endframe"), so it serializes/exports for free; a wire left over after switching to a model without
 // last_image stays in the graph but is ignored at run (see input gather). No disabled stub (unlike the
 // audio port): most i2v models are single-image, so a permanent "end frame (locked)" row would be noise.
