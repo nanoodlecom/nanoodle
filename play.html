@@ -8997,15 +8997,15 @@ const PROMPT_CAPS = {
   // machine-readably; minimax-h3 ships that way, and its last_image is live-verified (2026-07-31) though
   // supported_parameters lists only duration + aspect_ratio. minimax/h3-max, alibaba/wan-3.0-prime and
   // alibaba/wan-3.0/image-to-video ship the same gap (confirmed against the underlying providers' own API
-  // docs — fal.ai/WaveSpeedAI document last_image/end_image_url on both). google/gemini-omni-flash and
-  // /v1.1 ship the same last_image gap (2026-09-01: video-models lists duration/aspect(/resolution) only;
-  // marketing supportsLastImage + first-last-frame tag on v1.1). A billed reference_to_video MODE is
-  // the catalog advertising refs (Omni; exact key only). Drop each id once NanoGPT lists the param.
+  // docs — fal.ai/WaveSpeedAI document last_image/end_image_url on both). google/gemini-omni-flash/v1.1
+  // ships the last_image gap (2026-09-01: video-models lists duration/aspect/resolution only;
+  // marketing supportsLastImage + first-last-frame tag). v1 has neither — do not send last_image on v1.
+  // A billed reference_to_video MODE advertises refs (Omni; exact key only). Drop v1.1 once listed.
   var VIDEO_REF_PRICE_KEYS = ["included_reference_images","extra_reference_image"];
   function videoRefsModePriced(p){ return !!(p && ((p.per_second_by_mode && p.per_second_by_mode.reference_to_video!=null)
     || (p.per_second_by_mode_and_resolution && p.per_second_by_mode_and_resolution.reference_to_video!=null))); }
   function videoRefsPriced(m){ var p = m && m.pricing; return !!p && (VIDEO_REF_PRICE_KEYS.some(function(k){ return p[k]!=null; }) || videoRefsModePriced(p)); }
-  var VIDEO_LAST_FRAME_FAMILIES = /^(minimax-h3|minimax\/h3-max|alibaba\/wan-3\.0-prime|alibaba\/wan-3\.0\/image-to-video|google\/gemini-omni-flash(\/v1\.1)?)$/i;
+  var VIDEO_LAST_FRAME_FAMILIES = /^(minimax-h3|minimax\/h3-max|alibaba\/wan-3\.0-prime|alibaba\/wan-3\.0\/image-to-video|google\/gemini-omni-flash\/v1\.1)$/i;
   // Does this video model accept an end-frame (last_image)? Mirrors the editor's modelHasImageRole, but
   // permissive-ON when the catalog can't be read: the endframe wire was authored deliberately in the
   // editor (gated there), so if we can't verify at runtime we honor it rather than silently drop the morph.
