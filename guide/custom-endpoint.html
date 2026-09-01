@@ -56,10 +56,14 @@
       request body for the current mode) and <em>Your server should return</em>
       (the NanoGPT-shaped JSON). An optional Authorization value is yours alone —
       it is blanked from share links and exports.</p>
-      <p>Your server must send <code>Access-Control-Allow-Origin</code> for the
-      editor origin (and <code>nanoodle.com</code> / the play origin) and answer
-      <code>OPTIONS</code>. If the browser blocks the call, the node says so in
-      one line.</p>
+      <h2>Chrome local-network access and CORS</h2>
+      <p>From <code>https://nanoodle.com</code>, Chrome treats <code>localhost</code>
+      as a local network. The first Run may prompt to allow local-network access —
+      click Allow, or the fetch fails before it reaches your server. Separately,
+      the server must send <code>Access-Control-Allow-Origin</code> (the editor
+      origin, or <code>*</code>) and answer <code>OPTIONS</code>. If the browser
+      blocks the call, the node names CORS or Chrome local-network permission
+      when it can tell.</p>
 
       <h2>A 20-line localhost chat server</h2>
 <pre><code>// node server.mjs  →  http://127.0.0.1:8787/v1/chat/completions
@@ -106,7 +110,8 @@ HTTPServer(("127.0.0.1", 8787), H).serve_forever()
 </code></pre>
       <p>In the editor: URL <code>http://127.0.0.1:8787/v1/chat/completions</code>,
       mode <code>chat</code>, wire a Text node into prompt, Run. The downstream
-      text port should light up with <code>echo: …</code>.</p>
+      text port should light up with <code>echo: …</code>. Chrome may prompt once
+      for local-network access — that is the browser, not these servers.</p>
 
       <nav class="next">
         <a href="/guide/">← Guide</a>

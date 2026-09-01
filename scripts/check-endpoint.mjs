@@ -189,11 +189,57 @@ ok(!Object.values(S.endpointHeaders("tok")).some((v) => /x-api-key/i.test(String
   );
   ok(fromDef && fromDef.text === "from-local", "runEndpoint uses the default URL when the field is omitted");
   ok(calls[0] && calls[0].url === S.ENDPOINT_DEF_URL, "omitted URL field POSTs to ENDPOINT_DEF_URL");
+
+  S.fetch = () => Promise.reject(Object.assign(new TypeError("Failed to fetch"), { name: "TypeError" }));
+  let opaque = "";
+  try { await S.runEndpoint({ fields: { url: "http://127.0.0.1:1/v1/chat/completions", mode: "chat", prompt: "hi" } }, {}); }
+  catch (e) { opaque = e.message; }
+  ok(/CORS/.test(opaque) && /local-network/.test(opaque),
+    "runEndpoint TypeError on localhost names CORS and Chrome LNA");
+
+  S.navigator = { permissions: { query: async () => ({ state: "denied" }) } };
+  let denied = "";
+  try { await S.runEndpoint({ fields: { url: "http://127.0.0.1:1/v1/chat/completions", mode: "chat", prompt: "hi" } }, {}); }
+  catch (e) { denied = e.message; }
+  ok(/Chrome local-network permission/.test(denied) && !/^blocked by CORS/.test(denied),
+    "runEndpoint + denied LNA is the Chrome local-network one-liner");
+
+  S.navigator = { permissions: { query: async () => ({ state: "granted" }) } };
+  let granted = "";
+  try { await S.runEndpoint({ fields: { url: "http://127.0.0.1:1/v1/chat/completions", mode: "chat", prompt: "hi" } }, {}); }
+  catch (e) { granted = e.message; }
+  ok(granted === "blocked by CORS — your server needs Access-Control-Allow-Origin",
+    "runEndpoint + granted LNA is the CORS one-liner");
+  delete S.navigator;
 }
 
-// ---- CORS error line ----------------------------------------------------------
+// ---- CORS / Chrome LNA error lines -------------------------------------------
 ok(S.endpointFetchError({ message: "Failed to fetch" }) === "blocked by CORS — your server needs Access-Control-Allow-Origin",
-  "Failed to fetch becomes the CORS one-liner");
+  "Failed to fetch with no URL becomes the CORS one-liner");
+ok(S.endpointFetchError({ message: "Failed to fetch" }, "https://example.com/v1") === "blocked by CORS — your server needs Access-Control-Allow-Origin",
+  "Failed to fetch to a public https URL is CORS (LNA does not apply)");
+ok(S.endpointFetchError({ message: "Failed to fetch" }, "http://127.0.0.1:8787/v1/chat/completions") ===
+  "blocked — CORS (Access-Control-Allow-Origin + OPTIONS) or Chrome local-network permission",
+  "localhost Failed to fetch names CORS or Chrome LNA when permission is unknown");
+ok(S.endpointFetchError({ message: "TypeError: Failed to fetch" }, "http://localhost:3000/v1") ===
+  "blocked — CORS (Access-Control-Allow-Origin + OPTIONS) or Chrome local-network permission",
+  "TypeError: Failed to fetch on localhost names both");
+ok(S.endpointFetchError({ name: "TypeError", message: "Load failed" }, "http://192.168.1.9:8787/v1") ===
+  "blocked — CORS (Access-Control-Allow-Origin + OPTIONS) or Chrome local-network permission",
+  "LAN Load failed names CORS or Chrome LNA");
+ok(S.endpointFetchError({ message: "Failed to fetch" }, "http://127.0.0.1:9/", "denied") ===
+  "blocked by Chrome local-network permission — allow this site to access your local network, then run again",
+  "denied LNA is the Chrome local-network one-liner");
+ok(S.endpointFetchError({ message: "Failed to fetch" }, "http://127.0.0.1:9/", "granted") ===
+  "blocked by CORS — your server needs Access-Control-Allow-Origin",
+  "granted LNA + Failed to fetch is CORS");
+ok(S.endpointFetchError({ message: "no text in response" }) === "no text in response",
+  "non-network errors pass through");
+ok(S.endpointUrlIsLocal("http://127.0.0.1:8787/v1") === true, "127.0.0.1 is local");
+ok(S.endpointUrlIsLocal("http://localhost:3000/") === true, "localhost is local");
+ok(S.endpointUrlIsLocal("http://box.local/v1") === true, ".local is local");
+ok(S.endpointUrlIsLocal("https://example.com/v1") === false, "public https is not local");
+eq(await S.endpointQueryLocalNetwork("http://127.0.0.1:9/"), "", "no Permissions API → empty LNA state");
 
 // ---- share-card redaction -----------------------------------------------------
 {
