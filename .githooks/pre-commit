@@ -37,7 +37,7 @@ touches_videoroles=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.
 touches_videomode=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-video-mode-gate\.mjs)$' || true)
 # index.html + play.html: a size/duration/quality/mode value is only valid for the model it was
 # chosen for. A model swap (and loading an old graph) must snap an invalid value, not inject it.
-touches_knobclamp=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-model-knob-clamp\.mjs)$' || true)
+touches_knobclamp=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-model-knob-clamp\.mjs|scripts/play-engine\.mjs)$' || true)
 # index.html (I18N_LANGS) + the /xx/ landing pages + their generator carry the per-language SEO cluster.
 touches_langpages=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|(es|fr|de|pt|ja)/index\.html|scripts/(gen|check)-lang-pages\.mjs)$' || true)
 # index.html carries the link-removal path (unlocking text fields when their source is deleted).
