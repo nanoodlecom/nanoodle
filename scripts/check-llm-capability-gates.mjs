@@ -122,7 +122,9 @@ if (app) {
   const { readFileSync } = await import("node:fs");
   const { resolve, dirname, join } = await import("node:path");
   const { fileURLToPath } = await import("node:url");
-  const IDX = readFileSync(join(resolve(dirname(fileURLToPath(import.meta.url)), ".."), "index.html"), "utf8");
+  const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+  const IDX = readFileSync(join(ROOT, "index.html"), "utf8");
+  const PLAY = readFileSync(join(ROOT, "play.html"), "utf8");
   // Non-greedy match stops at the first top-level `}` of the function — enough to see the strip logic.
   const m = IDX.match(/function\s+refreshLlmOpts\s*\([\s\S]*?\n\}/);
   if (!m) failures.push("editor: could not find refreshLlmOpts() in index.html");
@@ -168,10 +170,55 @@ if (app) {
   else if (!/refreshLlmOpts\(n\)/.test(rap[0]))
     failures.push("editor refreshAllPrices: catalog-arrival sweep must include refreshLlmOpts(n) so knobs kept during a catalog miss reconcile when flags arrive");
   else process.stdout.write("  ✓ editor refreshAllPrices reconciles LLM knobs on catalog arrival\n");
+
+  // TEMP_LOCKED twins (PR #363): hide the temperature slider on models that ignore it.
+  // Catalog has no supported-params flag, so both engines use the same family regex. A
+  // one-sided edit (or a too-broad / too-narrow change) either hides a working knob or
+  // ships a dead one. Pin the two copies identical, and pin the documented family:
+  // gpt-5* except *chat*, o1/o3/o4 (incl. azure aliases), gpt-latest, *-search-preview.
+  const extractRe = (src, where) => {
+    const m = src.match(/const TEMP_LOCKED = (\/(?:\\.|[^\/\n])+\/);/);
+    if (!m) { failures.push(`${where}: TEMP_LOCKED regex not found`); return null; }
+    return m[1];
+  };
+  const idxLit = extractRe(IDX, "index.html");
+  const playLit = extractRe(PLAY, "play.html");
+  if (idxLit && playLit) {
+    if (idxLit !== playLit) failures.push(`TEMP_LOCKED twins drifted:\n    index ${idxLit}\n    play  ${playLit}`);
+    else process.stdout.write("  ✓ TEMP_LOCKED regex is identical in index.html and play.html\n");
+    let re;
+    try { re = new Function("return " + idxLit)(); }
+    catch (e) { failures.push("TEMP_LOCKED: could not evaluate the shipped regex: " + e.message); }
+    if (re) {
+      const locked = [
+        "gpt-5-nano", "gpt-5.2", "gpt-5.4", "o1", "o3-mini", "o4-mini",
+        "azure-o1", "openai/o3-mini", "gpt-latest",
+        "gpt-4o-search-preview", "gpt-4o-mini-search-preview",
+      ];
+      const unlocked = [
+        "gpt-4o", "gpt-4.1", "gpt-oss", "gpt-5-chat-latest", "openai/gpt-5-chat",
+        "kimi-k2.5", "claude-opus-4", "glm-5.2", "o2-mini",
+      ];
+      for (const id of locked) {
+        if (!re.test(id)) failures.push(`TEMP_LOCKED must hide temperature on ${id}`);
+      }
+      for (const id of unlocked) {
+        if (re.test(id)) failures.push(`TEMP_LOCKED must NOT hide temperature on ${id} (false positive)`);
+      }
+      if (!failures.some((f) => String(f).startsWith("TEMP_LOCKED must")))
+        process.stdout.write(`  ✓ TEMP_LOCKED family: ${locked.length} locked / ${unlocked.length} unlocked\n`);
+    }
+  }
+  if (IDX.indexOf("if(noTemp) delete f.temperature;") < 0)
+    failures.push("editor refreshLlmOpts: temperature-locked models must drop the stored fields.temperature (saves/exports must not carry an ignored setting)");
+  else process.stdout.write("  ✓ editor drops stored temperature on TEMP_LOCKED models\n");
+  if (!/row\.hidden = tempLocked\(it\.node\.fields\.model\)/.test(PLAY))
+    failures.push("play refreshTempRows: must hide the Temperature row via tempLocked(model)");
+  else process.stdout.write("  ✓ play hides the Temperature row via tempLocked(model)\n");
 }
 
 if (failures.length) {
   process.stderr.write("\n✗ llm-capability-gates: exported LLM node would send an ungated paid request:\n\n- " + failures.join("\n- ") + "\n");
   process.exit(1);
 }
-process.stdout.write(`\n✓ llm-capability-gates: ${SCENARIOS.length} scenarios — response_format & input_audio gated by model capability.\n`);
+process.stdout.write(`\n✓ llm-capability-gates: ${SCENARIOS.length} scenarios — response_format & input_audio gated by model capability; TEMP_LOCKED twins pinned.\n`);
