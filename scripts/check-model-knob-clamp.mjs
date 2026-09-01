@@ -12,12 +12,17 @@
 //   * editor ↔ play nearestDimOption parity
 //   * refreshDims / fillDimLists never inject a fake option once the catalog is known
 //   * load path (refreshAllPrices / fillDimLists) clamps, not only the picker
+//   * play tvideo.run / videoDimParams SEND path snaps (the original "Play sent 8s" bug)
+//   * fps / frames_per_second wire-name remap + unlisted fps snap
+//   * unlisted 9:16 on an orientation model snaps (not forwarded as aspect_ratio)
 //
 // Extraction technique mirrors check-drifted-model / check-video-mode-gate.
+// Send-path cases drive play NODE_TYPES.tvideo.run via play-engine.mjs (spy genVideo).
 import { readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
+import { loadEngine, catalog } from "./play-engine.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const IDX = readFileSync(join(ROOT, "index.html"), "utf8");
@@ -72,6 +77,7 @@ function loadEditor() {
     block(IDX, "function nearestDimOption(cur, options, def){"),
     block(IDX, "function applyDimFields(fields, defs){"),
     block(IDX, "function dimDefs(type, model){"),
+    block(IDX, "function videoDimParams(n){"),
     "var catalogs = { image:[], video:[] };",
     "function catItem(kind,id){ return (catalogs[kind]||[]).find(function(m){ return m.id===id; }); }",
   ].join("\n");
@@ -193,6 +199,47 @@ editor.catalogs.image = [BANANA, QWEN];
 }
 
 {
+  // editor send helper reads the clamped fields (refreshDims → applyDimFields → videoDimParams)
+  const fields = { model: "alibaba/wan-3.0-prime", duration: "8" };
+  editor.applyDimFields(fields, editor.dimDefs("tvideo", fields.model));
+  const wire = editor.videoDimParams({ type: "tvideo", fields });
+  if (String(wire.duration) === "8") fail("editor: videoDimParams still packs 8s after the Wan Prime clamp");
+  else if (wire.duration == null || wire.duration === "") fail("editor: videoDimParams dropped duration after clamp");
+  else ok("editor: videoDimParams packs clamped Wan Prime duration " + wire.duration);
+}
+
+{
+  const fpsModel = {
+    id: "fps-model",
+    params: { fps: { options: [{ value: "24" }, { value: "30" }], default: "24" } },
+  };
+  const fps2Model = {
+    id: "fps2-model",
+    params: { frames_per_second: { options: [{ value: "24" }, { value: "30" }], default: "24" } },
+  };
+  editor.catalogs.video = [WAN_PRIME, MINIMAX_H3, fpsModel, fps2Model];
+  const defs = editor.dimDefs("tvideo", "fps-model");
+  const fps = defs.find((d) => d.f === "fps");
+  if (!fps) fail("editor: fps-model has no fps dim def");
+  else if (fps.wire !== "fps") fail("editor: fps-model wire must be fps, got " + fps.wire);
+  else ok("editor: catalog fps param wires as fps");
+  const fields = { model: "fps-model", fps: "60" };
+  editor.applyDimFields(fields, defs);
+  if (String(fields.fps) === "60") fail("editor: 60 fps survived on a 24/30 list");
+  else if (!(fps.options || []).some((o) => String(o[0]) === String(fields.fps))) {
+    fail("editor: clamped fps \"" + fields.fps + "\" is not in fps-model's list");
+  } else ok("editor: 60 fps → fps-model clamps to " + fields.fps);
+
+  const defs2 = editor.dimDefs("tvideo", "fps2-model");
+  const fps2 = defs2.find((d) => d.f === "fps");
+  if (!fps2) fail("editor: fps2-model has no fps dim def");
+  else if (fps2.wire !== "frames_per_second") {
+    fail("editor: frames_per_second must wire as frames_per_second, got " + fps2.wire);
+  } else ok("editor: catalog frames_per_second param wires as frames_per_second");
+  editor.catalogs.video = [WAN_PRIME, MINIMAX_H3];
+}
+
+{
   // offline / uncatalogued: don't invent a clamp — keep the stored value pickable
   editor.catalogs.video = [];
   const fields = { model: "not-in-catalog", duration: "8" };
@@ -287,6 +334,132 @@ editor.catalogs.image = [BANANA, QWEN];
     if (!/out\.duration = DURATIONS/.test(PLAY)) fail("play: Wan Prime number-range duration no longer falls back to 5/10");
     else ok("play: catalogued number-range duration uses the 5/10 fallback");
   } else ok("play: catalogued number-range duration uses the 5/10 fallback");
+}
+
+// ---- 5. play SEND path (the original bug: Play posted 8s) ------------------
+{
+  const vdp = block(PLAY, "async function videoDimParams(n){");
+  if (!/snapField\("duration"/.test(vdp) || !/snapField\("aspect"/.test(vdp) || !/snapField\("fps"/.test(vdp)) {
+    fail("play: videoDimParams no longer snaps duration/aspect/fps on send");
+  } else ok("play: videoDimParams snaps duration/aspect/fps on the paid send path");
+  for (const kind of ["tvideo", "ivideo", "vedit"]) {
+    const run = block(PLAY, kind + ": {");
+    if (!/videoDimParams\(n\)/.test(run)) fail("play: " + kind + ".run no longer calls videoDimParams");
+    else ok("play: " + kind + ".run packs dims through videoDimParams");
+  }
+  if (!/videoDimParams\(n\);      \/\/ resolution the avatar model supports/.test(PLAY)) {
+    fail("play: lipsync.run no longer calls videoDimParams");
+  } else ok("play: lipsync.run packs dims through videoDimParams");
+}
+
+catalog.video = [
+  {
+    id: "alibaba/wan-3.0-prime",
+    supported_parameters: { parameters: { duration: { type: "number", min: 2, max: 30, default: 5 } } },
+  },
+  {
+    id: "minimax-h3",
+    supported_parameters: { parameters: { duration: { type: "select", default: "5", options: H3_DUR_OPTS } } },
+  },
+  {
+    id: "sora-like",
+    supported_parameters: { parameters: {
+      orientation: { options: [{ value: "landscape" }, { value: "portrait" }], default: "landscape" },
+      seconds: { options: [{ value: "4" }, { value: "8" }], default: "8" },
+    } },
+  },
+  {
+    id: "fps-model",
+    supported_parameters: { parameters: {
+      fps: { options: [{ value: "24" }, { value: "30" }], default: "24" },
+    } },
+  },
+  {
+    id: "fps2-model",
+    supported_parameters: { parameters: {
+      frames_per_second: { options: [{ value: "24" }, { value: "30" }], default: "24" },
+    } },
+  },
+];
+
+const app = loadEngine();
+
+async function spyTvideo(fields) {
+  let sent = null;
+  await app.NODE_TYPES.tvideo.run(
+    { id: "v1", type: "tvideo", fields: { prompt: "waves", ...fields } },
+    {},
+    { genVideo: (model, prompt, opts) => { sent = { model, prompt, opts }; return "https://cdn.example/v.mp4"; } },
+    () => {},
+  );
+  return sent;
+}
+
+{
+  const sent = await spyTvideo({ model: "alibaba/wan-3.0-prime", duration: "8" });
+  const dur = sent && sent.opts && sent.opts.dims && sent.opts.dims.duration;
+  if (String(dur) === "8") fail("play send: Wan Prime generate-video still posted duration 8");
+  else if (dur == null || dur === "") fail("play send: Wan Prime generate-video dropped duration");
+  else ok("play send: H3 8s → Wan Prime generate-video posts duration " + dur);
+}
+
+{
+  const sent = await spyTvideo({ model: "minimax-h3", duration: "8" });
+  const dur = sent && sent.opts && sent.opts.dims && sent.opts.dims.duration;
+  if (String(dur) !== "8") fail("play send: still-valid 8s on MiniMax H3 was reset to " + dur);
+  else ok("play send: still-valid 8s on MiniMax H3 is posted");
+}
+
+{
+  const sent = await spyTvideo({ model: "sora-like", aspect: "9:16", duration: "" });
+  const dims = (sent && sent.opts && sent.opts.dims) || {};
+  if (dims.aspect_ratio != null) fail("play send: 9:16 on an orientation model forwarded as aspect_ratio");
+  else if (String(dims.orientation) === "9:16") fail("play send: 9:16 survived on a landscape/portrait list");
+  else if (dims.orientation !== "landscape") {
+    fail("play send: 9:16 must snap to the orientation default landscape, got " + JSON.stringify(dims.orientation));
+  } else if (String(dims.seconds) !== "8") {
+    fail("play send: empty duration must backfill seconds=8, got " + JSON.stringify(dims.seconds));
+  } else ok("play send: 9:16 snaps to orientation landscape; empty duration backfills seconds=8");
+}
+
+{
+  const sent = await spyTvideo({ model: "sora-like", aspect: "portrait", duration: "" });
+  const dims = (sent && sent.opts && sent.opts.dims) || {};
+  if (dims.orientation !== "portrait") fail("play send: listed portrait was remapped, got " + JSON.stringify(dims.orientation));
+  else if (String(dims.seconds) !== "8") fail("play send: empty duration must still backfill seconds=8");
+  else ok("play send: listed portrait + empty duration → orientation/seconds wire names");
+}
+
+{
+  const sent = await spyTvideo({ model: "fps-model", fps: "60" });
+  const dims = (sent && sent.opts && sent.opts.dims) || {};
+  if (String(dims.fps) === "60") fail("play send: 60 fps survived on a 24/30 list");
+  else if (dims.frames_per_second != null) fail("play send: fps-model must not also send frames_per_second");
+  else if (!["24", "30"].includes(String(dims.fps))) fail("play send: clamped fps \"" + dims.fps + "\" is not in fps-model's list");
+  else ok("play send: 60 fps → fps-model posts fps " + dims.fps);
+}
+
+{
+  const sent = await spyTvideo({ model: "fps-model", fps: "30" });
+  const dims = (sent && sent.opts && sent.opts.dims) || {};
+  if (String(dims.fps) !== "30") fail("play send: still-valid 30 fps was reset to " + dims.fps);
+  else ok("play send: still-valid 30 fps is posted as fps");
+}
+
+{
+  const sent = await spyTvideo({ model: "fps2-model", fps: "30" });
+  const dims = (sent && sent.opts && sent.opts.dims) || {};
+  if (dims.fps != null) fail("play send: frames_per_second model must not also send fps");
+  else if (String(dims.frames_per_second) !== "30") {
+    fail("play send: fps2-model must post frames_per_second=30, got " + JSON.stringify(dims.frames_per_second));
+  } else ok("play send: frames_per_second model remaps the fps field onto the wire");
+}
+
+{
+  const sent = await spyTvideo({ model: "not-in-catalog", duration: "8" });
+  const dur = sent && sent.opts && sent.opts.dims && sent.opts.dims.duration;
+  if (String(dur) !== "8") fail("play send: catalog-missing model clobbered a stored 8s (got " + dur + ")");
+  else ok("play send: catalog-missing model still posts the stored 8s (no false clamp)");
 }
 
 if (failed) { console.error("\ncheck-model-knob-clamp: " + failed + " failure(s)"); process.exit(1); }
