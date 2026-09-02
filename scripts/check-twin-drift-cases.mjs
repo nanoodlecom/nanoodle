@@ -45,11 +45,11 @@ const CASES = [
   {
     name: "extract row 1 — resize and crop geometry",
     why: "sig = deletes = 25, the plainest mirrored removal in the plan",
-    idx: [[7764, 7824]],
-    play: [[7617, 7652], [9646, 9660]],
-    // Ranges re-anchored after picker empty-state hint (+7 in index.html:
-    // +5 I18N, +2 pickerSearchHint after ~6496). Surfaces still share
-    // resize helpers outside this block, so a paired delete is not silent.
+    idx: [[7796, 7856]],
+    play: [[7617, 7652], [9678, 9692]],
+    // Ranges re-anchored after json-mode echo helpers (+32 after ~6721 in
+    // index.html / ~7820 in play.html). Surfaces still share resize helpers
+    // outside this block, so a paired delete is not silent.
     expect: { exit: 1, oneSided: 25, occurrence: 1 },
   },
   {
@@ -57,7 +57,7 @@ const CASES = [
     why: "5 twins, already exported from browser.mjs. Re-anchored to the real " +
       "index.html maskToSource (8167-8185); the old 8079 window was a stale " +
       "block and made a paired delete look one-sided. Deleting both copies is silent.",
-    idx: [[8169, 8187]],
+    idx: [[8201, 8219]],
     play: [[7596, 7614]],
     expect: { exit: 0 },
   },
@@ -65,7 +65,7 @@ const CASES = [
     name: "extract row 3 — encodeWavMono + mediaFetchError",
     why: "index.html range ends at 9323, not 9309: play.html:6599-6710 carries the twins of " +
       "trimAudioToWavUrl and extractAudioToWavUrl too, and the shorter range left them one-sided",
-    idx: [[10300, 10375]],
+    idx: [[10332, 10407]],
     play: [[6769, 6886]],
     expect: { exit: 1, oneSided: 26, occurrence: 1 },
   },
@@ -73,7 +73,7 @@ const CASES = [
     name: "extract row 4 — prompt-cap helpers",
     why: "9 twins, library copy already in the bundle",
     idx: [[4438, 4488]],
-    play: [[8421, 8470]],
+    play: [[8453, 8502]],
     expect: { exit: 1, oneSided: 9, occurrence: 1 },
   },
   {
@@ -86,7 +86,7 @@ const CASES = [
   {
     name: "extract row 6 — MP4CAT",
     why: "123 twins leave at once — the largest single mirrored deletion in the plan",
-    idx: [[10390, 10667]],
+    idx: [[10422, 10699]],
     play: [[6929, 7206]],
     expect: { exit: 1, oneSided: 112, occurrence: 3 },
   },
@@ -95,7 +95,7 @@ const CASES = [
     why: "play.html ranges corrected to 6706-6711 / 6739-6746 / 7025-7238. The old 6635-6679 " +
       "swallowed toLocalMediaUrl, seekVideo and MP4CAT's first 4 lines, and the old 6979-7169 " +
       "started AFTER prepClip and recordClip, whose index.html twins are inside 9641-9893",
-    idx: [[10669, 10921]],
+    idx: [[10701, 10953]],
     play: [[6888, 6893], [6921, 6928], [7207, 7422]],
     expect: { exit: 1, oneSided: 128, occurrence: 1 },
   },
@@ -111,8 +111,8 @@ const CASES = [
       "      and play.html twice, and only index.html's second copy is inside the block.\n" +
       "      Whoever does row 8 refreshes the baseline as part of it — deliberately, which is what\n" +
       "      the guard's own remedy line asks for",
-    idx: [[11931, 12247]],
-    play: [[13896, 14215]],
+    idx: [[11963, 12279]],
+    play: [[13928, 14247]],
     expect: { exit: 1, oneSided: 106, occurrence: 1 },
   },
   {
@@ -120,8 +120,8 @@ const CASES = [
     why: "play.html ranges corrected to 13426 / 13508-13560 / 13664. The old 13292-13530 swallowed " +
       "the whole agent-pill popover (13294-13373) and the model-picker search, which index.html " +
       "keeps at 11846-11862 and 10632",
-    idx: [[12360, 12400]],
-    play: [[14354, 14354], [14436, 14488], [14592, 14592]],
+    idx: [[12392, 12432]],
+    play: [[14386, 14386], [14468, 14520], [14624, 14624]],
     expect: { exit: 1, oneSided: 38 },
   },
 
@@ -133,7 +133,7 @@ const CASES = [
     edits: [
       {
         file: "index.html",
-        line: 10772,
+        line: 10804,
         from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
         to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durIDX, 0);",
       },
@@ -152,7 +152,7 @@ const CASES = [
     edits: [
       {
         file: "index.html",
-        line: 10772,
+        line: 10804,
         from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
         to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durIDX, 0);",
       },
@@ -172,7 +172,7 @@ const CASES = [
     edits: [
       {
         file: "index.html",
-        line: 10772,
+        line: 10804,
         from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
         to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durTicks, 0);",
       },
@@ -196,7 +196,7 @@ const CASES = [
     edits: [
       {
         file: "index.html",
-        line: 10772,
+        line: 10804,
         from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
         to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durIDX, 0);",
       },
@@ -208,7 +208,7 @@ const CASES = [
       },
       {
         file: "play.html",
-        line: 13784,
+        line: 13816,
         from: "    const usd = parseFloat((await r.json()).usd_balance);",
         to: "    const usd = parseFloat((await r.json()).usdBalance);",
       },
