@@ -562,8 +562,9 @@ const SCENARIOS = [
   },
   {
     // Live (2026-09-02): Mureka Prompt-to-Song 202s `{model, input}` then /tts/status
-    // status:error + refund. `{model, prompt}` completes. Any `*/prompt-to-song` sibling
-    // uses the same key; generate-song / generate-bgm / Music 3 keep `input`.
+    // status:error + refund. `{model, prompt}` completes. Hour-4 live: `*/generate-bgm`
+    // 400s `{model, input}` ("Generate BGM requires prompt"); `{model, prompt}` 202s.
+    // generate-song / MiniMax Music 3 keep `input` (+ lyrics).
     name: "Music node: prompt-to-song sends prompt (not input)",
     data: { nodes: [node("m1", "music", {
               model: "mureka-ai/mureka-v9.5/prompt-to-song",
@@ -603,13 +604,13 @@ const SCENARIOS = [
     },
   },
   {
-    name: "Music node: generate-bgm still sends input (no prompt key)",
+    name: "Music node: generate-bgm sends prompt (not input)",
     data: { nodes: [node("m1", "music", { model: "mureka-ai/mureka-v9.5/generate-bgm", prompt: "lofi cafe rain" })], links: [] },
     check(app, g, fail) {
       const b = audioCalls()[0]?.body;
       if (!b) return fail("no /audio/speech call recorded for generate-bgm");
-      if (b.input !== "lofi cafe rain") fail(`generate-bgm must keep input, got ${JSON.stringify(b.input)}`);
-      if ("prompt" in b) fail(`generate-bgm must not send prompt, got ${JSON.stringify(b.prompt)}`);
+      if (b.prompt !== "lofi cafe rain") fail(`generate-bgm must send prompt, got ${JSON.stringify(b.prompt)}`);
+      if ("input" in b) fail(`generate-bgm must omit input, got ${JSON.stringify(b.input)}`);
     },
   },
   {
