@@ -175,9 +175,7 @@ runners byte-for-byte.
 `updates.json` is the in-app changelog behind the 📣 button. It's opt-in
 per commit: add an `Update: one polished line` to a commit message and the
 `post-commit` hook folds it in. Commits without one stay silent. Edit the
-JSON by hand anytime; `scripts/check-updates.mjs` keeps it valid. After a
-hand edit, run `node scripts/gen-changelog.mjs` so `/changelog` and the
-Atom feed stay in lockstep (the pre-commit hook does this for you).
+JSON by hand anytime; `scripts/check-updates.mjs` keeps it valid.
 
 ## License
 
