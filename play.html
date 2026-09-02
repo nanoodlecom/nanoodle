@@ -6039,7 +6039,7 @@ window.NoodleApp = (function () {
   function notifyParentCost(){
     try{ if(window.parent && window.parent!==window) window.parent.postMessage({ type:"__cost__", total:COST.total, exact:COST.exact, balance:COST.balance, count:COST.count }, "*"); }catch(e){}
   }
-  function applyPollBalance(s, r, refunded){
+  function applyPollBalance(s, r, _refunded){
     var h = costFromHeaders(r);
     var bodyBal = (s && typeof s.remainingBalance==="number") ? s.remainingBalance
       : (s && s.data && typeof s.data.remainingBalance==="number") ? s.data.remainingBalance : null;

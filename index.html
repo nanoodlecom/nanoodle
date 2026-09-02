@@ -11197,7 +11197,7 @@ function accrue(j, estUsd, r){
 // Poll complete / refund: apply a terminal remaining-balance (header wins, then body) without
 // re-accruing spend. A terminal poll (success or refund) that omits remaining-balance gets one
 // coalesced check-balance — generate-bgm complete still omits the figure after the 202 cost.
-function applyPollSettlement(s, r, refunded){
+function applyPollSettlement(s, r, _refunded){
   const hdrBal = (r && r.headers) ? parseFloat(r.headers.get("x-remaining-balance") || "") : NaN;
   let bal = !isNaN(hdrBal) ? hdrBal : null;
   if(bal==null && s && typeof s.remainingBalance==="number") bal = s.remainingBalance;
