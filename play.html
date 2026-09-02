@@ -5761,6 +5761,8 @@ window.NoodleApp = (function () {
   "Custom endpoint":{es:"Endpoint personalizado",fr:"Endpoint personnalisé",de:"Eigener Endpoint",pt:"Endpoint personalizado",ja:"カスタムエンドポイント"},
   "URL required — set the custom endpoint URL":{es:"URL obligatoria — indica la URL del endpoint",fr:"URL obligatoire — indiquez l’URL de l’endpoint",de:"URL erforderlich — setze die Endpoint-URL",pt:"URL obrigatória — defina a URL do endpoint",ja:"URLが必要です — カスタムエンドポイントのURLを設定してください"},
   "blocked by CORS — your server needs Access-Control-Allow-Origin":{es:"bloqueado por CORS — tu servidor necesita Access-Control-Allow-Origin",fr:"bloqué par CORS — votre serveur doit envoyer Access-Control-Allow-Origin",de:"von CORS blockiert — dein Server braucht Access-Control-Allow-Origin",pt:"bloqueado por CORS — seu servidor precisa de Access-Control-Allow-Origin",ja:"CORSでブロックされました — サーバーに Access-Control-Allow-Origin が必要です"},
+  "blocked by Chrome local-network permission — allow this site to access your local network, then run again":{es:"bloqueado por el permiso de red local de Chrome — permite que este sitio acceda a tu red local y vuelve a ejecutar",fr:"bloqué par la permission réseau local de Chrome — autorisez ce site à accéder à votre réseau local, puis relancez",de:"von Chrome blockiert (lokales Netzwerk) — erlaube dieser Seite den Zugriff auf dein lokales Netzwerk und starte erneut",pt:"bloqueado pela permissão de rede local do Chrome — permita que este site acesse sua rede local e execute de novo",ja:"Chrome のローカルネットワーク許可でブロックされました — このサイトのローカルネットワークアクセスを許可して、再実行してください"},
+  "blocked — CORS (Access-Control-Allow-Origin + OPTIONS) or Chrome local-network permission":{es:"bloqueado — CORS (Access-Control-Allow-Origin + OPTIONS) o el permiso de red local de Chrome",fr:"bloqué — CORS (Access-Control-Allow-Origin + OPTIONS) ou permission réseau local de Chrome",de:"blockiert — CORS (Access-Control-Allow-Origin + OPTIONS) oder Chrome-Berechtigung fürs lokale Netzwerk",pt:"bloqueado — CORS (Access-Control-Allow-Origin + OPTIONS) ou permissão de rede local do Chrome",ja:"ブロック — CORS（Access-Control-Allow-Origin + OPTIONS）または Chrome のローカルネットワーク許可"},
   };
   const PLAY_LANGS = ["en","es","fr","de","pt","ja"];
   const PLAY_ENDONYM = { en:"English", es:"Español", fr:"Français", de:"Deutsch", pt:"Português", ja:"日本語" };
@@ -7655,11 +7657,40 @@ function mp4ParamsMatch(bufs){
     if(mode==="audio") return { url:"https://example.com/out.mp3" };
     return { text:"hello from your server" };
   }
-  function endpointFetchError(e){
-    var m = (e && e.message) || String(e);
-    if(/^(TypeError: )?(Failed to fetch|Load failed|NetworkError)/i.test(m.trim()))
+  function endpointUrlIsLocal(url){
+    try{
+      var u = new URL(String(url||"").trim());
+      var host = u.hostname;
+      return endpointIsLoopbackHost(host) || endpointIsPrivateIPv4(host) || /\.local$/i.test(host);
+    }catch(e){ return false; }
+  }
+  function endpointFetchIsOpaque(e){
+    var m = ((e && e.message) || String(e)).trim();
+    if(/^(TypeError: )?(Failed to fetch|Load failed|NetworkError)/i.test(m)) return true;
+    return !!(e && e.name==="TypeError" && /fetch|network|cors/i.test(m));
+  }
+  function endpointFetchError(e, url, lnaState){
+    if(!endpointFetchIsOpaque(e)) return (e && e.message) || String(e);
+    if(lnaState==="denied")
+      return "blocked by Chrome local-network permission — allow this site to access your local network, then run again";
+    if(lnaState==="granted" || !endpointUrlIsLocal(url))
       return "blocked by CORS — your server needs Access-Control-Allow-Origin";
-    return m;
+    return "blocked — CORS (Access-Control-Allow-Origin + OPTIONS) or Chrome local-network permission";
+  }
+  async function endpointQueryLocalNetwork(url){
+    if(!endpointUrlIsLocal(url)) return "";
+    try{
+      if(typeof navigator==="undefined" || !navigator.permissions || typeof navigator.permissions.query!=="function")
+        return "";
+      var names = ["local-network-access","loopback-network","local-network"];
+      for(var i=0;i<names.length;i++){
+        try{
+          var p = await navigator.permissions.query({ name:names[i] });
+          if(p && (p.state==="denied" || p.state==="granted")) return p.state;
+        }catch(q){}
+      }
+    }catch(e){}
+    return "";
   }
   function endpointParseChat(j){
     var msg = (j && j.choices && j.choices[0] && j.choices[0].message) || {};
@@ -7725,7 +7756,9 @@ function mp4ParamsMatch(bufs){
       r = await fetch(url, { method:"POST", headers:headers, body:JSON.stringify(body), signal:endpointRunSignal() });
     }catch(e){
       if(e && e.name==="AbortError") throw e;
-      throw new Error(endpointFetchError(e));
+      var lna = "";
+      try{ lna = await endpointQueryLocalNetwork(url); }catch(e2){}
+      throw new Error(endpointFetchError(e, url, lna));
     }
     if(!r.ok){
       var errBody = "";
