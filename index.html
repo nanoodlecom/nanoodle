@@ -429,6 +429,8 @@
   #cost .costspend{ color:var(--dim); font-weight:400 }
   #cost .costdelta{ display:inline-block; margin-left:.2rem; color:var(--warn); font-weight:700; letter-spacing:-.01em; opacity:0; pointer-events:none }
   #cost .costdelta.on{ animation:costDelta 1.35s ease-out forwards }
+  #cost .coststale{ color:var(--warn) }
+  #cost:not(:empty) b.coststale{ text-decoration:none }
   @keyframes costDelta{ 0%{opacity:1;transform:translateY(1px)} 60%{opacity:.95;transform:translateY(-2px)} 100%{opacity:0;transform:translateY(-4px)} }
   @media (prefers-reduced-motion: reduce){ #cost .costdelta.on{ animation:none; opacity:1 } }
 
@@ -9116,7 +9118,7 @@ window.addEventListener("resize", redraw);
 /* ======================================================================
    EXECUTION  (topological evaluation)
    ====================================================================== */
-const stats = { count:0, cost:0, exact:true, balance:null };
+const stats = { count:0, cost:0, exact:true, balance:null, balStale:false };
 const BAL_CACHE_KEY = "ngpt_balance_usd";
 function cacheBalance(){
   try{
@@ -9154,6 +9156,11 @@ function costChipFmtDelta(usd){
   var n = usd >= 0.01 ? usd.toFixed(2) : usd.toFixed(4);
   return "−$" + n;
 }
+function costChipBalTxt(bal, stale){
+  if(stale) return "?";
+  if(bal == null || !isFinite(Number(bal))) return "";
+  return Number(bal).toFixed(2);
+}
 let _costPainted = "";
 let _costShownBal = null;
 let _costTween = 0;
@@ -9177,12 +9184,14 @@ function paintCost(){
   const el = $("cost"); if(!el) return;
   const step = _costStep; _costStep = null;
   const bal = stats.balance;
+  const stale = !!stats.balStale;
   const spend = (stats.count > 0) ? costChipSpendLabel(stats.cost, stats.exact) : "";
   const deltaUsd = step ? costChipDeltaUsd(step.prevBal, bal, step.stepUsd) : 0;
   const deltaTxt = costChipFmtDelta(deltaUsd);
-  const balTxt = bal == null ? "" : Number(bal).toFixed(2);
-  const s = bal == null ? "" : (t("bal") + " $<b class=\"costbal\">" + balTxt + "</b>" + (spend ? "<span class=\"costspend\"> · " + spend + "</span>" : "") + "<span class=\"costdelta\" aria-hidden=\"true\"></span><span class=\"costadd\">+</span>");
-  const ident = bal == null ? "" : ("bal" + balTxt + "|" + spend);
+  const balTxt = costChipBalTxt(bal, stale);
+  const hide = !stale && bal == null;
+  const s = hide ? "" : (t("bal") + (stale ? " <b class=\"costbal coststale\">?</b>" : " $<b class=\"costbal\">" + balTxt + "</b>") + (spend ? "<span class=\"costspend\"> · " + spend + "</span>" : "") + "<span class=\"costdelta\" aria-hidden=\"true\"></span><span class=\"costadd\">+</span>");
+  const ident = hide ? "" : ("bal" + balTxt + "|" + spend + (stale?"|s":""));
   const needFlash = !!deltaTxt;
   if(ident === _costPainted && !needFlash) return;
   if(ident !== _costPainted || !el.querySelector(".costbal")){
@@ -9192,7 +9201,7 @@ function paintCost(){
     // empty span never sits in the tab order or carries a stale tooltip
     if(s){
       el.setAttribute("role","button"); el.tabIndex = 0;
-      el.title = t("Top up with Nano — show my deposit QR"); el.setAttribute("aria-label", el.title);
+      el.title = stale ? t("Couldn't refresh remaining credit — tap to top up") : t("Top up with Nano — show my deposit QR"); el.setAttribute("aria-label", el.title);
     } else {
       el.removeAttribute("role"); el.removeAttribute("tabindex");
       el.removeAttribute("title"); el.removeAttribute("aria-label");
@@ -9201,8 +9210,8 @@ function paintCost(){
   }
   const balEl = el.querySelector(".costbal");
   const fromBal = (step && step.prevBal != null) ? step.prevBal : _costShownBal;
-  if(balEl && bal != null){
-    if(needFlash && fromBal != null && !costChipReduceMotion()) tweenCostBal(balEl, fromBal, bal, 420);
+  if(balEl && (stale || bal != null)){
+    if(!stale && needFlash && fromBal != null && !costChipReduceMotion()) tweenCostBal(balEl, fromBal, bal, 420);
     else { if(_costTween){ cancelAnimationFrame(_costTween); _costTween = 0; } balEl.textContent = balTxt; }
   }
   const dEl = el.querySelector(".costdelta");
@@ -9219,18 +9228,27 @@ function paintCost(){
 // Show the balance the moment you're signed in — before any run prices it in. Generations keep it
 // live via x-remaining-balance headers; this just seeds it from nano-gpt on sign-in / boot.
 let _balPending = false;
-async function refreshBalance(){
-  if(!getKey() || _balPending) return;
+let _balAgain = false;
+let _balAgainCorrective = false;
+async function refreshBalance(corrective){
+  if(!getKey()) return;
+  if(_balPending){ _balAgain = true; if(corrective) _balAgainCorrective = true; return; }
   _balPending = true;
+  const needCorrective = !!corrective;
+  _balAgain = false;
+  _balAgainCorrective = false;
   try{
     const r = await fetch(`${NANOGPT}/api/check-balance`, { method:"POST", headers:authHeaders(), body:"{}" });
-    if(!r.ok) return;                  // can't validate the key here: /api/check-balance has no CORS header,
-                                       // so a bad key makes the fetch THROW (→catch) before any 401 is readable.
-                                       // Key rejection is detected at paste-time (probeKey) + run-time (flagAuth) instead.
+    // Key rejection is detected at paste-time (probeKey) + run-time (flagAuth), not here.
+    if(!r.ok){ if(needCorrective){ stats.balStale = true; paintCost(); } return; }
     const usd = parseFloat((await r.json()).usd_balance);
-    if(!isNaN(usd)){ stats.balance = usd; cacheBalance(); paintCost(); }
-  }catch(_){}                       // best-effort: a run will fill it in anyway
-  finally{ _balPending = false; }
+    if(!isNaN(usd)){ stats.balance = usd; stats.balStale = false; cacheBalance(); paintCost(); }
+    else if(needCorrective){ stats.balStale = true; paintCost(); }
+  }catch(_){ if(needCorrective){ stats.balStale = true; paintCost(); } }
+  finally{
+    _balPending = false;
+    if(_balAgain) return refreshBalance(_balAgainCorrective);
+  }
 }
 
 function ancestors(targets){
@@ -9561,7 +9579,7 @@ function njsCtx(E, n){
       };
       return client.video(model, prompt, opts, imageDataUrl, io2).then(
         (url)=>{ PENDING_VIDEO.delete(n.id); return url; },
-        (e)=>{ const hadJob = PENDING_VIDEO.has(n.id); if(!keepPending(e)){ PENDING_VIDEO.delete(n.id); if(hadJob && typeof refreshBalance==="function") refreshBalance(); } throw e; });
+        (e)=>{ const hadJob = PENDING_VIDEO.has(n.id); if(!keepPending(e)){ PENDING_VIDEO.delete(n.id); if(hadJob && typeof refreshBalance==="function") refreshBalance(true); } throw e; });
     },
     audio: (model, input, extra)=>{
       assertGenerateSongLyrics(model, extra && extra.lyrics);
@@ -9574,7 +9592,7 @@ function njsCtx(E, n){
       };
       return client.audio(model, input, extra, io2).then(
         (url)=>{ PENDING_AUDIO.delete(n.id); return url; },
-        (e)=>{ const hadJob = PENDING_AUDIO.has(n.id); if(!keepPending(e)){ PENDING_AUDIO.delete(n.id); if(hadJob && typeof refreshBalance==="function") refreshBalance(); } const apiMsg = e && /^400\b/.test(e.message||"") && audioApiMessage(e.message); throw apiMsg ? new Error(apiMsg) : e; });
+        (e)=>{ const hadJob = PENDING_AUDIO.has(n.id); if(!keepPending(e)){ PENDING_AUDIO.delete(n.id); if(hadJob && typeof refreshBalance==="function") refreshBalance(true); } const apiMsg = e && /^400\b/.test(e.message||"") && audioApiMessage(e.message); throw apiMsg ? new Error(apiMsg) : e; });
     },
     transcribe: (model, audioUrl, language)=> client.transcribe(model, audioUrl, language, io),
     fetchMedia: (url)=> client.fetchMediaDataUrl(url, io),
@@ -11166,18 +11184,19 @@ function accrue(j, estUsd, r){
   // any endpoint that only reports it there. Without reading the header here, chat/image/video JSON
   // runs never refreshed the balance and it went stale after the sign-in seed.
   const hdrBal = (r && r.headers) ? parseFloat(r.headers.get("x-remaining-balance") || "") : NaN;
-  if(!isNaN(hdrBal)) stats.balance = hdrBal;
-  else if(typeof j?.remainingBalance==="number") stats.balance = j.remainingBalance;
-  else if(p && typeof p.remainingBalance==="number") stats.balance = p.remainingBalance;
+  if(!isNaN(hdrBal)){ stats.balance = hdrBal; stats.balStale = false; }
+  else if(typeof j?.remainingBalance==="number"){ stats.balance = j.remainingBalance; stats.balStale = false; }
+  else if(p && typeof p.remainingBalance==="number"){ stats.balance = p.remainingBalance; stats.balStale = false; }
   if(stats.balance!=null) cacheBalance();
   const stepUsd = usd!=null ? usd : (typeof estUsd==="number" && isFinite(estUsd) ? estUsd : null);
   if(typeof noteCostStep === "function") noteCostStep(prevBal, stepUsd);
   const gotBal = !isNaN(hdrBal) || typeof j?.remainingBalance==="number" || (p && typeof p.remainingBalance==="number");
-  if(stepUsd!=null && stepUsd>0 && !gotBal && typeof refreshBalance==="function") refreshBalance();
+  if(stepUsd!=null && stepUsd>0 && !gotBal && typeof refreshBalance==="function") refreshBalance(true);
   paintCost();
 }
 // Poll complete / refund: apply a terminal remaining-balance (header wins, then body) without
-// re-accruing spend. A failed job that refunds without a new figure gets one corrective check-balance.
+// re-accruing spend. A terminal poll (success or refund) that omits remaining-balance gets one
+// coalesced check-balance — generate-bgm complete still omits the figure after the 202 cost.
 function applyPollSettlement(s, r, refunded){
   const hdrBal = (r && r.headers) ? parseFloat(r.headers.get("x-remaining-balance") || "") : NaN;
   let bal = !isNaN(hdrBal) ? hdrBal : null;
@@ -11185,11 +11204,12 @@ function applyPollSettlement(s, r, refunded){
   if(bal==null && s && s.data && typeof s.data.remainingBalance==="number") bal = s.data.remainingBalance;
   if(bal!=null){
     stats.balance = bal;
+    stats.balStale = false;
     cacheBalance();
     paintCost();
     return true;
   }
-  if(refunded && typeof refreshBalance==="function") refreshBalance();
+  if(typeof refreshBalance==="function") refreshBalance(true);
   return false;
 }
 function flash(msg){ $("status").textContent = t(msg); setTimeout(renderAuth, 2200); }
@@ -11664,7 +11684,7 @@ function closeRefuel(){
   m.hidden = true; _refuelToken++; _refuelClosedAt = Date.now();
 }
 // balance chip → same panel, softer copy (no-op while signed out / no balance painted yet)
-function refuelFromChip(){ if(getKey() && stats.balance!=null) offerRefuel(true); }
+function refuelFromChip(){ if(getKey() && (stats.balance!=null || stats.balStale)) offerRefuel(true); }
 $("cost").onclick = refuelFromChip;
 $("cost").addEventListener("keydown", e=>{ if(e.key==="Enter" || e.key===" "){ e.preventDefault(); refuelFromChip(); } });
 $("refuelclose").onclick = closeRefuel;

@@ -96,6 +96,7 @@
   #bal .costspend{ color:var(--dim); font-weight:400; }
   #bal .costdelta{ display:inline-block; margin-left:.2rem; color:#ffcf6b; font-weight:700; letter-spacing:-.01em; opacity:0; pointer-events:none; }
   #bal .costdelta.on{ animation:costDelta 1.35s ease-out forwards; }
+  #bal .coststale{ color:#ffcf6b; }
   @keyframes costDelta{ 0%{opacity:1;transform:translateY(1px)} 60%{opacity:.95;transform:translateY(-2px)} 100%{opacity:0;transform:translateY(-4px)} }
   @media (prefers-reduced-motion: reduce){ #bal .costdelta.on{ animation:none; opacity:1 } }
   #bar .sep{ width:1px; height:20px; background:var(--line); margin:0 .25rem; }
@@ -5951,7 +5952,7 @@ window.NoodleApp = (function () {
      binary-audio path. We total it for the whole session ("spent on this app")
      and attribute each generation's slice to its result card. "exact" drops to
      false if any call omitted a price, so the running total is shown as a floor (~). */
-  const COST = { total:0, count:0, balance:null, exact:true, estUsd:null };
+  const COST = { total:0, count:0, balance:null, exact:true, estUsd:null, balStale:false };
   function fmtUsd(v){
     const a = Math.abs(v);
     const d = a>0 && a<0.01 ? 5 : a<1 ? 4 : 2;   // keep sub-cent generations legible
@@ -6012,12 +6013,17 @@ window.NoodleApp = (function () {
     var n = usd >= 0.01 ? usd.toFixed(2) : usd.toFixed(4);
     return "−$" + n;
   }
+  function costChipBalTxt(bal, stale){
+    if(stale) return "?";
+    if(bal == null || !isFinite(Number(bal))) return "";
+    return Number(bal).toFixed(2);
+  }
   function bumpCost(c){
     var prevBal = COST.balance;
     COST.count++;
     if(c && c.usd!=null){ COST.total += c.usd; if(c.estimate) COST.exact = false; }   // estimate counts toward the total but keeps the meter honest (~)
     else COST.exact = false;                                                           // unknown price → total is a lower bound
-    if(c && c.balance!=null) COST.balance = c.balance;
+    if(c && c.balance!=null){ COST.balance = c.balance; COST.balStale = false; }
     var stepUsd = (c && c.usd!=null) ? c.usd : null;
     if(typeof noteCostStep === "function") noteCostStep(prevBal, stepUsd);
     paintCost();
@@ -6027,7 +6033,7 @@ window.NoodleApp = (function () {
     // or catalog estimate) then needs one check-balance so the chip is exact,
     // not a locally subtracted approximation. Known-free $0 does not refresh.
     var gotBal = !!(c && c.balance!=null);
-    if(stepUsd!=null && stepUsd>0 && !gotBal && typeof refreshPlayBalance==="function") refreshPlayBalance();
+    if(stepUsd!=null && stepUsd>0 && !gotBal && typeof refreshPlayBalance==="function") refreshPlayBalance(true);
     return (c && c.usd!=null) ? c.usd : 0;
   }
   function notifyParentCost(){
@@ -6038,23 +6044,35 @@ window.NoodleApp = (function () {
     var bodyBal = (s && typeof s.remainingBalance==="number") ? s.remainingBalance
       : (s && s.data && typeof s.data.remainingBalance==="number") ? s.data.remainingBalance : null;
     var bal = (h && h.balance!=null) ? h.balance : bodyBal;
-    if(bal!=null){ COST.balance = bal; paintCost(); notifyParentCost(); return true; }
-    if(refunded) refreshPlayBalance();
+    if(bal!=null){ COST.balance = bal; COST.balStale = false; paintCost(); notifyParentCost(); return true; }
+    // success or refund: generate-bgm complete still omits remaining-balance after the 202 cost
+    if(typeof refreshPlayBalance==="function") refreshPlayBalance(true);
     return false;
   }
-  function refreshPlayBalance(){
+  var _playBalPending = false, _playBalAgain = false, _playBalAgainCorrective = false;
+  function refreshPlayBalance(corrective){
     if(typeof EMBEDDED !== "undefined" && EMBEDDED){
-      try{ window.parent.postMessage({ type:"__bal_refresh__" }, "*"); }catch(e){}
+      try{ window.parent.postMessage({ type:"__bal_refresh__", corrective: !!corrective }, "*"); }catch(e){}
       return;
     }
     var k = getKey(); if(!k) return;
-    fetch(NANOGPT + "/api/check-balance", { method:"POST",
+    if(_playBalPending){ _playBalAgain = true; if(corrective) _playBalAgainCorrective = true; return; }
+    _playBalPending = true;
+    var needCorrective = !!corrective;
+    _playBalAgain = false; _playBalAgainCorrective = false;
+    return fetch(NANOGPT + "/api/check-balance", { method:"POST",
       headers:{ Authorization:"Bearer "+k, "x-api-key":k, "Content-Type":"application/json" }, body:"{}" })
-      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(r){ return r.ok ? r.json() : Promise.reject(new Error("check-balance")); })
       .then(function(j){
         var usd = j ? parseFloat(j.usd_balance) : NaN;
-        if(!isNaN(usd)){ COST.balance = usd; paintCost(); notifyParentCost(); }
-      }).catch(function(){});
+        if(!isNaN(usd)){ COST.balance = usd; COST.balStale = false; paintCost(); notifyParentCost(); }
+        else if(needCorrective){ COST.balStale = true; paintCost(); }
+      }).catch(function(){
+        if(needCorrective){ COST.balStale = true; paintCost(); }
+      }).then(function(){
+        _playBalPending = false;
+        if(_playBalAgain) return refreshPlayBalance(_playBalAgainCorrective);
+      });
   }
   // Estimate spend when an API response carries no cost field — image generations and transcriptions
   // return none (live-confirmed). The per-unit price rides in the public catalog (per_image by size,
@@ -8546,7 +8564,7 @@ const PROMPT_CAPS = {
         });
         return client.video(model, prompt, opts, imageDataUrl, io2).then(
           (url)=>{ if(runKey) PENDING_VIDEO.delete(runKey); return url; },
-          (e)=>{ const hadJob = runKey && PENDING_VIDEO.has(runKey); if(runKey && !keepPending(e)){ PENDING_VIDEO.delete(runKey); if(hadJob) refreshPlayBalance(); } throw e; });
+          (e)=>{ const hadJob = runKey && PENDING_VIDEO.has(runKey); if(runKey && !keepPending(e)){ PENDING_VIDEO.delete(runKey); if(hadJob) refreshPlayBalance(true); } throw e; });
       },
       audio: (model, input, extra)=>{
         assertGenerateSongLyrics(model, extra && extra.lyrics);
@@ -8559,7 +8577,7 @@ const PROMPT_CAPS = {
         });
         return client.audio(model, input, extra, io2).then(
           (url)=>{ if(runKey) PENDING_AUDIO.delete(runKey); return url; },
-          (e)=>{ const hadJob = runKey && PENDING_AUDIO.has(runKey); if(runKey && !keepPending(e)){ PENDING_AUDIO.delete(runKey); if(hadJob) refreshPlayBalance(); } const apiMsg = e && /^400\b/.test(e.message||"") && audioApiMessage(e.message); throw apiMsg ? new Error(apiMsg) : e; });
+          (e)=>{ const hadJob = runKey && PENDING_AUDIO.has(runKey); if(runKey && !keepPending(e)){ PENDING_AUDIO.delete(runKey); if(hadJob) refreshPlayBalance(true); } const apiMsg = e && /^400\b/.test(e.message||"") && audioApiMessage(e.message); throw apiMsg ? new Error(apiMsg) : e; });
       },
       transcribe: (model, audioUrl, language)=> client.transcribe(model, audioUrl, language, io),
       fetchMedia: (url)=> client.fetchMediaDataUrl(url, io),
@@ -10175,6 +10193,7 @@ const PROMPT_CAPS = {
         + 'font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}'
       + '#app-cost .cm-n{color:var(--faint,#5d6788);}'
       + '#app-cost .cm-bal{color:var(--dim,#8b93b4);}'
+      + '#app-cost .cm-bal.coststale{color:var(--warn,#ffcf6b);}'
       + '#app-cost .costdelta{display:inline-block;margin-left:.2rem;color:#ffcf6b;font-weight:700;opacity:0;pointer-events:none;}'
       + '#app-cost .costdelta.on{animation:costDelta 1.35s ease-out forwards;}'
       + '@keyframes costDelta{0%{opacity:1;transform:translateY(1px)}60%{opacity:.95;transform:translateY(-2px)}100%{opacity:0;transform:translateY(-4px)}}'
@@ -10209,7 +10228,8 @@ const PROMPT_CAPS = {
     if(COST.count === 0){ el.hidden = true; return; }
     el.hidden = false;
     const total = (COST.exact ? "" : "~") + fmtUsd(COST.total);
-    const bal = COST.balance!=null ? '<span class="cm-bal">· ' + t("balance") + ' ' + fmtUsd(COST.balance) + '</span>' : "";
+    const stale = !!COST.balStale;
+    const bal = (stale || COST.balance!=null) ? '<span class="cm-bal'+(stale?' coststale':'')+'">· ' + t("balance") + ' ' + (stale ? '?' : fmtUsd(COST.balance)) + '</span>' : "";
     const deltaUsd = step ? costChipDeltaUsd(step.prevBal, COST.balance, step.stepUsd) : 0;
     const deltaTxt = costChipFmtDelta(deltaUsd);
     el.innerHTML = '<span class="cm-spent">⌁ ' + total + ' ' + t("spent on this app") + '</span>'
@@ -11603,6 +11623,10 @@ const PROMPT_CAPS = {
       if(m && m.type==="__auth__"){ const was=parentAuthed; parentAuthed = !!m.signedIn; renderAuth();
         refreshOutputPlaceholder();   // pre-run empty card baked "needs a key" at mount — retell it truthfully
         if(parentAuthed && !was && STATE) fillModelLists(); }   // key just arrived → fill the model dropdowns
+      if(m && m.type==="__bal__"){
+        if(m.stale){ COST.balStale = true; paintCost(); }
+        else if(typeof m.balance==="number" && isFinite(m.balance)){ COST.balance = m.balance; COST.balStale = false; paintCost(); }
+      }
       if(m && m.type==="__restore__" && m.outs){ try{ restoreOutputs(m.outs); }catch(_){ /* stored results are a bonus, never a boot blocker */ } }
       if(m && m.type==="__resume__" && m.node!=null){ try{ resumeMedia(m); }catch(_){ /* continuity is a bonus */ } }
       // Parent is packing a Share link and wants the latest portable sample of what this app makes.
@@ -12476,7 +12500,7 @@ function noteBalanceFromWire(r, bodyBuf, kind){
       try{ j = JSON.parse(new TextDecoder().decode(bodyBuf)); }catch(_){ j = null; }
     }
     const st = String((j && (j.status || (j.data && j.data.status))) || "").toLowerCase();
-    if(["error","failed","content_policy_violation","canceled","cancelled"].includes(st)) refreshBal();
+    if(["error","failed","content_policy_violation","canceled","cancelled"].includes(st)) refreshBal(true);
   }
 }
 // ----- parent <- iframe bridge -----
@@ -12484,7 +12508,7 @@ addEventListener("message", async (e) => {
   if(e.source !== $("appframe").contentWindow) return;
   const d = e.data;
   if(d && d.type === "__cost__"){ noteSession(d); return; }
-  if(d && d.type === "__bal_refresh__"){ refreshBal(); return; }
+  if(d && d.type === "__bal_refresh__"){ refreshBal(!!d.corrective); return; }
   // The app's Run was pressed while signed out — it owns no key, so the parent (which
   // does) starts the OAuth popup. finishSignIn() then pushes __auth__ back to the app.
   if(d && d.type === "__signin__"){
@@ -13635,6 +13659,7 @@ async function handleRedirect(){
 // stream both carry x-remaining-balance). Cache is written back so the editor's chip stays fresh too.
 const BAL_CACHE_KEY = "ngpt_balance_usd";
 let BAL = null;
+let BAL_STALE = false;
 let SES = { cost:0, exact:true, count:0 };
 let _balStep = null, _balDeltaT = 0, _balTween = 0, _balShown = null;
 function cacheBal(){
@@ -13662,6 +13687,11 @@ function costChipFmtDelta(usd){
   var n = usd >= 0.01 ? usd.toFixed(2) : usd.toFixed(4);
   return "−$" + n;
 }
+function costChipBalTxt(bal, stale){
+  if(stale) return "?";
+  if(bal == null || !isFinite(Number(bal))) return "";
+  return Number(bal).toFixed(2);
+}
 function tweenCostBal(el, from, to, ms){
   if(!el || from == null || to == null){ if(el && to != null) el.textContent = to.toFixed(2); return; }
   if(_balTween) cancelAnimationFrame(_balTween);
@@ -13677,20 +13707,23 @@ function tweenCostBal(el, from, to, ms){
 }
 function paintBal(){
   const el = $("bal"); if(!el) return;
-  const on = !!getKey() && BAL!=null;
+  const stale = !!BAL_STALE;
+  const on = !!getKey() && (BAL!=null || stale);
   el.style.display = on ? "" : "none";
-  if(!on){ el.innerHTML = ""; return; }
+  if(!on){ el.innerHTML = ""; el.removeAttribute("title"); return; }
   const step = _balStep; _balStep = null;
   const spend = (SES.count > 0) ? costChipSpendLabel(SES.cost, SES.exact) : "";
   const deltaUsd = step ? costChipDeltaUsd(step.prevBal, BAL, step.stepUsd) : 0;
   const deltaTxt = costChipFmtDelta(deltaUsd);
-  const balTxt = Number(BAL).toFixed(2);
-  el.innerHTML = tB("bal") + " $<b class=\"costbal\">" + balTxt + "</b>"
+  const balTxt = costChipBalTxt(BAL, stale);
+  el.innerHTML = tB("bal") + (stale ? " <b class=\"costbal coststale\">?</b>" : " $<b class=\"costbal\">" + balTxt + "</b>")
     + (spend ? "<span class=\"costspend\"> · " + spend + "</span>" : "")
     + "<span class=\"costdelta\" aria-hidden=\"true\"></span>";
+  el.title = stale ? tB("Couldn't refresh remaining credit") : "";
   const balEl = el.querySelector(".costbal");
   const fromBal = (step && step.prevBal != null) ? step.prevBal : _balShown;
-  if(balEl && deltaTxt && fromBal != null && !costChipReduceMotion()) tweenCostBal(balEl, fromBal, BAL, 420);
+  if(balEl && !stale && deltaTxt && fromBal != null && !costChipReduceMotion()) tweenCostBal(balEl, fromBal, BAL, 420);
+  else if(balEl && stale){ if(_balTween){ cancelAnimationFrame(_balTween); _balTween = 0; } balEl.textContent = "?"; }
   const dEl = el.querySelector(".costdelta");
   if(dEl && deltaTxt){
     dEl.textContent = deltaTxt;
@@ -13698,15 +13731,17 @@ function paintBal(){
     clearTimeout(_balDeltaT);
     _balDeltaT = setTimeout(function(){ dEl.classList.remove("on"); dEl.textContent = ""; }, 1400);
   }
-  _balShown = BAL;
+  _balShown = stale ? null : BAL;
 }
 function noteBalance(usd){
   if(typeof usd!=="number" || !isFinite(usd)) return;
   const prev = BAL;
   BAL = usd;
+  BAL_STALE = false;
   cacheBal();
   if(prev!=null && usd < prev - 1e-9) _balStep = { prevBal: prev, stepUsd: prev - usd };
   paintBal();
+  try{ postToApp({ type:"__bal__", balance: usd }); }catch(_){}
 }
 function noteSession(d){
   if(!d) return;
@@ -13714,6 +13749,7 @@ function noteSession(d){
   if(typeof d.balance==="number" && isFinite(d.balance)){
     const prev = BAL;
     BAL = d.balance;
+    BAL_STALE = false;
     cacheBal();
     if(prev!=null && d.balance < prev - 1e-9) _balStep = { prevBal: prev, stepUsd: prev - d.balance };
   }
@@ -13727,19 +13763,33 @@ function restoreCachedBal(){
   }catch(_){}
 }
 let _balPending = false;
-async function refreshBal(){
-  if(!getKey() || _balPending) return;
+let _balAgain = false;
+let _balAgainCorrective = false;
+async function refreshBal(corrective){
+  if(!getKey()) return;
+  if(_balPending){ _balAgain = true; if(corrective) _balAgainCorrective = true; return; }
   _balPending = true;
+  const needCorrective = !!corrective;
+  _balAgain = false;
+  _balAgainCorrective = false;
   try{
     const k = getKey();
     const r = await fetch(NANOGPT + "/api/check-balance", { method:"POST",
       headers:{ Authorization:"Bearer "+k, "x-api-key":k, "Content-Type":"application/json" }, body:"{}" });
-    if(!r.ok) return;               // rejected key → no seed; key validity is probeKey's job, not ours
-                                    // (check-balance is CORS-enabled since ~2026-07: ACAO * on 200 AND 401 — live-probed 2026-07-05)
+    if(!r.ok){               // rejected key → no seed; key validity is probeKey's job, not ours
+                             // (check-balance is CORS-enabled since ~2026-07: ACAO * on 200 AND 401 — live-probed 2026-07-05)
+      if(needCorrective){ BAL_STALE = true; paintBal(); try{ postToApp({ type:"__bal__", stale:true }); }catch(_){} }
+      return;
+    }
     const usd = parseFloat((await r.json()).usd_balance);
     if(!isNaN(usd)) noteBalance(usd);
-  }catch(_){}                       // best-effort: the first run's x-remaining-balance fills it in anyway
-  finally{ _balPending = false; }
+    else if(needCorrective){ BAL_STALE = true; paintBal(); try{ postToApp({ type:"__bal__", stale:true }); }catch(_){} }
+  }catch(_){
+    if(needCorrective){ BAL_STALE = true; paintBal(); try{ postToApp({ type:"__bal__", stale:true }); }catch(_){} }
+  }finally{
+    _balPending = false;
+    if(_balAgain) return refreshBal(_balAgainCorrective);
+  }
 }
 function renderAuth(){
   const signed = !!getKey();

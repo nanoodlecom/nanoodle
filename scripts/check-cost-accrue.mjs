@@ -53,7 +53,7 @@ function matchBrace(src, openIdx){
   throw new Error("unbalanced braces from index " + openIdx);
 }
 function extractFunction(src, name){
-  const sig = new RegExp("function\\s+" + name + "\\s*\\([^)]*\\)\\s*\\{");
+  const sig = new RegExp("(?:async\\s+)?function\\s+" + name + "\\s*\\([^)]*\\)\\s*\\{");
   const m = sig.exec(src);
   if(!m) throw new Error(`could not find function ${name}() — if it was renamed, update scripts/check-cost-accrue.mjs`);
   const open = src.indexOf("{", m.index);
@@ -102,7 +102,7 @@ function checkIndex(){
   let S;
   try { S = loadIndex(); }
   catch(e){ fail("index", e.message); return; }
-  const reset = () => Object.assign(S.stats, { count:0, cost:0, exact:true, balance:null });
+  const reset = () => Object.assign(S.stats, { count:0, cost:0, exact:true, balance:null, balStale:false });
 
   // 1. PRECEDENCE — real cost (j.cost>0) beats x_nanogpt_pricing, which beats the local estimate.
   reset();
@@ -171,6 +171,7 @@ function loadPlay(){
   const src = fs.readFileSync(path.join(ROOT, "play.html"), "utf8");
   const prelude = `
     function paintCost(){}
+    function notifyParentCost(){}
     var __refreshed = 0; function refreshPlayBalance(){ __refreshed++; }
   `;
   const block = prelude
@@ -179,7 +180,8 @@ function loadPlay(){
     + extractFunction(src, "costFromHeaders") + "\n"
     + extractFunction(src, "costWithHeaders") + "\n"
     + extractFunction(src, "bumpCost") + "\n"
-    + "this.COST=COST; this.costFromJson=costFromJson; this.costFromHeaders=costFromHeaders; this.costWithHeaders=costWithHeaders; this.bumpCost=bumpCost; this.refreshed=()=>__refreshed;";
+    + extractFunction(src, "applyPollBalance") + "\n"
+    + "this.COST=COST; this.costFromJson=costFromJson; this.costFromHeaders=costFromHeaders; this.costWithHeaders=costWithHeaders; this.bumpCost=bumpCost; this.applyPollBalance=applyPollBalance; this.refreshed=()=>__refreshed;";
   const s = {}; vm.createContext(s); vm.runInContext(block, s);
   return s;
 }
@@ -188,7 +190,7 @@ function checkPlay(){
   let S;
   try { S = loadPlay(); }
   catch(e){ fail("play", e.message); return; }
-  const reset = () => Object.assign(S.COST, { total:0, count:0, balance:null, exact:true, estUsd:null });
+  const reset = () => Object.assign(S.COST, { total:0, count:0, balance:null, exact:true, estUsd:null, balStale:false });
 
   // 5a. PRECEDENCE (play twin) — same order as the editor; play also reads metadata.cost (the editor
   //     folds that in at the transcription call site instead — see FINDINGS).
@@ -268,6 +270,19 @@ function checkPlay(){
   S.bumpCost(S.costWithHeaders({ remainingBalance:9.5, cost:0.10 }, fakeR({ "x-remaining-balance":"9.40" })));
   if(S.refreshed() !== afterEst) fail("play", "balance-gap: a step that already carries remaining-balance must not check-balance");
   if(!near(S.COST.balance, 9.40)) fail("play", `balance-gap: header remaining-balance should still win → expected 9.40, got ${S.COST.balance}`);
+  if(S.COST.balStale) fail("play", "balance-gap: a header remaining-balance must clear balStale");
+
+  // 5f. Poll complete without remaining-balance (BGM) also requests a check-balance —
+  //     not only refunds. A figure on the poll still wins and does not extra-fetch.
+  reset();
+  const beforePoll = S.refreshed();
+  S.applyPollBalance({ status:"completed" }, fakeR({}), false);
+  if(S.refreshed() <= beforePoll) fail("play", "poll: successful complete with no remaining-balance should check-balance (BGM omits it)");
+  const afterPoll = S.refreshed();
+  S.applyPollBalance({ remainingBalance:7.1 }, fakeR({}), false);
+  if(S.refreshed() !== afterPoll) fail("play", "poll: a complete that carries remaining-balance must not check-balance");
+  if(!near(S.COST.balance, 7.1)) fail("play", `poll: body remainingBalance should apply → expected 7.1, got ${S.COST.balance}`);
+  if(S.COST.balStale) fail("play", "poll: applying remainingBalance must clear balStale");
 }
 
 /* ====================================================================
@@ -337,6 +352,7 @@ function loadIndexUi(reduceMotion){
     + extractFunction(src, "costChipSpendLabel") + "\n"
     + extractFunction(src, "costChipReduceMotion") + "\n"
     + extractFunction(src, "costChipFmtDelta") + "\n"
+    + extractFunction(src, "costChipBalTxt") + "\n"
     + extractFunction(src, "noteCostStep") + "\n"
     + extractFunction(src, "tweenCostBal") + "\n"
     + extractFunction(src, "paintCost") + "\n"
@@ -344,6 +360,7 @@ function loadIndexUi(reduceMotion){
     + extractFunction(src, "applyPollSettlement") + "\n"
     + "this.stats=stats; this.accrue=accrue; this.paintCost=paintCost; this.applyPollSettlement=applyPollSettlement;"
     + "this.costChipDeltaUsd=costChipDeltaUsd; this.costChipSpendLabel=costChipSpendLabel; this.costChipFmtDelta=costChipFmtDelta;"
+    + "this.costChipBalTxt=costChipBalTxt;"
     + "this.el=__costEl; this.raf=()=>_rafQ; this.refreshed=()=>__refreshed;";
   const s = {}; vm.createContext(s); vm.runInContext(block, s);
   return s;
@@ -353,7 +370,7 @@ function checkChip(){
   let S;
   try { S = loadIndexUi(false); }
   catch(e){ fail("chip", e.message); return; }
-  const reset = () => { Object.assign(S.stats, { count:0, cost:0, exact:true, balance:null }); S.el.innerHTML = ""; };
+  const reset = () => { Object.assign(S.stats, { count:0, cost:0, exact:true, balance:null, balStale:false }); S.el.innerHTML = ""; };
 
   // helpers: known-free never flashes; a balance drop is the delta; missing header uses step usd.
   if(S.costChipDeltaUsd(10, 10, 0) !== 0) fail("chip", "delta: known-free $0 must not flash");
@@ -364,6 +381,10 @@ function checkChip(){
   if(S.costChipSpendLabel(0.45, false) !== "~$0.45") fail("chip", `spend label inexact: expected ~$0.45, got ${S.costChipSpendLabel(0.45, false)}`);
   if(S.costChipFmtDelta(0.22) !== "−$0.22") fail("chip", `fmt delta: expected −$0.22, got ${S.costChipFmtDelta(0.22)}`);
   if(S.costChipFmtDelta(0) !== "") fail("chip", "fmt delta: $0 must be empty (no scary flash)");
+  if(S.costChipBalTxt(12.34, false) !== "12.34") fail("chip", `bal txt: expected 12.34, got ${S.costChipBalTxt(12.34, false)}`);
+  if(S.costChipBalTxt(12.34, true) !== "?") fail("chip", "bal txt: a failed corrective check-balance must paint ? not the stale number");
+  if(S.costChipBalTxt(null, true) !== "?") fail("chip", "bal txt: failed fetch with no seed must still paint ? (not a blank chip)");
+  if(S.costChipBalTxt(null, false) !== "") fail("chip", "bal txt: unknown + not-stale stays blank (signed-out / pre-seed)");
 
   // accrue + header → chip shows new balance AND session spend; + top-up stays; delta flashes.
   reset();
@@ -401,12 +422,25 @@ function checkChip(){
   const before = S.refreshed();
   S.applyPollSettlement({ status:"error" }, fakeR({}), true);
   if(S.refreshed() <= before) fail("chip", "poll settlement: refund without a new remaining-balance should check-balance once");
+  const beforeOk = S.refreshed();
+  S.applyPollSettlement({ status:"completed" }, fakeR({}), false);
+  if(S.refreshed() <= beforeOk) fail("chip", "poll settlement: successful complete with no remaining-balance should check-balance (BGM omits it)");
+
+  // failed corrective fetch → chip shows ? not the stale cached number (and not blank).
+  reset();
+  S.stats.balance = 10;
+  S.stats.balStale = true;
+  S.paintCost();
+  if(!/>\?<\/b>/.test(S.el.innerHTML) && !/>\?</.test(S.el.innerHTML))
+    fail("chip", `paint: balStale must show ? (got ${S.el.innerHTML})`);
+  if(/10\.00/.test(S.el.innerHTML)) fail("chip", "paint: balStale must not keep showing the stale 10.00");
+  if(!/coststale/.test(S.el.innerHTML)) fail("chip", "paint: balStale should mark the figure coststale");
 
   // reduced-motion: instant number + delta text, no tween frames.
   let R;
   try { R = loadIndexUi(true); }
   catch(e){ fail("chip", "reduced-motion load: " + e.message); return; }
-  Object.assign(R.stats, { count:0, cost:0, exact:true, balance:10 });
+  Object.assign(R.stats, { count:0, cost:0, exact:true, balance:10, balStale:false });
   R.paintCost();
   R.accrue({ cost:0.10 }, undefined, fakeR({ "x-remaining-balance":"9.90" }));
   if(!/9\.90/.test(R.el.innerHTML)) fail("chip", "reduced-motion: balance should update instantly");
@@ -418,7 +452,7 @@ function checkChip(){
   const idx = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
   const ply = fs.readFileSync(path.join(ROOT, "play.html"), "utf8");
   const norm = (s) => s.split("\n").map((l) => l.trim()).filter(Boolean).join("\n");
-  for(const name of ["costChipDeltaUsd", "costChipSpendLabel", "costChipReduceMotion", "costChipFmtDelta"]){
+  for(const name of ["costChipDeltaUsd", "costChipSpendLabel", "costChipReduceMotion", "costChipFmtDelta", "costChipBalTxt"]){
     try{
       const a = norm(extractFunction(idx, name));
       const b = norm(extractFunction(ply, name));
@@ -427,12 +461,114 @@ function checkChip(){
   }
 }
 
+function loadIndexRefresh(){
+  const src = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const prelude = `
+    var stats = { count:0, cost:0, exact:true, balance:10, balStale:false };
+    var _balPending = false, _balAgain = false, _balAgainCorrective = false;
+    var __fetches = 0, __paints = 0, __gate = [];
+    var NANOGPT = "https://nano-gpt.com";
+    function getKey(){ return "sk-test"; }
+    function authHeaders(){ return {}; }
+    function paintCost(){ __paints++; }
+    function cacheBalance(){}
+    var fetch = function(){
+      __fetches++;
+      return new Promise(function(resolve, reject){ __gate.push({ resolve:resolve, reject:reject }); });
+    };
+  `;
+  const block = prelude + "\n" + extractFunction(src, "refreshBalance") + "\n"
+    + "this.stats=stats; this.refreshBalance=refreshBalance; this.fetches=()=>__fetches; this.paints=()=>__paints;"
+    + "this.release=function(r){ var g=__gate.shift(); if(g) g.resolve(r); };"
+    + "this.fail=function(e){ var g=__gate.shift(); if(g) g.reject(e||new Error('net')); };";
+  const s = {}; vm.createContext(s); vm.runInContext(block, s);
+  return s;
+}
+function loadPlayRefresh(){
+  const src = fs.readFileSync(path.join(ROOT, "play.html"), "utf8");
+  const prelude = `
+    var COST = { total:0, count:0, balance:10, exact:true, estUsd:null, balStale:false };
+    var _playBalPending = false, _playBalAgain = false, _playBalAgainCorrective = false;
+    var __fetches = 0, __paints = 0, __gate = [];
+    var NANOGPT = "https://nano-gpt.com";
+    function getKey(){ return "sk-test"; }
+    function paintCost(){ __paints++; }
+    function notifyParentCost(){}
+    var fetch = function(){
+      __fetches++;
+      return new Promise(function(resolve, reject){ __gate.push({ resolve:resolve, reject:reject }); });
+    };
+  `;
+  const block = prelude + "\n" + extractFunction(src, "refreshPlayBalance") + "\n"
+    + "this.COST=COST; this.refreshPlayBalance=refreshPlayBalance; this.fetches=()=>__fetches;"
+    + "this.release=function(r){ var g=__gate.shift(); if(g) g.resolve(r); };"
+    + "this.fail=function(e){ var g=__gate.shift(); if(g) g.reject(e||new Error('net')); };";
+  const s = {}; vm.createContext(s); vm.runInContext(block, s);
+  return s;
+}
+
+async function checkRefresh(){
+  let S;
+  try { S = loadIndexRefresh(); }
+  catch(e){ fail("refresh", "index load: " + e.message); return; }
+
+  // coalesce: a second call while in-flight queues one follow-up, it does not start a parallel fetch.
+  const p1 = S.refreshBalance(true);
+  S.refreshBalance(true);
+  S.refreshBalance(true);
+  if(S.fetches() !== 1) fail("refresh", `coalesce: in-flight editor refresh must be 1 fetch, got ${S.fetches()}`);
+  S.release({ ok:true, json: async()=>({ usd_balance:"8.00" }) });
+  await new Promise((r)=>setImmediate(r));
+  if(S.fetches() !== 2) fail("refresh", `coalesce: queued editor refresh must run after the in-flight one → expected 2 fetches, got ${S.fetches()}`);
+  S.release({ ok:true, json: async()=>({ usd_balance:"7.50" }) });
+  await p1;
+  if(!near(S.stats.balance, 7.50)) fail("refresh", `coalesce: last check-balance should win → expected 7.50, got ${S.stats.balance}`);
+  if(S.stats.balStale) fail("refresh", "coalesce: a successful follow-up must clear balStale");
+
+  // corrective failure paints stale; boot/sign-in failure does not (cached figure stays).
+  Object.assign(S.stats, { balance:10, balStale:false });
+  const pFail = S.refreshBalance(true);
+  S.fail(new Error("Failed to fetch"));
+  await pFail;
+  if(!S.stats.balStale) fail("refresh", "corrective fail: editor must mark balStale so the chip can show ?");
+  Object.assign(S.stats, { balance:10, balStale:false });
+  const pBoot = S.refreshBalance();
+  S.fail(new Error("Failed to fetch"));
+  await pBoot;
+  if(S.stats.balStale) fail("refresh", "boot fail: must not mark a cached seed stale (no ? on sign-in hiccup)");
+
+  let P;
+  try { P = loadPlayRefresh(); }
+  catch(e){ fail("refresh", "play load: " + e.message); return; }
+  const q1 = P.refreshPlayBalance(true);
+  P.refreshPlayBalance(true);
+  if(P.fetches() !== 1) fail("refresh", `play coalesce: in-flight must be 1 fetch, got ${P.fetches()}`);
+  P.release({ ok:true, json: async()=>({ usd_balance:"6.00" }) });
+  await new Promise((r)=>setImmediate(r));
+  if(P.fetches() !== 2) fail("refresh", `play coalesce: queued follow-up expected 2 fetches, got ${P.fetches()}`);
+  P.release({ ok:true, json: async()=>({ usd_balance:"5.25" }) });
+  await q1;
+  if(!near(P.COST.balance, 5.25)) fail("refresh", `play coalesce: last check-balance should win → expected 5.25, got ${P.COST.balance}`);
+
+  Object.assign(P.COST, { balance:10, balStale:false });
+  const qFail = P.refreshPlayBalance(true);
+  P.fail(new Error("Failed to fetch"));
+  await qFail;
+  if(!P.COST.balStale) fail("refresh", "play corrective fail: must mark COST.balStale so the session meter can show ?");
+  Object.assign(P.COST, { balance:10, balStale:false });
+  const qBoot = P.refreshPlayBalance();
+  P.fail(new Error("Failed to fetch"));
+  await qBoot;
+  if(P.COST.balStale) fail("refresh", "play boot fail: must not mark a cached seed stale");
+}
+
 checkIndex();
 checkPlay();
 checkChip();
+await checkRefresh();
 
 if(failures.length){
   process.stderr.write("✗ session cost-meter aggregation is broken (a spend total or the exact/~ flag would mislead users):\n\n- " + failures.join("\n- ") + "\n");
   process.exit(1);
 }
-process.stdout.write("✓ cost-meter aggregation holds in both engines: real cost > pricing > estimate; zero=known-free stays exact; missing flips ~ (sticky); x-remaining-balance header is canonical; live chip delta/session/reduced-motion stay wired.\n");
+process.stdout.write("✓ cost-meter aggregation holds in both engines: real cost > pricing > estimate; zero=known-free stays exact; missing flips ~ (sticky); x-remaining-balance header is canonical; live chip delta/session/reduced-motion stay wired; check-balance coalesces and paints ? on corrective failure.\n");
