@@ -169,14 +169,17 @@ function checkIndex(){
    ==================================================================== */
 function loadPlay(){
   const src = fs.readFileSync(path.join(ROOT, "play.html"), "utf8");
-  const prelude = `function paintCost(){}\n`;
+  const prelude = `
+    function paintCost(){}
+    var __refreshed = 0; function refreshPlayBalance(){ __refreshed++; }
+  `;
   const block = prelude
     + sliceConst(src, "COST") + "\n"
     + extractFunction(src, "costFromJson") + "\n"
     + extractFunction(src, "costFromHeaders") + "\n"
     + extractFunction(src, "costWithHeaders") + "\n"
     + extractFunction(src, "bumpCost") + "\n"
-    + "this.COST=COST; this.costFromJson=costFromJson; this.costFromHeaders=costFromHeaders; this.costWithHeaders=costWithHeaders; this.bumpCost=bumpCost;";
+    + "this.COST=COST; this.costFromJson=costFromJson; this.costFromHeaders=costFromHeaders; this.costWithHeaders=costWithHeaders; this.bumpCost=bumpCost; this.refreshed=()=>__refreshed;";
   const s = {}; vm.createContext(s); vm.runInContext(block, s);
   return s;
 }
@@ -247,6 +250,24 @@ function checkPlay(){
   if(!near(S.COST.total, 0.35)) fail("play", `accumulation: 0.10+0.20+0.05 should total 0.35, got ${S.COST.total}`);
   if(S.COST.exact) fail("play", `accumulation: the approximate (~) flag must be STICKY`);
   if(S.COST.count !== 3) fail("play", `accumulation: count should be 3, got ${S.COST.count}`);
+
+  // 5e. AUDIO-GAP TWIN of index accrue(): paid step with cost but no remaining-balance
+  //     (TTS binary / generate-bgm JSON) requests one check-balance. Do not locally
+  //     subtract (that would be ~approx); known-free $0 does not refresh.
+  reset();
+  const before = S.refreshed();
+  S.bumpCost({ usd:0.15 });                      // real cost, no header/body balance
+  if(S.refreshed() <= before) fail("play", "balance-gap: a charged step with no remaining-balance should request one check-balance");
+  if(S.COST.balance != null) fail("play", "balance-gap: missing remaining-balance must not invent a locally subtracted chip figure");
+  const afterPaid = S.refreshed();
+  S.bumpCost({ usd:0.22, estimate:true });       // catalog TTS estimate, still no header
+  if(S.refreshed() <= afterPaid) fail("play", "balance-gap: an estimated paid TTS step with no remaining-balance should still check-balance (exact remaining credit)");
+  const afterEst = S.refreshed();
+  S.bumpCost(S.costFromJson({ cost:0 }));        // known-free
+  if(S.refreshed() !== afterEst) fail("play", "balance-gap: known-free $0 must not check-balance");
+  S.bumpCost(S.costWithHeaders({ remainingBalance:9.5, cost:0.10 }, fakeR({ "x-remaining-balance":"9.40" })));
+  if(S.refreshed() !== afterEst) fail("play", "balance-gap: a step that already carries remaining-balance must not check-balance");
+  if(!near(S.COST.balance, 9.40)) fail("play", `balance-gap: header remaining-balance should still win → expected 9.40, got ${S.COST.balance}`);
 }
 
 /* ====================================================================

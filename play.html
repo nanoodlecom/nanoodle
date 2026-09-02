@@ -6022,6 +6022,12 @@ window.NoodleApp = (function () {
     if(typeof noteCostStep === "function") noteCostStep(prevBal, stepUsd);
     paintCost();
     if(typeof notifyParentCost === "function") notifyParentCost();
+    // Twin of index accrue(): NanoGPT TTS binary + generate-bgm 202/poll omit
+    // x-remaining-balance / remainingBalance. A paid step with a known cost (real
+    // or catalog estimate) then needs one check-balance so the chip is exact,
+    // not a locally subtracted approximation. Known-free $0 does not refresh.
+    var gotBal = !!(c && c.balance!=null);
+    if(stepUsd!=null && stepUsd>0 && !gotBal && typeof refreshPlayBalance==="function") refreshPlayBalance();
     return (c && c.usd!=null) ? c.usd : 0;
   }
   function notifyParentCost(){
