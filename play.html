@@ -6615,7 +6615,8 @@ window.NoodleApp = (function () {
       if(!r.ok){
         flagAuth(r.status);
         const t = (await r.text()).slice(0,220);
-        if(/lyric/i.test(t)) throw new Error("This model needs lyrics — fill the Lyrics field (vocal models require them; leave empty / use a BGM model for instrumentals).");
+        const apiMsg = audioApiMessage(t);
+        if(r.status===400 && apiMsg) throw new Error(apiMsg);
         // cover-family models take only a HOSTED source ("requires a valid http(s) audio URL") — an
         // uploaded clip rides as data: and is rejected for free at submit. Point at the chained path.
         if(/valid https?\(?s?\)? audio url/i.test(t)) throw new Error("This model needs a hosted track — chain its audio from a Music node (uploaded clips can't reach it), or pick another model.");
@@ -7374,6 +7375,19 @@ function mp4ParamsMatch(bufs){
   // number_of_songs to a model without those params (which would also skew the cost chip). The catalog is
   // best-effort — if it's unreachable, sp is null and we fall back to sending every non-empty field (the
   // prior behavior). Same code path serves music AND tts; tts only gains voice-gating, otherwise unchanged.
+  // Generate Song (Mureka family …/generate-song) requires lyrics. Empty lyrics are omitted
+  // below, which used to 400 at NanoGPT — fail locally before any POST. BGM / Music 3 stay omit-empty.
+  function assertGenerateSongLyrics(model, lyrics){
+    if(/\/generate-song$/i.test(String(model||"")) && (lyrics==null || String(lyrics).trim()===""))
+      throw new Error(String(model) + " needs Lyrics — fill the Lyrics field. Use Generate BGM for instrumental, or Prompt-to-Song to write lyrics from a prompt.");
+  }
+  function audioApiMessage(body){
+    try{
+      const j = JSON.parse(String(body||"").replace(/^\d{3}:\s*/, ""));
+      const msg = (j && j.error && j.error.message) || (j && j.message);
+      return (msg && String(msg).trim()) || null;
+    }catch(e){ return null; }
+  }
   async function collectAudioParams(n){
     const body = {};
     let m = null;
@@ -7415,6 +7429,7 @@ function mp4ParamsMatch(bufs){
            || /generation_count|num_?songs|song_?count/i.test(k)) delete body[k];
       }
     }
+    assertGenerateSongLyrics(n.fields.model, body.lyrics);
     return body;
   }
   async function audioRun(n, inp, ctx, onProgress){
@@ -8467,6 +8482,7 @@ const PROMPT_CAPS = {
           (e)=>{ if(runKey && !keepPending(e)) PENDING_VIDEO.delete(runKey); throw e; });
       },
       audio: (model, input, extra)=>{
+        assertGenerateSongLyrics(model, extra && extra.lyrics);
         const sig = videoSig(JSON.stringify([model, input, extra]));
         const pend = runKey ? PENDING_AUDIO.get(runKey) : null;
         const io2 = Object.assign({}, io, {
@@ -8475,7 +8491,7 @@ const PROMPT_CAPS = {
         });
         return client.audio(model, input, extra, io2).then(
           (url)=>{ if(runKey) PENDING_AUDIO.delete(runKey); return url; },
-          (e)=>{ if(runKey && !keepPending(e)) PENDING_AUDIO.delete(runKey); throw e; });
+          (e)=>{ if(runKey && !keepPending(e)) PENDING_AUDIO.delete(runKey); const apiMsg = e && /^400\b/.test(e.message||"") && audioApiMessage(e.message); throw apiMsg ? new Error(apiMsg) : e; });
       },
       transcribe: (model, audioUrl, language)=> client.transcribe(model, audioUrl, language, io),
       fetchMedia: (url)=> client.fetchMediaDataUrl(url, io),
