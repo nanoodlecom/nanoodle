@@ -6023,7 +6023,7 @@ window.NoodleApp = (function () {
     COST.count++;
     if(c && c.usd!=null){ COST.total += c.usd; if(c.estimate) COST.exact = false; }   // estimate counts toward the total but keeps the meter honest (~)
     else COST.exact = false;                                                           // unknown price → total is a lower bound
-    if(c && c.balance!=null){ COST.balance = c.balance; COST.balStale = false; }
+    if(c && c.balance!=null){ COST.balance = c.balance; COST.balStale = false; _playBalSeq++; }
     var stepUsd = (c && c.usd!=null) ? c.usd : null;
     if(typeof noteCostStep === "function") noteCostStep(prevBal, stepUsd);
     paintCost();
@@ -6044,12 +6044,12 @@ window.NoodleApp = (function () {
     var bodyBal = (s && typeof s.remainingBalance==="number") ? s.remainingBalance
       : (s && s.data && typeof s.data.remainingBalance==="number") ? s.data.remainingBalance : null;
     var bal = (h && h.balance!=null) ? h.balance : bodyBal;
-    if(bal!=null){ COST.balance = bal; COST.balStale = false; paintCost(); notifyParentCost(); return true; }
+    if(bal!=null){ COST.balance = bal; COST.balStale = false; _playBalSeq++; paintCost(); notifyParentCost(); return true; }
     // success or refund: generate-bgm complete still omits remaining-balance after the 202 cost
     if(typeof refreshPlayBalance==="function") refreshPlayBalance(true);
     return false;
   }
-  var _playBalPending = false, _playBalAgain = false, _playBalAgainCorrective = false;
+  var _playBalPending = false, _playBalAgain = false, _playBalAgainCorrective = false, _playBalSeq = 0;
   function refreshPlayBalance(corrective){
     if(typeof EMBEDDED !== "undefined" && EMBEDDED){
       try{ window.parent.postMessage({ type:"__bal_refresh__", corrective: !!corrective }, "*"); }catch(e){}
@@ -6058,17 +6058,17 @@ window.NoodleApp = (function () {
     var k = getKey(); if(!k) return;
     if(_playBalPending){ _playBalAgain = true; if(corrective) _playBalAgainCorrective = true; return; }
     _playBalPending = true;
-    var needCorrective = !!corrective;
+    var needCorrective = !!corrective, started = _playBalSeq;
     _playBalAgain = false; _playBalAgainCorrective = false;
     return fetch(NANOGPT + "/api/check-balance", { method:"POST",
       headers:{ Authorization:"Bearer "+k, "x-api-key":k, "Content-Type":"application/json" }, body:"{}" })
       .then(function(r){ return r.ok ? r.json() : Promise.reject(new Error("check-balance")); })
       .then(function(j){
         var usd = j ? parseFloat(j.usd_balance) : NaN;
-        if(!isNaN(usd)){ COST.balance = usd; COST.balStale = false; paintCost(); notifyParentCost(); }
-        else if(needCorrective){ COST.balStale = true; paintCost(); }
+        if(started === _playBalSeq && !isNaN(usd)){ COST.balance = usd; COST.balStale = false; paintCost(); notifyParentCost(); }
+        else if(started === _playBalSeq && needCorrective){ COST.balStale = true; paintCost(); }
       }).catch(function(){
-        if(needCorrective){ COST.balStale = true; paintCost(); }
+        if(needCorrective && started === _playBalSeq){ COST.balStale = true; paintCost(); }
       }).then(function(){
         _playBalPending = false;
         if(_playBalAgain) return refreshPlayBalance(_playBalAgainCorrective);
@@ -8744,9 +8744,9 @@ const PROMPT_CAPS = {
           try{
             const out = await NODE_WORK.get(workKey) || {};
             if(out && Object.keys(out).length){
-              n.out = out; n.costUsd = 0; n.cached = true;
+              n.out = out;   // owner keeps costUsd — joiner lane gets a reused view below
               onStatus && onStatus(id, "done", "done");
-              onResult && onResult(n);
+              onResult && onResult(Object.assign({}, n, { costUsd:0, cached:true, costKnown:false }));
             } else { failed.add(id); onStatus && onStatus(id, "skip", "skipped — upstream failed"); }
           }catch(err){ if(isAbort(err)) throw err; failed.add(id); nodeErrors++; onStatus && onStatus(id, "error", friendlyRunError(err, n)); }
           return;
@@ -13737,7 +13737,7 @@ function noteBalance(usd){
   if(typeof usd!=="number" || !isFinite(usd)) return;
   const prev = BAL;
   BAL = usd;
-  BAL_STALE = false;
+  BAL_STALE = false; _balSeq++;
   cacheBal();
   if(prev!=null && usd < prev - 1e-9) _balStep = { prevBal: prev, stepUsd: prev - usd };
   paintBal();
@@ -13749,7 +13749,7 @@ function noteSession(d){
   if(typeof d.balance==="number" && isFinite(d.balance)){
     const prev = BAL;
     BAL = d.balance;
-    BAL_STALE = false;
+    BAL_STALE = false; _balSeq++;
     cacheBal();
     if(prev!=null && d.balance < prev - 1e-9) _balStep = { prevBal: prev, stepUsd: prev - d.balance };
   }
@@ -13762,14 +13762,14 @@ function restoreCachedBal(){
     if(j && typeof j.usd==="number" && isFinite(j.usd) && Date.now()-(j.t||0) < 7*24*60*60*1000){ BAL = j.usd; paintBal(); }
   }catch(_){}
 }
-let _balPending = false;
+let _balPending = false, _balSeq = 0;
 let _balAgain = false;
 let _balAgainCorrective = false;
 async function refreshBal(corrective){
   if(!getKey()) return;
   if(_balPending){ _balAgain = true; if(corrective) _balAgainCorrective = true; return; }
   _balPending = true;
-  const needCorrective = !!corrective;
+  const started = _balSeq, needCorrective = !!corrective;
   _balAgain = false;
   _balAgainCorrective = false;
   try{
@@ -13778,14 +13778,14 @@ async function refreshBal(corrective){
       headers:{ Authorization:"Bearer "+k, "x-api-key":k, "Content-Type":"application/json" }, body:"{}" });
     if(!r.ok){               // rejected key → no seed; key validity is probeKey's job, not ours
                              // (check-balance is CORS-enabled since ~2026-07: ACAO * on 200 AND 401 — live-probed 2026-07-05)
-      if(needCorrective){ BAL_STALE = true; paintBal(); try{ postToApp({ type:"__bal__", stale:true }); }catch(_){} }
+      if(needCorrective && started === _balSeq){ BAL_STALE = true; paintBal(); try{ postToApp({ type:"__bal__", stale:true }); }catch(_){} }
       return;
     }
     const usd = parseFloat((await r.json()).usd_balance);
-    if(!isNaN(usd)) noteBalance(usd);
-    else if(needCorrective){ BAL_STALE = true; paintBal(); try{ postToApp({ type:"__bal__", stale:true }); }catch(_){} }
+    if(started === _balSeq && !isNaN(usd)) noteBalance(usd);
+    else if(started === _balSeq && needCorrective){ BAL_STALE = true; paintBal(); try{ postToApp({ type:"__bal__", stale:true }); }catch(_){} }
   }catch(_){
-    if(needCorrective){ BAL_STALE = true; paintBal(); try{ postToApp({ type:"__bal__", stale:true }); }catch(_){} }
+    if(needCorrective && started === _balSeq){ BAL_STALE = true; paintBal(); try{ postToApp({ type:"__bal__", stale:true }); }catch(_){} }
   }finally{
     _balPending = false;
     if(_balAgain) return refreshBal(_balAgainCorrective);

@@ -144,12 +144,21 @@ const ok = (c, m) => {
       [link("a", "text", "b", "prompt"), link("a", "text", "c", "prompt")],
     ),
   );
+  const seenA = [];
   await Promise.all([
-    app.runGraph(g, { seeds: ["b"] }),
-    app.runGraph(g, { seeds: ["c"] }),
+    app.runGraph(g, { seeds: ["b"], onResult: (n) => { if (n.id === "a") seenA.push({ seed: "b", cached: !!n.cached, costKnown: !!n.costKnown, costUsd: n.costUsd }); } }),
+    app.runGraph(g, { seeds: ["c"], onResult: (n) => { if (n.id === "a") seenA.push({ seed: "c", cached: !!n.cached, costKnown: !!n.costKnown, costUsd: n.costUsd }); } }),
   ]);
   ok(chatCalls().length === 1, `shared upstream LLM charged once across sibling Plays (chats=${chatCalls().length})`);
   ok(imgCalls().length === 2, `both sibling images ran (POSTs=${imgCalls().length}, want 2)`);
+  // Join must not mutate the shared node's billed cost. The owner already stamped
+  // costUsd via bumpCost; zeroing / cached=true flashed the owner's branch Play
+  // cost from the real bill to "↺ reused" (and the chip looked like A refunded).
+  const nodeA = g.byId("a");
+  ok(!nodeA.cached, `shared A must keep the owner's bill after a sibling joins (cached=${!!nodeA.cached} — would show ↺ reused on the owner)`);
+  ok(nodeA.costKnown || nodeA.costUsd > 0, `shared A still carries the owner's cost after join (costUsd=${nodeA.costUsd}, costKnown=${!!nodeA.costKnown})`);
+  ok(seenA.some((s) => !s.cached), `owner Play still reports A's real bill (seen=${JSON.stringify(seenA)})`);
+  ok(seenA.some((s) => s.cached), `joining Play may label A reused on ITS lane without clobbering the node (seen=${JSON.stringify(seenA)})`);
 }
 
 // 6) Sequential sibling Play: after B finished, Play C reuses A (no second chat).
@@ -248,4 +257,4 @@ if (fail) {
   console.error(`\n✗ play-stale-input: ${fail} assertion(s) failed.`);
   process.exit(1);
 }
-console.log("\n✓ play-stale-input: failed upstream poisons dependents — no leftover-field charge; sibling Plays run independently without double-charging shared upstream; a joined sibling does not bill on leftover .out when the shared run fails; input kinds have no Play; healthy graphs unaffected.");
+console.log("\n✓ play-stale-input: failed upstream poisons dependents — no leftover-field charge; sibling Plays run independently without double-charging shared upstream; a joined sibling does not bill on leftover .out when the shared run fails; joining a shared ancestor does not clobber the owner's costUsd; input kinds have no Play; healthy graphs unaffected.");

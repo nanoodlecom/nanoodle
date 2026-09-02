@@ -85,6 +85,7 @@ function loadIndex(){
     function paintCost(){}
     function layoutBar(){}
     function refreshBalance(){}
+    var _balSeq = 0;
     function $(){ return { innerHTML:"" }; }
   `;
   const block = prelude + "\n"
@@ -172,6 +173,7 @@ function loadPlay(){
   const prelude = `
     function paintCost(){}
     function notifyParentCost(){}
+    var _playBalSeq = 0;
     var __refreshed = 0; function refreshPlayBalance(){ __refreshed++; }
   `;
   const block = prelude
@@ -327,6 +329,7 @@ function loadIndexUi(reduceMotion){
     var __laid = 0; function layoutBar(){ __laid++; }
     function t(s){ return s; }
     var __refreshed = 0; function refreshBalance(){ __refreshed++; }
+    var _balSeq = 0;
     var __costEl = (${makeCostEl.toString()})();
     function $(id){ return id==="cost" ? __costEl : { innerHTML:"" }; }
     var matchMedia = function(q){ return { matches: ${reduceMotion ? "true" : "false"} && /prefers-reduced-motion/.test(String(q)) }; };
@@ -465,7 +468,7 @@ function loadIndexRefresh(){
   const src = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
   const prelude = `
     var stats = { count:0, cost:0, exact:true, balance:10, balStale:false };
-    var _balPending = false, _balAgain = false, _balAgainCorrective = false;
+    var _balPending = false, _balAgain = false, _balAgainCorrective = false, _balSeq = 0;
     var __fetches = 0, __paints = 0, __gate = [];
     var NANOGPT = "https://nano-gpt.com";
     function getKey(){ return "sk-test"; }
@@ -488,7 +491,7 @@ function loadPlayRefresh(){
   const src = fs.readFileSync(path.join(ROOT, "play.html"), "utf8");
   const prelude = `
     var COST = { total:0, count:0, balance:10, exact:true, estUsd:null, balStale:false };
-    var _playBalPending = false, _playBalAgain = false, _playBalAgainCorrective = false;
+    var _playBalPending = false, _playBalAgain = false, _playBalAgainCorrective = false, _playBalSeq = 0;
     var __fetches = 0, __paints = 0, __gate = [];
     var NANOGPT = "https://nano-gpt.com";
     function getKey(){ return "sk-test"; }
@@ -503,6 +506,52 @@ function loadPlayRefresh(){
     + "this.COST=COST; this.refreshPlayBalance=refreshPlayBalance; this.fetches=()=>__fetches;"
     + "this.release=function(r){ var g=__gate.shift(); if(g) g.resolve(r); };"
     + "this.fail=function(e){ var g=__gate.shift(); if(g) g.reject(e||new Error('net')); };";
+  const s = {}; vm.createContext(s); vm.runInContext(block, s);
+  return s;
+}
+
+function loadIndexRefreshVsHeader(){
+  const src = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const prelude = `
+    var stats = { count:0, cost:0, exact:true, balance:10, balStale:false };
+    var _balPending = false, _balAgain = false, _balAgainCorrective = false, _balSeq = 0;
+    var __fetches = 0, __gate = [];
+    var NANOGPT = "https://nano-gpt.com";
+    function getKey(){ return "sk-test"; }
+    function authHeaders(){ return {}; }
+    function paintCost(){}
+    function cacheBalance(){}
+    var fetch = function(){
+      __fetches++;
+      return new Promise(function(resolve, reject){ __gate.push({ resolve:resolve, reject:reject }); });
+    };
+  `;
+  const block = prelude + "\n" + extractFunction(src, "refreshBalance") + "\n"
+    + extractFunction(src, "accrue") + "\n"
+    + "this.stats=stats; this.refreshBalance=refreshBalance; this.accrue=accrue;"
+    + "this.release=function(r){ var g=__gate.shift(); if(g) g.resolve(r); };";
+  const s = {}; vm.createContext(s); vm.runInContext(block, s);
+  return s;
+}
+function loadPlayRefreshVsHeader(){
+  const src = fs.readFileSync(path.join(ROOT, "play.html"), "utf8");
+  const prelude = `
+    var COST = { total:0, count:0, balance:10, exact:true, estUsd:null, balStale:false };
+    var _playBalPending = false, _playBalAgain = false, _playBalAgainCorrective = false, _playBalSeq = 0;
+    var __fetches = 0, __gate = [];
+    var NANOGPT = "https://nano-gpt.com";
+    function getKey(){ return "sk-test"; }
+    function paintCost(){}
+    function notifyParentCost(){}
+    var fetch = function(){
+      __fetches++;
+      return new Promise(function(resolve, reject){ __gate.push({ resolve:resolve, reject:reject }); });
+    };
+  `;
+  const block = prelude + "\n" + extractFunction(src, "refreshPlayBalance") + "\n"
+    + extractFunction(src, "bumpCost") + "\n"
+    + "this.COST=COST; this.refreshPlayBalance=refreshPlayBalance; this.bumpCost=bumpCost;"
+    + "this.release=function(r){ var g=__gate.shift(); if(g) g.resolve(r); };";
   const s = {}; vm.createContext(s); vm.runInContext(block, s);
   return s;
 }
@@ -560,6 +609,33 @@ async function checkRefresh(){
   P.fail(new Error("Failed to fetch"));
   await qBoot;
   if(P.COST.balStale) fail("refresh", "play boot fail: must not mark a cached seed stale");
+
+  // Sibling Play: a no-header step starts check-balance; the other branch then
+  // lands x-remaining-balance. The in-flight fetch must not paint its older
+  // figure over the header (chip flash when one branch finishes first).
+  let H;
+  try { H = loadIndexRefreshVsHeader(); }
+  catch(e){ fail("refresh", "index header-race load: " + e.message); return; }
+  Object.assign(H.stats, { balance:10, balStale:false, count:0, cost:0, exact:true });
+  const hRefresh = H.refreshBalance(true);          // branch B's no-header finish
+  H.accrue({ cost:0.30 }, undefined, fakeR({ "x-remaining-balance":"9.20" }));  // branch C header
+  if(!near(H.stats.balance, 9.20)) fail("refresh", `header-race: sibling header should apply immediately → expected 9.20, got ${H.stats.balance}`);
+  H.release({ ok:true, json: async()=>({ usd_balance:"9.50" }) });  // stale post-B check-balance
+  await hRefresh;
+  if(!near(H.stats.balance, 9.20)) fail("refresh", `header-race: in-flight check-balance must not clobber the newer sibling header → expected 9.20, got ${H.stats.balance}`);
+  if(H.stats.balStale) fail("refresh", "header-race: discarding a stale check-balance must not mark the chip ?");
+
+  let HP;
+  try { HP = loadPlayRefreshVsHeader(); }
+  catch(e){ fail("refresh", "play header-race load: " + e.message); return; }
+  Object.assign(HP.COST, { balance:10, balStale:false, count:0, total:0, exact:true });
+  const hpRefresh = HP.refreshPlayBalance(true);
+  HP.bumpCost({ usd:0.30, balance:9.20 });
+  if(!near(HP.COST.balance, 9.20)) fail("refresh", `play header-race: sibling header should apply immediately → expected 9.20, got ${HP.COST.balance}`);
+  HP.release({ ok:true, json: async()=>({ usd_balance:"9.50" }) });
+  await hpRefresh;
+  if(!near(HP.COST.balance, 9.20)) fail("refresh", `play header-race: in-flight check-balance must not clobber the newer sibling header → expected 9.20, got ${HP.COST.balance}`);
+  if(HP.COST.balStale) fail("refresh", "play header-race: discarding a stale check-balance must not mark the chip ?");
 }
 
 checkIndex();
@@ -571,4 +647,4 @@ if(failures.length){
   process.stderr.write("✗ session cost-meter aggregation is broken (a spend total or the exact/~ flag would mislead users):\n\n- " + failures.join("\n- ") + "\n");
   process.exit(1);
 }
-process.stdout.write("✓ cost-meter aggregation holds in both engines: real cost > pricing > estimate; zero=known-free stays exact; missing flips ~ (sticky); x-remaining-balance header is canonical; live chip delta/session/reduced-motion stay wired; check-balance coalesces and paints ? on corrective failure.\n");
+process.stdout.write("✓ cost-meter aggregation holds in both engines: real cost > pricing > estimate; zero=known-free stays exact; missing flips ~ (sticky); x-remaining-balance header is canonical; live chip delta/session/reduced-motion stay wired; check-balance coalesces and paints ? on corrective failure; an in-flight check-balance cannot clobber a newer sibling header.\n");
