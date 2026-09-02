@@ -42,7 +42,7 @@ function scriptAwareDocument(ctx) {
 
 function loadEngine() {
   const calls = [];
-  const net = { complete: false };   // flip to true → /tts/status reports completed (resume phase)
+  const net = { complete: false, error: null };   // complete → finished track; error → status:error payload
   function recordingFetch(url, opts = {}) {
     let body = null; try { body = opts.body ? JSON.parse(opts.body) : null; } catch { body = opts.body; }
     const m = String(url).match(/[?&]runId=([^&]+)/);
@@ -52,7 +52,8 @@ function loadEngine() {
     if (/\/audio\/speech/.test(url))
       json = { runId: "aud-" + calls.filter((c) => /\/audio\/speech/.test(c.url)).length, status: "pending", cost: 0.05 };
     else if (/\/tts\/status/.test(url))
-      json = net.complete ? { status: "completed", audioUrl: "https://cdn.example/track.mp3" }
+      json = net.error ? { status: "error", error: net.error }
+        : net.complete ? { status: "completed", audioUrl: "https://cdn.example/track.mp3" }
                           : { status: "processing" };   // never completes → timeout path
     return Promise.resolve({
       ok: true, status: 200,
@@ -156,7 +157,19 @@ const ok = (c, m) => { if (!c) { fail++; console.log("  ✗ " + m); } else conso
     `each lane resumes ITS OWN pending job — nothing clobbered/lost (resumed: ${[...resumed].join(",") || "none"}, want aud-1,aud-2)`);
 }
 
-// 6) STRUCTURE (both engines): pollAudio must register the pending job BEFORE its poll loop,
+// 6) STATUS ERROR: a pending job that ends in status:error must surface the provider string
+// (nested {message} or a bare string) — not a bare "error" / [object Object].
+{
+  const { app, net } = loadEngine();
+  net.error = { message: "The provider rejected the request. Please check your inputs and try again." };
+  let seen = "";
+  const errOpts = { onResult() {}, onStart() {}, onStatus(id, kind, msg) { if (kind === "error") seen = String(msg); } };
+  await app.runGraph(graph([music("m1", "dreamy synthwave")]), errOpts).catch(() => {});
+  ok(/The provider rejected the request/.test(seen),
+    `status:error surfaces the provider message (got ${JSON.stringify(seen).slice(0, 120)})`);
+}
+
+// 7) STRUCTURE (both engines): pollAudio must register the pending job BEFORE its poll loop,
 // so abort AND timeout exits are equally recoverable — a set placed after/inside the loop
 // re-introduces the Stop-drops-the-runId double charge.
 for (const file of ["index.html", "play.html"]) {

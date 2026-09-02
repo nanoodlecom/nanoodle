@@ -46,6 +46,17 @@ let failed = 0;
 const fail = (m) => { console.error("✗ " + m); failed++; };
 const ok = (m) => console.log("✓ " + m);
 
+// Gallery Sing supplies lyrics (LLM→lyrics wire). Pin Generate Song, not Prompt-to-Song.
+// awesome-noodles #11 (7e462b4) landed the same id — keep lockstep on re-sync.
+{
+  const ex = IDX.slice(IDX.indexOf("const EXAMPLES = ["), IDX.indexOf("\n];", IDX.indexOf("const EXAMPLES = [")));
+  const sing = /slug:"sing"[\s\S]*?type:"music",[^}]*fields:\{([^}]*)\}/.exec(ex);
+  const mid = sing && /"?model"?:"([^"]+)"/.exec(sing[1]);
+  if (!mid || mid[1] !== SONG)
+    fail(`EXAMPLES sing music node must pin ${SONG} (got ${JSON.stringify(mid && mid[1])})`);
+  else ok("EXAMPLES sing pins generate-song (lyrics in; not prompt-to-song / Music 3)");
+}
+
 function braceMatch(src, start) {
   let depth = 0;
   for (let j = src.indexOf("{", start); j < src.length; j++) {

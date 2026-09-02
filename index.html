@@ -9409,6 +9409,7 @@ function njsCtx(E, n){
     },
     audio: (model, input, extra)=>{
       assertGenerateSongLyrics(model, extra && extra.lyrics);
+      if(/(?:^|\/)prompt-to-song$/i.test(String(model||"").trim())){ extra=Object.assign({},extra||{},{prompt:((extra||{}).prompt!=null&&String((extra||{}).prompt).trim()!==""?(extra||{}).prompt:input)}); input=undefined; }
       const sig = sigHash(JSON.stringify([model, input, extra]));
       const pend = PENDING_AUDIO.get(n.id);
       const io2 = { ...io,
@@ -10041,7 +10042,7 @@ const CTX = {
   // extra = the dynamic, model-specific params already resolved by the node (lyrics, voice, duration, …).
   // runKey = calling node id — enables resume of a timed-out async job without a second charge.
   async genAudio(model, input, extra, onProgress, runKey){
-    const body = Object.assign({ model, input }, extra||{});
+    const body = /(?:^|\/)prompt-to-song$/i.test(String(model||"").trim()) ? ((e)=>{ const prompt=(e.prompt!=null&&String(e.prompt).trim()!=="")?e.prompt:input; delete e.input; return Object.assign({ model, prompt }, e); })(Object.assign({}, extra||{})) : Object.assign({ model, input }, extra||{});
     const bodySig = sigHash(JSON.stringify(body));
     // Resume a timed-out async job for THIS node when the request is unchanged (mirror PENDING_VIDEO).
     const pend = runKey && PENDING_AUDIO.get(runKey);
@@ -10920,7 +10921,7 @@ async function pollAudio(model, j, onProgress, runKey, bodySig){
     }
     if(["error","failed","content_policy_violation"].includes(st)){
       if(runKey) PENDING_AUDIO.delete(runKey);   // genuinely dead — don't resume
-      throw new Error("audio failed: " + (s.error || s.message || st));
+      throw new Error("audio failed: " + ((typeof s.error==="string"&&s.error) || (s.error&&s.error.message) || (typeof s.message==="string"&&s.message) || (s.data&&(typeof s.data.error==="string"?s.data.error:s.data.error&&s.data.error.message)) || st));
     }
     onProgress && onProgress(s.queuePosition, Date.now()-t0);
   }
@@ -12851,7 +12852,7 @@ const EXAMPLES = [
            {id:"n1",type:"text",x:58,y:225,fields:{text:"Write a wistful 90s trip-hop track about the singularity."},name:"Song Instructions"},
            {id:"n2",type:"llm",x:403,y:-143,w:549,sizes:{system:178},fields:{model:"thinkingmachines/inkling:thinking",system:"You are an award-winning songwriter. Write only the lyrics — no title, no commentary, no explanations.\nPrinciples:\n- Melody is king: write the singable line first. Favor open vowels, natural word stress, and steady syllable counts so every line lands cleanly on a melody.\n- Keep it simple (KISS): short lines, plain words, one clear emotional idea per song.\n- Build one unforgettable hook and bring it back in every chorus.\n- Show, don't tell: concrete images and sensory detail beat abstract statements.\n- Serve the mood and genre of the request; the lyrics exist to serve the melody, never the other way around.\nFormat: label each section so a music model can sing it — [Verse 1], [Chorus], [Verse 2], [Chorus], [Bridge], [Chorus], [Outro]. Output the labeled lyrics and nothing else."}},
            {id:"n3",type:"llm",x:540,y:1177,w:611,fields:{system:"",model:"openai/gpt-5.6-terra"}},
-           {id:"n4",type:"music",x:1240,y:120,w:406,fields:{model:"minimax/music-3",instrumental:false,response_format:"mp3"}},
+           {id:"n4",type:"music",x:1240,y:120,w:406,fields:{model:"mureka-ai/mureka-v9.5/generate-song",instrumental:false,response_format:"mp3"}},
            {id:"n5",type:"text",x:-712,y:1155,fields:{text:"Bands liked:\nSoundgarden, XX",optional:false},name:"Bands"},
            {id:"n6",type:"join",x:39,y:699,fields:{sep:"\\n"}},
            {id:"n7",type:"text",x:-245,y:440,fields:{text:"You invent a musical style that fits the given lyrics. Reply with only the style, richly descriptive — no commentary.\nDo not mention any band names.",optional:true},name:"Style System Prompt"},
