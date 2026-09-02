@@ -67,8 +67,19 @@ const bundle =
   reLine + "\n" + editReLine + "\n" + portIdxLine + "\n" + rolesLine + "\n" +
   sizeFbLine + "\n" + aspectFbLine + "\n" + durFbLine + "\n" +
   ["modelSupportsImages", "imgSpec", "imageInputDefs", "collectImageInputs", "recompactImageLinks",
-   "selOpts", "paramDef", "dimDefs", "livePrice"]
+   "selOpts", "paramDef", "dimShape", "nearestDimOption", "applyDimFields", "dimDefs", "livePrice"]
     .map((n) => extractFn(SRC, n)).join("\n") + "\n" +
+  grab(/const dimNum = [^\n]*;/, "dimNum") + "\n" +
+  (() => {
+    const at = SRC.indexOf("const DIM_TIER_PX = {");
+    if (at === -1) throw new Error("DIM_TIER_PX not found in index.html");
+    let depth = 0;
+    for (let j = SRC.indexOf("{", at); j < SRC.length; j++) {
+      if (SRC[j] === "{") depth++;
+      else if (SRC[j] === "}" && --depth === 0) return SRC.slice(at, j + 2);
+    }
+    throw new Error("could not brace-match DIM_TIER_PX");
+  })() + "\n" +
   extractNodeRun(SRC, "edit", "__editRun") + "\n" +
   extractNodeRun(SRC, "image", "__imageRun") + "\n" +
   "globalThis.__t = { imageInputDefs, collectImageInputs, recompactImageLinks, modelSupportsImages, imgSpec, dimDefs, livePrice, editRun: __editRun, imageRun: __imageRun };";

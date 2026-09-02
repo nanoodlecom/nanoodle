@@ -7827,7 +7827,7 @@ function mp4ParamsMatch(bufs){
         const _fixed = _catIt ? ((_catIt.supported_parameters && _catIt.supported_parameters.fixed_image_count) || 0) : 0;
         if(_fixed > 1) want = _fixed;
         // always multi: even n:1 can return N (fixed_image_count models) — surface every image paid for.
-        const urls = await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], undefined, undefined, imgExtra(n), {n:want, multi:true});
+        const urls = await ctx.genImage(prompt, mdl(n), snapImageSize(n, _catIt)||SIZES[0][0], undefined, undefined, imgExtra(n), {n:want, multi:true});
         const sel = Math.min(Math.max(0, parseInt(n.fields.sel,10)||0), urls.length-1);
         return { image: urls[sel], images: urls };
       }
@@ -7864,7 +7864,7 @@ function mp4ParamsMatch(bufs){
         if(imgs.reduce(function(s,u){ return s + (u?u.length:0); }, 0) > MEDIA_INLINE_MAX)
           throw new Error("reference images too large (~4 MB combined limit) — use fewer or smaller images");
         const src = imgs.length>1 ? imgs : imgs[0];   // array → multi-image composite; string → single edit (unchanged)
-        return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], src, undefined, imgExtra(n)) };
+        return { image: await ctx.genImage(prompt, mdl(n), snapImageSize(n, _m)||SIZES[0][0], src, undefined, imgExtra(n)) };
       }
     },
     inpaint: {
@@ -7878,7 +7878,7 @@ function mp4ParamsMatch(bufs){
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         if(!prompt) throw new Error("no prompt — say what to paint into the brushed area");
         const mask = await maskToSource(rawMask, source);
-        return { image: await ctx.genImage(prompt, mdl(n), n.fields.size||SIZES[0][0], source, mask, imgExtra(n)) };
+        return { image: await ctx.genImage(prompt, mdl(n), snapImageSize(n, await rawCatItem("image", mdl(n)))||SIZES[0][0], source, mask, imgExtra(n)) };
       }
     },
     resize: {
@@ -9137,6 +9137,23 @@ const PROMPT_CAPS = {
     }
     return (vals[0]!=null ? vals[0] : def);
   }
+  // Write each dim def onto fields: seed a default when unset; when the current
+  // value is not in the model's list, snap (known catalog) or keep it pickable
+  // (offline / uncatalogued). Mutates fields and, on the keep-pickable path,
+  // defs[i].options. Called from refreshDims so a model swap AND a saved-graph
+  // load go through the same clamp — tests drive this without a DOM.
+  function applyDimFields(fields, defs){
+    for(const d of defs){
+      const cur = fields[d.f];
+      if(d.locked) fields[d.f] = d.def;
+      else if(cur==null || cur==="") fields[d.f] = d.def;
+      else if(!d.options.some(o=> String(o[0])===String(cur))){
+        if(d.known) fields[d.f] = nearestDimOption(cur, d.options, d.def);
+        else d.options = [[String(cur), String(cur)], ...d.options];
+      }
+    }
+    return fields;
+  }
   async function rawCatItem(kind, id){
     if(!id) return null;
     const raw = await loadCatalogRaw(kind);
@@ -9144,7 +9161,7 @@ const PROMPT_CAPS = {
   }
   function dimOptionsFromItem(type, m){
     const out = { def:{} }; if(!m) return out;
-    if(type==="image" || type==="edit"){
+    if(type==="image" || type==="edit" || type==="inpaint"){
       const res = Array.isArray(m.supported_parameters && m.supported_parameters.resolutions)
         ? m.supported_parameters.resolutions.filter(x=> typeof x==="string" && x) : [];
       if(res.length){ out.size = res.map(r=>[r,r]); out.def.size = res[0]; }
@@ -9163,6 +9180,19 @@ const PROMPT_CAPS = {
     const fP = p.fps || p.frames_per_second, f = sel(fP);
     if(f.length){ out.fps = f; out.def.fps = fP && fP.default!=null ? String(fP.default) : f[0][0]; }
     return out;
+  }
+  // Snap a leftover image size onto the catalog list at SEND time (twin of editor applyDimFields
+  // on genImage). fillDimLists is async — Run before it lands used to POST banana's 2k to qwen.
+  // Catalog-missing / empty list keeps the stored value (no false clamp). No backticks.
+  function snapImageSize(n, raw){
+    var pack = dimOptionsFromItem(n.type, raw);
+    var list = pack.size, cur = n.fields && n.fields.size;
+    if(!list || !list.length) return cur;
+    if(cur==null || cur==="") return cur;
+    if(list.some(function(o){ return String(o[0])===String(cur); })) return cur;
+    var next = nearestDimOption(cur, list, pack.def && pack.def.size);
+    n.fields.size = next;
+    return next;
   }
   // Map a video node's stored dimension fields (resolution/aspect/duration) to the WIRE param names its
   // model expects: aspect -> aspect_ratio OR orientation, duration -> duration OR seconds. Mirrors the

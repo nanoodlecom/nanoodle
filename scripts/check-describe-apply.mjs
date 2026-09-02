@@ -112,8 +112,8 @@ function buildModule(src) {
     // real dimDefs returns [{ f, options:[[value,label],…], def }]; stub the shape,
     // not the loop under test (sanitizeFields snaps against whatever table this yields).
     function dimDefs(type, model){
-      if(type==="tvideo" || type==="ivideo") return [{ f:"duration", options:[["5","5"],["10","10"]], def:"5" }];
-      if(type==="image") return [{ f:"size", options:[["1024x1024","1024x1024"],["512x512","512x512"]], def:"1024x1024" }];
+      if(type==="tvideo" || type==="ivideo") return [{ f:"duration", options:[["5","5"],["10","10"]], def:"5", known:true }];
+      if(type==="image" || type==="edit" || type==="inpaint") return [{ f:"size", options:[["1024x1024","1024x1024"],["512x512","512x512"]], def:"1024x1024", known:true }];
       return [];
     }
     function audioFields(t, it){ return []; }
@@ -176,11 +176,13 @@ function runInvariants(mod) {
     sanitizeFields(ok);
     if (String(ok.fields.duration) !== "10")
       F.push(`SANITIZE: a legal duration was wrongly changed (duration=${JSON.stringify(ok.fields.duration)})`);
-    // inpaint size not in SIZES → dropped
+    // inpaint size not in the catalog list → snapped to the model default (dimDefs, not SIZES-strip)
     const inp = { id: "n4", type: "inpaint", fields: { size: "9999x9999" } };
     sanitizeFields(inp);
-    if ("size" in inp.fields && inp.fields.size != null)
+    if (String(inp.fields.size) === "9999x9999")
       F.push(`SANITIZE: an out-of-catalog inpaint size survived (size=${JSON.stringify(inp.fields.size)})`);
+    else if (String(inp.fields.size) !== "1024x1024")
+      F.push(`SANITIZE: an out-of-catalog inpaint size snapped to ${JSON.stringify(inp.fields.size)} (want the catalog default)`);
     // vframes count over MAX_FRAMES → clamped
     const vf = { id: "n5", type: "vframes", fields: { frames: "20" } };
     sanitizeFields(vf);
