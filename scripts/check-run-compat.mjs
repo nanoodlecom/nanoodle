@@ -67,6 +67,21 @@ catalog.audio.push(
   { id: "music3shape", supported_parameters: {} },
 );
 
+// Video catalog seed: model "x" stays uncatalogued so tvideo catalog-miss still
+// soft-sends aspect+duration. vedit-dims advertises all three knobs so the
+// advertised-forward case can distinguish "omit leftover" from "drop listed".
+catalog.video.push(
+  { id: "x", supported_parameters: { parameters: {} } },
+  {
+    id: "vedit-dims",
+    supported_parameters: { parameters: {
+      resolution: { type: "select", default: "720p", options: [{ value: "720p" }, { value: "1080p" }] },
+      aspect_ratio: { type: "select", default: "16:9", options: [{ value: "16:9" }, { value: "9:16" }] },
+      duration: { type: "select", default: "5", options: [{ value: "5" }, { value: "8" }] },
+    } },
+  },
+);
+
 // ---- graph builders -------------------------------------------------------
 const node = (id, type, fields) => ({ id, type, x: 0, y: 0, fields: fields || {} });
 let _l = 0;
@@ -415,21 +430,33 @@ const SCENARIOS = [
     },
   },
   {
-    // Dual-engine parity guard: index.html's vedit.run forwards all three dims (resolution,
-    // aspect_ratio, duration); play.html's RUNTIME_JS twin once forwarded ONLY resolution, so
-    // exported apps silently rendered wrong-length / wrong-ratio v2v clips and still charged for
-    // them. Lock all three into the exported-app generate-video request. (http source URL keeps
-    // videoSourceOpts on the no-decode path so the run reaches genVideo under recordingFetch.)
-    name: "vedit forwards resolution + aspect_ratio + duration to the video API (exported-app parity)",
+    // Editor dimDefs only puts a dim on the wire when the catalog lists it (vedit
+    // is not soft). Play used to forward leftover resolution/aspect/duration on
+    // every vedit — a wrong payload for upscalers and Omni v1 (no resolution).
+    // Known model "x" lists no dim params → omit leftovers; vedit-dims still forwards.
+    name: "vedit omits leftover dims when the catalog does not list them",
     data: { nodes: [node("s1", "vupload", { video: "https://example/clip.mp4" }),
                     node("v1", "vedit", { model: "x", resolution: "1080p", aspect: "9:16", duration: "8" })],
             links: [link("s1", "video", "v1", "video")] },
     check(app, g, fail) {
       const b = videoCalls()[0]?.body;
       if (!b) return fail("no generate-video call recorded");
+      if (b.resolution != null) fail(`vedit posted leftover resolution ${JSON.stringify(b.resolution)}`);
+      if (b.aspect_ratio != null) fail(`vedit posted leftover aspect_ratio ${JSON.stringify(b.aspect_ratio)}`);
+      if (b.duration != null) fail(`vedit posted leftover duration ${JSON.stringify(b.duration)}`);
+    },
+  },
+  {
+    name: "vedit forwards advertised resolution + aspect_ratio + duration",
+    data: { nodes: [node("s1", "vupload", { video: "https://example/clip.mp4" }),
+                    node("v1", "vedit", { model: "vedit-dims", resolution: "1080p", aspect: "9:16", duration: "8" })],
+            links: [link("s1", "video", "v1", "video")] },
+    check(app, g, fail) {
+      const b = videoCalls()[0]?.body;
+      if (!b) return fail("no generate-video call recorded");
       if (b.resolution !== "1080p") fail(`resolution not forwarded, got ${JSON.stringify(b.resolution)}`);
-      if (b.aspect_ratio !== "9:16") fail(`aspect_ratio dropped (play.html vedit parity bug), got ${JSON.stringify(b.aspect_ratio)}`);
-      if (b.duration !== "8") fail(`duration dropped (play.html vedit parity bug), got ${JSON.stringify(b.duration)}`);
+      if (b.aspect_ratio !== "9:16") fail(`aspect_ratio dropped, got ${JSON.stringify(b.aspect_ratio)}`);
+      if (b.duration !== "8") fail(`duration dropped, got ${JSON.stringify(b.duration)}`);
     },
   },
   {

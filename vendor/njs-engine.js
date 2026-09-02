@@ -1,5 +1,5 @@
-/* data-hash=9dfa31424ddf0519 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-1ff64f798e63 (16 modules) */
+/* data-hash=78d6ab4d0aeaed94 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-5d63c7bf381d (16 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -1639,12 +1639,17 @@ function videoDims(n, ctx) {
   const aWire = p.aspect_ratio ? "aspect_ratio" : p.orientation ? "orientation" : p.resolution_ratio ? "resolution_ratio" : "aspect_ratio";
   const dP = p.duration || p.seconds;
   const dWire = p.duration ? "duration" : p.seconds ? "seconds" : "duration";
+  // tvideo/ivideo soft-send aspect+duration (those nodes always show the knobs).
+  // vedit/lipsync and resolution never forward a leftover the model did not list.
+  // Gallery: Omni v1 has duration+aspect only; leftover 720p/4k from v1.1 must not POST.
+  // Matches play videoDimParams (pack.resolution / dimDefs) — including catalog-miss omit.
+  const soft = n.type !== "vedit" && n.type !== "lipsync";
   let asp = f.aspect, dur = f.duration;
   if ((asp == null || asp === "") && aP && aP.default != null) asp = aP.default;
   if ((dur == null || dur === "") && dP && dP.default != null) dur = dP.default;
-  if (f.resolution != null && f.resolution !== "") out.resolution = f.resolution;
-  if (asp != null && asp !== "") out[aWire] = asp;
-  if (dur != null && dur !== "") out[dWire] = dur;
+  if (p.resolution && f.resolution != null && f.resolution !== "") out.resolution = f.resolution;
+  if ((aP || soft) && asp != null && asp !== "") out[aWire] = asp;
+  if ((dP || soft) && dur != null && dur !== "") out[dWire] = dur;
   return out;
 }
 
@@ -4812,5 +4817,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-1ff64f798e63";
+  window.NanoodleEngine.version = "src-5d63c7bf381d";
 })();
