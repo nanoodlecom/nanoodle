@@ -418,7 +418,7 @@
   .rf-ok{ margin:.8rem 0 .15rem; font-size:.86rem; font-weight:700; color:var(--good) }
   .rf-alt{ margin:.55rem 0 0; font-size:.78rem }
   .rf-alt a{ color:var(--dim) }
-  #cost{font-family:ui-monospace,monospace; font-size:.78rem; color:var(--dim)}
+  #cost{font-family:ui-monospace,monospace; font-size:.78rem; color:var(--dim); font-variant-numeric:tabular-nums}
   #cost b{color:var(--ink)}
   /* signed in → the chip is a link into the Nano top-up panel: dotted-underlined amount + accent "+" */
   #cost:not(:empty){ cursor:pointer }
@@ -426,6 +426,11 @@
   #cost:not(:empty):hover b, #cost:not(:empty):focus-visible b{ text-decoration:underline solid; color:var(--accent) }
   #cost .costadd{ display:inline-block; margin-left:.28rem; font-weight:800; color:var(--accent) }
   #cost:not(:empty):hover .costadd{ filter:brightness(1.2) }
+  #cost .costspend{ color:var(--dim); font-weight:400 }
+  #cost .costdelta{ display:inline-block; margin-left:.2rem; color:var(--warn); font-weight:700; letter-spacing:-.01em; opacity:0; pointer-events:none }
+  #cost .costdelta.on{ animation:costDelta 1.35s ease-out forwards }
+  @keyframes costDelta{ 0%{opacity:1;transform:translateY(1px)} 60%{opacity:.95;transform:translateY(-2px)} 100%{opacity:0;transform:translateY(-4px)} }
+  @media (prefers-reduced-motion: reduce){ #cost .costdelta.on{ animation:none; opacity:1 } }
 
   /* ---------- editor surface ---------- */
   /* the quiet site-links row: Terms/Privacy. (The GitHub / open-source affordance lives in the
@@ -1708,6 +1713,7 @@ const I18N = {
     "Add credit with Nano":"Añade crédito con Nano",
     "This is your account's permanent deposit address — send Nano from any wallet and it lands as credit automatically.":"Esta es la dirección de depósito permanente de tu cuenta — envía Nano desde cualquier monedero y se convierte en crédito automáticamente.",
     "Top up with Nano — show my deposit QR":"Recarga con Nano — mostrar mi QR de depósito",
+    "bal":"sal",
     "Couldn't load your Nano deposit address — top up at nano-gpt.com instead":"No se pudo cargar tu dirección de depósito Nano — recarga en nano-gpt.com",
     "✓ Balance topped up — run again when ready.":"✓ Saldo recargado — vuelve a ejecutar cuando quieras.",
     "or top up at nano-gpt.com ↗":"o recarga en nano-gpt.com ↗",
@@ -2263,6 +2269,7 @@ const I18N = {
     "Add credit with Nano":"Ajouter du crédit avec Nano",
     "This is your account's permanent deposit address — send Nano from any wallet and it lands as credit automatically.":"C'est l'adresse de dépôt permanente de votre compte — envoyez du Nano depuis n'importe quel portefeuille et il devient du crédit automatiquement.",
     "Top up with Nano — show my deposit QR":"Recharger avec Nano — afficher mon QR de dépôt",
+    "bal":"solde",
     "Couldn't load your Nano deposit address — top up at nano-gpt.com instead":"Impossible de charger votre adresse de dépôt Nano — rechargez sur nano-gpt.com",
     "✓ Balance topped up — run again when ready.":"✓ Solde rechargé — relancez quand vous voulez.",
     "or top up at nano-gpt.com ↗":"ou rechargez sur nano-gpt.com ↗",
@@ -2818,6 +2825,7 @@ const I18N = {
     "Add credit with Nano":"Guthaben mit Nano aufladen",
     "This is your account's permanent deposit address — send Nano from any wallet and it lands as credit automatically.":"Das ist die dauerhafte Einzahlungsadresse deines Kontos — sende Nano aus einer beliebigen Wallet und es wird automatisch zu Guthaben.",
     "Top up with Nano — show my deposit QR":"Mit Nano aufladen — meinen Einzahlungs-QR anzeigen",
+    "bal":"Guth.",
     "Couldn't load your Nano deposit address — top up at nano-gpt.com instead":"Deine Nano-Einzahlungsadresse konnte nicht geladen werden — lade stattdessen bei nano-gpt.com auf",
     "✓ Balance topped up — run again when ready.":"✓ Guthaben aufgeladen — führe jederzeit erneut aus.",
     "or top up at nano-gpt.com ↗":"oder auf nano-gpt.com aufladen ↗",
@@ -3373,6 +3381,7 @@ const I18N = {
     "Add credit with Nano":"Adicione crédito com Nano",
     "This is your account's permanent deposit address — send Nano from any wallet and it lands as credit automatically.":"Este é o endereço de depósito permanente da sua conta — envie Nano de qualquer carteira e ele vira crédito automaticamente.",
     "Top up with Nano — show my deposit QR":"Recarregue com Nano — mostrar meu QR de depósito",
+    "bal":"sal",
     "Couldn't load your Nano deposit address — top up at nano-gpt.com instead":"Não foi possível carregar seu endereço de depósito Nano — recarregue em nano-gpt.com",
     "✓ Balance topped up — run again when ready.":"✓ Saldo recarregado — execute novamente quando quiser.",
     "or top up at nano-gpt.com ↗":"ou recarregue em nano-gpt.com ↗",
@@ -3928,6 +3937,7 @@ const I18N = {
     "Add credit with Nano":"Nanoでクレジットを追加",
     "This is your account's permanent deposit address — send Nano from any wallet and it lands as credit automatically.":"これはアカウントの恒久的な入金アドレスです — 任意のウォレットからNanoを送ると自動的にクレジットになります。",
     "Top up with Nano — show my deposit QR":"Nanoでチャージ — 入金用QRを表示",
+    "bal":"残高",
     "Couldn't load your Nano deposit address — top up at nano-gpt.com instead":"Nano入金アドレスを読み込めませんでした — nano-gpt.comでチャージしてください",
     "✓ Balance topped up — run again when ready.":"✓ 残高がチャージされました — いつでも再実行できます。",
     "or top up at nano-gpt.com ↗":"またはnano-gpt.comでチャージ ↗",
@@ -9042,23 +9052,87 @@ function restoreCachedBalance(){
     }
   }catch(_){}
 }
+// Chip UX helpers (twin of play.html — keep character-identical after trim).
+function costChipDeltaUsd(prevBal, nextBal, stepUsd){
+  if(stepUsd === 0) return 0;
+  if(prevBal != null && nextBal != null && nextBal < prevBal - 1e-9) return prevBal - nextBal;
+  if(stepUsd != null && stepUsd > 0) return stepUsd;
+  return 0;
+}
+function costChipSpendLabel(cost, exact){
+  if(cost == null || !isFinite(cost)) return "";
+  var n = cost >= 0.01 ? cost.toFixed(2) : cost > 0 ? cost.toFixed(4) : "0.00";
+  return (exact ? "" : "~") + "$" + n;
+}
+function costChipReduceMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(e){ return false; }
+}
+function costChipFmtDelta(usd){
+  if(!(usd > 0)) return "";
+  var n = usd >= 0.01 ? usd.toFixed(2) : usd.toFixed(4);
+  return "−$" + n;
+}
 let _costPainted = "";
-function paintCost(){
-  const s = stats.balance==null ? "" : `bal $<b>${stats.balance.toFixed(2)}</b><span class="costadd">+</span>`;   // empty → show only the running balance; "+" = top-up affordance
-  if(s === _costPainted) return;
-  _costPainted = s;
-  const el = $("cost");
-  el.innerHTML = s;
-  // the chip doubles as the top-up entry point — but only while it shows a balance, so an
-  // empty span never sits in the tab order or carries a stale tooltip
-  if(s){
-    el.setAttribute("role","button"); el.tabIndex = 0;
-    el.title = t("Top up with Nano — show my deposit QR"); el.setAttribute("aria-label", el.title);
-  } else {
-    el.removeAttribute("role"); el.removeAttribute("tabindex");
-    el.removeAttribute("title"); el.removeAttribute("aria-label");
+let _costShownBal = null;
+let _costTween = 0;
+let _costDeltaT = 0;
+let _costStep = null;
+function noteCostStep(prevBal, stepUsd){ _costStep = { prevBal: prevBal, stepUsd: stepUsd }; }
+function tweenCostBal(el, from, to, ms){
+  if(!el || from == null || to == null){ if(el && to != null) el.textContent = to.toFixed(2); return; }
+  if(_costTween) cancelAnimationFrame(_costTween);
+  var t0 = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
+  function frame(now){
+    var p = Math.min(1, (now - t0) / ms);
+    var eased = 1 - Math.pow(1 - p, 3);
+    el.textContent = (from + (to - from) * eased).toFixed(2);
+    if(p < 1) _costTween = requestAnimationFrame(frame);
+    else { _costTween = 0; el.textContent = to.toFixed(2); }
   }
-  layoutBar();   // the chip appears/changes width after sign-in — the bar may no longer fit on one line
+  _costTween = requestAnimationFrame(frame);
+}
+function paintCost(){
+  const el = $("cost"); if(!el) return;
+  const step = _costStep; _costStep = null;
+  const bal = stats.balance;
+  const spend = (stats.count > 0) ? costChipSpendLabel(stats.cost, stats.exact) : "";
+  const deltaUsd = step ? costChipDeltaUsd(step.prevBal, bal, step.stepUsd) : 0;
+  const deltaTxt = costChipFmtDelta(deltaUsd);
+  const balTxt = bal == null ? "" : Number(bal).toFixed(2);
+  const s = bal == null ? "" : (t("bal") + " $<b class=\"costbal\">" + balTxt + "</b>" + (spend ? "<span class=\"costspend\"> · " + spend + "</span>" : "") + "<span class=\"costdelta\" aria-hidden=\"true\"></span><span class=\"costadd\">+</span>");
+  const ident = bal == null ? "" : ("bal" + balTxt + "|" + spend);
+  const needFlash = !!deltaTxt;
+  if(ident === _costPainted && !needFlash) return;
+  if(ident !== _costPainted || !el.querySelector(".costbal")){
+    _costPainted = ident;
+    el.innerHTML = s;
+    // the chip doubles as the top-up entry point — but only while it shows a balance, so an
+    // empty span never sits in the tab order or carries a stale tooltip
+    if(s){
+      el.setAttribute("role","button"); el.tabIndex = 0;
+      el.title = t("Top up with Nano — show my deposit QR"); el.setAttribute("aria-label", el.title);
+    } else {
+      el.removeAttribute("role"); el.removeAttribute("tabindex");
+      el.removeAttribute("title"); el.removeAttribute("aria-label");
+    }
+    layoutBar();   // the chip appears/changes width after sign-in — the bar may no longer fit on one line
+  }
+  const balEl = el.querySelector(".costbal");
+  const fromBal = (step && step.prevBal != null) ? step.prevBal : _costShownBal;
+  if(balEl && bal != null){
+    if(needFlash && fromBal != null && !costChipReduceMotion()) tweenCostBal(balEl, fromBal, bal, 420);
+    else { if(_costTween){ cancelAnimationFrame(_costTween); _costTween = 0; } balEl.textContent = balTxt; }
+  }
+  const dEl = el.querySelector(".costdelta");
+  if(dEl && needFlash){
+    dEl.textContent = deltaTxt;
+    dEl.classList.remove("on");
+    void dEl.offsetWidth;
+    dEl.classList.add("on");
+    clearTimeout(_costDeltaT);
+    _costDeltaT = setTimeout(function(){ dEl.classList.remove("on"); dEl.textContent = ""; }, 1400);
+  }
+  _costShownBal = bal;
 }
 // Show the balance the moment you're signed in — before any run prices it in. Generations keep it
 // live via x-remaining-balance headers; this just seeds it from nano-gpt on sign-in / boot.
@@ -9405,7 +9479,7 @@ function njsCtx(E, n){
       };
       return client.video(model, prompt, opts, imageDataUrl, io2).then(
         (url)=>{ PENDING_VIDEO.delete(n.id); return url; },
-        (e)=>{ if(!keepPending(e)) PENDING_VIDEO.delete(n.id); throw e; });
+        (e)=>{ const hadJob = PENDING_VIDEO.has(n.id); if(!keepPending(e)){ PENDING_VIDEO.delete(n.id); if(hadJob && typeof refreshBalance==="function") refreshBalance(); } throw e; });
     },
     audio: (model, input, extra)=>{
       assertGenerateSongLyrics(model, extra && extra.lyrics);
@@ -9418,7 +9492,7 @@ function njsCtx(E, n){
       };
       return client.audio(model, input, extra, io2).then(
         (url)=>{ PENDING_AUDIO.delete(n.id); return url; },
-        (e)=>{ if(!keepPending(e)) PENDING_AUDIO.delete(n.id); const apiMsg = e && /^400\b/.test(e.message||"") && audioApiMessage(e.message); throw apiMsg ? new Error(apiMsg) : e; });
+        (e)=>{ const hadJob = PENDING_AUDIO.has(n.id); if(!keepPending(e)){ PENDING_AUDIO.delete(n.id); if(hadJob && typeof refreshBalance==="function") refreshBalance(); } const apiMsg = e && /^400\b/.test(e.message||"") && audioApiMessage(e.message); throw apiMsg ? new Error(apiMsg) : e; });
     },
     transcribe: (model, audioUrl, language)=> client.transcribe(model, audioUrl, language, io),
     fetchMedia: (url)=> client.fetchMediaDataUrl(url, io),
@@ -10021,7 +10095,7 @@ const CTX = {
     while(true){
       await sleep(5000);
       if(sig?.aborted) throw new DOMException("aborted","AbortError");   // Stop: leave runId in PENDING_VIDEO so a re-run resumes
-      let s; try{ s = await (await fetch(`${NANOGPT}/api/video/status?requestId=${encodeURIComponent(runId)}`, {headers:authHeaders(), signal:runSignal()})).json(); }
+      let pr, s; try{ pr = await fetch(`${NANOGPT}/api/video/status?requestId=${encodeURIComponent(runId)}`, {headers:authHeaders(), signal:runSignal()}); s = await pr.json(); }
       catch(e){ if(e?.name==="AbortError") throw e; continue; }
       const st = String(s.data?.status || s.status || "").toUpperCase();
       onProgress && onProgress(st, Date.now()-t0, { runId, polledAt: Date.now() });
@@ -10030,10 +10104,12 @@ const CTX = {
         const url = out.video?.url || out.url || (Array.isArray(out.video) ? out.video[0]?.url : null);
         if(!url) throw new Error("completed but no video url");
         if(runKey) PENDING_VIDEO.delete(runKey);
+        applyPollSettlement(s, pr, false);
         return url;
       }
       if(["FAILED","ERROR","CANCELED"].includes(st)){
         if(runKey) PENDING_VIDEO.delete(runKey);     // genuinely dead — don't let a later run resume it
+        applyPollSettlement(s, pr, true);
         throw new Error("video failed: " + (s.data?.error || st));
       }
     }
@@ -10076,17 +10152,14 @@ const CTX = {
     }
     const blob = await r.blob();
     const hc = parseFloat(r.headers.get("x-cost") || r.headers.get("x-nano-cost") || "");
-    stats.count++;
-    if(!isNaN(hc)) stats.cost += hc;                                            // real header cost (x-cost 0 = known-free / subscription)
-    else {                                                                      // this endpoint sends no cost header live → fall back to the catalog estimate so a paid TTS/music run isn't metered as $0
+    let est;                                                                    // this endpoint sends no cost header live → fall back to the catalog estimate so a paid TTS/music run isn't metered as $0
+    if(isNaN(hc)){
       const it = catItem("audio", model);
       const songs = Math.max(1, parseInt(extra && (extra.number_of_songs||extra.n), 10)||1);
-      const est = it ? audioUnitUsd(it.pricing, (input||"").length || EST.ttsChars) : null;
-      if(est!=null && isFinite(est)) stats.cost += est*songs;
-      stats.exact = false;                                                      // estimate, not a metered figure → session flagged inexact ("~")
+      const unit = it ? audioUnitUsd(it.pricing, (input||"").length || EST.ttsChars) : null;
+      if(unit!=null && isFinite(unit)) est = unit*songs;
     }
-    const bal = parseFloat(r.headers.get("x-remaining-balance") || ""); if(!isNaN(bal)){ stats.balance = bal; cacheBalance(); }
-    paintCost();
+    accrue(isNaN(hc) ? {} : { cost:hc }, est, r);                               // real header cost (x-cost 0 = known-free / subscription)
     // Some providers hand back the audio with a blank/generic content-type. An
     // <audio> element won't play a blob whose MIME it can't recognise (shows
     // 0:00, dead play button) even though the bytes download/open fine — so pin
@@ -10912,15 +10985,17 @@ async function pollAudio(model, j, onProgress, runKey, bodySig){
   while(Date.now()-t0 < 300000){
     await sleep(3000);
     if(sig?.aborted) throw new DOMException("aborted","AbortError");   // Stop: leave the job in PENDING_AUDIO so a re-run resumes
-    let s; try{ s = await (await fetch(`${NANOGPT}/api/tts/status?${qs}`, {headers:authHeaders(), signal:runSignal()})).json(); }
+    let pr, s; try{ pr = await fetch(`${NANOGPT}/api/tts/status?${qs}`, {headers:authHeaders(), signal:runSignal()}); s = await pr.json(); }
     catch(e){ if(e?.name==="AbortError") throw e; continue; }
     const st = String(s.status||"").toLowerCase();
     if(st==="completed" || st==="succeeded"){
       if(runKey) PENDING_AUDIO.delete(runKey);
+      applyPollSettlement(s, pr, false);
       return s.audioUrl || s.url || s.data?.audioUrl || s.data?.url || (()=>{ throw new Error("completed but no audio url"); })();
     }
     if(["error","failed","content_policy_violation"].includes(st)){
       if(runKey) PENDING_AUDIO.delete(runKey);   // genuinely dead — don't resume
+      applyPollSettlement(s, pr, true);
       throw new Error("audio failed: " + ((typeof s.error==="string"&&s.error) || (s.error&&s.error.message) || (typeof s.message==="string"&&s.message) || (s.data&&(typeof s.data.error==="string"?s.data.error:s.data.error&&s.data.error.message)) || st));
     }
     onProgress && onProgress(s.queuePosition, Date.now()-t0);
@@ -10990,6 +11065,7 @@ function friendlyRunError(err, n){
 // always wins; the estimate only fires when none is present, and it marks the session inexact ("~")
 // so the meter never silently reads $0 for a genuinely paid run.
 function accrue(j, estUsd, r){
+  const prevBal = stats.balance;
   stats.count++;
   // images/video/audio price top-level (j.cost); chat completions ride it in
   // x_nanogpt_pricing (costUsd|cost|amount — Anthropic routes send only {amount,currency})
@@ -11012,7 +11088,27 @@ function accrue(j, estUsd, r){
   else if(typeof j?.remainingBalance==="number") stats.balance = j.remainingBalance;
   else if(p && typeof p.remainingBalance==="number") stats.balance = p.remainingBalance;
   if(stats.balance!=null) cacheBalance();
+  const stepUsd = usd!=null ? usd : (typeof estUsd==="number" && isFinite(estUsd) ? estUsd : null);
+  if(typeof noteCostStep === "function") noteCostStep(prevBal, stepUsd);
+  const gotBal = !isNaN(hdrBal) || typeof j?.remainingBalance==="number" || (p && typeof p.remainingBalance==="number");
+  if(stepUsd!=null && stepUsd>0 && !gotBal && typeof refreshBalance==="function") refreshBalance();
   paintCost();
+}
+// Poll complete / refund: apply a terminal remaining-balance (header wins, then body) without
+// re-accruing spend. A failed job that refunds without a new figure gets one corrective check-balance.
+function applyPollSettlement(s, r, refunded){
+  const hdrBal = (r && r.headers) ? parseFloat(r.headers.get("x-remaining-balance") || "") : NaN;
+  let bal = !isNaN(hdrBal) ? hdrBal : null;
+  if(bal==null && s && typeof s.remainingBalance==="number") bal = s.remainingBalance;
+  if(bal==null && s && s.data && typeof s.data.remainingBalance==="number") bal = s.data.remainingBalance;
+  if(bal!=null){
+    stats.balance = bal;
+    cacheBalance();
+    paintCost();
+    return true;
+  }
+  if(refunded && typeof refreshBalance==="function") refreshBalance();
+  return false;
 }
 function flash(msg){ $("status").textContent = t(msg); setTimeout(renderAuth, 2200); }
 let toastT=null;

@@ -84,6 +84,7 @@ function loadIndex(){
     function getKey(){ return __hasKey ? "sk-test" : ""; }
     function paintCost(){}
     function layoutBar(){}
+    function refreshBalance(){}
     function $(){ return { innerHTML:"" }; }
   `;
   const block = prelude + "\n"
@@ -248,11 +249,169 @@ function checkPlay(){
   if(S.COST.count !== 3) fail("play", `accumulation: count should be 3, got ${S.COST.count}`);
 }
 
+/* ====================================================================
+   ENGINE 1b — live chip UX: delta flash, session spend, reduced-motion,
+   header-driven paint after accrue. Lifts the shipped helpers + paintCost.
+   ==================================================================== */
+function makeCostEl(){
+  const el = {
+    _html: "",
+    attributes: {},
+    tabIndex: -1,
+    get innerHTML(){ return this._html; },
+    set innerHTML(v){
+      this._html = String(v);
+      const bal = /class="costbal">([^<]*)/.exec(this._html);
+      const spend = /class="costspend">([^<]*)/.exec(this._html);
+      this._balEl = bal ? { textContent: bal[1] } : null;
+      this._spendEl = spend ? { textContent: spend[1] } : null;
+      this._deltaEl = /class="costdelta"/.test(this._html)
+        ? { textContent:"", classList:{ _s:new Set(), add(c){ this._s.add(c); }, remove(c){ this._s.delete(c); }, has(c){ return this._s.has(c); } } }
+        : null;
+    },
+    querySelector(sel){
+      if(sel === ".costbal") return this._balEl;
+      if(sel === ".costspend") return this._spendEl;
+      if(sel === ".costdelta") return this._deltaEl;
+      return null;
+    },
+    setAttribute(k, v){ this.attributes[k] = v; if(k === "tabindex" || k === "tabIndex") this.tabIndex = v; },
+    removeAttribute(k){ delete this.attributes[k]; },
+    get offsetWidth(){ return 1; },
+  };
+  return el;
+}
+function loadIndexUi(reduceMotion){
+  const src = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const prelude = `
+    var __store = new Map();
+    var localStorage = { getItem(k){ return __store.has(k) ? __store.get(k) : null; }, setItem(k,v){ __store.set(k, String(v)); }, removeItem(k){ __store.delete(k); } };
+    var __hasKey = true;
+    function getKey(){ return __hasKey ? "sk-test" : ""; }
+    var __laid = 0; function layoutBar(){ __laid++; }
+    function t(s){ return s; }
+    var __refreshed = 0; function refreshBalance(){ __refreshed++; }
+    var __costEl = (${makeCostEl.toString()})();
+    function $(id){ return id==="cost" ? __costEl : { innerHTML:"" }; }
+    var matchMedia = function(q){ return { matches: ${reduceMotion ? "true" : "false"} && /prefers-reduced-motion/.test(String(q)) }; };
+    var window = { matchMedia: matchMedia };
+    var _rafQ = [];
+    var requestAnimationFrame = function(fn){ _rafQ.push(fn); return _rafQ.length; };
+    var cancelAnimationFrame = function(){ _rafQ = []; };
+    var setTimeout = function(){ return 1; };
+    var clearTimeout = function(){};
+    var performance = { now: function(){ return 0; } };
+    var _costPainted = "";
+    var _costShownBal = null;
+    var _costTween = 0;
+    var _costDeltaT = 0;
+    var _costStep = null;
+  `;
+  const block = prelude + "\n"
+    + sliceConst(src, "stats") + "\n"
+    + sliceConst(src, "BAL_CACHE_KEY") + "\n"
+    + extractFunction(src, "cacheBalance") + "\n"
+    + extractFunction(src, "restoreCachedBalance") + "\n"
+    + extractFunction(src, "costChipDeltaUsd") + "\n"
+    + extractFunction(src, "costChipSpendLabel") + "\n"
+    + extractFunction(src, "costChipReduceMotion") + "\n"
+    + extractFunction(src, "costChipFmtDelta") + "\n"
+    + extractFunction(src, "noteCostStep") + "\n"
+    + extractFunction(src, "tweenCostBal") + "\n"
+    + extractFunction(src, "paintCost") + "\n"
+    + extractFunction(src, "accrue") + "\n"
+    + extractFunction(src, "applyPollSettlement") + "\n"
+    + "this.stats=stats; this.accrue=accrue; this.paintCost=paintCost; this.applyPollSettlement=applyPollSettlement;"
+    + "this.costChipDeltaUsd=costChipDeltaUsd; this.costChipSpendLabel=costChipSpendLabel; this.costChipFmtDelta=costChipFmtDelta;"
+    + "this.el=__costEl; this.raf=()=>_rafQ; this.refreshed=()=>__refreshed;";
+  const s = {}; vm.createContext(s); vm.runInContext(block, s);
+  return s;
+}
+
+function checkChip(){
+  let S;
+  try { S = loadIndexUi(false); }
+  catch(e){ fail("chip", e.message); return; }
+  const reset = () => { Object.assign(S.stats, { count:0, cost:0, exact:true, balance:null }); S.el.innerHTML = ""; };
+
+  // helpers: known-free never flashes; a balance drop is the delta; missing header uses step usd.
+  if(S.costChipDeltaUsd(10, 10, 0) !== 0) fail("chip", "delta: known-free $0 must not flash");
+  if(!near(S.costChipDeltaUsd(10, 9.78, 0.22), 0.22)) fail("chip", "delta: balance drop should be the flashed amount");
+  if(!near(S.costChipDeltaUsd(null, 9.78, 0.22), 0.22)) fail("chip", "delta: missing prior balance should fall back to the step usd");
+  if(S.costChipDeltaUsd(10, 10.5, 0.22) !== 0.22) fail("chip", "delta: a rise (top-up) with a positive step still reports the step — paintCost only flashes when the helper returns >0 AND we call it after a charge; top-up paintCost has no step");
+  if(S.costChipSpendLabel(0.45, true) !== "$0.45") fail("chip", `spend label exact: expected $0.45, got ${S.costChipSpendLabel(0.45, true)}`);
+  if(S.costChipSpendLabel(0.45, false) !== "~$0.45") fail("chip", `spend label inexact: expected ~$0.45, got ${S.costChipSpendLabel(0.45, false)}`);
+  if(S.costChipFmtDelta(0.22) !== "−$0.22") fail("chip", `fmt delta: expected −$0.22, got ${S.costChipFmtDelta(0.22)}`);
+  if(S.costChipFmtDelta(0) !== "") fail("chip", "fmt delta: $0 must be empty (no scary flash)");
+
+  // accrue + header → chip shows new balance AND session spend; + top-up stays; delta flashes.
+  reset();
+  S.stats.balance = 10;
+  S.paintCost();
+  S.accrue({ cost:0.22 }, undefined, fakeR({ "x-remaining-balance":"9.78" }));
+  if(!near(S.stats.balance, 9.78)) fail("chip", `header balance after accrue: expected 9.78, got ${S.stats.balance}`);
+  if(!/9\.78/.test(S.el.innerHTML)) fail("chip", `paint: balance 9.78 missing from chip HTML: ${S.el.innerHTML}`);
+  if(!/\$0\.22/.test(S.el.innerHTML)) fail("chip", `paint: session spend $0.22 missing from chip HTML: ${S.el.innerHTML}`);
+  if(!/costadd/.test(S.el.innerHTML)) fail("chip", "paint: + top-up affordance missing from chip HTML");
+  if(!S.el._deltaEl || !S.el._deltaEl.classList.has("on") || S.el._deltaEl.textContent !== "−$0.22")
+    fail("chip", `paint: charged step should flash −$0.22 (got ${S.el._deltaEl && S.el._deltaEl.textContent})`);
+  if(!(S.raf().length > 0)) fail("chip", "paint: a charged step should queue a balance tween when motion is allowed");
+
+  // known-free: no delta flash.
+  reset();
+  S.stats.balance = 10;
+  S.paintCost();
+  S.accrue({ cost:0 }, undefined, fakeR({ "x-remaining-balance":"10.00" }));
+  if(S.el._deltaEl && S.el._deltaEl.classList.has("on"))
+    fail("chip", "paint: known-free $0 must not flash a spend delta");
+
+  // cost but no balance header → one corrective check-balance (not every node thereafter: _balPending is the live guard).
+  reset();
+  S.accrue({ cost:0.15 });
+  if(S.refreshed() < 1) fail("chip", "paint: a charged step with no remaining-balance should request one check-balance");
+
+  // poll settlement updates balance without accruing spend; refund without a figure refreshes.
+  reset();
+  S.stats.balance = 8;
+  S.stats.cost = 0.40;
+  S.applyPollSettlement({ remainingBalance:8.40 }, fakeR({}), true);
+  if(!near(S.stats.balance, 8.40)) fail("chip", `poll settlement: body remainingBalance should apply → expected 8.40, got ${S.stats.balance}`);
+  if(!near(S.stats.cost, 0.40)) fail("chip", `poll settlement: must not re-accrue spend, cost stayed ${S.stats.cost}`);
+  const before = S.refreshed();
+  S.applyPollSettlement({ status:"error" }, fakeR({}), true);
+  if(S.refreshed() <= before) fail("chip", "poll settlement: refund without a new remaining-balance should check-balance once");
+
+  // reduced-motion: instant number + delta text, no tween frames.
+  let R;
+  try { R = loadIndexUi(true); }
+  catch(e){ fail("chip", "reduced-motion load: " + e.message); return; }
+  Object.assign(R.stats, { count:0, cost:0, exact:true, balance:10 });
+  R.paintCost();
+  R.accrue({ cost:0.10 }, undefined, fakeR({ "x-remaining-balance":"9.90" }));
+  if(!/9\.90/.test(R.el.innerHTML)) fail("chip", "reduced-motion: balance should update instantly");
+  if(!R.el._deltaEl || R.el._deltaEl.textContent !== "−$0.10")
+    fail("chip", "reduced-motion: delta text must still appear");
+  if(R.raf().length > 0) fail("chip", "reduced-motion: must not queue a balance tween");
+
+  // twins: the chip helpers must stay character-identical (after trim) in play.html.
+  const idx = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const ply = fs.readFileSync(path.join(ROOT, "play.html"), "utf8");
+  const norm = (s) => s.split("\n").map((l) => l.trim()).filter(Boolean).join("\n");
+  for(const name of ["costChipDeltaUsd", "costChipSpendLabel", "costChipReduceMotion", "costChipFmtDelta"]){
+    try{
+      const a = norm(extractFunction(idx, name));
+      const b = norm(extractFunction(ply, name));
+      if(a !== b) fail("chip", `twin: ${name}() drifted between index.html and play.html`);
+    }catch(e){ fail("chip", `twin: ${e.message}`); }
+  }
+}
+
 checkIndex();
 checkPlay();
+checkChip();
 
 if(failures.length){
   process.stderr.write("✗ session cost-meter aggregation is broken (a spend total or the exact/~ flag would mislead users):\n\n- " + failures.join("\n- ") + "\n");
   process.exit(1);
 }
-process.stdout.write("✓ cost-meter aggregation holds in both engines: real cost > pricing > estimate; zero=known-free stays exact; missing flips ~ (sticky); x-remaining-balance header is canonical.\n");
+process.stdout.write("✓ cost-meter aggregation holds in both engines: real cost > pricing > estimate; zero=known-free stays exact; missing flips ~ (sticky); x-remaining-balance header is canonical; live chip delta/session/reduced-motion stay wired.\n");

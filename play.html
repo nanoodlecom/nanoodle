@@ -91,6 +91,13 @@
   #bar-title:focus{ background:var(--panel2); box-shadow:0 0 0 1px var(--accent-line) inset; }
   #bar-title:focus::after{ content:none; }
   #bar .status{ font-size:.76rem; color:var(--dim); }
+  #bal{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-variant-numeric:tabular-nums; }
+  #bal b{ color:var(--ink); }
+  #bal .costspend{ color:var(--dim); font-weight:400; }
+  #bal .costdelta{ display:inline-block; margin-left:.2rem; color:#ffcf6b; font-weight:700; letter-spacing:-.01em; opacity:0; pointer-events:none; }
+  #bal .costdelta.on{ animation:costDelta 1.35s ease-out forwards; }
+  @keyframes costDelta{ 0%{opacity:1;transform:translateY(1px)} 60%{opacity:.95;transform:translateY(-2px)} 100%{opacity:0;transform:translateY(-4px)} }
+  @media (prefers-reduced-motion: reduce){ #bal .costdelta.on{ animation:none; opacity:1 } }
   #bar .sep{ width:1px; height:20px; background:var(--line); margin:0 .25rem; }
   #bar button{ font-size:.82rem; padding:.4rem .7rem; border-radius:.5rem;
                border:1px solid var(--line); background:var(--panel2); color:var(--ink); cursor:pointer; }
@@ -5514,6 +5521,7 @@ const PLAY_I18N_B = {
   "Each customize adds a version — click one to view it":{es:"Cada personalización añade una versión — haz clic en una para verla",fr:"Chaque personnalisation ajoute une version — cliquez sur l’une pour la voir",de:"Jede Anpassung fügt eine Version hinzu — klicke eine an, um sie anzusehen",pt:"Cada personalização adiciona uma versão — clique em uma para vê-la",ja:"カスタマイズごとにバージョンが追加されます — クリックして表示"},
   "Delete this app":{es:"Eliminar esta app",fr:"Supprimer cette app",de:"Diese App löschen",pt:"Excluir este app",ja:"このアプリを削除"},
   "signed in ✓":{es:"sesión iniciada ✓",fr:"connecté ✓",de:"angemeldet ✓",pt:"conectado ✓",ja:"サインイン済み ✓"},
+  "bal":{es:"sal",fr:"solde",de:"Guth.",pt:"sal",ja:"残高"},
   "not signed in":{es:"sin iniciar sesión",fr:"non connecté",de:"nicht angemeldet",pt:"não conectado",ja:"サインインしていません"},
   "✱ edits aren’t shared":{es:"✱ los cambios no se comparten",fr:"✱ les modifications ne sont pas partagées",de:"✱ Änderungen werden nicht geteilt",pt:"✱ as edições não são compartilhadas",ja:"✱ 編集は共有されません"},
   "The whole app lives in this link — nothing hits a server when someone opens it. That's why it can get long.":{es:"Toda la app vive en este enlace — nada llega a un servidor cuando alguien lo abre. Por eso puede quedar largo.",fr:"Toute l’app tient dans ce lien — rien n’atteint un serveur quand quelqu’un l’ouvre. C’est pourquoi il peut devenir long.",de:"Die ganze App steckt in diesem Link — beim Öffnen wird kein Server kontaktiert. Deshalb kann er lang werden.",pt:"O app inteiro vive neste link — nada chega a um servidor quando alguém o abre. Por isso ele pode ficar longo.",ja:"アプリ全体がこのリンクに含まれています — 誰かが開いてもサーバーには何も送られません。だからリンクは長くなることがあります。"},
@@ -5984,13 +5992,63 @@ window.NoodleApp = (function () {
   }
   // Fold one generation's cost into the session total; returns its USD (0 if unknown)
   // so the caller can also attribute it to that node's output card.
+  // Chip UX helpers (twin of index.html — keep character-identical after trim).
+  function costChipDeltaUsd(prevBal, nextBal, stepUsd){
+    if(stepUsd === 0) return 0;
+    if(prevBal != null && nextBal != null && nextBal < prevBal - 1e-9) return prevBal - nextBal;
+    if(stepUsd != null && stepUsd > 0) return stepUsd;
+    return 0;
+  }
+  function costChipSpendLabel(cost, exact){
+    if(cost == null || !isFinite(cost)) return "";
+    var n = cost >= 0.01 ? cost.toFixed(2) : cost > 0 ? cost.toFixed(4) : "0.00";
+    return (exact ? "" : "~") + "$" + n;
+  }
+  function costChipReduceMotion(){
+    try{ return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(e){ return false; }
+  }
+  function costChipFmtDelta(usd){
+    if(!(usd > 0)) return "";
+    var n = usd >= 0.01 ? usd.toFixed(2) : usd.toFixed(4);
+    return "−$" + n;
+  }
   function bumpCost(c){
+    var prevBal = COST.balance;
     COST.count++;
     if(c && c.usd!=null){ COST.total += c.usd; if(c.estimate) COST.exact = false; }   // estimate counts toward the total but keeps the meter honest (~)
     else COST.exact = false;                                                           // unknown price → total is a lower bound
     if(c && c.balance!=null) COST.balance = c.balance;
+    var stepUsd = (c && c.usd!=null) ? c.usd : null;
+    if(typeof noteCostStep === "function") noteCostStep(prevBal, stepUsd);
     paintCost();
+    if(typeof notifyParentCost === "function") notifyParentCost();
     return (c && c.usd!=null) ? c.usd : 0;
+  }
+  function notifyParentCost(){
+    try{ if(window.parent && window.parent!==window) window.parent.postMessage({ type:"__cost__", total:COST.total, exact:COST.exact, balance:COST.balance, count:COST.count }, "*"); }catch(e){}
+  }
+  function applyPollBalance(s, r, refunded){
+    var h = costFromHeaders(r);
+    var bodyBal = (s && typeof s.remainingBalance==="number") ? s.remainingBalance
+      : (s && s.data && typeof s.data.remainingBalance==="number") ? s.data.remainingBalance : null;
+    var bal = (h && h.balance!=null) ? h.balance : bodyBal;
+    if(bal!=null){ COST.balance = bal; paintCost(); notifyParentCost(); return true; }
+    if(refunded) refreshPlayBalance();
+    return false;
+  }
+  function refreshPlayBalance(){
+    if(typeof EMBEDDED !== "undefined" && EMBEDDED){
+      try{ window.parent.postMessage({ type:"__bal_refresh__" }, "*"); }catch(e){}
+      return;
+    }
+    var k = getKey(); if(!k) return;
+    fetch(NANOGPT + "/api/check-balance", { method:"POST",
+      headers:{ Authorization:"Bearer "+k, "x-api-key":k, "Content-Type":"application/json" }, body:"{}" })
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(j){
+        var usd = j ? parseFloat(j.usd_balance) : NaN;
+        if(!isNaN(usd)){ COST.balance = usd; paintCost(); notifyParentCost(); }
+      }).catch(function(){});
   }
   // Estimate spend when an API response carries no cost field — image generations and transcriptions
   // return none (live-confirmed). The per-unit price rides in the public catalog (per_image by size,
@@ -6585,7 +6643,7 @@ window.NoodleApp = (function () {
       onProgress && onProgress("SUBMITTED", 0, { runId:runId, polledAt:Date.now() });
       while(true){                                     // wait for COMPLETED/FAILED/Stop; server keeps the job
         await sleep(5000);
-        let s; try{ s = await (await apiFetch(NANOGPT + "/api/video/status?requestId=" + encodeURIComponent(runId), {headers:authHeaders()})).json(); }
+        let pr, s; try{ pr = await apiFetch(NANOGPT + "/api/video/status?requestId=" + encodeURIComponent(runId), {headers:authHeaders()}); s = await pr.json(); }
         catch(e){ if(isAbort(e)) throw e; continue; }
         const st = String((s.data && s.data.status) || s.status || "").toUpperCase();
         onProgress && onProgress(st, Date.now()-t0, { runId:runId, polledAt:Date.now() });
@@ -6594,9 +6652,10 @@ window.NoodleApp = (function () {
           const url = (out.video && out.video.url) || out.url || (Array.isArray(out.video) ? out.video[0] && out.video[0].url : null);
           if(!url) throw new Error("completed but no video url");
           if(runKey) PENDING_VIDEO.delete(runKey);
+          applyPollBalance(s, pr, false);
           return url;
         }
-        if(["FAILED","ERROR","CANCELED"].includes(st)){ if(runKey) PENDING_VIDEO.delete(runKey); throw new Error("video failed: " + ((s.data && s.data.error) || st)); }
+        if(["FAILED","ERROR","CANCELED"].includes(st)){ if(runKey) PENDING_VIDEO.delete(runKey); applyPollBalance(s, pr, true); throw new Error("video failed: " + ((s.data && s.data.error) || st)); }
       }
     },
     // sync audio (speech OR music): /api/v1/audio/speech → binary audio (or JSON with a url for some providers).
@@ -7316,15 +7375,17 @@ function mp4ParamsMatch(bufs){
     const t0 = Date.now();
     while(Date.now()-t0 < 300000){
       await sleep(3000);
-      let s; try{ s = await (await apiFetch(NANOGPT + "/api/tts/status?" + qs, {headers:authHeaders()})).json(); }
+      let pr, s; try{ pr = await apiFetch(NANOGPT + "/api/tts/status?" + qs, {headers:authHeaders()}); s = await pr.json(); }
       catch(e){ continue; }
       const st = String(s.status||"").toLowerCase();
       if(st==="completed" || st==="succeeded"){
         if(runKey) PENDING_AUDIO.delete(runKey);
+        applyPollBalance(s, pr, false);
         return s.audioUrl || s.url || (s.data && s.data.audioUrl) || (s.data && s.data.url) || (()=>{ throw new Error("completed but no audio url"); })();
       }
       if(["error","failed","content_policy_violation"].includes(st)){
         if(runKey) PENDING_AUDIO.delete(runKey);
+        applyPollBalance(s, pr, true);
         throw new Error("audio failed: " + ((typeof s.error==="string"&&s.error) || (s.error&&s.error.message) || (typeof s.message==="string"&&s.message) || (s.data&&(typeof s.data.error==="string"?s.data.error:s.data.error&&s.data.error.message)) || st));
       }
       onProgress && onProgress(s.queuePosition, Date.now()-t0);
@@ -8479,7 +8540,7 @@ const PROMPT_CAPS = {
         });
         return client.video(model, prompt, opts, imageDataUrl, io2).then(
           (url)=>{ if(runKey) PENDING_VIDEO.delete(runKey); return url; },
-          (e)=>{ if(runKey && !keepPending(e)) PENDING_VIDEO.delete(runKey); throw e; });
+          (e)=>{ const hadJob = runKey && PENDING_VIDEO.has(runKey); if(runKey && !keepPending(e)){ PENDING_VIDEO.delete(runKey); if(hadJob) refreshPlayBalance(); } throw e; });
       },
       audio: (model, input, extra)=>{
         assertGenerateSongLyrics(model, extra && extra.lyrics);
@@ -8492,7 +8553,7 @@ const PROMPT_CAPS = {
         });
         return client.audio(model, input, extra, io2).then(
           (url)=>{ if(runKey) PENDING_AUDIO.delete(runKey); return url; },
-          (e)=>{ if(runKey && !keepPending(e)) PENDING_AUDIO.delete(runKey); const apiMsg = e && /^400\b/.test(e.message||"") && audioApiMessage(e.message); throw apiMsg ? new Error(apiMsg) : e; });
+          (e)=>{ const hadJob = runKey && PENDING_AUDIO.has(runKey); if(runKey && !keepPending(e)){ PENDING_AUDIO.delete(runKey); if(hadJob) refreshPlayBalance(); } const apiMsg = e && /^400\b/.test(e.message||"") && audioApiMessage(e.message); throw apiMsg ? new Error(apiMsg) : e; });
       },
       transcribe: (model, audioUrl, language)=> client.transcribe(model, audioUrl, language, io),
       fetchMedia: (url)=> client.fetchMediaDataUrl(url, io),
@@ -10108,6 +10169,10 @@ const PROMPT_CAPS = {
         + 'font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}'
       + '#app-cost .cm-n{color:var(--faint,#5d6788);}'
       + '#app-cost .cm-bal{color:var(--dim,#8b93b4);}'
+      + '#app-cost .costdelta{display:inline-block;margin-left:.2rem;color:#ffcf6b;font-weight:700;opacity:0;pointer-events:none;}'
+      + '#app-cost .costdelta.on{animation:costDelta 1.35s ease-out forwards;}'
+      + '@keyframes costDelta{0%{opacity:1;transform:translateY(1px)}60%{opacity:.95;transform:translateY(-2px)}100%{opacity:0;transform:translateY(-4px)}}'
+      + '@media (prefers-reduced-motion: reduce){#app-cost .costdelta.on{animation:none;opacity:1}}'
       + '.rhead .rcost{float:right;font-weight:700;color:var(--ok,#46d27a);'
         + 'font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}'
       + '.rhead .rcost.incl{color:var(--dim,#8b93b4);font-weight:600;}'
@@ -10130,15 +10195,28 @@ const PROMPT_CAPS = {
     else document.body.appendChild(el);
     return el;
   }
+  var _costStep = null, _costDeltaT = 0;
+  function noteCostStep(prevBal, stepUsd){ _costStep = { prevBal: prevBal, stepUsd: stepUsd }; }
   function paintCost(){
     const el = ensureCostMeter(); if(!el) return;
+    const step = _costStep; _costStep = null;
     if(COST.count === 0){ el.hidden = true; return; }
     el.hidden = false;
     const total = (COST.exact ? "" : "~") + fmtUsd(COST.total);
     const bal = COST.balance!=null ? '<span class="cm-bal">· ' + t("balance") + ' ' + fmtUsd(COST.balance) + '</span>' : "";
+    const deltaUsd = step ? costChipDeltaUsd(step.prevBal, COST.balance, step.stepUsd) : 0;
+    const deltaTxt = costChipFmtDelta(deltaUsd);
     el.innerHTML = '<span class="cm-spent">⌁ ' + total + ' ' + t("spent on this app") + '</span>'
                  + '<span class="cm-n">' + COST.count + ' ' + t(COST.count!==1?"generations":"generation") + '</span>'
-                 + bal;
+                 + bal
+                 + '<span class="costdelta" aria-hidden="true"></span>';
+    const dEl = el.querySelector(".costdelta");
+    if(dEl && deltaTxt){
+      dEl.textContent = deltaTxt;
+      dEl.classList.add("on");
+      clearTimeout(_costDeltaT);
+      _costDeltaT = setTimeout(function(){ dEl.classList.remove("on"); dEl.textContent = ""; }, 1400);
+    }
   }
 
   // The little cost/reuse pill shown in a result card header.
@@ -12375,10 +12453,32 @@ function bridgeHasGesture(){ const ua = navigator.userActivation; return ua ? ua
 function armImportedApp(){ if(!curImported || curArmed) return; curArmed = true; writeState(); }
 // CONSENT_GATE_END
 
+// Header wins; JSON remainingBalance is the fallback (async poll complete / refund).
+// A terminal poll error with no new figure gets one corrective check-balance.
+function noteBalanceFromWire(r, bodyBuf, kind){
+  let hb = parseFloat(r.headers.get("x-remaining-balance") || "");
+  let j = null;
+  const ct = ((r.headers.get("content-type") || "") + "").toLowerCase();
+  if(isNaN(hb) && ct.includes("json") && bodyBuf && bodyBuf.byteLength > 0 && bodyBuf.byteLength < 200000){
+    try{ j = JSON.parse(new TextDecoder().decode(bodyBuf)); }catch(_){ j = null; }
+    if(j && typeof j.remainingBalance==="number") hb = j.remainingBalance;
+    else if(j && j.data && typeof j.data.remainingBalance==="number") hb = j.data.remainingBalance;
+  }
+  if(!isNaN(hb)){ noteBalance(hb); return; }
+  if(kind==="poll"){
+    if(!j && ct.includes("json") && bodyBuf && bodyBuf.byteLength < 200000){
+      try{ j = JSON.parse(new TextDecoder().decode(bodyBuf)); }catch(_){ j = null; }
+    }
+    const st = String((j && (j.status || (j.data && j.data.status))) || "").toLowerCase();
+    if(["error","failed","content_policy_violation","canceled","cancelled"].includes(st)) refreshBal();
+  }
+}
 // ----- parent <- iframe bridge -----
 addEventListener("message", async (e) => {
   if(e.source !== $("appframe").contentWindow) return;
   const d = e.data;
+  if(d && d.type === "__cost__"){ noteSession(d); return; }
+  if(d && d.type === "__bal_refresh__"){ refreshBal(); return; }
   // The app's Run was pressed while signed out — it owns no key, so the parent (which
   // does) starts the OAuth popup. finishSignIn() then pushes __auth__ back to the app.
   if(d && d.type === "__signin__"){
@@ -12441,9 +12541,9 @@ addEventListener("message", async (e) => {
       }
       const headers = Object.assign({}, d.headers, k ? { Authorization:"Bearer "+k, "x-api-key":k } : {});
       const r = await fetch(u.href, { method:d.method||"GET", headers, body:(d.body!=null?d.body:undefined) });
-      // Every generation carries NanoGPT's canonical post-charge balance — keep the bar chip live.
-      { const hb = parseFloat(r.headers.get("x-remaining-balance") || ""); if(!isNaN(hb)) noteBalance(hb); }
       const body = await r.arrayBuffer();
+      // Every generation carries NanoGPT's canonical post-charge balance — keep the bar chip live.
+      noteBalanceFromWire(r, body, kind);
       const hdrs = {}; r.headers.forEach((v,kk)=> hdrs[kk.toLowerCase()]=v);
       reply({ ok:r.ok, status:r.status, headers:hdrs, body });   // ArrayBuffer → structured clone
       // A completed paid request = the recipient actually ran the shared app → unlock Export + Customize.
@@ -13529,19 +13629,90 @@ async function handleRedirect(){
 // stream both carry x-remaining-balance). Cache is written back so the editor's chip stays fresh too.
 const BAL_CACHE_KEY = "ngpt_balance_usd";
 let BAL = null;
+let SES = { cost:0, exact:true, count:0 };
+let _balStep = null, _balDeltaT = 0, _balTween = 0, _balShown = null;
 function cacheBal(){
   try{
     if(BAL==null) localStorage.removeItem(BAL_CACHE_KEY);
     else localStorage.setItem(BAL_CACHE_KEY, JSON.stringify({ usd:BAL, t:Date.now() }));
   }catch(_){}
 }
+function costChipDeltaUsd(prevBal, nextBal, stepUsd){
+  if(stepUsd === 0) return 0;
+  if(prevBal != null && nextBal != null && nextBal < prevBal - 1e-9) return prevBal - nextBal;
+  if(stepUsd != null && stepUsd > 0) return stepUsd;
+  return 0;
+}
+function costChipSpendLabel(cost, exact){
+  if(cost == null || !isFinite(cost)) return "";
+  var n = cost >= 0.01 ? cost.toFixed(2) : cost > 0 ? cost.toFixed(4) : "0.00";
+  return (exact ? "" : "~") + "$" + n;
+}
+function costChipReduceMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(e){ return false; }
+}
+function costChipFmtDelta(usd){
+  if(!(usd > 0)) return "";
+  var n = usd >= 0.01 ? usd.toFixed(2) : usd.toFixed(4);
+  return "−$" + n;
+}
+function tweenCostBal(el, from, to, ms){
+  if(!el || from == null || to == null){ if(el && to != null) el.textContent = to.toFixed(2); return; }
+  if(_balTween) cancelAnimationFrame(_balTween);
+  var t0 = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
+  function frame(now){
+    var p = Math.min(1, (now - t0) / ms);
+    var eased = 1 - Math.pow(1 - p, 3);
+    el.textContent = (from + (to - from) * eased).toFixed(2);
+    if(p < 1) _balTween = requestAnimationFrame(frame);
+    else { _balTween = 0; el.textContent = to.toFixed(2); }
+  }
+  _balTween = requestAnimationFrame(frame);
+}
 function paintBal(){
   const el = $("bal"); if(!el) return;
   const on = !!getKey() && BAL!=null;
   el.style.display = on ? "" : "none";
-  if(on) el.innerHTML = 'bal $<b>' + BAL.toFixed(2) + '</b>';
+  if(!on){ el.innerHTML = ""; return; }
+  const step = _balStep; _balStep = null;
+  const spend = (SES.count > 0) ? costChipSpendLabel(SES.cost, SES.exact) : "";
+  const deltaUsd = step ? costChipDeltaUsd(step.prevBal, BAL, step.stepUsd) : 0;
+  const deltaTxt = costChipFmtDelta(deltaUsd);
+  const balTxt = Number(BAL).toFixed(2);
+  el.innerHTML = tB("bal") + " $<b class=\"costbal\">" + balTxt + "</b>"
+    + (spend ? "<span class=\"costspend\"> · " + spend + "</span>" : "")
+    + "<span class=\"costdelta\" aria-hidden=\"true\"></span>";
+  const balEl = el.querySelector(".costbal");
+  const fromBal = (step && step.prevBal != null) ? step.prevBal : _balShown;
+  if(balEl && deltaTxt && fromBal != null && !costChipReduceMotion()) tweenCostBal(balEl, fromBal, BAL, 420);
+  const dEl = el.querySelector(".costdelta");
+  if(dEl && deltaTxt){
+    dEl.textContent = deltaTxt;
+    dEl.classList.add("on");
+    clearTimeout(_balDeltaT);
+    _balDeltaT = setTimeout(function(){ dEl.classList.remove("on"); dEl.textContent = ""; }, 1400);
+  }
+  _balShown = BAL;
 }
-function noteBalance(usd){ if(typeof usd==="number" && isFinite(usd)){ BAL = usd; cacheBal(); paintBal(); } }
+function noteBalance(usd){
+  if(typeof usd!=="number" || !isFinite(usd)) return;
+  const prev = BAL;
+  BAL = usd;
+  cacheBal();
+  if(prev!=null && usd < prev - 1e-9) _balStep = { prevBal: prev, stepUsd: prev - usd };
+  paintBal();
+}
+function noteSession(d){
+  if(!d) return;
+  if(typeof d.total==="number" && isFinite(d.total)){ SES.cost = d.total; SES.exact = d.exact!==false; SES.count = d.count|0; }
+  if(typeof d.balance==="number" && isFinite(d.balance)){
+    const prev = BAL;
+    BAL = d.balance;
+    cacheBal();
+    if(prev!=null && d.balance < prev - 1e-9) _balStep = { prevBal: prev, stepUsd: prev - d.balance };
+  }
+  paintBal();
+}
 function restoreCachedBal(){
   if(!getKey()) return;
   try{
