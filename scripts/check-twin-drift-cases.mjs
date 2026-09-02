@@ -45,7 +45,7 @@ const CASES = [
   {
     name: "extract row 1 — resize and crop geometry",
     why: "sig = deletes = 25, the plainest mirrored removal in the plan",
-    idx: [[7680, 7740]],
+    idx: [[7690, 7750]],
     play: [[7599, 7634], [9628, 9642]],
     // Ranges re-anchored after bumpCost (+6 lines in play.html: refreshPlayBalance
     // when TTS/BGM omit remaining-balance). Surfaces still share resize helpers
@@ -55,7 +55,7 @@ const CASES = [
   {
     name: "extract row 2 — maskToSource",
     why: "5 twins, already exported from browser.mjs",
-    idx: [[8004, 8022]],
+    idx: [[8014, 8032]],
     play: [[7578, 7596]],
     expect: { exit: 1, oneSided: 6 },
   },
@@ -63,28 +63,28 @@ const CASES = [
     name: "extract row 3 — encodeWavMono + mediaFetchError",
     why: "index.html range ends at 9323, not 9309: play.html:6599-6710 carries the twins of " +
       "trimAudioToWavUrl and extractAudioToWavUrl too, and the shorter range left them one-sided",
-    idx: [[10200, 10275]],
+    idx: [[10210, 10285]],
     play: [[6751, 6868]],
     expect: { exit: 1, oneSided: 26, occurrence: 1 },
   },
   {
     name: "extract row 4 — prompt-cap helpers",
     why: "9 twins, library copy already in the bundle",
-    idx: [[4401, 4451]],
+    idx: [[4411, 4461]],
     play: [[8403, 8452]],
     expect: { exit: 1, oneSided: 9, occurrence: 1 },
   },
   {
     name: "extract row 5 — pricing resolver",
     why: "pricing twins grew with FLUX.3 quality×mode×resolution tables; 1 line index.html carries twice",
-    idx: [[5977, 6160]],
+    idx: [[5987, 6170]],
     play: [[6102, 6267]],
     expect: { exit: 1, oneSided: 43, occurrence: 1 },
   },
   {
     name: "extract row 6 — MP4CAT",
     why: "123 twins leave at once — the largest single mirrored deletion in the plan",
-    idx: [[10290, 10567]],
+    idx: [[10300, 10577]],
     play: [[6911, 7188]],
     expect: { exit: 1, oneSided: 112, occurrence: 3 },
   },
@@ -93,7 +93,7 @@ const CASES = [
     why: "play.html ranges corrected to 6706-6711 / 6739-6746 / 7025-7238. The old 6635-6679 " +
       "swallowed toLocalMediaUrl, seekVideo and MP4CAT's first 4 lines, and the old 6979-7169 " +
       "started AFTER prepClip and recordClip, whose index.html twins are inside 9617-9869",
-    idx: [[10569, 10821]],
+    idx: [[10579, 10831]],
     play: [[6870, 6875], [6903, 6910], [7189, 7404]],
     expect: { exit: 1, oneSided: 128, occurrence: 1 },
   },
@@ -109,7 +109,7 @@ const CASES = [
       "      and play.html twice, and only index.html's second copy is inside the block.\n" +
       "      Whoever does row 8 refreshes the baseline as part of it — deliberately, which is what\n" +
       "      the guard's own remedy line asks for",
-    idx: [[11829, 12145]],
+    idx: [[11839, 12155]],
     play: [[13846, 14165]],
     expect: { exit: 1, oneSided: 106, occurrence: 1 },
   },
@@ -118,7 +118,7 @@ const CASES = [
     why: "play.html ranges corrected to 13426 / 13508-13560 / 13664. The old 13292-13530 swallowed " +
       "the whole agent-pill popover (13294-13373) and the model-picker search, which index.html " +
       "keeps at 11822-11838 and 10608",
-    idx: [[12258, 12298]],
+    idx: [[12268, 12308]],
     play: [[14304, 14304], [14386, 14438], [14542, 14542]],
     expect: { exit: 1, oneSided: 38 },
   },
@@ -131,7 +131,7 @@ const CASES = [
     edits: [
       {
         file: "index.html",
-        line: 10672,
+        line: 10682,
         from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
         to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durIDX, 0);",
       },
@@ -150,7 +150,7 @@ const CASES = [
     edits: [
       {
         file: "index.html",
-        line: 10672,
+        line: 10682,
         from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
         to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durIDX, 0);",
       },
@@ -170,7 +170,7 @@ const CASES = [
     edits: [
       {
         file: "index.html",
-        line: 10672,
+        line: 10682,
         from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
         to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durTicks, 0);",
       },
@@ -194,7 +194,7 @@ const CASES = [
     edits: [
       {
         file: "index.html",
-        line: 10672,
+        line: 10682,
         from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
         to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durIDX, 0);",
       },
