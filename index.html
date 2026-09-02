@@ -9227,24 +9227,24 @@ function paintCost(){
 }
 // Show the balance the moment you're signed in — before any run prices it in. Generations keep it
 // live via x-remaining-balance headers; this just seeds it from nano-gpt on sign-in / boot.
-let _balPending = false;
+let _balPending = false, _balSeq = 0;
 let _balAgain = false;
 let _balAgainCorrective = false;
 async function refreshBalance(corrective){
   if(!getKey()) return;
   if(_balPending){ _balAgain = true; if(corrective) _balAgainCorrective = true; return; }
   _balPending = true;
-  const needCorrective = !!corrective;
+  const needCorrective = !!corrective, started = _balSeq;
   _balAgain = false;
   _balAgainCorrective = false;
   try{
     const r = await fetch(`${NANOGPT}/api/check-balance`, { method:"POST", headers:authHeaders(), body:"{}" });
     // Key rejection is detected at paste-time (probeKey) + run-time (flagAuth), not here.
-    if(!r.ok){ if(needCorrective){ stats.balStale = true; paintCost(); } return; }
+    if(!r.ok){ if(needCorrective && started === _balSeq){ stats.balStale = true; paintCost(); } return; }
     const usd = parseFloat((await r.json()).usd_balance);
-    if(!isNaN(usd)){ stats.balance = usd; stats.balStale = false; cacheBalance(); paintCost(); }
-    else if(needCorrective){ stats.balStale = true; paintCost(); }
-  }catch(_){ if(needCorrective){ stats.balStale = true; paintCost(); } }
+    if(started === _balSeq && !isNaN(usd)){ stats.balance = usd; stats.balStale = false; cacheBalance(); paintCost(); }
+    else if(started === _balSeq && needCorrective){ stats.balStale = true; paintCost(); }
+  }catch(_){ if(needCorrective && started === _balSeq){ stats.balStale = true; paintCost(); } }
   finally{
     _balPending = false;
     if(_balAgain) return refreshBalance(_balAgainCorrective);
@@ -11191,7 +11191,7 @@ function accrue(j, estUsd, r){
   const stepUsd = usd!=null ? usd : (typeof estUsd==="number" && isFinite(estUsd) ? estUsd : null);
   if(typeof noteCostStep === "function") noteCostStep(prevBal, stepUsd);
   const gotBal = !isNaN(hdrBal) || typeof j?.remainingBalance==="number" || (p && typeof p.remainingBalance==="number");
-  if(stepUsd!=null && stepUsd>0 && !gotBal && typeof refreshBalance==="function") refreshBalance(true);
+  if(gotBal) _balSeq++; else if(stepUsd!=null && stepUsd>0 && typeof refreshBalance==="function") refreshBalance(true);
   paintCost();
 }
 // Poll complete / refund: apply a terminal remaining-balance (header wins, then body) without
@@ -11204,7 +11204,7 @@ function applyPollSettlement(s, r, _refunded){
   if(bal==null && s && s.data && typeof s.data.remainingBalance==="number") bal = s.data.remainingBalance;
   if(bal!=null){
     stats.balance = bal;
-    stats.balStale = false;
+    stats.balStale = false; _balSeq++;
     cacheBalance();
     paintCost();
     return true;
