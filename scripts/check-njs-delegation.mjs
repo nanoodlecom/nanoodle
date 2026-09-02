@@ -22,6 +22,7 @@ catalog.audio.push(
   { id: "x", supported_parameters: {} },
   { id: "mureka-ai/mureka-v9.5/prompt-to-song", supported_parameters: {} },
   { id: "mureka-ai/mureka-v9.5/generate-song", supported_parameters: {} },
+  { id: "mureka-ai/mureka-v9.5/generate-bgm", supported_parameters: {} },
 );
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -89,6 +90,10 @@ const GRAPHS = [
   }, ["music"]],
   ["music generate-song (input + lyrics)", {
     nodes: [node("m1", "music", { model: "mureka-ai/mureka-v9.5/generate-song", prompt: "pop ballad", lyrics: "[Verse]\nhi" })],
+    links: [],
+  }, ["music"]],
+  ["music generate-bgm (prompt key, not input)", {
+    nodes: [node("m1", "music", { model: "mureka-ai/mureka-v9.5/generate-bgm", prompt: "lofi cafe rain" })],
     links: [],
   }, ["music"]],
 ];

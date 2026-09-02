@@ -297,11 +297,13 @@ async function runMusic(fields) {
 {
   const { posts } = await runMusic({ model: BGM, prompt: "lofi rain on a window" });
   if (posts.length !== 1) fail(`generate-bgm should POST once, got ${posts.length}`);
-  else if (posts[0].body.input !== "lofi rain on a window")
-    fail(`generate-bgm prompt not forwarded: ${JSON.stringify(posts[0].body)}`);
+  else if (posts[0].body.prompt !== "lofi rain on a window")
+    fail(`generate-bgm must send prompt (not input): ${JSON.stringify(posts[0].body)}`);
+  else if ("input" in posts[0].body)
+    fail(`generate-bgm must omit input, got ${JSON.stringify(posts[0].body)}`);
   else if ("lyrics" in posts[0].body)
     fail(`generate-bgm must omit empty lyrics, got ${JSON.stringify(posts[0].body)}`);
-  else ok("play: generate-bgm POSTs prompt-only");
+  else ok("play: generate-bgm POSTs prompt (not input)");
 }
 
 {
@@ -437,9 +439,13 @@ if (existsSync(VENDOR)) {
   await njsApp.runGraph(gBgm, {});
   const bgmPosts = audioPosts();
   if (bgmPosts.length !== 1) fail(`njs: generate-bgm should POST once, got ${bgmPosts.length}`);
+  else if (bgmPosts[0].body.prompt !== "lofi rain")
+    fail(`njs: generate-bgm must send prompt (not input): ${JSON.stringify(bgmPosts[0].body)}`);
+  else if ("input" in bgmPosts[0].body)
+    fail(`njs: generate-bgm must omit input, got ${JSON.stringify(bgmPosts[0].body)}`);
   else if ("lyrics" in bgmPosts[0].body)
     fail(`njs: generate-bgm must omit empty lyrics, got ${JSON.stringify(bgmPosts[0].body)}`);
-  else ok("njs: generate-bgm still POSTs prompt-only");
+  else ok("njs: generate-bgm POSTs prompt (not input)");
 
   calls.length = 0;
   const gSong = njsApp.materialize({
@@ -492,4 +498,4 @@ if (failed) {
   console.error(`\n${failed} mureka-lyrics check(s) failed`);
   process.exit(1);
 }
-console.log("\n✓ mureka-lyrics: generate-song preflight + API 400 message + BGM omit-empty");
+console.log("\n✓ mureka-lyrics: generate-song preflight + API 400 message + BGM prompt key (not input)");
