@@ -810,6 +810,7 @@ function editorLanguageClampCheck(fail) {
     extractIndexBlock(IDX, "const AUDIO_PARAMS = {"),
     extractIndexBlock(IDX, "function audioApplies(at, it){"),
     extractIndexBlock(IDX, "function audioFields(kind, it){"),
+    extractIndexBlock(IDX, "function assertGenerateSongLyrics(model, lyrics){"),
     extractIndexBlock(IDX, "function collectAudioParams(n){"),
     "globalThis.__collect = collectAudioParams;",
   ].join("\n");

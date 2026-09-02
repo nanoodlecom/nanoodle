@@ -5521,20 +5521,36 @@ function audioBody(n, promptLabel, ph, promptFirst){
     <details class="adv"><summary>advanced params (JSON)</summary>
       <textarea data-f="extraJson" style="min-height:34px" placeholder='{"any_extra_key": 123}'>${esc(n.fields.extraJson||"")}</textarea></details>`;
 }
+// Generate Song (Mureka family …/generate-song) requires lyrics. Empty lyrics are omitted
+// below, which used to 400 at NanoGPT — fail locally before any POST. BGM / Music 3 stay omit-empty.
+function assertGenerateSongLyrics(model, lyrics){
+  if(/\/generate-song$/i.test(String(model||"")) && (lyrics==null || String(lyrics).trim()===""))
+    throw new Error(String(model) + " needs Lyrics — fill the Lyrics field. Use Generate BGM for instrumental, or Prompt-to-Song to write lyrics from a prompt.");
+}
+function audioApiMessage(body){
+  try{
+    const j = JSON.parse(String(body||"").replace(/^\d{3}:\s*/, ""));
+    const msg = (j && j.error && j.error.message) || (j && j.message);
+    return (msg && String(msg).trim()) || null;
+  }catch(e){ return null; }
+}
 function collectAudioParams(n){
   const it = catItem("audio", n.fields.model); const body = {};
-  if(it){
-    for(const f of audioFields(n.type, it)){
-      let v = n.fields[f.id];
-      if(f.type==="boolean"){ if(v===true||v==="true") body[f.jsonKey]=true; continue; }
-      if(v==null || v==="") continue;
-      if(f.type==="select" && (f.options||[]).length && !(f.options||[]).includes(v)) continue; // leftover language/format not in this model's catalog enum (Qwen wants English, not en)
-      if(f.type==="number"){ let num=Number(v); if(isNaN(num)) continue;
-        if(f.appliesTo==="cat:gencount") num=1;   // never request more songs than the node can surface (one) — otherwise a stale/over-set field would bill for dropped tracks
-        if(f.default!=null && num===f.default) continue; body[f.jsonKey]=num; continue; }
-      if(f.default!=null && v===f.default) continue;       // e.g. response_format=mp3 → omit
-      body[f.jsonKey] = v;
-    }
+  // Catalog miss → send-everything fallback (twin of play): previously `if(it)` dropped lyrics
+  // and every other field for typed-in / cold-cache ids, so a Sing-style lyrics wire into
+  // Generate Song POSTed `{model,input}` only and 400'd. When the model IS in catalog, keep
+  // audioFields' cat:* gates (duration/voices/language/…).
+  const fields = it ? audioFields(n.type, it) : (AUDIO_PARAMS[n.type]||[]).map(p=>({ ...p, jsonKey:p.id }));
+  for(const f of fields){
+    let v = n.fields[f.id];
+    if(f.type==="boolean"){ if(v===true||v==="true") body[f.jsonKey]=true; continue; }
+    if(v==null || v==="") continue;
+    if(f.type==="select" && (f.options||[]).length && !(f.options||[]).includes(v)) continue; // leftover language/format not in this model's catalog enum (Qwen wants English, not en)
+    if(f.type==="number"){ let num=Number(v); if(isNaN(num)) continue;
+      if(f.appliesTo==="cat:gencount") num=1;   // never request more songs than the node can surface (one) — otherwise a stale/over-set field would bill for dropped tracks
+      if(f.default!=null && num===f.default) continue; body[f.jsonKey]=num; continue; }
+    if(f.default!=null && v===f.default) continue;       // e.g. response_format=mp3 → omit
+    body[f.jsonKey] = v;
   }
   if((n.fields.extraJson||"").trim()){                      // escape hatch: merge any extra keys verbatim
     try{ Object.assign(body, JSON.parse(n.fields.extraJson)); }catch{ throw new Error("advanced params: invalid JSON"); }
@@ -5549,6 +5565,7 @@ function collectAudioParams(n){
          || /generation_count|num_?songs|song_?count/i.test(k)) delete body[k];
     }
   }
+  assertGenerateSongLyrics(n.fields.model, body.lyrics);
   return body;
 }
 async function audioRun(n, inp, ctx){
@@ -9391,6 +9408,7 @@ function njsCtx(E, n){
         (e)=>{ if(!keepPending(e)) PENDING_VIDEO.delete(n.id); throw e; });
     },
     audio: (model, input, extra)=>{
+      assertGenerateSongLyrics(model, extra && extra.lyrics);
       const sig = sigHash(JSON.stringify([model, input, extra]));
       const pend = PENDING_AUDIO.get(n.id);
       const io2 = { ...io,
@@ -9399,7 +9417,7 @@ function njsCtx(E, n){
       };
       return client.audio(model, input, extra, io2).then(
         (url)=>{ PENDING_AUDIO.delete(n.id); return url; },
-        (e)=>{ if(!keepPending(e)) PENDING_AUDIO.delete(n.id); throw e; });
+        (e)=>{ if(!keepPending(e)) PENDING_AUDIO.delete(n.id); const apiMsg = e && /^400\b/.test(e.message||"") && audioApiMessage(e.message); throw apiMsg ? new Error(apiMsg) : e; });
     },
     transcribe: (model, audioUrl, language)=> client.transcribe(model, audioUrl, language, io),
     fetchMedia: (url)=> client.fetchMediaDataUrl(url, io),
@@ -10037,7 +10055,8 @@ const CTX = {
     if(!r.ok){
       flagAuth(r);
       const t = (await r.text()).slice(0,220);
-      if(/lyric/i.test(t)) throw new Error("This model needs lyrics — fill the Lyrics field (vocal models require them; leave empty / use a BGM model for instrumentals).");
+      const apiMsg = audioApiMessage(t);
+      if(r.status===400 && apiMsg) throw new Error(apiMsg);
       // cover-family models take only a HOSTED source ("requires a valid http(s) audio URL") — an
       // uploaded clip rides as data: and is rejected for free at submit. Point at the chained path.
       if(/valid https?\(?s?\)? audio url/i.test(t)) throw new Error("This model needs a hosted track — chain its audio from a 🎵 Music node (uploaded clips can't reach it), or pick another model.");
@@ -10961,7 +10980,7 @@ function friendlyRunError(err, n){
   if(/valid AIR|customCivitaiAir|invalidModel|missing_custom_model/i.test(m))
     return m.replace(/\s*—\s*this model may have changed on NanoGPT.*$/i,"")
       + " " + t("— not every CivitAI model or version is supported; try another AIR");
-  if(/^4\d\d\b/.test(m) && /model/i.test(m))
+  if(/^4\d\d\b/.test(m) && /model/i.test(m) && !/lyric|invalid_request/i.test(m))
     return m + " " + t("— this model may have changed on NanoGPT; click the node's model name to pick another");
   return m;
 }

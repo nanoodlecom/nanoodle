@@ -239,6 +239,23 @@ for (const [status, body, want, why] of [
   const passthru = api.friendlyRunError(new Error("some unrelated failure"));
   expect(setKeyCalls.length === 0, "friendlyRunError cleared the key on an unrelated Error");
   expect(passthru === "some unrelated failure", "friendlyRunError altered an unrelated error message");
+
+  // 3e: a real drifted-model 4xx still gets the "may have changed" suffix
+  reset();
+  const drifted = api.friendlyRunError(new Error("400: Invalid value for parameter 'model'"));
+  expect(/may have changed on NanoGPT/.test(drifted),
+    "friendlyRunError must still suffix a genuine model-id 4xx: " + JSON.stringify(drifted));
+
+  // 3f: lyrics / invalid_request 4xxs must NOT get that suffix — Generate Song's
+  // "Mureka v9.5 Generate Song requires lyrics" body mentions neither a retired id
+  // nor a picker, and "This model needs lyrics" used to match /model/i.
+  reset();
+  const lyric400 = api.friendlyRunError(new Error('400: {"error":{"message":"Mureka v9.5 Generate Song requires lyrics","type":"invalid_request_error","code":"invalid_request"}}'));
+  expect(!/may have changed/.test(lyric400),
+    "friendlyRunError appended the model-changed suffix to a lyrics/invalid_request 400: " + JSON.stringify(lyric400));
+  const remap = api.friendlyRunError(new Error("400: This model needs lyrics — fill the Lyrics field"));
+  expect(!/may have changed/.test(remap),
+    "friendlyRunError appended the model-changed suffix to a lyrics 400: " + JSON.stringify(remap));
 }
 
 // ======================================================================
