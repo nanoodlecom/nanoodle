@@ -168,6 +168,7 @@ try {
     // 2) representative non-model knobs are present with the expected control kind
     const KNOB = [
       { type: "image",      field: "size",       kind: "select" },
+      { type: "image",      field: "aspect",     kind: "select" },
       { type: "tvideo",     field: "duration",   kind: "select" },
       { type: "tvideo",     field: "resolution", kind: "select" },
       { type: "tvideo",     field: "aspect",     kind: "select" },
@@ -186,6 +187,8 @@ try {
     const img = byField(settingsOf(graph([node("n1", "image", {})])));
     if (img.size && !(Array.isArray(img.size.options) && img.size.options.length))
       fail("image.size select has no options");
+    if (img.aspect && !(Array.isArray(img.aspect.options) && img.aspect.options.length))
+      fail("image.aspect select has no options");
 
     // 3) THE invariant: settings must NEVER leak into deriveInputs() (would corrupt ioSignature).
     //    deriveInputs may only emit content kinds — never a knob kind.

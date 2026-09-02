@@ -1,4 +1,4 @@
-/* data-hash=4ceac35dc89496c2 */
+/* data-hash=ecf186f5bf4f374c */
 /* nanoodle-js browser engine — generated from nanoodle-js@src-91b4bf425be9 (16 modules) */
 (function () {
   "use strict";
@@ -1613,6 +1613,11 @@ function imgExtra(n) {
   } else if (airModelTakesNegative(n.fields.model)) {
     const np = String(n.fields.negativePrompt || "").trim();
     if (np) e.negative_prompt = np;
+  }
+  // FIBO 1.5: size is 1mp/4mp; shape rides as aspect_ratio. Only this advertised id.
+  if (n.fields.model === "bria/fibo-generate-1.5/text-to-image") {
+    const av = (n.fields.aspect != null && n.fields.aspect !== "") ? n.fields.aspect : "1:1";
+    if (av !== "") e.aspect_ratio = String(av);
   }
   return e;
 }

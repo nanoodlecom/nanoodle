@@ -5855,6 +5855,19 @@ function applyDimFields(fields, defs){
   }
   return fields;
 }
+// Image models whose v1 catalog only lists megapixel size tiers (1mp/4mp) but the marketing
+// /api/models additionalParams advertise a separate aspect_ratio select. FIBO Generate 1.5 is
+// the live case (fetched 2026-09-01): size is 1mp/4mp, shape is this list. Drop the map once
+// /api/v1/image-models lists aspect_ratio. Gated by model id so we never send the key to a
+// model that didn't advertise it (unknown 400).
+const IMAGE_ASPECT = {
+  "bria/fibo-generate-1.5/text-to-image": {
+    options: [["1:1","1:1"],["2:3","2:3"],["3:2","3:2"],["3:4","3:4"],["4:3","4:3"],["4:5","4:5"],["5:4","5:4"],["9:16","9:16"],["16:9","16:9"]],
+    def: "1:1",
+  },
+};
+function imageAspectSpec(model){ return IMAGE_ASPECT[model] || null; }
+
 // the dimension fields a node should show, resolved from its model's catalog entry
 function dimDefs(type, model){
   if(type==="image" || type==="edit" || type==="inpaint"){
@@ -5862,6 +5875,8 @@ function dimDefs(type, model){
     const listed = !!(it && it.resolutions && it.resolutions.length);
     const res = listed ? it.resolutions.map(r=>[r,r]) : SIZE_FALLBACK;
     const defs = [{ f:"size", label:"size", options:res, def:res[0][0], known:listed }];
+    const asp = imageAspectSpec(model);
+    if(asp) defs.push({ f:"aspect", wire:"aspect_ratio", label:"aspect", options:asp.options, def:asp.def, known:true });
     const maxOut = (it && it.maxOut) || 1;                  // generate-N-pick-one — gen node only, when the model supports it
     const fixed = (it && it.fixedCount) || 0;               // ALWAYS returns this many (catalog: midjourney/higgsfield = 4)
     // A fixed_image_count model ignores n entirely — it returns N and bills for N. Offering a 1..N
@@ -9813,6 +9828,14 @@ function loraBodyFor(model, items){       // items: [{url,scale}], 1..cap, alrea
 function imgExtra(n){
   const e = loraParams(n), s = n.fields.seed;
   if(s!=null && String(s).trim()!=="" && !isNaN(Number(s))) e.seed = Number(s);
+  // FIBO 1.5 (and any future IMAGE_ASPECT id): size is 1mp/4mp; shape rides as aspect_ratio.
+  // Only send when this model advertised the field — leftover aspect after a model swap must
+  // not go out on Muse/Recraft/etc.
+  const asp = imageAspectSpec(n.fields.model);
+  if(asp){
+    const v = (n.fields.aspect!=null && n.fields.aspect!=="") ? n.fields.aspect : asp.def;
+    if(v!=null && v!=="") e.aspect_ratio = String(v);
+  }
   if(needsCustomCivitai(n.fields.model)){
     const air = normalizeCustomCivitaiAir(n.fields.customCivitaiAir);
     if(!air) throw new Error(t("select an AIR model — pick a Runware preset or paste civitai:/runware:/persona:…"));
@@ -13166,6 +13189,7 @@ $("signout").onclick = ()=> setKey(null);
     vision:{ fields:{ model:"vision model id (optional)", q:"the question" } },
     image:{ main:"prompt", fields:{
       model:"image model id (optional)", prompt:"image prompt", size:"e.g. 1024x1024 or catalog tier",
+      aspect:"output shape (FIBO 1.5: 1:1 / 16:9 / … — size stays 1mp/4mp)",
       variations:"how many candidates (1…max_output_images)", seed:"fixed seed to repeat (blank = random)",
       customCivitaiAir:"AIR for custom-civitai (civitai:/runware:/persona:…; required)",
       civitAirGroup:"dropdown group for custom-civitai presets (runware|civitai|persona|custom)",
@@ -13173,6 +13197,7 @@ $("signout").onclick = ()=> setKey(null);
     } },
     edit:{ main:"prompt", fields:{
       model:"edit model id (optional)", prompt:"edit instruction", size:"output size tier",
+      aspect:"output shape when the model splits size from ratio (FIBO 1.5)",
       seed:"fixed seed (blank = random)",
     }, note:"multi-reference models grow image, image2, … up to max_input_images" },
     inpaint:{ main:"prompt", fields:{

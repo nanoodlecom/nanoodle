@@ -104,6 +104,8 @@ function loadEditor() {
     dimNumLine(IDX),
     block(IDX, "function nearestDimOption(cur, options, def){"),
     block(IDX, "function applyDimFields(fields, defs){"),
+    block(IDX, "const IMAGE_ASPECT = {").replace(/^const\s/, "var "),
+    block(IDX, "function imageAspectSpec(model){"),
     block(IDX, "function dimDefs(type, model){"),
     block(IDX, "function videoDimParams(n){"),
     "var catalogs = { image:[], video:[] };",
@@ -123,6 +125,7 @@ function loadPlay() {
     dimNumLine(PLAY),
     block(PLAY, "function nearestDimOption(cur, options, def){"),
     block(PLAY, "function applyDimFields(fields, defs){"),
+    block(PLAY, "function imageAspectSpec(model){"),
     block(PLAY, "function dimOptionsFromItem(type, m){"),
     block(PLAY, "function snapImageSize(n, raw){"),
   ].join("\n");
@@ -305,6 +308,34 @@ editor.catalogs.image = [BANANA, QWEN];
     else if (size.options.some((o) => String(o[0]) === "2k")) fail("editor: inpaint applyDimFields injected 2k as a fake option");
     else ok("editor: leftover 2k on inpaint/qwen-image-3 snaps to " + fields.size);
   }
+}
+
+{
+  // FIBO 1.5: size is 1mp/4mp in the v1 catalog; aspect_ratio is a separate marketing-catalog select.
+  const defs = editor.dimDefs("image", "bria/fibo-generate-1.5/text-to-image");
+  const asp = defs.find((d) => d.f === "aspect");
+  const listed = (asp && asp.options || []).map((o) => String(o[0]));
+  if (!asp) fail("editor: FIBO 1.5 Image node must grow an aspect knob");
+  else if (asp.wire !== "aspect_ratio") fail("editor: FIBO aspect wire must be aspect_ratio, got " + asp.wire);
+  else if (!listed.includes("16:9") || !listed.includes("9:16") || !listed.includes("1:1"))
+    fail("editor: FIBO aspect list missing 1:1/16:9/9:16, got " + listed.join(","));
+  else ok("editor: FIBO 1.5 Image node shows aspect_ratio " + listed.join("/"));
+  const recraft = editor.dimDefs("image", "recraft-v4");
+  if (recraft.some((d) => d.f === "aspect")) fail("editor: Recraft V4 must not grow an aspect knob (not in IMAGE_ASPECT)");
+  else ok("editor: Recraft V4 has no aspect knob");
+}
+
+{
+  const pack = play.dimOptionsFromItem("image", {
+    id: "bria/fibo-generate-1.5/text-to-image",
+    supported_parameters: { resolutions: ["1mp", "4mp"] },
+  });
+  const listed = (pack.aspect || []).map((o) => String(o[0]));
+  if (!pack.aspect || !listed.includes("16:9")) fail("play: dimOptionsFromItem missed FIBO aspect, got " + JSON.stringify(pack.aspect));
+  else ok("play: dimOptionsFromItem lists FIBO aspect " + listed.join("/"));
+  const none = play.dimOptionsFromItem("image", { id: "recraft-v4", supported_parameters: { resolutions: ["1024x1024"] } });
+  if (none.aspect) fail("play: Recraft V4 dimOptionsFromItem must not list aspect");
+  else ok("play: Recraft V4 dimOptionsFromItem has no aspect");
 }
 
 {
