@@ -135,7 +135,32 @@ eq(S.endpointParseImage({ data: [{ b64_json: "abc" }] }), { image: "data:image/p
   "image generations parse");
 eq(S.endpointParseVideo({ url: "https://x/v.mp4" }), { video: "https://x/v.mp4" }, "video {url} parse");
 eq(S.endpointParseJsonMode({ text: "hi" }), { text: "hi" }, "json {text} parse");
-eq(S.endpointParseJsonMode({ data: { a: 1 } }), { text: "{\"a\":1}" }, "json {data} parse");
+eq(S.endpointParseJsonMode({ data: { a: 1 } }), { text: "{\n  \"a\": 1\n}" }, "json {data} pretty excerpt");
+eq(S.endpointParseJsonMode({ data: { text: "receipt" } }), { text: "receipt" }, "json {data:{text}} peels the line");
+eq(S.endpointParseJsonMode({ data: "{\"text\":\"echo me\"}" }), { text: "echo me" }, "json data string unwraps {text}");
+{
+  const bingo = {
+    args: {},
+    headers: { Host: ["httpbingo.org"], "Content-Type": ["application/json"], "X-Forwarded-For": ["1.2.3.4"] },
+    method: "POST",
+    origin: "1.2.3.4",
+    url: "https://httpbingo.org/post",
+    data: "{\"text\":\"The graph is the product.\"}",
+    files: {},
+    form: {},
+    json: { text: "The graph is the product." },
+  };
+  eq(S.endpointParseJsonMode(bingo), { text: "The graph is the product." },
+    "httpbingo echo shows the posted line, not the wrapper");
+  ok(!/Host|Content-Type|X-Forwarded|httpbingo\.org\/post/i.test(S.endpointParseJsonMode(bingo).text),
+    "httpbingo result is not a header wall");
+  const dataOnly = Object.assign({}, bingo, { json: null, data: "{\"text\":\"joke from data\"}" });
+  eq(S.endpointParseJsonMode(dataOnly), { text: "joke from data" }, "httpbingo with empty json still peels data");
+  const jsonOnly = Object.assign({}, bingo, { data: "", json: { text: "joke from json" } });
+  eq(S.endpointParseJsonMode(jsonOnly), { text: "joke from json" }, "httpbingo empty data uses parsed json body");
+  const noText = Object.assign({}, bingo, { data: "{\"foo\":2}", json: { foo: 2 } });
+  eq(S.endpointParseJsonMode(noText), { text: "{\n  \"foo\": 2\n}" }, "echo body without text is a short pretty excerpt");
+}
 
 // ---- headers: custom auth only, never a NanoGPT key --------------------------
 eq(S.endpointHeaders(""), { "Content-Type": "application/json" }, "no auth header when the field is empty");
@@ -189,6 +214,31 @@ ok(!Object.values(S.endpointHeaders("tok")).some((v) => /x-api-key/i.test(String
   );
   ok(fromDef && fromDef.text === "from-local", "runEndpoint uses the default URL when the field is omitted");
   ok(calls[0] && calls[0].url === S.ENDPOINT_DEF_URL, "omitted URL field POSTs to ENDPOINT_DEF_URL");
+
+  calls.length = 0;
+  S.fetch = (url, opts) => {
+    calls.push({ url, opts });
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      headers: { get: () => "application/json" },
+      json: async () => ({
+        headers: { Host: ["httpbingo.org"], "Content-Type": ["application/json"] },
+        method: "POST",
+        origin: "1.2.3.4",
+        url: "https://httpbingo.org/post",
+        data: opts.body,
+        json: JSON.parse(opts.body),
+      }),
+      text: async () => "",
+    });
+  };
+  const echo = await S.runEndpoint(
+    { fields: { url: "https://httpbingo.org/post", mode: "json", prompt: "The graph is the product." } },
+    {},
+  );
+  ok(echo && echo.text === "The graph is the product.", "runEndpoint json mode shows httpbingo posted text");
+  ok(!/Host|Content-Type|X-Forwarded/i.test(echo.text), "runEndpoint json mode does not dump echo headers");
 
   S.fetch = () => Promise.reject(Object.assign(new TypeError("Failed to fetch"), { name: "TypeError" }));
   let opaque = "";

@@ -7835,10 +7835,42 @@ function mp4ParamsMatch(bufs){
     if(!url) throw new Error("no audio url in response — return { \"url\" } or a binary audio body");
     return { audio:url };
   }
+  // httpbingo / httpbin-style echo: a wrapper with headers + the posted body in
+  // data (raw string) and/or json (parsed). Prefer the body — never the header wall.
+  function endpointLooksLikeEcho(j){
+    if(!j || typeof j !== "object") return false;
+    var h = j.headers;
+    if(!h || typeof h !== "object" || Array.isArray(h)) return false;
+    if(!Object.prototype.hasOwnProperty.call(j, "data") && !Object.prototype.hasOwnProperty.call(j, "json")) return false;
+    return j.url != null || j.origin != null || j.method != null;
+  }
+  function endpointJsonModeText(v){
+    if(typeof v === "string"){
+      var s = v.trim();
+      if(s){
+        try{
+          var p = JSON.parse(s);
+          if(p && typeof p === "object") return endpointJsonModeText(p);
+        }catch(e){}
+      }
+      return v;
+    }
+    if(v && typeof v === "object"){
+      if(endpointLooksLikeEcho(v)){
+        var inner = (Object.prototype.hasOwnProperty.call(v, "json") && v.json != null) ? v.json : v.data;
+        if(inner !== v) return endpointJsonModeText(inner);
+      }
+      if(v.text != null) return String(v.text);
+      try{ return JSON.stringify(v, null, 2); }catch(e){ return String(v); }
+    }
+    return v == null ? "" : String(v);
+  }
   function endpointParseJsonMode(j){
-    if(j && j.text != null) return { text:String(j.text) };
+    if(j && j.text != null && !endpointLooksLikeEcho(j)) return { text:String(j.text) };
+    if(endpointLooksLikeEcho(j))
+      return { text: endpointJsonModeText((Object.prototype.hasOwnProperty.call(j, "json") && j.json != null) ? j.json : j.data) };
     if(j && Object.prototype.hasOwnProperty.call(j, "data"))
-      return { text: typeof j.data==="string" ? j.data : JSON.stringify(j.data) };
+      return { text: endpointJsonModeText(j.data) };
     throw new Error("json mode expected { \"text\" } or { \"data\": ... }");
   }
   async function endpointParseResponse(mode, r){
