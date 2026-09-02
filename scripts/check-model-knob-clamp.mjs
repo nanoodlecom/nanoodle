@@ -13,6 +13,8 @@
 //   * refreshDims / fillDimLists never inject a fake option once the catalog is known
 //   * load path (refreshAllPrices / fillDimLists) clamps, not only the picker
 //   * play tvideo.run / videoDimParams SEND path snaps (the original "Play sent 8s" bug)
+//   * play/editor/njs omit leftover resolution when the catalog does not advertise it
+//     (Omni v1 has duration+aspect only; leftover 4k from v1.1 must not POST)
 //   * editor videoDimParams SEND path snaps leftover 8s without a prior applyDimFields
 //   * editor image/edit/inpaint SEND path snaps leftover 2k (dimDefs includes inpaint)
 //   * play image.run / snapImageSize SEND path snaps leftover 2k (fillDimLists is async)
@@ -285,6 +287,25 @@ editor.catalogs.image = [BANANA, QWEN];
   else if (wire.duration == null || wire.duration === "") fail("editor send: videoDimParams dropped duration");
   else if (String(n.fields.duration) === "8") fail("editor send: videoDimParams left fields.duration=8");
   else ok("editor send: videoDimParams clamps leftover 8s on Wan Prime to " + wire.duration + " (no prior applyDimFields)");
+}
+
+{
+  const n = { type: "tvideo", fields: { model: "google/gemini-omni-flash", duration: "8", aspect: "16:9", resolution: "4k" } };
+  const wire = editor.videoDimParams(n);
+  if (wire.resolution != null && wire.resolution !== "") {
+    fail("editor send: Omni v1 posted leftover resolution " + JSON.stringify(wire.resolution));
+  } else if (String(wire.duration) !== "8") {
+    fail("editor send: Omni v1 duration was dropped/clamped, got " + JSON.stringify(wire.duration));
+  } else if (wire.aspect_ratio !== "16:9") {
+    fail("editor send: Omni v1 aspect_ratio was dropped, got " + JSON.stringify(wire.aspect_ratio));
+  } else ok("editor send: Omni v1 omits leftover 4k resolution (catalog has none)");
+}
+
+{
+  const n = { type: "tvideo", fields: { model: "google/gemini-omni-flash/v1.1", duration: "8", aspect: "16:9", resolution: "4k" } };
+  const wire = editor.videoDimParams(n);
+  if (String(wire.resolution) !== "4k") fail("editor send: Omni 1.1 dropped listed 4k, got " + JSON.stringify(wire.resolution));
+  else ok("editor send: Omni 1.1 still posts listed 4k resolution");
 }
 
 {
@@ -626,6 +647,29 @@ catalog.video = [
       frames_per_second: { options: [{ value: "24" }, { value: "30" }], default: "24" },
     } },
   },
+  {
+    id: "google/gemini-omni-flash",
+    supported_parameters: { parameters: {
+      duration: { type: "select", default: "8", options: OMNI_DUR_OPTS },
+      aspect_ratio: { type: "select", default: "16:9", options: [{ value: "16:9" }, { value: "9:16" }] },
+    } },
+  },
+  {
+    id: "google/gemini-omni-flash/v1.1",
+    supported_parameters: { parameters: {
+      duration: { type: "select", default: "8", options: OMNI_DUR_OPTS },
+      resolution: { type: "select", default: "720p", options: [
+        { value: "360p" }, { value: "720p" }, { value: "1080p" }, { value: "4k" },
+      ] },
+      aspect_ratio: { type: "select", default: "16:9", options: [{ value: "16:9" }, { value: "9:16" }] },
+    } },
+  },
+  {
+    id: "no-aspect-vedit",
+    supported_parameters: { parameters: {
+      resolution: { options: [{ value: "720p" }, { value: "1080p" }], default: "720p" },
+    } },
+  },
 ];
 
 const app = loadEngine();
@@ -706,6 +750,122 @@ async function spyTvideo(fields) {
   const dur = sent && sent.opts && sent.opts.dims && sent.opts.dims.duration;
   if (String(dur) !== "8") fail("play send: catalog-missing model clobbered a stored 8s (got " + dur + ")");
   else ok("play send: catalog-missing model still posts the stored 8s (no false clamp)");
+}
+
+{
+  const sent = await spyTvideo({ model: "google/gemini-omni-flash", duration: "8", aspect: "16:9", resolution: "4k" });
+  const dims = (sent && sent.opts && sent.opts.dims) || {};
+  if (dims.resolution != null && dims.resolution !== "") {
+    fail("play send: Omni v1 posted leftover resolution " + JSON.stringify(dims.resolution));
+  } else if (String(dims.duration) !== "8") {
+    fail("play send: Omni v1 duration was dropped/clamped, got " + JSON.stringify(dims.duration));
+  } else if (dims.aspect_ratio !== "16:9") {
+    fail("play send: Omni v1 aspect_ratio was dropped, got " + JSON.stringify(dims.aspect_ratio));
+  } else ok("play send: Omni v1 omits leftover 4k resolution (catalog has none)");
+}
+
+{
+  const sent = await spyTvideo({ model: "google/gemini-omni-flash/v1.1", duration: "8", aspect: "16:9", resolution: "4k" });
+  const dims = (sent && sent.opts && sent.opts.dims) || {};
+  if (String(dims.resolution) !== "4k") fail("play send: Omni 1.1 dropped listed 4k, got " + JSON.stringify(dims.resolution));
+  else ok("play send: Omni 1.1 still posts listed 4k resolution");
+}
+
+{
+  const sent = await spyTvideo({ model: "google/gemini-omni-flash/v1.1", duration: "8", aspect: "16:9", resolution: "768p" });
+  const dims = (sent && sent.opts && sent.opts.dims) || {};
+  if (String(dims.resolution) === "768p") fail("play send: leftover 768p survived on Omni 1.1");
+  else if (!["360p", "720p", "1080p", "4k"].includes(String(dims.resolution))) {
+    fail("play send: Omni 1.1 768p snap is not a listed res, got " + JSON.stringify(dims.resolution));
+  } else ok("play send: leftover 768p on Omni 1.1 snaps to " + dims.resolution);
+}
+
+async function spyVedit(fields) {
+  let sent = null;
+  await app.NODE_TYPES.vedit.run(
+    { id: "e1", type: "vedit", fields: { prompt: "restyle", ...fields } },
+    { video: "https://cdn.example/in.mp4" },
+    { genVideo: (model, prompt, opts) => { sent = { model, prompt, opts }; return "https://cdn.example/v.mp4"; } },
+    () => {},
+  );
+  return sent;
+}
+
+{
+  const sent = await spyVedit({ model: "no-aspect-vedit", resolution: "1080p", aspect: "9:16", duration: "8" });
+  const dims = (sent && sent.opts && sent.opts.dims) || {};
+  if (dims.aspect_ratio != null) fail("play send: vedit posted leftover aspect_ratio on a no-aspect model");
+  else if (dims.duration != null) fail("play send: vedit posted leftover duration on a no-duration model");
+  else if (String(dims.resolution) !== "1080p") fail("play send: vedit dropped listed 1080p, got " + JSON.stringify(dims.resolution));
+  else ok("play send: vedit omits leftover aspect/duration when the catalog does not list them");
+}
+
+{
+  const vdp = block(PLAY, "async function videoDimParams(n){");
+  if (!/pack\.resolution && res!=null/.test(vdp)) fail("play: videoDimParams no longer gates resolution on catalog advertisement");
+  else ok("play: videoDimParams only posts resolution when the catalog lists it");
+}
+
+// njs videoDims (exported / editor-delegated path) — same Omni v1 leftover-resolution gate
+{
+  const njsSrc = readFileSync(join(ROOT, "vendor", "njs-engine.js"), "utf8");
+  const start = njsSrc.indexOf("function videoDims(n, ctx) {");
+  if (start === -1) fail("njs: videoDims() not found");
+  else {
+    let depth = 0, end = -1;
+    for (let j = njsSrc.indexOf("{", start); j < njsSrc.length; j++) {
+      if (njsSrc[j] === "{") depth++;
+      else if (njsSrc[j] === "}" && --depth === 0) { end = j + 1; break; }
+    }
+    const ctx = {
+      console,
+      catItem: (catalog, kind, id) => (catalog && catalog[kind] || []).find((m) => m && m.id === id) || null,
+    };
+    vm.createContext(ctx);
+    vm.runInContext(njsSrc.slice(start, end), ctx);
+    const cat = {
+      video: [
+        {
+          id: "google/gemini-omni-flash",
+          supported_parameters: { parameters: {
+            duration: { type: "select", default: "8", options: OMNI_DUR_OPTS },
+            aspect_ratio: { type: "select", default: "16:9", options: [{ value: "16:9" }, { value: "9:16" }] },
+          } },
+        },
+        {
+          id: "google/gemini-omni-flash/v1.1",
+          supported_parameters: { parameters: {
+            duration: { type: "select", default: "8", options: OMNI_DUR_OPTS },
+            resolution: { type: "select", default: "720p", options: [{ value: "720p" }, { value: "4k" }] },
+            aspect_ratio: { type: "select", default: "16:9", options: [{ value: "16:9" }, { value: "9:16" }] },
+          } },
+        },
+      ],
+    };
+    const v1 = ctx.videoDims(
+      { type: "tvideo", fields: { model: "google/gemini-omni-flash", duration: "8", aspect: "16:9", resolution: "4k" } },
+      { catalog: cat },
+    );
+    if (v1.resolution != null) fail("njs send: Omni v1 posted leftover resolution " + JSON.stringify(v1.resolution));
+    else if (String(v1.duration) !== "8" || v1.aspect_ratio !== "16:9") {
+      fail("njs send: Omni v1 dropped duration/aspect, got " + JSON.stringify(v1));
+    } else ok("njs send: Omni v1 omits leftover 4k resolution (catalog has none)");
+
+    const v11 = ctx.videoDims(
+      { type: "tvideo", fields: { model: "google/gemini-omni-flash/v1.1", duration: "8", aspect: "16:9", resolution: "4k" } },
+      { catalog: cat },
+    );
+    if (String(v11.resolution) !== "4k") fail("njs send: Omni 1.1 dropped listed 4k, got " + JSON.stringify(v11.resolution));
+    else ok("njs send: Omni 1.1 still posts listed 4k resolution");
+
+    const ved = ctx.videoDims(
+      { type: "vedit", fields: { model: "google/gemini-omni-flash", duration: "8", aspect: "9:16", resolution: "4k" } },
+      { catalog: cat },
+    );
+    if (ved.resolution != null) fail("njs send: Omni v1 vedit posted leftover resolution");
+    else if (ved.aspect_ratio !== "9:16") fail("njs send: Omni v1 vedit dropped advertised aspect");
+    else ok("njs send: vedit omits leftover resolution when the catalog does not list it");
+  }
 }
 
 async function spyImage(fields) {
