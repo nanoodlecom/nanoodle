@@ -117,6 +117,7 @@ const REAL = [
   grab(/const IMG_INPUT_ROLES = \{[^\n]*\};/, "IMG_INPUT_ROLES"),   // njsRunFor's role-model veto reads it
   extractFn("withLocale"), extractFn("collectImageInputs"), extractFn("llmOpts"),
   extractFn("chatModelCan"), extractFn("modelSupportsAudio"), extractFn("audioInputPart"),
+  extractConst("IMAGE_ASPECT"), extractFn("imageAspectSpec"),
   extractFn("imgExtra"), extractFn("b64ImageMime"), extractFn("imageUnitUsd"),
   extractFn("authHeaders"), extractFn("sigHash"),
   grab(/const catItem = [^\n]*/, "catItem"),
@@ -197,6 +198,7 @@ const SCENARIOS = [
   ["llm chat", "llm", { model: "x", system: "You are terse.", prompt: "Hello" }, {}, null],
   ["llm chat localized", "llm", { model: "x", system: "You are terse.", prompt: "Hola" }, {}, "Respond in Spanish."],
   ["image seed", "image", { model: "x", prompt: "a fox", seed: "7" }, {}, null],
+  ["image fibo aspect", "image", { model: "bria/fibo-generate-1.5/text-to-image", prompt: "studio still", size: "1mp", aspect: "16:9" }, {}, null],
   ["edit multi-ref", "edit", { model: "x", prompt: "merge" }, { image: IMG, image2: IMG }, null],
   // blob: audio must reach the model as base64 BYTES on both paths: built-in inlines via
   // urlToDataUrl, the shim materializes before the library runner ("y" is catalog-absent, so

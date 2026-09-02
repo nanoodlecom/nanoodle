@@ -44,6 +44,7 @@ const rolesLine   = grab(/const IMG_INPUT_ROLES = \{[^\n]*\};/, "IMG_INPUT_ROLES
 const sizeFbLine  = grab(/const SIZE_FALLBACK\s+= [^\n]*;/, "SIZE_FALLBACK");
 const aspectFbLine= grab(/const ASPECT_FALLBACK\s+= [^\n]*;/, "ASPECT_FALLBACK");
 const durFbLine   = grab(/const DURATION_FALLBACK = [^\n]*;/, "DURATION_FALLBACK");
+const imgAspLine  = grab(/const IMAGE_ASPECT = \{[\s\S]*?\n\};/, "IMAGE_ASPECT");
 
 // A node's REAL run() — an object-literal method, so brace-match from `async run(` (the first one
 // after the `<type>: {` marker) and rename it to a standalone callable. This lets us drive the
@@ -65,9 +66,9 @@ function extractNodeRun(src, type, alias) {
 
 const bundle =
   reLine + "\n" + editReLine + "\n" + portIdxLine + "\n" + rolesLine + "\n" +
-  sizeFbLine + "\n" + aspectFbLine + "\n" + durFbLine + "\n" +
+  sizeFbLine + "\n" + aspectFbLine + "\n" + durFbLine + "\n" + imgAspLine + "\n" +
   ["modelSupportsImages", "imgSpec", "imageInputDefs", "collectImageInputs", "recompactImageLinks",
-   "selOpts", "paramDef", "dimShape", "nearestDimOption", "applyDimFields", "dimDefs", "livePrice"]
+   "selOpts", "paramDef", "dimShape", "nearestDimOption", "applyDimFields", "imageAspectSpec", "dimDefs", "livePrice"]
     .map((n) => extractFn(SRC, n)).join("\n") + "\n" +
   grab(/const dimNum = [^\n]*;/, "dimNum") + "\n" +
   (() => {

@@ -1,5 +1,5 @@
-/* data-hash=4ceac35dc89496c2 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-91b4bf425be9 (16 modules) */
+/* data-hash=9dfa31424ddf0519 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-1ff64f798e63 (16 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -1613,6 +1613,13 @@ function imgExtra(n) {
   } else if (airModelTakesNegative(n.fields.model)) {
     const np = String(n.fields.negativePrompt || "").trim();
     if (np) e.negative_prompt = np;
+  }
+  // FIBO 1.5: size is 1mp/4mp; shape rides as aspect_ratio. Only this advertised id —
+  // leftover fields.aspect after a model swap must not go out on Muse/Recraft/etc.
+  // Marketing /api/models additionalParams.aspect_ratio (v1 image-models still omits it).
+  if (n.fields.model === "bria/fibo-generate-1.5/text-to-image") {
+    const av = (n.fields.aspect != null && n.fields.aspect !== "") ? n.fields.aspect : "1:1";
+    if (av !== "") e.aspect_ratio = String(av);
   }
   return e;
 }
@@ -4805,5 +4812,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-91b4bf425be9";
+  window.NanoodleEngine.version = "src-1ff64f798e63";
 })();
