@@ -1,9 +1,9 @@
 {
   "_comment": "Baseline for scripts/check-twin-drift.mjs — the hand-maintained duplication between index.html and play.html. `count` is a RATCHET: extraction may lower it freely, new duplication may not raise it silently. Each `lines` entry is `<hash> <n in index.html> <n in play.html> <look-alikes in index.html> <look-alikes in play.html> <the line>`, where the hash is a 16-hex sha256 of the stripped line and the guard re-hashes the text to prove the two agree. The per-surface counts matter: a line that appears twice in one file can be edited in one place and still be present. The text matters: without it the guard cannot tell a real extraction from a line that both surfaces replaced with DIFFERENT text. The look-alike sets matter: they are the hashes of the lines that ALREADY resembled this one when the baseline was written, and without them the guard reads one of those as a `replacement` and fails a plain mirrored deletion. `-` means none. Do not hand edit this file. Refresh deliberately with: TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs Ranked extraction plan: docs/twin-drift.md",
-  "count": 1032,
-  "occurrencesIndexHtml": 1102,
-  "occurrencesPlayHtml": 1155,
-  "digest": "62b5a93b1ad63775385f726a94f7c6ac",
+  "count": 1033,
+  "occurrencesIndexHtml": 1103,
+  "occurrencesPlayHtml": 1156,
+  "digest": "9b17392a2feba2bf05e174dc3aac123a",
   "lines": [
     "002720750bb5da1d 1 1 - - Emphasized (bright accent ring + ✓) but still clearly a button in the row, not a filled tag. */",
     "0032d4132e67eee1 1 1 - - if(mode===\"image\") return { data:[{ b64_json:\"<png-or-jpeg-base64>\" }] };",
@@ -826,6 +826,7 @@
     "cbcff69984e32aa5 1 1 - - g.fillStyle=\"#1e1e26\"; g.strokeStyle=\"#3c3c4a\"; g.lineWidth=2;",
     "cbdd8a9804c6c354 1 1 02e7ca1b19df827f,fefab5343c39319e 02e7ca1b19df827f,fefab5343c39319e return { audio: URL.createObjectURL(new Blob([blob], { type:t })) };",
     "ccaa6f4e96610809 1 1 - - if(typeof runSignal===\"function\") return runSignal();",
+    "cd329bc40911a1fe 1 1 - - // leftover size snap — njs is the default send path; library posts fields.size raw",
     "cd6ddef521f8337d 5 1 07ca7f99652b7e11,129ad099e535c596,15b0a0cbe80654d7,3fbf5a580887b572,59157d58bc5429b4,5e9a1295e4a341ea,ddfde38f2d488e38 0236b6ddb3bc2d62,129ad099e535c596,15b0a0cbe80654d7,1e40d9c6353ebc8c,59157d58bc5429b4,5e9a1295e4a341ea,68450a46e72a884c,746f553f52948991,7d5be815c172d016,a0278e8b26e1d5e9,ece68bb51d2aeba0 const row = document.createElement(\"div\");",
     "cd9c6c2b700998de 1 1 - - .sm-svc button:disabled{ opacity:.5; cursor:progress; }",
     "cda35efe7f944c4d 1 1 - 866cf5415236fbbf if(typeof url!==\"string\" || !url) throw new Error(\"no audio — wire a source track into the audio port\");",

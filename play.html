@@ -8534,6 +8534,8 @@ const PROMPT_CAPS = {
       }
       const ctx = njsCtx(E, onCost, runKey, note);
       ctx.catalog = await njsCatalogs();
+      // leftover size snap — njs is the default send path; library posts fields.size raw
+      if(type==="image" || type==="edit" || type==="inpaint") snapImageSize(rn, await rawCatItem("image", mdl(rn)));
       return E.RUNNERS[type](rn, inp2, ctx);
     };
   }

@@ -242,6 +242,71 @@ for (const [name, type, fields, inp, directive] of SCENARIOS) {
   console.log(`✓ ${name} (${reqOn.length} req byte-identical, out identical, delegated: ${[...new Set(spy)].join(",")})`);
 }
 
+// leftover size on the DEFAULT (njs) paid path: #414 snapped built-in image.run, but njs
+// posts fields.size raw. Catalog lists must match live v1 pins (qwen WxH, FIBO 1mp/4mp).
+{
+  const prevRaw = RAW_CAT["/api/v1/image-models"];
+  const leftoverCases = [
+    {
+      name: "leftover 2k → qwen-image-3",
+      id: "qwen-image-3",
+      size: "2k",
+      raw: { id: "qwen-image-3", supported_parameters: { resolutions: ["auto", "1024x1024", "512x512", "768x1024"], max_output_images: 1 } },
+      norm: { id: "qwen-image-3", resolutions: ["auto", "1024x1024", "512x512", "768x1024"], maxOut: 1, sizePrices: {} },
+    },
+    {
+      name: "leftover 1024x1024 → FIBO 1.5",
+      id: "bria/fibo-generate-1.5/text-to-image",
+      size: "1024x1024",
+      raw: { id: "bria/fibo-generate-1.5/text-to-image", supported_parameters: { resolutions: ["1mp", "4mp"], max_output_images: 1 } },
+      norm: { id: "bria/fibo-generate-1.5/text-to-image", resolutions: ["1mp", "4mp"], maxOut: 1, sizePrices: {} },
+    },
+  ];
+  try {
+    for (const c of leftoverCases) {
+      RAW_CAT["/api/v1/image-models"] = [c.raw];
+      const fields = { model: c.id, prompt: "a fox", size: c.size };
+      const listed = c.norm.resolutions;
+
+      calls.length = 0;
+      const off = makeCtx({ flagOn: false });
+      off.catalogs.image = [c.norm];
+      await new vm.Script(`RUN.image({ id:"n1", type:"image", fields:${JSON.stringify(fields)} }, {}, CTX)`).runInContext(off);
+      const offImg = calls.filter((x) => /images\/generations/.test(x.url)).map((x) => JSON.parse(x.body));
+
+      calls.length = 0;
+      const spy = [];
+      const on = makeCtx({ flagOn: true, spy });
+      on.catalogs.image = [c.norm];
+      const run = on.njsRunFor("image", { id: "n1", type: "image", fields: { ...fields } }, {}, { id: "n1", type: "image", fields: { ...fields } });
+      if (!run) { failed++; console.log(`✗ ${c.name}: njsRunFor returned null`); continue; }
+      await run();
+      const onImg = calls.filter((x) => /images\/generations/.test(x.url)).map((x) => JSON.parse(x.body));
+
+      if (!spy.includes("image")) { failed++; console.log(`✗ ${c.name}: library runner never ran`); continue; }
+      if (!offImg.length || !onImg.length) { failed++; console.log(`✗ ${c.name}: no image POST`); continue; }
+      if (offImg.some((b) => String(b.size) === c.size) || onImg.some((b) => String(b.size) === c.size)) {
+        failed++;
+        console.log(`✗ ${c.name}: leftover ${c.size} still posted (off=${offImg.map((b) => b.size)} on=${onImg.map((b) => b.size)})`);
+        continue;
+      }
+      if (offImg.some((b) => !listed.includes(String(b.size))) || onImg.some((b) => !listed.includes(String(b.size)))) {
+        failed++;
+        console.log(`✗ ${c.name}: snapped size not in catalog (off=${offImg.map((b) => b.size)} on=${onImg.map((b) => b.size)})`);
+        continue;
+      }
+      if (JSON.stringify(offImg.map((b) => b.size)) !== JSON.stringify(onImg.map((b) => b.size))) {
+        failed++;
+        console.log(`✗ ${c.name}: engines disagreed (off=${offImg.map((b) => b.size)} on=${onImg.map((b) => b.size)})`);
+        continue;
+      }
+      console.log(`✓ ${c.name} → ${onImg[0].size} on both engines (leftover ${c.size} not posted)`);
+    }
+  } finally {
+    RAW_CAT["/api/v1/image-models"] = prevRaw;
+  }
+}
+
 // guards: keyless session never delegates; drift preflight blocks BEFORE any paid request
 {
   const keyless = makeCtx({ flagOn: true, key: null });

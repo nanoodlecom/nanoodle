@@ -9461,6 +9461,8 @@ function njsRunFor(type, rn, inp, n){
     }
     const ctx = njsCtx(E, n);
     ctx.catalog = await njsCatalogs();
+    // leftover size snap — njs is the default send path; library posts fields.size raw
+    if(type==="image" || type==="edit" || type==="inpaint") applyDimFields(rn.fields, dimDefs(rn.type, rn.fields.model));
     return E.RUNNERS[type](rn, inp2, ctx);
   };
 }
