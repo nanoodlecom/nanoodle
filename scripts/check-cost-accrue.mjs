@@ -16,6 +16,14 @@
 // — dual-engine drift is the classic miss here (PRs #74/#64/#88). This pins both so they can't silently
 // disagree, and pins each engine's zero-vs-missing + precedence + balance semantics against fixtures.
 //
+// Play live-chip (#423) also folds ASYNC poll settlement into the same meter without a second accrue:
+//   • RUNTIME applyPollBalance — header / body / nested data.remainingBalance update COST.balance
+//     only (never COST.total). A terminal poll with no new figure asks refreshPlayBalance once.
+//   • refreshPlayBalance — sandboxed Play posts __bal_refresh__ to the parent; standalone fetches
+//     /api/check-balance and reads usd_balance.
+//   • Parent noteBalanceFromWire — same header-wins rule on the proxied fetch; a terminal poll
+//     error without a figure is the one parent-side check-balance.
+//
 // Fully offline (no API spend, no browser). House pattern (see check-share-link.mjs / check-pricing.mjs):
 // we LIFT the real shipped functions out of the HTML as text and run them in node:vm against stubs —
 // never re-implementing the logic under test. Response fixtures below are the exact shapes NanoGPT
@@ -406,12 +414,217 @@ function checkChip(){
   }
 }
 
+/* ====================================================================
+   ENGINE 2b — play.html poll settlement (the #423 live-chip miss).
+   Editor applyPollSettlement is pinned above; Play's twin is applyPollBalance
+   + refreshPlayBalance, which used to be display-only and then started
+   writing COST.balance mid-poll. A drop of either call site leaves the
+   Play chip (and the parent bar via __bal_refresh__/__cost__) stale after
+   a completed or refunded video/audio job.
+   ==================================================================== */
+function loadPlayPoll(embedded){
+  const src = fs.readFileSync(path.join(ROOT, "play.html"), "utf8");
+  const prelude = `
+    var COST = { total:0, count:0, balance:null, exact:true, estUsd:null };
+    var EMBEDDED = ${embedded ? "true" : "false"};
+    var NANOGPT = "https://nano-gpt.com";
+    var __painted = 0; function paintCost(){ __painted++; }
+    var __notified = [];
+    function notifyParentCost(){ __notified.push({ total:COST.total, exact:COST.exact, balance:COST.balance, count:COST.count }); }
+    var __posts = [];
+    var window = { parent: { postMessage: function(d, o){ __posts.push({ data:d, origin:o }); } } };
+    var __hasKey = true;
+    function getKey(){ return __hasKey ? "sk-test" : ""; }
+    var __fetches = [];
+    var __fetchJson = { usd_balance: 7.25 };
+    function fetch(url, opts){
+      __fetches.push({ url:String(url), method: opts && opts.method, body: opts && opts.body });
+      return Promise.resolve({ ok:true, json: async function(){ return __fetchJson; } });
+    }
+  `;
+  const block = prelude
+    + extractFunction(src, "costFromHeaders") + "\n"
+    + extractFunction(src, "applyPollBalance") + "\n"
+    + extractFunction(src, "refreshPlayBalance") + "\n"
+    + "this.COST=COST; this.applyPollBalance=applyPollBalance; this.refreshPlayBalance=refreshPlayBalance;"
+    + "this.painted=()=>__painted; this.notified=()=>__notified; this.posts=()=>__posts; this.fetches=()=>__fetches;"
+    + "this.setHasKey=(v)=>{__hasKey=v;}; this.setFetchJson=(j)=>{__fetchJson=j;};";
+  const s = {}; vm.createContext(s); vm.runInContext(block, s);
+  return s;
+}
+function idle(){ return new Promise((r) => setImmediate(r)); }
+
+async function checkPlayPoll(){
+  let S;
+  try { S = loadPlayPoll(false); }
+  catch(e){ fail("play-poll", e.message); return; }
+  const reset = () => {
+    Object.assign(S.COST, { total:0.40, count:2, balance:8, exact:true, estUsd:null });
+    S.posts().length = 0;
+    S.fetches().length = 0;
+  };
+
+  // header wins; spend is untouched (poll settlement is not a second accrue).
+  reset();
+  const applied = S.applyPollBalance({ remainingBalance:99, cost:0.99 }, fakeR({ "x-remaining-balance":"5.00" }), false);
+  if(applied !== true) fail("play-poll", "header settlement should return true");
+  if(!near(S.COST.balance, 5)) fail("play-poll", `header must win over body remainingBalance → expected 5, got ${S.COST.balance}`);
+  if(!near(S.COST.total, 0.40) || S.COST.count !== 2) fail("play-poll", `must not re-accrue spend (total=${S.COST.total}, count=${S.COST.count})`);
+  if(S.fetches().length) fail("play-poll", "a settlement that already has a figure must not hit check-balance");
+
+  // body remainingBalance when no header.
+  reset();
+  S.applyPollBalance({ remainingBalance:8.40 }, fakeR({}), false);
+  if(!near(S.COST.balance, 8.40)) fail("play-poll", `body remainingBalance should apply → expected 8.40, got ${S.COST.balance}`);
+
+  // nested data.remainingBalance (video /tts status shapes).
+  reset();
+  S.applyPollBalance({ data:{ remainingBalance:6.10, status:"COMPLETED" } }, fakeR({}), false);
+  if(!near(S.COST.balance, 6.10)) fail("play-poll", `nested data.remainingBalance should apply → expected 6.10, got ${S.COST.balance}`);
+
+  // completed poll with no figure: do not hammer check-balance.
+  reset();
+  S.applyPollBalance({ status:"completed" }, fakeR({}), false);
+  if(S.fetches().length) fail("play-poll", "completed poll without a figure must not check-balance");
+  if(!near(S.COST.balance, 8)) fail("play-poll", `completed poll without a figure must leave balance alone, got ${S.COST.balance}`);
+
+  // refund without a figure → standalone check-balance reads usd_balance.
+  reset();
+  S.applyPollBalance({ status:"error" }, fakeR({}), true);
+  await idle(); await idle();
+  if(!S.fetches().some((f) => /\/api\/check-balance$/.test(f.url) && f.method === "POST"))
+    fail("play-poll", "refund without a figure should POST /api/check-balance once");
+  if(!near(S.COST.balance, 7.25)) fail("play-poll", `standalone check-balance should seed usd_balance 7.25, got ${S.COST.balance}`);
+  if(S.posts().length) fail("play-poll", "standalone Play must not post __bal_refresh__ (that is the embedded path)");
+
+  // signed-out standalone: no fetch.
+  reset();
+  S.setHasKey(false);
+  S.applyPollBalance({ status:"error" }, fakeR({}), true);
+  await idle();
+  if(S.fetches().length) fail("play-poll", "signed-out standalone must not call check-balance");
+  S.setHasKey(true);
+
+  // EMBEDDED refund: post __bal_refresh__ to the parent, never fetch with the iframe key.
+  let E;
+  try { E = loadPlayPoll(true); }
+  catch(e){ fail("play-poll", "embedded load: " + e.message); return; }
+  Object.assign(E.COST, { total:0.40, count:2, balance:8, exact:true, estUsd:null });
+  E.applyPollBalance({ status:"error" }, fakeR({}), true);
+  if(E.fetches().length) fail("play-poll", "embedded Play must not fetch check-balance itself");
+  if(!E.posts().some((p) => p.data && p.data.type === "__bal_refresh__"))
+    fail("play-poll", "embedded refund without a figure must post __bal_refresh__ to the parent");
+
+  // call-site wire-in: dropping these reopens a stale chip after a long video/audio poll.
+  // genVideo is an object method (not `function genVideo`), so pin the shipped lines in-file.
+  const ply = fs.readFileSync(path.join(ROOT, "play.html"), "utf8");
+  const completeHits = ply.split("applyPollBalance(s, pr, false)").length - 1;
+  const refundHits = ply.split("applyPollBalance(s, pr, true)").length - 1;
+  if(completeHits < 2) fail("play-poll", `video + audio complete must both call applyPollBalance(..., false) (hits=${completeHits})`);
+  if(refundHits < 2) fail("play-poll", `video + audio fail must both call applyPollBalance(..., true) (hits=${refundHits})`);
+  if(!/async function pollAudio/.test(ply) || !extractFunction(ply, "pollAudio").includes("applyPollBalance(s, pr, true)"))
+    fail("play-poll", "pollAudio fail path must still settle via applyPollBalance");
+}
+
+/* ====================================================================
+   PARENT chrome — noteBalanceFromWire on the proxied NanoGPT fetch.
+   The sandboxed app never talks to NanoGPT directly; the parent chip
+   only stays live if this hook still reads the poll/charge response.
+   ==================================================================== */
+function loadParentWire(){
+  const src = fs.readFileSync(path.join(ROOT, "play.html"), "utf8");
+  const prelude = `
+    var __notes = [];
+    function noteBalance(usd){ __notes.push(usd); }
+    var __refreshed = 0;
+    function refreshBal(){ __refreshed++; }
+  `;
+  const block = prelude
+    + extractFunction(src, "noteBalanceFromWire") + "\n"
+    + "this.noteBalanceFromWire=noteBalanceFromWire; this.notes=()=>__notes; this.refreshed=()=>__refreshed;"
+    + "this.reset=()=>{ __notes.length=0; __refreshed=0; };";
+  const s = { TextDecoder, TextEncoder }; vm.createContext(s); vm.runInContext(block, s);
+  return s;
+}
+function jsonBuf(obj){
+  const u = new TextEncoder().encode(JSON.stringify(obj));
+  return u.buffer.slice(u.byteOffset, u.byteOffset + u.byteLength);
+}
+
+function checkParentWire(){
+  let S;
+  try { S = loadParentWire(); }
+  catch(e){ fail("parent-wire", e.message); return; }
+  const jsonR = (h) => fakeR(Object.assign({ "content-type":"application/json" }, h || {}));
+
+  // header wins over a conflicting JSON remainingBalance.
+  S.reset();
+  S.noteBalanceFromWire(jsonR({ "x-remaining-balance":"4.50" }), jsonBuf({ remainingBalance:99 }), "charge");
+  if(S.notes().length !== 1 || !near(S.notes()[0], 4.50))
+    fail("parent-wire", `header must win → expected [4.50], got ${JSON.stringify(S.notes())}`);
+  if(S.refreshed()) fail("parent-wire", "a response that already has a figure must not check-balance");
+
+  // JSON remainingBalance when the header is missing.
+  S.reset();
+  S.noteBalanceFromWire(jsonR({}), jsonBuf({ remainingBalance:8.40 }), "poll");
+  if(S.notes().length !== 1 || !near(S.notes()[0], 8.40))
+    fail("parent-wire", `JSON remainingBalance should seed the chip → got ${JSON.stringify(S.notes())}`);
+
+  // nested data.remainingBalance (video status).
+  S.reset();
+  S.noteBalanceFromWire(jsonR({}), jsonBuf({ data:{ remainingBalance:6.10, status:"COMPLETED" } }), "poll");
+  if(S.notes().length !== 1 || !near(S.notes()[0], 6.10))
+    fail("parent-wire", `nested data.remainingBalance should seed the chip → got ${JSON.stringify(S.notes())}`);
+
+  // completed poll with no figure: do not refresh (the job finished; no refund to chase).
+  S.reset();
+  S.noteBalanceFromWire(jsonR({}), jsonBuf({ status:"completed" }), "poll");
+  if(S.notes().length) fail("parent-wire", "completed poll without a figure must not invent a balance");
+  if(S.refreshed()) fail("parent-wire", "completed poll without a figure must not check-balance");
+
+  // charge without a figure: also no parent refresh (iframe accrue owns that path).
+  S.reset();
+  S.noteBalanceFromWire(jsonR({}), jsonBuf({ cost:0.22 }), "charge");
+  if(S.refreshed()) fail("parent-wire", "a charge response without remaining-balance must not check-balance on the parent");
+
+  // terminal poll error without a figure → one corrective check-balance.
+  for(const st of ["error", "failed", "content_policy_violation", "canceled", "cancelled"]){
+    S.reset();
+    S.noteBalanceFromWire(jsonR({}), jsonBuf({ status:st }), "poll");
+    if(S.refreshed() !== 1)
+      fail("parent-wire", `poll status ${JSON.stringify(st)} without a figure should check-balance once (got ${S.refreshed()})`);
+  }
+  S.reset();
+  S.noteBalanceFromWire(jsonR({}), jsonBuf({ data:{ status:"FAILED" } }), "poll");
+  if(S.refreshed() !== 1)
+    fail("parent-wire", `nested data.status FAILED without a figure should check-balance once (got ${S.refreshed()})`);
+
+  // garbage JSON must not throw and must not refresh on a charge.
+  S.reset();
+  try{
+    S.noteBalanceFromWire(jsonR({}), new TextEncoder().encode("not-json{").buffer, "charge");
+  }catch(e){ fail("parent-wire", "malformed JSON body must not throw: " + e.message); }
+  if(S.refreshed() || S.notes().length)
+    fail("parent-wire", "malformed JSON charge must not seed a balance or refresh");
+
+  // call-site wire-in on the parent __api__ proxy + iframe message router.
+  const ply = fs.readFileSync(path.join(ROOT, "play.html"), "utf8");
+  if(!/noteBalanceFromWire\(r,\s*body,\s*kind\)/.test(ply))
+    fail("parent-wire", "the __api__ proxy must still call noteBalanceFromWire on every NanoGPT response");
+  if(!/d\.type === "__bal_refresh__"/.test(ply) || !/refreshBal\(\)/.test(ply))
+    fail("parent-wire", "parent must still route iframe __bal_refresh__ to refreshBal");
+  if(!/d\.type === "__cost__"/.test(ply) || !/noteSession\(d\)/.test(ply))
+    fail("parent-wire", "parent must still route iframe __cost__ to noteSession");
+}
+
 checkIndex();
 checkPlay();
 checkChip();
+await checkPlayPoll();
+checkParentWire();
 
 if(failures.length){
   process.stderr.write("✗ session cost-meter aggregation is broken (a spend total or the exact/~ flag would mislead users):\n\n- " + failures.join("\n- ") + "\n");
   process.exit(1);
 }
-process.stdout.write("✓ cost-meter aggregation holds in both engines: real cost > pricing > estimate; zero=known-free stays exact; missing flips ~ (sticky); x-remaining-balance header is canonical; live chip delta/session/reduced-motion stay wired.\n");
+process.stdout.write("✓ cost-meter aggregation holds in both engines: real cost > pricing > estimate; zero=known-free stays exact; missing flips ~ (sticky); x-remaining-balance header is canonical; live chip delta/session/reduced-motion stay wired; Play poll settlement + parent wire keep the chip live without a second accrue.\n");
