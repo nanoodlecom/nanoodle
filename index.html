@@ -1531,6 +1531,8 @@ const I18N = {
     "Audio":"Audio",
     "filter the full list, or type an exact id + Enter…":"filtra la lista completa, o escribe un id exacto + Enter…",
     "loading the full list…":"cargando la lista completa…",
+    "NSFW model shown from your search or current pick.":"Modelo NSFW mostrado por tu búsqueda o la selección actual.",
+    "That id is Image→Video only — it won’t appear here.":"Ese id es solo de Imagen→Vídeo — no aparecerá aquí.",
     "pick a model…":"elige un modelo…",
     "newest first":"más recientes primero",
     "Sort the model list":"Ordenar la lista de modelos",
@@ -2091,6 +2093,8 @@ const I18N = {
     "Audio":"Audio",
     "filter the full list, or type an exact id + Enter…":"filtrer la liste, ou saisir un id exact + Entrée…",
     "loading the full list…":"chargement de la liste…",
+    "NSFW model shown from your search or current pick.":"Modèle NSFW affiché depuis votre recherche ou la sélection actuelle.",
+    "That id is Image→Video only — it won’t appear here.":"Cet id est uniquement Image→Vidéo — il n’apparaîtra pas ici.",
     "pick a model…":"choisir un modèle…",
     "newest first":"plus récents d’abord",
     "Sort the model list":"Trier la liste des modèles",
@@ -2651,6 +2655,8 @@ const I18N = {
     "Audio":"Audio",
     "filter the full list, or type an exact id + Enter…":"Liste filtern oder exakte ID + Enter eingeben…",
     "loading the full list…":"lade vollständige Liste…",
+    "NSFW model shown from your search or current pick.":"NSFW-Modell aus deiner Suche oder der aktuellen Auswahl angezeigt.",
+    "That id is Image→Video only — it won’t appear here.":"Diese ID ist nur Bild→Video — sie erscheint hier nicht.",
     "pick a model…":"Modell wählen…",
     "newest first":"neueste zuerst",
     "Sort the model list":"Modellliste sortieren",
@@ -3211,6 +3217,8 @@ const I18N = {
     "Audio":"Áudio",
     "filter the full list, or type an exact id + Enter…":"filtre a lista completa, ou digite um id exato + Enter…",
     "loading the full list…":"carregando a lista completa…",
+    "NSFW model shown from your search or current pick.":"Modelo NSFW mostrado pela tua pesquisa ou pela seleção atual.",
+    "That id is Image→Video only — it won’t appear here.":"Esse id é só de Imagem→Vídeo — não vai aparecer aqui.",
     "pick a model…":"escolha um modelo…",
     "newest first":"mais recentes primeiro",
     "Sort the model list":"Ordenar a lista de modelos",
@@ -3771,6 +3779,8 @@ const I18N = {
     "Audio":"音声",
     "filter the full list, or type an exact id + Enter…":"一覧を絞り込み、または正確なIDを入力 + Enter…",
     "loading the full list…":"一覧を読み込み中…",
+    "NSFW model shown from your search or current pick.":"検索または現在の選択により NSFW モデルを表示しています。",
+    "That id is Image→Video only — it won’t appear here.":"その ID は画像→動画専用です — ここには表示されません。",
     "pick a model…":"モデルを選択…",
     "newest first":"新しい順",
     "Sort the model list":"モデル一覧を並べ替え",
@@ -6473,6 +6483,19 @@ function rankPickerMatches(list){
   for(const m of arr) (normalizePickerQuery(m.id)===qNorm ? exact : rest).push(m);
   return exact.concat(rest);
 }
+// NSFW rows visible while NSFW-only is off (id-search hit or the current pick).
+function pickerRevealedNsfw(list){
+  if(nsfwOnly || !picker) return [];
+  const qNorm = normalizePickerQuery(($("mpicksearch").value || ""));
+  return (list||[]).filter(m => m.nsfw && (m.id === picker.current || pickerIdHitsQuery(m.id, qNorm)));
+}
+function pickerSearchHint(list){
+  if(!picker || (picker.kind!=="image" && picker.kind!=="video")) return "";
+  const qNorm = normalizePickerQuery(($("mpicksearch").value || ""));
+  const miss = qNorm && (catalogs[picker.kind]||[]).find(m => m.nsfw && pickerIdHitsQuery(m.id, qNorm) && !passesFilter(m, picker.filter));
+  if(miss && miss.i2v && !miss.t2v && picker.filter==="t2v") return "That id is Image→Video only — it won’t appear here.";
+  return pickerRevealedNsfw(list || pickerMatches()).length ? "NSFW model shown from your search or current pick." : "";
+}
 function renderPicker(){
   if(!picker) return;
   const matches = rankPickerMatches(pickerMatches());
@@ -6480,6 +6503,14 @@ function renderPicker(){
   const nsfwtog = $("mpicknsfwtog");
   if(nsfwtog && (picker.kind==="image" || picker.kind==="video")) nsfwtog.checked = !!nsfwOnly;
   const frag = document.createDocumentFragment();
+  const hint = pickerSearchHint(matches);
+  if(hint){
+    const d = document.createElement("div");
+    d.className = "dim";
+    d.style.cssText = "padding:.25rem .55rem .35rem; font-size:.7rem; color:#ff9a9a";
+    d.textContent = t(hint);
+    frag.appendChild(d);
+  }
   for(const m of matches.slice(0,400)){
     const b = document.createElement("button");
     if(m.id===picker.current) b.className = "sel";
@@ -6487,7 +6518,7 @@ function renderPicker(){
       + `${m.t2v?'<span class="tag">t2v</span>':''}${m.i2v?'<span class="tag edit">i2v</span>':''}`
       + `${m.v2v?'<span class="tag edit">v2v</span>':''}${m.avatar?'<span class="tag">avatar</span>':''}`
       + `${m.tts?'<span class="tag">tts</span>':''}${m.music?'<span class="tag edit">music</span>':''}${m.stt?'<span class="tag">stt</span>':''}`
-      + `${m.nsfw?'<span class="tag nsfw">nsfw</span>':''}`;
+      + `${m.nsfw?`<span class="tag nsfw">${nsfwOnly?"nsfw":"NSFW"}</span>`:''}`;
     b.innerHTML = `<span class="mname">${esc(m.id)} ${tags}</span><span class="price">${esc(m.price)}</span>`;
     b.onclick = ()=>{ picker.onPick(m.id); closePicker(); };
     frag.appendChild(b);

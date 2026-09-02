@@ -1,9 +1,12 @@
 #!/usr/bin/env node
-// Pins index.html pickerMatches(): empty NSFW-off lists stay SFW (plus the
-// already-selected id); a non-empty query can reveal a hidden NSFW model only
-// when the query matches that model's id after normalize (decodeURIComponent,
-// %2F→/, lowercase). Name hits never unhide NSFW. i2v vs t2v still uses
-// passesFilter. Offline, no DOM, no network.
+// Pins index.html pickerMatches() + pickerSearchHint(): empty NSFW-off lists
+// stay SFW (plus the already-selected id); a non-empty query can reveal a
+// hidden NSFW model only when the query matches that model's id after
+// normalize (decodeURIComponent, %2F→/, lowercase). Name hits never unhide
+// NSFW. i2v vs t2v still uses passesFilter. When a hidden NSFW row is shown
+// with NSFW-only off, pickerSearchHint() returns a one-line mark; a spicy
+// i2v id pasted on t2v gets an Image→Video-only tip. Offline, no DOM, no
+// network.
 import { readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -58,7 +61,9 @@ function sandbox() {
     block(IDX, "function normalizePickerQuery(s){") + "\n" +
     block(IDX, "function pickerIdHitsQuery(id, qNorm){") + "\n" +
     block(IDX, "function pickerMatches(){") + "\n" +
-    block(IDX, "function rankPickerMatches(list){"),
+    block(IDX, "function rankPickerMatches(list){") + "\n" +
+    block(IDX, "function pickerRevealedNsfw(list){") + "\n" +
+    block(IDX, "function pickerSearchHint(list){"),
     ctx,
   );
   return ctx;
@@ -159,8 +164,57 @@ function sandbox() {
   else ok("exact spicy id (encoded or not) ranks first for Enter");
 }
 
+{
+  const ctx = sandbox();
+  ctx.searchValue = "";
+  if (ctx.pickerSearchHint()) fail("empty SFW search should have no hint, got " + JSON.stringify(ctx.pickerSearchHint()));
+  else ok("empty SFW search has no NSFW hint");
+}
+
+{
+  const ctx = sandbox();
+  ctx.searchValue = SPICY;
+  const hint = ctx.pickerSearchHint();
+  const revealed = ctx.pickerRevealedNsfw(ctx.pickerMatches()).map((m) => m.id);
+  if (!revealed.includes(SPICY)) fail("spicy id search should mark H3 as revealed NSFW, got " + revealed);
+  else if (!/NSFW/i.test(hint)) fail("spicy id search hint should mention NSFW, got " + JSON.stringify(hint));
+  else ok("spicy id search with NSFW off shows a revealed-NSFW hint");
+}
+
+{
+  const ctx = sandbox();
+  ctx.picker.current = SPICY;
+  ctx.searchValue = "";
+  const hint = ctx.pickerSearchHint();
+  const revealed = ctx.pickerRevealedNsfw(ctx.pickerMatches()).map((m) => m.id);
+  if (!revealed.includes(SPICY)) fail("current spicy id should be a revealed NSFW row, got " + revealed);
+  else if (!/NSFW/i.test(hint)) fail("current spicy pick hint should mention NSFW, got " + JSON.stringify(hint));
+  else ok("current spicy pick with empty SFW search shows a revealed-NSFW hint");
+}
+
+{
+  const ctx = sandbox();
+  ctx.nsfwOnly = true;
+  ctx.searchValue = "";
+  if (ctx.pickerSearchHint()) fail("NSFW-only list should not show the exception hint, got " + JSON.stringify(ctx.pickerSearchHint()));
+  else ok("NSFW-only mode has no exception hint");
+}
+
+{
+  const ctx = sandbox();
+  ctx.picker.filter = "t2v";
+  ctx.searchValue = SPICY;
+  const hint = ctx.pickerSearchHint();
+  if (!/Image→Video/i.test(hint)) fail("spicy i2v id on t2v should tip Image→Video only, got " + JSON.stringify(hint));
+  else ok("spicy i2v id pasted on Text→Video tips Image→Video only");
+}
+
+if (!IDX.includes('${nsfwOnly?"nsfw":"NSFW"}')) {
+  fail("renderPicker lost the NSFW badge on exception rows");
+} else ok("renderPicker marks NSFW rows with an NSFW badge while NSFW-only is off");
+
 if (failed) {
   process.stderr.write(`\n✗ pickerMatches NSFW id-search: ${failed} failure(s)\n`);
   process.exit(1);
 }
-process.stdout.write("✓ pickerMatches: SFW default, exact/encoded NSFW id search, i2v filter, no name-unhide\n");
+process.stdout.write("✓ pickerMatches: SFW default, exact/encoded NSFW id search, i2v filter, no name-unhide, NSFW hint/badge\n");
