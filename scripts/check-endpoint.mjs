@@ -133,6 +133,34 @@ ok(js.text === "hi" && js.image === "data:x" && js.model == null, "json mode POS
 eq(S.endpointParseChat({ choices: [{ message: { content: "ok" } }] }), { text: "ok" }, "chat completions parse");
 eq(S.endpointParseImage({ data: [{ b64_json: "abc" }] }), { image: "data:image/png;base64,abc", images: ["data:image/png;base64,abc"] },
   "image generations parse");
+{
+  let chatMiss = "";
+  try { S.endpointParseChat({}); } catch (e) { chatMiss = e.message; }
+  ok(/return/.test(chatMiss) && /choices/.test(chatMiss) && !/^\s*[{\[]/.test(chatMiss),
+    "chat parse miss says what JSON to return");
+  let imgMiss = "";
+  try { S.endpointParseImage({}); } catch (e) { imgMiss = e.message; }
+  ok(/b64_json/.test(imgMiss) && /return/.test(imgMiss),
+    "image parse miss says what JSON to return");
+}
+
+// ---- HTTP / empty / non-JSON errors stay actionable (no raw dump) ------------
+ok(S.endpointApiMessage('{"error":{"message":"model not found"}}') === "model not found",
+  "endpointApiMessage peels error.message");
+ok(S.endpointApiMessage('{"error":"no such route"}') === "no such route",
+  "endpointApiMessage peels a string error");
+ok(S.endpointHttpError(404, '{"error":{"message":"not found"}}') === "not found — check the custom endpoint URL",
+  "404 JSON names the URL, not the raw body");
+ok(S.endpointHttpError(401, '{"error":"unauthorized"}') === "unauthorized — check the Authorization field",
+  "401 JSON names the Authorization field");
+ok(!/\{/.test(S.endpointHttpError(500, '{"error":{"code":"x","request_id":"abc"},"headers":{"a":1}}')),
+  "JSON wall without a message is not dumped");
+ok(/web page/.test(S.endpointHttpError(404, "<!DOCTYPE html><html><body>nope</body></html>")),
+  "HTML 404 says it was a web page");
+ok(/no body/.test(S.endpointHttpError(502, "   ")),
+  "empty error body says so");
+ok(S.endpointHttpError(418, "I'm a teapot") === "418: I'm a teapot",
+  "plain-text error body is kept");
 eq(S.endpointParseVideo({ url: "https://x/v.mp4" }), { video: "https://x/v.mp4" }, "video {url} parse");
 eq(S.endpointParseJsonMode({ text: "hi" }), { text: "hi" }, "json {text} parse");
 eq(S.endpointParseJsonMode({ data: { a: 1 } }), { text: "{\n  \"a\": 1\n}" }, "json {data} pretty excerpt");
@@ -176,12 +204,13 @@ ok(!Object.values(S.endpointHeaders("tok")).some((v) => /x-api-key/i.test(String
   const calls = [];
   S.fetch = (url, opts) => {
     calls.push({ url, opts });
+    const payload = { choices: [{ message: { content: "from-local" } }] };
     return Promise.resolve({
       ok: true,
       status: 200,
       headers: { get: () => "application/json" },
-      json: async () => ({ choices: [{ message: { content: "from-local" } }] }),
-      text: async () => "",
+      json: async () => payload,
+      text: async () => JSON.stringify(payload),
     });
   };
   const leaked = [];
@@ -218,19 +247,20 @@ ok(!Object.values(S.endpointHeaders("tok")).some((v) => /x-api-key/i.test(String
   calls.length = 0;
   S.fetch = (url, opts) => {
     calls.push({ url, opts });
+    const payload = {
+      headers: { Host: ["httpbingo.org"], "Content-Type": ["application/json"] },
+      method: "POST",
+      origin: "1.2.3.4",
+      url: "https://httpbingo.org/post",
+      data: opts.body,
+      json: JSON.parse(opts.body),
+    };
     return Promise.resolve({
       ok: true,
       status: 200,
       headers: { get: () => "application/json" },
-      json: async () => ({
-        headers: { Host: ["httpbingo.org"], "Content-Type": ["application/json"] },
-        method: "POST",
-        origin: "1.2.3.4",
-        url: "https://httpbingo.org/post",
-        data: opts.body,
-        json: JSON.parse(opts.body),
-      }),
-      text: async () => "",
+      json: async () => payload,
+      text: async () => JSON.stringify(payload),
     });
   };
   const echo = await S.runEndpoint(
@@ -261,6 +291,36 @@ ok(!Object.values(S.endpointHeaders("tok")).some((v) => /x-api-key/i.test(String
   ok(granted === "blocked by CORS — your server needs Access-Control-Allow-Origin",
     "runEndpoint + granted LNA is the CORS one-liner");
   delete S.navigator;
+
+  S.fetch = () => Promise.resolve({
+    ok: false, status: 404, headers: { get: () => "application/json" },
+    text: async () => JSON.stringify({ error: { message: "no such route" } }),
+  });
+  let http404 = "";
+  try { await S.runEndpoint({ fields: { url: "https://example.com/v1/chat/completions", mode: "chat", prompt: "hi" } }, {}); }
+  catch (e) { http404 = e.message; }
+  ok(/no such route/.test(http404) && /URL/.test(http404) && !/\{/.test(http404),
+    "runEndpoint 404 JSON is the message + URL hint, not a raw dump");
+
+  S.fetch = () => Promise.resolve({
+    ok: true, status: 200, headers: { get: () => "text/html" },
+    text: async () => "<!DOCTYPE html><html><body>nginx</body></html>",
+  });
+  let html200 = "";
+  try { await S.runEndpoint({ fields: { url: "https://example.com/v1/chat/completions", mode: "chat", prompt: "hi" } }, {}); }
+  catch (e) { html200 = e.message; }
+  ok(/web page/.test(html200) && /choices/.test(html200) && !/Unexpected token/.test(html200),
+    "runEndpoint HTML 200 says check the URL, not a JSON parse stack");
+
+  S.fetch = () => Promise.resolve({
+    ok: true, status: 200, headers: { get: () => "application/json" },
+    text: async () => "",
+  });
+  let empty200 = "";
+  try { await S.runEndpoint({ fields: { url: "https://example.com/v1/chat/completions", mode: "chat", prompt: "hi" } }, {}); }
+  catch (e) { empty200 = e.message; }
+  ok(/empty response/.test(empty200) && /URL/.test(empty200),
+    "runEndpoint empty 200 says the body was missing");
 }
 
 // ---- CORS / Chrome LNA error lines -------------------------------------------
@@ -283,7 +343,7 @@ ok(S.endpointFetchError({ message: "Failed to fetch" }, "http://127.0.0.1:9/", "
 ok(S.endpointFetchError({ message: "Failed to fetch" }, "http://127.0.0.1:9/", "granted") ===
   "blocked by CORS — your server needs Access-Control-Allow-Origin",
   "granted LNA + Failed to fetch is CORS");
-ok(S.endpointFetchError({ message: "no text in response" }) === "no text in response",
+ok(S.endpointFetchError({ message: "no text in response — return OpenAI chat JSON" }) === "no text in response — return OpenAI chat JSON",
   "non-network errors pass through");
 ok(S.endpointUrlIsLocal("http://127.0.0.1:8787/v1") === true, "127.0.0.1 is local");
 ok(S.endpointUrlIsLocal("http://localhost:3000/") === true, "localhost is local");
@@ -357,6 +417,22 @@ console.log("• live localhost chat server");
   ok(seen[0].auth === "Bearer user-tok", "live request carries only the user Authorization");
   ok(!String(seen[0].body).includes("sk-nano"), "live body has no NanoGPT key");
   srv.close();
+}
+
+// ---- video poll object errors (no [object Object]) ---------------------------
+{
+  const fn = extractFn(IDX, "videoFailText");
+  const playFn = extractFn(PLAY, "videoFailText");
+  ok(fn.replace(/^\s+/gm, "").trim() === playFn.replace(/^\s+/gm, "").trim(), "videoFailText is twin-identical");
+  const ctx = {};
+  vm.createContext(ctx);
+  vm.runInContext(fn + "\n;this.videoFailText=videoFailText;", ctx);
+  ok(ctx.videoFailText({ data: { error: { message: "NSFW filter" } } }, "FAILED") === "NSFW filter",
+    "videoFailText peels error.message (no [object Object])");
+  ok(ctx.videoFailText({ data: { error: "canceled" } }, "FAILED") === "canceled",
+    "videoFailText keeps a string error");
+  ok(ctx.videoFailText({ data: { error: { code: 1 } } }, "CANCELED") === "CANCELED",
+    "videoFailText falls back when error is a mute object");
 }
 
 if (failures.length) {

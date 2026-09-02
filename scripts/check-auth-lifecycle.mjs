@@ -256,6 +256,15 @@ for (const [status, body, want, why] of [
   const remap = api.friendlyRunError(new Error("400: This model needs lyrics — fill the Lyrics field"));
   expect(!/may have changed/.test(remap),
     "friendlyRunError appended the model-changed suffix to a lyrics 400: " + JSON.stringify(remap));
+
+  // 3g: video/audio poll objects used to stringify as "[object Object]"
+  reset();
+  const objVid = api.friendlyRunError(new Error("video failed: [object Object]"));
+  expect(/provider didn't say why/.test(objVid) && !/\[object Object\]/.test(objVid),
+    "friendlyRunError must not surface video failed: [object Object]: " + JSON.stringify(objVid));
+  const policy = api.friendlyRunError(new Error("video failed: CONTENT_POLICY_VIOLATION"));
+  expect(/change the prompt/.test(policy),
+    "friendlyRunError must hint what to change on a video policy fail: " + JSON.stringify(policy));
 }
 
 // ======================================================================
