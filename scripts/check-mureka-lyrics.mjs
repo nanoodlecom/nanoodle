@@ -47,8 +47,7 @@ const fail = (m) => { console.error("✗ " + m); failed++; };
 const ok = (m) => console.log("✓ " + m);
 
 // Gallery Sing supplies lyrics (LLM→lyrics wire). Pin Generate Song, not Prompt-to-Song.
-// awesome-noodles main still has minimax/music-3 as of 2026-09-02 — re-sync must
-// keep this id (or land the upstream graph first).
+// awesome-noodles #11 (7e462b4) landed the same id — keep lockstep on re-sync.
 {
   const ex = IDX.slice(IDX.indexOf("const EXAMPLES = ["), IDX.indexOf("\n];", IDX.indexOf("const EXAMPLES = [")));
   const sing = /slug:"sing"[\s\S]*?type:"music",[^}]*fields:\{([^}]*)\}/.exec(ex);
