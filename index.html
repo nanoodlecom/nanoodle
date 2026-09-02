@@ -6438,20 +6438,44 @@ function openPicker(kind, opts){
   loadCatalog(kind).then(()=> renderPicker());
 }
 function closePicker(){ $("mpick").classList.remove("open"); $("mpickback").classList.remove("show"); picker=null; }
+// decodeURIComponent + %2F→/ so a pasted wavespeed-ai%2F… id matches the catalog slash-id.
+function normalizePickerQuery(s){
+  let t = String(s == null ? "" : s).trim();
+  try { t = decodeURIComponent(t); } catch(_){}
+  return t.replace(/%2[fF]/g, "/").toLowerCase();
+}
+// NSFW-hidden rows: only an id hit (exact or substring), never a name hit, and not 1–2 chars.
+function pickerIdHitsQuery(id, qNorm){
+  if(!qNorm || qNorm.length < 3) return false;
+  const idn = normalizePickerQuery(id);
+  return idn === qNorm || idn.includes(qNorm);
+}
 // models passing the node's filter, narrowed by the search box (id or name). Shared by the
 // list render and the Enter handler so "type a few letters + Enter" picks what you SEE.
+// Empty search + NSFW off stays SFW (plus the already-selected id). A non-empty query can
+// also surface a hidden NSFW model when the query matches that model's id after normalize.
 function pickerMatches(){
   if(!picker) return [];
   const q = $("mpicksearch").value.trim().toLowerCase();
+  const qNorm = normalizePickerQuery(q);
   let list = (catalogs[picker.kind] || []).filter(m=> passesFilter(m, picker.filter));
   if(picker.kind==="image" || picker.kind==="video"){
-    list = list.filter(m => !!m.nsfw === nsfwOnly || m.id === picker.current);
+    list = list.filter(m => !!m.nsfw === nsfwOnly || m.id === picker.current
+      || (!nsfwOnly && pickerIdHitsQuery(m.id, qNorm)));
   }
-  return q ? list.filter(m=> m.id.toLowerCase().includes(q) || m.name.toLowerCase().includes(q)) : list;
+  return q ? list.filter(m=> m.id.toLowerCase().includes(q) || m.name.toLowerCase().includes(q) || pickerIdHitsQuery(m.id, qNorm)) : list;
+}
+function rankPickerMatches(list){
+  const arr = sortMatches(list);
+  const qNorm = picker ? normalizePickerQuery(($("mpicksearch").value || "")) : "";
+  if(!qNorm) return arr;
+  const exact = [], rest = [];
+  for(const m of arr) (normalizePickerQuery(m.id)===qNorm ? exact : rest).push(m);
+  return exact.concat(rest);
 }
 function renderPicker(){
   if(!picker) return;
-  const matches = sortMatches(pickerMatches());
+  const matches = rankPickerMatches(pickerMatches());
   $("mpickcount").textContent = `${matches.length} ${matches.length===1?t("model"):t("models")} · ${t(PICK_SORTS[pickerSort])}`;
   const nsfwtog = $("mpicknsfwtog");
   if(nsfwtog && (picker.kind==="image" || picker.kind==="video")) nsfwtog.checked = !!nsfwOnly;
@@ -11797,7 +11821,7 @@ $("mpicksearch").addEventListener("keydown", e=>{
   if(e.key==="Enter"){
     e.preventDefault();
     if(!picker) return;
-    const top = sortMatches(pickerMatches())[0], v = $("mpicksearch").value.trim();
+    const top = rankPickerMatches(pickerMatches())[0], v = $("mpicksearch").value.trim();
     if(top){ picker.onPick(top.id); closePicker(); }            // select the model you're looking at…
     else if(v){ picker.onPick(v); closePicker(); }              // …or, with no match, take a typed id verbatim
   }
