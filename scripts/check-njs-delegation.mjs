@@ -16,6 +16,14 @@ import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 import { loadEngine, calls, catalog } from "./play-engine.mjs";
 
+// Seed audio ids before any fetch caches a non-empty catalog. "x" is the remix
+// placeholder already in GRAPHS — once audio is non-empty it must be listed too.
+catalog.audio.push(
+  { id: "x", supported_parameters: {} },
+  { id: "mureka-ai/mureka-v9.5/prompt-to-song", supported_parameters: {} },
+  { id: "mureka-ai/mureka-v9.5/generate-song", supported_parameters: {} },
+);
+
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const html = readFileSync(join(ROOT, "play.html"), "utf8");
 
@@ -75,6 +83,14 @@ const GRAPHS = [
     nodes: [node("u1", "upload", { image: IMG }), node("a1", "aupload", { audio: IMG }), node("l1", "lipsync", { model: "x" })],
     links: [link("u1", "image", "l1", "image"), link("a1", "audio", "l1", "audio")],
   }, ["lipsync"]],
+  ["music prompt-to-song (prompt key, not input)", {
+    nodes: [node("m1", "music", { model: "mureka-ai/mureka-v9.5/prompt-to-song", prompt: "dreamy synthwave" })],
+    links: [],
+  }, ["music"]],
+  ["music generate-song (input + lyrics)", {
+    nodes: [node("m1", "music", { model: "mureka-ai/mureka-v9.5/generate-song", prompt: "pop ballad", lyrics: "[Verse]\nhi" })],
+    links: [],
+  }, ["music"]],
 ];
 
 // Veto shapes (mirrors check-njs-editor-delegation.mjs): the library doesn't yet match the

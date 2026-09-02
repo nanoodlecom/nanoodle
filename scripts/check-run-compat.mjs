@@ -69,6 +69,11 @@ catalog.audio.push(
   { id: "nolangmodel", supported_parameters: { voices: ["alloy"] } },
   { id: "seedlang", supported_parameters: { language: { default: "", values: ["", "zh", "en", "ja"] } } },
   { id: "music3shape", supported_parameters: {} },
+  { id: "mureka-ai/mureka-v9.5/prompt-to-song", supported_parameters: {} },
+  { id: "other-lab/prompt-to-song", supported_parameters: {} },
+  { id: "mureka-ai/mureka-v9.5/generate-song", supported_parameters: {} },
+  { id: "mureka-ai/mureka-v9.5/generate-bgm", supported_parameters: {} },
+  { id: "minimax/music-3", supported_parameters: {} },
 );
 
 // Video catalog seed: model "x" stays uncatalogued so tvideo catalog-miss still
@@ -553,6 +558,73 @@ const SCENARIOS = [
         fail(`structured lyrics must forward verbatim, got ${JSON.stringify(b.lyrics)}`);
       if ("instrumental" in b) fail(`instrumental:false must be omitted (only sent when true), got ${JSON.stringify(b.instrumental)}`);
       if ("duration" in b) fail(`a model with no min/max_duration in its catalog entry must not receive a duration knob, got ${JSON.stringify(b.duration)}`);
+    },
+  },
+  {
+    // Live (2026-09-02): Mureka Prompt-to-Song 202s `{model, input}` then /tts/status
+    // status:error + refund. `{model, prompt}` completes. Any `*/prompt-to-song` sibling
+    // uses the same key; generate-song / generate-bgm / Music 3 keep `input`.
+    name: "Music node: prompt-to-song sends prompt (not input)",
+    data: { nodes: [node("m1", "music", {
+              model: "mureka-ai/mureka-v9.5/prompt-to-song",
+              prompt: "dreamy synthwave anthem, analog pads",
+            })], links: [] },
+    check(app, g, fail) {
+      const b = audioCalls()[0]?.body;
+      if (!b) return fail("no /audio/speech call recorded for prompt-to-song");
+      if (b.prompt !== "dreamy synthwave anthem, analog pads")
+        fail(`prompt-to-song must send the track description as prompt, got ${JSON.stringify(b.prompt)}`);
+      if ("input" in b) fail(`prompt-to-song must omit input, got ${JSON.stringify(b.input)}`);
+    },
+  },
+  {
+    name: "Music node: sibling */prompt-to-song also sends prompt (not input)",
+    data: { nodes: [node("m1", "music", { model: "other-lab/prompt-to-song", prompt: "cinematic strings" })], links: [] },
+    check(app, g, fail) {
+      const b = audioCalls()[0]?.body;
+      if (!b) return fail("no /audio/speech call recorded for sibling prompt-to-song");
+      if (b.prompt !== "cinematic strings") fail(`sibling prompt-to-song must send prompt, got ${JSON.stringify(b.prompt)}`);
+      if ("input" in b) fail(`sibling prompt-to-song must omit input, got ${JSON.stringify(b.input)}`);
+    },
+  },
+  {
+    name: "Music node: generate-song still sends input + lyrics",
+    data: { nodes: [node("m1", "music", {
+              model: "mureka-ai/mureka-v9.5/generate-song",
+              prompt: "pop ballad, piano",
+              lyrics: "[Verse]\nhello there",
+            })], links: [] },
+    check(app, g, fail) {
+      const b = audioCalls()[0]?.body;
+      if (!b) return fail("no /audio/speech call recorded for generate-song");
+      if (b.input !== "pop ballad, piano") fail(`generate-song must keep input, got ${JSON.stringify(b.input)}`);
+      if (b.lyrics !== "[Verse]\nhello there") fail(`generate-song lyrics must forward, got ${JSON.stringify(b.lyrics)}`);
+      if ("prompt" in b) fail(`generate-song must not send prompt, got ${JSON.stringify(b.prompt)}`);
+    },
+  },
+  {
+    name: "Music node: generate-bgm still sends input (no prompt key)",
+    data: { nodes: [node("m1", "music", { model: "mureka-ai/mureka-v9.5/generate-bgm", prompt: "lofi cafe rain" })], links: [] },
+    check(app, g, fail) {
+      const b = audioCalls()[0]?.body;
+      if (!b) return fail("no /audio/speech call recorded for generate-bgm");
+      if (b.input !== "lofi cafe rain") fail(`generate-bgm must keep input, got ${JSON.stringify(b.input)}`);
+      if ("prompt" in b) fail(`generate-bgm must not send prompt, got ${JSON.stringify(b.prompt)}`);
+    },
+  },
+  {
+    name: "Music node: MiniMax Music 3 still sends input + lyrics",
+    data: { nodes: [node("m1", "music", {
+              model: "minimax/music-3",
+              prompt: "warm acoustic pop",
+              lyrics: "[Chorus]\nbring it home",
+            })], links: [] },
+    check(app, g, fail) {
+      const b = audioCalls()[0]?.body;
+      if (!b) return fail("no /audio/speech call recorded for minimax/music-3");
+      if (b.input !== "warm acoustic pop") fail(`Music 3 must keep input, got ${JSON.stringify(b.input)}`);
+      if (b.lyrics !== "[Chorus]\nbring it home") fail(`Music 3 lyrics must forward, got ${JSON.stringify(b.lyrics)}`);
+      if ("prompt" in b) fail(`Music 3 must not send prompt, got ${JSON.stringify(b.prompt)}`);
     },
   },
   {
