@@ -52,6 +52,13 @@ jobs:
           fi
           exit $fails
 
+      # Named step so a forgotten gen-changelog is a first-class GitHub check,
+      # not a line buried in the scripts/check-*.mjs loop (PRs #430, #433).
+      # The suite already runs check-changelog.mjs; this is the same --check,
+      # just visible. Regenerating here would write the runner, not the PR.
+      - name: changelog.html + feed.xml match updates.json
+        run: node scripts/gen-changelog.mjs --check
+
       # The pre-commit guard can only diff the sections llms-full.txt takes from THIS
       # repo; the two library sections need the sibling READMEs. Here they are checked
       # out fresh, so this is the check that catches a library README moving on without

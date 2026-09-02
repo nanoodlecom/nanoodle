@@ -77,6 +77,21 @@ git config core.hooksPath .githooks
 files (staging `index.html`/`play.html` triggers most of them). Don't bypass
 it with `--no-verify` — CI runs the full suite unconditionally anyway.
 
+## Changelog artifacts
+
+`updates.json` is the source of truth for the in-app 📣 panel. `changelog.html`
+and `feed.xml` are generated — do not edit them by hand. After editing
+`updates.json`:
+
+```sh
+node scripts/gen-changelog.mjs
+```
+
+The pre-commit hook regenerates and stages those two files when `updates.json`
+is in the commit, so a forgotten regen cannot land locally. CI runs
+`gen-changelog.mjs --check` unconditionally (a named step in
+`.github/workflows/checks.yml`).
+
 ## Deploys
 
 Pushing to `main` triggers Cloudflare Workers Builds, which deploys the repo
