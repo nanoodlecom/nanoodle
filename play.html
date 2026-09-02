@@ -5892,9 +5892,11 @@ window.NoodleApp = (function () {
     return status===402 || (status!==401 && status!==403 && /insufficient|balance|funds|not enough|payment required/i.test(String(body||"")));
   }
   function httpRunError(status, body){
-    return isLowFundsError(status, body)
-      ? new Error("out of balance — this run needs more credit. Top up at nano-gpt.com, then run again.")
-      : new Error(status + ": " + String(body).slice(0,160));
+    if(isLowFundsError(status, body))
+      return new Error("out of balance — this run needs more credit. Top up at nano-gpt.com, then run again.");
+    const extracted = endpointApiMessage(body);
+    const detail = (extracted || String(body||"")).replace(/\s+/g," ").trim();
+    return new Error(status + ": " + detail.slice(0,160));
   }
   // Content-Type only — the key is attached by apiFetch (standalone) or the parent proxy (embedded).
   function authHeaders(){ return { "Content-Type":"application/json" }; }
@@ -6679,7 +6681,7 @@ window.NoodleApp = (function () {
           applyPollBalance(s, pr, false);
           return url;
         }
-        if(["FAILED","ERROR","CANCELED"].includes(st)){ if(runKey) PENDING_VIDEO.delete(runKey); applyPollBalance(s, pr, true); throw new Error("video failed: " + ((s.data && s.data.error) || st)); }
+        if(["FAILED","ERROR","CANCELED"].includes(st)){ if(runKey) PENDING_VIDEO.delete(runKey); applyPollBalance(s, pr, true); throw new Error("video failed: " + videoFailText(s, st)); }
       }
     },
     // sync audio (speech OR music): /api/v1/audio/speech → binary audio (or JSON with a url for some providers).
@@ -7473,6 +7475,13 @@ function mp4ParamsMatch(bufs){
       return (msg && String(msg).trim()) || null;
     }catch(e){ return null; }
   }
+  function videoFailText(s, st){
+    const err = (s && s.data && s.data.error) || (s && s.error);
+    if(typeof err==="string" && err.trim()) return err.trim();
+    if(err && typeof err.message==="string" && err.message.trim()) return err.message.trim();
+    if(typeof (s && s.message)==="string" && s.message.trim()) return s.message.trim();
+    return st || "FAILED";
+  }
   async function collectAudioParams(n){
     const body = {};
     let m = null;
@@ -7810,10 +7819,54 @@ function mp4ParamsMatch(bufs){
     }catch(e){}
     return "";
   }
+  function endpointShapeHint(mode){
+    if(mode==="chat") return "OpenAI chat JSON { choices:[{ message:{ content } }] }";
+    if(mode==="image") return "{ data:[{ b64_json }] } or { data:[{ url }] }";
+    if(mode==="video") return "{ \"url\" } or NanoGPT { output: { video: { url } } }";
+    if(mode==="audio") return "{ \"url\" } or a binary audio body";
+    return "{ \"text\" } or { \"data\": ... }";
+  }
+  function endpointApiMessage(body){
+    try{
+      var j = JSON.parse(String(body||"").replace(/^\d{3}:\s*/, ""));
+      var err = j && j.error;
+      var msg = (typeof err==="string" && err)
+             || (err && typeof err.message==="string" && err.message)
+             || (j && typeof j.message==="string" && j.message)
+             || (j && typeof j.detail==="string" && j.detail)
+             || (j && typeof j.title==="string" && j.title);
+      msg = String(msg||"").replace(/\s+/g," ").trim();
+      return msg || null;
+    }catch(e){ return null; }
+  }
+  function endpointHttpError(status, body){
+    var extracted = endpointApiMessage(body);
+    var hint = "";
+    if(status===404) hint = "check the custom endpoint URL";
+    else if(status===401 || status===403) hint = "check the Authorization field";
+    else if(status===405) hint = "this endpoint must accept POST";
+    else if(status===413) hint = "payload too large; send a smaller body";
+    else if(status===415) hint = "send JSON (Content-Type: application/json)";
+    if(extracted) return extracted + (hint ? " — " + hint : "");
+    if(/<html|<body|<!doctype/i.test(String(body||"")))
+      return status + " — the URL returned a web page, not JSON; check the custom endpoint URL";
+    if(hint) return status + " — " + hint;
+    if(!String(body||"").replace(/\s+/g,"").trim())
+      return status + " — the endpoint returned an error with no body; check the URL and mode";
+    if(/^\s*[{\[]/.test(String(body||"")))
+      return status + " — the endpoint rejected the request (check URL, mode, and the posted JSON)";
+    return status + ": " + String(body).replace(/\s+/g," ").trim().slice(0,160);
+  }
+  function endpointNotJsonError(mode, ct, raw){
+    var sample = String(raw||"").replace(/\s+/g," ").trim().slice(0,80);
+    if(/<html|<body|<!doctype/i.test(raw||"") || /text\/html/i.test(ct||""))
+      return "the endpoint returned a web page, not JSON — check the URL (it must POST " + endpointShapeHint(mode) + ")";
+    return "response is not JSON — return " + endpointShapeHint(mode) + (sample ? " (got: " + sample + ")" : "");
+  }
   function endpointParseChat(j){
     var msg = (j && j.choices && j.choices[0] && j.choices[0].message) || {};
     var txt = msg.content;
-    if(txt==null) throw new Error("no text in response");
+    if(txt==null) throw new Error("no text in response — return " + endpointShapeHint("chat"));
     return { text: typeof txt==="string" ? txt : txt.map(function(p){ return p.text||""; }).join("") };
   }
   function endpointParseImage(j){
@@ -7821,7 +7874,7 @@ function mp4ParamsMatch(bufs){
       if(d.b64_json) return "data:image/png;base64,"+d.b64_json;
       return d.url;
     }).filter(Boolean);
-    if(!urls.length) throw new Error("no image in response");
+    if(!urls.length) throw new Error("no image in response — return " + endpointShapeHint("image"));
     return { image:urls[0], images:urls };
   }
   function endpointParseVideo(j){
@@ -7871,7 +7924,7 @@ function mp4ParamsMatch(bufs){
       return { text: endpointJsonModeText((Object.prototype.hasOwnProperty.call(j, "json") && j.json != null) ? j.json : j.data) };
     if(j && Object.prototype.hasOwnProperty.call(j, "data"))
       return { text: endpointJsonModeText(j.data) };
-    throw new Error("json mode expected { \"text\" } or { \"data\": ... }");
+    throw new Error("json mode expected { \"text\" } or { \"data\": ... } — not a chat/completions wrapper");
   }
   async function endpointParseResponse(mode, r){
     var ct = (r.headers && r.headers.get && r.headers.get("content-type")) || "";
@@ -7881,7 +7934,14 @@ function mp4ParamsMatch(bufs){
       if(!t || t==="application/octet-stream" || t==="binary/octet-stream") t = "audio/mpeg";
       return { audio: URL.createObjectURL(new Blob([blob], { type:t })) };
     }
-    var j = await r.json();
+    var raw = "";
+    try{ raw = await r.text(); }catch(e){ raw = ""; }
+    if(!String(raw).trim())
+      throw new Error("empty response — the endpoint returned no body; check the URL and mode");
+    var j;
+    try{ j = JSON.parse(raw); }catch(e){
+      throw new Error(endpointNotJsonError(mode, ct, raw));
+    }
     if(mode==="chat") return endpointParseChat(j);
     if(mode==="image") return endpointParseImage(j);
     if(mode==="video") return endpointParseVideo(j);
@@ -7912,8 +7972,8 @@ function mp4ParamsMatch(bufs){
     }
     if(!r.ok){
       var errBody = "";
-      try{ errBody = (await r.text()).slice(0,220); }catch(e2){}
-      throw new Error(r.status + ": " + errBody);
+      try{ errBody = (await r.text()).slice(0,800); }catch(e2){}
+      throw new Error(endpointHttpError(r.status, errBody));
     }
     return endpointParseResponse(mode, r);
   }
@@ -10000,7 +10060,7 @@ const PROMPT_CAPS = {
         if(peek){ openDetail(+peek.dataset.openLane); return; }
         const btn = e.target.closest(".err-toggle"); if(!btn) return;
         const L = RUN && RUN.lanes[+btn.dataset.lane]; if(!L) return;
-        L.showErrs = !L.showErrs; paintRuns();
+        L.showErrs = !(L.showErrs !== false); paintRuns();
       });
     }
     return box;
@@ -10086,11 +10146,19 @@ const PROMPT_CAPS = {
     }).join("");
     return { order:order, total:total, done:done, errs:errs, segs:segs, finished:(L.endAt>0) };
   }
+  function firstErrLine(L){
+    const id = (L.order||[]).find(function(nid){ const s=L.state[nid]; return s && s.kind==="error"; });
+    if(!id) return "";
+    const msg = String((L.state[id] && L.state[id].msg) || "").trim();
+    if(!msg) return "";
+    return '<div class="prog-errhint"><b>' + esc(stepLabel(id)) + '</b> ' + esc(msg) + '</div>';
+  }
   // Clickable "N errors" toggle + (when open) one line per failed step with its
-  // message — the only place a run's per-node errors are actually readable.
+  // message. Default OPEN so a first-run miss (no image, raw JSON, video fail)
+  // is readable without an extra click — Hide still collapses it.
   function errBlockHtml(L, st){
     if(!st.errs) return "";
-    const open = !!L.showErrs;
+    const open = L.showErrs !== false;
     const word = "error" + (st.errs>1?"s":"");
     let html = '<button type="button" class="err-toggle' + (open?" open":"") + '" data-lane="' + L.idx
              + '" aria-expanded="' + open + '">' + (open ? "Hide" : "Show") + " " + st.errs + " " + word + "</button>";
@@ -10129,7 +10197,7 @@ const PROMPT_CAPS = {
       now = L.stopped
         ? '<div class="prog-now">⏹ Stopped · ' + st.done + '/' + st.total + ' steps · ' + fmtClock(L.endAt-L.t0) + '</div>'
         : st.errs
-        ? '<div class="prog-now is-err">Finished with ' + st.errs + ' error' + (st.errs>1?"s":"") + ' · ' + st.done + '/' + st.total + ' steps · ' + fmtClock(L.endAt-L.t0) + '</div>'
+        ? '<div class="prog-now is-err">Finished with ' + st.errs + ' error' + (st.errs>1?"s":"") + ' · ' + st.done + '/' + st.total + ' steps · ' + fmtClock(L.endAt-L.t0) + '</div>' + firstErrLine(L)
         : '<div class="prog-now is-ok">✓ Done · ' + st.total + ' step' + (st.total!==1?"s":"") + ' · ' + fmtClock(L.endAt-L.t0) + '</div>';
     }
     return '<div class="prog-track">' + st.segs + '</div>' + now + peekBtnHtml(L) + errBlockHtml(L, st);
@@ -11503,6 +11571,22 @@ const PROMPT_CAPS = {
     }
     if(/^(TypeError: )?(Failed to fetch|Load failed|NetworkError)/i.test(m.trim()))
       return "couldn't reach nano-gpt.com — an ad-blocker, VPN or network filter may be blocking it; check the connection and run again";
+    if(/^video failed:/i.test(m)){
+      const detail = m.replace(/^video failed:\s*/i,"").trim();
+      if(!detail || detail==="[object Object]")
+        return "video failed — the provider didn't say why. Try a shorter prompt, another model, or run again.";
+      if(/content.?policy|CONTENT_POLICY|safety|moderation/i.test(m) && !/change the prompt/i.test(m))
+        return m + " — change the prompt or pick another model";
+      return m;
+    }
+    if(/^audio failed:/i.test(m)){
+      const detail = m.replace(/^audio failed:\s*/i,"").trim();
+      if(!detail || detail==="[object Object]")
+        return "audio failed — the provider didn't say why. Check the prompt, lyrics, and model, then run again.";
+      if(/content.?policy|CONTENT_POLICY|safety|moderation/i.test(m) && !/change the prompt/i.test(m))
+        return m + " — change the prompt or lyrics, or pick another model";
+      return m;
+    }
     return t(m);   // relayed API/parent messages pass through the chrome dict (e.g. "sign in to run this app"); unknown text stays verbatim
   }
   // Warm landing for a shared-app / exported recipient who lands here without a key:
@@ -12143,6 +12227,8 @@ body{ background:
 .prog-el{ margin-left:auto; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.78rem;
   color:var(--faint); font-variant-numeric:tabular-nums; }
 .prog-now.is-ok{ color:var(--ok); } .prog-now.is-err{ color:var(--danger); }
+.prog-errhint{ margin-top:.35rem; font-size:.8rem; color:var(--danger); white-space:pre-wrap; word-break:break-word; }
+.prog-errhint b{ color:var(--ink); font-weight:700; margin-right:.35rem; }
 .msg-area{ display:flex; flex-direction:column; gap:.2rem; }
 .msg-area .stline.error{ color:var(--danger); } .msg-area .stline.done{ color:var(--ok); } .msg-area .stline.warn{ color:#ffcf6b; }
 
