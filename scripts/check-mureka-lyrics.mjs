@@ -364,13 +364,35 @@ async function runWiredSong(engine, njs = false) {
 }
 
 {
-  // Prompt-only generate-song (no wire, no textarea) must still refuse before POST —
-  // the Sing example after a model swap with upstream not yet producing lyrics.
-  const { statuses, posts } = await runMusic({ model: SONG, prompt: "style from an example flow" });
-  if (posts.length) fail("play: prompt-only generate-song after example swap must not POST");
-  else if (!statuses.some((s) => s.kind === "error" && /needs Lyrics/.test(s.msg)))
-    fail("play: prompt-only generate-song must preflight");
-  else ok("play: prompt-only generate-song (example swap, empty lyrics) never POSTs");
+  // Example-flow model swap: load a MiniMax Music 3 / BGM-shaped node (prompt filled,
+  // lyrics empty, instrumental:false, response_format:mp3) and only change model →
+  // …/generate-song. Preflight must fire for that existing node — not only a blank Music node.
+  const { statuses, posts } = await runMusic({
+    model: SONG,
+    prompt: "warm acoustic pop, intimate lead vocal",
+    lyrics: "",
+    instrumental: false,
+    response_format: "mp3",
+  });
+  if (posts.length)
+    fail(`play: MiniMax-shaped example swapped to generate-song POSTed: ${JSON.stringify(posts[0]?.body)}`);
+  else if (!statuses.some((s) => s.kind === "error" && /needs Lyrics/.test(s.msg) && /Generate BGM/.test(s.msg)))
+    fail(`play: example-swap generate-song must preflight with a clear error, got ${JSON.stringify(statuses)}`);
+  else ok("play: example MiniMax fields + model swapped to generate-song never POSTs");
+
+  // Same leftover fields, but Generate BGM — empty lyrics must still POST prompt-only.
+  const bgmSwap = await runMusic({
+    model: BGM,
+    prompt: "warm acoustic pop, intimate lead vocal",
+    lyrics: "",
+    instrumental: false,
+    response_format: "mp3",
+  });
+  if (bgmSwap.posts.length !== 1)
+    fail(`play: example fields swapped to generate-bgm should POST once, got ${bgmSwap.posts.length}`);
+  else if ("lyrics" in bgmSwap.posts[0].body)
+    fail(`play: generate-bgm after example swap must omit empty lyrics, got ${JSON.stringify(bgmSwap.posts[0].body)}`);
+  else ok("play: example MiniMax fields + model swapped to generate-bgm still POSTs prompt-only");
 }
 
 /* ---- njs send path ------------------------------------------------------- */
