@@ -48,11 +48,14 @@ catalog.image.push(
 // later scenario needs must be pushed here, BEFORE any scenario runs — a prep()-time push arriving
 // after the first audio fetch has already resolved (and cached) would never be seen.
 //
-// - langmodel/nolangmodel: the TTS "explicit language control" knob (Qwen Audio 3.0 TTS Flash,
-//   Qwen-3-TTS-1.7B, bytedance/seed-speech-tts-2.0 all advertise supported_parameters.language as a
-//   {default, values} object). langmodel has it; nolangmodel is a plain TTS model that doesn't (most
-//   TTS models) — collectAudioParams must gate the field on the REAL catalog entry, not send it
-//   unconditionally, exactly like it already does for voices/duration.
+// - langmodel/nolangmodel/seedlang: the TTS "explicit language control" knob (Qwen Audio 3.0 TTS
+//   Flash, Qwen-3-TTS-1.7B, bytedance/seed-speech-tts-2.0 all advertise supported_parameters.language
+//   as a {default, values} object). langmodel is the Qwen shape (labels: English); seedlang is the
+//   ByteDance shape (ISO: en, default ""). A leftover ISO code on a label-enum model (or the reverse)
+//   must be dropped on the send path — Qwen 400s on `en`, ByteDance 400s on `English`.
+//   nolangmodel is a plain TTS model that doesn't advertise language at all (most TTS models) —
+//   collectAudioParams must gate the field on the REAL catalog entry, not send it unconditionally,
+//   exactly like it already does for voices/duration.
 // - music3shape: MiniMax Music 3's real catalog shape — supported_parameters:{} (no min/max_duration,
 //   unlike its 02/2.5/2.6 siblings), matching the real upstream API, which has no duration parameter
 //   at all (song length is model-chosen).
@@ -64,6 +67,7 @@ catalog.audio.push(
   { id: "x", supported_parameters: { voices: ["alloy"], min_duration: 1, max_duration: 300 } },
   { id: "langmodel", supported_parameters: { language: { default: "Auto", values: ["Auto", "English", "Chinese"] } } },
   { id: "nolangmodel", supported_parameters: { voices: ["alloy"] } },
+  { id: "seedlang", supported_parameters: { language: { default: "", values: ["", "zh", "en", "ja"] } } },
   { id: "music3shape", supported_parameters: {} },
 );
 
@@ -598,6 +602,38 @@ const SCENARIOS = [
     },
   },
   {
+    // Live catalog (2026-09-02): alibaba/qwen-audio-3-tts values are Auto/Chinese/English/… —
+    // not ISO codes. Exported apps expose Language as free text, so a leftover `en` (or a typed
+    // ISO code) used to ride through and 400. Drop anything not in THIS model's values.
+    name: "Speech node: leftover ISO language dropped on a Qwen-shaped label enum",
+    data: { nodes: [node("t1", "tts", { model: "langmodel", prompt: "Hello there", language: "en" })], links: [] },
+    check(app, g, fail) {
+      const b = audioCalls()[0]?.body;
+      if (!b) return fail("no /audio/speech call recorded for langmodel");
+      if ("language" in b) fail(`leftover language:"en" is not in the Qwen-shaped enum and must be omitted, got ${JSON.stringify(b.language)}`);
+    },
+  },
+  {
+    // Live catalog: bytedance/seed-speech-tts-2.0 values are "", zh, en, ja, … — not "English".
+    // A leftover Qwen label after a model swap must not be posted.
+    name: "Speech node: leftover English label dropped on a ByteDance-shaped ISO enum",
+    data: { nodes: [node("t1", "tts", { model: "seedlang", prompt: "Hello there", language: "English" })], links: [] },
+    check(app, g, fail) {
+      const b = audioCalls()[0]?.body;
+      if (!b) return fail("no /audio/speech call recorded for seedlang");
+      if ("language" in b) fail(`leftover language:"English" is not in the ByteDance-shaped enum and must be omitted, got ${JSON.stringify(b.language)}`);
+    },
+  },
+  {
+    name: "Speech node: listed ISO language forwards on a ByteDance-shaped enum",
+    data: { nodes: [node("t1", "tts", { model: "seedlang", prompt: "Hello there", language: "en" })], links: [] },
+    check(app, g, fail) {
+      const b = audioCalls()[0]?.body;
+      if (!b) return fail("no /audio/speech call recorded for seedlang");
+      if (b.language !== "en") fail(`listed language:"en" must forward on the ByteDance-shaped enum, got ${JSON.stringify(b.language)}`);
+    },
+  },
+  {
     // A CHAINED source (a Music/Remix output on the provider CDN) is an https URL and must pass
     // through untouched — inlining it would re-download CORS-blocked bytes and blow the body cap.
     name: "Remix node: chained https source passes through as a URL (never inlined)",
@@ -745,6 +781,52 @@ async function fillDimListsCheck(fail) {
   if (hint()) fail("fixed_image_count:1 must not claim the model always returns 1");
 }
 
+// Editor twin of the leftover-language send-path clamp. play's collectAudioParams is driven via
+// runGraph above; index.html's copy is a real function we can extract and call with a paper catalog
+// (normAudio-shaped: voices / language / params). Same leftover `en` / `English` cases as the play
+// scenarios — a 2-sided fix that only ships on one surface is how #396's enum gap survived a model swap.
+function extractIndexBlock(src, anchor) {
+  const start = src.indexOf(anchor);
+  if (start === -1) throw new Error("anchor not found in index.html: " + anchor);
+  let depth = 0;
+  for (let j = src.indexOf("{", start); j < src.length; j++) {
+    if (src[j] === "{") depth++;
+    else if (src[j] === "}" && --depth === 0) return src.slice(start, j + 1);
+  }
+  throw new Error("could not brace-match index.html block: " + anchor);
+}
+function editorLanguageClampCheck(fail) {
+  const IDX = readFileSync(join(ROOT, "index.html"), "utf8");
+  const items = {
+    langmodel: { voices: [], language: { default: "Auto", values: ["Auto", "English", "Chinese"] }, params: {}, pricing: {} },
+    seedlang: { voices: [], language: { default: "", values: ["", "zh", "en", "ja"] }, params: {}, pricing: {} },
+    nolangmodel: { voices: ["alloy"], language: null, params: {}, pricing: {} },
+  };
+  const ctx = {
+    catItem: (_kind, id) => items[id] || null,
+  };
+  vm.createContext(ctx);
+  const src = [
+    extractIndexBlock(IDX, "const AUDIO_PARAMS = {"),
+    extractIndexBlock(IDX, "function audioApplies(at, it){"),
+    extractIndexBlock(IDX, "function audioFields(kind, it){"),
+    extractIndexBlock(IDX, "function collectAudioParams(n){"),
+    "globalThis.__collect = collectAudioParams;",
+  ].join("\n");
+  new vm.Script(src, { filename: "index.html#collectAudioParams" }).runInContext(ctx);
+  const body = (model, language) => ctx.__collect({ type: "tts", fields: { model, language } });
+  const qwenEn = body("langmodel", "en");
+  if ("language" in qwenEn) fail(`editor: leftover language:"en" on Qwen-shaped enum must be omitted, got ${JSON.stringify(qwenEn.language)}`);
+  const qwenEnLabel = body("langmodel", "English");
+  if (qwenEnLabel.language !== "English") fail(`editor: listed language:"English" must forward, got ${JSON.stringify(qwenEnLabel.language)}`);
+  const seedLabel = body("seedlang", "English");
+  if ("language" in seedLabel) fail(`editor: leftover language:"English" on ByteDance-shaped enum must be omitted, got ${JSON.stringify(seedLabel.language)}`);
+  const seedIso = body("seedlang", "en");
+  if (seedIso.language !== "en") fail(`editor: listed language:"en" must forward on ByteDance-shaped enum, got ${JSON.stringify(seedIso.language)}`);
+  const none = body("nolangmodel", "English");
+  if ("language" in none) fail(`editor: language withheld from a model with no catalog language, got ${JSON.stringify(none.language)}`);
+}
+
 // ---- run ------------------------------------------------------------------
 const failures = [];
 const app = (() => { try { return loadEngine(); } catch (e) { failures.push("could not load engine: " + (e && e.stack || e)); return null; } })();
@@ -778,6 +860,13 @@ if (app) {
   const fail = (m) => failures.push(`fillDimLists: ${m}`);
   try { await fillDimListsCheck(fail); if (failures.length === n) process.stdout.write("  ✓ exported app pins + discloses a fixed_image_count variations box\n"); }
   catch (e) { failures.push("fillDimLists check threw: " + (e && e.stack || e)); }
+}
+
+{
+  const n = failures.length;
+  const fail = (m) => failures.push(`editor language clamp: ${m}`);
+  try { editorLanguageClampCheck(fail); if (failures.length === n) process.stdout.write("  ✓ editor collectAudioParams drops leftover language enums (twin of play)\n"); }
+  catch (e) { failures.push("editor language clamp threw: " + (e && e.stack || e)); }
 }
 
 if (failures.length) {

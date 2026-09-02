@@ -5528,6 +5528,7 @@ function collectAudioParams(n){
       let v = n.fields[f.id];
       if(f.type==="boolean"){ if(v===true||v==="true") body[f.jsonKey]=true; continue; }
       if(v==null || v==="") continue;
+      if(f.type==="select" && (f.options||[]).length && !(f.options||[]).includes(v)) continue; // leftover language/format not in this model's catalog enum (Qwen wants English, not en)
       if(f.type==="number"){ let num=Number(v); if(isNaN(num)) continue;
         if(f.appliesTo==="cat:gencount") num=1;   // never request more songs than the node can surface (one) — otherwise a stale/over-set field would bill for dropped tracks
         if(f.default!=null && num===f.default) continue; body[f.jsonKey]=num; continue; }

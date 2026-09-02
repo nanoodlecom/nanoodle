@@ -7395,6 +7395,7 @@ function mp4ParamsMatch(bufs){
       let v = n.fields[f.id], key = wireKey(f.id);
       if(f.type==="boolean"){ if(v===true||v==="true") body[key]=true; continue; }
       if(v==null || v==="") continue;
+      if(f.applies==="cat:language" && sp && sp.language && Array.isArray(sp.language.values) && sp.language.values.length && sp.language.values.indexOf(v)<0) continue; // leftover ISO/label not in this model's catalog enum (Qwen wants English, not en)
       if(f.type==="number"){ let num=Number(v); if(isNaN(num)) continue;
         if(f.applies==="cat:gencount") num=1;   // never request more songs than the node can surface (one) — mirrors the editor's collectAudioParams clamp
         if(f.default!=null && num===f.default) continue; body[key]=num; continue; }
