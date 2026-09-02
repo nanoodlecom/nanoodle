@@ -39,8 +39,14 @@ text=$(git log -1 --format=%B HEAD | awk '
 ')
 [ -z "$text" ] && exit 0
 
-# Respect a hand-written changelog edit already in this commit.
+# Respect a hand-written changelog edit already in this commit (don't add
+# another Update: line). Still regenerate public artifacts — a JSON-only
+# commit is how /changelog froze, and how PRs #430 and #433 failed CI.
 if git diff-tree --no-commit-id --name-only -r HEAD | grep -qx 'updates.json'; then
+  node "$root/scripts/gen-changelog.mjs" || exit 0
+  [ -z "$(git status --porcelain -- "$root/changelog.html" "$root/feed.xml")" ] && exit 0
+  NOODLE_SKIP_UPDATE_HOOK=1 git add "$root/changelog.html" "$root/feed.xml"
+  NOODLE_SKIP_UPDATE_HOOK=1 git commit --amend --no-edit --no-verify
   exit 0
 fi
 

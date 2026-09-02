@@ -15,12 +15,11 @@
 //
 // Deterministic by design: output depends ONLY on updates.json (no Date.now()),
 // so re-running the generator on an unchanged input is a byte-identical no-op —
-// CI/pre-commit can diff freely. Run it after editing updates.json:
+// CI/pre-commit can diff freely. After editing updates.json the pre-commit
+// hook regenerates and stages these files; CI --checks them unconditionally.
 //
 //   node scripts/gen-changelog.mjs            # write changelog.html + feed.xml
 //   node scripts/gen-changelog.mjs --check    # compare committed files, write nothing
-//
-// and commit changelog.html + feed.xml alongside.
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { createHash } from "node:crypto";

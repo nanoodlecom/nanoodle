@@ -311,10 +311,14 @@ if [ -n "$touches_quickadd" ]; then
 fi
 
 # 11) the Updates changelog data must stay valid (newest-first array of
-#     { date:"YYYY-MM-DD", text:"one line" }) so the in-app panel renders,
-#     and the generated public page / Atom feed must match it.
+#     { date:"YYYY-MM-DD", text:"one line" }) so the in-app panel renders.
+#     Auto-regenerate public artifacts so a hand-edit of updates.json cannot
+#     land without changelog.html + feed.xml (PRs #430, #433). Staging them
+#     here means the commit includes the lockstep files; CI still --checks.
 if [ -n "$touches_updates" ]; then
   node "$root/scripts/check-updates.mjs"
+  node "$root/scripts/gen-changelog.mjs"
+  git add -- "$root/changelog.html" "$root/feed.xml"
   node "$root/scripts/check-changelog.mjs"
 fi
 
