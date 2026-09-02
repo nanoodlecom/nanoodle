@@ -18,6 +18,7 @@
 //   * editor videoDimParams SEND path snaps leftover 8s without a prior applyDimFields
 //   * editor image/edit/inpaint SEND path snaps leftover 2k (dimDefs includes inpaint)
 //   * play image.run / snapImageSize SEND path snaps leftover 2k (fillDimLists is async)
+//   * njsRunFor (default paid path) snaps leftover size before the library posts fields.size raw
 //   * play dimOptionsFromItem treats inpaint like image/edit
 //   * fps / frames_per_second wire-name remap + unlisted fps snap
 //   * unlisted 9:16 on an orientation model snaps (not forwarded as aspect_ratio)
@@ -603,6 +604,16 @@ editor.catalogs.image = [BANANA, QWEN];
       fail("editor: " + kind + ".run no longer clamps size via applyDimFields on send");
     } else ok("editor: " + kind + ".run clamps size through applyDimFields on send");
   }
+
+  const njsIdx = block(IDX, "function njsRunFor(type, rn, inp, n){");
+  if (!/type==="image" \|\| type==="edit" \|\| type==="inpaint"/.test(njsIdx) || !/applyDimFields\(rn\.fields, dimDefs\(rn\.type, rn\.fields\.model\)\)/.test(njsIdx)) {
+    fail("editor: njsRunFor no longer snaps leftover image/edit/inpaint size before the library send");
+  } else ok("editor: njsRunFor snaps leftover size on the default (njs) paid path");
+
+  const njsPlay = block(PLAY, "function njsRunFor(type, rn, inp, runKey){");
+  if (!/type==="image" \|\| type==="edit" \|\| type==="inpaint"/.test(njsPlay) || !/snapImageSize\(rn, await rawCatItem\("image", mdl\(rn\)\)\)/.test(njsPlay)) {
+    fail("play: njsRunFor no longer snaps leftover image/edit/inpaint size before the library send");
+  } else ok("play: njsRunFor snaps leftover size on the default (njs) paid path");
 }
 
 catalog.image = [

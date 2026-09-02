@@ -14,7 +14,7 @@ import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
-import { loadEngine, calls } from "./play-engine.mjs";
+import { loadEngine, calls, catalog } from "./play-engine.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const html = readFileSync(join(ROOT, "play.html"), "utf8");
@@ -188,6 +188,76 @@ for (const [name, data, vetoTypes] of VETO_GRAPHS) {
   assert.notEqual(runFor("music", rn("music", { model: "x", prompt: "p" }), {}, "n1"), null, "an njs-tagged pending audio job still delegates");
   PENDING_AUDIO.delete("n1");
   console.log("✓ vetoes: gallery clamp / foreign pending jobs fall back to built-in (wired video refs, blob: media and lipsync delegate)");
+}
+
+// leftover size on the DEFAULT (njs) paid path — #414 snapped built-in image.run; library posts raw.
+{
+  const prevImg = catalog.image.slice();
+  const leftoverGraphs = [
+    ["leftover 2k → qwen-image-3", {
+      nodes: [node("i1", "image", { model: "qwen-image-3", prompt: "a fox", variations: "1", size: "2k" })],
+      links: [],
+    }, {
+      id: "qwen-image-3",
+      supported_parameters: { resolutions: ["auto", "1024x1024", "512x512", "768x1024"] },
+    }, "2k"],
+    ["leftover 1024x1024 → FIBO 1.5", {
+      nodes: [node("i1", "image", { model: "bria/fibo-generate-1.5/text-to-image", prompt: "a still", variations: "1", size: "1024x1024" })],
+      links: [],
+    }, {
+      id: "bria/fibo-generate-1.5/text-to-image",
+      supported_parameters: { resolutions: ["1mp", "4mp"] },
+    }, "1024x1024"],
+  ];
+  try {
+    for (const [name, data, raw, leftover] of leftoverGraphs) {
+      catalog.image = [raw];
+      const listed = raw.supported_parameters.resolutions;
+
+      calls.length = 0;
+      const offApp = flaggedEngine(false, []);
+      await offApp.runGraph(offApp.materialize(data), {}).catch(() => {});
+      const bodyOf = (c) => (c.body && typeof c.body === "object") ? c.body : (() => { try { return JSON.parse(c.body); } catch { return {}; } })();
+      const offPaid = calls.filter(paid);
+      const offSizes = offPaid.map((c) => bodyOf(c).size);
+
+      calls.length = 0;
+      const spy = [];
+      const onApp = flaggedEngine(true, spy);
+      await onApp.runGraph(onApp.materialize(data), {}).catch(() => {});
+      const onPaid = calls.filter(paid);
+      const onSizes = onPaid.map((c) => bodyOf(c).size);
+
+      if (!spy.includes("image")) {
+        failed++;
+        console.log(`✗ ${name}: delegation did not engage (spy: ${spy.join(", ") || "nothing"})`);
+        continue;
+      }
+      if (!offSizes.length || !onSizes.length) {
+        failed++;
+        console.log(`✗ ${name}: no image POST (off=${offSizes} on=${onSizes})`);
+        continue;
+      }
+      if (offSizes.includes(leftover) || onSizes.includes(leftover)) {
+        failed++;
+        console.log(`✗ ${name}: leftover ${leftover} still posted (off=${offSizes} on=${onSizes})`);
+        continue;
+      }
+      if (offSizes.some((s) => !listed.includes(String(s))) || onSizes.some((s) => !listed.includes(String(s)))) {
+        failed++;
+        console.log(`✗ ${name}: snapped size not in catalog (off=${offSizes} on=${onSizes})`);
+        continue;
+      }
+      if (JSON.stringify(offPaid.map(norm).sort()) !== JSON.stringify(onPaid.map(norm).sort())) {
+        failed++;
+        console.log(`✗ ${name}: flag-on requests differ from flag-off`);
+        continue;
+      }
+      console.log(`✓ ${name} → ${onSizes[0]} on both engines (leftover ${leftover} not posted)`);
+    }
+  } finally {
+    catalog.image = prevImg;
+  }
 }
 
 const total = GRAPHS.length + VETO_GRAPHS.length;
