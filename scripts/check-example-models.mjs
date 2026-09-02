@@ -105,6 +105,21 @@ if (fiboCard.size !== FIBO_PIN.size) {
 }
 console.log(`check-example-models: FIBO card pins ${FIBO_PIN.id} at ${FIBO_PIN.size}`);
 
+const OMNI_PIN = {
+  slug: "omni-flash-turntable",
+  id: "google/gemini-omni-flash/v1.1",
+};
+const omniCard = pins.find((p) => p.slug === OMNI_PIN.slug && p.type === "tvideo");
+if (!omniCard) {
+  console.error("check-example-models: EXAMPLES is missing the omni-flash-turntable tvideo card — the gallery pin drifted.");
+  process.exit(1);
+}
+if (omniCard.id !== OMNI_PIN.id) {
+  console.error(`check-example-models: omni-flash-turntable pins "${omniCard.id}" — want "${OMNI_PIN.id}" (do not use v1)`);
+  process.exit(1);
+}
+console.log(`check-example-models: Omni Flash card pins ${OMNI_PIN.id}`);
+
 const need = [...new Set(pins.map((p) => p.kind))];
 const live = {};
 for (const kind of need) {
