@@ -209,6 +209,14 @@ function sandbox() {
   else ok("spicy i2v id pasted on Text→Video tips Image→Video only");
 }
 
+{
+  const ctx = sandbox();
+  ctx.searchValue = "hot";
+  const hint = ctx.pickerSearchHint(ctx.pickerMatches());
+  if (!/NSFW-only|exact id/i.test(hint)) fail("name-only miss should hint NSFW-only / exact id, got " + JSON.stringify(hint));
+  else ok("empty filter after a name miss hints NSFW-only or exact id");
+}
+
 if (!IDX.includes('${nsfwOnly?"nsfw":"NSFW"}')) {
   fail("renderPicker lost the NSFW badge on exception rows");
 } else ok("renderPicker marks NSFW rows with an NSFW badge while NSFW-only is off");

@@ -1533,6 +1533,7 @@ const I18N = {
     "loading the full list…":"cargando la lista completa…",
     "NSFW model shown from your search or current pick.":"Modelo NSFW mostrado por tu búsqueda o la selección actual.",
     "That id is Image→Video only — it won’t appear here.":"Ese id es solo de Imagen→Vídeo — no aparecerá aquí.",
+    "no matches — NSFW-only or an exact id can surface hidden models":"sin coincidencias — NSFW only o un id exacto pueden mostrar modelos ocultos",
     "pick a model…":"elige un modelo…",
     "newest first":"más recientes primero",
     "Sort the model list":"Ordenar la lista de modelos",
@@ -2095,6 +2096,7 @@ const I18N = {
     "loading the full list…":"chargement de la liste…",
     "NSFW model shown from your search or current pick.":"Modèle NSFW affiché depuis votre recherche ou la sélection actuelle.",
     "That id is Image→Video only — it won’t appear here.":"Cet id est uniquement Image→Vidéo — il n’apparaîtra pas ici.",
+    "no matches — NSFW-only or an exact id can surface hidden models":"aucun résultat — NSFW only ou un id exact peut afficher les modèles cachés",
     "pick a model…":"choisir un modèle…",
     "newest first":"plus récents d’abord",
     "Sort the model list":"Trier la liste des modèles",
@@ -2657,6 +2659,7 @@ const I18N = {
     "loading the full list…":"lade vollständige Liste…",
     "NSFW model shown from your search or current pick.":"NSFW-Modell aus deiner Suche oder der aktuellen Auswahl angezeigt.",
     "That id is Image→Video only — it won’t appear here.":"Diese ID ist nur Bild→Video — sie erscheint hier nicht.",
+    "no matches — NSFW-only or an exact id can surface hidden models":"keine Treffer — NSFW-only oder eine exakte ID kann verborgene Modelle zeigen",
     "pick a model…":"Modell wählen…",
     "newest first":"neueste zuerst",
     "Sort the model list":"Modellliste sortieren",
@@ -3219,6 +3222,7 @@ const I18N = {
     "loading the full list…":"carregando a lista completa…",
     "NSFW model shown from your search or current pick.":"Modelo NSFW mostrado pela tua pesquisa ou pela seleção atual.",
     "That id is Image→Video only — it won’t appear here.":"Esse id é só de Imagem→Vídeo — não vai aparecer aqui.",
+    "no matches — NSFW-only or an exact id can surface hidden models":"sem resultados — NSFW only ou um id exato pode mostrar modelos ocultos",
     "pick a model…":"escolha um modelo…",
     "newest first":"mais recentes primeiro",
     "Sort the model list":"Ordenar a lista de modelos",
@@ -3781,6 +3785,7 @@ const I18N = {
     "loading the full list…":"一覧を読み込み中…",
     "NSFW model shown from your search or current pick.":"検索または現在の選択により NSFW モデルを表示しています。",
     "That id is Image→Video only — it won’t appear here.":"その ID は画像→動画専用です — ここには表示されません。",
+    "no matches — NSFW-only or an exact id can surface hidden models":"一致なし — NSFW only または正確なIDで非表示モデルを表示できます",
     "pick a model…":"モデルを選択…",
     "newest first":"新しい順",
     "Sort the model list":"モデル一覧を並べ替え",
@@ -6494,7 +6499,9 @@ function pickerSearchHint(list){
   const qNorm = normalizePickerQuery(($("mpicksearch").value || ""));
   const miss = qNorm && (catalogs[picker.kind]||[]).find(m => m.nsfw && pickerIdHitsQuery(m.id, qNorm) && !passesFilter(m, picker.filter));
   if(miss && miss.i2v && !miss.t2v && picker.filter==="t2v") return "That id is Image→Video only — it won’t appear here.";
-  return pickerRevealedNsfw(list || pickerMatches()).length ? "NSFW model shown from your search or current pick." : "";
+  if(pickerRevealedNsfw(list || pickerMatches()).length) return "NSFW model shown from your search or current pick.";
+  if(qNorm && !(list || pickerMatches()).length) return "no matches — NSFW-only or an exact id can surface hidden models";
+  return "";
 }
 function renderPicker(){
   if(!picker) return;
