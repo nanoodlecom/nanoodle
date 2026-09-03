@@ -120,36 +120,6 @@ if (omniCard.id !== OMNI_PIN.id) {
 }
 console.log(`check-example-models: Omni Flash card pins ${OMNI_PIN.id}`);
 
-const FABLE_PIN = {
-  slug: "fable-five-step",
-  id: "anthropic/claude-fable-5.1",
-};
-const fableCard = pins.find((p) => p.slug === FABLE_PIN.slug && p.type === "llm");
-if (!fableCard) {
-  console.error("check-example-models: EXAMPLES is missing the fable-five-step llm card — the gallery pin drifted.");
-  process.exit(1);
-}
-if (fableCard.id !== FABLE_PIN.id) {
-  console.error(`check-example-models: fable-five-step pins "${fableCard.id}" — want "${FABLE_PIN.id}"`);
-  process.exit(1);
-}
-console.log(`check-example-models: Fable card pins ${FABLE_PIN.id}`);
-
-const FABLE_COLD_PIN = {
-  slug: "fable-cold-open",
-  id: "anthropic/claude-fable-5.1",
-};
-const fableColdCard = pins.find((p) => p.slug === FABLE_COLD_PIN.slug && p.type === "llm");
-if (!fableColdCard) {
-  console.error("check-example-models: EXAMPLES is missing the fable-cold-open llm card — the gallery pin drifted.");
-  process.exit(1);
-}
-if (fableColdCard.id !== FABLE_COLD_PIN.id) {
-  console.error(`check-example-models: fable-cold-open pins "${fableColdCard.id}" — want "${FABLE_COLD_PIN.id}"`);
-  process.exit(1);
-}
-console.log(`check-example-models: Fable cold-open card pins ${FABLE_COLD_PIN.id}`);
-
 const need = [...new Set(pins.map((p) => p.kind))];
 const live = {};
 for (const kind of need) {

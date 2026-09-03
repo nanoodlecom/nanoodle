@@ -51,7 +51,7 @@ sentences a reader quotes back at you, so re-verify them if the server changes.
   `change = deposit − cost − take` goes to the payer.
 - "the 20% is routable to a workflow author, but no published workflow claims it
   yet" — `authorFor()` in the same file reads `x402.author` off the graph and
-  returns `null` when the field is absent, and none of the 17 graphs in
+  returns `null` when the field is absent, and none of the 13 graphs in
   `awesome-noodles/graphs` carries one. mcp.nanoodle.com advertises the
   mechanism, so present it as an open invitation. Never say the payout already
   happens. It does not.
@@ -60,7 +60,7 @@ sentences a reader quotes back at you, so re-verify them if the server changes.
 - "`--max-usd` caps one call" — `bin/nanoodle-mcp.mjs`, wallet mode.
 - "prints a cost line per invocation" — `emitResult()` in `src/tools.mjs` pushes
   a `cost: $X.XXXX` text block.
-- "seventeen workflows published" — EXAMPLES ships 17; mcp.nanoodle.com serves that same set.
+- "thirteen workflows published" — EXAMPLES ships 13; mcp.nanoodle.com serves that same set.
 
 **After posting:** log venue + link + response in shares.md, per the habit.
 
