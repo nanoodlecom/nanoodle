@@ -435,6 +435,62 @@ console.log("• live localhost chat server");
     "videoFailText falls back when error is a mute object");
 }
 
+// ---- paid-path httpRunError peels JSON (Music / Video / Image submit) --------
+// #450 wired endpointApiMessage into httpRunError so a 400 body like
+// {"error":{"message":"…"}} becomes "400: …" instead of a raw JSON wall.
+// Custom-endpoint helpers were already pinned; this is the NanoGPT send path
+// both engines actually throw from (throwHttp / genAudio / generate-video).
+{
+  function loadPaidHttp(label, src) {
+    const offered = [];
+    const ctx = {
+      offerRefuel() { offered.push(1); },
+      t(s) { return s; },
+    };
+    vm.createContext(ctx);
+    vm.runInContext(
+      extractFn(src, "endpointApiMessage") + "\n" +
+      extractFn(src, "isLowFundsError") + "\n" +
+      extractFn(src, "httpRunError") +
+      "\n;this.httpRunError=httpRunError;",
+      ctx,
+      { filename: label + "#httpRunError" },
+    );
+    ctx._offered = offered;
+    return ctx;
+  }
+
+  for (const [label, src] of [["index.html", IDX], ["play.html", PLAY]]) {
+    const H = loadPaidHttp(label, src);
+    const msg = (status, body) => H.httpRunError(status, body).message;
+    ok(msg(400, '{"error":{"message":"model not found"}}') === "400: model not found",
+      label + ": 400 JSON peels error.message (no raw dump)");
+    ok(msg(400, '{"error":"no such route"}') === "400: no such route",
+      label + ": 400 JSON peels a string error");
+    ok(msg(429, '{"message":"rate limited"}') === "429: rate limited",
+      label + ": peels a top-level message");
+    ok(!/\{/.test(msg(400, '{"error":{"message":"NSFW filter","code":"moderation","request_id":"abc"}}')),
+      label + ": peeled message is not a JSON wall");
+    ok(/out of balance/.test(msg(402, '{"error":{"message":"Payment required"}}')),
+      label + ": 402 stays the funds sentence");
+    ok(/out of balance/.test(msg(400, "insufficient balance")),
+      label + ": a shortfall body is funds, not a raw 400");
+    ok(msg(401, '{"error":{"message":"unauthorized"}}') === "401: unauthorized",
+      label + ": 401 JSON is auth text, not funds");
+    ok(msg(418, "I'm a teapot") === "418: I'm a teapot",
+      label + ": plain-text body is kept");
+  }
+
+  const editor = loadPaidHttp("index.html", IDX);
+  editor.httpRunError(402, "");
+  ok(editor._offered.length === 1, "editor 402 still opens the refuel panel");
+  editor.httpRunError(400, '{"error":{"message":"nope"}}');
+  ok(editor._offered.length === 1, "editor non-funds 400 does not open refuel");
+
+  ok(/throw httpRunError\(/.test(IDX) && /throw httpRunError\(/.test(PLAY),
+    "Music/Video submit path still throws httpRunError on both surfaces");
+}
+
 if (failures.length) {
   console.error("✗ check-endpoint: " + failures.length + " assertion(s) failed.");
   process.exit(1);
