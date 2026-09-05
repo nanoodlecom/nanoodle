@@ -1,8 +1,12 @@
 # nanoodle
 
-> A tiny ComfyUI-style node playground for AI. Wire text, image, video, audio and LLM nodes into workflows in your browser, turn one into a shareable app, and share via URL or export to a single self-contained HTML file. No server, no build step, no analytics — model calls go directly from your browser to nano-gpt.com on your own key.
+> Reusable AI apps for NanoGPT users. Sign in with NanoGPT using OAuth, connect text, image, video, audio and LLM steps in your browser, and run them on your own NanoGPT balance. Turn a workflow into an app to use again, share its link, or export one self-contained HTML file. No separate nanoodle account, no install, and no analytics.
 
-nanoodle is a static site (three HTML pages) hosted on Cloudflare Pages at https://nanoodle.com. There is no backend and no account system; your API key and workflows stay in your browser's local storage and are never sent to a nanoodle server.
+nanoodle.com serves a static browser editor, app builder, and documentation. Credentials and workflows are stored locally. Live model requests send the required inputs and OAuth token or API key directly to NanoGPT; there is no nanoodle backend in that path. The separate hosted MCP service receives inputs for calls made to it and is not covered by the browser-only privacy description.
+
+## First useful app
+
+Open an example at nanoodle.com, sign in with your existing NanoGPT account, change its input, and run it. Live generation is billed to your NanoGPT balance. Choose Create app to get a reusable inputs → Run → outputs interface, then share the app link or export its HTML. Pasting a NanoGPT API key is an alternative to OAuth.
 
 ## Pages
 - [Editor](https://nanoodle.com/): the node editor (also reachable at /app and /editor). Build and run workflows; share a graph as a URL.
@@ -11,7 +15,7 @@ nanoodle is a static site (three HTML pages) hosted on Cloudflare Pages at https
 
 ## Open source
 
-Everything is MIT-licensed under the nanoodlecom GitHub org. Naming note: the installable package is `nanoodle` on BOTH registries (npm and PyPI); only the repositories carry a `-js` / `-py` suffix. Don't guess `nanoodle-js` / `nanoodle-py` as package names — install `nanoodle`.
+The browser editor and JS/Python executors are MIT-licensed under the nanoodlecom GitHub org; sibling projects document their own licenses and dependencies. Naming note: the installable package is `nanoodle` on BOTH registries (npm and PyPI); only the repositories carry a `-js` / `-py` suffix. Don't guess `nanoodle-js` / `nanoodle-py` as package names — install `nanoodle`.
 
 - [nanoodlecom](https://github.com/nanoodlecom): the GitHub organization — site plus executor libraries.
 - [nanoodle](https://github.com/nanoodlecom/nanoodle): the site's source; nanoodle.com serves exactly the files in this repository.
@@ -22,21 +26,23 @@ Everything is MIT-licensed under the nanoodlecom GitHub org. Naming note: the in
 
 - [awesome-noodles](https://github.com/nanoodlecom/awesome-noodles): the workflow gallery. One committed `noodle-graph.json` per entry plus an editor share link. The Examples panel in the editor is this repository, one card per graph. Start here when you want a graph to open, run, or remix.
 - [built-with-nanoodle](https://github.com/nanoodlecom/built-with-nanoodle): the app showcase. Each entry is a `#a=` share link that opens a finished, runnable app in the browser. Every entry is still one of ours, so an app you add would be the first from outside. Use the full link, not a shortened one — the showcase reads the app out of the fragment. Start here when you want to see what a finished nanoodle app looks like, or to add one you shipped.
+- [Share a workflow](https://github.com/nanoodlecom/nanoodle/issues/new?template=share-workflow.yml): voluntary public submission of a full workflow or app link, its purpose, and optionally its cost and repeat use. Remove keys, tokens, and private inputs or media before posting. Nothing is submitted automatically.
+- [Report a workflow problem](https://github.com/nanoodlecom/nanoodle/issues/new?template=workflow-problem.yml): describe the task and what failed; a sanitized share link is optional.
 
 ## Formats
 
 - noodle-graph.json: the portable graph format. Save it from the editor (💾), load it back, or execute it headlessly with the `nanoodle` npm / PyPI package.
-- Share links encode the whole graph in the URL fragment — `#g=` for editor graphs, `#a=` for exported apps. Browsers never send URL fragments over the network, so a shared workflow never reaches any server.
+- Share links encode the whole graph in the URL fragment — `#g=` for editor graphs, `#a=` for apps. Browsers omit the fragment from requests to the hosting server. Recipients of the full link can read its graph and any included inputs or samples; posting it to GitHub makes that content public.
 
 ## For coding agents
 
 Three ways to plug nanoodle into a coding agent:
 
-- Hosted (easiest, no install, no key): add `https://mcp.nanoodle.com/mcp` — paid per call in Nano.
-  - `claude mcp add --transport http noodles https://mcp.nanoodle.com/mcp`
-  - `grok mcp add --transport http noodles https://mcp.nanoodle.com/mcp`
 - One workflow (or designing new ones): install the [Agent Skill](https://github.com/nanoodlecom/nanoodle-skill) — `npx skills add nanoodlecom/nanoodle-skill` teaches the agent to design and run nanoodle graphs.
 - A library of saved workflows: run [nanoodle-mcp](https://github.com/nanoodlecom/nanoodle-mcp) pointed at a folder of `noodle-graph.json` saves (`nanoodle-mcp --graphs`) — every graph becomes one typed MCP tool the agent can call. Local is BYO-key (or a Nano wallet).
+- Separate hosted service: `https://mcp.nanoodle.com/mcp` receives tool inputs and charges per call in Nano. This is distinct from the browser's NanoGPT OAuth path.
+  - `claude mcp add --transport http noodles https://mcp.nanoodle.com/mcp`
+  - `grok mcp add --transport http noodles https://mcp.nanoodle.com/mcp`
 
 ## Languages
 The interface is available in six languages: English, Español, Français, Deutsch, Português and 日本語. The language is auto-detected from your browser and can be changed with a manual switcher; your choice is remembered. Generated model output also replies in your chosen language, and apps you export keep that language built in.

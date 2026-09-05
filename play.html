@@ -504,16 +504,9 @@
     <a data-soc="email">Email</a>
   </div>
 
-  <!-- The showcase nudge sits LAST, after the link exists and the sharing options are done —
-       the one moment the reader already has the #a= link on their clipboard, which is the
-       only thing a showcase entry needs. Hidden for share-link recipients (body.recipient):
-       they didn't build this app, so it isn't theirs to submit.
-       The trailing clause is load-bearing, not decoration: "Make it shorter" sits a few lines
-       above, and a click there calls setShareUrl(short), so the box now holds a short link. The
-       showcase decodes the #a= payload out of the fragment and rejects a shortened entry, so a
-       reader who works down the popover would submit exactly the link that fails. Say which
-       form it takes, here, before they copy the wrong one. Own text node = own i18n key. -->
-  <p class="sm-note" id="sm-showcase">Proud of it? <a href="https://github.com/nanoodlecom/built-with-nanoodle" target="_blank" rel="noopener">add your app to the showcase ↗</a> <span>— it needs the full link, not a shortened one.</span></p>
+  <!-- Owner-only contribution nudge, after Share has put the app link on the clipboard.
+       The public issue form needs the full link so the graph can be reviewed directly. -->
+  <p class="sm-note" id="sm-showcase">Proud of it? <a href="https://github.com/nanoodlecom/nanoodle/issues/new?template=share-workflow.yml" target="_blank" rel="noopener">Share what you made ↗</a> <span>— it needs the full link, not a shortened one.</span></p>
 </div>
 <div id="shareback" hidden></div>
 
@@ -560,7 +553,7 @@
      its own PLAY_I18N_B key at boot (even while hidden). -->
 <div id="recwelcome" hidden role="note">
   <span class="rw-icon" aria-hidden="true">🍜</span>
-  <span class="rw-msg">Someone built this mini AI app with nanoodle and shared it with you. It runs right here in your browser with your own NanoGPT key — there's no nanoodle server in the middle. <a class="rw-cta" href="index.html">Build your own →</a></span>
+  <span class="rw-msg"><span>Run this shared app with your NanoGPT account. Each viewer uses their own balance; your key stays in this browser.</span> <button id="recwelcome-signin" class="link rw-cta">Sign in with NanoGPT</button> <a class="rw-cta" href="index.html">Build your own →</a></span>
   <button id="recwelcome-x" class="rw-x" aria-label="Dismiss" title="Dismiss">✕</button>
 </div>
 
@@ -5528,6 +5521,9 @@ const PLAY_I18N_B = {
   "The whole app lives in this link — nothing hits a server when someone opens it. That's why it can get long.":{es:"Toda la app vive en este enlace — nada llega a un servidor cuando alguien lo abre. Por eso puede quedar largo.",fr:"Toute l’app tient dans ce lien — rien n’atteint un serveur quand quelqu’un l’ouvre. C’est pourquoi il peut devenir long.",de:"Die ganze App steckt in diesem Link — beim Öffnen wird kein Server kontaktiert. Deshalb kann er lang werden.",pt:"O app inteiro vive neste link — nada chega a um servidor quando alguém o abre. Por isso ele pode ficar longo.",ja:"アプリ全体がこのリンクに含まれています — 誰かが開いてもサーバーには何も送られません。だからリンクは長くなることがあります。"},
   "Proud of it?":{es:"¿Orgulloso del resultado?",fr:"Fier du résultat ?",de:"Stolz darauf?",pt:"Orgulhoso do resultado?",ja:"自信作ですか？"},
   "add your app to the showcase ↗":{es:"añade tu app a la vitrina ↗",fr:"ajoutez votre app à la vitrine ↗",de:"füge deine App dem Schaufenster hinzu ↗",pt:"adicione seu app à vitrine ↗",ja:"あなたのアプリをショーケースに追加 ↗"},
+  "Share what you made ↗":{es:"Comparte lo que creaste ↗",fr:"Partagez votre création ↗",de:"Teile dein Ergebnis ↗",pt:"Compartilhe o que criou ↗",ja:"作ったものを紹介 ↗"},
+  "— paste a public link and tell us what it does.":{es:"— pega un enlace público y cuéntanos qué hace.",fr:"— collez un lien public et dites-nous ce qu’elle fait.",de:"— füge einen öffentlichen Link ein und beschreibe, was es macht.",pt:"— cole um link público e conte o que ele faz.",ja:"— 公開リンクを貼り、何ができるか教えてください。"},
+  "Run this shared app with your NanoGPT account. Each viewer uses their own balance; your key stays in this browser.":{es:"Ejecuta esta app compartida con tu cuenta de NanoGPT. Cada persona usa su propio saldo; tu clave se queda en este navegador.",fr:"Exécutez cette app partagée avec votre compte NanoGPT. Chaque personne utilise son propre solde ; votre clé reste dans ce navigateur.",de:"Nutze diese geteilte App mit deinem NanoGPT-Konto. Jeder nutzt sein eigenes Guthaben; dein Schlüssel bleibt in diesem Browser.",pt:"Execute este app compartilhado com sua conta NanoGPT. Cada pessoa usa seu próprio saldo; sua chave fica neste navegador.",ja:"この共有アプリはあなたのNanoGPTアカウントで実行します。各自の残高を使い、キーはこのブラウザーに保存されます。"},
   "— it needs the full link, not a shortened one.":{es:"— necesita el enlace completo, no uno acortado.",fr:"— il lui faut le lien complet, pas un lien raccourci.",de:"— dafür braucht es den vollständigen Link, keinen gekürzten.",pt:"— ele precisa do link completo, não de um encurtado.",ja:"— 必要なのは短縮リンクではなく完全なリンクです。"},
   "This shared-app link looks incomplete or damaged — ask the sender for a fresh one. Shortened links survive messengers better.":{es:"Este enlace de app compartida parece incompleto o dañado — pídele al remitente uno nuevo. Los enlaces acortados aguantan mejor en los mensajeros.",fr:"Ce lien d’app partagée semble incomplet ou endommagé — demandez-en un nouveau à l’expéditeur. Les liens raccourcis résistent mieux aux messageries.",de:"Dieser geteilte App-Link scheint unvollständig oder beschädigt — bitte den Absender um einen neuen. Gekürzte Links überstehen Messenger besser.",pt:"Este link de app compartilhado parece incompleto ou danificado — peça um novo ao remetente. Links encurtados resistem melhor aos mensageiros.",ja:"この共有アプリのリンクは不完全か壊れているようです — 送信者に新しいリンクをもらってください。短縮リンクの方がメッセンジャーで壊れにくいです。"},
   "Dismiss":{es:"Descartar",fr:"Fermer",de:"Schließen",pt:"Dispensar",ja:"閉じる"},
@@ -13916,6 +13912,7 @@ function renderAuth(){
   // beside it is redundant. Hide the status then; keep "signed in ✓" as the signed-in confirmation.
   $("auth-status").style.display = signed ? "" : "none";
   $("signin").style.display  = signed ? "none" : "";
+  $("recwelcome-signin").hidden = signed;
   $("pastebtn").style.display = signed ? "none" : "";
   $("signout").style.display  = signed ? "" : "none";
   $("apply").disabled = false;   // signed-out clicks route through kickBuilderSignIn (same as Enter) — never a dead-end
@@ -14467,6 +14464,7 @@ async function loadFromHash(){
 const IN_EDITOR = window.parent && window.parent !== window;   // opened as a popup inside the editor
 $("share").onclick = doShare;
 $("recwelcome-x").onclick = dismissRecipientWelcome;
+$("recwelcome-signin").onclick = ()=> $("signin").click();
 $("shareback").onclick = closeShareMenu;
 $("sm-copy").onclick = async ()=>{ const ok = await copyText(shareUrl); toast(ok?"✓ Copied":"copy failed", ok?"":"err"); };
 $("sm-url").onclick = ()=> $("sm-url").select();

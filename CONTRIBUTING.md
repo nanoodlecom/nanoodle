@@ -1,13 +1,32 @@
 # Contributing to nanoodle
 
+## Share a workflow or a problem
+
+If you use NanoGPT, your next useful app is a good contribution. Use the
+[workflow form](https://github.com/nanoodlecom/nanoodle/issues/new?template=share-workflow.yml)
+to share what it does and its full nanoodle share link. A short task
+description is enough; run cost and whether you have used it again are
+optional. The maintainer can review submissions for the examples or app
+showcase with credit to the author.
+
+For a failed run or a confusing step, use the
+[problem form](https://github.com/nanoodlecom/nanoodle/issues/new?template=workflow-problem.yml).
+Describe what you tried, what you expected, and what happened. A share
+link is optional; a small reproducible example helps if it is safe to share.
+
+GitHub issues are public after you submit them. A full share link contains
+the graph and may include prompts, inputs, or samples. Remove private
+material, API keys, and OAuth tokens before posting. The editor does not
+send your workflow or feedback to GitHub automatically.
+
 ## Philosophy (read this first)
 
 This repo is the site: nanoodle.com serves exactly these files as static
 assets. The constraints are deliberate, not accidental:
 
-- **Dependency-free.** There is **no `package.json`** on purpose — no npm
-  install, no lockfile, no supply chain. Every script and check runs on Node
-  built-ins only (Node ≥ 20; CI uses 22). Please don't add one.
+- **No runtime dependencies to install.** There is **no `package.json`** for
+  the site. The `check-*.mjs` guards use Node built-ins; the separate browser
+  journey uses Playwright as development tooling outside the deployed files.
 - **Two single-file apps.** `index.html` (the editor) and `play.html` (the
   app builder / exported-app runtime) each carry their entire UI and run
   engine inline. No bundler, no build step — what's in git is what ships.
@@ -18,7 +37,8 @@ assets. The constraints are deliberate, not accidental:
 
 ## Running the check suite
 
-The test suite is `scripts/check-*.mjs` — offline, no browser, no API spend.
+The test suite is `scripts/check-*.mjs` — no browser or API spend. Most
+checks are offline; the model and LoRA audits read public NanoGPT catalogs.
 CI (`.github/workflows/checks.yml`) runs exactly this loop from the repo
 root; run the same thing locally:
 
@@ -48,6 +68,20 @@ NANOODLE_JS=/path/to/nanoodle-js node scripts/check-js-parity.mjs
 
 CI always has the sibling checked out, so the skip path never hides drift on
 main (`.github/workflows/engine-parity.yml` asserts it never fires).
+
+The separate `.github/workflows/first-run.yml` installs Playwright outside
+the site and exercises a fresh desktop/mobile visit through sample results,
+Create app, sharing, HTML export, and a recipient starting NanoGPT OAuth.
+All provider requests are intercepted: it does not complete a real sign-in
+or buy inference. Its mobile case also simulates a retired starter model.
+To use an existing local Playwright installation:
+
+```sh
+NANOODLE_PLAYWRIGHT=/path/to/playwright/index.mjs node scripts/smoke-first-run.mjs
+```
+
+Set `NANOODLE_CHROMIUM` to a browser executable if needed, and
+`NANOODLE_SMOKE_ARTIFACTS` to save screenshots when a journey fails.
 
 ## Regenerating the engine bundle
 

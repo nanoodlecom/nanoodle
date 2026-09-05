@@ -42,7 +42,7 @@ const line = (src, needle) => {
 
 // ---- EDITOR: mdl() + modelDrifted() + catItem() ---------------------------
 {
-  const mdlSrc = block(IDX, "const mdl = (n)=>{");
+  const mdlSrc = block(IDX, "const mdl = (n, ctx)=>{");
   const driftSrc = block(IDX, "function modelDrifted(n){");
   const catItemSrc = line(IDX, "const catItem = (kind,id)=>");
   const ctx = {
@@ -80,6 +80,45 @@ const line = (src, needle) => {
   try { ctx.mdl(node("")); } catch (e) { msg = e.message; }
   if (!/pick a model/.test(msg)) fail("editor: empty model no longer prompts to pick one");
   else ok("editor: empty model still prompts 'pick a model first'");
+
+  // Exercise the real sample-capable node runners against the actual prerecorded context.
+  // Both the chat and image models are retired in these catalogs: samples must still render,
+  // and switching to a paid context afterwards must still stop before a sender is invoked.
+  Object.assign(ctx, {
+    CTX: {},
+    collectImageInputs: () => [], modelSupportsAudio: () => false,
+    llmOpts: () => ({ response_format: { type: "json_object" } }), chatModelCan: () => false,
+    applyDimFields: () => {}, dimDefs: () => [], SIZES: [["1k"]], imgExtra: () => ({}),
+    videoDimParams: () => ({}), loraParams: () => ({}),
+    demoPause: async () => {}, demoImage: async () => "sample-image",
+    demoClip: async () => "sample-video", demoVideoNode: () => ({ id: "sample" }),
+    demoDeny: async () => { throw new Error("unsupported sample"); },
+    DEMO_LLM_TEXT: "sample prompt",
+  });
+  ctx.NODE_TYPES.image = { modelKind: "image" };
+  ctx.NODE_TYPES.ivideo = { modelKind: "video" };
+  ctx.catalogs.image = [{ id: "live-image" }];
+  ctx.catalogs.video = [{ id: "live-video" }];
+  vm.runInContext(block(IDX, "const DEMO_CTX = {").replace("const DEMO_CTX", "var DEMO_CTX"), ctx);
+  let paidSends = 0;
+  const paid = { demo: true, genChat: async () => { paidSends++; }, genImage: async () => { paidSends++; }, genVideo: async () => { paidSends++; } };
+  for (const type of ["llm", "image", "ivideo"]) {
+    const body = IDX.slice(IDX.indexOf(`\n  ${type}: {`, IDX.indexOf("const NODE_TYPES = {")));
+    const runner = block(body, "async run(n, inp, ctx){").replace("async run(", "async function(");
+    vm.runInContext("var sampleRunner = " + runner, ctx);
+    const n = { id: "sample", type, fields: { model: "retired-model", prompt: "a ramen shop", size: "1k" } };
+    try {
+      const out = await ctx.sampleRunner(n, { image: "sample-image" }, ctx.DEMO_CTX);
+      if (!out.text && !out.image && !out.video) fail(`editor ${type}: prerecorded sample produced no output`);
+      else ok(`editor ${type}: prerecorded sample survives a retired model`);
+    } catch (e) { fail(`editor ${type}: prerecorded sample was blocked: ${e.message}`); }
+    let err = "";
+    try { await ctx.sampleRunner(n, { image: "sample-image" }, paid); } catch (e) { err = e.message; }
+    if (!/no longer available/.test(err)) fail(`editor ${type}: paid context after a sample escaped drift validation: ${err}`);
+    else ok(`editor ${type}: arbitrary demo flag cannot bypass paid preflight`);
+  }
+  if (paidSends) fail(`editor: ${paidSends} paid sends escaped model validation`);
+  else ok("editor: sample runs never weaken subsequent paid sends");
 }
 
 // ---- PLAY (exported app): assertModelAvailable() --------------------------

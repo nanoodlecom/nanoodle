@@ -1,0 +1,39 @@
+name: Share a workflow
+description: Share an app or workflow you use with NanoGPT.
+title: "[Workflow] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This becomes public when you submit it on GitHub. Share only a graph and media you are happy to publish; remove private inputs, API keys, and OAuth tokens. Nothing is submitted automatically.
+  - type: textarea
+    id: task
+    attributes:
+      label: What do you use it for?
+      description: Give the issue a short title above, then describe the task your workflow helps you do.
+      placeholder: I use this to turn a product photo into a short video for my weekly update.
+    validations:
+      required: true
+  - type: textarea
+    id: share_link
+    attributes:
+      label: Full workflow or app link
+      description: Paste the full nanoodle share link, including its fragment. Use the full link rather than a shortened link so the maintainer can inspect the graph.
+      placeholder: https://nanoodle.com/#g=… or https://nanoodle.com/play#a=…
+    validations:
+      required: true
+  - type: input
+    id: cost
+    attributes:
+      label: Cost per run, if known
+      description: Optional. Include the currency and whether this was an actual cost or an estimate.
+      placeholder: About $0.04 on my last run
+  - type: dropdown
+    id: repeat_use
+    attributes:
+      label: Have you used it again?
+      description: Optional. This helps us understand which workflows remain useful.
+      options:
+        - First successful run
+        - Used it on another occasion
+        - Use it regularly

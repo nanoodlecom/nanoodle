@@ -123,8 +123,8 @@ touches_resize=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html
 # empty (no re-hammer), the cache primes first paint, and an empty catalog stays permissive (signed-off).
 touches_catalog=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-catalog-fallback\.mjs)$' || true)
 
-# both engines run a drift preflight: a saved/shared graph's fields.model that's missing from the LIVE catalog must be blocked before any paid send.
-touches_drift=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-drifted-model\.mjs)$' || true)
+# Paid drift preflight, prerecorded samples, and the starter/gallery catalog audit's offline fixtures.
+touches_drift=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|noodle-graph\.json|scripts/check-(drifted-model|example-models(-offline)?)\.mjs)$' || true)
 # Prompt-length caps: a wired prompt over a model's character cap must be budgeted upstream / fitted,
 # never sent to a 400 the user can't act on — and both engines must read the same generated table.
 touches_promptcaps=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-prompt-caps\.mjs)$' || true)
@@ -530,6 +530,7 @@ fi
 #     the catalog is offline/empty. Offline: extracts the real helpers and drives them.
 if [ -n "$touches_drift" ]; then
   node "$root/scripts/check-drifted-model.mjs"
+  node "$root/scripts/check-example-models-offline.mjs"
 fi
 
 # 37) BRIDGE CONSENT: an imported (#a=) app is arbitrary JS that borrows the viewer's key through the

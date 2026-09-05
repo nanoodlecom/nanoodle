@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Audit the 📚 Examples gallery's pinned model ids against the live NanoGPT catalog.
+// Audit the homepage starter and 📚 Examples gallery against the live NanoGPT catalog.
 //
 // The gallery mirrors awesome-noodles verbatim, pinned fields.model included (see
 // scripts/sync-examples.mjs for why that's deliberate). The cost of pinning is that NanoGPT
@@ -8,7 +8,7 @@
 // no opaque 4xx, but a starter workflow that can't run is a bad first click, and nothing would
 // otherwise tell us it happened.
 //
-// So this is the alert. It runs monthly in CI (.github/workflows/example-models-audit.yml), the
+// So this is the alert. It runs daily and on relevant changes in CI (example-models-audit.yml), the
 // same build/audit-time-only shape as check-lora-models: it fetches the public catalog, touches
 // no user and no deployed app, and a FAILING run means "go refresh the graphs upstream, then
 // re-run scripts/sync-examples.mjs".
@@ -19,7 +19,8 @@
 //                 the catalog still advertises whose generation service 502s on every call). The
 //                 picker hides these, so a pinned one is a guaranteed dead end that drift can't see.
 //
-// A catalog outage is never a build failure — the committed app keeps working, so we exit 0.
+// An unavailable catalog makes the audit inconclusive, not successful: exit nonzero with the
+// failing endpoint. The audit never invokes a model or needs a credential.
 import { readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -78,12 +79,28 @@ function pinnedModels(kinds) {
   return out;
 }
 
+function starterModels(kinds) {
+  const graph = JSON.parse(readFileSync(join(ROOT, "noodle-graph.json"), "utf8"));
+  if (!Array.isArray(graph.nodes)) throw new Error("noodle-graph.json has no nodes array");
+  return graph.nodes.filter((n) => kinds[n.type]).map((n) => {
+    if (!n.fields?.model) throw new Error(`homepage starter: ${n.type} node ${n.id} has no model`);
+    return { slug: "homepage starter (noodle-graph.json)", node: n.id, type: n.type,
+      kind: kinds[n.type], id: n.fields.model, size: n.fields.size || null };
+  });
+}
+
 const kinds = nodeKinds();
-const pins = pinnedModels(kinds);
-if (!pins.length) {
+const galleryPins = pinnedModels(kinds);
+if (!galleryPins.length) {
   console.error("check-example-models: parsed 0 pinned models out of EXAMPLES — the entry shape changed. Audited nothing; refusing to report success.");
   process.exit(1);
 }
+const starterPins = starterModels(kinds);
+if (!starterPins.length) {
+  console.error("check-example-models: homepage starter has no model pins — audited nothing; refusing to report success.");
+  process.exit(1);
+}
+const pins = [...starterPins, ...galleryPins];
 
 const FIBO_PIN = {
   slug: "fibo-studio-still",
@@ -124,9 +141,12 @@ const need = [...new Set(pins.map((p) => p.kind))];
 const live = {};
 for (const kind of need) {
   try {
-    const r = await fetch(`${NANOGPT}${ENDPOINTS[kind]}`, { headers: { Accept: "application/json" } });
+    const r = await fetch(`${NANOGPT}${ENDPOINTS[kind]}`, {
+      headers: { Accept: "application/json" }, signal: AbortSignal.timeout(15000),
+    });
     if (!r.ok) throw new Error("HTTP " + r.status);
-    const data = (await r.json()).data || [];
+    const data = (await r.json()).data;
+    if (!Array.isArray(data)) throw new Error("unexpected response: data is not a model array");
     const ids = data.map((m) => m && m.id).filter(Boolean);
     // A 200 with no usable model array means the shape moved under us. Reporting "all live" off
     // an empty list would turn this audit into a no-op that always passes — the opposite of its job.
@@ -147,8 +167,8 @@ for (const kind of need) {
       }
     }
   } catch (e) {
-    console.error(`check-example-models: ${kind} catalog fetch failed (${e.message}) — skipping audit`);
-    process.exit(0);
+    console.error(`check-example-models: INCOMPLETE — ${kind} catalog check failed at ${ENDPOINTS[kind]} (${e.message}). No all-clear; retry the audit.`);
+    process.exit(1);
   }
 }
 
@@ -162,8 +182,8 @@ for (const p of rotten)
   console.error(`✗ ${p.slug}: ${p.type} node ${p.node} pins "${p.id}" — listed but on the app's known-dead list; every call fails`);
 
 if (gone.length || rotten.length) {
-  console.error(`\nRefresh the graph(s) in github.com/nanoodlecom/awesome-noodles, then: node scripts/sync-examples.mjs`);
+  console.error(`\nRefresh homepage pins in noodle-graph.json. For gallery pins, update github.com/nanoodlecom/awesome-noodles, then: node scripts/sync-examples.mjs`);
   process.exit(1);
 }
 const cardCount = [...src.slice(src.indexOf("const EXAMPLES = ["), src.indexOf("\n];", src.indexOf("const EXAMPLES = ["))).matchAll(/slug:"/g)].length;
-console.log(`check-example-models: OK (${pins.length} pinned ids across ${need.length} catalogs, all live; ${cardCount} gallery cards)`);
+console.log(`check-example-models: OK (${pins.length} pinned ids across ${need.length} catalogs, all live; homepage starter ${starterPins.length} pins + ${cardCount} gallery cards)`);
