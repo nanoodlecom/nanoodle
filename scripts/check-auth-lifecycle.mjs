@@ -15,6 +15,8 @@
 // as text and drive them against stubs — never re-implementing the logic under test:
 //   flagAuth · isLowFundsError · friendlyRunError · cleanKey · keySendable ·
 //   probeKey · the #keysave click handler (paste→store gate).
+// Play's RUNTIME friendlyRunError (video/audio [object Object] + policy hint)
+// is extracted separately — it is not a twin of the editor.
 //
 // Optional env NANOODLE_ROOT overrides the repo root (used by the self-test to
 // point the same extraction+assertions at a mutated copy). Default: script-relative.
@@ -265,6 +267,33 @@ for (const [status, body, want, why] of [
   const policy = api.friendlyRunError(new Error("video failed: CONTENT_POLICY_VIOLATION"));
   expect(/change the prompt/.test(policy),
     "friendlyRunError must hint what to change on a video policy fail: " + JSON.stringify(policy));
+  const objAud = api.friendlyRunError(new Error("audio failed: [object Object]"));
+  expect(/provider didn't say why/.test(objAud) && !/\[object Object\]/.test(objAud),
+    "friendlyRunError must not surface audio failed: [object Object]: " + JSON.stringify(objAud));
+  const audPolicy = api.friendlyRunError(new Error("audio failed: CONTENT_POLICY_VIOLATION"));
+  expect(/change the prompt or lyrics/.test(audPolicy),
+    "friendlyRunError must hint what to change on an audio policy fail: " + JSON.stringify(audPolicy));
+}
+
+// Play's RUNTIME copy is not a twin of the editor (no CivitAI / model-changed
+// suffix). A dropped audio/video branch there would only show in the player.
+{
+  const playSrc = readFileSync(join(ROOT, "play.html"), "utf8");
+  const playFn = extractFunction(playSrc, "friendlyRunError");
+  const playFriendly = new Function(
+    "isPromptTooLong", "promptCapFromError", "learnPromptCap", "NODE_TYPES",
+    "EMBEDDED", "setKey", "t",
+    playFn + "\nreturn friendlyRunError;"
+  )(() => false, () => null, () => {}, {}, false, () => {}, (s) => s);
+  const playVid = playFriendly(new Error("video failed: [object Object]"));
+  expect(/provider didn't say why/.test(playVid) && !/\[object Object\]/.test(playVid),
+    "play friendlyRunError must not surface video failed: [object Object]: " + JSON.stringify(playVid));
+  const playAud = playFriendly(new Error("audio failed: [object Object]"));
+  expect(/provider didn't say why/.test(playAud) && !/\[object Object\]/.test(playAud),
+    "play friendlyRunError must not surface audio failed: [object Object]: " + JSON.stringify(playAud));
+  const playAudPolicy = playFriendly(new Error("audio failed: CONTENT_POLICY_VIOLATION"));
+  expect(/change the prompt or lyrics/.test(playAudPolicy),
+    "play friendlyRunError must hint what to change on an audio policy fail: " + JSON.stringify(playAudPolicy));
 }
 
 // ======================================================================
