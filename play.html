@@ -7709,10 +7709,54 @@ function mp4ParamsMatch(bufs){
     if(a) headers.Authorization = /\s/.test(a) ? a : ("Bearer "+a);
     return headers;
   }
-  function endpointPrompt(n, inp){
-    var v = inp && inp.prompt != null ? inp.prompt : (n.fields && n.fields.prompt);
-    return String(v == null ? "" : v).trim();
-  }
+    function endpointPrompt(n, inp){
+      inp = inp || {};
+      var v = inp.prompt != null ? inp.prompt : (inp.text != null ? inp.text : (n.fields && n.fields.prompt));
+      return String(v == null ? "" : v).trim();
+    }
+    // A Choice/text wire may carry "chat · http://127.0.0.1:8787/v1/chat/completions (label)"
+    // or a bare URL / bare mode. Used so a path picker can retarget the fetch, not just decorate the body.
+    function endpointParseRoute(s){
+      var raw = String(s == null ? "" : s).trim();
+      var out = {};
+      if(!raw) return out;
+      var low = raw.toLowerCase();
+      if(ENDPOINT_MODES.indexOf(low) >= 0){ out.mode = low; return out; }
+      var mode = "", rest = raw, i, prefix, after, ch;
+      for(i=0;i<ENDPOINT_MODES.length;i++){
+        prefix = ENDPOINT_MODES[i];
+        if(low.indexOf(prefix) !== 0) continue;
+        after = raw.slice(prefix.length);
+        ch = after.charAt(0);
+        if(ch==="\u00b7" || ch==="|" || ch===":" || ch==="\u2022" || ch==="-" || /\s/.test(ch)){
+          mode = prefix;
+          rest = after.replace(/^[\s\u00b7|\u2022:\-]+/, "");
+          break;
+        }
+      }
+      rest = String(rest||"").replace(/\s+\([^)]*\)\s*$/, "").trim();
+      var url = "", m = rest.match(/https?:\/\/[^\s)]+/i);
+      if(m) url = m[0].replace(/[.,;]+$/, "");
+      if(mode) out.mode = mode;
+      if(url) out.url = url;
+      return out;
+    }
+    function endpointResolveTarget(n, inp){
+      inp = inp || {};
+      var hasFieldUrl = n && n.fields && Object.prototype.hasOwnProperty.call(n.fields, "url");
+      var fieldUrl = hasFieldUrl ? n.fields.url : ENDPOINT_DEF_URL;
+      var urlRaw = (inp.url != null && String(inp.url).trim() !== "") ? inp.url : fieldUrl;
+      var modeRaw = (inp.mode != null && String(inp.mode).trim() !== "") ? inp.mode : (n && n.fields && n.fields.mode);
+      var parsedUrl = endpointParseRoute(urlRaw);
+      var parsedMode = endpointParseRoute(modeRaw);
+      var url = parsedUrl.url || String(urlRaw == null ? "" : urlRaw).trim();
+      var mode;
+      if(parsedUrl.url && parsedUrl.mode) mode = parsedUrl.mode;
+      else if(parsedMode.url && parsedMode.mode){ url = parsedMode.url; mode = parsedMode.mode; }
+      else mode = parsedMode.mode || parsedUrl.mode || "chat";
+      mode = ENDPOINT_MODES.indexOf(String(mode).toLowerCase()) >= 0 ? String(mode).toLowerCase() : "chat";
+      return { url:url, mode:mode };
+    }
   function endpointModel(n){
     var m = String((n.fields && n.fields.model) || "").trim();
     return m || "local";
@@ -7950,11 +7994,11 @@ function mp4ParamsMatch(bufs){
     return undefined;
   }
   async function runEndpoint(n, inp){
-    var raw = (n.fields && Object.prototype.hasOwnProperty.call(n.fields, "url")) ? n.fields.url : ENDPOINT_DEF_URL;
-    var url = String(raw == null ? "" : raw).trim();
+    var target = endpointResolveTarget(n, inp||{});
+    var url = target.url;
     var ok = endpointUrlOk(url);
     if(ok!==true) throw new Error(ok);
-    var mode = endpointMode(n);
+    var mode = target.mode;
     var body = endpointRequestBody(mode, n, inp||{});
     var headers = endpointHeaders(n.fields && n.fields.auth);
     var r;

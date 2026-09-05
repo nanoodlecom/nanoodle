@@ -100,6 +100,8 @@ function buildModule(src) {
       music:{ modelKind:true, outputs:[{name:"audio",type:"audio"}], body:()=> P("prompt") },
       tts:{ modelKind:true, outputs:[{name:"audio",type:"audio"}], body:()=> P("prompt") },
       transcribe:{ modelKind:true, audioInput:"audio_input", outputs:[{name:"text",type:"text"}], body:()=> "" },
+      endpoint:{ inputs:[{name:"text",type:"text"}], outputs:[{name:"text",type:"text"}],
+        body:()=> '<input data-f="url"/><select data-f="mode"></select>'+P("prompt") },
     };
     // Audio nodes render these param textareas into the empty data-params slot AFTER body() runs, so
     // validate()'s port check reads them from AUDIO_PARAMS (mirrors the real table's shape — textarea
@@ -304,6 +306,26 @@ function runInvariants(mod) {
       links: [{ from: "n1.text", to: "n2.chorus" }] };   // music has no "chorus" field port
     if (validate(bogus).ok)
       F.push("AUDIO FIELD PORTS: a wire into a non-existent audio port (music.chorus) was accepted — the widened set lost its teeth");
+  }
+
+  // 8. ENDPOINT URL/MODE FIELD PORTS — Custom endpoint URL + mode are <input>/<select>
+  //    field ports (addFieldPorts), not textareas. validate must accept a Choice wire into
+  //    endpoint.url / endpoint.mode or a copilot plan that retargets the fetch is rejected.
+  {
+    const urlWire = { nodes: [{ id: "n1", type: "text", fields: {} }, { id: "n2", type: "endpoint", fields: {} }],
+      links: [{ from: "n1.text", to: "n2.url" }] };
+    if (!validate(urlWire).ok)
+      F.push(`ENDPOINT FIELD PORTS: a wire into endpoint.url was wrongly rejected (${validate(urlWire).errs.join("; ")})`);
+
+    const modeWire = { nodes: [{ id: "n1", type: "text", fields: {} }, { id: "n2", type: "endpoint", fields: {} }],
+      links: [{ from: "n1.text", to: "n2.mode" }] };
+    if (!validate(modeWire).ok)
+      F.push(`ENDPOINT FIELD PORTS: a wire into endpoint.mode was wrongly rejected (${validate(modeWire).errs.join("; ")})`);
+
+    const bogusEp = { nodes: [{ id: "n1", type: "text", fields: {} }, { id: "n2", type: "endpoint", fields: {} }],
+      links: [{ from: "n1.text", to: "n2.auth" }] };
+    if (validate(bogusEp).ok)
+      F.push("ENDPOINT FIELD PORTS: a wire into endpoint.auth was accepted — auth must stay unwired");
   }
 
   return F;

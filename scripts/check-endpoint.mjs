@@ -129,6 +129,38 @@ ok(aud.model === "local" && aud.input === "hello", "audio body uses input (speec
 const js = S.endpointRequestBody("json", n, { text: "hi", image: "data:x" });
 ok(js.text === "hi" && js.image === "data:x" && js.model == null, "json mode POSTs wired inputs only");
 
+const chatFromText = S.endpointRequestBody("chat", n, { text: "wired receipt" });
+ok(chatFromText.messages.some((m) => m.role === "user" && m.content === "wired receipt"),
+  "chat mode uses wired text as the user prompt when prompt is unset");
+
+// ---- route-shaped Choice strings (mode · url (label)) --------------------------------
+eq(S.endpointParseRoute("json · https://httpbingo.org/post ($0 public echo)"),
+  { mode: "json", url: "https://httpbingo.org/post" },
+  "parses gallery json echo option");
+eq(S.endpointParseRoute("chat · http://127.0.0.1:8787/v1/chat/completions (localhost mock)"),
+  { mode: "chat", url: "http://127.0.0.1:8787/v1/chat/completions" },
+  "parses gallery localhost chat option");
+eq(S.endpointParseRoute("https://httpbingo.org/post"),
+  { url: "https://httpbingo.org/post" },
+  "bare URL stays a URL");
+eq(S.endpointParseRoute("chat"), { mode: "chat" }, "bare mode stays a mode");
+eq(S.endpointParseRoute(""), {}, "empty route is empty");
+
+eq(S.endpointResolveTarget({ fields: { url: "https://httpbingo.org/post", mode: "json" } }, {}),
+  { url: "https://httpbingo.org/post", mode: "json" },
+  "typed url+mode pass through");
+eq(S.endpointResolveTarget(
+  { fields: { url: "chat · http://127.0.0.1:8787/v1/chat/completions (localhost mock)", mode: "json" } },
+  {},
+), { url: "http://127.0.0.1:8787/v1/chat/completions", mode: "chat" },
+  "route-shaped url wins over a leftover typed json mode");
+eq(S.endpointResolveTarget({ fields: { mode: "json" } }, { url: "json · https://httpbingo.org/post ($0 public echo)" }),
+  { url: "https://httpbingo.org/post", mode: "json" },
+  "inp.url route string sets both");
+eq(S.endpointResolveTarget({ fields: { url: "https://httpbingo.org/post", mode: "json" } }, { mode: "chat" }),
+  { url: "https://httpbingo.org/post", mode: "chat" },
+  "bare wired mode overrides typed mode without changing the URL");
+
 // ---- response parse -----------------------------------------------------------
 eq(S.endpointParseChat({ choices: [{ message: { content: "ok" } }] }), { text: "ok" }, "chat completions parse");
 eq(S.endpointParseImage({ data: [{ b64_json: "abc" }] }), { image: "data:image/png;base64,abc", images: ["data:image/png;base64,abc"] },
@@ -269,6 +301,17 @@ ok(!Object.values(S.endpointHeaders("tok")).some((v) => /x-api-key/i.test(String
   );
   ok(echo && echo.text === "The graph is the product.", "runEndpoint json mode shows httpbingo posted text");
   ok(!/Host|Content-Type|X-Forwarded/i.test(echo.text), "runEndpoint json mode does not dump echo headers");
+
+  calls.length = 0;
+  const routed = await S.runEndpoint(
+    { fields: { url: "json · https://httpbingo.org/post ($0 public echo)", mode: "chat", prompt: "receipt" } },
+    {},
+  );
+  ok(calls[0] && calls[0].url === "https://httpbingo.org/post",
+    "runEndpoint POSTs a route-shaped url field to the parsed host, not the leftover mode");
+  ok(routed && routed.text === "receipt", "runEndpoint route-shaped json option still echoes the body");
+  const posted = JSON.parse(calls[0].opts.body);
+  ok(posted.text === "receipt" && !posted.messages, "route-shaped json option uses json body, not chat messages");
 
   S.fetch = () => Promise.reject(Object.assign(new TypeError("Failed to fetch"), { name: "TypeError" }));
   let opaque = "";
@@ -417,6 +460,36 @@ console.log("• live localhost chat server");
   ok(seen[0].auth === "Bearer user-tok", "live request carries only the user Authorization");
   ok(!String(seen[0].body).includes("sk-nano"), "live body has no NanoGPT key");
   srv.close();
+
+  const seenChat = [];
+  const chatSrv = createServer((req, res) => {
+    const cors = {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "content-type,authorization",
+      "Access-Control-Allow-Methods": "POST,OPTIONS",
+    };
+    if (req.method === "OPTIONS") { res.writeHead(204, cors); return res.end(); }
+    let b = "";
+    req.on("data", (c) => { b += c; });
+    req.on("end", () => {
+      seenChat.push({ url: req.url, body: b });
+      res.writeHead(200, { ...cors, "Content-Type": "application/json" });
+      res.end(JSON.stringify({ choices: [{ message: { content: "from-route" } }] }));
+    });
+  });
+  await new Promise((r) => chatSrv.listen(0, "127.0.0.1", r));
+  const chatPort = chatSrv.address().port;
+  const chatUrl = `http://127.0.0.1:${chatPort}/v1/chat/completions`;
+  const fromRoute = await S.runEndpoint(
+    { fields: { url: `chat · ${chatUrl} (localhost mock)`, mode: "json", prompt: "hello local" } },
+    {},
+  );
+  ok(fromRoute && fromRoute.text === "from-route",
+    "runEndpoint route-shaped chat option uses chat parse even when fields.mode is json");
+  ok(seenChat.length === 1 && seenChat[0].url === "/v1/chat/completions",
+    "route-shaped chat option POSTs to the parsed localhost URL");
+  ok(JSON.parse(seenChat[0].body).messages, "route-shaped chat option sends a chat body");
+  chatSrv.close();
 }
 
 // ---- video poll object errors (no [object Object]) ---------------------------
@@ -433,6 +506,20 @@ console.log("• live localhost chat server");
     "videoFailText keeps a string error");
   ok(ctx.videoFailText({ data: { error: { code: 1 } } }, "CANCELED") === "CANCELED",
     "videoFailText falls back when error is a mute object");
+}
+
+// ---- gallery Custom endpoint example: Choice must retarget url/mode ----------
+{
+  const start = IDX.indexOf('slug:"custom-endpoint"');
+  const end = IDX.indexOf("];", start);
+  const card = start >= 0 && end > start ? IDX.slice(start, end) : "";
+  ok(!!card, "custom-endpoint gallery card is present");
+  ok(card.includes('to:{node:"n5",port:"url"}'), "gallery Choice (or text) wires into endpoint.url");
+  ok(card.includes('to:{node:"n5",port:"mode"}'), "gallery Choice wires into endpoint.mode");
+  ok(!/does not retarget/.test(card), "gallery comment no longer admits the picker is decorative");
+  ok(!/type:"join"/.test(card), "gallery no longer stuffs the path into a Join body");
+  ok(/httpbingo\.org\/post/.test(card) && /selected:"json · https:\/\/httpbingo\.org\/post/.test(card),
+    "gallery first-click still selects the $0 httpbingo json path");
 }
 
 if (failures.length) {
