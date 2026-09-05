@@ -7802,7 +7802,10 @@ function buildNodeEl(n){
     const ev = (inp.tagName==="SELECT" || inp.type==="checkbox") ? "change" : "input";
     inp.addEventListener(ev, ()=>{
       n.fields[f] = inp.type==="checkbox" ? inp.checked : inp.value; save();
-      if(n.type==="choice") graph.nodes.forEach(x=>{ if(x.type==="endpoint") refreshEndpointUI(x); });
+      if(n.type==="choice"){
+        refreshPortFills();
+        graph.nodes.forEach(x=>{ if(x.type==="endpoint") refreshEndpointUI(x); });
+      }
     });
     inp.addEventListener("pointerdown", e=>e.stopPropagation()); // don't drag node when editing
   });
@@ -8178,11 +8181,12 @@ function endpointWiredField(n, port){
     if(l.to.node!==n.id || l.to.port!==port) continue;
     const src = typeof byId==="function" ? byId(l.from.node) : null;
     if(!src) return "<wired "+port+">";
-    if(src.out && src.out[l.from.port]!=null && src.out[l.from.port]!=="") return src.out[l.from.port];
+    // Prefer the live field over a stale last-run .out (Choice.selected changes before the next Run).
     if(src.fields){
       if(typeof src.fields.selected==="string" && src.fields.selected.trim()) return src.fields.selected;
-      if(typeof src.fields.text==="string") return src.fields.text;
+      if(typeof src.fields.text==="string" && src.fields.text.trim()) return src.fields.text;
     }
+    if(src.out && src.out[l.from.port]!=null && src.out[l.from.port]!=="") return src.out[l.from.port];
     return "<wired "+port+">";
   }
   return null;
