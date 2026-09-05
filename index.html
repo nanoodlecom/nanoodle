@@ -660,9 +660,9 @@
   /* inline ports: a wirable socket sitting on the left edge next to a text field */
   .body .fieldport{ position:absolute; left:-1.1rem; top:0; z-index:3 }
   /* a field whose port is wired is driven by the connection — lock + dim it */
-  .body textarea.wired{ opacity:.72; border-style:dashed; cursor:not-allowed; color:var(--muted) }
-  /* a wired field collapses to a one-line chip naming its source (the textarea is hidden) */
-  .body textarea[hidden]{ display:none }
+  .body textarea.wired, .body input.wired, .body select.wired{ opacity:.72; border-style:dashed; cursor:not-allowed; color:var(--muted) }
+  /* a wired field collapses to a one-line chip naming its source (the control is hidden) */
+  .body textarea[hidden], .body input[hidden], .body select[hidden]{ display:none }
   /* inline-block, NOT flex: flex drops the whitespace between "⚡ from" and the <b> ("fromLLM") and breaks single-line ellipsis */
   .body .wire-chip{ display:inline-block; font-size:.72rem; color:var(--dim);
                     background:var(--panel2); border:1px solid var(--line); border-radius:.4rem;
@@ -6676,8 +6676,52 @@ function endpointHeaders(auth){
   return headers;
 }
 function endpointPrompt(n, inp){
-  var v = inp && inp.prompt != null ? inp.prompt : (n.fields && n.fields.prompt);
+  inp = inp || {};
+  var v = inp.prompt != null ? inp.prompt : (inp.text != null ? inp.text : (n.fields && n.fields.prompt));
   return String(v == null ? "" : v).trim();
+}
+// A Choice/text wire may carry "chat · http://127.0.0.1:8787/v1/chat/completions (label)"
+// or a bare URL / bare mode. Used so a path picker can retarget the fetch, not just decorate the body.
+function endpointParseRoute(s){
+  var raw = String(s == null ? "" : s).trim();
+  var out = {};
+  if(!raw) return out;
+  var low = raw.toLowerCase();
+  if(ENDPOINT_MODES.indexOf(low) >= 0){ out.mode = low; return out; }
+  var mode = "", rest = raw, i, prefix, after, ch;
+  for(i=0;i<ENDPOINT_MODES.length;i++){
+    prefix = ENDPOINT_MODES[i];
+    if(low.indexOf(prefix) !== 0) continue;
+    after = raw.slice(prefix.length);
+    ch = after.charAt(0);
+    if(ch==="\u00b7" || ch==="|" || ch===":" || ch==="\u2022" || ch==="-" || /\s/.test(ch)){
+      mode = prefix;
+      rest = after.replace(/^[\s\u00b7|\u2022:\-]+/, "");
+      break;
+    }
+  }
+  rest = String(rest||"").replace(/\s+\([^)]*\)\s*$/, "").trim();
+  var url = "", m = rest.match(/https?:\/\/[^\s)]+/i);
+  if(m) url = m[0].replace(/[.,;]+$/, "");
+  if(mode) out.mode = mode;
+  if(url) out.url = url;
+  return out;
+}
+function endpointResolveTarget(n, inp){
+  inp = inp || {};
+  var hasFieldUrl = n && n.fields && Object.prototype.hasOwnProperty.call(n.fields, "url");
+  var fieldUrl = hasFieldUrl ? n.fields.url : ENDPOINT_DEF_URL;
+  var urlRaw = (inp.url != null && String(inp.url).trim() !== "") ? inp.url : fieldUrl;
+  var modeRaw = (inp.mode != null && String(inp.mode).trim() !== "") ? inp.mode : (n && n.fields && n.fields.mode);
+  var parsedUrl = endpointParseRoute(urlRaw);
+  var parsedMode = endpointParseRoute(modeRaw);
+  var url = parsedUrl.url || String(urlRaw == null ? "" : urlRaw).trim();
+  var mode;
+  if(parsedUrl.url && parsedUrl.mode) mode = parsedUrl.mode;
+  else if(parsedMode.url && parsedMode.mode){ url = parsedMode.url; mode = parsedMode.mode; }
+  else mode = parsedMode.mode || parsedUrl.mode || "chat";
+  mode = ENDPOINT_MODES.indexOf(String(mode).toLowerCase()) >= 0 ? String(mode).toLowerCase() : "chat";
+  return { url:url, mode:mode };
 }
 function endpointModel(n){
   var m = String((n.fields && n.fields.model) || "").trim();
@@ -6916,11 +6960,11 @@ function endpointRunSignal(){
   return undefined;
 }
 async function runEndpoint(n, inp){
-  var raw = (n.fields && Object.prototype.hasOwnProperty.call(n.fields, "url")) ? n.fields.url : ENDPOINT_DEF_URL;
-  var url = String(raw == null ? "" : raw).trim();
+  var target = endpointResolveTarget(n, inp||{});
+  var url = target.url;
   var ok = endpointUrlOk(url);
   if(ok!==true) throw new Error(ok);
-  var mode = endpointMode(n);
+  var mode = target.mode;
   var body = endpointRequestBody(mode, n, inp||{});
   var headers = endpointHeaders(n.fields && n.fields.auth);
   var r;
@@ -7629,7 +7673,7 @@ const NODE_TYPES = {
       <div data-ep-prompt ${mode==="json"?"hidden":""}><label>prompt</label><textarea data-f="prompt" placeholder="write a 90-second cold open: shrine rain, a fox-masked courier, the neon flips red — they move.">${esc(n.fields.prompt||"")}</textarea></div>
       <div data-ep-system ${mode==="chat"?"":"hidden"}><label>system prompt (optional)</label><textarea data-f="system" style="min-height:40px" placeholder="how the model should act — e.g. you are a strict editor">${esc(n.fields.system||"")}</textarea></div>
       <div data-ep-size ${mode==="image"?"":"hidden"}><label>size</label><select data-f="size">${optsHTML(SIZES, size)}</select></div>
-      <div class="fhint">Nanoodle will POST</div>
+      <div class="fhint">Nanoodle will POST <span data-ep-dest></span></div>
       <pre class="ep-contract" data-ep-req></pre>
       <div class="fhint">Your server should return</div>
       <pre class="ep-contract" data-ep-res></pre>
@@ -7756,7 +7800,10 @@ function buildNodeEl(n){
   el.querySelectorAll("[data-f]").forEach(inp=>{
     const f = inp.dataset.f;
     const ev = (inp.tagName==="SELECT" || inp.type==="checkbox") ? "change" : "input";
-    inp.addEventListener(ev, ()=>{ n.fields[f] = inp.type==="checkbox" ? inp.checked : inp.value; save(); });
+    inp.addEventListener(ev, ()=>{
+      n.fields[f] = inp.type==="checkbox" ? inp.checked : inp.value; save();
+      if(n.type==="choice") graph.nodes.forEach(x=>{ if(x.type==="endpoint") refreshEndpointUI(x); });
+    });
     inp.addEventListener("pointerdown", e=>e.stopPropagation()); // don't drag node when editing
   });
   // rename field — writes n.name (a display label, not a graph field). Lives outside <header>
@@ -7966,7 +8013,11 @@ function refreshRefInputs(n){
 // value instead of whatever's typed. Idempotent — safe to re-run after the body rebuilds.
 function addFieldPorts(n){
   if(!n.el || n.type==="text" || n.type==="choice" || NODE_TYPES[n.type].note) return;   // Text/Choice are pure sources; a note is a non-graph annotation — none take a text override port
-  n.el.querySelectorAll("textarea[data-f], textarea[data-pf]").forEach(ta=>{
+  // Custom endpoint URL + mode are wirable so a Choice path picker can retarget the fetch.
+  const sels = n.type==="endpoint"
+    ? "textarea[data-f], textarea[data-pf], input[data-f=\"url\"], select[data-f=\"mode\"]"
+    : "textarea[data-f], textarea[data-pf]";
+  n.el.querySelectorAll(sels).forEach(ta=>{
     const field = ta.dataset.f || ta.dataset.pf;
     if(field==="extraJson") return;            // advanced JSON isn't a wirable text value
     const wrap = ta.parentElement;
@@ -8121,29 +8172,55 @@ function endpointWantedInputs(mode){
   if(mode==="audio") return { audio:1 };
   return { text:1, image:1, audio:1, video:1 };
 }
+function endpointWiredField(n, port){
+  if(typeof graph==="undefined" || !graph || !graph.links) return null;
+  for(const l of graph.links){
+    if(l.to.node!==n.id || l.to.port!==port) continue;
+    const src = typeof byId==="function" ? byId(l.from.node) : null;
+    if(!src) return "<wired "+port+">";
+    if(src.out && src.out[l.from.port]!=null && src.out[l.from.port]!=="") return src.out[l.from.port];
+    if(src.fields){
+      if(typeof src.fields.selected==="string" && src.fields.selected.trim()) return src.fields.selected;
+      if(typeof src.fields.text==="string") return src.fields.text;
+    }
+    return "<wired "+port+">";
+  }
+  return null;
+}
 function refreshEndpointUI(n){
   if(!n.el || n.type!=="endpoint") return;
-  const mode = endpointMode(n);
+  const urlW = endpointWiredField(n, "url");
+  const modeW = endpointWiredField(n, "mode");
+  const liveN = { fields: Object.assign({}, n.fields, {
+    url: urlW != null ? urlW : n.fields.url,
+    mode: modeW != null ? modeW : n.fields.mode,
+  }) };
+  const target = endpointResolveTarget(liveN, {});
+  const mode = target.mode;
   const want = endpointWantedInputs(mode);
+  const links = (typeof graph!=="undefined" && graph && graph.links) || [];
   n.el.querySelectorAll(".col.in .prow").forEach(row=>{
     const port = row.querySelector(".port");
     const name = port && port.dataset.port;
-    row.hidden = !want[name];
+    const wired = links.some(l=> l.to.node===n.id && l.to.port===name);
+    row.hidden = !want[name] && !wired;
   });
   const hide = (sel, on)=>{ const el = n.el.querySelector(sel); if(el) el.hidden = !!on; };
-  hide("[data-ep-prompt]", mode==="json");
+  hide("[data-ep-prompt]", mode==="json" && !links.some(l=> l.to.node===n.id && l.to.port==="prompt"));
   hide("[data-ep-system]", mode!=="chat");
   hide("[data-ep-size]", mode!=="image");
   hide("[data-ep-model]", mode==="json");
   const req = n.el.querySelector("[data-ep-req]");
   const res = n.el.querySelector("[data-ep-res]");
+  const dest = n.el.querySelector("[data-ep-dest]");
+  if(dest) dest.textContent = target.url ? (mode + " \u00b7 " + target.url) : "";
   if(req){
     const inp = {};
     ((typeof graph!=="undefined" && graph && graph.links) || []).forEach(l=>{
       if(l.to.node!==n.id) return;
       inp[l.to.port] = "<wired "+l.to.port+">";
     });
-    req.textContent = JSON.stringify(endpointRequestBody(mode, n, inp), null, 2);
+    req.textContent = JSON.stringify(endpointRequestBody(mode, liveN, inp), null, 2);
   }
   if(res) res.textContent = JSON.stringify(endpointExpectedReturn(mode), null, 2);
   refreshFramePorts(n);
@@ -8657,7 +8734,7 @@ function removeLink(id){
 }
 function refreshPortFills(){
   document.querySelectorAll(".port").forEach(p=> p.classList.remove("filled"));
-  document.querySelectorAll("textarea.wired").forEach(ta=>{ ta.classList.remove("wired"); ta.disabled=false; ta.hidden=false; });
+  document.querySelectorAll("textarea.wired, input.wired, select.wired").forEach(ta=>{ ta.classList.remove("wired"); ta.disabled=false; ta.hidden=false; });
   // collapse-reset: any field that WAS wired returns to its textarea; every source chip re-hides.
   // (re-populated below for still-live links, so this stays idempotent across the many re-runs)
   document.querySelectorAll("textarea[hidden]").forEach(ta=>{ ta.hidden=false; });
@@ -8667,19 +8744,24 @@ function refreshPortFills(){
     document.querySelector(`.port[data-node="${l.from.node}"][data-port="${l.from.port}"][data-dir="out"]`)?.classList.add("filled");
     // a wired text field is driven by the connection — lock its textarea
     const fp = document.querySelector(`.fieldport[data-node="${l.to.node}"][data-port="${l.to.port}"]`);
-    const ta = fp?.parentElement.querySelector("textarea[data-f],textarea[data-pf]");
+    const ta = fp?.parentElement.querySelector("textarea[data-f],textarea[data-pf],input[data-f],select[data-f]");
     if(ta){
       ta.classList.add("wired"); ta.disabled=true;
-      // collapse the wired textarea into a one-line chip naming its source. The chip is created
+      // collapse the wired field into a one-line chip naming its source. The chip is created
       // in addFieldPorts (real DOM only); it's absent in the check-editor-ports fake DOM → guard.
       const chip = ta.parentElement.querySelector(".wire-chip");
       if(chip){
         const src = byId(l.from.node);
         const name = (src && (src.name?.trim() || (NODE_TYPES[src.type] && NODE_TYPES[src.type].title))) || "source";
         let preview = "";
-        if(src && src.fields && typeof src.fields.text==="string" && src.fields.text.trim()){
-          preview = src.fields.text.replace(/\s+/g," ").trim();
-          if(preview.length>42) preview = preview.slice(0,42)+"…";
+        if(src && src.fields){
+          const raw = (typeof src.fields.selected==="string" && src.fields.selected.trim())
+            ? src.fields.selected
+            : (typeof src.fields.text==="string" ? src.fields.text : "");
+          if(raw && String(raw).trim()){
+            preview = String(raw).replace(/\s+/g," ").trim();
+            if(preview.length>42) preview = preview.slice(0,42)+"…";
+          }
         }
         chip.innerHTML = "⚡ from <b>"+esc(name)+"</b>" + (preview ? ': "'+esc(preview)+'"' : "");
         chip.hidden=false; ta.hidden=true;
@@ -12163,6 +12245,7 @@ function applyGraphData(d, opts){
   // still empty — every reloaded wired inpaint showed the inline upload UI. Rebuild them now.
   graph.nodes.forEach(n=>{ if(n.type==="inpaint" && graph.links.some(l=> l.to.node===n.id)) rerenderNode(n); });
   redraw(); refreshPortFills(); refreshAllPrices();
+  graph.nodes.forEach(n=>{ if(n.type==="endpoint") refreshEndpointUI(n); });
   // repaint carried-over results into their (freshly built) node bodies — buildNodeEl starts blank
   graph.nodes.forEach(n=>{ if(n.out && Object.keys(n.out).length){ showResult(n); setStatus(n, "done"); } });
 }
@@ -13289,14 +13372,14 @@ const EXAMPLES = [
  { em:"🔌", slug:"custom-endpoint", title:"custom endpoint", desc:"Ximending 2:17am night desk — still-warm thermal receipt",
    thumb:"",
    graph:{ v:1,
-   nodes:[ {id:"n1",type:"comment",x:40,y:20,w:460,fields:{text:"First-click is a $0 dare from a Ximending night desk: the still-warm slip + the selected path POST to a public HTTPS echo (https://httpbingo.org/post, json mode). The picker rides in the body — it does not retarget the fetch. URL and mode stay on the echo so Run works with no local server, no NanoGPT spend, no upload. The echo hands back the posted line — if you see the receipt, the wire works.\n\nNanoGPT chat contract instead: pick the localhost line, then set the endpoint mode to chat and URL to http://127.0.0.1:8787/v1/chat/completions, and start the 20-line mock in the Custom endpoint guide. Chrome may ask once for local-network access.",color:"yellow"},name:"Ximending night desk"},
+   nodes:[ {id:"n1",type:"comment",x:40,y:20,w:460,fields:{text:"First-click is a $0 dare from a Ximending night desk: the still-warm slip POSTs to the path you pick. Default is the public HTTPS echo (https://httpbingo.org/post, json mode) — no local server, no NanoGPT spend, no upload. The echo hands back the posted line — if you see the receipt, the wire works.\n\nNanoGPT chat contract: pick the localhost line and start the 20-line mock in the Custom endpoint guide. Chrome may ask once for local-network access.",color:"yellow"},name:"Ximending night desk"},
            {id:"n2",type:"text",x:40,y:300,w:280,fields:{text:"Ximending night desk, 2:17am — Wuchang Street neon on the laminate, still-warm thermal slip: one late check-in, one borrowed umbrella, NT$100 key deposit. The graph is the product. This line is just the receipt — echo me so I know the POST wasn't a rumor."},name:"Night-desk slip"},
            {id:"n3",type:"choice",x:40,y:560,w:280,fields:{options:"json · https://httpbingo.org/post ($0 public echo)\nchat · http://127.0.0.1:8787/v1/chat/completions (localhost mock)",selected:"json · https://httpbingo.org/post ($0 public echo)"},name:"Path"},
-           {id:"n4",type:"join",x:380,y:400,w:220,fields:{sep:"\n\nPath: "},name:"Body"},
-           {id:"n5",type:"endpoint",x:660,y:360,w:340,fields:{url:"https://httpbingo.org/post",mode:"json",prompt:"Ximending night desk, 2:17am — Wuchang Street neon on the laminate, still-warm thermal slip: one late check-in, one borrowed umbrella, NT$100 key deposit. The graph is the product. This line is just the receipt — echo me so I know the POST wasn't a rumor."},name:"Custom endpoint"} ],
-   links:[ {id:"l1",from:{node:"n2",port:"text"},to:{node:"n4",port:"a"}},
-           {id:"l2",from:{node:"n3",port:"text"},to:{node:"n4",port:"b"}},
-           {id:"l3",from:{node:"n4",port:"text"},to:{node:"n5",port:"text"}} ] } },
+           {id:"n5",type:"endpoint",x:420,y:360,w:340,fields:{url:"https://httpbingo.org/post",mode:"json",prompt:"Ximending night desk, 2:17am — Wuchang Street neon on the laminate, still-warm thermal slip: one late check-in, one borrowed umbrella, NT$100 key deposit. The graph is the product. This line is just the receipt — echo me so I know the POST wasn't a rumor."},name:"Custom endpoint"} ],
+   links:[ {id:"l1",from:{node:"n2",port:"text"},to:{node:"n5",port:"text"}},
+           {id:"l2",from:{node:"n2",port:"text"},to:{node:"n5",port:"prompt"}},
+           {id:"l3",from:{node:"n3",port:"text"},to:{node:"n5",port:"url"}},
+           {id:"l4",from:{node:"n3",port:"text"},to:{node:"n5",port:"mode"}} ] } },
 ];
 /* ---- 🏆 community shelf data — hand-curated, edited in place (no fetch, no build step).
    `top` = up to 3 podium spots for whatever earns the spotlight.
@@ -13704,7 +13787,7 @@ $("signout").onclick = ()=> setKey(null);
       prompt:"text prompt (chat/image/video/audio)",
       system:"system prompt (chat mode)",
       size:"image size e.g. 1024x1024 (image mode)",
-    }, note:"browser POSTs directly to the URL; never sends the NanoGPT key. Authorization is a password field — do not emit it." },
+    }, note:"browser POSTs directly to the URL; never sends the NanoGPT key. Authorization is a password field — do not emit it. url and mode are wirable field ports — a Choice option like chat · http://127.0.0.1:8787/v1/chat/completions sets both and retargets the fetch." },
     choice:{ fields:{ options:"the choices, one per line", selected:"the pre-picked option (optional)" } },
     comment:{ fields:{ text:"the note text", color:"yellow|pink|green|blue|purple|gray" } },
   };
@@ -13878,6 +13961,8 @@ $("signout").onclick = ()=> setKey(null);
       // static HTML never lists them — read those wirable text params straight from AUDIO_PARAMS, or
       // a legit wire into music.lyrics / tts.instructions gets false-rejected as a phantom port.
       for(const p of (AUDIO_PARAMS[type]||[])) if(p.type==="textarea" && !out.includes(p.id)) out.push(p.id);
+      // Custom endpoint URL + mode are <input>/<select> field ports (addFieldPorts), not textareas.
+      if(type==="endpoint"){ if(!out.includes("url")) out.push("url"); if(!out.includes("mode")) out.push("mode"); }
       return out;
     };
     const inPortOk = (type, port)=>{
@@ -13957,7 +14042,7 @@ $("signout").onclick = ()=> setKey(null);
 NODE TYPES you may use:
 ${schemaLines()}
 
-A node's OUTPUT port name equals its output type (text/image/audio/video) — except vframes (frame1,frame2,…). Most generators accept their main text via a wired link to a field port (llm.prompt, image.prompt, edit.prompt, tvideo.prompt, music.prompt, tts.prompt) or you can hardcode that field instead.
+A node's OUTPUT port name equals its output type (text/image/audio/video) — except vframes (frame1,frame2,…). Most generators accept their main text via a wired link to a field port (llm.prompt, image.prompt, edit.prompt, tvideo.prompt, music.prompt, tts.prompt) or you can hardcode that field instead. Custom endpoint also accepts wired url and mode (endpoint.url, endpoint.mode); a Choice option like "chat · http://127.0.0.1:8787/v1/chat/completions" sets both and retargets the POST.
 ${await modelHint()}
 
 RULES for the diff:
