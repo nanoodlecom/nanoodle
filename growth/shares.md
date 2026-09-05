@@ -1,25 +1,51 @@
 # Share log
 
-One new place a day. Quality of fit > reach. No spam — contribute value, honor the no-analytics / no-server / BYO-key pitch.
+## Current direction — 2026-09-04
 
-## ⚠️ Pending launches — all four are READY TO POST. Nothing blocks them.
+**Audience: existing NanoGPT users, signing in with NanoGPT OAuth.** Help them
+complete a useful workflow, save or share its app, and use it again. This
+supersedes the daily-new-venue habit and the broad launch queue below.
+See `plan-q3-distribution.md` for the current scope.
 
-**Refreshed 2026-07-28.** All four drafts were fact-checked against the live product that day and corrected. **No gate remains on any of them.** The only missing input is a human: only Mikkel can post to Hacker News, Product Hunt, AlternativeTo and Reddit.
+**Next outcome:** one existing NanoGPT user completes their own task and
+shares or exports the result; a later voluntary report establishes whether
+they returned to it. Start with Cookoff builders who already tried it.
+Record the run and any return separately; a maintainer demo or canned
+sample does not count as a user's live completion.
 
-Everything needed to post is in **`launch-checklist.md`** — one page, all four venues, exact title and body to paste, asset, account, timing, community rule. The four draft files below hold the reasoning and the comment FAQ; the checklist holds the paste.
+**Evidence available:** the Cookoff and
+[NanoGPT's workflow feature](https://nano-gpt.com/blog/nanoodle-nanogpt-oauth-workflows)
+are public; older rows below contain both confirmed posts and unverified
+drafts. Voluntary GitHub feedback forms are prepared in the repository;
+publication and actual user submissions have not yet been verified.
 
-Suggested order, and the one reason for each:
+**Evidence still needed from the maintainer:** a user-approved public
+artifact or completion report, any later repeat-use report, and current
+NanoGPT referral dashboard totals if available. Search Console data has
+not been supplied. Missing data means unknown, not zero. Keep the existing
+referral codes; distinct valid codes and their dashboard mapping have not
+been supplied or verified. Referral signups alone do not measure activation
+or retention among people who already have NanoGPT accounts.
 
-1. **AlternativeTo** — `launch-alternativeto.md`. Go first: it is ~20 minutes, it cannot flop, the account-age gate lifted Jul 13, and a directory entry starts compounding the day it goes live. Doing it first also removes the "I have not launched anything" inertia.
-2. **r/mcp** — `2026-07-17-ecosystem-shares.md`. Go second: it has the freshest news (the hosted endpoint at mcp.nanoodle.com went live Jul 23) and it is a lower-stakes audience to warm up on than HN.
-3. **Show HN** — `show-hn-draft.md`. Go third, on a weekday morning you can fully block. It needs a whole morning of live replies, so it should land on a day you own, not a day you squeeze.
-4. **Product Hunt** — `product-hunt-draft.md`. Go last, ideally the Tue/Wed right after the Show HN day, so you can quote a good HN exchange in the comments. Its one lead-time item is the PH account age — check that before you pick a date.
+One weekly record is enough; copy this row only when there is something to
+record. Use a public issue/share link with its author's permission, never
+private messages, credentials, or private media.
 
-**Stale gate removed:** the Jul 17 note said r/mcp was blocked on `nanoodle-mcp` reaching npm. It is on npm (latest 0.4.0, verified 2026-07-28 with `npm view nanoodle-mcp version`). That gate has not existed since Jul 17 and the post has been idle for nothing. The r/mcp draft was also rewritten around the hosted endpoint, which did not exist when the draft was written.
+| Week | NanoGPT user's task | Live run + share/export evidence | Used again? (date/evidence or unknown) | One obstacle to fix |
+|---|---|---|---|---|
+| YYYY-MM-DD | Task | Public link or voluntary report | Unknown until confirmed | Observed obstacle |
 
-**Still pending, separately (does not block any launch):** `nanoodle-mcp` 0.6.0 is what the repo and the hosted server run, but npm's latest is 0.4.0. The install lines in the drafts resolve and work. Publishing 0.6.0 before the r/mcp post would be tidier, not necessary.
+## Archived launch inventory — last checked 2026-07-28
 
-When one goes out, move it into the table below with the result.
+The July review marked AlternativeTo, r/mcp, Show HN, and Product Hunt
+drafts ready; current posting outcomes are unverified. Those broad-audience
+launches are outside the current NanoGPT-only scope. The historical copy
+and checklists remain in `launch-checklist.md`, `launch-alternativeto.md`,
+`2026-07-17-ecosystem-shares.md`, `show-hn-draft.md`, and
+`product-hunt-draft.md`. Their old dates, package versions, and readiness
+claims are not current instructions or evidence of a launch.
+
+## Historical share log
 
 Columns: date · venue · angle used · result (upvotes, comments, signups, what landed)
 
@@ -28,7 +54,7 @@ Columns: date · venue · angle used · result (upvotes, comments, signups, what
 | (prior) | r/nanotrade | — | — |
 | (prior) | nano-gpt.com (community) | — | — |
 | (prior) | r/monero | — | — |
-| Jun 26 | r/nanocurrency (subreddit) | 🍜 Noodle Cookoff launch — pay-per-call Nano utility + 3×133 XNO, image of a robot-assistant noodle (cookoff-reddit-post.md) | posted — URL TBD |
+| Jun 26 | r/nanocurrency (subreddit) | 🍜 Noodle Cookoff launch — pay-per-call Nano utility + 3×133 XNO, image of a robot-assistant noodle (cookoff-reddit-post.md) | posted — [public thread](https://www.reddit.com/r/nanocurrency/comments/1ugdld3/nano_noodle_cookoff_doodle_an_ai_app_with/), verified Sep 4; repeat use unknown |
 | Jun 26 | nano-gpt Discord #community-projects | Cookoff launch, primary entry channel (3×133 XNO, 3 categories) | posted ✓ (confirmed by author) |
 | Jun 26 | "posted everywhere" — other venues | Cookoff launch blast (venues TBD — fill in from history) | posted — list TBD |
 | Jul 2 | r/SideProject (subreddit) | "ComfyUI-style AI playground, 100% in-browser, exports to a single .html you own" — 30s demo video + live link + soft Cookoff mention; honest BYO-key disclosure (draft: 2026-07-02-r-SideProject.md) | drafted — pending human post |
@@ -42,7 +68,7 @@ Columns: date · venue · angle used · result (upvotes, comments, signups, what
 | Jul 6 | Official Nano Discord (chat.nano.org) | Cookoff one-week-left, crypto framing OK (draft: 2026-07-06-nano-discord.md) | drafted — outcome not logged; backfill |
 | Jul 7 | Indie Hackers | builder story, BYO-key + single-file export (draft: 2026-07-07-indiehackers.md) | drafted — outcome not logged; backfill |
 | Jul 8 | Banodoco Discord | creative-AI piece-not-pitch (draft: 2026-07-08-banodoco.md) | drafted — outcome not logged; backfill |
-| Jul 10 | nano-gpt Discord + r/nanocurrency | 48h Cookoff bump ×2 + r/nocode graph→app story (drafts: 3 files dated 07-10) | drafted — outcome not logged; backfill |
+| Jul 10 | nano-gpt Discord + r/nanocurrency | 48h Cookoff bump ×2 + r/nocode graph→app story (drafts: 3 files dated 07-10) | r/nanocurrency [deadline post](https://www.reddit.com/r/nanocurrency/comments/1ussczz/nanoodle_cookoff_2_days_left_3_chances_to_win_133/) verified Sep 4; Discord and r/nocode outcomes unknown |
 | Jul 11 | r/webdev Showoff Saturday + Nano last-24h blast | one HTML file, no build step (draft: 2026-07-11-showoff-saturday.md) | drafted — outcome not logged; backfill |
 | Jul 12 | Nano venues | deadline-day final call + judging notes (draft: 2026-07-12-deadline-and-judging.md) | drafted — Cookoff wrapped privately, 3 of 4 entries awarded |
 | Jul 17 | r/mcp (+ AlternativeTo) | "ecosystem went open source" — org public, workflows as MCP tools (draft: 2026-07-17-ecosystem-shares.md) | **ready — no gate.** The npm gate cleared Jul 17 itself; the row sat marked "gated" for 11 days by mistake. Draft rewritten 07-28 around the hosted mcp.nanoodle.com endpoint. Needs Mikkel to post. |
@@ -61,9 +87,9 @@ Columns: date · venue · angle used · result (upvotes, comments, signups, what
 
 > Jun 26: 🍜 Noodle Cookoff went live. Also shipped a rainbow floating-button announcement + modal in-app (index.html, on main) and wired the Discord invite into it. Contest window: Jun 26 → Jul 12 (23:59 UTC).
 
-## Plan of record (Fable-ranked, Jul 3) — Cookoff ends Jul 12
+## Archived July 3 plan — superseded by the September 4 direction above
 
-> **Jul 28 supersede note:** every date window in this section has passed. The section is kept for its *rules*, which still hold — the crypto-framing rule, the avoid list, the venue reasoning. For what to post next, use the "Pending launches" block at the top of this file and `launch-checklist.md`. Ignore the dates below.
+> **Historical Jul 28 note:** every date window in this section had passed. The September 4 direction now controls audience and next actions; the notes below explain earlier decisions only.
 >
 > **Jul 5 supersede note:** the day-by-day final-week execution plan (fitted to Mikkel's 30m/2h availability Jul 6–10, all posts pre-drafted) is in **`plan-final-week.md`** — that file wins where it and the bullets below disagree (notably: Show HN + Product Hunt moved to Jul 14–15, post-Cookoff, so the maker can live in comments).
 
@@ -78,7 +104,7 @@ Cross-cutting rule: **Cookoff/crypto framing ONLY in Nano venues.** Elsewhere le
 
 Avoid (double hostility = hosted-API + self-promo, or anti-genAI, or shill-pattern): r/LocalLLaMA, r/StableDiffusion + Lemmy mirror, lobste.rs (invite-only, launches flagged), r/InternetIsBeautiful (paywall-to-run = bait), Mastodon/Bluesky art & creative-coding scenes (anti-genAI pile-on), r/CryptoCurrency (shill pattern-match), r/artificial / r/ArtificialIntelligence (no trust).
 
-## Ideas / candidate venues
+## Archived ideas / candidate venues
 
 - r/selfhosted — "no server, no build step, single .html, runs in your browser"
 - r/LocalLLaMA — BYO-key playground, talks straight to model APIs

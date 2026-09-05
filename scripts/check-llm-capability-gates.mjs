@@ -153,9 +153,9 @@ if (app) {
   if (!run) failures.push("editor: could not find the llm node's run() in index.html");
   else {
     const fn = run[0];
-    if (!/if\s*\(\s*opts\.response_format\s*&&\s*!chatModelCan\(\s*mdl\(n\)\s*,\s*["']structured_output["']\s*\)\s*\)\s*delete\s+opts\.response_format/.test(fn))
+    if (!/if\s*\(\s*opts\.response_format\s*&&\s*!chatModelCan\(\s*mdl\(n,\s*ctx\)\s*,\s*["']structured_output["']\s*\)\s*\)\s*delete\s+opts\.response_format/.test(fn))
       failures.push("editor llm run(): must delete opts.response_format for a KNOWN non-structured_output model before genChat (request-time gate, play.html parity)");
-    else if (!/ctx\.genChat\(messages,\s*mdl\(n\),\s*opts\)/.test(fn))
+    else if (!/ctx\.genChat\(messages,\s*mdl\(n,\s*ctx\),\s*opts\)/.test(fn))
       failures.push("editor llm run(): genChat must receive the GATED opts object, not a fresh llmOpts(n)");
     else if (/delete\s+(f|n\.fields)\.format/.test(fn))
       failures.push("editor llm run(): the request-time gate must strip the PAYLOAD only — never delete the node's stored format field");

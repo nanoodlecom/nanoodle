@@ -1,0 +1,52 @@
+name: First visitor journey
+
+on:
+  pull_request:
+    paths:
+      - "index.html"
+      - "play.html"
+      - "noodle-graph.json"
+      - "demo-sample.*"
+      - "vendor/**"
+      - "scripts/smoke-first-run.mjs"
+      - ".github/workflows/first-run.yml"
+  push:
+    branches: [main]
+    paths:
+      - "index.html"
+      - "play.html"
+      - "noodle-graph.json"
+      - "demo-sample.*"
+      - "vendor/**"
+      - "scripts/smoke-first-run.mjs"
+      - ".github/workflows/first-run.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      # Development tooling lives outside the static site and never ships to a visitor.
+      - name: Install browser test tooling
+        run: |
+          npm install --prefix "$RUNNER_TEMP/nanoodle-browser" --no-save --package-lock=false playwright@1.62.1
+          node "$RUNNER_TEMP/nanoodle-browser/node_modules/playwright/cli.js" install --with-deps chromium
+      - name: Desktop and mobile activation, sharing, export and OAuth
+        env:
+          NANOODLE_PLAYWRIGHT: ${{ runner.temp }}/nanoodle-browser/node_modules/playwright/index.mjs
+          NANOODLE_SMOKE_ARTIFACTS: ${{ runner.temp }}/nanoodle-smoke-artifacts
+        run: node scripts/smoke-first-run.mjs
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: first-run-browser
+          path: ${{ runner.temp }}/nanoodle-smoke-artifacts
+          if-no-files-found: ignore

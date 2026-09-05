@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>nanoodle — like ComfyUI, but way simpler</title>
-<meta name="description" content="Build AI workflows with NanoGPT. ComfyUI-style, but way simpler. Turn your noodle into an app right in the browser. Share workflows and apps as plain URLs, or export to a single HTML file that's yours to keep. No analytics, just static HTML and NanoGPT, so you can noodle in privacy. UI in English, Español, Français, Deutsch, Português and 日本語." />
+<title>nanoodle — turn NanoGPT prompts into reusable apps</title>
+<meta name="description" content="Turn your NanoGPT prompts into reusable AI apps. Sign in with NanoGPT, connect text, image, video and audio models, then share a link or export one HTML file. Runs use your NanoGPT balance. No analytics; your key stays in your browser." />
 
 <!-- Open Graph -->
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="nanoodle" />
-<meta property="og:title" content="nanoodle - like ComfyUI, but way simpler" />
-<meta property="og:description" content="Wire up NanoGPT models (text, image, video, audio) into workflows in your browser, then turn one into a shareable app. Share or export, no analytics. Noodle in privacy. UI in English, Español, Français, Deutsch, Português and 日本語." />
+<meta property="og:title" content="nanoodle — turn NanoGPT prompts into reusable apps" />
+<meta property="og:description" content="Sign in with NanoGPT, turn your prompts into reusable apps, and share a link or export one HTML file. Runs use your own NanoGPT balance. No analytics; your key stays in your browser." />
 <meta property="og:url" content="https://nanoodle.com/" />
 <meta property="og:image" content="https://nanoodle.com/og-card.png" />
 <meta property="og:image:width" content="1200" />
@@ -19,8 +19,8 @@
 
 <!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="nanoodle - like ComfyUI, but way simpler" />
-<meta name="twitter:description" content="Wire up NanoGPT models (text, image, video, audio) into workflows in your browser, then turn one into a shareable app. Share or export, no analytics. Noodle in privacy. UI in English, Español, Français, Deutsch, Português and 日本語." />
+<meta name="twitter:title" content="nanoodle — turn NanoGPT prompts into reusable apps" />
+<meta name="twitter:description" content="Sign in with NanoGPT, turn your prompts into reusable apps, and share a link or export one HTML file. Runs use your own NanoGPT balance. No analytics; your key stays in your browser." />
 <meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
 <meta name="twitter:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
 
@@ -237,6 +237,9 @@
   #exampleshead h2{ font-size:1.1rem; margin:0 }
   #exampleshead .sub{ font-size:.78rem; color:var(--dim); flex:1 1 12rem }
   #examplesclose{ margin-left:auto; width:2.1rem; height:2.1rem; border-radius:.55rem; display:flex; align-items:center; justify-content:center }
+  #exampletasks{ display:grid; gap:.5rem; margin-top:1rem }
+  #exampletasks .ex-card{ border-color:var(--accent); align-items:center; min-height:44px }
+  #examplespanel .ex-heading{ margin:1rem 0 .5rem; font-size:.9rem }
   #exampleslist{ margin-top:1rem; display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:.55rem }
   .ex-card{ display:flex; gap:.6rem; align-items:flex-start; text-align:left; width:100%; padding:.65rem .7rem; background:var(--panel); border:1px solid var(--line); border-radius:.6rem; cursor:pointer }
   .ex-card:hover{ border-color:var(--accent) }
@@ -519,8 +522,7 @@
   #canvashint .ht{ flex:1; min-width:0 }   /* the sentence fills the row as one wrapping block; the × stays pinned right */
   #canvashint{ flex-wrap:wrap }
   #canvashint .ht2{ flex-basis:100%; margin-top:.15rem; font-size:.74rem; line-height:1.3; opacity:.85 }   /* pay-per-use pitch wraps to its own full-width row */
-  /* the three inline actions (▶ Run, ✨ Create app, 📚 Examples) are real buttons — same accent-link
-     look so it's obvious all three are clickable; bold + nowrap keeps each from breaking mid-token when the line wraps */
+  /* Inline actions reuse the existing sign-in, Run, Create app and Examples flows. */
   #canvashint .link{ font-weight:600; white-space:nowrap; font-size:inherit; cursor:pointer }
   #canvashint .link:hover{ text-decoration:underline }
   #connecthint b{ color:var(--accent); font-weight:600 }   /* the ● reads as a port dot */
@@ -1066,9 +1068,16 @@
   <div id="examplespanel" role="dialog" aria-label="Examples">
     <div id="exampleshead">
       <h2>📚 Examples</h2>
-      <span class="sub">ready-made workflows — click one to load it. Signed out? free sample covers the starter on the canvas; examples need your NanoGPT key to Run.</span>
+      <span class="sub">Pick a task, change the inputs, and run it on your NanoGPT balance. Create app saves a reusable version you can share.</span>
       <button id="examplesclose" class="hbtn" title="Close (Esc)" aria-label="Close">✕</button>
     </div>
+    <h3 class="ex-heading">Start with a task</h3>
+    <div id="exampletasks">
+      <button class="ex-card" data-example-slug="image-model-arena"><span class="ex-em" aria-hidden="true">🥊</span><span><span class="ex-tt">Compare image models</span><span class="ex-ds">Use one prompt across four models.</span></span></button>
+      <button class="ex-card" data-example-slug="favicon"><span class="ex-em" aria-hidden="true">📛</span><span><span class="ex-tt">Make an app icon</span><span class="ex-ds">Describe your brand; get a square icon.</span></span></button>
+      <button class="ex-card" data-example-slug="photo-to-video"><span class="ex-em" aria-hidden="true">📽️</span><span><span class="ex-tt">Make a short video</span><span class="ex-ds">Describe a scene, then animate it.</span></span></button>
+    </div>
+    <h3 class="ex-heading">All workflows</h3>
     <div id="exampleslist"></div>
     <!-- 🏆 community shelf — hand-curated winner/showcase noodles (share links, so they open in a
          new tab and never touch the current canvas). Stays hidden while COMMUNITY_NOODLES is empty. -->
@@ -1078,10 +1087,7 @@
       <div id="communitymore" data-no-i18n hidden></div>
     </div>
     <div id="examplesnote">loading replaces your current workflow — it’s autosaved, and ↺ Undo brings it back. <span>these come from</span> <a href="https://github.com/nanoodlecom/awesome-noodles" target="_blank" rel="noopener" data-no-i18n>awesome-noodles</a><span> — remix one and send us yours.</span>
-      <!-- second link, second question: the gallery answers "what can I start from", the showcase
-           answers "does this make anything real". Same sentence shape as the line above, so the
-           text nodes around the (untranslated) repo name stay their own i18n keys. -->
-      <span>Made an app from one?</span> <a href="https://github.com/nanoodlecom/built-with-nanoodle" target="_blank" rel="noopener" data-no-i18n>built-with-nanoodle</a><span> — the showcase. Every app on it is still one of ours; make yours the first that isn’t. One line.</span></div>
+      <span>Made an app from one?</span> <a href="https://github.com/nanoodlecom/nanoodle/issues/new?template=share-workflow.yml" target="_blank" rel="noopener">Share what you made ↗</a><span> — paste a public link and tell us what it does.</span></div>
   </div>
 </div>
 
@@ -1200,7 +1206,7 @@
   <svg id="wires"></svg>
   <div id="world"></div>
   <button id="delnode" title="Delete the selected node" aria-label="Delete the selected node">🗑 Delete</button>
-  <div id="canvashint" hidden><span class="ht">A live AI workflow. Press <button id="hintrun" class="link">▶ Run</button> for a free sample, or browse <button id="hintexamples" class="link">📚 Examples</button>.</span><button id="hintx" title="Got it" aria-label="Dismiss">×</button><span class="ht2">Like it? <button id="hintmake" class="link">✨ Create app</button> turns this into a shareable mini app.</span></div>
+  <div id="canvashint" hidden><span class="ht">Turn NanoGPT prompts into reusable apps.</span><button id="hintx" title="Got it" aria-label="Dismiss">×</button><span class="ht2"><span id="hintauth"><button id="hintsignin" class="link">Sign in with NanoGPT</button> → </span><span>Edit the prompt</span> → <button id="hintrun" class="link">▶ Run</button> → <button id="hintmake" class="link">✨ Create app</button> <span>to save and share.</span></span><span class="ht2"><span id="hintsample">Signed out? Run previews a prerecorded sample.</span> <span>Pick a ready-made task in</span> <button id="hintexamples" class="link">📚 Examples</button>.</span></div>
   <div id="connecthint" hidden><span>Drag a <b>●</b> port onto a matching one to connect — or drop a wire on empty canvas to quick-add.</span><button id="connecthintx" title="Got it" aria-label="Dismiss">×</button></div>
 </main>
 <div id="quickadd"></div>
@@ -1319,6 +1325,22 @@ const I18N = {
     "16:9 (Landscape)":"16:9 (Horizontal)",
     "1:1 (Square)":"1:1 (Cuadrado)",
     "A live AI workflow. Press":"Un flujo de IA en vivo. Pulsa",
+    "Turn NanoGPT prompts into reusable apps.":"Convierte prompts de NanoGPT en apps reutilizables.",
+    "Edit the prompt":"Edita el prompt",
+    "to save and share.":"para guardar y compartir.",
+    "Signed out? Run previews a prerecorded sample.":"¿Sin sesión? Ejecutar muestra un ejemplo pregrabado.",
+    "Pick a ready-made task in":"Elige una tarea preparada en",
+    "Pick a task, change the inputs, and run it on your NanoGPT balance. Create app saves a reusable version you can share.":"Elige una tarea, cambia las entradas y ejecútala con tu saldo NanoGPT. Crear app guarda una versión reutilizable que puedes compartir.",
+    "Start with a task":"Empieza con una tarea",
+    "Compare image models":"Compara modelos de imagen",
+    "Use one prompt across four models.":"Prueba un mismo prompt con cuatro modelos.",
+    "Make an app icon":"Crea un icono de app",
+    "Describe your brand; get a square icon.":"Describe tu marca y obtén un icono cuadrado.",
+    "Make a short video":"Crea un vídeo corto",
+    "Describe a scene, then animate it.":"Describe una escena y después anímala.",
+    "All workflows":"Todos los flujos",
+    "Share what you made ↗":"Comparte lo que creaste ↗",
+    "— paste a public link and tell us what it does.":"— pega un enlace público y cuéntanos qué hace.",
     "for a free sample, or browse":"para una muestra gratis, o explora",
     "turns this into a shareable mini app.":"lo convierte en una mini app compartible.",
     "Sample preview":"Vista previa de muestra",
@@ -1887,6 +1909,22 @@ const I18N = {
     "16:9 (Landscape)":"16:9 (Paysage)",
     "1:1 (Square)":"1:1 (Carré)",
     "A live AI workflow. Press":"Un workflow d’IA en direct. Appuyez sur",
+    "Turn NanoGPT prompts into reusable apps.":"Transformez vos prompts NanoGPT en apps réutilisables.",
+    "Edit the prompt":"Modifiez le prompt",
+    "to save and share.":"pour enregistrer et partager.",
+    "Signed out? Run previews a prerecorded sample.":"Sans connexion ? Exécuter affiche un exemple préenregistré.",
+    "Pick a ready-made task in":"Choisissez une tâche prête à l’emploi dans",
+    "Pick a task, change the inputs, and run it on your NanoGPT balance. Create app saves a reusable version you can share.":"Choisissez une tâche, modifiez les entrées et utilisez votre solde NanoGPT pour l’exécuter. Créer une app enregistre une version réutilisable à partager.",
+    "Start with a task":"Commencez par une tâche",
+    "Compare image models":"Comparez des modèles d’image",
+    "Use one prompt across four models.":"Essayez un même prompt avec quatre modèles.",
+    "Make an app icon":"Créez une icône d’app",
+    "Describe your brand; get a square icon.":"Décrivez votre marque et obtenez une icône carrée.",
+    "Make a short video":"Créez une courte vidéo",
+    "Describe a scene, then animate it.":"Décrivez une scène, puis animez-la.",
+    "All workflows":"Tous les workflows",
+    "Share what you made ↗":"Partagez votre création ↗",
+    "— paste a public link and tell us what it does.":"— collez un lien public et dites-nous ce qu’elle fait.",
     "for a free sample, or browse":"pour un échantillon gratuit, ou parcourir",
     "turns this into a shareable mini app.":"en fait une mini app partageable.",
     "Sample preview":"Aperçu d’exemple",
@@ -2445,6 +2483,22 @@ const I18N = {
     "16:9 (Landscape)":"16:9 (Querformat)",
     "1:1 (Square)":"1:1 (Quadratisch)",
     "A live AI workflow. Press":"Ein live KI-Workflow. Drücke",
+    "Turn NanoGPT prompts into reusable apps.":"Mach aus NanoGPT-Prompts wiederverwendbare Apps.",
+    "Edit the prompt":"Bearbeite den Prompt",
+    "to save and share.":"zum Speichern und Teilen.",
+    "Signed out? Run previews a prerecorded sample.":"Abgemeldet? Ausführen zeigt ein vorab aufgenommenes Beispiel.",
+    "Pick a ready-made task in":"Wähle eine fertige Aufgabe unter",
+    "Pick a task, change the inputs, and run it on your NanoGPT balance. Create app saves a reusable version you can share.":"Wähle eine Aufgabe, ändere die Eingaben und führe sie mit deinem NanoGPT-Guthaben aus. App erstellen speichert eine wiederverwendbare Version zum Teilen.",
+    "Start with a task":"Starte mit einer Aufgabe",
+    "Compare image models":"Vergleiche Bildmodelle",
+    "Use one prompt across four models.":"Teste denselben Prompt mit vier Modellen.",
+    "Make an app icon":"Erstelle ein App-Icon",
+    "Describe your brand; get a square icon.":"Beschreibe deine Marke und erhalte ein quadratisches Icon.",
+    "Make a short video":"Erstelle ein kurzes Video",
+    "Describe a scene, then animate it.":"Beschreibe eine Szene und animiere sie anschließend.",
+    "All workflows":"Alle Workflows",
+    "Share what you made ↗":"Teile dein Ergebnis ↗",
+    "— paste a public link and tell us what it does.":"— füge einen öffentlichen Link ein und beschreibe, was es macht.",
     "for a free sample, or browse":"für ein kostenloses Beispiel, oder durchstöbere",
     "turns this into a shareable mini app.":"macht daraus eine teilbare Mini-App.",
     "Sample preview":"Beispiel-Vorschau",
@@ -3006,6 +3060,22 @@ const I18N = {
     "16:9 (Landscape)":"16:9 (Paisagem)",
     "1:1 (Square)":"1:1 (Quadrado)",
     "A live AI workflow. Press":"Um fluxo de IA ao vivo. Pressione",
+    "Turn NanoGPT prompts into reusable apps.":"Transforme prompts NanoGPT em apps reutilizáveis.",
+    "Edit the prompt":"Edite o prompt",
+    "to save and share.":"para salvar e compartilhar.",
+    "Signed out? Run previews a prerecorded sample.":"Sem sessão? Executar mostra uma amostra pré-gravada.",
+    "Pick a ready-made task in":"Escolha uma tarefa pronta em",
+    "Pick a task, change the inputs, and run it on your NanoGPT balance. Create app saves a reusable version you can share.":"Escolha uma tarefa, altere as entradas e execute com seu saldo NanoGPT. Criar app salva uma versão reutilizável que você pode compartilhar.",
+    "Start with a task":"Comece com uma tarefa",
+    "Compare image models":"Compare modelos de imagem",
+    "Use one prompt across four models.":"Use o mesmo prompt em quatro modelos.",
+    "Make an app icon":"Crie um ícone de app",
+    "Describe your brand; get a square icon.":"Descreva sua marca e receba um ícone quadrado.",
+    "Make a short video":"Crie um vídeo curto",
+    "Describe a scene, then animate it.":"Descreva uma cena e depois anime-a.",
+    "All workflows":"Todos os fluxos",
+    "Share what you made ↗":"Compartilhe o que criou ↗",
+    "— paste a public link and tell us what it does.":"— cole um link público e conte o que ele faz.",
     "for a free sample, or browse":"para uma amostra grátis, ou explore",
     "turns this into a shareable mini app.":"transforma isto numa mini app partilhável.",
     "Sample preview":"Pré-visualização de amostra",
@@ -3564,6 +3634,22 @@ const I18N = {
     "16:9 (Landscape)":"16:9 (横長)",
     "1:1 (Square)":"1:1 (スクエア)",
     "A live AI workflow. Press":"ライブのAIワークフローです。",
+    "Turn NanoGPT prompts into reusable apps.":"NanoGPTのプロンプトを何度も使えるアプリに。",
+    "Edit the prompt":"プロンプトを編集",
+    "to save and share.":"で保存・共有できます。",
+    "Signed out? Run previews a prerecorded sample.":"未サインイン時の実行は、事前に生成したサンプルを表示します。",
+    "Pick a ready-made task in":"すぐ使えるタスクはこちら：",
+    "Pick a task, change the inputs, and run it on your NanoGPT balance. Create app saves a reusable version you can share.":"タスクを選び、入力を変え、NanoGPTの残高で実行します。「アプリを作成」で繰り返し使える形に保存・共有できます。",
+    "Start with a task":"タスクから始める",
+    "Compare image models":"画像モデルを比較",
+    "Use one prompt across four models.":"同じプロンプトを4つのモデルで試します。",
+    "Make an app icon":"アプリアイコンを作る",
+    "Describe your brand; get a square icon.":"ブランドを説明すると正方形のアイコンに。",
+    "Make a short video":"短い動画を作る",
+    "Describe a scene, then animate it.":"シーンを説明し、画像を動かします。",
+    "All workflows":"すべてのワークフロー",
+    "Share what you made ↗":"作ったものを紹介 ↗",
+    "— paste a public link and tell us what it does.":"— 公開リンクを貼り、何ができるか教えてください。",
     "for a free sample, or browse":"で無料サンプルを試すか、",
     "turns this into a shareable mini app.":"で共有できるミニアプリにします。",
     "Sample preview":"サンプルプレビュー",
@@ -6860,7 +6946,10 @@ async function runEndpoint(n, inp){
    input values -> output values. Ports are typed ('text' | 'image') and
    only matching types can connect.
    ====================================================================== */
-const mdl = (n)=>{ if(!n.fields.model) throw new Error("pick a model first");
+const mdl = (n, ctx)=>{ if(!n.fields.model) throw new Error("pick a model first");
+  // Prerecorded samples never send to NanoGPT. Only the actual canned context may bypass
+  // live-catalog drift; a paid run (or an arbitrary context with demo:true) still validates.
+  if(ctx && typeof DEMO_CTX!=="undefined" && ctx===DEMO_CTX) return n.fields.model;
   // Run preflight: a drifted (renamed/retired) model id must never reach a paid sender —
   // block the node here, before any request, so there's no opaque 4xx and no charge on a dead id.
   if(modelDrifted(n)) throw new Error(t("this model is no longer available on NanoGPT — click the node’s model name to pick another"));
@@ -7014,8 +7103,8 @@ const NODE_TYPES = {
       // runGraph twin): strip it from the outgoing request only — never from n.fields, the knob
       // must survive for a model that can use it.
       const opts = llmOpts(n);
-      if(opts.response_format && !chatModelCan(mdl(n), "structured_output")) delete opts.response_format;
-      return { text: await ctx.genChat(messages, mdl(n), opts) };
+      if(opts.response_format && !chatModelCan(mdl(n, ctx), "structured_output")) delete opts.response_format;
+      return { text: await ctx.genChat(messages, mdl(n, ctx), opts) };
     }
   },
 
@@ -7040,7 +7129,7 @@ const NODE_TYPES = {
       const want = fixed>1 ? fixed : Math.max(1, Math.min(maxOut, parseInt(n.fields.variations,10)||1));
       // always take the multi path: even a single-image request can come back with N (fixed_image_count
       // models return 4), and we want to surface every image the user paid for, not discard them.
-      const urls = await ctx.genImage(prompt, mdl(n), (applyDimFields(n.fields, dimDefs(n.type, n.fields.model)), n.fields.size||SIZES[0][0]), undefined, undefined, imgExtra(n), {n:want, multi:true});
+      const urls = await ctx.genImage(prompt, mdl(n, ctx), (applyDimFields(n.fields, dimDefs(n.type, n.fields.model)), n.fields.size||SIZES[0][0]), undefined, undefined, imgExtra(n), {n:want, multi:true});
       const sel = Math.min(Math.max(0, parseInt(n.fields.sel,10)||0), urls.length-1);   // remembered pick, clamped to what came back
       return { image: urls[sel], images: urls };
     }
@@ -7251,7 +7340,7 @@ const NODE_TYPES = {
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       const opts = { dims:videoDimParams(n), lora:loraParams(n), extra:(n.fields.modelOpts||{}), runKey:n.id };
       if(inp.endframe) opts.last_image = inp.endframe;   // end-frame morph target (only collected when the model exposes last_image — see input gather)
-      const url = await ctx.genVideo(mdl(n), prompt, opts, inp.image,
+      const url = await ctx.genVideo(mdl(n, ctx), prompt, opts, inp.image,
         (st,ms,meta)=> setNodeProgress(n, fmtPollHeadline(t("animating…"), st, ms), meta));
       return { video: url };
     }
@@ -13277,6 +13366,9 @@ function loadExample(i){
 }
 $("examples").onclick = openExamples;
 $("examplesclose").onclick = closeExamples;
+$("exampletasks").querySelectorAll("[data-example-slug]").forEach(button=>{
+  button.onclick = ()=>{ const i = EXAMPLES.findIndex(ex=>ex.slug===button.dataset.exampleSlug); if(i>=0) loadExample(i); };
+});
 $("hintrun").onclick = ()=> $("run").click();    // banner "▶ Run" = the toolbar Run (it dismisses the hint, then runs/stops)
 $("hintmake").onclick = openCreateApp;           // banner "✨ Create app" = the toolbar ✨ button (opens the modal, keeps the hint like Examples)
 $("hintexamples").onclick = openExamples;        // first-run banner link — must NOT dismiss the hint
@@ -13325,6 +13417,8 @@ function renderAuth(){
   $("status").textContent = ok ? t("ready ✓") : t("not signed in");
   $("signin").style.display = ok?"none":""; $("pastebtn").style.display = ok?"none":""; $("signout").style.display = ok?"":"none";
   $("authmenu").style.display = ok?"none":"";   // the split-button shell (caret + popover) has no signed-in job; "" defers to the stylesheet (flex, or narrowbar's none)
+  $("hintauth").hidden = ok;
+  $("hintsample").hidden = ok;
   if(ok){ const dp = $("demopop"); if(dp) dp.hidden = true; }   // signed in → the sample-run pitch is over
   layoutBar();   // auth controls differ in width between states → re-measure the bar's fit
 }
@@ -13377,6 +13471,7 @@ function ensureAuth(){
 }
 const signInErr = (e)=>{ $("status").textContent=t("sign-in error")+": "+e.message; toast(t("sign-in didn't complete")+": "+e.message, "err"); };
 $("signin").onclick = ()=> signIn().catch(signInErr);
+$("hintsignin").onclick = ()=> $("signin").click();
 $("pastebtn").onclick = async ()=>{
   $("keyrow").classList.add("open"); $("keyinput").focus();
   // the button says "paste" — so paste: fill from the clipboard where the browser allows it

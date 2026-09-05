@@ -1,6 +1,52 @@
 # Q3 distribution plan (Jul 15 → Oct 15, 2026)
 
-Rev 1 — 2026-07-11. Supersedes "post somewhere daily" as the growth model.
+## Current plan — 2026-09-04
+
+**NanoGPT users are the audience. NanoGPT OAuth is the sign-in path.**
+The product promise is reusable apps that run on a user's existing NanoGPT
+balance. This revision supersedes every audience, launch, and expansion
+priority in the July plan retained below.
+
+The next completed outcome is one existing NanoGPT user running a workflow
+for their own task and leaving with a share link or exported app. Confirm
+repeat use separately on a later occasion. Begin with willing Cookoff
+builders; an independent completion and a useful failure report are both
+more informative than a maintainer walkthrough. Canned sample runs do not
+count as live generation or activation.
+
+Keep the work small: maintain a working starter and examples, make the
+OAuth → run → Create app → share/export path clear, and fix the obstacle
+reported by the next user. Voluntary public GitHub forms collect the task,
+an optional cost, and optional repeat-use feedback. A showcase submission
+requires a full share link; a problem report does not. Nothing is sent
+automatically. Users review their content and choose whether to publish it.
+
+For promotion, use existing NanoGPT community relationships and concrete
+apps useful to that audience. Broad HN/PH launches, unrelated directories,
+new markets, and new integration surfaces are outside this plan. The
+existing ecosystem remains supported; its size is not a growth outcome.
+
+Record one weekly outcome in `shares.md`: task, live completion and
+share/export evidence, later repeat use or unknown, and one observed
+obstacle. No on-site analytics, event beacons, or tracking. Use voluntary
+reports and public artifacts only with their authors' permission.
+
+NanoGPT referral dashboard totals and Search Console can supplement that
+record when the maintainer supplies them. Neither dataset has been
+provided for this review, and neither measures a user's full in-app path.
+Existing NanoGPT users may already have referral attribution, so referral
+signups are not an activation or retention count. Preserve existing OAuth
+and signup referral codes; separate valid codes and their dashboard mapping
+need provider/maintainer verification before any change. Do not infer
+users or returning users from package downloads, stars, or missing logs.
+
+## Archived July plan — historical context only
+
+The original plan below is retained to explain existing assets and drafts.
+Its checkboxes, deadlines, market assumptions, and launch instructions are
+not active requirements; use the September 4 scope above.
+
+Rev 1 — 2026-07-11. At the time, superseded "post somewhere daily" as the growth model.
 Research basis: 8-agent sweep 2026-07-11 (repo audit, MCP ecosystem, GEO/LLM
 visibility, directories, i18n venues, integration surfaces, SEO, critic).
 

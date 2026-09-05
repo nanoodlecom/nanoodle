@@ -1,24 +1,11 @@
 #!/usr/bin/env node
-// The SANDBOX MATRIX for scripts/check-twin-drift.mjs: 16 mutations of the 2 engine surfaces, each
-// with the verdict the guard must return. It copies index.html, play.html, the guard and the
-// baseline into a scratch directory, mutates the copies, runs the guard there, and compares its exit
-// code and its per-rule counts against this file. Nothing here touches the working tree.
-//
-// WHY IT EXISTS. This guard has 2 failure directions and they pull against each other:
-//   it must FAIL a 2-sided DIVERGENT edit (each surface keeps its own version of one twin), and
-//   it must PASS a 2-sided mirrored DELETION (both surfaces drop the same twins — an extraction).
-// A change that fixes one direction can silently break the other. The first divergence rule did
-// exactly that: it failed 4 of the 9 extractions docs/twin-drift.md itself plans, including row 1,
-// where sig = deletes = 25 and the deletion is perfectly mirrored. Both directions are in the table
-// below, so neither can regress unnoticed.
-//
-// HOW A MUTATION IS WRITTEN. Line ranges are 1-based and inclusive, on the file as committed. The
-// deletions are the block ranges of the work list in docs/twin-drift.md, so this matrix also proves
-// that the ranges that document publishes really are mirrored pairs. Three of them were not, and the
-// guard is what found it — see the row notes.
-//
-// Offline. No network, no API spend, no writes outside the scratch directory.
-//   node scripts/check-twin-drift-cases.mjs
+// Offline sandbox matrix for the twin-drift guard: mirrored extractions must not be mistaken
+// for divergent edits; one-sided changes, occurrence loss and new duplication must still fail.
+// Mutations resolve named source blocks and exact lines, never historical line numbers. Added
+// UI, translations or generated bundles cannot move a mutation into unrelated runtime code.
+// The nine extraction rows follow the semantic blocks described in docs/twin-drift.md; that
+// document's dated line ranges are deliberately not used as executable coordinates.
+// No network or API spend. All mutated copies live in a disposable scratch directory.
 
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, rmSync, copyFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -27,207 +14,119 @@ import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const fn = (name) => ({ fn: name });
+const through = (start, end) => ({ start: fn(start), end: fn(end) });
+const one = (text) => ({ text });
+const TICKS = "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);";
+const ESCAPE = 'document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && !$("sharemenu").hidden){ e.stopPropagation(); closeShareMenu(); } }, true);';
+const URL_CLICK = '$("sm-url").onclick = ()=> $("sm-url").select();';
+const SERVICE_CLICK = 'document.querySelectorAll("#sharemenu .sm-svc button").forEach(btn => btn.onclick = async ()=>{';
+const tickEdit = (file, suffix) => ({ file, from: TICKS, to: TICKS.replace("s.dur,", "s.dur" + suffix + ",") });
 
-// A case is { name, why, idx, play, edits, expect }.
-//   idx / play  line ranges to DELETE from that surface, [from, to] inclusive, 1-based.
-//   edits       [{ file, line, from, to }] — an exact-text replacement, so a shifted line fails loud
-//               instead of editing the wrong code.
-//   expect      { exit, divergence, drift, oneSided, occurrence, growth } — every rule's count. A
-//               missing key means 0.
+// Expected counts are explicit. A newly surviving copy outside an extraction still requires a
+// deliberate review here; anchoring fixes position drift, it does not waive semantic changes.
+// Re-anchoring proof (Sept 2026): independently counting exact shared lines before/after these
+// complete semantic slices removes 24/5/25/9/92/123/66/133/24 twins in rows 1..9. Rows 1..7 and 9
+// leave no one-sided lines or occurrence loss. Row 8 leaves exactly the five copies named below.
+// The old numeric windows cut unrelated code (even partial function bodies); their expectations
+// of 25..128 one-sided deletions did not test mirrored extraction at all.
 const CASES = [
-  {
-    name: "clean tree",
-    why: "no mutation at all: the committed tree must be silent",
-    expect: { exit: 0 },
-  },
-
-  // ---- the 9 planned extractions of docs/twin-drift.md, deleted from BOTH surfaces ----------
+  { name: "clean tree", why: "the unmodified committed surfaces must be silent", expect: { exit: 0 } },
   {
     name: "extract row 1 — resize and crop geometry",
-    why: "sig = deletes = 25, the plainest mirrored removal in the plan",
-    idx: [[7849, 7909]],
-    play: [[7626, 7661], [9738, 9752]],
-    // Ranges re-anchored after restoring 2 gallery-only i18n keys × 5 langs (+10
-    // after the editor i18n maps in index.html; custom-endpoint card). Surfaces
-    // still share resize helpers outside this block, so a paired delete is not
-    // silent.
-    expect: { exit: 1, oneSided: 25, occurrence: 1 },
+    why: "remove both resize functions and both scaled-image/alpha helpers, wherever they live",
+    idx: [fn("resizePlan"), fn("resizeCropImage"), fn("scaledDataURL"), fn("canvasHasAlpha")],
+    play: [fn("resizePlan"), fn("resizeCropImage"), fn("scaledDataUrl"), fn("canvasHasAlpha")],
+    expect: { exit: 0 },
   },
   {
     name: "extract row 2 — maskToSource",
-    why: "5 twins, already exported from browser.mjs. Re-anchored to the real " +
-      "index.html maskToSource (8274-8292); the old 8079 window was a stale " +
-      "block and made a paired delete look one-sided. Deleting both copies is silent.",
-    idx: [[8254, 8272]],
-    play: [[7605, 7623]],
+    why: "remove the complete mask compositor from both hand-maintained runtimes",
+    idx: [fn("maskToSource")], play: [fn("maskToSource")],
     expect: { exit: 0 },
   },
   {
     name: "extract row 3 — encodeWavMono + mediaFetchError",
-    why: "index.html range ends at 9323, not 9309: play.html:6599-6710 carries the twins of " +
-      "trimAudioToWavUrl and extractAudioToWavUrl too, and the shorter range left them one-sided",
-    idx: [[10385, 10460]],
-    play: [[6771, 6888]],
-    expect: { exit: 1, oneSided: 26, occurrence: 1 },
-  },
-  {
-    name: "extract row 4 — prompt-cap helpers",
-    why: "9 twins, library copy already in the bundle",
-    idx: [[4433, 4483]],
-    play: [[8513, 8562]],
-    expect: { exit: 1, oneSided: 9, occurrence: 1 },
-  },
-  {
-    name: "extract row 5 — pricing resolver",
-    why: "pricing twins grew with FLUX.3 quality×mode×resolution tables; 1 line index.html carries twice",
-    idx: [[6016, 6199]],
-    play: [[6122, 6287]],
-    expect: { exit: 1, oneSided: 43, occurrence: 1 },
-  },
-  {
-    name: "extract row 6 — MP4CAT",
-    why: "123 twins leave at once — the largest single mirrored deletion in the plan",
-    idx: [[10475, 10752]],
-    play: [[6931, 7208]],
-    expect: { exit: 1, oneSided: 112, occurrence: 3 },
-  },
-  {
-    name: "extract row 7 — local media recorder path",
-    why: "play.html ranges corrected to 6706-6711 / 6739-6746 / 7025-7238. The old 6635-6679 " +
-      "swallowed toLocalMediaUrl, seekVideo and MP4CAT's first 4 lines, and the old 6979-7169 " +
-      "started AFTER prepClip and recordClip, whose index.html twins are inside 9641-9893",
-    idx: [[10754, 11006]],
-    play: [[6890, 6895], [6923, 6930], [7209, 7424]],
-    expect: { exit: 1, oneSided: 128, occurrence: 1 },
-  },
-  {
-    name: "extract row 8 — share packer, card and shorteners",
-    why: "the one planned extraction that cannot be silent, and the guard is right. 5 twins have " +
-      "their OTHER copy in unrelated code on one surface only, so deleting the 2 share blocks " +
-      "leaves each of them live on exactly 1 surface:\n" +
-      "        index.html:11039,11041 inline play.html's explicitLang() (play.html:11558-11562)\n" +
-      "        index.html:10956,10961 twin play.html:9915,9922, a thumbnail helper outside the block\n" +
-      "        play.html:13228 twins index.html:8143,8224, the canvas fit bounds\n" +
-      "      Plus 1 occurrence drift: index.html carries the noodle_lang read twice (3803 and 11040)\n" +
-      "      and play.html twice, and only index.html's second copy is inside the block.\n" +
-      "      Whoever does row 8 refreshes the baseline as part of it — deliberately, which is what\n" +
-      "      the guard's own remedy line asks for",
-    idx: [[12034, 12350]],
-    play: [[14014, 14333]],
-    expect: { exit: 1, oneSided: 106, occurrence: 1 },
-  },
-  {
-    name: "extract row 9 — share-menu wiring",
-    why: "play.html ranges corrected to 13426 / 13508-13560 / 13664. The old 13292-13530 swallowed " +
-      "the whole agent-pill popover (13294-13373) and the model-picker search, which index.html " +
-      "keeps at 11856-11872 and 10642",
-    idx: [[12463, 12503]],
-    play: [[14472, 14472], [14554, 14606], [14710, 14710]],
-    expect: { exit: 1, oneSided: 38 },
-  },
-
-  // ---- the drift the guard exists to catch ---------------------------------------------------
-  {
-    name: "2-sided DIVERGENT edit",
-    why: "each surface keeps its OWN version of one twin. The twin leaves both surfaces, exactly " +
-      "like an extraction, and only the NEW text on each side separates the 2 cases",
-    edits: [
-      {
-        file: "index.html",
-        line: 10857,
-        from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
-        to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durIDX, 0);",
-      },
-      {
-        file: "play.html",
-        line: 7124,
-        from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
-        to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durPLAY, 0);",
-      },
-    ],
-    expect: { exit: 1, divergence: 1 },
-  },
-  {
-    name: "1-sided edit",
-    why: "the original case: index.html moves, play.html does not",
-    edits: [
-      {
-        file: "index.html",
-        line: 10857,
-        from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
-        to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durIDX, 0);",
-      },
-    ],
-    expect: { exit: 1, drift: 1 },
-  },
-  {
-    name: "1-sided deletion",
-    why: "play.html stops doing the work, index.html still does it, and nothing replaced it",
-    play: [[7124, 7124]],
-    expect: { exit: 1, oneSided: 1 },
-  },
-  {
-    name: "correctly MIRRORED edit",
-    why: "both surfaces move to the SAME new text: the count holds, so the guard only asks for a " +
-      "baseline refresh",
-    edits: [
-      {
-        file: "index.html",
-        line: 10857,
-        from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
-        to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durTicks, 0);",
-      },
-      {
-        file: "play.html",
-        line: 7124,
-        from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
-        to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durTicks, 0);",
-      },
-    ],
+    why: "include trimAudioToWavUrl and extractAudioToWavUrl on both surfaces",
+    idx: [through("mediaFetchError", "extractAudioToWavUrl")],
+    play: [through("mediaFetchError", "extractAudioToWavUrl")],
     expect: { exit: 0 },
   },
   {
-    // Pins the NAMING CEILING docs/twin-drift.md quotes. A departure lands under 1 of 3 headings,
-    // and each heading prints its first 12 lines, so at MAX_CLASSIFY the guard can name 36 lines,
-    // not 24. 24 assumed that only 2 of the 3 headings could fire at once. They can all fire.
+    name: "extract row 4 — prompt-cap helpers",
+    why: "remove learned-cap handling through error-cap parsing, excluding the generated table",
+    idx: [through("learnPromptCap", "promptCapFromError")],
+    play: [through("learnPromptCap", "promptCapFromError")],
+    expect: { exit: 0 },
+  },
+  {
+    name: "extract row 5 — pricing resolver",
+    why: "remove the resolution/duration/video/chat/audio price resolvers on both surfaces",
+    idx: [through("pickByRes", "audioUnitUsd")], play: [through("pickByRes", "audioUnitUsd")],
+    expect: { exit: 0 },
+  },
+  {
+    name: "extract row 6 — MP4CAT",
+    why: "delete the entire hand-maintained remux IIFE and its banner; leave generated bundles intact",
+    idx: [{ mp4cat: true }], play: [{ mp4cat: true }],
+    expect: { exit: 0 },
+  },
+  {
+    name: "extract row 7 — local media recorder path",
+    why: "remove both recorder pipelines through audio polling, without swallowing seekVideo or MP4CAT",
+    idx: [through("pickVideoMime", "pollAudio")],
+    play: [fn("pickVideoMime"), fn("loadVideoMeta"), through("prepClip", "pollAudio")],
+    expect: { exit: 0 },
+  },
+  {
+    name: "extract row 8 — share packer, card and shorteners",
+    why: "some share helper lines also live outside these blocks; those surviving copies must still be reported",
+    // Surviving twins: canvas bounds, drawImage, img.src fallback, SUP languages and its return.
+    // The noodle_lang read loses one editor copy; the player's copies are outside its share block.
+    idx: [through("shrinkShareMedia", "closeShareMenu")],
+    play: [through("shrinkShareMedia", "shortenWith")],
+    expect: { exit: 1, oneSided: 5, occurrence: 1 },
+  },
+  {
+    name: "extract row 9 — share-menu wiring",
+    why: "remove only share URL/button/social/Escape handlers; keep agent and model-picker handlers",
+    idx: [{ start: one(URL_CLICK), end: one(ESCAPE) }],
+    play: [one(URL_CLICK), { start: one(SERVICE_CLICK), before: one('$("export").onclick = doExport;') }, one(ESCAPE)],
+    expect: { exit: 0 },
+  },
+  {
+    name: "2-sided DIVERGENT edit",
+    why: "each surface keeps its own new version of the same twin",
+    edits: [tickEdit("index.html", "IDX"), tickEdit("play.html", "PLAY")],
+    expect: { exit: 1, divergence: 1 },
+  },
+  {
+    name: "1-sided edit", why: "the editor moves and the player does not",
+    edits: [tickEdit("index.html", "IDX")], expect: { exit: 1, drift: 1 },
+  },
+  {
+    name: "1-sided deletion", why: "the player loses one live twin and nothing replaces it",
+    play: [one(TICKS)], expect: { exit: 1, oneSided: 1 },
+  },
+  {
+    name: "correctly MIRRORED edit", why: "both surfaces move to the same new text",
+    edits: [tickEdit("index.html", "Ticks"), tickEdit("play.html", "Ticks")], expect: { exit: 0 },
+  },
+  {
     name: "all 3 departure headings at once",
-    why: "one divergent 2-sided edit, one 1-sided edit and one 1-sided deletion in the same tree. " +
-      "The guard must report all 3 separately, which is why the ceiling names up to 12 x 3 = 36",
-    play: [[7631, 7631]], // twin of index.html resizePlan scale clamp — one-sided deletion
+    why: "divergent edit, one-sided edit and one-sided deletion must be reported separately",
+    play: [one("if(scale>1) scale = 1;                                   // never upscale")],
     edits: [
-      {
-        file: "index.html",
-        line: 10857,
-        from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
-        to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durIDX, 0);",
-      },
-      {
-        file: "play.html",
-        line: 7124,
-        from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
-        to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.durPLAY, 0);",
-      },
-      {
-        file: "play.html",
-        line: 13902,
-        from: "    const usd = parseFloat((await r.json()).usd_balance);",
-        to: "    const usd = parseFloat((await r.json()).usdBalance);",
-      },
+      tickEdit("index.html", "IDX"), tickEdit("play.html", "PLAY"),
+      { file: "play.html", from: "    const usd = parseFloat((await r.json()).usd_balance);",
+        to: "    const usd = parseFloat((await r.json()).usdBalance);" },
     ],
     expect: { exit: 1, divergence: 1, drift: 1, oneSided: 1 },
   },
   {
-    name: "new duplication",
-    why: "a line that lives only in index.html is pasted into play.html as well — the ratchet",
-    edits: [
-      {
-        file: "play.html",
-        line: 7124,
-        from: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);",
-        to: "    const totalTicks = t.samples.reduce((a,s)=>a+s.dur, 0);\n" +
-          "    // Seek a <video> to a time and resolve once that frame is decoded and drawable. Falls back",
-      },
-    ],
+    name: "new duplication", why: "a previously editor-only line is pasted into the player",
+    edits: [{ file: "play.html", from: TICKS, to: TICKS + "\n" +
+      "    // Seek a <video> to a time and resolve once that frame is decoded and drawable. Falls back" }],
     expect: { exit: 1, growth: 1 },
   },
 ];
@@ -246,27 +145,77 @@ const SURFACES = ["index.html", "play.html"];
 const GUARD = "check-twin-drift.mjs";
 const BASE = "twin-drift-baseline.json";
 
+function anchors(source, file) {
+  // Same generated bundle boundary as the guard, preserving line positions. A generated copy
+  // must never satisfy a hand-runtime mutation merely because its implementation matches.
+  const lines = source.replace(/<script id="njs-engine" data-hash="[0-9a-f]{16}">\n[\s\S]*?\n<\/script>/g,
+    (s) => "\n".repeat(s.split("\n").length - 1)).split("\n");
+  function unique(test, label) {
+    const found = lines.flatMap((line, i) => test(line) ? [i] : []);
+    if (found.length !== 1) throw new Error(`${file}: expected one ${label}, found ${found.length}; review the intended mutation boundary`);
+    return found[0];
+  }
+  function endAt(start, closing) {
+    const end = lines.findIndex((line, i) => i >= start && line === closing);
+    if (end < start) throw new Error(`${file}:${start + 1}: closing boundary ${JSON.stringify(closing)} not found`);
+    return end;
+  }
+  function range(spec) {
+    if (spec.text) {
+      const at = unique((line) => line.trim() === spec.text.trim(), JSON.stringify(spec.text));
+      return [at, at];
+    }
+    if (spec.fn) {
+      const re = new RegExp("^\\s*(?:async )?function " + spec.fn + "\\(");
+      const start = unique((line) => re.test(line), "function " + spec.fn);
+      // These named top-level helpers close at their declaration's indentation. Requiring that
+      // exact closing line avoids swallowing the following function when translations move.
+      if (lines[start].trimEnd().endsWith("}")) return [start, start];
+      const indent = /^\s*/.exec(lines[start])[0];
+      return [start, endAt(start + 1, indent + "}")];
+    }
+    if (spec.mp4cat) {
+      const start = unique((line) => line.startsWith("/* ---- Lossless in-browser mp4 concatenation"), "MP4CAT banner");
+      return [start, endAt(start + 1, "})();")];
+    }
+    const [start] = range(spec.start);
+    const end = spec.before ? range(spec.before)[0] - 1 : range(spec.end)[1];
+    if (end < start) throw new Error(`${file}: reversed semantic mutation range ${start + 1}..${end + 1}`);
+    return [start, end];
+  }
+  return range;
+}
+
 function build(dir, c) {
   mkdirSync(join(dir, "scripts"), { recursive: true });
   for (const f of [GUARD, BASE]) copyFileSync(join(ROOT, "scripts", f), join(dir, "scripts", f));
   const lines = {};
-  for (const f of SURFACES) lines[f] = readFileSync(join(ROOT, f), "utf8").split("\n");
+  const rangesFor = {};
+  for (const f of SURFACES) {
+    const source = readFileSync(join(ROOT, f), "utf8");
+    lines[f] = source.split("\n");
+    rangesFor[f] = anchors(source, f);
+  }
   for (const e of c.edits || []) {
-    const at = lines[e.file][e.line - 1];
+    const [pos] = rangesFor[e.file](one(e.from));
+    const at = lines[e.file][pos];
     if (at !== e.from) {
       throw new Error(
-        `${c.name}: ${e.file}:${e.line} is not the line this case edits.\n` +
+        `${c.name}: ${e.file}:${pos + 1} is not the line this case edits.\n` +
           `  expected: ${e.from}\n  found:    ${at}\n` +
           `  The file moved. Re-anchor the case on the line it means to edit.`
       );
     }
-    lines[e.file][e.line - 1] = e.to;
+    lines[e.file][pos] = e.to;
   }
   for (const [f, ranges] of [["index.html", c.idx], ["play.html", c.play]]) {
     if (!ranges) continue;
     const kill = new Set();
-    for (const [a, b] of ranges) for (let n = a; n <= b; n++) kill.add(n);
-    lines[f] = lines[f].filter((_, i) => !kill.has(i + 1));
+    for (const spec of ranges) {
+      const [a, b] = rangesFor[f](spec);
+      for (let n = a; n <= b; n++) kill.add(n);
+    }
+    lines[f] = lines[f].filter((_, i) => !kill.has(i));
   }
   for (const f of SURFACES) writeFileSync(join(dir, f), lines[f].join("\n"));
 }
@@ -327,8 +276,8 @@ if (failed) {
       `(${secs}s).\n` +
       `  A case that now FAILS where it used to pass means the guard cries wolf on correct work,\n` +
       `  which is how a guard gets bypassed. A case that now PASSES where it used to fail means the\n` +
-      `  guard has a hole. Fix the guard, not the table — or state in docs/twin-drift.md why the\n` +
-      `  verdict changed.\n`
+      `  guard has a hole. Review the named boundaries and the intended semantic change; never\n` +
+      `  replace expected counts merely with whatever the guard happened to report.\n`
   );
   process.exit(1);
 }

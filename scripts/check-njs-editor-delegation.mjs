@@ -133,7 +133,7 @@ const REAL = [
   grab(/const NANOGPT = "[^\n]*;/, "NANOGPT"),
   grab(/const IMG_ENDPOINT  = [^\n]*;/, "IMG_ENDPOINT"),
   grab(/const CHAT_ENDPOINT = [^\n]*;/, "CHAT_ENDPOINT"),
-  "const mdl = " + braceMatch(SRC, SRC.indexOf("(n)=>{", SRC.indexOf("const mdl = ")), "{") + ";",
+  "const mdl = " + braceMatch(SRC, SRC.indexOf("(n, ctx)=>{", SRC.indexOf("const mdl = ")), "{") + ";",
   "let _njsCat = null; const _njsRaw = {};",
   extractConst("CATALOG"),
   extractConst("CTX"),
