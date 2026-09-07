@@ -1,0 +1,80 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 80,
+      "y": -60,
+      "fields": {
+        "text": "Upload a product photo and make a clean catalog image. Muse Edit preserves the product while changing the background ($0.01/image). Check logos, small details and color against the original before publication.",
+        "color": "yellow"
+      },
+      "w": 420
+    },
+    {
+      "id": "n1",
+      "type": "upload",
+      "x": 80,
+      "y": 120,
+      "fields": {},
+      "name": "Product photo"
+    },
+    {
+      "id": "n2",
+      "type": "edit",
+      "x": 420,
+      "y": 100,
+      "fields": {
+        "prompt": "",
+        "size": "auto",
+        "model": "meta/muse-image/edit"
+      },
+      "sizes": {
+        "prompt": 0
+      },
+      "name": "Clean product photo"
+    },
+    {
+      "id": "n3",
+      "type": "text",
+      "x": -66,
+      "y": 479,
+      "fields": {
+        "text": "Prepare this product photo for a catalog. Preserve the exact product shape, color, materials, markings and visible text. Replace the background with clean warm-white seamless paper, remove unrelated background clutter, and use soft even studio light with a subtle natural contact shadow. Keep the whole product visible and the original camera angle. Add no accessories, props, labels or branding."
+      },
+      "name": "Edit request"
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "n1",
+        "port": "image"
+      },
+      "to": {
+        "node": "n2",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "n3",
+        "port": "text"
+      },
+      "to": {
+        "node": "n2",
+        "port": "prompt"
+      }
+    }
+  ],
+  "nid": 4,
+  "lid": 3,
+  "view": {
+    "panX": 217,
+    "panY": 423.5,
+    "scale": 1
+  }
+}

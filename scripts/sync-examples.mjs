@@ -19,8 +19,8 @@
 //
 // Pinned model ids are the point, not an accident. They are what makes an example the thing
 // awesome-noodles tuned: the arena genuinely races four different models instead of four copies
-// of whichever is newest, photo→video's motion-prompt guide matches the ltx build it was written
-// for, and sing/talking-avatar keep the music + lipsync models they were built around. The cost
+// of whichever is newest, image/edit models support their specific reference inputs, and video
+// and audio models support the presets the workflows were reviewed with. The cost
 // is that ids age (NanoGPT renames and retires them); a retired id trips the drifted-model
 // preflight, which refuses to send and tells the user the creator needs to update — annoying, but
 // it never charges for a dead call. Re-run this script after an upstream refresh to clear it, and

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // FIBO Generate 1.5 aspect_ratio knob (catalog gap).
 //
-// /api/v1/image-models lists only 1mp/4mp for bria/fibo-generate-1.5/text-to-image.
+// /api/v1/image-models lists 1mp/4mp and now advertises a separate aspect_ratio.
+// The explicit knob mapping remains until generic catalog-driven aspect controls replace it.
 // Marketing /api/models additionalParams.aspect_ratio is a 9-option select (1:1…16:9).
 // Nanoodle's Image size control is those megapixel tiers — without this knob every
 // FIBO run is stuck at the API default 1:1.
@@ -184,8 +185,12 @@ try {
     const cat = await v1.json();
     const row = (cat.data || []).find((x) => x.id === FIBO);
     const sp = (row && row.supported_parameters) || {};
-    if (sp.aspect_ratio || (sp.parameters && sp.parameters.aspect_ratio))
-      fail("live /api/v1/image-models now lists aspect_ratio — drop the IMAGE_ASPECT gap map");
+    const aspect = sp.aspect_ratio || (sp.parameters && sp.parameters.aspect_ratio);
+    if (aspect) {
+      const options = (Array.isArray(aspect) ? aspect : aspect.options || []).map(o => String(typeof o === "object" ? o.value : o));
+      if (WANT.some(v => !options.includes(v))) fail("live v1 aspect_ratio differs from the shipped FIBO knob: " + options.join(","));
+      else ok("live v1 aspect_ratio agrees with the shipped FIBO knob");
+    }
     else ok("live /api/v1/image-models: FIBO still has no aspect_ratio (gap map still needed)");
   }
 } catch (e) {

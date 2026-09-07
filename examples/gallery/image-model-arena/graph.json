@@ -1,0 +1,141 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "comment",
+      "x": -337.72727966308594,
+      "y": -241.8181610107422,
+      "fields": {
+        "text": "Compare four image models on the same useful brief. Run makes four paid images. Judge exact text, object count, composition and color before choosing the model for your own task. Each contender already has a different model; change the shared brief to test your use case."
+      },
+      "w": 340,
+      "sizes": {
+        "text": 74
+      }
+    },
+    {
+      "id": "n2",
+      "type": "text",
+      "x": 60,
+      "y": 300,
+      "fields": {
+        "text": "Create a square poster for a bicycle repair workshop. Exact heading: FIX A FLAT. Exact footer: SATURDAY 10 AM. A single red bicycle wheel rests beside two tire levers on a cream background. Flat editorial illustration, navy and red palette, clear hierarchy, large readable type. No extra words or objects."
+      },
+      "name": "Shared test brief"
+    },
+    {
+      "id": "n3",
+      "type": "image",
+      "x": 385.4180200301924,
+      "y": -157.85789059301652,
+      "fields": {
+        "model": "meta/muse-image/text-to-image",
+        "size": "1:1",
+        "variations": "1"
+      },
+      "sizes": {
+        "prompt": 0
+      },
+      "name": "Contender 1"
+    },
+    {
+      "id": "n4",
+      "type": "image",
+      "x": 838.410480349345,
+      "y": -136.26833799936887,
+      "fields": {
+        "model": "wavespeed-ai/krea-v2/turbo",
+        "size": "1k",
+        "variations": "1"
+      },
+      "sizes": {
+        "prompt": 0
+      },
+      "name": "Contender 2"
+    },
+    {
+      "id": "n5",
+      "type": "image",
+      "x": 330.46288209606985,
+      "y": 533.6005752763374,
+      "fields": {
+        "model": "xai/grok-imagine-image/v2.0/text-to-image",
+        "size": "1:1",
+        "variations": "1"
+      },
+      "sizes": {
+        "prompt": 0
+      },
+      "name": "Contender 3"
+    },
+    {
+      "id": "n6",
+      "type": "image",
+      "x": 967.9475982532751,
+      "y": 562.0595654083652,
+      "fields": {
+        "model": "recraft-v4",
+        "size": "1024x1024",
+        "variations": "1"
+      },
+      "sizes": {
+        "prompt": 0
+      },
+      "name": "Contender 4"
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "n2",
+        "port": "text"
+      },
+      "to": {
+        "node": "n3",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "n2",
+        "port": "text"
+      },
+      "to": {
+        "node": "n4",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "n2",
+        "port": "text"
+      },
+      "to": {
+        "node": "n5",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l4",
+      "from": {
+        "node": "n2",
+        "port": "text"
+      },
+      "to": {
+        "node": "n6",
+        "port": "prompt"
+      }
+    }
+  ],
+  "nid": 8,
+  "lid": 6,
+  "view": {
+    "panX": 253.1771441512301,
+    "panY": 296.87293830551306,
+    "scale": 0.7086244000000003
+  }
+}

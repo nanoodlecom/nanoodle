@@ -508,19 +508,8 @@ console.log("• live localhost chat server");
     "videoFailText falls back when error is a mute object");
 }
 
-// ---- gallery Custom endpoint example: Choice must retarget url/mode ----------
-{
-  const start = IDX.indexOf('slug:"custom-endpoint"');
-  const end = IDX.indexOf("];", start);
-  const card = start >= 0 && end > start ? IDX.slice(start, end) : "";
-  ok(!!card, "custom-endpoint gallery card is present");
-  ok(card.includes('to:{node:"n5",port:"url"}'), "gallery Choice (or text) wires into endpoint.url");
-  ok(card.includes('to:{node:"n5",port:"mode"}'), "gallery Choice wires into endpoint.mode");
-  ok(!/does not retarget/.test(card), "gallery comment no longer admits the picker is decorative");
-  ok(!/type:"join"/.test(card), "gallery no longer stuffs the path into a Join body");
-  ok(/httpbingo\.org\/post/.test(card) && /selected:"json · https:\/\/httpbingo\.org\/post/.test(card),
-    "gallery first-click still selects the $0 httpbingo json path");
-}
+// The HTTP echo tutorial was retired from the curated gallery. Endpoint routing,
+// including Choice-shaped url/mode values, remains covered by the runtime checks above.
 
 if (failures.length) {
   console.error("✗ check-endpoint: " + failures.length + " assertion(s) failed.");

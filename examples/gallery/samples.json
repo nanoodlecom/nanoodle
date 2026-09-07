@@ -1,0 +1,440 @@
+[
+  {
+    "slug": "deslop",
+    "title": "Plain-language editor",
+    "date": "2026-09-05",
+    "review": "Text review",
+    "note": "The edited notice preserves the date, $15 fee, 14-day credit, opening hours, existing bookings and contact address. It removes promotional filler. This checks the supplied notice; it does not detect authorship.",
+    "costUsd": 0.00790096,
+    "costExact": true,
+    "models": [
+      "x-ai/grok-4.5",
+      "openai/gpt-5.6-terra"
+    ],
+    "graphSha256": "0304cf24b646c66a606716835a362b8cfde6318aa0b283e9ab92e517d99e1f90",
+    "inputs": [
+      {
+        "label": "Your draft",
+        "text": "We are thrilled to announce a game-changing improvement to the repair booking experience. Starting 8 September, customers can book a 30-minute bicycle check online for $15. The fee is credited toward any repair completed within 14 days. Appointments are available Tuesday through Saturday, 9 am to 5 pm. Existing bookings are unchanged. To reschedule, email repairs@example.com at least 24 hours before your appointment. This seamless new offering empowers you to unlock the full potential of your bicycle."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "deslop/LLM.txt",
+        "kind": "text",
+        "label": "Generated result"
+      }
+    ],
+    "preview": null,
+    "workflow": "deslop/workflow.json",
+    "workflowSha256": "662df2700a1fec7612147b90c70d0aa60846c733216df18274cb6960e0eb8687"
+  },
+  {
+    "slug": "favicon",
+    "title": "Favicon concept",
+    "date": "2026-09-05",
+    "review": "Visual review",
+    "note": "A crisp navy-and-gold symbol with a readable silhouette. This is a raster concept; inspect it at small sizes and export the icon formats your app needs.",
+    "costUsd": 0.01,
+    "costExact": true,
+    "models": [
+      "z-ai/glm-5.3-flash",
+      "meta/muse-image/text-to-image"
+    ],
+    "graphSha256": "888915b86abf77d270acc060229692c74e9ed3fd19f8545b9c92ac282b2675e9",
+    "inputs": [
+      {
+        "label": "Brand",
+        "text": "Lumen — pocket weather radio. One lighthouse beam as a chevron. Deep navy field, single warm-gold mark. No letters."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "favicon/Favicon.webp",
+        "kind": "image",
+        "label": "Generated result"
+      }
+    ],
+    "preview": "favicon/preview.webp",
+    "workflow": "favicon/workflow.json",
+    "workflowSha256": "164d3d5de47075e38c31291339bfea06c142a1f0d031228388bbae9731f098df"
+  },
+  {
+    "slug": "fibo-studio-still",
+    "title": "Product concept still",
+    "date": "2026-09-05",
+    "review": "Visual review",
+    "note": "One coherent amber bottle, black pump and plausible light on limestone. The result is square and depicts a fictional product; it is not a photograph of merchandise.",
+    "costUsd": 0.04,
+    "costExact": true,
+    "models": [
+      "z-ai/glm-5.3-flash",
+      "bria/fibo-generate-1.5/text-to-image"
+    ],
+    "graphSha256": "614188ac503b0bb33a2f6c6ee1263208bc6c22f59808f45910b8eeae095bc7d2",
+    "inputs": [
+      {
+        "label": "Product",
+        "text": "One unbranded amber glass hand-soap bottle with a matte black pump, resting upright on a pale limestone counter. No label, packaging or accessories."
+      },
+      {
+        "label": "Light",
+        "text": "large softbox left, gentle shadow, neutral backdrop"
+      }
+    ],
+    "outputs": [
+      {
+        "src": "fibo-studio-still/Still.png",
+        "kind": "image",
+        "label": "Generated result"
+      }
+    ],
+    "preview": "fibo-studio-still/preview.webp",
+    "workflow": "fibo-studio-still/workflow.json",
+    "workflowSha256": "3708a9c8b30ba71e0c4814e6a91e67ebc37a3dd713595369daba1395364e6704"
+  },
+  {
+    "slug": "edit-a-photo",
+    "title": "Clean a product photo",
+    "date": "2026-09-05",
+    "review": "Visual review",
+    "note": "The supplied generated bottle becomes a clean catalog-style image. Its recognizable shape and materials remain. Compare real product markings and proportions before using a generated edit commercially.",
+    "costUsd": 0.01,
+    "costExact": true,
+    "models": [
+      "meta/muse-image/edit"
+    ],
+    "graphSha256": "93a55ffdfc729109b34f410be24c0e1ea0929b48ed65c8464ca1b36bcf12d923",
+    "inputs": [
+      {
+        "label": "Product photo (generated with FIBO)",
+        "src": "edit-a-photo/product-input.png"
+      },
+      {
+        "label": "Edit request",
+        "text": "Prepare this product photo for a catalog. Preserve the exact product shape, color, materials, markings and visible text. Replace the background with clean warm-white seamless paper, remove unrelated background clutter, and use soft even studio light with a subtle natural contact shadow. Keep the whole product visible and the original camera angle. Add no accessories, props, labels or branding."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "edit-a-photo/Clean_product_photo.webp",
+        "kind": "image",
+        "label": "Generated result"
+      }
+    ],
+    "preview": "edit-a-photo/preview.webp",
+    "workflow": "edit-a-photo/workflow.json",
+    "workflowSha256": "1b38292c8f26f6387f077a29dd25873ff6398f4bc79635b737aade6b207dac72"
+  },
+  {
+    "slug": "combine-images",
+    "title": "Place a product in a setting",
+    "date": "2026-09-05",
+    "review": "Visual review",
+    "note": "The supplied bottle appears beside the mug and notebook from the second reference, with plausible lighting and contact. Generated composites still need checks for exact product fidelity.",
+    "costUsd": 0.01,
+    "costExact": true,
+    "models": [
+      "meta/muse-image/edit"
+    ],
+    "graphSha256": "6663eba3de564af5c8316b8c6ba071b1b00b40f762d681f85c34a541d88a89d7",
+    "inputs": [
+      {
+        "label": "Product photo (generated with FIBO)",
+        "src": "combine-images/product-input.png"
+      },
+      {
+        "label": "Setting photo (frame from the generated tea clip)",
+        "src": "combine-images/setting-input.jpg"
+      },
+      {
+        "label": "Placement brief",
+        "text": "Place the product from image 1 naturally into the setting from image 2. Preserve the product shape, proportions, materials, color and visible markings. Preserve the setting layout and camera perspective. Place one instance on a plausible supporting surface; match scale, lighting and contact shadows. Remove neither structural elements nor existing furniture. Add no extra products, people, text or decorative props."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "combine-images/Product_in_setting.webp",
+        "kind": "image",
+        "label": "Generated result"
+      }
+    ],
+    "preview": "combine-images/preview.webp",
+    "workflow": "combine-images/workflow.json",
+    "workflowSha256": "3c3f78834b796bd33b2da66e8401ba7a9fd73028dbd170386b336c9361015897"
+  },
+  {
+    "slug": "image-model-arena",
+    "title": "Compare image models",
+    "date": "2026-09-05",
+    "review": "Visual review",
+    "note": "All four rendered the requested heading and footer. Grok drew recognizable tire levers; Muse, Krea and Recraft produced less accurate tool shapes. One prompt demonstrates why task-specific checks matter; it is not a general ranking. The sample was generated on 5 September. Open workflow uses the current model ID after a provider-name migration; the original sampled graph is retained below.",
+    "costUsd": 0.118,
+    "costExact": true,
+    "models": [
+      "meta/muse-image/text-to-image",
+      "wavespeed-ai/krea-v2/turbo",
+      "xai/grok-imagine-image/v2.0/text-to-image",
+      "recraft-v4"
+    ],
+    "graphSha256": "c8fdf11de0be317582587047cdf0c07e56fb0e53ecd475cff033aa72af1c660c",
+    "inputs": [
+      {
+        "label": "Shared test brief",
+        "text": "Create a square poster for a bicycle repair workshop. Exact heading: FIX A FLAT. Exact footer: SATURDAY 10 AM. A single red bicycle wheel rests beside two tire levers on a cream background. Flat editorial illustration, navy and red palette, clear hierarchy, large readable type. No extra words or objects."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "image-model-arena/Contender_1.webp",
+        "kind": "image",
+        "label": "Muse Image · reported $0.01",
+        "costUsd": 0.01
+      },
+      {
+        "src": "image-model-arena/Contender_2.jpg",
+        "kind": "image",
+        "label": "Krea 2 Turbo · reported $0.01",
+        "costUsd": 0.01
+      },
+      {
+        "src": "image-model-arena/Contender_3.jpg",
+        "kind": "image",
+        "label": "Grok Imagine Image 2.0 · reported $0.06",
+        "costUsd": 0.06
+      },
+      {
+        "src": "image-model-arena/Contender_4.webp",
+        "kind": "image",
+        "label": "Recraft V4 · reported $0.038",
+        "costUsd": 0.038
+      }
+    ],
+    "preview": "image-model-arena/preview.webp",
+    "workflow": "image-model-arena/workflow.json",
+    "workflowSha256": "61001087b121270c275b9edd871ab9c27e06f82dfd50306da8b80cb86808caae"
+  },
+  {
+    "slug": "night-market-postcard",
+    "title": "Travel postcard illustration",
+    "date": "2026-09-05",
+    "review": "Visual review",
+    "note": "A coherent illustrated night market with a clear food-stall focal point. This is an illustration, not a documentary image or a print-ready layout with typeset copy.",
+    "costUsd": 0.01,
+    "costExact": true,
+    "models": [
+      "z-ai/glm-5.3-flash",
+      "meta/muse-image/text-to-image"
+    ],
+    "graphSha256": "78465cb2f80b157d05f43c5b514e0e3c0e39a1c77a706afca1162f98a6470a5d",
+    "inputs": [
+      {
+        "label": "Place",
+        "text": "Raohe night market, Taipei — grilled squid smoke hanging in the lane, red lanterns, wet asphalt, one stall still roaring"
+      },
+      {
+        "label": "Vibe",
+        "text": "warm illustrated travel print"
+      }
+    ],
+    "outputs": [
+      {
+        "src": "night-market-postcard/Postcard.webp",
+        "kind": "image",
+        "label": "Generated result"
+      }
+    ],
+    "preview": "night-market-postcard/preview.webp",
+    "workflow": "night-market-postcard/workflow.json",
+    "workflowSha256": "382a7543e8eee20488ac8b8d7c6bc06557b1ef03bf95a2a92584348d401fd2af"
+  },
+  {
+    "slug": "photo-to-video",
+    "title": "Animate a still",
+    "date": "2026-09-05",
+    "review": "Frame review",
+    "note": "Five sampled frames show the mug, notebook and desk staying stable while steam changes. This is a five-second motion concept; a seamless loop is not promised. The sample was generated on 5 September. Open workflow uses the current model ID after a provider-name migration; the original sampled graph is retained below.",
+    "costUsd": 0.21,
+    "costExact": true,
+    "models": [
+      "meta/muse-image/text-to-image",
+      "wavespeed-ai/minimax-h3/image-to-video-spicy"
+    ],
+    "graphSha256": "dbb3b928b3b622315d2fc0609842b5dece11c272939b279ac7012910f4b68126",
+    "inputs": [
+      {
+        "label": "Still brief",
+        "text": "A ceramic mug of hot tea on an oak desk beside a closed notebook. Soft morning window light from the left, plain warm-gray wall, close three-quarter view, entire mug visible, clear handle silhouette, faint steam above the tea, no text or logos."
+      },
+      {
+        "label": "Motion brief",
+        "text": "Locked camera for five seconds. A thin wisp of steam rises slowly from the tea and curls gently in the window light. The mug, desk and notebook remain completely still. Preserve their shape and placement; no cuts, new objects or camera motion."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "photo-to-video/Animated_clip.mp4",
+        "kind": "video",
+        "label": "Generated result"
+      }
+    ],
+    "preview": "photo-to-video/preview.webp",
+    "workflow": "photo-to-video/workflow.json",
+    "workflowSha256": "f83c2d8d66d0dad0dcedf11cc9726d8af808d6a312603046a8f1f9c258e4b51a"
+  },
+  {
+    "slug": "omni-flash-turntable",
+    "title": "Product motion concept",
+    "date": "2026-09-05",
+    "review": "Frame review",
+    "note": "Five sampled frames show a coherent camera orbit around a stable bottle and plinth. This is a 360p draft of a fictional product.",
+    "costUsd": 0.195,
+    "costExact": true,
+    "models": [
+      "z-ai/glm-5.3-flash",
+      "google/gemini-omni-flash/v1.1"
+    ],
+    "graphSha256": "a698d08e2922dab66523b4c476aef0e81e0cc7d9ae1b5a4db969376d40ea319a",
+    "inputs": [
+      {
+        "label": "Object",
+        "text": "One unbranded matte sage-green insulated water bottle with a black screw cap on a stationary pale-gray studio plinth, neutral background, softbox lighting."
+      },
+      {
+        "label": "Move",
+        "text": "camera makes a slow quarter-orbit; object stays still"
+      }
+    ],
+    "outputs": [
+      {
+        "src": "omni-flash-turntable/Clip.mp4",
+        "kind": "video",
+        "label": "Generated result"
+      }
+    ],
+    "preview": "omni-flash-turntable/preview.webp",
+    "workflow": "omni-flash-turntable/workflow.json",
+    "workflowSha256": "2655c81338cf7f9c94287a820f87faae3df474f4e229f11a06c0f6aeea1aadaf"
+  },
+  {
+    "slug": "render-a-mockup",
+    "title": "UI screen concept",
+    "date": "2026-09-05",
+    "review": "Visual review",
+    "note": "The final run preserves the requested navigation, date, three appointment rows, names, statuses and totals without invented extra sections. This is a design-review image, not working UI.",
+    "costUsd": 0.04,
+    "costExact": true,
+    "models": [
+      "qwen-image-3-pro"
+    ],
+    "graphSha256": "3f0f8390072f639369a0e46a3ac1661c77cfbcb5c04eb47ce916b185a1e9a0d6",
+    "inputs": [
+      {
+        "label": "Screen brief",
+        "text": "Repair shop dashboard, desktop screenshot. Navigation: Today, Repairs, Customers. Header: Tuesday, 8 September. Main table: 09:00 Brake adjustment | Maya Chen | Ready; 10:30 Flat tire | Sam Ortiz | In progress; 14:00 Tune-up | Alex Kim | Booked. Primary button: New appointment. Summary: 3 appointments, 1 ready for pickup."
+      },
+      {
+        "label": "Visual style",
+        "text": "Warm white background, charcoal text, gray dividers, forest-green primary button. Simple sans-serif, readable table rows, generous spacing. Flat front-facing screenshot, no browser or device frame, annotations, glow, gradients or unrelated charts. Preserve supplied labels and values. Show only specified content. No extra sections, metrics, rows or invented brand names."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "render-a-mockup/Screen_concept.png",
+        "kind": "image",
+        "label": "Generated result"
+      }
+    ],
+    "preview": "render-a-mockup/preview.webp",
+    "workflow": "render-a-mockup/workflow.json",
+    "workflowSha256": "080d50052d51f7e2e4f206503f7526aecbe78a7c1cbd9b3ad67270df13733bc3"
+  },
+  {
+    "slug": "sing",
+    "title": "Original closing-credits song",
+    "date": "2026-09-05",
+    "review": "Audio model review",
+    "note": "A 170-second generated song. Gemini 3.8 Flash audio review identified clear vocals, gentle acoustic guitar and a chorus matching the supplied lyrics, with no obvious glitches reported. This is a model-assisted listening assessment, not a human listening sign-off. The separate audio-review call reported $0.00627.",
+    "costUsd": 0.225,
+    "costExact": true,
+    "models": [
+      "z-ai/glm-5.3-flash",
+      "mureka-ai/mureka-v9.5/generate-song"
+    ],
+    "graphSha256": "941455b561de070601663d753f728a44fea3d1a2b22ede8b1f71724d501b86ff",
+    "inputs": [
+      {
+        "label": "Song Instructions",
+        "text": "Write a short original song for the closing credits of a cozy repair-shop game. Theme: fixing a small thing makes a hard day better. Concrete details: a squeaky wheel, a borrowed wrench, a light left on for the last customer. Warm, understated and hopeful. No brand names."
+      },
+      {
+        "label": "Musical style",
+        "text": "Gentle acoustic folk, relaxed mid-tempo, warm solo vocal, fingerpicked guitar, soft brushed percussion. Clear words and a memorable chorus; no artist imitation."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "sing/Song.mp3",
+        "kind": "audio",
+        "label": "Generated result"
+      },
+      {
+        "src": "sing/lyrics.txt",
+        "kind": "text",
+        "label": "Generated lyrics"
+      }
+    ],
+    "preview": null,
+    "audioReview": {
+      "model": "google/gemini-3.8-flash",
+      "src": "sing/audio-review.txt",
+      "costUsd": 0.0062664375
+    },
+    "workflow": "sing/workflow.json",
+    "workflowSha256": "98bbfe4bca8793a17a146d78a9adc84a13159a15eef6760c61ce5799635b667a"
+  },
+  {
+    "slug": "talking-avatar",
+    "title": "Spoken workshop introduction",
+    "date": "2026-09-05",
+    "review": "Frames + audio model review",
+    "note": "Sampled frames retain the fictional presenter with coherent mouth and head movements. The male appearance now matches the selected male voice. Check precise lip-sync timing in playback. Generation took several minutes; an earlier attempt exceeded a four-minute timeout. Gemini 3.8 Flash transcribed the intended script and reported clear, calm male speech. This audio assessment cost a reported $0.00164 and is model-assisted. The sample was generated on 5 September. Open workflow uses the current model ID after a provider-name migration; the original sampled graph is retained below.",
+    "costUsd": 0.27999999999999997,
+    "costExact": false,
+    "models": [
+      "meta/muse-image/text-to-image",
+      "Minimax-Speech-2.8-HD",
+      "wavespeed-ai/longcat-avatar-1.5"
+    ],
+    "graphSha256": "6904444a2c8b8e4c1cac6905eeed8d14fbd110730b890206ad2abff8bd24b9b3",
+    "inputs": [
+      {
+        "label": "Presenter look",
+        "text": "A fictional friendly male museum guide in his thirties, wearing a plain navy shirt, shoulders-up front-facing portrait. Relaxed neutral expression, unobstructed face and mouth, eyes toward camera, soft even light, simple warm-gray background. No glasses, hats, text or logos."
+      },
+      {
+        "label": "Spoken script",
+        "text": "Welcome to the workshop. Start with the blue tray on your table. Inside you will find paper, a pencil, and the parts for your first model."
+      },
+      {
+        "label": "Delivery",
+        "text": "Natural calm delivery, subtle blinks and small head movements. Keep the face and mouth visible, eyes toward the camera, body position stable. Locked camera, no cuts or extra people."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "talking-avatar/Avatar___lipsync.mp4",
+        "kind": "video",
+        "label": "Generated introduction"
+      }
+    ],
+    "preview": "talking-avatar/preview.webp",
+    "audioReview": {
+      "model": "google/gemini-3.8-flash",
+      "src": "talking-avatar/audio-review.txt",
+      "costUsd": 0.0016437375
+    },
+    "workflow": "talking-avatar/workflow.json",
+    "workflowSha256": "4037cb780e86ad92744acce8dc4e4020318e031acd628d030a800fe7ec87e5dc"
+  }
+]

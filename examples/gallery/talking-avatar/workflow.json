@@ -1,0 +1,159 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 60,
+      "y": -160,
+      "w": 520,
+      "fields": {
+        "text": "Prototype a short spoken introduction with a fictional presenter. Muse makes the portrait, MiniMax Speech reads the script, and LongCat animates speech at 480p. Keep scripts under 30 seconds. Cost depends on audio length: video $0.03/second, plus image and speech. Inspect lip sync and pronunciation. The sample uses a male presenter to match the selected male voice. Allow several minutes for lipsync generation.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "n0",
+      "type": "text",
+      "x": 60,
+      "y": 40,
+      "w": 280,
+      "name": "Presenter look",
+      "fields": {
+        "text": "A fictional friendly male museum guide in his thirties, wearing a plain navy shirt, shoulders-up front-facing portrait. Relaxed neutral expression, unobstructed face and mouth, eyes toward camera, soft even light, simple warm-gray background. No glasses, hats, text or logos."
+      }
+    },
+    {
+      "id": "n1",
+      "type": "image",
+      "x": 400,
+      "y": 40,
+      "name": "face",
+      "fields": {
+        "model": "meta/muse-image/text-to-image",
+        "size": "1:1",
+        "variations": "1"
+      },
+      "sizes": {
+        "prompt": 0
+      }
+    },
+    {
+      "id": "n2",
+      "type": "text",
+      "x": 60,
+      "y": 360,
+      "w": 280,
+      "name": "Spoken script",
+      "fields": {
+        "text": "Welcome to the workshop. Start with the blue tray on your table. Inside you will find paper, a pencil, and the parts for your first model."
+      },
+      "sizes": {
+        "text": 100
+      }
+    },
+    {
+      "id": "n3",
+      "type": "tts",
+      "x": 400,
+      "y": 360,
+      "fields": {
+        "model": "Minimax-Speech-2.8-HD",
+        "voice": "Deep_Voice_Man",
+        "response_format": "mp3"
+      },
+      "sizes": {
+        "prompt": 0,
+        "instructions": 0
+      }
+    },
+    {
+      "id": "n5",
+      "type": "text",
+      "x": 60,
+      "y": 640,
+      "w": 320,
+      "name": "Delivery",
+      "fields": {
+        "text": "Natural calm delivery, subtle blinks and small head movements. Keep the face and mouth visible, eyes toward the camera, body position stable. Locked camera, no cuts or extra people."
+      }
+    },
+    {
+      "id": "n4",
+      "type": "lipsync",
+      "x": 780,
+      "y": 200,
+      "fields": {
+        "model": "longcat-avatar-1.5",
+        "resolution": "480p"
+      },
+      "sizes": {
+        "prompt": 0
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l0",
+      "from": {
+        "node": "n0",
+        "port": "text"
+      },
+      "to": {
+        "node": "n1",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l1",
+      "from": {
+        "node": "n2",
+        "port": "text"
+      },
+      "to": {
+        "node": "n3",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "n1",
+        "port": "image"
+      },
+      "to": {
+        "node": "n4",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "n3",
+        "port": "audio"
+      },
+      "to": {
+        "node": "n4",
+        "port": "audio"
+      }
+    },
+    {
+      "id": "l4",
+      "from": {
+        "node": "n5",
+        "port": "text"
+      },
+      "to": {
+        "node": "n4",
+        "port": "prompt"
+      }
+    }
+  ],
+  "nid": 7,
+  "lid": 5,
+  "view": {
+    "panX": 40,
+    "panY": 220,
+    "scale": 0.8
+  }
+}

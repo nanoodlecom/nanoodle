@@ -1,189 +1,179 @@
 #!/usr/bin/env node
-// Audit the homepage starter and 📚 Examples gallery against the live NanoGPT catalog.
-//
-// The gallery mirrors awesome-noodles verbatim, pinned fields.model included (see
-// scripts/sync-examples.mjs for why that's deliberate). The cost of pinning is that NanoGPT
-// renames and retires ids: when one goes, the example still LOADS but its node refuses to send —
-// modelDrifted() blocks it at run preflight with "this model is no longer available". No charge,
-// no opaque 4xx, but a starter workflow that can't run is a bad first click, and nothing would
-// otherwise tell us it happened.
-//
-// So this is the alert. It runs daily and on relevant changes in CI (example-models-audit.yml), the
-// same build/audit-time-only shape as check-lora-models: it fetches the public catalog, touches
-// no user and no deployed app, and a FAILING run means "go refresh the graphs upstream, then
-// re-run scripts/sync-examples.mjs".
-//
-// Two ways an id can be bad, both reported:
-//   • gone      — not in the catalog for its kind at all → modelDrifted() blocks the node.
-//   • dead      — present, but on the app's own known-dead list (normAudio's `dead` regex: models
-//                 the catalog still advertises whose generation service 502s on every call). The
-//                 picker hides these, so a pinned one is a guaranteed dead end that drift can't see.
-//
-// An unavailable catalog makes the audit inconclusive, not successful: exit nonzero with the
-// failing endpoint. The audit never invokes a model or needs a credential.
-import { readFileSync } from "node:fs";
-import { resolve, dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+// Audit the homepage starter and gallery: every model node, capability and explicit setting.
+// No generation calls or credentials. Catalog outages are INCONCLUSIVE (exit 2), never OK.
+import { readFileSync } from 'node:fs';
+import { resolve, dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { Script } from 'node:vm';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const src = readFileSync(join(ROOT, "index.html"), "utf8");
-const NANOGPT = "https://nano-gpt.com";
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ENDPOINTS = {
-  chat: "/api/v1/models?detailed=true",
-  image: "/api/v1/image-models",
-  video: "/api/v1/video-models",
-  audio: "/api/v1/audio-models",
+  chat: '/api/v1/models?detailed=true', image: '/api/v1/image-models',
+  video: '/api/v1/video-models', audio: '/api/v1/audio-models',
 };
 
-// ---- node type → catalog kind, read out of NODE_TYPES so it can't drift from the app ----------
-function nodeKinds() {
-  const out = {};
-  const begin = src.indexOf("const NODE_TYPES = {");
-  if (begin < 0) throw new Error("NODE_TYPES not found");
-  // Each entry starts at two-space indent: `  image: {` … and runs to the next such header.
-  const body = src.slice(begin);
+// Compile candidate array endings before evaluating: nested objects, strings containing
+// brackets, quoted property names and arbitrary property ordering remain real JavaScript.
+// Only the trusted, committed gallery literal is evaluated, with no app/browser context.
+export function parseExamples(src) {
+  const head = /\bconst\s+EXAMPLES\s*=\s*\[/.exec(src);
+  if (!head) throw new Error('EXAMPLES not found');
+  const start = head.index + head[0].length - 1;
+  const tail = src.slice(start);
+  for (const end of tail.matchAll(/\]\s*;/g)) {
+    let script;
+    try { script = new Script(`(${tail.slice(0, end.index + 1)})`); }
+    catch { continue; }
+    const examples = script.runInNewContext(Object.create(null), { timeout: 1000 });
+    if (!Array.isArray(examples)) throw new Error('EXAMPLES must be an array');
+    return examples;
+  }
+  throw new Error('Could not parse the complete EXAMPLES literal');
+}
+
+export function nodeKinds(src) {
+  const begin = src.indexOf('const NODE_TYPES = {');
+  const end = src.indexOf('\n};', begin);
+  if (begin < 0 || end < 0) throw new Error('NODE_TYPES not found');
+  const body = src.slice(begin, end);
   const heads = [...body.matchAll(/^ {2}(\w+):\s*\{/gm)];
+  const out = {};
   for (let i = 0; i < heads.length; i++) {
-    const from = heads[i].index;
-    const to = i + 1 < heads.length ? heads[i + 1].index : from + 8000;
-    const m = /modelKind:"(\w+)"/.exec(body.slice(from, to));
-    if (m) out[heads[i][1]] = m[1];
+    const entry = body.slice(heads[i].index, heads[i + 1]?.index ?? body.length);
+    const kind = /modelKind\s*:\s*"(\w+)"/.exec(entry)?.[1];
+    out[heads[i][1]] = { kind, filter: /modelFilter\s*:\s*"(\w+)"/.exec(entry)?.[1] };
   }
+  if (!Object.keys(out).length) throw new Error('No model node types parsed');
   return out;
 }
 
-// ---- the app's own known-dead list, lifted from normAudio -------------------------------------
-function deadIds() {
-  const m = /const dead = \/\^\(([^)]*)\)\$\/i\.test\(m\.id\)/.exec(src) || /const dead = \/\^([^/]*)\$\/i\.test\(m\.id\)/.exec(src);
-  if (!m) return [];
-  return m[1].split("|").map((s) => s.replace(/\\/g, ""));
-}
-
-// ---- every pinned model in EXAMPLES, with the card + node it belongs to ------------------------
-function pinnedModels(kinds) {
-  const start = src.indexOf("const EXAMPLES = [");
-  const arr = src.slice(start, src.indexOf("\n];", start));
-  const out = [];
-  let slug = "?";
-  for (const line of arr.split("\n")) {
-    const s = /slug:"([^"]+)"/.exec(line);
-    if (s) slug = s[1];
-    for (const n of line.matchAll(/\{id:"([^"]+)",type:"(\w+)",[^}]*?fields:\{([^}]*)\}/g)) {
-      const kind = kinds[n[2]];
-      if (!kind) continue;                                   // not a model-bearing node
-      const mm = /"?model"?:"([^"]+)"/.exec(n[3]);
-      const sm = /"?size"?:"([^"]+)"/.exec(n[3]);
-      if (mm) out.push({ slug, node: n[1], type: n[2], kind, id: mm[1], size: sm ? sm[1] : null });
-    }
-  }
-  return out;
-}
-
-function starterModels(kinds) {
-  const graph = JSON.parse(readFileSync(join(ROOT, "noodle-graph.json"), "utf8"));
-  if (!Array.isArray(graph.nodes)) throw new Error("noodle-graph.json has no nodes array");
-  return graph.nodes.filter((n) => kinds[n.type]).map((n) => {
-    if (!n.fields?.model) throw new Error(`homepage starter: ${n.type} node ${n.id} has no model`);
-    return { slug: "homepage starter (noodle-graph.json)", node: n.id, type: n.type,
-      kind: kinds[n.type], id: n.fields.model, size: n.fields.size || null };
+export function pinnedModels(examples, kinds) {
+  return examples.flatMap(example => {
+    if (!Array.isArray(example.graph?.nodes)) throw new Error(`${example.slug}: missing graph nodes`);
+    return example.graph.nodes.flatMap(node => {
+      const spec = kinds[node.type];
+      if (!spec) throw new Error(`${example.slug}: unknown node type ${node.type}`);
+      if (!spec.kind) return [];
+      return [{ slug: example.slug, node: node.id, type: node.type, ...spec,
+        fields: node.fields || {}, id: node.fields?.model }];
+    });
   });
 }
 
-const kinds = nodeKinds();
-const galleryPins = pinnedModels(kinds);
-if (!galleryPins.length) {
-  console.error("check-example-models: parsed 0 pinned models out of EXAMPLES — the entry shape changed. Audited nothing; refusing to report success.");
-  process.exit(1);
+export function starterModels(graph, kinds) {
+  return pinnedModels([{ slug: 'homepage starter (noodle-graph.json)', graph }], kinds);
 }
-const starterPins = starterModels(kinds);
-if (!starterPins.length) {
-  console.error("check-example-models: homepage starter has no model pins — audited nothing; refusing to report success.");
-  process.exit(1);
-}
-const pins = [...starterPins, ...galleryPins];
 
-const FIBO_PIN = {
-  slug: "fibo-studio-still",
-  id: "bria/fibo-generate-1.5/text-to-image",
-  size: "1mp",
-};
-const fiboCard = pins.find((p) => p.slug === FIBO_PIN.slug && p.type === "image");
-if (!fiboCard) {
-  console.error("check-example-models: EXAMPLES is missing the fibo-studio-still image card — the gallery pin drifted.");
-  process.exit(1);
+export function galleryRegressions(pins) {
+  const expected = [
+    { slug: 'fibo-studio-still', type: 'image', model: 'bria/fibo-generate-1.5/text-to-image', size: '1mp' },
+    { slug: 'omni-flash-turntable', type: 'tvideo', model: 'google/gemini-omni-flash/v1.1' },
+  ];
+  return expected.flatMap(({ slug, type, model, size }) => {
+    const pin = pins.find(p => p.slug === slug && p.type === type);
+    if (!pin) return [{ slug, type, reason: 'required gallery card missing' }];
+    if (pin.id !== model) return [{ ...pin, reason: `gallery regression: expected model ${model}` }];
+    if (size && pin.fields.size !== size) return [{ ...pin, reason: `gallery regression: expected size ${size}` }];
+    return [];
+  });
 }
-if (fiboCard.id !== FIBO_PIN.id) {
-  console.error(`check-example-models: fibo-studio-still pins "${fiboCard.id}" — want "${FIBO_PIN.id}" (do not use bria-fibo)`);
-  process.exit(1);
-}
-if (fiboCard.size !== FIBO_PIN.size) {
-  console.error(`check-example-models: fibo-studio-still size is ${JSON.stringify(fiboCard.size)} — want "${FIBO_PIN.size}" (send-path clamp would rewrite any other leftover)`);
-  process.exit(1);
-}
-console.log(`check-example-models: FIBO card pins ${FIBO_PIN.id} at ${FIBO_PIN.size}`);
 
-const OMNI_PIN = {
-  slug: "omni-flash-turntable",
-  id: "google/gemini-omni-flash/v1.1",
-};
-const omniCard = pins.find((p) => p.slug === OMNI_PIN.slug && p.type === "tvideo");
-if (!omniCard) {
-  console.error("check-example-models: EXAMPLES is missing the omni-flash-turntable tvideo card — the gallery pin drifted.");
-  process.exit(1);
+export function appRules(src) {
+  const dead = /const dead = \/\^\(([^)]*)\)\$\/i\.test\(m\.id\)/.exec(src);
+  if (!dead) throw new Error('Known-dead audio rule not found');
+  const set = name => {
+    const match = new RegExp(`const ${name} = new Set\\(\\[([\\s\\S]*?)\\]\\)`).exec(src);
+    if (!match) throw new Error(`${name} not found`);
+    return new Set(new Script(`[${match[1]}]`).runInNewContext({}, { timeout: 1000 }));
+  };
+  return { dead: new RegExp(`^(${dead[1]})$`, 'i'), needsSource: set('NEEDS_SRC_IDS'), inpaint: set('INPAINT_OK') };
 }
-if (omniCard.id !== OMNI_PIN.id) {
-  console.error(`check-example-models: omni-flash-turntable pins "${omniCard.id}" — want "${OMNI_PIN.id}" (do not use v1)`);
-  process.exit(1);
-}
-console.log(`check-example-models: Omni Flash card pins ${OMNI_PIN.id}`);
 
-const need = [...new Set(pins.map((p) => p.kind))];
-const live = {};
-for (const kind of need) {
-  try {
-    const r = await fetch(`${NANOGPT}${ENDPOINTS[kind]}`, {
-      headers: { Accept: "application/json" }, signal: AbortSignal.timeout(15000),
-    });
-    if (!r.ok) throw new Error("HTTP " + r.status);
-    const data = (await r.json()).data;
-    if (!Array.isArray(data)) throw new Error("unexpected response: data is not a model array");
-    const ids = data.map((m) => m && m.id).filter(Boolean);
-    // A 200 with no usable model array means the shape moved under us. Reporting "all live" off
-    // an empty list would turn this audit into a no-op that always passes — the opposite of its job.
-    if (!ids.length) {
-      console.error(`check-example-models: ${kind} catalog fetched but held 0 models — unexpected shape at ${ENDPOINTS[kind]}. Audited nothing; refusing to report success.`);
-      process.exit(1);
+export function auditPins(pins, catalogs, rules = {}) {
+  const issues = [];
+  for (const pin of pins) {
+    const fail = reason => issues.push({ ...pin, reason });
+    if (typeof pin.id !== 'string' || !pin.id.trim()) { fail('missing pinned model ID'); continue; }
+    const model = catalogs[pin.kind]?.find(m => m.id === pin.id);
+    if (!model) { fail(`gone from the ${pin.kind} catalog`); continue; }
+    if (pin.kind === 'audio' && rules.dead?.test(pin.id)) fail('on the app known-dead list');
+    const c = model.capabilities || {}, sp = model.supported_parameters || {};
+    const pp = sp.parameters || sp, mod = model.architecture?.modality || '';
+    const needsSrc = rules.needsSource?.has(pin.id) || /upscal|inpaint|image-to-image|img2img/i.test(pin.id);
+    const mask = /inpaint/i.test(pin.id), input = mod.split('->')[0].split('+');
+    const tts = !!c.text_to_speech || model.category === 'audio_tts';
+    const capabilities = pin.kind === 'image' ? {
+      gen: !needsSrc && (mod ? mod.startsWith('text') : !c.image_to_image),
+      edit: !mask && (needsSrc || !!c.image_to_image),
+      inpaint: mask || rules.inpaint?.has(pin.id),
+    } : pin.kind === 'video' ? {
+      t2v: c.text_to_video && !(input.includes('video') && !input.includes('image')),
+      i2v: c.image_to_video, v2v: c.video_to_video,
+      avatar: c.image_to_video && c.audio_input && !('left_audio' in pp || 'right_audio' in pp),
+    } : pin.kind === 'audio' ? {
+      tts, music: !tts && mod.startsWith('text') && /audio|music/.test(mod.split('->')[1] || '') && !/lyric|describe|recognize|stem|clone|upload|cover|extend|inpaint/i.test(pin.id),
+      stt: (c.speech_to_text || model.category === 'audio_stt') && !/clone/i.test(pin.id),
+      remix: c.music_cover || c.audio_to_music || c.music_extension || c.audio_extension || c.audio_inpainting,
+    } : {};
+    if (pin.filter && pin.filter in capabilities && !capabilities[pin.filter]) fail(`does not support ${pin.type} (${pin.filter})`);
+    const fields = pin.fields;
+    const check = (field, options) => {
+      const value = fields[field];
+      if (value == null || value === '' || !options?.length) return;
+      if (!options.some(option => String(option) === String(value))) fail(`unsupported ${field}=${JSON.stringify(value)}; supported: ${options.join(', ')}`);
+    };
+    const options = param => param?.options?.map(o => o.value).filter(v => v != null);
+    if (pin.kind === 'image') check('size', sp.resolutions);
+    if (pin.kind === 'video') {
+      check('resolution', options(pp.resolution));
+      check('duration', options(pp.duration || pp.seconds));
+      check('aspect', options(pp.aspect_ratio || pp.orientation || pp.resolution_ratio));
     }
-    live[kind] = new Set(ids);
-    if (kind === "image") {
-      const fibo = data.find((m) => m && m.id === FIBO_PIN.id);
-      const res = fibo && fibo.supported_parameters && fibo.supported_parameters.resolutions;
-      if (Array.isArray(res) && res.length && !res.map(String).includes(FIBO_PIN.size)) {
-        console.error(`check-example-models: live ${FIBO_PIN.id} resolutions are ${res.join(", ")} — pinned size "${FIBO_PIN.size}" is gone; send-path clamp would silently rewrite the gallery card`);
-        process.exit(1);
-      }
-      if (Array.isArray(res) && res.length) {
-        console.log(`check-example-models: live ${FIBO_PIN.id} still lists ${FIBO_PIN.size} (among ${res.join("/")})`);
+    if (pin.kind === 'audio') {
+      check('voice', sp.voices);
+      const duration = fields.duration;
+      if (duration != null && duration !== '' && duration !== 'auto' && duration !== 'default') {
+        if (!Number.isFinite(Number(duration)) || (sp.min_duration != null && Number(duration) < sp.min_duration) || (sp.max_duration != null && Number(duration) > sp.max_duration)) fail(`unsupported duration=${JSON.stringify(duration)} (range ${sp.min_duration ?? '?'}–${sp.max_duration ?? '?'})`);
       }
     }
-  } catch (e) {
-    console.error(`check-example-models: INCOMPLETE — ${kind} catalog check failed at ${ENDPOINTS[kind]} (${e.message}). No all-clear; retry the audit.`);
-    process.exit(1);
   }
+  return issues;
 }
 
-const dead = new Set(deadIds().map((s) => s.toLowerCase()));
-const gone = pins.filter((p) => !live[p.kind].has(p.id));
-const rotten = pins.filter((p) => live[p.kind].has(p.id) && dead.has(p.id.toLowerCase()));
-
-for (const p of gone)
-  console.error(`✗ ${p.slug}: ${p.type} node ${p.node} pins "${p.id}" — gone from the ${p.kind} catalog; the node will refuse to run`);
-for (const p of rotten)
-  console.error(`✗ ${p.slug}: ${p.type} node ${p.node} pins "${p.id}" — listed but on the app's known-dead list; every call fails`);
-
-if (gone.length || rotten.length) {
-  console.error(`\nRefresh homepage pins in noodle-graph.json. For gallery pins, update github.com/nanoodlecom/awesome-noodles, then: node scripts/sync-examples.mjs`);
-  process.exit(1);
+export async function main() {
+  const src = readFileSync(join(ROOT, 'index.html'), 'utf8');
+  const kinds = nodeKinds(src);
+  const examples = parseExamples(src);
+  const galleryPins = pinnedModels(examples, kinds);
+  if (!galleryPins.length) throw new Error('Parsed 0 gallery model nodes; refusing to report success');
+  const starterPins = starterModels(JSON.parse(readFileSync(join(ROOT, 'noodle-graph.json'), 'utf8')), kinds);
+  if (!starterPins.length) throw new Error('Homepage starter has no model pins; refusing to report success');
+  const pins = [...starterPins, ...galleryPins];
+  const catalogs = {};
+  for (const kind of new Set(pins.map(p => p.kind))) {
+    try {
+      if (!ENDPOINTS[kind]) throw new Error(`Unknown catalog kind: ${kind}`);
+      const response = await fetch(`https://nano-gpt.com${ENDPOINTS[kind]}`, {
+        headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(30000),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = (await response.json()).data;
+      if (!Array.isArray(data) || !data.some(m => m?.id)) throw new Error('catalog contains no usable models');
+      catalogs[kind] = data;
+    } catch (error) {
+      console.error(`check-example-models: INCONCLUSIVE — ${kind} catalog: ${error.message}`);
+      return 2;
+    }
+  }
+  const issues = [...galleryRegressions(galleryPins), ...auditPins(pins, catalogs, appRules(src))];
+  for (const p of issues) console.error(`✗ ${p.slug}: ${p.type} node ${p.node} (${p.id || 'no model'}) — ${p.reason}`);
+  console.log(`check-example-models: ${issues.length ? 'FAIL' : 'OK'} (${pins.length} model nodes, ${Object.keys(catalogs).length} catalogs, ${issues.length} issues; homepage starter ${starterPins.length} pins + ${examples.length} gallery cards)`);
+  return issues.length ? 1 : 0;
 }
-const cardCount = [...src.slice(src.indexOf("const EXAMPLES = ["), src.indexOf("\n];", src.indexOf("const EXAMPLES = ["))).matchAll(/slug:"/g)].length;
-console.log(`check-example-models: OK (${pins.length} pinned ids across ${need.length} catalogs, all live; homepage starter ${starterPins.length} pins + ${cardCount} gallery cards)`);
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().then(code => { process.exitCode = code; }).catch(error => {
+    console.error(`check-example-models: ${error.message}`);
+    process.exitCode = 1;
+  });
+}

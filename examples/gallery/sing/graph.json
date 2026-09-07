@@ -1,0 +1,115 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": -265,
+      "y": -63,
+      "fields": {
+        "text": "Draft an original closing-credits song. One text model writes lyrics; Mureka Generate Song sings them using the editable musical style. Music step $0.225, plus text. Listen for clear words, melody and fit to the brief; generated duration and precise musical structure can vary.",
+        "color": "yellow"
+      },
+      "w": 520
+    },
+    {
+      "id": "n1",
+      "type": "text",
+      "x": 58,
+      "y": 225,
+      "fields": {
+        "text": "Write a short original song for the closing credits of a cozy repair-shop game. Theme: fixing a small thing makes a hard day better. Concrete details: a squeaky wheel, a borrowed wrench, a light left on for the last customer. Warm, understated and hopeful. No brand names."
+      },
+      "name": "Song Instructions"
+    },
+    {
+      "id": "n2",
+      "type": "llm",
+      "x": 402.85812543684335,
+      "y": -142.85694158301368,
+      "fields": {
+        "model": "z-ai/glm-5.3-flash",
+        "system": "Write original singable lyrics from the brief, maximum 160 words. Plain language, concrete details, natural stresses and a short memorable chorus. Use [Verse 1], [Chorus], [Verse 2], [Chorus], [Outro] labels. Preserve the requested mood and avoid adding named brands or copyrighted lyrics. Output only section labels and lyrics.",
+        "maxTokens": "1024",
+        "reasoningEffort": "low"
+      },
+      "w": 549,
+      "sizes": {
+        "system": 178,
+        "prompt": 0
+      },
+      "name": "Lyrics"
+    },
+    {
+      "id": "n4",
+      "type": "music",
+      "x": 1240,
+      "y": 120,
+      "fields": {
+        "model": "mureka-ai/mureka-v9.5/generate-song",
+        "instrumental": false,
+        "response_format": "mp3"
+      },
+      "w": 406,
+      "sizes": {
+        "prompt": 0,
+        "lyrics": 0,
+        "negative_prompt": 0
+      },
+      "name": "Song"
+    },
+    {
+      "id": "n5",
+      "type": "text",
+      "x": -711.7791041392409,
+      "y": 1154.9439102487288,
+      "fields": {
+        "text": "Gentle acoustic folk, relaxed mid-tempo, warm solo vocal, fingerpicked guitar, soft brushed percussion. Clear words and a memorable chorus; no artist imitation.",
+        "optional": false
+      },
+      "name": "Musical style"
+    }
+  ],
+  "links": [
+    {
+      "id": "l11",
+      "from": {
+        "node": "n1",
+        "port": "text"
+      },
+      "to": {
+        "node": "n2",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l12",
+      "from": {
+        "node": "n2",
+        "port": "text"
+      },
+      "to": {
+        "node": "n4",
+        "port": "lyrics"
+      }
+    },
+    {
+      "id": "style-direct",
+      "from": {
+        "node": "n5",
+        "port": "text"
+      },
+      "to": {
+        "node": "n4",
+        "port": "prompt"
+      }
+    }
+  ],
+  "nid": 12,
+  "lid": 28,
+  "view": {
+    "panX": 128.94355688222822,
+    "panY": 299.1140787122954,
+    "scale": 0.6275535625311416
+  }
+}

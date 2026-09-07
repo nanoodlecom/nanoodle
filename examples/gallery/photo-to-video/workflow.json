@@ -1,0 +1,111 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 80,
+      "y": -60,
+      "w": 380,
+      "fields": {
+        "text": "Make a five-second ambient loop concept: Muse draws the first frame ($0.01), MiniMax H3 Spicy animates one small movement (480p, $0.20). This model supports image-to-video; the scene is a simple product still. Change the still and motion briefs together. Inspect temporal stability; a seamless loop is not guaranteed.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "n1",
+      "type": "text",
+      "x": -40,
+      "y": 100,
+      "w": 300,
+      "name": "Still brief",
+      "fields": {
+        "text": "A ceramic mug of hot tea on an oak desk beside a closed notebook. Soft morning window light from the left, plain warm-gray wall, close three-quarter view, entire mug visible, clear handle silhouette, faint steam above the tea, no text or logos."
+      }
+    },
+    {
+      "id": "n2",
+      "type": "image",
+      "x": 400,
+      "y": 100,
+      "fields": {
+        "model": "meta/muse-image/text-to-image",
+        "size": "16:9",
+        "variations": "1"
+      },
+      "sizes": {
+        "prompt": 0
+      },
+      "name": "First frame"
+    },
+    {
+      "id": "n3",
+      "type": "ivideo",
+      "x": 820,
+      "y": 100,
+      "fields": {
+        "model": "minimax-h3/image-to-video-spicy",
+        "prompt": "",
+        "resolution": "480p",
+        "duration": "5",
+        "modelOpts": {},
+        "loras": []
+      },
+      "sizes": {
+        "prompt": 0
+      },
+      "name": "Animated clip"
+    },
+    {
+      "id": "n8",
+      "type": "text",
+      "x": -10,
+      "y": 400,
+      "w": 280,
+      "name": "Motion brief",
+      "fields": {
+        "text": "Locked camera for five seconds. A thin wisp of steam rises slowly from the tea and curls gently in the window light. The mug, desk and notebook remain completely still. Preserve their shape and placement; no cuts, new objects or camera motion."
+      },
+      "sizes": {
+        "text": 98
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "n1",
+        "port": "text"
+      },
+      "to": {
+        "node": "n2",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "n2",
+        "port": "image"
+      },
+      "to": {
+        "node": "n3",
+        "port": "image"
+      }
+    },
+    {
+      "id": "motion-direct",
+      "from": {
+        "node": "n8",
+        "port": "text"
+      },
+      "to": {
+        "node": "n3",
+        "port": "prompt"
+      }
+    }
+  ],
+  "nid": 9,
+  "lid": 9
+}

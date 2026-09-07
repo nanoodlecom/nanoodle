@@ -1,0 +1,134 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "comment",
+      "x": 40,
+      "y": 20,
+      "w": 300,
+      "name": "FIBO studio still",
+      "fields": {
+        "text": "Create an editorial product concept from a description and lighting choice. GLM Flash structures the brief; Bria FIBO renders at 1MP (image step $0.04, plus text). FIBO is offered as a model trained on licensed data; that does not guarantee legal clearance for a generated image. For an exact existing product, use Edit a photo instead.",
+        "color": "#1f2420"
+      }
+    },
+    {
+      "id": "n2",
+      "type": "text",
+      "x": 40,
+      "y": 200,
+      "w": 260,
+      "name": "Product",
+      "fields": {
+        "text": "One unbranded amber glass hand-soap bottle with a matte black pump, resting upright on a pale limestone counter. No label, packaging or accessories."
+      }
+    },
+    {
+      "id": "n3",
+      "type": "choice",
+      "x": 40,
+      "y": 440,
+      "w": 260,
+      "name": "Light",
+      "fields": {
+        "options": "large softbox left, gentle shadow, neutral backdrop\nwindow daylight, soft shadows, warm stone\nhard side light, crisp silhouette, gray paper\nbacklit translucent glass, soft fill from front",
+        "selected": "large softbox left, gentle shadow, neutral backdrop"
+      }
+    },
+    {
+      "id": "n4",
+      "type": "join",
+      "x": 360,
+      "y": 300,
+      "w": 220,
+      "name": "Brief",
+      "fields": {
+        "sep": "\n\nLight: "
+      }
+    },
+    {
+      "id": "n5",
+      "type": "llm",
+      "x": 640,
+      "y": 220,
+      "w": 300,
+      "name": "Structured prompt",
+      "fields": {
+        "model": "z-ai/glm-5.3-flash",
+        "system": "Write one structured descriptive image prompt for the supplied product and lighting. Preserve its shape, materials and number of objects. Describe the subject, surface, background, camera angle, lighting direction, color and focus in coherent prose, 80-120 words. One restrained editorial still, all of the product visible with breathing room. Do not invent logos, text, accessories, scenery or product features. Output prompt only.",
+        "maxTokens": "1024",
+        "reasoningEffort": "low"
+      },
+      "sizes": {
+        "system": 160
+      }
+    },
+    {
+      "id": "n6",
+      "type": "image",
+      "x": 1000,
+      "y": 250,
+      "w": 280,
+      "name": "Still",
+      "fields": {
+        "model": "bria/fibo-generate-1.5/text-to-image",
+        "size": "1mp",
+        "variations": "1"
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "n2",
+        "port": "text"
+      },
+      "to": {
+        "node": "n4",
+        "port": "a"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "n3",
+        "port": "text"
+      },
+      "to": {
+        "node": "n4",
+        "port": "b"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "n4",
+        "port": "text"
+      },
+      "to": {
+        "node": "n5",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l4",
+      "from": {
+        "node": "n5",
+        "port": "text"
+      },
+      "to": {
+        "node": "n6",
+        "port": "prompt"
+      }
+    }
+  ],
+  "nid": 7,
+  "lid": 5,
+  "view": {
+    "panX": 20,
+    "panY": 40,
+    "scale": 0.85
+  }
+}
