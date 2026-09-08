@@ -49,6 +49,16 @@ if (!hub.includes("cinematic-character-still/preview.webp")) {
 if (hub.includes("Spoken workshop introduction")) {
   fail("hub still titles the talking-avatar card as a workshop intro");
 }
+const singHowTo = readFileSync(join(ROOT, "guide", "examples", "sing.html"), "utf8");
+if (/last repair|squeaky wheel|gentle acoustic folk|repair-shop game/i.test(singHowTo)) {
+  fail("sing how-to still uses the cozy repair-shop first-click");
+}
+if (!singHowTo.includes("rooftop getaway") && !singHowTo.includes("last leap")) {
+  fail("sing how-to should pitch the rooftop getaway");
+}
+if (hub.includes("The song after the last repair")) {
+  fail("hub still titles sing as the last repair");
+}
 const omniHowTo = readFileSync(join(ROOT, "guide", "examples", "omni-flash-turntable.html"), "utf8");
 if (/Open this noodle — is the earlier water-bottle/i.test(omniHowTo) || /and Open this noodle — is the earlier water-bottle/i.test(omniHowTo)) {
   fail("omni-flash how-to still says Open this noodle is the bottle run");

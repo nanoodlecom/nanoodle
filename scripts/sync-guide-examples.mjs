@@ -128,11 +128,11 @@ const HOWTO = {
     costHow: "The reviewed run reported $0.04 ($0.04/image at 1K). Prices and results vary.",
   },
   sing: {
-    headline: "The song after the last repair",
-    job: "The song after the last repair.",
-    purpose: "Original closing-credits music from a brief and a style. No artist cosplay.",
-    edit: "Rewrite <em>Song Instructions</em> and <em>Musical style</em>. GLM Flash writes labeled lyrics; Mureka Generate Song sings them.",
-    inspect: "Clear words, a chorus you can hum, fit to the brief. Duration and exact structure can wander. The saved 170-second track had a separate Gemini 3.8 Flash listen (reported $0.00627) — model-assisted, not a human sign-off. No still preview; the audio and lyrics are the reviewed output.",
+    headline: "The song after the last leap",
+    job: "Credits after the last leap.",
+    purpose: "Original closing-credits music from a brief and a style. No artist cosplay. First-click is a rooftop getaway — rain, last leap, red neon six floors down.",
+    edit: "Rewrite <em>Song brief (theme, not lyrics)</em> and <em>Style (instruments &amp; tempo)</em>. GLM Flash writes labeled lyrics; Mureka Generate Song sings them.",
+    inspect: "Clear words, a chorus you can hum, fit to the brief. Duration and exact structure can wander. The saved 170-second MP3 is the earlier cozy-repair-shop run; Gemini 3.8 Flash listened to that track (reported $0.00627) — model-assisted, not a human sign-off. The lyrics preview matches the rooftop getaway. No still preview.",
     costHow: "The reviewed song run reported $0.225 (music step $0.225, plus a small text call). The optional audio-review call is separate. Prices and results vary.",
   },
   "talking-avatar": {
