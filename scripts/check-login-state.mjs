@@ -86,7 +86,10 @@ function inert() {
 function makeEl(id) {
   const store = {
     id,
-    style: {},
+    style: {
+      setProperty(k, v) { this[k] = v; },
+      removeProperty(k) { delete this[k]; },
+    },
     dataset: {},
     classList: {
       _s: new Set(),

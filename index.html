@@ -10917,6 +10917,11 @@ function demoRunLabel(){ return t("loading sample…"); }
 function markDemoResult(n){
   const r = n.el?.querySelector(".result");
   if(!r || !r.classList.contains("show") || r.querySelector(".demobadge")) return;   // pass-through nodes (text/media inputs) show no result — nothing to label
+  // Only canned generator outputs get the pill. Join/Choice echo Place/Vibe — four
+  // "sample result" labels on the postcard starter made first-run look like the
+  // visitor's own text was fake too. Smoke first-run still expects the two
+  // generated outputs (LLM + image) to be labeled.
+  if(!NODE_TYPES[n.type] || !NODE_TYPES[n.type].modelKind) return;
   r.insertAdjacentHTML("beforeend", `<div class="demobadge">✨ ${esc(t("sample result — sign in to run it for real"))}</div>`);
 }
 // mode: 'exact' (pristine starter) | 'shape' (same topology, field tweaks) | 'video' (starter + an
@@ -13296,8 +13301,6 @@ function seed(){
   // Night-market postcard: the Elo first-click (same graph as EXAMPLES["night-market-postcard"]
   // and noodle-graph.json). This fallback only fires when that fetch fails, e.g. file://.
   // The signed-out sample (DEMO_LLM_TEXT + demo-sample.jpg) was generated from these exact nodes.
-  const ex = (typeof EXAMPLES!=="undefined") && EXAMPLES.find(e=>e.slug==="night-market-postcard");
-  if(ex){ applyGraphData(JSON.parse(JSON.stringify(ex.graph))); undoMuted = false; return; }
   const nameNode = (n, name) => {
     n.name = name;
     const inp = n.el && n.el.querySelector(".node-name");
