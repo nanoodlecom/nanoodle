@@ -114,9 +114,9 @@ const HOWTO = {
   "omni-flash-turntable": {
     headline: "Orbit the chrome",
     job: "Orbit the object. Keep the chrome honest.",
-    purpose: "No upload. Describe the thing, pick one camera move, get a five-second draft. The editor first-click is now a chrome motorcycle helmet under hard rim light. This page's reviewed clip — and Open this noodle — is the earlier water-bottle run. Same knobs. A concept object, not a catalog SKU.",
+    purpose: "No upload. Describe the thing, pick one camera move, get a five-second draft. Open this noodle — and the editor first-click — is a chrome motorcycle helmet under hard rim light. This page's reviewed clip is the earlier water-bottle run. Same knobs. A concept object, not a catalog SKU.",
     edit: "Rewrite <em>Object</em> and pick a <em>Move</em>. GLM Flash structures the brief; Omni Flash 1.1 renders 5 seconds at 360p / 16:9.",
-    inspect: "The move you picked happens once. Geometry stays stable. Count and colors match. 360p draft. The saved clip is the bottle; type the helmet if you want the live first-click.",
+    inspect: "The move you picked happens once. Geometry stays stable. Count and colors match. 360p draft. The saved clip is the earlier bottle; the open graph is the chrome helmet.",
     costHow: "The reviewed run reported $0.195 for the video step, plus a small text call. Prices and results vary.",
   },
   "render-a-mockup": {

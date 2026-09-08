@@ -49,6 +49,13 @@ if (!hub.includes("cinematic-character-still/preview.webp")) {
 if (hub.includes("Spoken workshop introduction")) {
   fail("hub still titles the talking-avatar card as a workshop intro");
 }
+const omniHowTo = readFileSync(join(ROOT, "guide", "examples", "omni-flash-turntable.html"), "utf8");
+if (/Open this noodle — is the earlier water-bottle/i.test(omniHowTo) || /and Open this noodle — is the earlier water-bottle/i.test(omniHowTo)) {
+  fail("omni-flash how-to still says Open this noodle is the bottle run");
+}
+if (!omniHowTo.includes("chrome motorcycle helmet")) {
+  fail("omni-flash how-to should name the chrome helmet first-click");
+}
 for (const slug of slugs) {
   const page = readFileSync(join(ROOT, "guide", "examples", slug === "iron-verdict" ? "iron-verdict.html" : `${slug}.html`), "utf8");
   if (page.includes("how to use this noodle")) {
