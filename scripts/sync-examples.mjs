@@ -45,7 +45,9 @@ const GRAPHS = gi >= 0 ? argv[gi + 1] : join(ROOT, "..", "awesome-noodles", "gra
 
 // Editor-only teaching cards. They live in EXAMPLES so a visitor can open them,
 // but they are not awesome-noodles graphs and not mcp.nanoodle.com tools.
-// Keep this list in sync with scripts/check-launch-facts.mjs.
+// Keep this list in sync with index.html's LOCAL_ONLY_EXAMPLE_SLUGS.
+// scripts/check-example-results.mjs compares the two and requires teaching cards
+// to hide "See result" instead of linking examples/gallery/#<slug>.
 const LOCAL_ONLY_EXAMPLE_SLUGS = new Set(["custom-endpoint"]);
 
 if (!existsSync(GRAPHS)) {

@@ -50,7 +50,7 @@ touches_settings=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/c
 # index.html carries the quick-add type filter (drop a wire into empty space → only fitting nodes).
 touches_quickadd=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-quickadd\.mjs)$' || true)
 # index.html's Examples gallery must stay equal to the awesome-noodles repo (one card per graph there).
-touches_examples=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/sync-examples\.mjs)$' || true)
+touches_examples=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/sync-examples\.mjs|scripts/check-example-results\.mjs|examples/gallery/(index\.html|samples\.json))$' || true)
 # index.html + play.html carry the i18n maps (editor + app-player/exported chrome) — a chrome string missing from every language map is invisible to users of all five.
 touches_i18n=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-i18n-coverage\.mjs)$' || true)
 # updates.json feeds the in-app "📣 Updates" changelog — a bad hand edit must not ship.
@@ -555,8 +555,11 @@ fi
 #     (three noodles added upstream never landed; four removed upstream lived on), so parity is
 #     mechanical now. Regenerate with `node scripts/sync-examples.mjs`. Skips (exit 0) when the
 #     sibling awesome-noodles checkout is absent, so a contributor without it is never blocked.
+#     check-example-results.mjs then asserts every "See result" href resolves (gallery
+#     section or a real dest) and teaching-only cards hide the link instead of a dead hash.
 if [ -n "$touches_examples" ]; then
   node "$root/scripts/sync-examples.mjs" --check
+  node "$root/scripts/check-example-results.mjs"
 fi
 
 # 40) PROMPT LENGTH CAPS: many image/video models reject an over-long prompt at the route (400

@@ -13484,7 +13484,8 @@ refreshUpdatesBadge();
 
 /* ---- Examples: one-click starter workflows — the noodles curated in
    github.com/nanoodlecom/awesome-noodles, one card per graphs/*.noodle-graph.json there,
-   plus the editor-only `custom-endpoint` teaching card (not a gallery file, not an MCP tool).
+   plus the editor-only `custom-endpoint` teaching card (not a gallery file, not an MCP tool;
+   LOCAL_ONLY_EXAMPLE_SLUGS hides its "See result" so it never lands on a dead gallery hash).
    awesome-noodles is the source for every other card: nothing else lives here that isn't in
    it, and nothing there is left out, and every port is VERBATIM — layout, names, prompts,
    comments, wiring, and the pinned fields.model on every model-bearing node. Do not hand-edit
@@ -13730,6 +13731,9 @@ function renderCommunity(){
   const top=$("communitytop");  top.innerHTML="";  top.hidden=!topE.length;  topE.forEach(e=> top.appendChild(cnEntry(e,true)));
   const more=$("communitymore"); more.innerHTML=""; more.hidden=!moreE.length; moreE.forEach(e=> more.appendChild(cnEntry(e,false)));
 }
+// Same set as scripts/sync-examples.mjs. Editor-only teaching cards are not gallery
+// files — hide "See result" (and the preview hash) so they never land on a dead #slug.
+const LOCAL_ONLY_EXAMPLE_SLUGS = new Set(["custom-endpoint"]);
 function openExamples(){
   const list=$("exampleslist"); list.innerHTML="";
   // Elo-ish first-clicks first, soft noodles last. The source graph array stays sync-generated.
@@ -13742,7 +13746,7 @@ function openExamples(){
     return rank(a.ex.slug)-rank(b.ex.slug);
   }).forEach(({ex,i})=>{
     const c=document.createElement("article"); c.className="ex-card";
-    const result=ex.slug==="character-sprites"?"examples/iron-verdict/":"examples/gallery/#"+encodeURIComponent(ex.slug);
+    const result=LOCAL_ONLY_EXAMPLE_SLUGS.has(ex.slug)?"":ex.slug==="character-sprites"?"examples/iron-verdict/":"examples/gallery/#"+encodeURIComponent(ex.slug);
     const thumb=ex.slug==="character-sprites"?"examples/iron-verdict/screenshot.png":ex.thumb;
     const preview=ex.slug==="deslop"
       ? '<blockquote class="ex-quote" data-no-i18n>“Starting 8 September at 00:01 JST, 120 black nylon night-raid jackets drop online for $280.”</blockquote>'
@@ -13751,7 +13755,9 @@ function openExamples(){
       : ex.slug==="sing"
       ? '<blockquote class="ex-quote" data-no-i18n>“We made the leap, we kept the night — six floors of neon, one last light.”</blockquote>'
       : thumb?`<img class="ex-im" src="${thumb}" alt="" loading="lazy"/>`:`<span class="ex-em" aria-hidden="true">${ex.em}</span>`;
-    c.innerHTML=`<a class="ex-preview" href="${result}" target="_blank" rel="noopener" aria-label="${esc(t("See result")+": "+t(ex.title))}">${preview}</a><div class="ex-body"><h3 class="ex-tt">${esc(t(ex.title))}</h3><p class="ex-ds">${esc(t(ex.desc))}</p><div class="ex-actions"><button type="button">${esc(t("Open workflow"))}</button><a href="${result}" target="_blank" rel="noopener">${esc(t("See result"))} ↗</a></div></div>`;
+    const previewWrap=result?`<a class="ex-preview" href="${result}" target="_blank" rel="noopener" aria-label="${esc(t("See result")+": "+t(ex.title))}">${preview}</a>`:`<div class="ex-preview">${preview}</div>`;
+    const see=result?`<a href="${result}" target="_blank" rel="noopener">${esc(t("See result"))} ↗</a>`:"";
+    c.innerHTML=`${previewWrap}<div class="ex-body"><h3 class="ex-tt">${esc(t(ex.title))}</h3><p class="ex-ds">${esc(t(ex.desc))}</p><div class="ex-actions"><button type="button">${esc(t("Open workflow"))}</button>${see}</div></div>`;
     c.querySelector("button").onclick=()=>loadExample(i); list.appendChild(c);
   });
   renderCommunity();
