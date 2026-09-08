@@ -40,9 +40,9 @@ const HOWTO = {
   deslop: {
     headline: "Kill the AI voice",
     job: "Kill the AI voice. Keep every fact.",
-    purpose: "That booking notice sounds like a press release from a toaster. This noodle rewrites it like a person, then a second model checks every date, price, and caveat against the source before the last pass.",
+    purpose: "That midnight drop email sounds like a brand that asked a chatbot to sound expensive. This noodle rewrites it like a person, then a second model checks every date, price, and caveat against the source before the last pass.",
     edit: "Paste the slop into <em>Your draft</em>. Leave the three LLM nodes unless you mean to change models: Grok drafts, Terra fact-checks, Grok applies the review.",
-    inspect: "Every supplied fact has to survive — the saved run keeps 8 September, the $15 fee, the 14-day credit, Tuesday–Saturday hours, existing bookings, and repairs@example.com. Empty hype should vanish. The review checks writing and facts. It does not detect authorship.",
+    inspect: "Every supplied fact has to survive — the saved run keeps 8 September at 00:01 JST, the $280 price, the 120-jacket limit, one-per-customer, no restock, Friday–Saturday Shibuya pickup hours, the confirmation QR, and drop@example.com. Empty hype should vanish. The review checks writing and facts. It does not detect authorship.",
     costHow: "The reviewed run reported $0.0079 across three paid text calls. Token use and model prices move; check the editor estimate before you hit Run.",
   },
   favicon: {
