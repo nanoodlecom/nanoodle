@@ -114,9 +114,9 @@ const HOWTO = {
   "omni-flash-turntable": {
     headline: "Orbit the chrome",
     job: "Orbit the object. Keep the chrome honest.",
-    purpose: "No upload. Describe the thing, pick one camera move, get a five-second draft. Open this noodle — and the editor first-click — is a chrome motorcycle helmet under hard rim light. This page's reviewed clip is the earlier water-bottle run. Same knobs. A concept object, not a catalog SKU.",
+    purpose: "No upload. Describe the thing, pick one camera move, get a five-second draft. Open this noodle — and the editor first-click — is a chrome motorcycle helmet under hard rim light. The reviewed clip matches. Same knobs. A concept object, not a catalog SKU.",
     edit: "Rewrite <em>Object</em> and pick a <em>Move</em>. GLM Flash structures the brief; Omni Flash 1.1 renders 5 seconds at 360p / 16:9.",
-    inspect: "The move you picked happens once. Geometry stays stable. Count and colors match. 360p draft. The saved clip is the earlier bottle; the open graph is the chrome helmet.",
+    inspect: "The move you picked happens once. Geometry stays stable. Count and colors match. 360p draft. The saved clip is the chrome helmet on a charcoal plinth; the open graph matches.",
     costHow: "The reviewed run reported $0.195 for the video step, plus a small text call. Prices and results vary.",
   },
   "render-a-mockup": {
@@ -132,8 +132,8 @@ const HOWTO = {
     job: "Credits after the last leap.",
     purpose: "Original closing-credits music from a brief and a style. No artist cosplay. First-click is a rooftop getaway — rain, last leap, red neon six floors down.",
     edit: "Rewrite <em>Song brief (theme, not lyrics)</em> and <em>Style (instruments &amp; tempo)</em>. GLM Flash writes labeled lyrics; Mureka Generate Song sings them.",
-    inspect: "Clear words, a chorus you can hum, fit to the brief. Duration and exact structure can wander. The saved 170-second MP3 is the earlier cozy-repair-shop run; Gemini 3.8 Flash listened to that track (reported $0.00627) — model-assisted, not a human sign-off. The lyrics preview matches the rooftop getaway. No still preview.",
-    costHow: "The reviewed song run reported $0.225 (music step $0.225, plus a small text call). The optional audio-review call is separate. Prices and results vary.",
+    inspect: "Clear words, a chorus you can hum, fit to the brief. Duration and exact structure can wander. The saved ~182-second MP3 is the rooftop-getaway synthwave run; chorus \"I made it out, but the city wants me back\". No new paid audio-model review. No still preview.",
+    costHow: "The reviewed song run reported $0.225 (music step $0.225, plus a small text call). Prices and results vary.",
   },
   "talking-avatar": {
     headline: "Look at camera. Say the line.",
