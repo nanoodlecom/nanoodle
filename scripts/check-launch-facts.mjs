@@ -119,23 +119,18 @@ const lines = (f) => src.get(f).split("\n");
 
 // ---------------------------------------------------------------- repo facts
 
-// How many cards the 📚 Examples panel actually ships as published workflows.
-// sync-examples.mjs (gate 39) pins that set to one card per graph in
-// awesome-noodles, and the hosted MCP server exposes the same set, so this
-// one number backs the "ten ready-made graphs" and "ten workflows are
-// published" claims at once. Editor-only teaching cards (see
-// LOCAL_ONLY_EXAMPLE_SLUGS in sync-examples.mjs) stay in the panel so a
-// visitor can open them, but they are not gallery files and not MCP tools.
-const LOCAL_ONLY_EXAMPLE_SLUGS = new Set(["custom-endpoint"]);
+// How many cards the 📚 Examples panel actually ships. sync-examples.mjs (gate
+// 39) pins this array to one card per graph in awesome-noodles, and the hosted
+// MCP server exposes that same set, so this one number backs the "ten
+// ready-made graphs" and "ten workflows are published" claims at once.
 function exampleCount() {
   const html = readFileSync(join(ROOT, "index.html"), "utf8");
   const start = html.indexOf("const EXAMPLES = [");
   if (start < 0) { fail.push("index.html: EXAMPLES array not found — this guard cannot check the example count"); return null; }
   const end = html.indexOf("\n];", start);
   if (end < 0) { fail.push("index.html: EXAMPLES array is not terminated by a line starting `];`"); return null; }
-  const slugs = [...html.slice(start, end).matchAll(/\bslug:"([^"]+)"/g)].map((m) => m[1]);
-  const n = slugs.filter((s) => !LOCAL_ONLY_EXAMPLE_SLUGS.has(s)).length;
-  if (!n) { fail.push("index.html: EXAMPLES array parsed to 0 published cards — the guard's parse is stale, fix it before trusting it"); return null; }
+  const n = (html.slice(start, end).match(/\bslug:"/g) || []).length;
+  if (!n) { fail.push("index.html: EXAMPLES array parsed to 0 cards — the guard's parse is stale, fix it before trusting it"); return null; }
   return n;
 }
 

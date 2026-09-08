@@ -82,7 +82,7 @@ self-listings get removed.
 >
 > Workflows are shared as URLs (the graph is encoded in the URL fragment, which
 > never reaches a server) or exported as a single self-contained .html file you
-> can host anywhere or open from disk. A built-in Examples panel carries fourteen
+> can host anywhere or open from disk. A built-in Examples panel carries fifteen
 > ready-made workflows, mirrored from an open gallery repository and shipped
 > inside the page, so there is something to run on the first visit and the panel
 > itself needs no network. The same graph format also runs headlessly via the
@@ -156,7 +156,7 @@ the rail. Never lead with the coin, a price chart, or an investment angle.
 > claude mcp add --transport http noodles https://mcp.nanoodle.com/mcp
 > ```
 >
-> That is the entire setup. No signup, no API key, no dashboard. Fourteen workflows are
+> That is the entire setup. No signup, no API key, no dashboard. Fifteen workflows are
 > published on it right now — image generation and editing, image-to-video, TTS +
 > lipsync, a music one, a four-way model arena.
 >
@@ -169,7 +169,7 @@ the rail. Never lead with the coin, a price chart, or an investment angle.
 >   metered cost + 20%, and the difference goes back to the paying wallet on-chain.
 > - That 20% is routable to the person who wrote the workflow: a graph that names
 >   a Nano address in its JSON collects the whole markup of every paid run,
->   on-chain, automatically. None of the fourteen published workflows claims one yet,
+>   on-chain, automatically. None of the fifteen published workflows claims one yet,
 >   so right now it lands in the server wallet. Add a workflow to the gallery
 >   with your address in it and that changes.
 > - A failed run refunds the whole payment automatically. Quotes expire after 15
@@ -246,7 +246,7 @@ someone finds the Nano angle, answer honestly — the prepared answer is in
 > repos, all MIT.
 >
 > If you'd rather see the format than the canvas, the 📚 Examples panel in the
-> editor holds fourteen ready-made graphs, mirrored from an open gallery repo
+> editor holds fifteen ready-made graphs, mirrored from an open gallery repo
 > (https://github.com/nanoodlecom/awesome-noodles) and shipped inline, so opening
 > the panel costs no network at all. Every entry is a plain JSON file in that
 > repo, so you can read a workflow before you run one.
