@@ -7719,8 +7719,25 @@ function mp4ParamsMatch(bufs){
       var v = inp.prompt != null ? inp.prompt : (inp.text != null ? inp.text : (n.fields && n.fields.prompt));
       return String(v == null ? "" : v).trim();
     }
-    // A Choice/text wire may carry "chat · http://127.0.0.1:8787/v1/chat/completions (label)"
-    // or a bare URL / bare mode. Used so a path picker can retarget the fetch, not just decorate the body.
+    // A Choice/text wire may carry "chat · http://127.0.0.1:8787/v1/chat/completions (label)",
+    // a bare URL / bare mode, or a path segment like "/post" joined onto the node's URL.
+    function endpointIsPath(s){
+      var raw = String(s == null ? "" : s).trim();
+      if(!raw || raw.charAt(0) !== "/") return false;
+      if(raw.length < 2) return false;
+      if(/[\s\u00b7|\u2022]/.test(raw)) return false;
+      if(/^[a-z][a-z0-9+.-]*:\/\//i.test(raw)) return false;
+      return true;
+    }
+    function endpointJoinPath(base, path){
+      var u = new URL(String(base||"").trim());
+      var p = String(path||"").trim();
+      if(p.charAt(0) !== "/") p = "/" + p;
+      var q = p.indexOf("?");
+      if(q >= 0){ u.pathname = p.slice(0, q); u.search = p.slice(q); }
+      else { u.pathname = p; u.search = ""; }
+      return u.toString();
+    }
     function endpointParseRoute(s){
       var raw = String(s == null ? "" : s).trim();
       var out = {};
@@ -7744,6 +7761,8 @@ function mp4ParamsMatch(bufs){
       if(m) url = m[0].replace(/[.,;]+$/, "");
       if(mode) out.mode = mode;
       if(url) out.url = url;
+      else if(endpointIsPath(rest)) out.path = rest;
+      else if(!mode && endpointIsPath(raw)) out.path = raw;
       return out;
     }
     function endpointResolveTarget(n, inp){
@@ -7754,11 +7773,19 @@ function mp4ParamsMatch(bufs){
       var modeRaw = (inp.mode != null && String(inp.mode).trim() !== "") ? inp.mode : (n && n.fields && n.fields.mode);
       var parsedUrl = endpointParseRoute(urlRaw);
       var parsedMode = endpointParseRoute(modeRaw);
+      var parsedField = endpointParseRoute(fieldUrl);
+      var path = parsedUrl.path || parsedMode.path;
+      if(path && !parsedUrl.url){
+        var base = parsedField.url || String(fieldUrl == null ? "" : fieldUrl).trim();
+        if(base && !endpointIsPath(base)){
+          try{ parsedUrl = { mode: parsedUrl.mode, url: endpointJoinPath(base, path) }; }catch(e){}
+        }
+      }
       var url = parsedUrl.url || String(urlRaw == null ? "" : urlRaw).trim();
       var mode;
       if(parsedUrl.url && parsedUrl.mode) mode = parsedUrl.mode;
       else if(parsedMode.url && parsedMode.mode){ url = parsedMode.url; mode = parsedMode.mode; }
-      else mode = parsedMode.mode || parsedUrl.mode || "chat";
+      else mode = parsedMode.mode || parsedUrl.mode || (n && n.fields && n.fields.mode) || "chat";
       mode = ENDPOINT_MODES.indexOf(String(mode).toLowerCase()) >= 0 ? String(mode).toLowerCase() : "chat";
       return { url:url, mode:mode };
     }

@@ -52,9 +52,10 @@
       mode (<code>chat</code>, <code>image</code>, <code>video</code>, <code>audio</code>,
       or <code>json</code>), or wire those fields from a Text or Choice node. The output
       port follows the mode so a chat result wires like an LLM, an image result like an
-      Image node, and so on. A Choice option shaped
+      Image node, and so on. A Choice option like <code>/post</code> replaces the
+      path on the node's host. A full route shaped
       <code>chat · http://127.0.0.1:8787/v1/chat/completions</code> (mode, a separator,
-      then the URL) retargets the POST — it is not a label in the body.</p>
+      then the URL) sets both and retargets the POST — it is not a label in the body.</p>
       <p>The node always shows the live contract: <em>Nanoodle will POST</em> (the
       request body for the current mode) and <em>Your server should return</em>
       (the NanoGPT-shaped JSON). An optional Authorization value is yours alone —
