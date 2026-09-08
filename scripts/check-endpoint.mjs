@@ -145,6 +145,18 @@ eq(S.endpointParseRoute("https://httpbingo.org/post"),
   "bare URL stays a URL");
 eq(S.endpointParseRoute("chat"), { mode: "chat" }, "bare mode stays a mode");
 eq(S.endpointParseRoute(""), {}, "empty route is empty");
+eq(S.endpointParseRoute("/post"), { path: "/post" }, "bare path segment");
+eq(S.endpointParseRoute("/anything"), { path: "/anything" }, "bare /anything path");
+eq(S.endpointParseRoute("json · /post"), { mode: "json", path: "/post" }, "mode plus path segment");
+eq(S.endpointIsPath("/post"), true, "/post is a path");
+eq(S.endpointIsPath("chat"), false, "bare mode is not a path");
+eq(S.endpointIsPath("https://httpbingo.org/post"), false, "absolute URL is not a path");
+eq(S.endpointJoinPath("https://httpbingo.org/post", "/anything"),
+  "https://httpbingo.org/anything",
+  "path join replaces the pathname");
+eq(S.endpointJoinPath("https://httpbingo.org", "/post"),
+  "https://httpbingo.org/post",
+  "path join onto a host-only base");
 
 eq(S.endpointResolveTarget({ fields: { url: "https://httpbingo.org/post", mode: "json" } }, {}),
   { url: "https://httpbingo.org/post", mode: "json" },
@@ -160,6 +172,15 @@ eq(S.endpointResolveTarget({ fields: { mode: "json" } }, { url: "json · https:/
 eq(S.endpointResolveTarget({ fields: { url: "https://httpbingo.org/post", mode: "json" } }, { mode: "chat" }),
   { url: "https://httpbingo.org/post", mode: "chat" },
   "bare wired mode overrides typed mode without changing the URL");
+eq(S.endpointResolveTarget({ fields: { url: "https://httpbingo.org", mode: "json" } }, { url: "/post" }),
+  { url: "https://httpbingo.org/post", mode: "json" },
+  "wired /post joins onto the typed host");
+eq(S.endpointResolveTarget({ fields: { url: "https://httpbingo.org", mode: "json" } }, { url: "/anything", mode: "/anything" }),
+  { url: "https://httpbingo.org/anything", mode: "json" },
+  "gallery Path options retarget the path without changing json mode");
+eq(S.endpointResolveTarget({ fields: { url: "https://httpbingo.org/post", mode: "json" } }, { url: "json · /anything" }),
+  { url: "https://httpbingo.org/anything", mode: "json" },
+  "mode · /path keeps json and joins the path");
 
 // ---- response parse -----------------------------------------------------------
 eq(S.endpointParseChat({ choices: [{ message: { content: "ok" } }] }), { text: "ok" }, "chat completions parse");
