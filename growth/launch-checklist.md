@@ -156,7 +156,7 @@ the rail. Never lead with the coin, a price chart, or an investment angle.
 > claude mcp add --transport http noodles https://mcp.nanoodle.com/mcp
 > ```
 >
-> That is the entire setup. No signup, no API key, no dashboard. Thirteen workflows are
+> That is the entire setup. No signup, no API key, no dashboard. Fourteen workflows are
 > published on it right now — image generation and editing, image-to-video, TTS +
 > lipsync, a music one, a four-way model arena.
 >
