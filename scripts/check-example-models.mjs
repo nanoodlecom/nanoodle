@@ -67,6 +67,7 @@ export function starterModels(graph, kinds) {
 export function galleryRegressions(pins) {
   const expected = [
     { slug: 'fibo-studio-still', type: 'image', model: 'bria/fibo-generate-1.5/text-to-image', size: '1mp' },
+    { slug: 'cinematic-character-still', type: 'image', model: 'minimax-h3/text-to-image', size: '1k' },
     { slug: 'omni-flash-turntable', type: 'tvideo', model: 'google/gemini-omni-flash/v1.1' },
   ];
   return expected.flatMap(({ slug, type, model, size }) => {
