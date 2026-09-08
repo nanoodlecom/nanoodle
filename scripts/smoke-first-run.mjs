@@ -36,7 +36,7 @@ const imageId = starter.nodes.find(n => n.type === "image").fields.model;
 const catalog = {
   "/api/v1/models": { data:[{ id:chatId, name:"Starter LLM", pricing:{prompt:0.1,completion:0.1} }] },
   "/api/v1/image-models": { data:[{ id:imageId, name:"Starter image", architecture:{modality:"text->image"},
-    pricing:{per_image:{"1k":0.04}}, supported_parameters:{resolutions:["1k"]} }] },
+    pricing:{per_image:{"1k":0.04,"3:2":0.01}}, supported_parameters:{resolutions:["1k","3:2"]} }] },
   "/api/v1/video-models": { data:[] },
   "/api/v1/audio-models": { data:[] },
 };
@@ -100,10 +100,11 @@ try {
       await page.goto(origin, {waitUntil:"networkidle"});
       assert.match(await page.locator("#canvashint").innerText(), /NanoGPT/);
       await page.locator("#run").click();
-      await page.locator('.node[data-id="n3"][data-status="done"] .result img').waitFor();
+      const imageNodeId = starter.nodes.find(n => n.type === "image").id;
+      await page.locator(`.node[data-id="${imageNodeId}"][data-status="done"] .result img`).waitFor();
       assert.equal(await page.locator('.node[data-status="error"]').count(), 0, "sample has no failed nodes");
       assert.equal(await page.locator(".demobadge").count(), 2, "both outputs are labeled as samples");
-      assert.ok(await page.locator('.node[data-id="n3"] .result img').evaluate(img => img.complete && img.naturalWidth > 0),
+      assert.ok(await page.locator(`.node[data-id="${imageNodeId}"] .result img`).evaluate(img => img.complete && img.naturalWidth > 0),
         "sample image actually decodes");
       await page.locator("#demox").click();
 

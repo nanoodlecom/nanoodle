@@ -5774,6 +5774,9 @@ window.NoodleApp = (function () {
   "URL":{es:"URL",fr:"URL",de:"URL",pt:"URL",ja:"URL"},
   "Mode":{es:"Modo",fr:"Mode",de:"Modus",pt:"Modo",ja:"モード"},
   "Prompt":{es:"Prompt",fr:"Invite",de:"Prompt",pt:"Prompt",ja:"プロンプト"},
+  "musical style — not lyrics":{es:"estilo musical — no la letra",fr:"style musical — pas les paroles",de:"Musikstil — kein Songtext",pt:"estilo musical — não a letra",ja:"音楽スタイル — 歌詞ではない"},
+  "Lyrics (sung words)":{es:"Letra (palabras cantadas)",fr:"Paroles (mots chantés)",de:"Songtext (gesungene Worte)",pt:"Letra (palavras cantadas)",ja:"歌詞（歌う言葉）"},
+  "Instrumental (no vocals)":{es:"Instrumental (sin voz)",fr:"Instrumental (sans voix)",de:"Instrumental (ohne Gesang)",pt:"Instrumental (sem voz)",ja:"インストゥルメンタル（ボーカルなし）"},
   "Authorization (optional)":{es:"Authorization (opcional)",fr:"Authorization (facultatif)",de:"Authorization (optional)",pt:"Authorization (opcional)",ja:"Authorization（任意）"},
   "Custom endpoint":{es:"Endpoint personalizado",fr:"Endpoint personnalisé",de:"Eigener Endpoint",pt:"Endpoint personalizado",ja:"カスタムエンドポイント"},
   "URL required — set the custom endpoint URL":{es:"URL obligatoria — indica la URL del endpoint",fr:"URL obligatoire — indiquez l’URL de l’endpoint",de:"URL erforderlich — setze die Endpoint-URL",pt:"URL obrigatória — defina a URL do endpoint",ja:"URLが必要です — カスタムエンドポイントのURLを設定してください"},
@@ -8992,7 +8995,7 @@ const PROMPT_CAPS = {
              { f:"system", label:"System prompt", kind:"textarea", optional:true, def:"You are a helpful, concise assistant." }],
     image:  [{ f:"prompt", label:"Image prompt", kind:"textarea" }],
     tvideo: [{ f:"prompt", label:"Video prompt", kind:"textarea" }],
-    music:  [{ f:"prompt", label:"Style / prompt", kind:"textarea" }],
+    music:  [{ f:"prompt", label:"musical style — not lyrics", kind:"textarea" }],
     remix:  [{ f:"prompt", label:"Style / direction", kind:"textarea" }],
     tts:    [{ f:"prompt", label:"Text to speak",  kind:"textarea" }],
     endpoint:[{ f:"prompt", label:"Prompt",         kind:"textarea" }],
@@ -9116,8 +9119,8 @@ const PROMPT_CAPS = {
               { f:"prompt", label:"Guidance prompt", kind:"textarea" },
               { f:"resolution", label:"Resolution", kind:"select", options:RESOLUTIONS, def:"" }],
     music:   [{ f:"model", label:"Model", kind:"model" },
-              { f:"lyrics", label:"Lyrics", kind:"textarea" },
-              { f:"instrumental", label:"Instrumental", kind:"boolean" },
+              { f:"lyrics", label:"Lyrics (sung words)", kind:"textarea" },
+              { f:"instrumental", label:"Instrumental (no vocals)", kind:"boolean" },
               { f:"duration", label:"Duration (s)", kind:"number", min:1 },
               { f:"negative_prompt", label:"Negative prompt", kind:"textarea" },
               { f:"seed", label:"Seed", kind:"number" }],
@@ -9816,8 +9819,10 @@ const PROMPT_CAPS = {
     // read as ready-to-go (and are written onto the graph so a run uses them as-is).
     if((it.optional || ns==="set") && (cur==null || cur==="") && it.def!=null){ cur = it.def; it.node.fields[it.field] = it.def; }
     let ctrl, ownLabel = false;
-    if(it.kind==="textarea")
-      ctrl = '<textarea id="'+id+'" '+di+' placeholder="'+esc(t(it.label))+'">'+esc(cur||"")+'</textarea>';
+    if(it.kind==="textarea"){
+      const ph = (it.node && it.node.name && String(it.node.name).trim()) || it.label;
+      ctrl = '<textarea id="'+id+'" '+di+' placeholder="'+esc(t(ph))+'">'+esc(cur||"")+'</textarea>';
+    }
     else if(it.kind==="image")
       ctrl = '<div class="imgin">'
            + '<div class="file-prev" data-prev="'+id+'">'+(cur ? '<img src="'+esc(cur)+'" alt="">' : '<span class="muted">no image</span>')+'</div>'
