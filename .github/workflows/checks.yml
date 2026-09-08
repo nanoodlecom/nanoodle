@@ -38,6 +38,14 @@ jobs:
         run: |
           fails=0
           for f in scripts/check-*.mjs; do
+            # Live catalog audit — not a PR gate. NanoGPT adding lora_url_N on an
+            # existing id (H3 on 2026-09-08) fails every unrelated PR. Monthly
+            # alert is .github/workflows/lora-audit.yml (PR #48). Wiring a new
+            # family needs nanoodle-js + bundle regen, not this vibe/copy loop.
+            if [ "$f" = scripts/check-lora-models.mjs ]; then
+              echo "::notice file=$f::skipped — monthly live LoRA audit, not a PR check"
+              continue
+            fi
             echo "::group::$f"
             if ! node "$f"; then
               fails=$((fails+1))
