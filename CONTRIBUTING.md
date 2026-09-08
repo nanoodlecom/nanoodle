@@ -38,17 +38,13 @@ assets. The constraints are deliberate, not accidental:
 ## Running the check suite
 
 The test suite is `scripts/check-*.mjs` — no browser or API spend. Most
-checks are offline. CI (`.github/workflows/checks.yml`) runs that loop
-from the repo root, except `check-lora-models.mjs`: that script hits the
-live NanoGPT catalog and is the monthly alert in
-`.github/workflows/lora-audit.yml` (PR #48), not a PR gate — a vendor
-`lora_url_N` addition would otherwise fail every unrelated diff. Run the
-same thing locally:
+checks are offline; the model and LoRA audits read public NanoGPT catalogs.
+CI (`.github/workflows/checks.yml`) runs exactly this loop from the repo
+root; run the same thing locally:
 
 ```sh
 fails=0
 for f in scripts/check-*.mjs; do
-  [ "$f" = scripts/check-lora-models.mjs ] && continue
   node "$f" || fails=$((fails+1))
 done
 echo "$fails failed"

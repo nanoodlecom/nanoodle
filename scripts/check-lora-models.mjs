@@ -23,7 +23,15 @@ const CATALOG_URL = "https://nano-gpt.com/api/models";
 // Pull a function verbatim out of play.html so this audit can never drift from the app.
 // Both loraFamily() (shape mapping) and imageTakesLora() (the IMAGE gate — the v1 image
 // catalog hides lora params, so the app allow-lists by id and we verify that allow-list here).
-const PLAY_SRC = readFileSync(join(root, "play.html"), "utf8");
+// Audit the hand-maintained RUNTIME_JS classifier, not the generated njs-engine
+// bundle (that copy is regenerated from nanoodle-js and is freshness-checked
+// separately). The njs-engine block is prepended and would otherwise win the
+// first `function loraFamily` match.
+const PLAY_HTML = readFileSync(join(root, "play.html"), "utf8");
+const PLAY_SRC = PLAY_HTML.replace(
+  /<!-- NJS-ENGINE:BEGIN[\s\S]*?NJS-ENGINE:END -->/,
+  "",
+);
 function loadFn(name, deps = []) {
   // Extract a top-level `function name(...){ ... }` verbatim from play.html by
   // brace-matching from its opening brace — robust to indentation/body changes,
