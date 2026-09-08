@@ -74,3 +74,64 @@ td code{ white-space:nowrap; }
 footer{ border-top:1px solid var(--line); color:var(--dim); font-size:.82rem; padding:1.1rem 0 .3rem;
         display:flex; gap:.4rem 1rem; flex-wrap:wrap; align-items:center; }
 footer .spacer{flex:1}
+
+/* How-to examples: hub cards + reviewed media. Same dark panel voice as the
+   rest of /guide — no inline styles (guide CSP is style-src 'self'). */
+.wrap.wide{ max-width:1040px; }
+.howto-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:.85rem; margin:0 0 1.6rem; }
+.howto-card{ display:flex; flex-direction:column; background:var(--panel2); border:1px solid var(--line);
+             border-radius:.7rem; overflow:hidden; color:var(--ink); min-height:100%; }
+.howto-card:hover{ border-color:#3a425a; text-decoration:none; }
+.howto-card .thumb, .howto-card .thumb-fallback{
+  display:block; width:100%; aspect-ratio:16/10; object-fit:cover; background:var(--panel); }
+.howto-card .thumb-fallback{ display:flex; align-items:center; justify-content:center; padding:1rem 1.1rem;
+                             color:var(--dim); font-size:.82rem; line-height:1.45; text-align:center; }
+.howto-card .thumb-fallback.pending{
+  background:
+    radial-gradient(120% 80% at 80% 0%, #ff79c633, transparent 55%),
+    radial-gradient(90% 70% at 10% 100%, #67e8f922, transparent 50%),
+    #121018;
+  color:var(--ink); font-weight:650; letter-spacing:-.01em; }
+.howto-card .body{ padding:.85rem 1rem 1rem; display:flex; flex-direction:column; gap:.2rem; flex:1; }
+.howto-card b{ display:block; }
+.howto-card .job{ color:var(--dim); font-size:.83rem; line-height:1.45; }
+.howto-card .cost{ margin-top:auto; padding-top:.55rem; color:var(--cyan); font-size:.78rem; font-weight:650; }
+
+.media{ margin:0 0 1.2rem; }
+.media img, .media video{ display:block; width:100%; max-height:560px; object-fit:contain;
+                          background:var(--panel); border:1px solid var(--line); border-radius:.6rem; }
+.media audio{ width:100%; margin:.4rem 0; }
+.media figcaption, .howto-note{ color:var(--dim); font-size:.83rem; margin:.45rem 0 0; }
+.media.comparison{ display:grid; grid-template-columns:1fr 1fr; gap:.7rem; }
+.media.comparison figure{ margin:0; }
+.media.comparison img{ aspect-ratio:1; }
+.media.input-refs img{ max-height:280px; }
+.no-preview{ background:var(--panel2); border:1px dashed var(--line); border-radius:.6rem;
+             padding:1.1rem 1.2rem; color:var(--dim); margin:0 0 1.2rem; }
+.no-preview.pending{
+  background:
+    radial-gradient(120% 80% at 90% 0%, #ff79c622, transparent 50%),
+    var(--panel2);
+  border-style:solid; border-color:#3a2a44; color:#cdd3df; }
+blockquote.sample{ margin:0 0 1.2rem; padding:.9rem 1.1rem; border-left:3px solid var(--accent);
+                   background:var(--panel2); white-space:pre-wrap; color:#dbe2ef; font-size:.92rem; }
+
+.cta{ display:flex; flex-wrap:wrap; gap:.55rem; margin:1.4rem 0 0; }
+.cta a{ display:inline-block; padding:.48rem .95rem; border-radius:.55rem; font-size:.9rem; font-weight:700;
+        text-decoration:none; }
+.cta a.primary{ background:linear-gradient(90deg,var(--cyan),var(--accent) 70%); color:#0b0d12; }
+.cta a.primary:hover{ filter:brightness(1.08); text-decoration:none; }
+.cta a.secondary{ border:1px solid var(--line); background:var(--panel2); color:var(--ink); }
+.cta a.secondary:hover{ border-color:#3a425a; text-decoration:none; }
+
+.meta-row{ color:var(--dim); font-size:.86rem; margin:0 0 1rem; }
+.meta-row code{ font-size:.8em; }
+.input-list{ margin:0 0 1rem; padding-left:1.2rem; }
+.input-list li{ margin:.45rem 0; }
+.input-list em{ color:var(--ink); font-style:normal; font-weight:650; }
+h2.group{ font-size:1.05rem; color:var(--dim); font-weight:700; letter-spacing:.02em;
+          text-transform:uppercase; margin:1.6rem 0 .7rem; border:none; }
+
+@media (max-width:600px){
+  .media.comparison{ grid-template-columns:1fr; }
+}
