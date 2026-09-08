@@ -64,17 +64,11 @@ const HOWTO = {
   "cinematic-character-still": {
     headline: "Neon courier key-art",
     job: "Neon courier. One rider, one city, one frame.",
-    skipPreview: true,
-    skipHeroMedia: true,
-    hideNote: true,
-    thumbLabel: "Neon courier — open the graph",
-    swapNotice:
-      "The featured still is moving to a neon motorcycle-courier. The last reviewed file is still on the gallery page until that swap lands — don't treat the old still as the hero. Open the graph and type the rider you want.",
     purpose:
-      "Three knobs: who they are, how the light hits, how the frame is cut. MiniMax H3 Image paints the brief directly — no prompt-writing call. The move is night-ride key-art: a courier under neon, helmet or not, one still that could open a short.",
+      "Three knobs: who they are, how the light hits, how the frame is cut. MiniMax H3 Image paints the brief directly — no prompt-writing call. The reviewed still is a motorcycle courier in a night alley: magenta rim, cyan bounce, red helmet under one arm. One frame that could open a short.",
     edit: "Change <em>Person</em>, <em>Light</em>, and <em>Frame</em>. Those three inputs are the whole brief. Type the rider, the neon, the crop.",
     inspect:
-      "One person. The light you picked. The crop you picked. No extra people, no readable text. Generated key-art, not a photograph of a real person. When the new still lands, that's what to check. Until then, steal the graph.",
+      "One person. Magenta and cyan if you kept that light. Helmet readable. No extra people, no readable text. Generated key-art, not a photograph of a real person.",
     costHow: "The reviewed run reported $0.02 ($0.02/image at 1K). Prices and results vary.",
   },
   "edit-a-photo": {

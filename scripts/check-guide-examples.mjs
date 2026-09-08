@@ -33,12 +33,18 @@ if (!llms.includes("https://nanoodle.com/guide/examples/")) {
 }
 
 const cinematic = readFileSync(join(ROOT, "guide", "examples", "cinematic-character-still.html"), "utf8");
-if (/piano tuner|Still\.png|cinematic-character-still\/preview\.webp/i.test(cinematic)) {
-  fail("cinematic how-to still heros the old piano-tuner still");
+if (/piano tuner/i.test(cinematic)) {
+  fail("cinematic how-to still names the piano tuner");
+}
+if (!cinematic.includes("cinematic-character-still/Still.png")) {
+  fail("cinematic how-to should hero the reviewed courier still");
 }
 const hub = readFileSync(join(ROOT, "guide", "examples", "index.html"), "utf8");
-if (/cinematic-character-still\/(preview\.webp|Still\.png)/.test(hub)) {
-  fail("hub still uses the old cinematic still as a thumb");
+if (/piano tuner/i.test(hub)) {
+  fail("hub still names the piano tuner");
+}
+if (!hub.includes("cinematic-character-still/preview.webp")) {
+  fail("hub should thumb the courier preview");
 }
 if (hub.includes("Spoken workshop introduction")) {
   fail("hub still titles the talking-avatar card as a workshop intro");
