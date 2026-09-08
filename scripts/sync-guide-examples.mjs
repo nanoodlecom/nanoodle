@@ -38,95 +38,95 @@ const shareLink = (workflowBytes) =>
 // the awesome-noodles README / CURATION.md. Do not invent costs or model ids.
 const HOWTO = {
   deslop: {
-    job: "Keep the price and the date — lose the seamless unlock.",
-    purpose: "A customer notice that sounds like promotional filler still has to be accurate. This workflow rewrites the draft in plain language, then checks every date, price, hour, and caveat against the source before a final pass.",
-    edit: "Paste your notice into <em>Your draft</em>. Leave the three LLM nodes as they are unless you are changing models on purpose: Grok drafts, Terra fact-checks, Grok applies the review.",
-    inspect: "Every supplied fact must survive (the sample keeps 8 September, the $15 fee, the 14-day credit, Tuesday–Saturday hours, existing bookings, and repairs@example.com). Empty promotional claims should disappear. The review checks writing and factual preservation — it does not detect authorship.",
-    costHow: "The reviewed run reported $0.0079 across three paid text calls. Token use and model prices vary; check the editor estimate before you run.",
+    job: "Kill the AI voice. Keep every fact.",
+    purpose: "That booking notice sounds like a press release from a toaster. This noodle rewrites it like a person, then a second model checks every date, price, and caveat against the source before the last pass.",
+    edit: "Paste the slop into <em>Your draft</em>. Leave the three LLM nodes unless you mean to change models: Grok drafts, Terra fact-checks, Grok applies the review.",
+    inspect: "Every supplied fact has to survive — the saved run keeps 8 September, the $15 fee, the 14-day credit, Tuesday–Saturday hours, existing bookings, and repairs@example.com. Empty hype should vanish. The review checks writing and facts. It does not detect authorship.",
+    costHow: "The reviewed run reported $0.0079 across three paid text calls. Token use and model prices move; check the editor estimate before you hit Run.",
   },
   favicon: {
-    job: "A brand idea becomes one bold square icon.",
-    purpose: "Turn a short brand brief into a raster favicon concept you can inspect at the sizes an app actually uses.",
-    edit: "Change <em>Brand</em> — name, symbol, and colors. The LLM condenses that brief; Muse renders one square image.",
-    inspect: "Look at the result at 16 pixels. You want one simple glyph, the requested palette, and a readable silhouette. This is a raster concept: export or convert to the icon formats your app needs as a separate step. No letters in the sample brief.",
+    job: "One mark. Readable at 16 pixels.",
+    purpose: "A brand sentence becomes a glyph you'd actually put on a tab. Flat, bold, no tiny detail that dies when the favicon shrinks.",
+    edit: "Rewrite <em>Brand</em> — name, symbol, colors. GLM Flash condenses it; Muse paints one square.",
+    inspect: "Squint at 16 pixels. One glyph, the palette you asked for, a silhouette that still reads. This is a raster concept — export real favicon sizes as a separate step. The saved brief has no letters.",
     costHow: "The reviewed run reported $0.01. The image step is listed at $0.01, plus a small text call. Prices and results vary.",
   },
   "fibo-studio-still": {
-    job: "Explore product lighting and materials with FIBO.",
-    purpose: "Describe a product and pick a light setup to get an editorial still of a fictional object. Use this when you do not have a real product photo yet.",
-    edit: "Rewrite <em>Product</em> (shape, materials, count) and pick a <em>Light</em> option. GLM Flash structures the brief; Bria FIBO renders at 1MP.",
-    inspect: "Product count, material, color, and the selected light should match the brief. No invented packaging, logos, or props. The sample is square and depicts a fictional bottle — it is not a photograph of merchandise. For an exact existing product, start with Clean a product photo instead.",
+    job: "Light a product that doesn't exist yet.",
+    purpose: "Describe the object, pick a light, get an editorial still. When you already have the real bottle, start with the catalog-clean edit instead.",
+    edit: "Rewrite <em>Product</em> (shape, materials, count) and pick a <em>Light</em>. GLM Flash structures the brief; Bria FIBO renders at 1MP.",
+    inspect: "Count, material, color, and the light you picked should match. No invented packaging or logos. The saved still is square and fictional — not a photo of merchandise.",
     costHow: "The reviewed run reported $0.04. The image step is listed at $0.04, plus a small text call. Prices and results vary.",
   },
   "cinematic-character-still": {
-    job: "Photoreal key-art from a short person, light, and frame brief.",
-    purpose: "Make a cinematic character still without a prompt-writing call. Useful for key-art exploration when you can describe the person and the shot.",
-    edit: "Change <em>Person</em>, <em>Light</em>, and <em>Frame</em>. Those three inputs are the whole brief — MiniMax H3 Image renders them directly at 1K.",
-    inspect: "Wardrobe, tools, selected light, and selected frame should match. One person; no readable text. The reviewed sample is a coherent chest-up portrait of a fictional piano tuner; the subject reads older than the forty-year-old brief. This is generated key-art, not a photograph of a real person.",
+    job: "Night-ride key-art. One person, one light, one frame.",
+    purpose: "Photoreal character stills from three knobs — who they are, the light, the crop. Built for cinematic portraits: a courier under neon, a face in a work lamp, whoever you type next. MiniMax H3 Image paints the brief directly. No prompt-writing call.",
+    edit: "Change <em>Person</em>, <em>Light</em>, and <em>Frame</em>. Those three inputs are the whole brief. Do not inherit the saved sample's wardrobe — type the character you actually want.",
+    inspect: "One person. The light you picked. The crop you picked. No extra people, no readable text. This is generated key-art, not a photograph of a real person. The saved still is one reviewed run of this graph, not the character you have to keep.",
     costHow: "The reviewed run reported $0.02 ($0.02/image at 1K). Prices and results vary.",
   },
   "edit-a-photo": {
-    job: "Prepare a product photo for a clean catalog listing.",
-    purpose: "Replace a busy background while keeping the product itself. Start here when you already have a photo (or a generated still) of the object.",
-    edit: "Upload your photo to <em>Product photo</em> and, if needed, tighten <em>Edit request</em>. Muse Edit uses that reference and the prompt.",
-    inspect: "Compare shape, color, materials, markings, and any visible text with the source. The sample turns a generated bottle into a catalog-style image on warm-white paper. Check real product markings before using a generated edit commercially.",
+    job: "Catalog-clean. Same product.",
+    purpose: "Keep the object. Lose the clutter. Start here when you already have a shot — or a generated still — of the thing.",
+    edit: "Drop your photo on <em>Product photo</em>. Tighten <em>Edit request</em> if the default catalog brief is wrong. Muse Edit uses both.",
+    inspect: "Shape, color, materials, markings, visible text — compare them to the source. Check real product marks before you publish a generated edit.",
     costHow: "The reviewed run reported $0.01 ($0.01/image). Prices and results vary.",
   },
   "combine-images": {
-    job: "Place your product into a setting from another photo.",
-    purpose: "Preview how one object sits in a real (or generated) scene before a photoshoot — matching scale, light, and contact shadows.",
-    edit: "Upload the product to <em>Product photo</em>, the environment to <em>Setting photo</em>, and adjust <em>Placement brief</em> if the default placement rules are wrong for your pair.",
-    inspect: "Both references should matter. Product identity and the setting layout should survive; scale, perspective, and shadows should be plausible. Generated composites still need a check for exact product fidelity.",
+    job: "Drop the product into the room.",
+    purpose: "Preview the bottle on the desk before you book the studio. Scale, light, and contact shadows should feel inevitable.",
+    edit: "Product on <em>Product photo</em>, room on <em>Setting photo</em>, and <em>Placement brief</em> if the default rules are wrong for your pair.",
+    inspect: "Both references should matter. Product identity and the room's layout survive. Shadows and scale should be plausible. Composites still need a fidelity check.",
     costHow: "The reviewed run reported $0.01 ($0.01/image). Prices and results vary.",
   },
   "image-model-arena": {
-    job: "Compare four image models on text, layout, and useful detail.",
-    purpose: "Get evidence for a model choice on one shared brief. The sample is a workshop poster that asks for exact type and two recognizable tire levers — a task where polish is not the same as usefulness.",
-    edit: "Change <em>Shared test brief</em>. All four image nodes already pin different models (Muse Image, Krea 2 Turbo, Grok Imagine Image 2.0, Recraft V4). Run makes four paid images.",
-    inspect: "Judge exact heading and footer, the wheel, two hooked plastic tire levers, composition, and color. The reviewed set: all four rendered the requested heading and footer; only Grok drew recognizable tire levers. One prompt is not a general ranking. The sample was generated on 5 September; the open workflow uses current model IDs after a provider-name migration.",
+    job: "Four models. One brief. No winner speech.",
+    purpose: "Make them all draw the same poster. Keep the one that got the useful details right — polish is not the same as a tire lever.",
+    edit: "Rewrite <em>Shared test brief</em>. The four image nodes already pin Muse, Krea 2 Turbo, Grok Imagine Image 2.0, and Recraft V4. Run spends four images.",
+    inspect: "Exact heading and footer, the wheel, two hooked plastic tire levers, composition, color. On the saved set every model got the type; only Grok drew recognizable levers. One prompt is not a ranking. The open workflow uses current model IDs after a provider-name migration.",
     costHow: "The reviewed run reported $0.118 (Muse $0.01, Krea $0.01, Grok $0.06, Recraft $0.038). Four paid image calls. Prices and results vary.",
   },
   "night-market-postcard": {
-    job: "Turn a place and a mood into a travel postcard illustration.",
-    purpose: "A reusable destination-plus-style illustration. The sample place lives only in the input, so a new destination should not inherit Taipei night-market scenery.",
+    job: "A place, a mood, a postcard.",
+    purpose: "Type a destination. Pick a vibe. Leave with a 3:2 travel print — not a stock photo of the wrong city. The sample place lives only in the input.",
     edit: "Rewrite <em>Place</em> and pick a <em>Vibe</em>. GLM Flash writes the postcard prompt; Muse renders at 3:2.",
-    inspect: "Landmarks and local details should match the brief you typed. The reviewed sample is a coherent illustrated night market with a food-stall focal point — an illustration, not a documentary image or a print-ready layout with typeset copy.",
+    inspect: "Landmarks and local details should match what you typed. A new city should not inherit someone else's lanterns. Illustration, not a documentary frame, not typeset print copy.",
     costHow: "The reviewed run reported $0.01. The image step is listed at $0.01, plus a small text call. Prices and results vary.",
   },
   "photo-to-video": {
-    job: "Animate a still with one specific motion brief.",
-    purpose: "A five-second ambient motion concept: generate a first frame, then move one small thing while the rest stays put.",
+    job: "One still. One breath of motion.",
+    purpose: "Five seconds where the mug stays put and the steam doesn't. Generate the frame, then move one small thing.",
     edit: "Change <em>Still brief</em> and <em>Motion brief</em> together so they describe the same scene. Muse draws the first frame; MiniMax H3 Spicy animates 5 seconds at 480p.",
-    inspect: "Objects named as still should stay still. The reviewed frames show the mug, notebook, and desk stable while steam changes. A seamless loop is not promised. The sample was generated on 5 September; the open workflow uses the current model ID after a provider-name migration.",
+    inspect: "Whatever you called still should stay still. A seamless loop is not promised. The open workflow uses the current model ID after a provider-name migration.",
     costHow: "The reviewed run reported $0.21 (Muse $0.01 + MiniMax H3 Spicy $0.20 at 480p / 5s). Prices and results vary.",
   },
   "omni-flash-turntable": {
-    job: "Five seconds of a product under a chosen camera move.",
-    purpose: "A text-to-video product-motion draft when you do not have a still to animate. Describe the object and pick one move.",
+    job: "Orbit the object. Keep the chrome honest.",
+    purpose: "No upload. Describe the thing, pick one camera move, get a five-second draft. A concept object — not a catalog SKU.",
     edit: "Rewrite <em>Object</em> and pick a <em>Move</em>. GLM Flash structures the brief; Omni Flash 1.1 renders 5 seconds at 360p / 16:9.",
-    inspect: "The selected camera or object motion should happen once, geometry should stay stable, and object count and colors should match. The reviewed frames show a coherent orbit around a stable bottle and plinth. This is a 360p draft of a fictional product.",
+    inspect: "The move you picked happens once. Geometry stays stable. Count and colors match. 360p draft of a fictional product.",
     costHow: "The reviewed run reported $0.195 for the video step, plus a small text call. Prices and results vary.",
   },
   "render-a-mockup": {
-    job: "Turn a screen brief into a UI concept image.",
-    purpose: "Get a design-review picture of a specific screen — labels, rows, and totals you already wrote — without a prompt-writing call.",
-    edit: "Edit <em>Screen brief</em> and <em>Visual style</em>. Keep the combined text under 800 characters (the sample pair is 696). Qwen Image 3 Pro renders the joined brief directly at 1K.",
-    inspect: "Requested navigation, date, rows, names, statuses, and totals should stay legible, with no invented sections. The reviewed run preserved those values. Output is an image, not working UI.",
+    job: "A screen you can argue about.",
+    purpose: "The labels you already wrote, as a picture. Design review — not a working app.",
+    edit: "Edit <em>Screen brief</em> and <em>Visual style</em>. Keep the pair under 800 characters (the saved pair is 696). Qwen Image 3 Pro paints the joined brief at 1K. No prompt-writing call.",
+    inspect: "Navigation, date, rows, names, statuses, totals — still there, no invented sections. Output is an image.",
     costHow: "The reviewed run reported $0.04 ($0.04/image at 1K). Prices and results vary.",
   },
   sing: {
-    job: "The track that plays after the last repair.",
-    purpose: "Write original closing-credits lyrics from a brief, then hear them sung in an editable musical style.",
-    edit: "Rewrite <em>Song Instructions</em> (theme and concrete details) and <em>Musical style</em>. GLM Flash writes labeled lyrics; Mureka Generate Song sings them.",
-    inspect: "Listen for clear words, a usable chorus, and fit to the brief. Generated duration and exact musical structure can vary. The reviewed 170-second song had a separate Gemini 3.8 Flash listening pass (reported $0.00627) that identified the supplied chorus — that pass is model-assisted, not a human sign-off. This sample has no still preview; the audio and lyrics are the reviewed output.",
+    job: "The song after the last repair.",
+    purpose: "Original closing-credits music from a brief and a style. No artist cosplay.",
+    edit: "Rewrite <em>Song Instructions</em> and <em>Musical style</em>. GLM Flash writes labeled lyrics; Mureka Generate Song sings them.",
+    inspect: "Clear words, a chorus you can hum, fit to the brief. Duration and exact structure can wander. The saved 170-second track had a separate Gemini 3.8 Flash listen (reported $0.00627) — model-assisted, not a human sign-off. No still preview; the audio and lyrics are the reviewed output.",
     costHow: "The reviewed song run reported $0.225 (music step $0.225, plus a small text call). The optional audio-review call is separate. Prices and results vary.",
   },
   "talking-avatar": {
-    job: "A presenter looks at camera and tells you where to start.",
-    purpose: "Prototype a short spoken introduction: a portrait, a read script, and lipsync. Keep the script under 30 seconds.",
-    edit: "Change <em>Presenter look</em>, <em>Spoken script</em>, and <em>Delivery</em>. Muse paints the face, MiniMax Speech reads the script, LongCat animates at 480p. Match presenter gender to the selected voice.",
-    inspect: "Spoken words and pronunciation, a visible face, and mouth timing that follows the speech. The reviewed frames keep a fictional male presenter (matched to the male voice). Check precise lip-sync in playback. Generation took several minutes; an earlier attempt exceeded a four-minute timeout. Gemini 3.8 Flash transcribed the intended script (reported $0.00164) — model-assisted. The sample was generated on 5 September; the open workflow uses current model IDs after a provider-name migration.",
-    costHow: "The reviewed run reported at least $0.28. Video is listed at $0.03 per audio second at 480p, plus the portrait and speech steps. Some provider price fields were omitted. Prices and results vary.",
+    job: "Look at camera. Say the line.",
+    purpose: "A face, a voice, a short intro. Keep the script under 30 seconds. Match the presenter to the voice you picked.",
+    edit: "Change <em>Presenter look</em>, <em>Spoken script</em>, and <em>Delivery</em>. Muse paints the face, MiniMax Speech reads, LongCat animates at 480p.",
+    inspect: "The words are right, the face stays visible, the mouth follows the speech. Check lip-sync in playback — we don't claim frame-accurate timing. Generation can take several minutes; an earlier attempt blew a four-minute timeout. A Gemini 3.8 Flash transcript of the saved run reported $0.00164 (model-assisted). The open workflow uses current model IDs after a provider-name migration.",
+    costHow: "The reviewed run reported at least $0.28. Video is listed at $0.03 per audio second at 480p, plus portrait and speech. Some provider price fields were omitted. Prices and results vary.",
   },
 };
 
@@ -135,7 +135,7 @@ const HOWTO = {
 const IRON = {
   slug: "iron-verdict",
   title: "Iron Verdict",
-  job: "From a character brief to a playable arena fighter.",
+  job: "A furnace knight. Then a fight you can actually play.",
   costLabel: "$0.02 combined (selected source images)",
   review: "Playable experiment",
   date: "2026-09-05",
@@ -146,10 +146,10 @@ const IRON = {
   graph: "https://github.com/nanoodlecom/awesome-noodles/blob/main/graphs/character-sprites.noodle-graph.json",
   zip: "/examples/iron-verdict/iron-verdict.zip",
   preview: "/examples/iron-verdict/screenshot.png",
-  purpose: "A coding agent used the character-sprites skill to make matching artwork and 32 transparent animation frames, then built this three-round foundry fighter around them. Playing the game is free and needs no key.",
-  edit: "Open the artwork workflow and edit <em>Character</em> if you want a different fighter. The graph returns a canonical reference and a four-quadrant parts sheet. Baking idle, walk, punch, and jump frames needs the companion skill (Node.js and ffmpeg). The agent — not the graph — writes gravity, combat, enemies, and sound.",
-  inspect: "Play Iron Verdict in the browser: three rounds, readable windups, heavy jumps. This is a cutout-animation prototype with rigid limbs and mirrored facing. Opening the graph alone does not produce an atlas or game code.",
-  costHow: "The selected source images cost $0.02 combined during the experiment ($0.01 each for the reference and parts calls). Local animation baking and gameplay iteration made no further model calls. Generating your own character uses your NanoGPT balance; see the skill for the full run instructions.",
+  purpose: "A coding agent used the character-sprites skill for matching artwork and 32 transparent frames, then built this three-round foundry fighter around them. Playing is free. No key.",
+  edit: "Want a different fighter? Open the artwork graph and rewrite <em>Character</em>. You get a reference and a four-quadrant parts sheet. Idle, walk, punch, and jump frames need the companion skill (Node.js and ffmpeg). The agent — not the graph — writes gravity, combat, and sound.",
+  inspect: "Play it: three rounds, readable windups, heavy jumps. Cutout prototype — rigid limbs, mirrored facing. Opening the graph alone does not spit out an atlas or a game.",
+  costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
 for (const s of SAMPLES) {
@@ -328,26 +328,26 @@ function samplePage(s, prev, next) {
     <p class="lede">${esc(how.job)}</p>
 
     <section>
-      <p class="meta-row">${esc(s.review)} · ${esc(s.date)} · Reported run cost: ${esc(cost)}. Models: ${s.models.map((m) => `<code>${esc(m)}</code>`).join(", ")}. Prices and results vary.</p>
-      <p>${esc(s.note)}</p>
+      <p class="meta-row">${esc(s.review)} · ${esc(s.date)} · Reported run: ${esc(cost)}. ${s.models.map((m) => `<code>${esc(m)}</code>`).join(" · ")}</p>
 
-      <h2>Reviewed output</h2>
+      <h2>The saved run</h2>
       ${renderMedia(s)}
-      ${inputImgs ? `<h3>Supplied references</h3>\n        <div class="media input-refs${s.inputs.filter((i) => i.src).length > 1 ? " comparison" : ""}">\n          ${inputImgs}\n        </div>` : ""}
+      ${inputImgs ? `<h3>References that went in</h3>\n        <div class="media input-refs${s.inputs.filter((i) => i.src).length > 1 ? " comparison" : ""}">\n          ${inputImgs}\n        </div>` : ""}
+      <div class="callout"><p>${esc(s.note)}</p></div>
 
-      <h2>What this workflow is for</h2>
+      <h2>What it's for</h2>
       <p>${esc(how.purpose)}</p>
 
-      <h2>How to use it</h2>
+      <h2>Remix it</h2>
       <ol class="input-list">
-        <li><strong>Open the graph</strong> with the button below. Save current work first — loading an example replaces the canvas (Undo restores it).</li>
-        <li><strong>Edit the inputs.</strong> ${how.edit}</li>
-        <li><strong>Inspect the result.</strong> ${how.inspect}</li>
-        <li><strong>Typical cost.</strong> ${esc(how.costHow)}</li>
+        <li><strong>Open the graph.</strong> Save first — an example replaces the canvas. Undo brings yours back.</li>
+        <li><strong>Change the inputs that matter.</strong> ${how.edit}</li>
+        <li><strong>Look at what you got.</strong> ${how.inspect}</li>
+        <li><strong>What it cost.</strong> ${esc(how.costHow)}</li>
       </ol>
 
       <div class="cta">
-        <a class="primary" href="${esc(open)}">Open in nanoodle →</a>
+        <a class="primary" href="${esc(open)}">Open this noodle →</a>
         <a class="secondary" href="${esc(gallery)}">See reviewed sample</a>
       </div>
       <p class="howto-note"><a href="/examples/gallery/${esc(local(s.workflow))}" download>Download workflow</a>
@@ -378,9 +378,9 @@ function ironPage(prev, next) {
 
     <section>
       <p class="meta-row">${esc(IRON.review)} · ${esc(IRON.date)} · ${esc(IRON.costLabel)}. Artwork models: ${IRON.models.map((m) => `<code>${esc(m)}</code>`).join(", ")}. Prices and results vary.</p>
-      <p>A furnace knight, then a harsh arena. Playing the saved game is free. Generating your own character uses your NanoGPT balance, Node.js, and ffmpeg.</p>
+      <p>A furnace knight, then a harsh afternoon. Playing is free. Making your own character spends your NanoGPT balance and needs Node.js plus ffmpeg.</p>
 
-      <h2>Reviewed output</h2>
+      <h2>The saved run</h2>
       <div class="media">
         <figure>
           <a href="${esc(IRON.play)}"><img src="${esc(IRON.preview)}" alt="Iron Verdict — playable foundry fighter" loading="lazy" /></a>
@@ -388,20 +388,20 @@ function ironPage(prev, next) {
         </figure>
       </div>
 
-      <h2>What this workflow is for</h2>
+      <h2>What it's for</h2>
       <p>${esc(IRON.purpose)}</p>
 
-      <h2>How to use it</h2>
+      <h2>Remix it</h2>
       <ol class="input-list">
-        <li><strong>Play the reviewed game</strong> — no key and no payment. Motion and sound toggles are on the game page.</li>
-        <li><strong>Open the artwork graph</strong> if you want to remix the fighter. ${IRON.edit}</li>
-        <li><strong>Inspect the result.</strong> ${esc(IRON.inspect)}</li>
-        <li><strong>Typical cost.</strong> ${esc(IRON.costHow)}</li>
+        <li><strong>Play it.</strong> No key. Motion and sound toggles live on the game page.</li>
+        <li><strong>Open the artwork graph</strong> when you want a different fighter. ${IRON.edit}</li>
+        <li><strong>Look at what you got.</strong> ${esc(IRON.inspect)}</li>
+        <li><strong>What it cost.</strong> ${esc(IRON.costHow)}</li>
       </ol>
 
       <div class="cta">
-        <a class="primary" href="${esc(IRON.open)}">Open in nanoodle →</a>
-        <a class="secondary" href="${esc(IRON.play)}">See reviewed sample</a>
+        <a class="primary" href="${esc(IRON.open)}">Open this noodle →</a>
+        <a class="secondary" href="${esc(IRON.play)}">Play Iron Verdict</a>
       </div>
       <p class="howto-note"><a href="${esc(IRON.skill)}">Get the character-sprites skill</a>
         · <a href="${esc(IRON.graph)}">Artwork workflow on GitHub</a>
@@ -437,12 +437,12 @@ function hubPage() {
     if (!listed.has(s.slug)) throw new Error("Sample not listed on the hub: " + s.slug);
   }
 
-  const body = `    <h1>Examples <span class="grad">how-to</span></h1>
-    <p class="lede">Each reviewed gallery workflow, with the saved output, the inputs to edit, and the reported cost — then open it in nanoodle.</p>
+  const body = `    <h1>Steal a <span class="grad">noodle</span></h1>
+    <p class="lede">See the real output. Open the graph. Make it yours.</p>
 
     <section>
-      <p>These pages sit beside the <a href="/examples/gallery/">reviewed output gallery</a> and the rest of the <a href="/guide/">guide</a>. Viewing saved outputs is free. Generating your own uses your NanoGPT balance. Costs below are the reported first-party runs — prices and results vary.</p>
-      <p>Open a card to see the reviewed media, what the workflow is for, and which nodes to change. The <strong>Open in nanoodle</strong> button loads the current share graph (the same link the gallery uses). A <a href="https://github.com/nanoodlecom/awesome-noodles" target="_blank" rel="noopener">awesome-noodles</a> graph is behind every card.</p>
+      <p>These pages sit beside the <a href="/examples/gallery/">reviewed gallery</a> — actual stills, clips, songs, and edits, not mockups of mockups. Looking is free. Running spends your NanoGPT balance. Costs are the reported first-party runs. The next one will not be identical.</p>
+      <p>Pick a card. Change the inputs that matter. Hit <strong>Open in nanoodle</strong> for the same share graph the gallery uses. Every card is an <a href="https://github.com/nanoodlecom/awesome-noodles" target="_blank" rel="noopener">awesome-noodles</a> graph.</p>
 ${groups}`;
 
   const next = [
@@ -453,8 +453,8 @@ ${groups}`;
   ].join("\n");
 
   return chrome({
-    title: "Examples how-to — nanoodle guide",
-    description: "How to remix every reviewed nanoodle gallery workflow: saved output, inputs to edit, what to inspect, reported cost, and Open in nanoodle.",
+    title: "Steal a noodle — examples how-to",
+    description: "See the real output, then open the graph. Every reviewed gallery workflow — plus Iron Verdict — with the inputs to change, the reported cost, and Open in nanoodle.",
     path: "/guide/examples/",
     crumbs: `<a href="/">Home</a> / <a href="/guide/">Guide</a> / <span>Examples how-to</span>`,
     wide: true,
