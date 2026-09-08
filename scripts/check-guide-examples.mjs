@@ -85,6 +85,24 @@ if (/acoustic guitar|170-second generated song from the earlier cozy/i.test(sing
 if (!singSample.note.includes("I made it out, but the city wants me back")) {
   fail("sing sample note should quote the rooftop chorus");
 }
+const faviconHowTo = readFileSync(join(ROOT, "guide", "examples", "favicon.html"), "utf8");
+if (/Lumen|weather radio|lighthouse|navy-and-gold/i.test(faviconHowTo)) {
+  fail("favicon how-to still uses the Lumen weather-radio first-click");
+}
+if (!faviconHowTo.includes("Volt") || !/lightning|cyan/i.test(faviconHowTo)) {
+  fail("favicon how-to should pitch Volt lightning-cyan");
+}
+if (hub.includes("A mark that reads at 16px") && !hub.includes("A bolt that reads at 16px")) {
+  fail("hub still titles favicon as a generic mark");
+}
+const faviconSample = samples.find((s) => s.slug === "favicon");
+if (!faviconSample) fail("samples.json missing favicon");
+if (/Lumen|weather radio|lighthouse|navy-and-gold/i.test(faviconSample.note + JSON.stringify(faviconSample.inputs))) {
+  fail("favicon sample still uses the Lumen weather-radio brief");
+}
+if (!/electric-cyan lightning chevron/i.test(faviconSample.note)) {
+  fail("favicon sample note should describe the charcoal + cyan lightning chevron");
+}
 for (const slug of slugs) {
   const page = readFileSync(join(ROOT, "guide", "examples", slug === "iron-verdict" ? "iron-verdict.html" : `${slug}.html`), "utf8");
   if (page.includes("how to use this noodle")) {

@@ -46,9 +46,9 @@ const HOWTO = {
     costHow: "The reviewed run reported $0.0079 across three paid text calls. Token use and model prices move; check the editor estimate before you hit Run.",
   },
   favicon: {
-    headline: "A mark that reads at 16px",
-    job: "One mark. Readable at 16 pixels.",
-    purpose: "A brand sentence becomes a glyph you'd actually put on a tab. Flat, bold, no tiny detail that dies when the favicon shrinks.",
+    headline: "A bolt that reads at 16px",
+    job: "One cyan bolt. Readable at 16 pixels.",
+    purpose: "A courier-night brand sentence becomes a glyph you'd actually put on a tab. First-click is Volt — lightning chevron, charcoal field, electric cyan. Flat, bold, no tiny detail that dies when the favicon shrinks.",
     edit: "Rewrite <em>Brand</em> — name, symbol, colors. GLM Flash condenses it; Muse paints one square.",
     inspect: "Squint at 16 pixels. One glyph, the palette you asked for, a silhouette that still reads. This is a raster concept — export real favicon sizes as a separate step. The saved brief has no letters.",
     costHow: "The reviewed run reported $0.01. The image step is listed at $0.01, plus a small text call. Prices and results vary.",
