@@ -86,6 +86,12 @@ footer .spacer{flex:1}
   display:block; width:100%; aspect-ratio:16/10; object-fit:cover; background:var(--panel); }
 .howto-card .thumb-fallback{ display:flex; align-items:center; justify-content:center; padding:1rem 1.1rem;
                              color:var(--dim); font-size:.82rem; line-height:1.45; text-align:center; }
+.howto-card .thumb-fallback.pending{
+  background:
+    radial-gradient(120% 80% at 80% 0%, #ff79c633, transparent 55%),
+    radial-gradient(90% 70% at 10% 100%, #67e8f922, transparent 50%),
+    #121018;
+  color:var(--ink); font-weight:650; letter-spacing:-.01em; }
 .howto-card .body{ padding:.85rem 1rem 1rem; display:flex; flex-direction:column; gap:.2rem; flex:1; }
 .howto-card b{ display:block; }
 .howto-card .job{ color:var(--dim); font-size:.83rem; line-height:1.45; }
@@ -102,6 +108,11 @@ footer .spacer{flex:1}
 .media.input-refs img{ max-height:280px; }
 .no-preview{ background:var(--panel2); border:1px dashed var(--line); border-radius:.6rem;
              padding:1.1rem 1.2rem; color:var(--dim); margin:0 0 1.2rem; }
+.no-preview.pending{
+  background:
+    radial-gradient(120% 80% at 90% 0%, #ff79c622, transparent 50%),
+    var(--panel2);
+  border-style:solid; border-color:#3a2a44; color:#cdd3df; }
 blockquote.sample{ margin:0 0 1.2rem; padding:.9rem 1.1rem; border-left:3px solid var(--accent);
                    background:var(--panel2); white-space:pre-wrap; color:#dbe2ef; font-size:.92rem; }
 

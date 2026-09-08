@@ -32,6 +32,24 @@ if (!llms.includes("https://nanoodle.com/guide/examples/")) {
   fail("llms.txt does not mention https://nanoodle.com/guide/examples/");
 }
 
+const cinematic = readFileSync(join(ROOT, "guide", "examples", "cinematic-character-still.html"), "utf8");
+if (/piano tuner|Still\.png|cinematic-character-still\/preview\.webp/i.test(cinematic)) {
+  fail("cinematic how-to still heros the old piano-tuner still");
+}
+const hub = readFileSync(join(ROOT, "guide", "examples", "index.html"), "utf8");
+if (/cinematic-character-still\/(preview\.webp|Still\.png)/.test(hub)) {
+  fail("hub still uses the old cinematic still as a thumb");
+}
+if (hub.includes("Spoken workshop introduction")) {
+  fail("hub still titles the talking-avatar card as a workshop intro");
+}
+for (const slug of slugs) {
+  const page = readFileSync(join(ROOT, "guide", "examples", slug === "iron-verdict" ? "iron-verdict.html" : `${slug}.html`), "utf8");
+  if (page.includes("how to use this noodle")) {
+    fail(`${slug} still uses workshop-doc page title phrasing`);
+  }
+}
+
 const openUrl = join(ROOT, "scripts", "fixtures", "iron-verdict-open-url.txt");
 if (!existsSync(openUrl)) fail("missing scripts/fixtures/iron-verdict-open-url.txt");
 const url = readFileSync(openUrl, "utf8").trim();
