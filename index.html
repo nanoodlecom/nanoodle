@@ -237,7 +237,9 @@
   #exampleshead h2{ font-size:1.1rem; margin:0 }
   #exampleshead .sub{ font-size:.78rem; color:var(--dim); flex:1 1 12rem }
   #examplesclose{ margin-left:auto; width:2.1rem; height:2.1rem; border-radius:.55rem; display:flex; align-items:center; justify-content:center }
-  #skilloutcome{margin-top:1rem;margin-bottom:.2rem;padding:1rem;border:1px solid var(--accent);border-radius:.65rem;background:var(--panel)}
+  #skilloutcome{margin-top:1rem;margin-bottom:.2rem;padding:1rem;border:1px solid var(--accent);border-radius:.65rem;background:var(--panel);display:flex;gap:.85rem;align-items:flex-start}
+  #skilloutcome .so-thumb{flex:none;width:88px;height:88px;border-radius:.45rem;overflow:hidden;background:var(--bg);border:1px solid var(--line)}
+  #skilloutcome .so-thumb img{width:100%;height:100%;object-fit:cover;display:block}
   #skilloutcome strong{font-size:.95rem} #skilloutcome p{font-size:.8rem;line-height:1.5;color:var(--dim);margin:.4rem 0} #skilloutcome a{display:inline-block;margin:.3rem 1rem .3rem 0;font-size:.8rem} #skilloutcome small{display:block;color:var(--dim);font-size:.7rem;margin-top:.4rem}
   #exampleslist{ margin-top:1rem; display:grid; grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr)); gap:.8rem }
   .ex-card{ display:flex; flex-direction:column; min-width:0; text-align:left; overflow:hidden; background:var(--panel); border:1px solid var(--line); border-radius:.65rem }
@@ -254,7 +256,23 @@
   .ex-actions button{ border:1px solid var(--line); background:var(--bg); color:var(--ink); cursor:pointer }
   .ex-actions button:hover{ border-color:var(--accent) }
   #examplesintro{ font-size:.83rem; color:var(--dim); line-height:1.5; margin:.6rem 0 0 }
-  @media (max-width:540px){ #exampleshead{ display:grid; grid-template-columns:1fr auto; align-items:center } #exampleshead .sub{ grid-column:1; grid-row:2 } #examplesclose{ grid-column:2; grid-row:1 } }
+  @media (max-width:540px){
+    #exampleshead{ display:grid; grid-template-columns:1fr auto; align-items:center } #exampleshead .sub{ grid-column:1; grid-row:2 } #examplesclose{ grid-column:2; grid-row:1 }
+    #examplesmodal{ padding:min(2vh,1rem) .55rem }
+    #examplespanel{ padding:.9rem .75rem 1rem; max-height:92vh }
+    #skilloutcome{ padding:.7rem; gap:.65rem; align-items:center }
+    #skilloutcome .so-thumb{ width:72px; height:72px }
+    #skilloutcome p{ display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden }
+    #exampleslist{ gap:.55rem }
+    .ex-card{ flex-direction:row; align-items:stretch }
+    .ex-preview{ width:88px; min-width:88px; height:88px; flex:none }
+    .ex-card .ex-im,.ex-card .ex-em{ width:100%; height:100%; object-fit:cover }
+    .ex-card .ex-em{ font-size:2rem }
+    .ex-card .ex-quote{ display:none }
+    .ex-card .ex-body{ padding:.55rem .65rem }
+    .ex-card .ex-ds{ margin:.2rem 0 .45rem; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden }
+    .ex-actions{ gap:.4rem }
+  }
   #examplesnote{ font-size:.72rem; color:var(--dim); margin-top:1rem }
   /* 🏆 community shelf — podium cards for the top 3, a scrollable rail for the rest.
      display rules ride :not([hidden]) so the hidden attribute always wins. */
@@ -1081,7 +1099,18 @@
     </div>
     <p id="examplesintro">See saved results without a key. Open a workflow, change the inputs, then Run with your NanoGPT key and balance. Loading does not run or charge.</p>
 
-    <section id="skilloutcome" data-no-i18n><div><strong>From character brief to fighting game</strong><p>Play Iron Verdict, then give your agent the character-sprites skill. Matching artwork → 32 animation frames → a game built by a coding agent.</p><a href="/examples/iron-verdict/" target="_blank" rel="noopener">Play Iron Verdict ↗</a> <a href="https://github.com/nanoodlecom/noodle-skills/tree/main/skills/character-sprites" target="_blank" rel="noopener">Get the skill ↗</a><small>Free to play. Generating a new character uses your NanoGPT key and the local skill.</small></div></section>
+    <section id="skilloutcome" data-no-i18n>
+      <a class="so-thumb" href="/examples/iron-verdict/" target="_blank" rel="noopener">
+        <img src="examples/iron-verdict/screenshot.png" alt="Iron Verdict" width="88" height="88"/>
+      </a>
+      <div>
+        <strong>From character brief to fighting game</strong>
+        <p>Play Iron Verdict, then give your agent the character-sprites skill. Matching artwork → 32 animation frames → a game built by a coding agent.</p>
+        <a href="/examples/iron-verdict/" target="_blank" rel="noopener">Play Iron Verdict ↗</a>
+        <a href="https://github.com/nanoodlecom/noodle-skills/tree/main/skills/character-sprites" target="_blank" rel="noopener">Get the skill ↗</a>
+        <small>Free to play. Generating a new character uses your NanoGPT key and the local skill.</small>
+      </div>
+    </section>
     <div id="exampleslist"></div>
     <!-- 🏆 community shelf — hand-curated winner/showcase noodles (share links, so they open in a
          new tab and never touch the current canvas). Stays hidden while COMMUNITY_NOODLES is empty. -->
@@ -1668,6 +1697,11 @@ const I18N = {
     "aspect":"proporción",
     "motion prompt (optional)":"prompt de movimiento (opcional)",
     "style / prompt":"estilo / prompt",
+    "musical style — not lyrics":"estilo musical — no la letra",
+    "Lyrics (sung words)":"Letra (palabras cantadas)",
+    "Instrumental (no vocals)":"Instrumental (sin voz)",
+    "the sung words — wire or type them here. Style is the prompt above, not this field.":"las palabras cantadas — conéctalas o escríbelas aquí. El estilo es el prompt de arriba, no este campo.",
+    "on = music only, no singing; leave Lyrics empty":"activado = solo música, sin canto; deja Letra vacía",
     "text to speak":"texto a leer",
     "advanced params (JSON)":"parámetros avanzados (JSON)",
     "a fox-masked courier on rain-slick shrine stairs, neon in the puddles, 2am Tokyo…":"un mensajero con máscara de zorro en las escaleras de un santuario empapadas de lluvia, neón en los charcos, Tokio a las 2am…",
@@ -2279,6 +2313,11 @@ const I18N = {
     "aspect":"format",
     "motion prompt (optional)":"prompt de mouvement (facultatif)",
     "style / prompt":"style / prompt",
+    "musical style — not lyrics":"style musical — pas les paroles",
+    "Lyrics (sung words)":"Paroles (mots chantés)",
+    "Instrumental (no vocals)":"Instrumental (sans voix)",
+    "the sung words — wire or type them here. Style is the prompt above, not this field.":"les paroles chantées — câblez-les ou saisissez-les ici. Le style est le prompt ci-dessus, pas ce champ.",
+    "on = music only, no singing; leave Lyrics empty":"activé = musique seule, sans chant ; laissez Paroles vide",
     "text to speak":"texte à dire",
     "advanced params (JSON)":"params avancés (JSON)",
     "a fox-masked courier on rain-slick shrine stairs, neon in the puddles, 2am Tokyo…":"un coursier au masque de renard sur les marches d'un sanctuaire luisant de pluie, du néon dans les flaques, Tokyo à 2h…",
@@ -2890,6 +2929,11 @@ const I18N = {
     "aspect":"Seitenverhältnis",
     "motion prompt (optional)":"Bewegungs-Prompt (optional)",
     "style / prompt":"Stil / Prompt",
+    "musical style — not lyrics":"Musikstil — kein Songtext",
+    "Lyrics (sung words)":"Songtext (gesungene Worte)",
+    "Instrumental (no vocals)":"Instrumental (ohne Gesang)",
+    "the sung words — wire or type them here. Style is the prompt above, not this field.":"die gesungenen Worte — verdrahte oder tippe sie hier. Der Stil ist der Prompt oben, nicht dieses Feld.",
+    "on = music only, no singing; leave Lyrics empty":"an = nur Musik, kein Gesang; Songtext leer lassen",
     "text to speak":"Text zum Sprechen",
     "advanced params (JSON)":"erweiterte Parameter (JSON)",
     "a fox-masked courier on rain-slick shrine stairs, neon in the puddles, 2am Tokyo…":"ein Kurier mit Fuchsmaske auf regennassen Schreintreppen, Neon in den Pfützen, Tokio um 2 Uhr nachts…",
@@ -3501,6 +3545,11 @@ const I18N = {
     "aspect":"proporção",
     "motion prompt (optional)":"prompt de movimento (opcional)",
     "style / prompt":"estilo / prompt",
+    "musical style — not lyrics":"estilo musical — não a letra",
+    "Lyrics (sung words)":"Letra (palavras cantadas)",
+    "Instrumental (no vocals)":"Instrumental (sem voz)",
+    "the sung words — wire or type them here. Style is the prompt above, not this field.":"as palavras cantadas — ligue ou escreva aqui. O estilo é o prompt acima, não este campo.",
+    "on = music only, no singing; leave Lyrics empty":"ligado = só música, sem canto; deixe Letra vazia",
     "text to speak":"texto a falar",
     "advanced params (JSON)":"parâmetros avançados (JSON)",
     "a fox-masked courier on rain-slick shrine stairs, neon in the puddles, 2am Tokyo…":"um mensageiro com máscara de raposa nas escadas de um santuário encharcadas de chuva, néon nas poças, Tóquio às 2h…",
@@ -4112,6 +4161,11 @@ const I18N = {
     "aspect":"アスペクト比",
     "motion prompt (optional)":"動きのプロンプト (任意)",
     "style / prompt":"スタイル / プロンプト",
+    "musical style — not lyrics":"音楽スタイル — 歌詞ではない",
+    "Lyrics (sung words)":"歌詞（歌う言葉）",
+    "Instrumental (no vocals)":"インストゥルメンタル（ボーカルなし）",
+    "the sung words — wire or type them here. Style is the prompt above, not this field.":"歌う言葉 — ここに配線するか入力。スタイルは上のプロンプトであり、この欄ではない。",
+    "on = music only, no singing; leave Lyrics empty":"オン = 音楽のみ、歌なし。歌詞は空欄に",
     "text to speak":"読み上げるテキスト",
     "advanced params (JSON)":"詳細パラメータ (JSON)",
     "a fox-masked courier on rain-slick shrine stairs, neon in the puddles, 2am Tokyo…":"雨に濡れた神社の石段に立つ狐面の運び屋、水たまりにネオン、午前2時の東京…",
@@ -5052,8 +5106,8 @@ function updateModelWarn(n){
 // only-when-nonempty, so providers that don't accept them just never receive the key.
 const AUDIO_PARAMS = {
   music: [
-    { id:"lyrics",          label:"Lyrics",          type:"textarea", appliesTo:"all", ph:"[Verse] rain on the underpass / fox-mask catching neon…", hint:"required by vocal song models (e.g. Mureka); leave empty for instrumental/BGM" },
-    { id:"instrumental",    label:"Instrumental",    type:"boolean",  appliesTo:"all" },
+    { id:"lyrics",          label:"Lyrics (sung words)", type:"textarea", appliesTo:"all", ph:"[Verse] rain on the underpass / fox-mask catching neon…", hint:"the sung words — wire or type them here. Style is the prompt above, not this field." },
+    { id:"instrumental",    label:"Instrumental (no vocals)", type:"boolean", appliesTo:"all", hint:"on = music only, no singing; leave Lyrics empty" },
     { id:"duration",        label:"Duration (sec)",  type:"number",   appliesTo:"cat:duration" },
     { id:"number_of_songs", label:"Number of songs", type:"number",   appliesTo:"cat:gencount", default:1 },
     { id:"negative_prompt", label:"Negative prompt", type:"textarea", appliesTo:"all", ph:"what to avoid — e.g. harsh noise, distortion, muffled vocals" },
@@ -7749,7 +7803,7 @@ const NODE_TYPES = {
     modelKind:"audio", modelFilter:"music",
     inputs:[],
     outputs:[{name:"audio", type:"audio"}], preview:"audio",
-    body:(n)=> audioBody(n, "style / prompt", "rain-soaked Shibuya rooftop chase — analog synths, distant sirens, 118 BPM", true),
+    body:(n)=> audioBody(n, "musical style — not lyrics", "late-night analog folk, slow mid-tempo, fingerpicked nylon guitar, distant wok hiss…", true),
     run: audioRun,
   },
 
@@ -10741,7 +10795,7 @@ const CTX = {
    No key yet → the Run click still delivers the moment: the graph "runs" on canned sample
    results (badged on every node, zero network calls, zero charge) while #demopop offers the
    two real ways in — Sign in with NanoGPT, or paste a key. The canned text/image pair was
-   generated once with the shipped starter graph's own models (glm-5.2 → nano-banana-2-lite),
+   generated once with the shipped starter graph's own models (glm-5.3-flash → muse-image),
    so what a first-timer watches is exactly what a real run of the starter produces.
 
    Two sigs, set at boot from the canonical starter:
@@ -10797,10 +10851,10 @@ function demoMode(){
   if(demoVideoNode()) return "video";
   return null;
 }
-const DEMO_LLM_TEXT = "A cozy, intimate ramen shop on a rainy night, viewed from the quiet street looking slightly through the steamed glass window. Warm, glowing amber light spills out onto the wet pavement, contrasting beautifully with the cool, moody blue and teal tones of the rainy city. Inside, a lone patron in a yellow raincoat sits at a wooden bar, steam rising in thick, inviting plumes from a large bowl of rich tonkotsu ramen. Paper lanterns emit a soft, nostalgic luminescence over wooden interiors. Puddles on the cobblestone street reflect the vibrant shop signs and passing neon city lights. Cinematic lighting, photorealistic, 8k resolution, ultra-detailed, comforting and atmospheric mood, anime-inspired realism.";
+const DEMO_LLM_TEXT = "A 3:2 landscape travel-postcard illustration of Raohe night market, Taipei: one grilled-squid stall still roaring under a string of red lanterns, smoke hanging in the wet lane, glossy asphalt mirroring the lanterns. Warm illustrated print — restrained crimson, amber and ink-blue, one clear stall as the focal point, uncluttered midground, room at the bottom edge for an optional caption. No readable text, logos or watermark. Cinematic but printed, not a documentary photograph.";
 // Fallback when demo-sample.jpg can't be fetched (file:// open) — a labeled stand-in, never a broken img.
 const DEMO_IMG_FALLBACK = "data:image/svg+xml," + encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" width="768" height="418"><rect width="768" height="418" fill="#12151d"/><text x="384" y="200" fill="#67e8f9" font-family="sans-serif" font-size="30" text-anchor="middle">🍜 sample image</text><text x="384" y="242" fill="#8b93a7" font-family="sans-serif" font-size="18" text-anchor="middle">sign in to generate for real</text></svg>');
+  '<svg xmlns="http://www.w3.org/2000/svg" width="768" height="512"><rect width="768" height="512" fill="#12151d"/><text x="384" y="240" fill="#67e8f9" font-family="sans-serif" font-size="28" text-anchor="middle">✉️ sample postcard</text><text x="384" y="282" fill="#8b93a7" font-family="sans-serif" font-size="18" text-anchor="middle">sign in to generate for real</text></svg>');
 let _demoImgUrl = null;
 async function demoImage(){                        // shipped alongside the page → data URL, so ⬇ save etc. behave like a real result
   if(_demoImgUrl) return _demoImgUrl;
@@ -13237,14 +13291,32 @@ addEventListener("message", e=>{
 });
 function seed(){
   undoMuted = true;   // the built-in starter graph must not be undoable — a new user's first Ctrl+Z must not empty it
-  // text → LLM → image: the three-step shape that teaches what nanoodle IS in one Run.
-  // Mirror of the shipped noodle-graph.json (this fallback only fires when that fetch fails, e.g. file://);
-  // the signed-out sample run (DEMO_LLM_TEXT + demo-sample.jpg) was generated from these exact nodes.
-  const a = addNode("text", 60, 130, { text:"a cozy ramen shop on a rainy night" });
-  const b = addNode("llm", 340, 70, { model:"z-ai/glm-5.2", system:"You write image prompts. Turn the idea into one vivid, detailed image prompt — scene, lighting, mood, style. Reply with the prompt only." });
-  const c = addNode("image", 650, 100, { model:"nano-banana-2-lite", size:"1k", variations:"1" });
-  connect(a.id, "text", b.id, "prompt");
-  connect(b.id, "text", c.id, "prompt");
+  // Night-market postcard: the Elo first-click (same graph as EXAMPLES["night-market-postcard"]
+  // and noodle-graph.json). This fallback only fires when that fetch fails, e.g. file://.
+  // The signed-out sample (DEMO_LLM_TEXT + demo-sample.jpg) was generated from these exact nodes.
+  const ex = (typeof EXAMPLES!=="undefined") && EXAMPLES.find(e=>e.slug==="night-market-postcard");
+  if(ex){ applyGraphData(JSON.parse(JSON.stringify(ex.graph))); undoMuted = false; return; }
+  const nameNode = (n, name) => {
+    n.name = name;
+    const inp = n.el && n.el.querySelector(".node-name");
+    if(inp) inp.value = name;
+  };
+  const note = addNode("comment", 40, 20, { text:"Create a landscape travel postcard illustration from a place and mood. Change both inputs for a new destination. GLM Flash writes the prompt; Muse renders at 3:2 (image step $0.01, plus text). Inspect location details; generated art is not a documentary photograph.", color:"#2a1f14" });
+  nameNode(note, "Travel postcard");
+  const place = addNode("text", 40, 180, { text:"Raohe night market, Taipei — grilled squid smoke hanging in the lane, red lanterns, wet asphalt, one stall still roaring" });
+  nameNode(place, "Place");
+  const vibe = addNode("choice", 40, 420, { options:"warm illustrated travel print\nfine-grain analog photograph\nquiet watercolor scene\nbold two-color screenprint", selected:"warm illustrated travel print" });
+  nameNode(vibe, "Vibe");
+  const spec = addNode("join", 360, 280, { sep:"\n\nMood: " });
+  nameNode(spec, "Spec");
+  const llm = addNode("llm", 640, 200, { model:"z-ai/glm-5.3-flash", system:"Write one image prompt for a 3:2 landscape travel postcard illustration from the supplied place and mood. Preserve supplied landmarks and local details; do not import scenery, food, weather or architecture from another destination. Pick one clear focal subject, a restrained palette and an uncluttered composition with room for an optional caption added later. No readable text, logos or watermark. Describe only details justified by the brief. Output prompt only, 80-120 words.", maxTokens:"1024", reasoningEffort:"low" });
+  nameNode(llm, "Postcard prompt");
+  const img = addNode("image", 1000, 230, { model:"meta/muse-image/text-to-image", size:"3:2", variations:"1" });
+  nameNode(img, "Postcard");
+  connect(place.id, "text", spec.id, "a");
+  connect(vibe.id, "text", spec.id, "b");
+  connect(spec.id, "text", llm.id, "prompt");
+  connect(llm.id, "text", img.id, "prompt");
   undoMuted = false;
 }
 
@@ -13497,10 +13569,10 @@ const EXAMPLES = [
    thumb:"",
    graph:{ v:1,
    nodes:[ {id:"c-intent",type:"comment",x:-265,y:-63,w:520,fields:{text:"Write original closing-credits lyrics, then hear them sung. One text model writes [Verse]/[Chorus] lyrics from the brief; Mureka Generate Song sings them in the editable musical style. Music step $0.225, plus text. Listen for clear words, melody and fit to the brief; generated duration and precise musical structure can vary.",color:"yellow"},name:"Last stall of the night"},
-           {id:"n1",type:"text",x:58,y:225,fields:{text:"Write a short original closing-credits song for a night-market game. Last stall of the night: a wok fire dying to coals, red lanterns still lit over wet asphalt, grilled-squid smoke hanging in the lane, one wooden stool left out for the last customer. Theme: packing up is its own kind of care. Warm, cinematic, hopeful — not cute. No brand names, no real artist names."},name:"Song Instructions"},
-           {id:"n2",type:"llm",x:403,y:-143,w:549,sizes:{system:178},fields:{model:"z-ai/glm-5.3-flash",system:"Write original singable lyrics from the brief, maximum 160 words. Plain language, concrete details, natural stresses and a short memorable chorus. Use [Verse 1], [Chorus], [Verse 2], [Chorus], [Outro] labels. Preserve the requested mood and avoid adding named brands or copyrighted lyrics. Output only section labels and lyrics.",maxTokens:"1024",reasoningEffort:"low"},name:"Lyrics"},
+           {id:"n1",type:"text",x:58,y:225,fields:{text:"Write a short original closing-credits song for a night-market game. Last stall of the night: a wok fire dying to coals, red lanterns still lit over wet asphalt, grilled-squid smoke hanging in the lane, one wooden stool left out for the last customer. Theme: packing up is its own kind of care. Warm, cinematic, hopeful — not cute. No brand names, no real artist names."},name:"Song brief (theme, not lyrics)"},
+           {id:"n2",type:"llm",x:403,y:-143,w:549,sizes:{system:178},fields:{model:"z-ai/glm-5.3-flash",system:"Write original singable lyrics from the brief, maximum 160 words. Plain language, concrete details, natural stresses and a short memorable chorus. Use [Verse 1], [Chorus], [Verse 2], [Chorus], [Outro] labels. Preserve the requested mood and avoid adding named brands or copyrighted lyrics. Output only section labels and lyrics.",maxTokens:"1024",reasoningEffort:"low"},name:"Write lyrics"},
            {id:"n4",type:"music",x:1240,y:120,w:406,fields:{model:"mureka-ai/mureka-v9.5/generate-song",instrumental:false,response_format:"mp3"},name:"Song"},
-           {id:"n5",type:"text",x:-712,y:1155,fields:{text:"Late-night analog folk, slow mid-tempo, close dry vocal, fingerpicked nylon guitar, distant wok hiss and bicycle bells under a soft brushed snare. Clear words and a sticky chorus; no artist imitation.",optional:false},name:"Musical style"} ],
+           {id:"n5",type:"text",x:-712,y:1155,fields:{text:"Late-night analog folk, slow mid-tempo, close dry vocal, fingerpicked nylon guitar, distant wok hiss and bicycle bells under a soft brushed snare. Clear words and a sticky chorus; no artist imitation.",optional:false},name:"Style (instruments & tempo)"} ],
    links:[ {id:"l11",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}},
            {id:"l12",from:{node:"n2",port:"text"},to:{node:"n4",port:"lyrics"}},
            {id:"style-direct",from:{node:"n5",port:"text"},to:{node:"n4",port:"prompt"}} ] } },
@@ -13582,6 +13654,9 @@ function renderCommunity(){
 function openExamples(){
   const list=$("exampleslist"); list.innerHTML="";
   // Elo-ish first-clicks first, soft noodles last. The source graph array stays sync-generated.
+  // Same Elo order on every width — no mobile-only list, no CSS order, no truncation.
+  // Featured #skilloutcome (Iron Verdict) sits above the grid on every width.
+  // Compact mobile cards keep H3 (4th) and the featured game above the fold.
   const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","image-model-arena","edit-a-photo","render-a-mockup","favicon","photo-to-video","character-sprites","talking-avatar","sing","omni-flash-turntable","deslop"];
   EXAMPLES.map((ex,i)=>({ex,i})).sort((a,b)=>{
     const rank=slug=>first.includes(slug)?first.indexOf(slug):first.length;
@@ -13825,7 +13900,7 @@ $("signout").onclick = ()=> setKey(null);
   // pristine starter AND light field edits on the same shape (see demoMode / runGroup / inDemoRun).
   // Compute from the CANONICAL noodle-graph.json, not the live canvas: autosave makes a returning
   // visitor's boot a "restore", so gating on freshStart hid the demo forever after one touch.
-  // Shipped ids (n1/n2/n3) are deterministic and survive save/restore. Signed-out only.
+  // Shipped ids (n1…n6 on the postcard starter) are deterministic and survive save/restore. Signed-out only.
   if(!getKey()){
     try{
       const starter = await starterGraphData();
