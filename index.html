@@ -13482,12 +13482,13 @@ $("updatesmodal").addEventListener("click", e=>{ if(e.target.id==="updatesmodal"
 addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("updatesmodal").hidden) closeUpdates(); });
 refreshUpdatesBadge();
 
-/* ---- Examples: one-click starter workflows — EXACTLY the noodles curated in
-   github.com/nanoodlecom/awesome-noodles, one card per graphs/*.noodle-graph.json there.
-   That repo is the single source: nothing lives here that isn't in it, and nothing there is
-   left out, and every port is VERBATIM — layout, names, prompts, comments, wiring, and the
-   pinned fields.model on every model-bearing node. Do not hand-edit this array; run
-   `node scripts/sync-examples.mjs` (its --check is pre-commit gate 39).
+/* ---- Examples: one-click starter workflows — the noodles curated in
+   github.com/nanoodlecom/awesome-noodles, one card per graphs/*.noodle-graph.json there,
+   plus the editor-only `custom-endpoint` teaching card (not a gallery file, not an MCP tool).
+   awesome-noodles is the source for every other card: nothing else lives here that isn't in
+   it, and nothing there is left out, and every port is VERBATIM — layout, names, prompts,
+   comments, wiring, and the pinned fields.model on every model-bearing node. Do not hand-edit
+   gallery cards; run `node scripts/sync-examples.mjs` (its --check is pre-commit gate 39).
    Each card's `thumb` is a 112px webp data URI rendered BY a nanoodle (a
    text→image noodle in the site's house illustration style) and inlined so the
    gallery stays fetch-free; it is decorative, so its alt stays empty.

@@ -4,7 +4,8 @@
 // The gallery used to be a hand-maintained list beside that repo, and it drifted both ways:
 // noodles were added there and never landed here, and four entries lived on here after being
 // removed there. This makes the repo the source of truth mechanically — one card per
-// graphs/*.noodle-graph.json, nothing else.
+// graphs/*.noodle-graph.json, plus the editor-only teaching cards listed in
+// LOCAL_ONLY_EXAMPLE_SLUGS (not MCP tools, not gallery files).
 //
 //   node scripts/sync-examples.mjs --check     verify parity, touch nothing (the guard)
 //   node scripts/sync-examples.mjs             rewrite index.html's EXAMPLES array in place
@@ -41,6 +42,11 @@ const argv = process.argv.slice(2);
 const CHECK = argv.includes("--check");
 const gi = argv.indexOf("--graphs");
 const GRAPHS = gi >= 0 ? argv[gi + 1] : join(ROOT, "..", "awesome-noodles", "graphs");
+
+// Editor-only teaching cards. They live in EXAMPLES so a visitor can open them,
+// but they are not awesome-noodles graphs and not mcp.nanoodle.com tools.
+// Keep this list in sync with scripts/check-launch-facts.mjs.
+const LOCAL_ONLY_EXAMPLE_SLUGS = new Set(["custom-endpoint"]);
 
 if (!existsSync(GRAPHS)) {
   console.log(`sync-examples: SKIP — no awesome-noodles checkout at ${GRAPHS}`);
@@ -87,7 +93,13 @@ const slugs = readdirSync(GRAPHS)
   .sort();
 
 const missing = slugs.filter((s) => !cards.has(s));           // in the repo, no card here
-const extra = order.filter((s) => !slugs.includes(s));        // card here, gone from the repo
+const extra = order.filter((s) => !slugs.includes(s) && !LOCAL_ONLY_EXAMPLE_SLUGS.has(s));
+const promoted = slugs.filter((s) => LOCAL_ONLY_EXAMPLE_SLUGS.has(s));
+if (promoted.length) {
+  for (const s of promoted)
+    console.error(`✗ ${s} is in awesome-noodles — drop it from LOCAL_ONLY_EXAMPLE_SLUGS and re-run so it syncs like every other card`);
+  process.exit(1);
+}
 if (missing.length || extra.length) {
   for (const s of missing)
     console.error(`✗ ${s} is in awesome-noodles but has no gallery card — add { em, slug:"${s}", title, desc, thumb } to EXAMPLES, then re-run`);
@@ -96,8 +108,29 @@ if (missing.length || extra.length) {
   process.exit(1);
 }
 
+function existingCardSource(block, slug) {
+  const found = [];
+  const re = / \{ em:"[^"]*", slug:"([^"]*)"/g;
+  let m;
+  while ((m = re.exec(block))) found.push({ slug: m[1], start: m.index });
+  for (let i = 0; i < found.length; i++) {
+    if (found[i].slug !== slug) continue;
+    const end = i + 1 < found.length ? found[i + 1].start : block.lastIndexOf("\n];");
+    return block.slice(found[i].start, end).replace(/\n$/, "");
+  }
+  return null;
+}
+
 // Keep the authored order; it is the README's Image → Video → Audio grouping, not alphabetical.
 const built = order.map((slug) => {
+  if (LOCAL_ONLY_EXAMPLE_SLUGS.has(slug)) {
+    const card = existingCardSource(current, slug);
+    if (!card) {
+      console.error(`✗ local-only example ${slug} is declared but has no EXAMPLES card`);
+      process.exit(1);
+    }
+    return card;
+  }
   const c = cards.get(slug);
   const g = JSON.parse(readFileSync(join(GRAPHS, `${slug}.noodle-graph.json`), "utf8"));
   const nodes = g.nodes.map(portNode).map((s, i) => (i ? "           " : "") + s).join(",\n");
