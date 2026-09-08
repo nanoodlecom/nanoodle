@@ -99,19 +99,21 @@ test('homepage pins use the same strict model, type and capability checks as gal
   assert.throws(() => starterModels({ nodes: [{ type: 'unknown' }] }, kinds), /unknown node type/);
 });
 
-test('preserves FIBO size/model and Omni version regressions', async () => {
+test('preserves FIBO size/model, H3 cinematic still and Omni version regressions', async () => {
   const { galleryRegressions } = await import('./check-example-models.mjs');
   const pins = [
     { slug: 'fibo-studio-still', ...pin('image', { model: 'bria/fibo-generate-1.5/text-to-image', size: '1mp' }) },
+    { slug: 'cinematic-character-still', ...pin('image', { model: 'minimax-h3/text-to-image', size: '1k' }) },
     { slug: 'omni-flash-turntable', ...pin('tvideo', { model: 'google/gemini-omni-flash/v1.1' }) },
   ];
   assert.equal(galleryRegressions(pins).length, 0);
-  assert.equal(galleryRegressions([]).length, 2);
+  assert.equal(galleryRegressions([]).length, 3);
   pins[0].fields.size = 'auto';
   assert.match(galleryRegressions(pins)[0].reason, /expected size 1mp/);
   pins[0].fields.size = '1mp';
   pins[0].id = 'bria-fibo';
-  pins[1].id = 'google/gemini-omni-flash/v1';
-  assert.equal(galleryRegressions(pins).length, 2);
+  pins[1].id = 'minimax-h3-image';
+  pins[2].id = 'google/gemini-omni-flash/v1';
+  assert.equal(galleryRegressions(pins).length, 3);
   assert.ok(galleryRegressions(pins).every(p => /expected model/.test(p.reason)));
 });
