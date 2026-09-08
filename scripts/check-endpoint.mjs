@@ -145,6 +145,21 @@ eq(S.endpointParseRoute("https://httpbingo.org/post"),
   "bare URL stays a URL");
 eq(S.endpointParseRoute("chat"), { mode: "chat" }, "bare mode stays a mode");
 eq(S.endpointParseRoute(""), {}, "empty route is empty");
+eq(S.endpointParseRoute("chat | http://127.0.0.1:8787/v1"),
+  { mode: "chat", url: "http://127.0.0.1:8787/v1" },
+  "pipe separator is accepted");
+eq(S.endpointParseRoute("json: https://httpbingo.org/post"),
+  { mode: "json", url: "https://httpbingo.org/post" },
+  "colon separator is accepted");
+eq(S.endpointParseRoute("chat • http://127.0.0.1:9/v1"),
+  { mode: "chat", url: "http://127.0.0.1:9/v1" },
+  "bullet separator is accepted");
+eq(S.endpointParseRoute("audio - https://example.com/v1"),
+  { mode: "audio", url: "https://example.com/v1" },
+  "dash separator is accepted");
+eq(S.endpointParseRoute("chat · http://127.0.0.1:8787/v1/chat/completions."),
+  { mode: "chat", url: "http://127.0.0.1:8787/v1/chat/completions" },
+  "trailing period is stripped from the URL");
 
 eq(S.endpointResolveTarget({ fields: { url: "https://httpbingo.org/post", mode: "json" } }, {}),
   { url: "https://httpbingo.org/post", mode: "json" },
@@ -160,6 +175,31 @@ eq(S.endpointResolveTarget({ fields: { mode: "json" } }, { url: "json · https:/
 eq(S.endpointResolveTarget({ fields: { url: "https://httpbingo.org/post", mode: "json" } }, { mode: "chat" }),
   { url: "https://httpbingo.org/post", mode: "chat" },
   "bare wired mode overrides typed mode without changing the URL");
+// The live gallery wires Choice into BOTH url and mode. A leftover typed httpbingo
+// field must not win — that was the #465 bug (picker looked like routing, POST did not).
+eq(S.endpointResolveTarget(
+  { fields: { url: "https://httpbingo.org/post", mode: "json" } },
+  {
+    url: "chat · http://127.0.0.1:8787/v1/chat/completions (localhost mock)",
+    mode: "chat · http://127.0.0.1:8787/v1/chat/completions (localhost mock)",
+  },
+), { url: "http://127.0.0.1:8787/v1/chat/completions", mode: "chat" },
+  "gallery Choice dual-wire (url+mode) retargets leftover typed httpbingo");
+eq(S.endpointResolveTarget(
+  { fields: { url: "https://httpbingo.org/post", mode: "json" } },
+  { mode: "chat · http://127.0.0.1:8787/v1/chat/completions (localhost mock)" },
+), { url: "http://127.0.0.1:8787/v1/chat/completions", mode: "chat" },
+  "route-shaped mode wire steals URL when url is leftover typed");
+eq(S.endpointResolveTarget(
+  { fields: { url: "https://httpbingo.org/post", mode: "json" } },
+  { url: "   ", mode: "" },
+), { url: "https://httpbingo.org/post", mode: "json" },
+  "whitespace/empty inp.url+mode fall back to typed fields");
+eq(S.endpointResolveTarget(
+  { fields: { url: "https://httpbingo.org/post", mode: "not-a-mode" } },
+  {},
+), { url: "https://httpbingo.org/post", mode: "chat" },
+  "unknown typed mode falls back to chat");
 
 // ---- response parse -----------------------------------------------------------
 eq(S.endpointParseChat({ choices: [{ message: { content: "ok" } }] }), { text: "ok" }, "chat completions parse");
@@ -312,6 +352,55 @@ ok(!Object.values(S.endpointHeaders("tok")).some((v) => /x-api-key/i.test(String
   ok(routed && routed.text === "receipt", "runEndpoint route-shaped json option still echoes the body");
   const posted = JSON.parse(calls[0].opts.body);
   ok(posted.text === "receipt" && !posted.messages, "route-shaped json option uses json body, not chat messages");
+
+  // The product path is Choice → inp.url + inp.mode, not a route typed into fields.url.
+  // Pin the send so a helper-only refactor cannot restore the decorative-picker bug.
+  calls.length = 0;
+  S.fetch = (url, opts) => {
+    calls.push({ url, opts });
+    const payload = { choices: [{ message: { content: "from-choice" } }] };
+    return Promise.resolve({
+      ok: true, status: 200,
+      headers: { get: () => "application/json" },
+      json: async () => payload,
+      text: async () => JSON.stringify(payload),
+    });
+  };
+  const choiceRoute = "chat · http://127.0.0.1:8787/v1/chat/completions (localhost mock)";
+  const fromChoice = await S.runEndpoint(
+    { fields: { url: "https://httpbingo.org/post", mode: "json", prompt: "receipt" } },
+    { url: choiceRoute, mode: choiceRoute, text: "wired slip" },
+  );
+  ok(calls[0] && calls[0].url === "http://127.0.0.1:8787/v1/chat/completions",
+    "runEndpoint Choice-wired url+mode POSTs to the picker URL, not leftover httpbingo");
+  ok(fromChoice && fromChoice.text === "from-choice", "Choice-wired chat path uses chat parse");
+  const choiceBody = JSON.parse(calls[0].opts.body);
+  ok(choiceBody.messages && !choiceBody.text,
+    "Choice-wired chat path sends chat messages, not a json receipt body");
+  ok(choiceBody.messages.some((m) => m.role === "user" && m.content === "wired slip"),
+    "Choice-wired chat path still uses the wired text as the user prompt");
+
+  // Parse must not bypass the allow-list — a route string is not a fetch permit.
+  let fetchedBad = 0;
+  S.fetch = () => { fetchedBad++; return Promise.reject(new Error("must not fetch a refused URL")); };
+  let publicHttp = "";
+  try {
+    await S.runEndpoint(
+      { fields: { url: "https://httpbingo.org/post", mode: "json" } },
+      { url: "chat · http://evil.example/steal" },
+    );
+  } catch (e) { publicHttp = e.message; }
+  ok(/http is only/.test(publicHttp) && fetchedBad === 0,
+    "route-parsed public http is still refused and never fetched");
+  let creds = "";
+  try {
+    await S.runEndpoint(
+      { fields: { mode: "chat" } },
+      { url: "chat · http://user:pass@127.0.0.1:9/v1" },
+    );
+  } catch (e) { creds = e.message; }
+  ok(/credentials/.test(creds) && fetchedBad === 0,
+    "route-parsed embedded credentials are still refused");
 
   S.fetch = () => Promise.reject(Object.assign(new TypeError("Failed to fetch"), { name: "TypeError" }));
   let opaque = "";
