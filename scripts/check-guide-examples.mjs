@@ -69,19 +69,55 @@ if (hub.includes("The song after the last repair")) {
   fail("hub still titles sing as the last repair");
 }
 const omniHowTo = readFileSync(join(ROOT, "guide", "examples", "omni-flash-turntable.html"), "utf8");
-if (/Open this noodle — is the earlier water-bottle/i.test(omniHowTo) || /and Open this noodle — is the earlier water-bottle/i.test(omniHowTo) || /water-bottle|earlier bottle|saved clip is the earlier/i.test(omniHowTo)) {
+if (/Open this noodle — is the earlier water-bottle/i.test(omniHowTo) || /and Open this noodle — is the earlier water-bottle/i.test(omniHowTo) || /water-bottle|earlier bottle/i.test(omniHowTo)) {
   fail("omni-flash how-to still says Open this noodle is the bottle run");
 }
-if (!omniHowTo.includes("chrome motorcycle helmet")) {
-  fail("omni-flash how-to should name the chrome helmet first-click");
+if (/Orbit the chrome|Keep the chrome honest/i.test(omniHowTo)) {
+  fail("omni-flash how-to still uses the chrome-helmet first-click title");
+}
+if (/The reviewed clip matches/i.test(omniHowTo) || /saved clip is the chrome helmet on a charcoal plinth; the open graph matches/i.test(omniHowTo)) {
+  fail("omni-flash how-to still says the saved clip matches the first-click");
+}
+if (!/Volt/i.test(omniHowTo) || !/charcoal/i.test(omniHowTo) || !/cyan/i.test(omniHowTo)) {
+  fail("omni-flash how-to should pitch the Volt charcoal + cyan radio");
+}
+if (!/historical|helmet|not regenerated/i.test(omniHowTo)) {
+  fail("omni-flash how-to should say the saved MP4 is the earlier helmet sample");
+}
+if (!omniHowTo.includes("omni-flash-turntable/preview.webp")) {
+  fail("omni-flash how-to should show the Volt radio cover still");
 }
 const omniSample = samples.find((s) => s.slug === "omni-flash-turntable");
 if (!omniSample) fail("samples.json missing omni-flash-turntable");
+if (omniSample.preview !== "omni-flash-turntable/preview.webp") {
+  fail("omni-flash sample preview should be omni-flash-turntable/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "omni-flash-turntable", "preview.webp"))) {
+  fail("examples/gallery/omni-flash-turntable/preview.webp is missing");
+}
 if (/water-bottle|earlier water-bottle/i.test(omniSample.note)) {
   fail("omni-flash sample note still describes the water-bottle draft");
 }
-if (!/chrome motorcycle helmet/i.test(omniSample.note) || !/charcoal/i.test(omniSample.note)) {
-  fail("omni-flash sample note should describe the chrome helmet on charcoal plinth");
+if (/chrome motorcycle helmet/i.test(JSON.stringify(omniSample.inputs))) {
+  fail("omni-flash sample inputs still use the chrome helmet first-click");
+}
+if (!/Volt|night-ride radio|charcoal stone plinth|electric-cyan/i.test(JSON.stringify(omniSample.inputs))) {
+  fail("omni-flash sample inputs should pitch the Volt night-ride radio on a charcoal plinth");
+}
+if (!/helmet|historical|does not match|later regen|not regenerated/i.test(omniSample.note)) {
+  fail("omni-flash sample note should say the saved MP4 is the earlier helmet sample");
+}
+if (!/cover still/i.test(omniSample.note) || !/Volt|night-ride radio/i.test(omniSample.note) || !/charcoal/i.test(omniSample.note)) {
+  fail("omni-flash sample note should name the Volt night-ride cover still");
+}
+if (!hub.includes("omni-flash-turntable/preview.webp")) {
+  fail("hub should thumb the omni-flash-turntable Volt radio cover");
+}
+if (hub.includes("Orbit the chrome")) {
+  fail("hub still titles omni-flash-turntable as Orbit the chrome");
+}
+if (!hub.includes("Orbit the charcoal radio")) {
+  fail("hub should title omni-flash-turntable as Orbit the charcoal radio");
 }
 const singSample = samples.find((s) => s.slug === "sing");
 if (!singSample) fail("samples.json missing sing");
@@ -107,6 +143,15 @@ if (/No preview image was saved|No still preview/i.test(singHowTo)) {
   fail("sing how-to still says no preview / no still preview");
 }
 const examplesSrc = readFileSync(join(ROOT, "index.html"), "utf8");
+if (/slug:"omni-flash-turntable"[\s\S]{0,80}desc:"five seconds of a chrome helmet under hard light"/.test(examplesSrc)) {
+  fail("EXAMPLES omni-flash-turntable desc still uses the chrome helmet line");
+}
+if (!/slug:"omni-flash-turntable"[\s\S]{0,80}desc:"quarter-orbit, cyan rim on a night-ride radio"/.test(examplesSrc)) {
+  fail("EXAMPLES omni-flash-turntable desc should pitch quarter-orbit cyan rim on a night-ride radio");
+}
+if (!/slug:"omni-flash-turntable"[\s\S]{0,200}thumb:"examples\/gallery\/omni-flash-turntable\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES omni-flash-turntable thumb should be examples/gallery/omni-flash-turntable/preview.webp");
+}
 if (!/slug:"sing"[\s\S]{0,200}thumb:"examples\/gallery\/sing\/preview\.webp"/.test(examplesSrc)) {
   fail("EXAMPLES sing thumb should be examples/gallery/sing/preview.webp");
 }

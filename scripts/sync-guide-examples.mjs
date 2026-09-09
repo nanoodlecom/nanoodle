@@ -120,12 +120,12 @@ const HOWTO = {
     costHow: "The reviewed tea-mug clip reported $0.21 (Muse $0.01 + MiniMax H3 Spicy $0.20 at 480p / 5s). Cover still is card art. Prices and results vary.",
   },
   "omni-flash-turntable": {
-    headline: "Orbit the chrome",
-    job: "Orbit the object. Keep the chrome honest.",
-    purpose: "No upload. Describe the thing, pick one camera move, get a five-second draft. Open this noodle — and the editor first-click — is a chrome motorcycle helmet under hard rim light. The reviewed clip matches. Same knobs. A concept object, not a catalog SKU.",
+    headline: "Orbit the charcoal radio",
+    job: "Orbit the radio. Keep the cyan rim honest.",
+    purpose: "No upload. Describe the thing, pick one camera move, get a five-second draft. First-click is a matte-charcoal Volt pocket night-ride radio on a charcoal plinth — hard cyan rim, electric-cyan lightning chevron, dark studio void. Same knobs. A concept object, not a catalog SKU.",
     edit: "Rewrite <em>Object</em> and pick a <em>Move</em>. GLM Flash structures the brief; Omni Flash 1.1 renders 5 seconds at 360p / 16:9.",
-    inspect: "The move you picked happens once. Geometry stays stable. Count and colors match. 360p draft. The saved clip is the chrome helmet on a charcoal plinth; the open graph matches.",
-    costHow: "The reviewed run reported $0.195 for the video step, plus a small text call. Prices and results vary.",
+    inspect: "The move you picked happens once. Geometry stays stable. Count and colors match. 360p draft. Cover still is the Volt radio on a charcoal plinth. The saved Clip.mp4 is the earlier chrome motorcycle helmet sample — historical, not regenerated.",
+    costHow: "The reviewed helmet clip reported $0.195 for the video step, plus a small text call. Cover still is card art. Prices and results vary.",
   },
   "render-a-mockup": {
     headline: "A dispatch screen you can argue about",
