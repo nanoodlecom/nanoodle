@@ -85,6 +85,21 @@ if (/acoustic guitar|170-second generated song from the earlier cozy/i.test(sing
 if (!singSample.note.includes("I made it out, but the city wants me back")) {
   fail("sing sample note should quote the rooftop chorus");
 }
+if (singSample.preview !== "sing/preview.webp") {
+  fail("sing sample preview should be sing/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "sing", "preview.webp"))) {
+  fail("examples/gallery/sing/preview.webp is missing");
+}
+if (!hub.includes("sing/preview.webp")) {
+  fail("hub should thumb the sing rooftop cover");
+}
+if (!singHowTo.includes("sing/preview.webp")) {
+  fail("sing how-to should show the rooftop cover still");
+}
+if (/No preview image was saved|No still preview/i.test(singHowTo)) {
+  fail("sing how-to still says no preview / no still preview");
+}
 const faviconHowTo = readFileSync(join(ROOT, "guide", "examples", "favicon.html"), "utf8");
 if (/Lumen|weather radio|lighthouse|navy-and-gold/i.test(faviconHowTo)) {
   fail("favicon how-to still uses the Lumen weather-radio first-click");
