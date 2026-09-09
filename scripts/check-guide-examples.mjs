@@ -439,6 +439,9 @@ if (cutoutSample.preview !== "product-cutout/preview.webp") {
 if (!existsSync(join(ROOT, "examples", "gallery", "product-cutout", "preview.webp"))) {
   fail("examples/gallery/product-cutout/preview.webp is missing");
 }
+if (!existsSync(join(ROOT, "examples", "gallery", "product-cutout", "product-input.png"))) {
+  fail("examples/gallery/product-cutout/product-input.png is missing");
+}
 if (/workshop|warm-white|soft even studio|SAM 3|fal-ai\/birefnet/i.test(JSON.stringify(cutoutSample.inputs) + cutoutSample.note)) {
   fail("product-cutout sample still uses workshop, SAM 3, or fal-ai/birefnet language");
 }
@@ -451,8 +454,17 @@ if (cutoutSample.models.includes("fal-ai/birefnet/v2")) {
 if (!/cover still/i.test(cutoutSample.note) || !/no paid|not a paid/i.test(cutoutSample.note)) {
   fail("product-cutout sample note should say it is a cover still, not a paid BiRefNet QC cutout");
 }
+if (/card art/i.test(cutoutSample.note)) {
+  fail("product-cutout cover should be the reused Volt still, not generated card art");
+}
+if (!/pending/i.test(cutoutSample.note) || !/compositing|background cutout/i.test(cutoutSample.note)) {
+  fail("product-cutout sample note should say cover is a reused still pending BiRefNet QC, job is compositing cutout");
+}
 if (!/Volt|night-ride radio|cyan/i.test(cutoutSample.note)) {
   fail("product-cutout sample note should pitch the Volt night-ride radio");
+}
+if (!/reused|FIBO/i.test(cutoutSample.note + JSON.stringify(cutoutSample.inputs))) {
+  fail("product-cutout sample should say the product still is a reused FIBO Volt plate");
 }
 if (!/Clean product photo|relight|backdrop/i.test(cutoutSample.note)) {
   fail("product-cutout sample note should distinguish Clean product photo");
@@ -479,8 +491,14 @@ if (!/Volt/i.test(cutoutHowTo) || !/cyan/i.test(cutoutHowTo) || !/charcoal/i.tes
 if (!/birefnet\/v2/.test(cutoutHowTo)) {
   fail("product-cutout how-to should name birefnet/v2");
 }
-if (!/cover still|card art|no paid|not a paid/i.test(cutoutHowTo)) {
-  fail("product-cutout how-to should say the cover is card art, not a paid QC cutout");
+if (!/cover still|no paid|not a paid|pending/i.test(cutoutHowTo)) {
+  fail("product-cutout how-to should say the cover is a reused still pending BiRefNet QC");
+}
+if (/card art/i.test(cutoutHowTo)) {
+  fail("product-cutout how-to should not call the reused Volt still card art");
+}
+if (!/reused|FIBO/i.test(cutoutHowTo)) {
+  fail("product-cutout how-to should say the cover uses the reused FIBO Volt plate");
 }
 if (!cutoutHowTo.includes("product-cutout/preview.webp")) {
   fail("product-cutout how-to should show the cover still");
