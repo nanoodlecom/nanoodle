@@ -99,7 +99,7 @@ test('homepage pins use the same strict model, type and capability checks as gal
   assert.throws(() => starterModels({ nodes: [{ type: 'unknown' }] }, kinds), /unknown node type/);
 });
 
-test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefNet and InfiniteTalk pin regressions', async () => {
+test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefNet, InfiniteTalk and SAM 3 pin regressions', async () => {
   const { galleryRegressions } = await import('./check-example-models.mjs');
   const pins = [
     { slug: 'fibo-studio-still', ...pin('image', { model: 'bria/fibo-generate-1.5/text-to-image', size: '1mp' }) },
@@ -108,9 +108,10 @@ test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefN
     { slug: 'fable-five-step', ...pin('llm', { model: 'anthropic/claude-fable-5.1' }) },
     { slug: 'product-cutout', ...pin('edit', { model: 'birefnet/v2' }) },
     { slug: 'infinitetalk-radio-take', ...pin('lipsync', { model: 'infinitetalk', resolution: '480p', modelOpts: { people: 'single' } }) },
+    { slug: 'sam3-isolate', ...pin('edit', { model: 'sam3-image' }) },
   ];
   assert.equal(galleryRegressions(pins).length, 0);
-  assert.equal(galleryRegressions([]).length, 6);
+  assert.equal(galleryRegressions([]).length, 7);
   pins[0].fields.size = 'auto';
   assert.match(galleryRegressions(pins)[0].reason, /expected size 1mp/);
   pins[0].fields.size = '1mp';
@@ -120,6 +121,7 @@ test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefN
   pins[3].id = 'anthropic/claude-fable-5';
   pins[4].id = 'fal-ai/birefnet/v2';
   pins[5].id = 'wavespeed-ai/infinitetalk';
-  assert.equal(galleryRegressions(pins).length, 6);
+  pins[6].id = 'wavespeed-ai/sam3-image';
+  assert.equal(galleryRegressions(pins).length, 7);
   assert.ok(galleryRegressions(pins).every(p => /expected model/.test(p.reason)));
 });

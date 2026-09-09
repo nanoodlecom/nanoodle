@@ -1,0 +1,108 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 40,
+      "y": 20,
+      "w": 480,
+      "name": "Text-selected isolate",
+      "fields": {
+        "text": "Upload a cluttered scene still; SAM 3 (`sam3-image`) isolates a named object or region from a text prompt. Size auto, $0.005/image. First-click Isolate names the matte-charcoal Volt pocket night-ride radio with one electric-cyan lightning-bolt chevron in a cluttered courier desk or wet neon alley — this repo has no committed scene still, so upload that photo or any scene that contains the named object. This is text-selected isolate, not full background removal (use Product cutout / BiRefNet V2 for knocking out the whole background). Inspect the native SAM 3 isolate for the named object; Export preview is a local 1024 fit only.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "n1",
+      "type": "upload",
+      "x": 40,
+      "y": 320,
+      "w": 280,
+      "name": "Scene still",
+      "fields": {}
+    },
+    {
+      "id": "n2",
+      "type": "edit",
+      "x": 400,
+      "y": 300,
+      "w": 300,
+      "name": "Text-selected isolate",
+      "fields": {
+        "prompt": "",
+        "size": "auto",
+        "model": "sam3-image"
+      },
+      "sizes": {
+        "prompt": 0
+      }
+    },
+    {
+      "id": "n3",
+      "type": "text",
+      "x": 40,
+      "y": 560,
+      "w": 300,
+      "name": "Isolate",
+      "fields": {
+        "text": "the matte-charcoal Volt pocket night-ride radio with one electric-cyan lightning-bolt chevron"
+      }
+    },
+    {
+      "id": "n4",
+      "type": "resize",
+      "x": 780,
+      "y": 300,
+      "w": 280,
+      "name": "Export preview",
+      "fields": {
+        "mode": "fit",
+        "width": "1024",
+        "height": "1024"
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "n1",
+        "port": "image"
+      },
+      "to": {
+        "node": "n2",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "n3",
+        "port": "text"
+      },
+      "to": {
+        "node": "n2",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "n2",
+        "port": "image"
+      },
+      "to": {
+        "node": "n4",
+        "port": "image"
+      }
+    }
+  ],
+  "nid": 5,
+  "lid": 4,
+  "view": {
+    "panX": 20,
+    "panY": 40,
+    "scale": 0.8
+  }
+}

@@ -31,6 +31,7 @@ const catalogs = {
     image('bria/fibo-generate-1.5/text-to-image', ['1mp']),
     image('minimax-h3/text-to-image', ['1k', '2k']),
     image('birefnet/v2', ['auto'], true),
+    image('sam3-image', ['auto'], true),
   ],
   video: [
     { id: 'minimax-h3/image-to-video-spicy', capabilities: { image_to_video: true },
