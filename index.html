@@ -1351,6 +1351,8 @@ const I18N = {
     "lightning-cyan bolt that still reads at 16px":"un rayo cian que se lee incluso a 16px",
     "transparent brand sticker":"sticker de marca transparente",
     "cyan lightning chevron sticker — clean alpha, no letters":"sticker chevron relámpago cian — alpha limpio, sin letras",
+    "remove packaging text":"quitar texto de envase",
+    "Volt promo card — letters gone":"tarjeta promo Volt — sin letras",
     "strength":"intensidad",
     "Notes":"Notas",
     "Bold":"Negrita",
@@ -1988,6 +1990,8 @@ const I18N = {
     "lightning-cyan bolt that still reads at 16px":"un éclair cyan qui se lit encore à 16 px",
     "transparent brand sticker":"sticker de marque transparent",
     "cyan lightning chevron sticker — clean alpha, no letters":"sticker chevron éclair cyan — alpha propre, sans lettres",
+    "remove packaging text":"retirer le texte d’emballage",
+    "Volt promo card — letters gone":"carte promo Volt — plus de lettres",
     "strength":"intensité",
     "Notes":"Notes",
     "Bold":"Gras",
@@ -2625,6 +2629,8 @@ const I18N = {
     "lightning-cyan bolt that still reads at 16px":"ein cyanfarbener Blitz, der auch bei 16 px lesbar bleibt",
     "transparent brand sticker":"transparenter Markensticker",
     "cyan lightning chevron sticker — clean alpha, no letters":"Cyan-Blitz-Chevron-Sticker — sauberes Alpha, keine Buchstaben",
+    "remove packaging text":"Verpackungstext entfernen",
+    "Volt promo card — letters gone":"Volt-Promo-Karte — Buchstaben weg",
     "strength":"Stärke",
     "Notes":"Notizen",
     "Bold":"Fett",
@@ -3262,6 +3268,8 @@ const I18N = {
     "lightning-cyan bolt that still reads at 16px":"um raio ciano que ainda se lê em 16px",
     "transparent brand sticker":"adesivo de marca transparente",
     "cyan lightning chevron sticker — clean alpha, no letters":"adesivo chevron relâmpago ciano — alpha limpo, sem letras",
+    "remove packaging text":"remover texto da embalagem",
+    "Volt promo card — letters gone":"cartão promo Volt — sem letras",
     "strength":"intensidade",
     "Notes":"Notas",
     "Bold":"Negrito",
@@ -3899,6 +3907,8 @@ const I18N = {
     "lightning-cyan bolt that still reads at 16px":"16pxでも読めるシアンの稲妻",
     "transparent brand sticker":"透明ブランドステッカー",
     "cyan lightning chevron sticker — clean alpha, no letters":"電光シアンのシェブロンステッカー — きれいなアルファ、文字なし",
+    "remove packaging text":"パッケージ文字を消す",
+    "Volt promo card — letters gone":"Voltプロモカード — 文字なし",
     "strength":"強度",
     "Notes":"メモ",
     "Bold":"太字",
@@ -13652,6 +13662,15 @@ const EXAMPLES = [
    links:[ {id:"l1",from:{node:"n1",port:"image"},to:{node:"n2",port:"image"}},
            {id:"l2",from:{node:"n3",port:"text"},to:{node:"n2",port:"prompt"}},
            {id:"l3",from:{node:"n2",port:"image"},to:{node:"n4",port:"image"}} ] } },
+ { em:"🧽", slug:"remove-packaging-text", title:"remove packaging text", desc:"Volt promo card — letters gone",
+   thumb:"examples/gallery/remove-packaging-text/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:20,w:480,fields:{text:"Upload a flat graphic / packaging still; Ideogram V3 Remove Text (`ideogram-v3-remove-text`) strips lettering while preserving the surrounding design. Size auto, $0.09/image. First-click story is a flat Volt pocket night-ride radio packaging / promo card (matte charcoal field, one electric-cyan lightning-bolt chevron) with unwanted promotional lettering — this repo has no committed still, so upload that card or any lettered graphic. NOT Clean product photo (Muse Edit relight), NOT Product cutout (BiRefNet bg knock-out), NOT Text-selected isolate (SAM 3), NOT P-Image Upscale, and NOT Transparent brand sticker (text→transparent). The edit prompt is a runner instruction (catalog is image-only). Inspect the native cleanup; Export preview is a local 1024 fit only.",color:"yellow"},name:"Remove packaging text"},
+           {id:"n1",type:"upload",x:40,y:300,w:280,fields:{},name:"Packaging still"},
+           {id:"n2",type:"edit",x:400,y:280,w:300,fields:{prompt:"Remove all lettering, captions, watermarks and promotional text from this flat graphic. Preserve the exact product/artwork, materials, colors, marks and composition. Fill removed text regions so the design looks continuous. Do not restyle, recolor, invent props, or change layout.",size:"auto",model:"ideogram-v3-remove-text"},name:"Remove lettering"},
+           {id:"n3",type:"resize",x:780,y:280,w:280,fields:{mode:"fit",width:"1024",height:"1024"},name:"Export preview"} ],
+   links:[ {id:"l1",from:{node:"n1",port:"image"},to:{node:"n2",port:"image"}},
+           {id:"l2",from:{node:"n2",port:"image"},to:{node:"n3",port:"image"}} ] } },
  { em:"🔎", slug:"p-image-upscale", title:"p-image upscale", desc:"same cyan lightning radio, twice the pixels",
    thumb:"examples/gallery/p-image-upscale/preview.webp",
    graph:{ v:1,
@@ -13886,7 +13905,7 @@ function openExamples(){
   // Same Elo order on every width — no mobile-only list, no CSS order, no truncation.
   // Featured #skilloutcome (Iron Verdict) sits above the grid on every width.
   // Compact mobile cards keep H3 (4th) and the featured game above the fold.
-  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","render-a-mockup","favicon","transparent-brand-sticker","photo-to-video","h3-max-multi-angle","character-sprites","talking-avatar","infinitetalk-radio-take","sing","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
+  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","photo-to-video","h3-max-multi-angle","character-sprites","talking-avatar","infinitetalk-radio-take","sing","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
   EXAMPLES.map((ex,i)=>({ex,i})).sort((a,b)=>{
     const rank=slug=>first.includes(slug)?first.indexOf(slug):first.length;
     return rank(a.ex.slug)-rank(b.ex.slug);

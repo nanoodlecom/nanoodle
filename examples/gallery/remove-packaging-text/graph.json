@@ -1,0 +1,83 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 40,
+      "y": 20,
+      "w": 480,
+      "name": "Remove packaging text",
+      "fields": {
+        "text": "Upload a flat graphic / packaging still; Ideogram V3 Remove Text (`ideogram-v3-remove-text`) strips lettering while preserving the surrounding design. Size auto, $0.09/image. First-click story is a flat Volt pocket night-ride radio packaging / promo card (matte charcoal field, one electric-cyan lightning-bolt chevron) with unwanted promotional lettering — this repo has no committed still, so upload that card or any lettered graphic. NOT Clean product photo (Muse Edit relight), NOT Product cutout (BiRefNet bg knock-out), NOT Text-selected isolate (SAM 3), NOT P-Image Upscale, and NOT Transparent brand sticker (text→transparent). The edit prompt is a runner instruction (catalog is image-only). Inspect the native cleanup; Export preview is a local 1024 fit only.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "n1",
+      "type": "upload",
+      "x": 40,
+      "y": 300,
+      "w": 280,
+      "name": "Packaging still",
+      "fields": {}
+    },
+    {
+      "id": "n2",
+      "type": "edit",
+      "x": 400,
+      "y": 280,
+      "w": 300,
+      "name": "Remove lettering",
+      "fields": {
+        "prompt": "Remove all lettering, captions, watermarks and promotional text from this flat graphic. Preserve the exact product/artwork, materials, colors, marks and composition. Fill removed text regions so the design looks continuous. Do not restyle, recolor, invent props, or change layout.",
+        "size": "auto",
+        "model": "ideogram-v3-remove-text"
+      }
+    },
+    {
+      "id": "n3",
+      "type": "resize",
+      "x": 780,
+      "y": 280,
+      "w": 280,
+      "name": "Export preview",
+      "fields": {
+        "mode": "fit",
+        "width": "1024",
+        "height": "1024"
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "n1",
+        "port": "image"
+      },
+      "to": {
+        "node": "n2",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "n2",
+        "port": "image"
+      },
+      "to": {
+        "node": "n3",
+        "port": "image"
+      }
+    }
+  ],
+  "nid": 4,
+  "lid": 3,
+  "view": {
+    "panX": 20,
+    "panY": 40,
+    "scale": 0.85
+  }
+}

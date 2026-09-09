@@ -1221,6 +1221,92 @@ if (/birefnet|sam3-image|pruna-ai\/p-image/.test(stickerCard)) {
 if (/type:"llm"|type:"upload"/.test(stickerCard)) {
   fail("EXAMPLES transparent-brand-sticker must stay text Brand brief → image Sticker (no LLM, no upload)");
 }
+const packSample = samples.find((s) => s.slug === "remove-packaging-text");
+if (!packSample) fail("samples.json missing remove-packaging-text");
+if (packSample.preview !== "remove-packaging-text/preview.webp") {
+  fail("remove-packaging-text sample preview should be remove-packaging-text/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "remove-packaging-text", "preview.webp"))) {
+  fail("examples/gallery/remove-packaging-text/preview.webp is missing");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "remove-packaging-text", "packaging-input.webp"))) {
+  fail("examples/gallery/remove-packaging-text/packaging-input.webp is missing");
+}
+if (!/ideogram-v3-remove-text/.test(JSON.stringify(packSample.models))) {
+  fail("remove-packaging-text sample should pin ideogram-v3-remove-text");
+}
+if (!/cover|reused Volt night-ride poster|image-model-arena/i.test(packSample.note) || !/no paid|pending/i.test(packSample.note)) {
+  fail("remove-packaging-text sample note should say cover is reused Volt poster art and Ideogram QC is pending");
+}
+if (!/lettering|packaging|promo/i.test(packSample.note)) {
+  fail("remove-packaging-text sample note should say the job is lettering cleanup");
+}
+if (!/Muse Edit|BiRefNet|SAM 3|P-Image|transparent sticker/i.test(packSample.note)) {
+  fail("remove-packaging-text sample note should distinguish Muse Edit, BiRefNet, SAM 3, P-Image Upscale, and transparent sticker");
+}
+if (!/runner instruction|image-only/i.test(packSample.note)) {
+  fail("remove-packaging-text sample note should say the edit prompt is a runner instruction");
+}
+if (!hub.includes("remove-packaging-text/preview.webp")) {
+  fail("hub should thumb the remove-packaging-text cover");
+}
+if (!hub.includes("Letters off the card")) {
+  fail("hub should title remove-packaging-text as Letters off the card");
+}
+const packHowTo = readFileSync(join(ROOT, "guide", "examples", "remove-packaging-text.html"), "utf8");
+if (!/ideogram-v3-remove-text/.test(packHowTo)) {
+  fail("remove-packaging-text how-to should name ideogram-v3-remove-text");
+}
+if (!/Volt/i.test(packHowTo) || !/cyan/i.test(packHowTo) || !/charcoal/i.test(packHowTo)) {
+  fail("remove-packaging-text how-to should pitch the Volt charcoal + cyan promo card");
+}
+if (!/lettering|letters/i.test(packHowTo)) {
+  fail("remove-packaging-text how-to should say this strips lettering");
+}
+if (!/Muse Edit|BiRefNet|SAM 3|P-Image|transparent sticker/i.test(packHowTo)) {
+  fail("remove-packaging-text how-to should distinguish Muse Edit, BiRefNet, SAM 3, P-Image Upscale, and transparent sticker");
+}
+if (!/reused Volt promo-card art|no paid|pending/i.test(packHowTo)) {
+  fail("remove-packaging-text how-to should say the cover is reused Volt promo-card art and Ideogram QC is pending");
+}
+if (!/runner instruction|image-only/i.test(packHowTo)) {
+  fail("remove-packaging-text how-to should say the edit prompt is a runner instruction");
+}
+if (!packHowTo.includes("remove-packaging-text/preview.webp")) {
+  fail("remove-packaging-text how-to should show the cover still");
+}
+if (!/slug:"remove-packaging-text"[\s\S]{0,200}thumb:"examples\/gallery\/remove-packaging-text\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES remove-packaging-text thumb should be examples/gallery/remove-packaging-text/preview.webp");
+}
+if (!/slug:"remove-packaging-text"[\s\S]{0,80}desc:"Volt promo card — letters gone"/.test(examplesSrc)) {
+  fail("EXAMPLES remove-packaging-text desc should pitch Volt promo card — letters gone");
+}
+if (!/slug:"remove-packaging-text"[\s\S]{0,80}title:"remove packaging text"/.test(examplesSrc)) {
+  fail("EXAMPLES remove-packaging-text title should be remove packaging text");
+}
+const packCard = examplesSrc.match(/slug:"remove-packaging-text"[\s\S]{0,2800}/)?.[0] || "";
+if (!/ideogram-v3-remove-text/.test(packCard)) {
+  fail("EXAMPLES remove-packaging-text graph should pin ideogram-v3-remove-text");
+}
+if (!/size:"auto"/.test(packCard)) {
+  fail("EXAMPLES remove-packaging-text graph should pin size auto");
+}
+if (!/name:"Packaging still"/.test(packCard) || !/name:"Remove lettering"/.test(packCard) || !/name:"Export preview"/.test(packCard)) {
+  fail("EXAMPLES remove-packaging-text should be Packaging still → Remove lettering → Export preview");
+}
+const packEdit = packCard.match(/\{id:"n2",type:"edit"[\s\S]*?name:"Remove lettering"\}/)?.[0] || "";
+if (!packEdit) {
+  fail("EXAMPLES remove-packaging-text should have edit node n2 Remove lettering");
+}
+if (!/model:"ideogram-v3-remove-text"/.test(packEdit) || !/size:"auto"/.test(packEdit)) {
+  fail("EXAMPLES remove-packaging-text edit node should pin ideogram-v3-remove-text at auto");
+}
+if (/birefnet|sam3-image|pruna-ai\/p-image|ideogram-v3-generate-transparent|meta\/muse-image/.test(packEdit)) {
+  fail("EXAMPLES remove-packaging-text edit node must not pin Muse Edit, BiRefNet, SAM 3, P-Image Upscale, or transparent sticker");
+}
+if (/type:"llm"/.test(packCard)) {
+  fail("EXAMPLES remove-packaging-text must stay upload → edit → resize (no LLM)");
+}
 for (const slug of slugs) {
   const page = readFileSync(join(ROOT, "guide", "examples", slug === "iron-verdict" ? "iron-verdict.html" : `${slug}.html`), "utf8");
   if (page.includes("how to use this noodle")) {
