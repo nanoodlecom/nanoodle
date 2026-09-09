@@ -92,7 +92,7 @@ const HOWTO = {
     job: "Volt radio. Transparent. Ready to drop.",
     purpose: "Upload a product still. BiRefNet V2 knocks the background and keeps the fine edges — a transparent cutout for compositing, not a relit catalog. First-click is Volt — matte charcoal pocket night-ride radio, electric-cyan lightning chevron, dark slate / hard cyan rim. Distinct from Clean product photo, which relights and replaces the backdrop. Not SAM 3.",
     edit: "Drop your still on <em>Product still</em>. Leave <em>Transparent cutout</em> on <code>birefnet/v2</code> unless you mean to change models. <em>Export preview</em> is a local 1024 fit.",
-    inspect: "Cover still is card art for the Volt first-click — an isolated night-ride radio, not a paid BiRefNet QC cutout. The product still is the reused FIBO Volt plate. Open the graph and hit Run with your key after you upload a still. Inspect the native cutout for silhouette and edge detail. Export preview is a local 1024 fit only.",
+    inspect: "Cover still is the reused FIBO Volt plate, pending a true BiRefNet V2 QC cutout — no paid birefnet/v2 run this PR, not a fabricated cutout. Open the graph and hit Run with your key after you upload a still. Inspect the native cutout for silhouette and edge detail. Export preview is a local 1024 fit only.",
     costHow: "Listed at $0.01 for one BiRefNet V2 call at auto. Local resize is $0. No LLM. Prices and results vary. This page has no reviewed first-party cutout yet.",
   },
   "combine-images": {
