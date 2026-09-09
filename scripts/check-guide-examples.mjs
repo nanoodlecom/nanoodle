@@ -439,6 +439,9 @@ if (cutoutSample.preview !== "product-cutout/preview.webp") {
 if (!existsSync(join(ROOT, "examples", "gallery", "product-cutout", "preview.webp"))) {
   fail("examples/gallery/product-cutout/preview.webp is missing");
 }
+if (!existsSync(join(ROOT, "examples", "gallery", "product-cutout", "product-input.png"))) {
+  fail("examples/gallery/product-cutout/product-input.png is missing");
+}
 if (/workshop|warm-white|soft even studio|SAM 3|fal-ai\/birefnet/i.test(JSON.stringify(cutoutSample.inputs) + cutoutSample.note)) {
   fail("product-cutout sample still uses workshop, SAM 3, or fal-ai/birefnet language");
 }
@@ -453,6 +456,9 @@ if (!/cover still/i.test(cutoutSample.note) || !/no paid|not a paid/i.test(cutou
 }
 if (!/Volt|night-ride radio|cyan/i.test(cutoutSample.note)) {
   fail("product-cutout sample note should pitch the Volt night-ride radio");
+}
+if (!/reused|FIBO/i.test(cutoutSample.note + JSON.stringify(cutoutSample.inputs))) {
+  fail("product-cutout sample should say the product still is a reused FIBO Volt plate");
 }
 if (!/Clean product photo|relight|backdrop/i.test(cutoutSample.note)) {
   fail("product-cutout sample note should distinguish Clean product photo");
