@@ -74,6 +74,7 @@ export function galleryRegressions(pins) {
     { slug: 'infinitetalk-radio-take', type: 'lipsync', model: 'infinitetalk', resolution: '480p', people: 'single' },
     { slug: 'sam3-isolate', type: 'edit', model: 'sam3-image' },
     { slug: 'p-image-upscale', type: 'edit', model: 'pruna-ai/p-image/upscale', size: '2' },
+    { slug: 'deslop', type: 'llm', model: 'venice-uncensored' },
     { slug: 'h3-max-multi-angle', type: 'ivideo', model: 'minimax/h3-max/multi-angle/image-to-video', resolution: '480p', duration: '5', camera_motion: 'orbit-right' },
   ];
   return expected.flatMap(({ slug, type, model, size, resolution, people, duration, camera_motion }) => {
