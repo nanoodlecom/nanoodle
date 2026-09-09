@@ -80,12 +80,12 @@ const HOWTO = {
     costHow: "The reviewed run reported $0.02 ($0.02/image at 1K). Prices and results vary.",
   },
   "edit-a-photo": {
-    headline: "Catalog-clean. Same product.",
-    job: "Catalog-clean. Same product.",
-    purpose: "Keep the object. Lose the clutter. Start here when you already have a shot — or a generated still — of the thing.",
-    edit: "Drop your photo on <em>Product photo</em>. Tighten <em>Edit request</em> if the default catalog brief is wrong. Muse Edit uses both.",
-    inspect: "Shape, color, materials, markings, visible text — compare them to the source. Check real product marks before you publish a generated edit.",
-    costHow: "The reviewed run reported $0.01 ($0.01/image). Prices and results vary.",
+    headline: "Cool catalog. Same product.",
+    job: "Charcoal paper. Cyan rim.",
+    purpose: "Keep the object. Lose the clutter. Start here when you already have a shot — or a generated still — of the thing. First-click is a cool night-ride catalog: matte charcoal seamless, hard electric-cyan rim, soft magenta bounce.",
+    edit: "Drop your photo on <em>Product photo</em>. Tighten <em>Edit request</em> if the default cool-catalog brief is wrong. Muse Edit uses both.",
+    inspect: "Shape, color, materials, markings, visible text — compare them to the source. Check real product marks before you publish a generated edit. Cover still is a Volt night-ride radio on charcoal. The saved Clean_product_photo.webp and product-input.png are the earlier 5 September warm-white amber-bottle sample — historical, not regenerated.",
+    costHow: "The reviewed warm-white bottle run reported $0.01 ($0.01/image). Cover still is card art. Prices and results vary.",
   },
   "combine-images": {
     headline: "Drop it in the room",

@@ -338,6 +338,54 @@ if (/slug:"talking-avatar"[\s\S]{0,80}desc:"the bike-shop lead looks at camera/.
 if (!/slug:"talking-avatar"[\s\S]{0,80}desc:"the night dispatcher looks at camera and keeps the cyan channel clear"/.test(examplesSrc)) {
   fail("EXAMPLES talking-avatar desc should pitch the night dispatcher and cyan channel");
 }
+const editSample = samples.find((s) => s.slug === "edit-a-photo");
+if (!editSample) fail("samples.json missing edit-a-photo");
+if (editSample.preview !== "edit-a-photo/preview.webp") {
+  fail("edit-a-photo sample preview should be edit-a-photo/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "edit-a-photo", "preview.webp"))) {
+  fail("examples/gallery/edit-a-photo/preview.webp is missing");
+}
+if (/warm-white|soft even studio|clean warm-white seamless/i.test(JSON.stringify(editSample.inputs))) {
+  fail("edit-a-photo sample inputs still use the warm-white studio first-click");
+}
+if (!/cool night-ride catalog|matte charcoal seamless|electric-cyan rim/i.test(JSON.stringify(editSample.inputs))) {
+  fail("edit-a-photo sample inputs should pitch the cool night-ride catalog cleanup");
+}
+if (!/warm-white|amber-bottle|does not match|later regen|not regenerated/i.test(editSample.note)) {
+  fail("edit-a-photo sample note should say the saved bottle edit is the earlier warm-white sample");
+}
+if (!/cover still/i.test(editSample.note) || !/charcoal/i.test(editSample.note) || !/cyan/i.test(editSample.note)) {
+  fail("edit-a-photo sample note should name the charcoal + cyan cover still");
+}
+if (!hub.includes("edit-a-photo/preview.webp")) {
+  fail("hub should thumb the edit-a-photo cool-catalog cover");
+}
+if (hub.includes("Catalog-clean. Same product.") && !hub.includes("Cool catalog. Same product.")) {
+  fail("hub still titles edit-a-photo as Catalog-clean. Same product.");
+}
+if (!hub.includes("Cool catalog. Same product.")) {
+  fail("hub should title edit-a-photo as Cool catalog. Same product.");
+}
+const editHowTo = readFileSync(join(ROOT, "guide", "examples", "edit-a-photo.html"), "utf8");
+if (/soft even studio|clean warm-white seamless|Catalog-clean\. Same product/i.test(editHowTo)) {
+  fail("edit-a-photo how-to still uses the warm-white studio first-click");
+}
+if (!/night-ride catalog|charcoal/i.test(editHowTo) || !/cyan/i.test(editHowTo)) {
+  fail("edit-a-photo how-to should pitch the cool night-ride catalog cleanup");
+}
+if (!/historical|warm-white|amber-bottle|not regenerated/i.test(editHowTo)) {
+  fail("edit-a-photo how-to should say the saved bottle edit is the earlier warm-white sample");
+}
+if (!/slug:"edit-a-photo"[\s\S]{0,200}thumb:"examples\/gallery\/edit-a-photo\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES edit-a-photo thumb should be examples/gallery/edit-a-photo/preview.webp");
+}
+if (/slug:"edit-a-photo"[\s\S]{0,80}desc:"same bottle, clean paper, catalog-ready"/.test(examplesSrc)) {
+  fail("EXAMPLES edit-a-photo desc still uses the warm-white bottle line");
+}
+if (!/slug:"edit-a-photo"[\s\S]{0,80}desc:"matte charcoal, cyan rim — same product, night-ride ready"/.test(examplesSrc)) {
+  fail("EXAMPLES edit-a-photo desc should pitch matte charcoal and cyan rim");
+}
 for (const slug of slugs) {
   const page = readFileSync(join(ROOT, "guide", "examples", slug === "iron-verdict" ? "iron-verdict.html" : `${slug}.html`), "utf8");
   if (page.includes("how to use this noodle")) {
