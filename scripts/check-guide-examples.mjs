@@ -386,6 +386,57 @@ if (/slug:"edit-a-photo"[\s\S]{0,80}desc:"same bottle, clean paper, catalog-read
 if (!/slug:"edit-a-photo"[\s\S]{0,80}desc:"matte charcoal, cyan rim — same product, night-ride ready"/.test(examplesSrc)) {
   fail("EXAMPLES edit-a-photo desc should pitch matte charcoal and cyan rim");
 }
+const combineSample = samples.find((s) => s.slug === "combine-images");
+if (!combineSample) fail("samples.json missing combine-images");
+if (combineSample.preview !== "combine-images/preview.webp") {
+  fail("combine-images sample preview should be combine-images/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "combine-images", "preview.webp"))) {
+  fail("examples/gallery/combine-images/preview.webp is missing");
+}
+if (/Place the product from image 1 naturally into the setting from image 2|Remove neither structural elements nor existing furniture|warm-white|soft even studio/i.test(JSON.stringify(combineSample.inputs))) {
+  fail("combine-images sample inputs still use the generic product-in-setting first-click");
+}
+if (!/Volt pocket night-ride radio|wet night alley|neon wet-asphalt|electric-cyan lightning/i.test(JSON.stringify(combineSample.inputs))) {
+  fail("combine-images sample inputs should pitch Volt night-ride placement in a wet neon alley");
+}
+if (!/amber-bottle|tea-desk|does not match|later regen|not regenerated/i.test(combineSample.note)) {
+  fail("combine-images sample note should say the saved bottle/desk composite is the earlier sample");
+}
+if (!/cover still/i.test(combineSample.note) || !/wet neon alley/i.test(combineSample.note) || !/cyan/i.test(combineSample.note)) {
+  fail("combine-images sample note should name the wet neon alley cover still");
+}
+if (!hub.includes("combine-images/preview.webp")) {
+  fail("hub should thumb the combine-images night-ride cover");
+}
+if (hub.includes("Drop it in the room") && !hub.includes("Drop it in the alley")) {
+  fail("hub still titles combine-images as Drop it in the room");
+}
+if (!hub.includes("Drop it in the alley")) {
+  fail("hub should title combine-images as Drop it in the alley");
+}
+const combineHowTo = readFileSync(join(ROOT, "guide", "examples", "combine-images.html"), "utf8");
+if (/Drop it in the room|Preview the bottle on the desk|book the studio|default rules are wrong for your pair/i.test(combineHowTo)) {
+  fail("combine-images how-to still uses the generic desk / room first-click");
+}
+if (!/wet neon alley|Volt radio/i.test(combineHowTo) || !/cyan/i.test(combineHowTo)) {
+  fail("combine-images how-to should pitch Volt night-ride placement in a wet neon alley");
+}
+if (!/historical|amber-bottle|tea-desk|not regenerated/i.test(combineHowTo)) {
+  fail("combine-images how-to should say the saved bottle/desk composite is the earlier sample");
+}
+if (!/slug:"combine-images"[\s\S]{0,200}thumb:"examples\/gallery\/combine-images\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES combine-images thumb should be examples/gallery/combine-images/preview.webp");
+}
+if (/slug:"combine-images"[\s\S]{0,80}desc:"drop your product onto someone else's table"/.test(examplesSrc)) {
+  fail("EXAMPLES combine-images desc still uses the generic table line");
+}
+if (!/slug:"combine-images"[\s\S]{0,80}desc:"Volt radio on wet neon asphalt"/.test(examplesSrc)) {
+  fail("EXAMPLES combine-images desc should pitch Volt radio on wet neon asphalt");
+}
+if (/Place the product from image 1 naturally into the setting from image 2|Remove neither structural elements nor existing furniture/i.test(examplesSrc.match(/slug:"combine-images"[\s\S]{0,1800}/)?.[0] || "")) {
+  fail("EXAMPLES combine-images first-click still uses the generic product-in-setting brief");
+}
 const arenaSample = samples.find((s) => s.slug === "image-model-arena");
 if (!arenaSample) fail("samples.json missing image-model-arena");
 if (arenaSample.preview !== "image-model-arena/preview.webp") {
