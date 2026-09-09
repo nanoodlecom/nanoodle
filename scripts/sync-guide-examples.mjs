@@ -42,12 +42,8 @@ const HOWTO = {
     job: "Pick a shape. Get a plan.",
     purpose: "A messy coding dump and a Choice — five numbered steps, a GitHub PR body, or failing-test first. Claude Fable 5.1 writes that shape. One text call. The invoices crime scene is filled so first-click has something to chew; swap the dump.",
     edit: "Paste your dump into <em>Messy dump</em>. Pick a <em>Shape</em>. Leave Fable 5.1 unless you mean to change models.",
-    inspect: "Reviewed sample is not saved yet. Open the graph and hit Run with your key. The plan should follow the selected shape, name files and functions, and stay under 180 words. This stub skipped paid QC.",
+    inspect: "Cover still is card art for the Choice→Fable first-click — messy invoices dump becoming a five-step plan, not a paid Fable QC transcript. Open the graph and hit Run with your key. The plan should follow the selected shape, name files and functions, and stay under 180 words.",
     costHow: "Listed at about $0.02 for one Fable 5.1 call at reasoning low / 512 tokens. Prices and results vary. This page has no reviewed first-party run yet.",
-    skipPreview: true,
-    skipHeroMedia: true,
-    thumbLabel: "messy dump → plan",
-    swapNotice: "Reviewed plan incoming — open the graph. Choice picks the shape; Fable 5.1 writes it.",
   },
   deslop: {
     headline: "Kill the AI voice",
