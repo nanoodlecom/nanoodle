@@ -71,12 +71,15 @@ export function galleryRegressions(pins) {
     { slug: 'omni-flash-turntable', type: 'tvideo', model: 'google/gemini-omni-flash/v1.1' },
     { slug: 'fable-five-step', type: 'llm', model: 'anthropic/claude-fable-5.1' },
     { slug: 'product-cutout', type: 'edit', model: 'birefnet/v2' },
+    { slug: 'infinitetalk-radio-take', type: 'lipsync', model: 'infinitetalk', resolution: '480p', people: 'single' },
   ];
-  return expected.flatMap(({ slug, type, model, size }) => {
+  return expected.flatMap(({ slug, type, model, size, resolution, people }) => {
     const pin = pins.find(p => p.slug === slug && p.type === type);
     if (!pin) return [{ slug, type, reason: 'required gallery card missing' }];
     if (pin.id !== model) return [{ ...pin, reason: `gallery regression: expected model ${model}` }];
     if (size && pin.fields.size !== size) return [{ ...pin, reason: `gallery regression: expected size ${size}` }];
+    if (resolution && pin.fields.resolution !== resolution) return [{ ...pin, reason: `gallery regression: expected resolution ${resolution}` }];
+    if (people && pin.fields.modelOpts?.people !== people) return [{ ...pin, reason: `gallery regression: expected people ${people}` }];
     return [];
   });
 }
@@ -105,6 +108,9 @@ export function auditPins(pins, catalogs, rules = {}) {
     const needsSrc = rules.needsSource?.has(pin.id) || /upscal|inpaint|image-to-image|img2img/i.test(pin.id);
     const mask = /inpaint/i.test(pin.id), input = mod.split('->')[0].split('+');
     const tts = !!c.text_to_speech || model.category === 'audio_tts';
+    const options = param => param?.options?.map(o => o.value).filter(v => v != null);
+    const peopleOpts = options(pp.people);
+    const canSingle = peopleOpts?.includes('single');
     const capabilities = pin.kind === 'image' ? {
       gen: !needsSrc && (mod ? mod.startsWith('text') : !c.image_to_image),
       edit: !mask && (needsSrc || !!c.image_to_image),
@@ -112,7 +118,7 @@ export function auditPins(pins, catalogs, rules = {}) {
     } : pin.kind === 'video' ? {
       t2v: c.text_to_video && !(input.includes('video') && !input.includes('image')),
       i2v: c.image_to_video, v2v: c.video_to_video,
-      avatar: c.image_to_video && c.audio_input && !('left_audio' in pp || 'right_audio' in pp),
+      avatar: c.image_to_video && c.audio_input && !(('left_audio' in pp || 'right_audio' in pp) && !canSingle),
     } : pin.kind === 'audio' ? {
       tts, music: !tts && mod.startsWith('text') && /audio|music/.test(mod.split('->')[1] || '') && !/lyric|describe|recognize|stem|clone|upload|cover|extend|inpaint/i.test(pin.id),
       stt: (c.speech_to_text || model.category === 'audio_stt') && !/clone/i.test(pin.id),
@@ -120,17 +126,20 @@ export function auditPins(pins, catalogs, rules = {}) {
     } : {};
     if (pin.filter && pin.filter in capabilities && !capabilities[pin.filter]) fail(`does not support ${pin.type} (${pin.filter})`);
     const fields = pin.fields;
-    const check = (field, options) => {
+    const check = (field, listed) => {
       const value = fields[field];
-      if (value == null || value === '' || !options?.length) return;
-      if (!options.some(option => String(option) === String(value))) fail(`unsupported ${field}=${JSON.stringify(value)}; supported: ${options.join(', ')}`);
+      if (value == null || value === '' || !listed?.length) return;
+      if (!listed.some(option => String(option) === String(value))) fail(`unsupported ${field}=${JSON.stringify(value)}; supported: ${listed.join(', ')}`);
     };
-    const options = param => param?.options?.map(o => o.value).filter(v => v != null);
     if (pin.kind === 'image') check('size', sp.resolutions);
     if (pin.kind === 'video') {
       check('resolution', options(pp.resolution));
       check('duration', options(pp.duration || pp.seconds));
       check('aspect', options(pp.aspect_ratio || pp.orientation || pp.resolution_ratio));
+      const people = fields.modelOpts?.people;
+      if (people != null && people !== '' && peopleOpts?.length && !peopleOpts.some(option => String(option) === String(people))) {
+        fail(`unsupported people=${JSON.stringify(people)}; supported: ${peopleOpts.join(', ')}`);
+      }
     }
     if (pin.kind === 'audio') {
       check('voice', sp.voices);

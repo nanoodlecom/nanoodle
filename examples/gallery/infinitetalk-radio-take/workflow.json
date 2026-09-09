@@ -1,0 +1,130 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 60,
+      "y": -180,
+      "w": 540,
+      "name": "Night-ride radio take",
+      "fields": {
+        "text": "Still + audio → InfiniteTalk speaking/singing video (lips + body). Not the talking-avatar graph (Muse → MiniMax Speech → LongCat). Keep audio under ~15 s for a cheap first-click. Cost: InfiniteTalk from ~$0.09 (duration/resolution); Muse ~$0.01; Speech only if you keep the bootstrap. Inspect body motion and lip timing — this model follows the sound, it does not invent a TTS script.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "n0",
+      "type": "text",
+      "x": 60,
+      "y": 60,
+      "w": 300,
+      "name": "Still brief",
+      "fields": {
+        "text": "Mid-shot fictional night courier, late 20s, matte charcoal jacket with one electric-cyan lightning-chevron, pocket Volt radio held chest-high in one hand, unobstructed face/mouth, rain-slick rooftop ledge, magenta rim + cyan bounce, charcoal void. Locked camera. No helmet, glasses, logos, letters, or second person."
+      }
+    },
+    {
+      "id": "n1",
+      "type": "image",
+      "x": 420,
+      "y": 60,
+      "name": "Still",
+      "fields": {
+        "model": "meta/muse-image/text-to-image",
+        "size": "1:1",
+        "variations": "1"
+      }
+    },
+    {
+      "id": "n2",
+      "type": "text",
+      "x": 60,
+      "y": 400,
+      "w": 300,
+      "name": "Radio take",
+      "fields": {
+        "text": "Ridge is wet. Volt-07 on the ledge. Pocket radio live. I'm holding this channel."
+      }
+    },
+    {
+      "id": "n3",
+      "type": "tts",
+      "x": 420,
+      "y": 400,
+      "name": "Speech bootstrap",
+      "fields": {
+        "model": "Minimax-Speech-2.8-HD",
+        "voice": "Deep_Voice_Man",
+        "response_format": "mp3"
+      }
+    },
+    {
+      "id": "n4",
+      "type": "lipsync",
+      "x": 800,
+      "y": 200,
+      "name": "InfiniteTalk",
+      "fields": {
+        "model": "infinitetalk",
+        "resolution": "480p",
+        "modelOpts": {
+          "people": "single"
+        }
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l0",
+      "from": {
+        "node": "n0",
+        "port": "text"
+      },
+      "to": {
+        "node": "n1",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l1",
+      "from": {
+        "node": "n2",
+        "port": "text"
+      },
+      "to": {
+        "node": "n3",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "n1",
+        "port": "image"
+      },
+      "to": {
+        "node": "n4",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "n3",
+        "port": "audio"
+      },
+      "to": {
+        "node": "n4",
+        "port": "audio"
+      }
+    }
+  ],
+  "nid": 6,
+  "lid": 4,
+  "view": {
+    "panX": 40,
+    "panY": 220,
+    "scale": 0.8
+  }
+}

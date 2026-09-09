@@ -9300,7 +9300,9 @@ const PROMPT_CAPS = {
       case "ivideo":     return !!c.image_to_video;
       case "vedit":      return !!c.video_to_video;
       case "lipsync":    { const sp = m.supported_parameters||{}, pp = sp.parameters||sp;
-                           const multiAudio = "left_audio" in pp || "right_audio" in pp;   // multi-speaker avatars need two tracks — the single audio input can't drive them (mirrors the editor's normVideo)
+                           const peopleOpts = ((pp.people && pp.people.options) || []).map(o => o && o.value).filter(Boolean);
+                           const canSingle = peopleOpts.includes("single");
+                           const multiAudio = ("left_audio" in pp || "right_audio" in pp) && !canSingle;   // multi-speaker-only avatars need two tracks; InfiniteTalk people=single still uses one audio input (mirrors the editor's normVideo)
                            return !!c.image_to_video && !!c.audio_input && !multiAudio; }
       case "tts":        return !!c.text_to_speech || m.category==="audio_tts";
       case "music":      { const am = mod.split("->")[0].split("+");   // cover/extend models are text+audio-> and demand a source track — keep them out of a plain Music swap
