@@ -46,8 +46,8 @@ const HOWTO = {
     costHow: "Listed at about $0.02 for one Fable 5.1 call at reasoning low / 512 tokens. Prices and results vary. This page has no reviewed first-party run yet.",
   },
   deslop: {
-    headline: "Kill the AI voice",
-    job: "Kill the AI voice. Keep every fact.",
+    headline: "midnight drop notice",
+    job: "120 jackets · $280 · 00:01 JST — keep every fact, lose the seamless unlock",
     purpose: "That midnight drop email sounds like a brand that asked a chatbot to sound expensive. This noodle rewrites it like a person, then a second model checks every date, price, and caveat against the source before the last pass.",
     edit: "Paste the slop into <em>Your draft</em>. Leave the three LLM nodes unless you mean to change models: Grok drafts, Terra fact-checks, Grok applies the review.",
     inspect: "Every supplied fact has to survive — the saved run keeps 8 September at 00:01 JST, the $280 price, the 120-jacket limit, one-per-customer, no restock, Friday–Saturday Shibuya pickup hours, the confirmation QR, and drop@example.com. Empty hype should vanish. The review checks writing and facts. It does not detect authorship. Cover still is the midnight night-raid jacket drop — card art, not the generated notice.",
