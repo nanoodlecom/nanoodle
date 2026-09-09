@@ -13659,7 +13659,7 @@ const EXAMPLES = [
            {id:"l3",from:{node:"n4",port:"text"},to:{node:"n5",port:"prompt"}},
            {id:"l4",from:{node:"n5",port:"text"},to:{node:"n6",port:"prompt"}} ] } },
  { em:"✍️", slug:"deslop", title:"strip AI voice from a notice", desc:"keep the $280 and the midnight — lose the seamless unlock",
-   thumb:"",
+   thumb:"examples/gallery/deslop/preview.webp",
    graph:{ v:1,
    nodes:[ {id:"c-intent",type:"comment",x:-340,y:-260,w:520,fields:{text:"Strip the AI voice without losing a single fact. Paste the slop; Grok drafts a human rewrite, Terra fact-checks every price, date and caveat against the source, Grok applies the review. Three paid text calls. The review checks writing and factual preservation — not whether a human or AI wrote it. Verify the final notice before sending.",color:"yellow"},name:"Strip the AI voice without losing a single fact"},
            {id:"n1",type:"text",x:-340,y:-80,w:470,fields:{text:"In today's fast-paced world of two-wheeled possibilities, we are absolutely thrilled to announce a truly game-changing, seamless improvement to the repair booking experience — a robust tapestry of care that will unlock the full potential of your bicycle journey. It's not just a booking, it's a testament to next-generation workshop excellence.\n\nStarting 8 September, valued riders can delve into our online portal and book a 30-minute bicycle check for $15. This isn't merely a fee — it's an opportunity to leverage a seamless credit: the $15 is credited toward any repair completed within 14 days. Appointments are available Tuesday through Saturday, 9 am to 5 pm. Existing bookings are unchanged. To reschedule, email repairs@example.com at least 24 hours before your appointment.\n\nAs we all know, it's important to note that this landmark moment underscores our commitment to help you navigate the complexities of modern cycling. Arguably, quite possibly, some might say this is the future. Dive in. Unlock. Thrive."},name:"Your draft"},
@@ -13748,9 +13748,7 @@ function openExamples(){
     const c=document.createElement("article"); c.className="ex-card";
     const result=LOCAL_ONLY_EXAMPLE_SLUGS.has(ex.slug)?"":ex.slug==="character-sprites"?"examples/iron-verdict/":"examples/gallery/#"+encodeURIComponent(ex.slug);
     const thumb=ex.slug==="character-sprites"?"examples/iron-verdict/screenshot.png":ex.thumb;
-    const preview=ex.slug==="deslop"
-      ? '<blockquote class="ex-quote" data-no-i18n>“Starting 8 September at 00:01 JST, 120 black nylon night-raid jackets drop online for $280.”</blockquote>'
-      : ex.slug==="custom-endpoint"
+    const preview=ex.slug==="custom-endpoint"
       ? '<blockquote class="ex-quote" data-no-i18n>Choice picks the path: <code>/post</code> or <code>/anything</code>. $0 public echo.</blockquote>'
       : thumb?`<img class="ex-im" src="${thumb}" alt="" loading="lazy"/>`:`<span class="ex-em" aria-hidden="true">${ex.em}</span>`;
     const previewWrap=result?`<a class="ex-preview" href="${result}" target="_blank" rel="noopener" aria-label="${esc(t("See result")+": "+t(ex.title))}">${preview}</a>`:`<div class="ex-preview">${preview}</div>`;

@@ -107,6 +107,30 @@ if (!/slug:"sing"[\s\S]{0,200}thumb:"examples\/gallery\/sing\/preview\.webp"/.te
 if (/slug==="sing"\s*\n\s*\? '<blockquote class="ex-quote"/.test(examplesSrc)) {
   fail("EXAMPLES sing card still uses the lyrics-quote fallback instead of the cover still");
 }
+const deslopSample = samples.find((s) => s.slug === "deslop");
+if (!deslopSample) fail("samples.json missing deslop");
+if (deslopSample.preview !== "deslop/preview.webp") {
+  fail("deslop sample preview should be deslop/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "deslop", "preview.webp"))) {
+  fail("examples/gallery/deslop/preview.webp is missing");
+}
+if (!hub.includes("deslop/preview.webp")) {
+  fail("hub should thumb the deslop night-raid cover");
+}
+const deslopHowTo = readFileSync(join(ROOT, "guide", "examples", "deslop.html"), "utf8");
+if (!deslopHowTo.includes("deslop/preview.webp")) {
+  fail("deslop how-to should show the night-raid cover still");
+}
+if (/No preview image was saved/i.test(deslopHowTo)) {
+  fail("deslop how-to still says no preview image was saved");
+}
+if (!/slug:"deslop"[\s\S]{0,200}thumb:"examples\/gallery\/deslop\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES deslop thumb should be examples/gallery/deslop/preview.webp");
+}
+if (/slug==="deslop"\s*\n\s*\? '<blockquote class="ex-quote"/.test(examplesSrc)) {
+  fail("EXAMPLES deslop card still uses the quote fallback instead of the cover still");
+}
 const faviconHowTo = readFileSync(join(ROOT, "guide", "examples", "favicon.html"), "utf8");
 if (/Lumen|weather radio|lighthouse|navy-and-gold/i.test(faviconHowTo)) {
   fail("favicon how-to still uses the Lumen weather-radio first-click");
