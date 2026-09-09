@@ -1,0 +1,66 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 40,
+      "y": 20,
+      "w": 480,
+      "name": "Night-ride radio orbit",
+      "fields": {
+        "text": "Upload a product still; MiniMax H3 Max Multi Angle (`minimax/h3-max/multi-angle/image-to-video`) animates a precise camera move. Pins: 480p, 5s, camera_motion=orbit-right in modelOpts (catalog default; also orbit-left / push-in / pull-back / rise). Catalog minimum $0.25; duration and resolution determine pricing. First-click story is a matte-charcoal Volt pocket night-ride radio with one electric-cyan lightning-bolt chevron on dark slate / hard cyan rim — this repo has no committed still, so upload that product photo or any catalog plate. Camera moves; the product stays. Not Animate a product still (Muse + MiniMax H3 Spicy locked-camera rain), not Product motion concept (GLM + Omni Flash 1.1 text-to-video studio plinth), and not InfiniteTalk / talking-avatar lipsync. Inspect one continuous orbit; a seamless loop is not promised.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "n1",
+      "type": "upload",
+      "x": 40,
+      "y": 320,
+      "w": 280,
+      "name": "Product still",
+      "fields": {}
+    },
+    {
+      "id": "n2",
+      "type": "ivideo",
+      "x": 400,
+      "y": 300,
+      "w": 320,
+      "name": "Orbit clip",
+      "fields": {
+        "model": "minimax/h3-max/multi-angle/image-to-video",
+        "prompt": "Only the camera moves: orbit around the subject, preserving the scene.",
+        "resolution": "480p",
+        "duration": "5",
+        "modelOpts": {
+          "camera_motion": "orbit-right"
+        }
+      },
+      "sizes": {
+        "prompt": 80
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "n1",
+        "port": "image"
+      },
+      "to": {
+        "node": "n2",
+        "port": "image"
+      }
+    }
+  ],
+  "nid": 3,
+  "lid": 2,
+  "view": {
+    "panX": 20,
+    "panY": 40,
+    "scale": 0.85
+  }
+}

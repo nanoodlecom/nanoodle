@@ -183,6 +183,14 @@ const HOWTO = {
     inspect: "Cover still is card art for the mid-shot courier + pocket radio — not a paid InfiniteTalk QC clip. Sample video QC pending. Open the graph and hit Run with your key. Inspect body motion and lip timing. This model follows the sound; it does not invent a TTS script.",
     costHow: "Listed from about $0.09 for InfiniteTalk (duration/resolution) plus Muse ~$0.01. Speech only if you keep the bootstrap. Prices and results vary. This page has no reviewed first-party InfiniteTalk clip yet.",
   },
+  "h3-max-multi-angle": {
+    headline: "Orbit the uploaded radio",
+    job: "Camera right. Product stays.",
+    purpose: "Upload a product still. MiniMax H3 Max Multi Angle orbits the camera around it — a precise camera reveal, not generic i2v motion and not text-to-video. First-click is a matte-charcoal Volt pocket night-ride radio with one electric-cyan lightning-bolt chevron on dark slate / hard cyan rim. Distinct from photo-to-video / MiniMax H3 Spicy (locked-camera rain) and omni-flash-turntable / Omni Flash 1.1 (text-to-video studio-plinth orbit).",
+    edit: "Drop your still on <em>Product still</em>. Leave <em>Orbit clip</em> on <code>minimax/h3-max/multi-angle/image-to-video</code> at 480p / 5s / <code>camera_motion=orbit-right</code> unless you mean to change the move (orbit-left, push-in, pull-back, rise).",
+    inspect: "Cover still is reused Volt card art from the product-cutout / FIBO night-ride radio plate, pending a true H3 Max Multi Angle QC clip — no paid minimax/h3-max/multi-angle/image-to-video run this PR, not a fabricated orbit. Open the graph and hit Run with your key after you upload a still. Inspect one continuous orbit; the product should stay put. A seamless loop is not promised.",
+    costHow: "Listed from about $0.25 for one H3 Max Multi Angle call at 480p / 5s. Duration and resolution determine pricing. Prices and results vary. This page has no reviewed first-party orbit clip yet.",
+  },
 };
 
 // Awesome-noodles README share link for character-sprites (Iron Verdict is
@@ -219,7 +227,7 @@ const GROUPS = [
     "night-market-postcard", "fibo-studio-still", "cinematic-character-still",
     "image-model-arena",
   ] },
-  { id: "video", title: "Video", slugs: ["photo-to-video", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },
+  { id: "video", title: "Video", slugs: ["photo-to-video", "h3-max-multi-angle", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },
   { id: "audio", title: "Audio", slugs: ["sing"] },
   { id: "text", title: "Text", slugs: ["deslop", "fable-five-step"] },
 ];

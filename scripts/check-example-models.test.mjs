@@ -99,7 +99,7 @@ test('homepage pins use the same strict model, type and capability checks as gal
   assert.throws(() => starterModels({ nodes: [{ type: 'unknown' }] }, kinds), /unknown node type/);
 });
 
-test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefNet, InfiniteTalk, SAM 3 and P-Image Upscale pin regressions', async () => {
+test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefNet, InfiniteTalk, SAM 3, P-Image Upscale and H3 Max Multi Angle pin regressions', async () => {
   const { galleryRegressions } = await import('./check-example-models.mjs');
   const pins = [
     { slug: 'fibo-studio-still', ...pin('image', { model: 'bria/fibo-generate-1.5/text-to-image', size: '1mp' }) },
@@ -110,9 +110,10 @@ test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefN
     { slug: 'infinitetalk-radio-take', ...pin('lipsync', { model: 'infinitetalk', resolution: '480p', modelOpts: { people: 'single' } }) },
     { slug: 'sam3-isolate', ...pin('edit', { model: 'sam3-image' }) },
     { slug: 'p-image-upscale', ...pin('edit', { model: 'pruna-ai/p-image/upscale', size: '2' }) },
+    { slug: 'h3-max-multi-angle', ...pin('ivideo', { model: 'minimax/h3-max/multi-angle/image-to-video', resolution: '480p', duration: '5', modelOpts: { camera_motion: 'orbit-right' } }) },
   ];
   assert.equal(galleryRegressions(pins).length, 0);
-  assert.equal(galleryRegressions([]).length, 8);
+  assert.equal(galleryRegressions([]).length, 9);
   pins[0].fields.size = 'auto';
   assert.match(galleryRegressions(pins)[0].reason, /expected size 1mp/);
   pins[0].fields.size = '1mp';
@@ -124,6 +125,7 @@ test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefN
   pins[5].id = 'wavespeed-ai/infinitetalk';
   pins[6].id = 'wavespeed-ai/sam3-image';
   pins[7].id = 'clarity-upscaler';
-  assert.equal(galleryRegressions(pins).length, 8);
+  pins[8].id = 'minimax-h3/image-to-video-spicy';
+  assert.equal(galleryRegressions(pins).length, 9);
   assert.ok(galleryRegressions(pins).every(p => /expected model/.test(p.reason)));
 });

@@ -74,14 +74,17 @@ export function galleryRegressions(pins) {
     { slug: 'infinitetalk-radio-take', type: 'lipsync', model: 'infinitetalk', resolution: '480p', people: 'single' },
     { slug: 'sam3-isolate', type: 'edit', model: 'sam3-image' },
     { slug: 'p-image-upscale', type: 'edit', model: 'pruna-ai/p-image/upscale', size: '2' },
+    { slug: 'h3-max-multi-angle', type: 'ivideo', model: 'minimax/h3-max/multi-angle/image-to-video', resolution: '480p', duration: '5', camera_motion: 'orbit-right' },
   ];
-  return expected.flatMap(({ slug, type, model, size, resolution, people }) => {
+  return expected.flatMap(({ slug, type, model, size, resolution, people, duration, camera_motion }) => {
     const pin = pins.find(p => p.slug === slug && p.type === type);
     if (!pin) return [{ slug, type, reason: 'required gallery card missing' }];
     if (pin.id !== model) return [{ ...pin, reason: `gallery regression: expected model ${model}` }];
     if (size && pin.fields.size !== size) return [{ ...pin, reason: `gallery regression: expected size ${size}` }];
     if (resolution && pin.fields.resolution !== resolution) return [{ ...pin, reason: `gallery regression: expected resolution ${resolution}` }];
+    if (duration && String(pin.fields.duration) !== String(duration)) return [{ ...pin, reason: `gallery regression: expected duration ${duration}` }];
     if (people && pin.fields.modelOpts?.people !== people) return [{ ...pin, reason: `gallery regression: expected people ${people}` }];
+    if (camera_motion && pin.fields.modelOpts?.camera_motion !== camera_motion) return [{ ...pin, reason: `gallery regression: expected camera_motion ${camera_motion}` }];
     return [];
   });
 }
