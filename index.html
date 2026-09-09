@@ -1304,7 +1304,7 @@ const I18N_ENAME = { es:"Spanish", fr:"French", de:"German", pt:"Portuguese", ja
 const I18N = {
   es:{
     "Open workflow":"Abrir flujo",
-    "amber glass on limestone — lighting you can actually pick":"vidrio ámbar sobre caliza — iluminación que de verdad puedes elegir",
+    "charcoal radio, cyan rim — lighting you can actually pick":"radio carbón, ribete cian — iluminación que de verdad puedes elegir",
     "drop your product onto someone else's table":"deja tu producto en la mesa de otro",
     "Raohe after dark — squid smoke, red lanterns, wet asphalt":"Raohe de noche — humo de calamar, farolillos rojos, asfalto mojado",
     "write original lyrics and generate a song in your style":"escribe letras originales y genera una canción con tu estilo",
@@ -1929,7 +1929,7 @@ const I18N = {
   },
   fr:{
     "Open workflow":"Ouvrir le workflow",
-    "amber glass on limestone — lighting you can actually pick":"verre ambré sur calcaire — un éclairage que vous pouvez vraiment choisir",
+    "charcoal radio, cyan rim — lighting you can actually pick":"radio charbon, liseré cyan — un éclairage que vous pouvez vraiment choisir",
     "drop your product onto someone else's table":"posez votre produit sur la table de quelqu’un d’autre",
     "Raohe after dark — squid smoke, red lanterns, wet asphalt":"Raohe après la tombée de la nuit — fumée de calamar, lanternes rouges, asphalte mouillé",
     "write original lyrics and generate a song in your style":"écrivez des paroles originales et générez une chanson dans votre style",
@@ -2554,7 +2554,7 @@ const I18N = {
   },
   de:{
     "Open workflow":"Workflow öffnen",
-    "amber glass on limestone — lighting you can actually pick":"Bernsteinglas auf Kalkstein — Licht, das du wirklich wählen kannst",
+    "charcoal radio, cyan rim — lighting you can actually pick":"anthrazitfarbenes Radio, Cyan-Randlicht — Licht, das du wirklich wählen kannst",
     "drop your product onto someone else's table":"dein Produkt auf den Tisch von jemand anderem setzen",
     "Raohe after dark — squid smoke, red lanterns, wet asphalt":"Raohe nach Einbruch der Nacht — Tintenfischrauch, rote Laternen, nasser Asphalt",
     "write original lyrics and generate a song in your style":"Eigene Liedtexte schreiben und einen Song im gewünschten Stil erzeugen",
@@ -3179,7 +3179,7 @@ const I18N = {
   },
   pt:{
     "Open workflow":"Abrir fluxo",
-    "amber glass on limestone — lighting you can actually pick":"vidro âmbar no calcário — iluminação que você realmente escolhe",
+    "charcoal radio, cyan rim — lighting you can actually pick":"rádio carvão, filete ciano — iluminação que você realmente escolhe",
     "drop your product onto someone else's table":"coloque seu produto na mesa de outra pessoa",
     "Raohe after dark — squid smoke, red lanterns, wet asphalt":"Raohe depois do escuro — fumaça de lula, lanternas vermelhas, asfalto molhado",
     "write original lyrics and generate a song in your style":"escreva letras originais e gere uma música no seu estilo",
@@ -3804,7 +3804,7 @@ const I18N = {
   },
   ja:{
     "Open workflow":"ワークフローを開く",
-    "amber glass on limestone — lighting you can actually pick":"石灰岩の上の琥珀ガラス — 本当に選べるライティング",
+    "charcoal radio, cyan rim — lighting you can actually pick":"チャコールのラジオ、シアンのリム光 — 本当に選べるライティング",
     "drop your product onto someone else's table":"誰かのテーブルに商品を置く",
     "Raohe after dark — squid smoke, red lanterns, wet asphalt":"夜の Raohe — イカの煙、赤い提灯、濡れたアスファルト",
     "write original lyrics and generate a song in your style":"オリジナルの歌詞を書き、好みのスタイルで曲を生成",
@@ -13524,12 +13524,12 @@ const EXAMPLES = [
            {id:"l2",from:{node:"n3",port:"text"},to:{node:"n4",port:"b"}},
            {id:"l3",from:{node:"n4",port:"text"},to:{node:"n5",port:"prompt"}},
            {id:"l4",from:{node:"n5",port:"text"},to:{node:"n6",port:"prompt"}} ] } },
- { em:"🧴", slug:"fibo-studio-still", title:"product concept still", desc:"amber glass on limestone — lighting you can actually pick",
+ { em:"📻", slug:"fibo-studio-still", title:"product concept still", desc:"charcoal radio, cyan rim — lighting you can actually pick",
    thumb:"examples/gallery/fibo-studio-still/preview.webp",
    graph:{ v:1,
    nodes:[ {id:"n1",type:"comment",x:40,y:20,w:300,fields:{text:"Create an editorial product concept from a description and lighting choice. GLM Flash structures the brief; Bria FIBO renders at 1MP (image step $0.04, plus text). FIBO is offered as a model trained on licensed data; that does not guarantee legal clearance for a generated image. For an exact existing product, use Edit a photo instead.",color:"#1f2420"},name:"FIBO studio still"},
-           {id:"n2",type:"text",x:40,y:200,w:260,fields:{text:"One unbranded amber glass hand-soap bottle with a matte black pump, resting upright on a pale limestone counter. No label, packaging or accessories."},name:"Product"},
-           {id:"n3",type:"choice",x:40,y:440,w:260,fields:{options:"large softbox left, gentle shadow, neutral backdrop\nwindow daylight, soft shadows, warm stone\nhard side light, crisp silhouette, gray paper\nbacklit translucent glass, soft fill from front",selected:"large softbox left, gentle shadow, neutral backdrop"},name:"Light"},
+           {id:"n2",type:"text",x:40,y:200,w:260,fields:{text:"Volt — pocket night-ride radio for couriers. One compact unit on dark slate: matte charcoal chassis, sharp electric-cyan lightning-bolt chevron on the face. No letters, packaging or accessories."},name:"Product"},
+           {id:"n3",type:"choice",x:40,y:440,w:260,fields:{options:"hard cyan rim light / charcoal seamless\nlarge softbox left, gentle shadow, charcoal seamless\nhard side light, crisp silhouette, dark slate\ncool overhead grid, faint cyan bounce, matte charcoal paper",selected:"hard cyan rim light / charcoal seamless"},name:"Light"},
            {id:"n4",type:"join",x:360,y:300,w:220,fields:{sep:"\n\nLight: "},name:"Brief"},
            {id:"n5",type:"llm",x:640,y:220,w:300,sizes:{system:160},fields:{model:"z-ai/glm-5.3-flash",system:"Write one structured descriptive image prompt for the supplied product and lighting. Preserve its shape, materials and number of objects. Describe the subject, surface, background, camera angle, lighting direction, color and focus in coherent prose, 80-120 words. One restrained editorial still, all of the product visible with breathing room. Do not invent logos, text, accessories, scenery or product features. Output prompt only.",maxTokens:"1024",reasoningEffort:"low"},name:"Structured prompt"},
            {id:"n6",type:"image",x:1000,y:250,w:280,fields:{model:"bria/fibo-generate-1.5/text-to-image",size:"1mp",variations:"1"},name:"Still"} ],

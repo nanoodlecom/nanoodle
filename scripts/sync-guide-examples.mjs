@@ -62,11 +62,11 @@ const HOWTO = {
     costHow: "The reviewed run reported $0.01. The image step is listed at $0.01, plus a small text call. Prices and results vary.",
   },
   "fibo-studio-still": {
-    headline: "Light a product that doesn't exist",
-    job: "Light a product that doesn't exist yet.",
-    purpose: "Describe the object, pick a light, get an editorial still. When you already have the real bottle, start with the catalog-clean edit instead.",
+    headline: "A radio on dark slate",
+    job: "Volt night-ride radio. Pick the light.",
+    purpose: "Describe the object, pick a light, get an editorial still of a product that doesn't exist yet. First-click is Volt — matte charcoal chassis, electric-cyan lightning chevron, dark slate. Distinct from the rain-asphalt photo→video clip and the favicon glyph: this is the radio itself, in studio light. When you already have a real product photo, start with the catalog-clean edit instead.",
     edit: "Rewrite <em>Product</em> (shape, materials, count) and pick a <em>Light</em>. GLM Flash structures the brief; Bria FIBO renders at 1MP.",
-    inspect: "Count, material, color, and the light you picked should match. No invented packaging or logos. The saved still is square and fictional — not a photo of merchandise.",
+    inspect: "Count, material, color, and the light you picked should match. No invented packaging or logos. The saved still is a fictional charcoal-and-cyan radio — not a photograph of merchandise.",
     costHow: "The reviewed run reported $0.04. The image step is listed at $0.04, plus a small text call. Prices and results vary.",
   },
   "cinematic-character-still": {

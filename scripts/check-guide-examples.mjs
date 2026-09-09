@@ -227,6 +227,36 @@ if (/Lumen|weather radio|lighthouse|navy-and-gold/i.test(faviconSample.note + JS
 if (!/electric-cyan lightning chevron/i.test(faviconSample.note)) {
   fail("favicon sample note should describe the charcoal + cyan lightning chevron");
 }
+const fiboHowTo = readFileSync(join(ROOT, "guide", "examples", "fibo-studio-still.html"), "utf8");
+if (/amber glass|hand-soap|limestone|backlit translucent glass|Light a product that doesn/i.test(fiboHowTo)) {
+  fail("fibo-studio-still how-to still uses the amber soap-bottle first-click");
+}
+if (!/Volt/i.test(fiboHowTo) || !/charcoal/i.test(fiboHowTo) || !/cyan/i.test(fiboHowTo)) {
+  fail("fibo-studio-still how-to should pitch the Volt charcoal + cyan radio");
+}
+if (hub.includes("Light a product that doesn't exist")) {
+  fail("hub still titles fibo-studio-still as a generic product light");
+}
+if (!hub.includes("A radio on dark slate")) {
+  fail("hub should title fibo-studio-still as a radio on dark slate");
+}
+const fiboSample = samples.find((s) => s.slug === "fibo-studio-still");
+if (!fiboSample) fail("samples.json missing fibo-studio-still");
+if (/amber glass|hand-soap|limestone|black pump|backlit translucent glass/i.test(fiboSample.note + JSON.stringify(fiboSample.inputs))) {
+  fail("fibo-studio-still sample still uses the amber soap-bottle brief");
+}
+if (!/Volt|night-ride radio/i.test(JSON.stringify(fiboSample.inputs))) {
+  fail("fibo-studio-still sample inputs should pitch the Volt night-ride radio");
+}
+if (!/matte-charcoal|charcoal/i.test(fiboSample.note) || !/electric-cyan lightning chevron/i.test(fiboSample.note)) {
+  fail("fibo-studio-still sample note should describe the charcoal + cyan lightning radio");
+}
+if (!/slug:"fibo-studio-still"[\s\S]{0,80}desc:"charcoal radio, cyan rim — lighting you can actually pick"/.test(examplesSrc)) {
+  fail("EXAMPLES fibo-studio-still desc should pitch charcoal radio, cyan rim");
+}
+if (/slug:"fibo-studio-still"[\s\S]{0,80}desc:"amber glass on limestone/.test(examplesSrc)) {
+  fail("EXAMPLES fibo-studio-still desc still uses the amber soap line");
+}
 for (const slug of slugs) {
   const page = readFileSync(join(ROOT, "guide", "examples", slug === "iron-verdict" ? "iron-verdict.html" : `${slug}.html`), "utf8");
   if (page.includes("how to use this noodle")) {
