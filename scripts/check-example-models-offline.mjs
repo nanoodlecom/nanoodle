@@ -33,6 +33,7 @@ const catalogs = {
     image('birefnet/v2', ['auto'], true),
     image('sam3-image', ['auto'], true),
     image('pruna-ai/p-image/upscale', ['1', '2', '3', '4', '5', '6', '7', '8'], true),
+    image('ideogram-v3-generate-transparent', ['1:1', '16:9', '9:16']),
   ],
   video: [
     { id: 'minimax-h3/image-to-video-spicy', capabilities: { image_to_video: true },

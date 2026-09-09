@@ -1,0 +1,61 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 40,
+      "y": 20,
+      "w": 520,
+      "name": "Transparent brand sticker",
+      "fields": {
+        "text": "Text brief → Ideogram V3 Generate Transparent (`ideogram-v3-generate-transparent`) sticker/overlay with a clean alpha channel. Size 1:1, catalog $0.06 at balanced aspects (default). Catalog also lists rendering_speed flash ~$0.03, but the nanoodle image node does not forward modelOpts / additionalParams (imgExtra only sends LoRA, seed, CivitAI AIR, and FIBO aspect), so this graph leaves the default and prices at $0.06. nsfw: false. First-click Brand brief is a matte-charcoal field with ONE electric-cyan lightning-bolt chevron sticker for Volt pocket night-ride radio / courier brand — no letters. Flat sticker/overlay, generous transparent margins. Not Favicon concept (GLM Flash + Muse opaque square glyph), not Product cutout / BiRefNet (upload → knock out background), and not a product photo or UI screen. No upload. No LLM — the brief goes straight to Ideogram. Inspect native alpha; conversion into print sheets stays separate.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "n1",
+      "type": "text",
+      "x": 40,
+      "y": 320,
+      "w": 320,
+      "name": "Brand brief",
+      "fields": {
+        "text": "Flat die-cut brand sticker overlay with a clean transparent alpha background. One matte-charcoal rounded field, generous empty transparent margins around the sticker silhouette. On that charcoal field, ONE sharp electric-cyan lightning-bolt chevron mark for Volt — a pocket night-ride radio / courier brand. No letters, initials, wordmark, or Volt text. No second mark. Flat graphic sticker: solid fills, crisp edges, no drop shadow, no bevel, no paper texture, no checkerboard, no mockup, no phone, no UI screen, no product photo, no wet asphalt, no courier, no radio. Centered on a square canvas."
+      }
+    },
+    {
+      "id": "n2",
+      "type": "image",
+      "x": 420,
+      "y": 300,
+      "w": 280,
+      "name": "Sticker",
+      "fields": {
+        "model": "ideogram-v3-generate-transparent",
+        "size": "1:1",
+        "variations": "1"
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "n1",
+        "port": "text"
+      },
+      "to": {
+        "node": "n2",
+        "port": "prompt"
+      }
+    }
+  ],
+  "nid": 3,
+  "lid": 2,
+  "view": {
+    "panX": 20,
+    "panY": 40,
+    "scale": 0.85
+  }
+}
