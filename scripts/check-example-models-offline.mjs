@@ -24,6 +24,7 @@ const catalogs = {
     image('meta/muse-image/edit', ['auto', '1:1', '3:2', '16:9'], true),
     image('meta/muse-image/text-to-image', ['1:1', '3:2', '16:9']),
     image('krea-v2/turbo', ['1k', '2k']),
+    image('openai/gpt-image-2.5/flare/text-to-image', ['1k', '2k', '4k']),
     image('xai/grok-imagine-image/v2.0/text-to-image', ['1:1', '16:9']),
     image('recraft-v4', ['1024x1024']),
     image('qwen-image-3-pro', ['auto', '1k', '2k']),
