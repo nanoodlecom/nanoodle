@@ -112,12 +112,12 @@ const HOWTO = {
     costHow: "The reviewed run reported $0.01. The image step is listed at $0.01, plus a small text call. Prices and results vary.",
   },
   "photo-to-video": {
-    headline: "A still that starts breathing",
-    job: "One still. One breath of motion.",
-    purpose: "Five seconds where the mug stays put and the steam doesn't. Generate the frame, then move one small thing.",
+    headline: "Rain on a night-ride radio",
+    job: "One still. One breath of rain.",
+    purpose: "Five seconds where the Volt radio stays put and the rain doesn't. Generate the frame, then move one small thing. First-click is a charcoal night-ride radio on wet asphalt — magenta and cyan neon, no letters.",
     edit: "Change <em>Still brief</em> and <em>Motion brief</em> together so they describe the same scene. Muse draws the first frame; MiniMax H3 Spicy animates 5 seconds at 480p.",
-    inspect: "Whatever you called still should stay still. A seamless loop is not promised. The open workflow uses the current model ID after a provider-name migration.",
-    costHow: "The reviewed run reported $0.21 (Muse $0.01 + MiniMax H3 Spicy $0.20 at 480p / 5s). Prices and results vary.",
+    inspect: "Whatever you called still should stay still. A seamless loop is not promised. Cover still is the Volt night-ride radio. The saved MP4 is the earlier 5 September tea-mug steam sample — historical, not regenerated. The open workflow uses the current model ID after a provider-name migration.",
+    costHow: "The reviewed tea-mug clip reported $0.21 (Muse $0.01 + MiniMax H3 Spicy $0.20 at 480p / 5s). Cover still is card art. Prices and results vary.",
   },
   "omni-flash-turntable": {
     headline: "Orbit the chrome",
@@ -484,7 +484,7 @@ function hubPage() {
     <p class="lede">See the real output. Open the graph. Make it yours.</p>
 
     <section>
-      <p>Night markets. Neon couriers. A mug that starts breathing. A clip that actually sings. These sit beside the <a href="/examples/gallery/">reviewed gallery</a> — real stills, clips, songs, and edits, not mockups of mockups. Looking is free. Running spends your NanoGPT balance. Costs are the reported first-party runs. The next one will not be identical.</p>
+      <p>Night markets. Neon couriers. Rain on a night-ride radio. A clip that actually sings. These sit beside the <a href="/examples/gallery/">reviewed gallery</a> — real stills, clips, songs, and edits, not mockups of mockups. Looking is free. Running spends your NanoGPT balance. Costs are the reported first-party runs. The next one will not be identical.</p>
       <p>Pick a card. Change a line. Hit <strong>Open this noodle</strong> for the same share graph the gallery uses. Every card is an <a href="https://github.com/nanoodlecom/awesome-noodles" target="_blank" rel="noopener">awesome-noodles</a> graph.</p>
 ${groups}`;
 
