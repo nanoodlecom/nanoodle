@@ -70,6 +70,7 @@ export function galleryRegressions(pins) {
     { slug: 'cinematic-character-still', type: 'image', model: 'minimax-h3/text-to-image', size: '1k' },
     { slug: 'omni-flash-turntable', type: 'tvideo', model: 'google/gemini-omni-flash/v1.1' },
     { slug: 'fable-five-step', type: 'llm', model: 'anthropic/claude-fable-5.1' },
+    { slug: 'product-cutout', type: 'edit', model: 'birefnet/v2' },
   ];
   return expected.flatMap(({ slug, type, model, size }) => {
     const pin = pins.find(p => p.slug === slug && p.type === type);

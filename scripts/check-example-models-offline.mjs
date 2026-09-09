@@ -29,6 +29,7 @@ const catalogs = {
     image('qwen-image-3-pro', ['auto', '1k', '2k']),
     image('bria/fibo-generate-1.5/text-to-image', ['1mp']),
     image('minimax-h3/text-to-image', ['1k', '2k']),
+    image('birefnet/v2', ['auto'], true),
   ],
   video: [
     { id: 'minimax-h3/image-to-video-spicy', capabilities: { image_to_video: true },
