@@ -48,7 +48,8 @@ const HOWTO = {
   deslop: {
     headline: "midnight drop notice",
     job: "120 jackets · $280 · 00:01 JST — keep every fact, lose the seamless unlock",
-    purpose: "That midnight drop email sounds like a brand that asked a chatbot to sound expensive. venice-uncensored does the first rewrite (uncensored burstiness), Terra checks every date, price, and caveat against the source, and Grok applies. The committed CLEAN_v10 notice measured 20.9% → 0% on free ZeroGPT — one checker, not a guarantee on every detector.",
+    cardTag: "gg writers",
+    purpose: "That midnight drop email sounds like a brand that asked a chatbot to sound expensive. venice-uncensored does the first rewrite (uncensored burstiness), Terra checks every date, price, and caveat against the source, and Grok applies. gg writers: CLEAN_v10 went 20.9% → 0% on free ZeroGPT. One checker. The slop cried.",
     edit: "Paste the slop into <em>Your draft</em>. Leave the three LLM nodes unless you mean to change models: <code>venice-uncensored</code> does the first rewrite, Terra fact-checks, Grok applies the review.",
     inspect: "Every supplied fact has to survive — the saved run keeps 8 September at 00:01 JST, the $280 price, the 120-jacket limit, one-per-customer, no restock, Friday–Saturday Shibuya pickup hours, the confirmation QR, and drop@example.com. Empty hype should vanish. The review checks writing and facts. It does not detect authorship. Cover still is the midnight night-raid jacket drop — card art, not the generated notice.",
     costHow: "The reviewed run reported $0.0079 across three paid text calls. Token use and model prices move; check the editor estimate before you hit Run.",
@@ -332,8 +333,12 @@ function cardForSample(s) {
   } else {
     thumb = `<div class="thumb-fallback">No preview image — open for the reviewed ${s.outputs[0].kind} output</div>`;
   }
+  const tagLabel = s.tag || how.cardTag;
+  const media = tagLabel
+    ? `<span class="thumb-wrap">${thumb}<span class="tag gg">${esc(tagLabel)}</span></span>`
+    : thumb;
   return `<a class="howto-card" href="${href}">
-        ${thumb}
+        ${media}
         <span class="body">
           <b>${esc(how.headline || s.title)}</b>
           <span class="job">${esc(how.job)}</span>
@@ -394,13 +399,21 @@ function renderProof(s) {
     const src = "/examples/gallery/" + local(img.src);
     return `<figure><a href="${esc(src)}"><img src="${esc(src)}" alt="${esc(img.label)}" loading="lazy" /></a><figcaption>${esc(img.label)} · <a href="${esc(src)}" download>Download</a></figcaption></figure>`;
   }).join("\n          ");
+  const kicker = s.proof.kicker ? `<p class="gg-kicker">${esc(s.proof.kicker)}</p>` : "";
+  const lead = s.proof.lead ? `<p class="gg-lead">${esc(s.proof.lead)}</p>` : "";
+  const badge = s.proof.badge
+    ? `<figure class="gg-ad"><a href="/examples/gallery/${esc(local(s.proof.badge))}"><img src="/examples/gallery/${esc(local(s.proof.badge))}" alt="${esc(s.proof.badgeAlt || s.proof.kicker || "gg writers")}" loading="lazy" /></a></figure>`
+    : "";
   const blurb = s.proof.note ? `<p>${esc(s.proof.note)}</p>` : "";
   return `
       <h2>${esc(s.proof.heading || "Detector proof")}</h2>
-      ${blurb}
+      ${kicker}
+      ${lead}
+      ${badge}
       <div class="media comparison proof">
           ${figs}
-        </div>`;
+        </div>
+      ${blurb}`;
 }
 
 function samplePage(s, prev, next) {

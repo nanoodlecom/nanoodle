@@ -98,6 +98,17 @@ footer .spacer{flex:1}
 .howto-card:hover{ border-color:#3a425a; text-decoration:none; }
 .howto-card .thumb, .howto-card .thumb-fallback{
   display:block; width:100%; aspect-ratio:16/10; object-fit:cover; background:var(--panel); }
+.howto-card .thumb-wrap{ position:relative; display:block; }
+.howto-card .thumb-wrap .tag{
+  position:absolute; left:.5rem; top:.5rem; z-index:1;
+  font-size:.62rem; padding:.12rem .42rem; border-radius:1rem; white-space:nowrap;
+  background:#0b0d12cc; color:var(--cyan); border:1px solid #67e8f9aa;
+  box-shadow:0 0 0 1px #ff79c688; font-weight:750; letter-spacing:.02em; }
+.gg-kicker{ color:var(--cyan); font-size:.98rem; font-weight:800; letter-spacing:-.01em; margin:0 0 .25rem; }
+.gg-lead{ color:var(--ink); font-size:1.08rem; font-weight:650; margin:0 0 .75rem; }
+.gg-ad{ margin:0 0 1.1rem; }
+.gg-ad img{ display:block; width:100%; max-height:260px; object-fit:contain; background:#0b0d12;
+            border:1px solid var(--line); border-radius:.6rem; }
 .howto-card .thumb-fallback{ display:flex; align-items:center; justify-content:center; padding:1rem 1.1rem;
                              color:var(--dim); font-size:.82rem; line-height:1.45; text-align:center; }
 .howto-card .thumb-fallback.pending{
