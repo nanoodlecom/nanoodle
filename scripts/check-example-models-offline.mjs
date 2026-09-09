@@ -37,6 +37,12 @@ const catalogs = {
   video: [
     { id: 'minimax-h3/image-to-video-spicy', capabilities: { image_to_video: true },
       supported_parameters: { parameters: { resolution: opts(['480p', '720p']), duration: opts([5, 10]) } } },
+    { id: 'minimax/h3-max/multi-angle/image-to-video', capabilities: { image_to_video: true },
+      supported_parameters: { parameters: {
+        resolution: opts(['480p', '720p']),
+        duration: opts([5, 10]),
+        camera_motion: opts(['orbit-right', 'orbit-left', 'push-in', 'pull-back', 'rise']),
+      } } },
     { id: 'google/gemini-omni-flash/v1.1', capabilities: { text_to_video: true },
       supported_parameters: { parameters: { resolution: opts(['360p', '720p']), duration: opts([5, 8]), aspect_ratio: opts(['16:9']) } } },
     { id: 'longcat-avatar-1.5', capabilities: { image_to_video: true, audio_input: true },
