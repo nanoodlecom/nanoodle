@@ -103,6 +103,14 @@ const HOWTO = {
     inspect: "Cover still is reused Volt card art from the combine-images alley plate, pending a true SAM 3 QC isolate — no paid sam3-image run this PR, not a fabricated isolate. Open the graph and hit Run with your key after you upload a cluttered scene. Inspect the native isolate for the named object. Export preview is a local 1024 fit only.",
     costHow: "Listed at $0.005 for one SAM 3 call at auto. Local resize is $0. No LLM. Prices and results vary. This page has no reviewed first-party isolate yet.",
   },
+  "p-image-upscale": {
+    headline: "Same radio. Twice the pixels.",
+    job: "Volt still. 2×. No restyle.",
+    purpose: "Upload a product still. P-Image Upscale enlarges it to 2 megapixels — resolution upscale only, not a relight or a cutout. First-click Detail brief preserves the matte-charcoal Volt pocket night-ride radio and its electric-cyan lightning-bolt chevron. Distinct from Clean product photo / Muse Edit, Product cutout / BiRefNet V2, and Text-selected isolate / SAM 3.",
+    edit: "Drop your still on <em>Product still</em>. Leave <em>Detail brief</em> on the Volt-preserving line unless you mean to change it. Leave <em>Upscaled still</em> on <code>pruna-ai/p-image/upscale</code> at size <code>2</code> unless you mean to change models. <em>Export preview</em> is a local 1024 fit.",
+    inspect: "Cover still is reused Volt card art from the product-cutout / FIBO night-ride radio plate, pending a true P-Image Upscale QC still — no paid pruna-ai/p-image/upscale run this PR, not a fabricated upscale. Open the graph and hit Run with your key after you upload a still. Inspect native sharpness against the input. Export preview is a local 1024 fit only.",
+    costHow: "Listed at $0.005 for one P-Image Upscale call at size 2. Local resize is $0. No LLM. Prices and results vary. This page has no reviewed first-party upscale yet.",
+  },
   "combine-images": {
     headline: "Drop it in the alley",
     job: "Volt radio. Wet neon alley.",
@@ -207,7 +215,7 @@ for (const s of SAMPLES) {
 const GROUPS = [
   { id: "playable", title: "Playable", slugs: ["iron-verdict"] },
   { id: "image", title: "Image", slugs: [
-    "edit-a-photo", "product-cutout", "sam3-isolate", "combine-images", "render-a-mockup", "favicon",
+    "edit-a-photo", "product-cutout", "sam3-isolate", "p-image-upscale", "combine-images", "render-a-mockup", "favicon",
     "night-market-postcard", "fibo-studio-still", "cinematic-character-still",
     "image-model-arena",
   ] },
