@@ -603,6 +603,82 @@ if (/wavespeed-ai\/sam3-image/.test(isolateCard)) {
 if (!/sam3-image/.test(isolateCard)) {
   fail("EXAMPLES sam3-isolate graph should pin sam3-image");
 }
+const upscaleSample = samples.find((s) => s.slug === "p-image-upscale");
+if (!upscaleSample) fail("samples.json missing p-image-upscale");
+if (upscaleSample.preview !== "p-image-upscale/preview.webp") {
+  fail("p-image-upscale sample preview should be p-image-upscale/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "p-image-upscale", "preview.webp"))) {
+  fail("examples/gallery/p-image-upscale/preview.webp is missing");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "p-image-upscale", "product-input.png"))) {
+  fail("examples/gallery/p-image-upscale/product-input.png is missing");
+}
+if (!/pruna-ai\/p-image\/upscale/.test(JSON.stringify(upscaleSample.models))) {
+  fail("p-image-upscale sample should pin pruna-ai/p-image/upscale");
+}
+if (!/cover|reused Volt card art/i.test(upscaleSample.note) || !/no paid|pending/i.test(upscaleSample.note)) {
+  fail("p-image-upscale sample note should say cover is reused Volt card art and upscale QC is pending");
+}
+if (!/2×|2x|resolution upscale|twice the pixels/i.test(upscaleSample.note)) {
+  fail("p-image-upscale sample note should say the job is 2× resolution upscale");
+}
+if (!/Muse Edit|Clean product photo/i.test(upscaleSample.note)) {
+  fail("p-image-upscale sample note should distinguish Clean product photo / Muse Edit");
+}
+if (!/Product cutout|BiRefNet/i.test(upscaleSample.note)) {
+  fail("p-image-upscale sample note should distinguish Product cutout / BiRefNet");
+}
+if (!/SAM 3|text-selected isolate/i.test(upscaleSample.note)) {
+  fail("p-image-upscale sample note should distinguish Text-selected isolate / SAM 3");
+}
+if (!/Volt|night-ride radio|cyan/i.test(upscaleSample.note)) {
+  fail("p-image-upscale sample note should pitch the Volt night-ride radio");
+}
+if (!hub.includes("p-image-upscale/preview.webp")) {
+  fail("hub should thumb the p-image-upscale cover");
+}
+if (!hub.includes("Same radio. Twice the pixels.")) {
+  fail("hub should title p-image-upscale as Same radio. Twice the pixels.");
+}
+const upscaleHowTo = readFileSync(join(ROOT, "guide", "examples", "p-image-upscale.html"), "utf8");
+if (!/pruna-ai\/p-image\/upscale/.test(upscaleHowTo)) {
+  fail("p-image-upscale how-to should name pruna-ai/p-image/upscale");
+}
+if (!/Volt/i.test(upscaleHowTo) || !/cyan/i.test(upscaleHowTo) || !/charcoal/i.test(upscaleHowTo)) {
+  fail("p-image-upscale how-to should pitch the Volt charcoal + cyan radio");
+}
+if (!/2×|2x|resolution upscale|twice the pixels/i.test(upscaleHowTo)) {
+  fail("p-image-upscale how-to should say this is 2× resolution upscale");
+}
+if (!/Muse Edit|Clean product photo/i.test(upscaleHowTo)) {
+  fail("p-image-upscale how-to should distinguish Clean product photo / Muse Edit");
+}
+if (!/Product cutout|BiRefNet/i.test(upscaleHowTo)) {
+  fail("p-image-upscale how-to should distinguish Product cutout / BiRefNet");
+}
+if (!/SAM 3|text-selected isolate/i.test(upscaleHowTo)) {
+  fail("p-image-upscale how-to should distinguish Text-selected isolate / SAM 3");
+}
+if (!/reused Volt card art|no paid|pending/i.test(upscaleHowTo)) {
+  fail("p-image-upscale how-to should say the cover is reused Volt card art and upscale QC is pending");
+}
+if (!upscaleHowTo.includes("p-image-upscale/preview.webp")) {
+  fail("p-image-upscale how-to should show the cover still");
+}
+if (!/slug:"p-image-upscale"[\s\S]{0,200}thumb:"examples\/gallery\/p-image-upscale\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES p-image-upscale thumb should be examples/gallery/p-image-upscale/preview.webp");
+}
+if (!/slug:"p-image-upscale"[\s\S]{0,80}desc:"same cyan lightning radio, twice the pixels"/.test(examplesSrc)) {
+  fail("EXAMPLES p-image-upscale desc should pitch same cyan lightning radio, twice the pixels");
+}
+const upscaleCard = examplesSrc.match(/slug:"p-image-upscale"[\s\S]{0,2200}/)?.[0] || "";
+if (!/pruna-ai\/p-image\/upscale/.test(upscaleCard)) {
+  fail("EXAMPLES p-image-upscale graph should pin pruna-ai/p-image/upscale");
+}
+if (!/size:"2"/.test(upscaleCard)) {
+  fail("EXAMPLES p-image-upscale graph should pin size \"2\"");
+}
 if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
   fail("custom-endpoint must stay the only LOCAL_ONLY teaching card");
 }

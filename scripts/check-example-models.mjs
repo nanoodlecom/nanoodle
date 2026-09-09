@@ -73,6 +73,7 @@ export function galleryRegressions(pins) {
     { slug: 'product-cutout', type: 'edit', model: 'birefnet/v2' },
     { slug: 'infinitetalk-radio-take', type: 'lipsync', model: 'infinitetalk', resolution: '480p', people: 'single' },
     { slug: 'sam3-isolate', type: 'edit', model: 'sam3-image' },
+    { slug: 'p-image-upscale', type: 'edit', model: 'pruna-ai/p-image/upscale', size: '2' },
   ];
   return expected.flatMap(({ slug, type, model, size, resolution, people }) => {
     const pin = pins.find(p => p.slug === slug && p.type === type);
