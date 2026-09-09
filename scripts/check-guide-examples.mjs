@@ -467,8 +467,11 @@ if (!hub.includes("Knock the slate out")) {
   fail("hub should title product-cutout as Knock the slate out");
 }
 const cutoutHowTo = readFileSync(join(ROOT, "guide", "examples", "product-cutout.html"), "utf8");
-if (/workshop|warm-white|soft even studio|SAM 3|fal-ai\/birefnet|Catalog-clean\. Same product/i.test(cutoutHowTo)) {
-  fail("product-cutout how-to still uses workshop, SAM 3, fal-ai/birefnet, or Clean product photo first-click");
+if (/workshop|warm-white|soft even studio|fal-ai\/birefnet|Catalog-clean\. Same product/i.test(cutoutHowTo)) {
+  fail("product-cutout how-to still uses workshop, fal-ai/birefnet, or Clean product photo first-click");
+}
+if (/SAM 3/i.test(cutoutHowTo) && !/not SAM 3/i.test(cutoutHowTo)) {
+  fail("product-cutout how-to treats SAM 3 as the cutout method");
 }
 if (!/Volt/i.test(cutoutHowTo) || !/cyan/i.test(cutoutHowTo) || !/charcoal/i.test(cutoutHowTo)) {
   fail("product-cutout how-to should pitch the Volt charcoal + cyan radio");
@@ -488,8 +491,12 @@ if (!/slug:"product-cutout"[\s\S]{0,200}thumb:"examples\/gallery\/product-cutout
 if (!/slug:"product-cutout"[\s\S]{0,80}desc:"cyan lightning radio, background gone"/.test(examplesSrc)) {
   fail("EXAMPLES product-cutout desc should pitch cyan lightning radio, background gone");
 }
-if (/fal-ai\/birefnet|SAM 3|workshop cutout|soft studio/i.test(examplesSrc.match(/slug:"product-cutout"[\s\S]{0,1800}/)?.[0] || "")) {
-  fail("EXAMPLES product-cutout first-click still uses fal-ai/birefnet, SAM 3, or workshop language");
+const cutoutCard = examplesSrc.match(/slug:"product-cutout"[\s\S]{0,1800}/)?.[0] || "";
+if (/fal-ai\/birefnet|workshop cutout|soft studio/i.test(cutoutCard)) {
+  fail("EXAMPLES product-cutout first-click still uses fal-ai/birefnet or workshop language");
+}
+if (/SAM 3/i.test(cutoutCard) && !/not text-selected SAM 3|not SAM 3/i.test(cutoutCard)) {
+  fail("EXAMPLES product-cutout first-click treats SAM 3 as the cutout method");
 }
 if (!/birefnet\/v2/.test(examplesSrc.match(/slug:"product-cutout"[\s\S]{0,1800}/)?.[0] || "")) {
   fail("EXAMPLES product-cutout graph should pin birefnet/v2");
