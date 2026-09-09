@@ -257,6 +257,36 @@ if (!/slug:"fibo-studio-still"[\s\S]{0,80}desc:"charcoal radio, cyan rim — lig
 if (/slug:"fibo-studio-still"[\s\S]{0,80}desc:"amber glass on limestone/.test(examplesSrc)) {
   fail("EXAMPLES fibo-studio-still desc still uses the amber soap line");
 }
+const mockupHowTo = readFileSync(join(ROOT, "guide", "examples", "render-a-mockup.html"), "utf8");
+if (/repair shop|forest-green|Brake adjustment|New appointment|Maya Chen|Warm white background|Today, Repairs, Customers/i.test(mockupHowTo)) {
+  fail("render-a-mockup how-to still uses the repair-shop first-click");
+}
+if (!/Volt/i.test(mockupHowTo) || !/charcoal/i.test(mockupHowTo) || !/cyan/i.test(mockupHowTo)) {
+  fail("render-a-mockup how-to should pitch the Volt charcoal + cyan dispatch");
+}
+if (hub.includes("A screen you can argue about") && !hub.includes("A dispatch screen you can argue about")) {
+  fail("hub still titles render-a-mockup as a generic screen");
+}
+if (!hub.includes("A dispatch screen you can argue about")) {
+  fail("hub should title render-a-mockup as a dispatch screen you can argue about");
+}
+const mockupSample = samples.find((s) => s.slug === "render-a-mockup");
+if (!mockupSample) fail("samples.json missing render-a-mockup");
+if (/repair shop|forest-green|Brake adjustment|New appointment|Maya Chen|Warm white background|Today, Repairs, Customers/i.test(mockupSample.note + JSON.stringify(mockupSample.inputs))) {
+  fail("render-a-mockup sample still uses the repair-shop / forest-green brief");
+}
+if (!/Volt|Tonight|Couriers|Radios|New dispatch/i.test(JSON.stringify(mockupSample.inputs))) {
+  fail("render-a-mockup sample inputs should pitch the Volt courier-dispatch board");
+}
+if (!/charcoal/i.test(mockupSample.note) || !/cyan/i.test(mockupSample.note) || !/New dispatch/i.test(mockupSample.note)) {
+  fail("render-a-mockup sample note should describe the charcoal + cyan Volt dispatch board");
+}
+if (/slug:"render-a-mockup"[\s\S]{0,80}desc:"a repair-shop dashboard worth arguing over"/.test(examplesSrc)) {
+  fail("EXAMPLES render-a-mockup desc still uses the repair-shop line");
+}
+if (!/slug:"render-a-mockup"[\s\S]{0,80}desc:"charcoal \+ cyan Volt dispatch — Tonight, Couriers, Radios"/.test(examplesSrc)) {
+  fail("EXAMPLES render-a-mockup desc should pitch charcoal + cyan Volt dispatch");
+}
 for (const slug of slugs) {
   const page = readFileSync(join(ROOT, "guide", "examples", slug === "iron-verdict" ? "iron-verdict.html" : `${slug}.html`), "utf8");
   if (page.includes("how to use this noodle")) {
