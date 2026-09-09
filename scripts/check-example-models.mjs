@@ -76,6 +76,9 @@ export function galleryRegressions(pins) {
     { slug: 'p-image-upscale', type: 'edit', model: 'pruna-ai/p-image/upscale', size: '2' },
     { slug: 'deslop', type: 'llm', model: 'venice-uncensored' },
     { slug: 'h3-max-multi-angle', type: 'ivideo', model: 'minimax/h3-max/multi-angle/image-to-video', resolution: '480p', duration: '5', camera_motion: 'orbit-right' },
+    { slug: 'character-sprites', type: 'llm', model: 'z-ai/glm-5.3-flash' },
+    { slug: 'character-sprites', type: 'image', model: 'meta/muse-image/text-to-image', size: '1:1' },
+    { slug: 'character-sprites', type: 'edit', model: 'meta/muse-image/edit', size: '1:1' },
   ];
   return expected.flatMap(({ slug, type, model, size, resolution, people, duration, camera_motion }) => {
     const pin = pins.find(p => p.slug === slug && p.type === type);
