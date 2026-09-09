@@ -131,6 +131,33 @@ if (!/slug:"deslop"[\s\S]{0,200}thumb:"examples\/gallery\/deslop\/preview\.webp"
 if (/slug==="deslop"\s*\n\s*\? '<blockquote class="ex-quote"/.test(examplesSrc)) {
   fail("EXAMPLES deslop card still uses the quote fallback instead of the cover still");
 }
+const fableSample = samples.find((s) => s.slug === "fable-five-step");
+if (!fableSample) fail("samples.json missing fable-five-step");
+if (fableSample.preview !== "fable-five-step/preview.webp") {
+  fail("fable-five-step sample preview should be fable-five-step/preview.webp");
+}
+if (/Sample pending/i.test(fableSample.review + fableSample.note)) {
+  fail("fable-five-step sample still says Sample pending");
+}
+if (!/cover still/i.test(fableSample.note) || !/not a paid|no paid/i.test(fableSample.note)) {
+  fail("fable-five-step sample note should say it is a cover still, not a paid Fable QC transcript");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "fable-five-step", "preview.webp"))) {
+  fail("examples/gallery/fable-five-step/preview.webp is missing");
+}
+if (!hub.includes("fable-five-step/preview.webp")) {
+  fail("hub should thumb the fable-five-step cover");
+}
+const fableHowTo = readFileSync(join(ROOT, "guide", "examples", "fable-five-step.html"), "utf8");
+if (!fableHowTo.includes("fable-five-step/preview.webp")) {
+  fail("fable-five-step how-to should show the cover still");
+}
+if (/No preview image was saved|Reviewed plan incoming|Sample pending/i.test(fableHowTo)) {
+  fail("fable-five-step how-to still says pending / no preview");
+}
+if (!/slug:"fable-five-step"[\s\S]{0,200}thumb:"examples\/gallery\/fable-five-step\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES fable-five-step thumb should be examples/gallery/fable-five-step/preview.webp");
+}
 const faviconHowTo = readFileSync(join(ROOT, "guide", "examples", "favicon.html"), "utf8");
 if (/Lumen|weather radio|lighthouse|navy-and-gold/i.test(faviconHowTo)) {
   fail("favicon how-to still uses the Lumen weather-radio first-click");
