@@ -39,6 +39,14 @@ const catalogs = {
       supported_parameters: { parameters: { resolution: opts(['360p', '720p']), duration: opts([5, 8]), aspect_ratio: opts(['16:9']) } } },
     { id: 'longcat-avatar-1.5', capabilities: { image_to_video: true, audio_input: true },
       supported_parameters: { parameters: { resolution: opts(['480p', '720p']) } } },
+    { id: 'infinitetalk', capabilities: { image_to_video: true, audio_input: true, video_generation: true },
+      supported_parameters: { parameters: {
+        people: opts(['single', 'two']),
+        resolution: opts(['480p', '720p']),
+        left_audio: {},
+        right_audio: {},
+        audio: {},
+      } } },
   ],
   audio: [
     { id: 'Minimax-Speech-2.8-HD', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Deep_Voice_Man'] } },

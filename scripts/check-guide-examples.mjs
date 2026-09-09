@@ -654,6 +654,80 @@ if (!/Flare/i.test(arenaSample.note)) {
 if (!/Flare/i.test(arenaHowTo)) {
   fail("image-model-arena how-to should name GPT Image 2.5 Flare");
 }
+const radioSample = samples.find((s) => s.slug === "infinitetalk-radio-take");
+if (!radioSample) fail("samples.json missing infinitetalk-radio-take");
+if (radioSample.preview !== "infinitetalk-radio-take/preview.webp") {
+  fail("infinitetalk-radio-take sample preview should be infinitetalk-radio-take/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "infinitetalk-radio-take", "preview.webp"))) {
+  fail("examples/gallery/infinitetalk-radio-take/preview.webp is missing");
+}
+if (!/cover still/i.test(radioSample.note) || !/no paid|not a paid|pending/i.test(radioSample.note)) {
+  fail("infinitetalk-radio-take sample note should say it is a cover still, sample video QC pending");
+}
+if (!/infinitetalk/.test(JSON.stringify(radioSample.models))) {
+  fail("infinitetalk-radio-take sample should pin infinitetalk");
+}
+if (radioSample.models.includes("longcat-avatar-1.5") || radioSample.models.includes("wavespeed-ai/longcat-avatar-1.5")) {
+  fail("infinitetalk-radio-take sample must not pin LongCat");
+}
+if (!/talking-avatar|LongCat|Muse → MiniMax Speech/i.test(radioSample.note)) {
+  fail("infinitetalk-radio-take sample note should distinguish talking-avatar / LongCat");
+}
+if (!/single|480p/.test(radioSample.note)) {
+  fail("infinitetalk-radio-take sample note should name people=single / 480p");
+}
+if (!/mid-shot|pocket radio|rooftop/i.test(JSON.stringify(radioSample.inputs))) {
+  fail("infinitetalk-radio-take sample inputs should pitch the mid-shot courier + pocket radio");
+}
+if (/Volt is live on the night board|keep the cyan channel clear/i.test(JSON.stringify(radioSample.inputs))) {
+  fail("infinitetalk-radio-take sample inputs still use the talking-avatar dispatcher script");
+}
+if (!hub.includes("infinitetalk-radio-take/preview.webp")) {
+  fail("hub should thumb the infinitetalk-radio-take cover");
+}
+if (hub.includes("Look at camera. Follow the take.")) {
+  fail("hub still titles infinitetalk-radio-take like talking-avatar");
+}
+if (!hub.includes("Hold the radio. Follow the take.")) {
+  fail("hub should title infinitetalk-radio-take as Hold the radio. Follow the take.");
+}
+const radioHowTo = readFileSync(join(ROOT, "guide", "examples", "infinitetalk-radio-take.html"), "utf8");
+const radioHowToBody = radioHowTo.split('<nav class="next">')[0];
+if (/Look at camera\. Clear the channel|Volt is live on the night board|Spoken workshop introduction/i.test(radioHowToBody)) {
+  fail("infinitetalk-radio-take how-to still uses talking-avatar first-click copy");
+}
+if (!/InfiniteTalk|infinitetalk/.test(radioHowTo) || !/480p/.test(radioHowTo) || !/single/.test(radioHowTo)) {
+  fail("infinitetalk-radio-take how-to should name infinitetalk at single / 480p");
+}
+if (!/LongCat|talking-avatar|Night-courier spoken intro/i.test(radioHowTo)) {
+  fail("infinitetalk-radio-take how-to should distinguish talking-avatar / LongCat");
+}
+if (!/cover still|no paid|not a paid|pending/i.test(radioHowTo)) {
+  fail("infinitetalk-radio-take how-to should say the cover is card art, sample video QC pending");
+}
+if (!radioHowTo.includes("infinitetalk-radio-take/preview.webp")) {
+  fail("infinitetalk-radio-take how-to should show the cover still");
+}
+if (!/slug:"infinitetalk-radio-take"[\s\S]{0,200}thumb:"examples\/gallery\/infinitetalk-radio-take\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES infinitetalk-radio-take thumb should be examples/gallery/infinitetalk-radio-take/preview.webp");
+}
+if (!/slug:"infinitetalk-radio-take"[\s\S]{0,80}desc:"still \+ audio — lips and body follow the radio take"/.test(examplesSrc)) {
+  fail("EXAMPLES infinitetalk-radio-take desc should pitch still + audio lips and body");
+}
+if (!/slug:"infinitetalk-radio-take"[\s\S]{0,80}title:"night-ride radio take"/.test(examplesSrc)) {
+  fail("EXAMPLES infinitetalk-radio-take title should be night-ride radio take");
+}
+const radioCard = examplesSrc.match(/slug:"infinitetalk-radio-take"[\s\S]{0,4000}/)?.[0] || "";
+if (/longcat-avatar|Volt is live on the night board|keep the cyan channel clear/i.test(radioCard)) {
+  fail("EXAMPLES infinitetalk-radio-take first-click still uses talking-avatar / LongCat");
+}
+if (!/infinitetalk/.test(radioCard) || !/"?people"?:"single"/.test(radioCard) || !/resolution:"480p"/.test(radioCard)) {
+  fail("EXAMPLES infinitetalk-radio-take graph should pin infinitetalk at people=single / 480p");
+}
+if (/slug:"talking-avatar"[\s\S]{0,1800}infinitetalk/.test(examplesSrc)) {
+  fail("EXAMPLES talking-avatar must stay on LongCat, not infinitetalk");
+}
 for (const slug of slugs) {
   const page = readFileSync(join(ROOT, "guide", "examples", slug === "iron-verdict" ? "iron-verdict.html" : `${slug}.html`), "utf8");
   if (page.includes("how to use this noodle")) {
