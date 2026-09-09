@@ -158,6 +158,57 @@ if (/No preview image was saved|Reviewed plan incoming|Sample pending/i.test(fab
 if (!/slug:"fable-five-step"[\s\S]{0,200}thumb:"examples\/gallery\/fable-five-step\/preview\.webp"/.test(examplesSrc)) {
   fail("EXAMPLES fable-five-step thumb should be examples/gallery/fable-five-step/preview.webp");
 }
+const p2vSample = samples.find((s) => s.slug === "photo-to-video");
+if (!p2vSample) fail("samples.json missing photo-to-video");
+if (p2vSample.preview !== "photo-to-video/preview.webp") {
+  fail("photo-to-video sample preview should be photo-to-video/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "photo-to-video", "preview.webp"))) {
+  fail("examples/gallery/photo-to-video/preview.webp is missing");
+}
+if (/ceramic mug|hot tea|oak desk|wisp of steam|window light/i.test(JSON.stringify(p2vSample.inputs))) {
+  fail("photo-to-video sample inputs still use the cozy tea-mug first-click");
+}
+if (!/Volt|night-ride radio|rain-slick/i.test(JSON.stringify(p2vSample.inputs))) {
+  fail("photo-to-video sample inputs should pitch the Volt night-ride radio");
+}
+if (!/tea-mug|historical|does not match|not regenerated/i.test(p2vSample.note)) {
+  fail("photo-to-video sample note should say the saved MP4 is the earlier tea-mug sample");
+}
+if (!/cover still/i.test(p2vSample.note) || !/night-ride radio/i.test(p2vSample.note)) {
+  fail("photo-to-video sample note should name the Volt night-ride cover still");
+}
+if (!hub.includes("photo-to-video/preview.webp")) {
+  fail("hub should thumb the photo-to-video night-ride cover");
+}
+if (/A mug that starts breathing/i.test(hub)) {
+  fail("hub lede still says a mug that starts breathing");
+}
+if (hub.includes("A still that starts breathing")) {
+  fail("hub still titles photo-to-video as a still that starts breathing");
+}
+const p2vHowTo = readFileSync(join(ROOT, "guide", "examples", "photo-to-video.html"), "utf8");
+if (/ceramic mug|hot tea|oak desk|A still that starts breathing/i.test(p2vHowTo)) {
+  fail("photo-to-video how-to still uses the cozy tea-mug first-click");
+}
+if (!/night-ride radio/i.test(p2vHowTo) || !/Volt/i.test(p2vHowTo)) {
+  fail("photo-to-video how-to should pitch the Volt night-ride radio");
+}
+if (!p2vHowTo.includes("photo-to-video/preview.webp")) {
+  fail("photo-to-video how-to should show the night-ride cover still");
+}
+if (!/historical|tea-mug|not regenerated/i.test(p2vHowTo)) {
+  fail("photo-to-video how-to should say the saved MP4 is the earlier tea-mug sample");
+}
+if (!/slug:"photo-to-video"[\s\S]{0,200}thumb:"examples\/gallery\/photo-to-video\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES photo-to-video thumb should be examples/gallery/photo-to-video/preview.webp");
+}
+if (/slug:"photo-to-video"[\s\S]{0,80}desc:"locked camera, one thin wisp of steam"/.test(examplesSrc)) {
+  fail("EXAMPLES photo-to-video desc still uses the tea-mug steam line");
+}
+if (!/slug:"photo-to-video"[\s\S]{0,80}desc:"locked camera, rain on a night-ride radio"/.test(examplesSrc)) {
+  fail("EXAMPLES photo-to-video desc should pitch rain on a night-ride radio");
+}
 const faviconHowTo = readFileSync(join(ROOT, "guide", "examples", "favicon.html"), "utf8");
 if (/Lumen|weather radio|lighthouse|navy-and-gold/i.test(faviconHowTo)) {
   fail("favicon how-to still uses the Lumen weather-radio first-click");
