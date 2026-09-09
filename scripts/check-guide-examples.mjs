@@ -243,6 +243,24 @@ if (deslopN2[1] === "openai/gpt-4o-mini" || deslopN2[1] === "x-ai/grok-4.5") {
 if (/\bGPTZero\b/i.test(deslopHowTo) && !/not measured/i.test(deslopHowTo)) {
   fail("deslop how-to must not invent a GPTZero score");
 }
+if (!existsSync(join(ROOT, "examples", "gallery", "deslop", "gg-writers-badge.png"))) {
+  fail("examples/gallery/deslop/gg-writers-badge.png is missing");
+}
+if (deslopSample.proof.badge !== "deslop/gg-writers-badge.png") {
+  fail("deslop proof should use the wide gg-writers-badge.png as primary ad art");
+}
+if (!/gg writers/i.test(deslopSample.tag || "") || !/gg writers/i.test(deslopSample.note)) {
+  fail("deslop sample should wear the gg writers tag and say it in the note");
+}
+if (!deslopHowTo.includes("gg-writers-badge.png") || !deslopHowTo.includes("gg writers") || !deslopHowTo.includes("ZeroGPT blinked first")) {
+  fail("deslop how-to should advertise gg writers with the Volt badge and ZeroGPT blinked first");
+}
+if (!hub.includes("gg writers") || !hub.includes("tag gg")) {
+  fail("hub deslop card should overlay a gg writers tag");
+}
+if (!/slug==="deslop"[\s\S]{0,500}gg writers/.test(examplesSrc) || !examplesSrc.includes('class="tag gg"')) {
+  fail("EXAMPLES deslop card should overlay a gg writers tag");
+}
 const fableSample = samples.find((s) => s.slug === "fable-five-step");
 if (!fableSample) fail("samples.json missing fable-five-step");
 if (fableSample.preview !== "fable-five-step/preview.webp") {

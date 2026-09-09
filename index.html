@@ -244,7 +244,7 @@
   #exampleslist{ margin-top:1rem; display:grid; grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr)); gap:.8rem }
   .ex-card{ display:flex; flex-direction:column; min-width:0; text-align:left; overflow:hidden; background:var(--panel); border:1px solid var(--line); border-radius:.65rem }
   .ex-card:focus-within,.ex-card:hover{ border-color:var(--accent) }
-  .ex-preview{ display:flex; align-items:center; justify-content:center; height:150px; background:var(--bg); overflow:hidden; text-decoration:none; color:var(--ink) }
+  .ex-preview{ display:flex; align-items:center; justify-content:center; height:150px; background:var(--bg); overflow:hidden; text-decoration:none; color:var(--ink); position:relative }
   .ex-card .ex-em{ font-size:3rem }
   .ex-card .ex-im{ width:100%; height:100%; object-fit:contain }
   .ex-card .ex-quote{ margin:0; padding:1rem; font-size:.8rem; line-height:1.6; color:var(--dim) }
@@ -271,6 +271,7 @@
     .ex-card .ex-im,.ex-card .ex-em{ width:100%; height:100%; object-fit:cover }
     .ex-card .ex-em{ font-size:2rem }
     .ex-card .ex-quote{ display:none }
+    .ex-preview .tag{ font-size:.55rem; left:.28rem; top:.28rem; padding:.04rem .28rem }
     .ex-card .ex-body{ padding:.55rem .65rem }
     .ex-card .ex-ds{ margin:.2rem 0 .45rem; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden }
     .ex-actions{ gap:.4rem }
@@ -849,6 +850,8 @@
   .tag{ font-size:.62rem; padding:.02rem .35rem; border-radius:1rem; background:#7c8cff22; color:#aeb6ff; white-space:nowrap }
   .tag.edit{ background:#ff79c622; color:#ffb4e2 }
   .tag.nsfw{ background:#ff5e5e22; color:#ff9a9a; }
+  .tag.gg{ background:#0b0d12cc; color:#67e8f9; border:1px solid #67e8f9aa; box-shadow:0 0 0 1px #ff79c688; font-weight:700; letter-spacing:.02em }
+  .ex-preview .tag{ position:absolute; left:.45rem; top:.45rem; z-index:1; pointer-events:none }
 
   .modelpick{ width:100%; text-align:left; background:var(--panel2); border:1px solid var(--line); border-radius:.45rem;
               padding:.35rem .5rem; font-size:.8rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
@@ -13877,7 +13880,8 @@ function openExamples(){
     const preview=ex.slug==="custom-endpoint"
       ? '<blockquote class="ex-quote" data-no-i18n>Choice picks the path: <code>/post</code> or <code>/anything</code>. $0 public echo.</blockquote>'
       : thumb?`<img class="ex-im" src="${thumb}" alt="" loading="lazy"/>`:`<span class="ex-em" aria-hidden="true">${ex.em}</span>`;
-    const previewWrap=result?`<a class="ex-preview" href="${result}" target="_blank" rel="noopener" aria-label="${esc(t("See result")+": "+t(ex.title))}">${preview}</a>`:`<div class="ex-preview">${preview}</div>`;
+    const tag=ex.slug==="deslop"?'<span class="tag gg" data-no-i18n>gg writers</span>':'';
+    const previewWrap=result?`<a class="ex-preview" href="${result}" target="_blank" rel="noopener" aria-label="${esc(t("See result")+": "+t(ex.title))}">${preview}${tag}</a>`:`<div class="ex-preview">${preview}${tag}</div>`;
     const see=result?`<a href="${result}" target="_blank" rel="noopener">${esc(t("See result"))} ↗</a>`:"";
     c.innerHTML=`${previewWrap}<div class="ex-body"><h3 class="ex-tt">${esc(t(ex.title))}</h3><p class="ex-ds">${esc(t(ex.desc))}</p><div class="ex-actions"><button type="button">${esc(t("Open workflow"))}</button>${see}</div></div>`;
     c.querySelector("button").onclick=()=>loadExample(i); list.appendChild(c);
