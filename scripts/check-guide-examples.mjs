@@ -386,6 +386,51 @@ if (/slug:"edit-a-photo"[\s\S]{0,80}desc:"same bottle, clean paper, catalog-read
 if (!/slug:"edit-a-photo"[\s\S]{0,80}desc:"matte charcoal, cyan rim — same product, night-ride ready"/.test(examplesSrc)) {
   fail("EXAMPLES edit-a-photo desc should pitch matte charcoal and cyan rim");
 }
+const arenaSample = samples.find((s) => s.slug === "image-model-arena");
+if (!arenaSample) fail("samples.json missing image-model-arena");
+if (arenaSample.preview !== "image-model-arena/preview.webp") {
+  fail("image-model-arena sample preview should be image-model-arena/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "image-model-arena", "preview.webp"))) {
+  fail("examples/gallery/image-model-arena/preview.webp is missing");
+}
+if (/FIX A FLAT|SATURDAY 10 AM|bicycle repair|cream background|navy and red|tire lever/i.test(JSON.stringify(arenaSample.inputs))) {
+  fail("image-model-arena sample inputs still use the FIX A FLAT / cream workshop first-click");
+}
+if (!/NIGHT RIDE|TUE 9 SEP|matte-charcoal pocket night-ride radio|electric-cyan lightning/i.test(JSON.stringify(arenaSample.inputs))) {
+  fail("image-model-arena sample inputs should pitch the Volt night-ride poster");
+}
+if (!/FIX A FLAT|tire-lever|historical|does not match|later regen|not regenerated/i.test(arenaSample.note)) {
+  fail("image-model-arena sample note should say the saved contenders are the earlier FIX A FLAT sample");
+}
+if (!/cover still/i.test(arenaSample.note) || !/NIGHT RIDE/i.test(arenaSample.note) || !/cyan/i.test(arenaSample.note)) {
+  fail("image-model-arena sample note should name the Volt night-ride cover still");
+}
+if (!hub.includes("image-model-arena/preview.webp")) {
+  fail("hub should thumb the image-model-arena night-ride cover");
+}
+const arenaHowTo = readFileSync(join(ROOT, "guide", "examples", "image-model-arena.html"), "utf8");
+if (/SATURDAY 10 AM|bicycle repair|cream background|navy and red|polish is not the same as a tire lever|two hooked plastic tire levers/i.test(arenaHowTo)) {
+  fail("image-model-arena how-to still uses the FIX A FLAT / cream workshop first-click");
+}
+if (!/NIGHT RIDE/i.test(arenaHowTo) || !/Volt/i.test(arenaHowTo) || !/cyan/i.test(arenaHowTo)) {
+  fail("image-model-arena how-to should pitch the Volt night-ride poster");
+}
+if (!/historical|FIX A FLAT|tire-lever|not regenerated/i.test(arenaHowTo)) {
+  fail("image-model-arena how-to should say the saved contenders are the earlier FIX A FLAT sample");
+}
+if (!/slug:"image-model-arena"[\s\S]{0,200}thumb:"examples\/gallery\/image-model-arena\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES image-model-arena thumb should be examples/gallery/image-model-arena/preview.webp");
+}
+if (/slug:"image-model-arena"[\s\S]{0,80}desc:"four models, one poster — type, wheel, tire levers"/.test(examplesSrc)) {
+  fail("EXAMPLES image-model-arena desc still uses the tire-lever line");
+}
+if (!/slug:"image-model-arena"[\s\S]{0,80}desc:"four models, one Volt night-ride poster — exact NIGHT RIDE type"/.test(examplesSrc)) {
+  fail("EXAMPLES image-model-arena desc should pitch the Volt night-ride poster");
+}
+if (/workshop-poster brief|FIX A FLAT|SATURDAY 10 AM|tire levers|cream background/i.test(examplesSrc.match(/slug:"image-model-arena"[\s\S]{0,1200}/)?.[0] || "")) {
+  fail("EXAMPLES image-model-arena first-click still uses the FIX A FLAT / cream workshop brief");
+}
 for (const slug of slugs) {
   const page = readFileSync(join(ROOT, "guide", "examples", slug === "iron-verdict" ? "iron-verdict.html" : `${slug}.html`), "utf8");
   if (page.includes("how to use this noodle")) {
