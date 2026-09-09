@@ -144,12 +144,12 @@ const HOWTO = {
     costHow: "The reviewed song run reported $0.225 (music step $0.225, plus a small text call). Prices and results vary.",
   },
   "talking-avatar": {
-    headline: "Look at camera. Say the line.",
-    job: "Look at camera. Say the line.",
-    purpose: "A face, a voice, a line to camera. Keep the script under 30 seconds. Match the presenter to the voice you picked. The saved take happens to be a workshop welcome — type the line you'd actually say.",
+    headline: "Look at camera. Clear the channel.",
+    job: "Night courier. One line to camera.",
+    purpose: "A face, a voice, a line to camera. Keep the script under 30 seconds. Match the presenter to the voice you picked. First-click is a Volt night-courier dispatcher — charcoal jacket, cyan lightning chevron, night board. Type the line you'd actually say.",
     edit: "Change <em>Presenter look</em>, <em>Spoken script</em>, and <em>Delivery</em>. Muse paints the face, MiniMax Speech reads, LongCat animates at 480p.",
-    inspect: "The words are right, the face stays visible, the mouth follows the speech. Check lip-sync in playback — we don't claim frame-accurate timing. Generation can take several minutes; an earlier attempt blew a four-minute timeout. A Gemini 3.8 Flash transcript of the saved run reported $0.00164 (model-assisted). The open workflow uses current model IDs after a provider-name migration.",
-    costHow: "The reviewed run reported at least $0.28. Video is listed at $0.03 per audio second at 480p, plus portrait and speech. Some provider price fields were omitted. Prices and results vary.",
+    inspect: "The words are right, the face stays visible, the mouth follows the speech. Check lip-sync in playback — we don't claim frame-accurate timing. Generation can take several minutes; an earlier attempt blew a four-minute timeout. Cover still is the Volt night-courier dispatcher. The saved MP4 is the earlier 5 September workshop/museum-guide sample — historical, not regenerated. A Gemini 3.8 Flash transcript of that older run reported $0.00164 (model-assisted). The open workflow uses current model IDs after a provider-name migration.",
+    costHow: "The reviewed workshop run reported at least $0.28. Video is listed at $0.03 per audio second at 480p, plus portrait and speech. Some provider price fields were omitted. Cover still is card art. Prices and results vary.",
   },
 };
 

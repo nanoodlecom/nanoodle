@@ -49,6 +49,12 @@ if (!hub.includes("cinematic-character-still/preview.webp")) {
 if (hub.includes("Spoken workshop introduction")) {
   fail("hub still titles the talking-avatar card as a workshop intro");
 }
+if (hub.includes("Look at camera. Say the line.") && !hub.includes("Look at camera. Clear the channel.")) {
+  fail("hub still titles talking-avatar as Look at camera. Say the line.");
+}
+if (!hub.includes("Look at camera. Clear the channel.")) {
+  fail("hub should title talking-avatar as Look at camera. Clear the channel.");
+}
 const singHowTo = readFileSync(join(ROOT, "guide", "examples", "sing.html"), "utf8");
 if (/last repair|squeaky wheel|gentle acoustic folk|repair-shop game|cozy-repair-shop|acoustic guitar|170-second/i.test(singHowTo)) {
   fail("sing how-to still uses the cozy repair-shop first-click");
@@ -286,6 +292,51 @@ if (/slug:"render-a-mockup"[\s\S]{0,80}desc:"a repair-shop dashboard worth argui
 }
 if (!/slug:"render-a-mockup"[\s\S]{0,80}desc:"charcoal \+ cyan Volt dispatch — Tonight, Couriers, Radios"/.test(examplesSrc)) {
   fail("EXAMPLES render-a-mockup desc should pitch charcoal + cyan Volt dispatch");
+}
+const avatarSample = samples.find((s) => s.slug === "talking-avatar");
+if (!avatarSample) fail("samples.json missing talking-avatar");
+if (avatarSample.preview !== "talking-avatar/preview.webp") {
+  fail("talking-avatar sample preview should be talking-avatar/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "talking-avatar", "preview.webp"))) {
+  fail("examples/gallery/talking-avatar/preview.webp is missing");
+}
+if (/museum guide|navy shirt|blue tray|bike-shop|seized pedal|kettle boils|Welcome to the workshop/i.test(JSON.stringify(avatarSample.inputs))) {
+  fail("talking-avatar sample inputs still use the museum-guide or bike-shop first-click");
+}
+if (!/night-courier dispatcher|Volt is live on the night board|cyan channel/i.test(JSON.stringify(avatarSample.inputs))) {
+  fail("talking-avatar sample inputs should pitch the Volt night-courier dispatcher");
+}
+if (!/workshop|museum-guide|does not match|later regen|not regenerated/i.test(avatarSample.note)) {
+  fail("talking-avatar sample note should say the saved MP4 is the earlier workshop sample");
+}
+if (!/cover still/i.test(avatarSample.note) || !/night-courier/i.test(avatarSample.note)) {
+  fail("talking-avatar sample note should name the Volt night-courier cover still");
+}
+if (!hub.includes("talking-avatar/preview.webp")) {
+  fail("hub should thumb the talking-avatar night-courier cover");
+}
+const avatarHowTo = readFileSync(join(ROOT, "guide", "examples", "talking-avatar.html"), "utf8");
+if (/Welcome to the workshop|bike-shop|seized pedal|kettle boils|Spoken workshop introduction|Look at camera\. Say the line/i.test(avatarHowTo)) {
+  fail("talking-avatar how-to still uses the workshop or bike-shop first-click");
+}
+if (!/night-courier|Volt/i.test(avatarHowTo) || !/cyan/i.test(avatarHowTo)) {
+  fail("talking-avatar how-to should pitch the Volt night-courier dispatcher");
+}
+if (!avatarHowTo.includes("talking-avatar/preview.webp")) {
+  fail("talking-avatar how-to should show the night-courier cover still");
+}
+if (!/historical|workshop|museum-guide|not regenerated/i.test(avatarHowTo)) {
+  fail("talking-avatar how-to should say the saved MP4 is the earlier workshop sample");
+}
+if (!/slug:"talking-avatar"[\s\S]{0,200}thumb:"examples\/gallery\/talking-avatar\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES talking-avatar thumb should be examples/gallery/talking-avatar/preview.webp");
+}
+if (/slug:"talking-avatar"[\s\S]{0,80}desc:"the bike-shop lead looks at camera/.test(examplesSrc)) {
+  fail("EXAMPLES talking-avatar desc still uses the bike-shop line");
+}
+if (!/slug:"talking-avatar"[\s\S]{0,80}desc:"the night dispatcher looks at camera and keeps the cyan channel clear"/.test(examplesSrc)) {
+  fail("EXAMPLES talking-avatar desc should pitch the night dispatcher and cyan channel");
 }
 for (const slug of slugs) {
   const page = readFileSync(join(ROOT, "guide", "examples", slug === "iron-verdict" ? "iron-verdict.html" : `${slug}.html`), "utf8");
