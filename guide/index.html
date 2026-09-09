@@ -4,12 +4,12 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>nanoodle guide — how it works</title>
-<meta name="description" content="Documentation for nanoodle: the noodle-graph.json workflow format, running workflows headlessly from JavaScript and Python, how #g= and #a= share links keep your data in the URL fragment, and self-hosting the static site." />
+<meta name="description" content="Documentation for nanoodle: the noodle-graph.json workflow format, paste-a-share-link headless JS/Python (install nanoodle, not nanoodle-js), how #g= and #a= share links keep your data in the URL fragment, and self-hosting the static site." />
 
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="nanoodle" />
 <meta property="og:title" content="nanoodle guide — how it works" />
-<meta property="og:description" content="The workflow file format, headless JS/Python execution, share-link privacy, and self-hosting — documentation for the browser-only AI node playground." />
+<meta property="og:description" content="The workflow file format, paste-a-share-link headless JS/Python, share-link privacy, and self-hosting — documentation for the browser-only AI node playground." />
 <meta property="og:url" content="https://nanoodle.com/guide/" />
 <meta property="og:image" content="https://nanoodle.com/og-card.png" />
 <meta property="og:image:width" content="1200" />
@@ -17,7 +17,7 @@
 <meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="nanoodle guide — how it works" />
-<meta name="twitter:description" content="The workflow file format, headless JS/Python execution, share-link privacy, and self-hosting." />
+<meta name="twitter:description" content="The workflow file format, paste-a-share-link headless JS/Python, share-link privacy, and self-hosting." />
 <meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
 
 <link rel="icon" href="/favicon.ico" sizes="any" />
@@ -71,8 +71,9 @@
         </a>
         <a class="card" href="/guide/run-headless">
           <b>Run workflows headlessly</b>
-          <small>Re-run a saved graph from Node.js or Python with the zero-dependency
-          <code>nanoodle</code> packages — library and CLI.</small>
+          <small>Paste a share link. <code>npx nanoodle inspect</code> offline, then
+          <code>npx nanoodle run</code> / <code>pip install nanoodle</code>. Package is
+          <code>nanoodle</code> — not <code>nanoodle-js</code>.</small>
         </a>
         <a class="card" href="/guide/share-links">
           <b>How share links work</b>
@@ -104,7 +105,10 @@
         <li><a href="/play">The app builder</a> — turn a workflow into a shareable app.</li>
         <li><a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">github.com/nanoodlecom/nanoodle</a> — the site's source (MIT).</li>
         <li><a href="https://github.com/nanoodlecom/nanoodle-js" target="_blank" rel="noopener">nanoodle-js</a> and
-            <a href="https://github.com/nanoodlecom/nanoodle-py" target="_blank" rel="noopener">nanoodle-py</a> — headless executors (npm / PyPI, both named <code>nanoodle</code>).</li>
+            <a href="https://github.com/nanoodlecom/nanoodle-py" target="_blank" rel="noopener">nanoodle-py</a> — headless executors. Install <code>nanoodle</code> on npm (0.8.0) or PyPI (0.5.0), not the repo name. See <a href="/guide/run-headless">Run workflows headlessly</a>.</li>
+        <li><a href="https://github.com/nanoodlecom/nanoodle-mcp" target="_blank" rel="noopener">nanoodle-mcp</a>,
+            <a href="https://github.com/nanoodlecom/run-noodle-action" target="_blank" rel="noopener">run-noodle-action</a>,
+            <a href="https://github.com/nanoodlecom/noodle-skills" target="_blank" rel="noopener">noodle-skills</a> — same graphs as MCP tools, a CI step, or a one-task agent skill.</li>
         <li><a href="/examples/gallery/">Reviewed gallery</a> — saved images, clips, audio and edited text with briefs, models, costs and review notes.</li>
         <li><a href="/guide/examples/">Steal a noodle</a> — night markets, neon couriers, a clip that sings. Open the graph, change a line, see the reported cost.</li>
         <li><a href="https://github.com/nanoodlecom/awesome-noodles" target="_blank" rel="noopener">awesome-noodles</a> — the workflow gallery behind the editor's 📚 Examples panel: one graph file per entry.</li>

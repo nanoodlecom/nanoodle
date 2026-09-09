@@ -501,13 +501,14 @@ function hubPage() {
 
     <section>
       <p>Night markets. Neon couriers. Rain on a night-ride radio. A clip that actually sings. These sit beside the <a href="/examples/gallery/">reviewed gallery</a> — real stills, clips, songs, and edits, not mockups of mockups. Looking is free. Running spends your NanoGPT balance. Costs are the reported first-party runs. The next one will not be identical.</p>
-      <p>Pick a card. Change a line. Hit <strong>Open this noodle</strong> for the same share graph the gallery uses. Every card is an <a href="https://github.com/nanoodlecom/awesome-noodles" target="_blank" rel="noopener">awesome-noodles</a> graph.</p>
+      <p>Pick a card. Change a line. Hit <strong>Open this noodle</strong> for the same share graph the gallery uses. Every card is an <a href="https://github.com/nanoodlecom/awesome-noodles" target="_blank" rel="noopener">awesome-noodles</a> graph. Want it in a script instead of the canvas? Paste that share link into <a href="/guide/run-headless">Run workflows headlessly</a>.</p>
 ${groups}`;
 
   const next = [
     `        <a href="/guide/">← Guide</a>`,
     `        <a href="/examples/gallery/">Reviewed gallery</a>`,
     `        <a href="/examples/iron-verdict/">Play Iron Verdict</a>`,
+    `        <a href="/guide/run-headless">Run headlessly</a>`,
     `        <a href="/guide/share-links">How share links work</a>`,
   ].join("\n");
 
