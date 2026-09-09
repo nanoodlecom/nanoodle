@@ -1323,6 +1323,8 @@ const I18N = {
 
     "product cutout":"recorte de producto",
     "cyan lightning radio, background gone":"radio relámpago cian, fondo fuera",
+    "text-selected isolate":"aislamiento por texto",
+    "name the cyan lightning radio — isolate that, not the alley":"nombra la radio relámpago cian — aísla eso, no el callejón",
     "matte charcoal, cyan rim — same product, night-ride ready":"carbón mate, ribete cian — el mismo producto, listo para la noche",
     "plain-language editor":"editor de lenguaje claro",
     "charcoal + cyan Volt dispatch — Tonight, Couriers, Radios":"despacho Volt carbón + cian — Tonight, Couriers, Radios",
@@ -1952,6 +1954,8 @@ const I18N = {
 
     "product cutout":"détourage produit",
     "cyan lightning radio, background gone":"radio éclair cyan, fond disparu",
+    "text-selected isolate":"isolement par texte",
+    "name the cyan lightning radio — isolate that, not the alley":"nomme la radio éclair cyan — isole ça, pas la ruelle",
     "matte charcoal, cyan rim — same product, night-ride ready":"charbon mat, liseré cyan — le même produit, prêt pour la nuit",
     "plain-language editor":"révision en langage clair",
     "charcoal + cyan Volt dispatch — Tonight, Couriers, Radios":"dispatch Volt charbon + cyan — Tonight, Couriers, Radios",
@@ -2581,6 +2585,8 @@ const I18N = {
 
     "product cutout":"Produkt-Freisteller",
     "cyan lightning radio, background gone":"cyanfarbenes Blitz-Radio, Hintergrund weg",
+    "text-selected isolate":"textgewählte Isolation",
+    "name the cyan lightning radio — isolate that, not the alley":"benenne das Cyan-Blitz-Radio — isoliere das, nicht die Gasse",
     "matte charcoal, cyan rim — same product, night-ride ready":"mattes Anthrazit, Cyan-Randlicht — dasselbe Produkt, nachtbereit",
     "plain-language editor":"Klartext-Editor",
     "charcoal + cyan Volt dispatch — Tonight, Couriers, Radios":"Volt-Dispatch in Anthrazit + Cyan — Tonight, Couriers, Radios",
@@ -3210,6 +3216,8 @@ const I18N = {
 
     "product cutout":"recorte de produto",
     "cyan lightning radio, background gone":"rádio relâmpago ciano, fundo sumiu",
+    "text-selected isolate":"isolamento por texto",
+    "name the cyan lightning radio — isolate that, not the alley":"nomeie o rádio relâmpago ciano — isole isso, não o beco",
     "matte charcoal, cyan rim — same product, night-ride ready":"carvão fosco, filete ciano — o mesmo produto, pronto para a noite",
     "plain-language editor":"editor de linguagem clara",
     "charcoal + cyan Volt dispatch — Tonight, Couriers, Radios":"despacho Volt carvão + ciano — Tonight, Couriers, Radios",
@@ -3839,6 +3847,8 @@ const I18N = {
 
     "product cutout":"商品切り抜き",
     "cyan lightning radio, background gone":"電光シアンのラジオ、背景なし",
+    "text-selected isolate":"テキスト指定の切り出し",
+    "name the cyan lightning radio — isolate that, not the alley":"電光シアンのラジオを指名して切り出す — 路地は残す",
     "matte charcoal, cyan rim — same product, night-ride ready":"マットチャコール、シアンリム — 同じ製品、ナイトライド向け",
     "plain-language editor":"わかりやすい文章に編集",
     "charcoal + cyan Volt dispatch — Tonight, Couriers, Radios":"チャコール＋シアンのVoltディスパッチ — Tonight, Couriers, Radios",
@@ -13598,6 +13608,18 @@ const EXAMPLES = [
            {id:"l2",from:{node:"n2",port:"text"},to:{node:"n4",port:"prompt"}},
            {id:"l3",from:{node:"n2",port:"text"},to:{node:"n5",port:"prompt"}},
            {id:"l4",from:{node:"n2",port:"text"},to:{node:"n6",port:"prompt"}} ] } },
+ { em:"🎯", slug:"sam3-isolate", title:"text-selected isolate", desc:"name the cyan lightning radio — isolate that, not the alley",
+   thumb:"examples/gallery/sam3-isolate/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:20,w:480,fields:{text:"Upload a cluttered scene still; SAM 3 (`sam3-image`) isolates a named object or region from a text prompt. Size auto, $0.005/image. First-click Isolate names the matte-charcoal Volt pocket night-ride radio with one electric-cyan lightning-bolt chevron in a cluttered courier desk or wet neon alley — this repo has no committed scene still, so upload that photo or any scene that contains the named object. This is text-selected isolate, not full background removal (use Product cutout / BiRefNet V2 for knocking out the whole background). Inspect the native SAM 3 isolate for the named object; Export preview is a local 1024 fit only.",color:"yellow"},name:"Text-selected isolate"},
+           {id:"n1",type:"upload",x:40,y:320,w:280,fields:{},name:"Scene still"},
+           {id:"n2",type:"edit",x:400,y:300,w:300,fields:{prompt:"",size:"auto",model:"sam3-image"},name:"Text-selected isolate"},
+           {id:"n3",type:"text",x:40,y:560,w:300,fields:{text:"the matte-charcoal Volt pocket night-ride radio with one electric-cyan lightning-bolt chevron"},name:"Isolate"},
+           {id:"n4",type:"resize",x:780,y:300,w:280,fields:{mode:"fit",width:"1024",height:"1024"},name:"Export preview"} ],
+   links:[ {id:"l1",from:{node:"n1",port:"image"},to:{node:"n2",port:"image"}},
+           {id:"l2",from:{node:"n3",port:"text"},to:{node:"n2",port:"prompt"}},
+           {id:"l3",from:{node:"n2",port:"image"},to:{node:"n4",port:"image"}} ] } },
+
  { em:"🔳", slug:"product-cutout", title:"product cutout", desc:"cyan lightning radio, background gone",
    thumb:"examples/gallery/product-cutout/preview.webp",
    graph:{ v:1,
@@ -13807,7 +13829,7 @@ function openExamples(){
   // Same Elo order on every width — no mobile-only list, no CSS order, no truncation.
   // Featured #skilloutcome (Iron Verdict) sits above the grid on every width.
   // Compact mobile cards keep H3 (4th) and the featured game above the fold.
-  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","image-model-arena","edit-a-photo","product-cutout","render-a-mockup","favicon","photo-to-video","character-sprites","talking-avatar","infinitetalk-radio-take","sing","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
+  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","render-a-mockup","favicon","photo-to-video","character-sprites","talking-avatar","infinitetalk-radio-take","sing","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
   EXAMPLES.map((ex,i)=>({ex,i})).sort((a,b)=>{
     const rank=slug=>first.includes(slug)?first.indexOf(slug):first.length;
     return rank(a.ex.slug)-rank(b.ex.slug);

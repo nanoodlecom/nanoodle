@@ -95,6 +95,14 @@ const HOWTO = {
     inspect: "Cover still is the reused FIBO Volt plate, pending a true BiRefNet V2 QC cutout — no paid birefnet/v2 run this PR, not a fabricated cutout. Open the graph and hit Run with your key after you upload a still. Inspect the native cutout for silhouette and edge detail. Export preview is a local 1024 fit only.",
     costHow: "Listed at $0.01 for one BiRefNet V2 call at auto. Local resize is $0. No LLM. Prices and results vary. This page has no reviewed first-party cutout yet.",
   },
+  "sam3-isolate": {
+    headline: "Name it. Lift it.",
+    job: "Volt radio. Named. Isolated.",
+    purpose: "Upload a cluttered scene. Name the object. SAM 3 isolates that region — not the whole background. First-click Isolate names the matte-charcoal Volt pocket night-ride radio with one electric-cyan lightning-bolt chevron in a cluttered courier desk or wet neon alley. Distinct from Product cutout / BiRefNet V2, which knocks out the entire background.",
+    edit: "Drop your scene on <em>Scene still</em>. Rewrite <em>Isolate</em> to name the object or region. Leave <em>Text-selected isolate</em> on <code>sam3-image</code> unless you mean to change models. <em>Export preview</em> is a local 1024 fit.",
+    inspect: "Cover still is reused Volt card art from the combine-images alley plate, pending a true SAM 3 QC isolate — no paid sam3-image run this PR, not a fabricated isolate. Open the graph and hit Run with your key after you upload a cluttered scene. Inspect the native isolate for the named object. Export preview is a local 1024 fit only.",
+    costHow: "Listed at $0.005 for one SAM 3 call at auto. Local resize is $0. No LLM. Prices and results vary. This page has no reviewed first-party isolate yet.",
+  },
   "combine-images": {
     headline: "Drop it in the alley",
     job: "Volt radio. Wet neon alley.",
@@ -199,7 +207,7 @@ for (const s of SAMPLES) {
 const GROUPS = [
   { id: "playable", title: "Playable", slugs: ["iron-verdict"] },
   { id: "image", title: "Image", slugs: [
-    "edit-a-photo", "product-cutout", "combine-images", "render-a-mockup", "favicon",
+    "edit-a-photo", "product-cutout", "sam3-isolate", "combine-images", "render-a-mockup", "favicon",
     "night-market-postcard", "fibo-studio-still", "cinematic-character-still",
     "image-model-arena",
   ] },

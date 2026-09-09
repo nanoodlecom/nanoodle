@@ -533,6 +533,76 @@ if (/SAM 3/i.test(cutoutCard) && !/not text-selected SAM 3|not SAM 3/i.test(cuto
 if (!/birefnet\/v2/.test(examplesSrc.match(/slug:"product-cutout"[\s\S]{0,1800}/)?.[0] || "")) {
   fail("EXAMPLES product-cutout graph should pin birefnet/v2");
 }
+const isolateSample = samples.find((s) => s.slug === "sam3-isolate");
+if (!isolateSample) fail("samples.json missing sam3-isolate");
+if (isolateSample.preview !== "sam3-isolate/preview.webp") {
+  fail("sam3-isolate sample preview should be sam3-isolate/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "sam3-isolate", "preview.webp"))) {
+  fail("examples/gallery/sam3-isolate/preview.webp is missing");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "sam3-isolate", "scene-input.webp"))) {
+  fail("examples/gallery/sam3-isolate/scene-input.webp is missing");
+}
+if (!/sam3-image/.test(JSON.stringify(isolateSample.models))) {
+  fail("sam3-isolate sample should pin sam3-image");
+}
+if (isolateSample.models.includes("wavespeed-ai/sam3-image")) {
+  fail("sam3-isolate sample must not pin wavespeed-ai/sam3-image");
+}
+if (!/cover|reused Volt card art/i.test(isolateSample.note) || !/no paid|pending/i.test(isolateSample.note)) {
+  fail("sam3-isolate sample note should say cover is reused Volt card art and SAM QC is pending");
+}
+if (!/text-selected isolate|name a region/i.test(isolateSample.note)) {
+  fail("sam3-isolate sample note should say the job is text-selected isolate");
+}
+if (!/Product cutout|BiRefNet/i.test(isolateSample.note)) {
+  fail("sam3-isolate sample note should distinguish Product cutout / BiRefNet");
+}
+if (!/Volt|night-ride radio|cyan/i.test(isolateSample.note)) {
+  fail("sam3-isolate sample note should pitch the Volt night-ride radio");
+}
+if (!hub.includes("sam3-isolate/preview.webp")) {
+  fail("hub should thumb the sam3-isolate cover");
+}
+if (!hub.includes("Name it. Lift it.")) {
+  fail("hub should title sam3-isolate as Name it. Lift it.");
+}
+const isolateHowTo = readFileSync(join(ROOT, "guide", "examples", "sam3-isolate.html"), "utf8");
+if (!/sam3-image/.test(isolateHowTo)) {
+  fail("sam3-isolate how-to should name sam3-image");
+}
+if (/wavespeed-ai\/sam3-image/.test(isolateHowTo)) {
+  fail("sam3-isolate how-to must not pin wavespeed-ai/sam3-image");
+}
+if (!/Volt/i.test(isolateHowTo) || !/cyan/i.test(isolateHowTo) || !/charcoal/i.test(isolateHowTo)) {
+  fail("sam3-isolate how-to should pitch the Volt charcoal + cyan radio");
+}
+if (!/text-selected isolate|name the object|name a region/i.test(isolateHowTo)) {
+  fail("sam3-isolate how-to should say this is text-selected isolate");
+}
+if (!/Product cutout|BiRefNet/i.test(isolateHowTo)) {
+  fail("sam3-isolate how-to should distinguish Product cutout / BiRefNet");
+}
+if (!/reused Volt card art|no paid|pending/i.test(isolateHowTo)) {
+  fail("sam3-isolate how-to should say the cover is reused Volt card art and SAM QC is pending");
+}
+if (!isolateHowTo.includes("sam3-isolate/preview.webp")) {
+  fail("sam3-isolate how-to should show the cover still");
+}
+if (!/slug:"sam3-isolate"[\s\S]{0,200}thumb:"examples\/gallery\/sam3-isolate\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES sam3-isolate thumb should be examples/gallery/sam3-isolate/preview.webp");
+}
+if (!/slug:"sam3-isolate"[\s\S]{0,80}desc:"name the cyan lightning radio — isolate that, not the alley"/.test(examplesSrc)) {
+  fail("EXAMPLES sam3-isolate desc should pitch name the cyan lightning radio — isolate that, not the alley");
+}
+const isolateCard = examplesSrc.match(/slug:"sam3-isolate"[\s\S]{0,2200}/)?.[0] || "";
+if (/wavespeed-ai\/sam3-image/.test(isolateCard)) {
+  fail("EXAMPLES sam3-isolate first-click must not pin wavespeed-ai/sam3-image");
+}
+if (!/sam3-image/.test(isolateCard)) {
+  fail("EXAMPLES sam3-isolate graph should pin sam3-image");
+}
 if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
   fail("custom-endpoint must stay the only LOCAL_ONLY teaching card");
 }

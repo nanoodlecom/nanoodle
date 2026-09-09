@@ -60,7 +60,7 @@ sentences a reader quotes back at you, so re-verify them if the server changes.
 - "`--max-usd` caps one call" — `bin/nanoodle-mcp.mjs`, wallet mode.
 - "prints a cost line per invocation" — `emitResult()` in `src/tools.mjs` pushes
   a `cost: $X.XXXX` text block.
-- "eighteen workflows published" — EXAMPLES ships 18; mcp.nanoodle.com serves that same set.
+- "nineteen workflows published" — EXAMPLES ships 19; mcp.nanoodle.com serves that same set.
 
 **After posting:** log venue + link + response in shares.md, per the habit.
 
