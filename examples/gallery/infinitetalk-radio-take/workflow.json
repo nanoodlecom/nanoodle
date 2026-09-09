@@ -6,7 +6,7 @@
       "type": "comment",
       "x": 60,
       "y": -180,
-      "w": 540,
+      "w": 560,
       "name": "Night-ride radio take",
       "fields": {
         "text": "Still + audio → InfiniteTalk speaking/singing video (lips + body). Not the talking-avatar graph (Muse → MiniMax Speech → LongCat). Keep audio under ~15 s for a cheap first-click. Cost: InfiniteTalk from ~$0.09 (duration/resolution); Muse ~$0.01; Speech only if you keep the bootstrap. Inspect body motion and lip timing — this model follows the sound, it does not invent a TTS script.",
@@ -17,46 +17,68 @@
       "id": "n0",
       "type": "text",
       "x": 60,
-      "y": 60,
+      "y": 40,
       "w": 300,
       "name": "Still brief",
       "fields": {
-        "text": "Mid-shot fictional night courier, late 20s, matte charcoal jacket with one electric-cyan lightning-chevron, pocket Volt radio held chest-high in one hand, unobstructed face/mouth, rain-slick rooftop ledge, magenta rim + cyan bounce, charcoal void. Locked camera. No helmet, glasses, logos, letters, or second person."
+        "text": "Mid-shot of a fictional night courier, late 20s, matte charcoal jacket with one electric-cyan lightning-chevron, pocket Volt radio held chest-high in one hand, unobstructed face and mouth, rain-slick rooftop ledge, magenta rim plus cyan bounce, charcoal void. Locked camera. One person. No helmet, glasses, logos, letters, or second person."
       }
     },
     {
       "id": "n1",
       "type": "image",
       "x": 420,
-      "y": 60,
+      "y": 40,
       "name": "Still",
       "fields": {
         "model": "meta/muse-image/text-to-image",
         "size": "1:1",
         "variations": "1"
+      },
+      "sizes": {
+        "prompt": 0
       }
     },
     {
       "id": "n2",
       "type": "text",
       "x": 60,
-      "y": 400,
+      "y": 380,
       "w": 300,
-      "name": "Radio take",
+      "name": "Radio take (bootstrap)",
       "fields": {
-        "text": "Ridge is wet. Volt-07 on the ledge. Pocket radio live. I'm holding this channel."
+        "text": "Volt-07 on the ridge. Cyan channel clear. Last drop, then dock."
+      },
+      "sizes": {
+        "text": 80
       }
     },
     {
       "id": "n3",
       "type": "tts",
       "x": 420,
-      "y": 400,
+      "y": 380,
       "name": "Speech bootstrap",
       "fields": {
         "model": "Minimax-Speech-2.8-HD",
         "voice": "Deep_Voice_Man",
-        "response_format": "mp3"
+        "response_format": "mp3",
+        "instructions": "Calm, dry night-channel radio take. No music bed."
+      },
+      "sizes": {
+        "prompt": 0,
+        "instructions": 60
+      }
+    },
+    {
+      "id": "n5",
+      "type": "text",
+      "x": 60,
+      "y": 680,
+      "w": 320,
+      "name": "Delivery",
+      "fields": {
+        "text": "Natural radio-check body language — small head turns, radio hand steady, lips and torso follow the take. Locked camera, one person, no cuts."
       }
     },
     {
@@ -64,13 +86,16 @@
       "type": "lipsync",
       "x": 800,
       "y": 200,
-      "name": "InfiniteTalk",
+      "name": "InfiniteTalk clip",
       "fields": {
         "model": "infinitetalk",
         "resolution": "480p",
         "modelOpts": {
           "people": "single"
         }
+      },
+      "sizes": {
+        "prompt": 0
       }
     }
   ],
@@ -118,10 +143,21 @@
         "node": "n4",
         "port": "audio"
       }
+    },
+    {
+      "id": "l4",
+      "from": {
+        "node": "n5",
+        "port": "text"
+      },
+      "to": {
+        "node": "n4",
+        "port": "prompt"
+      }
     }
   ],
-  "nid": 6,
-  "lid": 4,
+  "nid": 7,
+  "lid": 5,
   "view": {
     "panX": 40,
     "panY": 220,

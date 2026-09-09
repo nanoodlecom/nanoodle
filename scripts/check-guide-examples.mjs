@@ -718,11 +718,11 @@ if (!/slug:"infinitetalk-radio-take"[\s\S]{0,80}desc:"still \+ audio — lips an
 if (!/slug:"infinitetalk-radio-take"[\s\S]{0,80}title:"night-ride radio take"/.test(examplesSrc)) {
   fail("EXAMPLES infinitetalk-radio-take title should be night-ride radio take");
 }
-const radioCard = examplesSrc.match(/slug:"infinitetalk-radio-take"[\s\S]{0,2200}/)?.[0] || "";
+const radioCard = examplesSrc.match(/slug:"infinitetalk-radio-take"[\s\S]{0,4000}/)?.[0] || "";
 if (/longcat-avatar|Volt is live on the night board|keep the cyan channel clear/i.test(radioCard)) {
   fail("EXAMPLES infinitetalk-radio-take first-click still uses talking-avatar / LongCat");
 }
-if (!/infinitetalk/.test(radioCard) || !/people:"single"/.test(radioCard) || !/resolution:"480p"/.test(radioCard)) {
+if (!/infinitetalk/.test(radioCard) || !/"?people"?:"single"/.test(radioCard) || !/resolution:"480p"/.test(radioCard)) {
   fail("EXAMPLES infinitetalk-radio-take graph should pin infinitetalk at people=single / 480p");
 }
 if (/slug:"talking-avatar"[\s\S]{0,1800}infinitetalk/.test(examplesSrc)) {

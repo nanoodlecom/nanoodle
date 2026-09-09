@@ -163,7 +163,7 @@ const HOWTO = {
     headline: "Hold the radio. Follow the take.",
     job: "Still + audio. Lips and body follow the sound.",
     purpose: "Turn a still and an audio take into a speaking/singing courier clip where lips and body follow the sound — not a TTS→LongCat intro. First-click is a Volt charcoal/cyan night-ride radio take: mid-shot courier, pocket radio chest-high, rain-slick rooftop. Distinct from Night-courier spoken intro (Muse → MiniMax Speech → LongCat).",
-    edit: "Rewrite <em>Still brief</em> and the <em>Radio take</em> line, or swap Speech for an uploaded clip under ~15 seconds. Leave Avatar / lipsync on <code>infinitetalk</code> at single / 480p.",
+    edit: "Rewrite <em>Still brief</em>, the <em>Radio take (bootstrap)</em> line, and <em>Delivery</em>, or swap Speech for an uploaded clip under ~15 seconds. Leave Avatar / lipsync on <code>infinitetalk</code> at single / 480p.",
     inspect: "Cover still is card art for the mid-shot courier + pocket radio — not a paid InfiniteTalk QC clip. Sample video QC pending. Open the graph and hit Run with your key. Inspect body motion and lip timing. This model follows the sound; it does not invent a TTS script.",
     costHow: "Listed from about $0.09 for InfiniteTalk (duration/resolution) plus Muse ~$0.01. Speech only if you keep the bootstrap. Prices and results vary. This page has no reviewed first-party InfiniteTalk clip yet.",
   },
