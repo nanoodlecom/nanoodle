@@ -128,11 +128,11 @@ const HOWTO = {
     costHow: "The reviewed run reported $0.195 for the video step, plus a small text call. Prices and results vary.",
   },
   "render-a-mockup": {
-    headline: "A screen you can argue about",
-    job: "A screen you can argue about.",
-    purpose: "The labels you already wrote, as a picture. Design review — not a working app.",
+    headline: "A dispatch screen you can argue about",
+    job: "A dispatch screen you can argue about.",
+    purpose: "The labels you already wrote, as a picture. Design review — not a working app. First-click is a charcoal Volt courier-dispatch board — Tonight, Couriers, Radios, cyan New dispatch.",
     edit: "Edit <em>Screen brief</em> and <em>Visual style</em>. Keep the pair under 800 characters (the saved pair is 696). Qwen Image 3 Pro paints the joined brief at 1K. No prompt-writing call.",
-    inspect: "Navigation, date, rows, names, statuses, totals — still there, no invented sections. Output is an image.",
+    inspect: "Navigation, date, rows, courier ids, statuses, totals — still there, no invented sections. Output is an image. Cover still is the charcoal and cyan Volt dispatch board.",
     costHow: "The reviewed run reported $0.04 ($0.04/image at 1K). Prices and results vary.",
   },
   sing: {
