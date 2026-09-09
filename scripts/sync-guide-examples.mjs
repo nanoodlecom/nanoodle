@@ -132,7 +132,7 @@ const HOWTO = {
     job: "Credits after the last leap.",
     purpose: "Original closing-credits music from a brief and a style. No artist cosplay. First-click is a rooftop getaway — rain, last leap, red neon six floors down.",
     edit: "Rewrite <em>Song brief (theme, not lyrics)</em> and <em>Style (instruments &amp; tempo)</em>. GLM Flash writes labeled lyrics; Mureka Generate Song sings them.",
-    inspect: "Clear words, a chorus you can hum, fit to the brief. Duration and exact structure can wander. The saved ~182-second MP3 is the rooftop-getaway synthwave run; chorus \"I made it out, but the city wants me back\". No new paid audio-model review. No still preview.",
+    inspect: "Clear words, a chorus you can hum, fit to the brief. Duration and exact structure can wander. The saved ~182-second MP3 is the rooftop-getaway synthwave run; chorus \"I made it out, but the city wants me back\". No new paid audio-model review. Cover still is the rooftop leap.",
     costHow: "The reviewed song run reported $0.225 (music step $0.225, plus a small text call). Prices and results vary.",
   },
   "talking-avatar": {
@@ -321,7 +321,13 @@ function renderMedia(s, how) {
   const note = !s.preview && s.outputs.every((o) => o.kind === "audio" || o.kind === "text")
     ? `<p class="no-preview">No preview image was saved for this sample. The reviewed output is the ${s.outputs.map((o) => o.kind).join(" and ")} below.</p>`
     : "";
-  return `${note}<div class="media${multi}">
+  const cover = s.preview && s.outputs.every((o) => o.kind === "audio" || o.kind === "text")
+    ? `<div class="media">
+          <figure><a href="/examples/gallery/${esc(local(s.preview))}"><img src="/examples/gallery/${esc(local(s.preview))}" alt="${esc(aria)}" loading="lazy" /></a><figcaption>Cover still · <a href="/examples/gallery/${esc(local(s.preview))}" download>Download</a></figcaption></figure>
+        </div>
+        `
+    : "";
+  return `${note}${cover}<div class="media${multi}">
           ${figures}
         </div>`;
 }

@@ -13635,7 +13635,7 @@ const EXAMPLES = [
            {id:"l3",from:{node:"n3",port:"audio"},to:{node:"n4",port:"audio"}},
            {id:"l4",from:{node:"n5",port:"text"},to:{node:"n4",port:"prompt"}} ] } },
  { em:"🎵", slug:"sing", title:"closing-credits song", desc:"rooftop getaway — last leap, red neon six floors down",
-   thumb:"",
+   thumb:"examples/gallery/sing/preview.webp",
    graph:{ v:1,
    nodes:[ {id:"c-intent",type:"comment",x:-265,y:-63,w:520,fields:{text:"Write original closing-credits lyrics, then hear them sung. One text model writes [Verse]/[Chorus] lyrics from the brief; Mureka Generate Song sings them in the editable musical style. Music step $0.225, plus text. Listen for clear words, melody and fit to the brief; generated duration and precise musical structure can vary.",color:"yellow"},name:"Rooftop getaway"},
            {id:"n1",type:"text",x:58,y:225,fields:{text:"Write a short original closing-credits song for a night-city chase game. Rooftop getaway: rain on black tar paper, a last leap between two towers, a red neon hotel sign flickering six floors down, one visor catching a billboard. Theme: you made it out, and the city still wants you. Cool, cinematic, electric — not cozy. No brand names, no real artist names."},name:"Song brief (theme, not lyrics)"},
@@ -13752,8 +13752,6 @@ function openExamples(){
       ? '<blockquote class="ex-quote" data-no-i18n>“Starting 8 September at 00:01 JST, 120 black nylon night-raid jackets drop online for $280.”</blockquote>'
       : ex.slug==="custom-endpoint"
       ? '<blockquote class="ex-quote" data-no-i18n>Choice picks the path: <code>/post</code> or <code>/anything</code>. $0 public echo.</blockquote>'
-      : ex.slug==="sing"
-      ? '<blockquote class="ex-quote" data-no-i18n>“We made the leap, we kept the night — six floors of neon, one last light.”</blockquote>'
       : thumb?`<img class="ex-im" src="${thumb}" alt="" loading="lazy"/>`:`<span class="ex-em" aria-hidden="true">${ex.em}</span>`;
     const previewWrap=result?`<a class="ex-preview" href="${result}" target="_blank" rel="noopener" aria-label="${esc(t("See result")+": "+t(ex.title))}">${preview}</a>`:`<div class="ex-preview">${preview}</div>`;
     const see=result?`<a href="${result}" target="_blank" rel="noopener">${esc(t("See result"))} ↗</a>`:"";
