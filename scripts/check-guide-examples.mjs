@@ -207,14 +207,14 @@ for (const img of deslopSample.proof.images) {
 if (!/20\.9%/.test(deslopSample.note) || !/0%/.test(deslopSample.note) || !/ZeroGPT/i.test(deslopSample.note)) {
   fail("deslop sample note should mention measured ZeroGPT 20.9% → 0%");
 }
+if (deslopSample.note.length > 120) {
+  fail("deslop sample note should stay a short punch, not a block of text");
+}
 if (!deslopSample.models.includes("venice-uncensored")) {
   fail("deslop sample models should include venice-uncensored");
 }
 if (deslopSample.models.includes("openai/gpt-4o-mini")) {
   fail("deslop sample models must not claim openai/gpt-4o-mini");
-}
-if (!/venice-uncensored/.test(deslopSample.note) || !/CLEAN_v10/.test(deslopSample.note)) {
-  fail("deslop sample note should cite venice-uncensored and CLEAN_v10");
 }
 if (!deslopHowTo.includes("Detector proof") || !deslopHowTo.includes("zerogpt-draft.png") || !deslopHowTo.includes("zerogpt-clean.png")) {
   fail("deslop how-to should show Detector proof with both ZeroGPT screenshots");
@@ -252,8 +252,33 @@ if (deslopSample.proof.badge !== "deslop/gg-writers-badge.png") {
 if (!/gg writers/i.test(deslopSample.tag || "") || !/gg writers/i.test(deslopSample.note)) {
   fail("deslop sample should wear the gg writers tag and say it in the note");
 }
-if (!deslopHowTo.includes("gg-writers-badge.png") || !deslopHowTo.includes("gg writers") || !deslopHowTo.includes("ZeroGPT blinked first")) {
-  fail("deslop how-to should advertise gg writers with the Volt badge and ZeroGPT blinked first");
+if (!deslopHowTo.includes("gg-writers-badge.png") || !deslopHowTo.includes("gg writers") || !deslopHowTo.includes("20.9% → 0% AI · ZeroGPT") || !deslopHowTo.includes("one free checker. the slop cried.")) {
+  fail("deslop how-to should advertise gg writers with the Volt badge and three short punches");
+}
+if (/That midnight drop email|uncensored burstiness|not a guarantee on every detector|GPTZero was not measured/i.test(deslopHowTo)) {
+  fail("deslop how-to still carries the detector essay / text wall");
+}
+if (deslopHowTo.includes('class="callout"')) {
+  fail("deslop how-to should not restack a callout brick under The look");
+}
+const deslopProof = deslopHowTo.split("Detector proof")[1]?.split("Make it yours")[0] || "";
+const deslopProofLines = [...deslopProof.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/g)].map((m) => m[1].replace(/<[^>]+>/g, "").trim()).filter(Boolean);
+if (deslopProofLines.length > 3) {
+  fail("deslop Detector proof should keep ≤3 short lines, not a paragraph stack");
+}
+if (deslopProofLines.some((line) => line.length > 80)) {
+  fail("deslop Detector proof lines should stay punches, not an essay");
+}
+if ((deslopSample.proof.note || "").length > 80) {
+  fail("deslop proof.note should stay a short punch");
+}
+const galleryPage = readFileSync(join(ROOT, "examples", "gallery", "index.html"), "utf8");
+const galleryDeslop = galleryPage.split('id="deslop"')[1]?.split("<section")[0] || "";
+if (/kept every real number|uncensored burstiness|not a guarantee on every detector|GPTZero was not measured/i.test(galleryDeslop)) {
+  fail("gallery deslop still carries the detector essay / text wall");
+}
+if (!galleryDeslop.includes("gg-writers-badge.png") || !galleryDeslop.includes("20.9% → 0% AI · ZeroGPT") || !galleryDeslop.includes("one free checker. the slop cried.")) {
+  fail("gallery deslop Detector proof should keep the Volt badge and three short punches");
 }
 if (!hub.includes("gg writers") || !hub.includes("tag gg")) {
   fail("hub deslop card should overlay a gg writers tag");
