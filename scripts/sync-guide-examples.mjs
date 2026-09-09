@@ -87,6 +87,14 @@ const HOWTO = {
     inspect: "Shape, color, materials, markings, visible text — compare them to the source. Check real product marks before you publish a generated edit. Cover still is a Volt night-ride radio on charcoal. The saved Clean_product_photo.webp and product-input.png are the earlier 5 September warm-white amber-bottle sample — historical, not regenerated.",
     costHow: "The reviewed warm-white bottle run reported $0.01 ($0.01/image). Cover still is card art. Prices and results vary.",
   },
+  "product-cutout": {
+    headline: "Knock the slate out",
+    job: "Volt radio. Transparent. Ready to drop.",
+    purpose: "Upload a product still. BiRefNet V2 knocks the background and keeps the fine edges — a transparent cutout for compositing, not a relit catalog. First-click is Volt — matte charcoal pocket night-ride radio, electric-cyan lightning chevron, dark slate / hard cyan rim. Distinct from Clean product photo, which relights and replaces the backdrop. Not SAM 3.",
+    edit: "Drop your still on <em>Product still</em>. Leave <em>Transparent cutout</em> on <code>birefnet/v2</code> unless you mean to change models. <em>Export preview</em> is a local 1024 fit.",
+    inspect: "Cover still is card art for the Volt first-click — an isolated night-ride radio, not a paid BiRefNet QC cutout. Open the graph and hit Run with your key after you upload a still. Inspect the native cutout for silhouette and edge detail. Export preview is a local 1024 fit only.",
+    costHow: "Listed at $0.01 for one BiRefNet V2 call at auto. Local resize is $0. No LLM. Prices and results vary. This page has no reviewed first-party cutout yet.",
+  },
   "combine-images": {
     headline: "Drop it in the alley",
     job: "Volt radio. Wet neon alley.",
@@ -183,7 +191,7 @@ for (const s of SAMPLES) {
 const GROUPS = [
   { id: "playable", title: "Playable", slugs: ["iron-verdict"] },
   { id: "image", title: "Image", slugs: [
-    "edit-a-photo", "combine-images", "render-a-mockup", "favicon",
+    "edit-a-photo", "product-cutout", "combine-images", "render-a-mockup", "favicon",
     "night-market-postcard", "fibo-studio-still", "cinematic-character-still",
     "image-model-arena",
   ] },

@@ -431,6 +431,72 @@ if (/slug:"edit-a-photo"[\s\S]{0,80}desc:"same bottle, clean paper, catalog-read
 if (!/slug:"edit-a-photo"[\s\S]{0,80}desc:"matte charcoal, cyan rim — same product, night-ride ready"/.test(examplesSrc)) {
   fail("EXAMPLES edit-a-photo desc should pitch matte charcoal and cyan rim");
 }
+const cutoutSample = samples.find((s) => s.slug === "product-cutout");
+if (!cutoutSample) fail("samples.json missing product-cutout");
+if (cutoutSample.preview !== "product-cutout/preview.webp") {
+  fail("product-cutout sample preview should be product-cutout/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "product-cutout", "preview.webp"))) {
+  fail("examples/gallery/product-cutout/preview.webp is missing");
+}
+if (/workshop|warm-white|soft even studio|SAM 3|fal-ai\/birefnet/i.test(JSON.stringify(cutoutSample.inputs) + cutoutSample.note)) {
+  fail("product-cutout sample still uses workshop, SAM 3, or fal-ai/birefnet language");
+}
+if (!/birefnet\/v2/.test(JSON.stringify(cutoutSample.models))) {
+  fail("product-cutout sample should pin birefnet/v2");
+}
+if (cutoutSample.models.includes("fal-ai/birefnet/v2")) {
+  fail("product-cutout sample must not pin fal-ai/birefnet/v2");
+}
+if (!/cover still/i.test(cutoutSample.note) || !/no paid|not a paid/i.test(cutoutSample.note)) {
+  fail("product-cutout sample note should say it is a cover still, not a paid BiRefNet QC cutout");
+}
+if (!/Volt|night-ride radio|cyan/i.test(cutoutSample.note)) {
+  fail("product-cutout sample note should pitch the Volt night-ride radio");
+}
+if (!/Clean product photo|relight|backdrop/i.test(cutoutSample.note)) {
+  fail("product-cutout sample note should distinguish Clean product photo");
+}
+if (!hub.includes("product-cutout/preview.webp")) {
+  fail("hub should thumb the product-cutout cover");
+}
+if (hub.includes("Spoken workshop introduction") || /soft studio workshop|bike-shop cutout/i.test(hub)) {
+  fail("hub still uses workshop language for product-cutout");
+}
+if (!hub.includes("Knock the slate out")) {
+  fail("hub should title product-cutout as Knock the slate out");
+}
+const cutoutHowTo = readFileSync(join(ROOT, "guide", "examples", "product-cutout.html"), "utf8");
+if (/workshop|warm-white|soft even studio|SAM 3|fal-ai\/birefnet|Catalog-clean\. Same product/i.test(cutoutHowTo)) {
+  fail("product-cutout how-to still uses workshop, SAM 3, fal-ai/birefnet, or Clean product photo first-click");
+}
+if (!/Volt/i.test(cutoutHowTo) || !/cyan/i.test(cutoutHowTo) || !/charcoal/i.test(cutoutHowTo)) {
+  fail("product-cutout how-to should pitch the Volt charcoal + cyan radio");
+}
+if (!/birefnet\/v2/.test(cutoutHowTo)) {
+  fail("product-cutout how-to should name birefnet/v2");
+}
+if (!/cover still|card art|no paid|not a paid/i.test(cutoutHowTo)) {
+  fail("product-cutout how-to should say the cover is card art, not a paid QC cutout");
+}
+if (!cutoutHowTo.includes("product-cutout/preview.webp")) {
+  fail("product-cutout how-to should show the cover still");
+}
+if (!/slug:"product-cutout"[\s\S]{0,200}thumb:"examples\/gallery\/product-cutout\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES product-cutout thumb should be examples/gallery/product-cutout/preview.webp");
+}
+if (!/slug:"product-cutout"[\s\S]{0,80}desc:"cyan lightning radio, background gone"/.test(examplesSrc)) {
+  fail("EXAMPLES product-cutout desc should pitch cyan lightning radio, background gone");
+}
+if (/fal-ai\/birefnet|SAM 3|workshop cutout|soft studio/i.test(examplesSrc.match(/slug:"product-cutout"[\s\S]{0,1800}/)?.[0] || "")) {
+  fail("EXAMPLES product-cutout first-click still uses fal-ai/birefnet, SAM 3, or workshop language");
+}
+if (!/birefnet\/v2/.test(examplesSrc.match(/slug:"product-cutout"[\s\S]{0,1800}/)?.[0] || "")) {
+  fail("EXAMPLES product-cutout graph should pin birefnet/v2");
+}
+if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
+  fail("custom-endpoint must stay the only LOCAL_ONLY teaching card");
+}
 const combineSample = samples.find((s) => s.slug === "combine-images");
 if (!combineSample) fail("samples.json missing combine-images");
 if (combineSample.preview !== "combine-images/preview.webp") {
