@@ -13752,8 +13752,6 @@ function openExamples(){
       ? '<blockquote class="ex-quote" data-no-i18n>“Starting 8 September at 00:01 JST, 120 black nylon night-raid jackets drop online for $280.”</blockquote>'
       : ex.slug==="custom-endpoint"
       ? '<blockquote class="ex-quote" data-no-i18n>Choice picks the path: <code>/post</code> or <code>/anything</code>. $0 public echo.</blockquote>'
-      : ex.slug==="sing"
-      ? '<blockquote class="ex-quote" data-no-i18n>“We made the leap, we kept the night — six floors of neon, one last light.”</blockquote>'
       : thumb?`<img class="ex-im" src="${thumb}" alt="" loading="lazy"/>`:`<span class="ex-em" aria-hidden="true">${ex.em}</span>`;
     const previewWrap=result?`<a class="ex-preview" href="${result}" target="_blank" rel="noopener" aria-label="${esc(t("See result")+": "+t(ex.title))}">${preview}</a>`:`<div class="ex-preview">${preview}</div>`;
     const see=result?`<a href="${result}" target="_blank" rel="noopener">${esc(t("See result"))} ↗</a>`:"";

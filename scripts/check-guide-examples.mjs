@@ -100,6 +100,13 @@ if (!singHowTo.includes("sing/preview.webp")) {
 if (/No preview image was saved|No still preview/i.test(singHowTo)) {
   fail("sing how-to still says no preview / no still preview");
 }
+const examplesSrc = readFileSync(join(ROOT, "index.html"), "utf8");
+if (!/slug:"sing"[\s\S]{0,200}thumb:"examples\/gallery\/sing\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES sing thumb should be examples/gallery/sing/preview.webp");
+}
+if (/slug==="sing"\s*\n\s*\? '<blockquote class="ex-quote"/.test(examplesSrc)) {
+  fail("EXAMPLES sing card still uses the lyrics-quote fallback instead of the cover still");
+}
 const faviconHowTo = readFileSync(join(ROOT, "guide", "examples", "favicon.html"), "utf8");
 if (/Lumen|weather radio|lighthouse|navy-and-gold/i.test(faviconHowTo)) {
   fail("favicon how-to still uses the Lumen weather-radio first-click");
