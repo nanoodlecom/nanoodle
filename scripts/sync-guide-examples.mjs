@@ -48,8 +48,8 @@ const HOWTO = {
   deslop: {
     headline: "midnight drop notice",
     job: "120 jackets · $280 · 00:01 JST — keep every fact, lose the seamless unlock",
-    purpose: "That midnight drop email sounds like a brand that asked a chatbot to sound expensive. This noodle rewrites it like a person, then a second model checks every date, price, and caveat against the source before the last pass. The committed notice measured 20.9% → 0% on free ZeroGPT — one checker, not a guarantee on every detector.",
-    edit: "Paste the slop into <em>Your draft</em>. Leave the three LLM nodes unless you mean to change models: Grok drafts, Terra fact-checks, Grok applies the review.",
+    purpose: "That midnight drop email sounds like a brand that asked a chatbot to sound expensive. venice-uncensored does the first rewrite (uncensored burstiness), Terra checks every date, price, and caveat against the source, and Grok applies. The committed CLEAN_v10 notice measured 20.9% → 0% on free ZeroGPT — one checker, not a guarantee on every detector.",
+    edit: "Paste the slop into <em>Your draft</em>. Leave the three LLM nodes unless you mean to change models: <code>venice-uncensored</code> does the first rewrite, Terra fact-checks, Grok applies the review.",
     inspect: "Every supplied fact has to survive — the saved run keeps 8 September at 00:01 JST, the $280 price, the 120-jacket limit, one-per-customer, no restock, Friday–Saturday Shibuya pickup hours, the confirmation QR, and drop@example.com. Empty hype should vanish. The review checks writing and facts. It does not detect authorship. Cover still is the midnight night-raid jacket drop — card art, not the generated notice.",
     costHow: "The reviewed run reported $0.0079 across three paid text calls. Token use and model prices move; check the editor estimate before you hit Run.",
   },

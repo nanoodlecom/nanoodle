@@ -207,14 +207,38 @@ for (const img of deslopSample.proof.images) {
 if (!/20\.9%/.test(deslopSample.note) || !/0%/.test(deslopSample.note) || !/ZeroGPT/i.test(deslopSample.note)) {
   fail("deslop sample note should mention measured ZeroGPT 20.9% → 0%");
 }
-if (!deslopSample.models.includes("openai/gpt-4o-mini")) {
-  fail("deslop sample models should include openai/gpt-4o-mini");
+if (!deslopSample.models.includes("venice-uncensored")) {
+  fail("deslop sample models should include venice-uncensored");
+}
+if (deslopSample.models.includes("openai/gpt-4o-mini")) {
+  fail("deslop sample models must not claim openai/gpt-4o-mini");
+}
+if (!/venice-uncensored/.test(deslopSample.note) || !/CLEAN_v10/.test(deslopSample.note)) {
+  fail("deslop sample note should cite venice-uncensored and CLEAN_v10");
 }
 if (!deslopHowTo.includes("Detector proof") || !deslopHowTo.includes("zerogpt-draft.png") || !deslopHowTo.includes("zerogpt-clean.png")) {
   fail("deslop how-to should show Detector proof with both ZeroGPT screenshots");
 }
 if (!deslopHowTo.includes("20.9%") || !deslopHowTo.includes("0%")) {
   fail("deslop how-to should state the 20.9% → 0% ZeroGPT numbers");
+}
+if (!deslopHowTo.includes("venice-uncensored") || !deslopHowTo.includes("CLEAN_v10")) {
+  fail("deslop how-to should cite venice-uncensored and CLEAN_v10");
+}
+if (deslopHowTo.includes("openai/gpt-4o-mini") || /Grok drafts/.test(deslopHowTo)) {
+  fail("deslop how-to must not claim gpt-4o-mini or that Grok drafts");
+}
+const deslopNotice = readFileSync(join(ROOT, "examples", "gallery", "deslop", "LLM.txt"), "utf8").trim();
+if (!deslopNotice.startsWith("Drop begins 8 September at 00:01 JST.") || !deslopNotice.includes("Cancel by emailing drop@example.com")) {
+  fail("deslop LLM.txt should be the CLEAN_v10 venice notice");
+}
+const deslopCard = /\{ em:"[^"]*", slug:"deslop"[\s\S]*?\n \{ em:/.exec(examplesSrc)?.[0] || "";
+const deslopN2 = /\{id:"n2",type:"llm"[\s\S]*?fields:\{model:"([^"]+)"/.exec(deslopCard);
+if (!deslopN2 || deslopN2[1] !== "venice-uncensored") {
+  fail("EXAMPLES deslop First rewrite (n2) must pin venice-uncensored");
+}
+if (deslopN2[1] === "openai/gpt-4o-mini" || deslopN2[1] === "x-ai/grok-4.5") {
+  fail("EXAMPLES deslop First rewrite (n2) must not leave Grok or gpt-4o-mini");
 }
 if (/\bGPTZero\b/i.test(deslopHowTo) && !/not measured/i.test(deslopHowTo)) {
   fail("deslop how-to must not invent a GPTZero score");
