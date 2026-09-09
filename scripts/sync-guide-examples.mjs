@@ -88,12 +88,12 @@ const HOWTO = {
     costHow: "The reviewed warm-white bottle run reported $0.01 ($0.01/image). Cover still is card art. Prices and results vary.",
   },
   "combine-images": {
-    headline: "Drop it in the room",
-    job: "Drop the product into the room.",
-    purpose: "Preview the bottle on the desk before you book the studio. Scale, light, and contact shadows should feel inevitable.",
-    edit: "Product on <em>Product photo</em>, room on <em>Setting photo</em>, and <em>Placement brief</em> if the default rules are wrong for your pair.",
-    inspect: "Both references should matter. Product identity and the room's layout survive. Shadows and scale should be plausible. Composites still need a fidelity check.",
-    costHow: "The reviewed run reported $0.01 ($0.01/image). Prices and results vary.",
+    headline: "Drop it in the alley",
+    job: "Volt radio. Wet neon alley.",
+    purpose: "Preview the Volt radio on wet neon asphalt before you book the night lane. Scale, light, and contact shadows should feel inevitable. First-click is night-ride product placement — matte charcoal pocket radio, cyan lightning chevron, cyan and magenta alley light. Distinct from the charcoal-paper catalog cleanup: this drops the product into a real setting.",
+    edit: "Product on <em>Product photo</em>, alley on <em>Setting photo</em>, and <em>Placement brief</em> if the default night-ride rules are wrong for your pair.",
+    inspect: "Both references should matter. Product identity and the alley's layout survive. Shadows and scale should be plausible. Cover still is a Volt radio in a wet neon alley. The saved Product_in_setting.webp, product-input.png and setting-input.jpg are the earlier 5 September amber-bottle / tea-desk sample — historical, not regenerated. Composites still need a fidelity check.",
+    costHow: "The reviewed tea-desk run reported $0.01 ($0.01/image). Cover still is card art. Prices and results vary.",
   },
   "image-model-arena": {
     headline: "Four models. One winner.",
