@@ -71,6 +71,20 @@ td code{ white-space:nowrap; }
          padding:.32rem .7rem; border-radius:2rem; }
 .next a:hover{ border-color:#3a425a; text-decoration:none }
 
+/* Side-by-side JS / Python snippets on /guide/run-headless. Stacks on a phone. */
+.twins{ display:grid; grid-template-columns:1fr 1fr; gap:.8rem; margin:0 0 1.2rem; }
+.twins figure{ margin:0; min-width:0; }
+.twins figcaption{ color:var(--dim); font-size:.75rem; font-weight:750; letter-spacing:.04em;
+                   text-transform:uppercase; margin:0 0 .4rem; }
+.twins pre{ margin-bottom:0; }
+.kicker{ color:var(--cyan); font-size:.78rem; font-weight:750; letter-spacing:.06em;
+         text-transform:uppercase; margin:0 0 .55rem; }
+.steps{ margin:0 0 1.2rem; padding-left:1.25rem; }
+.steps li{ margin:.55rem 0; }
+@media (max-width:720px){
+  .twins{ grid-template-columns:1fr; }
+}
+
 footer{ border-top:1px solid var(--line); color:var(--dim); font-size:.82rem; padding:1.1rem 0 .3rem;
         display:flex; gap:.4rem 1rem; flex-wrap:wrap; align-items:center; }
 footer .spacer{flex:1}

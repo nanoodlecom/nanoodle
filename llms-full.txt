@@ -133,20 +133,26 @@ Replace the code with your own (or delete the parameter and use bare
 
 ### Run workflows from code
 
-A saved graph (`noodle-graph.json`) doesn't need the browser: two
-zero-dependency sibling libraries re-execute it headlessly —
+A saved graph (`noodle-graph.json`) — or any share link — doesn't need the
+browser: two zero-dependency sibling libraries re-execute it headlessly —
 [nanoodle-js](https://github.com/nanoodlecom/nanoodle-js)
-(`npm install nanoodle`, Node ≥ 20) and
+(`npm install nanoodle` 0.8.0, Node ≥ 20) and
 [nanoodle-py](https://github.com/nanoodlecom/nanoodle-py)
-(`pip install nanoodle`, stdlib-only). Same graphs, same results; useful
-for scripts, servers, and agent skills.
+(`pip install nanoodle` 0.5.0, stdlib-only). Same graphs, same results;
+useful for scripts, servers, and agent skills. Walkthrough:
+[Run workflows headlessly](https://nanoodle.com/guide/run-headless).
 
 ```js
 import { Workflow } from "nanoodle";
 
-const wf = await Workflow.load("noodle-graph.json");   // key from NANOGPT_API_KEY
-const result = await wf.run({ Text: "a cozy ramen shop on a rainy night" });
-await result.get("Image").save("ramen.png");
+const wf = await Workflow.load("https://nanoodle.com/#g=…");  // or noodle-graph.json
+const result = await wf.run({ Text: "NIGHT RIDE" });
+await result.get("Image").save("night-ride.png");
+```
+
+```bash
+npx nanoodle inspect "https://nanoodle.com/#g=..."   # offline, no key
+npx nanoodle run "https://nanoodle.com/#g=..." --out ./out
 ```
 
 ### Ecosystem

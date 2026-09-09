@@ -32,6 +32,20 @@ if (!llms.includes("https://nanoodle.com/guide/examples/")) {
   fail("llms.txt does not mention https://nanoodle.com/guide/examples/");
 }
 
+const headless = readFileSync(join(ROOT, "guide", "run-headless.html"), "utf8");
+if (/<pre>[\s\S]*?(?:npm|pip) install nanoodle-(?:js|py)/.test(headless)) {
+  fail("run-headless must not put npm/pip install nanoodle-js (or nanoodle-py) in a copy-paste snippet — the package is nanoodle");
+}
+if (!headless.includes("npx nanoodle inspect") || !headless.includes("pip install nanoodle")) {
+  fail("run-headless should show npx nanoodle inspect and pip install nanoodle");
+}
+if (!headless.includes("Workflow.load") || !headless.includes("https://nanoodle.com/#g=")) {
+  fail("run-headless should load a share URL with Workflow.load");
+}
+if (!llms.includes("https://nanoodle.com/guide/run-headless")) {
+  fail("llms.txt does not mention https://nanoodle.com/guide/run-headless");
+}
+
 const cinematic = readFileSync(join(ROOT, "guide", "examples", "cinematic-character-still.html"), "utf8");
 if (/piano tuner/i.test(cinematic)) {
   fail("cinematic how-to still names the piano tuner");
