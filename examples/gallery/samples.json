@@ -376,6 +376,39 @@
     "workflowSha256": "2a84379b83314a65ee9fa8f8ed198289a6e760030b8e0ba3ac8a25f0361a2d2b"
   },
   {
+    "slug": "remove-packaging-text",
+    "title": "Remove packaging text",
+    "date": "2026-09-09",
+    "review": "Cover still",
+    "note": "Cover is reused Volt night-ride poster art from examples/gallery/image-model-arena/preview.webp (NIGHT RIDE / TUE 9 SEP lettering), pending a true Ideogram V3 Remove Text QC — no paid ideogram-v3-remove-text run this PR. Job is lettering cleanup on a flat packaging / promo card. Distinct from Muse Edit, BiRefNet, SAM 3, P-Image Upscale, and transparent sticker. Open the graph — upload a lettered still; Remove lettering pins ideogram-v3-remove-text at auto. Edit prompt is a runner instruction (image-only). Export preview is a local 1024 fit.",
+    "costUsd": 0.09,
+    "costExact": false,
+    "models": [
+      "ideogram-v3-remove-text"
+    ],
+    "graphSha256": "833ace0076d0dca6f5e0bd6d5a395b7b2c2d823787c6c7b1f4d01b89f49e3fa8",
+    "inputs": [
+      {
+        "label": "Packaging still (reused Volt night-ride poster)",
+        "src": "remove-packaging-text/packaging-input.webp"
+      },
+      {
+        "label": "Remove lettering (runner instruction)",
+        "text": "Remove all lettering, captions, watermarks and promotional text from this flat graphic. Preserve the exact product/artwork, materials, colors, marks and composition. Fill removed text regions so the design looks continuous. Do not restyle, recolor, invent props, or change layout."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "remove-packaging-text/NOTE.txt",
+        "kind": "text",
+        "label": "Note"
+      }
+    ],
+    "preview": "remove-packaging-text/preview.webp",
+    "workflow": "remove-packaging-text/workflow.json",
+    "workflowSha256": "833ace0076d0dca6f5e0bd6d5a395b7b2c2d823787c6c7b1f4d01b89f49e3fa8"
+  },
+  {
     "slug": "combine-images",
     "title": "Night-ride product placement",
     "date": "2026-09-09",

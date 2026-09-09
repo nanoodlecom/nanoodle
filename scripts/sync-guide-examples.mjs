@@ -129,6 +129,15 @@ const HOWTO = {
     inspect: "Cover still is reused Volt card art from the product-cutout / FIBO night-ride radio plate, pending a true P-Image Upscale QC still — no paid pruna-ai/p-image/upscale run this PR, not a fabricated upscale. Open the graph and hit Run with your key after you upload a still. Inspect native sharpness against the input. Export preview is a local 1024 fit only.",
     costHow: "Listed at $0.005 for one P-Image Upscale call at size 2. Local resize is $0. No LLM. Prices and results vary. This page has no reviewed first-party upscale yet.",
   },
+  "remove-packaging-text": {
+    headline: "Letters off the card",
+    job: "Volt promo. Lettering gone.",
+    hideNote: true,
+    purpose: "Upload a flat packaging / promo card. Ideogram V3 Remove Text strips the letters. First-click is Volt — matte charcoal, cyan lightning chevron, leftover promo type. Distinct from Muse Edit, BiRefNet, SAM 3, P-Image Upscale, and the transparent sticker.",
+    edit: "Drop your card on <em>Packaging still</em>. Leave <em>Remove lettering</em> on <code>ideogram-v3-remove-text</code> at size <code>auto</code>. <em>Export preview</em> is a local 1024 fit. The edit prompt is a runner instruction — image-only model.",
+    inspect: "Cover is reused Volt promo-card art with leftover type, pending Ideogram QC — no paid run this PR. Open the graph, upload a lettered still, inspect the native cleanup.",
+    costHow: "Listed at $0.09 for one Ideogram V3 Remove Text call at auto. Local resize is $0. No LLM. Prices vary. No reviewed first-party cleanup yet.",
+  },
   "combine-images": {
     headline: "Drop it in the alley",
     job: "Volt radio. Wet neon alley.",
@@ -241,7 +250,7 @@ for (const s of SAMPLES) {
 const GROUPS = [
   { id: "playable", title: "Playable", slugs: ["iron-verdict"] },
   { id: "image", title: "Image", slugs: [
-    "edit-a-photo", "product-cutout", "sam3-isolate", "p-image-upscale", "combine-images", "render-a-mockup", "favicon",
+    "edit-a-photo", "product-cutout", "sam3-isolate", "p-image-upscale", "remove-packaging-text", "combine-images", "render-a-mockup", "favicon",
     "transparent-brand-sticker",
     "night-market-postcard", "fibo-studio-still", "cinematic-character-still", "character-sprites",
     "image-model-arena",
