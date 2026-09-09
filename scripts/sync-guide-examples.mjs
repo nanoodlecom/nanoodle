@@ -49,9 +49,10 @@ const HOWTO = {
     headline: "midnight drop notice",
     job: "120 jackets · $280 · 00:01 JST — keep every fact, lose the seamless unlock",
     cardTag: "gg writers",
-    purpose: "That midnight drop email sounds like a brand that asked a chatbot to sound expensive. venice-uncensored does the first rewrite (uncensored burstiness), Terra checks every date, price, and caveat against the source, and Grok applies. gg writers: CLEAN_v10 went 20.9% → 0% on free ZeroGPT. One checker. The slop cried.",
+    hideNote: true,
+    purpose: "",
     edit: "Paste the slop into <em>Your draft</em>. Leave the three LLM nodes unless you mean to change models: <code>venice-uncensored</code> does the first rewrite, Terra fact-checks, Grok applies the review.",
-    inspect: "Every supplied fact has to survive — the saved run keeps 8 September at 00:01 JST, the $280 price, the 120-jacket limit, one-per-customer, no restock, Friday–Saturday Shibuya pickup hours, the confirmation QR, and drop@example.com. Empty hype should vanish. The review checks writing and facts. It does not detect authorship. Cover still is the midnight night-raid jacket drop — card art, not the generated notice.",
+    inspect: "Every supplied fact has to survive — the saved CLEAN_v10 run keeps 8 September at 00:01 JST, the $280 price, the 120-jacket limit, one-per-customer, no restock, Friday–Saturday Shibuya pickup hours, the confirmation QR, and drop@example.com. Empty hype should vanish. The review checks writing and facts. It does not detect authorship. Cover still is the midnight night-raid jacket drop — card art, not the generated notice.",
     costHow: "The reviewed run reported $0.0079 across three paid text calls. Token use and model prices move; check the editor estimate before you hit Run.",
   },
   favicon: {
@@ -413,7 +414,7 @@ function renderProof(s) {
   const badge = s.proof.badge
     ? `<figure class="gg-ad"><a href="/examples/gallery/${esc(local(s.proof.badge))}"><img src="/examples/gallery/${esc(local(s.proof.badge))}" alt="${esc(s.proof.badgeAlt || s.proof.kicker || "gg writers")}" loading="lazy" /></a></figure>`
     : "";
-  const blurb = s.proof.note ? `<p>${esc(s.proof.note)}</p>` : "";
+  const blurb = s.proof.note ? `<p class="gg-punch">${esc(s.proof.note)}</p>` : "";
   return `
       <h2>${esc(s.proof.heading || "Detector proof")}</h2>
       ${kicker}
@@ -464,8 +465,8 @@ function samplePage(s, prev, next) {
       <h2>The look</h2>
       ${renderMedia(s, how)}
       ${inputImgs ? `<h3>References that went in</h3>\n        <div class="media input-refs${s.inputs.filter((i) => i.src).length > 1 ? " comparison" : ""}">\n          ${inputImgs}\n        </div>` : ""}${note}
-${renderProof(s)}
-      <p>${esc(how.purpose)}</p>
+${renderProof(s)}${how.purpose ? `
+      <p>${esc(how.purpose)}</p>` : ""}
 
       <h2>Make it yours</h2>
       <ol class="input-list">
