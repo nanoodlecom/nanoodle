@@ -618,6 +618,42 @@ if (!/slug:"image-model-arena"[\s\S]{0,80}desc:"four models, one Volt night-ride
 if (/workshop-poster brief|FIX A FLAT|SATURDAY 10 AM|tire levers|cream background/i.test(examplesSrc.match(/slug:"image-model-arena"[\s\S]{0,1200}/)?.[0] || "")) {
   fail("EXAMPLES image-model-arena first-click still uses the FIX A FLAT / cream workshop brief");
 }
+const arenaCard = examplesSrc.match(/slug:"image-model-arena"[\s\S]{0,1800}/)?.[0] || "";
+if (!/openai\/gpt-image-2\.5\/flare\/text-to-image/.test(arenaCard)) {
+  fail("EXAMPLES image-model-arena Contender 2 should pin openai/gpt-image-2.5/flare/text-to-image");
+}
+if (/krea-v2\/turbo/.test(arenaCard)) {
+  fail("EXAMPLES image-model-arena Contender 2 still pins Krea 2 Turbo");
+}
+if ((arenaCard.match(/type:"image"/g) || []).length !== 4) {
+  fail("EXAMPLES image-model-arena must stay four image nodes");
+}
+if (!/Exact heading: NIGHT RIDE\. Exact footer: TUE 9 SEP\./.test(arenaCard)) {
+  fail("EXAMPLES image-model-arena first-click must keep exact NIGHT RIDE / TUE 9 SEP");
+}
+const arenaWorkflow = readFileSync(join(ROOT, "examples", "gallery", "image-model-arena", "workflow.json"), "utf8");
+if (!/"openai\/gpt-image-2\.5\/flare\/text-to-image"/.test(arenaWorkflow)) {
+  fail("image-model-arena Open workflow should pin openai/gpt-image-2.5/flare/text-to-image");
+}
+if (/krea-v2\/turbo/.test(arenaWorkflow)) {
+  fail("image-model-arena Open workflow still pins Krea 2 Turbo");
+}
+if ((JSON.parse(arenaWorkflow).nodes.filter((n) => n.type === "image").length) !== 4) {
+  fail("image-model-arena Open workflow must stay four image nodes");
+}
+const arenaGraph = JSON.parse(readFileSync(join(ROOT, "examples", "gallery", "image-model-arena", "graph.json"), "utf8"));
+if (!arenaGraph.nodes.some((n) => n.name === "Contender 2" && n.fields?.model === "wavespeed-ai/krea-v2/turbo")) {
+  fail("image-model-arena sampled graph should keep historical Krea Contender 2");
+}
+if (!arenaSample.outputs.some((o) => /Krea 2 Turbo/i.test(o.label) && /Contender_2/.test(o.src))) {
+  fail("image-model-arena Contender 2 sample should stay labeled as historical Krea 2 Turbo");
+}
+if (!/Flare/i.test(arenaSample.note)) {
+  fail("image-model-arena sample note should say Open workflow pins GPT Image 2.5 Flare");
+}
+if (!/Flare/i.test(arenaHowTo)) {
+  fail("image-model-arena how-to should name GPT Image 2.5 Flare");
+}
 for (const slug of slugs) {
   const page = readFileSync(join(ROOT, "guide", "examples", slug === "iron-verdict" ? "iron-verdict.html" : `${slug}.html`), "utf8");
   if (page.includes("how to use this noodle")) {
