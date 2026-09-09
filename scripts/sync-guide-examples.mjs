@@ -48,7 +48,7 @@ const HOWTO = {
   deslop: {
     headline: "midnight drop notice",
     job: "120 jackets · $280 · 00:01 JST — keep every fact, lose the seamless unlock",
-    purpose: "That midnight drop email sounds like a brand that asked a chatbot to sound expensive. This noodle rewrites it like a person, then a second model checks every date, price, and caveat against the source before the last pass.",
+    purpose: "That midnight drop email sounds like a brand that asked a chatbot to sound expensive. This noodle rewrites it like a person, then a second model checks every date, price, and caveat against the source before the last pass. The committed notice measured 20.9% → 0% on free ZeroGPT — one checker, not a guarantee on every detector.",
     edit: "Paste the slop into <em>Your draft</em>. Leave the three LLM nodes unless you mean to change models: Grok drafts, Terra fact-checks, Grok applies the review.",
     inspect: "Every supplied fact has to survive — the saved run keeps 8 September at 00:01 JST, the $280 price, the 120-jacket limit, one-per-customer, no restock, Friday–Saturday Shibuya pickup hours, the confirmation QR, and drop@example.com. Empty hype should vanish. The review checks writing and facts. It does not detect authorship. Cover still is the midnight night-raid jacket drop — card art, not the generated notice.",
     costHow: "The reviewed run reported $0.0079 across three paid text calls. Token use and model prices move; check the editor estimate before you hit Run.",
@@ -372,6 +372,21 @@ function renderMedia(s, how) {
         </div>`;
 }
 
+function renderProof(s) {
+  if (!s.proof || !Array.isArray(s.proof.images) || !s.proof.images.length) return "";
+  const figs = s.proof.images.map((img) => {
+    const src = "/examples/gallery/" + local(img.src);
+    return `<figure><a href="${esc(src)}"><img src="${esc(src)}" alt="${esc(img.label)}" loading="lazy" /></a><figcaption>${esc(img.label)} · <a href="${esc(src)}" download>Download</a></figcaption></figure>`;
+  }).join("\n          ");
+  const blurb = s.proof.note ? `<p>${esc(s.proof.note)}</p>` : "";
+  return `
+      <h2>${esc(s.proof.heading || "Detector proof")}</h2>
+      ${blurb}
+      <div class="media comparison proof">
+          ${figs}
+        </div>`;
+}
+
 function samplePage(s, prev, next) {
   const how = HOWTO[s.slug];
   const graph = readFileSync(join(GALLERY, local(s.slug + "/graph.json")));
@@ -411,7 +426,7 @@ function samplePage(s, prev, next) {
       <h2>The look</h2>
       ${renderMedia(s, how)}
       ${inputImgs ? `<h3>References that went in</h3>\n        <div class="media input-refs${s.inputs.filter((i) => i.src).length > 1 ? " comparison" : ""}">\n          ${inputImgs}\n        </div>` : ""}${note}
-
+${renderProof(s)}
       <p>${esc(how.purpose)}</p>
 
       <h2>Make it yours</h2>

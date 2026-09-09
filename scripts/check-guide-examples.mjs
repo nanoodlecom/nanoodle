@@ -196,6 +196,29 @@ if (!/slug:"deslop"[\s\S]{0,200}thumb:"examples\/gallery\/deslop\/preview\.webp"
 if (/slug==="deslop"\s*\n\s*\? '<blockquote class="ex-quote"/.test(examplesSrc)) {
   fail("EXAMPLES deslop card still uses the quote fallback instead of the cover still");
 }
+if (!deslopSample.proof || !Array.isArray(deslopSample.proof.images)) {
+  fail("deslop sample should carry ZeroGPT detector proof images");
+}
+for (const img of deslopSample.proof.images) {
+  if (!existsSync(join(ROOT, "examples", "gallery", img.src))) {
+    fail("deslop proof image missing: " + img.src);
+  }
+}
+if (!/20\.9%/.test(deslopSample.note) || !/0%/.test(deslopSample.note) || !/ZeroGPT/i.test(deslopSample.note)) {
+  fail("deslop sample note should mention measured ZeroGPT 20.9% → 0%");
+}
+if (!deslopSample.models.includes("openai/gpt-4o-mini")) {
+  fail("deslop sample models should include openai/gpt-4o-mini");
+}
+if (!deslopHowTo.includes("Detector proof") || !deslopHowTo.includes("zerogpt-draft.png") || !deslopHowTo.includes("zerogpt-clean.png")) {
+  fail("deslop how-to should show Detector proof with both ZeroGPT screenshots");
+}
+if (!deslopHowTo.includes("20.9%") || !deslopHowTo.includes("0%")) {
+  fail("deslop how-to should state the 20.9% → 0% ZeroGPT numbers");
+}
+if (/\bGPTZero\b/i.test(deslopHowTo) && !/not measured/i.test(deslopHowTo)) {
+  fail("deslop how-to must not invent a GPTZero score");
+}
 const fableSample = samples.find((s) => s.slug === "fable-five-step");
 if (!fableSample) fail("samples.json missing fable-five-step");
 if (fableSample.preview !== "fable-five-step/preview.webp") {
