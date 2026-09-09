@@ -935,6 +935,88 @@ if (!/infinitetalk/.test(radioCard) || !/"?people"?:"single"/.test(radioCard) ||
 if (/slug:"talking-avatar"[\s\S]{0,1800}infinitetalk/.test(examplesSrc)) {
   fail("EXAMPLES talking-avatar must stay on LongCat, not infinitetalk");
 }
+const orbitSample = samples.find((s) => s.slug === "h3-max-multi-angle");
+if (!orbitSample) fail("samples.json missing h3-max-multi-angle");
+if (orbitSample.preview !== "h3-max-multi-angle/preview.webp") {
+  fail("h3-max-multi-angle sample preview should be h3-max-multi-angle/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "h3-max-multi-angle", "preview.webp"))) {
+  fail("examples/gallery/h3-max-multi-angle/preview.webp is missing");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "h3-max-multi-angle", "product-input.png"))) {
+  fail("examples/gallery/h3-max-multi-angle/product-input.png is missing");
+}
+if (!/minimax\/h3-max\/multi-angle\/image-to-video/.test(JSON.stringify(orbitSample.models))) {
+  fail("h3-max-multi-angle sample should pin minimax/h3-max/multi-angle/image-to-video");
+}
+if (!/cover|reused Volt card art/i.test(orbitSample.note) || !/no paid|pending/i.test(orbitSample.note)) {
+  fail("h3-max-multi-angle sample note should say cover is reused Volt card art and orbit QC is pending");
+}
+if (!/orbit-right|camera orbit|product-reveal/i.test(orbitSample.note)) {
+  fail("h3-max-multi-angle sample note should say the job is a camera orbit");
+}
+if (!/photo-to-video|H3 Spicy|locked-camera/i.test(orbitSample.note)) {
+  fail("h3-max-multi-angle sample note should distinguish photo-to-video / MiniMax H3 Spicy");
+}
+if (!/omni-flash-turntable|Omni Flash/i.test(orbitSample.note)) {
+  fail("h3-max-multi-angle sample note should distinguish omni-flash-turntable / Omni Flash");
+}
+if (!/Volt|night-ride radio|cyan/i.test(orbitSample.note)) {
+  fail("h3-max-multi-angle sample note should pitch the Volt night-ride radio");
+}
+if (!hub.includes("h3-max-multi-angle/preview.webp")) {
+  fail("hub should thumb the h3-max-multi-angle cover");
+}
+if (!hub.includes("Orbit the uploaded radio")) {
+  fail("hub should title h3-max-multi-angle as Orbit the uploaded radio");
+}
+const orbitHowTo = readFileSync(join(ROOT, "guide", "examples", "h3-max-multi-angle.html"), "utf8");
+if (!/minimax\/h3-max\/multi-angle\/image-to-video/.test(orbitHowTo)) {
+  fail("h3-max-multi-angle how-to should name minimax/h3-max/multi-angle/image-to-video");
+}
+if (!/Volt/i.test(orbitHowTo) || !/cyan/i.test(orbitHowTo) || !/charcoal/i.test(orbitHowTo)) {
+  fail("h3-max-multi-angle how-to should pitch the Volt charcoal + cyan radio");
+}
+if (!/orbit-right|camera orbit|Orbit clip/i.test(orbitHowTo)) {
+  fail("h3-max-multi-angle how-to should say this is an orbit-right camera move");
+}
+if (!/photo-to-video|H3 Spicy|locked-camera/i.test(orbitHowTo)) {
+  fail("h3-max-multi-angle how-to should distinguish photo-to-video / MiniMax H3 Spicy");
+}
+if (!/omni-flash-turntable|Omni Flash/i.test(orbitHowTo)) {
+  fail("h3-max-multi-angle how-to should distinguish omni-flash-turntable / Omni Flash");
+}
+if (!/reused Volt card art|no paid|pending/i.test(orbitHowTo)) {
+  fail("h3-max-multi-angle how-to should say the cover is reused Volt card art and orbit QC is pending");
+}
+if (!orbitHowTo.includes("h3-max-multi-angle/preview.webp")) {
+  fail("h3-max-multi-angle how-to should show the cover still");
+}
+if (!/slug:"h3-max-multi-angle"[\s\S]{0,200}thumb:"examples\/gallery\/h3-max-multi-angle\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES h3-max-multi-angle thumb should be examples/gallery/h3-max-multi-angle/preview.webp");
+}
+if (!/slug:"h3-max-multi-angle"[\s\S]{0,80}desc:"upload a still — orbit-right around the radio"/.test(examplesSrc)) {
+  fail("EXAMPLES h3-max-multi-angle desc should pitch upload a still — orbit-right around the radio");
+}
+if (!/slug:"h3-max-multi-angle"[\s\S]{0,80}title:"night-ride radio orbit"/.test(examplesSrc)) {
+  fail("EXAMPLES h3-max-multi-angle title should be night-ride radio orbit");
+}
+const orbitCard = examplesSrc.match(/slug:"h3-max-multi-angle"[\s\S]{0,2800}/)?.[0] || "";
+if (!/minimax\/h3-max\/multi-angle\/image-to-video/.test(orbitCard)) {
+  fail("EXAMPLES h3-max-multi-angle graph should pin minimax/h3-max/multi-angle/image-to-video");
+}
+if (!/resolution:"480p"/.test(orbitCard) || !/duration:"5"/.test(orbitCard)) {
+  fail("EXAMPLES h3-max-multi-angle graph should pin 480p / 5s");
+}
+if (!/"camera_motion":"orbit-right"/.test(orbitCard)) {
+  fail("EXAMPLES h3-max-multi-angle graph should pin camera_motion=orbit-right");
+}
+if (/minimax-h3\/image-to-video-spicy/.test(orbitCard)) {
+  fail("EXAMPLES h3-max-multi-angle must not pin MiniMax H3 Spicy");
+}
+if (/google\/gemini-omni-flash/.test(orbitCard)) {
+  fail("EXAMPLES h3-max-multi-angle must not pin Omni Flash");
+}
 for (const slug of slugs) {
   const page = readFileSync(join(ROOT, "guide", "examples", slug === "iron-verdict" ? "iron-verdict.html" : `${slug}.html`), "utf8");
   if (page.includes("how to use this noodle")) {

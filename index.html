@@ -1318,6 +1318,8 @@ const I18N = {
     "the night dispatcher looks at camera and keeps the cyan channel clear":"el despachador nocturno mira a cámara y mantiene el canal cian libre",
     "night-ride radio take":"toma de radio de noche",
     "still + audio — lips and body follow the radio take":"still + audio — labios y cuerpo siguen la toma de radio",
+    "night-ride radio orbit":"órbita de radio de noche",
+    "upload a still — orbit-right around the radio":"sube un still — órbita a la derecha alrededor de la radio",
     "closing-credits song":"canción de créditos finales",
     "rooftop getaway — last leap, red neon six floors down":"huida por las azoteas — último salto, neón rojo seis pisos abajo",
 
@@ -1951,6 +1953,8 @@ const I18N = {
     "the night dispatcher looks at camera and keeps the cyan channel clear":"le régulateur de nuit regarde la caméra et garde le canal cyan libre",
     "night-ride radio take":"prise radio de nuit",
     "still + audio — lips and body follow the radio take":"still + audio — lèvres et corps suivent la prise radio",
+    "night-ride radio orbit":"orbite radio de nuit",
+    "upload a still — orbit-right around the radio":"importez un still — orbite à droite autour de la radio",
     "closing-credits song":"chanson de générique de fin",
     "rooftop getaway — last leap, red neon six floors down":"fuite sur les toits — dernier saut, néon rouge six étages plus bas",
 
@@ -2584,6 +2588,8 @@ const I18N = {
     "the night dispatcher looks at camera and keeps the cyan channel clear":"der Nachtdisponent schaut in die Kamera und hält den Cyan-Kanal frei",
     "night-ride radio take":"Nachtfahrt-Radio-Take",
     "still + audio — lips and body follow the radio take":"Still + Audio — Lippen und Körper folgen dem Radio-Take",
+    "night-ride radio orbit":"Nachtfahrt-Radio-Orbit",
+    "upload a still — orbit-right around the radio":"Still hochladen — Orbit nach rechts um das Radio",
     "closing-credits song":"Abspannlied",
     "rooftop getaway — last leap, red neon six floors down":"Dachflucht — letzter Sprung, rotes Neon sechs Stockwerke tiefer",
 
@@ -3217,6 +3223,8 @@ const I18N = {
     "the night dispatcher looks at camera and keeps the cyan channel clear":"o despachante noturno olha para a câmera e mantém o canal ciano livre",
     "night-ride radio take":"take de rádio noturno",
     "still + audio — lips and body follow the radio take":"still + áudio — lábios e corpo seguem o take de rádio",
+    "night-ride radio orbit":"órbita de rádio noturno",
+    "upload a still — orbit-right around the radio":"envie um still — órbita à direita em torno do rádio",
     "closing-credits song":"música dos créditos finais",
     "rooftop getaway — last leap, red neon six floors down":"fuga pelos telhados — último salto, neon vermelho seis andares abaixo",
 
@@ -3850,6 +3858,8 @@ const I18N = {
     "the night dispatcher looks at camera and keeps the cyan channel clear":"夜のディスパッチャーがカメラを見て、シアンのチャンネルを空けておく",
     "night-ride radio take":"ナイトライドのラジオテイク",
     "still + audio — lips and body follow the radio take":"スチル＋音声 — 唇と体がラジオテイクに従う",
+    "night-ride radio orbit":"ナイトライドのラジオ周回",
+    "upload a still — orbit-right around the radio":"スチールをアップロード — ラジオの右回りオービット",
     "closing-credits song":"エンドクレジットの歌",
     "rooftop getaway — last leap, red neon six floors down":"屋上からの逃走 — 最後の跳躍、6階下の赤いネオン",
 
@@ -13678,6 +13688,13 @@ const EXAMPLES = [
            {id:"n3",type:"image",x:680,y:80,w:250,fields:{model:"meta/muse-image/text-to-image",size:"1:1",variations:"1"},name:"Favicon"} ],
    links:[ {id:"l16",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}},
            {id:"l17",from:{node:"n2",port:"text"},to:{node:"n3",port:"prompt"}} ] } },
+ { em:"🛰️", slug:"h3-max-multi-angle", title:"night-ride radio orbit", desc:"upload a still — orbit-right around the radio",
+   thumb:"examples/gallery/h3-max-multi-angle/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:20,w:480,fields:{text:"Upload a product still; MiniMax H3 Max Multi Angle (`minimax/h3-max/multi-angle/image-to-video`) animates a precise camera move. Pins: 480p, 5s, camera_motion=orbit-right in modelOpts (catalog default; also orbit-left / push-in / pull-back / rise). Catalog minimum $0.25; duration and resolution determine pricing. First-click story is a matte-charcoal Volt pocket night-ride radio with one electric-cyan lightning-bolt chevron on dark slate / hard cyan rim — this repo has no committed still, so upload that product photo or any catalog plate. Camera moves; the product stays. Not Animate a product still (Muse + MiniMax H3 Spicy locked-camera rain), not Product motion concept (GLM + Omni Flash 1.1 text-to-video studio plinth), and not InfiniteTalk / talking-avatar lipsync. Inspect one continuous orbit; a seamless loop is not promised.",color:"yellow"},name:"Night-ride radio orbit"},
+           {id:"n1",type:"upload",x:40,y:320,w:280,fields:{},name:"Product still"},
+           {id:"n2",type:"ivideo",x:400,y:300,w:320,sizes:{prompt:80},fields:{model:"minimax/h3-max/multi-angle/image-to-video",prompt:"Only the camera moves: orbit around the subject, preserving the scene.",resolution:"480p",duration:"5",modelOpts:{"camera_motion":"orbit-right"}},name:"Orbit clip"} ],
+   links:[ {id:"l1",from:{node:"n1",port:"image"},to:{node:"n2",port:"image"}} ] } },
  { em:"🎬", slug:"photo-to-video", title:"photo → video", desc:"locked camera, rain on a night-ride radio",
    thumb:"examples/gallery/photo-to-video/preview.webp",
    graph:{ v:1,
@@ -13849,7 +13866,7 @@ function openExamples(){
   // Same Elo order on every width — no mobile-only list, no CSS order, no truncation.
   // Featured #skilloutcome (Iron Verdict) sits above the grid on every width.
   // Compact mobile cards keep H3 (4th) and the featured game above the fold.
-  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","render-a-mockup","favicon","photo-to-video","character-sprites","talking-avatar","infinitetalk-radio-take","sing","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
+  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","render-a-mockup","favicon","photo-to-video","h3-max-multi-angle","character-sprites","talking-avatar","infinitetalk-radio-take","sing","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
   EXAMPLES.map((ex,i)=>({ex,i})).sort((a,b)=>{
     const rank=slug=>first.includes(slug)?first.indexOf(slug):first.length;
     return rank(a.ex.slug)-rank(b.ex.slug);
