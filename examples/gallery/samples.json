@@ -184,6 +184,37 @@
     "workflowSha256": "56c6d48107a197b7757cf26460fbad3fac1fe934464ae83f0cd7261267358860"
   },
   {
+    "slug": "character-sprites",
+    "title": "Character sprites",
+    "date": "2026-09-09",
+    "review": "Cover still",
+    "note": "Cover is reused Iron Verdict card/game art from examples/iron-verdict/screenshot.png, pending a true Muse QC parts sheet — no paid meta/muse-image or NanoGPT run this PR. Job is a furnace-knight reference + four-quadrant rig parts sheet: GLM Flash writes the prompt, Muse text-to-image paints the canonical character at 1:1, Muse edit cuts isolated parts at 1:1, local resize fits 768. Feeds the character-sprites skill and Iron Verdict. Distinct from cinematic-character-still (hero key-art). Open the graph from Examples — rewrite Character; Character designer pins z-ai/glm-5.3-flash; Canonical character pins meta/muse-image/text-to-image @ 1:1; Rig parts pins meta/muse-image/edit @ 1:1. Export preview is a local 768 fit.",
+    "costUsd": 0.02,
+    "costExact": false,
+    "models": [
+      "z-ai/glm-5.3-flash",
+      "meta/muse-image/text-to-image",
+      "meta/muse-image/edit"
+    ],
+    "graphSha256": "920c00691cb05d9f1c7c5bfa5a4f7a675a23e73e9dafc9bb729dcb867ca72098",
+    "inputs": [
+      {
+        "label": "Character",
+        "text": "A compact furnace knight with a cracked ivory helmet, narrow glowing amber visor, dark navy armor, a short rust-red scarf, oversized weathered brass gauntlets and heavy boots. Determined, heavy, battle-scarred. No weapon, no wings. Stylized hand-painted 2D action-platformer art with strong outlines and an instantly readable silhouette."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "character-sprites/NOTE.txt",
+        "kind": "text",
+        "label": "Note"
+      }
+    ],
+    "preview": "character-sprites/preview.webp",
+    "workflow": "character-sprites/workflow.json",
+    "workflowSha256": "920c00691cb05d9f1c7c5bfa5a4f7a675a23e73e9dafc9bb729dcb867ca72098"
+  },
+  {
     "slug": "edit-a-photo",
     "title": "Cool catalog cleanup",
     "date": "2026-09-09",

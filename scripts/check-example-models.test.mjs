@@ -99,7 +99,7 @@ test('homepage pins use the same strict model, type and capability checks as gal
   assert.throws(() => starterModels({ nodes: [{ type: 'unknown' }] }, kinds), /unknown node type/);
 });
 
-test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefNet, InfiniteTalk, SAM 3, P-Image Upscale, deslop venice-uncensored and H3 Max Multi Angle pin regressions', async () => {
+test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefNet, InfiniteTalk, SAM 3, P-Image Upscale, deslop venice-uncensored, H3 Max Multi Angle and character-sprites pin regressions', async () => {
   const { galleryRegressions } = await import('./check-example-models.mjs');
   const pins = [
     { slug: 'fibo-studio-still', ...pin('image', { model: 'bria/fibo-generate-1.5/text-to-image', size: '1mp' }) },
@@ -112,9 +112,12 @@ test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefN
     { slug: 'p-image-upscale', ...pin('edit', { model: 'pruna-ai/p-image/upscale', size: '2' }) },
     { slug: 'deslop', ...pin('llm', { model: 'venice-uncensored' }) },
     { slug: 'h3-max-multi-angle', ...pin('ivideo', { model: 'minimax/h3-max/multi-angle/image-to-video', resolution: '480p', duration: '5', modelOpts: { camera_motion: 'orbit-right' } }) },
+    { slug: 'character-sprites', ...pin('llm', { model: 'z-ai/glm-5.3-flash' }) },
+    { slug: 'character-sprites', ...pin('image', { model: 'meta/muse-image/text-to-image', size: '1:1' }) },
+    { slug: 'character-sprites', ...pin('edit', { model: 'meta/muse-image/edit', size: '1:1' }) },
   ];
   assert.equal(galleryRegressions(pins).length, 0);
-  assert.equal(galleryRegressions([]).length, 10);
+  assert.equal(galleryRegressions([]).length, 13);
   pins[0].fields.size = 'auto';
   assert.match(galleryRegressions(pins)[0].reason, /expected size 1mp/);
   pins[0].fields.size = '1mp';
@@ -128,6 +131,9 @@ test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefN
   pins[7].id = 'clarity-upscaler';
   pins[8].id = 'openai/gpt-4o-mini';
   pins[9].id = 'minimax-h3/image-to-video-spicy';
-  assert.equal(galleryRegressions(pins).length, 10);
+  pins[10].id = 'openai/gpt-4o-mini';
+  pins[11].id = 'minimax-h3/text-to-image';
+  pins[12].id = 'meta/muse-image/text-to-image';
+  assert.equal(galleryRegressions(pins).length, 13);
   assert.ok(galleryRegressions(pins).every(p => /expected model/.test(p.reason)));
 });

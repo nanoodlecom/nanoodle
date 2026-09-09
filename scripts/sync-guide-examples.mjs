@@ -80,6 +80,14 @@ const HOWTO = {
       "One person. Magenta and cyan if you kept that light. Helmet readable. No extra people, no readable text. Generated key-art, not a photograph of a real person.",
     costHow: "The reviewed run reported $0.02 ($0.02/image at 1K). Prices and results vary.",
   },
+  "character-sprites": {
+    headline: "A furnace knight you can rig",
+    job: "Furnace-knight reference + four-quadrant parts sheet.",
+    purpose: "Character art → cutout parts → local rig. GLM Flash writes the reference prompt; Muse paints the canonical character at 1:1; Muse Edit cuts a four-quadrant parts sheet at 1:1; local resize fits 768. The companion skill bakes 32 transparent frames. Iron Verdict is the worked game. Distinct from cinematic-character-still (hero key-art) — this is the Iron Verdict / game-rig story.",
+    edit: "Rewrite <em>Character</em>. Leave <em>Character designer</em> on <code>z-ai/glm-5.3-flash</code>, <em>Canonical character</em> on <code>meta/muse-image/text-to-image</code> at 1:1, and <em>Rig parts</em> on <code>meta/muse-image/edit</code> at 1:1 unless you mean to change models. <em>Reference</em> is a local 768 fit.",
+    inspect: "Cover is reused Iron Verdict card/game art, pending a true Muse QC parts sheet — no paid meta/muse-image or NanoGPT run this PR, not a fabricated parts sheet. Open the graph and hit Run with your key. Inspect the furnace-knight reference and four-quadrant parts sheet. The graph alone does not bake an atlas or a game.",
+    costHow: "Listed at about $0.02 for the two image calls ($0.01 reference + $0.01 parts) plus a small GLM Flash text call. Local resize is $0. Prices and results vary. This page has no reviewed first-party parts sheet yet.",
+  },
   "edit-a-photo": {
     headline: "Cool catalog. Same product.",
     job: "Charcoal paper. Cyan rim.",
@@ -225,7 +233,7 @@ const GROUPS = [
   { id: "playable", title: "Playable", slugs: ["iron-verdict"] },
   { id: "image", title: "Image", slugs: [
     "edit-a-photo", "product-cutout", "sam3-isolate", "p-image-upscale", "combine-images", "render-a-mockup", "favicon",
-    "night-market-postcard", "fibo-studio-still", "cinematic-character-still",
+    "night-market-postcard", "fibo-studio-still", "cinematic-character-still", "character-sprites",
     "image-model-arena",
   ] },
   { id: "video", title: "Video", slugs: ["photo-to-video", "h3-max-multi-angle", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },

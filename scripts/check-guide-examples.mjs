@@ -1035,6 +1035,75 @@ if (/minimax-h3\/image-to-video-spicy/.test(orbitCard)) {
 if (/google\/gemini-omni-flash/.test(orbitCard)) {
   fail("EXAMPLES h3-max-multi-angle must not pin Omni Flash");
 }
+const spritesSample = samples.find((s) => s.slug === "character-sprites");
+if (!spritesSample) fail("samples.json missing character-sprites");
+if (spritesSample.preview !== "character-sprites/preview.webp") {
+  fail("character-sprites sample preview should be character-sprites/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "character-sprites", "preview.webp"))) {
+  fail("examples/gallery/character-sprites/preview.webp is missing");
+}
+if (!/z-ai\/glm-5\.3-flash/.test(JSON.stringify(spritesSample.models))) {
+  fail("character-sprites sample should pin z-ai/glm-5.3-flash");
+}
+if (!/meta\/muse-image\/text-to-image/.test(JSON.stringify(spritesSample.models))) {
+  fail("character-sprites sample should pin meta/muse-image/text-to-image");
+}
+if (!/meta\/muse-image\/edit/.test(JSON.stringify(spritesSample.models))) {
+  fail("character-sprites sample should pin meta/muse-image/edit");
+}
+if (!/Iron Verdict|card\/game art|screenshot\.png/i.test(spritesSample.note) || !/no paid|pending/i.test(spritesSample.note)) {
+  fail("character-sprites sample note should say cover is Iron Verdict card/game art and Muse QC is pending");
+}
+if (!/furnace knight|parts sheet/i.test(spritesSample.note)) {
+  fail("character-sprites sample note should say the job is a furnace-knight reference + parts sheet");
+}
+if (!/cinematic-character-still|hero key-art/i.test(spritesSample.note)) {
+  fail("character-sprites sample note should distinguish cinematic-character-still");
+}
+if (!/character-sprites skill|Iron Verdict/i.test(spritesSample.note)) {
+  fail("character-sprites sample note should name the character-sprites skill and Iron Verdict");
+}
+if (/Volt|night-ride radio/i.test(spritesSample.note + JSON.stringify(spritesSample.inputs))) {
+  fail("character-sprites must not be Volt-retargeted");
+}
+if (!/cracked ivory helmet|amber visor|navy armor|rust-red scarf|brass gauntlets/i.test(JSON.stringify(spritesSample.inputs))) {
+  fail("character-sprites sample inputs should keep the furnace knight brief");
+}
+if (!hub.includes("character-sprites/preview.webp")) {
+  fail("hub should thumb the character-sprites cover");
+}
+if (!hub.includes("A furnace knight you can rig")) {
+  fail("hub should title character-sprites as A furnace knight you can rig");
+}
+const spritesHowTo = readFileSync(join(ROOT, "guide", "examples", "character-sprites.html"), "utf8");
+if (!/z-ai\/glm-5\.3-flash/.test(spritesHowTo) || !/meta\/muse-image\/text-to-image/.test(spritesHowTo) || !/meta\/muse-image\/edit/.test(spritesHowTo)) {
+  fail("character-sprites how-to should name GLM Flash, Muse t2i, and Muse edit");
+}
+if (!/furnace knight/i.test(spritesHowTo) || !/parts sheet/i.test(spritesHowTo)) {
+  fail("character-sprites how-to should pitch the furnace-knight reference + parts sheet");
+}
+if (!/cinematic-character-still|hero key-art/i.test(spritesHowTo)) {
+  fail("character-sprites how-to should distinguish cinematic-character-still");
+}
+if (!/Iron Verdict/i.test(spritesHowTo) || !/no paid|pending/i.test(spritesHowTo)) {
+  fail("character-sprites how-to should say the cover is Iron Verdict art and Muse QC is pending");
+}
+if (/Volt|night-ride radio/i.test(spritesHowTo.split('<nav class="next">')[0])) {
+  fail("character-sprites how-to must not be Volt-retargeted");
+}
+if (!spritesHowTo.includes("character-sprites/preview.webp")) {
+  fail("character-sprites how-to should show the cover still");
+}
+if (!/slug:"character-sprites"[\s\S]*?model:"z-ai\/glm-5\.3-flash"/.test(examplesSrc)) {
+  fail("EXAMPLES character-sprites graph should pin z-ai/glm-5.3-flash");
+}
+if (!/slug:"character-sprites"[\s\S]*?model:"meta\/muse-image\/text-to-image"/.test(examplesSrc)) {
+  fail("EXAMPLES character-sprites graph should pin meta/muse-image/text-to-image");
+}
+if (!/slug:"character-sprites"[\s\S]*?model:"meta\/muse-image\/edit"/.test(examplesSrc)) {
+  fail("EXAMPLES character-sprites graph should pin meta/muse-image/edit");
+}
 for (const slug of slugs) {
   const page = readFileSync(join(ROOT, "guide", "examples", slug === "iron-verdict" ? "iron-verdict.html" : `${slug}.html`), "utf8");
   if (page.includes("how to use this noodle")) {
