@@ -99,7 +99,7 @@ test('homepage pins use the same strict model, type and capability checks as gal
   assert.throws(() => starterModels({ nodes: [{ type: 'unknown' }] }, kinds), /unknown node type/);
 });
 
-test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefNet, InfiniteTalk, SAM 3, P-Image Upscale, deslop venice-uncensored, H3 Max Multi Angle and character-sprites pin regressions', async () => {
+test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefNet, InfiniteTalk, SAM 3, P-Image Upscale, deslop venice-uncensored, H3 Max Multi Angle, character-sprites and transparent-brand-sticker pin regressions', async () => {
   const { galleryRegressions } = await import('./check-example-models.mjs');
   const pins = [
     { slug: 'fibo-studio-still', ...pin('image', { model: 'bria/fibo-generate-1.5/text-to-image', size: '1mp' }) },
@@ -115,9 +115,10 @@ test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefN
     { slug: 'character-sprites', ...pin('llm', { model: 'z-ai/glm-5.3-flash' }) },
     { slug: 'character-sprites', ...pin('image', { model: 'meta/muse-image/text-to-image', size: '1:1' }) },
     { slug: 'character-sprites', ...pin('edit', { model: 'meta/muse-image/edit', size: '1:1' }) },
+    { slug: 'transparent-brand-sticker', ...pin('image', { model: 'ideogram-v3-generate-transparent', size: '1:1' }) },
   ];
   assert.equal(galleryRegressions(pins).length, 0);
-  assert.equal(galleryRegressions([]).length, 13);
+  assert.equal(galleryRegressions([]).length, 14);
   pins[0].fields.size = 'auto';
   assert.match(galleryRegressions(pins)[0].reason, /expected size 1mp/);
   pins[0].fields.size = '1mp';
@@ -134,6 +135,7 @@ test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefN
   pins[10].id = 'openai/gpt-4o-mini';
   pins[11].id = 'minimax-h3/text-to-image';
   pins[12].id = 'meta/muse-image/text-to-image';
-  assert.equal(galleryRegressions(pins).length, 13);
+  pins[13].id = 'meta/muse-image/text-to-image';
+  assert.equal(galleryRegressions(pins).length, 14);
   assert.ok(galleryRegressions(pins).every(p => /expected model/.test(p.reason)));
 });

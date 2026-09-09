@@ -1104,6 +1104,98 @@ if (!/slug:"character-sprites"[\s\S]*?model:"meta\/muse-image\/text-to-image"/.t
 if (!/slug:"character-sprites"[\s\S]*?model:"meta\/muse-image\/edit"/.test(examplesSrc)) {
   fail("EXAMPLES character-sprites graph should pin meta/muse-image/edit");
 }
+const stickerSample = samples.find((s) => s.slug === "transparent-brand-sticker");
+if (!stickerSample) fail("samples.json missing transparent-brand-sticker");
+if (stickerSample.preview !== "transparent-brand-sticker/preview.webp") {
+  fail("transparent-brand-sticker sample preview should be transparent-brand-sticker/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "transparent-brand-sticker", "preview.webp"))) {
+  fail("examples/gallery/transparent-brand-sticker/preview.webp is missing");
+}
+if (!/ideogram-v3-generate-transparent/.test(JSON.stringify(stickerSample.models))) {
+  fail("transparent-brand-sticker sample should pin ideogram-v3-generate-transparent");
+}
+if (!/cover|reused Volt bolt card art|favicon/i.test(stickerSample.note) || !/no paid|pending/i.test(stickerSample.note)) {
+  fail("transparent-brand-sticker sample note should say cover is reused Volt bolt art and Ideogram QC is pending");
+}
+if (!/clean alpha|transparent|sticker/i.test(stickerSample.note)) {
+  fail("transparent-brand-sticker sample note should say the job is a transparent brand sticker");
+}
+if (!/Favicon|opaque square glyph|GLM/i.test(stickerSample.note)) {
+  fail("transparent-brand-sticker sample note should distinguish Favicon / GLM+Muse");
+}
+if (!/Product cutout|BiRefNet/i.test(stickerSample.note)) {
+  fail("transparent-brand-sticker sample note should distinguish Product cutout / BiRefNet");
+}
+if (!/Volt|night-ride radio|cyan/i.test(stickerSample.note)) {
+  fail("transparent-brand-sticker sample note should pitch the Volt night-ride radio chevron");
+}
+if (!/rendering_speed|modelOpts/i.test(stickerSample.note)) {
+  fail("transparent-brand-sticker sample note should say the image node does not forward rendering_speed");
+}
+if (!hub.includes("transparent-brand-sticker/preview.webp")) {
+  fail("hub should thumb the transparent-brand-sticker cover");
+}
+if (!hub.includes("One cyan bolt. Clean alpha.")) {
+  fail("hub should title transparent-brand-sticker as One cyan bolt. Clean alpha.");
+}
+const stickerHowTo = readFileSync(join(ROOT, "guide", "examples", "transparent-brand-sticker.html"), "utf8");
+if (!/ideogram-v3-generate-transparent/.test(stickerHowTo)) {
+  fail("transparent-brand-sticker how-to should name ideogram-v3-generate-transparent");
+}
+if (!/Volt/i.test(stickerHowTo) || !/cyan/i.test(stickerHowTo) || !/charcoal/i.test(stickerHowTo)) {
+  fail("transparent-brand-sticker how-to should pitch the Volt charcoal + cyan chevron");
+}
+if (!/clean alpha|transparent/i.test(stickerHowTo)) {
+  fail("transparent-brand-sticker how-to should say this is a clean-alpha sticker");
+}
+if (!/Favicon|opaque square glyph|GLM/i.test(stickerHowTo)) {
+  fail("transparent-brand-sticker how-to should distinguish Favicon / GLM+Muse");
+}
+if (!/Product cutout|BiRefNet/i.test(stickerHowTo)) {
+  fail("transparent-brand-sticker how-to should distinguish Product cutout / BiRefNet");
+}
+if (!/reused Volt bolt card art|no paid|pending/i.test(stickerHowTo)) {
+  fail("transparent-brand-sticker how-to should say the cover is reused Volt bolt art and Ideogram QC is pending");
+}
+if (!/rendering_speed|modelOpts/i.test(stickerHowTo)) {
+  fail("transparent-brand-sticker how-to should say the image node does not forward rendering_speed");
+}
+if (!stickerHowTo.includes("transparent-brand-sticker/preview.webp")) {
+  fail("transparent-brand-sticker how-to should show the cover still");
+}
+if (!/slug:"transparent-brand-sticker"[\s\S]{0,200}thumb:"examples\/gallery\/transparent-brand-sticker\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES transparent-brand-sticker thumb should be examples/gallery/transparent-brand-sticker/preview.webp");
+}
+if (!/slug:"transparent-brand-sticker"[\s\S]{0,80}desc:"cyan lightning chevron sticker — clean alpha, no letters"/.test(examplesSrc)) {
+  fail("EXAMPLES transparent-brand-sticker desc should pitch cyan lightning chevron sticker — clean alpha, no letters");
+}
+if (!/slug:"transparent-brand-sticker"[\s\S]{0,80}title:"transparent brand sticker"/.test(examplesSrc)) {
+  fail("EXAMPLES transparent-brand-sticker title should be transparent brand sticker");
+}
+const stickerCard = examplesSrc.match(/slug:"transparent-brand-sticker"[\s\S]{0,2800}/)?.[0] || "";
+if (!/ideogram-v3-generate-transparent/.test(stickerCard)) {
+  fail("EXAMPLES transparent-brand-sticker graph should pin ideogram-v3-generate-transparent");
+}
+if (!/size:"1:1"/.test(stickerCard)) {
+  fail("EXAMPLES transparent-brand-sticker graph should pin size 1:1");
+}
+const stickerImage = stickerCard.match(/\{id:"n2",type:"image"[\s\S]*?name:"Sticker"\}/)?.[0] || "";
+if (!stickerImage) {
+  fail("EXAMPLES transparent-brand-sticker should have image node n2 Sticker");
+}
+if (/modelOpts|rendering_speed/.test(stickerImage)) {
+  fail("EXAMPLES transparent-brand-sticker image node must not forward rendering_speed modelOpts");
+}
+if (/z-ai\/glm-5\.3-flash|meta\/muse-image/.test(stickerCard)) {
+  fail("EXAMPLES transparent-brand-sticker must not pin GLM or Muse");
+}
+if (/birefnet|sam3-image|pruna-ai\/p-image/.test(stickerCard)) {
+  fail("EXAMPLES transparent-brand-sticker must not pin BiRefNet, SAM 3, or P-Image Upscale");
+}
+if (/type:"llm"|type:"upload"/.test(stickerCard)) {
+  fail("EXAMPLES transparent-brand-sticker must stay text Brand brief → image Sticker (no LLM, no upload)");
+}
 for (const slug of slugs) {
   const page = readFileSync(join(ROOT, "guide", "examples", slug === "iron-verdict" ? "iron-verdict.html" : `${slug}.html`), "utf8");
   if (page.includes("how to use this noodle")) {

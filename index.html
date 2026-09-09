@@ -1349,6 +1349,8 @@ const I18N = {
     "product concept still":"concepto de foto de producto",
     "preview a five-second product shot at draft resolution":"previsualiza una toma de producto de cinco segundos en baja resolución",
     "lightning-cyan bolt that still reads at 16px":"un rayo cian que se lee incluso a 16px",
+    "transparent brand sticker":"sticker de marca transparente",
+    "cyan lightning chevron sticker — clean alpha, no letters":"sticker chevron relámpago cian — alpha limpio, sin letras",
     "strength":"intensidad",
     "Notes":"Notas",
     "Bold":"Negrita",
@@ -1984,6 +1986,8 @@ const I18N = {
     "product concept still":"concept de photo de produit",
     "preview a five-second product shot at draft resolution":"prévisualisez un plan produit de cinq secondes en basse résolution",
     "lightning-cyan bolt that still reads at 16px":"un éclair cyan qui se lit encore à 16 px",
+    "transparent brand sticker":"sticker de marque transparent",
+    "cyan lightning chevron sticker — clean alpha, no letters":"sticker chevron éclair cyan — alpha propre, sans lettres",
     "strength":"intensité",
     "Notes":"Notes",
     "Bold":"Gras",
@@ -2619,6 +2623,8 @@ const I18N = {
     "product concept still":"Produktbild-Konzept",
     "preview a five-second product shot at draft resolution":"Fünfsekündige Produktaufnahme in Entwurfsauflösung ansehen",
     "lightning-cyan bolt that still reads at 16px":"ein cyanfarbener Blitz, der auch bei 16 px lesbar bleibt",
+    "transparent brand sticker":"transparenter Markensticker",
+    "cyan lightning chevron sticker — clean alpha, no letters":"Cyan-Blitz-Chevron-Sticker — sauberes Alpha, keine Buchstaben",
     "strength":"Stärke",
     "Notes":"Notizen",
     "Bold":"Fett",
@@ -3254,6 +3260,8 @@ const I18N = {
     "product concept still":"conceito de foto de produto",
     "preview a five-second product shot at draft resolution":"visualize uma tomada de produto de cinco segundos em baixa resolução",
     "lightning-cyan bolt that still reads at 16px":"um raio ciano que ainda se lê em 16px",
+    "transparent brand sticker":"adesivo de marca transparente",
+    "cyan lightning chevron sticker — clean alpha, no letters":"adesivo chevron relâmpago ciano — alpha limpo, sem letras",
     "strength":"intensidade",
     "Notes":"Notas",
     "Bold":"Negrito",
@@ -3889,6 +3897,8 @@ const I18N = {
     "product concept still":"商品のコンセプト画像",
     "preview a five-second product shot at draft resolution":"低解像度で5秒の商品映像を試作",
     "lightning-cyan bolt that still reads at 16px":"16pxでも読めるシアンの稲妻",
+    "transparent brand sticker":"透明ブランドステッカー",
+    "cyan lightning chevron sticker — clean alpha, no letters":"電光シアンのシェブロンステッカー — きれいなアルファ、文字なし",
     "strength":"強度",
     "Notes":"メモ",
     "Bold":"太字",
@@ -13691,6 +13701,13 @@ const EXAMPLES = [
            {id:"n3",type:"image",x:680,y:80,w:250,fields:{model:"meta/muse-image/text-to-image",size:"1:1",variations:"1"},name:"Favicon"} ],
    links:[ {id:"l16",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}},
            {id:"l17",from:{node:"n2",port:"text"},to:{node:"n3",port:"prompt"}} ] } },
+ { em:"🏷️", slug:"transparent-brand-sticker", title:"transparent brand sticker", desc:"cyan lightning chevron sticker — clean alpha, no letters",
+   thumb:"examples/gallery/transparent-brand-sticker/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:20,w:520,fields:{text:"Text brief → Ideogram V3 Generate Transparent (`ideogram-v3-generate-transparent`) sticker/overlay with a clean alpha channel. Size 1:1, catalog $0.06 at balanced aspects (default). Catalog also lists rendering_speed flash ~$0.03, but the nanoodle image node does not forward modelOpts / additionalParams (imgExtra only sends LoRA, seed, CivitAI AIR, and FIBO aspect), so this graph leaves the default and prices at $0.06. nsfw: false. First-click Brand brief is a matte-charcoal field with ONE electric-cyan lightning-bolt chevron sticker for Volt pocket night-ride radio / courier brand — no letters. Flat sticker/overlay, generous transparent margins. Not Favicon concept (GLM Flash + Muse opaque square glyph), not Product cutout / BiRefNet (upload → knock out background), and not a product photo or UI screen. No upload. No LLM — the brief goes straight to Ideogram. Inspect native alpha; conversion into print sheets stays separate.",color:"yellow"},name:"Transparent brand sticker"},
+           {id:"n1",type:"text",x:40,y:320,w:320,fields:{text:"Flat die-cut brand sticker overlay with a clean transparent alpha background. One matte-charcoal rounded field, generous empty transparent margins around the sticker silhouette. On that charcoal field, ONE sharp electric-cyan lightning-bolt chevron mark for Volt — a pocket night-ride radio / courier brand. No letters, initials, wordmark, or Volt text. No second mark. Flat graphic sticker: solid fills, crisp edges, no drop shadow, no bevel, no paper texture, no checkerboard, no mockup, no phone, no UI screen, no product photo, no wet asphalt, no courier, no radio. Centered on a square canvas."},name:"Brand brief"},
+           {id:"n2",type:"image",x:420,y:300,w:280,fields:{model:"ideogram-v3-generate-transparent",size:"1:1",variations:"1"},name:"Sticker"} ],
+   links:[ {id:"l1",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}} ] } },
  { em:"🛰️", slug:"h3-max-multi-angle", title:"night-ride radio orbit", desc:"upload a still — orbit-right around the radio",
    thumb:"examples/gallery/h3-max-multi-angle/preview.webp",
    graph:{ v:1,
@@ -13869,7 +13886,7 @@ function openExamples(){
   // Same Elo order on every width — no mobile-only list, no CSS order, no truncation.
   // Featured #skilloutcome (Iron Verdict) sits above the grid on every width.
   // Compact mobile cards keep H3 (4th) and the featured game above the fold.
-  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","render-a-mockup","favicon","photo-to-video","h3-max-multi-angle","character-sprites","talking-avatar","infinitetalk-radio-take","sing","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
+  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","render-a-mockup","favicon","transparent-brand-sticker","photo-to-video","h3-max-multi-angle","character-sprites","talking-avatar","infinitetalk-radio-take","sing","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
   EXAMPLES.map((ex,i)=>({ex,i})).sort((a,b)=>{
     const rank=slug=>first.includes(slug)?first.indexOf(slug):first.length;
     return rank(a.ex.slug)-rank(b.ex.slug);

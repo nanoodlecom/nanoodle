@@ -62,6 +62,14 @@ const HOWTO = {
     inspect: "Squint at 16 pixels. One glyph, the palette you asked for, a silhouette that still reads. This is a raster concept — export real favicon sizes as a separate step. The saved brief has no letters.",
     costHow: "The reviewed run reported $0.01. The image step is listed at $0.01, plus a small text call. Prices and results vary.",
   },
+  "transparent-brand-sticker": {
+    headline: "One cyan bolt. Clean alpha.",
+    job: "Volt sticker. Transparent. No letters.",
+    purpose: "A brand sentence becomes a flat die-cut sticker overlay with a clean alpha channel. First-click is Volt — matte-charcoal rounded field, ONE electric-cyan lightning-bolt chevron, generous transparent margins. No letters. Distinct from Favicon concept (GLM Flash + Muse opaque square glyph) and Product cutout / BiRefNet V2 (upload → knock out background). No LLM. No upload.",
+    edit: "Rewrite <em>Brand brief</em>. Leave <em>Sticker</em> on <code>ideogram-v3-generate-transparent</code> at size <code>1:1</code> unless you mean to change models. The image node does not forward <code>rendering_speed</code>.",
+    inspect: "Cover still is reused Volt bolt card art from the favicon glyph, pending a true Ideogram V3 Generate Transparent QC still — no paid ideogram-v3-generate-transparent or NanoGPT run this PR, not a fabricated transparent sticker. Open the graph and hit Run with your key. Inspect native alpha and the single cyan chevron. Print-sheet conversion stays separate.",
+    costHow: "Listed at about $0.06 for one Ideogram V3 Generate Transparent call at 1:1 balanced. Catalog also lists rendering_speed flash ~$0.03, but the image node does not forward modelOpts. No LLM. Prices and results vary. This page has no reviewed first-party sticker yet.",
+  },
   "fibo-studio-still": {
     headline: "A radio on dark slate",
     job: "Volt night-ride radio. Pick the light.",
@@ -233,6 +241,7 @@ const GROUPS = [
   { id: "playable", title: "Playable", slugs: ["iron-verdict"] },
   { id: "image", title: "Image", slugs: [
     "edit-a-photo", "product-cutout", "sam3-isolate", "p-image-upscale", "combine-images", "render-a-mockup", "favicon",
+    "transparent-brand-sticker",
     "night-market-postcard", "fibo-studio-still", "cinematic-character-still", "character-sprites",
     "image-model-arena",
   ] },
