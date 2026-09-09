@@ -42,7 +42,7 @@ const HOWTO = {
     job: "Kill the AI voice. Keep every fact.",
     purpose: "That midnight drop email sounds like a brand that asked a chatbot to sound expensive. This noodle rewrites it like a person, then a second model checks every date, price, and caveat against the source before the last pass.",
     edit: "Paste the slop into <em>Your draft</em>. Leave the three LLM nodes unless you mean to change models: Grok drafts, Terra fact-checks, Grok applies the review.",
-    inspect: "Every supplied fact has to survive — the saved run keeps 8 September at 00:01 JST, the $280 price, the 120-jacket limit, one-per-customer, no restock, Friday–Saturday Shibuya pickup hours, the confirmation QR, and drop@example.com. Empty hype should vanish. The review checks writing and facts. It does not detect authorship.",
+    inspect: "Every supplied fact has to survive — the saved run keeps 8 September at 00:01 JST, the $280 price, the 120-jacket limit, one-per-customer, no restock, Friday–Saturday Shibuya pickup hours, the confirmation QR, and drop@example.com. Empty hype should vanish. The review checks writing and facts. It does not detect authorship. Cover still is the midnight night-raid jacket drop — card art, not the generated notice.",
     costHow: "The reviewed run reported $0.0079 across three paid text calls. Token use and model prices move; check the editor estimate before you hit Run.",
   },
   favicon: {
