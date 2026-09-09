@@ -98,10 +98,10 @@ const HOWTO = {
   "image-model-arena": {
     headline: "Four models. One winner.",
     job: "Four models. One brief. No winner speech.",
-    purpose: "Make them all draw the same poster. Keep the one that got the useful details right — polish is not the same as a tire lever.",
+    purpose: "Make them all draw the same Volt night-ride poster. Keep the one that got the useful details right — polish is not the same as a lightning chevron. First-click is NIGHT RIDE / TUE 9 SEP: one charcoal radio, cyan bolt, dark slate.",
     edit: "Rewrite <em>Shared test brief</em>. The four image nodes already pin Muse, Krea 2 Turbo, Grok Imagine Image 2.0, and Recraft V4. Run spends four images.",
-    inspect: "Exact heading and footer, the wheel, two hooked plastic tire levers, composition, color. On the saved set every model got the type; only Grok drew recognizable levers. One prompt is not a ranking. The open workflow uses current model IDs after a provider-name migration.",
-    costHow: "The reviewed run reported $0.118 (Muse $0.01, Krea $0.01, Grok $0.06, Recraft $0.038). Four paid image calls. Prices and results vary.",
+    inspect: "Exact heading NIGHT RIDE and footer TUE 9 SEP, one charcoal radio, cyan lightning chevron, composition, color. Cover still is the Volt night-ride poster. The saved Contender_1–4 images are the earlier 5 September FIX A FLAT / tire-lever sample — historical, not regenerated. One prompt is not a ranking. The open workflow uses current model IDs after a provider-name migration.",
+    costHow: "The reviewed FIX A FLAT run reported $0.118 (Muse $0.01, Krea $0.01, Grok $0.06, Recraft $0.038). Four paid image calls. Cover still is card art. Prices and results vary.",
   },
   "night-market-postcard": {
     headline: "Rain. Neon. One postcard.",
