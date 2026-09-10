@@ -91,6 +91,7 @@ export function galleryRegressions(pins) {
     { slug: 'volt-dispatch-infographic', type: 'image', model: 'sensenova-u1-infographic', size: '16:9' },
     { slug: 'grok-imagine-still', type: 'ivideo', model: 'xai/grok-imagine-video/v1.5/image-to-video', resolution: '480p', duration: '4' },
     { slug: 'wan-still-audio', type: 'ivideo', model: 'alibaba/wan-3.0/image-to-video', resolution: '480p', duration: 2, enable_audio: true },
+    { slug: 'wan-motion-drive', type: 'vedit', model: 'wan-22-animate-2', resolution: '480p' },
     { slug: 'p-video-rewrite', type: 'vedit', model: 'pruna-ai/p-video/edit', draft: true },
     { slug: 'mirelo-video-foley', type: 'vedit', model: 'mirelo-ai/sfx1.6/video-to-video' },
     { slug: 'pixelcut-video-cutout', type: 'vedit', model: 'pixelcut/video-background-removal', background: 'black' },

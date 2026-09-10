@@ -2500,6 +2500,107 @@ if (/gpt-4o-mini/.test(cutoutClipCard)) {
 if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
   fail("custom-endpoint must stay the only LOCAL_ONLY teaching card after pixelcut-video-cutout sync");
 }
+
+const driveSample = samples.find((s) => s.slug === "wan-motion-drive");
+if (!driveSample) fail("samples.json missing wan-motion-drive");
+if (driveSample.preview !== "wan-motion-drive/preview.webp") {
+  fail("wan-motion-drive sample preview should be wan-motion-drive/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "wan-motion-drive", "preview.webp"))) {
+  fail("examples/gallery/wan-motion-drive/preview.webp is missing");
+}
+if (!driveSample.models?.includes("wan-22-animate-2")) {
+  fail("wan-motion-drive sample should pin wan-22-animate-2");
+}
+if (driveSample.models?.includes("pruna-ai/p-video/animate") || driveSample.models?.includes("wan-22-animate")) {
+  fail("wan-motion-drive must not pin pruna-ai/p-video/animate or wan-22-animate");
+}
+if (!/reused|product-cutout|fibo|volt/i.test(driveSample.note) || !/placeholder|no fake|not a driven|pending|no paid/i.test(driveSample.note)) {
+  fail("wan-motion-drive sample note should stay honest: reused Volt still + upload placeholders, no fake driven thumb");
+}
+if (!/still/i.test(driveSample.note) || !/driver/i.test(driveSample.note) || !/480p/i.test(driveSample.note) || !/0\.04/i.test(driveSample.note)) {
+  fail("wan-motion-drive sample note should say the job is still + driver motion-transfer @ 480p ($0.04/s)");
+}
+if (!/prompt-i2v|photo-to-video|grok-imagine-still|wan-still-audio/i.test(driveSample.note)) {
+  fail("wan-motion-drive sample note should distinguish prompt-i2v / photo-to-video");
+}
+if (!/InfiniteTalk|talking-avatar/i.test(driveSample.note)) {
+  fail("wan-motion-drive sample note should distinguish InfiniteTalk / talking-avatar");
+}
+if (!/H3 Max|orbit/i.test(driveSample.note)) {
+  fail("wan-motion-drive sample note should distinguish H3 Max camera orbit");
+}
+if (!/P-Video|rewrite/i.test(driveSample.note)) {
+  fail("wan-motion-drive sample note should distinguish P-Video rewrite");
+}
+if (!hub.includes("wan-motion-drive/preview.webp")) {
+  fail("hub should thumb the wan-motion-drive cover");
+}
+if (!hub.includes("Drive the still with motion")) {
+  fail("hub should title wan-motion-drive as Drive the still with motion");
+}
+const driveHowTo = readFileSync(join(ROOT, "guide", "examples", "wan-motion-drive.html"), "utf8");
+if (!/wan-22-animate-2/.test(driveHowTo)) {
+  fail("wan-motion-drive how-to should name wan-22-animate-2");
+}
+if (!/480p/.test(driveHowTo) || !/\$0\.04/.test(driveHowTo)) {
+  fail("wan-motion-drive how-to should punch 480p + $0.04/s");
+}
+if (!/still/i.test(driveHowTo) || !/driver/i.test(driveHowTo)) {
+  fail("wan-motion-drive how-to should punch still + driver");
+}
+if (!/prompt-i2v|photo-to-video|grok-imagine-still|wan-still-audio/i.test(driveHowTo)) {
+  fail("wan-motion-drive how-to should distinguish prompt-i2v / photo-to-video");
+}
+if (!/InfiniteTalk|talking-avatar/i.test(driveHowTo)) {
+  fail("wan-motion-drive how-to should distinguish InfiniteTalk / talking-avatar");
+}
+if (!/H3 Max|orbit/i.test(driveHowTo)) {
+  fail("wan-motion-drive how-to should distinguish H3 Max camera orbit");
+}
+if (!/P-Video|rewrite/i.test(driveHowTo)) {
+  fail("wan-motion-drive how-to should distinguish P-Video rewrite");
+}
+if (!/reused|product-cutout|fibo|volt|placeholder|no paid|not a driven|not fabricated/i.test(driveHowTo)) {
+  fail("wan-motion-drive how-to should stay honest about reused cover / no paid QC");
+}
+if (/pruna-ai\/p-video\/animate/.test(driveHowTo)) {
+  fail("wan-motion-drive how-to must not pin pruna-ai/p-video/animate");
+}
+if (!driveHowTo.includes("wan-motion-drive/preview.webp")) {
+  fail("wan-motion-drive how-to should show the cover still");
+}
+if (!/slug:"wan-motion-drive"[\s\S]{0,200}thumb:"examples\/gallery\/wan-motion-drive\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES wan-motion-drive thumb should be examples/gallery/wan-motion-drive/preview.webp");
+}
+if (!/slug:"wan-motion-drive"[\s\S]{0,80}desc:"one still \+ a driver clip — Wan Animate 2 transfers the move"/.test(examplesSrc)) {
+  fail("EXAMPLES wan-motion-drive desc should pitch one still + a driver clip — Wan Animate 2 transfers the move");
+}
+if (!/slug:"wan-motion-drive"[\s\S]{0,80}title:"drive the still with motion"/.test(examplesSrc)) {
+  fail("EXAMPLES wan-motion-drive title should be drive the still with motion");
+}
+const driveCard = examplesSrc.match(/slug:"wan-motion-drive"[\s\S]*?(?=\n \{ em:|$)/)?.[0] || "";
+if (!/"id":"wan-22-animate-2"|model:"wan-22-animate-2"/.test(driveCard)) {
+  fail("EXAMPLES wan-motion-drive graph should pin wan-22-animate-2");
+}
+if (!/resolution:"480p"/.test(driveCard)) {
+  fail("EXAMPLES wan-motion-drive graph should pin 480p");
+}
+if (!/type:"upload"/.test(driveCard) || !/type:"vupload"/.test(driveCard)) {
+  fail("EXAMPLES wan-motion-drive should be upload still + vupload driver");
+}
+if (!/type:"vedit"/.test(driveCard) || !/Driven clip/.test(driveCard)) {
+  fail("EXAMPLES wan-motion-drive should keep vedit Driven clip");
+}
+if (/pruna-ai\/p-video\/animate/.test(driveCard) || /model:"wan-22-animate"/.test(driveCard)) {
+  fail("EXAMPLES wan-motion-drive must not pin pruna-ai/p-video/animate or wan-22-animate");
+}
+if (/model:"infinitetalk"|model:"xai\/grok-imagine-video|model:"alibaba\/wan-3\.0|model:"gpt-4o-mini"|model:"minimax-h3\/image-to-video/.test(driveCard)) {
+  fail("EXAMPLES wan-motion-drive must not reuse prompt-i2v / lipsync / gpt-4o-mini pins");
+}
+if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
+  fail("custom-endpoint must stay the only LOCAL_ONLY teaching card after wan-motion-drive sync");
+}
 for (const slug of slugs) {
   const page = readFileSync(join(ROOT, "guide", "examples", slug === "iron-verdict" ? "iron-verdict.html" : `${slug}.html`), "utf8");
   if (page.includes("how to use this noodle")) {

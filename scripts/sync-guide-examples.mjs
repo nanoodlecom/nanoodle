@@ -272,6 +272,15 @@ const HOWTO = {
     inspect: "Cover is reused Volt charcoal card art, pending Grok Imagine 1.5 QC — no paid run this PR. Inspect the cyan pulse. A seamless loop is not promised.",
     costHow: "Listed at about $0.84 (Muse $0.01 + Grok Imagine Video 1.5 ~$0.83 at 480p / 4s). Prices vary. This page has no reviewed first-party clip yet.",
   },
+  "wan-motion-drive": {
+    headline: "Drive the still with motion",
+    job: "Still + driver. Wan Animate 2.",
+    hideNote: true,
+    purpose: "Upload a still and a short driver clip. Wan Animate 2 transfers the move @480p. Not prompt-i2v (photo-to-video / grok-imagine-still / wan-still-audio). Not InfiniteTalk / talking-avatar. Not H3 Max orbit. Not P-Video rewrite.",
+    edit: "Drop your still on <em>Character/product still</em> and a ~2–3s driver on <em>Driver motion</em>. Leave <em>Motion prompt</em> on the Volt line. Leave <em>Driven clip</em> on <code>wan-22-animate-2</code> at 480p.",
+    inspect: "Cover is reused Volt card art, pending Wan Animate 2 QC — no paid wan-22-animate-2 run this PR, not a fabricated driven clip. Upload placeholders only. Open the graph, upload both, inspect the transfer.",
+    costHow: "Listed from about $0.08 for a ~2s driver at 480p ($0.04/s; ~$0.08–0.12 for ~2–3s). No LLM. Prices vary. No reviewed first-party clip yet.",
+  },
   "wan-still-audio": {
     headline: "Still breathes with sound",
     job: "Wan 3.0. Motion + alley hum.",
@@ -371,7 +380,7 @@ const GROUPS = [
     "night-market-postcard", "fibo-studio-still", "cinematic-character-still", "h3-identity-restyle", "character-sprites",
     "image-model-arena",
   ] },
-  { id: "video", title: "Video", slugs: ["photo-to-video", "grok-imagine-still", "wan-still-audio", "h3-max-multi-angle", "crystal-video-upscale", "p-video-rewrite", "mirelo-video-foley", "pixelcut-video-cutout", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },
+  { id: "video", title: "Video", slugs: ["photo-to-video", "grok-imagine-still", "wan-motion-drive", "wan-still-audio", "h3-max-multi-angle", "crystal-video-upscale", "p-video-rewrite", "mirelo-video-foley", "pixelcut-video-cutout", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },
   { id: "audio", title: "Audio", slugs: ["sing", "night-ride-sfx", "night-ride-radio-vo"] },
   { id: "text", title: "Text", slugs: ["deslop", "fable-five-step"] },
 ];
