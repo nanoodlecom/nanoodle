@@ -2207,6 +2207,104 @@ if (/elevenlabs\/sound-effects\/v2|mureka-ai\/mureka-v9\.5\/generate-song|infini
 if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
   fail("custom-endpoint must stay the only LOCAL_ONLY teaching card after night-ride-radio-vo sync");
 }
+const scoreSample = samples.find((s) => s.slug === "stable-alley-score");
+if (!scoreSample) fail("samples.json missing stable-alley-score");
+if (scoreSample.preview !== "stable-alley-score/preview.webp") {
+  fail("stable-alley-score sample preview should be stable-alley-score/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "stable-alley-score", "preview.webp"))) {
+  fail("examples/gallery/stable-alley-score/preview.webp is missing");
+}
+if (!/stable-audio-3\/small\/music\/text-to-audio/.test(JSON.stringify(scoreSample.models))) {
+  fail("stable-alley-score sample should pin stable-audio-3/small/music/text-to-audio");
+}
+if (!/cover|reused Volt alley/i.test(scoreSample.note) || !/no paid|pending/i.test(scoreSample.note)) {
+  fail("stable-alley-score sample note should say cover is reused Volt alley art and Stable Audio QC is pending");
+}
+if (!/no fake waveform/i.test(scoreSample.note)) {
+  fail("stable-alley-score sample note should say no fake waveform thumb");
+}
+if (!/instrumental|night-ride bed|trip-hop/i.test(scoreSample.note)) {
+  fail("stable-alley-score sample note should say the job is an instrumental night-ride bed");
+}
+if (!/Closing-credits song|Mureka/i.test(scoreSample.note)) {
+  fail("stable-alley-score sample note should distinguish Closing-credits song / Mureka");
+}
+if (!/Night-ride SFX|elevenlabs\/sound-effects\/v2/i.test(scoreSample.note)) {
+  fail("stable-alley-score sample note should distinguish Night-ride SFX");
+}
+if (!/Night-ride radio VO|xai-tts/i.test(scoreSample.note)) {
+  fail("stable-alley-score sample note should distinguish Night-ride radio VO / xai-tts");
+}
+if (!/Mirelo|foley/i.test(scoreSample.note)) {
+  fail("stable-alley-score sample note should distinguish Mirelo video foley");
+}
+if (!/~\$0\.024|0\.024/.test(scoreSample.note)) {
+  fail("stable-alley-score sample note should name ~$0.024");
+}
+if (!hub.includes("stable-alley-score/preview.webp")) {
+  fail("hub should thumb the stable-alley-score cover");
+}
+if (!hub.includes("Trip-hop in the alley.")) {
+  fail("hub should title stable-alley-score as Trip-hop in the alley.");
+}
+const scoreHowTo = readFileSync(join(ROOT, "guide", "examples", "stable-alley-score.html"), "utf8");
+if (!/stable-audio-3\/small\/music\/text-to-audio/.test(scoreHowTo)) {
+  fail("stable-alley-score how-to should name stable-audio-3/small/music/text-to-audio");
+}
+if (!/Trip-hop|night-ride bed|instrumental/i.test(scoreHowTo)) {
+  fail("stable-alley-score how-to should pitch the instrumental night-ride bed");
+}
+if (!/instrumental/.test(scoreHowTo)) {
+  fail("stable-alley-score how-to should pin instrumental");
+}
+if (!/Closing-credits song/.test(scoreHowTo)) {
+  fail("stable-alley-score how-to should distinguish Closing-credits song");
+}
+if (!/Night-ride SFX/.test(scoreHowTo)) {
+  fail("stable-alley-score how-to should distinguish Night-ride SFX");
+}
+if (!/TTS/.test(scoreHowTo)) {
+  fail("stable-alley-score how-to should distinguish TTS");
+}
+if (!/foley/.test(scoreHowTo)) {
+  fail("stable-alley-score how-to should distinguish video foley");
+}
+if (!/reused Volt alley|no paid|pending/i.test(scoreHowTo)) {
+  fail("stable-alley-score how-to should say the cover is reused Volt alley art and Stable Audio QC is pending");
+}
+if (!/no fake waveform/i.test(scoreHowTo)) {
+  fail("stable-alley-score how-to should say no fake waveform thumb");
+}
+if (!scoreHowTo.includes("stable-alley-score/preview.webp")) {
+  fail("stable-alley-score how-to should show the cover still");
+}
+if (!/slug:"stable-alley-score"[\s\S]{0,200}thumb:"examples\/gallery\/stable-alley-score\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES stable-alley-score thumb should be examples/gallery/stable-alley-score/preview.webp");
+}
+if (!/slug:"stable-alley-score"[\s\S]{0,80}desc:"one prompt — Stable Audio drops a stereo night-ride bed"/.test(examplesSrc)) {
+  fail("EXAMPLES stable-alley-score desc should pitch one prompt — Stable Audio drops a stereo night-ride bed");
+}
+if (!/slug:"stable-alley-score"[\s\S]{0,80}title:"score the alley"/.test(examplesSrc)) {
+  fail("EXAMPLES stable-alley-score title should be score the alley");
+}
+const scoreCard = examplesSrc.match(/slug:"stable-alley-score"[\s\S]*?(?=\n \{ em:|$)/)?.[0] || "";
+if (!/stable-audio-3\/small\/music\/text-to-audio/.test(scoreCard)) {
+  fail("EXAMPLES stable-alley-score graph should pin stable-audio-3/small/music/text-to-audio");
+}
+if (!/instrumental:true/.test(scoreCard)) {
+  fail("EXAMPLES stable-alley-score graph should pin instrumental true");
+}
+if (!/name:"Score brief"/.test(scoreCard) || !/name:"Score"/.test(scoreCard)) {
+  fail("EXAMPLES stable-alley-score should be Score brief → Score");
+}
+const scoreWorking = scoreCard.replace(/\{id:"c-intent"[\s\S]*?\},\s*/, "");
+if (/ace-step|lyria|minimax-music|mureka-ai\/mureka-v9\.5\/generate-song|elevenlabs\/sound-effects\/v2|xai-tts|type:"llm"|type:"tts"|type:"upload"|type:"aupload"|gpt-4o-mini/i.test(scoreWorking)) {
+  fail("EXAMPLES stable-alley-score must stay text Score brief → music Score (no vocal song, SFX, TTS, LLM, or upload)");
+}
+if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
+  fail("custom-endpoint must stay the only LOCAL_ONLY teaching card after stable-alley-score sync");
+}
 const markSample = samples.find((s) => s.slug === "volt-vector-mark");
 if (!markSample) fail("samples.json missing volt-vector-mark");
 if (markSample.preview !== "volt-vector-mark/preview.webp") {

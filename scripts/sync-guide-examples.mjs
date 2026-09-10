@@ -266,6 +266,15 @@ const HOWTO = {
     inspect: "Cover is reused Volt courier card art — aupload placeholder only. No paid Whisper-Large-V3 QC this PR. No fake transcript thumb. Open the graph, upload a VO, read the transcript.",
     costHow: "Listed at about $0.000495/min (≪$0.01 for a short VO). No LLM. Prices vary. No reviewed first-party transcript yet.",
   },
+  "stable-alley-score": {
+    headline: "Trip-hop in the alley.",
+    job: "One prompt. Stereo night-ride bed.",
+    hideNote: true,
+    purpose: "Text brief → Stable Audio 3 Small Music. Instrumental neon-alley score for a charcoal Volt pocket radio. Not Closing-credits song. Not Night-ride SFX. Not TTS. Not video foley. No upload. No LLM.",
+    edit: "Rewrite <em>Score brief</em>. Leave <em>Score</em> on <code>stable-audio-3/small/music/text-to-audio</code> with <code>instrumental</code> on.",
+    inspect: "Cover is reused Volt alley card art, pending Stable Audio QC — no paid run this PR. No fake waveform thumb. Open the graph, hit Run, listen for trip-hop pulse and rain ticks. Instrumental only.",
+    costHow: "Listed at about $0.024 for one Stable Audio 3 Small Music call. No LLM. Prices vary. No reviewed first-party bed yet.",
+  },
   "talking-avatar": {
     headline: "Look at camera. Clear the channel.",
     job: "Night courier. One line to camera.",
@@ -408,7 +417,7 @@ const GROUPS = [
     "image-model-arena",
   ] },
   { id: "video", title: "Video", slugs: ["photo-to-video", "grok-imagine-still", "wan-motion-drive", "wan-still-audio", "h3-max-multi-angle", "crystal-video-upscale", "p-video-rewrite", "wan-stretch-take", "mirelo-video-foley", "pixelcut-video-cutout", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },
-  { id: "audio", title: "Audio", slugs: ["sing", "night-ride-sfx", "night-ride-radio-vo", "whisper-pull-words"] },
+  { id: "audio", title: "Audio", slugs: ["sing", "night-ride-sfx", "night-ride-radio-vo", "whisper-pull-words", "stable-alley-score"] },
   { id: "text", title: "Text", slugs: ["deslop", "fable-five-step"] },
 ];
 

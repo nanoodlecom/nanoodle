@@ -90,6 +90,7 @@ export function galleryRegressions(pins) {
     { slug: 'night-ride-sfx', type: 'music', model: 'elevenlabs/sound-effects/v2', duration: '4' },
     { slug: 'night-ride-radio-vo', type: 'tts', model: 'xai-tts', voice: 'Leo' },
     { slug: 'whisper-pull-words', type: 'transcribe', model: 'Whisper-Large-V3' },
+    { slug: 'stable-alley-score', type: 'music', model: 'stable-audio-3/small/music/text-to-audio', instrumental: true },
     { slug: 'volt-dispatch-infographic', type: 'image', model: 'sensenova-u1-infographic', size: '16:9' },
     { slug: 'grok-imagine-still', type: 'ivideo', model: 'xai/grok-imagine-video/v1.5/image-to-video', resolution: '480p', duration: '4' },
     { slug: 'wan-still-audio', type: 'ivideo', model: 'alibaba/wan-3.0/image-to-video', resolution: '480p', duration: 2, enable_audio: true },
