@@ -79,6 +79,15 @@ const HOWTO = {
     inspect: "Cover is a local placeholder with VOLT / MIDNIGHT DROP lettering, pending a true Ideogram V4 Instant QC still — no paid ideogram/v4/instant or NanoGPT run this PR, not a fabricated poster. Open the graph and hit Run with your key. Inspect sharp VOLT / MIDNIGHT DROP type and the single cyan chevron.",
     costHow: "Listed at about $0.0075 for one Ideogram V4 Instant call at 1024x1024 balanced. Catalog also lists TURBO ~$0.00375, but the image node does not forward modelOpts. No LLM. Prices and results vary. This page has no reviewed first-party poster yet.",
   },
+  "volt-vector-mark": {
+    headline: "A bolt you can scale",
+    job: "Sharp cyan chevron. Editable SVG.",
+    hideNote: true,
+    purpose: "A mark brief becomes an editable SVG logo. Recraft V4.1 text-to-vector. First-click is Volt — electric-cyan lightning-chevron on matte-charcoal. Distinct from Favicon (Muse raster glyph), Transparent brand sticker (PNG alpha), and Ideogram V4 Instant poster (letters).",
+    edit: "Rewrite <em>Mark brief</em>. Leave <em>SVG mark</em> on <code>recraft-ai/recraft-v4.1/text-to-vector</code> at size <code>1024x1024</code>.",
+    inspect: "Cover is reused Volt bolt card art, pending Recraft V4.1 QC — no paid recraft-ai/recraft-v4.1/text-to-vector run this PR. Open the graph, inspect the SVG paths.",
+    costHow: "Listed at $0.08 for one Recraft V4.1 Vector call at 1024x1024. No LLM. Prices vary. No reviewed first-party SVG yet.",
+  },
   "fibo-studio-still": {
     headline: "A radio on dark slate",
     job: "Volt night-ride radio. Pick the light.",
@@ -190,10 +199,11 @@ const HOWTO = {
   "omni-flash-turntable": {
     headline: "Orbit the charcoal radio",
     job: "Orbit the radio. Keep the cyan rim honest.",
+    hideNote: true,
     purpose: "No upload. Describe the thing, pick one camera move, get a five-second draft. First-click is a matte-charcoal Volt pocket night-ride radio on a charcoal plinth — hard cyan rim, electric-cyan lightning chevron, dark studio void. Same knobs. A concept object, not a catalog SKU.",
     edit: "Rewrite <em>Object</em> and pick a <em>Move</em>. GLM Flash structures the brief; Omni Flash 1.1 renders 5 seconds at 360p / 16:9.",
-    inspect: "The move you picked happens once. Geometry stays stable. Count and colors match. 360p draft. Cover still is the Volt radio on a charcoal plinth. The saved Clip.mp4 is the earlier chrome motorcycle helmet sample — historical, not regenerated.",
-    costHow: "The reviewed helmet clip reported $0.195 for the video step, plus a small text call. Cover still is card art. Prices and results vary.",
+    inspect: "Cover still is the Volt radio on a charcoal plinth, pending a true Omni Flash QC clip — no paid google/gemini-omni-flash/v1.1 or NanoGPT run this PR, not a fabricated orbit. Open the graph and hit Run with your key. The move you picked should happen once. Geometry stays stable. Count and colors match. 360p draft. A seamless loop is not promised.",
+    costHow: "Listed at about $0.195 for one Omni Flash 1.1 call at 360p / 5s / 16:9, plus a small GLM Flash text call. Prices and results vary. This page has no reviewed first-party Volt clip yet.",
   },
   "render-a-mockup": {
     headline: "A dispatch screen you can argue about",
@@ -210,6 +220,15 @@ const HOWTO = {
     edit: "Rewrite <em>Song brief (theme, not lyrics)</em> and <em>Style (instruments &amp; tempo)</em>. GLM Flash writes labeled lyrics; Mureka Generate Song sings them.",
     inspect: "Clear words, a chorus you can hum, fit to the brief. Duration and exact structure can wander. The saved ~182-second MP3 is the rooftop-getaway synthwave run; chorus \"I made it out, but the city wants me back\". No new paid audio-model review. Cover still is the rooftop leap.",
     costHow: "The reviewed song run reported $0.225 (music step $0.225, plus a small text call). Prices and results vary.",
+  },
+  "night-ride-sfx": {
+    headline: "Cyan thunder. Four seconds.",
+    job: "Volt radio sting. No music bed.",
+    hideNote: true,
+    purpose: "Text brief → ElevenLabs Sound Effects V2. First-click is a Volt night-ride radio sting — wet neon alley pulse, radio static bloom, one electric-cyan thunder hit, tight decay. Not Closing-credits song. Not TTS. Not a video Keep. No upload. No LLM.",
+    edit: "Rewrite <em>SFX brief</em>. Leave <em>Sting</em> on <code>elevenlabs/sound-effects/v2</code> at duration <code>4</code>.",
+    inspect: "Cover is reused Volt alley card art, pending ElevenLabs SFX QC — no paid run this PR. Open the graph, hit Run, listen for static bloom then one thunder hit. No music bed, vocals, or dialogue.",
+    costHow: "Listed at about $0.008 for one ElevenLabs Sound Effects V2 call at duration 4 ($0.002/s). No LLM. Prices vary. No reviewed first-party sting yet.",
   },
   "talking-avatar": {
     headline: "Look at camera. Clear the channel.",
@@ -294,12 +313,12 @@ const GROUPS = [
   { id: "playable", title: "Playable", slugs: ["iron-verdict"] },
   { id: "image", title: "Image", slugs: [
     "edit-a-photo", "product-cutout", "sam3-isolate", "p-image-upscale", "remove-packaging-text", "combine-images", "render-a-mockup", "volt-dispatch-infographic", "favicon",
-    "transparent-brand-sticker", "ideogram-v4-instant-poster",
+    "transparent-brand-sticker", "ideogram-v4-instant-poster", "volt-vector-mark",
     "night-market-postcard", "fibo-studio-still", "cinematic-character-still", "h3-identity-restyle", "character-sprites",
     "image-model-arena",
   ] },
   { id: "video", title: "Video", slugs: ["photo-to-video", "grok-imagine-still", "h3-max-multi-angle", "crystal-video-upscale", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },
-  { id: "audio", title: "Audio", slugs: ["sing"] },
+  { id: "audio", title: "Audio", slugs: ["sing", "night-ride-sfx"] },
   { id: "text", title: "Text", slugs: ["deslop", "fable-five-step"] },
 ];
 

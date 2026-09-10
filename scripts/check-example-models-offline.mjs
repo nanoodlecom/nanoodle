@@ -38,6 +38,7 @@ const catalogs = {
     image('sensenova-u1-infographic', ['1:1', '16:9', '9:16', '4:3', '3:4']),
     image('ideogram-v3-remove-text', ['auto'], true),
     image('ideogram/v4/instant', ['1024x1024', '1024x1536', '1536x1024', 'auto']),
+    image('recraft-ai/recraft-v4.1/text-to-vector', ['1024x1024', '1024x768', '1024x576', '768x1024', '576x1024']),
   ],
   video: [
     { id: 'minimax-h3/image-to-video-spicy', capabilities: { image_to_video: true },
@@ -68,6 +69,7 @@ const catalogs = {
   audio: [
     { id: 'Minimax-Speech-2.8-HD', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Deep_Voice_Man'] } },
     { id: 'mureka-ai/mureka-v9.5/generate-song', architecture: { modality: 'text->audio' } },
+    { id: 'elevenlabs/sound-effects/v2', architecture: { modality: 'text->audio' }, capabilities: { text_to_audio: true }, supported_parameters: { min_duration: 0.5, max_duration: 22 } },
   ],
 };
 

@@ -95,8 +95,14 @@ if (/The reviewed clip matches/i.test(omniHowTo) || /saved clip is the chrome he
 if (!/Volt/i.test(omniHowTo) || !/charcoal/i.test(omniHowTo) || !/cyan/i.test(omniHowTo)) {
   fail("omni-flash how-to should pitch the Volt charcoal + cyan radio");
 }
-if (!/historical|helmet|not regenerated/i.test(omniHowTo)) {
-  fail("omni-flash how-to should say the saved MP4 is the earlier helmet sample");
+if (/<video|Clip\.mp4/i.test(omniHowTo)) {
+  fail("omni-flash how-to should not play Clip.mp4 while the Volt QC clip is pending");
+}
+if (/chrome motorcycle helmet|helmet sample|helmet clip|reviewed helmet/i.test(omniHowTo)) {
+  fail("omni-flash how-to should not present the helmet clip as the Volt result");
+}
+if (!/pending|no paid/i.test(omniHowTo)) {
+  fail("omni-flash how-to should say Omni Flash QC clip is pending / no paid regen");
 }
 if (!omniHowTo.includes("omni-flash-turntable/preview.webp")) {
   fail("omni-flash how-to should show the Volt radio cover still");
@@ -109,6 +115,21 @@ if (omniSample.preview !== "omni-flash-turntable/preview.webp") {
 if (!existsSync(join(ROOT, "examples", "gallery", "omni-flash-turntable", "preview.webp"))) {
   fail("examples/gallery/omni-flash-turntable/preview.webp is missing");
 }
+if (!existsSync(join(ROOT, "examples", "gallery", "omni-flash-turntable", "NOTE.txt"))) {
+  fail("examples/gallery/omni-flash-turntable/NOTE.txt is missing");
+}
+if (existsSync(join(ROOT, "examples", "gallery", "omni-flash-turntable", "Clip.mp4"))) {
+  fail("omni-flash Clip.mp4 should be removed so the gallery cannot play the helmet sample");
+}
+if (omniSample.outputs.some((o) => /Clip\.mp4/i.test(o.src) || o.kind === "video")) {
+  fail("omni-flash sample should not ship Clip.mp4 as the Volt result");
+}
+if (!omniSample.outputs.some((o) => o.src === "omni-flash-turntable/NOTE.txt" && o.kind === "text")) {
+  fail("omni-flash sample should ship NOTE.txt as the pending-QC output");
+}
+if (omniSample.costExact) {
+  fail("omni-flash sample cost should be a catalog estimate, not a reviewed helmet-run exact");
+}
 if (/water-bottle|earlier water-bottle/i.test(omniSample.note)) {
   fail("omni-flash sample note still describes the water-bottle draft");
 }
@@ -118,11 +139,23 @@ if (/chrome motorcycle helmet/i.test(JSON.stringify(omniSample.inputs))) {
 if (!/Volt|night-ride radio|charcoal stone plinth|electric-cyan/i.test(JSON.stringify(omniSample.inputs))) {
   fail("omni-flash sample inputs should pitch the Volt night-ride radio on a charcoal plinth");
 }
-if (!/helmet|historical|does not match|later regen|not regenerated/i.test(omniSample.note)) {
-  fail("omni-flash sample note should say the saved MP4 is the earlier helmet sample");
+if (/helmet|Clip\.mp4/i.test(omniSample.note)) {
+  fail("omni-flash sample note should not present the helmet clip as the Volt result");
+}
+if (!/pending|no paid/i.test(omniSample.note)) {
+  fail("omni-flash sample note should say Omni Flash QC clip is pending / no paid regen");
 }
 if (!/cover still/i.test(omniSample.note) || !/Volt|night-ride radio/i.test(omniSample.note) || !/charcoal/i.test(omniSample.note)) {
   fail("omni-flash sample note should name the Volt night-ride cover still");
+}
+const omniGallery = readFileSync(join(ROOT, "examples", "gallery", "index.html"), "utf8");
+const omniSection = omniGallery.match(/<section id="omni-flash-turntable">[\s\S]*?<\/section>/)?.[0] || "";
+if (!omniSection) fail("gallery missing #omni-flash-turntable section");
+if (/<video|Clip\.mp4/i.test(omniSection)) {
+  fail("gallery omni-flash-turntable should not play Clip.mp4 while the Volt QC clip is pending");
+}
+if (!omniSection.includes("omni-flash-turntable/preview.webp")) {
+  fail("gallery omni-flash-turntable should show the Volt radio cover still");
 }
 if (!hub.includes("omni-flash-turntable/preview.webp")) {
   fail("hub should thumb the omni-flash-turntable Volt radio cover");
@@ -1734,6 +1767,171 @@ if (/google\/gemini-omni-flash/.test(grokCard)) {
 }
 if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
   fail("custom-endpoint must stay the only LOCAL_ONLY teaching card after grok-imagine-still sync");
+}
+const sfxSample = samples.find((s) => s.slug === "night-ride-sfx");
+if (!sfxSample) fail("samples.json missing night-ride-sfx");
+if (sfxSample.preview !== "night-ride-sfx/preview.webp") {
+  fail("night-ride-sfx sample preview should be night-ride-sfx/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "night-ride-sfx", "preview.webp"))) {
+  fail("examples/gallery/night-ride-sfx/preview.webp is missing");
+}
+if (!/elevenlabs\/sound-effects\/v2/.test(JSON.stringify(sfxSample.models))) {
+  fail("night-ride-sfx sample should pin elevenlabs/sound-effects/v2");
+}
+if (!/cover|reused Volt alley card art|combine-images/i.test(sfxSample.note) || !/no paid|pending/i.test(sfxSample.note)) {
+  fail("night-ride-sfx sample note should say cover is reused Volt alley art and ElevenLabs QC is pending");
+}
+if (!/sting|thunder|wet neon alley/i.test(sfxSample.note)) {
+  fail("night-ride-sfx sample note should say the job is a Volt radio sting");
+}
+if (!/Closing-credits song|sing|Mureka/i.test(sfxSample.note)) {
+  fail("night-ride-sfx sample note should distinguish Closing-credits song / Mureka");
+}
+if (!/TTS|voice/i.test(sfxSample.note)) {
+  fail("night-ride-sfx sample note should distinguish TTS / voice");
+}
+if (!/duration 4|duration=4|~\$0\.008/i.test(sfxSample.note)) {
+  fail("night-ride-sfx sample note should name duration 4 and ~$0.008");
+}
+if (!hub.includes("night-ride-sfx/preview.webp")) {
+  fail("hub should thumb the night-ride-sfx cover");
+}
+if (!hub.includes("Cyan thunder. Four seconds.")) {
+  fail("hub should title night-ride-sfx as Cyan thunder. Four seconds.");
+}
+const sfxHowTo = readFileSync(join(ROOT, "guide", "examples", "night-ride-sfx.html"), "utf8");
+if (!/elevenlabs\/sound-effects\/v2/.test(sfxHowTo)) {
+  fail("night-ride-sfx how-to should name elevenlabs/sound-effects/v2");
+}
+if (!/Volt/i.test(sfxHowTo) || !/cyan/i.test(sfxHowTo) || !/thunder|sting/i.test(sfxHowTo)) {
+  fail("night-ride-sfx how-to should pitch the Volt cyan thunder sting");
+}
+if (!/duration/.test(sfxHowTo) || !/>4</.test(sfxHowTo)) {
+  fail("night-ride-sfx how-to should pin duration 4");
+}
+if (!/Closing-credits song|Mureka/i.test(sfxHowTo)) {
+  fail("night-ride-sfx how-to should distinguish Closing-credits song");
+}
+if (!/TTS/i.test(sfxHowTo)) {
+  fail("night-ride-sfx how-to should distinguish TTS");
+}
+if (!/reused Volt alley card art|no paid|pending/i.test(sfxHowTo)) {
+  fail("night-ride-sfx how-to should say the cover is reused Volt alley art and ElevenLabs QC is pending");
+}
+if (!sfxHowTo.includes("night-ride-sfx/preview.webp")) {
+  fail("night-ride-sfx how-to should show the cover still");
+}
+if (!/slug:"night-ride-sfx"[\s\S]{0,200}thumb:"examples\/gallery\/night-ride-sfx\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES night-ride-sfx thumb should be examples/gallery/night-ride-sfx/preview.webp");
+}
+if (!/slug:"night-ride-sfx"[\s\S]{0,80}desc:"wet neon alley pulse — cyan thunder sting, ~4s"/.test(examplesSrc)) {
+  fail("EXAMPLES night-ride-sfx desc should pitch wet neon alley pulse — cyan thunder sting, ~4s");
+}
+if (!/slug:"night-ride-sfx"[\s\S]{0,80}title:"night-ride sfx"/.test(examplesSrc)) {
+  fail("EXAMPLES night-ride-sfx title should be night-ride sfx");
+}
+const sfxCard = examplesSrc.match(/slug:"night-ride-sfx"[\s\S]*?(?=\n \{ em:|$)/)?.[0] || "";
+if (!/elevenlabs\/sound-effects\/v2/.test(sfxCard)) {
+  fail("EXAMPLES night-ride-sfx graph should pin elevenlabs/sound-effects/v2");
+}
+if (!/duration:"4"/.test(sfxCard)) {
+  fail("EXAMPLES night-ride-sfx graph should pin duration 4");
+}
+if (!/name:"SFX brief"/.test(sfxCard) || !/name:"Sting"/.test(sfxCard)) {
+  fail("EXAMPLES night-ride-sfx should be SFX brief → Sting");
+}
+if (/mureka-ai\/mureka-v9\.5\/generate-song|Minimax-Speech|type:"tts"|type:"llm"|type:"upload"/.test(sfxCard)) {
+  fail("EXAMPLES night-ride-sfx must stay text SFX brief → music Sting (no song, TTS, LLM, or upload)");
+}
+const markSample = samples.find((s) => s.slug === "volt-vector-mark");
+if (!markSample) fail("samples.json missing volt-vector-mark");
+if (markSample.preview !== "volt-vector-mark/preview.webp") {
+  fail("volt-vector-mark sample preview should be volt-vector-mark/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "volt-vector-mark", "preview.webp"))) {
+  fail("examples/gallery/volt-vector-mark/preview.webp is missing");
+}
+if (!/recraft-ai\/recraft-v4\.1\/text-to-vector/.test(JSON.stringify(markSample.models))) {
+  fail("volt-vector-mark sample should pin recraft-ai/recraft-v4.1/text-to-vector");
+}
+if (!/cover|reused Volt bolt/i.test(markSample.note) || !/no paid|pending/i.test(markSample.note)) {
+  fail("volt-vector-mark sample note should say cover is reused Volt bolt art and Recraft QC is pending");
+}
+if (!/editable SVG|text-to-vector|SVG you can scale/i.test(markSample.note)) {
+  fail("volt-vector-mark sample note should say the job is an editable SVG vector mark");
+}
+if (!/Favicon|Muse/i.test(markSample.note)) {
+  fail("volt-vector-mark sample note should distinguish Favicon / Muse");
+}
+if (!/Transparent brand sticker|PNG alpha/i.test(markSample.note)) {
+  fail("volt-vector-mark sample note should distinguish Transparent brand sticker");
+}
+if (!/Ideogram V4 Instant|letters/i.test(markSample.note)) {
+  fail("volt-vector-mark sample note should distinguish Ideogram V4 Instant poster");
+}
+if (!/No LLM|no upload/i.test(markSample.note)) {
+  fail("volt-vector-mark sample note should say no LLM and no upload");
+}
+if (!hub.includes("volt-vector-mark/preview.webp")) {
+  fail("hub should thumb the volt-vector-mark cover");
+}
+if (!hub.includes("A bolt you can scale")) {
+  fail("hub should title volt-vector-mark as A bolt you can scale");
+}
+const markHowTo = readFileSync(join(ROOT, "guide", "examples", "volt-vector-mark.html"), "utf8");
+if (!/recraft-ai\/recraft-v4\.1\/text-to-vector/.test(markHowTo)) {
+  fail("volt-vector-mark how-to should name recraft-ai/recraft-v4.1/text-to-vector");
+}
+if (!/Volt/i.test(markHowTo) || !/cyan/i.test(markHowTo) || !/SVG/i.test(markHowTo)) {
+  fail("volt-vector-mark how-to should pitch the Volt cyan SVG chevron");
+}
+if (!/1024x1024/.test(markHowTo)) {
+  fail("volt-vector-mark how-to should pin size 1024x1024");
+}
+if (!/Favicon|Muse/i.test(markHowTo)) {
+  fail("volt-vector-mark how-to should distinguish Favicon / Muse");
+}
+if (!/Transparent brand sticker|PNG alpha/i.test(markHowTo)) {
+  fail("volt-vector-mark how-to should distinguish Transparent brand sticker");
+}
+if (!/Ideogram V4 Instant|letters/i.test(markHowTo)) {
+  fail("volt-vector-mark how-to should distinguish Ideogram V4 Instant poster");
+}
+if (!/reused Volt bolt|no paid|pending/i.test(markHowTo)) {
+  fail("volt-vector-mark how-to should say the cover is reused Volt bolt art and Recraft QC is pending");
+}
+if (!markHowTo.includes("volt-vector-mark/preview.webp")) {
+  fail("volt-vector-mark how-to should show the cover still");
+}
+if (!/slug:"volt-vector-mark"[\s\S]{0,200}thumb:"examples\/gallery\/volt-vector-mark\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES volt-vector-mark thumb should be examples/gallery/volt-vector-mark/preview.webp");
+}
+if (!/slug:"volt-vector-mark"[\s\S]{0,80}desc:"sharp cyan chevron — SVG you can scale"/.test(examplesSrc)) {
+  fail("EXAMPLES volt-vector-mark desc should pitch sharp cyan chevron — SVG you can scale");
+}
+if (!/slug:"volt-vector-mark"[\s\S]{0,80}title:"editable volt mark"/.test(examplesSrc)) {
+  fail("EXAMPLES volt-vector-mark title should be editable volt mark");
+}
+const markCard = examplesSrc.match(/slug:"volt-vector-mark"[\s\S]*?(?=\n \{ em:|$)/)?.[0] || "";
+if (!/recraft-ai\/recraft-v4\.1\/text-to-vector/.test(markCard)) {
+  fail("EXAMPLES volt-vector-mark graph should pin recraft-ai/recraft-v4.1/text-to-vector");
+}
+if (!/size:"1024x1024"/.test(markCard)) {
+  fail("EXAMPLES volt-vector-mark graph should pin size 1024x1024");
+}
+const markImage = markCard.match(/\{id:"n2",type:"image"[\s\S]*?name:"SVG mark"\}/)?.[0] || "";
+if (!markImage) {
+  fail("EXAMPLES volt-vector-mark should have image node n2 SVG mark");
+}
+if (/modelOpts/.test(markImage)) {
+  fail("EXAMPLES volt-vector-mark image node must not forward modelOpts");
+}
+if (/z-ai\/glm-5\.3-flash|meta\/muse-image|ideogram-v3-generate-transparent|ideogram\/v4\/instant|birefnet/.test(markCard)) {
+  fail("EXAMPLES volt-vector-mark must not pin GLM, Muse, Ideogram, or BiRefNet");
+}
+if (/type:"llm"|type:"upload"/.test(markCard)) {
+  fail("EXAMPLES volt-vector-mark must stay text Mark brief → image SVG mark (no LLM, no upload)");
 }
 for (const slug of slugs) {
   const page = readFileSync(join(ROOT, "guide", "examples", slug === "iron-verdict" ? "iron-verdict.html" : `${slug}.html`), "utf8");
