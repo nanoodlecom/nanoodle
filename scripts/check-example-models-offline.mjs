@@ -67,6 +67,8 @@ const catalogs = {
       supported_parameters: { parameters: {} } },
     { id: 'pruna-ai/p-video/edit', capabilities: { video_to_video: true, video_generation: true },
       supported_parameters: { parameters: {} } },
+    { id: 'wan-25-extend', capabilities: { video_to_video: true, video_generation: true },
+      supported_parameters: { parameters: { resolution: opts(['480p', '720p']), duration: opts([3, 4, 5, 6, 7, 8, 9, 10]) } } },
     { id: 'mirelo-ai/sfx1.6/video-to-video', capabilities: { video_to_video: true, video_generation: true },
       supported_parameters: { parameters: {} } },
     { id: 'pixelcut/video-background-removal', capabilities: { video_to_video: true, video_generation: true },
