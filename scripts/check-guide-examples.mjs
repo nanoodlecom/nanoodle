@@ -1692,6 +1692,82 @@ if (/z-ai\/glm-5\.3-flash|meta\/muse-image|ideogram-v3-generate-transparent|ideo
 if (/type:"llm"|type:"upload"/.test(posterCard)) {
   fail("EXAMPLES ideogram-v4-instant-poster must stay text Poster brief → image Poster (no LLM, no upload)");
 }
+const grokSample = samples.find((s) => s.slug === "grok-imagine-still");
+if (!grokSample) fail("samples.json missing grok-imagine-still");
+if (grokSample.preview !== "grok-imagine-still/preview.webp") {
+  fail("grok-imagine-still sample preview should be grok-imagine-still/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "grok-imagine-still", "preview.webp"))) {
+  fail("examples/gallery/grok-imagine-still/preview.webp is missing");
+}
+if (!/xai\/grok-imagine-video\/v1\.5\/image-to-video/.test(JSON.stringify(grokSample.models))) {
+  fail("grok-imagine-still sample should pin xai/grok-imagine-video/v1.5/image-to-video");
+}
+if (!/cover|reused Volt card art/i.test(grokSample.note) || !/no paid|pending/i.test(grokSample.note)) {
+  fail("grok-imagine-still sample note should say cover is reused Volt card art and Grok Imagine QC is pending");
+}
+if (!/cyan pulse|rooftop/i.test(grokSample.note)) {
+  fail("grok-imagine-still sample note should say the job is a rooftop still with one cyan pulse");
+}
+if (!/photo-to-video|H3 Spicy|asphalt rain/i.test(grokSample.note)) {
+  fail("grok-imagine-still sample note should distinguish photo-to-video / MiniMax H3 Spicy");
+}
+if (!/Volt|night-ride radio|cyan/i.test(grokSample.note)) {
+  fail("grok-imagine-still sample note should pitch the Volt night-ride radio");
+}
+if (!hub.includes("grok-imagine-still/preview.webp")) {
+  fail("hub should thumb the grok-imagine-still cover");
+}
+if (!hub.includes("The frame wakes up")) {
+  fail("hub should title grok-imagine-still as The frame wakes up");
+}
+const grokHowTo = readFileSync(join(ROOT, "guide", "examples", "grok-imagine-still.html"), "utf8");
+if (!/xai\/grok-imagine-video\/v1\.5\/image-to-video/.test(grokHowTo)) {
+  fail("grok-imagine-still how-to should name xai/grok-imagine-video/v1.5/image-to-video");
+}
+if (!/Volt/i.test(grokHowTo) || !/cyan/i.test(grokHowTo) || !/charcoal/i.test(grokHowTo)) {
+  fail("grok-imagine-still how-to should pitch the Volt charcoal + cyan radio");
+}
+if (!/cyan pulse|480p|4s/.test(grokHowTo)) {
+  fail("grok-imagine-still how-to should say this is a 480p / 4s cyan-pulse clip");
+}
+if (!/photo-to-video|H3 Spicy|asphalt rain/i.test(grokHowTo)) {
+  fail("grok-imagine-still how-to should distinguish photo-to-video / MiniMax H3 Spicy");
+}
+if (!/reused Volt card art|no paid|pending/i.test(grokHowTo)) {
+  fail("grok-imagine-still how-to should say the cover is reused Volt card art and Grok Imagine QC is pending");
+}
+if (!grokHowTo.includes("grok-imagine-still/preview.webp")) {
+  fail("grok-imagine-still how-to should show the cover still");
+}
+if (!/slug:"grok-imagine-still"[\s\S]{0,200}thumb:"examples\/gallery\/grok-imagine-still\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES grok-imagine-still thumb should be examples/gallery/grok-imagine-still/preview.webp");
+}
+if (!/slug:"grok-imagine-still"[\s\S]{0,80}desc:"one still — Grok 1.5 rides it into motion"/.test(examplesSrc)) {
+  fail("EXAMPLES grok-imagine-still desc should pitch one still — Grok 1.5 rides it into motion");
+}
+if (!/slug:"grok-imagine-still"[\s\S]{0,80}title:"frame wakes up"/.test(examplesSrc)) {
+  fail("EXAMPLES grok-imagine-still title should be frame wakes up");
+}
+const grokCard = examplesSrc.match(/slug:"grok-imagine-still"[\s\S]{0,3500}/)?.[0] || "";
+if (!/xai\/grok-imagine-video\/v1\.5\/image-to-video/.test(grokCard)) {
+  fail("EXAMPLES grok-imagine-still graph should pin xai/grok-imagine-video/v1.5/image-to-video");
+}
+if (!/resolution:"480p"/.test(grokCard) || !/duration:"4"/.test(grokCard)) {
+  fail("EXAMPLES grok-imagine-still graph should pin 480p / 4s");
+}
+if (!/meta\/muse-image\/text-to-image/.test(grokCard)) {
+  fail("EXAMPLES grok-imagine-still graph should pin Muse for the first frame");
+}
+if (/minimax-h3\/image-to-video-spicy/.test(grokCard)) {
+  fail("EXAMPLES grok-imagine-still must not pin MiniMax H3 Spicy");
+}
+if (/google\/gemini-omni-flash/.test(grokCard)) {
+  fail("EXAMPLES grok-imagine-still must not pin Omni Flash");
+}
+if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
+  fail("custom-endpoint must stay the only LOCAL_ONLY teaching card after grok-imagine-still sync");
+}
 const sfxSample = samples.find((s) => s.slug === "night-ride-sfx");
 if (!sfxSample) fail("samples.json missing night-ride-sfx");
 if (sfxSample.preview !== "night-ride-sfx/preview.webp") {

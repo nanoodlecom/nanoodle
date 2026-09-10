@@ -1,0 +1,112 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 80,
+      "y": -80,
+      "w": 420,
+      "name": "frame wakes up",
+      "fields": {
+        "text": "One still wakes into a four-second clip: Muse draws the first frame ($0.01), Grok Imagine Video 1.5 (`xai/grok-imagine-video/v1.5/image-to-video`) rides it into motion (480p, 4s; catalog $0.204/s + $0.017 image fee ≈ $0.83 video). Not Animate a product still (MiniMax H3 Spicy asphalt rain). Change still and motion briefs together. Inspect the cyan pulse; a seamless loop is not promised.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "n1",
+      "type": "text",
+      "x": -40,
+      "y": 100,
+      "w": 300,
+      "name": "Still brief",
+      "fields": {
+        "text": "A compact matte-charcoal pocket night-ride radio resting on a wet rooftop concrete ledge. One sharp lightning-bolt chevron in electric cyan on the faceplate. Cyan edge light from camera-right, night-city skyline below the ledge, close three-quarter view, entire radio visible, clear chevron silhouette, no text or logos."
+      }
+    },
+    {
+      "id": "n2",
+      "type": "image",
+      "x": 400,
+      "y": 100,
+      "fields": {
+        "model": "meta/muse-image/text-to-image",
+        "size": "16:9",
+        "variations": "1"
+      },
+      "sizes": {
+        "prompt": 0
+      },
+      "name": "First frame"
+    },
+    {
+      "id": "n3",
+      "type": "ivideo",
+      "x": 820,
+      "y": 100,
+      "fields": {
+        "model": "xai/grok-imagine-video/v1.5/image-to-video",
+        "prompt": "",
+        "resolution": "480p",
+        "duration": "4",
+        "modelOpts": {},
+        "loras": []
+      },
+      "sizes": {
+        "prompt": 0
+      },
+      "name": "Animated clip"
+    },
+    {
+      "id": "n8",
+      "type": "text",
+      "x": -10,
+      "y": 400,
+      "w": 280,
+      "name": "Motion brief",
+      "fields": {
+        "text": "Locked camera for four seconds. Subtle rain beads on the rooftop ledge. Midway, the electric-cyan lightning chevron pulses once. The radio stays still. Preserve its shape and placement; no cuts, new objects or camera motion."
+      },
+      "sizes": {
+        "text": 98
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "n1",
+        "port": "text"
+      },
+      "to": {
+        "node": "n2",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "n2",
+        "port": "image"
+      },
+      "to": {
+        "node": "n3",
+        "port": "image"
+      }
+    },
+    {
+      "id": "motion-direct",
+      "from": {
+        "node": "n8",
+        "port": "text"
+      },
+      "to": {
+        "node": "n3",
+        "port": "prompt"
+      }
+    }
+  ],
+  "nid": 9,
+  "lid": 9
+}
