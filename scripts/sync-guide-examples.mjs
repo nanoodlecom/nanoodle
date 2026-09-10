@@ -182,6 +182,15 @@ const HOWTO = {
     inspect: "Cover is reused Volt promo-card art with leftover type, pending Ideogram QC — no paid run this PR. Open the graph, upload a lettered still, inspect the native cleanup.",
     costHow: "Listed at $0.09 for one Ideogram V3 Remove Text call at auto. Local resize is $0. No LLM. Prices vary. No reviewed first-party cleanup yet.",
   },
+  "widen-the-frame": {
+    headline: "Tight crop. Wider hero.",
+    job: "Banana Edit outpaints a 16:9 night-alley.",
+    hideNote: true,
+    purpose: "Upload a tight product still. Nano Banana Edit outpaints a wider 16:9 hero. First-click is a cropped Volt pocket night-ride radio — charcoal, ONE cyan lightning chevron, hard cyan rim. Distinct from Muse Edit, H3 identity restyle, Ideogram remove text, BiRefNet cutout, SAM isolate, P-Image Upscale, Crystal / SeedVR2, FLUX VTO, and combine-images.",
+    edit: "Drop your still on <em>Product still</em>. Leave <em>Outpaint brief</em> on the 16:9 night-alley line. Leave <em>Widened still</em> on <code>nano-banana-edit</code> at size <code>auto</code>. <em>Export preview</em> is a local 1024 fit.",
+    inspect: "Cover is reused Volt radio card art — no paid nano-banana-edit QC this PR. Open the graph, upload a tight crop, inspect the wider hero. Size stays auto; 16:9 lives in the Outpaint brief.",
+    costHow: "Listed at $0.039 for one Nano Banana Edit call at auto. No LLM. Prices vary. No reviewed first-party outpaint yet.",
+  },
   "combine-images": {
     headline: "Drop it in the alley",
     job: "Volt radio. Wet neon alley.",
@@ -420,7 +429,7 @@ for (const s of SAMPLES) {
 const GROUPS = [
   { id: "playable", title: "Playable", slugs: ["iron-verdict"] },
   { id: "image", title: "Image", slugs: [
-    "edit-a-photo", "product-cutout", "sam3-isolate", "p-image-upscale", "remove-packaging-text", "combine-images", "render-a-mockup", "volt-dispatch-infographic", "favicon",
+    "edit-a-photo", "product-cutout", "sam3-isolate", "p-image-upscale", "remove-packaging-text", "widen-the-frame", "combine-images", "render-a-mockup", "volt-dispatch-infographic", "favicon",
     "transparent-brand-sticker", "ideogram-v4-instant-poster", "volt-vector-mark", "mai-pack-type",
     "night-market-postcard", "fibo-studio-still", "cinematic-character-still", "h3-identity-restyle", "virtual-try-on", "character-sprites",
     "image-model-arena",

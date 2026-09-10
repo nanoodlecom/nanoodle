@@ -1,0 +1,108 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 40,
+      "y": 20,
+      "w": 480,
+      "name": "widen the frame",
+      "fields": {
+        "text": "Upload a tight product still; Google Nano Banana Edit (`nano-banana-edit`) outpaints a wider 16:9 hero (size `auto`, $0.039). First-click story is a tight/cropped matte-charcoal Volt pocket night-ride radio with one electric-cyan lightning-bolt chevron and hard cyan rim — this repo has no committed still, so upload that product photo or any tight catalog crop. This is canvas expand / outpaint only, not Muse Edit cleanup/bg replace (use Clean product photo), not H3 identity restyle, not Ideogram remove text, not BiRefNet cutout, not SAM 3 isolate, not P-Image Upscale (resolution only), not SeedVR2 / Clarity Crystal / other upscalers, not FLUX VTO, and not two-ref placement (use Product in a setting). 16:9 intent lives in the Outpaint brief (catalog lists aspect_ratio including 16:9; size is `auto` only). Catalog allows ≤4 input images; first-click uses one upload. nsfw: false. Inspect the native widened still; Export preview is a local 1024 fit only.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "n1",
+      "type": "upload",
+      "x": 40,
+      "y": 320,
+      "w": 280,
+      "name": "Product still",
+      "fields": {}
+    },
+    {
+      "id": "n2",
+      "type": "edit",
+      "x": 400,
+      "y": 300,
+      "w": 300,
+      "name": "Widened still",
+      "fields": {
+        "prompt": "",
+        "size": "auto",
+        "model": "nano-banana-edit"
+      },
+      "sizes": {
+        "prompt": 0
+      }
+    },
+    {
+      "id": "n3",
+      "type": "text",
+      "x": 40,
+      "y": 560,
+      "w": 300,
+      "name": "Outpaint brief",
+      "fields": {
+        "text": "Outpaint / expand this tight crop into a wider 16:9 night-alley hero. Preserve the exact product shape, materials, markings, ONE electric-cyan lightning-bolt chevron, lighting, and camera angle of this matte-charcoal Volt pocket night-ride radio. Extend wet neon alley and dark slate only around the product. Do not restyle, recolor, invent props, logos, or a second product."
+      }
+    },
+    {
+      "id": "n4",
+      "type": "resize",
+      "x": 780,
+      "y": 300,
+      "w": 280,
+      "name": "Export preview",
+      "fields": {
+        "mode": "fit",
+        "width": "1024",
+        "height": "1024"
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "n1",
+        "port": "image"
+      },
+      "to": {
+        "node": "n2",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "n3",
+        "port": "text"
+      },
+      "to": {
+        "node": "n2",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "n2",
+        "port": "image"
+      },
+      "to": {
+        "node": "n4",
+        "port": "image"
+      }
+    }
+  ],
+  "nid": 5,
+  "lid": 4,
+  "view": {
+    "panX": 20,
+    "panY": 40,
+    "scale": 0.8
+  }
+}
