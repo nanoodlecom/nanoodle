@@ -9,11 +9,37 @@ import { fileURLToPath } from "node:url";
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const fail = (msg) => { console.error("✗ check-guide-examples: " + msg); process.exit(1); };
 
+execFileSync(process.execPath, [join(ROOT, "scripts", "sync-gallery-samples.mjs"), "--check"], {
+  stdio: "inherit",
+});
 execFileSync(process.execPath, [join(ROOT, "scripts", "sync-guide-examples.mjs"), "--check"], {
   stdio: "inherit",
 });
 
 const samples = JSON.parse(readFileSync(join(ROOT, "examples", "gallery", "samples.json"), "utf8"));
+
+const NOTE_MAX = 160;
+const NOTE_BANNED = /\bpending\b|\bQC\b|this PR|no paid|Distinct from|Open the graph|card art via NanoGPT|fake thumb|Export preview is a local/;
+const LABEL_JARGON = /\(reused |\(generated with |\(local charcoal|\(runner instruction|\(frame from the generated/i;
+for (const s of samples) {
+  if ((s.note || "").length > NOTE_MAX) fail(`${s.slug} note is ${s.note.length} chars — short punch only (≤${NOTE_MAX})`);
+  if (NOTE_BANNED.test(s.note || "")) fail(`${s.slug} note still has engineer/QC soup`);
+  if (s.outputs.some((o) => /NOTE\.txt$/i.test(o.src))) fail(`${s.slug} still ships NOTE.txt as an output`);
+  for (const i of s.inputs || []) {
+    if (LABEL_JARGON.test(i.label || "")) fail(`${s.slug} input label still has jargon: ${i.label}`);
+  }
+  if (s.proof?.note && NOTE_BANNED.test(s.proof.note)) fail(`${s.slug} proof.note still has engineer/QC soup`);
+}
+const galleryHtml = readFileSync(join(ROOT, "examples", "gallery", "index.html"), "utf8");
+for (const s of samples) {
+  const section = galleryHtml.match(new RegExp(`<section id="${s.slug}">[\\s\\S]*?</section>`))?.[0] || "";
+  if (!section) fail(`gallery missing #${s.slug} section`);
+  if (s.note && section.includes(`<blockquote>${s.note.replace(/[&<>]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}</blockquote>`)) {
+    fail(`gallery #${s.slug} still renders the intro note again as a Note blockquote`);
+  }
+  if (section.includes(`${s.slug}/NOTE.txt`)) fail(`gallery #${s.slug} still links NOTE.txt`);
+}
+
 const slugs = ["iron-verdict", ...samples.map((s) => s.slug)];
 const paths = ["/guide/examples/", ...slugs.map((s) => `/guide/examples/${s}`)];
 
@@ -76,8 +102,8 @@ if (/last repair|squeaky wheel|gentle acoustic folk|repair-shop game|cozy-repair
 if (!singHowTo.includes("rooftop getaway") && !singHowTo.includes("last leap")) {
   fail("sing how-to should pitch the rooftop getaway");
 }
-if (!singHowTo.includes("I made it out, but the city wants me back")) {
-  fail("sing how-to should quote the rooftop chorus");
+if (!singHowTo.includes("City wants you back") && !singHowTo.includes("I made it out, but the city wants me back")) {
+  fail("sing how-to should pitch the rooftop chorus");
 }
 if (hub.includes("The song after the last repair")) {
   fail("hub still titles sing as the last repair");
@@ -95,14 +121,11 @@ if (/The reviewed clip matches/i.test(omniHowTo) || /saved clip is the chrome he
 if (!/Volt/i.test(omniHowTo) || !/charcoal/i.test(omniHowTo) || !/cyan/i.test(omniHowTo)) {
   fail("omni-flash how-to should pitch the Volt charcoal + cyan radio");
 }
-if (/<video|Clip\.mp4/i.test(omniHowTo)) {
-  fail("omni-flash how-to should not play Clip.mp4 while the Volt QC clip is pending");
-}
 if (/chrome motorcycle helmet|helmet sample|helmet clip|reviewed helmet/i.test(omniHowTo)) {
   fail("omni-flash how-to should not present the helmet clip as the Volt result");
 }
-if (!/pending|no paid/i.test(omniHowTo)) {
-  fail("omni-flash how-to should say Omni Flash QC clip is pending / no paid regen");
+if (/<video|Clip\.mp4/i.test(omniHowTo)) {
+  fail("omni-flash how-to should not play Clip.mp4");
 }
 if (!omniHowTo.includes("omni-flash-turntable/preview.webp")) {
   fail("omni-flash how-to should show the Volt radio cover still");
@@ -115,17 +138,11 @@ if (omniSample.preview !== "omni-flash-turntable/preview.webp") {
 if (!existsSync(join(ROOT, "examples", "gallery", "omni-flash-turntable", "preview.webp"))) {
   fail("examples/gallery/omni-flash-turntable/preview.webp is missing");
 }
-if (!existsSync(join(ROOT, "examples", "gallery", "omni-flash-turntable", "NOTE.txt"))) {
-  fail("examples/gallery/omni-flash-turntable/NOTE.txt is missing");
-}
 if (existsSync(join(ROOT, "examples", "gallery", "omni-flash-turntable", "Clip.mp4"))) {
   fail("omni-flash Clip.mp4 should be removed so the gallery cannot play the helmet sample");
 }
 if (omniSample.outputs.some((o) => /Clip\.mp4/i.test(o.src) || o.kind === "video")) {
   fail("omni-flash sample should not ship Clip.mp4 as the Volt result");
-}
-if (!omniSample.outputs.some((o) => o.src === "omni-flash-turntable/NOTE.txt" && o.kind === "text")) {
-  fail("omni-flash sample should ship NOTE.txt as the pending-QC output");
 }
 if (omniSample.costExact) {
   fail("omni-flash sample cost should be a catalog estimate, not a reviewed helmet-run exact");
@@ -141,12 +158,6 @@ if (!/Volt|night-ride radio|charcoal stone plinth|electric-cyan/i.test(JSON.stri
 }
 if (/helmet|Clip\.mp4/i.test(omniSample.note)) {
   fail("omni-flash sample note should not present the helmet clip as the Volt result");
-}
-if (!/pending|no paid/i.test(omniSample.note)) {
-  fail("omni-flash sample note should say Omni Flash QC clip is pending / no paid regen");
-}
-if (!/cover still/i.test(omniSample.note) || !/Volt|night-ride radio/i.test(omniSample.note) || !/charcoal/i.test(omniSample.note)) {
-  fail("omni-flash sample note should name the Volt night-ride cover still");
 }
 const omniGallery = readFileSync(join(ROOT, "examples", "gallery", "index.html"), "utf8");
 const omniSection = omniGallery.match(/<section id="omni-flash-turntable">[\s\S]*?<\/section>/)?.[0] || "";
@@ -170,9 +181,6 @@ const singSample = samples.find((s) => s.slug === "sing");
 if (!singSample) fail("samples.json missing sing");
 if (/acoustic guitar|170-second generated song from the earlier cozy/i.test(singSample.note)) {
   fail("sing sample note still describes the cozy-repair-shop run as the saved track");
-}
-if (!singSample.note.includes("I made it out, but the city wants me back")) {
-  fail("sing sample note should quote the rooftop chorus");
 }
 if (singSample.preview !== "sing/preview.webp") {
   fail("sing sample preview should be sing/preview.webp");
@@ -237,12 +245,6 @@ for (const img of deslopSample.proof.images) {
     fail("deslop proof image missing: " + img.src);
   }
 }
-if (!/20\.9%/.test(deslopSample.note) || !/0%/.test(deslopSample.note) || !/ZeroGPT/i.test(deslopSample.note)) {
-  fail("deslop sample note should mention measured ZeroGPT 20.9% → 0%");
-}
-if (deslopSample.note.length > 120) {
-  fail("deslop sample note should stay a short punch, not a block of text");
-}
 if (!deslopSample.models.includes("venice-uncensored")) {
   fail("deslop sample models should include venice-uncensored");
 }
@@ -255,8 +257,8 @@ if (!deslopHowTo.includes("Detector proof") || !deslopHowTo.includes("zerogpt-dr
 if (!deslopHowTo.includes("20.9%") || !deslopHowTo.includes("0%")) {
   fail("deslop how-to should state the 20.9% → 0% ZeroGPT numbers");
 }
-if (!deslopHowTo.includes("venice-uncensored") || !deslopHowTo.includes("CLEAN_v10")) {
-  fail("deslop how-to should cite venice-uncensored and CLEAN_v10");
+if (!deslopHowTo.includes("venice-uncensored") || !deslopHowTo.includes("Facts stay. Hype dies.")) {
+  fail("deslop how-to should cite venice-uncensored and the short inspect punch");
 }
 if (deslopHowTo.includes("openai/gpt-4o-mini") || /Grok drafts/.test(deslopHowTo)) {
   fail("deslop how-to must not claim gpt-4o-mini or that Grok drafts");
@@ -302,9 +304,6 @@ if (deslopProofLines.length > 3) {
 if (deslopProofLines.some((line) => line.length > 80)) {
   fail("deslop Detector proof lines should stay punches, not an essay");
 }
-if ((deslopSample.proof.note || "").length > 80) {
-  fail("deslop proof.note should stay a short punch");
-}
 const galleryPage = readFileSync(join(ROOT, "examples", "gallery", "index.html"), "utf8");
 const galleryDeslop = galleryPage.split('id="deslop"')[1]?.split("<section")[0] || "";
 if (/kept every real number|uncensored burstiness|not a guarantee on every detector|GPTZero was not measured/i.test(galleryDeslop)) {
@@ -326,9 +325,6 @@ if (fableSample.preview !== "fable-five-step/preview.webp") {
 }
 if (/Sample pending/i.test(fableSample.review + fableSample.note)) {
   fail("fable-five-step sample still says Sample pending");
-}
-if (!/cover still/i.test(fableSample.note) || !/not a paid|no paid/i.test(fableSample.note)) {
-  fail("fable-five-step sample note should say it is a cover still, not a paid Fable QC transcript");
 }
 if (!existsSync(join(ROOT, "examples", "gallery", "fable-five-step", "preview.webp"))) {
   fail("examples/gallery/fable-five-step/preview.webp is missing");
@@ -359,12 +355,6 @@ if (/ceramic mug|hot tea|oak desk|wisp of steam|window light/i.test(JSON.stringi
 }
 if (!/Volt|night-ride radio|rain-slick/i.test(JSON.stringify(p2vSample.inputs))) {
   fail("photo-to-video sample inputs should pitch the Volt night-ride radio");
-}
-if (!/tea-mug|historical|does not match|not regenerated/i.test(p2vSample.note)) {
-  fail("photo-to-video sample note should say the saved MP4 is the earlier tea-mug sample");
-}
-if (!/cover still/i.test(p2vSample.note) || !/night-ride radio/i.test(p2vSample.note)) {
-  fail("photo-to-video sample note should name the Volt night-ride cover still");
 }
 if (!hub.includes("photo-to-video/preview.webp")) {
   fail("hub should thumb the photo-to-video night-ride cover");
@@ -412,9 +402,6 @@ if (!faviconSample) fail("samples.json missing favicon");
 if (/Lumen|weather radio|lighthouse|navy-and-gold/i.test(faviconSample.note + JSON.stringify(faviconSample.inputs))) {
   fail("favicon sample still uses the Lumen weather-radio brief");
 }
-if (!/electric-cyan lightning chevron/i.test(faviconSample.note)) {
-  fail("favicon sample note should describe the charcoal + cyan lightning chevron");
-}
 const fiboHowTo = readFileSync(join(ROOT, "guide", "examples", "fibo-studio-still.html"), "utf8");
 if (/amber glass|hand-soap|limestone|backlit translucent glass|Light a product that doesn/i.test(fiboHowTo)) {
   fail("fibo-studio-still how-to still uses the amber soap-bottle first-click");
@@ -435,9 +422,6 @@ if (/amber glass|hand-soap|limestone|black pump|backlit translucent glass/i.test
 }
 if (!/Volt|night-ride radio/i.test(JSON.stringify(fiboSample.inputs))) {
   fail("fibo-studio-still sample inputs should pitch the Volt night-ride radio");
-}
-if (!/matte-charcoal|charcoal/i.test(fiboSample.note) || !/electric-cyan lightning chevron/i.test(fiboSample.note)) {
-  fail("fibo-studio-still sample note should describe the charcoal + cyan lightning radio");
 }
 if (!/slug:"fibo-studio-still"[\s\S]{0,80}desc:"charcoal radio, cyan rim — lighting you can actually pick"/.test(examplesSrc)) {
   fail("EXAMPLES fibo-studio-still desc should pitch charcoal radio, cyan rim");
@@ -466,9 +450,6 @@ if (/repair shop|forest-green|Brake adjustment|New appointment|Maya Chen|Warm wh
 if (!/Volt|Tonight|Couriers|Radios|New dispatch/i.test(JSON.stringify(mockupSample.inputs))) {
   fail("render-a-mockup sample inputs should pitch the Volt courier-dispatch board");
 }
-if (!/charcoal/i.test(mockupSample.note) || !/cyan/i.test(mockupSample.note) || !/New dispatch/i.test(mockupSample.note)) {
-  fail("render-a-mockup sample note should describe the charcoal + cyan Volt dispatch board");
-}
 if (/slug:"render-a-mockup"[\s\S]{0,80}desc:"a repair-shop dashboard worth arguing over"/.test(examplesSrc)) {
   fail("EXAMPLES render-a-mockup desc still uses the repair-shop line");
 }
@@ -488,12 +469,6 @@ if (/museum guide|navy shirt|blue tray|bike-shop|seized pedal|kettle boils|Welco
 }
 if (!/night-courier dispatcher|Volt is live on the night board|cyan channel/i.test(JSON.stringify(avatarSample.inputs))) {
   fail("talking-avatar sample inputs should pitch the Volt night-courier dispatcher");
-}
-if (!/workshop|museum-guide|does not match|later regen|not regenerated/i.test(avatarSample.note)) {
-  fail("talking-avatar sample note should say the saved MP4 is the earlier workshop sample");
-}
-if (!/cover still/i.test(avatarSample.note) || !/night-courier/i.test(avatarSample.note)) {
-  fail("talking-avatar sample note should name the Volt night-courier cover still");
 }
 if (!hub.includes("talking-avatar/preview.webp")) {
   fail("hub should thumb the talking-avatar night-courier cover");
@@ -533,12 +508,6 @@ if (/warm-white|soft even studio|clean warm-white seamless/i.test(JSON.stringify
 }
 if (!/cool night-ride catalog|matte charcoal seamless|electric-cyan rim/i.test(JSON.stringify(editSample.inputs))) {
   fail("edit-a-photo sample inputs should pitch the cool night-ride catalog cleanup");
-}
-if (!/warm-white|amber-bottle|does not match|later regen|not regenerated/i.test(editSample.note)) {
-  fail("edit-a-photo sample note should say the saved bottle edit is the earlier warm-white sample");
-}
-if (!/cover still/i.test(editSample.note) || !/charcoal/i.test(editSample.note) || !/cyan/i.test(editSample.note)) {
-  fail("edit-a-photo sample note should name the charcoal + cyan cover still");
 }
 if (!hub.includes("edit-a-photo/preview.webp")) {
   fail("hub should thumb the edit-a-photo cool-catalog cover");
@@ -588,24 +557,6 @@ if (!/birefnet\/v2/.test(JSON.stringify(cutoutSample.models))) {
 if (cutoutSample.models.includes("fal-ai/birefnet/v2")) {
   fail("product-cutout sample must not pin fal-ai/birefnet/v2");
 }
-if (!/cover still/i.test(cutoutSample.note) || !/no paid|not a paid/i.test(cutoutSample.note)) {
-  fail("product-cutout sample note should say it is a cover still, not a paid BiRefNet QC cutout");
-}
-if (/card art/i.test(cutoutSample.note)) {
-  fail("product-cutout cover should be the reused Volt still, not generated card art");
-}
-if (!/pending/i.test(cutoutSample.note) || !/compositing|background cutout/i.test(cutoutSample.note)) {
-  fail("product-cutout sample note should say cover is a reused still pending BiRefNet QC, job is compositing cutout");
-}
-if (!/Volt|night-ride radio|cyan/i.test(cutoutSample.note)) {
-  fail("product-cutout sample note should pitch the Volt night-ride radio");
-}
-if (!/reused|FIBO/i.test(cutoutSample.note + JSON.stringify(cutoutSample.inputs))) {
-  fail("product-cutout sample should say the product still is a reused FIBO Volt plate");
-}
-if (!/Clean product photo|relight|backdrop/i.test(cutoutSample.note)) {
-  fail("product-cutout sample note should distinguish Clean product photo");
-}
 if (!hub.includes("product-cutout/preview.webp")) {
   fail("hub should thumb the product-cutout cover");
 }
@@ -627,15 +578,6 @@ if (!/Volt/i.test(cutoutHowTo) || !/cyan/i.test(cutoutHowTo) || !/charcoal/i.tes
 }
 if (!/birefnet\/v2/.test(cutoutHowTo)) {
   fail("product-cutout how-to should name birefnet/v2");
-}
-if (!/cover still|no paid|not a paid|pending/i.test(cutoutHowTo)) {
-  fail("product-cutout how-to should say the cover is a reused still pending BiRefNet QC");
-}
-if (/card art/i.test(cutoutHowTo)) {
-  fail("product-cutout how-to should not call the reused Volt still card art");
-}
-if (!/reused|FIBO/i.test(cutoutHowTo)) {
-  fail("product-cutout how-to should say the cover uses the reused FIBO Volt plate");
 }
 if (!cutoutHowTo.includes("product-cutout/preview.webp")) {
   fail("product-cutout how-to should show the cover still");
@@ -673,18 +615,6 @@ if (!/sam3-image/.test(JSON.stringify(isolateSample.models))) {
 if (isolateSample.models.includes("wavespeed-ai/sam3-image")) {
   fail("sam3-isolate sample must not pin wavespeed-ai/sam3-image");
 }
-if (!/cover|reused Volt card art/i.test(isolateSample.note) || !/no paid|pending/i.test(isolateSample.note)) {
-  fail("sam3-isolate sample note should say cover is reused Volt card art and SAM QC is pending");
-}
-if (!/text-selected isolate|name a region/i.test(isolateSample.note)) {
-  fail("sam3-isolate sample note should say the job is text-selected isolate");
-}
-if (!/Product cutout|BiRefNet/i.test(isolateSample.note)) {
-  fail("sam3-isolate sample note should distinguish Product cutout / BiRefNet");
-}
-if (!/Volt|night-ride radio|cyan/i.test(isolateSample.note)) {
-  fail("sam3-isolate sample note should pitch the Volt night-ride radio");
-}
 if (!hub.includes("sam3-isolate/preview.webp")) {
   fail("hub should thumb the sam3-isolate cover");
 }
@@ -706,9 +636,6 @@ if (!/text-selected isolate|name the object|name a region/i.test(isolateHowTo)) 
 }
 if (!/Product cutout|BiRefNet/i.test(isolateHowTo)) {
   fail("sam3-isolate how-to should distinguish Product cutout / BiRefNet");
-}
-if (!/reused Volt card art|no paid|pending/i.test(isolateHowTo)) {
-  fail("sam3-isolate how-to should say the cover is reused Volt card art and SAM QC is pending");
 }
 if (!isolateHowTo.includes("sam3-isolate/preview.webp")) {
   fail("sam3-isolate how-to should show the cover still");
@@ -740,24 +667,6 @@ if (!existsSync(join(ROOT, "examples", "gallery", "p-image-upscale", "product-in
 if (!/pruna-ai\/p-image\/upscale/.test(JSON.stringify(upscaleSample.models))) {
   fail("p-image-upscale sample should pin pruna-ai/p-image/upscale");
 }
-if (!/cover|reused Volt card art/i.test(upscaleSample.note) || !/no paid|pending/i.test(upscaleSample.note)) {
-  fail("p-image-upscale sample note should say cover is reused Volt card art and upscale QC is pending");
-}
-if (!/2×|2x|resolution upscale|twice the pixels/i.test(upscaleSample.note)) {
-  fail("p-image-upscale sample note should say the job is 2× resolution upscale");
-}
-if (!/Muse Edit|Clean product photo/i.test(upscaleSample.note)) {
-  fail("p-image-upscale sample note should distinguish Clean product photo / Muse Edit");
-}
-if (!/Product cutout|BiRefNet/i.test(upscaleSample.note)) {
-  fail("p-image-upscale sample note should distinguish Product cutout / BiRefNet");
-}
-if (!/SAM 3|text-selected isolate/i.test(upscaleSample.note)) {
-  fail("p-image-upscale sample note should distinguish Text-selected isolate / SAM 3");
-}
-if (!/Volt|night-ride radio|cyan/i.test(upscaleSample.note)) {
-  fail("p-image-upscale sample note should pitch the Volt night-ride radio");
-}
 if (!hub.includes("p-image-upscale/preview.webp")) {
   fail("hub should thumb the p-image-upscale cover");
 }
@@ -782,9 +691,6 @@ if (!/Product cutout|BiRefNet/i.test(upscaleHowTo)) {
 }
 if (!/SAM 3|text-selected isolate/i.test(upscaleHowTo)) {
   fail("p-image-upscale how-to should distinguish Text-selected isolate / SAM 3");
-}
-if (!/reused Volt card art|no paid|pending/i.test(upscaleHowTo)) {
-  fail("p-image-upscale how-to should say the cover is reused Volt card art and upscale QC is pending");
 }
 if (!upscaleHowTo.includes("p-image-upscale/preview.webp")) {
   fail("p-image-upscale how-to should show the cover still");
@@ -818,12 +724,6 @@ if (/Place the product from image 1 naturally into the setting from image 2|Remo
 }
 if (!/Volt pocket night-ride radio|wet night alley|neon wet-asphalt|electric-cyan lightning/i.test(JSON.stringify(combineSample.inputs))) {
   fail("combine-images sample inputs should pitch Volt night-ride placement in a wet neon alley");
-}
-if (!/amber-bottle|tea-desk|does not match|later regen|not regenerated/i.test(combineSample.note)) {
-  fail("combine-images sample note should say the saved bottle/desk composite is the earlier sample");
-}
-if (!/cover still/i.test(combineSample.note) || !/wet neon alley/i.test(combineSample.note) || !/cyan/i.test(combineSample.note)) {
-  fail("combine-images sample note should name the wet neon alley cover still");
 }
 if (!hub.includes("combine-images/preview.webp")) {
   fail("hub should thumb the combine-images night-ride cover");
@@ -869,12 +769,6 @@ if (/FIX A FLAT|SATURDAY 10 AM|bicycle repair|cream background|navy and red|tire
 }
 if (!/NIGHT RIDE|TUE 9 SEP|matte-charcoal pocket night-ride radio|electric-cyan lightning/i.test(JSON.stringify(arenaSample.inputs))) {
   fail("image-model-arena sample inputs should pitch the Volt night-ride poster");
-}
-if (!/FIX A FLAT|tire-lever|historical|does not match|later regen|not regenerated/i.test(arenaSample.note)) {
-  fail("image-model-arena sample note should say the saved contenders are the earlier FIX A FLAT sample");
-}
-if (!/cover still/i.test(arenaSample.note) || !/NIGHT RIDE/i.test(arenaSample.note) || !/cyan/i.test(arenaSample.note)) {
-  fail("image-model-arena sample note should name the Volt night-ride cover still");
 }
 if (!hub.includes("image-model-arena/preview.webp")) {
   fail("hub should thumb the image-model-arena night-ride cover");
@@ -931,9 +825,6 @@ if (!arenaGraph.nodes.some((n) => n.name === "Contender 2" && n.fields?.model ==
 if (!arenaSample.outputs.some((o) => /Krea 2 Turbo/i.test(o.label) && /Contender_2/.test(o.src))) {
   fail("image-model-arena Contender 2 sample should stay labeled as historical Krea 2 Turbo");
 }
-if (!/Flare/i.test(arenaSample.note)) {
-  fail("image-model-arena sample note should say Open workflow pins GPT Image 2.5 Flare");
-}
 if (!/Flare/i.test(arenaHowTo)) {
   fail("image-model-arena how-to should name GPT Image 2.5 Flare");
 }
@@ -945,20 +836,11 @@ if (radioSample.preview !== "infinitetalk-radio-take/preview.webp") {
 if (!existsSync(join(ROOT, "examples", "gallery", "infinitetalk-radio-take", "preview.webp"))) {
   fail("examples/gallery/infinitetalk-radio-take/preview.webp is missing");
 }
-if (!/cover still/i.test(radioSample.note) || !/no paid|not a paid|pending/i.test(radioSample.note)) {
-  fail("infinitetalk-radio-take sample note should say it is a cover still, sample video QC pending");
-}
 if (!/infinitetalk/.test(JSON.stringify(radioSample.models))) {
   fail("infinitetalk-radio-take sample should pin infinitetalk");
 }
 if (radioSample.models.includes("longcat-avatar-1.5") || radioSample.models.includes("wavespeed-ai/longcat-avatar-1.5")) {
   fail("infinitetalk-radio-take sample must not pin LongCat");
-}
-if (!/talking-avatar|LongCat|Muse → MiniMax Speech/i.test(radioSample.note)) {
-  fail("infinitetalk-radio-take sample note should distinguish talking-avatar / LongCat");
-}
-if (!/single|480p/.test(radioSample.note)) {
-  fail("infinitetalk-radio-take sample note should name people=single / 480p");
 }
 if (!/mid-shot|pocket radio|rooftop/i.test(JSON.stringify(radioSample.inputs))) {
   fail("infinitetalk-radio-take sample inputs should pitch the mid-shot courier + pocket radio");
@@ -985,9 +867,6 @@ if (!/InfiniteTalk|infinitetalk/.test(radioHowTo) || !/480p/.test(radioHowTo) ||
 }
 if (!/LongCat|talking-avatar|Night-courier spoken intro/i.test(radioHowTo)) {
   fail("infinitetalk-radio-take how-to should distinguish talking-avatar / LongCat");
-}
-if (!/cover still|no paid|not a paid|pending/i.test(radioHowTo)) {
-  fail("infinitetalk-radio-take how-to should say the cover is card art, sample video QC pending");
 }
 if (!radioHowTo.includes("infinitetalk-radio-take/preview.webp")) {
   fail("infinitetalk-radio-take how-to should show the cover still");
@@ -1025,21 +904,6 @@ if (!existsSync(join(ROOT, "examples", "gallery", "h3-max-multi-angle", "product
 if (!/minimax\/h3-max\/multi-angle\/image-to-video/.test(JSON.stringify(orbitSample.models))) {
   fail("h3-max-multi-angle sample should pin minimax/h3-max/multi-angle/image-to-video");
 }
-if (!/cover|reused Volt card art/i.test(orbitSample.note) || !/no paid|pending/i.test(orbitSample.note)) {
-  fail("h3-max-multi-angle sample note should say cover is reused Volt card art and orbit QC is pending");
-}
-if (!/orbit-right|camera orbit|product-reveal/i.test(orbitSample.note)) {
-  fail("h3-max-multi-angle sample note should say the job is a camera orbit");
-}
-if (!/photo-to-video|H3 Spicy|locked-camera/i.test(orbitSample.note)) {
-  fail("h3-max-multi-angle sample note should distinguish photo-to-video / MiniMax H3 Spicy");
-}
-if (!/omni-flash-turntable|Omni Flash/i.test(orbitSample.note)) {
-  fail("h3-max-multi-angle sample note should distinguish omni-flash-turntable / Omni Flash");
-}
-if (!/Volt|night-ride radio|cyan/i.test(orbitSample.note)) {
-  fail("h3-max-multi-angle sample note should pitch the Volt night-ride radio");
-}
 if (!hub.includes("h3-max-multi-angle/preview.webp")) {
   fail("hub should thumb the h3-max-multi-angle cover");
 }
@@ -1061,9 +925,6 @@ if (!/photo-to-video|H3 Spicy|locked-camera/i.test(orbitHowTo)) {
 }
 if (!/omni-flash-turntable|Omni Flash/i.test(orbitHowTo)) {
   fail("h3-max-multi-angle how-to should distinguish omni-flash-turntable / Omni Flash");
-}
-if (!/reused Volt card art|no paid|pending/i.test(orbitHowTo)) {
-  fail("h3-max-multi-angle how-to should say the cover is reused Volt card art and orbit QC is pending");
 }
 if (!orbitHowTo.includes("h3-max-multi-angle/preview.webp")) {
   fail("h3-max-multi-angle how-to should show the cover still");
@@ -1104,21 +965,6 @@ if (!existsSync(join(ROOT, "examples", "gallery", "crystal-video-upscale", "prev
 if (!/clarity-ai\/crystal-video-upscaler/.test(JSON.stringify(crystalSample.models))) {
   fail("crystal-video-upscale sample should pin clarity-ai/crystal-video-upscaler");
 }
-if (!/cover|reused Volt card art/i.test(crystalSample.note) || !/no paid|pending/i.test(crystalSample.note)) {
-  fail("crystal-video-upscale sample note should say cover is reused Volt card art and Crystal QC is pending");
-}
-if (!/target.megapixel|1 MP|target_megapixels/i.test(crystalSample.note)) {
-  fail("crystal-video-upscale sample note should say the job is video target-megapixel upscale");
-}
-if (!/P-Image Upscale|still/i.test(crystalSample.note)) {
-  fail("crystal-video-upscale sample note should distinguish P-Image Upscale");
-}
-if (!/Night-ride radio orbit|Omni Flash|h3-max-multi-angle/i.test(crystalSample.note)) {
-  fail("crystal-video-upscale sample note should distinguish Night-ride radio orbit / Omni Flash");
-}
-if (!/Volt|night-ride radio|cyan/i.test(crystalSample.note)) {
-  fail("crystal-video-upscale sample note should pitch the Volt night-ride radio");
-}
 if (!hub.includes("crystal-video-upscale/preview.webp")) {
   fail("hub should thumb the crystal-video-upscale cover");
 }
@@ -1140,9 +986,6 @@ if (!/P-Image Upscale/i.test(crystalHowTo)) {
 }
 if (!/Night-ride radio orbit|Omni Flash/i.test(crystalHowTo)) {
   fail("crystal-video-upscale how-to should distinguish Night-ride radio orbit / Omni Flash");
-}
-if (!/reused Volt card art|no paid|pending/i.test(crystalHowTo)) {
-  fail("crystal-video-upscale how-to should say the cover is reused Volt card art and Crystal QC is pending");
 }
 if (!crystalHowTo.includes("crystal-video-upscale/preview.webp")) {
   fail("crystal-video-upscale how-to should show the cover still");
@@ -1189,21 +1032,6 @@ if (!existsSync(join(ROOT, "examples", "gallery", "p-video-rewrite", "preview.we
 if (!/pruna-ai\/p-video\/edit/.test(JSON.stringify(rewriteSample.models))) {
   fail("p-video-rewrite sample should pin pruna-ai/p-video/edit");
 }
-if (!/cover|reused Volt card art/i.test(rewriteSample.note) || !/no paid|pending/i.test(rewriteSample.note)) {
-  fail("p-video-rewrite sample note should say cover is reused Volt card art and P-Video Edit QC is pending");
-}
-if (!/prompt-rewrite|prompt-edit|draft=true/i.test(rewriteSample.note)) {
-  fail("p-video-rewrite sample note should say the job is prompt-rewrite at draft=true");
-}
-if (!/Crystal/i.test(rewriteSample.note)) {
-  fail("p-video-rewrite sample note should distinguish Crystal video upscale");
-}
-if (!/i2v|photo-to-video|Grok|Omni Flash/i.test(rewriteSample.note)) {
-  fail("p-video-rewrite sample note should distinguish i2v motion pins");
-}
-if (!/Volt|night-ride|cyan/i.test(rewriteSample.note)) {
-  fail("p-video-rewrite sample note should pitch the Volt night-ride radio");
-}
 if (!hub.includes("p-video-rewrite/preview.webp")) {
   fail("hub should thumb the p-video-rewrite cover");
 }
@@ -1225,9 +1053,6 @@ if (!/Crystal/i.test(rewriteHowTo)) {
 }
 if (!/i2v|photo-to-video|Grok|Omni Flash/i.test(rewriteHowTo)) {
   fail("p-video-rewrite how-to should distinguish i2v motion pins");
-}
-if (!/reused Volt card art|no paid|pending/i.test(rewriteHowTo)) {
-  fail("p-video-rewrite how-to should say the cover is reused Volt card art and P-Video Edit QC is pending");
 }
 if (!rewriteHowTo.includes("p-video-rewrite/preview.webp")) {
   fail("p-video-rewrite how-to should show the cover still");
@@ -1277,21 +1102,6 @@ if (!existsSync(join(ROOT, "examples", "gallery", "volt-dispatch-infographic", "
 if (!/sensenova-u1-infographic/.test(JSON.stringify(voltSample.models))) {
   fail("volt-dispatch-infographic sample should pin sensenova-u1-infographic");
 }
-if (!/reused Volt|pending/.test(voltSample.note) || !/SenseNova|sensenova/.test(voltSample.note)) {
-  fail("volt-dispatch-infographic sample note should say cover is reused Volt poster art and SenseNova QC is pending");
-}
-if (!/dispatch card|DROP|ZONE|ETA/.test(voltSample.note)) {
-  fail("volt-dispatch-infographic sample note should say the job is a Volt dispatch card with DROP / ZONE / ETA");
-}
-if (!/no text walls|Short labels/.test(voltSample.note)) {
-  fail("volt-dispatch-infographic sample note should say short labels, no text walls");
-}
-if (!/render-a-mockup|UI mockup/.test(voltSample.note)) {
-  fail("volt-dispatch-infographic sample note should distinguish UI mockup / render-a-mockup");
-}
-if (!/postcard/.test(voltSample.note)) {
-  fail("volt-dispatch-infographic sample note should distinguish travel postcard");
-}
 if (!hub.includes("volt-dispatch-infographic/preview.webp")) {
   fail("hub should thumb the volt-dispatch-infographic cover");
 }
@@ -1310,9 +1120,6 @@ if (!/DROP|ZONE|ETA/.test(voltHowTo)) {
 }
 if (!/UI mockup|not a postcard/.test(voltHowTo)) {
   fail("volt-dispatch-infographic how-to should distinguish UI mockup and postcard");
-}
-if (!/reused Volt poster|pending SenseNova QC|no paid run/.test(voltHowTo)) {
-  fail("volt-dispatch-infographic how-to should say the cover is reused Volt poster art and SenseNova QC is pending");
 }
 if (!voltHowTo.includes("volt-dispatch-infographic/preview.webp")) {
   fail("volt-dispatch-infographic how-to should show the cover still");
@@ -1375,18 +1182,6 @@ if (!/meta\/muse-image\/text-to-image/.test(JSON.stringify(spritesSample.models)
 if (!/meta\/muse-image\/edit/.test(JSON.stringify(spritesSample.models))) {
   fail("character-sprites sample should pin meta/muse-image/edit");
 }
-if (!/Iron Verdict|card\/game art|screenshot\.png/i.test(spritesSample.note) || !/no paid|pending/i.test(spritesSample.note)) {
-  fail("character-sprites sample note should say cover is Iron Verdict card/game art and Muse QC is pending");
-}
-if (!/furnace knight|parts sheet/i.test(spritesSample.note)) {
-  fail("character-sprites sample note should say the job is a furnace-knight reference + parts sheet");
-}
-if (!/cinematic-character-still|hero key-art/i.test(spritesSample.note)) {
-  fail("character-sprites sample note should distinguish cinematic-character-still");
-}
-if (!/character-sprites skill|Iron Verdict/i.test(spritesSample.note)) {
-  fail("character-sprites sample note should name the character-sprites skill and Iron Verdict");
-}
 if (/Volt|night-ride radio/i.test(spritesSample.note + JSON.stringify(spritesSample.inputs))) {
   fail("character-sprites must not be Volt-retargeted");
 }
@@ -1408,9 +1203,6 @@ if (!/furnace knight/i.test(spritesHowTo) || !/parts sheet/i.test(spritesHowTo))
 }
 if (!/cinematic-character-still|hero key-art/i.test(spritesHowTo)) {
   fail("character-sprites how-to should distinguish cinematic-character-still");
-}
-if (!/Iron Verdict/i.test(spritesHowTo) || !/no paid|pending/i.test(spritesHowTo)) {
-  fail("character-sprites how-to should say the cover is Iron Verdict art and Muse QC is pending");
 }
 if (/Volt|night-ride radio/i.test(spritesHowTo.split('<nav class="next">')[0])) {
   fail("character-sprites how-to must not be Volt-retargeted");
@@ -1438,24 +1230,6 @@ if (!existsSync(join(ROOT, "examples", "gallery", "transparent-brand-sticker", "
 if (!/ideogram-v3-generate-transparent/.test(JSON.stringify(stickerSample.models))) {
   fail("transparent-brand-sticker sample should pin ideogram-v3-generate-transparent");
 }
-if (!/cover|reused Volt bolt card art|favicon/i.test(stickerSample.note) || !/no paid|pending/i.test(stickerSample.note)) {
-  fail("transparent-brand-sticker sample note should say cover is reused Volt bolt art and Ideogram QC is pending");
-}
-if (!/clean alpha|transparent|sticker/i.test(stickerSample.note)) {
-  fail("transparent-brand-sticker sample note should say the job is a transparent brand sticker");
-}
-if (!/Favicon|opaque square glyph|GLM/i.test(stickerSample.note)) {
-  fail("transparent-brand-sticker sample note should distinguish Favicon / GLM+Muse");
-}
-if (!/Product cutout|BiRefNet/i.test(stickerSample.note)) {
-  fail("transparent-brand-sticker sample note should distinguish Product cutout / BiRefNet");
-}
-if (!/Volt|night-ride radio|cyan/i.test(stickerSample.note)) {
-  fail("transparent-brand-sticker sample note should pitch the Volt night-ride radio chevron");
-}
-if (!/rendering_speed|modelOpts/i.test(stickerSample.note)) {
-  fail("transparent-brand-sticker sample note should say the image node does not forward rendering_speed");
-}
 if (!hub.includes("transparent-brand-sticker/preview.webp")) {
   fail("hub should thumb the transparent-brand-sticker cover");
 }
@@ -1477,9 +1251,6 @@ if (!/Favicon|opaque square glyph|GLM/i.test(stickerHowTo)) {
 }
 if (!/Product cutout|BiRefNet/i.test(stickerHowTo)) {
   fail("transparent-brand-sticker how-to should distinguish Product cutout / BiRefNet");
-}
-if (!/reused Volt bolt card art|no paid|pending/i.test(stickerHowTo)) {
-  fail("transparent-brand-sticker how-to should say the cover is reused Volt bolt art and Ideogram QC is pending");
 }
 if (!/rendering_speed|modelOpts/i.test(stickerHowTo)) {
   fail("transparent-brand-sticker how-to should say the image node does not forward rendering_speed");
@@ -1533,18 +1304,6 @@ if (!existsSync(join(ROOT, "examples", "gallery", "remove-packaging-text", "pack
 if (!/ideogram-v3-remove-text/.test(JSON.stringify(packSample.models))) {
   fail("remove-packaging-text sample should pin ideogram-v3-remove-text");
 }
-if (!/cover|reused Volt night-ride poster|image-model-arena/i.test(packSample.note) || !/no paid|pending/i.test(packSample.note)) {
-  fail("remove-packaging-text sample note should say cover is reused Volt poster art and Ideogram QC is pending");
-}
-if (!/lettering|packaging|promo/i.test(packSample.note)) {
-  fail("remove-packaging-text sample note should say the job is lettering cleanup");
-}
-if (!/Muse Edit|BiRefNet|SAM 3|P-Image|transparent sticker/i.test(packSample.note)) {
-  fail("remove-packaging-text sample note should distinguish Muse Edit, BiRefNet, SAM 3, P-Image Upscale, and transparent sticker");
-}
-if (!/runner instruction|image-only/i.test(packSample.note)) {
-  fail("remove-packaging-text sample note should say the edit prompt is a runner instruction");
-}
 if (!hub.includes("remove-packaging-text/preview.webp")) {
   fail("hub should thumb the remove-packaging-text cover");
 }
@@ -1563,9 +1322,6 @@ if (!/lettering|letters/i.test(packHowTo)) {
 }
 if (!/Muse Edit|BiRefNet|SAM 3|P-Image|transparent sticker/i.test(packHowTo)) {
   fail("remove-packaging-text how-to should distinguish Muse Edit, BiRefNet, SAM 3, P-Image Upscale, and transparent sticker");
-}
-if (!/reused Volt promo-card art|no paid|pending/i.test(packHowTo)) {
-  fail("remove-packaging-text how-to should say the cover is reused Volt promo-card art and Ideogram QC is pending");
 }
 if (!/runner instruction|image-only/i.test(packHowTo)) {
   fail("remove-packaging-text how-to should say the edit prompt is a runner instruction");
@@ -1619,15 +1375,6 @@ if (!existsSync(join(ROOT, "examples", "gallery", "h3-identity-restyle", "still-
 if (!/minimax-h3\/image-edit/.test(JSON.stringify(restyleSample.models))) {
   fail("h3-identity-restyle sample should pin minimax-h3/image-edit");
 }
-if (!/cover|reused night-courier|cinematic-character-still/i.test(restyleSample.note) || !/no paid|pending/i.test(restyleSample.note)) {
-  fail("h3-identity-restyle sample note should say cover is reused night-courier art and H3 Image Edit QC is pending");
-}
-if (!/identity|restyle/i.test(restyleSample.note)) {
-  fail("h3-identity-restyle sample note should say the job is identity restyle");
-}
-if (!/Muse Edit|Cinematic character still|combine-images|text-to-image/i.test(restyleSample.note)) {
-  fail("h3-identity-restyle sample note should distinguish Muse Edit, cinematic H3 T2I, and combine-images");
-}
 if (!hub.includes("h3-identity-restyle/preview.webp")) {
   fail("hub should thumb the h3-identity-restyle cover");
 }
@@ -1643,9 +1390,6 @@ if (!/Volt/i.test(restyleHowTo) || !/cyan/i.test(restyleHowTo) || !/identity/i.t
 }
 if (!/Muse Edit|Cinematic character still|Product in a setting/i.test(restyleHowTo)) {
   fail("h3-identity-restyle how-to should distinguish Muse Edit, cinematic H3 T2I, and Product in a setting");
-}
-if (!/reused night-courier card art|no paid|pending/i.test(restyleHowTo)) {
-  fail("h3-identity-restyle how-to should say the cover is reused night-courier card art and H3 Image Edit QC is pending");
 }
 if (!restyleHowTo.includes("h3-identity-restyle/preview.webp")) {
   fail("h3-identity-restyle how-to should show the cover still");
@@ -1702,24 +1446,6 @@ if (!existsSync(join(ROOT, "examples", "gallery", "virtual-try-on", "garment-inp
 if (!/flux-pro\/v1\/vto/.test(JSON.stringify(vtoSample.models))) {
   fail("virtual-try-on sample should pin flux-pro/v1/vto");
 }
-if (!/local placeholder|no paid|pending/i.test(vtoSample.note)) {
-  fail("virtual-try-on sample note should say the cover is a local placeholder and FLUX VTO QC is pending");
-}
-if (!/virtual|try-on|garment/i.test(vtoSample.note)) {
-  fail("virtual-try-on sample note should say the job is dedicated garment try-on");
-}
-if (!/combine-images|Muse Edit/i.test(vtoSample.note)) {
-  fail("virtual-try-on sample note should distinguish combine-images / Muse Edit");
-}
-if (!/edit-a-photo/i.test(vtoSample.note)) {
-  fail("virtual-try-on sample note should distinguish edit-a-photo");
-}
-if (!/h3-identity-restyle/i.test(vtoSample.note)) {
-  fail("virtual-try-on sample note should distinguish h3-identity-restyle");
-}
-if (!/cutout|SAM|sticker|Ideogram|Recraft|MAI|SenseNova/i.test(vtoSample.note)) {
-  fail("virtual-try-on sample note should distinguish cutout / SAM / sticker / Ideogram / Recraft / MAI / SenseNova");
-}
 if (!hub.includes("virtual-try-on/preview.webp")) {
   fail("hub should thumb the virtual-try-on cover");
 }
@@ -1735,9 +1461,6 @@ if (!/Person \+ garment/i.test(vtoHowTo) || !/FLUX tries the drop on/i.test(vtoH
 }
 if (!/Product in a setting|Clean product photo|Night-ride identity restyle/i.test(vtoHowTo)) {
   fail("virtual-try-on how-to should distinguish Product in a setting, Clean product photo, and Night-ride identity restyle");
-}
-if (!/local placeholder|no paid|pending/i.test(vtoHowTo)) {
-  fail("virtual-try-on how-to should say the cover is a local placeholder and FLUX VTO QC is pending");
 }
 if (!vtoHowTo.includes("virtual-try-on/preview.webp")) {
   fail("virtual-try-on how-to should show the cover still");
@@ -1791,27 +1514,6 @@ if (!existsSync(join(ROOT, "examples", "gallery", "ideogram-v4-instant-poster", 
 if (!/ideogram\/v4\/instant/.test(JSON.stringify(posterSample.models))) {
   fail("ideogram-v4-instant-poster sample should pin ideogram/v4/instant");
 }
-if (!/local placeholder|QC pending|no paid/i.test(posterSample.note)) {
-  fail("ideogram-v4-instant-poster sample note should say the cover is a local placeholder and Ideogram QC is pending");
-}
-if (!/VOLT|MIDNIGHT DROP|lettering|poster/i.test(posterSample.note)) {
-  fail("ideogram-v4-instant-poster sample note should say the job is a lettered brand/drop poster");
-}
-if (!/Transparent brand sticker|alpha, no letters/i.test(posterSample.note)) {
-  fail("ideogram-v4-instant-poster sample note should distinguish Transparent brand sticker");
-}
-if (!/Favicon|opaque|Muse/i.test(posterSample.note)) {
-  fail("ideogram-v4-instant-poster sample note should distinguish Favicon / Muse");
-}
-if (!/Remove packaging text|strips lettering/i.test(posterSample.note)) {
-  fail("ideogram-v4-instant-poster sample note should distinguish Remove packaging text");
-}
-if (!/FIBO|cinematic|arena/i.test(posterSample.note)) {
-  fail("ideogram-v4-instant-poster sample note should distinguish FIBO / cinematic / arena");
-}
-if (!/No LLM|no upload/i.test(posterSample.note)) {
-  fail("ideogram-v4-instant-poster sample note should say no LLM and no upload");
-}
 if (!hub.includes("ideogram-v4-instant-poster/preview.webp")) {
   fail("hub should thumb the ideogram-v4-instant-poster cover");
 }
@@ -1836,9 +1538,6 @@ if (!/Favicon|opaque|Muse/i.test(posterHowTo)) {
 }
 if (!/Remove packaging text|strips lettering/i.test(posterHowTo)) {
   fail("ideogram-v4-instant-poster how-to should distinguish Remove packaging text");
-}
-if (!/local placeholder|no paid|pending/i.test(posterHowTo)) {
-  fail("ideogram-v4-instant-poster how-to should say the cover is a local placeholder and Ideogram QC is pending");
 }
 if (!/modelOpts/i.test(posterHowTo)) {
   fail("ideogram-v4-instant-poster how-to should say the image node does not forward modelOpts");
@@ -1886,18 +1585,6 @@ if (!existsSync(join(ROOT, "examples", "gallery", "grok-imagine-still", "preview
 if (!/xai\/grok-imagine-video\/v1\.5\/image-to-video/.test(JSON.stringify(grokSample.models))) {
   fail("grok-imagine-still sample should pin xai/grok-imagine-video/v1.5/image-to-video");
 }
-if (!/cover|reused Volt card art/i.test(grokSample.note) || !/no paid|pending/i.test(grokSample.note)) {
-  fail("grok-imagine-still sample note should say cover is reused Volt card art and Grok Imagine QC is pending");
-}
-if (!/cyan pulse|rooftop/i.test(grokSample.note)) {
-  fail("grok-imagine-still sample note should say the job is a rooftop still with one cyan pulse");
-}
-if (!/photo-to-video|H3 Spicy|asphalt rain/i.test(grokSample.note)) {
-  fail("grok-imagine-still sample note should distinguish photo-to-video / MiniMax H3 Spicy");
-}
-if (!/Volt|night-ride radio|cyan/i.test(grokSample.note)) {
-  fail("grok-imagine-still sample note should pitch the Volt night-ride radio");
-}
 if (!hub.includes("grok-imagine-still/preview.webp")) {
   fail("hub should thumb the grok-imagine-still cover");
 }
@@ -1916,9 +1603,6 @@ if (!/cyan pulse|480p|4s/.test(grokHowTo)) {
 }
 if (!/photo-to-video|H3 Spicy|asphalt rain/i.test(grokHowTo)) {
   fail("grok-imagine-still how-to should distinguish photo-to-video / MiniMax H3 Spicy");
-}
-if (!/reused Volt card art|no paid|pending/i.test(grokHowTo)) {
-  fail("grok-imagine-still how-to should say the cover is reused Volt card art and Grok Imagine QC is pending");
 }
 if (!grokHowTo.includes("grok-imagine-still/preview.webp")) {
   fail("grok-imagine-still how-to should show the cover still");
@@ -1962,21 +1646,6 @@ if (!existsSync(join(ROOT, "examples", "gallery", "wan-still-audio", "preview.we
 if (!/alibaba\/wan-3\.0\/image-to-video/.test(JSON.stringify(wanSample.models))) {
   fail("wan-still-audio sample should pin alibaba/wan-3.0/image-to-video");
 }
-if (!/cover|reused Volt card art|product-cutout|FIBO/i.test(wanSample.note) || !/no paid|pending/i.test(wanSample.note)) {
-  fail("wan-still-audio sample note should say cover is reused Volt card art and Wan 3.0 QC is pending");
-}
-if (!/still → video|railing|alley hum|enable_audio/i.test(wanSample.note)) {
-  fail("wan-still-audio sample note should say the job is Wan 3.0 still+audio with alley hum");
-}
-if (!/Still → short clip|Grok Imagine/i.test(wanSample.note)) {
-  fail("wan-still-audio sample note should distinguish Still → short clip / Grok Imagine 1.5");
-}
-if (!/photo-to-video|MiniMax H3 Spicy/i.test(wanSample.note)) {
-  fail("wan-still-audio sample note should distinguish photo-to-video / MiniMax H3 Spicy");
-}
-if (!/Volt/i.test(wanSample.note)) {
-  fail("wan-still-audio sample note should pitch the Volt night-ride radio");
-}
 if (!hub.includes("wan-still-audio/preview.webp")) {
   fail("hub should thumb the wan-still-audio cover");
 }
@@ -1998,9 +1667,6 @@ if (!/Still → short clip/i.test(wanHowTo)) {
 }
 if (!/photo-to-video/i.test(wanHowTo)) {
   fail("wan-still-audio how-to should distinguish photo-to-video");
-}
-if (!/reused Volt card art|no paid|pending/i.test(wanHowTo)) {
-  fail("wan-still-audio how-to should say the cover is reused Volt card art and Wan 3.0 QC is pending");
 }
 if (!wanHowTo.includes("wan-still-audio/preview.webp")) {
   fail("wan-still-audio how-to should show the cover still");
@@ -2050,21 +1716,6 @@ if (!existsSync(join(ROOT, "examples", "gallery", "night-ride-sfx", "preview.web
 if (!/elevenlabs\/sound-effects\/v2/.test(JSON.stringify(sfxSample.models))) {
   fail("night-ride-sfx sample should pin elevenlabs/sound-effects/v2");
 }
-if (!/cover|reused Volt alley card art|combine-images/i.test(sfxSample.note) || !/no paid|pending/i.test(sfxSample.note)) {
-  fail("night-ride-sfx sample note should say cover is reused Volt alley art and ElevenLabs QC is pending");
-}
-if (!/sting|thunder|wet neon alley/i.test(sfxSample.note)) {
-  fail("night-ride-sfx sample note should say the job is a Volt radio sting");
-}
-if (!/Closing-credits song|sing|Mureka/i.test(sfxSample.note)) {
-  fail("night-ride-sfx sample note should distinguish Closing-credits song / Mureka");
-}
-if (!/TTS|voice/i.test(sfxSample.note)) {
-  fail("night-ride-sfx sample note should distinguish TTS / voice");
-}
-if (!/duration 4|duration=4|~\$0\.008/i.test(sfxSample.note)) {
-  fail("night-ride-sfx sample note should name duration 4 and ~$0.008");
-}
 if (!hub.includes("night-ride-sfx/preview.webp")) {
   fail("hub should thumb the night-ride-sfx cover");
 }
@@ -2086,9 +1737,6 @@ if (!/Closing-credits song|Mureka/i.test(sfxHowTo)) {
 }
 if (!/TTS/i.test(sfxHowTo)) {
   fail("night-ride-sfx how-to should distinguish TTS");
-}
-if (!/reused Volt alley card art|no paid|pending/i.test(sfxHowTo)) {
-  fail("night-ride-sfx how-to should say the cover is reused Volt alley art and ElevenLabs QC is pending");
 }
 if (!sfxHowTo.includes("night-ride-sfx/preview.webp")) {
   fail("night-ride-sfx how-to should show the cover still");
@@ -2126,27 +1774,6 @@ if (!existsSync(join(ROOT, "examples", "gallery", "night-ride-radio-vo", "previe
 if (!/xai-tts/.test(JSON.stringify(voSample.models))) {
   fail("night-ride-radio-vo sample should pin xai-tts");
 }
-if (!/cover|reused Volt courier card art|talking-avatar/i.test(voSample.note) || !/no paid|pending/i.test(voSample.note)) {
-  fail("night-ride-radio-vo sample note should say cover is reused Volt courier art and SpaceXAI TTS QC is pending");
-}
-if (!/speech only|Spoken script|dispatch callout/i.test(voSample.note)) {
-  fail("night-ride-radio-vo sample note should say the job is a Volt dispatch callout");
-}
-if (!/Night-ride SFX|elevenlabs\/sound-effects\/v2/i.test(voSample.note)) {
-  fail("night-ride-radio-vo sample note should distinguish Night-ride SFX");
-}
-if (!/InfiniteTalk|infinitetalk-radio-take/i.test(voSample.note)) {
-  fail("night-ride-radio-vo sample note should distinguish InfiniteTalk");
-}
-if (!/Closing-credits song|sing|Mureka/i.test(voSample.note)) {
-  fail("night-ride-radio-vo sample note should distinguish Closing-credits song / Mureka");
-}
-if (!/Spoken introduction|talking-avatar|LongCat/i.test(voSample.note)) {
-  fail("night-ride-radio-vo sample note should distinguish Spoken introduction / talking-avatar");
-}
-if (!/voice Leo|~\$0\.0023|well under \$0\.01/i.test(voSample.note)) {
-  fail("night-ride-radio-vo sample note should name voice Leo and ~$0.0023");
-}
 if (!hub.includes("night-ride-radio-vo/preview.webp")) {
   fail("hub should thumb the night-ride-radio-vo cover");
 }
@@ -2174,9 +1801,6 @@ if (!/Closing-credits song|Mureka/i.test(voHowTo)) {
 }
 if (!/Spoken introduction/i.test(voHowTo)) {
   fail("night-ride-radio-vo how-to should distinguish Spoken introduction");
-}
-if (!/reused Volt courier card art|no paid|pending/i.test(voHowTo)) {
-  fail("night-ride-radio-vo how-to should say the cover is reused Volt courier art and SpaceXAI TTS QC is pending");
 }
 if (!voHowTo.includes("night-ride-radio-vo/preview.webp")) {
   fail("night-ride-radio-vo how-to should show the cover still");
@@ -2218,30 +1842,6 @@ if (!existsSync(join(ROOT, "examples", "gallery", "stable-alley-score", "preview
 if (!/stable-audio-3\/small\/music\/text-to-audio/.test(JSON.stringify(scoreSample.models))) {
   fail("stable-alley-score sample should pin stable-audio-3/small/music/text-to-audio");
 }
-if (!/cover|reused Volt alley/i.test(scoreSample.note) || !/no paid|pending/i.test(scoreSample.note)) {
-  fail("stable-alley-score sample note should say cover is reused Volt alley art and Stable Audio QC is pending");
-}
-if (!/no fake waveform/i.test(scoreSample.note)) {
-  fail("stable-alley-score sample note should say no fake waveform thumb");
-}
-if (!/instrumental|night-ride bed|trip-hop/i.test(scoreSample.note)) {
-  fail("stable-alley-score sample note should say the job is an instrumental night-ride bed");
-}
-if (!/Closing-credits song|Mureka/i.test(scoreSample.note)) {
-  fail("stable-alley-score sample note should distinguish Closing-credits song / Mureka");
-}
-if (!/Night-ride SFX|elevenlabs\/sound-effects\/v2/i.test(scoreSample.note)) {
-  fail("stable-alley-score sample note should distinguish Night-ride SFX");
-}
-if (!/Night-ride radio VO|xai-tts/i.test(scoreSample.note)) {
-  fail("stable-alley-score sample note should distinguish Night-ride radio VO / xai-tts");
-}
-if (!/Mirelo|foley/i.test(scoreSample.note)) {
-  fail("stable-alley-score sample note should distinguish Mirelo video foley");
-}
-if (!/~\$0\.024|0\.024/.test(scoreSample.note)) {
-  fail("stable-alley-score sample note should name ~$0.024");
-}
 if (!hub.includes("stable-alley-score/preview.webp")) {
   fail("hub should thumb the stable-alley-score cover");
 }
@@ -2269,12 +1869,6 @@ if (!/TTS/.test(scoreHowTo)) {
 }
 if (!/foley/.test(scoreHowTo)) {
   fail("stable-alley-score how-to should distinguish video foley");
-}
-if (!/reused Volt alley|no paid|pending/i.test(scoreHowTo)) {
-  fail("stable-alley-score how-to should say the cover is reused Volt alley art and Stable Audio QC is pending");
-}
-if (!/no fake waveform/i.test(scoreHowTo)) {
-  fail("stable-alley-score how-to should say no fake waveform thumb");
 }
 if (!scoreHowTo.includes("stable-alley-score/preview.webp")) {
   fail("stable-alley-score how-to should show the cover still");
@@ -2316,27 +1910,6 @@ if (!existsSync(join(ROOT, "examples", "gallery", "mirelo-stretch-bed", "preview
 if (!/mirelo-ai\/sfx1\.6\/extend-audio/.test(JSON.stringify(stretchBedSample.models))) {
   fail("mirelo-stretch-bed sample should pin mirelo-ai/sfx1.6/extend-audio");
 }
-if (!/aupload placeholder|no fake waveform/i.test(stretchBedSample.note) || !/no paid|pending/i.test(stretchBedSample.note)) {
-  fail("mirelo-stretch-bed sample note should say aupload placeholder / no fake waveform thumb and Mirelo QC is pending");
-}
-if (!/audio extend|keeps the ambience|alley bed/i.test(stretchBedSample.note)) {
-  fail("mirelo-stretch-bed sample note should say the job is audio extend on an alley bed");
-}
-if (!/Wan video extend|wan-stretch-take|wan-25-extend/i.test(stretchBedSample.note)) {
-  fail("mirelo-stretch-bed sample note should distinguish Wan video extend");
-}
-if (!/Night-ride SFX|text→SFX|ElevenLabs/i.test(stretchBedSample.note)) {
-  fail("mirelo-stretch-bed sample note should distinguish Night-ride SFX / text→SFX");
-}
-if (!/Mirelo video foley|video→SFX/i.test(stretchBedSample.note)) {
-  fail("mirelo-stretch-bed sample note should distinguish Mirelo video foley");
-}
-if (!/Stable Audio|sing/i.test(stretchBedSample.note)) {
-  fail("mirelo-stretch-bed sample note should distinguish Stable Audio / sing");
-}
-if (!/~\$0\.03|\$0\.01\/s/i.test(stretchBedSample.note)) {
-  fail("mirelo-stretch-bed sample note should name ~$0.03 / $0.01/s");
-}
 if (!hub.includes("mirelo-stretch-bed/preview.webp")) {
   fail("hub should thumb the mirelo-stretch-bed cover");
 }
@@ -2364,9 +1937,6 @@ if (!/foley/i.test(stretchBedHowTo)) {
 }
 if (!/Stable Audio|sing/i.test(stretchBedHowTo)) {
   fail("mirelo-stretch-bed how-to should distinguish Stable Audio / sing");
-}
-if (!/aupload placeholder|reused Volt alley|no paid|no fake waveform/i.test(stretchBedHowTo)) {
-  fail("mirelo-stretch-bed how-to should say the cover is an aupload placeholder and Mirelo QC is pending");
 }
 if (!stretchBedHowTo.includes("mirelo-stretch-bed/preview.webp")) {
   fail("mirelo-stretch-bed how-to should show the cover still");
@@ -2420,24 +1990,6 @@ if (!existsSync(join(ROOT, "examples", "gallery", "volt-vector-mark", "preview.w
 if (!/recraft-ai\/recraft-v4\.1\/text-to-vector/.test(JSON.stringify(markSample.models))) {
   fail("volt-vector-mark sample should pin recraft-ai/recraft-v4.1/text-to-vector");
 }
-if (!/cover|reused Volt bolt/i.test(markSample.note) || !/no paid|pending/i.test(markSample.note)) {
-  fail("volt-vector-mark sample note should say cover is reused Volt bolt art and Recraft QC is pending");
-}
-if (!/editable SVG|text-to-vector|SVG you can scale/i.test(markSample.note)) {
-  fail("volt-vector-mark sample note should say the job is an editable SVG vector mark");
-}
-if (!/Favicon|Muse/i.test(markSample.note)) {
-  fail("volt-vector-mark sample note should distinguish Favicon / Muse");
-}
-if (!/Transparent brand sticker|PNG alpha/i.test(markSample.note)) {
-  fail("volt-vector-mark sample note should distinguish Transparent brand sticker");
-}
-if (!/Ideogram V4 Instant|letters/i.test(markSample.note)) {
-  fail("volt-vector-mark sample note should distinguish Ideogram V4 Instant poster");
-}
-if (!/No LLM|no upload/i.test(markSample.note)) {
-  fail("volt-vector-mark sample note should say no LLM and no upload");
-}
 if (!hub.includes("volt-vector-mark/preview.webp")) {
   fail("hub should thumb the volt-vector-mark cover");
 }
@@ -2462,9 +2014,6 @@ if (!/Transparent brand sticker|PNG alpha/i.test(markHowTo)) {
 }
 if (!/Ideogram V4 Instant|letters/i.test(markHowTo)) {
   fail("volt-vector-mark how-to should distinguish Ideogram V4 Instant poster");
-}
-if (!/reused Volt bolt|no paid|pending/i.test(markHowTo)) {
-  fail("volt-vector-mark how-to should say the cover is reused Volt bolt art and Recraft QC is pending");
 }
 if (!markHowTo.includes("volt-vector-mark/preview.webp")) {
   fail("volt-vector-mark how-to should show the cover still");
@@ -2509,24 +2058,6 @@ if (!existsSync(join(ROOT, "examples", "gallery", "mai-pack-type", "preview.webp
 if (!/microsoft\/mai-image-2\.6-flash/.test(JSON.stringify(maiSample.models))) {
   fail("mai-pack-type sample should pin microsoft/mai-image-2.6-flash");
 }
-if (!/cover|reused Volt/i.test(maiSample.note) || !/no paid|pending/i.test(maiSample.note)) {
-  fail("mai-pack-type sample note should say cover is reused Volt art and MAI QC is pending");
-}
-if (!/pack lettering|sleeve|VOLT|MIDNIGHT DROP|NIGHT CHANNEL/i.test(maiSample.note)) {
-  fail("mai-pack-type sample note should say the job is Volt sleeve pack lettering");
-}
-if (!/Ideogram V4 Instant|drop poster/i.test(maiSample.note)) {
-  fail("mai-pack-type sample note should distinguish Ideogram V4 Instant poster");
-}
-if (!/SenseNova|dispatch/i.test(maiSample.note)) {
-  fail("mai-pack-type sample note should distinguish SenseNova Volt dispatch card");
-}
-if (!/Qwen|UI mockup|render-a-mockup/i.test(maiSample.note)) {
-  fail("mai-pack-type sample note should distinguish Qwen UI mockup");
-}
-if (!/No LLM|no upload/i.test(maiSample.note)) {
-  fail("mai-pack-type sample note should say no LLM and no upload");
-}
 if (!hub.includes("mai-pack-type/preview.webp")) {
   fail("hub should thumb the mai-pack-type cover");
 }
@@ -2551,9 +2082,6 @@ if (!/SenseNova|dispatch/i.test(maiHowTo)) {
 }
 if (!/Qwen|UI mockup/i.test(maiHowTo)) {
   fail("mai-pack-type how-to should distinguish Qwen UI mockup");
-}
-if (!/reused Volt poster|no paid|pending/i.test(maiHowTo)) {
-  fail("mai-pack-type how-to should say the cover is reused Volt poster art and MAI QC is pending");
 }
 if (!maiHowTo.includes("mai-pack-type/preview.webp")) {
   fail("mai-pack-type how-to should show the cover still");
@@ -2598,27 +2126,6 @@ if (!existsSync(join(ROOT, "examples", "gallery", "mirelo-video-foley", "preview
 if (!/mirelo-ai\/sfx1\.6\/video-to-video/.test(JSON.stringify(foleySample.models))) {
   fail("mirelo-video-foley sample should pin mirelo-ai/sfx1.6/video-to-video");
 }
-if (!/vupload placeholder|no fake foley thumb/i.test(foleySample.note) || !/no paid|pending/i.test(foleySample.note)) {
-  fail("mirelo-video-foley sample note should say vupload placeholder / no fake foley thumb and Mirelo QC is pending");
-}
-if (!/video→foley|synced SFX|silent clip/i.test(foleySample.note)) {
-  fail("mirelo-video-foley sample note should say the job is video→foley on a silent clip");
-}
-if (!/Night-ride SFX|ElevenLabs/i.test(foleySample.note)) {
-  fail("mirelo-video-foley sample note should distinguish Night-ride SFX / ElevenLabs");
-}
-if (!/Night-ride radio VO|xai-tts/i.test(foleySample.note)) {
-  fail("mirelo-video-foley sample note should distinguish Night-ride radio VO / xai-tts");
-}
-if (!/Wan 3\.0|still\+audio/i.test(foleySample.note)) {
-  fail("mirelo-video-foley sample note should distinguish Wan 3.0 still+audio");
-}
-if (!/P-Video rewrite/i.test(foleySample.note)) {
-  fail("mirelo-video-foley sample note should distinguish P-Video rewrite");
-}
-if (!/~\$0\.04|\$0\.01\/s/i.test(foleySample.note)) {
-  fail("mirelo-video-foley sample note should name ~$0.04 / $0.01/s");
-}
 if (!hub.includes("mirelo-video-foley/preview.webp")) {
   fail("hub should thumb the mirelo-video-foley cover");
 }
@@ -2643,9 +2150,6 @@ if (!/Wan 3\.0|still\+audio/i.test(foleyHowTo)) {
 }
 if (!/P-Video rewrite/i.test(foleyHowTo)) {
   fail("mirelo-video-foley how-to should distinguish P-Video rewrite");
-}
-if (!/reused Volt alley card art|vupload placeholder|no paid|no fake foley thumb/i.test(foleyHowTo)) {
-  fail("mirelo-video-foley how-to should say the cover is a vupload placeholder and Mirelo QC is pending");
 }
 if (!foleyHowTo.includes("mirelo-video-foley/preview.webp")) {
   fail("mirelo-video-foley how-to should show the cover still");
@@ -2696,30 +2200,6 @@ if (!existsSync(join(ROOT, "examples", "gallery", "pixelcut-video-cutout", "prev
 if (!/pixelcut\/video-background-removal/.test(JSON.stringify(cutoutClipSample.models))) {
   fail("pixelcut-video-cutout sample should pin pixelcut/video-background-removal");
 }
-if (!/vupload placeholder|reused Volt card art/i.test(cutoutClipSample.note) || !/no paid|pending/i.test(cutoutClipSample.note)) {
-  fail("pixelcut-video-cutout sample note should say vupload placeholder / reused Volt card art and Pixelcut QC is pending");
-}
-if (!/video cutout|background=black|black bg/i.test(cutoutClipSample.note)) {
-  fail("pixelcut-video-cutout sample note should say the job is video cutout at background=black");
-}
-if (!/product-cutout|BiRefNet/i.test(cutoutClipSample.note)) {
-  fail("pixelcut-video-cutout sample note should distinguish product-cutout / BiRefNet");
-}
-if (!/sam3-isolate|SAM/i.test(cutoutClipSample.note)) {
-  fail("pixelcut-video-cutout sample note should distinguish sam3-isolate");
-}
-if (!/Crystal/i.test(cutoutClipSample.note)) {
-  fail("pixelcut-video-cutout sample note should distinguish Crystal video upscale");
-}
-if (!/P-Video|rewrite/i.test(cutoutClipSample.note)) {
-  fail("pixelcut-video-cutout sample note should distinguish P-Video rewrite");
-}
-if (!/i2v|orbit|turntable/i.test(cutoutClipSample.note)) {
-  fail("pixelcut-video-cutout sample note should distinguish i2v / orbit / turntable");
-}
-if (!/not transparent|background=black/i.test(cutoutClipSample.note)) {
-  fail("pixelcut-video-cutout sample note should say first-click pins solid black, not transparent");
-}
 if (!hub.includes("pixelcut-video-cutout/preview.webp")) {
   fail("hub should thumb the pixelcut-video-cutout cover");
 }
@@ -2747,9 +2227,6 @@ if (!/P-Video|rewrite/i.test(cutoutClipHowTo)) {
 }
 if (!/i2v/i.test(cutoutClipHowTo)) {
   fail("pixelcut-video-cutout how-to should distinguish i2v");
-}
-if (!/reused Volt card art|no paid|pending|vupload placeholder/i.test(cutoutClipHowTo)) {
-  fail("pixelcut-video-cutout how-to should say the cover is a vupload placeholder and Pixelcut QC is pending");
 }
 if (!/background=black|solid black, not transparent/i.test(cutoutClipHowTo)) {
   fail("pixelcut-video-cutout how-to should say first-click pins solid black, not transparent");
@@ -2812,24 +2289,6 @@ if (!driveSample.models?.includes("wan-22-animate-2")) {
 if (driveSample.models?.includes("pruna-ai/p-video/animate") || driveSample.models?.includes("wan-22-animate")) {
   fail("wan-motion-drive must not pin pruna-ai/p-video/animate or wan-22-animate");
 }
-if (!/reused|product-cutout|fibo|volt/i.test(driveSample.note) || !/placeholder|no fake|not a driven|pending|no paid/i.test(driveSample.note)) {
-  fail("wan-motion-drive sample note should stay honest: reused Volt still + upload placeholders, no fake driven thumb");
-}
-if (!/still/i.test(driveSample.note) || !/driver/i.test(driveSample.note) || !/480p/i.test(driveSample.note) || !/0\.04/i.test(driveSample.note)) {
-  fail("wan-motion-drive sample note should say the job is still + driver motion-transfer @ 480p ($0.04/s)");
-}
-if (!/prompt-i2v|photo-to-video|grok-imagine-still|wan-still-audio/i.test(driveSample.note)) {
-  fail("wan-motion-drive sample note should distinguish prompt-i2v / photo-to-video");
-}
-if (!/InfiniteTalk|talking-avatar/i.test(driveSample.note)) {
-  fail("wan-motion-drive sample note should distinguish InfiniteTalk / talking-avatar");
-}
-if (!/H3 Max|orbit/i.test(driveSample.note)) {
-  fail("wan-motion-drive sample note should distinguish H3 Max camera orbit");
-}
-if (!/P-Video|rewrite/i.test(driveSample.note)) {
-  fail("wan-motion-drive sample note should distinguish P-Video rewrite");
-}
 if (!hub.includes("wan-motion-drive/preview.webp")) {
   fail("hub should thumb the wan-motion-drive cover");
 }
@@ -2857,9 +2316,6 @@ if (!/H3 Max|orbit/i.test(driveHowTo)) {
 }
 if (!/P-Video|rewrite/i.test(driveHowTo)) {
   fail("wan-motion-drive how-to should distinguish P-Video rewrite");
-}
-if (!/reused|product-cutout|fibo|volt|placeholder|no paid|not a driven|not fabricated/i.test(driveHowTo)) {
-  fail("wan-motion-drive how-to should stay honest about reused cover / no paid QC");
 }
 if (/pruna-ai\/p-video\/animate/.test(driveHowTo)) {
   fail("wan-motion-drive how-to must not pin pruna-ai/p-video/animate");
@@ -2909,27 +2365,6 @@ if (!existsSync(join(ROOT, "examples", "gallery", "whisper-pull-words", "preview
 if (!/Whisper-Large-V3/.test(JSON.stringify(whisperSample.models))) {
   fail("whisper-pull-words sample should pin Whisper-Large-V3");
 }
-if (!/aupload placeholder|no fake transcript thumb/i.test(whisperSample.note) || !/no paid|pending/i.test(whisperSample.note)) {
-  fail("whisper-pull-words sample note should say aupload placeholder / no fake transcript thumb and Whisper QC is pending");
-}
-if (!/speech→text|speech-to-text|prints the transcript/i.test(whisperSample.note)) {
-  fail("whisper-pull-words sample note should say the job is speech→text");
-}
-if (!/Night-ride radio VO|xai-tts/i.test(whisperSample.note)) {
-  fail("whisper-pull-words sample note should distinguish Night-ride radio VO / xai-tts");
-}
-if (!/InfiniteTalk|talking-avatar/i.test(whisperSample.note)) {
-  fail("whisper-pull-words sample note should distinguish InfiniteTalk / talking-avatar");
-}
-if (!/Night-ride SFX|Mirelo|foley/i.test(whisperSample.note)) {
-  fail("whisper-pull-words sample note should distinguish Night-ride SFX / Mirelo foley");
-}
-if (!/Sing|Closing-credits|Mureka/i.test(whisperSample.note)) {
-  fail("whisper-pull-words sample note should distinguish Sing");
-}
-if (!/~\$0\.000495|≪\$0\.01/i.test(whisperSample.note)) {
-  fail("whisper-pull-words sample note should name ~$0.000495/min ≪$0.01");
-}
 if (!hub.includes("whisper-pull-words/preview.webp")) {
   fail("hub should thumb the whisper-pull-words cover");
 }
@@ -2954,9 +2389,6 @@ if (!/SFX|foley/i.test(whisperHowTo)) {
 }
 if (!/Sing/i.test(whisperHowTo)) {
   fail("whisper-pull-words how-to should distinguish Sing");
-}
-if (!/aupload placeholder|no paid|no fake transcript thumb/i.test(whisperHowTo)) {
-  fail("whisper-pull-words how-to should say the cover is an aupload placeholder and Whisper QC is pending");
 }
 if (!whisperHowTo.includes("whisper-pull-words/preview.webp")) {
   fail("whisper-pull-words how-to should show the cover still");
@@ -3001,30 +2433,6 @@ if (!/wan-25-extend/.test(JSON.stringify(stretchSample.models))) {
 if (/wan-25-extend-fast|wan-22-spicy-extend/.test(JSON.stringify(stretchSample.models))) {
   fail("wan-stretch-take must not pin wan-25-extend-fast or spicy extend");
 }
-if (!/vupload placeholder|no paid|pending/.test(stretchSample.note) || !/wan-25-extend/.test(stretchSample.note)) {
-  fail("wan-stretch-take sample note should stay honest: vupload placeholder, no paid Wan Extend QC");
-}
-if (!/temporal extend|480p|target 3s|\$0\.15/.test(stretchSample.note)) {
-  fail("wan-stretch-take sample note should say the job is temporal extend @ 480p / target 3s (~$0.15)");
-}
-if (!/Crystal/.test(stretchSample.note)) {
-  fail("wan-stretch-take sample note should distinguish Crystal upscale");
-}
-if (!/P-Video/.test(stretchSample.note)) {
-  fail("wan-stretch-take sample note should distinguish P-Video rewrite");
-}
-if (!/Mirelo/.test(stretchSample.note)) {
-  fail("wan-stretch-take sample note should distinguish Mirelo foley");
-}
-if (!/Wan Animate 2|wan-motion-drive/.test(stretchSample.note)) {
-  fail("wan-stretch-take sample note should distinguish Wan Animate 2");
-}
-if (!/Pixelcut/.test(stretchSample.note)) {
-  fail("wan-stretch-take sample note should distinguish Pixelcut");
-}
-if (!/still→i2v|still-audio|grok-imagine|photo-to-video/.test(stretchSample.note)) {
-  fail("wan-stretch-take sample note should distinguish still→i2v");
-}
 if (!hub.includes("wan-stretch-take/preview.webp")) {
   fail("hub should thumb the wan-stretch-take cover");
 }
@@ -3058,9 +2466,6 @@ if (!/Pixelcut/.test(stretchHowTo)) {
 }
 if (!/still→i2v|still-audio|photo-to-video|grok-imagine/.test(stretchHowTo)) {
   fail("wan-stretch-take how-to should distinguish still→i2v");
-}
-if (!/pending|no paid|vupload placeholder/.test(stretchHowTo)) {
-  fail("wan-stretch-take how-to should stay honest about reused cover / no paid QC");
 }
 if (/wan-25-extend-fast|wan-22-spicy-extend/.test(stretchHowTo)) {
   fail("wan-stretch-take how-to must not pin wan-25-extend-fast or spicy extend");
@@ -3116,39 +2521,6 @@ if (!existsSync(join(ROOT, "examples", "gallery", "widen-the-frame", "banana-bad
 if (!widenSample.models.includes("nano-banana-edit")) {
   fail("widen-the-frame sample should pin nano-banana-edit");
 }
-if (!/job-describing card art|no paid|pending/.test(widenSample.note) || !/nano-banana-edit/.test(widenSample.note)) {
-  fail("widen-the-frame sample note should stay honest: job-describing card art, no paid nano-banana-edit QC");
-}
-if (!/outpaint|canvas expand/.test(widenSample.note)) {
-  fail("widen-the-frame sample note should say the job is canvas expand / outpaint");
-}
-if (!/edit-a-photo|Muse/.test(widenSample.note)) {
-  fail("widen-the-frame sample note should distinguish edit-a-photo / Muse");
-}
-if (!/h3-identity-restyle/.test(widenSample.note)) {
-  fail("widen-the-frame sample note should distinguish h3-identity-restyle");
-}
-if (!/Ideogram|remove text/.test(widenSample.note)) {
-  fail("widen-the-frame sample note should distinguish Ideogram remove text");
-}
-if (!/BiRefNet|cutout/.test(widenSample.note)) {
-  fail("widen-the-frame sample note should distinguish BiRefNet cutout");
-}
-if (!/SAM/.test(widenSample.note)) {
-  fail("widen-the-frame sample note should distinguish SAM isolate");
-}
-if (!/P-Image Upscale/.test(widenSample.note)) {
-  fail("widen-the-frame sample note should distinguish P-Image Upscale");
-}
-if (!/Crystal|SeedVR2/.test(widenSample.note)) {
-  fail("widen-the-frame sample note should distinguish Crystal / SeedVR2");
-}
-if (!/VTO|virtual-try-on|FLUX/.test(widenSample.note)) {
-  fail("widen-the-frame sample note should distinguish FLUX VTO");
-}
-if (!/combine-images/.test(widenSample.note)) {
-  fail("widen-the-frame sample note should distinguish combine-images");
-}
 if (!hub.includes("widen-the-frame/preview.webp")) {
   fail("hub should thumb the widen-the-frame cover");
 }
@@ -3191,9 +2563,6 @@ if (!/FLUX VTO/.test(widenHowTo)) {
 }
 if (!/combine-images/.test(widenHowTo)) {
   fail("widen-the-frame how-to should distinguish combine-images");
-}
-if (!/pending|no paid|job-describing card art/.test(widenHowTo)) {
-  fail("widen-the-frame how-to should stay honest about job-describing card art / no paid QC");
 }
 if (!/size stays auto|size <code>auto<\/code>/.test(widenHowTo)) {
   fail("widen-the-frame how-to should say size stays auto");
