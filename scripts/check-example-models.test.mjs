@@ -100,7 +100,7 @@ test('homepage pins use the same strict model, type and capability checks as gal
   assert.throws(() => starterModels({ nodes: [{ type: 'unknown' }] }, kinds), /unknown node type/);
 });
 
-test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefNet, InfiniteTalk, SAM 3, P-Image Upscale, deslop venice-uncensored, H3 Max Multi Angle, character-sprites, transparent-brand-sticker, remove-packaging-text, h3-identity-restyle, ideogram-v4-instant-poster, volt-vector-mark, mai-pack-type, Crystal video upscale, Night-ride SFX, Night-ride radio VO, SenseNova dispatch, Grok Imagine 1.5 still, Wan 3.0 still+audio, Wan Animate 2 motion-drive, P-Video rewrite, Mirelo video foley and Pixelcut video cutout pin regressions', async () => {
+test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefNet, InfiniteTalk, SAM 3, P-Image Upscale, deslop venice-uncensored, H3 Max Multi Angle, character-sprites, transparent-brand-sticker, remove-packaging-text, h3-identity-restyle, virtual-try-on, ideogram-v4-instant-poster, volt-vector-mark, mai-pack-type, Crystal video upscale, Night-ride SFX, Night-ride radio VO, SenseNova dispatch, Grok Imagine 1.5 still, Wan 3.0 still+audio, Wan Animate 2 motion-drive, P-Video rewrite, Mirelo video foley and Pixelcut video cutout pin regressions', async () => {
   const { galleryRegressions } = await import('./check-example-models.mjs');
   const pins = [
     { slug: 'fibo-studio-still', ...pin('image', { model: 'bria/fibo-generate-1.5/text-to-image', size: '1mp' }) },
@@ -132,9 +132,10 @@ test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefN
     { slug: 'mirelo-video-foley', ...pin('vedit', { model: 'mirelo-ai/sfx1.6/video-to-video' }) },
     { slug: 'pixelcut-video-cutout', ...pin('vedit', { model: 'pixelcut/video-background-removal', modelOpts: { background: 'black' } }) },
     { slug: 'wan-motion-drive', ...pin('vedit', { model: 'wan-22-animate-2', resolution: '480p' }) },
+    { slug: 'virtual-try-on', ...pin('edit', { model: 'flux-pro/v1/vto', size: 'auto' }) },
   ];
   assert.equal(galleryRegressions(pins).length, 0);
-  assert.equal(galleryRegressions([]).length, 29);
+  assert.equal(galleryRegressions([]).length, 30);
   pins[0].fields.size = 'auto';
   assert.match(galleryRegressions(pins)[0].reason, /expected size 1mp/);
   pins[0].fields.size = '1mp';
@@ -167,6 +168,7 @@ test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefN
   pins[26].id = 'pruna-ai/p-video/edit';
   pins[27].id = 'mirelo-ai/sfx1.6/video-to-video';
   pins[28].id = 'pruna-ai/p-video/animate';
-  assert.equal(galleryRegressions(pins).length, 29);
+  pins[29].id = 'minimax-h3/image-edit';
+  assert.equal(galleryRegressions(pins).length, 30);
   assert.ok(galleryRegressions(pins).every(p => /expected model/.test(p.reason)));
 });

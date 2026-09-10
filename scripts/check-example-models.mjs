@@ -82,6 +82,7 @@ export function galleryRegressions(pins) {
     { slug: 'transparent-brand-sticker', type: 'image', model: 'ideogram-v3-generate-transparent', size: '1:1' },
     { slug: 'remove-packaging-text', type: 'edit', model: 'ideogram-v3-remove-text', size: 'auto' },
     { slug: 'h3-identity-restyle', type: 'edit', model: 'minimax-h3/image-edit', size: '1k' },
+    { slug: 'virtual-try-on', type: 'edit', model: 'flux-pro/v1/vto', size: 'auto' },
     { slug: 'ideogram-v4-instant-poster', type: 'image', model: 'ideogram/v4/instant', size: '1024x1024' },
     { slug: 'volt-vector-mark', type: 'image', model: 'recraft-ai/recraft-v4.1/text-to-vector', size: '1024x1024' },
     { slug: 'mai-pack-type', type: 'image', model: 'microsoft/mai-image-2.6-flash', size: '1152x864' },

@@ -124,6 +124,15 @@ const HOWTO = {
     inspect: "Cover is reused night-courier card art, pending H3 Image Edit QC — no paid minimax-h3/image-edit run this PR. Open the graph, upload a still, inspect identity.",
     costHow: "Listed at $0.03 for one MiniMax H3 Image Edit call at 1k. No LLM. Prices vary. No reviewed first-party restyle yet.",
   },
+  "virtual-try-on": {
+    headline: "Wear the night kit.",
+    job: "Person + garment. FLUX tries the drop on.",
+    hideNote: true,
+    purpose: "Upload a person still and a garment still. FLUX Virtual Try-On applies the garment. First-click is a Volt night courier + night-ride jacket/tee with ONE cyan lightning-chevron. Distinct from Product in a setting, Clean product photo, and Night-ride identity restyle.",
+    edit: "Drop person on <em>Person still</em>, garment on <em>Garment still</em>. Leave <em>Style brief</em> on the Volt night-ride line. Leave <em>Try-on</em> on <code>flux-pro/v1/vto</code> at size <code>auto</code>.",
+    inspect: "Cover is a local placeholder — no paid flux-pro/v1/vto QC this PR. Open the graph, upload both plates, inspect the try-on.",
+    costHow: "Listed at $0.0575 for one FLUX Virtual Try-On call at auto. No LLM. Prices vary. No reviewed first-party try-on yet.",
+  },
   "character-sprites": {
     headline: "A furnace knight you can rig",
     job: "Furnace-knight reference + four-quadrant parts sheet.",
@@ -377,7 +386,7 @@ const GROUPS = [
   { id: "image", title: "Image", slugs: [
     "edit-a-photo", "product-cutout", "sam3-isolate", "p-image-upscale", "remove-packaging-text", "combine-images", "render-a-mockup", "volt-dispatch-infographic", "favicon",
     "transparent-brand-sticker", "ideogram-v4-instant-poster", "volt-vector-mark", "mai-pack-type",
-    "night-market-postcard", "fibo-studio-still", "cinematic-character-still", "h3-identity-restyle", "character-sprites",
+    "night-market-postcard", "fibo-studio-still", "cinematic-character-still", "h3-identity-restyle", "virtual-try-on", "character-sprites",
     "image-model-arena",
   ] },
   { id: "video", title: "Video", slugs: ["photo-to-video", "grok-imagine-still", "wan-motion-drive", "wan-still-audio", "h3-max-multi-angle", "crystal-video-upscale", "p-video-rewrite", "mirelo-video-foley", "pixelcut-video-cutout", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },

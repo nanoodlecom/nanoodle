@@ -333,6 +333,62 @@
     "workflowSha256": "69df7da1aa159d3b790cb2e0ba1e2e4e1fe6d27332cd8765711178264f4a3d30"
   },
   {
+    "slug": "virtual-try-on",
+    "title": "Wear the night kit",
+    "date": "2026-09-10",
+    "review": "Cover still",
+    "tag": "flux vto",
+    "note": "Cover is a local placeholder (person still + garment plate) — no paid flux-pro/v1/vto QC this PR. Job is dedicated virtual garment try-on. Distinct from combine-images / Muse Edit, edit-a-photo, h3-identity-restyle, product-cutout / SAM, transparent sticker, Ideogram Instant, Recraft, MAI, and SenseNova. Open the graph — upload Person still + Garment still; Try-on pins flux-pro/v1/vto at auto (~$0.0575). No LLM.",
+    "costUsd": 0.0575,
+    "costExact": false,
+    "models": [
+      "flux-pro/v1/vto"
+    ],
+    "graphSha256": "a813afc2a5c388d775145c6b179b9f121b989e4098a3524ae4db375f4e6a1d1c",
+    "proof": {
+      "heading": "The plates",
+      "kicker": "person + garment.",
+      "lead": "FLUX tries the drop on",
+      "badge": "virtual-try-on/vto-badge.png",
+      "badgeAlt": "FLUX VTO — Wear the night kit. QC pending. No paid run.",
+      "note": "no paid QC. upload the plates.",
+      "images": [
+        {
+          "src": "virtual-try-on/person-input.webp",
+          "label": "Person still · placeholder"
+        },
+        {
+          "src": "virtual-try-on/garment-input.webp",
+          "label": "Garment still · placeholder"
+        }
+      ]
+    },
+    "inputs": [
+      {
+        "label": "Person still (reused cinematic courier card art)",
+        "src": "virtual-try-on/person-input.webp"
+      },
+      {
+        "label": "Garment still (local charcoal + cyan chevron plate)",
+        "src": "virtual-try-on/garment-input.webp"
+      },
+      {
+        "label": "Style brief",
+        "text": "Apply the garment from image 2 onto the person in image 1. Preserve face and body identity and pose. Preserve garment materials and the single electric-cyan lightning-bolt chevron. Cool night-ride lighting (magenta rim + cyan bounce OK). Add no extra logos, text walls, props, or second people."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "virtual-try-on/NOTE.txt",
+        "kind": "text",
+        "label": "Note"
+      }
+    ],
+    "preview": "virtual-try-on/preview.webp",
+    "workflow": "virtual-try-on/workflow.json",
+    "workflowSha256": "a813afc2a5c388d775145c6b179b9f121b989e4098a3524ae4db375f4e6a1d1c"
+  },
+  {
     "slug": "character-sprites",
     "title": "Character sprites",
     "date": "2026-09-09",
