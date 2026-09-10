@@ -68,7 +68,7 @@ const HOWTO = {
     job: "Volt sticker. Transparent. No letters.",
     purpose: "A brand sentence becomes a flat die-cut sticker overlay with a clean alpha channel. First-click is Volt — matte-charcoal rounded field, ONE electric-cyan lightning-bolt chevron, generous transparent margins. No letters. Distinct from Favicon concept (GLM Flash + Muse opaque square glyph) and Product cutout / BiRefNet V2 (upload → knock out background). No LLM. No upload.",
     edit: "Rewrite <em>Brand brief</em>. Leave <em>Sticker</em> on <code>ideogram-v3-generate-transparent</code> at size <code>1:1</code> unless you mean to change models. The image node does not forward <code>rendering_speed</code>.",
-    inspect: "Cover still is reused Volt bolt card art from the favicon glyph, pending a true Ideogram V3 Generate Transparent QC still — no paid ideogram-v3-generate-transparent or NanoGPT run this PR, not a fabricated transparent sticker. Open the graph and hit Run with your key. Inspect native alpha and the single cyan chevron. Print-sheet conversion stays separate.",
+    inspect: "Cover still is job-describing card art; not paid QC output. no paid ideogram-v3-generate-transparent QC. Open the graph and hit Run with your key. Inspect native alpha and the single cyan chevron. Print-sheet conversion stays separate.",
     costHow: "Listed at about $0.06 for one Ideogram V3 Generate Transparent call at 1:1 balanced. Catalog also lists rendering_speed flash ~$0.03, but the image node does not forward modelOpts. No LLM. Prices and results vary. This page has no reviewed first-party sticker yet.",
   },
   "ideogram-v4-instant-poster": {
@@ -85,7 +85,7 @@ const HOWTO = {
     hideNote: true,
     purpose: "A mark brief becomes an editable SVG logo. Recraft V4.1 text-to-vector. First-click is Volt — electric-cyan lightning-chevron on matte-charcoal. Distinct from Favicon (Muse raster glyph), Transparent brand sticker (PNG alpha), and Ideogram V4 Instant poster (letters).",
     edit: "Rewrite <em>Mark brief</em>. Leave <em>SVG mark</em> on <code>recraft-ai/recraft-v4.1/text-to-vector</code> at size <code>1024x1024</code>.",
-    inspect: "Cover is reused Volt bolt card art, pending Recraft V4.1 QC — no paid recraft-ai/recraft-v4.1/text-to-vector run this PR. Open the graph, inspect the SVG paths.",
+    inspect: "Cover still is job-describing card art; not paid QC output. no paid recraft-ai/recraft-v4.1/text-to-vector QC. Open the graph, inspect the SVG paths.",
     costHow: "Listed at $0.08 for one Recraft V4.1 Vector call at 1024x1024. No LLM. Prices vary. No reviewed first-party SVG yet.",
   },
   "mai-pack-type": {
@@ -94,7 +94,7 @@ const HOWTO = {
     hideNote: true,
     purpose: "Text brief → MAI-Image-2.6 Flash pack lettering. First-click is a Volt sleeve — charcoal, ONE cyan chevron, VOLT / MIDNIGHT DROP / NIGHT CHANNEL. Not an Ideogram poster, not a SenseNova dispatch card, not a Qwen UI mockup.",
     edit: "Rewrite <em>Pack brief</em>. Leave <em>Pack sleeve</em> on <code>microsoft/mai-image-2.6-flash</code> at size <code>1152x864</code>.",
-    inspect: "Cover is reused Volt poster art, pending MAI QC — no paid microsoft/mai-image-2.6-flash run this PR. Open the graph, inspect the letters.",
+    inspect: "Cover still is job-describing card art; not paid QC output. no paid microsoft/mai-image-2.6-flash QC. Open the graph, inspect the letters.",
     costHow: "Listed at about $0.033 for one MAI-Image-2.6 Flash call at 1152x864. No LLM. Prices vary. No reviewed first-party sleeve yet.",
   },
   "fibo-studio-still": {
@@ -130,7 +130,7 @@ const HOWTO = {
     hideNote: true,
     purpose: "Upload a person still and a garment still. FLUX Virtual Try-On applies the garment. First-click is a Volt night courier + night-ride jacket/tee with ONE cyan lightning-chevron. Distinct from Product in a setting, Clean product photo, and Night-ride identity restyle.",
     edit: "Drop person on <em>Person still</em>, garment on <em>Garment still</em>. Leave <em>Style brief</em> on the Volt night-ride line. Leave <em>Try-on</em> on <code>flux-pro/v1/vto</code> at size <code>auto</code>.",
-    inspect: "Cover is a local placeholder — no paid flux-pro/v1/vto QC this PR. Open the graph, upload both plates, inspect the try-on.",
+    inspect: "Cover still is job-describing card art; not paid QC output. no paid flux-pro/v1/vto QC. Open the graph, upload both plates, inspect the try-on.",
     costHow: "Listed at $0.0575 for one FLUX Virtual Try-On call at auto. No LLM. Prices vary. No reviewed first-party try-on yet.",
   },
   "character-sprites": {
@@ -188,7 +188,7 @@ const HOWTO = {
     hideNote: true,
     purpose: "Upload a tight product still. Nano Banana Edit outpaints a wider 16:9 hero. First-click is a cropped Volt pocket night-ride radio — charcoal, ONE cyan lightning chevron, hard cyan rim. Distinct from Muse Edit, H3 identity restyle, Ideogram remove text, BiRefNet cutout, SAM isolate, P-Image Upscale, Crystal / SeedVR2, FLUX VTO, and combine-images.",
     edit: "Drop your still on <em>Product still</em>. Leave <em>Outpaint brief</em> on the 16:9 night-alley line. Leave <em>Widened still</em> on <code>nano-banana-edit</code> at size <code>auto</code>. <em>Export preview</em> is a local 1024 fit.",
-    inspect: "Cover is reused Volt radio card art — no paid nano-banana-edit QC this PR. Open the graph, upload a tight crop, inspect the wider hero. Size stays auto; 16:9 lives in the Outpaint brief.",
+    inspect: "Cover still is job-describing card art; not paid QC output. no paid nano-banana-edit QC. Open the graph, upload a tight crop, inspect the wider hero. Size stays auto; 16:9 lives in the Outpaint brief.",
     costHow: "Listed at $0.039 for one Nano Banana Edit call at auto. No LLM. Prices vary. No reviewed first-party outpaint yet.",
   },
   "combine-images": {
@@ -254,7 +254,7 @@ const HOWTO = {
     hideNote: true,
     purpose: "Text brief → ElevenLabs Sound Effects V2. First-click is a Volt night-ride radio sting — wet neon alley pulse, radio static bloom, one electric-cyan thunder hit, tight decay. Not Closing-credits song. Not TTS. Not a video Keep. No upload. No LLM.",
     edit: "Rewrite <em>SFX brief</em>. Leave <em>Sting</em> on <code>elevenlabs/sound-effects/v2</code> at duration <code>4</code>.",
-    inspect: "Cover is reused Volt alley card art, pending ElevenLabs SFX QC — no paid run this PR. Open the graph, hit Run, listen for static bloom then one thunder hit. No music bed, vocals, or dialogue.",
+    inspect: "Cover still is job-describing card art; not paid QC output. no paid ElevenLabs SFX QC. Open the graph, hit Run, listen for static bloom then one thunder hit. No music bed, vocals, or dialogue.",
     costHow: "Listed at about $0.008 for one ElevenLabs Sound Effects V2 call at duration 4 ($0.002/s). No LLM. Prices vary. No reviewed first-party sting yet.",
   },
   "night-ride-radio-vo": {
@@ -272,7 +272,7 @@ const HOWTO = {
     hideNote: true,
     purpose: "Upload VO → Whisper Large V3. Speech→text. Not Night-ride radio VO (xai-tts). Not InfiniteTalk. Not SFX/foley. Not Sing.",
     edit: "Drop your take on <em>Night-ride VO</em>. Leave <em>Transcript</em> on <code>Whisper-Large-V3</code>.",
-    inspect: "Cover is reused Volt courier card art — aupload placeholder only. No paid Whisper-Large-V3 QC this PR. No fake transcript thumb. Open the graph, upload a VO, read the transcript.",
+    inspect: "Cover still is job-describing card art; not paid QC output. aupload placeholder only. no paid Whisper-Large-V3 QC. No fake transcript thumb. Open the graph, upload a VO, read the transcript.",
     costHow: "Listed at about $0.000495/min (≪$0.01 for a short VO). No LLM. Prices vary. No reviewed first-party transcript yet.",
   },
   "stable-alley-score": {
@@ -281,7 +281,7 @@ const HOWTO = {
     hideNote: true,
     purpose: "Text brief → Stable Audio 3 Small Music. Instrumental neon-alley score for a charcoal Volt pocket radio. Not Closing-credits song. Not Night-ride SFX. Not TTS. Not video foley. No upload. No LLM.",
     edit: "Rewrite <em>Score brief</em>. Leave <em>Score</em> on <code>stable-audio-3/small/music/text-to-audio</code> with <code>instrumental</code> on.",
-    inspect: "Cover is reused Volt alley card art, pending Stable Audio QC — no paid run this PR. No fake waveform thumb. Open the graph, hit Run, listen for trip-hop pulse and rain ticks. Instrumental only.",
+    inspect: "Cover still is job-describing card art; not paid QC output. no paid Stable Audio QC. No fake waveform thumb. Open the graph, hit Run, listen for trip-hop pulse and rain ticks. Instrumental only.",
     costHow: "Listed at about $0.024 for one Stable Audio 3 Small Music call. No LLM. Prices vary. No reviewed first-party bed yet.",
   },
   "mirelo-stretch-bed": {
@@ -290,7 +290,7 @@ const HOWTO = {
     hideNote: true,
     purpose: "Upload a short alley bed. Mirelo SFX1.6 Extend Audio continues the ambience. Audio extend, not video extend. Not Night-ride SFX. Not Mirelo video foley. Not Stable Audio / sing.",
     edit: "Drop your bed on <em>Short alley bed</em>. Leave <em>Stretched bed</em> on <code>mirelo-ai/sfx1.6/extend-audio</code> at duration <code>3</code>.",
-    inspect: "Cover is reused Volt alley card art, pending Mirelo QC — no paid run this PR. aupload placeholder only. No fake waveform thumb. Open the graph, upload a short bed, listen for a seamless tail.",
+    inspect: "Cover still is job-describing card art; not paid QC output. no paid Mirelo QC. aupload placeholder only. No fake waveform thumb. Open the graph, upload a short bed, listen for a seamless tail.",
     costHow: "Listed at about $0.03 for 3s ($0.01/s). No LLM. Prices vary. No reviewed first-party extend yet.",
   },
   "talking-avatar": {
@@ -314,7 +314,7 @@ const HOWTO = {
     job: "One still. Grok rides it into motion",
     purpose: "Muse draws the matte-charcoal rooftop-ledge Volt radio. Grok Imagine Video 1.5 rides it into a four-second clip — locked camera, subtle rain, one cyan chevron pulse. Not photo-to-video / MiniMax H3 Spicy (asphalt rain, 5s).",
     edit: "Change <em>Still brief</em> and <em>Motion brief</em> together. Leave <em>First frame</em> on Muse and <em>Animated clip</em> on <code>xai/grok-imagine-video/v1.5/image-to-video</code> at 480p / 4s.",
-    inspect: "Cover is reused Volt charcoal card art, pending Grok Imagine 1.5 QC — no paid run this PR. Inspect the cyan pulse. A seamless loop is not promised.",
+    inspect: "Cover still is job-describing card art; not paid QC output. no paid Grok Imagine 1.5 QC. Inspect the cyan pulse. A seamless loop is not promised.",
     costHow: "Listed at about $0.84 (Muse $0.01 + Grok Imagine Video 1.5 ~$0.83 at 480p / 4s). Prices vary. This page has no reviewed first-party clip yet.",
   },
   "wan-motion-drive": {
@@ -323,7 +323,7 @@ const HOWTO = {
     hideNote: true,
     purpose: "Upload a still and a short driver clip. Wan Animate 2 transfers the move @480p. Not prompt-i2v (photo-to-video / grok-imagine-still / wan-still-audio). Not InfiniteTalk / talking-avatar. Not H3 Max orbit. Not P-Video rewrite.",
     edit: "Drop your still on <em>Character/product still</em> and a ~2–3s driver on <em>Driver motion</em>. Leave <em>Motion prompt</em> on the Volt line. Leave <em>Driven clip</em> on <code>wan-22-animate-2</code> at 480p.",
-    inspect: "Cover is reused Volt card art, pending Wan Animate 2 QC — no paid wan-22-animate-2 run this PR, not a fabricated driven clip. Upload placeholders only. Open the graph, upload both, inspect the transfer.",
+    inspect: "Cover still is job-describing card art; not paid QC output. no paid wan-22-animate-2 QC. Upload placeholders only. Open the graph, upload both, inspect the transfer.",
     costHow: "Listed from about $0.08 for a ~2s driver at 480p ($0.04/s; ~$0.08–0.12 for ~2–3s). No LLM. Prices vary. No reviewed first-party clip yet.",
   },
   "wan-still-audio": {
@@ -332,7 +332,7 @@ const HOWTO = {
     hideNote: true,
     purpose: "Muse draws the railing radio. Wan 3.0 adds two seconds of locked-cam breath and generated alley hum. Not Still → short clip. Not photo-to-video.",
     edit: "Change <em>Still brief</em> and <em>Motion brief</em> together. Leave <em>First frame</em> on Muse and <em>Animated clip</em> on <code>alibaba/wan-3.0/image-to-video</code> at 480p / 2s / <code>enable_audio</code>.",
-    inspect: "Cover is reused Volt card art, pending Wan 3.0 QC — no paid run this PR. Inspect rain beads, LED pulse, alley hum. A seamless loop is not promised.",
+    inspect: "Cover still is job-describing card art; not paid QC output. no paid Wan 3.0 QC. Inspect rain beads, LED pulse, alley hum. A seamless loop is not promised.",
     costHow: "Listed at about $0.15 (Muse $0.01 + Wan 3.0 ~$0.14 at 480p / 2s). Prices vary. No reviewed first-party clip yet.",
   },
   "h3-max-multi-angle": {
@@ -340,7 +340,7 @@ const HOWTO = {
     job: "Camera right. Product stays.",
     purpose: "Upload a product still. MiniMax H3 Max Multi Angle orbits the camera around it — a precise camera reveal, not generic i2v motion and not text-to-video. First-click is a matte-charcoal Volt pocket night-ride radio with one electric-cyan lightning-bolt chevron on dark slate / hard cyan rim. Distinct from photo-to-video / MiniMax H3 Spicy (locked-camera rain) and omni-flash-turntable / Omni Flash 1.1 (text-to-video studio-plinth orbit).",
     edit: "Drop your still on <em>Product still</em>. Leave <em>Orbit clip</em> on <code>minimax/h3-max/multi-angle/image-to-video</code> at 480p / 5s / <code>camera_motion=orbit-right</code> unless you mean to change the move (orbit-left, push-in, pull-back, rise).",
-    inspect: "Cover still is reused Volt card art from the product-cutout / FIBO night-ride radio plate, pending a true H3 Max Multi Angle QC clip — no paid minimax/h3-max/multi-angle/image-to-video run this PR, not a fabricated orbit. Open the graph and hit Run with your key after you upload a still. Inspect one continuous orbit; the product should stay put. A seamless loop is not promised.",
+    inspect: "Cover still is job-describing card art; not paid QC output. no paid minimax/h3-max/multi-angle/image-to-video QC. Open the graph and hit Run with your key after you upload a still. Inspect one continuous orbit; the product should stay put. A seamless loop is not promised.",
     costHow: "Listed from about $0.25 for one H3 Max Multi Angle call at 480p / 5s. Duration and resolution determine pricing. Prices and results vary. This page has no reviewed first-party orbit clip yet.",
   },
   "crystal-video-upscale": {
@@ -349,7 +349,7 @@ const HOWTO = {
     hideNote: true,
     purpose: "Upload a short clip. Crystal Video Upscaler enlarges it to 1 target megapixel — resolution upscale only, not a restyle or a camera orbit. First-click is a matte-charcoal Volt pocket night-ride radio clip with one electric-cyan lightning-bolt chevron. Distinct from P-Image Upscale (still) and Night-ride radio orbit / Omni Flash (generate).",
     edit: "Drop your clip on <em>Product clip</em>. Leave <em>Upscaled clip</em> on <code>clarity-ai/crystal-video-upscaler</code> at <code>target_megapixels=1</code> unless you mean to change models.",
-    inspect: "Cover still is reused Volt card art from the photo-to-video night-ride radio plate, pending a true Crystal QC clip — no paid clarity-ai/crystal-video-upscaler run this PR, not a fabricated upscale. Open the graph and hit Run with your key after you upload a clip. Inspect native sharpness against the input.",
+    inspect: "Cover still is job-describing card art; not paid QC output. no paid clarity-ai/crystal-video-upscaler QC. Open the graph and hit Run with your key after you upload a clip. Inspect native sharpness against the input.",
     costHow: "Listed from about $0.50 for one Crystal call at 1 MP / 5s ($0.10/MP/s, min $0.10). Duration and target megapixels determine pricing. No LLM. Prices and results vary. This page has no reviewed first-party upscale yet.",
   },
   "p-video-rewrite": {
@@ -358,7 +358,7 @@ const HOWTO = {
     hideNote: true,
     purpose: "Upload a short take. P-Video Edit prompt-rewrites the clip and can keep source audio — not Crystal upscale and not an i2v motion pin. First-click is the matte-charcoal Volt pocket radio with one cyan lightning chevron: deeper magenta rim, cooler cyan bounce, thicker rain. Distinct from Crystal video upscale and photo-to-video / Grok / H3 orbit / Omni Flash.",
     edit: "Drop your clip on <em>Product clip</em>. Leave <em>Rewritten clip</em> on <code>pruna-ai/p-video/edit</code> with <code>draft=true</code> unless you mean to change models. Rewrite brief stays on the Volt night-ride line.",
-    inspect: "Cover still is reused Volt card art from the photo-to-video night-ride radio plate, pending a true P-Video Edit QC clip — no paid pruna-ai/p-video/edit run this PR, not a fabricated rewrite. Open the graph and hit Run with your key after you upload a clip. Inspect light and rain against the input; source audio should survive.",
+    inspect: "Cover still is job-describing card art; not paid QC output. no paid pruna-ai/p-video/edit QC. Open the graph and hit Run with your key after you upload a clip. Inspect light and rain against the input; source audio should survive.",
     costHow: "Listed from about $0.10 for one P-Video Edit call at draft=true (~$0.025/s, ~4s). Full quality is ~$0.045/s. Duration determines pricing. No LLM. Prices and results vary. This page has no reviewed first-party rewrite yet.",
   },
   "wan-stretch-take": {
@@ -367,7 +367,7 @@ const HOWTO = {
     hideNote: true,
     purpose: "Upload a short alley clip. Wan 2.5 Extend stretches the take. Temporal lengthen. Not Crystal upscale. Not P-Video rewrite. Not Mirelo foley. Not Wan Animate 2. Not Pixelcut. Not still→i2v.",
     edit: "Drop your clip on <em>Product clip</em>. Leave <em>Stretched clip</em> on <code>wan-25-extend</code> at <code>480p</code> / <code>3</code>s. Continue brief stays on the Volt night-ride line.",
-    inspect: "Cover is reused Volt card art, pending Wan Extend QC — no paid wan-25-extend run this PR. vupload placeholder only. Open the graph, upload a clip, inspect the stretch. No hard cuts, no new objects.",
+    inspect: "Cover still is job-describing card art; not paid QC output. no paid wan-25-extend QC. vupload placeholder only. Open the graph, upload a clip, inspect the stretch. No hard cuts, no new objects.",
     costHow: "Listed at about $0.15 for one Wan 2.5 Extend call at 480p / 3s ($0.05/s). Do not swap to the fast or spicy extend variants. No LLM. Prices vary. No reviewed first-party clip yet.",
   },
   "mirelo-video-foley": {
@@ -376,7 +376,7 @@ const HOWTO = {
     hideNote: true,
     purpose: "Upload a silent clip. Mirelo SFX1.6 writes matching SFX onto it. Video→foley, not text→SFX. Not Night-ride radio VO. Not Wan 3.0 still+audio. Not P-Video rewrite.",
     edit: "Drop your clip on <em>Product clip</em>. Leave <em>Foleyed clip</em> on <code>mirelo-ai/sfx1.6/video-to-video</code>.",
-    inspect: "Cover is reused Volt alley card art, pending Mirelo QC — no paid run this PR. vupload placeholder only. No fake foley thumb. Open the graph, upload a silent take, listen for synced SFX.",
+    inspect: "Cover still is job-describing card art; not paid QC output. no paid Mirelo QC. vupload placeholder only. No fake foley thumb. Open the graph, upload a silent take, listen for synced SFX.",
     costHow: "Listed at about $0.04 for ~4s ($0.01/s). No LLM. Prices vary. No reviewed first-party foley yet.",
   },
   "pixelcut-video-cutout": {
@@ -385,7 +385,7 @@ const HOWTO = {
     hideNote: true,
     purpose: "Upload a short take. Pixelcut knocks the alley to solid black. Not BiRefNet still cutout. Not SAM isolate. Not Crystal upscale. Not P-Video rewrite. Not i2v.",
     edit: "Drop your clip on <em>Product clip</em>. Leave <em>Cutout clip</em> on <code>pixelcut/video-background-removal</code> with <code>background=black</code>.",
-    inspect: "Cover is reused Volt card art, pending Pixelcut QC — no paid run this PR. vupload placeholder only. First-click pins solid black, not transparent. Open the graph, upload a clip, inspect the knock-out.",
+    inspect: "Cover still is job-describing card art; not paid QC output. no paid Pixelcut QC. vupload placeholder only. First-click pins solid black, not transparent. Open the graph, upload a clip, inspect the knock-out.",
     costHow: "Listed from about $0.044 for ~2s ($0.022/30 frames). No LLM. Prices vary. No reviewed first-party cutout yet.",
   },
   "volt-dispatch-infographic": {
