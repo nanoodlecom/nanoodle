@@ -10,9 +10,10 @@
 // field (Wan 3.0 Prime is category=models but links to /media?mode=video):
 //   conversation?model=          → chat / LLM
 //   /media?mode=image|video|audio → image / video / audio
-//   no model link + title matches retir/deprecat/remov/sunset → retired
+//   no subject-model link + title matches retir/deprecat/remov/sunset → retired
 //   no model link + title matches price/pricing/cheaper/discount → pricing
 //   community / infra / developers / news with no model link → skip
+//   "try [replacement]" links are substitutes, never the Retired: headline
 //
 // Intent comes from the TITLE before the line is composed:
 //   retired/deprecated/removed  → "Retired: …"

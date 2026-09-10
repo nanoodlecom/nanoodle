@@ -5,7 +5,8 @@
 // if that fails). CI must not need that network, a browser, or NANOGPT_API_KEY.
 // This checker runs the same classify / compose / seen-walk against a captured
 // fixture: image/video/audio cards, Claw-style "now use" updates, retirements
-// with no model link, community skips, and Wan (category=models, /media video).
+// with no model link, retirements whose only links are "try [replacement]",
+// community skips, and Wan (category=models, /media video).
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -87,6 +88,56 @@ console.log("sync-nanogpt-model-updates (fixture)");
   );
 }
 
+// (c2) a retirement whose only model links are "try [replacement]" uses the
+// API title, not the substitutes — NanoGPT #1117 named Gemma/Qwen 3.8 in the
+// body as alternatives while retiring Ornith 1.5 9B / Qwen 3.6 35B Uncensored.
+{
+  const info = classifyCard(byId["1117"]);
+  const line = lineFor(byId["1117"]);
+  const headline = typeof line === "string" ? line.split("—")[0] : "";
+  check("try-link retirement has no subject models", info.models.length === 0, JSON.stringify(info.models));
+  check("try-link retirement is not skipped", info.skip === false, `skip=${info.skip} kind=${info.kind}`);
+  check("try-link retirement kind is retired", info.kind === "retired", `kind=${info.kind}`);
+  check(
+    "try-link retirement headline uses API title",
+    typeof line === "string" && line.startsWith("Retired: Ornith 1.5 9B and Qwen 3.6 35B Uncensored —"),
+    line
+  );
+  check("try-link retirement headline omits replacements", !/Gemma 4 12B|Qwen 3\.8 27B Uncensored/.test(headline), headline);
+  check(
+    "try-link retirement body keeps retired models",
+    typeof line === "string" && /Ornith 1\.5 9B and Qwen 3\.6 35B A3B Uncensored/.test(line),
+    line
+  );
+  check(
+    "try-link retirement does not record replacement slugs",
+    !info.keys.includes("2026-09-10|gemma-4-12b-it") && !info.keys.includes("2026-09-10|qwen/qwen3.8-27b-uncensored"),
+    JSON.stringify(info.keys)
+  );
+}
+
+// (c3) a retirement that links the dropped model still uses that name, and
+// still drops a trailing "try [replacement]" from titles / seen slugs.
+{
+  const info = classifyCard(byId["retire-linked-subject"]);
+  const line = lineFor(byId["retire-linked-subject"]);
+  check(
+    "linked-subject retirement keeps the retired model",
+    info.models.length === 1 && info.models[0].name === "Yi Lightning",
+    JSON.stringify(info.models)
+  );
+  check(
+    "linked-subject retirement → Retired: Yi Lightning",
+    typeof line === "string" && line.startsWith("Retired: Yi Lightning —"),
+    line
+  );
+  check(
+    "linked-subject retirement records the retired slug only",
+    info.keys.includes("2026-09-10|yi-lightning") && !info.keys.includes("2026-09-10|gemma-4-12b-it"),
+    JSON.stringify(info.keys)
+  );
+}
+
 // extras that guard the rest of the walk / compose rules
 {
   const audio = lineFor(byId["977"]);
@@ -163,13 +214,18 @@ console.log("sync-nanogpt-model-updates (fixture)");
       <p data-size="xs">August 25, 2026</p>
     </div>
     <div>
+      <p data-size="lg">Ornith 1.5 9B and Qwen 3.6 35B Uncensored Retired</p>
+      <p data-size="sm">Ornith 1.5 9B and Qwen 3.6 35B A3B Uncensored are no longer available. For Ornith 1.5 9B, try <a href="https://nano-gpt.com/conversation?model=gemma-4-12b-it">Gemma 4 12B</a>.</p>
+      <p data-size="xs">September 10, 2026</p>
+    </div>
+    <div>
       <p data-size="lg">CharacterVault official site migration</p>
       <p data-size="sm">CharacterVault now has an official home at <a href="https://charactervault.app/">charactervault.app</a>.</p>
       <p data-size="xs">August 25, 2026</p>
     </div>
   `;
   const cards = cardsFromHtml(html);
-  check("HTML fallback found 3 cards", cards.length === 3, `got ${cards.length}`);
+  check("HTML fallback found 4 cards", cards.length === 4, `got ${cards.length}`);
   const wan = cards.find(c => c.title === "Wan 3.0 Prime");
   const wanLine = wan ? toChangelogText(
     wan.models.map(m => m.name),
@@ -179,8 +235,17 @@ console.log("sync-nanogpt-model-updates (fixture)");
   ) : null;
   check("HTML Wan link is video", wan && classifyCard(wan).kind === "video", wan && classifyCard(wan).kind);
   check("HTML Wan → New video model", typeof wanLine === "string" && wanLine.startsWith("New video model:"), wanLine);
-  const retired = cards.find(c => /Retired/.test(c.title || ""));
+  const retired = cards.find(c => c.title === "Ling and Ring 2.6 Retired");
   check("HTML retirement with no model link → Retired", retired && !classifyCard(retired).skip && classifyCard(retired).intent === "retired");
+  const tryRetire = cards.find(c => /Ornith/.test(c.title || ""));
+  const tryInfo = tryRetire && classifyCard(tryRetire);
+  const tryLine = tryRetire ? lineFor(tryRetire) : null;
+  check("HTML try-link retirement drops replacement models", tryInfo && tryInfo.models.length === 0, tryInfo && JSON.stringify(tryInfo.models));
+  check(
+    "HTML try-link retirement uses API title",
+    typeof tryLine === "string" && tryLine.startsWith("Retired: Ornith 1.5 9B and Qwen 3.6 35B Uncensored —"),
+    tryLine
+  );
   const community = cards.find(c => /CharacterVault/.test(c.title || ""));
   check("HTML community with no model link is skipped", community && classifyCard(community).skip === true);
 }
