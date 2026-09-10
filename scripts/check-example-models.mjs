@@ -87,11 +87,12 @@ export function galleryRegressions(pins) {
     { slug: 'mai-pack-type', type: 'image', model: 'microsoft/mai-image-2.6-flash', size: '1152x864' },
     { slug: 'crystal-video-upscale', type: 'vedit', model: 'clarity-ai/crystal-video-upscaler', target_megapixels: 1 },
     { slug: 'night-ride-sfx', type: 'music', model: 'elevenlabs/sound-effects/v2', duration: '4' },
+    { slug: 'night-ride-radio-vo', type: 'tts', model: 'xai-tts', voice: 'Leo' },
     { slug: 'volt-dispatch-infographic', type: 'image', model: 'sensenova-u1-infographic', size: '16:9' },
     { slug: 'grok-imagine-still', type: 'ivideo', model: 'xai/grok-imagine-video/v1.5/image-to-video', resolution: '480p', duration: '4' },
     { slug: 'p-video-rewrite', type: 'vedit', model: 'pruna-ai/p-video/edit', draft: true },
   ];
-  return expected.flatMap(({ slug, type, model, size, resolution, people, duration, camera_motion, target_megapixels, draft }) => {
+  return expected.flatMap(({ slug, type, model, size, resolution, people, duration, camera_motion, target_megapixels, draft, voice }) => {
     const pin = pins.find(p => p.slug === slug && p.type === type);
     if (!pin) return [{ slug, type, reason: 'required gallery card missing' }];
     if (pin.id !== model) return [{ ...pin, reason: `gallery regression: expected model ${model}` }];
@@ -102,6 +103,7 @@ export function galleryRegressions(pins) {
     if (camera_motion && pin.fields.modelOpts?.camera_motion !== camera_motion) return [{ ...pin, reason: `gallery regression: expected camera_motion ${camera_motion}` }];
     if (target_megapixels != null && pin.fields.modelOpts?.target_megapixels !== target_megapixels) return [{ ...pin, reason: `gallery regression: expected target_megapixels ${target_megapixels}` }];
     if (draft === true && pin.fields.modelOpts?.draft !== true) return [{ ...pin, reason: `gallery regression: expected draft true` }];
+    if (voice && pin.fields.voice !== voice) return [{ ...pin, reason: `gallery regression: expected voice ${voice}` }];
     return [];
   });
 }

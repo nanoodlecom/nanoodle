@@ -239,6 +239,15 @@ const HOWTO = {
     inspect: "Cover is reused Volt alley card art, pending ElevenLabs SFX QC — no paid run this PR. Open the graph, hit Run, listen for static bloom then one thunder hit. No music bed, vocals, or dialogue.",
     costHow: "Listed at about $0.008 for one ElevenLabs Sound Effects V2 call at duration 4 ($0.002/s). No LLM. Prices vary. No reviewed first-party sting yet.",
   },
+  "night-ride-radio-vo": {
+    headline: "Volt is live. Speech only.",
+    job: "Night board. Pocket radio. Leo.",
+    hideNote: true,
+    purpose: "Spoken script → SpaceXAI TTS. First-click is a Volt night-ride dispatch callout — night board, pocket radio, cyan channel. Voice Leo. Not Night-ride SFX. Not InfiniteTalk. Not Closing-credits song. Not Spoken introduction. No image, no video, no LLM, no upload.",
+    edit: "Rewrite <em>Spoken script</em>. Leave <em>Speech</em> on <code>xai-tts</code> at voice <code>Leo</code>.",
+    inspect: "Cover is reused Volt courier card art, pending SpaceXAI TTS QC — no paid xai-tts run this PR. Open the graph, hit Run, listen for the dispatch callout. Speech only.",
+    costHow: "Listed at about $0.0023 for this first-click script ($0.0165 per 1k chars). Well under $0.01. No LLM. Prices vary. No reviewed first-party mp3 yet.",
+  },
   "talking-avatar": {
     headline: "Look at camera. Clear the channel.",
     job: "Night courier. One line to camera.",
@@ -336,7 +345,7 @@ const GROUPS = [
     "image-model-arena",
   ] },
   { id: "video", title: "Video", slugs: ["photo-to-video", "grok-imagine-still", "h3-max-multi-angle", "crystal-video-upscale", "p-video-rewrite", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },
-  { id: "audio", title: "Audio", slugs: ["sing", "night-ride-sfx"] },
+  { id: "audio", title: "Audio", slugs: ["sing", "night-ride-sfx", "night-ride-radio-vo"] },
   { id: "text", title: "Text", slugs: ["deslop", "fable-five-step"] },
 ];
 

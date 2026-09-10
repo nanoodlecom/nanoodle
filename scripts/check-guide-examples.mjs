@@ -1932,6 +1932,98 @@ if (!/name:"SFX brief"/.test(sfxCard) || !/name:"Sting"/.test(sfxCard)) {
 if (/mureka-ai\/mureka-v9\.5\/generate-song|Minimax-Speech|type:"tts"|type:"llm"|type:"upload"/.test(sfxCard)) {
   fail("EXAMPLES night-ride-sfx must stay text SFX brief → music Sting (no song, TTS, LLM, or upload)");
 }
+const voSample = samples.find((s) => s.slug === "night-ride-radio-vo");
+if (!voSample) fail("samples.json missing night-ride-radio-vo");
+if (voSample.preview !== "night-ride-radio-vo/preview.webp") {
+  fail("night-ride-radio-vo sample preview should be night-ride-radio-vo/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "night-ride-radio-vo", "preview.webp"))) {
+  fail("examples/gallery/night-ride-radio-vo/preview.webp is missing");
+}
+if (!/xai-tts/.test(JSON.stringify(voSample.models))) {
+  fail("night-ride-radio-vo sample should pin xai-tts");
+}
+if (!/cover|reused Volt courier card art|talking-avatar/i.test(voSample.note) || !/no paid|pending/i.test(voSample.note)) {
+  fail("night-ride-radio-vo sample note should say cover is reused Volt courier art and SpaceXAI TTS QC is pending");
+}
+if (!/speech only|Spoken script|dispatch callout/i.test(voSample.note)) {
+  fail("night-ride-radio-vo sample note should say the job is a Volt dispatch callout");
+}
+if (!/Night-ride SFX|elevenlabs\/sound-effects\/v2/i.test(voSample.note)) {
+  fail("night-ride-radio-vo sample note should distinguish Night-ride SFX");
+}
+if (!/InfiniteTalk|infinitetalk-radio-take/i.test(voSample.note)) {
+  fail("night-ride-radio-vo sample note should distinguish InfiniteTalk");
+}
+if (!/Closing-credits song|sing|Mureka/i.test(voSample.note)) {
+  fail("night-ride-radio-vo sample note should distinguish Closing-credits song / Mureka");
+}
+if (!/Spoken introduction|talking-avatar|LongCat/i.test(voSample.note)) {
+  fail("night-ride-radio-vo sample note should distinguish Spoken introduction / talking-avatar");
+}
+if (!/voice Leo|~\$0\.0023|well under \$0\.01/i.test(voSample.note)) {
+  fail("night-ride-radio-vo sample note should name voice Leo and ~$0.0023");
+}
+if (!hub.includes("night-ride-radio-vo/preview.webp")) {
+  fail("hub should thumb the night-ride-radio-vo cover");
+}
+if (!hub.includes("Volt is live. Speech only.")) {
+  fail("hub should title night-ride-radio-vo as Volt is live. Speech only.");
+}
+const voHowTo = readFileSync(join(ROOT, "guide", "examples", "night-ride-radio-vo.html"), "utf8");
+if (!/xai-tts/.test(voHowTo)) {
+  fail("night-ride-radio-vo how-to should name xai-tts");
+}
+if (!/Volt/i.test(voHowTo) || !/Leo/i.test(voHowTo) || !/Speech only|dispatch/i.test(voHowTo)) {
+  fail("night-ride-radio-vo how-to should pitch the Volt Leo dispatch callout");
+}
+if (!/voice/.test(voHowTo) || !/>Leo</.test(voHowTo)) {
+  fail("night-ride-radio-vo how-to should pin voice Leo");
+}
+if (!/Night-ride SFX/i.test(voHowTo)) {
+  fail("night-ride-radio-vo how-to should distinguish Night-ride SFX");
+}
+if (!/InfiniteTalk/i.test(voHowTo)) {
+  fail("night-ride-radio-vo how-to should distinguish InfiniteTalk");
+}
+if (!/Closing-credits song|Mureka/i.test(voHowTo)) {
+  fail("night-ride-radio-vo how-to should distinguish Closing-credits song");
+}
+if (!/Spoken introduction/i.test(voHowTo)) {
+  fail("night-ride-radio-vo how-to should distinguish Spoken introduction");
+}
+if (!/reused Volt courier card art|no paid|pending/i.test(voHowTo)) {
+  fail("night-ride-radio-vo how-to should say the cover is reused Volt courier art and SpaceXAI TTS QC is pending");
+}
+if (!voHowTo.includes("night-ride-radio-vo/preview.webp")) {
+  fail("night-ride-radio-vo how-to should show the cover still");
+}
+if (!/slug:"night-ride-radio-vo"[\s\S]{0,200}thumb:"examples\/gallery\/night-ride-radio-vo\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES night-ride-radio-vo thumb should be examples/gallery/night-ride-radio-vo/preview.webp");
+}
+if (!/slug:"night-ride-radio-vo"[\s\S]{0,80}desc:"Volt dispatch callout — SpaceXAI TTS, voice Leo"/.test(examplesSrc)) {
+  fail("EXAMPLES night-ride-radio-vo desc should pitch Volt dispatch callout — SpaceXAI TTS, voice Leo");
+}
+if (!/slug:"night-ride-radio-vo"[\s\S]{0,80}title:"night-ride radio vo"/.test(examplesSrc)) {
+  fail("EXAMPLES night-ride-radio-vo title should be night-ride radio vo");
+}
+const voCard = examplesSrc.match(/slug:"night-ride-radio-vo"[\s\S]*?(?=\n \{ em:|$)/)?.[0] || "";
+if (!/xai-tts/.test(voCard)) {
+  fail("EXAMPLES night-ride-radio-vo graph should pin xai-tts");
+}
+if (!/voice:"Leo"/.test(voCard)) {
+  fail("EXAMPLES night-ride-radio-vo graph should pin voice Leo");
+}
+if (!/name:"Spoken script"/.test(voCard) || !/name:"Speech"/.test(voCard)) {
+  fail("EXAMPLES night-ride-radio-vo should be Spoken script → Speech");
+}
+const voWorking = voCard.replace(/\{id:"c-intent"[\s\S]*?\},\s*/, "");
+if (/elevenlabs\/sound-effects\/v2|mureka-ai\/mureka-v9\.5\/generate-song|infinitetalk|type:"music"|type:"llm"|type:"upload"|type:"image"|type:"lipsync"/.test(voWorking)) {
+  fail("EXAMPLES night-ride-radio-vo must stay text Spoken script → tts Speech (no SFX, song, InfiniteTalk, LLM, or upload)");
+}
+if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
+  fail("custom-endpoint must stay the only LOCAL_ONLY teaching card after night-ride-radio-vo sync");
+}
 const markSample = samples.find((s) => s.slug === "volt-vector-mark");
 if (!markSample) fail("samples.json missing volt-vector-mark");
 if (markSample.preview !== "volt-vector-mark/preview.webp") {
