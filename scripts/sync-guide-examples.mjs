@@ -199,10 +199,11 @@ const HOWTO = {
   "omni-flash-turntable": {
     headline: "Orbit the charcoal radio",
     job: "Orbit the radio. Keep the cyan rim honest.",
+    hideNote: true,
     purpose: "No upload. Describe the thing, pick one camera move, get a five-second draft. First-click is a matte-charcoal Volt pocket night-ride radio on a charcoal plinth — hard cyan rim, electric-cyan lightning chevron, dark studio void. Same knobs. A concept object, not a catalog SKU.",
     edit: "Rewrite <em>Object</em> and pick a <em>Move</em>. GLM Flash structures the brief; Omni Flash 1.1 renders 5 seconds at 360p / 16:9.",
-    inspect: "The move you picked happens once. Geometry stays stable. Count and colors match. 360p draft. Cover still is the Volt radio on a charcoal plinth. The saved Clip.mp4 is the earlier chrome motorcycle helmet sample — historical, not regenerated.",
-    costHow: "The reviewed helmet clip reported $0.195 for the video step, plus a small text call. Cover still is card art. Prices and results vary.",
+    inspect: "Cover still is the Volt radio on a charcoal plinth, pending a true Omni Flash QC clip — no paid google/gemini-omni-flash/v1.1 or NanoGPT run this PR, not a fabricated orbit. Open the graph and hit Run with your key. The move you picked should happen once. Geometry stays stable. Count and colors match. 360p draft. A seamless loop is not promised.",
+    costHow: "Listed at about $0.195 for one Omni Flash 1.1 call at 360p / 5s / 16:9, plus a small GLM Flash text call. Prices and results vary. This page has no reviewed first-party Volt clip yet.",
   },
   "render-a-mockup": {
     headline: "A dispatch screen you can argue about",
