@@ -71,6 +71,14 @@ const HOWTO = {
     inspect: "Cover still is reused Volt bolt card art from the favicon glyph, pending a true Ideogram V3 Generate Transparent QC still — no paid ideogram-v3-generate-transparent or NanoGPT run this PR, not a fabricated transparent sticker. Open the graph and hit Run with your key. Inspect native alpha and the single cyan chevron. Print-sheet conversion stays separate.",
     costHow: "Listed at about $0.06 for one Ideogram V3 Generate Transparent call at 1:1 balanced. Catalog also lists rendering_speed flash ~$0.03, but the image node does not forward modelOpts. No LLM. Prices and results vary. This page has no reviewed first-party sticker yet.",
   },
+  "ideogram-v4-instant-poster": {
+    headline: "VOLT / MIDNIGHT DROP",
+    job: "Sharp poster. Letters stay.",
+    purpose: "A brand sentence becomes a sharp drop poster with lettering. First-click is Volt — matte-charcoal field, ONE electric-cyan lightning-bolt chevron, VOLT / MIDNIGHT DROP, hard cyan rim, dark slate. Flat poster graphic — not a product photo. Distinct from Transparent brand sticker (alpha, no letters), Favicon (GLM Flash + Muse opaque 16px glyph), Remove packaging text (strips lettering), and FIBO / cinematic / arena stills. No LLM. No upload.",
+    edit: "Rewrite <em>Poster brief</em>. Leave <em>Poster</em> on <code>ideogram/v4/instant</code> at size <code>1024x1024</code> unless you mean to change models. The image node does not forward <code>modelOpts</code>.",
+    inspect: "Cover is a local placeholder with VOLT / MIDNIGHT DROP lettering, pending a true Ideogram V4 Instant QC still — no paid ideogram/v4/instant or NanoGPT run this PR, not a fabricated poster. Open the graph and hit Run with your key. Inspect sharp VOLT / MIDNIGHT DROP type and the single cyan chevron.",
+    costHow: "Listed at about $0.0075 for one Ideogram V4 Instant call at 1024x1024 balanced. Catalog also lists TURBO ~$0.00375, but the image node does not forward modelOpts. No LLM. Prices and results vary. This page has no reviewed first-party poster yet.",
+  },
   "fibo-studio-still": {
     headline: "A radio on dark slate",
     job: "Volt night-ride radio. Pick the light.",
@@ -88,6 +96,15 @@ const HOWTO = {
     inspect:
       "One person. Magenta and cyan if you kept that light. Helmet readable. No extra people, no readable text. Generated key-art, not a photograph of a real person.",
     costHow: "The reviewed run reported $0.02 ($0.02/image at 1K). Prices and results vary.",
+  },
+  "h3-identity-restyle": {
+    headline: "Same face. Night-ride kit.",
+    job: "Keep identity. Volt restyle.",
+    hideNote: true,
+    purpose: "Upload a person or product still. MiniMax H3 Image Edit restyles scene, outfit and light while keeping identity. First-click is a Volt night-courier key still — charcoal kit, ONE cyan lightning chevron, magenta rim + cyan bounce. Distinct from Muse Edit, Cinematic character still / H3 T2I, and Product in a setting.",
+    edit: "Drop your still on <em>Still</em>. Leave <em>Restyle</em> on the Volt night-courier line. Leave <em>Identity restyle</em> on <code>minimax-h3/image-edit</code> at size <code>1k</code>.",
+    inspect: "Cover is reused night-courier card art, pending H3 Image Edit QC — no paid minimax-h3/image-edit run this PR. Open the graph, upload a still, inspect identity.",
+    costHow: "Listed at $0.03 for one MiniMax H3 Image Edit call at 1k. No LLM. Prices vary. No reviewed first-party restyle yet.",
   },
   "character-sprites": {
     headline: "A furnace knight you can rig",
@@ -269,8 +286,8 @@ const GROUPS = [
   { id: "playable", title: "Playable", slugs: ["iron-verdict"] },
   { id: "image", title: "Image", slugs: [
     "edit-a-photo", "product-cutout", "sam3-isolate", "p-image-upscale", "remove-packaging-text", "combine-images", "render-a-mockup", "volt-dispatch-infographic", "favicon",
-    "transparent-brand-sticker",
-    "night-market-postcard", "fibo-studio-still", "cinematic-character-still", "character-sprites",
+    "transparent-brand-sticker", "ideogram-v4-instant-poster",
+    "night-market-postcard", "fibo-studio-still", "cinematic-character-still", "h3-identity-restyle", "character-sprites",
     "image-model-arena",
   ] },
   { id: "video", title: "Video", slugs: ["photo-to-video", "h3-max-multi-angle", "crystal-video-upscale", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },
