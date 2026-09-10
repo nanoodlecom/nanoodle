@@ -781,6 +781,39 @@
     "workflowSha256": "f4df82949ae9efe87d91048b0febb46bf242b8535bb3dee04dad630b63d3db28"
   },
   {
+    "slug": "p-video-rewrite",
+    "title": "rewrite the clip",
+    "date": "2026-09-10",
+    "review": "Cover still",
+    "note": "Cover is reused Volt card art from the photo-to-video night-ride radio plate, pending a true P-Video Edit QC clip — no paid `pruna-ai/p-video/edit` run this PR. Job is prompt-rewrite at draft=true (~$0.025/s, ~$0.10 for ~4s) and can keep source audio. Distinct from Crystal video upscale and i2v (photo-to-video / Grok / H3 orbit / Omni Flash). Open the graph — upload a short clip; Rewrite brief stays on the Volt night-ride line; Rewritten clip pins `pruna-ai/p-video/edit` with draft=true. No committed clip in-repo.",
+    "costUsd": 0.10,
+    "costExact": false,
+    "models": [
+      "pruna-ai/p-video/edit"
+    ],
+    "graphSha256": "e75b48fd19ddd63e70dcac0d6786edd37d2f38cff4d5ed9fbca1be451af3bbf2",
+    "inputs": [
+      {
+        "label": "Product clip",
+        "text": "Upload a short clip. First-click story is a matte-charcoal Volt pocket night-ride radio with one electric-cyan lightning-bolt chevron. No committed clip in-repo."
+      },
+      {
+        "label": "Rewrite brief",
+        "text": "Keep the same matte-charcoal Volt pocket radio and cyan lightning chevron. Shift the alley to deeper magenta rim + cooler cyan bounce; thicken the rain beads; preserve source audio. No cuts, no new objects, no logo text."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "p-video-rewrite/NOTE.txt",
+        "kind": "text",
+        "label": "Note"
+      }
+    ],
+    "preview": "p-video-rewrite/preview.webp",
+    "workflow": "p-video-rewrite/workflow.json",
+    "workflowSha256": "e75b48fd19ddd63e70dcac0d6786edd37d2f38cff4d5ed9fbca1be451af3bbf2"
+  },
+  {
     "slug": "omni-flash-turntable",
     "title": "Night-ride product motion",
     "date": "2026-09-09",

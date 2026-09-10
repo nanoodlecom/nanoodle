@@ -64,6 +64,8 @@ const catalogs = {
       } } },
     { id: 'clarity-ai/crystal-video-upscaler', capabilities: { video_to_video: true, video_generation: true },
       supported_parameters: { parameters: {} } },
+    { id: 'pruna-ai/p-video/edit', capabilities: { video_to_video: true, video_generation: true },
+      supported_parameters: { parameters: {} } },
     { id: 'xai/grok-imagine-video/v1.5/image-to-video', capabilities: { image_to_video: true },
       supported_parameters: { parameters: { resolution: opts(['480p', '720p']), duration: opts([1, 2, 3, 4, 5, 6, 8, 10, 15]) } } },
   ],
