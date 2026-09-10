@@ -101,85 +101,22 @@ test('homepage pins use the same strict model, type and capability checks as gal
   assert.throws(() => starterModels({ nodes: [{ type: 'unknown' }] }, kinds), /unknown node type/);
 });
 
-test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefNet, InfiniteTalk, SAM 3, P-Image Upscale, deslop venice-uncensored, H3 Max Multi Angle, character-sprites, transparent-brand-sticker, remove-packaging-text, widen-the-frame, h3-identity-restyle, virtual-try-on, ideogram-v4-instant-poster, volt-vector-mark, mai-pack-type, Crystal video upscale, Night-ride SFX, Night-ride radio VO, Whisper pull-words, Stable Audio alley score, SenseNova dispatch, Grok Imagine 1.5 still, Wan 3.0 still+audio, Wan Animate 2 motion-drive, P-Video rewrite, Wan 2.5 Extend stretch-take, Mirelo video foley, Pixelcut video cutout and Mirelo stretch-bed pin regressions', async () => {
+test('reviewed pipelines retain source roles, sung lyrics and bounded video settings', async () => {
   const { galleryRegressions } = await import('./check-example-models.mjs');
-  const pins = [
-    { slug: 'fibo-studio-still', ...pin('image', { model: 'bria/fibo-generate-1.5/text-to-image', size: '1mp' }) },
-    { slug: 'cinematic-character-still', ...pin('image', { model: 'minimax-h3/text-to-image', size: '1k' }) },
-    { slug: 'omni-flash-turntable', ...pin('tvideo', { model: 'google/gemini-omni-flash/v1.1' }) },
-    { slug: 'fable-five-step', ...pin('llm', { model: 'anthropic/claude-fable-5.1' }) },
-    { slug: 'product-cutout', ...pin('edit', { model: 'birefnet/v2' }) },
-    { slug: 'infinitetalk-radio-take', ...pin('lipsync', { model: 'infinitetalk', resolution: '480p', modelOpts: { people: 'single' } }) },
-    { slug: 'sam3-isolate', ...pin('edit', { model: 'sam3-image' }) },
-    { slug: 'p-image-upscale', ...pin('edit', { model: 'pruna-ai/p-image/upscale', size: '2' }) },
-    { slug: 'deslop', ...pin('llm', { model: 'venice-uncensored' }) },
-    { slug: 'h3-max-multi-angle', ...pin('ivideo', { model: 'minimax/h3-max/multi-angle/image-to-video', resolution: '480p', duration: '5', modelOpts: { camera_motion: 'orbit-right' } }) },
-    { slug: 'character-sprites', ...pin('llm', { model: 'z-ai/glm-5.3-flash' }) },
-    { slug: 'character-sprites', ...pin('image', { model: 'meta/muse-image/text-to-image', size: '1:1' }) },
-    { slug: 'character-sprites', ...pin('edit', { model: 'meta/muse-image/edit', size: '1:1' }) },
-    { slug: 'transparent-brand-sticker', ...pin('image', { model: 'ideogram-v3-generate-transparent', size: '1:1' }) },
-    { slug: 'remove-packaging-text', ...pin('edit', { model: 'ideogram-v3-remove-text', size: 'auto' }) },
-    { slug: 'h3-identity-restyle', ...pin('edit', { model: 'minimax-h3/image-edit', size: '1k' }) },
-    { slug: 'ideogram-v4-instant-poster', ...pin('image', { model: 'ideogram/v4/instant', size: '1024x1024' }) },
-    { slug: 'volt-vector-mark', ...pin('image', { model: 'recraft-ai/recraft-v4.1/text-to-vector', size: '1024x1024' }) },
-    { slug: 'mai-pack-type', ...pin('image', { model: 'microsoft/mai-image-2.6-flash', size: '1152x864' }) },
-    { slug: 'crystal-video-upscale', ...pin('vedit', { model: 'clarity-ai/crystal-video-upscaler', modelOpts: { target_megapixels: 1 } }) },
-    { slug: 'night-ride-sfx', ...pin('music', { model: 'elevenlabs/sound-effects/v2', duration: '4' }) },
-    { slug: 'night-ride-radio-vo', ...pin('tts', { model: 'xai-tts', voice: 'Leo' }) },
-    { slug: 'volt-dispatch-infographic', ...pin('image', { model: 'sensenova-u1-infographic', size: '16:9' }) },
-    { slug: 'grok-imagine-still', ...pin('ivideo', { model: 'xai/grok-imagine-video/v1.5/image-to-video', resolution: '480p', duration: '4' }) },
-    { slug: 'wan-still-audio', ...pin('ivideo', { model: 'alibaba/wan-3.0/image-to-video', resolution: '480p', duration: 2, modelOpts: { enable_audio: true } }) },
-    { slug: 'p-video-rewrite', ...pin('vedit', { model: 'pruna-ai/p-video/edit', modelOpts: { draft: true } }) },
-    { slug: 'wan-stretch-take', ...pin('vedit', { model: 'wan-25-extend', resolution: '480p', duration: '3' }) },
-    { slug: 'mirelo-video-foley', ...pin('vedit', { model: 'mirelo-ai/sfx1.6/video-to-video' }) },
-    { slug: 'pixelcut-video-cutout', ...pin('vedit', { model: 'pixelcut/video-background-removal', modelOpts: { background: 'black' } }) },
-    { slug: 'wan-motion-drive', ...pin('vedit', { model: 'wan-22-animate-2', resolution: '480p' }) },
-    { slug: 'virtual-try-on', ...pin('edit', { model: 'flux-pro/v1/vto', size: 'auto' }) },
-    { slug: 'whisper-pull-words', ...pin('transcribe', { model: 'Whisper-Large-V3' }) },
-    { slug: 'stable-alley-score', ...pin('music', { model: 'stable-audio-3/small/music/text-to-audio', instrumental: true }) },
-    { slug: 'mirelo-stretch-bed', ...pin('remix', { model: 'mirelo-ai/sfx1.6/extend-audio', duration: '3' }) },
-    { slug: 'widen-the-frame', ...pin('edit', { model: 'nano-banana-edit', size: 'auto' }) },
-  ];
-  assert.equal(galleryRegressions(pins).length, 0);
-  assert.equal(galleryRegressions([]).length, 35);
-  pins[0].fields.size = 'auto';
-  assert.match(galleryRegressions(pins)[0].reason, /expected size 1mp/);
-  pins[0].fields.size = '1mp';
-  pins[0].id = 'bria-fibo';
-  pins[1].id = 'minimax-h3-image';
-  pins[2].id = 'google/gemini-omni-flash/v1';
-  pins[3].id = 'anthropic/claude-fable-5';
-  pins[4].id = 'fal-ai/birefnet/v2';
-  pins[5].id = 'wavespeed-ai/infinitetalk';
-  pins[6].id = 'wavespeed-ai/sam3-image';
-  pins[7].id = 'clarity-upscaler';
-  pins[8].id = 'openai/gpt-4o-mini';
-  pins[9].id = 'minimax-h3/image-to-video-spicy';
-  pins[10].id = 'openai/gpt-4o-mini';
-  pins[11].id = 'minimax-h3/text-to-image';
-  pins[12].id = 'meta/muse-image/text-to-image';
-  pins[13].id = 'meta/muse-image/text-to-image';
-  pins[14].id = 'ideogram-v3-generate-transparent';
-  pins[15].id = 'minimax-h3/text-to-image';
-  pins[16].id = 'ideogram-v3-generate-transparent';
-  pins[17].id = 'recraft-v4';
-  pins[18].id = 'ideogram-v4-instant';
-  pins[19].id = 'clarity-upscaler';
-  pins[20].id = 'elevenlabs/music';
-  pins[21].id = 'Minimax-Speech-2.8-HD';
-  pins[22].id = 'ideogram-v4-instant';
-  pins[23].id = 'minimax-h3/image-to-video-spicy';
-  pins[24].id = 'minimax-h3/image-to-video-spicy';
-  pins[25].id = 'clarity-ai/crystal-video-upscaler';
-  pins[26].id = 'wan-25-extend-fast';
-  pins[27].id = 'pruna-ai/p-video/edit';
-  pins[28].id = 'mirelo-ai/sfx1.6/video-to-video';
-  pins[29].id = 'pruna-ai/p-video/animate';
-  pins[30].id = 'minimax-h3/image-edit';
-  pins[31].id = 'gpt-4o-mini-transcribe';
-  pins[32].id = 'mureka-ai/mureka-v9.5/generate-song';
-  pins[33].id = 'mirelo-ai/sfx1.6/text-to-audio';
-  pins[34].id = 'meta/muse-image/edit';
-  assert.equal(galleryRegressions(pins).length, 35);
-  assert.ok(galleryRegressions(pins).every(p => /expected model/.test(p.reason)));
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const pins = pinnedModels(parseExamples(src), nodeKinds(src));
+  assert.deepEqual(galleryRegressions(pins), []);
+  const edit = pins.find(p => p.slug === 'character-sprites' && p.type === 'edit');
+  edit.id = 'meta/muse-image/text-to-image';
+  const video = pins.find(p => p.slug === 'photo-to-video' && p.type === 'ivideo');
+  video.fields.duration = '10';
+  const music = pins.find(p => p.slug === 'sing' && p.type === 'music');
+  music.fields.instrumental = true;
+  const issues = galleryRegressions(pins);
+  assert.equal(issues.length, 3);
+  assert.match(issues.find(p => p.slug === 'character-sprites').reason, /expected model/);
+  assert.match(issues.find(p => p.slug === 'photo-to-video').reason, /expected duration 5/);
+  assert.match(issues.find(p => p.slug === 'sing').reason, /expected instrumental false/);
+  assert.ok(galleryRegressions(pins.filter(p => p.type !== 'lipsync')).some(p => /node missing/.test(p.reason)));
 });

@@ -18,77 +18,23 @@ const image = (id, resolutions, edit = false) => ({ id,
   architecture: { modality: edit ? 'text+image->image' : 'text->image' },
   capabilities: { image_to_image: edit }, supported_parameters: { resolutions } });
 const catalogs = {
-  chat: [...new Set(pins.filter(p => p.kind === 'chat').map(p => p.id))].map(id => ({ id })),
+  chat: [...new Set([...pins.filter(p => p.kind === 'chat').map(p => p.id), 'fixture-other-chat'])].map(id => ({ id })),
   image: [
-    image('nano-banana-2-lite', ['1k', '2k']),
     image('meta/muse-image/edit', ['auto', '1:1', '3:2', '16:9'], true),
     image('meta/muse-image/text-to-image', ['1:1', '3:2', '16:9']),
-    image('krea-v2/turbo', ['1k', '2k']),
     image('openai/gpt-image-2.5/flare/text-to-image', ['1k', '2k', '4k']),
     image('xai/grok-imagine-image/v2.0/text-to-image', ['1:1', '16:9']),
     image('recraft-v4', ['1024x1024']),
-    image('qwen-image-3-pro', ['auto', '1k', '2k']),
-    image('bria/fibo-generate-1.5/text-to-image', ['1mp']),
-    image('minimax-h3/text-to-image', ['1k', '2k']),
-    image('minimax-h3/image-edit', ['1k', '2k'], true),
-    image('flux-pro/v1/vto', ['auto'], true),
-    image('birefnet/v2', ['auto'], true),
-    image('sam3-image', ['auto'], true),
-    image('pruna-ai/p-image/upscale', ['1', '2', '3', '4', '5', '6', '7', '8'], true),
-    image('ideogram-v3-generate-transparent', ['1:1', '16:9', '9:16']),
-    image('sensenova-u1-infographic', ['1:1', '16:9', '9:16', '4:3', '3:4']),
-    image('ideogram-v3-remove-text', ['auto'], true),
-    image('nano-banana-edit', ['auto'], true),
-    image('ideogram/v4/instant', ['1024x1024', '1024x1536', '1536x1024', 'auto']),
-    image('recraft-ai/recraft-v4.1/text-to-vector', ['1024x1024', '1024x768', '1024x576', '768x1024', '576x1024']),
-    image('microsoft/mai-image-2.6-flash', ['1152x864', '1024x1024', '1152x768']),
   ],
   video: [
     { id: 'minimax-h3/image-to-video-spicy', capabilities: { image_to_video: true },
       supported_parameters: { parameters: { resolution: opts(['480p', '720p']), duration: opts([5, 10]) } } },
-    { id: 'minimax/h3-max/multi-angle/image-to-video', capabilities: { image_to_video: true },
-      supported_parameters: { parameters: {
-        resolution: opts(['480p', '720p']),
-        duration: opts([5, 10]),
-        camera_motion: opts(['orbit-right', 'orbit-left', 'push-in', 'pull-back', 'rise']),
-      } } },
-    { id: 'google/gemini-omni-flash/v1.1', capabilities: { text_to_video: true },
-      supported_parameters: { parameters: { resolution: opts(['360p', '720p']), duration: opts([5, 8]), aspect_ratio: opts(['16:9']) } } },
     { id: 'longcat-avatar-1.5', capabilities: { image_to_video: true, audio_input: true },
-      supported_parameters: { parameters: { resolution: opts(['480p', '720p']) } } },
-    { id: 'infinitetalk', capabilities: { image_to_video: true, audio_input: true, video_generation: true },
-      supported_parameters: { parameters: {
-        people: opts(['single', 'two']),
-        resolution: opts(['480p', '720p']),
-        left_audio: {},
-        right_audio: {},
-        audio: {},
-      } } },
-    { id: 'clarity-ai/crystal-video-upscaler', capabilities: { video_to_video: true, video_generation: true },
-      supported_parameters: { parameters: {} } },
-    { id: 'pruna-ai/p-video/edit', capabilities: { video_to_video: true, video_generation: true },
-      supported_parameters: { parameters: {} } },
-    { id: 'wan-25-extend', capabilities: { video_to_video: true, video_generation: true },
-      supported_parameters: { parameters: { resolution: opts(['480p', '720p']), duration: opts([3, 4, 5, 6, 7, 8, 9, 10]) } } },
-    { id: 'mirelo-ai/sfx1.6/video-to-video', capabilities: { video_to_video: true, video_generation: true },
-      supported_parameters: { parameters: {} } },
-    { id: 'pixelcut/video-background-removal', capabilities: { video_to_video: true, video_generation: true },
-      supported_parameters: { parameters: {} } },
-    { id: 'xai/grok-imagine-video/v1.5/image-to-video', capabilities: { image_to_video: true },
-      supported_parameters: { parameters: { resolution: opts(['480p', '720p']), duration: opts([1, 2, 3, 4, 5, 6, 8, 10, 15]) } } },
-    { id: 'alibaba/wan-3.0/image-to-video', capabilities: { image_to_video: true },
-      supported_parameters: { parameters: { resolution: opts(['480p', '720p']), duration: opts([2, 5, 10]) } } },
-    { id: 'wan-22-animate-2', capabilities: { image_to_video: true, video_to_video: true },
       supported_parameters: { parameters: { resolution: opts(['480p', '720p']) } } },
   ],
   audio: [
     { id: 'Minimax-Speech-2.8-HD', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Deep_Voice_Man'] } },
-    { id: 'xai-tts', capabilities: { text_to_speech: true }, category: 'audio_tts', supported_parameters: { voices: ['Eve', 'Ara', 'Leo', 'Rex', 'Sal'] } },
-    { id: 'Whisper-Large-V3', capabilities: { speech_to_text: true }, category: 'audio_stt' },
     { id: 'mureka-ai/mureka-v9.5/generate-song', architecture: { modality: 'text->audio' } },
-    { id: 'elevenlabs/sound-effects/v2', architecture: { modality: 'text->audio' }, capabilities: { text_to_audio: true }, supported_parameters: { min_duration: 0.5, max_duration: 22 } },
-    { id: 'stable-audio-3/small/music/text-to-audio', architecture: { modality: 'text->music' }, capabilities: { text_to_music: true }, category: 'audio_music' },
-    { id: 'mirelo-ai/sfx1.6/extend-audio', capabilities: { audio_extension: true }, architecture: { modality: 'text+audio->audio' }, supported_parameters: { min_duration: 1, max_duration: 57 } },
   ],
 };
 
@@ -103,7 +49,7 @@ function run(mode) {
       if (mode === 'http-error') return { ok: false, status: 503 };
       const kind = /\\/(image|video|audio)-models/.exec(url)?.[1] || 'chat';
       let data = catalogs[kind].filter(m => mode !== 'missing-starter' || m.id !== ${JSON.stringify(starterId)});
-      if (mode === 'bad-size' && kind === 'image') data.find(m => m.id === 'bria/fibo-generate-1.5/text-to-image').supported_parameters.resolutions = ['2mp'];
+      if (mode === 'bad-size' && kind === 'image') data.find(m => m.id === 'meta/muse-image/text-to-image').supported_parameters.resolutions = ['2mp'];
       if (mode === 'bad-avatar' && kind === 'video') data.find(m => m.id === 'longcat-avatar-1.5').capabilities.audio_input = false;
       if (mode === 'empty') data = [];
       if (mode === 'malformed') data = {};
@@ -124,7 +70,7 @@ console.log('✓ starter and gallery audit succeeds with bounded capability cata
 
 for (const [mode, reason] of [
   ['missing-starter', /homepage starter \(noodle-graph\.json\).*gone from the chat catalog/],
-  ['bad-size', /fibo-studio-still:.*unsupported size/],
+  ['bad-size', /photo-to-video:.*unsupported size/],
   ['bad-avatar', /talking-avatar:.*does not support lipsync/],
 ]) {
   const result = run(mode);

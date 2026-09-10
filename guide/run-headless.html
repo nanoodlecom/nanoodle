@@ -90,36 +90,37 @@ python -m nanoodle run "https://nanoodle.com/#g=..." --out ./out</code></pre>
     </section>
 
     <section>
-      <h2>Volt-world, from a tweet</h2>
-      <p>Steal a share link from
-      <a href="/guide/examples/product-cutout">Knock the slate out</a> or
-      <a href="/guide/examples/image-model-arena">NIGHT RIDE</a> — same command
-      pattern as the landed
+      <h2>Start from a working example</h2>
+      <p>Choose from the <a href="/guide/examples/">five example workflows</a>,
+      inspect the saved result, and copy its <strong>Open this noodle</strong> link.
+      The same graphs work in the browser and in the
       <a href="https://github.com/nanoodlecom/awesome-noodles#run-headless" target="_blank" rel="noopener">awesome-noodles Run headless</a>
-      strips. Inspect first. Then run.</p>
+      instructions. Inspect first, then run.</p>
 
-      <h3>Product cutout — BiRefNet knocks the slate off a Volt radio</h3>
-      <p>Upload a still. One image call, about $0.01. Transparent cutout for compositing,
-      not a relit catalog.</p>
+      <h3>Write and sing a credits song</h3>
+      <p>The <a href="/guide/examples/sing">song workflow</a> turns a theme into
+      lyrics, then sings them in the selected style. Override the theme below or keep
+      the saved rooftop-getaway brief.</p>
       <div class="twins">
         <figure>
           <figcaption>CLI</figcaption>
 <pre><code>npx nanoodle inspect "https://nanoodle.com/#g=..."
 npx nanoodle run "https://nanoodle.com/#g=..." \
-  --input "Product still"=@radio.png --out ./out</code></pre>
+  --input "Song brief (theme, not lyrics)=Closing credits for an underwater exploration game." --out ./out</code></pre>
         </figure>
         <figure>
           <figcaption>Python twin</figcaption>
 <pre><code>python -m nanoodle inspect "https://nanoodle.com/#g=..."
 python -m nanoodle run "https://nanoodle.com/#g=..." \
-  --input "Product still"=@radio.png --out ./out</code></pre>
+  --input "Song brief (theme, not lyrics)=Closing credits for an underwater exploration game." --out ./out</code></pre>
         </figure>
       </div>
 
-      <h3>Arena — four models, one NIGHT RIDE brief</h3>
-      <p>Exact heading <strong>NIGHT RIDE</strong>, footer <strong>TUE 9 SEP</strong>, one
-      charcoal radio, cyan lightning chevron. The brief is already in the graph — no
-      <code>--input</code> required. Four paid image calls.</p>
+      <h3>Compare four image models</h3>
+      <p>The <a href="/guide/examples/image-model-arena">image comparison workflow</a>
+      sends the same bicycle-workshop poster brief to four models. The brief is already
+      in the graph, so <code>--input</code> is optional. Running it makes four paid
+      image calls. The guide labels the saved Krea result and the current Flare replacement.</p>
       <div class="twins">
         <figure>
           <figcaption>CLI</figcaption>
@@ -134,18 +135,19 @@ python -m nanoodle run "https://nanoodle.com/#g=..." --out ./out</code></pre>
       </div>
       <p>Copy <strong>Open this noodle</strong> from those cards and paste it in place of
       <code>#g=...</code>. Or use the copy-paste one-liners in
-      <a href="https://github.com/nanoodlecom/awesome-noodles/blob/main/recipes/product-cutout.md" target="_blank" rel="noopener">recipes/product-cutout.md</a>
+      <a href="https://github.com/nanoodlecom/awesome-noodles/blob/main/recipes/sing.md" target="_blank" rel="noopener">recipes/sing.md</a>
       and
       <a href="https://github.com/nanoodlecom/awesome-noodles/blob/main/recipes/image-model-arena.md" target="_blank" rel="noopener">recipes/image-model-arena.md</a>
       (or clone
       <a href="https://github.com/nanoodlecom/awesome-noodles" target="_blank" rel="noopener">awesome-noodles</a>
-      and point the CLI at <code>graphs/product-cutout.noodle-graph.json</code> /
+      and point the CLI at <code>graphs/sing.noodle-graph.json</code> /
       <code>graphs/image-model-arena.noodle-graph.json</code>).</p>
     </section>
 
     <section>
       <h2>Library</h2>
-      <p><code>Workflow.load</code> accepts a share URL, a bare <code>#g=</code> /
+      <p>Using the image comparison link, load and run the graph from either library.
+      <code>Workflow.load</code> accepts a share URL, a bare <code>#g=</code> /
       <code>#a=</code> fragment, or a local <code>noodle-graph.json</code>. Key from
       <code>NANOGPT_API_KEY</code> unless you pass one.</p>
       <div class="twins">
@@ -155,7 +157,7 @@ python -m nanoodle run "https://nanoodle.com/#g=..." --out ./out</code></pre>
 
 const wf = await Workflow.load("https://nanoodle.com/#g=...");
 const result = await wf.run();          // graph fields as-is
-await result.get("Contender 1").save("night-ride.png");
+await result.get("Contender 1").save("poster.png");
 console.log(result.costUsd, result.remainingBalance);</code></pre>
         </figure>
         <figure>
@@ -164,32 +166,32 @@ console.log(result.costUsd, result.remainingBalance);</code></pre>
 
 wf = Workflow.load("https://nanoodle.com/#g=...")
 result = wf.run()                       # graph fields as-is
-result["Contender 1"].save("night-ride.png")
+result["Contender 1"].save("poster.png")
 print(result.cost_usd, result.remaining_balance)</code></pre>
         </figure>
       </div>
 
-      <p>Override an input — product still, a new brief — the same way in both languages:</p>
+      <p>Override the image comparison's brief the same way in both languages:</p>
       <div class="twins">
         <figure>
           <figcaption>JavaScript</figcaption>
-<pre><code>import { Workflow, mediaFromFile } from "nanoodle";
+<pre><code>import { Workflow } from "nanoodle";
 
 const wf = await Workflow.load("https://nanoodle.com/#g=...");
 const result = await wf.run({
-  "Product still": await mediaFromFile("radio.png"),
+  "Shared test brief": "A square poster for a bicycle repair workshop. Heading: FIX A FLAT. One red bicycle wheel on cream.",
 });
-await result.get("Export preview").save("cutout.png");</code></pre>
+await result.get("Contender 1").save("poster.png");</code></pre>
         </figure>
         <figure>
           <figcaption>Python</figcaption>
-<pre><code>from nanoodle import Workflow, media_from_file
+<pre><code>from nanoodle import Workflow
 
 wf = Workflow.load("https://nanoodle.com/#g=...")
 result = wf.run({
-    "Product still": media_from_file("radio.png"),
+    "Shared test brief": "A square poster for a bicycle repair workshop. Heading: FIX A FLAT. One red bicycle wheel on cream.",
 })
-result["Export preview"].save("cutout.png")</code></pre>
+result["Contender 1"].save("poster.png")</code></pre>
         </figure>
       </div>
     </section>
@@ -198,8 +200,8 @@ result["Export preview"].save("cutout.png")</code></pre>
       <h2>CLI extras</h2>
       <p>Python also installs as <code>nanoodle-py</code>; <code>python -m nanoodle</code>
       always works. Flags match across both CLIs:</p>
-<pre><code>npx nanoodle run graph.json --input Text="NIGHT RIDE" --set n3.size=1k --out ./out --json
-npx nanoodle run graph.json --input n2.system=@style.txt --env-file .env</code></pre>
+<pre><code>npx nanoodle run graph.json --input "Shared test brief=One red bicycle wheel on a cream background." --set n3.size=1:1 --out ./out --json
+npx nanoodle run graph.json --input "Shared test brief=@brief.txt" --env-file .env</code></pre>
       <ul>
         <li><code>--env-file path</code> — load <code>NANOGPT_API_KEY</code> from a <code>.env</code>-style file (<code>--key</code> wins if both are set)</li>
         <li><code>--input k=@path</code> — read a file (media as media; <code>.txt</code> / <code>.md</code> / <code>.json</code> as text)</li>
@@ -213,7 +215,7 @@ npx nanoodle run graph.json --input n2.system=@style.txt --env-file .env</code><
       <h2>Inputs, outputs, settings</h2>
       <p>Both packages expose the workflow's interface before you run it —
       <code>wf.inputs</code>, <code>wf.outputs</code>, <code>wf.settings</code>. Input keys are
-      flexible (case-insensitive): the node's custom name (<code>"Product still"</code>,
+      flexible (case-insensitive): the node's custom name (<code>"Still brief"</code>,
       <code>"Shared test brief"</code>), <code>nodeId.field</code> (<code>"n2.system"</code>),
       or the input's label. A workflow with exactly one required input also accepts a bare
       value: <code>wf.run("hello")</code>. Settings use <code>nodeId.field</code> keys

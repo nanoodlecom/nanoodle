@@ -64,58 +64,26 @@ export function starterModels(graph, kinds) {
   return pinnedModels([{ slug: 'homepage starter (noodle-graph.json)', graph }], kinds);
 }
 
+// Preserve the reviewed pipeline settings when model catalogs or defaults change.
 export function galleryRegressions(pins) {
   const expected = [
-    { slug: 'fibo-studio-still', type: 'image', model: 'bria/fibo-generate-1.5/text-to-image', size: '1mp' },
-    { slug: 'cinematic-character-still', type: 'image', model: 'minimax-h3/text-to-image', size: '1k' },
-    { slug: 'omni-flash-turntable', type: 'tvideo', model: 'google/gemini-omni-flash/v1.1' },
-    { slug: 'fable-five-step', type: 'llm', model: 'anthropic/claude-fable-5.1' },
-    { slug: 'product-cutout', type: 'edit', model: 'birefnet/v2' },
-    { slug: 'infinitetalk-radio-take', type: 'lipsync', model: 'infinitetalk', resolution: '480p', people: 'single' },
-    { slug: 'sam3-isolate', type: 'edit', model: 'sam3-image' },
-    { slug: 'p-image-upscale', type: 'edit', model: 'pruna-ai/p-image/upscale', size: '2' },
-    { slug: 'deslop', type: 'llm', model: 'venice-uncensored' },
-    { slug: 'h3-max-multi-angle', type: 'ivideo', model: 'minimax/h3-max/multi-angle/image-to-video', resolution: '480p', duration: '5', camera_motion: 'orbit-right' },
     { slug: 'character-sprites', type: 'llm', model: 'z-ai/glm-5.3-flash' },
     { slug: 'character-sprites', type: 'image', model: 'meta/muse-image/text-to-image', size: '1:1' },
     { slug: 'character-sprites', type: 'edit', model: 'meta/muse-image/edit', size: '1:1' },
-    { slug: 'transparent-brand-sticker', type: 'image', model: 'ideogram-v3-generate-transparent', size: '1:1' },
-    { slug: 'remove-packaging-text', type: 'edit', model: 'ideogram-v3-remove-text', size: 'auto' },
-    { slug: 'widen-the-frame', type: 'edit', model: 'nano-banana-edit', size: 'auto' },
-    { slug: 'h3-identity-restyle', type: 'edit', model: 'minimax-h3/image-edit', size: '1k' },
-    { slug: 'virtual-try-on', type: 'edit', model: 'flux-pro/v1/vto', size: 'auto' },
-    { slug: 'ideogram-v4-instant-poster', type: 'image', model: 'ideogram/v4/instant', size: '1024x1024' },
-    { slug: 'volt-vector-mark', type: 'image', model: 'recraft-ai/recraft-v4.1/text-to-vector', size: '1024x1024' },
-    { slug: 'mai-pack-type', type: 'image', model: 'microsoft/mai-image-2.6-flash', size: '1152x864' },
-    { slug: 'crystal-video-upscale', type: 'vedit', model: 'clarity-ai/crystal-video-upscaler', target_megapixels: 1 },
-    { slug: 'night-ride-sfx', type: 'music', model: 'elevenlabs/sound-effects/v2', duration: '4' },
-    { slug: 'night-ride-radio-vo', type: 'tts', model: 'xai-tts', voice: 'Leo' },
-    { slug: 'whisper-pull-words', type: 'transcribe', model: 'Whisper-Large-V3' },
-    { slug: 'stable-alley-score', type: 'music', model: 'stable-audio-3/small/music/text-to-audio', instrumental: true },
-    { slug: 'volt-dispatch-infographic', type: 'image', model: 'sensenova-u1-infographic', size: '16:9' },
-    { slug: 'grok-imagine-still', type: 'ivideo', model: 'xai/grok-imagine-video/v1.5/image-to-video', resolution: '480p', duration: '4' },
-    { slug: 'wan-still-audio', type: 'ivideo', model: 'alibaba/wan-3.0/image-to-video', resolution: '480p', duration: 2, enable_audio: true },
-    { slug: 'wan-motion-drive', type: 'vedit', model: 'wan-22-animate-2', resolution: '480p' },
-    { slug: 'p-video-rewrite', type: 'vedit', model: 'pruna-ai/p-video/edit', draft: true },
-    { slug: 'wan-stretch-take', type: 'vedit', model: 'wan-25-extend', resolution: '480p', duration: '3' },
-    { slug: 'mirelo-video-foley', type: 'vedit', model: 'mirelo-ai/sfx1.6/video-to-video' },
-    { slug: 'pixelcut-video-cutout', type: 'vedit', model: 'pixelcut/video-background-removal', background: 'black' },
-    { slug: 'mirelo-stretch-bed', type: 'remix', model: 'mirelo-ai/sfx1.6/extend-audio', duration: '3' },
+    { slug: 'photo-to-video', type: 'ivideo', model: 'minimax-h3/image-to-video-spicy', resolution: '480p', duration: '5' },
+    { slug: 'sing', type: 'music', model: 'mureka-ai/mureka-v9.5/generate-song', instrumental: false },
+    { slug: 'talking-avatar', type: 'tts', model: 'Minimax-Speech-2.8-HD', voice: 'Deep_Voice_Man' },
+    { slug: 'talking-avatar', type: 'lipsync', model: 'longcat-avatar-1.5', resolution: '480p' },
   ];
-  return expected.flatMap(({ slug, type, model, size, resolution, people, duration, camera_motion, target_megapixels, draft, voice, enable_audio, background }) => {
+  return expected.flatMap(({ slug, type, model, ...fields }) => {
     const pin = pins.find(p => p.slug === slug && p.type === type);
-    if (!pin) return [{ slug, type, reason: 'required gallery card missing' }];
+    if (!pin) return [{ slug, type, reason: 'required gallery pipeline node missing' }];
     if (pin.id !== model) return [{ ...pin, reason: `gallery regression: expected model ${model}` }];
-    if (size && pin.fields.size !== size) return [{ ...pin, reason: `gallery regression: expected size ${size}` }];
-    if (resolution && pin.fields.resolution !== resolution) return [{ ...pin, reason: `gallery regression: expected resolution ${resolution}` }];
-    if (duration && String(pin.fields.duration) !== String(duration)) return [{ ...pin, reason: `gallery regression: expected duration ${duration}` }];
-    if (people && pin.fields.modelOpts?.people !== people) return [{ ...pin, reason: `gallery regression: expected people ${people}` }];
-    if (camera_motion && pin.fields.modelOpts?.camera_motion !== camera_motion) return [{ ...pin, reason: `gallery regression: expected camera_motion ${camera_motion}` }];
-    if (target_megapixels != null && pin.fields.modelOpts?.target_megapixels !== target_megapixels) return [{ ...pin, reason: `gallery regression: expected target_megapixels ${target_megapixels}` }];
-    if (draft === true && pin.fields.modelOpts?.draft !== true) return [{ ...pin, reason: `gallery regression: expected draft true` }];
-    if (voice && pin.fields.voice !== voice) return [{ ...pin, reason: `gallery regression: expected voice ${voice}` }];
-    if (enable_audio === true && pin.fields.modelOpts?.enable_audio !== true) return [{ ...pin, reason: `gallery regression: expected enable_audio true` }];
-    if (background && pin.fields.modelOpts?.background !== background) return [{ ...pin, reason: `gallery regression: expected background ${background}` }];
+    for (const [key, value] of Object.entries(fields)) {
+      if (String(pin.fields[key]) !== String(value)) {
+        return [{ ...pin, reason: `gallery regression: expected ${key} ${value}` }];
+      }
+    }
     return [];
   });
 }
