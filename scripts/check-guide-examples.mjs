@@ -1145,6 +1145,98 @@ if (/google\/gemini-omni-flash/.test(crystalCard)) {
 if (/ideogram-v4/.test(crystalCard)) {
   fail("EXAMPLES crystal-video-upscale must not touch Ideogram V4 Instant");
 }
+const voltSample = samples.find((s) => s.slug === "volt-dispatch-infographic");
+if (!voltSample) fail("samples.json missing volt-dispatch-infographic");
+if (voltSample.preview !== "volt-dispatch-infographic/preview.webp") {
+  fail("volt-dispatch-infographic sample preview should be volt-dispatch-infographic/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "volt-dispatch-infographic", "preview.webp"))) {
+  fail("examples/gallery/volt-dispatch-infographic/preview.webp is missing");
+}
+if (!/sensenova-u1-infographic/.test(JSON.stringify(voltSample.models))) {
+  fail("volt-dispatch-infographic sample should pin sensenova-u1-infographic");
+}
+if (!/reused Volt|pending/.test(voltSample.note) || !/SenseNova|sensenova/.test(voltSample.note)) {
+  fail("volt-dispatch-infographic sample note should say cover is reused Volt poster art and SenseNova QC is pending");
+}
+if (!/dispatch card|DROP|ZONE|ETA/.test(voltSample.note)) {
+  fail("volt-dispatch-infographic sample note should say the job is a Volt dispatch card with DROP / ZONE / ETA");
+}
+if (!/no text walls|Short labels/.test(voltSample.note)) {
+  fail("volt-dispatch-infographic sample note should say short labels, no text walls");
+}
+if (!/render-a-mockup|UI mockup/.test(voltSample.note)) {
+  fail("volt-dispatch-infographic sample note should distinguish UI mockup / render-a-mockup");
+}
+if (!/postcard/.test(voltSample.note)) {
+  fail("volt-dispatch-infographic sample note should distinguish travel postcard");
+}
+if (!hub.includes("volt-dispatch-infographic/preview.webp")) {
+  fail("hub should thumb the volt-dispatch-infographic cover");
+}
+if (!hub.includes("DROP. ZONE. ETA.")) {
+  fail("hub should title volt-dispatch-infographic as DROP. ZONE. ETA.");
+}
+const voltHowTo = readFileSync(join(ROOT, "guide", "examples", "volt-dispatch-infographic.html"), "utf8");
+if (!/sensenova-u1-infographic/.test(voltHowTo)) {
+  fail("volt-dispatch-infographic how-to should name sensenova-u1-infographic");
+}
+if (!/Volt|charcoal|cyan/.test(voltHowTo)) {
+  fail("volt-dispatch-infographic how-to should pitch the Volt charcoal + cyan dispatch card");
+}
+if (!/DROP|ZONE|ETA/.test(voltHowTo)) {
+  fail("volt-dispatch-infographic how-to should pitch DROP / ZONE / ETA");
+}
+if (!/UI mockup|not a postcard/.test(voltHowTo)) {
+  fail("volt-dispatch-infographic how-to should distinguish UI mockup and postcard");
+}
+if (!/reused Volt poster|pending SenseNova QC|no paid run/.test(voltHowTo)) {
+  fail("volt-dispatch-infographic how-to should say the cover is reused Volt poster art and SenseNova QC is pending");
+}
+if (!voltHowTo.includes("volt-dispatch-infographic/preview.webp")) {
+  fail("volt-dispatch-infographic how-to should show the cover still");
+}
+if (!/slug:"volt-dispatch-infographic"[\s\S]{0,200}thumb:"examples\/gallery\/volt-dispatch-infographic\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES volt-dispatch-infographic thumb should be examples/gallery/volt-dispatch-infographic/preview.webp");
+}
+if (!/slug:"volt-dispatch-infographic"[\s\S]{0,80}desc:"DROP \/ ZONE \/ ETA — charcoal SenseNova infographic"/.test(examplesSrc)) {
+  fail("EXAMPLES volt-dispatch-infographic desc should pitch DROP / ZONE / ETA — charcoal SenseNova infographic");
+}
+if (!/slug:"volt-dispatch-infographic"[\s\S]{0,80}title:"volt dispatch card"/.test(examplesSrc)) {
+  fail("EXAMPLES volt-dispatch-infographic title should be volt dispatch card");
+}
+const voltCard = examplesSrc.match(/slug:"volt-dispatch-infographic"[\s\S]{0,2800}/)?.[0] || "";
+if (!/sensenova-u1-infographic/.test(voltCard)) {
+  fail("EXAMPLES volt-dispatch-infographic graph should pin sensenova-u1-infographic");
+}
+if (!/size:"16:9"/.test(voltCard)) {
+  fail("EXAMPLES volt-dispatch-infographic graph should pin size 16:9");
+}
+if (!/name:"Dispatch brief"/.test(voltCard) || !/name:"Infographic"/.test(voltCard)) {
+  fail("EXAMPLES volt-dispatch-infographic should be Dispatch brief → Infographic");
+}
+const voltImage = voltCard.match(/\{id:"n2",type:"image"[\s\S]*?name:"Infographic"\}/)?.[0] || "";
+if (!voltImage) {
+  fail("EXAMPLES volt-dispatch-infographic should have image node n2 Infographic");
+}
+if (!/model:"sensenova-u1-infographic"/.test(voltImage) || !/size:"16:9"/.test(voltImage)) {
+  fail("EXAMPLES volt-dispatch-infographic image node should pin sensenova-u1-infographic at 16:9");
+}
+if (/qwen-image-3-pro|render-a-mockup/.test(voltImage)) {
+  fail("EXAMPLES volt-dispatch-infographic must not pin Qwen UI mockup");
+}
+if (/type:"llm"/.test(voltCard) || /type:"upload"/.test(voltCard)) {
+  fail("EXAMPLES volt-dispatch-infographic must stay text Dispatch brief → image Infographic (no LLM, no upload)");
+}
+if (/clarity-ai\/crystal-video-upscaler/.test(voltCard)) {
+  fail("EXAMPLES volt-dispatch-infographic must not redo Crystal");
+}
+if (/h3-identity-restyle|minimax\/h3.*identity/.test(voltCard)) {
+  fail("EXAMPLES volt-dispatch-infographic must not redo identity restyle");
+}
+if (/ideogram-v4/.test(voltCard)) {
+  fail("EXAMPLES volt-dispatch-infographic must not redo Ideogram V4 Instant");
+}
 const spritesSample = samples.find((s) => s.slug === "character-sprites");
 if (!spritesSample) fail("samples.json missing character-sprites");
 if (spritesSample.preview !== "character-sprites/preview.webp") {
