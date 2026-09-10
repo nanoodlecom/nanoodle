@@ -38,6 +38,7 @@ const catalogs = {
     image('sensenova-u1-infographic', ['1:1', '16:9', '9:16', '4:3', '3:4']),
     image('ideogram-v3-remove-text', ['auto'], true),
     image('ideogram/v4/instant', ['1024x1024', '1024x1536', '1536x1024', 'auto']),
+    image('recraft-ai/recraft-v4.1/text-to-vector', ['1024x1024', '1024x768', '1024x576', '768x1024', '576x1024']),
   ],
   video: [
     { id: 'minimax-h3/image-to-video-spicy', capabilities: { image_to_video: true },

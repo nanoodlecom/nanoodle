@@ -100,7 +100,7 @@ test('homepage pins use the same strict model, type and capability checks as gal
   assert.throws(() => starterModels({ nodes: [{ type: 'unknown' }] }, kinds), /unknown node type/);
 });
 
-test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefNet, InfiniteTalk, SAM 3, P-Image Upscale, deslop venice-uncensored, H3 Max Multi Angle, character-sprites, transparent-brand-sticker, remove-packaging-text, h3-identity-restyle, ideogram-v4-instant-poster, Crystal video upscale, SenseNova dispatch and Night-ride SFX pin regressions', async () => {
+test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefNet, InfiniteTalk, SAM 3, P-Image Upscale, deslop venice-uncensored, H3 Max Multi Angle, character-sprites, transparent-brand-sticker, remove-packaging-text, h3-identity-restyle, ideogram-v4-instant-poster, volt-vector-mark, Crystal video upscale, Night-ride SFX and SenseNova dispatch pin regressions', async () => {
   const { galleryRegressions } = await import('./check-example-models.mjs');
   const pins = [
     { slug: 'fibo-studio-still', ...pin('image', { model: 'bria/fibo-generate-1.5/text-to-image', size: '1mp' }) },
@@ -120,12 +120,13 @@ test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefN
     { slug: 'remove-packaging-text', ...pin('edit', { model: 'ideogram-v3-remove-text', size: 'auto' }) },
     { slug: 'h3-identity-restyle', ...pin('edit', { model: 'minimax-h3/image-edit', size: '1k' }) },
     { slug: 'ideogram-v4-instant-poster', ...pin('image', { model: 'ideogram/v4/instant', size: '1024x1024' }) },
+    { slug: 'volt-vector-mark', ...pin('image', { model: 'recraft-ai/recraft-v4.1/text-to-vector', size: '1024x1024' }) },
     { slug: 'crystal-video-upscale', ...pin('vedit', { model: 'clarity-ai/crystal-video-upscaler', modelOpts: { target_megapixels: 1 } }) },
     { slug: 'night-ride-sfx', ...pin('music', { model: 'elevenlabs/sound-effects/v2', duration: '4' }) },
     { slug: 'volt-dispatch-infographic', ...pin('image', { model: 'sensenova-u1-infographic', size: '16:9' }) },
   ];
   assert.equal(galleryRegressions(pins).length, 0);
-  assert.equal(galleryRegressions([]).length, 20);
+  assert.equal(galleryRegressions([]).length, 21);
   pins[0].fields.size = 'auto';
   assert.match(galleryRegressions(pins)[0].reason, /expected size 1mp/);
   pins[0].fields.size = '1mp';
@@ -146,9 +147,10 @@ test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefN
   pins[14].id = 'ideogram-v3-generate-transparent';
   pins[15].id = 'minimax-h3/text-to-image';
   pins[16].id = 'ideogram-v3-generate-transparent';
-  pins[17].id = 'clarity-upscaler';
-  pins[18].id = 'elevenlabs/music';
-  pins[19].id = 'ideogram-v4-instant';
-  assert.equal(galleryRegressions(pins).length, 20);
+  pins[17].id = 'recraft-v4';
+  pins[18].id = 'clarity-upscaler';
+  pins[19].id = 'elevenlabs/music';
+  pins[20].id = 'ideogram-v4-instant';
+  assert.equal(galleryRegressions(pins).length, 21);
   assert.ok(galleryRegressions(pins).every(p => /expected model/.test(p.reason)));
 });

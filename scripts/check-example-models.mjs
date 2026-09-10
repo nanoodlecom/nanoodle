@@ -83,6 +83,7 @@ export function galleryRegressions(pins) {
     { slug: 'remove-packaging-text', type: 'edit', model: 'ideogram-v3-remove-text', size: 'auto' },
     { slug: 'h3-identity-restyle', type: 'edit', model: 'minimax-h3/image-edit', size: '1k' },
     { slug: 'ideogram-v4-instant-poster', type: 'image', model: 'ideogram/v4/instant', size: '1024x1024' },
+    { slug: 'volt-vector-mark', type: 'image', model: 'recraft-ai/recraft-v4.1/text-to-vector', size: '1024x1024' },
     { slug: 'crystal-video-upscale', type: 'vedit', model: 'clarity-ai/crystal-video-upscaler', target_megapixels: 1 },
     { slug: 'night-ride-sfx', type: 'music', model: 'elevenlabs/sound-effects/v2', duration: '4' },
     { slug: 'volt-dispatch-infographic', type: 'image', model: 'sensenova-u1-infographic', size: '16:9' },
