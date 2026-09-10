@@ -1369,6 +1369,8 @@ const I18N = {
     "same face — Volt night-courier restyle":"misma cara — restyle de mensajero Volt de noche",
     "frame wakes up":"el fotograma despierta",
     "one still — Grok 1.5 rides it into motion":"un still — Grok 1.5 lo pone en movimiento",
+    "still breathes with sound":"el still respira con sonido",
+    "one still — Wan 3.0 adds motion + synced audio":"un still — Wan 3.0 añade movimiento + audio sincronizado",
     "rewrite the clip":"reescribir el clip",
     "upload a short take — prompt-edit it, keep the audio.":"sube un take corto — edítalo con un prompt, conserva el audio.",
     "strength":"intensidad",
@@ -2026,6 +2028,8 @@ const I18N = {
     "same face — Volt night-courier restyle":"même visage — restyle coursier Volt de nuit",
     "frame wakes up":"le photogramme s’éveille",
     "one still — Grok 1.5 rides it into motion":"un still — Grok 1.5 le met en mouvement",
+    "still breathes with sound":"le still respire avec le son",
+    "one still — Wan 3.0 adds motion + synced audio":"un still — Wan 3.0 ajoute le mouvement + l’audio sync",
     "rewrite the clip":"réécrire le clip",
     "upload a short take — prompt-edit it, keep the audio.":"importez une prise courte — éditez-la par prompt, gardez l’audio.",
     "strength":"intensité",
@@ -2683,6 +2687,8 @@ const I18N = {
     "same face — Volt night-courier restyle":"dasselbe Gesicht — Volt-Nachtkurier-Restyle",
     "frame wakes up":"das Bild wacht auf",
     "one still — Grok 1.5 rides it into motion":"ein Still — Grok 1.5 setzt es in Bewegung",
+    "still breathes with sound":"das Still atmet mit Klang",
+    "one still — Wan 3.0 adds motion + synced audio":"ein Still — Wan 3.0 fügt Bewegung + Sync-Audio hinzu",
     "rewrite the clip":"den Clip umschreiben",
     "upload a short take — prompt-edit it, keep the audio.":"kurzen Take hochladen — per Prompt bearbeiten, Audio behalten.",
     "strength":"Stärke",
@@ -3340,6 +3346,8 @@ const I18N = {
     "same face — Volt night-courier restyle":"mesmo rosto — restyle de mensageiro Volt noturno",
     "frame wakes up":"o fotograma acorda",
     "one still — Grok 1.5 rides it into motion":"um still — Grok 1.5 põe em movimento",
+    "still breathes with sound":"o still respira com som",
+    "one still — Wan 3.0 adds motion + synced audio":"um still — Wan 3.0 adiciona movimento + áudio sincronizado",
     "rewrite the clip":"reescrever o clipe",
     "upload a short take — prompt-edit it, keep the audio.":"envie um take curto — edite com um prompt, mantenha o áudio.",
     "strength":"intensidade",
@@ -3997,6 +4005,8 @@ const I18N = {
     "same face — Volt night-courier restyle":"同じ顔 — Voltナイトクーリエのリスタイル",
     "frame wakes up":"フレームが目を覚ます",
     "one still — Grok 1.5 rides it into motion":"1枚のスチール — Grok 1.5が動かす",
+    "still breathes with sound":"スチールが音とともに息づく",
+    "one still — Wan 3.0 adds motion + synced audio":"1枚のスチール — Wan 3.0が動きと同期音声を足す",
     "rewrite the clip":"クリップを書き換える",
     "upload a short take — prompt-edit it, keep the audio.":"短いテイクをアップロード — プロンプトで編集、音声はそのまま。",
     "strength":"強度",
@@ -13899,6 +13909,17 @@ const EXAMPLES = [
    links:[ {id:"l1",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}},
            {id:"l2",from:{node:"n2",port:"image"},to:{node:"n3",port:"image"}},
            {id:"motion-direct",from:{node:"n8",port:"text"},to:{node:"n3",port:"prompt"}} ] } },
+ { em:"🌧️", slug:"wan-still-audio", title:"still breathes with sound", desc:"one still — Wan 3.0 adds motion + synced audio",
+   thumb:"examples/gallery/wan-still-audio/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:80,y:-80,w:440,fields:{text:"One still breathes into a two-second clip with synced audio: Muse draws the first frame ($0.01), Wan 3.0 (`alibaba/wan-3.0/image-to-video`) adds locked-cam motion + generated sound (480p, 2s, enable_audio=true, thinking_mode=false; $0.07/s ≈ $0.14 video). Not frame wakes up (Grok Imagine 1.5 rooftop pulse, no Wan audio). Not Animate a product still (MiniMax H3 Spicy asphalt rain). Change still and motion briefs together. Inspect rain beads, LED pulse, and alley hum; a seamless loop is not promised.",color:"yellow"},name:"still breathes with sound"},
+           {id:"n1",type:"text",x:-40,y:100,w:300,fields:{text:"Matte charcoal Volt pocket night-ride radio on a rain-slick steel railing above a neon alley. Sharp electric-cyan lightning-chevron on the face, no letters. Three-quarter close, entire radio in frame. Magenta rim left, cyan puddle bounce, thin rain. Locked composition. No people, logos, or text."},name:"Still brief"},
+           {id:"n2",type:"image",x:400,y:100,fields:{model:"meta/muse-image/text-to-image",size:"16:9",variations:"1"},name:"First frame"},
+           {id:"n3",type:"ivideo",x:820,y:100,fields:{model:"alibaba/wan-3.0/image-to-video",prompt:"",resolution:"480p",duration:2,modelOpts:{"enable_audio":true,"thinking_mode":false,"duration":2},loras:[]},name:"Animated clip"},
+           {id:"n8",type:"text",x:-10,y:400,w:280,sizes:{text:98},fields:{text:"Locked camera for two seconds. Subtle breath only: rain beads crawl on the steel railing, cyan puddle shimmer under the radio, one soft radio LED pulse. Faint alley hum in the generated audio. The radio stays still. Preserve its shape and placement; no whip-pans, cuts, new objects or camera motion."},name:"Motion brief"} ],
+   links:[ {id:"l1",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}},
+           {id:"l2",from:{node:"n2",port:"image"},to:{node:"n3",port:"image"}},
+           {id:"motion-direct",from:{node:"n8",port:"text"},to:{node:"n3",port:"prompt"}} ] } },
  { em:"🎮", slug:"character-sprites", title:"character sprites", desc:"a furnace knight you can actually rig",
    thumb:"data:image/webp;base64,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",
    graph:{ v:1,
@@ -14073,7 +14094,7 @@ function openExamples(){
   // Same Elo order on every width — no mobile-only list, no CSS order, no truncation.
   // Featured #skilloutcome (Iron Verdict) sits above the grid on every width.
   // Compact mobile cards keep H3 (4th) and the featured game above the fold.
-  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","volt-vector-mark","mai-pack-type","volt-dispatch-infographic","photo-to-video","grok-imagine-still","h3-max-multi-angle","crystal-video-upscale","p-video-rewrite","character-sprites","talking-avatar","infinitetalk-radio-take","sing","night-ride-sfx","night-ride-radio-vo","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
+  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","volt-vector-mark","mai-pack-type","volt-dispatch-infographic","photo-to-video","grok-imagine-still","wan-still-audio","h3-max-multi-angle","crystal-video-upscale","p-video-rewrite","character-sprites","talking-avatar","infinitetalk-radio-take","sing","night-ride-sfx","night-ride-radio-vo","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
   EXAMPLES.map((ex,i)=>({ex,i})).sort((a,b)=>{
     const rank=slug=>first.includes(slug)?first.indexOf(slug):first.length;
     return rank(a.ex.slug)-rank(b.ex.slug);

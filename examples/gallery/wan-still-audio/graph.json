@@ -1,0 +1,116 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 80,
+      "y": -80,
+      "w": 440,
+      "name": "still breathes with sound",
+      "fields": {
+        "text": "One still breathes into a two-second clip with synced audio: Muse draws the first frame ($0.01), Wan 3.0 (`alibaba/wan-3.0/image-to-video`) adds locked-cam motion + generated sound (480p, 2s, enable_audio=true, thinking_mode=false; $0.07/s ≈ $0.14 video). Not frame wakes up (Grok Imagine 1.5 rooftop pulse, no Wan audio). Not Animate a product still (MiniMax H3 Spicy asphalt rain). Change still and motion briefs together. Inspect rain beads, LED pulse, and alley hum; a seamless loop is not promised.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "n1",
+      "type": "text",
+      "x": -40,
+      "y": 100,
+      "w": 300,
+      "name": "Still brief",
+      "fields": {
+        "text": "Matte charcoal Volt pocket night-ride radio on a rain-slick steel railing above a neon alley. Sharp electric-cyan lightning-chevron on the face, no letters. Three-quarter close, entire radio in frame. Magenta rim left, cyan puddle bounce, thin rain. Locked composition. No people, logos, or text."
+      }
+    },
+    {
+      "id": "n2",
+      "type": "image",
+      "x": 400,
+      "y": 100,
+      "fields": {
+        "model": "meta/muse-image/text-to-image",
+        "size": "16:9",
+        "variations": "1"
+      },
+      "sizes": {
+        "prompt": 0
+      },
+      "name": "First frame"
+    },
+    {
+      "id": "n3",
+      "type": "ivideo",
+      "x": 820,
+      "y": 100,
+      "fields": {
+        "model": "alibaba/wan-3.0/image-to-video",
+        "prompt": "",
+        "resolution": "480p",
+        "duration": 2,
+        "modelOpts": {
+          "enable_audio": true,
+          "thinking_mode": false,
+          "duration": 2
+        },
+        "loras": []
+      },
+      "sizes": {
+        "prompt": 0
+      },
+      "name": "Animated clip"
+    },
+    {
+      "id": "n8",
+      "type": "text",
+      "x": -10,
+      "y": 400,
+      "w": 280,
+      "name": "Motion brief",
+      "fields": {
+        "text": "Locked camera for two seconds. Subtle breath only: rain beads crawl on the steel railing, cyan puddle shimmer under the radio, one soft radio LED pulse. Faint alley hum in the generated audio. The radio stays still. Preserve its shape and placement; no whip-pans, cuts, new objects or camera motion."
+      },
+      "sizes": {
+        "text": 98
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "n1",
+        "port": "text"
+      },
+      "to": {
+        "node": "n2",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "n2",
+        "port": "image"
+      },
+      "to": {
+        "node": "n3",
+        "port": "image"
+      }
+    },
+    {
+      "id": "motion-direct",
+      "from": {
+        "node": "n8",
+        "port": "text"
+      },
+      "to": {
+        "node": "n3",
+        "port": "prompt"
+      }
+    }
+  ],
+  "nid": 9,
+  "lid": 9
+}

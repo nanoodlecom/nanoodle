@@ -90,9 +90,10 @@ export function galleryRegressions(pins) {
     { slug: 'night-ride-radio-vo', type: 'tts', model: 'xai-tts', voice: 'Leo' },
     { slug: 'volt-dispatch-infographic', type: 'image', model: 'sensenova-u1-infographic', size: '16:9' },
     { slug: 'grok-imagine-still', type: 'ivideo', model: 'xai/grok-imagine-video/v1.5/image-to-video', resolution: '480p', duration: '4' },
+    { slug: 'wan-still-audio', type: 'ivideo', model: 'alibaba/wan-3.0/image-to-video', resolution: '480p', duration: 2, enable_audio: true },
     { slug: 'p-video-rewrite', type: 'vedit', model: 'pruna-ai/p-video/edit', draft: true },
   ];
-  return expected.flatMap(({ slug, type, model, size, resolution, people, duration, camera_motion, target_megapixels, draft, voice }) => {
+  return expected.flatMap(({ slug, type, model, size, resolution, people, duration, camera_motion, target_megapixels, draft, voice, enable_audio }) => {
     const pin = pins.find(p => p.slug === slug && p.type === type);
     if (!pin) return [{ slug, type, reason: 'required gallery card missing' }];
     if (pin.id !== model) return [{ ...pin, reason: `gallery regression: expected model ${model}` }];
@@ -104,6 +105,7 @@ export function galleryRegressions(pins) {
     if (target_megapixels != null && pin.fields.modelOpts?.target_megapixels !== target_megapixels) return [{ ...pin, reason: `gallery regression: expected target_megapixels ${target_megapixels}` }];
     if (draft === true && pin.fields.modelOpts?.draft !== true) return [{ ...pin, reason: `gallery regression: expected draft true` }];
     if (voice && pin.fields.voice !== voice) return [{ ...pin, reason: `gallery regression: expected voice ${voice}` }];
+    if (enable_audio === true && pin.fields.modelOpts?.enable_audio !== true) return [{ ...pin, reason: `gallery regression: expected enable_audio true` }];
     return [];
   });
 }
