@@ -37,364 +37,37 @@ const shareLink = (workflowBytes) =>
 // How-to copy is grounded in samples.json notes, EXAMPLES comment nodes, and
 // the awesome-noodles README / CURATION.md. Do not invent costs or model ids.
 const HOWTO = {
-  "fable-five-step": {
-    headline: "Messy dump → plan",
-    job: "Pick a shape. Get a plan.",
-    purpose: "A messy coding dump and a Choice — five numbered steps, a GitHub PR body, or failing-test first. Claude Fable 5.1 writes that shape. One text call. The invoices crime scene is filled so first-click has something to chew; swap the dump.",
-    edit: "Paste your dump into <em>Messy dump</em>. Pick a <em>Shape</em>. Leave Fable 5.1 unless you mean to change models.",
-    inspect: "Five numbered steps. Files named. Under 180 words.",
-    costHow: "Listed at about $0.02 for one Fable 5.1 call at reasoning low / 512 tokens. Prices and results vary. This page has no reviewed first-party run yet.",
-  },
-  deslop: {
-    headline: "midnight drop notice",
-    job: "120 jackets · $280 · 00:01 JST — keep every fact, lose the seamless unlock",
-    cardTag: "gg writers",
-    hideNote: true,
-    purpose: "",
-    edit: "Paste the slop into <em>Your draft</em>. Leave the three LLM nodes unless you mean to change models: <code>venice-uncensored</code> does the first rewrite, Terra fact-checks, Grok applies the review.",
-    inspect: "Facts stay. Hype dies.",
-    costHow: "The reviewed run reported $0.0079 across three paid text calls. Token use and model prices move; check the editor estimate before you hit Run.",
-  },
-  favicon: {
-    headline: "A bolt that reads at 16px",
-    job: "One cyan bolt. Readable at 16 pixels.",
-    purpose: "A courier-night brand sentence becomes a glyph you'd actually put on a tab. First-click is Volt — lightning chevron, charcoal field, electric cyan. Flat, bold, no tiny detail that dies when the favicon shrinks.",
-    edit: "Rewrite <em>Brand</em> — name, symbol, colors. GLM Flash condenses it; Muse paints one square.",
-    inspect: "Squint at 16px. One glyph still reads.",
-    costHow: "The reviewed run reported $0.01. The image step is listed at $0.01, plus a small text call. Prices and results vary.",
-  },
-  "transparent-brand-sticker": {
-    headline: "One cyan bolt. Clean alpha.",
-    job: "Volt sticker. Transparent. No letters.",
-    purpose: "A brand sentence becomes a flat die-cut sticker overlay with a clean alpha channel. First-click is Volt — matte-charcoal rounded field, ONE electric-cyan lightning-bolt chevron, generous transparent margins. No letters. Distinct from Favicon concept (GLM Flash + Muse opaque square glyph) and Product cutout / BiRefNet V2 (upload → knock out background). No LLM. No upload.",
-    edit: "Rewrite <em>Brand brief</em>. Leave <em>Sticker</em> on <code>ideogram-v3-generate-transparent</code> at size <code>1:1</code> unless you mean to change models. The image node does not forward <code>rendering_speed</code>.",
-    inspect: "One cyan bolt. Clean alpha.",
-    costHow: "Listed at about $0.06 for one Ideogram V3 Generate Transparent call at 1:1 balanced. Catalog also lists rendering_speed flash ~$0.03, but the image node does not forward modelOpts. No LLM. Prices and results vary. This page has no reviewed first-party sticker yet.",
-  },
-  "ideogram-v4-instant-poster": {
-    headline: "VOLT / MIDNIGHT DROP",
-    job: "Sharp poster. Letters stay.",
-    purpose: "A brand sentence becomes a sharp drop poster with lettering. First-click is Volt — matte-charcoal field, ONE electric-cyan lightning-bolt chevron, VOLT / MIDNIGHT DROP, hard cyan rim, dark slate. Flat poster graphic — not a product photo. Distinct from Transparent brand sticker (alpha, no letters), Favicon (GLM Flash + Muse opaque 16px glyph), Remove packaging text (strips lettering), and FIBO / cinematic / arena stills. No LLM. No upload.",
-    edit: "Rewrite <em>Poster brief</em>. Leave <em>Poster</em> on <code>ideogram/v4/instant</code> at size <code>1024x1024</code> unless you mean to change models. The image node does not forward <code>modelOpts</code>.",
-    inspect: "VOLT / MIDNIGHT DROP. Letters stay sharp.",
-    costHow: "Listed at about $0.0075 for one Ideogram V4 Instant call at 1024x1024 balanced. Catalog also lists TURBO ~$0.00375, but the image node does not forward modelOpts. No LLM. Prices and results vary. This page has no reviewed first-party poster yet.",
-  },
-  "volt-vector-mark": {
-    headline: "Editable SVG bolt",
-    job: "Recraft vector mark you can scale",
-    hideNote: true,
-    purpose: "A mark brief becomes an editable SVG logo. Recraft V4.1 text-to-vector. First-click is Volt — electric-cyan lightning-chevron on matte-charcoal. Distinct from Favicon (Muse raster glyph), Transparent brand sticker (PNG alpha), and Ideogram V4 Instant poster (letters).",
-    edit: "Rewrite <em>Mark brief</em>. Leave <em>SVG mark</em> on <code>recraft-ai/recraft-v4.1/text-to-vector</code> at size <code>1024x1024</code>.",
-    inspect: "Clean SVG paths. Scale it.",
-    costHow: "Listed at $0.08 for one Recraft V4.1 Vector call at 1024x1024. No LLM. Prices vary. No reviewed first-party SVG yet.",
-  },
-  "mai-pack-type": {
-    headline: "Pack lettering that sticks",
-    job: "Volt sleeve type that stays readable",
-    hideNote: true,
-    purpose: "Text brief → MAI-Image-2.6 Flash pack lettering. First-click is a Volt sleeve — charcoal, ONE cyan chevron, VOLT / MIDNIGHT DROP / NIGHT CHANNEL. Not an Ideogram poster, not a SenseNova dispatch card, not a Qwen UI mockup.",
-    edit: "Rewrite <em>Pack brief</em>. Leave <em>Pack sleeve</em> on <code>microsoft/mai-image-2.6-flash</code> at size <code>1152x864</code>.",
-    inspect: "VOLT / MIDNIGHT DROP. Letters stick.",
-    costHow: "Listed at about $0.033 for one MAI-Image-2.6 Flash call at 1152x864. No LLM. Prices vary. No reviewed first-party sleeve yet.",
-  },
-  "fibo-studio-still": {
-    headline: "A radio on dark slate",
-    job: "Volt night-ride radio. Pick the light.",
-    purpose: "Describe the object, pick a light, get an editorial still of a product that doesn't exist yet. First-click is Volt — matte charcoal chassis, electric-cyan lightning chevron, dark slate. Distinct from the rain-asphalt photo→video clip and the favicon glyph: this is the radio itself, in studio light. When you already have a real product photo, start with the catalog-clean edit instead.",
-    edit: "Rewrite <em>Product</em> (shape, materials, count) and pick a <em>Light</em>. GLM Flash structures the brief; Bria FIBO renders at 1MP.",
-    inspect: "Count, color, light match. Fictional radio.",
-    costHow: "The reviewed run reported $0.04. The image step is listed at $0.04, plus a small text call. Prices and results vary.",
-  },
-  "cinematic-character-still": {
-    headline: "Neon courier key-art",
-    job: "Neon courier. One rider, one city, one frame.",
-    purpose:
-      "Three knobs: who they are, how the light hits, how the frame is cut. MiniMax H3 Image paints the brief directly — no prompt-writing call. The reviewed still is a motorcycle courier in a night alley: magenta rim, cyan bounce, red helmet under one arm. One frame that could open a short.",
-    edit: "Change <em>Person</em>, <em>Light</em>, and <em>Frame</em>. Those three inputs are the whole brief. Type the rider, the neon, the crop.",
-    inspect: "One person. Helmet readable. No extra people.",
-    costHow: "The reviewed run reported $0.02 ($0.02/image at 1K). Prices and results vary.",
-  },
-  "h3-identity-restyle": {
-    headline: "Same face. Night-ride kit.",
-    job: "Keep identity. Volt restyle.",
-    hideNote: true,
-    purpose: "Upload a person or product still. MiniMax H3 Image Edit restyles scene, outfit and light while keeping identity. First-click is a Volt night-courier key still — charcoal kit, ONE cyan lightning chevron, magenta rim + cyan bounce. Distinct from Muse Edit, Cinematic character still / H3 T2I, and Product in a setting.",
-    edit: "Drop your still on <em>Still</em>. Leave <em>Restyle</em> on the Volt night-courier line. Leave <em>Identity restyle</em> on <code>minimax-h3/image-edit</code> at size <code>1k</code>.",
-    inspect: "Same face. Night-ride kit.",
-    costHow: "Listed at $0.03 for one MiniMax H3 Image Edit call at 1k. No LLM. Prices vary. No reviewed first-party restyle yet.",
-  },
-  "virtual-try-on": {
-    headline: "Wear the night kit.",
-    job: "Person + garment. FLUX tries the drop on.",
-    hideNote: true,
-    purpose: "Upload a person still and a garment still. FLUX Virtual Try-On applies the garment. First-click is a Volt night courier + night-ride jacket/tee with ONE cyan lightning-chevron. Distinct from Product in a setting, Clean product photo, and Night-ride identity restyle.",
-    edit: "Drop person on <em>Person still</em>, garment on <em>Garment still</em>. Leave <em>Style brief</em> on the Volt night-ride line. Leave <em>Try-on</em> on <code>flux-pro/v1/vto</code> at size <code>auto</code>.",
-    inspect: "Wear the night kit.",
-    costHow: "Listed at $0.0575 for one FLUX Virtual Try-On call at auto. No LLM. Prices vary. No reviewed first-party try-on yet.",
-  },
-  "character-sprites": {
-    headline: "A furnace knight you can rig",
-    job: "Furnace-knight reference + four-quadrant parts sheet.",
-    purpose: "Character art → cutout parts → local rig. GLM Flash writes the reference prompt; Muse paints the canonical character at 1:1; Muse Edit cuts a four-quadrant parts sheet at 1:1; local resize fits 768. The companion skill bakes 32 transparent frames. Iron Verdict is the worked game. Distinct from cinematic-character-still (hero key-art) — this is the Iron Verdict / game-rig story.",
-    edit: "Rewrite <em>Character</em>. Leave <em>Character designer</em> on <code>z-ai/glm-5.3-flash</code>, <em>Canonical character</em> on <code>meta/muse-image/text-to-image</code> at 1:1, and <em>Rig parts</em> on <code>meta/muse-image/edit</code> at 1:1 unless you mean to change models. <em>Reference</em> is a local 768 fit.",
-    inspect: "Furnace knight + four-quadrant parts.",
-    costHow: "Listed at about $0.02 for the two image calls ($0.01 reference + $0.01 parts) plus a small GLM Flash text call. Local resize is $0. Prices and results vary. This page has no reviewed first-party parts sheet yet.",
-  },
-  "edit-a-photo": {
-    headline: "Cool catalog. Same product.",
-    job: "Charcoal paper. Cyan rim.",
-    purpose: "Keep the object. Lose the clutter. Start here when you already have a shot — or a generated still — of the thing. First-click is a cool night-ride catalog: matte charcoal seamless, hard electric-cyan rim, soft magenta bounce.",
-    edit: "Drop your photo on <em>Product photo</em>. Tighten <em>Edit request</em> if the default cool-catalog brief is wrong. Muse Edit uses both.",
-    inspect: "Same product. Cool catalog light.",
-    costHow: "The reviewed warm-white bottle run reported $0.01 ($0.01/image). Cover still is card art. Prices and results vary.",
-  },
-  "product-cutout": {
-    headline: "Knock the slate out",
-    job: "Volt radio. Transparent. Ready to drop.",
-    purpose: "Upload a product still. BiRefNet V2 knocks the background and keeps the fine edges — a transparent cutout for compositing, not a relit catalog. First-click is Volt — matte charcoal pocket night-ride radio, electric-cyan lightning chevron, dark slate / hard cyan rim. Distinct from Clean product photo, which relights and replaces the backdrop. Not SAM 3.",
-    edit: "Drop your still on <em>Product still</em>. Leave <em>Transparent cutout</em> on <code>birefnet/v2</code> unless you mean to change models. <em>Export preview</em> is a local 1024 fit.",
-    inspect: "Radio cut out. Edges clean.",
-    costHow: "Listed at $0.01 for one BiRefNet V2 call at auto. Local resize is $0. No LLM. Prices and results vary. This page has no reviewed first-party cutout yet.",
-  },
-  "sam3-isolate": {
-    headline: "Name it. Lift it.",
-    job: "Volt radio. Named. Isolated.",
-    purpose: "Upload a cluttered scene. Name the object. SAM 3 isolates that region — not the whole background. First-click Isolate names the matte-charcoal Volt pocket night-ride radio with one electric-cyan lightning-bolt chevron in a cluttered courier desk or wet neon alley. Distinct from Product cutout / BiRefNet V2, which knocks out the entire background.",
-    edit: "Drop your scene on <em>Scene still</em>. Rewrite <em>Isolate</em> to name the object or region. Leave <em>Text-selected isolate</em> on <code>sam3-image</code> unless you mean to change models. <em>Export preview</em> is a local 1024 fit.",
-    inspect: "Named object lifted. Rest stays.",
-    costHow: "Listed at $0.005 for one SAM 3 call at auto. Local resize is $0. No LLM. Prices and results vary. This page has no reviewed first-party isolate yet.",
-  },
-  "p-image-upscale": {
-    headline: "Same radio. Twice the pixels.",
-    job: "Volt still. 2×. No restyle.",
-    purpose: "Upload a product still. P-Image Upscale enlarges it to 2 megapixels — resolution upscale only, not a relight or a cutout. First-click Detail brief preserves the matte-charcoal Volt pocket night-ride radio and its electric-cyan lightning-bolt chevron. Distinct from Clean product photo / Muse Edit, Product cutout / BiRefNet V2, and Text-selected isolate / SAM 3.",
-    edit: "Drop your still on <em>Product still</em>. Leave <em>Detail brief</em> on the Volt-preserving line unless you mean to change it. Leave <em>Upscaled still</em> on <code>pruna-ai/p-image/upscale</code> at size <code>2</code> unless you mean to change models. <em>Export preview</em> is a local 1024 fit.",
-    inspect: "Same radio. Twice the pixels.",
-    costHow: "Listed at $0.005 for one P-Image Upscale call at size 2. Local resize is $0. No LLM. Prices and results vary. This page has no reviewed first-party upscale yet.",
-  },
-  "remove-packaging-text": {
-    headline: "Letters off the card",
-    job: "Volt promo. Lettering gone.",
-    hideNote: true,
-    purpose: "Upload a flat packaging / promo card. Ideogram V3 Remove Text strips the letters. First-click is Volt — matte charcoal, cyan lightning chevron, leftover promo type. Distinct from Muse Edit, BiRefNet, SAM 3, P-Image Upscale, and the transparent sticker.",
-    edit: "Drop your card on <em>Packaging still</em>. Leave <em>Remove lettering</em> on <code>ideogram-v3-remove-text</code> at size <code>auto</code>. <em>Export preview</em> is a local 1024 fit. The edit prompt is a runner instruction — image-only model.",
-    inspect: "Letters gone. Mark stays.",
-    costHow: "Listed at $0.09 for one Ideogram V3 Remove Text call at auto. Local resize is $0. No LLM. Prices vary. No reviewed first-party cleanup yet.",
-  },
-  "widen-the-frame": {
-    headline: "Widen a tight crop",
-    job: "Banana Edit outpaints a 16:9 hero",
-    hideNote: true,
-    purpose: "Upload a tight product still. Nano Banana Edit outpaints a wider 16:9 hero. First-click is a cropped Volt pocket night-ride radio — charcoal, ONE cyan lightning chevron, hard cyan rim. Distinct from Muse Edit, H3 identity restyle, Ideogram remove text, BiRefNet cutout, SAM isolate, P-Image Upscale, Crystal / SeedVR2, FLUX VTO, and combine-images.",
-    edit: "Drop your still on <em>Product still</em>. Leave <em>Outpaint brief</em> on the 16:9 night-alley line. Leave <em>Widened still</em> on <code>nano-banana-edit</code> at size <code>auto</code>. <em>Export preview</em> is a local 1024 fit.",
-    inspect: "Tight crop in. Wider hero out.",
-    costHow: "Listed at $0.039 for one Nano Banana Edit call at auto. No LLM. Prices vary. No reviewed first-party outpaint yet.",
-  },
-  "combine-images": {
-    headline: "Drop the product in the alley",
-    job: "Product + setting → placed composite",
-    purpose: "Preview the Volt radio on wet neon asphalt before you book the night lane. Scale, light, and contact shadows should feel inevitable. First-click is night-ride product placement — matte charcoal pocket radio, cyan lightning chevron, cyan and magenta alley light. Distinct from the charcoal-paper catalog cleanup: this drops the product into a real setting.",
-    edit: "Product on <em>Product photo</em>, alley on <em>Setting photo</em>, and <em>Placement brief</em> if the default night-ride rules are wrong for your pair.",
-    inspect: "Product in the alley. Shadows make sense.",
-    costHow: "The reviewed tea-desk run reported $0.01 ($0.01/image). Cover still is card art. Prices and results vary.",
-  },
   "image-model-arena": {
-    headline: "Four models. One brief.",
-    job: "Same poster prompt; compare outputs",
-    purpose: "Make them all draw the same Volt night-ride poster. Keep the one that got the useful details right — polish is not the same as a lightning chevron. First-click is NIGHT RIDE / TUE 9 SEP: one charcoal radio, cyan bolt, dark slate.",
-    edit: "Rewrite <em>Shared test brief</em>. The four image nodes already pin Muse, GPT Image 2.5 Flare, Grok Imagine Image 2.0, and Recraft V4. Run spends four images.",
-    inspect: "Same brief. Four takes. Pick the useful one.",
-    costHow: "The reviewed FIX A FLAT run reported $0.118 (Muse $0.01, Krea $0.01, Grok $0.06, Recraft $0.038). Four paid image calls. Cover still is card art. Prices and results vary.",
-  },
-  "night-market-postcard": {
-    headline: "Rain. Neon. One postcard.",
-    job: "A place, a mood, a postcard.",
-    purpose: "Type a destination. Pick a vibe. Leave with a 3:2 travel print — not a stock photo of the wrong city. The sample place lives only in the input.",
-    edit: "Rewrite <em>Place</em> and pick a <em>Vibe</em>. GLM Flash writes the postcard prompt; Muse renders at 3:2.",
-    inspect: "Landmarks match the place you typed.",
-    costHow: "The reviewed run reported $0.01. The image step is listed at $0.01, plus a small text call. Prices and results vary.",
+    headline: "Compare four image models",
+    job: "One prompt → four images to compare.",
+    purpose: "A shared bicycle-workshop poster brief branches into four image models. Compare the lettering, object count and tool shapes before choosing a result.",
+    edit: "Rewrite <em>Shared test brief</em> once. All four image nodes receive it: Muse, GPT Image 2.5 Flare, Grok Imagine Image 2.0 and Recraft V4. Running the whole graph makes four paid image calls.",
+    inspect: "Check FIX A FLAT, SATURDAY 10 AM, one wheel and two recognizable tire levers across all four results.",
+    costHow: "The archived comparison reported $0.118: Muse $0.01, Krea $0.01, Grok $0.06 and Recraft $0.038. That total covers the saved Krea run. Check the editor estimate for the current models before running.",
   },
   "photo-to-video": {
-    headline: "Animate the product still",
-    job: "Still in → short night-ride clip out",
-    purpose: "Five seconds where the Volt radio stays put and the rain doesn't. Generate the frame, then move one small thing. First-click is a charcoal night-ride radio on wet asphalt — magenta and cyan neon, no letters.",
-    edit: "Change <em>Still brief</em> and <em>Motion brief</em> together so they describe the same scene. Muse draws the first frame; MiniMax H3 Spicy animates 5 seconds at 480p.",
-    inspect: "Whatever you called still stays still.",
-    costHow: "The reviewed tea-mug clip reported $0.21 (Muse $0.01 + MiniMax H3 Spicy $0.20 at 480p / 5s). Cover still is card art. Prices and results vary.",
-  },
-  "omni-flash-turntable": {
-    headline: "Orbit the plinth radio",
-    job: "Text→video quarter-orbit reveal",
-    hideNote: true,
-    purpose: "No upload. Describe the thing, pick one camera move, get a five-second draft. First-click is a matte-charcoal Volt pocket night-ride radio on a charcoal plinth — hard cyan rim, electric-cyan lightning chevron, dark studio void. Same knobs. A concept object, not a catalog SKU.",
-    edit: "Rewrite <em>Object</em> and pick a <em>Move</em>. GLM Flash structures the brief; Omni Flash 1.1 renders 5 seconds at 360p / 16:9.",
-    inspect: "One orbit. Radio stays put.",
-    costHow: "Listed at about $0.195 for one Omni Flash 1.1 call at 360p / 5s / 16:9, plus a small GLM Flash text call. Prices and results vary. This page has no reviewed first-party Volt clip yet.",
-  },
-  "render-a-mockup": {
-    headline: "Dispatch UI to argue about",
-    job: "Labeled Volt board screenshot mock",
-    purpose: "The labels you already wrote, as a picture. Design review — not a working app. First-click is a charcoal Volt courier-dispatch board — Tonight, Couriers, Radios, cyan New dispatch.",
-    edit: "Edit <em>Screen brief</em> and <em>Visual style</em>. Keep the pair under 800 characters (the saved pair is 696). Qwen Image 3 Pro paints the joined brief at 1K. No prompt-writing call.",
-    inspect: "Labels stay. No invented sections.",
-    costHow: "The reviewed run reported $0.04 ($0.04/image at 1K). Prices and results vary.",
+    headline: "Animate a still",
+    job: "Generate a first frame, then animate its steam.",
+    purpose: "Muse draws a mug of tea beside a notebook. MiniMax H3 Spicy uses that first frame and a separate motion brief to make a five-second clip. Keeping the scene and movement in separate inputs lets you change what moves without redesigning the still.",
+    edit: "Change <em>Still brief</em> and <em>Motion brief</em> to describe the same scene. Muse generates the first frame; MiniMax H3 Spicy animates it for five seconds at 480p.",
+    inspect: "Play the clip. The mug, notebook and desk should stay stable while the steam moves. Check the full clip before using it.",
+    costHow: "The saved tea-mug run reported $0.21: $0.01 for the still and $0.20 for five seconds of video at 480p. Prices and results vary.",
   },
   sing: {
-    headline: "The song after the last leap",
-    job: "Credits after the last leap.",
-    purpose: "Original closing-credits music from a brief and a style. No artist cosplay. First-click is a rooftop getaway — rain, last leap, red neon six floors down.",
-    edit: "Rewrite <em>Song brief (theme, not lyrics)</em> and <em>Style (instruments &amp; tempo)</em>. GLM Flash writes labeled lyrics; Mureka Generate Song sings them.",
-    inspect: "Chorus you can hum. City wants you back.",
-    costHow: "The reviewed song run reported $0.225 (music step $0.225, plus a small text call). Prices and results vary.",
-  },
-  "night-ride-sfx": {
-    headline: "Cyan thunder. Four seconds.",
-    job: "Volt radio sting. No music bed.",
-    hideNote: true,
-    purpose: "Text brief → ElevenLabs Sound Effects V2. First-click is a Volt night-ride radio sting — wet neon alley pulse, radio static bloom, one electric-cyan thunder hit, tight decay. Not Closing-credits song. Not TTS. Not a video Keep. No upload. No LLM.",
-    edit: "Rewrite <em>SFX brief</em>. Leave <em>Sting</em> on <code>elevenlabs/sound-effects/v2</code> at duration <code>4</code>.",
-    inspect: "Static bloom. One thunder hit. No music bed.",
-    costHow: "Listed at about $0.008 for one ElevenLabs Sound Effects V2 call at duration 4 ($0.002/s). No LLM. Prices vary. No reviewed first-party sting yet.",
-  },
-  "night-ride-radio-vo": {
-    headline: "Volt is live. Speech only.",
-    job: "Night board. Pocket radio. Leo.",
-    hideNote: true,
-    purpose: "Spoken script → SpaceXAI TTS. First-click is a Volt night-ride dispatch callout — night board, pocket radio, cyan channel. Voice Leo. Not Night-ride SFX. Not InfiniteTalk. Not Closing-credits song. Not Spoken introduction. No image, no video, no LLM, no upload.",
-    edit: "Rewrite <em>Spoken script</em>. Leave <em>Speech</em> on <code>xai-tts</code> at voice <code>Leo</code>.",
-    inspect: "Speech only. Dispatch callout.",
-    costHow: "Listed at about $0.0023 for this first-click script ($0.0165 per 1k chars). Well under $0.01. No LLM. Prices vary. No reviewed first-party mp3 yet.",
-  },
-  "whisper-pull-words": {
-    headline: "Whisper the transcript",
-    job: "Drop speech; get the transcript",
-    hideNote: true,
-    purpose: "Upload VO → Whisper Large V3. Speech→text. Not Night-ride radio VO (xai-tts). Not InfiniteTalk. Not SFX/foley. Not Sing.",
-    edit: "Drop your take on <em>Night-ride VO</em>. Leave <em>Transcript</em> on <code>Whisper-Large-V3</code>.",
-    inspect: "Drop speech. Get the transcript.",
-    costHow: "Listed at about $0.000495/min (≪$0.01 for a short VO). No LLM. Prices vary. No reviewed first-party transcript yet.",
-  },
-  "stable-alley-score": {
-    headline: "Score the night alley",
-    job: "One prompt → instrumental trip-hop bed",
-    hideNote: true,
-    purpose: "Text brief → Stable Audio 3 Small Music. Instrumental neon-alley score for a charcoal Volt pocket radio. Not Closing-credits song. Not Night-ride SFX. Not TTS. Not video foley. No upload. No LLM.",
-    edit: "Rewrite <em>Score brief</em>. Leave <em>Score</em> on <code>stable-audio-3/small/music/text-to-audio</code> with <code>instrumental</code> on.",
-    inspect: "Trip-hop pulse. Rain ticks. Instrumental.",
-    costHow: "Listed at about $0.024 for one Stable Audio 3 Small Music call. No LLM. Prices vary. No reviewed first-party bed yet.",
-  },
-  "mirelo-stretch-bed": {
-    headline: "Stretch that audio bed",
-    job: "Stretch a short ambience bed longer",
-    hideNote: true,
-    purpose: "Upload a short alley bed. Mirelo SFX1.6 Extend Audio continues the ambience. Audio extend, not video extend. Not Night-ride SFX. Not Mirelo video foley. Not Stable Audio / sing.",
-    edit: "Drop your bed on <em>Short alley bed</em>. Leave <em>Stretched bed</em> on <code>mirelo-ai/sfx1.6/extend-audio</code> at duration <code>3</code>.",
-    inspect: "Short ambience bed → keep it humming.",
-    costHow: "Listed at about $0.03 for 3s ($0.01/s). No LLM. Prices vary. No reviewed first-party extend yet.",
+    headline: "Write and sing a credits song",
+    job: "Theme → lyrics → original song.",
+    purpose: "GLM Flash turns a story theme into lyrics with verse and chorus labels. Mureka sings those lyrics in the musical style you choose. The saved song follows a rooftop getaway, with the chorus: I made it out, but the city wants me back.",
+    edit: "Rewrite <em>Song brief (theme, not lyrics)</em> and <em>Style (instruments &amp; tempo)</em>. Run <em>Write lyrics</em> to inspect the words before running <em>Song</em>, or run the whole graph.",
+    inspect: "Listen for intelligible lyrics and a chorus that fits your theme. The model chooses the final duration and musical structure.",
+    costHow: "The saved song's music step reported $0.225; lyric generation adds a small text charge. Prices and results vary.",
   },
   "talking-avatar": {
-    headline: "Look at camera. Clear the channel.",
-    job: "Night courier. One line to camera.",
-    purpose: "A face, a voice, a line to camera. Keep the script under 30 seconds. Match the presenter to the voice you picked. First-click is a Volt night-courier dispatcher — charcoal jacket, cyan lightning chevron, night board. Type the line you'd actually say.",
-    edit: "Change <em>Presenter look</em>, <em>Spoken script</em>, and <em>Delivery</em>. Muse paints the face, MiniMax Speech reads, LongCat animates at 480p.",
-    inspect: "Words land. Face stays. Mouth follows.",
-    costHow: "The reviewed workshop run reported at least $0.28. Video is listed at $0.03 per audio second at 480p, plus portrait and speech. Some provider price fields were omitted. Cover still is card art. Prices and results vary.",
-  },
-  "infinitetalk-radio-take": {
-    headline: "Hold the radio. Follow the take.",
-    job: "Still + audio. Lips and body follow the sound.",
-    purpose: "Turn a still and an audio take into a speaking/singing courier clip where lips and body follow the sound — not a TTS→LongCat intro. First-click is a Volt charcoal/cyan night-ride radio take: mid-shot courier, pocket radio chest-high, rain-slick rooftop. Distinct from Night-courier spoken intro (Muse → MiniMax Speech → LongCat).",
-    edit: "Rewrite <em>Still brief</em>, the <em>Radio take (bootstrap)</em> line, and <em>Delivery</em>, or swap Speech for an uploaded clip under ~15 seconds. Leave Avatar / lipsync on <code>infinitetalk</code> at single / 480p.",
-    inspect: "Lips and body follow the take.",
-    costHow: "Listed from about $0.09 for InfiniteTalk (duration/resolution) plus Muse ~$0.01. Speech only if you keep the bootstrap. Prices and results vary. This page has no reviewed first-party InfiniteTalk clip yet.",
-  },
-  "grok-imagine-still": {
-    headline: "Still → short clip",
-    job: "One still. Grok rides it into motion",
-    purpose: "Muse draws the matte-charcoal rooftop-ledge Volt radio. Grok Imagine Video 1.5 rides it into a four-second clip — locked camera, subtle rain, one cyan chevron pulse. Not photo-to-video / MiniMax H3 Spicy (asphalt rain, 5s).",
-    edit: "Change <em>Still brief</em> and <em>Motion brief</em> together. Leave <em>First frame</em> on Muse and <em>Animated clip</em> on <code>xai/grok-imagine-video/v1.5/image-to-video</code> at 480p / 4s.",
-    inspect: "One still. Then it moves.",
-    costHow: "Listed at about $0.84 (Muse $0.01 + Grok Imagine Video 1.5 ~$0.83 at 480p / 4s). Prices vary. This page has no reviewed first-party clip yet.",
-  },
-  "wan-motion-drive": {
-    headline: "Drive a still with motion",
-    job: "Still + driver clip → Wan Animate transfer",
-    hideNote: true,
-    purpose: "Upload a still and a short driver clip. Wan Animate 2 transfers the move @480p. Not prompt-i2v (photo-to-video / grok-imagine-still / wan-still-audio). Not InfiniteTalk / talking-avatar. Not H3 Max orbit. Not P-Video rewrite.",
-    edit: "Drop your still on <em>Character/product still</em> and a ~2–3s driver on <em>Driver motion</em>. Leave <em>Motion prompt</em> on the Volt line. Leave <em>Driven clip</em> on <code>wan-22-animate-2</code> at 480p.",
-    inspect: "The driver move lands on the still.",
-    costHow: "Listed from about $0.08 for a ~2s driver at 480p ($0.04/s; ~$0.08–0.12 for ~2–3s). No LLM. Prices vary. No reviewed first-party clip yet.",
-  },
-  "wan-still-audio": {
-    headline: "Still → clip + audio",
-    job: "Wan adds locked motion and alley hum",
-    hideNote: true,
-    purpose: "Muse draws the railing radio. Wan 3.0 adds two seconds of locked-cam breath and generated alley hum. Not Still → short clip. Not photo-to-video.",
-    edit: "Change <em>Still brief</em> and <em>Motion brief</em> together. Leave <em>First frame</em> on Muse and <em>Animated clip</em> on <code>alibaba/wan-3.0/image-to-video</code> at 480p / 2s / <code>enable_audio</code>.",
-    inspect: "Rain beads. LED pulse. Alley hum.",
-    costHow: "Listed at about $0.15 (Muse $0.01 + Wan 3.0 ~$0.14 at 480p / 2s). Prices vary. No reviewed first-party clip yet.",
-  },
-  "h3-max-multi-angle": {
-    headline: "Orbit the uploaded radio",
-    job: "Camera right. Product stays.",
-    purpose: "Upload a product still. MiniMax H3 Max Multi Angle orbits the camera around it — a precise camera reveal, not generic i2v motion and not text-to-video. First-click is a matte-charcoal Volt pocket night-ride radio with one electric-cyan lightning-bolt chevron on dark slate / hard cyan rim. Distinct from photo-to-video / MiniMax H3 Spicy (locked-camera rain) and omni-flash-turntable / Omni Flash 1.1 (text-to-video studio-plinth orbit).",
-    edit: "Drop your still on <em>Product still</em>. Leave <em>Orbit clip</em> on <code>minimax/h3-max/multi-angle/image-to-video</code> at 480p / 5s / <code>camera_motion=orbit-right</code> unless you mean to change the move (orbit-left, push-in, pull-back, rise).",
-    inspect: "Camera right. Product stays.",
-    costHow: "Listed from about $0.25 for one H3 Max Multi Angle call at 480p / 5s. Duration and resolution determine pricing. Prices and results vary. This page has no reviewed first-party orbit clip yet.",
-  },
-  "crystal-video-upscale": {
-    headline: "Same clip. More pixels.",
-    job: "Volt clip. 1 MP. Sharper.",
-    hideNote: true,
-    purpose: "Upload a short clip. Crystal Video Upscaler enlarges it to 1 target megapixel — resolution upscale only, not a restyle or a camera orbit. First-click is a matte-charcoal Volt pocket night-ride radio clip with one electric-cyan lightning-bolt chevron. Distinct from P-Image Upscale (still) and Night-ride radio orbit / Omni Flash (generate).",
-    edit: "Drop your clip on <em>Product clip</em>. Leave <em>Upscaled clip</em> on <code>clarity-ai/crystal-video-upscaler</code> at <code>target_megapixels=1</code> unless you mean to change models.",
-    inspect: "Same clip. More pixels.",
-    costHow: "Listed from about $0.50 for one Crystal call at 1 MP / 5s ($0.10/MP/s, min $0.10). Duration and target megapixels determine pricing. No LLM. Prices and results vary. This page has no reviewed first-party upscale yet.",
-  },
-  "p-video-rewrite": {
-    headline: "Rewrite the clip's look",
-    job: "Prompt-edit video; keep the audio",
-    hideNote: true,
-    purpose: "Upload a short take. P-Video Edit prompt-rewrites the clip and can keep source audio — not Crystal upscale and not an i2v motion pin. First-click is the matte-charcoal Volt pocket radio with one cyan lightning chevron: deeper magenta rim, cooler cyan bounce, thicker rain. Distinct from Crystal video upscale and photo-to-video / Grok / H3 orbit / Omni Flash.",
-    edit: "Drop your clip on <em>Product clip</em>. Leave <em>Rewritten clip</em> on <code>pruna-ai/p-video/edit</code> with <code>draft=true</code> unless you mean to change models. Rewrite brief stays on the Volt night-ride line.",
-    inspect: "New light. Same audio.",
-    costHow: "Listed from about $0.10 for one P-Video Edit call at draft=true (~$0.025/s, ~4s). Full quality is ~$0.045/s. Duration determines pricing. No LLM. Prices and results vary. This page has no reviewed first-party rewrite yet.",
-  },
-  "wan-stretch-take": {
-    headline: "Stretch the clip",
-    job: "Wan Extend keeps a short alley clip going",
-    hideNote: true,
-    purpose: "Upload a short alley clip. Wan 2.5 Extend stretches the take. Temporal lengthen. Not Crystal upscale. Not P-Video rewrite. Not Mirelo foley. Not Wan Animate 2. Not Pixelcut. Not still→i2v.",
-    edit: "Drop your clip on <em>Product clip</em>. Leave <em>Stretched clip</em> on <code>wan-25-extend</code> at <code>480p</code> / <code>3</code>s. Continue brief stays on the Volt night-ride line.",
-    inspect: "Same take. Longer. No hard cuts.",
-    costHow: "Listed at about $0.15 for one Wan 2.5 Extend call at 480p / 3s ($0.05/s). Do not swap to the fast or spicy extend variants. No LLM. Prices vary. No reviewed first-party clip yet.",
-  },
-  "mirelo-video-foley": {
-    headline: "Foley on the clip",
-    job: "Upload silent video; synced SFX lands",
-    hideNote: true,
-    purpose: "Upload a silent clip. Mirelo SFX1.6 writes matching SFX onto it. Video→foley, not text→SFX. Not Night-ride radio VO. Not Wan 3.0 still+audio. Not P-Video rewrite.",
-    edit: "Drop your clip on <em>Product clip</em>. Leave <em>Foleyed clip</em> on <code>mirelo-ai/sfx1.6/video-to-video</code>.",
-    inspect: "Silent clip. Synced SFX lands.",
-    costHow: "Listed at about $0.04 for ~4s ($0.01/s). No LLM. Prices vary. No reviewed first-party foley yet.",
-  },
-  "pixelcut-video-cutout": {
-    headline: "Knock the alley off the clip",
-    job: "Pixelcut drops the background.",
-    hideNote: true,
-    purpose: "Upload a short take. Pixelcut knocks the alley to solid black. Not BiRefNet still cutout. Not SAM isolate. Not Crystal upscale. Not P-Video rewrite. Not i2v.",
-    edit: "Drop your clip on <em>Product clip</em>. Leave <em>Cutout clip</em> on <code>pixelcut/video-background-removal</code> with <code>background=black</code>.",
-    inspect: "Alley gone. Solid black.",
-    costHow: "Listed from about $0.044 for ~2s ($0.022/30 frames). No LLM. Prices vary. No reviewed first-party cutout yet.",
-  },
-  "volt-dispatch-infographic": {
-    headline: "DROP. ZONE. ETA.",
-    job: "Volt dispatch card. Short labels.",
-    hideNote: true,
-    purpose: "Text brief → SenseNova U1 Infographic. First-click is Volt — charcoal panel, ONE cyan lightning chevron, DROP / ZONE / ETA. Not a UI mockup, not a postcard.",
-    edit: "Rewrite <em>Dispatch brief</em>. Leave <em>Infographic</em> on <code>sensenova-u1-infographic</code> at size <code>16:9</code>.",
-    inspect: "DROP. ZONE. ETA.",
-    costHow: "Listed at $0.05 for one SenseNova U1 Infographic call at 16:9. No LLM. Prices vary. No reviewed first-party card yet.",
+    headline: "Make a speaking presenter",
+    job: "Portrait + spoken script → lipsynced introduction.",
+    purpose: "Muse generates a fictional museum guide while MiniMax Speech reads the workshop introduction. LongCat combines the portrait and speech into a video, using a delivery brief to control movement. The two branches let you change the presenter and the spoken words independently.",
+    edit: "Change <em>Presenter look</em>, <em>Spoken script</em> and <em>Delivery</em>. Keep the face and mouth visible, match the selected voice to the presenter, and keep the script under 30 seconds. LongCat renders at 480p.",
+    inspect: "Play with sound. Check the spoken words, face consistency and lip-sync timing through the whole clip.",
+    costHow: "The saved workshop run reported at least $0.28 for generation; some provider price fields were missing. Its separate model-assisted audio review reported $0.00164. Longer speech increases video cost. Check the editor estimate before running.",
   },
 };
 
@@ -404,7 +77,7 @@ const IRON = {
   slug: "iron-verdict",
   title: "Iron Verdict",
   headline: "Iron Verdict",
-  job: "A furnace knight. Then a fight you can actually play.",
+  job: "Character brief → reference → parts → local rig.",
   costLabel: "$0.02 combined (selected source images)",
   review: "Playable experiment",
   date: "2026-09-05",
@@ -415,36 +88,19 @@ const IRON = {
   graph: "https://github.com/nanoodlecom/awesome-noodles/blob/main/graphs/character-sprites.noodle-graph.json",
   zip: "/examples/iron-verdict/iron-verdict.zip",
   preview: "/examples/iron-verdict/screenshot.png",
-  purpose: "A coding agent used the character-sprites skill for matching artwork and 32 transparent frames, then built this three-round foundry fighter around them. Playing is free. No key.",
-  edit: "Want a different fighter? Open the artwork graph and rewrite <em>Character</em>. You get a reference and a four-quadrant parts sheet. Idle, walk, punch, and jump frames need the companion skill (Node.js and ffmpeg). The agent — not the graph — writes gravity, combat, and sound.",
-  inspect: "Play it. Three rounds. Readable windups.",
+  purpose: "The graph turns a character brief into a reference image and a matching four-quadrant parts sheet. The companion character-sprites skill extracts the parts and bakes 32 transparent animation frames locally. A coding agent used those assets to build Iron Verdict, the playable three-round fighter shown here.",
+  edit: "Open the artwork graph and rewrite <em>Character</em>. GLM Flash writes the reference prompt, Muse draws the character, and Muse Edit makes matching parts. Use the companion skill with Node.js and ffmpeg to rig and bake idle, walk, punch and jump frames. Building a game around them requires separate coding work.",
+  inspect: "Inspect the cutout joints and animation frames, then play the game to judge how they move. This prototype uses rigid limbs.",
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const INSPECT_MAX = 160;
-const INSPECT_BANNED = /\bpending\b|\bQC\b|this PR|no paid|Distinct from|Open the graph|card art via NanoGPT|fake thumb|Export preview is a local/;
-for (const s of SAMPLES) {
-  if (!HOWTO[s.slug]) throw new Error("Add HOWTO copy for sample: " + s.slug);
-  const inspect = HOWTO[s.slug].inspect || "";
-  if (inspect.length > INSPECT_MAX) throw new Error(s.slug + " inspect is " + inspect.length + " chars — short punch only (≤" + INSPECT_MAX + ")");
-  if (INSPECT_BANNED.test(inspect)) throw new Error(s.slug + " inspect still has engineer/QC soup");
+const ORDER = ["iron-verdict", "image-model-arena", "photo-to-video", "sing", "talking-avatar"];
+for (const sample of SAMPLES) {
+  if (!HOWTO[sample.slug]) throw new Error("Unexpected sample: " + sample.slug);
 }
-if (IRON.inspect.length > INSPECT_MAX || INSPECT_BANNED.test(IRON.inspect)) {
-  throw new Error("iron-verdict inspect must stay a short punch");
+for (const slug of Object.keys(HOWTO)) {
+  if (!SAMPLES.some((sample) => sample.slug === slug)) throw new Error("Missing saved sample: " + slug);
 }
-
-const GROUPS = [
-  { id: "playable", title: "Playable", slugs: ["iron-verdict"] },
-  { id: "image", title: "Image", slugs: [
-    "edit-a-photo", "product-cutout", "sam3-isolate", "p-image-upscale", "remove-packaging-text", "widen-the-frame", "combine-images", "render-a-mockup", "volt-dispatch-infographic", "favicon",
-    "transparent-brand-sticker", "ideogram-v4-instant-poster", "volt-vector-mark", "mai-pack-type",
-    "night-market-postcard", "fibo-studio-still", "cinematic-character-still", "h3-identity-restyle", "virtual-try-on", "character-sprites",
-    "image-model-arena",
-  ] },
-  { id: "video", title: "Video", slugs: ["photo-to-video", "grok-imagine-still", "wan-motion-drive", "wan-still-audio", "h3-max-multi-angle", "crystal-video-upscale", "p-video-rewrite", "wan-stretch-take", "mirelo-video-foley", "pixelcut-video-cutout", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },
-  { id: "audio", title: "Audio", slugs: ["sing", "night-ride-sfx", "mirelo-stretch-bed", "night-ride-radio-vo", "whisper-pull-words", "stable-alley-score"] },
-  { id: "text", title: "Text", slugs: ["deslop", "fable-five-step"] },
-];
 
 function chrome({ title, description, path, crumbs, wide, body, next }) {
   const url = "https://nanoodle.com" + path;
@@ -500,7 +156,7 @@ ${next}
 
   <footer>
     <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
-    <span>· 100% in your browser, no server</span>
+    <span>· No analytics · Your key stays on your device</span>
     <div class="spacer"></div>
     <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
     <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
@@ -510,7 +166,7 @@ ${next}
 </div>
 </body>
 </html>
-`;
+`.replace(/[ \t]+$/gm, "");
 }
 
 function sampleBySlug(slug) {
@@ -528,9 +184,7 @@ function cardForSample(s) {
   const cost = formatCost(s.costUsd, s.costExact);
   const href = `/guide/examples/${esc(s.slug)}`;
   let thumb;
-  if (how.skipPreview) {
-    thumb = `<div class="thumb-fallback pending">${esc(how.thumbLabel || how.headline)}</div>`;
-  } else if (s.preview) {
+  if (s.preview) {
     thumb = `<img class="thumb" src="/examples/gallery/${esc(local(s.preview))}" alt="" loading="lazy" />`;
   } else if (s.outputs.some((o) => o.kind === "image")) {
     const img = s.outputs.find((o) => o.kind === "image");
@@ -538,16 +192,12 @@ function cardForSample(s) {
   } else {
     thumb = `<div class="thumb-fallback">No preview image — open for the reviewed ${s.outputs[0].kind} output</div>`;
   }
-  const tagLabel = s.tag || how.cardTag;
-  const media = tagLabel
-    ? `<span class="thumb-wrap">${thumb}<span class="tag gg">${esc(tagLabel)}</span></span>`
-    : thumb;
   return `<a class="howto-card" href="${href}">
-        ${media}
+        ${thumb}
         <span class="body">
           <b>${esc(how.headline || s.title)}</b>
           <span class="job">${esc(how.job)}</span>
-          <span class="cost">${esc(cost)} to run the reviewed sample</span>
+          <span class="cost">Reported saved run: ${esc(cost)}</span>
         </span>
       </a>`;
 }
@@ -573,9 +223,6 @@ function visibleOutputs(s) {
 }
 
 function renderMedia(s, how) {
-  if (how && how.skipHeroMedia) {
-    return `<p class="no-preview pending">${esc(how.swapNotice || "Featured still incoming — open the graph.")}</p>`;
-  }
   const shown = visibleOutputs(s);
   const multi = shown.length > 1 ? " comparison" : "";
   const aria = (how && how.headline) || s.title;
@@ -608,29 +255,6 @@ function renderMedia(s, how) {
         </div>`;
 }
 
-function renderProof(s) {
-  if (!s.proof || !Array.isArray(s.proof.images) || !s.proof.images.length) return "";
-  const figs = s.proof.images.map((img) => {
-    const src = "/examples/gallery/" + local(img.src);
-    return `<figure><a href="${esc(src)}"><img src="${esc(src)}" alt="${esc(img.label)}" loading="lazy" /></a><figcaption>${esc(img.label)} · <a href="${esc(src)}" download>Download</a></figcaption></figure>`;
-  }).join("\n          ");
-  const kicker = s.proof.kicker ? `<p class="gg-kicker">${esc(s.proof.kicker)}</p>` : "";
-  const lead = s.proof.lead ? `<p class="gg-lead">${esc(s.proof.lead)}</p>` : "";
-  const badge = s.proof.badge
-    ? `<figure class="gg-ad"><a href="/examples/gallery/${esc(local(s.proof.badge))}"><img src="/examples/gallery/${esc(local(s.proof.badge))}" alt="${esc(s.proof.badgeAlt || s.proof.kicker || "gg writers")}" loading="lazy" /></a></figure>`
-    : "";
-  const blurb = s.proof.note ? `<p class="gg-punch">${esc(s.proof.note)}</p>` : "";
-  return `
-      <h2>${esc(s.proof.heading || "Detector proof")}</h2>
-      ${kicker}
-      ${lead}
-      ${badge}
-      <div class="media comparison proof">
-          ${figs}
-        </div>
-      ${blurb}`;
-}
-
 function samplePage(s, prev, next) {
   const how = HOWTO[s.slug];
   const graph = readFileSync(join(GALLERY, local(s.slug + "/graph.json")));
@@ -657,7 +281,7 @@ function samplePage(s, prev, next) {
     const src = "/examples/gallery/" + local(i.src);
     return `<figure><img src="${esc(src)}" alt="${esc(i.label)}" loading="lazy" /><figcaption>${esc(i.label)}</figcaption></figure>`;
   }).join("\n          ");
-  const note = !how.hideNote && s.note
+  const note = s.note
     ? `\n      <div class="callout"><p>${esc(s.note)}</p></div>`
     : "";
 
@@ -665,22 +289,23 @@ function samplePage(s, prev, next) {
     <p class="lede">${esc(how.job)}</p>
 
     <section>
-      <p class="meta-row">${esc(s.review)} · ${esc(s.date)} · Reported run: ${esc(cost)}. ${s.models.map((m) => `<code>${esc(m)}</code>`).join(" · ")}</p>
+      <p class="meta-row">${esc(s.review)} · ${esc(s.date)} · Reported saved run: ${esc(cost)}. ${s.models.map((m) => `<code>${esc(m)}</code>`).join(" · ")}</p>
+      <p>${esc(how.purpose)}</p>
 
-      <h2>The look</h2>
+      <h2>Saved result</h2>
       ${renderMedia(s, how)}
       ${inputImgs ? `<h3>References that went in</h3>\n        <div class="media input-refs${s.inputs.filter((i) => i.src).length > 1 ? " comparison" : ""}">\n          ${inputImgs}\n        </div>` : ""}${note}
-${renderProof(s)}${how.purpose ? `
-      <p>${esc(how.purpose)}</p>` : ""}
+      ${s.audioReview?.src ? `<p><a href="/examples/gallery/${esc(local(s.audioReview.src))}">Audio review notes</a></p>` : ""}
 
       <h2>Make it yours</h2>
       <ol class="input-list">
         <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
         <li>${how.edit}</li>
+        <li>Check the editor estimate, then run with your NanoGPT key. ${esc(how.costHow)}</li>
         <li>${how.inspect}</li>
-        <li>${esc(how.costHow)}</li>
       </ol>
 
+      ${s.workflowNote ? `<p class="howto-note">${esc(s.workflowNote)}</p>` : ""}
       <div class="cta">
         <a class="primary" href="${esc(open)}">Open this noodle →</a>
         <a class="secondary" href="${esc(gallery)}">See the reviewed run</a>
@@ -692,7 +317,7 @@ ${renderProof(s)}${how.purpose ? `
 
   return chrome({
     title: `${title} — nanoodle`,
-    description: `${how.job} ${cost}.`,
+    description: `${how.job} Reported saved run: ${cost}.`,
     path: `/guide/examples/${s.slug}`,
     crumbs,
     body,
@@ -713,9 +338,9 @@ function ironPage(prev, next) {
 
     <section>
       <p class="meta-row">${esc(IRON.review)} · ${esc(IRON.date)} · ${esc(IRON.costLabel)}. Artwork models: ${IRON.models.map((m) => `<code>${esc(m)}</code>`).join(", ")}. Prices and results vary.</p>
-      <p>A furnace knight, then a harsh afternoon. Playing is free. Making your own character spends your NanoGPT balance and needs Node.js plus ffmpeg.</p>
+      <p>Play the finished game for free. Making your own character uses your NanoGPT key and balance; local rigging needs Node.js and ffmpeg.</p>
 
-      <h2>The look</h2>
+      <h2>Saved result</h2>
       <div class="media">
         <figure>
           <a href="${esc(IRON.play)}"><img src="${esc(IRON.preview)}" alt="Iron Verdict — playable foundry fighter" loading="lazy" /></a>
@@ -753,31 +378,20 @@ function ironPage(prev, next) {
 }
 
 function hubPage() {
-  const groups = GROUPS.map((g) => {
-    const cards = g.slugs.map((slug) => {
-      if (slug === "iron-verdict") return ironCard();
-      const s = sampleBySlug(slug);
-      if (!s) throw new Error("Hub slug missing from samples.json: " + slug);
-      return cardForSample(s);
-    }).join("\n      ");
-    return `      <h2 class="group">${esc(g.title)}</h2>
-      <div class="howto-grid">
-      ${cards}
-      </div>`;
-  }).join("\n");
-
-  const listed = new Set(GROUPS.flatMap((g) => g.slugs));
-  for (const s of SAMPLES) {
-    if (!listed.has(s.slug)) throw new Error("Sample not listed on the hub: " + s.slug);
-  }
+  const cards = ORDER.map((slug) => slug === "iron-verdict"
+    ? ironCard()
+    : cardForSample(sampleBySlug(slug))).join("\n      ");
 
   const body = `    <h1>Steal a <span class="grad">noodle</span></h1>
     <p class="lede">See the real output. Open the graph. Make it yours.</p>
 
     <section>
-      <p>Night markets. Neon couriers. Rain on a night-ride radio. A clip that actually sings. These sit beside the <a href="/examples/gallery/">reviewed gallery</a> — real stills, clips, songs, and edits, not mockups of mockups. Looking is free. Running spends your NanoGPT balance. Costs are the reported first-party runs. The next one will not be identical.</p>
-      <p>Pick a card. Change a line. Hit <strong>Open this noodle</strong> for the same share graph the gallery uses. Every card is an <a href="https://github.com/nanoodlecom/awesome-noodles" target="_blank" rel="noopener">awesome-noodles</a> graph. Want it in a script instead of the canvas? Paste that share link into <a href="/guide/run-headless">Run workflows headlessly</a>.</p>
-${groups}`;
+      <p>Five workflows with results you can inspect: character art used in a playable game, a four-model image comparison, an animated still, a song, and a speaking presenter. Each guide explains the stages, what to change and what the saved run cost.</p>
+      <p>Viewing the <a href="/examples/gallery/">saved outputs</a> and playing Iron Verdict are free. Running your own version uses your NanoGPT key and balance. Your key stays on your device; prompts and media go directly to the model provider when you run. Saved costs describe past runs, and the next result will vary.</p>
+      <p>Open a card, inspect its result, then use <strong>Open this noodle</strong> to edit the graph. The source graphs live in <a href="https://github.com/nanoodlecom/awesome-noodles" target="_blank" rel="noopener">awesome-noodles</a>. You can also <a href="/guide/run-headless">run the share link headlessly</a>.</p>
+      <div class="howto-grid">
+      ${cards}
+      </div>`;
 
   const next = [
     `        <a href="/guide/">← Guide</a>`,
@@ -789,7 +403,7 @@ ${groups}`;
 
   return chrome({
     title: "Steal a noodle — nanoodle",
-    description: "See the real output. Open the graph. Make it yours. Reviewed nanoodle samples with costs.",
+    description: "Five nanoodle workflows with saved results, instructions and reported costs. Open a graph and make it yours.",
     path: "/guide/examples/",
     crumbs: `<a href="/">Home</a> / <a href="/guide/">Guide</a> / <span>Steal a noodle</span>`,
     wide: true,
@@ -800,7 +414,7 @@ ${groups}`;
 
 function build() {
   const pages = { "index.html": hubPage() };
-  const order = GROUPS.flatMap((g) => g.slugs);
+  const order = ORDER;
   order.forEach((slug, i) => {
     const prevSlug = order[i - 1];
     const nextSlug = order[i + 1];
