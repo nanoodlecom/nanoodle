@@ -97,6 +97,15 @@ const HOWTO = {
       "One person. Magenta and cyan if you kept that light. Helmet readable. No extra people, no readable text. Generated key-art, not a photograph of a real person.",
     costHow: "The reviewed run reported $0.02 ($0.02/image at 1K). Prices and results vary.",
   },
+  "h3-identity-restyle": {
+    headline: "Same face. Night-ride kit.",
+    job: "Keep identity. Volt restyle.",
+    hideNote: true,
+    purpose: "Upload a person or product still. MiniMax H3 Image Edit restyles scene, outfit and light while keeping identity. First-click is a Volt night-courier key still — charcoal kit, ONE cyan lightning chevron, magenta rim + cyan bounce. Distinct from Muse Edit, Cinematic character still / H3 T2I, and Product in a setting.",
+    edit: "Drop your still on <em>Still</em>. Leave <em>Restyle</em> on the Volt night-courier line. Leave <em>Identity restyle</em> on <code>minimax-h3/image-edit</code> at size <code>1k</code>.",
+    inspect: "Cover is reused night-courier card art, pending H3 Image Edit QC — no paid minimax-h3/image-edit run this PR. Open the graph, upload a still, inspect identity.",
+    costHow: "Listed at $0.03 for one MiniMax H3 Image Edit call at 1k. No LLM. Prices vary. No reviewed first-party restyle yet.",
+  },
   "character-sprites": {
     headline: "A furnace knight you can rig",
     job: "Furnace-knight reference + four-quadrant parts sheet.",
@@ -203,6 +212,15 @@ const HOWTO = {
     inspect: "Clear words, a chorus you can hum, fit to the brief. Duration and exact structure can wander. The saved ~182-second MP3 is the rooftop-getaway synthwave run; chorus \"I made it out, but the city wants me back\". No new paid audio-model review. Cover still is the rooftop leap.",
     costHow: "The reviewed song run reported $0.225 (music step $0.225, plus a small text call). Prices and results vary.",
   },
+  "night-ride-sfx": {
+    headline: "Cyan thunder. Four seconds.",
+    job: "Volt radio sting. No music bed.",
+    hideNote: true,
+    purpose: "Text brief → ElevenLabs Sound Effects V2. First-click is a Volt night-ride radio sting — wet neon alley pulse, radio static bloom, one electric-cyan thunder hit, tight decay. Not Closing-credits song. Not TTS. Not a video Keep. No upload. No LLM.",
+    edit: "Rewrite <em>SFX brief</em>. Leave <em>Sting</em> on <code>elevenlabs/sound-effects/v2</code> at duration <code>4</code>.",
+    inspect: "Cover is reused Volt alley card art, pending ElevenLabs SFX QC — no paid run this PR. Open the graph, hit Run, listen for static bloom then one thunder hit. No music bed, vocals, or dialogue.",
+    costHow: "Listed at about $0.008 for one ElevenLabs Sound Effects V2 call at duration 4 ($0.002/s). No LLM. Prices vary. No reviewed first-party sting yet.",
+  },
   "talking-avatar": {
     headline: "Look at camera. Clear the channel.",
     job: "Night courier. One line to camera.",
@@ -236,6 +254,15 @@ const HOWTO = {
     inspect: "Cover still is reused Volt card art from the photo-to-video night-ride radio plate, pending a true Crystal QC clip — no paid clarity-ai/crystal-video-upscaler run this PR, not a fabricated upscale. Open the graph and hit Run with your key after you upload a clip. Inspect native sharpness against the input.",
     costHow: "Listed from about $0.50 for one Crystal call at 1 MP / 5s ($0.10/MP/s, min $0.10). Duration and target megapixels determine pricing. No LLM. Prices and results vary. This page has no reviewed first-party upscale yet.",
   },
+  "volt-dispatch-infographic": {
+    headline: "DROP. ZONE. ETA.",
+    job: "Volt dispatch card. Short labels.",
+    hideNote: true,
+    purpose: "Text brief → SenseNova U1 Infographic. First-click is Volt — charcoal panel, ONE cyan lightning chevron, DROP / ZONE / ETA. Not a UI mockup, not a postcard.",
+    edit: "Rewrite <em>Dispatch brief</em>. Leave <em>Infographic</em> on <code>sensenova-u1-infographic</code> at size <code>16:9</code>.",
+    inspect: "Cover is reused Volt poster art, pending SenseNova QC — no paid run this PR. Open the graph, inspect hierarchy and short copy.",
+    costHow: "Listed at $0.05 for one SenseNova U1 Infographic call at 16:9. No LLM. Prices vary. No reviewed first-party card yet.",
+  },
 };
 
 // Awesome-noodles README share link for character-sprites (Iron Verdict is
@@ -268,13 +295,13 @@ for (const s of SAMPLES) {
 const GROUPS = [
   { id: "playable", title: "Playable", slugs: ["iron-verdict"] },
   { id: "image", title: "Image", slugs: [
-    "edit-a-photo", "product-cutout", "sam3-isolate", "p-image-upscale", "remove-packaging-text", "combine-images", "render-a-mockup", "favicon",
+    "edit-a-photo", "product-cutout", "sam3-isolate", "p-image-upscale", "remove-packaging-text", "combine-images", "render-a-mockup", "volt-dispatch-infographic", "favicon",
     "transparent-brand-sticker", "ideogram-v4-instant-poster",
-    "night-market-postcard", "fibo-studio-still", "cinematic-character-still", "character-sprites",
+    "night-market-postcard", "fibo-studio-still", "cinematic-character-still", "h3-identity-restyle", "character-sprites",
     "image-model-arena",
   ] },
   { id: "video", title: "Video", slugs: ["photo-to-video", "h3-max-multi-angle", "crystal-video-upscale", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },
-  { id: "audio", title: "Audio", slugs: ["sing"] },
+  { id: "audio", title: "Audio", slugs: ["sing", "night-ride-sfx"] },
   { id: "text", title: "Text", slugs: ["deslop", "fable-five-step"] },
 ];
 

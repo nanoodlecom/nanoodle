@@ -1178,6 +1178,98 @@ if (/google\/gemini-omni-flash/.test(crystalCard)) {
 if (/ideogram-v4/.test(crystalCard)) {
   fail("EXAMPLES crystal-video-upscale must not touch Ideogram V4 Instant");
 }
+const voltSample = samples.find((s) => s.slug === "volt-dispatch-infographic");
+if (!voltSample) fail("samples.json missing volt-dispatch-infographic");
+if (voltSample.preview !== "volt-dispatch-infographic/preview.webp") {
+  fail("volt-dispatch-infographic sample preview should be volt-dispatch-infographic/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "volt-dispatch-infographic", "preview.webp"))) {
+  fail("examples/gallery/volt-dispatch-infographic/preview.webp is missing");
+}
+if (!/sensenova-u1-infographic/.test(JSON.stringify(voltSample.models))) {
+  fail("volt-dispatch-infographic sample should pin sensenova-u1-infographic");
+}
+if (!/reused Volt|pending/.test(voltSample.note) || !/SenseNova|sensenova/.test(voltSample.note)) {
+  fail("volt-dispatch-infographic sample note should say cover is reused Volt poster art and SenseNova QC is pending");
+}
+if (!/dispatch card|DROP|ZONE|ETA/.test(voltSample.note)) {
+  fail("volt-dispatch-infographic sample note should say the job is a Volt dispatch card with DROP / ZONE / ETA");
+}
+if (!/no text walls|Short labels/.test(voltSample.note)) {
+  fail("volt-dispatch-infographic sample note should say short labels, no text walls");
+}
+if (!/render-a-mockup|UI mockup/.test(voltSample.note)) {
+  fail("volt-dispatch-infographic sample note should distinguish UI mockup / render-a-mockup");
+}
+if (!/postcard/.test(voltSample.note)) {
+  fail("volt-dispatch-infographic sample note should distinguish travel postcard");
+}
+if (!hub.includes("volt-dispatch-infographic/preview.webp")) {
+  fail("hub should thumb the volt-dispatch-infographic cover");
+}
+if (!hub.includes("DROP. ZONE. ETA.")) {
+  fail("hub should title volt-dispatch-infographic as DROP. ZONE. ETA.");
+}
+const voltHowTo = readFileSync(join(ROOT, "guide", "examples", "volt-dispatch-infographic.html"), "utf8");
+if (!/sensenova-u1-infographic/.test(voltHowTo)) {
+  fail("volt-dispatch-infographic how-to should name sensenova-u1-infographic");
+}
+if (!/Volt|charcoal|cyan/.test(voltHowTo)) {
+  fail("volt-dispatch-infographic how-to should pitch the Volt charcoal + cyan dispatch card");
+}
+if (!/DROP|ZONE|ETA/.test(voltHowTo)) {
+  fail("volt-dispatch-infographic how-to should pitch DROP / ZONE / ETA");
+}
+if (!/UI mockup|not a postcard/.test(voltHowTo)) {
+  fail("volt-dispatch-infographic how-to should distinguish UI mockup and postcard");
+}
+if (!/reused Volt poster|pending SenseNova QC|no paid run/.test(voltHowTo)) {
+  fail("volt-dispatch-infographic how-to should say the cover is reused Volt poster art and SenseNova QC is pending");
+}
+if (!voltHowTo.includes("volt-dispatch-infographic/preview.webp")) {
+  fail("volt-dispatch-infographic how-to should show the cover still");
+}
+if (!/slug:"volt-dispatch-infographic"[\s\S]{0,200}thumb:"examples\/gallery\/volt-dispatch-infographic\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES volt-dispatch-infographic thumb should be examples/gallery/volt-dispatch-infographic/preview.webp");
+}
+if (!/slug:"volt-dispatch-infographic"[\s\S]{0,80}desc:"DROP \/ ZONE \/ ETA — charcoal SenseNova infographic"/.test(examplesSrc)) {
+  fail("EXAMPLES volt-dispatch-infographic desc should pitch DROP / ZONE / ETA — charcoal SenseNova infographic");
+}
+if (!/slug:"volt-dispatch-infographic"[\s\S]{0,80}title:"volt dispatch card"/.test(examplesSrc)) {
+  fail("EXAMPLES volt-dispatch-infographic title should be volt dispatch card");
+}
+const voltCard = examplesSrc.match(/slug:"volt-dispatch-infographic"[\s\S]{0,2800}/)?.[0] || "";
+if (!/sensenova-u1-infographic/.test(voltCard)) {
+  fail("EXAMPLES volt-dispatch-infographic graph should pin sensenova-u1-infographic");
+}
+if (!/size:"16:9"/.test(voltCard)) {
+  fail("EXAMPLES volt-dispatch-infographic graph should pin size 16:9");
+}
+if (!/name:"Dispatch brief"/.test(voltCard) || !/name:"Infographic"/.test(voltCard)) {
+  fail("EXAMPLES volt-dispatch-infographic should be Dispatch brief → Infographic");
+}
+const voltImage = voltCard.match(/\{id:"n2",type:"image"[\s\S]*?name:"Infographic"\}/)?.[0] || "";
+if (!voltImage) {
+  fail("EXAMPLES volt-dispatch-infographic should have image node n2 Infographic");
+}
+if (!/model:"sensenova-u1-infographic"/.test(voltImage) || !/size:"16:9"/.test(voltImage)) {
+  fail("EXAMPLES volt-dispatch-infographic image node should pin sensenova-u1-infographic at 16:9");
+}
+if (/qwen-image-3-pro|render-a-mockup/.test(voltImage)) {
+  fail("EXAMPLES volt-dispatch-infographic must not pin Qwen UI mockup");
+}
+if (/type:"llm"/.test(voltCard) || /type:"upload"/.test(voltCard)) {
+  fail("EXAMPLES volt-dispatch-infographic must stay text Dispatch brief → image Infographic (no LLM, no upload)");
+}
+if (/clarity-ai\/crystal-video-upscaler/.test(voltCard)) {
+  fail("EXAMPLES volt-dispatch-infographic must not redo Crystal");
+}
+if (/h3-identity-restyle|minimax\/h3.*identity/.test(voltCard)) {
+  fail("EXAMPLES volt-dispatch-infographic must not redo identity restyle");
+}
+if (/ideogram-v4/.test(voltCard)) {
+  fail("EXAMPLES volt-dispatch-infographic must not redo Ideogram V4 Instant");
+}
 const spritesSample = samples.find((s) => s.slug === "character-sprites");
 if (!spritesSample) fail("samples.json missing character-sprites");
 if (spritesSample.preview !== "character-sprites/preview.webp") {
@@ -1425,6 +1517,86 @@ if (/birefnet|sam3-image|pruna-ai\/p-image|ideogram-v3-generate-transparent|meta
 if (/type:"llm"/.test(packCard)) {
   fail("EXAMPLES remove-packaging-text must stay upload → edit → resize (no LLM)");
 }
+const restyleSample = samples.find((s) => s.slug === "h3-identity-restyle");
+if (!restyleSample) fail("samples.json missing h3-identity-restyle");
+if (restyleSample.preview !== "h3-identity-restyle/preview.webp") {
+  fail("h3-identity-restyle sample preview should be h3-identity-restyle/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "h3-identity-restyle", "preview.webp"))) {
+  fail("examples/gallery/h3-identity-restyle/preview.webp is missing");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "h3-identity-restyle", "still-input.webp"))) {
+  fail("examples/gallery/h3-identity-restyle/still-input.webp is missing");
+}
+if (!/minimax-h3\/image-edit/.test(JSON.stringify(restyleSample.models))) {
+  fail("h3-identity-restyle sample should pin minimax-h3/image-edit");
+}
+if (!/cover|reused night-courier|cinematic-character-still/i.test(restyleSample.note) || !/no paid|pending/i.test(restyleSample.note)) {
+  fail("h3-identity-restyle sample note should say cover is reused night-courier art and H3 Image Edit QC is pending");
+}
+if (!/identity|restyle/i.test(restyleSample.note)) {
+  fail("h3-identity-restyle sample note should say the job is identity restyle");
+}
+if (!/Muse Edit|Cinematic character still|combine-images|text-to-image/i.test(restyleSample.note)) {
+  fail("h3-identity-restyle sample note should distinguish Muse Edit, cinematic H3 T2I, and combine-images");
+}
+if (!hub.includes("h3-identity-restyle/preview.webp")) {
+  fail("hub should thumb the h3-identity-restyle cover");
+}
+if (!hub.includes("Same face. Night-ride kit.")) {
+  fail("hub should title h3-identity-restyle as Same face. Night-ride kit.");
+}
+const restyleHowTo = readFileSync(join(ROOT, "guide", "examples", "h3-identity-restyle.html"), "utf8");
+if (!/minimax-h3\/image-edit/.test(restyleHowTo)) {
+  fail("h3-identity-restyle how-to should name minimax-h3/image-edit");
+}
+if (!/Volt/i.test(restyleHowTo) || !/cyan/i.test(restyleHowTo) || !/identity/i.test(restyleHowTo)) {
+  fail("h3-identity-restyle how-to should pitch Volt identity restyle");
+}
+if (!/Muse Edit|Cinematic character still|Product in a setting/i.test(restyleHowTo)) {
+  fail("h3-identity-restyle how-to should distinguish Muse Edit, cinematic H3 T2I, and Product in a setting");
+}
+if (!/reused night-courier card art|no paid|pending/i.test(restyleHowTo)) {
+  fail("h3-identity-restyle how-to should say the cover is reused night-courier card art and H3 Image Edit QC is pending");
+}
+if (!restyleHowTo.includes("h3-identity-restyle/preview.webp")) {
+  fail("h3-identity-restyle how-to should show the cover still");
+}
+if (!/slug:"h3-identity-restyle"[\s\S]{0,200}thumb:"examples\/gallery\/h3-identity-restyle\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES h3-identity-restyle thumb should be examples/gallery/h3-identity-restyle/preview.webp");
+}
+if (!/slug:"h3-identity-restyle"[\s\S]{0,80}desc:"same face — Volt night-courier restyle"/.test(examplesSrc)) {
+  fail("EXAMPLES h3-identity-restyle desc should pitch same face — Volt night-courier restyle");
+}
+if (!/slug:"h3-identity-restyle"[\s\S]{0,80}title:"night-ride identity restyle"/.test(examplesSrc)) {
+  fail("EXAMPLES h3-identity-restyle title should be night-ride identity restyle");
+}
+const restyleCard = examplesSrc.match(/slug:"h3-identity-restyle"[\s\S]{0,2800}/)?.[0] || "";
+if (!/minimax-h3\/image-edit/.test(restyleCard)) {
+  fail("EXAMPLES h3-identity-restyle graph should pin minimax-h3/image-edit");
+}
+if (!/size:"1k"/.test(restyleCard)) {
+  fail("EXAMPLES h3-identity-restyle graph should pin size 1k");
+}
+if (!/name:"Still"/.test(restyleCard) || !/name:"Identity restyle"/.test(restyleCard) || !/name:"Restyle"/.test(restyleCard)) {
+  fail("EXAMPLES h3-identity-restyle should be Still → Restyle → Identity restyle");
+}
+const restyleEdit = restyleCard.match(/\{id:"n2",type:"edit"[\s\S]*?name:"Identity restyle"\}/)?.[0] || "";
+if (!restyleEdit) {
+  fail("EXAMPLES h3-identity-restyle should have edit node n2 Identity restyle");
+}
+if (!/model:"minimax-h3\/image-edit"/.test(restyleEdit) || !/size:"1k"/.test(restyleEdit)) {
+  fail("EXAMPLES h3-identity-restyle edit node should pin minimax-h3/image-edit at 1k");
+}
+if (/meta\/muse-image|minimax-h3\/text-to-image|ideogram|birefnet|sam3-image/.test(restyleEdit)) {
+  fail("EXAMPLES h3-identity-restyle edit node must not pin Muse Edit, H3 T2I, Ideogram, BiRefNet, or SAM 3");
+}
+if (/type:"llm"/.test(restyleCard)) {
+  fail("EXAMPLES h3-identity-restyle must stay upload + text → edit (no LLM)");
+}
+if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
+  fail("custom-endpoint must stay the only LOCAL_ONLY teaching card after identity-restyle sync");
+}
 const posterSample = samples.find((s) => s.slug === "ideogram-v4-instant-poster");
 if (!posterSample) fail("samples.json missing ideogram-v4-instant-poster");
 if (posterSample.preview !== "ideogram-v4-instant-poster/preview.webp") {
@@ -1519,6 +1691,82 @@ if (/z-ai\/glm-5\.3-flash|meta\/muse-image|ideogram-v3-generate-transparent|ideo
 }
 if (/type:"llm"|type:"upload"/.test(posterCard)) {
   fail("EXAMPLES ideogram-v4-instant-poster must stay text Poster brief → image Poster (no LLM, no upload)");
+}
+const sfxSample = samples.find((s) => s.slug === "night-ride-sfx");
+if (!sfxSample) fail("samples.json missing night-ride-sfx");
+if (sfxSample.preview !== "night-ride-sfx/preview.webp") {
+  fail("night-ride-sfx sample preview should be night-ride-sfx/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "night-ride-sfx", "preview.webp"))) {
+  fail("examples/gallery/night-ride-sfx/preview.webp is missing");
+}
+if (!/elevenlabs\/sound-effects\/v2/.test(JSON.stringify(sfxSample.models))) {
+  fail("night-ride-sfx sample should pin elevenlabs/sound-effects/v2");
+}
+if (!/cover|reused Volt alley card art|combine-images/i.test(sfxSample.note) || !/no paid|pending/i.test(sfxSample.note)) {
+  fail("night-ride-sfx sample note should say cover is reused Volt alley art and ElevenLabs QC is pending");
+}
+if (!/sting|thunder|wet neon alley/i.test(sfxSample.note)) {
+  fail("night-ride-sfx sample note should say the job is a Volt radio sting");
+}
+if (!/Closing-credits song|sing|Mureka/i.test(sfxSample.note)) {
+  fail("night-ride-sfx sample note should distinguish Closing-credits song / Mureka");
+}
+if (!/TTS|voice/i.test(sfxSample.note)) {
+  fail("night-ride-sfx sample note should distinguish TTS / voice");
+}
+if (!/duration 4|duration=4|~\$0\.008/i.test(sfxSample.note)) {
+  fail("night-ride-sfx sample note should name duration 4 and ~$0.008");
+}
+if (!hub.includes("night-ride-sfx/preview.webp")) {
+  fail("hub should thumb the night-ride-sfx cover");
+}
+if (!hub.includes("Cyan thunder. Four seconds.")) {
+  fail("hub should title night-ride-sfx as Cyan thunder. Four seconds.");
+}
+const sfxHowTo = readFileSync(join(ROOT, "guide", "examples", "night-ride-sfx.html"), "utf8");
+if (!/elevenlabs\/sound-effects\/v2/.test(sfxHowTo)) {
+  fail("night-ride-sfx how-to should name elevenlabs/sound-effects/v2");
+}
+if (!/Volt/i.test(sfxHowTo) || !/cyan/i.test(sfxHowTo) || !/thunder|sting/i.test(sfxHowTo)) {
+  fail("night-ride-sfx how-to should pitch the Volt cyan thunder sting");
+}
+if (!/duration/.test(sfxHowTo) || !/>4</.test(sfxHowTo)) {
+  fail("night-ride-sfx how-to should pin duration 4");
+}
+if (!/Closing-credits song|Mureka/i.test(sfxHowTo)) {
+  fail("night-ride-sfx how-to should distinguish Closing-credits song");
+}
+if (!/TTS/i.test(sfxHowTo)) {
+  fail("night-ride-sfx how-to should distinguish TTS");
+}
+if (!/reused Volt alley card art|no paid|pending/i.test(sfxHowTo)) {
+  fail("night-ride-sfx how-to should say the cover is reused Volt alley art and ElevenLabs QC is pending");
+}
+if (!sfxHowTo.includes("night-ride-sfx/preview.webp")) {
+  fail("night-ride-sfx how-to should show the cover still");
+}
+if (!/slug:"night-ride-sfx"[\s\S]{0,200}thumb:"examples\/gallery\/night-ride-sfx\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES night-ride-sfx thumb should be examples/gallery/night-ride-sfx/preview.webp");
+}
+if (!/slug:"night-ride-sfx"[\s\S]{0,80}desc:"wet neon alley pulse — cyan thunder sting, ~4s"/.test(examplesSrc)) {
+  fail("EXAMPLES night-ride-sfx desc should pitch wet neon alley pulse — cyan thunder sting, ~4s");
+}
+if (!/slug:"night-ride-sfx"[\s\S]{0,80}title:"night-ride sfx"/.test(examplesSrc)) {
+  fail("EXAMPLES night-ride-sfx title should be night-ride sfx");
+}
+const sfxCard = examplesSrc.match(/slug:"night-ride-sfx"[\s\S]*?(?=\n \{ em:|$)/)?.[0] || "";
+if (!/elevenlabs\/sound-effects\/v2/.test(sfxCard)) {
+  fail("EXAMPLES night-ride-sfx graph should pin elevenlabs/sound-effects/v2");
+}
+if (!/duration:"4"/.test(sfxCard)) {
+  fail("EXAMPLES night-ride-sfx graph should pin duration 4");
+}
+if (!/name:"SFX brief"/.test(sfxCard) || !/name:"Sting"/.test(sfxCard)) {
+  fail("EXAMPLES night-ride-sfx should be SFX brief → Sting");
+}
+if (/mureka-ai\/mureka-v9\.5\/generate-song|Minimax-Speech|type:"tts"|type:"llm"|type:"upload"/.test(sfxCard)) {
+  fail("EXAMPLES night-ride-sfx must stay text SFX brief → music Sting (no song, TTS, LLM, or upload)");
 }
 for (const slug of slugs) {
   const page = readFileSync(join(ROOT, "guide", "examples", slug === "iron-verdict" ? "iron-verdict.html" : `${slug}.html`), "utf8");

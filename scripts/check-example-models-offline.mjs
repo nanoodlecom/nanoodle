@@ -30,10 +30,12 @@ const catalogs = {
     image('qwen-image-3-pro', ['auto', '1k', '2k']),
     image('bria/fibo-generate-1.5/text-to-image', ['1mp']),
     image('minimax-h3/text-to-image', ['1k', '2k']),
+    image('minimax-h3/image-edit', ['1k', '2k'], true),
     image('birefnet/v2', ['auto'], true),
     image('sam3-image', ['auto'], true),
     image('pruna-ai/p-image/upscale', ['1', '2', '3', '4', '5', '6', '7', '8'], true),
     image('ideogram-v3-generate-transparent', ['1:1', '16:9', '9:16']),
+    image('sensenova-u1-infographic', ['1:1', '16:9', '9:16', '4:3', '3:4']),
     image('ideogram-v3-remove-text', ['auto'], true),
     image('ideogram/v4/instant', ['1024x1024', '1024x1536', '1536x1024', 'auto']),
   ],
@@ -64,6 +66,7 @@ const catalogs = {
   audio: [
     { id: 'Minimax-Speech-2.8-HD', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Deep_Voice_Man'] } },
     { id: 'mureka-ai/mureka-v9.5/generate-song', architecture: { modality: 'text->audio' } },
+    { id: 'elevenlabs/sound-effects/v2', architecture: { modality: 'text->audio' }, capabilities: { text_to_audio: true }, supported_parameters: { min_duration: 0.5, max_duration: 22 } },
   ],
 };
 

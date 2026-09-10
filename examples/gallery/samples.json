@@ -242,6 +242,39 @@
     "workflowSha256": "56c6d48107a197b7757cf26460fbad3fac1fe934464ae83f0cd7261267358860"
   },
   {
+    "slug": "h3-identity-restyle",
+    "title": "Night-ride identity restyle",
+    "date": "2026-09-10",
+    "review": "Cover still",
+    "note": "Cover is reused night-courier card art from examples/gallery/cinematic-character-still/preview.webp, pending a true MiniMax H3 Image Edit QC — no paid minimax-h3/image-edit run this PR. Job is identity-preserving scene/outfit/light restyle. Distinct from Muse Edit (cleanup / backdrop relight), Cinematic character still / minimax-h3/text-to-image (T2I, no upload identity), and Product in a setting / combine-images (two-reference placement). Open the graph — upload a still; Identity restyle pins minimax-h3/image-edit at 1k. No LLM.",
+    "costUsd": 0.03,
+    "costExact": false,
+    "models": [
+      "minimax-h3/image-edit"
+    ],
+    "graphSha256": "69df7da1aa159d3b790cb2e0ba1e2e4e1fe6d27332cd8765711178264f4a3d30",
+    "inputs": [
+      {
+        "label": "Still (reused cinematic courier card art)",
+        "src": "h3-identity-restyle/still-input.webp"
+      },
+      {
+        "label": "Restyle",
+        "text": "Keep the same face and body identity. Restyle into a Volt night-courier key still: matte charcoal kit, ONE electric-cyan lightning-bolt chevron on the chest, magenta rim + cyan bounce, wet neon alley bokeh behind. Locked medium portrait. No readable text, no extra people, no invented props."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "h3-identity-restyle/NOTE.txt",
+        "kind": "text",
+        "label": "Note"
+      }
+    ],
+    "preview": "h3-identity-restyle/preview.webp",
+    "workflow": "h3-identity-restyle/workflow.json",
+    "workflowSha256": "69df7da1aa159d3b790cb2e0ba1e2e4e1fe6d27332cd8765711178264f4a3d30"
+  },
+  {
     "slug": "character-sprites",
     "title": "Character sprites",
     "date": "2026-09-09",
@@ -723,6 +756,35 @@
     "workflowSha256": "7f39910fc0dec70d154c61c68c0dc307ddbca20ef4c2cc202f6c24dfacd681bc"
   },
   {
+    "slug": "volt-dispatch-infographic",
+    "title": "Volt dispatch card",
+    "date": "2026-09-10",
+    "review": "Cover still",
+    "note": "Cover is reused Volt night-ride poster art from examples/gallery/image-model-arena/preview.webp (NIGHT RIDE / TUE 9 SEP), pending a true SenseNova U1 Infographic QC still — no paid sensenova-u1-infographic or NanoGPT run this PR. Job is a structured Volt dispatch card: matte charcoal panel, ONE electric-cyan lightning-bolt chevron, DROP / ZONE / ETA. Short labels, no text walls. Distinct from UI mockup (render-a-mockup / Qwen), travel postcard, FIBO studio still, Muse cinematic, transparent sticker, Ideogram V4 Instant poster, remove-text packaging cleanup, and Flare arena. Open the graph from Examples — Dispatch brief is the Volt card sentence; Infographic pins sensenova-u1-infographic at 16:9. Catalog ~$0.05. No LLM. No upload.",
+    "costUsd": 0.05,
+    "costExact": false,
+    "models": [
+      "sensenova-u1-infographic"
+    ],
+    "graphSha256": "092e0f6f8031d5b46a1f4795e218391421949b6301a0bd1cb161d1f0f46e27f3",
+    "inputs": [
+      {
+        "label": "Dispatch brief",
+        "text": "Volt night-courier dispatch card. Structured infographic still, 16:9. Matte charcoal panel. ONE electric-cyan lightning-bolt chevron mark. Cyan and magenta accents. Three blocks only: DROP Night-ride / ZONE Ridge / ETA 22:30. Short labels, no paragraphs. Dark Volt vibe matching the nanoodle editor. Not a photo, not a UI screenshot, not a postcard. No busy collage."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "volt-dispatch-infographic/NOTE.txt",
+        "kind": "text",
+        "label": "Note"
+      }
+    ],
+    "preview": "volt-dispatch-infographic/preview.webp",
+    "workflow": "volt-dispatch-infographic/workflow.json",
+    "workflowSha256": "092e0f6f8031d5b46a1f4795e218391421949b6301a0bd1cb161d1f0f46e27f3"
+  },
+  {
     "slug": "sing",
     "title": "Original closing-credits song",
     "date": "2026-09-08",
@@ -763,6 +825,35 @@
     },
     "workflow": "sing/workflow.json",
     "workflowSha256": "df436c77b0860c9d8437cb5f68596985a2c5325d133d538453bd443b4cbcce16"
+  },
+  {
+    "slug": "night-ride-sfx",
+    "title": "Night-ride SFX",
+    "date": "2026-09-10",
+    "review": "Cover still",
+    "note": "Cover is reused Volt alley card art from examples/gallery/combine-images/preview.webp (wet neon alley), pending a true ElevenLabs Sound Effects V2 QC sting — no paid elevenlabs/sound-effects/v2 or NanoGPT run this PR. Job is a ~4s Volt night-ride radio sting: wet neon alley pulse, radio static bloom, one electric-cyan thunder hit, tight decay. Distinct from Closing-credits song (sing / Mureka generate-song) and TTS / voice. Not a video Keep. Open the graph — SFX brief is the Volt sting sentence; Sting pins elevenlabs/sound-effects/v2 at duration 4 (~$0.008). No music bed, vocals, or dialogue. No upload. No LLM.",
+    "costUsd": 0.008,
+    "costExact": false,
+    "models": [
+      "elevenlabs/sound-effects/v2"
+    ],
+    "graphSha256": "160337408f4a19711e9a9fea00997e8b8c72187d60d55c9bcf54bab3ca964125",
+    "inputs": [
+      {
+        "label": "SFX brief",
+        "text": "Volt night-ride radio sting: short wet neon alley pulse — low radio static bloom into one electric-cyan thunder hit, then tight decay. Pocket-radio energy, ~4s, no music bed, no vocals, no dialogue."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "night-ride-sfx/NOTE.txt",
+        "kind": "text",
+        "label": "Note"
+      }
+    ],
+    "preview": "night-ride-sfx/preview.webp",
+    "workflow": "night-ride-sfx/workflow.json",
+    "workflowSha256": "160337408f4a19711e9a9fea00997e8b8c72187d60d55c9bcf54bab3ca964125"
   },
   {
     "slug": "talking-avatar",
