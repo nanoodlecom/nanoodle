@@ -1,0 +1,62 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 40,
+      "y": 20,
+      "w": 520,
+      "name": "stretch the bed",
+      "fields": {
+        "text": "Upload bed → Mirelo SFX1.6 Extend Audio (`mirelo-ai/sfx1.6/extend-audio`) (~$0.01/s → ~$0.03@3s). Stretch the bed — not Wan video extend, not Night-ride SFX text→sting, not Mirelo video foley, not Stable Audio / sing generate.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "n1",
+      "type": "aupload",
+      "x": 40,
+      "y": 280,
+      "w": 280,
+      "name": "Short alley bed",
+      "fields": {}
+    },
+    {
+      "id": "n2",
+      "type": "remix",
+      "x": 400,
+      "y": 260,
+      "w": 320,
+      "name": "Stretched bed",
+      "fields": {
+        "model": "mirelo-ai/sfx1.6/extend-audio",
+        "prompt": "Continue the late-night neon alley ambience — soft rain ticks, distant scooter wash once, quiet electrical hum under a charcoal Volt pocket radio mood. Seamless natural tail, no new melody, no vocals, no radio DJ talk, no hard cut.",
+        "duration": "3",
+        "num_samples": 1,
+        "extraJson": "{\"num_samples\":1}",
+        "response_format": "mp3"
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "n1",
+        "port": "audio"
+      },
+      "to": {
+        "node": "n2",
+        "port": "audio"
+      }
+    }
+  ],
+  "nid": 3,
+  "lid": 2,
+  "view": {
+    "panX": 20,
+    "panY": 40,
+    "scale": 0.85
+  }
+}

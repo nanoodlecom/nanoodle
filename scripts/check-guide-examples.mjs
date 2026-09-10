@@ -2305,6 +2305,110 @@ if (/ace-step|lyria|minimax-music|mureka-ai\/mureka-v9\.5\/generate-song|elevenl
 if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
   fail("custom-endpoint must stay the only LOCAL_ONLY teaching card after stable-alley-score sync");
 }
+const stretchBedSample = samples.find((s) => s.slug === "mirelo-stretch-bed");
+if (!stretchBedSample) fail("samples.json missing mirelo-stretch-bed");
+if (stretchBedSample.preview !== "mirelo-stretch-bed/preview.webp") {
+  fail("mirelo-stretch-bed sample preview should be mirelo-stretch-bed/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "mirelo-stretch-bed", "preview.webp"))) {
+  fail("examples/gallery/mirelo-stretch-bed/preview.webp is missing");
+}
+if (!/mirelo-ai\/sfx1\.6\/extend-audio/.test(JSON.stringify(stretchBedSample.models))) {
+  fail("mirelo-stretch-bed sample should pin mirelo-ai/sfx1.6/extend-audio");
+}
+if (!/aupload placeholder|no fake waveform/i.test(stretchBedSample.note) || !/no paid|pending/i.test(stretchBedSample.note)) {
+  fail("mirelo-stretch-bed sample note should say aupload placeholder / no fake waveform thumb and Mirelo QC is pending");
+}
+if (!/audio extend|keeps the ambience|alley bed/i.test(stretchBedSample.note)) {
+  fail("mirelo-stretch-bed sample note should say the job is audio extend on an alley bed");
+}
+if (!/Wan video extend|wan-stretch-take|wan-25-extend/i.test(stretchBedSample.note)) {
+  fail("mirelo-stretch-bed sample note should distinguish Wan video extend");
+}
+if (!/Night-ride SFX|text→SFX|ElevenLabs/i.test(stretchBedSample.note)) {
+  fail("mirelo-stretch-bed sample note should distinguish Night-ride SFX / text→SFX");
+}
+if (!/Mirelo video foley|video→SFX/i.test(stretchBedSample.note)) {
+  fail("mirelo-stretch-bed sample note should distinguish Mirelo video foley");
+}
+if (!/Stable Audio|sing/i.test(stretchBedSample.note)) {
+  fail("mirelo-stretch-bed sample note should distinguish Stable Audio / sing");
+}
+if (!/~\$0\.03|\$0\.01\/s/i.test(stretchBedSample.note)) {
+  fail("mirelo-stretch-bed sample note should name ~$0.03 / $0.01/s");
+}
+if (!hub.includes("mirelo-stretch-bed/preview.webp")) {
+  fail("hub should thumb the mirelo-stretch-bed cover");
+}
+if (!hub.includes("Keep the alley going")) {
+  fail("hub should title mirelo-stretch-bed as Keep the alley going");
+}
+const stretchBedHowTo = readFileSync(join(ROOT, "guide", "examples", "mirelo-stretch-bed.html"), "utf8");
+if (!/mirelo-ai\/sfx1\.6\/extend-audio/.test(stretchBedHowTo)) {
+  fail("mirelo-stretch-bed how-to should name mirelo-ai/sfx1.6/extend-audio");
+}
+if (!/alley|ambience|stretch/i.test(stretchBedHowTo)) {
+  fail("mirelo-stretch-bed how-to should pitch alley-bed audio extend");
+}
+if (!/duration/.test(stretchBedHowTo) || !/<code>3<\/code>/.test(stretchBedHowTo)) {
+  fail("mirelo-stretch-bed how-to should pin duration 3");
+}
+if (!/Wan|video extend/i.test(stretchBedHowTo)) {
+  fail("mirelo-stretch-bed how-to should distinguish Wan video extend");
+}
+if (!/Night-ride SFX|text→SFX/i.test(stretchBedHowTo)) {
+  fail("mirelo-stretch-bed how-to should distinguish Night-ride SFX");
+}
+if (!/foley/i.test(stretchBedHowTo)) {
+  fail("mirelo-stretch-bed how-to should distinguish Mirelo video foley");
+}
+if (!/Stable Audio|sing/i.test(stretchBedHowTo)) {
+  fail("mirelo-stretch-bed how-to should distinguish Stable Audio / sing");
+}
+if (!/aupload placeholder|reused Volt alley|no paid|no fake waveform/i.test(stretchBedHowTo)) {
+  fail("mirelo-stretch-bed how-to should say the cover is an aupload placeholder and Mirelo QC is pending");
+}
+if (!stretchBedHowTo.includes("mirelo-stretch-bed/preview.webp")) {
+  fail("mirelo-stretch-bed how-to should show the cover still");
+}
+if (!/slug:"mirelo-stretch-bed"[\s\S]{0,200}thumb:"examples\/gallery\/mirelo-stretch-bed\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES mirelo-stretch-bed thumb should be examples/gallery/mirelo-stretch-bed/preview.webp");
+}
+if (!/slug:"mirelo-stretch-bed"[\s\S]{0,80}desc:"short alley bed — Mirelo keeps the ambience going"/.test(examplesSrc)) {
+  fail("EXAMPLES mirelo-stretch-bed desc should pitch short alley bed — Mirelo keeps the ambience going");
+}
+if (!/slug:"mirelo-stretch-bed"[\s\S]{0,80}title:"stretch the bed"/.test(examplesSrc)) {
+  fail("EXAMPLES mirelo-stretch-bed title should be stretch the bed");
+}
+const stretchBedCard = examplesSrc.match(/slug:"mirelo-stretch-bed"[\s\S]*?(?=\n \{ em:|$)/)?.[0] || "";
+if (!/mirelo-ai\/sfx1\.6\/extend-audio/.test(stretchBedCard)) {
+  fail("EXAMPLES mirelo-stretch-bed graph should pin mirelo-ai/sfx1.6/extend-audio");
+}
+if (!/duration:"3"/.test(stretchBedCard)) {
+  fail("EXAMPLES mirelo-stretch-bed graph should pin duration 3");
+}
+if (!/name:"Short alley bed"/.test(stretchBedCard) || !/name:"Stretched bed"/.test(stretchBedCard)) {
+  fail("EXAMPLES mirelo-stretch-bed should be aupload Short alley bed → remix Stretched bed");
+}
+if (!/type:"aupload"/.test(stretchBedCard) || !/type:"remix"/.test(stretchBedCard)) {
+  fail("EXAMPLES mirelo-stretch-bed should be aupload Short alley bed → remix Stretched bed");
+}
+const stretchBedRemix = stretchBedCard.match(/\{id:"n2",type:"remix"[\s\S]*?name:"Stretched bed"\}/)?.[0] || "";
+if (!stretchBedRemix) {
+  fail("EXAMPLES mirelo-stretch-bed should have remix node n2 Stretched bed");
+}
+if (!/mirelo-ai\/sfx1\.6\/extend-audio/.test(stretchBedRemix)) {
+  fail("EXAMPLES mirelo-stretch-bed Stretched bed should pin mirelo-ai/sfx1.6/extend-audio");
+}
+if (/wan-25-extend|elevenlabs\/sound-effects\/v2|stable-audio-3|mirelo-ai\/sfx1\.6\/video-to-video|mirelo-ai\/sfx1\.6\/text-to-audio|gpt-4o-mini/i.test(stretchBedRemix)) {
+  fail("EXAMPLES mirelo-stretch-bed Stretched bed must pin only mirelo-ai/sfx1.6/extend-audio");
+}
+if (/type:"tts"|type:"llm"|type:"music"|type:"vupload"|type:"vedit"|type:"upload"/.test(stretchBedCard)) {
+  fail("EXAMPLES mirelo-stretch-bed must stay aupload Short alley bed → remix Stretched bed (no TTS, LLM, music generate, or video)");
+}
+if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
+  fail("custom-endpoint must stay the only LOCAL_ONLY teaching card after mirelo-stretch-bed sync");
+}
 const markSample = samples.find((s) => s.slug === "volt-vector-mark");
 if (!markSample) fail("samples.json missing volt-vector-mark");
 if (markSample.preview !== "volt-vector-mark/preview.webp") {

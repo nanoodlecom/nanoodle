@@ -275,6 +275,15 @@ const HOWTO = {
     inspect: "Cover is reused Volt alley card art, pending Stable Audio QC — no paid run this PR. No fake waveform thumb. Open the graph, hit Run, listen for trip-hop pulse and rain ticks. Instrumental only.",
     costHow: "Listed at about $0.024 for one Stable Audio 3 Small Music call. No LLM. Prices vary. No reviewed first-party bed yet.",
   },
+  "mirelo-stretch-bed": {
+    headline: "Keep the alley going",
+    job: "Short bed. Mirelo stretches it.",
+    hideNote: true,
+    purpose: "Upload a short alley bed. Mirelo SFX1.6 Extend Audio continues the ambience. Audio extend, not video extend. Not Night-ride SFX. Not Mirelo video foley. Not Stable Audio / sing.",
+    edit: "Drop your bed on <em>Short alley bed</em>. Leave <em>Stretched bed</em> on <code>mirelo-ai/sfx1.6/extend-audio</code> at duration <code>3</code>.",
+    inspect: "Cover is reused Volt alley card art, pending Mirelo QC — no paid run this PR. aupload placeholder only. No fake waveform thumb. Open the graph, upload a short bed, listen for a seamless tail.",
+    costHow: "Listed at about $0.03 for 3s ($0.01/s). No LLM. Prices vary. No reviewed first-party extend yet.",
+  },
   "talking-avatar": {
     headline: "Look at camera. Clear the channel.",
     job: "Night courier. One line to camera.",
@@ -417,7 +426,7 @@ const GROUPS = [
     "image-model-arena",
   ] },
   { id: "video", title: "Video", slugs: ["photo-to-video", "grok-imagine-still", "wan-motion-drive", "wan-still-audio", "h3-max-multi-angle", "crystal-video-upscale", "p-video-rewrite", "wan-stretch-take", "mirelo-video-foley", "pixelcut-video-cutout", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },
-  { id: "audio", title: "Audio", slugs: ["sing", "night-ride-sfx", "night-ride-radio-vo", "whisper-pull-words", "stable-alley-score"] },
+  { id: "audio", title: "Audio", slugs: ["sing", "night-ride-sfx", "mirelo-stretch-bed", "night-ride-radio-vo", "whisper-pull-words", "stable-alley-score"] },
   { id: "text", title: "Text", slugs: ["deslop", "fable-five-step"] },
 ];
 
