@@ -1325,6 +1325,8 @@ const I18N = {
     "upload a still — orbit-right around the radio":"sube un still — órbita a la derecha alrededor de la radio",
     "closing-credits song":"canción de créditos finales",
     "rooftop getaway — last leap, red neon six floors down":"huida por las azoteas — último salto, neón rojo seis pisos abajo",
+    "night-ride sfx":"sfx de noche",
+    "wet neon alley pulse — cyan thunder sting, ~4s":"pulso de callejón neón mojado — sting de trueno cian, ~4s",
 
     "product cutout":"recorte de producto",
     "cyan lightning radio, background gone":"radio relámpago cian, fondo fuera",
@@ -1970,6 +1972,8 @@ const I18N = {
     "upload a still — orbit-right around the radio":"importez un still — orbite à droite autour de la radio",
     "closing-credits song":"chanson de générique de fin",
     "rooftop getaway — last leap, red neon six floors down":"fuite sur les toits — dernier saut, néon rouge six étages plus bas",
+    "night-ride sfx":"sfx de nuit",
+    "wet neon alley pulse — cyan thunder sting, ~4s":"impulsion de ruelle néon mouillée — sting tonnerre cyan, ~4s",
 
     "product cutout":"détourage produit",
     "cyan lightning radio, background gone":"radio éclair cyan, fond disparu",
@@ -2615,6 +2619,8 @@ const I18N = {
     "upload a still — orbit-right around the radio":"Still hochladen — Orbit nach rechts um das Radio",
     "closing-credits song":"Abspannlied",
     "rooftop getaway — last leap, red neon six floors down":"Dachflucht — letzter Sprung, rotes Neon sechs Stockwerke tiefer",
+    "night-ride sfx":"Nachtfahrt-SFX",
+    "wet neon alley pulse — cyan thunder sting, ~4s":"nasse Neon-Gasse — Cyan-Donner-Sting, ~4s",
 
     "product cutout":"Produkt-Freisteller",
     "cyan lightning radio, background gone":"cyanfarbenes Blitz-Radio, Hintergrund weg",
@@ -3260,6 +3266,8 @@ const I18N = {
     "upload a still — orbit-right around the radio":"envie um still — órbita à direita em torno do rádio",
     "closing-credits song":"música dos créditos finais",
     "rooftop getaway — last leap, red neon six floors down":"fuga pelos telhados — último salto, neon vermelho seis andares abaixo",
+    "night-ride sfx":"sfx noturno",
+    "wet neon alley pulse — cyan thunder sting, ~4s":"pulso de beco néon molhado — sting de trovão ciano, ~4s",
 
     "product cutout":"recorte de produto",
     "cyan lightning radio, background gone":"rádio relâmpago ciano, fundo sumiu",
@@ -3905,6 +3913,8 @@ const I18N = {
     "upload a still — orbit-right around the radio":"スチールをアップロード — ラジオの右回りオービット",
     "closing-credits song":"エンドクレジットの歌",
     "rooftop getaway — last leap, red neon six floors down":"屋上からの逃走 — 最後の跳躍、6階下の赤いネオン",
+    "night-ride sfx":"ナイトライドSFX",
+    "wet neon alley pulse — cyan thunder sting, ~4s":"濡れたネオン路地のパルス — シアン雷スティング、約4秒",
 
     "product cutout":"商品切り抜き",
     "cyan lightning radio, background gone":"電光シアンのラジオ、背景なし",
@@ -13859,6 +13869,13 @@ const EXAMPLES = [
    links:[ {id:"l11",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}},
            {id:"l12",from:{node:"n2",port:"text"},to:{node:"n4",port:"lyrics"}},
            {id:"style-direct",from:{node:"n5",port:"text"},to:{node:"n4",port:"prompt"}} ] } },
+ { em:"🔊", slug:"night-ride-sfx", title:"night-ride sfx", desc:"wet neon alley pulse — cyan thunder sting, ~4s",
+   thumb:"examples/gallery/night-ride-sfx/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:20,w:480,fields:{text:"Text brief → ElevenLabs Sound Effects V2 (`elevenlabs/sound-effects/v2`). Pin duration=4 (~$0.008 at $0.002/s). First-click is a Volt night-ride radio sting: wet neon alley pulse, radio static bloom, one electric-cyan thunder hit, tight decay. No music bed, vocals, or dialogue. Not Closing-credits song (Mureka generate-song), not TTS/voice, not a video Keep. No upload. No LLM.",color:"yellow"},name:"Night-ride SFX"},
+           {id:"n1",type:"text",x:40,y:280,w:320,fields:{text:"Volt night-ride radio sting: short wet neon alley pulse — low radio static bloom into one electric-cyan thunder hit, then tight decay. Pocket-radio energy, ~4s, no music bed, no vocals, no dialogue."},name:"SFX brief"},
+           {id:"n2",type:"music",x:420,y:260,w:300,fields:{model:"elevenlabs/sound-effects/v2",duration:"4",response_format:"mp3"},name:"Sting"} ],
+   links:[ {id:"l1",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}} ] } },
  { em:"🔄", slug:"omni-flash-turntable", title:"cinematic product motion", desc:"quarter-orbit, cyan rim on a night-ride radio",
    thumb:"examples/gallery/omni-flash-turntable/preview.webp",
    graph:{ v:1,
@@ -13965,7 +13982,7 @@ function openExamples(){
   // Same Elo order on every width — no mobile-only list, no CSS order, no truncation.
   // Featured #skilloutcome (Iron Verdict) sits above the grid on every width.
   // Compact mobile cards keep H3 (4th) and the featured game above the fold.
-  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","volt-dispatch-infographic","photo-to-video","h3-max-multi-angle","crystal-video-upscale","character-sprites","talking-avatar","infinitetalk-radio-take","sing","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
+  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","volt-dispatch-infographic","photo-to-video","h3-max-multi-angle","crystal-video-upscale","character-sprites","talking-avatar","infinitetalk-radio-take","sing","night-ride-sfx","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
   EXAMPLES.map((ex,i)=>({ex,i})).sort((a,b)=>{
     const rank=slug=>first.includes(slug)?first.indexOf(slug):first.length;
     return rank(a.ex.slug)-rank(b.ex.slug);
