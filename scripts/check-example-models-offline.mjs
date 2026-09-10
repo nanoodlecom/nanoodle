@@ -34,7 +34,7 @@ const catalogs = {
   ],
   audio: [
     { id: 'Minimax-Speech-2.8-HD', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Deep_Voice_Man'] } },
-    { id: 'mureka-ai/mureka-v9.5/generate-song', architecture: { modality: 'text->audio' } },
+    { id: 'minimax/music-3', architecture: { modality: 'text->audio' } },
   ],
 };
 

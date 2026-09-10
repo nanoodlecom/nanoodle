@@ -71,7 +71,7 @@ export function galleryRegressions(pins) {
     { slug: 'character-sprites', type: 'image', model: 'meta/muse-image/text-to-image', size: '1:1' },
     { slug: 'character-sprites', type: 'edit', model: 'meta/muse-image/edit', size: '1:1' },
     { slug: 'photo-to-video', type: 'ivideo', model: 'minimax-h3/image-to-video-spicy', resolution: '480p', duration: '5' },
-    { slug: 'sing', type: 'music', model: 'mureka-ai/mureka-v9.5/generate-song', instrumental: false },
+    { slug: 'sing', type: 'music', model: 'minimax/music-3', instrumental: false },
     { slug: 'talking-avatar', type: 'tts', model: 'Minimax-Speech-2.8-HD', voice: 'Deep_Voice_Man' },
     { slug: 'talking-avatar', type: 'lipsync', model: 'longcat-avatar-1.5', resolution: '480p' },
   ];

@@ -54,12 +54,12 @@ const HOWTO = {
     costHow: "The saved tea-mug run reported $0.21: $0.01 for the still and $0.20 for five seconds of video at 480p. Prices and results vary.",
   },
   sing: {
-    headline: "Write and sing a credits song",
-    job: "Theme → lyrics → original song.",
-    purpose: "GLM Flash turns a story theme into lyrics with verse and chorus labels. Mureka sings those lyrics in the musical style you choose. The saved song follows a rooftop getaway, with the chorus: I made it out, but the city wants me back.",
-    edit: "Rewrite <em>Song brief (theme, not lyrics)</em> and <em>Style (instruments &amp; tempo)</em>. Run <em>Write lyrics</em> to inspect the words before running <em>Song</em>, or run the whole graph.",
-    inspect: "Listen for intelligible lyrics and a chorus that fits your theme. The model chooses the final duration and musical structure.",
-    costHow: "The saved song's music step reported $0.225; lyric generation adds a small text charge. Prices and results vary.",
+    headline: "Sing: trip-hop about the singularity",
+    job: "Idea + favorite bands → lyrics, arrangement and song.",
+    purpose: "Start with a wistful 90s trip-hop song about the singularity and musical references: Portishead, Massive Attack and Tricky. GLM Flash writes lyrics, then an arrangement fitted to those words, then an avoid-list grounded in that arrangement. MiniMax Music 3 receives the lyrics separately from the combined musical direction. Changing the references steers the groove, instruments and vocal delivery.",
+    edit: "Rewrite <em>Song idea</em> and <em>Preferred bands</em>. Inspect <em>Write lyrics</em>, <em>Arrange the song</em> and <em>What would clash?</em> before running <em>Sing</em>, or run the whole graph. The references become descriptions of sound, without artist names in the music prompt.",
+    inspect: "Read the generated lyrics, arrangement and avoid-list below, then listen for the hook, groove and vocal delivery. Musical direction guides the result; exact structure and duration are not guaranteed.",
+    costHow: "The saved run reports its generation cost below. Three text calls prepare the lyrics, arrangement and avoid-list; one MiniMax Music 3 call makes the song. Check the editor estimate before running.",
   },
   "talking-avatar": {
     headline: "Make a speaking presenter",
@@ -312,7 +312,7 @@ function samplePage(s, prev, next) {
       </div>
       <p class="howto-note"><a href="/examples/gallery/${esc(local(s.workflow))}" download>Download workflow</a>
         · <a href="/examples/gallery/${esc(local(s.slug + "/graph.json"))}" download>Original sampled graph</a>
-        · <a href="https://mcp.nanoodle.com/#${esc(s.slug)}">Explore MCP tools</a>
+        · <a href="https://mcp.nanoodle.com/#${esc(s.slug)}">${s.slug === "sing" ? "Hosted MCP (older Sing workflow)" : "Explore MCP tools"}</a>
         · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a></p>`;
 
   return chrome({

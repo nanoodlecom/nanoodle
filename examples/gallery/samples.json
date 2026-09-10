@@ -24,25 +24,25 @@
       {
         "src": "image-model-arena/Contender_1.webp",
         "kind": "image",
-        "label": "Muse Image · reported $0.01",
+        "label": "Muse Image \u00b7 reported $0.01",
         "costUsd": 0.01
       },
       {
         "src": "image-model-arena/Contender_2.jpg",
         "kind": "image",
-        "label": "Krea 2 Turbo · reported $0.01",
+        "label": "Krea 2 Turbo \u00b7 reported $0.01",
         "costUsd": 0.01
       },
       {
         "src": "image-model-arena/Contender_3.jpg",
         "kind": "image",
-        "label": "Grok Imagine Image 2.0 · reported $0.06",
+        "label": "Grok Imagine Image 2.0 \u00b7 reported $0.06",
         "costUsd": 0.06
       },
       {
         "src": "image-model-arena/Contender_4.webp",
         "kind": "image",
-        "label": "Recraft V4 · reported $0.038",
+        "label": "Recraft V4 \u00b7 reported $0.038",
         "costUsd": 0.038
       }
     ],
@@ -84,49 +84,61 @@
     "preview": "photo-to-video/preview.webp",
     "workflow": "photo-to-video/workflow.json",
     "workflowSha256": "749b3dd20bd56d39e9807b2efe1b00061d18300f1eb437a2a3dba4d62030a09f",
-    "workflowNote": "The current workflow uses the provider’s renamed video model ID. The original sampled graph is preserved below."
+    "workflowNote": "The current workflow uses the provider\u2019s renamed video model ID. The original sampled graph is preserved below."
   },
   {
     "slug": "sing",
-    "title": "Write and sing the credits",
-    "date": "2026-09-08",
+    "title": "Sing: trip-hop about the singularity",
+    "date": "2026-09-10",
     "review": "Audio sample",
-    "note": "A closing-credits track for a rooftop chase, with the generated lyrics below. This recording has not had an audio-model review.",
-    "costUsd": 0.225,
-    "costExact": false,
+    "note": "A 2:35 song from the original singularity/trip-hop idea and preferred-band references. The generated lyrics, arrangement and avoid-list are saved below. The waveform preview comes from this recording. A model-assisted listening check described lo-fi alternative pop with a breathy female vocal, so the requested trip-hop style is only partly realized. Listen to judge the result yourself.",
+    "costUsd": 0.15,
+    "costExact": true,
     "models": [
       "z-ai/glm-5.3-flash",
-      "mureka-ai/mureka-v9.5/generate-song"
+      "minimax/music-3"
     ],
-    "graphSha256": "fcdc79818fb8d5a3c0ad10914c424aca51aaa65601a61dc33228bdfd0302de52",
+    "graphSha256": "b634c10897fb4bd124385cb2f8c1d117505e034cbbc226fcb94bcb34af91760f",
     "inputs": [
       {
-        "label": "Song brief (theme, not lyrics)",
-        "text": "Write a short original closing-credits song for a night-city chase game. Rooftop getaway: rain on black tar paper, a last leap between two towers, a red neon hotel sign flickering six floors down, one visor catching a billboard. Theme: you made it out, and the city still wants you. Cool, cinematic, electric — not cozy. No brand names, no real artist names."
+        "label": "Song idea",
+        "text": "Write a wistful 90s trip-hop track about the singularity."
       },
       {
-        "label": "Style (instruments & tempo)",
-        "text": "Cinematic synthwave, mid-tempo night-drive pulse, dry confident vocal, analog bass, gated snare, rain and neon shimmer. Clear words and a memorable chorus; no artist imitation."
+        "label": "Preferred bands",
+        "text": "Portishead, Massive Attack, Tricky"
       }
     ],
     "outputs": [
       {
         "src": "sing/Song.mp3",
         "kind": "audio",
-        "label": "Generated result"
+        "label": "Generated song \u2014 2:35"
       },
       {
         "src": "sing/lyrics.txt",
         "kind": "text",
         "label": "Generated lyrics"
+      },
+      {
+        "src": "sing/arrangement.txt",
+        "kind": "text",
+        "label": "Generated arrangement"
+      },
+      {
+        "src": "sing/avoid.txt",
+        "kind": "text",
+        "label": "Generated avoid-list, appended to the music prompt"
       }
     ],
-    "preview": "sing/preview.webp",
-    "audioReview": {
-      "src": "sing/audio-review.txt"
-    },
+    "preview": "sing/preview.svg",
     "workflow": "sing/workflow.json",
-    "workflowSha256": "dec483cfb8021ba5da9c4bcf17d70bff000835d240df52d6938db25b32571847"
+    "workflowSha256": "b634c10897fb4bd124385cb2f8c1d117505e034cbbc226fcb94bcb34af91760f",
+    "audioReview": {
+      "src": "sing/audio-review.txt",
+      "model": "gemini-2.5-flash",
+      "costUsd": 0.004978855
+    }
   },
   {
     "slug": "talking-avatar",
@@ -171,6 +183,6 @@
     },
     "workflow": "talking-avatar/workflow.json",
     "workflowSha256": "e5109ad4fb991862c03dcd71da29d3bf2fe08c0f96e05fceacf492bdb3ece95b",
-    "workflowNote": "The current workflow uses the provider’s renamed avatar model ID. The original sampled graph is preserved below."
+    "workflowNote": "The current workflow uses the provider\u2019s renamed avatar model ID. The original sampled graph is preserved below."
   }
 ]

@@ -4,78 +4,169 @@
     {
       "id": "c-intent",
       "type": "comment",
-      "x": -265,
-      "y": -63,
-      "name": "Rooftop getaway",
+      "name": "Sing: idea to finished track",
+      "x": 40,
+      "y": -200,
+      "w": 560,
       "fields": {
-        "text": "Write original closing-credits lyrics, then hear them sung. One text model writes [Verse]/[Chorus] lyrics from the brief; Mureka Generate Song sings them in the editable musical style. Music step $0.225, plus text. Listen for clear words, melody and fit to the brief; generated duration and precise musical structure can vary.",
+        "text": "Start with a song idea and the bands you like. Three text calls write lyrics, arrange them, and identify what would clash with that arrangement. The arrangement and avoid-list become one musical direction for MiniMax Music 3; the lyrics use its separate lyrics input. Change the idea or references to take the song somewhere else. Check the estimate before running; listen for the hook, instrumentation and vocal delivery. Exact duration and arrangement can vary.",
         "color": "yellow"
-      },
-      "w": 520
+      }
     },
     {
       "id": "n1",
       "type": "text",
-      "x": 58,
-      "y": 225,
+      "name": "Song idea",
+      "x": 40,
+      "y": 80,
+      "w": 280,
       "fields": {
-        "text": "Write a short original closing-credits song for a night-city chase game. Rooftop getaway: rain on black tar paper, a last leap between two towers, a red neon hotel sign flickering six floors down, one visor catching a billboard. Theme: you made it out, and the city still wants you. Cool, cinematic, electric — not cozy. No brand names, no real artist names."
-      },
-      "name": "Song brief (theme, not lyrics)"
-    },
-    {
-      "id": "n2",
-      "type": "llm",
-      "x": 402.85812543684335,
-      "y": -142.85694158301368,
-      "fields": {
-        "model": "z-ai/glm-5.3-flash",
-        "system": "Write original singable lyrics from the brief, maximum 160 words. Plain language, concrete details, natural stresses and a short memorable chorus. Use [Verse 1], [Chorus], [Verse 2], [Chorus], [Outro] labels. Preserve the requested mood and avoid adding named brands or copyrighted lyrics. Output only section labels and lyrics.",
-        "maxTokens": "1024",
-        "reasoningEffort": "low"
-      },
-      "w": 549,
-      "sizes": {
-        "system": 178,
-        "prompt": 0
-      },
-      "name": "Write lyrics"
-    },
-    {
-      "id": "n4",
-      "type": "music",
-      "x": 1240,
-      "y": 120,
-      "fields": {
-        "model": "mureka-ai/mureka-v9.5/generate-song",
-        "instrumental": false,
-        "response_format": "mp3"
-      },
-      "w": 406,
-      "sizes": {
-        "prompt": 0,
-        "lyrics": 0,
-        "negative_prompt": 0
-      },
-      "name": "Song"
+        "text": "Write a wistful 90s trip-hop track about the singularity."
+      }
     },
     {
       "id": "n5",
       "type": "text",
-      "x": -711.7791041392409,
-      "y": 1154.9439102487288,
+      "name": "Preferred bands",
+      "x": 40,
+      "y": 360,
+      "w": 280,
       "fields": {
-        "text": "Cinematic synthwave, mid-tempo night-drive pulse, dry confident vocal, analog bass, gated snare, rain and neon shimmer. Clear words and a memorable chorus; no artist imitation.",
-        "optional": false
+        "text": "Portishead, Massive Attack, Tricky"
+      }
+    },
+    {
+      "id": "n6",
+      "type": "join",
+      "name": "Idea + musical references",
+      "x": 370,
+      "y": 240,
+      "w": 270,
+      "fields": {
+        "sep": "\n\nPreferred bands (musical references):\n"
+      }
+    },
+    {
+      "id": "n2",
+      "type": "llm",
+      "name": "Write lyrics",
+      "x": 710,
+      "y": 0,
+      "w": 350,
+      "sizes": {
+        "system": 110,
+        "prompt": 0
       },
-      "name": "Style (instruments & tempo)"
+      "fields": {
+        "model": "z-ai/glm-5.3-flash",
+        "system": "Write original, singable lyrics from the song idea and musical references. Maximum 200 words. Use concrete images, an emotional point of view, natural stresses and short lines that fit the requested mood. Build one memorable hook and repeat it in each chorus. Let the references inform rhythm and atmosphere; do not name the bands, quote their songs or copy a recognizable lyric. Use [Verse 1], [Chorus], [Verse 2], [Chorus], [Bridge], [Chorus], [Outro]. Output only the section labels and lyrics.",
+        "maxTokens": "1536",
+        "reasoningEffort": "low"
+      }
+    },
+    {
+      "id": "n10",
+      "type": "join",
+      "name": "Brief + finished lyrics",
+      "x": 710,
+      "y": 710,
+      "w": 290,
+      "fields": {
+        "sep": "\n\nLyrics to arrange:\n"
+      }
+    },
+    {
+      "id": "n3",
+      "type": "llm",
+      "name": "Arrange the song",
+      "x": 1100,
+      "y": 0,
+      "w": 350,
+      "sizes": {
+        "system": 110,
+        "prompt": 0
+      },
+      "fields": {
+        "model": "z-ai/glm-5.3-flash",
+        "system": "Write one compact music-generator prompt: a single paragraph, at most 60 words and 450 characters. Use the supplied idea, preferred bands and finished lyrics to choose tempo, groove, drum texture, bass, instruments and vocal delivery. Translate artist references into descriptions of sound; do not name artists or songs. Keep the requested genre and mood. No section-by-section plan, headings, lyrics or commentary. Output only the compact arrangement.",
+        "maxTokens": "256",
+        "reasoningEffort": "low"
+      }
+    },
+    {
+      "id": "n8",
+      "type": "llm",
+      "name": "What would clash?",
+      "x": 1100,
+      "y": 710,
+      "w": 350,
+      "sizes": {
+        "system": 110,
+        "prompt": 0
+      },
+      "fields": {
+        "model": "z-ai/glm-5.3-flash",
+        "system": "Read the actual arrangement. Name exactly three specific musical choices that would undermine its groove, instruments, vocal delivery or mood. Never reject a requested element. Output only three short comma-separated phrases, at most 20 words and 120 characters total. No artist names, explanations or generic quality complaints.",
+        "maxTokens": "96",
+        "reasoningEffort": "low"
+      }
+    },
+    {
+      "id": "n9",
+      "type": "join",
+      "name": "Arrangement + avoid-list",
+      "x": 1510,
+      "y": 640,
+      "w": 290,
+      "fields": {
+        "sep": "\nAvoid: "
+      }
+    },
+    {
+      "id": "n4",
+      "type": "music",
+      "name": "Sing",
+      "x": 1900,
+      "y": 190,
+      "w": 350,
+      "sizes": {
+        "prompt": 0,
+        "lyrics": 0
+      },
+      "fields": {
+        "model": "minimax/music-3",
+        "instrumental": false,
+        "response_format": "mp3"
+      }
     }
   ],
   "links": [
     {
-      "id": "l11",
+      "id": "idea",
       "from": {
         "node": "n1",
+        "port": "text"
+      },
+      "to": {
+        "node": "n6",
+        "port": "a"
+      }
+    },
+    {
+      "id": "references",
+      "from": {
+        "node": "n5",
+        "port": "text"
+      },
+      "to": {
+        "node": "n6",
+        "port": "b"
+      }
+    },
+    {
+      "id": "write",
+      "from": {
+        "node": "n6",
         "port": "text"
       },
       "to": {
@@ -84,7 +175,51 @@
       }
     },
     {
-      "id": "l12",
+      "id": "arrange-brief",
+      "from": {
+        "node": "n6",
+        "port": "text"
+      },
+      "to": {
+        "node": "n10",
+        "port": "a"
+      }
+    },
+    {
+      "id": "arrange-lyrics",
+      "from": {
+        "node": "n2",
+        "port": "text"
+      },
+      "to": {
+        "node": "n10",
+        "port": "b"
+      }
+    },
+    {
+      "id": "arrange",
+      "from": {
+        "node": "n10",
+        "port": "text"
+      },
+      "to": {
+        "node": "n3",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "avoid-from-arrangement",
+      "from": {
+        "node": "n3",
+        "port": "text"
+      },
+      "to": {
+        "node": "n8",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "song-lyrics",
       "from": {
         "node": "n2",
         "port": "text"
@@ -95,9 +230,31 @@
       }
     },
     {
-      "id": "style-direct",
+      "id": "direction",
       "from": {
-        "node": "n5",
+        "node": "n3",
+        "port": "text"
+      },
+      "to": {
+        "node": "n9",
+        "port": "a"
+      }
+    },
+    {
+      "id": "avoid",
+      "from": {
+        "node": "n8",
+        "port": "text"
+      },
+      "to": {
+        "node": "n9",
+        "port": "b"
+      }
+    },
+    {
+      "id": "song-direction",
+      "from": {
+        "node": "n9",
         "port": "text"
       },
       "to": {
@@ -105,12 +262,5 @@
         "port": "prompt"
       }
     }
-  ],
-  "nid": 12,
-  "lid": 28,
-  "view": {
-    "panX": 128.94355688222822,
-    "panY": 299.1140787122954,
-    "scale": 0.6275535625311416
-  }
+  ]
 }
