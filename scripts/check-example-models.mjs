@@ -81,6 +81,7 @@ export function galleryRegressions(pins) {
     { slug: 'character-sprites', type: 'edit', model: 'meta/muse-image/edit', size: '1:1' },
     { slug: 'transparent-brand-sticker', type: 'image', model: 'ideogram-v3-generate-transparent', size: '1:1' },
     { slug: 'remove-packaging-text', type: 'edit', model: 'ideogram-v3-remove-text', size: 'auto' },
+    { slug: 'widen-the-frame', type: 'edit', model: 'nano-banana-edit', size: 'auto' },
     { slug: 'h3-identity-restyle', type: 'edit', model: 'minimax-h3/image-edit', size: '1k' },
     { slug: 'virtual-try-on', type: 'edit', model: 'flux-pro/v1/vto', size: 'auto' },
     { slug: 'ideogram-v4-instant-poster', type: 'image', model: 'ideogram/v4/instant', size: '1024x1024' },

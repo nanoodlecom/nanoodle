@@ -101,7 +101,7 @@ test('homepage pins use the same strict model, type and capability checks as gal
   assert.throws(() => starterModels({ nodes: [{ type: 'unknown' }] }, kinds), /unknown node type/);
 });
 
-test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefNet, InfiniteTalk, SAM 3, P-Image Upscale, deslop venice-uncensored, H3 Max Multi Angle, character-sprites, transparent-brand-sticker, remove-packaging-text, h3-identity-restyle, virtual-try-on, ideogram-v4-instant-poster, volt-vector-mark, mai-pack-type, Crystal video upscale, Night-ride SFX, Night-ride radio VO, Whisper pull-words, Stable Audio alley score, SenseNova dispatch, Grok Imagine 1.5 still, Wan 3.0 still+audio, Wan Animate 2 motion-drive, P-Video rewrite, Wan 2.5 Extend stretch-take, Mirelo video foley, Pixelcut video cutout and Mirelo stretch-bed pin regressions', async () => {
+test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefNet, InfiniteTalk, SAM 3, P-Image Upscale, deslop venice-uncensored, H3 Max Multi Angle, character-sprites, transparent-brand-sticker, remove-packaging-text, widen-the-frame, h3-identity-restyle, virtual-try-on, ideogram-v4-instant-poster, volt-vector-mark, mai-pack-type, Crystal video upscale, Night-ride SFX, Night-ride radio VO, Whisper pull-words, Stable Audio alley score, SenseNova dispatch, Grok Imagine 1.5 still, Wan 3.0 still+audio, Wan Animate 2 motion-drive, P-Video rewrite, Wan 2.5 Extend stretch-take, Mirelo video foley, Pixelcut video cutout and Mirelo stretch-bed pin regressions', async () => {
   const { galleryRegressions } = await import('./check-example-models.mjs');
   const pins = [
     { slug: 'fibo-studio-still', ...pin('image', { model: 'bria/fibo-generate-1.5/text-to-image', size: '1mp' }) },
@@ -138,9 +138,10 @@ test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefN
     { slug: 'whisper-pull-words', ...pin('transcribe', { model: 'Whisper-Large-V3' }) },
     { slug: 'stable-alley-score', ...pin('music', { model: 'stable-audio-3/small/music/text-to-audio', instrumental: true }) },
     { slug: 'mirelo-stretch-bed', ...pin('remix', { model: 'mirelo-ai/sfx1.6/extend-audio', duration: '3' }) },
+    { slug: 'widen-the-frame', ...pin('edit', { model: 'nano-banana-edit', size: 'auto' }) },
   ];
   assert.equal(galleryRegressions(pins).length, 0);
-  assert.equal(galleryRegressions([]).length, 34);
+  assert.equal(galleryRegressions([]).length, 35);
   pins[0].fields.size = 'auto';
   assert.match(galleryRegressions(pins)[0].reason, /expected size 1mp/);
   pins[0].fields.size = '1mp';
@@ -178,6 +179,7 @@ test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefN
   pins[31].id = 'gpt-4o-mini-transcribe';
   pins[32].id = 'mureka-ai/mureka-v9.5/generate-song';
   pins[33].id = 'mirelo-ai/sfx1.6/text-to-audio';
-  assert.equal(galleryRegressions(pins).length, 34);
+  pins[34].id = 'meta/muse-image/edit';
+  assert.equal(galleryRegressions(pins).length, 35);
   assert.ok(galleryRegressions(pins).every(p => /expected model/.test(p.reason)));
 });

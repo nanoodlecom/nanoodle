@@ -1371,6 +1371,8 @@ const I18N = {
     "Volt sleeve type — Microsoft MAI Flash nails the letters":"tipografía de sleeve Volt — Microsoft MAI Flash clava las letras",
     "remove packaging text":"quitar texto de envase",
     "Volt promo card — letters gone":"tarjeta promo Volt — sin letras",
+    "widen the frame":"ampliar el encuadre",
+    "tight product still — Banana Edit outpaints a wider hero":"still de producto cerrado — Banana Edit outpaint a un hero más ancho",
     "night-ride identity restyle":"restyle de identidad night-ride",
     "same face — Volt night-courier restyle":"misma cara — restyle de mensajero Volt de noche",
     "frame wakes up":"el fotograma despierta",
@@ -2042,6 +2044,8 @@ const I18N = {
     "Volt sleeve type — Microsoft MAI Flash nails the letters":"typo de sleeve Volt — Microsoft MAI Flash cloue les lettres",
     "remove packaging text":"retirer le texte d’emballage",
     "Volt promo card — letters gone":"carte promo Volt — plus de lettres",
+    "widen the frame":"élargir le cadre",
+    "tight product still — Banana Edit outpaints a wider hero":"still produit serré — Banana Edit outpaint un hero plus large",
     "night-ride identity restyle":"restyle d’identité night-ride",
     "same face — Volt night-courier restyle":"même visage — restyle coursier Volt de nuit",
     "frame wakes up":"le photogramme s’éveille",
@@ -2713,6 +2717,8 @@ const I18N = {
     "Volt sleeve type — Microsoft MAI Flash nails the letters":"Volt-Sleeve-Typo — Microsoft MAI Flash trifft die Buchstaben",
     "remove packaging text":"Verpackungstext entfernen",
     "Volt promo card — letters gone":"Volt-Promo-Karte — Buchstaben weg",
+    "widen the frame":"den Rahmen weiten",
+    "tight product still — Banana Edit outpaints a wider hero":"enges Produkt-Still — Banana Edit outpaintet einen breiteren Hero",
     "night-ride identity restyle":"Night-ride-Identitäts-Restyle",
     "same face — Volt night-courier restyle":"dasselbe Gesicht — Volt-Nachtkurier-Restyle",
     "frame wakes up":"das Bild wacht auf",
@@ -3384,6 +3390,8 @@ const I18N = {
     "Volt sleeve type — Microsoft MAI Flash nails the letters":"tipografia de sleeve Volt — Microsoft MAI Flash crava as letras",
     "remove packaging text":"remover texto da embalagem",
     "Volt promo card — letters gone":"cartão promo Volt — sem letras",
+    "widen the frame":"alargar o enquadramento",
+    "tight product still — Banana Edit outpaints a wider hero":"still de produto fechado — Banana Edit outpaint um hero mais largo",
     "night-ride identity restyle":"restyle de identidade night-ride",
     "same face — Volt night-courier restyle":"mesmo rosto — restyle de mensageiro Volt noturno",
     "frame wakes up":"o fotograma acorda",
@@ -4055,6 +4063,8 @@ const I18N = {
     "Volt sleeve type — Microsoft MAI Flash nails the letters":"Voltスリーブの文字 — Microsoft MAI Flashがレタリングを決める",
     "remove packaging text":"パッケージ文字を消す",
     "Volt promo card — letters gone":"Voltプロモカード — 文字なし",
+    "widen the frame":"フレームを広げる",
+    "tight product still — Banana Edit outpaints a wider hero":"タイトな製品スチール — Banana Editが広いヒーローにアウトペイント",
     "night-ride identity restyle":"ナイトライドのアイデンティティ・リスタイル",
     "same face — Volt night-courier restyle":"同じ顔 — Voltナイトクーリエのリスタイル",
     "frame wakes up":"フレームが目を覚ます",
@@ -13851,6 +13861,17 @@ const EXAMPLES = [
            {id:"n3",type:"resize",x:780,y:280,w:280,fields:{mode:"fit",width:"1024",height:"1024"},name:"Export preview"} ],
    links:[ {id:"l1",from:{node:"n1",port:"image"},to:{node:"n2",port:"image"}},
            {id:"l2",from:{node:"n2",port:"image"},to:{node:"n3",port:"image"}} ] } },
+ { em:"↔️", slug:"widen-the-frame", title:"widen the frame", desc:"tight product still — Banana Edit outpaints a wider hero",
+   thumb:"examples/gallery/widen-the-frame/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:20,w:480,fields:{text:"Upload a tight product still; Google Nano Banana Edit (`nano-banana-edit`) outpaints a wider 16:9 hero (size `auto`, $0.039). First-click story is a tight/cropped matte-charcoal Volt pocket night-ride radio with one electric-cyan lightning-bolt chevron and hard cyan rim — this repo has no committed still, so upload that product photo or any tight catalog crop. This is canvas expand / outpaint only, not Muse Edit cleanup/bg replace (use Clean product photo), not H3 identity restyle, not Ideogram remove text, not BiRefNet cutout, not SAM 3 isolate, not P-Image Upscale (resolution only), not SeedVR2 / Clarity Crystal / other upscalers, not FLUX VTO, and not two-ref placement (use Product in a setting). 16:9 intent lives in the Outpaint brief (catalog lists aspect_ratio including 16:9; size is `auto` only). Catalog allows ≤4 input images; first-click uses one upload. nsfw: false. Inspect the native widened still; Export preview is a local 1024 fit only.",color:"yellow"},name:"widen the frame"},
+           {id:"n1",type:"upload",x:40,y:320,w:280,fields:{},name:"Product still"},
+           {id:"n2",type:"edit",x:400,y:300,w:300,fields:{prompt:"",size:"auto",model:"nano-banana-edit"},name:"Widened still"},
+           {id:"n3",type:"text",x:40,y:560,w:300,fields:{text:"Outpaint / expand this tight crop into a wider 16:9 night-alley hero. Preserve the exact product shape, materials, markings, ONE electric-cyan lightning-bolt chevron, lighting, and camera angle of this matte-charcoal Volt pocket night-ride radio. Extend wet neon alley and dark slate only around the product. Do not restyle, recolor, invent props, logos, or a second product."},name:"Outpaint brief"},
+           {id:"n4",type:"resize",x:780,y:300,w:280,fields:{mode:"fit",width:"1024",height:"1024"},name:"Export preview"} ],
+   links:[ {id:"l1",from:{node:"n1",port:"image"},to:{node:"n2",port:"image"}},
+           {id:"l2",from:{node:"n3",port:"text"},to:{node:"n2",port:"prompt"}},
+           {id:"l3",from:{node:"n2",port:"image"},to:{node:"n4",port:"image"}} ] } },
  { em:"🔎", slug:"p-image-upscale", title:"p-image upscale", desc:"same cyan lightning radio, twice the pixels",
    thumb:"examples/gallery/p-image-upscale/preview.webp",
    graph:{ v:1,
@@ -14221,7 +14242,7 @@ function openExamples(){
   // Same Elo order on every width — no mobile-only list, no CSS order, no truncation.
   // Featured #skilloutcome (Iron Verdict) sits above the grid on every width.
   // Compact mobile cards keep H3 (4th) and the featured game above the fold.
-  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","virtual-try-on","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","volt-vector-mark","mai-pack-type","volt-dispatch-infographic","photo-to-video","grok-imagine-still","wan-motion-drive","wan-still-audio","h3-max-multi-angle","crystal-video-upscale","p-video-rewrite","wan-stretch-take","mirelo-video-foley","pixelcut-video-cutout","character-sprites","talking-avatar","infinitetalk-radio-take","sing","night-ride-sfx","mirelo-stretch-bed","night-ride-radio-vo","whisper-pull-words","stable-alley-score","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
+  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","virtual-try-on","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","widen-the-frame","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","volt-vector-mark","mai-pack-type","volt-dispatch-infographic","photo-to-video","grok-imagine-still","wan-motion-drive","wan-still-audio","h3-max-multi-angle","crystal-video-upscale","p-video-rewrite","wan-stretch-take","mirelo-video-foley","pixelcut-video-cutout","character-sprites","talking-avatar","infinitetalk-radio-take","sing","night-ride-sfx","mirelo-stretch-bed","night-ride-radio-vo","whisper-pull-words","stable-alley-score","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
   EXAMPLES.map((ex,i)=>({ex,i})).sort((a,b)=>{
     const rank=slug=>first.includes(slug)?first.indexOf(slug):first.length;
     return rank(a.ex.slug)-rank(b.ex.slug);

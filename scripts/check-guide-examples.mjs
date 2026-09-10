@@ -3099,6 +3099,148 @@ if (/clarity-ai\/crystal-video-upscaler|pruna-ai\/p-video\/edit|mirelo-ai\/sfx1\
 if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
   fail("custom-endpoint must stay the only LOCAL_ONLY teaching card after wan-stretch-take sync");
 }
+const widenSample = samples.find((s) => s.slug === "widen-the-frame");
+if (!widenSample) fail("samples.json missing widen-the-frame");
+if (widenSample.preview !== "widen-the-frame/preview.webp") {
+  fail("widen-the-frame sample preview should be widen-the-frame/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "widen-the-frame", "preview.webp"))) {
+  fail("examples/gallery/widen-the-frame/preview.webp is missing");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "widen-the-frame", "product-input.webp"))) {
+  fail("examples/gallery/widen-the-frame/product-input.webp is missing");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "widen-the-frame", "banana-badge.png"))) {
+  fail("examples/gallery/widen-the-frame/banana-badge.png is missing");
+}
+if (!widenSample.models.includes("nano-banana-edit")) {
+  fail("widen-the-frame sample should pin nano-banana-edit");
+}
+if (!/reused Volt|no paid|pending/.test(widenSample.note) || !/nano-banana-edit/.test(widenSample.note)) {
+  fail("widen-the-frame sample note should stay honest: reused Volt card art, no paid nano-banana-edit QC");
+}
+if (!/outpaint|canvas expand/.test(widenSample.note)) {
+  fail("widen-the-frame sample note should say the job is canvas expand / outpaint");
+}
+if (!/edit-a-photo|Muse/.test(widenSample.note)) {
+  fail("widen-the-frame sample note should distinguish edit-a-photo / Muse");
+}
+if (!/h3-identity-restyle/.test(widenSample.note)) {
+  fail("widen-the-frame sample note should distinguish h3-identity-restyle");
+}
+if (!/Ideogram|remove text/.test(widenSample.note)) {
+  fail("widen-the-frame sample note should distinguish Ideogram remove text");
+}
+if (!/BiRefNet|cutout/.test(widenSample.note)) {
+  fail("widen-the-frame sample note should distinguish BiRefNet cutout");
+}
+if (!/SAM/.test(widenSample.note)) {
+  fail("widen-the-frame sample note should distinguish SAM isolate");
+}
+if (!/P-Image Upscale/.test(widenSample.note)) {
+  fail("widen-the-frame sample note should distinguish P-Image Upscale");
+}
+if (!/Crystal|SeedVR2/.test(widenSample.note)) {
+  fail("widen-the-frame sample note should distinguish Crystal / SeedVR2");
+}
+if (!/VTO|virtual-try-on|FLUX/.test(widenSample.note)) {
+  fail("widen-the-frame sample note should distinguish FLUX VTO");
+}
+if (!/combine-images/.test(widenSample.note)) {
+  fail("widen-the-frame sample note should distinguish combine-images");
+}
+if (!hub.includes("widen-the-frame/preview.webp")) {
+  fail("hub should thumb the widen-the-frame cover");
+}
+if (!hub.includes("Tight crop. Wider hero.")) {
+  fail("hub should title widen-the-frame as Tight crop. Wider hero.");
+}
+const widenHowTo = readFileSync(join(ROOT, "guide", "examples", "widen-the-frame.html"), "utf8");
+if (!/nano-banana-edit/.test(widenHowTo)) {
+  fail("widen-the-frame how-to should name nano-banana-edit");
+}
+if (!/Banana Edit outpaints a 16:9 night-alley/.test(widenHowTo)) {
+  fail("widen-the-frame how-to should punch Banana Edit outpaints a 16:9 night-alley.");
+}
+if (!/outpaint|16:9/.test(widenHowTo)) {
+  fail("widen-the-frame how-to should punch outpaint / 16:9");
+}
+if (!/Muse Edit/.test(widenHowTo)) {
+  fail("widen-the-frame how-to should distinguish Muse Edit");
+}
+if (!/H3 identity restyle|Night-ride identity restyle/.test(widenHowTo)) {
+  fail("widen-the-frame how-to should distinguish H3 identity restyle");
+}
+if (!/Ideogram remove text/.test(widenHowTo)) {
+  fail("widen-the-frame how-to should distinguish Ideogram remove text");
+}
+if (!/BiRefNet/.test(widenHowTo)) {
+  fail("widen-the-frame how-to should distinguish BiRefNet cutout");
+}
+if (!/SAM/.test(widenHowTo)) {
+  fail("widen-the-frame how-to should distinguish SAM isolate");
+}
+if (!/P-Image Upscale/.test(widenHowTo)) {
+  fail("widen-the-frame how-to should distinguish P-Image Upscale");
+}
+if (!/Crystal|SeedVR2/.test(widenHowTo)) {
+  fail("widen-the-frame how-to should distinguish Crystal / SeedVR2");
+}
+if (!/FLUX VTO/.test(widenHowTo)) {
+  fail("widen-the-frame how-to should distinguish FLUX VTO");
+}
+if (!/combine-images/.test(widenHowTo)) {
+  fail("widen-the-frame how-to should distinguish combine-images");
+}
+if (!/pending|no paid|reused Volt/.test(widenHowTo)) {
+  fail("widen-the-frame how-to should stay honest about reused cover / no paid QC");
+}
+if (!/size stays auto|size <code>auto<\/code>/.test(widenHowTo)) {
+  fail("widen-the-frame how-to should say size stays auto");
+}
+if (!widenHowTo.includes("widen-the-frame/preview.webp")) {
+  fail("widen-the-frame how-to should show the cover still");
+}
+if (!widenHowTo.includes("widen-the-frame/banana-badge.png")) {
+  fail("widen-the-frame how-to should show the banana edit badge");
+}
+if (!/slug:"widen-the-frame"[\s\S]{0,200}thumb:"examples\/gallery\/widen-the-frame\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES widen-the-frame thumb should be examples/gallery/widen-the-frame/preview.webp");
+}
+if (!/slug:"widen-the-frame"[\s\S]{0,80}desc:"tight product still — Banana Edit outpaints a wider hero"/.test(examplesSrc)) {
+  fail("EXAMPLES widen-the-frame desc should pitch tight product still — Banana Edit outpaints a wider hero");
+}
+if (!/slug:"widen-the-frame"[\s\S]{0,80}title:"widen the frame"/.test(examplesSrc)) {
+  fail("EXAMPLES widen-the-frame title should be widen the frame");
+}
+const widenCard = examplesSrc.match(/slug:"widen-the-frame"[\s\S]*?(?=\n \{ em:|$)/)?.[0] || "";
+if (!/model:"nano-banana-edit"/.test(widenCard)) {
+  fail("EXAMPLES widen-the-frame graph should pin nano-banana-edit");
+}
+if (!/size:"auto"/.test(widenCard)) {
+  fail("EXAMPLES widen-the-frame graph should pin size auto");
+}
+if (!/type:"upload"/.test(widenCard) || !/type:"edit"/.test(widenCard) || !/type:"text"/.test(widenCard) || !/type:"resize"/.test(widenCard)) {
+  fail("EXAMPLES widen-the-frame should be Product still + Outpaint brief → Widened still → Export preview");
+}
+if (!/name:"Widened still"/.test(widenCard)) {
+  fail("EXAMPLES widen-the-frame should have edit node n2 Widened still");
+}
+if (!/name:"Outpaint brief"/.test(widenCard)) {
+  fail("EXAMPLES widen-the-frame should keep Outpaint brief");
+}
+if (!/model:"nano-banana-edit"/.test(widenCard) || !/size:"auto"/.test(widenCard)) {
+  fail("EXAMPLES widen-the-frame edit node should pin nano-banana-edit at auto");
+}
+if (/meta\/muse-image\/edit|minimax-h3\/image-edit|ideogram-v3-remove-text|birefnet\/v2|sam3-image|pruna-ai\/p-image\/upscale|flux-pro\/v1\/vto|gpt-4o-mini/.test(widenCard)) {
+  fail("EXAMPLES widen-the-frame must not reuse Muse / H3 / Ideogram / BiRefNet / SAM / P-Image / VTO / gpt-4o-mini pins");
+}
+if (/type:"llm"/.test(widenCard)) {
+  fail("EXAMPLES widen-the-frame must stay upload + text → edit (no LLM)");
+}
+if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
+  fail("custom-endpoint must stay the only LOCAL_ONLY teaching card after widen-the-frame sync");
+}
 for (const slug of slugs) {
   const page = readFileSync(join(ROOT, "guide", "examples", slug === "iron-verdict" ? "iron-verdict.html" : `${slug}.html`), "utf8");
   if (page.includes("how to use this noodle")) {
