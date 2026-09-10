@@ -101,7 +101,7 @@ test('homepage pins use the same strict model, type and capability checks as gal
   assert.throws(() => starterModels({ nodes: [{ type: 'unknown' }] }, kinds), /unknown node type/);
 });
 
-test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefNet, InfiniteTalk, SAM 3, P-Image Upscale, deslop venice-uncensored, H3 Max Multi Angle, character-sprites, transparent-brand-sticker, remove-packaging-text, h3-identity-restyle, virtual-try-on, ideogram-v4-instant-poster, volt-vector-mark, mai-pack-type, Crystal video upscale, Night-ride SFX, Night-ride radio VO, Whisper pull-words, SenseNova dispatch, Grok Imagine 1.5 still, Wan 3.0 still+audio, Wan Animate 2 motion-drive, P-Video rewrite, Mirelo video foley and Pixelcut video cutout pin regressions', async () => {
+test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefNet, InfiniteTalk, SAM 3, P-Image Upscale, deslop venice-uncensored, H3 Max Multi Angle, character-sprites, transparent-brand-sticker, remove-packaging-text, h3-identity-restyle, virtual-try-on, ideogram-v4-instant-poster, volt-vector-mark, mai-pack-type, Crystal video upscale, Night-ride SFX, Night-ride radio VO, Whisper pull-words, SenseNova dispatch, Grok Imagine 1.5 still, Wan 3.0 still+audio, Wan Animate 2 motion-drive, P-Video rewrite, Wan 2.5 Extend stretch-take, Mirelo video foley and Pixelcut video cutout pin regressions', async () => {
   const { galleryRegressions } = await import('./check-example-models.mjs');
   const pins = [
     { slug: 'fibo-studio-still', ...pin('image', { model: 'bria/fibo-generate-1.5/text-to-image', size: '1mp' }) },
@@ -130,6 +130,7 @@ test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefN
     { slug: 'grok-imagine-still', ...pin('ivideo', { model: 'xai/grok-imagine-video/v1.5/image-to-video', resolution: '480p', duration: '4' }) },
     { slug: 'wan-still-audio', ...pin('ivideo', { model: 'alibaba/wan-3.0/image-to-video', resolution: '480p', duration: 2, modelOpts: { enable_audio: true } }) },
     { slug: 'p-video-rewrite', ...pin('vedit', { model: 'pruna-ai/p-video/edit', modelOpts: { draft: true } }) },
+    { slug: 'wan-stretch-take', ...pin('vedit', { model: 'wan-25-extend', resolution: '480p', duration: '3' }) },
     { slug: 'mirelo-video-foley', ...pin('vedit', { model: 'mirelo-ai/sfx1.6/video-to-video' }) },
     { slug: 'pixelcut-video-cutout', ...pin('vedit', { model: 'pixelcut/video-background-removal', modelOpts: { background: 'black' } }) },
     { slug: 'wan-motion-drive', ...pin('vedit', { model: 'wan-22-animate-2', resolution: '480p' }) },
@@ -137,7 +138,7 @@ test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefN
     { slug: 'whisper-pull-words', ...pin('transcribe', { model: 'Whisper-Large-V3' }) },
   ];
   assert.equal(galleryRegressions(pins).length, 0);
-  assert.equal(galleryRegressions([]).length, 31);
+  assert.equal(galleryRegressions([]).length, 32);
   pins[0].fields.size = 'auto';
   assert.match(galleryRegressions(pins)[0].reason, /expected size 1mp/);
   pins[0].fields.size = '1mp';
@@ -167,11 +168,12 @@ test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefN
   pins[23].id = 'minimax-h3/image-to-video-spicy';
   pins[24].id = 'minimax-h3/image-to-video-spicy';
   pins[25].id = 'clarity-ai/crystal-video-upscaler';
-  pins[26].id = 'pruna-ai/p-video/edit';
-  pins[27].id = 'mirelo-ai/sfx1.6/video-to-video';
-  pins[28].id = 'pruna-ai/p-video/animate';
-  pins[29].id = 'minimax-h3/image-edit';
-  pins[30].id = 'gpt-4o-mini-transcribe';
-  assert.equal(galleryRegressions(pins).length, 31);
+  pins[26].id = 'wan-25-extend-fast';
+  pins[27].id = 'pruna-ai/p-video/edit';
+  pins[28].id = 'mirelo-ai/sfx1.6/video-to-video';
+  pins[29].id = 'pruna-ai/p-video/animate';
+  pins[30].id = 'minimax-h3/image-edit';
+  pins[31].id = 'gpt-4o-mini-transcribe';
+  assert.equal(galleryRegressions(pins).length, 32);
   assert.ok(galleryRegressions(pins).every(p => /expected model/.test(p.reason)));
 });

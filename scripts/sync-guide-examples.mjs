@@ -334,6 +334,15 @@ const HOWTO = {
     inspect: "Cover still is reused Volt card art from the photo-to-video night-ride radio plate, pending a true P-Video Edit QC clip — no paid pruna-ai/p-video/edit run this PR, not a fabricated rewrite. Open the graph and hit Run with your key after you upload a clip. Inspect light and rain against the input; source audio should survive.",
     costHow: "Listed from about $0.10 for one P-Video Edit call at draft=true (~$0.025/s, ~4s). Full quality is ~$0.045/s. Duration determines pricing. No LLM. Prices and results vary. This page has no reviewed first-party rewrite yet.",
   },
+  "wan-stretch-take": {
+    headline: "Keep the move going",
+    job: "Alley clip. Wan Extend. 3s.",
+    hideNote: true,
+    purpose: "Upload a short alley clip. Wan 2.5 Extend stretches the take. Temporal lengthen. Not Crystal upscale. Not P-Video rewrite. Not Mirelo foley. Not Wan Animate 2. Not Pixelcut. Not still→i2v.",
+    edit: "Drop your clip on <em>Product clip</em>. Leave <em>Stretched clip</em> on <code>wan-25-extend</code> at <code>480p</code> / <code>3</code>s. Continue brief stays on the Volt night-ride line.",
+    inspect: "Cover is reused Volt card art, pending Wan Extend QC — no paid wan-25-extend run this PR. vupload placeholder only. Open the graph, upload a clip, inspect the stretch. No hard cuts, no new objects.",
+    costHow: "Listed at about $0.15 for one Wan 2.5 Extend call at 480p / 3s ($0.05/s). Do not swap to the fast or spicy extend variants. No LLM. Prices vary. No reviewed first-party clip yet.",
+  },
   "mirelo-video-foley": {
     headline: "Silent take. Synced SFX.",
     job: "Upload a clip. Mirelo lays foley.",
@@ -398,7 +407,7 @@ const GROUPS = [
     "night-market-postcard", "fibo-studio-still", "cinematic-character-still", "h3-identity-restyle", "virtual-try-on", "character-sprites",
     "image-model-arena",
   ] },
-  { id: "video", title: "Video", slugs: ["photo-to-video", "grok-imagine-still", "wan-motion-drive", "wan-still-audio", "h3-max-multi-angle", "crystal-video-upscale", "p-video-rewrite", "mirelo-video-foley", "pixelcut-video-cutout", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },
+  { id: "video", title: "Video", slugs: ["photo-to-video", "grok-imagine-still", "wan-motion-drive", "wan-still-audio", "h3-max-multi-angle", "crystal-video-upscale", "p-video-rewrite", "wan-stretch-take", "mirelo-video-foley", "pixelcut-video-cutout", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },
   { id: "audio", title: "Audio", slugs: ["sing", "night-ride-sfx", "night-ride-radio-vo", "whisper-pull-words"] },
   { id: "text", title: "Text", slugs: ["deslop", "fable-five-step"] },
 ];

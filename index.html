@@ -13929,6 +13929,15 @@ const EXAMPLES = [
            {id:"n1",type:"vupload",x:40,y:320,w:280,fields:{},name:"Product clip"},
            {id:"n2",type:"vedit",x:400,y:300,w:320,fields:{model:"clarity-ai/crystal-video-upscaler",prompt:"",modelOpts:{"target_megapixels":1}},name:"Upscaled clip"} ],
    links:[ {id:"l1",from:{node:"n1",port:"video"},to:{node:"n2",port:"video"}} ] } },
+ { em:"⏩", slug:"wan-stretch-take", title:"stretch the take", desc:"short alley clip — Wan Extend keeps the move going",
+   thumb:"examples/gallery/wan-stretch-take/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:20,w:480,fields:{text:"Upload clip → Wan 2.5 Extend (`wan-25-extend`) @ 480p / target 3s (~$0.05/s → ~$0.15). Stretch the take — not Crystal upscale, not P-Video rewrite, not Mirelo foley.",color:"yellow"},name:"stretch the take"},
+           {id:"n1",type:"vupload",x:40,y:320,w:280,fields:{},name:"Product clip"},
+           {id:"n2",type:"vedit",x:400,y:300,w:320,fields:{model:"wan-25-extend",prompt:"",resolution:"480p",duration:"3",modelOpts:{"resolution":"480p","duration":3,"enable_prompt_expansion":false}},name:"Stretched clip"},
+           {id:"n3",type:"text",x:40,y:560,w:300,fields:{text:"Keep the matte-charcoal Volt pocket radio and cyan lightning chevron on the rain-slick steel railing. Continue the locked-cam night alley — soft rain ticks, one distant scooter wash, no hard cuts, no new objects, no logo text."},name:"Continue brief"} ],
+   links:[ {id:"l1",from:{node:"n1",port:"video"},to:{node:"n2",port:"video"}},
+           {id:"l2",from:{node:"n3",port:"text"},to:{node:"n2",port:"prompt"}} ] } },
  { em:"✏️", slug:"p-video-rewrite", title:"rewrite the clip", desc:"upload a short take — prompt-edit it, keep the audio.",
    thumb:"examples/gallery/p-video-rewrite/preview.webp",
    graph:{ v:1,
@@ -14178,7 +14187,7 @@ function openExamples(){
   // Same Elo order on every width — no mobile-only list, no CSS order, no truncation.
   // Featured #skilloutcome (Iron Verdict) sits above the grid on every width.
   // Compact mobile cards keep H3 (4th) and the featured game above the fold.
-  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","virtual-try-on","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","volt-vector-mark","mai-pack-type","volt-dispatch-infographic","photo-to-video","grok-imagine-still","wan-motion-drive","wan-still-audio","h3-max-multi-angle","crystal-video-upscale","p-video-rewrite","mirelo-video-foley","pixelcut-video-cutout","character-sprites","talking-avatar","infinitetalk-radio-take","sing","night-ride-sfx","night-ride-radio-vo","whisper-pull-words","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
+  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","virtual-try-on","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","volt-vector-mark","mai-pack-type","volt-dispatch-infographic","photo-to-video","grok-imagine-still","wan-motion-drive","wan-still-audio","h3-max-multi-angle","crystal-video-upscale","p-video-rewrite","wan-stretch-take","mirelo-video-foley","pixelcut-video-cutout","character-sprites","talking-avatar","infinitetalk-radio-take","sing","night-ride-sfx","night-ride-radio-vo","whisper-pull-words","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
   EXAMPLES.map((ex,i)=>({ex,i})).sort((a,b)=>{
     const rank=slug=>first.includes(slug)?first.indexOf(slug):first.length;
     return rank(a.ex.slug)-rank(b.ex.slug);

@@ -2785,6 +2785,118 @@ if (/xai-tts|elevenlabs\/sound-effects\/v2|mureka-ai\/mureka-v9\.5\/generate-son
 if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
   fail("custom-endpoint must stay the only LOCAL_ONLY teaching card after whisper-pull-words sync");
 }
+const stretchSample = samples.find((s) => s.slug === "wan-stretch-take");
+if (!stretchSample) fail("samples.json missing wan-stretch-take");
+if (stretchSample.preview !== "wan-stretch-take/preview.webp") {
+  fail("wan-stretch-take sample preview should be wan-stretch-take/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "wan-stretch-take", "preview.webp"))) {
+  fail("examples/gallery/wan-stretch-take/preview.webp is missing");
+}
+if (!/wan-25-extend/.test(JSON.stringify(stretchSample.models))) {
+  fail("wan-stretch-take sample should pin wan-25-extend");
+}
+if (/wan-25-extend-fast|wan-22-spicy-extend/.test(JSON.stringify(stretchSample.models))) {
+  fail("wan-stretch-take must not pin wan-25-extend-fast or spicy extend");
+}
+if (!/vupload placeholder|no paid|pending/.test(stretchSample.note) || !/wan-25-extend/.test(stretchSample.note)) {
+  fail("wan-stretch-take sample note should stay honest: vupload placeholder, no paid Wan Extend QC");
+}
+if (!/temporal extend|480p|target 3s|\$0\.15/.test(stretchSample.note)) {
+  fail("wan-stretch-take sample note should say the job is temporal extend @ 480p / target 3s (~$0.15)");
+}
+if (!/Crystal/.test(stretchSample.note)) {
+  fail("wan-stretch-take sample note should distinguish Crystal upscale");
+}
+if (!/P-Video/.test(stretchSample.note)) {
+  fail("wan-stretch-take sample note should distinguish P-Video rewrite");
+}
+if (!/Mirelo/.test(stretchSample.note)) {
+  fail("wan-stretch-take sample note should distinguish Mirelo foley");
+}
+if (!/Wan Animate 2|wan-motion-drive/.test(stretchSample.note)) {
+  fail("wan-stretch-take sample note should distinguish Wan Animate 2");
+}
+if (!/Pixelcut/.test(stretchSample.note)) {
+  fail("wan-stretch-take sample note should distinguish Pixelcut");
+}
+if (!/still→i2v|still-audio|grok-imagine|photo-to-video/.test(stretchSample.note)) {
+  fail("wan-stretch-take sample note should distinguish still→i2v");
+}
+if (!hub.includes("wan-stretch-take/preview.webp")) {
+  fail("hub should thumb the wan-stretch-take cover");
+}
+if (!hub.includes("Keep the move going")) {
+  fail("hub should title wan-stretch-take as Keep the move going");
+}
+const stretchHowTo = readFileSync(join(ROOT, "guide", "examples", "wan-stretch-take.html"), "utf8");
+if (!/wan-25-extend/.test(stretchHowTo)) {
+  fail("wan-stretch-take how-to should name wan-25-extend");
+}
+if (!/480p/.test(stretchHowTo) || !/3/.test(stretchHowTo)) {
+  fail("wan-stretch-take how-to should punch 480p / 3s");
+}
+if (!/temporal|stretch|Extend/.test(stretchHowTo)) {
+  fail("wan-stretch-take how-to should punch temporal stretch / Wan Extend");
+}
+if (!/Crystal/.test(stretchHowTo)) {
+  fail("wan-stretch-take how-to should distinguish Crystal upscale");
+}
+if (!/P-Video/.test(stretchHowTo)) {
+  fail("wan-stretch-take how-to should distinguish P-Video rewrite");
+}
+if (!/Mirelo/.test(stretchHowTo)) {
+  fail("wan-stretch-take how-to should distinguish Mirelo foley");
+}
+if (!/Wan Animate 2|Animate 2/.test(stretchHowTo)) {
+  fail("wan-stretch-take how-to should distinguish Wan Animate 2");
+}
+if (!/Pixelcut/.test(stretchHowTo)) {
+  fail("wan-stretch-take how-to should distinguish Pixelcut");
+}
+if (!/still→i2v|still-audio|photo-to-video|grok-imagine/.test(stretchHowTo)) {
+  fail("wan-stretch-take how-to should distinguish still→i2v");
+}
+if (!/pending|no paid|vupload placeholder/.test(stretchHowTo)) {
+  fail("wan-stretch-take how-to should stay honest about reused cover / no paid QC");
+}
+if (/wan-25-extend-fast|wan-22-spicy-extend/.test(stretchHowTo)) {
+  fail("wan-stretch-take how-to must not pin wan-25-extend-fast or spicy extend");
+}
+if (!stretchHowTo.includes("wan-stretch-take/preview.webp")) {
+  fail("wan-stretch-take how-to should show the cover still");
+}
+if (!/slug:"wan-stretch-take"[\s\S]{0,200}thumb:"examples\/gallery\/wan-stretch-take\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES wan-stretch-take thumb should be examples/gallery/wan-stretch-take/preview.webp");
+}
+if (!/slug:"wan-stretch-take"[\s\S]{0,80}desc:"short alley clip — Wan Extend keeps the move going"/.test(examplesSrc)) {
+  fail("EXAMPLES wan-stretch-take desc should pitch short alley clip — Wan Extend keeps the move going");
+}
+if (!/slug:"wan-stretch-take"[\s\S]{0,80}title:"stretch the take"/.test(examplesSrc)) {
+  fail("EXAMPLES wan-stretch-take title should be stretch the take");
+}
+const stretchCard = examplesSrc.match(/slug:"wan-stretch-take"[\s\S]*?(?=\n \{ em:|$)/)?.[0] || "";
+if (!/model:"wan-25-extend"/.test(stretchCard)) {
+  fail("EXAMPLES wan-stretch-take graph should pin wan-25-extend");
+}
+if (!/resolution:"480p"/.test(stretchCard) || !/duration:"3"/.test(stretchCard)) {
+  fail("EXAMPLES wan-stretch-take graph should pin 480p / 3s");
+}
+if (!/type:"vupload"/.test(stretchCard) || !/type:"vedit"/.test(stretchCard)) {
+  fail("EXAMPLES wan-stretch-take should be vupload Product clip → vedit Stretched clip");
+}
+if (!/name:"Stretched clip"/.test(stretchCard)) {
+  fail("EXAMPLES wan-stretch-take should keep vedit Stretched clip");
+}
+if (/wan-25-extend-fast|wan-22-spicy-extend/.test(stretchCard)) {
+  fail("EXAMPLES wan-stretch-take must not pin wan-25-extend-fast or spicy extend");
+}
+if (/clarity-ai\/crystal-video-upscaler|pruna-ai\/p-video\/edit|mirelo-ai\/sfx1\.6|pixelcut\/video-background-removal|wan-22-animate-2|alibaba\/wan-3\.0|xai\/grok-imagine-video|minimax-h3\/image-to-video-spicy|gpt-4o-mini/.test(stretchCard)) {
+  fail("EXAMPLES wan-stretch-take must not reuse Crystal / P-Video / Mirelo / Pixelcut / Animate 2 / still-i2v / gpt-4o-mini pins");
+}
+if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
+  fail("custom-endpoint must stay the only LOCAL_ONLY teaching card after wan-stretch-take sync");
+}
 for (const slug of slugs) {
   const page = readFileSync(join(ROOT, "guide", "examples", slug === "iron-verdict" ? "iron-verdict.html" : `${slug}.html`), "utf8");
   if (page.includes("how to use this noodle")) {

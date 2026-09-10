@@ -95,6 +95,7 @@ export function galleryRegressions(pins) {
     { slug: 'wan-still-audio', type: 'ivideo', model: 'alibaba/wan-3.0/image-to-video', resolution: '480p', duration: 2, enable_audio: true },
     { slug: 'wan-motion-drive', type: 'vedit', model: 'wan-22-animate-2', resolution: '480p' },
     { slug: 'p-video-rewrite', type: 'vedit', model: 'pruna-ai/p-video/edit', draft: true },
+    { slug: 'wan-stretch-take', type: 'vedit', model: 'wan-25-extend', resolution: '480p', duration: '3' },
     { slug: 'mirelo-video-foley', type: 'vedit', model: 'mirelo-ai/sfx1.6/video-to-video' },
     { slug: 'pixelcut-video-cutout', type: 'vedit', model: 'pixelcut/video-background-removal', background: 'black' },
   ];
