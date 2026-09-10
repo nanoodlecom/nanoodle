@@ -1327,6 +1327,8 @@ const I18N = {
     "rooftop getaway — last leap, red neon six floors down":"huida por las azoteas — último salto, neón rojo seis pisos abajo",
     "night-ride sfx":"sfx de noche",
     "wet neon alley pulse — cyan thunder sting, ~4s":"pulso de callejón neón mojado — sting de trueno cian, ~4s",
+    "night-ride radio vo":"vo de radio de noche",
+    "Volt dispatch callout — SpaceXAI TTS, voice Leo":"llamada de despacho Volt — SpaceXAI TTS, voz Leo",
 
     "product cutout":"recorte de producto",
     "cyan lightning radio, background gone":"radio relámpago cian, fondo fuera",
@@ -1982,6 +1984,8 @@ const I18N = {
     "rooftop getaway — last leap, red neon six floors down":"fuite sur les toits — dernier saut, néon rouge six étages plus bas",
     "night-ride sfx":"sfx de nuit",
     "wet neon alley pulse — cyan thunder sting, ~4s":"impulsion de ruelle néon mouillée — sting tonnerre cyan, ~4s",
+    "night-ride radio vo":"vo radio de nuit",
+    "Volt dispatch callout — SpaceXAI TTS, voice Leo":"annonce de dispatch Volt — SpaceXAI TTS, voix Leo",
 
     "product cutout":"détourage produit",
     "cyan lightning radio, background gone":"radio éclair cyan, fond disparu",
@@ -2637,6 +2641,8 @@ const I18N = {
     "rooftop getaway — last leap, red neon six floors down":"Dachflucht — letzter Sprung, rotes Neon sechs Stockwerke tiefer",
     "night-ride sfx":"Nachtfahrt-SFX",
     "wet neon alley pulse — cyan thunder sting, ~4s":"nasse Neon-Gasse — Cyan-Donner-Sting, ~4s",
+    "night-ride radio vo":"Nachtfahrt-Radio-VO",
+    "Volt dispatch callout — SpaceXAI TTS, voice Leo":"Volt-Dispatch-Durchsage — SpaceXAI TTS, Stimme Leo",
 
     "product cutout":"Produkt-Freisteller",
     "cyan lightning radio, background gone":"cyanfarbenes Blitz-Radio, Hintergrund weg",
@@ -3292,6 +3298,8 @@ const I18N = {
     "rooftop getaway — last leap, red neon six floors down":"fuga pelos telhados — último salto, neon vermelho seis andares abaixo",
     "night-ride sfx":"sfx noturno",
     "wet neon alley pulse — cyan thunder sting, ~4s":"pulso de beco néon molhado — sting de trovão ciano, ~4s",
+    "night-ride radio vo":"vo de rádio noturno",
+    "Volt dispatch callout — SpaceXAI TTS, voice Leo":"chamada de despacho Volt — SpaceXAI TTS, voz Leo",
 
     "product cutout":"recorte de produto",
     "cyan lightning radio, background gone":"rádio relâmpago ciano, fundo sumiu",
@@ -3947,6 +3955,8 @@ const I18N = {
     "rooftop getaway — last leap, red neon six floors down":"屋上からの逃走 — 最後の跳躍、6階下の赤いネオン",
     "night-ride sfx":"ナイトライドSFX",
     "wet neon alley pulse — cyan thunder sting, ~4s":"濡れたネオン路地のパルス — シアン雷スティング、約4秒",
+    "night-ride radio vo":"ナイトライドラジオVO",
+    "Volt dispatch callout — SpaceXAI TTS, voice Leo":"Voltディスパッチコールアウト — SpaceXAI TTS、声Leo",
 
     "product cutout":"商品切り抜き",
     "cyan lightning radio, background gone":"電光シアンのラジオ、背景なし",
@@ -13950,6 +13960,13 @@ const EXAMPLES = [
            {id:"n1",type:"text",x:40,y:280,w:320,fields:{text:"Volt night-ride radio sting: short wet neon alley pulse — low radio static bloom into one electric-cyan thunder hit, then tight decay. Pocket-radio energy, ~4s, no music bed, no vocals, no dialogue."},name:"SFX brief"},
            {id:"n2",type:"music",x:420,y:260,w:300,fields:{model:"elevenlabs/sound-effects/v2",duration:"4",response_format:"mp3"},name:"Sting"} ],
    links:[ {id:"l1",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}} ] } },
+ { em:"🗣️", slug:"night-ride-radio-vo", title:"night-ride radio vo", desc:"Volt dispatch callout — SpaceXAI TTS, voice Leo",
+   thumb:"examples/gallery/night-ride-radio-vo/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:20,w:520,fields:{text:"Spoken script → SpaceXAI TTS (`xai-tts`, voice Leo). Dispatch callout VO — Volt night board, pocket radio, cyan channel. Ultra-cheap first-click (~$0.0165/1k chars; this script is well under $0.01). Speech only: text → audio. Not Spoken introduction (Muse portrait + MiniMax Speech 2.8 HD + LongCat lipsync), not Night-ride radio take (still + audio → InfiniteTalk video), not Night-ride SFX (`elevenlabs/sound-effects/v2` music-node sting), not Closing-credits song (Mureka generate-song). No image, no video, no LLM, no upload. Custom-endpoint stays retired.",color:"yellow"},name:"Night-ride radio VO"},
+           {id:"n1",type:"text",x:40,y:300,w:340,fields:{text:"Volt is live on the night board. Grab your pocket radio, take the ridge handoff, and I'll keep the cyan channel clear until you're docked."},name:"Spoken script"},
+           {id:"n2",type:"tts",x:440,y:280,w:300,fields:{model:"xai-tts",voice:"Leo",response_format:"mp3"},name:"Speech"} ],
+   links:[ {id:"l1",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}} ] } },
  { em:"🔄", slug:"omni-flash-turntable", title:"cinematic product motion", desc:"quarter-orbit, cyan rim on a night-ride radio",
    thumb:"examples/gallery/omni-flash-turntable/preview.webp",
    graph:{ v:1,
@@ -14056,7 +14073,7 @@ function openExamples(){
   // Same Elo order on every width — no mobile-only list, no CSS order, no truncation.
   // Featured #skilloutcome (Iron Verdict) sits above the grid on every width.
   // Compact mobile cards keep H3 (4th) and the featured game above the fold.
-  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","volt-vector-mark","mai-pack-type","volt-dispatch-infographic","photo-to-video","grok-imagine-still","h3-max-multi-angle","crystal-video-upscale","p-video-rewrite","character-sprites","talking-avatar","infinitetalk-radio-take","sing","night-ride-sfx","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
+  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","volt-vector-mark","mai-pack-type","volt-dispatch-infographic","photo-to-video","grok-imagine-still","h3-max-multi-angle","crystal-video-upscale","p-video-rewrite","character-sprites","talking-avatar","infinitetalk-radio-take","sing","night-ride-sfx","night-ride-radio-vo","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
   EXAMPLES.map((ex,i)=>({ex,i})).sort((a,b)=>{
     const rank=slug=>first.includes(slug)?first.indexOf(slug):first.length;
     return rank(a.ex.slug)-rank(b.ex.slug);

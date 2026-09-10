@@ -100,7 +100,7 @@ test('homepage pins use the same strict model, type and capability checks as gal
   assert.throws(() => starterModels({ nodes: [{ type: 'unknown' }] }, kinds), /unknown node type/);
 });
 
-test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefNet, InfiniteTalk, SAM 3, P-Image Upscale, deslop venice-uncensored, H3 Max Multi Angle, character-sprites, transparent-brand-sticker, remove-packaging-text, h3-identity-restyle, ideogram-v4-instant-poster, volt-vector-mark, mai-pack-type, Crystal video upscale, Night-ride SFX, SenseNova dispatch, Grok Imagine 1.5 still and P-Video rewrite pin regressions', async () => {
+test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefNet, InfiniteTalk, SAM 3, P-Image Upscale, deslop venice-uncensored, H3 Max Multi Angle, character-sprites, transparent-brand-sticker, remove-packaging-text, h3-identity-restyle, ideogram-v4-instant-poster, volt-vector-mark, mai-pack-type, Crystal video upscale, Night-ride SFX, Night-ride radio VO, SenseNova dispatch, Grok Imagine 1.5 still and P-Video rewrite pin regressions', async () => {
   const { galleryRegressions } = await import('./check-example-models.mjs');
   const pins = [
     { slug: 'fibo-studio-still', ...pin('image', { model: 'bria/fibo-generate-1.5/text-to-image', size: '1mp' }) },
@@ -124,12 +124,13 @@ test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefN
     { slug: 'mai-pack-type', ...pin('image', { model: 'microsoft/mai-image-2.6-flash', size: '1152x864' }) },
     { slug: 'crystal-video-upscale', ...pin('vedit', { model: 'clarity-ai/crystal-video-upscaler', modelOpts: { target_megapixels: 1 } }) },
     { slug: 'night-ride-sfx', ...pin('music', { model: 'elevenlabs/sound-effects/v2', duration: '4' }) },
+    { slug: 'night-ride-radio-vo', ...pin('tts', { model: 'xai-tts', voice: 'Leo' }) },
     { slug: 'volt-dispatch-infographic', ...pin('image', { model: 'sensenova-u1-infographic', size: '16:9' }) },
     { slug: 'grok-imagine-still', ...pin('ivideo', { model: 'xai/grok-imagine-video/v1.5/image-to-video', resolution: '480p', duration: '4' }) },
     { slug: 'p-video-rewrite', ...pin('vedit', { model: 'pruna-ai/p-video/edit', modelOpts: { draft: true } }) },
   ];
   assert.equal(galleryRegressions(pins).length, 0);
-  assert.equal(galleryRegressions([]).length, 24);
+  assert.equal(galleryRegressions([]).length, 25);
   pins[0].fields.size = 'auto';
   assert.match(galleryRegressions(pins)[0].reason, /expected size 1mp/);
   pins[0].fields.size = '1mp';
@@ -154,9 +155,10 @@ test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefN
   pins[18].id = 'ideogram-v4-instant';
   pins[19].id = 'clarity-upscaler';
   pins[20].id = 'elevenlabs/music';
-  pins[21].id = 'ideogram-v4-instant';
-  pins[22].id = 'minimax-h3/image-to-video-spicy';
-  pins[23].id = 'clarity-ai/crystal-video-upscaler';
-  assert.equal(galleryRegressions(pins).length, 24);
+  pins[21].id = 'Minimax-Speech-2.8-HD';
+  pins[22].id = 'ideogram-v4-instant';
+  pins[23].id = 'minimax-h3/image-to-video-spicy';
+  pins[24].id = 'clarity-ai/crystal-video-upscaler';
+  assert.equal(galleryRegressions(pins).length, 25);
   assert.ok(galleryRegressions(pins).every(p => /expected model/.test(p.reason)));
 });
