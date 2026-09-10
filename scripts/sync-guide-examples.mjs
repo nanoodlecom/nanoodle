@@ -211,6 +211,15 @@ const HOWTO = {
     inspect: "Clear words, a chorus you can hum, fit to the brief. Duration and exact structure can wander. The saved ~182-second MP3 is the rooftop-getaway synthwave run; chorus \"I made it out, but the city wants me back\". No new paid audio-model review. Cover still is the rooftop leap.",
     costHow: "The reviewed song run reported $0.225 (music step $0.225, plus a small text call). Prices and results vary.",
   },
+  "night-ride-sfx": {
+    headline: "Cyan thunder. Four seconds.",
+    job: "Volt radio sting. No music bed.",
+    hideNote: true,
+    purpose: "Text brief → ElevenLabs Sound Effects V2. First-click is a Volt night-ride radio sting — wet neon alley pulse, radio static bloom, one electric-cyan thunder hit, tight decay. Not Closing-credits song. Not TTS. Not a video Keep. No upload. No LLM.",
+    edit: "Rewrite <em>SFX brief</em>. Leave <em>Sting</em> on <code>elevenlabs/sound-effects/v2</code> at duration <code>4</code>.",
+    inspect: "Cover is reused Volt alley card art, pending ElevenLabs SFX QC — no paid run this PR. Open the graph, hit Run, listen for static bloom then one thunder hit. No music bed, vocals, or dialogue.",
+    costHow: "Listed at about $0.008 for one ElevenLabs Sound Effects V2 call at duration 4 ($0.002/s). No LLM. Prices vary. No reviewed first-party sting yet.",
+  },
   "talking-avatar": {
     headline: "Look at camera. Clear the channel.",
     job: "Night courier. One line to camera.",
@@ -282,7 +291,7 @@ const GROUPS = [
     "image-model-arena",
   ] },
   { id: "video", title: "Video", slugs: ["photo-to-video", "h3-max-multi-angle", "crystal-video-upscale", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },
-  { id: "audio", title: "Audio", slugs: ["sing"] },
+  { id: "audio", title: "Audio", slugs: ["sing", "night-ride-sfx"] },
   { id: "text", title: "Text", slugs: ["deslop", "fable-five-step"] },
 ];
 

@@ -65,6 +65,7 @@ const catalogs = {
   audio: [
     { id: 'Minimax-Speech-2.8-HD', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Deep_Voice_Man'] } },
     { id: 'mureka-ai/mureka-v9.5/generate-song', architecture: { modality: 'text->audio' } },
+    { id: 'elevenlabs/sound-effects/v2', architecture: { modality: 'text->audio' }, capabilities: { text_to_audio: true }, supported_parameters: { min_duration: 0.5, max_duration: 22 } },
   ],
 };
 

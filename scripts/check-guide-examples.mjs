@@ -1567,6 +1567,82 @@ if (/z-ai\/glm-5\.3-flash|meta\/muse-image|ideogram-v3-generate-transparent|ideo
 if (/type:"llm"|type:"upload"/.test(posterCard)) {
   fail("EXAMPLES ideogram-v4-instant-poster must stay text Poster brief → image Poster (no LLM, no upload)");
 }
+const sfxSample = samples.find((s) => s.slug === "night-ride-sfx");
+if (!sfxSample) fail("samples.json missing night-ride-sfx");
+if (sfxSample.preview !== "night-ride-sfx/preview.webp") {
+  fail("night-ride-sfx sample preview should be night-ride-sfx/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "night-ride-sfx", "preview.webp"))) {
+  fail("examples/gallery/night-ride-sfx/preview.webp is missing");
+}
+if (!/elevenlabs\/sound-effects\/v2/.test(JSON.stringify(sfxSample.models))) {
+  fail("night-ride-sfx sample should pin elevenlabs/sound-effects/v2");
+}
+if (!/cover|reused Volt alley card art|combine-images/i.test(sfxSample.note) || !/no paid|pending/i.test(sfxSample.note)) {
+  fail("night-ride-sfx sample note should say cover is reused Volt alley art and ElevenLabs QC is pending");
+}
+if (!/sting|thunder|wet neon alley/i.test(sfxSample.note)) {
+  fail("night-ride-sfx sample note should say the job is a Volt radio sting");
+}
+if (!/Closing-credits song|sing|Mureka/i.test(sfxSample.note)) {
+  fail("night-ride-sfx sample note should distinguish Closing-credits song / Mureka");
+}
+if (!/TTS|voice/i.test(sfxSample.note)) {
+  fail("night-ride-sfx sample note should distinguish TTS / voice");
+}
+if (!/duration 4|duration=4|~\$0\.008/i.test(sfxSample.note)) {
+  fail("night-ride-sfx sample note should name duration 4 and ~$0.008");
+}
+if (!hub.includes("night-ride-sfx/preview.webp")) {
+  fail("hub should thumb the night-ride-sfx cover");
+}
+if (!hub.includes("Cyan thunder. Four seconds.")) {
+  fail("hub should title night-ride-sfx as Cyan thunder. Four seconds.");
+}
+const sfxHowTo = readFileSync(join(ROOT, "guide", "examples", "night-ride-sfx.html"), "utf8");
+if (!/elevenlabs\/sound-effects\/v2/.test(sfxHowTo)) {
+  fail("night-ride-sfx how-to should name elevenlabs/sound-effects/v2");
+}
+if (!/Volt/i.test(sfxHowTo) || !/cyan/i.test(sfxHowTo) || !/thunder|sting/i.test(sfxHowTo)) {
+  fail("night-ride-sfx how-to should pitch the Volt cyan thunder sting");
+}
+if (!/duration/.test(sfxHowTo) || !/>4</.test(sfxHowTo)) {
+  fail("night-ride-sfx how-to should pin duration 4");
+}
+if (!/Closing-credits song|Mureka/i.test(sfxHowTo)) {
+  fail("night-ride-sfx how-to should distinguish Closing-credits song");
+}
+if (!/TTS/i.test(sfxHowTo)) {
+  fail("night-ride-sfx how-to should distinguish TTS");
+}
+if (!/reused Volt alley card art|no paid|pending/i.test(sfxHowTo)) {
+  fail("night-ride-sfx how-to should say the cover is reused Volt alley art and ElevenLabs QC is pending");
+}
+if (!sfxHowTo.includes("night-ride-sfx/preview.webp")) {
+  fail("night-ride-sfx how-to should show the cover still");
+}
+if (!/slug:"night-ride-sfx"[\s\S]{0,200}thumb:"examples\/gallery\/night-ride-sfx\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES night-ride-sfx thumb should be examples/gallery/night-ride-sfx/preview.webp");
+}
+if (!/slug:"night-ride-sfx"[\s\S]{0,80}desc:"wet neon alley pulse — cyan thunder sting, ~4s"/.test(examplesSrc)) {
+  fail("EXAMPLES night-ride-sfx desc should pitch wet neon alley pulse — cyan thunder sting, ~4s");
+}
+if (!/slug:"night-ride-sfx"[\s\S]{0,80}title:"night-ride sfx"/.test(examplesSrc)) {
+  fail("EXAMPLES night-ride-sfx title should be night-ride sfx");
+}
+const sfxCard = examplesSrc.match(/slug:"night-ride-sfx"[\s\S]*?(?=\n \{ em:|$)/)?.[0] || "";
+if (!/elevenlabs\/sound-effects\/v2/.test(sfxCard)) {
+  fail("EXAMPLES night-ride-sfx graph should pin elevenlabs/sound-effects/v2");
+}
+if (!/duration:"4"/.test(sfxCard)) {
+  fail("EXAMPLES night-ride-sfx graph should pin duration 4");
+}
+if (!/name:"SFX brief"/.test(sfxCard) || !/name:"Sting"/.test(sfxCard)) {
+  fail("EXAMPLES night-ride-sfx should be SFX brief → Sting");
+}
+if (/mureka-ai\/mureka-v9\.5\/generate-song|Minimax-Speech|type:"tts"|type:"llm"|type:"upload"/.test(sfxCard)) {
+  fail("EXAMPLES night-ride-sfx must stay text SFX brief → music Sting (no song, TTS, LLM, or upload)");
+}
 for (const slug of slugs) {
   const page = readFileSync(join(ROOT, "guide", "examples", slug === "iron-verdict" ? "iron-verdict.html" : `${slug}.html`), "utf8");
   if (page.includes("how to use this noodle")) {
