@@ -93,8 +93,9 @@ export function galleryRegressions(pins) {
     { slug: 'wan-still-audio', type: 'ivideo', model: 'alibaba/wan-3.0/image-to-video', resolution: '480p', duration: 2, enable_audio: true },
     { slug: 'p-video-rewrite', type: 'vedit', model: 'pruna-ai/p-video/edit', draft: true },
     { slug: 'mirelo-video-foley', type: 'vedit', model: 'mirelo-ai/sfx1.6/video-to-video' },
+    { slug: 'pixelcut-video-cutout', type: 'vedit', model: 'pixelcut/video-background-removal', background: 'black' },
   ];
-  return expected.flatMap(({ slug, type, model, size, resolution, people, duration, camera_motion, target_megapixels, draft, voice, enable_audio }) => {
+  return expected.flatMap(({ slug, type, model, size, resolution, people, duration, camera_motion, target_megapixels, draft, voice, enable_audio, background }) => {
     const pin = pins.find(p => p.slug === slug && p.type === type);
     if (!pin) return [{ slug, type, reason: 'required gallery card missing' }];
     if (pin.id !== model) return [{ ...pin, reason: `gallery regression: expected model ${model}` }];
@@ -107,6 +108,7 @@ export function galleryRegressions(pins) {
     if (draft === true && pin.fields.modelOpts?.draft !== true) return [{ ...pin, reason: `gallery regression: expected draft true` }];
     if (voice && pin.fields.voice !== voice) return [{ ...pin, reason: `gallery regression: expected voice ${voice}` }];
     if (enable_audio === true && pin.fields.modelOpts?.enable_audio !== true) return [{ ...pin, reason: `gallery regression: expected enable_audio true` }];
+    if (background && pin.fields.modelOpts?.background !== background) return [{ ...pin, reason: `gallery regression: expected background ${background}` }];
     return [];
   });
 }

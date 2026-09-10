@@ -2388,6 +2388,118 @@ if (/type:"tts"|type:"llm"|type:"music"|type:"upload"/.test(foleyCard)) {
 if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
   fail("custom-endpoint must stay the only LOCAL_ONLY teaching card after mirelo-video-foley sync");
 }
+const cutoutClipSample = samples.find((s) => s.slug === "pixelcut-video-cutout");
+if (!cutoutClipSample) fail("samples.json missing pixelcut-video-cutout");
+if (cutoutClipSample.preview !== "pixelcut-video-cutout/preview.webp") {
+  fail("pixelcut-video-cutout sample preview should be pixelcut-video-cutout/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "pixelcut-video-cutout", "preview.webp"))) {
+  fail("examples/gallery/pixelcut-video-cutout/preview.webp is missing");
+}
+if (!/pixelcut\/video-background-removal/.test(JSON.stringify(cutoutClipSample.models))) {
+  fail("pixelcut-video-cutout sample should pin pixelcut/video-background-removal");
+}
+if (!/vupload placeholder|reused Volt card art/i.test(cutoutClipSample.note) || !/no paid|pending/i.test(cutoutClipSample.note)) {
+  fail("pixelcut-video-cutout sample note should say vupload placeholder / reused Volt card art and Pixelcut QC is pending");
+}
+if (!/video cutout|background=black|black bg/i.test(cutoutClipSample.note)) {
+  fail("pixelcut-video-cutout sample note should say the job is video cutout at background=black");
+}
+if (!/product-cutout|BiRefNet/i.test(cutoutClipSample.note)) {
+  fail("pixelcut-video-cutout sample note should distinguish product-cutout / BiRefNet");
+}
+if (!/sam3-isolate|SAM/i.test(cutoutClipSample.note)) {
+  fail("pixelcut-video-cutout sample note should distinguish sam3-isolate");
+}
+if (!/Crystal/i.test(cutoutClipSample.note)) {
+  fail("pixelcut-video-cutout sample note should distinguish Crystal video upscale");
+}
+if (!/P-Video|rewrite/i.test(cutoutClipSample.note)) {
+  fail("pixelcut-video-cutout sample note should distinguish P-Video rewrite");
+}
+if (!/i2v|orbit|turntable/i.test(cutoutClipSample.note)) {
+  fail("pixelcut-video-cutout sample note should distinguish i2v / orbit / turntable");
+}
+if (!/not transparent|background=black/i.test(cutoutClipSample.note)) {
+  fail("pixelcut-video-cutout sample note should say first-click pins solid black, not transparent");
+}
+if (!hub.includes("pixelcut-video-cutout/preview.webp")) {
+  fail("hub should thumb the pixelcut-video-cutout cover");
+}
+if (!hub.includes("Knock the alley off the clip")) {
+  fail("hub should title pixelcut-video-cutout as Knock the alley off the clip");
+}
+const cutoutClipHowTo = readFileSync(join(ROOT, "guide", "examples", "pixelcut-video-cutout.html"), "utf8");
+if (!/pixelcut\/video-background-removal/.test(cutoutClipHowTo)) {
+  fail("pixelcut-video-cutout how-to should name pixelcut/video-background-removal");
+}
+if (!/Pixelcut drops the background|solid black|knock/i.test(cutoutClipHowTo)) {
+  fail("pixelcut-video-cutout how-to should pitch Pixelcut dropping the background to solid black");
+}
+if (!/BiRefNet|product-cutout|still cutout/i.test(cutoutClipHowTo)) {
+  fail("pixelcut-video-cutout how-to should distinguish BiRefNet still cutout");
+}
+if (!/SAM|sam3-isolate/i.test(cutoutClipHowTo)) {
+  fail("pixelcut-video-cutout how-to should distinguish SAM isolate");
+}
+if (!/Crystal/i.test(cutoutClipHowTo)) {
+  fail("pixelcut-video-cutout how-to should distinguish Crystal video upscale");
+}
+if (!/P-Video|rewrite/i.test(cutoutClipHowTo)) {
+  fail("pixelcut-video-cutout how-to should distinguish P-Video rewrite");
+}
+if (!/i2v/i.test(cutoutClipHowTo)) {
+  fail("pixelcut-video-cutout how-to should distinguish i2v");
+}
+if (!/reused Volt card art|no paid|pending|vupload placeholder/i.test(cutoutClipHowTo)) {
+  fail("pixelcut-video-cutout how-to should say the cover is a vupload placeholder and Pixelcut QC is pending");
+}
+if (!/background=black|solid black, not transparent/i.test(cutoutClipHowTo)) {
+  fail("pixelcut-video-cutout how-to should say first-click pins solid black, not transparent");
+}
+if (!cutoutClipHowTo.includes("pixelcut-video-cutout/preview.webp")) {
+  fail("pixelcut-video-cutout how-to should show the cover still");
+}
+if (!/slug:"pixelcut-video-cutout"[\s\S]{0,200}thumb:"examples\/gallery\/pixelcut-video-cutout\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES pixelcut-video-cutout thumb should be examples/gallery/pixelcut-video-cutout/preview.webp");
+}
+if (!/slug:"pixelcut-video-cutout"[\s\S]{0,80}desc:"short product take — Pixelcut drops the background"/.test(examplesSrc)) {
+  fail("EXAMPLES pixelcut-video-cutout desc should pitch short product take — Pixelcut drops the background");
+}
+if (!/slug:"pixelcut-video-cutout"[\s\S]{0,80}title:"knock the alley off the clip"/.test(examplesSrc)) {
+  fail("EXAMPLES pixelcut-video-cutout title should be knock the alley off the clip");
+}
+const cutoutClipCard = examplesSrc.match(/slug:"pixelcut-video-cutout"[\s\S]*?(?=\n \{ em:|$)/)?.[0] || "";
+if (!/pixelcut\/video-background-removal/.test(cutoutClipCard)) {
+  fail("EXAMPLES pixelcut-video-cutout graph should pin pixelcut/video-background-removal");
+}
+if (!/"background":"black"/.test(cutoutClipCard)) {
+  fail("EXAMPLES pixelcut-video-cutout graph should pin background=black");
+}
+if (!/type:"vupload"/.test(cutoutClipCard) || !/type:"vedit"/.test(cutoutClipCard)) {
+  fail("EXAMPLES pixelcut-video-cutout should be vupload Product clip → vedit Cutout clip");
+}
+if (/birefnet\/v2/.test(cutoutClipCard)) {
+  fail("EXAMPLES pixelcut-video-cutout must not pin BiRefNet");
+}
+if (/sam3-image/.test(cutoutClipCard)) {
+  fail("EXAMPLES pixelcut-video-cutout must not pin SAM 3");
+}
+if (/clarity-ai\/crystal-video-upscaler/.test(cutoutClipCard)) {
+  fail("EXAMPLES pixelcut-video-cutout must not pin Crystal video upscale");
+}
+if (/pruna-ai\/p-video\/edit/.test(cutoutClipCard)) {
+  fail("EXAMPLES pixelcut-video-cutout must not pin P-Video rewrite");
+}
+if (/minimax-h3\/image-to-video-spicy|xai\/grok-imagine-video|google\/gemini-omni-flash|alibaba\/wan-3\.0/.test(cutoutClipCard)) {
+  fail("EXAMPLES pixelcut-video-cutout must not pin i2v / orbit / turntable models");
+}
+if (/gpt-4o-mini/.test(cutoutClipCard)) {
+  fail("EXAMPLES pixelcut-video-cutout must not pin gpt-4o-mini");
+}
+if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
+  fail("custom-endpoint must stay the only LOCAL_ONLY teaching card after pixelcut-video-cutout sync");
+}
 for (const slug of slugs) {
   const page = readFileSync(join(ROOT, "guide", "examples", slug === "iron-verdict" ? "iron-verdict.html" : `${slug}.html`), "utf8");
   if (page.includes("how to use this noodle")) {

@@ -877,6 +877,35 @@
     "workflowSha256": "6d5878337898a1c82d6f92ca1545a6dbbb0472af6c143da7d08f3787a7ce099e"
   },
   {
+    "slug": "pixelcut-video-cutout",
+    "title": "knock the alley off the clip",
+    "date": "2026-09-10",
+    "review": "Cover still",
+    "note": "Cover is reused Volt card art from the photo-to-video night-ride radio plate — vupload placeholder only, pending a true Pixelcut QC clip. No paid `pixelcut/video-background-removal` run this PR. Job is video cutout at background=black (~$0.022/30 frames, ~$0.044 for ~2s). Not product-cutout / BiRefNet. Not sam3-isolate. Not Crystal upscale. Not P-Video rewrite. Not i2v / orbit / turntable. Open the graph — Product clip → Cutout clip pins `pixelcut/video-background-removal` with background=black (not transparent). No committed clip in-repo.",
+    "costUsd": 0.044,
+    "costExact": false,
+    "models": [
+      "pixelcut/video-background-removal"
+    ],
+    "graphSha256": "5a63fd622d1ed57261a41de277b7c11bb4f1987e9788ea258edf9af08b97642e",
+    "inputs": [
+      {
+        "label": "Product clip",
+        "text": "Upload a short clip. First-click story is a matte-charcoal Volt pocket night-ride radio with one electric-cyan lightning-bolt chevron. Pixelcut drops the alley to solid black. No committed clip in-repo."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "pixelcut-video-cutout/NOTE.txt",
+        "kind": "text",
+        "label": "Note"
+      }
+    ],
+    "preview": "pixelcut-video-cutout/preview.webp",
+    "workflow": "pixelcut-video-cutout/workflow.json",
+    "workflowSha256": "5a63fd622d1ed57261a41de277b7c11bb4f1987e9788ea258edf9af08b97642e"
+  },
+  {
     "slug": "omni-flash-turntable",
     "title": "Night-ride product motion",
     "date": "2026-09-09",

@@ -316,6 +316,15 @@ const HOWTO = {
     inspect: "Cover is reused Volt alley card art, pending Mirelo QC — no paid run this PR. vupload placeholder only. No fake foley thumb. Open the graph, upload a silent take, listen for synced SFX.",
     costHow: "Listed at about $0.04 for ~4s ($0.01/s). No LLM. Prices vary. No reviewed first-party foley yet.",
   },
+  "pixelcut-video-cutout": {
+    headline: "Knock the alley off the clip",
+    job: "Pixelcut drops the background.",
+    hideNote: true,
+    purpose: "Upload a short take. Pixelcut knocks the alley to solid black. Not BiRefNet still cutout. Not SAM isolate. Not Crystal upscale. Not P-Video rewrite. Not i2v.",
+    edit: "Drop your clip on <em>Product clip</em>. Leave <em>Cutout clip</em> on <code>pixelcut/video-background-removal</code> with <code>background=black</code>.",
+    inspect: "Cover is reused Volt card art, pending Pixelcut QC — no paid run this PR. vupload placeholder only. First-click pins solid black, not transparent. Open the graph, upload a clip, inspect the knock-out.",
+    costHow: "Listed from about $0.044 for ~2s ($0.022/30 frames). No LLM. Prices vary. No reviewed first-party cutout yet.",
+  },
   "volt-dispatch-infographic": {
     headline: "DROP. ZONE. ETA.",
     job: "Volt dispatch card. Short labels.",
@@ -362,7 +371,7 @@ const GROUPS = [
     "night-market-postcard", "fibo-studio-still", "cinematic-character-still", "h3-identity-restyle", "character-sprites",
     "image-model-arena",
   ] },
-  { id: "video", title: "Video", slugs: ["photo-to-video", "grok-imagine-still", "wan-still-audio", "h3-max-multi-angle", "crystal-video-upscale", "p-video-rewrite", "mirelo-video-foley", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },
+  { id: "video", title: "Video", slugs: ["photo-to-video", "grok-imagine-still", "wan-still-audio", "h3-max-multi-angle", "crystal-video-upscale", "p-video-rewrite", "mirelo-video-foley", "pixelcut-video-cutout", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },
   { id: "audio", title: "Audio", slugs: ["sing", "night-ride-sfx", "night-ride-radio-vo"] },
   { id: "text", title: "Text", slugs: ["deslop", "fable-five-step"] },
 ];
