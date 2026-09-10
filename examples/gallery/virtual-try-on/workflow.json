@@ -1,0 +1,104 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 40,
+      "y": 20,
+      "w": 460,
+      "name": "Wear the night kit",
+      "fields": {
+        "text": "Upload a person still, then a garment still. FLUX Virtual Try-On (`flux-pro/v1/vto`) applies the garment onto the person. Size auto, $0.0575/image. First-click is a mid-shot Volt night courier / model on dark slate plus a Volt night-ride jacket or tee with ONE electric-cyan lightning-bolt chevron (flat garment plate). Person first (max 2MP), garment second (max 1MP). This repo has no committed stills — upload those plates or any person + garment pair. One image. No LLM.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "n1",
+      "type": "upload",
+      "x": 40,
+      "y": 300,
+      "w": 280,
+      "name": "Person still",
+      "fields": {}
+    },
+    {
+      "id": "n2",
+      "type": "edit",
+      "x": 400,
+      "y": 400,
+      "w": 300,
+      "name": "Try-on",
+      "fields": {
+        "prompt": "",
+        "size": "auto",
+        "model": "flux-pro/v1/vto"
+      },
+      "sizes": {
+        "prompt": 0
+      }
+    },
+    {
+      "id": "n3",
+      "type": "upload",
+      "x": 40,
+      "y": 560,
+      "w": 280,
+      "name": "Garment still",
+      "fields": {}
+    },
+    {
+      "id": "n4",
+      "type": "text",
+      "x": 40,
+      "y": 820,
+      "w": 300,
+      "name": "Style brief",
+      "fields": {
+        "text": "Apply the garment from image 2 onto the person in image 1. Preserve face and body identity and pose. Preserve garment materials and the single electric-cyan lightning-bolt chevron. Cool night-ride lighting (magenta rim + cyan bounce OK). Add no extra logos, text walls, props, or second people."
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "n1",
+        "port": "image"
+      },
+      "to": {
+        "node": "n2",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "n3",
+        "port": "image"
+      },
+      "to": {
+        "node": "n2",
+        "port": "image2"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "n4",
+        "port": "text"
+      },
+      "to": {
+        "node": "n2",
+        "port": "prompt"
+      }
+    }
+  ],
+  "nid": 5,
+  "lid": 4,
+  "view": {
+    "panX": 20,
+    "panY": 40,
+    "scale": 0.85
+  }
+}

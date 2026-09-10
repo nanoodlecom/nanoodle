@@ -1685,6 +1685,101 @@ if (/type:"llm"/.test(restyleCard)) {
 if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
   fail("custom-endpoint must stay the only LOCAL_ONLY teaching card after identity-restyle sync");
 }
+const vtoSample = samples.find((s) => s.slug === "virtual-try-on");
+if (!vtoSample) fail("samples.json missing virtual-try-on");
+if (vtoSample.preview !== "virtual-try-on/preview.webp") {
+  fail("virtual-try-on sample preview should be virtual-try-on/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "virtual-try-on", "preview.webp"))) {
+  fail("examples/gallery/virtual-try-on/preview.webp is missing");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "virtual-try-on", "person-input.webp"))) {
+  fail("examples/gallery/virtual-try-on/person-input.webp is missing");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "virtual-try-on", "garment-input.webp"))) {
+  fail("examples/gallery/virtual-try-on/garment-input.webp is missing");
+}
+if (!/flux-pro\/v1\/vto/.test(JSON.stringify(vtoSample.models))) {
+  fail("virtual-try-on sample should pin flux-pro/v1/vto");
+}
+if (!/local placeholder|no paid|pending/i.test(vtoSample.note)) {
+  fail("virtual-try-on sample note should say the cover is a local placeholder and FLUX VTO QC is pending");
+}
+if (!/virtual|try-on|garment/i.test(vtoSample.note)) {
+  fail("virtual-try-on sample note should say the job is dedicated garment try-on");
+}
+if (!/combine-images|Muse Edit/i.test(vtoSample.note)) {
+  fail("virtual-try-on sample note should distinguish combine-images / Muse Edit");
+}
+if (!/edit-a-photo/i.test(vtoSample.note)) {
+  fail("virtual-try-on sample note should distinguish edit-a-photo");
+}
+if (!/h3-identity-restyle/i.test(vtoSample.note)) {
+  fail("virtual-try-on sample note should distinguish h3-identity-restyle");
+}
+if (!/cutout|SAM|sticker|Ideogram|Recraft|MAI|SenseNova/i.test(vtoSample.note)) {
+  fail("virtual-try-on sample note should distinguish cutout / SAM / sticker / Ideogram / Recraft / MAI / SenseNova");
+}
+if (!hub.includes("virtual-try-on/preview.webp")) {
+  fail("hub should thumb the virtual-try-on cover");
+}
+if (!hub.includes("Wear the night kit.")) {
+  fail("hub should title virtual-try-on as Wear the night kit.");
+}
+const vtoHowTo = readFileSync(join(ROOT, "guide", "examples", "virtual-try-on.html"), "utf8");
+if (!/flux-pro\/v1\/vto/.test(vtoHowTo)) {
+  fail("virtual-try-on how-to should name flux-pro/v1/vto");
+}
+if (!/Person \+ garment/i.test(vtoHowTo) || !/FLUX tries the drop on/i.test(vtoHowTo)) {
+  fail("virtual-try-on how-to should punch Person + garment. FLUX tries the drop on.");
+}
+if (!/Product in a setting|Clean product photo|Night-ride identity restyle/i.test(vtoHowTo)) {
+  fail("virtual-try-on how-to should distinguish Product in a setting, Clean product photo, and Night-ride identity restyle");
+}
+if (!/local placeholder|no paid|pending/i.test(vtoHowTo)) {
+  fail("virtual-try-on how-to should say the cover is a local placeholder and FLUX VTO QC is pending");
+}
+if (!vtoHowTo.includes("virtual-try-on/preview.webp")) {
+  fail("virtual-try-on how-to should show the cover still");
+}
+if (!/slug:"virtual-try-on"[\s\S]{0,200}thumb:"examples\/gallery\/virtual-try-on\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES virtual-try-on thumb should be examples/gallery/virtual-try-on/preview.webp");
+}
+if (!/slug:"virtual-try-on"[\s\S]{0,80}desc:"person \+ garment — FLUX tries the drop on"/.test(examplesSrc)) {
+  fail("EXAMPLES virtual-try-on desc should pitch person + garment — FLUX tries the drop on");
+}
+if (!/slug:"virtual-try-on"[\s\S]{0,80}title:"Wear the night kit"/.test(examplesSrc)) {
+  fail("EXAMPLES virtual-try-on title should be Wear the night kit");
+}
+const vtoCard = examplesSrc.match(/slug:"virtual-try-on"[\s\S]{0,3500}/)?.[0] || "";
+if (!/flux-pro\/v1\/vto/.test(vtoCard)) {
+  fail("EXAMPLES virtual-try-on graph should pin flux-pro/v1/vto");
+}
+if (!/size:"auto"/.test(vtoCard)) {
+  fail("EXAMPLES virtual-try-on graph should pin size auto");
+}
+if (!/name:"Person still"/.test(vtoCard) || !/name:"Garment still"/.test(vtoCard) || !/name:"Style brief"/.test(vtoCard) || !/name:"Try-on"/.test(vtoCard)) {
+  fail("EXAMPLES virtual-try-on should be Person still + Garment still + Style brief → Try-on");
+}
+const vtoEdit = vtoCard.match(/\{id:"n2",type:"edit"[\s\S]*?name:"Try-on"\}/)?.[0] || "";
+if (!vtoEdit) {
+  fail("EXAMPLES virtual-try-on should have edit node n2 Try-on");
+}
+if (!/model:"flux-pro\/v1\/vto"/.test(vtoEdit) || !/size:"auto"/.test(vtoEdit)) {
+  fail("EXAMPLES virtual-try-on edit node should pin flux-pro/v1/vto at auto");
+}
+if (/meta\/muse-image|minimax-h3\/image-edit|ideogram|birefnet|sam3-image/.test(vtoEdit)) {
+  fail("EXAMPLES virtual-try-on edit node must not pin Muse Edit, H3 Image Edit, Ideogram, BiRefNet, or SAM 3");
+}
+if (/type:"llm"/.test(vtoCard)) {
+  fail("EXAMPLES virtual-try-on must stay upload + text → edit (no LLM)");
+}
+if (/gpt-4o-mini/.test(vtoCard)) {
+  fail("EXAMPLES virtual-try-on must not pin gpt-4o-mini");
+}
+if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
+  fail("custom-endpoint must stay the only LOCAL_ONLY teaching card after virtual-try-on sync");
+}
 const posterSample = samples.find((s) => s.slug === "ideogram-v4-instant-poster");
 if (!posterSample) fail("samples.json missing ideogram-v4-instant-poster");
 if (posterSample.preview !== "ideogram-v4-instant-poster/preview.webp") {

@@ -31,6 +31,7 @@ const catalogs = {
     image('bria/fibo-generate-1.5/text-to-image', ['1mp']),
     image('minimax-h3/text-to-image', ['1k', '2k']),
     image('minimax-h3/image-edit', ['1k', '2k'], true),
+    image('flux-pro/v1/vto', ['auto'], true),
     image('birefnet/v2', ['auto'], true),
     image('sam3-image', ['auto'], true),
     image('pruna-ai/p-image/upscale', ['1', '2', '3', '4', '5', '6', '7', '8'], true),

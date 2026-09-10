@@ -1373,6 +1373,8 @@ const I18N = {
     "one still — Wan 3.0 adds motion + synced audio":"un still — Wan 3.0 añade movimiento + audio sincronizado",
     "drive the still with motion":"conduce el still con movimiento",
     "one still + a driver clip — Wan Animate 2 transfers the move":"un still + un clip conductor — Wan Animate 2 transfiere el movimiento",
+    "Wear the night kit":"Ponte el kit de noche",
+    "person + garment — FLUX tries the drop on":"persona + prenda — FLUX prueba el drop",
     "rewrite the clip":"reescribir el clip",
     "upload a short take — prompt-edit it, keep the audio.":"sube un take corto — edítalo con un prompt, conserva el audio.",
     "foley the take":"foley del take",
@@ -2036,6 +2038,8 @@ const I18N = {
     "one still — Wan 3.0 adds motion + synced audio":"un still — Wan 3.0 ajoute le mouvement + l’audio sync",
     "drive the still with motion":"entraîner le still avec le mouvement",
     "one still + a driver clip — Wan Animate 2 transfers the move":"un still + un clip conducteur — Wan Animate 2 transfère le geste",
+    "Wear the night kit":"Porte le kit de nuit",
+    "person + garment — FLUX tries the drop on":"personne + vêtement — FLUX essaie le drop",
     "rewrite the clip":"réécrire le clip",
     "upload a short take — prompt-edit it, keep the audio.":"importez une prise courte — éditez-la par prompt, gardez l’audio.",
     "foley the take":"foley de la prise",
@@ -2699,6 +2703,8 @@ const I18N = {
     "one still — Wan 3.0 adds motion + synced audio":"ein Still — Wan 3.0 fügt Bewegung + Sync-Audio hinzu",
     "drive the still with motion":"das Still mit Bewegung antreiben",
     "one still + a driver clip — Wan Animate 2 transfers the move":"ein Still + ein Treiber-Clip — Wan Animate 2 überträgt die Bewegung",
+    "Wear the night kit":"Trag das Night-Kit",
+    "person + garment — FLUX tries the drop on":"Person + Kleidungsstück — FLUX probiert den Drop",
     "rewrite the clip":"den Clip umschreiben",
     "upload a short take — prompt-edit it, keep the audio.":"kurzen Take hochladen — per Prompt bearbeiten, Audio behalten.",
     "foley the take":"Foley für den Take",
@@ -3362,6 +3368,8 @@ const I18N = {
     "one still — Wan 3.0 adds motion + synced audio":"um still — Wan 3.0 adiciona movimento + áudio sincronizado",
     "drive the still with motion":"conduzir o still com movimento",
     "one still + a driver clip — Wan Animate 2 transfers the move":"um still + um clipe condutor — Wan Animate 2 transfere o movimento",
+    "Wear the night kit":"Vista o kit da noite",
+    "person + garment — FLUX tries the drop on":"pessoa + peça — FLUX prova o drop",
     "rewrite the clip":"reescrever o clipe",
     "upload a short take — prompt-edit it, keep the audio.":"envie um take curto — edite com um prompt, mantenha o áudio.",
     "foley the take":"foley do take",
@@ -4025,6 +4033,8 @@ const I18N = {
     "one still — Wan 3.0 adds motion + synced audio":"1枚のスチール — Wan 3.0が動きと同期音声を足す",
     "drive the still with motion":"スチールをモーションで動かす",
     "one still + a driver clip — Wan Animate 2 transfers the move":"1枚のスチール + ドライバークリップ — Wan Animate 2が動きを移す",
+    "Wear the night kit":"ナイトキットを着る",
+    "person + garment — FLUX tries the drop on":"人物 + ガーメント — FLUXがドロップを試着",
     "rewrite the clip":"クリップを書き換える",
     "upload a short take — prompt-edit it, keep the audio.":"短いテイクをアップロード — プロンプトで編集、音声はそのまま。",
     "foley the take":"テイクにフォーリー",
@@ -13756,6 +13766,17 @@ const EXAMPLES = [
            {id:"n3",type:"text",x:40,y:500,w:300,fields:{text:"Keep the same face and body identity. Restyle into a Volt night-courier key still: matte charcoal kit, ONE electric-cyan lightning-bolt chevron on the chest, magenta rim + cyan bounce, wet neon alley bokeh behind. Locked medium portrait. No readable text, no extra people, no invented props."},name:"Restyle"} ],
    links:[ {id:"l1",from:{node:"n1",port:"image"},to:{node:"n2",port:"image"}},
            {id:"l2",from:{node:"n3",port:"text"},to:{node:"n2",port:"prompt"}} ] } },
+ { em:"🧥", slug:"virtual-try-on", title:"Wear the night kit", desc:"person + garment — FLUX tries the drop on",
+   thumb:"examples/gallery/virtual-try-on/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:20,w:460,fields:{text:"Upload a person still, then a garment still. FLUX Virtual Try-On (`flux-pro/v1/vto`) applies the garment onto the person. Size auto, $0.0575/image. First-click is a mid-shot Volt night courier / model on dark slate plus a Volt night-ride jacket or tee with ONE electric-cyan lightning-bolt chevron (flat garment plate). Person first (max 2MP), garment second (max 1MP). This repo has no committed stills — upload those plates or any person + garment pair. One image. No LLM.",color:"yellow"},name:"Wear the night kit"},
+           {id:"n1",type:"upload",x:40,y:300,w:280,fields:{},name:"Person still"},
+           {id:"n2",type:"edit",x:400,y:400,w:300,fields:{prompt:"",size:"auto",model:"flux-pro/v1/vto"},name:"Try-on"},
+           {id:"n3",type:"upload",x:40,y:560,w:280,fields:{},name:"Garment still"},
+           {id:"n4",type:"text",x:40,y:820,w:300,fields:{text:"Apply the garment from image 2 onto the person in image 1. Preserve face and body identity and pose. Preserve garment materials and the single electric-cyan lightning-bolt chevron. Cool night-ride lighting (magenta rim + cyan bounce OK). Add no extra logos, text walls, props, or second people."},name:"Style brief"} ],
+   links:[ {id:"l1",from:{node:"n1",port:"image"},to:{node:"n2",port:"image"}},
+           {id:"l2",from:{node:"n3",port:"image"},to:{node:"n2",port:"image2"}},
+           {id:"l3",from:{node:"n4",port:"text"},to:{node:"n2",port:"prompt"}} ] } },
  { em:"🖇️", slug:"combine-images", title:"combine images", desc:"Volt radio on wet neon asphalt",
    thumb:"examples/gallery/combine-images/preview.webp",
    graph:{ v:1,
@@ -14140,7 +14161,7 @@ function openExamples(){
   // Same Elo order on every width — no mobile-only list, no CSS order, no truncation.
   // Featured #skilloutcome (Iron Verdict) sits above the grid on every width.
   // Compact mobile cards keep H3 (4th) and the featured game above the fold.
-  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","volt-vector-mark","mai-pack-type","volt-dispatch-infographic","photo-to-video","grok-imagine-still","wan-motion-drive","wan-still-audio","h3-max-multi-angle","crystal-video-upscale","p-video-rewrite","mirelo-video-foley","pixelcut-video-cutout","character-sprites","talking-avatar","infinitetalk-radio-take","sing","night-ride-sfx","night-ride-radio-vo","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
+  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","virtual-try-on","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","volt-vector-mark","mai-pack-type","volt-dispatch-infographic","photo-to-video","grok-imagine-still","wan-motion-drive","wan-still-audio","h3-max-multi-angle","crystal-video-upscale","p-video-rewrite","mirelo-video-foley","pixelcut-video-cutout","character-sprites","talking-avatar","infinitetalk-radio-take","sing","night-ride-sfx","night-ride-radio-vo","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
   EXAMPLES.map((ex,i)=>({ex,i})).sort((a,b)=>{
     const rank=slug=>first.includes(slug)?first.indexOf(slug):first.length;
     return rank(a.ex.slug)-rank(b.ex.slug);
