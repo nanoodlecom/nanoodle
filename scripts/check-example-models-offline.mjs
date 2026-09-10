@@ -87,6 +87,7 @@ const catalogs = {
     { id: 'mureka-ai/mureka-v9.5/generate-song', architecture: { modality: 'text->audio' } },
     { id: 'elevenlabs/sound-effects/v2', architecture: { modality: 'text->audio' }, capabilities: { text_to_audio: true }, supported_parameters: { min_duration: 0.5, max_duration: 22 } },
     { id: 'stable-audio-3/small/music/text-to-audio', architecture: { modality: 'text->music' }, capabilities: { text_to_music: true }, category: 'audio_music' },
+    { id: 'mirelo-ai/sfx1.6/extend-audio', capabilities: { audio_extension: true }, architecture: { modality: 'text+audio->audio' }, supported_parameters: { min_duration: 1, max_duration: 57 } },
   ],
 };
 

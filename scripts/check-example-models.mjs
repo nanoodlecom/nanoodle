@@ -99,6 +99,7 @@ export function galleryRegressions(pins) {
     { slug: 'wan-stretch-take', type: 'vedit', model: 'wan-25-extend', resolution: '480p', duration: '3' },
     { slug: 'mirelo-video-foley', type: 'vedit', model: 'mirelo-ai/sfx1.6/video-to-video' },
     { slug: 'pixelcut-video-cutout', type: 'vedit', model: 'pixelcut/video-background-removal', background: 'black' },
+    { slug: 'mirelo-stretch-bed', type: 'remix', model: 'mirelo-ai/sfx1.6/extend-audio', duration: '3' },
   ];
   return expected.flatMap(({ slug, type, model, size, resolution, people, duration, camera_motion, target_megapixels, draft, voice, enable_audio, background }) => {
     const pin = pins.find(p => p.slug === slug && p.type === type);

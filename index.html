@@ -1333,6 +1333,8 @@ const I18N = {
     "drop a night-ride VO — Whisper prints the transcript":"suelta un VO de noche — Whisper imprime la transcripción",
     "score the alley":"partitura del callejón",
     "one prompt — Stable Audio drops a stereo night-ride bed":"un prompt — Stable Audio suelta una cama estéreo night-ride",
+    "stretch the bed":"estirar la cama",
+    "short alley bed — Mirelo keeps the ambience going":"cama corta de callejón — Mirelo sigue el ambiente",
 
     "product cutout":"recorte de producto",
     "cyan lightning radio, background gone":"radio relámpago cian, fondo fuera",
@@ -2002,6 +2004,8 @@ const I18N = {
     "drop a night-ride VO — Whisper prints the transcript":"dépose un VO de nuit — Whisper imprime la transcription",
     "score the alley":"partition de la ruelle",
     "one prompt — Stable Audio drops a stereo night-ride bed":"un prompt — Stable Audio pose un lit stéréo night-ride",
+    "stretch the bed":"étirer le lit",
+    "short alley bed — Mirelo keeps the ambience going":"lit court de ruelle — Mirelo prolonge l’ambiance",
 
     "product cutout":"détourage produit",
     "cyan lightning radio, background gone":"radio éclair cyan, fond disparu",
@@ -2671,6 +2675,8 @@ const I18N = {
     "drop a night-ride VO — Whisper prints the transcript":"wirf ein Nachtfahrt-VO drauf — Whisper druckt das Transkript",
     "score the alley":"Gassen-Score",
     "one prompt — Stable Audio drops a stereo night-ride bed":"ein Prompt — Stable Audio legt ein Stereo-Night-Ride-Bett",
+    "stretch the bed":"das Bett strecken",
+    "short alley bed — Mirelo keeps the ambience going":"kurzes Gassen-Bett — Mirelo hält die Atmosphäre",
 
     "product cutout":"Produkt-Freisteller",
     "cyan lightning radio, background gone":"cyanfarbenes Blitz-Radio, Hintergrund weg",
@@ -3340,6 +3346,8 @@ const I18N = {
     "drop a night-ride VO — Whisper prints the transcript":"solte um VO noturno — Whisper imprime a transcrição",
     "score the alley":"trilha do beco",
     "one prompt — Stable Audio drops a stereo night-ride bed":"um prompt — Stable Audio solta uma cama estéreo night-ride",
+    "stretch the bed":"esticar a cama",
+    "short alley bed — Mirelo keeps the ambience going":"cama curta de beco — Mirelo mantém o ambiente",
 
     "product cutout":"recorte de produto",
     "cyan lightning radio, background gone":"rádio relâmpago ciano, fundo sumiu",
@@ -4009,6 +4017,8 @@ const I18N = {
     "drop a night-ride VO — Whisper prints the transcript":"ナイトライドVOをドロップ — Whisperが文字起こしを出す",
     "score the alley":"路地のスコア",
     "one prompt — Stable Audio drops a stereo night-ride bed":"ワンプロンプト — Stable Audioがステレオのナイトライドベッドを置く",
+    "stretch the bed":"ベッドを伸ばす",
+    "short alley bed — Mirelo keeps the ambience going":"短い路地ベッド — Mireloがアンビエンスを続ける",
 
     "product cutout":"商品切り抜き",
     "cyan lightning radio, background gone":"電光シアンのラジオ、背景なし",
@@ -14091,6 +14101,13 @@ const EXAMPLES = [
            {id:"n1",type:"aupload",x:40,y:280,w:280,fields:{},name:"Night-ride VO"},
            {id:"n2",type:"transcribe",x:400,y:260,w:300,fields:{model:"Whisper-Large-V3"},name:"Transcript"} ],
    links:[ {id:"l1",from:{node:"n1",port:"audio"},to:{node:"n2",port:"audio"}} ] } },
+ { em:"🎧", slug:"mirelo-stretch-bed", title:"stretch the bed", desc:"short alley bed — Mirelo keeps the ambience going",
+   thumb:"examples/gallery/mirelo-stretch-bed/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:20,w:520,fields:{text:"Upload bed → Mirelo SFX1.6 Extend Audio (`mirelo-ai/sfx1.6/extend-audio`) (~$0.01/s → ~$0.03@3s). Stretch the bed — not Wan video extend, not Night-ride SFX text→sting, not Mirelo video foley, not Stable Audio / sing generate.",color:"yellow"},name:"stretch the bed"},
+           {id:"n1",type:"aupload",x:40,y:280,w:280,fields:{},name:"Short alley bed"},
+           {id:"n2",type:"remix",x:400,y:260,w:320,fields:{model:"mirelo-ai/sfx1.6/extend-audio",prompt:"Continue the late-night neon alley ambience — soft rain ticks, distant scooter wash once, quiet electrical hum under a charcoal Volt pocket radio mood. Seamless natural tail, no new melody, no vocals, no radio DJ talk, no hard cut.",duration:"3",num_samples:1,extraJson:"{\"num_samples\":1}",response_format:"mp3"},name:"Stretched bed"} ],
+   links:[ {id:"l1",from:{node:"n1",port:"audio"},to:{node:"n2",port:"audio"}} ] } },
  { em:"🎼", slug:"stable-alley-score", title:"score the alley", desc:"one prompt — Stable Audio drops a stereo night-ride bed",
    thumb:"examples/gallery/stable-alley-score/preview.webp",
    graph:{ v:1,
@@ -14204,7 +14221,7 @@ function openExamples(){
   // Same Elo order on every width — no mobile-only list, no CSS order, no truncation.
   // Featured #skilloutcome (Iron Verdict) sits above the grid on every width.
   // Compact mobile cards keep H3 (4th) and the featured game above the fold.
-  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","virtual-try-on","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","volt-vector-mark","mai-pack-type","volt-dispatch-infographic","photo-to-video","grok-imagine-still","wan-motion-drive","wan-still-audio","h3-max-multi-angle","crystal-video-upscale","p-video-rewrite","wan-stretch-take","mirelo-video-foley","pixelcut-video-cutout","character-sprites","talking-avatar","infinitetalk-radio-take","sing","night-ride-sfx","night-ride-radio-vo","whisper-pull-words","stable-alley-score","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
+  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","virtual-try-on","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","volt-vector-mark","mai-pack-type","volt-dispatch-infographic","photo-to-video","grok-imagine-still","wan-motion-drive","wan-still-audio","h3-max-multi-angle","crystal-video-upscale","p-video-rewrite","wan-stretch-take","mirelo-video-foley","pixelcut-video-cutout","character-sprites","talking-avatar","infinitetalk-radio-take","sing","night-ride-sfx","mirelo-stretch-bed","night-ride-radio-vo","whisper-pull-words","stable-alley-score","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
   EXAMPLES.map((ex,i)=>({ex,i})).sort((a,b)=>{
     const rank=slug=>first.includes(slug)?first.indexOf(slug):first.length;
     return rank(a.ex.slug)-rank(b.ex.slug);
