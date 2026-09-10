@@ -163,8 +163,8 @@ if (!hub.includes("omni-flash-turntable/preview.webp")) {
 if (hub.includes("Orbit the chrome")) {
   fail("hub still titles omni-flash-turntable as Orbit the chrome");
 }
-if (!hub.includes("Orbit the charcoal radio")) {
-  fail("hub should title omni-flash-turntable as Orbit the charcoal radio");
+if (!hub.includes("Orbit the plinth radio")) {
+  fail("hub should title omni-flash-turntable as Orbit the plinth radio");
 }
 const singSample = samples.find((s) => s.slug === "sing");
 if (!singSample) fail("samples.json missing sing");
@@ -193,8 +193,8 @@ const examplesSrc = readFileSync(join(ROOT, "index.html"), "utf8");
 if (/slug:"omni-flash-turntable"[\s\S]{0,80}desc:"five seconds of a chrome helmet under hard light"/.test(examplesSrc)) {
   fail("EXAMPLES omni-flash-turntable desc still uses the chrome helmet line");
 }
-if (!/slug:"omni-flash-turntable"[\s\S]{0,80}desc:"quarter-orbit, cyan rim on a night-ride radio"/.test(examplesSrc)) {
-  fail("EXAMPLES omni-flash-turntable desc should pitch quarter-orbit cyan rim on a night-ride radio");
+if (!/slug:"omni-flash-turntable"[\s\S]{0,80}desc:"Text→video quarter-orbit reveal"/.test(examplesSrc)) {
+  fail("EXAMPLES omni-flash-turntable desc should pitch Text→video quarter-orbit reveal");
 }
 if (!/slug:"omni-flash-turntable"[\s\S]{0,200}thumb:"examples\/gallery\/omni-flash-turntable\/preview\.webp"/.test(examplesSrc)) {
   fail("EXAMPLES omni-flash-turntable thumb should be examples/gallery/omni-flash-turntable/preview.webp");
@@ -394,8 +394,8 @@ if (!/slug:"photo-to-video"[\s\S]{0,200}thumb:"examples\/gallery\/photo-to-video
 if (/slug:"photo-to-video"[\s\S]{0,80}desc:"locked camera, one thin wisp of steam"/.test(examplesSrc)) {
   fail("EXAMPLES photo-to-video desc still uses the tea-mug steam line");
 }
-if (!/slug:"photo-to-video"[\s\S]{0,80}desc:"locked camera, rain on a night-ride radio"/.test(examplesSrc)) {
-  fail("EXAMPLES photo-to-video desc should pitch rain on a night-ride radio");
+if (!/slug:"photo-to-video"[\s\S]{0,80}desc:"Still in → short night-ride clip out"/.test(examplesSrc)) {
+  fail("EXAMPLES photo-to-video desc should pitch Still in → short night-ride clip out");
 }
 const faviconHowTo = readFileSync(join(ROOT, "guide", "examples", "favicon.html"), "utf8");
 if (/Lumen|weather radio|lighthouse|navy-and-gold/i.test(faviconHowTo)) {
@@ -452,11 +452,11 @@ if (/repair shop|forest-green|Brake adjustment|New appointment|Maya Chen|Warm wh
 if (!/Volt/i.test(mockupHowTo) || !/charcoal/i.test(mockupHowTo) || !/cyan/i.test(mockupHowTo)) {
   fail("render-a-mockup how-to should pitch the Volt charcoal + cyan dispatch");
 }
-if (hub.includes("A screen you can argue about") && !hub.includes("A dispatch screen you can argue about")) {
+if (hub.includes("A screen you can argue about") && !hub.includes("Dispatch UI to argue about")) {
   fail("hub still titles render-a-mockup as a generic screen");
 }
-if (!hub.includes("A dispatch screen you can argue about")) {
-  fail("hub should title render-a-mockup as a dispatch screen you can argue about");
+if (!hub.includes("Dispatch UI to argue about")) {
+  fail("hub should title render-a-mockup as Dispatch UI to argue about");
 }
 const mockupSample = samples.find((s) => s.slug === "render-a-mockup");
 if (!mockupSample) fail("samples.json missing render-a-mockup");
@@ -472,8 +472,8 @@ if (!/charcoal/i.test(mockupSample.note) || !/cyan/i.test(mockupSample.note) || 
 if (/slug:"render-a-mockup"[\s\S]{0,80}desc:"a repair-shop dashboard worth arguing over"/.test(examplesSrc)) {
   fail("EXAMPLES render-a-mockup desc still uses the repair-shop line");
 }
-if (!/slug:"render-a-mockup"[\s\S]{0,80}desc:"charcoal \+ cyan Volt dispatch — Tonight, Couriers, Radios"/.test(examplesSrc)) {
-  fail("EXAMPLES render-a-mockup desc should pitch charcoal + cyan Volt dispatch");
+if (!/slug:"render-a-mockup"[\s\S]{0,80}desc:"Labeled Volt board screenshot mock"/.test(examplesSrc)) {
+  fail("EXAMPLES render-a-mockup desc should pitch Labeled Volt board screenshot mock");
 }
 const avatarSample = samples.find((s) => s.slug === "talking-avatar");
 if (!avatarSample) fail("samples.json missing talking-avatar");
@@ -828,11 +828,11 @@ if (!/cover still/i.test(combineSample.note) || !/wet neon alley/i.test(combineS
 if (!hub.includes("combine-images/preview.webp")) {
   fail("hub should thumb the combine-images night-ride cover");
 }
-if (hub.includes("Drop it in the room") && !hub.includes("Drop it in the alley")) {
+if (hub.includes("Drop it in the room") && !hub.includes("Drop the product in the alley")) {
   fail("hub still titles combine-images as Drop it in the room");
 }
-if (!hub.includes("Drop it in the alley")) {
-  fail("hub should title combine-images as Drop it in the alley");
+if (!hub.includes("Drop the product in the alley")) {
+  fail("hub should title combine-images as Drop the product in the alley");
 }
 const combineHowTo = readFileSync(join(ROOT, "guide", "examples", "combine-images.html"), "utf8");
 if (/Drop it in the room|Preview the bottle on the desk|book the studio|default rules are wrong for your pair/i.test(combineHowTo)) {
@@ -850,8 +850,8 @@ if (!/slug:"combine-images"[\s\S]{0,200}thumb:"examples\/gallery\/combine-images
 if (/slug:"combine-images"[\s\S]{0,80}desc:"drop your product onto someone else's table"/.test(examplesSrc)) {
   fail("EXAMPLES combine-images desc still uses the generic table line");
 }
-if (!/slug:"combine-images"[\s\S]{0,80}desc:"Volt radio on wet neon asphalt"/.test(examplesSrc)) {
-  fail("EXAMPLES combine-images desc should pitch Volt radio on wet neon asphalt");
+if (!/slug:"combine-images"[\s\S]{0,80}desc:"Product \+ setting → placed composite"/.test(examplesSrc)) {
+  fail("EXAMPLES combine-images desc should pitch Product + setting → placed composite");
 }
 if (/Place the product from image 1 naturally into the setting from image 2|Remove neither structural elements nor existing furniture/i.test(examplesSrc.match(/slug:"combine-images"[\s\S]{0,1800}/)?.[0] || "")) {
   fail("EXAMPLES combine-images first-click still uses the generic product-in-setting brief");
@@ -895,8 +895,8 @@ if (!/slug:"image-model-arena"[\s\S]{0,200}thumb:"examples\/gallery\/image-model
 if (/slug:"image-model-arena"[\s\S]{0,80}desc:"four models, one poster — type, wheel, tire levers"/.test(examplesSrc)) {
   fail("EXAMPLES image-model-arena desc still uses the tire-lever line");
 }
-if (!/slug:"image-model-arena"[\s\S]{0,80}desc:"four models, one Volt night-ride poster — exact NIGHT RIDE type"/.test(examplesSrc)) {
-  fail("EXAMPLES image-model-arena desc should pitch the Volt night-ride poster");
+if (!/slug:"image-model-arena"[\s\S]{0,80}desc:"Same poster prompt; compare outputs"/.test(examplesSrc)) {
+  fail("EXAMPLES image-model-arena desc should pitch Same poster prompt; compare outputs");
 }
 if (/workshop-poster brief|FIX A FLAT|SATURDAY 10 AM|tire levers|cream background/i.test(examplesSrc.match(/slug:"image-model-arena"[\s\S]{0,1200}/)?.[0] || "")) {
   fail("EXAMPLES image-model-arena first-click still uses the FIX A FLAT / cream workshop brief");
@@ -1207,8 +1207,8 @@ if (!/Volt|night-ride|cyan/i.test(rewriteSample.note)) {
 if (!hub.includes("p-video-rewrite/preview.webp")) {
   fail("hub should thumb the p-video-rewrite cover");
 }
-if (!hub.includes("Same clip. New light.")) {
-  fail("hub should title p-video-rewrite as Same clip. New light.");
+if (!hub.includes("Rewrite the clip&#39;s look") && !hub.includes("Rewrite the clip's look")) {
+  fail("hub should title p-video-rewrite as Rewrite the clip's look");
 }
 const rewriteHowTo = readFileSync(join(ROOT, "guide", "examples", "p-video-rewrite.html"), "utf8");
 if (!/pruna-ai\/p-video\/edit/.test(rewriteHowTo)) {
@@ -1235,11 +1235,11 @@ if (!rewriteHowTo.includes("p-video-rewrite/preview.webp")) {
 if (!/slug:"p-video-rewrite"[\s\S]{0,200}thumb:"examples\/gallery\/p-video-rewrite\/preview\.webp"/.test(examplesSrc)) {
   fail("EXAMPLES p-video-rewrite thumb should be examples/gallery/p-video-rewrite/preview.webp");
 }
-if (!/slug:"p-video-rewrite"[\s\S]{0,80}desc:"upload a short take — prompt-edit it, keep the audio\."/.test(examplesSrc)) {
-  fail("EXAMPLES p-video-rewrite desc should pitch upload a short take — prompt-edit it, keep the audio.");
+if (!/slug:"p-video-rewrite"[\s\S]{0,80}desc:"Prompt-edit video; keep the audio"/.test(examplesSrc)) {
+  fail("EXAMPLES p-video-rewrite desc should pitch Prompt-edit video; keep the audio");
 }
-if (!/slug:"p-video-rewrite"[\s\S]{0,80}title:"rewrite the clip"/.test(examplesSrc)) {
-  fail("EXAMPLES p-video-rewrite title should be rewrite the clip");
+if (!/slug:"p-video-rewrite"[\s\S]{0,80}title:"Rewrite the clip's look"/.test(examplesSrc)) {
+  fail("EXAMPLES p-video-rewrite title should be Rewrite the clip's look");
 }
 const rewriteCard = examplesSrc.match(/slug:"p-video-rewrite"[\s\S]*?(?=\n \{ em:)/)?.[0] || "";
 if (!/pruna-ai\/p-video\/edit/.test(rewriteCard)) {
@@ -1901,8 +1901,8 @@ if (!/Volt|night-ride radio|cyan/i.test(grokSample.note)) {
 if (!hub.includes("grok-imagine-still/preview.webp")) {
   fail("hub should thumb the grok-imagine-still cover");
 }
-if (!hub.includes("The frame wakes up")) {
-  fail("hub should title grok-imagine-still as The frame wakes up");
+if (!hub.includes("Still → short clip")) {
+  fail("hub should title grok-imagine-still as Still → short clip");
 }
 const grokHowTo = readFileSync(join(ROOT, "guide", "examples", "grok-imagine-still.html"), "utf8");
 if (!/xai\/grok-imagine-video\/v1\.5\/image-to-video/.test(grokHowTo)) {
@@ -1926,11 +1926,11 @@ if (!grokHowTo.includes("grok-imagine-still/preview.webp")) {
 if (!/slug:"grok-imagine-still"[\s\S]{0,200}thumb:"examples\/gallery\/grok-imagine-still\/preview\.webp"/.test(examplesSrc)) {
   fail("EXAMPLES grok-imagine-still thumb should be examples/gallery/grok-imagine-still/preview.webp");
 }
-if (!/slug:"grok-imagine-still"[\s\S]{0,80}desc:"one still — Grok 1.5 rides it into motion"/.test(examplesSrc)) {
-  fail("EXAMPLES grok-imagine-still desc should pitch one still — Grok 1.5 rides it into motion");
+if (!/slug:"grok-imagine-still"[\s\S]{0,80}desc:"One still. Grok rides it into motion"/.test(examplesSrc)) {
+  fail("EXAMPLES grok-imagine-still desc should pitch One still. Grok rides it into motion");
 }
-if (!/slug:"grok-imagine-still"[\s\S]{0,80}title:"frame wakes up"/.test(examplesSrc)) {
-  fail("EXAMPLES grok-imagine-still title should be frame wakes up");
+if (!/slug:"grok-imagine-still"[\s\S]{0,80}title:"Still → short clip"/.test(examplesSrc)) {
+  fail("EXAMPLES grok-imagine-still title should be Still → short clip");
 }
 const grokCard = examplesSrc.match(/slug:"grok-imagine-still"[\s\S]{0,3500}/)?.[0] || "";
 if (!/xai\/grok-imagine-video\/v1\.5\/image-to-video/.test(grokCard)) {
@@ -1968,8 +1968,8 @@ if (!/cover|reused Volt card art|product-cutout|FIBO/i.test(wanSample.note) || !
 if (!/still → video|railing|alley hum|enable_audio/i.test(wanSample.note)) {
   fail("wan-still-audio sample note should say the job is Wan 3.0 still+audio with alley hum");
 }
-if (!/frame wakes up|Grok Imagine/i.test(wanSample.note)) {
-  fail("wan-still-audio sample note should distinguish frame wakes up / Grok Imagine 1.5");
+if (!/Still → short clip|Grok Imagine/i.test(wanSample.note)) {
+  fail("wan-still-audio sample note should distinguish Still → short clip / Grok Imagine 1.5");
 }
 if (!/photo-to-video|MiniMax H3 Spicy/i.test(wanSample.note)) {
   fail("wan-still-audio sample note should distinguish photo-to-video / MiniMax H3 Spicy");
@@ -1980,8 +1980,8 @@ if (!/Volt/i.test(wanSample.note)) {
 if (!hub.includes("wan-still-audio/preview.webp")) {
   fail("hub should thumb the wan-still-audio cover");
 }
-if (!hub.includes("Still breathes with sound")) {
-  fail("hub should title wan-still-audio as Still breathes with sound");
+if (!hub.includes("Still → clip + audio")) {
+  fail("hub should title wan-still-audio as Still → clip + audio");
 }
 const wanHowTo = readFileSync(join(ROOT, "guide", "examples", "wan-still-audio.html"), "utf8");
 if (!/alibaba\/wan-3\.0\/image-to-video/.test(wanHowTo)) {
@@ -1993,8 +1993,8 @@ if (!/Volt|railing|alley hum/i.test(wanHowTo) || !/Wan 3\.0/i.test(wanHowTo)) {
 if (!/480p|2s|enable_audio/i.test(wanHowTo)) {
   fail("wan-still-audio how-to should say this is 480p / 2s / enable_audio");
 }
-if (!/frame wakes up/i.test(wanHowTo)) {
-  fail("wan-still-audio how-to should distinguish frame wakes up");
+if (!/Still → short clip/i.test(wanHowTo)) {
+  fail("wan-still-audio how-to should distinguish Still → short clip");
 }
 if (!/photo-to-video/i.test(wanHowTo)) {
   fail("wan-still-audio how-to should distinguish photo-to-video");
@@ -2008,11 +2008,11 @@ if (!wanHowTo.includes("wan-still-audio/preview.webp")) {
 if (!/slug:"wan-still-audio"[\s\S]{0,200}thumb:"examples\/gallery\/wan-still-audio\/preview\.webp"/.test(examplesSrc)) {
   fail("EXAMPLES wan-still-audio thumb should be examples/gallery/wan-still-audio/preview.webp");
 }
-if (!/slug:"wan-still-audio"[\s\S]{0,80}desc:"one still — Wan 3.0 adds motion \+ synced audio"/.test(examplesSrc)) {
-  fail("EXAMPLES wan-still-audio desc should pitch one still — Wan 3.0 adds motion + synced audio");
+if (!/slug:"wan-still-audio"[\s\S]{0,80}desc:"Wan adds locked motion and alley hum"/.test(examplesSrc)) {
+  fail("EXAMPLES wan-still-audio desc should pitch Wan adds locked motion and alley hum");
 }
-if (!/slug:"wan-still-audio"[\s\S]{0,80}title:"still breathes with sound"/.test(examplesSrc)) {
-  fail("EXAMPLES wan-still-audio title should be still breathes with sound");
+if (!/slug:"wan-still-audio"[\s\S]{0,80}title:"Still → clip \+ audio"/.test(examplesSrc)) {
+  fail("EXAMPLES wan-still-audio title should be Still → clip + audio");
 }
 const wanCard = examplesSrc.match(/slug:"wan-still-audio"[\s\S]{0,3500}/)?.[0] || "";
 if (!/alibaba\/wan-3\.0\/image-to-video/.test(wanCard)) {
@@ -2245,8 +2245,8 @@ if (!/~\$0\.024|0\.024/.test(scoreSample.note)) {
 if (!hub.includes("stable-alley-score/preview.webp")) {
   fail("hub should thumb the stable-alley-score cover");
 }
-if (!hub.includes("Trip-hop in the alley.")) {
-  fail("hub should title stable-alley-score as Trip-hop in the alley.");
+if (!hub.includes("Score the night alley")) {
+  fail("hub should title stable-alley-score as Score the night alley");
 }
 const scoreHowTo = readFileSync(join(ROOT, "guide", "examples", "stable-alley-score.html"), "utf8");
 if (!/stable-audio-3\/small\/music\/text-to-audio/.test(scoreHowTo)) {
@@ -2282,11 +2282,11 @@ if (!scoreHowTo.includes("stable-alley-score/preview.webp")) {
 if (!/slug:"stable-alley-score"[\s\S]{0,200}thumb:"examples\/gallery\/stable-alley-score\/preview\.webp"/.test(examplesSrc)) {
   fail("EXAMPLES stable-alley-score thumb should be examples/gallery/stable-alley-score/preview.webp");
 }
-if (!/slug:"stable-alley-score"[\s\S]{0,80}desc:"one prompt — Stable Audio drops a stereo night-ride bed"/.test(examplesSrc)) {
-  fail("EXAMPLES stable-alley-score desc should pitch one prompt — Stable Audio drops a stereo night-ride bed");
+if (!/slug:"stable-alley-score"[\s\S]{0,80}desc:"One prompt → instrumental trip-hop bed"/.test(examplesSrc)) {
+  fail("EXAMPLES stable-alley-score desc should pitch One prompt → instrumental trip-hop bed");
 }
-if (!/slug:"stable-alley-score"[\s\S]{0,80}title:"score the alley"/.test(examplesSrc)) {
-  fail("EXAMPLES stable-alley-score title should be score the alley");
+if (!/slug:"stable-alley-score"[\s\S]{0,80}title:"Score the night alley"/.test(examplesSrc)) {
+  fail("EXAMPLES stable-alley-score title should be Score the night alley");
 }
 const scoreCard = examplesSrc.match(/slug:"stable-alley-score"[\s\S]*?(?=\n \{ em:|$)/)?.[0] || "";
 if (!/stable-audio-3\/small\/music\/text-to-audio/.test(scoreCard)) {
@@ -2340,8 +2340,8 @@ if (!/~\$0\.03|\$0\.01\/s/i.test(stretchBedSample.note)) {
 if (!hub.includes("mirelo-stretch-bed/preview.webp")) {
   fail("hub should thumb the mirelo-stretch-bed cover");
 }
-if (!hub.includes("Keep the alley going")) {
-  fail("hub should title mirelo-stretch-bed as Keep the alley going");
+if (!hub.includes("Stretch that audio bed")) {
+  fail("hub should title mirelo-stretch-bed as Stretch that audio bed");
 }
 const stretchBedHowTo = readFileSync(join(ROOT, "guide", "examples", "mirelo-stretch-bed.html"), "utf8");
 if (!/mirelo-ai\/sfx1\.6\/extend-audio/.test(stretchBedHowTo)) {
@@ -2374,11 +2374,11 @@ if (!stretchBedHowTo.includes("mirelo-stretch-bed/preview.webp")) {
 if (!/slug:"mirelo-stretch-bed"[\s\S]{0,200}thumb:"examples\/gallery\/mirelo-stretch-bed\/preview\.webp"/.test(examplesSrc)) {
   fail("EXAMPLES mirelo-stretch-bed thumb should be examples/gallery/mirelo-stretch-bed/preview.webp");
 }
-if (!/slug:"mirelo-stretch-bed"[\s\S]{0,80}desc:"short alley bed — Mirelo keeps the ambience going"/.test(examplesSrc)) {
-  fail("EXAMPLES mirelo-stretch-bed desc should pitch short alley bed — Mirelo keeps the ambience going");
+if (!/slug:"mirelo-stretch-bed"[\s\S]{0,80}desc:"Stretch a short ambience bed longer"/.test(examplesSrc)) {
+  fail("EXAMPLES mirelo-stretch-bed desc should pitch Stretch a short ambience bed longer");
 }
-if (!/slug:"mirelo-stretch-bed"[\s\S]{0,80}title:"stretch the bed"/.test(examplesSrc)) {
-  fail("EXAMPLES mirelo-stretch-bed title should be stretch the bed");
+if (!/slug:"mirelo-stretch-bed"[\s\S]{0,80}title:"Stretch that audio bed"/.test(examplesSrc)) {
+  fail("EXAMPLES mirelo-stretch-bed title should be Stretch that audio bed");
 }
 const stretchBedCard = examplesSrc.match(/slug:"mirelo-stretch-bed"[\s\S]*?(?=\n \{ em:|$)/)?.[0] || "";
 if (!/mirelo-ai\/sfx1\.6\/extend-audio/.test(stretchBedCard)) {
@@ -2441,8 +2441,8 @@ if (!/No LLM|no upload/i.test(markSample.note)) {
 if (!hub.includes("volt-vector-mark/preview.webp")) {
   fail("hub should thumb the volt-vector-mark cover");
 }
-if (!hub.includes("A bolt you can scale")) {
-  fail("hub should title volt-vector-mark as A bolt you can scale");
+if (!hub.includes("Editable SVG bolt")) {
+  fail("hub should title volt-vector-mark as Editable SVG bolt");
 }
 const markHowTo = readFileSync(join(ROOT, "guide", "examples", "volt-vector-mark.html"), "utf8");
 if (!/recraft-ai\/recraft-v4\.1\/text-to-vector/.test(markHowTo)) {
@@ -2472,11 +2472,11 @@ if (!markHowTo.includes("volt-vector-mark/preview.webp")) {
 if (!/slug:"volt-vector-mark"[\s\S]{0,200}thumb:"examples\/gallery\/volt-vector-mark\/preview\.webp"/.test(examplesSrc)) {
   fail("EXAMPLES volt-vector-mark thumb should be examples/gallery/volt-vector-mark/preview.webp");
 }
-if (!/slug:"volt-vector-mark"[\s\S]{0,80}desc:"sharp cyan chevron — SVG you can scale"/.test(examplesSrc)) {
-  fail("EXAMPLES volt-vector-mark desc should pitch sharp cyan chevron — SVG you can scale");
+if (!/slug:"volt-vector-mark"[\s\S]{0,80}desc:"Recraft vector mark you can scale"/.test(examplesSrc)) {
+  fail("EXAMPLES volt-vector-mark desc should pitch Recraft vector mark you can scale");
 }
-if (!/slug:"volt-vector-mark"[\s\S]{0,80}title:"editable volt mark"/.test(examplesSrc)) {
-  fail("EXAMPLES volt-vector-mark title should be editable volt mark");
+if (!/slug:"volt-vector-mark"[\s\S]{0,80}title:"Editable SVG bolt"/.test(examplesSrc)) {
+  fail("EXAMPLES volt-vector-mark title should be Editable SVG bolt");
 }
 const markCard = examplesSrc.match(/slug:"volt-vector-mark"[\s\S]*?(?=\n \{ em:|$)/)?.[0] || "";
 if (!/recraft-ai\/recraft-v4\.1\/text-to-vector/.test(markCard)) {
@@ -2530,8 +2530,8 @@ if (!/No LLM|no upload/i.test(maiSample.note)) {
 if (!hub.includes("mai-pack-type/preview.webp")) {
   fail("hub should thumb the mai-pack-type cover");
 }
-if (!hub.includes("Pack type that sticks")) {
-  fail("hub should title mai-pack-type as Pack type that sticks");
+if (!hub.includes("Pack lettering that sticks")) {
+  fail("hub should title mai-pack-type as Pack lettering that sticks");
 }
 const maiHowTo = readFileSync(join(ROOT, "guide", "examples", "mai-pack-type.html"), "utf8");
 if (!/microsoft\/mai-image-2\.6-flash/.test(maiHowTo)) {
@@ -2561,11 +2561,11 @@ if (!maiHowTo.includes("mai-pack-type/preview.webp")) {
 if (!/slug:"mai-pack-type"[\s\S]{0,200}thumb:"examples\/gallery\/mai-pack-type\/preview\.webp"/.test(examplesSrc)) {
   fail("EXAMPLES mai-pack-type thumb should be examples/gallery/mai-pack-type/preview.webp");
 }
-if (!/slug:"mai-pack-type"[\s\S]{0,80}desc:"Volt sleeve type — Microsoft MAI Flash nails the letters"/.test(examplesSrc)) {
-  fail("EXAMPLES mai-pack-type desc should pitch Volt sleeve type — Microsoft MAI Flash nails the letters");
+if (!/slug:"mai-pack-type"[\s\S]{0,80}desc:"Volt sleeve type that stays readable"/.test(examplesSrc)) {
+  fail("EXAMPLES mai-pack-type desc should pitch Volt sleeve type that stays readable");
 }
-if (!/slug:"mai-pack-type"[\s\S]{0,80}title:"pack type that sticks"/.test(examplesSrc)) {
-  fail("EXAMPLES mai-pack-type title should be pack type that sticks");
+if (!/slug:"mai-pack-type"[\s\S]{0,80}title:"Pack lettering that sticks"/.test(examplesSrc)) {
+  fail("EXAMPLES mai-pack-type title should be Pack lettering that sticks");
 }
 const maiCard = examplesSrc.match(/slug:"mai-pack-type"[\s\S]*?(?=\n \{ em:|$)/)?.[0] || "";
 if (!/microsoft\/mai-image-2\.6-flash/.test(maiCard)) {
@@ -2622,8 +2622,8 @@ if (!/~\$0\.04|\$0\.01\/s/i.test(foleySample.note)) {
 if (!hub.includes("mirelo-video-foley/preview.webp")) {
   fail("hub should thumb the mirelo-video-foley cover");
 }
-if (!hub.includes("Silent take. Synced SFX.")) {
-  fail("hub should title mirelo-video-foley as Silent take. Synced SFX.");
+if (!hub.includes("Foley on the clip")) {
+  fail("hub should title mirelo-video-foley as Foley on the clip");
 }
 const foleyHowTo = readFileSync(join(ROOT, "guide", "examples", "mirelo-video-foley.html"), "utf8");
 if (!/mirelo-ai\/sfx1\.6\/video-to-video/.test(foleyHowTo)) {
@@ -2653,11 +2653,11 @@ if (!foleyHowTo.includes("mirelo-video-foley/preview.webp")) {
 if (!/slug:"mirelo-video-foley"[\s\S]{0,200}thumb:"examples\/gallery\/mirelo-video-foley\/preview\.webp"/.test(examplesSrc)) {
   fail("EXAMPLES mirelo-video-foley thumb should be examples/gallery/mirelo-video-foley/preview.webp");
 }
-if (!/slug:"mirelo-video-foley"[\s\S]{0,80}desc:"upload a silent clip — Mirelo lays synced SFX on it"/.test(examplesSrc)) {
-  fail("EXAMPLES mirelo-video-foley desc should pitch upload a silent clip — Mirelo lays synced SFX on it");
+if (!/slug:"mirelo-video-foley"[\s\S]{0,80}desc:"Upload silent video; synced SFX lands"/.test(examplesSrc)) {
+  fail("EXAMPLES mirelo-video-foley desc should pitch Upload silent video; synced SFX lands");
 }
-if (!/slug:"mirelo-video-foley"[\s\S]{0,80}title:"foley the take"/.test(examplesSrc)) {
-  fail("EXAMPLES mirelo-video-foley title should be foley the take");
+if (!/slug:"mirelo-video-foley"[\s\S]{0,80}title:"Foley on the clip"/.test(examplesSrc)) {
+  fail("EXAMPLES mirelo-video-foley title should be Foley on the clip");
 }
 const foleyCard = examplesSrc.match(/slug:"mirelo-video-foley"[\s\S]*?(?=\n \{ em:|$)/)?.[0] || "";
 if (!/mirelo-ai\/sfx1\.6\/video-to-video/.test(foleyCard)) {
@@ -2833,8 +2833,8 @@ if (!/P-Video|rewrite/i.test(driveSample.note)) {
 if (!hub.includes("wan-motion-drive/preview.webp")) {
   fail("hub should thumb the wan-motion-drive cover");
 }
-if (!hub.includes("Drive the still with motion")) {
-  fail("hub should title wan-motion-drive as Drive the still with motion");
+if (!hub.includes("Drive a still with motion")) {
+  fail("hub should title wan-motion-drive as Drive a still with motion");
 }
 const driveHowTo = readFileSync(join(ROOT, "guide", "examples", "wan-motion-drive.html"), "utf8");
 if (!/wan-22-animate-2/.test(driveHowTo)) {
@@ -2870,11 +2870,11 @@ if (!driveHowTo.includes("wan-motion-drive/preview.webp")) {
 if (!/slug:"wan-motion-drive"[\s\S]{0,200}thumb:"examples\/gallery\/wan-motion-drive\/preview\.webp"/.test(examplesSrc)) {
   fail("EXAMPLES wan-motion-drive thumb should be examples/gallery/wan-motion-drive/preview.webp");
 }
-if (!/slug:"wan-motion-drive"[\s\S]{0,80}desc:"one still \+ a driver clip — Wan Animate 2 transfers the move"/.test(examplesSrc)) {
-  fail("EXAMPLES wan-motion-drive desc should pitch one still + a driver clip — Wan Animate 2 transfers the move");
+if (!/slug:"wan-motion-drive"[\s\S]{0,80}desc:"Still \+ driver clip → Wan Animate transfer"/.test(examplesSrc)) {
+  fail("EXAMPLES wan-motion-drive desc should pitch Still + driver clip → Wan Animate transfer");
 }
-if (!/slug:"wan-motion-drive"[\s\S]{0,80}title:"drive the still with motion"/.test(examplesSrc)) {
-  fail("EXAMPLES wan-motion-drive title should be drive the still with motion");
+if (!/slug:"wan-motion-drive"[\s\S]{0,80}title:"Drive a still with motion"/.test(examplesSrc)) {
+  fail("EXAMPLES wan-motion-drive title should be Drive a still with motion");
 }
 const driveCard = examplesSrc.match(/slug:"wan-motion-drive"[\s\S]*?(?=\n \{ em:|$)/)?.[0] || "";
 if (!/"id":"wan-22-animate-2"|model:"wan-22-animate-2"/.test(driveCard)) {
@@ -2933,8 +2933,8 @@ if (!/~\$0\.000495|≪\$0\.01/i.test(whisperSample.note)) {
 if (!hub.includes("whisper-pull-words/preview.webp")) {
   fail("hub should thumb the whisper-pull-words cover");
 }
-if (!hub.includes("Pull the words off the take")) {
-  fail("hub should title whisper-pull-words as Pull the words off the take");
+if (!hub.includes("Whisper the transcript")) {
+  fail("hub should title whisper-pull-words as Whisper the transcript");
 }
 const whisperHowTo = readFileSync(join(ROOT, "guide", "examples", "whisper-pull-words.html"), "utf8");
 if (!/Whisper-Large-V3/.test(whisperHowTo)) {
@@ -2964,11 +2964,11 @@ if (!whisperHowTo.includes("whisper-pull-words/preview.webp")) {
 if (!/slug:"whisper-pull-words"[\s\S]{0,200}thumb:"examples\/gallery\/whisper-pull-words\/preview\.webp"/.test(examplesSrc)) {
   fail("EXAMPLES whisper-pull-words thumb should be examples/gallery/whisper-pull-words/preview.webp");
 }
-if (!/slug:"whisper-pull-words"[\s\S]{0,80}desc:"drop a night-ride VO — Whisper prints the transcript"/.test(examplesSrc)) {
-  fail("EXAMPLES whisper-pull-words desc should pitch drop a night-ride VO — Whisper prints the transcript");
+if (!/slug:"whisper-pull-words"[\s\S]{0,80}desc:"Drop speech; get the transcript"/.test(examplesSrc)) {
+  fail("EXAMPLES whisper-pull-words desc should pitch Drop speech; get the transcript");
 }
-if (!/slug:"whisper-pull-words"[\s\S]{0,80}title:"pull the words off the take"/.test(examplesSrc)) {
-  fail("EXAMPLES whisper-pull-words title should be pull the words off the take");
+if (!/slug:"whisper-pull-words"[\s\S]{0,80}title:"Whisper the transcript"/.test(examplesSrc)) {
+  fail("EXAMPLES whisper-pull-words title should be Whisper the transcript");
 }
 const whisperCard = examplesSrc.match(/slug:"whisper-pull-words"[\s\S]*?(?=\n \{ em:|$)/)?.[0] || "";
 if (!/Whisper-Large-V3/.test(whisperCard)) {
@@ -3028,8 +3028,8 @@ if (!/still→i2v|still-audio|grok-imagine|photo-to-video/.test(stretchSample.no
 if (!hub.includes("wan-stretch-take/preview.webp")) {
   fail("hub should thumb the wan-stretch-take cover");
 }
-if (!hub.includes("Keep the move going")) {
-  fail("hub should title wan-stretch-take as Keep the move going");
+if (!hub.includes("Stretch the clip")) {
+  fail("hub should title wan-stretch-take as Stretch the clip");
 }
 const stretchHowTo = readFileSync(join(ROOT, "guide", "examples", "wan-stretch-take.html"), "utf8");
 if (!/wan-25-extend/.test(stretchHowTo)) {
@@ -3071,11 +3071,11 @@ if (!stretchHowTo.includes("wan-stretch-take/preview.webp")) {
 if (!/slug:"wan-stretch-take"[\s\S]{0,200}thumb:"examples\/gallery\/wan-stretch-take\/preview\.webp"/.test(examplesSrc)) {
   fail("EXAMPLES wan-stretch-take thumb should be examples/gallery/wan-stretch-take/preview.webp");
 }
-if (!/slug:"wan-stretch-take"[\s\S]{0,80}desc:"short alley clip — Wan Extend keeps the move going"/.test(examplesSrc)) {
-  fail("EXAMPLES wan-stretch-take desc should pitch short alley clip — Wan Extend keeps the move going");
+if (!/slug:"wan-stretch-take"[\s\S]{0,80}desc:"Wan Extend keeps a short alley clip going"/.test(examplesSrc)) {
+  fail("EXAMPLES wan-stretch-take desc should pitch Wan Extend keeps a short alley clip going");
 }
-if (!/slug:"wan-stretch-take"[\s\S]{0,80}title:"stretch the take"/.test(examplesSrc)) {
-  fail("EXAMPLES wan-stretch-take title should be stretch the take");
+if (!/slug:"wan-stretch-take"[\s\S]{0,80}title:"Stretch the clip"/.test(examplesSrc)) {
+  fail("EXAMPLES wan-stretch-take title should be Stretch the clip");
 }
 const stretchCard = examplesSrc.match(/slug:"wan-stretch-take"[\s\S]*?(?=\n \{ em:|$)/)?.[0] || "";
 if (!/model:"wan-25-extend"/.test(stretchCard)) {
@@ -3152,15 +3152,15 @@ if (!/combine-images/.test(widenSample.note)) {
 if (!hub.includes("widen-the-frame/preview.webp")) {
   fail("hub should thumb the widen-the-frame cover");
 }
-if (!hub.includes("Tight crop. Wider hero.")) {
-  fail("hub should title widen-the-frame as Tight crop. Wider hero.");
+if (!hub.includes("Widen a tight crop")) {
+  fail("hub should title widen-the-frame as Widen a tight crop");
 }
 const widenHowTo = readFileSync(join(ROOT, "guide", "examples", "widen-the-frame.html"), "utf8");
 if (!/nano-banana-edit/.test(widenHowTo)) {
   fail("widen-the-frame how-to should name nano-banana-edit");
 }
-if (!/Banana Edit outpaints a 16:9 night-alley/.test(widenHowTo)) {
-  fail("widen-the-frame how-to should punch Banana Edit outpaints a 16:9 night-alley.");
+if (!/Banana Edit outpaints a 16:9 hero/.test(widenHowTo)) {
+  fail("widen-the-frame how-to should punch Banana Edit outpaints a 16:9 hero");
 }
 if (!/outpaint|16:9/.test(widenHowTo)) {
   fail("widen-the-frame how-to should punch outpaint / 16:9");
@@ -3207,11 +3207,11 @@ if (!widenHowTo.includes("widen-the-frame/banana-badge.png")) {
 if (!/slug:"widen-the-frame"[\s\S]{0,200}thumb:"examples\/gallery\/widen-the-frame\/preview\.webp"/.test(examplesSrc)) {
   fail("EXAMPLES widen-the-frame thumb should be examples/gallery/widen-the-frame/preview.webp");
 }
-if (!/slug:"widen-the-frame"[\s\S]{0,80}desc:"tight product still — Banana Edit outpaints a wider hero"/.test(examplesSrc)) {
-  fail("EXAMPLES widen-the-frame desc should pitch tight product still — Banana Edit outpaints a wider hero");
+if (!/slug:"widen-the-frame"[\s\S]{0,80}desc:"Banana Edit outpaints a 16:9 hero"/.test(examplesSrc)) {
+  fail("EXAMPLES widen-the-frame desc should pitch Banana Edit outpaints a 16:9 hero");
 }
-if (!/slug:"widen-the-frame"[\s\S]{0,80}title:"widen the frame"/.test(examplesSrc)) {
-  fail("EXAMPLES widen-the-frame title should be widen the frame");
+if (!/slug:"widen-the-frame"[\s\S]{0,80}title:"Widen a tight crop"/.test(examplesSrc)) {
+  fail("EXAMPLES widen-the-frame title should be Widen a tight crop");
 }
 const widenCard = examplesSrc.match(/slug:"widen-the-frame"[\s\S]*?(?=\n \{ em:|$)/)?.[0] || "";
 if (!/model:"nano-banana-edit"/.test(widenCard)) {
