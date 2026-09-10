@@ -1178,6 +1178,94 @@ if (/google\/gemini-omni-flash/.test(crystalCard)) {
 if (/ideogram-v4/.test(crystalCard)) {
   fail("EXAMPLES crystal-video-upscale must not touch Ideogram V4 Instant");
 }
+const rewriteSample = samples.find((s) => s.slug === "p-video-rewrite");
+if (!rewriteSample) fail("samples.json missing p-video-rewrite");
+if (rewriteSample.preview !== "p-video-rewrite/preview.webp") {
+  fail("p-video-rewrite sample preview should be p-video-rewrite/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "p-video-rewrite", "preview.webp"))) {
+  fail("examples/gallery/p-video-rewrite/preview.webp is missing");
+}
+if (!/pruna-ai\/p-video\/edit/.test(JSON.stringify(rewriteSample.models))) {
+  fail("p-video-rewrite sample should pin pruna-ai/p-video/edit");
+}
+if (!/cover|reused Volt card art/i.test(rewriteSample.note) || !/no paid|pending/i.test(rewriteSample.note)) {
+  fail("p-video-rewrite sample note should say cover is reused Volt card art and P-Video Edit QC is pending");
+}
+if (!/prompt-rewrite|prompt-edit|draft=true/i.test(rewriteSample.note)) {
+  fail("p-video-rewrite sample note should say the job is prompt-rewrite at draft=true");
+}
+if (!/Crystal/i.test(rewriteSample.note)) {
+  fail("p-video-rewrite sample note should distinguish Crystal video upscale");
+}
+if (!/i2v|photo-to-video|Grok|Omni Flash/i.test(rewriteSample.note)) {
+  fail("p-video-rewrite sample note should distinguish i2v motion pins");
+}
+if (!/Volt|night-ride|cyan/i.test(rewriteSample.note)) {
+  fail("p-video-rewrite sample note should pitch the Volt night-ride radio");
+}
+if (!hub.includes("p-video-rewrite/preview.webp")) {
+  fail("hub should thumb the p-video-rewrite cover");
+}
+if (!hub.includes("Same clip. New light.")) {
+  fail("hub should title p-video-rewrite as Same clip. New light.");
+}
+const rewriteHowTo = readFileSync(join(ROOT, "guide", "examples", "p-video-rewrite.html"), "utf8");
+if (!/pruna-ai\/p-video\/edit/.test(rewriteHowTo)) {
+  fail("p-video-rewrite how-to should name pruna-ai/p-video/edit");
+}
+if (!/Volt/i.test(rewriteHowTo) || !/cyan/i.test(rewriteHowTo) || !/charcoal/i.test(rewriteHowTo)) {
+  fail("p-video-rewrite how-to should pitch the Volt charcoal + cyan radio");
+}
+if (!/draft=true|draft=true|\$0\.10|\$0.025/i.test(rewriteHowTo)) {
+  fail("p-video-rewrite how-to should say this is draft=true P-Video Edit");
+}
+if (!/Crystal/i.test(rewriteHowTo)) {
+  fail("p-video-rewrite how-to should distinguish Crystal video upscale");
+}
+if (!/i2v|photo-to-video|Grok|Omni Flash/i.test(rewriteHowTo)) {
+  fail("p-video-rewrite how-to should distinguish i2v motion pins");
+}
+if (!/reused Volt card art|no paid|pending/i.test(rewriteHowTo)) {
+  fail("p-video-rewrite how-to should say the cover is reused Volt card art and P-Video Edit QC is pending");
+}
+if (!rewriteHowTo.includes("p-video-rewrite/preview.webp")) {
+  fail("p-video-rewrite how-to should show the cover still");
+}
+if (!/slug:"p-video-rewrite"[\s\S]{0,200}thumb:"examples\/gallery\/p-video-rewrite\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES p-video-rewrite thumb should be examples/gallery/p-video-rewrite/preview.webp");
+}
+if (!/slug:"p-video-rewrite"[\s\S]{0,80}desc:"upload a short take — prompt-edit it, keep the audio\."/.test(examplesSrc)) {
+  fail("EXAMPLES p-video-rewrite desc should pitch upload a short take — prompt-edit it, keep the audio.");
+}
+if (!/slug:"p-video-rewrite"[\s\S]{0,80}title:"rewrite the clip"/.test(examplesSrc)) {
+  fail("EXAMPLES p-video-rewrite title should be rewrite the clip");
+}
+const rewriteCard = examplesSrc.match(/slug:"p-video-rewrite"[\s\S]{0,3200}/)?.[0] || "";
+if (!/pruna-ai\/p-video\/edit/.test(rewriteCard)) {
+  fail("EXAMPLES p-video-rewrite graph should pin pruna-ai/p-video/edit");
+}
+if (!/"draft":true/.test(rewriteCard)) {
+  fail("EXAMPLES p-video-rewrite graph should pin draft=true");
+}
+if (!/type:"vupload"/.test(rewriteCard) || !/type:"vedit"/.test(rewriteCard)) {
+  fail("EXAMPLES p-video-rewrite should be vupload Product clip → vedit Rewritten clip");
+}
+if (/clarity-ai\/crystal-video-upscaler/.test(rewriteCard)) {
+  fail("EXAMPLES p-video-rewrite must not pin Crystal video upscale");
+}
+if (/minimax-h3\/image-to-video-spicy/.test(rewriteCard)) {
+  fail("EXAMPLES p-video-rewrite must not pin MiniMax H3 Spicy");
+}
+if (/xai\/grok-imagine-video/.test(rewriteCard)) {
+  fail("EXAMPLES p-video-rewrite must not pin Grok Imagine");
+}
+if (/google\/gemini-omni-flash/.test(rewriteCard)) {
+  fail("EXAMPLES p-video-rewrite must not pin Omni Flash");
+}
+if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
+  fail("custom-endpoint must stay the only LOCAL_ONLY teaching card after p-video-rewrite sync");
+}
 const voltSample = samples.find((s) => s.slug === "volt-dispatch-infographic");
 if (!voltSample) fail("samples.json missing volt-dispatch-infographic");
 if (voltSample.preview !== "volt-dispatch-infographic/preview.webp") {

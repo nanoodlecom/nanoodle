@@ -280,6 +280,15 @@ const HOWTO = {
     inspect: "Cover still is reused Volt card art from the photo-to-video night-ride radio plate, pending a true Crystal QC clip — no paid clarity-ai/crystal-video-upscaler run this PR, not a fabricated upscale. Open the graph and hit Run with your key after you upload a clip. Inspect native sharpness against the input.",
     costHow: "Listed from about $0.50 for one Crystal call at 1 MP / 5s ($0.10/MP/s, min $0.10). Duration and target megapixels determine pricing. No LLM. Prices and results vary. This page has no reviewed first-party upscale yet.",
   },
+  "p-video-rewrite": {
+    headline: "Same clip. New light.",
+    job: "Prompt-edit. Keep the audio.",
+    hideNote: true,
+    purpose: "Upload a short take. P-Video Edit prompt-rewrites the clip and can keep source audio — not Crystal upscale and not an i2v motion pin. First-click is the matte-charcoal Volt pocket radio with one cyan lightning chevron: deeper magenta rim, cooler cyan bounce, thicker rain. Distinct from Crystal video upscale and photo-to-video / Grok / H3 orbit / Omni Flash.",
+    edit: "Drop your clip on <em>Product clip</em>. Leave <em>Rewritten clip</em> on <code>pruna-ai/p-video/edit</code> with <code>draft=true</code> unless you mean to change models. Rewrite brief stays on the Volt night-ride line.",
+    inspect: "Cover still is reused Volt card art from the photo-to-video night-ride radio plate, pending a true P-Video Edit QC clip — no paid pruna-ai/p-video/edit run this PR, not a fabricated rewrite. Open the graph and hit Run with your key after you upload a clip. Inspect light and rain against the input; source audio should survive.",
+    costHow: "Listed from about $0.10 for one P-Video Edit call at draft=true (~$0.025/s, ~4s). Full quality is ~$0.045/s. Duration determines pricing. No LLM. Prices and results vary. This page has no reviewed first-party rewrite yet.",
+  },
   "volt-dispatch-infographic": {
     headline: "DROP. ZONE. ETA.",
     job: "Volt dispatch card. Short labels.",
@@ -326,7 +335,7 @@ const GROUPS = [
     "night-market-postcard", "fibo-studio-still", "cinematic-character-still", "h3-identity-restyle", "character-sprites",
     "image-model-arena",
   ] },
-  { id: "video", title: "Video", slugs: ["photo-to-video", "grok-imagine-still", "h3-max-multi-angle", "crystal-video-upscale", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },
+  { id: "video", title: "Video", slugs: ["photo-to-video", "grok-imagine-still", "h3-max-multi-angle", "crystal-video-upscale", "p-video-rewrite", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },
   { id: "audio", title: "Audio", slugs: ["sing", "night-ride-sfx"] },
   { id: "text", title: "Text", slugs: ["deslop", "fable-five-step"] },
 ];

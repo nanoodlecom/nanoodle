@@ -1367,6 +1367,8 @@ const I18N = {
     "same face — Volt night-courier restyle":"misma cara — restyle de mensajero Volt de noche",
     "frame wakes up":"el fotograma despierta",
     "one still — Grok 1.5 rides it into motion":"un still — Grok 1.5 lo pone en movimiento",
+    "rewrite the clip":"reescribir el clip",
+    "upload a short take — prompt-edit it, keep the audio.":"sube un take corto — edítalo con un prompt, conserva el audio.",
     "strength":"intensidad",
     "Notes":"Notas",
     "Bold":"Negrita",
@@ -2020,6 +2022,8 @@ const I18N = {
     "same face — Volt night-courier restyle":"même visage — restyle coursier Volt de nuit",
     "frame wakes up":"le photogramme s’éveille",
     "one still — Grok 1.5 rides it into motion":"un still — Grok 1.5 le met en mouvement",
+    "rewrite the clip":"réécrire le clip",
+    "upload a short take — prompt-edit it, keep the audio.":"importez une prise courte — éditez-la par prompt, gardez l’audio.",
     "strength":"intensité",
     "Notes":"Notes",
     "Bold":"Gras",
@@ -2673,6 +2677,8 @@ const I18N = {
     "same face — Volt night-courier restyle":"dasselbe Gesicht — Volt-Nachtkurier-Restyle",
     "frame wakes up":"das Bild wacht auf",
     "one still — Grok 1.5 rides it into motion":"ein Still — Grok 1.5 setzt es in Bewegung",
+    "rewrite the clip":"den Clip umschreiben",
+    "upload a short take — prompt-edit it, keep the audio.":"kurzen Take hochladen — per Prompt bearbeiten, Audio behalten.",
     "strength":"Stärke",
     "Notes":"Notizen",
     "Bold":"Fett",
@@ -3326,6 +3332,8 @@ const I18N = {
     "same face — Volt night-courier restyle":"mesmo rosto — restyle de mensageiro Volt noturno",
     "frame wakes up":"o fotograma acorda",
     "one still — Grok 1.5 rides it into motion":"um still — Grok 1.5 põe em movimento",
+    "rewrite the clip":"reescrever o clipe",
+    "upload a short take — prompt-edit it, keep the audio.":"envie um take curto — edite com um prompt, mantenha o áudio.",
     "strength":"intensidade",
     "Notes":"Notas",
     "Bold":"Negrito",
@@ -3979,6 +3987,8 @@ const I18N = {
     "same face — Volt night-courier restyle":"同じ顔 — Voltナイトクーリエのリスタイル",
     "frame wakes up":"フレームが目を覚ます",
     "one still — Grok 1.5 rides it into motion":"1枚のスチール — Grok 1.5が動かす",
+    "rewrite the clip":"クリップを書き換える",
+    "upload a short take — prompt-edit it, keep the audio.":"短いテイクをアップロード — プロンプトで編集、音声はそのまま。",
     "strength":"強度",
     "Notes":"メモ",
     "Bold":"太字",
@@ -13848,6 +13858,15 @@ const EXAMPLES = [
            {id:"n1",type:"vupload",x:40,y:320,w:280,fields:{},name:"Product clip"},
            {id:"n2",type:"vedit",x:400,y:300,w:320,fields:{model:"clarity-ai/crystal-video-upscaler",prompt:"",modelOpts:{"target_megapixels":1}},name:"Upscaled clip"} ],
    links:[ {id:"l1",from:{node:"n1",port:"video"},to:{node:"n2",port:"video"}} ] } },
+ { em:"✏️", slug:"p-video-rewrite", title:"rewrite the clip", desc:"upload a short take — prompt-edit it, keep the audio.",
+   thumb:"examples/gallery/p-video-rewrite/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:20,w:480,fields:{text:"Upload clip → P-Video Edit (`pruna-ai/p-video/edit`) with draft=true (~$0.025/s). Prompt-rewrites the take and can keep source audio — not Crystal upscale and not an i2v motion pin.",color:"yellow"},name:"rewrite the clip"},
+           {id:"n1",type:"vupload",x:40,y:320,w:280,fields:{},name:"Product clip"},
+           {id:"n2",type:"vedit",x:400,y:300,w:320,fields:{model:"pruna-ai/p-video/edit",prompt:"",modelOpts:{"draft":true,"save_audio":true}},name:"Rewritten clip"},
+           {id:"n3",type:"text",x:40,y:560,w:300,fields:{text:"Keep the same matte-charcoal Volt pocket radio and cyan lightning chevron. Shift the alley to deeper magenta rim + cooler cyan bounce; thicken the rain beads; preserve source audio. No cuts, no new objects, no logo text."},name:"Rewrite brief"} ],
+   links:[ {id:"l1",from:{node:"n1",port:"video"},to:{node:"n2",port:"video"}},
+           {id:"l2",from:{node:"n3",port:"text"},to:{node:"n2",port:"prompt"}} ] } },
  { em:"🎬", slug:"photo-to-video", title:"photo → video", desc:"locked camera, rain on a night-ride radio",
    thumb:"examples/gallery/photo-to-video/preview.webp",
    graph:{ v:1,
@@ -14037,7 +14056,7 @@ function openExamples(){
   // Same Elo order on every width — no mobile-only list, no CSS order, no truncation.
   // Featured #skilloutcome (Iron Verdict) sits above the grid on every width.
   // Compact mobile cards keep H3 (4th) and the featured game above the fold.
-  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","volt-vector-mark","mai-pack-type","volt-dispatch-infographic","photo-to-video","grok-imagine-still","h3-max-multi-angle","crystal-video-upscale","character-sprites","talking-avatar","infinitetalk-radio-take","sing","night-ride-sfx","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
+  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","volt-vector-mark","mai-pack-type","volt-dispatch-infographic","photo-to-video","grok-imagine-still","h3-max-multi-angle","crystal-video-upscale","p-video-rewrite","character-sprites","talking-avatar","infinitetalk-radio-take","sing","night-ride-sfx","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
   EXAMPLES.map((ex,i)=>({ex,i})).sort((a,b)=>{
     const rank=slug=>first.includes(slug)?first.indexOf(slug):first.length;
     return rank(a.ex.slug)-rank(b.ex.slug);

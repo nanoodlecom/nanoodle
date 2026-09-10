@@ -1,0 +1,78 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 40,
+      "y": 20,
+      "w": 480,
+      "fields": {
+        "text": "Upload clip → P-Video Edit (`pruna-ai/p-video/edit`) with draft=true (~$0.025/s). Prompt-rewrites the take and can keep source audio — not Crystal upscale and not an i2v motion pin.",
+        "color": "yellow"
+      },
+      "name": "rewrite the clip"
+    },
+    {
+      "id": "n1",
+      "type": "vupload",
+      "x": 40,
+      "y": 320,
+      "w": 280,
+      "fields": {},
+      "name": "Product clip"
+    },
+    {
+      "id": "n2",
+      "type": "vedit",
+      "x": 400,
+      "y": 300,
+      "w": 320,
+      "fields": {
+        "model": "pruna-ai/p-video/edit",
+        "prompt": "",
+        "modelOpts": {
+          "draft": true,
+          "save_audio": true
+        }
+      },
+      "name": "Rewritten clip"
+    },
+    {
+      "id": "n3",
+      "type": "text",
+      "x": 40,
+      "y": 560,
+      "w": 300,
+      "fields": {
+        "text": "Keep the same matte-charcoal Volt pocket radio and cyan lightning chevron. Shift the alley to deeper magenta rim + cooler cyan bounce; thicken the rain beads; preserve source audio. No cuts, no new objects, no logo text.",
+        "color": "yellow"
+      },
+      "name": "Rewrite brief"
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "n1",
+        "port": "video"
+      },
+      "to": {
+        "node": "n2",
+        "port": "video"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "n3",
+        "port": "text"
+      },
+      "to": {
+        "node": "n2",
+        "port": "prompt"
+      }
+    }
+  ]
+}
