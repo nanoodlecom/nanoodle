@@ -2290,6 +2290,104 @@ if (/ideogram\/v4\/instant|sensenova-u1-infographic|qwen-image-3-pro|p-video-rew
 if (/type:"llm"|type:"upload"/.test(maiCard)) {
   fail("EXAMPLES mai-pack-type must stay text Pack brief → image Pack sleeve (no LLM, no upload)");
 }
+const foleySample = samples.find((s) => s.slug === "mirelo-video-foley");
+if (!foleySample) fail("samples.json missing mirelo-video-foley");
+if (foleySample.preview !== "mirelo-video-foley/preview.webp") {
+  fail("mirelo-video-foley sample preview should be mirelo-video-foley/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "mirelo-video-foley", "preview.webp"))) {
+  fail("examples/gallery/mirelo-video-foley/preview.webp is missing");
+}
+if (!/mirelo-ai\/sfx1\.6\/video-to-video/.test(JSON.stringify(foleySample.models))) {
+  fail("mirelo-video-foley sample should pin mirelo-ai/sfx1.6/video-to-video");
+}
+if (!/vupload placeholder|no fake foley thumb/i.test(foleySample.note) || !/no paid|pending/i.test(foleySample.note)) {
+  fail("mirelo-video-foley sample note should say vupload placeholder / no fake foley thumb and Mirelo QC is pending");
+}
+if (!/video→foley|synced SFX|silent clip/i.test(foleySample.note)) {
+  fail("mirelo-video-foley sample note should say the job is video→foley on a silent clip");
+}
+if (!/Night-ride SFX|ElevenLabs/i.test(foleySample.note)) {
+  fail("mirelo-video-foley sample note should distinguish Night-ride SFX / ElevenLabs");
+}
+if (!/Night-ride radio VO|xai-tts/i.test(foleySample.note)) {
+  fail("mirelo-video-foley sample note should distinguish Night-ride radio VO / xai-tts");
+}
+if (!/Wan 3\.0|still\+audio/i.test(foleySample.note)) {
+  fail("mirelo-video-foley sample note should distinguish Wan 3.0 still+audio");
+}
+if (!/P-Video rewrite/i.test(foleySample.note)) {
+  fail("mirelo-video-foley sample note should distinguish P-Video rewrite");
+}
+if (!/~\$0\.04|\$0\.01\/s/i.test(foleySample.note)) {
+  fail("mirelo-video-foley sample note should name ~$0.04 / $0.01/s");
+}
+if (!hub.includes("mirelo-video-foley/preview.webp")) {
+  fail("hub should thumb the mirelo-video-foley cover");
+}
+if (!hub.includes("Silent take. Synced SFX.")) {
+  fail("hub should title mirelo-video-foley as Silent take. Synced SFX.");
+}
+const foleyHowTo = readFileSync(join(ROOT, "guide", "examples", "mirelo-video-foley.html"), "utf8");
+if (!/mirelo-ai\/sfx1\.6\/video-to-video/.test(foleyHowTo)) {
+  fail("mirelo-video-foley how-to should name mirelo-ai/sfx1.6/video-to-video");
+}
+if (!/silent|foley|SFX/i.test(foleyHowTo)) {
+  fail("mirelo-video-foley how-to should pitch silent-take foley / synced SFX");
+}
+if (!/Night-ride SFX|text→SFX|ElevenLabs/i.test(foleyHowTo)) {
+  fail("mirelo-video-foley how-to should distinguish Night-ride SFX");
+}
+if (!/Night-ride radio VO|xai-tts/i.test(foleyHowTo)) {
+  fail("mirelo-video-foley how-to should distinguish Night-ride radio VO");
+}
+if (!/Wan 3\.0|still\+audio/i.test(foleyHowTo)) {
+  fail("mirelo-video-foley how-to should distinguish Wan 3.0 still+audio");
+}
+if (!/P-Video rewrite/i.test(foleyHowTo)) {
+  fail("mirelo-video-foley how-to should distinguish P-Video rewrite");
+}
+if (!/reused Volt alley card art|vupload placeholder|no paid|no fake foley thumb/i.test(foleyHowTo)) {
+  fail("mirelo-video-foley how-to should say the cover is a vupload placeholder and Mirelo QC is pending");
+}
+if (!foleyHowTo.includes("mirelo-video-foley/preview.webp")) {
+  fail("mirelo-video-foley how-to should show the cover still");
+}
+if (!/slug:"mirelo-video-foley"[\s\S]{0,200}thumb:"examples\/gallery\/mirelo-video-foley\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES mirelo-video-foley thumb should be examples/gallery/mirelo-video-foley/preview.webp");
+}
+if (!/slug:"mirelo-video-foley"[\s\S]{0,80}desc:"upload a silent clip — Mirelo lays synced SFX on it"/.test(examplesSrc)) {
+  fail("EXAMPLES mirelo-video-foley desc should pitch upload a silent clip — Mirelo lays synced SFX on it");
+}
+if (!/slug:"mirelo-video-foley"[\s\S]{0,80}title:"foley the take"/.test(examplesSrc)) {
+  fail("EXAMPLES mirelo-video-foley title should be foley the take");
+}
+const foleyCard = examplesSrc.match(/slug:"mirelo-video-foley"[\s\S]*?(?=\n \{ em:|$)/)?.[0] || "";
+if (!/mirelo-ai\/sfx1\.6\/video-to-video/.test(foleyCard)) {
+  fail("EXAMPLES mirelo-video-foley graph should pin mirelo-ai/sfx1.6/video-to-video");
+}
+if (!/name:"Product clip"/.test(foleyCard) || !/name:"Foleyed clip"/.test(foleyCard)) {
+  fail("EXAMPLES mirelo-video-foley should be vupload Product clip → vedit Foleyed clip");
+}
+if (!/type:"vupload"/.test(foleyCard) || !/type:"vedit"/.test(foleyCard)) {
+  fail("EXAMPLES mirelo-video-foley should be vupload Product clip → vedit Foleyed clip");
+}
+const foleyVedit = foleyCard.match(/\{id:"n2",type:"vedit"[\s\S]*?name:"Foleyed clip"\}/)?.[0] || "";
+if (!foleyVedit) {
+  fail("EXAMPLES mirelo-video-foley should have vedit node n2 Foleyed clip");
+}
+if (!/mirelo-ai\/sfx1\.6\/video-to-video/.test(foleyVedit)) {
+  fail("EXAMPLES mirelo-video-foley Foleyed clip should pin mirelo-ai/sfx1.6/video-to-video");
+}
+if (/elevenlabs\/sound-effects\/v2|xai-tts|alibaba\/wan-3\.0|pruna-ai\/p-video\/edit|demucs|sonilo|gpt-4o-mini/i.test(foleyVedit)) {
+  fail("EXAMPLES mirelo-video-foley Foleyed clip must pin only mirelo-ai/sfx1.6/video-to-video");
+}
+if (/type:"tts"|type:"llm"|type:"music"|type:"upload"/.test(foleyCard)) {
+  fail("EXAMPLES mirelo-video-foley must stay vupload Product clip → vedit Foleyed clip (no TTS, LLM, music, or still upload)");
+}
+if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
+  fail("custom-endpoint must stay the only LOCAL_ONLY teaching card after mirelo-video-foley sync");
+}
 for (const slug of slugs) {
   const page = readFileSync(join(ROOT, "guide", "examples", slug === "iron-verdict" ? "iron-verdict.html" : `${slug}.html`), "utf8");
   if (page.includes("how to use this noodle")) {

@@ -1,0 +1,61 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 40,
+      "y": 20,
+      "w": 480,
+      "name": "foley the take",
+      "fields": {
+        "text": "Upload a clip → Mirelo SFX1.6 (`mirelo-ai/sfx1.6/video-to-video`) writes matching SFX onto it (~$0.01/s; ~4s ≈ $0.04). Video→foley, not text→SFX (Night-ride SFX / ElevenLabs) and not Night-ride radio VO (`xai-tts`). Not Crystal, P-Video rewrite, Sing, InfiniteTalk, or i2v Keeps. No text SFX, no TTS, no LLM.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "n1",
+      "type": "vupload",
+      "x": 40,
+      "y": 320,
+      "w": 280,
+      "name": "Product clip",
+      "fields": {}
+    },
+    {
+      "id": "n2",
+      "type": "vedit",
+      "x": 400,
+      "y": 300,
+      "w": 320,
+      "name": "Foleyed clip",
+      "fields": {
+        "model": "mirelo-ai/sfx1.6/video-to-video",
+        "prompt": ""
+      },
+      "sizes": {
+        "prompt": 0
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "n1",
+        "port": "video"
+      },
+      "to": {
+        "node": "n2",
+        "port": "video"
+      }
+    }
+  ],
+  "nid": 3,
+  "lid": 2,
+  "view": {
+    "panX": 20,
+    "panY": 40,
+    "scale": 0.85
+  }
+}
