@@ -307,6 +307,15 @@ const HOWTO = {
     inspect: "Cover still is reused Volt card art from the photo-to-video night-ride radio plate, pending a true P-Video Edit QC clip — no paid pruna-ai/p-video/edit run this PR, not a fabricated rewrite. Open the graph and hit Run with your key after you upload a clip. Inspect light and rain against the input; source audio should survive.",
     costHow: "Listed from about $0.10 for one P-Video Edit call at draft=true (~$0.025/s, ~4s). Full quality is ~$0.045/s. Duration determines pricing. No LLM. Prices and results vary. This page has no reviewed first-party rewrite yet.",
   },
+  "mirelo-video-foley": {
+    headline: "Silent take. Synced SFX.",
+    job: "Upload a clip. Mirelo lays foley.",
+    hideNote: true,
+    purpose: "Upload a silent clip. Mirelo SFX1.6 writes matching SFX onto it. Video→foley, not text→SFX. Not Night-ride radio VO. Not Wan 3.0 still+audio. Not P-Video rewrite.",
+    edit: "Drop your clip on <em>Product clip</em>. Leave <em>Foleyed clip</em> on <code>mirelo-ai/sfx1.6/video-to-video</code>.",
+    inspect: "Cover is reused Volt alley card art, pending Mirelo QC — no paid run this PR. vupload placeholder only. No fake foley thumb. Open the graph, upload a silent take, listen for synced SFX.",
+    costHow: "Listed at about $0.04 for ~4s ($0.01/s). No LLM. Prices vary. No reviewed first-party foley yet.",
+  },
   "volt-dispatch-infographic": {
     headline: "DROP. ZONE. ETA.",
     job: "Volt dispatch card. Short labels.",
@@ -353,7 +362,7 @@ const GROUPS = [
     "night-market-postcard", "fibo-studio-still", "cinematic-character-still", "h3-identity-restyle", "character-sprites",
     "image-model-arena",
   ] },
-  { id: "video", title: "Video", slugs: ["photo-to-video", "grok-imagine-still", "wan-still-audio", "h3-max-multi-angle", "crystal-video-upscale", "p-video-rewrite", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },
+  { id: "video", title: "Video", slugs: ["photo-to-video", "grok-imagine-still", "wan-still-audio", "h3-max-multi-angle", "crystal-video-upscale", "p-video-rewrite", "mirelo-video-foley", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },
   { id: "audio", title: "Audio", slugs: ["sing", "night-ride-sfx", "night-ride-radio-vo"] },
   { id: "text", title: "Text", slugs: ["deslop", "fable-five-step"] },
 ];
