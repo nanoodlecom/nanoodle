@@ -95,8 +95,14 @@ if (/The reviewed clip matches/i.test(omniHowTo) || /saved clip is the chrome he
 if (!/Volt/i.test(omniHowTo) || !/charcoal/i.test(omniHowTo) || !/cyan/i.test(omniHowTo)) {
   fail("omni-flash how-to should pitch the Volt charcoal + cyan radio");
 }
-if (!/historical|helmet|not regenerated/i.test(omniHowTo)) {
-  fail("omni-flash how-to should say the saved MP4 is the earlier helmet sample");
+if (/<video|Clip\.mp4/i.test(omniHowTo)) {
+  fail("omni-flash how-to should not play Clip.mp4 while the Volt QC clip is pending");
+}
+if (/chrome motorcycle helmet|helmet sample|helmet clip|reviewed helmet/i.test(omniHowTo)) {
+  fail("omni-flash how-to should not present the helmet clip as the Volt result");
+}
+if (!/pending|no paid/i.test(omniHowTo)) {
+  fail("omni-flash how-to should say Omni Flash QC clip is pending / no paid regen");
 }
 if (!omniHowTo.includes("omni-flash-turntable/preview.webp")) {
   fail("omni-flash how-to should show the Volt radio cover still");
@@ -109,6 +115,21 @@ if (omniSample.preview !== "omni-flash-turntable/preview.webp") {
 if (!existsSync(join(ROOT, "examples", "gallery", "omni-flash-turntable", "preview.webp"))) {
   fail("examples/gallery/omni-flash-turntable/preview.webp is missing");
 }
+if (!existsSync(join(ROOT, "examples", "gallery", "omni-flash-turntable", "NOTE.txt"))) {
+  fail("examples/gallery/omni-flash-turntable/NOTE.txt is missing");
+}
+if (existsSync(join(ROOT, "examples", "gallery", "omni-flash-turntable", "Clip.mp4"))) {
+  fail("omni-flash Clip.mp4 should be removed so the gallery cannot play the helmet sample");
+}
+if (omniSample.outputs.some((o) => /Clip\.mp4/i.test(o.src) || o.kind === "video")) {
+  fail("omni-flash sample should not ship Clip.mp4 as the Volt result");
+}
+if (!omniSample.outputs.some((o) => o.src === "omni-flash-turntable/NOTE.txt" && o.kind === "text")) {
+  fail("omni-flash sample should ship NOTE.txt as the pending-QC output");
+}
+if (omniSample.costExact) {
+  fail("omni-flash sample cost should be a catalog estimate, not a reviewed helmet-run exact");
+}
 if (/water-bottle|earlier water-bottle/i.test(omniSample.note)) {
   fail("omni-flash sample note still describes the water-bottle draft");
 }
@@ -118,11 +139,23 @@ if (/chrome motorcycle helmet/i.test(JSON.stringify(omniSample.inputs))) {
 if (!/Volt|night-ride radio|charcoal stone plinth|electric-cyan/i.test(JSON.stringify(omniSample.inputs))) {
   fail("omni-flash sample inputs should pitch the Volt night-ride radio on a charcoal plinth");
 }
-if (!/helmet|historical|does not match|later regen|not regenerated/i.test(omniSample.note)) {
-  fail("omni-flash sample note should say the saved MP4 is the earlier helmet sample");
+if (/helmet|Clip\.mp4/i.test(omniSample.note)) {
+  fail("omni-flash sample note should not present the helmet clip as the Volt result");
+}
+if (!/pending|no paid/i.test(omniSample.note)) {
+  fail("omni-flash sample note should say Omni Flash QC clip is pending / no paid regen");
 }
 if (!/cover still/i.test(omniSample.note) || !/Volt|night-ride radio/i.test(omniSample.note) || !/charcoal/i.test(omniSample.note)) {
   fail("omni-flash sample note should name the Volt night-ride cover still");
+}
+const omniGallery = readFileSync(join(ROOT, "examples", "gallery", "index.html"), "utf8");
+const omniSection = omniGallery.match(/<section id="omni-flash-turntable">[\s\S]*?<\/section>/)?.[0] || "";
+if (!omniSection) fail("gallery missing #omni-flash-turntable section");
+if (/<video|Clip\.mp4/i.test(omniSection)) {
+  fail("gallery omni-flash-turntable should not play Clip.mp4 while the Volt QC clip is pending");
+}
+if (!omniSection.includes("omni-flash-turntable/preview.webp")) {
+  fail("gallery omni-flash-turntable should show the Volt radio cover still");
 }
 if (!hub.includes("omni-flash-turntable/preview.webp")) {
   fail("hub should thumb the omni-flash-turntable Volt radio cover");
