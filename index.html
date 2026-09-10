@@ -1357,6 +1357,8 @@ const I18N = {
     "DROP / ZONE / ETA — charcoal SenseNova infographic":"DROP / ZONE / ETA — infografía SenseNova en carbón",
     "volt drop poster":"póster de drop Volt",
     "VOLT / MIDNIGHT DROP — sharp lettering, no upload":"VOLT / MIDNIGHT DROP — lettering nítido, sin upload",
+    "editable volt mark":"marca Volt editable",
+    "sharp cyan chevron — SVG you can scale":"chevron cian nítido — SVG que puedes escalar",
     "remove packaging text":"quitar texto de envase",
     "Volt promo card — letters gone":"tarjeta promo Volt — sin letras",
     "night-ride identity restyle":"restyle de identidad night-ride",
@@ -2004,6 +2006,8 @@ const I18N = {
     "DROP / ZONE / ETA — charcoal SenseNova infographic":"DROP / ZONE / ETA — infographie SenseNova anthracite",
     "volt drop poster":"poster de drop Volt",
     "VOLT / MIDNIGHT DROP — sharp lettering, no upload":"VOLT / MIDNIGHT DROP — lettering net, sans import",
+    "editable volt mark":"marque Volt éditable",
+    "sharp cyan chevron — SVG you can scale":"chevron cyan net — SVG que vous pouvez scaler",
     "remove packaging text":"retirer le texte d’emballage",
     "Volt promo card — letters gone":"carte promo Volt — plus de lettres",
     "night-ride identity restyle":"restyle d’identité night-ride",
@@ -2651,6 +2655,8 @@ const I18N = {
     "DROP / ZONE / ETA — charcoal SenseNova infographic":"DROP / ZONE / ETA — SenseNova-Infografik in Anthrazit",
     "volt drop poster":"Volt-Drop-Poster",
     "VOLT / MIDNIGHT DROP — sharp lettering, no upload":"VOLT / MIDNIGHT DROP — scharfes Lettering, kein Upload",
+    "editable volt mark":"editierbare Volt-Marke",
+    "sharp cyan chevron — SVG you can scale":"scharfer Cyan-Chevron — SVG zum Skalieren",
     "remove packaging text":"Verpackungstext entfernen",
     "Volt promo card — letters gone":"Volt-Promo-Karte — Buchstaben weg",
     "night-ride identity restyle":"Night-ride-Identitäts-Restyle",
@@ -3298,6 +3304,8 @@ const I18N = {
     "DROP / ZONE / ETA — charcoal SenseNova infographic":"DROP / ZONE / ETA — infográfico SenseNova em carvão",
     "volt drop poster":"pôster de drop Volt",
     "VOLT / MIDNIGHT DROP — sharp lettering, no upload":"VOLT / MIDNIGHT DROP — lettering nítido, sem upload",
+    "editable volt mark":"marca Volt editável",
+    "sharp cyan chevron — SVG you can scale":"chevron ciano nítido — SVG que você pode escalar",
     "remove packaging text":"remover texto da embalagem",
     "Volt promo card — letters gone":"cartão promo Volt — sem letras",
     "night-ride identity restyle":"restyle de identidade night-ride",
@@ -3945,6 +3953,8 @@ const I18N = {
     "DROP / ZONE / ETA — charcoal SenseNova infographic":"DROP / ZONE / ETA — チャコールのSenseNovaインフォグラフィック",
     "volt drop poster":"Voltドロップポスター",
     "VOLT / MIDNIGHT DROP — sharp lettering, no upload":"VOLT / MIDNIGHT DROP — シャープなレタリング、アップロードなし",
+    "editable volt mark":"編集できるVoltマーク",
+    "sharp cyan chevron — SVG you can scale":"シャープなシアンのシェブロン — 拡大できるSVG",
     "remove packaging text":"パッケージ文字を消す",
     "Volt promo card — letters gone":"Voltプロモカード — 文字なし",
     "night-ride identity restyle":"ナイトライドのアイデンティティ・リスタイル",
@@ -13790,6 +13800,13 @@ const EXAMPLES = [
            {id:"n1",type:"text",x:40,y:280,w:320,fields:{text:"Matte-charcoal Volt night-ride drop poster. ONE electric-cyan lightning-bolt chevron. Sharp letters: VOLT / MIDNIGHT DROP. Hard cyan rim, dark slate. Flat poster graphic — not a product photo."},name:"Poster brief"},
            {id:"n2",type:"image",x:420,y:260,w:280,fields:{model:"ideogram/v4/instant",size:"1024x1024",variations:"1"},name:"Poster"} ],
    links:[ {id:"l1",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}} ] } },
+ { em:"✳️", slug:"volt-vector-mark", title:"editable volt mark", desc:"sharp cyan chevron — SVG you can scale",
+   thumb:"examples/gallery/volt-vector-mark/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:20,w:480,fields:{text:"Text → Recraft V4.1 Vector (`recraft-ai/recraft-v4.1/text-to-vector`) → editable SVG mark. ~$0.08. Not a PNG sticker / BiRefNet cutout and not the Muse favicon.",color:"yellow"},name:"editable volt mark"},
+           {id:"n1",type:"text",x:40,y:260,w:320,fields:{text:"Single geometric lightning-chevron mark for Volt, a pocket night-ride radio brand. Sharp electric-cyan (#00E5FF) chevron on a flat matte-charcoal (#1A1A1E) square. Clean vector paths, bold silhouette, generous margins, no letters, no gradients, no shadows, no radio mockup, no people. Logo-ready SVG."},name:"Mark brief"},
+           {id:"n2",type:"image",x:420,y:240,w:280,fields:{model:"recraft-ai/recraft-v4.1/text-to-vector",size:"1024x1024",variations:"1"},name:"SVG mark"} ],
+   links:[ {id:"l1",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}} ] } },
  { em:"🛰️", slug:"h3-max-multi-angle", title:"night-ride radio orbit", desc:"upload a still — orbit-right around the radio",
    thumb:"examples/gallery/h3-max-multi-angle/preview.webp",
    graph:{ v:1,
@@ -13982,7 +13999,7 @@ function openExamples(){
   // Same Elo order on every width — no mobile-only list, no CSS order, no truncation.
   // Featured #skilloutcome (Iron Verdict) sits above the grid on every width.
   // Compact mobile cards keep H3 (4th) and the featured game above the fold.
-  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","volt-dispatch-infographic","photo-to-video","h3-max-multi-angle","crystal-video-upscale","character-sprites","talking-avatar","infinitetalk-radio-take","sing","night-ride-sfx","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
+  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","volt-vector-mark","volt-dispatch-infographic","photo-to-video","h3-max-multi-angle","crystal-video-upscale","character-sprites","talking-avatar","infinitetalk-radio-take","sing","night-ride-sfx","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
   EXAMPLES.map((ex,i)=>({ex,i})).sort((a,b)=>{
     const rank=slug=>first.includes(slug)?first.indexOf(slug):first.length;
     return rank(a.ex.slug)-rank(b.ex.slug);
