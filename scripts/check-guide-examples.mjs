@@ -1307,6 +1307,89 @@ if (/birefnet|sam3-image|pruna-ai\/p-image|ideogram-v3-generate-transparent|meta
 if (/type:"llm"/.test(packCard)) {
   fail("EXAMPLES remove-packaging-text must stay upload → edit → resize (no LLM)");
 }
+const restyleSample = samples.find((s) => s.slug === "h3-identity-restyle");
+if (!restyleSample) fail("samples.json missing h3-identity-restyle");
+if (restyleSample.preview !== "h3-identity-restyle/preview.webp") {
+  fail("h3-identity-restyle sample preview should be h3-identity-restyle/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "h3-identity-restyle", "preview.webp"))) {
+  fail("examples/gallery/h3-identity-restyle/preview.webp is missing");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "h3-identity-restyle", "still-input.webp"))) {
+  fail("examples/gallery/h3-identity-restyle/still-input.webp is missing");
+}
+if (!/minimax-h3\/image-edit/.test(JSON.stringify(restyleSample.models))) {
+  fail("h3-identity-restyle sample should pin minimax-h3/image-edit");
+}
+if (!/cover|reused night-courier|cinematic-character-still/i.test(restyleSample.note) || !/no paid|pending/i.test(restyleSample.note)) {
+  fail("h3-identity-restyle sample note should say cover is reused night-courier art and H3 Image Edit QC is pending");
+}
+if (!/identity|restyle/i.test(restyleSample.note)) {
+  fail("h3-identity-restyle sample note should say the job is identity restyle");
+}
+if (!/Muse Edit|Cinematic character still|combine-images|text-to-image/i.test(restyleSample.note)) {
+  fail("h3-identity-restyle sample note should distinguish Muse Edit, cinematic H3 T2I, and combine-images");
+}
+if (!hub.includes("h3-identity-restyle/preview.webp")) {
+  fail("hub should thumb the h3-identity-restyle cover");
+}
+if (!hub.includes("Same face. Night-ride kit.")) {
+  fail("hub should title h3-identity-restyle as Same face. Night-ride kit.");
+}
+const restyleHowTo = readFileSync(join(ROOT, "guide", "examples", "h3-identity-restyle.html"), "utf8");
+if (!/minimax-h3\/image-edit/.test(restyleHowTo)) {
+  fail("h3-identity-restyle how-to should name minimax-h3/image-edit");
+}
+if (!/Volt/i.test(restyleHowTo) || !/cyan/i.test(restyleHowTo) || !/identity/i.test(restyleHowTo)) {
+  fail("h3-identity-restyle how-to should pitch Volt identity restyle");
+}
+if (!/Muse Edit|Cinematic character still|Product in a setting/i.test(restyleHowTo)) {
+  fail("h3-identity-restyle how-to should distinguish Muse Edit, cinematic H3 T2I, and Product in a setting");
+}
+if (!/reused night-courier card art|no paid|pending/i.test(restyleHowTo)) {
+  fail("h3-identity-restyle how-to should say the cover is reused night-courier card art and H3 Image Edit QC is pending");
+}
+if (!restyleHowTo.includes("h3-identity-restyle/preview.webp")) {
+  fail("h3-identity-restyle how-to should show the cover still");
+}
+if (!/slug:"h3-identity-restyle"[\s\S]{0,200}thumb:"examples\/gallery\/h3-identity-restyle\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES h3-identity-restyle thumb should be examples/gallery/h3-identity-restyle/preview.webp");
+}
+if (!/slug:"h3-identity-restyle"[\s\S]{0,80}desc:"same face — Volt night-courier restyle"/.test(examplesSrc)) {
+  fail("EXAMPLES h3-identity-restyle desc should pitch same face — Volt night-courier restyle");
+}
+if (!/slug:"h3-identity-restyle"[\s\S]{0,80}title:"night-ride identity restyle"/.test(examplesSrc)) {
+  fail("EXAMPLES h3-identity-restyle title should be night-ride identity restyle");
+}
+const restyleCard = examplesSrc.match(/slug:"h3-identity-restyle"[\s\S]{0,2800}/)?.[0] || "";
+if (!/minimax-h3\/image-edit/.test(restyleCard)) {
+  fail("EXAMPLES h3-identity-restyle graph should pin minimax-h3/image-edit");
+}
+if (!/size:"1k"/.test(restyleCard)) {
+  fail("EXAMPLES h3-identity-restyle graph should pin size 1k");
+}
+if (!/name:"Still"/.test(restyleCard) || !/name:"Identity restyle"/.test(restyleCard) || !/name:"Restyle"/.test(restyleCard)) {
+  fail("EXAMPLES h3-identity-restyle should be Still → Restyle → Identity restyle");
+}
+const restyleEdit = restyleCard.match(/\{id:"n2",type:"edit"[\s\S]*?name:"Identity restyle"\}/)?.[0] || "";
+if (!restyleEdit) {
+  fail("EXAMPLES h3-identity-restyle should have edit node n2 Identity restyle");
+}
+if (!/model:"minimax-h3\/image-edit"/.test(restyleEdit) || !/size:"1k"/.test(restyleEdit)) {
+  fail("EXAMPLES h3-identity-restyle edit node should pin minimax-h3/image-edit at 1k");
+}
+if (/meta\/muse-image|minimax-h3\/text-to-image|ideogram|birefnet|sam3-image/.test(restyleEdit)) {
+  fail("EXAMPLES h3-identity-restyle edit node must not pin Muse Edit, H3 T2I, Ideogram, BiRefNet, or SAM 3");
+}
+if (/type:"llm"/.test(restyleCard)) {
+  fail("EXAMPLES h3-identity-restyle must stay upload + text → edit (no LLM)");
+}
+if (/crystal-video-upscale|ideogram-v4-instant/.test(examplesSrc)) {
+  fail("EXAMPLES must not add Crystal or Ideogram V4 Instant in this identity-restyle sync");
+}
+if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
+  fail("custom-endpoint must stay the only LOCAL_ONLY teaching card after identity-restyle sync");
+}
 for (const slug of slugs) {
   const page = readFileSync(join(ROOT, "guide", "examples", slug === "iron-verdict" ? "iron-verdict.html" : `${slug}.html`), "utf8");
   if (page.includes("how to use this noodle")) {
