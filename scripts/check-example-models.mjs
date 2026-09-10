@@ -82,6 +82,7 @@ export function galleryRegressions(pins) {
     { slug: 'transparent-brand-sticker', type: 'image', model: 'ideogram-v3-generate-transparent', size: '1:1' },
     { slug: 'remove-packaging-text', type: 'edit', model: 'ideogram-v3-remove-text', size: 'auto' },
     { slug: 'crystal-video-upscale', type: 'vedit', model: 'clarity-ai/crystal-video-upscaler', target_megapixels: 1 },
+    { slug: 'volt-dispatch-infographic', type: 'image', model: 'sensenova-u1-infographic', size: '16:9' },
   ];
   return expected.flatMap(({ slug, type, model, size, resolution, people, duration, camera_motion, target_megapixels }) => {
     const pin = pins.find(p => p.slug === slug && p.type === type);

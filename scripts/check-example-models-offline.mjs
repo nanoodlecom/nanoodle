@@ -34,6 +34,7 @@ const catalogs = {
     image('sam3-image', ['auto'], true),
     image('pruna-ai/p-image/upscale', ['1', '2', '3', '4', '5', '6', '7', '8'], true),
     image('ideogram-v3-generate-transparent', ['1:1', '16:9', '9:16']),
+    image('sensenova-u1-infographic', ['1:1', '16:9', '9:16', '4:3', '3:4']),
     image('ideogram-v3-remove-text', ['auto'], true),
   ],
   video: [

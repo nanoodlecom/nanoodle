@@ -100,7 +100,7 @@ test('homepage pins use the same strict model, type and capability checks as gal
   assert.throws(() => starterModels({ nodes: [{ type: 'unknown' }] }, kinds), /unknown node type/);
 });
 
-test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefNet, InfiniteTalk, SAM 3, P-Image Upscale, deslop venice-uncensored, H3 Max Multi Angle, character-sprites, transparent-brand-sticker, remove-packaging-text and Crystal video upscale pin regressions', async () => {
+test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefNet, InfiniteTalk, SAM 3, P-Image Upscale, deslop venice-uncensored, H3 Max Multi Angle, character-sprites, transparent-brand-sticker, remove-packaging-text, Crystal video upscale and SenseNova dispatch pin regressions', async () => {
   const { galleryRegressions } = await import('./check-example-models.mjs');
   const pins = [
     { slug: 'fibo-studio-still', ...pin('image', { model: 'bria/fibo-generate-1.5/text-to-image', size: '1mp' }) },
@@ -119,9 +119,10 @@ test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefN
     { slug: 'transparent-brand-sticker', ...pin('image', { model: 'ideogram-v3-generate-transparent', size: '1:1' }) },
     { slug: 'remove-packaging-text', ...pin('edit', { model: 'ideogram-v3-remove-text', size: 'auto' }) },
     { slug: 'crystal-video-upscale', ...pin('vedit', { model: 'clarity-ai/crystal-video-upscaler', modelOpts: { target_megapixels: 1 } }) },
+    { slug: 'volt-dispatch-infographic', ...pin('image', { model: 'sensenova-u1-infographic', size: '16:9' }) },
   ];
   assert.equal(galleryRegressions(pins).length, 0);
-  assert.equal(galleryRegressions([]).length, 16);
+  assert.equal(galleryRegressions([]).length, 17);
   pins[0].fields.size = 'auto';
   assert.match(galleryRegressions(pins)[0].reason, /expected size 1mp/);
   pins[0].fields.size = '1mp';
@@ -141,6 +142,7 @@ test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefN
   pins[13].id = 'meta/muse-image/text-to-image';
   pins[14].id = 'ideogram-v3-generate-transparent';
   pins[15].id = 'clarity-upscaler';
-  assert.equal(galleryRegressions(pins).length, 16);
+  pins[16].id = 'ideogram-v4-instant';
+  assert.equal(galleryRegressions(pins).length, 17);
   assert.ok(galleryRegressions(pins).every(p => /expected model/.test(p.reason)));
 });
