@@ -6,6 +6,14 @@
 // is messy (Wan 3.0 Prime is category=models but links to /media?mode=video),
 // so we classify by those URLs — never by category.
 //
+// Body links are not always the subject. Retirement cards often name the
+// dropped models in the title / opening sentence, then point at still-live
+// alternatives with "try [Gemma 4 12B](...)". Those replacement links must
+// not become the "Retired: …" headline or date|slug seen keys — that is how
+// 2026-09-10's Ornith / Qwen 3.6 retirement shipped as Gemma 4 12B & Qwen 3.8
+// 27B Uncensored (the suggested substitutes). Retired headlines prefer the
+// API title unless a remaining subject link's name also appears in the title.
+//
 // The HTML dump-dom path is a fallback only: same card shape, no API id. This
 // module is the source of truth for classify / compose / seen-walk so the
 // checker can pin behaviour against a fixture with zero network.
@@ -70,26 +78,54 @@ export function titleIntent(title) {
   return "new";
 }
 
+// "For X, try [Y]" / "try [A] or [B]" — Y/A/B are substitutes, not the subject.
+export function isReplacementLinkPrefix(prefix) {
+  const plain = String(prefix || "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ")
+    .trimEnd();
+  if (/\btry(?:\s+the)?$/i.test(plain)) return true;
+  if (!/\btry\b/i.test(plain) || !/(?:,|and|or|&)$/i.test(plain)) return false;
+  const afterTry = plain.slice(plain.toLowerCase().lastIndexOf("try"));
+  return !/[.!?]\s+\S/.test(afterTry);
+}
+
 export function extractMarkdownModelLinks(text) {
   const models = [];
+  const raw = String(text || "");
   const re = /\[([^\]]+)\]\(([^)]+)\)/g;
   let m;
-  while ((m = re.exec(String(text || "")))) {
+  while ((m = re.exec(raw))) {
     const parsed = parseModelUrl(m[2]);
-    if (parsed) models.push({ name: m[1].trim() || parsed.slug, slug: parsed.slug, kind: parsed.kind });
+    if (parsed) {
+      models.push({
+        name: m[1].trim() || parsed.slug,
+        slug: parsed.slug,
+        kind: parsed.kind,
+        replacement: isReplacementLinkPrefix(raw.slice(0, m.index)),
+      });
+    }
   }
   return models;
 }
 
 export function extractHtmlModelLinks(html) {
   const models = [];
+  const raw = String(html || "");
   const re = /<a\s+[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
   let m;
-  while ((m = re.exec(String(html || "")))) {
+  while ((m = re.exec(raw))) {
     const parsed = parseModelUrl(m[1]);
     if (parsed) {
       const name = stripTags(m[2]) || parsed.slug;
-      models.push({ name, slug: parsed.slug, kind: parsed.kind });
+      models.push({
+        name,
+        slug: parsed.slug,
+        kind: parsed.kind,
+        replacement: isReplacementLinkPrefix(raw.slice(0, m.index)),
+      });
     }
   }
   return models;
@@ -120,10 +156,32 @@ function fallbackTitleKey(date, intent, title) {
   return `${date}|${intent}|${slug}`;
 }
 
+function stripRetiredSuffix(title) {
+  return String(title || "").replace(/\s+(retired|deprecated|removed|sunset)s?\s*$/i, "").trim();
+}
+
+function nameInTitle(title, name) {
+  const n = String(name || "").trim().toLowerCase();
+  return Boolean(n) && String(title || "").toLowerCase().includes(n);
+}
+
+function subjectModels(title, models, intent) {
+  const list = (models || []).filter(m => !m.replacement);
+  if (intent !== "retired") return list;
+  const cleaned = stripRetiredSuffix(title) || title;
+  const mentioned = list.filter(m => nameInTitle(cleaned, m.name));
+  return mentioned.length ? mentioned : [];
+}
+
 function displayTitles(card, models, intent) {
+  const title = String(card && card.title || "").trim();
+  if (intent === "retired") {
+    const cleaned = stripRetiredSuffix(title) || title;
+    const mentioned = (models || []).filter(m => nameInTitle(cleaned, m.name));
+    if (mentioned.length) return mentioned.map(m => m.name);
+    return [cleaned];
+  }
   if (models.length) return models.map(m => m.name);
-  let title = String(card.title || "").trim();
-  if (intent === "retired") title = title.replace(/\s+(retired|deprecated|removed|sunset)s?\s*$/i, "").trim() || card.title;
   return [title];
 }
 
@@ -131,8 +189,9 @@ export function classifyCard(card) {
   const date = parseDate(card && card.date);
   const title = card && card.title ? String(card.title).trim() : "";
   const rawText = card && card.text != null ? String(card.text) : "";
-  const models = Array.isArray(card && card.models) ? card.models : extractMarkdownModelLinks(rawText);
+  const extracted = Array.isArray(card && card.models) ? card.models : extractMarkdownModelLinks(rawText);
   const intent = titleIntent(title);
+  const models = subjectModels(title, extracted, intent);
   const linkKind = cardKindFromModels(models);
   const description = markdownToPlain(rawText);
 
