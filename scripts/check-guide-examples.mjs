@@ -1933,6 +1933,95 @@ if (/z-ai\/glm-5\.3-flash|meta\/muse-image|ideogram-v3-generate-transparent|ideo
 if (/type:"llm"|type:"upload"/.test(markCard)) {
   fail("EXAMPLES volt-vector-mark must stay text Mark brief → image SVG mark (no LLM, no upload)");
 }
+const maiSample = samples.find((s) => s.slug === "mai-pack-type");
+if (!maiSample) fail("samples.json missing mai-pack-type");
+if (maiSample.preview !== "mai-pack-type/preview.webp") {
+  fail("mai-pack-type sample preview should be mai-pack-type/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "mai-pack-type", "preview.webp"))) {
+  fail("examples/gallery/mai-pack-type/preview.webp is missing");
+}
+if (!/microsoft\/mai-image-2\.6-flash/.test(JSON.stringify(maiSample.models))) {
+  fail("mai-pack-type sample should pin microsoft/mai-image-2.6-flash");
+}
+if (!/cover|reused Volt/i.test(maiSample.note) || !/no paid|pending/i.test(maiSample.note)) {
+  fail("mai-pack-type sample note should say cover is reused Volt art and MAI QC is pending");
+}
+if (!/pack lettering|sleeve|VOLT|MIDNIGHT DROP|NIGHT CHANNEL/i.test(maiSample.note)) {
+  fail("mai-pack-type sample note should say the job is Volt sleeve pack lettering");
+}
+if (!/Ideogram V4 Instant|drop poster/i.test(maiSample.note)) {
+  fail("mai-pack-type sample note should distinguish Ideogram V4 Instant poster");
+}
+if (!/SenseNova|dispatch/i.test(maiSample.note)) {
+  fail("mai-pack-type sample note should distinguish SenseNova Volt dispatch card");
+}
+if (!/Qwen|UI mockup|render-a-mockup/i.test(maiSample.note)) {
+  fail("mai-pack-type sample note should distinguish Qwen UI mockup");
+}
+if (!/No LLM|no upload/i.test(maiSample.note)) {
+  fail("mai-pack-type sample note should say no LLM and no upload");
+}
+if (!hub.includes("mai-pack-type/preview.webp")) {
+  fail("hub should thumb the mai-pack-type cover");
+}
+if (!hub.includes("Pack type that sticks")) {
+  fail("hub should title mai-pack-type as Pack type that sticks");
+}
+const maiHowTo = readFileSync(join(ROOT, "guide", "examples", "mai-pack-type.html"), "utf8");
+if (!/microsoft\/mai-image-2\.6-flash/.test(maiHowTo)) {
+  fail("mai-pack-type how-to should name microsoft/mai-image-2.6-flash");
+}
+if (!/Volt/i.test(maiHowTo) || !/sleeve/i.test(maiHowTo) || !/letters/i.test(maiHowTo)) {
+  fail("mai-pack-type how-to should pitch the Volt sleeve letters");
+}
+if (!/1152x864/.test(maiHowTo)) {
+  fail("mai-pack-type how-to should pin size 1152x864");
+}
+if (!/Ideogram|poster/i.test(maiHowTo)) {
+  fail("mai-pack-type how-to should distinguish Ideogram poster");
+}
+if (!/SenseNova|dispatch/i.test(maiHowTo)) {
+  fail("mai-pack-type how-to should distinguish SenseNova dispatch card");
+}
+if (!/Qwen|UI mockup/i.test(maiHowTo)) {
+  fail("mai-pack-type how-to should distinguish Qwen UI mockup");
+}
+if (!/reused Volt poster|no paid|pending/i.test(maiHowTo)) {
+  fail("mai-pack-type how-to should say the cover is reused Volt poster art and MAI QC is pending");
+}
+if (!maiHowTo.includes("mai-pack-type/preview.webp")) {
+  fail("mai-pack-type how-to should show the cover still");
+}
+if (!/slug:"mai-pack-type"[\s\S]{0,200}thumb:"examples\/gallery\/mai-pack-type\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES mai-pack-type thumb should be examples/gallery/mai-pack-type/preview.webp");
+}
+if (!/slug:"mai-pack-type"[\s\S]{0,80}desc:"Volt sleeve type — Microsoft MAI Flash nails the letters"/.test(examplesSrc)) {
+  fail("EXAMPLES mai-pack-type desc should pitch Volt sleeve type — Microsoft MAI Flash nails the letters");
+}
+if (!/slug:"mai-pack-type"[\s\S]{0,80}title:"pack type that sticks"/.test(examplesSrc)) {
+  fail("EXAMPLES mai-pack-type title should be pack type that sticks");
+}
+const maiCard = examplesSrc.match(/slug:"mai-pack-type"[\s\S]*?(?=\n \{ em:|$)/)?.[0] || "";
+if (!/microsoft\/mai-image-2\.6-flash/.test(maiCard)) {
+  fail("EXAMPLES mai-pack-type graph should pin microsoft/mai-image-2.6-flash");
+}
+if (!/size:"1152x864"/.test(maiCard)) {
+  fail("EXAMPLES mai-pack-type graph should pin size 1152x864");
+}
+const maiImage = maiCard.match(/\{id:"n2",type:"image"[\s\S]*?name:"Pack sleeve"\}/)?.[0] || "";
+if (!maiImage) {
+  fail("EXAMPLES mai-pack-type should have image node n2 Pack sleeve");
+}
+if (/modelOpts/.test(maiImage)) {
+  fail("EXAMPLES mai-pack-type image node must not forward modelOpts");
+}
+if (/ideogram\/v4\/instant|sensenova-u1-infographic|qwen-image-3-pro|p-video-rewrite/.test(maiCard)) {
+  fail("EXAMPLES mai-pack-type must not pin Ideogram, SenseNova, Qwen, or P-Video");
+}
+if (/type:"llm"|type:"upload"/.test(maiCard)) {
+  fail("EXAMPLES mai-pack-type must stay text Pack brief → image Pack sleeve (no LLM, no upload)");
+}
 for (const slug of slugs) {
   const page = readFileSync(join(ROOT, "guide", "examples", slug === "iron-verdict" ? "iron-verdict.html" : `${slug}.html`), "utf8");
   if (page.includes("how to use this noodle")) {

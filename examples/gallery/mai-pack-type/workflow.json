@@ -1,0 +1,61 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 40,
+      "y": 20,
+      "w": 480,
+      "name": "pack type that sticks",
+      "fields": {
+        "text": "Text → MAI-Image-2.6 Flash (`microsoft/mai-image-2.6-flash`) @ 1152x864 (~$0.033). Product pack lettering — not Ideogram Instant poster, not SenseNova dispatch card, not Qwen UI mockup.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "n1",
+      "type": "text",
+      "x": 40,
+      "y": 260,
+      "w": 320,
+      "name": "Pack brief",
+      "fields": {
+        "text": "Flat Volt pocket night-ride radio packaging sleeve, 4:3. Matte charcoal field, ONE electric-cyan lightning-bolt chevron, hard cyan rim. Readable pack type: VOLT on the top line, MIDNIGHT DROP on the second, small footer NIGHT CHANNEL. Clean product-pack lettering, generous margins, no photo of a radio in a scene, no people, no busy collage."
+      }
+    },
+    {
+      "id": "n2",
+      "type": "image",
+      "x": 420,
+      "y": 240,
+      "w": 280,
+      "name": "Pack sleeve",
+      "fields": {
+        "model": "microsoft/mai-image-2.6-flash",
+        "size": "1152x864",
+        "variations": "1"
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "n1",
+        "port": "text"
+      },
+      "to": {
+        "node": "n2",
+        "port": "prompt"
+      }
+    }
+  ],
+  "nid": 3,
+  "lid": 2,
+  "view": {
+    "panX": 20,
+    "panY": 40,
+    "scale": 0.85
+  }
+}

@@ -88,6 +88,15 @@ const HOWTO = {
     inspect: "Cover is reused Volt bolt card art, pending Recraft V4.1 QC — no paid recraft-ai/recraft-v4.1/text-to-vector run this PR. Open the graph, inspect the SVG paths.",
     costHow: "Listed at $0.08 for one Recraft V4.1 Vector call at 1024x1024. No LLM. Prices vary. No reviewed first-party SVG yet.",
   },
+  "mai-pack-type": {
+    headline: "Pack type that sticks",
+    job: "Volt sleeve. Letters stay.",
+    hideNote: true,
+    purpose: "Text brief → MAI-Image-2.6 Flash pack lettering. First-click is a Volt sleeve — charcoal, ONE cyan chevron, VOLT / MIDNIGHT DROP / NIGHT CHANNEL. Not an Ideogram poster, not a SenseNova dispatch card, not a Qwen UI mockup.",
+    edit: "Rewrite <em>Pack brief</em>. Leave <em>Pack sleeve</em> on <code>microsoft/mai-image-2.6-flash</code> at size <code>1152x864</code>.",
+    inspect: "Cover is reused Volt poster art, pending MAI QC — no paid microsoft/mai-image-2.6-flash run this PR. Open the graph, inspect the letters.",
+    costHow: "Listed at about $0.033 for one MAI-Image-2.6 Flash call at 1152x864. No LLM. Prices vary. No reviewed first-party sleeve yet.",
+  },
   "fibo-studio-still": {
     headline: "A radio on dark slate",
     job: "Volt night-ride radio. Pick the light.",
@@ -313,7 +322,7 @@ const GROUPS = [
   { id: "playable", title: "Playable", slugs: ["iron-verdict"] },
   { id: "image", title: "Image", slugs: [
     "edit-a-photo", "product-cutout", "sam3-isolate", "p-image-upscale", "remove-packaging-text", "combine-images", "render-a-mockup", "volt-dispatch-infographic", "favicon",
-    "transparent-brand-sticker", "ideogram-v4-instant-poster", "volt-vector-mark",
+    "transparent-brand-sticker", "ideogram-v4-instant-poster", "volt-vector-mark", "mai-pack-type",
     "night-market-postcard", "fibo-studio-still", "cinematic-character-still", "h3-identity-restyle", "character-sprites",
     "image-model-arena",
   ] },

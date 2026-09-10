@@ -1359,6 +1359,8 @@ const I18N = {
     "VOLT / MIDNIGHT DROP — sharp lettering, no upload":"VOLT / MIDNIGHT DROP — lettering nítido, sin upload",
     "editable volt mark":"marca Volt editable",
     "sharp cyan chevron — SVG you can scale":"chevron cian nítido — SVG que puedes escalar",
+    "pack type that sticks":"tipografía de pack que se queda",
+    "Volt sleeve type — Microsoft MAI Flash nails the letters":"tipografía de sleeve Volt — Microsoft MAI Flash clava las letras",
     "remove packaging text":"quitar texto de envase",
     "Volt promo card — letters gone":"tarjeta promo Volt — sin letras",
     "night-ride identity restyle":"restyle de identidad night-ride",
@@ -2010,6 +2012,8 @@ const I18N = {
     "VOLT / MIDNIGHT DROP — sharp lettering, no upload":"VOLT / MIDNIGHT DROP — lettering net, sans import",
     "editable volt mark":"marque Volt éditable",
     "sharp cyan chevron — SVG you can scale":"chevron cyan net — SVG que vous pouvez scaler",
+    "pack type that sticks":"typo de pack qui tient",
+    "Volt sleeve type — Microsoft MAI Flash nails the letters":"typo de sleeve Volt — Microsoft MAI Flash cloue les lettres",
     "remove packaging text":"retirer le texte d’emballage",
     "Volt promo card — letters gone":"carte promo Volt — plus de lettres",
     "night-ride identity restyle":"restyle d’identité night-ride",
@@ -2661,6 +2665,8 @@ const I18N = {
     "VOLT / MIDNIGHT DROP — sharp lettering, no upload":"VOLT / MIDNIGHT DROP — scharfes Lettering, kein Upload",
     "editable volt mark":"editierbare Volt-Marke",
     "sharp cyan chevron — SVG you can scale":"scharfer Cyan-Chevron — SVG zum Skalieren",
+    "pack type that sticks":"Pack-Typo, die sitzt",
+    "Volt sleeve type — Microsoft MAI Flash nails the letters":"Volt-Sleeve-Typo — Microsoft MAI Flash trifft die Buchstaben",
     "remove packaging text":"Verpackungstext entfernen",
     "Volt promo card — letters gone":"Volt-Promo-Karte — Buchstaben weg",
     "night-ride identity restyle":"Night-ride-Identitäts-Restyle",
@@ -3312,6 +3318,8 @@ const I18N = {
     "VOLT / MIDNIGHT DROP — sharp lettering, no upload":"VOLT / MIDNIGHT DROP — lettering nítido, sem upload",
     "editable volt mark":"marca Volt editável",
     "sharp cyan chevron — SVG you can scale":"chevron ciano nítido — SVG que você pode escalar",
+    "pack type that sticks":"tipografia de pack que gruda",
+    "Volt sleeve type — Microsoft MAI Flash nails the letters":"tipografia de sleeve Volt — Microsoft MAI Flash crava as letras",
     "remove packaging text":"remover texto da embalagem",
     "Volt promo card — letters gone":"cartão promo Volt — sem letras",
     "night-ride identity restyle":"restyle de identidade night-ride",
@@ -3963,6 +3971,8 @@ const I18N = {
     "VOLT / MIDNIGHT DROP — sharp lettering, no upload":"VOLT / MIDNIGHT DROP — シャープなレタリング、アップロードなし",
     "editable volt mark":"編集できるVoltマーク",
     "sharp cyan chevron — SVG you can scale":"シャープなシアンのシェブロン — 拡大できるSVG",
+    "pack type that sticks":"定着するパック文字",
+    "Volt sleeve type — Microsoft MAI Flash nails the letters":"Voltスリーブの文字 — Microsoft MAI Flashがレタリングを決める",
     "remove packaging text":"パッケージ文字を消す",
     "Volt promo card — letters gone":"Voltプロモカード — 文字なし",
     "night-ride identity restyle":"ナイトライドのアイデンティティ・リスタイル",
@@ -13817,6 +13827,13 @@ const EXAMPLES = [
            {id:"n1",type:"text",x:40,y:260,w:320,fields:{text:"Single geometric lightning-chevron mark for Volt, a pocket night-ride radio brand. Sharp electric-cyan (#00E5FF) chevron on a flat matte-charcoal (#1A1A1E) square. Clean vector paths, bold silhouette, generous margins, no letters, no gradients, no shadows, no radio mockup, no people. Logo-ready SVG."},name:"Mark brief"},
            {id:"n2",type:"image",x:420,y:240,w:280,fields:{model:"recraft-ai/recraft-v4.1/text-to-vector",size:"1024x1024",variations:"1"},name:"SVG mark"} ],
    links:[ {id:"l1",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}} ] } },
+ { em:"📦", slug:"mai-pack-type", title:"pack type that sticks", desc:"Volt sleeve type — Microsoft MAI Flash nails the letters",
+   thumb:"examples/gallery/mai-pack-type/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:20,w:480,fields:{text:"Text → MAI-Image-2.6 Flash (`microsoft/mai-image-2.6-flash`) @ 1152x864 (~$0.033). Product pack lettering — not Ideogram Instant poster, not SenseNova dispatch card, not Qwen UI mockup.",color:"yellow"},name:"pack type that sticks"},
+           {id:"n1",type:"text",x:40,y:260,w:320,fields:{text:"Flat Volt pocket night-ride radio packaging sleeve, 4:3. Matte charcoal field, ONE electric-cyan lightning-bolt chevron, hard cyan rim. Readable pack type: VOLT on the top line, MIDNIGHT DROP on the second, small footer NIGHT CHANNEL. Clean product-pack lettering, generous margins, no photo of a radio in a scene, no people, no busy collage."},name:"Pack brief"},
+           {id:"n2",type:"image",x:420,y:240,w:280,fields:{model:"microsoft/mai-image-2.6-flash",size:"1152x864",variations:"1"},name:"Pack sleeve"} ],
+   links:[ {id:"l1",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}} ] } },
  { em:"🛰️", slug:"h3-max-multi-angle", title:"night-ride radio orbit", desc:"upload a still — orbit-right around the radio",
    thumb:"examples/gallery/h3-max-multi-angle/preview.webp",
    graph:{ v:1,
@@ -14020,7 +14037,7 @@ function openExamples(){
   // Same Elo order on every width — no mobile-only list, no CSS order, no truncation.
   // Featured #skilloutcome (Iron Verdict) sits above the grid on every width.
   // Compact mobile cards keep H3 (4th) and the featured game above the fold.
-  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","volt-vector-mark","volt-dispatch-infographic","photo-to-video","grok-imagine-still","h3-max-multi-angle","crystal-video-upscale","character-sprites","talking-avatar","infinitetalk-radio-take","sing","night-ride-sfx","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
+  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","volt-vector-mark","mai-pack-type","volt-dispatch-infographic","photo-to-video","grok-imagine-still","h3-max-multi-angle","crystal-video-upscale","character-sprites","talking-avatar","infinitetalk-radio-take","sing","night-ride-sfx","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
   EXAMPLES.map((ex,i)=>({ex,i})).sort((a,b)=>{
     const rank=slug=>first.includes(slug)?first.indexOf(slug):first.length;
     return rank(a.ex.slug)-rank(b.ex.slug);
