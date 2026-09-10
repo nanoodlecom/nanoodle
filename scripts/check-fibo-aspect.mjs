@@ -12,6 +12,8 @@
 //   * editor dimDefs grows aspect (wire aspect_ratio) for FIBO, not Recraft/Muse
 //   * editor imgExtra sends aspect_ratio for FIBO (chosen or default 1:1) and
 //     omits it for Recraft V4 (leftover fields.aspect must not leak)
+//   * leftover fields.modelOpts (Ideogram rendering_speed, video knobs) stay off
+//     the image POST — imgExtra is LoRA/seed/AIR/FIBO only
 //   * play RUNTIME imgExtra + image.run POST the same key
 //   * live /api/models additionalParams.aspect_ratio still matches the shipped list
 //
@@ -124,6 +126,22 @@ const play = loadPlayHelpers();
   const leak = editor.imgExtra({ fields: { model: "recraft-v4", aspect: "16:9" } });
   if (leak.aspect_ratio) fail("editor imgExtra: leftover aspect leaked onto Recraft V4");
   else ok("editor imgExtra: Recraft V4 omits aspect_ratio");
+  // Image node does not forward fields.modelOpts (video extra does). Ideogram V3/V4
+  // cards document that rendering_speed never leaves the browser — a "helpful"
+  // Object.assign(e, n.fields.modelOpts) would silently change billed speed.
+  const optsLeak = editor.imgExtra({
+    fields: {
+      model: "ideogram/v4/instant",
+      seed: "",
+      modelOpts: { rendering_speed: "flash", camera_motion: "orbit-right", target_megapixels: 1 },
+    },
+  });
+  for (const k of ["rendering_speed", "camera_motion", "target_megapixels"]) {
+    if (k in optsLeak) fail("editor imgExtra: leftover modelOpts." + k + " leaked onto an image POST");
+  }
+  if (!("rendering_speed" in optsLeak) && !("camera_motion" in optsLeak) && !("target_megapixels" in optsLeak)) {
+    ok("editor imgExtra: leftover modelOpts (rendering_speed / camera_motion) stay off the image body");
+  }
 }
 
 {
@@ -163,6 +181,23 @@ const play = loadPlayHelpers();
   if (extra && extra.aspect_ratio)
     fail("play image.run: leftover aspect leaked onto Recraft V4, got " + JSON.stringify(extra));
   else ok("play image.run: Recraft V4 omits aspect_ratio");
+
+  extra = null;
+  await app.NODE_TYPES.image.run(
+    {
+      id: "i3", type: "image",
+      fields: {
+        model: "ideogram/v4/instant", prompt: "VOLT / MIDNIGHT DROP", size: "1024x1024",
+        modelOpts: { rendering_speed: "flash", camera_motion: "orbit-right" },
+      },
+    },
+    {},
+    ctx,
+    () => {},
+  );
+  if (extra && ("rendering_speed" in extra || "camera_motion" in extra)) {
+    fail("play image.run: leftover modelOpts leaked onto Ideogram, got " + JSON.stringify(extra));
+  } else ok("play image.run: leftover modelOpts stay off the image body");
 }
 
 // Live pin — marketing catalog is the only machine-readable source for this field.
