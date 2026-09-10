@@ -1241,7 +1241,7 @@ if (!/slug:"p-video-rewrite"[\s\S]{0,80}desc:"upload a short take — prompt-edi
 if (!/slug:"p-video-rewrite"[\s\S]{0,80}title:"rewrite the clip"/.test(examplesSrc)) {
   fail("EXAMPLES p-video-rewrite title should be rewrite the clip");
 }
-const rewriteCard = examplesSrc.match(/slug:"p-video-rewrite"[\s\S]{0,3200}/)?.[0] || "";
+const rewriteCard = examplesSrc.match(/slug:"p-video-rewrite"[\s\S]*?(?=\n \{ em:)/)?.[0] || "";
 if (!/pruna-ai\/p-video\/edit/.test(rewriteCard)) {
   fail("EXAMPLES p-video-rewrite graph should pin pruna-ai/p-video/edit");
 }
