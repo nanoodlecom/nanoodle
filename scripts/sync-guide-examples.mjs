@@ -71,6 +71,14 @@ const HOWTO = {
     inspect: "Cover still is reused Volt bolt card art from the favicon glyph, pending a true Ideogram V3 Generate Transparent QC still — no paid ideogram-v3-generate-transparent or NanoGPT run this PR, not a fabricated transparent sticker. Open the graph and hit Run with your key. Inspect native alpha and the single cyan chevron. Print-sheet conversion stays separate.",
     costHow: "Listed at about $0.06 for one Ideogram V3 Generate Transparent call at 1:1 balanced. Catalog also lists rendering_speed flash ~$0.03, but the image node does not forward modelOpts. No LLM. Prices and results vary. This page has no reviewed first-party sticker yet.",
   },
+  "ideogram-v4-instant-poster": {
+    headline: "VOLT / MIDNIGHT DROP",
+    job: "Sharp poster. Letters stay.",
+    purpose: "A brand sentence becomes a sharp drop poster with lettering. First-click is Volt — matte-charcoal field, ONE electric-cyan lightning-bolt chevron, VOLT / MIDNIGHT DROP, hard cyan rim, dark slate. Flat poster graphic — not a product photo. Distinct from Transparent brand sticker (alpha, no letters), Favicon (GLM Flash + Muse opaque 16px glyph), Remove packaging text (strips lettering), and FIBO / cinematic / arena stills. No LLM. No upload.",
+    edit: "Rewrite <em>Poster brief</em>. Leave <em>Poster</em> on <code>ideogram/v4/instant</code> at size <code>1024x1024</code> unless you mean to change models. The image node does not forward <code>modelOpts</code>.",
+    inspect: "Cover is a local placeholder with VOLT / MIDNIGHT DROP lettering, pending a true Ideogram V4 Instant QC still — no paid ideogram/v4/instant or NanoGPT run this PR, not a fabricated poster. Open the graph and hit Run with your key. Inspect sharp VOLT / MIDNIGHT DROP type and the single cyan chevron.",
+    costHow: "Listed at about $0.0075 for one Ideogram V4 Instant call at 1024x1024 balanced. Catalog also lists TURBO ~$0.00375, but the image node does not forward modelOpts. No LLM. Prices and results vary. This page has no reviewed first-party poster yet.",
+  },
   "fibo-studio-still": {
     headline: "A radio on dark slate",
     job: "Volt night-ride radio. Pick the light.",
@@ -227,6 +235,15 @@ const HOWTO = {
     inspect: "Cover still is reused Volt card art from the product-cutout / FIBO night-ride radio plate, pending a true H3 Max Multi Angle QC clip — no paid minimax/h3-max/multi-angle/image-to-video run this PR, not a fabricated orbit. Open the graph and hit Run with your key after you upload a still. Inspect one continuous orbit; the product should stay put. A seamless loop is not promised.",
     costHow: "Listed from about $0.25 for one H3 Max Multi Angle call at 480p / 5s. Duration and resolution determine pricing. Prices and results vary. This page has no reviewed first-party orbit clip yet.",
   },
+  "crystal-video-upscale": {
+    headline: "Same clip. More pixels.",
+    job: "Volt clip. 1 MP. Sharper.",
+    hideNote: true,
+    purpose: "Upload a short clip. Crystal Video Upscaler enlarges it to 1 target megapixel — resolution upscale only, not a restyle or a camera orbit. First-click is a matte-charcoal Volt pocket night-ride radio clip with one electric-cyan lightning-bolt chevron. Distinct from P-Image Upscale (still) and Night-ride radio orbit / Omni Flash (generate).",
+    edit: "Drop your clip on <em>Product clip</em>. Leave <em>Upscaled clip</em> on <code>clarity-ai/crystal-video-upscaler</code> at <code>target_megapixels=1</code> unless you mean to change models.",
+    inspect: "Cover still is reused Volt card art from the photo-to-video night-ride radio plate, pending a true Crystal QC clip — no paid clarity-ai/crystal-video-upscaler run this PR, not a fabricated upscale. Open the graph and hit Run with your key after you upload a clip. Inspect native sharpness against the input.",
+    costHow: "Listed from about $0.50 for one Crystal call at 1 MP / 5s ($0.10/MP/s, min $0.10). Duration and target megapixels determine pricing. No LLM. Prices and results vary. This page has no reviewed first-party upscale yet.",
+  },
 };
 
 // Awesome-noodles README share link for character-sprites (Iron Verdict is
@@ -260,11 +277,11 @@ const GROUPS = [
   { id: "playable", title: "Playable", slugs: ["iron-verdict"] },
   { id: "image", title: "Image", slugs: [
     "edit-a-photo", "product-cutout", "sam3-isolate", "p-image-upscale", "remove-packaging-text", "combine-images", "render-a-mockup", "favicon",
-    "transparent-brand-sticker",
+    "transparent-brand-sticker", "ideogram-v4-instant-poster",
     "night-market-postcard", "fibo-studio-still", "cinematic-character-still", "h3-identity-restyle", "character-sprites",
     "image-model-arena",
   ] },
-  { id: "video", title: "Video", slugs: ["photo-to-video", "h3-max-multi-angle", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },
+  { id: "video", title: "Video", slugs: ["photo-to-video", "h3-max-multi-angle", "crystal-video-upscale", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },
   { id: "audio", title: "Audio", slugs: ["sing"] },
   { id: "text", title: "Text", slugs: ["deslop", "fable-five-step"] },
 ];

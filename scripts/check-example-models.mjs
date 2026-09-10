@@ -82,8 +82,10 @@ export function galleryRegressions(pins) {
     { slug: 'transparent-brand-sticker', type: 'image', model: 'ideogram-v3-generate-transparent', size: '1:1' },
     { slug: 'remove-packaging-text', type: 'edit', model: 'ideogram-v3-remove-text', size: 'auto' },
     { slug: 'h3-identity-restyle', type: 'edit', model: 'minimax-h3/image-edit', size: '1k' },
+    { slug: 'ideogram-v4-instant-poster', type: 'image', model: 'ideogram/v4/instant', size: '1024x1024' },
+    { slug: 'crystal-video-upscale', type: 'vedit', model: 'clarity-ai/crystal-video-upscaler', target_megapixels: 1 },
   ];
-  return expected.flatMap(({ slug, type, model, size, resolution, people, duration, camera_motion }) => {
+  return expected.flatMap(({ slug, type, model, size, resolution, people, duration, camera_motion, target_megapixels }) => {
     const pin = pins.find(p => p.slug === slug && p.type === type);
     if (!pin) return [{ slug, type, reason: 'required gallery card missing' }];
     if (pin.id !== model) return [{ ...pin, reason: `gallery regression: expected model ${model}` }];
@@ -92,6 +94,7 @@ export function galleryRegressions(pins) {
     if (duration && String(pin.fields.duration) !== String(duration)) return [{ ...pin, reason: `gallery regression: expected duration ${duration}` }];
     if (people && pin.fields.modelOpts?.people !== people) return [{ ...pin, reason: `gallery regression: expected people ${people}` }];
     if (camera_motion && pin.fields.modelOpts?.camera_motion !== camera_motion) return [{ ...pin, reason: `gallery regression: expected camera_motion ${camera_motion}` }];
+    if (target_megapixels != null && pin.fields.modelOpts?.target_megapixels !== target_megapixels) return [{ ...pin, reason: `gallery regression: expected target_megapixels ${target_megapixels}` }];
     return [];
   });
 }
