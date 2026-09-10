@@ -1329,6 +1329,8 @@ const I18N = {
     "wet neon alley pulse — cyan thunder sting, ~4s":"pulso de callejón neón mojado — sting de trueno cian, ~4s",
     "night-ride radio vo":"vo de radio de noche",
     "Volt dispatch callout — SpaceXAI TTS, voice Leo":"llamada de despacho Volt — SpaceXAI TTS, voz Leo",
+    "pull the words off the take":"saca las palabras del take",
+    "drop a night-ride VO — Whisper prints the transcript":"suelta un VO de noche — Whisper imprime la transcripción",
 
     "product cutout":"recorte de producto",
     "cyan lightning radio, background gone":"radio relámpago cian, fondo fuera",
@@ -1994,6 +1996,8 @@ const I18N = {
     "wet neon alley pulse — cyan thunder sting, ~4s":"impulsion de ruelle néon mouillée — sting tonnerre cyan, ~4s",
     "night-ride radio vo":"vo radio de nuit",
     "Volt dispatch callout — SpaceXAI TTS, voice Leo":"annonce de dispatch Volt — SpaceXAI TTS, voix Leo",
+    "pull the words off the take":"tire les mots du take",
+    "drop a night-ride VO — Whisper prints the transcript":"dépose un VO de nuit — Whisper imprime la transcription",
 
     "product cutout":"détourage produit",
     "cyan lightning radio, background gone":"radio éclair cyan, fond disparu",
@@ -2659,6 +2663,8 @@ const I18N = {
     "wet neon alley pulse — cyan thunder sting, ~4s":"nasse Neon-Gasse — Cyan-Donner-Sting, ~4s",
     "night-ride radio vo":"Nachtfahrt-Radio-VO",
     "Volt dispatch callout — SpaceXAI TTS, voice Leo":"Volt-Dispatch-Durchsage — SpaceXAI TTS, Stimme Leo",
+    "pull the words off the take":"zieh die Wörter vom Take",
+    "drop a night-ride VO — Whisper prints the transcript":"wirf ein Nachtfahrt-VO drauf — Whisper druckt das Transkript",
 
     "product cutout":"Produkt-Freisteller",
     "cyan lightning radio, background gone":"cyanfarbenes Blitz-Radio, Hintergrund weg",
@@ -3324,6 +3330,8 @@ const I18N = {
     "wet neon alley pulse — cyan thunder sting, ~4s":"pulso de beco néon molhado — sting de trovão ciano, ~4s",
     "night-ride radio vo":"vo de rádio noturno",
     "Volt dispatch callout — SpaceXAI TTS, voice Leo":"chamada de despacho Volt — SpaceXAI TTS, voz Leo",
+    "pull the words off the take":"tire as palavras do take",
+    "drop a night-ride VO — Whisper prints the transcript":"solte um VO noturno — Whisper imprime a transcrição",
 
     "product cutout":"recorte de produto",
     "cyan lightning radio, background gone":"rádio relâmpago ciano, fundo sumiu",
@@ -3989,6 +3997,8 @@ const I18N = {
     "wet neon alley pulse — cyan thunder sting, ~4s":"濡れたネオン路地のパルス — シアン雷スティング、約4秒",
     "night-ride radio vo":"ナイトライドラジオVO",
     "Volt dispatch callout — SpaceXAI TTS, voice Leo":"Voltディスパッチコールアウト — SpaceXAI TTS、声Leo",
+    "pull the words off the take":"テイクから言葉を引き抜く",
+    "drop a night-ride VO — Whisper prints the transcript":"ナイトライドVOをドロップ — Whisperが文字起こしを出す",
 
     "product cutout":"商品切り抜き",
     "cyan lightning radio, background gone":"電光シアンのラジオ、背景なし",
@@ -14055,6 +14065,13 @@ const EXAMPLES = [
            {id:"n1",type:"text",x:40,y:300,w:340,fields:{text:"Volt is live on the night board. Grab your pocket radio, take the ridge handoff, and I'll keep the cyan channel clear until you're docked."},name:"Spoken script"},
            {id:"n2",type:"tts",x:440,y:280,w:300,fields:{model:"xai-tts",voice:"Leo",response_format:"mp3"},name:"Speech"} ],
    links:[ {id:"l1",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}} ] } },
+ { em:"📝", slug:"whisper-pull-words", title:"pull the words off the take", desc:"drop a night-ride VO — Whisper prints the transcript",
+   thumb:"examples/gallery/whisper-pull-words/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:20,w:520,fields:{text:"Upload VO → Whisper Large V3 (`Whisper-Large-V3`) (~$0.0005/min). Speech→text — not xai-tts VO, not InfiniteTalk lipsync, not SFX/foley.",color:"yellow"},name:"pull the words off the take"},
+           {id:"n1",type:"aupload",x:40,y:280,w:280,fields:{},name:"Night-ride VO"},
+           {id:"n2",type:"transcribe",x:400,y:260,w:300,fields:{model:"Whisper-Large-V3"},name:"Transcript"} ],
+   links:[ {id:"l1",from:{node:"n1",port:"audio"},to:{node:"n2",port:"audio"}} ] } },
  { em:"🔄", slug:"omni-flash-turntable", title:"cinematic product motion", desc:"quarter-orbit, cyan rim on a night-ride radio",
    thumb:"examples/gallery/omni-flash-turntable/preview.webp",
    graph:{ v:1,
@@ -14161,7 +14178,7 @@ function openExamples(){
   // Same Elo order on every width — no mobile-only list, no CSS order, no truncation.
   // Featured #skilloutcome (Iron Verdict) sits above the grid on every width.
   // Compact mobile cards keep H3 (4th) and the featured game above the fold.
-  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","virtual-try-on","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","volt-vector-mark","mai-pack-type","volt-dispatch-infographic","photo-to-video","grok-imagine-still","wan-motion-drive","wan-still-audio","h3-max-multi-angle","crystal-video-upscale","p-video-rewrite","mirelo-video-foley","pixelcut-video-cutout","character-sprites","talking-avatar","infinitetalk-radio-take","sing","night-ride-sfx","night-ride-radio-vo","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
+  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","virtual-try-on","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","volt-vector-mark","mai-pack-type","volt-dispatch-infographic","photo-to-video","grok-imagine-still","wan-motion-drive","wan-still-audio","h3-max-multi-angle","crystal-video-upscale","p-video-rewrite","mirelo-video-foley","pixelcut-video-cutout","character-sprites","talking-avatar","infinitetalk-radio-take","sing","night-ride-sfx","night-ride-radio-vo","whisper-pull-words","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
   EXAMPLES.map((ex,i)=>({ex,i})).sort((a,b)=>{
     const rank=slug=>first.includes(slug)?first.indexOf(slug):first.length;
     return rank(a.ex.slug)-rank(b.ex.slug);

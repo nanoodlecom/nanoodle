@@ -1,0 +1,57 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 40,
+      "y": 20,
+      "w": 520,
+      "name": "pull the words off the take",
+      "fields": {
+        "text": "Upload VO → Whisper Large V3 (`Whisper-Large-V3`) (~$0.0005/min). Speech→text — not xai-tts VO, not InfiniteTalk lipsync, not SFX/foley.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "n1",
+      "type": "aupload",
+      "x": 40,
+      "y": 280,
+      "w": 280,
+      "name": "Night-ride VO",
+      "fields": {}
+    },
+    {
+      "id": "n2",
+      "type": "transcribe",
+      "x": 400,
+      "y": 260,
+      "w": 300,
+      "name": "Transcript",
+      "fields": {
+        "model": "Whisper-Large-V3"
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "n1",
+        "port": "audio"
+      },
+      "to": {
+        "node": "n2",
+        "port": "audio"
+      }
+    }
+  ],
+  "nid": 3,
+  "lid": 2,
+  "view": {
+    "panX": 20,
+    "panY": 40,
+    "scale": 0.85
+  }
+}

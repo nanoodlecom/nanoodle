@@ -257,6 +257,15 @@ const HOWTO = {
     inspect: "Cover is reused Volt courier card art, pending SpaceXAI TTS QC — no paid xai-tts run this PR. Open the graph, hit Run, listen for the dispatch callout. Speech only.",
     costHow: "Listed at about $0.0023 for this first-click script ($0.0165 per 1k chars). Well under $0.01. No LLM. Prices vary. No reviewed first-party mp3 yet.",
   },
+  "whisper-pull-words": {
+    headline: "Pull the words off the take",
+    job: "Drop a night-ride VO. Whisper prints it.",
+    hideNote: true,
+    purpose: "Upload VO → Whisper Large V3. Speech→text. Not Night-ride radio VO (xai-tts). Not InfiniteTalk. Not SFX/foley. Not Sing.",
+    edit: "Drop your take on <em>Night-ride VO</em>. Leave <em>Transcript</em> on <code>Whisper-Large-V3</code>.",
+    inspect: "Cover is reused Volt courier card art — aupload placeholder only. No paid Whisper-Large-V3 QC this PR. No fake transcript thumb. Open the graph, upload a VO, read the transcript.",
+    costHow: "Listed at about $0.000495/min (≪$0.01 for a short VO). No LLM. Prices vary. No reviewed first-party transcript yet.",
+  },
   "talking-avatar": {
     headline: "Look at camera. Clear the channel.",
     job: "Night courier. One line to camera.",
@@ -390,7 +399,7 @@ const GROUPS = [
     "image-model-arena",
   ] },
   { id: "video", title: "Video", slugs: ["photo-to-video", "grok-imagine-still", "wan-motion-drive", "wan-still-audio", "h3-max-multi-angle", "crystal-video-upscale", "p-video-rewrite", "mirelo-video-foley", "pixelcut-video-cutout", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },
-  { id: "audio", title: "Audio", slugs: ["sing", "night-ride-sfx", "night-ride-radio-vo"] },
+  { id: "audio", title: "Audio", slugs: ["sing", "night-ride-sfx", "night-ride-radio-vo", "whisper-pull-words"] },
   { id: "text", title: "Text", slugs: ["deslop", "fable-five-step"] },
 ];
 

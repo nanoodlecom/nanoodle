@@ -2696,6 +2696,95 @@ if (/model:"infinitetalk"|model:"xai\/grok-imagine-video|model:"alibaba\/wan-3\.
 if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
   fail("custom-endpoint must stay the only LOCAL_ONLY teaching card after wan-motion-drive sync");
 }
+const whisperSample = samples.find((s) => s.slug === "whisper-pull-words");
+if (!whisperSample) fail("samples.json missing whisper-pull-words");
+if (whisperSample.preview !== "whisper-pull-words/preview.webp") {
+  fail("whisper-pull-words sample preview should be whisper-pull-words/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "whisper-pull-words", "preview.webp"))) {
+  fail("examples/gallery/whisper-pull-words/preview.webp is missing");
+}
+if (!/Whisper-Large-V3/.test(JSON.stringify(whisperSample.models))) {
+  fail("whisper-pull-words sample should pin Whisper-Large-V3");
+}
+if (!/aupload placeholder|no fake transcript thumb/i.test(whisperSample.note) || !/no paid|pending/i.test(whisperSample.note)) {
+  fail("whisper-pull-words sample note should say aupload placeholder / no fake transcript thumb and Whisper QC is pending");
+}
+if (!/speech→text|speech-to-text|prints the transcript/i.test(whisperSample.note)) {
+  fail("whisper-pull-words sample note should say the job is speech→text");
+}
+if (!/Night-ride radio VO|xai-tts/i.test(whisperSample.note)) {
+  fail("whisper-pull-words sample note should distinguish Night-ride radio VO / xai-tts");
+}
+if (!/InfiniteTalk|talking-avatar/i.test(whisperSample.note)) {
+  fail("whisper-pull-words sample note should distinguish InfiniteTalk / talking-avatar");
+}
+if (!/Night-ride SFX|Mirelo|foley/i.test(whisperSample.note)) {
+  fail("whisper-pull-words sample note should distinguish Night-ride SFX / Mirelo foley");
+}
+if (!/Sing|Closing-credits|Mureka/i.test(whisperSample.note)) {
+  fail("whisper-pull-words sample note should distinguish Sing");
+}
+if (!/~\$0\.000495|≪\$0\.01/i.test(whisperSample.note)) {
+  fail("whisper-pull-words sample note should name ~$0.000495/min ≪$0.01");
+}
+if (!hub.includes("whisper-pull-words/preview.webp")) {
+  fail("hub should thumb the whisper-pull-words cover");
+}
+if (!hub.includes("Pull the words off the take")) {
+  fail("hub should title whisper-pull-words as Pull the words off the take");
+}
+const whisperHowTo = readFileSync(join(ROOT, "guide", "examples", "whisper-pull-words.html"), "utf8");
+if (!/Whisper-Large-V3/.test(whisperHowTo)) {
+  fail("whisper-pull-words how-to should name Whisper-Large-V3");
+}
+if (!/speech→text|Speech→text|Whisper prints/i.test(whisperHowTo)) {
+  fail("whisper-pull-words how-to should pitch speech→text");
+}
+if (!/Night-ride radio VO|xai-tts/i.test(whisperHowTo)) {
+  fail("whisper-pull-words how-to should distinguish Night-ride radio VO");
+}
+if (!/InfiniteTalk/i.test(whisperHowTo)) {
+  fail("whisper-pull-words how-to should distinguish InfiniteTalk");
+}
+if (!/SFX|foley/i.test(whisperHowTo)) {
+  fail("whisper-pull-words how-to should distinguish SFX/foley");
+}
+if (!/Sing/i.test(whisperHowTo)) {
+  fail("whisper-pull-words how-to should distinguish Sing");
+}
+if (!/aupload placeholder|no paid|no fake transcript thumb/i.test(whisperHowTo)) {
+  fail("whisper-pull-words how-to should say the cover is an aupload placeholder and Whisper QC is pending");
+}
+if (!whisperHowTo.includes("whisper-pull-words/preview.webp")) {
+  fail("whisper-pull-words how-to should show the cover still");
+}
+if (!/slug:"whisper-pull-words"[\s\S]{0,200}thumb:"examples\/gallery\/whisper-pull-words\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES whisper-pull-words thumb should be examples/gallery/whisper-pull-words/preview.webp");
+}
+if (!/slug:"whisper-pull-words"[\s\S]{0,80}desc:"drop a night-ride VO — Whisper prints the transcript"/.test(examplesSrc)) {
+  fail("EXAMPLES whisper-pull-words desc should pitch drop a night-ride VO — Whisper prints the transcript");
+}
+if (!/slug:"whisper-pull-words"[\s\S]{0,80}title:"pull the words off the take"/.test(examplesSrc)) {
+  fail("EXAMPLES whisper-pull-words title should be pull the words off the take");
+}
+const whisperCard = examplesSrc.match(/slug:"whisper-pull-words"[\s\S]*?(?=\n \{ em:|$)/)?.[0] || "";
+if (!/Whisper-Large-V3/.test(whisperCard)) {
+  fail("EXAMPLES whisper-pull-words graph should pin Whisper-Large-V3");
+}
+if (!/type:"aupload"/.test(whisperCard) || !/name:"Night-ride VO"/.test(whisperCard)) {
+  fail("EXAMPLES whisper-pull-words should be aupload Night-ride VO");
+}
+if (!/type:"transcribe"/.test(whisperCard) || !/name:"Transcript"/.test(whisperCard)) {
+  fail("EXAMPLES whisper-pull-words should be transcribe Transcript");
+}
+const whisperWorking = whisperCard.replace(/\{id:"c-intent"[\s\S]*?\},\s*/, "");
+if (/xai-tts|elevenlabs\/sound-effects\/v2|mureka-ai\/mureka-v9\.5\/generate-song|infinitetalk|gpt-4o-mini|type:"tts"|type:"music"|type:"llm"|type:"lipsync"/.test(whisperWorking)) {
+  fail("EXAMPLES whisper-pull-words must stay aupload Night-ride VO → transcribe Transcript (no TTS, SFX, song, InfiniteTalk, LLM, or gpt-4o-mini)");
+}
+if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
+  fail("custom-endpoint must stay the only LOCAL_ONLY teaching card after whisper-pull-words sync");
+}
 for (const slug of slugs) {
   const page = readFileSync(join(ROOT, "guide", "examples", slug === "iron-verdict" ? "iron-verdict.html" : `${slug}.html`), "utf8");
   if (page.includes("how to use this noodle")) {
