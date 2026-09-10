@@ -13734,6 +13734,13 @@ const EXAMPLES = [
            {id:"n1",type:"upload",x:40,y:320,w:280,fields:{},name:"Product still"},
            {id:"n2",type:"ivideo",x:400,y:300,w:320,sizes:{prompt:80},fields:{model:"minimax/h3-max/multi-angle/image-to-video",prompt:"Only the camera moves: orbit around the subject, preserving the scene.",resolution:"480p",duration:"5",modelOpts:{"camera_motion":"orbit-right"}},name:"Orbit clip"} ],
    links:[ {id:"l1",from:{node:"n1",port:"image"},to:{node:"n2",port:"image"}} ] } },
+ { em:"💎", slug:"crystal-video-upscale", title:"crystal video upscale", desc:"upload a clip — sharper, 1 MP Crystal",
+   thumb:"examples/gallery/crystal-video-upscale/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:20,w:480,fields:{text:"Upload a short clip; Crystal Video Upscaler (`clarity-ai/crystal-video-upscaler`) makes a sharper, larger target-megapixel output. Pin target_megapixels=1 in modelOpts ($0.10/MP/s, min $0.10). First-click story is a matte-charcoal Volt pocket night-ride radio clip with one electric-cyan lightning-bolt chevron — no committed clip in-repo. Not still upscale (P-Image Upscale) and not a camera-orbit generate (Night-ride radio orbit / Omni Flash turntable).",color:"yellow"},name:"Crystal video upscale"},
+           {id:"n1",type:"vupload",x:40,y:320,w:280,fields:{},name:"Product clip"},
+           {id:"n2",type:"vedit",x:400,y:300,w:320,fields:{model:"clarity-ai/crystal-video-upscaler",prompt:"",modelOpts:{"target_megapixels":1}},name:"Upscaled clip"} ],
+   links:[ {id:"l1",from:{node:"n1",port:"video"},to:{node:"n2",port:"video"}} ] } },
  { em:"🎬", slug:"photo-to-video", title:"photo → video", desc:"locked camera, rain on a night-ride radio",
    thumb:"examples/gallery/photo-to-video/preview.webp",
    graph:{ v:1,
@@ -13905,7 +13912,7 @@ function openExamples(){
   // Same Elo order on every width — no mobile-only list, no CSS order, no truncation.
   // Featured #skilloutcome (Iron Verdict) sits above the grid on every width.
   // Compact mobile cards keep H3 (4th) and the featured game above the fold.
-  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","photo-to-video","h3-max-multi-angle","character-sprites","talking-avatar","infinitetalk-radio-take","sing","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
+  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","photo-to-video","h3-max-multi-angle","crystal-video-upscale","character-sprites","talking-avatar","infinitetalk-radio-take","sing","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
   EXAMPLES.map((ex,i)=>({ex,i})).sort((a,b)=>{
     const rank=slug=>first.includes(slug)?first.indexOf(slug):first.length;
     return rank(a.ex.slug)-rank(b.ex.slug);

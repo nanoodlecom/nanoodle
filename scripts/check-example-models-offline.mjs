@@ -57,6 +57,8 @@ const catalogs = {
         right_audio: {},
         audio: {},
       } } },
+    { id: 'clarity-ai/crystal-video-upscaler', capabilities: { video_to_video: true, video_generation: true },
+      supported_parameters: { parameters: {} } },
   ],
   audio: [
     { id: 'Minimax-Speech-2.8-HD', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Deep_Voice_Man'] } },

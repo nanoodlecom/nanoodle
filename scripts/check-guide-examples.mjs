@@ -1060,6 +1060,91 @@ if (/minimax-h3\/image-to-video-spicy/.test(orbitCard)) {
 if (/google\/gemini-omni-flash/.test(orbitCard)) {
   fail("EXAMPLES h3-max-multi-angle must not pin Omni Flash");
 }
+const crystalSample = samples.find((s) => s.slug === "crystal-video-upscale");
+if (!crystalSample) fail("samples.json missing crystal-video-upscale");
+if (crystalSample.preview !== "crystal-video-upscale/preview.webp") {
+  fail("crystal-video-upscale sample preview should be crystal-video-upscale/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "crystal-video-upscale", "preview.webp"))) {
+  fail("examples/gallery/crystal-video-upscale/preview.webp is missing");
+}
+if (!/clarity-ai\/crystal-video-upscaler/.test(JSON.stringify(crystalSample.models))) {
+  fail("crystal-video-upscale sample should pin clarity-ai/crystal-video-upscaler");
+}
+if (!/cover|reused Volt card art/i.test(crystalSample.note) || !/no paid|pending/i.test(crystalSample.note)) {
+  fail("crystal-video-upscale sample note should say cover is reused Volt card art and Crystal QC is pending");
+}
+if (!/target.megapixel|1 MP|target_megapixels/i.test(crystalSample.note)) {
+  fail("crystal-video-upscale sample note should say the job is video target-megapixel upscale");
+}
+if (!/P-Image Upscale|still/i.test(crystalSample.note)) {
+  fail("crystal-video-upscale sample note should distinguish P-Image Upscale");
+}
+if (!/Night-ride radio orbit|Omni Flash|h3-max-multi-angle/i.test(crystalSample.note)) {
+  fail("crystal-video-upscale sample note should distinguish Night-ride radio orbit / Omni Flash");
+}
+if (!/Volt|night-ride radio|cyan/i.test(crystalSample.note)) {
+  fail("crystal-video-upscale sample note should pitch the Volt night-ride radio");
+}
+if (!hub.includes("crystal-video-upscale/preview.webp")) {
+  fail("hub should thumb the crystal-video-upscale cover");
+}
+if (!hub.includes("Same clip. More pixels.")) {
+  fail("hub should title crystal-video-upscale as Same clip. More pixels.");
+}
+const crystalHowTo = readFileSync(join(ROOT, "guide", "examples", "crystal-video-upscale.html"), "utf8");
+if (!/clarity-ai\/crystal-video-upscaler/.test(crystalHowTo)) {
+  fail("crystal-video-upscale how-to should name clarity-ai/crystal-video-upscaler");
+}
+if (!/Volt/i.test(crystalHowTo) || !/cyan/i.test(crystalHowTo) || !/charcoal/i.test(crystalHowTo)) {
+  fail("crystal-video-upscale how-to should pitch the Volt charcoal + cyan radio");
+}
+if (!/1 MP|target_megapixels|target megapixel/i.test(crystalHowTo)) {
+  fail("crystal-video-upscale how-to should say this is 1 MP Crystal upscale");
+}
+if (!/P-Image Upscale/i.test(crystalHowTo)) {
+  fail("crystal-video-upscale how-to should distinguish P-Image Upscale");
+}
+if (!/Night-ride radio orbit|Omni Flash/i.test(crystalHowTo)) {
+  fail("crystal-video-upscale how-to should distinguish Night-ride radio orbit / Omni Flash");
+}
+if (!/reused Volt card art|no paid|pending/i.test(crystalHowTo)) {
+  fail("crystal-video-upscale how-to should say the cover is reused Volt card art and Crystal QC is pending");
+}
+if (!crystalHowTo.includes("crystal-video-upscale/preview.webp")) {
+  fail("crystal-video-upscale how-to should show the cover still");
+}
+if (!/slug:"crystal-video-upscale"[\s\S]{0,200}thumb:"examples\/gallery\/crystal-video-upscale\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES crystal-video-upscale thumb should be examples/gallery/crystal-video-upscale/preview.webp");
+}
+if (!/slug:"crystal-video-upscale"[\s\S]{0,80}desc:"upload a clip — sharper, 1 MP Crystal"/.test(examplesSrc)) {
+  fail("EXAMPLES crystal-video-upscale desc should pitch upload a clip — sharper, 1 MP Crystal");
+}
+if (!/slug:"crystal-video-upscale"[\s\S]{0,80}title:"crystal video upscale"/.test(examplesSrc)) {
+  fail("EXAMPLES crystal-video-upscale title should be crystal video upscale");
+}
+const crystalCard = examplesSrc.match(/slug:"crystal-video-upscale"[\s\S]{0,2800}/)?.[0] || "";
+if (!/clarity-ai\/crystal-video-upscaler/.test(crystalCard)) {
+  fail("EXAMPLES crystal-video-upscale graph should pin clarity-ai/crystal-video-upscaler");
+}
+if (!/"target_megapixels":1/.test(crystalCard)) {
+  fail("EXAMPLES crystal-video-upscale graph should pin target_megapixels=1");
+}
+if (!/type:"vupload"/.test(crystalCard) || !/type:"vedit"/.test(crystalCard)) {
+  fail("EXAMPLES crystal-video-upscale should be vupload Product clip → vedit Upscaled clip");
+}
+if (/pruna-ai\/p-image\/upscale/.test(crystalCard)) {
+  fail("EXAMPLES crystal-video-upscale must not pin P-Image Upscale");
+}
+if (/minimax\/h3-max\/multi-angle\/image-to-video/.test(crystalCard)) {
+  fail("EXAMPLES crystal-video-upscale must not pin H3 Max Multi Angle");
+}
+if (/google\/gemini-omni-flash/.test(crystalCard)) {
+  fail("EXAMPLES crystal-video-upscale must not pin Omni Flash");
+}
+if (/ideogram-v4/.test(crystalCard)) {
+  fail("EXAMPLES crystal-video-upscale must not touch Ideogram V4 Instant");
+}
 const spritesSample = samples.find((s) => s.slug === "character-sprites");
 if (!spritesSample) fail("samples.json missing character-sprites");
 if (spritesSample.preview !== "character-sprites/preview.webp") {
