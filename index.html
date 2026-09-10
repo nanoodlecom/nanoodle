@@ -1355,6 +1355,8 @@ const I18N = {
     "VOLT / MIDNIGHT DROP — sharp lettering, no upload":"VOLT / MIDNIGHT DROP — lettering nítido, sin upload",
     "remove packaging text":"quitar texto de envase",
     "Volt promo card — letters gone":"tarjeta promo Volt — sin letras",
+    "night-ride identity restyle":"restyle de identidad night-ride",
+    "same face — Volt night-courier restyle":"misma cara — restyle de mensajero Volt de noche",
     "strength":"intensidad",
     "Notes":"Notas",
     "Bold":"Negrita",
@@ -1996,6 +1998,8 @@ const I18N = {
     "VOLT / MIDNIGHT DROP — sharp lettering, no upload":"VOLT / MIDNIGHT DROP — lettering net, sans import",
     "remove packaging text":"retirer le texte d’emballage",
     "Volt promo card — letters gone":"carte promo Volt — plus de lettres",
+    "night-ride identity restyle":"restyle d’identité night-ride",
+    "same face — Volt night-courier restyle":"même visage — restyle coursier Volt de nuit",
     "strength":"intensité",
     "Notes":"Notes",
     "Bold":"Gras",
@@ -2637,6 +2641,8 @@ const I18N = {
     "VOLT / MIDNIGHT DROP — sharp lettering, no upload":"VOLT / MIDNIGHT DROP — scharfes Lettering, kein Upload",
     "remove packaging text":"Verpackungstext entfernen",
     "Volt promo card — letters gone":"Volt-Promo-Karte — Buchstaben weg",
+    "night-ride identity restyle":"Night-ride-Identitäts-Restyle",
+    "same face — Volt night-courier restyle":"dasselbe Gesicht — Volt-Nachtkurier-Restyle",
     "strength":"Stärke",
     "Notes":"Notizen",
     "Bold":"Fett",
@@ -3278,6 +3284,8 @@ const I18N = {
     "VOLT / MIDNIGHT DROP — sharp lettering, no upload":"VOLT / MIDNIGHT DROP — lettering nítido, sem upload",
     "remove packaging text":"remover texto da embalagem",
     "Volt promo card — letters gone":"cartão promo Volt — sem letras",
+    "night-ride identity restyle":"restyle de identidade night-ride",
+    "same face — Volt night-courier restyle":"mesmo rosto — restyle de mensageiro Volt noturno",
     "strength":"intensidade",
     "Notes":"Notas",
     "Bold":"Negrito",
@@ -3919,6 +3927,8 @@ const I18N = {
     "VOLT / MIDNIGHT DROP — sharp lettering, no upload":"VOLT / MIDNIGHT DROP — シャープなレタリング、アップロードなし",
     "remove packaging text":"パッケージ文字を消す",
     "Volt promo card — letters gone":"Voltプロモカード — 文字なし",
+    "night-ride identity restyle":"ナイトライドのアイデンティティ・リスタイル",
+    "same face — Volt night-courier restyle":"同じ顔 — Voltナイトクーリエのリスタイル",
     "strength":"強度",
     "Notes":"メモ",
     "Bold":"太字",
@@ -13637,6 +13647,15 @@ const EXAMPLES = [
            {id:"l3",from:{node:"n5",port:"text"},to:{node:"n6",port:"a"}},
            {id:"l4",from:{node:"n4",port:"text"},to:{node:"n6",port:"b"}},
            {id:"l5",from:{node:"n6",port:"text"},to:{node:"n7",port:"prompt"}} ] } },
+ { em:"🪪", slug:"h3-identity-restyle", title:"night-ride identity restyle", desc:"same face — Volt night-courier restyle",
+   thumb:"examples/gallery/h3-identity-restyle/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:20,w:420,fields:{text:"Upload a person or product still; MiniMax H3 Image Edit (`minimax-h3/image-edit`) restyles scene, outfit and light while keeping identity. Size 1k, $0.03. First-click Restyle is a Volt night-courier key still. One image. No LLM.",color:"yellow"},name:"Night-ride identity restyle"},
+           {id:"n1",type:"upload",x:40,y:260,w:280,fields:{},name:"Still"},
+           {id:"n2",type:"edit",x:400,y:240,w:300,fields:{prompt:"",size:"1k",model:"minimax-h3/image-edit"},name:"Identity restyle"},
+           {id:"n3",type:"text",x:40,y:500,w:300,fields:{text:"Keep the same face and body identity. Restyle into a Volt night-courier key still: matte charcoal kit, ONE electric-cyan lightning-bolt chevron on the chest, magenta rim + cyan bounce, wet neon alley bokeh behind. Locked medium portrait. No readable text, no extra people, no invented props."},name:"Restyle"} ],
+   links:[ {id:"l1",from:{node:"n1",port:"image"},to:{node:"n2",port:"image"}},
+           {id:"l2",from:{node:"n3",port:"text"},to:{node:"n2",port:"prompt"}} ] } },
  { em:"🖇️", slug:"combine-images", title:"combine images", desc:"Volt radio on wet neon asphalt",
    thumb:"examples/gallery/combine-images/preview.webp",
    graph:{ v:1,
@@ -13929,7 +13948,7 @@ function openExamples(){
   // Same Elo order on every width — no mobile-only list, no CSS order, no truncation.
   // Featured #skilloutcome (Iron Verdict) sits above the grid on every width.
   // Compact mobile cards keep H3 (4th) and the featured game above the fold.
-  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","photo-to-video","h3-max-multi-angle","crystal-video-upscale","character-sprites","talking-avatar","infinitetalk-radio-take","sing","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
+  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","photo-to-video","h3-max-multi-angle","crystal-video-upscale","character-sprites","talking-avatar","infinitetalk-radio-take","sing","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
   EXAMPLES.map((ex,i)=>({ex,i})).sort((a,b)=>{
     const rank=slug=>first.includes(slug)?first.indexOf(slug):first.length;
     return rank(a.ex.slug)-rank(b.ex.slug);
