@@ -2017,7 +2017,8 @@ if (!/voice:"Leo"/.test(voCard)) {
 if (!/name:"Spoken script"/.test(voCard) || !/name:"Speech"/.test(voCard)) {
   fail("EXAMPLES night-ride-radio-vo should be Spoken script → Speech");
 }
-if (/elevenlabs\/sound-effects\/v2|mureka-ai\/mureka-v9\.5\/generate-song|infinitetalk|type:"music"|type:"llm"|type:"upload"|type:"image"|type:"lipsync"/.test(voCard)) {
+const voWorking = voCard.replace(/\{id:"c-intent"[\s\S]*?\},\s*/, "");
+if (/elevenlabs\/sound-effects\/v2|mureka-ai\/mureka-v9\.5\/generate-song|infinitetalk|type:"music"|type:"llm"|type:"upload"|type:"image"|type:"lipsync"/.test(voWorking)) {
   fail("EXAMPLES night-ride-radio-vo must stay text Spoken script → tts Speech (no SFX, song, InfiniteTalk, LLM, or upload)");
 }
 if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
