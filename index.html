@@ -1351,6 +1351,8 @@ const I18N = {
     "lightning-cyan bolt that still reads at 16px":"un rayo cian que se lee incluso a 16px",
     "transparent brand sticker":"sticker de marca transparente",
     "cyan lightning chevron sticker — clean alpha, no letters":"sticker chevron relámpago cian — alpha limpio, sin letras",
+    "volt drop poster":"póster de drop Volt",
+    "VOLT / MIDNIGHT DROP — sharp lettering, no upload":"VOLT / MIDNIGHT DROP — lettering nítido, sin upload",
     "remove packaging text":"quitar texto de envase",
     "Volt promo card — letters gone":"tarjeta promo Volt — sin letras",
     "strength":"intensidad",
@@ -1990,6 +1992,8 @@ const I18N = {
     "lightning-cyan bolt that still reads at 16px":"un éclair cyan qui se lit encore à 16 px",
     "transparent brand sticker":"sticker de marque transparent",
     "cyan lightning chevron sticker — clean alpha, no letters":"sticker chevron éclair cyan — alpha propre, sans lettres",
+    "volt drop poster":"poster de drop Volt",
+    "VOLT / MIDNIGHT DROP — sharp lettering, no upload":"VOLT / MIDNIGHT DROP — lettering net, sans import",
     "remove packaging text":"retirer le texte d’emballage",
     "Volt promo card — letters gone":"carte promo Volt — plus de lettres",
     "strength":"intensité",
@@ -2629,6 +2633,8 @@ const I18N = {
     "lightning-cyan bolt that still reads at 16px":"ein cyanfarbener Blitz, der auch bei 16 px lesbar bleibt",
     "transparent brand sticker":"transparenter Markensticker",
     "cyan lightning chevron sticker — clean alpha, no letters":"Cyan-Blitz-Chevron-Sticker — sauberes Alpha, keine Buchstaben",
+    "volt drop poster":"Volt-Drop-Poster",
+    "VOLT / MIDNIGHT DROP — sharp lettering, no upload":"VOLT / MIDNIGHT DROP — scharfes Lettering, kein Upload",
     "remove packaging text":"Verpackungstext entfernen",
     "Volt promo card — letters gone":"Volt-Promo-Karte — Buchstaben weg",
     "strength":"Stärke",
@@ -3268,6 +3274,8 @@ const I18N = {
     "lightning-cyan bolt that still reads at 16px":"um raio ciano que ainda se lê em 16px",
     "transparent brand sticker":"adesivo de marca transparente",
     "cyan lightning chevron sticker — clean alpha, no letters":"adesivo chevron relâmpago ciano — alpha limpo, sem letras",
+    "volt drop poster":"pôster de drop Volt",
+    "VOLT / MIDNIGHT DROP — sharp lettering, no upload":"VOLT / MIDNIGHT DROP — lettering nítido, sem upload",
     "remove packaging text":"remover texto da embalagem",
     "Volt promo card — letters gone":"cartão promo Volt — sem letras",
     "strength":"intensidade",
@@ -3907,6 +3915,8 @@ const I18N = {
     "lightning-cyan bolt that still reads at 16px":"16pxでも読めるシアンの稲妻",
     "transparent brand sticker":"透明ブランドステッカー",
     "cyan lightning chevron sticker — clean alpha, no letters":"電光シアンのシェブロンステッカー — きれいなアルファ、文字なし",
+    "volt drop poster":"Voltドロップポスター",
+    "VOLT / MIDNIGHT DROP — sharp lettering, no upload":"VOLT / MIDNIGHT DROP — シャープなレタリング、アップロードなし",
     "remove packaging text":"パッケージ文字を消す",
     "Volt promo card — letters gone":"Voltプロモカード — 文字なし",
     "strength":"強度",
@@ -13727,6 +13737,13 @@ const EXAMPLES = [
            {id:"n1",type:"text",x:40,y:320,w:320,fields:{text:"Flat die-cut brand sticker overlay with a clean transparent alpha background. One matte-charcoal rounded field, generous empty transparent margins around the sticker silhouette. On that charcoal field, ONE sharp electric-cyan lightning-bolt chevron mark for Volt — a pocket night-ride radio / courier brand. No letters, initials, wordmark, or Volt text. No second mark. Flat graphic sticker: solid fills, crisp edges, no drop shadow, no bevel, no paper texture, no checkerboard, no mockup, no phone, no UI screen, no product photo, no wet asphalt, no courier, no radio. Centered on a square canvas."},name:"Brand brief"},
            {id:"n2",type:"image",x:420,y:300,w:280,fields:{model:"ideogram-v3-generate-transparent",size:"1:1",variations:"1"},name:"Sticker"} ],
    links:[ {id:"l1",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}} ] } },
+ { em:"⚡", slug:"ideogram-v4-instant-poster", title:"volt drop poster", desc:"VOLT / MIDNIGHT DROP — sharp lettering, no upload",
+   thumb:"examples/gallery/ideogram-v4-instant-poster/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:20,w:480,fields:{text:"Text brief → Ideogram V4 Instant (`ideogram/v4/instant`) brand/drop poster with lettering. 1024x1024, catalog $0.0075 (balanced default; turbo is cheaper but the image node does not forward modelOpts). Letters allowed — that's the point. Not the alpha sticker (no letters), not favicon (Muse 16px glyph), not arena/FIBO/H3 stills, not remove-packaging-text. No LLM. No upload. Cover QC pending.",color:"yellow"},name:"Volt drop poster"},
+           {id:"n1",type:"text",x:40,y:280,w:320,fields:{text:"Matte-charcoal Volt night-ride drop poster. ONE electric-cyan lightning-bolt chevron. Sharp letters: VOLT / MIDNIGHT DROP. Hard cyan rim, dark slate. Flat poster graphic — not a product photo."},name:"Poster brief"},
+           {id:"n2",type:"image",x:420,y:260,w:280,fields:{model:"ideogram/v4/instant",size:"1024x1024",variations:"1"},name:"Poster"} ],
+   links:[ {id:"l1",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}} ] } },
  { em:"🛰️", slug:"h3-max-multi-angle", title:"night-ride radio orbit", desc:"upload a still — orbit-right around the radio",
    thumb:"examples/gallery/h3-max-multi-angle/preview.webp",
    graph:{ v:1,
@@ -13905,7 +13922,7 @@ function openExamples(){
   // Same Elo order on every width — no mobile-only list, no CSS order, no truncation.
   // Featured #skilloutcome (Iron Verdict) sits above the grid on every width.
   // Compact mobile cards keep H3 (4th) and the featured game above the fold.
-  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","photo-to-video","h3-max-multi-angle","character-sprites","talking-avatar","infinitetalk-radio-take","sing","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
+  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","photo-to-video","h3-max-multi-angle","character-sprites","talking-avatar","infinitetalk-radio-take","sing","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
   EXAMPLES.map((ex,i)=>({ex,i})).sort((a,b)=>{
     const rank=slug=>first.includes(slug)?first.indexOf(slug):first.length;
     return rank(a.ex.slug)-rank(b.ex.slug);

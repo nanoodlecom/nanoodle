@@ -81,6 +81,7 @@ export function galleryRegressions(pins) {
     { slug: 'character-sprites', type: 'edit', model: 'meta/muse-image/edit', size: '1:1' },
     { slug: 'transparent-brand-sticker', type: 'image', model: 'ideogram-v3-generate-transparent', size: '1:1' },
     { slug: 'remove-packaging-text', type: 'edit', model: 'ideogram-v3-remove-text', size: 'auto' },
+    { slug: 'ideogram-v4-instant-poster', type: 'image', model: 'ideogram/v4/instant', size: '1024x1024' },
   ];
   return expected.flatMap(({ slug, type, model, size, resolution, people, duration, camera_motion }) => {
     const pin = pins.find(p => p.slug === slug && p.type === type);
