@@ -1331,6 +1331,8 @@ const I18N = {
     "Volt dispatch callout — SpaceXAI TTS, voice Leo":"llamada de despacho Volt — SpaceXAI TTS, voz Leo",
     "pull the words off the take":"saca las palabras del take",
     "drop a night-ride VO — Whisper prints the transcript":"suelta un VO de noche — Whisper imprime la transcripción",
+    "score the alley":"partitura del callejón",
+    "one prompt — Stable Audio drops a stereo night-ride bed":"un prompt — Stable Audio suelta una cama estéreo night-ride",
 
     "product cutout":"recorte de producto",
     "cyan lightning radio, background gone":"radio relámpago cian, fondo fuera",
@@ -1998,6 +2000,8 @@ const I18N = {
     "Volt dispatch callout — SpaceXAI TTS, voice Leo":"annonce de dispatch Volt — SpaceXAI TTS, voix Leo",
     "pull the words off the take":"tire les mots du take",
     "drop a night-ride VO — Whisper prints the transcript":"dépose un VO de nuit — Whisper imprime la transcription",
+    "score the alley":"partition de la ruelle",
+    "one prompt — Stable Audio drops a stereo night-ride bed":"un prompt — Stable Audio pose un lit stéréo night-ride",
 
     "product cutout":"détourage produit",
     "cyan lightning radio, background gone":"radio éclair cyan, fond disparu",
@@ -2665,6 +2669,8 @@ const I18N = {
     "Volt dispatch callout — SpaceXAI TTS, voice Leo":"Volt-Dispatch-Durchsage — SpaceXAI TTS, Stimme Leo",
     "pull the words off the take":"zieh die Wörter vom Take",
     "drop a night-ride VO — Whisper prints the transcript":"wirf ein Nachtfahrt-VO drauf — Whisper druckt das Transkript",
+    "score the alley":"Gassen-Score",
+    "one prompt — Stable Audio drops a stereo night-ride bed":"ein Prompt — Stable Audio legt ein Stereo-Night-Ride-Bett",
 
     "product cutout":"Produkt-Freisteller",
     "cyan lightning radio, background gone":"cyanfarbenes Blitz-Radio, Hintergrund weg",
@@ -3332,6 +3338,8 @@ const I18N = {
     "Volt dispatch callout — SpaceXAI TTS, voice Leo":"chamada de despacho Volt — SpaceXAI TTS, voz Leo",
     "pull the words off the take":"tire as palavras do take",
     "drop a night-ride VO — Whisper prints the transcript":"solte um VO noturno — Whisper imprime a transcrição",
+    "score the alley":"trilha do beco",
+    "one prompt — Stable Audio drops a stereo night-ride bed":"um prompt — Stable Audio solta uma cama estéreo night-ride",
 
     "product cutout":"recorte de produto",
     "cyan lightning radio, background gone":"rádio relâmpago ciano, fundo sumiu",
@@ -3999,6 +4007,8 @@ const I18N = {
     "Volt dispatch callout — SpaceXAI TTS, voice Leo":"Voltディスパッチコールアウト — SpaceXAI TTS、声Leo",
     "pull the words off the take":"テイクから言葉を引き抜く",
     "drop a night-ride VO — Whisper prints the transcript":"ナイトライドVOをドロップ — Whisperが文字起こしを出す",
+    "score the alley":"路地のスコア",
+    "one prompt — Stable Audio drops a stereo night-ride bed":"ワンプロンプト — Stable Audioがステレオのナイトライドベッドを置く",
 
     "product cutout":"商品切り抜き",
     "cyan lightning radio, background gone":"電光シアンのラジオ、背景なし",
@@ -14081,6 +14091,13 @@ const EXAMPLES = [
            {id:"n1",type:"aupload",x:40,y:280,w:280,fields:{},name:"Night-ride VO"},
            {id:"n2",type:"transcribe",x:400,y:260,w:300,fields:{model:"Whisper-Large-V3"},name:"Transcript"} ],
    links:[ {id:"l1",from:{node:"n1",port:"audio"},to:{node:"n2",port:"audio"}} ] } },
+ { em:"🎼", slug:"stable-alley-score", title:"score the alley", desc:"one prompt — Stable Audio drops a stereo night-ride bed",
+   thumb:"examples/gallery/stable-alley-score/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:20,w:520,fields:{text:"Text → Stable Audio 3 Small Music (`stable-audio-3/small/music/text-to-audio`) (~$0.024/gen). Instrumental alley score — not `sing` vocal Mureka song, not Night-ride SFX sting, not Mirelo foley.",color:"yellow"},name:"score the alley"},
+           {id:"n1",type:"text",x:40,y:280,w:340,fields:{text:"Instrumental only — no vocals, no lyrics. Late-night neon alley score for a charcoal Volt pocket radio with a cyan lightning chevron: low trip-hop pulse, soft rain ticks, distant scooter wash once, quiet electrical hum. Dark, cool, cinematic bed under 90 seconds. No radio DJ talk, no crowd cheer."},name:"Score brief"},
+           {id:"n2",type:"music",x:440,y:260,w:300,fields:{model:"stable-audio-3/small/music/text-to-audio",instrumental:true,response_format:"mp3"},name:"Score"} ],
+   links:[ {id:"l1",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}} ] } },
  { em:"🔄", slug:"omni-flash-turntable", title:"cinematic product motion", desc:"quarter-orbit, cyan rim on a night-ride radio",
    thumb:"examples/gallery/omni-flash-turntable/preview.webp",
    graph:{ v:1,
@@ -14187,7 +14204,7 @@ function openExamples(){
   // Same Elo order on every width — no mobile-only list, no CSS order, no truncation.
   // Featured #skilloutcome (Iron Verdict) sits above the grid on every width.
   // Compact mobile cards keep H3 (4th) and the featured game above the fold.
-  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","virtual-try-on","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","volt-vector-mark","mai-pack-type","volt-dispatch-infographic","photo-to-video","grok-imagine-still","wan-motion-drive","wan-still-audio","h3-max-multi-angle","crystal-video-upscale","p-video-rewrite","wan-stretch-take","mirelo-video-foley","pixelcut-video-cutout","character-sprites","talking-avatar","infinitetalk-radio-take","sing","night-ride-sfx","night-ride-radio-vo","whisper-pull-words","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
+  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","virtual-try-on","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","volt-vector-mark","mai-pack-type","volt-dispatch-infographic","photo-to-video","grok-imagine-still","wan-motion-drive","wan-still-audio","h3-max-multi-angle","crystal-video-upscale","p-video-rewrite","wan-stretch-take","mirelo-video-foley","pixelcut-video-cutout","character-sprites","talking-avatar","infinitetalk-radio-take","sing","night-ride-sfx","night-ride-radio-vo","whisper-pull-words","stable-alley-score","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
   EXAMPLES.map((ex,i)=>({ex,i})).sort((a,b)=>{
     const rank=slug=>first.includes(slug)?first.indexOf(slug):first.length;
     return rank(a.ex.slug)-rank(b.ex.slug);

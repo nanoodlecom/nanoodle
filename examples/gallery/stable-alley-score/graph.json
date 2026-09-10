@@ -1,0 +1,61 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 40,
+      "y": 20,
+      "w": 520,
+      "name": "score the alley",
+      "fields": {
+        "text": "Text → Stable Audio 3 Small Music (`stable-audio-3/small/music/text-to-audio`) (~$0.024/gen). Instrumental alley score — not `sing` vocal Mureka song, not Night-ride SFX sting, not Mirelo foley.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "n1",
+      "type": "text",
+      "x": 40,
+      "y": 280,
+      "w": 340,
+      "name": "Score brief",
+      "fields": {
+        "text": "Instrumental only — no vocals, no lyrics. Late-night neon alley score for a charcoal Volt pocket radio with a cyan lightning chevron: low trip-hop pulse, soft rain ticks, distant scooter wash once, quiet electrical hum. Dark, cool, cinematic bed under 90 seconds. No radio DJ talk, no crowd cheer."
+      }
+    },
+    {
+      "id": "n2",
+      "type": "music",
+      "x": 440,
+      "y": 260,
+      "w": 300,
+      "name": "Score",
+      "fields": {
+        "model": "stable-audio-3/small/music/text-to-audio",
+        "instrumental": true,
+        "response_format": "mp3"
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "n1",
+        "port": "text"
+      },
+      "to": {
+        "node": "n2",
+        "port": "prompt"
+      }
+    }
+  ],
+  "nid": 3,
+  "lid": 2,
+  "view": {
+    "panX": 20,
+    "panY": 40,
+    "scale": 0.85
+  }
+}

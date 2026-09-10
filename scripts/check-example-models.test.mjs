@@ -101,7 +101,7 @@ test('homepage pins use the same strict model, type and capability checks as gal
   assert.throws(() => starterModels({ nodes: [{ type: 'unknown' }] }, kinds), /unknown node type/);
 });
 
-test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefNet, InfiniteTalk, SAM 3, P-Image Upscale, deslop venice-uncensored, H3 Max Multi Angle, character-sprites, transparent-brand-sticker, remove-packaging-text, h3-identity-restyle, virtual-try-on, ideogram-v4-instant-poster, volt-vector-mark, mai-pack-type, Crystal video upscale, Night-ride SFX, Night-ride radio VO, Whisper pull-words, SenseNova dispatch, Grok Imagine 1.5 still, Wan 3.0 still+audio, Wan Animate 2 motion-drive, P-Video rewrite, Wan 2.5 Extend stretch-take, Mirelo video foley and Pixelcut video cutout pin regressions', async () => {
+test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefNet, InfiniteTalk, SAM 3, P-Image Upscale, deslop venice-uncensored, H3 Max Multi Angle, character-sprites, transparent-brand-sticker, remove-packaging-text, h3-identity-restyle, virtual-try-on, ideogram-v4-instant-poster, volt-vector-mark, mai-pack-type, Crystal video upscale, Night-ride SFX, Night-ride radio VO, Whisper pull-words, Stable Audio alley score, SenseNova dispatch, Grok Imagine 1.5 still, Wan 3.0 still+audio, Wan Animate 2 motion-drive, P-Video rewrite, Wan 2.5 Extend stretch-take, Mirelo video foley and Pixelcut video cutout pin regressions', async () => {
   const { galleryRegressions } = await import('./check-example-models.mjs');
   const pins = [
     { slug: 'fibo-studio-still', ...pin('image', { model: 'bria/fibo-generate-1.5/text-to-image', size: '1mp' }) },
@@ -136,9 +136,10 @@ test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefN
     { slug: 'wan-motion-drive', ...pin('vedit', { model: 'wan-22-animate-2', resolution: '480p' }) },
     { slug: 'virtual-try-on', ...pin('edit', { model: 'flux-pro/v1/vto', size: 'auto' }) },
     { slug: 'whisper-pull-words', ...pin('transcribe', { model: 'Whisper-Large-V3' }) },
+    { slug: 'stable-alley-score', ...pin('music', { model: 'stable-audio-3/small/music/text-to-audio', instrumental: true }) },
   ];
   assert.equal(galleryRegressions(pins).length, 0);
-  assert.equal(galleryRegressions([]).length, 32);
+  assert.equal(galleryRegressions([]).length, 33);
   pins[0].fields.size = 'auto';
   assert.match(galleryRegressions(pins)[0].reason, /expected size 1mp/);
   pins[0].fields.size = '1mp';
@@ -174,6 +175,7 @@ test('preserves FIBO size/model, H3 cinematic still, Omni version, Fable, BiRefN
   pins[29].id = 'pruna-ai/p-video/animate';
   pins[30].id = 'minimax-h3/image-edit';
   pins[31].id = 'gpt-4o-mini-transcribe';
-  assert.equal(galleryRegressions(pins).length, 32);
+  pins[32].id = 'mureka-ai/mureka-v9.5/generate-song';
+  assert.equal(galleryRegressions(pins).length, 33);
   assert.ok(galleryRegressions(pins).every(p => /expected model/.test(p.reason)));
 });

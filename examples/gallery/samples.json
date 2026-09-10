@@ -913,7 +913,7 @@
     "date": "2026-09-10",
     "review": "Cover still",
     "note": "Cover is reused Volt card art from the photo-to-video night-ride radio plate, pending a true P-Video Edit QC clip — no paid `pruna-ai/p-video/edit` run this PR. Job is prompt-rewrite at draft=true (~$0.025/s, ~$0.10 for ~4s) and can keep source audio. Distinct from Crystal video upscale and i2v (photo-to-video / Grok / H3 orbit / Omni Flash). Open the graph — upload a short clip; Rewrite brief stays on the Volt night-ride line; Rewritten clip pins `pruna-ai/p-video/edit` with draft=true. No committed clip in-repo.",
-    "costUsd": 0.10,
+    "costUsd": 0.1,
     "costExact": false,
     "models": [
       "pruna-ai/p-video/edit"
@@ -1255,6 +1255,35 @@
     "preview": "whisper-pull-words/preview.webp",
     "workflow": "whisper-pull-words/workflow.json",
     "workflowSha256": "b1159fe6aad917216af8ed0cf8495e9b2df5667211c5b814af3c7f3d57faa856"
+  },
+  {
+    "slug": "stable-alley-score",
+    "title": "score the alley",
+    "date": "2026-09-10",
+    "review": "Cover still",
+    "note": "Cover is reused Volt alley card art from examples/gallery/combine-images/preview.webp (wet neon alley), pending a true Stable Audio 3 Small Music QC bed — no paid stable-audio-3/small/music/text-to-audio or NanoGPT run this PR. No fake waveform thumb. Job is an instrumental stereo night-ride bed: late-night neon alley score for a charcoal Volt pocket radio with a cyan lightning chevron; low trip-hop pulse, soft rain ticks. Distinct from Closing-credits song (sing / Mureka generate-song), Night-ride SFX (elevenlabs/sound-effects/v2), Night-ride radio VO (xai-tts), and Mirelo video foley. Open the graph — Score brief is the Volt alley sentence; Score pins stable-audio-3/small/music/text-to-audio with instrumental true (~$0.024/gen). No vocals, no lyrics. No upload. No LLM.",
+    "costUsd": 0.024,
+    "costExact": false,
+    "models": [
+      "stable-audio-3/small/music/text-to-audio"
+    ],
+    "graphSha256": "fefb76beb97017873f237068563a1790f4ca0b79a27de57ecd5a6d03b451d14e",
+    "inputs": [
+      {
+        "label": "Score brief",
+        "text": "Instrumental only — no vocals, no lyrics. Late-night neon alley score for a charcoal Volt pocket radio with a cyan lightning chevron: low trip-hop pulse, soft rain ticks, distant scooter wash once, quiet electrical hum. Dark, cool, cinematic bed under 90 seconds. No radio DJ talk, no crowd cheer."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "stable-alley-score/NOTE.txt",
+        "kind": "text",
+        "label": "Note"
+      }
+    ],
+    "preview": "stable-alley-score/preview.webp",
+    "workflow": "stable-alley-score/workflow.json",
+    "workflowSha256": "fefb76beb97017873f237068563a1790f4ca0b79a27de57ecd5a6d03b451d14e"
   },
   {
     "slug": "talking-avatar",
