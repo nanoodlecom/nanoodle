@@ -227,6 +227,14 @@ const HOWTO = {
     inspect: "Cover still is card art for the mid-shot courier + pocket radio — not a paid InfiniteTalk QC clip. Sample video QC pending. Open the graph and hit Run with your key. Inspect body motion and lip timing. This model follows the sound; it does not invent a TTS script.",
     costHow: "Listed from about $0.09 for InfiniteTalk (duration/resolution) plus Muse ~$0.01. Speech only if you keep the bootstrap. Prices and results vary. This page has no reviewed first-party InfiniteTalk clip yet.",
   },
+  "grok-imagine-still": {
+    headline: "The frame wakes up",
+    job: "One still. One cyan pulse.",
+    purpose: "Muse draws the matte-charcoal rooftop-ledge Volt radio. Grok Imagine Video 1.5 rides it into a four-second clip — locked camera, subtle rain, one cyan chevron pulse. Not photo-to-video / MiniMax H3 Spicy (asphalt rain, 5s).",
+    edit: "Change <em>Still brief</em> and <em>Motion brief</em> together. Leave <em>First frame</em> on Muse and <em>Animated clip</em> on <code>xai/grok-imagine-video/v1.5/image-to-video</code> at 480p / 4s.",
+    inspect: "Cover is reused Volt charcoal card art, pending Grok Imagine 1.5 QC — no paid run this PR. Inspect the cyan pulse. A seamless loop is not promised.",
+    costHow: "Listed at about $0.84 (Muse $0.01 + Grok Imagine Video 1.5 ~$0.83 at 480p / 4s). Prices vary. This page has no reviewed first-party clip yet.",
+  },
   "h3-max-multi-angle": {
     headline: "Orbit the uploaded radio",
     job: "Camera right. Product stays.",
@@ -290,7 +298,7 @@ const GROUPS = [
     "night-market-postcard", "fibo-studio-still", "cinematic-character-still", "h3-identity-restyle", "character-sprites",
     "image-model-arena",
   ] },
-  { id: "video", title: "Video", slugs: ["photo-to-video", "h3-max-multi-angle", "crystal-video-upscale", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },
+  { id: "video", title: "Video", slugs: ["photo-to-video", "grok-imagine-still", "h3-max-multi-angle", "crystal-video-upscale", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },
   { id: "audio", title: "Audio", slugs: ["sing"] },
   { id: "text", title: "Text", slugs: ["deslop", "fable-five-step"] },
 ];

@@ -85,6 +85,7 @@ export function galleryRegressions(pins) {
     { slug: 'ideogram-v4-instant-poster', type: 'image', model: 'ideogram/v4/instant', size: '1024x1024' },
     { slug: 'crystal-video-upscale', type: 'vedit', model: 'clarity-ai/crystal-video-upscaler', target_megapixels: 1 },
     { slug: 'volt-dispatch-infographic', type: 'image', model: 'sensenova-u1-infographic', size: '16:9' },
+    { slug: 'grok-imagine-still', type: 'ivideo', model: 'xai/grok-imagine-video/v1.5/image-to-video', resolution: '480p', duration: '4' },
   ];
   return expected.flatMap(({ slug, type, model, size, resolution, people, duration, camera_motion, target_megapixels }) => {
     const pin = pins.find(p => p.slug === slug && p.type === type);
