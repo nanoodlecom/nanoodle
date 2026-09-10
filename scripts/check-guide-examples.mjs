@@ -1856,6 +1856,94 @@ if (/google\/gemini-omni-flash/.test(grokCard)) {
 if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
   fail("custom-endpoint must stay the only LOCAL_ONLY teaching card after grok-imagine-still sync");
 }
+const wanSample = samples.find((s) => s.slug === "wan-still-audio");
+if (!wanSample) fail("samples.json missing wan-still-audio");
+if (wanSample.preview !== "wan-still-audio/preview.webp") {
+  fail("wan-still-audio sample preview should be wan-still-audio/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "wan-still-audio", "preview.webp"))) {
+  fail("examples/gallery/wan-still-audio/preview.webp is missing");
+}
+if (!/alibaba\/wan-3\.0\/image-to-video/.test(JSON.stringify(wanSample.models))) {
+  fail("wan-still-audio sample should pin alibaba/wan-3.0/image-to-video");
+}
+if (!/cover|reused Volt card art|product-cutout|FIBO/i.test(wanSample.note) || !/no paid|pending/i.test(wanSample.note)) {
+  fail("wan-still-audio sample note should say cover is reused Volt card art and Wan 3.0 QC is pending");
+}
+if (!/still → video|railing|alley hum|enable_audio/i.test(wanSample.note)) {
+  fail("wan-still-audio sample note should say the job is Wan 3.0 still+audio with alley hum");
+}
+if (!/frame wakes up|Grok Imagine/i.test(wanSample.note)) {
+  fail("wan-still-audio sample note should distinguish frame wakes up / Grok Imagine 1.5");
+}
+if (!/photo-to-video|MiniMax H3 Spicy/i.test(wanSample.note)) {
+  fail("wan-still-audio sample note should distinguish photo-to-video / MiniMax H3 Spicy");
+}
+if (!/Volt/i.test(wanSample.note)) {
+  fail("wan-still-audio sample note should pitch the Volt night-ride radio");
+}
+if (!hub.includes("wan-still-audio/preview.webp")) {
+  fail("hub should thumb the wan-still-audio cover");
+}
+if (!hub.includes("Still breathes with sound")) {
+  fail("hub should title wan-still-audio as Still breathes with sound");
+}
+const wanHowTo = readFileSync(join(ROOT, "guide", "examples", "wan-still-audio.html"), "utf8");
+if (!/alibaba\/wan-3\.0\/image-to-video/.test(wanHowTo)) {
+  fail("wan-still-audio how-to should name alibaba/wan-3.0/image-to-video");
+}
+if (!/Volt|railing|alley hum/i.test(wanHowTo) || !/Wan 3\.0/i.test(wanHowTo)) {
+  fail("wan-still-audio how-to should pitch the Volt railing radio + Wan 3.0 alley hum");
+}
+if (!/480p|2s|enable_audio/i.test(wanHowTo)) {
+  fail("wan-still-audio how-to should say this is 480p / 2s / enable_audio");
+}
+if (!/frame wakes up/i.test(wanHowTo)) {
+  fail("wan-still-audio how-to should distinguish frame wakes up");
+}
+if (!/photo-to-video/i.test(wanHowTo)) {
+  fail("wan-still-audio how-to should distinguish photo-to-video");
+}
+if (!/reused Volt card art|no paid|pending/i.test(wanHowTo)) {
+  fail("wan-still-audio how-to should say the cover is reused Volt card art and Wan 3.0 QC is pending");
+}
+if (!wanHowTo.includes("wan-still-audio/preview.webp")) {
+  fail("wan-still-audio how-to should show the cover still");
+}
+if (!/slug:"wan-still-audio"[\s\S]{0,200}thumb:"examples\/gallery\/wan-still-audio\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES wan-still-audio thumb should be examples/gallery/wan-still-audio/preview.webp");
+}
+if (!/slug:"wan-still-audio"[\s\S]{0,80}desc:"one still — Wan 3.0 adds motion \+ synced audio"/.test(examplesSrc)) {
+  fail("EXAMPLES wan-still-audio desc should pitch one still — Wan 3.0 adds motion + synced audio");
+}
+if (!/slug:"wan-still-audio"[\s\S]{0,80}title:"still breathes with sound"/.test(examplesSrc)) {
+  fail("EXAMPLES wan-still-audio title should be still breathes with sound");
+}
+const wanCard = examplesSrc.match(/slug:"wan-still-audio"[\s\S]{0,3500}/)?.[0] || "";
+if (!/alibaba\/wan-3\.0\/image-to-video/.test(wanCard)) {
+  fail("EXAMPLES wan-still-audio graph should pin alibaba/wan-3.0/image-to-video");
+}
+if (!/resolution:"480p"/.test(wanCard) || !/duration:2/.test(wanCard)) {
+  fail("EXAMPLES wan-still-audio graph should pin 480p / 2s");
+}
+if (!/enable_audio":true/.test(wanCard)) {
+  fail("EXAMPLES wan-still-audio graph should pin enable_audio=true");
+}
+if (!/meta\/muse-image\/text-to-image/.test(wanCard)) {
+  fail("EXAMPLES wan-still-audio graph should pin Muse for the first frame");
+}
+if (/minimax-h3\/image-to-video-spicy/.test(wanCard)) {
+  fail("EXAMPLES wan-still-audio must not pin MiniMax H3 Spicy");
+}
+if (/xai\/grok-imagine-video/.test(wanCard)) {
+  fail("EXAMPLES wan-still-audio must not pin Grok Imagine");
+}
+if (/google\/gemini-omni-flash/.test(wanCard)) {
+  fail("EXAMPLES wan-still-audio must not pin Omni Flash");
+}
+if (!/LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\["custom-endpoint"\]\)/.test(examplesSrc)) {
+  fail("custom-endpoint must stay the only LOCAL_ONLY teaching card after wan-still-audio sync");
+}
 const sfxSample = samples.find((s) => s.slug === "night-ride-sfx");
 if (!sfxSample) fail("samples.json missing night-ride-sfx");
 if (sfxSample.preview !== "night-ride-sfx/preview.webp") {

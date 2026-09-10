@@ -68,6 +68,8 @@ const catalogs = {
       supported_parameters: { parameters: {} } },
     { id: 'xai/grok-imagine-video/v1.5/image-to-video', capabilities: { image_to_video: true },
       supported_parameters: { parameters: { resolution: opts(['480p', '720p']), duration: opts([1, 2, 3, 4, 5, 6, 8, 10, 15]) } } },
+    { id: 'alibaba/wan-3.0/image-to-video', capabilities: { image_to_video: true },
+      supported_parameters: { parameters: { resolution: opts(['480p', '720p']), duration: opts([2, 5, 10]) } } },
   ],
   audio: [
     { id: 'Minimax-Speech-2.8-HD', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Deep_Voice_Man'] } },

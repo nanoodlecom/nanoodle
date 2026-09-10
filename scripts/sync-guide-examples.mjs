@@ -272,6 +272,15 @@ const HOWTO = {
     inspect: "Cover is reused Volt charcoal card art, pending Grok Imagine 1.5 QC — no paid run this PR. Inspect the cyan pulse. A seamless loop is not promised.",
     costHow: "Listed at about $0.84 (Muse $0.01 + Grok Imagine Video 1.5 ~$0.83 at 480p / 4s). Prices vary. This page has no reviewed first-party clip yet.",
   },
+  "wan-still-audio": {
+    headline: "Still breathes with sound",
+    job: "Wan 3.0. Motion + alley hum.",
+    hideNote: true,
+    purpose: "Muse draws the railing radio. Wan 3.0 adds two seconds of locked-cam breath and generated alley hum. Not frame wakes up. Not photo-to-video.",
+    edit: "Change <em>Still brief</em> and <em>Motion brief</em> together. Leave <em>First frame</em> on Muse and <em>Animated clip</em> on <code>alibaba/wan-3.0/image-to-video</code> at 480p / 2s / <code>enable_audio</code>.",
+    inspect: "Cover is reused Volt card art, pending Wan 3.0 QC — no paid run this PR. Inspect rain beads, LED pulse, alley hum. A seamless loop is not promised.",
+    costHow: "Listed at about $0.15 (Muse $0.01 + Wan 3.0 ~$0.14 at 480p / 2s). Prices vary. No reviewed first-party clip yet.",
+  },
   "h3-max-multi-angle": {
     headline: "Orbit the uploaded radio",
     job: "Camera right. Product stays.",
@@ -344,7 +353,7 @@ const GROUPS = [
     "night-market-postcard", "fibo-studio-still", "cinematic-character-still", "h3-identity-restyle", "character-sprites",
     "image-model-arena",
   ] },
-  { id: "video", title: "Video", slugs: ["photo-to-video", "grok-imagine-still", "h3-max-multi-angle", "crystal-video-upscale", "p-video-rewrite", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },
+  { id: "video", title: "Video", slugs: ["photo-to-video", "grok-imagine-still", "wan-still-audio", "h3-max-multi-angle", "crystal-video-upscale", "p-video-rewrite", "omni-flash-turntable", "talking-avatar", "infinitetalk-radio-take"] },
   { id: "audio", title: "Audio", slugs: ["sing", "night-ride-sfx", "night-ride-radio-vo"] },
   { id: "text", title: "Text", slugs: ["deslop", "fable-five-step"] },
 ];
