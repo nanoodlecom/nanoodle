@@ -253,6 +253,15 @@ const HOWTO = {
     inspect: "Cover still is reused Volt card art from the photo-to-video night-ride radio plate, pending a true Crystal QC clip — no paid clarity-ai/crystal-video-upscaler run this PR, not a fabricated upscale. Open the graph and hit Run with your key after you upload a clip. Inspect native sharpness against the input.",
     costHow: "Listed from about $0.50 for one Crystal call at 1 MP / 5s ($0.10/MP/s, min $0.10). Duration and target megapixels determine pricing. No LLM. Prices and results vary. This page has no reviewed first-party upscale yet.",
   },
+  "volt-dispatch-infographic": {
+    headline: "DROP. ZONE. ETA.",
+    job: "Volt dispatch card. Short labels.",
+    hideNote: true,
+    purpose: "Text brief → SenseNova U1 Infographic. First-click is Volt — charcoal panel, ONE cyan lightning chevron, DROP / ZONE / ETA. Not a UI mockup, not a postcard.",
+    edit: "Rewrite <em>Dispatch brief</em>. Leave <em>Infographic</em> on <code>sensenova-u1-infographic</code> at size <code>16:9</code>.",
+    inspect: "Cover is reused Volt poster art, pending SenseNova QC — no paid run this PR. Open the graph, inspect hierarchy and short copy.",
+    costHow: "Listed at $0.05 for one SenseNova U1 Infographic call at 16:9. No LLM. Prices vary. No reviewed first-party card yet.",
+  },
 };
 
 // Awesome-noodles README share link for character-sprites (Iron Verdict is
@@ -285,7 +294,7 @@ for (const s of SAMPLES) {
 const GROUPS = [
   { id: "playable", title: "Playable", slugs: ["iron-verdict"] },
   { id: "image", title: "Image", slugs: [
-    "edit-a-photo", "product-cutout", "sam3-isolate", "p-image-upscale", "remove-packaging-text", "combine-images", "render-a-mockup", "favicon",
+    "edit-a-photo", "product-cutout", "sam3-isolate", "p-image-upscale", "remove-packaging-text", "combine-images", "render-a-mockup", "volt-dispatch-infographic", "favicon",
     "transparent-brand-sticker", "ideogram-v4-instant-poster",
     "night-market-postcard", "fibo-studio-still", "cinematic-character-still", "h3-identity-restyle", "character-sprites",
     "image-model-arena",

@@ -1353,6 +1353,8 @@ const I18N = {
     "lightning-cyan bolt that still reads at 16px":"un rayo cian que se lee incluso a 16px",
     "transparent brand sticker":"sticker de marca transparente",
     "cyan lightning chevron sticker — clean alpha, no letters":"sticker chevron relámpago cian — alpha limpio, sin letras",
+    "volt dispatch card":"tarjeta de despacho Volt",
+    "DROP / ZONE / ETA — charcoal SenseNova infographic":"DROP / ZONE / ETA — infografía SenseNova en carbón",
     "volt drop poster":"póster de drop Volt",
     "VOLT / MIDNIGHT DROP — sharp lettering, no upload":"VOLT / MIDNIGHT DROP — lettering nítido, sin upload",
     "remove packaging text":"quitar texto de envase",
@@ -1998,6 +2000,8 @@ const I18N = {
     "lightning-cyan bolt that still reads at 16px":"un éclair cyan qui se lit encore à 16 px",
     "transparent brand sticker":"sticker de marque transparent",
     "cyan lightning chevron sticker — clean alpha, no letters":"sticker chevron éclair cyan — alpha propre, sans lettres",
+    "volt dispatch card":"carte de dispatch Volt",
+    "DROP / ZONE / ETA — charcoal SenseNova infographic":"DROP / ZONE / ETA — infographie SenseNova anthracite",
     "volt drop poster":"poster de drop Volt",
     "VOLT / MIDNIGHT DROP — sharp lettering, no upload":"VOLT / MIDNIGHT DROP — lettering net, sans import",
     "remove packaging text":"retirer le texte d’emballage",
@@ -2643,6 +2647,8 @@ const I18N = {
     "lightning-cyan bolt that still reads at 16px":"ein cyanfarbener Blitz, der auch bei 16 px lesbar bleibt",
     "transparent brand sticker":"transparenter Markensticker",
     "cyan lightning chevron sticker — clean alpha, no letters":"Cyan-Blitz-Chevron-Sticker — sauberes Alpha, keine Buchstaben",
+    "volt dispatch card":"Volt-Dispatch-Karte",
+    "DROP / ZONE / ETA — charcoal SenseNova infographic":"DROP / ZONE / ETA — SenseNova-Infografik in Anthrazit",
     "volt drop poster":"Volt-Drop-Poster",
     "VOLT / MIDNIGHT DROP — sharp lettering, no upload":"VOLT / MIDNIGHT DROP — scharfes Lettering, kein Upload",
     "remove packaging text":"Verpackungstext entfernen",
@@ -3288,6 +3294,8 @@ const I18N = {
     "lightning-cyan bolt that still reads at 16px":"um raio ciano que ainda se lê em 16px",
     "transparent brand sticker":"adesivo de marca transparente",
     "cyan lightning chevron sticker — clean alpha, no letters":"adesivo chevron relâmpago ciano — alpha limpo, sem letras",
+    "volt dispatch card":"cartão de despacho Volt",
+    "DROP / ZONE / ETA — charcoal SenseNova infographic":"DROP / ZONE / ETA — infográfico SenseNova em carvão",
     "volt drop poster":"pôster de drop Volt",
     "VOLT / MIDNIGHT DROP — sharp lettering, no upload":"VOLT / MIDNIGHT DROP — lettering nítido, sem upload",
     "remove packaging text":"remover texto da embalagem",
@@ -3933,6 +3941,8 @@ const I18N = {
     "lightning-cyan bolt that still reads at 16px":"16pxでも読めるシアンの稲妻",
     "transparent brand sticker":"透明ブランドステッカー",
     "cyan lightning chevron sticker — clean alpha, no letters":"電光シアンのシェブロンステッカー — きれいなアルファ、文字なし",
+    "volt dispatch card":"Voltディスパッチカード",
+    "DROP / ZONE / ETA — charcoal SenseNova infographic":"DROP / ZONE / ETA — チャコールのSenseNovaインフォグラフィック",
     "volt drop poster":"Voltドロップポスター",
     "VOLT / MIDNIGHT DROP — sharp lettering, no upload":"VOLT / MIDNIGHT DROP — シャープなレタリング、アップロードなし",
     "remove packaging text":"パッケージ文字を消す",
@@ -13759,6 +13769,13 @@ const EXAMPLES = [
            {id:"n3",type:"image",x:680,y:80,w:250,fields:{model:"meta/muse-image/text-to-image",size:"1:1",variations:"1"},name:"Favicon"} ],
    links:[ {id:"l16",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}},
            {id:"l17",from:{node:"n2",port:"text"},to:{node:"n3",port:"prompt"}} ] } },
+ { em:"🗂️", slug:"volt-dispatch-infographic", title:"volt dispatch card", desc:"DROP / ZONE / ETA — charcoal SenseNova infographic",
+   thumb:"examples/gallery/volt-dispatch-infographic/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:20,w:520,fields:{text:"Text brief → SenseNova U1 Infographic (`sensenova-u1-infographic`) structured dispatch card. Size 16:9, catalog $0.05 (all listed aspects $0.05). Text→image only; tags text-to-image / infographic. nsfw: false. First-click Dispatch brief is a Volt night-courier dispatch card: matte charcoal panel, ONE electric-cyan lightning-bolt chevron mark, cyan/magenta accents, clean DROP / ZONE / ETA blocks. Short labels, no text walls. Dark Volt vibe matching the nanoodle editor. Not a UI mockup (Qwen dashboard / `render-a-mockup`), not a travel postcard (`night-market-postcard`), not FIBO studio still, not Muse cinematic, not a transparent sticker, not Ideogram V4 Instant poster, not remove-text packaging cleanup, not Flare arena. No upload. No LLM. Inspect hierarchy and short copy; this is a structured infographic still, not a photo.",color:"yellow"},name:"Volt dispatch card"},
+           {id:"n1",type:"text",x:40,y:320,w:320,fields:{text:"Volt night-courier dispatch card. Structured infographic still, 16:9. Matte charcoal panel. ONE electric-cyan lightning-bolt chevron mark. Cyan and magenta accents. Three blocks only: DROP Night-ride / ZONE Ridge / ETA 22:30. Short labels, no paragraphs. Dark Volt vibe matching the nanoodle editor. Not a photo, not a UI screenshot, not a postcard. No busy collage."},name:"Dispatch brief"},
+           {id:"n2",type:"image",x:420,y:300,w:280,fields:{model:"sensenova-u1-infographic",size:"16:9",variations:"1"},name:"Infographic"} ],
+   links:[ {id:"l1",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}} ] } },
  { em:"🏷️", slug:"transparent-brand-sticker", title:"transparent brand sticker", desc:"cyan lightning chevron sticker — clean alpha, no letters",
    thumb:"examples/gallery/transparent-brand-sticker/preview.webp",
    graph:{ v:1,
@@ -13965,7 +13982,7 @@ function openExamples(){
   // Same Elo order on every width — no mobile-only list, no CSS order, no truncation.
   // Featured #skilloutcome (Iron Verdict) sits above the grid on every width.
   // Compact mobile cards keep H3 (4th) and the featured game above the fold.
-  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","photo-to-video","h3-max-multi-angle","crystal-video-upscale","character-sprites","talking-avatar","infinitetalk-radio-take","sing","night-ride-sfx","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
+  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","volt-dispatch-infographic","photo-to-video","h3-max-multi-angle","crystal-video-upscale","character-sprites","talking-avatar","infinitetalk-radio-take","sing","night-ride-sfx","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
   EXAMPLES.map((ex,i)=>({ex,i})).sort((a,b)=>{
     const rank=slug=>first.includes(slug)?first.indexOf(slug):first.length;
     return rank(a.ex.slug)-rank(b.ex.slug);
