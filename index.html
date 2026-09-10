@@ -13904,6 +13904,13 @@ const EXAMPLES = [
            {id:"n1",type:"vupload",x:40,y:320,w:280,fields:{},name:"Product clip"},
            {id:"n2",type:"vedit",x:400,y:300,w:320,fields:{model:"mirelo-ai/sfx1.6/video-to-video",prompt:""},name:"Foleyed clip"} ],
    links:[ {id:"l1",from:{node:"n1",port:"video"},to:{node:"n2",port:"video"}} ] } },
+ { em:"⬛", slug:"pixelcut-video-cutout", title:"knock the alley off the clip", desc:"short product take — Pixelcut drops the background",
+   thumb:"examples/gallery/pixelcut-video-cutout/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:20,w:480,fields:{text:"Upload clip → Pixelcut Video Background Remover (`pixelcut/video-background-removal`) @ black bg (~$0.022/30 frames). Video cutout — not BiRefNet still cutout, not Crystal upscale, not P-Video rewrite.",color:"yellow"},name:"knock the alley off the clip"},
+           {id:"n1",type:"vupload",x:40,y:320,w:280,fields:{},name:"Product clip"},
+           {id:"n2",type:"vedit",x:400,y:300,w:320,fields:{model:"pixelcut/video-background-removal",prompt:"",modelOpts:{"background":"black"}},name:"Cutout clip"} ],
+   links:[ {id:"l1",from:{node:"n1",port:"video"},to:{node:"n2",port:"video"}} ] } },
  { em:"🎬", slug:"photo-to-video", title:"photo → video", desc:"locked camera, rain on a night-ride radio",
    thumb:"examples/gallery/photo-to-video/preview.webp",
    graph:{ v:1,
@@ -14111,7 +14118,7 @@ function openExamples(){
   // Same Elo order on every width — no mobile-only list, no CSS order, no truncation.
   // Featured #skilloutcome (Iron Verdict) sits above the grid on every width.
   // Compact mobile cards keep H3 (4th) and the featured game above the fold.
-  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","volt-vector-mark","mai-pack-type","volt-dispatch-infographic","photo-to-video","grok-imagine-still","wan-still-audio","h3-max-multi-angle","crystal-video-upscale","p-video-rewrite","mirelo-video-foley","character-sprites","talking-avatar","infinitetalk-radio-take","sing","night-ride-sfx","night-ride-radio-vo","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
+  const first=["night-market-postcard","fibo-studio-still","combine-images","cinematic-character-still","h3-identity-restyle","image-model-arena","edit-a-photo","product-cutout","sam3-isolate","p-image-upscale","remove-packaging-text","render-a-mockup","favicon","transparent-brand-sticker","ideogram-v4-instant-poster","volt-vector-mark","mai-pack-type","volt-dispatch-infographic","photo-to-video","grok-imagine-still","wan-still-audio","h3-max-multi-angle","crystal-video-upscale","p-video-rewrite","mirelo-video-foley","pixelcut-video-cutout","character-sprites","talking-avatar","infinitetalk-radio-take","sing","night-ride-sfx","night-ride-radio-vo","omni-flash-turntable","deslop","fable-five-step","custom-endpoint"];
   EXAMPLES.map((ex,i)=>({ex,i})).sort((a,b)=>{
     const rank=slug=>first.includes(slug)?first.indexOf(slug):first.length;
     return rank(a.ex.slug)-rank(b.ex.slug);
