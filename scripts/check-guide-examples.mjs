@@ -3116,8 +3116,8 @@ if (!existsSync(join(ROOT, "examples", "gallery", "widen-the-frame", "banana-bad
 if (!widenSample.models.includes("nano-banana-edit")) {
   fail("widen-the-frame sample should pin nano-banana-edit");
 }
-if (!/reused Volt|no paid|pending/.test(widenSample.note) || !/nano-banana-edit/.test(widenSample.note)) {
-  fail("widen-the-frame sample note should stay honest: reused Volt card art, no paid nano-banana-edit QC");
+if (!/job-describing card art|no paid|pending/.test(widenSample.note) || !/nano-banana-edit/.test(widenSample.note)) {
+  fail("widen-the-frame sample note should stay honest: job-describing card art, no paid nano-banana-edit QC");
 }
 if (!/outpaint|canvas expand/.test(widenSample.note)) {
   fail("widen-the-frame sample note should say the job is canvas expand / outpaint");
@@ -3192,8 +3192,8 @@ if (!/FLUX VTO/.test(widenHowTo)) {
 if (!/combine-images/.test(widenHowTo)) {
   fail("widen-the-frame how-to should distinguish combine-images");
 }
-if (!/pending|no paid|reused Volt/.test(widenHowTo)) {
-  fail("widen-the-frame how-to should stay honest about reused cover / no paid QC");
+if (!/pending|no paid|job-describing card art/.test(widenHowTo)) {
+  fail("widen-the-frame how-to should stay honest about job-describing card art / no paid QC");
 }
 if (!/size stays auto|size <code>auto<\/code>/.test(widenHowTo)) {
   fail("widen-the-frame how-to should say size stays auto");
