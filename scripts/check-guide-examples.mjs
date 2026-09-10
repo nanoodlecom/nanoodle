@@ -1392,6 +1392,101 @@ if (/birefnet|sam3-image|pruna-ai\/p-image|ideogram-v3-generate-transparent|meta
 if (/type:"llm"/.test(packCard)) {
   fail("EXAMPLES remove-packaging-text must stay upload → edit → resize (no LLM)");
 }
+const posterSample = samples.find((s) => s.slug === "ideogram-v4-instant-poster");
+if (!posterSample) fail("samples.json missing ideogram-v4-instant-poster");
+if (posterSample.preview !== "ideogram-v4-instant-poster/preview.webp") {
+  fail("ideogram-v4-instant-poster sample preview should be ideogram-v4-instant-poster/preview.webp");
+}
+if (!existsSync(join(ROOT, "examples", "gallery", "ideogram-v4-instant-poster", "preview.webp"))) {
+  fail("examples/gallery/ideogram-v4-instant-poster/preview.webp is missing");
+}
+if (!/ideogram\/v4\/instant/.test(JSON.stringify(posterSample.models))) {
+  fail("ideogram-v4-instant-poster sample should pin ideogram/v4/instant");
+}
+if (!/local placeholder|QC pending|no paid/i.test(posterSample.note)) {
+  fail("ideogram-v4-instant-poster sample note should say the cover is a local placeholder and Ideogram QC is pending");
+}
+if (!/VOLT|MIDNIGHT DROP|lettering|poster/i.test(posterSample.note)) {
+  fail("ideogram-v4-instant-poster sample note should say the job is a lettered brand/drop poster");
+}
+if (!/Transparent brand sticker|alpha, no letters/i.test(posterSample.note)) {
+  fail("ideogram-v4-instant-poster sample note should distinguish Transparent brand sticker");
+}
+if (!/Favicon|opaque|Muse/i.test(posterSample.note)) {
+  fail("ideogram-v4-instant-poster sample note should distinguish Favicon / Muse");
+}
+if (!/Remove packaging text|strips lettering/i.test(posterSample.note)) {
+  fail("ideogram-v4-instant-poster sample note should distinguish Remove packaging text");
+}
+if (!/FIBO|cinematic|arena/i.test(posterSample.note)) {
+  fail("ideogram-v4-instant-poster sample note should distinguish FIBO / cinematic / arena");
+}
+if (!/No LLM|no upload/i.test(posterSample.note)) {
+  fail("ideogram-v4-instant-poster sample note should say no LLM and no upload");
+}
+if (!hub.includes("ideogram-v4-instant-poster/preview.webp")) {
+  fail("hub should thumb the ideogram-v4-instant-poster cover");
+}
+if (!hub.includes("VOLT / MIDNIGHT DROP")) {
+  fail("hub should title ideogram-v4-instant-poster as VOLT / MIDNIGHT DROP");
+}
+const posterHowTo = readFileSync(join(ROOT, "guide", "examples", "ideogram-v4-instant-poster.html"), "utf8");
+if (!/ideogram\/v4\/instant/.test(posterHowTo)) {
+  fail("ideogram-v4-instant-poster how-to should name ideogram/v4/instant");
+}
+if (!/VOLT/i.test(posterHowTo) || !/MIDNIGHT DROP/i.test(posterHowTo)) {
+  fail("ideogram-v4-instant-poster how-to should pitch VOLT / MIDNIGHT DROP lettering");
+}
+if (!/1024x1024/.test(posterHowTo)) {
+  fail("ideogram-v4-instant-poster how-to should pin size 1024x1024");
+}
+if (!/Transparent brand sticker|alpha, no letters/i.test(posterHowTo)) {
+  fail("ideogram-v4-instant-poster how-to should distinguish Transparent brand sticker");
+}
+if (!/Favicon|opaque|Muse/i.test(posterHowTo)) {
+  fail("ideogram-v4-instant-poster how-to should distinguish Favicon / Muse");
+}
+if (!/Remove packaging text|strips lettering/i.test(posterHowTo)) {
+  fail("ideogram-v4-instant-poster how-to should distinguish Remove packaging text");
+}
+if (!/local placeholder|no paid|pending/i.test(posterHowTo)) {
+  fail("ideogram-v4-instant-poster how-to should say the cover is a local placeholder and Ideogram QC is pending");
+}
+if (!/modelOpts/i.test(posterHowTo)) {
+  fail("ideogram-v4-instant-poster how-to should say the image node does not forward modelOpts");
+}
+if (!posterHowTo.includes("ideogram-v4-instant-poster/preview.webp")) {
+  fail("ideogram-v4-instant-poster how-to should show the cover still");
+}
+if (!/slug:"ideogram-v4-instant-poster"[\s\S]{0,200}thumb:"examples\/gallery\/ideogram-v4-instant-poster\/preview\.webp"/.test(examplesSrc)) {
+  fail("EXAMPLES ideogram-v4-instant-poster thumb should be examples/gallery/ideogram-v4-instant-poster/preview.webp");
+}
+if (!/slug:"ideogram-v4-instant-poster"[\s\S]{0,80}desc:"VOLT \/ MIDNIGHT DROP — sharp lettering, no upload"/.test(examplesSrc)) {
+  fail("EXAMPLES ideogram-v4-instant-poster desc should pitch VOLT / MIDNIGHT DROP — sharp lettering, no upload");
+}
+if (!/slug:"ideogram-v4-instant-poster"[\s\S]{0,80}title:"volt drop poster"/.test(examplesSrc)) {
+  fail("EXAMPLES ideogram-v4-instant-poster title should be volt drop poster");
+}
+const posterCard = examplesSrc.match(/slug:"ideogram-v4-instant-poster"[\s\S]*?(?=\n \{ em:|$)/)?.[0] || "";
+if (!/ideogram\/v4\/instant/.test(posterCard)) {
+  fail("EXAMPLES ideogram-v4-instant-poster graph should pin ideogram/v4/instant");
+}
+if (!/size:"1024x1024"/.test(posterCard)) {
+  fail("EXAMPLES ideogram-v4-instant-poster graph should pin size 1024x1024");
+}
+const posterImage = posterCard.match(/\{id:"n2",type:"image"[\s\S]*?name:"Poster"\}/)?.[0] || "";
+if (!posterImage) {
+  fail("EXAMPLES ideogram-v4-instant-poster should have image node n2 Poster");
+}
+if (/modelOpts/.test(posterImage)) {
+  fail("EXAMPLES ideogram-v4-instant-poster image node must not forward modelOpts");
+}
+if (/z-ai\/glm-5\.3-flash|meta\/muse-image|ideogram-v3-generate-transparent|ideogram-v3-remove-text/.test(posterCard)) {
+  fail("EXAMPLES ideogram-v4-instant-poster must not pin GLM, Muse, transparent sticker, or remove-text");
+}
+if (/type:"llm"|type:"upload"/.test(posterCard)) {
+  fail("EXAMPLES ideogram-v4-instant-poster must stay text Poster brief → image Poster (no LLM, no upload)");
+}
 for (const slug of slugs) {
   const page = readFileSync(join(ROOT, "guide", "examples", slug === "iron-verdict" ? "iron-verdict.html" : `${slug}.html`), "utf8");
   if (page.includes("how to use this noodle")) {

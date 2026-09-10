@@ -35,6 +35,7 @@ const catalogs = {
     image('pruna-ai/p-image/upscale', ['1', '2', '3', '4', '5', '6', '7', '8'], true),
     image('ideogram-v3-generate-transparent', ['1:1', '16:9', '9:16']),
     image('ideogram-v3-remove-text', ['auto'], true),
+    image('ideogram/v4/instant', ['1024x1024', '1024x1536', '1536x1024', 'auto']),
   ],
   video: [
     { id: 'minimax-h3/image-to-video-spicy', capabilities: { image_to_video: true },
