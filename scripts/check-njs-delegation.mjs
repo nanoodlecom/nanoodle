@@ -88,7 +88,7 @@ const GRAPHS = [
     nodes: [node("m1", "music", { model: "mureka-ai/mureka-v9.5/prompt-to-song", prompt: "dreamy synthwave" })],
     links: [],
   }, ["music"]],
-  ["music generate-song (input + lyrics)", {
+  ["music generate-song (prompt + lyrics)", {
     nodes: [node("m1", "music", { model: "mureka-ai/mureka-v9.5/generate-song", prompt: "pop ballad", lyrics: "[Verse]\nhi" })],
     links: [],
   }, ["music"]],
@@ -130,7 +130,10 @@ function flaggedEngine(on, spy) {
 }
 
 const paid = (c) => /\/(chat\/completions|images\/generations|generate-video|audio\/speech|transcriptions)/.test(c.url);
-const norm = (c) => JSON.stringify({ url: String(c.url).replace(/^https?:\/\/[^/]+/i, ""), body: c.body });
+// JSON object key order is not part of the request contract.
+const canonical = (v) => Array.isArray(v) ? v.map(canonical)
+  : v && typeof v === "object" ? Object.fromEntries(Object.keys(v).sort().map(k => [k, canonical(v[k])])) : v;
+const norm = (c) => JSON.stringify({ url: String(c.url).replace(/^https?:\/\/[^/]+/i, ""), body: canonical(c.body) });
 
 let failed = 0;
 for (const [name, data, expectTypes] of GRAPHS) {

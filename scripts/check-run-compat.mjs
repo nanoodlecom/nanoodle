@@ -564,7 +564,7 @@ const SCENARIOS = [
     // Live (2026-09-02): Mureka Prompt-to-Song 202s `{model, input}` then /tts/status
     // status:error + refund. `{model, prompt}` completes. Hour-4 live: `*/generate-bgm`
     // 400s `{model, input}` ("Generate BGM requires prompt"); `{model, prompt}` 202s.
-    // generate-song / MiniMax Music 3 keep `input` (+ lyrics).
+    // Generate Song and MiniMax Music 3 also document explicit prompt + lyrics.
     name: "Music node: prompt-to-song sends prompt (not input)",
     data: { nodes: [node("m1", "music", {
               model: "mureka-ai/mureka-v9.5/prompt-to-song",
@@ -589,7 +589,7 @@ const SCENARIOS = [
     },
   },
   {
-    name: "Music node: generate-song still sends input + lyrics",
+    name: "Music node: generate-song sends prompt + lyrics",
     data: { nodes: [node("m1", "music", {
               model: "mureka-ai/mureka-v9.5/generate-song",
               prompt: "pop ballad, piano",
@@ -598,9 +598,9 @@ const SCENARIOS = [
     check(app, g, fail) {
       const b = audioCalls()[0]?.body;
       if (!b) return fail("no /audio/speech call recorded for generate-song");
-      if (b.input !== "pop ballad, piano") fail(`generate-song must keep input, got ${JSON.stringify(b.input)}`);
+      if (b.prompt !== "pop ballad, piano") fail(`generate-song must send prompt, got ${JSON.stringify(b.prompt)}`);
       if (b.lyrics !== "[Verse]\nhello there") fail(`generate-song lyrics must forward, got ${JSON.stringify(b.lyrics)}`);
-      if ("prompt" in b) fail(`generate-song must not send prompt, got ${JSON.stringify(b.prompt)}`);
+      if ("input" in b) fail(`generate-song must omit input, got ${JSON.stringify(b.input)}`);
     },
   },
   {
@@ -614,7 +614,7 @@ const SCENARIOS = [
     },
   },
   {
-    name: "Music node: MiniMax Music 3 still sends input + lyrics",
+    name: "Music node: MiniMax Music 3 sends prompt + lyrics",
     data: { nodes: [node("m1", "music", {
               model: "minimax/music-3",
               prompt: "warm acoustic pop",
@@ -623,9 +623,33 @@ const SCENARIOS = [
     check(app, g, fail) {
       const b = audioCalls()[0]?.body;
       if (!b) return fail("no /audio/speech call recorded for minimax/music-3");
-      if (b.input !== "warm acoustic pop") fail(`Music 3 must keep input, got ${JSON.stringify(b.input)}`);
+      if (b.prompt !== "warm acoustic pop") fail(`Music 3 must send prompt, got ${JSON.stringify(b.prompt)}`);
       if (b.lyrics !== "[Chorus]\nbring it home") fail(`Music 3 lyrics must forward, got ${JSON.stringify(b.lyrics)}`);
-      if ("prompt" in b) fail(`Music 3 must not send prompt, got ${JSON.stringify(b.prompt)}`);
+      if ("input" in b) fail(`Music 3 must omit input, got ${JSON.stringify(b.input)}`);
+    },
+  },
+  {
+    name: "Music node: blank advanced prompt keeps the wired musical direction",
+    data: { nodes: [node("m1", "music", {
+              model: "minimax/music-3", prompt: "slow dusty trip-hop", lyrics: "[Verse]\nhello",
+              extraJson: JSON.stringify({ prompt: "   ", input: "stale text" }),
+            })], links: [] },
+    check(app, g, fail) {
+      const b = audioCalls()[0]?.body;
+      if (!b || b.prompt !== "slow dusty trip-hop") fail("blank override lost the musical direction");
+      if (b && "input" in b) fail("music request retained conflicting input");
+    },
+  },
+  {
+    name: "Music node: explicit advanced prompt overrides musical direction",
+    data: { nodes: [node("m1", "music", {
+              model: "minimax/music-3", prompt: "slow dusty trip-hop", lyrics: "[Verse]\nhello",
+              extraJson: JSON.stringify({ prompt: "sparse dub", input: "stale text" }),
+            })], links: [] },
+    check(app, g, fail) {
+      const b = audioCalls()[0]?.body;
+      if (!b || b.prompt !== "sparse dub") fail("explicit musical prompt override was lost");
+      if (b && "input" in b) fail("music request retained conflicting input");
     },
   },
   {

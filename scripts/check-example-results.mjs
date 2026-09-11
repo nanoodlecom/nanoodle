@@ -9,6 +9,7 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import vm from 'node:vm';
 import { nodeKinds, parseExamples } from './check-example-models.mjs';
+import { loadEngine, recordingFetch } from './play-engine.mjs';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const idx = readFileSync(join(ROOT, 'index.html'), 'utf8');
@@ -85,6 +86,78 @@ for (const ex of examples) {
   if (JSON.stringify(semanticGraph(originalGraph)) !== JSON.stringify(semanticGraph(currentGraph))) {
     assert.ok(sample.workflowNote, `${ex.slug}: changed workflow must explain how it differs from the saved run`);
   }
+}
+
+// Exercise the actual Sing graph: the musical references must influence the
+// writing, and both generated style branches must reach a supported music field.
+// This catches the former flattening and a cosmetic negative_prompt connection.
+const sing = JSON.parse(JSON.stringify(examples.find(e => e.slug === 'sing').graph));
+const idea = 'A song about waiting for the last ferry.';
+const bands = 'Björk, DJ Shadow';
+sing.nodes.find(n => n.name === 'Song idea').fields.text = idea;
+sing.nodes.find(n => n.name === 'Preferred bands').fields.text = bands;
+const replies = [
+  '[Verse]\nThe last ferry carries your name.\n[Chorus]\nWait for me.',
+  'Slow swung breaks, dub bass and an intimate vocal; spare verses open into a wide chorus.',
+  'four-on-the-floor drums, bright brass stabs, belted vocals',
+];
+for (const useLibrary of [false, true]) {
+  const chat = [], music = [], errors = [], delegated = [];
+  let sandbox;
+  const engine = loadEngine(ctx => {
+    sandbox = ctx;
+    ctx.URLSearchParams = URLSearchParams;
+    ctx.fetch = async (url, options = {}) => {
+      if (/\/chat\/completions$/.test(String(url))) {
+        const body = JSON.parse(options.body);
+        chat.push(body);
+        assert.ok(chat.length <= replies.length, 'Sing has an unexpected text call');
+        return new Response(JSON.stringify({choices:[{message:{content:replies[chat.length - 1]}}]}),
+          {headers:{'content-type':'application/json'}});
+      }
+      if (/\/audio\/speech$/.test(String(url))) {
+        music.push(JSON.parse(options.body));
+        return new Response(new Uint8Array([1, 2, 3]), {headers:{'content-type':'audio/mpeg'}});
+      }
+      return recordingFetch(url, options);
+    };
+    ctx.localStorage = ctx.sessionStorage = {
+      getItem: key => key === 'ngpt_key' ? 'test-api-key' : key === 'njs_engine' ? (useLibrary ? '1' : '0') : null,
+      setItem() {}, removeItem() {},
+    };
+  });
+  if (useLibrary) {
+    const window = {};
+    new Function('window', readFileSync(join(ROOT, 'vendor/njs-engine.js'), 'utf8'))(window);
+    const library = window.NanoodleEngine;
+    sandbox.NanoodleEngine = { ...library, RUNNERS: Object.fromEntries(
+      Object.entries(library.RUNNERS).map(([type, run]) => [type, (...args) => {
+        delegated.push(type);
+        return run(...args);
+      }]),
+    ) };
+  }
+  await engine.runGraph(engine.materialize(sing), {
+    onStatus: (id, kind, message) => { if (kind === 'error') errors.push({id, message}); },
+  });
+  assert.deepEqual(errors, [], 'Sing failed before producing a song');
+  assert.deepEqual(delegated.filter(type => type === 'llm' || type === 'music'),
+    useLibrary ? ['llm', 'llm', 'llm', 'music'] : [], 'exercise the selected engine');
+  assert.equal(chat.length, 3, 'Sing must write lyrics, arrange them and identify musical clashes');
+  const prompt = call => call.messages.filter(m => m.role === 'user').map(m => m.content).join('\n');
+  for (const i of [0, 1]) {
+    assert.ok(prompt(chat[i]).includes(idea), 'the song idea must reach lyrics and arrangement');
+    assert.ok(prompt(chat[i]).includes(bands), 'musical references must reach lyrics and arrangement');
+  }
+  assert.ok(prompt(chat[1]).includes(replies[0]), 'arrange the actual generated lyrics');
+  assert.ok(prompt(chat[2]).includes(replies[1]), 'derive exclusions from the actual arrangement');
+  assert.equal(music.length, 1);
+  assert.equal(music[0].lyrics, replies[0], 'send the generated lyrics to the music model');
+  assert.ok(!('input' in music[0]), 'MiniMax Music 3 uses explicit prompt, not the TTS input field');
+  const direction = music[0].prompt;
+  assert.ok(direction.includes(replies[1]) && direction.includes(replies[2]),
+    'arrangement and avoid-list must both reach the supported music prompt');
+  assert.ok(!music[0].negative_prompt, 'keep musical exclusions in the supported style prompt');
 }
 const generated = spawnSync(process.execPath, ['scripts/sync-gallery-samples.mjs', '--check'], { cwd: ROOT, encoding: 'utf8' });
 assert.ifError(generated.error);
