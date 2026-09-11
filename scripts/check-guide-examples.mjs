@@ -21,7 +21,7 @@ const esc = (value) => String(value).replace(/[&<>"']/g, (c) => ({
 const decode = (value) => value.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
 const sameSet = (actual, expected) => actual.length === expected.length
   && new Set(actual).size === actual.length && actual.every((value) => expected.includes(value));
-const savedSlugs = ["image-model-arena", "photo-to-video", "sing", "talking-avatar"];
+const savedSlugs = ["character-sprites", "image-model-arena", "photo-to-video", "sing", "talking-avatar"];
 const guideSlugs = ["iron-verdict", ...savedSlugs];
 
 for (const script of ["sync-gallery-samples.mjs", "sync-guide-examples.mjs"]) {
@@ -29,7 +29,7 @@ for (const script of ["sync-gallery-samples.mjs", "sync-guide-examples.mjs"]) {
 }
 
 const samples = JSON.parse(read("examples/gallery/samples.json"));
-check(sameSet(samples.map((sample) => sample.slug), savedSlugs), "expected four saved runs plus the separate playable character example");
+check(sameSet(samples.map((sample) => sample.slug), savedSlugs), "expected five saved gallery runs plus the separate playable Iron Verdict guide");
 check(sameSet(readdirSync(join(ROOT, "guide/examples")).filter((name) => name.endsWith(".html")),
   ["index.html", ...guideSlugs.map((slug) => slug + ".html")]), "unexpected or missing generated guide page");
 
@@ -37,11 +37,11 @@ const index = read("index.html");
 const examplesSource = index.match(/const EXAMPLES = \[[\s\S]*?\n\];/)?.[0];
 check(examplesSource, "homepage EXAMPLES array is missing");
 const examples = vm.runInNewContext(examplesSource + "\nEXAMPLES;", {}, { timeout: 1000 });
-check(sameSet(examples.map((example) => example.slug), ["character-sprites", ...savedSlugs]), "homepage and guides must expose the same five workflows");
+check(sameSet(examples.map((example) => example.slug), savedSlugs), "homepage EXAMPLES must match the five saved gallery workflows");
 
 const hub = read("guide/examples/index.html");
 const cards = [...hub.matchAll(/class="howto-card" href="\/guide\/examples\/([^"]+)"/g)].map((match) => match[1]);
-check(sameSet(cards, guideSlugs), "hub cards do not match the five guides");
+check(sameSet(cards, guideSlugs), "hub cards do not match the guide set");
 const sitemapPaths = [...read("sitemap.xml").matchAll(/<loc>https:\/\/nanoodle.com(\/guide\/examples\/[^<]*)<\/loc>/g)].map((match) => match[1]);
 check(sameSet(sitemapPaths, ["/guide/examples/", ...guideSlugs.map((slug) => "/guide/examples/" + slug)]), "sitemap has missing or retired example URLs");
 check(/href="\/guide\/examples\/?"/.test(read("guide/index.html")), "guide index must link the example hub");

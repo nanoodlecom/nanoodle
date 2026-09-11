@@ -37,6 +37,14 @@ const shareLink = (workflowBytes) =>
 // How-to copy is grounded in samples.json notes, EXAMPLES comment nodes, and
 // the awesome-noodles README / CURATION.md. Do not invent costs or model ids.
 const HOWTO = {
+  "character-sprites": {
+    headline: "Game character kit",
+    job: "Furnace knight. Reference + parts you can rig.",
+    purpose: "GLM Flash writes the reference prompt; Muse paints the canonical character; Muse Edit cuts a four-quadrant parts sheet. Magenta backgrounds are for cutout. The companion skill bakes idle, walk, punch and jump frames locally. Iron Verdict is the worked playable game.",
+    edit: "Rewrite <em>Character</em>. Leave <em>Character designer</em> on <code>z-ai/glm-5.3-flash</code>, <em>Canonical character</em> on <code>meta/muse-image/text-to-image</code> at 1:1, and <em>Rig parts</em> on <code>meta/muse-image/edit</code> at 1:1 unless you mean to change models. <em>Reference</em> is a local 768 fit.",
+    inspect: "Furnace knight + four-quadrant parts.",
+    costHow: "This saved run reported $0.02 for the two image calls ($0.01 reference + $0.01 parts) plus a small GLM Flash text call. Local resize is $0. Prices and results vary.",
+  },
   "image-model-arena": {
     headline: "Compare four image models",
     job: "One prompt → four images to compare.",
@@ -94,7 +102,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["iron-verdict", "image-model-arena", "photo-to-video", "sing", "talking-avatar"];
+const ORDER = ["iron-verdict", "character-sprites", "image-model-arena", "photo-to-video", "sing", "talking-avatar"];
 for (const sample of SAMPLES) {
   if (!HOWTO[sample.slug]) throw new Error("Unexpected sample: " + sample.slug);
 }
@@ -386,7 +394,7 @@ function hubPage() {
     <p class="lede">See the real output. Open the graph. Make it yours.</p>
 
     <section>
-      <p>Five workflows with results you can inspect: character art used in a playable game, a four-model image comparison, an animated still, a song, and a speaking presenter. Each guide explains the stages, what to change and what the saved run cost.</p>
+      <p>Six how-tos with results you can inspect: a playable game, the character-kit artwork run, a four-model image comparison, an animated still, a song, and a speaking presenter. Each guide explains the stages, what to change and what the saved run cost.</p>
       <p>Viewing the <a href="/examples/gallery/">saved outputs</a> and playing Iron Verdict are free. Running your own version uses your NanoGPT key and balance. Your key stays on your device; prompts and media go directly to the model provider when you run. Saved costs describe past runs, and the next result will vary.</p>
       <p>Open a card, inspect its result, then use <strong>Open this noodle</strong> to edit the graph. The source graphs live in <a href="https://github.com/nanoodlecom/awesome-noodles" target="_blank" rel="noopener">awesome-noodles</a>. You can also <a href="/guide/run-headless">run the share link headlessly</a>.</p>
       <div class="howto-grid">
