@@ -23,7 +23,7 @@ const slugs = new Set(examples.map(e => e.slug));
 assert.equal(slugs.size, examples.length, 'duplicate example card');
 assert.deepEqual([...slugs].sort(), ['character-sprites', 'image-model-arena', 'photo-to-video', 'sing', 'talking-avatar'].sort(),
   'curated shelf changed: review the workflow and its saved evidence before featuring it');
-assert.deepEqual([...bySlug.keys()].sort(), [...slugs].filter(s => s !== 'character-sprites').sort());
+assert.deepEqual([...bySlug.keys()].sort(), [...slugs].sort());
 assert.deepEqual([...gallery.matchAll(/<section id="([^"]+)"/g)].map(m => m[1]).sort(), [...bySlug.keys()].sort());
 
 const fn = idx.slice(idx.indexOf('function openExamples()'), idx.indexOf('function closeExamples()'));
@@ -61,15 +61,8 @@ for (const ex of examples) {
     const sources = models.map(n => ex.graph.links.find(l => l.to.node === n.id && l.to.port === 'prompt')?.from.node);
     assert.ok(sources.every(Boolean) && new Set(sources).size === 1, 'arena must compare the same brief');
   }
-  if (ex.slug === 'character-sprites') {
-    assert.equal(result, 'examples/iron-verdict/');
-    file(result + 'index.html');
-    file(result + 'game.js');
-    continue;
-  }
-  assert.equal(result, 'examples/gallery/#' + ex.slug);
   const sample = bySlug.get(ex.slug);
-  assert.ok(sample.outputs?.length, `${ex.slug}: cover art is not a workflow result`);
+  assert.ok(sample?.outputs?.length, `${ex.slug}: cover art is not a workflow result`);
   for (const output of sample.outputs) file('examples/gallery/' + output.src);
   for (const input of sample.inputs) if (input.src) file('examples/gallery/' + input.src);
   const original = file('examples/gallery/' + ex.slug + '/graph.json');
@@ -86,6 +79,13 @@ for (const ex of examples) {
   if (JSON.stringify(semanticGraph(originalGraph)) !== JSON.stringify(semanticGraph(currentGraph))) {
     assert.ok(sample.workflowNote, `${ex.slug}: changed workflow must explain how it differs from the saved run`);
   }
+  if (ex.slug === 'character-sprites') {
+    assert.equal(result, 'examples/iron-verdict/');
+    file(result + 'index.html');
+    file(result + 'game.js');
+    continue;
+  }
+  assert.equal(result, 'examples/gallery/#' + ex.slug);
 }
 
 // Exercise the actual Sing graph: the musical references must influence the

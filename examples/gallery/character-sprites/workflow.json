@@ -1,0 +1,132 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c1",
+      "type": "comment",
+      "name": "Playable character prototype",
+      "x": 40,
+      "y": -250,
+      "w": 290,
+      "fields": {
+        "text": "Description → canonical character → separate cutout parts → local rig and animation baking. One text call + two image calls. The companion rig.mjs extracts transparent parts and bakes 32 frames: idle, walk, punch and jump, with an atlas and timing metadata. One source facing, mirrored left. Prototype cutout animation: inspect joints and motion. Worked example: Iron Verdict, a game built by a coding agent using these assets: https://nanoodle.com/examples/iron-verdict/ . Companion skill (required for local animation baking): https://github.com/nanoodlecom/noodle-skills/tree/main/skills/character-sprites . The graph alone outputs reference art and parts; game code and physics are separate agent work.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "n1",
+      "type": "text",
+      "name": "Character",
+      "x": 40,
+      "y": 40,
+      "w": 290,
+      "fields": {
+        "text": "A compact furnace knight with a cracked ivory helmet, narrow glowing amber visor, dark navy armor, a short rust-red scarf, oversized weathered brass gauntlets and heavy boots. Determined, heavy, battle-scarred. No weapon, no wings. Stylized hand-painted 2D action-platformer art with strong outlines and an instantly readable silhouette."
+      }
+    },
+    {
+      "id": "n2",
+      "type": "llm",
+      "name": "Character designer",
+      "x": 390,
+      "y": 40,
+      "w": 290,
+      "fields": {
+        "model": "z-ai/glm-5.3-flash",
+        "reasoningEffort": "low",
+        "maxTokens": "1000",
+        "system": "Write ONE image prompt, maximum 130 words, for a game character reference from the description. Preserve the user design; specify full body, right-facing three-quarter side view, right facing head and torso, fixed orthographic camera, relaxed ready stance, both feet visible. Single isolated character centered, occupies 65 percent of square height, generous blank margins. Crisp outlined stylized 2D game art with controlled simple shading, no fuzzy edges or motion blur. Entire background exactly flat vivid magenta #FF00FF reserved for later removal; absolutely no magenta/pink/purple in the character, no floor, no shadows on background, no text or borders, no contact sheet. Output prompt only."
+      }
+    },
+    {
+      "id": "n3",
+      "type": "image",
+      "name": "Canonical character",
+      "x": 760,
+      "y": 40,
+      "w": 290,
+      "fields": {
+        "model": "meta/muse-image/text-to-image",
+        "size": "1:1",
+        "variations": "1"
+      }
+    },
+    {
+      "id": "n4",
+      "type": "resize",
+      "name": "Reference",
+      "x": 1470,
+      "y": -80,
+      "w": 290,
+      "fields": {
+        "mode": "fit",
+        "width": "768",
+        "height": "768"
+      }
+    },
+    {
+      "id": "p",
+      "type": "edit",
+      "name": "Rig parts",
+      "fields": {
+        "model": "meta/muse-image/edit",
+        "size": "1:1",
+        "prompt": "Create a production cutout-animation PARTS SHEET of the exact character in the reference, retaining its illustration style, colors, materials, face, clothing and equipment. A square image split into exactly FOUR equal invisible quadrants, with ONE isolated body component per quadrant and a flat #FF00FF background everywhere. TOP LEFT: ONLY the complete head, neck scarf, torso and belt/hip armor as one connected piece. Absolutely no arms, hands, legs or boots attached to this body piece. Shoulders end at smooth rounded shoulder pads, hips end at belt armor. TOP RIGHT: ONE detached entire arm from rounded shoulder armor down through forearm into closed fist or glove matching the reference, hanging vertically, no torso attached. BOTTOM LEFT: ONE detached entire NEAR leg from rounded upper-thigh attachment down through knee and shin to the right-facing foot or boot matching the reference, standing vertically. BOTTOM RIGHT: ONE detached entire FAR leg with the same equipment, vertical and facing right, slightly darker to distinguish the rear side. All four parts same character appearance and right-facing three-quarter side view. Center each component in its own quadrant with generous magenta margins. Each part fits completely with no clipping. No full characters in any quadrant. No skeleton, mechanical diagram, labels, numbers, text, panel borders, shadows or magenta costume details. Draw opaque finished surfaces all the way to the rounded joint edges, so the parts can overlap in a game rig."
+      },
+      "x": 1120,
+      "y": 150,
+      "w": 340
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "n1",
+        "port": "text"
+      },
+      "to": {
+        "node": "n2",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "n2",
+        "port": "text"
+      },
+      "to": {
+        "node": "n3",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "n3",
+        "port": "image"
+      },
+      "to": {
+        "node": "n4",
+        "port": "image"
+      }
+    },
+    {
+      "id": "lr",
+      "from": {
+        "node": "n3",
+        "port": "image"
+      },
+      "to": {
+        "node": "p",
+        "port": "image"
+      }
+    }
+  ],
+  "view": {
+    "panX": 30,
+    "panY": 170,
+    "scale": 0.7
+  }
+}
