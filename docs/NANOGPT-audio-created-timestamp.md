@@ -19,7 +19,7 @@ top under "Newest"**.
 **Ask:** populate `created` with the model's real addition/release timestamp (as the chat, image and
 video catalogs already do).
 
-**Our workaround (client-side, shipping meanwhile):** when `created` ties, ids that differ only in a
-version number sort version-descending while each family keeps its catalog position. Works for
-versioned families, but cross-family recency stays unknowable without real timestamps — a new
-provider's launch can't be surfaced as "newest" at all.
+**Our workaround (client-side, shipping meanwhile):** when `created` ties, reverse the catalog's
+native family order (the audio API lists older lines first and appends newer ones later) and sort
+version-descending within a family. That surfaces late-added lines (Mureka v9.5, MiniMax Music 3)
+above early ones under "Newest". Real per-model `created` stamps would still be better.
