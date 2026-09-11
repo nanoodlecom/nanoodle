@@ -4692,11 +4692,11 @@ function primeCatalogsFromCache(){
 }
 // Version-family tiebreak for tied "created" stamps. The audio catalog carries NO recency
 // signal (upstream ask drafted in NANOGPT-audio-created-timestamp.md) — every model shares one
-// response-time created value, and the API's native order runs
-// oldest-first within families (Minimax-Music-02 → 2.5 → 2.6), so a plain created sort showed
-// OLD versions on top under "newest". Cross-family recency is unknowable client-side, but within
-// a family a higher version number is reliably newer: same-family ids (version tokens stripped)
-// sort version-DESC while each family keeps its native (curated) position in the list.
+// response-time created value, and the API's native order runs oldest-first overall and within
+// families (Minimax-Music-02 → 2.5 → 2.6; early providers before Mureka v9.5), so a plain created
+// sort showed OLD entries on top under "newest". Workaround: for audio, reverse native family
+// order (API appends newer lines later) and sort version-DESC within a family. Other catalogs
+// keep first-seen family order because their created stamps already carry real recency.
 const VER_RE = /\d+(?:\.\d+)*/g;
 const famSig = (id)=> id.toLowerCase().replace(VER_RE, "#");   // "Minimax-Music-2.6" → "minimax-music-#"
 const verParts = (id)=> (id.match(VER_RE)||[]).join(".").split(".").map(Number);
@@ -4719,12 +4719,16 @@ async function fetchCatalog(kind){
   // and NEVER persists an empty catalog — a cached [] would poison every future session until it
   // self-heals. Only a genuinely non-empty list is worth caching.
   if(!list.length) return null;
-  // newest first by created; ties (the whole audio catalog) fall back to family position +
-  // version-DESC so music/speech still read newest-first — see the helpers above.
+  // newest first by created; ties fall back to family position + version-DESC — see helpers above.
+  // Audio: reverse family order (native catalog is oldest-first) so "newest" surfaces late-added
+  // lines (Mureka v9.5, Music 3) above early ones (elevenlabs/music, Music-02).
   const nat = new Map();       // family signature → first native index (anchors the family)
-  list.forEach((m,i)=>{ const s = famSig(m.id); if(!nat.has(s)) nat.set(s, i); });
+  list.forEach((m,i)=>{ m._ord = i; const s = famSig(m.id); if(!nat.has(s)) nat.set(s, i); });
+  const famTie = (a,b)=> kind==="audio"
+    ? nat.get(famSig(b.id)) - nat.get(famSig(a.id))
+    : nat.get(famSig(a.id)) - nat.get(famSig(b.id));
   list.sort((a,b)=> (b.created||0)-(a.created||0)
-                 || nat.get(famSig(a.id)) - nat.get(famSig(b.id))
+                 || famTie(a,b)
                  || verDesc(a.id, b.id));
   return list;
 }
@@ -6778,7 +6782,16 @@ function sortMatches(list){
       return pa===pb ? (b.created||0)-(a.created||0) : dir*(pa-pb);
     });
   }
-  return arr.sort((a,b)=> (b.created||0)-(a.created||0));   // newest (default)
+  // newest (default). Audio created stamps are uniform — reuse fetchCatalog's reverse-family +
+  // version-DESC tiebreak via _ord (native index) so Music doesn't resurface Music-02 on top.
+  return arr.sort((a,b)=>{
+    const c = (b.created||0)-(a.created||0); if(c) return c;
+    if(picker && picker.kind==="audio"){
+      const d = (b._ord||0)-(a._ord||0); if(d) return d;
+      return verDesc(a.id, b.id);
+    }
+    return 0;
+  });
 }
 let picker = null; // { kind, filter, current, onPick }
 function openPicker(kind, opts){

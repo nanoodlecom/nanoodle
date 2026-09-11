@@ -9382,9 +9382,10 @@ const PROMPT_CAPS = {
     }catch(e){ return { key:"reference_images", cap:refMaxFor(model) }; }
   }
   // "Newest" tiebreak for the swap list — audio models all share ONE created stamp (upstream
-  // gap, see NANOGPT-audio-created-timestamp.md) and the API's native order runs oldest-first within
-  // families, so a plain created sort listed Minimax-Music-02 above -2.6. Tied models fall back
-  // to family position + version-DESC. Mirrors the editor's fetchCatalog sort.
+  // gap, see NANOGPT-audio-created-timestamp.md) and the API's native order runs oldest-first
+  // overall and within families, so a plain created sort listed Minimax-Music-02 above -2.6 and
+  // early providers above Mureka v9.5. Tied audio models reverse native family order (API appends
+  // newer lines later) + version-DESC. Mirrors the editor's fetchCatalog sort.
   const VER_RE = /\d+(?:\.\d+)*/g;
   const famSig = (id)=> id.toLowerCase().replace(VER_RE, "#");
   const verParts = (id)=> (id.match(VER_RE)||[]).join(".").split(".").map(Number);
@@ -9409,10 +9410,15 @@ const PROMPT_CAPS = {
     const roleFits = (id)=>{ const r = IMG_INPUT_ROLES[id]; if(!r || type!=="edit") return true;
       return !!wiredLinks && r.every((_,i)=> wiredLinks.some(l=> l.to.node===node.id && l.to.port===(i ? "image"+(i+1) : "image"))); };
     const pool = raw.filter(m=> m && m.id && modelSuits(type, m) && roleFits(m.id));
-    const nat = new Map();   // family signature → first native index (anchors the family)
-    pool.forEach((m,i)=>{ const s = famSig(m.id); if(!nat.has(s)) nat.set(s, i); });
+    // Preserve each item's index in the raw (API) list before filtering so audio can reverse
+    // oldest-first family order the same way the editor does.
+    const nat = new Map();   // family signature → first native index in the unfiltered catalog
+    raw.forEach((m,i)=>{ if(m && m.id){ const s = famSig(m.id); if(!nat.has(s)) nat.set(s, i); } });
+    const famTie = (a,b)=> kind==="audio"
+      ? nat.get(famSig(b.id)) - nat.get(famSig(a.id))
+      : nat.get(famSig(a.id)) - nat.get(famSig(b.id));
     return pool.sort((a,b)=> (b.created||0)-(a.created||0)
-                          || nat.get(famSig(a.id)) - nat.get(famSig(b.id))
+                          || famTie(a,b)
                           || verDesc(a.id, b.id))
                .map(m=> m.id);
   }
