@@ -60,7 +60,8 @@ sentences a reader quotes back at you, so re-verify them if the server changes.
 - "`--max-usd` caps one call" — `bin/nanoodle-mcp.mjs`, wallet mode.
 - "prints a cost line per invocation" — `emitResult()` in `src/tools.mjs` pushes
   a `cost: $X.XXXX` text block.
-- "5 workflows published" — EXAMPLES ships 43; mcp.nanoodle.com serves that same set.
+- The browser EXAMPLES panel contains 8 workflows. Check the hosted MCP tool
+  list separately; gallery parity does not establish deployment or payment support.
 
 **After posting:** log venue + link + response in shares.md, per the habit.
 

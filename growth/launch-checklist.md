@@ -82,7 +82,7 @@ self-listings get removed.
 >
 > Workflows are shared as URLs (the graph is encoded in the URL fragment, which
 > never reaches a server) or exported as a single self-contained .html file you
-> can host anywhere or open from disk. A built-in Examples panel carries 5
+> can host anywhere or open from disk. A built-in Examples panel carries 8
 > ready-made workflows, mirrored from an open gallery repository and shipped
 > inside the page, so there is something to run on the first visit and the panel
 > itself needs no network. The same graph format also runs headlessly via the
@@ -156,9 +156,9 @@ the rail. Never lead with the coin, a price chart, or an investment angle.
 > claude mcp add --transport http noodles https://mcp.nanoodle.com/mcp
 > ```
 >
-> That is the entire setup. No signup, no API key, no dashboard. 5 workflows are
-> published on it right now — image generation and editing, image-to-video, TTS +
-> lipsync, a music one, a four-way model arena.
+> That is the connection setup. Available workflows and payment support depend
+> on the hosted deployment. Inspect its current tool list before running; the
+> browser gallery and hosted MCP catalog are maintained separately.
 >
 > The handshake: your agent calls a tool, the server answers with an HTTP 402 and a
 > payment link, you scan the QR with any Nano wallet, and the run streams back a
@@ -169,9 +169,9 @@ the rail. Never lead with the coin, a price chart, or an investment angle.
 >   metered cost + 20%, and the difference goes back to the paying wallet on-chain.
 > - That 20% is routable to the person who wrote the workflow: a graph that names
 >   a Nano address in its JSON collects the whole markup of every paid run,
->   on-chain, automatically. None of the 5 published workflows claims one yet,
->   so right now it lands in the server wallet. Add a workflow to the gallery
->   with your address in it and that changes.
+>   on-chain, automatically. The payout is opt-in: inspect a hosted workflow
+>   for its author address before describing who receives its markup. A browser
+>   gallery entry alone does not establish a hosted payout recipient.
 > - A failed run refunds the whole payment automatically. Quotes expire after 15
 >   minutes.
 > - The server can also sit on the *paying* side: with no API key set, it runs in
@@ -246,7 +246,7 @@ someone finds the Nano angle, answer honestly — the prepared answer is in
 > repos, all MIT.
 >
 > If you'd rather see the format than the canvas, the 📚 Examples panel in the
-> editor holds 5 ready-made graphs, mirrored from an open gallery repo
+> editor holds 8 ready-made graphs, mirrored from an open gallery repo
 > (https://github.com/nanoodlecom/awesome-noodles) and shipped inline, so opening
 > the panel costs no network at all. Every entry is a plain JSON file in that
 > repo, so you can read a workflow before you run one.

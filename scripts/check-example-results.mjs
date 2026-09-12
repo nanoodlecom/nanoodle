@@ -21,7 +21,7 @@ const bySlug = new Map(samples.map(s => [s.slug, s]));
 assert.equal(bySlug.size, samples.length, 'duplicate saved sample');
 const slugs = new Set(examples.map(e => e.slug));
 assert.equal(slugs.size, examples.length, 'duplicate example card');
-assert.deepEqual([...slugs].sort(), ['character-sprites', 'image-model-arena', 'photo-to-video', 'sing', 'talking-avatar'].sort(),
+assert.deepEqual([...slugs].sort(), ['character-sprites', 'pocket-mystery', 'storyboard-relay', 'tiny-world-film', 'image-model-arena', 'photo-to-video', 'sing', 'talking-avatar'].sort(),
   'curated shelf changed: review the workflow and its saved evidence before featuring it');
 assert.deepEqual([...bySlug.keys()].sort(), [...slugs].sort());
 assert.deepEqual([...gallery.matchAll(/<section id="([^"]+)"/g)].map(m => m[1]).sort(), [...bySlug.keys()].sort());
@@ -63,7 +63,13 @@ for (const ex of examples) {
   }
   const sample = bySlug.get(ex.slug);
   assert.ok(sample?.outputs?.length, `${ex.slug}: cover art is not a workflow result`);
-  for (const output of sample.outputs) file('examples/gallery/' + output.src);
+  for (const output of sample.outputs) {
+    const bytes = file('examples/gallery/' + output.src);
+    if (output.sha256) {
+      assert.equal(createHash('sha256').update(bytes).digest('hex'), output.sha256,
+        `${ex.slug}: saved output changed without updating its provenance: ${output.src}`);
+    }
+  }
   for (const input of sample.inputs) if (input.src) file('examples/gallery/' + input.src);
   const original = file('examples/gallery/' + ex.slug + '/graph.json');
   const current = file('examples/gallery/' + sample.workflow);

@@ -1,5 +1,410 @@
 [
   {
+    "slug": "storyboard-relay",
+    "title": "Storyboard relay",
+    "date": "2026-09-12",
+    "review": "One repair, with remaining flaws",
+    "note": "Muse establishes the postal robot. Nano Banana stages the next scene but duplicates its seedling. Gemini identifies that error; Muse Edit receives both frames and the critique, removes the duplicate plant and improves the pose. A fresh Gemini review still flags the closed hatch. This is a fixed revision demonstration with visible limits, not a guarantee of perfect continuity.",
+    "costUsd": 0.0652792625,
+    "costExact": true,
+    "models": [
+      "meta/muse-image/text-to-image",
+      "nano-banana-edit",
+      "google/gemini-3.8-flash",
+      "meta/muse-image/edit"
+    ],
+    "graphSha256": "26835b6c71dcb4ee1558a01c662e4a6515663d042c914eaaf4f389da0369dea8",
+    "inputs": [
+      {
+        "label": "First scene",
+        "text": "First frame of an original two-scene story. A tiny postal robot has a rounded cream enamel body, one round amber eye, short dark-blue legs, and an orange mail satchel. It carries one clear glass capsule containing a single bright-green seedling. Outside a locked circular hatch of an abandoned orbital greenhouse, the robot reaches toward the small mechanical latch beside the door with one gripper while holding the capsule securely with the other. Dormant vines are visible through frosted glass; a curved station window reveals a black starfield. Wide 3:2 medium shot with the full robot, capsule and hatch visible. Tactile stop-motion miniature photography, indigo shadows and warm amber practical light. One robot and one capsule. No lettering, captions, split screen, panel borders or watermark."
+      },
+      {
+        "label": "Next beat",
+        "text": "Create the next story beat inside the greenhouse. The robot is now crouched beside a circular soil tray, carefully placing the same bright-green seedling into the soil with one gripper; its other gripper holds the opened, now-empty glass capsule. The orange satchel remains visible. The round hatch stands open behind it. Frame the planting action clearly in a new medium shot. This is a visibly different action and location within the same world, not a restyle or wider crop of the doorway scene. Retain the tactile miniature look and indigo/amber light. No lettering or extra characters."
+      },
+      {
+        "label": "Continuity rules",
+        "text": "Keep the same robot's rounded cream body, single round amber eye, dark-blue legs, orange satchel and relative proportions. Track the one glass capsule and one green seedling: the closed capsule in frame 1 should be opened and empty during planting in frame 2, with no duplicate seedling or capsule. Keep the miniature materials and indigo/amber lighting recognizable. Frame 1 shows an arrival at a closed hatch; frame 2 must clearly show planting inside after the hatch opens."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "storyboard-relay/opening.webp",
+        "kind": "image",
+        "label": "1. Muse: establish the character",
+        "sha256": "447fafa2601f0a9892c9136cb3fc254178cd1446676173f76a6640ec2eed14b5"
+      },
+      {
+        "src": "storyboard-relay/draft.png",
+        "kind": "image",
+        "label": "2. Nano Banana: the draft duplicates the seedling",
+        "sha256": "c5dd79fa98db146bb19a51003d105b1b91c7c49f322f8c4194b5e04deca274a9"
+      },
+      {
+        "src": "storyboard-relay/repaired.webp",
+        "kind": "image",
+        "label": "3. Muse Edit: one repair from the critique",
+        "sha256": "096d2bcdb5bb5ce0f91bf7c8653000d7005481cc5d49b0fd3e5ec3bbde9a6046"
+      },
+      {
+        "src": "storyboard-relay/draft-review.txt",
+        "kind": "text",
+        "label": "What Gemini asked the repair model to change",
+        "sha256": "c1bddf6658a7939e53165f732827246254a6c92be450716ca392c3e9b5141984",
+        "collapsed": true
+      },
+      {
+        "src": "storyboard-relay/final-review.txt",
+        "kind": "text",
+        "label": "Fresh review of the repaired frame",
+        "sha256": "40d6e0786ec2fe6f8fd003d81f83e6392e65d5cfce05e279ef9ac2b8bfe7c9a2",
+        "collapsed": true
+      }
+    ],
+    "preview": "storyboard-relay/preview.webp",
+    "workflow": "storyboard-relay/workflow.json",
+    "workflowSha256": "26835b6c71dcb4ee1558a01c662e4a6515663d042c914eaaf4f389da0369dea8",
+    "evidence": "https://github.com/nanoodlecom/awesome-noodles/tree/main/evidence/storyboard-relay/orbital-delivery-2026-09-12T14-01-14-715Z",
+    "layout": "sequence",
+    "alternates": [
+      {
+        "id": "salt-lagoon-kite",
+        "case": "salt-lagoon-kite",
+        "title": "A crab catches the wind",
+        "date": "2026-09-12",
+        "recordedAt": "2026-09-12T14:04:03.988Z",
+        "review": "One repair, with remaining flaws",
+        "note": "A red crab carries a yellow kite from a jetty to a pink sandbar. Muse establishes the cut-paper world; Nano Banana stages the flying action; Gemini critiques the draft; Muse Edit makes one revision from both actual frames and the critique. The repair restores the spool and pink sky, while the kite bow count and placement still fail the brief. A fresh review flags that remaining drift. The opening, draft and repaired image are retained so the improvement and its limits can be compared directly.",
+        "costUsd": 0.06551082500000001,
+        "costExact": true,
+        "elapsedMs": 121887,
+        "models": [
+          "meta/muse-image/text-to-image",
+          "nano-banana-edit",
+          "google/gemini-3.8-flash",
+          "meta/muse-image/edit"
+        ],
+        "inputs": [
+          {
+            "label": "First scene",
+            "text": "First frame of an original two-scene story. A small red crab kite-maker stands on a sun-bleached wooden jetty over a shallow turquoise salt lagoon. It has two large claws, four small walking legs visible, round black eyes, and a floppy straw hat with a violet ribbon. One claw holds a wound white string reel; beside it rests a single yellow diamond kite with exactly two violet tail bows. The crab looks toward a flat pink sandbar across the water. Bold cut-paper collage, crisp torn-paper edges, coral-red, yellow, turquoise and pale pink, bright overhead sun. Wide 3:2 composition; entire crab, reel, kite and jetty visible. No robots, space stations, glass capsules, plants, text, panel borders or watermark."
+          },
+          {
+            "label": "Next beat",
+            "text": "Create the next story beat on the pink sandbar across the lagoon. The same crab braces its legs and leans backward as the yellow diamond kite lifts overhead in a strong breeze. The white string visibly connects the kite to the reel in one claw; the other claw keeps the straw hat from blowing away. Exactly two violet bows remain on the kite's tail. Show the kite fully in frame and make the new wind-driven action clear. Retain the crisp cut-paper collage and sunlit coral/yellow/turquoise/pink palette. This is a new story action, not the original jetty picture with a changed background. No extra crabs or kites, lettering or panel borders."
+          },
+          {
+            "label": "Continuity rules",
+            "text": "Preserve the red crab's body shape, black eyes, two claws, straw hat and violet ribbon. Keep one yellow diamond kite, two violet tail bows, and the white reel/string. The string should connect reel and kite in frame 2; the kite must be flying rather than resting. The scene moves from a wooden jetty to a pink sandbar. Preserve cut-paper materials, crisp edges and bright sunlit palette; do not inherit any robot, greenhouse or space-scene details."
+          }
+        ],
+        "outputs": [
+          {
+            "kind": "image",
+            "src": "storyboard-relay/alternates/salt-lagoon-kite/frame-one-image.webp",
+            "sha256": "1801e34e4dad25dd7d4492750a0d7f0eef7f21d06f11600227fa8c27ceb70531",
+            "label": "1. Muse: the kite-maker on the jetty"
+          },
+          {
+            "kind": "image",
+            "src": "storyboard-relay/alternates/salt-lagoon-kite/frame-two-image.png",
+            "sha256": "f47e65f726cbd785aefb9f0e6b94a36cb5e3f96b9a15e72ed8005b3b5305cfb5",
+            "label": "2. Nano Banana: the flying-kite draft"
+          },
+          {
+            "kind": "image",
+            "src": "storyboard-relay/alternates/salt-lagoon-kite/repair-image.webp",
+            "sha256": "a932b3619a50fab537e5be07154452f562d855c8d3677177ade5ec9469e0c8aa",
+            "label": "3. Muse Edit: one visible repair"
+          },
+          {
+            "kind": "text",
+            "src": "storyboard-relay/alternates/salt-lagoon-kite/review-text.txt",
+            "sha256": "684eb9dffc29512cf12f4b69f176b9f691c528465aeb4122fedaf33bdc736bb2",
+            "label": "What Gemini asked the repair model to change",
+            "collapsed": true
+          },
+          {
+            "kind": "text",
+            "src": "storyboard-relay/alternates/salt-lagoon-kite/final-review-text.txt",
+            "sha256": "87aceada449546f3daeb4e6851ca0902baf7c01c3ed9792161e943a71d9ad68b",
+            "label": "Fresh review of the repaired frame",
+            "collapsed": true
+          }
+        ],
+        "preview": "storyboard-relay/alternates/salt-lagoon-kite/preview.webp",
+        "previewSha256": "0b530733ca91301d823b8c5899285a015298bb38e9f50d4e7d9c33ae426fab04",
+        "previewSource": "storyboard-relay/alternates/salt-lagoon-kite/repair-image.webp",
+        "graph": "storyboard-relay/alternates/salt-lagoon-kite/graph.json",
+        "graphSha256": "3a86850f125e67ee226d30d2fbe9f906d6646edd1f66f132b20725dc39a6b39e",
+        "workflow": "storyboard-relay/alternates/salt-lagoon-kite/graph.json",
+        "workflowSha256": "3a86850f125e67ee226d30d2fbe9f906d6646edd1f66f132b20725dc39a6b39e",
+        "sourceGraph": "storyboard-relay/alternates/salt-lagoon-kite/source-graph.json",
+        "sourceGraphSha256": "26835b6c71dcb4ee1558a01c662e4a6515663d042c914eaaf4f389da0369dea8",
+        "inputOverrides": "storyboard-relay/alternates/salt-lagoon-kite/inputs.json",
+        "inputOverridesSha256": "7abf8f0fe0c4f86f91c2e24147b097cd5f8fddbbe9131b8a0538b255ae2ca36c",
+        "sourceRun": "storyboard-relay/alternates/salt-lagoon-kite/source-run.json",
+        "sourceRunSha256": "dae0220ccc2b3ba1f513965350d3bb0cb3c444db20bfedc50bacd1c06fd57592",
+        "evidence": "https://github.com/nanoodlecom/awesome-noodles/tree/main/evidence/storyboard-relay/salt-lagoon-kite-2026-09-12T14-02-02-099Z",
+        "evidencePath": "evidence/storyboard-relay/salt-lagoon-kite-2026-09-12T14-02-02-099Z",
+        "layout": "sequence"
+      }
+    ],
+    "showcase": "An image mistake becomes a critique, a repair, and a fresh look."
+  },
+  {
+    "slug": "tiny-world-film",
+    "title": "Tiny world, full soundtrack",
+    "date": "2026-09-12",
+    "review": "Sampled frames and model-assisted audio review",
+    "note": "Muse builds a walnut-shell watermill; Wan animates that image; Mirelo watches the actual silent take and adds its sound. The 480p result is five seconds long. Sampled frames retain the mill and turning wheel; a separate audio model describes rushing water and faint friction, without speech or music. The audio ends sharply. Exact audiovisual sync and seamless looping were not established.",
+    "costUsd": 0.18176470588235294,
+    "costExact": true,
+    "models": [
+      "meta/muse-image/text-to-image",
+      "wan-video-image-to-video",
+      "mirelo-ai/sfx1.6/video-to-video"
+    ],
+    "graphSha256": "71d5381cfb084f7caa7a57478a58dd8eda9f026cacfab222b381662a33c218c8",
+    "inputs": [
+      {
+        "label": "World",
+        "text": "A handmade miniature walnut-shell watermill on a mossy stone beside a tiny stream. One large copper paddle wheel is attached to the right wall of the walnut house; a thin stream pours onto its paddles. Warm amber window, fern fronds, clay mushrooms, soft overcast morning. Tactile stop-motion set, macro lens, horizontal composition. Entire wheel visible, no people, no lettering."
+      },
+      {
+        "label": "Motion",
+        "text": "One continuous locked-off macro shot. The copper waterwheel turns slowly and steadily as the stream runs over its paddles. Small ripples travel downstream. Preserve the walnut house, window, wheel and ferns from the source image. No camera travel, scene cuts, new objects or speech."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "tiny-world-film/first-frame.webp",
+        "kind": "image",
+        "label": "1. Muse: the miniature world",
+        "sha256": "bfd32974b59112d2802767e051cee7ba3a39f38d257ae58fe8c05742fa05f797"
+      },
+      {
+        "src": "tiny-world-film/silent.mp4",
+        "kind": "video",
+        "label": "2. Wan: the actual silent intermediate",
+        "sha256": "b45fdfa88a3ec36935b4ca5532ee8ffa3cbd80a2c5b8247b044c7bf907aec720"
+      },
+      {
+        "src": "tiny-world-film/film.mp4",
+        "kind": "video",
+        "label": "3. Mirelo: the clip with generated foley",
+        "sha256": "dde2b63c4cbbbf6451a62bb8c2d4b78d980a7266a3f61d37950426ff10f00fe0"
+      }
+    ],
+    "preview": "tiny-world-film/preview.webp",
+    "workflow": "tiny-world-film/workflow.json",
+    "workflowSha256": "71d5381cfb084f7caa7a57478a58dd8eda9f026cacfab222b381662a33c218c8",
+    "evidence": "https://github.com/nanoodlecom/awesome-noodles/tree/main/evidence/tiny-world-film/default-2026-09-12T13-56-05-839Z",
+    "alternates": [
+      {
+        "id": "alternate",
+        "case": "alternate",
+        "title": "The watchmaker’s moth",
+        "date": "2026-09-12",
+        "recordedAt": "2026-09-12T14:00:51.998Z",
+        "review": "Sampled frames and model-assisted audio review",
+        "note": "Muse creates a brass moth on a wooden spool; Wan animates its wings; Mirelo adds sound from that actual silent clip. The five-second film keeps the moth and spool, but the orange wing underside changes the intended folded-metal material. A separate audio-model review describes rhythmic metallic friction and clicks without speech or music, and notes an abrupt ending. That review did not see the video: precise audiovisual synchronization and seamless looping are not established.",
+        "costUsd": 0.18176470588235294,
+        "costExact": true,
+        "elapsedMs": 112929,
+        "models": [
+          "meta/muse-image/text-to-image",
+          "wan-video-image-to-video",
+          "mirelo-ai/sfx1.6/video-to-video"
+        ],
+        "inputs": [
+          {
+            "label": "World",
+            "text": "A handmade miniature brass moth with two broad folded-metal wings perched on a wooden spool in a sunlit dry watchmaker workshop. A tiny winding key protrudes from its back. Sand-colored wood, amber brass, pale blue painted wing tips. Tactile stop-motion set, macro lens, entire moth clearly visible, horizontal composition. No water, plants, windows, lettering or people."
+          },
+          {
+            "label": "Motion",
+            "text": "One continuous locked-off macro shot. The brass moth gently opens and closes both hinged wings twice while staying on the spool. Its winding key makes a small turn. Keep the same body, pale blue wing tips and dry wooden table; no flight, extra wings, camera travel or cuts."
+          }
+        ],
+        "outputs": [
+          {
+            "kind": "image",
+            "src": "tiny-world-film/alternates/alternate/n3-image.webp",
+            "sha256": "4375cf2be718b17caaa00cfcc6940e0d555278115d379c45f79584cd7279ca1a",
+            "label": "1. Muse: the mechanical moth"
+          },
+          {
+            "kind": "video",
+            "src": "tiny-world-film/alternates/alternate/n4-video.mp4",
+            "sha256": "ad326153b12888b9e3c32d52d5b6351b9bff0b8cdc5d0d0759ebfca02c6a8e28",
+            "label": "2. Wan: the actual silent intermediate"
+          },
+          {
+            "kind": "video",
+            "src": "tiny-world-film/alternates/alternate/n5-video.mp4",
+            "sha256": "f3741222f00184b5c30bf81e447f277c64a41cdebbae2b25f989fe4ce8c5ab93",
+            "label": "3. Mirelo: the film with generated foley"
+          },
+          {
+            "kind": "text",
+            "src": "tiny-world-film/alternates/alternate/audio-review.txt",
+            "label": "Separate model-assisted audio review",
+            "sha256": "5ed3d16dd5c1849d96a8328ae3316a03379af1af88c2630849ef9939a132acc6",
+            "collapsed": true
+          }
+        ],
+        "preview": "tiny-world-film/alternates/alternate/preview.webp",
+        "previewSha256": "23a9302c788698b89aa275c79c9fe358c5638f754f772b5b8d577ec9fa372fde",
+        "previewSource": "tiny-world-film/alternates/alternate/n5-video.mp4",
+        "graph": "tiny-world-film/alternates/alternate/graph.json",
+        "graphSha256": "39c2465ca88e9af10c93bc5907097e1ffcfcbc3a050df313cb5aa036e9929ca9",
+        "workflow": "tiny-world-film/alternates/alternate/graph.json",
+        "workflowSha256": "39c2465ca88e9af10c93bc5907097e1ffcfcbc3a050df313cb5aa036e9929ca9",
+        "sourceGraph": "tiny-world-film/alternates/alternate/source-graph.json",
+        "sourceGraphSha256": "71d5381cfb084f7caa7a57478a58dd8eda9f026cacfab222b381662a33c218c8",
+        "inputOverrides": "tiny-world-film/alternates/alternate/inputs.json",
+        "inputOverridesSha256": "ff5c03cebfeddcf4a195a83222925dc0c4bb79dbac4fcc3f1b456c1621ee0d5a",
+        "sourceRun": "tiny-world-film/alternates/alternate/source-run.json",
+        "sourceRunSha256": "daf7310b09e81084bb04893dafbbeb3d745bfb059376883f5c42100faf7f4bb5",
+        "evidence": "https://github.com/nanoodlecom/awesome-noodles/tree/main/evidence/tiny-world-film/alternate-2026-09-12T13-58-59-068Z",
+        "evidencePath": "evidence/tiny-world-film/alternate-2026-09-12T13-58-59-068Z",
+        "previewTimeSeconds": 1,
+        "audioReview": {
+          "src": "tiny-world-film/alternates/alternate/audio-review.txt",
+          "sha256": "5ed3d16dd5c1849d96a8328ae3316a03379af1af88c2630849ef9939a132acc6",
+          "model": "google/gemini-3.8-flash",
+          "costUsd": 0.0010552125,
+          "costExact": true,
+          "source": "tiny-world-film/alternates/alternate/audio-review.json",
+          "sourceSha256": "361cffe37eb08835b78e72de45bef98cff76d4956816214f03addd663219fe17"
+        }
+      }
+    ],
+    "showcase": "A miniature grows motion and a soundtrack made from the video."
+  },
+  {
+    "slug": "pocket-mystery",
+    "title": "Pocket mystery",
+    "date": "2026-09-12",
+    "review": "Visual and puzzle review",
+    "note": "Muse invents the attic; Gemini identifies its actual telescope, crescent and sewing machine; GLM builds a tiny ordering mystery from those observations. Read the player handout before revealing the GM solution. Both the attic and a submarine bakery were inspected and their six possible orders checked. This is a short illustrated puzzle, not a generated game engine. The clues have one solution, but the story describes the visibly glowing moon as dim; that narrative mismatch remains in the saved handout.",
+    "costUsd": 0.0115618,
+    "costExact": true,
+    "models": [
+      "meta/muse-image/text-to-image",
+      "google/gemini-3.8-flash",
+      "z-ai/glm-5.3-flash"
+    ],
+    "graphSha256": "5654c4f63902dca10de63ec6c1e9d218c1c4d658b3a87d8ec41dc0647fedcd9e",
+    "inputs": [
+      {
+        "label": "Room brief",
+        "text": "The Moon-Mender's Attic: one cozy impossible workshop tucked inside a steep indigo roof, painted like a richly textured storybook cutaway. View the entire single room from a slightly elevated front angle. Three oversized, widely separated landmarks dominate the room: LEFT, a long honey-gold brass telescope on a sturdy tripod aimed through an open round window; CENTER, an enormous luminous ivory crescent moon upright on a dark blue pedestal; RIGHT, a bright vermilion vintage sewing machine on a simple wooden table. Keep each object's complete silhouette visible, with clear empty floor between them. Warm amber lamplight, dusky violet rafters, tiny distant stars outside; tactile gouache and printed-paper grain. A charming miniature theatrical set with readable shapes, not a realistic photograph. Exactly one of each landmark. No people, extra rooms, clutter, tiny clue objects, letters, numbers, labels, signage, puzzle solution, border or watermark."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "pocket-mystery/room.jpg",
+        "kind": "image",
+        "label": "The actual room",
+        "sha256": "65e8e98b3426fb8339496ac6c81994cfecca747d3d53065ab28c147c5e32768c"
+      },
+      {
+        "src": "pocket-mystery/player.txt",
+        "kind": "text",
+        "label": "Player handout",
+        "sha256": "9c485d4343065d3f408ee481f0eab215eb8b455a8f511dbab21d07560b12998d"
+      },
+      {
+        "src": "pocket-mystery/gm.txt",
+        "kind": "text",
+        "label": "GM solution — spoilers",
+        "spoiler": true,
+        "sha256": "a39c1c1a56ebb08a66ab4990b70802b93adb07d448ffffdeb6228c61ceec8744"
+      }
+    ],
+    "preview": "pocket-mystery/preview.webp",
+    "workflow": "pocket-mystery/workflow.json",
+    "workflowSha256": "5654c4f63902dca10de63ec6c1e9d218c1c4d658b3a87d8ec41dc0647fedcd9e",
+    "evidence": "https://github.com/nanoodlecom/awesome-noodles/tree/main/evidence/pocket-mystery/moon-menders-attic-2026-09-12T14-01-59-781Z",
+    "alternates": [
+      {
+        "id": "submarine-bakery",
+        "case": "submarine-bakery",
+        "title": "The Hum of the Sunken Choir",
+        "date": "2026-09-12",
+        "recordedAt": "2026-09-12T14:03:02.115Z",
+        "review": "Visual and puzzle review",
+        "note": "A pale underwater bakery becomes a tiny resonance ritual. Gemini identifies the actual brick dome, shell and red bell; GLM uses those observed labels to write two plain ordering clues. All six possible orders were checked and exactly one fits the handout. The illustrated place is reused as an invented choir room rather than preserving the bakery premise. The labels are a little stiff, and this is a brief illustrated activity rather than a tested game engine. Read the player handout before revealing the GM solution.",
+        "costUsd": 0.011462762500000001,
+        "costExact": true,
+        "elapsedMs": 61180,
+        "models": [
+          "meta/muse-image/text-to-image",
+          "google/gemini-3.8-flash",
+          "z-ai/glm-5.3-flash"
+        ],
+        "inputs": [
+          {
+            "label": "Room brief",
+            "text": "The Submarine Bakery: one round-walled bakery room beneath a pale turquoise sea, illustrated as a playful miniature cutaway with thick ink contours and soft chalk pastel colors. View the entire single room from a slightly elevated front angle. Three oversized, widely separated landmarks dominate: LEFT, a squat orange brick oven with one broad dark opening; CENTER, one enormous pearly spiral nautilus shell upright on a low sea-green counter; RIGHT, one bright cherry-red handbell standing alone on a small cream pedestal. Show every complete silhouette and leave clear empty floor between the landmarks. A single large circular window reveals gently waving kelp outside. Sea-glass walls, warm cream floor, orange and red accents; whimsical and tranquil rather than dark or flooded. Exactly one of each landmark. No people, extra rooms, pastries, clutter, tiny clue objects, letters, numbers, labels, signage, puzzle solution, border or watermark."
+          }
+        ],
+        "outputs": [
+          {
+            "kind": "image",
+            "src": "pocket-mystery/alternates/submarine-bakery/room-image.webp",
+            "sha256": "672c9d550113e6bab6c5a66d8a2ca8310410fb5dcec1a0e6e86a4afb043f08a5",
+            "label": "The actual underwater room"
+          },
+          {
+            "kind": "text",
+            "src": "pocket-mystery/alternates/submarine-bakery/player.txt",
+            "label": "Player handout",
+            "sha256": "afe88c35ac595af48a7402a5730a0facd043e74f2aad6c2999a089fb63446065"
+          },
+          {
+            "kind": "text",
+            "src": "pocket-mystery/alternates/submarine-bakery/gm.txt",
+            "label": "GM solution — spoilers",
+            "sha256": "6cf44f58db3d8355c732b6b30a946b542ea314ee8b6240508075d6ee3264c242",
+            "spoiler": true
+          },
+          {
+            "kind": "text",
+            "src": "pocket-mystery/alternates/submarine-bakery/observe-text.txt",
+            "sha256": "a8084821d9baa37b4d5c0db84831e8ec6646c2ef197d9278d9cbe838a90f3d9f",
+            "label": "What Gemini observed",
+            "collapsed": true
+          }
+        ],
+        "preview": "pocket-mystery/alternates/submarine-bakery/preview.webp",
+        "previewSha256": "99a3ddb0e51870d38a2eeac0d1f1a0ba3b271d0a5deb251178df13374ad06987",
+        "previewSource": "pocket-mystery/alternates/submarine-bakery/room-image.webp",
+        "graph": "pocket-mystery/alternates/submarine-bakery/graph.json",
+        "graphSha256": "eb756d0ab2f8bf44e0cfc10ec13613d0ceacf557e668b9d718e6c1131b0d99a9",
+        "workflow": "pocket-mystery/alternates/submarine-bakery/graph.json",
+        "workflowSha256": "eb756d0ab2f8bf44e0cfc10ec13613d0ceacf557e668b9d718e6c1131b0d99a9",
+        "sourceGraph": "pocket-mystery/alternates/submarine-bakery/source-graph.json",
+        "sourceGraphSha256": "5654c4f63902dca10de63ec6c1e9d218c1c4d658b3a87d8ec41dc0647fedcd9e",
+        "inputOverrides": "pocket-mystery/alternates/submarine-bakery/inputs.json",
+        "inputOverridesSha256": "65a43b5cd88eea9d2cc60ea47fbcb9e944a28efef68db455cff10e33b3b841e3",
+        "sourceRun": "pocket-mystery/alternates/submarine-bakery/source-run.json",
+        "sourceRunSha256": "b1462bd01ef6b0268477b4a8c209120b1cdb1c254f4d5254a06584fda2ca8a9c",
+        "evidence": "https://github.com/nanoodlecom/awesome-noodles/tree/main/evidence/pocket-mystery/submarine-bakery-2026-09-12T14-02-00-934Z",
+        "evidencePath": "evidence/pocket-mystery/submarine-bakery-2026-09-12T14-02-00-934Z",
+        "combinedText": {
+          "src": "pocket-mystery/alternates/submarine-bakery/mystery-text.txt",
+          "sha256": "a4538766185a6406431bb22269f5bae1c97e53aee7f7aef3414ff5cd8487e837",
+          "delimiter": "GM ONLY - SPOILERS"
+        }
+      }
+    ],
+    "showcase": "An invented room becomes an observed world and a tiny puzzle."
+  },
+  {
     "slug": "character-sprites",
     "title": "Game character kit",
     "date": "2026-09-11",
@@ -23,13 +428,13 @@
       {
         "src": "character-sprites/Reference.webp",
         "kind": "image",
-        "label": "Canonical character \u00b7 reported $0.01",
+        "label": "Canonical character · reported $0.01",
         "costUsd": 0.01
       },
       {
         "src": "character-sprites/Rig_parts.webp",
         "kind": "image",
-        "label": "Rig parts \u00b7 reported $0.01",
+        "label": "Rig parts · reported $0.01",
         "costUsd": 0.01
       }
     ],
@@ -62,25 +467,25 @@
       {
         "src": "image-model-arena/Contender_1.webp",
         "kind": "image",
-        "label": "Muse Image \u00b7 reported $0.01",
+        "label": "Muse Image · reported $0.01",
         "costUsd": 0.01
       },
       {
         "src": "image-model-arena/Contender_2.jpg",
         "kind": "image",
-        "label": "Krea 2 Turbo \u00b7 reported $0.01",
+        "label": "Krea 2 Turbo · reported $0.01",
         "costUsd": 0.01
       },
       {
         "src": "image-model-arena/Contender_3.jpg",
         "kind": "image",
-        "label": "Grok Imagine Image 2.0 \u00b7 reported $0.06",
+        "label": "Grok Imagine Image 2.0 · reported $0.06",
         "costUsd": 0.06
       },
       {
         "src": "image-model-arena/Contender_4.webp",
         "kind": "image",
-        "label": "Recraft V4 \u00b7 reported $0.038",
+        "label": "Recraft V4 · reported $0.038",
         "costUsd": 0.038
       }
     ],
@@ -122,7 +527,7 @@
     "preview": "photo-to-video/preview.webp",
     "workflow": "photo-to-video/workflow.json",
     "workflowSha256": "749b3dd20bd56d39e9807b2efe1b00061d18300f1eb437a2a3dba4d62030a09f",
-    "workflowNote": "The current workflow uses the provider\u2019s renamed video model ID. The original sampled graph is preserved below."
+    "workflowNote": "The current workflow uses the provider’s renamed video model ID. The original sampled graph is preserved below."
   },
   {
     "slug": "sing",
@@ -151,7 +556,7 @@
       {
         "src": "sing/Song.mp3",
         "kind": "audio",
-        "label": "Generated song \u2014 2:35"
+        "label": "Generated song — 2:35"
       },
       {
         "src": "sing/lyrics.txt",
@@ -221,6 +626,6 @@
     },
     "workflow": "talking-avatar/workflow.json",
     "workflowSha256": "e5109ad4fb991862c03dcd71da29d3bf2fe08c0f96e05fceacf492bdb3ece95b",
-    "workflowNote": "The current workflow uses the provider\u2019s renamed avatar model ID. The original sampled graph is preserved below."
+    "workflowNote": "The current workflow uses the provider’s renamed avatar model ID. The original sampled graph is preserved below."
   }
 ]

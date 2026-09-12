@@ -18,10 +18,12 @@ const image = (id, resolutions, edit = false) => ({ id,
   architecture: { modality: edit ? 'text+image->image' : 'text->image' },
   capabilities: { image_to_image: edit }, supported_parameters: { resolutions } });
 const catalogs = {
-  chat: [...new Set([...pins.filter(p => p.kind === 'chat').map(p => p.id), 'fixture-other-chat'])].map(id => ({ id })),
+  chat: [...new Set([...pins.filter(p => p.kind === 'chat').map(p => p.id), 'fixture-other-chat'])].map(id => ({ id,
+    ...(id === 'google/gemini-3.8-flash' ? { capabilities: { vision: true } } : {}) })),
   image: [
     image('meta/muse-image/edit', ['auto', '1:1', '3:2', '16:9'], true),
     image('meta/muse-image/text-to-image', ['1:1', '3:2', '16:9']),
+    image('nano-banana-edit', ['auto'], true),
     image('openai/gpt-image-2.5/flare/text-to-image', ['1k', '2k', '4k']),
     image('xai/grok-imagine-image/v2.0/text-to-image', ['1:1', '16:9']),
     image('recraft-v4', ['1024x1024']),
@@ -31,6 +33,11 @@ const catalogs = {
       supported_parameters: { parameters: { resolution: opts(['480p', '720p']), duration: opts([5, 10]) } } },
     { id: 'longcat-avatar-1.5', capabilities: { image_to_video: true, audio_input: true },
       supported_parameters: { parameters: { resolution: opts(['480p', '720p']) } } },
+    { id: 'wan-video-image-to-video', capabilities: { image_to_video: true },
+      supported_parameters: { parameters: { resolution: opts(['480p', '720p']),
+        num_frames: { type: 'number', default: 81 }, frames_per_second: { type: 'number', default: 16 } } } },
+    { id: 'mirelo-ai/sfx1.6/video-to-video', architecture: { modality: 'text+video->video' },
+      capabilities: { video_to_video: true }, supported_parameters: { parameters: { seed: { type: 'number', default: -1 } } } },
   ],
   audio: [
     { id: 'Minimax-Speech-2.8-HD', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Deep_Voice_Man'] } },
@@ -51,6 +58,7 @@ function run(mode) {
       let data = catalogs[kind].filter(m => mode !== 'missing-starter' || m.id !== ${JSON.stringify(starterId)});
       if (mode === 'bad-size' && kind === 'image') data.find(m => m.id === 'meta/muse-image/text-to-image').supported_parameters.resolutions = ['2mp'];
       if (mode === 'bad-avatar' && kind === 'video') data.find(m => m.id === 'longcat-avatar-1.5').capabilities.audio_input = false;
+      if (mode === 'bad-vision' && kind === 'chat') data.find(m => m.id === 'google/gemini-3.8-flash').capabilities.vision = false;
       if (mode === 'empty') data = [];
       if (mode === 'malformed') data = {};
       return { ok: true, json: async () => ({ data }) };
@@ -72,6 +80,7 @@ for (const [mode, reason] of [
   ['missing-starter', /homepage starter \(noodle-graph\.json\).*gone from the chat catalog/],
   ['bad-size', /photo-to-video:.*unsupported size/],
   ['bad-avatar', /talking-avatar:.*does not support lipsync/],
+  ['bad-vision', /pocket-mystery:.*does not support llm \(vision\)/],
 ]) {
   const result = run(mode);
   assert.equal(result.status, 1, result.output);

@@ -18,8 +18,8 @@
 //                   marked as history.
 //   2. counts     — every "<n> workflows/graphs/examples" claim equals the
 //                   number of entries in index.html's EXAMPLES array, which
-//                   sync-examples.mjs already pins to awesome-noodles and which
-//                   is the same set mcp.nanoodle.com serves.
+//                   sync-examples.mjs already pins to awesome-noodles. This
+//                   offline check cannot establish the hosted MCP catalog.
 //   3. repos      — every "<n> public repos" claim agrees with the others and is
 //                   at least the number of org repos README's ecosystem table
 //                   links to.
@@ -120,9 +120,9 @@ const lines = (f) => src.get(f).split("\n");
 // ---------------------------------------------------------------- repo facts
 
 // How many cards the 📚 Examples panel actually ships. sync-examples.mjs (gate
-// 39) pins this array to one card per graph in awesome-noodles, and the hosted
-// MCP server exposes that same set, so this one number backs the "ten
-// ready-made graphs" and "ten workflows are published" claims at once.
+// 39) pins this array to one card per graph in awesome-noodles. Hosted MCP
+// deployment and transport support require a separate check; never infer them
+// from this browser count.
 function exampleCount() {
   const html = readFileSync(join(ROOT, "index.html"), "utf8");
   const start = html.indexOf("const EXAMPLES = [");
@@ -232,7 +232,7 @@ if (EXAMPLES) {
         const n = /^\d+$/.test(m[1]) ? Number(m[1]) : WORDS[m[1].toLowerCase()];
         if (n === EXAMPLES) continue;
         report(m, `says "${m[0]}" but index.html ships ${EXAMPLES} example graphs ` +
-          `(and mcp.nanoodle.com serves that same set). Re-run sync-examples.mjs, then fix the copy.`);
+          `in the browser gallery. Re-run sync-examples.mjs, then fix the copy; check hosted MCP separately.`);
       }
     });
   }
