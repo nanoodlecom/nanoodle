@@ -1,0 +1,224 @@
+{
+  "slug": "tiny-world-film",
+  "case": "alternate",
+  "recordedAt": "2026-09-12T14:00:51.998Z",
+  "elapsedMs": 112929,
+  "graphSha256": "71d5381cfb084f7caa7a57478a58dd8eda9f026cacfab222b381662a33c218c8",
+  "costUsd": 0.18176470588235294,
+  "costExact": true,
+  "errors": [],
+  "captureErrors": [],
+  "events": [
+    {
+      "type": "node-start",
+      "node": "n1"
+    },
+    {
+      "type": "node-start",
+      "node": "n2"
+    },
+    {
+      "type": "node-done",
+      "node": "n1",
+      "ms": 0,
+      "costUsd": null
+    },
+    {
+      "type": "node-done",
+      "node": "n2",
+      "ms": 0,
+      "costUsd": null
+    },
+    {
+      "type": "node-start",
+      "node": "n3"
+    },
+    {
+      "type": "node-done",
+      "node": "n3",
+      "ms": 30047,
+      "costUsd": 0.01
+    },
+    {
+      "type": "node-start",
+      "node": "n6"
+    },
+    {
+      "type": "node-start",
+      "node": "n4"
+    },
+    {
+      "type": "node-done",
+      "node": "n6",
+      "ms": 448,
+      "costUsd": null
+    },
+    {
+      "type": "node-done",
+      "node": "n4",
+      "ms": 45728,
+      "costUsd": 0.11176470588235295
+    },
+    {
+      "type": "node-start",
+      "node": "n5"
+    },
+    {
+      "type": "node-done",
+      "node": "n5",
+      "ms": 36022,
+      "costUsd": 0.06
+    }
+  ],
+  "publicOutputs": [
+    {
+      "key": "First frame",
+      "nodeId": "n6"
+    },
+    {
+      "key": "Film with foley",
+      "nodeId": "n5"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "c1",
+      "name": "A world, then motion, then sound",
+      "type": "comment",
+      "status": "skipped",
+      "costUsd": null,
+      "ms": null,
+      "error": null,
+      "outputs": []
+    },
+    {
+      "id": "n1",
+      "name": "World",
+      "type": "text",
+      "status": "done",
+      "costUsd": null,
+      "ms": 0,
+      "error": null,
+      "outputs": [
+        {
+          "port": "text",
+          "kind": "text",
+          "file": "n1-text.txt",
+          "bytes": 371,
+          "sha256": "a2f213d71331cf3b61b7d163dc342d9b07bc83eedc0f199b0ae1b5aa7a8a548a"
+        }
+      ]
+    },
+    {
+      "id": "n2",
+      "name": "Motion",
+      "type": "text",
+      "status": "done",
+      "costUsd": null,
+      "ms": 0,
+      "error": null,
+      "outputs": [
+        {
+          "port": "text",
+          "kind": "text",
+          "file": "n2-text.txt",
+          "bytes": 273,
+          "sha256": "49d839b285371afd1602e1576a9ea4ae3f9fe6a86bb8baa1dd010e1c604fd6c1"
+        }
+      ]
+    },
+    {
+      "id": "n3",
+      "name": "Build the miniature",
+      "type": "image",
+      "model": "meta/muse-image/text-to-image",
+      "status": "done",
+      "costUsd": 0.01,
+      "ms": 30047,
+      "error": null,
+      "outputs": [
+        {
+          "port": "image",
+          "kind": "image",
+          "file": "n3-image.webp",
+          "bytes": 544862,
+          "sha256": "4375cf2be718b17caaa00cfcc6940e0d555278115d379c45f79584cd7279ca1a"
+        },
+        {
+          "port": "images-1",
+          "kind": "image",
+          "file": "n3-images-1.webp",
+          "bytes": 544862,
+          "sha256": "4375cf2be718b17caaa00cfcc6940e0d555278115d379c45f79584cd7279ca1a"
+        }
+      ]
+    },
+    {
+      "id": "n4",
+      "name": "Silent take",
+      "type": "ivideo",
+      "model": "wan-video-image-to-video",
+      "status": "done",
+      "costUsd": 0.11176470588235295,
+      "ms": 45728,
+      "error": null,
+      "outputs": [
+        {
+          "port": "video",
+          "kind": "video",
+          "file": "n4-video.mp4",
+          "bytes": 1206064,
+          "sha256": "ad326153b12888b9e3c32d52d5b6351b9bff0b8cdc5d0d0759ebfca02c6a8e28"
+        }
+      ]
+    },
+    {
+      "id": "n5",
+      "name": "Film with foley",
+      "type": "vedit",
+      "model": "mirelo-ai/sfx1.6/video-to-video",
+      "status": "done",
+      "costUsd": 0.06,
+      "ms": 36022,
+      "error": null,
+      "outputs": [
+        {
+          "port": "video",
+          "kind": "video",
+          "file": "n5-video.mp4",
+          "bytes": 1038448,
+          "sha256": "f3741222f00184b5c30bf81e447f277c64a41cdebbae2b25f989fe4ce8c5ab93"
+        }
+      ]
+    },
+    {
+      "id": "n6",
+      "name": "First frame",
+      "type": "resize",
+      "status": "done",
+      "costUsd": null,
+      "ms": 448,
+      "error": null,
+      "outputs": [
+        {
+          "port": "image",
+          "kind": "image",
+          "file": "n6-image.jpg",
+          "bytes": 213289,
+          "sha256": "92ffb22bbdd074e0bf926db2bd08bc0cdd3ebd7e76076b4cf5a72662b17f5e4e"
+        }
+      ]
+    },
+    {
+      "id": "c2",
+      "name": "What the connection proves",
+      "type": "comment",
+      "status": "skipped",
+      "costUsd": null,
+      "ms": null,
+      "error": null,
+      "outputs": []
+    }
+  ],
+  "review": "Unreviewed. Successful execution and nonempty files do not establish creative quality."
+}

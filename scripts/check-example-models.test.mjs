@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { auditPins, nodeKinds, parseExamples, pinnedModels } from './check-example-models.mjs';
 
-const kinds = { text: {}, image: { kind: 'image', filter: 'gen' }, edit: { kind: 'image', filter: 'edit' },
+const kinds = { text: {}, upload: {}, aupload: {}, llm: { kind: 'chat' },
+  vision: { kind: 'chat', filter: 'vision' },
+  image: { kind: 'image', filter: 'gen' }, edit: { kind: 'image', filter: 'edit' },
   ivideo: { kind: 'video', filter: 'i2v' }, tvideo: { kind: 'video', filter: 't2v' },
   vedit: { kind: 'video', filter: 'v2v' },
   lipsync: { kind: 'video', filter: 'avatar' }, tts: { kind: 'audio', filter: 'tts' },
@@ -43,6 +45,64 @@ test('rejects incompatible image/edit capability and explicit unsupported size',
   assert.equal(auditPins([pin('image',{model:'img',size:'1k'})], catalogs).length, 0);
   assert.match(auditPins([pin('image',{model:'img',size:'1024x1024'})], catalogs)[0].reason, /unsupported size/);
   assert.match(auditPins([pin('edit',{model:'img'})], catalogs)[0].reason, /does not support edit/);
+});
+
+test('vision nodes require catalog vision capability, including when the flag is absent', () => {
+  const pins = pinnedModels([{ slug: 'image-question', graph: {
+    nodes: [{ id: 'reader', type: 'vision', fields: { model: 'reader' } }], links: [],
+  } }], kinds);
+  for (const capabilities of [{ vision: false }, {}]) {
+    const issues = auditPins(pins, { chat: [{ id: 'reader', capabilities }] });
+    assert.equal(issues.length, 1);
+    assert.match(issues[0].reason, /does not support vision \(vision\)/);
+  }
+  assert.deepEqual(auditPins(pins, { chat: [{ id: 'reader', capabilities: { vision: true } }] }), []);
+});
+
+test('LLM image requirements follow incoming imgN wires without rejecting plain text calls', () => {
+  const pins = pinnedModels([{ slug: 'image-review', graph: {
+    nodes: [
+      { id: 'photo', type: 'upload', fields: {} },
+      { id: 'brief', type: 'text', fields: { text: 'Describe the attached image.' } },
+      { id: 'writer', type: 'llm', fields: { model: 'text' } },
+      { id: 'judge', type: 'llm', fields: { model: 'reviewer' } },
+    ],
+    links: [
+      { from: { node: 'brief', port: 'text' }, to: { node: 'writer', port: 'prompt' } },
+      { from: { node: 'writer', port: 'text' }, to: { node: 'judge', port: 'prompt' } },
+      { from: { node: 'photo', port: 'image' }, to: { node: 'judge', port: 'img1' } },
+      { from: { node: 'photo', port: 'image' }, to: { node: 'judge', port: 'img3' } },
+    ],
+  } }], kinds);
+  const catalogs = { chat: [{ id: 'text' }, { id: 'reviewer', capabilities: { vision: false } }] };
+  const issues = auditPins(pins, catalogs);
+  assert.equal(issues.length, 1, 'multiple images need one vision capability; the text writer needs none');
+  assert.equal(issues[0].node, 'judge');
+  assert.match(issues[0].reason, /does not support llm \(vision\)/);
+  catalogs.chat[1].capabilities.vision = true;
+  assert.deepEqual(auditPins(pins, catalogs), []);
+});
+
+test('LLM audio wires require audio_input independently of vision support', () => {
+  const pins = pinnedModels([{ slug: 'audio-review', graph: {
+    nodes: [
+      { id: 'take', type: 'aupload', fields: {} },
+      { id: 'photo', type: 'upload', fields: {} },
+      { id: 'judge', type: 'llm', fields: { model: 'reviewer' } },
+    ],
+    links: [
+      { from: { node: 'take', port: 'audio' }, to: { node: 'judge', port: 'audio' } },
+      { from: { node: 'photo', port: 'image' }, to: { node: 'judge', port: 'img1' } },
+    ],
+  } }], kinds);
+  const catalogs = { chat: [{ id: 'reviewer', capabilities: { vision: true } }] };
+  const issues = auditPins(pins, catalogs);
+  assert.equal(issues.length, 1);
+  assert.match(issues[0].reason, /does not support llm \(audio_input\)/);
+  catalogs.chat[0].capabilities.audio_input = true;
+  assert.deepEqual(auditPins(pins, catalogs), []);
+  catalogs.chat[0].capabilities.vision = false;
+  assert.match(auditPins(pins, catalogs)[0].reason, /does not support llm \(vision\)/);
 });
 
 test('validates video parameter aliases, resolution, duration and input capability', () => {

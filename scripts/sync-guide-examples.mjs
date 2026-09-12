@@ -20,6 +20,7 @@ const SAMPLES = JSON.parse(readFileSync(join(GALLERY, "samples.json"), "utf8"));
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
 }[c]));
+const textHtml = s => esc(s).replace(/[ \t]+$/gm, ws => [...ws].map(c => c === ' ' ? '&#32;' : '&#9;').join(''));
 
 const local = (file) => {
   if (!/^[\w/-]+\.[\w]+$/.test(file) || file.includes("..") || !existsSync(join(GALLERY, file))) {
@@ -44,6 +45,30 @@ const HOWTO = {
     edit: "Rewrite <em>Character</em>. Leave <em>Character designer</em> on <code>z-ai/glm-5.3-flash</code>, <em>Canonical character</em> on <code>meta/muse-image/text-to-image</code> at 1:1, and <em>Rig parts</em> on <code>meta/muse-image/edit</code> at 1:1 unless you mean to change models. <em>Reference</em> is a local 768 fit.",
     inspect: "Furnace knight + four-quadrant parts.",
     costHow: "This saved run reported $0.02 for the two image calls ($0.01 reference + $0.01 parts) plus a small GLM Flash text call. Local resize is $0. Prices and results vary.",
+  },
+  "pocket-mystery": {
+    headline: "Pocket mystery",
+    job: "An illustrated room becomes clues, a player handout and a facilitator solution.",
+    purpose: "Muse draws an invented room. Gemini reads three large landmarks in the actual image, without seeing its generation prompt. GLM uses those observations to write a short ordering mystery. The room illustration, landmark observations and handout remain separate outputs, so you can check the connection between picture and puzzle.",
+    edit: "Rewrite <em>Room brief</em> to describe one room with three large, distinct landmarks. Keep the observer and writer instructions in place for the documented puzzle format. The player points to each landmark once, in an order inferred from two clues.",
+    inspect: "Compare <em>Visible landmarks</em> with the picture and solve both clues yourself; they should determine exactly one order. Share only <em>Room illustration</em> and the <strong>PLAYER HANDOUT</strong> section with players. Keep <strong>GM ONLY - SPOILERS</strong> for the facilitator. If the writer asks for another room image, revise the brief before playing. Magical effects are narrated fiction; the picture does not change.",
+    costHow: "Three model calls: one image, one image observation and one text-writing step. The image catalog rate checked on 12 September 2026 was $0.01; both text calls add token costs. The saved run's observed total appears above. Local output copies add no model calls.",
+  },
+  "storyboard-relay": {
+    headline: "Storyboard relay",
+    job: "A story continues through a new frame, a continuity review and one visible revision.",
+    purpose: "Muse draws the opening frame. Nano Banana receives it with the next beat and continuity rules, then stages the next event. Gemini compares both images. Muse Edit receives the draft, original frame, review and brief to make one revision; a fresh Gemini review then inspects the revised pixels. The opening, draft and revised frames remain available alongside the final notes.",
+    edit: "Change <em>First scene</em>, <em>Next beat</em> and <em>Continuity rules</em> together. Describe a new action for the second frame and name the features that should survive it. Leave the review and repair instructions in place for the documented sequence. Every full run includes one repair attempt, followed by a fresh inspection.",
+    inspect: "Compare the opening, draft and revised frames. Check whether the second scene advances the action and whether the repair preserves the character, important props and visual style. Read the final <em>Continuity notes</em> beside the revised picture; a repair can introduce new drift. This workflow makes one revision, with no automatic retry loop or guarantee that the result passes review.",
+    costHow: "Five model calls: three image steps and two visual reviews. Image catalog rates checked on 12 September 2026 total $0.059; both reviews add token costs. The saved run's observed total appears above. Local fits preserve the frames without another model call.",
+  },
+  "tiny-world-film": {
+    headline: "Tiny world, full soundtrack",
+    job: "A miniature scene becomes a short film with sound drawn from its motion.",
+    purpose: "Muse builds the first frame, Wan animates that image, and Mirelo adds foley from the generated video. The sound model receives the actual take, without the original world description. The graph outputs the first frame and film with foley. The saved sample also includes the intermediate silent take for comparison.",
+    edit: "Change <em>World</em> and <em>Motion</em> together. Describe a clear miniature subject and one visible movement. The default animation requests 81 frames at 16 fps and 480p, about five seconds. Keep these settings for the documented short format.",
+    inspect: "Compare <em>First frame</em> with <em>Silent take</em>, then play <em>Film with foley</em> with sound. Check that the scene remains recognizable, the requested motion happens and the sounds fit the visible events. Review the whole clip; exact synchronization, music and speech are not promised.",
+    costHow: "Three model calls. Catalog rates checked on 12 September 2026 were $0.01 for the image, $0.20 for animation and $0.01 per second for foley, about $0.26 combined. Duration rounding and higher settings can change the total. The saved run's observed cost appears above.",
   },
   "image-model-arena": {
     headline: "Compare four image models",
@@ -102,7 +127,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["iron-verdict", "character-sprites", "image-model-arena", "photo-to-video", "sing", "talking-avatar"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "pocket-mystery", "iron-verdict", "character-sprites", "image-model-arena", "photo-to-video", "sing", "talking-avatar"];
 for (const sample of SAMPLES) {
   if (!HOWTO[sample.slug]) throw new Error("Unexpected sample: " + sample.slug);
 }
@@ -232,17 +257,19 @@ function visibleOutputs(s) {
 
 function renderMedia(s, how) {
   const shown = visibleOutputs(s);
-  const multi = shown.length > 1 ? " comparison" : "";
+  const multi = s.layout === "sequence" ? " sequence" : shown.length > 1 ? " comparison" : "";
   const aria = (how && how.headline) || s.title;
   const figures = shown.map((o) => {
     const src = "/examples/gallery/" + local(o.src);
     if (o.kind === "text") {
       const text = readFileSync(join(GALLERY, local(o.src)), "utf8");
-      return `<figure><blockquote class="sample">${esc(text)}</blockquote><figcaption>${esc(o.label)} · <a href="${esc(src)}" download>Download</a></figcaption></figure>`;
+      const body = `<blockquote class="sample">${textHtml(text)}</blockquote>`;
+      const content = (o.spoiler || o.collapsed) ? `<details><summary>${esc(o.label)}</summary>${body}</details>` : body;
+      return `<figure${s.layout === "sequence" ? ' class="sequence-text"' : ""}>${content}<figcaption>${esc(o.label)} · <a href="${esc(src)}" download>Download</a></figcaption></figure>`;
     }
     if (o.kind === "video") {
       const poster = s.preview ? ` poster="/examples/gallery/${esc(local(s.preview))}"` : "";
-      return `<figure><video controls preload="none"${poster} aria-label="${esc(aria)}"><source src="${esc(src)}" type="video/mp4"></video><figcaption>${esc(o.label)} · <a href="${esc(src)}" download>Download</a></figcaption></figure>`;
+      return `<figure><video controls playsinline preload="none"${poster} aria-label="${esc(o.label + ' — ' + aria)}"><source src="${esc(src)}" type="video/mp4"></video><figcaption>${esc(o.label)} · <a href="${esc(src)}" download>Download</a></figcaption></figure>`;
     }
     if (o.kind === "audio") {
       return `<figure><audio controls preload="none" aria-label="${esc(aria)}"><source src="${esc(src)}" type="audio/mpeg"></audio><figcaption>${esc(o.label)} · <a href="${esc(src)}" download>Download</a></figcaption></figure>`;
@@ -261,6 +288,20 @@ function renderMedia(s, how) {
   return `${note}${cover}<div class="media${multi}">
           ${figures}
         </div>`;
+}
+
+function renderAlternates(s) {
+  return (s.alternates || []).map(a => {
+    const graph = readFileSync(join(GALLERY, local(a.graph)));
+    if (createHash('sha256').update(graph).digest('hex') !== a.graphSha256) {
+      throw new Error('Alternate graph changed: ' + a.graph);
+    }
+    return `<details class="alternate" id="${esc(s.slug + '--' + a.id)}"><summary><span class="alternate-summary"><img src="/examples/gallery/${esc(local(a.preview))}" alt="" loading="lazy"><span><b>Another run: ${esc(a.title)}</b><span>See what the same workflow made with different inputs ↓</span></span></span></summary>
+      <div class="alternate-body"><p class="howto-note">${esc(a.review)} · ${esc(a.date)} · Reported saved run: ${esc(formatCost(a.costUsd, a.costExact))}.</p>
+      <p>${esc(a.note)}</p>${renderMedia(a)}
+      <details><summary>Inputs for this version</summary>${a.inputs.map(i => `<h3>${esc(i.label)}</h3><p>${esc(i.text)}</p>`).join('')}<p class="howto-note">Sampled models: ${a.models.map(esc).join(', ')}.</p></details>
+      <p class="cta"><a class="secondary" href="${esc(shareLink(graph))}">Open this version →</a><a href="/examples/gallery/${esc(local(a.graph))}" download>Download this version</a><a href="/examples/gallery/${esc(local(a.sourceRun))}">Run record</a></p></div></details>`;
+  }).join('\n');
 }
 
 function samplePage(s, prev, next) {
@@ -304,6 +345,7 @@ function samplePage(s, prev, next) {
       ${renderMedia(s, how)}
       ${inputImgs ? `<h3>References that went in</h3>\n        <div class="media input-refs${s.inputs.filter((i) => i.src).length > 1 ? " comparison" : ""}">\n          ${inputImgs}\n        </div>` : ""}${note}
       ${s.audioReview?.src ? `<p><a href="/examples/gallery/${esc(local(s.audioReview.src))}">Audio review notes</a></p>` : ""}
+      ${renderAlternates(s)}
 
       <h2>Make it yours</h2>
       <ol class="input-list">
@@ -386,20 +428,26 @@ function ironPage(prev, next) {
 }
 
 function hubPage() {
-  const cards = ORDER.map((slug) => slug === "iron-verdict"
+  const cards = (slugs) => slugs.map((slug) => slug === "iron-verdict"
     ? ironCard()
     : cardForSample(sampleBySlug(slug))).join("\n      ");
 
   const body = `    <h1>Steal a <span class="grad">noodle</span></h1>
-    <p class="lede">See the real output. Open the graph. Make it yours.</p>
+    <p class="lede">Continue a story. Give a tiny world its own sound. Turn a room into a mystery.</p>
 
     <section>
-      <p>Six how-tos with results you can inspect: a playable game, the character-kit artwork run, a four-model image comparison, an animated still, a song, and a speaking presenter. Each guide explains the stages, what to change and what the saved run cost.</p>
-      <p>Viewing the <a href="/examples/gallery/">saved outputs</a> and playing Iron Verdict are free. Running your own version uses your NanoGPT key and balance. Your key stays on your device; prompts and media go directly to the model provider when you run. Saved costs describe past runs, and the next result will vary.</p>
-      <p>Open a card, inspect its result, then use <strong>Open this noodle</strong> to edit the graph. The source graphs live in <a href="https://github.com/nanoodlecom/awesome-noodles" target="_blank" rel="noopener">awesome-noodles</a>. You can also <a href="/guide/run-headless">run the share link headlessly</a>.</p>
-      <div class="howto-grid">
-      ${cards}
-      </div>`;
+      <p>Each workflow passes what one model made to the next. See the actual results, then open the graph and make it yours. Viewing saved outputs is free.</p>
+      <div class="howto-grid" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr))" aria-label="Scenes, sound and stories">
+      ${cards(ORDER.slice(0, 3))}
+      </div>
+
+      <h2>More things to make</h2>
+      <div class="howto-grid" aria-label="More example workflows">
+      ${cards(ORDER.slice(3))}
+      </div>
+
+      <p>Running your own version uses your NanoGPT key and balance. Your key stays on your device; prompts and media go directly to the model provider when you run. Saved costs describe past runs, and the next result will vary. You can also <a href="/examples/iron-verdict/">play Iron Verdict</a> for free.</p>
+      <p>Every guide explains the stages, what to change and what the saved run cost. Use <strong>Open this noodle</strong> to edit the graph. The source graphs live in <a href="https://github.com/nanoodlecom/awesome-noodles" target="_blank" rel="noopener">awesome-noodles</a>. You can also <a href="/guide/run-headless">run the share link headlessly</a>.</p>`;
 
   const next = [
     `        <a href="/guide/">← Guide</a>`,
@@ -411,7 +459,7 @@ function hubPage() {
 
   return chrome({
     title: "Steal a noodle — nanoodle",
-    description: "Five nanoodle workflows with saved results, instructions and reported costs. Open a graph and make it yours.",
+    description: "Nanoodle workflows with saved results, instructions and reported costs. Open a graph and make it yours.",
     path: "/guide/examples/",
     crumbs: `<a href="/">Home</a> / <a href="/guide/">Guide</a> / <span>Steal a noodle</span>`,
     wide: true,

@@ -1,0 +1,173 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c1",
+      "type": "comment",
+      "name": "A world, then motion, then sound",
+      "x": 40,
+      "y": 20,
+      "w": 690,
+      "fields": {
+        "text": "Muse builds a miniature. Wan animates that exact image. Mirelo watches the resulting silent clip and adds foley. Three models pass actual media forward. Compare the silent and sounded takes. Default: about $0.26 for 5 seconds; provider timing, output and price vary. No narration or music is requested.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "n1",
+      "type": "text",
+      "name": "World",
+      "x": 40,
+      "y": 220,
+      "w": 300,
+      "fields": {
+        "text": "A handmade miniature brass moth with two broad folded-metal wings perched on a wooden spool in a sunlit dry watchmaker workshop. A tiny winding key protrudes from its back. Sand-colored wood, amber brass, pale blue painted wing tips. Tactile stop-motion set, macro lens, entire moth clearly visible, horizontal composition. No water, plants, windows, lettering or people."
+      }
+    },
+    {
+      "id": "n2",
+      "type": "text",
+      "name": "Motion",
+      "x": 400,
+      "y": 480,
+      "w": 300,
+      "fields": {
+        "text": "One continuous locked-off macro shot. The brass moth gently opens and closes both hinged wings twice while staying on the spool. Its winding key makes a small turn. Keep the same body, pale blue wing tips and dry wooden table; no flight, extra wings, camera travel or cuts."
+      }
+    },
+    {
+      "id": "n3",
+      "type": "image",
+      "name": "Build the miniature",
+      "x": 400,
+      "y": 180,
+      "w": 300,
+      "fields": {
+        "model": "meta/muse-image/text-to-image",
+        "size": "16:9",
+        "variations": "1"
+      }
+    },
+    {
+      "id": "n4",
+      "type": "ivideo",
+      "name": "Silent take",
+      "x": 780,
+      "y": 180,
+      "w": 300,
+      "fields": {
+        "model": "wan-video-image-to-video",
+        "resolution": "480p",
+        "duration": "5",
+        "aspect": "16:9",
+        "modelOpts": {
+          "num_frames": 81,
+          "frames_per_second": 16,
+          "resolution": "480p"
+        }
+      }
+    },
+    {
+      "id": "n5",
+      "type": "vedit",
+      "name": "Film with foley",
+      "x": 1160,
+      "y": 180,
+      "w": 300,
+      "fields": {
+        "model": "mirelo-ai/sfx1.6/video-to-video",
+        "prompt": "",
+        "duration": "5"
+      }
+    },
+    {
+      "id": "n6",
+      "type": "resize",
+      "name": "First frame",
+      "x": 780,
+      "y": 630,
+      "w": 300,
+      "fields": {
+        "mode": "fit",
+        "width": "1280",
+        "height": "720"
+      }
+    },
+    {
+      "id": "c2",
+      "type": "comment",
+      "name": "What the connection proves",
+      "x": 1160,
+      "y": 20,
+      "w": 400,
+      "fields": {
+        "text": "The sound model receives the generated VIDEO, not the original text brief. It can react to what actually moved. This does not guarantee frame-accurate sync: listen beside the silent take and inspect the supplied evidence.",
+        "color": "blue"
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "n1",
+        "port": "text"
+      },
+      "to": {
+        "node": "n3",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "n3",
+        "port": "image"
+      },
+      "to": {
+        "node": "n4",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "n2",
+        "port": "text"
+      },
+      "to": {
+        "node": "n4",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l4",
+      "from": {
+        "node": "n4",
+        "port": "video"
+      },
+      "to": {
+        "node": "n5",
+        "port": "video"
+      }
+    },
+    {
+      "id": "l5",
+      "from": {
+        "node": "n3",
+        "port": "image"
+      },
+      "to": {
+        "node": "n6",
+        "port": "image"
+      }
+    }
+  ],
+  "nid": 8,
+  "lid": 7,
+  "view": {
+    "panX": 20,
+    "panY": 20,
+    "scale": 0.65
+  }
+}

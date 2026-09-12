@@ -21,7 +21,7 @@ const esc = (value) => String(value).replace(/[&<>"']/g, (c) => ({
 const decode = (value) => value.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
 const sameSet = (actual, expected) => actual.length === expected.length
   && new Set(actual).size === actual.length && actual.every((value) => expected.includes(value));
-const savedSlugs = ["character-sprites", "image-model-arena", "photo-to-video", "sing", "talking-avatar"];
+const savedSlugs = ["character-sprites", "pocket-mystery", "storyboard-relay", "tiny-world-film", "image-model-arena", "photo-to-video", "sing", "talking-avatar"];
 const guideSlugs = ["iron-verdict", ...savedSlugs];
 
 for (const script of ["sync-gallery-samples.mjs", "sync-guide-examples.mjs"]) {
@@ -29,7 +29,7 @@ for (const script of ["sync-gallery-samples.mjs", "sync-guide-examples.mjs"]) {
 }
 
 const samples = JSON.parse(read("examples/gallery/samples.json"));
-check(sameSet(samples.map((sample) => sample.slug), savedSlugs), "expected five saved gallery runs plus the separate playable Iron Verdict guide");
+check(sameSet(samples.map((sample) => sample.slug), savedSlugs), "expected the approved saved gallery runs plus the separate playable Iron Verdict guide");
 check(sameSet(readdirSync(join(ROOT, "guide/examples")).filter((name) => name.endsWith(".html")),
   ["index.html", ...guideSlugs.map((slug) => slug + ".html")]), "unexpected or missing generated guide page");
 
@@ -37,7 +37,7 @@ const index = read("index.html");
 const examplesSource = index.match(/const EXAMPLES = \[[\s\S]*?\n\];/)?.[0];
 check(examplesSource, "homepage EXAMPLES array is missing");
 const examples = vm.runInNewContext(examplesSource + "\nEXAMPLES;", {}, { timeout: 1000 });
-check(sameSet(examples.map((example) => example.slug), savedSlugs), "homepage EXAMPLES must match the five saved gallery workflows");
+check(sameSet(examples.map((example) => example.slug), savedSlugs), "homepage EXAMPLES must match the approved saved gallery workflows");
 
 const hub = read("guide/examples/index.html");
 const cards = [...hub.matchAll(/class="howto-card" href="\/guide\/examples\/([^"]+)"/g)].map((match) => match[1]);
@@ -73,8 +73,8 @@ function graphIsPortable(graph, label) {
 }
 
 function graphFromPage(page, label) {
-  const links = [...page.matchAll(/<a\b[^>]*href="(https:\/\/nanoodle.com\/#g=[A-Za-z0-9_-]+)"/g)];
-  check(links.length === 1, label + " must have one Open workflow share link");
+  const links = [...page.matchAll(/<a\b[^>]*class="primary"[^>]*href="(https:\/\/nanoodle.com\/#g=[A-Za-z0-9_-]+)"/g)];
+  check(links.length === 1, label + " must have one primary Open workflow share link");
   const bytes = gunzipSync(Buffer.from(links[0][1].split("#g=")[1], "base64url"));
   const graph = JSON.parse(bytes);
   graphIsPortable(graph, label);

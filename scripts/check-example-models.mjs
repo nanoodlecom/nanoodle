@@ -50,12 +50,25 @@ export function nodeKinds(src) {
 export function pinnedModels(examples, kinds) {
   return examples.flatMap(example => {
     if (!Array.isArray(example.graph?.nodes)) throw new Error(`${example.slug}: missing graph nodes`);
+    const nodeIds = new Set(example.graph.nodes.map(node => String(node.id)));
     return example.graph.nodes.flatMap(node => {
       const spec = kinds[node.type];
       if (!spec) throw new Error(`${example.slug}: unknown node type ${node.type}`);
       if (!spec.kind) return [];
+      // An LLM's media requirements come from incoming wires, not its type. A
+      // catalog-listed text model can otherwise pass the audit and ignore paid
+      // upstream media (audio) or fail when sent an image. Match runtime ports.
+      const requiredCapabilities = new Set(node.type === 'vision' ? ['vision'] : []);
+      if (node.type === 'llm') {
+        for (const link of example.graph.links || []) {
+          if (String(link?.to?.node) !== String(node.id) || !nodeIds.has(String(link?.from?.node))) continue;
+          if (/^img\d+$/.test(link.to.port)) requiredCapabilities.add('vision');
+          if (link.to.port === 'audio') requiredCapabilities.add('audio_input');
+        }
+      }
       return [{ slug: example.slug, node: node.id, type: node.type, ...spec,
-        fields: node.fields || {}, id: node.fields?.model }];
+        fields: node.fields || {}, id: node.fields?.model,
+        requiredCapabilities: [...requiredCapabilities] }];
     });
   });
 }
@@ -127,8 +140,10 @@ export function auditPins(pins, catalogs, rules = {}) {
       tts, music: !tts && mod.startsWith('text') && /audio|music/.test(mod.split('->')[1] || '') && !/lyric|describe|recognize|stem|clone|upload|cover|extend|inpaint/i.test(pin.id),
       stt: (c.speech_to_text || model.category === 'audio_stt') && !/clone/i.test(pin.id),
       remix: c.music_cover || c.audio_to_music || c.music_extension || c.audio_extension || c.audio_inpainting,
-    } : {};
-    if (pin.filter && pin.filter in capabilities && !capabilities[pin.filter]) fail(`does not support ${pin.type} (${pin.filter})`);
+    } : pin.kind === 'chat' ? { vision: !!c.vision, audio_input: !!c.audio_input } : {};
+    for (const required of new Set([pin.filter, ...(pin.requiredCapabilities || [])])) {
+      if (required && required in capabilities && !capabilities[required]) fail(`does not support ${pin.type} (${required})`);
+    }
     const fields = pin.fields;
     const check = (field, listed) => {
       const value = fields[field];

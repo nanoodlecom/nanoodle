@@ -1,0 +1,218 @@
+{
+  "slug": "pocket-mystery",
+  "case": "submarine-bakery",
+  "recordedAt": "2026-09-12T14:03:02.115Z",
+  "elapsedMs": 61180,
+  "graphSha256": "5654c4f63902dca10de63ec6c1e9d218c1c4d658b3a87d8ec41dc0647fedcd9e",
+  "costUsd": 0.011462762500000001,
+  "costExact": true,
+  "errors": [],
+  "captureErrors": [],
+  "events": [
+    {
+      "type": "node-start",
+      "node": "brief"
+    },
+    {
+      "type": "node-done",
+      "node": "brief",
+      "ms": 0,
+      "costUsd": null
+    },
+    {
+      "type": "node-start",
+      "node": "room"
+    },
+    {
+      "type": "node-done",
+      "node": "room",
+      "ms": 42822,
+      "costUsd": 0.01
+    },
+    {
+      "type": "node-start",
+      "node": "observe"
+    },
+    {
+      "type": "node-start",
+      "node": "illustration"
+    },
+    {
+      "type": "node-done",
+      "node": "illustration",
+      "ms": 608,
+      "costUsd": null
+    },
+    {
+      "type": "node-done",
+      "node": "observe",
+      "ms": 7760,
+      "costUsd": 0.0014627625
+    },
+    {
+      "type": "node-start",
+      "node": "mystery"
+    },
+    {
+      "type": "node-start",
+      "node": "observations"
+    },
+    {
+      "type": "node-done",
+      "node": "observations",
+      "ms": 1,
+      "costUsd": null
+    },
+    {
+      "type": "node-done",
+      "node": "mystery",
+      "ms": 10587,
+      "costUsd": 0
+    }
+  ],
+  "publicOutputs": [
+    {
+      "key": "Room illustration",
+      "nodeId": "illustration"
+    },
+    {
+      "key": "Player handout and GM solution",
+      "nodeId": "mystery"
+    },
+    {
+      "key": "Visible landmarks",
+      "nodeId": "observations"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "intent",
+      "name": "A room becomes a tiny mystery",
+      "type": "comment",
+      "status": "skipped",
+      "costUsd": null,
+      "ms": null,
+      "error": null,
+      "outputs": []
+    },
+    {
+      "id": "brief",
+      "name": "Room brief",
+      "type": "text",
+      "status": "done",
+      "costUsd": null,
+      "ms": 0,
+      "error": null,
+      "outputs": [
+        {
+          "port": "text",
+          "kind": "text",
+          "file": "brief-text.txt",
+          "bytes": 949,
+          "sha256": "24cc789f82fcc8b8a2a0606698545159fb149b2841c4165bae8e823e0fa68313"
+        }
+      ]
+    },
+    {
+      "id": "room",
+      "name": "Invent a room",
+      "type": "image",
+      "model": "meta/muse-image/text-to-image",
+      "status": "done",
+      "costUsd": 0.01,
+      "ms": 42822,
+      "error": null,
+      "outputs": [
+        {
+          "port": "image",
+          "kind": "image",
+          "file": "room-image.webp",
+          "bytes": 699734,
+          "sha256": "672c9d550113e6bab6c5a66d8a2ca8310410fb5dcec1a0e6e86a4afb043f08a5"
+        },
+        {
+          "port": "images-1",
+          "kind": "image",
+          "file": "room-images-1.webp",
+          "bytes": 699734,
+          "sha256": "672c9d550113e6bab6c5a66d8a2ca8310410fb5dcec1a0e6e86a4afb043f08a5"
+        }
+      ]
+    },
+    {
+      "id": "observe",
+      "name": "Read the actual room",
+      "type": "llm",
+      "model": "google/gemini-3.8-flash",
+      "status": "done",
+      "costUsd": 0.0014627625,
+      "ms": 7760,
+      "error": null,
+      "outputs": [
+        {
+          "port": "text",
+          "kind": "text",
+          "file": "observe-text.txt",
+          "bytes": 706,
+          "sha256": "a8084821d9baa37b4d5c0db84831e8ec6646c2ef197d9278d9cbe838a90f3d9f"
+        }
+      ]
+    },
+    {
+      "id": "mystery",
+      "name": "Player handout and GM solution",
+      "type": "llm",
+      "model": "z-ai/glm-5.3-flash",
+      "status": "done",
+      "costUsd": 0,
+      "ms": 10587,
+      "error": null,
+      "outputs": [
+        {
+          "port": "text",
+          "kind": "text",
+          "file": "mystery-text.txt",
+          "bytes": 2748,
+          "sha256": "a4538766185a6406431bb22269f5bae1c97e53aee7f7aef3414ff5cd8487e837"
+        }
+      ]
+    },
+    {
+      "id": "illustration",
+      "name": "Room illustration",
+      "type": "resize",
+      "status": "done",
+      "costUsd": null,
+      "ms": 608,
+      "error": null,
+      "outputs": [
+        {
+          "port": "image",
+          "kind": "image",
+          "file": "illustration-image.jpg",
+          "bytes": 293581,
+          "sha256": "4ce0a3f21e65502bef5d6941f77023df21e80777a7d513f465219c8d3a10a2f2"
+        }
+      ]
+    },
+    {
+      "id": "observations",
+      "name": "Visible landmarks",
+      "type": "join",
+      "status": "done",
+      "costUsd": null,
+      "ms": 1,
+      "error": null,
+      "outputs": [
+        {
+          "port": "text",
+          "kind": "text",
+          "file": "observations-text.txt",
+          "bytes": 706,
+          "sha256": "a8084821d9baa37b4d5c0db84831e8ec6646c2ef197d9278d9cbe838a90f3d9f"
+        }
+      ]
+    }
+  ],
+  "review": "Unreviewed. Successful execution and nonempty files do not establish creative quality."
+}
