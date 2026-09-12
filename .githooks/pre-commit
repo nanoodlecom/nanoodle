@@ -124,7 +124,7 @@ touches_resize=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html
 touches_catalog=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-catalog-fallback\.mjs)$' || true)
 
 # Paid drift preflight, prerecorded samples, and the starter/gallery catalog audit's offline fixtures.
-touches_drift=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|noodle-graph\.json|scripts/check-(drifted-model|example-models(-offline)?)\.mjs)$' || true)
+touches_drift=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|noodle-graph\.json|scripts/check-(drifted-model|example-models(-offline)?|starter-lockstep)\.mjs)$' || true)
 # Prompt-length caps: a wired prompt over a model's character cap must be budgeted upstream / fitted,
 # never sent to a 400 the user can't act on — and both engines must read the same generated table.
 touches_promptcaps=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-prompt-caps\.mjs)$' || true)
@@ -531,6 +531,9 @@ fi
 if [ -n "$touches_drift" ]; then
   node "$root/scripts/check-drifted-model.mjs"
   node "$root/scripts/check-example-models-offline.mjs"
+  # seed() / noodle-graph.json / EXAMPLES postcard must stay one graph; sample
+  # pills only land on modelKind outputs (Join/Choice echo the visitor's text).
+  node "$root/scripts/check-starter-lockstep.mjs"
 fi
 
 # 37) BRIDGE CONSENT: an imported (#a=) app is arbitrary JS that borrows the viewer's key through the
