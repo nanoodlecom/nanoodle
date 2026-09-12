@@ -125,6 +125,8 @@ touches_catalog=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/c
 
 # Paid drift preflight, prerecorded samples, and the starter/gallery catalog audit's offline fixtures.
 touches_drift=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|noodle-graph\.json|scripts/check-(drifted-model|example-models(-offline)?)\.mjs)$' || true)
+# First-visit onboarding: task-card slugs, canvas/welcome Sign in click-through, share-workflow form.
+touches_onboarding=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|\.github/ISSUE_TEMPLATE/share-workflow\.yml|scripts/check-onboarding\.mjs)$' || true)
 # Prompt-length caps: a wired prompt over a model's character cap must be budgeted upstream / fitted,
 # never sent to a 400 the user can't act on — and both engines must read the same generated table.
 touches_promptcaps=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-prompt-caps\.mjs)$' || true)
@@ -158,7 +160,7 @@ touches_nanogptsync=$(printf '%s\n' "$staged" | grep -E '(^|/)(scripts/sync-nano
 # Nothing to check unless an .html file, one of the checkers, or a guarded doc changed.
 # Every touches_* variable belongs in this chain — a gate left out of it never runs on a
 # commit that stages only its own files, which is exactly the commit it exists to catch.
-[ -z "$staged_html" ] && [ -z "$touches_launchfacts" ] && [ -z "$touches_njseditor" ] && [ -z "$touches_llmgate" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_jsparity" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_videoroles" ] && [ -z "$touches_videomode" ] && [ -z "$touches_knobclamp" ] && [ -z "$touches_langpages" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_i18n" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_lipsync" ] && [ -z "$touches_aresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && [ -z "$touches_pacing" ] && [ -z "$touches_graphpersist" ] && [ -z "$touches_graphsigs" ] && [ -z "$touches_describeapply" ] && [ -z "$touches_authlc" ] && [ -z "$touches_mediapriv" ] && [ -z "$touches_verhist" ] && [ -z "$touches_rungating" ] && [ -z "$touches_appsstorage" ] && [ -z "$touches_linkerr" ] && [ -z "$touches_deploy" ] && [ -z "$touches_hiddencss" ] && [ -z "$touches_connect" ] && [ -z "$touches_undo" ] && [ -z "$touches_costaccrue" ] && [ -z "$touches_resize" ] && [ -z "$touches_catalog" ] && [ -z "$touches_upscale" ] && [ -z "$touches_drift" ] && [ -z "$touches_promptcaps" ] && [ -z "$touches_consent" ] && [ -z "$touches_sharesamples" ] && [ -z "$touches_llmsfull" ] && [ -z "$touches_examples" ] && [ -z "$touches_twindrift" ] && [ -z "$touches_twindriftcases" ] && [ -z "$touches_nanogptsync" ] && [ -z "$touches_fiboaspect" ] && exit 0
+[ -z "$staged_html" ] && [ -z "$touches_launchfacts" ] && [ -z "$touches_njseditor" ] && [ -z "$touches_llmgate" ] && [ -z "$touches_export" ] && [ -z "$touches_login" ] && [ -z "$touches_sw" ] && [ -z "$touches_compat" ] && [ -z "$touches_run" ] && [ -z "$touches_jsparity" ] && [ -z "$touches_seedcache" ] && [ -z "$touches_imgports" ] && [ -z "$touches_videoroles" ] && [ -z "$touches_videomode" ] && [ -z "$touches_knobclamp" ] && [ -z "$touches_langpages" ] && [ -z "$touches_editorports" ] && [ -z "$touches_settings" ] && [ -z "$touches_quickadd" ] && [ -z "$touches_i18n" ] && [ -z "$touches_updates" ] && [ -z "$touches_createapp" ] && [ -z "$touches_stale" ] && [ -z "$touches_vresume" ] && [ -z "$touches_lipsync" ] && [ -z "$touches_aresume" ] && [ -z "$touches_share" ] && [ -z "$touches_pricing" ] && [ -z "$touches_combine" ] && [ -z "$touches_pacing" ] && [ -z "$touches_graphpersist" ] && [ -z "$touches_graphsigs" ] && [ -z "$touches_describeapply" ] && [ -z "$touches_authlc" ] && [ -z "$touches_mediapriv" ] && [ -z "$touches_verhist" ] && [ -z "$touches_rungating" ] && [ -z "$touches_appsstorage" ] && [ -z "$touches_linkerr" ] && [ -z "$touches_deploy" ] && [ -z "$touches_hiddencss" ] && [ -z "$touches_connect" ] && [ -z "$touches_undo" ] && [ -z "$touches_costaccrue" ] && [ -z "$touches_resize" ] && [ -z "$touches_catalog" ] && [ -z "$touches_upscale" ] && [ -z "$touches_drift" ] && [ -z "$touches_onboarding" ] && [ -z "$touches_promptcaps" ] && [ -z "$touches_consent" ] && [ -z "$touches_sharesamples" ] && [ -z "$touches_llmsfull" ] && [ -z "$touches_examples" ] && [ -z "$touches_twindrift" ] && [ -z "$touches_twindriftcases" ] && [ -z "$touches_nanogptsync" ] && [ -z "$touches_fiboaspect" ] && exit 0
 if ! command -v node >/dev/null 2>&1; then
   echo "pre-commit: node not found, skipping HTML JS checks" >&2
   exit 0
@@ -531,6 +533,13 @@ fi
 if [ -n "$touches_drift" ]; then
   node "$root/scripts/check-drifted-model.mjs"
   node "$root/scripts/check-example-models-offline.mjs"
+fi
+
+# 36b) FIRST-VISIT ONBOARDING: task cards must resolve to live EXAMPLES slugs (a renamed
+#     gallery card is a silent no-op), canvas + shared-app Sign in must click the real
+#     #signin, and the in-app contribution CTA must keep pointing at share-workflow.yml.
+if [ -n "$touches_onboarding" ]; then
+  node "$root/scripts/check-onboarding.mjs"
 fi
 
 # 37) BRIDGE CONSENT: an imported (#a=) app is arbitrary JS that borrows the viewer's key through the
