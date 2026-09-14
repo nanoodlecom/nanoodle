@@ -41,6 +41,10 @@ touches_knobclamp=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.h
 # FIBO 1.5 aspect_ratio knob (marketing-catalog gap): Image node shows/sends the 9-option
 # select; leftover fields.aspect must not leak onto Muse/Recraft. Offline unit + optional live pin.
 touches_fiboaspect=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|vendor/njs-engine\.js|scripts/check-fibo-aspect\.mjs|scripts/play-engine\.mjs)$' || true)
+# Anima + Yue2 (13 Sep 2026 catalog): leftover FIBO aspect / banana 2k must not
+# ride out on Anima; Yue2 T2M stays Music and forwards lyrics; Yue2 M2M remix
+# still sends the source track.
+touches_animayue2=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-anima-yue2\.mjs|scripts/play-engine\.mjs)$' || true)
 # index.html (I18N_LANGS) + the /xx/ landing pages + their generator carry the per-language SEO cluster.
 touches_langpages=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|(es|fr|de|pt|ja)/index\.html|scripts/(gen|check)-lang-pages\.mjs)$' || true)
 # index.html carries the link-removal path (unlocking text fields when their source is deleted).
@@ -281,6 +285,12 @@ fi
 #     show the knob on that id, send aspect_ratio, and omit it on Recraft/Muse.
 if [ -n "$touches_fiboaspect" ]; then
   node "$root/scripts/check-fibo-aspect.mjs"
+fi
+
+# 7g) Anima / Yue2 catalog arrivals: optional-image flags, 1k/1.5k snap, leftover
+#     FIBO aspect must not leak, Yue2 T2M lyrics+input, Yue2 M2M remix source track.
+if [ -n "$touches_animayue2" ]; then
+  node "$root/scripts/check-anima-yue2.mjs"
 fi
 
 # 7b) the per-language landing pages (/es/ … /ja/) must exist for every app language, carry the
