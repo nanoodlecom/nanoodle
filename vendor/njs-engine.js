@@ -1,5 +1,5 @@
-/* data-hash=f04463b9c8b33be0 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-1c3c76dd8f27 (16 modules) */
+/* data-hash=7188a87baf396135 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-b6f8f0ec9755 (16 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -741,8 +741,6 @@ const { assertPaymentOption, parseNanoInvoice, looksLikeResult } = __req("x402.m
 const AUDIO_MIME = { mp3: "audio/mpeg", opus: "audio/ogg", aac: "audio/aac", flac: "audio/flac", wav: "audio/wav", pcm: "audio/wav" };
 // Native music endpoints use prompt for musical direction; lyrics remain separate.
 const AUDIO_PROMPT_MODEL_RE = /(?:^|\/)(?:prompt-to-song|generate-bgm)$|(?:^|\/)mureka-ai\/[^/]+\/generate-song$|^minimax\/music-3$/i;
-// Yue2 catalogs take `style` + `lyrics` (+ `audio` for music-to-music), not OpenAI-style `input`.
-const AUDIO_STYLE_MODEL_RE = /yue2-3b\/(?:text|music)-to-music$/i;
 
 /** Map an HTTP failure to an actionable error (mirrors the app's httpRunError). Never leaks the key. */
 function httpError(status, bodyText) {
@@ -1041,10 +1039,6 @@ class NanoClient {
     if (AUDIO_PROMPT_MODEL_RE.test(String(model || "").trim())) {
       if (body.prompt == null || String(body.prompt).trim() === "") body.prompt = input;
       delete body.input;
-    } else if (AUDIO_STYLE_MODEL_RE.test(String(model || "").trim())) {
-      if (body.style == null || String(body.style).trim() === "") body.style = input;
-      delete body.input;
-      delete body.prompt;
     }
     const r = await this._postJson("/api/v1/audio/speech", body, signal);
     if (!r.ok) throw httpError(r.status, await r.text());
@@ -4829,5 +4823,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-1c3c76dd8f27";
+  window.NanoodleEngine.version = "src-b6f8f0ec9755";
 })();
