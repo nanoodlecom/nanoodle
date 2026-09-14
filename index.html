@@ -7481,9 +7481,9 @@ const NODE_TYPES = {
   },
 
   image: {
-    em:"🖼", title:"Image", desc:"Text → image (optional source for i2i)", group:"Image", kw:"generate picture art draw create photo render edit anima",
+    em:"🖼", title:"Image", desc:"Text → image", group:"Image", kw:"generate picture art draw create photo render",
     modelKind:"image", modelFilter:"gen",
-    inputs:[{name:"image", type:"image", optional:true}],
+    inputs:[],
     outputs:[{name:"image", type:"image"}], preview:"image",
     body:(n)=>`
       ${modelFieldHTML(n)}
@@ -7501,8 +7501,7 @@ const NODE_TYPES = {
       const want = fixed>1 ? fixed : Math.max(1, Math.min(maxOut, parseInt(n.fields.variations,10)||1));
       // always take the multi path: even a single-image request can come back with N (fixed_image_count
       // models return 4), and we want to surface every image the user paid for, not discard them.
-      const src = inp.image || undefined;  // optional wired source → i2i for models that accept image_to_image (Anima, etc.)
-      const urls = await ctx.genImage(prompt, mdl(n, ctx), (applyDimFields(n.fields, dimDefs(n.type, n.fields.model)), n.fields.size||SIZES[0][0]), src, undefined, imgExtra(n), {n:want, multi:true});
+      const urls = await ctx.genImage(prompt, mdl(n, ctx), (applyDimFields(n.fields, dimDefs(n.type, n.fields.model)), n.fields.size||SIZES[0][0]), undefined, undefined, imgExtra(n), {n:want, multi:true});
       const sel = Math.min(Math.max(0, parseInt(n.fields.sel,10)||0), urls.length-1);   // remembered pick, clamped to what came back
       return { image: urls[sel], images: urls };
     }

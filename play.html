@@ -7487,8 +7487,11 @@ function mp4ParamsMatch(bufs){
   // Generate Song (Mureka family …/generate-song) requires lyrics. Empty lyrics are omitted
   // below, which used to 400 at NanoGPT — fail locally before any POST. BGM / Music 3 stay omit-empty.
   function assertGenerateSongLyrics(model, lyrics){
-    if((/\/generate-song$/i.test(String(model||"")) || /yue2-3b\/(?:text|music)-to-music$/i.test(String(model||""))) && (lyrics==null || String(lyrics).trim()===""))
+    if(/\/generate-song$/i.test(String(model||"")) && (lyrics==null || String(lyrics).trim()===""))
       throw new Error(String(model) + " needs Lyrics — fill the Lyrics field. Use Generate BGM for instrumental, or Prompt-to-Song to write lyrics from a prompt.");
+    // Yue2 text-to-music / music-to-music both require lyrics (+ style via the prompt).
+    if(/yue2-3b\/(?:text|music)-to-music$/i.test(String(model||"")) && (lyrics==null || String(lyrics).trim()===""))
+      throw new Error(String(model) + " needs Lyrics — fill the Lyrics field (style is the prompt above).");
   }
   function audioApiMessage(body){
     try{
@@ -8144,7 +8147,7 @@ function mp4ParamsMatch(bufs){
       }
     },
     image: {
-      em:"🖼", title:"Image", inputs:[{name:"image", type:"image", optional:true}], outputs:[{name:"image", type:"image"}],
+      em:"🖼", title:"Image", inputs:[], outputs:[{name:"image", type:"image"}],
       async run(n, inp, ctx){
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         if(!prompt) throw new Error("no prompt");
@@ -8163,8 +8166,7 @@ function mp4ParamsMatch(bufs){
         const _fixed = _catIt ? ((_catIt.supported_parameters && _catIt.supported_parameters.fixed_image_count) || 0) : 0;
         if(_fixed > 1) want = _fixed;
         // always multi: even n:1 can return N (fixed_image_count models) — surface every image paid for.
-        const src = inp.image || undefined;  // optional wired source → i2i for models that accept image_to_image (Anima, etc.)
-        const urls = await ctx.genImage(prompt, mdl(n), snapImageSize(n, _catIt)||SIZES[0][0], src, undefined, imgExtra(n), {n:want, multi:true});
+        const urls = await ctx.genImage(prompt, mdl(n), snapImageSize(n, _catIt)||SIZES[0][0], undefined, undefined, imgExtra(n), {n:want, multi:true});
         const sel = Math.min(Math.max(0, parseInt(n.fields.sel,10)||0), urls.length-1);
         return { image: urls[sel], images: urls };
       }
