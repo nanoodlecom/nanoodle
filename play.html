@@ -2130,6 +2130,7 @@ function loraFamily(model) {
   if (/flux-2/i.test(m)) return "flux2dev";
   if (/z-image/i.test(m)) return "zimage";
   if (/ltx/i.test(m)) return "ltx";
+  if (/anima/i.test(m) && /lora/i.test(m)) return "anima"; // wavespeed anima/...-lora: lora_url_1..3
   if (/lora/i.test(m)) return /krea/i.test(m) ? "krea" : "flux";
   return null;
 }
@@ -2153,7 +2154,7 @@ function modelTakesLora(kind, id) {
 function loraCap(model) {
   switch (loraFamily(model)) {
     case "flux2dev": return 4;
-    case "flux2klein": case "zimage": case "ltx": case "krea": return 3;
+    case "flux2klein": case "zimage": case "ltx": case "krea": case "anima": return 3;
     default: return 1; // flux-lora, pimage — single slot
   }
 }
@@ -2169,7 +2170,7 @@ function nodeLoras(n) {
 function loraBodyFor(model, items) {
   const fam = loraFamily(model), sc = (v) => (isNaN(v) ? 1 : v);
   if (fam === "pimage") return { lora_weights: items[0].url, lora_scale: sc(items[0].scale) };
-  if (fam === "flux2dev" || fam === "flux2klein" || fam === "zimage" || fam === "ltx" || fam === "krea") {
+  if (fam === "flux2dev" || fam === "flux2klein" || fam === "zimage" || fam === "ltx" || fam === "krea" || fam === "anima") {
     const b = {};
     items.forEach((it, i) => { b["lora_url_" + (i + 1)] = it.url; b["lora_scale_" + (i + 1)] = sc(it.scale); });
     return b;
@@ -6444,6 +6445,7 @@ window.NoodleApp = (function () {
     if(/z-image/i.test(m)) return "zimage";
     if(/ltx/i.test(m)) return "ltx";
     if(/minimax-h3/i.test(m)) return "h3";                   // catalog lora_url_1..3; spicy H3 already returned null
+    if(/anima/i.test(m) && /lora/i.test(m)) return "anima";  // wavespeed anima/...-lora: lora_url_1..3
     if(/krea/i.test(m) && /lora/i.test(m)) return "krea";    // wavespeed krea-v2/turbo-lora: lora_url_1..3
     if(/lora/i.test(m)) return "flux";
     return null;
@@ -6465,7 +6467,7 @@ window.NoodleApp = (function () {
   function loraCap(model){
     switch(loraFamily(model)){
       case "flux2dev": return 4;
-      case "flux2klein": case "zimage": case "ltx": case "krea": case "h3": return 3;
+      case "flux2klein": case "zimage": case "ltx": case "krea": case "h3": case "anima": return 3;
       default: return 1;                                    // flux-lora, pimage — single slot
     }
   }
@@ -6478,7 +6480,7 @@ window.NoodleApp = (function () {
   function loraBodyFor(model, items){
     var fam = loraFamily(model), sc = function(v){ return isNaN(v) ? 1 : v; };
     if(fam==="pimage") return { lora_weights:items[0].url, lora_scale:sc(items[0].scale) };
-    if(fam==="flux2dev" || fam==="flux2klein" || fam==="zimage" || fam==="ltx" || fam==="krea" || fam==="h3"){
+    if(fam==="flux2dev" || fam==="flux2klein" || fam==="zimage" || fam==="ltx" || fam==="krea" || fam==="h3" || fam==="anima"){
       var b = {}; items.forEach(function(it,i){ b["lora_url_"+(i+1)]=it.url; b["lora_scale_"+(i+1)]=sc(it.scale); }); return b;
     }
     if(items.length===1) return { lora_url:items[0].url, lora_strength:sc(items[0].scale) };
