@@ -4691,7 +4691,7 @@ function normAudio(m){
   const remix = !dead && !!(c.music_cover || c.audio_to_music || c.music_extension || c.audio_extension || c.audio_inpainting);
   return { id:m.id, name:m.name||m.id, created:m.created, owner:m.owned_by||"", voices, langs, language, params:sp,
     sortUsd: audioUnitUsd(p, EST.ttsChars),          // resolved $ at assumed usage → price sorts (mixed units, rough)
-    tts, gen, music: gen && !tts, remix, stt, pricing:p, nsfw: !!c.nsfw, price };   // raw pricing kept so transcribe can estimate from per_minute
+    tts, gen, music: gen && !tts && !remix, remix, stt, pricing:p, nsfw: !!c.nsfw, price };   // music = text-only song gens; audio_to_music (Yue2 m2m) stays on Remix   // raw pricing kept so transcribe can estimate from per_minute
 }
 
 const CATALOG = {
@@ -5943,6 +5943,9 @@ function audioBody(n, promptLabel, ph, promptFirst){
 function assertGenerateSongLyrics(model, lyrics){
   if(/\/generate-song$/i.test(String(model||"")) && (lyrics==null || String(lyrics).trim()===""))
     throw new Error(String(model) + " needs Lyrics — fill the Lyrics field. Use Generate BGM for instrumental, or Prompt-to-Song to write lyrics from a prompt.");
+  // Yue2 text-to-music / music-to-music both require lyrics (+ style via the prompt).
+  if(/yue2-3b\/(?:text|music)-to-music$/i.test(String(model||"")) && (lyrics==null || String(lyrics).trim()===""))
+    throw new Error(String(model) + " needs Lyrics — fill the Lyrics field (style is the prompt above).");
 }
 function audioApiMessage(body){
   try{
@@ -7478,9 +7481,9 @@ const NODE_TYPES = {
   },
 
   image: {
-    em:"🖼", title:"Image", desc:"Text → image", group:"Image", kw:"generate picture art draw create photo render",
+    em:"🖼", title:"Image", desc:"Text → image (optional source for i2i)", group:"Image", kw:"generate picture art draw create photo render edit anima",
     modelKind:"image", modelFilter:"gen",
-    inputs:[],
+    inputs:[{name:"image", type:"image", optional:true}],
     outputs:[{name:"image", type:"image"}], preview:"image",
     body:(n)=>`
       ${modelFieldHTML(n)}
@@ -7498,7 +7501,8 @@ const NODE_TYPES = {
       const want = fixed>1 ? fixed : Math.max(1, Math.min(maxOut, parseInt(n.fields.variations,10)||1));
       // always take the multi path: even a single-image request can come back with N (fixed_image_count
       // models return 4), and we want to surface every image the user paid for, not discard them.
-      const urls = await ctx.genImage(prompt, mdl(n, ctx), (applyDimFields(n.fields, dimDefs(n.type, n.fields.model)), n.fields.size||SIZES[0][0]), undefined, undefined, imgExtra(n), {n:want, multi:true});
+      const src = inp.image || undefined;  // optional wired source → i2i for models that accept image_to_image (Anima, etc.)
+      const urls = await ctx.genImage(prompt, mdl(n, ctx), (applyDimFields(n.fields, dimDefs(n.type, n.fields.model)), n.fields.size||SIZES[0][0]), src, undefined, imgExtra(n), {n:want, multi:true});
       const sel = Math.min(Math.max(0, parseInt(n.fields.sel,10)||0), urls.length-1);   // remembered pick, clamped to what came back
       return { image: urls[sel], images: urls };
     }
@@ -10169,6 +10173,7 @@ function njsCtx(E, n){
     audio: (model, input, extra)=>{
       assertGenerateSongLyrics(model, extra && extra.lyrics);
       if(/(?:^|\/)(?:prompt-to-song|generate-bgm)$|(?:^|\/)mureka-ai\/[^/]+\/generate-song$|^minimax\/music-3$/i.test(String(model||"").trim())){ extra=Object.assign({},extra||{},{prompt:((extra||{}).prompt!=null&&String((extra||{}).prompt).trim()!==""?(extra||{}).prompt:input)}); input=undefined; }
+      else if(/yue2-3b\/(?:text|music)-to-music$/i.test(String(model||"").trim())){ extra=Object.assign({},extra||{},{style:((extra||{}).style!=null&&String((extra||{}).style).trim()!==""?(extra||{}).style:input)}); input=undefined; }
       const sig = sigHash(JSON.stringify([model, input, extra]));
       const pend = PENDING_AUDIO.get(n.id);
       const io2 = { ...io,
@@ -10806,7 +10811,22 @@ const CTX = {
   // extra = the dynamic, model-specific params already resolved by the node (lyrics, voice, duration, …).
   // runKey = calling node id — enables resume of a timed-out async job without a second charge.
   async genAudio(model, input, extra, onProgress, runKey){
-    const body = /(?:^|\/)(?:prompt-to-song|generate-bgm)$|(?:^|\/)mureka-ai\/[^/]+\/generate-song$|^minimax\/music-3$/i.test(String(model||"").trim()) ? ((e)=>{ const prompt=(e.prompt!=null&&String(e.prompt).trim()!=="")?e.prompt:input; delete e.input; delete e.prompt; return Object.assign({ model, prompt }, e); })(Object.assign({}, extra||{})) : Object.assign({ model, input }, extra||{});
+    const mid = String(model||"").trim();
+    let body;
+    if(/(?:^|\/)(?:prompt-to-song|generate-bgm)$|(?:^|\/)mureka-ai\/[^/]+\/generate-song$|^minimax\/music-3$/i.test(mid)){
+      const e = Object.assign({}, extra||{});
+      const prompt = (e.prompt!=null&&String(e.prompt).trim()!=="") ? e.prompt : input;
+      delete e.input; delete e.prompt;
+      body = Object.assign({ model, prompt }, e);
+    } else if(/yue2-3b\/(?:text|music)-to-music$/i.test(mid)){
+      // Yue2 catalogs require lyrics + style (and audio for music-to-music) — not OpenAI-style `input`.
+      const e = Object.assign({}, extra||{});
+      const style = (e.style!=null&&String(e.style).trim()!=="") ? e.style : input;
+      delete e.input; delete e.prompt; delete e.style;
+      body = Object.assign({ model, style }, e);
+    } else {
+      body = Object.assign({ model, input }, extra||{});
+    }
     const bodySig = sigHash(JSON.stringify(body));
     // Resume a timed-out async job for THIS node when the request is unchanged (mirror PENDING_VIDEO).
     const pend = runKey && PENDING_AUDIO.get(runKey);
