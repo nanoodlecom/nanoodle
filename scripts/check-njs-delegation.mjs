@@ -23,6 +23,7 @@ catalog.audio.push(
   { id: "mureka-ai/mureka-v9.5/prompt-to-song", supported_parameters: {} },
   { id: "mureka-ai/mureka-v9.5/generate-song", supported_parameters: {} },
   { id: "mureka-ai/mureka-v9.5/generate-bgm", supported_parameters: {} },
+  { id: "minimax/music-3", supported_parameters: {} },
 );
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -94,6 +95,16 @@ const GRAPHS = [
   }, ["music"]],
   ["music generate-bgm (prompt key, not input)", {
     nodes: [node("m1", "music", { model: "mureka-ai/mureka-v9.5/generate-bgm", prompt: "lofi cafe rain" })],
+    links: [],
+  }, ["music"]],
+  // #539 leftover: Sing's default model. Built-in + library must both send prompt+lyrics
+  // (not TTS `input`) or a "helpful" key remap silently 400s / refunds the music step.
+  ["music MiniMax Music 3 (prompt + lyrics)", {
+    nodes: [node("m1", "music", {
+      model: "minimax/music-3",
+      prompt: "slow dusty trip-hop, intimate vocal",
+      lyrics: "[Verse]\nwait for the last ferry",
+    })],
     links: [],
   }, ["music"]],
 ];
