@@ -83,7 +83,7 @@ for (const [mode, reason] of [
   ['missing-starter', /homepage starter \(noodle-graph\.json\).*gone from the chat catalog/],
   ['bad-size', /photo-to-video:.*unsupported size/],
   ['bad-avatar', /talking-avatar:.*does not support lipsync/],
-  ['bad-vision', /pocket-mystery:.*does not support llm \(vision\)/],
+  ['bad-vision', /storyboard-relay:.*does not support llm \(vision\)/],
 ]) {
   const result = run(mode);
   assert.equal(result.status, 1, result.output);

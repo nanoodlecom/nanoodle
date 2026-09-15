@@ -11,12 +11,10 @@ import { gunzipSync } from 'node:zlib';
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const GALLERY = join(ROOT, 'examples/gallery');
 const APPROVED = new Map([
-  ['pocket-mystery', 'submarine-bakery'],
   ['storyboard-relay', 'salt-lagoon-kite'],
   ['tiny-world-film', 'alternate'],
 ]);
 const CAPTURED_OUTPUTS = {
-  'pocket-mystery': ['room-image.webp', 'observe-text.txt'],
   'storyboard-relay': ['frame-one-image.webp', 'frame-two-image.png', 'repair-image.webp', 'review-text.txt', 'final-review-text.txt'],
   'tiny-world-film': ['n3-image.webp', 'n4-video.mp4', 'n5-video.mp4'],
 };
@@ -190,17 +188,6 @@ export function checkAlternates({
     };
     sameSet(a.outputs.map(o => o.src), [...new Set(a.outputs.map(o => o.src))], slug + ': duplicate displayed output');
     const derived = new Map();
-    if (slug === 'pocket-mystery') {
-      assert.equal(a.combinedText?.delimiter, 'GM ONLY - SPOILERS', 'mystery: missing raw spoiler boundary');
-      const combined = fromRun(a.combinedText.src, a.combinedText.sha256, 'text').toString('utf8');
-      const delimiter = a.combinedText.delimiter, at = combined.indexOf(delimiter);
-      assert(at > 0 && combined.indexOf(delimiter, at + delimiter.length) < 0, 'mystery: ambiguous spoiler boundary');
-      const player = a.outputs.find(o => basename(o.src) === 'player.txt');
-      const gm = a.outputs.find(o => basename(o.src) === 'gm.txt');
-      assert(player?.kind === 'text' && !player.spoiler && gm?.kind === 'text' && gm.spoiler === true, 'mystery: player/GM disclosure flags missing');
-      derived.set(player.src, combined.slice(0, at));
-      derived.set(gm.src, combined.slice(at));
-    }
     if (slug === 'tiny-world-film') {
       assert(a.audioReview, 'film: missing independent audio review record');
       const review = JSON.parse(load(a.audioReview.source, a.audioReview.sourceSha256));
