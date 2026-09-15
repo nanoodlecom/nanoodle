@@ -87,6 +87,9 @@ export function galleryRegressions(pins) {
     { slug: 'sing', type: 'music', model: 'minimax/music-3', instrumental: false },
     { slug: 'talking-avatar', type: 'tts', model: 'Minimax-Speech-2.8-HD', voice: 'Deep_Voice_Man' },
     { slug: 'talking-avatar', type: 'lipsync', model: 'longcat-avatar-1.5', resolution: '480p' },
+    { slug: 'neon-shrine-duel', type: 'llm', model: 'z-ai/glm-5.3-flash' },
+    { slug: 'neon-shrine-duel', type: 'image', model: 'anima/text-to-image', size: '1k' },
+    { slug: 'neon-shrine-duel', type: 'ivideo', model: 'minimax/h3-max', resolution: '480p', duration: '5' },
   ];
   return expected.flatMap(({ slug, type, model, ...fields }) => {
     const pin = pins.find(p => p.slug === slug && p.type === type);
