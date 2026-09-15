@@ -51,6 +51,9 @@ touches_settings=$(printf '%s\n' "$staged" | grep -E '(^|/)(play\.html|scripts/c
 touches_quickadd=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-quickadd\.mjs)$' || true)
 # index.html's Examples gallery must stay equal to the awesome-noodles repo (one card per graph there).
 touches_examples=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/sync-examples\.mjs|scripts/check-example-results\.mjs|examples/gallery/(index\.html|samples\.json))$' || true)
+# The three #545 composition graphs (pocket-mystery / storyboard-relay / tiny-world-film)
+# must keep their paid handoffs — live runGraph on both engines, offline stubs.
+touches_compositions=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|vendor/njs-engine\.js|scripts/check-featured-compositions\.mjs|examples/gallery/(pocket-mystery|storyboard-relay|tiny-world-film)/)' || true)
 # index.html + play.html carry the i18n maps (editor + app-player/exported chrome) — a chrome string missing from every language map is invisible to users of all five.
 touches_i18n=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-i18n-coverage\.mjs)$' || true)
 # updates.json feeds the in-app "📣 Updates" changelog — a bad hand edit must not ship.
@@ -560,6 +563,9 @@ fi
 if [ -n "$touches_examples" ]; then
   node "$root/scripts/sync-examples.mjs" --check
   node "$root/scripts/check-example-results.mjs"
+fi
+if [ -n "$touches_compositions" ]; then
+  node "$root/scripts/check-featured-compositions.mjs"
 fi
 
 # 40) PROMPT LENGTH CAPS: many image/video models reject an over-long prompt at the route (400
