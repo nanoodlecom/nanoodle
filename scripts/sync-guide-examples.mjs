@@ -46,14 +46,6 @@ const HOWTO = {
     inspect: "Furnace knight + four-quadrant parts.",
     costHow: "This saved run reported $0.02 for the two image calls ($0.01 reference + $0.01 parts) plus a small GLM Flash text call. Local resize is $0. Prices and results vary.",
   },
-  "pocket-mystery": {
-    headline: "Pocket mystery",
-    job: "An illustrated room becomes clues, a player handout and a facilitator solution.",
-    purpose: "Muse draws an invented room. Gemini reads three large landmarks in the actual image, without seeing its generation prompt. GLM uses those observations to write a short ordering mystery. The room illustration, landmark observations and handout remain separate outputs, so you can check the connection between picture and puzzle.",
-    edit: "Rewrite <em>Room brief</em> to describe one room with three large, distinct landmarks. Keep the observer and writer instructions in place for the documented puzzle format. The player points to each landmark once, in an order inferred from two clues.",
-    inspect: "Compare <em>Visible landmarks</em> with the picture and solve both clues yourself; they should determine exactly one order. Share only <em>Room illustration</em> and the <strong>PLAYER HANDOUT</strong> section with players. Keep <strong>GM ONLY - SPOILERS</strong> for the facilitator. If the writer asks for another room image, revise the brief before playing. Magical effects are narrated fiction; the picture does not change.",
-    costHow: "Three model calls: one image, one image observation and one text-writing step. The image catalog rate checked on 12 September 2026 was $0.01; both text calls add token costs. The saved run's observed total appears above. Local output copies add no model calls.",
-  },
   "storyboard-relay": {
     headline: "Storyboard relay",
     job: "A story continues through a new frame, a continuity review and one visible revision.",
@@ -135,7 +127,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "pocket-mystery", "iron-verdict", "character-sprites", "image-model-arena", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 for (const sample of SAMPLES) {
   if (!HOWTO[sample.slug]) throw new Error("Unexpected sample: " + sample.slug);
 }
