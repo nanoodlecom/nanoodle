@@ -102,6 +102,14 @@ const HOWTO = {
     inspect: "Play with sound. Check the spoken words, face consistency and lip-sync timing through the whole clip.",
     costHow: "The saved workshop run reported at least $0.28 for generation; some provider price fields were missing. Its separate model-assisted audio review reported $0.00164. Longer speech increases video cost. Check the editor estimate before running.",
   },
+  "neon-shrine-duel": {
+    headline: "Neon shrine duel",
+    job: "A fight seed becomes an Anima still, then a five-second H3 Max clash.",
+    purpose: "GLM Flash writes an Anima keyframe prompt from the seed. Anima paints the still. A second GLM call writes a locked-camera H3 Max motion prompt so both fighters stay framed. MiniMax H3 Max animates the still for five seconds at 480p.",
+    edit: "Rewrite <em>Fight seed</em>. Leave <em>Still prompt</em> and <em>Motion prompt</em> on <code>z-ai/glm-5.3-flash</code>, <em>Fight still</em> on <code>anima/text-to-image</code>, and <em>Clash clip</em> on <code>minimax/h3-max</code> at 480p / 5s unless you mean to change models.",
+    inspect: "Play the clip. Both fighters should stay readable through the overhead cut. Watch for whip-pans or an empty end frame.",
+    costHow: "The saved run reported about $0.27: roughly $0.01 for the Anima still and $0.25 for five seconds of H3 Max video at 480p, plus small GLM Flash text calls. Prices and results vary.",
+  },
 };
 
 // Awesome-noodles README share link for character-sprites (Iron Verdict is
@@ -127,7 +135,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "pocket-mystery", "iron-verdict", "character-sprites", "image-model-arena", "photo-to-video", "sing", "talking-avatar"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "pocket-mystery", "iron-verdict", "character-sprites", "image-model-arena", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 for (const sample of SAMPLES) {
   if (!HOWTO[sample.slug]) throw new Error("Unexpected sample: " + sample.slug);
 }

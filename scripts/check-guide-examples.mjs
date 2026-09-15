@@ -21,7 +21,7 @@ const esc = (value) => String(value).replace(/[&<>"']/g, (c) => ({
 const decode = (value) => value.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
 const sameSet = (actual, expected) => actual.length === expected.length
   && new Set(actual).size === actual.length && actual.every((value) => expected.includes(value));
-const savedSlugs = ["character-sprites", "pocket-mystery", "storyboard-relay", "tiny-world-film", "image-model-arena", "photo-to-video", "sing", "talking-avatar"];
+const savedSlugs = ["character-sprites", "pocket-mystery", "storyboard-relay", "tiny-world-film", "image-model-arena", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 const guideSlugs = ["iron-verdict", ...savedSlugs];
 
 for (const script of ["sync-gallery-samples.mjs", "sync-guide-examples.mjs"]) {
