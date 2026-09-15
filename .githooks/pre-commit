@@ -121,7 +121,7 @@ touches_costaccrue=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.
 touches_resize=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-resize-plan\.mjs)$' || true)
 # index.html carries the model-catalog fetch/fallback/default-resolution layer — offline must yield a stable
 # empty (no re-hammer), the cache primes first paint, and an empty catalog stays permissive (signed-off).
-touches_catalog=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-catalog-fallback\.mjs)$' || true)
+touches_catalog=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/check-catalog-fallback\.mjs|scripts/check-catalog-norm\.mjs)$' || true)
 
 # Paid drift preflight, prerecorded samples, and the starter/gallery catalog audit's offline fixtures.
 touches_drift=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|noodle-graph\.json|scripts/check-(drifted-model|example-models(-offline)?)\.mjs)$' || true)
@@ -520,8 +520,11 @@ fi
 # 35) CATALOG FALLBACK: offline/500 → stable empty catalog (no re-hammer, no cache poisoning), the
 #     localStorage cache primes first paint, SWR revalidates, defModelFor picks the newest passing
 #     model, and an empty catalog stays permissive for typed-in ids (signed-off product decision).
+#     CATALOG NORM: the real normVideo/normAudio flags (fallback stubs those as identity) — a
+#     mislabeled edit-video / cover / dead row must not become the Text→Video or Music default.
 if [ -n "$touches_catalog" ]; then
   node "$root/scripts/check-catalog-fallback.mjs"
+  node "$root/scripts/check-catalog-norm.mjs"
 fi
 
 # 36) DRIFTED MODEL PREFLIGHT: a saved/shared graph's fields.model can name an id NanoGPT has renamed
