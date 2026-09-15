@@ -12237,13 +12237,25 @@ function renderNanoQr(text, targetEl) {
 }
 let _refuelToken = 0;            // bump to stop a live poll loop (close / success / reopen)
 let _refuelClosedAt = 0;         // user closed it mid-wait — don't auto-reopen right away
+// Normalize a Nano deposit address from check-balance (or near-aliases).
+// Accepts nano_/xrb_ (case-insensitive), optional nano: URI prefix; rejects odd lengths.
+function parseNanoDepositAddress(raw){
+  if(typeof raw!=="string") return null;
+  let a = raw.trim();
+  if(/^nano:/i.test(a)) a = a.slice(5).trim();
+  a = a.toLowerCase();
+  if(a.startsWith("xrb_")) a = "nano_"+a.slice(4);
+  // nano_ + 60 chars of Nano base32 (no 0/2/l/v)
+  if(a.length!==65) return null;
+  return /^nano_[13456789abcdefghijkmnopqrstuwxyz]+$/.test(a) ? a : null;
+}
 // one check-balance round-trip → { usd, addr } (throws on any failure; addr null when absent/odd)
 function fetchBalanceInfo(){
   return fetch(`${NANOGPT}/api/check-balance`, { method:"POST", headers:authHeaders(), body:"{}" })
     .then(r=>{ if(!r.ok) throw new Error("check-balance "+r.status); return r.json(); })
     .then(j=>{
-      const a = typeof j.nanoDepositAddress==="string" ? j.nanoDepositAddress.trim() : "";
-      return { usd: parseFloat(j.usd_balance), addr: (a.length>60 && /^nano_[a-z0-9]+$/.test(a)) ? a : null };
+      const raw = j.nanoDepositAddress ?? j.nano_deposit_address ?? j.depositAddress ?? "";
+      return { usd: parseFloat(j.usd_balance), addr: parseNanoDepositAddress(raw) };
     });
 }
 function refuelSawBalance(usd){  // write a freshly-polled figure through the normal balance path
@@ -12263,7 +12275,12 @@ async function offerRefuel(manual){
   if(!manual && Date.now() - _refuelClosedAt < 60000) return;   // parallel groups fail together — closing once means closed
   let info; try{ info = await fetchBalanceInfo(); }catch(_){ info = null; }
   if(!info || !info.addr){
-    if(manual) toast("Couldn't load your Nano deposit address — top up at nano-gpt.com instead", "err");
+    // Manual chip click must never feel like a dead control: surface the failure and
+    // open the account top-up page (Nano QR still needs an address from NanoGPT).
+    if(manual){
+      toast("Couldn't load your Nano deposit address — top up at nano-gpt.com instead", "err");
+      try{ window.open("https://nano-gpt.com", "_blank", "noopener"); }catch(_){}
+    }
     return;
   }
   if(!m.hidden || getKey()!==key) return;
