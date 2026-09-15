@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
-import { gzipSync } from 'node:zlib';
+import { gzipSync, gunzipSync } from 'node:zlib';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../examples/gallery');
 const samples = JSON.parse(readFileSync(join(root, 'samples.json'), 'utf8'));
@@ -81,7 +81,18 @@ const html = `<!doctype html>
 <body><main><header><a href="/">nanoodle 🍜</a><h1>What the workflows made.</h1><p>Saved images, stories, video and music, with the inputs that produced them. Viewing is free. Run your own version with your NanoGPT key and balance.</p>${showcase}<nav aria-label="Workflow samples"><a href="../iron-verdict/">Play Iron Verdict</a><a href="/guide/examples/">Workflow guides</a>${samples.map(s => `<a href="#${esc(s.slug)}">${esc(s.title)}</a>`).join('')}</nav></header>
 ${sections}<footer><p>Made by nanoodle. No analytics. <a href="samples.json">Sample details</a> · <a href="https://github.com/nanoodlecom/awesome-noodles">Workflow source</a></p></footer></main></body></html>\n`;
 const target = join(root, 'index.html');
+// Node 20 vs 22 gzip streams differ; normalize #g= payloads to the sha of the
+// decoded graph JSON so --check stays green across the CI matrix.
+const normalizeShareLinks = (s) => s.replace(/#g=[A-Za-z0-9_-]+/g, (m) => {
+  try {
+    const json = gunzipSync(Buffer.from(m.slice(3), 'base64url')).toString('utf8');
+    return '#g=sha256:' + createHash('sha256').update(json).digest('hex');
+  } catch {
+    return m;
+  }
+});
 if (process.argv.includes('--check')) {
-  if (!existsSync(target) || readFileSync(target, 'utf8') !== html) throw Error('Sample page stale: run node scripts/sync-gallery-samples.mjs');
+  const onDisk = existsSync(target) ? readFileSync(target, 'utf8') : '';
+  if (normalizeShareLinks(onDisk) !== normalizeShareLinks(html)) throw Error('Sample page stale: run node scripts/sync-gallery-samples.mjs');
 } else writeFileSync(target, html);
 console.log(`Verified ${samples.length} saved runs${process.argv.includes('--check') ? '' : '; rendered gallery page'}`);

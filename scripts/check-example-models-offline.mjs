@@ -27,9 +27,12 @@ const catalogs = {
     image('openai/gpt-image-2.5/flare/text-to-image', ['1k', '2k', '4k']),
     image('xai/grok-imagine-image/v2.0/text-to-image', ['1:1', '16:9']),
     image('recraft-v4', ['1024x1024']),
+    image('anima/text-to-image', ['1k', '2k']),
   ],
   video: [
     { id: 'minimax-h3/image-to-video-spicy', capabilities: { image_to_video: true },
+      supported_parameters: { parameters: { resolution: opts(['480p', '720p']), duration: opts([5, 10]) } } },
+    { id: 'minimax/h3-max', capabilities: { image_to_video: true },
       supported_parameters: { parameters: { resolution: opts(['480p', '720p']), duration: opts([5, 10]) } } },
     { id: 'longcat-avatar-1.5', capabilities: { image_to_video: true, audio_input: true },
       supported_parameters: { parameters: { resolution: opts(['480p', '720p']) } } },

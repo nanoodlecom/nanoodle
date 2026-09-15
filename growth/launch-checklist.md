@@ -82,7 +82,7 @@ self-listings get removed.
 >
 > Workflows are shared as URLs (the graph is encoded in the URL fragment, which
 > never reaches a server) or exported as a single self-contained .html file you
-> can host anywhere or open from disk. A built-in Examples panel carries 8
+> can host anywhere or open from disk. A built-in Examples panel carries 9
 > ready-made workflows, mirrored from an open gallery repository and shipped
 > inside the page, so there is something to run on the first visit and the panel
 > itself needs no network. The same graph format also runs headlessly via the
@@ -246,7 +246,7 @@ someone finds the Nano angle, answer honestly — the prepared answer is in
 > repos, all MIT.
 >
 > If you'd rather see the format than the canvas, the 📚 Examples panel in the
-> editor holds 8 ready-made graphs, mirrored from an open gallery repo
+> editor holds 9 ready-made graphs, mirrored from an open gallery repo
 > (https://github.com/nanoodlecom/awesome-noodles) and shipped inline, so opening
 > the panel costs no network at all. Every entry is a plain JSON file in that
 > repo, so you can read a workflow before you run one.

@@ -13688,6 +13688,20 @@ const EXAMPLES = [
            {id:"l2",from:{node:"n1",port:"image"},to:{node:"n4",port:"image"}},
            {id:"l3",from:{node:"n3",port:"audio"},to:{node:"n4",port:"audio"}},
            {id:"l4",from:{node:"n5",port:"text"},to:{node:"n4",port:"prompt"}} ] } },
+ { em:"⚔️", slug:"neon-shrine-duel", title:"Neon shrine duel", desc:"LLM→Anima still→LLM→H3 Max fight clip",
+   thumb:"examples/gallery/neon-shrine-duel/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:-80,w:420,fields:{text:"seed → GLM writes Anima still prompt → anima/text-to-image → GLM writes H3 Max motion prompt → minimax/h3-max i2v at 480p/5s. Change the seed; both LLMs rewrite prompts. ~$0.27 sampled. Hold both fighters in frame — avoid whip-pans.",color:"yellow"}},
+           {id:"n1",type:"text",x:40,y:120,w:300,fields:{text:"Neon shrine rooftop duel at midnight — fox-masked sword dancer vs chrome oni courier, rain, sakura sparks, cinematic anime fight keyframe"},name:"Fight seed"},
+           {id:"n2",type:"llm",x:420,y:80,w:300,fields:{model:"z-ai/glm-5.3-flash",reasoningEffort:"low",system:"You write ONE elite image prompt for anime key art (Anima text-to-image). Rules: single frozen moment mid-action (not a sequence); vivid character design; lighting/camera/lens; materials; NO camera moves, NO 'animate', NO multiple frames; 80–140 words; output ONLY the prompt text."},name:"Still prompt"},
+           {id:"n3",type:"image",x:800,y:80,w:280,fields:{model:"anima/text-to-image",size:"1k",variations:"1"},name:"Fight still"},
+           {id:"n4",type:"llm",x:420,y:420,w:300,fields:{model:"z-ai/glm-5.3-flash",reasoningEffort:"low",system:"You write ONE image-to-video motion prompt for MiniMax H3 Max. Rules: BOTH fighters stay fully in frame the entire clip; gentle locked camera or only a few degrees of orbit; horizon level; NO whip-pan, crash-zoom, extreme spin, or empty end-frame on scenery alone; choreography: blades locked → overhead strike → duck → sparking counter; keep character identity stable; rain and sparks move; NO new characters; NO text overlays; 40–90 words; output ONLY the prompt."},name:"Motion prompt"},
+           {id:"n5",type:"ivideo",x:800,y:360,w:280,fields:{model:"minimax/h3-max",prompt:"",resolution:"480p",duration:"5",modelOpts:{},loras:[]},name:"Clash clip"} ],
+   links:[ {id:"l1",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}},
+           {id:"l2",from:{node:"n2",port:"text"},to:{node:"n3",port:"prompt"}},
+           {id:"l3",from:{node:"n1",port:"text"},to:{node:"n4",port:"prompt"}},
+           {id:"l4",from:{node:"n3",port:"image"},to:{node:"n5",port:"image"}},
+           {id:"l5",from:{node:"n4",port:"text"},to:{node:"n5",port:"prompt"}} ] } },
 ];
 /* ---- 🏆 community shelf data — hand-curated, edited in place (no fetch, no build step).
    `top` = up to 3 podium spots for whatever earns the spotlight.
