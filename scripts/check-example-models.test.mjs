@@ -173,10 +173,16 @@ test('reviewed pipelines retain source roles, sung lyrics and bounded video sett
   video.fields.duration = '10';
   const music = pins.find(p => p.slug === 'sing' && p.type === 'music');
   music.fields.instrumental = true;
+  const duel = pins.find(p => p.slug === 'neon-shrine-duel' && p.type === 'image');
+  duel.id = 'nano-banana-edit';
+  const clash = pins.find(p => p.slug === 'neon-shrine-duel' && p.type === 'ivideo');
+  clash.fields.resolution = '720p';
   const issues = galleryRegressions(pins);
-  assert.equal(issues.length, 3);
+  assert.equal(issues.length, 5);
   assert.match(issues.find(p => p.slug === 'character-sprites').reason, /expected model/);
   assert.match(issues.find(p => p.slug === 'photo-to-video').reason, /expected duration 5/);
   assert.match(issues.find(p => p.slug === 'sing').reason, /expected instrumental false/);
+  assert.match(issues.find(p => p.slug === 'neon-shrine-duel' && /expected model/.test(p.reason)).reason, /anima\/text-to-image/);
+  assert.match(issues.find(p => p.slug === 'neon-shrine-duel' && /resolution/.test(p.reason)).reason, /expected resolution 480p/);
   assert.ok(galleryRegressions(pins.filter(p => p.type !== 'lipsync')).some(p => /node missing/.test(p.reason)));
 });
