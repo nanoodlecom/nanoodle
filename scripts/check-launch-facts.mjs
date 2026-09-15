@@ -131,7 +131,12 @@ function exampleCount() {
   if (end < 0) { fail.push("index.html: EXAMPLES array is not terminated by a line starting `];`"); return null; }
   const n = (html.slice(start, end).match(/\bslug:"/g) || []).length;
   if (!n) { fail.push("index.html: EXAMPLES array parsed to 0 cards — the guard's parse is stale, fix it before trusting it"); return null; }
-  return n;
+  // Launch copy describes the awesome-noodles curated shelf. Teaching-only cards
+  // (LOCAL_ONLY_EXAMPLE_SLUGS) live in EXAMPLES for Open workflow but are not
+  // counted in public "N workflows/examples" claims.
+  const localM = html.match(/const LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\[([^\]]*)\]\)/);
+  const localN = localM ? [...localM[1].matchAll(/"([^"]+)"/g)].length : 0;
+  return n - localN;
 }
 
 // Repos README's ecosystem table links to. The org can hold more (a .github

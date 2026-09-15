@@ -1655,6 +1655,8 @@ const I18N = {
     "Text → speech (TTS)":"Texto → voz (TTS)",
     "Remix audio":"Remezclar audio",
     "Custom endpoint":"Endpoint personalizado",
+    "custom endpoint":"endpoint personalizado",
+    "Choice picks /post or /anything — $0 echo, no key":"Choice elige /post o /anything — eco $0, sin clave",
     "Call a NanoGPT-shaped URL — typically localhost":"Llama a una URL con forma NanoGPT — normalmente localhost",
     "POST to a URL you own — a Choice can pick the path":"POST a una URL tuya — un Choice puede elegir la ruta",
     "A dropdown the app user picks from — the selected line is the value on the wire":"Un desplegable que elige el usuario de la app — la línea seleccionada es el valor del cable",
@@ -2286,6 +2288,8 @@ const I18N = {
     "Text → speech (TTS)":"Texte → voix (TTS)",
     "Remix audio":"Remixer l’audio",
     "Custom endpoint":"Endpoint personnalisé",
+    "custom endpoint":"endpoint personnalisé",
+    "Choice picks /post or /anything — $0 echo, no key":"Choice choisit /post ou /anything — écho 0 $, sans clé",
     "Call a NanoGPT-shaped URL — typically localhost":"Appeler une URL au format NanoGPT — en général localhost",
     "POST to a URL you own — a Choice can pick the path":"POST vers une URL à vous — un Choice peut choisir le chemin",
     "A dropdown the app user picks from — the selected line is the value on the wire":"Un menu que l’utilisateur de l’app choisit — la ligne sélectionnée est la valeur du fil",
@@ -2917,6 +2921,8 @@ const I18N = {
     "Text → speech (TTS)":"Text → Sprache (TTS)",
     "Remix audio":"Audio remixen",
     "Custom endpoint":"Eigener Endpoint",
+    "custom endpoint":"eigener Endpoint",
+    "Choice picks /post or /anything — $0 echo, no key":"Choice wählt /post oder /anything — $0-Echo, kein Key",
     "Call a NanoGPT-shaped URL — typically localhost":"Eine NanoGPT-förmige URL aufrufen — typischerweise localhost",
     "POST to a URL you own — a Choice can pick the path":"POST an eine URL von dir — Choice kann den Pfad wählen",
     "A dropdown the app user picks from — the selected line is the value on the wire":"Ein Dropdown, das die App-Nutzerin wählt — die gewählte Zeile ist der Wert auf der Leitung",
@@ -3548,6 +3554,8 @@ const I18N = {
     "Text → speech (TTS)":"Texto → fala (TTS)",
     "Remix audio":"Remixar áudio",
     "Custom endpoint":"Endpoint personalizado",
+    "custom endpoint":"endpoint personalizado",
+    "Choice picks /post or /anything — $0 echo, no key":"Choice escolhe /post ou /anything — eco $0, sem chave",
     "Call a NanoGPT-shaped URL — typically localhost":"Chamar uma URL no formato NanoGPT — em geral localhost",
     "POST to a URL you own — a Choice can pick the path":"POST para uma URL sua — um Choice pode escolher o caminho",
     "A dropdown the app user picks from — the selected line is the value on the wire":"Um menu que o usuário do app escolhe — a linha selecionada é o valor do fio",
@@ -4179,6 +4187,8 @@ const I18N = {
     "Text → speech (TTS)":"テキスト → 音声 (TTS)",
     "Remix audio":"音声リミックス",
     "Custom endpoint":"カスタムエンドポイント",
+    "custom endpoint":"カスタムエンドポイント",
+    "Choice picks /post or /anything — $0 echo, no key":"Choiceが /post か /anything を選ぶ — $0エコー、キー不要",
     "Call a NanoGPT-shaped URL — typically localhost":"NanoGPT形式のURLを呼び出す — 通常はlocalhost",
     "POST to a URL you own — a Choice can pick the path":"自分のURLへPOST — Choiceでパスを選べる",
     "A dropdown the app user picks from — the selected line is the value on the wire":"アプリユーザーが選ぶドロップダウン — 選んだ行が配線の値になる",
@@ -13541,6 +13551,10 @@ refreshUpdatesBadge();
    awesome-noodles/graphs is the source for every graph; presentation is authored here.
    Run scripts/sync-examples.mjs after a graph changes. Real saved results live in
    examples/gallery; character-sprites links to the finished Iron Verdict game. */
+/* Editor-only teaching cards (not awesome-noodles, not MCP tools).
+   Keep in sync with scripts/sync-examples.mjs LOCAL_ONLY_EXAMPLE_SLUGS.
+   openExamples hides See result for these so visitors never land on a dead gallery hash. */
+const LOCAL_ONLY_EXAMPLE_SLUGS = new Set(["custom-endpoint"]);
 const EXAMPLES = [
  { em:"🎞️", slug:"storyboard-relay", title:"Storyboard relay", desc:"Carry a character into a new scene, inspect continuity, repair it once, and review the new frame.",
    thumb:"examples/gallery/storyboard-relay/preview.webp",
@@ -13687,6 +13701,17 @@ const EXAMPLES = [
            {id:"l3",from:{node:"n1",port:"text"},to:{node:"n4",port:"prompt"}},
            {id:"l4",from:{node:"n3",port:"image"},to:{node:"n5",port:"image"}},
            {id:"l5",from:{node:"n4",port:"text"},to:{node:"n5",port:"prompt"}} ] } },
+ { em:"🔌", slug:"custom-endpoint", title:"custom endpoint", desc:"Choice picks /post or /anything — $0 echo, no key",
+   thumb:"",
+   graph:{ v:1,
+   nodes:[ {id:"n1",type:"comment",x:40,y:20,w:460,sizes:{text:88},fields:{text:"Choice picks the path segment for the request. Default /post is a $0 public echo — no key, no local server. Switch to /anything and the POST follows. The receipt is the body.",color:"yellow"},name:"How this works"},
+           {id:"n2",type:"text",x:40,y:240,w:280,fields:{text:"Ximending night desk, 2:17am — Wuchang Street neon on the laminate, still-warm thermal slip: one late check-in, one borrowed umbrella, NT$100 key deposit. The graph is the product. This line is just the receipt — echo me so I know the POST wasn't a rumor."},name:"Receipt"},
+           {id:"n3",type:"choice",x:40,y:520,w:280,fields:{options:"/post\n/anything",selected:"/post"},name:"Path"},
+           {id:"n5",type:"endpoint",x:400,y:280,w:360,fields:{url:"https://httpbingo.org",mode:"json"},name:"POST"} ],
+   links:[ {id:"l1",from:{node:"n2",port:"text"},to:{node:"n5",port:"text"}},
+           {id:"l2",from:{node:"n2",port:"text"},to:{node:"n5",port:"prompt"}},
+           {id:"l3",from:{node:"n3",port:"text"},to:{node:"n5",port:"url"}},
+           {id:"l4",from:{node:"n3",port:"text"},to:{node:"n5",port:"mode"}} ] } },
 ];
 /* ---- 🏆 community shelf data — hand-curated, edited in place (no fetch, no build step).
    `top` = up to 3 podium spots for whatever earns the spotlight.
@@ -13736,12 +13761,14 @@ function openExamples(){
   const list=$("exampleslist"); list.innerHTML="";
   EXAMPLES.forEach((ex,i)=>{
     const c=document.createElement("article"); c.className="ex-card";
-    const result=ex.slug==="character-sprites"?"examples/iron-verdict/":"examples/gallery/#"+encodeURIComponent(ex.slug);
+    const result=LOCAL_ONLY_EXAMPLE_SLUGS.has(ex.slug)?"":ex.slug==="character-sprites"?"examples/iron-verdict/":"examples/gallery/#"+encodeURIComponent(ex.slug);
     const thumb=ex.slug==="character-sprites"?"examples/iron-verdict/screenshot.png":ex.thumb;
     const resultLabel=ex.slug==="character-sprites"?"Play the game":"See result";
-    const preview=`<img class="ex-im" src="${thumb}" alt="" loading="lazy"/>`;
-    const previewWrap=`<a class="ex-preview" href="${result}" target="_blank" rel="noopener" aria-label="${esc(t(resultLabel)+": "+t(ex.title))}">${preview}</a>`;
-    const see=`<a href="${result}" target="_blank" rel="noopener">${esc(t(resultLabel))} ↗</a>`;
+    const preview=ex.slug==="custom-endpoint"
+      ? '<blockquote class="ex-quote" data-no-i18n>Choice picks the path: <code>/post</code> or <code>/anything</code>. $0 public echo.</blockquote>'
+      : `<img class="ex-im" src="${thumb}" alt="" loading="lazy"/>`;
+    const previewWrap=result?`<a class="ex-preview" href="${result}" target="_blank" rel="noopener" aria-label="${esc(t(resultLabel)+": "+t(ex.title))}">${preview}</a>`:`<div class="ex-preview">${preview}</div>`;
+    const see=result?`<a href="${result}" target="_blank" rel="noopener">${esc(t(resultLabel))} ↗</a>`:"";
     const skill=ex.slug==="character-sprites"?`<a href="https://github.com/nanoodlecom/noodle-skills/tree/main/skills/character-sprites" target="_blank" rel="noopener">${esc(t("Get the skill"))} ↗</a>`:"";
     c.innerHTML=`${previewWrap}<div class="ex-body"><h3 class="ex-tt">${esc(t(ex.title))}</h3><p class="ex-ds">${esc(t(ex.desc))}</p><div class="ex-actions"><button type="button">${esc(t("Open workflow"))}</button>${see}${skill}</div></div>`;
     c.querySelector("button").onclick=()=>loadExample(i); list.appendChild(c);

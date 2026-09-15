@@ -19,17 +19,28 @@ const samples = JSON.parse(readFileSync(join(ROOT, 'examples/gallery/samples.jso
 const gallery = readFileSync(join(ROOT, 'examples/gallery/index.html'), 'utf8');
 const bySlug = new Map(samples.map(s => [s.slug, s]));
 assert.equal(bySlug.size, samples.length, 'duplicate saved sample');
+const localOnlyMatch = idx.match(/const LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\[([^\]]*)\]\)/);
+assert.ok(localOnlyMatch, 'LOCAL_ONLY_EXAMPLE_SLUGS missing — teaching cards need an explicit list');
+const LOCAL_ONLY = new Set([...localOnlyMatch[1].matchAll(/"([^"]+)"/g)].map(m => m[1]));
+assert.ok(LOCAL_ONLY.has('custom-endpoint'), 'custom-endpoint must stay a teaching-only card');
+
 const slugs = new Set(examples.map(e => e.slug));
 assert.equal(slugs.size, examples.length, 'duplicate example card');
-assert.deepEqual([...slugs].sort(), ['character-sprites', 'storyboard-relay', 'tiny-world-film', 'image-model-arena', 'photo-to-video', 'sing', 'talking-avatar', 'neon-shrine-duel'].sort(),
+const curated = examples.filter(e => !LOCAL_ONLY.has(e.slug));
+const curatedSlugs = new Set(curated.map(e => e.slug));
+assert.deepEqual([...curatedSlugs].sort(), ['character-sprites', 'storyboard-relay', 'tiny-world-film', 'image-model-arena', 'photo-to-video', 'sing', 'talking-avatar', 'neon-shrine-duel'].sort(),
   'curated shelf changed: review the workflow and its saved evidence before featuring it');
-assert.deepEqual([...bySlug.keys()].sort(), [...slugs].sort());
+assert.deepEqual([...bySlug.keys()].sort(), [...curatedSlugs].sort());
 assert.deepEqual([...gallery.matchAll(/<section id="([^"]+)"/g)].map(m => m[1]).sort(), [...bySlug.keys()].sort());
+for (const s of LOCAL_ONLY) assert.ok(slugs.has(s), `teaching slug ${s} is not an EXAMPLES card`);
 
 const fn = idx.slice(idx.indexOf('function openExamples()'), idx.indexOf('function closeExamples()'));
 const resultExpr = fn.match(/const result=([^;]+);/)?.[1];
 const thumbExpr = fn.match(/const thumb=([^;]+);/)?.[1];
 assert.ok(resultExpr && thumbExpr, 'example links and thumbnails must be inspectable');
+assert.ok(fn.includes('LOCAL_ONLY_EXAMPLE_SLUGS.has(ex.slug)'), 'openExamples must consult LOCAL_ONLY_EXAMPLE_SLUGS');
+assert.ok(/const see=result\?/.test(fn) || /const see=result \?/.test(fn) || fn.includes('const see=result?'), 'openExamples must gate See result on truthy result');
+assert.ok(fn.includes('const previewWrap=result?') || fn.includes('const previewWrap=result ?'), 'openExamples must gate preview wrap on truthy result');
 const file = relative => {
   assert.match(relative, /^[\w/-]+\.[\w]+$/, `invalid sample path: ${relative}`);
   assert.ok(!relative.includes('..'), `sample path escapes site: ${relative}`);
@@ -43,8 +54,19 @@ const semanticGraph = graph => ({
 });
 
 for (const ex of examples) {
-  const result = vm.runInNewContext(resultExpr, { ex, encodeURIComponent });
-  file(vm.runInNewContext(thumbExpr, { ex }));
+  const result = vm.runInNewContext(resultExpr, { ex, encodeURIComponent, LOCAL_ONLY_EXAMPLE_SLUGS: LOCAL_ONLY });
+  if (LOCAL_ONLY.has(ex.slug)) {
+    assert.equal(result, '', `${ex.slug}: teaching-only card must hide See result`);
+    const models = ex.graph.nodes.filter(n => kinds[n.type]?.kind);
+    assert.ok(models.length < 2, `${ex.slug}: teaching card should not look like a multi-model shelf workflow`);
+    // Choice must retarget endpoint url (and mode) — not ride through a join into text.
+    const ep = ex.graph.nodes.find(n => n.type === 'endpoint');
+    assert.ok(ep, `${ex.slug}: teaching card needs an endpoint node`);
+    assert.ok(ex.graph.links.some(l => l.to.node === ep.id && l.to.port === 'url'),
+      `${ex.slug}: Choice must wire into endpoint.url so the path picker retargets the POST`);
+    continue;
+  }
+  file(vm.runInNewContext(thumbExpr, { ex, encodeURIComponent, LOCAL_ONLY_EXAMPLE_SLUGS: LOCAL_ONLY }));
   const models = ex.graph.nodes.filter(n => kinds[n.type]?.kind);
   assert.ok(models.length >= 2, `${ex.slug}: a single model call belongs in the editor, not the workflow shelf`);
   const canReach = (from, target, seen = new Set()) => {
@@ -168,4 +190,4 @@ for (const useLibrary of [false, true]) {
 const generated = spawnSync(process.execPath, ['scripts/sync-gallery-samples.mjs', '--check'], { cwd: ROOT, encoding: 'utf8' });
 assert.ifError(generated.error);
 assert.equal(generated.status, 0, generated.stdout + generated.stderr);
-console.log(`✓ ${examples.length} curated workflows: useful stages, reachable results, matching inputs and preserved sample provenance`);
+console.log(`✓ ${curated.length} curated workflows (+${LOCAL_ONLY.size} teaching): useful stages, reachable results, matching inputs and preserved sample provenance`);
