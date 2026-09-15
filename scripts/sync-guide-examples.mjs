@@ -10,7 +10,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
-import { gzipSync } from "node:zlib";
+import { gzipSync, gunzipSync } from "node:zlib";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const GALLERY = join(ROOT, "examples", "gallery");
@@ -490,6 +490,24 @@ function build() {
   return pages;
 }
 
+
+/** Decode #g= payloads so Node 20 vs 22 gzip byte diffs don't false-stale. */
+function normalizeShareLinks(html) {
+  return html.replace(
+    /#g=([A-Za-z0-9_-]+)/g,
+    (_m, b64url) => {
+      try {
+        const padded = b64url.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((b64url.length + 3) % 4);
+        const json = gunzipSync(Buffer.from(padded, "base64")).toString("utf8");
+        const digest = createHash("sha256").update(json).digest("hex");
+        return `#g=sha256:${digest}`;
+      } catch {
+        return `#g=${b64url}`;
+      }
+    },
+  );
+}
+
 export const PAGE_FILES = () => Object.keys(build());
 
 const pages = build();
@@ -501,7 +519,8 @@ if (process.argv.includes("--check")) {
   const missing = [...expected].filter((f) => !have.includes(f));
   const stale = [...expected].filter((f) => {
     const path = join(OUT, f);
-    return !existsSync(path) || readFileSync(path, "utf8") !== pages[f];
+    if (!existsSync(path)) return true;
+    return normalizeShareLinks(readFileSync(path, "utf8")) !== normalizeShareLinks(pages[f]);
   });
   if (extra.length || missing.length || stale.length) {
     const bits = [];
