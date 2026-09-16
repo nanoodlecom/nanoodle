@@ -128,6 +128,9 @@ ok(T.modelSupportsImages({ id: "m1", type: "llm", fields: { model: "vision-no" }
 catalog.chat = [
   { id: "vision-yes", capabilities: { vision: true } },
   { id: "vision-no", capabilities: {} },
+  // exact live id from the #563 follow-up (NanoGPT 400: "does not support image inputs") —
+  // present with no vision flag = known text-only.
+  { id: "mistralai/mistral-small-24b-instruct-2501", capabilities: {} },
 ];
 const app = loadEngine();
 const node = (id, type, fields) => ({ id, type, x: 0, y: 0, fields: fields || {} });
@@ -162,6 +165,31 @@ async function playRun(model) {
   ok(call && chatImgParts(call).length === 0, "play: known text-only model drops the wired image (no billed image tokens it cannot see)");
   ok(notes.some((m) => /image.*ignored.*text-only/i.test(m)),
     `play: dropping the image surfaces a note, notes=${JSON.stringify(notes)}`);
+}
+{
+  // Live incident (#563 follow-up): the model arrived via a Choice wire, not the typed field —
+  // the gate must read the RESOLVED model (rn). Exact repro: img1 wired on a vision model, then
+  // mistralai/mistral-small-24b-instruct-2501 selected. NanoGPT 400'd "does not support image
+  // inputs" because the delegated path (default ON) bypassed the built-in gate; the built-in
+  // path below must drop + note.
+  calls.length = 0;
+  const notes = [];
+  const MISTRAL = "mistralai/mistral-small-24b-instruct-2501";
+  const g = app.materialize({ nodes: [
+    node("u1", "upload", { image: IMG }),
+    node("t1", "text", { text: "Describe" }),
+    node("c1", "choice", { options: MISTRAL, selected: MISTRAL }),
+    node("m1", "llm", { model: "vision-yes", prompt: "hi" }),
+  ], links: [
+    link("u1", "image", "m1", "img1"),
+    link("t1", "text", "m1", "prompt"),
+    link("c1", "text", "m1", "model"),
+  ]});
+  await app.runGraph(g, { onStatus: (id, kind, msg) => notes.push(String(msg || "")) });
+  const call = chatCalls()[0];
+  ok(call && chatImgParts(call).length === 0, "play: Choice-wired text-only model drops the wired image (gate reads the resolved model)");
+  ok(notes.some((m) => /image.*ignored.*text-only/i.test(m)),
+    `play: Choice-wired drop surfaces a note, notes=${JSON.stringify(notes)}`);
 }
 {
   // Drift preflight (assertModelAvailable) supersedes permissive-keep for a catalog-MISSING
