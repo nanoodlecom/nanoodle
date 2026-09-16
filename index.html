@@ -5157,7 +5157,8 @@ function syncModelPickUI(n, id){
 function updateNodePrice(n){
   const t = NODE_TYPES[n.type]; if(!t.modelKind || !n.el) return;
   const el = n.el.querySelector("[data-mp]"); if(!el) return;
-  el.textContent = livePrice(t.modelKind, n.fields) || catItem(t.modelKind, n.fields.model)?.price || "";
+  const fields = effectiveModelFields(n);   // Choice→model wire: price the id that Run will bill
+  el.textContent = livePrice(t.modelKind, fields) || catItem(t.modelKind, fields.model)?.price || "";
   updateModelWarn(n);
 }
 // Surface a drifted model id on the node's model button so a saved/shared graph doesn't rot
@@ -6705,11 +6706,38 @@ function audioBilledSeconds(params, fields){
 function audioBilledSongs(_params, _fields){
   return 1;
 }
+// Live value on a field in-port (Choice.selected / Text) — same rules as endpoint preview.
+// Prefer the source's live field over a stale last-run .out so a Choice flip updates estimates
+// before the next Run (mirrors runGroup fieldOverrides at estimate time).
+function wiredFieldValue(n, port){
+  if(typeof graph==="undefined" || !graph || !graph.links) return null;
+  for(const l of graph.links){
+    if(l.to.node!==n.id || l.to.port!==port) continue;
+    const src = typeof byId==="function" ? byId(l.from.node) : null;
+    if(!src) return "<wired "+port+">";
+    if(src.fields){
+      if(typeof src.fields.selected==="string" && src.fields.selected.trim()) return src.fields.selected;
+      if(typeof src.fields.text==="string" && src.fields.text.trim()) return src.fields.text;
+    }
+    if(src.out && src.out[l.from.port]!=null && src.out[l.from.port]!=="") return src.out[l.from.port];
+    return "<wired "+port+">";
+  }
+  return null;
+}
+// fields.model with a Choice/Text wire applied — used by node price chips + "~$ to run".
+function effectiveModelFields(n){
+  const w = wiredFieldValue(n, "model");
+  if(w == null || w === "" || String(w).indexOf("<wired ") === 0) return n.fields || {};
+  const id = String(w).trim();
+  if(n.fields && n.fields.model === id) return n.fields;
+  return Object.assign({}, n.fields || {}, { model: id });
+}
 // USD for one execution of a node with its chosen model + settings. null = no price (no model / uncatalogued / omni).
 function nodeUnitUsd(n){
   const t = NODE_TYPES[n.type]; if(!t || !t.modelKind) return null;
-  const kind = t.modelKind, it = catItem(kind, n.fields.model); if(!it) return null;
-  if(kind==="image"){ const u = imageUnitUsd(n.fields.model, n.fields.size); if(u==null) return null;
+  const fields = effectiveModelFields(n);
+  const kind = t.modelKind, it = catItem(kind, fields.model); if(!it) return null;
+  if(kind==="image"){ const u = imageUnitUsd(fields.model, fields.size); if(u==null) return null;
     // Price the images the run will ACTUALLY be billed for (genImage accrues unit×urls.length): fixed_image_count
     // models (midjourney/higgsfield) always return N regardless of the request; otherwise clamp the requested
     // variations to what the model can return, so a stale/over-set count can't inflate the estimate either.
@@ -6717,7 +6745,7 @@ function nodeUnitUsd(n){
     // field, image run()'s want, and livePrice's ×N. fixed===1 falls through to the variations clamp so a
     // 1-per-call model that still allows several images bills what the user actually asked for.
     const maxOut=(it&&it.maxOut)||1, fixed=(it&&it.fixedCount)||0;
-    const count = fixed>1 ? fixed : Math.min(maxOut, Math.max(1, parseInt(n.fields.variations,10)||1));
+    const count = fixed>1 ? fixed : Math.min(maxOut, Math.max(1, parseInt(fields.variations,10)||1));
     return u*count; }
   if(kind==="video"){
     // ref-image ports actually wired (and the model still exposes a ref-image param) flip the estimate to
@@ -6725,13 +6753,13 @@ function nodeUnitUsd(n){
     const refWired = !!(t.refInputs && modelHasImageRole(n,"refs") && graph.links.some(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port)));
     // source-video input wired → extend-mode rates on nested mode×resolution tables (FLUX.3).
     const videoWired = graph.links.some(l=> l.to.node===n.id && l.to.port==="video");
-    const u = videoUnitUsd(it.pricing, n.fields, refWired, videoWired); return (u!=null && isFinite(u)) ? u : null; }
+    const u = videoUnitUsd(it.pricing, fields, refWired, videoWired); return (u!=null && isFinite(u)) ? u : null; }
   if(kind==="chat"){
-    const f=n.fields||{}; const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(it, inTok, outTok); }
-  if(kind==="audio"){ const chars = t.modelFilter==="stt" ? undefined : (((n.fields||{}).prompt||"").length || EST.ttsChars);
-    const secs = audioBilledSeconds(it.params, n.fields||{});   // per_second music meters off the chosen duration, not a fixed 30s
+    const f=fields||{}; const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(it, inTok, outTok); }
+  if(kind==="audio"){ const chars = t.modelFilter==="stt" ? undefined : (((fields||{}).prompt||"").length || EST.ttsChars);
+    const secs = audioBilledSeconds(it.params, fields||{});   // per_second music meters off the chosen duration, not a fixed 30s
     const u = audioUnitUsd(it.pricing, chars, secs); if(u==null) return null;
-    const songs = audioBilledSongs(it.params, n.fields||{});   // always 1 — collectAudioParams clamps the sent song count so a run only ever bills for one track
+    const songs = audioBilledSongs(it.params, fields||{});   // always 1 — collectAudioParams clamps the sent song count so a run only ever bills for one track
     return u*songs; }
   return null;
 }
@@ -8163,7 +8191,10 @@ function buildNodeEl(n){
       n.fields[f] = inp.type==="checkbox" ? inp.checked : inp.value; save();
       if(n.type==="choice"){
         refreshPortFills();
-        graph.nodes.forEach(x=>{ if(x.type==="endpoint") refreshEndpointUI(x); });
+        graph.nodes.forEach(x=>{
+          if(x.type==="endpoint") refreshEndpointUI(x);
+          if(NODE_TYPES[x.type]?.modelKind) updateNodePrice(x);   // Choice→model: live price chip
+        });
       }
     });
     inp.addEventListener("pointerdown", e=>e.stopPropagation()); // don't drag node when editing
@@ -8537,20 +8568,8 @@ function endpointWantedInputs(mode){
   return { text:1, image:1, audio:1, video:1 };
 }
 function endpointWiredField(n, port){
-  if(typeof graph==="undefined" || !graph || !graph.links) return null;
-  for(const l of graph.links){
-    if(l.to.node!==n.id || l.to.port!==port) continue;
-    const src = typeof byId==="function" ? byId(l.from.node) : null;
-    if(!src) return "<wired "+port+">";
-    // Prefer the live field over a stale last-run .out (Choice.selected changes before the next Run).
-    if(src.fields){
-      if(typeof src.fields.selected==="string" && src.fields.selected.trim()) return src.fields.selected;
-      if(typeof src.fields.text==="string" && src.fields.text.trim()) return src.fields.text;
-    }
-    if(src.out && src.out[l.from.port]!=null && src.out[l.from.port]!=="") return src.out[l.from.port];
-    return "<wired "+port+">";
-  }
-  return null;
+  // Shared with run-cost / node price chips (wiredFieldValue) — Choice path/mode/url + model.
+  return wiredFieldValue(n, port);
 }
 function refreshEndpointUI(n){
   if(!n.el || n.type!=="endpoint") return;
