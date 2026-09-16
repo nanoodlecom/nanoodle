@@ -10405,7 +10405,11 @@ async function runGroup(seedIds, ctx){
         if(t.refInputs && modelHasImageRole(n,"refs")) for(const l of graph.links){
           if(l.to.node===id && REF_PORT_RE.test(l.to.port)) inp[l.to.port] = byId(l.from.node)?.out?.[l.from.port];
         }
-        // a wired text field overrides its typed value (n.fields[field]); declared ports handled above
+        // a wired text field overrides its typed value (n.fields[field]); declared ports handled above.
+        // Custom endpoint url/mode are special: Choice path segments like "/post" must ride `inp`
+        // so endpointResolveTarget can join them onto the typed host. Stomping fields.url with
+        // "/post" (the generic override path) makes Run reject the gallery $0 httpbingo echo as
+        // "URL isn't allowed" even though the live POST preview already shows the joined URL.
         const fieldOverrides = {};
         for(const l of graph.links){
           if(l.to.node!==id || t.inputs.some(p=>p.name===l.to.port)) continue;
@@ -10414,7 +10418,12 @@ async function runGroup(seedIds, ctx){
           if(t.audioInput && l.to.port==="audio") continue;            // the audio port isn't a text-field override
           if(t.refInputs && REF_PORT_RE.test(l.to.port)) continue;     // ref-image ports aren't text-field overrides
           const v = byId(l.from.node)?.out?.[l.from.port];
-          if(v!=null) fieldOverrides[l.to.port] = v;
+          if(v==null) continue;
+          if(n.type==="endpoint" && (l.to.port==="url" || l.to.port==="mode")){
+            inp[l.to.port] = v;
+            continue;
+          }
+          fieldOverrides[l.to.port] = v;
         }
         const rn0 = Object.keys(fieldOverrides).length ? { ...n, fields:{...n.fields, ...fieldOverrides} } : n;
         // Prompt-length caps (see the PROMPT LENGTH CAPS block): a prompt over this model's cap is

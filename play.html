@@ -8908,7 +8908,9 @@ const PROMPT_CAPS = {
         if(t.refInputs) for(const l of graph.links){
           if(l.to.node===id && REF_PORT_RE.test(l.to.port)){ const src = byId(l.from.node); inp[l.to.port] = src && src.out ? src.out[l.from.port] : undefined; }
         }
-        // a wired field overrides its typed value (n.fields[field]); declared ports handled above
+        // a wired field overrides its typed value (n.fields[field]); declared ports handled above.
+        // Custom endpoint url/mode: path segments (/post) must ride inp for endpointResolveTarget
+        // to join onto the typed host — twin of index.html runGroup (gallery $0 httpbingo echo).
         const fieldOverrides = {};
         for(const l of graph.links){
           if(l.to.node!==id || t.inputs.some(p=>p.name===l.to.port)) continue;
@@ -8918,7 +8920,12 @@ const PROMPT_CAPS = {
           if(t.refInputs && REF_PORT_RE.test(l.to.port)) continue;     // ref-image ports aren't text-field overrides
           const src = byId(l.from.node);
           const v = src && src.out ? src.out[l.from.port] : undefined;
-          if(v!=null) fieldOverrides[l.to.port] = v;
+          if(v==null) continue;
+          if(n.type==="endpoint" && (l.to.port==="url" || l.to.port==="mode")){
+            inp[l.to.port] = v;
+            continue;
+          }
+          fieldOverrides[l.to.port] = v;
         }
         let rn = Object.keys(fieldOverrides).length ? { ...n, fields:{...n.fields, ...fieldOverrides} } : n;
         // vframes: re-clamp the frame count up to the highest wired frameK port (wiredFramesFloor).
