@@ -6318,12 +6318,37 @@ window.NoodleApp = (function () {
     const v = per[size] ?? per.square ?? per.square_hd ?? Object.values(per)[0];
     return (v!=null && isFinite(+v)) ? +v*(count||1) : null;
   }
+  // Live Choice/Text value on a field in-port — twin of index.html wiredFieldValue.
+  // Lets "~$ / run" price the model id a Choice wire will send (not the leftover fields.model).
+  function wiredFieldValuePlay(n, port){
+    const g = STATE && STATE.graph; if(!g || !g.links) return null;
+    for(const l of g.links){
+      if(l.to.node!==n.id || l.to.port!==port) continue;
+      const src = (g.nodes || []).find(x=> x.id===l.from.node);
+      if(!src) return "<wired "+port+">";
+      if(src.fields){
+        if(typeof src.fields.selected==="string" && src.fields.selected.trim()) return src.fields.selected;
+        if(typeof src.fields.text==="string" && src.fields.text.trim()) return src.fields.text;
+      }
+      if(src.out && src.out[l.from.port]!=null && src.out[l.from.port]!=="") return src.out[l.from.port];
+      return "<wired "+port+">";
+    }
+    return null;
+  }
+  function effectiveModelFieldsPlay(n){
+    const w = wiredFieldValuePlay(n, "model");
+    if(w == null || w === "" || String(w).indexOf("<wired ") === 0) return n.fields || {};
+    const id = String(w).trim();
+    if(n.fields && n.fields.model === id) return n.fields;
+    return Object.assign({}, n.fields || {}, { model: id });
+  }
   // one node's USD/run from its chosen model + settings (pricing pulled from the public catalog)
   async function nodeUnitUsdPlay(n){
     const kind = SETTING_MODEL_KIND[n.type]; if(!kind) return null;
-    const id = n.fields && n.fields.model; if(!id) return null;
+    const f = effectiveModelFieldsPlay(n);
+    const id = f && f.model; if(!id) return null;
     const m = await rawCatItem(kind, id); if(!m) return null;
-    const pricing = m.pricing, f = n.fields || {};
+    const pricing = m.pricing;
     if(kind==="image"){ const sp=m.supported_parameters||{}, maxOut=sp.max_output_images||1, fixed=sp.fixed_image_count||0;
       // match the billed image count (genImage bills unit×urls.length): fixed_image_count models always return N;
       // otherwise clamp requested variations to the model's real max so an over-set count can't inflate the forecast.
