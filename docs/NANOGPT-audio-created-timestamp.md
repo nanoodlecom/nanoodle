@@ -1,11 +1,17 @@
 # Feature request — audio-models catalog has no recency signal (`created` is stamped at response time)
 
+> **See also:** `NANOGPT-catalog-created-timestamps.md` (2026-09-16) — the combined four-catalog
+> version of this ask: audio's uniform response-time stamp plus the ~94 chat / ~84 image / ~12 video
+> rows still on the `2024-01-01` (`1704067200`) sentinel. This note is kept as the audio-specific
+> record.
+
 **Endpoint:** `GET /api/v1/audio-models`
 
 **Summary:** every model in the audio catalog returns the **same** `created` value, and that value
 is the time of the request, not the model's release date. Verified 2026-07-05: all 78 models
 reported `created: 1783314578` (≈ the moment the response was generated); a second request minutes
-later returns a different — but again uniform — stamp.
+later returns a different — but again uniform — stamp. Re-verified 2026-09-16: still uniform across
+~89 models, still tracking request time rather than any release date.
 
 The other catalogs carry real per-model timestamps (same-day check: chat 175 distinct values across
 603 models, image 56/203, video 75/136). Audio is the only one with zero recency data.
