@@ -545,6 +545,34 @@ console.log("• live localhost chat server");
     "videoFailText falls back when error is a mute object");
 }
 
+// ---- Create-app preview CSP must allow Custom endpoint hosts -----------------
+// withPreamble seals the sandboxed srcdoc connect-src. It MUST read APP_STATE.graph
+// (builder chrome). RUNTIME STATE is only mounted inside the iframe — typeof STATE
+// in the parent is always undefined, so a STATE read never adds https://httpbingo.org
+// and Create-app Run CSP-blocks the $0 echo.
+{
+  const fn = extractFn(PLAY, "previewCspForGraph");
+  const preamble = extractFn(PLAY, "withPreamble");
+  ok(/APP_STATE\s*&&\s*APP_STATE\.graph/.test(preamble),
+    "withPreamble seals preview CSP from APP_STATE.graph (not RUNTIME STATE)");
+  ok(!/typeof STATE!==\"undefined\"\s*&&\s*STATE\s*&&\s*STATE\.graph/.test(preamble),
+    "withPreamble must not read undeclared RUNTIME STATE for preview CSP");
+  const ctx = { URL };
+  vm.createContext(ctx);
+  vm.runInContext(fn + "\n;this.previewCspForGraph=previewCspForGraph;", ctx);
+  const empty = ctx.previewCspForGraph(null);
+  ok(/127\.0\.0\.1:\*/.test(empty) && /localhost:\*/.test(empty),
+    "preview CSP always allows localhost wildcards");
+  ok(!/httpbingo/.test(empty), "null graph does not invent httpbingo");
+  const withHost = ctx.previewCspForGraph({
+    nodes: [{ type: "endpoint", fields: { url: "https://httpbingo.org", mode: "json" } }],
+  });
+  ok(/https:\/\/httpbingo\.org/.test(withHost),
+    "preview CSP includes Custom endpoint origin from fields.url");
+  ok(/connect-src 'self' blob: https:\/\/nano-gpt.com/.test(withHost),
+    "preview CSP keeps the sealed nano-gpt baseline");
+}
+
 // The HTTP echo tutorial was retired from the curated gallery. Endpoint routing,
 // including Choice-shaped url/mode values, remains covered by the runtime checks above.
 
