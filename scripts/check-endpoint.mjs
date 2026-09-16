@@ -182,6 +182,22 @@ eq(S.endpointResolveTarget({ fields: { url: "https://httpbingo.org/post", mode: 
   { url: "https://httpbingo.org/anything", mode: "json" },
   "mode · /path keeps json and joins the path");
 
+// runGroup must pass endpoint url/mode wires via inp — NOT fieldOverrides.
+// Stomping fields.url with "/post" loses the typed host; refreshEndpointUI still
+// looks fine (it builds inp without stomping), then Run throws "URL isn't allowed".
+{
+  const stomped = S.endpointResolveTarget({ fields: { url: "/post", mode: "/post" } }, {});
+  ok(S.endpointUrlOk(stomped.url) !== true,
+    "stomped fields.url=/post alone is rejected (the gallery echo bug if runGroup overrides)");
+  const viaInp = S.endpointResolveTarget(
+    { fields: { url: "https://httpbingo.org", mode: "json" } },
+    { url: "/post", mode: "/post" },
+  );
+  eq(viaInp, { url: "https://httpbingo.org/post", mode: "json" },
+    "runGroup-correct: path wires ride inp; typed host stays in fields");
+  ok(S.endpointUrlOk(viaInp.url) === true, "joined httpbingo echo URL is allowed");
+}
+
 // ---- response parse -----------------------------------------------------------
 eq(S.endpointParseChat({ choices: [{ message: { content: "ok" } }] }), { text: "ok" }, "chat completions parse");
 eq(S.endpointParseImage({ data: [{ b64_json: "abc" }] }), { image: "data:image/png;base64,abc", images: ["data:image/png;base64,abc"] },
