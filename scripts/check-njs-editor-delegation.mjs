@@ -173,7 +173,7 @@ function makeCtx({ flagOn, key = "test-api-key", drifted = false, spy = [], dire
     normChat: (x) => x, normImg: (x) => x, normVideo: (x) => x, normAudio: (x) => x,
     SIZES: [["1024x1024", "square"]],
     EST: { chatImageUsd: 0.14 },
-    NODE_TYPES: { llm: { audioInput: "audio_input", modelKind: "chat" }, image: { modelKind: "image" }, edit: { modelKind: "image" } },
+    NODE_TYPES: { llm: { imageInputs: "vision", audioInput: "audio_input", modelKind: "chat" }, image: { modelKind: "image" }, edit: { modelKind: "image" } },
     // normalized catalog (the editor helpers' view): capability flags flattened, maxOut for the gallery clamp
     catalogs: { chat: [{ id: "x" }], image: [{ id: "x", maxOut: 9, sizePrices: {} }], video: [], audio: [] },
     loraParams: () => ({}), needsCustomCivitai: () => false, airModelTakesNegative: () => false,
@@ -334,6 +334,18 @@ for (const [name, type, fields, inp, directive] of SCENARIOS) {
   assert.notEqual(rf("vedit", { model: "x", prompt: "p" }, { video: IMG }), null, "vedit without refs delegates (library ref/dims parity landed)");
   assert.notEqual(rf("remix", { model: "x", prompt: "p" }, { audio: "blob:null/abc" }), null, "blob: media delegates (the shim materializes it to a data: URL)");
   assert.notEqual(rf("lipsync", { model: "x" }, {}), null, "lipsync delegates (library ladder + ctx.trimAudio landed)");
+  // vision gate (live #563 follow-up: mistral-small-24b-instruct-2501 400'd "does not support
+  // image inputs" when the pre-#566 library POSTed wired images verbatim). nanoodle-js#38 taught
+  // the library runner the same chatModelCan(..., "vision") drop+note the built-ins have, so —
+  // unlike tvideo/vedit refs, where the editor stays permissive-OFF — llm+images DELEGATES on
+  // every catalog state and the drop happens inside the library (proven end-to-end by
+  // check-njs-delegation.mjs's flag-on/flag-off parity scenario, not by a veto here).
+  on.catalogs.chat.push({ id: "mistralai/mistral-small-24b-instruct-2501" });
+  on.catalogs.chat.push({ id: "vision-yes", vision: true });
+  assert.notEqual(rf("llm", { model: "mistralai/mistral-small-24b-instruct-2501", prompt: "p" }, { img1: IMG }), null, "llm with wired images on a known text-only model delegates (the library drops them since nanoodle-js#38)");
+  assert.notEqual(rf("llm", { model: "vision-yes", prompt: "p" }, { img1: IMG }), null, "llm with wired images on a vision model still delegates");
+  assert.notEqual(rf("llm", { model: "typed-in-id", prompt: "p" }, { img1: IMG }), null, "llm with wired images on an uncatalogued model still delegates (permissive on miss)");
+  assert.notEqual(rf("llm", { model: "mistralai/mistral-small-24b-instruct-2501", prompt: "p" }, {}), null, "llm without wired images still delegates even on a text-only model (nothing to strip)");
   on.PENDING_VIDEO.set("n1", { sig: 1, runId: "r1" });   // a BUILT-IN engine's pending job (no njs tag)
   assert.equal(rf("ivideo", { model: "x", prompt: "p" }, { image: IMG }), null, "a built-in pending job keeps the node on the built-in engine (resume, don't re-submit)");
   on.PENDING_VIDEO.set("n1", { sig: 1, runId: "r1", njs: true });

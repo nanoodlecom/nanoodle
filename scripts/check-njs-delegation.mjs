@@ -284,6 +284,50 @@ for (const [name, data, vetoTypes] of VETO_GRAPHS) {
   }
 }
 
+// vision gate on the DEFAULT (njs) paid path: a wired image on a KNOWN text-only model must be
+// stripped before the library sees it — live 400 "does not support image inputs" on
+// mistralai/mistral-small-24b-instruct-2501 (Choice-wired model). Flag-on must equal flag-off
+// (text-only body, no image_url anywhere), and the library runner must still run (strip in the
+// shim thunk, not a veto — vision models keep delegating untouched).
+{
+  const prevChat = catalog.chat.slice();
+  const MISTRAL = "mistralai/mistral-small-24b-instruct-2501";
+  const data = {
+    nodes: [node("u1", "upload", { image: IMG }), node("t1", "text", { text: "Describe" }), node("m1", "llm", { model: MISTRAL, prompt: "hi" })],
+    links: [link("u1", "image", "m1", "img1"), link("t1", "text", "m1", "prompt")],
+  };
+  const imgParts = (c) => (c.body.messages || [])
+    .flatMap((m) => (Array.isArray(m.content) ? m.content : [])).filter((p) => p.type === "image_url");
+  try {
+    catalog.chat = [{ id: MISTRAL, capabilities: {} }];   // present, no vision flag = known text-only (the live shape)
+    const bodies = {};
+    let ran = true;
+    for (const flag of [false, true]) {
+      calls.length = 0;
+      const spy = [];
+      const app = flaggedEngine(flag, spy);
+      await app.runGraph(app.materialize(data), {}).catch(() => {});
+      const chat = calls.filter(paid);
+      if (!chat.length) { failed++; console.log(`✗ llm wired image on text-only (flag ${flag ? "on" : "off"}): no chat POST`); ran = false; break; }
+      bodies[flag ? "on" : "off"] = chat.map(norm).sort();
+      if (flag && !spy.includes("llm")) { failed++; console.log("✗ llm wired image on text-only: library runner never ran (expected strip-in-shim, not veto)"); ran = false; }
+    }
+    if (ran) {
+      if (JSON.stringify(bodies.off) !== JSON.stringify(bodies.on)) {
+        failed++;
+        console.log(`✗ llm wired image on text-only: flag-on requests differ from flag-off\n  off: ${bodies.off.join("\n       ")}\n  on:  ${bodies.on.join("\n       ")}`);
+      } else if (calls.filter(paid).some((c) => imgParts(c).length)) {
+        failed++;
+        console.log("✗ llm wired image on text-only: an image_url part was posted to a text-only model");
+      } else {
+        console.log("✓ llm wired image on text-only → text-only body on both engines (no image_url, still delegated)");
+      }
+    }
+  } finally {
+    catalog.chat = prevChat;
+  }
+}
+
 const total = GRAPHS.length + VETO_GRAPHS.length;
 if (failed) {
   console.log(`\n${failed}/${total} delegation scenarios failed`);
