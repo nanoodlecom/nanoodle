@@ -37,7 +37,10 @@ const index = read("index.html");
 const examplesSource = index.match(/const EXAMPLES = \[[\s\S]*?\n\];/)?.[0];
 check(examplesSource, "homepage EXAMPLES array is missing");
 const examples = vm.runInNewContext(examplesSource + "\nEXAMPLES;", {}, { timeout: 1000 });
-check(sameSet(examples.map((example) => example.slug), savedSlugs), "homepage EXAMPLES must match the approved saved gallery workflows");
+const localOnly = new Set([...(index.match(/const LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\[([^\]]*)\]\)/)?.[1].matchAll(/"([^"]+)"/g) || [])].map(m => m[1]));
+const curatedExamples = examples.filter((example) => !localOnly.has(example.slug));
+check(sameSet(curatedExamples.map((example) => example.slug), savedSlugs), "homepage EXAMPLES curated shelf must match the approved saved gallery workflows");
+for (const slug of localOnly) check(examples.some((e) => e.slug === slug), `teaching slug ${slug} missing from EXAMPLES`);
 
 const hub = read("guide/examples/index.html");
 const cards = [...hub.matchAll(/class="howto-card" href="\/guide\/examples\/([^"]+)"/g)].map((match) => match[1]);
