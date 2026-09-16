@@ -12631,7 +12631,12 @@ function explicitLang(){
 // enters the graph, so it can't dirty appHandoffSig / contentSig / a version signature.
 function bakedAppLang(){ return (typeof APP_STATE!=="undefined" && APP_STATE && APP_STATE.lang) || explicitLang(); }
 function withPreamble(html){
-  const csp = previewCspForGraph(typeof STATE!=="undefined" && STATE && STATE.graph);
+  // Builder chrome owns the graph on APP_STATE — RUNTIME_JS's STATE lives only inside
+  // the sandboxed srcdoc (and is never mounted in the parent). Using STATE here always
+  // resolved to undefined, so Custom endpoint hosts (e.g. https://httpbingo.org) never
+  // entered preview connect-src and Create-app Run failed with a CSP-blocked fetch while
+  // the empty "fill in the inputs" card stayed up.
+  const csp = previewCspForGraph(typeof APP_STATE!=="undefined" && APP_STATE && APP_STATE.graph);
   const pre = '<script>window.NOODLE_LANG=' + JSON.stringify(parentLang()) + ';<\/script>' + csp + PREVIEW_SHIMS;
   if(/<head[^>]*>/i.test(html))     return html.replace(/<head[^>]*>/i, (m)=> m + pre);
   if(/<!doctype[^>]*>/i.test(html)) return html.replace(/<!doctype[^>]*>/i, (m)=> m + pre);
