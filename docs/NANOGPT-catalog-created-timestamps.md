@@ -51,6 +51,6 @@ no client-side signal that recovers the truth — unlike e.g. the prompt-cap gap
 **Our workaround (client-side, shipping meanwhile):** for audio, when `created` ties we reverse the
 catalog's native family order (the audio API lists older lines first and appends newer ones later)
 and sort version-descending within a family — which surfaces late-added lines (Mureka v9.5, MiniMax
-Music 3) above early ones under "Newest". For sentinel rows we treat `1704067200` as "date unknown"
-rather than as January 2024. Both are heuristics that go stale the moment a model is added; real
-per-model `created` stamps would delete them.
+Music 3) above early ones under "Newest". Sentinel rows (`1704067200`) still sort as ancient today —
+we do not special-case them client-side — so real per-model `created` stamps (or omit/`null` when
+unknown) remain the fix.
