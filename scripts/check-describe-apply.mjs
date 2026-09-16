@@ -410,12 +410,12 @@ function selfTest() {
       to:   'for(const p of []) if(p.type==="textarea" && !out.includes(p.id)) out.push(p.id);' },
     { name: "contract-missing-type", need: /CONTRACT COVERAGE: node type "comment"/,
       // drop the comment entry from the planner contract — the PR #259 bug reintroduced
-      from: '    comment:{ fields:{ text:"the note text" } },',
+      from: '    comment:{ fields:{ text:"the note text", color:"yellow|pink|green|blue|purple|gray" } },',
       to:   "" },
     { name: "contract-dead-entry", need: /CONTRACT COVERAGE: DESC_FIELDS entry "commment"/,
       // typo the type name — the entry goes dead AND the real type loses coverage
-      from: '    comment:{ fields:{ text:"the note text" } },',
-      to:   '    commment:{ fields:{ text:"the note text" } },' },
+      from: '    comment:{ fields:{ text:"the note text", color:"yellow|pink|green|blue|purple|gray" } },',
+      to:   '    commment:{ fields:{ text:"the note text", color:"yellow|pink|green|blue|purple|gray" } },' },
     { name: "deletion-respected", need: /DELETION RESPECTED/,
       // the pre-04520f1 regression: merge ALL old fields under the planner's, resurrecting
       // a field the planner deliberately omitted (audit M4)
