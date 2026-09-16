@@ -23,6 +23,14 @@ const localOnlyMatch = idx.match(/const LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\[([
 assert.ok(localOnlyMatch, 'LOCAL_ONLY_EXAMPLE_SLUGS missing — teaching cards need an explicit list');
 const LOCAL_ONLY = new Set([...localOnlyMatch[1].matchAll(/"([^"]+)"/g)].map(m => m[1]));
 assert.ok(LOCAL_ONLY.has('custom-endpoint'), 'custom-endpoint must stay a teaching-only card');
+const syncSrc = readFileSync(join(ROOT, 'scripts/sync-examples.mjs'), 'utf8');
+const syncOnlyMatch = syncSrc.match(/const LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\[([^\]]*)\]\)/);
+assert.ok(syncOnlyMatch, 'sync-examples.mjs must declare LOCAL_ONLY_EXAMPLE_SLUGS');
+assert.deepEqual(
+  [...new Set([...syncOnlyMatch[1].matchAll(/"([^"]+)"/g)].map(m => m[1]))].sort(),
+  [...LOCAL_ONLY].sort(),
+  'index.html LOCAL_ONLY_EXAMPLE_SLUGS must match scripts/sync-examples.mjs or a teaching card syncs as a gallery hole (or a curated card loses See result)',
+);
 
 const slugs = new Set(examples.map(e => e.slug));
 assert.equal(slugs.size, examples.length, 'duplicate example card');
@@ -64,6 +72,12 @@ for (const ex of examples) {
     assert.ok(ep, `${ex.slug}: teaching card needs an endpoint node`);
     assert.ok(ex.graph.links.some(l => l.to.node === ep.id && l.to.port === 'url'),
       `${ex.slug}: Choice must wire into endpoint.url so the path picker retargets the POST`);
+    const receipt = ex.graph.nodes.find(n => n.type === 'text');
+    assert.ok(receipt, `${ex.slug}: teaching card needs a Receipt text node`);
+    assert.ok(ex.graph.links.some(l => l.from.node === receipt.id && l.to.node === ep.id && l.to.port === 'text'),
+      `${ex.slug}: Receipt must wire into endpoint.text so first-click POSTs the body`);
+    assert.ok(ex.graph.links.some(l => l.from.node === receipt.id && l.to.node === ep.id && l.to.port === 'prompt'),
+      `${ex.slug}: Receipt must wire into endpoint.prompt so json-mode peels the same line`);
     continue;
   }
   file(vm.runInNewContext(thumbExpr, { ex, encodeURIComponent, LOCAL_ONLY_EXAMPLE_SLUGS: LOCAL_ONLY }));
