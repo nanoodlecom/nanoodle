@@ -8150,7 +8150,14 @@ function mp4ParamsMatch(bufs){
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         if(!prompt) throw new Error("no prompt");
         const model = mdl(n);
-        const imgs = collectImageInputs(inp);   // wired image ports (vision models) — sent alongside the prompt
+        // Wired image ports: a text-only chat model can't see the pictures and NanoGPT still
+        // bills the image tokens, so drop them for a KNOWN text-only model and note it — mirrors
+        // the editor's modelSupportsImages gate (permissive for typed-in/offline ids, so only a
+        // known-incapable model trips it; twin of the audio gate below).
+        const allImgs = collectImageInputs(inp);   // wired image ports (vision models) — sent alongside the prompt
+        const seesImages = await chatModelCan(model, "vision");
+        const imgs = seesImages ? allImgs : [];
+        if(allImgs.length && !seesImages && onProgress) onProgress("image(s) ignored — this model is text-only");
         // Wired audio port: a text-only chat model can't hear the clip and NanoGPT still bills the (large
         // ~32k-token) input_audio part, so drop it for a KNOWN text-only model and note it — mirrors the
         // editor's modelSupportsAudio gate (permissive for typed-in/offline ids, so only a known-incapable

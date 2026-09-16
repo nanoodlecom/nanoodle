@@ -116,7 +116,7 @@ const REAL = [
   grab(/const REF_PORT_RE = \/[^\n]*;/, "REF_PORT_RE"),
   grab(/const IMG_INPUT_ROLES = \{[^\n]*\};/, "IMG_INPUT_ROLES"),   // njsRunFor's role-model veto reads it
   extractFn("withLocale"), extractFn("collectImageInputs"), extractFn("llmOpts"),
-  extractFn("chatModelCan"), extractFn("modelSupportsAudio"), extractFn("audioInputPart"),
+  extractFn("chatModelCan"), extractFn("modelSupportsImages"), extractFn("modelSupportsAudio"), extractFn("audioInputPart"),
   extractConst("IMAGE_ASPECT"), extractFn("imageAspectSpec"),
   extractFn("imgExtra"), extractFn("b64ImageMime"), extractFn("imageUnitUsd"),
   extractFn("authHeaders"), extractFn("sigHash"),
