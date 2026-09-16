@@ -90,6 +90,7 @@ function buildModule(src) {
     const P = (name)=> '<textarea data-f="' + name + '"></textarea>';   // one wirable field port
     const NODE_TYPES = {
       text:{ outputs:[{name:"text",type:"text"}], body:()=> P("text") },
+      choice:{ outputs:[{name:"text",type:"text"}], body:()=> "" },
       edit:{ modelKind:true, imageInputs:{multi:true}, outputs:[{name:"image",type:"image"}], body:()=> P("system")+P("prompt") },
       llm:{ modelKind:true, imageInputs:"vision", audioInput:"audio_input", outputs:[{name:"text",type:"text"}], body:()=> P("system")+P("prompt") },
       image:{ modelKind:true, outputs:[{name:"image",type:"image"}], body:()=> P("prompt") },
@@ -326,6 +327,26 @@ function runInvariants(mod) {
       links: [{ from: "n1.text", to: "n2.auth" }] };
     if (validate(bogusEp).ok)
       F.push("ENDPOINT FIELD PORTS: a wire into endpoint.auth was accepted — auth must stay unwired");
+  }
+
+  // 9. MODEL FIELD PORTS — every modelKind node exposes a wirable model input (hidden twin of
+  //    .modelpick via modelFieldHTML). validate must accept Choice → llm.model or a copilot plan
+  //    that swaps the paid model id is rejected as a phantom port.
+  {
+    const modelWire = { nodes: [{ id: "n1", type: "choice", fields: {} }, { id: "n2", type: "llm", fields: {} }],
+      links: [{ from: "n1.text", to: "n2.model" }] };
+    if (!validate(modelWire).ok)
+      F.push(`MODEL FIELD PORTS: a wire into llm.model was wrongly rejected (${validate(modelWire).errs.join("; ")})`);
+
+    const imgModel = { nodes: [{ id: "n1", type: "text", fields: {} }, { id: "n2", type: "image", fields: {} }],
+      links: [{ from: "n1.text", to: "n2.model" }] };
+    if (!validate(imgModel).ok)
+      F.push(`MODEL FIELD PORTS: a wire into image.model was wrongly rejected (${validate(imgModel).errs.join("; ")})`);
+
+    const epModel = { nodes: [{ id: "n1", type: "text", fields: {} }, { id: "n2", type: "endpoint", fields: {} }],
+      links: [{ from: "n1.text", to: "n2.model" }] };
+    if (!validate(epModel).ok)
+      F.push(`MODEL FIELD PORTS: a wire into endpoint.model was wrongly rejected (${validate(epModel).errs.join("; ")})`);
   }
 
   return F;
