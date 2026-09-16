@@ -36,10 +36,12 @@ class El {
     this.tagName = tag.toUpperCase();
     this._cls = new Set((cls || "").split(/\s+/).filter(Boolean));
     this.dataset = dataset || {};
-    this.disabled = false; this.children = []; this.parentElement = null;
+    this.disabled = false; this.hidden = false; this.children = []; this.parentElement = null;
     ALL.push(this);
   }
   get classList() { const s = this._cls; return { add: (c) => s.add(c), remove: (c) => s.delete(c), contains: (c) => s.has(c) }; }
+  get innerHTML() { return this._html || ""; }
+  set innerHTML(v) { this._html = String(v); }
   append(c) { c.parentElement = this; this.children.push(c); return c; }
   remove() {
     if (this.parentElement) this.parentElement.children = this.parentElement.children.filter((x) => x !== this);
@@ -97,6 +99,8 @@ const ctx = {
   refreshImageInputs: () => {}, recompactImageLinks: () => {},  // not exercised in this scenario
   refreshVideoInputs: () => {}, recompactVideoLinks: () => {},  // combine's clip-port helpers — not exercised here
   refreshPromptCaps: () => {},   // prompt-room notes (PROMPT LENGTH CAPS) — DOM chrome, not port wiring
+  esc: (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c])),
+  NODE_TYPES: { text: { title: "Text" }, choice: { title: "Choice" }, llm: { title: "LLM" } },
 };
 ctx.byId = (id) => ctx.graph.nodes.find((n) => n.id === id);
 vm.createContext(ctx);
@@ -118,8 +122,42 @@ ok(ctx.graph.links.length === 0, "removeNode should drop the link");
 ok(textarea.disabled === false, "after removing its source node, the prompt textarea must be ENABLED");
 ok(!textarea._cls.has("wired"), "after removal the textarea must lose the 'wired' lock class");
 
+// ---- scenario 2: Choice → LLM model (hidden input + .modelpick) -----------
+// Wipe scenario-1 nodes from ALL by keeping only freshly built elements via a
+// fresh graph. Reuse the same fake DOM helpers.
+const wrap2 = new El("div", "");
+const fieldport2 = wrap2.append(new El("i", "port text fieldport", { node: "m2", port: "model", dir: "in" }));
+const modelInput = wrap2.append(new El("input", "wired", { f: "model" }));
+modelInput.disabled = true; modelInput.hidden = true;
+const modelPick = wrap2.append(new El("button", "modelpick", {}));
+modelPick.hidden = true; modelPick.disabled = true;
+const chip2 = wrap2.append(new El("span", "wire-chip", {}));
+chip2.hidden = false;
+new El("i", "port text", { node: "c1", port: "text", dir: "out" });
+
+const m2El = new El("div", ""); m2El.append(wrap2);
+const c1El = new El("div", "");
+
+ctx.graph = {
+  nodes: [{ id: "c1", type: "choice", el: c1El, fields: { selected: "anthropic/claude-fable-5.1" } },
+          { id: "m2", type: "llm", el: m2El, fields: { model: "z-ai/glm-5.3-flash" } }],
+  links: [{ id: "l2", from: { node: "c1", port: "text" }, to: { node: "m2", port: "model" } }],
+};
+ctx.byId = (id) => ctx.graph.nodes.find((n) => n.id === id);
+
+ctx.__t.refreshPortFills();
+ok(modelInput.disabled === true && modelInput._cls.has("wired"), "precondition: wired model input stays locked");
+ok(modelPick.hidden === true && modelPick.disabled === true, "precondition: modelpick hides while model is wired");
+ok(chip2.hidden === false, "precondition: wire-chip shows the Choice source");
+
+ctx.__t.removeNode("c1");
+ok(ctx.graph.links.length === 0, "removeNode should drop the Choice→model link");
+ok(modelInput.disabled === false, "after removing Choice, the model input must be ENABLED");
+ok(!modelInput._cls.has("wired"), "after removal the model input must lose the wired lock");
+ok(modelPick.hidden === false && modelPick.disabled === false, "after removal the modelpick must reappear");
+
 if (failures.length) {
   process.stderr.write("✗ editor link-removal leaves stale field state:\n\n- " + failures.join("\n- ") + "\n");
   process.exit(1);
 }
-process.stdout.write("✓ removing a node unlocks the text field it fed (no stuck-disabled prompt).\n");
+process.stdout.write("✓ removing a node unlocks the text field it fed (prompt + model pick).\n");

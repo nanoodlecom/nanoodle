@@ -23,6 +23,7 @@ const localOnlyMatch = idx.match(/const LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\[([
 assert.ok(localOnlyMatch, 'LOCAL_ONLY_EXAMPLE_SLUGS missing — teaching cards need an explicit list');
 const LOCAL_ONLY = new Set([...localOnlyMatch[1].matchAll(/"([^"]+)"/g)].map(m => m[1]));
 assert.ok(LOCAL_ONLY.has('custom-endpoint'), 'custom-endpoint must stay a teaching-only card');
+assert.ok(LOCAL_ONLY.has('choice-model'), 'choice-model must stay a teaching-only card');
 
 const slugs = new Set(examples.map(e => e.slug));
 assert.equal(slugs.size, examples.length, 'duplicate example card');
@@ -59,11 +60,23 @@ for (const ex of examples) {
     assert.equal(result, '', `${ex.slug}: teaching-only card must hide See result`);
     const models = ex.graph.nodes.filter(n => kinds[n.type]?.kind);
     assert.ok(models.length < 2, `${ex.slug}: teaching card should not look like a multi-model shelf workflow`);
-    // Choice must retarget endpoint url (and mode) — not ride through a join into text.
+    const choice = ex.graph.nodes.find(n => n.type === 'choice');
+    assert.ok(choice, `${ex.slug}: teaching card needs a Choice node`);
+    // Two teaching patterns: Choice → endpoint.url (path picker) OR Choice → model (paid model id).
+    // Never "join the pick into the prompt" — that hides the field-port lesson.
     const ep = ex.graph.nodes.find(n => n.type === 'endpoint');
-    assert.ok(ep, `${ex.slug}: teaching card needs an endpoint node`);
-    assert.ok(ex.graph.links.some(l => l.to.node === ep.id && l.to.port === 'url'),
-      `${ex.slug}: Choice must wire into endpoint.url so the path picker retargets the POST`);
+    const modelTarget = ex.graph.nodes.find(n => kinds[n.type]?.kind);
+    if (ep) {
+      assert.ok(ex.graph.links.some(l => l.to.node === ep.id && l.to.port === 'url'),
+        `${ex.slug}: Choice must wire into endpoint.url so the path picker retargets the POST`);
+    } else if (modelTarget) {
+      assert.ok(ex.graph.links.some(l => l.from.node === choice.id && l.to.node === modelTarget.id && l.to.port === 'model'),
+        `${ex.slug}: Choice must wire into the model field so the pick drives the paid call`);
+      assert.ok(!ex.graph.links.some(l => l.from.node === choice.id && l.to.port === 'prompt'),
+        `${ex.slug}: Choice must not feed the prompt — that is not a model-port demo`);
+    } else {
+      assert.fail(`${ex.slug}: teaching card needs endpoint.url or Choice→model`);
+    }
     continue;
   }
   file(vm.runInNewContext(thumbExpr, { ex, encodeURIComponent, LOCAL_ONLY_EXAMPLE_SLUGS: LOCAL_ONLY }));
