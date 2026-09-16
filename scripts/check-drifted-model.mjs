@@ -86,7 +86,7 @@ const line = (src, needle) => {
   // and switching to a paid context afterwards must still stop before a sender is invoked.
   Object.assign(ctx, {
     CTX: {},
-    collectImageInputs: () => [], modelSupportsAudio: () => false,
+    collectImageInputs: () => [], modelSupportsImages: () => false, modelSupportsAudio: () => false,
     llmOpts: () => ({ response_format: { type: "json_object" } }), chatModelCan: () => false,
     applyDimFields: () => {}, dimDefs: () => [], SIZES: [["1k"]], imgExtra: () => ({}),
     videoDimParams: () => ({}), loraParams: () => ({}),
