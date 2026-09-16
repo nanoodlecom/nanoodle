@@ -12322,10 +12322,12 @@ function parseNanoDepositAddress(raw){
   if(a.length!==65) return null;
   return /^nano_[13456789abcdefghijkmnopqrstuwxyz]+$/.test(a) ? a : null;
 }
-// one check-balance round-trip → { usd, addr } (throws on any failure; addr null when absent/odd)
+// one check-balance round-trip → { usd, addr } (throws on any failure; addr null when absent/odd).
+// The thrown error carries .status for HTTP failures so callers can tell a dead key (401/403 →
+// flagAuth, never a deposit-address toast) from a transient/network failure (retry or link-only text).
 function fetchBalanceInfo(){
   return fetch(`${NANOGPT}/api/check-balance`, { method:"POST", headers:authHeaders(), body:"{}" })
-    .then(r=>{ if(!r.ok) throw new Error("check-balance "+r.status); return r.json(); })
+    .then(r=>{ if(!r.ok){ const e = new Error("check-balance "+r.status); e.status = r.status; throw e; } return r.json(); })
     .then(j=>{
       const raw = j.nanoDepositAddress ?? j.nano_deposit_address ?? j.depositAddress ?? "";
       return { usd: parseFloat(j.usd_balance), addr: parseNanoDepositAddress(raw) };
@@ -12346,7 +12348,16 @@ async function offerRefuel(manual){
   const key = getKey();
   if(!m || !m.hidden || !key) return;
   if(!manual && Date.now() - _refuelClosedAt < 60000) return;   // parallel groups fail together — closing once means closed
-  let info; try{ info = await fetchBalanceInfo(); }catch(_){ info = null; }
+  let info; try{ info = await fetchBalanceInfo(); }catch(e){
+    // A readable 401/403 means the stored key is dead — not a missing deposit address.
+    // Clear it (auth chrome flips back to signed-out) instead of blaming the address / opening top-up.
+    if(e && (e.status===401 || e.status===403)){
+      flagAuth(e);
+      if(manual) toast("your key was rejected — sign in or paste a valid nano-gpt.com key", "err");
+      return;
+    }
+    info = null;
+  }
   if(!info || !info.addr){
     // Manual chip click must never feel like a dead control: surface the failure and
     // open the account top-up page (Nano QR still needs an address from NanoGPT).
@@ -12384,7 +12395,14 @@ function refuelPoll(baseline, key){
         $("refuelmodal").hidden = true; _refuelToken++; return;     // screen belongs to the old key: drop the panel
       }
       if(document.hidden) continue;                                 // background tab → skip this tick
-      let info; try{ info = await fetchBalanceInfo(); }catch(_){ continue; }   // transient failure → try again next tick
+      let info; try{ info = await fetchBalanceInfo(); }catch(e){
+        if(e && (e.status===401 || e.status===403)){   // key died while the panel was open — the QR on
+          flagAuth(e);                                 // screen belongs to a dead account: drop the panel, don't retry
+          $("refuelmodal").hidden = true; _refuelToken++;
+          return;
+        }
+        continue;   // transient failure → try again next tick
+      }
       if(token!==_refuelToken || $("refuelmodal").hidden) return;
       if(isNaN(info.usd)) continue;
       refuelSawBalance(info.usd);
