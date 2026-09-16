@@ -8582,12 +8582,15 @@ function refreshEndpointUI(n){
   if(!n.el || n.type!=="endpoint") return;
   const urlW = endpointWiredField(n, "url");
   const modeW = endpointWiredField(n, "mode");
+  // A Choice/Text wire into the optional model field drives the paid body via runGroup
+  // fieldOverrides — the preview must show that id, not the typed one.
+  const modelW = endpointWiredField(n, "model");
   const inp = {};
   if(urlW != null) inp.url = urlW;
   if(modeW != null) inp.mode = modeW;
   const target = endpointResolveTarget(n, inp);
   const mode = target.mode;
-  const liveN = { fields: Object.assign({}, n.fields, { url: target.url, mode: mode }) };
+  const liveN = { fields: Object.assign({}, n.fields, { url: target.url, mode: mode }, modelW != null ? { model: modelW } : null) };
   const want = endpointWantedInputs(mode);
   const links = (typeof graph!=="undefined" && graph && graph.links) || [];
   n.el.querySelectorAll(".col.in .prow").forEach(row=>{
@@ -8873,6 +8876,9 @@ function removeNode(id){
   if(selected===n) selected=null;
   for(const aid of affected){ const an = byId(aid); if(an){ recompactImageLinks(an); refreshImageInputs(an); recompactVideoLinks(an); refreshVideoInputs(an); } }
   refreshPortFills();   // a textarea fed by the removed node is now unwired — unlock it (don't leave it disabled)
+  // endpoint previews read graph.links — repaint any endpoint whose wires just changed
+  // (typeof guard: check harnesses extract removeNode() without the endpoint UI)
+  if(typeof refreshEndpointUI==="function") graph.nodes.forEach(x=>{ if(x.type==="endpoint") refreshEndpointUI(x); });
   redraw(); save(); updateDelBtn();
 }
 
@@ -9121,6 +9127,9 @@ function removeLink(id){
   if(tn){ recompactImageLinks(tn); refreshImageInputs(tn); recompactVideoLinks(tn); refreshVideoInputs(tn); }   // close any hole, rebuild ports first…
   if(tn?.type==="inpaint") rerenderNode(tn);                   // restore upload/brush UI when a port is unwired
   redraw(); refreshPortFills();                                // …then draw wires to the new ports
+  // the Custom endpoint's live POST preview reads graph.links — repaint it when a wire
+  // is detached (typeof guard: check harnesses may extract removeLink() alone)
+  if(typeof refreshEndpointUI==="function" && tn?.type==="endpoint") refreshEndpointUI(tn);
   save();
 }
 function refreshPortFills(){
@@ -9403,7 +9412,12 @@ function connect(fromNode, fromPort, toNode, toPort){
   refreshImageInputs(tn||{});   // wiring the empty slot grows the next one
   refreshVideoInputs(tn||{});   // …same for the Combine node's clip ports
   if(tn?.type==="inpaint") rerenderNode(tn);   // reflect wired source/mask in the body
-  redraw(); refreshPortFills(); save();
+  redraw(); refreshPortFills();
+  // the Custom endpoint's live POST preview reads graph.links — repaint it when a wire
+  // lands, or dest/req still show the pre-wire target (typeof guard: check harnesses
+  // extract connect() alone, without the endpoint UI)
+  if(typeof refreshEndpointUI==="function" && tn?.type==="endpoint") refreshEndpointUI(tn);
+  save();
   return true;
 }
 
