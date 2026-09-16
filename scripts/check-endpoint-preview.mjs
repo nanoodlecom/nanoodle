@@ -125,9 +125,12 @@ vm.createContext(ctx);
 vm.runInContext(HELPERS, ctx, { filename: "index.html#endpoint" });
 vm.runInContext(
   [
-    grab(/const IMG_PORT_RE = \/[^\n]*;/, "IMG_PORT_RE"),
-    grab(/const EDIT_IMG_RE = \/[^\n]*;/, "EDIT_IMG_RE"),
-    grab(/const VID_PORT_RE = \/[^\n]*;/, "VID_PORT_RE"),
+    grab(/const IMG_PORT_RE = \/[^\n]*;/,
+ "IMG_PORT_RE"),
+    grab(/const EDIT_IMG_RE = \/[^\n]*;/,
+ "EDIT_IMG_RE"),
+    grab(/const VID_PORT_RE = \/[^\n]*;/,
+ "VID_PORT_RE"),
     "let lid = 500;",
     extractFn(SRC, "wiredFieldValue"),
     extractFn(SRC, "endpointWiredField"),
