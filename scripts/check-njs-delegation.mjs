@@ -96,6 +96,39 @@ const GRAPHS = [
     nodes: [node("m1", "music", { model: "mureka-ai/mureka-v9.5/generate-bgm", prompt: "lofi cafe rain" })],
     links: [],
   }, ["music"]],
+  // Anima / H3 LoRA: catalog advertises lora_url_1..3. The generated njs-engine
+  // used to classify *-lora as flux (cap 1) and drop H3 entirely (no "lora" in
+  // the id) — default-ON delegation then billed a wrong payload. Pin both
+  // engines to the numbered-slot shape.
+  ["anima image 3-lora (lora_url_1..3)", {
+    nodes: [node("i1", "image", { model: "wavespeed-ai/anima/text-to-image-lora", prompt: "a fox", variations: "1", loras: [
+      { url: "https://huggingface.co/x/y/resolve/main/a.safetensors", strength: "1" },
+      { url: "https://huggingface.co/x/y/resolve/main/b.safetensors", strength: "0.8" },
+      { url: "https://huggingface.co/x/y/resolve/main/c.safetensors", strength: "0.5" },
+    ] })],
+    links: [],
+  }, ["image"]],
+  ["h3 image lora (ids lack 'lora')", {
+    nodes: [node("i1", "image", { model: "wavespeed-ai/minimax-h3/text-to-image", prompt: "a fox", variations: "1", loras: [
+      { url: "https://huggingface.co/x/y/resolve/main/a.safetensors", strength: "1" },
+    ] })],
+    links: [],
+  }, ["image"]],
+  ["anima tvideo 3-lora (lora_url_1..3)", {
+    nodes: [node("v1", "tvideo", { model: "wavespeed-ai/anima/image-to-video-lora", prompt: "pan", loras: [
+      { url: "https://huggingface.co/x/y/resolve/main/a.safetensors", strength: "1" },
+      { url: "https://huggingface.co/x/y/resolve/main/b.safetensors", strength: "0.8" },
+      { url: "https://huggingface.co/x/y/resolve/main/c.safetensors", strength: "0.5" },
+    ] })],
+    links: [],
+  }, ["tvideo"]],
+  ["h3 video 2-lora", {
+    nodes: [node("v1", "tvideo", { model: "minimax-h3", prompt: "pan", loras: [
+      { url: "https://huggingface.co/x/y/resolve/main/a.safetensors", strength: "1" },
+      { url: "https://huggingface.co/x/y/resolve/main/b.safetensors", strength: "0.8" },
+    ] })],
+    links: [],
+  }, ["tvideo"]],
 ];
 
 // Veto shapes (mirrors check-njs-editor-delegation.mjs): the library doesn't yet match the
