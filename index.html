@@ -1657,8 +1657,6 @@ const I18N = {
     "Custom endpoint":"Endpoint personalizado",
     "custom endpoint":"endpoint personalizado",
     "Choice picks /post or /anything — $0 echo, no key":"Choice elige /post o /anything — eco $0, sin clave",
-    "Pick the chat model":"Elige el modelo de chat",
-    "Choice sets the LLM model id — Fable 5.1 or another current chat model":"Choice fija el id del modelo LLM — Fable 5.1 u otro chat actual",
     "Call a NanoGPT-shaped URL — typically localhost":"Llama a una URL con forma NanoGPT — normalmente localhost",
     "POST to a URL you own — a Choice can pick the path":"POST a una URL tuya — un Choice puede elegir la ruta",
     "A dropdown the app user picks from — the selected line is the value on the wire":"Un desplegable que elige el usuario de la app — la línea seleccionada es el valor del cable",
@@ -2292,8 +2290,6 @@ const I18N = {
     "Custom endpoint":"Endpoint personnalisé",
     "custom endpoint":"endpoint personnalisé",
     "Choice picks /post or /anything — $0 echo, no key":"Choice choisit /post ou /anything — écho 0 $, sans clé",
-    "Pick the chat model":"Choisir le modèle de chat",
-    "Choice sets the LLM model id — Fable 5.1 or another current chat model":"Choice fixe l’id du modèle LLM — Fable 5.1 ou un autre chat actuel",
     "Call a NanoGPT-shaped URL — typically localhost":"Appeler une URL au format NanoGPT — en général localhost",
     "POST to a URL you own — a Choice can pick the path":"POST vers une URL à vous — un Choice peut choisir le chemin",
     "A dropdown the app user picks from — the selected line is the value on the wire":"Un menu que l’utilisateur de l’app choisit — la ligne sélectionnée est la valeur du fil",
@@ -2927,8 +2923,6 @@ const I18N = {
     "Custom endpoint":"Eigener Endpoint",
     "custom endpoint":"eigener Endpoint",
     "Choice picks /post or /anything — $0 echo, no key":"Choice wählt /post oder /anything — $0-Echo, kein Key",
-    "Pick the chat model":"Chat-Modell wählen",
-    "Choice sets the LLM model id — Fable 5.1 or another current chat model":"Choice setzt die LLM-Modell-ID — Fable 5.1 oder ein anderes Chat-Modell",
     "Call a NanoGPT-shaped URL — typically localhost":"Eine NanoGPT-förmige URL aufrufen — typischerweise localhost",
     "POST to a URL you own — a Choice can pick the path":"POST an eine URL von dir — Choice kann den Pfad wählen",
     "A dropdown the app user picks from — the selected line is the value on the wire":"Ein Dropdown, das die App-Nutzerin wählt — die gewählte Zeile ist der Wert auf der Leitung",
@@ -3562,8 +3556,6 @@ const I18N = {
     "Custom endpoint":"Endpoint personalizado",
     "custom endpoint":"endpoint personalizado",
     "Choice picks /post or /anything — $0 echo, no key":"Choice escolhe /post ou /anything — eco $0, sem chave",
-    "Pick the chat model":"Escolher o modelo de chat",
-    "Choice sets the LLM model id — Fable 5.1 or another current chat model":"Choice define o id do modelo LLM — Fable 5.1 ou outro chat atual",
     "Call a NanoGPT-shaped URL — typically localhost":"Chamar uma URL no formato NanoGPT — em geral localhost",
     "POST to a URL you own — a Choice can pick the path":"POST para uma URL sua — um Choice pode escolher o caminho",
     "A dropdown the app user picks from — the selected line is the value on the wire":"Um menu que o usuário do app escolhe — a linha selecionada é o valor do fio",
@@ -4197,8 +4189,6 @@ const I18N = {
     "Custom endpoint":"カスタムエンドポイント",
     "custom endpoint":"カスタムエンドポイント",
     "Choice picks /post or /anything — $0 echo, no key":"Choiceが /post か /anything を選ぶ — $0エコー、キー不要",
-    "Pick the chat model":"チャットモデルを選ぶ",
-    "Choice sets the LLM model id — Fable 5.1 or another current chat model":"ChoiceがLLMのモデルIDを設定 — Fable 5.1など現行チャットモデル",
     "Call a NanoGPT-shaped URL — typically localhost":"NanoGPT形式のURLを呼び出す — 通常はlocalhost",
     "POST to a URL you own — a Choice can pick the path":"自分のURLへPOST — Choiceでパスを選べる",
     "A dropdown the app user picks from — the selected line is the value on the wire":"アプリユーザーが選ぶドロップダウン — 選んだ行が配線の値になる",
@@ -13666,7 +13656,7 @@ refreshUpdatesBadge();
 /* Editor-only teaching cards (not awesome-noodles, not MCP tools).
    Keep in sync with scripts/sync-examples.mjs LOCAL_ONLY_EXAMPLE_SLUGS.
    openExamples hides See result for these so visitors never land on a dead gallery hash. */
-const LOCAL_ONLY_EXAMPLE_SLUGS = new Set(["custom-endpoint", "choice-model"]);
+const LOCAL_ONLY_EXAMPLE_SLUGS = new Set(["custom-endpoint"]);
 const EXAMPLES = [
  { em:"🎞️", slug:"storyboard-relay", title:"Storyboard relay", desc:"Carry a character into a new scene, inspect continuity, repair it once, and review the new frame.",
    thumb:"examples/gallery/storyboard-relay/preview.webp",
@@ -13823,15 +13813,6 @@ const EXAMPLES = [
    links:[ {id:"l1",from:{node:"n2",port:"text"},to:{node:"n5",port:"text"}},
            {id:"l2",from:{node:"n2",port:"text"},to:{node:"n5",port:"prompt"}},
            {id:"l3",from:{node:"n3",port:"text"},to:{node:"n5",port:"url"}} ] } },
- { em:"🧠", slug:"choice-model", title:"Pick the chat model", desc:"Choice sets the LLM model id — Fable 5.1 or another current chat model",
-   thumb:"",
-   graph:{ v:1,
-   nodes:[ {id:"n1",type:"comment",x:40,y:20,w:480,sizes:{text:96},fields:{text:"Choice picks a live chat-model id and wires it into the LLM model field — not into the prompt. Default is Claude Fable 5.1; switch to GLM 5.3 Flash or Fable 5 and Run uses that model. Text feeds the scene brief.",color:"yellow"},name:"How this works"},
-           {id:"n2",type:"text",x:40,y:260,w:300,fields:{text:"A tiny midnight ramen cart gets one impossible order: a paper moon that tastes like thunder. Keep it playful, vivid, and under 120 words."},name:"Scene seed"},
-           {id:"n3",type:"choice",x:40,y:520,w:300,fields:{options:"anthropic/claude-fable-5.1\nz-ai/glm-5.3-flash\nanthropic/claude-fable-5",selected:"anthropic/claude-fable-5.1"},name:"Chat model"},
-           {id:"n4",type:"llm",x:420,y:280,w:360,fields:{model:"anthropic/claude-fable-5.1",system:"Write one compact, playful scene from the supplied brief. Keep it vivid and under 120 words. Output only the scene, no preamble.",maxTokens:"256",reasoningEffort:"low"},name:"Scene"} ],
-   links:[ {id:"l1",from:{node:"n2",port:"text"},to:{node:"n4",port:"prompt"}},
-           {id:"l2",from:{node:"n3",port:"text"},to:{node:"n4",port:"model"}} ] } },
 ];
 /* ---- 🏆 community shelf data — hand-curated, edited in place (no fetch, no build step).
    `top` = up to 3 podium spots for whatever earns the spotlight.
@@ -13886,8 +13867,6 @@ function openExamples(){
     const resultLabel=ex.slug==="character-sprites"?"Play the game":"See result";
     const preview=ex.slug==="custom-endpoint"
       ? '<blockquote class="ex-quote" data-no-i18n>Choice picks the path: <code>/post</code> or <code>/anything</code>. $0 public echo.</blockquote>'
-      : ex.slug==="choice-model"
-      ? '<blockquote class="ex-quote" data-no-i18n>Choice picks <code>anthropic/claude-fable-5.1</code> — the wire sets the LLM <b>model</b> field.</blockquote>'
       : `<img class="ex-im" src="${thumb}" alt="" loading="lazy"/>`;
     const previewWrap=result?`<a class="ex-preview" href="${result}" target="_blank" rel="noopener" aria-label="${esc(t(resultLabel)+": "+t(ex.title))}">${preview}</a>`:`<div class="ex-preview">${preview}</div>`;
     const see=result?`<a href="${result}" target="_blank" rel="noopener">${esc(t(resultLabel))} ↗</a>`:"";
