@@ -179,8 +179,8 @@ function makeCtx({ flagOn, key = "test-api-key", drifted = false, spy = [], dire
     NODE_TYPES: { llm: { imageInputs: "vision", audioInput: "audio_input", modelKind: "chat" }, image: { modelKind: "image" }, edit: { modelKind: "image" } },
     // normalized catalog (the editor helpers' view): capability flags flattened, maxOut for the gallery clamp
     catalogs: { chat: [{ id: "x" }], image: [{ id: "x", maxOut: 9, sizePrices: {} }], video: [], audio: [] },
-    // loraParams comes from the extracted index.html helpers above (qwen21
-    // numbered slots). needsCustomCivitai stays stubbed — no AIR fixtures here.
+    // loraParams comes from the extracted index.html helpers above (Anima/H3/
+    // qwen21 numbered slots). needsCustomCivitai stays stubbed — no AIR fixtures here.
     needsCustomCivitai: () => false, airModelTakesNegative: () => false,
     MEDIA_INLINE_MAX: 4.4 * 1024 * 1024,
   };
@@ -205,6 +205,30 @@ const SCENARIOS = [
   ["image seed", "image", { model: "x", prompt: "a fox", seed: "7" }, {}, null],
   ["image fibo aspect", "image", { model: "bria/fibo-generate-1.5/text-to-image", prompt: "studio still", size: "1mp", aspect: "16:9" }, {}, null],
   ["edit multi-ref", "edit", { model: "x", prompt: "merge" }, { image: IMG, image2: IMG }, null],
+  // blob: audio must reach the model as base64 BYTES on both paths: built-in inlines via
+  // urlToDataUrl, the shim materializes before the library runner ("y" is catalog-absent, so
+  // the audio-input gate stays permissive on both engines)
+  ["llm blob audio inlined", "llm", { model: "y", system: "", prompt: "what is said?" }, { audio: "blob:vm/clip" }, null],
+  // Anima / H3 image LoRA: editor built-in (#548) and njs-engine (#571) must both
+  // POST numbered slots. Equality alone still passes if both regress to flux.
+  ["anima image 3-lora", "image", { model: "wavespeed-ai/anima/text-to-image-lora", prompt: "a fox", variations: "1", loras: [
+    { url: "https://huggingface.co/x/y/resolve/main/a.safetensors", strength: "1" },
+    { url: "https://huggingface.co/x/y/resolve/main/b.safetensors", strength: "0.8" },
+    { url: "https://huggingface.co/x/y/resolve/main/c.safetensors", strength: "0.5" },
+  ] }, {}, null, {
+    must: {
+      lora_url_1: "https://huggingface.co/x/y/resolve/main/a.safetensors", lora_scale_1: 1,
+      lora_url_2: "https://huggingface.co/x/y/resolve/main/b.safetensors", lora_scale_2: 0.8,
+      lora_url_3: "https://huggingface.co/x/y/resolve/main/c.safetensors", lora_scale_3: 0.5,
+    },
+    forbid: ["lora_url", "lora_strength"],
+  }],
+  ["h3 image lora (ids lack 'lora')", "image", { model: "wavespeed-ai/minimax-h3/text-to-image", prompt: "a fox", variations: "1", loras: [
+    { url: "https://huggingface.co/x/y/resolve/main/a.safetensors", strength: "1" },
+  ] }, {}, null, {
+    must: { lora_url_1: "https://huggingface.co/x/y/resolve/main/a.safetensors", lora_scale_1: 1 },
+    forbid: ["lora_url", "lora_strength"],
+  }],
   // Qwen Image 2.1 LoRA (2026-09-21): editor built-in + njs-engine must both
   // POST numbered slots. Equality alone still passes if both regress to flux.
   ["qwen21 t2i 3-lora", "image", { model: "wavespeed-ai/qwen-image-2.1/text-to-image-lora", prompt: "a fox", variations: "1", loras: [
@@ -235,10 +259,6 @@ const SCENARIOS = [
     must: {},
     forbid: ["lora_url", "lora_url_1", "lora_strength"],
   }],
-  // blob: audio must reach the model as base64 BYTES on both paths: built-in inlines via
-  // urlToDataUrl, the shim materializes before the library runner ("y" is catalog-absent, so
-  // the audio-input gate stays permissive on both engines)
-  ["llm blob audio inlined", "llm", { model: "y", system: "", prompt: "what is said?" }, { audio: "blob:vm/clip" }, null],
 ];
 const norm = (c) => JSON.stringify(c);
 
