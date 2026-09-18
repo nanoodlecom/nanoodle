@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Choice → model wire must drive "~$ to run" / node price chips — not leftover fields.model.
-// Live repro (2026-09-16): Pick the chat model teaching card, flip Choice to glm-5.3-flash;
+// Live repro (2026-09-16): Choice→model graph, flip Choice to glm-5.3-flash;
 // runest stayed ~$0.02 (Fable) instead of dropping to <$0.01.
 import fs from "node:fs";
 import path from "node:path";
