@@ -119,6 +119,9 @@ const REAL = [
   extractFn("chatModelCan"), extractFn("modelSupportsImages"), extractFn("modelSupportsAudio"), extractFn("audioInputPart"),
   extractConst("IMAGE_ASPECT"), extractFn("imageAspectSpec"),
   extractFn("imgExtra"), extractFn("b64ImageMime"), extractFn("imageUnitUsd"),
+  extractFn("normalizeLoraUrl"), extractFn("loraFamily"), extractFn("loraKind"),
+  extractFn("imageTakesLora"), extractFn("modelTakesLora"), extractFn("loraCap"),
+  extractFn("nodeLoras"), extractFn("loraBodyFor"), extractFn("loraParams"),
   extractFn("authHeaders"), extractFn("sigHash"),
   grab(/const catItem = [^\n]*/, "catItem"),
   grab(/const SIZE_FALLBACK\s+= [^\n]*;/, "SIZE_FALLBACK"),
@@ -176,7 +179,9 @@ function makeCtx({ flagOn, key = "test-api-key", drifted = false, spy = [], dire
     NODE_TYPES: { llm: { imageInputs: "vision", audioInput: "audio_input", modelKind: "chat" }, image: { modelKind: "image" }, edit: { modelKind: "image" } },
     // normalized catalog (the editor helpers' view): capability flags flattened, maxOut for the gallery clamp
     catalogs: { chat: [{ id: "x" }], image: [{ id: "x", maxOut: 9, sizePrices: {} }], video: [], audio: [] },
-    loraParams: () => ({}), needsCustomCivitai: () => false, airModelTakesNegative: () => false,
+    // loraParams comes from the extracted index.html helpers above (Anima/H3
+    // numbered slots). needsCustomCivitai stays stubbed — no AIR fixtures here.
+    needsCustomCivitai: () => false, airModelTakesNegative: () => false,
     MEDIA_INLINE_MAX: 4.4 * 1024 * 1024,
   };
   ctx.window = ctx;
@@ -204,11 +209,31 @@ const SCENARIOS = [
   // urlToDataUrl, the shim materializes before the library runner ("y" is catalog-absent, so
   // the audio-input gate stays permissive on both engines)
   ["llm blob audio inlined", "llm", { model: "y", system: "", prompt: "what is said?" }, { audio: "blob:vm/clip" }, null],
+  // Anima / H3 image LoRA: editor built-in (#548) and njs-engine (#571) must both
+  // POST numbered slots. Equality alone still passes if both regress to flux.
+  ["anima image 3-lora", "image", { model: "wavespeed-ai/anima/text-to-image-lora", prompt: "a fox", variations: "1", loras: [
+    { url: "https://huggingface.co/x/y/resolve/main/a.safetensors", strength: "1" },
+    { url: "https://huggingface.co/x/y/resolve/main/b.safetensors", strength: "0.8" },
+    { url: "https://huggingface.co/x/y/resolve/main/c.safetensors", strength: "0.5" },
+  ] }, {}, null, {
+    must: {
+      lora_url_1: "https://huggingface.co/x/y/resolve/main/a.safetensors", lora_scale_1: 1,
+      lora_url_2: "https://huggingface.co/x/y/resolve/main/b.safetensors", lora_scale_2: 0.8,
+      lora_url_3: "https://huggingface.co/x/y/resolve/main/c.safetensors", lora_scale_3: 0.5,
+    },
+    forbid: ["lora_url", "lora_strength"],
+  }],
+  ["h3 image lora (ids lack 'lora')", "image", { model: "wavespeed-ai/minimax-h3/text-to-image", prompt: "a fox", variations: "1", loras: [
+    { url: "https://huggingface.co/x/y/resolve/main/a.safetensors", strength: "1" },
+  ] }, {}, null, {
+    must: { lora_url_1: "https://huggingface.co/x/y/resolve/main/a.safetensors", lora_scale_1: 1 },
+    forbid: ["lora_url", "lora_strength"],
+  }],
 ];
 const norm = (c) => JSON.stringify(c);
 
 let failed = 0;
-for (const [name, type, fields, inp, directive] of SCENARIOS) {
+for (const [name, type, fields, inp, directive, pin] of SCENARIOS) {
   const n = { id: "n1", type, fields };
 
   calls.length = 0;
@@ -238,6 +263,15 @@ for (const [name, type, fields, inp, directive] of SCENARIOS) {
     failed++;
     console.log(`✗ ${name}: node output differs\n  off: ${JSON.stringify(outOff)}\n  on:  ${JSON.stringify(outOn)}`);
     continue;
+  }
+  if (pin) {
+    const img = calls.filter((x) => /images\/generations/.test(x.url)).map((x) => JSON.parse(x.body));
+    const body = img[0];
+    if (!body) { failed++; console.log(`✗ ${name}: no image POST to pin LoRA body`); continue; }
+    const badMust = Object.entries(pin.must || {}).find(([k, v]) => body[k] !== v);
+    if (badMust) { failed++; console.log(`✗ ${name}: ${badMust[0]} expected ${JSON.stringify(badMust[1])}, got ${JSON.stringify(body[badMust[0]])}`); continue; }
+    const leaked = (pin.forbid || []).find((k) => Object.prototype.hasOwnProperty.call(body, k));
+    if (leaked) { failed++; console.log(`✗ ${name}: forbidden ${leaked}=${JSON.stringify(body[leaked])} still posted`); continue; }
   }
   console.log(`✓ ${name} (${reqOn.length} req byte-identical, out identical, delegated: ${[...new Set(spy)].join(",")})`);
 }
