@@ -66,8 +66,17 @@ for (const ex of examples) {
     const ep = ex.graph.nodes.find(n => n.type === 'endpoint');
     const modelTarget = ex.graph.nodes.find(n => kinds[n.type]?.kind);
     if (ep) {
-      assert.ok(ex.graph.links.some(l => l.to.node === ep.id && l.to.port === 'url'),
+      assert.ok(ex.graph.links.some(l => l.from.node === choice.id && l.to.node === ep.id && l.to.port === 'url'),
         `${ex.slug}: Choice must wire into endpoint.url so the path picker retargets the POST`);
+      // #569: Path options are URL segments (/post, /anything) joined onto the
+      // typed host. A leftover Path→mode wire painted "⚡ from Path" while mode
+      // stayed json — a non-driving chip that taught the wrong port.
+      assert.ok(!ex.graph.links.some(l => l.to.node === ep.id && l.to.port === 'mode'),
+        `${ex.slug}: Path must not wire into endpoint.mode — /post and /anything are path segments, not modes`);
+      assert.equal(ep.fields.mode, 'json', `${ex.slug}: typed mode stays json; Path only retargets the URL`);
+      const pathOpts = String(choice.fields.options || '').split('\n').map(s => s.trim()).filter(Boolean);
+      assert.deepEqual(pathOpts, ['/post', '/anything'],
+        `${ex.slug}: Path options must stay URL path segments (not mode names)`);
     } else if (modelTarget) {
       assert.ok(ex.graph.links.some(l => l.from.node === choice.id && l.to.node === modelTarget.id && l.to.port === 'model'),
         `${ex.slug}: Choice must wire into the model field so the pick drives the paid call`);
