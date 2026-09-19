@@ -23,6 +23,15 @@ const localOnlyMatch = idx.match(/const LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\[([
 assert.ok(localOnlyMatch, 'LOCAL_ONLY_EXAMPLE_SLUGS missing — teaching cards need an explicit list');
 const LOCAL_ONLY = new Set([...localOnlyMatch[1].matchAll(/"([^"]+)"/g)].map(m => m[1]));
 assert.ok(LOCAL_ONLY.has('custom-endpoint'), 'custom-endpoint must stay a teaching-only card');
+// #574 had to edit both lists when culling choice-model. sync-examples.mjs
+// treats a card in only one list as extra (or refuses to sync it), so a stale
+// slug here hides See result in the editor while --check still walks it.
+const syncSrc = readFileSync(join(ROOT, 'scripts/sync-examples.mjs'), 'utf8');
+const syncOnlyMatch = syncSrc.match(/const LOCAL_ONLY_EXAMPLE_SLUGS = new Set\(\[([^\]]*)\]\)/);
+assert.ok(syncOnlyMatch, 'sync-examples.mjs LOCAL_ONLY_EXAMPLE_SLUGS missing');
+const SYNC_ONLY = new Set([...syncOnlyMatch[1].matchAll(/"([^"]+)"/g)].map(m => m[1]));
+assert.deepEqual([...SYNC_ONLY].sort(), [...LOCAL_ONLY].sort(),
+  'index.html and sync-examples.mjs LOCAL_ONLY_EXAMPLE_SLUGS must stay lockstep');
 
 const slugs = new Set(examples.map(e => e.slug));
 assert.equal(slugs.size, examples.length, 'duplicate example card');
@@ -68,6 +77,16 @@ for (const ex of examples) {
     if (ep) {
       assert.ok(ex.graph.links.some(l => l.to.node === ep.id && l.to.port === 'url'),
         `${ex.slug}: Choice must wire into endpoint.url so the path picker retargets the POST`);
+      // Receipt is the json/chat body. Dropping both wires posts `{}` and the
+      // $0 echo no longer proves the POST landed. text covers json mode; prompt
+      // covers chat via endpointPrompt.
+      const receipt = ex.graph.nodes.find(n => n.type === 'text' && n.name === 'Receipt');
+      assert.ok(receipt, `${ex.slug}: teaching card needs a Receipt text node`);
+      assert.ok(String(receipt.fields?.text || '').trim(), `${ex.slug}: Receipt must carry a non-empty echo body`);
+      assert.ok(ex.graph.links.some(l => l.from.node === receipt.id && l.to.node === ep.id && l.to.port === 'text'),
+        `${ex.slug}: Receipt must wire into endpoint.text so json mode POSTs the echo body`);
+      assert.ok(ex.graph.links.some(l => l.from.node === receipt.id && l.to.node === ep.id && l.to.port === 'prompt'),
+        `${ex.slug}: Receipt must wire into endpoint.prompt so chat mode still sends the echo`);
     } else if (modelTarget) {
       assert.ok(ex.graph.links.some(l => l.from.node === choice.id && l.to.node === modelTarget.id && l.to.port === 'model'),
         `${ex.slug}: Choice must wire into the model field so the pick drives the paid call`);
