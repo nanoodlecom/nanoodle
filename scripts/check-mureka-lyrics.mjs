@@ -10,6 +10,7 @@
 //   * editor catalog miss still forwards lyrics (send-everything fallback)
 //   * extraJson lyrics still count; whitespace-only does not
 //   * MiniMax Music 3 instrumental still omits empty lyrics and POSTs
+//   * Yue2 text-to-music / music-to-music empty lyrics never POSTs (editor + play)
 //   * audio 400 prefers API error.message; lyrics/invalid_request skip the
 //     "model may have changed" suffix
 //   * editor + play twins of assertGenerateSongLyrics / audioApiMessage
@@ -31,6 +32,8 @@ const SONG = "mureka-ai/mureka-v9.5/generate-song";
 const SONG_O2 = "mureka-ai/mureka-o2/generate-song";
 const BGM = "mureka-ai/mureka-v9.5/generate-bgm";
 const PTS = "mureka-ai/mureka-v9.5/prompt-to-song";
+const YUE2_T2M = "wavespeed-ai/yue2-3b/text-to-music";
+const YUE2_M2M = "wavespeed-ai/yue2-3b/music-to-music";
 const API_400 = '{"error":{"message":"Mureka v9.5 Generate Song requires lyrics","type":"invalid_request_error","code":"invalid_request"}}';
 
 catalog.audio.push(
@@ -38,6 +41,8 @@ catalog.audio.push(
   { id: SONG_O2, supported_parameters: {} },
   { id: BGM, supported_parameters: {} },
   { id: PTS, supported_parameters: {} },
+  { id: YUE2_T2M, supported_parameters: {} },
+  { id: YUE2_M2M, supported_parameters: {} },
   { id: "music3shape", supported_parameters: {} },
   { id: "x", supported_parameters: { voices: ["alloy"], min_duration: 1, max_duration: 300 } },
 );
@@ -152,6 +157,28 @@ function loadHelpers(src) {
     }
     ok(`${name}: BGM / Prompt-to-Song / Music 3 stay omit-empty`);
 
+    // #548: Yue2 catalogs require lyrics (+ style via the prompt). Empty used to POST and 400.
+    for (const id of [YUE2_T2M, YUE2_M2M]) {
+      threw = null;
+      try { h.assertGenerateSongLyrics(id, ""); } catch (e) { threw = e; }
+      if (!threw) fail(`${name}: ${id} + empty lyrics must throw`);
+      else if (!/needs Lyrics/.test(threw.message) || !threw.message.includes(id))
+        fail(`${name}: Yue2 preflight must name ${id} and Lyrics, got ${JSON.stringify(threw.message)}`);
+      else if (!/style is the prompt/i.test(threw.message))
+        fail(`${name}: Yue2 preflight must say style is the prompt, got ${JSON.stringify(threw.message)}`);
+      else ok(`${name}: ${id} + empty lyrics throws a named requirement`);
+
+      threw = null;
+      try { h.assertGenerateSongLyrics(id, "   "); } catch (e) { threw = e; }
+      if (!threw) fail(`${name}: ${id} + whitespace lyrics must throw`);
+      else ok(`${name}: ${id} whitespace-only lyrics count as empty`);
+
+      threw = null;
+      try { h.assertGenerateSongLyrics(id, "[Verse]\nhello"); } catch (e) { threw = e; }
+      if (threw) fail(`${name}: ${id} + lyrics must not throw: ${threw.message}`);
+      else ok(`${name}: ${id} + lyrics is allowed`);
+    }
+
     const msg = h.audioApiMessage(API_400);
     if (msg !== "Mureka v9.5 Generate Song requires lyrics")
       fail(`${name}: audioApiMessage missed error.message, got ${JSON.stringify(msg)}`);
@@ -210,6 +237,22 @@ function loadHelpers(src) {
   const bgm = ctx.collectAudioParams({ type: "music", fields: { model: BGM, prompt: "lofi rain" } });
   if ("lyrics" in bgm) fail(`editor collectAudioParams: BGM must omit empty lyrics, got ${JSON.stringify(bgm)}`);
   else ok("editor collectAudioParams: BGM omits empty lyrics");
+
+  threw = null;
+  try { ctx.collectAudioParams({ type: "music", fields: { model: YUE2_T2M, prompt: "cinematic choir" } }); }
+  catch (e) { threw = e; }
+  if (!threw) fail("editor collectAudioParams: Yue2 text-to-music without lyrics must throw");
+  else if (!/needs Lyrics/.test(threw.message) || !threw.message.includes(YUE2_T2M))
+    fail(`editor collectAudioParams: Yue2 preflight unhelpful: ${JSON.stringify(threw.message)}`);
+  else ok("editor collectAudioParams: Yue2 text-to-music without lyrics throws before POST");
+
+  const yue2 = ctx.collectAudioParams({
+    type: "music",
+    fields: { model: YUE2_T2M, prompt: "cinematic choir", lyrics: "[Verse]\nhello" },
+  });
+  if (yue2.lyrics !== "[Verse]\nhello")
+    fail(`editor collectAudioParams: Yue2 lyrics not forwarded, got ${JSON.stringify(yue2)}`);
+  else ok("editor collectAudioParams: Yue2 text-to-music forwards lyrics");
 }
 
 /* ---- editor collectAudioParams on catalog miss --------------------------- */
@@ -336,6 +379,39 @@ async function runMusic(fields) {
   else if ("lyrics" in posts[0].body)
     fail("Prompt-to-Song must omit empty lyrics");
   else ok("play: Prompt-to-Song POSTs prompt-only");
+}
+
+{
+  const { statuses, posts } = await runMusic({ model: YUE2_T2M, prompt: "cinematic choir" });
+  if (posts.length) fail(`Yue2 text-to-music with no lyrics POSTed ${posts.length} time(s): ${JSON.stringify(posts[0]?.body)}`);
+  else ok("play: Yue2 text-to-music with no lyrics never POSTs");
+  const err = statuses.find((s) => s.kind === "error");
+  if (!err) fail("play: Yue2 text-to-music with no lyrics must surface a node error");
+  else if (!/needs Lyrics/.test(err.msg) || !err.msg.includes(YUE2_T2M))
+    fail(`play: Yue2 node error unhelpful: ${JSON.stringify(err.msg)}`);
+  else ok("play: Yue2 text-to-music with no lyrics shows the real requirement");
+}
+
+{
+  const { statuses, posts } = await runMusic({ model: YUE2_M2M, prompt: "cover in a new key", lyrics: "" });
+  if (posts.length) fail(`Yue2 music-to-music with empty lyrics POSTed: ${JSON.stringify(posts[0]?.body)}`);
+  else if (!statuses.some((s) => s.kind === "error" && /needs Lyrics/.test(s.msg) && s.msg.includes(YUE2_M2M)))
+    fail(`play: Yue2 music-to-music empty lyrics must error locally, got ${JSON.stringify(statuses)}`);
+  else ok("play: Yue2 music-to-music empty lyrics never POSTs");
+}
+
+{
+  const { posts } = await runMusic({
+    model: YUE2_T2M,
+    prompt: "cinematic choir",
+    lyrics: "[Verse]\nMorning light across the road",
+  });
+  if (posts.length !== 1) fail(`Yue2 text-to-music + lyrics should POST once, got ${posts.length}`);
+  else if (posts[0].body.lyrics !== "[Verse]\nMorning light across the road")
+    fail(`Yue2 lyrics not forwarded: ${JSON.stringify(posts[0].body.lyrics)}`);
+  else if (posts[0].body.model !== YUE2_T2M)
+    fail(`Yue2 model not forwarded: ${JSON.stringify(posts[0].body.model)}`);
+  else ok("play: Yue2 text-to-music with lyrics forwards lyrics");
 }
 
 /* ---- Sing-style wired lyrics port (textarea empty) ----------------------- */
