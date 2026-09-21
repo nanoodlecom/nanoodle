@@ -824,6 +824,17 @@
     "minimum": 0.15,
     "currency": "USD"
    }
+  },
+  {
+   "id": "elevenlabs/music/v2.5",
+   "shape": "per_billing_interval (Sep 2026: ElevenLabs Music v2/v2.5 bill $0.75 per started minute, not per_second)",
+   "pricing": {
+    "per_billing_interval": 0.75,
+    "billing_interval_seconds": 60,
+    "billing_interval_label": "started minute",
+    "minimum": 0.75,
+    "currency": "USD"
+   }
   }
  ],
  "chat": [
@@ -944,6 +955,47 @@
     {
      "duration": "",
      "expect": 0.3
+    }
+   ]
+  },
+  {
+   "id": "elevenlabs/music/v2",
+   "shape": "per_billing_interval x duration (started-minute rounding, floored at minimum, clamped to max_duration)",
+   "pricing": {
+    "per_billing_interval": 0.75,
+    "billing_interval_seconds": 60,
+    "billing_interval_label": "started minute",
+    "minimum": 0.75,
+    "currency": "USD"
+   },
+   "params": {
+    "min_duration": 3,
+    "max_duration": 600
+   },
+   "cases": [
+    {
+     "duration": 30,
+     "expect": 0.75
+    },
+    {
+     "duration": 60,
+     "expect": 0.75
+    },
+    {
+     "duration": 61,
+     "expect": 1.5
+    },
+    {
+     "duration": 900,
+     "expect": 7.5
+    },
+    {
+     "duration": "",
+     "expect": 0.75
+    },
+    {
+     "duration": null,
+     "expect": 0.75
     }
    ]
   }
