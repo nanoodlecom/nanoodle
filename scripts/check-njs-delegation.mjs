@@ -47,6 +47,33 @@ let _l = 0;
 const link = (from, fromPort, to, toPort) =>
   ({ id: "l" + (++_l), from: { node: from, port: fromPort }, to: { node: to, port: toPort } });
 
+const LORA_A = "https://huggingface.co/x/y/resolve/main/a.safetensors";
+const LORA_B = "https://huggingface.co/x/y/resolve/main/b.safetensors";
+const LORA_C = "https://huggingface.co/x/y/resolve/main/c.safetensors";
+const LORA_STACK3 = [
+  { url: LORA_A, strength: "1" },
+  { url: LORA_B, strength: "0.8" },
+  { url: LORA_C, strength: "0.5" },
+];
+// Exact billed keys: flag-on === flag-off still passes if BOTH engines regress
+// to flux `lora_url`/`lora_strength` and drop slots 2-3, so pin the keys too.
+const PIN_NUMBERED3 = {
+  must: {
+    lora_url_1: LORA_A, lora_scale_1: 1,
+    lora_url_2: LORA_B, lora_scale_2: 0.8,
+    lora_url_3: LORA_C, lora_scale_3: 0.5,
+  },
+  forbid: ["lora_url", "lora_strength", "lora_url_4"],
+};
+const PIN_QWEN21_EDIT2 = {
+  must: {
+    lora_url_1: LORA_A, lora_scale_1: 1,
+    lora_url_2: LORA_B, lora_scale_2: 0.8,
+  },
+  forbid: ["lora_url", "lora_strength", "lora_url_3"],
+};
+const PIN_NO_LORA = { forbid: ["lora_url", "lora_url_1", "lora_strength"] };
+
 const GRAPHS = [
   ["llm chat", {
     nodes: [node("t1", "text", { text: "Hello" }), node("m1", "llm", { model: "x", system: "You are terse." })],
@@ -99,7 +126,8 @@ const GRAPHS = [
   // Anima / H3 LoRA: catalog advertises lora_url_1..3. The generated njs-engine
   // used to classify *-lora as flux (cap 1) and drop H3 entirely (no "lora" in
   // the id) — default-ON delegation then billed a wrong payload. Pin both
-  // engines to the numbered-slot shape.
+  // engines to the numbered-slot shape, and pin the keys themselves: flag-on
+  // === flag-off still passes if BOTH engines regress to flux `lora_url`.
   ["anima image 3-lora (lora_url_1..3)", {
     nodes: [node("i1", "image", { model: "wavespeed-ai/anima/text-to-image-lora", prompt: "a fox", variations: "1", loras: [
       { url: "https://huggingface.co/x/y/resolve/main/a.safetensors", strength: "1" },
@@ -107,7 +135,7 @@ const GRAPHS = [
       { url: "https://huggingface.co/x/y/resolve/main/c.safetensors", strength: "0.5" },
     ] })],
     links: [],
-  }, ["image"]],
+  }, ["image"], PIN_NUMBERED3],
   ["h3 image lora (ids lack 'lora')", {
     nodes: [node("i1", "image", { model: "wavespeed-ai/minimax-h3/text-to-image", prompt: "a fox", variations: "1", loras: [
       { url: "https://huggingface.co/x/y/resolve/main/a.safetensors", strength: "1" },
@@ -129,6 +157,21 @@ const GRAPHS = [
     ] })],
     links: [],
   }, ["tvideo"]],
+  // Qwen Image 2.1 LoRA (2026-09-21): catalog advertises lora_url_1..3 on both
+  // *-lora ids. Same flux-fallthrough class as Anima — UI slot count (loraCap)
+  // and the njs body must agree on numbered slots on every path (t2i + edit).
+  ["qwen21 t2i 3-lora (lora_url_1..3)", {
+    nodes: [node("i1", "image", { model: "wavespeed-ai/qwen-image-2.1/text-to-image-lora", prompt: "a fox", variations: "1", loras: LORA_STACK3 })],
+    links: [],
+  }, ["image"], PIN_NUMBERED3],
+  ["qwen21 edit 2-lora (lora_url_1..2)", {
+    nodes: [node("u1", "upload", { image: IMG }), node("e1", "edit", { model: "wavespeed-ai/qwen-image-2.1/edit-lora", prompt: "restyle", loras: LORA_STACK3.slice(0, 2) })],
+    links: [link("u1", "image", "e1", "image")],
+  }, ["edit"], PIN_QWEN21_EDIT2],
+  ["plain qwen21 text-to-image sends no LoRA", {
+    nodes: [node("i1", "image", { model: "wavespeed-ai/qwen-image-2.1/text-to-image", prompt: "a fox", variations: "1", loras: [{ url: LORA_A, strength: "1" }] })],
+    links: [],
+  }, ["image"], PIN_NO_LORA],
 ];
 
 // Veto shapes (mirrors check-njs-editor-delegation.mjs): the library doesn't yet match the
@@ -168,8 +211,33 @@ const canonical = (v) => Array.isArray(v) ? v.map(canonical)
   : v && typeof v === "object" ? Object.fromEntries(Object.keys(v).sort().map(k => [k, canonical(v[k])])) : v;
 const norm = (c) => JSON.stringify({ url: String(c.url).replace(/^https?:\/\/[^/]+/i, ""), body: canonical(c.body) });
 
+function pinLoraBody(name, reqs, pin) {
+  if (!pin) return true;
+  if (!reqs.length) {
+    failed++;
+    console.log(`✗ ${name}: no paid request to pin LoRA body`);
+    return false;
+  }
+  const body = JSON.parse(reqs[0]).body || {};
+  for (const [k, v] of Object.entries(pin.must || {})) {
+    if (body[k] !== v) {
+      failed++;
+      console.log(`✗ ${name}: ${k} expected ${JSON.stringify(v)}, got ${JSON.stringify(body[k])}`);
+      return false;
+    }
+  }
+  for (const k of pin.forbid || []) {
+    if (Object.prototype.hasOwnProperty.call(body, k)) {
+      failed++;
+      console.log(`✗ ${name}: forbidden ${k}=${JSON.stringify(body[k])} still posted`);
+      return false;
+    }
+  }
+  return true;
+}
+
 let failed = 0;
-for (const [name, data, expectTypes] of GRAPHS) {
+for (const [name, data, expectTypes, pin] of GRAPHS) {
   calls.length = 0;
   const offApp = flaggedEngine(false, []);
   await offApp.runGraph(offApp.materialize(data), {}).catch(() => {});
@@ -192,6 +260,7 @@ for (const [name, data, expectTypes] of GRAPHS) {
     console.log(`✗ ${name}: flag-on requests differ from flag-off\n  off: ${offReqs.join("\n       ")}\n  on:  ${onReqs.join("\n       ")}`);
     continue;
   }
+  if (!pinLoraBody(name, onReqs, pin)) continue;
   console.log(`✓ ${name} (${onReqs.length} req, delegated: ${[...new Set(spy)].join(", ")})`);
 }
 
@@ -362,6 +431,77 @@ for (const [name, data, vetoTypes] of VETO_GRAPHS) {
 }
 
 const total = GRAPHS.length + VETO_GRAPHS.length;
+
+// Classifier lockstep: index.html + play RUNTIME (not the generated njs-engine
+// block) must agree on qwen21 family, cap, image gate, and body shape.
+// Twin-drift only hashes source lines — deleting qwen21 from BOTH files still
+// updates the baseline. These pins name the billed contract.
+{
+  function extractFn(src, name, deps = []) {
+    const grab = (n) => {
+      const decl = new RegExp("function\\s+" + n + "\\s*\\(");
+      const m = decl.exec(src);
+      if (!m) throw new Error(n + "() not found");
+      const open = src.indexOf("{", m.index);
+      let depth = 0;
+      for (let i = open; i < src.length; i++) {
+        if (src[i] === "{") depth++;
+        else if (src[i] === "}" && --depth === 0) return src.slice(m.index, i + 1);
+      }
+      throw new Error(n + "(): unbalanced braces");
+    };
+    return new Function([...deps, name].map(grab).join("\n") + "\nreturn " + name + ";")();
+  }
+  const playSrc = html.replace(/<!-- NJS-ENGINE:BEGIN[\s\S]*?NJS-ENGINE:END -->/, "");
+  const indexSrc = readFileSync(join(ROOT, "index.html"), "utf8");
+  const load = (src) => ({
+    loraFamily: extractFn(src, "loraFamily"),
+    loraCap: extractFn(src, "loraCap", ["loraFamily"]),
+    imageTakesLora: extractFn(src, "imageTakesLora"),
+    loraBodyFor: extractFn(src, "loraBodyFor", ["loraFamily"]),
+  });
+  const surfaces = [
+    ["play RUNTIME", load(playSrc)],
+    ["index.html", load(indexSrc)],
+  ];
+  const items3 = [
+    { url: LORA_A, scale: 1 },
+    { url: LORA_B, scale: 0.8 },
+    { url: LORA_C, scale: 0.5 },
+  ];
+  const wantBody3 = {
+    lora_url_1: LORA_A, lora_scale_1: 1,
+    lora_url_2: LORA_B, lora_scale_2: 0.8,
+    lora_url_3: LORA_C, lora_scale_3: 0.5,
+  };
+  let clfFail = 0;
+  for (const [label, fns] of surfaces) {
+    const checks = [
+      [fns.loraFamily("wavespeed-ai/qwen-image-2.1/text-to-image-lora") === "qwen21", "qwen21 t2i-lora is qwen21, not flux"],
+      [fns.loraFamily("wavespeed-ai/qwen-image-2.1/edit-lora") === "qwen21", "qwen21 edit-lora is qwen21, not flux"],
+      [fns.loraFamily("qwen-image-2.1/text-to-image-lora") === "qwen21", "v1-form qwen21 t2i-lora is qwen21"],
+      [fns.loraFamily("wavespeed-ai/qwen-image-2.1/text-to-image") == null, "plain qwen21 t2i is not a LoRA family"],
+      [fns.loraFamily("wavespeed-ai/qwen-image-2.1/edit") == null, "plain qwen21 edit is not a LoRA family"],
+      [fns.loraFamily("flux-lora") === "flux", "flux-lora stays flux"],
+      [fns.loraCap("wavespeed-ai/qwen-image-2.1/edit-lora") === 3, "qwen21 cap is 3"],
+      [fns.loraCap("flux-lora") === 1, "flux-lora cap is 1"],
+      [fns.imageTakesLora("wavespeed-ai/qwen-image-2.1/edit-lora") === true, "qwen21 edit-lora shows the LoRA box"],
+      [fns.imageTakesLora("wavespeed-ai/qwen-image-2.1/text-to-image") === false, "plain qwen21 t2i hides the LoRA box"],
+      [JSON.stringify(fns.loraBodyFor("wavespeed-ai/qwen-image-2.1/text-to-image-lora", items3)) === JSON.stringify(wantBody3), "qwen21 t2i body is lora_url_1..3"],
+      [JSON.stringify(fns.loraBodyFor("wavespeed-ai/qwen-image-2.1/edit-lora", items3)) === JSON.stringify(wantBody3), "qwen21 edit body is lora_url_1..3"],
+      [JSON.stringify(fns.loraBodyFor("flux-lora", items3.slice(0, 1))) === JSON.stringify({ lora_url: LORA_A, lora_strength: 1 }), "flux-lora body is lora_url/lora_strength"],
+    ];
+    for (const [ok, msg] of checks) {
+      if (!ok) {
+        clfFail++;
+        console.log(`✗ ${label}: ${msg}`);
+      }
+    }
+  }
+  failed += clfFail;
+  if (!clfFail) console.log("✓ qwen21 classifier + body shape lockstep (index.html ↔ play RUNTIME)");
+}
+
 if (failed) {
   console.log(`\n${failed}/${total} delegation scenarios failed`);
   process.exit(1);
