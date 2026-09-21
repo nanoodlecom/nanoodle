@@ -1,5 +1,5 @@
-/* data-hash=08e135b91e675e75 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-971b22809873 (16 modules) */
+/* data-hash=bb064ca7e81c7266 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-8e7aef03e757 (16 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -1517,6 +1517,7 @@ function loraFamily(model) {
   if (/ltx/i.test(m)) return "ltx";
   if (/minimax-h3/i.test(m)) return "h3";
   if (/anima/i.test(m) && /lora/i.test(m)) return "anima";
+  if (/qwen-image-2\.1/i.test(m) && /lora/i.test(m)) return "qwen21";
   if (/lora/i.test(m)) return /krea/i.test(m) ? "krea" : "flux";
   return null;
 }
@@ -1541,7 +1542,7 @@ function modelTakesLora(kind, id) {
 function loraCap(model) {
   switch (loraFamily(model)) {
     case "flux2dev": return 4;
-    case "flux2klein": case "zimage": case "ltx": case "krea": case "h3": case "anima": return 3;
+    case "flux2klein": case "zimage": case "ltx": case "krea": case "h3": case "anima": case "qwen21": return 3;
     default: return 1; // flux-lora, pimage — single slot
   }
 }
@@ -1557,7 +1558,7 @@ function nodeLoras(n) {
 function loraBodyFor(model, items) {
   const fam = loraFamily(model), sc = (v) => (isNaN(v) ? 1 : v);
   if (fam === "pimage") return { lora_weights: items[0].url, lora_scale: sc(items[0].scale) };
-  if (fam === "flux2dev" || fam === "flux2klein" || fam === "zimage" || fam === "ltx" || fam === "krea" || fam === "h3" || fam === "anima") {
+  if (fam === "flux2dev" || fam === "flux2klein" || fam === "zimage" || fam === "ltx" || fam === "krea" || fam === "h3" || fam === "anima" || fam === "qwen21") {
     const b = {};
     items.forEach((it, i) => { b["lora_url_" + (i + 1)] = it.url; b["lora_scale_" + (i + 1)] = sc(it.scale); });
     return b;
@@ -4841,5 +4842,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-971b22809873";
+  window.NanoodleEngine.version = "src-8e7aef03e757";
 })();
