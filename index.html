@@ -4662,6 +4662,7 @@ function normAudio(m){
   const p=m.pricing||{}, c=m.capabilities||{}, arch=m.architecture||{}; let price="";
   if(p.per_thousand_chars!=null) price=`$${(+p.per_thousand_chars).toFixed(3)}/1k`;
   else if(p.per_second!=null) price=`$${(+p.per_second).toFixed(3)}/s`;
+  else if(p.per_billing_interval!=null) price=`$${(+p.per_billing_interval).toFixed(2)}/${p.billing_interval_label||((+p.billing_interval_seconds||60)+"s")}`;
   else if(p.per_minute!=null) price=`$${(+p.per_minute).toFixed(2)}/min`;
   else if(p.per_generation!=null) price=`$${(+p.per_generation).toFixed(2)}/gen`;
   const mod = arch.modality||"", out = mod.split("->")[1]||"";
@@ -6673,7 +6674,7 @@ function chatUnitUsd(it, inTokens, outTokens){
   if(pin==null && pout==null) return null;                       // omni "varies_by_modality" → unknown
   return ((pin||0)*(inTokens ?? EST.llmInTokens) + (pout||0)*(outTokens ?? EST.llmOutTokens))/1e6;
 }
-// audio: per-1k-chars / per-char-block / per-generation / per-second / per-minute
+// audio: per-1k-chars / per-char-block / per-generation / per-second / per-billing-interval / per-minute
 function audioUnitUsd(pricing, chars, seconds){
   const p = pricing || {}, c = chars ?? EST.ttsChars;
   const secs = (seconds!=null && isFinite(seconds)) ? seconds : EST.audioSeconds;   // per_second models meter off the node's duration when it sets one
@@ -6681,11 +6682,15 @@ function audioUnitUsd(pricing, chars, seconds){
   if(p.per_prompt_char_block!=null){ const bs=_num(p.prompt_char_block_size)||1; return Math.max(Math.ceil(c/bs)*_num(p.per_prompt_char_block), _num(p.minimum)||0); }
   if(p.per_generation!=null) return _num(p.per_generation);
   if(p.per_second!=null) return Math.max(_num(p.per_second)*secs, _num(p.minimum)||0);
+  // per started-billing-interval (ElevenLabs Music v2/v2.5: $0.75/started minute) — same duration
+  // metering as per_second, rounded UP to whole intervals, floored at the model's minimum.
+  if(p.per_billing_interval!=null){ const iv=_num(p.billing_interval_seconds)||60; return Math.max(Math.ceil(secs/iv)*_num(p.per_billing_interval), _num(p.minimum)||0); }
   if(p.per_minute!=null) return _num(p.per_minute)*EST.sttMinutes;
   return null;
 }
-// Seconds a per_second audio model is actually billed for: the node's duration field clamped to the
-// model's advertised min/max_duration. null when the model isn't duration-metered (no min/max_duration)
+// Seconds a duration-metered audio model (per_second / per_billing_interval) is actually billed for:
+// the node's duration field clamped to the model's advertised min/max_duration. null when the model
+// isn't duration-metered (no min/max_duration)
 // or the field is blank → audioUnitUsd falls back to EST.audioSeconds. params = the audio catalog entry's
 // supported_parameters (it.params).
 function audioBilledSeconds(params, fields){
