@@ -10356,11 +10356,11 @@ function njsRunFor(type, rn, inp, n){
     const ctx = njsCtx(E, n);
     ctx.catalog = await njsCatalogs();
     // leftover size snap — njs is the default send path; library posts fields.size raw
+    if(type==="image" || type==="edit" || type==="inpaint") applyDimFields(rn.fields, dimDefs(rn.type, rn.fields.model));
     // Library imgExtra only special-cases FIBO. Stamp catalog aspect_ratio (Qwen Image 2.1,
     // Anima, Qwen Image 3, …) with the same imageAspectExtra the built-in path uses, and never
     // override a key the library already set, so flag-on and flag-off stay byte-identical.
     if(type==="image"||type==="edit"||type==="inpaint"){
-      applyDimFields(rn.fields, dimDefs(rn.type, rn.fields.model));
       const sendImage = ctx.image;
       ctx.image = (args)=>{
         args = args || {};

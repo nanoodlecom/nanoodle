@@ -8883,10 +8883,10 @@ const PROMPT_CAPS = {
       const ctx = njsCtx(E, onCost, runKey, note);
       ctx.catalog = await njsCatalogs();
       // leftover size snap — njs is the default send path; library posts fields.size raw
+      if(type==="image" || type==="edit" || type==="inpaint") snapImageSize(rn, await rawCatItem("image", mdl(rn)));
       // Library imgExtra only special-cases FIBO; stamp catalog aspect_ratio with the same
       // withImageAspect the built-in runner uses, and never override a key already set.
       if(type==="image"||type==="edit"||type==="inpaint"){
-        snapImageSize(rn, await rawCatItem("image", mdl(rn)));
         var _sendImage = ctx.image;
         ctx.image = function(args){
           args = args || {};
