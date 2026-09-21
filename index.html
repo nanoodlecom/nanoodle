@@ -4667,13 +4667,37 @@ function normVideo(m){
     nsfw: !!c.nsfw,
     price };
 }
+// Picker / node-chip price. A zero rate must not hide the price that actually bills
+// (Lyria 3 Pro is per_second:0 + minimum $0.08; VibeVoice is per_thousand_chars:0 +
+// $0.15/gen) and a sub-mill per-second rate must not round to $0.000 (ACE-Step).
+function audioPriceLabel(p){
+  p = p || {};
+  const pos = (k)=> p[k]!=null && isFinite(+p[k]) && +p[k] > 0;
+  const trim = (n, lo)=>{
+    const x = +n;
+    for(let d=lo; d<=6; d++){ const s = x.toFixed(d); if(+s!==0 || x===0) return s; }
+    return x.toFixed(6);
+  };
+  if(pos("per_thousand_chars")) return "$"+trim(p.per_thousand_chars, 3)+"/1k";
+  if(pos("per_prompt_char_block")){
+    const bs = +p.prompt_char_block_size || 1;
+    const unit = bs>=1000 ? (bs/1000)+"k" : String(bs);
+    return "$"+trim(p.per_prompt_char_block, 3)+"/"+unit+"ch";
+  }
+  if(pos("per_second")) return "$"+trim(p.per_second, 3)+"/s";
+  if(p.per_second!=null && +p.per_second===0 && pos("minimum")) return "$"+trim(p.minimum, 2)+"/gen";
+  if(p.per_billing_interval!=null){
+    const lab = p.billing_interval_label || ((+p.billing_interval_seconds||60)+"s");
+    return "$"+trim(p.per_billing_interval, 2)+"/"+lab;
+  }
+  if(p.per_minute!=null) return "$"+trim(p.per_minute, 2)+"/min";
+  if(p.per_generation!=null) return "$"+trim(p.per_generation, 2)+"/gen";
+  if(pos("minimum")) return "$"+trim(p.minimum, 2)+"/gen";
+  return "";
+}
 function normAudio(m){
-  const p=m.pricing||{}, c=m.capabilities||{}, arch=m.architecture||{}; let price="";
-  if(p.per_thousand_chars!=null) price=`$${(+p.per_thousand_chars).toFixed(3)}/1k`;
-  else if(p.per_second!=null) price=`$${(+p.per_second).toFixed(3)}/s`;
-  else if(p.per_billing_interval!=null) price=`$${(+p.per_billing_interval).toFixed(2)}/${p.billing_interval_label||((+p.billing_interval_seconds||60)+"s")}`;
-  else if(p.per_minute!=null) price=`$${(+p.per_minute).toFixed(2)}/min`;
-  else if(p.per_generation!=null) price=`$${(+p.per_generation).toFixed(2)}/gen`;
+  const p=m.pricing||{}, c=m.capabilities||{}, arch=m.architecture||{};
+  const price = audioPriceLabel(p);
   const mod = arch.modality||"", out = mod.split("->")[1]||"";
   const sp = m.supported_parameters || {};
   const voices = Array.isArray(sp.voices) ? sp.voices.filter(v=>typeof v==="string") : [];
@@ -5221,6 +5245,9 @@ const AUDIO_PARAMS = {
     // duration ONLY when the model both prices per second and advertises a range — for cover models
     // min/max_duration constrain the SOURCE track, not an output knob, so a plain cat:duration would lie
     { id:"duration",        label:"Duration (sec)",  type:"number",   appliesTo:"cat:secduration" },
+    // Yue2 music-to-music is the only remix model that catalogs a file type. Other remixers
+    // must not grow a Format control — a stale wav would POST response_format, which they ignore.
+    { id:"response_format", label:"Format",          type:"select",   appliesTo:"cat:outputformat", options:["mp3","wav","flac"], default:"mp3", advanced:true },
   ],
 };
 // resolve a param's appliesTo against the selected model's live catalog entry (catalog metadata only)
@@ -5233,6 +5260,10 @@ function audioApplies(at, it){
     case "cat:duration": return p.min_duration!=null && p.max_duration!=null;
     case "cat:secduration": return p.min_duration!=null && p.max_duration!=null && +((it.pricing||{}).per_second)>0;   // duration is a real output knob only when it's what's billed
     case "cat:gencount": return !!p.generation_count_parameter;
+    case "cat:outputformat": {
+      const of = p.output_format;
+      return !!(of && Array.isArray(of.values) && of.values.length && of.values.every(v=>typeof v==="string"));
+    }
   }
   return false;
 }
@@ -5246,6 +5277,16 @@ function audioFields(kind, it){
     if(p.appliesTo==="cat:language"){ f.options = it.language.values; if(it.language.default!=null) f.default = it.language.default; }
     if(p.appliesTo==="cat:duration" || p.appliesTo==="cat:secduration"){ f.min = it.params.min_duration; f.max = it.params.max_duration; }
     if(p.appliesTo==="cat:gencount") continue;   // nanoodle surfaces a single track and collectAudioParams clamps the count to 1 (= default → never sent), so a "(1–1)" input is a dead control — don't render it
+    // Yue2 catalogs the file type as output_format (mp3/wav/flac). Sending the OpenAI
+    // response_format key is ignored, so a wav/flac choice came back as mp3.
+    if(p.id==="response_format"){
+      const of = it.params && it.params.output_format;
+      if(of && Array.isArray(of.values) && of.values.length && of.values.every(v=>typeof v==="string")){
+        f.options = of.values.slice();
+        f.jsonKey = "output_format";
+        if(of.default!=null) f.default = of.default;
+      }
+    }
     out.push(f);
   }
   return out;
@@ -6739,6 +6780,16 @@ function audioBilledSeconds(params, fields){
 // song — a stale/over-set number_of_songs field must never inflate the estimate above what's sent.
 function audioBilledSongs(_params, _fields){
   return 1;
+}
+// Speech/music binary responses carry no cost header live. Meter the same duration the
+// pre-run chip uses (audioBilledSeconds) so a 5-minute ElevenLabs track isn't booked as 30s.
+function speechEstUsd(pricing, params, input, extra){
+  const chars = (input && String(input).length) || EST.ttsChars;
+  const secs = audioBilledSeconds(params, extra || {});
+  const unit = audioUnitUsd(pricing, chars, secs);
+  if(unit==null || !isFinite(unit)) return null;
+  const songs = Math.max(1, parseInt(extra && (extra.number_of_songs || extra.n), 10) || 1);
+  return unit * songs;
 }
 // Live value on a field in-port (Choice.selected / Text) — same rules as endpoint preview.
 // Prefer the source's live field over a stale last-run .out so a Choice flip updates estimates
@@ -10282,12 +10333,26 @@ function njsCtx(E, n){
         (e)=>{ const hadJob = PENDING_VIDEO.has(n.id); if(!keepPending(e)){ PENDING_VIDEO.delete(n.id); if(hadJob && typeof refreshBalance==="function") refreshBalance(true); } throw e; });
     },
     audio: (model, input, extra)=>{
+      // Estimate BEFORE the prompt/style rewrite clears `input`. The library's binary
+      // audio path only reads x-cost, which this endpoint omits live — without this the
+      // default engine books a paid song as $0 while ?engine=play estimates it.
+      const it = catItem("audio", model);
+      const est = it ? speechEstUsd(it.pricing, it.params, input, extra) : null;
       assertGenerateSongLyrics(model, extra && extra.lyrics);
       if(/(?:^|\/)(?:prompt-to-song|generate-bgm)$|(?:^|\/)mureka-ai\/[^/]+\/generate-song$|^minimax\/music-3$/i.test(String(model||"").trim())){ extra=Object.assign({},extra||{},{prompt:((extra||{}).prompt!=null&&String((extra||{}).prompt).trim()!==""?(extra||{}).prompt:input)}); input=undefined; }
       else if(/yue2-3b\/(?:text|music)-to-music$/i.test(String(model||"").trim())){ extra=Object.assign({},extra||{},{style:((extra||{}).style!=null&&String((extra||{}).style).trim()!==""?(extra||{}).style:input)}); input=undefined; }
       const sig = sigHash(JSON.stringify([model, input, extra]));
       const pend = PENDING_AUDIO.get(n.id);
       const io2 = { ...io,
+        onCost: (c)=>{
+          if(c && c.usd==null && est!=null){
+            const j = {};
+            if(c.balance!=null) j.remainingBalance = c.balance;
+            accrue(j, est);
+            return;
+          }
+          onCost(c);
+        },
         resume: (pend && pend.sig===sig && pend.job) ? pend.job : undefined,
         onRunId: (job)=> PENDING_AUDIO.set(n.id, {sig, job, njs:true}),
       };
@@ -10991,9 +11056,7 @@ const CTX = {
     let est;                                                                    // this endpoint sends no cost header live → fall back to the catalog estimate so a paid TTS/music run isn't metered as $0
     if(isNaN(hc)){
       const it = catItem("audio", model);
-      const songs = Math.max(1, parseInt(extra && (extra.number_of_songs||extra.n), 10)||1);
-      const unit = it ? audioUnitUsd(it.pricing, (input||"").length || EST.ttsChars) : null;
-      if(unit!=null && isFinite(unit)) est = unit*songs;
+      est = it ? speechEstUsd(it.pricing, it.params, input, extra) : null;
     }
     accrue(isNaN(hc) ? {} : { cost:hc }, est, r);                               // real header cost (x-cost 0 = known-free / subscription)
     // Some providers hand back the audio with a blank/generic content-type. An
@@ -11003,7 +11066,7 @@ const CTX = {
     const t = (blob.type||"").split(";")[0].trim().toLowerCase();
     if(!t || t==="application/octet-stream" || t==="binary/octet-stream"){
       const AUDIO_MIME = { mp3:"audio/mpeg", opus:"audio/ogg", aac:"audio/aac", flac:"audio/flac", wav:"audio/wav", pcm:"audio/wav" };
-      const fmt = (extra && extra.response_format) || "mp3";
+      const fmt = (extra && (extra.output_format || extra.response_format)) || "mp3";
       return URL.createObjectURL(new Blob([blob], { type: AUDIO_MIME[fmt] || "audio/mpeg" }));
     }
     return URL.createObjectURL(blob);
