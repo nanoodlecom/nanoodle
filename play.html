@@ -6307,11 +6307,14 @@ window.NoodleApp = (function () {
     if(p.per_prompt_char_block!=null){ const bs=_num(p.prompt_char_block_size)||1; return Math.max(Math.ceil(c/bs)*_num(p.per_prompt_char_block), _num(p.minimum)||0); }
     if(p.per_generation!=null) return _num(p.per_generation);
     if(p.per_second!=null) return Math.max(_num(p.per_second)*secs, _num(p.minimum)||0);
+    // per started-billing-interval (ElevenLabs Music v2/v2.5: $0.75/started minute) — same duration
+    // metering as per_second, rounded UP to whole intervals, floored at the model's minimum.
+    if(p.per_billing_interval!=null){ const iv=_num(p.billing_interval_seconds)||60; return Math.max(Math.ceil(secs/iv)*_num(p.per_billing_interval), _num(p.minimum)||0); }
     if(p.per_minute!=null) return _num(p.per_minute)*EST.sttMinutes;
     return null;
   }
-  // Seconds a per_second audio model is billed for: the node's duration clamped to the model's advertised
-  // min/max_duration. null when the model isn't duration-metered or the field is blank → audioUnitUsd uses
+  // Seconds a duration-metered audio model (per_second / per_billing_interval) is billed for: the node's
+  // duration clamped to the model's advertised min/max_duration. null when the model isn't duration-metered or the field is blank → audioUnitUsd uses
   // EST.audioSeconds. sp = the audio catalog entry's supported_parameters. Mirrors the editor's audioBilledSeconds.
   function audioBilledSeconds(sp, fields){
     const p = sp || {};
