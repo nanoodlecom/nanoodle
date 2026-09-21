@@ -6374,6 +6374,10 @@ function dimDefs(type, model){
     const known = !!it;   // live catalog entry → clamp to the list we actually render (real opts or the 5/10 fallback)
     // t2v/i2v always show aspect+duration; vedit + lipsync (avatar) show only what the model lists —
     // an avatar's output length is driven by the source audio, so never inject a soft duration/aspect it'd ignore.
+    // Duration is the one exception: a LISTED duration/seconds param (even a number-range with no
+    // select options, Wan 3.0 Edit/Extend style) always surfaces the control — on vedit the length
+    // IS the product (extension seconds), and dropping it made the knob unsettable while the
+    // estimate silently priced the API default.
     const defs = [], soft = type!=="vedit" && type!=="lipsync";
     const rOpts = selOpts(p.resolution);
     if(rOpts.length) defs.push({ f:"resolution", wire:"resolution", label:"resolution", options:rOpts, def:paramDef(p.resolution, rOpts), known });
@@ -6385,10 +6389,12 @@ function dimDefs(type, model){
     const aOpts = selOpts(aParam);
     if(aOpts.length || soft) defs.push({ f:"aspect", wire:aWire, label:"aspect", options:(aOpts.length?aOpts:ASPECT_FALLBACK), def:paramDef(aParam, aOpts.length?aOpts:ASPECT_FALLBACK), known });
     // duration dimension: most models name it duration, but Sora calls it `seconds` (4/8/12) — same field, real values.
-    // Wan Prime ships type:number min/max (no select options) → DURATION_FALLBACK 5/10; known=true so 8 snaps off.
+    // Wan 3.0 ships type:number min/max (no select options) → DURATION_FALLBACK 5/10; known=true so 8 snaps off.
+    // The fallback applies on every node type once the model lists the param (dParam): vedit/lipsync
+    // skip only UNLISTED durations, never a listed number-range (see the soft exception above).
     const dParam = p.duration || p.seconds, dWire = p.duration ? "duration" : (p.seconds ? "seconds" : "duration");
     const dOpts = selOpts(dParam);
-    if(dOpts.length || soft) defs.push({ f:"duration", wire:dWire, label:"duration", options:(dOpts.length?dOpts:DURATION_FALLBACK), def:paramDef(dParam, dOpts.length?dOpts:DURATION_FALLBACK), known });
+    if(dOpts.length || soft || dParam) defs.push({ f:"duration", wire:dWire, label:"duration", options:(dOpts.length?dOpts:DURATION_FALLBACK), def:paramDef(dParam, dOpts.length?dOpts:DURATION_FALLBACK), known });
     const fParam = p.fps || p.frames_per_second, fOpts = selOpts(fParam);
     if(fOpts.length) defs.push({ f:"fps", wire:p.fps ? "fps" : "frames_per_second", label:"fps", options:fOpts, def:paramDef(fParam, fOpts), known });
     return defs;

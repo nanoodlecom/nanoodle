@@ -404,6 +404,82 @@ editor.catalogs.image = [BANANA, QWEN];
   editor.catalogs.video = [WAN_PRIME, MINIMAX_H3];
 }
 
+// ---- 2b. vedit/lipsync number-range duration (Wan 3.0 Edit/Extend) --------
+// Live shape 2026-09-17: alibaba/wan-3.0/video-extend ships duration as
+// type:number min 2 / max 30 (video-edit: max 15), not a select. tvideo/ivideo
+// show the pinned 5/10 fallback for that shape — but vedit/lipsync showed NO
+// duration control at all, so the extension length was unsettable (the run
+// always sent the API default 5s) and the estimate could never move. A listed
+// number-range duration must surface the same 5/10 fallback on vedit/lipsync:
+// never a dropped knob, never a raw int on the wire.
+const WAN_EXTEND = {
+  id: "alibaba/wan-3.0/video-extend",
+  params: {
+    resolution: { type: "select", default: "720p", options: [{ value: "480p" }, { value: "720p" }, { value: "1080p" }] },
+    duration: { type: "number", min: 2, max: 30, step: 1, default: 5 },
+  },
+};
+const VEDIT_NODUR = {
+  id: "wan-video-edit",
+  params: {
+    resolution: { type: "select", default: "720p", options: [{ value: "720p" }] },
+  },
+};
+editor.catalogs.video.push(WAN_EXTEND, VEDIT_NODUR);
+
+{
+  const fields = { model: WAN_EXTEND.id };
+  const defs = editor.dimDefs("vedit", fields.model);
+  const dur = defs.find((d) => d.f === "duration");
+  if (!dur) fail("editor: Wan 3.0 Extend vedit has no duration def (extension length unsettable)");
+  else {
+    const listed = dur.options.map((o) => String(o[0]));
+    if (listed.join(",") !== "5,10") fail("editor: Wan Extend vedit duration list is " + listed.join(",") + " (want the pinned 5/10 fallback)");
+    else if (String(dur.def) !== "5") fail("editor: Wan Extend vedit duration default is " + dur.def + " (want catalog default 5)");
+    else if (dur.wire !== "duration") fail("editor: Wan Extend vedit duration wire is " + dur.wire + " (want duration)");
+    else if (!dur.known) fail("editor: Wan Extend vedit duration def should be known (catalogued number-range)");
+    else ok("editor: Wan 3.0 Extend vedit offers duration " + listed.join("/") + " (pinned fallback, not a dropped knob)");
+    editor.applyDimFields(fields, defs);
+    if (String(fields.duration) !== "5") fail("editor: fresh Wan Extend vedit seeded duration " + fields.duration + " (want 5)");
+    else ok("editor: fresh Wan Extend vedit seeds duration 5");
+  }
+}
+
+{
+  const fields = { model: WAN_EXTEND.id, duration: "8" };
+  editor.applyDimFields(fields, editor.dimDefs("vedit", fields.model));
+  if (String(fields.duration) === "8") fail("editor: 8s survived on Wan Extend vedit");
+  else ok("editor: 8s → Wan Extend vedit clamps duration to " + fields.duration);
+}
+
+{
+  // SEND path: vedit must forward the (clamped) duration for a number-range model…
+  const n = { type: "vedit", fields: { model: WAN_EXTEND.id, duration: "8", resolution: "720p" } };
+  const wire = editor.videoDimParams(n);
+  if (wire.duration == null || wire.duration === "") fail("editor send: vedit dropped duration on Wan Extend (unsettable length)");
+  else if (String(wire.duration) === "8") fail("editor send: vedit packed unlisted 8s on Wan Extend");
+  else ok("editor send: vedit forwards Wan Extend duration as " + wire.duration);
+}
+
+{
+  // …but still omit it when the model lists no duration at all (no false knob).
+  const defs = editor.dimDefs("vedit", VEDIT_NODUR.id);
+  if (defs.some((d) => d.f === "duration")) fail("editor: no-duration vedit model grew a duration knob");
+  else ok("editor: no-duration vedit model still has no duration knob");
+  const wire = editor.videoDimParams({ type: "vedit", fields: { model: VEDIT_NODUR.id, duration: "8", resolution: "720p" } });
+  if (wire.duration != null) fail("editor send: vedit posted leftover duration on a no-duration model");
+  else ok("editor send: vedit still omits duration when the catalog does not list it");
+}
+
+{
+  // lipsync mirrors vedit: a listed number-range duration (Wan Prime base is
+  // avatar-flagged live) surfaces the fallback; unlisted stays hidden.
+  const defs = editor.dimDefs("lipsync", WAN_PRIME.id);
+  const dur = defs.find((d) => d.f === "duration");
+  if (!dur) fail("editor: Wan Prime lipsync has no duration def");
+  else ok("editor: Wan Prime lipsync offers duration " + dur.options.map((o) => String(o[0])).join("/"));
+}
+
 // ---- 3. play dimOptionsFromItem (same catalog shapes, raw) ----------------
 {
   const wanRaw = {
@@ -421,6 +497,54 @@ editor.catalogs.image = [BANANA, QWEN];
   }
 }
 
+{
+  // play runtime pack already resolves number-range → DURATIONS on every node
+  // type (no change needed) — lock it for vedit, the newly-knobbed surface.
+  const wanVeditRaw = {
+    supported_parameters: { parameters: { duration: { type: "number", min: 2, max: 30, default: 5 } } },
+  };
+  const pack = play.dimOptionsFromItem("vedit", wanVeditRaw);
+  const listed = (pack.duration || []).map((o) => String(o[0]));
+  if (listed.join(",") !== "5,10") fail("play: vedit number-range duration pack is " + listed.join(",") + " (want 5/10)");
+  else ok("play: vedit number-range duration resolves to the 5/10 fallback");
+}
+
+// ---- 3b. play builder SETTING_SPECS: vedit/lipsync duration rows ---------
+// The exported-app settings panel (deriveSettings) is spec-driven: tvideo and
+// ivideo ship a duration row, but vedit/lipsync never did — so an exported
+// Video-edit app could not set the extension length even when the editor (and
+// the catalog) offered it. Both rows must exist as selects; fillDimLists
+// rewrites their options per model.
+function builderSpecs(src) {
+  const after = src.indexOf("NJS-ENGINE:END");
+  const start = src.indexOf("const SETTING_SPECS = {", after);
+  if (start === -1) throw new Error("builder SETTING_SPECS not found after NJS-ENGINE:END");
+  let depth = 0;
+  for (let j = src.indexOf("{", start); j < src.length; j++) {
+    if (src[j] === "{") depth++;
+    else if (src[j] === "}" && --depth === 0) return src.slice(start, j + 1);
+  }
+  throw new Error("unbalanced builder SETTING_SPECS");
+}
+const __specsCtx = { console, Math };
+vm.createContext(__specsCtx);
+vm.runInContext([
+  "var DURATIONS = [['5','5 sec'],['10','10 sec']];",
+  "var ASPECTS = [['16:9','16:9']];",
+  "var RESOLUTIONS = [['','model default']];",
+  "var SIZES = [['1024x1024','1024x1024']];",
+  builderSpecs(PLAY),
+  "globalThis.__specs = SETTING_SPECS;",
+].join("\n"), __specsCtx);
+{
+  const specs = __specsCtx.__specs;
+  for (const t of ["vedit", "lipsync"]) {
+    const row = (specs[t] || []).find((s) => s.f === "duration");
+    if (!row) fail(`play: builder SETTING_SPECS.${t} has no duration row (exported apps cannot set the length)`);
+    else if (row.kind !== "select") fail(`play: builder SETTING_SPECS.${t}.duration kind is "${row.kind}" (want select)`);
+    else ok(`play: builder SETTING_SPECS.${t} offers a duration select`);
+  }
+}
 {
   const h3Raw = {
     supported_parameters: {
