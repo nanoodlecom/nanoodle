@@ -439,6 +439,49 @@ const SCENARIOS = [
     },
   },
   {
+    // #559 made model wirable; #561 pins the estimate helper. The billed POST must
+    // use the same resolved id — leftover fields.model is the picker value a Choice
+    // wire is supposed to replace. #574 culled the teaching card that used to
+    // exercise this path, so a merge-into-inp regression would silently bill Fable.
+    name: "Choice→model wire drives the chat POST model (not leftover fields.model)",
+    data: { nodes: [
+      node("c1", "choice", {
+        options: "anthropic/claude-fable-5.1\nz-ai/glm-5.3-flash",
+        selected: "z-ai/glm-5.3-flash",
+      }),
+      node("m1", "llm", { model: "anthropic/claude-fable-5.1", prompt: "hi" }),
+    ], links: [link("c1", "text", "m1", "model")] },
+    check(app, g, fail) {
+      const cc = chatCalls();
+      if (cc.length !== 1) return fail(`expected 1 chat call, got ${cc.length}`);
+      const sent = cc[0].body.model;
+      if (sent !== "z-ai/glm-5.3-flash") {
+        fail(`Choice.selected must be the billed model, got ${JSON.stringify(sent)}`);
+      }
+    },
+  },
+  {
+    // Choice.run falls back to options[0] when selected is missing from the list
+    // (retired id, stale share). That fallback — not leftover fields.model and
+    // not the stale selected string — is what the paid call must send.
+    name: "Choice→model stale selected sends options[0], not leftover fields.model",
+    data: { nodes: [
+      node("c1", "choice", {
+        options: "z-ai/glm-5.3-flash\nanthropic/claude-fable-5.1",
+        selected: "retired/old-id",
+      }),
+      node("m1", "llm", { model: "anthropic/claude-fable-5.1", prompt: "hi" }),
+    ], links: [link("c1", "text", "m1", "model")] },
+    check(app, g, fail) {
+      const cc = chatCalls();
+      if (cc.length !== 1) return fail(`expected 1 chat call, got ${cc.length}`);
+      const sent = cc[0].body.model;
+      if (sent !== "z-ai/glm-5.3-flash") {
+        fail(`stale Choice.selected must fall back to options[0], got ${JSON.stringify(sent)}`);
+      }
+    },
+  },
+  {
     // Editor dimDefs only puts a dim on the wire when the catalog lists it (vedit
     // is not soft). Play used to forward leftover resolution/aspect/duration on
     // every vedit — a wrong payload for upscalers and Omni v1 (no resolution).

@@ -430,6 +430,55 @@ for (const [name, data, vetoTypes] of VETO_GRAPHS) {
   }
 }
 
+// Choice→model on the DEFAULT (njs) paid path: runGraph must merge the Choice
+// output into rn.fields.model before either runner sees the node. Flag-on ===
+// flag-off is not enough — both can regress to leftover fields.model and still
+// agree. #574 removed the teaching card that used to click this path.
+{
+  const LEFTOVER = "anthropic/claude-fable-5.1";
+  const PICKED = "z-ai/glm-5.3-flash";
+  const data = {
+    nodes: [
+      node("c1", "choice", { options: LEFTOVER + "\n" + PICKED, selected: PICKED }),
+      node("m1", "llm", { model: LEFTOVER, prompt: "hi" }),
+    ],
+    links: [link("c1", "text", "m1", "model")],
+  };
+  const models = {};
+  let ran = true;
+  for (const flag of [false, true]) {
+    calls.length = 0;
+    const spy = [];
+    const app = flaggedEngine(flag, spy);
+    await app.runGraph(app.materialize(data), {}).catch(() => {});
+    const chat = calls.filter((c) => /\/chat\/completions/.test(c.url));
+    if (!chat.length) {
+      failed++;
+      console.log(`✗ Choice→model send (flag ${flag ? "on" : "off"}): no chat POST`);
+      ran = false;
+      break;
+    }
+    models[flag ? "on" : "off"] = chat.map((c) => c.body && c.body.model);
+    if (flag && !spy.includes("llm")) {
+      failed++;
+      console.log("✗ Choice→model send: library runner never ran (merge must happen before njsRunFor)");
+      ran = false;
+    }
+  }
+  if (ran) {
+    const sent = [...(models.off || []), ...(models.on || [])];
+    if (sent.some((m) => m !== PICKED)) {
+      failed++;
+      console.log(`✗ Choice→model send: leftover ${LEFTOVER} billed instead of ${PICKED} (off=${models.off} on=${models.on})`);
+    } else if (JSON.stringify(models.off) !== JSON.stringify(models.on)) {
+      failed++;
+      console.log(`✗ Choice→model send: flag-on model differs from flag-off (off=${models.off} on=${models.on})`);
+    } else {
+      console.log("✓ Choice→model send → billed model is Choice.selected on both engines (leftover picker id not posted)");
+    }
+  }
+}
+
 const total = GRAPHS.length + VETO_GRAPHS.length;
 
 // Classifier lockstep: index.html + play RUNTIME (not the generated njs-engine
