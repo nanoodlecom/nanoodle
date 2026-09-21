@@ -1000,6 +1000,54 @@
    ]
   }
  ],
+ "speechEst": [
+  {
+   "id": "elevenlabs/music/v2",
+   "shape": "per_billing_interval — requested duration, not a flat 30s",
+   "pricing": {
+    "per_billing_interval": 0.75,
+    "billing_interval_seconds": 60,
+    "billing_interval_label": "started minute",
+    "minimum": 0.75,
+    "currency": "USD"
+   },
+   "params": { "min_duration": 3, "max_duration": 600 },
+   "cases": [
+    { "input": "choir", "extra": { "duration": 61 }, "expect": 1.5 },
+    { "input": "choir", "extra": { "duration": 30 }, "expect": 0.75 },
+    { "input": "choir", "extra": {}, "expect": 0.75 },
+    { "input": "choir", "extra": { "duration": 900 }, "expect": 7.5 }
+   ]
+  },
+  {
+   "id": "elevenlabs/music",
+   "shape": "per_second × clamped duration",
+   "pricing": { "per_second": 0.01, "minimum": 0, "currency": "USD" },
+   "params": { "min_duration": 5, "max_duration": 300 },
+   "cases": [
+    { "input": "choir", "extra": { "duration": 300 }, "expect": 3 },
+    { "input": "choir", "extra": {}, "expect": 0.3 }
+   ]
+  },
+  {
+   "id": "tts-1",
+   "shape": "per_thousand_chars ignores a leftover duration",
+   "pricing": { "per_thousand_chars": 0.0255, "currency": "USD" },
+   "params": {},
+   "cases": [
+    { "input": "aaaaaaaaaa", "extra": { "duration": 300 }, "expect": 0.000255 }
+   ]
+  },
+  {
+   "id": "google/lyria-3-pro/music",
+   "shape": "per_second 0 + minimum is a flat generation fee",
+   "pricing": { "per_second": 0, "minimum": 0.08, "currency": "USD" },
+   "params": { "min_duration": 10, "max_duration": 300 },
+   "cases": [
+    { "input": "choir", "extra": { "duration": 180 }, "expect": 0.08 }
+   ]
+  }
+ ],
  "audioSongs": [
   {
    "id": "mureka-o2/generate-song",

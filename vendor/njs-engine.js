@@ -1,4 +1,4 @@
-/* data-hash=bb064ca7e81c7266 */
+/* data-hash=06b93472310a86a8 */
 /* nanoodle-js browser engine — generated from nanoodle-js@src-8e7aef03e757 (16 modules) */
 (function () {
   "use strict";
@@ -1065,7 +1065,7 @@ class NanoClient {
     const bytes = new Uint8Array(await r.arrayBuffer());
     let mime = ct.split(";")[0].trim().toLowerCase();
     if (!mime || mime === "application/octet-stream" || mime === "binary/octet-stream") {
-      mime = AUDIO_MIME[extra.response_format || "mp3"] || "audio/mpeg";
+      mime = AUDIO_MIME[(extra && (extra.output_format || extra.response_format)) || "mp3"] || "audio/mpeg";
     }
     return bytesToDataUrl(bytes, mime);
   }
@@ -1745,22 +1745,42 @@ function audioParams(n, ctx) {
   const durOk = !sp || (sp.min_duration != null && sp.max_duration != null);                                     // cat:duration
   const secDurOk = !sp || (sp.min_duration != null && sp.max_duration != null && +((m.pricing || {}).per_second) > 0); // cat:secduration
   const voiceOk = !sp || (Array.isArray(sp.voices) && sp.voices.length > 0);                                     // cat:voices
+  // Yue2 catalogs the file type as output_format (mp3/wav/flac). The OpenAI response_format
+  // key is ignored, so a wav/flac choice came back as mp3. No output_format in the catalog
+  // (or no catalog) keeps the old response_format send.
+  const putFormat = (fmt) => {
+    if (!nonEmpty(fmt)) return;
+    const of = sp && sp.output_format;
+    const values = of && Array.isArray(of.values) ? of.values : null;
+    if (values) {
+      if (values.indexOf(fmt) < 0) return;
+      const def = of.default != null ? of.default : "mp3";
+      if (fmt === def) return;
+      body.output_format = fmt;
+      return;
+    }
+    if (fmt !== "mp3") body.response_format = fmt;
+  };
   if (n.type === "music") {
     if (nonEmpty(f.lyrics)) body.lyrics = f.lyrics;
     if (f.instrumental === true || f.instrumental === "true") body.instrumental = true;
     if (nonEmpty(f.duration) && num(f.duration) != null && durOk) body.duration = num(f.duration);
     if (nonEmpty(f.negative_prompt)) body.negative_prompt = f.negative_prompt;
     if (nonEmpty(f.seed) && num(f.seed) != null) body.seed = num(f.seed);
-    if (nonEmpty(f.response_format) && f.response_format !== "mp3") body.response_format = f.response_format;
+    putFormat(f.response_format);
   } else if (n.type === "tts") {
     if (nonEmpty(f.voice) && voiceOk) body.voice = f.voice;
     if (nonEmpty(f.speed) && num(f.speed) != null && num(f.speed) !== 1) body.speed = num(f.speed); // omit when 1
     if (nonEmpty(f.instructions)) body.instructions = f.instructions;
-    if (nonEmpty(f.response_format) && f.response_format !== "mp3") body.response_format = f.response_format;
+    putFormat(f.response_format);
   } else if (n.type === "remix") {
     if (nonEmpty(f.lyrics)) body.lyrics = f.lyrics;
     if (nonEmpty(f.duration) && num(f.duration) != null && secDurOk) body.duration = num(f.duration);
-    if (nonEmpty(f.response_format) && f.response_format !== "mp3") body.response_format = f.response_format;
+    // Format is a remix knob only when the catalog lists output_format (Yue2 music-to-music).
+    // A cover model with no such key must not receive a stale response_format.
+    const of = sp && sp.output_format;
+    const fmtListed = !!(of && Array.isArray(of.values) && of.values.length);
+    if (!sp || fmtListed) putFormat(f.response_format);
   }
   if ((f.extraJson || "").trim()) {
     try { Object.assign(body, JSON.parse(f.extraJson)); }

@@ -33,7 +33,7 @@ function loadResolver(file, endMarker){
   const block = html.slice(start, end);
   const sandbox = {};
   vm.createContext(sandbox);
-  vm.runInContext(block + "\nthis.videoUnitUsd=videoUnitUsd; this.chatUnitUsd=chatUnitUsd; this.audioUnitUsd=audioUnitUsd; this.audioBilledSeconds=audioBilledSeconds; this.audioBilledSongs=audioBilledSongs;", sandbox);
+  vm.runInContext(block + "\nthis.videoUnitUsd=videoUnitUsd; this.chatUnitUsd=chatUnitUsd; this.audioUnitUsd=audioUnitUsd; this.audioBilledSeconds=audioBilledSeconds; this.audioBilledSongs=audioBilledSongs; this.speechEstUsd=speechEstUsd;", sandbox);
   return sandbox;
 }
 
@@ -79,6 +79,17 @@ for(const eng of ENGINES){
     }
   }
 
+  // Post-run speech/music meter (no x-cost header live). Must use the requested duration, same as the
+  // pre-run chip — a flat EST.audioSeconds (30) under-books ElevenLabs Music v2 at 61s ($1.50, not $0.75)
+  // and a 300s per-second track ($3.00, not $0.30). Both engines must agree.
+  for(const f of fixtures.speechEst || []){
+    for(const c of (f.cases || [])){
+      const v = R.speechEstUsd(f.pricing, f.params, c.input, c.extra || {});
+      if(v == null || !isFinite(v) || Math.abs(v - c.expect) > 1e-9)
+        bad("speechEst", f.id, `${f.shape||""} extra=${JSON.stringify(c.extra||{})}`, `${v} (expected ${c.expect})`);
+    }
+  }
+
   // Reference/audio price tiers (this fix): wiring reference images or flipping the model's audio switch
   // bills a HIGHER tier (…WithReference… / with_audio / audio_multiplier). videoUnitUsd must pick it, and a
   // base case (no flags) must NOT regress. The third arg is the caller's refWired; the audio switch rides in
@@ -94,10 +105,11 @@ for(const eng of ENGINES){
 
 const durCases = (fixtures.audioDuration||[]).reduce((n,f)=> n + (f.cases?.length||0), 0);
 const songCases = (fixtures.audioSongs||[]).reduce((n,f)=> n + (f.cases?.length||0), 0);
+const speechCases = (fixtures.speechEst||[]).reduce((n,f)=> n + (f.cases?.length||0), 0);
 const tierCases = (fixtures.videoTiers||[]).reduce((n,f)=> n + (f.cases?.length||0), 0);
-const total = ((fixtures.video?.length||0) + (fixtures.audio?.length||0) + (fixtures.chat?.length||0) + durCases + songCases + tierCases) * ENGINES.length;
+const total = ((fixtures.video?.length||0) + (fixtures.audio?.length||0) + (fixtures.chat?.length||0) + durCases + songCases + speechCases + tierCases) * ENGINES.length;
 if(fail){
   console.error(`\n✗ ${fail} pricing checks failed across ${ENGINES.length} engines — a resolver branch is missing or the two engines drifted.`);
   process.exit(1);
 }
-console.log(`✓ every pricing shape resolves in both engines (${fixtures.video?.length||0} video, ${fixtures.audio?.length||0} audio, ${fixtures.chat?.length||0} chat, ${durCases} audio-duration, ${songCases} audio-songs, ${tierCases} video-tier × ${ENGINES.length} engines = ${total} checks).`);
+console.log(`✓ every pricing shape resolves in both engines (${fixtures.video?.length||0} video, ${fixtures.audio?.length||0} audio, ${fixtures.chat?.length||0} chat, ${durCases} audio-duration, ${songCases} audio-songs, ${speechCases} speech-est, ${tierCases} video-tier × ${ENGINES.length} engines = ${total} checks).`);
