@@ -1,5 +1,5 @@
-/* data-hash=06b93472310a86a8 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-8e7aef03e757 (16 modules) */
+/* data-hash=3b6e04233cf08498 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-88ceeef6dbcc (16 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -4862,5 +4862,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-8e7aef03e757";
+  window.NanoodleEngine.version = "src-88ceeef6dbcc";
 })();
