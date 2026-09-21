@@ -9226,10 +9226,12 @@ const PROMPT_CAPS = {
               { f:"duration", label:"Duration", kind:"select", options:DURATIONS, def:"5" }],
     vedit:   [{ f:"model", label:"Model", kind:"model" },
               { f:"prompt", label:"Edit instruction", kind:"textarea" },
-              { f:"resolution", label:"Resolution", kind:"select", options:RESOLUTIONS, def:"" }],
+              { f:"resolution", label:"Resolution", kind:"select", options:RESOLUTIONS, def:"" },
+              { f:"duration", label:"Duration", kind:"select", options:DURATIONS, def:"5" }],
     lipsync: [{ f:"model", label:"Model", kind:"model" },
               { f:"prompt", label:"Guidance prompt", kind:"textarea" },
-              { f:"resolution", label:"Resolution", kind:"select", options:RESOLUTIONS, def:"" }],
+              { f:"resolution", label:"Resolution", kind:"select", options:RESOLUTIONS, def:"" },
+              { f:"duration", label:"Duration", kind:"select", options:DURATIONS, def:"5" }],
     music:   [{ f:"model", label:"Model", kind:"model" },
               { f:"lyrics", label:"Lyrics (sung words)", kind:"textarea" },
               { f:"instrumental", label:"Instrumental (no vocals)", kind:"boolean" },
@@ -9706,8 +9708,18 @@ const PROMPT_CAPS = {
       rawCatItem(kind, it.node.fields.model).then(m=>{
         const pack = dimOptionsFromItem(it.node.type, m);
         const opts = pack[it.field];
-        if(!opts || !opts.length) return;
         const el = document.getElementById("set_"+i);
+        // vedit/lipsync surface duration only when the picked model lists it (editor
+        // dimDefs parity): a known catalog entry without the param would leave the
+        // row's static 5/10 as a dead knob, so hide it. Offline/unknown models keep
+        // the fallback row, like tvideo/ivideo. Re-shown on model swap (fillDimLists
+        // re-runs on pick), mirroring refreshTempRows.
+        if((it.node.type==="vedit" || it.node.type==="lipsync") && it.field==="duration"){
+          const row = el && el.closest(".field");
+          if(row) row.hidden = !!(m && (!opts || !opts.length));
+          if(m && (!opts || !opts.length)) return;
+        }
+        if(!opts || !opts.length) return;
         if(!el || el.tagName!=="SELECT") return;
         let cur = it.node.fields[it.field];
         const def = (pack.def && pack.def[it.field]!=null && pack.def[it.field]!=="") ? String(pack.def[it.field]) : String(opts[0][0]);
