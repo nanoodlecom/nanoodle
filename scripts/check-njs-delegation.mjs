@@ -316,6 +316,100 @@ for (const [name, data, vetoTypes] of VETO_GRAPHS) {
   console.log("✓ vetoes: gallery clamp / foreign pending jobs fall back to built-in (wired video refs, blob: media and lipsync delegate)");
 }
 
+// Image aspect_ratio is a separate wire from size on Qwen Image 2.1 / Anima (v1 lists the
+// array; resolutions are megapixel tiers). Both engines must POST it. A list that only
+// repeats the size options must NOT be sent again as aspect_ratio.
+{
+  const prevImg = catalog.image.slice();
+  const QWEN = {
+    id: "qwen-image-2.1/text-to-image",
+    supported_parameters: {
+      resolutions: ["1k", "1.5k", "2k"],
+      aspect_ratio: ["1:1", "16:9", "9:16"],
+      max_output_images: 1,
+    },
+  };
+  const QWEN_EDIT = {
+    id: "qwen-image-2.1/edit",
+    supported_parameters: {
+      resolutions: ["1k", "2k"],
+      aspect_ratio: ["auto", "1:1", "16:9"],
+      max_input_images: 10,
+      max_output_images: 1,
+    },
+  };
+  const REDUNDANT = {
+    id: "bria/fibo-edit-1.5/edit",
+    supported_parameters: {
+      resolutions: ["auto", "1:1", "16:9"],
+      aspect_ratio: ["", "auto", "1:1", "16:9"],
+      max_input_images: 4,
+      max_output_images: 1,
+    },
+  };
+  const cases = [
+    ["qwen21 t2i aspect 16:9", {
+      nodes: [node("i1", "image", { model: QWEN.id, prompt: "a fox", variations: "1", size: "1k", aspect: "16:9" })],
+      links: [],
+    }, [QWEN], "image", "16:9"],
+    ["qwen21 t2i aspect defaults to 1:1", {
+      nodes: [node("i1", "image", { model: QWEN.id, prompt: "a fox", variations: "1", size: "1k" })],
+      links: [],
+    }, [QWEN], "image", "1:1"],
+    ["qwen21 edit aspect defaults to auto", {
+      nodes: [node("u1", "upload", { image: IMG }), node("e1", "edit", { model: QWEN_EDIT.id, prompt: "restyle", size: "1k" })],
+      links: [link("u1", "image", "e1", "image")],
+    }, [QWEN_EDIT], "edit", "auto"],
+    ["ratio-sized edit does not also send aspect_ratio", {
+      nodes: [node("u1", "upload", { image: IMG }), node("e1", "edit", { model: REDUNDANT.id, prompt: "restyle", size: "16:9", aspect: "16:9" })],
+      links: [link("u1", "image", "e1", "image")],
+    }, [REDUNDANT], "edit", undefined],
+  ];
+  try {
+    for (const [name, data, raw, expectType, want] of cases) {
+      catalog.image = raw;
+      calls.length = 0;
+      const offApp = flaggedEngine(false, []);
+      await offApp.runGraph(offApp.materialize(data), {}).catch((e) => { failed++; console.log(`✗ ${name}: flag-off threw ${e && e.message}`); });
+      const bodyOf = (c) => (c.body && typeof c.body === "object") ? c.body : (() => { try { return JSON.parse(c.body); } catch { return {}; } })();
+      const offPaid = calls.filter(paid).map(bodyOf);
+
+      calls.length = 0;
+      const spy = [];
+      const onApp = flaggedEngine(true, spy);
+      await onApp.runGraph(onApp.materialize(data), {}).catch((e) => { failed++; console.log(`✗ ${name}: flag-on threw ${e && e.message}`); });
+      const onPaid = calls.filter(paid).map(bodyOf);
+
+      if (!spy.includes(expectType)) {
+        failed++;
+        console.log(`✗ ${name}: delegation did not engage (spy: ${spy.join(", ") || "nothing"})`);
+        continue;
+      }
+      const aspectOf = (rows) => rows.map((b) => b.aspect_ratio);
+      if (JSON.stringify(offPaid.map(canonical)) !== JSON.stringify(onPaid.map(canonical))) {
+        failed++;
+        console.log(`✗ ${name}: flag-on body differs\n  off: ${JSON.stringify(aspectOf(offPaid))}\n  on:  ${JSON.stringify(aspectOf(onPaid))}`);
+        continue;
+      }
+      const got = onPaid[0] && onPaid[0].aspect_ratio;
+      if (want === undefined) {
+        if (onPaid.some((b) => b.aspect_ratio != null)) {
+          failed++;
+          console.log(`✗ ${name}: aspect_ratio was posted (${JSON.stringify(got)})`);
+          continue;
+        }
+      } else if (got !== want) {
+        failed++;
+        console.log(`✗ ${name}: aspect_ratio expected ${JSON.stringify(want)}, got ${JSON.stringify(got)}`);
+        continue;
+      }
+      console.log(`✓ ${name} → ${want === undefined ? "omitted" : want} on both engines`);
+    }
+  } finally {
+    catalog.image = prevImg;
+  }
+}
+
 // leftover size on the DEFAULT (njs) paid path — #414 snapped built-in image.run; library posts raw.
 {
   const prevImg = catalog.image.slice();

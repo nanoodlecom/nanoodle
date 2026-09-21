@@ -117,7 +117,8 @@ const REAL = [
   grab(/const IMG_INPUT_ROLES = \{[^\n]*\};/, "IMG_INPUT_ROLES"),   // njsRunFor's role-model veto reads it
   extractFn("withLocale"), extractFn("collectImageInputs"), extractFn("llmOpts"),
   extractFn("chatModelCan"), extractFn("modelSupportsImages"), extractFn("modelSupportsAudio"), extractFn("audioInputPart"),
-  extractConst("IMAGE_ASPECT"), extractFn("imageAspectSpec"),
+  extractConst("IMAGE_ASPECT"), extractFn("aspectFromParams"), extractFn("imageAspectSpec"),
+  extractFn("imageAspectExtra"),
   extractFn("imgExtra"), extractFn("b64ImageMime"), extractFn("imageUnitUsd"),
   extractFn("normalizeLoraUrl"), extractFn("loraFamily"), extractFn("loraKind"),
   extractFn("imageTakesLora"), extractFn("modelTakesLora"), extractFn("loraCap"),
@@ -284,6 +285,52 @@ for (const [name, type, fields, inp, directive, pin] of SCENARIOS) {
     if (leaked) { failed++; console.log(`✗ ${name}: forbidden ${leaked}=${JSON.stringify(body[leaked])} still posted`); continue; }
   }
   console.log(`✓ ${name} (${reqOn.length} req byte-identical, out identical, delegated: ${[...new Set(spy)].join(",")})`);
+}
+
+// Catalog aspect_ratio (separate from size) must be posted by BOTH engines. The library's
+// imgExtra only special-cases FIBO; the shim stamps imageAspectExtra so the bodies match.
+{
+  const QWEN = "qwen-image-2.1/text-to-image";
+  const ratios = ["1:1", "16:9", "9:16"];
+  const aspect = { options: ratios.map((v) => [v, v]), def: "1:1" };
+  const cases = [
+    { name: "qwen21 t2i aspect 16:9", fields: { model: QWEN, prompt: "a fox", variations: "1", size: "1k", aspect: "16:9" }, want: "16:9" },
+    { name: "qwen21 t2i aspect defaults to 1:1", fields: { model: QWEN, prompt: "a fox", variations: "1", size: "1k" }, want: "1:1" },
+    { name: "normalized aspect:null does not send leftover", fields: { model: "bria/fibo-edit-1.5/edit", prompt: "restyle", size: "16:9", aspect: "16:9" }, want: undefined, type: "edit", inp: { image: IMG }, norm: { id: "bria/fibo-edit-1.5/edit", resolutions: ["auto", "1:1", "16:9"], maxOut: 1, sizePrices: {}, aspect: null } },
+  ];
+  for (const c of cases) {
+    const norm = c.norm || { id: QWEN, resolutions: ["1k", "1.5k", "2k"], maxOut: 1, sizePrices: {}, aspect };
+    const type = c.type || "image";
+    const inp = c.inp || {};
+    const fields = { ...c.fields };
+
+    calls.length = 0;
+    const off = makeCtx({ flagOn: false });
+    off.catalogs.image = [norm];
+    await new vm.Script(`RUN.${type}({ id:"n1", type:${JSON.stringify(type)}, fields:${JSON.stringify(fields)} }, ${JSON.stringify(inp)}, CTX)`).runInContext(off);
+    const offImg = calls.filter((x) => /images\/generations/.test(x.url)).map((x) => JSON.parse(x.body));
+
+    calls.length = 0;
+    const spy = [];
+    const on = makeCtx({ flagOn: true, spy });
+    on.catalogs.image = [norm];
+    const node = { id: "n1", type, fields: { ...fields } };
+    const run = on.njsRunFor(type, node, inp, node);
+    if (!run) { failed++; console.log(`✗ ${c.name}: njsRunFor returned null`); continue; }
+    await run();
+    const onImg = calls.filter((x) => /images\/generations/.test(x.url)).map((x) => JSON.parse(x.body));
+
+    if (!spy.includes(type)) { failed++; console.log(`✗ ${c.name}: library runner never ran`); continue; }
+    if (!offImg.length || !onImg.length) { failed++; console.log(`✗ ${c.name}: no image POST`); continue; }
+    const offA = offImg[0].aspect_ratio, onA = onImg[0].aspect_ratio;
+    if (offA !== onA) { failed++; console.log(`✗ ${c.name}: engines disagreed off=${JSON.stringify(offA)} on=${JSON.stringify(onA)}`); continue; }
+    if (c.want === undefined) {
+      if (onA != null) { failed++; console.log(`✗ ${c.name}: aspect_ratio leaked ${JSON.stringify(onA)}`); continue; }
+    } else if (onA !== c.want) {
+      failed++; console.log(`✗ ${c.name}: aspect_ratio expected ${JSON.stringify(c.want)}, got ${JSON.stringify(onA)}`); continue;
+    }
+    console.log(`✓ ${c.name} → ${c.want === undefined ? "omitted" : c.want} on both engines`);
+  }
 }
 
 // leftover size on the DEFAULT (njs) paid path: #414 snapped built-in image.run, but njs

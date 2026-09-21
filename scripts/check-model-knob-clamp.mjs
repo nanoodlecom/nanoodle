@@ -128,7 +128,9 @@ function loadPlay() {
     dimNumLine(PLAY),
     block(PLAY, "function nearestDimOption(cur, options, def){"),
     block(PLAY, "function applyDimFields(fields, defs){"),
+    block(PLAY, "function aspectFromParams(sp){"),
     block(PLAY, "function imageAspectSpec(model){"),
+    block(PLAY, "function imageAspectFor(model, raw){"),
     block(PLAY, "function dimOptionsFromItem(type, m){"),
     block(PLAY, "function snapImageSize(n, raw){"),
   ].join("\n");
