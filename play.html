@@ -8222,7 +8222,7 @@ function mp4ParamsMatch(bufs){
         const _fixed = _catIt ? ((_catIt.supported_parameters && _catIt.supported_parameters.fixed_image_count) || 0) : 0;
         if(_fixed > 1) want = _fixed;
         // always multi: even n:1 can return N (fixed_image_count models) — surface every image paid for.
-        const urls = await ctx.genImage(prompt, mdl(n), snapImageSize(n, _catIt)||SIZES[0][0], undefined, undefined, imgExtra(n), {n:want, multi:true});
+        const urls = await ctx.genImage(prompt, mdl(n), snapImageSize(n, _catIt)||SIZES[0][0], undefined, undefined, withImageAspect(imgExtra(n), n, _catIt), {n:want, multi:true});
         const sel = Math.min(Math.max(0, parseInt(n.fields.sel,10)||0), urls.length-1);
         return { image: urls[sel], images: urls };
       }
@@ -8259,7 +8259,7 @@ function mp4ParamsMatch(bufs){
         if(imgs.reduce(function(s,u){ return s + (u?u.length:0); }, 0) > MEDIA_INLINE_MAX)
           throw new Error("reference images too large (~4 MB combined limit) — use fewer or smaller images");
         const src = imgs.length>1 ? imgs : imgs[0];   // array → multi-image composite; string → single edit (unchanged)
-        return { image: await ctx.genImage(prompt, mdl(n), snapImageSize(n, _m)||SIZES[0][0], src, undefined, imgExtra(n)) };
+        return { image: await ctx.genImage(prompt, mdl(n), snapImageSize(n, _m)||SIZES[0][0], src, undefined, withImageAspect(imgExtra(n), n, _m)) };
       }
     },
     inpaint: {
@@ -8273,7 +8273,8 @@ function mp4ParamsMatch(bufs){
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         if(!prompt) throw new Error("no prompt — say what to paint into the brushed area");
         const mask = await maskToSource(rawMask, source);
-        return { image: await ctx.genImage(prompt, mdl(n), snapImageSize(n, await rawCatItem("image", mdl(n)))||SIZES[0][0], source, mask, imgExtra(n)) };
+        const _ipCat = await rawCatItem("image", mdl(n));
+        return { image: await ctx.genImage(prompt, mdl(n), snapImageSize(n, _ipCat)||SIZES[0][0], source, mask, withImageAspect(imgExtra(n), n, _ipCat)) };
       }
     },
     resize: {
@@ -8883,6 +8884,17 @@ const PROMPT_CAPS = {
       ctx.catalog = await njsCatalogs();
       // leftover size snap — njs is the default send path; library posts fields.size raw
       if(type==="image" || type==="edit" || type==="inpaint") snapImageSize(rn, await rawCatItem("image", mdl(rn)));
+      // Library imgExtra only special-cases FIBO; stamp catalog aspect_ratio with the same
+      // withImageAspect the built-in runner uses, and never override a key already set.
+      if(type==="image"||type==="edit"||type==="inpaint"){
+        var _sendImage = ctx.image;
+        ctx.image = function(args){
+          args = args || {};
+          var raw = null, list = (ctx.catalog && ctx.catalog.image) || [], i;
+          for(i=0;i<list.length;i++) if(list[i] && list[i].id===args.model) raw = list[i];
+          return _sendImage(Object.assign({}, args, { extra: withImageAspect(args.extra, rn, raw) }));
+        };
+      }
       return E.RUNNERS[type](rn, inp2, ctx);
     };
   }
@@ -9210,13 +9222,13 @@ const PROMPT_CAPS = {
               { f:"q",     label:"Question", kind:"textarea", def:"Describe this image." }],
     image:   [{ f:"model", label:"Model", kind:"model" },
               { f:"size",  label:"Image size", kind:"select", options:SIZES, def:SIZES[0][0] },
-              { f:"aspect", label:"Aspect ratio", kind:"select", options:[["1:1","1:1"],["16:9","16:9"],["9:16","9:16"]], def:"1:1" },
+              { f:"aspect", label:"Aspect ratio", kind:"select", options:[["1:1","1:1"],["16:9","16:9"],["9:16","9:16"]] },
               { f:"variations", label:"Variations", kind:"number", min:1, def:"1" },
               { f:"seed", label:"Seed", kind:"number" }],
     edit:    [{ f:"model", label:"Model", kind:"model" },
               { f:"prompt", label:"Edit instruction", kind:"textarea" },
               { f:"size",  label:"Image size", kind:"select", options:SIZES, def:SIZES[0][0] },
-              { f:"aspect", label:"Aspect ratio", kind:"select", options:[["1:1","1:1"],["16:9","16:9"],["9:16","9:16"]], def:"1:1" },
+              { f:"aspect", label:"Aspect ratio", kind:"select", options:[["1:1","1:1"],["16:9","16:9"],["9:16","9:16"]] },
               { f:"seed", label:"Seed", kind:"number" }],
     tvideo:  [{ f:"model", label:"Model", kind:"model" },
               { f:"resolution", label:"Resolution", kind:"select", options:RESOLUTIONS, def:"" },
@@ -9583,12 +9595,50 @@ const PROMPT_CAPS = {
     const raw = await loadCatalogRaw(kind);
     return raw.find(m=> m && m.id===id) || null;
   }
-  // FIBO Generate 1.5: v1 image-models lists only 1mp/4mp; marketing /api/models additionalParams
-  // advertise aspect_ratio (fetched 2026-09-01). Drop once the v1 catalog lists it.
+  // v1 image-models lists aspect_ratio as a string array beside resolutions (Qwen Image 2.1,
+  // Anima, Qwen Image 3, FIBO Generate 1.5, …). When those ratios are NOT already the size
+  // list, framing is a separate wire key. A list that only repeats resolutions (FIBO Edit 1.5's
+  // "auto"/"1:1"/… sizes) stays on size — sending aspect_ratio as well would double-wire it.
+  // Empty strings (FIBO Edit's "unset" option) are not choices.
+  function aspectFromParams(sp){
+    if(!sp || !Array.isArray(sp.aspect_ratio)) return null;
+    const res = new Set(Array.isArray(sp.resolutions) ? sp.resolutions.filter(x => typeof x==="string") : []);
+    const options = sp.aspect_ratio.filter(x => typeof x==="string" && x!=="").map(x => [x, x]);
+    if(options.length < 2) return null;
+    if(options.every(o => res.has(o[0]))) return null;
+    return { options, def: options[0][0] };
+  }
+  // FIBO Generate 1.5 offline fallback: size tiers are 1mp/4mp; shape is this list. Once a raw
+  // catalog item is in hand, aspectFromParams wins (v1 now lists the array). No backticks.
   function imageAspectSpec(model){
     if(model==="bria/fibo-generate-1.5/text-to-image")
       return { options:[["1:1","1:1"],["2:3","2:3"],["3:2","3:2"],["3:4","3:4"],["4:3","4:3"],["4:5","4:5"],["5:4","5:4"],["9:16","9:16"],["16:9","16:9"]], def:"1:1" };
     return null;
+  }
+  // raw present → catalog is the source of truth (including "key exists but redundant → null").
+  // raw absent → FIBO id map, so an offline export still frames FIBO.
+  function imageAspectFor(model, raw){
+    if(raw && raw.supported_parameters){
+      var fromCat = aspectFromParams(raw.supported_parameters);
+      if(fromCat) return fromCat;
+      if(raw.supported_parameters.aspect_ratio) return null;
+    }
+    return imageAspectSpec(model);
+  }
+  // Merge aspect_ratio into an image extra. A key already set (library/built-in FIBO imgExtra)
+  // wins, so flag-on and flag-off stay byte-identical. Unknown leftovers snap to the catalog
+  // default rather than posting a ratio the model will 400.
+  function withImageAspect(extra, n, raw){
+    extra = Object.assign({}, extra || {});
+    if(extra.aspect_ratio!=null && extra.aspect_ratio!=="") return extra;
+    var spec = imageAspectFor(n && n.fields && n.fields.model, raw);
+    if(!spec) return extra;
+    var v = n.fields.aspect, opts = spec.options || [];
+    var known = opts.some(function(o){ return String(o[0])===String(v); });
+    if(v==null || v==="") v = spec.def;
+    else if(!known) v = nearestDimOption(v, opts, spec.def);
+    if(v!=null && v!=="") extra.aspect_ratio = String(v);
+    return extra;
   }
   function dimOptionsFromItem(type, m){
     const out = { def:{} }; if(!m) return out;
@@ -9596,7 +9646,7 @@ const PROMPT_CAPS = {
       const res = Array.isArray(m.supported_parameters && m.supported_parameters.resolutions)
         ? m.supported_parameters.resolutions.filter(x=> typeof x==="string" && x) : [];
       if(res.length){ out.size = res.map(r=>[r,r]); out.def.size = res[0]; }
-      const asp = imageAspectSpec(m.id);
+      const asp = imageAspectFor(m.id, m);
       if(asp){ out.aspect = asp.options; out.def.aspect = asp.def; }
       return out;
     }
@@ -9673,24 +9723,27 @@ const PROMPT_CAPS = {
       // says. Pin the box to N, disable it, and say so — same catalog-driven rewrite as the size
       // list, same row-gating mechanism as refreshTempRows. Best-effort; a catalog miss changes nothing.
       if((it.node.type==="image" || it.node.type==="edit") && it.field==="aspect"){
-        // FIBO 1.5 advertises aspect_ratio outside the v1 image catalog — show the knob from
-        // the id map even on a catalog miss. Hide it on every other image model so leftover
-        // options never look like a real control (and imgExtra will not send the key).
-        const spec = imageAspectSpec(it.node.fields.model);
+        // Show the knob when the model advertises a separate aspect_ratio (catalog array, or
+        // the FIBO id map on a miss). Hide it otherwise so a leftover select never looks live
+        // and withImageAspect will not send the key.
         const el = document.getElementById("set_"+i); if(!el) return;
         const row = el.closest(".field");
-        if(row) row.hidden = !spec;
-        if(!spec || el.tagName!=="SELECT") return;
-        const opts = spec.options;
-        let cur = it.node.fields.aspect;
-        const def = spec.def;
-        if(cur!=null && cur!=="" && !opts.some(o=> String(o[0])===String(cur))){
-          const next = nearestDimOption(cur, opts, def);
-          cur = next; it.node.fields.aspect = next;
-          checkDirty(); refreshRunCost();
-        }
-        if(cur==null || cur===""){ cur = def; it.node.fields.aspect = def; }
-        el.innerHTML = opts.map(o=> '<option value="'+esc(o[0])+'"'+(String(o[0])===String(cur)?" selected":"")+'>'+esc(o[1])+'</option>').join("");
+        const model = it.node.fields.model;
+        const paint = function(spec){
+          if(row) row.hidden = !spec;
+          if(!spec || el.tagName!=="SELECT") return;
+          const opts = spec.options;
+          let cur = it.node.fields.aspect;
+          const def = spec.def;
+          if(cur!=null && cur!=="" && !opts.some(function(o){ return String(o[0])===String(cur); })){
+            const next = nearestDimOption(cur, opts, def);
+            cur = next; it.node.fields.aspect = next;
+            checkDirty(); refreshRunCost();
+          }
+          if(cur==null || cur===""){ cur = def; it.node.fields.aspect = def; }
+          el.innerHTML = opts.map(function(o){ return '<option value="'+esc(o[0])+'"'+(String(o[0])===String(cur)?" selected":"")+'>'+esc(o[1])+'</option>'; }).join("");
+        };
+        rawCatItem("image", model).then(function(m){ paint(imageAspectFor(model, m)); }).catch(function(){ paint(imageAspectSpec(model)); });
         return;
       }
       if(it.node.type==="image" && it.field==="variations"){

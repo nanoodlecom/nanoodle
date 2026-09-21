@@ -4618,6 +4618,7 @@ function normImg(m){
     roles: IMG_INPUT_ROLES[m.id] || null,                               // per-slot meaning when order matters (vto: person, then garment)
     lora: imageTakesLora(m.id),                                          // accepts a LoRA (v1 image catalog hides lora params → name allow-list)
     resolutions,                                                         // real supported sizes → the size control's options
+    aspect: aspectFromParams(m.supported_parameters),                    // separate aspect_ratio knob, or null when size already carries framing
     maxOut: m.supported_parameters?.max_output_images || 1,             // can return N images per call → the "variations" control (gen only)
     fixedCount: m.supported_parameters?.fixed_image_count || 0,          // ALWAYS returns this many (e.g. midjourney/higgsfield = 4), regardless of n
     sizePrices: per,                                                     // per-size price map → live price as the size changes
@@ -6341,18 +6342,42 @@ function applyDimFields(fields, defs){
   }
   return fields;
 }
-// Image models whose v1 catalog only lists megapixel size tiers (1mp/4mp) but the marketing
-// /api/models additionalParams advertise a separate aspect_ratio select. FIBO Generate 1.5 is
-// the live case (fetched 2026-09-01): size is 1mp/4mp, shape is this list. Drop the map once
-// /api/v1/image-models lists aspect_ratio. Gated by model id so we never send the key to a
-// model that didn't advertise it (unknown 400).
+// v1 image-models lists aspect_ratio as a string array beside resolutions (Qwen Image 2.1,
+// Anima, Qwen Image 3, FIBO Generate 1.5, …). When those ratios are NOT already the size
+// list, framing is a separate wire key. A list that only repeats resolutions (FIBO Edit 1.5's
+// "auto"/"1:1"/… sizes) stays on `size` — sending aspect_ratio as well would double-wire it.
+// Empty strings (FIBO Edit's "unset" option) are not choices.
+function aspectFromParams(sp){
+  if(!sp || !Array.isArray(sp.aspect_ratio)) return null;
+  const res = new Set(Array.isArray(sp.resolutions) ? sp.resolutions.filter(x => typeof x==="string") : []);
+  const options = sp.aspect_ratio.filter(x => typeof x==="string" && x!=="").map(x => [x, x]);
+  if(options.length < 2) return null;
+  if(options.every(o => res.has(o[0]))) return null;
+  return { options, def: options[0][0] };
+}
+// Offline / catalog-miss fallback for FIBO Generate 1.5, whose size tiers are 1mp/4mp and
+// whose shape is this list (fetched 2026-09-01; v1 now also lists the array, which wins once
+// the catalog item is normalized). Gated so a leftover fields.aspect never hits Muse/Recraft.
 const IMAGE_ASPECT = {
   "bria/fibo-generate-1.5/text-to-image": {
     options: [["1:1","1:1"],["2:3","2:3"],["3:2","3:2"],["3:4","3:4"],["4:3","4:3"],["4:5","4:5"],["5:4","5:4"],["9:16","9:16"],["16:9","16:9"]],
     def: "1:1",
   },
 };
-function imageAspectSpec(model){ return IMAGE_ASPECT[model] || null; }
+function imageAspectSpec(model){
+  const it = catItem("image", model);
+  // Normalized items always own `aspect` (null = no separate knob). Items without the key
+  // are offline or a hand-built fixture — keep the FIBO id map.
+  if(it && Object.prototype.hasOwnProperty.call(it, "aspect")) return it.aspect || null;
+  return IMAGE_ASPECT[model] || null;
+}
+function imageAspectExtra(model, aspect){
+  const spec = imageAspectSpec(model);
+  if(!spec) return {};
+  const v = (aspect!=null && aspect!=="") ? aspect : spec.def;
+  if(v==null || v==="") return {};
+  return { aspect_ratio: String(v) };
+}
 
 // the dimension fields a node should show, resolved from its model's catalog entry
 function dimDefs(type, model){
@@ -10332,6 +10357,18 @@ function njsRunFor(type, rn, inp, n){
     ctx.catalog = await njsCatalogs();
     // leftover size snap — njs is the default send path; library posts fields.size raw
     if(type==="image" || type==="edit" || type==="inpaint") applyDimFields(rn.fields, dimDefs(rn.type, rn.fields.model));
+    // Library imgExtra only special-cases FIBO. Stamp catalog aspect_ratio (Qwen Image 2.1,
+    // Anima, Qwen Image 3, …) with the same imageAspectExtra the built-in path uses, and never
+    // override a key the library already set, so flag-on and flag-off stay byte-identical.
+    if(type==="image"||type==="edit"||type==="inpaint"){
+      const sendImage = ctx.image;
+      ctx.image = (args)=>{
+        args = args || {};
+        const extra = Object.assign({}, args.extra || {});
+        if(extra.aspect_ratio==null || extra.aspect_ratio==="") Object.assign(extra, imageAspectExtra(args.model, rn.fields && rn.fields.aspect));
+        return sendImage(Object.assign({}, args, { extra }));
+      };
+    }
     return E.RUNNERS[type](rn, inp2, ctx);
   };
 }
@@ -10723,14 +10760,9 @@ function loraBodyFor(model, items){       // items: [{url,scale}], 1..cap, alrea
 function imgExtra(n){
   const e = loraParams(n), s = n.fields.seed;
   if(s!=null && String(s).trim()!=="" && !isNaN(Number(s))) e.seed = Number(s);
-  // FIBO 1.5 (and any future IMAGE_ASPECT id): size is 1mp/4mp; shape rides as aspect_ratio.
-  // Only send when this model advertised the field — leftover aspect after a model swap must
-  // not go out on Muse/Recraft/etc.
-  const asp = imageAspectSpec(n.fields.model);
-  if(asp){
-    const v = (n.fields.aspect!=null && n.fields.aspect!=="") ? n.fields.aspect : asp.def;
-    if(v!=null && v!=="") e.aspect_ratio = String(v);
-  }
+  // Catalog aspect_ratio (or the FIBO offline map). Leftover fields.aspect after a swap onto
+  // a model with no separate knob must not go out — imageAspectExtra returns {} then.
+  Object.assign(e, imageAspectExtra(n.fields.model, n.fields.aspect));
   if(needsCustomCivitai(n.fields.model)){
     const air = normalizeCustomCivitaiAir(n.fields.customCivitaiAir);
     if(!air) throw new Error(t("select an AIR model — pick a Runware preset or paste civitai:/runware:/persona:…"));
