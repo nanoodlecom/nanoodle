@@ -4645,11 +4645,19 @@ function normVideo(m){
   // keep t2v — the video is optional there. Data-driven off the catalog modality, no name blocklist.
   const inMods = ((m.architecture||{}).modality||"").split("->")[0].split("+");
   const needsSourceVideo = inMods.includes("video") && !inMods.includes("image");
+  // Omni / reference models also set audio_input, but they are not talking avatars. The lipsync
+  // node posts one portrait + one audioUrl. reference_audios[] drops that track on the wrong key
+  // (silent: the run still bills). A modality that includes a source video can't be fed here at
+  // all — Wan 3.0 Prime / Seedance 2.5 / Wan 3.0 reference-to-video. Without this gate the newest
+  // such model (MiniMax H3 reference-to-video, same created stamp as H3 Max Lip Sync) is the
+  // Avatar node's default. Catalog modality + param keys only — no model-name list. Text+image+audio
+  // generators that really do take one driving track (music-video-generator, LTX, Wan 2.5) stay.
+  const refAudio = ("reference_audios" in pp || "reference_audio" in pp || "reference_audio_urls" in pp);
   return { id:m.id, name:m.name||m.id, created:m.created,
     sortUsd: _vu,                                    // resolved $/clip at default res/duration → price sorts
     t2v:!!c.text_to_video && !needsSourceVideo, i2v:!!c.image_to_video,
     v2v:!!c.video_to_video,                          // edits/extends/upscales a SOURCE video (→ vedit node)
-    avatar:!!c.image_to_video && !!c.audio_input && !multiAudio,    // image + single audio → talking video (→ lipsync node)
+    avatar:!!c.image_to_video && !!c.audio_input && !multiAudio && !refAudio && !inMods.includes("video"),    // image + single audio → talking video (→ lipsync node)
     lora,                                            // catalog advertises lora_url_N → the LoRA disclosure is offered
     audioGen:!!c.audio_generation,                   // model renders synchronized audio into the clip → preview should NOT be muted
     params: pp,                                      // per-model param descriptors → the ⚙️ Model options block

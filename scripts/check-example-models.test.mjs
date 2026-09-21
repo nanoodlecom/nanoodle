@@ -121,6 +121,21 @@ test('validates video parameter aliases, resolution, duration and input capabili
   assert.match(auditPins([pin('lipsync',{model:'v'})],catalogs)[0].reason,/does not support/);
 });
 
+test('lipsync rejects reference-audio and source-video omni models', () => {
+  const ref = { id: 'minimax-h3/reference-to-video', capabilities: { image_to_video: true, audio_input: true },
+    architecture: { modality: 'text+image+audio->video' },
+    supported_parameters: { parameters: { reference_audios: { type: 'text' } } } };
+  assert.match(auditPins([pin('lipsync', { model: ref.id })], { video: [ref] })[0].reason, /does not support/);
+  const omni = { id: 'alibaba/wan-3.0-prime', capabilities: { image_to_video: true, audio_input: true, text_to_video: true },
+    architecture: { modality: 'text+image+video+audio->video' },
+    supported_parameters: { parameters: { mode: { type: 'select' } } } };
+  assert.match(auditPins([pin('lipsync', { model: omni.id })], { video: [omni] })[0].reason, /does not support/);
+  const talk = { id: 'bytedance/seedance-2.5/talking-avatar', capabilities: { image_to_video: true, audio_input: true },
+    architecture: { modality: 'image+audio->video' },
+    supported_parameters: { parameters: { audio: { type: 'string' } } } };
+  assert.equal(auditPins([pin('lipsync', { model: talk.id })], { video: [talk] }).length, 0);
+});
+
 test('validates audio voices and bounds; permits unset fields and automatic duration', () => {
   const catalogs = {audio:[{id:'speech',capabilities:{text_to_speech:true},supported_parameters:{voices:['Eve'],min_duration:1,max_duration:60}}]};
   assert.equal(auditPins([pin('tts',{model:'speech',voice:'Eve',duration:'auto'})],catalogs).length,0);

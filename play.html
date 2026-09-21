@@ -9393,7 +9393,12 @@ const PROMPT_CAPS = {
                            const peopleOpts = ((pp.people && pp.people.options) || []).map(o => o && o.value).filter(Boolean);
                            const canSingle = peopleOpts.includes("single");
                            const multiAudio = ("left_audio" in pp || "right_audio" in pp) && !canSingle;   // multi-speaker-only avatars need two tracks; InfiniteTalk people=single still uses one audio input (mirrors the editor's normVideo)
-                           return !!c.image_to_video && !!c.audio_input && !multiAudio; }
+                           // mirrors normVideo: reference_audios[] is the wrong key for this node's audioUrl,
+                           // and a source-video modality (Wan 3.0 Prime, Seedance 2.5, H3 reference-to-video)
+                           // is an omni/reference model, not a talking avatar.
+                           const inMods = mod.split("->")[0].split("+");
+                           const refAudio = ("reference_audios" in pp || "reference_audio" in pp || "reference_audio_urls" in pp);
+                           return !!c.image_to_video && !!c.audio_input && !multiAudio && !refAudio && !inMods.includes("video"); }
       case "tts":        return !!c.text_to_speech || m.category==="audio_tts";
       case "music":      { const am = mod.split("->")[0].split("+");   // cover/extend models are text+audio-> and demand a source track — keep them out of a plain Music swap
                            // verb guard mirrors editor normAudio.usable: cover/extend/clone ids would leak in via modality alone
