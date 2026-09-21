@@ -1,9 +1,9 @@
 {
   "_comment": "Baseline for scripts/check-twin-drift.mjs — the hand-maintained duplication between index.html and play.html. `count` is a RATCHET: extraction may lower it freely, new duplication may not raise it silently. Each `lines` entry is `<hash> <n in index.html> <n in play.html> <look-alikes in index.html> <look-alikes in play.html> <the line>`, where the hash is a 16-hex sha256 of the stripped line and the guard re-hashes the text to prove the two agree. The per-surface counts matter: a line that appears twice in one file can be edited in one place and still be present. The text matters: without it the guard cannot tell a real extraction from a line that both surfaces replaced with DIFFERENT text. The look-alike sets matter: they are the hashes of the lines that ALREADY resembled this one when the baseline was written, and without them the guard reads one of those as a `replacement` and fails a plain mirrored deletion. `-` means none. Do not hand edit this file. Refresh deliberately with: TWIN_DRIFT_UPDATE=1 node scripts/check-twin-drift.mjs Ranked extraction plan: docs/twin-drift.md",
-  "count": 1183,
-  "occurrencesIndexHtml": 1254,
-  "occurrencesPlayHtml": 1318,
-  "digest": "8bc33611d4049bc3254506b41f2f4df9",
+  "count": 1184,
+  "occurrencesIndexHtml": 1255,
+  "occurrencesPlayHtml": 1319,
+  "digest": "dfa323b8c2e243a7dd8a4e4390ff7866",
   "lines": [
     "002720750bb5da1d 1 1 - - Emphasized (bright accent ring + ✓) but still clearly a button in the row, not a filled tag. */",
     "0032d4132e67eee1 1 1 - - if(mode===\"image\") return { data:[{ b64_json:\"<png-or-jpeg-base64>\" }] };",
@@ -266,6 +266,7 @@
     "3af87b7cfe0ca564 1 1 - - const fourcc = (dv, p) => String.fromCharCode(dv.getUint8(p), dv.getUint8(p+1), dv.getUint8(p+2), dv.getUint8(p+3));",
     "3af8e23fbb02cf44 1 1 - - rec.stop(); await stopped; vtrack.stop();",
     "3b61d688edbbdc56 1 1 0b2dce7c518f1c4f,4a50c0e9f81c8416,8453b679a452ab81 0b2dce7c518f1c4f,4a50c0e9f81c8416,8453b679a452ab81 if(mode===\"video\") return endpointParseVideo(j);",
+    "3b6a8f4a3fc5284f 1 1 - - const refAudio = (\"reference_audios\" in pp || \"reference_audio\" in pp || \"reference_audio_urls\" in pp);",
     "3b77a142b8c362fd 1 1 - - if(v.length > 2500 && v.slice(0,11) === \"data:image/\"){",
     "3b8a7854120e5bc0 1 1 - - const mdia = box(\"mdia\", mdhd, hdlr, minf);",
     "3ba19bcdbff8ead9 1 1 - - if(p.per_second!=null) return Math.max(_num(p.per_second)*secs, _num(p.minimum)||0);",

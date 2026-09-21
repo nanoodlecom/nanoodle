@@ -135,7 +135,9 @@ export function auditPins(pins, catalogs, rules = {}) {
     } : pin.kind === 'video' ? {
       t2v: c.text_to_video && !(input.includes('video') && !input.includes('image')),
       i2v: c.image_to_video, v2v: c.video_to_video,
-      avatar: c.image_to_video && c.audio_input && !(('left_audio' in pp || 'right_audio' in pp) && !canSingle),
+      avatar: c.image_to_video && c.audio_input && !(('left_audio' in pp || 'right_audio' in pp) && !canSingle)
+        && !input.includes('video')
+        && !('reference_audios' in pp || 'reference_audio' in pp || 'reference_audio_urls' in pp),
     } : pin.kind === 'audio' ? {
       tts, music: !tts && mod.startsWith('text') && /audio|music/.test(mod.split('->')[1] || '') && !/lyric|describe|recognize|stem|clone|upload|cover|extend|inpaint/i.test(pin.id),
       stt: (c.speech_to_text || model.category === 'audio_stt') && !/clone/i.test(pin.id),
