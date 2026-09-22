@@ -14,14 +14,20 @@
 //     (mp3/wav/flac). The UI sent OpenAI response_format, which WaveSpeed ignores,
 //     so wav/flac came back as the default mp3. music-to-music is a remix model
 //     and had no format knob at all.
+//   * Header-less binary audio (the live speech/music path) must meter the
+//     requested duration on play + njs runGraph — ElevenLabs Music v2 at 61s
+//     is $1.50, not $0 and not a flat 30s $0.75. x-cost:0 still wins.
+//   * Octet-stream playback MIME follows output_format (Yue2 wav → audio/wav).
 //
 // Zero API spend: the functions are lifted out of index.html, play.html, and
-// vendor/njs-engine.js and run against these catalog shapes.
+// vendor/njs-engine.js and run against these catalog shapes. Play runGraph pins
+// drive the real billed audio path (built-in + njs) with a header-less stub.
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
+import { loadEngine, calls, catalog } from "./play-engine.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const IDX = readFileSync(join(ROOT, "index.html"), "utf8");
@@ -306,8 +312,151 @@ function playCollector() {
   if (!bad) ok("speech meter falls back to the catalog estimate only when x-cost is absent");
 }
 
+/* ---- play runGraph: header-less binary audio meters requested duration ----
+   speechEstUsd is already pinned in check-pricing.mjs. The default play-engine
+   fetch always sends x-cost:0, so no existing runGraph can see this path.
+   Live speech/music omits x-cost; without the genAudio / njs onCost substitute
+   a 61s ElevenLabs v2 track books as $0 (or the old flat 30s $0.75). x-cost:0
+   is known-free and must still win. */
+
+const ELV2 = "elevenlabs/music/v2";
+catalog.audio.push({
+  id: ELV2,
+  pricing: {
+    per_billing_interval: 0.75,
+    billing_interval_seconds: 60,
+    billing_interval_label: "started minute",
+    minimum: 0.75,
+    currency: "USD",
+  },
+  supported_parameters: { min_duration: 3, max_duration: 600 },
+});
+catalog.audio.push({
+  id: YUE2_T2M,
+  pricing: { per_generation: 0.1, currency: "USD" },
+  supported_parameters: { output_format: OF, min_duration: 10, max_duration: 300 },
+});
+
+function audioFetch(headers) {
+  return (url, opts = {}) => {
+    let body = null;
+    try { body = opts.body ? JSON.parse(opts.body) : null; } catch { body = opts.body; }
+    calls.push({ url: String(url), body });
+    let json = { usd_balance: "9.00" };
+    if (/\/api\/v1\/models/.test(url)) json = { data: catalog.chat };
+    else if (/\/api\/v1\/image-models/.test(url)) json = { data: catalog.image };
+    else if (/\/api\/v1\/video-models/.test(url)) json = { data: catalog.video };
+    else if (/\/api\/v1\/audio-models/.test(url)) json = { data: catalog.audio };
+    const hdr = { ...headers };
+    const isSpeech = /\/audio\/speech/.test(url);
+    if (isSpeech && !hdr["content-type"]) hdr["content-type"] = "application/octet-stream";
+    const bytes = () => new TextEncoder().encode("fake-audio-bytes");
+    return Promise.resolve({
+      ok: true, status: 200,
+      headers: { get: (k) => {
+        const key = String(k).toLowerCase();
+        return Object.prototype.hasOwnProperty.call(hdr, key) ? hdr[key] : null;
+      } },
+      json: async () => json,
+      text: async () => JSON.stringify(json),
+      arrayBuffer: async () => bytes().buffer,
+      blob: async () => new Blob([bytes()], { type: hdr["content-type"] || "" }),
+    });
+  };
+}
+
+function loadAudioEngine({ njs, headers, onBlob }) {
+  const vendor = join(ROOT, "vendor", "njs-engine.js");
+  const w = {};
+  if (njs) {
+    if (!existsSync(vendor)) throw new Error("njs-engine missing");
+    new Function("window", readFileSync(vendor, "utf8"))(w);
+  }
+  let captured;
+  const app = loadEngine((ctx) => {
+    captured = ctx;
+    ctx.URLSearchParams = URLSearchParams;
+    ctx.fetch = audioFetch(headers);
+    ctx.localStorage = ctx.sessionStorage = {
+      getItem: (k) => (k === "ngpt_key" ? "test-api-key" : k === "njs_engine" ? (njs ? "1" : "0") : null),
+      setItem() {}, removeItem() {},
+    };
+    const create = (blob) => {
+      const t = blob && blob.type;
+      if (onBlob) onBlob(t);
+      return "blob:test-audio";
+    };
+    ctx.URL = ctx.URL || URL;
+    ctx.URL.createObjectURL = create;
+    ctx.URL.revokeObjectURL = () => {};
+  });
+  if (njs) captured.NanoodleEngine = w.NanoodleEngine;
+  return app;
+}
+
+async function runMusicCost({ njs, headers, fields, onBlob }) {
+  calls.length = 0;
+  const app = loadAudioEngine({ njs, headers, onBlob });
+  const seen = [];
+  const g = app.materialize({
+    nodes: [{ id: "m1", type: "music", x: 0, y: 0, fields }],
+    links: [],
+  });
+  await app.runGraph(g, { onResult: (n) => seen.push(n) });
+  const node = seen[0] || g.nodes.find((n) => n.id === "m1");
+  return { node, posts: calls.filter((c) => /\/audio\/speech/.test(c.url)) };
+}
+
+{
+  const fields = { model: ELV2, prompt: "choir", duration: "61" };
+  for (const njs of [false, true]) {
+    const label = njs ? "njs" : "play";
+    const miss = await runMusicCost({ njs, headers: {}, fields });
+    if (miss.posts.length !== 1) fail(`${label}: ElevenLabs v2 61s should POST once, got ${miss.posts.length}`);
+    else if (Number(miss.posts[0].body.duration) !== 61)
+      fail(`${label}: duration 61 not forwarded, got ${JSON.stringify(miss.posts[0].body)}`);
+    else ok(`${label}: ElevenLabs v2 61s POSTs duration 61`);
+    const got = miss.node && miss.node.costUsd;
+    if (got !== 1.5) fail(`${label}: header-less 61s must meter $1.50, got ${got}`);
+    else ok(`${label}: header-less 61s meters $1.50 (not $0 / not flat 30s $0.75)`);
+
+    const zero = await runMusicCost({ njs, headers: { "x-cost": "0" }, fields });
+    if (zero.node && zero.node.costUsd !== 0)
+      fail(`${label}: x-cost:0 must book $0, got ${zero.node && zero.node.costUsd}`);
+    else ok(`${label}: x-cost:0 wins over the catalog estimate`);
+  }
+}
+
+/* ---- octet-stream playback MIME follows output_format (Yue2) ---------- */
+
+{
+  const fields = {
+    model: YUE2_T2M,
+    prompt: "cinematic choir",
+    lyrics: "[Verse]\nhello",
+    response_format: "wav",
+  };
+  const blobs = [];
+  const builtIn = await runMusicCost({ njs: false, headers: {}, fields, onBlob: (t) => blobs.push(t) });
+  if (builtIn.posts.length !== 1) fail(`play: Yue2 wav should POST once, got ${builtIn.posts.length}`);
+  else if (builtIn.posts[0].body.output_format !== "wav")
+    fail(`play: Yue2 wav POST missing output_format, got ${JSON.stringify(builtIn.posts[0].body)}`);
+  else if (blobs[0] !== "audio/wav")
+    fail(`play: octet-stream + output_format wav must tag audio/wav, got ${JSON.stringify(blobs)}`);
+  else ok("play: octet-stream Yue2 wav playback is audio/wav (not audio/mpeg)");
+
+  const njs = await runMusicCost({ njs: true, headers: {}, fields });
+  const url = njs.node && njs.node.out && njs.node.out.audio;
+  if (njs.posts.length !== 1) fail(`njs: Yue2 wav should POST once, got ${njs.posts.length}`);
+  else if (njs.posts[0].body.output_format !== "wav")
+    fail(`njs: Yue2 wav POST missing output_format, got ${JSON.stringify(njs.posts[0].body)}`);
+  else if (typeof url !== "string" || !url.startsWith("data:audio/wav"))
+    fail(`njs: octet-stream + output_format wav must be data:audio/wav, got ${JSON.stringify(url && url.slice(0, 40))}`);
+  else ok("njs: octet-stream Yue2 wav playback is data:audio/wav");
+}
+
 if (failed) {
   console.error(`\n✗ ${failed} audio billing check(s) failed`);
   process.exit(1);
 }
-console.log("\n✓ audio price labels and Yue2 output_format agree across editor, play, and njs");
+console.log("\n✓ audio price labels, Yue2 output_format, and header-less speech meter agree across editor, play, and njs");
