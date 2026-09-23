@@ -15005,6 +15005,15 @@ RULES for the diff:
         selectedId: selected?.id || null,
       }),
       addNode: (type, x, y) => addNode(type, x, y),
+      moveNode: (id, x, y) => {
+        const n = byId(id);
+        if (!n) return false;
+        n.x = x; n.y = y;
+        if (n.el) { n.el.style.left = x + "px"; n.el.style.top = y + "px"; }
+        try { redraw(); } catch(_){}
+        try { save(); } catch(_){}
+        return true;
+      },
       openExamples: () => openExamples(),
       runSelected: () => { if(selected) runGroup([selected.id]); else $("run")?.click(); },
       worldEl: typeof world !== "undefined" ? world : document.getElementById("world"),
