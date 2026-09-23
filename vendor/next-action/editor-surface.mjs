@@ -102,13 +102,23 @@ function ensureStyles() {
 #na-panel .na-trio:hover{border-color:#a78bfa;color:#ddd6fe;background:#1a1530}
 #na-panel .na-trio .na-trio-count{margin-left:auto;font-size:.6rem;color:#f5d76e;flex-shrink:0}
 #na-ghost{position:absolute;pointer-events:none;z-index:5;display:flex;align-items:center;gap:.35rem;padding:.4rem .65rem;
-  border:1.5px dashed #3d5a70;border-radius:10px;background:rgba(20,30,45,.55);color:#67e8f9;font:12px/1.2 system-ui;opacity:0;transition:opacity .25s}
+  border:1.5px dashed #3d5a70;border-radius:10px;background:rgba(20,30,45,.55);color:#67e8f9;font:12px/1.2 system-ui;opacity:0;transition:opacity .28s ease}
 #na-ghost.show{opacity:1}
 #na-ghost-wire{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:4;overflow:visible}
-#na-ghost-wire path{fill:none;stroke:#67e8f9;stroke-width:2;stroke-dasharray:6 5;opacity:.85}
-#na-ghost-wire circle{fill:#67e8f9;opacity:.9}
-#na-ghost-target{position:absolute;pointer-events:none;z-index:5;border:1.5px dashed #a78bfa;border-radius:12px;opacity:0;transition:opacity .2s}
-#na-ghost-target.show{opacity:.7}
+#na-ghost-wire path{fill:none;stroke:#67e8f9;stroke-width:2.25;stroke-dasharray:7 6;opacity:0;transition:opacity .28s ease;
+  animation:na-ghost-dash 1.1s linear infinite}
+#na-ghost-wire.show path{opacity:.9}
+#na-ghost-wire circle{fill:#67e8f9;opacity:0;transition:opacity .28s ease}
+#na-ghost-wire.show circle{opacity:.95}
+#na-ghost-target{position:absolute;pointer-events:none;z-index:5;border:1.5px dashed #a78bfa;border-radius:12px;opacity:0;transition:opacity .28s ease;box-shadow:0 0 0 0 #a78bfa00}
+#na-ghost-target.show{opacity:.75;box-shadow:0 0 18px #a78bfa44}
+#na-panel .na-ghost-note{font-size:.68rem;color:#67e8f9;padding:.15rem 0 0;min-height:1em;transition:color .25s ease}
+#na-panel .na-ghost-note.flash{color:#a5f3fc}
+#na-panel .na-ghost-note.ok{color:#6ee7b7}
+@keyframes na-ghost-dash{to{stroke-dashoffset:-26}}
+@media (prefers-reduced-motion:reduce){
+  #na-ghost-wire path{animation:none}
+}
 `;
   document.head.appendChild(s);
 }
@@ -165,6 +175,7 @@ function buildPanel(mode) {
     <div class="na-body">
       <div class="na-label" id="na-title">${titles[mode] || "tips"}</div>
       <div id="na-tips"></div>
+      ${mode === 7 ? `<div class="na-ghost-note" id="na-ghost-note">dangling ports → soft ghost wires</div>` : ""}
       ${mode === 6 ? `<div class="na-label">first trios</div><div class="na-trio-row" id="na-trios"></div>` : ""}
       <div class="na-label">history</div>
       <div class="na-hist"><b id="na-hist">[ ]</b></div>
@@ -429,7 +440,18 @@ export async function mount(api) {
     placeGhostWire(portRows[0], g);
   }
 
+  function setGhostNote(msg, kind) {
+    const note = panel.querySelector("#na-ghost-note");
+    if (!note) return;
+    note.textContent = msg;
+    note.classList.remove("flash", "ok");
+    if (kind === "ok") note.classList.add("ok");
+    else note.classList.add("flash");
+    setTimeout(() => note.classList.remove("flash"), 700);
+  }
+
   function applyPortTip(row) {
+    if (mode !== 7) return;
     if (!row?.from || !row?.to) {
       console.warn("[next-action] port tip has no live target", row);
       return;
@@ -438,24 +460,63 @@ export async function mount(api) {
       console.warn("[next-action] api.connect missing");
       return;
     }
+    setGhostNote("wiring · " + (row.label || "ports"), "flash");
     try {
       api.connect(row.from.nodeId, row.from.port, row.to.nodeId, row.to.port);
     } catch (e) {
       console.warn("[next-action] connect failed", e);
+      setGhostNote("wire failed", "flash");
+      return;
     }
-    setTimeout(() => refreshTips(), 50);
+    softClearGhostWire(() => {
+      // connect() already records "wire" via index.html patch → record()
+      setGhostNote("wired · " + (row.label || "connected"), "ok");
+      refreshTips();
+    });
   }
 
   let ghostEl = null;
   let ghostWireSvg = null;
   let ghostTargetEl = null;
-  function clearGhostWire() {
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let ghostClearTimer = null;
+
+  function cancelGhostClear() {
+    if (ghostClearTimer != null) {
+      clearTimeout(ghostClearTimer);
+      ghostClearTimer = null;
+    }
+  }
+
+  function hardClearGhostWire() {
+    cancelGhostClear();
     if (ghostWireSvg) {
+      ghostWireSvg.classList.remove("show");
       ghostWireSvg.innerHTML = "";
       ghostWireSvg.style.display = "none";
     }
     if (ghostTargetEl) ghostTargetEl.classList.remove("show");
     if (ghostEl) ghostEl.classList.remove("show");
+  }
+
+  /** Fade opacity first (CSS), then strip DOM — no layout thrash / no rAF loop. */
+  function softClearGhostWire(done) {
+    cancelGhostClear();
+    if (ghostWireSvg) ghostWireSvg.classList.remove("show");
+    if (ghostTargetEl) ghostTargetEl.classList.remove("show");
+    if (ghostEl) ghostEl.classList.remove("show");
+    ghostClearTimer = setTimeout(() => {
+      ghostClearTimer = null;
+      if (ghostWireSvg) {
+        ghostWireSvg.innerHTML = "";
+        ghostWireSvg.style.display = "none";
+      }
+      if (typeof done === "function") done();
+    }, 280);
+  }
+
+  function clearGhostWire() {
+    hardClearGhostWire();
   }
 
   function portAnchor(nodeId, port, dir) {
@@ -476,10 +537,26 @@ export async function mount(api) {
   }
 
   function placeGhostWire(row, g) {
-    clearGhostWire();
-    if (!row?.from) return;
+    if (mode !== 7) {
+      hardClearGhostWire();
+      return;
+    }
+    cancelGhostClear();
+    if (!row?.from) {
+      softClearGhostWire();
+      setGhostNote(
+        (g.nodes || []).length < 2
+          ? "add ≥2 nodes → soft ghost wires"
+          : "no dangling ports · all wired",
+        "ok"
+      );
+      return;
+    }
     const world = api.worldEl || document.getElementById("world");
     if (!world) return;
+    if (ghostWireSvg) ghostWireSvg.classList.remove("show");
+    if (ghostTargetEl) ghostTargetEl.classList.remove("show");
+    if (ghostEl) ghostEl.classList.remove("show");
     if (!ghostWireSvg) {
       ghostWireSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       ghostWireSvg.id = "na-ghost-wire";
@@ -524,11 +601,22 @@ export async function mount(api) {
     const d = `M ${a.x} ${a.y} C ${a.x + dx} ${a.y}, ${b.x - dx} ${b.y}, ${b.x} ${b.y}`;
     ghostWireSvg.innerHTML =
       `<path d="${d}"/><circle cx="${a.x}" cy="${a.y}" r="3.5"/><circle cx="${b.x}" cy="${b.y}" r="3.5"/>`;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (ghostWireSvg) ghostWireSvg.classList.add("show");
+      });
+    });
+    const kind = row.to ? "live" : "hint";
+    setGhostNote(
+      kind === "live"
+        ? `ghost · ${row.label || "live wire"} · click tip to settle`
+        : `ghost hint · ${row.label || row.toType || "target"}`,
+      "flash"
+    );
   }
 
   function placeGhost(action, g) {
-
-    if (mode === 5) return;
+    if (mode === 5 || mode === 7) return;
     const world = api.worldEl || document.getElementById("world");
     if (!world || !action || !action.startsWith("add:")) {
       if (ghostEl) ghostEl.classList.remove("show");
