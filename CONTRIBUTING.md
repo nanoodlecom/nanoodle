@@ -48,6 +48,10 @@ scores, canvas toys) without a server. The pipe lives in `vendor/smallnet/`:
 Do not commit model weights. When a helper is ready, add a manifest with a
 same-origin `weightsUrl` and the matching `.bin` via a deliberate release path.
 
+Product · 1 (`vendor/next-action/`) uses that pipe for the learned recommender.
+Checks load inline float fixtures — never commit `.bin` packs under
+`vendor/next-action/`. Schema / bake / frequency baseline are Product · 2 / · 4 / · 3.
+
 ## Running the check suite
 
 The test suite is `scripts/check-*.mjs` — no browser or API spend. Most
