@@ -95,7 +95,12 @@ function ensureStyles() {
 #na-panel .na-actions{display:flex;gap:.3rem;flex-wrap:wrap}
 #na-panel .na-btn{font:inherit;font-size:.65rem;padding:.28rem .45rem;border-radius:6px;border:1px solid #2a2e3c;background:#1a1f2c;color:#aeb7c8;cursor:pointer}
 #na-panel .na-btn:hover{border-color:#67e8f9;color:#67e8f9}
-#na-panel .na-note{font-size:.62rem;color:#6b7280;line-height:1.3}
+#na-panel .na-note{font-size:.62rem;color:#6b7280;line-height:1.3;min-height:1em;transition:color .25s ease}
+#na-panel .na-note.flash{color:#a5f3fc}
+#na-panel .na-note.ok{color:#6ee7b7}
+#na-panel .na-recipe.applying{border-color:#67e8f9;color:#a5f3fc;background:#0f1c28;opacity:.9}
+.na-recipe-flash{box-shadow:0 0 0 2px #67e8f9aa,0 0 18px #22d3ee55 !important;transition:box-shadow .35s ease}
+
 #na-panel .na-trio-row{display:flex;flex-direction:column;gap:.25rem}
 #na-panel .na-trio{display:flex;align-items:flex-start;gap:.35rem;width:100%;text-align:left;padding:.35rem .45rem;border-radius:8px;
   border:1px solid #2a3348;background:#121820;color:#aeb7c8;cursor:pointer;font:inherit;font-size:.68rem;line-height:1.3}
@@ -487,29 +492,80 @@ export async function mount(api) {
       b.className = "na-recipe";
       const stages = (r.actions || []).map(actionLabel).join(" → ");
       b.innerHTML = `<span>✦ <b>${r.title || r.slug}</b><br/>${stages}</span><span class="na-recipe-meta">+${(r.actions || []).length}</span>`;
-      b.onclick = () => applyRecipe(r.actions || []);
+      b.onclick = () => {
+        if (recipeBusy) return;
+        b.classList.add("applying");
+        Promise.resolve(applyRecipe(r.actions || [])).finally(() => b.classList.remove("applying"));
+      };
       recipesEl.appendChild(b);
     });
   }
 
+  let recipeBusy = false;
+  /** @type {ReturnType<typeof setTimeout>[]} */
+  let recipeFlashTimers = [];
+
+  function setRecipeNote(msg, kind) {
+    const note = panel.querySelector("#na-recipe-note");
+    if (!note) return;
+    note.textContent = msg;
+    note.classList.remove("flash", "ok");
+    if (kind === "ok") note.classList.add("ok");
+    else note.classList.add("flash");
+    setTimeout(() => note.classList.remove("flash"), 700);
+  }
+
+  function flashNewNode(id) {
+    const el = document.querySelector(`.node[data-id="${CSS.escape(String(id))}"]`);
+    if (!el) return;
+    el.classList.add("na-recipe-flash");
+    const t = setTimeout(() => el.classList.remove("na-recipe-flash"), 420);
+    recipeFlashTimers.push(t);
+  }
+
   async function applyRecipe(actions) {
+    if (mode !== 8) return;
+    if (recipeBusy) return;
     const adds = (actions || []).filter((a) => a.startsWith("add:"));
+    if (!adds.length) return;
+    recipeBusy = true;
+    // Cancel prior flash timers (bounded; no leak across clicks)
+    for (const t of recipeFlashTimers) clearTimeout(t);
+    recipeFlashTimers = [];
     const g = api.getGraph();
     const sel = g.selectedId && g.nodes.find((n) => n.id === g.selectedId);
     const last = g.nodes && g.nodes.length ? g.nodes[g.nodes.length - 1] : null;
     const baseX = (sel?.x ?? last?.x ?? 160) + 220;
     const baseY = sel?.y ?? last?.y ?? 180;
-    const gap = 200;
-    for (let i = 0; i < adds.length; i++) {
-      const type = adds[i].slice(4);
-      try {
-        api.addNode(type, baseX + i * gap, baseY + (i % 2) * 48);
-      } catch (e) {
-        console.warn("[next-action] recipe addNode failed", type, e);
+    const gap = 210;
+    const n = adds.length;
+    try {
+      for (let i = 0; i < n; i++) {
+        const type = adds[i].slice(4);
+        setRecipeNote(`adding · stage ${i + 1}/${n} · ${type}`, "flash");
+        try {
+          const added = api.addNode(type, baseX + i * gap, baseY + (i % 2) * 48);
+          const id = added?.id || added;
+          if (id != null) {
+            // Soft reveal: wait a paint then flash
+            await new Promise((r) => requestAnimationFrame(() => r()));
+            flashNewNode(id);
+          }
+        } catch (e) {
+          console.warn("[next-action] recipe addNode failed", type, e);
+        }
+        // Soft cascade — readable, not a snap pile
+        await new Promise((r) => setTimeout(r, 220));
       }
-      await new Promise((r) => setTimeout(r, 140));
+    } finally {
+      recipeBusy = false;
     }
     refreshTips();
+    // After refresh (which rewrites match count), sell the settle
+    setRecipeNote(
+      `recipe · settled · ${n} stage${n === 1 ? "" : "s"}`,
+      "ok"
+    );
   }
 
 
