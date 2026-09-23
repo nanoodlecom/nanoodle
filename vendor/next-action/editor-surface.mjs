@@ -108,7 +108,9 @@ function ensureStyles() {
 #na-ghost.show{opacity:1}
 #na-panel .na-tidy-note{font-size:.68rem;color:#6ee7b7;padding:.15rem 0 0;min-height:1em}
 #na-panel .na-tidy-note.flash{color:#67e8f9}
-.na-tidy-flash{box-shadow:0 0 0 2px #67e8f9aa,0 0 18px #22d3ee55 !important;transition:box-shadow .35s ease,left .35s ease,top .35s ease}
+.na-tidy-flash,.na-tidy-moving{box-shadow:0 0 0 2px #67e8f9cc,0 0 22px #22d3ee88 !important;transition:box-shadow .4s ease;z-index:40 !important}
+.na-tidy-moving{filter:brightness(1.05)}
+
 `;
   document.head.appendChild(s);
 }
@@ -166,7 +168,7 @@ function buildPanel(mode) {
       <div class="na-label" id="na-title">${titles[mode] || "tips"}</div>
       <div id="na-tips"></div>
       ${mode === 6 ? `<div class="na-label">first trios</div><div class="na-trio-row" id="na-trios"></div>` : ""}
-      ${mode === 11 ? `<div class="na-tidy-note" id="na-tidy-note">neighbors reflow gently on tip add</div>` : ""}
+      ${mode === 11 ? `<div class="na-tidy-note" id="na-tidy-note">soft neighbor slide on tip add</div>` : ""}
       <div class="na-label">history</div>
       <div class="na-hist"><b id="na-hist">[ ]</b></div>
       <div class="na-label" id="na-schema-label">schema tokens</div>
@@ -440,34 +442,105 @@ export async function mount(api) {
     setTimeout(() => note.classList.remove("flash"), 700);
   }
 
-  function flashMovedNodes(ids) {
+  function setTidyGlow(ids, on) {
     for (const id of ids) {
-      const el = document.querySelector(`.node[data-id="${CSS.escape(id)}"]`);
+      const el = document.querySelector(`.node[data-id="${CSS.escape(String(id))}"]`);
       if (!el) continue;
-      el.classList.add("na-tidy-flash");
-      setTimeout(() => el.classList.remove("na-tidy-flash"), 450);
+      if (on) el.classList.add("na-tidy-flash", "na-tidy-moving");
+      else {
+        el.classList.remove("na-tidy-moving");
+        setTimeout(() => el.classList.remove("na-tidy-flash"), 380);
+      }
     }
   }
 
-  /** Product · 11: after addNode, gently reflow overlapping neighbors. */
-  function runAutoTidy(addedId) {
-    if (mode !== 11 || !addedId || !api.moveNode) return;
+  function easeOutCubic(t) {
+    return 1 - Math.pow(1 - t, 3);
+  }
+
+  /** Single cancelable rAF lerp — no unbounded loops; cancel on next tidy. */
+  let tidyRaf = 0;
+  let tidyBusy = false;
+  function cancelTidyAnim() {
+    if (tidyRaf) {
+      cancelAnimationFrame(tidyRaf);
+      tidyRaf = 0;
+    }
+  }
+
+  function animateMoveNodes(targets, durationMs) {
+    if (!api.moveNode || !targets.length) return Promise.resolve();
+    cancelTidyAnim();
     const g = api.getGraph();
-    const deltas = tidyAfterAdd(g, addedId);
-    if (!deltas.length) {
-      setTidyNote("tidy · already clear");
-      return;
-    }
-    const abs = applyDeltasAbsolute(g, deltas);
-    for (const p of abs) {
-      try {
-        api.moveNode(p.id, p.x, p.y);
-      } catch (e) {
-        console.warn("[next-action] moveNode failed", p.id, e);
+    const from = new Map(
+      (g.nodes || []).map((n) => [String(n.id), { x: Number(n.x), y: Number(n.y) }])
+    );
+    const moves = targets
+      .map((t) => {
+        const a = from.get(String(t.id));
+        if (!a || !Number.isFinite(a.x) || !Number.isFinite(a.y)) return null;
+        const dx = t.x - a.x;
+        const dy = t.y - a.y;
+        if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return null;
+        return { id: String(t.id), ax: a.x, ay: a.y, bx: t.x, by: t.y };
+      })
+      .filter(Boolean);
+    if (!moves.length) return Promise.resolve();
+    // Cap concurrent animating nodes (browser safety)
+    const capped = moves.slice(0, 12);
+    const dur = Math.max(60, Math.min(420, durationMs || 280));
+    return new Promise((resolve) => {
+      const t0 = performance.now();
+      function frame(now) {
+        const t = Math.min(1, (now - t0) / dur);
+        const e = easeOutCubic(t);
+        for (const m of capped) {
+          try {
+            api.moveNode(m.id, m.ax + (m.bx - m.ax) * e, m.ay + (m.by - m.ay) * e);
+          } catch (_) {}
+        }
+        if (t < 1) {
+          tidyRaf = requestAnimationFrame(frame);
+        } else {
+          tidyRaf = 0;
+          for (const m of capped) {
+            try { api.moveNode(m.id, m.bx, m.by); } catch (_) {}
+          }
+          resolve();
+        }
       }
+      tidyRaf = requestAnimationFrame(frame);
+    });
+  }
+
+  /**
+   * Product · 11: after addNode, soft-slide overlapping neighbors (not teleport).
+   * Gated to mode===11; cancelable rAF; busy guard.
+   */
+  async function runAutoTidy(addedId) {
+    if (mode !== 11 || !addedId || !api.moveNode) return;
+    if (tidyBusy) return;
+    tidyBusy = true;
+    let glowed = [];
+    try {
+      setTidyNote("tidy · clearing");
+      const g = api.getGraph();
+      const deltas = tidyAfterAdd(g, addedId);
+      if (!deltas.length) {
+        setTidyNote("tidy · already clear");
+        return;
+      }
+      const abs = applyDeltasAbsolute(g, deltas);
+      glowed = abs.map((p) => p.id);
+      setTidyGlow(glowed, true);
+      await animateMoveNodes(abs, 300);
+      setTidyNote(
+        `tidy · settled · ${abs.length} neighbor${abs.length === 1 ? "" : "s"}`
+      );
+    } finally {
+      if (glowed.length) setTidyGlow(glowed, false);
+      tidyBusy = false;
     }
-    flashMovedNodes(abs.map((p) => p.id));
-    setTidyNote(`tidy · nudged ${abs.length} neighbor${abs.length === 1 ? "" : "s"}`);
   }
 
     async function applyTrio(actions) {
@@ -479,16 +552,16 @@ export async function mount(api) {
       const type = adds[i].slice(4);
       try {
         const added = api.addNode(type, baseX + i * gap, baseY + (i % 2) * 40);
-        if (added && added.id) runAutoTidy(added.id);
+        if (added && added.id) await runAutoTidy(added.id);
       } catch (e) {
         console.warn("[next-action] trio addNode failed", type, e);
       }
-      await new Promise((r) => setTimeout(r, 120));
+      await new Promise((r) => setTimeout(r, 80));
     }
     refreshTips();
   }
 
-function applyTip(action) {
+async function applyTip(action) {
     flashToken(action);
     if (action.startsWith("add:")) {
       const type = action.slice(4);
@@ -500,18 +573,18 @@ function applyTip(action) {
         x = 280;
         y = 200;
       } else if (mode === 11) {
-        // Land tight / stacked so auto-tidy has neighbors to reflow
+        // Half-card intentional overlap — tidy needed, not a staged full pile
         const last = g.nodes[g.nodes.length - 1];
         const anchor = sel || last;
-        x = (anchor?.x ?? 120) + 40;
-        y = (anchor?.y ?? 160) + 18;
+        x = (anchor?.x ?? 120) + 72;
+        y = (anchor?.y ?? 160) + 36;
       } else {
         x = (sel?.x ?? 120) + 220;
         y = sel?.y ?? 160;
       }
       try {
         const added = api.addNode(type, x, y);
-        if (added && added.id) runAutoTidy(added.id);
+        if (added && added.id) await runAutoTidy(added.id);
       } catch (e) {
         console.warn("[next-action] addNode failed", type, e);
       }
