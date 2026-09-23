@@ -1,4 +1,4 @@
-# vendor/smallnet — tiny client-side nets (no models shipped yet)
+# vendor/smallnet — tiny client-side nets
 
 Scaffolding so nanoodle can run **small** helper networks in the browser
 (layout snap, next-action hints, canvas toys, …) without a server and without
@@ -7,35 +7,49 @@ pulling ONNX Runtime or TF.js.
 ## What this is
 
 - Pure JS MLP forward (`Float32Array` only) — CSP-safe, no WASM, no CDN.
-- A **registry + manifest** format for future weight packs.
-- **No weight files in this repo.** Manifests may list a `weightsUrl`; until
-  that URL exists, `load()` stays unloaded and `run()` throws a clear error.
+- A **registry + manifest** format for weight packs.
+- **Product · 10** registers `next-action-v1` in `catalog.json` with a
+  `weightsUrl`. The `.bin` itself stays **gitignored** — drop it locally or
+  fall back to packing `fixtures/smoke-weights.json` (see
+  `vendor/next-action/export-load.mjs`).
 
-## Quick use (when a model exists)
+## Quick use
 
 ```js
-import { SmallnetRegistry } from "/vendor/smallnet/index.js";
+import { bootstrapSmallnet, ModelNotAvailableError } from "/vendor/smallnet/index.js";
 
-const reg = new SmallnetRegistry();
-reg.register({
-  id: "demo-mlp",
-  version: "0",
-  format: "smallnet-mlp-v1",
-  inputSize: 4,
-  outputSize: 2,
-  layers: [
-    { type: "linear", in: 4, out: 8, activation: "relu" },
-    { type: "linear", in: 8, out: 2, activation: "linear" },
-  ],
-  // Point at a same-origin `.bin` once we ship one. Leave null for now.
-  weightsUrl: null,
-});
+const reg = await bootstrapSmallnet();
+try {
+  const session = await reg.load("next-action-v1");
+  session.run(new Float32Array(83));
+} catch (e) {
+  if (e instanceof ModelNotAvailableError) {
+    // No local .bin — use export-load fixture fallback or installWeights()
+  }
+}
+```
 
-// With inline weights (tests / local experiments only — not for shipping):
+Inline weights (tests / local experiments):
+
+```js
 import { packWeights, createSession } from "/vendor/smallnet/index.js";
 const session = createSession(manifest, packWeights(manifest, arrays));
-const out = session.run(new Float32Array([0, 1, 0, 1]));
 ```
+
+## Export recipe (Product · 10)
+
+Pop!_OS / box → browser path:
+
+```sh
+python scripts/export-smallnet-weights.py \
+  --fixture vendor/next-action/fixtures/smoke-weights.json \
+  --out-bin vendor/next-action/weights/next-action-v1.bin \
+  --out-manifest vendor/next-action/weights/manifest.json \
+  --roundtrip
+```
+
+Also accepts an existing SNM1 `--bin` + `--manifest`. See `--help`.
+Drop path: `vendor/next-action/weights/` (binaries gitignored).
 
 ## Weight blob layout (`smallnet-mlp-v1`)
 
@@ -50,5 +64,4 @@ See `packWeights()` / `unpackWeights()` in `runtime.js`.
 ## Deliberate non-goals (for now)
 
 - No ONNX / ORT-web / TF.js (heavy; CSP + vendor policy).
-- No model files under `vendor/smallnet/` or `/models` in git.
-- No editor UI wiring in this PR — just the runnable pipe.
+- No `.bin` weight files committed under `vendor/smallnet/` or `vendor/next-action/`.

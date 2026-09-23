@@ -199,9 +199,11 @@ const session = createSession(manifest, buf);
 const failedToys = toys.filter((t) => !t.ok);
 assert(failedToys.length === 0, `${failedToys.length} behavioral toy(s) failed`);
 
-// catalog still empty (smallnet check owns this; soft assert here)
+// Product · 10 registers next-action-v1; .bin still must not be committed (walk above).
 const catalog = JSON.parse(readFileSync(join(SN, "catalog.json"), "utf8"));
-assert(Array.isArray(catalog.models) && catalog.models.length === 0, "catalog must stay empty");
+assert(Array.isArray(catalog.models), "catalog.models array");
+const naCat = catalog.models.find((m) => m.id === "next-action-v1");
+assert(!!naCat && typeof naCat.weightsUrl === "string", "catalog registers next-action-v1 with weightsUrl");
 
 console.log(
   `✓ next-action: schema+corpus(${corpus.exampleCount}) freq(top1=${freqEval.top1.toFixed(3)},top3=${freqEval.top3.toFixed(3)}) holdout(top1=${smoke.metrics.holdout.top1.toFixed(3)},top3=${smoke.metrics.holdout.top3.toFixed(3)}) toys=${toys.length}/${toys.length}`
