@@ -72,7 +72,8 @@ function ensureStyles() {
 #na-panel.na-wide{width:268px;max-width:min(268px,calc(100vw - 2rem))}
 #na-panel header{display:flex;align-items:center;gap:.4rem;padding:.45rem .65rem;border-bottom:1px solid var(--line,#2a2e3c);font-weight:600;font-size:.78rem}
 #na-panel .na-badge{margin-left:auto;font-size:.62rem;font-weight:500;padding:.12rem .4rem;border-radius:999px;background:#1a2840;color:#67e8f9;border:1px solid #2a4060}
-#na-panel .na-load-status{font-size:.68rem;padding:.28rem .45rem;border-radius:8px;border:1px solid #2a4060;background:#121820;color:#aeb7c8}
+#na-panel .na-load-status{font-size:.68rem;padding:.28rem .45rem;border-radius:8px;border:1px solid #2a4060;background:#121820;color:#aeb7c8;opacity:0;transform:translateY(4px);transition:opacity .35s ease,transform .35s ease,border-color .25s ease,color .25s ease}
+#na-panel .na-load-status.show{opacity:1;transform:none}
 #na-panel .na-load-status.bin{border-color:#34d399;color:#6ee7b7}
 #na-panel .na-load-status.fixture{border-color:#f5d76e;color:#f5d76e}
 #na-panel .na-load-status.missing{border-color:#f87171;color:#fca5a5}
@@ -239,15 +240,22 @@ export async function mount(api) {
       loadStatus = "missing";
     }
     const stEl = panel.querySelector("#na-load-status");
-    if (stEl) {
+    if (stEl && mode === 10) {
       const label =
         loadStatus === "bin"
-          ? "load · bin (weightsUrl)"
+          ? "load · bin (weightsUrl) · soft tips live"
           : loadStatus === "fixture"
-            ? "load · fixture fallback"
+            ? "load · fixture fallback · soft tips live"
             : "load · missing";
-      stEl.textContent = label;
+      stEl.textContent = "load · …";
       stEl.classList.add(loadStatus || "missing");
+      // Soft reveal after paint — no layout thrash loop
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          stEl.textContent = label;
+          stEl.classList.add("show");
+        });
+      });
     }
   } else if (mode === 1 && snMod) {
     session = await loadSession(snMod.packWeights, snMod.createSession);
