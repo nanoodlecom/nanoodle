@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Product · 3 — frequency baseline</title>
+<style>
+:root{--bg:#0b0d12;--panel:#12151d;--panel2:#171b25;--ink:#eef1f7;--dim:#aeb7c8;--line:#2a2e3c;--accent:#7c8cff;--cyan:#67e8f9;--gold:#f5d76e}
+*{box-sizing:border-box}body{margin:0;font:14px/1.4 system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+header{display:flex;align-items:center;gap:1rem;padding:.75rem 1rem;background:rgba(18,21,29,.9);border-bottom:1px solid var(--line)}
+.logo{font-weight:800;font-size:1.1rem;background:linear-gradient(90deg,#67e8f9,#7c8cff 70%);-webkit-background-clip:text;background-clip:text;color:transparent}
+main{padding:1rem;max-width:920px;margin:0 auto}
+.canvas{display:grid;grid-template-columns:140px 1fr;gap:1rem;min-height:420px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem;background-image:linear-gradient(rgba(22,26,36,.8) 1px,transparent 1px),linear-gradient(90deg,rgba(22,26,36,.8) 1px,transparent 1px);background-size:40px 40px}
+h1{font-size:1rem;font-weight:600;margin:0;flex:1}.sub{color:var(--dim);font-size:.8rem}
+label{font-size:.75rem;color:var(--dim);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:.5rem}
+.pal button{display:block;width:100%;text-align:left;margin-bottom:.4rem;padding:.55rem .7rem;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--dim);cursor:default;transition:all .35s}
+.pal button.hot{background:#283260;color:var(--cyan);border-color:var(--cyan);box-shadow:0 0 12px #67e8f933}
+.center{display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
+.empty{color:var(--dim);text-align:center;animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.5}50%{opacity:1}}
+.ghosts{margin-top:1.5rem;display:flex;flex-direction:column;gap:.55rem;min-width:280px}
+.ghost{display:flex;align-items:center;gap:.75rem;opacity:0;transform:translateY(10px);transition:opacity .4s,transform .4s;animation:bob 2.4s ease-in-out infinite}
+.ghost.show{opacity:1;transform:none}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+.ghost.show{animation:bob 2.4s ease-in-out infinite}
+.chip{padding:.4rem .7rem;border-radius:8px;border:1px dashed #3a4560;background:#141a28;color:var(--cyan);font-size:.85rem;flex:1}
+.bar{height:10px;background:var(--accent);border-radius:4px;width:0;transition:width .5s}
+.foot{position:absolute;right:12px;bottom:12px;padding:.6rem .85rem;background:var(--panel2);border:1px solid var(--line);border-radius:10px;font-size:.75rem;color:var(--dim)}
+.foot b{color:var(--gold)}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">nanoodle</div>
+  <h1>Product · 3 — frequency baseline</h1>
+  <span class="sub">cold-start soft ghosts · no learned weights</span>
+</header>
+<main>
+  <div class="canvas">
+    <div>
+      <label>palette highlight</label>
+      <div class="pal" id="pal"></div>
+    </div>
+    <div class="center">
+      <div class="empty"><div style="font-weight:700;font-size:1.1rem;margin-bottom:.25rem">empty canvas</div>frequency soft tips…</div>
+      <div class="ghosts" id="ghosts"></div>
+      <div class="foot">baseline <b>top1 0.69 · top3 0.83</b><br/>bigram · unigram · cold-start</div>
+    </div>
+  </div>
+</main>
+<script>
+const PAL=["text","llm","image","edit","music","tts"];
+const GHOSTS=[["add:text",0.42],["open:examples",0.31],["add:image",0.18],["add:llm",0.09]];
+const pal=document.getElementById("pal");
+PAL.forEach(p=>{const b=document.createElement("button");b.textContent=p;b.dataset.p=p;pal.appendChild(b)});
+const gEl=document.getElementById("ghosts");
+GHOSTS.forEach(([n,s])=>{
+  const d=document.createElement("div");d.className="ghost";
+  d.innerHTML=`<span class="chip">👻 ${n}  ${(s*100).toFixed(0)}%</span><span class="bar" data-w="${s}"></span>`;
+  gEl.appendChild(d);
+});
+function loop(){
+  [...pal.children].forEach(b=>b.classList.remove("hot"));
+  [...gEl.children].forEach(g=>{g.classList.remove("show");g.querySelector(".bar").style.width="0"});
+  setTimeout(()=>{
+    ["text","image"].forEach(p=>[...pal.children].find(b=>b.dataset.p===p).classList.add("hot"));
+  },600);
+  GHOSTS.forEach((_,i)=>setTimeout(()=>{
+    const g=gEl.children[i];g.classList.add("show");
+    const bar=g.querySelector(".bar");
+    bar.style.width=(parseFloat(bar.dataset.w)*120)+"px";
+  },900+i*350));
+  setTimeout(loop,900+GHOSTS.length*350+2800);
+}
+loop();
+</script>
+</body>
+</html>
