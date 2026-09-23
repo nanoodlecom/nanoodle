@@ -1,10 +1,12 @@
 /**
- * Real Nanoodle editor surface for Product · 1–· 6 next-action.
+ * Real Nanoodle editor surface for Product · 1–· 6 + · 11 (auto-tidy).
  * Soft tips + action log + Examples→corpus + · 5 local ring + · 6 cold-start seeds.
+ * · 11: gentle neighbor reflow after tip/trio addNode (no · 7/· 8/· 12).
  * Dynamic imports so Product · 2 (schema-only) still mounts.
  */
 import { ACTION_VOCAB, NODE_TYPES, sketchFromGraph, schema } from "./encode.mjs";
 import { createRing, RING_CAPACITY } from "./ring.mjs";
+import { tidyAfterAdd, applyDeltasAbsolute } from "./auto-tidy.mjs";
 
 const BASE = new URL(".", import.meta.url);
 
@@ -12,7 +14,7 @@ function productMode() {
   try {
     const q = new URLSearchParams(location.search);
     const p = q.get("product") || q.get("na");
-    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5" || p === "6") return Number(p);
+    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5" || p === "6" || p === "11") return Number(p);
   } catch (_) {}
   return 1;
 }
@@ -104,6 +106,9 @@ function ensureStyles() {
 #na-ghost{position:absolute;pointer-events:none;z-index:5;display:flex;align-items:center;gap:.35rem;padding:.4rem .65rem;
   border:1.5px dashed #3d5a70;border-radius:10px;background:rgba(20,30,45,.55);color:#67e8f9;font:12px/1.2 system-ui;opacity:0;transition:opacity .25s}
 #na-ghost.show{opacity:1}
+#na-panel .na-tidy-note{font-size:.68rem;color:#6ee7b7;padding:.15rem 0 0;min-height:1em}
+#na-panel .na-tidy-note.flash{color:#67e8f9}
+.na-tidy-flash{box-shadow:0 0 0 2px #67e8f9aa,0 0 18px #22d3ee55 !important;transition:box-shadow .35s ease,left .35s ease,top .35s ease}
 `;
   document.head.appendChild(s);
 }
@@ -123,6 +128,7 @@ function buildPanel(mode) {
     4: "gallery → dataset",
     5: "local action ring",
     6: "cold-start seeds",
+    11: "auto-tidy on add",
   };
   if (mode === 5) {
     el.innerHTML = `
@@ -160,6 +166,7 @@ function buildPanel(mode) {
       <div class="na-label" id="na-title">${titles[mode] || "tips"}</div>
       <div id="na-tips"></div>
       ${mode === 6 ? `<div class="na-label">first trios</div><div class="na-trio-row" id="na-trios"></div>` : ""}
+      ${mode === 11 ? `<div class="na-tidy-note" id="na-tidy-note">neighbors reflow gently on tip add</div>` : ""}
       <div class="na-label">history</div>
       <div class="na-hist"><b id="na-hist">[ ]</b></div>
       <div class="na-label" id="na-schema-label">schema tokens</div>
@@ -175,6 +182,7 @@ function buildPanel(mode) {
  * @param {{
  *   getGraph: () => {nodes:any[], links:any[], selectedId?:string|null},
  *   addNode: (type:string, x?:number, y?:number) => any,
+ *   moveNode?: (id:string, x:number, y:number) => boolean,
  *   openExamples: () => void,
  *   runSelected?: () => void,
  *   worldEl?: HTMLElement | null,
@@ -331,7 +339,7 @@ export async function mount(api) {
       renderTrios(emptyCanvas);
     } else if (mode === 1 && session && tables && recommendNext) {
       rows = recommendNext({ tables, session, blend: 0.35 }, history, sketch, 3);
-    } else if ((mode === 1 || mode === 3) && tables && recommendFrequency) {
+    } else if ((mode === 1 || mode === 3 || mode === 11) && tables && recommendFrequency) {
       rows = recommendFrequency(tables, history, sketch, 3);
     } else if (mode === 2) {
       rows = (history.length === 0
@@ -424,7 +432,45 @@ export async function mount(api) {
     });
   }
 
-  async function applyTrio(actions) {
+  function setTidyNote(msg) {
+    const note = panel.querySelector("#na-tidy-note");
+    if (!note) return;
+    note.textContent = msg;
+    note.classList.add("flash");
+    setTimeout(() => note.classList.remove("flash"), 700);
+  }
+
+  function flashMovedNodes(ids) {
+    for (const id of ids) {
+      const el = document.querySelector(`.node[data-id="${CSS.escape(id)}"]`);
+      if (!el) continue;
+      el.classList.add("na-tidy-flash");
+      setTimeout(() => el.classList.remove("na-tidy-flash"), 450);
+    }
+  }
+
+  /** Product · 11: after addNode, gently reflow overlapping neighbors. */
+  function runAutoTidy(addedId) {
+    if (mode !== 11 || !addedId || !api.moveNode) return;
+    const g = api.getGraph();
+    const deltas = tidyAfterAdd(g, addedId);
+    if (!deltas.length) {
+      setTidyNote("tidy · already clear");
+      return;
+    }
+    const abs = applyDeltasAbsolute(g, deltas);
+    for (const p of abs) {
+      try {
+        api.moveNode(p.id, p.x, p.y);
+      } catch (e) {
+        console.warn("[next-action] moveNode failed", p.id, e);
+      }
+    }
+    flashMovedNodes(abs.map((p) => p.id));
+    setTidyNote(`tidy · nudged ${abs.length} neighbor${abs.length === 1 ? "" : "s"}`);
+  }
+
+    async function applyTrio(actions) {
     const adds = (actions || []).filter((a) => a.startsWith("add:"));
     const baseX = 160;
     const baseY = 180;
@@ -432,7 +478,8 @@ export async function mount(api) {
     for (let i = 0; i < adds.length; i++) {
       const type = adds[i].slice(4);
       try {
-        api.addNode(type, baseX + i * gap, baseY + (i % 2) * 40);
+        const added = api.addNode(type, baseX + i * gap, baseY + (i % 2) * 40);
+        if (added && added.id) runAutoTidy(added.id);
       } catch (e) {
         console.warn("[next-action] trio addNode failed", type, e);
       }
@@ -452,12 +499,19 @@ function applyTip(action) {
       if (empty || (mode === 6 && !sel)) {
         x = 280;
         y = 200;
+      } else if (mode === 11) {
+        // Land tight / stacked so auto-tidy has neighbors to reflow
+        const last = g.nodes[g.nodes.length - 1];
+        const anchor = sel || last;
+        x = (anchor?.x ?? 120) + 40;
+        y = (anchor?.y ?? 160) + 18;
       } else {
         x = (sel?.x ?? 120) + 220;
         y = sel?.y ?? 160;
       }
       try {
-        api.addNode(type, x, y);
+        const added = api.addNode(type, x, y);
+        if (added && added.id) runAutoTidy(added.id);
       } catch (e) {
         console.warn("[next-action] addNode failed", type, e);
       }
@@ -489,6 +543,7 @@ function applyTip(action) {
   window.__nextAction = {
     record,
     refresh: refreshTips,
+    runAutoTidy,
     onExamplesOpened() {
       if ((mode === 4 || mode === 1) && corpusMeta) {
         corpusEl.hidden = false;
