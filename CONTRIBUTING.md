@@ -35,6 +35,19 @@ assets. The constraints are deliberate, not accidental:
   [nanoodle-js](https://github.com/nanoodlecom/nanoodle-js) repo — never
   edited by hand (see below).
 
+
+## Client helper nets (`vendor/smallnet`)
+
+nanoodle can run **tiny** on-device helper networks (layout hints, next-action
+scores, canvas toys) without a server. The pipe lives in `vendor/smallnet/`:
+
+- Pure JS MLP forward — no ONNX/TF.js, no CDN, CSP-safe.
+- Manifest + registry; **weight `.bin` files are not shipped** (and are gitignored).
+- `scripts/check-smallnet.mjs` guards the runtime and asserts the catalog stays empty of models until we intentionally add one.
+
+Do not commit model weights. When a helper is ready, add a manifest with a
+same-origin `weightsUrl` and the matching `.bin` via a deliberate release path.
+
 ## Running the check suite
 
 The test suite is `scripts/check-*.mjs` — no browser or API spend. Most
