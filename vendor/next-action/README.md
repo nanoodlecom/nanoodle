@@ -8,9 +8,10 @@
 | · 5 | `ring.mjs` — flagged local action ring (memory / localStorage; local `export()` only) |
 | · 6 | `cold-start.mjs`, `firstNode` / `firstTrio` in `corpus/frequency-tables.json`, empty-canvas tips + trio chips (`?product=6`) |
 | · 1 | `scripts/train-next-action.py`, `fixtures/smoke-weights.json`, `scripts/check-next-action.mjs` |
+| · 11 | `auto-tidy.mjs`, `scripts/check-next-action-auto-tidy.mjs` — gentle neighbor reflow on tip/trio add (`?product=11`) |
 
 Learned `.bin` weights stay **gitignored**; tests load inline float fixtures.
-Real-editor soft tips: `editor-surface.mjs` mounts in `index.html` (`?product=1`…`6`).
+Real-editor soft tips: `editor-surface.mjs` mounts in `index.html` (`?product=1`…`6`, `11`).
 Catalog stays empty — no `weightsUrl` until a deliberate release.
 
 ## Train / export (box-local)
@@ -32,6 +33,7 @@ node scripts/check-next-action-frequency.mjs
 node scripts/check-next-action-ring.mjs
 node scripts/check-next-action-cold-start.mjs
 node scripts/check-next-action.mjs
+node scripts/check-next-action-auto-tidy.mjs
 node scripts/check-smallnet.mjs   # catalog still empty
 ```
 
