@@ -34,7 +34,11 @@ for (const f of walk(SN)) {
 
 const catalog = JSON.parse(readFileSync(join(SN, "catalog.json"), "utf8"));
 assert(Array.isArray(catalog.models), "catalog.json models must be an array");
-assert(catalog.models.length === 0, "catalog must ship empty (no models yet)");
+// Product · 10 registers next-action-v1 with weightsUrl; .bin stays gitignored.
+const na = catalog.models.find((m) => m.id === "next-action-v1");
+assert(!!na, "catalog registers next-action-v1");
+assert(typeof na.weightsUrl === "string" && na.weightsUrl.includes(".bin"), "next-action-v1 has weightsUrl");
+assert(na.inputSize === 83 && na.outputSize === 18, "next-action-v1 dims");
 
 const mod = await import(pathToFileURL(join(SN, "index.js")).href);
 const {
@@ -107,4 +111,26 @@ const probs = forward(softM, softParams, new Float32Array([2, 0]));
 assert(Math.abs(probs[0] + probs[1] - 1) < 1e-5, "softmax sums to 1");
 assert(probs[0] > probs[1], "softmax prefers larger logit");
 
-console.log("✓ smallnet: runtime + registry + empty catalog (no weights shipped)");
+// Catalog model: load() without .bin must fail gracefully (CI has no bin)
+const catReg = new SmallnetRegistry();
+catReg.register({ ...na });
+let catThrew = false;
+try {
+  await catReg.load("next-action-v1", { fetch: async () => ({ ok: false, status: 404 }) });
+} catch (e) {
+  catThrew = e instanceof ModelNotAvailableError;
+}
+assert(catThrew, "catalog next-action-v1 load() without bin → ModelNotAvailableError");
+assert(catReg.status("next-action-v1") === "missing", "catalog model status missing");
+// Ephemeral inline install still works with registered catalog model
+const naBuf = packWeights(
+  { ...na, weightsUrl: null },
+  [
+    { W: new Float32Array(83 * 32), b: new Float32Array(32) },
+    { W: new Float32Array(32 * 18), b: new Float32Array(18) },
+  ],
+);
+catReg.installWeights("next-action-v1", naBuf);
+assert(catReg.status("next-action-v1") === "ready", "catalog model inline install ready");
+
+console.log("✓ smallnet: runtime + registry + catalog next-action-v1 (no .bin shipped)");

@@ -1,7 +1,8 @@
 /**
- * Real Nanoodle editor surface for Product · 1–· 6 next-action.
+ * Real Nanoodle editor surface for Product · 1–· 6 + · 10 (export load path).
  * Soft tips + action log + Examples→corpus + · 5 local ring + · 6 cold-start seeds.
  * Dynamic imports so Product · 2 (schema-only) still mounts.
+ * · 10: catalog/weightsUrl load with fixture fallback (no · 7/· 8/· 9).
  */
 import { ACTION_VOCAB, NODE_TYPES, sketchFromGraph, schema } from "./encode.mjs";
 import { createRing, RING_CAPACITY } from "./ring.mjs";
@@ -12,7 +13,7 @@ function productMode() {
   try {
     const q = new URLSearchParams(location.search);
     const p = q.get("product") || q.get("na");
-    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5" || p === "6") return Number(p);
+    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5" || p === "6" || p === "10") return Number(p);
   } catch (_) {}
   return 1;
 }
@@ -71,6 +72,11 @@ function ensureStyles() {
 #na-panel.na-wide{width:268px;max-width:min(268px,calc(100vw - 2rem))}
 #na-panel header{display:flex;align-items:center;gap:.4rem;padding:.45rem .65rem;border-bottom:1px solid var(--line,#2a2e3c);font-weight:600;font-size:.78rem}
 #na-panel .na-badge{margin-left:auto;font-size:.62rem;font-weight:500;padding:.12rem .4rem;border-radius:999px;background:#1a2840;color:#67e8f9;border:1px solid #2a4060}
+#na-panel .na-load-status{font-size:.68rem;padding:.28rem .45rem;border-radius:8px;border:1px solid #2a4060;background:#121820;color:#aeb7c8;opacity:0;transform:translateY(4px);transition:opacity .35s ease,transform .35s ease,border-color .25s ease,color .25s ease}
+#na-panel .na-load-status.show{opacity:1;transform:none}
+#na-panel .na-load-status.bin{border-color:#34d399;color:#6ee7b7}
+#na-panel .na-load-status.fixture{border-color:#f5d76e;color:#f5d76e}
+#na-panel .na-load-status.missing{border-color:#f87171;color:#fca5a5}
 #na-panel .na-body{padding:.45rem .55rem .55rem;display:flex;flex-direction:column;gap:.35rem}
 #na-panel .na-label{font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;color:var(--dim,#aeb7c8)}
 #na-panel .na-tip{display:flex;align-items:center;gap:.4rem;width:100%;text-align:left;padding:.4rem .5rem;border-radius:8px;
@@ -123,6 +129,7 @@ function buildPanel(mode) {
     4: "gallery → dataset",
     5: "local action ring",
     6: "cold-start seeds",
+    10: "export · load path",
   };
   if (mode === 5) {
     el.innerHTML = `
@@ -158,6 +165,7 @@ function buildPanel(mode) {
     </header>
     <div class="na-body">
       <div class="na-label" id="na-title">${titles[mode] || "tips"}</div>
+      ${mode === 10 ? `<div class="na-load-status" id="na-load-status">load · …</div>` : ""}
       <div id="na-tips"></div>
       ${mode === 6 ? `<div class="na-label">first trios</div><div class="na-trio-row" id="na-trios"></div>` : ""}
       <div class="na-label">history</div>
@@ -217,7 +225,39 @@ export async function mount(api) {
   } catch (_) {
     tables = null;
   }
-  if (mode === 1 && snMod) {
+  /** @type {"bin"|"fixture"|"missing"|null} */
+  let loadStatus = null;
+  if (mode === 10) {
+    const elMod = await tryImport("./export-load.mjs");
+    if (elMod?.loadNextActionExport) {
+      const loaded = await elMod.loadNextActionExport();
+      session = loaded.session;
+      loadStatus = loaded.status;
+    } else if (snMod) {
+      session = await loadSession(snMod.packWeights, snMod.createSession);
+      loadStatus = session ? "fixture" : "missing";
+    } else {
+      loadStatus = "missing";
+    }
+    const stEl = panel.querySelector("#na-load-status");
+    if (stEl && mode === 10) {
+      const label =
+        loadStatus === "bin"
+          ? "load · bin (weightsUrl) · soft tips live"
+          : loadStatus === "fixture"
+            ? "load · fixture fallback · soft tips live"
+            : "load · missing";
+      stEl.textContent = "load · …";
+      stEl.classList.add(loadStatus || "missing");
+      // Soft reveal after paint — no layout thrash loop
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          stEl.textContent = label;
+          stEl.classList.add("show");
+        });
+      });
+    }
+  } else if (mode === 1 && snMod) {
     session = await loadSession(snMod.packWeights, snMod.createSession);
   }
   try {
@@ -329,9 +369,9 @@ export async function mount(api) {
         rows = recommendFrequency(tables, history, sketch, 3);
       }
       renderTrios(emptyCanvas);
-    } else if (mode === 1 && session && tables && recommendNext) {
+    } else if ((mode === 1 || mode === 10) && session && tables && recommendNext) {
       rows = recommendNext({ tables, session, blend: 0.35 }, history, sketch, 3);
-    } else if ((mode === 1 || mode === 3) && tables && recommendFrequency) {
+    } else if ((mode === 1 || mode === 10 || mode === 3) && tables && recommendFrequency) {
       rows = recommendFrequency(tables, history, sketch, 3);
     } else if (mode === 2) {
       rows = (history.length === 0
@@ -353,7 +393,7 @@ export async function mount(api) {
         source: "schema",
       }));
     }
-    if ((mode === 4 || mode === 1) && corpusMeta) {
+    if ((mode === 4 || mode === 1 || mode === 10) && corpusMeta) {
       corpusEl.hidden = false;
       corpusEl.textContent = `bake corpus · ${corpusMeta.examples} examples / ${corpusMeta.graphs} gallery graphs`;
     }
@@ -490,7 +530,7 @@ function applyTip(action) {
     record,
     refresh: refreshTips,
     onExamplesOpened() {
-      if ((mode === 4 || mode === 1) && corpusMeta) {
+      if ((mode === 4 || mode === 1 || mode === 10) && corpusMeta) {
         corpusEl.hidden = false;
         corpusEl.textContent = `bake corpus · ${corpusMeta.examples} examples / ${corpusMeta.graphs} gallery graphs (from Examples)`;
       }
@@ -500,6 +540,7 @@ function applyTip(action) {
       refreshTips();
     },
     mode,
+    loadStatus,
     schemaVersion: schema.schemaVersion,
     ring,
   };

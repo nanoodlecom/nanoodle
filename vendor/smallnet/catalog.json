@@ -1,4 +1,17 @@
 {
-  "$comment": "Registered helper-net manifests for nanoodle. weightsUrl is null until a model is ready to ship — do not commit .bin weight packs here.",
-  "models": []
+  "$comment": "Registered helper-net manifests. .bin weight packs stay gitignored — load() falls back or throws ModelNotAvailableError until dropped locally.",
+  "models": [
+    {
+      "id": "next-action-v1",
+      "version": "1",
+      "format": "smallnet-mlp-v1",
+      "inputSize": 83,
+      "outputSize": 18,
+      "layers": [
+        { "type": "linear", "in": 83, "out": 32, "activation": "relu" },
+        { "type": "linear", "in": 32, "out": 18, "activation": "softmax" }
+      ],
+      "weightsUrl": "/vendor/next-action/weights/next-action-v1.bin"
+    }
+  ]
 }

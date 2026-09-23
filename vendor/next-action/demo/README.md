@@ -10,6 +10,7 @@
 | · 4 | `index.html?product=4` — Examples shelf → gallery bake corpus | `product-4.gif` |
 | · 5 | `index.html?product=5` — local action ring filling as you edit | `product-5.gif` |
 | · 6 | `index.html?product=6` — cold-start seeds + first-trio chips | `product-6.gif` |
+| · 10 | `index.html?product=10` — export load path (bin / fixture badge) | `product-10.gif` |
 
 Serve locally: `python3 -m http.server` from repo root, then open `/index.html?product=N`.
 
