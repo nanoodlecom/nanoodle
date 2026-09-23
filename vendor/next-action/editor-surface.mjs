@@ -1,10 +1,13 @@
 /**
- * Real Nanoodle editor surface for Product · 1–· 6 next-action.
+ * Real Nanoodle editor surface for Product · 1–· 6 + · 13 (cool-layout snap).
  * Soft tips + action log + Examples→corpus + · 5 local ring + · 6 cold-start seeds.
+ * · 13: whole-graph / selection snap toward cool Exemplar layouts on Arrange /
+ * Snap layout (and optional drag-end) — no · 7 required. Distinct from · 11 tidy / · 12 nudge.
  * Dynamic imports so Product · 2 (schema-only) still mounts.
  */
 import { ACTION_VOCAB, NODE_TYPES, sketchFromGraph, schema } from "./encode.mjs";
 import { createRing, RING_CAPACITY } from "./ring.mjs";
+import { snapCoolLayout, detectMessy } from "./cool-layout-snap.mjs";
 
 const BASE = new URL(".", import.meta.url);
 
@@ -12,7 +15,7 @@ function productMode() {
   try {
     const q = new URLSearchParams(location.search);
     const p = q.get("product") || q.get("na");
-    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5" || p === "6") return Number(p);
+    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5" || p === "6" || p === "13") return Number(p);
   } catch (_) {}
   return 1;
 }
@@ -104,6 +107,13 @@ function ensureStyles() {
 #na-ghost{position:absolute;pointer-events:none;z-index:5;display:flex;align-items:center;gap:.35rem;padding:.4rem .65rem;
   border:1.5px dashed #3d5a70;border-radius:10px;background:rgba(20,30,45,.55);color:#67e8f9;font:12px/1.2 system-ui;opacity:0;transition:opacity .25s}
 #na-ghost.show{opacity:1}
+#na-panel .na-snap-note{font-size:.68rem;color:#67e8f9;padding:.15rem 0 0;min-height:1em}
+#na-panel .na-snap-note.flash{color:#a5f3fc}
+#na-panel .na-actions{display:flex;gap:.3rem;flex-wrap:wrap}
+#na-panel .na-btn{font:inherit;font-size:.65rem;padding:.28rem .45rem;border-radius:6px;border:1px solid #2a2e3c;background:#1a1f2c;color:#aeb7c8;cursor:pointer}
+#na-panel .na-btn:hover{border-color:#67e8f9;color:#67e8f9}
+.na-snap-flash,.na-snap-moving{box-shadow:0 0 0 2px #c4b5fdcc,0 0 24px #8b5cf6aa !important;transition:box-shadow .4s ease;z-index:40 !important}
+.na-snap-moving{filter:brightness(1.05)}
 `;
   document.head.appendChild(s);
 }
@@ -123,6 +133,7 @@ function buildPanel(mode) {
     4: "gallery → dataset",
     5: "local action ring",
     6: "cold-start seeds",
+    13: "cool-layout snap",
   };
   if (mode === 5) {
     el.innerHTML = `
@@ -160,6 +171,7 @@ function buildPanel(mode) {
       <div class="na-label" id="na-title">${titles[mode] || "tips"}</div>
       <div id="na-tips"></div>
       ${mode === 6 ? `<div class="na-label">first trios</div><div class="na-trio-row" id="na-trios"></div>` : ""}
+      ${mode === 13 ? `<div class="na-actions"><button type="button" class="na-btn" id="na-snap-btn">Snap layout</button><button type="button" class="na-btn" id="na-mess-btn">Mess up</button></div><div class="na-snap-note" id="na-snap-note">Mess up → soft snap to cool Exemplar</div>` : ""}
       <div class="na-label">history</div>
       <div class="na-hist"><b id="na-hist">[ ]</b></div>
       <div class="na-label" id="na-schema-label">schema tokens</div>
@@ -175,6 +187,7 @@ function buildPanel(mode) {
  * @param {{
  *   getGraph: () => {nodes:any[], links:any[], selectedId?:string|null},
  *   addNode: (type:string, x?:number, y?:number) => any,
+ *   moveNode?: (id:string, x:number, y:number) => boolean,
  *   openExamples: () => void,
  *   runSelected?: () => void,
  *   worldEl?: HTMLElement | null,
@@ -318,6 +331,40 @@ export async function mount(api) {
       renderRing();
       return;
     }
+    if (mode === 13) {
+      const g = api.getGraph();
+      const info = detectMessy(g);
+      if (histEl) histEl.textContent = history.length ? `[ ${history.slice(-5).join(" · ")} ]` : "[ ]";
+      if (tipsEl) {
+        tipsEl.innerHTML = "";
+        const rows = [
+          { action: "snap:layout", score: info.messy ? 3 : 1, label: info.messy ? "Snap layout (messy)" : "Snap layout (cool)" },
+          { action: "add:text", score: 2, label: "add text" },
+          { action: "add:llm", score: 1, label: "add llm" },
+        ];
+        rows.forEach((r, i) => {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "na-tip" + (i === 0 ? " best" : "");
+          const pctV = pct(r.score, rows);
+          b.innerHTML = `<span>✦ ${r.label}</span><span class="pct">${pctV}%</span>`;
+          b.onclick = () => {
+            if (r.action === "snap:layout") {
+              runCoolLayoutSnap({ force: true, reason: "tip" });
+              refreshTips();
+            } else applyTip(r.action);
+          };
+          tipsEl.appendChild(b);
+        });
+      }
+      const note = panel.querySelector("#na-snap-note");
+      if (note && !note.classList.contains("flash")) {
+        note.textContent = info.messy
+          ? `messy · ov ${info.overlaps} · err ${info.meanErr.toFixed(0)}px · ${info.priorId}`
+          : `cool · ${info.priorId} · err ${info.meanErr.toFixed(0)}px`;
+      }
+      return;
+    }
     const g = api.getGraph();
     const sketch = sketchFromGraph(g);
     let rows = [];
@@ -424,6 +471,200 @@ export async function mount(api) {
     });
   }
 
+
+  function setSnapNote(msg) {
+    const note = panel.querySelector("#na-snap-note");
+    if (!note) return;
+    note.textContent = msg;
+    note.classList.add("flash");
+    setTimeout(() => note.classList.remove("flash"), 700);
+  }
+
+  function easeOutCubic(t) {
+    return 1 - Math.pow(1 - t, 3);
+  }
+
+  let softMoveRaf = 0;
+  let softMoveBusy = false;
+  function cancelSoftMove() {
+    if (softMoveRaf) {
+      cancelAnimationFrame(softMoveRaf);
+      softMoveRaf = 0;
+    }
+  }
+
+  /** Cancelable rAF lerp — mode-gated callers only; cap concurrent nodes. */
+  function animateMoveNodes(targets, durationMs) {
+    if (!api.moveNode || !targets.length) return Promise.resolve();
+    cancelSoftMove();
+    const g = api.getGraph();
+    const from = new Map(
+      (g.nodes || []).map((n) => [String(n.id), { x: Number(n.x), y: Number(n.y) }])
+    );
+    const moves = targets
+      .map((t) => {
+        const a = from.get(String(t.id));
+        if (!a || !Number.isFinite(a.x) || !Number.isFinite(a.y)) return null;
+        if (Math.abs(t.x - a.x) < 0.5 && Math.abs(t.y - a.y) < 0.5) return null;
+        return { id: String(t.id), ax: a.x, ay: a.y, bx: t.x, by: t.y };
+      })
+      .filter(Boolean)
+      .slice(0, 16);
+    if (!moves.length) return Promise.resolve();
+    const dur = Math.max(60, Math.min(520, durationMs || 320));
+    return new Promise((resolve) => {
+      const t0 = performance.now();
+      function frame(now) {
+        const t = Math.min(1, (now - t0) / dur);
+        const e = easeOutCubic(t);
+        for (const m of moves) {
+          try {
+            api.moveNode(m.id, m.ax + (m.bx - m.ax) * e, m.ay + (m.by - m.ay) * e);
+          } catch (_) {}
+        }
+        if (t < 1) softMoveRaf = requestAnimationFrame(frame);
+        else {
+          softMoveRaf = 0;
+          for (const m of moves) {
+            try { api.moveNode(m.id, m.bx, m.by); } catch (_) {}
+          }
+          resolve();
+        }
+      }
+      softMoveRaf = requestAnimationFrame(frame);
+    });
+  }
+
+  function setSnapGlow(ids, on) {
+    for (const id of ids) {
+      const el = document.querySelector(`.node[data-id="${CSS.escape(String(id))}"]`);
+      if (!el) continue;
+      if (on) el.classList.add("na-snap-flash", "na-snap-moving");
+      else {
+        el.classList.remove("na-snap-moving");
+        setTimeout(() => el.classList.remove("na-snap-flash"), 380);
+      }
+    }
+  }
+
+  function flashMovedNodes(ids) {
+    setSnapGlow(ids, true);
+    setTimeout(() => setSnapGlow(ids, false), 420);
+  }
+
+  /**
+   * Product · 13: soft-slide snap toward cool Exemplar layout (not teleport).
+   * @param {{ force?: boolean, ids?: string[], reason?: string }} [opts]
+   */
+  async function runCoolLayoutSnap(opts = {}) {
+    if (mode !== 13 || !api.moveNode) return;
+    if (softMoveBusy) return;
+    softMoveBusy = true;
+    let glowed = [];
+    try {
+      const g = api.getGraph();
+      const result = snapCoolLayout(g, {
+        force: !!opts.force,
+        ids: opts.ids,
+        t: 0.7,
+      });
+      if (!result.positions.length) {
+        setSnapNote(
+          result.messy
+            ? "snap · no move"
+            : `snap · already cool · ${result.priorId}`
+        );
+        return result;
+      }
+      glowed = result.movedIds.slice();
+      setSnapGlow(glowed, true);
+      setSnapNote(`snap · sliding · ${result.movedIds.length}`);
+      await animateMoveNodes(result.positions, 380);
+      const reason = opts.reason || "snap";
+      setSnapNote(
+        `${reason} · settled · ${result.movedIds.length} node${result.movedIds.length === 1 ? "" : "s"} · ${result.priorId}`
+      );
+      return result;
+    } finally {
+      if (glowed.length) setSnapGlow(glowed, false);
+      softMoveBusy = false;
+    }
+  }
+
+  /** Soft scatter so Snap has a messy graph to cool (demo / GIF). */
+  async function messUpLayout() {
+    if (mode !== 13 || !api.moveNode) return;
+    if (softMoveBusy) return;
+    softMoveBusy = true;
+    try {
+      const g = api.getGraph();
+      const nodes = (g.nodes || []).filter((n) => n.type !== "comment");
+      if (nodes.length < 2) {
+        try {
+          api.addNode("text", 280, 200);
+          api.addNode("llm", 295, 210);
+          api.addNode("image", 290, 195);
+        } catch (e) {
+          console.warn("[next-action] mess seed failed", e);
+        }
+      }
+      const g2 = api.getGraph();
+      const list = (g2.nodes || []).filter((n) => n.type !== "comment");
+      const cx = list.reduce((s, n) => s + Number(n.x), 0) / (list.length || 1);
+      const cy = list.reduce((s, n) => s + Number(n.y), 0) / (list.length || 1);
+      const targets = list.map((n, i) => {
+        const ang = (i / list.length) * Math.PI * 2;
+        const r = 28 + (i % 3) * 12;
+        return { id: n.id, x: cx + Math.cos(ang) * r, y: cy + Math.sin(ang) * r * 0.6 };
+      });
+      setSnapNote("mess · scattering");
+      await animateMoveNodes(targets, 240);
+      const info = detectMessy(api.getGraph());
+      setSnapNote(`messed · ov ${info.overlaps} · err ${info.meanErr.toFixed(0)}px — hit Snap layout`);
+    } finally {
+      softMoveBusy = false;
+    }
+  }
+
+  function wireSnapControls() {
+    if (mode !== 13) return;
+    const snapBtn = panel.querySelector("#na-snap-btn");
+    const messBtn = panel.querySelector("#na-mess-btn");
+    if (snapBtn) {
+      snapBtn.addEventListener("click", () => {
+        runCoolLayoutSnap({ force: true, reason: "arrange" });
+        refreshTips();
+      });
+    }
+    if (messBtn) {
+      messBtn.addEventListener("click", () => {
+        messUpLayout();
+        refreshTips();
+      });
+    }
+    // Drag-end on a node card: gentle cool snap when the graph is messy.
+    let dragTimer = null;
+    document.addEventListener(
+      "pointerup",
+      (ev) => {
+        if (mode !== 13) return;
+        const t = ev.target;
+        if (!(t instanceof Element)) return;
+        if (t.closest("#na-panel")) return; // panel buttons / tips
+        if (!t.closest(".node")) return;
+        clearTimeout(dragTimer);
+        dragTimer = setTimeout(() => {
+          const info = detectMessy(api.getGraph());
+          if (info.messy && info.meanErr > 48) {
+            runCoolLayoutSnap({ reason: "drag-end" });
+            refreshTips();
+          }
+        }, 220);
+      },
+      true
+    );
+  }
+
   async function applyTrio(actions) {
     const adds = (actions || []).filter((a) => a.startsWith("add:"));
     const baseX = 160;
@@ -485,10 +726,13 @@ function applyTip(action) {
   }
 
   wireRingControls();
+  wireSnapControls();
 
   window.__nextAction = {
     record,
     refresh: refreshTips,
+    runCoolLayoutSnap,
+    messUpLayout,
     onExamplesOpened() {
       if ((mode === 4 || mode === 1) && corpusMeta) {
         corpusEl.hidden = false;
