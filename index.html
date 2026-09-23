@@ -14946,6 +14946,14 @@ RULES for the diff:
     _loadExample(i);
     try { window.__nextAction?.onExampleLoaded?.(); } catch(_){}
   };
+  // Product · 5 (+ shared): emit run token when a flow actually starts.
+  if (typeof runGroup === "function") {
+    const _runGroup = runGroup;
+    runGroup = function(seedIds, ctx){
+      try { window.__nextAction?.record?.("run"); } catch(_){}
+      return _runGroup.apply(this, arguments);
+    };
+  }
   import("./vendor/next-action/editor-surface.mjs").then(async (mod) => {
     await mod.mount({
       getGraph: () => ({

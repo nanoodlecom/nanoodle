@@ -8,6 +8,7 @@
 | · 2 | `index.html?product=2` — action log + schema tokens | `product-2.gif` |
 | · 3 | `index.html?product=3` — frequency soft tips / ghosts | `product-3.gif` |
 | · 4 | `index.html?product=4` — Examples shelf → gallery bake corpus | `product-4.gif` |
+| · 5 | `index.html?product=5` — local action ring filling as you edit | `product-5.gif` |
 
 Serve locally: `python3 -m http.server` from repo root, then open `/index.html?product=N`.
 
