@@ -105,12 +105,17 @@ function ensureStyles() {
   border:1.5px dashed #3d5a70;border-radius:10px;background:rgba(20,30,45,.55);color:#67e8f9;font:12px/1.2 system-ui;opacity:0;transition:opacity .25s}
 #na-ghost.show{opacity:1}
 
-#na-panel .na-tip.slop{opacity:.55;border-style:dashed;border-color:#4b5568;color:#9ca3af}
+#na-panel .na-tip.slop{opacity:.55;border-style:dashed;border-color:#4b5568;color:#9ca3af;transition:opacity .28s ease,border-color .28s ease,background .28s ease}
 #na-panel .na-tip.slop:hover{border-color:#6b7280;color:#d1d5db;background:#161a22}
 #na-panel .na-tip .slop-badge{font-size:.58rem;padding:.08rem .28rem;border-radius:4px;background:#2a1a1a;color:#fca5a5;border:1px solid #5a3030;text-decoration:line-through;letter-spacing:.02em}
-#na-panel .na-antislop-note{font-size:.62rem;color:#6ee7b7;line-height:1.3}
+#na-panel .na-antislop-note{font-size:.62rem;color:#6ee7b7;line-height:1.3;min-height:1em;transition:color .25s ease}
+#na-panel .na-antislop-note.flash{color:#a5f3fc}
+#na-panel .na-antislop-note.ok{color:#6ee7b7}
 #na-panel .na-masked-row{display:flex;flex-direction:column;gap:.2rem;margin-top:.15rem}
+#na-panel .na-masked-row .na-tip{animation:na-slop-in .32s ease}
 #na-panel .na-tip.muted-slop{opacity:.45;font-size:.7rem;padding:.28rem .4rem}
+@keyframes na-slop-in{from{opacity:0;transform:translateY(4px)}to{opacity:.45;transform:none}}
+@media (prefers-reduced-motion:reduce){#na-panel .na-masked-row .na-tip{animation:none}}
 `;
   document.head.appendChild(s);
 }
@@ -358,9 +363,18 @@ export async function mount(api) {
       maskedRows = ranked.filter((r) => r.masked).slice(0, 3);
       const note = panel.querySelector("#na-antislop-note");
       if (note) {
+        note.classList.remove("flash", "ok");
         note.textContent = emptyCanvas
           ? "anti-slop idle · empty canvas (· 6 seeds when cold)"
-          : `anti-slop on · masked ${maskedRows.length} slop tip${maskedRows.length === 1 ? "" : "s"}`;
+          : maskedRows.length
+            ? `anti-slop on · soft-masked ${maskedRows.length} · tips stay diverse`
+            : "anti-slop on · no slop to mask";
+        if (maskedRows.length) {
+          note.classList.add("flash");
+          setTimeout(() => note.classList.remove("flash"), 600);
+        } else {
+          note.classList.add("ok");
+        }
       }
     } else if (mode === 6 && tables) {
       if (emptyCanvas && recommendColdStart) {
