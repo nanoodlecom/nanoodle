@@ -1,6 +1,6 @@
 /**
- * Real Nanoodle editor surface for Product · 1–· 5 next-action.
- * Soft tips + action log + optional Examples→corpus chip + · 5 local ring.
+ * Real Nanoodle editor surface for Product · 1–· 6 next-action.
+ * Soft tips + action log + Examples→corpus + · 5 local ring + · 6 cold-start seeds.
  * Dynamic imports so Product · 2 (schema-only) still mounts.
  */
 import { ACTION_VOCAB, NODE_TYPES, sketchFromGraph, schema } from "./encode.mjs";
@@ -12,7 +12,7 @@ function productMode() {
   try {
     const q = new URLSearchParams(location.search);
     const p = q.get("product") || q.get("na");
-    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5") return Number(p);
+    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5" || p === "6") return Number(p);
   } catch (_) {}
   return 1;
 }
@@ -96,6 +96,11 @@ function ensureStyles() {
 #na-panel .na-btn{font:inherit;font-size:.65rem;padding:.28rem .45rem;border-radius:6px;border:1px solid #2a2e3c;background:#1a1f2c;color:#aeb7c8;cursor:pointer}
 #na-panel .na-btn:hover{border-color:#67e8f9;color:#67e8f9}
 #na-panel .na-note{font-size:.62rem;color:#6b7280;line-height:1.3}
+#na-panel .na-trio-row{display:flex;flex-direction:column;gap:.25rem}
+#na-panel .na-trio{display:flex;align-items:flex-start;gap:.35rem;width:100%;text-align:left;padding:.35rem .45rem;border-radius:8px;
+  border:1px solid #2a3348;background:#121820;color:#aeb7c8;cursor:pointer;font:inherit;font-size:.68rem;line-height:1.3}
+#na-panel .na-trio:hover{border-color:#a78bfa;color:#ddd6fe;background:#1a1530}
+#na-panel .na-trio .na-trio-count{margin-left:auto;font-size:.6rem;color:#f5d76e;flex-shrink:0}
 #na-ghost{position:absolute;pointer-events:none;z-index:5;display:flex;align-items:center;gap:.35rem;padding:.4rem .65rem;
   border:1.5px dashed #3d5a70;border-radius:10px;background:rgba(20,30,45,.55);color:#67e8f9;font:12px/1.2 system-ui;opacity:0;transition:opacity .25s}
 #na-ghost.show{opacity:1}
@@ -117,6 +122,7 @@ function buildPanel(mode) {
     3: "soft tips · frequency",
     4: "gallery → dataset",
     5: "local action ring",
+    6: "cold-start seeds",
   };
   if (mode === 5) {
     el.innerHTML = `
@@ -153,6 +159,7 @@ function buildPanel(mode) {
     <div class="na-body">
       <div class="na-label" id="na-title">${titles[mode] || "tips"}</div>
       <div id="na-tips"></div>
+      ${mode === 6 ? `<div class="na-label">first trios</div><div class="na-trio-row" id="na-trios"></div>` : ""}
       <div class="na-label">history</div>
       <div class="na-hist"><b id="na-hist">[ ]</b></div>
       <div class="na-label" id="na-schema-label">schema tokens</div>
@@ -197,9 +204,12 @@ export async function mount(api) {
   ).join("");
 
   const freqMod = await tryImport("./frequency.mjs");
+  const coldMod = await tryImport("./cold-start.mjs");
   const recMod = await tryImport("./recommend.mjs");
   const snMod = await tryImport("../smallnet/index.js");
   if (freqMod) recommendFrequency = freqMod.recommendFrequency;
+  let recommendColdStart = coldMod?.recommendColdStart || null;
+  let topFirstTrios = coldMod?.topFirstTrios || null;
   if (recMod) recommendNext = recMod.recommendNext;
 
   try {
@@ -311,7 +321,15 @@ export async function mount(api) {
     const g = api.getGraph();
     const sketch = sketchFromGraph(g);
     let rows = [];
-    if (mode === 1 && session && tables && recommendNext) {
+    const emptyCanvas = !sketch.numNodes;
+    if (mode === 6 && tables) {
+      if (emptyCanvas && recommendColdStart) {
+        rows = recommendColdStart(tables, sketch, 3);
+      } else if (recommendFrequency) {
+        rows = recommendFrequency(tables, history, sketch, 3);
+      }
+      renderTrios(emptyCanvas);
+    } else if (mode === 1 && session && tables && recommendNext) {
       rows = recommendNext({ tables, session, blend: 0.35 }, history, sketch, 3);
     } else if ((mode === 1 || mode === 3) && tables && recommendFrequency) {
       rows = recommendFrequency(tables, history, sketch, 3);
@@ -369,22 +387,75 @@ export async function mount(api) {
     }
     const type = action.slice(4);
     ghostEl.textContent = `ghost · ${type}`;
+    const empty = !(g.nodes && g.nodes.length);
     const sel = g.selectedId && g.nodes.find((n) => n.id === g.selectedId);
-    const x = (sel?.x ?? 280) + 200;
-    const y = sel?.y ?? 160;
+    let x, y;
+    if (empty || (mode === 6 && !sel)) {
+      const wr = world?.parentElement?.getBoundingClientRect?.();
+      x = Math.max(120, ((wr?.width || 900) / 2) - 40);
+      y = Math.max(100, ((wr?.height || 560) / 2) - 20);
+    } else {
+      x = (sel?.x ?? 280) + 200;
+      y = sel?.y ?? 160;
+    }
     ghostEl.style.left = x + "px";
     ghostEl.style.top = y + "px";
     ghostEl.classList.add("show");
   }
 
-  function applyTip(action) {
+  
+  function renderTrios(emptyCanvas) {
+    const triosEl = panel.querySelector("#na-trios");
+    if (!triosEl) return;
+    if (!emptyCanvas || !tables || !topFirstTrios) {
+      triosEl.innerHTML = "";
+      return;
+    }
+    const trios = topFirstTrios(tables, 4);
+    triosEl.innerHTML = "";
+    trios.forEach((t) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "na-trio";
+      const label = (t.actions || []).map(actionLabel).join(" → ");
+      b.innerHTML = `<span>✦ ${label}</span><span class="na-trio-count">×${t.count}</span>`;
+      b.onclick = () => applyTrio(t.actions || []);
+      triosEl.appendChild(b);
+    });
+  }
+
+  async function applyTrio(actions) {
+    const adds = (actions || []).filter((a) => a.startsWith("add:"));
+    const baseX = 160;
+    const baseY = 180;
+    const gap = 220;
+    for (let i = 0; i < adds.length; i++) {
+      const type = adds[i].slice(4);
+      try {
+        api.addNode(type, baseX + i * gap, baseY + (i % 2) * 40);
+      } catch (e) {
+        console.warn("[next-action] trio addNode failed", type, e);
+      }
+      await new Promise((r) => setTimeout(r, 120));
+    }
+    refreshTips();
+  }
+
+function applyTip(action) {
     flashToken(action);
     if (action.startsWith("add:")) {
       const type = action.slice(4);
       const g = api.getGraph();
       const sel = g.selectedId && g.nodes.find((n) => n.id === g.selectedId);
-      const x = (sel?.x ?? 120) + 220;
-      const y = sel?.y ?? 160;
+      const empty = !(g.nodes && g.nodes.length);
+      let x, y;
+      if (empty || (mode === 6 && !sel)) {
+        x = 280;
+        y = 200;
+      } else {
+        x = (sel?.x ?? 120) + 220;
+        y = sel?.y ?? 160;
+      }
       try {
         api.addNode(type, x, y);
       } catch (e) {
