@@ -3,85 +3,176 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Product · 4 — gallery-as-dataset bake</title>
+<title>Product · 4 — gallery bake (usage)</title>
 <style>
-:root{--bg:#0b0d12;--panel:#12151d;--panel2:#171b25;--ink:#eef1f7;--dim:#aeb7c8;--line:#2a2e3c;--accent:#7c8cff;--cyan:#67e8f9;--gold:#f5d76e}
-*{box-sizing:border-box}body{margin:0;font:14px/1.4 system-ui,sans-serif;background:var(--bg);color:var(--ink)}
-header{display:flex;align-items:center;gap:1rem;padding:.75rem 1rem;background:rgba(18,21,29,.9);border-bottom:1px solid var(--line)}
-.logo{font-weight:800;font-size:1.1rem;background:linear-gradient(90deg,#67e8f9,#7c8cff 70%);-webkit-background-clip:text;background-clip:text;color:transparent}
-main{padding:1rem;max-width:920px;margin:0 auto}
-.canvas{min-height:420px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem}
-h1{font-size:1rem;font-weight:600;margin:0;flex:1}.sub{color:var(--dim);font-size:.8rem}
-label{font-size:.75rem;color:var(--dim);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:.5rem}
-.shelf{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem}
-.card{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:.75rem;opacity:0;transform:translateY(8px);transition:opacity .35s,transform .35s,border-color .3s}
-.card.show{opacity:1;transform:none}.card.scan{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan)}
-.card h3{margin:0 0 .4rem;font-size:.9rem}
-.tag{display:inline-block;padding:.2rem .5rem;border-radius:6px;background:#322850;color:var(--gold);font-size:.7rem;border:1px solid var(--line)}
-.walk{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem;align-items:center}
-.chip{padding:.35rem .65rem;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--dim);font-size:.8rem}
-.chip.lit{background:#243250;color:var(--cyan);border-color:var(--accent)}
-.chip.cur{outline:2px solid var(--cyan)}
-.arrow{color:var(--accent);opacity:.5}
-.stats{margin-top:1.25rem;padding:1rem;background:var(--panel2);border:1px solid var(--line);border-radius:12px;max-width:380px}
-.stats strong{font-size:1.05rem}
+:root{--bg:#0b0d12;--panel:#12151d;--panel2:#171b25;--ink:#eef1f7;--dim:#aeb7c8;--line:#2a2e3c;--accent:#7c8cff;--cyan:#67e8f9;--gold:#f5d76e;--mint:#6ee7b7}
+*{box-sizing:border-box;margin:0;padding:0}
+body{margin:0;font:13px/1.4 system-ui,-apple-system,sans-serif;background:#080a0e;color:var(--ink);overflow:hidden}
+.shell{width:880px;height:520px;margin:0 auto;display:flex;flex-direction:column;background:var(--bg);border:1px solid var(--line);border-radius:10px;overflow:hidden;position:relative}
+header{display:flex;align-items:center;gap:.75rem;padding:.55rem .9rem;background:rgba(18,21,29,.95);border-bottom:1px solid var(--line)}
+.logo{font-weight:800;font-size:1rem;background:linear-gradient(90deg,#67e8f9,#7c8cff 70%);-webkit-background-clip:text;background-clip:text;color:transparent}
+h1{font-size:.92rem;font-weight:600;flex:1}
+.badge{font-size:.68rem;padding:.2rem .5rem;border-radius:999px;background:#1a2840;color:var(--cyan);border:1px solid #2a4060}
+.sub{color:var(--dim);font-size:.72rem}
+.workspace{flex:1;display:grid;grid-template-columns:1fr 240px;min-height:0;position:relative}
+.canvas-wrap{position:relative;background:var(--panel);background-image:linear-gradient(rgba(22,26,36,.85) 1px,transparent 1px),linear-gradient(90deg,rgba(22,26,36,.85) 1px,transparent 1px);background-size:36px 36px;overflow:hidden}
+.topbar{position:absolute;top:10px;left:12px;display:flex;gap:.4rem;z-index:5}
+.btn{padding:.4rem .7rem;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--dim);font:inherit;transition:all .25s}
+.btn.hot{border-color:var(--cyan);color:var(--cyan);background:#152030;box-shadow:0 0 12px #67e8f930}
+.shelf{position:absolute;left:12px;top:52px;width:300px;background:rgba(18,21,29,.96);border:1px solid var(--line);border-radius:12px;padding:.65rem;opacity:0;transform:translateY(-8px) scale(.98);pointer-events:none;transition:all .35s;z-index:6;box-shadow:0 12px 40px #0008}
+.shelf.open{opacity:1;transform:none;pointer-events:auto}
+.shelf h3{font-size:.72rem;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem;font-weight:600}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:.4rem}
+.card{padding:.55rem;border-radius:8px;border:1px solid var(--line);background:var(--panel2);transition:all .25s}
+.card h4{font-size:.8rem;font-weight:600;margin-bottom:.2rem}
+.card .tag{font-size:.62rem;color:var(--gold)}
+.card.pick{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan);background:#182238}
+.node{position:absolute;display:flex;align-items:center;gap:.4rem;padding:.45rem .65rem;background:var(--panel2);border:2px solid var(--accent);border-radius:9px;opacity:0;transform:scale(.9);transition:opacity .3s,transform .3s;font-size:.8rem;z-index:2}
+.node.show{opacity:1;transform:scale(1)}
+.node .dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.wire{position:absolute;height:2px;background:var(--accent);opacity:0;transition:opacity .3s;z-index:1}
+.wire.show{opacity:.75}
+.side{background:var(--panel);border-left:1px solid var(--line);padding:.7rem .6rem;display:flex;flex-direction:column;gap:.5rem}
+.side label{font-size:.65rem;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
+.progress{height:10px;background:#1a1f2a;border-radius:5px;overflow:hidden;border:1px solid var(--line)}
+.progress>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--mint));transition:width .35s}
+.chips{display:flex;flex-wrap:wrap;gap:.3rem}
+.chip{font-size:.68rem;padding:.28rem .45rem;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--dim);opacity:0;transform:scale(.9);transition:all .3s}
+.chip.show{opacity:1;transform:none}
+.chip.lit{color:var(--mint);border-color:#2a6050;background:#14241e}
+.stat{margin-top:auto;padding:.55rem;border-radius:10px;background:var(--panel2);border:1px solid var(--line);font-size:.78rem}
+.stat b{color:var(--gold);font-size:.95rem}
+.stat .dim{color:var(--dim);font-size:.68rem;margin-top:.2rem}
+.cursor{position:absolute;width:14px;height:14px;border-radius:50% 50% 50% 0;background:var(--ink);transform:rotate(-30deg);pointer-events:none;z-index:50;opacity:0;transition:left .5s cubic-bezier(.2,.8,.2,1),top .5s cubic-bezier(.2,.8,.2,1),opacity .2s;box-shadow:0 2px 6px #0008}
+.cursor.on{opacity:1}
+.cursor.click{transform:rotate(-30deg) scale(.85);background:var(--cyan)}
 </style>
 </head>
 <body>
-<header>
-  <div class="logo">nanoodle</div>
-  <h1>Product · 4 — gallery-as-dataset bake</h1>
-  <span class="sub">Examples shelf → synth build-order</span>
-</header>
-<main>
-  <div class="canvas">
-    <label>Examples shelf</label>
-    <div class="shelf" id="shelf"></div>
-    <div style="margin-top:1.5rem">
-      <label>bake build-order walk</label>
-      <div class="walk" id="walk"></div>
+<div class="shell">
+  <header>
+    <div class="logo">nanoodle</div>
+    <h1>Product · 4 — gallery-as-dataset bake</h1>
+    <span class="badge">usage</span>
+    <span class="sub">Examples → corpus</span>
+  </header>
+  <div class="workspace">
+    <div class="canvas-wrap" id="cv">
+      <div class="topbar">
+        <div class="btn" id="exBtn">Examples</div>
+        <div class="btn" id="bakeBtn">Bake dataset</div>
+      </div>
+      <div class="shelf" id="shelf">
+        <h3>Examples shelf</h3>
+        <div class="cards" id="cards"></div>
+      </div>
+      <div class="node" id="n0" style="left:120px;top:200px"><span class="dot"></span>text</div>
+      <div class="wire" id="w0" style="left:210px;top:220px;width:70px"></div>
+      <div class="node" id="n1" style="left:290px;top:200px;border-color:var(--cyan)"><span class="dot" style="background:var(--cyan)"></span>llm</div>
+      <div class="wire" id="w1" style="left:380px;top:220px;width:70px;background:var(--cyan)"></div>
+      <div class="node" id="n2" style="left:460px;top:200px;border-color:var(--gold)"><span class="dot" style="background:var(--gold)"></span>image</div>
+      <div class="cursor" id="cur"></div>
     </div>
-    <div class="stats"><strong id="count">corpus: 0 examples / 0 graphs</strong><div style="color:var(--dim);font-size:.8rem;margin-top:.35rem">intent-fork tags attached per walk</div></div>
+    <aside class="side">
+      <label>bake progress</label>
+      <div class="progress"><i id="bar"></i></div>
+      <label>dataset chips</label>
+      <div class="chips" id="chips"></div>
+      <div class="stat"><div><b id="count">0</b> / 945 examples</div><div class="dim" id="graphs">0 graphs · shelf → synth build-order</div></div>
+    </aside>
   </div>
-</main>
+</div>
 <script>
-const EX=[
-  ["Text→Image","modality-branch"],["LLM chain","revise-vs-extend"],["Audio attach","audio-attach"],
-  ["Cold start","cold-start"],["Lip sync","audio-attach"],["Edit pass","revise-vs-extend"]
-];
-const BO=["add:text","add:llm","wire","add:image","set:model","run"];
-const shelf=document.getElementById("shelf");
-EX.forEach(([n,t])=>{
-  const d=document.createElement("div");d.className="card";
-  d.innerHTML=`<h3>${n}</h3><span class="tag">fork:${t}</span>`;
-  shelf.appendChild(d);
-});
-const walk=document.getElementById("walk");
-BO.forEach((b,i)=>{
-  if(i){const a=document.createElement("span");a.className="arrow";a.textContent="→";walk.appendChild(a)}
-  const s=document.createElement("span");s.className="chip";s.textContent=b;walk.appendChild(s);
-});
-const chips=[...walk.querySelectorAll(".chip")];
-function loop(){
-  [...shelf.children].forEach(c=>c.classList.remove("show","scan"));
-  chips.forEach(c=>c.classList.remove("lit","cur"));
-  document.getElementById("count").textContent="corpus: 0 examples / 0 graphs";
-  EX.forEach((_,i)=>setTimeout(()=>{
-    shelf.children[i].classList.add("show");
-    [...shelf.children].forEach(c=>c.classList.remove("scan"));
-    shelf.children[i].classList.add("scan");
-  },200+i*280));
-  setTimeout(()=>[...shelf.children].forEach(c=>c.classList.remove("scan")),200+EX.length*280+200);
-  BO.forEach((_,i)=>setTimeout(()=>{
-    chips.forEach(c=>c.classList.remove("cur"));
-    for(let j=0;j<=i;j++) chips[j].classList.add("lit");
-    chips[i].classList.add("cur");
-    const ex=Math.round(945*(i+1)/BO.length), g=Math.max(1,Math.round(10*(i+1)/BO.length));
-    document.getElementById("count").textContent=`corpus: ${ex} examples / ${g} graphs`;
-  },200+EX.length*280+400+i*450));
-  setTimeout(loop,200+EX.length*280+400+BO.length*450+1500);
+const EX=[['Text→Image','modality-branch'],['LLM chain','revise-vs-extend'],['Audio attach','audio-attach'],['Cold start','cold-start']];
+const CHIPS=['walk:add:text','walk:add:llm','walk:wire','walk:add:image','fork:modality','corpus++'];
+const cards=document.getElementById('cards');
+EX.forEach(([n,t])=>{const d=document.createElement('div');d.className='card';d.innerHTML=`<h4>${n}</h4><span class="tag">fork:${t}</span>`;cards.appendChild(d)});
+const chipsEl=document.getElementById('chips');
+CHIPS.forEach(c=>{const s=document.createElement('span');s.className='chip';s.textContent=c;chipsEl.appendChild(s)});
+const cur=document.getElementById('cur');
+const chipNodes=[...chipsEl.children];
+const cardNodes=[...cards.children];
+function move(x,y){cur.style.left=x+'px';cur.style.top=y+'px'}
+function wait(ms){return new Promise(r=>setTimeout(r,ms))}
+async function clickPulse(){cur.classList.add('click');await wait(110);cur.classList.remove('click')}
+async function cycle(){
+  cur.classList.remove('on');
+  document.getElementById('shelf').classList.remove('open');
+  document.getElementById('exBtn').classList.remove('hot');
+  document.getElementById('bakeBtn').classList.remove('hot');
+  cardNodes.forEach(c=>c.classList.remove('pick'));
+  ['n0','n1','n2','w0','w1'].forEach(id=>document.getElementById(id).classList.remove('show'));
+  chipNodes.forEach(c=>c.classList.remove('show','lit'));
+  document.getElementById('bar').style.width='0%';
+  document.getElementById('count').textContent='0';
+  document.getElementById('graphs').textContent='0 graphs · shelf → synth build-order';
+  await wait(200);cur.classList.add('on');
+  // open Examples
+  move(70,70);await wait(400);await clickPulse();
+  document.getElementById('exBtn').classList.add('hot');
+  document.getElementById('shelf').classList.add('open');
+  await wait(450);
+  // pick a graph
+  move(120,150);await wait(380);await clickPulse();
+  cardNodes[0].classList.add('pick');
+  await wait(300);
+  document.getElementById('shelf').classList.remove('open');
+  document.getElementById('exBtn').classList.remove('hot');
+  // graph appears on canvas
+  document.getElementById('n0').classList.add('show');await wait(200);
+  document.getElementById('w0').classList.add('show');
+  document.getElementById('n1').classList.add('show');await wait(200);
+  document.getElementById('w1').classList.add('show');
+  document.getElementById('n2').classList.add('show');await wait(350);
+  // bake
+  move(160,70);await wait(380);await clickPulse();
+  document.getElementById('bakeBtn').classList.add('hot');
+  for(let i=0;i<chipNodes.length;i++){
+    chipNodes[i].classList.add('show','lit');
+    const pct=((i+1)/chipNodes.length)*100;
+    document.getElementById('bar').style.width=pct+'%';
+    const ex=Math.round(945*(i+1)/chipNodes.length);
+    const g=Math.max(1,Math.round(10*(i+1)/chipNodes.length));
+    document.getElementById('count').textContent=String(ex);
+    document.getElementById('graphs').textContent=`${g} graphs · shelf → synth build-order`;
+    await wait(280);
+  }
+  document.getElementById('graphs').textContent='10 graphs · 945 examples baked';
+  await wait(1100);
+  // second pass
+  document.getElementById('bakeBtn').classList.remove('hot');
+  chipNodes.forEach(c=>c.classList.remove('show','lit'));
+  document.getElementById('bar').style.width='0%';
+  document.getElementById('count').textContent='0';
+  ['n0','n1','n2','w0','w1'].forEach(id=>document.getElementById(id).classList.remove('show'));
+  cardNodes.forEach(c=>c.classList.remove('pick'));
+  await wait(250);
+  move(70,70);await wait(300);await clickPulse();
+  document.getElementById('exBtn').classList.add('hot');
+  document.getElementById('shelf').classList.add('open');
+  await wait(300);
+  move(220,150);await wait(280);await clickPulse();
+  cardNodes[1].classList.add('pick');
+  await wait(250);
+  document.getElementById('shelf').classList.remove('open');
+  document.getElementById('n0').classList.add('show');
+  document.getElementById('w0').classList.add('show');
+  document.getElementById('n1').classList.add('show');
+  await wait(200);
+  move(160,70);await wait(280);await clickPulse();
+  document.getElementById('bakeBtn').classList.add('hot');
+  for(let i=0;i<chipNodes.length;i++){
+    chipNodes[i].classList.add('show','lit');
+    document.getElementById('bar').style.width=((i+1)/chipNodes.length*100)+'%';
+    document.getElementById('count').textContent=String(Math.round(945*(i+1)/chipNodes.length));
+    document.getElementById('graphs').textContent=`${Math.max(1,Math.round(10*(i+1)/chipNodes.length))} graphs · shelf → synth build-order`;
+    await wait(180);
+  }
+  document.getElementById('graphs').textContent='10 graphs · 945 examples baked';
+  await wait(900);
+  cycle();
 }
-loop();
+cycle();
 </script>
 </body>
 </html>
