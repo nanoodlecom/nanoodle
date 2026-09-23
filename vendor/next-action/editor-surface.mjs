@@ -122,7 +122,8 @@ function ensureStyles() {
 #na-panel .na-actions{display:flex;gap:.3rem;flex-wrap:wrap}
 #na-panel .na-btn{font:inherit;font-size:.65rem;padding:.28rem .45rem;border-radius:6px;border:1px solid #2a2e3c;background:#1a1f2c;color:#aeb7c8;cursor:pointer}
 #na-panel .na-btn:hover{border-color:#67e8f9;color:#67e8f9}
-.na-mode-flash{box-shadow:0 0 0 2px #a78bfaaa,0 0 14px #a78bfa55 !important;transition:box-shadow .35s ease,left .4s ease,top .4s ease}
+.na-mode-flash,.na-mode-moving{box-shadow:0 0 0 2px #67e8f9cc,0 0 22px #22d3ee88 !important;transition:box-shadow .4s ease;z-index:40 !important}
+.na-mode-moving{filter:brightness(1.05)}
 .na-mode-dot{position:absolute;z-index:6;pointer-events:none;width:7px;height:7px;border-radius:50%;
   background:#a78bfa;box-shadow:0 0 8px #a78bfa88;top:6px;right:6px;opacity:.9}
 `;
@@ -571,67 +572,126 @@ function applyTip(action) {
     });
   }
 
-  /**
-   * Product · 15: apply chosen layout mode via moveNode.
-   */
-  function runApplyLayoutMode(opts = {}) {
-    if (mode !== 15) return;
-    const g = api.getGraph();
-    const result = applyLayoutMode(g, selectedMode, {
-      force: !!opts.force,
-      ids: opts.ids,
-      t: opts.t ?? 0.75,
-    });
-    paintModeDots(mode);
-    if (api.moveNode && result.positions.length) {
-      for (const p of result.positions) {
-        try {
-          api.moveNode(p.id, p.x, p.y);
-        } catch (e) {
-          console.warn("[next-action] moveNode failed", p.id, e);
-        }
-      }
-      flashMovedNodes(result.movedIds);
-    }
-    const reason = opts.reason || "apply";
-    setModeNote(
-      result.cool && !opts.force
-        ? `already cool · ${result.mode} · ${result.headId}`
-        : `${reason} · ${result.mode} · ${result.movedIds.length} move · ${result.headId}`
-    );
-    return result;
+  function easeOutCubic(t) {
+    return 1 - Math.pow(1 - t, 3);
   }
 
-  /** Scatter nodes so Apply has visible work (demo / GIF). */
-  function runMessUpLayout() {
-    if (mode !== 15) return;
+  let softMoveRaf = 0;
+  let softMoveBusy = false;
+  function cancelSoftMove() {
+    if (softMoveRaf) {
+      cancelAnimationFrame(softMoveRaf);
+      softMoveRaf = 0;
+    }
+  }
+
+  /** Cancelable rAF lerp — mode-gated callers only; cap concurrent nodes. */
+  function animateMoveNodes(targets, durationMs) {
+    if (!api.moveNode || !targets.length) return Promise.resolve();
+    cancelSoftMove();
     const g = api.getGraph();
-    let nodes = (g.nodes || []).filter((n) => n.type !== "comment");
-    if (nodes.length < 2) {
-      try {
-        const a = api.addNode("text", 200, 180);
-        const b = api.addNode("llm", 420, 210);
-        const c = api.addNode("image", 640, 170);
-        if (api.connect && a && b && c) {
-          try { api.connect(a.id || a, "text", b.id || b, "prompt"); } catch (_) {}
-          try { api.connect(b.id || b, "text", c.id || c, "prompt"); } catch (_) {}
+    const from = new Map(
+      (g.nodes || []).map((n) => [String(n.id), { x: Number(n.x), y: Number(n.y) }])
+    );
+    const moves = targets
+      .map((t) => {
+        const a = from.get(String(t.id));
+        if (!a || !Number.isFinite(a.x) || !Number.isFinite(a.y)) return null;
+        if (Math.abs(t.x - a.x) < 0.5 && Math.abs(t.y - a.y) < 0.5) return null;
+        return { id: String(t.id), ax: a.x, ay: a.y, bx: t.x, by: t.y };
+      })
+      .filter(Boolean)
+      .slice(0, 16);
+    if (!moves.length) return Promise.resolve();
+    const dur = Math.max(60, Math.min(520, durationMs || 320));
+    return new Promise((resolve) => {
+      const t0 = performance.now();
+      function frame(now) {
+        const t = Math.min(1, (now - t0) / dur);
+        const e = easeOutCubic(t);
+        for (const m of moves) {
+          try {
+            api.moveNode(m.id, m.ax + (m.bx - m.ax) * e, m.ay + (m.by - m.ay) * e);
+          } catch (_) {}
         }
-      } catch (e) {
-        console.warn("[next-action] mess seed failed", e);
+        if (t < 1) softMoveRaf = requestAnimationFrame(frame);
+        else {
+          softMoveRaf = 0;
+          for (const m of moves) {
+            try { api.moveNode(m.id, m.bx, m.by); } catch (_) {}
+          }
+          resolve();
+        }
       }
+      softMoveRaf = requestAnimationFrame(frame);
+    });
+  }
+
+  /**
+   * Product · 15: soft-slide apply layout mode (not teleport).
+   */
+  async function runApplyLayoutMode(opts = {}) {
+    if (mode !== 15) return;
+    if (softMoveBusy) return;
+    softMoveBusy = true;
+    try {
+      const g = api.getGraph();
+      const result = applyLayoutMode(g, selectedMode, {
+        force: !!opts.force,
+        ids: opts.ids,
+        t: opts.t ?? 0.75,
+      });
+      paintModeDots(mode);
+      if (api.moveNode && result.positions.length) {
+        setModeNote(`layout · sliding · ${result.mode}`);
+        flashMovedNodes(result.movedIds);
+        await animateMoveNodes(result.positions, 400);
+      }
+      const reason = opts.reason || "apply";
+      setModeNote(
+        result.cool && !opts.force
+          ? `already cool · ${result.mode} · ${result.headId}`
+          : `${reason} · settled · ${result.mode} · ${result.movedIds.length} move · ${result.headId}`
+      );
+      return result;
+    } finally {
+      softMoveBusy = false;
     }
-    const g2 = api.getGraph();
-    const scrambled = scrambleLayout(g2);
-    if (api.moveNode) {
-      for (const p of scrambled.positions) {
+  }
+
+  /** Soft scatter so Apply has visible work (demo / GIF). */
+  async function runMessUpLayout() {
+    if (mode !== 15) return;
+    if (softMoveBusy) return;
+    softMoveBusy = true;
+    try {
+      const g = api.getGraph();
+      let nodes = (g.nodes || []).filter((n) => n.type !== "comment");
+      if (nodes.length < 2) {
         try {
-          api.moveNode(p.id, p.x, p.y);
-        } catch (_) {}
+          const a = api.addNode("text", 200, 180);
+          const b = api.addNode("llm", 420, 210);
+          const c = api.addNode("image", 640, 170);
+          if (api.connect && a && b && c) {
+            try { api.connect(a.id || a, "text", b.id || b, "prompt"); } catch (_) {}
+            try { api.connect(b.id || b, "text", c.id || c, "prompt"); } catch (_) {}
+          }
+        } catch (e) {
+          console.warn("[next-action] mess seed failed", e);
+        }
       }
+      const g2 = api.getGraph();
+      const scrambled = scrambleLayout(g2);
+      if (api.moveNode && scrambled.positions.length) {
+        setModeNote("mess · scattering");
+        await animateMoveNodes(scrambled.positions, 240);
+      }
+      paintModeDots(mode);
+      setModeNote(`messed · ${scrambled.movedIds.length} nodes — pick mode + Apply layout`);
+      return scrambled;
+    } finally {
+      softMoveBusy = false;
     }
-    paintModeDots(mode);
-    setModeNote(`messed · ${scrambled.movedIds.length} nodes — pick mode + Apply layout`);
-    return scrambled;
   }
 
   function wireLayoutModeControls() {
