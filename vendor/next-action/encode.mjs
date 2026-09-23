@@ -1,10 +1,7 @@
-/** Encode last-K action tokens + graph sketch → fixed float vector (Product · 1/· 2). */
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const HERE = dirname(fileURLToPath(import.meta.url));
-const SCHEMA = JSON.parse(readFileSync(join(HERE, "schema.json"), "utf8"));
+/** Encode last-K action tokens + graph sketch → fixed float vector (Product · 1/· 2).
+ * Browser-safe: prefers JSON module import; Node tests can still resolve schema.json.
+ */
+import SCHEMA from "./schema.json" with { type: "json" };
 
 export const schema = SCHEMA;
 export const ACTION_VOCAB = SCHEMA.actionVocab;
