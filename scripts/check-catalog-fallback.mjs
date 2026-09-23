@@ -30,6 +30,9 @@
 //  5. PERMISSIVE-EMPTY  — with an empty catalog, the capability gate that consumes
 //     CATALOG (modelSupportsImages) stays permissive: an unknown model id is not
 //     blocked.
+//  6. STALE SWR         — refreshCatalog stamps catalogFetchedAt; once that stamp
+//     is older than CATALOG_STALE_MS, refreshCatalogsIfStale refetches so long-lived
+//     tabs surface same-day NanoGPT launches without a hard reload.
 
 import { readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
@@ -139,7 +142,8 @@ function buildSandbox(src, opts = {}) {
     `${normChat}\n` +
     `${slab}\n` +
     `return { catalogs, CATALOG, primeCatalogsFromCache, fetchCatalog, loadCatalog,` +
-    ` refreshCatalog, readCatCache, writeCatCache, catCacheKey, catItem, passesFilter,` +
+    ` refreshCatalog, refreshCatalogsIfStale, catalogIsStale, catalogFetchedAt, CATALOG_STALE_MS,` +
+    ` readCatCache, writeCatCache, catCacheKey, catItem, passesFilter,` +
     ` defModelFor, modelSupportsImages };`;
 
   const fn = new Function(...names, program);
@@ -279,6 +283,35 @@ async function runChecks(src) {
       fail("INV5 sanity: a KNOWN non-vision model should gate OFF (else the permissive check is vacuous)");
   } catch (e) { fail("INV5 threw: " + (e && e.message ? e.message : e)); }
 
+  // ---- Invariant 6: STALE SWR (long-lived tabs revalidate) --------------------
+  // First-run UX pass (2026-09-23): a tab left open for days kept a boot-time catalog
+  // and hid same-day NanoGPT launches (Grok 4.7, MiMo V2.6, H3 Singularity) from the
+  // picker until a hard reload. refreshCatalog must stamp catalogFetchedAt, and
+  // refreshCatalogsIfStale must refetch when that stamp is older than CATALOG_STALE_MS.
+  try {
+    const s = buildSandbox(src, { fetchMode: "ok", fetchData: RAW_CHAT, nodeTypes: NODE_TYPES });
+    if (typeof s.api.refreshCatalogsIfStale !== "function")
+      fail("INV6 refreshCatalogsIfStale is missing — long-lived tabs will never see new NanoGPT models");
+    if (!(s.api.CATALOG_STALE_MS > 0))
+      fail("INV6 CATALOG_STALE_MS must be a positive duration");
+    const ok = await s.api.refreshCatalog("chat");
+    if (ok !== true) fail("INV6 setup refreshCatalog failed");
+    const stamped = s.api.catalogFetchedAt && s.api.catalogFetchedAt.chat;
+    if (!(stamped > 0))
+      fail("INV6 refreshCatalog did not stamp catalogFetchedAt.chat (stale watch cannot work)");
+    if (s.api.catalogIsStale("chat") !== false)
+      fail("INV6 a just-fetched catalog must not report stale");
+    // Force stale and ensure refreshCatalogsIfStale refetches.
+    s.api.catalogFetchedAt.chat = Date.now() - s.api.CATALOG_STALE_MS - 1;
+    if (s.api.catalogIsStale("chat") !== true)
+      fail("INV6 catalogIsStale should be true after rewinding catalogFetchedAt past CATALOG_STALE_MS");
+    const before = s.fetchCount;
+    const did = await s.api.refreshCatalogsIfStale();
+    if (did !== true) fail(`INV6 refreshCatalogsIfStale should refetch when stale, got ${JSON.stringify(did)}`);
+    if (s.fetchCount <= before)
+      fail("INV6 refreshCatalogsIfStale reported success but did not call fetch");
+  } catch (e) { fail("INV6 threw: " + (e && e.message ? e.message : e)); }
+
   return failures;
 }
 
@@ -334,5 +367,5 @@ if (process.argv.includes("--selftest")) {
     process.stderr.write("✗ model-catalog fetch/fallback/default layer regressed:\n\n- " + failures.join("\n- ") + "\n");
     process.exit(1);
   }
-  process.stdout.write("✓ catalog fallback holds: offline→stable [] (no re-hammer), cache primes first paint, SWR revalidates, defModelFor picks newest-passing, empty stays permissive.\n");
+  process.stdout.write("✓ catalog fallback holds: offline→stable [] (no re-hammer), cache primes first paint, SWR revalidates, defModelFor picks newest-passing, empty stays permissive, stale SWR revalidates.\n");
 }
