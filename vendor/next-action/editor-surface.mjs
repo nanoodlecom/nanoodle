@@ -1,10 +1,19 @@
 /**
- * Real Nanoodle editor surface for Product · 1–· 6 next-action.
+ * Real Nanoodle editor surface for Product · 1–· 6 + · 16 (wire routing).
  * Soft tips + action log + Examples→corpus + · 5 local ring + · 6 cold-start seeds.
- * Dynamic imports so Product · 2 (schema-only) still mounts.
+ * · 16: readable edges (direct / elbow / around) + Route wires / Mess up —
+ * no · 7 required. Dynamic imports so Product · 2 (schema-only) still mounts.
  */
 import { ACTION_VOCAB, NODE_TYPES, sketchFromGraph, schema } from "./encode.mjs";
 import { createRing, RING_CAPACITY } from "./ring.mjs";
+import {
+  ROUTE_CLASSES,
+  boxesFromGraph,
+  applyWireRouting,
+  scrambleWires,
+  wireRoutingSummary,
+  proposeRoute,
+} from "./wire-routing.mjs";
 
 const BASE = new URL(".", import.meta.url);
 
@@ -12,7 +21,7 @@ function productMode() {
   try {
     const q = new URLSearchParams(location.search);
     const p = q.get("product") || q.get("na");
-    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5" || p === "6") return Number(p);
+    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5" || p === "6" || p === "16") return Number(p);
   } catch (_) {}
   return 1;
 }
@@ -104,6 +113,13 @@ function ensureStyles() {
 #na-ghost{position:absolute;pointer-events:none;z-index:5;display:flex;align-items:center;gap:.35rem;padding:.4rem .65rem;
   border:1.5px dashed #3d5a70;border-radius:10px;background:rgba(20,30,45,.55);color:#67e8f9;font:12px/1.2 system-ui;opacity:0;transition:opacity .25s}
 #na-ghost.show{opacity:1}
+#na-panel .na-mode-note{font-size:.68rem;color:#67e8f9;padding:.15rem 0 0;min-height:1em}
+#na-panel .na-mode-note.flash{color:#a5f3fc}
+#na-panel .na-mode-chips{display:flex;flex-wrap:wrap;gap:.25rem}
+#na-panel .na-mode-chip{font:inherit;font-size:.65rem;padding:.28rem .5rem;border-radius:999px;border:1px solid #2a2e3c;background:#1a1f2c;color:#aeb7c8;cursor:pointer}
+#na-panel .na-mode-chip:hover{border-color:#67e8f9;color:#67e8f9}
+#na-panel .na-mode-chip.on{border-color:#a78bfa;color:#ddd6fe;background:#1a1530;box-shadow:0 0 0 1px #a78bfa44}
+#wires path.wire.na-routed{stroke-width:2.4;filter:drop-shadow(0 0 3px #67e8f955)}
 `;
   document.head.appendChild(s);
 }
@@ -123,6 +139,7 @@ function buildPanel(mode) {
     4: "gallery → dataset",
     5: "local action ring",
     6: "cold-start seeds",
+    16: "wire routing · readable edges",
   };
   if (mode === 5) {
     el.innerHTML = `
@@ -160,6 +177,7 @@ function buildPanel(mode) {
       <div class="na-label" id="na-title">${titles[mode] || "tips"}</div>
       <div id="na-tips"></div>
       ${mode === 6 ? `<div class="na-label">first trios</div><div class="na-trio-row" id="na-trios"></div>` : ""}
+      ${mode === 16 ? `<div class="na-label">route class</div><div class="na-mode-chips" id="na-route-chips"><button type="button" class="na-mode-chip on" data-class="auto">auto</button><button type="button" class="na-mode-chip" data-class="direct">direct</button><button type="button" class="na-mode-chip" data-class="elbow">elbow</button><button type="button" class="na-mode-chip" data-class="around">around</button></div><div class="na-actions"><button type="button" class="na-btn" id="na-route-apply">Route wires</button><button type="button" class="na-btn" id="na-route-mess">Mess up</button></div><div class="na-mode-note" id="na-mode-note">Mess up → Route wires</div>` : ""}
       <div class="na-label">history</div>
       <div class="na-hist"><b id="na-hist">[ ]</b></div>
       <div class="na-label" id="na-schema-label">schema tokens</div>
@@ -344,6 +362,19 @@ export async function mount(api) {
         { action: "add:text", score: 2, source: "gallery" },
         { action: "add:image", score: 1, source: "gallery" },
       ];
+    } else if (mode === 16) {
+      rows = [
+        { action: "route:apply", score: 3, label: "Route wires" },
+        { action: "route:mess", score: 2, label: "Mess up" },
+        { action: "add:text", score: 1, source: "schema" },
+      ];
+      const note = panel.querySelector("#na-mode-note");
+      if (note && !note.dataset.locked) {
+        const nLinks = (g.links || []).length;
+        note.textContent = nLinks
+          ? `class ${selectedRouteClass} · ${nLinks} wire${nLinks === 1 ? "" : "s"} · ready`
+          : `class ${selectedRouteClass} · seed a chain → Mess up → Route`;
+      }
     } else if (tables && recommendFrequency) {
       rows = recommendFrequency(tables, history, sketch, 3);
     } else {
@@ -364,8 +395,12 @@ export async function mount(api) {
         const b = document.createElement("button");
         b.type = "button";
         b.className = "na-tip" + (i === 0 ? " best" : "");
-        b.innerHTML = `<span>✦ ${actionLabel(r.action)}</span><span class="pct">${pct(r.score, rows)}%</span>`;
-        b.onclick = () => applyTip(r.action);
+        b.innerHTML = `<span>✦ ${r.label || actionLabel(r.action)}</span><span class="pct">${pct(r.score, rows)}%</span>`;
+        b.onclick = () => {
+          if (r.action === "route:apply") { runRouteWires({ reason: "tip" }); refreshTips(); return; }
+          if (r.action === "route:mess") { runMessUpWires(); refreshTips(); return; }
+          applyTip(r.action);
+        };
         tipsEl.appendChild(b);
       });
     }
@@ -374,7 +409,7 @@ export async function mount(api) {
 
   let ghostEl = null;
   function placeGhost(action, g) {
-    if (mode === 5) return;
+    if (mode === 5 || mode === 16) return;
     const world = api.worldEl || document.getElementById("world");
     if (!world || !action || !action.startsWith("add:")) {
       if (ghostEl) ghostEl.classList.remove("show");
@@ -484,11 +519,240 @@ function applyTip(action) {
     refreshTips();
   }
 
+  /** @type {"auto"|"direct"|"elbow"|"around"} */
+  let selectedRouteClass = "auto";
+  /** @type {Map<string, string>} endpoint-key → path d */
+  const routePathCache = new Map();
+
+  function epKey(x1, y1, x2, y2) {
+    return [x1, y1, x2, y2].map((n) => Math.round(Number(n))).join("|");
+  }
+
+  function setModeNote(text) {
+    const note = panel.querySelector("#na-mode-note");
+    if (!note) return;
+    note.textContent = text;
+    note.dataset.locked = "1";
+    note.classList.add("flash");
+    setTimeout(() => {
+      note.classList.remove("flash");
+      delete note.dataset.locked;
+    }, 900);
+  }
+
+  function highlightRouteChips() {
+    panel.querySelectorAll("#na-route-chips .na-mode-chip").forEach((btn) => {
+      btn.classList.toggle("on", btn.dataset.class === selectedRouteClass);
+    });
+  }
+
+  function installWirePathHook() {
+    if (mode !== 16) {
+      try { delete window.__naWirePath; } catch (_) { window.__naWirePath = undefined; }
+      return;
+    }
+    window.__naWirePath = (x1, y1, x2, y2) => {
+      const k = epKey(x1, y1, x2, y2);
+      if (routePathCache.has(k)) return routePathCache.get(k);
+      // Live propose for any wire not yet cached (temp drag / new links)
+      const g = api.getGraph();
+      const boxes = boxesFromGraph(g);
+      const r = proposeRoute(x1, y1, x2, y2, boxes, {
+        class: selectedRouteClass === "auto" ? "auto" : selectedRouteClass,
+      });
+      return r.d;
+    };
+  }
+
+  function collectEndpointMap(g) {
+    /** @type {Record<string, {x1:number,y1:number,x2:number,y2:number,fromId?:string,toId?:string}>} */
+    const map = {};
+    const editor = document.getElementById("editor") || document.body;
+    const er = editor.getBoundingClientRect();
+    for (const l of g.links || []) {
+      const id = l.id != null ? String(l.id) : null;
+      if (!id) continue;
+      const fromNode = l.from?.node ?? l.from;
+      const fromPort = l.from?.port || "text";
+      const toNode = l.to?.node ?? l.to;
+      const toPort = l.to?.port || "prompt";
+      const a = document.querySelector(
+        `.port[data-node="${CSS.escape(String(fromNode))}"][data-port="${CSS.escape(String(fromPort))}"][data-dir="out"]`
+      );
+      const b = document.querySelector(
+        `.port[data-node="${CSS.escape(String(toNode))}"][data-port="${CSS.escape(String(toPort))}"][data-dir="in"]`
+      );
+      if (a && b) {
+        const ar = a.getBoundingClientRect();
+        const br = b.getBoundingClientRect();
+        map[id] = {
+          x1: ar.left + ar.width / 2 - er.left,
+          y1: ar.top + ar.height / 2 - er.top,
+          x2: br.left + br.width / 2 - er.left,
+          y2: br.top + br.height / 2 - er.top,
+          fromId: String(fromNode),
+          toId: String(toNode),
+        };
+      }
+    }
+    return map;
+  }
+
+  function runRouteWires(opts = {}) {
+    if (mode !== 16) return null;
+    installWirePathHook();
+    const g = api.getGraph();
+    // Ensure link ids present for cache keys
+    const g2 = {
+      ...g,
+      links: (g.links || []).map((l, i) => ({
+        ...l,
+        id: l.id != null ? l.id : `l${i}`,
+      })),
+    };
+    const endpointMap = collectEndpointMap(g2);
+    const cls = selectedRouteClass === "auto" ? "auto" : selectedRouteClass;
+    const result = applyWireRouting(g2, endpointMap, { class: cls });
+    routePathCache.clear();
+    for (const r of result.routes) {
+      const ep = endpointMap[r.id];
+      if (ep) {
+        routePathCache.set(epKey(ep.x1, ep.y1, ep.x2, ep.y2), r.d);
+      }
+    }
+    try {
+      if (typeof api.redraw === "function") api.redraw();
+      else if (typeof window.redraw === "function") window.redraw();
+    } catch (e) {
+      console.warn("[next-action] redraw after route failed", e);
+    }
+    // Soft mark routed paths
+    try {
+      document.querySelectorAll("#wires path.wire").forEach((p) => p.classList.add("na-routed"));
+    } catch (_) {}
+    const summary = wireRoutingSummary(result);
+    setModeNote(opts.reason === "tip" ? `tip · ${summary}` : summary);
+    return result;
+  }
+
+  function runMessUpWires() {
+    if (mode !== 16) return null;
+    const g = api.getGraph();
+    let nodes = (g.nodes || []).filter((n) => n.type !== "comment");
+    if (nodes.length < 2) {
+      try {
+        const a = api.addNode("text", 120, 160);
+        const b = api.addNode("llm", 340, 200);
+        const c = api.addNode("image", 560, 140);
+        if (api.connect && a && b && c) {
+          try { api.connect(a.id || a, "text", b.id || b, "prompt"); } catch (_) {}
+          try { api.connect(b.id || b, "text", c.id || c, "prompt"); } catch (_) {}
+        }
+      } catch (e) {
+        console.warn("[next-action] mess seed failed", e);
+      }
+    } else if (!(g.links || []).length && api.connect && nodes.length >= 2) {
+      // Connect existing chain if unwired
+      try {
+        for (let i = 0; i < nodes.length - 1; i++) {
+          const from = nodes[i];
+          const to = nodes[i + 1];
+          const outPort = from.type === "llm" || from.type === "text" ? "text" : "text";
+          const inPort = "prompt";
+          try { api.connect(from.id, outPort, to.id, inPort); } catch (_) {}
+        }
+      } catch (_) {}
+    }
+    const g2 = api.getGraph();
+    const scrambled = scrambleWires(g2, { seed: 11 });
+    if (api.moveNode) {
+      for (const p of scrambled.positions) {
+        try { api.moveNode(p.id, p.x, p.y); } catch (_) {}
+      }
+    }
+    // Clear routed cache so Mess shows default direct diagonals through boxes
+    routePathCache.clear();
+    try { delete window.__naWirePath; } catch (_) { window.__naWirePath = undefined; }
+    try {
+      if (typeof api.redraw === "function") api.redraw();
+      else if (typeof window.redraw === "function") window.redraw();
+    } catch (_) {}
+    try {
+      document.querySelectorAll("#wires path.wire.na-routed").forEach((p) => p.classList.remove("na-routed"));
+    } catch (_) {}
+    // Reinstall hook so next Route works; empty cache → default cubic until Route
+    installWirePathHook();
+    // Override hook briefly to force direct (messy) look until Route
+    window.__naWirePath = null;
+    try {
+      if (typeof api.redraw === "function") api.redraw();
+    } catch (_) {}
+    installWirePathHook();
+    // Force direct class paths into cache for visible spaghetti, then redraw
+    {
+      const g3 = api.getGraph();
+      const ep = collectEndpointMap({
+        ...g3,
+        links: (g3.links || []).map((l, i) => ({ ...l, id: l.id != null ? l.id : `l${i}` })),
+      });
+      const boxes = boxesFromGraph(g3);
+      routePathCache.clear();
+      for (const [id, e] of Object.entries(ep)) {
+        const r = proposeRoute(e.x1, e.y1, e.x2, e.y2, boxes, {
+          class: "direct",
+          excludeIds: [e.fromId, e.toId].filter(Boolean),
+        });
+        routePathCache.set(epKey(e.x1, e.y1, e.x2, e.y2), r.d);
+      }
+      try {
+        if (typeof api.redraw === "function") api.redraw();
+      } catch (_) {}
+    }
+    setModeNote(`messed · ${scrambled.movedIds.length} nodes — Route wires to clean edges`);
+    return scrambled;
+  }
+
+  function wireRouteControls() {
+    if (mode !== 16) return;
+    installWirePathHook();
+    panel.querySelectorAll("#na-route-chips .na-mode-chip").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        selectedRouteClass = btn.dataset.class || "auto";
+        highlightRouteChips();
+        setModeNote(`class ${selectedRouteClass} · click Route wires`);
+        refreshTips();
+      });
+    });
+    const applyBtn = panel.querySelector("#na-route-apply");
+    const messBtn = panel.querySelector("#na-route-mess");
+    if (applyBtn) {
+      applyBtn.addEventListener("click", () => {
+        runRouteWires({ reason: "apply" });
+        refreshTips();
+      });
+    }
+    if (messBtn) {
+      messBtn.addEventListener("click", () => {
+        runMessUpWires();
+        refreshTips();
+      });
+    }
+    highlightRouteChips();
+  }
+
   wireRingControls();
+  wireRouteControls();
 
   window.__nextAction = {
     record,
     refresh: refreshTips,
+    runRouteWires,
+    runMessUpWires,
+    getSelectedRouteClass: () => selectedRouteClass,
+    setSelectedRouteClass: (c) => {
+      selectedRouteClass = ["auto", ...ROUTE_CLASSES].includes(c) ? c : "auto";
+      highlightRouteChips();
+    },
     onExamplesOpened() {
       if ((mode === 4 || mode === 1) && corpusMeta) {
         corpusEl.hidden = false;

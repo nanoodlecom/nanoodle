@@ -9180,6 +9180,10 @@ function portCenter(el){
   return { x: r.left + r.width/2 - e.left, y: r.top + r.height/2 - e.top };
 }
 function wirePath(x1,y1,x2,y2){
+  if (typeof window.__naWirePath === "function") {
+    const alt = window.__naWirePath(x1,y1,x2,y2);
+    if (alt) return alt;
+  }
   const dx = Math.max(40, Math.abs(x2-x1)*0.5);
   return `M ${x1} ${y1} C ${x1+dx} ${y1}, ${x2-dx} ${y2}, ${x2} ${y2}`;
 }
@@ -15001,10 +15005,23 @@ RULES for the diff:
     await mod.mount({
       getGraph: () => ({
         nodes: (graph.nodes||[]).map(n => ({ id:n.id, type:n.type, x:n.x, y:n.y })),
-        links: (graph.links||[]).map(l => ({ from:l.from, to:l.to })),
+        links: (graph.links||[]).map(l => ({ id:l.id, from:l.from, to:l.to })),
         selectedId: selected?.id || null,
       }),
       addNode: (type, x, y) => addNode(type, x, y),
+      moveNode: (id, x, y) => {
+        const n = byId(id);
+        if (!n) return false;
+        n.x = x; n.y = y;
+        if (n.el) { n.el.style.left = x + "px"; n.el.style.top = y + "px"; }
+        try { redraw(); } catch(_){}
+        try { save(); } catch(_){}
+        return true;
+      },
+      connect: (fromNode, fromPort, toNode, toPort) => {
+        try { return connect(fromNode, fromPort, toNode, toPort); } catch(_){ return false; }
+      },
+      redraw: () => { try { redraw(); } catch(_){} },
       openExamples: () => openExamples(),
       runSelected: () => { if(selected) runGroup([selected.id]); else $("run")?.click(); },
       worldEl: typeof world !== "undefined" ? world : document.getElementById("world"),
