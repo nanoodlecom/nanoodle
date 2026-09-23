@@ -1,6 +1,6 @@
 /**
- * Real Nanoodle editor surface for Product · 1–· 6 next-action.
- * Soft tips + action log + Examples→corpus + · 5 local ring + · 6 cold-start seeds.
+ * Real Nanoodle editor surface for Product · 1–· 6 / · 8 next-action.
+ * Soft tips + action log + Examples→corpus + · 5 local ring + · 6 cold-start + · 8 recipe chips.
  * Dynamic imports so Product · 2 (schema-only) still mounts.
  */
 import { ACTION_VOCAB, NODE_TYPES, sketchFromGraph, schema } from "./encode.mjs";
@@ -12,7 +12,7 @@ function productMode() {
   try {
     const q = new URLSearchParams(location.search);
     const p = q.get("product") || q.get("na");
-    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5" || p === "6") return Number(p);
+    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5" || p === "6" || p === "8") return Number(p);
   } catch (_) {}
   return 1;
 }
@@ -101,6 +101,12 @@ function ensureStyles() {
   border:1px solid #2a3348;background:#121820;color:#aeb7c8;cursor:pointer;font:inherit;font-size:.68rem;line-height:1.3}
 #na-panel .na-trio:hover{border-color:#a78bfa;color:#ddd6fe;background:#1a1530}
 #na-panel .na-trio .na-trio-count{margin-left:auto;font-size:.6rem;color:#f5d76e;flex-shrink:0}
+#na-panel .na-recipe-row{display:flex;flex-direction:column;gap:.25rem}
+#na-panel .na-recipe{display:flex;align-items:flex-start;gap:.35rem;width:100%;text-align:left;padding:.35rem .45rem;border-radius:8px;
+  border:1px solid #2a3348;background:#121820;color:#aeb7c8;cursor:pointer;font:inherit;font-size:.68rem;line-height:1.3}
+#na-panel .na-recipe:hover{border-color:#67e8f9;color:#a5f3fc;background:#0f1c28}
+#na-panel .na-recipe .na-recipe-meta{margin-left:auto;font-size:.58rem;color:#f5d76e;flex-shrink:0;text-align:right}
+#na-panel .na-recipe-empty{font-size:.65rem;color:#6b7280;padding:.2rem 0}
 #na-ghost{position:absolute;pointer-events:none;z-index:5;display:flex;align-items:center;gap:.35rem;padding:.4rem .65rem;
   border:1.5px dashed #3d5a70;border-radius:10px;background:rgba(20,30,45,.55);color:#67e8f9;font:12px/1.2 system-ui;opacity:0;transition:opacity .25s}
 #na-ghost.show{opacity:1}
@@ -123,6 +129,7 @@ function buildPanel(mode) {
     4: "gallery → dataset",
     5: "local action ring",
     6: "cold-start seeds",
+    8: "recipe chips",
   };
   if (mode === 5) {
     el.innerHTML = `
@@ -160,6 +167,7 @@ function buildPanel(mode) {
       <div class="na-label" id="na-title">${titles[mode] || "tips"}</div>
       <div id="na-tips"></div>
       ${mode === 6 ? `<div class="na-label">first trios</div><div class="na-trio-row" id="na-trios"></div>` : ""}
+      ${mode === 8 ? `<div class="na-label">add these stages</div><div class="na-recipe-row" id="na-recipes"></div><div class="na-note" id="na-recipe-note">Partial-match Examples recipes · empty canvas stays · 6</div>` : ""}
       <div class="na-label">history</div>
       <div class="na-hist"><b id="na-hist">[ ]</b></div>
       <div class="na-label" id="na-schema-label">schema tokens</div>
@@ -205,17 +213,26 @@ export async function mount(api) {
 
   const freqMod = await tryImport("./frequency.mjs");
   const coldMod = await tryImport("./cold-start.mjs");
+  const recipeMod = await tryImport("./recipe.mjs");
   const recMod = await tryImport("./recommend.mjs");
   const snMod = await tryImport("../smallnet/index.js");
   if (freqMod) recommendFrequency = freqMod.recommendFrequency;
   let recommendColdStart = coldMod?.recommendColdStart || null;
   let topFirstTrios = coldMod?.topFirstTrios || null;
+  let recommendRecipes = recipeMod?.recommendRecipes || null;
   if (recMod) recommendNext = recMod.recommendNext;
 
   try {
     tables = await loadJSON("corpus/frequency-tables.json");
   } catch (_) {
     tables = null;
+  }
+  /** @type {any} */
+  let recipesCorpus = null;
+  try {
+    recipesCorpus = await loadJSON("corpus/recipes.json");
+  } catch (_) {
+    recipesCorpus = null;
   }
   if (mode === 1 && snMod) {
     session = await loadSession(snMod.packWeights, snMod.createSession);
@@ -322,6 +339,13 @@ export async function mount(api) {
     const sketch = sketchFromGraph(g);
     let rows = [];
     const emptyCanvas = !sketch.numNodes;
+    if (mode === 8) {
+      renderRecipes(sketch);
+      if (histEl) histEl.textContent = history.length ? `[ ${history.slice(-5).join(" · ")} ]` : "[ ]";
+      if (tipsEl) tipsEl.innerHTML = "";
+      placeGhost(null, g);
+      return;
+    }
     if (mode === 6 && tables) {
       if (emptyCanvas && recommendColdStart) {
         rows = recommendColdStart(tables, sketch, 3);
@@ -440,6 +464,54 @@ export async function mount(api) {
     }
     refreshTips();
   }
+
+  function renderRecipes(sketch) {
+    const recipesEl = panel.querySelector("#na-recipes");
+    const note = panel.querySelector("#na-recipe-note");
+    if (!recipesEl) return;
+    recipesEl.innerHTML = "";
+    if (!recipesCorpus || !recommendRecipes) {
+      if (note) note.textContent = "Recipe corpus unavailable.";
+      return;
+    }
+    const rows = recommendRecipes(recipesCorpus, sketch, 4);
+    if (!rows.length) {
+      recipesEl.innerHTML = `<div class="na-recipe-empty">Add 1–2 nodes that start an Examples recipe (e.g. text+image → talking-avatar, text+llm → sing / sprites).</div>`;
+      if (note) note.textContent = "Quiet until a partial recipe match · empty canvas stays · 6";
+      return;
+    }
+    if (note) note.textContent = `${rows.length} recipe match${rows.length === 1 ? "" : "es"} · click to add next stages`;
+    rows.forEach((r) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "na-recipe";
+      const stages = (r.actions || []).map(actionLabel).join(" → ");
+      b.innerHTML = `<span>✦ <b>${r.title || r.slug}</b><br/>${stages}</span><span class="na-recipe-meta">+${(r.actions || []).length}</span>`;
+      b.onclick = () => applyRecipe(r.actions || []);
+      recipesEl.appendChild(b);
+    });
+  }
+
+  async function applyRecipe(actions) {
+    const adds = (actions || []).filter((a) => a.startsWith("add:"));
+    const g = api.getGraph();
+    const sel = g.selectedId && g.nodes.find((n) => n.id === g.selectedId);
+    const last = g.nodes && g.nodes.length ? g.nodes[g.nodes.length - 1] : null;
+    const baseX = (sel?.x ?? last?.x ?? 160) + 220;
+    const baseY = sel?.y ?? last?.y ?? 180;
+    const gap = 200;
+    for (let i = 0; i < adds.length; i++) {
+      const type = adds[i].slice(4);
+      try {
+        api.addNode(type, baseX + i * gap, baseY + (i % 2) * 48);
+      } catch (e) {
+        console.warn("[next-action] recipe addNode failed", type, e);
+      }
+      await new Promise((r) => setTimeout(r, 140));
+    }
+    refreshTips();
+  }
+
 
 function applyTip(action) {
     flashToken(action);

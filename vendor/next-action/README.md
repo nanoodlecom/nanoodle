@@ -1,4 +1,4 @@
-# vendor/next-action — schema · bake · frequency · ring · cold-start · learned
+# vendor/next-action — schema · bake · frequency · ring · cold-start · recipe · learned
 
 | Product | Paths |
 | --- | --- |
@@ -7,10 +7,11 @@
 | · 3 | `frequency.mjs`, `corpus/frequency-tables.json`, `recommend.mjs` (baseline / optional blend) |
 | · 5 | `ring.mjs` — flagged local action ring (memory / localStorage; local `export()` only) |
 | · 6 | `cold-start.mjs`, `firstNode` / `firstTrio` in `corpus/frequency-tables.json`, empty-canvas tips + trio chips (`?product=6`) |
+| · 8 | `recipe.mjs`, `corpus/recipes.json` — partial Examples recipe → “add these 2–3 nodes” chips (`?product=8`); empty canvas stays · 6 |
 | · 1 | `scripts/train-next-action.py`, `fixtures/smoke-weights.json`, `scripts/check-next-action.mjs` |
 
 Learned `.bin` weights stay **gitignored**; tests load inline float fixtures.
-Real-editor soft tips: `editor-surface.mjs` mounts in `index.html` (`?product=1`…`6`).
+Real-editor soft tips: `editor-surface.mjs` mounts in `index.html` (`?product=1`…`6`, `8`).
 Catalog stays empty — no `weightsUrl` until a deliberate release.
 
 ## Train / export (box-local)
@@ -26,11 +27,14 @@ python scripts/train-next-action.py \
 ## Checks
 
 ```sh
+node scripts/bake-next-action.mjs
+node scripts/bake-next-action-recipes.mjs
 node scripts/check-next-action-schema.mjs
 node scripts/check-next-action-bake.mjs
 node scripts/check-next-action-frequency.mjs
 node scripts/check-next-action-ring.mjs
 node scripts/check-next-action-cold-start.mjs
+node scripts/check-next-action-recipe.mjs
 node scripts/check-next-action.mjs
 node scripts/check-smallnet.mjs   # catalog still empty
 ```
