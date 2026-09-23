@@ -124,7 +124,8 @@ function ensureStyles() {
 .na-face-badge[data-facing="left"]{left:4px;top:50%;transform:translateY(-50%)}
 .na-face-badge[data-facing="up"]{left:50%;top:2px;transform:translateX(-50%)}
 .na-face-badge[data-facing="down"]{left:50%;bottom:2px;transform:translateX(-50%)}
-.na-face-flash{box-shadow:0 0 0 2px #67e8f9aa,0 0 14px #22d3ee55 !important;transition:box-shadow .35s ease,left .4s ease,top .4s ease}
+.na-face-flash,.na-face-moving{box-shadow:0 0 0 2px #c4b5fdcc,0 0 22px #8b5cf688 !important;transition:box-shadow .4s ease;z-index:40 !important}
+.na-face-moving{filter:brightness(1.05)}
 .na-face-side{outline:2px solid #67e8f966;outline-offset:-2px}
 `;
   document.head.appendChild(s);
@@ -580,74 +581,134 @@ function applyTip(action) {
     }
   }
 
-  /**
-   * Product · 14: apply discrete facing + optional soft nudge via moveNode.
-   */
-  function runApplyFacing(opts = {}) {
-    if (mode !== 14) return;
-    const g = api.getGraph();
-    const result = applyFacingHints(g, {
-      force: !!opts.force,
-      ids: opts.ids,
-      nudge: opts.nudge !== false,
-    });
-    paintFacingBadges(result.facings);
-    if (api.moveNode && result.positions.length) {
-      for (const p of result.positions) {
-        try {
-          api.moveNode(p.id, p.x, p.y);
-        } catch (e) {
-          console.warn("[next-action] moveNode failed", p.id, e);
-        }
-      }
-      flashFacedNodes(result.movedIds);
-    }
-    const reason = opts.reason || "apply";
-    setFaceNote(
-      result.cool && !opts.force
-        ? `already cool · ${result.priorId}`
-        : `${reason} · ${result.facings.length} face · ${result.movedIds.length} nudge · ${result.priorId}`
-    );
-    return result;
+  function easeOutCubic(t) {
+    return 1 - Math.pow(1 - t, 3);
   }
 
-  function runScrambleFacing() {
-    if (mode !== 14) return;
+  let softMoveRaf = 0;
+  let softMoveBusy = false;
+  function cancelSoftMove() {
+    if (softMoveRaf) {
+      cancelAnimationFrame(softMoveRaf);
+      softMoveRaf = 0;
+    }
+  }
+
+  /** Cancelable rAF lerp — mode-gated callers only; cap concurrent nodes. */
+  function animateMoveNodes(targets, durationMs) {
+    if (!api.moveNode || !targets.length) return Promise.resolve();
+    cancelSoftMove();
     const g = api.getGraph();
-    let nodes = (g.nodes || []).filter((n) => n.type !== "comment");
-    if (nodes.length < 2) {
-      try {
-        const a = api.addNode("text", 160, 160);
-        const b = api.addNode("llm", 380, 200);
-        const c = api.addNode("image", 600, 150);
-        // Wire a cool chain if connect is available (ports vary by type)
-        if (api.connect && a && b && c) {
-          try { api.connect(a.id || a, "text", b.id || b, "prompt"); } catch (_) {}
-          try { api.connect(b.id || b, "text", c.id || c, "prompt"); } catch (_) {}
+    const from = new Map(
+      (g.nodes || []).map((n) => [String(n.id), { x: Number(n.x), y: Number(n.y) }])
+    );
+    const moves = targets
+      .map((t) => {
+        const a = from.get(String(t.id));
+        if (!a || !Number.isFinite(a.x) || !Number.isFinite(a.y)) return null;
+        if (Math.abs(t.x - a.x) < 0.5 && Math.abs(t.y - a.y) < 0.5) return null;
+        return { id: String(t.id), ax: a.x, ay: a.y, bx: t.x, by: t.y };
+      })
+      .filter(Boolean)
+      .slice(0, 16);
+    if (!moves.length) return Promise.resolve();
+    const dur = Math.max(60, Math.min(520, durationMs || 320));
+    return new Promise((resolve) => {
+      const t0 = performance.now();
+      function frame(now) {
+        const t = Math.min(1, (now - t0) / dur);
+        const e = easeOutCubic(t);
+        for (const m of moves) {
+          try {
+            api.moveNode(m.id, m.ax + (m.bx - m.ax) * e, m.ay + (m.by - m.ay) * e);
+          } catch (_) {}
         }
-      } catch (e) {
-        console.warn("[next-action] scramble seed failed", e);
+        if (t < 1) softMoveRaf = requestAnimationFrame(frame);
+        else {
+          softMoveRaf = 0;
+          for (const m of moves) {
+            try { api.moveNode(m.id, m.bx, m.by); } catch (_) {}
+          }
+          resolve();
+        }
       }
-    }
-    const g2 = api.getGraph();
-    // Messy overlap / reverse LTR so Apply facing has visible nudge work
-    if (api.moveNode) {
-      const list = (g2.nodes || []).filter((n) => n.type !== "comment");
-      const baseX = 240;
-      const baseY = 190;
-      list.forEach((n, i) => {
-        const x = baseX + (list.length - 1 - i) * 36 + (i % 2) * 20;
-        const y = baseY + (i % 3) * 22 - 8;
-        try {
-          api.moveNode(n.id, x, y);
-        } catch (_) {}
+      softMoveRaf = requestAnimationFrame(frame);
+    });
+  }
+
+  /**
+   * Product · 14: soft-slide facing nudge (not teleport).
+   */
+  async function runApplyFacing(opts = {}) {
+    if (mode !== 14) return;
+    if (softMoveBusy) return;
+    softMoveBusy = true;
+    try {
+      const g = api.getGraph();
+      const result = applyFacingHints(g, {
+        force: !!opts.force,
+        ids: opts.ids,
+        nudge: opts.nudge !== false,
       });
+      paintFacingBadges(result.facings);
+      if (api.moveNode && result.positions.length) {
+        setFaceNote(`facing · sliding · ${result.movedIds.length}`);
+        flashFacedNodes(result.movedIds);
+        await animateMoveNodes(result.positions, 340);
+      }
+      const reason = opts.reason || "apply";
+      setFaceNote(
+        result.cool && !opts.force
+          ? `already cool · ${result.priorId}`
+          : `${reason} · settled · ${result.facings.length} face · ${result.movedIds.length} nudge · ${result.priorId}`
+      );
+      return result;
+    } finally {
+      softMoveBusy = false;
     }
-    const g3 = api.getGraph();
-    const result = scrambleFacing(g3);
-    paintFacingBadges(result.facings);
-    setFaceNote(`scrambled · ${result.facings.length} badges — hit Apply facing`);
-    return result;
+  }
+
+  async function runScrambleFacing() {
+    if (mode !== 14) return;
+    if (softMoveBusy) return;
+    softMoveBusy = true;
+    try {
+      const g = api.getGraph();
+      let nodes = (g.nodes || []).filter((n) => n.type !== "comment");
+      if (nodes.length < 2) {
+        try {
+          const a = api.addNode("text", 160, 160);
+          const b = api.addNode("llm", 380, 200);
+          const c = api.addNode("image", 600, 150);
+          if (api.connect && a && b && c) {
+            try { api.connect(a.id || a, "text", b.id || b, "prompt"); } catch (_) {}
+            try { api.connect(b.id || b, "text", c.id || c, "prompt"); } catch (_) {}
+          }
+        } catch (e) {
+          console.warn("[next-action] scramble seed failed", e);
+        }
+      }
+      const g2 = api.getGraph();
+      if (api.moveNode) {
+        const list = (g2.nodes || []).filter((n) => n.type !== "comment");
+        const baseX = 240;
+        const baseY = 190;
+        const targets = list.map((n, i) => ({
+          id: n.id,
+          x: baseX + (list.length - 1 - i) * 36 + (i % 2) * 20,
+          y: baseY + (i % 3) * 22 - 8,
+        }));
+        setFaceNote("scramble · sliding");
+        await animateMoveNodes(targets, 220);
+      }
+      const g3 = api.getGraph();
+      const result = scrambleFacing(g3);
+      paintFacingBadges(result.facings);
+      setFaceNote(`scrambled · ${result.facings.length} badges — hit Apply facing`);
+      return result;
+    } finally {
+      softMoveBusy = false;
+    }
   }
 
   function wireFacingControls() {
