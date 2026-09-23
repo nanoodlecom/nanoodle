@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Product · 4 — gallery-as-dataset bake</title>
+<style>
+:root{--bg:#0b0d12;--panel:#12151d;--panel2:#171b25;--ink:#eef1f7;--dim:#aeb7c8;--line:#2a2e3c;--accent:#7c8cff;--cyan:#67e8f9;--gold:#f5d76e}
+*{box-sizing:border-box}body{margin:0;font:14px/1.4 system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+header{display:flex;align-items:center;gap:1rem;padding:.75rem 1rem;background:rgba(18,21,29,.9);border-bottom:1px solid var(--line)}
+.logo{font-weight:800;font-size:1.1rem;background:linear-gradient(90deg,#67e8f9,#7c8cff 70%);-webkit-background-clip:text;background-clip:text;color:transparent}
+main{padding:1rem;max-width:920px;margin:0 auto}
+.canvas{min-height:420px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem}
+h1{font-size:1rem;font-weight:600;margin:0;flex:1}.sub{color:var(--dim);font-size:.8rem}
+label{font-size:.75rem;color:var(--dim);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:.5rem}
+.shelf{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:.75rem;opacity:0;transform:translateY(8px);transition:opacity .35s,transform .35s,border-color .3s}
+.card.show{opacity:1;transform:none}.card.scan{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan)}
+.card h3{margin:0 0 .4rem;font-size:.9rem}
+.tag{display:inline-block;padding:.2rem .5rem;border-radius:6px;background:#322850;color:var(--gold);font-size:.7rem;border:1px solid var(--line)}
+.walk{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem;align-items:center}
+.chip{padding:.35rem .65rem;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--dim);font-size:.8rem}
+.chip.lit{background:#243250;color:var(--cyan);border-color:var(--accent)}
+.chip.cur{outline:2px solid var(--cyan)}
+.arrow{color:var(--accent);opacity:.5}
+.stats{margin-top:1.25rem;padding:1rem;background:var(--panel2);border:1px solid var(--line);border-radius:12px;max-width:380px}
+.stats strong{font-size:1.05rem}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">nanoodle</div>
+  <h1>Product · 4 — gallery-as-dataset bake</h1>
+  <span class="sub">Examples shelf → synth build-order</span>
+</header>
+<main>
+  <div class="canvas">
+    <label>Examples shelf</label>
+    <div class="shelf" id="shelf"></div>
+    <div style="margin-top:1.5rem">
+      <label>bake build-order walk</label>
+      <div class="walk" id="walk"></div>
+    </div>
+    <div class="stats"><strong id="count">corpus: 0 examples / 0 graphs</strong><div style="color:var(--dim);font-size:.8rem;margin-top:.35rem">intent-fork tags attached per walk</div></div>
+  </div>
+</main>
+<script>
+const EX=[
+  ["Text→Image","modality-branch"],["LLM chain","revise-vs-extend"],["Audio attach","audio-attach"],
+  ["Cold start","cold-start"],["Lip sync","audio-attach"],["Edit pass","revise-vs-extend"]
+];
+const BO=["add:text","add:llm","wire","add:image","set:model","run"];
+const shelf=document.getElementById("shelf");
+EX.forEach(([n,t])=>{
+  const d=document.createElement("div");d.className="card";
+  d.innerHTML=`<h3>${n}</h3><span class="tag">fork:${t}</span>`;
+  shelf.appendChild(d);
+});
+const walk=document.getElementById("walk");
+BO.forEach((b,i)=>{
+  if(i){const a=document.createElement("span");a.className="arrow";a.textContent="→";walk.appendChild(a)}
+  const s=document.createElement("span");s.className="chip";s.textContent=b;walk.appendChild(s);
+});
+const chips=[...walk.querySelectorAll(".chip")];
+function loop(){
+  [...shelf.children].forEach(c=>c.classList.remove("show","scan"));
+  chips.forEach(c=>c.classList.remove("lit","cur"));
+  document.getElementById("count").textContent="corpus: 0 examples / 0 graphs";
+  EX.forEach((_,i)=>setTimeout(()=>{
+    shelf.children[i].classList.add("show");
+    [...shelf.children].forEach(c=>c.classList.remove("scan"));
+    shelf.children[i].classList.add("scan");
+  },200+i*280));
+  setTimeout(()=>[...shelf.children].forEach(c=>c.classList.remove("scan")),200+EX.length*280+200);
+  BO.forEach((_,i)=>setTimeout(()=>{
+    chips.forEach(c=>c.classList.remove("cur"));
+    for(let j=0;j<=i;j++) chips[j].classList.add("lit");
+    chips[i].classList.add("cur");
+    const ex=Math.round(945*(i+1)/BO.length), g=Math.max(1,Math.round(10*(i+1)/BO.length));
+    document.getElementById("count").textContent=`corpus: ${ex} examples / ${g} graphs`;
+  },200+EX.length*280+400+i*450));
+  setTimeout(loop,200+EX.length*280+400+BO.length*450+1500);
+}
+loop();
+</script>
+</body>
+</html>
