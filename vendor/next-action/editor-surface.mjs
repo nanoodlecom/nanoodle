@@ -631,11 +631,66 @@ function applyTip(action) {
       document.querySelectorAll("#wires path.wire").forEach((p) => p.classList.add("na-routed"));
     } catch (_) {}
     const summary = wireRoutingSummary(result);
-    setModeNote(opts.reason === "tip" ? `tip · ${summary}` : summary);
+    setModeNote(opts.reason === "tip" ? `tip · settled · ${summary}` : `route · settled · ${summary}`);
     return result;
   }
 
-  function runMessUpWires() {
+  function easeOutCubic(t) {
+    return 1 - Math.pow(1 - t, 3);
+  }
+
+  let softMoveRaf = 0;
+  let softMoveBusy = false;
+  function cancelSoftMove() {
+    if (softMoveRaf) {
+      cancelAnimationFrame(softMoveRaf);
+      softMoveRaf = 0;
+    }
+  }
+
+  /** Cancelable rAF lerp — mode-gated callers only; cap concurrent nodes. */
+  function animateMoveNodes(targets, durationMs) {
+    if (!api.moveNode || !targets.length) return Promise.resolve();
+    cancelSoftMove();
+    const g = api.getGraph();
+    const from = new Map(
+      (g.nodes || []).map((n) => [String(n.id), { x: Number(n.x), y: Number(n.y) }])
+    );
+    const moves = targets
+      .map((t) => {
+        const a = from.get(String(t.id));
+        if (!a || !Number.isFinite(a.x) || !Number.isFinite(a.y)) return null;
+        if (Math.abs(t.x - a.x) < 0.5 && Math.abs(t.y - a.y) < 0.5) return null;
+        return { id: String(t.id), ax: a.x, ay: a.y, bx: t.x, by: t.y };
+      })
+      .filter(Boolean)
+      .slice(0, 16);
+    if (!moves.length) return Promise.resolve();
+    const dur = Math.max(60, Math.min(520, durationMs || 320));
+    return new Promise((resolve) => {
+      const t0 = performance.now();
+      function frame(now) {
+        const t = Math.min(1, (now - t0) / dur);
+        const e = easeOutCubic(t);
+        for (const m of moves) {
+          try {
+            api.moveNode(m.id, m.ax + (m.bx - m.ax) * e, m.ay + (m.by - m.ay) * e);
+          } catch (_) {}
+        }
+        if (t < 1) softMoveRaf = requestAnimationFrame(frame);
+        else {
+          softMoveRaf = 0;
+          for (const m of moves) {
+            try { api.moveNode(m.id, m.bx, m.by); } catch (_) {}
+          }
+          resolve();
+        }
+      }
+      softMoveRaf = requestAnimationFrame(frame);
+    });
+  }
+
+  async function runMessUpWires() {
     if (mode !== 16) return null;
     const g = api.getGraph();
     let nodes = (g.nodes || []).filter((n) => n.type !== "comment");
@@ -663,12 +718,18 @@ function applyTip(action) {
         }
       } catch (_) {}
     }
+    if (softMoveBusy) return null;
+    softMoveBusy = true;
+    let scrambled;
+    try {
     const g2 = api.getGraph();
-    const scrambled = scrambleWires(g2, { seed: 11 });
-    if (api.moveNode) {
-      for (const p of scrambled.positions) {
-        try { api.moveNode(p.id, p.x, p.y); } catch (_) {}
-      }
+    scrambled = scrambleWires(g2, { seed: 11 });
+    if (api.moveNode && scrambled.positions.length) {
+      setModeNote("mess · scattering");
+      await animateMoveNodes(scrambled.positions, 240);
+    }
+    } finally {
+      softMoveBusy = false;
     }
     // Clear routed cache so Mess shows default direct diagonals through boxes
     routePathCache.clear();
