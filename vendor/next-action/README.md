@@ -1,16 +1,20 @@
-# vendor/next-action — Product · 2 schema + Product · 4 gallery bake
+# vendor/next-action — schema · bake · frequency baseline
 
-- **Product · 2** — `schema.json` + `encode.mjs` (action/graph-sketch contract)
-- **Product · 4** — `scripts/bake-next-action.mjs` + `corpus/gallery-synth.json`
+| Product | Paths |
+| --- | --- |
+| · 2 | `schema.json`, `encode.mjs` |
+| · 4 | `scripts/bake-next-action.mjs`, `corpus/gallery-synth.json` |
+| · 3 | `frequency.mjs`, `corpus/frequency-tables.json`, `recommend.mjs` (baseline / optional blend) |
 
-Frequency baseline (· 3) and learned recommender (· 1) land in later stacked PRs.
+Soft ghost tips UI is **not** in this PR — stub/docs only. Learned MLP + smoke fixtures are Product · 1.
 
-## Bake
+## Checks
 
 ```sh
 node scripts/bake-next-action.mjs
 node scripts/check-next-action-schema.mjs
 node scripts/check-next-action-bake.mjs
+node scripts/check-next-action-frequency.mjs
 ```
 
-Product · N / Fun labels only. No `.bin` weights in tree.
+Product · N / Fun labels only. Never commit `.bin` under `vendor/next-action/`.

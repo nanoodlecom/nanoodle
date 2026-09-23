@@ -2,11 +2,12 @@
 /**
  * Product · 4 — bake synthetic build-order corpus from gallery Examples
  * under the Product · 2 schema (vendor/next-action/schema.json).
- * Writes gallery-synth.json only; frequency tables land in Product · 3.
+ * Also writes frequency-tables.json via Product · 3 frequency.mjs.
  */
 import { readFileSync, writeFileSync, readdirSync, statSync, mkdirSync } from "node:fs";
 import { join, resolve, dirname, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildFrequencyTables } from "../vendor/next-action/frequency.mjs";
 import { sketchFromGraph, ACTION_VOCAB, NODE_TYPES } from "../vendor/next-action/encode.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -236,7 +237,9 @@ function main() {
     examples,
   };
 
+  const tables = buildFrequencyTables(examples);
   writeFileSync(join(OUT_DIR, "gallery-synth.json"), JSON.stringify(corpus, null, 2));
+  writeFileSync(join(OUT_DIR, "frequency-tables.json"), JSON.stringify(tables, null, 2));
 
   console.log(
     `✓ bake-next-action: ${examples.length} examples from ${graphs.length} graphs → vendor/next-action/corpus/`
