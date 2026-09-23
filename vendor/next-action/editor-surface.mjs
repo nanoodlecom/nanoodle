@@ -6,7 +6,11 @@
  */
 import { ACTION_VOCAB, NODE_TYPES, sketchFromGraph, schema } from "./encode.mjs";
 import { createRing, RING_CAPACITY } from "./ring.mjs";
-import { resolveCollisions } from "./collision-nudge.mjs";
+import {
+  planCollisionPasses,
+  TIP_OVERLAP_X,
+  TIP_OVERLAP_Y,
+} from "./collision-nudge.mjs";
 
 const BASE = new URL(".", import.meta.url);
 
@@ -108,7 +112,8 @@ function ensureStyles() {
 #na-ghost.show{opacity:1}
 #na-panel .na-nudge-note{font-size:.68rem;color:#c4b5fd;padding:.15rem 0 0;min-height:1em}
 #na-panel .na-nudge-note.flash{color:#a78bfa}
-.na-nudge-flash{box-shadow:0 0 0 2px #a78bfaaa,0 0 18px #8b5cf655 !important;transition:box-shadow .35s ease,left .35s ease,top .35s ease}
+.na-nudge-flash,.na-nudge-moving{box-shadow:0 0 0 2px #c4b5fdcc,0 0 26px #8b5cf6aa !important;transition:box-shadow .4s ease;z-index:40 !important}
+.na-nudge-moving{filter:brightness(1.06)}
 `;
   document.head.appendChild(s);
 }
@@ -166,7 +171,7 @@ function buildPanel(mode) {
       <div class="na-label" id="na-title">${titles[mode] || "tips"}</div>
       <div id="na-tips"></div>
       ${mode === 6 ? `<div class="na-label">first trios</div><div class="na-trio-row" id="na-trios"></div>` : ""}
-      ${mode === 12 ? `<div class="na-nudge-note" id="na-nudge-note">multi-pass de-overlap on tip add</div>` : ""}
+      ${mode === 12 ? `<div class="na-nudge-note" id="na-nudge-note">soft slide-apart on tip add</div>` : ""}
       <div class="na-label">history</div>
       <div class="na-hist"><b id="na-hist">[ ]</b></div>
       <div class="na-label" id="na-schema-label">schema tokens</div>
@@ -440,39 +445,138 @@ export async function mount(api) {
     setTimeout(() => note.classList.remove("flash"), 700);
   }
 
-  function flashMovedNodes(ids) {
+  function setMovedGlow(ids, on) {
     for (const id of ids) {
       const el = document.querySelector(`.node[data-id="${CSS.escape(id)}"]`);
       if (!el) continue;
-      el.classList.add("na-nudge-flash");
-      setTimeout(() => el.classList.remove("na-nudge-flash"), 450);
-    }
-  }
-
-  /** Product · 12: after addNode, multi-pass all-pairs collision refine. */
-  function runCollisionNudge(_addedId) {
-    if (mode !== 12 || !api.moveNode) return;
-    const g = api.getGraph();
-    const result = resolveCollisions(g);
-    if (!result.positions.length) {
-      setNudgeNote(result.cleared ? "nudge · already clear" : "nudge · no move");
-      return;
-    }
-    for (const p of result.positions) {
-      try {
-        api.moveNode(p.id, p.x, p.y);
-      } catch (e) {
-        console.warn("[next-action] moveNode failed", p.id, e);
+      if (on) {
+        el.classList.add("na-nudge-flash", "na-nudge-moving");
+      } else {
+        el.classList.remove("na-nudge-moving");
+        // Keep soft flash briefly after settle
+        setTimeout(() => el.classList.remove("na-nudge-flash"), 380);
       }
     }
-    flashMovedNodes(result.movedIds);
-    const verb = result.cleared ? "cleared" : "partial";
-    setNudgeNote(
-      `nudge · ${verb} · ${result.movedIds.length} node${result.movedIds.length === 1 ? "" : "s"} · ${result.passes} pass${result.passes === 1 ? "" : "es"}`
-    );
   }
 
-  async function applyTrio(actions) {
+  /** Ease-out cubic — soft settle, no overshoot fling. */
+  function easeOutCubic(t) {
+    return 1 - Math.pow(1 - t, 3);
+  }
+
+  /**
+   * rAF-lerp nodes from current graph positions toward `targets`.
+   * Prefer rAF over CSS left/top transitions (editor style writes fight CSS).
+   */
+  function animateMoveNodes(targets, durationMs) {
+    if (!api.moveNode || !targets.length) return Promise.resolve();
+    const g = api.getGraph();
+    const from = new Map(
+      (g.nodes || []).map((n) => [String(n.id), { x: Number(n.x), y: Number(n.y) }])
+    );
+    const moves = targets
+      .map((t) => {
+        const a = from.get(String(t.id));
+        if (!a || !Number.isFinite(a.x) || !Number.isFinite(a.y)) return null;
+        const dx = t.x - a.x;
+        const dy = t.y - a.y;
+        if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return null;
+        return { id: String(t.id), ax: a.x, ay: a.y, bx: t.x, by: t.y };
+      })
+      .filter(Boolean);
+    if (!moves.length) return Promise.resolve();
+
+    const dur = Math.max(40, durationMs || 90);
+    return new Promise((resolve) => {
+      const t0 = performance.now();
+      function frame(now) {
+        const t = Math.min(1, (now - t0) / dur);
+        const e = easeOutCubic(t);
+        for (const m of moves) {
+          const x = m.ax + (m.bx - m.ax) * e;
+          const y = m.ay + (m.by - m.ay) * e;
+          try {
+            api.moveNode(m.id, x, y);
+          } catch (_) {}
+        }
+        if (t < 1) {
+          requestAnimationFrame(frame);
+        } else {
+          for (const m of moves) {
+            try {
+              api.moveNode(m.id, m.bx, m.by);
+            } catch (_) {}
+          }
+          resolve();
+        }
+      }
+      requestAnimationFrame(frame);
+    });
+  }
+
+  let nudgeBusy = false;
+
+  /**
+   * Product · 12: after addNode, animated multi-pass all-pairs collision refine.
+   * User sees nodes slide apart pass-by-pass (~280–450ms total), not teleport.
+   */
+  /** Measure real .node card sizes (Image/LLM are much taller than defaults). */
+  function graphWithMeasuredBoxes() {
+    const g = api.getGraph();
+    const nodes = (g.nodes || []).map((n) => {
+      const el = document.querySelector(`.node[data-id="${CSS.escape(String(n.id))}"]`);
+      let w;
+      let h;
+      if (el) {
+        w = el.offsetWidth;
+        h = el.offsetHeight;
+      }
+      return {
+        ...n,
+        w: Number.isFinite(w) && w > 0 ? w : undefined,
+        h: Number.isFinite(h) && h > 0 ? h : undefined,
+      };
+    });
+    return { ...g, nodes };
+  }
+
+  async function runCollisionNudge(_addedId) {
+    if (mode !== 12 || !api.moveNode) return;
+    if (nudgeBusy) return;
+    nudgeBusy = true;
+    let glowed = [];
+    try {
+      const g = graphWithMeasuredBoxes();
+      const plan = planCollisionPasses(g);
+      if (!plan.passSnapshots.length) {
+        setNudgeNote(plan.cleared ? "nudge · already clear" : "nudge · no move");
+        return;
+      }
+
+      glowed = plan.movedIds.slice();
+      setMovedGlow(glowed, true);
+
+      const totalMs = 420;
+      const n = plan.passSnapshots.length;
+      const passMs = Math.max(60, Math.min(120, Math.round(totalMs / Math.max(1, n))));
+
+      for (let i = 0; i < n; i++) {
+        const snap = plan.passSnapshots[i];
+        setNudgeNote(`pass ${i + 1}/${n} · clearing`);
+        await animateMoveNodes(snap.positions, passMs);
+      }
+
+      const verb = plan.cleared ? "cleared" : "partial";
+      setNudgeNote(
+        `nudge · ${verb} · ${plan.movedIds.length} node${plan.movedIds.length === 1 ? "" : "s"}`
+      );
+    } finally {
+      if (glowed.length) setMovedGlow(glowed, false);
+      nudgeBusy = false;
+    }
+  }
+
+    async function applyTrio(actions) {
     const adds = (actions || []).filter((a) => a.startsWith("add:"));
     const baseX = 160;
     const baseY = 180;
@@ -481,16 +585,16 @@ export async function mount(api) {
       const type = adds[i].slice(4);
       try {
         const added = api.addNode(type, baseX + i * gap, baseY + (i % 2) * 40);
-        if (added && added.id) runCollisionNudge(added.id);
+        if (added && added.id) await runCollisionNudge(added.id);
       } catch (e) {
         console.warn("[next-action] trio addNode failed", type, e);
       }
-      await new Promise((r) => setTimeout(r, 120));
+      await new Promise((r) => setTimeout(r, 80));
     }
     refreshTips();
   }
 
-function applyTip(action) {
+async function applyTip(action) {
     flashToken(action);
     if (action.startsWith("add:")) {
       const type = action.slice(4);
@@ -502,18 +606,18 @@ function applyTip(action) {
         x = 280;
         y = 200;
       } else if (mode === 12) {
-        // Land tight / stacked so collision refine has overlaps to clear
+        // Half-card intentional overlap — nudge needed, not a staged full pile
         const last = g.nodes[g.nodes.length - 1];
         const anchor = sel || last;
-        x = (anchor?.x ?? 120) + 28;
-        y = (anchor?.y ?? 160) + 14;
+        x = (anchor?.x ?? 120) + TIP_OVERLAP_X;
+        y = (anchor?.y ?? 160) + TIP_OVERLAP_Y;
       } else {
         x = (sel?.x ?? 120) + 220;
         y = sel?.y ?? 160;
       }
       try {
         const added = api.addNode(type, x, y);
-        if (added && added.id) runCollisionNudge(added.id);
+        if (added && added.id) await runCollisionNudge(added.id);
       } catch (e) {
         console.warn("[next-action] addNode failed", type, e);
       }

@@ -4,25 +4,34 @@
  * iteratively push ALL colliding node boxes apart until gaps clear (or N passes).
  * Distinct from · 11: multi-pass / all-pairs; may move any colliding node
  * (including the newly added one); still clamped + gentle.
+ *
+ * Defaults ~ real editor chrome; prefer measured per-node w/h from the DOM
+ * when animating in editor-surface (Image/LLM cards are much taller).
  */
 
-/** Approx node card size (editor chrome). */
-export const NODE_W = 180;
-export const NODE_H = 100;
+/** Fallback node card size when unmeasured (min-width ~210; short text-ish). */
+export const NODE_W = 220;
+export const NODE_H = 240;
 /** Desired gap between node boxes (beyond AABB). */
-export const GAP = 32;
-/** Max per-node nudge distance per pass (px). */
-export const MAX_NUDGE = 72;
+export const GAP = 28;
+/** Max per-node nudge distance per pass (px) — gentle, no wild fling. */
+export const MAX_NUDGE = 96;
 /** Soft lerp factor applied to the separation half-vector (0–1). */
-export const LERP = 0.5;
-/** Default multi-pass iteration cap. */
-export const MAX_PASSES = 8;
+export const LERP = 0.55;
+/** Default multi-pass iteration cap — enough that tip-stacks usually clear. */
+export const MAX_PASSES = 14;
+/** Mode-12 tip landing offset: intentional half-card overlap (nudge needed, not staged pile). */
+export const TIP_OVERLAP_X = 80;
+export const TIP_OVERLAP_Y = 40;
 
 /**
- * @param {{ nodes?: Array<{id:string,x?:number,y?:number,type?:string}> }} graph
- * @returns {{ id:string, x:number, y:number, cx:number, cy:number }[]}
+ * @param {{ nodes?: Array<{id:string,x?:number,y?:number,type?:string,w?:number,h?:number}> }} graph
+ * @param {{ nodeW?:number, nodeH?:number }} [opts]
+ * @returns {{ id:string, x:number, y:number, w:number, h:number, cx:number, cy:number }[]}
  */
-export function boxesFromGraph(graph) {
+export function boxesFromGraph(graph, opts = {}) {
+  const defW = opts.nodeW ?? NODE_W;
+  const defH = opts.nodeH ?? NODE_H;
   const nodes = (graph && graph.nodes) || [];
   const out = [];
   for (const n of nodes) {
@@ -31,25 +40,35 @@ export function boxesFromGraph(graph) {
     const x = Number(n.x);
     const y = Number(n.y);
     if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    const w = Number(n.w);
+    const h = Number(n.h);
+    const bw = Number.isFinite(w) && w > 0 ? w : defW;
+    const bh = Number.isFinite(h) && h > 0 ? h : defH;
     out.push({
       id: String(n.id),
       x,
       y,
-      cx: x + NODE_W / 2,
-      cy: y + NODE_H / 2,
+      w: bw,
+      h: bh,
+      cx: x + bw / 2,
+      cy: y + bh / 2,
     });
   }
   return out;
 }
 
 /**
- * Axis-aligned overlap depth vs desired gap padding.
+ * Axis-aligned overlap depth vs desired gap padding (supports unequal sizes).
  * ox/oy > 0 means too close on that axis; both positive ⇒ collide.
  * @returns {{ ox:number, oy:number, overlap:boolean }}
  */
-export function overlapDepth(a, b) {
-  const needX = NODE_W + GAP;
-  const needY = NODE_H + GAP;
+export function overlapDepth(a, b, gap = GAP) {
+  const aw = a.w ?? NODE_W;
+  const ah = a.h ?? NODE_H;
+  const bw = b.w ?? NODE_W;
+  const bh = b.h ?? NODE_H;
+  const needX = (aw + bw) / 2 + gap;
+  const needY = (ah + bh) / 2 + gap;
   const dx = b.cx - a.cx;
   const dy = b.cy - a.cy;
   const ox = needX - Math.abs(dx);
@@ -62,13 +81,14 @@ export function overlapDepth(a, b) {
  * Both nodes in a pair may move (half push each). Clamped + lerped.
  *
  * @param {{ nodes?: any[] }} graph
- * @param {{ maxNudge?:number, lerp?:number }} [opts]
+ * @param {{ maxNudge?:number, lerp?:number, nodeW?:number, nodeH?:number, gap?:number }} [opts]
  * @returns {{ id:string, dx:number, dy:number }[]}
  */
 export function proposeCollisionDeltas(graph, opts = {}) {
   const maxNudge = opts.maxNudge ?? MAX_NUDGE;
   const lerp = opts.lerp ?? LERP;
-  const boxes = boxesFromGraph(graph);
+  const gap = opts.gap ?? GAP;
+  const boxes = boxesFromGraph(graph, opts);
   if (boxes.length < 2) return [];
 
   /** @type {Map<string, {id:string, dx:number, dy:number}>} */
@@ -85,7 +105,7 @@ export function proposeCollisionDeltas(graph, opts = {}) {
     for (let j = i + 1; j < boxes.length; j++) {
       const a = boxes[i];
       const b = boxes[j];
-      const { ox, oy, overlap } = overlapDepth(a, b);
+      const { ox, oy, overlap } = overlapDepth(a, b, gap);
       if (!overlap) continue;
 
       let vx = b.cx - a.cx;
@@ -153,9 +173,10 @@ export function applyDeltasAbsolute(graph, deltas) {
 /**
  * Min signed pairwise separation. Negative ⇒ still overlapping AABB+gap.
  */
-export function minPairGap(graph, deltas) {
+export function minPairGap(graph, deltas, opts = {}) {
+  const gap = opts.gap ?? GAP;
   const dmap = new Map((deltas || []).map((d) => [String(d.id), d]));
-  const boxes = boxesFromGraph(graph).map((b) => {
+  const boxes = boxesFromGraph(graph, opts).map((b) => {
     const d = dmap.get(b.id);
     const dx = d ? Number(d.dx) || 0 : 0;
     const dy = d ? Number(d.dy) || 0 : 0;
@@ -164,7 +185,7 @@ export function minPairGap(graph, deltas) {
   let best = Infinity;
   for (let i = 0; i < boxes.length; i++) {
     for (let j = i + 1; j < boxes.length; j++) {
-      const { ox, oy, overlap } = overlapDepth(boxes[i], boxes[j]);
+      const { ox, oy, overlap } = overlapDepth(boxes[i], boxes[j], gap);
       const signed = overlap ? -Math.min(ox, oy) : -Math.max(ox, oy);
       if (signed < best) best = signed;
     }
@@ -175,48 +196,46 @@ export function minPairGap(graph, deltas) {
 /**
  * Count colliding pairs (AABB + gap).
  */
-export function countOverlaps(graph) {
-  const boxes = boxesFromGraph(graph);
+export function countOverlaps(graph, opts = {}) {
+  const gap = opts.gap ?? GAP;
+  const boxes = boxesFromGraph(graph, opts);
   let n = 0;
   for (let i = 0; i < boxes.length; i++) {
     for (let j = i + 1; j < boxes.length; j++) {
-      if (overlapDepth(boxes[i], boxes[j]).overlap) n++;
+      if (overlapDepth(boxes[i], boxes[j], gap).overlap) n++;
     }
   }
   return n;
 }
 
 /**
- * Multi-pass all-pairs refine until overlaps clear or maxPasses.
+ * Multi-pass planner: returns per-pass absolute positions so the editor can
+ * animate slide-apart (rAF lerp) instead of teleporting to the final layout.
  *
  * @param {{ nodes?: any[] }} graph
- * @param {{ maxPasses?:number, maxNudge?:number, lerp?:number }} [opts]
+ * @param {{ maxPasses?:number, maxNudge?:number, lerp?:number, nodeW?:number, nodeH?:number, gap?:number }} [opts]
  * @returns {{
+ *   passSnapshots: { positions: {id:string,x:number,y:number}[], overlaps: number }[],
  *   positions: {id:string,x:number,y:number}[],
  *   passes: number,
  *   cleared: boolean,
  *   movedIds: string[],
  * }}
  */
-export function resolveCollisions(graph, opts = {}) {
+export function planCollisionPasses(graph, opts = {}) {
   const maxPasses = opts.maxPasses ?? MAX_PASSES;
   const nodes = ((graph && graph.nodes) || []).map((n) => ({ ...n }));
   let g = { nodes };
   /** @type {Map<string, {id:string, x:number, y:number}>} */
   const final = new Map();
+  /** @type {{ positions: {id:string,x:number,y:number}[], overlaps: number }[]} */
+  const passSnapshots = [];
   let passes = 0;
-  let cleared = countOverlaps(g) === 0;
 
   for (let p = 0; p < maxPasses; p++) {
-    if (countOverlaps(g) === 0) {
-      cleared = true;
-      break;
-    }
+    if (countOverlaps(g, opts) === 0) break;
     const deltas = proposeCollisionDeltas(g, opts);
-    if (!deltas.length) {
-      cleared = countOverlaps(g) === 0;
-      break;
-    }
+    if (!deltas.length) break;
     const abs = applyDeltasAbsolute(g, deltas);
     const byId = new Map(g.nodes.map((n) => [String(n.id), n]));
     for (const pos of abs) {
@@ -227,15 +246,43 @@ export function resolveCollisions(graph, opts = {}) {
       final.set(pos.id, { id: pos.id, x: pos.x, y: pos.y });
     }
     passes++;
+    passSnapshots.push({
+      positions: [...final.values()].map((p) => ({ ...p })),
+      overlaps: countOverlaps(g, opts),
+    });
   }
-  cleared = countOverlaps(g) === 0;
 
+  const cleared = countOverlaps(g, opts) === 0;
   const positions = [...final.values()];
   return {
+    passSnapshots,
     positions,
     passes,
     cleared,
     movedIds: positions.map((p) => p.id),
+  };
+}
+
+/**
+ * Multi-pass all-pairs refine until overlaps clear or maxPasses.
+ * (Final positions only — use planCollisionPasses for animated resolve.)
+ *
+ * @param {{ nodes?: any[] }} graph
+ * @param {{ maxPasses?:number, maxNudge?:number, lerp?:number, nodeW?:number, nodeH?:number, gap?:number }} [opts]
+ * @returns {{
+ *   positions: {id:string,x:number,y:number}[],
+ *   passes: number,
+ *   cleared: boolean,
+ *   movedIds: string[],
+ * }}
+ */
+export function resolveCollisions(graph, opts = {}) {
+  const plan = planCollisionPasses(graph, opts);
+  return {
+    positions: plan.positions,
+    passes: plan.passes,
+    cleared: plan.cleared,
+    movedIds: plan.movedIds,
   };
 }
 
@@ -246,11 +293,14 @@ export default {
   MAX_NUDGE,
   LERP,
   MAX_PASSES,
+  TIP_OVERLAP_X,
+  TIP_OVERLAP_Y,
   boxesFromGraph,
   overlapDepth,
   proposeCollisionDeltas,
   applyDeltasAbsolute,
   minPairGap,
   countOverlaps,
+  planCollisionPasses,
   resolveCollisions,
 };

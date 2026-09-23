@@ -6,6 +6,7 @@ import {
   boxesFromGraph,
   proposeCollisionDeltas,
   resolveCollisions,
+  planCollisionPasses,
   applyDeltasAbsolute,
   minPairGap,
   countOverlaps,
@@ -15,6 +16,8 @@ import {
   GAP,
   MAX_NUDGE,
   MAX_PASSES,
+  TIP_OVERLAP_X,
+  TIP_OVERLAP_Y,
 } from "../vendor/next-action/collision-nudge.mjs";
 
 function fail(msg) {
@@ -232,10 +235,92 @@ function toy(name, ok, detail) {
   );
 }
 
+
+// 12. tip half-card overlap clears (mode-12 landing feel)
+{
+  const g = {
+    nodes: [
+      { id: "a", x: 280, y: 200, type: "text" },
+      { id: "b", x: 280 + TIP_OVERLAP_X, y: 200 + TIP_OVERLAP_Y, type: "llm" },
+    ],
+  };
+  const r = resolveCollisions(g);
+  toy(
+    "tip-overlap-clears",
+    r.cleared && r.passes > 0 && r.passes <= MAX_PASSES,
+    `passes=${r.passes} cleared=${r.cleared} tip=+${TIP_OVERLAP_X},+${TIP_OVERLAP_Y}`
+  );
+}
+
+// 13. planCollisionPasses exposes per-pass snapshots (for rAF animation)
+{
+  const g = {
+    nodes: [
+      { id: "a", x: 100, y: 100, type: "text" },
+      { id: "b", x: 130, y: 120, type: "llm" },
+    ],
+  };
+  const plan = planCollisionPasses(g);
+  const snapsOk =
+    plan.passSnapshots.length === plan.passes &&
+    plan.passSnapshots.length > 0 &&
+    plan.passSnapshots.every(
+      (s) => Array.isArray(s.positions) && s.positions.length >= 1
+    );
+  const last = plan.passSnapshots[plan.passSnapshots.length - 1];
+  const finalsMatch =
+    last &&
+    last.positions.length === plan.positions.length &&
+    last.positions.every((p) => {
+      const f = plan.positions.find((x) => x.id === p.id);
+      return f && Math.abs(f.x - p.x) < 0.01 && Math.abs(f.y - p.y) < 0.01;
+    });
+  toy(
+    "plan-pass-snapshots",
+    snapsOk && finalsMatch && plan.cleared,
+    `snaps=${plan.passSnapshots.length} cleared=${plan.cleared}`
+  );
+}
+
+// 14. box size toward real editor cards
+{
+  toy(
+    "box-size-realish",
+    NODE_W >= 200 && NODE_H >= 200 && GAP >= 24 && GAP <= 40,
+    `NODE=${NODE_W}x${NODE_H} GAP=${GAP}`
+  );
+
+// 15. per-node measured sizes respected (tall image vs short text)
+{
+  const g = {
+    nodes: [
+      { id: "t", x: 100, y: 100, type: "text", w: 211, h: 228 },
+      { id: "i", x: 180, y: 140, type: "image", w: 314, h: 423 },
+    ],
+  };
+  const before = countOverlaps(g);
+  const r = resolveCollisions(g);
+  const gAfter = {
+    nodes: g.nodes.map((n) => {
+      const p = r.positions.find((x) => x.id === n.id);
+      return p ? { ...n, x: p.x, y: p.y } : n;
+    }),
+  };
+  const after = countOverlaps(gAfter);
+  toy(
+    "measured-tall-cards-clear",
+    before > 0 && r.cleared && after === 0,
+    `ov ${before}→${after} passes=${r.passes} cleared=${r.cleared}`
+  );
+}
+}
+
 const passed = toys.filter((t) => t.ok).length;
 const total = toys.length;
 console.log(`\nnext-action-collision-nudge toys: ${passed}/${total}`);
 assert(NODE_W > 0 && NODE_H > 0 && GAP > 0 && MAX_PASSES > 0, "constants positive");
+assert(TIP_OVERLAP_X >= 60 && TIP_OVERLAP_Y >= 24, "tip overlap half-cardish");
+assert(typeof planCollisionPasses === "function", "planCollisionPasses exported");
 assert(typeof overlapDepth === "function", "overlapDepth exported");
 assert(typeof resolveCollisions === "function", "resolveCollisions exported");
 if (passed < total) fail(`${total - passed} toy(s) failed`);
