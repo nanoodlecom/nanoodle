@@ -3,76 +3,134 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Product · 3 — frequency baseline</title>
+<title>Product · 3 — frequency baseline (usage)</title>
 <style>
-:root{--bg:#0b0d12;--panel:#12151d;--panel2:#171b25;--ink:#eef1f7;--dim:#aeb7c8;--line:#2a2e3c;--accent:#7c8cff;--cyan:#67e8f9;--gold:#f5d76e}
-*{box-sizing:border-box}body{margin:0;font:14px/1.4 system-ui,sans-serif;background:var(--bg);color:var(--ink)}
-header{display:flex;align-items:center;gap:1rem;padding:.75rem 1rem;background:rgba(18,21,29,.9);border-bottom:1px solid var(--line)}
-.logo{font-weight:800;font-size:1.1rem;background:linear-gradient(90deg,#67e8f9,#7c8cff 70%);-webkit-background-clip:text;background-clip:text;color:transparent}
-main{padding:1rem;max-width:920px;margin:0 auto}
-.canvas{display:grid;grid-template-columns:140px 1fr;gap:1rem;min-height:420px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem;background-image:linear-gradient(rgba(22,26,36,.8) 1px,transparent 1px),linear-gradient(90deg,rgba(22,26,36,.8) 1px,transparent 1px);background-size:40px 40px}
-h1{font-size:1rem;font-weight:600;margin:0;flex:1}.sub{color:var(--dim);font-size:.8rem}
-label{font-size:.75rem;color:var(--dim);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:.5rem}
-.pal button{display:block;width:100%;text-align:left;margin-bottom:.4rem;padding:.55rem .7rem;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--dim);cursor:default;transition:all .35s}
-.pal button.hot{background:#283260;color:var(--cyan);border-color:var(--cyan);box-shadow:0 0 12px #67e8f933}
-.center{display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
-.empty{color:var(--dim);text-align:center;animation:pulse 2s ease-in-out infinite}
-@keyframes pulse{0%,100%{opacity:.5}50%{opacity:1}}
-.ghosts{margin-top:1.5rem;display:flex;flex-direction:column;gap:.55rem;min-width:280px}
-.ghost{display:flex;align-items:center;gap:.75rem;opacity:0;transform:translateY(10px);transition:opacity .4s,transform .4s;animation:bob 2.4s ease-in-out infinite}
-.ghost.show{opacity:1;transform:none}
-@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
-.ghost.show{animation:bob 2.4s ease-in-out infinite}
-.chip{padding:.4rem .7rem;border-radius:8px;border:1px dashed #3a4560;background:#141a28;color:var(--cyan);font-size:.85rem;flex:1}
-.bar{height:10px;background:var(--accent);border-radius:4px;width:0;transition:width .5s}
-.foot{position:absolute;right:12px;bottom:12px;padding:.6rem .85rem;background:var(--panel2);border:1px solid var(--line);border-radius:10px;font-size:.75rem;color:var(--dim)}
-.foot b{color:var(--gold)}
+:root{--bg:#0b0d12;--panel:#12151d;--panel2:#171b25;--ink:#eef1f7;--dim:#aeb7c8;--line:#2a2e3c;--accent:#7c8cff;--cyan:#67e8f9;--gold:#f5d76e;--mint:#6ee7b7}
+*{box-sizing:border-box;margin:0;padding:0}
+body{margin:0;font:13px/1.4 system-ui,-apple-system,sans-serif;background:#080a0e;color:var(--ink);overflow:hidden}
+.shell{width:880px;height:520px;margin:0 auto;display:flex;flex-direction:column;background:var(--bg);border:1px solid var(--line);border-radius:10px;overflow:hidden;position:relative}
+header{display:flex;align-items:center;gap:.75rem;padding:.55rem .9rem;background:rgba(18,21,29,.95);border-bottom:1px solid var(--line)}
+.logo{font-weight:800;font-size:1rem;background:linear-gradient(90deg,#67e8f9,#7c8cff 70%);-webkit-background-clip:text;background-clip:text;color:transparent}
+h1{font-size:.92rem;font-weight:600;flex:1}
+.badge{font-size:.68rem;padding:.2rem .5rem;border-radius:999px;background:#1a2840;color:var(--cyan);border:1px solid #2a4060}
+.sub{color:var(--dim);font-size:.72rem}
+.workspace{flex:1;display:grid;grid-template-columns:130px 1fr;min-height:0}
+.pal{background:var(--panel);border-right:1px solid var(--line);padding:.65rem .5rem;display:flex;flex-direction:column;gap:.35rem;position:relative}
+.pal label{font-size:.65rem;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.25rem}
+.pal button{display:block;width:100%;text-align:left;padding:.5rem .55rem;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--dim);font:inherit;transition:all .3s;position:relative}
+.pal button.ghost-hot{border-color:var(--cyan);color:var(--cyan);background:#152030;box-shadow:0 0 16px #67e8f928}
+.pal button .rank{position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:.62rem;color:var(--gold);opacity:0;transition:opacity .3s}
+.pal button.ghost-hot .rank{opacity:1}
+.canvas-wrap{position:relative;background:var(--panel);background-image:linear-gradient(rgba(22,26,36,.85) 1px,transparent 1px),linear-gradient(90deg,rgba(22,26,36,.85) 1px,transparent 1px);background-size:36px 36px;overflow:hidden}
+.node{position:absolute;display:flex;align-items:center;gap:.45rem;padding:.5rem .75rem;background:var(--panel2);border:2px solid var(--gold);border-radius:10px;box-shadow:0 4px 16px #0006;opacity:0;transform:scale(.9);transition:opacity .35s,transform .35s;z-index:2}
+.node.show{opacity:1;transform:scale(1)}
+.node .dot{width:9px;height:9px;border-radius:50%}
+.ghost-node{position:absolute;display:flex;align-items:center;gap:.4rem;padding:.48rem .7rem;border:1.5px dashed #3d5a70;border-radius:10px;background:rgba(20,30,45,.55);color:var(--cyan);opacity:0;transform:scale(.92);transition:opacity .4s,transform .4s;z-index:3;backdrop-filter:blur(2px);animation:bob 2.2s ease-in-out infinite;font-size:.85rem}
+.ghost-node.show{opacity:1;transform:scale(1)}
+@keyframes bob{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-4px) scale(1)}}
+.ghost-node .pct{font-size:.65rem;color:var(--gold);margin-left:.25rem}
+.hint{position:absolute;left:50%;top:28px;transform:translateX(-50%);color:var(--dim);font-size:.78rem;opacity:0;transition:opacity .35s;background:rgba(18,21,29,.8);padding:.3rem .65rem;border-radius:8px;border:1px solid var(--line)}
+.hint.show{opacity:1}
+.freq{position:absolute;right:14px;bottom:14px;padding:.55rem .7rem;background:var(--panel2);border:1px solid var(--line);border-radius:10px;font-size:.7rem;color:var(--dim);opacity:0;transition:opacity .35s}
+.freq.show{opacity:1}
+.freq b{color:var(--gold)}
+.cursor{position:absolute;width:14px;height:14px;border-radius:50% 50% 50% 0;background:var(--ink);transform:rotate(-30deg);pointer-events:none;z-index:50;opacity:0;transition:left .5s cubic-bezier(.2,.8,.2,1),top .5s cubic-bezier(.2,.8,.2,1),opacity .2s;box-shadow:0 2px 6px #0008}
+.cursor.on{opacity:1}
+.cursor.click{transform:rotate(-30deg) scale(.85);background:var(--cyan)}
 </style>
 </head>
 <body>
-<header>
-  <div class="logo">nanoodle</div>
-  <h1>Product · 3 — frequency baseline</h1>
-  <span class="sub">cold-start soft ghosts · no learned weights</span>
-</header>
-<main>
-  <div class="canvas">
-    <div>
-      <label>palette highlight</label>
-      <div class="pal" id="pal"></div>
-    </div>
-    <div class="center">
-      <div class="empty"><div style="font-weight:700;font-size:1.1rem;margin-bottom:.25rem">empty canvas</div>frequency soft tips…</div>
-      <div class="ghosts" id="ghosts"></div>
-      <div class="foot">baseline <b>top1 0.69 · top3 0.83</b><br/>bigram · unigram · cold-start</div>
+<div class="shell">
+  <header>
+    <div class="logo">nanoodle</div>
+    <h1>Product · 3 — frequency baseline</h1>
+    <span class="badge">usage</span>
+    <span class="sub">soft ghosts · cold-start</span>
+  </header>
+  <div class="workspace">
+    <aside class="pal" id="pal">
+      <label>palette · freq tips</label>
+      <button data-p="text">text<span class="rank">#1</span></button>
+      <button data-p="image">image<span class="rank">#2</span></button>
+      <button data-p="llm">llm<span class="rank">#3</span></button>
+      <button data-p="edit">edit</button>
+      <button data-p="music">music</button>
+    </aside>
+    <div class="canvas-wrap" id="cv">
+      <div class="hint" id="hint">empty canvas — frequency soft tips</div>
+      <div class="node" id="n0" style="left:90px;top:180px"><span class="dot" style="background:var(--gold)"></span>text</div>
+      <div class="ghost-node" id="g0" style="left:260px;top:120px">ghost · add:image<span class="pct">31%</span></div>
+      <div class="ghost-node" id="g1" style="left:260px;top:200px">ghost · open:examples<span class="pct">18%</span></div>
+      <div class="ghost-node" id="g2" style="left:260px;top:280px">ghost · add:llm<span class="pct">9%</span></div>
+      <div class="freq" id="freq">baseline ranks tips<br/><b>bigram · unigram · cold-start</b></div>
+      <div class="cursor" id="cur"></div>
     </div>
   </div>
-</main>
+</div>
 <script>
-const PAL=["text","llm","image","edit","music","tts"];
-const GHOSTS=[["add:text",0.42],["open:examples",0.31],["add:image",0.18],["add:llm",0.09]];
-const pal=document.getElementById("pal");
-PAL.forEach(p=>{const b=document.createElement("button");b.textContent=p;b.dataset.p=p;pal.appendChild(b)});
-const gEl=document.getElementById("ghosts");
-GHOSTS.forEach(([n,s])=>{
-  const d=document.createElement("div");d.className="ghost";
-  d.innerHTML=`<span class="chip">👻 ${n}  ${(s*100).toFixed(0)}%</span><span class="bar" data-w="${s}"></span>`;
-  gEl.appendChild(d);
-});
-function loop(){
-  [...pal.children].forEach(b=>b.classList.remove("hot"));
-  [...gEl.children].forEach(g=>{g.classList.remove("show");g.querySelector(".bar").style.width="0"});
-  setTimeout(()=>{
-    ["text","image"].forEach(p=>[...pal.children].find(b=>b.dataset.p===p).classList.add("hot"));
-  },600);
-  GHOSTS.forEach((_,i)=>setTimeout(()=>{
-    const g=gEl.children[i];g.classList.add("show");
-    const bar=g.querySelector(".bar");
-    bar.style.width=(parseFloat(bar.dataset.w)*120)+"px";
-  },900+i*350));
-  setTimeout(loop,900+GHOSTS.length*350+2800);
+const cur=document.getElementById('cur');
+const pal=[...document.querySelectorAll('#pal button')];
+const ghosts=[document.getElementById('g0'),document.getElementById('g1'),document.getElementById('g2')];
+function move(x,y){cur.style.left=x+'px';cur.style.top=y+'px'}
+function wait(ms){return new Promise(r=>setTimeout(r,ms))}
+async function clickPulse(){cur.classList.add('click');await wait(110);cur.classList.remove('click')}
+async function cycle(){
+  cur.classList.remove('on');
+  document.getElementById('n0').classList.remove('show');
+  document.getElementById('hint').classList.remove('show');
+  document.getElementById('freq').classList.remove('show');
+  ghosts.forEach(g=>g.classList.remove('show'));
+  pal.forEach(b=>b.classList.remove('ghost-hot'));
+  await wait(200);cur.classList.add('on');
+  document.getElementById('hint').classList.add('show');
+  await wait(400);
+  // soft tips light palette + ghosts appear before user acts
+  pal[0].classList.add('ghost-hot');
+  pal[1].classList.add('ghost-hot');
+  document.getElementById('freq').classList.add('show');
+  await wait(350);
+  ghosts[0].classList.add('show');await wait(280);
+  ghosts[1].classList.add('show');await wait(280);
+  ghosts[2].classList.add('show');await wait(500);
+  // user follows tip #1 — click text on palette
+  move(60,100);await wait(420);await clickPulse();
+  document.getElementById('hint').classList.remove('show');
+  document.getElementById('n0').classList.add('show');
+  // after placing, ghosts reshuffle toward next actions
+  await wait(450);
+  ghosts.forEach(g=>g.classList.remove('show'));
+  pal.forEach(b=>b.classList.remove('ghost-hot'));
+  pal[1].classList.add('ghost-hot');
+  pal[2].classList.add('ghost-hot');
+  document.getElementById('g0').style.left='280px';document.getElementById('g0').style.top='170px';
+  document.getElementById('g0').innerHTML='ghost · add:image<span class="pct">42%</span>';
+  document.getElementById('g1').style.left='280px';document.getElementById('g1').style.top='250px';
+  document.getElementById('g1').innerHTML='ghost · add:llm<span class="pct">27%</span>';
+  await wait(200);
+  ghosts[0].classList.add('show');await wait(250);
+  ghosts[1].classList.add('show');
+  await wait(1200);
+  // second pass
+  document.getElementById('n0').classList.remove('show');
+  ghosts.forEach(g=>g.classList.remove('show'));
+  pal.forEach(b=>b.classList.remove('ghost-hot'));
+  document.getElementById('g0').innerHTML='ghost · add:image<span class="pct">31%</span>';
+  document.getElementById('g0').style.left='260px';document.getElementById('g0').style.top='120px';
+  document.getElementById('g1').innerHTML='ghost · open:examples<span class="pct">18%</span>';
+  document.getElementById('g1').style.left='260px';document.getElementById('g1').style.top='200px';
+  document.getElementById('hint').classList.add('show');
+  await wait(300);
+  pal[0].classList.add('ghost-hot');pal[1].classList.add('ghost-hot');
+  ghosts[0].classList.add('show');await wait(200);
+  ghosts[1].classList.add('show');await wait(200);
+  ghosts[2].classList.add('show');await wait(350);
+  move(60,100);await wait(350);await clickPulse();
+  document.getElementById('n0').classList.add('show');
+  document.getElementById('hint').classList.remove('show');
+  await wait(1100);
+  cycle();
 }
-loop();
+cycle();
 </script>
 </body>
 </html>
