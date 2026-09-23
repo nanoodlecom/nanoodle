@@ -1,10 +1,19 @@
 /**
- * Real Nanoodle editor surface for Product · 1–· 6 next-action.
+ * Real Nanoodle editor surface for Product · 1–· 6 + · 14 (port facing helper).
  * Soft tips + action log + Examples→corpus + · 5 local ring + · 6 cold-start seeds.
+ * · 14: discrete preferred left/right/up/down facing per node + Apply facing /
+ * Scramble facing — no · 7 required. Distinct from · 11 tidy / · 12 nudge / · 13 snap.
  * Dynamic imports so Product · 2 (schema-only) still mounts.
  */
 import { ACTION_VOCAB, NODE_TYPES, sketchFromGraph, schema } from "./encode.mjs";
 import { createRing, RING_CAPACITY } from "./ring.mjs";
+import {
+  proposeFacing,
+  applyFacingHints,
+  scrambleFacing,
+  facingSummary,
+  FACINGS,
+} from "./port-facing.mjs";
 
 const BASE = new URL(".", import.meta.url);
 
@@ -12,7 +21,7 @@ function productMode() {
   try {
     const q = new URLSearchParams(location.search);
     const p = q.get("product") || q.get("na");
-    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5" || p === "6") return Number(p);
+    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5" || p === "6" || p === "14") return Number(p);
   } catch (_) {}
   return 1;
 }
@@ -104,6 +113,20 @@ function ensureStyles() {
 #na-ghost{position:absolute;pointer-events:none;z-index:5;display:flex;align-items:center;gap:.35rem;padding:.4rem .65rem;
   border:1.5px dashed #3d5a70;border-radius:10px;background:rgba(20,30,45,.55);color:#67e8f9;font:12px/1.2 system-ui;opacity:0;transition:opacity .25s}
 #na-ghost.show{opacity:1}
+#na-panel .na-face-note{font-size:.68rem;color:#67e8f9;padding:.15rem 0 0;min-height:1em}
+#na-panel .na-face-note.flash{color:#a5f3fc}
+#na-panel .na-actions{display:flex;gap:.3rem;flex-wrap:wrap}
+#na-panel .na-btn{font:inherit;font-size:.65rem;padding:.28rem .45rem;border-radius:6px;border:1px solid #2a2e3c;background:#1a1f2c;color:#aeb7c8;cursor:pointer}
+#na-panel .na-btn:hover{border-color:#67e8f9;color:#67e8f9}
+.na-face-badge{position:absolute;z-index:6;pointer-events:none;font:700 11px/1 system-ui;color:#67e8f9;
+  text-shadow:0 0 6px #0ea5e9aa;opacity:.95;transition:opacity .2s,transform .35s ease}
+.na-face-badge[data-facing="right"]{right:4px;top:50%;transform:translateY(-50%)}
+.na-face-badge[data-facing="left"]{left:4px;top:50%;transform:translateY(-50%)}
+.na-face-badge[data-facing="up"]{left:50%;top:2px;transform:translateX(-50%)}
+.na-face-badge[data-facing="down"]{left:50%;bottom:2px;transform:translateX(-50%)}
+.na-face-flash,.na-face-moving{box-shadow:0 0 0 2px #c4b5fdcc,0 0 22px #8b5cf688 !important;transition:box-shadow .4s ease;z-index:40 !important}
+.na-face-moving{filter:brightness(1.05)}
+.na-face-side{outline:2px solid #67e8f966;outline-offset:-2px}
 `;
   document.head.appendChild(s);
 }
@@ -123,6 +146,7 @@ function buildPanel(mode) {
     4: "gallery → dataset",
     5: "local action ring",
     6: "cold-start seeds",
+    14: "port facing helper",
   };
   if (mode === 5) {
     el.innerHTML = `
@@ -160,6 +184,7 @@ function buildPanel(mode) {
       <div class="na-label" id="na-title">${titles[mode] || "tips"}</div>
       <div id="na-tips"></div>
       ${mode === 6 ? `<div class="na-label">first trios</div><div class="na-trio-row" id="na-trios"></div>` : ""}
+      ${mode === 14 ? `<div class="na-actions"><button type="button" class="na-btn" id="na-face-apply">Apply facing</button><button type="button" class="na-btn" id="na-face-scramble">Scramble facing</button></div><div class="na-face-note" id="na-face-note">Preferred side · left/right/up/down</div>` : ""}
       <div class="na-label">history</div>
       <div class="na-hist"><b id="na-hist">[ ]</b></div>
       <div class="na-label" id="na-schema-label">schema tokens</div>
@@ -316,6 +341,40 @@ export async function mount(api) {
   function refreshTips() {
     if (mode === 5) {
       renderRing();
+      return;
+    }
+    if (mode === 14) {
+      const g = api.getGraph();
+      const proposal = proposeFacing(g);
+      const applied = applyFacingHints(g);
+      if (histEl) histEl.textContent = history.length ? `[ ${history.slice(-5).join(" · ")} ]` : "[ ]";
+      if (tipsEl) {
+        tipsEl.innerHTML = "";
+        const rows = [
+          { action: "face:apply", score: applied.cool ? 1 : 3, label: applied.cool ? "Apply facing (cool)" : "Apply facing" },
+          { action: "add:text", score: 2, label: "add text" },
+          { action: "add:llm", score: 1, label: "add llm" },
+        ];
+        rows.forEach((r, i) => {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "na-tip" + (i === 0 ? " best" : "");
+          const pctV = pct(r.score, rows);
+          b.innerHTML = `<span>✦ ${r.label}</span><span class="pct">${pctV}%</span>`;
+          b.onclick = () => {
+            if (r.action === "face:apply") {
+              runApplyFacing({ force: true, reason: "tip" });
+              refreshTips();
+            } else applyTip(r.action);
+          };
+          tipsEl.appendChild(b);
+        });
+      }
+      paintFacingBadges(proposal.facings);
+      const note = panel.querySelector("#na-face-note");
+      if (note && !note.classList.contains("flash")) {
+        note.textContent = facingSummary(applied);
+      }
       return;
     }
     const g = api.getGraph();
@@ -484,11 +543,201 @@ function applyTip(action) {
     refreshTips();
   }
 
+  function setFaceNote(msg) {
+    const note = panel.querySelector("#na-face-note");
+    if (!note) return;
+    note.textContent = msg;
+    note.classList.add("flash");
+    setTimeout(() => note.classList.remove("flash"), 700);
+  }
+
+  function flashFacedNodes(ids) {
+    for (const id of ids || []) {
+      const el = document.querySelector(`.node[data-id="${CSS.escape(id)}"]`);
+      if (!el) continue;
+      el.classList.add("na-face-flash");
+      setTimeout(() => el.classList.remove("na-face-flash"), 500);
+    }
+  }
+
+  const CHEVRON = { left: "◀", right: "▶", up: "▲", down: "▼" };
+
+  function paintFacingBadges(facings) {
+    // Clear old badges
+    document.querySelectorAll(".na-face-badge").forEach((el) => el.remove());
+    for (const f of facings || []) {
+      const nodeEl = document.querySelector(`.node[data-id="${CSS.escape(f.id)}"]`);
+      if (!nodeEl) continue;
+      if (getComputedStyle(nodeEl).position === "static") {
+        nodeEl.style.position = "relative";
+      }
+      const badge = document.createElement("span");
+      badge.className = "na-face-badge";
+      badge.dataset.facing = f.facing;
+      badge.dataset.role = f.role || "";
+      badge.title = `${f.role || "node"} · face ${f.facing}`;
+      badge.textContent = CHEVRON[f.facing] || "◆";
+      nodeEl.appendChild(badge);
+    }
+  }
+
+  function easeOutCubic(t) {
+    return 1 - Math.pow(1 - t, 3);
+  }
+
+  let softMoveRaf = 0;
+  let softMoveBusy = false;
+  function cancelSoftMove() {
+    if (softMoveRaf) {
+      cancelAnimationFrame(softMoveRaf);
+      softMoveRaf = 0;
+    }
+  }
+
+  /** Cancelable rAF lerp — mode-gated callers only; cap concurrent nodes. */
+  function animateMoveNodes(targets, durationMs) {
+    if (!api.moveNode || !targets.length) return Promise.resolve();
+    cancelSoftMove();
+    const g = api.getGraph();
+    const from = new Map(
+      (g.nodes || []).map((n) => [String(n.id), { x: Number(n.x), y: Number(n.y) }])
+    );
+    const moves = targets
+      .map((t) => {
+        const a = from.get(String(t.id));
+        if (!a || !Number.isFinite(a.x) || !Number.isFinite(a.y)) return null;
+        if (Math.abs(t.x - a.x) < 0.5 && Math.abs(t.y - a.y) < 0.5) return null;
+        return { id: String(t.id), ax: a.x, ay: a.y, bx: t.x, by: t.y };
+      })
+      .filter(Boolean)
+      .slice(0, 16);
+    if (!moves.length) return Promise.resolve();
+    const dur = Math.max(60, Math.min(520, durationMs || 320));
+    return new Promise((resolve) => {
+      const t0 = performance.now();
+      function frame(now) {
+        const t = Math.min(1, (now - t0) / dur);
+        const e = easeOutCubic(t);
+        for (const m of moves) {
+          try {
+            api.moveNode(m.id, m.ax + (m.bx - m.ax) * e, m.ay + (m.by - m.ay) * e);
+          } catch (_) {}
+        }
+        if (t < 1) softMoveRaf = requestAnimationFrame(frame);
+        else {
+          softMoveRaf = 0;
+          for (const m of moves) {
+            try { api.moveNode(m.id, m.bx, m.by); } catch (_) {}
+          }
+          resolve();
+        }
+      }
+      softMoveRaf = requestAnimationFrame(frame);
+    });
+  }
+
+  /**
+   * Product · 14: soft-slide facing nudge (not teleport).
+   */
+  async function runApplyFacing(opts = {}) {
+    if (mode !== 14) return;
+    if (softMoveBusy) return;
+    softMoveBusy = true;
+    try {
+      const g = api.getGraph();
+      const result = applyFacingHints(g, {
+        force: !!opts.force,
+        ids: opts.ids,
+        nudge: opts.nudge !== false,
+      });
+      paintFacingBadges(result.facings);
+      if (api.moveNode && result.positions.length) {
+        setFaceNote(`facing · sliding · ${result.movedIds.length}`);
+        flashFacedNodes(result.movedIds);
+        await animateMoveNodes(result.positions, 340);
+      }
+      const reason = opts.reason || "apply";
+      setFaceNote(
+        result.cool && !opts.force
+          ? `already cool · ${result.priorId}`
+          : `${reason} · settled · ${result.facings.length} face · ${result.movedIds.length} nudge · ${result.priorId}`
+      );
+      return result;
+    } finally {
+      softMoveBusy = false;
+    }
+  }
+
+  async function runScrambleFacing() {
+    if (mode !== 14) return;
+    if (softMoveBusy) return;
+    softMoveBusy = true;
+    try {
+      const g = api.getGraph();
+      let nodes = (g.nodes || []).filter((n) => n.type !== "comment");
+      if (nodes.length < 2) {
+        try {
+          const a = api.addNode("text", 160, 160);
+          const b = api.addNode("llm", 380, 200);
+          const c = api.addNode("image", 600, 150);
+          if (api.connect && a && b && c) {
+            try { api.connect(a.id || a, "text", b.id || b, "prompt"); } catch (_) {}
+            try { api.connect(b.id || b, "text", c.id || c, "prompt"); } catch (_) {}
+          }
+        } catch (e) {
+          console.warn("[next-action] scramble seed failed", e);
+        }
+      }
+      const g2 = api.getGraph();
+      if (api.moveNode) {
+        const list = (g2.nodes || []).filter((n) => n.type !== "comment");
+        const baseX = 240;
+        const baseY = 190;
+        const targets = list.map((n, i) => ({
+          id: n.id,
+          x: baseX + (list.length - 1 - i) * 36 + (i % 2) * 20,
+          y: baseY + (i % 3) * 22 - 8,
+        }));
+        setFaceNote("scramble · sliding");
+        await animateMoveNodes(targets, 220);
+      }
+      const g3 = api.getGraph();
+      const result = scrambleFacing(g3);
+      paintFacingBadges(result.facings);
+      setFaceNote(`scrambled · ${result.facings.length} badges — hit Apply facing`);
+      return result;
+    } finally {
+      softMoveBusy = false;
+    }
+  }
+
+  function wireFacingControls() {
+    if (mode !== 14) return;
+    const applyBtn = panel.querySelector("#na-face-apply");
+    const scrambleBtn = panel.querySelector("#na-face-scramble");
+    if (applyBtn) {
+      applyBtn.addEventListener("click", () => {
+        runApplyFacing({ force: true, reason: "apply" });
+        refreshTips();
+      });
+    }
+    if (scrambleBtn) {
+      scrambleBtn.addEventListener("click", () => {
+        runScrambleFacing();
+        refreshTips();
+      });
+    }
+  }
+
   wireRingControls();
+  wireFacingControls();
 
   window.__nextAction = {
     record,
     refresh: refreshTips,
+    runApplyFacing,
+    runScrambleFacing,
+    proposeFacing: () => proposeFacing(api.getGraph()),
     onExamplesOpened() {
       if ((mode === 4 || mode === 1) && corpusMeta) {
         corpusEl.hidden = false;
