@@ -3,90 +3,143 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Product · 2 — action + graph-sketch schema</title>
+<title>Product · 2 — action + graph-sketch schema (usage)</title>
 <style>
-:root{--bg:#0b0d12;--panel:#12151d;--panel2:#171b25;--ink:#eef1f7;--dim:#aeb7c8;--line:#2a2e3c;--accent:#7c8cff;--cyan:#67e8f9;--gold:#f5d76e}
-*{box-sizing:border-box}body{margin:0;font:14px/1.4 system-ui,sans-serif;background:var(--bg);color:var(--ink)}
-header{display:flex;align-items:center;gap:1rem;padding:.75rem 1rem;background:rgba(18,21,29,.9);border-bottom:1px solid var(--line)}
-.logo{font-weight:800;font-size:1.1rem;background:linear-gradient(90deg,#67e8f9,#7c8cff 70%);-webkit-background-clip:text;background-clip:text;color:transparent}
-main{padding:1rem;max-width:920px;margin:0 auto}
-.canvas{position:relative;min-height:420px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem;background-image:linear-gradient(rgba(22,26,36,.8) 1px,transparent 1px),linear-gradient(90deg,rgba(22,26,36,.8) 1px,transparent 1px);background-size:40px 40px}
-.node{position:absolute;display:flex;align-items:center;gap:.5rem;padding:.55rem .85rem;background:var(--panel2);border:2px solid var(--accent);border-radius:10px;opacity:0;transform:scale(.85);transition:opacity .4s,transform .4s}
+:root{--bg:#0b0d12;--panel:#12151d;--panel2:#171b25;--ink:#eef1f7;--dim:#aeb7c8;--line:#2a2e3c;--accent:#7c8cff;--cyan:#67e8f9;--gold:#f5d76e;--mint:#6ee7b7}
+*{box-sizing:border-box;margin:0;padding:0}
+body{margin:0;font:13px/1.4 system-ui,-apple-system,sans-serif;background:#080a0e;color:var(--ink);overflow:hidden}
+.shell{width:880px;height:520px;margin:0 auto;display:flex;flex-direction:column;background:var(--bg);border:1px solid var(--line);border-radius:10px;overflow:hidden;position:relative}
+header{display:flex;align-items:center;gap:.75rem;padding:.55rem .9rem;background:rgba(18,21,29,.95);border-bottom:1px solid var(--line)}
+.logo{font-weight:800;font-size:1rem;background:linear-gradient(90deg,#67e8f9,#7c8cff 70%);-webkit-background-clip:text;background-clip:text;color:transparent}
+h1{font-size:.92rem;font-weight:600;flex:1}
+.badge{font-size:.68rem;padding:.2rem .5rem;border-radius:999px;background:#1a2840;color:var(--cyan);border:1px solid #2a4060}
+.sub{color:var(--dim);font-size:.72rem}
+.workspace{flex:1;display:grid;grid-template-columns:118px 1fr 230px;min-height:0}
+.pal{background:var(--panel);border-right:1px solid var(--line);padding:.65rem .5rem;display:flex;flex-direction:column;gap:.35rem}
+.pal label,.insp label{font-size:.65rem;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.25rem}
+.pal button{display:block;width:100%;text-align:left;padding:.45rem .55rem;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--dim);font:inherit;transition:all .25s}
+.pal button.hot{color:var(--ink);border-color:var(--accent);background:#1e2640}
+.canvas-wrap{position:relative;background:var(--panel);background-image:linear-gradient(rgba(22,26,36,.85) 1px,transparent 1px),linear-gradient(90deg,rgba(22,26,36,.85) 1px,transparent 1px);background-size:36px 36px;overflow:hidden}
+.node{position:absolute;display:flex;align-items:center;gap:.45rem;padding:.5rem .75rem;background:var(--panel2);border:2px solid var(--gold);border-radius:10px;box-shadow:0 4px 16px #0006;opacity:0;transform:scale(.9);transition:opacity .35s,transform .35s;z-index:2}
 .node.show{opacity:1;transform:scale(1)}
-.node .dot{width:10px;height:10px;border-radius:50%}
-.wire{position:absolute;height:2px;background:var(--accent);opacity:0;transition:opacity .4s,width .5s;transform-origin:left center}
-.wire.show{opacity:1}
-.section{margin-top:1.25rem}
-label{font-size:.75rem;color:var(--dim);text-transform:uppercase;letter-spacing:.04em}
-.chips{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.4rem}
-.chip{padding:.35rem .65rem;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--dim);font-size:.8rem;transition:background .3s,color .3s,border-color .3s}
-.chip.lit{background:#242c50;color:var(--cyan);border-color:var(--accent)}
-.meter{margin-top:.75rem;height:18px;background:var(--panel2);border-radius:6px;border:1px solid var(--line);overflow:hidden;max-width:400px;display:inline-block;vertical-align:middle;width:400px}
-.meter>i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s linear}
-.meta{display:inline-block;margin-left:.75rem;color:var(--dim);font-size:.8rem}
-h1{font-size:1rem;font-weight:600;margin:0;flex:1}
-.sub{color:var(--dim);font-size:.8rem}
+.node.llm{border-color:var(--accent)}
+.node .dot{width:9px;height:9px;border-radius:50%}
+.wire{position:absolute;height:2px;background:linear-gradient(90deg,var(--gold),var(--accent));opacity:0;width:0;transition:opacity .35s,width .5s;z-index:1}
+.wire.show{opacity:.9}
+.insp{background:var(--panel);border-left:1px solid var(--line);padding:.65rem .55rem;display:flex;flex-direction:column;gap:.45rem;overflow:hidden}
+.log{flex:1;display:flex;flex-direction:column;gap:.3rem;min-height:0}
+.row{font-size:.72rem;padding:.35rem .45rem;border-radius:7px;border:1px solid transparent;background:#141820;color:var(--dim);opacity:0;transform:translateY(6px);transition:all .3s;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.row.show{opacity:1;transform:none}
+.row.lit{border-color:var(--accent);color:var(--cyan);background:#182238}
+.tokens{display:flex;flex-wrap:wrap;gap:.28rem;margin-top:.2rem}
+.tok{font-size:.65rem;padding:.22rem .4rem;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--dim);opacity:.35;transition:all .3s;font-family:ui-monospace,Menlo,monospace}
+.tok.lit{opacity:1;color:var(--mint);border-color:#2a6050;background:#14241e}
+.meter{height:8px;background:#1a1f2a;border-radius:4px;overflow:hidden;margin-top:.35rem}
+.meter>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--cyan));transition:width .25s}
+.meta{font-size:.68rem;color:var(--dim);margin-top:.25rem}
+.cursor{position:absolute;width:14px;height:14px;border-radius:50% 50% 50% 0;background:var(--ink);transform:rotate(-30deg);pointer-events:none;z-index:50;opacity:0;transition:left .5s cubic-bezier(.2,.8,.2,1),top .5s cubic-bezier(.2,.8,.2,1),opacity .2s;box-shadow:0 2px 6px #0008}
+.cursor.on{opacity:1}
+.cursor.click{transform:rotate(-30deg) scale(.85);background:var(--cyan)}
 </style>
 </head>
 <body>
-<header>
-  <div class="logo">nanoodle</div>
-  <h1>Product · 2 — action + graph-sketch schema</h1>
-  <span class="sub">encode → fixed float vector</span>
-</header>
-<main>
-  <div class="canvas" id="c">
-    <div class="node" id="n0" style="left:40px;top:60px;border-color:var(--gold)"><span class="dot" style="background:var(--gold)"></span>text</div>
-    <div class="wire" id="w0" style="left:160px;top:82px;width:70px"></div>
-    <div class="node" id="n1" style="left:230px;top:60px"><span class="dot" style="background:var(--accent)"></span>llm</div>
-    <div class="wire" id="w1" style="left:350px;top:82px;width:70px;background:var(--cyan)"></div>
-    <div class="node" id="n2" style="left:420px;top:60px;border-color:var(--cyan)"><span class="dot" style="background:var(--cyan)"></span>image</div>
-
-    <div class="section" style="position:absolute;left:40px;top:160px;right:40px">
-      <label>action chips</label>
-      <div class="chips" id="actions"></div>
+<div class="shell">
+  <header>
+    <div class="logo">nanoodle</div>
+    <h1>Product · 2 — action + graph-sketch</h1>
+    <span class="badge">usage</span>
+    <span class="sub">add · wire · encode</span>
+  </header>
+  <div class="workspace">
+    <aside class="pal">
+      <label>palette</label>
+      <button>text</button>
+      <button>llm</button>
+      <button>image</button>
+      <button>wire</button>
+    </aside>
+    <div class="canvas-wrap" id="cv">
+      <div class="node" id="n0" style="left:60px;top:140px"><span class="dot" style="background:var(--gold)"></span>text</div>
+      <div class="wire" id="w0" style="left:155px;top:162px"></div>
+      <div class="node llm" id="n1" style="left:270px;top:140px"><span class="dot" style="background:var(--accent)"></span>llm</div>
+      <div class="cursor" id="cur"></div>
     </div>
-    <div class="section" style="position:absolute;left:40px;top:260px;right:40px">
-      <label>schema tokens (encoding…)</label>
-      <div class="chips" id="tokens"></div>
-      <div style="margin-top:.75rem">
-        <div class="meter"><i id="bar"></i></div>
-        <span class="meta" id="meta">dim 83 · K=3 history</span>
-      </div>
-    </div>
+    <aside class="insp">
+      <label>action log</label>
+      <div class="log" id="log"></div>
+      <label style="margin-top:.4rem">schema tokens</label>
+      <div class="tokens" id="tokens"></div>
+      <div class="meter"><i id="bar"></i></div>
+      <div class="meta" id="meta">dim 83 · waiting</div>
+    </aside>
   </div>
-</main>
+</div>
 <script>
-const ACTIONS=["add:text","add:llm","add:image","wire","set:model","run"];
-const TOKENS=["h0:add:text","h1:add:llm","h2:add:image","sketch:n=3","links=2","sel=image"];
-const aEl=document.getElementById("actions");
-const tEl=document.getElementById("tokens");
-ACTIONS.forEach(a=>{const s=document.createElement("span");s.className="chip";s.textContent=a;s.dataset.k=a;aEl.appendChild(s)});
-TOKENS.forEach(a=>{const s=document.createElement("span");s.className="chip";s.textContent=a;tEl.appendChild(s)});
-function loop(){
-  // reset
-  ["n0","n1","n2","w0","w1"].forEach(id=>document.getElementById(id).classList.remove("show"));
-  [...aEl.children].forEach(c=>c.classList.remove("lit"));
-  [...tEl.children].forEach(c=>c.classList.remove("lit"));
-  document.getElementById("bar").style.width="0%";
-  const steps=[
-    [400,()=>document.getElementById("n0").classList.add("show")],
-    [700,()=>{aEl.children[0].classList.add("lit");document.getElementById("n1").classList.add("show")}],
-    [500,()=>{document.getElementById("w0").classList.add("show");aEl.children[1].classList.add("lit")}],
-    [700,()=>{document.getElementById("n2").classList.add("show");aEl.children[2].classList.add("lit")}],
-    [500,()=>{document.getElementById("w1").classList.add("show");aEl.children[3].classList.add("lit")}],
-    [400,()=>{aEl.children[4].classList.add("lit");aEl.children[5].classList.add("lit")}],
-  ];
-  let t=0;
-  steps.forEach(([dt,fn])=>{t+=dt;setTimeout(fn,t)});
-  // encode tokens
-  TOKENS.forEach((_,i)=>setTimeout(()=>{
-    tEl.children[i].classList.add("lit");
-    document.getElementById("bar").style.width=((i+1)/TOKENS.length*100)+"%";
-  }, t+400+i*350));
-  setTimeout(loop, t+400+TOKENS.length*350+1200);
+const ACTIONS=['add:text','add:llm','wire'];
+const TOKENS=['h0:add:text','h1:add:llm','h2:wire','sketch:n=2','links=1','sel=llm'];
+const log=document.getElementById('log');
+const tokEl=document.getElementById('tokens');
+ACTIONS.forEach(a=>{const d=document.createElement('div');d.className='row';d.textContent=a;log.appendChild(d)});
+TOKENS.forEach(t=>{const s=document.createElement('span');s.className='tok';s.textContent=t;tokEl.appendChild(s)});
+const cur=document.getElementById('cur');
+const pal=[...document.querySelectorAll('.pal button')];
+const rows=[...log.children];
+const toks=[...tokEl.children];
+function move(x,y){cur.style.left=x+'px';cur.style.top=y+'px'}
+function wait(ms){return new Promise(r=>setTimeout(r,ms))}
+async function clickPulse(){cur.classList.add('click');await wait(110);cur.classList.remove('click')}
+async function run(){
+  cur.classList.remove('on');
+  ['n0','n1'].forEach(id=>document.getElementById(id).classList.remove('show'));
+  const w=document.getElementById('w0');w.classList.remove('show');w.style.width='0';
+  rows.forEach(r=>r.classList.remove('show','lit'));
+  toks.forEach(t=>t.classList.remove('lit'));
+  pal.forEach(b=>b.classList.remove('hot'));
+  document.getElementById('bar').style.width='0%';
+  document.getElementById('meta').textContent='dim 83 · waiting';
+  await wait(200);cur.classList.add('on');
+  // add text
+  move(55,95);await wait(400);await clickPulse();
+  pal[0].classList.add('hot');document.getElementById('n0').classList.add('show');
+  rows[0].classList.add('show','lit');await wait(350);
+  // add llm
+  move(55,130);await wait(380);await clickPulse();
+  pal[1].classList.add('hot');document.getElementById('n1').classList.add('show');
+  rows[0].classList.remove('lit');rows[1].classList.add('show','lit');await wait(350);
+  // draw wire: drag from text to llm
+  move(150,165);await wait(320);await clickPulse();
+  pal[3].classList.add('hot');
+  move(270,165);await wait(480);
+  w.classList.add('show');w.style.width='115px';
+  rows[1].classList.remove('lit');rows[2].classList.add('show','lit');
+  await wait(300);
+  // tokens light up
+  document.getElementById('meta').textContent='encoding… dim 83 · K=3';
+  for(let i=0;i<toks.length;i++){
+    toks[i].classList.add('lit');
+    document.getElementById('bar').style.width=((i+1)/toks.length*100)+'%';
+    await wait(220);
+  }
+  document.getElementById('meta').textContent='vector ready · sketch n=2 links=1';
+  await wait(1100);
+  // second pass quicker
+  document.getElementById('n1').classList.remove('show');w.classList.remove('show');w.style.width='0';
+  rows.forEach(r=>r.classList.remove('show','lit'));toks.forEach(t=>t.classList.remove('lit'));
+  document.getElementById('bar').style.width='0%';pal.forEach(b=>b.classList.remove('hot'));
+  pal[0].classList.add('hot');rows[0].classList.add('show','lit');
+  await wait(250);
+  move(55,130);await wait(300);await clickPulse();
+  pal[1].classList.add('hot');document.getElementById('n1').classList.add('show');
+  rows[0].classList.remove('lit');rows[1].classList.add('show','lit');await wait(250);
+  move(150,165);await wait(250);move(270,165);await wait(400);
+  w.classList.add('show');w.style.width='115px';
+  rows[1].classList.remove('lit');rows[2].classList.add('show','lit');
+  for(let i=0;i<toks.length;i++){toks[i].classList.add('lit');document.getElementById('bar').style.width=((i+1)/toks.length*100)+'%';await wait(150)}
+  document.getElementById('meta').textContent='vector ready · sketch n=2 links=1';
+  await wait(1000);
+  run();
 }
-loop();
+run();
 </script>
 </body>
 </html>
