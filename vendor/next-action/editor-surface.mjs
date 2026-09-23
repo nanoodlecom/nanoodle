@@ -1,10 +1,19 @@
 /**
- * Real Nanoodle editor surface for Product · 1–· 6 next-action.
+ * Real Nanoodle editor surface for Product · 1–· 6 + · 15 (layout mode particles).
  * Soft tips + action log + Examples→corpus + · 5 local ring + · 6 cold-start seeds.
+ * · 15: explicit aesthetic modes (flow / columns / radial) + Apply layout /
+ * Mess up — no · 7 required. Distinct from · 13 cool-layout (auto Exemplar).
  * Dynamic imports so Product · 2 (schema-only) still mounts.
  */
 import { ACTION_VOCAB, NODE_TYPES, sketchFromGraph, schema } from "./encode.mjs";
 import { createRing, RING_CAPACITY } from "./ring.mjs";
+import {
+  MODES,
+  proposeLayoutMode,
+  applyLayoutMode,
+  scrambleLayout,
+  layoutModeSummary,
+} from "./layout-mode-particles.mjs";
 
 const BASE = new URL(".", import.meta.url);
 
@@ -12,7 +21,7 @@ function productMode() {
   try {
     const q = new URLSearchParams(location.search);
     const p = q.get("product") || q.get("na");
-    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5" || p === "6") return Number(p);
+    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5" || p === "6" || p === "15") return Number(p);
   } catch (_) {}
   return 1;
 }
@@ -104,6 +113,18 @@ function ensureStyles() {
 #na-ghost{position:absolute;pointer-events:none;z-index:5;display:flex;align-items:center;gap:.35rem;padding:.4rem .65rem;
   border:1.5px dashed #3d5a70;border-radius:10px;background:rgba(20,30,45,.55);color:#67e8f9;font:12px/1.2 system-ui;opacity:0;transition:opacity .25s}
 #na-ghost.show{opacity:1}
+#na-panel .na-mode-note{font-size:.68rem;color:#67e8f9;padding:.15rem 0 0;min-height:1em}
+#na-panel .na-mode-note.flash{color:#a5f3fc}
+#na-panel .na-mode-chips{display:flex;flex-wrap:wrap;gap:.25rem}
+#na-panel .na-mode-chip{font:inherit;font-size:.65rem;padding:.28rem .5rem;border-radius:999px;border:1px solid #2a2e3c;background:#1a1f2c;color:#aeb7c8;cursor:pointer}
+#na-panel .na-mode-chip:hover{border-color:#67e8f9;color:#67e8f9}
+#na-panel .na-mode-chip.on{border-color:#a78bfa;color:#ddd6fe;background:#1a1530;box-shadow:0 0 0 1px #a78bfa44}
+#na-panel .na-actions{display:flex;gap:.3rem;flex-wrap:wrap}
+#na-panel .na-btn{font:inherit;font-size:.65rem;padding:.28rem .45rem;border-radius:6px;border:1px solid #2a2e3c;background:#1a1f2c;color:#aeb7c8;cursor:pointer}
+#na-panel .na-btn:hover{border-color:#67e8f9;color:#67e8f9}
+.na-mode-flash{box-shadow:0 0 0 2px #a78bfaaa,0 0 14px #a78bfa55 !important;transition:box-shadow .35s ease,left .4s ease,top .4s ease}
+.na-mode-dot{position:absolute;z-index:6;pointer-events:none;width:7px;height:7px;border-radius:50%;
+  background:#a78bfa;box-shadow:0 0 8px #a78bfa88;top:6px;right:6px;opacity:.9}
 `;
   document.head.appendChild(s);
 }
@@ -123,6 +144,7 @@ function buildPanel(mode) {
     4: "gallery → dataset",
     5: "local action ring",
     6: "cold-start seeds",
+    15: "layout mode particles",
   };
   if (mode === 5) {
     el.innerHTML = `
@@ -160,6 +182,7 @@ function buildPanel(mode) {
       <div class="na-label" id="na-title">${titles[mode] || "tips"}</div>
       <div id="na-tips"></div>
       ${mode === 6 ? `<div class="na-label">first trios</div><div class="na-trio-row" id="na-trios"></div>` : ""}
+      ${mode === 15 ? `<div class="na-label">mode</div><div class="na-mode-chips" id="na-mode-chips"><button type="button" class="na-mode-chip on" data-mode="flow">flow</button><button type="button" class="na-mode-chip" data-mode="columns">columns</button><button type="button" class="na-mode-chip" data-mode="radial">radial</button></div><div class="na-actions"><button type="button" class="na-btn" id="na-mode-apply">Apply layout</button><button type="button" class="na-btn" id="na-mode-mess">Mess up</button></div><div class="na-mode-note" id="na-mode-note">Pick mode → Apply layout</div>` : ""}
       <div class="na-label">history</div>
       <div class="na-hist"><b id="na-hist">[ ]</b></div>
       <div class="na-label" id="na-schema-label">schema tokens</div>
@@ -344,6 +367,17 @@ export async function mount(api) {
         { action: "add:text", score: 2, source: "gallery" },
         { action: "add:image", score: 1, source: "gallery" },
       ];
+    } else if (mode === 15) {
+      const proposal = proposeLayoutMode(g, selectedMode);
+      rows = [
+        { action: "layout:apply", score: 3, label: `Apply ${selectedMode}` },
+        { action: "layout:mess", score: 2, label: "Mess up" },
+        { action: "add:text", score: 1, source: "schema" },
+      ];
+      const note = panel.querySelector("#na-mode-note");
+      if (note && !note.dataset.locked) {
+        note.textContent = `mode ${selectedMode} · ${proposal.headId} · ${proposal.positions.length} targets`;
+      }
     } else if (tables && recommendFrequency) {
       rows = recommendFrequency(tables, history, sketch, 3);
     } else {
@@ -364,8 +398,12 @@ export async function mount(api) {
         const b = document.createElement("button");
         b.type = "button";
         b.className = "na-tip" + (i === 0 ? " best" : "");
-        b.innerHTML = `<span>✦ ${actionLabel(r.action)}</span><span class="pct">${pct(r.score, rows)}%</span>`;
-        b.onclick = () => applyTip(r.action);
+        b.innerHTML = `<span>✦ ${r.label || actionLabel(r.action)}</span><span class="pct">${pct(r.score, rows)}%</span>`;
+        b.onclick = () => {
+          if (r.action === "layout:apply") { runApplyLayoutMode({ force: true, reason: "tip" }); refreshTips(); return; }
+          if (r.action === "layout:mess") { runMessUpLayout(); refreshTips(); return; }
+          applyTip(r.action);
+        };
         tipsEl.appendChild(b);
       });
     }
@@ -484,11 +522,162 @@ function applyTip(action) {
     refreshTips();
   }
 
+  /** @type {"flow"|"columns"|"radial"} */
+  let selectedMode = "flow";
+
+  function setModeNote(text) {
+    const note = panel.querySelector("#na-mode-note");
+    if (!note) return;
+    note.textContent = text;
+    note.dataset.locked = "1";
+    note.classList.add("flash");
+    setTimeout(() => {
+      note.classList.remove("flash");
+      delete note.dataset.locked;
+    }, 900);
+  }
+
+  function flashMovedNodes(ids) {
+    for (const id of ids || []) {
+      const el = document.querySelector(`.node[data-id="${CSS.escape(id)}"]`);
+      if (!el) continue;
+      el.classList.add("na-mode-flash");
+      setTimeout(() => el.classList.remove("na-mode-flash"), 500);
+    }
+  }
+
+  function paintModeDots(mode) {
+    document.querySelectorAll(".na-mode-dot").forEach((el) => el.remove());
+    if (mode !== 15) return;
+    const g = api.getGraph();
+    for (const n of g.nodes || []) {
+      if (n.type === "comment") continue;
+      const nodeEl = document.querySelector(`.node[data-id="${CSS.escape(n.id)}"]`);
+      if (!nodeEl) continue;
+      if (getComputedStyle(nodeEl).position === "static") {
+        nodeEl.style.position = "relative";
+      }
+      const dot = document.createElement("span");
+      dot.className = "na-mode-dot";
+      dot.title = `layout mode · ${selectedMode}`;
+      dot.dataset.mode = selectedMode;
+      nodeEl.appendChild(dot);
+    }
+  }
+
+  function highlightModeChips() {
+    panel.querySelectorAll(".na-mode-chip").forEach((btn) => {
+      btn.classList.toggle("on", btn.dataset.mode === selectedMode);
+    });
+  }
+
+  /**
+   * Product · 15: apply chosen layout mode via moveNode.
+   */
+  function runApplyLayoutMode(opts = {}) {
+    if (mode !== 15) return;
+    const g = api.getGraph();
+    const result = applyLayoutMode(g, selectedMode, {
+      force: !!opts.force,
+      ids: opts.ids,
+      t: opts.t ?? 0.75,
+    });
+    paintModeDots(mode);
+    if (api.moveNode && result.positions.length) {
+      for (const p of result.positions) {
+        try {
+          api.moveNode(p.id, p.x, p.y);
+        } catch (e) {
+          console.warn("[next-action] moveNode failed", p.id, e);
+        }
+      }
+      flashMovedNodes(result.movedIds);
+    }
+    const reason = opts.reason || "apply";
+    setModeNote(
+      result.cool && !opts.force
+        ? `already cool · ${result.mode} · ${result.headId}`
+        : `${reason} · ${result.mode} · ${result.movedIds.length} move · ${result.headId}`
+    );
+    return result;
+  }
+
+  /** Scatter nodes so Apply has visible work (demo / GIF). */
+  function runMessUpLayout() {
+    if (mode !== 15) return;
+    const g = api.getGraph();
+    let nodes = (g.nodes || []).filter((n) => n.type !== "comment");
+    if (nodes.length < 2) {
+      try {
+        const a = api.addNode("text", 200, 180);
+        const b = api.addNode("llm", 420, 210);
+        const c = api.addNode("image", 640, 170);
+        if (api.connect && a && b && c) {
+          try { api.connect(a.id || a, "text", b.id || b, "prompt"); } catch (_) {}
+          try { api.connect(b.id || b, "text", c.id || c, "prompt"); } catch (_) {}
+        }
+      } catch (e) {
+        console.warn("[next-action] mess seed failed", e);
+      }
+    }
+    const g2 = api.getGraph();
+    const scrambled = scrambleLayout(g2);
+    if (api.moveNode) {
+      for (const p of scrambled.positions) {
+        try {
+          api.moveNode(p.id, p.x, p.y);
+        } catch (_) {}
+      }
+    }
+    paintModeDots(mode);
+    setModeNote(`messed · ${scrambled.movedIds.length} nodes — pick mode + Apply layout`);
+    return scrambled;
+  }
+
+  function wireLayoutModeControls() {
+    if (mode !== 15) return;
+    panel.querySelectorAll(".na-mode-chip").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        selectedMode = btn.dataset.mode || "flow";
+        if (!MODES.includes(selectedMode)) selectedMode = "flow";
+        highlightModeChips();
+        paintModeDots(mode);
+        const proposal = proposeLayoutMode(api.getGraph(), selectedMode);
+        setModeNote(`mode ${selectedMode} · ${proposal.headId} · ${proposal.positions.length} targets`);
+        refreshTips();
+      });
+    });
+    const applyBtn = panel.querySelector("#na-mode-apply");
+    const messBtn = panel.querySelector("#na-mode-mess");
+    if (applyBtn) {
+      applyBtn.addEventListener("click", () => {
+        runApplyLayoutMode({ force: true, reason: "apply" });
+        refreshTips();
+      });
+    }
+    if (messBtn) {
+      messBtn.addEventListener("click", () => {
+        runMessUpLayout();
+        refreshTips();
+      });
+    }
+    highlightModeChips();
+  }
+
   wireRingControls();
+  wireLayoutModeControls();
 
   window.__nextAction = {
     record,
     refresh: refreshTips,
+    runApplyLayoutMode,
+    runMessUpLayout,
+    getSelectedMode: () => selectedMode,
+    setSelectedMode: (m) => {
+      selectedMode = MODES.includes(m) ? m : "flow";
+      highlightModeChips();
+    },
+    proposeLayoutMode: (m) => proposeLayoutMode(api.getGraph(), m || selectedMode),
     onExamplesOpened() {
       if ((mode === 4 || mode === 1) && corpusMeta) {
         corpusEl.hidden = false;
