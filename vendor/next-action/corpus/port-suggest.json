@@ -1,0 +1,412 @@
+{
+  "schemaVersion": 1,
+  "product": 7,
+  "bakedAt": "2026-09-23T16:57:48.549Z",
+  "graphCount": 8,
+  "edgeCount": 58,
+  "typeToType": {
+    "text→llm": 3,
+    "llm→image": 2,
+    "image→resize": 3,
+    "image→edit": 3,
+    "text→image": 8,
+    "image→ivideo": 3,
+    "llm→ivideo": 1,
+    "text→ivideo": 2,
+    "text→join": 5,
+    "join→llm": 4,
+    "join→join": 3,
+    "llm→join": 4,
+    "llm→llm": 1,
+    "llm→music": 1,
+    "join→music": 1,
+    "join→edit": 2,
+    "image→llm": 2,
+    "edit→llm": 2,
+    "edit→resize": 2,
+    "edit→edit": 1,
+    "text→tts": 1,
+    "image→lipsync": 1,
+    "tts→lipsync": 1,
+    "text→lipsync": 1,
+    "ivideo→vedit": 1
+  },
+  "portPair": {
+    "text.text→llm.prompt": 3,
+    "llm.text→image.prompt": 2,
+    "image.image→resize.image": 3,
+    "image.image→edit.image": 2,
+    "text.text→image.prompt": 8,
+    "image.image→ivideo.image": 3,
+    "llm.text→ivideo.prompt": 1,
+    "text.text→ivideo.prompt": 2,
+    "text.text→join.a": 2,
+    "text.text→join.b": 3,
+    "join.text→llm.prompt": 4,
+    "join.text→join.a": 3,
+    "llm.text→join.b": 3,
+    "llm.text→llm.prompt": 1,
+    "llm.text→music.lyrics": 1,
+    "llm.text→join.a": 1,
+    "join.text→music.prompt": 1,
+    "join.text→edit.prompt": 2,
+    "image.image→llm.img1": 2,
+    "edit.image→llm.img2": 2,
+    "edit.image→resize.image": 2,
+    "edit.image→edit.image": 1,
+    "image.image→edit.image2": 1,
+    "text.text→tts.prompt": 1,
+    "image.image→lipsync.image": 1,
+    "tts.audio→lipsync.audio": 1,
+    "text.text→lipsync.prompt": 1,
+    "ivideo.video→vedit.video": 1
+  },
+  "topTargets": {
+    "text|text": {
+      "llm|prompt": 3,
+      "image|prompt": 8,
+      "ivideo|prompt": 2,
+      "join|a": 2,
+      "join|b": 3,
+      "tts|prompt": 1,
+      "lipsync|prompt": 1
+    },
+    "llm|text": {
+      "image|prompt": 2,
+      "ivideo|prompt": 1,
+      "join|b": 3,
+      "llm|prompt": 1,
+      "music|lyrics": 1,
+      "join|a": 1
+    },
+    "image|image": {
+      "resize|image": 3,
+      "edit|image": 2,
+      "ivideo|image": 3,
+      "llm|img1": 2,
+      "edit|image2": 1,
+      "lipsync|image": 1
+    },
+    "join|text": {
+      "llm|prompt": 4,
+      "join|a": 3,
+      "music|prompt": 1,
+      "edit|prompt": 2
+    },
+    "edit|image": {
+      "llm|img2": 2,
+      "resize|image": 2,
+      "edit|image": 1
+    },
+    "tts|audio": {
+      "lipsync|audio": 1
+    },
+    "ivideo|video": {
+      "vedit|video": 1
+    }
+  },
+  "portCatalog": {
+    "text": {
+      "inputs": [],
+      "outputs": [
+        "text"
+      ]
+    },
+    "llm": {
+      "inputs": [
+        "img1",
+        "img2",
+        "prompt"
+      ],
+      "outputs": [
+        "text"
+      ]
+    },
+    "image": {
+      "inputs": [
+        "prompt"
+      ],
+      "outputs": [
+        "image"
+      ]
+    },
+    "resize": {
+      "inputs": [
+        "image"
+      ],
+      "outputs": [
+        "image"
+      ]
+    },
+    "edit": {
+      "inputs": [
+        "image",
+        "image2",
+        "prompt"
+      ],
+      "outputs": [
+        "image"
+      ]
+    },
+    "ivideo": {
+      "inputs": [
+        "image",
+        "prompt"
+      ],
+      "outputs": [
+        "video"
+      ]
+    },
+    "join": {
+      "inputs": [
+        "a",
+        "b"
+      ],
+      "outputs": [
+        "text"
+      ]
+    },
+    "music": {
+      "inputs": [
+        "lyrics",
+        "prompt"
+      ],
+      "outputs": [
+        "audio"
+      ]
+    },
+    "tts": {
+      "inputs": [
+        "prompt"
+      ],
+      "outputs": [
+        "audio"
+      ]
+    },
+    "lipsync": {
+      "inputs": [
+        "audio",
+        "image",
+        "prompt"
+      ],
+      "outputs": [
+        "video"
+      ]
+    },
+    "vedit": {
+      "inputs": [
+        "prompt",
+        "video"
+      ],
+      "outputs": [
+        "video"
+      ]
+    },
+    "choice": {
+      "inputs": [],
+      "outputs": [
+        "text"
+      ]
+    },
+    "comment": {
+      "inputs": [],
+      "outputs": []
+    }
+  },
+  "topTypePairs": [
+    {
+      "key": "text→image",
+      "count": 8
+    },
+    {
+      "key": "text→join",
+      "count": 5
+    },
+    {
+      "key": "join→llm",
+      "count": 4
+    },
+    {
+      "key": "llm→join",
+      "count": 4
+    },
+    {
+      "key": "image→edit",
+      "count": 3
+    },
+    {
+      "key": "image→ivideo",
+      "count": 3
+    },
+    {
+      "key": "image→resize",
+      "count": 3
+    },
+    {
+      "key": "join→join",
+      "count": 3
+    },
+    {
+      "key": "text→llm",
+      "count": 3
+    },
+    {
+      "key": "edit→llm",
+      "count": 2
+    },
+    {
+      "key": "edit→resize",
+      "count": 2
+    },
+    {
+      "key": "image→llm",
+      "count": 2
+    },
+    {
+      "key": "join→edit",
+      "count": 2
+    },
+    {
+      "key": "llm→image",
+      "count": 2
+    },
+    {
+      "key": "text→ivideo",
+      "count": 2
+    },
+    {
+      "key": "edit→edit",
+      "count": 1
+    },
+    {
+      "key": "image→lipsync",
+      "count": 1
+    },
+    {
+      "key": "ivideo→vedit",
+      "count": 1
+    },
+    {
+      "key": "join→music",
+      "count": 1
+    },
+    {
+      "key": "llm→ivideo",
+      "count": 1
+    }
+  ],
+  "topPortPairs": [
+    {
+      "key": "text.text→image.prompt",
+      "count": 8
+    },
+    {
+      "key": "join.text→llm.prompt",
+      "count": 4
+    },
+    {
+      "key": "image.image→ivideo.image",
+      "count": 3
+    },
+    {
+      "key": "image.image→resize.image",
+      "count": 3
+    },
+    {
+      "key": "join.text→join.a",
+      "count": 3
+    },
+    {
+      "key": "llm.text→join.b",
+      "count": 3
+    },
+    {
+      "key": "text.text→join.b",
+      "count": 3
+    },
+    {
+      "key": "text.text→llm.prompt",
+      "count": 3
+    },
+    {
+      "key": "edit.image→llm.img2",
+      "count": 2
+    },
+    {
+      "key": "edit.image→resize.image",
+      "count": 2
+    },
+    {
+      "key": "image.image→edit.image",
+      "count": 2
+    },
+    {
+      "key": "image.image→llm.img1",
+      "count": 2
+    },
+    {
+      "key": "join.text→edit.prompt",
+      "count": 2
+    },
+    {
+      "key": "llm.text→image.prompt",
+      "count": 2
+    },
+    {
+      "key": "text.text→ivideo.prompt",
+      "count": 2
+    },
+    {
+      "key": "text.text→join.a",
+      "count": 2
+    },
+    {
+      "key": "edit.image→edit.image",
+      "count": 1
+    },
+    {
+      "key": "image.image→edit.image2",
+      "count": 1
+    },
+    {
+      "key": "image.image→lipsync.image",
+      "count": 1
+    },
+    {
+      "key": "ivideo.video→vedit.video",
+      "count": 1
+    },
+    {
+      "key": "join.text→music.prompt",
+      "count": 1
+    },
+    {
+      "key": "llm.text→ivideo.prompt",
+      "count": 1
+    },
+    {
+      "key": "llm.text→join.a",
+      "count": 1
+    },
+    {
+      "key": "llm.text→llm.prompt",
+      "count": 1
+    },
+    {
+      "key": "llm.text→music.lyrics",
+      "count": 1
+    },
+    {
+      "key": "text.text→lipsync.prompt",
+      "count": 1
+    },
+    {
+      "key": "text.text→tts.prompt",
+      "count": 1
+    },
+    {
+      "key": "tts.audio→lipsync.audio",
+      "count": 1
+    }
+  ]
+}

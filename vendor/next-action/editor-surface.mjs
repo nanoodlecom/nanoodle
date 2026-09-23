@@ -1,6 +1,6 @@
 /**
- * Real Nanoodle editor surface for Product · 1–· 6 next-action.
- * Soft tips + action log + Examples→corpus + · 5 local ring + · 6 cold-start seeds.
+ * Real Nanoodle editor surface for Product · 1–· 7 next-action.
+ * Soft tips + action log + Examples→corpus + · 5 local ring + · 6 cold-start seeds + · 7 ghost wires.
  * Dynamic imports so Product · 2 (schema-only) still mounts.
  */
 import { ACTION_VOCAB, NODE_TYPES, sketchFromGraph, schema } from "./encode.mjs";
@@ -12,7 +12,7 @@ function productMode() {
   try {
     const q = new URLSearchParams(location.search);
     const p = q.get("product") || q.get("na");
-    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5" || p === "6") return Number(p);
+    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5" || p === "6" || p === "7") return Number(p);
   } catch (_) {}
   return 1;
 }
@@ -102,8 +102,23 @@ function ensureStyles() {
 #na-panel .na-trio:hover{border-color:#a78bfa;color:#ddd6fe;background:#1a1530}
 #na-panel .na-trio .na-trio-count{margin-left:auto;font-size:.6rem;color:#f5d76e;flex-shrink:0}
 #na-ghost{position:absolute;pointer-events:none;z-index:5;display:flex;align-items:center;gap:.35rem;padding:.4rem .65rem;
-  border:1.5px dashed #3d5a70;border-radius:10px;background:rgba(20,30,45,.55);color:#67e8f9;font:12px/1.2 system-ui;opacity:0;transition:opacity .25s}
+  border:1.5px dashed #3d5a70;border-radius:10px;background:rgba(20,30,45,.55);color:#67e8f9;font:12px/1.2 system-ui;opacity:0;transition:opacity .28s ease}
 #na-ghost.show{opacity:1}
+#na-ghost-wire{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:4;overflow:visible}
+#na-ghost-wire path{fill:none;stroke:#67e8f9;stroke-width:2.25;stroke-dasharray:7 6;opacity:0;transition:opacity .28s ease;
+  animation:na-ghost-dash 1.1s linear infinite}
+#na-ghost-wire.show path{opacity:.9}
+#na-ghost-wire circle{fill:#67e8f9;opacity:0;transition:opacity .28s ease}
+#na-ghost-wire.show circle{opacity:.95}
+#na-ghost-target{position:absolute;pointer-events:none;z-index:5;border:1.5px dashed #a78bfa;border-radius:12px;opacity:0;transition:opacity .28s ease;box-shadow:0 0 0 0 #a78bfa00}
+#na-ghost-target.show{opacity:.75;box-shadow:0 0 18px #a78bfa44}
+#na-panel .na-ghost-note{font-size:.68rem;color:#67e8f9;padding:.15rem 0 0;min-height:1em;transition:color .25s ease}
+#na-panel .na-ghost-note.flash{color:#a5f3fc}
+#na-panel .na-ghost-note.ok{color:#6ee7b7}
+@keyframes na-ghost-dash{to{stroke-dashoffset:-26}}
+@media (prefers-reduced-motion:reduce){
+  #na-ghost-wire path{animation:none}
+}
 `;
   document.head.appendChild(s);
 }
@@ -123,6 +138,7 @@ function buildPanel(mode) {
     4: "gallery → dataset",
     5: "local action ring",
     6: "cold-start seeds",
+    7: "port suggest · ghost wires",
   };
   if (mode === 5) {
     el.innerHTML = `
@@ -159,6 +175,7 @@ function buildPanel(mode) {
     <div class="na-body">
       <div class="na-label" id="na-title">${titles[mode] || "tips"}</div>
       <div id="na-tips"></div>
+      ${mode === 7 ? `<div class="na-ghost-note" id="na-ghost-note">dangling ports → soft ghost wires</div>` : ""}
       ${mode === 6 ? `<div class="na-label">first trios</div><div class="na-trio-row" id="na-trios"></div>` : ""}
       <div class="na-label">history</div>
       <div class="na-hist"><b id="na-hist">[ ]</b></div>
@@ -178,6 +195,7 @@ function buildPanel(mode) {
  *   openExamples: () => void,
  *   runSelected?: () => void,
  *   worldEl?: HTMLElement | null,
+ *   connect?: (fromNode:string, fromPort:string, toNode:string, toPort:string) => any,
  * }} api
  */
 export async function mount(api) {
@@ -206,16 +224,24 @@ export async function mount(api) {
   const freqMod = await tryImport("./frequency.mjs");
   const coldMod = await tryImport("./cold-start.mjs");
   const recMod = await tryImport("./recommend.mjs");
+  const portMod = await tryImport("./port-suggest.mjs");
   const snMod = await tryImport("../smallnet/index.js");
   if (freqMod) recommendFrequency = freqMod.recommendFrequency;
   let recommendColdStart = coldMod?.recommendColdStart || null;
   let topFirstTrios = coldMod?.topFirstTrios || null;
   if (recMod) recommendNext = recMod.recommendNext;
+  let recommendPortSuggest = portMod?.recommendPortSuggest || null;
 
   try {
     tables = await loadJSON("corpus/frequency-tables.json");
   } catch (_) {
     tables = null;
+  }
+  let portTables = null;
+  try {
+    portTables = await loadJSON("corpus/port-suggest.json");
+  } catch (_) {
+    portTables = null;
   }
   if (mode === 1 && snMod) {
     session = await loadSession(snMod.packWeights, snMod.createSession);
@@ -319,6 +345,10 @@ export async function mount(api) {
       return;
     }
     const g = api.getGraph();
+    if (mode === 7) {
+      refreshPortTips(g);
+      return;
+    }
     const sketch = sketchFromGraph(g);
     let rows = [];
     const emptyCanvas = !sketch.numNodes;
@@ -372,9 +402,221 @@ export async function mount(api) {
     placeGhost(rows[0]?.action, g);
   }
 
+  /** @type {any[]} */
+  let portRows = [];
+
+  function refreshPortTips(g) {
+    portRows = [];
+    if (portTables && recommendPortSuggest) {
+      portRows = recommendPortSuggest(portTables, g, { k: 3 });
+    }
+    if (histEl) {
+      histEl.textContent = history.length
+        ? `[ ${history.slice(-5).join(" · ")} ]`
+        : "[ dangling ports → ghost wires ]";
+    }
+    if (tipsEl) {
+      tipsEl.innerHTML = "";
+      if (!portRows.length) {
+        const hint = document.createElement("div");
+        hint.className = "na-note";
+        hint.style.padding = ".35rem .2rem";
+        hint.textContent =
+          (g.nodes || []).length < 2
+            ? "add ≥2 nodes (e.g. Text + LLM) to see ghost wires"
+            : "no dangling ports — all wired";
+        tipsEl.appendChild(hint);
+      }
+      portRows.forEach((r, i) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "na-tip" + (i === 0 ? " best" : "");
+        const live = r.to ? "wire" : "hint";
+        b.innerHTML = `<span>✦ ${r.label}</span> <span class="pct">${live} · ${pct(r.score, portRows)}%</span>`;
+        b.onclick = () => applyPortTip(r);
+        tipsEl.appendChild(b);
+      });
+    }
+    placeGhostWire(portRows[0], g);
+  }
+
+  function setGhostNote(msg, kind) {
+    const note = panel.querySelector("#na-ghost-note");
+    if (!note) return;
+    note.textContent = msg;
+    note.classList.remove("flash", "ok");
+    if (kind === "ok") note.classList.add("ok");
+    else note.classList.add("flash");
+    setTimeout(() => note.classList.remove("flash"), 700);
+  }
+
+  function applyPortTip(row) {
+    if (mode !== 7) return;
+    if (!row?.from || !row?.to) {
+      console.warn("[next-action] port tip has no live target", row);
+      return;
+    }
+    if (typeof api.connect !== "function") {
+      console.warn("[next-action] api.connect missing");
+      return;
+    }
+    setGhostNote("wiring · " + (row.label || "ports"), "flash");
+    try {
+      api.connect(row.from.nodeId, row.from.port, row.to.nodeId, row.to.port);
+    } catch (e) {
+      console.warn("[next-action] connect failed", e);
+      setGhostNote("wire failed", "flash");
+      return;
+    }
+    softClearGhostWire(() => {
+      // connect() already records "wire" via index.html patch → record()
+      setGhostNote("wired · " + (row.label || "connected"), "ok");
+      refreshTips();
+    });
+  }
+
   let ghostEl = null;
+  let ghostWireSvg = null;
+  let ghostTargetEl = null;
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let ghostClearTimer = null;
+
+  function cancelGhostClear() {
+    if (ghostClearTimer != null) {
+      clearTimeout(ghostClearTimer);
+      ghostClearTimer = null;
+    }
+  }
+
+  function hardClearGhostWire() {
+    cancelGhostClear();
+    if (ghostWireSvg) {
+      ghostWireSvg.classList.remove("show");
+      ghostWireSvg.innerHTML = "";
+      ghostWireSvg.style.display = "none";
+    }
+    if (ghostTargetEl) ghostTargetEl.classList.remove("show");
+    if (ghostEl) ghostEl.classList.remove("show");
+  }
+
+  /** Fade opacity first (CSS), then strip DOM — no layout thrash / no rAF loop. */
+  function softClearGhostWire(done) {
+    cancelGhostClear();
+    if (ghostWireSvg) ghostWireSvg.classList.remove("show");
+    if (ghostTargetEl) ghostTargetEl.classList.remove("show");
+    if (ghostEl) ghostEl.classList.remove("show");
+    ghostClearTimer = setTimeout(() => {
+      ghostClearTimer = null;
+      if (ghostWireSvg) {
+        ghostWireSvg.innerHTML = "";
+        ghostWireSvg.style.display = "none";
+      }
+      if (typeof done === "function") done();
+    }, 280);
+  }
+
+  function clearGhostWire() {
+    hardClearGhostWire();
+  }
+
+  function portAnchor(nodeId, port, dir) {
+    const el =
+      document.querySelector(
+        `.port[data-node="${CSS.escape(nodeId)}"][data-port="${CSS.escape(port)}"][data-dir="${dir}"]`
+      ) ||
+      document.querySelector(
+        `.fieldport[data-node="${CSS.escape(nodeId)}"][data-port="${CSS.escape(port)}"]`
+      );
+    const world = api.worldEl || document.getElementById("world");
+    if (!el || !world) return null;
+    const er = el.getBoundingClientRect();
+    const wr = world.getBoundingClientRect();
+    const x = er.left + er.width / 2 - wr.left + (world.scrollLeft || 0);
+    const y = er.top + er.height / 2 - wr.top + (world.scrollTop || 0);
+    return { x, y, el };
+  }
+
+  function placeGhostWire(row, g) {
+    if (mode !== 7) {
+      hardClearGhostWire();
+      return;
+    }
+    cancelGhostClear();
+    if (!row?.from) {
+      softClearGhostWire();
+      setGhostNote(
+        (g.nodes || []).length < 2
+          ? "add ≥2 nodes → soft ghost wires"
+          : "no dangling ports · all wired",
+        "ok"
+      );
+      return;
+    }
+    const world = api.worldEl || document.getElementById("world");
+    if (!world) return;
+    if (ghostWireSvg) ghostWireSvg.classList.remove("show");
+    if (ghostTargetEl) ghostTargetEl.classList.remove("show");
+    if (ghostEl) ghostEl.classList.remove("show");
+    if (!ghostWireSvg) {
+      ghostWireSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      ghostWireSvg.id = "na-ghost-wire";
+      world.appendChild(ghostWireSvg);
+    }
+    ghostWireSvg.style.display = "block";
+    const a = portAnchor(row.from.nodeId, row.from.port, "out");
+    let b = null;
+    if (row.to) {
+      b = portAnchor(row.to.nodeId, row.to.port, "in");
+      if (!ghostTargetEl) {
+        ghostTargetEl = document.createElement("div");
+        ghostTargetEl.id = "na-ghost-target";
+        world.appendChild(ghostTargetEl);
+      }
+      const tn = (g.nodes || []).find((n) => n.id === row.to.nodeId);
+      const nodeEl = document.querySelector(`.node[data-id="${CSS.escape(row.to.nodeId)}"]`);
+      if (nodeEl) {
+        ghostTargetEl.style.left = (tn?.x ?? nodeEl.offsetLeft) - 6 + "px";
+        ghostTargetEl.style.top = (tn?.y ?? nodeEl.offsetTop) - 6 + "px";
+        ghostTargetEl.style.width = nodeEl.offsetWidth + 12 + "px";
+        ghostTargetEl.style.height = nodeEl.offsetHeight + 12 + "px";
+        ghostTargetEl.classList.add("show");
+      }
+    } else {
+      const srcN = (g.nodes || []).find((n) => n.id === row.from.nodeId);
+      const gx = (srcN?.x ?? 200) + 260;
+      const gy = srcN?.y ?? 160;
+      if (!ghostEl) {
+        ghostEl = document.createElement("div");
+        ghostEl.id = "na-ghost";
+        world.appendChild(ghostEl);
+      }
+      ghostEl.textContent = `ghost · ${row.toType}.${row.toPort}`;
+      ghostEl.style.left = gx + "px";
+      ghostEl.style.top = gy + "px";
+      ghostEl.classList.add("show");
+      b = { x: gx + 20, y: gy + 24 };
+    }
+    if (!a || !b) return;
+    const dx = Math.max(40, (b.x - a.x) / 2);
+    const d = `M ${a.x} ${a.y} C ${a.x + dx} ${a.y}, ${b.x - dx} ${b.y}, ${b.x} ${b.y}`;
+    ghostWireSvg.innerHTML =
+      `<path d="${d}"/><circle cx="${a.x}" cy="${a.y}" r="3.5"/><circle cx="${b.x}" cy="${b.y}" r="3.5"/>`;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (ghostWireSvg) ghostWireSvg.classList.add("show");
+      });
+    });
+    const kind = row.to ? "live" : "hint";
+    setGhostNote(
+      kind === "live"
+        ? `ghost · ${row.label || "live wire"} · click tip to settle`
+        : `ghost hint · ${row.label || row.toType || "target"}`,
+      "flash"
+    );
+  }
+
   function placeGhost(action, g) {
-    if (mode === 5) return;
+    if (mode === 5 || mode === 7) return;
     const world = api.worldEl || document.getElementById("world");
     if (!world || !action || !action.startsWith("add:")) {
       if (ghostEl) ghostEl.classList.remove("show");

@@ -15008,6 +15008,7 @@ RULES for the diff:
       openExamples: () => openExamples(),
       runSelected: () => { if(selected) runGroup([selected.id]); else $("run")?.click(); },
       worldEl: typeof world !== "undefined" ? world : document.getElementById("world"),
+      connect: (a, ap, b, bp) => connect(a, ap, b, bp),
     });
   }).catch((e) => { try { console.warn("[next-action] editor surface not mounted", e); } catch(_){} });
 })();
