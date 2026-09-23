@@ -14902,6 +14902,65 @@ RULES for the diff:
     }finally{ setBusy(false); dbAbort = null; }
   }
 })();
+/* Product · N — next-action real-editor surface (soft tips / schema / gallery).
+   Dynamic import so branches without vendor/next-action stay quiet. */
+(function bootNextActionSurface(){
+  const wrap = (name, fn) => {
+    try {
+      const orig = fn;
+      return function(){
+        const r = orig.apply(this, arguments);
+        try { window.__nextAction && window.__nextAction["on"+name] && window.__nextAction["on"+name](arguments, r); } catch(_){}
+        return r;
+      };
+    } catch(_){ return fn; }
+  };
+  // Patch core mutators to feed action history (schema tokens).
+  const _addNode = addNode;
+  addNode = function(type, x, y, fields){
+    const n = _addNode(type, x, y, fields);
+    try {
+      const tok = "add:" + type;
+      window.__nextAction?.record?.(tok);
+    } catch(_){}
+    return n;
+  };
+  const _connect = connect;
+  connect = function(fromNode, fromPort, toNode, toPort){
+    const ok = _connect(fromNode, fromPort, toNode, toPort);
+    if(ok) try { window.__nextAction?.record?.("wire"); } catch(_){}
+    return ok;
+  };
+  const _select = select;
+  select = function(n){
+    _select(n);
+    try { window.__nextAction?.refresh?.(); } catch(_){}
+  };
+  const _openExamples = openExamples;
+  openExamples = function(){
+    _openExamples();
+    try { window.__nextAction?.onExamplesOpened?.(); } catch(_){}
+  };
+  const _loadExample = loadExample;
+  loadExample = function(i){
+    _loadExample(i);
+    try { window.__nextAction?.onExampleLoaded?.(); } catch(_){}
+  };
+  import("./vendor/next-action/editor-surface.mjs").then(async (mod) => {
+    await mod.mount({
+      getGraph: () => ({
+        nodes: (graph.nodes||[]).map(n => ({ id:n.id, type:n.type, x:n.x, y:n.y })),
+        links: (graph.links||[]).map(l => ({ from:l.from, to:l.to })),
+        selectedId: selected?.id || null,
+      }),
+      addNode: (type, x, y) => addNode(type, x, y),
+      openExamples: () => openExamples(),
+      runSelected: () => { if(selected) runGroup([selected.id]); else $("run")?.click(); },
+      worldEl: typeof world !== "undefined" ? world : document.getElementById("world"),
+    });
+  }).catch((e) => { try { console.warn("[next-action] editor surface not mounted", e); } catch(_){} });
+})();
+
 </script>
 </body>
 </html>

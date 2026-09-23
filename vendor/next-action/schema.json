@@ -1,0 +1,70 @@
+{
+  "$comment": "Product \u00b7 2 contract: action tokens + graph sketch + optional intent-fork tags. schemaVersion bumps on breaking encode changes.",
+  "schemaVersion": 1,
+  "product": "next-action",
+  "label": "Product \u00b7 2",
+  "K": 3,
+  "actionVocab": [
+    "add:text",
+    "add:llm",
+    "add:image",
+    "add:edit",
+    "add:ivideo",
+    "add:vedit",
+    "add:music",
+    "add:tts",
+    "add:lipsync",
+    "add:join",
+    "add:resize",
+    "add:comment",
+    "wire",
+    "set:model",
+    "run",
+    "open:examples",
+    "move",
+    "arrange"
+  ],
+  "nodeTypes": [
+    "text",
+    "llm",
+    "image",
+    "edit",
+    "ivideo",
+    "vedit",
+    "music",
+    "tts",
+    "lipsync",
+    "join",
+    "resize",
+    "comment"
+  ],
+  "sketchFeatures": [
+    "nodeTypeCounts",
+    "numNodesNorm",
+    "numLinksNorm",
+    "danglingOut",
+    "danglingIn",
+    "selectedTypeOneHot",
+    "emptyCanvas"
+  ],
+  "encode": {
+    "historyOneHot": true,
+    "padToken": null,
+    "countNormCap": 8,
+    "notes": "input = K*|V| history one-hots + |T| type counts/cap + 5 scalars + |T| selected one-hot"
+  },
+  "smallnet": {
+    "format": "smallnet-mlp-v1",
+    "id": "next-action-v1",
+    "hidden": 32,
+    "activation": "relu",
+    "outputActivation": "softmax"
+  },
+  "intentForkTags": [
+    "none",
+    "cold-start",
+    "modality-branch",
+    "audio-attach",
+    "revise-vs-extend"
+  ]
+}
