@@ -4817,7 +4817,46 @@ async function refreshCatalog(kind){       // boot SWR revalidate: always hit th
   const list = await fetchCatalog(kind);
   if(!list) return false;
   catalogs[kind] = list; writeCatCache(kind, list);
+  catalogFetchedAt[kind] = Date.now();
   return true;
+}
+// Long-lived tabs previously kept a boot-time catalog forever. NanoGPT ships new ids
+// daily (Grok 4.7, MiMo V2.6, H3 Singularity, …); without a stale revalidate the model
+// picker simply never lists them until a hard reload. Revalidate in the background when
+// the in-memory catalog is older than CATALOG_STALE_MS — on an interval, when the tab
+// becomes visible again, and when the picker opens.
+const CATALOG_STALE_MS = 60 * 60 * 1000;          // 1h — short enough for same-day launches
+const CATALOG_KINDS = ["chat","image","video","audio"];
+const catalogFetchedAt = Object.fromEntries(CATALOG_KINDS.map(k => [k, 0]));
+function catalogIsStale(kind){
+  const at = catalogFetchedAt[kind] || 0;
+  if(!at) return true;                            // never fetched this session (cache-primed only)
+  return (Date.now() - at) > CATALOG_STALE_MS;
+}
+let _catRefreshInflight = null;
+async function refreshCatalogsIfStale(){
+  if(!CATALOG_KINDS.some(catalogIsStale)) return false;
+  if(_catRefreshInflight) return _catRefreshInflight;
+  _catRefreshInflight = Promise.all(CATALOG_KINDS.map(k => refreshCatalog(k).catch(()=>false)))
+    .then(res => {
+      _catRefreshInflight = null;
+      if(res.some(Boolean)){
+        try{ refreshAllPrices(); redraw(); refreshPortFills(); }catch(_){}
+        // If the model picker is open, re-render so newly shipped ids appear without closing it.
+        try{ if(picker) renderPicker(); }catch(_){}
+      }
+      return res.some(Boolean);
+    });
+  return _catRefreshInflight;
+}
+function startCatalogStaleWatch(){
+  // Visibility: a laptop waking from sleep after NanoGPT shipped models overnight.
+  document.addEventListener("visibilitychange", ()=>{
+    if(document.visibilityState === "visible") refreshCatalogsIfStale();
+  });
+  // Periodic: tabs left open across a workday (the first-run UX pass saw a 5-day-stale cache).
+  setInterval(()=>{ if(document.visibilityState === "visible") refreshCatalogsIfStale(); },
+              Math.min(CATALOG_STALE_MS, 15 * 60 * 1000));
 }
 const catItem = (kind,id)=> (catalogs[kind]||[]).find(m=>m.id===id);
 const KIND_LABEL = { chat:"Chat", image:"Image", video:"Video", audio:"Audio" };
@@ -6972,6 +7011,9 @@ function sortMatches(list){
 }
 let picker = null; // { kind, filter, current, onPick }
 function openPicker(kind, opts){
+  // Kick a background revalidate if the in-memory catalog is stale so brand-new
+  // NanoGPT models show up without requiring a hard reload. Non-blocking.
+  try{ refreshCatalogsIfStale(); }catch(_){}
   picker = { kind, filter:opts.filter, current:opts.current, onPick:opts.onPick };
   // whole-phrase key so non-English can reorder ("Modelo de imagen", not the word-salad "Imagen modelo")
   $("mpicktitle").textContent = t(KIND_LABEL[kind] ? `${KIND_LABEL[kind]} model` : "Model") + (opts.filter ? ` · ${t(opts.filter)}` : "");
@@ -14190,7 +14232,8 @@ $("signout").onclick = ()=> setKey(null);
   // visitors), and revalidate in the background — the reflow below reconciles any changes and
   // fills in a brand-new visitor's cards the moment the first catalog arrives. No await = no blank.
   primeCatalogsFromCache();
-  const catalogReady = Promise.all(["chat","image","video","audio"].map(k=>refreshCatalog(k).catch(()=>false)));
+  const catalogReady = Promise.all(CATALOG_KINDS.map(k=>refreshCatalog(k).catch(()=>false)));
+  startCatalogStaleWatch();
   let restored = false;
   // Show the first-run orientation banner BEFORE we frame the graph, so the fit calls below can
   // measure its real height (hintPad) and land the workflow cleanly beneath it — a phone wraps this
