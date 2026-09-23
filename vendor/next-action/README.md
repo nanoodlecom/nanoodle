@@ -1,4 +1,4 @@
-# vendor/next-action — schema · bake · frequency · ring · cold-start
+# vendor/next-action — schema · bake · frequency · ring · cold-start · learned
 
 | Product | Paths |
 | --- | --- |
@@ -6,32 +6,33 @@
 | · 4 | `scripts/bake-next-action.mjs`, `corpus/gallery-synth.json` |
 | · 3 | `frequency.mjs`, `corpus/frequency-tables.json`, `recommend.mjs` (baseline / optional blend) |
 | · 5 | `ring.mjs` — flagged local action ring (memory / localStorage; local `export()` only) |
-| · 6 | `cold-start.mjs`, `firstNode` / `firstTrio` in `corpus/frequency-tables.json`, empty-canvas tips + trio chips on `editor-surface.mjs` (`?product=6`) |
+| · 6 | `cold-start.mjs`, `firstNode` / `firstTrio` in `corpus/frequency-tables.json`, empty-canvas tips + trio chips (`?product=6`) |
+| · 1 | `scripts/train-next-action.py`, `fixtures/smoke-weights.json`, `scripts/check-next-action.mjs` |
 
-Learned MLP + smoke fixtures are Product · 1. No `weightsUrl` / `.bin` here.
+Learned `.bin` weights stay **gitignored**; tests load inline float fixtures.
+Real-editor soft tips: `editor-surface.mjs` mounts in `index.html` (`?product=1`…`6`).
+Catalog stays empty — no `weightsUrl` until a deliberate release.
 
-## Layout
+## Train / export (box-local)
 
-| Path | Role |
-| --- | --- |
-| `schema.json` | Product · 2 contract (vocab, sketch, intent-fork tags, encode sizes) |
-| `encode.mjs` | History + graph sketch → `Float32Array` (+ smallnet manifest helper) |
-| `frequency.mjs` / `recommend.mjs` | Product · 3 frequency baseline |
-| `ring.mjs` | Product · 5 local ring (capacity 48; flagged persist; local export) |
-| `cold-start.mjs` | Product · 6 empty-canvas seeds + first-trio helpers |
-| `editor-surface.mjs` | Real-editor panel (`?product=2`…`6`) |
-| `corpus/gallery-synth.json` | Product · 4 bake output |
-| `corpus/frequency-tables.json` | Product · 3 / · 6 frequency + cold-start tables |
+```sh
+python scripts/train-next-action.py \
+  --corpus vendor/next-action/corpus/gallery-synth.json \
+  --schema vendor/next-action/schema.json \
+  --out /home/box/workspace/particlegan-product1-runs \
+  --fixture vendor/next-action/fixtures/smoke-weights.json
+```
 
 ## Checks
 
 ```sh
-node scripts/bake-next-action.mjs
 node scripts/check-next-action-schema.mjs
 node scripts/check-next-action-bake.mjs
 node scripts/check-next-action-frequency.mjs
 node scripts/check-next-action-ring.mjs
 node scripts/check-next-action-cold-start.mjs
+node scripts/check-next-action.mjs
+node scripts/check-smallnet.mjs   # catalog still empty
 ```
 
 Product · N / Fun labels only. Never commit `.bin` under `vendor/next-action/`.
