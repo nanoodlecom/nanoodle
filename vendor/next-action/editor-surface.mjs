@@ -1,6 +1,7 @@
 /**
- * Real Nanoodle editor surface for Product · 1–· 6 next-action.
+ * Real Nanoodle editor surface for Product · 1–· 6 + · 17 (dismiss / undo bandit).
  * Soft tips + action log + Examples→corpus + · 5 local ring + · 6 cold-start seeds.
+ * · 17: tip QoS — accept/dismiss/undo bandit reweights soft tips (no Fun / no · 7–· 16).
  * Dynamic imports so Product · 2 (schema-only) still mounts.
  */
 import { ACTION_VOCAB, NODE_TYPES, sketchFromGraph, schema } from "./encode.mjs";
@@ -12,7 +13,7 @@ function productMode() {
   try {
     const q = new URLSearchParams(location.search);
     const p = q.get("product") || q.get("na");
-    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5" || p === "6") return Number(p);
+    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5" || p === "6" || p === "17") return Number(p);
   } catch (_) {}
   return 1;
 }
@@ -104,6 +105,12 @@ function ensureStyles() {
 #na-ghost{position:absolute;pointer-events:none;z-index:5;display:flex;align-items:center;gap:.35rem;padding:.4rem .65rem;
   border:1.5px dashed #3d5a70;border-radius:10px;background:rgba(20,30,45,.55);color:#67e8f9;font:12px/1.2 system-ui;opacity:0;transition:opacity .25s}
 #na-ghost.show{opacity:1}
+#na-panel .na-tip-row{display:flex;align-items:stretch;gap:.25rem;width:100%}
+#na-panel .na-tip-row .na-tip{flex:1;min-width:0}
+#na-panel .na-dismiss{flex-shrink:0;width:1.7rem;border-radius:8px;border:1px solid #3a3040;background:#1a1420;color:#f9a8d4;cursor:pointer;font:inherit;font-size:.75rem;line-height:1}
+#na-panel .na-dismiss:hover{border-color:#f9a8d4;color:#fce7f3;background:#2a1830}
+#na-panel .na-bandit-note{font-size:.62rem;color:#c4b5fd;line-height:1.3;min-height:1em}
+#na-panel .na-bandit-note.flash{color:#a5f3fc}
 `;
   document.head.appendChild(s);
 }
@@ -123,6 +130,7 @@ function buildPanel(mode) {
     4: "gallery → dataset",
     5: "local action ring",
     6: "cold-start seeds",
+    17: "dismiss bandit · tip QoS",
   };
   if (mode === 5) {
     el.innerHTML = `
@@ -160,6 +168,12 @@ function buildPanel(mode) {
       <div class="na-label" id="na-title">${titles[mode] || "tips"}</div>
       <div id="na-tips"></div>
       ${mode === 6 ? `<div class="na-label">first trios</div><div class="na-trio-row" id="na-trios"></div>` : ""}
+      ${mode === 17 ? `<div class="na-bandit-note" id="na-bandit-note">bandit · 0✓ 0✗</div>
+      <div class="na-actions">
+        <button type="button" class="na-btn" id="na-bandit-undo">Undo</button>
+        <button type="button" class="na-btn" id="na-bandit-export">export</button>
+      </div>
+      <div class="na-note" id="na-bandit-help">Accept tips or Dismiss (×) · Undo reverses last · local only</div>` : ""}
       <div class="na-label">history</div>
       <div class="na-hist"><b id="na-hist">[ ]</b></div>
       <div class="na-label" id="na-schema-label">schema tokens</div>
@@ -207,10 +221,18 @@ export async function mount(api) {
   const coldMod = await tryImport("./cold-start.mjs");
   const recMod = await tryImport("./recommend.mjs");
   const snMod = await tryImport("../smallnet/index.js");
+  const banditMod = mode === 17 ? await tryImport("./dismiss-bandit.mjs") : null;
   if (freqMod) recommendFrequency = freqMod.recommendFrequency;
   let recommendColdStart = coldMod?.recommendColdStart || null;
   let topFirstTrios = coldMod?.topFirstTrios || null;
   if (recMod) recommendNext = recMod.recommendNext;
+
+  /** Product · 17 dismiss/undo bandit (only constructed in · 17). */
+  let bandit = null;
+  if (mode === 17 && banditMod?.createBandit) {
+    bandit = banditMod.createBandit();
+    bandit.setEnabled(true);
+  }
 
   try {
     tables = await loadJSON("corpus/frequency-tables.json");
@@ -333,6 +355,33 @@ export async function mount(api) {
       rows = recommendNext({ tables, session, blend: 0.35 }, history, sketch, 3);
     } else if ((mode === 1 || mode === 3) && tables && recommendFrequency) {
       rows = recommendFrequency(tables, history, sketch, 3);
+    } else if (mode === 17 && tables && recommendFrequency) {
+      // Soft tips + bandit QoS: pad empty-canvas thin rankings so dismiss still leaves alternatives
+      rows = recommendFrequency(tables, history, sketch, 12);
+      if (emptyCanvas && recommendColdStart) {
+        const cold = recommendColdStart(tables, sketch, 6);
+        const seen = new Set(rows.map((r) => r.action));
+        for (const r of cold) {
+          if (!seen.has(r.action)) {
+            rows.push(r);
+            seen.add(r.action);
+          }
+        }
+      }
+      // Pad from unigram / vocab so a single dismiss never empties the panel
+      {
+        const seen = new Set(rows.map((r) => r.action));
+        const uni = tables.unigram || {};
+        const padActions = ACTION_VOCAB.filter((a) => a.startsWith("add:") || a === "open:examples");
+        for (const a of padActions) {
+          if (seen.has(a)) continue;
+          const u = Number(uni[a]) || 0;
+          rows.push({ action: a, score: u > 0 ? u * 0.15 : 0.02, source: "pad" });
+          seen.add(a);
+        }
+      }
+      if (bandit) rows = bandit.reweight(rows).slice(0, 3);
+      else rows = rows.slice(0, 3);
     } else if (mode === 2) {
       rows = (history.length === 0
         ? ["add:text", "add:image", "open:examples"]
@@ -365,11 +414,77 @@ export async function mount(api) {
         b.type = "button";
         b.className = "na-tip" + (i === 0 ? " best" : "");
         b.innerHTML = `<span>✦ ${actionLabel(r.action)}</span><span class="pct">${pct(r.score, rows)}%</span>`;
-        b.onclick = () => applyTip(r.action);
-        tipsEl.appendChild(b);
+        b.onclick = () => applyTip(r.action, { fromTip: true });
+        if (mode === 17 && bandit) {
+          const row = document.createElement("div");
+          row.className = "na-tip-row";
+          const x = document.createElement("button");
+          x.type = "button";
+          x.className = "na-dismiss";
+          x.title = "Dismiss tip";
+          x.setAttribute("aria-label", "Dismiss " + actionLabel(r.action));
+          x.textContent = "×";
+          x.onclick = (ev) => {
+            ev.stopPropagation();
+            ev.preventDefault();
+            bandit.record("dismiss", r.action);
+            updateBanditNote(`dismissed ${actionLabel(r.action)}`);
+            refreshTips();
+          };
+          row.appendChild(b);
+          row.appendChild(x);
+          tipsEl.appendChild(row);
+        } else {
+          tipsEl.appendChild(b);
+        }
       });
     }
+    if (mode === 17) updateBanditNote();
     placeGhost(rows[0]?.action, g);
+  }
+
+  function updateBanditNote(flash) {
+    if (mode !== 17 || !bandit) return;
+    const el = panel.querySelector("#na-bandit-note");
+    if (!el) return;
+    el.textContent = flash ? `${bandit.note()} · ${flash}` : bandit.note();
+    el.classList.remove("flash");
+    if (flash) {
+      void el.offsetWidth;
+      el.classList.add("flash");
+    }
+  }
+
+  function wireBanditControls() {
+    if (mode !== 17 || !bandit) return;
+    const undoBtn = panel.querySelector("#na-bandit-undo");
+    const exportBtn = panel.querySelector("#na-bandit-export");
+    const help = panel.querySelector("#na-bandit-help");
+    if (undoBtn) {
+      undoBtn.addEventListener("click", () => {
+        const res = bandit.undoLast();
+        if (!res.ok) {
+          updateBanditNote(res.reason === "nothing" ? "nothing to undo" : "already undone");
+          return;
+        }
+        updateBanditNote(res.note || "undo");
+        refreshTips();
+      });
+    }
+    if (exportBtn) {
+      exportBtn.addEventListener("click", async () => {
+        const dump = bandit.export();
+        const text = JSON.stringify(dump, null, 2);
+        try {
+          await navigator.clipboard.writeText(text);
+          if (help) help.textContent = `Exported ${Object.keys(dump.arms || {}).length} arms → clipboard (local only).`;
+        } catch (_) {
+          if (help) help.textContent = `Export ready — see window.__nextAction.bandit.export().`;
+          try { console.log("[next-action] bandit export", dump); } catch (__) {}
+        }
+      });
+    }
+    updateBanditNote();
   }
 
   let ghostEl = null;
@@ -441,7 +556,11 @@ export async function mount(api) {
     refreshTips();
   }
 
-function applyTip(action) {
+function applyTip(action, opts = {}) {
+    if (mode === 17 && bandit && opts.fromTip) {
+      bandit.record("accept", action);
+      updateBanditNote(`accepted ${actionLabel(action)}`);
+    }
     flashToken(action);
     if (action.startsWith("add:")) {
       const type = action.slice(4);
@@ -485,6 +604,7 @@ function applyTip(action) {
   }
 
   wireRingControls();
+  wireBanditControls();
 
   window.__nextAction = {
     record,
@@ -502,6 +622,7 @@ function applyTip(action) {
     mode,
     schemaVersion: schema.schemaVersion,
     ring,
+    bandit,
   };
 
   refreshTips();
