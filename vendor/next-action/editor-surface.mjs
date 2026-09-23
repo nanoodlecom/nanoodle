@@ -1,6 +1,6 @@
 /**
- * Real Nanoodle editor surface for Product · 1–· 6 next-action.
- * Soft tips + action log + Examples→corpus + · 5 local ring + · 6 cold-start seeds.
+ * Real Nanoodle editor surface for Product · 1–· 6 / · 9 next-action.
+ * Soft tips + action log + Examples→corpus + · 5 local ring + · 6 cold-start + · 9 anti-slop.
  * Dynamic imports so Product · 2 (schema-only) still mounts.
  */
 import { ACTION_VOCAB, NODE_TYPES, sketchFromGraph, schema } from "./encode.mjs";
@@ -12,7 +12,7 @@ function productMode() {
   try {
     const q = new URLSearchParams(location.search);
     const p = q.get("product") || q.get("na");
-    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5" || p === "6") return Number(p);
+    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5" || p === "6" || p === "9") return Number(p);
   } catch (_) {}
   return 1;
 }
@@ -104,6 +104,18 @@ function ensureStyles() {
 #na-ghost{position:absolute;pointer-events:none;z-index:5;display:flex;align-items:center;gap:.35rem;padding:.4rem .65rem;
   border:1.5px dashed #3d5a70;border-radius:10px;background:rgba(20,30,45,.55);color:#67e8f9;font:12px/1.2 system-ui;opacity:0;transition:opacity .25s}
 #na-ghost.show{opacity:1}
+
+#na-panel .na-tip.slop{opacity:.55;border-style:dashed;border-color:#4b5568;color:#9ca3af;transition:opacity .28s ease,border-color .28s ease,background .28s ease}
+#na-panel .na-tip.slop:hover{border-color:#6b7280;color:#d1d5db;background:#161a22}
+#na-panel .na-tip .slop-badge{font-size:.58rem;padding:.08rem .28rem;border-radius:4px;background:#2a1a1a;color:#fca5a5;border:1px solid #5a3030;text-decoration:line-through;letter-spacing:.02em}
+#na-panel .na-antislop-note{font-size:.62rem;color:#6ee7b7;line-height:1.3;min-height:1em;transition:color .25s ease}
+#na-panel .na-antislop-note.flash{color:#a5f3fc}
+#na-panel .na-antislop-note.ok{color:#6ee7b7}
+#na-panel .na-masked-row{display:flex;flex-direction:column;gap:.2rem;margin-top:.15rem}
+#na-panel .na-masked-row .na-tip{animation:na-slop-in .32s ease}
+#na-panel .na-tip.muted-slop{opacity:.45;font-size:.7rem;padding:.28rem .4rem}
+@keyframes na-slop-in{from{opacity:0;transform:translateY(4px)}to{opacity:.45;transform:none}}
+@media (prefers-reduced-motion:reduce){#na-panel .na-masked-row .na-tip{animation:none}}
 `;
   document.head.appendChild(s);
 }
@@ -123,6 +135,7 @@ function buildPanel(mode) {
     4: "gallery → dataset",
     5: "local action ring",
     6: "cold-start seeds",
+    9: "anti-slop · soft mask",
   };
   if (mode === 5) {
     el.innerHTML = `
@@ -160,6 +173,7 @@ function buildPanel(mode) {
       <div class="na-label" id="na-title">${titles[mode] || "tips"}</div>
       <div id="na-tips"></div>
       ${mode === 6 ? `<div class="na-label">first trios</div><div class="na-trio-row" id="na-trios"></div>` : ""}
+      ${mode === 9 ? `<div class="na-antislop-note" id="na-antislop-note">anti-slop on · soft-mask Text→LLM loops</div><div class="na-label">masked (slop)</div><div class="na-masked-row" id="na-masked"></div>` : ""}
       <div class="na-label">history</div>
       <div class="na-hist"><b id="na-hist">[ ]</b></div>
       <div class="na-label" id="na-schema-label">schema tokens</div>
@@ -205,17 +219,26 @@ export async function mount(api) {
 
   const freqMod = await tryImport("./frequency.mjs");
   const coldMod = await tryImport("./cold-start.mjs");
+  const antiMod = await tryImport("./anti-slop.mjs");
   const recMod = await tryImport("./recommend.mjs");
   const snMod = await tryImport("../smallnet/index.js");
   if (freqMod) recommendFrequency = freqMod.recommendFrequency;
   let recommendColdStart = coldMod?.recommendColdStart || null;
   let topFirstTrios = coldMod?.topFirstTrios || null;
+  let applyAntiSlop = antiMod?.applyAntiSlop || null;
   if (recMod) recommendNext = recMod.recommendNext;
 
   try {
     tables = await loadJSON("corpus/frequency-tables.json");
   } catch (_) {
     tables = null;
+  }
+  /** @type {any} */
+  let antiSlopPriors = null;
+  try {
+    antiSlopPriors = await loadJSON("corpus/anti-slop.json");
+  } catch (_) {
+    antiSlopPriors = null;
   }
   if (mode === 1 && snMod) {
     session = await loadSession(snMod.packWeights, snMod.createSession);
@@ -322,7 +345,38 @@ export async function mount(api) {
     const sketch = sketchFromGraph(g);
     let rows = [];
     const emptyCanvas = !sketch.numNodes;
-    if (mode === 6 && tables) {
+    /** @type {any[]} */
+    let maskedRows = [];
+    if (mode === 9 && tables && recommendFrequency && applyAntiSlop) {
+      const raw = recommendFrequency(tables, history, sketch, ACTION_VOCAB.length);
+      const ranked = applyAntiSlop(raw, history, sketch, {
+        priors: antiSlopPriors || undefined,
+        tables,
+        expand: true,
+      });
+      rows = ranked.filter((r) => !r.masked).slice(0, 3);
+      if (rows.length < 3) {
+        // fill from remaining (incl. soft-masked) so panel never empty
+        const fill = ranked.filter((r) => !rows.some((x) => x.action === r.action)).slice(0, 3 - rows.length);
+        rows = rows.concat(fill);
+      }
+      maskedRows = ranked.filter((r) => r.masked).slice(0, 3);
+      const note = panel.querySelector("#na-antislop-note");
+      if (note) {
+        note.classList.remove("flash", "ok");
+        note.textContent = emptyCanvas
+          ? "anti-slop idle · empty canvas (· 6 seeds when cold)"
+          : maskedRows.length
+            ? `anti-slop on · soft-masked ${maskedRows.length} · tips stay diverse`
+            : "anti-slop on · no slop to mask";
+        if (maskedRows.length) {
+          note.classList.add("flash");
+          setTimeout(() => note.classList.remove("flash"), 600);
+        } else {
+          note.classList.add("ok");
+        }
+      }
+    } else if (mode === 6 && tables) {
       if (emptyCanvas && recommendColdStart) {
         rows = recommendColdStart(tables, sketch, 3);
       } else if (recommendFrequency) {
@@ -363,10 +417,24 @@ export async function mount(api) {
       rows.forEach((r, i) => {
         const b = document.createElement("button");
         b.type = "button";
-        b.className = "na-tip" + (i === 0 ? " best" : "");
-        b.innerHTML = `<span>✦ ${actionLabel(r.action)}</span><span class="pct">${pct(r.score, rows)}%</span>`;
+        const slop = !!r.masked;
+        b.className = "na-tip" + (i === 0 && !slop ? " best" : "") + (slop ? " slop" : "");
+        const badge = slop ? `<span class="slop-badge">slop</span>` : "";
+        b.innerHTML = `<span>✦ ${actionLabel(r.action)}</span>${badge}<span class="pct">${pct(r.score, rows)}%</span>`;
         b.onclick = () => applyTip(r.action);
         tipsEl.appendChild(b);
+      });
+    }
+    const maskedEl = panel.querySelector("#na-masked");
+    if (maskedEl) {
+      maskedEl.innerHTML = "";
+      (maskedRows || []).forEach((r) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "na-tip muted-slop slop";
+        b.innerHTML = `<span>✧ ${actionLabel(r.action)}</span><span class="slop-badge">slop</span>`;
+        b.onclick = () => applyTip(r.action);
+        maskedEl.appendChild(b);
       });
     }
     placeGhost(rows[0]?.action, g);
