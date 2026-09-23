@@ -1,10 +1,16 @@
 /**
- * Real Nanoodle editor surface for Product · 1–· 6 next-action.
+ * Real Nanoodle editor surface for Product · 1–· 6 + · 12 (collision-aware nudge).
  * Soft tips + action log + Examples→corpus + · 5 local ring + · 6 cold-start seeds.
+ * · 12: multi-pass all-pairs collision refine after tip/trio addNode (no · 7 required).
  * Dynamic imports so Product · 2 (schema-only) still mounts.
  */
 import { ACTION_VOCAB, NODE_TYPES, sketchFromGraph, schema } from "./encode.mjs";
 import { createRing, RING_CAPACITY } from "./ring.mjs";
+import {
+  planCollisionPasses,
+  TIP_OVERLAP_X,
+  TIP_OVERLAP_Y,
+} from "./collision-nudge.mjs";
 
 const BASE = new URL(".", import.meta.url);
 
@@ -12,7 +18,7 @@ function productMode() {
   try {
     const q = new URLSearchParams(location.search);
     const p = q.get("product") || q.get("na");
-    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5" || p === "6") return Number(p);
+    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5" || p === "6" || p === "12") return Number(p);
   } catch (_) {}
   return 1;
 }
@@ -104,6 +110,10 @@ function ensureStyles() {
 #na-ghost{position:absolute;pointer-events:none;z-index:5;display:flex;align-items:center;gap:.35rem;padding:.4rem .65rem;
   border:1.5px dashed #3d5a70;border-radius:10px;background:rgba(20,30,45,.55);color:#67e8f9;font:12px/1.2 system-ui;opacity:0;transition:opacity .25s}
 #na-ghost.show{opacity:1}
+#na-panel .na-nudge-note{font-size:.68rem;color:#c4b5fd;padding:.15rem 0 0;min-height:1em}
+#na-panel .na-nudge-note.flash{color:#a78bfa}
+.na-nudge-flash,.na-nudge-moving{box-shadow:0 0 0 2px #c4b5fdcc,0 0 26px #8b5cf6aa !important;transition:box-shadow .4s ease;z-index:40 !important}
+.na-nudge-moving{filter:brightness(1.06)}
 `;
   document.head.appendChild(s);
 }
@@ -123,6 +133,7 @@ function buildPanel(mode) {
     4: "gallery → dataset",
     5: "local action ring",
     6: "cold-start seeds",
+    12: "collision-aware nudge",
   };
   if (mode === 5) {
     el.innerHTML = `
@@ -160,6 +171,7 @@ function buildPanel(mode) {
       <div class="na-label" id="na-title">${titles[mode] || "tips"}</div>
       <div id="na-tips"></div>
       ${mode === 6 ? `<div class="na-label">first trios</div><div class="na-trio-row" id="na-trios"></div>` : ""}
+      ${mode === 12 ? `<div class="na-nudge-note" id="na-nudge-note">soft slide-apart on tip add</div>` : ""}
       <div class="na-label">history</div>
       <div class="na-hist"><b id="na-hist">[ ]</b></div>
       <div class="na-label" id="na-schema-label">schema tokens</div>
@@ -175,6 +187,7 @@ function buildPanel(mode) {
  * @param {{
  *   getGraph: () => {nodes:any[], links:any[], selectedId?:string|null},
  *   addNode: (type:string, x?:number, y?:number) => any,
+ *   moveNode?: (id:string, x:number, y:number) => boolean,
  *   openExamples: () => void,
  *   runSelected?: () => void,
  *   worldEl?: HTMLElement | null,
@@ -424,7 +437,146 @@ export async function mount(api) {
     });
   }
 
-  async function applyTrio(actions) {
+  function setNudgeNote(msg) {
+    const note = panel.querySelector("#na-nudge-note");
+    if (!note) return;
+    note.textContent = msg;
+    note.classList.add("flash");
+    setTimeout(() => note.classList.remove("flash"), 700);
+  }
+
+  function setMovedGlow(ids, on) {
+    for (const id of ids) {
+      const el = document.querySelector(`.node[data-id="${CSS.escape(id)}"]`);
+      if (!el) continue;
+      if (on) {
+        el.classList.add("na-nudge-flash", "na-nudge-moving");
+      } else {
+        el.classList.remove("na-nudge-moving");
+        // Keep soft flash briefly after settle
+        setTimeout(() => el.classList.remove("na-nudge-flash"), 380);
+      }
+    }
+  }
+
+  /** Ease-out cubic — soft settle, no overshoot fling. */
+  function easeOutCubic(t) {
+    return 1 - Math.pow(1 - t, 3);
+  }
+
+  /**
+   * rAF-lerp nodes from current graph positions toward `targets`.
+   * Prefer rAF over CSS left/top transitions (editor style writes fight CSS).
+   */
+  function animateMoveNodes(targets, durationMs) {
+    if (!api.moveNode || !targets.length) return Promise.resolve();
+    const g = api.getGraph();
+    const from = new Map(
+      (g.nodes || []).map((n) => [String(n.id), { x: Number(n.x), y: Number(n.y) }])
+    );
+    const moves = targets
+      .map((t) => {
+        const a = from.get(String(t.id));
+        if (!a || !Number.isFinite(a.x) || !Number.isFinite(a.y)) return null;
+        const dx = t.x - a.x;
+        const dy = t.y - a.y;
+        if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return null;
+        return { id: String(t.id), ax: a.x, ay: a.y, bx: t.x, by: t.y };
+      })
+      .filter(Boolean);
+    if (!moves.length) return Promise.resolve();
+
+    const dur = Math.max(40, durationMs || 90);
+    return new Promise((resolve) => {
+      const t0 = performance.now();
+      function frame(now) {
+        const t = Math.min(1, (now - t0) / dur);
+        const e = easeOutCubic(t);
+        for (const m of moves) {
+          const x = m.ax + (m.bx - m.ax) * e;
+          const y = m.ay + (m.by - m.ay) * e;
+          try {
+            api.moveNode(m.id, x, y);
+          } catch (_) {}
+        }
+        if (t < 1) {
+          requestAnimationFrame(frame);
+        } else {
+          for (const m of moves) {
+            try {
+              api.moveNode(m.id, m.bx, m.by);
+            } catch (_) {}
+          }
+          resolve();
+        }
+      }
+      requestAnimationFrame(frame);
+    });
+  }
+
+  let nudgeBusy = false;
+
+  /**
+   * Product · 12: after addNode, animated multi-pass all-pairs collision refine.
+   * User sees nodes slide apart pass-by-pass (~280–450ms total), not teleport.
+   */
+  /** Measure real .node card sizes (Image/LLM are much taller than defaults). */
+  function graphWithMeasuredBoxes() {
+    const g = api.getGraph();
+    const nodes = (g.nodes || []).map((n) => {
+      const el = document.querySelector(`.node[data-id="${CSS.escape(String(n.id))}"]`);
+      let w;
+      let h;
+      if (el) {
+        w = el.offsetWidth;
+        h = el.offsetHeight;
+      }
+      return {
+        ...n,
+        w: Number.isFinite(w) && w > 0 ? w : undefined,
+        h: Number.isFinite(h) && h > 0 ? h : undefined,
+      };
+    });
+    return { ...g, nodes };
+  }
+
+  async function runCollisionNudge(_addedId) {
+    if (mode !== 12 || !api.moveNode) return;
+    if (nudgeBusy) return;
+    nudgeBusy = true;
+    let glowed = [];
+    try {
+      const g = graphWithMeasuredBoxes();
+      const plan = planCollisionPasses(g);
+      if (!plan.passSnapshots.length) {
+        setNudgeNote(plan.cleared ? "nudge · already clear" : "nudge · no move");
+        return;
+      }
+
+      glowed = plan.movedIds.slice();
+      setMovedGlow(glowed, true);
+
+      const totalMs = 420;
+      const n = plan.passSnapshots.length;
+      const passMs = Math.max(60, Math.min(120, Math.round(totalMs / Math.max(1, n))));
+
+      for (let i = 0; i < n; i++) {
+        const snap = plan.passSnapshots[i];
+        setNudgeNote(`pass ${i + 1}/${n} · clearing`);
+        await animateMoveNodes(snap.positions, passMs);
+      }
+
+      const verb = plan.cleared ? "cleared" : "partial";
+      setNudgeNote(
+        `nudge · ${verb} · ${plan.movedIds.length} node${plan.movedIds.length === 1 ? "" : "s"}`
+      );
+    } finally {
+      if (glowed.length) setMovedGlow(glowed, false);
+      nudgeBusy = false;
+    }
+  }
+
+    async function applyTrio(actions) {
     const adds = (actions || []).filter((a) => a.startsWith("add:"));
     const baseX = 160;
     const baseY = 180;
@@ -432,16 +584,17 @@ export async function mount(api) {
     for (let i = 0; i < adds.length; i++) {
       const type = adds[i].slice(4);
       try {
-        api.addNode(type, baseX + i * gap, baseY + (i % 2) * 40);
+        const added = api.addNode(type, baseX + i * gap, baseY + (i % 2) * 40);
+        if (added && added.id) await runCollisionNudge(added.id);
       } catch (e) {
         console.warn("[next-action] trio addNode failed", type, e);
       }
-      await new Promise((r) => setTimeout(r, 120));
+      await new Promise((r) => setTimeout(r, 80));
     }
     refreshTips();
   }
 
-function applyTip(action) {
+async function applyTip(action) {
     flashToken(action);
     if (action.startsWith("add:")) {
       const type = action.slice(4);
@@ -452,12 +605,19 @@ function applyTip(action) {
       if (empty || (mode === 6 && !sel)) {
         x = 280;
         y = 200;
+      } else if (mode === 12) {
+        // Half-card intentional overlap — nudge needed, not a staged full pile
+        const last = g.nodes[g.nodes.length - 1];
+        const anchor = sel || last;
+        x = (anchor?.x ?? 120) + TIP_OVERLAP_X;
+        y = (anchor?.y ?? 160) + TIP_OVERLAP_Y;
       } else {
         x = (sel?.x ?? 120) + 220;
         y = sel?.y ?? 160;
       }
       try {
-        api.addNode(type, x, y);
+        const added = api.addNode(type, x, y);
+        if (added && added.id) await runCollisionNudge(added.id);
       } catch (e) {
         console.warn("[next-action] addNode failed", type, e);
       }
@@ -489,6 +649,7 @@ function applyTip(action) {
   window.__nextAction = {
     record,
     refresh: refreshTips,
+    runCollisionNudge,
     onExamplesOpened() {
       if ((mode === 4 || mode === 1) && corpusMeta) {
         corpusEl.hidden = false;
