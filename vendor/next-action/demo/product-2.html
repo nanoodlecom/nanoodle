@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Product · 2 — action + graph-sketch schema</title>
+<style>
+:root{--bg:#0b0d12;--panel:#12151d;--panel2:#171b25;--ink:#eef1f7;--dim:#aeb7c8;--line:#2a2e3c;--accent:#7c8cff;--cyan:#67e8f9;--gold:#f5d76e}
+*{box-sizing:border-box}body{margin:0;font:14px/1.4 system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+header{display:flex;align-items:center;gap:1rem;padding:.75rem 1rem;background:rgba(18,21,29,.9);border-bottom:1px solid var(--line)}
+.logo{font-weight:800;font-size:1.1rem;background:linear-gradient(90deg,#67e8f9,#7c8cff 70%);-webkit-background-clip:text;background-clip:text;color:transparent}
+main{padding:1rem;max-width:920px;margin:0 auto}
+.canvas{position:relative;min-height:420px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.25rem;background-image:linear-gradient(rgba(22,26,36,.8) 1px,transparent 1px),linear-gradient(90deg,rgba(22,26,36,.8) 1px,transparent 1px);background-size:40px 40px}
+.node{position:absolute;display:flex;align-items:center;gap:.5rem;padding:.55rem .85rem;background:var(--panel2);border:2px solid var(--accent);border-radius:10px;opacity:0;transform:scale(.85);transition:opacity .4s,transform .4s}
+.node.show{opacity:1;transform:scale(1)}
+.node .dot{width:10px;height:10px;border-radius:50%}
+.wire{position:absolute;height:2px;background:var(--accent);opacity:0;transition:opacity .4s,width .5s;transform-origin:left center}
+.wire.show{opacity:1}
+.section{margin-top:1.25rem}
+label{font-size:.75rem;color:var(--dim);text-transform:uppercase;letter-spacing:.04em}
+.chips{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.4rem}
+.chip{padding:.35rem .65rem;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--dim);font-size:.8rem;transition:background .3s,color .3s,border-color .3s}
+.chip.lit{background:#242c50;color:var(--cyan);border-color:var(--accent)}
+.meter{margin-top:.75rem;height:18px;background:var(--panel2);border-radius:6px;border:1px solid var(--line);overflow:hidden;max-width:400px;display:inline-block;vertical-align:middle;width:400px}
+.meter>i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s linear}
+.meta{display:inline-block;margin-left:.75rem;color:var(--dim);font-size:.8rem}
+h1{font-size:1rem;font-weight:600;margin:0;flex:1}
+.sub{color:var(--dim);font-size:.8rem}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">nanoodle</div>
+  <h1>Product · 2 — action + graph-sketch schema</h1>
+  <span class="sub">encode → fixed float vector</span>
+</header>
+<main>
+  <div class="canvas" id="c">
+    <div class="node" id="n0" style="left:40px;top:60px;border-color:var(--gold)"><span class="dot" style="background:var(--gold)"></span>text</div>
+    <div class="wire" id="w0" style="left:160px;top:82px;width:70px"></div>
+    <div class="node" id="n1" style="left:230px;top:60px"><span class="dot" style="background:var(--accent)"></span>llm</div>
+    <div class="wire" id="w1" style="left:350px;top:82px;width:70px;background:var(--cyan)"></div>
+    <div class="node" id="n2" style="left:420px;top:60px;border-color:var(--cyan)"><span class="dot" style="background:var(--cyan)"></span>image</div>
+
+    <div class="section" style="position:absolute;left:40px;top:160px;right:40px">
+      <label>action chips</label>
+      <div class="chips" id="actions"></div>
+    </div>
+    <div class="section" style="position:absolute;left:40px;top:260px;right:40px">
+      <label>schema tokens (encoding…)</label>
+      <div class="chips" id="tokens"></div>
+      <div style="margin-top:.75rem">
+        <div class="meter"><i id="bar"></i></div>
+        <span class="meta" id="meta">dim 83 · K=3 history</span>
+      </div>
+    </div>
+  </div>
+</main>
+<script>
+const ACTIONS=["add:text","add:llm","add:image","wire","set:model","run"];
+const TOKENS=["h0:add:text","h1:add:llm","h2:add:image","sketch:n=3","links=2","sel=image"];
+const aEl=document.getElementById("actions");
+const tEl=document.getElementById("tokens");
+ACTIONS.forEach(a=>{const s=document.createElement("span");s.className="chip";s.textContent=a;s.dataset.k=a;aEl.appendChild(s)});
+TOKENS.forEach(a=>{const s=document.createElement("span");s.className="chip";s.textContent=a;tEl.appendChild(s)});
+function loop(){
+  // reset
+  ["n0","n1","n2","w0","w1"].forEach(id=>document.getElementById(id).classList.remove("show"));
+  [...aEl.children].forEach(c=>c.classList.remove("lit"));
+  [...tEl.children].forEach(c=>c.classList.remove("lit"));
+  document.getElementById("bar").style.width="0%";
+  const steps=[
+    [400,()=>document.getElementById("n0").classList.add("show")],
+    [700,()=>{aEl.children[0].classList.add("lit");document.getElementById("n1").classList.add("show")}],
+    [500,()=>{document.getElementById("w0").classList.add("show");aEl.children[1].classList.add("lit")}],
+    [700,()=>{document.getElementById("n2").classList.add("show");aEl.children[2].classList.add("lit")}],
+    [500,()=>{document.getElementById("w1").classList.add("show");aEl.children[3].classList.add("lit")}],
+    [400,()=>{aEl.children[4].classList.add("lit");aEl.children[5].classList.add("lit")}],
+  ];
+  let t=0;
+  steps.forEach(([dt,fn])=>{t+=dt;setTimeout(fn,t)});
+  // encode tokens
+  TOKENS.forEach((_,i)=>setTimeout(()=>{
+    tEl.children[i].classList.add("lit");
+    document.getElementById("bar").style.width=((i+1)/TOKENS.length*100)+"%";
+  }, t+400+i*350));
+  setTimeout(loop, t+400+TOKENS.length*350+1200);
+}
+loop();
+</script>
+</body>
+</html>
