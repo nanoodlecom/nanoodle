@@ -137,6 +137,12 @@
   #addpop .grp:first-child{ padding-top:.15rem }
   #addpop .addhint{ font-size:.7rem; color:var(--accent); padding:.35rem .55rem .15rem; pointer-events:none; border-top:1px solid var(--line); margin-top:.2rem }
   #addpop .nomatch{ font-size:.74rem; color:var(--dim); padding:.5rem .55rem }
+  #addpop .sug, #quickadd .sug, #mpicklist .sug, .ex-tt .sug{
+    margin-left:auto; flex:none; font-size:.62rem; font-weight:600; letter-spacing:.02em;
+    color:var(--dim); border:1px solid var(--line); border-radius:999px; padding:.06rem .38rem; line-height:1.3 }
+  #addpop button.suggested > span:nth-child(2),
+  #quickadd button.suggested > span:nth-child(2){ flex:1; min-width:0 }
+  .ex-tt .sug{ margin-left:.45rem; vertical-align:.05em }
   /* drop-a-wire-in-empty-space quick add: a contextual, type-filtered clone of #addpop, placed at the cursor */
   #quickadd{ position:fixed; z-index:50; display:none; flex-direction:column; gap:.05rem; min-width:215px; max-height:min(60vh, calc(100vh - 52px - var(--db-h,3rem) - 3rem));
              overflow-y:auto; background:var(--panel); border:1px solid var(--line); border-radius:.6rem; padding:.35rem; box-shadow:0 12px 40px #000a }
@@ -695,6 +701,7 @@
   .body .capnote.over{ color:var(--warn) }
   /* magnetism: every valid destination glows, the closest one grabs the wire */
   .port.compatible{ transform:scale(1.25); box-shadow:0 0 0 4px #ffffff26; animation:portpulse 1.1s ease-in-out infinite }
+  .port.likely{ transform:scale(1.45); box-shadow:0 0 0 5px #67e8f9cc; animation:none }
   .port.snap{ transform:scale(1.7); box-shadow:0 0 0 5px #ffffff66, 0 0 12px #fff6; animation:none }
   @keyframes portpulse{ 50%{ box-shadow:0 0 0 6px #ffffff14 } }
 
@@ -1446,6 +1453,13 @@ const I18N = {
     "Per-model knobs from the catalog (presets, styles, camera moves…). Defaults apply when untouched.":"Controles por modelo del catálogo (preajustes, estilos, movimientos de cámara…). Se aplican los valores por defecto si no se tocan.",
     "Pull still frames out of a video":"Extrae fotogramas fijos de un vídeo",
     "Recent":"Recientes",
+    "Suggested":"Sugeridos",
+    "suggested":"sugerido",
+    "common first node":"nodo inicial habitual",
+    "often added next":"se suele añadir después",
+    "often wired next":"se suele conectar después",
+    "pick a model next":"elige un modelo a continuación",
+    "often opened next":"se suelen abrir después",
     "Running calls models on your NanoGPT key.":"Ejecutar llama a modelos con tu clave de NanoGPT.",
     "· higher = more creative":"· más alto = más creativo",
     "Save as a new app":"Guardar como app nueva",
@@ -2085,6 +2099,13 @@ const I18N = {
     "Per-model knobs from the catalog (presets, styles, camera moves…). Defaults apply when untouched.":"Réglages spécifiques au modèle issus du catalogue (préréglages, styles, mouvements de caméra…). Les valeurs par défaut s’appliquent si vous n’y touchez pas.",
     "Pull still frames out of a video":"Extraire des images fixes d’une vidéo",
     "Recent":"Récent",
+    "Suggested":"Suggérés",
+    "suggested":"suggéré",
+    "common first node":"premier nœud courant",
+    "often added next":"souvent ajouté ensuite",
+    "often wired next":"souvent relié ensuite",
+    "pick a model next":"choisir un modèle ensuite",
+    "often opened next":"souvent ouvert ensuite",
     "Running calls models on your NanoGPT key.":"L’exécution appelle les modèles avec votre clé NanoGPT.",
     "· higher = more creative":"· plus élevé = plus créatif",
     "Save as a new app":"Enregistrer comme nouvelle app",
@@ -2714,6 +2735,13 @@ const I18N = {
     "Per-model knobs from the catalog (presets, styles, camera moves…). Defaults apply when untouched.":"Modellspezifische Regler aus dem Katalog (Presets, Stile, Kamerafahrten…). Standardwerte gelten, solange unverändert.",
     "Pull still frames out of a video":"Standbilder aus einem Video ziehen",
     "Recent":"Zuletzt verwendet",
+    "Suggested":"Vorgeschlagen",
+    "suggested":"vorgeschlagen",
+    "common first node":"üblicher erster Node",
+    "often added next":"oft als Nächstes hinzugefügt",
+    "often wired next":"oft als Nächstes verbunden",
+    "pick a model next":"als Nächstes ein Modell wählen",
+    "often opened next":"oft als Nächstes geöffnet",
     "Running calls models on your NanoGPT key.":"Beim Ausführen werden Modelle über deinen NanoGPT-Schlüssel aufgerufen.",
     "· higher = more creative":"· höher = kreativer",
     "Save as a new app":"Als neue App speichern",
@@ -3346,6 +3374,13 @@ const I18N = {
     "Per-model knobs from the catalog (presets, styles, camera moves…). Defaults apply when untouched.":"Controles por modelo do catálogo (predefinições, estilos, movimentos de câmera…). Os padrões se aplicam quando não alterados.",
     "Pull still frames out of a video":"Extraia quadros estáticos de um vídeo",
     "Recent":"Recentes",
+    "Suggested":"Sugeridos",
+    "suggested":"sugerido",
+    "common first node":"nó inicial comum",
+    "often added next":"costuma ser adicionado em seguida",
+    "often wired next":"costuma ser ligado em seguida",
+    "pick a model next":"escolha um modelo em seguida",
+    "often opened next":"costuma ser aberto em seguida",
     "Running calls models on your NanoGPT key.":"A execução chama modelos usando sua chave NanoGPT.",
     "· higher = more creative":"· mais alto = mais criativo",
     "Save as a new app":"Salvar como novo app",
@@ -3976,6 +4011,13 @@ const I18N = {
     "Per-model knobs from the catalog (presets, styles, camera moves…). Defaults apply when untouched.":"カタログのモデル別の調整項目 (プリセット、スタイル、カメラの動き…)。変更しない場合はデフォルトが適用されます。",
     "Pull still frames out of a video":"動画から静止フレームを抽出",
     "Recent":"最近",
+    "Suggested":"候補",
+    "suggested":"候補",
+    "common first node":"よく最初に置くノード",
+    "often added next":"次によく追加",
+    "often wired next":"次によく接続",
+    "pick a model next":"次にモデルを選ぶ",
+    "often opened next":"次によく開く",
     "Running calls models on your NanoGPT key.":"実行するとあなたの NanoGPT キーでモデルが呼び出されます。",
     "· higher = more creative":"· 高いほど創造的",
     "Save as a new app":"新しいアプリとして保存",
@@ -7014,7 +7056,7 @@ function openPicker(kind, opts){
   // Kick a background revalidate if the in-memory catalog is stale so brand-new
   // NanoGPT models show up without requiring a hard reload. Non-blocking.
   try{ refreshCatalogsIfStale(); }catch(_){}
-  picker = { kind, filter:opts.filter, current:opts.current, onPick:opts.onPick };
+  picker = { kind, filter:opts.filter, current:opts.current, onPick:opts.onPick, nodeType:opts.nodeType||"" };
   // whole-phrase key so non-English can reorder ("Modelo de imagen", not the word-salad "Imagen modelo")
   $("mpicktitle").textContent = t(KIND_LABEL[kind] ? `${KIND_LABEL[kind]} model` : "Model") + (opts.filter ? ` · ${t(opts.filter)}` : "");
   $("mpicksort").value = pickerSort;
@@ -7080,9 +7122,30 @@ function pickerSearchHint(list){
   if(qNorm && !(list || pickerMatches()).length) return "no matches — NSFW-only or an exact id can surface hidden models";
   return "";
 }
+// Cached next-action hint, or null when the predictor is off, not ready, or not confident.
+// Menu renderers only read this — they never run the model.
+function nextActionHints(){
+  try{
+    const h = window.__nextAction && window.__nextAction.peek && window.__nextAction.peek();
+    if(!h || !h.confident) return null;
+    return h;
+  }catch{ return null; }
+}
+function modelHintId(){
+  const h = nextActionHints();
+  if(!h || !h.setModel || !picker || !picker.nodeType) return "";
+  return picker.current || defModelFor(picker.nodeType) || "";
+}
+function liftPinnedModel(list, id){
+  const i = list.findIndex(m => m.id===id);
+  if(i<=0) return list;
+  return [list[i], ...list.slice(0,i), ...list.slice(i+1)];
+}
 function renderPicker(){
   if(!picker) return;
   const matches = rankPickerMatches(pickerMatches());
+  const pin = modelHintId();
+  const shown = pin ? liftPinnedModel(matches, pin) : matches;
   $("mpickcount").textContent = `${matches.length} ${matches.length===1?t("model"):t("models")} · ${t(PICK_SORTS[pickerSort])}`;
   const nsfwtog = $("mpicknsfwtog");
   if(nsfwtog && (picker.kind==="image" || picker.kind==="video")) nsfwtog.checked = !!nsfwOnly;
@@ -7095,19 +7158,22 @@ function renderPicker(){
     d.textContent = t(hint);
     frag.appendChild(d);
   }
-  for(const m of matches.slice(0,400)){
+  for(const m of shown.slice(0,400)){
     const b = document.createElement("button");
-    if(m.id===picker.current) b.className = "sel";
+    if(m.id===picker.current) b.classList.add("sel");
+    const sug = !!(pin && m.id===pin);
+    if(sug) b.classList.add("suggested");
     const tags = `${m.vision?'<span class="tag">vision</span>':''}${m.edit?'<span class="tag edit">edit</span>':''}`
       + `${m.t2v?'<span class="tag">t2v</span>':''}${m.i2v?'<span class="tag edit">i2v</span>':''}`
       + `${m.v2v?'<span class="tag edit">v2v</span>':''}${m.avatar?'<span class="tag">avatar</span>':''}`
       + `${m.tts?'<span class="tag">tts</span>':''}${m.music?'<span class="tag edit">music</span>':''}${m.stt?'<span class="tag">stt</span>':''}`
       + `${m.nsfw?`<span class="tag nsfw">${nsfwOnly?"nsfw":"NSFW"}</span>`:''}`;
-    b.innerHTML = `<span class="mname">${esc(m.id)} ${tags}</span><span class="price">${esc(m.price)}</span>`;
+    b.innerHTML = `<span class="mname">${esc(m.id)} ${tags}</span>${sug?`<span class="sug" title="pick a model next">suggested</span>`:""}<span class="price">${esc(m.price)}</span>`;
     b.onclick = ()=>{ picker.onPick(m.id); closePicker(); };
     frag.appendChild(b);
   }
   $("mpicklist").replaceChildren(frag);
+  translateTree($("mpicklist"));
 }
 
 /* ======================================================================
@@ -8348,8 +8414,9 @@ function buildNodeEl(n){
     mp.addEventListener("pointerdown", e=>e.stopPropagation());
     mp.onclick = (e)=>{
       e.stopPropagation();
-      openPicker(t.modelKind, { current:n.fields.model, filter:t.modelFilter, onPick:(id)=>{
+      openPicker(t.modelKind, { current:n.fields.model, filter:t.modelFilter, nodeType:n.type, onPick:(id)=>{
         n.fields.model = id; syncModelPickUI(n, id); updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); save();
+        try{ window.__nextAction?.record?.("set:model"); }catch(_){}
       }});
     };
     updateNodePrice(n);
@@ -9423,6 +9490,42 @@ function startNodeResize(n, e){
   window.addEventListener("pointermove",move); window.addEventListener("pointerup",up); window.addEventListener("pointercancel",up);
 }
 
+// One compatible port to emphasize while dragging, and only when the predictor
+// is confident the next step is a wire. Dropping still uses connect() — this
+// never fabricates a link. Prefers the selected node, then the newest other
+// node, and skips a target that would cycle.
+function markLikelyPort(targets, anchor){
+  const h = nextActionHints();
+  if(!h || !h.wire || !targets.length || !anchor) return null;
+  const adir = anchor.dataset.dir, anode = anchor.dataset.node, aport = anchor.dataset.port;
+  const prefer = [];
+  if(typeof selected!=="undefined" && selected && selected.id && selected.id!==anode) prefer.push(selected.id);
+  if(typeof graph!=="undefined" && graph.nodes){
+    for(let i=graph.nodes.length-1;i>=0;i--){ const id=graph.nodes[i].id; if(id!==anode) prefer.push(id); }
+  }
+  const seen = new Set();
+  for(const id of prefer){
+    if(seen.has(id)) continue;
+    seen.add(id);
+    const ports = targets.filter(t => t.dataset.node===id && !t.classList.contains("disabled"));
+    // Prefer the prompt (what a wire usually feeds) over the model-id override,
+    // which is a valid text socket but not a working next step for a content wire.
+    ports.sort((a,b)=> portLikelyRank(a.dataset.port) - portLikelyRank(b.dataset.port));
+    for(const p of ports){
+      const outN = adir==="out" ? anode : p.dataset.node;
+      const inN = adir==="out" ? p.dataset.node : anode;
+      const inP = adir==="out" ? p.dataset.port : aport;
+      if(wouldCycle(outN, inN, inP)) continue;
+      return p;
+    }
+  }
+  return null;
+}
+function portLikelyRank(name){
+  if(name==="prompt") return 0;
+  if(name==="model") return 2;
+  return 1;
+}
 const MAG = 80; // snap radius (px, screen space) — lets people aim loosely
 function compatiblePorts(dir, ptype, skipNode){
   return [...document.querySelectorAll(".port")].filter(p=>
@@ -9456,6 +9559,11 @@ function startWire(port, e){
   const fixed = portCenter(anchor);
   const targets = compatiblePorts(adir, ptype, anode);
   targets.forEach(p=> p.classList.add("compatible"));   // glow every valid destination, by type
+  const likely = markLikelyPort(targets, anchor);       // one real target, only when "wire" is a confident hint
+  if(likely){
+    likely.classList.add("likely");
+    if(!likely.getAttribute("title")){ likely.dataset.sugTitle = "1"; likely.title = t("suggested"); }
+  }
   tempWire = { x1:fixed.x, y1:fixed.y, x2:fixed.x, y2:fixed.y };
   let snap = null;
   const move = (ev)=>{
@@ -9472,7 +9580,10 @@ function startWire(port, e){
     if(ev.pointerId!==id) return;
     window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up);
     tempWire = null; draggingLinkId = null;           // un-hide the picked link on every exit path
-    targets.forEach(p=> p.classList.remove("compatible","snap"));
+    targets.forEach(p=>{
+      p.classList.remove("compatible","snap","likely");
+      if(p.dataset.sugTitle){ p.removeAttribute("title"); delete p.dataset.sugTitle; }
+    });
     let other = snap?.p;                              // prefer the magnetically-snapped port
     if(!other){ const tgt = document.elementFromPoint(ev.clientX, ev.clientY); other = tgt && tgt.closest(".port"); }
     let connected = false;
@@ -9601,12 +9712,18 @@ function openQuickAdd(clientX, clientY, originPort){
   const groups = new Map(ADD_GROUPS.map(g=>[g,[]]));
   for(const [k,t] of cands){ const g = t.group||"Other"; if(!groups.has(g)) groups.set(g,[]); groups.get(g).push([k,t]); }
   let html = `<div class="qhint">${dir==="out" ? "→ send "+esc(type)+" to…" : "← get "+esc(type)+" from…"}</div>`;
+  const map = addHintMap();
+  const sugIds = map ? map.order.filter(k => cands.some(([ck]) => ck===k)) : [];
+  const sugSet = new Set(sugIds);
+  if(sugIds.length) html += `<div class="grp">Suggested</div>` + sugIds.map(k => nodeRow(k, NODE_TYPES[k], map.byType[k])).join("");
   for(const [g,items] of groups){
-    if(!items.length) continue;
+    const rest = sugSet.size ? items.filter(([k]) => !sugSet.has(k)) : items;
+    if(!rest.length) continue;
     html += `<div class="grp">${esc(g)}</div>`;
-    html += items.map(([k,t])=> nodeRow(k,t)).join("");
+    html += rest.map(([k,t])=> nodeRow(k,t)).join("");
   }
   pop.innerHTML = html;
+  translateTree(pop);
   // world coords for the new node, derived from the drop point (#world is translated by pan and scaled)
   const ed = editor.getBoundingClientRect();
   const wx = (clientX - ed.left - panX)/scale, wy = (clientY - ed.top - panY)/scale;
@@ -12610,8 +12727,20 @@ function rememberAdd(type){
   try{ localStorage.setItem("nano.addRecent", JSON.stringify(addRecent)); }catch{}
 }
 // One node row — shared by the Add menu and the wire-drop quick-add so their styling can never drift.
-function nodeRow(k,t){
-  return `<button data-type="${k}"><span class="k">${t.em}</span><span><div>${esc(t.title)}</div><div class="d">${esc(t.desc)}</div></span></button>`;
+function addHintMap(){
+  const h = nextActionHints();
+  if(!h || !h.adds || !h.adds.length) return null;
+  const order = [], byType = {};
+  for(const a of h.adds){
+    if(!a || !NODE_TYPES[a.type] || byType[a.type]) continue;
+    byType[a.type] = a; order.push(a.type);
+  }
+  return order.length ? { order, byType } : null;
+}
+function nodeRow(k,t,sug){
+  if(!sug) return `<button data-type="${k}"><span class="k">${t.em}</span><span><div>${esc(t.title)}</div><div class="d">${esc(t.desc)}</div></span></button>`;
+  const why = sug.reason ? ` title="${esc(sug.reason)}"` : "";
+  return `<button class="suggested" data-type="${k}"${why}><span class="k">${t.em}</span><span><div>${esc(t.title)}</div><div class="d">${esc(t.desc)}</div></span><span class="sug">suggested</span></button>`;
 }
 // Rank a query hit: title-prefix(0) beats title-substring(1) beats desc/keyword-substring(2); -1 = no match.
 function addMatchRank(t, q){
@@ -12633,15 +12762,23 @@ function addMatchRank(t, q){
 // Non-empty → a flat, rank-sorted match list (no group headers). The first row is auto-selected for Enter.
 function renderAddList(q){
   const list = $("addlist"), hint = $("addpop").querySelector(".addhint");
+  const map = addHintMap();
   let html = "";
   if(!q){
     hint.hidden = true;
-    const recent = addRecent.filter(k=>NODE_TYPES[k]);
-    html += recent.length
-      ? `<div class="grp">Recent</div>` + recent.map(k=>nodeRow(k,NODE_TYPES[k])).join("")
-      : `<div class="grp">Start here</div>` + ADD_STARTERS.filter(k=>NODE_TYPES[k]).map(k=>nodeRow(k,NODE_TYPES[k])).join("");
+    const skip = map ? new Set(map.order) : null;
+    if(map) html += `<div class="grp">Suggested</div>` + map.order.map(k=>nodeRow(k, NODE_TYPES[k], map.byType[k])).join("");
+    const recent = addRecent.filter(k=>NODE_TYPES[k] && !(skip && skip.has(k)));
+    if(recent.length) html += `<div class="grp">Recent</div>` + recent.map(k=>nodeRow(k,NODE_TYPES[k])).join("");
+    else {
+      const starters = ADD_STARTERS.filter(k=>NODE_TYPES[k] && !(skip && skip.has(k)));
+      if(starters.length) html += `<div class="grp">Start here</div>` + starters.map(k=>nodeRow(k,NODE_TYPES[k])).join("");
+    }
     const groups = new Map(ADD_GROUPS.map(g=>[g,[]]));
-    for(const [k,t] of Object.entries(NODE_TYPES)){ const g = t.group||"Other"; if(!groups.has(g)) groups.set(g,[]); groups.get(g).push([k,t]); }
+    for(const [k,t] of Object.entries(NODE_TYPES)){
+      if(skip && skip.has(k)) continue;
+      const g = t.group||"Other"; if(!groups.has(g)) groups.set(g,[]); groups.get(g).push([k,t]);
+    }
     for(const [g,items] of groups){
       if(!items.length) continue;
       html += `<div class="grp">${esc(g)}</div>` + items.map(([k,t])=>nodeRow(k,t)).join("");
@@ -12651,8 +12788,8 @@ function renderAddList(q){
     const hits = Object.entries(NODE_TYPES)
       .map(([k,t])=>[k,t,addMatchRank(t,q)])
       .filter(([,,r])=>r>=0)
-      .sort((a,b)=>a[2]-b[2]);   // stable sort → ties keep NODE_TYPES order (which mirrors ADD_GROUPS)
-    html = hits.length ? hits.map(([k,t])=>nodeRow(k,t)).join("")
+      .sort((a,b)=>a[2]-b[2] || (map ? ((map.byType[a[0]]?0:1)-(map.byType[b[0]]?0:1)) : 0));
+    html = hits.length ? hits.map(([k,t])=>nodeRow(k,t,map&&map.byType[k])).join("")
                        : `<div class="nomatch">${esc(t("no nodes match “{q}”")).replace("{q}", ()=>esc(q))}</div>`;
   }
   list.innerHTML = html;
@@ -14017,7 +14154,15 @@ function renderCommunity(){
 }
 function openExamples(){
   const list=$("exampleslist"); list.innerHTML="";
-  EXAMPLES.forEach((ex,i)=>{
+  const eh = nextActionHints();
+  const wantEx = eh && eh.openExamples && eh.adds ? new Set(eh.adds.map(a=>a.type)) : null;
+  const exFirst = (ex)=>{ const n=(ex.graph&&ex.graph.nodes||[]).find(x=>x.type && x.type!=="comment"); return n ? n.type : ""; };
+  let order = EXAMPLES.map((_,i)=>i);
+  if(wantEx && wantEx.size && order.some(i=>wantEx.has(exFirst(EXAMPLES[i])))){
+    order = order.slice().sort((a,b)=> (wantEx.has(exFirst(EXAMPLES[a]))?0:1) - (wantEx.has(exFirst(EXAMPLES[b]))?0:1));
+  }
+  order.forEach((i)=>{
+    const ex = EXAMPLES[i];
     const c=document.createElement("article"); c.className="ex-card";
     const result=LOCAL_ONLY_EXAMPLE_SLUGS.has(ex.slug)?"":ex.slug==="character-sprites"?"examples/iron-verdict/":"examples/gallery/#"+encodeURIComponent(ex.slug);
     const thumb=ex.slug==="character-sprites"?"examples/iron-verdict/screenshot.png":ex.thumb;
@@ -14029,10 +14174,17 @@ function openExamples(){
     const see=result?`<a href="${result}" target="_blank" rel="noopener">${esc(t(resultLabel))} ↗</a>`:"";
     const skill=ex.slug==="character-sprites"?`<a href="https://github.com/nanoodlecom/noodle-skills/tree/main/skills/character-sprites" target="_blank" rel="noopener">${esc(t("Get the skill"))} ↗</a>`:"";
     c.innerHTML=`${previewWrap}<div class="ex-body"><h3 class="ex-tt">${esc(t(ex.title))}</h3><p class="ex-ds">${esc(t(ex.desc))}</p><div class="ex-actions"><button type="button">${esc(t("Open workflow"))}</button>${see}${skill}</div></div>`;
-    c.querySelector("button").onclick=()=>loadExample(i); list.appendChild(c);
+    c.querySelector("button").onclick=()=>loadExample(i);
+    if(wantEx && wantEx.has(exFirst(ex))){
+      c.classList.add("suggested");
+      const h3=c.querySelector(".ex-tt");
+      if(h3){ const s=document.createElement("span"); s.className="sug"; s.title=t("often opened next"); s.textContent=t("suggested"); h3.appendChild(s); }
+    }
+    list.appendChild(c);
   });
   renderCommunity();
   $("examplesmodal").hidden=false;
+  try{ window.__nextAction?.record?.("open:examples"); }catch(_){}
 }
 function closeExamples(){ $("examplesmodal").hidden=true; }
 function loadExample(i){
@@ -14945,27 +15097,14 @@ RULES for the diff:
     }finally{ setBusy(false); dbAbort = null; }
   }
 })();
-/* Product · N — next-action real-editor surface (soft tips / schema / gallery).
-   Dynamic import so branches without vendor/next-action stay quiet. */
-(function bootNextActionSurface(){
-  const wrap = (name, fn) => {
-    try {
-      const orig = fn;
-      return function(){
-        const r = orig.apply(this, arguments);
-        try { window.__nextAction && window.__nextAction["on"+name] && window.__nextAction["on"+name](arguments, r); } catch(_){}
-        return r;
-      };
-    } catch(_){ return fn; }
-  };
-  // Patch core mutators to feed action history (schema tokens).
+/* Next-action scores feed existing menus (add node, wire-drop, model picker).
+   Dynamic import so a tree without vendor/next-action stays quiet. No panel, no ghost.
+   ?na=0 / ?product=off disables hints; until the cache is confident, lists are unchanged. */
+(function bootNextActionHints(){
   const _addNode = addNode;
   addNode = function(type, x, y, fields){
     const n = _addNode(type, x, y, fields);
-    try {
-      const tok = "add:" + type;
-      window.__nextAction?.record?.(tok);
-    } catch(_){}
+    try { window.__nextAction?.record?.("add:" + type); } catch(_){}
     return n;
   };
   const _connect = connect;
@@ -14979,23 +15118,28 @@ RULES for the diff:
     _select(n);
     try { window.__nextAction?.refresh?.(); } catch(_){}
   };
-  const _openExamples = openExamples;
-  openExamples = function(){
-    _openExamples();
-    try { window.__nextAction?.onExamplesOpened?.(); } catch(_){}
-  };
   const _loadExample = loadExample;
   loadExample = function(i){
-    _loadExample(i);
-    try { window.__nextAction?.onExampleLoaded?.(); } catch(_){}
+    const r = _loadExample(i);
+    try { window.__nextAction?.refresh?.(); } catch(_){}
+    return r;
   };
-  // Product · 5 (+ shared): emit run token when a flow actually starts.
   if (typeof runGroup === "function") {
     const _runGroup = runGroup;
     runGroup = function(seedIds, ctx){
       try { window.__nextAction?.record?.("run"); } catch(_){}
       return _runGroup.apply(this, arguments);
     };
+  }
+  function paintOpenLists(){
+    try{
+      const pop = $("addpop");
+      if(pop && pop.classList.contains("open") && $("addsearch")){
+        renderAddList($("addsearch").value.trim().toLowerCase());
+        translateTree($("addlist"));
+      }
+      if(picker && $("mpick") && $("mpick").classList.contains("open")) renderPicker();
+    }catch(_){}
   }
   import("./vendor/next-action/editor-surface.mjs").then(async (mod) => {
     await mod.mount({
@@ -15004,12 +15148,10 @@ RULES for the diff:
         links: (graph.links||[]).map(l => ({ from:l.from, to:l.to })),
         selectedId: selected?.id || null,
       }),
-      addNode: (type, x, y) => addNode(type, x, y),
-      openExamples: () => openExamples(),
-      runSelected: () => { if(selected) runGroup([selected.id]); else $("run")?.click(); },
-      worldEl: typeof world !== "undefined" ? world : document.getElementById("world"),
+      nodeTypes: Object.keys(NODE_TYPES),
+      onHints: paintOpenLists,
     });
-  }).catch((e) => { try { console.warn("[next-action] editor surface not mounted", e); } catch(_){} });
+  }).catch((e) => { try { console.warn("[next-action] hints not mounted", e); } catch(_){} });
 })();
 
 </script>

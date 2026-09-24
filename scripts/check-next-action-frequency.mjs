@@ -94,4 +94,4 @@ assert(failed.length === 0, `${failed.length} toy(s) failed`);
 console.log(
   `✓ next-action-frequency: n=${freqEval.n} top1=${freqEval.top1.toFixed(3)} top3=${freqEval.top3.toFixed(3)} toys=${toys.length}/${toys.length}`
 );
-console.log("  (ghost UI: real-editor surface via vendor/next-action/editor-surface.mjs)");
+console.log("  (in-list hints: vendor/next-action/hints.mjs + editor-surface.mjs)");

@@ -13062,7 +13062,7 @@ function renderPicker(){
   const frag = document.createDocumentFragment();
   for(const m of matches.slice(0,400)){
     const b = document.createElement("button");
-    if(m.id===picker.current) b.className = "sel";
+    if(m.id===picker.current) b.classList.add("sel");
     b.innerHTML = '<span class="mname">'+esc(m.id)+'</span><span class="price">'+esc(m.price)+'</span>';
     b.onclick = ()=>{ setModel(m.id); closePicker(); };
     frag.appendChild(b);
