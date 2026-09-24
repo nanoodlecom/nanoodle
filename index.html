@@ -7056,7 +7056,7 @@ function openPicker(kind, opts){
   // Kick a background revalidate if the in-memory catalog is stale so brand-new
   // NanoGPT models show up without requiring a hard reload. Non-blocking.
   try{ refreshCatalogsIfStale(); }catch(_){}
-  picker = { kind, filter:opts.filter, current:opts.current, onPick:opts.onPick };
+  picker = { kind, filter:opts.filter, current:opts.current, onPick:opts.onPick, nodeType:opts.nodeType||"" };
   // whole-phrase key so non-English can reorder ("Modelo de imagen", not the word-salad "Imagen modelo")
   $("mpicktitle").textContent = t(KIND_LABEL[kind] ? `${KIND_LABEL[kind]} model` : "Model") + (opts.filter ? ` · ${t(opts.filter)}` : "");
   $("mpicksort").value = pickerSort;
@@ -9507,15 +9507,24 @@ function markLikelyPort(targets, anchor){
   for(const id of prefer){
     if(seen.has(id)) continue;
     seen.add(id);
-    const p = targets.find(t => t.dataset.node===id && !t.classList.contains("disabled"));
-    if(!p) continue;
-    const outN = adir==="out" ? anode : p.dataset.node;
-    const inN = adir==="out" ? p.dataset.node : anode;
-    const inP = adir==="out" ? p.dataset.port : aport;
-    if(wouldCycle(outN, inN, inP)) continue;
-    return p;
+    const ports = targets.filter(t => t.dataset.node===id && !t.classList.contains("disabled"));
+    // Prefer the prompt (what a wire usually feeds) over the model-id override,
+    // which is a valid text socket but not a working next step for a content wire.
+    ports.sort((a,b)=> portLikelyRank(a.dataset.port) - portLikelyRank(b.dataset.port));
+    for(const p of ports){
+      const outN = adir==="out" ? anode : p.dataset.node;
+      const inN = adir==="out" ? p.dataset.node : anode;
+      const inP = adir==="out" ? p.dataset.port : aport;
+      if(wouldCycle(outN, inN, inP)) continue;
+      return p;
+    }
   }
   return null;
+}
+function portLikelyRank(name){
+  if(name==="prompt") return 0;
+  if(name==="model") return 2;
+  return 1;
 }
 const MAG = 80; // snap radius (px, screen space) — lets people aim loosely
 function compatiblePorts(dir, ptype, skipNode){
