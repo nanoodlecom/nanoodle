@@ -1,10 +1,17 @@
 /**
- * Real Nanoodle editor surface for Product · 1–· 6 next-action.
+ * Real Nanoodle editor surface for Product · 1–· 6 + · 19 (paired 2D transport).
  * Soft tips + action log + Examples→corpus + · 5 local ring + · 6 cold-start seeds.
+ * · 19: Mess up → delta-field arrows → Apply transport (lerp along paired cool−messy).
  * Dynamic imports so Product · 2 (schema-only) still mounts.
  */
 import { ACTION_VOCAB, NODE_TYPES, sketchFromGraph, schema } from "./encode.mjs";
 import { createRing, RING_CAPACITY } from "./ring.mjs";
+import {
+  transportLayout,
+  detectMessy,
+  proposeMessPositions,
+  proposeTransportDeltas,
+} from "./paired-transport.mjs";
 
 const BASE = new URL(".", import.meta.url);
 
@@ -12,7 +19,7 @@ function productMode() {
   try {
     const q = new URLSearchParams(location.search);
     const p = q.get("product") || q.get("na");
-    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5" || p === "6") return Number(p);
+    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5" || p === "6" || p === "19") return Number(p);
   } catch (_) {}
   return 1;
 }
@@ -104,6 +111,14 @@ function ensureStyles() {
 #na-ghost{position:absolute;pointer-events:none;z-index:5;display:flex;align-items:center;gap:.35rem;padding:.4rem .65rem;
   border:1.5px dashed #3d5a70;border-radius:10px;background:rgba(20,30,45,.55);color:#67e8f9;font:12px/1.2 system-ui;opacity:0;transition:opacity .25s}
 #na-ghost.show{opacity:1}
+
+#na-panel .na-transport-note{font-size:.68rem;color:#5eead4;padding:.15rem 0 0;min-height:1em}
+#na-panel .na-transport-note.flash{color:#a5f3fc}
+.na-transport-flash,.na-transport-moving{box-shadow:0 0 0 2px #5eead4cc,0 0 22px #14b8a6aa !important;transition:box-shadow .4s ease;z-index:40 !important}
+.na-transport-moving{filter:brightness(1.06)}
+#na-delta-overlay{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:25;overflow:visible}
+#na-delta-overlay line{stroke:#2dd4bf;stroke-width:2;stroke-linecap:round;opacity:.85}
+#na-delta-overlay polygon{fill:#5eead4;opacity:.9}
 `;
   document.head.appendChild(s);
 }
@@ -123,6 +138,7 @@ function buildPanel(mode) {
     4: "gallery → dataset",
     5: "local action ring",
     6: "cold-start seeds",
+    19: "paired 2D transport",
   };
   if (mode === 5) {
     el.innerHTML = `
@@ -160,6 +176,7 @@ function buildPanel(mode) {
       <div class="na-label" id="na-title">${titles[mode] || "tips"}</div>
       <div id="na-tips"></div>
       ${mode === 6 ? `<div class="na-label">first trios</div><div class="na-trio-row" id="na-trios"></div>` : ""}
+      ${mode === 19 ? `<div class="na-actions"><button type="button" class="na-btn" id="na-mess-btn">Mess up</button><button type="button" class="na-btn" id="na-transport-btn">Apply transport</button></div><div class="na-transport-note" id="na-transport-note">Mess up → arrows → Transport</div>` : ""}
       <div class="na-label">history</div>
       <div class="na-hist"><b id="na-hist">[ ]</b></div>
       <div class="na-label" id="na-schema-label">schema tokens</div>
@@ -443,6 +460,13 @@ export async function mount(api) {
 
 function applyTip(action) {
     flashToken(action);
+    if (mode === 19) {
+      const info = detectMessy(api.getGraph());
+      if (info.messy) {
+        runTransport({ force: true });
+        return;
+      }
+    }
     if (action.startsWith("add:")) {
       const type = action.slice(4);
       const g = api.getGraph();
@@ -484,11 +508,225 @@ function applyTip(action) {
     refreshTips();
   }
 
+
+  // ——— Product · 19: paired 2D transport + delta-field overlay ———
+  let softMoveRaf = 0;
+  let softMoveBusy = false;
+  /** @type {{id:string,dx:number,dy:number,fromX:number,fromY:number,toX:number,toY:number}[]} */
+  let lastDeltas = [];
+
+  function setTransportNote(msg) {
+    const el = panel.querySelector("#na-transport-note");
+    if (!el) return;
+    el.textContent = msg || "";
+    el.classList.add("flash");
+    setTimeout(() => el.classList.remove("flash"), 350);
+  }
+
+  function ensureDeltaOverlay() {
+    const world = api.worldEl || document.getElementById("world");
+    if (!world) return null;
+    let svg = document.getElementById("na-delta-overlay");
+    if (svg) return svg;
+    svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.id = "na-delta-overlay";
+    svg.setAttribute("aria-hidden", "true");
+    if (getComputedStyle(world).position === "static") {
+      world.style.position = "relative";
+    }
+    world.appendChild(svg);
+    return svg;
+  }
+
+  function clearDeltaField() {
+    lastDeltas = [];
+    const svg = document.getElementById("na-delta-overlay");
+    if (svg) svg.innerHTML = "";
+  }
+
+  function showDeltaField(deltas) {
+    lastDeltas = deltas || [];
+    const svg = ensureDeltaOverlay();
+    if (!svg) return;
+    svg.innerHTML = "";
+    const coolEps = 8;
+    for (const d of lastDeltas) {
+      if (Math.hypot(d.dx, d.dy) < coolEps) continue;
+      const x1 = d.fromX + 90;
+      const y1 = d.fromY + 50;
+      const x2 = d.toX + 90;
+      const y2 = d.toY + 50;
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", String(x1));
+      line.setAttribute("y1", String(y1));
+      line.setAttribute("x2", String(x2));
+      line.setAttribute("y2", String(y2));
+      svg.appendChild(line);
+      const ang = Math.atan2(y2 - y1, x2 - x1);
+      const ah = 9;
+      const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      poly.setAttribute(
+        "points",
+        `${x2},${y2} ${x2 - ah * Math.cos(ang - 0.4)},${y2 - ah * Math.sin(ang - 0.4)} ${x2 - ah * Math.cos(ang + 0.4)},${y2 - ah * Math.sin(ang + 0.4)}`
+      );
+      svg.appendChild(poly);
+    }
+  }
+
+  function animateMoveNodes(targets, ms = 360) {
+    return new Promise((resolve) => {
+      if (!api.moveNode || !targets?.length) {
+        resolve();
+        return;
+      }
+      if (softMoveRaf) cancelAnimationFrame(softMoveRaf);
+      const g = api.getGraph();
+      const byId = new Map((g.nodes || []).map((n) => [String(n.id), n]));
+      const moves = [];
+      for (const t of targets) {
+        const n = byId.get(String(t.id));
+        if (!n) continue;
+        moves.push({
+          id: String(t.id),
+          ax: Number(n.x),
+          ay: Number(n.y),
+          bx: Number(t.x),
+          by: Number(t.y),
+        });
+      }
+      if (!moves.length) {
+        resolve();
+        return;
+      }
+      const t0 = performance.now();
+      function frame(now) {
+        const t = Math.min(1, (now - t0) / ms);
+        const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        for (const m of moves) {
+          try {
+            api.moveNode(m.id, m.ax + (m.bx - m.ax) * e, m.ay + (m.by - m.ay) * e);
+          } catch (_) {}
+        }
+        if (t < 1) softMoveRaf = requestAnimationFrame(frame);
+        else {
+          softMoveRaf = 0;
+          for (const m of moves) {
+            try { api.moveNode(m.id, m.bx, m.by); } catch (_) {}
+          }
+          resolve();
+        }
+      }
+      softMoveRaf = requestAnimationFrame(frame);
+    });
+  }
+
+  function setTransportGlow(ids, on) {
+    for (const id of ids) {
+      const el = document.querySelector(`.node[data-id="${CSS.escape(String(id))}"]`);
+      if (!el) continue;
+      if (on) el.classList.add("na-transport-flash", "na-transport-moving");
+      else {
+        el.classList.remove("na-transport-moving");
+        setTimeout(() => el.classList.remove("na-transport-flash"), 380);
+      }
+    }
+  }
+
+  async function runTransport(opts = {}) {
+    if (mode !== 19 || !api.moveNode) return;
+    if (softMoveBusy) return;
+    softMoveBusy = true;
+    let glowed = [];
+    try {
+      const g = api.getGraph();
+      const result = transportLayout(g, {
+        force: !!opts.force,
+        t: opts.t ?? 0.7,
+      });
+      showDeltaField(result.deltas);
+      if (!result.positions.length) {
+        setTransportNote(
+          result.messy
+            ? `transport · no move · ${result.pairId || "?"}`
+            : `transport · already cool · ${result.pairId || "—"}`
+        );
+        return result;
+      }
+      glowed = result.movedIds.slice();
+      setTransportGlow(glowed, true);
+      setTransportNote(
+        `${result.pairId || "pair"} · mean |Δ| ${result.meanNorm.toFixed(0)} · ${result.arrowCount} arrows`
+      );
+      await animateMoveNodes(result.positions, 400);
+      clearDeltaField();
+      setTransportNote(
+        `applied · ${result.movedIds.length} node${result.movedIds.length === 1 ? "" : "s"} · ${result.pairId || ""}`
+      );
+      return result;
+    } finally {
+      if (glowed.length) setTransportGlow(glowed, false);
+      softMoveBusy = false;
+    }
+  }
+
+  async function messUpLayout() {
+    if (mode !== 19 || !api.moveNode) return;
+    if (softMoveBusy) return;
+    softMoveBusy = true;
+    try {
+      const g = api.getGraph();
+      const nodes = (g.nodes || []).filter((n) => n.type !== "comment");
+      if (nodes.length < 2) {
+        try {
+          api.addNode("text", 280, 200);
+          api.addNode("llm", 500, 200);
+          api.addNode("image", 720, 200);
+        } catch (e) {
+          console.warn("[next-action] mess seed failed", e);
+        }
+      }
+      const g2 = api.getGraph();
+      const targets = proposeMessPositions(g2);
+      setTransportNote("mess · scattering");
+      await animateMoveNodes(targets, 260);
+      const prop = proposeTransportDeltas(api.getGraph());
+      showDeltaField(prop.deltas);
+      const info = detectMessy(api.getGraph());
+      setTransportNote(
+        `${info.pairId || "pair"} · mean |Δ| ${info.meanNorm.toFixed(0)} · ${info.arrowCount} arrows — hit Transport`
+      );
+    } finally {
+      softMoveBusy = false;
+    }
+  }
+
+  function wireTransportControls() {
+    if (mode !== 19) return;
+    const messBtn = panel.querySelector("#na-mess-btn");
+    const transportBtn = panel.querySelector("#na-transport-btn");
+    if (messBtn) {
+      messBtn.addEventListener("click", () => {
+        messUpLayout().then(() => refreshTips());
+      });
+    }
+    if (transportBtn) {
+      transportBtn.addEventListener("click", () => {
+        runTransport({ force: true }).then(() => refreshTips());
+      });
+    }
+  }
+
+
   wireRingControls();
+  wireTransportControls();
 
   window.__nextAction = {
     record,
     refresh: refreshTips,
+    runTransport,
+    messUpLayout,
+    clearDeltaField,
+    showDeltaField,
     onExamplesOpened() {
       if ((mode === 4 || mode === 1) && corpusMeta) {
         corpusEl.hidden = false;
