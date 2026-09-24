@@ -6,12 +6,15 @@
 | · 4 | `scripts/bake-next-action.mjs`, `corpus/gallery-synth.json` |
 | · 3 | `frequency.mjs`, `corpus/frequency-tables.json`, `recommend.mjs` (baseline / optional blend) |
 | · 5 | `ring.mjs` — flagged local action ring (memory / localStorage; local `export()` only) |
-| · 6 | `cold-start.mjs`, `firstNode` / `firstTrio` in `corpus/frequency-tables.json`, empty-canvas tips + trio chips (`?product=6`) |
-| · 1 | `scripts/train-next-action.py`, `fixtures/smoke-weights.json`, `scripts/check-next-action.mjs` |
+| · 6 | `cold-start.mjs`, `firstNode` / `firstTrio` in `corpus/frequency-tables.json` (library + checks; no chips on the canvas) |
+| · 1 | `scripts/train-next-action.py`, `fixtures/smoke-weights.json`, `scripts/check-next-action.mjs`, `hints.mjs` |
 
 Learned `.bin` weights stay **gitignored**; tests load inline float fixtures.
-Real-editor soft tips: `editor-surface.mjs` mounts in `index.html` (`?product=1`…`6`).
-Catalog stays empty — no `weightsUrl` until a deliberate release.
+The editor reads scores from `editor-surface.mjs` and shows them inside existing
+menus (add-node, wire-drop quick-add, model picker). There is no floating
+next-action panel and no ghost node. `?product=` does not mount one.
+`?na=0` or `?product=off` disables hints; a failed load does the same, and
+menus stay unchanged. Catalog stays empty — no `weightsUrl` until a deliberate release.
 
 ## Train / export (box-local)
 
