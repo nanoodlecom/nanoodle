@@ -1,10 +1,15 @@
 /**
- * Real Nanoodle editor surface for Product · 1–· 6 next-action.
+ * Real Nanoodle editor surface for Product · 1–· 6 + · 18 (multi-select aesthetic pack).
  * Soft tips + action log + Examples→corpus + · 5 local ring + · 6 cold-start seeds.
+ * · 18: Polish / Mess selection — scoped de-overlap + compact pack on selectedIds.
  * Dynamic imports so Product · 2 (schema-only) still mounts.
  */
 import { ACTION_VOCAB, NODE_TYPES, sketchFromGraph, schema } from "./encode.mjs";
 import { createRing, RING_CAPACITY } from "./ring.mjs";
+import {
+  planAestheticPasses,
+  proposeMessPositions,
+} from "./aesthetic-pack.mjs";
 
 const BASE = new URL(".", import.meta.url);
 
@@ -12,7 +17,7 @@ function productMode() {
   try {
     const q = new URLSearchParams(location.search);
     const p = q.get("product") || q.get("na");
-    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5" || p === "6") return Number(p);
+    if (p === "1" || p === "2" || p === "3" || p === "4" || p === "5" || p === "6" || p === "18") return Number(p);
   } catch (_) {}
   return 1;
 }
@@ -104,6 +109,12 @@ function ensureStyles() {
 #na-ghost{position:absolute;pointer-events:none;z-index:5;display:flex;align-items:center;gap:.35rem;padding:.4rem .65rem;
   border:1.5px dashed #3d5a70;border-radius:10px;background:rgba(20,30,45,.55);color:#67e8f9;font:12px/1.2 system-ui;opacity:0;transition:opacity .25s}
 #na-ghost.show{opacity:1}
+#na-panel .na-pack-note{font-size:.68rem;color:#c4b5fd;padding:.15rem 0 0;min-height:1em}
+#na-panel .na-pack-note.flash{color:#a78bfa}
+#na-panel.na-wide-pack{width:268px;max-width:min(268px,calc(100vw - 2rem))}
+.na-pack-flash,.na-pack-moving{box-shadow:0 0 0 2px #c4b5fdcc,0 0 26px #8b5cf6aa !important;transition:box-shadow .4s ease;z-index:40 !important}
+.na-pack-moving{filter:brightness(1.06)}
+.node.sel-multi{border-color:#a78bfa;box-shadow:0 0 0 1px #a78bfa,0 14px 36px #0008}
 `;
   document.head.appendChild(s);
 }
@@ -115,7 +126,8 @@ function buildPanel(mode) {
   el = document.createElement("aside");
   el.id = "na-panel";
   el.setAttribute("aria-label", "Next-action tips");
-  if (mode === 5) el.classList.add("na-wide");
+  if (mode === 5 || mode === 18) el.classList.add("na-wide");
+  if (mode === 18) el.classList.add("na-wide-pack");
   const titles = {
     1: "soft tips · learned",
     2: "action + schema",
@@ -123,6 +135,7 @@ function buildPanel(mode) {
     4: "gallery → dataset",
     5: "local action ring",
     6: "cold-start seeds",
+    18: "multi-select aesthetic pack",
   };
   if (mode === 5) {
     el.innerHTML = `
@@ -160,6 +173,7 @@ function buildPanel(mode) {
       <div class="na-label" id="na-title">${titles[mode] || "tips"}</div>
       <div id="na-tips"></div>
       ${mode === 6 ? `<div class="na-label">first trios</div><div class="na-trio-row" id="na-trios"></div>` : ""}
+      ${mode === 18 ? `<div class="na-actions"><button type="button" class="na-btn" id="na-polish-btn">Polish selection</button><button type="button" class="na-btn" id="na-mess-sel-btn">Mess selection</button></div><div class="na-pack-note" id="na-pack-note">Shift-click nodes → Polish (P)</div>` : ""}
       <div class="na-label">history</div>
       <div class="na-hist"><b id="na-hist">[ ]</b></div>
       <div class="na-label" id="na-schema-label">schema tokens</div>
@@ -173,8 +187,9 @@ function buildPanel(mode) {
 
 /**
  * @param {{
- *   getGraph: () => {nodes:any[], links:any[], selectedId?:string|null},
+ *   getGraph: () => {nodes:any[], links:any[], selectedId?:string|null, selectedIds?:string[]},
  *   addNode: (type:string, x?:number, y?:number) => any,
+ *   moveNode?: (id:string, x:number, y:number) => boolean,
  *   openExamples: () => void,
  *   runSelected?: () => void,
  *   worldEl?: HTMLElement | null,
@@ -484,11 +499,235 @@ function applyTip(action) {
     refreshTips();
   }
 
+
+  function selectionIds() {
+    const g = api.getGraph();
+    const ids = Array.isArray(g.selectedIds) ? g.selectedIds.map(String) : [];
+    if (ids.length) return ids;
+    if (g.selectedId) return [String(g.selectedId)];
+    return [];
+  }
+
+  function setPackNote(msg) {
+    const note = panel.querySelector("#na-pack-note");
+    if (!note) return;
+    note.textContent = msg;
+    note.classList.add("flash");
+    setTimeout(() => note.classList.remove("flash"), 700);
+  }
+
+  function easeOutCubic(t) {
+    return 1 - Math.pow(1 - t, 3);
+  }
+
+  let softMoveRaf = 0;
+  let softMoveBusy = false;
+  function cancelSoftMove() {
+    if (softMoveRaf) {
+      cancelAnimationFrame(softMoveRaf);
+      softMoveRaf = 0;
+    }
+  }
+
+  function animateMoveNodes(targets, durationMs) {
+    if (!api.moveNode || !targets.length) return Promise.resolve();
+    cancelSoftMove();
+    const g = api.getGraph();
+    const from = new Map(
+      (g.nodes || []).map((n) => [String(n.id), { x: Number(n.x), y: Number(n.y) }])
+    );
+    const moves = targets
+      .map((t) => {
+        const a = from.get(String(t.id));
+        if (!a || !Number.isFinite(a.x) || !Number.isFinite(a.y)) return null;
+        if (Math.abs(t.x - a.x) < 0.5 && Math.abs(t.y - a.y) < 0.5) return null;
+        return { id: String(t.id), ax: a.x, ay: a.y, bx: t.x, by: t.y };
+      })
+      .filter(Boolean)
+      .slice(0, 24);
+    if (!moves.length) return Promise.resolve();
+    const dur = Math.max(60, Math.min(520, durationMs || 320));
+    return new Promise((resolve) => {
+      const t0 = performance.now();
+      function frame(now) {
+        const t = Math.min(1, (now - t0) / dur);
+        const e = easeOutCubic(t);
+        for (const m of moves) {
+          try {
+            api.moveNode(m.id, m.ax + (m.bx - m.ax) * e, m.ay + (m.by - m.ay) * e);
+          } catch (_) {}
+        }
+        if (t < 1) softMoveRaf = requestAnimationFrame(frame);
+        else {
+          softMoveRaf = 0;
+          for (const m of moves) {
+            try { api.moveNode(m.id, m.bx, m.by); } catch (_) {}
+          }
+          resolve();
+        }
+      }
+      softMoveRaf = requestAnimationFrame(frame);
+    });
+  }
+
+  function setPackGlow(ids, on) {
+    for (const id of ids) {
+      const el = document.querySelector(`.node[data-id="${CSS.escape(String(id))}"]`);
+      if (!el) continue;
+      if (on) el.classList.add("na-pack-flash", "na-pack-moving");
+      else {
+        el.classList.remove("na-pack-moving");
+        setTimeout(() => el.classList.remove("na-pack-flash"), 380);
+      }
+    }
+  }
+
+  function graphWithMeasuredBoxes() {
+    const g = api.getGraph();
+    const nodes = (g.nodes || []).map((n) => {
+      const el = document.querySelector(`.node[data-id="${CSS.escape(String(n.id))}"]`);
+      let w, h;
+      if (el) {
+        w = el.offsetWidth;
+        h = el.offsetHeight;
+      }
+      return {
+        ...n,
+        w: Number.isFinite(w) && w > 0 ? w : undefined,
+        h: Number.isFinite(h) && h > 0 ? h : undefined,
+      };
+    });
+    return { ...g, nodes };
+  }
+
+  /**
+   * Product · 18: polish multi-selection — de-overlap + compact pack (animated).
+   */
+  async function runAestheticPolish(opts = {}) {
+    if (mode !== 18 || !api.moveNode) return;
+    if (softMoveBusy) return;
+    softMoveBusy = true;
+    let glowed = [];
+    try {
+      const ids = opts.ids || selectionIds();
+      if (ids.length < 2 && !opts.force) {
+        setPackNote(ids.length ? "polish · need 2+ selected" : "polish · select nodes (shift-click)");
+        return;
+      }
+      const g = graphWithMeasuredBoxes();
+      const plan = planAestheticPasses(g, {
+        ids,
+        force: !!opts.force,
+        fullPack: true,
+      });
+      if (!plan.passSnapshots.length) {
+        setPackNote(
+          plan.reason === "already-packed"
+            ? `polish · already packed · ${ids.length}`
+            : `polish · no move · ${ids.length}`
+        );
+        return plan;
+      }
+      glowed = plan.movedIds.slice();
+      setPackGlow(glowed, true);
+      const totalMs = 460;
+      const n = plan.passSnapshots.length;
+      const passMs = Math.max(70, Math.min(140, Math.round(totalMs / Math.max(1, n))));
+      for (let i = 0; i < n; i++) {
+        const snap = plan.passSnapshots[i];
+        setPackNote(`polish · sliding · ${plan.movedIds.length}`);
+        await animateMoveNodes(snap.positions, passMs);
+      }
+      setPackNote(
+        `polish · packed · ${plan.movedIds.length} node${plan.movedIds.length === 1 ? "" : "s"}`
+      );
+      return plan;
+    } finally {
+      if (glowed.length) setPackGlow(glowed, false);
+      softMoveBusy = false;
+    }
+  }
+
+  /** Scatter only the current selection so Polish has something to fix. */
+  async function runMessSelection() {
+    if (mode !== 18 || !api.moveNode) return;
+    if (softMoveBusy) return;
+    softMoveBusy = true;
+    try {
+      let ids = selectionIds();
+      if (ids.length < 2) {
+        // Seed a small messy cluster for empty / single demos
+        try {
+          const a = api.addNode("text", 280, 200);
+          const b = api.addNode("llm", 295, 210);
+          const c = api.addNode("image", 288, 198);
+          ids = [a, b, c].map((n) => n && n.id).filter(Boolean).map(String);
+          try {
+            window.__naMultiSel?.set?.(ids);
+          } catch (_) {}
+        } catch (e) {
+          console.warn("[next-action] mess seed failed", e);
+        }
+      }
+      if (ids.length < 2) {
+        setPackNote("mess · need 2+ nodes");
+        return;
+      }
+      const g = api.getGraph();
+      const targets = proposeMessPositions(g, { ids });
+      setPackGlow(ids, true);
+      setPackNote(`mess · scattering · ${ids.length}`);
+      await animateMoveNodes(targets, 260);
+      setPackNote(`messed · ${ids.length} — hit Polish selection`);
+      setPackGlow(ids, false);
+    } finally {
+      softMoveBusy = false;
+    }
+  }
+
+  function wirePackControls() {
+    if (mode !== 18) return;
+    const polishBtn = panel.querySelector("#na-polish-btn");
+    const messBtn = panel.querySelector("#na-mess-sel-btn");
+    if (polishBtn) {
+      polishBtn.addEventListener("click", () => {
+        runAestheticPolish({ force: true });
+        refreshTips();
+      });
+    }
+    if (messBtn) {
+      messBtn.addEventListener("click", () => {
+        runMessSelection();
+        refreshTips();
+      });
+    }
+    document.addEventListener(
+      "keydown",
+      (ev) => {
+        if (mode !== 18) return;
+        if (ev.key !== "p" && ev.key !== "P") return;
+        const t = ev.target;
+        if (t instanceof HTMLElement) {
+          const tag = t.tagName;
+          if (tag === "INPUT" || tag === "TEXTAREA" || t.isContentEditable) return;
+        }
+        // Panel focused or ·18 on — polish
+        ev.preventDefault();
+        runAestheticPolish({ force: true });
+        refreshTips();
+      },
+      true
+    );
+  }
+
   wireRingControls();
+  wirePackControls();
 
   window.__nextAction = {
     record,
     refresh: refreshTips,
+    runAestheticPolish,
+    runMessSelection,
     onExamplesOpened() {
       if ((mode === 4 || mode === 1) && corpusMeta) {
         corpusEl.hidden = false;
