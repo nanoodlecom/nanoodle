@@ -14946,7 +14946,8 @@ RULES for the diff:
   }
 })();
 /* Product · N — next-action real-editor surface (soft tips / schema / gallery).
-   Dynamic import so branches without vendor/next-action stay quiet. */
+   Dynamic import so branches without vendor/next-action stay quiet.
+   Product · 18: multi-select (shift-click) + moveNode for aesthetic pack. */
 (function bootNextActionSurface(){
   const wrap = (name, fn) => {
     try {
@@ -14957,6 +14958,35 @@ RULES for the diff:
         return r;
       };
     } catch(_){ return fn; }
+  };
+  let product18 = false;
+  try {
+    const q = new URLSearchParams(location.search);
+    const p = q.get("product") || q.get("na");
+    product18 = p === "18";
+  } catch(_){}
+  /** @type {Set<string>} */
+  const multiSel = new Set();
+  function paintMultiSel(){
+    if(!product18) return;
+    for(const n of (graph.nodes||[])){
+      if(!n?.el) continue;
+      const on = multiSel.has(String(n.id));
+      n.el.classList.toggle("sel-multi", on);
+      // Keep .sel in sync with multi-set so chrome matches single-select feel
+      if(on) n.el.classList.add("sel");
+      else if(selected !== n) n.el.classList.remove("sel");
+    }
+  }
+  function setMultiFromIds(ids){
+    multiSel.clear();
+    for(const id of ids||[]) if(id!=null) multiSel.add(String(id));
+    paintMultiSel();
+  }
+  window.__naMultiSel = {
+    set: setMultiFromIds,
+    get: () => [...multiSel],
+    clear: () => { multiSel.clear(); paintMultiSel(); },
   };
   // Patch core mutators to feed action history (schema tokens).
   const _addNode = addNode;
@@ -14977,8 +15007,45 @@ RULES for the diff:
   const _select = select;
   select = function(n){
     _select(n);
+    if(product18){
+      // Plain select (no shift) → single selection; shift handled in capture listener.
+      if(!window.__naShiftSelecting){
+        multiSel.clear();
+        if(n?.id!=null) multiSel.add(String(n.id));
+        paintMultiSel();
+      }
+    }
     try { window.__nextAction?.refresh?.(); } catch(_){}
   };
+  if(product18){
+    document.addEventListener("pointerdown", (e)=>{
+      if(!(e.target instanceof Element)) return;
+      const nodeEl = e.target.closest(".node");
+      if(!nodeEl) return;
+      if(e.target.closest(".port,.hbtn,.rgrip")) return;
+      const id = nodeEl.getAttribute("data-id");
+      if(!id) return;
+      if(e.shiftKey){
+        window.__naShiftSelecting = true;
+        if(multiSel.has(id)) multiSel.delete(id);
+        else multiSel.add(id);
+        // Ensure primary selected is last toggled / first remaining
+        const n = byId(id);
+        if(multiSel.has(id) && n) _select(n);
+        else if(multiSel.size){
+          const first = byId([...multiSel][0]);
+          if(first) _select(first);
+          else _select(null);
+        } else {
+          _select(null);
+        }
+        paintMultiSel();
+        try { window.__nextAction?.refresh?.(); } catch(_){}
+        // Prevent the subsequent select(n) from wiping multiSel
+        setTimeout(()=>{ window.__naShiftSelecting = false; }, 0);
+      }
+    }, true);
+  }
   const _openExamples = openExamples;
   openExamples = function(){
     _openExamples();
@@ -15003,8 +15070,20 @@ RULES for the diff:
         nodes: (graph.nodes||[]).map(n => ({ id:n.id, type:n.type, x:n.x, y:n.y })),
         links: (graph.links||[]).map(l => ({ from:l.from, to:l.to })),
         selectedId: selected?.id || null,
+        selectedIds: product18
+          ? (multiSel.size ? [...multiSel] : (selected?.id != null ? [String(selected.id)] : []))
+          : (selected?.id != null ? [String(selected.id)] : []),
       }),
       addNode: (type, x, y) => addNode(type, x, y),
+      moveNode: (id, x, y) => {
+        const n = byId(id);
+        if (!n) return false;
+        n.x = x; n.y = y;
+        if (n.el) { n.el.style.left = x + "px"; n.el.style.top = y + "px"; }
+        try { redraw(); } catch(_){}
+        try { save(); } catch(_){}
+        return true;
+      },
       openExamples: () => openExamples(),
       runSelected: () => { if(selected) runGroup([selected.id]); else $("run")?.click(); },
       worldEl: typeof world !== "undefined" ? world : document.getElementById("world"),
