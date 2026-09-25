@@ -142,7 +142,7 @@ function buildSandbox(src, opts = {}) {
     `${normChat}\n` +
     `${slab}\n` +
     `return { catalogs, CATALOG, primeCatalogsFromCache, fetchCatalog, loadCatalog,` +
-    ` refreshCatalog, refreshCatalogsIfStale, catalogIsStale, catalogFetchedAt, CATALOG_STALE_MS,` +
+    ` refreshCatalog, refreshCatalogsIfStale, catalogIsStale, catalogFetchedAt, CATALOG_STALE_MS, CATALOG_KINDS,` +
     ` readCatCache, writeCatCache, catCacheKey, catItem, passesFilter,` +
     ` defModelFor, modelSupportsImages };`;
 
@@ -288,12 +288,15 @@ async function runChecks(src) {
   // and hid same-day NanoGPT launches (Grok 4.7, MiMo V2.6, H3 Singularity) from the
   // picker until a hard reload. refreshCatalog must stamp catalogFetchedAt, and
   // refreshCatalogsIfStale must refetch when that stamp is older than CATALOG_STALE_MS.
+  const KINDS = ["chat", "image", "video", "audio"];
   try {
     const s = buildSandbox(src, { fetchMode: "ok", fetchData: RAW_CHAT, nodeTypes: NODE_TYPES });
     if (typeof s.api.refreshCatalogsIfStale !== "function")
       fail("INV6 refreshCatalogsIfStale is missing — long-lived tabs will never see new NanoGPT models");
-    if (!(s.api.CATALOG_STALE_MS > 0))
-      fail("INV6 CATALOG_STALE_MS must be a positive duration");
+    if (!(s.api.CATALOG_STALE_MS > 0) || s.api.CATALOG_STALE_MS > 6 * 60 * 60 * 1000)
+      fail("INV6 CATALOG_STALE_MS must be a positive duration of at most 6h (a day-long window hid same-day launches)");
+    if (JSON.stringify(s.api.CATALOG_KINDS) !== JSON.stringify(KINDS))
+      fail(`INV6 CATALOG_KINDS must be ${JSON.stringify(KINDS)} so every picker revalidates, got ${JSON.stringify(s.api.CATALOG_KINDS)}`);
     const ok = await s.api.refreshCatalog("chat");
     if (ok !== true) fail("INV6 setup refreshCatalog failed");
     const stamped = s.api.catalogFetchedAt && s.api.catalogFetchedAt.chat;
@@ -311,6 +314,115 @@ async function runChecks(src) {
     if (s.fetchCount <= before)
       fail("INV6 refreshCatalogsIfStale reported success but did not call fetch");
   } catch (e) { fail("INV6 threw: " + (e && e.message ? e.message : e)); }
+
+  // Cache-primed only (catalogFetchedAt=0): the returning-visitor / offline-boot case.
+  // primeCatalogsFromCache paints the last-good list without stamping a fetch time.
+  // Treating !at as fresh would skip the post-boot revalidate and hide same-day ids.
+  try {
+    const seeded = JSON.stringify({ t: Date.now() - 5 * 86400000, list: [{ id: "five-day-stale" }] });
+    const s = buildSandbox(src, {
+      fetchMode: "ok",
+      fetchData: RAW_CHAT,
+      seedStore: { nn_catalog_chat: seeded },
+      nodeTypes: NODE_TYPES,
+    });
+    s.api.primeCatalogsFromCache();
+    if ((s.api.catalogFetchedAt.chat || 0) !== 0)
+      fail("INV6 primeCatalogsFromCache must not stamp catalogFetchedAt (SWR paint is not a network fetch)");
+    if (s.api.catalogIsStale("chat") !== true)
+      fail("INV6 a cache-primed catalog with catalogFetchedAt=0 must report stale so the first online moment refetches");
+    const before = s.fetchCount;
+    const did = await s.api.refreshCatalogsIfStale();
+    if (did !== true)
+      fail(`INV6 refreshCatalogsIfStale must refetch a never-fetched-this-session catalog, got ${JSON.stringify(did)}`);
+    if (s.fetchCount <= before)
+      fail("INV6 cache-primed stale path reported success but did not call fetch");
+    if (!s.api.catalogs.chat || s.api.catalogs.chat[0]?.id !== "new-plain")
+      fail("INV6 cache-primed stale revalidate must replace the last-good list with the live catalog");
+  } catch (e) { fail("INV6 cache-primed stale threw: " + (e && e.message ? e.message : e)); }
+
+  // All-fresh: do not hammer NanoGPT. A dropped early-return re-fetches 4 catalogs on
+  // every picker open / visibilitychange / 15m tick.
+  try {
+    const s = buildSandbox(src, { fetchMode: "ok", fetchData: RAW_CHAT, nodeTypes: NODE_TYPES });
+    for (const k of KINDS) {
+      const ok = await s.api.refreshCatalog(k);
+      if (ok !== true) fail(`INV6 fresh-path setup refreshCatalog(${k}) failed`);
+    }
+    const before = s.fetchCount;
+    const did = await s.api.refreshCatalogsIfStale();
+    if (did !== false)
+      fail(`INV6 refreshCatalogsIfStale must return false when every kind is fresh, got ${JSON.stringify(did)}`);
+    if (s.fetchCount !== before)
+      fail(`INV6 a fresh catalog must not refetch (fetchCount ${before}→${s.fetchCount})`);
+  } catch (e) { fail("INV6 fresh-path threw: " + (e && e.message ? e.message : e)); }
+
+  // Failed revalidate keeps the last-good in-memory list and does NOT stamp a
+  // fetch time (stamping on failure would mark the tab "fresh" for an hour and
+  // skip retry after the laptop comes back online).
+  try {
+    const s = buildSandbox(src, { fetchMode: "ok", fetchData: RAW_CHAT, nodeTypes: NODE_TYPES });
+    if ((await s.api.refreshCatalog("chat")) !== true) fail("INV6 fail-keep setup refreshCatalog failed");
+    const kept = s.api.catalogs.chat;
+    const keptIds = (kept || []).map((m) => m.id);
+    s.api.catalogFetchedAt.chat = Date.now() - s.api.CATALOG_STALE_MS - 1;
+    const staleAt = s.api.catalogFetchedAt.chat;
+    s.fetchState.mode = "throw";
+    const did = await s.api.refreshCatalogsIfStale();
+    if (did !== false)
+      fail(`INV6 a failed revalidate must report false, got ${JSON.stringify(did)}`);
+    const afterIds = (s.api.catalogs.chat || []).map((m) => m.id);
+    if (JSON.stringify(afterIds) !== JSON.stringify(keptIds))
+      fail(`INV6 a failed revalidate must keep the last-good catalog, got ${JSON.stringify(afterIds)}`);
+    if (s.api.catalogFetchedAt.chat !== staleAt)
+      fail("INV6 a failed revalidate must not stamp catalogFetchedAt (would skip retry for CATALOG_STALE_MS)");
+    if (s.api.catalogIsStale("chat") !== true)
+      fail("INV6 after a failed revalidate the catalog must still be stale so the next visibility/picker retry fires");
+  } catch (e) { fail("INV6 fail-keep threw: " + (e && e.message ? e.message : e)); }
+
+  // Concurrent kicks (picker open + visibilitychange + interval) share one in-flight
+  // wave. Without coalescing, a stale tab would triple-fetch all four catalogs.
+  try {
+    const s = buildSandbox(src, { fetchMode: "ok", fetchData: RAW_CHAT, nodeTypes: NODE_TYPES });
+    for (const k of KINDS) s.api.catalogFetchedAt[k] = Date.now() - s.api.CATALOG_STALE_MS - 1;
+    const before = s.fetchCount;
+    const p1 = s.api.refreshCatalogsIfStale();
+    const p2 = s.api.refreshCatalogsIfStale();
+    const [a, b] = await Promise.all([p1, p2]);
+    if (a !== true || b !== true)
+      fail(`INV6 coalesced refresh should succeed once, got ${JSON.stringify([a, b])}`);
+    // async wrappers make p1!==p2 even when they share _catRefreshInflight; the
+    // load-bearing pin is one fetch wave (4 kinds), not promise identity.
+    if (s.fetchCount !== before + KINDS.length)
+      fail(`INV6 overlapping refreshCatalogsIfStale must fetch each kind once (${KINDS.length} calls), got ${s.fetchCount - before}`);
+  } catch (e) { fail("INV6 inflight threw: " + (e && e.message ? e.message : e)); }
+
+  // Wiring: the helpers above are load-bearing only if boot, visibility, the
+  // interval, and picker-open actually call them. Orphan functions would hide
+  // same-day launches exactly like the 2026-09-23 incident.
+  try {
+    if (!/startCatalogStaleWatch\s*\(\s*\)\s*;/.test(src))
+      fail("INV6 startCatalogStaleWatch() is never called — long-lived tabs will not revalidate");
+    const watch = extractFunction(src, "startCatalogStaleWatch");
+    if (!/visibilitychange/.test(watch))
+      fail("INV6 startCatalogStaleWatch must revalidate on visibilitychange (laptop wake)");
+    if (!/setInterval/.test(watch))
+      fail("INV6 startCatalogStaleWatch must revalidate on an interval (tab left open across a workday)");
+    if (!/visibilityState\s*===\s*["']visible["']/.test(watch))
+      fail("INV6 stale watch must only fetch when the tab is visible");
+    if (!/15\s*\*\s*60\s*\*\s*1000/.test(watch))
+      fail("INV6 interval must be capped at 15 minutes (Math.min(CATALOG_STALE_MS, 15*60*1000))");
+    const openPicker = extractFunction(src, "openPicker");
+    if (!/refreshCatalogsIfStale\s*\(/.test(openPicker))
+      fail("INV6 openPicker must kick refreshCatalogsIfStale so a stale picker can gain newly shipped ids");
+    const refreshIf = extractFunction(src, "refreshCatalogsIfStale");
+    if (!/if\s*\(_catRefreshInflight\)\s*return _catRefreshInflight/.test(refreshIf))
+      fail("INV6 refreshCatalogsIfStale must coalesce overlapping kicks onto one in-flight wave");
+    if (!/renderPicker\s*\(\s*\)/.test(refreshIf))
+      fail("INV6 refreshCatalogsIfStale must re-render an open picker when fresh data lands");
+    if (!/refreshAllPrices\s*\(\s*\)/.test(refreshIf))
+      fail("INV6 refreshCatalogsIfStale must refresh prices when fresh data lands");
+  } catch (e) { fail("INV6 wiring threw: " + (e && e.message ? e.message : e)); }
 
   return failures;
 }
@@ -337,6 +449,23 @@ async function selfTest() {
       name: "INV5 broken (modelSupportsImages turns strict — blocks unknown ids)",
       mutate: (s) => s.replace("return !m || !!m[t.imageInputs];   // permissive when the id isn't in the catalog",
                                "return !!m && !!m[t.imageInputs];   // STRICT (mutation)"),
+    },
+    {
+      name: "INV6 broken (cache-primed never-fetched looks fresh)",
+      mutate: (s) => s.replace("if(!at) return true;                            // never fetched this session (cache-primed only)",
+                               "if(!at) return false;                           // MUTATION: cache-primed looks fresh"),
+    },
+    {
+      name: "INV6 broken (failed refresh stamps catalogFetchedAt)",
+      mutate: (s) => s.replace(
+        "if(!list) return false;\n  catalogs[kind] = list; writeCatCache(kind, list);\n  catalogFetchedAt[kind] = Date.now();",
+        "catalogFetchedAt[kind] = Date.now();\n  if(!list) return false;\n  catalogs[kind] = list; writeCatCache(kind, list);"
+      ),
+    },
+    {
+      name: "INV6 broken (openPicker no longer kicks a stale revalidate)",
+      mutate: (s) => s.replace("try{ refreshCatalogsIfStale(); }catch(_){}",
+                               "try{ /* mutation: picker open no longer revalidates */ }catch(_){}"),
     },
   ];
   let allBit = true;
@@ -367,5 +496,5 @@ if (process.argv.includes("--selftest")) {
     process.stderr.write("✗ model-catalog fetch/fallback/default layer regressed:\n\n- " + failures.join("\n- ") + "\n");
     process.exit(1);
   }
-  process.stdout.write("✓ catalog fallback holds: offline→stable [] (no re-hammer), cache primes first paint, SWR revalidates, defModelFor picks newest-passing, empty stays permissive, stale SWR revalidates.\n");
+  process.stdout.write("✓ catalog fallback holds: offline→stable [] (no re-hammer), cache primes first paint, SWR revalidates, defModelFor picks newest-passing, empty stays permissive, stale SWR revalidates (cache-primed/fresh/fail-keep/inflight/wiring).\n");
 }

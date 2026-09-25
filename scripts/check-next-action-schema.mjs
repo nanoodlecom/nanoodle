@@ -2,6 +2,9 @@
 /**
  * Product · 2 — schema + encode contract only (no corpus / weights).
  */
+import { readFileSync } from "node:fs";
+import { join, resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   ACTION_VOCAB,
   encodeState,
@@ -14,12 +17,31 @@ import {
   sketchFromGraph,
 } from "../vendor/next-action/encode.mjs";
 
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
 function fail(msg) {
   console.error(`✗ next-action-schema: ${msg}`);
   process.exit(1);
 }
 function assert(cond, msg) {
   if (!cond) fail(msg);
+}
+
+// #589/#590: encode.mjs used `node:fs` and broke the real-editor dynamic import
+// (CSP + browser modules). The shipped files must stay browser-safe.
+const NA = join(ROOT, "vendor", "next-action");
+const browserModules = [
+  "encode.mjs",
+  "frequency.mjs",
+  "recommend.mjs",
+  "cold-start.mjs",
+  "ring.mjs",
+  "editor-surface.mjs",
+];
+for (const name of browserModules) {
+  const src = readFileSync(join(NA, name), "utf8");
+  if (/from\s+["']node:/.test(src))
+    fail(`${name} must stay browser-safe (no node: imports) — this broke the editor surface once`);
 }
 
 assert(schema.schemaVersion === 1, "schemaVersion");
