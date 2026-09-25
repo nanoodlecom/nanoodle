@@ -732,6 +732,122 @@
     "default_duration": 5,
     "default_resolution": "720p"
    }
+  },
+  {
+   "id": "minimax/h3-max/lip-sync/image-to-video",
+   "shape": "minimum-only (Avatar default after #582; genericScanUsd quotes the catalog floor as the clip)",
+   "pricing": {
+    "currency": "USD",
+    "minimum": 0.25,
+    "note": "Output duration and resolution determine pricing. Reference media may add charges. See model settings and the generation quote."
+   }
+  },
+  {
+   "id": "minimax-h3-singularity/image-to-video",
+   "shape": "minimum-only (#578 H3 Singularity; no per-second table — picker must not go blank)",
+   "pricing": {
+    "currency": "USD",
+    "minimum": 0.15,
+    "note": "Output duration and resolution determine pricing. Reference media may add charges. See model settings and the generation quote."
+   }
+  },
+  {
+   "id": "bytedance/seedance-2.5/talking-avatar",
+   "shape": "minimum-only (#578 Seedance 2.5 Talking Avatar $0.88 floor)",
+   "pricing": {
+    "currency": "USD",
+    "minimum": 0.88,
+    "note": "Output duration and resolution determine pricing. Reference media may add charges. See model settings and the generation quote."
+   }
+  },
+  {
+   "id": "bytedance/seedance-2.5",
+   "shape": "per_second_by_resolution wins over cheaper video_edit / video_reference tables",
+   "pricing": {
+    "currency": "USD",
+    "variant": "standard",
+    "per_second_by_resolution": {
+     "480p": 0.18,
+     "720p": 0.36,
+     "1080p": 0.9,
+     "4k": 1.8
+    },
+    "video_reference_per_second_by_resolution": {
+     "480p": 0.11,
+     "720p": 0.22,
+     "1080p": 0.55,
+     "4k": 1.1
+    },
+    "video_reference_billing": "input plus output seconds",
+    "video_edit_per_second_by_resolution": {
+     "480p": 0.11,
+     "720p": 0.22,
+     "1080p": 0.55,
+     "4k": 1.1
+    },
+    "video_edit_billing": "input plus output seconds",
+    "default_duration": 5,
+    "min_duration": 4,
+    "max_duration": 30,
+    "default_resolution": "720p"
+   }
+  },
+  {
+   "id": "pruna-ai/p-video-2-pro/text-to-video",
+   "shape": "quality_per_second_by_resolution + speed_per_second_by_resolution (must resolve, not blank)",
+   "pricing": {
+    "currency": "USD",
+    "speed_per_second_by_resolution": {
+     "480p": 0.02,
+     "768p": 0.035
+    },
+    "quality_per_second_by_resolution": {
+     "480p": 0.04,
+     "768p": 0.075
+    },
+    "minimum_billable_duration": 5,
+    "maximum_billable_duration": 15,
+    "default_duration": 5,
+    "default_resolution": "768p",
+    "default_mode": "speed"
+   }
+  },
+  {
+   "id": "kling-o3-4k",
+   "shape": "generated_per_second + source_video_per_second (generic scan keeps the generated rate)",
+   "pricing": {
+    "currency": "USD",
+    "generated_per_second": 0.42,
+    "source_video_per_second": 0.462,
+    "video_edit_billing": "verified source-video seconds, rounded up and clamped to 3-16",
+    "video_reference_billing": "generated seconds, clamped to 3-15",
+    "default_duration": 5,
+    "supported_durations": [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+   }
+  },
+  {
+   "id": "bytedance-video-enhancement-standard",
+   "shape": "raw:resolution-fps-per-second (pricesPerSecond × defaultDuration; high-fps multiplier is catalog-only)",
+   "pricing": {
+    "currency": "USD",
+    "raw": {
+     "type": "resolution-fps-per-second",
+     "pricesPerSecond": {
+      "240p": 0.0034,
+      "360p": 0.0034,
+      "480p": 0.0034,
+      "540p": 0.0034,
+      "720p": 0.0034,
+      "1080p": 0.0069,
+      "2k": 0.0138,
+      "4k": 0.0275
+     },
+     "highFpsThreshold": 30,
+     "highFpsMultiplier": 2,
+     "defaultDuration": 1,
+     "defaultResolution": "1080p"
+    }
+   }
   }
  ],
  "audio": [
@@ -1457,6 +1573,173 @@
      "expect": 1.28
     }
    ]
+  },
+  {
+   "id": "minimax/h3-max/lip-sync/image-to-video (minimum-only floor)",
+   "shape": "minimum + note, no per-second table -> genericScanUsd quotes $0.25/clip; duration must not multiply a floor",
+   "pricing": {
+    "currency": "USD",
+    "minimum": 0.25,
+    "note": "Output duration and resolution determine pricing."
+   },
+   "cases": [
+    {
+     "desc": "default fields",
+     "fields": {},
+     "refWired": false,
+     "expect": 0.25
+    },
+    {
+     "desc": "duration 10s must stay the floor (not $2.50)",
+     "fields": { "duration": "10" },
+     "refWired": false,
+     "expect": 0.25
+    }
+   ]
+  },
+  {
+   "id": "minimax-h3-singularity/image-to-video (minimum-only floor)",
+   "shape": "minimum-only #578 H3 Singularity -> $0.15, not blank",
+   "pricing": {
+    "currency": "USD",
+    "minimum": 0.15,
+    "note": "Output duration and resolution determine pricing."
+   },
+   "cases": [
+    {
+     "desc": "default fields",
+     "fields": {},
+     "refWired": false,
+     "expect": 0.15
+    }
+   ]
+  },
+  {
+   "id": "bytedance/seedance-2.5/talking-avatar (minimum-only floor)",
+   "shape": "minimum-only #578 Talking Avatar -> $0.88, not blank",
+   "pricing": {
+    "currency": "USD",
+    "minimum": 0.88,
+    "note": "Output duration and resolution determine pricing."
+   },
+   "cases": [
+    {
+     "desc": "default fields",
+     "fields": {},
+     "refWired": false,
+     "expect": 0.88
+    }
+   ]
+  },
+  {
+   "id": "bytedance/seedance-2.5 (edit/ref tables must not underquote t2v)",
+   "shape": "per_second_by_resolution is consulted first; cheaper video_edit / video_reference leaves must not win; refWired does not switch tables (edit billing is input+output seconds, no source length)",
+   "pricing": {
+    "currency": "USD",
+    "per_second_by_resolution": {
+     "480p": 0.18,
+     "720p": 0.36,
+     "1080p": 0.9,
+     "4k": 1.8
+    },
+    "video_reference_per_second_by_resolution": {
+     "480p": 0.11,
+     "720p": 0.22,
+     "1080p": 0.55,
+     "4k": 1.1
+    },
+    "video_edit_per_second_by_resolution": {
+     "480p": 0.11,
+     "720p": 0.22,
+     "1080p": 0.55,
+     "4k": 1.1
+    },
+    "default_duration": 5,
+    "default_resolution": "720p"
+   },
+   "cases": [
+    {
+     "desc": "default 720p 5s is $1.80, not cheapest edit $0.55",
+     "fields": {},
+     "refWired": false,
+     "expect": 1.8
+    },
+    {
+     "desc": "1080p 5s",
+     "fields": { "resolution": "1080p", "duration": "5" },
+     "refWired": false,
+     "expect": 4.5
+    },
+    {
+     "desc": "refWired still uses generate table (no source-length meter)",
+     "fields": { "resolution": "720p", "duration": "5" },
+     "refWired": true,
+     "expect": 1.8
+    }
+   ]
+  },
+  {
+   "id": "kling-o3-4k (generated_per_second scan)",
+   "shape": "top-level generated_per_second matches /second/ and scales by duration; cheaper than source_video_per_second so the scan keeps 0.42",
+   "pricing": {
+    "currency": "USD",
+    "generated_per_second": 0.42,
+    "source_video_per_second": 0.462,
+    "default_duration": 5
+   },
+   "cases": [
+    {
+     "desc": "default 5s",
+     "fields": {},
+     "refWired": false,
+     "expect": 2.1
+    },
+    {
+     "desc": "10s scales",
+     "fields": { "duration": "10" },
+     "refWired": false,
+     "expect": 4.2
+    }
+   ]
+  },
+  {
+   "id": "bytedance-video-enhancement-standard (raw pricesPerSecond)",
+   "shape": "raw:resolution-fps-per-second -> named pricesPerSecond walk × defaultDuration 1s at 1080p",
+   "pricing": {
+    "currency": "USD",
+    "raw": {
+     "type": "resolution-fps-per-second",
+     "pricesPerSecond": {
+      "720p": 0.0034,
+      "1080p": 0.0069,
+      "4k": 0.0275
+     },
+     "highFpsThreshold": 30,
+     "highFpsMultiplier": 2,
+     "defaultDuration": 1,
+     "defaultResolution": "1080p"
+    }
+   },
+   "cases": [
+    {
+     "desc": "default 1080p 1s",
+     "fields": {},
+     "refWired": false,
+     "expect": 0.0069
+    },
+    {
+     "desc": "4k 1s",
+     "fields": { "resolution": "4k" },
+     "refWired": false,
+     "expect": 0.0275
+    },
+    {
+     "desc": "1080p 10s scales",
+     "fields": { "resolution": "1080p", "duration": "10" },
+     "refWired": false,
+     "expect": 0.069
+    }
+   ]
   }
- ]
+]
 }
