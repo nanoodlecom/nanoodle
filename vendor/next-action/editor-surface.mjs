@@ -16,6 +16,9 @@
  */
 import { ACTION_VOCAB, sketchFromGraph, schema } from "./encode.mjs";
 import { chooseHints } from "./hints.mjs";
+import { suggestNext, freeSlot } from "./suggest.mjs";
+
+if (typeof window !== "undefined") window.__freeSlot = freeSlot;
 
 const BASE = new URL(".", import.meta.url);
 
@@ -47,6 +50,8 @@ function disabledApi() {
     peek() { return null; },
     record() {},
     refresh() {},
+    suggest() { return null; },
+    dismiss() {},
   };
 }
 
@@ -65,6 +70,8 @@ export async function mount(api) {
 
   /** @type {string[]} */
   let history = [];
+  /** Session-only hides (`add:image`, `recipe:image-upscale`). Not persisted. */
+  const dismissed = new Set();
   /** @type {ReturnType<typeof chooseHints> | null} */
   let cache = null;
   let sig = "";
@@ -115,11 +122,29 @@ export async function mount(api) {
     recompute();
   }
 
+  function suggest() {
+    let graph = {};
+    try { graph = (api.getGraph && api.getGraph()) || {}; }
+    catch (_) { graph = {}; }
+    try {
+      return suggestNext(graph, { dismissed, nodeTypes: known });
+    } catch (e) {
+      console.warn("[next-action] suggest failed", e);
+      return null;
+    }
+  }
+
   window.__nextAction = {
     disabled: false,
     peek() { return cache; },
     record,
     refresh: recompute,
+    suggest,
+    dismiss(key) {
+      if (!key) return;
+      dismissed.add(String(key));
+      try { api.onHints && api.onHints(); } catch (_) {}
+    },
   };
 
   try {
