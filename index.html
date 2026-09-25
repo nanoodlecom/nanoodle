@@ -4578,6 +4578,10 @@ function normChat(m){
     vision:!!c.vision,
     nsfw:!!c.nsfw,
     reasoning:!!c.reasoning, structured_output:!!c.structured_output,   // gate JSON mode + reasoning controls
+    // NanoGPT detailed catalog lists real levels (none/minimal/low/medium/high/xhigh/max) — never "default".
+    // Pass through so the ⚙️ effort select can match the model (Solar Mini 4 Thinking = none|low|medium|high).
+    reasoningEfforts: Array.isArray(m.reasoning_efforts) && m.reasoning_efforts.length
+      ? m.reasoning_efforts.map(String) : null,
     audio_input:!!c.audio_input, video_input:!!c.video_input, pdf_upload:!!c.pdf_upload,
     maxOut: m.max_output_tokens,   // max_tokens ceiling (present on most models)
     promptUsd1M: p.prompt!=null ? +p.prompt : null,          // $ per 1M input tokens — numeric, drives the run estimate
@@ -6312,7 +6316,22 @@ function refreshModelOpts(n){
    Values live in n.fields and pass through genChat, omitted at their default so request bodies stay
    clean. Rebuilt on model-pick (like the LoRA / model-options blocks); stale flag-gated fields are
    dropped when a model that can't use them is chosen. */
-const REASONING_EFFORTS = ["default","low","medium","high"];
+// Offline / catalog-miss fallback. "default" is Nanoodle's legacy omit-sentinel (llmOpts drops
+// it) — NanoGPT's reasoning_efforts lists never include it (none/minimal/low/medium/high/xhigh/max).
+const REASONING_EFFORTS_FALLBACK = ["default","low","medium","high"];
+function reasoningEffortOpts(it){
+  return (it && Array.isArray(it.reasoningEfforts) && it.reasoningEfforts.length)
+    ? it.reasoningEfforts : REASONING_EFFORTS_FALLBACK;
+}
+// Catalog-aware pick: keep a still-valid stored value; else prefer medium (common NanoGPT /
+// Solar Mini 4 Thinking default) when offered, else the first catalog level. Legacy stored
+// "default" is treated as unset when the option list has no "default" entry.
+function pickReasoningEffort(efforts, cur){
+  const unset = cur==null || cur==="" || (cur==="default" && !efforts.includes("default"));
+  if(!unset && efforts.includes(String(cur))) return String(cur);
+  if(efforts.includes("medium")) return "medium";
+  return efforts[0];
+}
 function refreshLlmOpts(n){
   if(n.type!=="llm" || !n.el) return;
   const box = n.el.querySelector("[data-llmadv]"); if(!box) return;
@@ -6336,13 +6355,21 @@ function refreshLlmOpts(n){
   const showFormat = it ? !!it.structured_output : (f.format === "JSON");
   const showReason = it ? !!it.reasoning
     : (!!(f.reasoningEffort && f.reasoningEffort!=="default") || f.showThinking===true || f.showThinking==="true");
+  const efforts = reasoningEffortOpts(it);
+  // Seed / clamp like applyDimFields: unset or model-swap-stale effort → catalog default rule,
+  // and actually write f.reasoningEffort so the request matches what the select shows.
+  if(showReason){
+    const picked = pickReasoningEffort(efforts, f.reasoningEffort);
+    if(f.reasoningEffort !== picked) f.reasoningEffort = picked;
+  }
+  const effortSel = f.reasoningEffort || pickReasoningEffort(efforts, null);
   const temp = (f.temperature!=null && f.temperature!=="") ? +f.temperature : 0.8;
   const fmtRow = showFormat
     ? `<div style="margin:3px 0"><label>output format</label><select data-lf="format">${
         optsHTML([["Text","Text"],["JSON","JSON"]], f.format||"Text")}</select></div>` : "";
   const reasonRows = showReason
     ? `<div style="margin:3px 0"><label>reasoning effort</label><select data-lf="reasoningEffort">${
-        REASONING_EFFORTS.map(o=>`<option value="${esc(o)}"${(f.reasoningEffort||"default")===o?" selected":""}>${esc(o)}</option>`).join("")}</select></div>
+        efforts.map(o=>`<option value="${esc(o)}"${effortSel===o?" selected":""}>${esc(o)}</option>`).join("")}</select></div>
        <label class="setbool" style="margin:3px 0"><input type="checkbox" data-lf="showThinking"${(f.showThinking===true||f.showThinking==="true")?" checked":""}/> show thinking</label>` : "";
   const tempRow = noTemp ? "" :   // temperature-locked model (TEMP_LOCKED): the API ignores it, so no slider
     `<div style="margin:3px 0"><label><span data-ltlab>${esc(t("temperature"))} · ${temp.toFixed(1)}</span> <span class="dim lblhint">${esc(t("· higher = more creative"))}</span></label><input type="range" data-lf="temperature" min="0" max="2" step="0.1" value="${esc(temp)}" style="width:100%"/></div>`;
@@ -14477,7 +14504,7 @@ $("signout").onclick = ()=> setKey(null);
       model:"chat model id (optional)", system:"system prompt", prompt:"user prompt",
       temperature:"0–2 sampling (default 0.8)", maxTokens:"output length cap (optional)",
       format:"Text|JSON (JSON only on structured_output models)",
-      reasoningEffort:"default|low|medium|high (reasoning models)",
+      reasoningEffort:"catalog reasoning_efforts (none/minimal/low/medium/high/xhigh/max); legacy default = omit",
       showThinking:"true/false — include chain-of-thought in the text output",
     }, note:"vision models grow wired image ports (img1…); audio_input models grow an audio port; model is a wirable field port — a Choice option like anthropic/claude-fable-5.1 sets the paid model id" },
     vision:{ fields:{ model:"vision model id (optional)", q:"the question" } },

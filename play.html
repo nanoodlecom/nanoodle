@@ -9268,7 +9268,7 @@ const PROMPT_CAPS = {
               { f:"temperature",     label:"Temperature",       kind:"number", min:0, max:2, step:"0.1", def:"0.8" },
               { f:"maxTokens",       label:"Max tokens",        kind:"number", min:1 },
               { f:"format",          label:"Output format",     kind:"select", options:[["Text","Text"],["JSON","JSON"]], def:"Text" },
-              { f:"reasoningEffort", label:"Reasoning effort",   kind:"select", options:[["default","default"],["low","low"],["medium","medium"],["high","high"]], def:"default" },
+              { f:"reasoningEffort", label:"Reasoning effort",   kind:"select", options:[["default","default"],["none","none"],["minimal","minimal"],["low","low"],["medium","medium"],["high","high"],["xhigh","xhigh"],["max","max"]], def:"default" },  // fallback; fillReasonEffortLists rewrites from catalog reasoning_efforts when present
               { f:"showThinking",    label:"Show thinking",      kind:"boolean" }],
     vision:  [{ f:"model", label:"Model", kind:"model" },
               { f:"q",     label:"Question", kind:"textarea", def:"Describe this image." }],
@@ -9890,6 +9890,28 @@ const PROMPT_CAPS = {
     });
   }
 
+  // Rewrite Reasoning effort <select> options from the live chat catalog's reasoning_efforts
+  // (Solar Mini 4 Thinking = none|low|medium|high; Grok 4.7 adds xhigh). Fallback SETTING_SPECS
+  // list stays for offline / uncatalogued ids. Prefer medium when seeding/clamping; legacy
+  // stored "default" is treated as unset when the catalog list has no "default" (omit at send).
+  function fillReasonEffortLists(){
+    (STATE.settings || []).forEach((it,i)=>{
+      if(it.node.type!=="llm" || it.field!=="reasoningEffort") return;
+      rawCatItem("chat", it.node.fields.model).then(m=>{
+        const el = document.getElementById("set_"+i); if(!el || el.tagName!=="SELECT") return;
+        const cat = (m && Array.isArray(m.reasoning_efforts) && m.reasoning_efforts.length)
+          ? m.reasoning_efforts.map(String) : null;
+        if(!cat) return;   // keep fallback options when catalog omits the list
+        const cur = it.node.fields[it.field];
+        const unset = cur==null || cur==="" || (cur==="default" && cat.indexOf("default")<0);
+        let picked = (!unset && cat.indexOf(String(cur))>=0) ? String(cur)
+                   : (cat.indexOf("medium")>=0 ? "medium" : cat[0]);
+        if(it.node.fields[it.field] !== picked){ it.node.fields[it.field] = picked; checkDirty(); }
+        el.innerHTML = cat.map(o=> '<option value="'+esc(o)+'"'+(o===picked?" selected":"")+'>'+esc(o)+'</option>').join("");
+      }).catch(()=>{});
+    });
+  }
+
   /* =====================================================================
      DESCRIBE — a plain-English account of what the graph actually does:
      the pipeline steps in run order, the data flow between them, the
@@ -10235,6 +10257,7 @@ const PROMPT_CAPS = {
     fillModelLists();
     fillDimLists();   // rewrite size/resolution/aspect/duration options from each model's live catalog
     fillLangLists();  // swap the Transcribe language box for a <select> when the model lists supported languages
+    fillReasonEffortLists(); // rewrite Reasoning effort options from catalog reasoning_efforts
     refreshTempRows();// hide Temperature on models that ignore it (TEMP_LOCKED)
     box.querySelectorAll(".inpaint-ctl").forEach(ctl=> wireInpaintControl(box, ctl));
   }
@@ -10271,7 +10294,7 @@ const PROMPT_CAPS = {
       menu.hidden = false; input.setAttribute("aria-expanded","true");
     }
     function close(){ menu.hidden = true; input.setAttribute("aria-expanded","false"); active = -1; }
-    function pick(id){ input.value = id; it.node.fields[it.field] = id; close(); fillDimLists(); fillLangLists(); refreshTempRows(); checkDirty(); refreshRunCost(); }   // new model → refresh its dim/language options + temperature row + price
+    function pick(id){ input.value = id; it.node.fields[it.field] = id; close(); fillDimLists(); fillLangLists(); fillReasonEffortLists(); refreshTempRows(); checkDirty(); refreshRunCost(); }   // new model → refresh its dim/language options + temperature row + price
     input.addEventListener("focus", ()=> open(true));
     input.addEventListener("modelrefresh", ()=> open(true));   // catalog arrived while focused
     input.addEventListener("input", ()=>{ it.node.fields[it.field] = input.value.trim(); open(false); refreshTempRows(); checkDirty(); refreshRunCost(); });   // temp row is a pure id check → cheap enough per keystroke (dim/lang rewrites wait for a pick)
