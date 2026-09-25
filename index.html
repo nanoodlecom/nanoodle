@@ -153,6 +153,12 @@
   #quickadd .d{ font-size:.74rem; color:var(--dim) }
   #quickadd .grp{ font-size:.66rem; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); padding:.4rem .55rem .15rem; pointer-events:none }
   #quickadd .qhint{ font-size:.7rem; color:var(--accent); padding:.35rem .55rem .3rem; pointer-events:none; border-bottom:1px solid var(--line); margin-bottom:.2rem }
+  /* Multi-select context menu. Stays display:none until a box/shift selection is right-clicked. */
+  #selmenu{ position:fixed; z-index:80; display:none; flex-direction:column; min-width:11rem;
+            background:var(--panel); border:1px solid var(--line); border-radius:.6rem; padding:.3rem; box-shadow:0 12px 40px #000a }
+  #selmenu.open{ display:flex }
+  #selmenu button{ text-align:left; border:none; background:none; display:block; width:100%; padding:.5rem .65rem; border-radius:.45rem }
+  #selmenu button:hover{ background:var(--panel2) }
   /* ---------- language selector ---------- */
   #langmenu{ position:relative }
   #langbtn{ display:flex; align-items:center; gap:.25rem; background:none; border:1px solid transparent;
@@ -1235,6 +1241,7 @@
   <div id="connecthint" hidden><span>Drag a <b>●</b> port onto a matching one to connect — or drop a wire on empty canvas to quick-add.</span><button id="connecthintx" title="Got it" aria-label="Dismiss">×</button></div>
 </main>
 <div id="quickadd"></div>
+<div id="selmenu" role="menu"><button type="button" id="seltidy">Tidy selection</button></div>
 <!-- keep these ABOVE the main script: the boot-time translateTree(document.body) runs
      mid-parse, so anything after the script tag is invisible to it (missed-i18n bug). -->
 <div id="controlbar">
@@ -1366,6 +1373,7 @@ const I18N = {
     "Redo (Ctrl + Y)":"Rehacer (Ctrl + Y)",
     "Redo the last undone edit":"Rehacer la última edición deshecha",
     "Delete the selected node":"Eliminar el nodo seleccionado",
+    "Tidy selection":"Ordenar la selección",
     "Language":"Idioma",
     "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"El acortador propio de nanoodle — admite enlaces muy largos (los enlaces de flujo pueden crecer mucho)",
     "this model can’t hear audio — pick an audio-input model":"este modelo no puede oír audio — elige un modelo con entrada de audio",
@@ -2006,6 +2014,7 @@ const I18N = {
     "Redo (Ctrl + Y)":"Rétablir (Ctrl + Y)",
     "Redo the last undone edit":"Rétablir la dernière modification annulée",
     "Delete the selected node":"Supprimer le nœud sélectionné",
+    "Tidy selection":"Ranger la sélection",
     "Language":"Langue",
     "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"Le raccourcisseur maison de nanoodle — gère les liens très longs (les liens de workflow peuvent devenir volumineux)",
     "this model can’t hear audio — pick an audio-input model":"ce modèle ne peut pas entendre l’audio — choisissez un modèle à entrée audio",
@@ -2646,6 +2655,7 @@ const I18N = {
     "Redo (Ctrl + Y)":"Wiederholen (Strg + Y)",
     "Redo the last undone edit":"Letzte rückgängig gemachte Änderung wiederholen",
     "Delete the selected node":"Ausgewählten Knoten löschen",
+    "Tidy selection":"Auswahl ordnen",
     "Language":"Sprache",
     "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"nanoodles eigener Kürzungsdienst — verarbeitet sehr lange Links (Workflow-Links können groß werden)",
     "this model can’t hear audio — pick an audio-input model":"dieses Modell kann kein Audio hören — wähle ein Modell mit Audio-Eingang",
@@ -3286,6 +3296,7 @@ const I18N = {
     "Redo (Ctrl + Y)":"Refazer (Ctrl + Y)",
     "Redo the last undone edit":"Refazer a última edição desfeita",
     "Delete the selected node":"Excluir o nó selecionado",
+    "Tidy selection":"Organizar a seleção",
     "Language":"Idioma",
     "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"O encurtador próprio do nanoodle — aceita links muito longos (links de fluxo podem ficar grandes)",
     "this model can’t hear audio — pick an audio-input model":"este modelo não consegue ouvir áudio — escolha um modelo com entrada de áudio",
@@ -3926,6 +3937,7 @@ const I18N = {
     "Redo (Ctrl + Y)":"やり直す (Ctrl + Y)",
     "Redo the last undone edit":"元に戻した編集をやり直す",
     "Delete the selected node":"選択したノードを削除",
+    "Tidy selection":"選択を整列",
     "Language":"言語",
     "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"nanoodle自身の短縮サービス — とても長いリンクにも対応（ワークフローのリンクは大きくなりがちです）",
     "this model can’t hear audio — pick an audio-input model":"このモデルは音声を聞けません — 音声入力対応のモデルを選んでください",
@@ -8300,6 +8312,8 @@ function isInputKind(type){
 let graph = { nodes:[], links:[] };   // node:{id,type,x,y,fields,el,out}  link:{id,from:{node,port},to:{node,port}}
 let nid = 1, lid = 1;
 let selected = null;
+const multiSel = new Set();   // ids in a shift/box selection; empty unless the user multi-selects
+let geoAnim = 0;               // rAF id while a place/tidy glide is running; 0 means no loop
 const byId = (id)=> graph.nodes.find(n=>n.id===id);
 
 /* ---------- view transform ---------- */
@@ -8442,9 +8456,21 @@ function buildNodeEl(n){
   const header = el.querySelector("header");
   header.addEventListener("pointerdown", e=>{
     if(e.target.closest(".hbtn")) return;
+    if(typeof geoOn==="function" && geoOn() && e.shiftKey && e.button===0){
+      e.preventDefault(); e.stopPropagation(); geoToggleMulti(n); return;
+    }
+    if(typeof geoOn==="function" && geoOn() && e.button===2 && multiSel.size>1 && multiSel.has(n.id)) return;
     select(n); startNodeDrag(n, e);
   });
-  el.addEventListener("pointerdown", ()=> select(n));
+  el.addEventListener("pointerdown", (e)=>{
+    if(typeof geoOn==="function" && geoOn() && e.button===2 && multiSel.size>1 && multiSel.has(n.id)){
+      e.stopPropagation(); return;
+    }
+    if(typeof geoOn==="function" && geoOn() && e.shiftKey && e.button===0 && !e.target.closest(".port")){
+      geoToggleMulti(n); e.stopPropagation(); return;
+    }
+    select(n);
+  });
   el.querySelector(".rgrip").addEventListener("pointerdown", e=> startNodeResize(n, e));
   // ports
   el.querySelectorAll(".port").forEach(p=> p.addEventListener("pointerdown", e=>startWire(p, e)));
@@ -9068,6 +9094,7 @@ function removeNode(id){
   if(n?.el) n.el.remove();
   graph.nodes = graph.nodes.filter(x=>x.id!==id);
   if(selected===n) selected=null;
+  if(typeof multiSel!=="undefined") multiSel.delete(id);
   for(const aid of affected){ const an = byId(aid); if(an){ recompactImageLinks(an); refreshImageInputs(an); recompactVideoLinks(an); refreshVideoInputs(an); } }
   refreshPortFills();   // a textarea fed by the removed node is now unwired — unlock it (don't leave it disabled)
   // endpoint previews read graph.links — repaint any endpoint whose wires just changed
@@ -9078,7 +9105,12 @@ function removeNode(id){
 
 function updateDelBtn(){ const b=$("delnode"); if(b) b.classList.toggle("show", !!(selected && selected.el)); }   // touch: show the screen-space delete only when a node is selected
 function select(n){
-  if(selected===n) return;
+  if(multiSel.size){
+    multiSel.clear();
+    for(const x of graph.nodes) if(x.el) x.el.classList.remove("sel");
+    if(selected!==n) selected = null;
+  }
+  if(selected===n){ if(n?.el) n.el.classList.add("sel"); updateDelBtn(); return; }
   if(selected?.el) selected.el.classList.remove("sel");
   selected = n;
   if(n?.el) n.el.classList.add("sel");
@@ -9428,6 +9460,8 @@ let cancelNodeGest = null;   // set while a node drag/resize is live so a 2nd to
 const nodeGestPtrs = new Set();
 function startNodeDrag(n, e){
   e.preventDefault();
+  if(geoAnim){ cancelAnimationFrame(geoAnim); geoAnim = 0; }
+  if(n.el) n.el.style.transform = "";
   world.appendChild(n.el);                    // raise the grabbed node above any newer node covering it
   const id = e.pointerId; nodeGestPtrs.add(id);
   const sx=e.clientX, sy=e.clientY, ox=n.x, oy=n.y;
@@ -9773,6 +9807,10 @@ function quickSpawn(typeKey, wx, wy, dir, type, originPort){
   const n = addNode(typeKey, Math.round(x), Math.round(wy - 24));
   rememberAdd(typeKey);
   select(n);
+  if(typeof geoOn==="function" && geoOn()){
+    geoSettleNew(n, { dir:dir, type:type, originPort:originPort, anchor:byId(originPort.dataset.node) });
+    return;
+  }
   const opp = dir==="out" ? "in" : "out", sel = `.port[data-dir="${opp}"][data-ptype="${type}"]`;
   let ports = [...n.el.querySelectorAll(sel)];
   // the only matching socket may be disabled (e.g. an LLM defaulted to a non-vision model) — upgrade
@@ -9809,6 +9847,7 @@ function seedPinch(){              // anchor the world-point under the two-finge
 editor.addEventListener("pointerdown", e=>{
   if(!onBg(e.target)) return;
   if(nodeGestPtrs.size) return;                            // a node drag/resize owns the gesture — don't pan / select(null) under it
+  if(typeof geoOn==="function" && geoOn() && e.shiftKey && e.button===0){ geoMarquee(e); return; }
   try{ editor.setPointerCapture?.(e.pointerId); }catch{}   // capture is best-effort — never let it abort the gesture
   ptrs.set(e.pointerId, {x:e.clientX, y:e.clientY});
   if(ptrs.size===1){
@@ -10009,6 +10048,9 @@ window.addEventListener("keydown", e=>{
   if((e.ctrlKey||e.metaKey) && e.key==="Enter"){ e.preventDefault(); runAll(); return; }   // run every flow
   if((e.key==="f"||e.key==="F") && !(e.ctrlKey||e.metaKey||e.altKey) &&
      !/^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName)){ e.preventDefault(); fitView(); return; }   // F = fit to view
+  if(e.code==="KeyT" && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey &&
+     !/^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName) &&
+     typeof geoOn==="function" && geoOn()){ e.preventDefault(); geoTidySelection(); return; }   // Shift+T tidies the multi-selection
   const typing = /^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName);
   if((e.ctrlKey||e.metaKey) && !typing && /^[zy]$/i.test(e.key)){
     e.preventDefault();
@@ -12714,6 +12756,458 @@ $("refuelcopy").onclick = async ()=>{
   else { toast("Couldn't copy — select the address and copy it manually", "err"); }
 };
 
+/* LAYOUT — free slot on add, tidy on the selection.
+   One engine. A new node (Add menu, wire-drop, suggestion) lands in the
+   first free slot beside its source and auto-wires only when exactly one
+   port fits, through connect(). Tidy (context menu / Shift+T) packs the
+   multi-selection left-to-right by data flow. ?product=off / ?na=0 leaves
+   placement, selection, and menus as they were. No idle rAF. */
+function geoOn(){
+  try{
+    const q = new URLSearchParams(location.search || "");
+    const dead = (v)=>{ const s = String(v == null ? "" : v).toLowerCase(); return s==="0" || s==="off" || s==="false"; };
+    if(dead(q.get("product"))) return false;
+    if(dead(q.get("na"))) return false;
+    try{ if(localStorage.getItem("nano.nextAction")==="off") return false; }catch(err){}
+  }catch(err){ return true; }
+  return true;
+}
+function geoOverlap(a, b, gap){
+  const g = gap || 0;
+  return a.x < b.x + b.w + g && b.x < a.x + a.w + g && a.y < b.y + b.h + g && b.y < a.y + a.h + g;
+}
+function geoFreeSlot(anchor, size, obstacles, gap, side){
+  const g = gap == null ? 36 : gap;
+  const dir = side < 0 ? -1 : 1;
+  const w = size.w, h = size.h;
+  const baseX = dir > 0 ? anchor.x + anchor.w + g : anchor.x - w - g;
+  const baseY = anchor.y;
+  const stepX = w + g, stepY = h + g;
+  const list = obstacles || [];
+  for(let col = 0; col < 14; col++){
+    const x = Math.round(baseX + dir * col * stepX);
+    for(let row = 0; row < 10; row++){
+      const yOff = row === 0 ? 0 : (row % 2 ? (row + 1) / 2 : -(row / 2));
+      const y = Math.round(baseY + yOff * stepY);
+      const box = { x:x, y:y, w:w, h:h };
+      let blocked = false;
+      for(let i = 0; i < list.length; i++){ if(geoOverlap(box, list[i], g)){ blocked = true; break; } }
+      if(!blocked) return { x:x, y:y };
+    }
+  }
+  return { x:Math.round(baseX), y:Math.round(baseY) };
+}
+function geoRanks(ids, links){
+  const indeg = Object.create(null), outs = Object.create(null);
+  for(let i = 0; i < ids.length; i++){ indeg[ids[i]] = 0; outs[ids[i]] = []; }
+  const ls = links || [];
+  let edges = 0;
+  for(let i = 0; i < ls.length; i++){
+    const a = ls[i].from && ls[i].from.node, b = ls[i].to && ls[i].to.node;
+    if(!a || !b || a === b || indeg[a] == null || indeg[b] == null) continue;
+    outs[a].push(b); indeg[b]++; edges++;
+  }
+  const depth = Object.create(null), q = [], left = Object.assign({}, indeg);
+  for(let i = 0; i < ids.length; i++){ if(indeg[ids[i]] === 0){ depth[ids[i]] = 0; q.push(ids[i]); } }
+  let qi = 0;
+  while(qi < q.length){
+    const u = q[qi++], d = depth[u] || 0, next = outs[u];
+    for(let j = 0; j < next.length; j++){
+      const v = next[j];
+      if(depth[v] == null || depth[v] < d + 1) depth[v] = d + 1;
+      left[v]--;
+      if(left[v] === 0) q.push(v);
+    }
+  }
+  let maxD = 0;
+  for(let i = 0; i < ids.length; i++){
+    if(depth[ids[i]] == null) depth[ids[i]] = 0;
+    if(depth[ids[i]] > maxD) maxD = depth[ids[i]];
+  }
+  return { depth:depth, spread: maxD > 0 };
+}
+function geoTidyPositions(nodes, links, gapX, gapY){
+  if(!nodes || nodes.length < 2) return [];
+  const ids = [];
+  for(let i = 0; i < nodes.length; i++) ids.push(nodes[i].id);
+  const ranked = geoRanks(ids, links || []);
+  const depth = ranked.depth;
+  const cols = Object.create(null);
+  const keys = [];
+  for(let i = 0; i < nodes.length; i++){
+    const n = nodes[i];
+    const c = ranked.spread ? (depth[n.id] || 0) : 0;
+    if(cols[c] == null){ cols[c] = []; keys.push(c); }
+    cols[c].push(n);
+  }
+  keys.sort(function(a, b){ return a - b; });
+  const srcY = Object.create(null);
+  const ls = links || [];
+  const yOf = Object.create(null);
+  for(let i = 0; i < nodes.length; i++) yOf[nodes[i].id] = nodes[i].orderY != null ? nodes[i].orderY : nodes[i].y;
+  for(let i = 0; i < ls.length; i++){
+    const a = ls[i].from && ls[i].from.node, b = ls[i].to && ls[i].to.node;
+    if(a == null || b == null || yOf[a] == null) continue;
+    if(srcY[b] == null || yOf[a] < srcY[b]) srcY[b] = yOf[a];
+  }
+  for(let i = 0; i < keys.length; i++){
+    cols[keys[i]].sort(function(a, b){
+      const ay = a.orderY != null ? a.orderY : (srcY[a.id] != null ? srcY[a.id] : a.y);
+      const by = b.orderY != null ? b.orderY : (srcY[b.id] != null ? srcY[b.id] : b.y);
+      if(ay !== by) return ay - by;
+      if(a.x !== b.x) return a.x - b.x;
+      return String(a.id) < String(b.id) ? -1 : 1;
+    });
+  }
+  let minX = Infinity, minY = Infinity;
+  for(let i = 0; i < nodes.length; i++){
+    if(nodes[i].x < minX) minX = nodes[i].x;
+    if(nodes[i].y < minY) minY = nodes[i].y;
+  }
+  const gx = gapX == null ? 48 : gapX, gy = gapY == null ? 28 : gapY;
+  const out = [];
+  if(!ranked.spread){
+    const row = cols[0].slice().sort(function(a, b){ return a.x - b.x || a.y - b.y || (String(a.id) < String(b.id) ? -1 : 1); });
+    let x = minX;
+    for(let i = 0; i < row.length; i++){
+      out.push({ id:row[i].id, x:Math.round(x), y:Math.round(minY) });
+      x += row[i].w + gx;
+    }
+    return out;
+  }
+  let x = minX;
+  for(let i = 0; i < keys.length; i++){
+    const list = cols[keys[i]];
+    let colW = 0;
+    for(let j = 0; j < list.length; j++) if(list[j].w > colW) colW = list[j].w;
+    let y = minY;
+    for(let j = 0; j < list.length; j++){
+      out.push({ id:list[j].id, x:Math.round(x), y:Math.round(y) });
+      y += list[j].h + gy;
+    }
+    x += colW + gx;
+  }
+  return out;
+}
+function geoClearPack(positions, sizes, obstacles, gap){
+  const g = gap == null ? 36 : gap;
+  if(!positions.length || !obstacles || !obstacles.length) return positions;
+  let dx = 0, dy = 0;
+  for(let pass = 0; pass < 20; pass++){
+    let hit = null;
+    for(let i = 0; i < positions.length && !hit; i++){
+      const s = sizes[positions[i].id];
+      if(!s) continue;
+      const box = { x:positions[i].x + dx, y:positions[i].y + dy, w:s.w, h:s.h };
+      for(let j = 0; j < obstacles.length; j++){ if(geoOverlap(box, obstacles[j], g)){ hit = obstacles[j]; break; } }
+    }
+    if(!hit) break;
+    let packLeft = Infinity;
+    for(let i = 0; i < positions.length; i++) packLeft = Math.min(packLeft, positions[i].x + dx);
+    const push = hit.x + hit.w + g - packLeft;
+    if(push > 0) dx += push;
+    else dy += hit.h + g;
+  }
+  if(!dx && !dy) return positions;
+  const moved = [];
+  for(let i = 0; i < positions.length; i++) moved.push({ id:positions[i].id, x:Math.round(positions[i].x + dx), y:Math.round(positions[i].y + dy) });
+  return moved;
+}
+function geoFitInputs(ports){
+  const live = [];
+  for(let i = 0; i < (ports || []).length; i++){
+    if(ports[i].disabled || ports[i].filled) continue;
+    live.push(ports[i]);
+  }
+  let hasPrompt = false;
+  for(let i = 0; i < live.length; i++) if(live[i].name === "prompt") hasPrompt = true;
+  if(!hasPrompt) return live;
+  const kept = [];
+  for(let i = 0; i < live.length; i++){
+    const p = live[i];
+    if(p.field && p.name !== "prompt") continue;
+    kept.push(p);
+  }
+  return kept;
+}
+function geoMeasure(nodes){
+  const out = [];
+  for(let i = 0; i < nodes.length; i++){
+    const n = nodes[i];
+    if(!n || !n.el) continue;
+    out.push({ id:n.id, x:n.x, y:n.y, w:n.el.offsetWidth, h:n.el.offsetHeight });
+  }
+  return out;
+}
+function geoReadInputs(n, type){
+  if(!n || !n.el) return [];
+  const els = n.el.querySelectorAll('.port[data-dir="in"][data-ptype="' + type + '"]');
+  const ports = [];
+  for(let i = 0; i < els.length; i++){
+    const p = els[i];
+    ports.push({ name:p.dataset.port, field:p.classList.contains("fieldport"), disabled:p.classList.contains("disabled"), filled:p.classList.contains("filled"), el:p });
+  }
+  return ports;
+}
+function geoWireNew(n, spec){
+  const origin = spec.originPort, dir = spec.dir || "out", type = spec.type;
+  if(origin && type && dir === "out"){
+    let raw = geoReadInputs(n, type);
+    if(raw.length && !raw.some(p => !p.disabled)){
+      ensureModelForInput(n, type);
+      raw = geoReadInputs(n, type);
+    }
+    const fit = geoFitInputs(raw);
+    if(fit.length !== 1) return false;
+    const target = raw.find(p => p.name === fit[0].name && !p.disabled);
+    if(!target) return false;
+    connect(origin.dataset.node, origin.dataset.port, target.el.dataset.node, target.el.dataset.port);
+    dismissConnectHint();
+    return true;
+  }
+  if(origin && type && dir === "in"){
+    const outs = [...n.el.querySelectorAll('.port[data-dir="out"][data-ptype="' + type + '"]')].filter(p => !p.classList.contains("disabled"));
+    if(outs.length !== 1) return false;
+    connect(outs[0].dataset.node, outs[0].dataset.port, origin.dataset.node, origin.dataset.port);
+    dismissConnectHint();
+    return true;
+  }
+  const anchor = spec.anchor;
+  if(!anchor || !anchor.el || anchor === n) return false;
+  const outs = [...anchor.el.querySelectorAll('.port[data-dir="out"]')];
+  const pairs = [];
+  for(const o of outs){
+    let raw = geoReadInputs(n, o.dataset.ptype);
+    if(o.dataset.ptype === "image" && raw.length && !raw.some(p => !p.disabled)){
+      ensureModelForInput(n, "image");
+      raw = geoReadInputs(n, "image");
+    }
+    const fit = geoFitInputs(raw);
+    if(fit.length !== 1) continue;
+    const target = raw.find(p => p.name === fit[0].name && !p.disabled && !p.filled);
+    if(target) pairs.push({ o:o, target:target });
+  }
+  if(pairs.length !== 1) return false;
+  connect(pairs[0].o.dataset.node, pairs[0].o.dataset.port, pairs[0].target.el.dataset.node, pairs[0].target.el.dataset.port);
+  dismissConnectHint();
+  return true;
+}
+function geoEnter(n){
+  if(!n || !n.el || costChipReduceMotion()) return;
+  n.el.style.opacity = "0";
+  n.el.style.transform = "translate(-8px,0)";
+  const t0 = performance.now(), ms = 200;
+  const step = (now)=>{
+    if(!n.el || !n.el.isConnected){ geoAnim = 0; return; }
+    const p = Math.min(1, (now - t0) / ms);
+    const e = 1 - Math.pow(1 - p, 3);
+    n.el.style.opacity = String(e);
+    n.el.style.transform = "translate(" + ((-8 * (1 - e)).toFixed(2)) + "px,0)";
+    redraw();
+    if(p < 1) geoAnim = requestAnimationFrame(step);
+    else { geoAnim = 0; n.el.style.opacity = ""; n.el.style.transform = ""; redraw(); }
+  };
+  geoAnim = requestAnimationFrame(step);
+}
+function geoSettleNew(n, spec){
+  if(!n || !n.el || !geoOn()) return;
+  if(geoAnim){ cancelAnimationFrame(geoAnim); geoAnim = 0; }
+  const anchor = spec.anchor && spec.anchor !== n ? spec.anchor : null;
+  const dir = spec.dir || "out";
+  const measured = geoMeasure(graph.nodes);
+  const mine = measured.find(b => b.id === n.id) || { id:n.id, x:n.x, y:n.y, w:220, h:160 };
+  const obstacles = measured.filter(b => b.id !== n.id);
+  let slot = { x:Math.round(n.x), y:Math.round(n.y) };
+  if(anchor && anchor.el){
+    const a = measured.find(b => b.id === anchor.id) || { x:anchor.x, y:anchor.y, w:anchor.el.offsetWidth, h:anchor.el.offsetHeight };
+    slot = geoFreeSlot(a, mine, obstacles, 36, dir === "in" ? -1 : 1);
+  } else {
+    const cur = { x:n.x, y:n.y, w:mine.w, h:mine.h };
+    let blocked = false;
+    for(let i = 0; i < obstacles.length; i++) if(geoOverlap(cur, obstacles[i], 36)) blocked = true;
+    if(blocked && obstacles.length){
+      let host = obstacles[0];
+      for(let i = 1; i < obstacles.length; i++) if(obstacles[i].x + obstacles[i].w > host.x + host.w) host = obstacles[i];
+      slot = geoFreeSlot(host, mine, obstacles, 36, 1);
+    }
+  }
+  n.x = slot.x; n.y = slot.y;
+  n.el.style.left = slot.x + "px";
+  n.el.style.top = slot.y + "px";
+  const wired = geoWireNew(n, spec || {});
+  if(!wired) redraw();
+  save();
+  geoEnter(n);
+}
+function geoUpstreamY(id){
+  let best = null;
+  for(let i = 0; i < graph.links.length; i++){
+    const l = graph.links[i];
+    if(l.to.node !== id || !multiSel.has(l.from.node)) continue;
+    const el = document.querySelector('.port[data-node="' + l.from.node + '"][data-port="' + l.from.port + '"][data-dir="out"]');
+    if(!el) continue;
+    const r = el.getBoundingClientRect(), e = editor.getBoundingClientRect();
+    const y = (r.top + r.height / 2 - e.top - panY) / scale;
+    if(best == null || y < best) best = y;
+  }
+  return best;
+}
+function geoGlide(moves, ms){
+  if(!moves.length) return;
+  if(costChipReduceMotion()){
+    for(const m of moves){
+      m.n.x = m.x; m.n.y = m.y;
+      m.n.el.style.left = m.x + "px"; m.n.el.style.top = m.y + "px"; m.n.el.style.transform = "";
+    }
+    redraw(); save(); return;
+  }
+  for(const m of moves){
+    const dx = m.n.x - m.x, dy = m.n.y - m.y;
+    m.n.x = m.x; m.n.y = m.y;
+    m.n.el.style.left = m.x + "px"; m.n.el.style.top = m.y + "px";
+    m.n.el.style.transform = "translate(" + dx + "px," + dy + "px)";
+    m.dx = dx; m.dy = dy;
+  }
+  void world.offsetWidth;
+  const t0 = performance.now();
+  const step = (now)=>{
+    const p = Math.min(1, (now - t0) / ms);
+    const eased = 1 - Math.pow(1 - p, 3);
+    let live = false;
+    for(const m of moves){
+      if(!m.n.el || !m.n.el.isConnected) continue;
+      live = true;
+      m.n.el.style.transform = "translate(" + (m.dx * (1 - eased)).toFixed(2) + "px," + (m.dy * (1 - eased)).toFixed(2) + "px)";
+    }
+    redraw();
+    if(p < 1 && live) geoAnim = requestAnimationFrame(step);
+    else {
+      geoAnim = 0;
+      for(const m of moves) if(m.n.el) m.n.el.style.transform = "";
+      redraw(); save();
+    }
+  };
+  geoAnim = requestAnimationFrame(step);
+}
+function geoCloseMenu(){ const m = $("selmenu"); if(m) m.classList.remove("open"); }
+function geoTidySelection(){
+  if(!geoOn()) return;
+  geoCloseMenu();
+  if(multiSel.size < 2) return;
+  const ids = [...multiSel];
+  const keep = [];
+  for(const id of ids){ const n = byId(id); if(n && n.el) keep.push(n); }
+  if(keep.length < 2) return;
+  if(geoAnim){ cancelAnimationFrame(geoAnim); geoAnim = 0; }
+  pushUndo();
+  const measured = geoMeasure(graph.nodes);
+  const sel = [], obstacles = [];
+  for(const b of measured){
+    if(!multiSel.has(b.id)){ obstacles.push(b); continue; }
+    const oy = geoUpstreamY(b.id);
+    sel.push({ id:b.id, x:b.x, y:b.y, w:b.w, h:b.h, orderY: oy == null ? b.y : oy });
+  }
+  let pos = geoTidyPositions(sel, graph.links, 48, 28);
+  const sizes = {};
+  for(const s of sel) sizes[s.id] = { w:s.w, h:s.h };
+  pos = geoClearPack(pos, sizes, obstacles, 36);
+  const moves = [];
+  for(const p of pos){ const n = byId(p.id); if(n && n.el) moves.push({ n:n, x:p.x, y:p.y }); }
+  geoGlide(moves, 250);
+}
+function geoSetMulti(ids){
+  if(!ids || ids.length < 2){
+    multiSel.clear();
+    select(ids && ids.length ? byId(ids[0]) : null);
+    return;
+  }
+  multiSel.clear();
+  for(const x of graph.nodes) if(x.el) x.el.classList.remove("sel");
+  let first = null;
+  for(const id of ids){
+    const n = byId(id);
+    if(!n || !n.el) continue;
+    multiSel.add(n.id);
+    n.el.classList.add("sel");
+    if(!first) first = n;
+  }
+  selected = first;
+  updateDelBtn();
+}
+function geoToggleMulti(n){
+  if(!n) return;
+  if(multiSel.size === 0 && selected && selected !== n) multiSel.add(selected.id);
+  if(multiSel.has(n.id)) multiSel.delete(n.id);
+  else multiSel.add(n.id);
+  if(multiSel.size < 2){
+    const only = multiSel.size ? byId([...multiSel][0]) : null;
+    multiSel.clear();
+    select(only);
+    return;
+  }
+  for(const x of graph.nodes) if(x.el) x.el.classList.toggle("sel", multiSel.has(x.id));
+  selected = n;
+  updateDelBtn();
+}
+function geoMarquee(e){
+  e.preventDefault();
+  e.stopPropagation();
+  const sx = e.clientX, sy = e.clientY;
+  const box = document.createElement("div");
+  box.style.cssText = "position:fixed;z-index:45;pointer-events:none;border:1px solid var(--accent);background:#7c8cff33;";
+  document.body.appendChild(box);
+  const move = (ev)=>{
+    if(ev.pointerId !== e.pointerId) return;
+    const x = Math.min(sx, ev.clientX), y = Math.min(sy, ev.clientY);
+    box.style.left = x + "px"; box.style.top = y + "px";
+    box.style.width = Math.abs(ev.clientX - sx) + "px";
+    box.style.height = Math.abs(ev.clientY - sy) + "px";
+  };
+  const up = (ev)=>{
+    if(ev.pointerId !== e.pointerId) return;
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+    window.removeEventListener("pointercancel", up);
+    const r = box.getBoundingClientRect();
+    box.remove();
+    if(r.width < 4 && r.height < 4) return;
+    const ids = [];
+    for(const n of graph.nodes){
+      if(!n.el) continue;
+      const b = n.el.getBoundingClientRect();
+      if(b.right >= r.left && b.left <= r.right && b.bottom >= r.top && b.top <= r.bottom) ids.push(n.id);
+    }
+    geoSetMulti(ids);
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+  window.addEventListener("pointercancel", up);
+}
+$("seltidy").onclick = ()=> { $("selmenu").classList.remove("open"); geoTidySelection(); };
+document.addEventListener("contextmenu", (e)=>{
+  if(!geoOn()) return;
+  const menu = $("selmenu");
+  if(!menu) return;
+  const node = e.target.closest && e.target.closest(".node");
+  if(!node || multiSel.size < 2 || !multiSel.has(node.dataset.id)){ menu.classList.remove("open"); return; }
+  e.preventDefault();
+  menu.classList.add("open");
+  menu.style.left = e.clientX + "px";
+  menu.style.top = e.clientY + "px";
+  const r = menu.getBoundingClientRect();
+  if(r.right > innerWidth - 8) menu.style.left = Math.max(8, innerWidth - r.width - 8) + "px";
+  if(r.bottom > innerHeight - 8) menu.style.top = Math.max(8, innerHeight - r.height - 8) + "px";
+});
+document.addEventListener("pointerdown", (e)=>{
+  const menu = $("selmenu");
+  if(!menu || !menu.classList.contains("open")) return;
+  if(menu.contains(e.target)) return;
+  menu.classList.remove("open");
+}, true);
+addEventListener("keydown", (e)=>{
+  if(e.key === "Escape"){ const menu = $("selmenu"); if(menu && menu.classList.contains("open")) menu.classList.remove("open"); }
+});
+
 /* ======================================================================
    ADD-NODE MENU
    ====================================================================== */
@@ -12824,6 +13318,7 @@ function buildAddMenu(){
 }
 let spawnN = 0;
 function spawnCenter(type){
+  const placeAnchor = (typeof geoOn==="function" && geoOn()) ? selected : null;
   const step = Math.ceil(56/scale);   // screen-constant cascade that clears the ~46px header at any zoom (else the covered card's ✕/▶ stay untappable — worst at phone zoom)
   const cx = (editor.clientWidth/2 - panX)/scale - 105 + (spawnN%5)*step;
   const cy = (editor.clientHeight/2 - panY)/scale - 60  + (spawnN%5)*step;
@@ -12831,7 +13326,9 @@ function spawnCenter(type){
   dismissHint();
   const n = addNode(type, Math.round(cx), Math.round(cy));
   rememberAdd(type);
-  select(n); redraw();
+  select(n);
+  if(typeof geoOn==="function" && geoOn()) geoSettleNew(n, { dir:"out", anchor:placeAnchor });
+  else redraw();
 }
 $("addbtn").onclick = (e)=>{
   e.stopPropagation();
@@ -12977,6 +13474,8 @@ function applyGraphData(d, opts){
   const prevById = carryResults ? new Map(graph.nodes.map(n=>[n.id+" "+n.type, n]))
                  : (opts && opts.resultStash) || null;
   world.innerHTML=""; selected=null;
+  if(typeof multiSel!=="undefined") multiSel.clear();
+  if(typeof geoAnim!=="undefined" && geoAnim){ cancelAnimationFrame(geoAnim); geoAnim = 0; }
   graph = { nodes:[], links:[] };
   if(d.view){ panX=d.view.panX??panX; panY=d.view.panY??panY; scale=d.view.scale??scale; applyWorld(); }
   const ALIAS = { audio:"tts" };                  // older graphs had a single combined audio node
