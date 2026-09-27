@@ -14242,10 +14242,13 @@ function renderCommunity(){
 function openExamples(){
   const list=$("exampleslist"); list.innerHTML="";
   const eh = nextActionHints();
+  const recipeSlug = eh && eh.recipe && eh.recipe.slug;
   const wantEx = eh && eh.openExamples && eh.adds ? new Set(eh.adds.map(a=>a.type)) : null;
   const exFirst = (ex)=>{ const n=(ex.graph&&ex.graph.nodes||[]).find(x=>x.type && x.type!=="comment"); return n ? n.type : ""; };
   let order = EXAMPLES.map((_,i)=>i);
-  if(wantEx && wantEx.size && order.some(i=>wantEx.has(exFirst(EXAMPLES[i])))){
+  if(recipeSlug && EXAMPLES.some(ex=>ex.slug===recipeSlug)){
+    order = order.slice().sort((a,b)=> (EXAMPLES[a].slug===recipeSlug?0:1) - (EXAMPLES[b].slug===recipeSlug?0:1));
+  } else if(wantEx && wantEx.size && order.some(i=>wantEx.has(exFirst(EXAMPLES[i])))){
     order = order.slice().sort((a,b)=> (wantEx.has(exFirst(EXAMPLES[a]))?0:1) - (wantEx.has(exFirst(EXAMPLES[b]))?0:1));
   }
   order.forEach((i)=>{
@@ -14262,10 +14265,17 @@ function openExamples(){
     const skill=ex.slug==="character-sprites"?`<a href="https://github.com/nanoodlecom/noodle-skills/tree/main/skills/character-sprites" target="_blank" rel="noopener">${esc(t("Get the skill"))} ↗</a>`:"";
     c.innerHTML=`${previewWrap}<div class="ex-body"><h3 class="ex-tt">${esc(t(ex.title))}</h3><p class="ex-ds">${esc(t(ex.desc))}</p><div class="ex-actions"><button type="button">${esc(t("Open workflow"))}</button>${see}${skill}</div></div>`;
     c.querySelector("button").onclick=()=>loadExample(i);
-    if(wantEx && wantEx.has(exFirst(ex))){
+    const recipeHit = recipeSlug && ex.slug===recipeSlug;
+    if(recipeHit || (wantEx && wantEx.has(exFirst(ex)))){
       c.classList.add("suggested");
       const h3=c.querySelector(".ex-tt");
-      if(h3){ const s=document.createElement("span"); s.className="sug"; s.title=t("often opened next"); s.textContent=t("suggested"); h3.appendChild(s); }
+      if(h3){
+        const s=document.createElement("span");
+        s.className="sug";
+        s.title = recipeHit && eh.recipe.reason ? eh.recipe.reason : t("often opened next");
+        s.textContent=t("suggested");
+        h3.appendChild(s);
+      }
     }
     list.appendChild(c);
   });
