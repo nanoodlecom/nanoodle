@@ -8,6 +8,7 @@
 | · 5 | `ring.mjs` — flagged local action ring (memory / localStorage; local `export()` only) |
 | · 6 | `cold-start.mjs`, `firstNode` / `firstTrio` in `corpus/frequency-tables.json` (library + checks; no chips on the canvas) |
 | · 1 | `scripts/train-next-action.py`, `fixtures/smoke-weights.json`, `scripts/check-next-action.mjs`, `hints.mjs` |
+| port | `port-suggest.mjs`, `corpus/port-suggest.json` — wire-drop rank + drag ring only |
 
 Learned `.bin` weights stay **gitignored**; tests load inline float fixtures.
 The editor reads scores from `editor-surface.mjs` and shows them inside existing
@@ -35,6 +36,7 @@ node scripts/check-next-action-frequency.mjs
 node scripts/check-next-action-ring.mjs
 node scripts/check-next-action-cold-start.mjs
 node scripts/check-next-action.mjs
+node scripts/check-next-action-port-suggest.mjs
 node scripts/check-smallnet.mjs   # catalog still empty
 ```
 
