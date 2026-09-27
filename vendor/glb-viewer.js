@@ -206,7 +206,7 @@
   }
 
   var VS = "attribute vec3 aPos;attribute vec3 aNrm;attribute vec2 aUv;uniform mat4 uMvp;varying vec3 vN;varying vec3 vW;varying vec2 vUv;void main(){vN=aNrm;vW=aPos;vUv=aUv;gl_Position=uMvp*vec4(aPos,1.0);}";
-  var FS = "precision mediump float;uniform vec4 uColor;uniform sampler2D uTex;uniform float uTexOn;uniform float uTwo;uniform vec3 uEye;varying vec3 vN;varying vec3 vW;varying vec2 vUv;vec3 toLin(vec3 c){return pow(max(c,vec3(0.0)),vec3(2.2));}vec3 toSrgb(vec3 c){return pow(max(c,vec3(0.0)),vec3(0.4545));}void main(){vec3 c=uColor.rgb;if(uTexOn>0.5)c*=texture2D(uTex,vUv).rgb;c=toLin(c);vec3 n=normalize(vN);vec3 V=normalize(uEye-vW);vec3 key=normalize(V+vec3(0.28,0.62,0.12));float ndl=dot(n,key);if(uTwo>0.5)ndl=abs(ndl);ndl=max(ndl,0.0);float hemi=0.55+0.45*n.y;vec3 sky=vec3(0.62,0.68,0.78);vec3 gnd=vec3(0.16,0.15,0.14);vec3 fill=mix(gnd,sky,clamp(hemi,0.0,1.0));vec3 lit=c*(0.22+0.38*fill+0.85*ndl);gl_FragColor=vec4(toSrgb(lit),1.0);}";
+  var FS = "precision mediump float;uniform vec4 uColor;uniform sampler2D uTex;uniform float uTexOn;uniform float uTwo;uniform vec3 uEye;varying vec3 vN;varying vec3 vW;varying vec2 vUv;vec3 toLin(vec3 c){return pow(max(c,vec3(0.0)),vec3(2.2));}vec3 toSrgb(vec3 c){return pow(max(c,vec3(0.0)),vec3(0.4545));}void main(){vec3 c=uColor.rgb;if(uTexOn>0.5)c*=texture2D(uTex,vUv).rgb;c=toLin(c);vec3 n=normalize(vN);vec3 V=normalize(uEye-vW);float face=max(dot(n,V),0.0);if(uTwo>0.5)face=abs(dot(n,V));float hemi=0.5+0.5*n.y;vec3 sky=vec3(0.62,0.68,0.78);vec3 gnd=vec3(0.22,0.20,0.18);vec3 fill=mix(gnd,sky,clamp(hemi,0.0,1.0));vec3 lit=c*(0.42+0.36*fill+0.70*face);gl_FragColor=vec4(toSrgb(lit),1.0);}";
 
   function decodeDataUrl(url) {
     var i = url.indexOf(",");

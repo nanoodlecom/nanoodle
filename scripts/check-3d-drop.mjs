@@ -110,8 +110,41 @@ ok(!dot.fields.sample, "a sample path with .. is stripped");
 ok(priv.glbPreviewUrl("https://cdn.example/a.glb") === "", "https is not previewed from a field");
 ok(String(priv.glbPreviewUrl("https://cdn.example/a.glb", { allowRemote: true })).startsWith("https://"),
   "https is previewed only when the caller allows a real result");
-ok(SRC.includes('|| s.url') === false || !/mediaKind==="model3d"[\s\S]{0,400}\|\| s\.url/.test(SRC),
+ok(SRC.includes('|| s.url') === false || !/function model3dStatusUrl[\s\S]{0,700}\|\| s\.url/.test(SRC),
   "the 3D result URL chain does not take a bare s.url");
+{
+  const urlCtx = {};
+  vm.createContext(urlCtx);
+  vm.runInContext(extractFn("model3dStatusUrl") + "\nglobalThis.model3dStatusUrl = model3dStatusUrl;", urlCtx);
+  const shape = { data: { status: "COMPLETED", output: {
+    video: { url: "https://cdn.example/v.glb" },
+    videoUrls: ["https://cdn.example/list.glb"],
+    kind: "3d", format: "glb",
+    model_url: "https://cdn.example/model.glb"
+  } } };
+  ok(urlCtx.model3dStatusUrl(shape) === "https://cdn.example/model.glb", "model_url is read before video.url");
+  ok(urlCtx.model3dStatusUrl({ data: { output: { model_url: "https://cdn.example/model.glb", video: { url: "https://cdn.example/v.mp4" } } } }) === "",
+    "a payload without kind 3d or format glb is ignored");
+  ok(urlCtx.model3dStatusUrl({ data: { output: { kind: "3d", model: { url: "https://cdn.example/m.glb" }, video: { url: "https://cdn.example/v.glb" } } } }) === "https://cdn.example/m.glb",
+    "model.url is next when model_url is absent");
+  ok(urlCtx.model3dStatusUrl({ data: { output: { format: "glb", video: { url: "https://cdn.example/v.glb" }, videoUrls: ["https://cdn.example/list.glb"] } } }) === "https://cdn.example/v.glb",
+    "video.url is used when no model url is present");
+  ok(urlCtx.model3dStatusUrl({ data: { output: { kind: "3d", videoUrls: [{ url: "https://cdn.example/list.glb" }] } } }) === "https://cdn.example/list.glb",
+    "videoUrls[0] is the last resort");
+  ok(urlCtx.model3dStatusUrl({ url: "https://cdn.example/bare.glb", data: { output: { kind: "3d", format: "glb" } } }) === "",
+    "a bare s.url is not a 3D result");
+}
+ok(SRC.includes("MODEL3D_STALL_MS = MODEL3D_TYPICAL_MS * 5"), "a 3D job warns at about 5× the typical time");
+ok(SRC.includes("MODEL3D_DEADLINE_MS") && SRC.includes("still building after 25 minutes — ▶ Run to check the same job"),
+  "a 3D poll has a hard deadline and keeps the job resumable");
+ok(/mediaKind==="model3d" && waited >= MODEL3D_DEADLINE_MS[\s\S]{0,240}throw new Error/.test(SRC)
+  && !/MODEL3D_DEADLINE_MS[\s\S]{0,180}PENDING_VIDEO\.delete/.test(SRC),
+  "the 3D deadline does not drop the pending job id");
+ok(SRC.includes('n.w = 440'), "a new 3D model card defaults wider than a thumbnail");
+ok(SRC.includes("optional — describe the object"), "an image-wired 3D prompt reads as optional");
+ok(SRC.includes("return { model: url }"), "a 3D run keeps the https URL instead of inlining bytes");
+ok(!VIEWER.includes("vec3(0.28,0.62,0.12)") && VIEWER.includes("dot(n,V)"),
+  "the viewer headlight follows the camera");
 
 if (fail) { console.error("\n✗ check-3d-drop: " + fail + " failed"); process.exit(1); }
 console.log("\n✓ check-3d-drop");

@@ -534,6 +534,14 @@
   .result .run-poll-copy{ border:1px solid var(--line); background:transparent; color:var(--muted); font:inherit;
                           font-size:.68rem; padding:.05rem .35rem; border-radius:.3rem; cursor:pointer }
   .result .run-poll-copy:hover{ color:var(--ink); border-color:var(--accent) }
+  .result .run-stall{ margin-top:.4rem; padding:.4rem .5rem; border-radius:.4rem;
+    background:color-mix(in srgb, var(--warn) 14%, var(--panel2,#1a1d24));
+    border:1px solid color-mix(in srgb, var(--warn) 50%, var(--line));
+    font-size:.75rem; color:var(--ink); line-height:1.35 }
+  .result .run-stall-acts{ display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.4rem }
+  .result .run-stall-acts button{ border:1px solid var(--line); background:var(--panel); color:var(--ink);
+    font:inherit; font-size:.72rem; padding:.18rem .5rem; border-radius:.35rem; cursor:pointer }
+  .result .run-stall-acts button:hover{ border-color:var(--warn) }
   @media (max-width:700px){
     #runlive{ width:min(18rem, calc(100vw - 1.5rem)); bottom:calc(var(--db-h,3rem) + 3.6rem); max-height:28vh }
   }
@@ -1888,6 +1896,12 @@ const I18N = {
     "3D model — use a 🧊 3D model node":"Modelo 3D — usa un nodo 🧊 Modelo 3D",
     "loading model…":"cargando modelo…",
     "building 3D…":"creando el 3D…",
+    "taking much longer than usual":"tarda mucho más de lo habitual",
+    "Keep waiting":"Seguir esperando",
+    "Stop":"Detener",
+    "optional — describe the object":"opcional — describe el objeto",
+    "prompt (optional)":"prompt (opcional)",
+    "still building after 25 minutes — ▶ Run to check the same job":"sigue construyendo después de 25 minutos — ▶ Ejecutar para revisar el mismo trabajo",
     "Connect an image first.":"Conecta una imagen primero.",
     "Add a prompt first.":"Añade un prompt primero.",
     "Add a prompt or connect an image first.":"Añade un prompt o conecta una imagen primero.",
@@ -2569,6 +2583,12 @@ const I18N = {
     "3D model — use a 🧊 3D model node":"Modèle 3D — utilisez un nœud 🧊 Modèle 3D",
     "loading model…":"chargement du modèle…",
     "building 3D…":"création du 3D…",
+    "taking much longer than usual":"prend beaucoup plus de temps que d’habitude",
+    "Keep waiting":"Continuer d’attendre",
+    "Stop":"Arrêter",
+    "optional — describe the object":"facultatif — décrivez l’objet",
+    "prompt (optional)":"prompt (facultatif)",
+    "still building after 25 minutes — ▶ Run to check the same job":"encore en cours après 25 minutes — ▶ Exécuter pour vérifier le même travail",
     "Connect an image first.":"Connectez d’abord une image.",
     "Add a prompt first.":"Ajoutez d’abord un prompt.",
     "Add a prompt or connect an image first.":"Ajoutez un prompt ou connectez une image d’abord.",
@@ -3250,6 +3270,12 @@ const I18N = {
     "3D model — use a 🧊 3D model node":"3D-Modell — nimm einen 🧊 3D-Modell-Knoten",
     "loading model…":"Modell wird geladen…",
     "building 3D…":"3D wird gebaut…",
+    "taking much longer than usual":"dauert viel länger als üblich",
+    "Keep waiting":"Weiter warten",
+    "Stop":"Stopp",
+    "optional — describe the object":"optional — beschreibe das Objekt",
+    "prompt (optional)":"Prompt (optional)",
+    "still building after 25 minutes — ▶ Run to check the same job":"baut nach 25 Minuten noch — ▶ Ausführen, um denselben Auftrag zu prüfen",
     "Connect an image first.":"Verbinde zuerst ein Bild.",
     "Add a prompt first.":"Füge zuerst einen Prompt hinzu.",
     "Add a prompt or connect an image first.":"Füge einen Prompt hinzu oder verbinde zuerst ein Bild.",
@@ -3931,6 +3957,12 @@ const I18N = {
     "3D model — use a 🧊 3D model node":"Modelo 3D — use um nó 🧊 Modelo 3D",
     "loading model…":"carregando modelo…",
     "building 3D…":"gerando o 3D…",
+    "taking much longer than usual":"está demorando muito mais que o normal",
+    "Keep waiting":"Continuar esperando",
+    "Stop":"Parar",
+    "optional — describe the object":"opcional — descreva o objeto",
+    "prompt (optional)":"prompt (opcional)",
+    "still building after 25 minutes — ▶ Run to check the same job":"ainda gerando após 25 minutos — ▶ Executar para verificar o mesmo trabalho",
     "Connect an image first.":"Conecte uma imagem primeiro.",
     "Add a prompt first.":"Adicione um prompt primeiro.",
     "Add a prompt or connect an image first.":"Adicione um prompt ou conecte uma imagem primeiro.",
@@ -4612,6 +4644,12 @@ const I18N = {
     "3D model — use a 🧊 3D model node":"3Dモデル — 🧊 3Dモデルノードを使ってください",
     "loading model…":"モデルを読み込み中…",
     "building 3D…":"3Dを生成中…",
+    "taking much longer than usual":"通常よりずっと時間がかかっています",
+    "Keep waiting":"待ち続ける",
+    "Stop":"停止",
+    "optional — describe the object":"任意 — 物体を説明する",
+    "prompt (optional)":"プロンプト（任意）",
+    "still building after 25 minutes — ▶ Run to check the same job":"25分経っても生成中 — ▶ 実行して同じジョブを確認",
     "Connect an image first.":"先に画像をつないでください。",
     "Add a prompt first.":"先にプロンプトを入れてください。",
     "Add a prompt or connect an image first.":"プロンプトを入れるか、先に画像をつないでください。",
@@ -5013,6 +5051,24 @@ function normAudio(m){
 // is wired and the current model can't take text. Named ids, not "newest" — newest can be $8.
 const MODEL3D_IMAGE_DEFAULT = "tripo3d/v2.5";
 const MODEL3D_TEXT_DEFAULT = "wavespeed-ai/hunyuan-3d-v3.1-rapid";
+// Image→3D usually lands in a couple of minutes. A job still IN_PROGRESS at 5× that
+// gets an inline stall notice; at 25 minutes we stop polling. The job id stays in
+// PENDING_VIDEO so ▶ Run checks the same job. Video polls have no deadline.
+const MODEL3D_TYPICAL_MS = 2 * 60 * 1000;
+const MODEL3D_STALL_MS = MODEL3D_TYPICAL_MS * 5;
+const MODEL3D_DEADLINE_MS = 25 * 60 * 1000;
+// Real completed 3D status: data.output.model_url, with kind/format set. There is no
+// output.model.url. A bare top-level url is a video payload and must not be mounted.
+function model3dStatusUrl(s){
+  const out = s?.data?.output || s?.output || {};
+  const kind = String(out.kind || "").toLowerCase();
+  const format = String(out.format || "").toLowerCase();
+  if(kind!=="3d" && format!=="glb") return "";
+  const list = Array.isArray(out.videoUrls) ? out.videoUrls : [];
+  const first = list.length ? list[0] : null;
+  const fromList = typeof first==="string" ? first : (first?.url || "");
+  return out.model_url || out.model?.url || out.video?.url || fromList || "";
+}
 function fmtUsdPlain(n){
   const x = +n;
   if(!isFinite(x)) return "";
@@ -8471,7 +8527,8 @@ const NODE_TYPES = {
       if(mods.image && !mods.text && !image) throw new Error("Connect an image first.");
       if(mods.text && !mods.image && !prompt) throw new Error("Add a prompt first.");
       if(mods.image && mods.text && !image && !prompt) throw new Error("Add a prompt or connect an image first.");
-      const opts = { extra:(n.fields.modelOpts||{}), runKey:n.id, mediaKind:"model3d" };
+      delete n._m3dKeepWaiting;
+      const opts = { extra:(n.fields.modelOpts||{}), runKey:n.id, mediaKind:"model3d", node:n };
       const url = await ctx.genVideo(mdl(n, ctx), mods.text ? prompt : "", opts, image || null,
         (st,ms,meta)=> setNodeProgress(n, fmtPollHeadline(t("building 3D…"), st, ms), meta));
       if(n.fields && n.fields.sample) delete n.fields.sample;   // the paid result replaces the teaching sample
@@ -8817,7 +8874,8 @@ function addNode(type, x, y, fields){
   const t = NODE_TYPES[type];
   const n = { id:"n"+(nid++), type, x, y, fields:Object.assign({}, fields), out:{}, el:null };
   if(t.modelKind && !n.fields.model) n.fields.model = defModelFor(type);
-  if((type==="model3d" || type==="mupload") && !(n.w>0)) n.w = 300;
+  if(type==="model3d" && !(n.w>0)) n.w = 440;   // 4/3 viewer needs the width; 300px reads as a thumbnail
+  if(type==="mupload" && !(n.w>0)) n.w = 360;
   if(type==="model3d") ensureModel3dCatalog();
   if(type==="endpoint" && !String(n.fields.url||"").trim()) n.fields.url = ENDPOINT_DEF_URL;
   graph.nodes.push(n);
@@ -9477,6 +9535,15 @@ function refreshModel3dPorts(n){
   const links = (typeof graph!=="undefined" && graph && graph.links) || [];
   const imgWire = links.some(l=> l.to.node===n.id && l.to.port==="image");
   const textWire = links.some(l=> l.to.node===n.id && l.to.port==="prompt");
+  const ta = promptWrap && promptWrap.querySelector('textarea[data-f="prompt"]');
+  const lab = promptWrap && promptWrap.querySelector("label");
+  if(mods.text && imgWire){
+    if(ta) ta.placeholder = t("optional — describe the object");
+    if(lab) lab.textContent = t("prompt (optional)");
+  } else {
+    if(ta) ta.placeholder = t("a ceramic cup on a white sweep, soft studio light…");
+    if(lab) lab.textContent = t("prompt");
+  }
   let msg = "";
   if(!mods.image && imgWire) msg = t("This model takes text only — the image wire stays, but this run ignores it.");
   else if(!mods.text && textWire) msg = t("This model takes an image only — the prompt wire stays, but this run ignores it.");
@@ -10002,6 +10069,13 @@ function setNodeProgress(n, msg, meta){
              + ` <button type="button" class="run-poll-copy" data-copy-poll="${esc(url)}">copy URL</button>` : "")
       + `</div></div>`;
   }
+  if(meta && meta.stall && !n._m3dKeepWaiting){
+    html += `<div class="run-stall"><div>${esc(t("taking much longer than usual"))}</div>`
+      + `<div class="run-stall-acts">`
+      + `<button type="button" data-m3d-stop>${esc(t("Stop"))}</button>`
+      + `<button type="button" data-m3d-wait>${esc(t("Keep waiting"))}</button>`
+      + `</div></div>`;
+  }
   r.innerHTML = html;
   r.querySelectorAll("[data-copy-poll]").forEach(btn=>{
     btn.onclick = (e)=>{
@@ -10014,6 +10088,18 @@ function setNodeProgress(n, msg, meta){
       else toast("copy failed", "err");
     };
   });
+  const stallStop = r.querySelector("[data-m3d-stop]");
+  if(stallStop) stallStop.onclick = (e)=>{
+    e.preventDefault(); e.stopPropagation();
+    stopNodeRun(n.id);
+  };
+  const stallWait = r.querySelector("[data-m3d-wait]");
+  if(stallWait) stallWait.onclick = (e)=>{
+    e.preventDefault(); e.stopPropagation();
+    n._m3dKeepWaiting = true;
+    const pm = n._pollMeta || {};
+    setNodeProgress(n, n._runMsg || msg, { runId: pm.runId, polledAt: pm.polledAt, statusUrl: pm.statusUrl, kind: pm.kind, stall:false });
+  };
   paintRunLive();
 }
 function openUrl(url){ window.open(url, "_blank", "noopener"); }
@@ -11178,6 +11264,12 @@ function stopSeedRun(id){
   dropWorkHolder(id, true);   // last waiter of A may cancel A; a joined sibling keeps A alive
   updateRunButtons();
 }
+function stopNodeRun(id){
+  if(seedCtl.has(id)){ stopSeedRun(id); return; }
+  const w = nodeWork.get(id);
+  if(w && w.ctl && !w.ctl.signal.aborted){ w.ctl.abort(); flash("stopping…"); updateRunButtons(); return; }
+  abortAllRuns();
+}
 function abortAllRuns(){
   let n = 0;
   for(const c of liveAborts){ if(!c.signal.aborted){ c.abort(); n++; } }
@@ -12094,11 +12186,14 @@ const CTX = {
       let pr, s; try{ pr = await fetch(`${NANOGPT}/api/video/status?requestId=${encodeURIComponent(runId)}`, {headers:authHeaders(), signal:runSignal()}); s = await pr.json(); }
       catch(e){ if(e?.name==="AbortError") throw e; continue; }
       const st = String(s.data?.status || s.status || "").toUpperCase();
-      onProgress && onProgress(st, Date.now()-t0, { runId, polledAt: Date.now() });
+      const waited = Date.now()-t0;
+      if(opts.mediaKind==="model3d" && waited >= MODEL3D_DEADLINE_MS)
+        throw new Error(t("still building after 25 minutes — ▶ Run to check the same job"));   // leave PENDING_VIDEO so ▶ Run resumes this job
+      onProgress && onProgress(st, waited, { runId, polledAt: Date.now(), stall: opts.mediaKind==="model3d" && waited >= MODEL3D_STALL_MS });
       if(st==="COMPLETED" || st==="SUCCEEDED"){
         const out = s.data?.output || s.output || {};
         const url = opts.mediaKind==="model3d"
-          ? (out.model?.url || s.data?.output?.model?.url || s.output?.model?.url || s.data?.model?.url || s.model?.url || out.url || s.data?.output?.url || s.output?.url || s.data?.url || out.video?.url || (Array.isArray(out.video) ? out.video[0]?.url : null))
+          ? model3dStatusUrl(s)
           : (out.video?.url || out.url || (Array.isArray(out.video) ? out.video[0]?.url : null));
         if(!url) throw new Error(opts.mediaKind==="model3d" ? "completed but no model url" : "completed but no video url");
         if(runKey) PENDING_VIDEO.delete(runKey);
@@ -15193,7 +15288,7 @@ const EXAMPLES = [
    graph:{ v:1,
    nodes:[ {id:"c1",type:"comment",x:40,y:16,w:680,sizes:{text:72},fields:{text:"The photo goes into the 3D node. Orbit the sample, then ▶ Run to build your own. Choice sets the model.",color:"yellow"},name:"Product shot → 3D"},
            {id:"img",type:"upload",x:40,y:200,w:280,fields:{image:"examples/product-shot/product.png"},name:"Product photo"},
-           {id:"m3",type:"model3d",x:400,y:200,w:320,fields:{model:"tripo3d/v2.5",sample:"examples/product-shot/sample.glb"},name:"Tripo 2.5"},
+           {id:"m3",type:"model3d",x:400,y:200,w:440,fields:{model:"tripo3d/v2.5",sample:"examples/product-shot/sample.glb"},name:"Tripo 2.5"},
            {id:"pick",type:"choice",x:40,y:620,w:280,fields:{options:"tripo3d/v2.5\nwavespeed-ai/hunyuan-3d-v3.1-rapid",selected:"tripo3d/v2.5"},name:"Model"} ],
    links:[ {id:"l1",from:{node:"img",port:"image"},to:{node:"m3",port:"image"}},
            {id:"l2",from:{node:"pick",port:"text"},to:{node:"m3",port:"model"}} ] } },
