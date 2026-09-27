@@ -88,7 +88,7 @@
     color-scheme: dark;
     --bg:#0b0d12; --panel:#12151d; --panel2:#171b25; --ink:#eef1f7; --dim:#aeb7c8; --muted:#c3c9d6;
     --line:#262c3a; --accent:#7c8cff; --accent2:#ff79c6; --good:#3ddc97; --bad:#ff6b6b; --warn:#ffcf6b;
-    --text-port:#7c8cff; --image-port:#ff79c6; --video-port:#5ad1e6; --audio-port:#3ddc97;
+    --text-port:#7c8cff; --image-port:#ff79c6; --video-port:#5ad1e6; --audio-port:#3ddc97; --model3d-port:#a78bfa;
   }
   *{box-sizing:border-box}
   .vh{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0}
@@ -642,6 +642,7 @@
   .node header.t-vframes{ background:linear-gradient(90deg,#5ad1e622,#ff79c614,transparent) }
   .node header.t-extractaudio{ background:linear-gradient(90deg,#5ad1e622,#3ddc9714,transparent) }
   .node header.t-music, .node header.t-tts{ background:linear-gradient(90deg,#3ddc9722,transparent) }
+  .node header.t-model3d, .node header.t-mupload{ background:linear-gradient(90deg,#a78bfa22,transparent) }
   .node header.t-join{ background:linear-gradient(90deg,#9aa3b222,transparent) }
   .node header.t-endpoint{ background:linear-gradient(90deg,#9aa3b222,#5ad1e622,transparent) }
   .node header.t-comment{ background:linear-gradient(90deg, var(--cmt-tint,#f5d76e22), transparent) }
@@ -678,6 +679,7 @@
   .port:hover{ transform:scale(1.35); box-shadow:0 0 0 4px #ffffff1f }   /* clear "this is a draggable link handle" affordance */
   .port.text{ background:var(--text-port) } .port.image{ background:var(--image-port) }
   .port.video{ background:var(--video-port) } .port.audio{ background:var(--audio-port) }
+  .port.model3d{ background:var(--model3d-port) }
   .port.filled{ box-shadow:0 0 0 3px #ffffff22 }
   /* a disabled image input: the model can't see images, so the socket is inert until a vision model is picked */
   .port.disabled{ cursor:not-allowed; opacity:.45; background:var(--dim) }
@@ -725,6 +727,11 @@
                 background:var(--panel2); border:1px solid var(--line); border-radius:.45rem; overflow:hidden; font-size:.74rem }
   .body .uprev img, .body .uprev video{ width:100%; display:block; border-radius:.45rem }
   .body .uprev audio{ width:100% }
+  /* in-card GLB stage. The canvas is position:absolute inside; height is fixed so orbit has a target. */
+  .glb-stage{ position:relative; width:100%; height:200px; background:#10131a; border-radius:.45rem; overflow:hidden }
+  .glb-stage .glb-wait, .glb-stage .glb-err{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    gap:.45rem; padding:.7rem; text-align:center; font-size:.74rem; color:var(--muted); pointer-events:none }
+  .glb-stage .glb-err{ color:#ff9a9a; pointer-events:auto }
   /* empty media input: not broken, an input slot — second line says empty = asked for at run time */
   .body .uprev .empt{ text-align:center; padding:.4rem }
   .body .uprev .empt small{ display:block; margin-top:.2rem; font-size:.68rem; opacity:.75 }
@@ -1854,6 +1861,30 @@ const I18N = {
     "Upload an audio clip":"Sube un clip de audio",
     "Video input":"Entrada de vídeo",
     "Upload a video clip":"Sube un clip de vídeo",
+    "3D model":"Modelo 3D",
+    "Image and/or text → a GLB you can orbit":"Imagen y/o texto → un GLB que puedes orbitar",
+    "3D input":"Entrada 3D",
+    "Upload a .glb or .gltf":"Sube un .glb o .gltf",
+    "3D":"3D",
+    "Product shot → 3D":"Foto de producto → 3D",
+    "A product photo into Tripo 2.5, plus a sample you can orbit":"Una foto de producto a Tripo 2.5, más una muestra que puedes orbitar",
+    "that's a 3D file — drop it on the canvas":"eso es un archivo 3D — suéltalo en el lienzo",
+    "drop a .glb, .gltf, or an image":"suelta un .glb, un .gltf o una imagen",
+    "3D nodes stay in the editor for now — Create app doesn’t run them yet":"Los nodos 3D se quedan en el editor por ahora — Crear app aún no los ejecuta",
+    "3D model — use a 🧊 3D model node":"Modelo 3D — usa un nodo 🧊 Modelo 3D",
+    "loading model…":"cargando modelo…",
+    "building 3D…":"creando el 3D…",
+    "Connect an image first.":"Conecta una imagen primero.",
+    "Add a prompt first.":"Añade un prompt primero.",
+    "Add a prompt or connect an image first.":"Añade un prompt o conecta una imagen primero.",
+    "no 3D file — drop a .glb or .gltf first":"sin archivo 3D — suelta un .glb o .gltf primero",
+    "couldn’t show this model":"no se pudo mostrar este modelo",
+    "couldn’t load the 3D viewer":"no se pudo cargar el visor 3D",
+    "a ceramic cup on a white sweep, soft studio light…":"una taza de cerámica sobre un fondo blanco, luz de estudio suave…",
+    "no 3D file yet":"aún sin archivo 3D",
+    "drop a .glb or .gltf":"suelta un .glb o .gltf",
+    "Upload .glb":"Subir .glb",
+    "drop files on the canvas":"suelta los archivos en el lienzo",
     "Video edit":"Editar vídeo",
     "Video (+text) → video — edit / extend / upscale":"Vídeo (+texto) → vídeo — editar / extender / escalar",
     "Avatar / lipsync":"Avatar / sincronización labial",
@@ -2494,6 +2525,30 @@ const I18N = {
     "Upload an audio clip":"Importer un clip audio",
     "Video input":"Entrée vidéo",
     "Upload a video clip":"Importer un clip vidéo",
+    "3D model":"Modèle 3D",
+    "Image and/or text → a GLB you can orbit":"Image et/ou texte → un GLB à faire tourner",
+    "3D input":"Entrée 3D",
+    "Upload a .glb or .gltf":"Importez un .glb ou .gltf",
+    "3D":"3D",
+    "Product shot → 3D":"Photo produit → 3D",
+    "A product photo into Tripo 2.5, plus a sample you can orbit":"Une photo produit vers Tripo 2.5, plus un exemple à faire tourner",
+    "that's a 3D file — drop it on the canvas":"c’est un fichier 3D — déposez-le sur le canevas",
+    "drop a .glb, .gltf, or an image":"déposez un .glb, un .gltf ou une image",
+    "3D nodes stay in the editor for now — Create app doesn’t run them yet":"Les nœuds 3D restent dans l’éditeur pour l’instant — Créer une app ne les lance pas encore",
+    "3D model — use a 🧊 3D model node":"Modèle 3D — utilisez un nœud 🧊 Modèle 3D",
+    "loading model…":"chargement du modèle…",
+    "building 3D…":"création du 3D…",
+    "Connect an image first.":"Connectez d’abord une image.",
+    "Add a prompt first.":"Ajoutez d’abord un prompt.",
+    "Add a prompt or connect an image first.":"Ajoutez un prompt ou connectez une image d’abord.",
+    "no 3D file — drop a .glb or .gltf first":"pas de fichier 3D — déposez un .glb ou .gltf d’abord",
+    "couldn’t show this model":"impossible d’afficher ce modèle",
+    "couldn’t load the 3D viewer":"impossible de charger la visionneuse 3D",
+    "a ceramic cup on a white sweep, soft studio light…":"une tasse en céramique sur un fond blanc, lumière de studio douce…",
+    "no 3D file yet":"pas encore de fichier 3D",
+    "drop a .glb or .gltf":"déposez un .glb ou un .gltf",
+    "Upload .glb":"Importer .glb",
+    "drop files on the canvas":"déposez les fichiers sur le canevas",
     "Video edit":"Édition vidéo",
     "Video (+text) → video — edit / extend / upscale":"Vidéo (+texte) → vidéo — éditer / prolonger / agrandir",
     "Avatar / lipsync":"Avatar / synchro labiale",
@@ -3134,6 +3189,30 @@ const I18N = {
     "Upload an audio clip":"Audioclip hochladen",
     "Video input":"Video-Eingabe",
     "Upload a video clip":"Videoclip hochladen",
+    "3D model":"3D-Modell",
+    "Image and/or text → a GLB you can orbit":"Bild und/oder Text → ein GLB zum Drehen",
+    "3D input":"3D-Eingabe",
+    "Upload a .glb or .gltf":"Eine .glb- oder .gltf-Datei hochladen",
+    "3D":"3D",
+    "Product shot → 3D":"Produktfoto → 3D",
+    "A product photo into Tripo 2.5, plus a sample you can orbit":"Ein Produktfoto nach Tripo 2.5, plus ein Beispiel zum Drehen",
+    "that's a 3D file — drop it on the canvas":"das ist eine 3D-Datei — leg sie auf die Leinwand",
+    "drop a .glb, .gltf, or an image":"leg eine .glb, .gltf oder ein Bild ab",
+    "3D nodes stay in the editor for now — Create app doesn’t run them yet":"3D-Knoten bleiben vorerst im Editor — App erstellen führt sie noch nicht aus",
+    "3D model — use a 🧊 3D model node":"3D-Modell — nimm einen 🧊 3D-Modell-Knoten",
+    "loading model…":"Modell wird geladen…",
+    "building 3D…":"3D wird gebaut…",
+    "Connect an image first.":"Verbinde zuerst ein Bild.",
+    "Add a prompt first.":"Füge zuerst einen Prompt hinzu.",
+    "Add a prompt or connect an image first.":"Füge einen Prompt hinzu oder verbinde zuerst ein Bild.",
+    "no 3D file — drop a .glb or .gltf first":"keine 3D-Datei — leg zuerst eine .glb oder .gltf ab",
+    "couldn’t show this model":"dieses Modell konnte nicht angezeigt werden",
+    "couldn’t load the 3D viewer":"3D-Viewer konnte nicht geladen werden",
+    "a ceramic cup on a white sweep, soft studio light…":"eine Keramiktasse auf weißem Hintergrund, weiches Studiolicht…",
+    "no 3D file yet":"noch keine 3D-Datei",
+    "drop a .glb or .gltf":"eine .glb oder .gltf ablegen",
+    "Upload .glb":".glb hochladen",
+    "drop files on the canvas":"leg die Dateien auf die Leinwand",
     "Video edit":"Video bearbeiten",
     "Video (+text) → video — edit / extend / upscale":"Video (+Text) → Video — bearbeiten / erweitern / hochskalieren",
     "Avatar / lipsync":"Avatar / Lippensynchro",
@@ -3774,6 +3853,30 @@ const I18N = {
     "Upload an audio clip":"Envie um clipe de áudio",
     "Video input":"Entrada de vídeo",
     "Upload a video clip":"Envie um clipe de vídeo",
+    "3D model":"Modelo 3D",
+    "Image and/or text → a GLB you can orbit":"Imagem e/ou texto → um GLB para orbitar",
+    "3D input":"Entrada 3D",
+    "Upload a .glb or .gltf":"Envie um .glb ou .gltf",
+    "3D":"3D",
+    "Product shot → 3D":"Foto de produto → 3D",
+    "A product photo into Tripo 2.5, plus a sample you can orbit":"Uma foto de produto no Tripo 2.5, mais uma amostra para orbitar",
+    "that's a 3D file — drop it on the canvas":"isso é um arquivo 3D — solte no canvas",
+    "drop a .glb, .gltf, or an image":"solte um .glb, .gltf ou uma imagem",
+    "3D nodes stay in the editor for now — Create app doesn’t run them yet":"Nós 3D ficam no editor por enquanto — Criar app ainda não os executa",
+    "3D model — use a 🧊 3D model node":"Modelo 3D — use um nó 🧊 Modelo 3D",
+    "loading model…":"carregando modelo…",
+    "building 3D…":"gerando o 3D…",
+    "Connect an image first.":"Conecte uma imagem primeiro.",
+    "Add a prompt first.":"Adicione um prompt primeiro.",
+    "Add a prompt or connect an image first.":"Adicione um prompt ou conecte uma imagem primeiro.",
+    "no 3D file — drop a .glb or .gltf first":"sem arquivo 3D — solte um .glb ou .gltf primeiro",
+    "couldn’t show this model":"não foi possível mostrar este modelo",
+    "couldn’t load the 3D viewer":"não foi possível carregar o visualizador 3D",
+    "a ceramic cup on a white sweep, soft studio light…":"uma xícara de cerâmica sobre um fundo branco, luz de estúdio suave…",
+    "no 3D file yet":"ainda sem arquivo 3D",
+    "drop a .glb or .gltf":"solte um .glb ou .gltf",
+    "Upload .glb":"Enviar .glb",
+    "drop files on the canvas":"solte os arquivos no canvas",
     "Video edit":"Editar vídeo",
     "Video (+text) → video — edit / extend / upscale":"Vídeo (+texto) → vídeo — editar / estender / ampliar",
     "Avatar / lipsync":"Avatar / sincronia labial",
@@ -4414,6 +4517,30 @@ const I18N = {
     "Upload an audio clip":"音声クリップをアップロード",
     "Video input":"動画入力",
     "Upload a video clip":"動画クリップをアップロード",
+    "3D model":"3Dモデル",
+    "Image and/or text → a GLB you can orbit":"画像やテキスト → 回せるGLB",
+    "3D input":"3D入力",
+    "Upload a .glb or .gltf":".glb または .gltf を読み込む",
+    "3D":"3D",
+    "Product shot → 3D":"商品写真 → 3D",
+    "A product photo into Tripo 2.5, plus a sample you can orbit":"商品写真を Tripo 2.5 へ。回せるサンプル付き",
+    "that's a 3D file — drop it on the canvas":"これは3Dファイルです — キャンバスにドロップしてください",
+    "drop a .glb, .gltf, or an image":".glb、.gltf、または画像をドロップ",
+    "3D nodes stay in the editor for now — Create app doesn’t run them yet":"3Dノードは今はエディタ専用です — アプリ作成ではまだ動きません",
+    "3D model — use a 🧊 3D model node":"3Dモデル — 🧊 3Dモデルノードを使ってください",
+    "loading model…":"モデルを読み込み中…",
+    "building 3D…":"3Dを生成中…",
+    "Connect an image first.":"先に画像をつないでください。",
+    "Add a prompt first.":"先にプロンプトを入れてください。",
+    "Add a prompt or connect an image first.":"プロンプトを入れるか、先に画像をつないでください。",
+    "no 3D file — drop a .glb or .gltf first":"3Dファイルがありません — .glb か .gltf をドロップしてください",
+    "couldn’t show this model":"このモデルを表示できませんでした",
+    "couldn’t load the 3D viewer":"3Dビューアを読み込めませんでした",
+    "a ceramic cup on a white sweep, soft studio light…":"白い背景の陶器のカップ、柔らかいスタジオ照明…",
+    "no 3D file yet":"3Dファイルはまだありません",
+    "drop a .glb or .gltf":".glb または .gltf をドロップ",
+    "Upload .glb":".glb をアップロード",
+    "drop files on the canvas":"ファイルはキャンバスにドロップしてください",
     "Video edit":"動画編集",
     "Video (+text) → video — edit / extend / upscale":"動画(+テキスト)→ 動画 — 編集 / 延長 / 高画質化",
     "Avatar / lipsync":"アバター / リップシンク",
@@ -4783,14 +4910,77 @@ function normAudio(m){
     sortUsd: audioUnitUsd(p, EST.ttsChars),          // resolved $ at assumed usage → price sorts (mixed units, rough)
     tts, gen, music: gen && !tts && !remix, remix, stt, pricing:p, nsfw: !!c.nsfw, price };   // music = text-only song gens; audio_to_music (Yue2 m2m) stays on Remix   // raw pricing kept so transcribe can estimate from per_minute
 }
+// Pinned 3D defaults. Image→3D is the common case; the text model is used only when a prompt
+// is wired and the current model can't take text. Named ids, not "newest" — newest can be $8.
+const MODEL3D_IMAGE_DEFAULT = "tripo3d/v2.5";
+const MODEL3D_TEXT_DEFAULT = "wavespeed-ai/hunyuan-3d-v3.1-rapid";
+function fmtUsdPlain(n){
+  const x = +n;
+  if(!isFinite(x)) return "";
+  let s = x.toFixed(4).replace(/0+$/,"").replace(/\.$/,"");
+  if(!s.includes(".")) s += ".00";
+  else if(s.split(".")[1].length < 2) s += "0".repeat(2 - s.split(".")[1].length);
+  return s;
+}
+// Card and the run estimate use pricing.per_run (the default variant). The picker row shows
+// "$min–$max" only when per_run_by_variant actually spans a range. No invented variant map.
+function model3dPriceLabels(pricing){
+  const p = pricing || {};
+  const per = _num(p.per_run);
+  const card = per!=null ? "$"+fmtUsdPlain(per) : "";
+  let picker = card;
+  const by = p.per_run_by_variant;
+  if(by && typeof by==="object"){
+    const vals = Object.values(by).map(_num).filter(v=> v!=null);
+    if(vals.length){
+      const lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+      if(lo !== hi) picker = "$"+fmtUsdPlain(lo)+"–$"+fmtUsdPlain(hi);
+    }
+  }
+  return { card, picker, per };
+}
+function norm3d(m){
+  const arch = m.architecture || {};
+  const mods = (Array.isArray(arch.input_modalities) ? arch.input_modalities : []).filter(x=> x==="image" || x==="text");
+  const sp = m.supported_parameters || {};
+  const rawP = sp.parameters || {};
+  const params = {}, defaults = {};
+  for(const [key, d] of Object.entries(rawP)){
+    if(!d || typeof d!=="object") continue;
+    const copy = Object.assign({}, d);
+    if(d.type==="select"){
+      if(Array.isArray(d.options)) copy.options = d.options.map(o=> (o && o.value!=null) ? Object.assign({}, o, { value:String(o.value) }) : o);
+      if(d.default!=null) copy.default = String(d.default);
+    }
+    params[key] = copy;
+  }
+  for(const [key, v] of Object.entries(sp.defaults || {})){
+    defaults[key] = (params[key] && params[key].type==="select" && v!=null) ? String(v) : v;
+  }
+  const labels = model3dPriceLabels(m.pricing || {});
+  const row = {
+    id: m.id,
+    name: m.name || m.id,
+    created: m.created,
+    sortUsd: labels.per,
+    modalities: mods,
+    params: params,
+    defaults: defaults,
+    pricing: m.pricing || {},
+    nsfw: !!(m.capabilities && m.capabilities.nsfw),
+    price: labels.picker,
+  };
+  return row;
+}
 
 const CATALOG = {
   chat:  { url:"/api/v1/models?detailed=true", norm:normChat  },
   image: { url:"/api/v1/image-models",         norm:normImg   },
   video: { url:"/api/v1/video-models",         norm:normVideo },
   audio: { url:"/api/v1/audio-models",         norm:normAudio },
+  model3d: { url:"/api/v1/3d-models",          norm:norm3d },
 };
-const catalogs = { chat:null, image:null, video:null, audio:null };
+const catalogs = { chat:null, image:null, video:null, audio:null, model3d:null };
 // SWR cache: the last-good catalog is stashed in localStorage so a fresh page load can paint
 // the graph at its FINAL card sizes/prices instantly, then reconcile when the network reply lands.
 const catCacheKey = (kind)=> "nn_catalog_"+kind;
@@ -4872,7 +5062,7 @@ async function refreshCatalog(kind){       // boot SWR revalidate: always hit th
 // the in-memory catalog is older than CATALOG_STALE_MS — on an interval, when the tab
 // becomes visible again, and when the picker opens.
 const CATALOG_STALE_MS = 60 * 60 * 1000;          // 1h — short enough for same-day launches
-const CATALOG_KINDS = ["chat","image","video","audio"];
+const CATALOG_KINDS = ["chat","image","video","audio","model3d"];
 const catalogFetchedAt = Object.fromEntries(CATALOG_KINDS.map(k => [k, 0]));
 function catalogIsStale(kind){
   const at = catalogFetchedAt[kind] || 0;
@@ -4905,7 +5095,7 @@ function startCatalogStaleWatch(){
               Math.min(CATALOG_STALE_MS, 15 * 60 * 1000));
 }
 const catItem = (kind,id)=> (catalogs[kind]||[]).find(m=>m.id===id);
-const KIND_LABEL = { chat:"Chat", image:"Image", video:"Video", audio:"Audio" };
+const KIND_LABEL = { chat:"Chat", image:"Image", video:"Video", audio:"Audio", model3d:"3D" };
 // capability filter shared by the picker and the default-model resolver — metadata only, no model names
 function passesFilter(m, filter){
   if(!filter) return true;
@@ -4914,6 +5104,13 @@ function passesFilter(m, filter){
 // a node's default model = newest catalog entry of the right kind that passes the node's filter (or none yet)
 function defModelFor(type){
   const t = NODE_TYPES[type]; if(!t.modelKind) return "";
+  if(t.modelKind==="model3d"){
+    const list = catalogs.model3d || [];
+    const tripo = list.find(x=> x.id===MODEL3D_IMAGE_DEFAULT && !x.nsfw);
+    if(tripo) return tripo.id;
+    const m = list.find(x=> !x.nsfw);
+    return m ? m.id : MODEL3D_IMAGE_DEFAULT;   // pinned even when the catalog is empty, so the node isn't blank offline
+  }
   const isMedia = t.modelKind==="image" || t.modelKind==="video";
   const m = (catalogs[t.modelKind]||[]).find(x=> passesFilter(x, t.modelFilter) && (!isMedia || !x.nsfw));
   return m ? m.id : "";
@@ -6191,7 +6388,7 @@ async function remixRun(n, inp, ctx){
    forwards that object, so exports need no catalog. This surfaces only CREATIVE/behavioral knobs:
    the node owns size/length/aspect — and those drive price (per_second_by_resolution), shown on
    the node — so re-exposing them here would silently change the bill. lora_* is the LoRA box. */
-const VIDEO_OPT_NODES = { tvideo:1, ivideo:1, vedit:1, lipsync:1 };
+const VIDEO_OPT_NODES = { tvideo:1, ivideo:1, vedit:1, lipsync:1, model3d:1 };
 // size/length/aspect/fps: node-owned and/or price-affecting — never auto-surfaced as a "knob"
 const PRICE_OR_DIM_PARAM = /^(duration|seconds|aspect_ratio|resolution|resolution_ratio|size|orientation|fps|frames_per_second|num_frames)$/;
 // free-text/number params that are really URLs, media references, or JSON lists — they need real
@@ -6206,7 +6403,8 @@ function videoFreetextSkip(key, d){
   return false;
 }
 function videoOptDefs(model, nodeType){
-  const it = catItem("video", model) || {};
+  const kind = (nodeType && NODE_TYPES[nodeType] && NODE_TYPES[nodeType].modelKind) || "video";
+  const it = catItem(kind, model) || {};
   const p = it.params || {}, dflt = it.defaults || {};
   // omni video models expose a `mode` select of GENERATION TYPES; drop the ones this node can't feed —
   // reference-to-video needs reference images (no port anywhere), video-edit/video-extend both need a
@@ -6232,11 +6430,11 @@ function videoOptDefs(model, nodeType){
   const defs = [];
   for(const [key,d] of Object.entries(p)){
     if(!d || typeof d!=="object") continue;
-    if(PRICE_OR_DIM_PARAM.test(key)) continue;                 // dims/price live on the node, not here
+    if(PRICE_OR_DIM_PARAM.test(key) && kind!=="model3d") continue;   // video dims/price live on the node; 3D resolution/size are real knobs
     if(/^lora(_|$)/i.test(key)) continue;                      // the 🎨 LoRA box handles these
     const def = dflt[key]!=null ? dflt[key] : d.default;       // catalog default → placeholder/initial
     if(d.type==="select"){
-      let opts = (d.options||[]).filter(o=> o && o.value!=="" && o.value!=null);
+      let opts = (d.options||[]).filter(o=> o && o.value!=null && (kind==="model3d" || o.value!==""));
       if(key==="mode") opts = opts.filter(modeOK);             // hide generation-type modes this node can't satisfy
       if(opts.length<2) continue;                              // nothing meaningful to choose
       defs.push({ key, label:d.label||key, type:"select", options:opts, def, desc:d.description });
@@ -6686,6 +6884,7 @@ function livePrice(kind, fields){
     const u = videoUnitUsd(it.pricing, videoPriceFields(it.params, fields));   // all shapes; recomputes live as resolution/duration change
     if(u!=null) return `~$${u.toFixed(2)}/clip`;
   }
+  if(kind==="model3d") return model3dPriceLabels(it.pricing).card;
   return it.price||"";
 }
 // raw per-image USD for (model,size) from the catalog — the number behind livePrice's "$/img"
@@ -7004,6 +7203,7 @@ function nodeUnitUsd(n){
     const u = audioUnitUsd(it.pricing, chars, secs); if(u==null) return null;
     const songs = audioBilledSongs(it.params, fields||{});   // always 1 — collectAudioParams clamps the sent song count so a run only ever bills for one track
     return u*songs; }
+  if(kind==="model3d") return _num(it.pricing && it.pricing.per_run);
   return null;
 }
 // total across the whole graph — matches ▶ Run all (every disconnected flow fires)
@@ -7013,7 +7213,7 @@ function workflowCost(){
     const t = NODE_TYPES[n.type]; if(!t || !t.modelKind) continue;
     const u = nodeUnitUsd(n);
     if(u==null){ unpriced++; continue; }
-    usd += u; priced++; if(t.modelKind!=="image") exact=false;   // only image is an exact-per-run figure
+    usd += u; priced++; if(t.modelKind!=="image" && t.modelKind!=="model3d") exact=false;   // image and 3D bill a known per-run figure
   }
   return { usd, priced, unpriced, exact };
 }
@@ -7074,7 +7274,7 @@ function refreshRunEstimate(){
         + ".")
     + (exact ? "" : "\n" + t("Video, text & audio are estimates: the real bill depends on clip length, tokens and characters."));
 }
-function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); backfillModel(n); }); refreshRunEstimate(); refreshPromptCaps(); }   // refreshPromptCaps: audio caps ARE catalog metadata (max_chars) and every note names the model, so both are blank until the catalog lands. refreshLlmOpts: reconcile knobs kept during a catalog miss (#311) once real capability flags exist; the dynamic port families (img/audio/endframe/ref) are catalog-gated too — without them a cold-cache boot (shared link, cleared storage) paints a saved ref-model graph portless until a reload
+function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); refreshModel3dPorts(n); backfillModel(n); }); refreshRunEstimate(); refreshPromptCaps(); }   // refreshPromptCaps: audio caps ARE catalog metadata (max_chars) and every note names the model, so both are blank until the catalog lands. refreshLlmOpts: reconcile knobs kept during a catalog miss (#311) once real capability flags exist; the dynamic port families (img/audio/endframe/ref) are catalog-gated too — without them a cold-cache boot (shared link, cleared storage) paints a saved ref-model graph portless until a reload
 function backfillModel(n){   // once a catalog arrives, give model nodes a sensible default if none chosen yet
   const t = NODE_TYPES[n.type];
   if(t.modelKind && !n.fields.model){
@@ -7191,8 +7391,13 @@ function pickerRevealedNsfw(list){
   return (list||[]).filter(m => m.nsfw && (m.id === picker.current || pickerIdHitsQuery(m.id, qNorm)));
 }
 function pickerSearchHint(list){
+  const qNorm = picker ? normalizePickerQuery(($("mpicksearch").value || "")) : "";
+  if(picker && picker.kind!=="model3d" && qNorm.length>=2 && !(list && list.length)){
+    const hit3d = (catalogs.model3d||[]).find(m =>
+      normalizePickerQuery(m.id).includes(qNorm) || String(m.name||"").toLowerCase().includes(qNorm));
+    if(hit3d) return "3D model — use a 🧊 3D model node";
+  }
   if(!picker || (picker.kind!=="image" && picker.kind!=="video")) return "";
-  const qNorm = normalizePickerQuery(($("mpicksearch").value || ""));
   const miss = qNorm && (catalogs[picker.kind]||[]).find(m => m.nsfw && pickerIdHitsQuery(m.id, qNorm) && !passesFilter(m, picker.filter));
   if(miss && miss.i2v && !miss.t2v && picker.filter==="t2v") return "That id is Image→Video only — it won’t appear here.";
   if(pickerRevealedNsfw(list || pickerMatches()).length) return "NSFW model shown from your search or current pick.";
@@ -7712,6 +7917,20 @@ const NODE_TYPES = {
     async run(n){ if(!n.fields.video){ if(optNode(n)) return { video:"" }; throw new Error("no video — upload a clip first"); } return { video: n.fields.video }; }
   },
 
+  mupload: {
+    em:"🧊", title:"3D input", desc:"Upload a .glb or .gltf", group:"Inputs",
+    kw:"glb gltf mesh upload import 3d file model",
+    inputs:[], outputs:[{name:"model", type:"model3d"}], preview:"none",
+    body:(n)=>`
+      <div class="uprev glb-stage" data-uprev data-glb-in>${n.fields.model ? "" : `<span class="dim empt">${esc(t("no 3D file yet"))}<small>${esc(t("drop a .glb or .gltf"))}</small></span>`}</div>
+      <div><button class="ubtn" data-up="file">⬆ <span>${esc(t("Upload .glb"))}</span></button></div>
+      <input type="file" accept=".glb,.gltf,model/gltf-binary,model/gltf+json" hidden data-upfile/>
+      <div class="acts" data-macts${n.fields.model?"":" hidden"}><button data-dl>⬇ ${esc(t("save"))}</button><button data-open>↗ ${esc(t("open"))}</button></div>
+      ${optFlagHtml(n)}`,
+    mount: mountMupload,
+    async run(n){ if(!n.fields.model){ if(optNode(n)) return { model:"" }; throw new Error("no 3D file — drop a .glb or .gltf first"); } return { model: n.fields.model }; }
+  },
+
   choice: {
     em:"🔘", title:"Choice", desc:"A dropdown the app user picks from — the selected line is the value on the wire", group:"Inputs", kw:"select dropdown option pick menu preset style path",
     inputs:[], outputs:[{name:"text", type:"text"}], preview:"text",
@@ -8054,6 +8273,34 @@ const NODE_TYPES = {
     }
   },
 
+  model3d: {
+    em:"🧊", title:"3D model", desc:"Image and/or text → a GLB you can orbit", group:"3D",
+    kw:"3d glb mesh model three dimensional geometry",
+    modelKind:"model3d",
+    inputs:[{name:"image", type:"image"}],
+    outputs:[{name:"model", type:"model3d"}], preview:"model3d",
+    body:(n)=>`
+      ${modelFieldHTML(n)}
+      <div data-m3d-prompt><label>prompt</label><textarea data-f="prompt" placeholder="a ceramic cup on a white sweep, soft studio light…">${esc(n.fields.prompt||"")}</textarea></div>
+      <div data-modelopts></div>`,
+    mount(n){
+      const url = (n.out && n.out.model) || n.fields.sample;
+      if(url) showResult(n);
+    },
+    async run(n, inp, ctx){
+      const mods = model3dInputMods(n.fields.model);
+      const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
+      const image = mods.image ? (inp.image || "") : "";
+      if(mods.image && !mods.text && !image) throw new Error("Connect an image first.");
+      if(mods.text && !mods.image && !prompt) throw new Error("Add a prompt first.");
+      if(mods.image && mods.text && !image && !prompt) throw new Error("Add a prompt or connect an image first.");
+      const opts = { extra:(n.fields.modelOpts||{}), runKey:n.id, mediaKind:"model3d" };
+      const url = await ctx.genVideo(mdl(n, ctx), mods.text ? prompt : "", opts, image || null,
+        (st,ms,meta)=> setNodeProgress(n, fmtPollHeadline(t("building 3D…"), st, ms), meta));
+      return { model: url };
+    }
+  },
+
   vedit: {
     em:"🎞️", title:"Video edit", desc:"Video (+text) → video — edit / extend / upscale", group:"Video",
     kw:"restyle stylize transform longer enhance quality 4k v2v reference character swap",
@@ -8364,7 +8611,7 @@ const NODE_TYPES = {
 // is the Add-menu class; note:true is the comment annotation. The explicit set keeps
 // play.html's slimmer NODE_TYPES (no group field) aligned. Do NOT use "empty inputs"
 // as the test: Image / LLM / Music also have inputs:[] but they generate.
-const INPUT_KINDS = { text:1, upload:1, aupload:1, vupload:1, choice:1, comment:1 };
+const INPUT_KINDS = { text:1, upload:1, aupload:1, vupload:1, mupload:1, choice:1, comment:1 };
 function isInputKind(type){
   if(INPUT_KINDS[type]) return true;
   const t = NODE_TYPES[type];
@@ -8471,6 +8718,7 @@ function buildNodeEl(n){
         graph.nodes.forEach(x=>{
           if(x.type==="endpoint") refreshEndpointUI(x);
           if(NODE_TYPES[x.type]?.modelKind) updateNodePrice(x);   // Choice→model: live price chip
+          if(x.type==="model3d") refreshModel3dPorts(x);
         });
       }
     });
@@ -8492,7 +8740,8 @@ function buildNodeEl(n){
     mp.onclick = (e)=>{
       e.stopPropagation();
       openPicker(t.modelKind, { current:n.fields.model, filter:t.modelFilter, nodeType:n.type, onPick:(id)=>{
-        n.fields.model = id; syncModelPickUI(n, id); updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); save();
+        n.fields.model = id; if(n.type==="model3d") n.modelTouched = true;
+        syncModelPickUI(n, id); updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); refreshModel3dPorts(n); save();
         try{ window.__nextAction?.record?.("set:model"); }catch(_){}
       }});
     };
@@ -8533,6 +8782,7 @@ function buildNodeEl(n){
   refreshRefHint(n);                 // "refs live on Text→Video" nudge on the ivideo node (model-gated on videoRefSpec)
   addFieldPorts(n);
   refreshPortFills();
+  if(n.type==="model3d") refreshModel3dPorts(n);
   prepTextareas(n);
 }
 
@@ -8957,16 +9207,219 @@ function mountUpload(n){
       else if(act==="stop") stopCam();
     };
   });
-  fileInput.addEventListener("change", ()=>{ const f=fileInput.files?.[0]; if(f) fileToDataURL(f, setImage); fileInput.value=""; });
+  fileInput.addEventListener("change", ()=>{
+    const f=fileInput.files?.[0];
+    if(f && is3dFile(f)) flash("that's a 3D file — drop it on the canvas");
+    else if(f) fileToDataURL(f, setImage);
+    fileInput.value="";
+  });
   // Drag-and-drop onto the preview box — the gesture a first-time user tries before finding the button.
   // Without preventDefault the browser would navigate the whole tab to the dropped file.
   prev.addEventListener("dragover", (e)=> e.preventDefault());
   prev.addEventListener("drop", (e)=>{
     e.preventDefault(); e.stopPropagation();
-    const f = [...(e.dataTransfer?.files||[])].find(f=> /^image\//.test(f.type));
-    if(f) fileToDataURL(f, setImage);
+    const files = [...(e.dataTransfer?.files||[])];
+    const img = files.find(f=> droppedFileKind(f)==="image");
+    const glb = files.find(is3dFile);
+    if(glb && !img){ flash("that's a 3D file — drop it on the canvas"); return; }
+    if(img) fileToDataURL(img, setImage);
   });
 }
+
+function droppedFileKind(file){
+  if(!file) return "";
+  const name = String(file.name||"").toLowerCase();
+  const type = String(file.type||"").toLowerCase();
+  if(/\.glb$/.test(name) || /\.gltf$/.test(name) || type==="model/gltf-binary" || type==="model/gltf+json") return "model3d";
+  if(/^image\//.test(type) || /\.(png|jpe?g|gif|webp|bmp|avif|svg)$/.test(name)) return "image";
+  return "";
+}
+function is3dFile(file){ return droppedFileKind(file)==="model3d"; }
+function readFileAsDataURL(file){
+  return new Promise((res, rej)=>{
+    const fr = new FileReader();
+    fr.onload = ()=> res(String(fr.result||""));
+    fr.onerror = ()=> rej(fr.error || new Error("read failed"));
+    fr.readAsDataURL(file);
+  });
+}
+function glbFilename(n){
+  const raw = ((n && n.name) || "").trim() || ("noodle-"+(n && n.id || "model"));
+  const safe = raw.replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || ("noodle-"+(n && n.id || "model"));
+  return /\.glb$/i.test(safe) ? safe : safe+".glb";
+}
+function model3dInputMods(id){
+  const it = (typeof catItem==="function") ? catItem("model3d", id) : null;
+  if(it && Array.isArray(it.modalities)) return { image: it.modalities.includes("image"), text: it.modalities.includes("text") };
+  if(id===MODEL3D_IMAGE_DEFAULT) return { image:true, text:false };
+  if(id===MODEL3D_TEXT_DEFAULT) return { image:true, text:true };
+  return { image:true, text:true };
+}
+function maybePreferText3d(n){
+  if(!n || n.type!=="model3d" || n.modelTouched) return;
+  const links = (typeof graph!=="undefined" && graph && graph.links) || [];
+  if(links.some(l=> l.to.node===n.id && l.to.port==="model")) return;
+  const textOn = links.some(l=> l.to.node===n.id && l.to.port==="prompt");
+  const imageOn = links.some(l=> l.to.node===n.id && l.to.port==="image");
+  if(!(textOn && !imageOn)) return;
+  if(model3dInputMods(n.fields.model).text) return;
+  const list = (typeof catalogs!=="undefined" && catalogs.model3d) || [];
+  const hun = list.find(x=> x.id===MODEL3D_TEXT_DEFAULT && (x.modalities||[]).includes("text"))
+    || list.find(x=> (x.modalities||[]).includes("text") && !x.nsfw);
+  const id = hun ? hun.id : MODEL3D_TEXT_DEFAULT;
+  if(!id || id===n.fields.model) return;
+  n.fields.model = id;
+  if(typeof syncModelPickUI==="function") syncModelPickUI(n, id);
+  if(typeof updateNodePrice==="function") updateNodePrice(n);
+  if(typeof refreshModelOpts==="function") refreshModelOpts(n);
+}
+function refreshModel3dPorts(n){
+  if(!n || n.type!=="model3d" || !n.el) return;
+  maybePreferText3d(n);
+  const id = (typeof effectiveModelFields==="function" ? effectiveModelFields(n).model : "") || n.fields.model;
+  const mods = model3dInputMods(id);
+  const imgPort = n.el.querySelector('.port[data-port="image"][data-dir="in"]');
+  const imgRow = imgPort && imgPort.closest(".prow");
+  if(imgPort) imgPort.classList.toggle("disabled", !mods.image);
+  if(imgRow) imgRow.hidden = !mods.image;
+  const promptWrap = n.el.querySelector("[data-m3d-prompt]");
+  const promptPort = promptWrap && promptWrap.querySelector(".fieldport");
+  if(promptWrap) promptWrap.hidden = !mods.text;
+  if(promptPort) promptPort.classList.toggle("disabled", !mods.text);
+  const links = (typeof graph!=="undefined" && graph && graph.links) || [];
+  const before = links.length;
+  if(typeof graph!=="undefined" && graph){
+    if(!mods.image) graph.links = graph.links.filter(l=> !(l.to.node===n.id && l.to.port==="image"));
+    if(!mods.text) graph.links = graph.links.filter(l=> !(l.to.node===n.id && l.to.port==="prompt"));
+    if(graph.links.length!==before && typeof save==="function") save();
+  }
+  if(typeof refreshPortFills==="function") refreshPortFills();
+}
+function releaseGlb(n, which){
+  if(!n) return;
+  const k = which==="in" ? "_glbIn" : "_glb";
+  const h = n[k];
+  if(h && h.destroy){ try{ h.destroy(); }catch(_){} }
+  n[k] = null;
+}
+let _glbJs = null;
+function loadGlbViewer(){
+  if(globalThis.NanoodleGlbViewer) return Promise.resolve(globalThis.NanoodleGlbViewer);
+  if(_glbJs) return _glbJs;
+  _glbJs = new Promise((res, rej)=>{
+    const tag = document.createElement("script");
+    tag.src = "vendor/glb-viewer.js";
+    tag.async = true;
+    tag.onload = ()=> globalThis.NanoodleGlbViewer ? res(globalThis.NanoodleGlbViewer) : rej(new Error("missing"));
+    tag.onerror = ()=> { _glbJs = null; rej(new Error("load")); };
+    document.head.appendChild(tag);
+  });
+  return _glbJs;
+}
+function glbPreviewUrl(url){
+  if(typeof url!=="string" || !url) return "";
+  if(/^(data:|blob:)/.test(url)) return url;
+  if(/^examples\/[A-Za-z0-9_./-]+$/.test(url) && url.indexOf("..")<0) return url;
+  if(/^https:\/\//.test(url)) return url;
+  return "";
+}
+function mountGlbStage(n, host, url, which){
+  if(!host) return;
+  const src = glbPreviewUrl(url);
+  releaseGlb(n, which);
+  host.innerHTML = `<div class="glb-wait"><span class="spin"></span> ${esc(t("loading model…"))}</div>`;
+  if(!src){ host.innerHTML = `<div class="glb-err">${esc(t("couldn’t show this model"))}</div>`; return; }
+  loadGlbViewer().then(V=>{
+    if(!host.isConnected) return;
+    let handle = null;
+    handle = V.mount(host, src, {
+      onReady(){ const w = host.querySelector(".glb-wait"); if(w) w.remove(); },
+      onError(msg){
+        if(handle){ try{ handle.destroy(); }catch(_){} handle = null; if(n) n[which==="in"?"_glbIn":"_glb"] = null; }
+        host.innerHTML = `<div class="glb-err">${esc(t(msg) || msg || t("couldn’t show this model"))}</div>`;
+      }
+    });
+    if(n) n[which==="in" ? "_glbIn" : "_glb"] = handle;
+  }).catch(()=>{
+    if(host.isConnected) host.innerHTML = `<div class="glb-err">${esc(t("couldn’t load the 3D viewer"))}</div>`;
+  });
+}
+function setMuploadUrl(n, url){
+  n.fields.model = url;
+  const host = n.el && n.el.querySelector("[data-glb-in]");
+  if(host && url) mountGlbStage(n, host, url, "in");
+  const acts = n.el && n.el.querySelector("[data-macts]");
+  if(acts) acts.hidden = !url;
+  save();
+}
+function mountMupload(n){
+  const el = n.el;
+  const fileInput = el.querySelector("[data-upfile]");
+  const take = (f)=>{
+    if(!f) return;
+    if(!is3dFile(f)){ flash("drop a .glb, .gltf, or an image"); return; }
+    readFileAsDataURL(f).then(url=> setMuploadUrl(n, url)).catch(()=> flash("couldn’t read that file"));
+  };
+  el.querySelectorAll("[data-up]").forEach(b=>{
+    b.addEventListener("pointerdown", e=> e.stopPropagation());
+    b.onclick = (e)=>{ e.stopPropagation(); if(b.dataset.up==="file") fileInput.click(); };
+  });
+  fileInput.addEventListener("change", ()=>{ take(fileInput.files?.[0]); fileInput.value=""; });
+  const prev = el.querySelector("[data-uprev]");
+  if(prev){
+    prev.addEventListener("dragover", e=> e.preventDefault());
+    prev.addEventListener("drop", e=>{
+      e.preventDefault(); e.stopPropagation();
+      take([...(e.dataTransfer?.files||[])][0]);
+    });
+  }
+  const dl = el.querySelector("[data-dl]");
+  const op = el.querySelector("[data-open]");
+  if(dl) dl.addEventListener("click", e=>{ e.stopPropagation(); if(n.fields.model) downloadUrl(n.fields.model, glbFilename(n)); });
+  if(op) op.addEventListener("click", e=>{ e.stopPropagation(); if(n.fields.model) openUrl(n.fields.model); });
+  if(n.fields.model){
+    const host = el.querySelector("[data-glb-in]");
+    if(host) mountGlbStage(n, host, n.fields.model, "in");
+  }
+}
+function canvasDropPoint(e){
+  const ed = editor.getBoundingClientRect();
+  return { x:(e.clientX - ed.left - panX)/scale, y:(e.clientY - ed.top - panY)/scale };
+}
+document.addEventListener("dragover", (e)=>{
+  const types = e.dataTransfer && e.dataTransfer.types;
+  if(types && [...types].indexOf("Files")>=0) e.preventDefault();
+});
+document.addEventListener("drop", (e)=>{
+  const dt = e.dataTransfer;
+  const types = dt && dt.types;
+  if(!types || [...types].indexOf("Files")<0) return;
+  e.preventDefault();
+  const files = [...(dt.files||[])];
+  if(!files.length) return;
+  if(!editor || !editor.contains(e.target)){ flash("drop files on the canvas"); return; }
+  const pt = canvasDropPoint(e);
+  let placed = 0, bad = 0;
+  for(const f of files){
+    const kind = droppedFileKind(f);
+    if(!kind){ bad++; continue; }
+    const x = Math.round(pt.x + placed*28), y = Math.round(pt.y + placed*28);
+    if(kind==="image"){
+      const node = addNode("upload", x, y, {});
+      fileToDataURL(f, (url)=>{
+        node.fields.image = url;
+        const prev = node.el && node.el.querySelector("[data-uprev]");
+        if(prev) prev.innerHTML = `<img src="${esc(url)}" alt="image"/>`;
+        save();
+      });
+    } else {
+      const node = addNode("mupload", x, y, {});
+      readFileAsDataURL(f).then(url=> setMuploadUrl(node, url)).catch(()=> flash("couldn’t read that file"));
+    }
+    placed++;
+  }
+  if(bad) flash("drop a .glb, .gltf, or an image");
+});
 
 // Inpaint node: a source image (uploaded/captured inline, OR wired in) with a mask over it (brushed
 // inline, OR wired in as a B/W image). The visible overlay strokes translucent red so the selection is
@@ -9142,6 +9595,8 @@ function removeNode(id){
     .filter(l=> l.from.node===id && (IMG_PORT_RE.test(l.to.port) || EDIT_IMG_RE.test(l.to.port) || VID_PORT_RE.test(l.to.port))).map(l=> l.to.node))];
   graph.links = graph.links.filter(l=> l.from.node!==id && l.to.node!==id);
   const n = byId(id); n?._stopCam?.();           // release the webcam if this was an Image-input node
+  // typeof guard: port harnesses extract removeNode() without the viewer
+  if(n && typeof releaseGlb==="function"){ releaseGlb(n, "out"); releaseGlb(n, "in"); }
   if(n?.el) n.el.remove();
   graph.nodes = graph.nodes.filter(x=>x.id!==id);
   if(selected===n) selected=null;
@@ -9164,6 +9619,7 @@ function select(n){
 
 function setStatus(n, status, msg){
   if(!n?.el) return;
+  if((status==="run" || status==="error") && typeof releaseGlb==="function") releaseGlb(n, "out");
   n.el.dataset.status = status;
   if(status==="run"){
     // stamp start once so the live strip clocks THIS node, not the most recent paint
@@ -9301,6 +9757,14 @@ function showResult(n){
     r.innerHTML = `<video src="${esc(n.out.video)}" controls loop${m} playsinline></video><div class="acts">${m?"":`<span class="sndbadge" title="${esc(t("this clip has generated audio"))}">🔊</span>`}<button data-dl>⬇ ${esc(t("save"))}</button><button data-open>↗ ${esc(t("open"))}</button></div>`;
     r.querySelector("[data-dl]").onclick   = ()=> downloadUrl(n.out.video, `noodle-${n.id}.mp4`);
     r.querySelector("[data-open]").onclick = ()=> openUrl(n.out.video);
+  } else if(preview==="model3d"){
+    const url = (n.out && n.out.model) || n.fields.sample || "";
+    if(!glbPreviewUrl(url)){ releaseGlb(n, "out"); r.classList.remove("show"); r.innerHTML=""; return; }
+    releaseGlb(n, "out");
+    r.innerHTML = `<div class="glb-stage" data-glb></div><div class="acts"><button data-dl>⬇ ${esc(t("save"))}</button><button data-open>↗ ${esc(t("open"))}</button></div>`;
+    r.querySelector("[data-dl]").onclick = ()=> downloadUrl(url, glbFilename(n));
+    r.querySelector("[data-open]").onclick = ()=> openUrl(url);
+    mountGlbStage(n, r.querySelector("[data-glb]"), url, "out");
   } else if(preview==="audio" && n.out.audio){
     const ext = (n.fields.response_format || "mp3").toLowerCase();
     r.innerHTML = `<audio src="${esc(n.out.audio)}" controls></audio><div class="acts"><button data-dl>⬇ ${esc(t("save"))}</button><button data-open>↗ ${esc(t("open"))}</button></div>`;
@@ -9327,7 +9791,13 @@ function wirePath(x1,y1,x2,y2){
   const dx = Math.max(40, Math.abs(x2-x1)*0.5);
   return `M ${x1} ${y1} C ${x1+dx} ${y1}, ${x2-dx} ${y2}, ${x2} ${y2}`;
 }
-function colorForType(tp){ return tp==="image" ? getCss("--image-port") : getCss("--text-port"); }
+function colorForType(tp){
+  if(tp==="image") return getCss("--image-port");
+  if(tp==="video") return getCss("--video-port");
+  if(tp==="audio") return getCss("--audio-port");
+  if(tp==="model3d") return getCss("--model3d-port");
+  return getCss("--text-port");
+}
 function getCss(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 
 let tempWire = null; // {x1,y1,type}
@@ -9401,6 +9871,7 @@ function removeLink(id){
   // the Custom endpoint's live POST preview reads graph.links — repaint it when a wire
   // is detached (typeof guard: check harnesses may extract removeLink() alone)
   if(typeof refreshEndpointUI==="function" && tn?.type==="endpoint") refreshEndpointUI(tn);
+  if(tn?.type==="model3d") refreshModel3dPorts(tn);
   save();
 }
 function refreshPortFills(){
@@ -9643,6 +10114,7 @@ function nearestPort(x, y, ports){
   return best;
 }
 function startWire(port, e){
+  if(port.classList && port.classList.contains("disabled")) return;
   e.preventDefault(); e.stopPropagation();
   closeQuickAdd();
   const dir = port.dataset.dir, ptype = port.dataset.ptype, node = port.dataset.node;
@@ -9761,6 +10233,7 @@ function connect(fromNode, fromPort, toNode, toPort){
   // lands, or dest/req still show the pre-wire target (typeof guard: check harnesses
   // extract connect() alone, without the endpoint UI)
   if(typeof refreshEndpointUI==="function" && tn?.type==="endpoint") refreshEndpointUI(tn);
+  if(tn?.type==="model3d") refreshModel3dPorts(tn);
   save();
   return true;
 }
@@ -9906,6 +10379,15 @@ function ensureModelForInput(n, type){
       updateNodePrice(n); refreshAudioInputs(n); save();
     }
   }
+  if(t.modelKind==="model3d" && (type==="text" || type==="image")){
+    const mods = model3dInputMods(n.fields.model);
+    const id = (type==="text" && !mods.text) ? MODEL3D_TEXT_DEFAULT
+      : (type==="image" && !mods.image) ? MODEL3D_IMAGE_DEFAULT : "";
+    if(id){
+      n.fields.model = id; syncModelPickUI(n, id);
+      updateNodePrice(n); refreshModelOpts(n); refreshModel3dPorts(n); save();
+    }
+  }
 }
 function quickSpawn(typeKey, wx, wy, dir, type, originPort){
   // place the card so its relevant edge sits near the drop point (downstream to the right, source to the left)
@@ -9918,7 +10400,7 @@ function quickSpawn(typeKey, wx, wy, dir, type, originPort){
   let ports = [...n.el.querySelectorAll(sel)];
   // the only matching socket may be disabled (e.g. an LLM defaulted to a non-vision model) — upgrade
   // the model so the wire can actually land, then re-read the now-enabled ports
-  if(dir==="out" && ports.length && !ports.some(p=> !p.classList.contains("disabled"))){
+  if(dir==="out" && !ports.some(p=> !p.classList.contains("disabled"))){
     ensureModelForInput(n, type);
     ports = [...n.el.querySelectorAll(sel)];
   }
@@ -11227,7 +11709,8 @@ const CTX = {
   // opts also carries optional source media for editing models: videoUrl/videoDataUrl
   // (extend/edit/upscale) and audioDataUrl (lipsync/avatar). duration/aspect only sent when set.
   async genVideo(model, prompt, opts, imageDataUrl, onProgress){
-    const body = { model, prompt };
+    const body = { model };
+    if(!(opts.mediaKind==="model3d" && !String(prompt||"").trim())) body.prompt = prompt;
     if(opts.duration) body.duration = opts.duration;
     if(opts.aspect_ratio) body.aspect_ratio = opts.aspect_ratio;
     if(opts.resolution) body.resolution = opts.resolution;
@@ -11269,6 +11752,7 @@ const CTX = {
       let r;
       try{ r = await fetch(`${NANOGPT}/api/generate-video`, {method:"POST", headers:authHeaders(), body:payload, signal:runSignal()}); }
       catch(e){ if(e?.name==="AbortError") throw e;
+        if(opts.mediaKind==="model3d") throw new Error(`couldn't reach the 3D API (${e.message||e})`);
         throw new Error(`couldn't reach the video API — if the source media is large it may have been rejected for size before CORS applies. Try a shorter clip (the ✂️ Trim node can cut audio down). (${e.message||e})`); }
       if(!r.ok){ await throwHttp(r); }
       const j = await r.json(); accrue(j, undefined, r);
@@ -11293,8 +11777,10 @@ const CTX = {
       onProgress && onProgress(st, Date.now()-t0, { runId, polledAt: Date.now() });
       if(st==="COMPLETED" || st==="SUCCEEDED"){
         const out = s.data?.output || s.output || {};
-        const url = out.video?.url || out.url || (Array.isArray(out.video) ? out.video[0]?.url : null);
-        if(!url) throw new Error("completed but no video url");
+        const url = opts.mediaKind==="model3d"
+          ? (out.model?.url || s.data?.output?.model?.url || s.output?.model?.url || s.data?.model?.url || s.model?.url || out.url || s.data?.output?.url || s.output?.url || s.data?.url || s.url || out.video?.url || (Array.isArray(out.video) ? out.video[0]?.url : null))
+          : (out.video?.url || out.url || (Array.isArray(out.video) ? out.video[0]?.url : null));
+        if(!url) throw new Error(opts.mediaKind==="model3d" ? "completed but no model url" : "completed but no video url");
         if(runKey) PENDING_VIDEO.delete(runKey);
         applyPollSettlement(s, pr, false);
         return url;
@@ -11302,7 +11788,7 @@ const CTX = {
       if(["FAILED","ERROR","CANCELED"].includes(st)){
         if(runKey) PENDING_VIDEO.delete(runKey);     // genuinely dead — don't let a later run resume it
         applyPollSettlement(s, pr, true);
-        throw new Error("video failed: " + videoFailText(s, st));
+        throw new Error((opts.mediaKind==="model3d" ? "3D failed: " : "video failed: ") + videoFailText(s, st));
       }
     }
   },
@@ -12864,7 +13350,7 @@ $("refuelcopy").onclick = async ()=>{
 /* ======================================================================
    ADD-NODE MENU
    ====================================================================== */
-const ADD_GROUPS = ["Inputs","Text","Image","Video","Audio","Notes"];   // section order in the Add-node menu
+const ADD_GROUPS = ["Inputs","Text","Image","Video","Audio","3D","Notes"];   // section order in the Add-node menu
 // First-timers (no add history yet) open onto this compose-a-wow shortlist instead of the full 20-row wall.
 const ADD_STARTERS = ["text","llm","image","tvideo","upload","edit"];
 // Recently-added node types, most-recent first. On-device only (localStorage) — never sent anywhere (no-analytics promise).
@@ -13139,7 +13625,7 @@ function serializeGraph(){
 // A graph for handing off to others: uploaded media inputs are the sharer's own
 // data, so blank them out of share links and exported apps. (Local autosave AND the
 // 💾 Save-file backup keep them — a backup that drops your own photos is worthless.)
-const UPLOAD_FIELD = { upload:"image", aupload:"audio", vupload:"video" };
+const UPLOAD_FIELD = { upload:"image", aupload:"audio", vupload:"video", mupload:"model" };
 function shareableGraph(graph){          // no arg → the canvas; pass a stored app's graph to blank that instead
   const g = graph || serializeGraph();
   g.nodes = (g.nodes||[]).map(n => {
@@ -13158,10 +13644,13 @@ function shareableGraph(graph){          // no arg → the canvas; pass a stored
 const SAFE_MEDIA_RE = /^(data:|blob:)/;
 function stripInjectedMedia(n){
   if(!n.fields) return;
-  const f = UPLOAD_FIELD[n.type];                                   // upload→image, aupload→audio, vupload→video
-  if(f && n.fields[f] && !SAFE_MEDIA_RE.test(n.fields[f])) n.fields[f] = "";
+  // data:/blob: are real local uploads. examples/… is a committed same-origin asset
+  // (the product-shot card). Anything else on a media field is a remote beacon.
+  const ok = (v)=> typeof v==="string" && !!v && (SAFE_MEDIA_RE.test(v) || (/^examples\/[A-Za-z0-9_./-]+$/.test(v) && v.indexOf("..")<0));
+  const f = UPLOAD_FIELD[n.type];                                   // upload→image, aupload→audio, vupload→video, mupload→model
+  if(f && n.fields[f] && !ok(n.fields[f])) n.fields[f] = "";
   if(n.type==="inpaint") for(const k of ["image","mask"])           // source photo + brushed mask, both data: locally
-    if(n.fields[k] && !SAFE_MEDIA_RE.test(n.fields[k])) n.fields[k] = "";
+    if(n.fields[k] && !ok(n.fields[k])) n.fields[k] = "";
 }
 function applyGraphData(d, opts){
   // Carry generated results + seed-skip signatures across SAME-WORKFLOW rebuilds (undo/redo,
@@ -13204,7 +13693,7 @@ function applyGraphData(d, opts){
   const num = (s)=> parseInt(String(s).replace(/\D/g,""),10) || 0;
   nid = Math.max(num(d.nid), 0, ...graph.nodes.map(n=>num(n.id))) + 1;
   lid = Math.max(num(d.lid), 0, ...graph.links.map(l=>num(l.id))) + 1;
-  graph.nodes.forEach(n=>{ recompactImageLinks(n); refreshImageInputs(n); recompactVideoLinks(n); refreshVideoInputs(n); });   // links loaded → compact + grow image/clip ports
+  graph.nodes.forEach(n=>{ recompactImageLinks(n); refreshImageInputs(n); recompactVideoLinks(n); refreshVideoInputs(n); if(n.type==="model3d") refreshModel3dPorts(n); });   // links loaded → compact + grow image/clip ports
   // Inpaint bodies render wired-vs-inline UI from graph.links, but buildNodeEl above ran with links
   // still empty — every reloaded wired inpaint showed the inline upload UI. Rebuild them now.
   graph.nodes.forEach(n=>{ if(n.type==="inpaint" && graph.links.some(l=> l.to.node===n.id)) rerenderNode(n); });
@@ -13515,7 +14004,7 @@ const SHARE_FIT_MAX = 9000;
 // unfurls as a picture of itself instead of the generic ramen card. Best-effort everywhere:
 // any failure (or an implausibly large PNG) just means no card, and shortening proceeds.
 // Emoji/labels mirror NODE_TYPES (kept inline: play.html's registry lives inside RUNTIME_JS).
-const CARD_TYPE_META = { text:["📝","Text"], upload:["📷","Image input"], aupload:["🎤","Audio input"], vupload:["📹","Video input"], choice:["🔘","Choice"], join:["🔗","Join"], llm:["🧠","LLM"], image:["🖼","Image"], edit:["✂️","Edit"], inpaint:["🩹","Inpaint"], resize:["📐","Resize / crop"], vision:["👁","Vision"], tvideo:["🎬","Text→Video"], ivideo:["📽️","Image→Video"], vedit:["🎞️","Video edit"], vframes:["🎞","Video → frames"], combine:["🎬","Combine videos"], soundtrack:["🎚","Soundtrack"], lipsync:["🎭","Avatar / lipsync"], music:["🎵","Music"], remix:["🎛","Remix audio"], tts:["🗣️","Speech"], trim:["✂️","Trim audio"], extractaudio:["🔊","Extract audio"], transcribe:["🎙️","Transcribe"], endpoint:["🔌","Custom endpoint"], comment:["💬","Comment"] };
+const CARD_TYPE_META = { text:["📝","Text"], upload:["📷","Image input"], aupload:["🎤","Audio input"], vupload:["📹","Video input"], mupload:["🧊","3D input"], choice:["🔘","Choice"], join:["🔗","Join"], llm:["🧠","LLM"], image:["🖼","Image"], edit:["✂️","Edit"], inpaint:["🩹","Inpaint"], resize:["📐","Resize / crop"], vision:["👁","Vision"], tvideo:["🎬","Text→Video"], ivideo:["📽️","Image→Video"], model3d:["🧊","3D model"], vedit:["🎞️","Video edit"], vframes:["🎞","Video → frames"], combine:["🎬","Combine videos"], soundtrack:["🎚","Soundtrack"], lipsync:["🎭","Avatar / lipsync"], music:["🎵","Music"], remix:["🎛","Remix audio"], tts:["🗣️","Speech"], trim:["✂️","Trim audio"], extractaudio:["🔊","Extract audio"], transcribe:["🎙️","Transcribe"], endpoint:["🔌","Custom endpoint"], comment:["💬","Comment"] };
 // Decode the graph out of the link being shortened (not live editor state) so the card always
 // depicts exactly what the link opens. Returns null on anything unexpected.
 async function shareCardGraph(longUrl){
@@ -13911,6 +14400,10 @@ async function openCreateApp(){
     try{ $("appmodalframe").contentWindow.postMessage({ type:"__appmodalshown__" }, "*"); }catch(_){}
     return;
   }
+  if(graph.nodes.some(n=> n.type==="model3d" || n.type==="mupload")){
+    flash("3D nodes stay in the editor for now — Create app doesn’t run them yet");
+    return;
+  }
   const graphData = serializeGraph();
   const json = JSON.stringify(graphData);
   try{ localStorage.setItem("noodle_app_handoff", json); }catch{}
@@ -14152,7 +14645,7 @@ refreshUpdatesBadge();
 /* Editor-only teaching cards (not awesome-noodles, not MCP tools).
    Keep in sync with scripts/sync-examples.mjs LOCAL_ONLY_EXAMPLE_SLUGS.
    openExamples hides See result for these so visitors never land on a dead gallery hash. */
-const LOCAL_ONLY_EXAMPLE_SLUGS = new Set(["custom-endpoint"]);
+const LOCAL_ONLY_EXAMPLE_SLUGS = new Set(["custom-endpoint", "product-shot-to-3d"]);
 const EXAMPLES = [
  { em:"🎞️", slug:"storyboard-relay", title:"Storyboard relay", desc:"Carry a character into a new scene, inspect continuity, repair it once, and review the new frame.",
    thumb:"examples/gallery/storyboard-relay/preview.webp",
@@ -14309,6 +14802,15 @@ const EXAMPLES = [
    links:[ {id:"l1",from:{node:"n2",port:"text"},to:{node:"n5",port:"text"}},
            {id:"l2",from:{node:"n2",port:"text"},to:{node:"n5",port:"prompt"}},
            {id:"l3",from:{node:"n3",port:"text"},to:{node:"n5",port:"url"}} ] } },
+ { em:"🧊", slug:"product-shot-to-3d", title:"Product shot → 3D", desc:"A product photo into Tripo 2.5, plus a sample you can orbit",
+   thumb:"examples/product-shot/product.png",
+   graph:{ v:1,
+   nodes:[ {id:"c1",type:"comment",x:40,y:20,w:520,fields:{text:"A product photo goes into Tripo 2.5, which returns a GLB. The 3D node already shows a small sample cup so you can orbit and download before a paid run. Choice picks the model.",color:"yellow"},name:"Product shot → 3D"},
+           {id:"img",type:"upload",x:40,y:240,w:280,fields:{image:"examples/product-shot/product.png"},name:"Product photo"},
+           {id:"pick",type:"choice",x:40,y:560,w:300,fields:{options:"tripo3d/v2.5\nwavespeed-ai/hunyuan-3d-v3.1-rapid",selected:"tripo3d/v2.5"},name:"Model"},
+           {id:"m3",type:"model3d",x:420,y:260,w:320,fields:{model:"tripo3d/v2.5",sample:"examples/product-shot/sample.glb"},name:"Tripo 2.5"} ],
+   links:[ {id:"l1",from:{node:"img",port:"image"},to:{node:"m3",port:"image"}},
+           {id:"l2",from:{node:"pick",port:"text"},to:{node:"m3",port:"model"}} ] } },
 ];
 /* ---- 🏆 community shelf data — hand-curated, edited in place (no fetch, no build step).
    `top` = up to 3 podium spots for whatever earns the spotlight.
@@ -14683,7 +15185,11 @@ $("signout").onclick = ()=> setKey(null);
   // newly added node type still surfaces (with generic fields) instead of silently disappearing.
   const DESC_FIELDS = {
     text:{ main:"text", fields:{ text:"the literal string" } },
-    upload:{ fields:{} }, aupload:{ fields:{} }, vupload:{ fields:{} },
+    upload:{ fields:{} }, aupload:{ fields:{} }, vupload:{ fields:{} }, mupload:{ fields:{} },
+    model3d:{ main:"prompt", fields:{
+      model:"3D model id (optional; default tripo3d/v2.5). Use a text+image model when only a prompt is wired",
+      prompt:"prompt when the model accepts text",
+    }, note:"image and/or prompt ports follow architecture.input_modalities. Output is a GLB on the model port." },
     join:{ fields:{ sep:"separator (default space; \\n = newline)" } },
     llm:{ main:"prompt", fields:{
       model:"chat model id (optional)", system:"system prompt", prompt:"user prompt",
@@ -14989,12 +15495,13 @@ $("signout").onclick = ()=> setKey(null);
   let _gd = null;
   async function lib(){ return _gd || (_gd = await import("./vendor/patchling/index.js")); }
   async function modelHint(){
-    await Promise.all(["chat","image","video","audio"].map(k=>loadCatalog(k).catch(()=>null)));
+    await Promise.all(["chat","image","video","audio","model3d"].map(k=>loadCatalog(k).catch(()=>null)));
     const pick = (kind,filter,n=6)=> (catalogs[kind]||[]).filter(m=>passesFilter(m,filter) && (kind!=="image" && kind!=="video" || !m.nsfw)).slice(0,n).map(m=>m.id);
     const L = [];
     const c=pick("chat",null); if(c.length) L.push(`  chat: ${c.join(", ")}`);
     const i=pick("image","gen"); if(i.length) L.push(`  image: ${i.join(", ")}`);
     const v=pick("video","t2v"); if(v.length) L.push(`  video: ${v.join(", ")}`);
+    const d3=pick("model3d",null); if(d3.length) L.push(`  model3d: ${d3.join(", ")}`);
     const tts=pick("audio","tts"); if(tts.length) L.push(`  tts: ${tts.join(", ")}`);
     const mus=pick("audio","music"); if(mus.length) L.push(`  music: ${mus.join(", ")}`);
     const rmx=pick("audio","remix"); if(rmx.length) L.push(`  remix: ${rmx.join(", ")}`);
