@@ -136,6 +136,7 @@ function spawnReal(typeKey, wx, wy, dir, type, originDataset, getPorts, onEnsure
     ensureModelForInput: () => { calls.ensured++; if (onEnsure) onEnsure(); },
     rememberAdd: () => {},   // wire-drop adds also feed the Add-menu "Recent" tier (localStorage, on-device)
     dismissConnectHint: () => {},   // wire-drop is a manual connect → retires the connect coach line
+    separateOnAdd: () => {},   // overlap slide is its own check; this sandbox only asserts the wire
   };
   vm.createContext(sctx);
   new vm.Script(extractFn(SRC, "quickSpawn") + ";globalThis.__qs = quickSpawn;", { filename: "index.html#quickspawn" }).runInContext(sctx);
