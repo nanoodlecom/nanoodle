@@ -74,6 +74,7 @@ ok(VIEWER.includes("NanoodleGlbViewer"), "viewer exposes NanoodleGlbViewer");
 
 const bytes = readFileSync(join(ROOT, "examples/product-shot/sample.glb"));
 ok(bytes.readUInt32LE(0) === 0x46546C67 && bytes.readUInt32LE(8) === bytes.length, "sample.glb is a GLB whose length matches the header");
+ok(bytes.length <= 1.5 * 1024 * 1024, "sample.glb stays under 1.5 MB, got " + bytes.length);
 const parseCtx = { TextDecoder, DataView, Uint8Array, Float32Array, Uint16Array, Uint32Array, ArrayBuffer, bytes: new Uint8Array(bytes) };
 parseCtx.globalThis = parseCtx;
 vm.createContext(parseCtx);
@@ -81,12 +82,18 @@ vm.runInContext(VIEWER + "\nglobalThis.parsed = NanoodleGlbViewer.parseGlb(bytes
 const parsed = parseCtx.parsed;
 ok(parsed && parsed.meshes && parsed.meshes.length === 1,
   "sample.glb parses to one mesh, got " + (parsed && parsed.meshes ? parsed.meshes.length : JSON.stringify(parsed && parsed.error)));
-ok(parsed && parsed.meshes && parsed.meshes[0].positions && parsed.meshes[0].positions.length >= 9, "sample mesh has triangles");
-ok(parsed && parsed.meshes && parsed.meshes[0].image && parsed.meshes[0].image.bytes && parsed.meshes[0].image.bytes.length > 8,
-  "sample mesh carries the product photo as a texture");
+const mesh0 = parsed && parsed.meshes && parsed.meshes[0];
+const tris = mesh0 && mesh0.indices ? mesh0.indices.length / 3 : 0;
+ok(tris >= 40000 && tris <= 80000, "sample teapot is about 40–80k triangles, got " + tris);
+ok(mesh0 && mesh0.image && mesh0.image.bytes && mesh0.image.bytes[0] === 0xff && mesh0.image.bytes[1] === 0xd8,
+  "sample mesh carries a jpeg texture");
+ok(!/extensionsRequired/.test(Buffer.from(bytes).toString("utf8").slice(0, 8000)) || !/"EXT_meshopt_compression"|"KHR_draco_mesh_compression"|"KHR_mesh_quantization"/.test(Buffer.from(bytes.subarray(0, 12000)).toString("utf8")),
+  "sample.glb does not require meshopt, draco, or quantization");
 
-const png = readFileSync(join(ROOT, "examples/product-shot/product.png"));
-ok(png[0] === 0x89 && png[1] === 0x50, "product.png is a PNG");
+const jpg = readFileSync(join(ROOT, "examples/product-shot/input.jpg"));
+ok(jpg[0] === 0xff && jpg[1] === 0xd8 && jpg.length < 40000, "the teapot photo is a small jpeg");
+ok(SRC.includes('title:"Teapot → 3D"') && /fields:\{image:"data:image\/jpeg;base64,/.test(SRC),
+  "the teapot example inlines the resized photo");
 
 const priv = {};
 vm.createContext(priv);
