@@ -10,6 +10,7 @@
 | · 1 | `scripts/train-next-action.py`, `fixtures/smoke-weights.json`, `scripts/check-next-action.mjs`, `hints.mjs` |
 | port | `port-suggest.mjs`, `corpus/port-suggest.json` — wire-drop rank + drag ring only |
 | recipe | `recipe.mjs`, `corpus/recipes.json` — confident gallery completions re-rank Suggested rows |
+| slop | `anti-slop.mjs`, `corpus/anti-slop.json` — soft re-rank away from a shallow Text→LLM loop |
 
 Learned `.bin` weights stay **gitignored**; tests load inline float fixtures.
 The editor reads scores from `editor-surface.mjs` and shows them inside existing
@@ -39,6 +40,7 @@ node scripts/check-next-action-cold-start.mjs
 node scripts/check-next-action.mjs
 node scripts/check-next-action-port-suggest.mjs
 node scripts/check-next-action-recipe.mjs
+node scripts/check-next-action-anti-slop.mjs
 node scripts/check-smallnet.mjs   # catalog still empty
 ```
 
