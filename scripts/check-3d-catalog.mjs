@@ -81,6 +81,12 @@ ok(trellis.defaults.texture_size === "2048", "trellis defaults.texture_size stri
 ok(trellis.defaults.seed === -1, "number defaults stay numbers");
 ok(trellis.price === "$0.10–$0.45", "picker spans the variant range, got " + trellis.price);
 ok(api.model3dPriceLabels(trellis.pricing).card === "$0.20", "card price is per_run, not the range");
+ok(api.model3dPriceLabels(trellis.pricing, { modelOpts: { resolution: "1024" } }, trellis.defaults).card === "$0.20",
+  "card stays on per_run while knobs match the catalog default");
+ok(api.model3dPriceLabels(trellis.pricing, { modelOpts: { resolution: "1536" } }, trellis.defaults).card === "$0.10–$0.45",
+  "card spans the variant range once a knob leaves the default");
+ok(api.fmtUsdPlain(2.304) === "2.30" && api.fmtUsdPlain(2.064) === "2.06",
+  "amounts at or above $0.10 use two decimals");
 ok(JSON.stringify(trellis.modalities) === JSON.stringify(["image"]), "image-only modalities kept");
 
 const tripo = api.norm3d({
