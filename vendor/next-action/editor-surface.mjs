@@ -17,6 +17,7 @@
 import { ACTION_VOCAB, sketchFromGraph, schema } from "./encode.mjs";
 import { chooseHints } from "./hints.mjs";
 import { pickRingTarget, rankDropTypes } from "./port-suggest.mjs";
+import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
 
 const BASE = new URL(".", import.meta.url);
 
@@ -71,6 +72,7 @@ export async function mount(api) {
   let sig = "";
   let tables = null;
   let portTables = null;
+  let recipes = null;
   let session = null;
   let recommendFrequency = null;
   let recommendNext = null;
@@ -104,7 +106,9 @@ export async function mount(api) {
           ACTION_VOCAB.length
         );
       }
-      publish(chooseHints({ frequencyRows, blendRows, ...opts }));
+      const hints = chooseHints({ frequencyRows, blendRows, ...opts });
+      const recipe = recipes ? confidentRecipe(recipes, sketch, { nodeTypes: known }) : null;
+      publish(mergeRecipeHint(hints, recipe));
     } catch (e) {
       console.warn("[next-action] hint recompute failed", e);
       publish(null);
@@ -149,6 +153,12 @@ export async function mount(api) {
     recommendFrequency = freqMod.recommendFrequency;
     recommendNext = recMod.recommendNext;
     tables = await loadJSON("corpus/frequency-tables.json");
+    try { recipes = await loadJSON("corpus/recipes.json"); }
+    catch (err) {
+      console.warn("[next-action] recipe corpus unavailable", err);
+      recipes = null;
+    }
+    if (!recipes || !Array.isArray(recipes.recipes)) recipes = null;
   } catch (e) {
     console.warn("[next-action] frequency prior unavailable", e);
     tables = null;
