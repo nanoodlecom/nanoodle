@@ -9522,6 +9522,35 @@ function startNodeResize(n, e){
 // never fabricates a link. Prefers the selected node, then the newest other
 // node, and skips a target that would cycle.
 function markLikelyPort(targets, anchor){
+  const na = window.__nextAction;
+  // Gallery port priors pick the ring while a wire drag is active. A flat
+  // prior stays quiet. If the priors never loaded, the older wire-hint
+  // heuristic below is unchanged.
+  if(na && na.hasPortPriors && na.hasPortPriors() && targets.length && anchor){
+    let picked = null;
+    try{
+      picked = na.pickRingTarget({
+        dir: anchor.dataset.dir,
+        srcType: (byId(anchor.dataset.node)||{}).type,
+        srcPort: anchor.dataset.port,
+        srcNodeId: anchor.dataset.node,
+        targets: targets.filter(t=> !t.classList.contains("disabled")).map(t=>({
+          nodeId: t.dataset.node,
+          type: (byId(t.dataset.node)||{}).type,
+          port: t.dataset.port,
+        })),
+      });
+    }catch(_){ picked = null; }
+    if(!picked) return null;
+    const el = targets.find(t=> t.dataset.node===picked.nodeId && t.dataset.port===picked.port && !t.classList.contains("disabled"));
+    if(!el) return null;
+    const adir0 = anchor.dataset.dir, anode0 = anchor.dataset.node, aport0 = anchor.dataset.port;
+    const outN0 = adir0==="out" ? anode0 : el.dataset.node;
+    const inN0 = adir0==="out" ? el.dataset.node : anode0;
+    const inP0 = adir0==="out" ? el.dataset.port : aport0;
+    if(wouldCycle(outN0, inN0, inP0)) return null;
+    return el;
+  }
   const h = nextActionHints();
   if(!h || !h.wire || !targets.length || !anchor) return null;
   const adir = anchor.dataset.dir, anode = anchor.dataset.node, aport = anchor.dataset.port;
@@ -9728,6 +9757,37 @@ function quickAddCandidates(dir, type){
   const fits = dir==="out" ? (k)=> nodeAcceptsType(k, type) : (k)=> nodeProducesType(k, type);
   return Object.entries(NODE_TYPES).filter(([k])=> fits(k));
 }
+// Socket names a candidate type can use for this dragged port. The port prior
+// scores (srcType, srcPort) → (dstType, dstPort); unknown names simply score 0.
+function socketsForDrop(k, dir, ptype){
+  if(dir==="out"){
+    const names = [];
+    for(const p of (NODE_TYPES[k].inputs||[])) if(p.type===ptype && !names.includes(p.name)) names.push(p.name);
+    if(ptype==="image" && NODE_TYPES[k].imageInputs && !names.includes("image")) names.push("image");
+    if(ptype==="video" && NODE_TYPES[k].videoInputs && !names.includes("video")) names.push("video");
+    if(ptype==="audio" && NODE_TYPES[k].audioInput && !names.includes("audio")) names.push("audio");
+    if(ptype==="text" && bodyHasTextField(k) && !names.includes("prompt")) names.push("prompt");
+    return names;
+  }
+  return nodeOutputs(k).filter(p=> p.type===ptype).map(p=> p.name);
+}
+function wireDropHintMap(originPort, cands){
+  const na = window.__nextAction;
+  if(!na || !na.hasPortPriors || !na.hasPortPriors() || typeof na.rankDropTypes!=="function") return null;
+  const src = byId(originPort.dataset.node);
+  const dir = originPort.dataset.dir, ptype = originPort.dataset.ptype;
+  let ranked = null;
+  try{
+    ranked = na.rankDropTypes({
+      dir,
+      srcType: src && src.type,
+      srcPort: originPort.dataset.port,
+      candidates: cands.map(([k])=>({ type:k, ports: socketsForDrop(k, dir, ptype).map(name=>({ name })) })),
+    });
+  }catch(_){ ranked = null; }
+  if(!ranked || !ranked.order || !ranked.order.length) return null;
+  return ranked;
+}
 
 function openQuickAdd(clientX, clientY, originPort){
   closeQuickAdd();
@@ -9739,7 +9799,7 @@ function openQuickAdd(clientX, clientY, originPort){
   const groups = new Map(ADD_GROUPS.map(g=>[g,[]]));
   for(const [k,t] of cands){ const g = t.group||"Other"; if(!groups.has(g)) groups.set(g,[]); groups.get(g).push([k,t]); }
   let html = `<div class="qhint">${dir==="out" ? "→ send "+esc(type)+" to…" : "← get "+esc(type)+" from…"}</div>`;
-  const map = addHintMap();
+  const map = wireDropHintMap(originPort, cands) || addHintMap();
   const sugIds = map ? map.order.filter(k => cands.some(([ck]) => ck===k)) : [];
   const sugSet = new Set(sugIds);
   if(sugIds.length) html += `<div class="grp">Suggested</div>` + sugIds.map(k => nodeRow(k, NODE_TYPES[k], map.byType[k])).join("");

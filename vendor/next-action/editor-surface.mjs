@@ -16,6 +16,7 @@
  */
 import { ACTION_VOCAB, sketchFromGraph, schema } from "./encode.mjs";
 import { chooseHints } from "./hints.mjs";
+import { pickRingTarget, rankDropTypes } from "./port-suggest.mjs";
 
 const BASE = new URL(".", import.meta.url);
 
@@ -69,6 +70,7 @@ export async function mount(api) {
   let cache = null;
   let sig = "";
   let tables = null;
+  let portTables = null;
   let session = null;
   let recommendFrequency = null;
   let recommendNext = null;
@@ -120,7 +122,26 @@ export async function mount(api) {
     peek() { return cache; },
     record,
     refresh: recompute,
+    hasPortPriors() { return !!portTables; },
+    rankDropTypes(query) {
+      if (!portTables) return null;
+      try { return rankDropTypes(portTables, query); }
+      catch (_) { return null; }
+    },
+    pickRingTarget(query) {
+      if (!portTables) return null;
+      try { return pickRingTarget(portTables, query); }
+      catch (_) { return null; }
+    },
   };
+
+  try {
+    portTables = await loadJSON("corpus/port-suggest.json");
+    if (!portTables || !portTables.topTargets) portTables = null;
+  } catch (e) {
+    console.warn("[next-action] port priors unavailable", e);
+    portTables = null;
+  }
 
   try {
     const freqMod = await import("./frequency.mjs");
