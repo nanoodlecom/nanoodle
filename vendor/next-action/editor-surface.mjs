@@ -16,6 +16,7 @@
  */
 import { ACTION_VOCAB, sketchFromGraph, schema } from "./encode.mjs";
 import { chooseHints } from "./hints.mjs";
+import { applyAntiSlop, isShallowTextLlm, rerankShallowAdds } from "./anti-slop.mjs";
 import { pickRingTarget, rankDropTypes } from "./port-suggest.mjs";
 import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
 
@@ -71,6 +72,7 @@ export async function mount(api) {
   let cache = null;
   let sig = "";
   let tables = null;
+  let slopPriors = null;
   let portTables = null;
   let recipes = null;
   let session = null;
@@ -96,7 +98,7 @@ export async function mount(api) {
     catch (_) { sketch = {}; }
     const opts = { nodeTypes: known, sketch, coldStart: history.length === 0 };
     try {
-      const frequencyRows = recommendFrequency(tables, history, sketch, ACTION_VOCAB.length);
+      let frequencyRows = recommendFrequency(tables, history, sketch, ACTION_VOCAB.length);
       let blendRows = null;
       if (session && recommendNext) {
         blendRows = recommendNext(
@@ -106,7 +108,14 @@ export async function mount(api) {
           ACTION_VOCAB.length
         );
       }
-      const hints = chooseHints({ frequencyRows, blendRows, ...opts });
+      const shallow = slopPriors && isShallowTextLlm(sketch, slopPriors);
+      if (shallow) {
+        const slopOpts = { priors: slopPriors, tables, expand: true };
+        frequencyRows = applyAntiSlop(frequencyRows, history, sketch, slopOpts);
+        if (blendRows) blendRows = applyAntiSlop(blendRows, history, sketch, slopOpts);
+      }
+      let hints = chooseHints({ frequencyRows, blendRows, ...opts });
+      if (shallow) hints = rerankShallowAdds(hints, frequencyRows, sketch, slopPriors);
       const recipe = recipes ? confidentRecipe(recipes, sketch, { nodeTypes: known }) : null;
       publish(mergeRecipeHint(hints, recipe));
     } catch (e) {
@@ -153,6 +162,12 @@ export async function mount(api) {
     recommendFrequency = freqMod.recommendFrequency;
     recommendNext = recMod.recommendNext;
     tables = await loadJSON("corpus/frequency-tables.json");
+    try { slopPriors = await loadJSON("corpus/anti-slop.json"); }
+    catch (err) {
+      console.warn("[next-action] anti-slop prior unavailable", err);
+      slopPriors = null;
+    }
+    if (!slopPriors || !Array.isArray(slopPriors.slopActions)) slopPriors = null;
     try { recipes = await loadJSON("corpus/recipes.json"); }
     catch (err) {
       console.warn("[next-action] recipe corpus unavailable", err);
