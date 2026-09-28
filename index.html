@@ -9814,7 +9814,10 @@ function openQuickAdd(clientX, clientY, originPort){
   // world coords for the new node, derived from the drop point (#world is translated by pan and scaled)
   const ed = editor.getBoundingClientRect();
   const wx = (clientX - ed.left - panX)/scale, wy = (clientY - ed.top - panY)/scale;
-  pop.querySelectorAll("button").forEach(b=> b.onclick = ()=>{ quickSpawn(b.dataset.type, wx, wy, dir, type, originPort); closeQuickAdd(); });
+  pop.querySelectorAll("button").forEach(b=> b.onclick = ()=>{
+    try{ window.__nextAction?.noteChoice?.("add:"+b.dataset.type, shownAdds(pop)); }catch(_){}
+    quickSpawn(b.dataset.type, wx, wy, dir, type, originPort); closeQuickAdd();
+  });
   // show, then clamp to the viewport
   pop.classList.add("open");
   const pr = pop.getBoundingClientRect();
@@ -12815,6 +12818,15 @@ function rememberAdd(type){
   try{ localStorage.setItem("nano.addRecent", JSON.stringify(addRecent)); }catch{}
 }
 // One node row — shared by the Add menu and the wire-drop quick-add so their styling can never drift.
+function shownAdds(root){
+  const out = [];
+  if(!root) return out;
+  root.querySelectorAll("button.suggested[data-type]").forEach(b=>{
+    const a = "add:"+b.dataset.type;
+    if(!out.includes(a)) out.push(a);
+  });
+  return out;
+}
 function addHintMap(){
   const h = nextActionHints();
   if(!h || !h.adds || !h.adds.length) return null;
@@ -12907,7 +12919,10 @@ function buildAddMenu(){
   });
   $("addlist").addEventListener("click", e=>{
     const b = e.target.closest("button[data-type]");
-    if(b){ spawnCenter(b.dataset.type); pop.classList.remove("open"); }
+    if(b){
+      try{ window.__nextAction?.noteChoice?.("add:"+b.dataset.type, shownAdds($("addlist"))); }catch(_){}
+      spawnCenter(b.dataset.type); pop.classList.remove("open");
+    }
   });
 }
 let spawnN = 0;

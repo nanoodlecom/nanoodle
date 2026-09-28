@@ -16,6 +16,7 @@
  */
 import { ACTION_VOCAB, sketchFromGraph, schema } from "./encode.mjs";
 import { chooseHints } from "./hints.mjs";
+import { createSuggestionMemory } from "./suggestion-memory.mjs";
 import { applyAntiSlop, isShallowTextLlm, rerankShallowAdds } from "./anti-slop.mjs";
 import { pickRingTarget, rankDropTypes } from "./port-suggest.mjs";
 import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
@@ -79,6 +80,7 @@ export async function mount(api) {
   let recommendFrequency = null;
   let recommendNext = null;
   const known = api.nodeTypes && api.nodeTypes.length ? new Set(api.nodeTypes) : null;
+  const memory = createSuggestionMemory();
 
   function publish(next) {
     const s = next && next.confident ? JSON.stringify(next) : "";
@@ -98,15 +100,17 @@ export async function mount(api) {
     catch (_) { sketch = {}; }
     const opts = { nodeTypes: known, sketch, coldStart: history.length === 0 };
     try {
-      let frequencyRows = recommendFrequency(tables, history, sketch, ACTION_VOCAB.length);
+      let frequencyRows = memory.reweightRows(
+        recommendFrequency(tables, history, sketch, ACTION_VOCAB.length)
+      );
       let blendRows = null;
       if (session && recommendNext) {
-        blendRows = recommendNext(
+        blendRows = memory.reweightRows(recommendNext(
           { tables, session, blend: 0.35 },
           history,
           sketch,
           ACTION_VOCAB.length
-        );
+        ));
       }
       const shallow = slopPriors && isShallowTextLlm(sketch, slopPriors);
       if (shallow) {
@@ -135,6 +139,9 @@ export async function mount(api) {
     peek() { return cache; },
     record,
     refresh: recompute,
+    noteChoice(action, shown) {
+      if (memory.noteChoice(action, shown)) recompute();
+    },
     hasPortPriors() { return !!portTables; },
     rankDropTypes(query) {
       if (!portTables) return null;
