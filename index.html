@@ -9858,6 +9858,7 @@ function quickSpawn(typeKey, wx, wy, dir, type, originPort){
   // place the card so its relevant edge sits near the drop point (downstream to the right, source to the left)
   const x = dir==="out" ? wx + 8 : wx - 232;
   const n = addNode(typeKey, Math.round(x), Math.round(wy - 24));
+  separateOnAdd(n);
   rememberAdd(typeKey);
   select(n);
   const opp = dir==="out" ? "in" : "out", sel = `.port[data-dir="${opp}"][data-ptype="${type}"]`;
@@ -12910,6 +12911,48 @@ function buildAddMenu(){
   });
 }
 let spawnN = 0;
+let planDeoverlap = null;
+let deoverlapFrame = 0;
+import("./vendor/next-action/deoverlap.mjs").then((m) => { planDeoverlap = m.planDeoverlap; }).catch(() => {});
+// The add menu and wire-drop quick-add land a card on a cascade that can cover
+// the card under it. Slide the overlap apart. addNode() already snapshotted the
+// pre-add graph, so this move undoes with the add and does not push again.
+function separateOnAdd(added){
+  if(!added || !planDeoverlap) return;
+  const nodes = [];
+  for(const n of graph.nodes){
+    if(!n || n.type==="comment") continue;
+    nodes.push({ id:n.id, type:n.type, x:n.x, y:n.y, w:n.el ? n.el.offsetWidth : undefined, h:n.el ? n.el.offsetHeight : undefined });
+  }
+  let plan = null;
+  try{ plan = planDeoverlap({ nodes }, { addedId: added.id }); }catch(_){ return; }
+  if(!plan || !plan.positions || !plan.positions.length) return;
+  const starts = new Map();
+  for(const p of plan.positions){
+    const n = byId(p.id);
+    if(!n || (n.x===p.x && n.y===p.y)) continue;
+    starts.set(p.id, { x:n.x, y:n.y });
+    n.x = p.x; n.y = p.y;
+  }
+  if(!starts.size) return;
+  save();
+  const paint = (id, x, y)=>{ const n = byId(id); if(n?.el){ n.el.style.left = x+"px"; n.el.style.top = y+"px"; } };
+  let reduce = false;
+  try{ reduce = matchMedia("(prefers-reduced-motion: reduce)").matches; }catch(_){}
+  if(reduce){ for(const id of starts.keys()){ const n = byId(id); if(n) paint(id, n.x, n.y); } redraw(); return; }
+  const t0 = performance.now(), dur = 180, token = ++deoverlapFrame;
+  const step = (now)=>{
+    if(token!==deoverlapFrame) return;
+    const u = Math.min(1, (now-t0)/dur), e = 1-Math.pow(1-u, 3);
+    for(const [id, s] of starts){
+      const n = byId(id); if(!n) continue;
+      paint(id, s.x+(n.x-s.x)*e, s.y+(n.y-s.y)*e);
+    }
+    redraw();
+    if(u<1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
 function spawnCenter(type){
   const step = Math.ceil(56/scale);   // screen-constant cascade that clears the ~46px header at any zoom (else the covered card's ✕/▶ stay untappable — worst at phone zoom)
   const cx = (editor.clientWidth/2 - panX)/scale - 105 + (spawnN%5)*step;
@@ -12917,6 +12960,7 @@ function spawnCenter(type){
   spawnN++;
   dismissHint();
   const n = addNode(type, Math.round(cx), Math.round(cy));
+  separateOnAdd(n);
   rememberAdd(type);
   select(n); redraw();
 }
