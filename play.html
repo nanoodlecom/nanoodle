@@ -9692,6 +9692,16 @@ const PROMPT_CAPS = {
     if(v!=null && v!=="") extra.aspect_ratio = String(v);
     return extra;
   }
+  // twin of editor rangeDurOpts: catalog number-range duration (min/max/step) → [[value,"N sec"],…];
+  // empty when the range is missing / non-numeric / absurdly long (caller keeps DURATIONS).
+  function rangeDurOpts(param){
+    if(!param || param.min==null || param.max==null) return [];
+    const lo = +param.min, hi = +param.max, st = +(param.step!=null ? param.step : 1);
+    if(!Number.isFinite(lo) || !Number.isFinite(hi) || !(st>0) || hi<lo || (hi-lo)/st > 120) return [];
+    const out = [];
+    for(let v=lo; v<=hi+1e-9; v+=st){ const n = Math.round(v*1000)/1000; out.push([String(n), n+" sec"]); }
+    return out;
+  }
   function dimOptionsFromItem(type, m){
     const out = { def:{} }; if(!m) return out;
     if(type==="image" || type==="edit" || type==="inpaint"){
@@ -9709,9 +9719,10 @@ const PROMPT_CAPS = {
     const aP = p.aspect_ratio || p.orientation || p.resolution_ratio;
     const a = sel(aP); if(a.length){ out.aspect = a; out.def.aspect = aP && aP.default!=null ? String(aP.default) : a[0][0]; }    // Sora/WAN name it orientation; PixVerse v5.5/5.6 name it resolution_ratio
     const dP = p.duration || p.seconds;
-    const d = sel(dP);
+    let d = sel(dP);
+    if(!d.length) d = rangeDurOpts(dP);             // Wan 3.0 number-range (2–30s step 1) → every value, twin of editor rangeDurOpts
     if(d.length){ out.duration = d; out.def.duration = dP && dP.default!=null ? String(dP.default) : d[0][0]; }  // Sora names it seconds (4/8/12)
-    else if(dP){ out.duration = DURATIONS; out.def.duration = dP.default!=null ? String(dP.default) : DURATIONS[0][0]; }  // catalogued number-range (Wan Prime) — same 5/10 the editor falls back to
+    else if(dP){ out.duration = DURATIONS; out.def.duration = dP.default!=null ? String(dP.default) : DURATIONS[0][0]; }  // catalogued number param with no usable range — same 5/10 the editor falls back to
     const fP = p.fps || p.frames_per_second, f = sel(fP);
     if(f.length){ out.fps = f; out.def.fps = fP && fP.default!=null ? String(fP.default) : f[0][0]; }
     return out;

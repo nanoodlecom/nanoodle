@@ -6418,6 +6418,18 @@ function selOpts(param){
     .map(o=> [String(o.value), o.label!=null?String(o.label):String(o.value)]);
 }
 function paramDef(param, opts){ return (param && param.default!=null) ? String(param.default) : (opts[0]||[""])[0]; }
+// a catalog number-range duration (type:number min/max/step, no options — the Wan 3.0 family ships
+// 2–30s step 1) → every advertised whole value as [[value,"N sec"],…]. Empty when the range is
+// missing / non-numeric / absurdly long, so the caller keeps DURATION_FALLBACK. Price is
+// per_second × duration, so the live estimate follows whatever value is picked.
+function rangeDurOpts(param){
+  if(!param || param.min==null || param.max==null) return [];
+  const lo = +param.min, hi = +param.max, st = +(param.step!=null ? param.step : 1);
+  if(!Number.isFinite(lo) || !Number.isFinite(hi) || !(st>0) || hi<lo || (hi-lo)/st > 120) return [];
+  const out = [];
+  for(let v=lo; v<=hi+1e-9; v+=st){ const n = Math.round(v*1000)/1000; out.push([String(n), n+" sec"]); }
+  return out;
+}
 /* ---------- snap a stored choice onto a model's real option list ----------
    A size / duration / quality / mode value only means something for the model it
    was chosen for: MiniMax H3 lists duration 5–15 (incl. 8); Wan Prime advertises
@@ -6572,11 +6584,14 @@ function dimDefs(type, model){
     const aOpts = selOpts(aParam);
     if(aOpts.length || soft) defs.push({ f:"aspect", wire:aWire, label:"aspect", options:(aOpts.length?aOpts:ASPECT_FALLBACK), def:paramDef(aParam, aOpts.length?aOpts:ASPECT_FALLBACK), known });
     // duration dimension: most models name it duration, but Sora calls it `seconds` (4/8/12) — same field, real values.
-    // Wan 3.0 ships type:number min/max (no select options) → DURATION_FALLBACK 5/10; known=true so 8 snaps off.
-    // The fallback applies on every node type once the model lists the param (dParam): vedit/lipsync
+    // Wan 3.0 ships type:number min/max/step (no select options) → every value in that range (2–30s),
+    // via rangeDurOpts; only a range-less number param falls back to DURATION_FALLBACK 5/10. known=true
+    // so an out-of-range leftover snaps to the nearest listed value.
+    // The list applies on every node type once the model lists the param (dParam): vedit/lipsync
     // skip only UNLISTED durations, never a listed number-range (see the soft exception above).
     const dParam = p.duration || p.seconds, dWire = p.duration ? "duration" : (p.seconds ? "seconds" : "duration");
-    const dOpts = selOpts(dParam);
+    let dOpts = selOpts(dParam);
+    if(!dOpts.length) dOpts = rangeDurOpts(dParam);
     if(dOpts.length || soft || dParam) defs.push({ f:"duration", wire:dWire, label:"duration", options:(dOpts.length?dOpts:DURATION_FALLBACK), def:paramDef(dParam, dOpts.length?dOpts:DURATION_FALLBACK), known });
     const fParam = p.fps || p.frames_per_second, fOpts = selOpts(fParam);
     if(fOpts.length) defs.push({ f:"fps", wire:p.fps ? "fps" : "frames_per_second", label:"fps", options:fOpts, def:paramDef(fParam, fOpts), known });
