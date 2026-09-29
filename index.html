@@ -6133,6 +6133,9 @@ function collectAudioParams(n){
     if(f.type==="select" && (f.options||[]).length && !(f.options||[]).includes(v)) continue; // leftover language/format not in this model's catalog enum (Qwen wants English, not en)
     if(f.type==="number"){ let num=Number(v); if(isNaN(num)) continue;
       if(f.appliesTo==="cat:gencount") num=1;   // never request more songs than the node can surface (one) — otherwise a stale/over-set field would bill for dropped tracks
+      if(f.appliesTo==="cat:duration" || f.appliesTo==="cat:secduration"){   // the input's min/max are advisory; a typed/leftover 500s must not POST to a 300s model
+        if(f.min!=null && isFinite(+f.min)) num = Math.max(+f.min, num);
+        if(f.max!=null && isFinite(+f.max)) num = Math.min(+f.max, num); }
       if(f.default!=null && num===f.default) continue; body[f.jsonKey]=num; continue; }
     if(f.default!=null && v===f.default) continue;       // e.g. response_format=mp3 → omit
     body[f.jsonKey] = v;
@@ -6592,7 +6595,10 @@ function dimDefs(type, model){
     const dParam = p.duration || p.seconds, dWire = p.duration ? "duration" : (p.seconds ? "seconds" : "duration");
     let dOpts = selOpts(dParam);
     if(!dOpts.length) dOpts = rangeDurOpts(dParam);
-    if(dOpts.length || soft || dParam) defs.push({ f:"duration", wire:dWire, label:"duration", options:(dOpts.length?dOpts:DURATION_FALLBACK), def:paramDef(dParam, dOpts.length?dOpts:DURATION_FALLBACK), known });
+    // A CATALOGUED t2v/i2v model that lists no duration (Veo 3 fixed 8s, Hailuo 2.3 Pro / Kandinsky 5 Pro fixed 5s,
+    // Wan 2.2 5B, MiniMax Video 6s…) keeps the def for send parity with the library, but the 5/10 knob is HIDDEN:
+    // it offered lengths the model can't make, and on per-second models it moved the estimate.
+    if(dOpts.length || soft || dParam) defs.push({ f:"duration", wire:dWire, label:"duration", options:(dOpts.length?dOpts:DURATION_FALLBACK), def:paramDef(dParam, dOpts.length?dOpts:DURATION_FALLBACK), known, hidden: !!(known && !dParam) });
     const fParam = p.fps || p.frames_per_second, fOpts = selOpts(fParam);
     if(fOpts.length) defs.push({ f:"fps", wire:p.fps ? "fps" : "frames_per_second", label:"fps", options:fOpts, def:paramDef(fParam, fOpts), known });
     return defs;
@@ -6618,15 +6624,17 @@ function refreshDims(n){
   const defs = dimDefs(n.type, n.fields.model);
   if(!defs.length){ box.innerHTML=""; return; }
   applyDimFields(n.fields, defs);     // clamp invalid stored values to this model's list (swap AND load)
+  const shown = defs.filter(d=> !d.hidden);   // hidden = kept for the wire, never rendered (see dimDefs duration)
+  if(!shown.length){ box.innerHTML=""; updateNodePrice(n); return; }
   const ctl = (d)=> `<div><label>${esc(d.label)}</label><select data-df="${esc(d.f)}"${d.locked?" disabled":""}>${
     d.options.map(o=>`<option value="${esc(o[0])}"${String(o[0])===String(n.fields[d.f])?" selected":""}>${esc(o[1])}</option>`).join("")}</select></div>`;
   // A locked def's disclosure is a sentence, so it goes FULL WIDTH under the row — the first two
   // controls sit in a half-width `.two` grid, where it would wrap to three cramped lines.
   const hints = defs.filter(d=> d.locked).map(d=>
     `<div class="fhint">${esc(t("this model always returns {n} images — you pay for all {n}").replace(/\{n\}/g, String(d.locked)))}</div>`).join("");
-  box.innerHTML = (defs.length>1
-    ? `<div class="two">${defs.slice(0,2).map(ctl).join("")}</div>${defs.slice(2).map(ctl).join("")}`
-    : ctl(defs[0])) + hints;
+  box.innerHTML = (shown.length>1
+    ? `<div class="two">${shown.slice(0,2).map(ctl).join("")}</div>${shown.slice(2).map(ctl).join("")}`
+    : ctl(shown[0])) + hints;
   translateTree(box);   // localize size/resolution/aspect/duration labels + option text (mirror refreshAudioParams)
   box.querySelectorAll("[data-df]").forEach(el=>{
     const f = el.dataset.df;
@@ -6675,7 +6683,7 @@ function livePrice(kind, fields){
     return `$${(+v).toFixed(3)}/img`;
   }
   if(kind==="video"){
-    const u = videoUnitUsd(it.pricing, fields);   // all shapes; recomputes live as resolution/duration change
+    const u = videoUnitUsd(it.pricing, videoPriceFields(it.params, fields));   // all shapes; recomputes live as resolution/duration change
     if(u!=null) return `~$${u.toFixed(2)}/clip`;
   }
   return it.price||"";
@@ -6733,6 +6741,13 @@ function pickDur(p, raw, fields){
 // "~$X to run" chip stops quoting the base rate for a run that will reserve ~2×. No tier/flag ⇒ unchanged.
 // videoWired (source video on the node) selects extend-mode rates on nested mode×resolution tables
 // (FLUX.3 full_per_second_by_mode_and_resolution / draft_per_second_by_mode).
+// A catalogued video model that lists no duration/seconds param bills its own fixed/default length:
+// a stale node duration (the old 5/10 soft knob) must not move the estimate. Twin: play videoPriceFields.
+function videoPriceFields(params, fields){
+  const pp = params || {};
+  if(!fields || fields.duration==null || fields.duration==="" || pp.duration || pp.seconds) return fields;
+  return Object.assign({}, fields, { duration: "" });
+}
 function videoUnitUsd(pricing, fields, refWired, videoWired){
   const p = pricing || {};
   const f = fields || {};
@@ -6784,6 +6799,21 @@ function videoBaseUsd(pricing, fields, audioOn, refOn, videoOn){
     if(p.enhance_per_second!=null){ v=_num(p.enhance_per_second); if(v!=null) return v*dur; }
   }
   // ---- $/second families (× duration) ----
+  // P-Video 2 / 2 Pro / Edit: mode- or draft-split $/s tables billed on the chosen duration, clamped to
+  // minimum/maximum_billable_duration. genericScanUsd used to read their cheapest 480p leaf as a FLAT
+  // per-clip price (P-Video 2 Pro 15s @768p quoted $0.02, not $0.525). mode/draft ride in modelOpts.
+  if(p.speed_per_second_by_resolution || p.quality_per_second_by_resolution || p.full_per_second_by_resolution || p.draft_per_second_by_resolution || p.full_per_second!=null || p.draft_per_second!=null){
+    const o = (f.modelOpts && typeof f.modelOpts==="object") ? f.modelOpts : {};
+    const lo = _num(p.minimum_billable_duration), hi = _num(p.maximum_billable_duration);
+    const bd = Math.min(hi!=null ? hi : dur, Math.max(lo!=null ? lo : dur, dur));
+    const draft = o.draft===true || o.draft==="true";
+    const quality = String(o.mode!=null && o.mode!=="" ? o.mode : (p.default_mode || "speed")).toLowerCase()==="quality";
+    const modeTbl = quality ? (p.quality_per_second_by_resolution || p.speed_per_second_by_resolution) : p.speed_per_second_by_resolution;
+    v = modeTbl ? rp(modeTbl) : null;
+    if(v==null){ const dt = draft ? (p.draft_per_second_by_resolution || p.full_per_second_by_resolution) : (p.full_per_second_by_resolution || p.draft_per_second_by_resolution); if(dt) v = rp(dt); }
+    if(v==null) v = draft ? (_num(p.draft_per_second) ?? _num(p.full_per_second)) : (_num(p.full_per_second) ?? _num(p.draft_per_second));
+    if(v!=null) return v*bd;
+  }
   if((v=rp(p.per_second_by_resolution))!=null) return v*dur;
   if((v=rp(p.standard_prices_per_second))!=null) return v*dur;               // sora (standard tier)
   if(p.per_second_by_mode){ const mm=p.per_second_by_mode;
@@ -6812,7 +6842,7 @@ function videoBaseUsd(pricing, fields, audioOn, refOn, videoOn){
     if(p.duration_overrides && p.duration_overrides[dk]){ v=rp(p.duration_overrides[dk]); if(v!=null) return v; }
     const base=rp(p.base_prices_by_resolution);
     let mult=1;
-    if(p.duration_multiplier!=null) mult=_num(p.duration_multiplier) ?? 1;
+    if(p.duration_multiplier!=null) mult = dur > (_num(p.base_duration) || 5) ? (_num(p.duration_multiplier) ?? 1) : 1;   // seedance-video: base = the 5s clip; the multiplier bills the longer (10s) option only
     else if(p.duration_multipliers) mult=_num(p.duration_multipliers[dk]) ?? pickByRes(p.duration_multipliers) ?? 1;
     if(base!=null) return base*mult;
   }
@@ -6846,7 +6876,9 @@ function videoBaseUsd(pricing, fields, audioOn, refOn, videoOn){
     }
     if(raw.pricePerMegapixel!=null && raw.megapixelsByResolution){
       const mp = _num(raw.megapixelsByResolution[res]) ?? _num(raw.megapixelsByResolution[defRes]) ?? pickByRes(raw.megapixelsByResolution);
-      const nf = _num(raw.defaultNumFrames) || (dur * (_num(raw.defaultFramesPerSecond)||24));
+      // frames follow the CHOSEN duration (LTX-2.3 Quality lists 5–20s); defaultNumFrames (145 = 6s×24+1) only when unset
+      const fpsN = _num(f.fps) || _num(raw.defaultFramesPerSecond) || 24, chosenDur = parseFloat(f.duration);
+      const nf = (isFinite(chosenDur) && chosenDur>0) ? Math.round(chosenDur*fpsN)+1 : (_num(raw.defaultNumFrames) || (dur*fpsN));
       if(mp!=null) return _num(raw.pricePerMegapixel)*mp*nf;
     }
   }
@@ -6894,7 +6926,10 @@ function audioBilledSeconds(params, fields){
   const p = params || {};
   if(p.min_duration==null || p.max_duration==null) return null;   // model doesn't price by duration
   const d = parseFloat(fields && fields.duration);
-  if(!isFinite(d)) return null;                                    // blank/irrelevant → use the default estimate
+  if(!isFinite(d)){                                                 // blank → default estimate, but never outside the model's range
+    const lo0=_num(p.min_duration), hi0=_num(p.max_duration), e=EST.audioSeconds;
+    return ((lo0!=null && e<lo0) || (hi0!=null && e>hi0)) ? Math.min(hi0!=null?hi0:e, Math.max(lo0!=null?lo0:e, e)) : null;
+  }
   const lo=_num(p.min_duration), hi=_num(p.max_duration);
   return Math.min(hi!=null?hi:d, Math.max(lo!=null?lo:d, d));
 }
@@ -6961,7 +6996,7 @@ function nodeUnitUsd(n){
     const refWired = !!(t.refInputs && modelHasImageRole(n,"refs") && graph.links.some(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port)));
     // source-video input wired → extend-mode rates on nested mode×resolution tables (FLUX.3).
     const videoWired = graph.links.some(l=> l.to.node===n.id && l.to.port==="video");
-    const u = videoUnitUsd(it.pricing, fields, refWired, videoWired); return (u!=null && isFinite(u)) ? u : null; }
+    const u = videoUnitUsd(it.pricing, videoPriceFields(it.params, fields), refWired, videoWired); return (u!=null && isFinite(u)) ? u : null; }
   if(kind==="chat"){
     const f=fields||{}; const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(it, inTok, outTok); }
   if(kind==="audio"){ const chars = t.modelFilter==="stt" ? undefined : (((fields||{}).prompt||"").length || EST.ttsChars);
@@ -10687,6 +10722,12 @@ function njsRunFor(type, rn, inp, n){
     ctx.catalog = await njsCatalogs();
     // leftover size snap — njs is the default send path; library posts fields.size raw
     if(type==="image" || type==="edit" || type==="inpaint") applyDimFields(rn.fields, dimDefs(rn.type, rn.fields.model));
+    // leftover audio duration clamp — the library posts fields.duration raw; the built-in collectAudioParams
+    // clamps to the catalog min/max_duration (a 500s leftover must not POST to a 300s / 22s model)
+    if(type==="music" || type==="remix"){
+      const ap = (catItem("audio", rn.fields.model) || {}).params || {}, dn = parseFloat(rn.fields.duration);
+      if(isFinite(dn) && ap.min_duration!=null && ap.max_duration!=null) rn.fields.duration = Math.min(+ap.max_duration, Math.max(+ap.min_duration, dn));
+    }
     // Library imgExtra only special-cases FIBO. Stamp catalog aspect_ratio (Qwen Image 2.1,
     // Anima, Qwen Image 3, …) with the same imageAspectExtra the built-in path uses, and never
     // override a key the library already set, so flag-on and flag-off stay byte-identical.
