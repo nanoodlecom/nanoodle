@@ -2,7 +2,7 @@
  * Headless next-action engine for the real editor.
  *
  * Loads the frequency prior and, when weights load, the learned blend.
- * The loader tries a catalog weightsUrl and falls back to the smoke fixture.
+ * The loader tries the catalog, then the smoke fixture.
  * The shipped catalog has no models, so the fixture is what runs.
  * List rendering never waits on inference.
  *
