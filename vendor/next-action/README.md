@@ -12,6 +12,7 @@
 | recipe | `recipe.mjs`, `corpus/recipes.json` — confident gallery completions re-rank Suggested rows |
 | slop | `anti-slop.mjs`, `corpus/anti-slop.json` — soft re-rank away from a shallow Text→LLM loop |
 | layout | `deoverlap.mjs`, `auto-tidy.mjs`, `collision-nudge.mjs` — slide an overlapping add apart |
+| · 28 | `selected-input-producer.mjs` — selected-node unwired-input producers → Suggested rows |
 | memory | `suggestion-memory.mjs` — local accept/ignore reweight of suggested adds |
 | weights | `export-load.mjs`, `scripts/export-smallnet-weights.py` — catalog first, fixture fallback |
 
@@ -46,6 +47,7 @@ node scripts/check-next-action-recipe.mjs
 node scripts/check-next-action-anti-slop.mjs
 node scripts/check-next-action-deoverlap.mjs
 node scripts/check-next-action-suggestion-memory.mjs
+node scripts/check-next-action-selected-input-producer.mjs
 node scripts/check-next-action-weights.mjs
 node scripts/check-smallnet.mjs   # catalog still empty
 ```

@@ -14314,11 +14314,56 @@ function shownAdds(root){
 }
 function addHintMap(){
   const h = nextActionHints();
-  if(!h || !h.adds || !h.adds.length) return null;
-  const order = [], byType = {};
-  for(const a of h.adds){
-    if(!a || !NODE_TYPES[a.type] || byType[a.type]) continue;
+  const prior = [];
+  if(h && h.adds && h.adds.length){
+    for(const a of h.adds){
+      if(!a || !NODE_TYPES[a.type]) continue;
+      prior.push(a);
+    }
+  }
+  // Product · 28: with one selected node that has an unwired input, soft-merge
+  // gallery-common producer types into Suggested. Quiet when nothing selected,
+  // no dangling input, flat prior, or predictor off.
+  let producerHits = [];
+  try{
+    const na = window.__nextAction;
+    if(na && !na.disabled && typeof na.rankSelectedInputProducers === "function"){
+      const g = {
+        nodes: (graph.nodes||[]).map(n => ({ id:n.id, type:n.type })),
+        links: (graph.links||[]).map(l => ({ from:l.from, to:l.to })),
+        selectedId: selected?.id || null,
+      };
+      const hits = na.rankSelectedInputProducers(g);
+      if(Array.isArray(hits) && hits.length){
+        producerHits = hits.map(h => ({
+          type: h.type,
+          action: h.action || ("add:"+h.type),
+          reason: h.reason || "feeds selected input",
+          source: h.source || "selected-input-producer",
+          share: h.share,
+        }));
+      }
+    }
+  }catch(_){}
+  // Soft-merge: keep stronger prior sources; fill gaps with producers.
+  const STRONG = new Set(["first-trio","recipe","post-first","learned","cold-start","first-node","empty-followup","add-search-popular","selected-output-consumer"]);
+  const byType = {}, order = [];
+  const push = (a)=>{
+    if(!a || !a.type || !NODE_TYPES[a.type] || byType[a.type]) return;
     byType[a.type] = a; order.push(a.type);
+  };
+  for(const a of prior) push(a);
+  for(const h of producerHits){
+    const existing = byType[h.type];
+    if(existing && STRONG.has(existing.source)) continue;
+    if(existing && existing.source && existing.source !== "selected-input-producer") continue;
+    if(existing) continue; // keep prior reason/source
+    push(h);
+  }
+  // Cap Suggested chrome at 3 rows (projectHints MAX_ADDS)
+  if(order.length > 3){
+    order.length = 3;
+    for(const k of Object.keys(byType)){ if(!order.includes(k)) delete byType[k]; }
   }
   return order.length ? { order, byType } : null;
 }

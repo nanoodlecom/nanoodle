@@ -22,6 +22,7 @@ import { applyAntiSlop, isShallowTextLlm, rerankShallowAdds } from "./anti-slop.
 import { pickRingTarget, rankDropTypes } from "./port-suggest.mjs";
 import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
 import { loadNextActionExport } from "./export-load.mjs";
+import { rankSelectedInputProducers as rankSelectedInputProducersPure } from "./selected-input-producer.mjs";
 
 const BASE = new URL(".", import.meta.url);
 
@@ -154,6 +155,16 @@ export async function mount(api) {
       if (!portTables) return null;
       try { return pickRingTarget(portTables, query); }
       catch (_) { return null; }
+    },
+    // Product · 28: gallery producers that feed the selected node's unwired input.
+    rankSelectedInputProducers(graph) {
+      if (!portTables) return [];
+      try {
+        return rankSelectedInputProducersPure(portTables, graph || {}, {
+          memory,
+          nodeTypes: known,
+        });
+      } catch (_) { return []; }
     },
   };
 

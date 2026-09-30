@@ -15,7 +15,9 @@ const EMPTY = Object.freeze({
   openExamples: null,
 });
 
-function reasonForAdd(coldStart, sketch) {
+function reasonForAdd(coldStart, sketch, source) {
+  if (source === "selected-input-producer") return "feeds selected input";
+  if (source === "selected-output-consumer") return "fits selected output";
   if (coldStart || !sketch || !sketch.numNodes) return "common first node";
   return "often added next";
 }
@@ -67,7 +69,7 @@ export function projectHints(rows, opts = {}) {
       type,
       action: r.action,
       share: r.share,
-      reason: reasonForAdd(!!opts.coldStart, sketch),
+      reason: reasonForAdd(!!opts.coldStart, sketch, r.source),
     });
     if (adds.length >= maxAdds) break;
   }
