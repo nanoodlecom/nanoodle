@@ -4948,7 +4948,7 @@ function normImg(m){
     price: v!=null ? `$${(+v).toFixed(3)}/img` : "" };
 }
 function normVideo(m){
-  const p=m.pricing||{}, c=m.capabilities||{};
+  const p=applyVideoQuotePricing(m.id, m.pricing||{}), c=m.capabilities||{};
   const _vu = videoUnitUsd(p, {});                 // universal resolver: every pricing shape at default res/duration, never blank
   const price = _vu!=null ? `~$${_vu.toFixed(2)}/clip` : "";
   // the video catalog DOES expose lora params, so gate on the real thing: a lora_url slot
@@ -7078,7 +7078,7 @@ function livePrice(kind, fields){
     return `$${(+v).toFixed(3)}/img`;
   }
   if(kind==="video"){
-    const u = videoUnitUsd(it.pricing, videoPriceFields(it.params, fields));   // all shapes; recomputes live as resolution/duration change
+    const u = videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), videoPriceFields(it.params, fields));   // all shapes; recomputes live as resolution/duration change
     if(u!=null) return `~$${u.toFixed(2)}/clip`;
   }
   if(kind==="model3d") return model3dPriceLabels(it.pricing, fields, it.defaults).card;
@@ -7126,6 +7126,40 @@ function pickDur(p, raw, fields){
   if(Array.isArray(p.supported_durations) && p.supported_durations.length) return +p.supported_durations[0];
   if(p.fixed_duration_seconds!=null) return _num(p.fixed_duration_seconds) || 5;
   return 5;
+}
+// Public catalog pricing for these ids is only {minimum, note} ("duration and resolution
+// determine pricing… see the generation quote"). NanoGPT's pre-send quote
+// (GET /api/estimate-video-cost — the number on the media Generate button) is
+// per_second_by_resolution × duration. Measured 2026-09-30. The published minimum is
+// the cheapest tier × the shortest duration, so a flat clip price leaves a 15s H3
+// Singularity estimate stuck on the 3s floor (~$0.15 instead of ~$0.75 at 480p).
+// Singularity and reference-to-video are quoted upstream under a wavespeed-ai/ id;
+// these rates are that quote, keyed by the catalog id nanoodle stores. A real
+// duration-scaled table on the model wins, so the overlay drops out once the catalog
+// publishes one. Twin: play applyVideoQuotePricing.
+const VIDEO_QUOTE_PER_SECOND = {
+  "minimax-h3-singularity/image-to-video": { default_resolution:"480p", default_duration:5, per_second_by_resolution:{ "480p":0.05, "540p":0.075, "768p":0.1, "1080p":0.2 } },
+  "minimax-h3-singularity/image-to-video-lora": { default_resolution:"480p", default_duration:5, per_second_by_resolution:{ "480p":0.0625, "540p":0.09375, "768p":0.125, "1080p":0.25 } },
+  "minimax-h3/reference-to-video": { default_resolution:"480p", default_duration:5, per_second_by_resolution:{ "480p":0.05, "540p":0.075, "768p":0.125, "1080p":0.25 } },
+  "minimax/h3-max/multi-angle/image-to-video": { default_resolution:"480p", default_duration:5, per_second_by_resolution:{ "480p":0.05, "768p":0.08, "1080p":0.16 } },
+  "minimax/h3-max/extend-video": { default_resolution:"768p", default_duration:5, per_second_by_resolution:{ "480p":0.05, "768p":0.08, "1080p":0.16, "2k":0.32 } },
+};
+function videoPricingHasDurationRate(p){
+  if(!p) return false;
+  return p.per_second_by_resolution!=null || p.per_second!=null || p.output_per_second!=null
+    || p.per_second_by_mode!=null || p.per_second_by_mode_and_resolution!=null
+    || p.base_price_per_second!=null || p.full_per_second!=null || p.draft_per_second!=null
+    || p.speed_per_second_by_resolution!=null || p.quality_per_second_by_resolution!=null
+    || p.full_per_second_by_resolution!=null || p.draft_per_second_by_resolution!=null
+    || p.full_per_second_by_mode_and_resolution!=null || p.draft_per_second_by_mode!=null
+    || p.per_duration!=null || (p.base_price!=null && p.per_extra_second!=null)
+    || p.base_prices_by_resolution!=null;
+}
+function applyVideoQuotePricing(id, pricing){
+  const q = VIDEO_QUOTE_PER_SECOND[id];
+  const p = pricing || {};
+  if(!q || videoPricingHasDurationRate(p)) return p;
+  return Object.assign({}, p, q);
 }
 // Estimated USD for one video clip, for ANY NanoGPT video pricing shape (35+ variants live).
 // Handlers run most-specific first; a generic deep-scan at the end guarantees a number for any
@@ -7392,7 +7426,7 @@ function nodeUnitUsd(n){
     const refWired = !!(t.refInputs && modelHasImageRole(n,"refs") && graph.links.some(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port)));
     // source-video input wired → extend-mode rates on nested mode×resolution tables (FLUX.3).
     const videoWired = graph.links.some(l=> l.to.node===n.id && l.to.port==="video");
-    const u = videoUnitUsd(it.pricing, videoPriceFields(it.params, fields), refWired, videoWired); return (u!=null && isFinite(u)) ? u : null; }
+    const u = videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), videoPriceFields(it.params, fields), refWired, videoWired); return (u!=null && isFinite(u)) ? u : null; }
   if(kind==="chat"){
     const f=fields||{}; const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(it, inTok, outTok); }
   if(kind==="audio"){ const chars = t.modelFilter==="stt" ? undefined : (((fields||{}).prompt||"").length || EST.ttsChars);
