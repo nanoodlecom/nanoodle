@@ -6186,6 +6186,40 @@ window.NoodleApp = (function () {
     if(p.fixed_duration_seconds!=null) return _num(p.fixed_duration_seconds) || 5;
     return 5;
   }
+  // Public catalog pricing for these ids is only {minimum, note} ("duration and resolution
+  // determine pricing… see the generation quote"). NanoGPT's pre-send quote
+  // (GET /api/estimate-video-cost — the number on the media Generate button) is
+  // per_second_by_resolution × duration. Measured 2026-09-30. The published minimum is
+  // the cheapest tier × the shortest duration, so a flat clip price leaves a 15s H3
+  // Singularity estimate stuck on the 3s floor (~$0.15 instead of ~$0.75 at 480p).
+  // Singularity and reference-to-video are quoted upstream under a wavespeed-ai/ id;
+  // these rates are that quote, keyed by the catalog id nanoodle stores. A real
+  // duration-scaled table on the model wins, so the overlay drops out once the catalog
+  // publishes one. Twin: play applyVideoQuotePricing.
+  const VIDEO_QUOTE_PER_SECOND = {
+    "minimax-h3-singularity/image-to-video": { default_resolution:"480p", default_duration:5, per_second_by_resolution:{ "480p":0.05, "540p":0.075, "768p":0.1, "1080p":0.2 } },
+    "minimax-h3-singularity/image-to-video-lora": { default_resolution:"480p", default_duration:5, per_second_by_resolution:{ "480p":0.0625, "540p":0.09375, "768p":0.125, "1080p":0.25 } },
+    "minimax-h3/reference-to-video": { default_resolution:"480p", default_duration:5, per_second_by_resolution:{ "480p":0.05, "540p":0.075, "768p":0.125, "1080p":0.25 } },
+    "minimax/h3-max/multi-angle/image-to-video": { default_resolution:"480p", default_duration:5, per_second_by_resolution:{ "480p":0.05, "768p":0.08, "1080p":0.16 } },
+    "minimax/h3-max/extend-video": { default_resolution:"768p", default_duration:5, per_second_by_resolution:{ "480p":0.05, "768p":0.08, "1080p":0.16, "2k":0.32 } },
+  };
+  function videoPricingHasDurationRate(p){
+    if(!p) return false;
+    return p.per_second_by_resolution!=null || p.per_second!=null || p.output_per_second!=null
+      || p.per_second_by_mode!=null || p.per_second_by_mode_and_resolution!=null
+      || p.base_price_per_second!=null || p.full_per_second!=null || p.draft_per_second!=null
+      || p.speed_per_second_by_resolution!=null || p.quality_per_second_by_resolution!=null
+      || p.full_per_second_by_resolution!=null || p.draft_per_second_by_resolution!=null
+      || p.full_per_second_by_mode_and_resolution!=null || p.draft_per_second_by_mode!=null
+      || p.per_duration!=null || (p.base_price!=null && p.per_extra_second!=null)
+      || p.base_prices_by_resolution!=null;
+  }
+  function applyVideoQuotePricing(id, pricing){
+    const q = VIDEO_QUOTE_PER_SECOND[id];
+    const p = pricing || {};
+    if(!q || videoPricingHasDurationRate(p)) return p;
+    return Object.assign({}, p, q);
+  }
   // Twin of the editor: a video run bills a HIGHER tier when reference images are wired or the model's audio
   // switch is on. refWired is passed by the caller (needs the graph wiring); the audio switch / reference mode
   // ride in fields.modelOpts. Pick the with-reference / with-audio table where the catalog carries one, else a
@@ -6420,7 +6454,7 @@ window.NoodleApp = (function () {
     const f = effectiveModelFieldsPlay(n);
     const id = f && f.model; if(!id) return null;
     const m = await rawCatItem(kind, id); if(!m) return null;
-    const pricing = m.pricing;
+    const pricing = applyVideoQuotePricing(id, m.pricing);
     if(kind==="image"){ const sp=m.supported_parameters||{}, maxOut=sp.max_output_images||1, fixed=sp.fixed_image_count||0;
       // match the billed image count (genImage bills unit×urls.length): fixed_image_count models always return N;
       // otherwise clamp requested variations to the model's real max so an over-set count can't inflate the forecast.
