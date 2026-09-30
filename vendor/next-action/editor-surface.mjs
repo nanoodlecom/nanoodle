@@ -22,6 +22,7 @@ import { applyAntiSlop, isShallowTextLlm, rerankShallowAdds } from "./anti-slop.
 import { pickRingTarget, rankDropTypes } from "./port-suggest.mjs";
 import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
 import { loadNextActionExport } from "./export-load.mjs";
+import { mergeEmptyFollowupRows } from "./empty-followup.mjs";
 
 const BASE = new URL(".", import.meta.url);
 
@@ -105,6 +106,10 @@ export async function mount(api) {
       let frequencyRows = memory.reweightRows(
         recommendFrequency(tables, history, sketch, ACTION_VOCAB.length)
       );
+      // Product · 25: near-empty popular-next trio when post-first/recipe quiet.
+      frequencyRows = mergeEmptyFollowupRows(
+        frequencyRows, tables, history, sketch, { nodeTypes: known }
+      );
       let blendRows = null;
       if (session && recommendNext) {
         blendRows = memory.reweightRows(recommendNext(
@@ -113,6 +118,9 @@ export async function mount(api) {
           sketch,
           ACTION_VOCAB.length
         ));
+        blendRows = mergeEmptyFollowupRows(
+          blendRows, tables, history, sketch, { nodeTypes: known }
+        );
       }
       const shallow = slopPriors && isShallowTextLlm(sketch, slopPriors);
       if (shallow) {

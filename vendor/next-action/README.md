@@ -13,6 +13,7 @@
 | slop | `anti-slop.mjs`, `corpus/anti-slop.json` — soft re-rank away from a shallow Text→LLM loop |
 | layout | `deoverlap.mjs`, `auto-tidy.mjs`, `collision-nudge.mjs` — slide an overlapping add apart |
 | memory | `suggestion-memory.mjs` — local accept/ignore reweight of suggested adds |
+| · 25 | `empty-followup.mjs` — near-empty popular-next trio in Suggested when post-first quiet |
 | weights | `export-load.mjs`, `scripts/export-smallnet-weights.py` — catalog first, fixture fallback |
 
 Learned `.bin` weights stay **gitignored**; tests load inline float fixtures.
@@ -46,6 +47,7 @@ node scripts/check-next-action-recipe.mjs
 node scripts/check-next-action-anti-slop.mjs
 node scripts/check-next-action-deoverlap.mjs
 node scripts/check-next-action-suggestion-memory.mjs
+node scripts/check-next-action-empty-followup.mjs
 node scripts/check-next-action-weights.mjs
 node scripts/check-smallnet.mjs   # catalog still empty
 ```
