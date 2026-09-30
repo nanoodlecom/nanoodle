@@ -721,6 +721,12 @@
   .port.compatible{ transform:scale(1.25); box-shadow:0 0 0 4px #ffffff26; animation:portpulse 1.1s ease-in-out infinite }
   .port.likely{ transform:scale(1.45); box-shadow:0 0 0 5px #67e8f9cc; animation:none }
   .port.snap{ transform:scale(1.7); box-shadow:0 0 0 5px #ffffff66, 0 0 12px #fff6; animation:none }
+  /* Product · 29: soft pulse on one high-prior dangling input (idle / after run). Distinct from · 22 out nudge. */
+  .port.na-dangling-input-nudge{ transform:scale(1.35); box-shadow:0 0 0 4px #fbbf24aa, 0 0 12px #fbbf2466; animation:naDangleInPulse 1.4s ease-in-out infinite }
+  @keyframes naDangleInPulse{ 50%{ box-shadow:0 0 0 7px #fbbf2444, 0 0 18px #fbbf2455; transform:scale(1.5) } }
+  @media (prefers-reduced-motion: reduce){
+    .port.na-dangling-input-nudge{ animation:none !important; box-shadow:none; transform:none }
+  }
   @keyframes portpulse{ 50%{ box-shadow:0 0 0 6px #ffffff14 } }
 
   .body{ padding:.1rem .6rem .6rem; display:flex; flex-direction:column; gap:.5rem }
@@ -10576,6 +10582,7 @@ function nearestPort(x, y, ports){
 function startWire(port, e){
   if(port.classList && port.classList.contains("disabled")) return;
   e.preventDefault(); e.stopPropagation();
+  try{ clearDanglingInputNudge(); }catch(_){}
   closeQuickAdd();
   const dir = port.dataset.dir, ptype = port.dataset.ptype, node = port.dataset.node;
   const id = e.pointerId;                            // only this pointer drives the wire — ignore a stray second touch
@@ -16830,6 +16837,55 @@ RULES for the diff:
     }finally{ setBusy(false); dbAbort = null; }
   }
 })();
+/* Product · 29 — dangling-input nudge: soft-pulse one prior-backed dangling in
+   inside existing .port chrome after idle / a settled run. No tip panel.
+   Distinct class from · 22 (na-dangling-nudge) so both can coexist. */
+let _danglingInputNudgeTimer = 0;
+let _danglingInputNudgeKey = "";
+function danglingInputNudgeReducedMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(_){ return false; }
+}
+function clearDanglingInputNudge(){
+  if(_danglingInputNudgeTimer){ clearTimeout(_danglingInputNudgeTimer); _danglingInputNudgeTimer = 0; }
+  document.querySelectorAll(".port.na-dangling-input-nudge").forEach(p=> p.classList.remove("na-dangling-input-nudge"));
+  _danglingInputNudgeKey = "";
+}
+function applyDanglingInputNudge(){
+  if(danglingInputNudgeReducedMotion()){ clearDanglingInputNudge(); return; }
+  if(typeof tempWire!=="undefined" && tempWire) return;   // never nudge while a wire drag is live
+  if(typeof multiSel!=="undefined" && multiSel && multiSel.size > 1){ clearDanglingInputNudge(); return; }
+  const na = window.__nextAction;
+  if(!na || na.disabled || !(na.hasPortPriors && na.hasPortPriors()) || typeof na.pickDanglingInputNudge!=="function"){
+    clearDanglingInputNudge();
+    return;
+  }
+  if(!graph || !graph.nodes || graph.nodes.length < 2){ clearDanglingInputNudge(); return; }
+  let pick = null;
+  try{
+    pick = na.pickDanglingInputNudge({
+      nodes: graph.nodes.map(n => ({ id:n.id, type:n.type })),
+      links: (graph.links||[]).map(l => ({ from:l.from, to:l.to })),
+      selectedId: (typeof selected!=="undefined" && selected && selected.id) ? selected.id : null,
+      selectedIds: (typeof multiSel!=="undefined" && multiSel && multiSel.size) ? [...multiSel] : undefined,
+    });
+  }catch(_){ pick = null; }
+  if(!pick){ clearDanglingInputNudge(); return; }
+  const key = pick.nodeId + "|" + pick.port;
+  const el = document.querySelector(`.port[data-node="${pick.nodeId}"][data-port="${pick.port}"][data-dir="in"]`);
+  if(!el || el.classList.contains("disabled")){ clearDanglingInputNudge(); return; }
+  if(key !== _danglingInputNudgeKey){
+    document.querySelectorAll(".port.na-dangling-input-nudge").forEach(p=> p.classList.remove("na-dangling-input-nudge"));
+    el.classList.add("na-dangling-input-nudge");
+    _danglingInputNudgeKey = key;
+  }else if(!el.classList.contains("na-dangling-input-nudge")){
+    el.classList.add("na-dangling-input-nudge");
+  }
+}
+function scheduleDanglingInputNudge(ms){
+  if(_danglingInputNudgeTimer) clearTimeout(_danglingInputNudgeTimer);
+  _danglingInputNudgeTimer = setTimeout(()=>{ _danglingInputNudgeTimer = 0; applyDanglingInputNudge(); }, ms == null ? 2000 : ms);
+}
+
 /* Next-action scores feed existing menus (add node, wire-drop, model picker).
    Dynamic import so a tree without vendor/next-action stays quiet. No panel, no ghost.
    ?na=0 / ?product=off disables hints; until the cache is confident, lists are unchanged. */
@@ -16838,32 +16894,43 @@ RULES for the diff:
   addNode = function(type, x, y, fields){
     const n = _addNode(type, x, y, fields);
     try { window.__nextAction?.record?.("add:" + type); } catch(_){}
+    try { clearDanglingInputNudge(); scheduleDanglingInputNudge(2000); } catch(_){}
     return n;
   };
   const _connect = connect;
   connect = function(fromNode, fromPort, toNode, toPort){
     const ok = _connect(fromNode, fromPort, toNode, toPort);
     if(ok) try { window.__nextAction?.record?.("wire"); } catch(_){}
+    if(ok) try { clearDanglingInputNudge(); scheduleDanglingInputNudge(2000); } catch(_){}
     return ok;
   };
   const _select = select;
   select = function(n){
     _select(n);
     try { window.__nextAction?.refresh?.(); } catch(_){}
+    try { clearDanglingInputNudge(); scheduleDanglingInputNudge(1800); } catch(_){}
   };
   const _loadExample = loadExample;
   loadExample = function(i){
     const r = _loadExample(i);
     try { window.__nextAction?.refresh?.(); } catch(_){}
+    try { clearDanglingInputNudge(); scheduleDanglingInputNudge(2000); } catch(_){}
     return r;
   };
   if (typeof runGroup === "function") {
     const _runGroup = runGroup;
     runGroup = function(seedIds, ctx){
       try { window.__nextAction?.record?.("run"); } catch(_){}
-      return _runGroup.apply(this, arguments);
+      try { clearDanglingInputNudge(); } catch(_){}
+      const ret = _runGroup.apply(this, arguments);
+      Promise.resolve(ret).finally(()=>{ try { scheduleDanglingInputNudge(1600); } catch(_){} });
+      return ret;
     };
   }
+  // Idle beat: after pointer/keyboard settles with ≥2 nodes, soft-nudge one dangling in.
+  ["pointerup","keyup"].forEach(ev=>{
+    window.addEventListener(ev, ()=>{ try { scheduleDanglingInputNudge(2200); } catch(_){} }, { passive:true });
+  });
   function paintOpenLists(){
     try{
       const pop = $("addpop");
