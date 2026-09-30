@@ -14421,6 +14421,9 @@ let spawnN = 0;
 let planDeoverlap = null;
 let deoverlapFrame = 0;
 import("./vendor/next-action/deoverlap.mjs").then((m) => { planDeoverlap = m.planDeoverlap; }).catch(() => {});
+// Product · 20 — stable first-node seat on an empty canvas (no cascade jitter).
+let firstNodeSeatFn = null;
+import("./vendor/next-action/first-node.mjs").then((m) => { firstNodeSeatFn = m.firstNodeSeat; }).catch(() => {});
 // The add menu and wire-drop quick-add land a card on a cascade that can cover
 // the card under it. Slide the overlap apart. addNode() already snapshotted the
 // pre-add graph, so this move undoes with the add and does not push again.
@@ -14460,11 +14463,18 @@ function separateOnAdd(added){
   };
   requestAnimationFrame(step);
 }
+function spawnFirstSeat(){
+  // Product · 20 — viewport-center seat when the canvas is empty.
+  if((graph.nodes||[]).some(n => n && n.type !== "comment")) return null;
+  if(typeof geoOn!=="function" || !geoOn() || !firstNodeSeatFn) return null;
+  return firstNodeSeatFn({ viewW:editor.clientWidth, viewH:editor.clientHeight, panX, panY, scale, nodeW:210, nodeH:120 });
+}
 function spawnCenter(type){
   const placeAnchor = (typeof geoOn==="function" && geoOn()) ? selected : null;
   const step = Math.ceil(56/scale);   // screen-constant cascade that clears the ~46px header at any zoom (else the covered card's ✕/▶ stay untappable — worst at phone zoom)
-  const cx = (editor.clientWidth/2 - panX)/scale - 105 + (spawnN%5)*step;
-  const cy = (editor.clientHeight/2 - panY)/scale - 60  + (spawnN%5)*step;
+  const seat = spawnFirstSeat();
+  const cx = seat ? seat.x : (editor.clientWidth/2 - panX)/scale - 105 + (spawnN%5)*step;
+  const cy = seat ? seat.y : (editor.clientHeight/2 - panY)/scale - 60  + (spawnN%5)*step;
   spawnN++;
   dismissHint();
   const n = addNode(type, Math.round(cx), Math.round(cy));

@@ -22,6 +22,7 @@ import { applyAntiSlop, isShallowTextLlm, rerankShallowAdds } from "./anti-slop.
 import { pickRingTarget, rankDropTypes } from "./port-suggest.mjs";
 import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
 import { loadNextActionExport } from "./export-load.mjs";
+import { mergeFirstNodeRows, firstNodeSeat, isEmptyCanvas } from "./first-node.mjs";
 
 const BASE = new URL(".", import.meta.url);
 
@@ -53,6 +54,8 @@ function disabledApi() {
     peek() { return null; },
     record() {},
     refresh() {},
+    isEmptyCanvas() { return false; },
+    firstSeat(view) { return firstNodeSeat(view || {}); },
   };
 }
 
@@ -105,6 +108,8 @@ export async function mount(api) {
       let frequencyRows = memory.reweightRows(
         recommendFrequency(tables, history, sketch, ACTION_VOCAB.length)
       );
+      // Product · 20: empty-canvas firstNode + firstTrio follow-ups inside menus.
+      frequencyRows = mergeFirstNodeRows(frequencyRows, tables, history, sketch);
       let blendRows = null;
       if (session && recommendNext) {
         blendRows = memory.reweightRows(recommendNext(
@@ -113,6 +118,7 @@ export async function mount(api) {
           sketch,
           ACTION_VOCAB.length
         ));
+        blendRows = mergeFirstNodeRows(blendRows, tables, history, sketch);
       }
       const shallow = slopPriors && isShallowTextLlm(sketch, slopPriors);
       if (shallow) {
@@ -144,6 +150,8 @@ export async function mount(api) {
     noteChoice(action, shown) {
       if (memory.noteChoice(action, shown)) recompute();
     },
+    isEmptyCanvas(sketch) { return isEmptyCanvas(sketch || {}); },
+    firstSeat(view) { return firstNodeSeat(view || {}); },
     hasPortPriors() { return !!portTables; },
     rankDropTypes(query) {
       if (!portTables) return null;
