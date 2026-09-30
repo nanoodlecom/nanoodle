@@ -21,6 +21,7 @@ import { createSuggestionMemory } from "./suggestion-memory.mjs";
 import { applyAntiSlop, isShallowTextLlm, rerankShallowAdds } from "./anti-slop.mjs";
 import { pickRingTarget, rankDropTypes } from "./port-suggest.mjs";
 import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
+import { pickRecipeNextSeatGhost } from "./recipe-seat-ghost.mjs";
 import { loadNextActionExport } from "./export-load.mjs";
 
 const BASE = new URL(".", import.meta.url);
@@ -154,6 +155,23 @@ export async function mount(api) {
       if (!portTables) return null;
       try { return pickRingTarget(portTables, query); }
       catch (_) { return null; }
+    },
+    hasRecipes() { return !!recipes; },
+    pickRecipeNextSeatGhost(query) {
+      if (!recipes) return null;
+      try {
+        const g = (api.getGraph && api.getGraph()) || {};
+        const graph = {
+          nodes: (query && query.nodes) || g.nodes || [],
+          links: (query && query.links) || g.links || [],
+          selectedId: query && "selectedId" in query ? query.selectedId : (g.selectedId ?? null),
+          selectedIds: query && "selectedIds" in query ? query.selectedIds : (g.selectedIds ?? undefined),
+        };
+        return pickRecipeNextSeatGhost(recipes, graph, {
+          nodeTypes: known,
+          ...(query || {}),
+        });
+      } catch (_) { return null; }
     },
   };
 

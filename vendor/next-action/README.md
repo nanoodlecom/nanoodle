@@ -14,11 +14,14 @@
 | layout | `deoverlap.mjs`, `auto-tidy.mjs`, `collision-nudge.mjs` — slide an overlapping add apart |
 | memory | `suggestion-memory.mjs` — local accept/ignore reweight of suggested adds |
 | weights | `export-load.mjs`, `scripts/export-smallnet-weights.py` — catalog first, fixture fallback |
+| · 31 | `recipe-seat-ghost.mjs` — confident recipe next-seat ghost silhouette (canvas chrome; click to place; ≠ tip panel) |
 
 Learned `.bin` weights stay **gitignored**; tests load inline float fixtures.
 The editor reads scores from `editor-surface.mjs` and shows them inside existing
 menus (add-node, wire-drop quick-add, model picker). There is no floating
-next-action panel and no ghost node. `?product=` does not mount one.
+next-action panel / tip panel. Product · 31 may draw a faint canvas seat ghost
+silhouette (`.na-recipe-seat-ghost`) — that is node chrome, not a tip panel.
+`?product=` does not mount a twin demo.
 `?na=0` or `?product=off` disables hints; a failed load does the same, and
 menus stay unchanged. Catalog stays empty — no `weightsUrl` until a deliberate release.
 
@@ -47,6 +50,7 @@ node scripts/check-next-action-anti-slop.mjs
 node scripts/check-next-action-deoverlap.mjs
 node scripts/check-next-action-suggestion-memory.mjs
 node scripts/check-next-action-weights.mjs
+node scripts/check-next-action-recipe-seat-ghost.mjs
 node scripts/check-smallnet.mjs   # catalog still empty
 ```
 

@@ -625,6 +625,24 @@
   #wires path.hit:hover + path.wire{ stroke:var(--bad); stroke-width:3.5; }   /* hovering a wire previews the snip (click removes it) */
   #wires path.wire.armed{ stroke:var(--bad); stroke-width:3.5; }   /* touch: first tap arms the snip (red), a second tap removes it */
   #wires path.temp{ fill:none; stroke:#ffffff88; stroke-width:2.5; stroke-dasharray:5 4; pointer-events:none }
+  /* Product · 31: faint ghost node silhouette at recipe next-seat (canvas chrome; click to place) */
+  .na-recipe-seat-ghost{
+    position:absolute; min-width:210px; max-width:280px; min-height:120px; box-sizing:border-box;
+    border:1.5px dashed #a5b4fc99; border-radius:.7rem; background:#a5b4fc18;
+    color:#e0e7ff; opacity:.85; pointer-events:auto; cursor:pointer; z-index:9;
+    display:flex; align-items:flex-start; gap:.55rem; padding:.85rem 1rem;
+    user-select:none; box-shadow:none; font:inherit; appearance:none; -webkit-appearance:none;
+    text-align:left; margin:0;
+  }
+  .na-recipe-seat-ghost .em{ font-size:1.25rem; line-height:1; opacity:1; filter:none }
+  .na-recipe-seat-ghost .ttl{ font-weight:650; letter-spacing:.01em; opacity:1; color:#e0e7ff }
+  .na-recipe-seat-ghost .hint{ margin-left:auto; font-size:.7rem; opacity:.5; letter-spacing:.04em; text-transform:uppercase; align-self:flex-start; padding-top:.15rem }
+  .na-recipe-seat-ghost:hover{ opacity:.95; background:#a5b4fc22; border-color:#a5b4fcc0 }
+  @keyframes naRecipeSeatGhostPulse{ 50%{ opacity:.42; border-color:#a5b4fc55 } }
+  .na-recipe-seat-ghost{ animation:naRecipeSeatGhostPulse 1.7s ease-in-out infinite }
+  @media (prefers-reduced-motion: reduce){
+    .na-recipe-seat-ghost{ animation:none !important; display:none !important }
+  }
 
   /* ---------- node ---------- */
   .node{ position:absolute; min-width:210px; max-width:340px; background:var(--panel); border:1px solid var(--line);
@@ -10433,6 +10451,7 @@ function announcePromptFit(n, tr){
 let cancelNodeGest = null;   // set while a node drag/resize is live so a 2nd touch can abort it → pinch (finding: pinch must win over an accidental node grab)
 const nodeGestPtrs = new Set();
 function startNodeDrag(n, e){
+  try{ clearRecipeSeatGhost(); }catch(_){}
   e.preventDefault();
   if(geoAnim){ cancelAnimationFrame(geoAnim); geoAnim = 0; }
   if(n.el) n.el.style.transform = "";
@@ -10574,6 +10593,7 @@ function nearestPort(x, y, ports){
   return best;
 }
 function startWire(port, e){
+  try{ clearRecipeSeatGhost(); }catch(_){}
   if(port.classList && port.classList.contains("disabled")) return;
   e.preventDefault(); e.stopPropagation();
   closeQuickAdd();
@@ -16831,37 +16851,146 @@ RULES for the diff:
   }
 })();
 /* Next-action scores feed existing menus (add node, wire-drop, model picker).
-   Dynamic import so a tree without vendor/next-action stays quiet. No panel, no ghost.
+   Dynamic import so a tree without vendor/next-action stays quiet. No tip panel.
+   Product · 31 may draw a canvas seat ghost silhouette (not a floating overlay).
    ?na=0 / ?product=off disables hints; until the cache is confident, lists are unchanged. */
+/* Product · 31 — recipe next-seat ghost: faint dashed node silhouette at a free
+   seat beside the last/selected node when a confident gallery recipe predicts
+   the next add. Canvas chrome only. Click places the real node. No tip panel /
+   no ?product= twin. */
+let _recipeSeatGhost = null; // { type, x, y, slug, title, reason } | null
+let _recipeSeatGhostTimer = 0;
+let _recipeSeatGhostKey = "";
+let _recipeSeatGhostEl = null;
+function recipeSeatGhostReducedMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(_){ return false; }
+}
+function ensureRecipeSeatGhostEl(){
+  if(_recipeSeatGhostEl && _recipeSeatGhostEl.isConnected) return _recipeSeatGhostEl;
+  const el = document.createElement("button");
+  el.type = "button";
+  el.className = "na-recipe-seat-ghost";
+  el.hidden = true;
+  el.setAttribute("aria-label", "Add suggested next node");
+  el.addEventListener("pointerdown", (e)=>{ e.stopPropagation(); }); // don't pan/select under
+  el.addEventListener("click", (e)=>{
+    e.preventDefault(); e.stopPropagation();
+    const g = _recipeSeatGhost;
+    if(!g || !g.type) return;
+    const type = g.type, x = g.x, y = g.y;
+    clearRecipeSeatGhost();
+    try{
+      const n = addNode(type, x, y);
+      if(n && typeof select === "function") select(n);
+    }catch(_){}
+  });
+  world.appendChild(el);
+  _recipeSeatGhostEl = el;
+  return el;
+}
+function clearRecipeSeatGhost(){
+  if(_recipeSeatGhostTimer){ clearTimeout(_recipeSeatGhostTimer); _recipeSeatGhostTimer = 0; }
+  const had = !!_recipeSeatGhost;
+  _recipeSeatGhost = null;
+  _recipeSeatGhostKey = "";
+  if(_recipeSeatGhostEl){
+    _recipeSeatGhostEl.hidden = true;
+    _recipeSeatGhostEl.removeAttribute("data-type");
+  }
+  // no redraw required — ghost is DOM chrome, not #wires
+  return had;
+}
+function paintRecipeSeatGhost(){
+  const el = ensureRecipeSeatGhostEl();
+  const g = _recipeSeatGhost;
+  if(!g){ el.hidden = true; return; }
+  const ty = (typeof NODE_TYPES !== "undefined" && NODE_TYPES[g.type]) ? NODE_TYPES[g.type] : null;
+  const em = (ty && ty.em) || "◇";
+  const title = (ty && ty.title) || g.type;
+  el.innerHTML = `<span class="em">${em}</span><span class="ttl">${title}</span><span class="hint">next</span>`;
+  el.style.left = g.x + "px";
+  el.style.top = g.y + "px";
+  el.dataset.type = g.type;
+  el.title = `Add ${title}` + (g.reason ? ` — ${g.reason}` : "");
+  el.setAttribute("aria-label", `Add ${title} at suggested seat`);
+  el.hidden = false;
+}
+function applyRecipeSeatGhost(){
+  if(recipeSeatGhostReducedMotion()){ clearRecipeSeatGhost(); return; }
+  if(typeof tempWire!=="undefined" && tempWire) return; // never ghost while a wire drag is live
+  if(typeof multiSel!=="undefined" && multiSel && multiSel.size > 1){ clearRecipeSeatGhost(); return; }
+  if(typeof nodeGestPtrs!=="undefined" && nodeGestPtrs && nodeGestPtrs.size) return; // live node drag
+  const na = window.__nextAction;
+  if(!na || na.disabled || !(na.hasRecipes && na.hasRecipes()) || typeof na.pickRecipeNextSeatGhost!=="function"){
+    clearRecipeSeatGhost();
+    return;
+  }
+  if(!graph || !graph.nodes || !graph.nodes.length){ clearRecipeSeatGhost(); return; }
+  let pick = null;
+  try{
+    pick = na.pickRecipeNextSeatGhost({
+      nodes: graph.nodes.map(n => ({ id:n.id, type:n.type, x:n.x, y:n.y, w:n.w, h:n.h || (n.el && n.el.offsetHeight) || undefined })),
+      links: (graph.links||[]).map(l => ({ from:l.from, to:l.to })),
+      selectedId: (typeof selected!=="undefined" && selected && selected.id) ? selected.id : null,
+      selectedIds: (typeof multiSel!=="undefined" && multiSel && multiSel.size) ? [...multiSel] : undefined,
+    });
+  }catch(_){ pick = null; }
+  if(!pick || !pick.type || !Number.isFinite(pick.x) || !Number.isFinite(pick.y)){ clearRecipeSeatGhost(); return; }
+  const key = pick.type + "@" + pick.x + "," + pick.y + "|" + (pick.slug || "");
+  _recipeSeatGhost = {
+    type: pick.type,
+    x: pick.x,
+    y: pick.y,
+    slug: pick.slug,
+    title: pick.title,
+    reason: pick.reason,
+  };
+  if(key !== _recipeSeatGhostKey || !_recipeSeatGhostEl || _recipeSeatGhostEl.hidden){
+    _recipeSeatGhostKey = key;
+    paintRecipeSeatGhost();
+  }
+}
+function scheduleRecipeSeatGhost(ms){
+  if(_recipeSeatGhostTimer) clearTimeout(_recipeSeatGhostTimer);
+  _recipeSeatGhostTimer = setTimeout(()=>{ _recipeSeatGhostTimer = 0; applyRecipeSeatGhost(); }, ms == null ? 2000 : ms);
+}
+
 (function bootNextActionHints(){
   const _addNode = addNode;
   addNode = function(type, x, y, fields){
     const n = _addNode(type, x, y, fields);
     try { window.__nextAction?.record?.("add:" + type); } catch(_){}
+    try { clearRecipeSeatGhost(); scheduleRecipeSeatGhost(2000); } catch(_){}
     return n;
   };
   const _connect = connect;
   connect = function(fromNode, fromPort, toNode, toPort){
     const ok = _connect(fromNode, fromPort, toNode, toPort);
     if(ok) try { window.__nextAction?.record?.("wire"); } catch(_){}
+    if(ok) try { clearRecipeSeatGhost(); scheduleRecipeSeatGhost(2000); } catch(_){}
     return ok;
   };
   const _select = select;
   select = function(n){
     _select(n);
     try { window.__nextAction?.refresh?.(); } catch(_){}
+    try { clearRecipeSeatGhost(); scheduleRecipeSeatGhost(1800); } catch(_){}
   };
   const _loadExample = loadExample;
   loadExample = function(i){
     const r = _loadExample(i);
     try { window.__nextAction?.refresh?.(); } catch(_){}
+    try { clearRecipeSeatGhost(); scheduleRecipeSeatGhost(2000); } catch(_){}
     return r;
   };
   if (typeof runGroup === "function") {
     const _runGroup = runGroup;
     runGroup = function(seedIds, ctx){
       try { window.__nextAction?.record?.("run"); } catch(_){}
-      return _runGroup.apply(this, arguments);
+      try { clearRecipeSeatGhost(); } catch(_){}
+      const ret = _runGroup.apply(this, arguments);
+      Promise.resolve(ret).finally(()=>{ try { scheduleRecipeSeatGhost(1600); } catch(_){} });
+      return ret;
     };
   }
   function paintOpenLists(){
@@ -16877,14 +17006,19 @@ RULES for the diff:
   import("./vendor/next-action/editor-surface.mjs").then(async (mod) => {
     await mod.mount({
       getGraph: () => ({
-        nodes: (graph.nodes||[]).map(n => ({ id:n.id, type:n.type, x:n.x, y:n.y })),
+        nodes: (graph.nodes||[]).map(n => ({ id:n.id, type:n.type, x:n.x, y:n.y, w:n.w, h:n.h || (n.el && n.el.offsetHeight) || undefined })),
         links: (graph.links||[]).map(l => ({ from:l.from, to:l.to })),
         selectedId: selected?.id || null,
+        selectedIds: (typeof multiSel!=="undefined" && multiSel && multiSel.size) ? [...multiSel] : undefined,
       }),
       nodeTypes: Object.keys(NODE_TYPES),
       onHints: paintOpenLists,
     });
   }).catch((e) => { try { console.warn("[next-action] hints not mounted", e); } catch(_){} });
+  // Idle beat: after pointer/keyboard settles, show recipe next-seat ghost when confident.
+  ["pointerup","keyup"].forEach(ev=>{
+    window.addEventListener(ev, ()=>{ try { scheduleRecipeSeatGhost(2200); } catch(_){} }, { passive:true });
+  });
 })();
 
 </script>
