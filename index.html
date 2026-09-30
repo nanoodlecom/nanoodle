@@ -625,6 +625,13 @@
   #wires path.hit:hover + path.wire{ stroke:var(--bad); stroke-width:3.5; }   /* hovering a wire previews the snip (click removes it) */
   #wires path.wire.armed{ stroke:var(--bad); stroke-width:3.5; }   /* touch: first tap arms the snip (red), a second tap removes it */
   #wires path.temp{ fill:none; stroke:#ffffff88; stroke-width:2.5; stroke-dasharray:5 4; pointer-events:none }
+  /* Product · 30: faint ghost wire between best dangling out→in after idle / settled run */
+  #wires path.na-best-pair-ghost{ fill:none; stroke:#a5b4fc88; stroke-width:2.25; stroke-dasharray:7 6; pointer-events:none; opacity:.85 }
+  @keyframes naBestPairGhostPulse{ 50%{ opacity:.45; stroke:#a5b4fc55 } }
+  #wires path.na-best-pair-ghost{ animation:naBestPairGhostPulse 1.6s ease-in-out infinite }
+  @media (prefers-reduced-motion: reduce){
+    #wires path.na-best-pair-ghost{ animation:none !important; display:none }
+  }
 
   /* ---------- node ---------- */
   .node{ position:absolute; min-width:210px; max-width:340px; background:var(--panel); border:1px solid var(--line);
@@ -10259,6 +10266,7 @@ function colorForType(tp){
 function getCss(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 
 let tempWire = null; // {x1,y1,type}
+let _bestPairGhost = null; // Product · 30: { from:{node,port}, to:{node,port}, type } | null — drawn in redraw(), never a real link
 let draggingLinkId = null; // a link being grab-moved: hidden while dragging but kept in graph.links until the drag commits (so an aborted gesture never silently drops it)
 function redraw(){
   let html = "";
@@ -10276,6 +10284,16 @@ function redraw(){
   if(tempWire){
     const d = wirePath(tempWire.x1, tempWire.y1, tempWire.x2, tempWire.y2);
     html += `<path class="temp" d="${d}"></path>`;
+  }
+  // Product · 30 — faint ghost suggestion wire (not interactive; cleared on drag/wire/activity)
+  if(_bestPairGhost && !tempWire){
+    const ga = document.querySelector(`.port[data-node="${_bestPairGhost.from.node}"][data-port="${_bestPairGhost.from.port}"][data-dir="out"]`);
+    const gb = document.querySelector(`.port[data-node="${_bestPairGhost.to.node}"][data-port="${_bestPairGhost.to.port}"][data-dir="in"]`);
+    if(ga && gb && !ga.classList.contains("disabled") && !gb.classList.contains("disabled")){
+      const gp1 = portCenter(ga), gp2 = portCenter(gb);
+      const gd = wirePath(gp1.x, gp1.y, gp2.x, gp2.y);
+      html += `<path class="na-best-pair-ghost" d="${gd}"></path>`;
+    }
   }
   svg.innerHTML = html;
   syncFitBtn();   // node drags/adds/removals and resizes reroute wires through here — re-judge whether ⊡ earns its slot
@@ -10574,6 +10592,8 @@ function nearestPort(x, y, ports){
   return best;
 }
 function startWire(port, e){
+  try{ clearBestPairGhost(); }catch(_){}
+
   if(port.classList && port.classList.contains("disabled")) return;
   e.preventDefault(); e.stopPropagation();
   closeQuickAdd();
@@ -16830,6 +16850,60 @@ RULES for the diff:
     }finally{ setBusy(false); dbAbort = null; }
   }
 })();
+/* Product · 30 — best-pair ghost wire: faint dashed SVG wire between one
+   high-prior dangling out and matching dangling in after idle / settled run.
+   Canvas #wires chrome only. No tip panel / no ?product= twin. */
+let _bestPairGhostTimer = 0;
+let _bestPairGhostKey = "";
+function bestPairGhostReducedMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(_){ return false; }
+}
+function clearBestPairGhost(){
+  if(_bestPairGhostTimer){ clearTimeout(_bestPairGhostTimer); _bestPairGhostTimer = 0; }
+  const had = !!_bestPairGhost;
+  _bestPairGhost = null;
+  _bestPairGhostKey = "";
+  if(had && typeof redraw === "function") try{ redraw(); }catch(_){}
+}
+function applyBestPairGhost(){
+  if(bestPairGhostReducedMotion()){ clearBestPairGhost(); return; }
+  if(typeof tempWire!=="undefined" && tempWire) return;   // never ghost while a wire drag is live
+  if(typeof multiSel!=="undefined" && multiSel && multiSel.size > 1){ clearBestPairGhost(); return; }
+  const na = window.__nextAction;
+  if(!na || na.disabled || !(na.hasPortPriors && na.hasPortPriors()) || typeof na.pickBestPairGhost!=="function"){
+    clearBestPairGhost();
+    return;
+  }
+  if(!graph || !graph.nodes || graph.nodes.length < 2){ clearBestPairGhost(); return; }
+  let pick = null;
+  try{
+    pick = na.pickBestPairGhost({
+      nodes: graph.nodes.map(n => ({ id:n.id, type:n.type })),
+      links: (graph.links||[]).map(l => ({ from:l.from, to:l.to })),
+      selectedId: (typeof selected!=="undefined" && selected && selected.id) ? selected.id : null,
+      selectedIds: (typeof multiSel!=="undefined" && multiSel && multiSel.size) ? [...multiSel] : undefined,
+    });
+  }catch(_){ pick = null; }
+  if(!pick || !pick.from || !pick.to){ clearBestPairGhost(); return; }
+  const key = pick.from.nodeId + "|" + pick.from.port + "->" + pick.to.nodeId + "|" + pick.to.port;
+  const a = document.querySelector(`.port[data-node="${pick.from.nodeId}"][data-port="${pick.from.port}"][data-dir="out"]`);
+  const b = document.querySelector(`.port[data-node="${pick.to.nodeId}"][data-port="${pick.to.port}"][data-dir="in"]`);
+  if(!a || !b || a.classList.contains("disabled") || b.classList.contains("disabled")){ clearBestPairGhost(); return; }
+  _bestPairGhost = {
+    from: { node: pick.from.nodeId, port: pick.from.port },
+    to: { node: pick.to.nodeId, port: pick.to.port },
+    type: a.dataset.ptype || pick.from.type,
+  };
+  if(key !== _bestPairGhostKey || !document.querySelector("#wires path.na-best-pair-ghost")){
+    _bestPairGhostKey = key;
+    try{ redraw(); }catch(_){}
+  }
+}
+function scheduleBestPairGhost(ms){
+  if(_bestPairGhostTimer) clearTimeout(_bestPairGhostTimer);
+  _bestPairGhostTimer = setTimeout(()=>{ _bestPairGhostTimer = 0; applyBestPairGhost(); }, ms == null ? 2000 : ms);
+}
+
 /* Next-action scores feed existing menus (add node, wire-drop, model picker).
    Dynamic import so a tree without vendor/next-action stays quiet. No panel, no ghost.
    ?na=0 / ?product=off disables hints; until the cache is confident, lists are unchanged. */
@@ -16838,32 +16912,43 @@ RULES for the diff:
   addNode = function(type, x, y, fields){
     const n = _addNode(type, x, y, fields);
     try { window.__nextAction?.record?.("add:" + type); } catch(_){}
+    try { clearBestPairGhost(); scheduleBestPairGhost(2000); } catch(_){}
     return n;
   };
   const _connect = connect;
   connect = function(fromNode, fromPort, toNode, toPort){
     const ok = _connect(fromNode, fromPort, toNode, toPort);
     if(ok) try { window.__nextAction?.record?.("wire"); } catch(_){}
+    if(ok) try { clearBestPairGhost(); scheduleBestPairGhost(2000); } catch(_){}
     return ok;
   };
   const _select = select;
   select = function(n){
     _select(n);
     try { window.__nextAction?.refresh?.(); } catch(_){}
+    try { clearBestPairGhost(); scheduleBestPairGhost(1800); } catch(_){}
   };
   const _loadExample = loadExample;
   loadExample = function(i){
     const r = _loadExample(i);
     try { window.__nextAction?.refresh?.(); } catch(_){}
+    try { clearBestPairGhost(); scheduleBestPairGhost(2000); } catch(_){}
     return r;
   };
   if (typeof runGroup === "function") {
     const _runGroup = runGroup;
     runGroup = function(seedIds, ctx){
       try { window.__nextAction?.record?.("run"); } catch(_){}
-      return _runGroup.apply(this, arguments);
+      try { clearBestPairGhost(); } catch(_){}
+      const ret = _runGroup.apply(this, arguments);
+      Promise.resolve(ret).finally(()=>{ try { scheduleBestPairGhost(1600); } catch(_){} });
+      return ret;
     };
   }
+  // Idle beat: after pointer/keyboard settles with ≥2 nodes, ghost the best dangling pair.
+  ["pointerup","keyup"].forEach(ev=>{
+    window.addEventListener(ev, ()=>{ try { scheduleBestPairGhost(2200); } catch(_){} }, { passive:true });
+  });
   function paintOpenLists(){
     try{
       const pop = $("addpop");
