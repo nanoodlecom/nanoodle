@@ -215,7 +215,7 @@ JSON by hand anytime; `scripts/check-updates.mjs` keeps it valid.
 
 ## Node types in the editor
 
-The editor registers 27 node types. Titles and one-line descriptions below are taken verbatim from the node registry in index.html (the same text the in-editor quick-add menu shows); the `key` is the type identifier used in noodle-graph.json and in the executor libraries' supported-node tables.
+The editor registers 29 node types. Titles and one-line descriptions below are taken verbatim from the node registry in index.html (the same text the in-editor quick-add menu shows); the `key` is the type identifier used in noodle-graph.json and in the executor libraries' supported-node tables.
 
 ### Inputs
 
@@ -223,6 +223,7 @@ The editor registers 27 node types. Titles and one-line descriptions below are t
 - `upload` — 📷 Image input: Upload or capture an image
 - `aupload` — 🎤 Audio input: Upload an audio clip
 - `vupload` — 📹 Video input: Upload a video clip
+- `mupload` — 📦 3D input: Upload a .glb
 - `choice` — 🔘 Choice: A dropdown the app user picks from — the selected line is the value on the wire
 
 ### Text
@@ -248,6 +249,10 @@ The editor registers 27 node types. Titles and one-line descriptions below are t
 - `combine` — 🎬 Combine videos: Join clips end-to-end into one video
 - `soundtrack` — 🎚 Soundtrack: Video + audio → video (add music / narration)
 - `lipsync` — 🎭 Avatar / lipsync: Image + audio → talking video
+
+### 3D
+
+- `model3d` — 🧊 3D model: Image and/or text → a GLB you can orbit
 
 ### Audio
 

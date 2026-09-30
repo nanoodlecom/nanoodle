@@ -142,8 +142,8 @@ function nodeCatalog() {
   if (start < 0) throw new Error("NODE_TYPES not found in index.html");
   const end = html.indexOf("\n};", start);
   const block = html.slice(start, end);
-  const keys = [...block.matchAll(/^ {2}([a-z]+): \{/gm)].map((m) => m[1]);
-  const re = /^ {2}([a-z]+): \{\s*\n\s*em:"([^"]*)", title:"([^"]*)", desc:"([^"]*)", group:"([^"]*)"/gm;
+  const keys = [...block.matchAll(/^ {2}([a-z][a-z0-9]*): \{/gm)].map((m) => m[1]);
+  const re = /^ {2}([a-z][a-z0-9]*): \{\s*\n\s*em:"([^"]*)", title:"([^"]*)", desc:"([^"]*)", group:"([^"]*)"/gm;
   const nodes = [...block.matchAll(re)].map(([, key, em, title, desc, group]) => ({ key, em, title, desc, group }));
   if (nodes.length !== keys.length) {
     const missed = keys.filter((k) => !nodes.some((n) => n.key === k));
