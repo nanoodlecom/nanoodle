@@ -717,10 +717,14 @@
   /* prompt-length budget: how much room this model leaves, or what an LLM above is told to write within */
   .body .capnote{ font-size:.7rem; color:var(--dim); text-align:right; margin-top:.2rem; line-height:1.3 }
   .body .capnote.over{ color:var(--warn) }
-  /* magnetism: every valid destination glows, the closest one grabs the wire */
+  /* magnetism: every valid destination glows, the closest one grabs the wire.
+     Product · 21: gallery priors add graduated rings — likely (cyan) / fit (violet) —
+     and soft-dim weaker compatible sockets so the eye lands on a prior-backed fit. */
   .port.compatible{ transform:scale(1.25); box-shadow:0 0 0 4px #ffffff26; animation:portpulse 1.1s ease-in-out infinite }
-  .port.likely{ transform:scale(1.45); box-shadow:0 0 0 5px #67e8f9cc; animation:none }
-  .port.snap{ transform:scale(1.7); box-shadow:0 0 0 5px #ffffff66, 0 0 12px #fff6; animation:none }
+  .port.compatible.dim{ transform:scale(1.08); box-shadow:0 0 0 3px #ffffff12; opacity:.5; animation:none }
+  .port.fit{ transform:scale(1.35); box-shadow:0 0 0 4px #a78bfaaa, 0 0 10px #a78bfa55; animation:none }
+  .port.likely{ transform:scale(1.45); box-shadow:0 0 0 5px #67e8f9cc, 0 0 14px #67e8f966; animation:none }
+  .port.snap{ transform:scale(1.7); box-shadow:0 0 0 5px #ffffff66, 0 0 12px #fff6; animation:none; opacity:1 }
   @keyframes portpulse{ 50%{ box-shadow:0 0 0 6px #ffffff14 } }
 
   .body{ padding:.1rem .6rem .6rem; display:flex; flex-direction:column; gap:.5rem }
@@ -1492,6 +1496,7 @@ const I18N = {
     "Recent":"Recientes",
     "Suggested":"Sugeridos",
     "suggested":"sugerido",
+    "often wired":"a menudo cableado",
     "common first node":"nodo inicial habitual",
     "often added next":"se suele añadir después",
     "often wired next":"se suele conectar después",
@@ -2186,6 +2191,7 @@ const I18N = {
     "Recent":"Récent",
     "Suggested":"Suggérés",
     "suggested":"suggéré",
+    "often wired":"souvent câblé",
     "common first node":"premier nœud courant",
     "often added next":"souvent ajouté ensuite",
     "often wired next":"souvent relié ensuite",
@@ -2870,6 +2876,7 @@ const I18N = {
     "Recent":"Zuletzt verwendet",
     "Suggested":"Vorgeschlagen",
     "suggested":"vorgeschlagen",
+    "often wired":"oft verdrahtet",
     "common first node":"üblicher erster Node",
     "often added next":"oft als Nächstes hinzugefügt",
     "often wired next":"oft als Nächstes verbunden",
@@ -3557,6 +3564,7 @@ const I18N = {
     "Recent":"Recentes",
     "Suggested":"Sugeridos",
     "suggested":"sugerido",
+    "often wired":"a menudo cableado",
     "common first node":"nó inicial comum",
     "often added next":"costuma ser adicionado em seguida",
     "often wired next":"costuma ser ligado em seguida",
@@ -4242,6 +4250,7 @@ const I18N = {
     "Recent":"最近",
     "Suggested":"候補",
     "suggested":"候補",
+    "often wired":"よく接続",
     "common first node":"よく最初に置くノード",
     "often added next":"次によく追加",
     "often wired next":"次によく接続",
@@ -10498,40 +10507,61 @@ function startNodeResize(n, e){
   window.addEventListener("pointermove",move); window.addEventListener("pointerup",up); window.addEventListener("pointercancel",up);
 }
 
-// One compatible port to emphasize while dragging, and only when the predictor
-// is confident the next step is a wire. Dropping still uses connect() — this
-// never fabricates a link. Prefers the selected node, then the newest other
-// node, and skips a target that would cycle.
-function markLikelyPort(targets, anchor){
+// Product · 21 — graduated port rings while dragging a wire.
+// Gallery port priors (#621) rank live compatible targets into likely / fit.
+// A flat or missing prior stays quiet (compatible-only glow). Dropping still
+// uses connect() — this never fabricates a link. Cycle-prone targets are skipped.
+function portHighlightQuery(targets, anchor){
+  return {
+    dir: anchor.dataset.dir,
+    srcType: (byId(anchor.dataset.node)||{}).type,
+    srcPort: anchor.dataset.port,
+    srcNodeId: anchor.dataset.node,
+    targets: targets.filter(t=> !t.classList.contains("disabled")).map(t=>({
+      nodeId: t.dataset.node,
+      type: (byId(t.dataset.node)||{}).type,
+      port: t.dataset.port,
+    })),
+  };
+}
+function portWouldCycle(anchor, el){
+  const adir = anchor.dataset.dir, anode = anchor.dataset.node, aport = anchor.dataset.port;
+  const outN = adir==="out" ? anode : el.dataset.node;
+  const inN = adir==="out" ? el.dataset.node : anode;
+  const inP = adir==="out" ? el.dataset.port : aport;
+  return wouldCycle(outN, inN, inP);
+}
+function applyPortHighlight(targets, anchor){
   const na = window.__nextAction;
-  // Gallery port priors pick the ring while a wire drag is active. A flat
-  // prior stays quiet. If the priors never loaded, the older wire-hint
-  // heuristic below is unchanged.
-  if(na && na.hasPortPriors && na.hasPortPriors() && targets.length && anchor){
-    let picked = null;
-    try{
-      picked = na.pickRingTarget({
-        dir: anchor.dataset.dir,
-        srcType: (byId(anchor.dataset.node)||{}).type,
-        srcPort: anchor.dataset.port,
-        srcNodeId: anchor.dataset.node,
-        targets: targets.filter(t=> !t.classList.contains("disabled")).map(t=>({
-          nodeId: t.dataset.node,
-          type: (byId(t.dataset.node)||{}).type,
-          port: t.dataset.port,
-        })),
-      });
-    }catch(_){ picked = null; }
-    if(!picked) return null;
-    const el = targets.find(t=> t.dataset.node===picked.nodeId && t.dataset.port===picked.port && !t.classList.contains("disabled"));
-    if(!el) return null;
-    const adir0 = anchor.dataset.dir, anode0 = anchor.dataset.node, aport0 = anchor.dataset.port;
-    const outN0 = adir0==="out" ? anode0 : el.dataset.node;
-    const inN0 = adir0==="out" ? el.dataset.node : anode0;
-    const inP0 = adir0==="out" ? el.dataset.port : aport0;
-    if(wouldCycle(outN0, inN0, inP0)) return null;
-    return el;
+  if(na && na.hasPortPriors && na.hasPortPriors() && typeof na.rankRingTargets==="function" && targets.length && anchor){
+    let plan = null;
+    try{ plan = na.rankRingTargets(portHighlightQuery(targets, anchor)); }
+    catch(_){ plan = null; }
+    if(plan && plan.items && plan.items.length){
+      const applied = [];
+      for(const item of plan.items){
+        const el = targets.find(t=> t.dataset.node===item.nodeId && t.dataset.port===item.port && !t.classList.contains("disabled"));
+        if(!el || portWouldCycle(anchor, el)) continue;
+        const tier = item.tier === "fit" ? "fit" : "likely";
+        el.classList.add(tier);
+        if(!el.getAttribute("title")){
+          el.dataset.sugTitle = "1";
+          el.title = t(tier === "fit" ? "often wired" : "suggested");
+        }
+        applied.push({ el, tier });
+      }
+      if(applied.length){
+        if(plan.dimOthers){
+          const ranked = new Set(applied.map(a=> a.el));
+          for(const p of targets){
+            if(!ranked.has(p)) p.classList.add("dim");
+          }
+        }
+        return applied[0].el;   // primary likely/fit for callers that want one
+      }
+    }
   }
+  // Fallback: older wire-hint heuristic — one likely port, no dim.
   const h = nextActionHints();
   if(!h || !h.wire || !targets.length || !anchor) return null;
   const adir = anchor.dataset.dir, anode = anchor.dataset.node, aport = anchor.dataset.port;
@@ -10549,15 +10579,16 @@ function markLikelyPort(targets, anchor){
     // which is a valid text socket but not a working next step for a content wire.
     ports.sort((a,b)=> portLikelyRank(a.dataset.port) - portLikelyRank(b.dataset.port));
     for(const p of ports){
-      const outN = adir==="out" ? anode : p.dataset.node;
-      const inN = adir==="out" ? p.dataset.node : anode;
-      const inP = adir==="out" ? p.dataset.port : aport;
-      if(wouldCycle(outN, inN, inP)) continue;
+      if(portWouldCycle(anchor, p)) continue;
+      p.classList.add("likely");
+      if(!p.getAttribute("title")){ p.dataset.sugTitle = "1"; p.title = t("suggested"); }
       return p;
     }
   }
   return null;
 }
+// Back-compat alias used nowhere else after · 21, kept for clarity in diffs.
+function markLikelyPort(targets, anchor){ return applyPortHighlight(targets, anchor); }
 function portLikelyRank(name){
   if(name==="prompt") return 0;
   if(name==="model") return 2;
@@ -10597,11 +10628,7 @@ function startWire(port, e){
   const fixed = portCenter(anchor);
   const targets = compatiblePorts(adir, ptype, anode);
   targets.forEach(p=> p.classList.add("compatible"));   // glow every valid destination, by type
-  const likely = markLikelyPort(targets, anchor);       // one real target, only when "wire" is a confident hint
-  if(likely){
-    likely.classList.add("likely");
-    if(!likely.getAttribute("title")){ likely.dataset.sugTitle = "1"; likely.title = t("suggested"); }
-  }
+  applyPortHighlight(targets, anchor);                  // · 21: likely / fit rings + soft-dim from gallery priors
   tempWire = { x1:fixed.x, y1:fixed.y, x2:fixed.x, y2:fixed.y };
   let snap = null;
   const move = (ev)=>{
@@ -10619,7 +10646,7 @@ function startWire(port, e){
     window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up);
     tempWire = null; draggingLinkId = null;           // un-hide the picked link on every exit path
     targets.forEach(p=>{
-      p.classList.remove("compatible","snap","likely");
+      p.classList.remove("compatible","snap","likely","fit","dim");
       if(p.dataset.sugTitle){ p.removeAttribute("title"); delete p.dataset.sugTitle; }
     });
     let other = snap?.p;                              // prefer the magnetically-snapped port

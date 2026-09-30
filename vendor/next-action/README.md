@@ -9,6 +9,7 @@
 | · 6 | `cold-start.mjs`, `firstNode` / `firstTrio` in `corpus/frequency-tables.json` (library + checks; no chips on the canvas) |
 | · 1 | `scripts/train-next-action.py`, `fixtures/smoke-weights.json`, `scripts/check-next-action.mjs`, `hints.mjs` |
 | port | `port-suggest.mjs`, `corpus/port-suggest.json` — wire-drop rank + drag ring only |
+| · 21 | `port-highlight.mjs` — graduated likely/fit/dim rings on target ports while dragging |
 | recipe | `recipe.mjs`, `corpus/recipes.json` — confident gallery completions re-rank Suggested rows |
 | slop | `anti-slop.mjs`, `corpus/anti-slop.json` — soft re-rank away from a shallow Text→LLM loop |
 | layout | `deoverlap.mjs`, `auto-tidy.mjs`, `collision-nudge.mjs` — slide an overlapping add apart |
@@ -42,6 +43,7 @@ node scripts/check-next-action-ring.mjs
 node scripts/check-next-action-cold-start.mjs
 node scripts/check-next-action.mjs
 node scripts/check-next-action-port-suggest.mjs
+node scripts/check-next-action-port-highlight.mjs
 node scripts/check-next-action-recipe.mjs
 node scripts/check-next-action-anti-slop.mjs
 node scripts/check-next-action-deoverlap.mjs
