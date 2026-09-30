@@ -20,6 +20,7 @@ import { chooseHints } from "./hints.mjs";
 import { createSuggestionMemory } from "./suggestion-memory.mjs";
 import { applyAntiSlop, isShallowTextLlm, rerankShallowAdds } from "./anti-slop.mjs";
 import { pickRingTarget, rankDropTypes } from "./port-suggest.mjs";
+import { rankWireDragConsumers as rankWireDragConsumersPure } from "./wire-drag-consumer.mjs";
 import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
 import { loadNextActionExport } from "./export-load.mjs";
 
@@ -154,6 +155,16 @@ export async function mount(api) {
       if (!portTables) return null;
       try { return pickRingTarget(portTables, query); }
       catch (_) { return null; }
+    },
+    // Product · 32: out→consumer quick-add polish (memory + "fits this output").
+    rankWireDragConsumers(query) {
+      if (!portTables) return null;
+      try {
+        return rankWireDragConsumersPure(portTables, {
+          ...(query || {}),
+          memory,
+        });
+      } catch (_) { return null; }
     },
   };
 

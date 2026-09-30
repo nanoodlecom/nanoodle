@@ -10756,18 +10756,24 @@ function socketsForDrop(k, dir, ptype){
 }
 function wireDropHintMap(originPort, cands){
   const na = window.__nextAction;
-  if(!na || !na.hasPortPriors || !na.hasPortPriors() || typeof na.rankDropTypes!=="function") return null;
+  if(!na || na.disabled || !na.hasPortPriors || !na.hasPortPriors()) return null;
   const src = byId(originPort.dataset.node);
   const dir = originPort.dataset.dir, ptype = originPort.dataset.ptype;
+  const query = {
+    dir,
+    srcType: src && src.type,
+    srcPort: originPort.dataset.port,
+    candidates: cands.map(([k])=>({ type:k, ports: socketsForDrop(k, dir, ptype).map(name=>({ name })) })),
+  };
   let ranked = null;
-  try{
-    ranked = na.rankDropTypes({
-      dir,
-      srcType: src && src.type,
-      srcPort: originPort.dataset.port,
-      candidates: cands.map(([k])=>({ type:k, ports: socketsForDrop(k, dir, ptype).map(name=>({ name })) })),
-    });
-  }catch(_){ ranked = null; }
+  // Product · 32: out→consumer polish first (gallery + memory; "fits this output").
+  if(dir==="out" && typeof na.rankWireDragConsumers==="function"){
+    try{ ranked = na.rankWireDragConsumers(query); }catch(_){ ranked = null; }
+  }
+  // Fallback: #621 rankDropTypes (in→producer path, or polish quiet).
+  if((!ranked || !ranked.order || !ranked.order.length) && typeof na.rankDropTypes==="function"){
+    try{ ranked = na.rankDropTypes(query); }catch(_){ ranked = null; }
+  }
   if(!ranked || !ranked.order || !ranked.order.length) return null;
   return ranked;
 }
