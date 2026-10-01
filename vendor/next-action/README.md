@@ -13,11 +13,12 @@
 | slop | `anti-slop.mjs`, `corpus/anti-slop.json` — soft re-rank away from a shallow Text→LLM loop |
 | layout | `deoverlap.mjs`, `auto-tidy.mjs`, `collision-nudge.mjs` — slide an overlapping add apart |
 | memory | `suggestion-memory.mjs` — local accept/ignore reweight of suggested adds |
+| · 35 | `wire-drag-producer.mjs` — in→producer quick-add polish (gallery + memory; Suggested only) |
 | weights | `export-load.mjs`, `scripts/export-smallnet-weights.py` — catalog first, fixture fallback |
 
 Learned `.bin` weights stay **gitignored**; tests load inline float fixtures.
 The editor reads scores from `editor-surface.mjs` and shows them inside existing
-menus (add-node, wire-drop quick-add, model picker). There is no floating
+menus (add-node, wire-drop quick-add, model picker). Product · 35 polishes in-drag quick-add Suggested rows via `wire-drag-producer.mjs`. There is no floating
 next-action panel and no ghost node. `?product=` does not mount one.
 `?na=0` or `?product=off` disables hints; a failed load does the same, and
 menus stay unchanged. Catalog stays empty — no `weightsUrl` until a deliberate release.
@@ -42,6 +43,7 @@ node scripts/check-next-action-ring.mjs
 node scripts/check-next-action-cold-start.mjs
 node scripts/check-next-action.mjs
 node scripts/check-next-action-port-suggest.mjs
+node scripts/check-next-action-wire-drag-producer.mjs
 node scripts/check-next-action-recipe.mjs
 node scripts/check-next-action-anti-slop.mjs
 node scripts/check-next-action-deoverlap.mjs
