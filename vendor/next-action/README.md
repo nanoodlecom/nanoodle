@@ -16,6 +16,7 @@
 | bridge | `dual-select-bridge.mjs` — Product · 37 selectable wire preview; hover/focus reveals connect, click/Enter/Space accepts |
 | · 39 | `drop-on-node-auto-wire.mjs` — Product · 39 drop-on-node auto-wire |
 | memory | `suggestion-memory.mjs` — local accept/ignore reweight of suggested adds |
+| · 20 | `first-node.mjs` — empty-canvas firstNode rank + firstTrio follow-ups in add menus; stable first seat |
 | · 48 | `quickadd-after-abort.mjs` — after abort opens `#quickadd`, origin-fit Suggested re-rank |
 | · 40 | `dblclick-dangling-add-wire.mjs`, `scripts/check-next-action-dblclick-dangling-add-wire.mjs` — double-click dangling port → top gallery add+wire at free seat |
 | weights | `export-load.mjs`, `scripts/export-smallnet-weights.py` — catalog first, fixture fallback |
@@ -57,6 +58,7 @@ node scripts/check-next-action-deoverlap.mjs
 node scripts/check-next-action-suggestion-memory.mjs
 node scripts/check-next-action-quickadd-after-abort.mjs
 node scripts/check-next-action-weights.mjs
+node scripts/check-next-action-first-node.mjs
 node scripts/check-next-action-run-fail-port.mjs
 node scripts/check-smallnet.mjs   # catalog still empty
 ```
