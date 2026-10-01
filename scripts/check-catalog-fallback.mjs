@@ -133,11 +133,11 @@ function buildSandbox(src, opts = {}) {
   const NANOGPT = "https://nano-gpt.test";
   // Only the chat norm is exercised; the other three exist so `const CATALOG`
   // (which references them) constructs. They are never invoked in these tests.
-  const normImg = (x) => x, normVideo = (x) => x, normAudio = (x) => x;
+  const normImg = (x) => x, normVideo = (x) => x, normAudio = (x) => x, norm3d = (x) => x;
   const NODE_TYPES = opts.nodeTypes || {};
 
   const names = ["localStorage", "fetch", "EST", "getKey", "NANOGPT",
-    "normChat", "normImg", "normVideo", "normAudio", "NODE_TYPES"];
+    "normChat", "normImg", "normVideo", "normAudio", "norm3d", "NODE_TYPES"];
   const program =
     `${normChat}\n` +
     `${slab}\n` +
@@ -148,7 +148,7 @@ function buildSandbox(src, opts = {}) {
 
   const fn = new Function(...names, program);
   const api = fn(localStorage, fetch, EST, getKey, NANOGPT,
-    normChat, normImg, normVideo, normAudio, NODE_TYPES);
+    normChat, normImg, normVideo, normAudio, norm3d, NODE_TYPES);
   return { api, store, get fetchCount() { return fetchCount; }, fetchState, localStorage };
 }
 

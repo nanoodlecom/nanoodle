@@ -6186,12 +6186,53 @@ window.NoodleApp = (function () {
     if(p.fixed_duration_seconds!=null) return _num(p.fixed_duration_seconds) || 5;
     return 5;
   }
+  // Public catalog pricing for these ids is only {minimum, note} ("duration and resolution
+  // determine pricing… see the generation quote"). NanoGPT's pre-send quote
+  // (GET /api/estimate-video-cost — the number on the media Generate button) is
+  // per_second_by_resolution × duration. Measured 2026-09-30. The published minimum is
+  // the cheapest tier × the shortest duration, so a flat clip price leaves a 15s H3
+  // Singularity estimate stuck on the 3s floor (~$0.15 instead of ~$0.75 at 480p).
+  // Singularity and reference-to-video are quoted upstream under a wavespeed-ai/ id;
+  // these rates are that quote, keyed by the catalog id nanoodle stores. A real
+  // duration-scaled table on the model wins, so the overlay drops out once the catalog
+  // publishes one. Twin: play applyVideoQuotePricing.
+  const VIDEO_QUOTE_PER_SECOND = {
+    "minimax-h3-singularity/image-to-video": { default_resolution:"480p", default_duration:5, per_second_by_resolution:{ "480p":0.05, "540p":0.075, "768p":0.1, "1080p":0.2 } },
+    "minimax-h3-singularity/image-to-video-lora": { default_resolution:"480p", default_duration:5, per_second_by_resolution:{ "480p":0.0625, "540p":0.09375, "768p":0.125, "1080p":0.25 } },
+    "minimax-h3/reference-to-video": { default_resolution:"480p", default_duration:5, per_second_by_resolution:{ "480p":0.05, "540p":0.075, "768p":0.125, "1080p":0.25 } },
+    "minimax/h3-max/multi-angle/image-to-video": { default_resolution:"480p", default_duration:5, per_second_by_resolution:{ "480p":0.05, "768p":0.08, "1080p":0.16 } },
+    "minimax/h3-max/extend-video": { default_resolution:"768p", default_duration:5, per_second_by_resolution:{ "480p":0.05, "768p":0.08, "1080p":0.16, "2k":0.32 } },
+  };
+  function videoPricingHasDurationRate(p){
+    if(!p) return false;
+    return p.per_second_by_resolution!=null || p.per_second!=null || p.output_per_second!=null
+      || p.per_second_by_mode!=null || p.per_second_by_mode_and_resolution!=null
+      || p.base_price_per_second!=null || p.full_per_second!=null || p.draft_per_second!=null
+      || p.speed_per_second_by_resolution!=null || p.quality_per_second_by_resolution!=null
+      || p.full_per_second_by_resolution!=null || p.draft_per_second_by_resolution!=null
+      || p.full_per_second_by_mode_and_resolution!=null || p.draft_per_second_by_mode!=null
+      || p.per_duration!=null || (p.base_price!=null && p.per_extra_second!=null)
+      || p.base_prices_by_resolution!=null;
+  }
+  function applyVideoQuotePricing(id, pricing){
+    const q = VIDEO_QUOTE_PER_SECOND[id];
+    const p = pricing || {};
+    if(!q || videoPricingHasDurationRate(p)) return p;
+    return Object.assign({}, p, q);
+  }
   // Twin of the editor: a video run bills a HIGHER tier when reference images are wired or the model's audio
   // switch is on. refWired is passed by the caller (needs the graph wiring); the audio switch / reference mode
   // ride in fields.modelOpts. Pick the with-reference / with-audio table where the catalog carries one, else a
   // flat pricing.audio_multiplier — so the run-cost chip stops quoting base for a run that reserves ~2×.
   // videoWired (source video on the node) selects extend-mode rates on nested mode×resolution tables
   // (FLUX.3 full_per_second_by_mode_and_resolution / draft_per_second_by_mode).
+  // twin of the editor's videoPriceFields: a catalogued model without a duration/seconds param bills its
+  // own fixed/default length, so a stale node duration must not move the estimate.
+  function videoPriceFields(params, fields){
+    const pp = params || {};
+    if(!fields || fields.duration==null || fields.duration==="" || pp.duration || pp.seconds) return fields;
+    return Object.assign({}, fields, { duration: "" });
+  }
   function videoUnitUsd(pricing, fields, refWired, videoWired){
     const p = pricing || {};
     const f = fields || {};
@@ -6237,6 +6278,21 @@ window.NoodleApp = (function () {
       }
       if(p.enhance_per_second!=null){ v=_num(p.enhance_per_second); if(v!=null) return v*dur; }
     }
+    // P-Video 2 / 2 Pro / Edit: mode- or draft-split $/s tables billed on the chosen duration, clamped to
+    // minimum/maximum_billable_duration. genericScanUsd used to read their cheapest 480p leaf as a FLAT
+    // per-clip price (P-Video 2 Pro 15s @768p quoted $0.02, not $0.525). mode/draft ride in modelOpts.
+    if(p.speed_per_second_by_resolution || p.quality_per_second_by_resolution || p.full_per_second_by_resolution || p.draft_per_second_by_resolution || p.full_per_second!=null || p.draft_per_second!=null){
+      const o = (f.modelOpts && typeof f.modelOpts==="object") ? f.modelOpts : {};
+      const lo = _num(p.minimum_billable_duration), hi = _num(p.maximum_billable_duration);
+      const bd = Math.min(hi!=null ? hi : dur, Math.max(lo!=null ? lo : dur, dur));
+      const draft = o.draft===true || o.draft==="true";
+      const quality = String(o.mode!=null && o.mode!=="" ? o.mode : (p.default_mode || "speed")).toLowerCase()==="quality";
+      const modeTbl = quality ? (p.quality_per_second_by_resolution || p.speed_per_second_by_resolution) : p.speed_per_second_by_resolution;
+      v = modeTbl ? rp(modeTbl) : null;
+      if(v==null){ const dt = draft ? (p.draft_per_second_by_resolution || p.full_per_second_by_resolution) : (p.full_per_second_by_resolution || p.draft_per_second_by_resolution); if(dt) v = rp(dt); }
+      if(v==null) v = draft ? (_num(p.draft_per_second) ?? _num(p.full_per_second)) : (_num(p.full_per_second) ?? _num(p.draft_per_second));
+      if(v!=null) return v*bd;
+    }
     if((v=rp(p.per_second_by_resolution))!=null) return v*dur;
     if((v=rp(p.standard_prices_per_second))!=null) return v*dur;
     if(p.per_second_by_mode){ const mm=p.per_second_by_mode;
@@ -6264,7 +6320,7 @@ window.NoodleApp = (function () {
       if(p.duration_overrides && p.duration_overrides[dk]){ v=rp(p.duration_overrides[dk]); if(v!=null) return v; }
       const base=rp(p.base_prices_by_resolution);
       let mult=1;
-      if(p.duration_multiplier!=null) mult=_num(p.duration_multiplier) ?? 1;
+      if(p.duration_multiplier!=null) mult = dur > (_num(p.base_duration) || 5) ? (_num(p.duration_multiplier) ?? 1) : 1;   // seedance-video: base = the 5s clip; the multiplier bills the longer (10s) option only
       else if(p.duration_multipliers) mult=_num(p.duration_multipliers[dk]) ?? pickByRes(p.duration_multipliers) ?? 1;
       if(base!=null) return base*mult;
     }
@@ -6295,7 +6351,9 @@ window.NoodleApp = (function () {
       }
       if(raw.pricePerMegapixel!=null && raw.megapixelsByResolution){
         const mp = _num(raw.megapixelsByResolution[res]) ?? _num(raw.megapixelsByResolution[defRes]) ?? pickByRes(raw.megapixelsByResolution);
-        const nf = _num(raw.defaultNumFrames) || (dur * (_num(raw.defaultFramesPerSecond)||24));
+        // frames follow the CHOSEN duration (LTX-2.3 Quality lists 5–20s); defaultNumFrames (145 = 6s×24+1) only when unset
+        const fpsN = _num(f.fps) || _num(raw.defaultFramesPerSecond) || 24, chosenDur = parseFloat(f.duration);
+        const nf = (isFinite(chosenDur) && chosenDur>0) ? Math.round(chosenDur*fpsN)+1 : (_num(raw.defaultNumFrames) || (dur*fpsN));
         if(mp!=null) return _num(raw.pricePerMegapixel)*mp*nf;
       }
     }
@@ -6338,7 +6396,10 @@ window.NoodleApp = (function () {
     const p = sp || {};
     if(p.min_duration==null || p.max_duration==null) return null;
     const d = parseFloat(fields && fields.duration);
-    if(!isFinite(d)) return null;
+    if(!isFinite(d)){                                                 // blank → default estimate, but never outside the model's range
+      const lo0=_num(p.min_duration), hi0=_num(p.max_duration), e=EST.audioSeconds;
+      return ((lo0!=null && e<lo0) || (hi0!=null && e>hi0)) ? Math.min(hi0!=null?hi0:e, Math.max(lo0!=null?lo0:e, e)) : null;
+    }
     const lo=_num(p.min_duration), hi=_num(p.max_duration);
     return Math.min(hi!=null?hi:d, Math.max(lo!=null?lo:d, d));
   }
@@ -6393,7 +6454,7 @@ window.NoodleApp = (function () {
     const f = effectiveModelFieldsPlay(n);
     const id = f && f.model; if(!id) return null;
     const m = await rawCatItem(kind, id); if(!m) return null;
-    const pricing = m.pricing;
+    const pricing = applyVideoQuotePricing(id, m.pricing);
     if(kind==="image"){ const sp=m.supported_parameters||{}, maxOut=sp.max_output_images||1, fixed=sp.fixed_image_count||0;
       // match the billed image count (genImage bills unit×urls.length): fixed_image_count models always return N;
       // otherwise clamp requested variations to the model's real max so an over-set count can't inflate the forecast.
@@ -6409,7 +6470,7 @@ window.NoodleApp = (function () {
       const refWired = !!(t.refInputs && modelHasRefs && STATE && STATE.graph && STATE.graph.links.some(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port)));
       // source-video input wired → extend-mode rates (FLUX.3) — twin of the editor.
       const videoWired = !!(STATE && STATE.graph && STATE.graph.links.some(l=> l.to.node===n.id && l.to.port==="video"));
-      const u = videoUnitUsd(pricing, f, refWired, videoWired); return (u!=null && isFinite(u)) ? u : null; }
+      const u = videoUnitUsd(pricing, videoPriceFields(pp, f), refWired, videoWired); return (u!=null && isFinite(u)) ? u : null; }
     if(kind==="chat"){ const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(pricing, inTok, outTok); }
     if(kind==="audio"){ const chars = n.type==="transcribe" ? undefined : ((f.prompt||"").length || EST.ttsChars);
       const secs = audioBilledSeconds(m.supported_parameters, f);   // per_second music meters off the chosen duration, not a fixed 30s
@@ -7623,6 +7684,9 @@ function mp4ParamsMatch(bufs){
       }
       if(f.type==="number"){ let num=Number(v); if(isNaN(num)) continue;
         if(f.applies==="cat:gencount") num=1;   // never request more songs than the node can surface (one) — mirrors the editor's collectAudioParams clamp
+        if((f.applies==="cat:duration" || f.applies==="cat:secduration") && sp){   // twin of the editor: clamp to the catalog range before POST
+          if(sp.min_duration!=null && isFinite(+sp.min_duration)) num = Math.max(+sp.min_duration, num);
+          if(sp.max_duration!=null && isFinite(+sp.max_duration)) num = Math.min(+sp.max_duration, num); }
         if(f.default!=null && num===f.default) continue; body[key]=num; continue; }
       if(f.default!=null && v===f.default) continue;       // e.g. response_format=mp3 → omit
       body[key] = v;
@@ -8936,6 +9000,11 @@ const PROMPT_CAPS = {
       ctx.catalog = await njsCatalogs();
       // leftover size snap — njs is the default send path; library posts fields.size raw
       if(type==="image" || type==="edit" || type==="inpaint") snapImageSize(rn, await rawCatItem("image", mdl(rn)));
+      // leftover audio duration clamp (twin of the editor) — the library posts fields.duration raw
+      if(type==="music" || type==="remix"){
+        const am = await rawCatItem("audio", mdl(rn)), asp = (am && am.supported_parameters) || {}, adn = parseFloat(rn.fields.duration);
+        if(isFinite(adn) && asp.min_duration!=null && asp.max_duration!=null) rn.fields.duration = Math.min(+asp.max_duration, Math.max(+asp.min_duration, adn));
+      }
       // Library imgExtra only special-cases FIBO; stamp catalog aspect_ratio with the same
       // withImageAspect the built-in runner uses, and never override a key already set.
       if(type==="image"||type==="edit"||type==="inpaint"){
@@ -9268,7 +9337,7 @@ const PROMPT_CAPS = {
               { f:"temperature",     label:"Temperature",       kind:"number", min:0, max:2, step:"0.1", def:"0.8" },
               { f:"maxTokens",       label:"Max tokens",        kind:"number", min:1 },
               { f:"format",          label:"Output format",     kind:"select", options:[["Text","Text"],["JSON","JSON"]], def:"Text" },
-              { f:"reasoningEffort", label:"Reasoning effort",   kind:"select", options:[["default","default"],["low","low"],["medium","medium"],["high","high"]], def:"default" },
+              { f:"reasoningEffort", label:"Reasoning effort",   kind:"select", options:[["default","default"],["none","none"],["minimal","minimal"],["low","low"],["medium","medium"],["high","high"],["xhigh","xhigh"],["max","max"]], def:"default" },  // fallback; fillReasonEffortLists rewrites from catalog reasoning_efforts when present
               { f:"showThinking",    label:"Show thinking",      kind:"boolean" }],
     vision:  [{ f:"model", label:"Model", kind:"model" },
               { f:"q",     label:"Question", kind:"textarea", def:"Describe this image." }],
@@ -9692,6 +9761,16 @@ const PROMPT_CAPS = {
     if(v!=null && v!=="") extra.aspect_ratio = String(v);
     return extra;
   }
+  // twin of editor rangeDurOpts: catalog number-range duration (min/max/step) → [[value,"N sec"],…];
+  // empty when the range is missing / non-numeric / absurdly long (caller keeps DURATIONS).
+  function rangeDurOpts(param){
+    if(!param || param.min==null || param.max==null) return [];
+    const lo = +param.min, hi = +param.max, st = +(param.step!=null ? param.step : 1);
+    if(!Number.isFinite(lo) || !Number.isFinite(hi) || !(st>0) || hi<lo || (hi-lo)/st > 120) return [];
+    const out = [];
+    for(let v=lo; v<=hi+1e-9; v+=st){ const n = Math.round(v*1000)/1000; out.push([String(n), n+" sec"]); }
+    return out;
+  }
   function dimOptionsFromItem(type, m){
     const out = { def:{} }; if(!m) return out;
     if(type==="image" || type==="edit" || type==="inpaint"){
@@ -9709,9 +9788,10 @@ const PROMPT_CAPS = {
     const aP = p.aspect_ratio || p.orientation || p.resolution_ratio;
     const a = sel(aP); if(a.length){ out.aspect = a; out.def.aspect = aP && aP.default!=null ? String(aP.default) : a[0][0]; }    // Sora/WAN name it orientation; PixVerse v5.5/5.6 name it resolution_ratio
     const dP = p.duration || p.seconds;
-    const d = sel(dP);
+    let d = sel(dP);
+    if(!d.length) d = rangeDurOpts(dP);             // Wan 3.0 number-range (2–30s step 1) → every value, twin of editor rangeDurOpts
     if(d.length){ out.duration = d; out.def.duration = dP && dP.default!=null ? String(dP.default) : d[0][0]; }  // Sora names it seconds (4/8/12)
-    else if(dP){ out.duration = DURATIONS; out.def.duration = dP.default!=null ? String(dP.default) : DURATIONS[0][0]; }  // catalogued number-range (Wan Prime) — same 5/10 the editor falls back to
+    else if(dP){ out.duration = DURATIONS; out.def.duration = dP.default!=null ? String(dP.default) : DURATIONS[0][0]; }  // catalogued number param with no usable range — same 5/10 the editor falls back to
     const fP = p.fps || p.frames_per_second, f = sel(fP);
     if(f.length){ out.fps = f; out.def.fps = fP && fP.default!=null ? String(fP.default) : f[0][0]; }
     return out;
@@ -9827,7 +9907,9 @@ const PROMPT_CAPS = {
         // row's static 5/10 as a dead knob, so hide it. Offline/unknown models keep
         // the fallback row, like tvideo/ivideo. Re-shown on model swap (fillDimLists
         // re-runs on pick), mirroring refreshTempRows.
-        if((it.node.type==="vedit" || it.node.type==="lipsync") && it.field==="duration"){
+        // tvideo/ivideo too: a catalogued model with no duration param (Veo 3, Hailuo 2.3 Pro, Kandinsky 5 Pro…)
+        // hides the row like the editor's hidden dimDefs duration.
+        if(it.field==="duration"){
           const row = el && el.closest(".field");
           if(row) row.hidden = !!(m && (!opts || !opts.length));
           if(m && (!opts || !opts.length)) return;
@@ -9886,6 +9968,28 @@ const PROMPT_CAPS = {
         ctrl.id = el.id; ctrl.setAttribute("data-ns","set"); ctrl.setAttribute("data-i", String(i));
         ctrl.addEventListener(ctrl.tagName==="SELECT"?"change":"input", ()=>{ it.node.fields[it.field] = ctrl.value; checkDirty(); refreshRunCost(); });
         el.replaceWith(ctrl);
+      }).catch(()=>{});
+    });
+  }
+
+  // Rewrite Reasoning effort <select> options from the live chat catalog's reasoning_efforts
+  // (Solar Mini 4 Thinking = none|low|medium|high; Grok 4.7 adds xhigh). Fallback SETTING_SPECS
+  // list stays for offline / uncatalogued ids. Prefer medium when seeding/clamping; legacy
+  // stored "default" is treated as unset when the catalog list has no "default" (omit at send).
+  function fillReasonEffortLists(){
+    (STATE.settings || []).forEach((it,i)=>{
+      if(it.node.type!=="llm" || it.field!=="reasoningEffort") return;
+      rawCatItem("chat", it.node.fields.model).then(m=>{
+        const el = document.getElementById("set_"+i); if(!el || el.tagName!=="SELECT") return;
+        const cat = (m && Array.isArray(m.reasoning_efforts) && m.reasoning_efforts.length)
+          ? m.reasoning_efforts.map(String) : null;
+        if(!cat) return;   // keep fallback options when catalog omits the list
+        const cur = it.node.fields[it.field];
+        const unset = cur==null || cur==="" || (cur==="default" && cat.indexOf("default")<0);
+        let picked = (!unset && cat.indexOf(String(cur))>=0) ? String(cur)
+                   : (cat.indexOf("medium")>=0 ? "medium" : cat[0]);
+        if(it.node.fields[it.field] !== picked){ it.node.fields[it.field] = picked; checkDirty(); }
+        el.innerHTML = cat.map(o=> '<option value="'+esc(o)+'"'+(o===picked?" selected":"")+'>'+esc(o)+'</option>').join("");
       }).catch(()=>{});
     });
   }
@@ -10235,6 +10339,7 @@ const PROMPT_CAPS = {
     fillModelLists();
     fillDimLists();   // rewrite size/resolution/aspect/duration options from each model's live catalog
     fillLangLists();  // swap the Transcribe language box for a <select> when the model lists supported languages
+    fillReasonEffortLists(); // rewrite Reasoning effort options from catalog reasoning_efforts
     refreshTempRows();// hide Temperature on models that ignore it (TEMP_LOCKED)
     box.querySelectorAll(".inpaint-ctl").forEach(ctl=> wireInpaintControl(box, ctl));
   }
@@ -10271,7 +10376,7 @@ const PROMPT_CAPS = {
       menu.hidden = false; input.setAttribute("aria-expanded","true");
     }
     function close(){ menu.hidden = true; input.setAttribute("aria-expanded","false"); active = -1; }
-    function pick(id){ input.value = id; it.node.fields[it.field] = id; close(); fillDimLists(); fillLangLists(); refreshTempRows(); checkDirty(); refreshRunCost(); }   // new model → refresh its dim/language options + temperature row + price
+    function pick(id){ input.value = id; it.node.fields[it.field] = id; close(); fillDimLists(); fillLangLists(); fillReasonEffortLists(); refreshTempRows(); checkDirty(); refreshRunCost(); }   // new model → refresh its dim/language options + temperature row + price
     input.addEventListener("focus", ()=> open(true));
     input.addEventListener("modelrefresh", ()=> open(true));   // catalog arrived while focused
     input.addEventListener("input", ()=>{ it.node.fields[it.field] = input.value.trim(); open(false); refreshTempRows(); checkDirty(); refreshRunCost(); });   // temp row is a pure id check → cheap enough per keystroke (dim/lang rewrites wait for a pick)
@@ -13062,7 +13167,7 @@ function renderPicker(){
   const frag = document.createDocumentFragment();
   for(const m of matches.slice(0,400)){
     const b = document.createElement("button");
-    if(m.id===picker.current) b.className = "sel";
+    if(m.id===picker.current) b.classList.add("sel");
     b.innerHTML = '<span class="mname">'+esc(m.id)+'</span><span class="price">'+esc(m.price)+'</span>';
     b.onclick = ()=>{ setModel(m.id); closePicker(); };
     frag.appendChild(b);

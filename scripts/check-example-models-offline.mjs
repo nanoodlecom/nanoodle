@@ -46,6 +46,10 @@ const catalogs = {
     { id: 'Minimax-Speech-2.8-HD', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Deep_Voice_Man'] } },
     { id: 'minimax/music-3', architecture: { modality: 'text->audio' } },
   ],
+  model3d: [
+    { id: 'tripo3d/v2.5', architecture: { input_modalities: ['image'] } },
+    { id: 'wavespeed-ai/hunyuan-3d-v3.1-rapid', architecture: { input_modalities: ['text', 'image'] } },
+  ],
 };
 
 function run(mode) {
@@ -57,7 +61,7 @@ function run(mode) {
       if (!(options?.signal instanceof AbortSignal)) throw new Error('catalog fetch has no timeout signal');
       if (mode === 'unavailable') throw new Error('fixture catalog outage');
       if (mode === 'http-error') return { ok: false, status: 503 };
-      const kind = /\\/(image|video|audio)-models/.exec(url)?.[1] || 'chat';
+      const kind = /\\/3d-models/.test(String(url)) ? 'model3d' : (/\\/(image|video|audio)-models/.exec(url)?.[1] || 'chat');
       let data = catalogs[kind].filter(m => mode !== 'missing-starter' || m.id !== ${JSON.stringify(starterId)});
       if (mode === 'bad-size' && kind === 'image') data.find(m => m.id === 'meta/muse-image/text-to-image').supported_parameters.resolutions = ['2mp'];
       if (mode === 'bad-avatar' && kind === 'video') data.find(m => m.id === 'longcat-avatar-1.5').capabilities.audio_input = false;

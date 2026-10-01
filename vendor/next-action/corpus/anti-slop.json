@@ -1,0 +1,42 @@
+{
+  "$comment": "Product · 9 synth reject priors — soft-mask boring Text→LLM loops; inverted cool-path boosts. No live · 5 dismiss telemetry required.",
+  "schemaVersion": 1,
+  "product": 9,
+  "slopActions": ["add:text", "add:llm"],
+  "richActions": [
+    "add:image",
+    "add:edit",
+    "add:ivideo",
+    "add:vedit",
+    "add:music",
+    "add:tts",
+    "add:lipsync",
+    "add:join",
+    "add:resize",
+    "open:examples",
+    "arrange"
+  ],
+  "rejectBigrams": [
+    ["add:text", "add:llm"],
+    ["add:llm", "add:text"],
+    ["add:text", "add:text"],
+    ["add:llm", "add:llm"]
+  ],
+  "coolPathBoosts": {
+    "add:image": 1.85,
+    "add:edit": 1.7,
+    "add:ivideo": 1.75,
+    "add:vedit": 1.55,
+    "add:music": 1.8,
+    "add:tts": 1.65,
+    "add:lipsync": 1.6,
+    "add:join": 1.35,
+    "add:resize": 1.4,
+    "open:examples": 1.5,
+    "arrange": 1.25
+  },
+  "slopPenalty": 0.12,
+  "textLlmBigramPenalty": 0.08,
+  "shallowMaxNodes": 4,
+  "minKeep": 3
+}
