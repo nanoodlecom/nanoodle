@@ -6,6 +6,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { runInNewContext } from "node:vm";
 import { MIN_PAIR, MIN_LEAD, MIN_SHARE } from "../vendor/next-action/port-suggest.mjs";
 import {
   MIN_OVERLAP_RATIO,
@@ -306,6 +307,97 @@ function toy(name, ok, detail) {
   toy("helper-uses-dangling", /danglingPorts/.test(helper), "danglingPorts");
   toy("helper-uses-pairCount", /pairCount/.test(helper), "pairCount");
   toy("helper-uses-gates", /MIN_PAIR/.test(helper) && /MIN_LEAD/.test(helper) && /MIN_SHARE/.test(helper), "gates");
+}
+
+// The baked gallery catalog cannot enable sockets the selected model disables.
+{
+  const start = index.indexOf("function tryDropOnNodeAutoWire(dragged){");
+  const end = index.indexOf("\n/* Next-action scores", start);
+  assert(start >= 0 && end > start, "missing auto-wire handler");
+  const source = index.slice(start, end);
+  function attemptDrop(options = {}) {
+    const port = (name, type, disabled) => ({
+      dataset: { port: name, ptype: type },
+      classList: { contains(value) { return value === "disabled" && !!disabled; } },
+    });
+    const sourcePort = port("image", "image", options.sourceDisabled);
+    const targetPort = port("image", options.mismatched ? "text" : "image", options.targetDisabled);
+    const nodes = [
+      { id: "img1", type: "image", x: 0, y: 0, el: { querySelectorAll() { return options.missingSource ? [] : [sourcePort]; } } },
+      { id: "llm1", type: "llm", x: 0, y: 0, el: { querySelectorAll() { return options.missingTarget ? [] : [targetPort]; } } },
+    ];
+    const links = options.occupied ? [{ from: { node: "other", port: "image" }, to: { node: "llm1", port: "image" } }] : [];
+    let connects = 0;
+    const context = {
+      graph: { nodes, links }, multiSel: new Set(), geoOn() { return true; },
+      dropAutoWireReducedMotion() { return false; },
+      findDropOverlapTargetFn() { return { targetId: "llm1" }; },
+      dropAutoWireCollectBoxes() { return []; },
+      byId(id) { return nodes.find(node => node.id === id); },
+      wouldCycle() { return false; }, pulseDropAutoWirePorts() {},
+      connect() { connects++; return true; },
+      window: { __nextAction: {
+        hasPortPriors() { return true; },
+        pickDropAutoWire() { return {
+          from: { nodeId: "img1", port: "image" },
+          to: { nodeId: "llm1", port: "image" },
+        }; },
+      } },
+    };
+    runInNewContext(source, context);
+    const accepted = context.tryDropOnNodeAutoWire(nodes[0]);
+    return { accepted, connects };
+  }
+  const enabled = attemptDrop();
+  toy("live-enabled-ports-connect", enabled.accepted && enabled.connects === 1, "one compatible live connection");
+  for (const option of ["missingSource", "missingTarget", "sourceDisabled", "targetDisabled", "mismatched", "occupied"]) {
+    const result = attemptDrop({ [option]: true });
+    toy(`live-${option}-quiet`, !result.accepted && result.connects === 0, "no illegal or replacement connection");
+  }
+}
+
+// Exercise the real drag listeners: canceling a touch/pen gesture must never
+// create a graph connection, while a matching pointer release still can.
+{
+  const start = index.indexOf("function startNodeDrag(n, e){");
+  const end = index.indexOf("\n// Drag the node's bottom-right grip", start);
+  assert(start >= 0 && end > start, "missing node drag handler");
+  const source = index.slice(start, end);
+  function releaseDrag(type, pointerId = 7, moveFirst = true) {
+    const listeners = new Map();
+    const attempts = [];
+    let saves = 0;
+    const context = {
+      geoAnim: 0, scale: 1, multiSel: new Set(), nodeGestPtrs: new Set(),
+      cancelNodeGest: null, world: { appendChild() {} },
+      pushUndo() {}, redraw() {},
+      save() { saves++; },
+      tryDropOnNodeAutoWire(node) { attempts.push(node.id); },
+      window: {
+        addEventListener(name, fn) { listeners.set(name, fn); },
+        removeEventListener(name, fn) {
+          if (listeners.get(name) === fn) listeners.delete(name);
+        },
+      },
+    };
+    runInNewContext(source, context);
+    const node = { id: "img1", x: 0, y: 0, el: { style: {} } };
+    context.startNodeDrag(node, {
+      pointerId: 7, clientX: 0, clientY: 0, preventDefault() {},
+    });
+    if (moveFirst) listeners.get("pointermove")({ pointerId: 7, clientX: 20, clientY: 20 });
+    listeners.get(type)({ type, pointerId });
+    return { attempts, saves, listeners, active: context.nodeGestPtrs.size };
+  }
+  const canceled = releaseDrag("pointercancel");
+  toy("cancel-never-auto-wires", canceled.attempts.length === 0, "canceled drag creates no link");
+  toy("cancel-cleans-listeners", canceled.listeners.size === 0 && canceled.active === 0, "cancel ends the gesture");
+  const released = releaseDrag("pointerup");
+  toy("release-auto-wires-once", released.attempts.length === 1 && released.saves === 1, "real release attempts one connection");
+  const stray = releaseDrag("pointerup", 9);
+  toy("stray-pointer-never-auto-wires", stray.attempts.length === 0 && stray.active === 1, "other pointer leaves drag active");
+  const clicked = releaseDrag("pointerup", 7, false);
+  toy("click-never-auto-wires", clicked.attempts.length === 0, "click without drag creates no link");
 }
 
 // Editor wiring pins

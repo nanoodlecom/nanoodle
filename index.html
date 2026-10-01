@@ -10465,7 +10465,7 @@ function startNodeDrag(n, e){
     if(ev.pointerId!==id) return;
     // Product · 39 — attempt drop-on-node auto-wire at release (before save),
     // while bodies still overlap; deoverlap/align must not erase the intent.
-    try{ if(_dropAutoWireSingle && _snapped) tryDropOnNodeAutoWire(n); }catch(_){}
+    try{ if(ev.type!=="pointercancel" && _dropAutoWireSingle && _snapped) tryDropOnNodeAutoWire(n); }catch(_){}
     cleanup(); save();
   };
   cancelNodeGest = ()=>{                             // second finger landed → this drag becomes a pinch; undo the accidental move
@@ -16912,6 +16912,14 @@ function tryDropOnNodeAutoWire(dragged){
     });
   }catch(_){ pick = null; }
   if(!pick || !pick.from || !pick.to) return false;
+  // Gallery priors describe node kinds; the current model decides which sockets
+  // actually exist and accept input. Apply the same live gates as a manual wire.
+  const fromNode = byId(pick.from.nodeId), toNode = byId(pick.to.nodeId);
+  const source = fromNode?.el && [...fromNode.el.querySelectorAll('.port[data-dir="out"]')].find(p=> p.dataset.port===pick.from.port);
+  const target = toNode?.el && [...toNode.el.querySelectorAll('.port[data-dir="in"]')].find(p=> p.dataset.port===pick.to.port);
+  if(!source || !target || source.classList.contains("disabled") || target.classList.contains("disabled")) return false;
+  if(!source.dataset.ptype || source.dataset.ptype!==target.dataset.ptype) return false;
+  if((graph.links||[]).some(l=> l.to && l.to.node===pick.to.nodeId && l.to.port===pick.to.port)) return false;
   if(typeof wouldCycle==="function" && wouldCycle(pick.from.nodeId, pick.to.nodeId, pick.to.port)) return false;
   // Already have this exact link? connect() would no-op-replace — skip.
   const already = (graph.links||[]).some(l =>
