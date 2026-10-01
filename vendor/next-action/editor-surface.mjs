@@ -21,6 +21,9 @@ import { createSuggestionMemory } from "./suggestion-memory.mjs";
 import { applyAntiSlop, isShallowTextLlm, rerankShallowAdds } from "./anti-slop.mjs";
 import { pickRingTarget, rankDropTypes } from "./port-suggest.mjs";
 import { rankQuickaddAfterAbort as rankQuickaddAfterAbortPure } from "./quickadd-after-abort.mjs";
+import { pickDropAutoWire } from "./drop-on-node-auto-wire.mjs";
+import { pickDblclickDanglingAddWire } from "./dblclick-dangling-add-wire.mjs";
+import { pickDualSelectBridge } from "./dual-select-bridge.mjs";
 import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
 import { loadNextActionExport } from "./export-load.mjs";
 
@@ -164,6 +167,55 @@ export async function mount(api) {
           ...(query || {}),
           memory,
         });
+      } catch (_) { return null; }
+    },
+    pickDropAutoWire(query) {
+      if (!portTables) return null;
+      try {
+        const g = (api.getGraph && api.getGraph()) || {};
+        const graph = {
+          nodes: (query && query.nodes) || g.nodes || [],
+          links: (query && query.links) || g.links || [],
+        };
+        return pickDropAutoWire(portTables, graph, {
+          draggedId: query && query.draggedId,
+          targetId: query && query.targetId,
+        });
+      } catch (_) { return null; }
+    },
+    pickDblclickDanglingAddWire(query) {
+      if (!portTables) return null;
+      try {
+        const g = (api.getGraph && api.getGraph()) || {};
+        const graph = {
+          nodes: (query && query.nodes) || g.nodes || [],
+          links: (query && query.links) || g.links || [],
+          selectedId: (query && query.selectedId) != null ? query.selectedId : g.selectedId,
+          selectedIds: (query && query.selectedIds) || g.selectedIds || [],
+        };
+        return pickDblclickDanglingAddWire(portTables, graph, {
+          nodeId: query && query.nodeId,
+          port: query && query.port,
+          dir: query && query.dir,
+          type: query && query.type,
+          candidates: query && query.candidates,
+          nodeW: query && query.nodeW,
+          nodeH: query && query.nodeH,
+          gap: query && query.gap,
+        });
+      } catch (_) { return null; }
+    },
+    pickDualSelectBridge(query) {
+      if (!portTables) return null;
+      try {
+        const g = (api.getGraph && api.getGraph()) || {};
+        const graph = {
+          nodes: (query && query.nodes) || g.nodes || [],
+          links: (query && query.links) || g.links || [],
+          selectedId: query && "selectedId" in query ? query.selectedId : (g.selectedId ?? null),
+          selectedIds: query && "selectedIds" in query ? query.selectedIds : (g.selectedIds ?? undefined),
+        };
+        return pickDualSelectBridge(portTables, graph);
       } catch (_) { return null; }
     },
   };
