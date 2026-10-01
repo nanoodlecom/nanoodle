@@ -10,6 +10,7 @@
  * only recorded the token — it never called connect() — so a wire suggestion
  * is not an action button. Menus rank add:/set:model/open:examples rows;
  * while a wire drag is active the editor may emphasize one compatible port,
+ * hovering a port may soft-dim incompatible peers and lift prior-backed ones,
  * and dropping still goes through connect().
  *
  * ?na=0 or ?product=off (or nano.nextAction=off) disables the engine. A failed
@@ -20,6 +21,7 @@ import { chooseHints } from "./hints.mjs";
 import { createSuggestionMemory } from "./suggestion-memory.mjs";
 import { applyAntiSlop, isShallowTextLlm, rerankShallowAdds } from "./anti-slop.mjs";
 import { pickRingTarget, rankDropTypes } from "./port-suggest.mjs";
+import { rankHoverPeers } from "./hover-port-dim.mjs";
 import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
 import { loadNextActionExport } from "./export-load.mjs";
 
@@ -153,6 +155,11 @@ export async function mount(api) {
     pickRingTarget(query) {
       if (!portTables) return null;
       try { return pickRingTarget(portTables, query); }
+      catch (_) { return null; }
+    },
+    rankHoverPeers(query) {
+      if (!portTables) return null;
+      try { return rankHoverPeers(portTables, query); }
       catch (_) { return null; }
     },
   };

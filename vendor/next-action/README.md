@@ -12,6 +12,7 @@
 | recipe | `recipe.mjs`, `corpus/recipes.json` — confident gallery completions re-rank Suggested rows |
 | slop | `anti-slop.mjs`, `corpus/anti-slop.json` — soft re-rank away from a shallow Text→LLM loop |
 | layout | `deoverlap.mjs`, `auto-tidy.mjs`, `collision-nudge.mjs` — slide an overlapping add apart |
+| · 41 | `hover-port-dim.mjs`, `scripts/check-next-action-hover-port-dim.mjs` — hover port → soft-dim incompatible peers / lift prior-backed compatible |
 | memory | `suggestion-memory.mjs` — local accept/ignore reweight of suggested adds |
 | weights | `export-load.mjs`, `scripts/export-smallnet-weights.py` — catalog first, fixture fallback |
 
