@@ -20,6 +20,7 @@ import { chooseHints } from "./hints.mjs";
 import { createSuggestionMemory } from "./suggestion-memory.mjs";
 import { applyAntiSlop, isShallowTextLlm, rerankShallowAdds } from "./anti-slop.mjs";
 import { pickRingTarget, rankDropTypes } from "./port-suggest.mjs";
+import { pickRunFailPort } from "./run-fail-port.mjs";
 import { rankRingTargets } from "./port-highlight.mjs";
 import { rankQuickaddAfterAbort as rankQuickaddAfterAbortPure } from "./quickadd-after-abort.mjs";
 import { pickDropAutoWire } from "./drop-on-node-auto-wire.mjs";
@@ -159,6 +160,12 @@ export async function mount(api) {
       if (!portTables) return null;
       try { return pickRingTarget(portTables, query); }
       catch (_) { return null; }
+    },
+    // Product · 49: actual missing-input errors lead; priors only resolve ambiguous ports.
+    pickRunFailPort(ctx) {
+      try {
+        return pickRunFailPort(portTables, ctx || {});
+      } catch (_) { return null; }
     },
     rankRingTargets(query) {
       if (!portTables) return null;

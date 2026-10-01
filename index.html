@@ -771,6 +771,15 @@
     .port.na-drop-auto-wire-port, .port.na-drop-auto-wire-preview{ animation:none !important; transition:none; transform:none }
   }
 
+  /* Product · 49: the diagnosed empty input retains its rose ring while
+     suggestions and drag targets keep their independent outlines/classes. */
+  .port.na-run-fail-port{ transform:scale(1.15); box-shadow:0 0 0 3px #fb718599; animation:naRunFailPortPulse .85s ease-in-out 2 }
+  .port.na-run-fail-port.compatible{ box-shadow:0 0 0 3px #fb718599; opacity:1 }
+  @keyframes naRunFailPortPulse{ 50%{ box-shadow:0 0 0 5px #fb718544; transform:scale(1.3) } }
+  @media (prefers-reduced-motion: reduce){
+    .port.na-run-fail-port, .port.na-run-fail-port.compatible{ animation:none !important; transition:none; transform:none }
+  }
+
   .body{ padding:.1rem .6rem .6rem; display:flex; flex-direction:column; gap:.5rem }
   .body label{ font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); display:block; margin-bottom:.2rem; font-weight:700 }
   .body textarea{ width:100%; resize:vertical; min-width:190px; max-width:min(80vw,760px); min-height:84px;
@@ -10553,6 +10562,7 @@ function refreshPortFills(){
     }
   }
   refreshPromptCaps();   // wiring a prompt is exactly when "a longer wired prompt is trimmed to fit" has to appear
+  try{ syncRunFailPort(); }catch(_){}
 }
 
 /* ---- prompt-cap chrome -------------------------------------------------
@@ -12183,6 +12193,8 @@ async function runGroup(seedIds, ctx){
               // el so "brush the area" shows next to a canvas that can finally be brushed.
               if(n.type==="inpaint" && !n.fields.image && !n.el?.querySelector("[data-maskwrap] img") && inpaintWiredSource(n)) rerenderNode(n);
               setStatus(n, "error", friendlyRunError(err, n)); failed.add(id);   // real failure → poison dependents (no stale-input charge)
+              // Product · 49: keep the diagnosed missing-input port visible until corrected (not Abort/Stop).
+              try{ scheduleRunFailPort({ nodeId: n.id, nodeType: n.type, errorMessage: err?.message || String(err) }, 40); }catch(_){}
             }
           }
         } finally {
@@ -14887,6 +14899,7 @@ function stripInjectedMedia(n){
     delete n.fields.sample;
 }
 function applyGraphData(d, opts){
+  try{ clearRunFailPort(); }catch(_){}
   // Carry generated results + seed-skip signatures across SAME-WORKFLOW rebuilds (undo/redo,
   // version-jump, describe-apply). serializeGraph() never persists n.out/n._sig, so without this
   // those ops would wipe every paid result and force a full re-run. Keyed by id AND type — same
@@ -14945,6 +14958,7 @@ const RESUME_APPTITLE_KEY = "noodle_resume_apptitle";  // and its name, for the 
 const EDITOR_APP_KEY = "noodle_editor_app";  // localStorage: {id,title} of the app THIS workflow is bound to, so the binding survives a plain reload (not just OAuth)
 let saveT=null;
 function save(){
+  try{ syncRunFailPort(); }catch(_){}
   refreshRunEstimate();                 // keep the bottom-right run cost live as the graph is edited
   refreshPromptCaps();                  // …and the prompt-room notes: model swaps, typing and wiring all land here
   if(refreshAppButton()) layoutBar();   // flip ✨ Open↔Update live: an edit that diverges from (or re-matches) the bound app's saved graph — only re-measure the bar when the label text actually changed
@@ -17433,6 +17447,102 @@ function tryDropOnNodeAutoWire(dragged){
    Dynamic import so a tree without vendor/next-action stays quiet. No panel, no ghost.
    ?na=0 / ?product=off disables hints; until the cache is confident, lists are unchanged. */
 
+/* Product · 49 — run-failure rewire: soft-pulse the empty required input
+   port after a missing-input run failure. Brief attention, then a static
+   error ring until that input is corrected or a new run starts. Reduced
+   motion retains the ring. No explanation panel or shared drag classes. */
+let _runFailPortTimer = 0;
+let _runFailPortKey = "";
+let _runFailPortCtx = null;
+function runFailPortReducedMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(_){ return false; }
+}
+function buildRunFailInputsMeta(n){
+  const t = n && NODE_TYPES[n.type];
+  if(!t || !n) return [];
+  const meta = [];
+  const seen = new Set();
+  const push = (name, type, field)=>{
+    if(!name || seen.has(name)) return;
+    seen.add(name);
+    const wired = !!(graph.links||[]).some(l=> l.to.node===n.id && l.to.port===name);
+    let empty = true;
+    if(wired){
+      const l = (graph.links||[]).find(x=> x.to.node===n.id && x.to.port===name);
+      const src = l ? byId(l.from.node) : null;
+      let v = src?.out?.[l.from.port];
+      // Source inputs are corrected before Run: read their current field, not
+      // an absent/stale cached output. Generated nodes still require a result.
+      if(src && isInputKind(src.type)){
+        if(src.type==="choice"){
+          const opts = String(src.fields.options||"").split("\n").map(x=>x.trim()).filter(Boolean);
+          v = opts.includes(src.fields.selected) ? src.fields.selected : opts[0];
+        }else v = src.type==="mupload" ? (src._glbBlob || src.fields.model) : src.fields[l.from.port];
+      }
+      empty = v==null || (typeof v==="string" && !v.trim()) || (Array.isArray(v) && !v.length);
+    }else if(field && n.fields){
+      const fv = n.fields[name];
+      empty = fv==null || String(fv).trim()==="";
+    }
+    meta.push({ name, type: type||"", wired, empty, field: !!field });
+  };
+  for(const p of (t.inputs||[])) push(p.name, p.type, !!p.field || !!(n.fields && p.name in n.fields));
+  // Dynamic image / video / audio / ref / endframe ports present in the DOM
+  if(n.el){
+    n.el.querySelectorAll('.port[data-dir="in"]').forEach(el=>{
+      push(el.dataset.port, el.dataset.ptype||"", el.classList.contains("fieldport"));
+    });
+  }else{
+    // fieldports always include prompt when the type has a prompt field
+    if(n.fields && ("prompt" in n.fields || t.body)) push("prompt", "text", true);
+  }
+  return meta;
+}
+function clearRunFailPort(){
+  if(_runFailPortTimer){ clearTimeout(_runFailPortTimer); _runFailPortTimer = 0; }
+  document.querySelectorAll(".port.na-run-fail-port").forEach(p=> p.classList.remove("na-run-fail-port"));
+  _runFailPortKey = "";
+  _runFailPortCtx = null;
+}
+function syncRunFailPort(){
+  if(_runFailPortCtx) applyRunFailPort(_runFailPortCtx);
+}
+function applyRunFailPort(ctx){
+  if(typeof geoOn==="function" && !geoOn()){ clearRunFailPort(); return; }
+  const na = window.__nextAction;
+  if(!na || na.disabled || !ctx || !ctx.nodeId){ clearRunFailPort(); return; }
+  const n = byId(ctx.nodeId);
+  if(!n || (ctx.nodeType && ctx.nodeType!==n.type)){ clearRunFailPort(); return; }
+  const args = {
+    nodeId: n.id,
+    nodeType: n.type,
+    errorMessage: ctx.errorMessage || "",
+    inputsMeta: buildRunFailInputsMeta(n),
+  };
+  let pick = null;
+  if(typeof na.pickRunFailPort==="function"){
+    try{ pick = na.pickRunFailPort(args); }catch(_){ pick = null; }
+  }
+  if(!pick){ clearRunFailPort(); return; }
+  const el = document.querySelector(`.port[data-node="${pick.nodeId}"][data-port="${pick.port}"][data-dir="in"]`);
+  if(!el || el.classList.contains("disabled")){ clearRunFailPort(); return; }
+  const key = pick.nodeId + "|" + pick.port + "|in";
+  if(key!==_runFailPortKey){
+    clearRunFailPort();
+    _runFailPortKey = key;
+  }
+  _runFailPortCtx = { nodeId:n.id, nodeType:n.type, errorMessage:args.errorMessage };
+  // An unchanged port keeps its finite animation; a rebuilt port gets the ring.
+  if(!el.classList.contains("na-run-fail-port")) el.classList.add("na-run-fail-port");
+}
+function scheduleRunFailPort(ctx, ms){
+  if(_runFailPortTimer) clearTimeout(_runFailPortTimer);
+  _runFailPortTimer = setTimeout(()=>{
+    _runFailPortTimer = 0;
+    applyRunFailPort(ctx);
+  }, ms == null ? 50 : ms);
+}
+
 /* Product · 37 — dual-select bridge suggest: with exactly two selected nodes
    and one high-prior gallery port-pair between them, soft-pulse ports + faint
    dashed #wires ghost. Quiet when ≠2 / flat / engine off; reduced motion keeps a static action.
@@ -17539,6 +17649,7 @@ function acceptDualSelectBridge(){
   connect = function(fromNode, fromPort, toNode, toPort){
     const ok = _connect(fromNode, fromPort, toNode, toPort);
     if(ok) try { window.__nextAction?.record?.("wire"); } catch(_){}
+    if(ok) try { syncRunFailPort(); } catch(_){}
     if(ok) try { clearDualSelectBridge(); scheduleDualSelectBridge(120); } catch(_){}
     return ok;
   };
@@ -17553,6 +17664,7 @@ function acceptDualSelectBridge(){
   loadExample = function(i){
     const r = _loadExample(i);
     try { window.__nextAction?.refresh?.(); } catch(_){}
+    try { clearRunFailPort(); } catch(_){}
     try { clearDualSelectBridge(); } catch(_){}
     return r;
   };
@@ -17560,6 +17672,7 @@ function acceptDualSelectBridge(){
     const _runGroup = runGroup;
     runGroup = function(seedIds, ctx){
       try { window.__nextAction?.record?.("run"); } catch(_){}
+      try { clearRunFailPort(); } catch(_){}
       return _runGroup.apply(this, arguments);
     };
   }
