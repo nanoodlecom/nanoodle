@@ -721,6 +721,13 @@
   .port.compatible{ transform:scale(1.25); box-shadow:0 0 0 4px #ffffff26; animation:portpulse 1.1s ease-in-out infinite }
   .port.likely{ transform:scale(1.45); box-shadow:0 0 0 5px #67e8f9cc; animation:none }
   .port.snap{ transform:scale(1.7); box-shadow:0 0 0 5px #ffffff66, 0 0 12px #fff6; animation:none }
+  /* Product · 49: soft pulse on the empty input port after a missing-input run failure. */
+  .port.na-run-fail-port{ transform:scale(1.35); box-shadow:0 0 0 4px #fb7185aa, 0 0 12px #fb718566; animation:naRunFailPortPulse 1.25s ease-in-out infinite }
+  .port.na-run-fail-port.compatible{ box-shadow:0 0 0 4px #fb7185cc, 0 0 14px #fb718588 }
+  @keyframes naRunFailPortPulse{ 50%{ box-shadow:0 0 0 7px #fb718544, 0 0 18px #fb718555; transform:scale(1.5) } }
+  @media (prefers-reduced-motion: reduce){
+    .port.na-run-fail-port{ animation:none !important; box-shadow:none; transform:none }
+  }
   @keyframes portpulse{ 50%{ box-shadow:0 0 0 6px #ffffff14 } }
 
   .body{ padding:.1rem .6rem .6rem; display:flex; flex-direction:column; gap:.5rem }
@@ -10577,6 +10584,7 @@ function startWire(port, e){
   if(port.classList && port.classList.contains("disabled")) return;
   e.preventDefault(); e.stopPropagation();
   closeQuickAdd();
+  try{ clearRunFailPort(); }catch(_){}
   const dir = port.dataset.dir, ptype = port.dataset.ptype, node = port.dataset.node;
   const id = e.pointerId;                            // only this pointer drives the wire — ignore a stray second touch
   const sx = e.clientX, sy = e.clientY;             // where the drag began — used to tell a click from a drag
@@ -11933,6 +11941,8 @@ async function runGroup(seedIds, ctx){
               // el so "brush the area" shows next to a canvas that can finally be brushed.
               if(n.type==="inpaint" && !n.fields.image && !n.el?.querySelector("[data-maskwrap] img") && inpaintWiredSource(n)) rerenderNode(n);
               setStatus(n, "error", friendlyRunError(err, n)); failed.add(id);   // real failure → poison dependents (no stale-input charge)
+              // Product · 49: soft-pulse the missing/empty required input port (not Abort/Stop).
+              try{ scheduleRunFailPort({ nodeId: n.id, nodeType: n.type, errorMessage: err?.message || String(err) }, 40); }catch(_){}
             }
           }
         } finally {
@@ -16833,6 +16843,117 @@ RULES for the diff:
 /* Next-action scores feed existing menus (add node, wire-drop, model picker).
    Dynamic import so a tree without vendor/next-action stays quiet. No panel, no ghost.
    ?na=0 / ?product=off disables hints; until the cache is confident, lists are unchanged. */
+
+/* Product · 49 — run-failure rewire: soft-pulse the empty required input
+   port after a missing-input run failure. Quiet when none/multi/flat/
+   reduced-motion/engine off. Clears on next drag / connect / select /
+   new run / short TTL. No tip panel. */
+let _runFailPortTimer = 0;
+let _runFailPortTtl = 0;
+let _runFailPortKey = "";
+const RUN_FAIL_PORT_TTL_MS = 1500;
+function runFailPortReducedMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(_){ return false; }
+}
+function buildRunFailInputsMeta(n){
+  const t = n && NODE_TYPES[n.type];
+  if(!t || !n) return [];
+  const meta = [];
+  const seen = new Set();
+  const push = (name, type, field)=>{
+    if(!name || seen.has(name)) return;
+    seen.add(name);
+    const wired = !!(graph.links||[]).some(l=> l.to.node===n.id && l.to.port===name);
+    let empty = true;
+    if(wired){
+      const l = (graph.links||[]).find(x=> x.to.node===n.id && x.to.port===name);
+      const v = l ? byId(l.from.node)?.out?.[l.from.port] : null;
+      empty = v==null || v==="" || (Array.isArray(v) && !v.length);
+    }else if(field && n.fields){
+      const fv = n.fields[name];
+      empty = fv==null || String(fv).trim()==="";
+    }
+    meta.push({ name, type: type||"", wired, empty, field: !!field });
+  };
+  for(const p of (t.inputs||[])) push(p.name, p.type, false);
+  // Dynamic image / video / audio / ref / endframe ports present in the DOM
+  if(n.el){
+    n.el.querySelectorAll('.port[data-dir="in"]').forEach(el=>{
+      push(el.dataset.port, el.dataset.ptype||"", el.classList.contains("fieldport"));
+    });
+  }else{
+    // fieldports always include prompt when the type has a prompt field
+    if(n.fields && ("prompt" in n.fields || t.body)) push("prompt", "text", true);
+  }
+  return meta;
+}
+function clearRunFailPort(){
+  if(_runFailPortTimer){ clearTimeout(_runFailPortTimer); _runFailPortTimer = 0; }
+  if(_runFailPortTtl){ clearTimeout(_runFailPortTtl); _runFailPortTtl = 0; }
+  document.querySelectorAll(".port.na-run-fail-port").forEach(p=>{
+    p.classList.remove("na-run-fail-port");
+    if(p.dataset.naRunFailCompatible){
+      p.classList.remove("compatible");
+      delete p.dataset.naRunFailCompatible;
+    }
+  });
+  _runFailPortKey = "";
+}
+function applyRunFailPort(ctx){
+  if(runFailPortReducedMotion()){ clearRunFailPort(); return; }
+  if(typeof geoOn==="function" && !geoOn()){ clearRunFailPort(); return; }
+  if(typeof tempWire!=="undefined" && tempWire) return;
+  const na = window.__nextAction;
+  if(!na || na.disabled){ clearRunFailPort(); return; }
+  if(!ctx || !ctx.nodeId){ clearRunFailPort(); return; }
+  const n = typeof byId==="function" ? byId(ctx.nodeId) : null;
+  const nodeType = ctx.nodeType || n?.type || "";
+  const inputsMeta = ctx.inputsMeta || (n ? buildRunFailInputsMeta(n) : []);
+  const graphSnapshot = ctx.graphSnapshot || {
+    nodes: (graph.nodes||[]).map(x=>({ id:x.id, type:x.type })),
+    links: (graph.links||[]).map(l=>({ from:l.from, to:l.to })),
+  };
+  const args = {
+    nodeId: ctx.nodeId,
+    nodeType,
+    errorMessage: ctx.errorMessage || "",
+    inputsMeta,
+    graphSnapshot,
+  };
+  let pick = null;
+  if(typeof na.pickRunFailPort==="function"){
+    try{ pick = na.pickRunFailPort(args); }catch(_){ pick = null; }
+  }
+  if(!pick){ clearRunFailPort(); return; }
+  const el = document.querySelector(`.port[data-node="${pick.nodeId}"][data-port="${pick.port}"][data-dir="in"]`);
+  if(!el || el.classList.contains("disabled")){ clearRunFailPort(); return; }
+  const key = pick.nodeId + "|" + pick.port + "|in";
+  if(key !== _runFailPortKey){
+    clearRunFailPort();
+    el.classList.add("na-run-fail-port");
+    if(!el.classList.contains("compatible")){
+      el.classList.add("compatible");
+      el.dataset.naRunFailCompatible = "1";
+    }
+    _runFailPortKey = key;
+  }else if(!el.classList.contains("na-run-fail-port")){
+    el.classList.add("na-run-fail-port");
+    if(!el.classList.contains("compatible")){
+      el.classList.add("compatible");
+      el.dataset.naRunFailCompatible = "1";
+    }
+  }
+  if(_runFailPortTtl) clearTimeout(_runFailPortTtl);
+  _runFailPortTtl = setTimeout(()=>{ _runFailPortTtl = 0; clearRunFailPort(); }, RUN_FAIL_PORT_TTL_MS);
+}
+function scheduleRunFailPort(ctx, ms){
+  if(_runFailPortTimer) clearTimeout(_runFailPortTimer);
+  _runFailPortTimer = setTimeout(()=>{
+    _runFailPortTimer = 0;
+    applyRunFailPort(ctx);
+  }, ms == null ? 50 : ms);
+}
+
 (function bootNextActionHints(){
   const _addNode = addNode;
   addNode = function(type, x, y, fields){
@@ -16844,12 +16965,14 @@ RULES for the diff:
   connect = function(fromNode, fromPort, toNode, toPort){
     const ok = _connect(fromNode, fromPort, toNode, toPort);
     if(ok) try { window.__nextAction?.record?.("wire"); } catch(_){}
+    if(ok) try { clearRunFailPort(); } catch(_){}
     return ok;
   };
   const _select = select;
   select = function(n){
     _select(n);
     try { window.__nextAction?.refresh?.(); } catch(_){}
+    try { clearRunFailPort(); } catch(_){}
   };
   const _loadExample = loadExample;
   loadExample = function(i){
@@ -16861,6 +16984,7 @@ RULES for the diff:
     const _runGroup = runGroup;
     runGroup = function(seedIds, ctx){
       try { window.__nextAction?.record?.("run"); } catch(_){}
+      try { clearRunFailPort(); } catch(_){}
       return _runGroup.apply(this, arguments);
     };
   }

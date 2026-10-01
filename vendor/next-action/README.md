@@ -14,6 +14,7 @@
 | layout | `deoverlap.mjs`, `auto-tidy.mjs`, `collision-nudge.mjs` — slide an overlapping add apart |
 | memory | `suggestion-memory.mjs` — local accept/ignore reweight of suggested adds |
 | weights | `export-load.mjs`, `scripts/export-smallnet-weights.py` — catalog first, fixture fallback |
+| · 49 | `run-fail-port.mjs` — after run fails for missing/empty required input, soft-pulse that empty port |
 
 Learned `.bin` weights stay **gitignored**; tests load inline float fixtures.
 The editor reads scores from `editor-surface.mjs` and shows them inside existing
@@ -47,6 +48,7 @@ node scripts/check-next-action-anti-slop.mjs
 node scripts/check-next-action-deoverlap.mjs
 node scripts/check-next-action-suggestion-memory.mjs
 node scripts/check-next-action-weights.mjs
+node scripts/check-next-action-run-fail-port.mjs
 node scripts/check-smallnet.mjs   # catalog still empty
 ```
 
