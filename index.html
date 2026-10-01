@@ -726,6 +726,10 @@
   .port.na-dblclick-add-wire-ready{ box-shadow:0 0 0 3px #a78bfa66 }
   .na-dblclick-add-wire-add{ position:absolute; left:calc(100% + 6px); top:50%; transform:translateY(-50%); width:19px; height:19px; padding:0; border:1px solid #a78bfa66; border-radius:50%; color:#c4b5fd; background:var(--panel); font:600 12px/1 system-ui; z-index:5; cursor:pointer }
   .port[data-dir="in"] > .na-dblclick-add-wire-add{ left:auto; right:calc(100% + 6px) }
+  @media (pointer:coarse){
+    .na-dblclick-add-wire-add::before{ content:""; position:absolute; inset:-7px -14px -7px 0 }
+    .port[data-dir="in"] > .na-dblclick-add-wire-add::before{ inset:-7px 0 -7px -14px }
+  }
   .port:focus-visible{ outline:2px solid #c4b5fd; outline-offset:4px }
   @keyframes naDblclickAddWirePulse{ 50%{ box-shadow:0 0 0 6px #a78bfa44, 0 0 14px #a78bfa55 } }
   @media (prefers-reduced-motion: reduce){
