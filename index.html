@@ -723,6 +723,13 @@
   .port.snap{ transform:scale(1.7); box-shadow:0 0 0 5px #ffffff66, 0 0 12px #fff6; animation:none }
   @keyframes portpulse{ 50%{ box-shadow:0 0 0 6px #ffffff14 } }
 
+  /* Product · 43: soft pulse on one high-prior free-port after a successful node add. */
+  .port.na-post-add-port{ transform:scale(1.35); box-shadow:0 0 0 4px #7dd3fcaa, 0 0 12px #7dd3fc66; animation:naPostAddPulse 1.35s ease-in-out infinite }
+  @keyframes naPostAddPulse{ 50%{ box-shadow:0 0 0 7px #7dd3fc44, 0 0 16px #7dd3fc55; transform:scale(1.5) } }
+  @media (prefers-reduced-motion: reduce){
+    .port.na-post-add-port{ animation:none !important; box-shadow:none; transform:none }
+  }
+
   .body{ padding:.1rem .6rem .6rem; display:flex; flex-direction:column; gap:.5rem }
   .body label{ font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); display:block; margin-bottom:.2rem; font-weight:700 }
   .body textarea{ width:100%; resize:vertical; min-width:190px; max-width:min(80vw,760px); min-height:84px;
@@ -10576,6 +10583,7 @@ function nearestPort(x, y, ports){
 function startWire(port, e){
   if(port.classList && port.classList.contains("disabled")) return;
   e.preventDefault(); e.stopPropagation();
+  try{ clearPostAddFreePort(); }catch(_){}
   closeQuickAdd();
   const dir = port.dataset.dir, ptype = port.dataset.ptype, node = port.dataset.node;
   const id = e.pointerId;                            // only this pointer drives the wire — ignore a stray second touch
@@ -16830,6 +16838,65 @@ RULES for the diff:
     }finally{ setBusy(false); dbAbort = null; }
   }
 })();
+/* Product · 43 — post-add free-port: soft-pulse one prior-backed dangling
+   port on the just-added node. Distinct class from · 22 / · 29 / · 33.
+   Clears on next drag / connect / select-away / short TTL. No tip panel. */
+let _postAddFreePortTimer = 0;
+let _postAddFreePortTtl = 0;
+let _postAddFreePortKey = "";
+let _postAddFreePortNodeId = "";
+const POST_ADD_FREE_PORT_TTL_MS = 2500;
+function postAddFreePortReducedMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(_){ return false; }
+}
+function clearPostAddFreePort(){
+  if(_postAddFreePortTimer){ clearTimeout(_postAddFreePortTimer); _postAddFreePortTimer = 0; }
+  if(_postAddFreePortTtl){ clearTimeout(_postAddFreePortTtl); _postAddFreePortTtl = 0; }
+  document.querySelectorAll(".port.na-post-add-port").forEach(p=> p.classList.remove("na-post-add-port"));
+  _postAddFreePortKey = "";
+  _postAddFreePortNodeId = "";
+}
+function applyPostAddFreePort(nodeId){
+  if(postAddFreePortReducedMotion()){ clearPostAddFreePort(); return; }
+  if(typeof geoOn==="function" && !geoOn()){ clearPostAddFreePort(); return; }
+  if(typeof tempWire!=="undefined" && tempWire) return;
+  if(typeof multiSel!=="undefined" && multiSel && multiSel.size > 1){ clearPostAddFreePort(); return; }
+  if(typeof undoMuted!=="undefined" && undoMuted){ clearPostAddFreePort(); return; }
+  const na = window.__nextAction;
+  if(!na || na.disabled || !(na.hasPortPriors && na.hasPortPriors()) || typeof na.pickPostAddFreePort!=="function"){
+    clearPostAddFreePort();
+    return;
+  }
+  if(!nodeId || !graph || !graph.nodes || !graph.nodes.length){ clearPostAddFreePort(); return; }
+  let pick = null;
+  try{
+    pick = na.pickPostAddFreePort({ nodeId });
+  }catch(_){ pick = null; }
+  if(!pick){ clearPostAddFreePort(); return; }
+  const dir = pick.dir === "in" ? "in" : "out";
+  const key = pick.nodeId + "|" + pick.port + "|" + dir;
+  const el = document.querySelector(`.port[data-node="${pick.nodeId}"][data-port="${pick.port}"][data-dir="${dir}"]`);
+  if(!el || el.classList.contains("disabled")){ clearPostAddFreePort(); return; }
+  if(key !== _postAddFreePortKey){
+    document.querySelectorAll(".port.na-post-add-port").forEach(p=> p.classList.remove("na-post-add-port"));
+    el.classList.add("na-post-add-port");
+    _postAddFreePortKey = key;
+  }else if(!el.classList.contains("na-post-add-port")){
+    el.classList.add("na-post-add-port");
+  }
+  _postAddFreePortNodeId = pick.nodeId;
+  if(_postAddFreePortTtl) clearTimeout(_postAddFreePortTtl);
+  _postAddFreePortTtl = setTimeout(()=>{ _postAddFreePortTtl = 0; clearPostAddFreePort(); }, POST_ADD_FREE_PORT_TTL_MS);
+}
+function schedulePostAddFreePort(nodeId, ms){
+  if(_postAddFreePortTimer) clearTimeout(_postAddFreePortTimer);
+  _postAddFreePortNodeId = nodeId || "";
+  _postAddFreePortTimer = setTimeout(()=>{
+    _postAddFreePortTimer = 0;
+    applyPostAddFreePort(nodeId);
+  }, ms == null ? 120 : ms);
+}
+
 /* Next-action scores feed existing menus (add node, wire-drop, model picker).
    Dynamic import so a tree without vendor/next-action stays quiet. No panel, no ghost.
    ?na=0 / ?product=off disables hints; until the cache is confident, lists are unchanged. */
@@ -16838,18 +16905,24 @@ RULES for the diff:
   addNode = function(type, x, y, fields){
     const n = _addNode(type, x, y, fields);
     try { window.__nextAction?.record?.("add:" + type); } catch(_){}
+    try { if(n && n.id && !(typeof undoMuted!=="undefined" && undoMuted)) schedulePostAddFreePort(n.id, 120); } catch(_){}
     return n;
   };
   const _connect = connect;
   connect = function(fromNode, fromPort, toNode, toPort){
     const ok = _connect(fromNode, fromPort, toNode, toPort);
     if(ok) try { window.__nextAction?.record?.("wire"); } catch(_){}
+    if(ok) try { clearPostAddFreePort(); } catch(_){}
     return ok;
   };
   const _select = select;
   select = function(n){
     _select(n);
     try { window.__nextAction?.refresh?.(); } catch(_){}
+    try {
+      // Selecting the just-added node is expected after place — keep its free-port pulse.
+      if(!n || !n.id || n.id !== _postAddFreePortNodeId) clearPostAddFreePort();
+    } catch(_){}
   };
   const _loadExample = loadExample;
   loadExample = function(i){
@@ -16880,6 +16953,7 @@ RULES for the diff:
         nodes: (graph.nodes||[]).map(n => ({ id:n.id, type:n.type, x:n.x, y:n.y })),
         links: (graph.links||[]).map(l => ({ from:l.from, to:l.to })),
         selectedId: selected?.id || null,
+        selectedIds: (typeof multiSel!=="undefined" && multiSel && multiSel.size) ? [...multiSel] : undefined,
       }),
       nodeTypes: Object.keys(NODE_TYPES),
       onHints: paintOpenLists,
