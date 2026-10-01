@@ -94,6 +94,8 @@ function portEl(node, name, { disabled = false, dir = "in" } = {}) {
 
 function likely(opts) {
   const ctx = {
+    // No loaded gallery priors: exercise the shipped wire-hint fallback.
+    window: { __nextAction: null },
     selected: opts.selectedId ? { id: opts.selectedId } : null,
     graph: {
       nodes: (opts.nodeIds || []).map((id) => ({ id })),
