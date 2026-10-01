@@ -18,11 +18,19 @@ import { portsOf } from "./port-suggest.mjs";
 
 export const MAX_ORIGIN_FIT = 3;
 export const SOURCE = "quickadd-after-abort";
-export const REASON_OUT = "fits aborted output";
-export const REASON_IN = "feeds aborted input";
+export const REASON_OUT = "Uses this output";
+export const REASON_IN = "Provides this input";
 export const MIN_PAIR = 2;
 export const MIN_LEAD = 1.35;
 export const MIN_SHARE = 0.18;
+
+/** Short, translatable reasons describe what selecting the row will connect. */
+export function originFitReason(dir, ptype) {
+  const reasons = dir === "in"
+    ? { text: "Provides text", image: "Provides an image", video: "Provides video", audio: "Provides audio", model3d: "Provides a 3D model" }
+    : { text: "Uses this text", image: "Uses this image", video: "Uses this video", audio: "Uses this audio", model3d: "Uses this 3D model" };
+  return reasons[ptype] || (dir === "in" ? REASON_IN : REASON_OUT);
+}
 
 /**
  * @typedef {{
@@ -135,9 +143,9 @@ export function scoreInProducers(tables, dstType, dstPort, candidates) {
  * @param {{ boost?: (action: string) => number }|null} memory
  * @param {"out"|"in"} dir
  */
-export function applyMemoryToOriginFit(scored, memory, dir) {
+export function applyMemoryToOriginFit(scored, memory, dir, ptype) {
   const mem = memory || null;
-  const reason = dir === "in" ? REASON_IN : REASON_OUT;
+  const reason = originFitReason(dir, ptype);
   return (scored || []).map((r) => {
     let score = Math.max(0, Number(r.count) || 0);
     let why = reason;
@@ -224,6 +232,7 @@ export function gateOriginFit(rows, opts = {}) {
  *   dir?: "out"|"in",
  *   srcType?: string,
  *   srcPort?: string,
+ *   ptype?: string,
  *   candidates?: Array<{ type: string, ports?: Array<{ name?: string }|string> }>,
  *   memory?: { boost?: (action: string) => number }|null,
  *   minShare?: number,
@@ -244,7 +253,7 @@ export function rankQuickaddAfterAbort(tables, query = {}) {
       ? scoreInProducers(tables, srcType, srcPort, candidates)
       : scoreOutConsumers(tables, srcType, srcPort, candidates);
   if (!scored.length) return null;
-  const weighted = applyMemoryToOriginFit(scored, query.memory || null, dir);
+  const weighted = applyMemoryToOriginFit(scored, query.memory || null, dir, query.ptype);
   return gateOriginFit(weighted, {
     minShare: query.minShare,
     minLead: query.minLead,

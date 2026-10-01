@@ -6,6 +6,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import vm from "node:vm";
 import { createSuggestionMemory } from "../vendor/next-action/suggestion-memory.mjs";
 import {
   pairCount,
@@ -14,6 +15,7 @@ import {
   applyMemoryToOriginFit,
   gateOriginFit,
   rankQuickaddAfterAbort,
+  originFitReason,
   SOURCE,
   REASON_OUT,
   REASON_IN,
@@ -464,8 +466,8 @@ const producerCands = [
   toy(
     "source-constant",
     SOURCE === "quickadd-after-abort" &&
-      REASON_OUT === "fits aborted output" &&
-      REASON_IN === "feeds aborted input",
+      REASON_OUT === "Uses this output" &&
+      REASON_IN === "Provides this input",
     SOURCE + "/" + REASON_OUT + "/" + REASON_IN
   );
   const thin = {
@@ -491,6 +493,50 @@ const producerCands = [
     existsSync(join(NA, "product-48-usage.gif")),
     "product-48-usage.gif"
   );
+}
+
+{
+  toy("typed-out-reason", originFitReason("out", "text") === "Uses this text" && originFitReason("out", "image") === "Uses this image", "familiar payload names");
+  toy("typed-in-reason", originFitReason("in", "text") === "Provides text" && originFitReason("in", "audio") === "Provides audio", "producer direction");
+  toy("unknown-payload-reason", originFitReason("out", "unknown") === REASON_OUT && originFitReason("in") === REASON_IN, "safe generic fallback");
+  const reasonRows = rankQuickaddAfterAbort(portTables, { dir: "out", srcType: "text", srcPort: "text", ptype: "text", candidates: [{ type: "image", ports: ["prompt"] }] });
+  toy("query-keeps-typed-reason", reasonRows?.byType.image.reason === "Uses this text", "reason reaches Suggested row");
+  const wireDropSource = index.slice(index.indexOf("function wireDropHintMap("), index.indexOf("function openQuickAdd("));
+  toy("reduced-motion-keeps-static-ranking", !wireDropSource.includes("prefers-reduced-motion") && /\bptype\s*,/.test(wireDropSource), "static menu stays available");
+  for (const lang of ["es", "fr", "de", "pt", "ja"]) {
+    const start = index.indexOf("  " + lang + ":{");
+    const map = index.slice(start, index.indexOf("\n  },", start));
+    toy("localized-reasons-" + lang, [REASON_OUT, REASON_IN, "Uses this text", "Uses this image", "Uses this video", "Uses this audio", "Uses this 3D model", "Provides text", "Provides an image", "Provides video", "Provides audio", "Provides a 3D model"].every(reason => map.includes(JSON.stringify(reason) + ":")), "all payload reasons translated");
+  }
+}
+
+// Run the shipped create/place/connect handler: nested structural edits share
+// one snapshot, including the legacy geometry-disabled path.
+{
+  const start = index.indexOf("function quickSpawn(");
+  const source = index.slice(start, index.indexOf("// pan (one finger", start));
+  function run(geometry, muted = false, throws = false) {
+    const ctx = { undoMuted: muted, graph: { nodes: [{ id: "source" }], links: [] }, snapshots: [],
+      pushUndo() { if (!ctx.undoMuted) ctx.snapshots.push(JSON.stringify(ctx.graph)); },
+      addNode(type) { ctx.pushUndo(); if (throws) throw new Error("render failed"); const n = { id: "new", type, el: { querySelectorAll: () => [{ dataset: { node: "new", port: "prompt" }, classList: { contains: () => false } }] } }; ctx.graph.nodes.push(n); return n; },
+      separateOnAdd() {}, rememberAdd() {}, select() {}, geoOn: () => geometry,
+      byId: id => ctx.graph.nodes.find(n => n.id === id),
+      geoSettleNew(n) { ctx.connect("source", "text", n.id, "prompt"); },
+      connect(fromNode, fromPort, toNode, toPort) { ctx.pushUndo(); ctx.graph.links.push({ from: { node: fromNode, port: fromPort }, to: { node: toNode, port: toPort } }); },
+      ensureModelForInput() {}, redraw() {}, dismissConnectHint() {},
+    };
+    vm.createContext(ctx); new vm.Script(source).runInContext(ctx);
+    try { ctx.quickSpawn("image", 400, 200, "out", "text", { dataset: { node: "source", port: "text" } }); } catch (e) { if (!throws) throw e; }
+    return ctx;
+  }
+  for (const geometry of [true, false]) {
+    const c = run(geometry);
+    toy("one-choice-one-undo-" + geometry, c.snapshots.length === 1 && JSON.parse(c.snapshots[0]).nodes.length === 1 && c.graph.nodes.length === 2 && c.graph.links.length === 1 && c.undoMuted === false, "pre-choice snapshot and connected pair");
+  }
+  const nested = run(true, true);
+  toy("keeps-existing-undo-mute", nested.snapshots.length === 0 && nested.undoMuted === true, "programmatic build state preserved");
+  const failedRender = run(true, false, true);
+  toy("restores-mute-after-error", failedRender.undoMuted === false, "later edits remain undoable");
 }
 
 const failed = toys.filter((t) => !t.ok);
