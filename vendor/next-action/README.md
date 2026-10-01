@@ -15,12 +15,13 @@
 | bridge | `dual-select-bridge.mjs` — Product · 37 selectable wire preview; hover/focus reveals connect, click/Enter/Space accepts |
 | · 39 | `drop-on-node-auto-wire.mjs` — Product · 39 drop-on-node auto-wire |
 | memory | `suggestion-memory.mjs` — local accept/ignore reweight of suggested adds |
+| · 48 | `quickadd-after-abort.mjs` — after abort opens `#quickadd`, origin-fit Suggested re-rank |
 | · 40 | `dblclick-dangling-add-wire.mjs`, `scripts/check-next-action-dblclick-dangling-add-wire.mjs` — double-click dangling port → top gallery add+wire at free seat |
 | weights | `export-load.mjs`, `scripts/export-smallnet-weights.py` — catalog first, fixture fallback |
 
 Learned `.bin` weights stay **gitignored**; tests load inline float fixtures.
 The editor reads scores from `editor-surface.mjs` and shows them inside existing
-menus (add-node, wire-drop quick-add, model picker). There is no floating
+menus (add-node, wire-drop quick-add, model picker). Product · 48 re-ranks abort→`#quickadd` Suggested rows via `quickadd-after-abort.mjs`. There is no floating
 next-action panel and no ghost node. `?product=` does not mount one.
 `?na=0` or `?product=off` disables hints; a failed load does the same, and
 menus stay unchanged. Catalog stays empty — no `weightsUrl` until a deliberate release.
@@ -51,6 +52,7 @@ node scripts/check-next-action-recipe.mjs
 node scripts/check-next-action-anti-slop.mjs
 node scripts/check-next-action-deoverlap.mjs
 node scripts/check-next-action-suggestion-memory.mjs
+node scripts/check-next-action-quickadd-after-abort.mjs
 node scripts/check-next-action-weights.mjs
 node scripts/check-smallnet.mjs   # catalog still empty
 ```

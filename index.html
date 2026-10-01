@@ -1369,6 +1369,18 @@ const I18N_ENAME = { es:"Spanish", fr:"French", de:"German", pt:"Portuguese", ja
 /* === I18N-MAPS-BEGIN (es/fr/de/pt/ja — generated; English is identity) === */
 const I18N = {
   es:{
+    "Uses this output":"Usa esta salida",
+    "Provides this input":"Proporciona esta entrada",
+    "Uses this text":"Usa este texto",
+    "Uses this image":"Usa esta imagen",
+    "Uses this video":"Usa este vídeo",
+    "Uses this audio":"Usa este audio",
+    "Uses this 3D model":"Usa este modelo 3D",
+    "Provides text":"Proporciona texto",
+    "Provides an image":"Proporciona una imagen",
+    "Provides video":"Proporciona vídeo",
+    "Provides audio":"Proporciona audio",
+    "Provides a 3D model":"Proporciona un modelo 3D",
     "Add {node}":"Añadir {node}",
     "Add {node} — double-click or press Enter":"Añadir {node} — doble clic o pulsa Intro",
     "Pocket mystery":"Misterio de bolsillo",
@@ -2060,6 +2072,18 @@ const I18N = {
     "Load nanoodle into your coding agent":"Carga nanoodle en tu agente de código"
   },
   fr:{
+    "Uses this output":"Utilise cette sortie",
+    "Provides this input":"Fournit cette entrée",
+    "Uses this text":"Utilise ce texte",
+    "Uses this image":"Utilise cette image",
+    "Uses this video":"Utilise cette vidéo",
+    "Uses this audio":"Utilise cet audio",
+    "Uses this 3D model":"Utilise ce modèle 3D",
+    "Provides text":"Fournit du texte",
+    "Provides an image":"Fournit une image",
+    "Provides video":"Fournit une vidéo",
+    "Provides audio":"Fournit de l’audio",
+    "Provides a 3D model":"Fournit un modèle 3D",
     "Add {node}":"Ajouter {node}",
     "Add {node} — double-click or press Enter":"Ajouter {node} — double-cliquez ou appuyez sur Entrée",
     "Pocket mystery":"Mystère de poche",
@@ -2751,6 +2775,18 @@ const I18N = {
     "Load nanoodle into your coding agent":"Chargez nanoodle dans votre agent de code"
   },
   de:{
+    "Uses this output":"Verwendet diese Ausgabe",
+    "Provides this input":"Liefert diese Eingabe",
+    "Uses this text":"Verwendet diesen Text",
+    "Uses this image":"Verwendet dieses Bild",
+    "Uses this video":"Verwendet dieses Video",
+    "Uses this audio":"Verwendet dieses Audio",
+    "Uses this 3D model":"Verwendet dieses 3D-Modell",
+    "Provides text":"Liefert Text",
+    "Provides an image":"Liefert ein Bild",
+    "Provides video":"Liefert ein Video",
+    "Provides audio":"Liefert Audio",
+    "Provides a 3D model":"Liefert ein 3D-Modell",
     "Add {node}":"{node} hinzufügen",
     "Add {node} — double-click or press Enter":"{node} hinzufügen — doppelklicken oder Eingabetaste drücken",
     "Pocket mystery":"Taschenrätsel",
@@ -3442,6 +3478,18 @@ const I18N = {
     "Load nanoodle into your coding agent":"Lade nanoodle in deinen Coding-Agenten"
   },
   pt:{
+    "Uses this output":"Usa esta saída",
+    "Provides this input":"Fornece esta entrada",
+    "Uses this text":"Usa este texto",
+    "Uses this image":"Usa esta imagem",
+    "Uses this video":"Usa este vídeo",
+    "Uses this audio":"Usa este áudio",
+    "Uses this 3D model":"Usa este modelo 3D",
+    "Provides text":"Fornece texto",
+    "Provides an image":"Fornece uma imagem",
+    "Provides video":"Fornece vídeo",
+    "Provides audio":"Fornece áudio",
+    "Provides a 3D model":"Fornece um modelo 3D",
     "Add {node}":"Adicionar {node}",
     "Add {node} — double-click or press Enter":"Adicionar {node} — clique duas vezes ou pressione Enter",
     "Pocket mystery":"Mistério de bolso",
@@ -4133,6 +4181,18 @@ const I18N = {
     "Load nanoodle into your coding agent":"Carregue o nanoodle no seu agente de código"
   },
   ja:{
+    "Uses this output":"この出力を使う",
+    "Provides this input":"この入力を供給する",
+    "Uses this text":"このテキストを使う",
+    "Uses this image":"この画像を使う",
+    "Uses this video":"この動画を使う",
+    "Uses this audio":"この音声を使う",
+    "Uses this 3D model":"この3Dモデルを使う",
+    "Provides text":"テキストを供給する",
+    "Provides an image":"画像を供給する",
+    "Provides video":"動画を供給する",
+    "Provides audio":"音声を供給する",
+    "Provides a 3D model":"3Dモデルを供給する",
     "Add {node}":"{node}を追加",
     "Add {node} — double-click or press Enter":"{node}を追加 — ダブルクリックまたはEnter",
     "Pocket mystery":"ポケットミステリー",
@@ -10883,18 +10943,25 @@ function socketsForDrop(k, dir, ptype){
 }
 function wireDropHintMap(originPort, cands){
   const na = window.__nextAction;
-  if(!na || !na.hasPortPriors || !na.hasPortPriors() || typeof na.rankDropTypes!=="function") return null;
+  if(!na || na.disabled || !na.hasPortPriors || !na.hasPortPriors()) return null;
   const src = byId(originPort.dataset.node);
   const dir = originPort.dataset.dir, ptype = originPort.dataset.ptype;
+  const query = {
+    dir,
+    ptype,
+    srcType: src && src.type,
+    srcPort: originPort.dataset.port,
+    candidates: cands.map(([k])=>({ type:k, ports: socketsForDrop(k, dir, ptype).map(name=>({ name })) })),
+  };
   let ranked = null;
-  try{
-    ranked = na.rankDropTypes({
-      dir,
-      srcType: src && src.type,
-      srcPort: originPort.dataset.port,
-      candidates: cands.map(([k])=>({ type:k, ports: socketsForDrop(k, dir, ptype).map(name=>({ name })) })),
-    });
-  }catch(_){ ranked = null; }
+  // Product · 48: after abort → #quickadd, soft-re-rank Suggested by origin-fit (both dirs).
+  if(typeof na.rankQuickaddAfterAbort==="function"){
+    try{ ranked = na.rankQuickaddAfterAbort(query); }catch(_){ ranked = null; }
+  }
+  // Fallback: #621 rankDropTypes when origin-fit is quiet / unavailable.
+  if((!ranked || !ranked.order || !ranked.order.length) && typeof na.rankDropTypes==="function"){
+    try{ ranked = na.rankDropTypes(query); }catch(_){ ranked = null; }
+  }
   if(!ranked || !ranked.order || !ranked.order.length) return null;
   return ranked;
 }
@@ -10988,33 +11055,38 @@ function ensureModelForInput(n, type){
   }
 }
 function quickSpawn(typeKey, wx, wy, dir, type, originPort){
-  // place the card so its relevant edge sits near the drop point (downstream to the right, source to the left)
-  const x = dir==="out" ? wx + 8 : wx - 232;
-  const n = addNode(typeKey, Math.round(x), Math.round(wy - 24));
-  separateOnAdd(n);
-  rememberAdd(typeKey);
-  select(n);
-  if(typeof geoOn==="function" && geoOn()){
-    geoSettleNew(n, { dir:dir, type:type, originPort:originPort, anchor:byId(originPort.dataset.node) });
-    return;
-  }
-  const opp = dir==="out" ? "in" : "out", sel = `.port[data-dir="${opp}"][data-ptype="${type}"]`;
-  let ports = [...n.el.querySelectorAll(sel)];
-  // the only matching socket may be disabled (e.g. an LLM defaulted to a non-vision model) — upgrade
-  // the model so the wire can actually land, then re-read the now-enabled ports
-  if(dir==="out" && !ports.some(p=> !p.classList.contains("disabled")) && (ports.length || n.type==="model3d")){
-    ensureModelForInput(n, type);
-    ports = [...n.el.querySelectorAll(sel)];
-  }
-  ports = ports.filter(p=> !p.classList.contains("disabled"));
-  // wire the dragged port to the new node's first matching, free socket
-  const target = ports.find(p=> p.dataset.port==="prompt") || ports.find(p=> !p.classList.contains("filled")) || ports[0];
-  redraw();
-  if(target){
-    const out = dir==="out" ? originPort : target, inn = dir==="out" ? target : originPort;
-    connect(out.dataset.node, out.dataset.port, inn.dataset.node, inn.dataset.port);
-    dismissConnectHint();                              // wire-drop quick-add is a manual connect too — retire the coach line
-  }
+  // Picking one row creates one connected pair: Undo should remove that whole choice.
+  const wasMuted = undoMuted;
+  pushUndo(); undoMuted = true;
+  try{
+    // place the card so its relevant edge sits near the drop point (downstream to the right, source to the left)
+    const x = dir==="out" ? wx + 8 : wx - 232;
+    const n = addNode(typeKey, Math.round(x), Math.round(wy - 24));
+    separateOnAdd(n);
+    rememberAdd(typeKey);
+    select(n);
+    if(typeof geoOn==="function" && geoOn()){
+      geoSettleNew(n, { dir:dir, type:type, originPort:originPort, anchor:byId(originPort.dataset.node) });
+      return;
+    }
+    const opp = dir==="out" ? "in" : "out", sel = `.port[data-dir="${opp}"][data-ptype="${type}"]`;
+    let ports = [...n.el.querySelectorAll(sel)];
+    // the only matching socket may be disabled (e.g. an LLM defaulted to a non-vision model) — upgrade
+    // the model so the wire can actually land, then re-read the now-enabled ports
+    if(dir==="out" && !ports.some(p=> !p.classList.contains("disabled")) && (ports.length || n.type==="model3d")){
+      ensureModelForInput(n, type);
+      ports = [...n.el.querySelectorAll(sel)];
+    }
+    ports = ports.filter(p=> !p.classList.contains("disabled"));
+    // wire the dragged port to the new node's first matching, free socket
+    const target = ports.find(p=> p.dataset.port==="prompt") || ports.find(p=> !p.classList.contains("filled")) || ports[0];
+    redraw();
+    if(target){
+      const out = dir==="out" ? originPort : target, inn = dir==="out" ? target : originPort;
+      connect(out.dataset.node, out.dataset.port, inn.dataset.node, inn.dataset.port);
+      dismissConnectHint();                              // wire-drop quick-add is a manual connect too — retire the coach line
+    }
+  }finally{ undoMuted = wasMuted; }
 }
 
 // pan (one finger / drag) + pinch-zoom (two fingers) on the editor background.
