@@ -10,6 +10,7 @@
  * only recorded the token — it never called connect() — so a wire suggestion
  * is not an action button. Menus rank add:/set:model/open:examples rows;
  * while a wire drag is active the editor may emphasize one compatible port,
+ * a post-delete rewire may soft-pulse one orphaned dangling port,
  * and dropping still goes through connect().
  *
  * ?na=0 or ?product=off (or nano.nextAction=off) disables the engine. A failed
@@ -20,6 +21,7 @@ import { chooseHints } from "./hints.mjs";
 import { createSuggestionMemory } from "./suggestion-memory.mjs";
 import { applyAntiSlop, isShallowTextLlm, rerankShallowAdds } from "./anti-slop.mjs";
 import { pickRingTarget, rankDropTypes } from "./port-suggest.mjs";
+import { pickPostDeleteRewirePort, pickPostDeleteBestPair } from "./post-delete-rewire.mjs";
 import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
 import { loadNextActionExport } from "./export-load.mjs";
 
@@ -154,6 +156,33 @@ export async function mount(api) {
       if (!portTables) return null;
       try { return pickRingTarget(portTables, query); }
       catch (_) { return null; }
+    },
+    // Product · 44: after a successful node delete, pick one rewire port / optional best pair.
+    pickPostDeleteRewirePort(query) {
+      if (!portTables) return null;
+      try {
+        const g = (api.getGraph && api.getGraph()) || {};
+        const graph = {
+          nodes: g.nodes || [],
+          links: g.links || [],
+          selectedId: g.selectedId || null,
+          selectedIds: g.selectedIds || undefined,
+        };
+        return pickPostDeleteRewirePort(portTables, graph, query || {});
+      } catch (_) { return null; }
+    },
+    pickPostDeleteBestPair(query) {
+      if (!portTables) return null;
+      try {
+        const g = (api.getGraph && api.getGraph()) || {};
+        const graph = {
+          nodes: g.nodes || [],
+          links: g.links || [],
+          selectedId: g.selectedId || null,
+          selectedIds: g.selectedIds || undefined,
+        };
+        return pickPostDeleteBestPair(portTables, graph, query || {});
+      } catch (_) { return null; }
     },
   };
 

@@ -723,6 +723,18 @@
   .port.snap{ transform:scale(1.7); box-shadow:0 0 0 5px #ffffff66, 0 0 12px #fff6; animation:none }
   @keyframes portpulse{ 50%{ box-shadow:0 0 0 6px #ffffff14 } }
 
+  /* Product · 44: soft pulse on one high-prior dangling port after a successful node delete. */
+  .port.na-post-delete-rewire{ transform:scale(1.35); box-shadow:0 0 0 4px #f9a8d4aa, 0 0 12px #f9a8d466; animation:naPostDeleteRewirePulse 1.35s ease-in-out infinite }
+  @keyframes naPostDeleteRewirePulse{ 50%{ box-shadow:0 0 0 7px #f9a8d444, 0 0 16px #f9a8d455; transform:scale(1.5) } }
+  #wires path.na-post-delete-best-pair{ fill:none; stroke:#f9a8d488; stroke-width:2.25; stroke-dasharray:7 6; pointer-events:none; opacity:.85 }
+  @keyframes naPostDeleteBestPairPulse{ 50%{ opacity:.55; stroke-width:2.75 } }
+  #wires path.na-post-delete-best-pair{ animation:naPostDeleteBestPairPulse 1.6s ease-in-out infinite }
+  @media (prefers-reduced-motion: reduce){
+    .port.na-post-delete-rewire{ animation:none !important; box-shadow:none; transform:none }
+    #wires path.na-post-delete-best-pair{ animation:none !important; display:none }
+  }
+
+
   .body{ padding:.1rem .6rem .6rem; display:flex; flex-direction:column; gap:.5rem }
   .body label{ font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); display:block; margin-bottom:.2rem; font-weight:700 }
   .body textarea{ width:100%; resize:vertical; min-width:190px; max-width:min(80vw,760px); min-height:84px;
@@ -10259,7 +10271,8 @@ function colorForType(tp){
 function getCss(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 
 let tempWire = null; // {x1,y1,type}
-let draggingLinkId = null; // a link being grab-moved: hidden while dragging but kept in graph.links until the drag commits (so an aborted gesture never silently drops it)
+let draggingLinkId = null;
+let _postDeleteBestPairGhost = null; // Product · 44 optional: { from:{node,port}, to:{node,port} } | null — drawn in redraw(), never a real link // a link being grab-moved: hidden while dragging but kept in graph.links until the drag commits (so an aborted gesture never silently drops it)
 function redraw(){
   let html = "";
   for(const l of graph.links){
@@ -10272,6 +10285,15 @@ function redraw(){
     const col = colorForType(a.dataset.ptype);
     html += `<path class="hit" data-link="${l.id}" d="${d}"><title>tap to remove</title></path>`;
     html += `<path class="wire${l.id===armedLinkId?" armed":""}" data-link="${l.id}" d="${d}" stroke="${col}"></path>`;
+  }
+  if(_postDeleteBestPairGhost && !tempWire){
+    const ga = document.querySelector(`.port[data-node="${_postDeleteBestPairGhost.from.node}"][data-port="${_postDeleteBestPairGhost.from.port}"][data-dir="out"]`);
+    const gb = document.querySelector(`.port[data-node="${_postDeleteBestPairGhost.to.node}"][data-port="${_postDeleteBestPairGhost.to.port}"][data-dir="in"]`);
+    if(ga && gb && !ga.classList.contains("disabled") && !gb.classList.contains("disabled")){
+      const gp1 = portCenter(ga), gp2 = portCenter(gb);
+      const gd = wirePath(gp1.x, gp1.y, gp2.x, gp2.y);
+      html += `<path class="na-post-delete-best-pair" d="${gd}"></path>`;
+    }
   }
   if(tempWire){
     const d = wirePath(tempWire.x1, tempWire.y1, tempWire.x2, tempWire.y2);
@@ -10574,6 +10596,7 @@ function nearestPort(x, y, ports){
   return best;
 }
 function startWire(port, e){
+  try{ clearPostDeleteRewire(); }catch(_){}
   if(port.classList && port.classList.contains("disabled")) return;
   e.preventDefault(); e.stopPropagation();
   closeQuickAdd();
@@ -16833,23 +16856,122 @@ RULES for the diff:
 /* Next-action scores feed existing menus (add node, wire-drop, model picker).
    Dynamic import so a tree without vendor/next-action stays quiet. No panel, no ghost.
    ?na=0 / ?product=off disables hints; until the cache is confident, lists are unchanged. */
+/* Product · 44 — post-delete rewire: soft-pulse one prior-backed dangling
+   port that remains after a node delete (prefer ports that lost a neighbor).
+   Optional faint best-pair ghost when a single orphan out→in bridge is clear.
+   Distinct class from · 22 / · 29 / · 33 / · 43. Clears on next drag / connect /
+   select / another delete / short TTL. No tip panel. */
+let _postDeleteRewireTimer = 0;
+let _postDeleteRewireTtl = 0;
+let _postDeleteRewireKey = "";
+let _postDeleteRewireLost = null; // { deletedNodeId, lostLinks }
+const POST_DELETE_REWIRE_TTL_MS = 2500;
+function postDeleteRewireReducedMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(_){ return false; }
+}
+function clearPostDeleteRewire(){
+  if(_postDeleteRewireTimer){ clearTimeout(_postDeleteRewireTimer); _postDeleteRewireTimer = 0; }
+  if(_postDeleteRewireTtl){ clearTimeout(_postDeleteRewireTtl); _postDeleteRewireTtl = 0; }
+  document.querySelectorAll(".port.na-post-delete-rewire").forEach(p=> p.classList.remove("na-post-delete-rewire"));
+  _postDeleteRewireKey = "";
+  const hadGhost = !!_postDeleteBestPairGhost;
+  _postDeleteBestPairGhost = null;
+  _postDeleteRewireLost = null;
+  if(hadGhost && typeof redraw==="function") try{ redraw(); }catch(_){}
+}
+function applyPostDeleteRewire(deletedNodeId, lostLinks){
+  if(postDeleteRewireReducedMotion()){ clearPostDeleteRewire(); return; }
+  if(typeof geoOn==="function" && !geoOn()){ clearPostDeleteRewire(); return; }
+  if(typeof tempWire!=="undefined" && tempWire) return;
+  if(typeof multiSel!=="undefined" && multiSel && multiSel.size > 1){ clearPostDeleteRewire(); return; }
+  if(typeof undoMuted!=="undefined" && undoMuted){ clearPostDeleteRewire(); return; }
+  const na = window.__nextAction;
+  if(!na || na.disabled || !(na.hasPortPriors && na.hasPortPriors()) || typeof na.pickPostDeleteRewirePort!=="function"){
+    clearPostDeleteRewire();
+    return;
+  }
+  if(!deletedNodeId || !graph || !graph.nodes || !graph.nodes.length){ clearPostDeleteRewire(); return; }
+  const q = { deletedNodeId, lostLinks: lostLinks || [] };
+  let pick = null;
+  try{ pick = na.pickPostDeleteRewirePort(q); }catch(_){ pick = null; }
+  if(!pick){ clearPostDeleteRewire(); return; }
+  const dir = pick.dir === "in" ? "in" : "out";
+  const key = pick.nodeId + "|" + pick.port + "|" + dir;
+  const el = document.querySelector(`.port[data-node="${pick.nodeId}"][data-port="${pick.port}"][data-dir="${dir}"]`);
+  if(!el || el.classList.contains("disabled")){ clearPostDeleteRewire(); return; }
+  if(key !== _postDeleteRewireKey){
+    document.querySelectorAll(".port.na-post-delete-rewire").forEach(p=> p.classList.remove("na-post-delete-rewire"));
+    el.classList.add("na-post-delete-rewire");
+    _postDeleteRewireKey = key;
+  }else if(!el.classList.contains("na-post-delete-rewire")){
+    el.classList.add("na-post-delete-rewire");
+  }
+  // Optional polish: faint best-pair ghost when a single orphan bridge is clear.
+  let pair = null;
+  if(typeof na.pickPostDeleteBestPair==="function"){
+    try{ pair = na.pickPostDeleteBestPair(q); }catch(_){ pair = null; }
+  }
+  if(pair && pair.from && pair.to){
+    _postDeleteBestPairGhost = {
+      from: { node: pair.from.nodeId, port: pair.from.port },
+      to: { node: pair.to.nodeId, port: pair.to.port },
+    };
+    try{ redraw(); }catch(_){}
+  }else{
+    const hadGhost = !!_postDeleteBestPairGhost;
+    _postDeleteBestPairGhost = null;
+    if(hadGhost) try{ redraw(); }catch(_){}
+  }
+  if(_postDeleteRewireTtl) clearTimeout(_postDeleteRewireTtl);
+  _postDeleteRewireTtl = setTimeout(()=>{ _postDeleteRewireTtl = 0; clearPostDeleteRewire(); }, POST_DELETE_REWIRE_TTL_MS);
+}
+function schedulePostDeleteRewire(deletedNodeId, lostLinks, ms){
+  if(_postDeleteRewireTimer) clearTimeout(_postDeleteRewireTimer);
+  _postDeleteRewireLost = { deletedNodeId: deletedNodeId || "", lostLinks: lostLinks || [] };
+  _postDeleteRewireTimer = setTimeout(()=>{
+    _postDeleteRewireTimer = 0;
+    applyPostDeleteRewire(deletedNodeId, lostLinks);
+  }, ms == null ? 120 : ms);
+}
+
 (function bootNextActionHints(){
   const _addNode = addNode;
   addNode = function(type, x, y, fields){
     const n = _addNode(type, x, y, fields);
     try { window.__nextAction?.record?.("add:" + type); } catch(_){}
+    try { clearPostDeleteRewire(); } catch(_){}
     return n;
+  };
+  const _removeNode = removeNode;
+  removeNode = function(id){
+    let lostLinks = [];
+    try{
+      if(id && graph && Array.isArray(graph.links)){
+        lostLinks = graph.links
+          .filter(l=> l && (l.from?.node===id || l.to?.node===id))
+          .map(l=> ({ from: { node:l.from.node, port:l.from.port }, to: { node:l.to.node, port:l.to.port } }));
+      }
+    }catch(_){ lostLinks = []; }
+    const r = _removeNode(id);
+    try {
+      if(id && !(typeof undoMuted!=="undefined" && undoMuted)){
+        schedulePostDeleteRewire(id, lostLinks, 120);
+      }
+    } catch(_){}
+    return r;
   };
   const _connect = connect;
   connect = function(fromNode, fromPort, toNode, toPort){
     const ok = _connect(fromNode, fromPort, toNode, toPort);
     if(ok) try { window.__nextAction?.record?.("wire"); } catch(_){}
+    if(ok) try { clearPostDeleteRewire(); } catch(_){}
     return ok;
   };
   const _select = select;
   select = function(n){
     _select(n);
     try { window.__nextAction?.refresh?.(); } catch(_){}
+    try { clearPostDeleteRewire(); } catch(_){}
   };
   const _loadExample = loadExample;
   loadExample = function(i){
