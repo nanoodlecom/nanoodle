@@ -626,6 +626,19 @@
   #wires path.wire.armed{ stroke:var(--bad); stroke-width:3.5; }   /* touch: first tap arms the snip (red), a second tap removes it */
   #wires path.temp{ fill:none; stroke:#ffffff88; stroke-width:2.5; stroke-dasharray:5 4; pointer-events:none }
 
+  /* Product · 36 — move-align snap guides (world-space SVG lines during single-node drag) */
+  #na-move-align-layer{
+    position:absolute; left:0; top:0; width:1px; height:1px;
+    overflow:visible; pointer-events:none; z-index:4;
+  }
+  #na-move-align-layer line.na-move-align-guide{
+    stroke:#5eead488; stroke-width:1.25; stroke-dasharray:5 4;
+    vector-effect:non-scaling-stroke; pointer-events:none;
+  }
+  @media (prefers-reduced-motion: reduce){
+    #na-move-align-layer, #na-move-align-layer line.na-move-align-guide{ display:none !important }
+  }
+
   /* ---------- node ---------- */
   .node{ position:absolute; min-width:210px; max-width:340px; background:var(--panel); border:1px solid var(--line);
          border-radius:.7rem; box-shadow:0 10px 30px #0006; z-index:10; user-select:none; }
@@ -10440,22 +10453,32 @@ function startNodeDrag(n, e){
   const id = e.pointerId; nodeGestPtrs.add(id);
   const sx=e.clientX, sy=e.clientY, ox=n.x, oy=n.y;
   let _snapped=false;
+  // Product · 36: single-node drag only; multiSel≥2 stays quiet (select() usually cleared it already).
+  const _moveAlignSingle = !(typeof multiSel!=="undefined" && multiSel && multiSel.size >= 2);
   const move = (ev)=>{
     if(ev.pointerId!==id) return;                 // ignore a stray second touch
     if(!_snapped){ pushUndo(); _snapped=true; }   // first real move → record pre-drag layout
     n.x = ox + (ev.clientX-sx)/scale;
     n.y = oy + (ev.clientY-sy)/scale;
     n.el.style.left = n.x+"px"; n.el.style.top = n.y+"px";
+    try{ if(_moveAlignSingle) refreshMoveAlignGuides(n); else clearMoveAlignGuides(); }catch(_){}
     redraw();
   };
   const cleanup = ()=>{
     window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up); window.removeEventListener("pointercancel",up);
     nodeGestPtrs.delete(id); cancelNodeGest = null;
+    try{ clearMoveAlignGuides(); }catch(_){}
   };
-  const up = (ev)=>{ if(ev.pointerId!==id) return; cleanup(); save(); };
+  const up = (ev)=>{
+    if(ev.pointerId!==id) return;
+    try{ if(_moveAlignSingle) applyMoveAlignSnap(n); }catch(_){}
+    cleanup(); save();
+  };
   cancelNodeGest = ()=>{                             // second finger landed → this drag becomes a pinch; undo the accidental move
     if(_snapped){ undoStack.pop(); syncUndoBtn(); }
-    n.x=ox; n.y=oy; n.el.style.left=ox+"px"; n.el.style.top=oy+"px"; redraw(); cleanup();
+    n.x=ox; n.y=oy; n.el.style.left=ox+"px"; n.el.style.top=oy+"px";
+    try{ clearMoveAlignGuides(); }catch(_){}
+    redraw(); cleanup();
   };
   window.addEventListener("pointermove",move); window.addEventListener("pointerup",up); window.addEventListener("pointercancel",up);
 }
@@ -16830,6 +16853,125 @@ RULES for the diff:
     }finally{ setBusy(false); dbAbort = null; }
   }
 })();
+/* Product · 36 — move-align snap guides: faint H/V lines while dragging one
+   node; soft snap on release within SNAP_SCREEN_PX (converted by /scale).
+   Quiet under multi-select / reduced-motion / geoOn() false. Canvas guides
+   only — no tip panel / no ?product= twin. */
+let computeMoveAlignFn = null;
+let applySnapDeltaFn = null;
+let SNAP_SCREEN_PX_MOVE = 10;
+import("./vendor/next-action/move-align-snap.mjs").then((m)=>{
+  computeMoveAlignFn = m.computeMoveAlign;
+  applySnapDeltaFn = m.applySnapDelta;
+  if(m.SNAP_SCREEN_PX != null) SNAP_SCREEN_PX_MOVE = m.SNAP_SCREEN_PX;
+}).catch(()=>{});
+function moveAlignReducedMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(_){ return false; }
+}
+function ensureMoveAlignLayer(){
+  let el = document.getElementById("na-move-align-layer");
+  if(el) return el;
+  el = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  el.id = "na-move-align-layer";
+  el.setAttribute("aria-hidden", "true");
+  world.appendChild(el);
+  return el;
+}
+function clearMoveAlignGuides(){
+  const el = document.getElementById("na-move-align-layer");
+  if(el) el.innerHTML = "";
+  window.__naMoveAlignLast = null;
+}
+function moveAlignCollectBoxes(dragged){
+  const others = [];
+  for(const n of (graph.nodes||[])){
+    if(!n || !n.el) continue;
+    if(dragged && n.id === dragged.id) continue;
+    others.push({
+      id: n.id,
+      x: n.x, y: n.y,
+      w: n.el.offsetWidth || n.w || 220,
+      h: n.el.offsetHeight || 160,
+    });
+  }
+  return others;
+}
+function refreshMoveAlignGuides(n){
+  clearMoveAlignGuides();
+  if(!computeMoveAlignFn || !n || !n.el) return;
+  if(typeof geoOn==="function" && !geoOn()) return;
+  if(moveAlignReducedMotion()) return;
+  if(typeof multiSel!=="undefined" && multiSel && multiSel.size >= 2) return;
+  const snapPx = SNAP_SCREEN_PX_MOVE / (scale > 0 ? scale : 1);
+  const dragged = {
+    id: n.id, x: n.x, y: n.y,
+    w: n.el.offsetWidth || n.w || 220,
+    h: n.el.offsetHeight || 160,
+  };
+  let result = null;
+  try{
+    result = computeMoveAlignFn({
+      dragged,
+      others: moveAlignCollectBoxes(n),
+      snapPx,
+      selectedCount: (typeof multiSel!=="undefined" && multiSel && multiSel.size) ? multiSel.size : 1,
+      reducedMotion: false,
+      engineOn: true,
+    });
+  }catch(_){ return; }
+  window.__naMoveAlignLast = result;
+  if(!result || !result.active || !result.guides || !result.guides.length) return;
+  const layer = ensureMoveAlignLayer();
+  const NS = "http://www.w3.org/2000/svg";
+  for(const g of result.guides){
+    const line = document.createElementNS(NS, "line");
+    line.setAttribute("class", "na-move-align-guide");
+    line.setAttribute("x1", String(g.x1));
+    line.setAttribute("y1", String(g.y1));
+    line.setAttribute("x2", String(g.x2));
+    line.setAttribute("y2", String(g.y2));
+    line.dataset.axis = g.axis;
+    layer.appendChild(line);
+  }
+}
+function applyMoveAlignSnap(n){
+  if(!n || !n.el) return;
+  if(typeof geoOn==="function" && !geoOn()) return;
+  if(moveAlignReducedMotion()) return;
+  if(typeof multiSel!=="undefined" && multiSel && multiSel.size >= 2) return;
+  let result = window.__naMoveAlignLast;
+  if(!result || !result.active){
+    if(!computeMoveAlignFn) return;
+    const snapPx = SNAP_SCREEN_PX_MOVE / (scale > 0 ? scale : 1);
+    try{
+      result = computeMoveAlignFn({
+        dragged: {
+          id: n.id, x: n.x, y: n.y,
+          w: n.el.offsetWidth || n.w || 220,
+          h: n.el.offsetHeight || 160,
+        },
+        others: moveAlignCollectBoxes(n),
+        snapPx,
+        selectedCount: 1,
+        reducedMotion: false,
+        engineOn: true,
+      });
+    }catch(_){ return; }
+  }
+  if(!result || !result.active || !result.snapDelta) return;
+  const dx = result.snapDelta.dx || 0;
+  const dy = result.snapDelta.dy || 0;
+  if(!dx && !dy) return;
+  if(applySnapDeltaFn){
+    const p = applySnapDeltaFn({ x:n.x, y:n.y }, result.snapDelta);
+    n.x = p.x; n.y = p.y;
+  }else{
+    n.x += dx; n.y += dy;
+  }
+  n.el.style.left = n.x+"px"; n.el.style.top = n.y+"px";
+  try{ redraw(); }catch(_){}
+}
+
 /* Next-action scores feed existing menus (add node, wire-drop, model picker).
    Dynamic import so a tree without vendor/next-action stays quiet. No panel, no ghost.
    ?na=0 / ?product=off disables hints; until the cache is confident, lists are unchanged. */

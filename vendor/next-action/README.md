@@ -13,9 +13,11 @@
 | slop | `anti-slop.mjs`, `corpus/anti-slop.json` — soft re-rank away from a shallow Text→LLM loop |
 | layout | `deoverlap.mjs`, `auto-tidy.mjs`, `collision-nudge.mjs` — slide an overlapping add apart |
 | memory | `suggestion-memory.mjs` — local accept/ignore reweight of suggested adds |
+| · 36 | `move-align-snap.mjs` — single-node drag H/V align guides + soft snap |
 | weights | `export-load.mjs`, `scripts/export-smallnet-weights.py` — catalog first, fixture fallback |
 
 Learned `.bin` weights stay **gitignored**; tests load inline float fixtures.
+Product · 36 draws faint move-align guides via `move-align-snap.mjs` during single-node drag (no tip panel).
 The editor reads scores from `editor-surface.mjs` and shows them inside existing
 menus (add-node, wire-drop quick-add, model picker). There is no floating
 next-action panel and no ghost node. `?product=` does not mount one.
@@ -45,6 +47,7 @@ node scripts/check-next-action-port-suggest.mjs
 node scripts/check-next-action-recipe.mjs
 node scripts/check-next-action-anti-slop.mjs
 node scripts/check-next-action-deoverlap.mjs
+node scripts/check-next-action-move-align-snap.mjs
 node scripts/check-next-action-suggestion-memory.mjs
 node scripts/check-next-action-weights.mjs
 node scripts/check-smallnet.mjs   # catalog still empty
