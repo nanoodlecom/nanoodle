@@ -10,6 +10,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ENDPOINTS = {
   chat: '/api/v1/models?detailed=true', image: '/api/v1/image-models',
   video: '/api/v1/video-models', audio: '/api/v1/audio-models',
+  model3d: '/api/v1/3d-models',
 };
 
 // Compile candidate array endings before evaluating: nested objects, strings containing
