@@ -20,6 +20,7 @@ import { chooseHints } from "./hints.mjs";
 import { createSuggestionMemory } from "./suggestion-memory.mjs";
 import { applyAntiSlop, isShallowTextLlm, rerankShallowAdds } from "./anti-slop.mjs";
 import { pickRingTarget, rankDropTypes } from "./port-suggest.mjs";
+import { pickDropMissReconnectPort } from "./drop-miss-reconnect.mjs";
 import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
 import { loadNextActionExport } from "./export-load.mjs";
 
@@ -154,6 +155,13 @@ export async function mount(api) {
       if (!portTables) return null;
       try { return pickRingTarget(portTables, query); }
       catch (_) { return null; }
+    },
+    // Product · 47: after drop miss, pick best nearby alternate port for reconnect pulse.
+    pickDropMissReconnectPort(origin, candidates, opts) {
+      if (!portTables) return null;
+      try {
+        return pickDropMissReconnectPort(portTables, origin || {}, candidates || [], opts || {});
+      } catch (_) { return null; }
     },
   };
 

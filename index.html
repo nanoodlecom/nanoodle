@@ -721,6 +721,13 @@
   .port.compatible{ transform:scale(1.25); box-shadow:0 0 0 4px #ffffff26; animation:portpulse 1.1s ease-in-out infinite }
   .port.likely{ transform:scale(1.45); box-shadow:0 0 0 5px #67e8f9cc; animation:none }
   .port.snap{ transform:scale(1.7); box-shadow:0 0 0 5px #ffffff66, 0 0 12px #fff6; animation:none }
+  /* Product · 47: soft pulse on best nearby alternate port after a drop miss. */
+  .port.na-drop-miss-reconnect{ transform:scale(1.35); box-shadow:0 0 0 4px #67e8f9aa, 0 0 12px #67e8f966; animation:naDropMissReconnectPulse 1.25s ease-in-out infinite }
+  .port.na-drop-miss-reconnect.compatible{ box-shadow:0 0 0 4px #67e8f9cc, 0 0 14px #67e8f988 }
+  @keyframes naDropMissReconnectPulse{ 50%{ box-shadow:0 0 0 7px #67e8f944, 0 0 18px #67e8f955; transform:scale(1.5) } }
+  @media (prefers-reduced-motion: reduce){
+    .port.na-drop-miss-reconnect{ animation:none !important; box-shadow:none; transform:none }
+  }
   @keyframes portpulse{ 50%{ box-shadow:0 0 0 6px #ffffff14 } }
 
   .body{ padding:.1rem .6rem .6rem; display:flex; flex-direction:column; gap:.5rem }
@@ -10574,6 +10581,7 @@ function nearestPort(x, y, ports){
   return best;
 }
 function startWire(port, e){
+  try{ clearDropMissReconnect(); }catch(_){}
   if(port.classList && port.classList.contains("disabled")) return;
   e.preventDefault(); e.stopPropagation();
   closeQuickAdd();
@@ -10647,6 +10655,16 @@ function startWire(port, e){
     if(!connected && Math.hypot(ev.clientX-sx, ev.clientY-sy) > 6){
       const tgt = document.elementFromPoint(ev.clientX, ev.clientY);
       if(!tgt || !tgt.closest(".node")) openQuickAdd(ev.clientX, ev.clientY, anchor);
+      // Product · 47: miss → soft-pulse best nearby alternate so reconnect is obvious
+      try{
+        scheduleDropMissReconnect({
+          nodeId: anode,
+          port: anchor.dataset.port,
+          type: (typeof byId==="function" && byId(anode) && byId(anode).type) || anchor.dataset.ptype || ptype,
+          dir: adir === "in" ? "in" : "out",
+          ptype: ptype,
+        }, { clientX: ev.clientX, clientY: ev.clientY }, 50);
+      }catch(_){}
     }
   };
   window.addEventListener("pointermove",move); window.addEventListener("pointerup",up);
@@ -16833,6 +16851,114 @@ RULES for the diff:
 /* Next-action scores feed existing menus (add node, wire-drop, model picker).
    Dynamic import so a tree without vendor/next-action stays quiet. No panel, no ghost.
    ?na=0 / ?product=off disables hints; until the cache is confident, lists are unchanged. */
+/* Product · 47 — drop-miss reconnect: soft-pulse the best nearby alternate
+   port after a wire drag miss (empty / incompatible). Quiet when none /
+   flat / tied / reduced-motion / engine off. Clears on next drag / connect /
+   select / short TTL. No tip panel. Distinct from · 46 (origin pulse). */
+let _dropMissReconnectTimer = 0;
+let _dropMissReconnectTtl = 0;
+let _dropMissReconnectKey = "";
+const DROP_MISS_RECONNECT_TTL_MS = 1500;
+const DROP_MISS_RECONNECT_NEARBY = 420;
+function dropMissReconnectReducedMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(_){ return false; }
+}
+function clearDropMissReconnect(){
+  if(_dropMissReconnectTimer){ clearTimeout(_dropMissReconnectTimer); _dropMissReconnectTimer = 0; }
+  if(_dropMissReconnectTtl){ clearTimeout(_dropMissReconnectTtl); _dropMissReconnectTtl = 0; }
+  document.querySelectorAll(".port.na-drop-miss-reconnect").forEach(p=>{
+    p.classList.remove("na-drop-miss-reconnect");
+    if(p.dataset.naDropMissCompatible){
+      p.classList.remove("compatible");
+      delete p.dataset.naDropMissCompatible;
+    }
+  });
+  _dropMissReconnectKey = "";
+}
+function gatherDropMissCandidates(origin, dropPt){
+  const dir = origin.dir === "in" ? "in" : "out";
+  const wantDir = dir === "out" ? "in" : "out";
+  const ptype = origin.ptype || origin.wireType || null;
+  const ed = (typeof editor!=="undefined" && editor) ? editor.getBoundingClientRect() : { left:0, top:0 };
+  const dx = dropPt && dropPt.clientX != null ? dropPt.clientX - ed.left : null;
+  const dy = dropPt && dropPt.clientY != null ? dropPt.clientY - ed.top : null;
+  const out = [];
+  document.querySelectorAll(".port").forEach(p=>{
+    if(!p.dataset || !p.dataset.node || !p.dataset.port) return;
+    if(p.dataset.node === origin.nodeId) return;
+    if(p.dataset.dir !== wantDir) return;
+    if(p.classList.contains("disabled")) return;
+    if(ptype && p.dataset.ptype && p.dataset.ptype !== ptype) return;
+    const n = (typeof byId==="function") ? byId(p.dataset.node) : null;
+    if(!n || !n.type || n.type === "comment") return;
+    let dist = 0;
+    if(dx != null && dy != null && typeof portCenter==="function"){
+      try{
+        const c = portCenter(p);
+        dist = Math.hypot(c.x - dx, c.y - dy);
+      }catch(_){ dist = 0; }
+    }
+    let wired = false;
+    try{
+      if(typeof graph!=="undefined" && graph && Array.isArray(graph.links)){
+        if(wantDir === "out") wired = graph.links.some(l=> l.from && l.from.node===p.dataset.node && l.from.port===p.dataset.port);
+        else wired = graph.links.some(l=> l.to && l.to.node===p.dataset.node && l.to.port===p.dataset.port);
+      }
+    }catch(_){ wired = false; }
+    out.push({ nodeId: p.dataset.node, port: p.dataset.port, type: n.type, dir: wantDir, wired, dist });
+  });
+  return out;
+}
+function applyDropMissReconnect(origin, dropPt){
+  if(dropMissReconnectReducedMotion()){ clearDropMissReconnect(); return; }
+  if(typeof geoOn==="function" && !geoOn()){ clearDropMissReconnect(); return; }
+  if(typeof tempWire!=="undefined" && tempWire) return;
+  const na = window.__nextAction;
+  if(!na || na.disabled){ clearDropMissReconnect(); return; }
+  if(!origin || !origin.nodeId || !origin.port){ clearDropMissReconnect(); return; }
+  if(!na.hasPortPriors || !na.hasPortPriors() || typeof na.pickDropMissReconnectPort!=="function"){
+    clearDropMissReconnect(); return;
+  }
+  const dir = origin.dir === "in" ? "in" : "out";
+  const candidates = gatherDropMissCandidates(origin, dropPt || null);
+  let pick = null;
+  try{
+    pick = na.pickDropMissReconnectPort(
+      { nodeId: origin.nodeId, port: origin.port, type: origin.type, dir },
+      candidates,
+      { maxDist: DROP_MISS_RECONNECT_NEARBY }
+    );
+  }catch(_){ pick = null; }
+  if(!pick){ clearDropMissReconnect(); return; }
+  const el = document.querySelector(`.port[data-node="${pick.nodeId}"][data-port="${pick.port}"][data-dir="${pick.dir}"]`);
+  if(!el || el.classList.contains("disabled")){ clearDropMissReconnect(); return; }
+  const key = pick.nodeId + "|" + pick.port + "|" + pick.dir;
+  if(key !== _dropMissReconnectKey){
+    clearDropMissReconnect();
+    el.classList.add("na-drop-miss-reconnect");
+    if(!el.classList.contains("compatible")){
+      el.classList.add("compatible");
+      el.dataset.naDropMissCompatible = "1";
+    }
+    _dropMissReconnectKey = key;
+  }else if(!el.classList.contains("na-drop-miss-reconnect")){
+    el.classList.add("na-drop-miss-reconnect");
+    if(!el.classList.contains("compatible")){
+      el.classList.add("compatible");
+      el.dataset.naDropMissCompatible = "1";
+    }
+  }
+  if(_dropMissReconnectTtl) clearTimeout(_dropMissReconnectTtl);
+  _dropMissReconnectTtl = setTimeout(()=>{ _dropMissReconnectTtl = 0; clearDropMissReconnect(); }, DROP_MISS_RECONNECT_TTL_MS);
+}
+function scheduleDropMissReconnect(origin, dropPt, ms){
+  if(_dropMissReconnectTimer) clearTimeout(_dropMissReconnectTimer);
+  _dropMissReconnectTimer = setTimeout(()=>{
+    _dropMissReconnectTimer = 0;
+    applyDropMissReconnect(origin, dropPt);
+  }, ms == null ? 50 : ms);
+}
+
 (function bootNextActionHints(){
   const _addNode = addNode;
   addNode = function(type, x, y, fields){
@@ -16844,12 +16970,14 @@ RULES for the diff:
   connect = function(fromNode, fromPort, toNode, toPort){
     const ok = _connect(fromNode, fromPort, toNode, toPort);
     if(ok) try { window.__nextAction?.record?.("wire"); } catch(_){}
+    if(ok) try { clearDropMissReconnect(); } catch(_){}
     return ok;
   };
   const _select = select;
   select = function(n){
     _select(n);
     try { window.__nextAction?.refresh?.(); } catch(_){}
+    try { clearDropMissReconnect(); } catch(_){}
   };
   const _loadExample = loadExample;
   loadExample = function(i){
