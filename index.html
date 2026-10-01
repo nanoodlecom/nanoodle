@@ -727,6 +727,49 @@
   @media (prefers-reduced-motion:reduce){
     .port.compatible, .port.fit, .port.likely, .port.snap{ transform:none; transition:none; animation:none }
   }
+  /* Product · 40 — brief pulse after double-click dangling → add+wire */
+  .port.na-dblclick-add-wire-port{ transform:scale(1.35); box-shadow:0 0 0 4px #a78bfaaa, 0 0 12px #a78bfa66; animation:naDblclickAddWirePulse 1.2s ease-in-out 2 }
+  .port.na-dblclick-add-wire-ready{ box-shadow:0 0 0 3px #a78bfa66 }
+  .na-dblclick-add-wire-add{ position:absolute; left:calc(100% + 6px); top:50%; transform:translateY(-50%); width:19px; height:19px; padding:0; border:1px solid #a78bfa66; border-radius:50%; color:#c4b5fd; background:var(--panel); font:600 12px/1 system-ui; z-index:5; cursor:pointer }
+  .port[data-dir="in"] > .na-dblclick-add-wire-add{ left:auto; right:calc(100% + 6px) }
+  @media (pointer:coarse){
+    .na-dblclick-add-wire-add::before{ content:""; position:absolute; inset:-7px -14px -7px 0 }
+    .port[data-dir="in"] > .na-dblclick-add-wire-add::before{ inset:-7px 0 -7px -14px }
+  }
+  .port:focus-visible{ outline:2px solid #c4b5fd; outline-offset:4px }
+  @keyframes naDblclickAddWirePulse{ 50%{ box-shadow:0 0 0 6px #a78bfa44, 0 0 14px #a78bfa55 } }
+  @media (prefers-reduced-motion: reduce){
+    .port.na-dblclick-add-wire-port, .port.na-dblclick-add-wire-ready{ animation:none !important; transition:none; transform:none }
+  }
+  @keyframes portpulse{ 50%{ box-shadow:0 0 0 6px #ffffff14 } }
+
+  /* Product · 37 — suggested wire, with its connect action revealed on hover/focus. */
+  .port.na-dual-bridge-port{ transform:scale(1.15); box-shadow:0 0 0 3px #a5b4fc66; animation:naDualBridgePulse .9s ease-in-out 2 }
+  @keyframes naDualBridgePulse{ 50%{ box-shadow:0 0 0 5px #a5b4fc44; transform:scale(1.3) } }
+  #wires path.na-dual-bridge-hit{ fill:none; stroke:transparent; stroke-width:24; pointer-events:stroke; cursor:pointer; outline:none }
+  #wires path.na-dual-bridge-ghost{ fill:none; stroke:#a5b4fc88; stroke-width:2.25; stroke-dasharray:7 6; pointer-events:none; transition:stroke .14s ease }
+  #wires .na-dual-bridge-chip{ opacity:0; pointer-events:none; transition:opacity .14s ease }
+  #wires .na-dual-bridge-chip circle{ fill:var(--panel); stroke:#a5b4fc; stroke-width:1.5 }
+  #wires .na-dual-bridge-chip path{ fill:none; stroke:#c7d2fe; stroke-width:1.6; stroke-linecap:round }
+  #wires .na-dual-bridge-action:hover .na-dual-bridge-chip,
+  #wires .na-dual-bridge-action:focus-within .na-dual-bridge-chip{ opacity:1 }
+  #wires .na-dual-bridge-action:hover .na-dual-bridge-ghost,
+  #wires .na-dual-bridge-action:focus-within .na-dual-bridge-ghost{ stroke:#c7d2fe; stroke-width:2.75 }
+  @media (prefers-reduced-motion: reduce){
+    .port.na-dual-bridge-port{ animation:none !important }
+    #wires .na-dual-bridge-chip, #wires path.na-dual-bridge-ghost{ transition:none }
+  }
+  /* Product · 39 — drop-on-node auto-wire: brief pulse on ports that just connected */
+  .port.na-drop-auto-wire-port{ transform:scale(1.35); box-shadow:0 0 0 4px #86efacaa, 0 0 12px #86efac66; animation:naDropAutoWirePulse 1.2s ease-in-out 2 }
+  .port.na-drop-auto-wire-preview{ box-shadow:0 0 0 4px #86efac88; transform:scale(1.3) }
+  .node.na-drop-auto-wire-target{ outline:1px solid #86efac88; outline-offset:4px }
+  .na-drop-auto-wire-preview-line{ fill:none; stroke-width:2; stroke-dasharray:5 5; opacity:.75; pointer-events:none }
+  .na-drop-auto-wire-preview-end{ fill:var(--panel); stroke-width:2; pointer-events:none }
+  #drop-wire-preview{ position:absolute; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; z-index:20 }
+  @keyframes naDropAutoWirePulse{ 50%{ box-shadow:0 0 0 7px #86efac44, 0 0 18px #86efac55; transform:scale(1.5) } }
+  @media (prefers-reduced-motion: reduce){
+    .port.na-drop-auto-wire-port, .port.na-drop-auto-wire-preview{ animation:none !important; transition:none; transform:none }
+  }
 
   .body{ padding:.1rem .6rem .6rem; display:flex; flex-direction:column; gap:.5rem }
   .body label{ font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); display:block; margin-bottom:.2rem; font-weight:700 }
@@ -1269,6 +1312,7 @@
 
 <main id="editor" aria-label="Workflow canvas">
   <svg id="wires"></svg>
+  <svg id="drop-wire-preview" aria-hidden="true"></svg>
   <div id="world"></div>
   <button id="delnode" title="Delete the selected node" aria-label="Delete the selected node">🗑 Delete</button>
   <div id="canvashint" hidden><span class="ht">Turn NanoGPT prompts into reusable apps.</span><button id="hintx" title="Got it" aria-label="Dismiss">×</button><span class="ht2"><span id="hintauth"><button id="hintsignin" class="link">Sign in with NanoGPT</button> → </span><span>Edit the prompt</span> → <button id="hintrun" class="link">▶ Run</button> → <button id="hintmake" class="link">✨ Create app</button> <span>to save and share.</span></span><span class="ht2"><span id="hintsample">Signed out? Run previews a prerecorded sample.</span> <span>Pick a ready-made task in</span> <button id="hintexamples" class="link">📚 Examples</button>.</span></div>
@@ -1331,6 +1375,20 @@ const I18N_ENAME = { es:"Spanish", fr:"French", de:"German", pt:"Portuguese", ja
 /* === I18N-MAPS-BEGIN (es/fr/de/pt/ja — generated; English is identity) === */
 const I18N = {
   es:{
+    "Uses this output":"Usa esta salida",
+    "Provides this input":"Proporciona esta entrada",
+    "Uses this text":"Usa este texto",
+    "Uses this image":"Usa esta imagen",
+    "Uses this video":"Usa este vídeo",
+    "Uses this audio":"Usa este audio",
+    "Uses this 3D model":"Usa este modelo 3D",
+    "Provides text":"Proporciona texto",
+    "Provides an image":"Proporciona una imagen",
+    "Provides video":"Proporciona vídeo",
+    "Provides audio":"Proporciona audio",
+    "Provides a 3D model":"Proporciona un modelo 3D",
+    "Add {node}":"Añadir {node}",
+    "Add {node} — double-click or press Enter":"Añadir {node} — doble clic o pulsa Intro",
     "Pocket mystery":"Misterio de bolsillo",
     "Draw a room, read its visible landmarks, and turn them into clues and a facilitator solution.":"Dibuja una habitación, identifica sus elementos visibles y conviértelos en pistas y una solución para quien dirige el juego.",
     "Storyboard relay":"Relevo de storyboard",
@@ -1412,6 +1470,7 @@ const I18N = {
     "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"El acortador propio de nanoodle — admite enlaces muy largos (los enlaces de flujo pueden crecer mucho)",
     "this model can’t hear audio — pick an audio-input model":"este modelo no puede oír audio — elige un modelo con entrada de audio",
     "Close":"Cerrar",
+    "Connect nodes":"Conectar nodos",
     "Close model picker":"Cerrar el selector de modelos",
     "Fit the whole workflow in view":"Ajustar todo el flujo a la vista",
     "Rename this node":"Renombrar este nodo",
@@ -2020,6 +2079,20 @@ const I18N = {
     "Load nanoodle into your coding agent":"Carga nanoodle en tu agente de código"
   },
   fr:{
+    "Uses this output":"Utilise cette sortie",
+    "Provides this input":"Fournit cette entrée",
+    "Uses this text":"Utilise ce texte",
+    "Uses this image":"Utilise cette image",
+    "Uses this video":"Utilise cette vidéo",
+    "Uses this audio":"Utilise cet audio",
+    "Uses this 3D model":"Utilise ce modèle 3D",
+    "Provides text":"Fournit du texte",
+    "Provides an image":"Fournit une image",
+    "Provides video":"Fournit une vidéo",
+    "Provides audio":"Fournit de l’audio",
+    "Provides a 3D model":"Fournit un modèle 3D",
+    "Add {node}":"Ajouter {node}",
+    "Add {node} — double-click or press Enter":"Ajouter {node} — double-cliquez ou appuyez sur Entrée",
     "Pocket mystery":"Mystère de poche",
     "Draw a room, read its visible landmarks, and turn them into clues and a facilitator solution.":"Dessinez une pièce, repérez ses éléments visibles et transformez-les en indices avec une solution pour la personne qui anime le jeu.",
     "Storyboard relay":"Relais de storyboard",
@@ -2101,6 +2174,7 @@ const I18N = {
     "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"Le raccourcisseur maison de nanoodle — gère les liens très longs (les liens de workflow peuvent devenir volumineux)",
     "this model can’t hear audio — pick an audio-input model":"ce modèle ne peut pas entendre l’audio — choisissez un modèle à entrée audio",
     "Close":"Fermer",
+    "Connect nodes":"Relier les nœuds",
     "Close model picker":"Fermer le sélecteur de modèles",
     "Fit the whole workflow in view":"Ajuster tout le workflow à la vue",
     "Rename this node":"Renommer ce nœud",
@@ -2709,6 +2783,20 @@ const I18N = {
     "Load nanoodle into your coding agent":"Chargez nanoodle dans votre agent de code"
   },
   de:{
+    "Uses this output":"Verwendet diese Ausgabe",
+    "Provides this input":"Liefert diese Eingabe",
+    "Uses this text":"Verwendet diesen Text",
+    "Uses this image":"Verwendet dieses Bild",
+    "Uses this video":"Verwendet dieses Video",
+    "Uses this audio":"Verwendet dieses Audio",
+    "Uses this 3D model":"Verwendet dieses 3D-Modell",
+    "Provides text":"Liefert Text",
+    "Provides an image":"Liefert ein Bild",
+    "Provides video":"Liefert ein Video",
+    "Provides audio":"Liefert Audio",
+    "Provides a 3D model":"Liefert ein 3D-Modell",
+    "Add {node}":"{node} hinzufügen",
+    "Add {node} — double-click or press Enter":"{node} hinzufügen — doppelklicken oder Eingabetaste drücken",
     "Pocket mystery":"Taschenrätsel",
     "Draw a room, read its visible landmarks, and turn them into clues and a facilitator solution.":"Zeichne einen Raum, erkenne seine sichtbaren Merkmale und entwickle daraus Hinweise und eine Lösung für die Spielleitung.",
     "Storyboard relay":"Storyboard in zwei Szenen",
@@ -2790,6 +2878,7 @@ const I18N = {
     "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"nanoodles eigener Kürzungsdienst — verarbeitet sehr lange Links (Workflow-Links können groß werden)",
     "this model can’t hear audio — pick an audio-input model":"dieses Modell kann kein Audio hören — wähle ein Modell mit Audio-Eingang",
     "Close":"Schließen",
+    "Connect nodes":"Knoten verbinden",
     "Close model picker":"Modellauswahl schließen",
     "Fit the whole workflow in view":"Den ganzen Workflow ins Bild einpassen",
     "Rename this node":"Diesen Node umbenennen",
@@ -3398,6 +3487,20 @@ const I18N = {
     "Load nanoodle into your coding agent":"Lade nanoodle in deinen Coding-Agenten"
   },
   pt:{
+    "Uses this output":"Usa esta saída",
+    "Provides this input":"Fornece esta entrada",
+    "Uses this text":"Usa este texto",
+    "Uses this image":"Usa esta imagem",
+    "Uses this video":"Usa este vídeo",
+    "Uses this audio":"Usa este áudio",
+    "Uses this 3D model":"Usa este modelo 3D",
+    "Provides text":"Fornece texto",
+    "Provides an image":"Fornece uma imagem",
+    "Provides video":"Fornece vídeo",
+    "Provides audio":"Fornece áudio",
+    "Provides a 3D model":"Fornece um modelo 3D",
+    "Add {node}":"Adicionar {node}",
+    "Add {node} — double-click or press Enter":"Adicionar {node} — clique duas vezes ou pressione Enter",
     "Pocket mystery":"Mistério de bolso",
     "Draw a room, read its visible landmarks, and turn them into clues and a facilitator solution.":"Desenhe uma sala, identifique seus elementos visíveis e transforme-os em pistas e uma solução para quem conduz o jogo.",
     "Storyboard relay":"Storyboard em sequência",
@@ -3479,6 +3582,7 @@ const I18N = {
     "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"O encurtador próprio do nanoodle — aceita links muito longos (links de fluxo podem ficar grandes)",
     "this model can’t hear audio — pick an audio-input model":"este modelo não consegue ouvir áudio — escolha um modelo com entrada de áudio",
     "Close":"Fechar",
+    "Connect nodes":"Conectar nós",
     "Close model picker":"Fechar o seletor de modelos",
     "Fit the whole workflow in view":"Ajustar todo o fluxo à tela",
     "Rename this node":"Renomear este nó",
@@ -4087,6 +4191,20 @@ const I18N = {
     "Load nanoodle into your coding agent":"Carregue o nanoodle no seu agente de código"
   },
   ja:{
+    "Uses this output":"この出力を使う",
+    "Provides this input":"この入力を供給する",
+    "Uses this text":"このテキストを使う",
+    "Uses this image":"この画像を使う",
+    "Uses this video":"この動画を使う",
+    "Uses this audio":"この音声を使う",
+    "Uses this 3D model":"この3Dモデルを使う",
+    "Provides text":"テキストを供給する",
+    "Provides an image":"画像を供給する",
+    "Provides video":"動画を供給する",
+    "Provides audio":"音声を供給する",
+    "Provides a 3D model":"3Dモデルを供給する",
+    "Add {node}":"{node}を追加",
+    "Add {node} — double-click or press Enter":"{node}を追加 — ダブルクリックまたはEnter",
     "Pocket mystery":"ポケットミステリー",
     "Draw a room, read its visible landmarks, and turn them into clues and a facilitator solution.":"部屋の絵を描き、実際に見える特徴から手がかりと進行役向けの解答を作ります。",
     "Storyboard relay":"ストーリーボード・リレー",
@@ -4168,6 +4286,7 @@ const I18N = {
     "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"nanoodle自身の短縮サービス — とても長いリンクにも対応（ワークフローのリンクは大きくなりがちです）",
     "this model can’t hear audio — pick an audio-input model":"このモデルは音声を聞けません — 音声入力対応のモデルを選んでください",
     "Close":"閉じる",
+    "Connect nodes":"ノードを接続",
     "Close model picker":"モデル選択を閉じる",
     "Fit the whole workflow in view":"ワークフロー全体を表示に収める",
     "Rename this node":"このノードの名前を変更",
@@ -6763,12 +6882,21 @@ function refreshLlmOpts(n){
   const showFormat = it ? !!it.structured_output : (f.format === "JSON");
   const showReason = it ? !!it.reasoning
     : (!!(f.reasoningEffort && f.reasoningEffort!=="default") || f.showThinking===true || f.showThinking==="true");
-  const efforts = reasoningEffortOpts(it);
-  // Seed / clamp like applyDimFields: unset or model-swap-stale effort → catalog default rule,
-  // and actually write f.reasoningEffort so the request matches what the select shows.
+  // Only an authoritative catalog list may snap a stored effort. The offline
+  // fallback (default|low|medium|high) used to treat xhigh/none/minimal/max as
+  // stale and write medium — boot refreshAllPrices + OAuth resume save() then
+  // persisted it, and the later catalog arrival could not restore xhigh because
+  // medium is a valid catalog level. Keep the stored value pickable until the
+  // real list lands (same permissive-miss rule as the #311 capability strip).
+  const catalogued = !!(it && Array.isArray(it.reasoningEfforts) && it.reasoningEfforts.length);
+  let efforts = reasoningEffortOpts(it);
   if(showReason){
-    const picked = pickReasoningEffort(efforts, f.reasoningEffort);
-    if(f.reasoningEffort !== picked) f.reasoningEffort = picked;
+    if(catalogued){
+      const picked = pickReasoningEffort(efforts, f.reasoningEffort);
+      if(f.reasoningEffort !== picked) f.reasoningEffort = picked;
+    } else if(f.reasoningEffort && !efforts.includes(String(f.reasoningEffort))){
+      efforts = efforts.concat([String(f.reasoningEffort)]);
+    }
   }
   const effortSel = f.reasoningEffort || pickReasoningEffort(efforts, null);
   const temp = (f.temperature!=null && f.temperature!=="") ? +f.temperature : 0.8;
@@ -10269,6 +10397,8 @@ function colorForType(tp){
 function getCss(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 
 let tempWire = null; // {x1,y1,type}
+let _dualBridgeGhost = null; // Product · 37: { from:{node,port}, to:{node,port}, type } | null — drawn in redraw()
+let dropAutoWirePreview = null;
 let draggingLinkId = null; // a link being grab-moved: hidden while dragging but kept in graph.links until the drag commits (so an aborted gesture never silently drops it)
 function redraw(){
   let html = "";
@@ -10287,7 +10417,35 @@ function redraw(){
     const d = wirePath(tempWire.x1, tempWire.y1, tempWire.x2, tempWire.y2);
     html += `<path class="temp" d="${d}"></path>`;
   }
+  // Product · 37 — dual-select bridge ghost (interactive click → connect; not a real link)
+  if(_dualBridgeGhost && !tempWire){
+    const ports = dualSelectBridgePorts(_dualBridgeGhost);
+    if(ports){
+      const gp1 = portCenter(ports.a), gp2 = portCenter(ports.b);
+      const gd = wirePath(gp1.x, gp1.y, gp2.x, gp2.y);
+      const cx = (gp1.x + gp2.x) / 2, cy = (gp1.y + gp2.y) / 2;
+      const label = esc(t("Connect nodes"));
+      html += `<g class="na-dual-bridge-action"><path class="na-dual-bridge-hit" d="${gd}" tabindex="0" role="button" aria-label="${label}"><title>${label} · ↵</title></path>`;
+      html += `<path class="na-dual-bridge-ghost" d="${gd}"></path>`;
+      html += `<g class="na-dual-bridge-chip" transform="translate(${cx} ${cy})" aria-hidden="true"><circle r="10"/><path d="M -1 -4 L 1 -6 A 3 3 0 0 1 5 -2 L 2 1 M 1 4 L -1 6 A 3 3 0 0 1 -5 2 L -2 -1 M -2 2 L 2 -2"/></g></g>`;
+    }
+  }
+  const bridgeFocused = document.activeElement?.classList?.contains("na-dual-bridge-hit");
+  let dropPreviewHtml = "";
+  if(typeof dropAutoWirePreview!=="undefined" && dropAutoWirePreview){
+    const { source, target } = dropAutoWirePreview;
+    if(source.isConnected && target.isConnected){
+      const a = portCenter(source), b = portCenter(target);
+      const color = colorForType(source.dataset.ptype);
+      dropPreviewHtml = `<path class="na-drop-auto-wire-preview-line" d="${wirePath(a.x,a.y,b.x,b.y)}" stroke="${color}"></path>`
+        + `<circle class="na-drop-auto-wire-preview-end" cx="${a.x}" cy="${a.y}" r="5" stroke="${color}"></circle>`
+        + `<circle class="na-drop-auto-wire-preview-end" cx="${b.x}" cy="${b.y}" r="5" stroke="${color}"></circle>`;
+    }
+  }
+  const dropPreviewSvg = document.getElementById?.("drop-wire-preview");
+  if(dropPreviewSvg) dropPreviewSvg.innerHTML = dropPreviewHtml;
   svg.innerHTML = html;
+  if(bridgeFocused) svg.querySelector(".na-dual-bridge-hit")?.focus({preventScroll:true});
   syncFitBtn();   // node drags/adds/removals and resizes reroute wires through here — re-judge whether ⊡ earns its slot
   svg.querySelectorAll("path[data-link]").forEach(p=>{
     // A drag that starts on a wire pans the canvas (wires are no longer dead zones); a tap deletes.
@@ -10309,6 +10467,12 @@ function redraw(){
       };
       window.addEventListener("pointermove",mv); window.addEventListener("pointerup",up); window.addEventListener("pointercancel",up);
     });
+  });
+  // Keep the wire action local: canvas gestures and typing never accept it.
+  svg.querySelectorAll("path.na-dual-bridge-hit").forEach(p=>{
+    p.addEventListener("pointerdown", e=>{ e.stopPropagation(); e.preventDefault(); p.focus({preventScroll:true}); });
+    p.addEventListener("click", e=>{ e.stopPropagation(); acceptDualSelectBridge(); });
+    p.addEventListener("keydown", handleDualSelectBridgeKey);
   });
 }
 let armedLinkId=null, armedTimer=null;
@@ -10343,7 +10507,10 @@ function removeLink(id){
   save();
 }
 function refreshPortFills(){
-  document.querySelectorAll(".port").forEach(p=> p.classList.remove("filled"));
+  document.querySelectorAll(".port").forEach(p=>{
+    p.classList.remove("filled");
+    if(typeof dblclickPortTabStop==="function") dblclickPortTabStop(p);
+  });
   document.querySelectorAll("textarea.wired, input.wired, select.wired").forEach(ta=>{ ta.classList.remove("wired"); ta.disabled=false; ta.hidden=false; });
   // collapse-reset: any field that WAS wired returns to its textarea; every source chip re-hides.
   // (re-populated below for still-live links, so this stays idempotent across the many re-runs)
@@ -10443,26 +10610,45 @@ function announcePromptFit(n, tr){
 let cancelNodeGest = null;   // set while a node drag/resize is live so a 2nd touch can abort it → pinch (finding: pinch must win over an accidental node grab)
 const nodeGestPtrs = new Set();
 function startNodeDrag(n, e){
+  try{ clearDualSelectBridge(); }catch(_){}
   e.preventDefault();
   if(geoAnim){ cancelAnimationFrame(geoAnim); geoAnim = 0; }
   if(n.el) n.el.style.transform = "";
   world.appendChild(n.el);                    // raise the grabbed node above any newer node covering it
   const id = e.pointerId; nodeGestPtrs.add(id);
   const sx=e.clientX, sy=e.clientY, ox=n.x, oy=n.y;
+  clearDropAutoWirePreview();
   let _snapped=false;
+  // Product · 39: single-node drag only; multiSel≥2 stays quiet.
+  const _dropAutoWireSingle = !(typeof multiSel!=="undefined" && multiSel && multiSel.size >= 2);
   const move = (ev)=>{
     if(ev.pointerId!==id) return;                 // ignore a stray second touch
+    if(!_snapped && Math.hypot(ev.clientX-sx, ev.clientY-sy)<=6) return;
     if(!_snapped){ pushUndo(); _snapped=true; }   // first real move → record pre-drag layout
     n.x = ox + (ev.clientX-sx)/scale;
     n.y = oy + (ev.clientY-sy)/scale;
     n.el.style.left = n.x+"px"; n.el.style.top = n.y+"px";
+    if(_dropAutoWireSingle) updateDropAutoWirePreview(n);
     redraw();
   };
   const cleanup = ()=>{
     window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up); window.removeEventListener("pointercancel",up);
     nodeGestPtrs.delete(id); cancelNodeGest = null;
+    clearDropAutoWirePreview(); redraw();
   };
-  const up = (ev)=>{ if(ev.pointerId!==id) return; cleanup(); save(); };
+  const up = (ev)=>{
+    if(ev.pointerId!==id) return;
+    // Product · 39 — attempt drop-on-node auto-wire at release (before save),
+    // while bodies still overlap; deoverlap/align must not erase the intent.
+    const mutedBefore = undoMuted;
+    try{
+      if(ev.type!=="pointercancel" && _dropAutoWireSingle && _snapped){
+        undoMuted = true;   // the initial drag snapshot undoes placement + wire together
+        tryDropOnNodeAutoWire(n);
+      }
+    }catch(_){}finally{ undoMuted = mutedBefore; }
+    cleanup(); save();
+  };
   cancelNodeGest = ()=>{                             // second finger landed → this drag becomes a pinch; undo the accidental move
     if(_snapped){ undoStack.pop(); syncUndoBtn(); }
     n.x=ox; n.y=oy; n.el.style.left=ox+"px"; n.el.style.top=oy+"px"; redraw(); cleanup();
@@ -10474,6 +10660,7 @@ function startNodeDrag(n, e){
 // primary prompt textarea (n.sizes). Mirrors startNodeDrag — window listeners, /scale, save on up.
 const RMINW = 210, RMAXW = 760, RMINH = 54;
 function startNodeResize(n, e){
+  try{ clearDualSelectBridge(); }catch(_){}
   e.preventDefault(); e.stopPropagation(); select(n);
   const id = e.pointerId; nodeGestPtrs.add(id);
   const el = n.el;
@@ -10606,6 +10793,7 @@ function nearestPort(x, y, ports){
   return best;
 }
 function startWire(port, e){
+  try{ clearDualSelectBridge(); }catch(_){}
   if(port.classList && port.classList.contains("disabled")) return;
   e.preventDefault(); e.stopPropagation();
   closeQuickAdd();
@@ -10797,18 +10985,25 @@ function socketsForDrop(k, dir, ptype){
 }
 function wireDropHintMap(originPort, cands){
   const na = window.__nextAction;
-  if(!na || !na.hasPortPriors || !na.hasPortPriors() || typeof na.rankDropTypes!=="function") return null;
+  if(!na || na.disabled || !na.hasPortPriors || !na.hasPortPriors()) return null;
   const src = byId(originPort.dataset.node);
   const dir = originPort.dataset.dir, ptype = originPort.dataset.ptype;
+  const query = {
+    dir,
+    ptype,
+    srcType: src && src.type,
+    srcPort: originPort.dataset.port,
+    candidates: cands.map(([k])=>({ type:k, ports: socketsForDrop(k, dir, ptype).map(name=>({ name })) })),
+  };
   let ranked = null;
-  try{
-    ranked = na.rankDropTypes({
-      dir,
-      srcType: src && src.type,
-      srcPort: originPort.dataset.port,
-      candidates: cands.map(([k])=>({ type:k, ports: socketsForDrop(k, dir, ptype).map(name=>({ name })) })),
-    });
-  }catch(_){ ranked = null; }
+  // Product · 48: after abort → #quickadd, soft-re-rank Suggested by origin-fit (both dirs).
+  if(typeof na.rankQuickaddAfterAbort==="function"){
+    try{ ranked = na.rankQuickaddAfterAbort(query); }catch(_){ ranked = null; }
+  }
+  // Fallback: #621 rankDropTypes when origin-fit is quiet / unavailable.
+  if((!ranked || !ranked.order || !ranked.order.length) && typeof na.rankDropTypes==="function"){
+    try{ ranked = na.rankDropTypes(query); }catch(_){ ranked = null; }
+  }
   if(!ranked || !ranked.order || !ranked.order.length) return null;
   return ranked;
 }
@@ -10902,33 +11097,38 @@ function ensureModelForInput(n, type){
   }
 }
 function quickSpawn(typeKey, wx, wy, dir, type, originPort){
-  // place the card so its relevant edge sits near the drop point (downstream to the right, source to the left)
-  const x = dir==="out" ? wx + 8 : wx - 232;
-  const n = addNode(typeKey, Math.round(x), Math.round(wy - 24));
-  separateOnAdd(n);
-  rememberAdd(typeKey);
-  select(n);
-  if(typeof geoOn==="function" && geoOn()){
-    geoSettleNew(n, { dir:dir, type:type, originPort:originPort, anchor:byId(originPort.dataset.node) });
-    return;
-  }
-  const opp = dir==="out" ? "in" : "out", sel = `.port[data-dir="${opp}"][data-ptype="${type}"]`;
-  let ports = [...n.el.querySelectorAll(sel)];
-  // the only matching socket may be disabled (e.g. an LLM defaulted to a non-vision model) — upgrade
-  // the model so the wire can actually land, then re-read the now-enabled ports
-  if(dir==="out" && !ports.some(p=> !p.classList.contains("disabled")) && (ports.length || n.type==="model3d")){
-    ensureModelForInput(n, type);
-    ports = [...n.el.querySelectorAll(sel)];
-  }
-  ports = ports.filter(p=> !p.classList.contains("disabled"));
-  // wire the dragged port to the new node's first matching, free socket
-  const target = ports.find(p=> p.dataset.port==="prompt") || ports.find(p=> !p.classList.contains("filled")) || ports[0];
-  redraw();
-  if(target){
-    const out = dir==="out" ? originPort : target, inn = dir==="out" ? target : originPort;
-    connect(out.dataset.node, out.dataset.port, inn.dataset.node, inn.dataset.port);
-    dismissConnectHint();                              // wire-drop quick-add is a manual connect too — retire the coach line
-  }
+  // Picking one row creates one connected pair: Undo should remove that whole choice.
+  const wasMuted = undoMuted;
+  pushUndo(); undoMuted = true;
+  try{
+    // place the card so its relevant edge sits near the drop point (downstream to the right, source to the left)
+    const x = dir==="out" ? wx + 8 : wx - 232;
+    const n = addNode(typeKey, Math.round(x), Math.round(wy - 24));
+    separateOnAdd(n);
+    rememberAdd(typeKey);
+    select(n);
+    if(typeof geoOn==="function" && geoOn()){
+      geoSettleNew(n, { dir:dir, type:type, originPort:originPort, anchor:byId(originPort.dataset.node) });
+      return;
+    }
+    const opp = dir==="out" ? "in" : "out", sel = `.port[data-dir="${opp}"][data-ptype="${type}"]`;
+    let ports = [...n.el.querySelectorAll(sel)];
+    // the only matching socket may be disabled (e.g. an LLM defaulted to a non-vision model) — upgrade
+    // the model so the wire can actually land, then re-read the now-enabled ports
+    if(dir==="out" && !ports.some(p=> !p.classList.contains("disabled")) && (ports.length || n.type==="model3d")){
+      ensureModelForInput(n, type);
+      ports = [...n.el.querySelectorAll(sel)];
+    }
+    ports = ports.filter(p=> !p.classList.contains("disabled"));
+    // wire the dragged port to the new node's first matching, free socket
+    const target = ports.find(p=> p.dataset.port==="prompt") || ports.find(p=> !p.classList.contains("filled")) || ports[0];
+    redraw();
+    if(target){
+      const out = dir==="out" ? originPort : target, inn = dir==="out" ? target : originPort;
+      connect(out.dataset.node, out.dataset.port, inn.dataset.node, inn.dataset.port);
+      dismissConnectHint();                              // wire-drop quick-add is a manual connect too — retire the coach line
+    }
+  }finally{ undoMuted = wasMuted; }
 }
 
 // pan (one finger / drag) + pinch-zoom (two fingers) on the editor background.
@@ -11008,7 +11208,16 @@ function endPtr(e){
 }
 editor.addEventListener("pointerup", endPtr);
 editor.addEventListener("pointercancel", endPtr);
-editor.addEventListener("dblclick", e=>{ if(onBg(e.target)) fitView(); });   // double-click empty canvas to reframe
+editor.addEventListener("dblclick", e=>{
+  const portEl = e.target && e.target.closest && e.target.closest(".port");
+  if(portEl && editor.contains(portEl)){
+    e.preventDefault(); e.stopPropagation();
+    if(!dblclickDanglingAddWireCandidate(portEl)) return;
+    try{ tryDblclickDanglingAddWire(portEl); }catch(_){}
+    return;
+  }
+  if(onBg(e.target)) fitView();
+});   // port dblclick → add+wire (·40); empty canvas → reframe
 // Disclosure toggles (⚙️ advanced, LoRA, model options…) reflow the node, moving every port
 // below them — reroute wires. And a section holding a WIRED field port can't collapse: hiding
 // the socket would leave its wire dangling at a zero-rect anchor. ("toggle" doesn't bubble →
@@ -14242,6 +14451,7 @@ function geoSetMulti(ids){
   if(!ids || ids.length < 2){
     multiSel.clear();
     select(ids && ids.length ? byId(ids[0]) : null);
+    try{ clearDualSelectBridge(); }catch(_){}
     return;
   }
   multiSel.clear();
@@ -14256,6 +14466,7 @@ function geoSetMulti(ids){
   }
   selected = first;
   updateDelBtn();
+  try{ scheduleDualSelectBridge(60); }catch(_){}
 }
 function geoToggleMulti(n){
   if(!n) return;
@@ -14266,11 +14477,13 @@ function geoToggleMulti(n){
     const only = multiSel.size ? byId([...multiSel][0]) : null;
     multiSel.clear();
     select(only);
+    try{ clearDualSelectBridge(); }catch(_){}
     return;
   }
   for(const x of graph.nodes) if(x.el) x.el.classList.toggle("sel", multiSel.has(x.id));
   selected = n;
   updateDelBtn();
+  try{ scheduleDualSelectBridge(60); }catch(_){}
 }
 function geoMarquee(e){
   e.preventDefault();
@@ -16871,31 +17084,476 @@ RULES for the diff:
     }finally{ setBusy(false); dbAbort = null; }
   }
 })();
+/* Product · 40 — double-click dangling port → add top gallery consumer/producer
+   at a free seat and connect() once. Quiet when flat / multi /
+   engine off / not dangling / no seat. Soft port pulse only — no tip panel /
+   no ?product= twin. */
+function dblclickAddWireReducedMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(_){ return false; }
+}
+let _dblclickAddWirePulseTimer = 0;
+function clearDblclickAddWirePulse(){
+  if(_dblclickAddWirePulseTimer){ clearTimeout(_dblclickAddWirePulseTimer); _dblclickAddWirePulseTimer = 0; }
+  document.querySelectorAll(".port.na-dblclick-add-wire-port").forEach(p=> p.classList.remove("na-dblclick-add-wire-port"));
+}
+function pulseDblclickAddWirePorts(fromNode, fromPort, toNode, toPort){
+  clearDblclickAddWirePulse();
+  const a = document.querySelector(`.port[data-node="${fromNode}"][data-port="${fromPort}"][data-dir="out"]`);
+  const b = document.querySelector(`.port[data-node="${toNode}"][data-port="${toPort}"][data-dir="in"]`);
+  if(a) a.classList.add("na-dblclick-add-wire-port");
+  if(b) b.classList.add("na-dblclick-add-wire-port");
+  _dblclickAddWirePulseTimer = setTimeout(()=>{ _dblclickAddWirePulseTimer = 0; clearDblclickAddWirePulse(); }, 1600);
+}
+let _dblclickAddWireCueTimer = 0, _dblclickAddWireCue = null;
+function dblclickPortTabStop(port){
+  port.tabIndex = !port.classList.contains("disabled") && geoOn() ? 0 : -1;
+  port.setAttribute?.("aria-label", t(port.dataset.port));
+}
+function clearDblclickPortCue(){
+  if(_dblclickAddWireCueTimer){ clearTimeout(_dblclickAddWireCueTimer); _dblclickAddWireCueTimer = 0; }
+  const cue = _dblclickAddWireCue;
+  _dblclickAddWireCue = null;
+  if(!cue) return;
+  cue.button.remove();
+  cue.port.classList.remove("na-dblclick-add-wire-ready");
+  for(const [key, value] of Object.entries(cue.attrs)){
+    if(value===null) cue.port.removeAttribute(key); else cue.port.setAttribute(key, value);
+  }
+}
+function showDblclickPortCue(port){
+  clearDblclickPortCue();
+  if(typeof tempWire!=="undefined" && tempWire) return false;
+  if(typeof nodeGestPtrs!=="undefined" && nodeGestPtrs.size) return false;
+  const candidate = dblclickDanglingAddWireCandidate(port);
+  if(!candidate) return false;
+  const label = t("Add {node} — double-click or press Enter").replace("{node}", t(NODE_TYPES[candidate.pick.addType].title));
+  const attrs = Object.fromEntries(["title", "aria-label", "role"].map(key=>[key, port.getAttribute(key)]));
+  const button = document.createElement("button");
+  button.type = "button"; button.className = "na-dblclick-add-wire-add"; button.textContent = "+";
+  const addLabel = t("Add {node}").replace("{node}", t(NODE_TYPES[candidate.pick.addType].title));
+  button.title = addLabel; button.setAttribute("aria-label", addLabel);
+  button.addEventListener("pointerdown", e=> e.stopPropagation());
+  button.addEventListener("click", e=>{
+    e.preventDefault(); e.stopPropagation();
+    tryDblclickDanglingAddWire(port);
+  });
+  _dblclickAddWireCue = { port, attrs, button };
+  port.appendChild(button);
+  port.classList.add("na-dblclick-add-wire-ready");
+  port.setAttribute("aria-label", label); port.setAttribute("role", "button");
+  _dblclickAddWireCueTimer = setTimeout(()=>{
+    _dblclickAddWireCueTimer = 0;
+    const current = dblclickDanglingAddWireCandidate(port);
+    if(!current || current.pick.addType!==candidate.pick.addType || current.pick.addPort!==candidate.pick.addPort){ clearDblclickPortCue(); return; }
+    port.setAttribute("title", label);
+  }, 350);
+  return true;
+}
+function dblclickAddWireKey(e){
+  if(e.key==="Escape"){ clearDblclickPortCue(); return; }
+  if(e.repeat || e.ctrlKey || e.metaKey || e.altKey || (e.key!=="Enter" && e.key!==" ")) return;
+  const port = e.target?.closest?.(".port");
+  if(!port || !dblclickDanglingAddWireCandidate(port)) return;
+  e.preventDefault(); e.stopPropagation();
+  tryDblclickDanglingAddWire(port);
+}
+function dblclickDanglingAddWireCandidate(portEl){
+  if(!portEl || !portEl.dataset) return null;
+  // Acceptance never interrupts a live pointer gesture or its owned listeners.
+  if(typeof tempWire!=="undefined" && tempWire) return null;
+  if(typeof nodeGestPtrs!=="undefined" && nodeGestPtrs.size) return null;
+  if(typeof geoOn==="function" && !geoOn()) return null;
+  if(typeof multiSel!=="undefined" && multiSel && multiSel.size >= 2) return null;
+  if(portEl.classList.contains("disabled")) return null;
+  const na = window.__nextAction;
+  if(!na || na.disabled || !(na.hasPortPriors && na.hasPortPriors()) || typeof na.pickDblclickDanglingAddWire!=="function") return null;
+  const nodeId = portEl.dataset.node;
+  const port = portEl.dataset.port;
+  const dir = portEl.dataset.dir === "in" ? "in" : "out";
+  const ptype = portEl.dataset.ptype;
+  const src = typeof byId==="function" ? byId(nodeId) : null;
+  if(!src || !src.type || !src.el || !port || !ptype) return null;
+  const origin = [...src.el.querySelectorAll(`.port[data-dir="${dir}"]`)].find(p=> p.dataset.port===port);
+  if(!origin || origin.classList.contains("disabled") || origin.dataset.ptype!==ptype) return null;
+  const endpoint = dir==="out" ? "from" : "to";
+  if((graph.links||[]).some(l=> l[endpoint]?.node===nodeId && l[endpoint].port===port)) return null;
+  // Live candidates from the same wire-drop menu filter (type-compatible).
+  let candidates = null;
+  try{
+    if(typeof quickAddCandidates==="function" && ptype && typeof socketsForDrop==="function"){
+      const cands = quickAddCandidates(dir, ptype) || [];
+      candidates = cands.map(([typeKey])=>({
+        type: typeKey,
+        ports: socketsForDrop(typeKey, dir, ptype).map(name => ({ name })),
+      })).filter(c => c.type);
+    }
+  }catch(_){ candidates = null; }
+  const nodeW = (src.el && src.el.offsetWidth) || src.w || 220;
+  const nodeH = (src.el && src.el.offsetHeight) || 160;
+  let pick = null;
+  try{
+    pick = na.pickDblclickDanglingAddWire({
+      nodes: (graph.nodes||[]).map(n => ({
+        id:n.id, type:n.type, x:n.x, y:n.y,
+        w: (n.el && n.el.offsetWidth) || n.w || 220,
+        h: (n.el && n.el.offsetHeight) || 160,
+      })),
+      links: (graph.links||[]).map(l => ({ from:l.from, to:l.to })),
+      selectedIds: (typeof multiSel!=="undefined" && multiSel) ? [...multiSel] : [],
+      nodeId, port, dir, type: src.type,
+      candidates: candidates && candidates.length ? candidates : undefined,
+      nodeW, nodeH,
+    });
+  }catch(_){ pick = null; }
+  if(!pick || !pick.addType || !pick.addPort) return null;
+  if(typeof NODE_TYPES!=="undefined" && !NODE_TYPES[pick.addType]) return null;
+  return { pick, origin, nodeId, port, dir, ptype };
+}
+function tryDblclickDanglingAddWire(portEl){
+  const candidate = dblclickDanglingAddWireCandidate(portEl);
+  clearDblclickPortCue();
+  if(!candidate) return false;
+  const { pick, origin, dir, ptype } = candidate;
+  // Creation, capability upgrade, wire and placement are one user action.
+  // A failed attempt removes its provisional node without consuming history.
+  const nodesBefore = new Set(graph.nodes);
+  const undoBefore = undoStack.slice(), redoBefore = redoStack.slice();
+  const nidBefore = nid, lidBefore = lid;
+  const mutedBefore = undoMuted;
+  pushUndo(); undoMuted = true;
+  const rollback = ()=>{
+    try{
+      for(const added of [...graph.nodes]) if(!nodesBefore.has(added)) removeNode(added.id);
+    }finally{
+      undoMuted = mutedBefore;
+      undoStack.splice(0, undoStack.length, ...undoBefore);
+      redoStack.splice(0, redoStack.length, ...redoBefore);
+      nid = nidBefore; lid = lidBefore;
+      syncUndoBtn();
+    }
+    return false;
+  };
+  let n = null;
+  try{ n = addNode(pick.addType, pick.x, pick.y); }catch(_){ n = null; }
+  if(!n || !n.id) return rollback();
+  // Ensure capability-gated sockets can receive the wire (vision LLM etc.).
+  try{
+    if(dir==="out" && typeof ensureModelForInput==="function") ensureModelForInput(n, ptype);
+  }catch(_){}
+  // Re-read after capability upgrades; gallery socket names alone cannot
+  // establish that an enabled, matching port exists on the live new node.
+  let target = null;
+  try{
+    const wantDir = dir==="out" ? "in" : "out";
+    const ports = n.el ? [...n.el.querySelectorAll(`.port[data-dir="${wantDir}"]`)] : [];
+    const usable = p=> p.dataset.ptype===ptype && !p.classList.contains("disabled") && !p.classList.contains("filled");
+    target = ports.find(p=> p.dataset.port===pick.addPort && usable(p)) || ports.find(usable);
+  }catch(_){}
+  if(!target) return rollback();
+  const from = dir==="out" ? origin : target, to = dir==="out" ? target : origin;
+  const fromNode = from.dataset.node, fromPort = from.dataset.port;
+  const toNode = to.dataset.node, toPort = to.dataset.port;
+  if((graph.links||[]).some(l=> l.to?.node===toNode && l.to.port===toPort)) return rollback();
+  if(typeof wouldCycle==="function" && wouldCycle(fromNode, toNode, toPort)) return rollback();
+  let ok = false;
+  try{ ok = !!connect(fromNode, fromPort, toNode, toPort); }catch(_){ ok = false; }
+  if(ok){
+    undoMuted = mutedBefore;
+    try{ if(typeof separateOnAdd==="function") separateOnAdd(n); }catch(_){}
+    try{ if(typeof rememberAdd==="function") rememberAdd(pick.addType); }catch(_){}
+    try{ if(typeof dismissConnectHint==="function") dismissConnectHint(); }catch(_){}
+    try{ select(n); }catch(_){}
+    try{ pulseDblclickAddWirePorts(fromNode, fromPort, toNode, toPort); }catch(_){}
+    try{ redraw(); }catch(_){}
+  }
+  return ok || rollback();
+}
+import("./vendor/next-action/dblclick-dangling-add-wire.mjs").catch(()=>{});
+// Delegation includes newly-grown sockets; hover/focus only reveals a read-only cue.
+editor.addEventListener("pointerover", e=>{
+  if(e.pointerType==="touch") return;
+  const port = e.target?.closest?.(".port");
+  if(port && port!==e.relatedTarget?.closest?.(".port")) showDblclickPortCue(port);
+});
+editor.addEventListener("pointerout", e=>{
+  if(e.pointerType==="touch") return;   // lift emits pointerout before click; retain the tap-revealed action
+  if(_dblclickAddWireCue && !_dblclickAddWireCue.port.contains(e.relatedTarget)) clearDblclickPortCue();
+});
+editor.addEventListener("focusin", e=>{ if(e.target?.matches?.(".port")) showDblclickPortCue(e.target); });
+editor.addEventListener("focusout", e=>{
+  if(_dblclickAddWireCue && !_dblclickAddWireCue.port.contains(e.relatedTarget)) clearDblclickPortCue();
+});
+let _dblclickAddWireTouch = null;
+editor.addEventListener("pointerdown", e=>{
+  if(e.target?.closest?.(".na-dblclick-add-wire-add")) return;
+  clearDblclickPortCue();
+  const port = e.target?.closest?.(".port");
+  _dblclickAddWireTouch = e.pointerType==="touch" && port ? { port, id:e.pointerId, x:e.clientX, y:e.clientY, moved:false } : null;
+}, true);
+window.addEventListener("pointermove", e=>{
+  const touch = _dblclickAddWireTouch;
+  if(touch && touch.id===e.pointerId && Math.hypot(e.clientX-touch.x, e.clientY-touch.y)>6) touch.moved=true;
+});
+window.addEventListener("pointerup", e=>{
+  const touch = _dblclickAddWireTouch;
+  if(!touch || touch.id!==e.pointerId) return;
+  _dblclickAddWireTouch = null;
+  if(!touch.moved && Math.hypot(e.clientX-touch.x, e.clientY-touch.y)<=6){
+    setTimeout(()=>{ if(touch.port.isConnected) showDblclickPortCue(touch.port); }, 0);
+  }
+});
+window.addEventListener("pointercancel", ()=>{ _dblclickAddWireTouch=null; clearDblclickPortCue(); });
+editor.addEventListener("keydown", dblclickAddWireKey);
+window.addEventListener("blur", clearDblclickPortCue);
+
+/* Product · 39 — drop-on-node auto-wire: on single-node drag end (or add that
+   lands on another body), connect() the single high-prior gallery port-pair.
+   Quiet when multi / flat / engine off / self. The exact live pair previews
+   during the drag; release wires it and seats the moved card beside its partner. */
+let findDropOverlapTargetFn = null;
+let _dropAutoWirePulseTimer = 0;
+import("./vendor/next-action/drop-on-node-auto-wire.mjs").then((m)=>{
+  findDropOverlapTargetFn = m.findDropOverlapTarget;
+}).catch(()=>{});
+function dropAutoWireReducedMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(_){ return false; }
+}
+function clearDropAutoWirePulse(){
+  if(_dropAutoWirePulseTimer){ clearTimeout(_dropAutoWirePulseTimer); _dropAutoWirePulseTimer = 0; }
+  document.querySelectorAll(".port.na-drop-auto-wire-port").forEach(p=> p.classList.remove("na-drop-auto-wire-port"));
+}
+function pulseDropAutoWirePorts(fromNode, fromPort, toNode, toPort){
+  clearDropAutoWirePulse();
+  const a = document.querySelector(`.port[data-node="${fromNode}"][data-port="${fromPort}"][data-dir="out"]`);
+  const b = document.querySelector(`.port[data-node="${toNode}"][data-port="${toPort}"][data-dir="in"]`);
+  if(a) a.classList.add("na-drop-auto-wire-port");
+  if(b) b.classList.add("na-drop-auto-wire-port");
+  _dropAutoWirePulseTimer = setTimeout(()=>{ _dropAutoWirePulseTimer = 0; clearDropAutoWirePulse(); }, 1600);
+}
+function dropAutoWireCollectBoxes(dragged){
+  const others = [];
+  for(const n of (graph.nodes||[])){
+    if(!n || !n.el) continue;
+    if(dragged && n.id === dragged.id) continue;
+    if(n.type === "comment") continue;
+    others.push({
+      id: n.id,
+      x: n.x, y: n.y,
+      w: n.el.offsetWidth || n.w || 220,
+      h: n.el.offsetHeight || 160,
+    });
+  }
+  return others;
+}
+function dropOnNodeAutoWireCandidate(dragged){
+  if(!dragged || !dragged.el || !dragged.id) return null;
+  if(typeof geoOn==="function" && !geoOn()) return null;
+  if(typeof multiSel!=="undefined" && multiSel && multiSel.size >= 2) return null;
+  const na = window.__nextAction;
+  if(!na || na.disabled || !(na.hasPortPriors && na.hasPortPriors()) || typeof na.pickDropAutoWire!=="function") return null;
+  if(!findDropOverlapTargetFn) return null;
+  const box = {
+    id: dragged.id,
+    x: dragged.x, y: dragged.y,
+    w: dragged.el.offsetWidth || dragged.w || 220,
+    h: dragged.el.offsetHeight || 160,
+  };
+  let hit = null;
+  try{ hit = findDropOverlapTargetFn(box, dropAutoWireCollectBoxes(dragged)); }catch(_){ hit = null; }
+  if(!hit || !hit.targetId || hit.targetId === dragged.id) return null;
+  let pick = null;
+  try{
+    pick = na.pickDropAutoWire({
+      nodes: (graph.nodes||[]).map(n => ({ id:n.id, type:n.type })),
+      links: (graph.links||[]).map(l => ({ from:l.from, to:l.to })),
+      draggedId: dragged.id,
+      targetId: hit.targetId,
+    });
+  }catch(_){ pick = null; }
+  if(!pick || !pick.from || !pick.to) return null;
+  // Gallery priors describe node kinds; the current model decides which sockets
+  // actually exist and accept input. Apply the same live gates as a manual wire.
+  const fromNode = byId(pick.from.nodeId), toNode = byId(pick.to.nodeId);
+  const source = fromNode?.el && [...fromNode.el.querySelectorAll('.port[data-dir="out"]')].find(p=> p.dataset.port===pick.from.port);
+  const target = toNode?.el && [...toNode.el.querySelectorAll('.port[data-dir="in"]')].find(p=> p.dataset.port===pick.to.port);
+  if(!source || !target || source.classList.contains("disabled") || target.classList.contains("disabled")) return null;
+  if(!source.dataset.ptype || source.dataset.ptype!==target.dataset.ptype) return null;
+  if((graph.links||[]).some(l=> l.to && l.to.node===pick.to.nodeId && l.to.port===pick.to.port)) return null;
+  if(typeof wouldCycle==="function" && wouldCycle(pick.from.nodeId, pick.to.nodeId, pick.to.port)) return null;
+  // Already have this exact link? connect() would no-op-replace — skip.
+  const already = (graph.links||[]).some(l =>
+    l.from && l.to &&
+    l.from.node===pick.from.nodeId && l.from.port===pick.from.port &&
+    l.to.node===pick.to.nodeId && l.to.port===pick.to.port
+  );
+  if(already) return null;
+  return { pick, source, target, draggedId:dragged.id, targetId:hit.targetId };
+}
+function clearDropAutoWirePreview(){
+  if(!dropAutoWirePreview) return;
+  dropAutoWirePreview.source.classList.remove("na-drop-auto-wire-preview");
+  dropAutoWirePreview.target.classList.remove("na-drop-auto-wire-preview");
+  byId(dropAutoWirePreview.targetId)?.el?.classList.remove("na-drop-auto-wire-target");
+  dropAutoWirePreview = null;
+}
+function updateDropAutoWirePreview(dragged){
+  clearDropAutoWirePreview();
+  const candidate = dropOnNodeAutoWireCandidate(dragged);
+  if(!candidate) return;
+  dropAutoWirePreview = candidate;
+  candidate.source.classList.add("na-drop-auto-wire-preview");
+  candidate.target.classList.add("na-drop-auto-wire-preview");
+  byId(candidate.targetId)?.el?.classList.add("na-drop-auto-wire-target");
+}
+function tryDropOnNodeAutoWire(dragged){
+  const candidate = dropOnNodeAutoWireCandidate(dragged), shown = dropAutoWirePreview;
+  if(!candidate || !shown || shown.draggedId!==dragged.id) return false;
+  const { pick } = candidate;
+  if(pick.from.nodeId!==shown.pick.from.nodeId || pick.from.port!==shown.pick.from.port ||
+     pick.to.nodeId!==shown.pick.to.nodeId || pick.to.port!==shown.pick.to.port) return false;
+  clearDropAutoWirePreview();
+  let ok = false;
+  try{ ok = !!connect(pick.from.nodeId, pick.from.port, pick.to.nodeId, pick.to.port); }catch(_){ ok = false; }
+  if(ok){
+    try{
+      const anchor = byId(candidate.targetId), others = dropAutoWireCollectBoxes(dragged);
+      const box = others.find(n=> n.id===anchor?.id);
+      if(box && typeof geoFreeSlot==="function" && typeof geoGlide==="function"){
+        const size = { w:dragged.el.offsetWidth || dragged.w || 220, h:dragged.el.offsetHeight || 160 };
+        const seat = geoFreeSlot(box, size, others, 36, pick.to.nodeId===dragged.id ? 1 : -1);
+        geoGlide([{ n:dragged, x:seat.x, y:seat.y }], 180);
+      }
+    }catch(_){}
+    try{ pulseDropAutoWirePorts(pick.from.nodeId, pick.from.port, pick.to.nodeId, pick.to.port); }catch(_){}
+  }
+  return ok;
+}
+
 /* Next-action scores feed existing menus (add node, wire-drop, model picker).
    Dynamic import so a tree without vendor/next-action stays quiet. No panel, no ghost.
    ?na=0 / ?product=off disables hints; until the cache is confident, lists are unchanged. */
+
+/* Product · 37 — dual-select bridge suggest: with exactly two selected nodes
+   and one high-prior gallery port-pair between them, soft-pulse ports + faint
+   dashed #wires ghost. Quiet when ≠2 / flat / engine off; reduced motion keeps a static action.
+   Canvas chrome only — no tip panel / no ?product= twin. */
+let _dualBridgeTimer = 0;
+let _dualBridgeKey = "";
+function dualBridgeReducedMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(_){ return false; }
+}
+function clearDualSelectBridgePorts(){
+  document.querySelectorAll(".port.na-dual-bridge-port").forEach(p=> p.classList.remove("na-dual-bridge-port"));
+}
+function clearDualSelectBridge(){
+  if(_dualBridgeTimer){ clearTimeout(_dualBridgeTimer); _dualBridgeTimer = 0; }
+  const had = !!_dualBridgeGhost;
+  _dualBridgeGhost = null;
+  _dualBridgeKey = "";
+  clearDualSelectBridgePorts();
+  if(had && typeof redraw === "function") try{ redraw(); }catch(_){}
+}
+// Re-read live ports at display AND acceptance: a late model/selection change
+// must never replace another input wire, use a disabled socket, or make a loop.
+function dualSelectBridgePorts(g){
+  const na = window.__nextAction;
+  if(!g || !na || na.disabled || (typeof geoOn==="function" && !geoOn()) || tempWire || (typeof nodeGestPtrs!=="undefined" && nodeGestPtrs.size)) return null;
+  const ids = [...multiSel];
+  if(ids.length!==2 || !ids.includes(g.from.node) || !ids.includes(g.to.node) || g.from.node===g.to.node) return null;
+  if(!byId(g.from.node) || !byId(g.to.node)) return null;
+  if((graph.links||[]).some(l=> l.to.node===g.to.node && l.to.port===g.to.port)) return null;
+  const a = document.querySelector(`.port[data-node="${g.from.node}"][data-port="${g.from.port}"][data-dir="out"]`);
+  const b = document.querySelector(`.port[data-node="${g.to.node}"][data-port="${g.to.port}"][data-dir="in"]`);
+  if(!a || !b || a.classList.contains("disabled") || b.classList.contains("disabled")) return null;
+  if(!a.dataset.ptype || a.dataset.ptype!==b.dataset.ptype || a.dataset.ptype!==g.type) return null;
+  if(wouldCycle(g.from.node, g.to.node, g.to.port)) return null;
+  return { a, b };
+}
+function applyDualSelectBridge(){
+  if(tempWire || (typeof nodeGestPtrs!=="undefined" && nodeGestPtrs.size)){ clearDualSelectBridge(); return; }
+  const na = window.__nextAction;
+  if(!na || na.disabled || !(na.hasPortPriors && na.hasPortPriors()) || typeof na.pickDualSelectBridge!=="function"){
+    clearDualSelectBridge();
+    return;
+  }
+  const ids = (typeof multiSel!=="undefined" && multiSel && multiSel.size) ? [...multiSel] : [];
+  if(ids.length !== 2){ clearDualSelectBridge(); return; }
+  let pick = null;
+  try{
+    pick = na.pickDualSelectBridge({
+      nodes: graph.nodes.map(n => ({ id:n.id, type:n.type })),
+      links: (graph.links||[]).map(l => ({ from:l.from, to:l.to })),
+      selectedId: (typeof selected!=="undefined" && selected && selected.id) ? selected.id : null,
+      selectedIds: ids,
+    });
+  }catch(_){ pick = null; }
+  if(!pick || !pick.from || !pick.to){ clearDualSelectBridge(); return; }
+  const key = pick.from.nodeId + "|" + pick.from.port + "->" + pick.to.nodeId + "|" + pick.to.port;
+  const a = document.querySelector(`.port[data-node="${pick.from.nodeId}"][data-port="${pick.from.port}"][data-dir="out"]`);
+  const b = document.querySelector(`.port[data-node="${pick.to.nodeId}"][data-port="${pick.to.port}"][data-dir="in"]`);
+  if(!a || !b || a.classList.contains("disabled") || b.classList.contains("disabled")){ clearDualSelectBridge(); return; }
+  const ghost = {
+    from: { node: pick.from.nodeId, port: pick.from.port },
+    to: { node: pick.to.nodeId, port: pick.to.port },
+    type: a.dataset.ptype,
+  };
+  if(!dualSelectBridgePorts(ghost)){ clearDualSelectBridge(); return; }
+  _dualBridgeGhost = ghost;
+  clearDualSelectBridgePorts();
+  a.classList.add("na-dual-bridge-port");
+  b.classList.add("na-dual-bridge-port");
+  if(key !== _dualBridgeKey || !document.querySelector("#wires path.na-dual-bridge-ghost")){
+    _dualBridgeKey = key;
+    try{ redraw(); }catch(_){}
+  }
+}
+function scheduleDualSelectBridge(ms){
+  if(_dualBridgeTimer) clearTimeout(_dualBridgeTimer);
+  _dualBridgeTimer = setTimeout(()=>{ _dualBridgeTimer = 0; applyDualSelectBridge(); }, ms == null ? 80 : ms);
+}
+function handleDualSelectBridgeKey(ev){
+  if(!ev.target?.classList?.contains("na-dual-bridge-hit") || ev.repeat || (ev.key!=="Enter" && ev.key!==" ")) return false;
+  ev.preventDefault(); ev.stopPropagation();
+  return acceptDualSelectBridge();
+}
+function acceptDualSelectBridge(){
+  if(!_dualBridgeGhost) return false;
+  const g = _dualBridgeGhost;
+  if(!dualSelectBridgePorts(g)){ clearDualSelectBridge(); return false; }
+  try{
+    const ok = connect(g.from.node, g.from.port, g.to.node, g.to.port);
+    if(ok) clearDualSelectBridge();
+    return !!ok;
+  }catch(_){ return false; }
+}
+
 (function bootNextActionHints(){
   const _addNode = addNode;
   addNode = function(type, x, y, fields){
     const n = _addNode(type, x, y, fields);
     try { window.__nextAction?.record?.("add:" + type); } catch(_){}
+    try { clearDualSelectBridge(); scheduleDualSelectBridge(120); } catch(_){}
     return n;
   };
   const _connect = connect;
   connect = function(fromNode, fromPort, toNode, toPort){
     const ok = _connect(fromNode, fromPort, toNode, toPort);
     if(ok) try { window.__nextAction?.record?.("wire"); } catch(_){}
+    if(ok) try { clearDualSelectBridge(); scheduleDualSelectBridge(120); } catch(_){}
     return ok;
   };
   const _select = select;
   select = function(n){
     _select(n);
     try { window.__nextAction?.refresh?.(); } catch(_){}
+    // Single-select clears multiSel — bridge needs exactly 2
+    try { clearDualSelectBridge(); scheduleDualSelectBridge(80); } catch(_){}
   };
   const _loadExample = loadExample;
   loadExample = function(i){
     const r = _loadExample(i);
     try { window.__nextAction?.refresh?.(); } catch(_){}
+    try { clearDualSelectBridge(); } catch(_){}
     return r;
   };
   if (typeof runGroup === "function") {
@@ -16921,6 +17579,7 @@ RULES for the diff:
         nodes: (graph.nodes||[]).map(n => ({ id:n.id, type:n.type, x:n.x, y:n.y })),
         links: (graph.links||[]).map(l => ({ from:l.from, to:l.to })),
         selectedId: selected?.id || null,
+        selectedIds: (typeof multiSel!=="undefined" && multiSel && multiSel.size) ? [...multiSel] : undefined,
       }),
       nodeTypes: Object.keys(NODE_TYPES),
       onHints: paintOpenLists,
