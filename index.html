@@ -723,16 +723,21 @@
   .port.snap{ transform:scale(1.7); box-shadow:0 0 0 5px #ffffff66, 0 0 12px #fff6; animation:none }
   @keyframes portpulse{ 50%{ box-shadow:0 0 0 6px #ffffff14 } }
 
-  /* Product · 37 — dual-select bridge: soft-pulse matching ports + faint dashed ghost */
-  .port.na-dual-bridge-port{ transform:scale(1.35); box-shadow:0 0 0 4px #a5b4fcaa, 0 0 12px #a5b4fc66; animation:naDualBridgePulse 1.35s ease-in-out infinite }
-  @keyframes naDualBridgePulse{ 50%{ box-shadow:0 0 0 7px #a5b4fc44, 0 0 18px #a5b4fc55; transform:scale(1.5) } }
-  #wires path.na-dual-bridge-hit{ fill:none; stroke:transparent; stroke-width:16; pointer-events:stroke; cursor:pointer }
-  #wires path.na-dual-bridge-ghost{ fill:none; stroke:#a5b4fc99; stroke-width:2.25; stroke-dasharray:7 6; pointer-events:none; opacity:.9 }
-  @keyframes naDualBridgeGhostPulse{ 50%{ opacity:.5; stroke:#a5b4fc66 } }
-  #wires path.na-dual-bridge-ghost{ animation:naDualBridgeGhostPulse 1.6s ease-in-out infinite }
+  /* Product · 37 — suggested wire, with its connect action revealed on hover/focus. */
+  .port.na-dual-bridge-port{ transform:scale(1.15); box-shadow:0 0 0 3px #a5b4fc66; animation:naDualBridgePulse .9s ease-in-out 2 }
+  @keyframes naDualBridgePulse{ 50%{ box-shadow:0 0 0 5px #a5b4fc44; transform:scale(1.3) } }
+  #wires path.na-dual-bridge-hit{ fill:none; stroke:transparent; stroke-width:24; pointer-events:stroke; cursor:pointer; outline:none }
+  #wires path.na-dual-bridge-ghost{ fill:none; stroke:#a5b4fc88; stroke-width:2.25; stroke-dasharray:7 6; pointer-events:none; transition:stroke .14s ease }
+  #wires .na-dual-bridge-chip{ opacity:0; pointer-events:none; transition:opacity .14s ease }
+  #wires .na-dual-bridge-chip circle{ fill:var(--panel); stroke:#a5b4fc; stroke-width:1.5 }
+  #wires .na-dual-bridge-chip path{ fill:none; stroke:#c7d2fe; stroke-width:1.6; stroke-linecap:round }
+  #wires .na-dual-bridge-action:hover .na-dual-bridge-chip,
+  #wires .na-dual-bridge-action:focus-within .na-dual-bridge-chip{ opacity:1 }
+  #wires .na-dual-bridge-action:hover .na-dual-bridge-ghost,
+  #wires .na-dual-bridge-action:focus-within .na-dual-bridge-ghost{ stroke:#c7d2fe; stroke-width:2.75 }
   @media (prefers-reduced-motion: reduce){
-    .port.na-dual-bridge-port{ animation:none !important; box-shadow:none; transform:none }
-    #wires path.na-dual-bridge-ghost{ animation:none !important; display:none }
+    .port.na-dual-bridge-port{ animation:none !important }
+    #wires .na-dual-bridge-chip, #wires path.na-dual-bridge-ghost{ transition:none }
   }
 
   .body{ padding:.1rem .6rem .6rem; display:flex; flex-direction:column; gap:.5rem }
@@ -1419,6 +1424,7 @@ const I18N = {
     "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"El acortador propio de nanoodle — admite enlaces muy largos (los enlaces de flujo pueden crecer mucho)",
     "this model can’t hear audio — pick an audio-input model":"este modelo no puede oír audio — elige un modelo con entrada de audio",
     "Close":"Cerrar",
+    "Connect nodes":"Conectar nodos",
     "Close model picker":"Cerrar el selector de modelos",
     "Fit the whole workflow in view":"Ajustar todo el flujo a la vista",
     "Rename this node":"Renombrar este nodo",
@@ -2107,6 +2113,7 @@ const I18N = {
     "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"Le raccourcisseur maison de nanoodle — gère les liens très longs (les liens de workflow peuvent devenir volumineux)",
     "this model can’t hear audio — pick an audio-input model":"ce modèle ne peut pas entendre l’audio — choisissez un modèle à entrée audio",
     "Close":"Fermer",
+    "Connect nodes":"Relier les nœuds",
     "Close model picker":"Fermer le sélecteur de modèles",
     "Fit the whole workflow in view":"Ajuster tout le workflow à la vue",
     "Rename this node":"Renommer ce nœud",
@@ -2795,6 +2802,7 @@ const I18N = {
     "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"nanoodles eigener Kürzungsdienst — verarbeitet sehr lange Links (Workflow-Links können groß werden)",
     "this model can’t hear audio — pick an audio-input model":"dieses Modell kann kein Audio hören — wähle ein Modell mit Audio-Eingang",
     "Close":"Schließen",
+    "Connect nodes":"Knoten verbinden",
     "Close model picker":"Modellauswahl schließen",
     "Fit the whole workflow in view":"Den ganzen Workflow ins Bild einpassen",
     "Rename this node":"Diesen Node umbenennen",
@@ -3483,6 +3491,7 @@ const I18N = {
     "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"O encurtador próprio do nanoodle — aceita links muito longos (links de fluxo podem ficar grandes)",
     "this model can’t hear audio — pick an audio-input model":"este modelo não consegue ouvir áudio — escolha um modelo com entrada de áudio",
     "Close":"Fechar",
+    "Connect nodes":"Conectar nós",
     "Close model picker":"Fechar o seletor de modelos",
     "Fit the whole workflow in view":"Ajustar todo o fluxo à tela",
     "Rename this node":"Renomear este nó",
@@ -4171,6 +4180,7 @@ const I18N = {
     "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"nanoodle自身の短縮サービス — とても長いリンクにも対応（ワークフローのリンクは大きくなりがちです）",
     "this model can’t hear audio — pick an audio-input model":"このモデルは音声を聞けません — 音声入力対応のモデルを選んでください",
     "Close":"閉じる",
+    "Connect nodes":"ノードを接続",
     "Close model picker":"モデル選択を閉じる",
     "Fit the whole workflow in view":"ワークフロー全体を表示に収める",
     "Rename this node":"このノードの名前を変更",
@@ -10292,16 +10302,20 @@ function redraw(){
   }
   // Product · 37 — dual-select bridge ghost (interactive click → connect; not a real link)
   if(_dualBridgeGhost && !tempWire){
-    const ga = document.querySelector(`.port[data-node="${_dualBridgeGhost.from.node}"][data-port="${_dualBridgeGhost.from.port}"][data-dir="out"]`);
-    const gb = document.querySelector(`.port[data-node="${_dualBridgeGhost.to.node}"][data-port="${_dualBridgeGhost.to.port}"][data-dir="in"]`);
-    if(ga && gb && !ga.classList.contains("disabled") && !gb.classList.contains("disabled")){
-      const gp1 = portCenter(ga), gp2 = portCenter(gb);
+    const ports = dualSelectBridgePorts(_dualBridgeGhost);
+    if(ports){
+      const gp1 = portCenter(ports.a), gp2 = portCenter(ports.b);
       const gd = wirePath(gp1.x, gp1.y, gp2.x, gp2.y);
-      html += `<path class="na-dual-bridge-hit" d="${gd}"></path>`;
-      html += `<path class="na-dual-bridge-ghost" d="${gd}"><title>click to connect · Enter</title></path>`;
+      const cx = (gp1.x + gp2.x) / 2, cy = (gp1.y + gp2.y) / 2;
+      const label = esc(t("Connect nodes"));
+      html += `<g class="na-dual-bridge-action"><path class="na-dual-bridge-hit" d="${gd}" tabindex="0" role="button" aria-label="${label}"><title>${label} · ↵</title></path>`;
+      html += `<path class="na-dual-bridge-ghost" d="${gd}"></path>`;
+      html += `<g class="na-dual-bridge-chip" transform="translate(${cx} ${cy})" aria-hidden="true"><circle r="10"/><path d="M -1 -4 L 1 -6 A 3 3 0 0 1 5 -2 L 2 1 M 1 4 L -1 6 A 3 3 0 0 1 -5 2 L -2 -1 M -2 2 L 2 -2"/></g></g>`;
     }
   }
+  const bridgeFocused = document.activeElement?.classList?.contains("na-dual-bridge-hit");
   svg.innerHTML = html;
+  if(bridgeFocused) svg.querySelector(".na-dual-bridge-hit")?.focus({preventScroll:true});
   syncFitBtn();   // node drags/adds/removals and resizes reroute wires through here — re-judge whether ⊡ earns its slot
   svg.querySelectorAll("path[data-link]").forEach(p=>{
     // A drag that starts on a wire pans the canvas (wires are no longer dead zones); a tap deletes.
@@ -10324,13 +10338,11 @@ function redraw(){
       window.addEventListener("pointermove",mv); window.addEventListener("pointerup",up); window.addEventListener("pointercancel",up);
     });
   });
-  // Product · 37 — click the dual-select bridge ghost to connect
+  // Keep the wire action local: canvas gestures and typing never accept it.
   svg.querySelectorAll("path.na-dual-bridge-hit").forEach(p=>{
-    p.addEventListener("pointerdown", e=>{
-      e.stopPropagation();
-      e.preventDefault();
-      try{ acceptDualSelectBridge(); }catch(_){}
-    });
+    p.addEventListener("pointerdown", e=>{ e.stopPropagation(); e.preventDefault(); p.focus({preventScroll:true}); });
+    p.addEventListener("click", e=>{ e.stopPropagation(); acceptDualSelectBridge(); });
+    p.addEventListener("keydown", handleDualSelectBridgeKey);
   });
 }
 let armedLinkId=null, armedTimer=null;
@@ -16873,7 +16885,7 @@ RULES for the diff:
 
 /* Product · 37 — dual-select bridge suggest: with exactly two selected nodes
    and one high-prior gallery port-pair between them, soft-pulse ports + faint
-   dashed #wires ghost. Quiet when ≠2 / flat / reduced-motion / engine off.
+   dashed #wires ghost. Quiet when ≠2 / flat / engine off; reduced motion keeps a static action.
    Canvas chrome only — no tip panel / no ?product= twin. */
 let _dualBridgeTimer = 0;
 let _dualBridgeKey = "";
@@ -16891,8 +16903,23 @@ function clearDualSelectBridge(){
   clearDualSelectBridgePorts();
   if(had && typeof redraw === "function") try{ redraw(); }catch(_){}
 }
+// Re-read live ports at display AND acceptance: a late model/selection change
+// must never replace another input wire, use a disabled socket, or make a loop.
+function dualSelectBridgePorts(g){
+  const na = window.__nextAction;
+  if(!g || !na || na.disabled || (typeof geoOn==="function" && !geoOn()) || tempWire) return null;
+  const ids = [...multiSel];
+  if(ids.length!==2 || !ids.includes(g.from.node) || !ids.includes(g.to.node) || g.from.node===g.to.node) return null;
+  if(!byId(g.from.node) || !byId(g.to.node)) return null;
+  if((graph.links||[]).some(l=> l.to.node===g.to.node && l.to.port===g.to.port)) return null;
+  const a = document.querySelector(`.port[data-node="${g.from.node}"][data-port="${g.from.port}"][data-dir="out"]`);
+  const b = document.querySelector(`.port[data-node="${g.to.node}"][data-port="${g.to.port}"][data-dir="in"]`);
+  if(!a || !b || a.classList.contains("disabled") || b.classList.contains("disabled")) return null;
+  if(!a.dataset.ptype || a.dataset.ptype!==b.dataset.ptype || a.dataset.ptype!==g.type) return null;
+  if(wouldCycle(g.from.node, g.to.node, g.to.port)) return null;
+  return { a, b };
+}
 function applyDualSelectBridge(){
-  if(dualBridgeReducedMotion()){ clearDualSelectBridge(); return; }
   if(typeof tempWire!=="undefined" && tempWire) return;
   const na = window.__nextAction;
   if(!na || na.disabled || !(na.hasPortPriors && na.hasPortPriors()) || typeof na.pickDualSelectBridge!=="function"){
@@ -16915,11 +16942,13 @@ function applyDualSelectBridge(){
   const a = document.querySelector(`.port[data-node="${pick.from.nodeId}"][data-port="${pick.from.port}"][data-dir="out"]`);
   const b = document.querySelector(`.port[data-node="${pick.to.nodeId}"][data-port="${pick.to.port}"][data-dir="in"]`);
   if(!a || !b || a.classList.contains("disabled") || b.classList.contains("disabled")){ clearDualSelectBridge(); return; }
-  _dualBridgeGhost = {
+  const ghost = {
     from: { node: pick.from.nodeId, port: pick.from.port },
     to: { node: pick.to.nodeId, port: pick.to.port },
-    type: a.dataset.ptype || pick.from.type,
+    type: a.dataset.ptype,
   };
+  if(!dualSelectBridgePorts(ghost)){ clearDualSelectBridge(); return; }
+  _dualBridgeGhost = ghost;
   clearDualSelectBridgePorts();
   a.classList.add("na-dual-bridge-port");
   b.classList.add("na-dual-bridge-port");
@@ -16932,9 +16961,15 @@ function scheduleDualSelectBridge(ms){
   if(_dualBridgeTimer) clearTimeout(_dualBridgeTimer);
   _dualBridgeTimer = setTimeout(()=>{ _dualBridgeTimer = 0; applyDualSelectBridge(); }, ms == null ? 80 : ms);
 }
+function handleDualSelectBridgeKey(ev){
+  if(!ev.target?.classList?.contains("na-dual-bridge-hit") || ev.repeat || (ev.key!=="Enter" && ev.key!==" ")) return false;
+  ev.preventDefault(); ev.stopPropagation();
+  return acceptDualSelectBridge();
+}
 function acceptDualSelectBridge(){
   if(!_dualBridgeGhost) return false;
   const g = _dualBridgeGhost;
+  if(!dualSelectBridgePorts(g)){ clearDualSelectBridge(); return false; }
   try{
     const ok = connect(g.from.node, g.from.port, g.to.node, g.to.port);
     if(ok) clearDualSelectBridge();
@@ -17000,15 +17035,6 @@ function acceptDualSelectBridge(){
       onHints: paintOpenLists,
     });
   }).catch((e) => { try { console.warn("[next-action] hints not mounted", e); } catch(_){} });
-  // Product · 37 — Enter accepts the dual-select bridge when showing
-  window.addEventListener("keydown", (ev)=>{
-    if(ev.key !== "Enter") return;
-    if(ev.target && /^(INPUT|TEXTAREA|SELECT)$/i.test(ev.target.tagName)) return;
-    if(ev.target && ev.target.isContentEditable) return;
-    try{
-      if(_dualBridgeGhost && acceptDualSelectBridge()){ ev.preventDefault(); }
-    }catch(_){}
-  });
 })();
 
 </script>

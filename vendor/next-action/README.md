@@ -12,7 +12,7 @@
 | recipe | `recipe.mjs`, `corpus/recipes.json` — confident gallery completions re-rank Suggested rows |
 | slop | `anti-slop.mjs`, `corpus/anti-slop.json` — soft re-rank away from a shallow Text→LLM loop |
 | layout | `deoverlap.mjs`, `auto-tidy.mjs`, `collision-nudge.mjs` — slide an overlapping add apart |
-| bridge | `dual-select-bridge.mjs` — Product · 37 dual-select port-pair ghost |
+| bridge | `dual-select-bridge.mjs` — Product · 37 selectable wire preview; hover/focus reveals connect, click/Enter/Space accepts |
 | memory | `suggestion-memory.mjs` — local accept/ignore reweight of suggested adds |
 | weights | `export-load.mjs`, `scripts/export-smallnet-weights.py` — catalog first, fixture fallback |
 

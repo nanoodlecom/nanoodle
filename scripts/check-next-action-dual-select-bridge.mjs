@@ -3,6 +3,7 @@
  * Product · 37 — dual-select bridge suggest toys.
  * Pure helpers + editor wiring pins. No tip panel, no ?product= surface.
  */
+import vm from "node:vm";
 import { readFileSync, existsSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -326,6 +327,75 @@ function toy(name, ok, detail) {
     existsSync(join(NA, "product-37-usage.gif")),
     "product-37-usage.gif"
   );
+}
+
+// Exercise the editor's acceptance guard against live graph and socket changes.
+function editorFn(name) {
+  const start = index.indexOf("function " + name + "(");
+  assert(start >= 0, "missing editor helper " + name);
+  let depth = 0;
+  for (let i = index.indexOf("{", start); i < index.length; i++) {
+    if (index[i] === "{") depth++;
+    else if (index[i] === "}" && --depth === 0) return index.slice(start, i + 1);
+  }
+  fail("unbalanced editor helper " + name);
+}
+{
+  const classes = (...initial) => {
+    const values = new Set(initial);
+    return { contains: x => values.has(x), add: x => values.add(x), remove: x => values.delete(x) };
+  };
+  const a = { dataset: { ptype:"text" }, classList:classes() };
+  const b = { dataset: { ptype:"text" }, classList:classes() };
+  const graph = { nodes:[{id:"t1",type:"text"},{id:"img1",type:"image"}], links:[] };
+  const g = { from:{node:"t1",port:"text"}, to:{node:"img1",port:"prompt"}, type:"text" };
+  let portPresent = true, enabled = true, connects = 0;
+  const ctx = {
+    graph, multiSel:new Set(["t1","img1"]), tempWire:null,
+    window:{ __nextAction:{ disabled:false, hasPortPriors:()=>true, pickDualSelectBridge:q=>pickDualSelectBridge(tables,q) }, matchMedia:()=>({matches:true}) },
+    byId:id=>graph.nodes.find(n=>n.id===id), geoOn:()=>enabled,
+    document:{
+      querySelector:sel=>sel.includes('data-dir="out"') ? a : (portPresent ? b : null),
+      querySelectorAll:()=>[a,b],
+    },
+    redraw(){}, clearTimeout(){}, setTimeout(){return 1;},
+    connect(fromNode,fromPort,toNode,toPort){ connects++; graph.links.push({from:{node:fromNode,port:fromPort},to:{node:toNode,port:toPort}}); return true; },
+  };
+  vm.createContext(ctx);
+  vm.runInContext('var _dualBridgeGhost=null, _dualBridgeKey="", _dualBridgeTimer=0;\n' +
+    ["wouldCycle","clearDualSelectBridgePorts","clearDualSelectBridge","dualSelectBridgePorts","applyDualSelectBridge","acceptDualSelectBridge","handleDualSelectBridgeKey"].map(editorFn).join("\n"),ctx);
+  ctx.applyDualSelectBridge();
+  toy("editor-reduced-motion-static-action",!!ctx._dualBridgeGhost,"static preview survives reduced motion");
+  toy("editor-live-pair-valid",!!ctx.dualSelectBridgePorts(g),"ports match");
+  ctx.multiSel.delete("img1");
+  toy("editor-stale-selection-refused",!ctx.dualSelectBridgePorts(g),"one selected");
+  ctx.multiSel.add("img1");
+  b.classList.add("disabled");
+  toy("editor-model-disabled-refused",!ctx.dualSelectBridgePorts(g),"disabled input");
+  b.classList.remove("disabled"); b.dataset.ptype="image";
+  toy("editor-model-type-change-refused",!ctx.dualSelectBridgePorts(g),"incompatible socket");
+  b.dataset.ptype="text"; portPresent=false;
+  toy("editor-removed-socket-refused",!ctx.dualSelectBridgePorts(g),"socket gone");
+  portPresent=true;
+  graph.links=[{from:{node:"third",port:"text"},to:{node:"img1",port:"prompt"}}];
+  toy("editor-occupied-input-preserved",!ctx.dualSelectBridgePorts(g),"never replaces an existing wire");
+  graph.links=[{from:{node:"img1",port:"image"},to:{node:"t1",port:"in"}}];
+  toy("editor-cycle-refused",!ctx.dualSelectBridgePorts(g),"live DAG check");
+  graph.links=[]; ctx.window.__nextAction.disabled=true;
+  toy("editor-engine-off-refused",!ctx.dualSelectBridgePorts(g),"disabled hints");
+  ctx.window.__nextAction.disabled=false; enabled=false;
+  toy("editor-flags-off-refused",!ctx.dualSelectBridgePorts(g),"disabled editor mode");
+  enabled=true;
+  const event = target => ({ key:"Enter", target, preventDefault(){this.prevented=true;}, stopPropagation(){} });
+  ctx._dualBridgeGhost=g;
+  const typing=event({tagName:"TEXTAREA",classList:classes()});
+  ctx.handleDualSelectBridgeKey(typing);
+  toy("editor-typing-enter-untouched",!typing.prevented && connects===0,"no global Enter hijack");
+  const accept=event({classList:classes("na-dual-bridge-hit")});
+  ctx.handleDualSelectBridgeKey(accept);
+  toy("editor-focused-enter-connects-once",accept.prevented && connects===1 && graph.links.length===1 && !ctx._dualBridgeGhost,"normal wire replaces preview");
+  ctx.handleDualSelectBridgeKey(accept);
+  toy("editor-repeat-cannot-connect-twice",connects===1,"one acceptance");
 }
 
 const failed = toys.filter((t) => !t.ok);
