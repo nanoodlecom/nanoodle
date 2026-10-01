@@ -6,6 +6,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { runInNewContext } from "node:vm";
 import { MIN_PAIR, MIN_LEAD, MIN_SHARE } from "../vendor/next-action/port-suggest.mjs";
 import {
   catalogCandidates,
@@ -326,6 +327,114 @@ function toy(name, ok, detail) {
   toy("helper-uses-danglingPorts", /danglingPorts/.test(helper), "danglingPorts");
   toy("helper-uses-gates", /MIN_PAIR/.test(helper) && /MIN_LEAD/.test(helper) && /MIN_SHARE/.test(helper), "gates");
   toy("helper-uses-collision", /boxesFromGraph/.test(helper) && /overlapDepth/.test(helper), "collision-nudge");
+}
+
+// Exercise the real handler and structural mutation/history functions. A
+// candidate's baked socket name may disappear or be disabled by its model.
+{
+  const cut = (start, end)=>{
+    const a = index.indexOf(start), b = index.indexOf(end, a);
+    assert(a >= 0 && b > a, `missing editor function ${start}`);
+    return index.slice(a, b);
+  };
+  const source = [
+    cut("function addNode(type, x, y, fields){", "\n// A node's output ports"),
+    cut("function connect(fromNode, fromPort, toNode, toPort){", "\n/* ======================================================================\n   QUICK ADD"),
+    cut("function removeNode(id){", "\nfunction updateDelBtn()"),
+    cut("function pushUndo(boundary){", "\nfunction _restore("),
+    cut("function tryDblclickDanglingAddWire(portEl){", '\nimport("./vendor/next-action/dblclick-dangling-add-wire.mjs")'),
+  ].join("\n");
+  function attempt(options = {}) {
+    const dir = options.dir || "out", opp = dir === "out" ? "in" : "out";
+    const port = (node, name, pd, ptype = "text", disabled = false)=>({
+      dataset: { node, port: name, dir: pd, ptype },
+      classList: { contains(value) { return value === "disabled" && disabled; } },
+    });
+    const origin = port("n1", "prompt", dir);
+    let removed = 0, remembered = 0, pulses = 0, connects = 0;
+    const element = ports=>({
+      style: {},
+      querySelectorAll(sel) { return ports.filter(p=> sel.includes(`data-dir="${p.dataset.dir}"`)); },
+      remove() { removed++; },
+    });
+    const initial = { id: "n1", type: "image", x: 0, y: 0, el: element([origin]) };
+    const undoBefore = [{ s: "previous" }], redoBefore = [{ s: "future" }];
+    if(options.fullHistory) while(undoBefore.length < 25) undoBefore.push({ s: `step ${undoBefore.length}` });
+    const context = {
+      graph: { nodes: [initial], links: [] }, nid: 2, lid: 1,
+      undoStack: undoBefore.slice(), redoStack: redoBefore.slice(), undoMuted: false, UNDO_DEPTH: 25,
+      selected: initial, multiSel: new Set(),
+      NODE_TYPES: { image: {}, llm: {} },
+      geoOn() { return true; }, dblclickAddWireReducedMotion() { return false; },
+      quickAddCandidates() { return [["llm", {}]]; }, socketsForDrop() { return ["prompt"]; },
+      byId(id) { return context.graph.nodes.find(n=> n.id === id); },
+      serializeGraph() { return {
+        nodes: context.graph.nodes.map(n=>({ id: n.id, type: n.type, x: n.x, y: n.y })),
+        links: context.graph.links,
+      }; },
+      _snap() { return JSON.stringify(context.serializeGraph()); },
+      syncUndoBtn() {}, _stashResults() {}, save() {}, redraw() {}, updateDelBtn() {},
+      refreshImageInputs() {}, refreshVideoInputs() {}, refreshPortFills() {},
+      recompactImageLinks() {}, recompactVideoLinks() {},
+      IMG_PORT_RE: /^img\d+$/, EDIT_IMG_RE: /^image\d*$/, VID_PORT_RE: /^clip\d+$/,
+      wouldCycle() { return !!options.cycle; },
+      buildNodeEl(n) {
+        const ports = options.missing ? [] : [port(n.id, "prompt", opp, options.mismatched ? "image" : "text", options.disabled)];
+        if(options.fallback) ports.push(port(n.id, "other", opp));
+        n.el = element(ports);
+        if(options.partialAddThrows) throw new Error("render failed after insertion");
+      },
+      ensureModelForInput(n) { if(options.upgrade) n.el = element([port(n.id, "prompt", opp)]); },
+      separateOnAdd() {}, rememberAdd() { remembered++; },
+      select() {}, dismissConnectHint() {}, pulseDblclickAddWirePorts() { pulses++; },
+      window: { __nextAction: {
+        hasPortPriors() { return true; },
+        pickDblclickDanglingAddWire() { return { addType: "llm", addPort: "prompt", x: 240, y: 0 }; },
+      } },
+    };
+    runInNewContext(source, context);
+    const originalConnect = context.connect;
+    context.connect = (...args)=>{
+      connects++;
+      if(options.connectRefused) return false;
+      const ok = originalConnect(...args);
+      if(options.connectThrows) throw new Error("paint failed after linking");
+      return ok;
+    };
+    const before = JSON.stringify(context.serializeGraph());
+    const accepted = context.tryDblclickDanglingAddWire(origin);
+    return { context, accepted, connects, removed, remembered, pulses, before, undoBefore, redoBefore };
+  }
+  for(const dir of ["out", "in"]) {
+    const good = attempt({ dir });
+    const link = good.context.graph.links[0];
+    toy(`live-${dir}-connects-once`, good.accepted && good.connects === 1 && link &&
+      link.from.node === (dir === "out" ? "n1" : "n2") && link.to.node === (dir === "out" ? "n2" : "n1"), "matching live socket");
+    for(const option of ["missing", "disabled", "mismatched"]) {
+      const failed = attempt({ dir, [option]: true, fullHistory: true });
+      toy(`live-${dir}-${option}-no-edge`, !failed.accepted && failed.connects === 0, "invalid socket never connects");
+      toy(`live-${dir}-${option}-no-orphan`, JSON.stringify(failed.context.serializeGraph()) === failed.before &&
+        failed.removed === 1 && failed.remembered === 0 && failed.pulses === 0, "provisional node removed");
+      toy(`live-${dir}-${option}-history-restored`, JSON.stringify(failed.context.undoStack) === JSON.stringify(failed.undoBefore) &&
+        JSON.stringify(failed.context.redoStack) === JSON.stringify(failed.redoBefore) &&
+        failed.context.nid === 2 && failed.context.lid === 1 && !failed.context.undoMuted, "full undo/redo and identifiers preserved");
+    }
+    const fallback = attempt({ dir, disabled: true, fallback: true });
+    toy(`live-${dir}-fallback-connects`, fallback.accepted && fallback.connects === 1 &&
+      fallback.context.graph.links[0][dir === "out" ? "to" : "from"].port === "other", "enabled matching fallback");
+  }
+  const upgraded = attempt({ disabled: true, upgrade: true });
+  toy("live-model-upgrade-rereads-socket", upgraded.accepted && upgraded.connects === 1, "post-upgrade live socket");
+  for(const option of ["cycle", "connectRefused", "connectThrows", "partialAddThrows"]) {
+    const failed = attempt({ [option]: true });
+    toy(`live-${option}-rolls-back`, !failed.accepted && JSON.stringify(failed.context.serializeGraph()) === failed.before &&
+      JSON.stringify(failed.context.undoStack) === JSON.stringify(failed.undoBefore) &&
+      JSON.stringify(failed.context.redoStack) === JSON.stringify(failed.redoBefore), "failed add/wire preserves canvas and history");
+  }
+  const good = attempt();
+  const undoOnce = JSON.parse(good.context.undoStack.at(-1).s);
+  toy("live-success-keeps-existing-undo-path", undoOnce.nodes.length === 2 && undoOnce.links.length === 0 &&
+    good.context.undoStack.length === good.undoBefore.length + 2, "add and wire retain existing separate undo steps");
 }
 
 // Editor wiring pins

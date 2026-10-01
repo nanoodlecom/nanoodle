@@ -16891,7 +16891,11 @@ function tryDblclickDanglingAddWire(portEl){
   const dir = portEl.dataset.dir === "in" ? "in" : "out";
   const ptype = portEl.dataset.ptype;
   const src = typeof byId==="function" ? byId(nodeId) : null;
-  if(!src || !src.type || !port) return false;
+  if(!src || !src.type || !src.el || !port || !ptype) return false;
+  const origin = [...src.el.querySelectorAll(`.port[data-dir="${dir}"]`)].find(p=> p.dataset.port===port);
+  if(!origin || origin.classList.contains("disabled") || origin.dataset.ptype!==ptype) return false;
+  const endpoint = dir==="out" ? "from" : "to";
+  if((graph.links||[]).some(l=> l[endpoint]?.node===nodeId && l[endpoint].port===port)) return false;
   // Live candidates from the same wire-drop menu filter (type-compatible).
   let candidates = null;
   try{
@@ -16922,43 +16926,58 @@ function tryDblclickDanglingAddWire(portEl){
   }catch(_){ pick = null; }
   if(!pick || !pick.addType || !pick.addPort) return false;
   if(typeof NODE_TYPES!=="undefined" && !NODE_TYPES[pick.addType]) return false;
+  // addNode() saves and snapshots immediately. If the selected model has no
+  // viable socket, remove the provisional node without consuming undo/redo.
+  const nodesBefore = new Set(graph.nodes);
+  const undoBefore = undoStack.slice(), redoBefore = redoStack.slice();
+  const nidBefore = nid, lidBefore = lid;
+  const rollback = ()=>{
+    const mutedBefore = undoMuted;
+    undoMuted = true;
+    try{
+      for(const added of [...graph.nodes]) if(!nodesBefore.has(added)) removeNode(added.id);
+    }finally{
+      undoMuted = mutedBefore;
+      undoStack.splice(0, undoStack.length, ...undoBefore);
+      redoStack.splice(0, redoStack.length, ...redoBefore);
+      nid = nidBefore; lid = lidBefore;
+      syncUndoBtn();
+    }
+    return false;
+  };
   let n = null;
   try{ n = addNode(pick.addType, pick.x, pick.y); }catch(_){ n = null; }
-  if(!n || !n.id) return false;
-  try{ if(typeof separateOnAdd==="function") separateOnAdd(n); }catch(_){}
-  try{ if(typeof rememberAdd==="function") rememberAdd(pick.addType); }catch(_){}
+  if(!n || !n.id) return rollback();
   // Ensure capability-gated sockets can receive the wire (vision LLM etc.).
   try{
     if(dir==="out" && typeof ensureModelForInput==="function") ensureModelForInput(n, ptype);
   }catch(_){}
-  let fromNode, fromPort, toNode, toPort;
-  if(dir==="out"){
-    fromNode = nodeId; fromPort = port; toNode = n.id; toPort = pick.addPort;
-  }else{
-    fromNode = n.id; fromPort = pick.addPort; toNode = nodeId; toPort = port;
-  }
-  // Prefer the named port; fall back to first free matching socket on the new node.
-  let targetPort = pick.addPort;
+  // Re-read after capability upgrades; gallery socket names alone cannot
+  // establish that an enabled, matching port exists on the live new node.
+  let target = null;
   try{
     const wantDir = dir==="out" ? "in" : "out";
-    const el = n.el && n.el.querySelector(`.port[data-dir="${wantDir}"][data-port="${pick.addPort}"]`);
-    if(!el || el.classList.contains("disabled")){
-      const alt = n.el && [...n.el.querySelectorAll(`.port[data-dir="${wantDir}"][data-ptype="${ptype}"]`)]
-        .find(pp => !pp.classList.contains("disabled") && !pp.classList.contains("filled"));
-      if(alt) targetPort = alt.dataset.port;
-    }
+    const ports = n.el ? [...n.el.querySelectorAll(`.port[data-dir="${wantDir}"]`)] : [];
+    const usable = p=> p.dataset.ptype===ptype && !p.classList.contains("disabled") && !p.classList.contains("filled");
+    target = ports.find(p=> p.dataset.port===pick.addPort && usable(p)) || ports.find(usable);
   }catch(_){}
-  if(dir==="out") toPort = targetPort; else fromPort = targetPort;
-  if(typeof wouldCycle==="function" && wouldCycle(fromNode, toNode, toPort)) return false;
+  if(!target) return rollback();
+  const from = dir==="out" ? origin : target, to = dir==="out" ? target : origin;
+  const fromNode = from.dataset.node, fromPort = from.dataset.port;
+  const toNode = to.dataset.node, toPort = to.dataset.port;
+  if((graph.links||[]).some(l=> l.to?.node===toNode && l.to.port===toPort)) return rollback();
+  if(typeof wouldCycle==="function" && wouldCycle(fromNode, toNode, toPort)) return rollback();
   let ok = false;
   try{ ok = !!connect(fromNode, fromPort, toNode, toPort); }catch(_){ ok = false; }
   if(ok){
+    try{ if(typeof separateOnAdd==="function") separateOnAdd(n); }catch(_){}
+    try{ if(typeof rememberAdd==="function") rememberAdd(pick.addType); }catch(_){}
     try{ if(typeof dismissConnectHint==="function") dismissConnectHint(); }catch(_){}
     try{ select(n); }catch(_){}
     try{ pulseDblclickAddWirePorts(fromNode, fromPort, toNode, toPort); }catch(_){}
     try{ redraw(); }catch(_){}
   }
-  return ok;
+  return ok || rollback();
 }
 import("./vendor/next-action/dblclick-dangling-add-wire.mjs").catch(()=>{});
 
