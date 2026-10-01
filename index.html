@@ -14470,19 +14470,24 @@ function spawnFirstSeat(){
   return firstNodeSeatFn({ viewW:editor.clientWidth, viewH:editor.clientHeight, panX, panY, scale, nodeW:210, nodeH:120 });
 }
 function spawnCenter(type){
-  const placeAnchor = (typeof geoOn==="function" && geoOn()) ? selected : null;
-  const step = Math.ceil(56/scale);   // screen-constant cascade that clears the ~46px header at any zoom (else the covered card's ✕/▶ stay untappable — worst at phone zoom)
-  const seat = spawnFirstSeat();
-  const cx = seat ? seat.x : (editor.clientWidth/2 - panX)/scale - 105 + (spawnN%5)*step;
-  const cy = seat ? seat.y : (editor.clientHeight/2 - panY)/scale - 60  + (spawnN%5)*step;
-  spawnN++;
-  dismissHint();
-  const n = addNode(type, Math.round(cx), Math.round(cy));
-  separateOnAdd(n);
-  rememberAdd(type);
-  select(n);
-  if(typeof geoOn==="function" && geoOn()) geoSettleNew(n, { dir:"out", anchor:placeAnchor });
-  else redraw();
+  // One menu choice includes placement and its unambiguous automatic wire.
+  const wasMuted = undoMuted;
+  pushUndo(); undoMuted = true;
+  try{
+    const placeAnchor = (typeof geoOn==="function" && geoOn()) ? selected : null;
+    const step = Math.ceil(56/scale);   // screen-constant cascade that clears the ~46px header at any zoom (else the covered card's ✕/▶ stay untappable — worst at phone zoom)
+    const seat = spawnFirstSeat();
+    const cx = seat ? seat.x : (editor.clientWidth/2 - panX)/scale - 105 + (spawnN%5)*step;
+    const cy = seat ? seat.y : (editor.clientHeight/2 - panY)/scale - 60  + (spawnN%5)*step;
+    spawnN++;
+    dismissHint();
+    const n = addNode(type, Math.round(cx), Math.round(cy));
+    separateOnAdd(n);
+    rememberAdd(type);
+    select(n);
+    if(typeof geoOn==="function" && geoOn()) geoSettleNew(n, { dir:"out", anchor:placeAnchor });
+    else redraw();
+  }finally{ undoMuted = wasMuted; }
 }
 $("addbtn").onclick = (e)=>{
   e.stopPropagation();

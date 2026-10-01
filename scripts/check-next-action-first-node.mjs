@@ -6,6 +6,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import vm from "node:vm";
 import { ACTION_VOCAB, NODE_TYPES } from "../vendor/next-action/encode.mjs";
 import { recommendFrequency } from "../vendor/next-action/frequency.mjs";
 import { chooseHints, projectHints } from "../vendor/next-action/hints.mjs";
@@ -251,6 +252,32 @@ function toy(name, ok, detail) {
       !existsSync(join(ROOT, "product-20.html")),
     "no mini-demo html"
   );
+}
+
+// Exercise the actual standard Add handler: placement and an automatic wire
+// form one choice, while nested builds keep their existing undo state.
+{
+  const start = index.indexOf("function spawnCenter(");
+  const source = index.slice(start, index.indexOf('$("addbtn").onclick', start));
+  function run(muted = false, throws = false) {
+    const ctx = { undoMuted: muted, snapshots: [], graph: { nodes: [{ id: "source" }], links: [] },
+      selected: { id: "source", el: {} }, scale: 1, panX: 20, panY: 20, spawnN: 0,
+      editor: { clientWidth: 1200, clientHeight: 900 },
+      pushUndo() { if (!ctx.undoMuted) ctx.snapshots.push(JSON.stringify(ctx.graph)); },
+      geoOn: () => true, spawnFirstSeat: () => null, dismissHint() {},
+      addNode(type, x, y) { ctx.pushUndo(); if (throws) throw new Error("render failed"); const n = { id: "new", type, x, y }; ctx.graph.nodes.push(n); return n; },
+      separateOnAdd() {}, rememberAdd() {}, select() {}, redraw() {},
+      geoSettleNew(n, spec) { ctx.pushUndo(); ctx.graph.links.push({ from: spec.anchor.id, to: n.id }); },
+    };
+    vm.createContext(ctx); new vm.Script(source).runInContext(ctx);
+    try { ctx.spawnCenter("image"); } catch (e) { if (!throws) throw e; }
+    return ctx;
+  }
+  const choice = run();
+  toy("one-add-choice-one-undo", choice.snapshots.length === 1 && JSON.parse(choice.snapshots[0]).nodes.length === 1 && choice.graph.nodes.length === 2 && choice.graph.links.length === 1 && choice.undoMuted === false, "complete pair is one edit");
+  const nested = run(true);
+  toy("add-keeps-existing-mute", nested.snapshots.length === 0 && nested.undoMuted === true, "nested build state retained");
+  toy("add-restores-mute-after-error", run(false, true).undoMuted === false, "later edits remain undoable");
 }
 
 const failed = toys.filter((t) => !t.ok);
