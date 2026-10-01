@@ -723,9 +723,13 @@
   .port.snap{ transform:scale(1.7); box-shadow:0 0 0 5px #ffffff66, 0 0 12px #fff6; animation:none }
   /* Product · 40 — brief pulse after double-click dangling → add+wire */
   .port.na-dblclick-add-wire-port{ transform:scale(1.35); box-shadow:0 0 0 4px #a78bfaaa, 0 0 12px #a78bfa66; animation:naDblclickAddWirePulse 1.2s ease-in-out 2 }
+  .port.na-dblclick-add-wire-ready{ box-shadow:0 0 0 3px #a78bfa66 }
+  .na-dblclick-add-wire-add{ position:absolute; left:calc(100% + 6px); top:50%; transform:translateY(-50%); width:19px; height:19px; padding:0; border:1px solid #a78bfa66; border-radius:50%; color:#c4b5fd; background:var(--panel); font:600 12px/1 system-ui; z-index:5; cursor:pointer }
+  .port[data-dir="in"] > .na-dblclick-add-wire-add{ left:auto; right:calc(100% + 6px) }
+  .port:focus-visible{ outline:2px solid #c4b5fd; outline-offset:4px }
   @keyframes naDblclickAddWirePulse{ 50%{ box-shadow:0 0 0 6px #a78bfa44, 0 0 14px #a78bfa55 } }
   @media (prefers-reduced-motion: reduce){
-    .port.na-dblclick-add-wire-port{ animation:none !important; box-shadow:none; transform:none }
+    .port.na-dblclick-add-wire-port, .port.na-dblclick-add-wire-ready{ animation:none !important; transition:none; transform:none }
   }
   @keyframes portpulse{ 50%{ box-shadow:0 0 0 6px #ffffff14 } }
 
@@ -1332,6 +1336,8 @@ const I18N_ENAME = { es:"Spanish", fr:"French", de:"German", pt:"Portuguese", ja
 /* === I18N-MAPS-BEGIN (es/fr/de/pt/ja — generated; English is identity) === */
 const I18N = {
   es:{
+    "Add {node}":"Añadir {node}",
+    "Add {node} — double-click or press Enter":"Añadir {node} — doble clic o pulsa Intro",
     "Pocket mystery":"Misterio de bolsillo",
     "Draw a room, read its visible landmarks, and turn them into clues and a facilitator solution.":"Dibuja una habitación, identifica sus elementos visibles y conviértelos en pistas y una solución para quien dirige el juego.",
     "Storyboard relay":"Relevo de storyboard",
@@ -2020,6 +2026,8 @@ const I18N = {
     "Load nanoodle into your coding agent":"Carga nanoodle en tu agente de código"
   },
   fr:{
+    "Add {node}":"Ajouter {node}",
+    "Add {node} — double-click or press Enter":"Ajouter {node} — double-cliquez ou appuyez sur Entrée",
     "Pocket mystery":"Mystère de poche",
     "Draw a room, read its visible landmarks, and turn them into clues and a facilitator solution.":"Dessinez une pièce, repérez ses éléments visibles et transformez-les en indices avec une solution pour la personne qui anime le jeu.",
     "Storyboard relay":"Relais de storyboard",
@@ -2708,6 +2716,8 @@ const I18N = {
     "Load nanoodle into your coding agent":"Chargez nanoodle dans votre agent de code"
   },
   de:{
+    "Add {node}":"{node} hinzufügen",
+    "Add {node} — double-click or press Enter":"{node} hinzufügen — doppelklicken oder Eingabetaste drücken",
     "Pocket mystery":"Taschenrätsel",
     "Draw a room, read its visible landmarks, and turn them into clues and a facilitator solution.":"Zeichne einen Raum, erkenne seine sichtbaren Merkmale und entwickle daraus Hinweise und eine Lösung für die Spielleitung.",
     "Storyboard relay":"Storyboard in zwei Szenen",
@@ -3396,6 +3406,8 @@ const I18N = {
     "Load nanoodle into your coding agent":"Lade nanoodle in deinen Coding-Agenten"
   },
   pt:{
+    "Add {node}":"Adicionar {node}",
+    "Add {node} — double-click or press Enter":"Adicionar {node} — clique duas vezes ou pressione Enter",
     "Pocket mystery":"Mistério de bolso",
     "Draw a room, read its visible landmarks, and turn them into clues and a facilitator solution.":"Desenhe uma sala, identifique seus elementos visíveis e transforme-os em pistas e uma solução para quem conduz o jogo.",
     "Storyboard relay":"Storyboard em sequência",
@@ -4084,6 +4096,8 @@ const I18N = {
     "Load nanoodle into your coding agent":"Carregue o nanoodle no seu agente de código"
   },
   ja:{
+    "Add {node}":"{node}を追加",
+    "Add {node} — double-click or press Enter":"{node}を追加 — ダブルクリックまたはEnter",
     "Pocket mystery":"ポケットミステリー",
     "Draw a room, read its visible landmarks, and turn them into clues and a facilitator solution.":"部屋の絵を描き、実際に見える特徴から手がかりと進行役向けの解答を作ります。",
     "Storyboard relay":"ストーリーボード・リレー",
@@ -10339,7 +10353,10 @@ function removeLink(id){
   save();
 }
 function refreshPortFills(){
-  document.querySelectorAll(".port").forEach(p=> p.classList.remove("filled"));
+  document.querySelectorAll(".port").forEach(p=>{
+    p.classList.remove("filled");
+    if(typeof dblclickPortTabStop==="function") dblclickPortTabStop(p);
+  });
   document.querySelectorAll("textarea.wired, input.wired, select.wired").forEach(ta=>{ ta.classList.remove("wired"); ta.disabled=false; ta.hidden=false; });
   // collapse-reset: any field that WAS wired returns to its textarea; every source chip re-hides.
   // (re-populated below for still-live links, so this stays idempotent across the many re-runs)
@@ -16846,7 +16863,7 @@ RULES for the diff:
   }
 })();
 /* Product · 40 — double-click dangling port → add top gallery consumer/producer
-   at a free seat and connect() once. Quiet when flat / multi / reduced-motion /
+   at a free seat and connect() once. Quiet when flat / multi /
    engine off / not dangling / no seat. Soft port pulse only — no tip panel /
    no ?product= twin. */
 function dblclickAddWireReducedMotion(){
@@ -16859,7 +16876,6 @@ function clearDblclickAddWirePulse(){
 }
 function pulseDblclickAddWirePorts(fromNode, fromPort, toNode, toPort){
   clearDblclickAddWirePulse();
-  if(dblclickAddWireReducedMotion()) return;
   const a = document.querySelector(`.port[data-node="${fromNode}"][data-port="${fromPort}"][data-dir="out"]`);
   const b = document.querySelector(`.port[data-node="${toNode}"][data-port="${toPort}"][data-dir="in"]`);
   if(a) a.classList.add("na-dblclick-add-wire-port");
@@ -16878,24 +16894,77 @@ function abortWireDragForDblclick(){
   try{ redraw(); }catch(_){}
   try{ closeQuickAdd(); }catch(_){}
 }
-function tryDblclickDanglingAddWire(portEl){
-  if(!portEl || !portEl.dataset) return false;
-  if(typeof geoOn==="function" && !geoOn()) return false;
-  if(dblclickAddWireReducedMotion()) return false;
-  if(typeof multiSel!=="undefined" && multiSel && multiSel.size >= 2) return false;
-  if(portEl.classList.contains("disabled")) return false;
+let _dblclickAddWireCueTimer = 0, _dblclickAddWireCue = null;
+function dblclickPortTabStop(port){
+  port.tabIndex = !port.classList.contains("disabled") && geoOn() ? 0 : -1;
+  port.setAttribute?.("aria-label", t(port.dataset.port));
+}
+function clearDblclickPortCue(){
+  if(_dblclickAddWireCueTimer){ clearTimeout(_dblclickAddWireCueTimer); _dblclickAddWireCueTimer = 0; }
+  const cue = _dblclickAddWireCue;
+  _dblclickAddWireCue = null;
+  if(!cue) return;
+  cue.button.remove();
+  cue.port.classList.remove("na-dblclick-add-wire-ready");
+  for(const [key, value] of Object.entries(cue.attrs)){
+    if(value===null) cue.port.removeAttribute(key); else cue.port.setAttribute(key, value);
+  }
+}
+function showDblclickPortCue(port){
+  clearDblclickPortCue();
+  if(typeof tempWire!=="undefined" && tempWire) return false;
+  if(typeof nodeGestPtrs!=="undefined" && nodeGestPtrs.size) return false;
+  const candidate = dblclickDanglingAddWireCandidate(port);
+  if(!candidate) return false;
+  const label = t("Add {node} — double-click or press Enter").replace("{node}", t(NODE_TYPES[candidate.pick.addType].title));
+  const attrs = Object.fromEntries(["title", "aria-label", "role"].map(key=>[key, port.getAttribute(key)]));
+  const button = document.createElement("button");
+  button.type = "button"; button.className = "na-dblclick-add-wire-add"; button.textContent = "+";
+  const addLabel = t("Add {node}").replace("{node}", t(NODE_TYPES[candidate.pick.addType].title));
+  button.title = addLabel; button.setAttribute("aria-label", addLabel);
+  button.addEventListener("pointerdown", e=> e.stopPropagation());
+  button.addEventListener("click", e=>{
+    e.preventDefault(); e.stopPropagation();
+    abortWireDragForDblclick(); tryDblclickDanglingAddWire(port);
+  });
+  _dblclickAddWireCue = { port, attrs, button };
+  port.appendChild(button);
+  port.classList.add("na-dblclick-add-wire-ready");
+  port.setAttribute("aria-label", label); port.setAttribute("role", "button");
+  _dblclickAddWireCueTimer = setTimeout(()=>{
+    _dblclickAddWireCueTimer = 0;
+    const current = dblclickDanglingAddWireCandidate(port);
+    if(!current || current.pick.addType!==candidate.pick.addType || current.pick.addPort!==candidate.pick.addPort){ clearDblclickPortCue(); return; }
+    port.setAttribute("title", label);
+  }, 350);
+  return true;
+}
+function dblclickAddWireKey(e){
+  if(e.key==="Escape"){ clearDblclickPortCue(); return; }
+  if(e.repeat || e.ctrlKey || e.metaKey || e.altKey || (e.key!=="Enter" && e.key!==" ")) return;
+  const port = e.target?.closest?.(".port");
+  if(!port || !dblclickDanglingAddWireCandidate(port)) return;
+  e.preventDefault(); e.stopPropagation();
+  abortWireDragForDblclick();
+  tryDblclickDanglingAddWire(port);
+}
+function dblclickDanglingAddWireCandidate(portEl){
+  if(!portEl || !portEl.dataset) return null;
+  if(typeof geoOn==="function" && !geoOn()) return null;
+  if(typeof multiSel!=="undefined" && multiSel && multiSel.size >= 2) return null;
+  if(portEl.classList.contains("disabled")) return null;
   const na = window.__nextAction;
-  if(!na || na.disabled || !(na.hasPortPriors && na.hasPortPriors()) || typeof na.pickDblclickDanglingAddWire!=="function") return false;
+  if(!na || na.disabled || !(na.hasPortPriors && na.hasPortPriors()) || typeof na.pickDblclickDanglingAddWire!=="function") return null;
   const nodeId = portEl.dataset.node;
   const port = portEl.dataset.port;
   const dir = portEl.dataset.dir === "in" ? "in" : "out";
   const ptype = portEl.dataset.ptype;
   const src = typeof byId==="function" ? byId(nodeId) : null;
-  if(!src || !src.type || !src.el || !port || !ptype) return false;
+  if(!src || !src.type || !src.el || !port || !ptype) return null;
   const origin = [...src.el.querySelectorAll(`.port[data-dir="${dir}"]`)].find(p=> p.dataset.port===port);
-  if(!origin || origin.classList.contains("disabled") || origin.dataset.ptype!==ptype) return false;
+  if(!origin || origin.classList.contains("disabled") || origin.dataset.ptype!==ptype) return null;
   const endpoint = dir==="out" ? "from" : "to";
-  if((graph.links||[]).some(l=> l[endpoint]?.node===nodeId && l[endpoint].port===port)) return false;
+  if((graph.links||[]).some(l=> l[endpoint]?.node===nodeId && l[endpoint].port===port)) return null;
   // Live candidates from the same wire-drop menu filter (type-compatible).
   let candidates = null;
   try{
@@ -16924,16 +16993,23 @@ function tryDblclickDanglingAddWire(portEl){
       nodeW, nodeH,
     });
   }catch(_){ pick = null; }
-  if(!pick || !pick.addType || !pick.addPort) return false;
-  if(typeof NODE_TYPES!=="undefined" && !NODE_TYPES[pick.addType]) return false;
-  // addNode() saves and snapshots immediately. If the selected model has no
-  // viable socket, remove the provisional node without consuming undo/redo.
+  if(!pick || !pick.addType || !pick.addPort) return null;
+  if(typeof NODE_TYPES!=="undefined" && !NODE_TYPES[pick.addType]) return null;
+  return { pick, origin, nodeId, port, dir, ptype };
+}
+function tryDblclickDanglingAddWire(portEl){
+  const candidate = dblclickDanglingAddWireCandidate(portEl);
+  clearDblclickPortCue();
+  if(!candidate) return false;
+  const { pick, origin, dir, ptype } = candidate;
+  // Creation, capability upgrade, wire and placement are one user action.
+  // A failed attempt removes its provisional node without consuming history.
   const nodesBefore = new Set(graph.nodes);
   const undoBefore = undoStack.slice(), redoBefore = redoStack.slice();
   const nidBefore = nid, lidBefore = lid;
+  const mutedBefore = undoMuted;
+  pushUndo(); undoMuted = true;
   const rollback = ()=>{
-    const mutedBefore = undoMuted;
-    undoMuted = true;
     try{
       for(const added of [...graph.nodes]) if(!nodesBefore.has(added)) removeNode(added.id);
     }finally{
@@ -16970,6 +17046,7 @@ function tryDblclickDanglingAddWire(portEl){
   let ok = false;
   try{ ok = !!connect(fromNode, fromPort, toNode, toPort); }catch(_){ ok = false; }
   if(ok){
+    undoMuted = mutedBefore;
     try{ if(typeof separateOnAdd==="function") separateOnAdd(n); }catch(_){}
     try{ if(typeof rememberAdd==="function") rememberAdd(pick.addType); }catch(_){}
     try{ if(typeof dismissConnectHint==="function") dismissConnectHint(); }catch(_){}
@@ -16980,6 +17057,42 @@ function tryDblclickDanglingAddWire(portEl){
   return ok || rollback();
 }
 import("./vendor/next-action/dblclick-dangling-add-wire.mjs").catch(()=>{});
+// Delegation includes newly-grown sockets; hover/focus only reveals a read-only cue.
+editor.addEventListener("pointerover", e=>{
+  if(e.pointerType==="touch") return;
+  const port = e.target?.closest?.(".port");
+  if(port && port!==e.relatedTarget?.closest?.(".port")) showDblclickPortCue(port);
+});
+editor.addEventListener("pointerout", e=>{
+  if(_dblclickAddWireCue && !_dblclickAddWireCue.port.contains(e.relatedTarget)) clearDblclickPortCue();
+});
+editor.addEventListener("focusin", e=>{ if(e.target?.matches?.(".port")) showDblclickPortCue(e.target); });
+editor.addEventListener("focusout", e=>{
+  if(_dblclickAddWireCue && !_dblclickAddWireCue.port.contains(e.relatedTarget)) clearDblclickPortCue();
+});
+let _dblclickAddWireTouch = null;
+editor.addEventListener("pointerdown", e=>{
+  if(e.target?.closest?.(".na-dblclick-add-wire-add")) return;
+  clearDblclickPortCue();
+  const port = e.target?.closest?.(".port");
+  _dblclickAddWireTouch = e.pointerType==="touch" && port ? { port, id:e.pointerId, x:e.clientX, y:e.clientY, moved:false } : null;
+}, true);
+window.addEventListener("pointermove", e=>{
+  const touch = _dblclickAddWireTouch;
+  if(touch && touch.id===e.pointerId && Math.hypot(e.clientX-touch.x, e.clientY-touch.y)>6) touch.moved=true;
+});
+window.addEventListener("pointerup", e=>{
+  const touch = _dblclickAddWireTouch;
+  if(!touch || touch.id!==e.pointerId) return;
+  _dblclickAddWireTouch = null;
+  if(!touch.moved && Math.hypot(e.clientX-touch.x, e.clientY-touch.y)<=6){
+    setTimeout(()=>{ if(touch.port.isConnected) showDblclickPortCue(touch.port); }, 0);
+  }
+});
+window.addEventListener("pointercancel", ()=>{ _dblclickAddWireTouch=null; clearDblclickPortCue(); });
+editor.addEventListener("keydown", dblclickAddWireKey);
+window.addEventListener("blur", clearDblclickPortCue);
+
 
 /* Next-action scores feed existing menus (add node, wire-drop, model picker).
    Dynamic import so a tree without vendor/next-action stays quiet. No panel, no ghost.

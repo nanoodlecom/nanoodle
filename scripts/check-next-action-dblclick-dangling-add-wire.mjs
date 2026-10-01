@@ -342,14 +342,26 @@ function toy(name, ok, detail) {
     cut("function connect(fromNode, fromPort, toNode, toPort){", "\n/* ======================================================================\n   QUICK ADD"),
     cut("function removeNode(id){", "\nfunction updateDelBtn()"),
     cut("function pushUndo(boundary){", "\nfunction _restore("),
-    cut("function tryDblclickDanglingAddWire(portEl){", '\nimport("./vendor/next-action/dblclick-dangling-add-wire.mjs")'),
+    cut("function _restore(from, to){", "\nfunction syncUndoBtn()"),
+    cut("let _dblclickAddWireCueTimer", "function dblclickDanglingAddWireCandidate("),
+    cut("function dblclickDanglingAddWireCandidate(portEl){", '\nimport("./vendor/next-action/dblclick-dangling-add-wire.mjs")'),
+    cut("// Delegation includes newly-grown sockets", "\n/* Next-action scores"),
   ].join("\n");
   function attempt(options = {}) {
     const dir = options.dir || "out", opp = dir === "out" ? "in" : "out";
-    const port = (node, name, pd, ptype = "text", disabled = false)=>({
-      dataset: { node, port: name, dir: pd, ptype },
-      classList: { contains(value) { return value === "disabled" && disabled; } },
-    });
+    const port = (node, name, pd, ptype = "text", disabled = false)=>{
+      const attrs = new Map(), classes = new Set(disabled ? ["disabled"] : []);
+      const p = {
+        dataset: { node, port: name, dir: pd, ptype }, children: [], isConnected:true,
+        classList: { contains(value) { return classes.has(value); }, add(value) { classes.add(value); }, remove(value) { classes.delete(value); } },
+        getAttribute(key) { return attrs.has(key) ? attrs.get(key) : null; },
+        setAttribute(key, value) { attrs.set(key, value); }, removeAttribute(key) { attrs.delete(key); },
+        appendChild(child) { p.children.push(child); child.parentElement=p; },
+        contains(child) { return child===p || p.children.includes(child); },
+        closest(sel) { return sel===".port" ? p : null; }, matches(sel) { return sel===".port"; },
+      };
+      return p;
+    };
     const origin = port("n1", "prompt", dir);
     let removed = 0, remembered = 0, pulses = 0, connects = 0;
     const element = ports=>({
@@ -359,13 +371,28 @@ function toy(name, ok, detail) {
     });
     const initial = { id: "n1", type: "image", x: 0, y: 0, el: element([origin]) };
     const undoBefore = [{ s: "previous" }], redoBefore = [{ s: "future" }];
+    const timers = new Map(), editorListeners = new Map(), windowListeners = new Map();
+    let timerId = 0;
     if(options.fullHistory) while(undoBefore.length < 25) undoBefore.push({ s: `step ${undoBefore.length}` });
     const context = {
       graph: { nodes: [initial], links: [] }, nid: 2, lid: 1,
       undoStack: undoBefore.slice(), redoStack: redoBefore.slice(), undoMuted: false, UNDO_DEPTH: 25,
       selected: initial, multiSel: new Set(),
-      NODE_TYPES: { image: {}, llm: {} },
-      geoOn() { return true; }, dblclickAddWireReducedMotion() { return false; },
+      runningNodes:new Set(), flash() {},
+      NODE_TYPES: { image: {title:"Image"}, llm: {title:"LLM"} },
+      tempWire:null, nodeGestPtrs:new Set(),
+      geoOn() { return !options.engineOff; }, dblclickAddWireReducedMotion() { return !!options.reducedMotion; },
+      t(key) { return options.french ? key.replace("Add", "Ajouter") : key; },
+      setTimeout(fn, ms) { timers.set(++timerId, {fn,ms}); return timerId; }, clearTimeout(id) { timers.delete(id); },
+      document: { createElement() {
+        return { events:new Map(), setAttribute() {},
+          addEventListener(name, fn) { this.events.set(name,fn); },
+          closest(sel) { return sel===".na-dblclick-add-wire-add" ? this : sel===".port" ? this.parentElement : null; },
+          remove() { const p=this.parentElement; if(p) p.children=p.children.filter(child=>child!==this); },
+        };
+      } },
+      editor: { addEventListener(name,fn) { editorListeners.set(name,fn); } },
+      abortWireDragForDblclick() {},
       quickAddCandidates() { return [["llm", {}]]; }, socketsForDrop() { return ["prompt"]; },
       byId(id) { return context.graph.nodes.find(n=> n.id === id); },
       serializeGraph() { return {
@@ -373,6 +400,10 @@ function toy(name, ok, detail) {
         links: context.graph.links,
       }; },
       _snap() { return JSON.stringify(context.serializeGraph()); },
+      applyGraphData(data) {
+        context.graph.nodes=data.nodes.map(n=>({ ...n, el:element([]) }));
+        context.graph.links=data.links;
+      },
       syncUndoBtn() {}, _stashResults() {}, save() {}, redraw() {}, updateDelBtn() {},
       refreshImageInputs() {}, refreshVideoInputs() {}, refreshPortFills() {},
       recompactImageLinks() {}, recompactVideoLinks() {},
@@ -387,7 +418,7 @@ function toy(name, ok, detail) {
       ensureModelForInput(n) { if(options.upgrade) n.el = element([port(n.id, "prompt", opp)]); },
       separateOnAdd() {}, rememberAdd() { remembered++; },
       select() {}, dismissConnectHint() {}, pulseDblclickAddWirePorts() { pulses++; },
-      window: { __nextAction: {
+      window: { addEventListener(name,fn) { windowListeners.set(name,fn); }, __nextAction: {
         hasPortPriors() { return true; },
         pickDblclickDanglingAddWire() { return { addType: "llm", addPort: "prompt", x: 240, y: 0 }; },
       } },
@@ -402,8 +433,8 @@ function toy(name, ok, detail) {
       return ok;
     };
     const before = JSON.stringify(context.serializeGraph());
-    const accepted = context.tryDblclickDanglingAddWire(origin);
-    return { context, accepted, connects, removed, remembered, pulses, before, undoBefore, redoBefore };
+    const accepted = options.noAction ? false : context.tryDblclickDanglingAddWire(origin);
+    return { context, accepted, connects, removed, remembered, pulses, before, undoBefore, redoBefore, origin, timers, editorListeners, windowListeners };
   }
   for(const dir of ["out", "in"]) {
     const good = attempt({ dir });
@@ -433,8 +464,46 @@ function toy(name, ok, detail) {
   }
   const good = attempt();
   const undoOnce = JSON.parse(good.context.undoStack.at(-1).s);
-  toy("live-success-keeps-existing-undo-path", undoOnce.nodes.length === 2 && undoOnce.links.length === 0 &&
-    good.context.undoStack.length === good.undoBefore.length + 2, "add and wire retain existing separate undo steps");
+  toy("live-success-is-one-undo-step", undoOnce.nodes.length === 1 && undoOnce.links.length === 0 &&
+    good.context.undoStack.length === good.undoBefore.length + 1, "add, model upgrade and wire share the pre-add snapshot");
+  const afterSuccess=JSON.stringify(good.context.serializeGraph());
+  good.context._restore(good.context.undoStack, good.context.redoStack);
+  toy("undo-removes-node-and-wire", JSON.stringify(good.context.serializeGraph())===good.before, "one undo restores original graph");
+  good.context._restore(good.context.redoStack, good.context.undoStack);
+  toy("redo-restores-node-and-wire", JSON.stringify(good.context.serializeGraph())===afterSuccess, "one redo restores entire action");
+  const hover = attempt({ noAction:true, french:true });
+  const hoverBefore = JSON.stringify(hover.context.serializeGraph());
+  hover.origin.setAttribute("title", "original port title");
+  hover.context.showDblclickPortCue(hover.origin);
+  const button = hover.origin.children[0];
+  toy("hover-offers-actual-node", button && button.title === "Ajouter LLM" && hover.origin.classList.contains("na-dblclick-add-wire-ready"), "small localized predicted-node button");
+  toy("hover-does-not-mutate-graph-or-history", JSON.stringify(hover.context.serializeGraph())===hoverBefore &&
+    JSON.stringify(hover.context.undoStack)===JSON.stringify(hover.undoBefore), "read-only affordance");
+  toy("native-tooltip-is-delayed", hover.origin.getAttribute("title")==="original port title", "original title retained until delay");
+  const timer = [...hover.timers.values()].find(timer=>timer.ms===350); timer.fn();
+  toy("native-tooltip-names-predicted-node", hover.origin.getAttribute("title").includes("Ajouter LLM"), "actual chosen type after delay");
+  hover.editorListeners.get("pointerout")({ relatedTarget:button });
+  toy("pointer-can-reach-plus", hover.origin.children.length===1, "entering adjacent child button keeps cue");
+  button.events.get("click")({ preventDefault(){}, stopPropagation(){} });
+  toy("plus-click-adds-and-wires-once", hover.context.graph.nodes.length===2 && hover.context.graph.links.length===1 && hover.origin.children.length===0, "single explicit button action");
+  toy("cue-restores-original-title", hover.origin.getAttribute("title")==="original port title", "no stale action tooltip");
+  for(const key of ["Enter", " "]){
+    const focused = attempt({ noAction:true, reducedMotion:true });
+    focused.editorListeners.get("focusin")({ target:focused.origin });
+    toy(`focus-${key}-does-not-add`, focused.origin.children.length===1 && focused.context.graph.nodes.length===1, "focus only offers action");
+    focused.context.dblclickAddWireKey({ key, target:focused.origin, preventDefault(){}, stopPropagation(){} });
+    toy(`key-${key}-adds-in-reduced-motion`, focused.context.graph.nodes.length===2 && focused.context.graph.links.length===1, "keyboard action keeps semantics");
+  }
+  const quiet = attempt({ noAction:true, engineOff:true });
+  toy("disabled-feature-has-no-cue", !quiet.context.showDblclickPortCue(quiet.origin) && quiet.origin.children.length===0, "disable flags respected");
+  for(const moved of [false, true]){
+    const touch = attempt({ noAction:true });
+    touch.editorListeners.get("pointerdown")({ target:touch.origin, pointerType:"touch", pointerId:7, clientX:10, clientY:10 });
+    if(moved) touch.windowListeners.get("pointermove")({ pointerId:7, clientX:30, clientY:10 });
+    touch.windowListeners.get("pointerup")({ pointerId:7, clientX:10, clientY:10 });
+    for(const timer of [...touch.timers.values()]) if(timer.ms===0) timer.fn();
+    toy(`touch-${moved ? "drag" : "tap"}-cue`, touch.origin.children.length===(moved ? 0 : 1) && touch.context.graph.nodes.length===1, "tap offers button; drag does not");
+  }
 }
 
 // Editor wiring pins
@@ -471,7 +540,7 @@ function toy(name, ok, detail) {
   );
   toy(
     "html-geoOn-gate",
-    /function tryDblclickDanglingAddWire[\s\S]{0,500}geoOn/.test(index),
+    /function dblclickDanglingAddWireCandidate[\s\S]{0,500}geoOn/.test(index),
     "geoOn"
   );
   toy(
