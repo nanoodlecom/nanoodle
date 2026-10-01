@@ -3,11 +3,15 @@
 // against the live catalog — a size / duration / quality / mode value that the
 // NEW model does not list must snap to a real option. Both engines used to keep
 // the old value and inject it as a fake <option>, so switching MiniMax H3 (8s
-// is listed) → Wan Prime (UI list is 5/10; catalog duration is a number range
-// with default 5) still showed 8s and Play would send it.
+// is listed) → Omni (3–10 list) with 15s still showed 15s and Play would send it.
+//
+// Wan 3.0 (Prime / Spicy / Extend / …) ships duration as a number range
+// (type:number min 2 / max 30 / step 1). Both engines expand that range into
+// the real list (2…30) — it used to collapse to a 5/10 fallback, capping the
+// Spicy/Prime models at 10s though NanoGPT accepts 30s (live catalog 2026-09-28).
 //
 // Pins, offline, zero API spend:
-//   * 8s → Wan Prime clamps; 8s on MiniMax H3 stays
+//   * Wan Prime / Wan 3.0 Spicy list 2–30s: 8s and 30s stay; out-of-range 45s clamps; 8s on MiniMax H3 stays
 //   * image size 2k clamps off qwen-image-3; stays on nano-banana-2
 //   * editor ↔ play nearestDimOption parity
 //   * refreshDims / fillDimLists never inject a fake option once the catalog is known
@@ -63,6 +67,11 @@ const WAN_PRIME = {
   id: "alibaba/wan-3.0-prime",
   params: { duration: { type: "number", min: 2, max: 30, step: 1, default: 5 } },
 };
+const WAN_SPICY = {
+  id: "alibaba/wan-3.0/image-to-video-spicy",
+  params: { duration: { type: "number", min: 2, max: 30, step: 1, default: 5 } },
+};
+const RANGE_2_30 = Array.from({ length: 29 }, (_, i) => String(i + 2)).join(",");
 const MINIMAX_H3 = {
   id: "minimax-h3",
   params: { duration: { type: "select", default: "5", options: H3_DUR_OPTS } },
@@ -102,6 +111,7 @@ function loadEditor() {
     "var DURATION_FALLBACK = [['5','5 sec'],['10','10 sec']];",
     block(IDX, "function selOpts(param){"),
     block(IDX, "function paramDef(param, opts){"),
+    block(IDX, "function rangeDurOpts(param){"),
     block(IDX, "const DIM_TIER_PX = {").replace(/^const\s/, "var "),
     block(IDX, "function dimShape(v){"),
     dimNumLine(IDX),
@@ -131,6 +141,7 @@ function loadPlay() {
     block(PLAY, "function aspectFromParams(sp){"),
     block(PLAY, "function imageAspectSpec(model){"),
     block(PLAY, "function imageAspectFor(model, raw){"),
+    block(PLAY, "function rangeDurOpts(param){"),
     block(PLAY, "function dimOptionsFromItem(type, m){"),
     block(PLAY, "function snapImageSize(n, raw){"),
   ].join("\n");
@@ -186,27 +197,36 @@ const play = loadPlay();
 }
 
 // ---- 2. editor dimDefs + applyDimFields (the Wan Prime repro) -------------
-editor.catalogs.video = [WAN_PRIME, MINIMAX_H3, OMNI_V1, OMNI_11];
+editor.catalogs.video = [WAN_PRIME, WAN_SPICY, MINIMAX_H3, OMNI_V1, OMNI_11];
 editor.catalogs.image = [BANANA, QWEN];
 
 {
-  const fields = { model: "alibaba/wan-3.0-prime", duration: "8" };
+  const fields = { model: "alibaba/wan-3.0-prime", duration: "45" };
   const defs = editor.dimDefs("tvideo", fields.model);
   const dur = defs.find((d) => d.f === "duration");
   if (!dur) fail("editor: Wan Prime tvideo has no duration def");
   else {
     const listed = dur.options.map((o) => String(o[0]));
-    if (listed.includes("8")) fail("editor: Wan Prime duration list must not include 8 (got " + listed.join(",") + ")");
-    else ok("editor: Wan Prime duration options are " + listed.join("/"));
-    if (!dur.known) fail("editor: Wan Prime duration def should be known (catalogued number-range → fallback list)");
+    if (listed.join(",") !== RANGE_2_30) fail("editor: Wan Prime duration list is " + listed.join(",") + " (want the catalog range 2–30)");
+    else ok("editor: Wan Prime duration options are the catalog range 2–30");
+    if (String(dur.def) !== "5") fail("editor: Wan Prime duration default is " + dur.def + " (want catalog default 5)");
+    if (!dur.known) fail("editor: Wan Prime duration def should be known (catalogued number-range)");
     editor.applyDimFields(fields, defs);
-    if (String(fields.duration) === "8") fail("editor: 8s survived a swap/load onto Wan Prime");
+    if (String(fields.duration) === "45") fail("editor: out-of-range 45s survived a swap/load onto Wan Prime");
     else if (!listed.includes(String(fields.duration))) {
       fail("editor: clamped duration \"" + fields.duration + "\" is not in Wan Prime's list");
-    } else if (dur.options.some((o) => String(o[0]) === "8")) {
-      fail("editor: applyDimFields injected 8 as a fake option");
-    } else ok("editor: H3 8s → Wan Prime clamps duration to " + fields.duration);
+    } else if (dur.options.some((o) => String(o[0]) === "45")) {
+      fail("editor: applyDimFields injected 45 as a fake option");
+    } else ok("editor: out-of-range 45s → Wan Prime clamps duration to " + fields.duration);
   }
+}
+
+for (const [model, want] of [["alibaba/wan-3.0-prime", "8"], [WAN_SPICY.id, "30"], [WAN_SPICY.id, "2"]]) {
+  const fields = { model, duration: want };
+  const defs = editor.dimDefs("ivideo", model);
+  editor.applyDimFields(fields, defs);
+  if (String(fields.duration) !== want) fail("editor: still-valid " + want + "s on " + model + " was reset to " + fields.duration);
+  else ok("editor: still-valid " + want + "s on " + model + " is kept");
 }
 
 {
@@ -284,12 +304,18 @@ editor.catalogs.image = [BANANA, QWEN];
 
 {
   // SEND path must clamp even when refreshDims never ran (n.el missing / catalog raced Run).
-  const n = { type: "tvideo", fields: { model: "alibaba/wan-3.0-prime", duration: "8" } };
+  const n = { type: "tvideo", fields: { model: "alibaba/wan-3.0-prime", duration: "45" } };
   const wire = editor.videoDimParams(n);
-  if (String(wire.duration) === "8") fail("editor send: videoDimParams still packs leftover 8s on Wan Prime");
+  if (String(wire.duration) === "45") fail("editor send: videoDimParams still packs out-of-range 45s on Wan Prime");
   else if (wire.duration == null || wire.duration === "") fail("editor send: videoDimParams dropped duration");
-  else if (String(n.fields.duration) === "8") fail("editor send: videoDimParams left fields.duration=8");
-  else ok("editor send: videoDimParams clamps leftover 8s on Wan Prime to " + wire.duration + " (no prior applyDimFields)");
+  else if (String(n.fields.duration) === "45") fail("editor send: videoDimParams left fields.duration=45");
+  else ok("editor send: videoDimParams clamps out-of-range 45s on Wan Prime to " + wire.duration + " (no prior applyDimFields)");
+}
+
+{
+  const wire = editor.videoDimParams({ type: "ivideo", fields: { model: WAN_SPICY.id, duration: "30" } });
+  if (String(wire.duration) !== "30") fail("editor send: Wan 3.0 Spicy 30s was not posted, got " + JSON.stringify(wire.duration));
+  else ok("editor send: Wan 3.0 Spicy posts duration 30");
 }
 
 {
@@ -408,12 +434,11 @@ editor.catalogs.image = [BANANA, QWEN];
 
 // ---- 2b. vedit/lipsync number-range duration (Wan 3.0 Edit/Extend) --------
 // Live shape 2026-09-17: alibaba/wan-3.0/video-extend ships duration as
-// type:number min 2 / max 30 (video-edit: max 15), not a select. tvideo/ivideo
-// show the pinned 5/10 fallback for that shape — but vedit/lipsync showed NO
-// duration control at all, so the extension length was unsettable (the run
-// always sent the API default 5s) and the estimate could never move. A listed
-// number-range duration must surface the same 5/10 fallback on vedit/lipsync:
-// never a dropped knob, never a raw int on the wire.
+// type:number min 2 / max 30 (video-edit: max 15), not a select. vedit/lipsync
+// used to show NO duration control at all, so the extension length was
+// unsettable (the run always sent the API default 5s) and the estimate could
+// never move. A listed number-range duration must surface the same catalog
+// range list on vedit/lipsync as on tvideo/ivideo: never a dropped knob.
 const WAN_EXTEND = {
   id: "alibaba/wan-3.0/video-extend",
   params: {
@@ -436,11 +461,11 @@ editor.catalogs.video.push(WAN_EXTEND, VEDIT_NODUR);
   if (!dur) fail("editor: Wan 3.0 Extend vedit has no duration def (extension length unsettable)");
   else {
     const listed = dur.options.map((o) => String(o[0]));
-    if (listed.join(",") !== "5,10") fail("editor: Wan Extend vedit duration list is " + listed.join(",") + " (want the pinned 5/10 fallback)");
+    if (listed.join(",") !== RANGE_2_30) fail("editor: Wan Extend vedit duration list is " + listed.join(",") + " (want the catalog range 2–30)");
     else if (String(dur.def) !== "5") fail("editor: Wan Extend vedit duration default is " + dur.def + " (want catalog default 5)");
     else if (dur.wire !== "duration") fail("editor: Wan Extend vedit duration wire is " + dur.wire + " (want duration)");
     else if (!dur.known) fail("editor: Wan Extend vedit duration def should be known (catalogued number-range)");
-    else ok("editor: Wan 3.0 Extend vedit offers duration " + listed.join("/") + " (pinned fallback, not a dropped knob)");
+    else ok("editor: Wan 3.0 Extend vedit offers duration 2–30 (catalog range, not a dropped knob)");
     editor.applyDimFields(fields, defs);
     if (String(fields.duration) !== "5") fail("editor: fresh Wan Extend vedit seeded duration " + fields.duration + " (want 5)");
     else ok("editor: fresh Wan Extend vedit seeds duration 5");
@@ -448,18 +473,18 @@ editor.catalogs.video.push(WAN_EXTEND, VEDIT_NODUR);
 }
 
 {
-  const fields = { model: WAN_EXTEND.id, duration: "8" };
+  const fields = { model: WAN_EXTEND.id, duration: "45" };
   editor.applyDimFields(fields, editor.dimDefs("vedit", fields.model));
-  if (String(fields.duration) === "8") fail("editor: 8s survived on Wan Extend vedit");
-  else ok("editor: 8s → Wan Extend vedit clamps duration to " + fields.duration);
+  if (String(fields.duration) === "45") fail("editor: 45s survived on Wan Extend vedit");
+  else ok("editor: 45s → Wan Extend vedit clamps duration to " + fields.duration);
 }
 
 {
   // SEND path: vedit must forward the (clamped) duration for a number-range model…
-  const n = { type: "vedit", fields: { model: WAN_EXTEND.id, duration: "8", resolution: "720p" } };
+  const n = { type: "vedit", fields: { model: WAN_EXTEND.id, duration: "45", resolution: "720p" } };
   const wire = editor.videoDimParams(n);
   if (wire.duration == null || wire.duration === "") fail("editor send: vedit dropped duration on Wan Extend (unsettable length)");
-  else if (String(wire.duration) === "8") fail("editor send: vedit packed unlisted 8s on Wan Extend");
+  else if (String(wire.duration) === "45") fail("editor send: vedit packed out-of-range 45s on Wan Extend");
   else ok("editor send: vedit forwards Wan Extend duration as " + wire.duration);
 }
 
@@ -490,25 +515,30 @@ editor.catalogs.video.push(WAN_EXTEND, VEDIT_NODUR);
   const pack = play.dimOptionsFromItem("tvideo", wanRaw);
   const listed = (pack.duration || []).map((o) => String(o[0]));
   if (!listed.length) fail("play: Wan Prime number-range duration produced no options");
-  else if (listed.includes("8")) fail("play: Wan Prime duration list must not include 8");
+  else if (listed.join(",") !== RANGE_2_30) fail("play: Wan Prime duration list is " + listed.join(",") + " (want 2–30)");
   else {
-    const next = play.nearestDimOption("8", pack.duration, pack.def.duration);
-    if (String(next) === "8") fail("play: 8s survived Wan Prime clamp");
+    const next = play.nearestDimOption("45", pack.duration, pack.def.duration);
+    const keep = play.nearestDimOption("30", pack.duration, pack.def.duration);
+    if (String(next) === "45") fail("play: 45s survived Wan Prime clamp");
     else if (!listed.includes(String(next))) fail("play: clamped \"" + next + "\" is not in Wan Prime's list");
-    else ok("play: H3 8s → Wan Prime clamps duration to " + next);
+    else if (String(keep) !== "30") fail("play: still-valid 30s on Wan Prime was reset to " + keep);
+    else ok("play: Wan Prime lists 2–30s, keeps 30s, clamps 45s to " + next);
   }
 }
 
 {
-  // play runtime pack already resolves number-range → DURATIONS on every node
-  // type (no change needed) — lock it for vedit, the newly-knobbed surface.
+  // play runtime pack resolves a number-range to the catalog list on every node
+  // type — lock it for vedit too.
   const wanVeditRaw = {
     supported_parameters: { parameters: { duration: { type: "number", min: 2, max: 30, default: 5 } } },
   };
   const pack = play.dimOptionsFromItem("vedit", wanVeditRaw);
   const listed = (pack.duration || []).map((o) => String(o[0]));
-  if (listed.join(",") !== "5,10") fail("play: vedit number-range duration pack is " + listed.join(",") + " (want 5/10)");
-  else ok("play: vedit number-range duration resolves to the 5/10 fallback");
+  if (listed.join(",") !== RANGE_2_30) fail("play: vedit number-range duration pack is " + listed.join(",") + " (want 2–30)");
+  else ok("play: vedit number-range duration resolves to the catalog range 2–30");
+  const bare = play.dimOptionsFromItem("vedit", { supported_parameters: { parameters: { duration: { type: "number", default: 5 } } } });
+  if ((bare.duration || []).map((o) => String(o[0])).join(",") !== "5,10") fail("play: range-less number duration no longer falls back to 5/10");
+  else ok("play: range-less number duration still falls back to 5/10");
 }
 
 // ---- 3b. play builder SETTING_SPECS: vedit/lipsync duration rows ---------
@@ -677,9 +707,9 @@ vm.runInContext([
 
   if (!/else if\(dP\)\{ out\.duration = DURATIONS/.test(PLAY) && !/else if\(dP\)\{ out.duration = DURATIONS/.test(PLAY)) {
     // the number-range fallback is the Wan Prime path
-    if (!/out\.duration = DURATIONS/.test(PLAY)) fail("play: Wan Prime number-range duration no longer falls back to 5/10");
-    else ok("play: catalogued number-range duration uses the 5/10 fallback");
-  } else ok("play: catalogued number-range duration uses the 5/10 fallback");
+    if (!/out\.duration = DURATIONS/.test(PLAY)) fail("play: range-less number duration no longer falls back to 5/10");
+    else ok("play: range-less number duration keeps the 5/10 fallback");
+  } else ok("play: range-less number duration keeps the 5/10 fallback");
 }
 
 // ---- 5. play SEND path (the original bug: Play posted 8s) ------------------
@@ -762,6 +792,10 @@ catalog.video = [
     supported_parameters: { parameters: { duration: { type: "number", min: 2, max: 30, default: 5 } } },
   },
   {
+    id: "alibaba/wan-3.0/image-to-video-spicy",
+    supported_parameters: { parameters: { duration: { type: "number", min: 2, max: 30, step: 1, default: 5 } } },
+  },
+  {
     id: "minimax-h3",
     supported_parameters: { parameters: { duration: { type: "select", default: "5", options: H3_DUR_OPTS } } },
   },
@@ -823,11 +857,18 @@ async function spyTvideo(fields) {
 }
 
 {
-  const sent = await spyTvideo({ model: "alibaba/wan-3.0-prime", duration: "8" });
+  const sent = await spyTvideo({ model: "alibaba/wan-3.0-prime", duration: "45" });
   const dur = sent && sent.opts && sent.opts.dims && sent.opts.dims.duration;
-  if (String(dur) === "8") fail("play send: Wan Prime generate-video still posted duration 8");
+  if (String(dur) === "45") fail("play send: Wan Prime generate-video still posted out-of-range duration 45");
   else if (dur == null || dur === "") fail("play send: Wan Prime generate-video dropped duration");
-  else ok("play send: H3 8s → Wan Prime generate-video posts duration " + dur);
+  else ok("play send: out-of-range 45s → Wan Prime generate-video posts duration " + dur);
+}
+
+for (const [model, want] of [["alibaba/wan-3.0-prime", "8"], ["alibaba/wan-3.0/image-to-video-spicy", "30"]]) {
+  const sent = await spyTvideo({ model, duration: want });
+  const dur = sent && sent.opts && sent.opts.dims && sent.opts.dims.duration;
+  if (String(dur) !== want) fail("play send: still-valid " + want + "s on " + model + " was reset to " + dur);
+  else ok("play send: " + model + " posts duration " + want);
 }
 
 {

@@ -356,17 +356,17 @@ function runInvariants(mod) {
 //      DESC_FIELDS entry, or the planner contract advertises "fields: —" and the LLM dutifully
 //      emits the node EMPTY ("add a comment that says X" → blank sticky note). Types whose only
 //      field is user media (stripped from the contract by design) are allowlisted instead. ----
-const CONTRACT_FIELDLESS_OK = new Set(["aupload", "vupload"]); // media-only: the user records/uploads in the app; nothing for the planner to set
+const CONTRACT_FIELDLESS_OK = new Set(["aupload", "vupload", "mupload"]); // media-only: the user records/uploads in the app; nothing for the planner to set
 function contractCoverage(src) {
   const F = [];
   const keysOf = (blockRe, label) => {
     const m = src.match(blockRe);
     if (!m) { F.push(`CONTRACT: could not locate ${label} in index.html — the extractor is stale`); return null; }
-    return [...m[1].matchAll(/^ {4}([a-z]+):\s*\{/gm)].map((k) => k[1]);
+    return [...m[1].matchAll(/^ {4}([a-z][a-z0-9]*):\s*\{/gm)].map((k) => k[1]);
   };
   // NODE_TYPES entries sit at 2-space indent; DESC_FIELDS entries at 4-space.
   const ntm = src.match(/NODE_TYPES = \{([\s\S]*?)\n\};/);
-  const nodeTypes = ntm ? [...ntm[1].matchAll(/^ {2}([a-z]+): \{/gm)].map((k) => k[1]) : null;
+  const nodeTypes = ntm ? [...ntm[1].matchAll(/^ {2}([a-z][a-z0-9]*): \{/gm)].map((k) => k[1]) : null;
   if (!nodeTypes) F.push("CONTRACT: could not locate NODE_TYPES in index.html — the extractor is stale");
   const descKeys = keysOf(/const DESC_FIELDS = \{([\s\S]*?)\n {2}\};/, "DESC_FIELDS");
   if (!nodeTypes || !descKeys) return F;

@@ -38,8 +38,13 @@ function extractFn(src, name) {
 
 const idxCtx = {};
 vm.createContext(idxCtx);
+// normVideo prices the picker chip before classifying. videoUnitUsd is stubbed (sortUsd stays 0).
+// applyVideoQuotePricing lives in the pricing block, outside this extract, so stub it as identity —
+// this file asserts avatar flags, not the H3 duration quote.
 vm.runInContext(
-  "function videoUnitUsd(){ return 0; }\n" + extractFn(IDX, "normVideo") + "\nthis.normVideo = normVideo;",
+  "function videoUnitUsd(){ return 0; }\n" +
+  "function applyVideoQuotePricing(_id, pricing){ return pricing || {}; }\n" +
+  extractFn(IDX, "normVideo") + "\nthis.normVideo = normVideo;",
   idxCtx,
 );
 
