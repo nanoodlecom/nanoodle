@@ -98,6 +98,9 @@ export function rankFirstTrioFollowups(tables, history = [], sketch = {}, k = 3)
     if (!ok) continue;
     const next = acts[history.length];
     if (!next || !String(next).startsWith("add:")) continue;
+    // Once a first card is placed, suggest a complementary next type. A
+    // repeated source is still available in the normal Add groups.
+    if (sketch.numNodes === 1 && history.length === 1 && next === history[0]) continue;
     counts[next] = (counts[next] || 0) + (Number(row.count) || 0);
   }
   if (!Object.keys(counts).length) return [];
@@ -132,18 +135,21 @@ export function mergeFirstNodeRows(rows, tables, history = [], sketch = {}, opts
   const leads = !second || second.share <= 0 || top.share >= second.share * MIN_LEAD;
   if (!leads || top.share < MIN_SHARE) return Array.isArray(rows) ? rows : [];
 
+  const firstFollowup = sketch.numNodes === 1 && history.length === 1;
+
   /** @type {Map<string, {action:string, score:number, source?:string}>} */
   const by = new Map();
   for (const r of rows || []) {
     if (!r || !r.action) continue;
+    if (firstFollowup && r.action === history[0]) continue;
     by.set(r.action, { action: r.action, score: Number(r.score) || 0, source: r.source });
   }
   // Lift confident boost rows: scale so they sit above the prior ceiling.
   const ceiling = [...by.values()].reduce((m, r) => Math.max(m, r.score), 0);
-  const scale = Math.max(1, ceiling) * 2;
+  const scale = Math.max(1, ceiling) * (firstFollowup ? 4 : 2);
   for (const r of ranked) {
     const prior = by.get(r.action);
-    const score = scale * r.share + (prior ? prior.score : 0);
+    const score = scale * r.share + (!firstFollowup && prior ? prior.score : 0);
     by.set(r.action, {
       action: r.action,
       score,

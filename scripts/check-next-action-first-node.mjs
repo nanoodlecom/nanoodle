@@ -91,6 +91,11 @@ function toy(name, ok, detail) {
     `top=${acts.join(",")}`
   );
   toy(
+    "first-followup-is-complementary",
+    acts[0] === "add:image" && !acts.includes("add:text"),
+    `top=${acts.join(",")}`
+  );
+  toy(
     "trio-followup-empty-quiet",
     rankFirstTrioFollowups(tables, [], { numNodes: 0 }, 3).length === 0,
     "no followups on empty"
@@ -141,11 +146,42 @@ function toy(name, ok, detail) {
   });
   const reasons = hints.adds.map((a) => a.reason);
   toy(
+    "after-first-menu-does-not-repeat-source",
+    hints.adds[0]?.type === "image" && !hints.adds.some((a) => a.type === "text"),
+    `adds=${hints.adds.map((a) => a.type).join(",")}`
+  );
+  toy(
     "after-first-opening-reason",
     hints.confident &&
       hints.adds.length >= 1 &&
       reasons.some((r) => r === "common opening" || r === "often added next"),
     `adds=${hints.adds.map((a) => a.type + ":" + a.reason).join("|")}`
+  );
+}
+
+{
+  // Generic seeds must not bury a confident opening, and their unrelated
+  // score must not flatten the actual gallery followup ratio.
+  const generic = [
+    { action: "add:text", score: 900, source: "frequency" },
+    { action: "add:join", score: 500, source: "frequency" },
+    { action: "add:llm", score: 400, source: "frequency" },
+  ];
+  const merged = mergeFirstNodeRows(generic, tables, ["add:text"], { numNodes: 1 });
+  const hints = chooseHints({ frequencyRows: merged, nodeTypes: known, sketch: { numNodes: 1 } });
+  toy(
+    "opening-beats-generic-seed",
+    hints.confident && hints.adds[0]?.type === "image" && !hints.adds.some(a => a.type === "text"),
+    `adds=${hints.adds.map(a => a.type).join(",")}`
+  );
+  const flat = { firstTrio: [
+    { actions: ["add:text", "add:image"], count: 2 },
+    { actions: ["add:text", "add:llm"], count: 2 },
+  ] };
+  toy(
+    "ambiguous-opening-keeps-generic-rows",
+    mergeFirstNodeRows(generic, flat, ["add:text"], { numNodes: 1 }) === generic,
+    "flat followup does not suppress normal choices"
   );
 }
 
