@@ -725,9 +725,14 @@
 
   /* Product · 39 — drop-on-node auto-wire: brief pulse on ports that just connected */
   .port.na-drop-auto-wire-port{ transform:scale(1.35); box-shadow:0 0 0 4px #86efacaa, 0 0 12px #86efac66; animation:naDropAutoWirePulse 1.2s ease-in-out 2 }
+  .port.na-drop-auto-wire-preview{ box-shadow:0 0 0 4px #86efac88; transform:scale(1.3) }
+  .node.na-drop-auto-wire-target{ outline:1px solid #86efac88; outline-offset:4px }
+  .na-drop-auto-wire-preview-line{ fill:none; stroke-width:2; stroke-dasharray:5 5; opacity:.75; pointer-events:none }
+  .na-drop-auto-wire-preview-end{ fill:var(--panel); stroke-width:2; pointer-events:none }
+  #drop-wire-preview{ position:absolute; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; z-index:20 }
   @keyframes naDropAutoWirePulse{ 50%{ box-shadow:0 0 0 7px #86efac44, 0 0 18px #86efac55; transform:scale(1.5) } }
   @media (prefers-reduced-motion: reduce){
-    .port.na-drop-auto-wire-port{ animation:none !important; box-shadow:none; transform:none }
+    .port.na-drop-auto-wire-port, .port.na-drop-auto-wire-preview{ animation:none !important; transition:none; transform:none }
   }
 
   .body{ padding:.1rem .6rem .6rem; display:flex; flex-direction:column; gap:.5rem }
@@ -1271,6 +1276,7 @@
 
 <main id="editor" aria-label="Workflow canvas">
   <svg id="wires"></svg>
+  <svg id="drop-wire-preview" aria-hidden="true"></svg>
   <div id="world"></div>
   <button id="delnode" title="Delete the selected node" aria-label="Delete the selected node">🗑 Delete</button>
   <div id="canvashint" hidden><span class="ht">Turn NanoGPT prompts into reusable apps.</span><button id="hintx" title="Got it" aria-label="Dismiss">×</button><span class="ht2"><span id="hintauth"><button id="hintsignin" class="link">Sign in with NanoGPT</button> → </span><span>Edit the prompt</span> → <button id="hintrun" class="link">▶ Run</button> → <button id="hintmake" class="link">✨ Create app</button> <span>to save and share.</span></span><span class="ht2"><span id="hintsample">Signed out? Run previews a prerecorded sample.</span> <span>Pick a ready-made task in</span> <button id="hintexamples" class="link">📚 Examples</button>.</span></div>
@@ -10266,6 +10272,7 @@ function colorForType(tp){
 function getCss(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 
 let tempWire = null; // {x1,y1,type}
+let dropAutoWirePreview = null;
 let draggingLinkId = null; // a link being grab-moved: hidden while dragging but kept in graph.links until the drag commits (so an aborted gesture never silently drops it)
 function redraw(){
   let html = "";
@@ -10284,6 +10291,19 @@ function redraw(){
     const d = wirePath(tempWire.x1, tempWire.y1, tempWire.x2, tempWire.y2);
     html += `<path class="temp" d="${d}"></path>`;
   }
+  let dropPreviewHtml = "";
+  if(typeof dropAutoWirePreview!=="undefined" && dropAutoWirePreview){
+    const { source, target } = dropAutoWirePreview;
+    if(source.isConnected && target.isConnected){
+      const a = portCenter(source), b = portCenter(target);
+      const color = colorForType(source.dataset.ptype);
+      dropPreviewHtml = `<path class="na-drop-auto-wire-preview-line" d="${wirePath(a.x,a.y,b.x,b.y)}" stroke="${color}"></path>`
+        + `<circle class="na-drop-auto-wire-preview-end" cx="${a.x}" cy="${a.y}" r="5" stroke="${color}"></circle>`
+        + `<circle class="na-drop-auto-wire-preview-end" cx="${b.x}" cy="${b.y}" r="5" stroke="${color}"></circle>`;
+    }
+  }
+  const dropPreviewSvg = document.getElementById?.("drop-wire-preview");
+  if(dropPreviewSvg) dropPreviewSvg.innerHTML = dropPreviewHtml;
   svg.innerHTML = html;
   syncFitBtn();   // node drags/adds/removals and resizes reroute wires through here — re-judge whether ⊡ earns its slot
   svg.querySelectorAll("path[data-link]").forEach(p=>{
@@ -10446,26 +10466,36 @@ function startNodeDrag(n, e){
   world.appendChild(n.el);                    // raise the grabbed node above any newer node covering it
   const id = e.pointerId; nodeGestPtrs.add(id);
   const sx=e.clientX, sy=e.clientY, ox=n.x, oy=n.y;
+  clearDropAutoWirePreview();
   let _snapped=false;
   // Product · 39: single-node drag only; multiSel≥2 stays quiet.
   const _dropAutoWireSingle = !(typeof multiSel!=="undefined" && multiSel && multiSel.size >= 2);
   const move = (ev)=>{
     if(ev.pointerId!==id) return;                 // ignore a stray second touch
+    if(!_snapped && Math.hypot(ev.clientX-sx, ev.clientY-sy)<=6) return;
     if(!_snapped){ pushUndo(); _snapped=true; }   // first real move → record pre-drag layout
     n.x = ox + (ev.clientX-sx)/scale;
     n.y = oy + (ev.clientY-sy)/scale;
     n.el.style.left = n.x+"px"; n.el.style.top = n.y+"px";
+    if(_dropAutoWireSingle) updateDropAutoWirePreview(n);
     redraw();
   };
   const cleanup = ()=>{
     window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up); window.removeEventListener("pointercancel",up);
     nodeGestPtrs.delete(id); cancelNodeGest = null;
+    clearDropAutoWirePreview(); redraw();
   };
   const up = (ev)=>{
     if(ev.pointerId!==id) return;
     // Product · 39 — attempt drop-on-node auto-wire at release (before save),
     // while bodies still overlap; deoverlap/align must not erase the intent.
-    try{ if(ev.type!=="pointercancel" && _dropAutoWireSingle && _snapped) tryDropOnNodeAutoWire(n); }catch(_){}
+    const mutedBefore = undoMuted;
+    try{
+      if(ev.type!=="pointercancel" && _dropAutoWireSingle && _snapped){
+        undoMuted = true;   // the initial drag snapshot undoes placement + wire together
+        tryDropOnNodeAutoWire(n);
+      }
+    }catch(_){}finally{ undoMuted = mutedBefore; }
     cleanup(); save();
   };
   cancelNodeGest = ()=>{                             // second finger landed → this drag becomes a pinch; undo the accidental move
@@ -16847,8 +16877,8 @@ RULES for the diff:
 })();
 /* Product · 39 — drop-on-node auto-wire: on single-node drag end (or add that
    lands on another body), connect() the single high-prior gallery port-pair.
-   Quiet when multi / flat / reduced-motion / engine off / self. Soft port pulse
-   only — no tip panel / no ?product= twin. */
+   Quiet when multi / flat / engine off / self. The exact live pair previews
+   during the drag; release wires it and seats the moved card beside its partner. */
 let findDropOverlapTargetFn = null;
 let _dropAutoWirePulseTimer = 0;
 import("./vendor/next-action/drop-on-node-auto-wire.mjs").then((m)=>{
@@ -16863,7 +16893,6 @@ function clearDropAutoWirePulse(){
 }
 function pulseDropAutoWirePorts(fromNode, fromPort, toNode, toPort){
   clearDropAutoWirePulse();
-  if(dropAutoWireReducedMotion()) return;
   const a = document.querySelector(`.port[data-node="${fromNode}"][data-port="${fromPort}"][data-dir="out"]`);
   const b = document.querySelector(`.port[data-node="${toNode}"][data-port="${toPort}"][data-dir="in"]`);
   if(a) a.classList.add("na-drop-auto-wire-port");
@@ -16885,14 +16914,13 @@ function dropAutoWireCollectBoxes(dragged){
   }
   return others;
 }
-function tryDropOnNodeAutoWire(dragged){
-  if(!dragged || !dragged.el || !dragged.id) return false;
-  if(typeof geoOn==="function" && !geoOn()) return false;
-  if(dropAutoWireReducedMotion()) return false;
-  if(typeof multiSel!=="undefined" && multiSel && multiSel.size >= 2) return false;
+function dropOnNodeAutoWireCandidate(dragged){
+  if(!dragged || !dragged.el || !dragged.id) return null;
+  if(typeof geoOn==="function" && !geoOn()) return null;
+  if(typeof multiSel!=="undefined" && multiSel && multiSel.size >= 2) return null;
   const na = window.__nextAction;
-  if(!na || na.disabled || !(na.hasPortPriors && na.hasPortPriors()) || typeof na.pickDropAutoWire!=="function") return false;
-  if(!findDropOverlapTargetFn) return false;
+  if(!na || na.disabled || !(na.hasPortPriors && na.hasPortPriors()) || typeof na.pickDropAutoWire!=="function") return null;
+  if(!findDropOverlapTargetFn) return null;
   const box = {
     id: dragged.id,
     x: dragged.x, y: dragged.y,
@@ -16901,7 +16929,7 @@ function tryDropOnNodeAutoWire(dragged){
   };
   let hit = null;
   try{ hit = findDropOverlapTargetFn(box, dropAutoWireCollectBoxes(dragged)); }catch(_){ hit = null; }
-  if(!hit || !hit.targetId || hit.targetId === dragged.id) return false;
+  if(!hit || !hit.targetId || hit.targetId === dragged.id) return null;
   let pick = null;
   try{
     pick = na.pickDropAutoWire({
@@ -16911,26 +16939,60 @@ function tryDropOnNodeAutoWire(dragged){
       targetId: hit.targetId,
     });
   }catch(_){ pick = null; }
-  if(!pick || !pick.from || !pick.to) return false;
+  if(!pick || !pick.from || !pick.to) return null;
   // Gallery priors describe node kinds; the current model decides which sockets
   // actually exist and accept input. Apply the same live gates as a manual wire.
   const fromNode = byId(pick.from.nodeId), toNode = byId(pick.to.nodeId);
   const source = fromNode?.el && [...fromNode.el.querySelectorAll('.port[data-dir="out"]')].find(p=> p.dataset.port===pick.from.port);
   const target = toNode?.el && [...toNode.el.querySelectorAll('.port[data-dir="in"]')].find(p=> p.dataset.port===pick.to.port);
-  if(!source || !target || source.classList.contains("disabled") || target.classList.contains("disabled")) return false;
-  if(!source.dataset.ptype || source.dataset.ptype!==target.dataset.ptype) return false;
-  if((graph.links||[]).some(l=> l.to && l.to.node===pick.to.nodeId && l.to.port===pick.to.port)) return false;
-  if(typeof wouldCycle==="function" && wouldCycle(pick.from.nodeId, pick.to.nodeId, pick.to.port)) return false;
+  if(!source || !target || source.classList.contains("disabled") || target.classList.contains("disabled")) return null;
+  if(!source.dataset.ptype || source.dataset.ptype!==target.dataset.ptype) return null;
+  if((graph.links||[]).some(l=> l.to && l.to.node===pick.to.nodeId && l.to.port===pick.to.port)) return null;
+  if(typeof wouldCycle==="function" && wouldCycle(pick.from.nodeId, pick.to.nodeId, pick.to.port)) return null;
   // Already have this exact link? connect() would no-op-replace — skip.
   const already = (graph.links||[]).some(l =>
     l.from && l.to &&
     l.from.node===pick.from.nodeId && l.from.port===pick.from.port &&
     l.to.node===pick.to.nodeId && l.to.port===pick.to.port
   );
-  if(already) return false;
+  if(already) return null;
+  return { pick, source, target, draggedId:dragged.id, targetId:hit.targetId };
+}
+function clearDropAutoWirePreview(){
+  if(!dropAutoWirePreview) return;
+  dropAutoWirePreview.source.classList.remove("na-drop-auto-wire-preview");
+  dropAutoWirePreview.target.classList.remove("na-drop-auto-wire-preview");
+  byId(dropAutoWirePreview.targetId)?.el?.classList.remove("na-drop-auto-wire-target");
+  dropAutoWirePreview = null;
+}
+function updateDropAutoWirePreview(dragged){
+  clearDropAutoWirePreview();
+  const candidate = dropOnNodeAutoWireCandidate(dragged);
+  if(!candidate) return;
+  dropAutoWirePreview = candidate;
+  candidate.source.classList.add("na-drop-auto-wire-preview");
+  candidate.target.classList.add("na-drop-auto-wire-preview");
+  byId(candidate.targetId)?.el?.classList.add("na-drop-auto-wire-target");
+}
+function tryDropOnNodeAutoWire(dragged){
+  const candidate = dropOnNodeAutoWireCandidate(dragged), shown = dropAutoWirePreview;
+  if(!candidate || !shown || shown.draggedId!==dragged.id) return false;
+  const { pick } = candidate;
+  if(pick.from.nodeId!==shown.pick.from.nodeId || pick.from.port!==shown.pick.from.port ||
+     pick.to.nodeId!==shown.pick.to.nodeId || pick.to.port!==shown.pick.to.port) return false;
+  clearDropAutoWirePreview();
   let ok = false;
   try{ ok = !!connect(pick.from.nodeId, pick.from.port, pick.to.nodeId, pick.to.port); }catch(_){ ok = false; }
   if(ok){
+    try{
+      const anchor = byId(candidate.targetId), others = dropAutoWireCollectBoxes(dragged);
+      const box = others.find(n=> n.id===anchor?.id);
+      if(box && typeof geoFreeSlot==="function" && typeof geoGlide==="function"){
+        const size = { w:dragged.el.offsetWidth || dragged.w || 220, h:dragged.el.offsetHeight || 160 };
+        const seat = geoFreeSlot(box, size, others, 36, pick.to.nodeId===dragged.id ? 1 : -1);
+        geoGlide([{ n:dragged, x:seat.x, y:seat.y }], 180);
+      }
+    }catch(_){}
     try{ pulseDropAutoWirePorts(pick.from.nodeId, pick.from.port, pick.to.nodeId, pick.to.port); }catch(_){}
   }
   return ok;

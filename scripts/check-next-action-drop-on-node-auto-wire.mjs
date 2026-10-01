@@ -311,30 +311,36 @@ function toy(name, ok, detail) {
 
 // The baked gallery catalog cannot enable sockets the selected model disables.
 {
-  const start = index.indexOf("function tryDropOnNodeAutoWire(dragged){");
+  const start = index.indexOf("function dropOnNodeAutoWireCandidate(dragged){");
   const end = index.indexOf("\n/* Next-action scores", start);
   assert(start >= 0 && end > start, "missing auto-wire handler");
   const source = index.slice(start, end);
+  const geometry = index.slice(index.indexOf("function geoOverlap("), index.indexOf("function geoRanks("));
   function attemptDrop(options = {}) {
+    const classes = ()=>{
+      const set = new Set();
+      return { add(name) { set.add(name); }, remove(name) { set.delete(name); }, contains(name) { return set.has(name); } };
+    };
     const port = (name, type, disabled) => ({
       dataset: { port: name, ptype: type },
-      classList: { contains(value) { return value === "disabled" && !!disabled; } },
+      classList: Object.assign(classes(), { contains(value) { return value === "disabled" && !!disabled; } }),
     });
     const sourcePort = port("image", "image", options.sourceDisabled);
     const targetPort = port("image", options.mismatched ? "text" : "image", options.targetDisabled);
     const nodes = [
-      { id: "img1", type: "image", x: 0, y: 0, el: { querySelectorAll() { return options.missingSource ? [] : [sourcePort]; } } },
-      { id: "llm1", type: "llm", x: 0, y: 0, el: { querySelectorAll() { return options.missingTarget ? [] : [targetPort]; } } },
+      { id: "img1", type: "image", x: 0, y: 0, el: { classList: classes(), querySelectorAll() { return options.missingSource ? [] : [sourcePort]; } } },
+      { id: "llm1", type: "llm", x: 0, y: 0, el: { classList: classes(), querySelectorAll() { return options.missingTarget ? [] : [targetPort]; } } },
     ];
     const links = options.occupied ? [{ from: { node: "other", port: "image" }, to: { node: "llm1", port: "image" } }] : [];
-    let connects = 0;
+    let connects = 0, settles = 0;
     const context = {
-      graph: { nodes, links }, multiSel: new Set(), geoOn() { return true; },
-      dropAutoWireReducedMotion() { return false; },
-      findDropOverlapTargetFn() { return { targetId: "llm1" }; },
-      dropAutoWireCollectBoxes() { return []; },
+      graph: { nodes, links }, dropAutoWirePreview:null, multiSel: new Set(), geoOn() { return !options.engineOff; },
+      dropAutoWireReducedMotion() { return !!options.reducedMotion; },
+      findDropOverlapTargetFn() { return options.noOverlap ? null : { targetId: "llm1" }; },
+      dropAutoWireCollectBoxes() { return [{ id:"llm1", x:0, y:0, w:220, h:160 }]; },
       byId(id) { return nodes.find(node => node.id === id); },
-      wouldCycle() { return false; }, pulseDropAutoWirePorts() {},
+      wouldCycle() { return !!options.cycle; }, pulseDropAutoWirePorts() {},
+      geoGlide(moves) { settles++; for(const m of moves){ m.n.x=m.x; m.n.y=m.y; } },
       connect() { connects++; return true; },
       window: { __nextAction: {
         hasPortPriors() { return true; },
@@ -344,13 +350,22 @@ function toy(name, ok, detail) {
         }; },
       } },
     };
-    runInNewContext(source, context);
+    runInNewContext(geometry + source, context);
+    if(!options.noPreview) context.updateDropAutoWirePreview(nodes[0]);
+    const previewed = !!context.dropAutoWirePreview, connectsBeforeRelease = connects;
+    if(options.occupyAfterPreview) links.push({ from:{node:"other",port:"image"}, to:{node:"llm1",port:"image"} });
     const accepted = context.tryDropOnNodeAutoWire(nodes[0]);
-    return { accepted, connects };
+    context.clearDropAutoWirePreview();
+    return { accepted, connects, previewed, connectsBeforeRelease, settles, nodes, cleared: !context.dropAutoWirePreview };
   }
   const enabled = attemptDrop();
   toy("live-enabled-ports-connect", enabled.accepted && enabled.connects === 1, "one compatible live connection");
-  for (const option of ["missingSource", "missingTarget", "sourceDisabled", "targetDisabled", "mismatched", "occupied"]) {
+  toy("preview-is-read-only", enabled.previewed && enabled.connectsBeforeRelease === 0, "eligible pair shown before any connection");
+  toy("release-separates-cards", enabled.settles === 1 && enabled.nodes[0].x < -220, "producer seats left of consumer");
+  toy("preview-clears-after-release", enabled.cleared, "no lingering inferred wire");
+  const reduced = attemptDrop({ reducedMotion:true });
+  toy("reduced-motion-keeps-drop-action", reduced.previewed && reduced.accepted && reduced.settles === 1, "static preview and readable seating retain semantics");
+  for (const option of ["missingSource", "missingTarget", "sourceDisabled", "targetDisabled", "mismatched", "occupied", "cycle", "engineOff", "noOverlap", "noPreview", "occupyAfterPreview"]) {
     const result = attemptDrop({ [option]: true });
     toy(`live-${option}-quiet`, !result.accepted && result.connects === 0, "no illegal or replacement connection");
   }
@@ -366,13 +381,14 @@ function toy(name, ok, detail) {
   function releaseDrag(type, pointerId = 7, moveFirst = true) {
     const listeners = new Map();
     const attempts = [];
-    let saves = 0;
+    let saves = 0, undoCalls = 0, previews = 0, clears = 0;
     const context = {
       geoAnim: 0, scale: 1, multiSel: new Set(), nodeGestPtrs: new Set(),
-      cancelNodeGest: null, world: { appendChild() {} },
-      pushUndo() {}, redraw() {},
+      cancelNodeGest: null, undoMuted:false, world: { appendChild() {} },
+      clearDropAutoWirePreview() { clears++; }, updateDropAutoWirePreview() { previews++; },
+      pushUndo() { if(!context.undoMuted) undoCalls++; }, redraw() {},
       save() { saves++; },
-      tryDropOnNodeAutoWire(node) { attempts.push(node.id); },
+      tryDropOnNodeAutoWire(node) { context.pushUndo(); attempts.push(node.id); },
       window: {
         addEventListener(name, fn) { listeners.set(name, fn); },
         removeEventListener(name, fn) {
@@ -387,13 +403,15 @@ function toy(name, ok, detail) {
     });
     if (moveFirst) listeners.get("pointermove")({ pointerId: 7, clientX: 20, clientY: 20 });
     listeners.get(type)({ type, pointerId });
-    return { attempts, saves, listeners, active: context.nodeGestPtrs.size };
+    return { attempts, saves, listeners, active: context.nodeGestPtrs.size, undoCalls, previews, clears, undoMuted:context.undoMuted };
   }
   const canceled = releaseDrag("pointercancel");
   toy("cancel-never-auto-wires", canceled.attempts.length === 0, "canceled drag creates no link");
   toy("cancel-cleans-listeners", canceled.listeners.size === 0 && canceled.active === 0, "cancel ends the gesture");
+  toy("cancel-clears-prospective-wire", canceled.previews === 1 && canceled.clears === 2, "both start and cancel clear preview state");
   const released = releaseDrag("pointerup");
   toy("release-auto-wires-once", released.attempts.length === 1 && released.saves === 1, "real release attempts one connection");
+  toy("release-is-one-undoable-gesture", released.undoCalls === 1 && !released.undoMuted, "drag and connection share the initial snapshot");
   const stray = releaseDrag("pointerup", 9);
   toy("stray-pointer-never-auto-wires", stray.attempts.length === 0 && stray.active === 1, "other pointer leaves drag active");
   const clicked = releaseDrag("pointerup", 7, false);
@@ -429,7 +447,7 @@ function toy(name, ok, detail) {
   );
   toy(
     "html-geoOn-gate",
-    /function tryDropOnNodeAutoWire[\s\S]{0,400}geoOn/.test(index),
+    /function dropOnNodeAutoWireCandidate[\s\S]{0,400}geoOn/.test(index),
     "geoOn"
   );
   toy(
