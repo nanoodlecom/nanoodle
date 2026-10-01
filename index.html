@@ -10756,18 +10756,26 @@ function socketsForDrop(k, dir, ptype){
 }
 function wireDropHintMap(originPort, cands){
   const na = window.__nextAction;
-  if(!na || !na.hasPortPriors || !na.hasPortPriors() || typeof na.rankDropTypes!=="function") return null;
+  if(!na || na.disabled || !na.hasPortPriors || !na.hasPortPriors()) return null;
+  // Product · 48: quiet Suggested origin-fit under reduced-motion (no re-rank chrome).
+  try{ if(matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return null; }catch(_){}
   const src = byId(originPort.dataset.node);
   const dir = originPort.dataset.dir, ptype = originPort.dataset.ptype;
+  const query = {
+    dir,
+    srcType: src && src.type,
+    srcPort: originPort.dataset.port,
+    candidates: cands.map(([k])=>({ type:k, ports: socketsForDrop(k, dir, ptype).map(name=>({ name })) })),
+  };
   let ranked = null;
-  try{
-    ranked = na.rankDropTypes({
-      dir,
-      srcType: src && src.type,
-      srcPort: originPort.dataset.port,
-      candidates: cands.map(([k])=>({ type:k, ports: socketsForDrop(k, dir, ptype).map(name=>({ name })) })),
-    });
-  }catch(_){ ranked = null; }
+  // Product · 48: after abort → #quickadd, soft-re-rank Suggested by origin-fit (both dirs).
+  if(typeof na.rankQuickaddAfterAbort==="function"){
+    try{ ranked = na.rankQuickaddAfterAbort(query); }catch(_){ ranked = null; }
+  }
+  // Fallback: #621 rankDropTypes when origin-fit is quiet / unavailable.
+  if((!ranked || !ranked.order || !ranked.order.length) && typeof na.rankDropTypes==="function"){
+    try{ ranked = na.rankDropTypes(query); }catch(_){ ranked = null; }
+  }
   if(!ranked || !ranked.order || !ranked.order.length) return null;
   return ranked;
 }
