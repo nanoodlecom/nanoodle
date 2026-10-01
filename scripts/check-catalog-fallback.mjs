@@ -442,8 +442,8 @@ async function selfTest() {
     },
     {
       name: "INV4 broken (defModelFor ignores the node filter)",
-      mutate: (s) => s.replace("const m = (catalogs[t.modelKind]||[]).find(x=> passesFilter(x, t.modelFilter));",
-                               "const m = (catalogs[t.modelKind]||[])[0];"),
+      mutate: (s) => s.replace(/\.find\(x=> passesFilter\(x, t\.modelFilter\)[^\n]*\)/,
+                               "[0]"),
     },
     {
       name: "INV5 broken (modelSupportsImages turns strict — blocks unknown ids)",
