@@ -17064,6 +17064,7 @@ editor.addEventListener("pointerover", e=>{
   if(port && port!==e.relatedTarget?.closest?.(".port")) showDblclickPortCue(port);
 });
 editor.addEventListener("pointerout", e=>{
+  if(e.pointerType==="touch") return;   // lift emits pointerout before click; retain the tap-revealed action
   if(_dblclickAddWireCue && !_dblclickAddWireCue.port.contains(e.relatedTarget)) clearDblclickPortCue();
 });
 editor.addEventListener("focusin", e=>{ if(e.target?.matches?.(".port")) showDblclickPortCue(e.target); });

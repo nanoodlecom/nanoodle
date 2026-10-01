@@ -503,6 +503,14 @@ function toy(name, ok, detail) {
     touch.windowListeners.get("pointerup")({ pointerId:7, clientX:10, clientY:10 });
     for(const timer of [...touch.timers.values()]) if(timer.ms===0) timer.fn();
     toy(`touch-${moved ? "drag" : "tap"}-cue`, touch.origin.children.length===(moved ? 0 : 1) && touch.context.graph.nodes.length===1, "tap offers button; drag does not");
+    if(!moved){
+      const button = touch.origin.children[0];
+      touch.editorListeners.get("pointerdown")({ target:button, pointerType:"touch", pointerId:8, clientX:20, clientY:10 });
+      touch.editorListeners.get("pointerout")({ target:button, pointerType:"touch", relatedTarget:null });
+      toy("touch-lift-retains-plus-until-click", touch.origin.children[0]===button && touch.context.graph.nodes.length===1, "native touch exit precedes its synthesized click");
+      button.events.get("click")({ preventDefault(){}, stopPropagation(){} });
+      toy("touch-plus-click-adds-and-wires", touch.context.graph.nodes.length===2 && touch.context.graph.links.length===1, "retained action receives the explicit click");
+    }
   }
 }
 
