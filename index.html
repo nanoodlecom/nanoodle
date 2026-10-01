@@ -717,15 +717,16 @@
   /* prompt-length budget: how much room this model leaves, or what an LLM above is told to write within */
   .body .capnote{ font-size:.7rem; color:var(--dim); text-align:right; margin-top:.2rem; line-height:1.3 }
   .body .capnote.over{ color:var(--warn) }
-  /* magnetism: every valid destination glows, the closest one grabs the wire.
-     Product · 21: gallery priors add graduated rings — likely (cyan) / fit (violet) —
-     and soft-dim weaker compatible sockets so the eye lands on a prior-backed fit. */
-  .port.compatible{ transform:scale(1.25); box-shadow:0 0 0 4px #ffffff26; animation:portpulse 1.1s ease-in-out infinite }
-  .port.compatible.dim{ transform:scale(1.08); box-shadow:0 0 0 3px #ffffff12; opacity:.5; animation:none }
-  .port.fit{ transform:scale(1.35); box-shadow:0 0 0 4px #a78bfaaa, 0 0 10px #a78bfa55; animation:none }
-  .port.likely{ transform:scale(1.45); box-shadow:0 0 0 5px #67e8f9cc, 0 0 14px #67e8f966; animation:none }
-  .port.snap{ transform:scale(1.7); box-shadow:0 0 0 5px #ffffff66, 0 0 12px #fff6; animation:none; opacity:1 }
-  @keyframes portpulse{ 50%{ box-shadow:0 0 0 6px #ffffff14 } }
+  /* Every valid destination stays available. A solid ring marks the strongest
+     gallery fit; dashed rings mark runners-up, also distinguishable without color. */
+  .port.compatible{ transform:scale(1.12); box-shadow:0 0 0 2px #ffffff30; animation:none }
+  .port.compatible.dim{ transform:scale(1.04); box-shadow:0 0 0 2px #ffffff20; opacity:.72; animation:none }
+  .port.fit{ transform:scale(1.12); outline:2px dashed #c4b5fd; outline-offset:2px; box-shadow:none; animation:none }
+  .port.likely{ transform:scale(1.2); outline:3px solid #67e8f9; outline-offset:2px; box-shadow:none; animation:none }
+  .port.snap{ transform:scale(1.4); outline:3px solid #fff; outline-offset:2px; box-shadow:0 0 0 3px #ffffff30; animation:none; opacity:1 }
+  @media (prefers-reduced-motion:reduce){
+    .port.compatible, .port.fit, .port.likely, .port.snap{ transform:none; transition:none; animation:none }
+  }
 
   .body{ padding:.1rem .6rem .6rem; display:flex; flex-direction:column; gap:.5rem }
   .body label{ font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); display:block; margin-bottom:.2rem; font-weight:700 }
@@ -10641,14 +10642,26 @@ function startWire(port, e){
     tempWire.x2 = mx; tempWire.y2 = my;
     redraw();
   };
-  const up = (ev)=>{
-    if(ev.pointerId!==id) return;
+  const cleanup = ()=>{
     window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up);
+    window.removeEventListener("pointercancel",cancel); window.removeEventListener("keydown",escape,true);
     tempWire = null; draggingLinkId = null;           // un-hide the picked link on every exit path
     targets.forEach(p=>{
       p.classList.remove("compatible","snap","likely","fit","dim");
       if(p.dataset.sugTitle){ p.removeAttribute("title"); delete p.dataset.sugTitle; }
     });
+  };
+  const cancel = (ev)=>{
+    if(ev.pointerId!==id) return;
+    cleanup(); redraw(); refreshPortFills();          // cancellation restores a picked wire without detaching it
+  };
+  const escape = (ev)=>{
+    if(ev.key!=="Escape") return;
+    ev.preventDefault(); cleanup(); redraw(); refreshPortFills();
+  };
+  const up = (ev)=>{
+    if(ev.pointerId!==id) return;
+    cleanup();
     let other = snap?.p;                              // prefer the magnetically-snapped port
     if(!other){ const tgt = document.elementFromPoint(ev.clientX, ev.clientY); other = tgt && tgt.closest(".port"); }
     let connected = false;
@@ -10677,6 +10690,7 @@ function startWire(port, e){
     }
   };
   window.addEventListener("pointermove",move); window.addEventListener("pointerup",up);
+  window.addEventListener("pointercancel",cancel); window.addEventListener("keydown",escape,true);
 }
 
 // Rebuild a node's DOM in place (and redraw its wires). Used when a node's body depends on wiring

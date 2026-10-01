@@ -6,6 +6,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import vm from "node:vm";
 import { pickRingTarget } from "../vendor/next-action/port-suggest.mjs";
 import {
   rankRingTargets,
@@ -197,6 +198,51 @@ function toy(name, ok, detail) {
     existsSync(join(NA, "product-21-usage.gif")),
     "product-21-usage.gif"
   );
+}
+
+// Exercise the shipped gesture handler, including canceled pickup of an existing wire.
+{
+  const wireSource = index.slice(index.indexOf("function startWire(port, e){"), index.indexOf("// Rebuild a node's DOM", index.indexOf("function startWire(port, e){")));
+  function harness(pickup = false) {
+    const listeners = new Map();
+    function port(node, dir, name) {
+      const classes = new Set(), attrs = new Map();
+      return { dataset: { node, dir, port: name, ptype: "text" },
+        classList: { add: (...xs) => xs.forEach(x => classes.add(x)), remove: (...xs) => xs.forEach(x => classes.delete(x)), contains: x => classes.has(x) },
+        getAttribute: k => attrs.get(k), removeAttribute: k => attrs.delete(k),
+        set title(v) { attrs.set("title", v); } };
+    }
+    const source = port("source", "out", "text"), target = port("target", "in", "prompt"), alternate = port("alternate", "in", "prompt");
+    const links = pickup ? [{ id: "old", from: { node: "source", port: "text" }, to: { node: "target", port: "prompt" } }] : [];
+    let fills = 0, quickAdds = 0;
+    const ctx = { graph: { links }, tempWire: null, draggingLinkId: null,
+      window: { addEventListener: (k, f) => listeners.set(k, f), removeEventListener: (k, f) => { if (listeners.get(k) === f) listeners.delete(k); } },
+      document: { querySelector: () => source, elementFromPoint: () => alternate },
+      editor: { getBoundingClientRect: () => ({ left: 0, top: 0 }) },
+      closeQuickAdd() {}, redraw() {}, refreshPortFills() { fills++; },
+      portCenter: () => ({ x: 20, y: 20 }), compatiblePorts: () => [target, alternate],
+      applyPortHighlight() { target.classList.add("likely"); alternate.classList.add("dim"); target.title = "suggested"; target.dataset.sugTitle = "1"; },
+      nearestPort: () => null, connect: (node, port, toNode, toPort) => { ctx.graph.links.push({ id: "new", from: { node, port }, to: { node: toNode, port: toPort } }); return true; },
+      removeLink: id => { ctx.graph.links = ctx.graph.links.filter(l => l.id !== id); }, dismissConnectHint() {}, openQuickAdd() { quickAdds++; },
+    };
+    alternate.closest = () => alternate;
+    vm.createContext(ctx); new vm.Script(wireSource).runInContext(ctx);
+    const event = { pointerId: 7, clientX: 20, clientY: 20, preventDefault() {}, stopPropagation() {} };
+    ctx.startWire(pickup ? target : source, event);
+    return { ctx, target, alternate, listeners, event, fills: () => fills, quickAdds: () => quickAdds };
+  }
+  const h = harness(true), before = JSON.stringify(h.ctx.graph.links);
+  h.listeners.get("pointercancel")({ pointerId: 99 });
+  toy("other-pointer-cancel-ignored", h.ctx.tempWire !== null, "active drag retained");
+  h.listeners.get("pointercancel")({ pointerId: 7 });
+  toy("cancel-restores-pickup", JSON.stringify(h.ctx.graph.links) === before && h.ctx.draggingLinkId === null && h.fills() >= 2, "original wire restored");
+  toy("cancel-clears-gesture", h.listeners.size === 0 && h.ctx.tempWire === null && !h.target.classList.contains("likely") && !h.alternate.classList.contains("dim") && !h.target.getAttribute("title") && h.quickAdds() === 0, "no rings, listeners or menu");
+  const esc = harness(true);
+  esc.listeners.get("keydown")({ key: "Escape", preventDefault() {} });
+  toy("escape-restores-pickup", esc.ctx.graph.links.length === 1 && esc.ctx.tempWire === null && esc.listeners.size === 0 && esc.quickAdds() === 0, "keyboard cancellation retains link");
+  const chosen = harness();
+  chosen.listeners.get("pointerup")({ ...chosen.event, clientX: 40 });
+  toy("dim-target-still-connects", chosen.ctx.graph.links[0]?.to.node === "alternate" && chosen.listeners.size === 0, "all valid targets selectable");
 }
 
 const failed = toys.filter((t) => !t.ok);
