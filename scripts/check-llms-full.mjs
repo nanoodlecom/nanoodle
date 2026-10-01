@@ -51,7 +51,7 @@ function registeredTypes() {
   const start = html.indexOf("const NODE_TYPES = {");
   if (start < 0) throw new Error("NODE_TYPES not found in index.html");
   const block = html.slice(start, html.indexOf("\n};", start));
-  const keys = [...block.matchAll(/^ {2}([a-z]+): \{/gm)].map((m) => m[1]);
+  const keys = [...block.matchAll(/^ {2}([a-z][a-z0-9]*): \{/gm)].map((m) => m[1]);
   if (!keys.length) throw new Error("parsed 0 NODE_TYPES keys from index.html");
   return new Set(keys);
 }
