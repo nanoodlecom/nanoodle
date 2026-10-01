@@ -21,6 +21,7 @@ import { createSuggestionMemory } from "./suggestion-memory.mjs";
 import { applyAntiSlop, isShallowTextLlm, rerankShallowAdds } from "./anti-slop.mjs";
 import { pickRingTarget, rankDropTypes } from "./port-suggest.mjs";
 import { pickRunFailPort } from "./run-fail-port.mjs";
+import { pickOrphanOutPulse } from "./orphan-out-pulse.mjs";
 import { rankRingTargets } from "./port-highlight.mjs";
 import { rankQuickaddAfterAbort as rankQuickaddAfterAbortPure } from "./quickadd-after-abort.mjs";
 import { pickDropAutoWire } from "./drop-on-node-auto-wire.mjs";
@@ -173,6 +174,22 @@ export async function mount(api) {
     pickRunFailPort(ctx) {
       try {
         return pickRunFailPort(portTables, ctx || {});
+      } catch (_) { return null; }
+    },
+    // Product · 50: after successful settled run, pulse one high-prior orphan out.
+    pickOrphanOutPulse(query) {
+      if (!portTables) return null;
+      try {
+        const g = (api.getGraph && api.getGraph()) || {};
+        const graph = {
+          nodes: (query && query.nodes) || g.nodes || [],
+          links: (query && query.links) || g.links || [],
+        };
+        return pickOrphanOutPulse(portTables, graph, {
+          seedIds: query && query.seedIds,
+          okIds: query && query.okIds,
+          allowOkFallback: query && "allowOkFallback" in query ? query.allowOkFallback : undefined,
+        });
       } catch (_) { return null; }
     },
     rankRingTargets(query) {
