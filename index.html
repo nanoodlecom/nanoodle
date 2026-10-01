@@ -6753,12 +6753,21 @@ function refreshLlmOpts(n){
   const showFormat = it ? !!it.structured_output : (f.format === "JSON");
   const showReason = it ? !!it.reasoning
     : (!!(f.reasoningEffort && f.reasoningEffort!=="default") || f.showThinking===true || f.showThinking==="true");
-  const efforts = reasoningEffortOpts(it);
-  // Seed / clamp like applyDimFields: unset or model-swap-stale effort → catalog default rule,
-  // and actually write f.reasoningEffort so the request matches what the select shows.
+  // Only an authoritative catalog list may snap a stored effort. The offline
+  // fallback (default|low|medium|high) used to treat xhigh/none/minimal/max as
+  // stale and write medium — boot refreshAllPrices + OAuth resume save() then
+  // persisted it, and the later catalog arrival could not restore xhigh because
+  // medium is a valid catalog level. Keep the stored value pickable until the
+  // real list lands (same permissive-miss rule as the #311 capability strip).
+  const catalogued = !!(it && Array.isArray(it.reasoningEfforts) && it.reasoningEfforts.length);
+  let efforts = reasoningEffortOpts(it);
   if(showReason){
-    const picked = pickReasoningEffort(efforts, f.reasoningEffort);
-    if(f.reasoningEffort !== picked) f.reasoningEffort = picked;
+    if(catalogued){
+      const picked = pickReasoningEffort(efforts, f.reasoningEffort);
+      if(f.reasoningEffort !== picked) f.reasoningEffort = picked;
+    } else if(f.reasoningEffort && !efforts.includes(String(f.reasoningEffort))){
+      efforts = efforts.concat([String(f.reasoningEffort)]);
+    }
   }
   const effortSel = f.reasoningEffort || pickReasoningEffort(efforts, null);
   const temp = (f.temperature!=null && f.temperature!=="") ? +f.temperature : 0.8;
