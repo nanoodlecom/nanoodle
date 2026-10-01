@@ -723,6 +723,18 @@
   .port.snap{ transform:scale(1.7); box-shadow:0 0 0 5px #ffffff66, 0 0 12px #fff6; animation:none }
   @keyframes portpulse{ 50%{ box-shadow:0 0 0 6px #ffffff14 } }
 
+  /* Product · 37 — dual-select bridge: soft-pulse matching ports + faint dashed ghost */
+  .port.na-dual-bridge-port{ transform:scale(1.35); box-shadow:0 0 0 4px #a5b4fcaa, 0 0 12px #a5b4fc66; animation:naDualBridgePulse 1.35s ease-in-out infinite }
+  @keyframes naDualBridgePulse{ 50%{ box-shadow:0 0 0 7px #a5b4fc44, 0 0 18px #a5b4fc55; transform:scale(1.5) } }
+  #wires path.na-dual-bridge-hit{ fill:none; stroke:transparent; stroke-width:16; pointer-events:stroke; cursor:pointer }
+  #wires path.na-dual-bridge-ghost{ fill:none; stroke:#a5b4fc99; stroke-width:2.25; stroke-dasharray:7 6; pointer-events:none; opacity:.9 }
+  @keyframes naDualBridgeGhostPulse{ 50%{ opacity:.5; stroke:#a5b4fc66 } }
+  #wires path.na-dual-bridge-ghost{ animation:naDualBridgeGhostPulse 1.6s ease-in-out infinite }
+  @media (prefers-reduced-motion: reduce){
+    .port.na-dual-bridge-port{ animation:none !important; box-shadow:none; transform:none }
+    #wires path.na-dual-bridge-ghost{ animation:none !important; display:none }
+  }
+
   .body{ padding:.1rem .6rem .6rem; display:flex; flex-direction:column; gap:.5rem }
   .body label{ font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); display:block; margin-bottom:.2rem; font-weight:700 }
   .body textarea{ width:100%; resize:vertical; min-width:190px; max-width:min(80vw,760px); min-height:84px;
@@ -10259,6 +10271,7 @@ function colorForType(tp){
 function getCss(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 
 let tempWire = null; // {x1,y1,type}
+let _dualBridgeGhost = null; // Product · 37: { from:{node,port}, to:{node,port}, type } | null — drawn in redraw()
 let draggingLinkId = null; // a link being grab-moved: hidden while dragging but kept in graph.links until the drag commits (so an aborted gesture never silently drops it)
 function redraw(){
   let html = "";
@@ -10276,6 +10289,17 @@ function redraw(){
   if(tempWire){
     const d = wirePath(tempWire.x1, tempWire.y1, tempWire.x2, tempWire.y2);
     html += `<path class="temp" d="${d}"></path>`;
+  }
+  // Product · 37 — dual-select bridge ghost (interactive click → connect; not a real link)
+  if(_dualBridgeGhost && !tempWire){
+    const ga = document.querySelector(`.port[data-node="${_dualBridgeGhost.from.node}"][data-port="${_dualBridgeGhost.from.port}"][data-dir="out"]`);
+    const gb = document.querySelector(`.port[data-node="${_dualBridgeGhost.to.node}"][data-port="${_dualBridgeGhost.to.port}"][data-dir="in"]`);
+    if(ga && gb && !ga.classList.contains("disabled") && !gb.classList.contains("disabled")){
+      const gp1 = portCenter(ga), gp2 = portCenter(gb);
+      const gd = wirePath(gp1.x, gp1.y, gp2.x, gp2.y);
+      html += `<path class="na-dual-bridge-hit" d="${gd}"></path>`;
+      html += `<path class="na-dual-bridge-ghost" d="${gd}"><title>click to connect · Enter</title></path>`;
+    }
   }
   svg.innerHTML = html;
   syncFitBtn();   // node drags/adds/removals and resizes reroute wires through here — re-judge whether ⊡ earns its slot
@@ -10298,6 +10322,14 @@ function redraw(){
         if(!moved) handleWireTap(lid);             // a genuine tap (not a pan) → arm/remove
       };
       window.addEventListener("pointermove",mv); window.addEventListener("pointerup",up); window.addEventListener("pointercancel",up);
+    });
+  });
+  // Product · 37 — click the dual-select bridge ghost to connect
+  svg.querySelectorAll("path.na-dual-bridge-hit").forEach(p=>{
+    p.addEventListener("pointerdown", e=>{
+      e.stopPropagation();
+      e.preventDefault();
+      try{ acceptDualSelectBridge(); }catch(_){}
     });
   });
 }
@@ -10574,6 +10606,7 @@ function nearestPort(x, y, ports){
   return best;
 }
 function startWire(port, e){
+  try{ clearDualSelectBridge(); }catch(_){}
   if(port.classList && port.classList.contains("disabled")) return;
   e.preventDefault(); e.stopPropagation();
   closeQuickAdd();
@@ -14201,6 +14234,7 @@ function geoSetMulti(ids){
   if(!ids || ids.length < 2){
     multiSel.clear();
     select(ids && ids.length ? byId(ids[0]) : null);
+    try{ clearDualSelectBridge(); }catch(_){}
     return;
   }
   multiSel.clear();
@@ -14215,6 +14249,7 @@ function geoSetMulti(ids){
   }
   selected = first;
   updateDelBtn();
+  try{ scheduleDualSelectBridge(60); }catch(_){}
 }
 function geoToggleMulti(n){
   if(!n) return;
@@ -14225,11 +14260,13 @@ function geoToggleMulti(n){
     const only = multiSel.size ? byId([...multiSel][0]) : null;
     multiSel.clear();
     select(only);
+    try{ clearDualSelectBridge(); }catch(_){}
     return;
   }
   for(const x of graph.nodes) if(x.el) x.el.classList.toggle("sel", multiSel.has(x.id));
   selected = n;
   updateDelBtn();
+  try{ scheduleDualSelectBridge(60); }catch(_){}
 }
 function geoMarquee(e){
   e.preventDefault();
@@ -16833,28 +16870,105 @@ RULES for the diff:
 /* Next-action scores feed existing menus (add node, wire-drop, model picker).
    Dynamic import so a tree without vendor/next-action stays quiet. No panel, no ghost.
    ?na=0 / ?product=off disables hints; until the cache is confident, lists are unchanged. */
+
+/* Product · 37 — dual-select bridge suggest: with exactly two selected nodes
+   and one high-prior gallery port-pair between them, soft-pulse ports + faint
+   dashed #wires ghost. Quiet when ≠2 / flat / reduced-motion / engine off.
+   Canvas chrome only — no tip panel / no ?product= twin. */
+let _dualBridgeTimer = 0;
+let _dualBridgeKey = "";
+function dualBridgeReducedMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(_){ return false; }
+}
+function clearDualSelectBridgePorts(){
+  document.querySelectorAll(".port.na-dual-bridge-port").forEach(p=> p.classList.remove("na-dual-bridge-port"));
+}
+function clearDualSelectBridge(){
+  if(_dualBridgeTimer){ clearTimeout(_dualBridgeTimer); _dualBridgeTimer = 0; }
+  const had = !!_dualBridgeGhost;
+  _dualBridgeGhost = null;
+  _dualBridgeKey = "";
+  clearDualSelectBridgePorts();
+  if(had && typeof redraw === "function") try{ redraw(); }catch(_){}
+}
+function applyDualSelectBridge(){
+  if(dualBridgeReducedMotion()){ clearDualSelectBridge(); return; }
+  if(typeof tempWire!=="undefined" && tempWire) return;
+  const na = window.__nextAction;
+  if(!na || na.disabled || !(na.hasPortPriors && na.hasPortPriors()) || typeof na.pickDualSelectBridge!=="function"){
+    clearDualSelectBridge();
+    return;
+  }
+  const ids = (typeof multiSel!=="undefined" && multiSel && multiSel.size) ? [...multiSel] : [];
+  if(ids.length !== 2){ clearDualSelectBridge(); return; }
+  let pick = null;
+  try{
+    pick = na.pickDualSelectBridge({
+      nodes: graph.nodes.map(n => ({ id:n.id, type:n.type })),
+      links: (graph.links||[]).map(l => ({ from:l.from, to:l.to })),
+      selectedId: (typeof selected!=="undefined" && selected && selected.id) ? selected.id : null,
+      selectedIds: ids,
+    });
+  }catch(_){ pick = null; }
+  if(!pick || !pick.from || !pick.to){ clearDualSelectBridge(); return; }
+  const key = pick.from.nodeId + "|" + pick.from.port + "->" + pick.to.nodeId + "|" + pick.to.port;
+  const a = document.querySelector(`.port[data-node="${pick.from.nodeId}"][data-port="${pick.from.port}"][data-dir="out"]`);
+  const b = document.querySelector(`.port[data-node="${pick.to.nodeId}"][data-port="${pick.to.port}"][data-dir="in"]`);
+  if(!a || !b || a.classList.contains("disabled") || b.classList.contains("disabled")){ clearDualSelectBridge(); return; }
+  _dualBridgeGhost = {
+    from: { node: pick.from.nodeId, port: pick.from.port },
+    to: { node: pick.to.nodeId, port: pick.to.port },
+    type: a.dataset.ptype || pick.from.type,
+  };
+  clearDualSelectBridgePorts();
+  a.classList.add("na-dual-bridge-port");
+  b.classList.add("na-dual-bridge-port");
+  if(key !== _dualBridgeKey || !document.querySelector("#wires path.na-dual-bridge-ghost")){
+    _dualBridgeKey = key;
+    try{ redraw(); }catch(_){}
+  }
+}
+function scheduleDualSelectBridge(ms){
+  if(_dualBridgeTimer) clearTimeout(_dualBridgeTimer);
+  _dualBridgeTimer = setTimeout(()=>{ _dualBridgeTimer = 0; applyDualSelectBridge(); }, ms == null ? 80 : ms);
+}
+function acceptDualSelectBridge(){
+  if(!_dualBridgeGhost) return false;
+  const g = _dualBridgeGhost;
+  try{
+    const ok = connect(g.from.node, g.from.port, g.to.node, g.to.port);
+    if(ok) clearDualSelectBridge();
+    return !!ok;
+  }catch(_){ return false; }
+}
+
 (function bootNextActionHints(){
   const _addNode = addNode;
   addNode = function(type, x, y, fields){
     const n = _addNode(type, x, y, fields);
     try { window.__nextAction?.record?.("add:" + type); } catch(_){}
+    try { clearDualSelectBridge(); scheduleDualSelectBridge(120); } catch(_){}
     return n;
   };
   const _connect = connect;
   connect = function(fromNode, fromPort, toNode, toPort){
     const ok = _connect(fromNode, fromPort, toNode, toPort);
     if(ok) try { window.__nextAction?.record?.("wire"); } catch(_){}
+    if(ok) try { clearDualSelectBridge(); scheduleDualSelectBridge(120); } catch(_){}
     return ok;
   };
   const _select = select;
   select = function(n){
     _select(n);
     try { window.__nextAction?.refresh?.(); } catch(_){}
+    // Single-select clears multiSel — bridge needs exactly 2
+    try { clearDualSelectBridge(); scheduleDualSelectBridge(80); } catch(_){}
   };
   const _loadExample = loadExample;
   loadExample = function(i){
     const r = _loadExample(i);
     try { window.__nextAction?.refresh?.(); } catch(_){}
+    try { clearDualSelectBridge(); } catch(_){}
     return r;
   };
   if (typeof runGroup === "function") {
@@ -16880,11 +16994,21 @@ RULES for the diff:
         nodes: (graph.nodes||[]).map(n => ({ id:n.id, type:n.type, x:n.x, y:n.y })),
         links: (graph.links||[]).map(l => ({ from:l.from, to:l.to })),
         selectedId: selected?.id || null,
+        selectedIds: (typeof multiSel!=="undefined" && multiSel && multiSel.size) ? [...multiSel] : undefined,
       }),
       nodeTypes: Object.keys(NODE_TYPES),
       onHints: paintOpenLists,
     });
   }).catch((e) => { try { console.warn("[next-action] hints not mounted", e); } catch(_){} });
+  // Product · 37 — Enter accepts the dual-select bridge when showing
+  window.addEventListener("keydown", (ev)=>{
+    if(ev.key !== "Enter") return;
+    if(ev.target && /^(INPUT|TEXTAREA|SELECT)$/i.test(ev.target.tagName)) return;
+    if(ev.target && ev.target.isContentEditable) return;
+    try{
+      if(_dualBridgeGhost && acceptDualSelectBridge()){ ev.preventDefault(); }
+    }catch(_){}
+  });
 })();
 
 </script>
