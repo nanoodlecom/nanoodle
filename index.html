@@ -11052,7 +11052,7 @@ editor.addEventListener("dblclick", e=>{
   const portEl = e.target && e.target.closest && e.target.closest(".port");
   if(portEl && editor.contains(portEl)){
     e.preventDefault(); e.stopPropagation();
-    try{ abortWireDragForDblclick(); }catch(_){}
+    if(!dblclickDanglingAddWireCandidate(portEl)) return;
     try{ tryDblclickDanglingAddWire(portEl); }catch(_){}
     return;
   }
@@ -16940,18 +16940,6 @@ function pulseDblclickAddWirePorts(fromNode, fromPort, toNode, toPort){
   if(b) b.classList.add("na-dblclick-add-wire-port");
   _dblclickAddWirePulseTimer = setTimeout(()=>{ _dblclickAddWirePulseTimer = 0; clearDblclickAddWirePulse(); }, 1600);
 }
-function abortWireDragForDblclick(){
-  // First click of a double-click starts startWire(); clear the pending drag so
-  // we don't fight with add+wire or open the wire-drop menu.
-  try{ tempWire = null; }catch(_){}
-  try{ draggingLinkId = null; }catch(_){}
-  document.querySelectorAll(".port.compatible, .port.snap, .port.likely").forEach(p=>{
-    p.classList.remove("compatible", "snap", "likely");
-    if(p.dataset && p.dataset.sugTitle){ p.removeAttribute("title"); delete p.dataset.sugTitle; }
-  });
-  try{ redraw(); }catch(_){}
-  try{ closeQuickAdd(); }catch(_){}
-}
 let _dblclickAddWireCueTimer = 0, _dblclickAddWireCue = null;
 function dblclickPortTabStop(port){
   port.tabIndex = !port.classList.contains("disabled") && geoOn() ? 0 : -1;
@@ -16983,7 +16971,7 @@ function showDblclickPortCue(port){
   button.addEventListener("pointerdown", e=> e.stopPropagation());
   button.addEventListener("click", e=>{
     e.preventDefault(); e.stopPropagation();
-    abortWireDragForDblclick(); tryDblclickDanglingAddWire(port);
+    tryDblclickDanglingAddWire(port);
   });
   _dblclickAddWireCue = { port, attrs, button };
   port.appendChild(button);
@@ -17003,11 +16991,13 @@ function dblclickAddWireKey(e){
   const port = e.target?.closest?.(".port");
   if(!port || !dblclickDanglingAddWireCandidate(port)) return;
   e.preventDefault(); e.stopPropagation();
-  abortWireDragForDblclick();
   tryDblclickDanglingAddWire(port);
 }
 function dblclickDanglingAddWireCandidate(portEl){
   if(!portEl || !portEl.dataset) return null;
+  // Acceptance never interrupts a live pointer gesture or its owned listeners.
+  if(typeof tempWire!=="undefined" && tempWire) return null;
+  if(typeof nodeGestPtrs!=="undefined" && nodeGestPtrs.size) return null;
   if(typeof geoOn==="function" && !geoOn()) return null;
   if(typeof multiSel!=="undefined" && multiSel && multiSel.size >= 2) return null;
   if(portEl.classList.contains("disabled")) return null;

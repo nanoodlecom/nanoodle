@@ -392,7 +392,6 @@ function toy(name, ok, detail) {
         };
       } },
       editor: { addEventListener(name,fn) { editorListeners.set(name,fn); } },
-      abortWireDragForDblclick() {},
       quickAddCandidates() { return [["llm", {}]]; }, socketsForDrop() { return ["prompt"]; },
       byId(id) { return context.graph.nodes.find(n=> n.id === id); },
       serializeGraph() { return {
@@ -494,6 +493,26 @@ function toy(name, ok, detail) {
     focused.context.dblclickAddWireKey({ key, target:focused.origin, preventDefault(){}, stopPropagation(){} });
     toy(`key-${key}-adds-in-reduced-motion`, focused.context.graph.nodes.length===2 && focused.context.graph.links.length===1, "keyboard action keeps semantics");
   }
+  for(const gesture of ["wire", "node"]){
+    for(const action of ["Enter", " ", "plus", "direct"]){
+      const busy = attempt({ noAction:true });
+      busy.context.showDblclickPortCue(busy.origin);
+      const plus = busy.origin.children[0], wire = {x1:0,y1:0,x2:20,y2:30};
+      if(gesture==="wire") busy.context.tempWire=wire;
+      else busy.context.nodeGestPtrs.add(7);
+      let prevented=false;
+      const event={key:action,target:busy.origin,preventDefault(){prevented=true;},stopPropagation(){}};
+      if(action==="plus") plus.events.get("click")(event);
+      else if(action==="direct") busy.context.tryDblclickDanglingAddWire(busy.origin);
+      else busy.context.dblclickAddWireKey(event);
+      toy(`active-${gesture}-${action}-keeps-gesture`,
+        JSON.stringify(busy.context.serializeGraph())===busy.before &&
+        JSON.stringify(busy.context.undoStack)===JSON.stringify(busy.undoBefore) &&
+        (gesture==="wire" ? busy.context.tempWire===wire : busy.context.nodeGestPtrs.has(7)) &&
+        (action==="plus" || action==="direct" || !prevented),
+        "active pointer keeps its state; add cannot steal the gesture");
+    }
+  }
   const quiet = attempt({ noAction:true, engineOff:true });
   toy("disabled-feature-has-no-cue", !quiet.context.showDblclickPortCue(quiet.origin) && quiet.origin.children.length===0, "disable flags respected");
   for(const moved of [false, true]){
@@ -535,11 +554,6 @@ function toy(name, ok, detail) {
     /dblclick[\s\S]{0,200}tryDblclickDanglingAddWire|tryDblclickDanglingAddWire[\s\S]{0,200}dblclick|addEventListener\(\s*["']dblclick["']/.test(index) &&
       /onPortDblclick|portDblclick|tryDblclickDanglingAddWire/.test(index),
     "port dblclick"
-  );
-  toy(
-    "html-abort-wire-drag",
-    /tempWire\s*=\s*null/.test(index) && /tryDblclickDanglingAddWire/.test(index),
-    "clear tempWire"
   );
   toy(
     "html-multi-quiet",
