@@ -351,7 +351,7 @@ function editorFn(name) {
   const g = { from:{node:"t1",port:"text"}, to:{node:"img1",port:"prompt"}, type:"text" };
   let portPresent = true, enabled = true, connects = 0;
   const ctx = {
-    graph, multiSel:new Set(["t1","img1"]), tempWire:null,
+    graph, multiSel:new Set(["t1","img1"]), tempWire:null, nodeGestPtrs:new Set(),
     window:{ __nextAction:{ disabled:false, hasPortPriors:()=>true, pickDualSelectBridge:q=>pickDualSelectBridge(tables,q) }, matchMedia:()=>({matches:true}) },
     byId:id=>graph.nodes.find(n=>n.id===id), geoOn:()=>enabled,
     document:{
@@ -391,6 +391,18 @@ function editorFn(name) {
   const typing=event({tagName:"TEXTAREA",classList:classes()});
   ctx.handleDualSelectBridgeKey(typing);
   toy("editor-typing-enter-untouched",!typing.prevented && connects===0,"no global Enter hijack");
+  for(const gesture of ["wire", "node"]){
+    const wire={x1:0,y1:0,x2:20,y2:30};
+    if(gesture==="wire") ctx.tempWire=wire; else ctx.nodeGestPtrs.add(7);
+    ctx._dualBridgeGhost=g; a.classList.add("na-dual-bridge-port"); b.classList.add("na-dual-bridge-port");
+    ctx.applyDualSelectBridge();
+    toy(`editor-${gesture}-gesture-clears-preview`,!ctx._dualBridgeGhost && !a.classList.contains("na-dual-bridge-port") && !b.classList.contains("na-dual-bridge-port"),"pending preview cannot reappear during pointer gesture");
+    ctx._dualBridgeGhost=g;
+    toy(`editor-${gesture}-gesture-refuses-acceptance`,!ctx.acceptDualSelectBridge() && connects===0 && graph.links.length===0 &&
+      (gesture==="wire" ? ctx.tempWire===wire : ctx.nodeGestPtrs.has(7)),"gesture state survives stale action acceptance");
+    ctx.tempWire=null; ctx.nodeGestPtrs.clear();
+  }
+  ctx._dualBridgeGhost=g;
   const accept=event({classList:classes("na-dual-bridge-hit")});
   ctx.handleDualSelectBridgeKey(accept);
   toy("editor-focused-enter-connects-once",accept.prevented && connects===1 && graph.links.length===1 && !ctx._dualBridgeGhost,"normal wire replaces preview");

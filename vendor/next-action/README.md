@@ -13,7 +13,9 @@
 | slop | `anti-slop.mjs`, `corpus/anti-slop.json` — soft re-rank away from a shallow Text→LLM loop |
 | layout | `deoverlap.mjs`, `auto-tidy.mjs`, `collision-nudge.mjs` — slide an overlapping add apart |
 | bridge | `dual-select-bridge.mjs` — Product · 37 selectable wire preview; hover/focus reveals connect, click/Enter/Space accepts |
+| · 39 | `drop-on-node-auto-wire.mjs` — Product · 39 drop-on-node auto-wire |
 | memory | `suggestion-memory.mjs` — local accept/ignore reweight of suggested adds |
+| · 40 | `dblclick-dangling-add-wire.mjs`, `scripts/check-next-action-dblclick-dangling-add-wire.mjs` — double-click dangling port → top gallery add+wire at free seat |
 | weights | `export-load.mjs`, `scripts/export-smallnet-weights.py` — catalog first, fixture fallback |
 
 Learned `.bin` weights stay **gitignored**; tests load inline float fixtures.
@@ -44,6 +46,7 @@ node scripts/check-next-action-cold-start.mjs
 node scripts/check-next-action.mjs
 node scripts/check-next-action-port-suggest.mjs
 node scripts/check-next-action-dual-select-bridge.mjs
+node scripts/check-next-action-drop-on-node-auto-wire.mjs
 node scripts/check-next-action-recipe.mjs
 node scripts/check-next-action-anti-slop.mjs
 node scripts/check-next-action-deoverlap.mjs
