@@ -9,7 +9,7 @@
  * There is no panel, no ghost, and no ?product= surface. The old "wire" tip
  * only recorded the token — it never called connect() — so a wire suggestion
  * is not an action button. Menus rank add:/set:model/open:examples rows;
- * while a wire drag is active the editor may emphasize one compatible port,
+ * while a wire drag is active the editor may emphasize the best-fitting ports,
  * and dropping still goes through connect().
  *
  * ?na=0 or ?product=off (or nano.nextAction=off) disables the engine. A failed
@@ -20,6 +20,7 @@ import { chooseHints } from "./hints.mjs";
 import { createSuggestionMemory } from "./suggestion-memory.mjs";
 import { applyAntiSlop, isShallowTextLlm, rerankShallowAdds } from "./anti-slop.mjs";
 import { pickRingTarget, rankDropTypes } from "./port-suggest.mjs";
+import { rankRingTargets } from "./port-highlight.mjs";
 import { rankQuickaddAfterAbort as rankQuickaddAfterAbortPure } from "./quickadd-after-abort.mjs";
 import { pickDropAutoWire } from "./drop-on-node-auto-wire.mjs";
 import { pickDblclickDanglingAddWire } from "./dblclick-dangling-add-wire.mjs";
@@ -157,6 +158,11 @@ export async function mount(api) {
     pickRingTarget(query) {
       if (!portTables) return null;
       try { return pickRingTarget(portTables, query); }
+      catch (_) { return null; }
+    },
+    rankRingTargets(query) {
+      if (!portTables) return null;
+      try { return rankRingTargets(portTables, query); }
       catch (_) { return null; }
     },
     // Product · 48: after aborted wire drag opens #quickadd, origin-fit Suggested re-rank.
