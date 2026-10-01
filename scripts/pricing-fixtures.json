@@ -1741,5 +1741,84 @@
     }
    ]
   }
-]
+ ],
+ "videoQuote": [
+  {
+   "id": "minimax-h3-singularity/image-to-video",
+   "shape": "minimum-only catalog + estimate-video-cost quote (2026-09-30): 480p $0.05/s … 1080p $0.20/s",
+   "pricing": {
+    "currency": "USD",
+    "minimum": 0.15,
+    "note": "Output duration and resolution determine pricing."
+   },
+   "cases": [
+    { "desc": "default settings are 5s 480p ($0.25), not the 3s floor", "fields": {}, "expect": 0.25 },
+    { "desc": "15s 480p", "fields": { "duration": "15", "resolution": "480p" }, "expect": 0.75 },
+    { "desc": "3s 480p equals the published minimum", "fields": { "duration": "3", "resolution": "480p" }, "expect": 0.15 },
+    { "desc": "5s 1080p", "fields": { "duration": "5", "resolution": "1080p" }, "expect": 1 },
+    { "desc": "15s 1080p", "fields": { "duration": "15", "resolution": "1080p" }, "expect": 3 },
+    { "desc": "10s 540p", "fields": { "duration": "10", "resolution": "540p" }, "expect": 0.75 }
+   ]
+  },
+  {
+   "id": "minimax-h3-singularity/image-to-video-lora",
+   "shape": "quote is 1.25× the base Singularity table (480p $0.0625/s)",
+   "pricing": { "currency": "USD", "minimum": 0.1875 },
+   "cases": [
+    { "desc": "5s 480p", "fields": { "duration": "5", "resolution": "480p" }, "expect": 0.3125 },
+    { "desc": "15s 480p", "fields": { "duration": "15", "resolution": "480p" }, "expect": 0.9375 },
+    { "desc": "5s 1080p", "fields": { "duration": "5", "resolution": "1080p" }, "expect": 1.25 }
+   ]
+  },
+  {
+   "id": "minimax-h3/reference-to-video",
+   "shape": "480p/540p match Singularity; 768p $0.125/s and 1080p $0.25/s",
+   "pricing": { "currency": "USD", "minimum": 0.15 },
+   "cases": [
+    { "desc": "15s 480p", "fields": { "duration": "15", "resolution": "480p" }, "expect": 0.75 },
+    { "desc": "5s 768p", "fields": { "duration": "5", "resolution": "768p" }, "expect": 0.625 },
+    { "desc": "15s 1080p", "fields": { "duration": "15", "resolution": "1080p" }, "expect": 3.75 }
+   ]
+  },
+  {
+   "id": "minimax/h3-max/multi-angle/image-to-video",
+   "shape": "480p $0.05/s, 768p $0.08/s, 1080p $0.16/s",
+   "pricing": { "currency": "USD", "minimum": 0.25 },
+   "cases": [
+    { "desc": "default 5s 480p stays the minimum", "fields": {}, "expect": 0.25 },
+    { "desc": "15s 480p", "fields": { "duration": "15", "resolution": "480p" }, "expect": 0.75 },
+    { "desc": "15s 1080p", "fields": { "duration": "15", "resolution": "1080p" }, "expect": 2.4 }
+   ]
+  },
+  {
+   "id": "minimax/h3-max/extend-video",
+   "shape": "same rates as multi-angle, plus 2k $0.32/s; catalog default resolution is 768p",
+   "pricing": { "currency": "USD", "minimum": 0.25 },
+   "cases": [
+    { "desc": "default 5s 768p", "fields": {}, "expect": 0.4 },
+    { "desc": "15s 2k", "fields": { "duration": "15", "resolution": "2k" }, "expect": 4.8 }
+   ]
+  },
+  {
+   "id": "minimax-h3-singularity/image-to-video",
+   "shape": "a catalog per-second table wins over the quote overlay",
+   "pricing": { "currency": "USD", "minimum": 0.15 },
+   "cases": [
+    {
+     "desc": "existing per_second_by_resolution is not replaced",
+     "pricing": { "currency": "USD", "minimum": 0.15, "per_second_by_resolution": { "480p": 9 }, "default_duration": 5, "default_resolution": "480p" },
+     "fields": { "duration": "5", "resolution": "480p" },
+     "expect": 45
+    }
+   ]
+  },
+  {
+   "id": "minimax/h3-max/lip-sync/image-to-video",
+   "shape": "no duration knob and not in the quote map — duration must not scale the floor",
+   "pricing": { "currency": "USD", "minimum": 0.25 },
+   "cases": [
+    { "desc": "duration 10s stays the floor", "fields": { "duration": "10" }, "expect": 0.25 }
+   ]
+  }
+ ]
 }

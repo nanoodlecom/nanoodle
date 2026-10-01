@@ -23,7 +23,10 @@ const server = createServer(async (req, res) => {
     const file = resolve(root, "." + pathname);
     if (!file.startsWith(root + sep)) { res.writeHead(403); res.end(); return; }
     const body = await readFile(file);
-    res.writeHead(200, { "Content-Type":mime[extname(file)] || "application/octet-stream" });
+    const headers = { "Content-Type":mime[extname(file)] || "application/octet-stream" };
+    const csp = cspFor(pathname === "/" ? "/index.html" : pathname);
+    if (csp) headers["Content-Security-Policy"] = csp;
+    res.writeHead(200, headers);
     res.end(body);
   } catch { res.writeHead(404); res.end(); }
 });
@@ -39,7 +42,20 @@ const catalog = {
     pricing:{per_image:{"1k":0.04,"3:2":0.01}}, supported_parameters:{resolutions:["1k","3:2"]} }] },
   "/api/v1/video-models": { data:[] },
   "/api/v1/audio-models": { data:[] },
+  "/api/v1/3d-models": { data:[] },
 };
+const headerText = await readFile(resolve(root, "_headers"), "utf8");
+const cspByPath = new Map();
+{
+  let path = null;
+  for (const line of headerText.split("\n")) {
+    if (!line.trim() || line.trim().startsWith("#")) continue;
+    if (!/^\s/.test(line)) { path = line.trim(); continue; }
+    const m = line.match(/^\s*Content-Security-Policy:\s*(.+)$/);
+    if (m && path && !cspByPath.has(path)) cspByPath.set(path, m[1].trim());
+  }
+}
+const cspFor = (pathname) => cspByPath.get(pathname) || (pathname === "/" ? cspByPath.get("/index.html") : "") || "";
 let browser;
 try {
   browser = await chromium.launch({ headless:true,
@@ -160,6 +176,42 @@ try {
       for (const context of contexts) await context.close();
     }
   }
+  const glb = await readFile(resolve(root, "examples/product-shot/sample.glb"));
+  const cspContext = await browser.newContext({ viewport:{ width:1440, height:900 } });
+  const cspPage = await cspContext.newPage();
+  const violations = [];
+  cspPage.on("console", (msg) => { if (/content security policy/i.test(msg.text())) violations.push(msg.text()); });
+  await cspPage.addInitScript(() => {
+    localStorage.setItem("noodle_hint_dismissed", "1");
+    localStorage.setItem("noodle_connect_hint_dismissed", "1");
+    localStorage.setItem("noodle_graph", JSON.stringify({ v:1, nodes:[], links:[], nid:1, lid:1, view:{ panX:40, panY:30, scale:1 } }));
+    window.__csp = [];
+    document.addEventListener("securitypolicyviolation", (e) => { window.__csp.push(e.violatedDirective + " " + e.blockedURI); });
+  });
+  const loaded = await cspPage.goto(origin + "/?product=off&na=0", { waitUntil:"networkidle" });
+  const sent = loaded.headers()["content-security-policy"] || "";
+  assert.match(sent, /connect-src/, "the editor is served with the _headers CSP");
+  assert.doesNotMatch(sent, /connect-src[^;]*\bdata:/, "that CSP does not allow connect-src data:");
+  await cspPage.evaluate((b64) => {
+    const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    const file = new File([bin], "duck.glb", { type:"model/gltf-binary" });
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    const editor = document.querySelector("#editor");
+    const r = editor.getBoundingClientRect();
+    const ev = new DragEvent("drop", { bubbles:true, cancelable:true, clientX:r.left + r.width / 2, clientY:r.top + 180 });
+    Object.defineProperty(ev, "dataTransfer", { value:dt });
+    editor.dispatchEvent(ev);
+  }, glb.toString("base64"));
+  await cspPage.waitForFunction(() => {
+    const canvas = document.querySelector(".node .glb-canvas");
+    return canvas && canvas.style.visibility !== "hidden" && !document.querySelector(".glb-err");
+  });
+  const blocked = await cspPage.evaluate(() => (window.__csp || []).filter((s) => /connect-src/.test(s) && /data:/.test(s)));
+  assert.deepEqual(blocked, [], "dropping a GLB does not fetch a data: URL under the production CSP");
+  assert.deepEqual(violations, [], "no CSP console errors while the dropped GLB draws");
+  console.log("✓ csp: dropped GLB draws under the real _headers connect-src");
+  await cspContext.close();
 } finally {
   await browser?.close();
   await new Promise(resolve => server.close(resolve));

@@ -1,8 +1,9 @@
 /**
  * Headless next-action engine for the real editor.
  *
- * Loads the frequency prior and, when the smoke weights load, the learned
- * blend. Publishes a cached hint object that menu renderers read synchronously.
+ * Loads the frequency prior and, when weights load, the learned blend.
+ * The loader tries the catalog, then the smoke fixture.
+ * The shipped catalog has no models, so the fixture is what runs.
  * List rendering never waits on inference.
  *
  * There is no panel, no ghost, and no ?product= surface. The old "wire" tip
@@ -20,6 +21,7 @@ import { createSuggestionMemory } from "./suggestion-memory.mjs";
 import { applyAntiSlop, isShallowTextLlm, rerankShallowAdds } from "./anti-slop.mjs";
 import { pickRingTarget, rankDropTypes } from "./port-suggest.mjs";
 import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
+import { loadNextActionExport } from "./export-load.mjs";
 
 const BASE = new URL(".", import.meta.url);
 
@@ -187,13 +189,8 @@ export async function mount(api) {
   }
 
   try {
-    const sn = await import("../smallnet/index.js");
-    const fix = await loadJSON("fixtures/smoke-weights.json");
-    const layers = fix.layers.map((L) => ({
-      W: Float32Array.from(L.W),
-      b: Float32Array.from(L.b),
-    }));
-    session = sn.createSession(fix.manifest, sn.packWeights(fix.manifest, layers));
+    const loaded = await loadNextActionExport();
+    session = loaded && loaded.session ? loaded.session : null;
   } catch (e) {
     console.warn("[next-action] learned session unavailable", e);
     session = null;

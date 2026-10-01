@@ -174,7 +174,7 @@ function makeCtx({ flagOn, key = "test-api-key", drifted = false, spy = [], dire
     PENDING_VIDEO: new Map(), PENDING_AUDIO: new Map(),
     maskToSource: (m) => m,
     imgSpec: () => ({ re: /^image\d*$/, cap: 9 }),
-    normChat: (x) => x, normImg: (x) => x, normVideo: (x) => x, normAudio: (x) => x,
+    normChat: (x) => x, normImg: (x) => x, normVideo: (x) => x, normAudio: (x) => x, norm3d: (x) => x,
     SIZES: [["1024x1024", "square"]],
     EST: { chatImageUsd: 0.14 },
     NODE_TYPES: { llm: { imageInputs: "vision", audioInput: "audio_input", modelKind: "chat" }, image: { modelKind: "image" }, edit: { modelKind: "image" } },

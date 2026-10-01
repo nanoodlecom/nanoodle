@@ -33,7 +33,7 @@ function loadResolver(file, endMarker){
   const block = html.slice(start, end);
   const sandbox = {};
   vm.createContext(sandbox);
-  vm.runInContext(block + "\nthis.videoUnitUsd=videoUnitUsd; this.chatUnitUsd=chatUnitUsd; this.audioUnitUsd=audioUnitUsd; this.audioBilledSeconds=audioBilledSeconds; this.audioBilledSongs=audioBilledSongs; this.speechEstUsd=speechEstUsd;", sandbox);
+  vm.runInContext(block + "\nthis.videoUnitUsd=videoUnitUsd; this.chatUnitUsd=chatUnitUsd; this.audioUnitUsd=audioUnitUsd; this.audioBilledSeconds=audioBilledSeconds; this.audioBilledSongs=audioBilledSongs; this.speechEstUsd=speechEstUsd; this.applyVideoQuotePricing=applyVideoQuotePricing;", sandbox);
   return sandbox;
 }
 
@@ -101,15 +101,29 @@ for(const eng of ENGINES){
         bad("videoTier", f.id, `${c.desc}`, `${v} (expected ${c.expect})`);
     }
   }
+
+  // Minimum-only H3 quotes (H3 Singularity duration bug): the public catalog publishes
+  // only {minimum}, which genericScanUsd treats as a flat clip. applyVideoQuotePricing
+  // overlays the generation-quote per-second table so duration and resolution move the
+  // estimate. A model that already has a duration rate is left alone. Both engines agree.
+  for(const f of fixtures.videoQuote || []){
+    for(const c of (f.cases || [])){
+      const pricing = R.applyVideoQuotePricing(f.id, c.pricing || f.pricing);
+      const v = R.videoUnitUsd(pricing, c.fields || {}, c.refWired);
+      if(v == null || !isFinite(v) || Math.abs(v - c.expect) > 1e-9)
+        bad("videoQuote", f.id, `${c.desc}`, `${v} (expected ${c.expect})`);
+    }
+  }
 }
 
 const durCases = (fixtures.audioDuration||[]).reduce((n,f)=> n + (f.cases?.length||0), 0);
 const songCases = (fixtures.audioSongs||[]).reduce((n,f)=> n + (f.cases?.length||0), 0);
 const speechCases = (fixtures.speechEst||[]).reduce((n,f)=> n + (f.cases?.length||0), 0);
 const tierCases = (fixtures.videoTiers||[]).reduce((n,f)=> n + (f.cases?.length||0), 0);
-const total = ((fixtures.video?.length||0) + (fixtures.audio?.length||0) + (fixtures.chat?.length||0) + durCases + songCases + speechCases + tierCases) * ENGINES.length;
+const quoteCases = (fixtures.videoQuote||[]).reduce((n,f)=> n + (f.cases?.length||0), 0);
+const total = ((fixtures.video?.length||0) + (fixtures.audio?.length||0) + (fixtures.chat?.length||0) + durCases + songCases + speechCases + tierCases + quoteCases) * ENGINES.length;
 if(fail){
   console.error(`\n✗ ${fail} pricing checks failed across ${ENGINES.length} engines — a resolver branch is missing or the two engines drifted.`);
   process.exit(1);
 }
-console.log(`✓ every pricing shape resolves in both engines (${fixtures.video?.length||0} video, ${fixtures.audio?.length||0} audio, ${fixtures.chat?.length||0} chat, ${durCases} audio-duration, ${songCases} audio-songs, ${speechCases} speech-est, ${tierCases} video-tier × ${ENGINES.length} engines = ${total} checks).`);
+console.log(`✓ every pricing shape resolves in both engines (${fixtures.video?.length||0} video, ${fixtures.audio?.length||0} audio, ${fixtures.chat?.length||0} chat, ${durCases} audio-duration, ${songCases} audio-songs, ${speechCases} speech-est, ${tierCases} video-tier, ${quoteCases} video-quote × ${ENGINES.length} engines = ${total} checks).`);
