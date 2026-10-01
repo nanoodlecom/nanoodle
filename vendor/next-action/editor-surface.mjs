@@ -20,6 +20,7 @@ import { chooseHints } from "./hints.mjs";
 import { createSuggestionMemory } from "./suggestion-memory.mjs";
 import { applyAntiSlop, isShallowTextLlm, rerankShallowAdds } from "./anti-slop.mjs";
 import { pickRingTarget, rankDropTypes } from "./port-suggest.mjs";
+import { pickDblclickDanglingAddWire } from "./dblclick-dangling-add-wire.mjs";
 import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
 import { loadNextActionExport } from "./export-load.mjs";
 
@@ -154,6 +155,28 @@ export async function mount(api) {
       if (!portTables) return null;
       try { return pickRingTarget(portTables, query); }
       catch (_) { return null; }
+    },
+    pickDblclickDanglingAddWire(query) {
+      if (!portTables) return null;
+      try {
+        const g = (api.getGraph && api.getGraph()) || {};
+        const graph = {
+          nodes: (query && query.nodes) || g.nodes || [],
+          links: (query && query.links) || g.links || [],
+          selectedId: (query && query.selectedId) != null ? query.selectedId : g.selectedId,
+          selectedIds: (query && query.selectedIds) || g.selectedIds || [],
+        };
+        return pickDblclickDanglingAddWire(portTables, graph, {
+          nodeId: query && query.nodeId,
+          port: query && query.port,
+          dir: query && query.dir,
+          type: query && query.type,
+          candidates: query && query.candidates,
+          nodeW: query && query.nodeW,
+          nodeH: query && query.nodeH,
+          gap: query && query.gap,
+        });
+      } catch (_) { return null; }
     },
   };
 
