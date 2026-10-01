@@ -723,6 +723,13 @@
   .port.snap{ transform:scale(1.7); box-shadow:0 0 0 5px #ffffff66, 0 0 12px #fff6; animation:none }
   @keyframes portpulse{ 50%{ box-shadow:0 0 0 6px #ffffff14 } }
 
+  /* Product · 39 — drop-on-node auto-wire: brief pulse on ports that just connected */
+  .port.na-drop-auto-wire-port{ transform:scale(1.35); box-shadow:0 0 0 4px #86efacaa, 0 0 12px #86efac66; animation:naDropAutoWirePulse 1.2s ease-in-out 2 }
+  @keyframes naDropAutoWirePulse{ 50%{ box-shadow:0 0 0 7px #86efac44, 0 0 18px #86efac55; transform:scale(1.5) } }
+  @media (prefers-reduced-motion: reduce){
+    .port.na-drop-auto-wire-port{ animation:none !important; box-shadow:none; transform:none }
+  }
+
   .body{ padding:.1rem .6rem .6rem; display:flex; flex-direction:column; gap:.5rem }
   .body label{ font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); display:block; margin-bottom:.2rem; font-weight:700 }
   .body textarea{ width:100%; resize:vertical; min-width:190px; max-width:min(80vw,760px); min-height:84px;
@@ -10440,6 +10447,8 @@ function startNodeDrag(n, e){
   const id = e.pointerId; nodeGestPtrs.add(id);
   const sx=e.clientX, sy=e.clientY, ox=n.x, oy=n.y;
   let _snapped=false;
+  // Product · 39: single-node drag only; multiSel≥2 stays quiet.
+  const _dropAutoWireSingle = !(typeof multiSel!=="undefined" && multiSel && multiSel.size >= 2);
   const move = (ev)=>{
     if(ev.pointerId!==id) return;                 // ignore a stray second touch
     if(!_snapped){ pushUndo(); _snapped=true; }   // first real move → record pre-drag layout
@@ -10452,7 +10461,13 @@ function startNodeDrag(n, e){
     window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up); window.removeEventListener("pointercancel",up);
     nodeGestPtrs.delete(id); cancelNodeGest = null;
   };
-  const up = (ev)=>{ if(ev.pointerId!==id) return; cleanup(); save(); };
+  const up = (ev)=>{
+    if(ev.pointerId!==id) return;
+    // Product · 39 — attempt drop-on-node auto-wire at release (before save),
+    // while bodies still overlap; deoverlap/align must not erase the intent.
+    try{ if(_dropAutoWireSingle && _snapped) tryDropOnNodeAutoWire(n); }catch(_){}
+    cleanup(); save();
+  };
   cancelNodeGest = ()=>{                             // second finger landed → this drag becomes a pinch; undo the accidental move
     if(_snapped){ undoStack.pop(); syncUndoBtn(); }
     n.x=ox; n.y=oy; n.el.style.left=ox+"px"; n.el.style.top=oy+"px"; redraw(); cleanup();
@@ -16830,6 +16845,89 @@ RULES for the diff:
     }finally{ setBusy(false); dbAbort = null; }
   }
 })();
+/* Product · 39 — drop-on-node auto-wire: on single-node drag end (or add that
+   lands on another body), connect() the single high-prior gallery port-pair.
+   Quiet when multi / flat / reduced-motion / engine off / self. Soft port pulse
+   only — no tip panel / no ?product= twin. */
+let findDropOverlapTargetFn = null;
+let _dropAutoWirePulseTimer = 0;
+import("./vendor/next-action/drop-on-node-auto-wire.mjs").then((m)=>{
+  findDropOverlapTargetFn = m.findDropOverlapTarget;
+}).catch(()=>{});
+function dropAutoWireReducedMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(_){ return false; }
+}
+function clearDropAutoWirePulse(){
+  if(_dropAutoWirePulseTimer){ clearTimeout(_dropAutoWirePulseTimer); _dropAutoWirePulseTimer = 0; }
+  document.querySelectorAll(".port.na-drop-auto-wire-port").forEach(p=> p.classList.remove("na-drop-auto-wire-port"));
+}
+function pulseDropAutoWirePorts(fromNode, fromPort, toNode, toPort){
+  clearDropAutoWirePulse();
+  if(dropAutoWireReducedMotion()) return;
+  const a = document.querySelector(`.port[data-node="${fromNode}"][data-port="${fromPort}"][data-dir="out"]`);
+  const b = document.querySelector(`.port[data-node="${toNode}"][data-port="${toPort}"][data-dir="in"]`);
+  if(a) a.classList.add("na-drop-auto-wire-port");
+  if(b) b.classList.add("na-drop-auto-wire-port");
+  _dropAutoWirePulseTimer = setTimeout(()=>{ _dropAutoWirePulseTimer = 0; clearDropAutoWirePulse(); }, 1600);
+}
+function dropAutoWireCollectBoxes(dragged){
+  const others = [];
+  for(const n of (graph.nodes||[])){
+    if(!n || !n.el) continue;
+    if(dragged && n.id === dragged.id) continue;
+    if(n.type === "comment") continue;
+    others.push({
+      id: n.id,
+      x: n.x, y: n.y,
+      w: n.el.offsetWidth || n.w || 220,
+      h: n.el.offsetHeight || 160,
+    });
+  }
+  return others;
+}
+function tryDropOnNodeAutoWire(dragged){
+  if(!dragged || !dragged.el || !dragged.id) return false;
+  if(typeof geoOn==="function" && !geoOn()) return false;
+  if(dropAutoWireReducedMotion()) return false;
+  if(typeof multiSel!=="undefined" && multiSel && multiSel.size >= 2) return false;
+  const na = window.__nextAction;
+  if(!na || na.disabled || !(na.hasPortPriors && na.hasPortPriors()) || typeof na.pickDropAutoWire!=="function") return false;
+  if(!findDropOverlapTargetFn) return false;
+  const box = {
+    id: dragged.id,
+    x: dragged.x, y: dragged.y,
+    w: dragged.el.offsetWidth || dragged.w || 220,
+    h: dragged.el.offsetHeight || 160,
+  };
+  let hit = null;
+  try{ hit = findDropOverlapTargetFn(box, dropAutoWireCollectBoxes(dragged)); }catch(_){ hit = null; }
+  if(!hit || !hit.targetId || hit.targetId === dragged.id) return false;
+  let pick = null;
+  try{
+    pick = na.pickDropAutoWire({
+      nodes: (graph.nodes||[]).map(n => ({ id:n.id, type:n.type })),
+      links: (graph.links||[]).map(l => ({ from:l.from, to:l.to })),
+      draggedId: dragged.id,
+      targetId: hit.targetId,
+    });
+  }catch(_){ pick = null; }
+  if(!pick || !pick.from || !pick.to) return false;
+  if(typeof wouldCycle==="function" && wouldCycle(pick.from.nodeId, pick.to.nodeId, pick.to.port)) return false;
+  // Already have this exact link? connect() would no-op-replace — skip.
+  const already = (graph.links||[]).some(l =>
+    l.from && l.to &&
+    l.from.node===pick.from.nodeId && l.from.port===pick.from.port &&
+    l.to.node===pick.to.nodeId && l.to.port===pick.to.port
+  );
+  if(already) return false;
+  let ok = false;
+  try{ ok = !!connect(pick.from.nodeId, pick.from.port, pick.to.nodeId, pick.to.port); }catch(_){ ok = false; }
+  if(ok){
+    try{ pulseDropAutoWirePorts(pick.from.nodeId, pick.from.port, pick.to.nodeId, pick.to.port); }catch(_){}
+  }
+  return ok;
+}
+
 /* Next-action scores feed existing menus (add node, wire-drop, model picker).
    Dynamic import so a tree without vendor/next-action stays quiet. No panel, no ghost.
    ?na=0 / ?product=off disables hints; until the cache is confident, lists are unchanged. */
