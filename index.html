@@ -721,6 +721,13 @@
   .port.compatible{ transform:scale(1.25); box-shadow:0 0 0 4px #ffffff26; animation:portpulse 1.1s ease-in-out infinite }
   .port.likely{ transform:scale(1.45); box-shadow:0 0 0 5px #67e8f9cc; animation:none }
   .port.snap{ transform:scale(1.7); box-shadow:0 0 0 5px #ffffff66, 0 0 12px #fff6; animation:none }
+  /* Product · 46: soft pulse on the origin port after an aborted wire drag. */
+  .port.na-aborted-wire-resume{ transform:scale(1.35); box-shadow:0 0 0 4px #86efacaa, 0 0 12px #86efac66; animation:naAbortedWireResumePulse 1.25s ease-in-out infinite }
+  .port.na-aborted-wire-resume.compatible{ box-shadow:0 0 0 4px #86efaccc, 0 0 14px #86efac88 }
+  @keyframes naAbortedWireResumePulse{ 50%{ box-shadow:0 0 0 7px #86efac44, 0 0 18px #86efac55; transform:scale(1.5) } }
+  @media (prefers-reduced-motion: reduce){
+    .port.na-aborted-wire-resume{ animation:none !important; box-shadow:none; transform:none }
+  }
   @keyframes portpulse{ 50%{ box-shadow:0 0 0 6px #ffffff14 } }
 
   .body{ padding:.1rem .6rem .6rem; display:flex; flex-direction:column; gap:.5rem }
@@ -10574,6 +10581,7 @@ function nearestPort(x, y, ports){
   return best;
 }
 function startWire(port, e){
+  try{ clearAbortedWireResume(); }catch(_){}
   if(port.classList && port.classList.contains("disabled")) return;
   e.preventDefault(); e.stopPropagation();
   closeQuickAdd();
@@ -10614,14 +10622,35 @@ function startWire(port, e){
     tempWire.x2 = mx; tempWire.y2 = my;
     redraw();
   };
-  const up = (ev)=>{
-    if(ev.pointerId!==id) return;
+  const finishWireDragChrome = ()=>{
     window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up);
+    window.removeEventListener("keydown",onEsc, true);
     tempWire = null; draggingLinkId = null;           // un-hide the picked link on every exit path
     targets.forEach(p=>{
       p.classList.remove("compatible","snap","likely");
       if(p.dataset.sugTitle){ p.removeAttribute("title"); delete p.dataset.sugTitle; }
     });
+  };
+  const originForResume = ()=>({
+    nodeId: anode,
+    port: anchor.dataset.port,
+    type: anchor.dataset.ptype || ptype,
+    dir: adir === "in" ? "in" : "out",
+  });
+  const onEsc = (kev)=>{
+    if(kev.key!=="Escape") return;
+    if(kev.defaultPrevented) return;
+    kev.preventDefault();
+    kev.stopPropagation();
+    finishWireDragChrome();
+    // Esc cancels without detaching a picked-up link and without opening quick-add.
+    if(snap) try{ snap.p.classList.remove("snap"); }catch(_){}
+    redraw();
+    try{ scheduleAbortedWireResume(originForResume(), 40); }catch(_){}
+  };
+  const up = (ev)=>{
+    if(ev.pointerId!==id) return;
+    finishWireDragChrome();
     let other = snap?.p;                              // prefer the magnetically-snapped port
     if(!other){ const tgt = document.elementFromPoint(ev.clientX, ev.clientY); other = tgt && tgt.closest(".port"); }
     let connected = false;
@@ -10644,12 +10673,16 @@ function startWire(port, e){
     if(!connected && pickup) removeLink(pickup.id);   // dragged the wire loose → detach it (input freed, stays freed)
     redraw();
     // dropped a wire into empty canvas → offer to create a node that fits this port, right here
-    if(!connected && Math.hypot(ev.clientX-sx, ev.clientY-sy) > 6){
+    const dragged = Math.hypot(ev.clientX-sx, ev.clientY-sy) > 6;
+    if(!connected && dragged){
       const tgt = document.elementFromPoint(ev.clientX, ev.clientY);
       if(!tgt || !tgt.closest(".node")) openQuickAdd(ev.clientX, ev.clientY, anchor);
+      // Product · 46: abort / miss → soft-pulse origin so resume is obvious
+      try{ scheduleAbortedWireResume(originForResume(), 50); }catch(_){}
     }
   };
   window.addEventListener("pointermove",move); window.addEventListener("pointerup",up);
+  window.addEventListener("keydown",onEsc, true);
 }
 
 // Rebuild a node's DOM in place (and redraw its wires). Used when a node's body depends on wiring
@@ -16833,6 +16866,75 @@ RULES for the diff:
 /* Next-action scores feed existing menus (add node, wire-drop, model picker).
    Dynamic import so a tree without vendor/next-action stays quiet. No panel, no ghost.
    ?na=0 / ?product=off disables hints; until the cache is confident, lists are unchanged. */
+/* Product · 46 — aborted-wire resume: soft-pulse the origin port after a
+   canceled wire drag (empty miss / Esc). Quiet when flat / reduced-motion /
+   engine off. Clears on next drag / connect / select / short TTL. No tip panel. */
+let _abortedWireResumeTimer = 0;
+let _abortedWireResumeTtl = 0;
+let _abortedWireResumeKey = "";
+const ABORTED_WIRE_RESUME_TTL_MS = 1500;
+function abortedWireResumeReducedMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(_){ return false; }
+}
+function clearAbortedWireResume(){
+  if(_abortedWireResumeTimer){ clearTimeout(_abortedWireResumeTimer); _abortedWireResumeTimer = 0; }
+  if(_abortedWireResumeTtl){ clearTimeout(_abortedWireResumeTtl); _abortedWireResumeTtl = 0; }
+  document.querySelectorAll(".port.na-aborted-wire-resume").forEach(p=>{
+    p.classList.remove("na-aborted-wire-resume");
+    // Only strip .compatible we added for the resume pulse (not mid-drag targets).
+    if(p.dataset.naAbortedCompatible){
+      p.classList.remove("compatible");
+      delete p.dataset.naAbortedCompatible;
+    }
+  });
+  _abortedWireResumeKey = "";
+}
+function applyAbortedWireResume(origin){
+  if(abortedWireResumeReducedMotion()){ clearAbortedWireResume(); return; }
+  if(typeof geoOn==="function" && !geoOn()){ clearAbortedWireResume(); return; }
+  if(typeof tempWire!=="undefined" && tempWire) return;
+  const na = window.__nextAction;
+  if(!na || na.disabled){ clearAbortedWireResume(); return; }
+  if(!origin || !origin.nodeId || !origin.port){ clearAbortedWireResume(); return; }
+  const dir = origin.dir === "in" ? "in" : "out";
+  let pick = null;
+  if(na.hasPortPriors && na.hasPortPriors() && typeof na.pickAbortedWireResumePort==="function"){
+    try{ pick = na.pickAbortedWireResumePort({ nodeId: origin.nodeId, port: origin.port, type: origin.type, dir }); }
+    catch(_){ pick = null; }
+    if(!pick){ clearAbortedWireResume(); return; } // flat prior → quiet
+  }else{
+    // No mass tables readable — pulse the aborted origin whenever a real drag canceled.
+    pick = { nodeId: origin.nodeId, port: origin.port, type: origin.type || "", dir };
+  }
+  const el = document.querySelector(`.port[data-node="${pick.nodeId}"][data-port="${pick.port}"][data-dir="${dir}"]`);
+  if(!el || el.classList.contains("disabled")){ clearAbortedWireResume(); return; }
+  const key = pick.nodeId + "|" + pick.port + "|" + dir;
+  if(key !== _abortedWireResumeKey){
+    clearAbortedWireResume();
+    el.classList.add("na-aborted-wire-resume");
+    if(!el.classList.contains("compatible")){
+      el.classList.add("compatible");
+      el.dataset.naAbortedCompatible = "1";
+    }
+    _abortedWireResumeKey = key;
+  }else if(!el.classList.contains("na-aborted-wire-resume")){
+    el.classList.add("na-aborted-wire-resume");
+    if(!el.classList.contains("compatible")){
+      el.classList.add("compatible");
+      el.dataset.naAbortedCompatible = "1";
+    }
+  }
+  if(_abortedWireResumeTtl) clearTimeout(_abortedWireResumeTtl);
+  _abortedWireResumeTtl = setTimeout(()=>{ _abortedWireResumeTtl = 0; clearAbortedWireResume(); }, ABORTED_WIRE_RESUME_TTL_MS);
+}
+function scheduleAbortedWireResume(origin, ms){
+  if(_abortedWireResumeTimer) clearTimeout(_abortedWireResumeTimer);
+  _abortedWireResumeTimer = setTimeout(()=>{
+    _abortedWireResumeTimer = 0;
+    applyAbortedWireResume(origin);
+  }, ms == null ? 50 : ms);
+}
+
 (function bootNextActionHints(){
   const _addNode = addNode;
   addNode = function(type, x, y, fields){
@@ -16844,12 +16946,14 @@ RULES for the diff:
   connect = function(fromNode, fromPort, toNode, toPort){
     const ok = _connect(fromNode, fromPort, toNode, toPort);
     if(ok) try { window.__nextAction?.record?.("wire"); } catch(_){}
+    if(ok) try { clearAbortedWireResume(); } catch(_){}
     return ok;
   };
   const _select = select;
   select = function(n){
     _select(n);
     try { window.__nextAction?.refresh?.(); } catch(_){}
+    try { clearAbortedWireResume(); } catch(_){}
   };
   const _loadExample = loadExample;
   loadExample = function(i){

@@ -20,6 +20,7 @@ import { chooseHints } from "./hints.mjs";
 import { createSuggestionMemory } from "./suggestion-memory.mjs";
 import { applyAntiSlop, isShallowTextLlm, rerankShallowAdds } from "./anti-slop.mjs";
 import { pickRingTarget, rankDropTypes } from "./port-suggest.mjs";
+import { pickAbortedWireResumePort } from "./aborted-wire-resume.mjs";
 import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
 import { loadNextActionExport } from "./export-load.mjs";
 
@@ -154,6 +155,12 @@ export async function mount(api) {
       if (!portTables) return null;
       try { return pickRingTarget(portTables, query); }
       catch (_) { return null; }
+    },
+    // Product · 46: after aborted wire drag, gate origin-port resume pulse on gallery mass.
+    pickAbortedWireResumePort(origin) {
+      try {
+        return pickAbortedWireResumePort(portTables, origin || {});
+      } catch (_) { return null; }
     },
   };
 

@@ -32,6 +32,9 @@ python scripts/train-next-action.py \
   --fixture vendor/next-action/fixtures/smoke-weights.json
 ```
 
+
+| · 46 | `aborted-wire-resume.mjs` — after aborted wire drag, soft-pulse origin port (Esc / empty miss) |
+
 ## Checks
 
 ```sh
@@ -47,6 +50,7 @@ node scripts/check-next-action-anti-slop.mjs
 node scripts/check-next-action-deoverlap.mjs
 node scripts/check-next-action-suggestion-memory.mjs
 node scripts/check-next-action-weights.mjs
+node scripts/check-next-action-aborted-wire-resume.mjs
 node scripts/check-smallnet.mjs   # catalog still empty
 ```
 
