@@ -10,6 +10,7 @@
  * only recorded the token — it never called connect() — so a wire suggestion
  * is not an action button. Menus rank add:/set:model/open:examples rows;
  * while a wire drag is active the editor may emphasize one compatible port,
+ * hovering a wire path may soft-lift its endpoint ports,
  * and dropping still goes through connect().
  *
  * ?na=0 or ?product=off (or nano.nextAction=off) disables the engine. A failed
@@ -20,6 +21,7 @@ import { chooseHints } from "./hints.mjs";
 import { createSuggestionMemory } from "./suggestion-memory.mjs";
 import { applyAntiSlop, isShallowTextLlm, rerankShallowAdds } from "./anti-slop.mjs";
 import { pickRingTarget, rankDropTypes } from "./port-suggest.mjs";
+import { planLinkHoverLift, resolveLinkEndpoints, liftClasses } from "./link-hover-endpoints.mjs";
 import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
 import { loadNextActionExport } from "./export-load.mjs";
 
@@ -154,6 +156,22 @@ export async function mount(api) {
       if (!portTables) return null;
       try { return pickRingTarget(portTables, query); }
       catch (_) { return null; }
+    },
+    // Product · 42: resolve/lift plan for a hovered wire's endpoint ports.
+    planLinkHoverLift(linkId) {
+      try {
+        const g = typeof api.getGraph === "function" ? api.getGraph() : null;
+        const links = (g && g.links) || [];
+        // Prefer live graph.links with ids when the host passed them; else null.
+        return planLinkHoverLift(portTables, links, linkId);
+      } catch (_) { return null; }
+    },
+    resolveLinkEndpoints(link) {
+      try { return resolveLinkEndpoints(link); }
+      catch (_) { return null; }
+    },
+    linkHoverLiftClasses() {
+      return liftClasses();
     },
   };
 

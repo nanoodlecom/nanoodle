@@ -721,6 +721,11 @@
   .port.compatible{ transform:scale(1.25); box-shadow:0 0 0 4px #ffffff26; animation:portpulse 1.1s ease-in-out infinite }
   .port.likely{ transform:scale(1.45); box-shadow:0 0 0 5px #67e8f9cc; animation:none }
   .port.snap{ transform:scale(1.7); box-shadow:0 0 0 5px #ffffff66, 0 0 12px #fff6; animation:none }
+  /* Product · 42 — link-hover endpoint lift: marker; visual chrome via .compatible / portpulse */
+  .port.na-link-hover-end{ /* marker — clear targets without touching unrelated .compatible */ }
+  @media (prefers-reduced-motion: reduce){
+    .port.na-link-hover-end.compatible{ animation:none !important; transform:none; box-shadow:none }
+  }
   @keyframes portpulse{ 50%{ box-shadow:0 0 0 6px #ffffff14 } }
 
   .body{ padding:.1rem .6rem .6rem; display:flex; flex-direction:column; gap:.5rem }
@@ -10576,6 +10581,7 @@ function nearestPort(x, y, ports){
 function startWire(port, e){
   if(port.classList && port.classList.contains("disabled")) return;
   e.preventDefault(); e.stopPropagation();
+  try{ clearLinkHoverEndpoints(); }catch(_){}
   closeQuickAdd();
   const dir = port.dataset.dir, ptype = port.dataset.ptype, node = port.dataset.node;
   const id = e.pointerId;                            // only this pointer drives the wire — ignore a stray second touch
@@ -16830,6 +16836,84 @@ RULES for the diff:
     }finally{ setBusy(false); dbAbort = null; }
   }
 })();
+/* Product · 42 — link-hover endpoint lift: while hovering a wire path,
+   soft-lift its from/to ports inside existing port chrome (.compatible /
+   soft pulse). Quiet under reduced-motion / engine off / mid wire-drag.
+   No tip panel / no ?product= twin. */
+function linkHoverEndpointsReducedMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(_){ return false; }
+}
+let _linkHoverActive = null;
+function clearLinkHoverEndpoints(){
+  document.querySelectorAll(".port.na-link-hover-end").forEach(p=>{
+    p.classList.remove("na-link-hover-end", "compatible");
+  });
+  _linkHoverActive = null;
+}
+function applyLinkHoverEndpoints(linkId){
+  clearLinkHoverEndpoints();
+  if(linkId == null || linkId === "") return false;
+  if(typeof tempWire!=="undefined" && tempWire) return false;   // wire-drag owns port chrome
+  if(typeof geoOn==="function" && !geoOn()) return false;
+  if(linkHoverEndpointsReducedMotion()) return false;
+  const na = window.__nextAction;
+  if(na && na.disabled) return false;
+  const links = (typeof graph!=="undefined" && graph && graph.links) || [];
+  let plan = null;
+  try{
+    if(na && typeof na.planLinkHoverLift==="function"){
+      plan = na.planLinkHoverLift(linkId);
+    }
+  }catch(_){ plan = null; }
+  if(!plan || !plan.ends || !plan.ends.length){
+    // Self-contained fallback (works before surface mount / without ·42 API)
+    const link = links.find(l=> l && String(l.id)===String(linkId));
+    if(!link || !link.from || !link.to) return false;
+    plan = {
+      ends: [
+        { nodeId: link.from.node, port: link.from.port, dir: "out" },
+        { nodeId: link.to.node, port: link.to.port, dir: "in" },
+      ],
+      mode: "both",
+    };
+  }
+  let lifted = 0;
+  for(const end of plan.ends){
+    if(!end || !end.nodeId || !end.port) continue;
+    const dir = end.dir === "in" ? "in" : "out";
+    const el = document.querySelector(`.port[data-node="${end.nodeId}"][data-port="${end.port}"][data-dir="${dir}"]`);
+    if(!el || el.classList.contains("disabled")) continue;
+    el.classList.add("compatible", "na-link-hover-end");
+    lifted++;
+  }
+  if(!lifted) return false;
+  _linkHoverActive = String(linkId);
+  return true;
+}
+(function bindLinkHoverEndpoints(){
+  const wiresEl = typeof svg!=="undefined" && svg ? svg : document.getElementById("wires");
+  if(!wiresEl || !wiresEl.addEventListener) return;
+  wiresEl.addEventListener("pointerover", e=>{
+    const hit = e.target && e.target.closest && e.target.closest("path[data-link]");
+    if(!hit) return;
+    const id = hit.dataset.link;
+    if(!id) return;
+    try{ applyLinkHoverEndpoints(id); }catch(_){}
+  });
+  wiresEl.addEventListener("pointerout", e=>{
+    const hit = e.target && e.target.closest && e.target.closest("path[data-link]");
+    if(!hit) return;
+    const to = e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest("path[data-link]");
+    if(to && to.dataset && to.dataset.link){
+      // Moving hit↔wire (same or other link) — re-apply for the destination link
+      try{ applyLinkHoverEndpoints(to.dataset.link); }catch(_){}
+      return;
+    }
+    try{ clearLinkHoverEndpoints(); }catch(_){}
+  });
+})();
+import("./vendor/next-action/link-hover-endpoints.mjs").catch(()=>{});
+
 /* Next-action scores feed existing menus (add node, wire-drop, model picker).
    Dynamic import so a tree without vendor/next-action stays quiet. No panel, no ghost.
    ?na=0 / ?product=off disables hints; until the cache is confident, lists are unchanged. */
@@ -16878,7 +16962,7 @@ RULES for the diff:
     await mod.mount({
       getGraph: () => ({
         nodes: (graph.nodes||[]).map(n => ({ id:n.id, type:n.type, x:n.x, y:n.y })),
-        links: (graph.links||[]).map(l => ({ from:l.from, to:l.to })),
+        links: (graph.links||[]).map(l => ({ id:l.id, from:l.from, to:l.to })),
         selectedId: selected?.id || null,
       }),
       nodeTypes: Object.keys(NODE_TYPES),
