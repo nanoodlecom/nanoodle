@@ -1,8 +1,9 @@
 /**
  * Headless next-action engine for the real editor.
  *
- * Loads the frequency prior and, when the smoke weights load, the learned
- * blend. Publishes a cached hint object that menu renderers read synchronously.
+ * Loads the frequency prior and, when weights load, the learned blend.
+ * The loader tries the catalog, then the smoke fixture.
+ * The shipped catalog has no models, so the fixture is what runs.
  * List rendering never waits on inference.
  *
  * There is no panel, no ghost, and no ?product= surface. The old "wire" tip
@@ -16,6 +17,11 @@
  */
 import { ACTION_VOCAB, sketchFromGraph, schema } from "./encode.mjs";
 import { chooseHints } from "./hints.mjs";
+import { createSuggestionMemory } from "./suggestion-memory.mjs";
+import { applyAntiSlop, isShallowTextLlm, rerankShallowAdds } from "./anti-slop.mjs";
+import { pickRingTarget, rankDropTypes } from "./port-suggest.mjs";
+import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
+import { loadNextActionExport } from "./export-load.mjs";
 
 const BASE = new URL(".", import.meta.url);
 
@@ -69,10 +75,14 @@ export async function mount(api) {
   let cache = null;
   let sig = "";
   let tables = null;
+  let slopPriors = null;
+  let portTables = null;
+  let recipes = null;
   let session = null;
   let recommendFrequency = null;
   let recommendNext = null;
   const known = api.nodeTypes && api.nodeTypes.length ? new Set(api.nodeTypes) : null;
+  const memory = createSuggestionMemory();
 
   function publish(next) {
     const s = next && next.confident ? JSON.stringify(next) : "";
@@ -92,17 +102,28 @@ export async function mount(api) {
     catch (_) { sketch = {}; }
     const opts = { nodeTypes: known, sketch, coldStart: history.length === 0 };
     try {
-      const frequencyRows = recommendFrequency(tables, history, sketch, ACTION_VOCAB.length);
+      let frequencyRows = memory.reweightRows(
+        recommendFrequency(tables, history, sketch, ACTION_VOCAB.length)
+      );
       let blendRows = null;
       if (session && recommendNext) {
-        blendRows = recommendNext(
+        blendRows = memory.reweightRows(recommendNext(
           { tables, session, blend: 0.35 },
           history,
           sketch,
           ACTION_VOCAB.length
-        );
+        ));
       }
-      publish(chooseHints({ frequencyRows, blendRows, ...opts }));
+      const shallow = slopPriors && isShallowTextLlm(sketch, slopPriors);
+      if (shallow) {
+        const slopOpts = { priors: slopPriors, tables, expand: true };
+        frequencyRows = applyAntiSlop(frequencyRows, history, sketch, slopOpts);
+        if (blendRows) blendRows = applyAntiSlop(blendRows, history, sketch, slopOpts);
+      }
+      let hints = chooseHints({ frequencyRows, blendRows, ...opts });
+      if (shallow) hints = rerankShallowAdds(hints, frequencyRows, sketch, slopPriors);
+      const recipe = recipes ? confidentRecipe(recipes, sketch, { nodeTypes: known }) : null;
+      publish(mergeRecipeHint(hints, recipe));
     } catch (e) {
       console.warn("[next-action] hint recompute failed", e);
       publish(null);
@@ -120,7 +141,29 @@ export async function mount(api) {
     peek() { return cache; },
     record,
     refresh: recompute,
+    noteChoice(action, shown) {
+      if (memory.noteChoice(action, shown)) recompute();
+    },
+    hasPortPriors() { return !!portTables; },
+    rankDropTypes(query) {
+      if (!portTables) return null;
+      try { return rankDropTypes(portTables, query); }
+      catch (_) { return null; }
+    },
+    pickRingTarget(query) {
+      if (!portTables) return null;
+      try { return pickRingTarget(portTables, query); }
+      catch (_) { return null; }
+    },
   };
+
+  try {
+    portTables = await loadJSON("corpus/port-suggest.json");
+    if (!portTables || !portTables.topTargets) portTables = null;
+  } catch (e) {
+    console.warn("[next-action] port priors unavailable", e);
+    portTables = null;
+  }
 
   try {
     const freqMod = await import("./frequency.mjs");
@@ -128,19 +171,26 @@ export async function mount(api) {
     recommendFrequency = freqMod.recommendFrequency;
     recommendNext = recMod.recommendNext;
     tables = await loadJSON("corpus/frequency-tables.json");
+    try { slopPriors = await loadJSON("corpus/anti-slop.json"); }
+    catch (err) {
+      console.warn("[next-action] anti-slop prior unavailable", err);
+      slopPriors = null;
+    }
+    if (!slopPriors || !Array.isArray(slopPriors.slopActions)) slopPriors = null;
+    try { recipes = await loadJSON("corpus/recipes.json"); }
+    catch (err) {
+      console.warn("[next-action] recipe corpus unavailable", err);
+      recipes = null;
+    }
+    if (!recipes || !Array.isArray(recipes.recipes)) recipes = null;
   } catch (e) {
     console.warn("[next-action] frequency prior unavailable", e);
     tables = null;
   }
 
   try {
-    const sn = await import("../smallnet/index.js");
-    const fix = await loadJSON("fixtures/smoke-weights.json");
-    const layers = fix.layers.map((L) => ({
-      W: Float32Array.from(L.W),
-      b: Float32Array.from(L.b),
-    }));
-    session = sn.createSession(fix.manifest, sn.packWeights(fix.manifest, layers));
+    const loaded = await loadNextActionExport();
+    session = loaded && loaded.session ? loaded.session : null;
   } catch (e) {
     console.warn("[next-action] learned session unavailable", e);
     session = null;

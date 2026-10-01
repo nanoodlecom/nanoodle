@@ -162,6 +162,18 @@ const GRAPHS = [
     nodes: [node("v1", "tvideo", { model: "minimax-h3", prompt: "pan", loras: LORA_STACK3.slice(0, 2) })],
     links: [],
   }, ["tvideo"], PIN_H3_VIDEO],
+  // #578 catalog sync: Singularity / reference-to-video LoRA ids contain
+  // "minimax-h3" so they stay on numbered slots. A tighter regex that only
+  // matches the bare video id falls through to flux and silently drops
+  // adapters 2-3 (same billed-wrong-payload class as qwen21 / Anima).
+  ["h3 singularity i2v 3-lora", {
+    nodes: [node("v1", "tvideo", { model: "minimax-h3-singularity/image-to-video-lora", prompt: "pan", loras: LORA_STACK3 })],
+    links: [],
+  }, ["tvideo"], PIN_NUMBERED3],
+  ["h3 reference-to-video 2-lora", {
+    nodes: [node("v1", "tvideo", { model: "minimax-h3/reference-to-video-lora", prompt: "pan", loras: LORA_STACK3.slice(0, 2) })],
+    links: [],
+  }, ["tvideo"], PIN_H3_VIDEO],
   ["anima image 4th lora dropped (cap 3)", {
     nodes: [node("i1", "image", { model: "wavespeed-ai/anima/text-to-image-lora", prompt: "a fox", variations: "1", loras: LORA_STACK4 })],
     links: [],
@@ -645,6 +657,8 @@ const total = GRAPHS.length + VETO_GRAPHS.length;
       [fns.loraFamily("anima/text-to-image") == null, "plain anima/text-to-image is not a LoRA family"],
       [fns.loraFamily("wavespeed-ai/minimax-h3/text-to-image") === "h3", "H3 image id (no 'lora' token) is h3"],
       [fns.loraFamily("minimax-h3") === "h3", "minimax-h3 video id is h3"],
+      [fns.loraFamily("minimax-h3-singularity/image-to-video-lora") === "h3", "H3 Singularity i2v-lora is h3, not flux"],
+      [fns.loraFamily("minimax-h3/reference-to-video-lora") === "h3", "H3 reference-to-video-lora is h3, not flux"],
       [fns.loraFamily("wavespeed-ai/minimax-h3/text-to-image-spicy") == null, "spicy H3 is excluded"],
       [fns.loraFamily("wavespeed-ai/qwen-image-2.1/text-to-image-lora") === "qwen21", "qwen21 t2i-lora is qwen21, not flux"],
       [fns.loraFamily("wavespeed-ai/qwen-image-2.1/edit-lora") === "qwen21", "qwen21 edit-lora is qwen21, not flux"],
@@ -654,6 +668,9 @@ const total = GRAPHS.length + VETO_GRAPHS.length;
       [fns.loraFamily("flux-lora") === "flux", "flux-lora stays flux"],
       [fns.loraCap("wavespeed-ai/anima/text-to-image-lora") === 3, "anima cap is 3"],
       [fns.loraCap("wavespeed-ai/minimax-h3/text-to-image") === 3, "h3 cap is 3"],
+      [fns.loraCap("minimax-h3-singularity/image-to-video-lora") === 3, "H3 Singularity cap is 3"],
+      [JSON.stringify(fns.loraBodyFor("minimax-h3-singularity/image-to-video-lora", items3)) === JSON.stringify(wantBody3), "H3 Singularity body is lora_url_1..3"],
+      [JSON.stringify(fns.loraBodyFor("minimax-h3/reference-to-video-lora", items3)) === JSON.stringify(wantBody3), "H3 reference-to-video body is lora_url_1..3"],
       [fns.loraCap("wavespeed-ai/qwen-image-2.1/edit-lora") === 3, "qwen21 cap is 3"],
       [fns.loraCap("flux-lora") === 1, "flux-lora cap is 1"],
       [fns.imageTakesLora("wavespeed-ai/anima/text-to-image-lora") === true, "anima *-lora shows the LoRA box"],

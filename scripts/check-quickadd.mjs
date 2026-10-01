@@ -55,6 +55,8 @@ const ctx = {
   audioRun: () => {},
   remixRun: () => {},
   mountUpload: () => {},
+  mountMupload: () => {},
+  optFlagHtml: () => "",
   mountInpaint: () => {},
   mountFileUpload: () => {},
   mountComment: () => {},
@@ -94,14 +96,14 @@ const eq = (got, want, label) => {
 const ok = (c, m) => { if (!c) failures.push(m); };
 
 // dragging FROM an output → consumers of that type
-eq(keys("out", "image"), ["edit", "endpoint", "inpaint", "ivideo", "llm", "lipsync", "resize", "vision"],
+eq(keys("out", "image"), ["edit", "endpoint", "inpaint", "ivideo", "llm", "lipsync", "model3d", "resize", "vision"],
   "image output → nodes that take an image (incl. LLM's dynamic image ports + Inpaint's image/mask + Custom endpoint)");
 eq(keys("out", "audio"), ["endpoint", "llm", "lipsync", "remix", "soundtrack", "transcribe", "trim"],
   "audio output → nodes that take audio (incl. the LLM's audio-input port + Soundtrack's audio port + Remix's source track + Custom endpoint)");
 eq(keys("out", "video"), ["combine", "endpoint", "extractaudio", "soundtrack", "vedit", "vframes"],
   "video output → nodes that take video (combine joins clips; soundtrack adds audio; vframes extracts stills; extractaudio peels the soundtrack + Custom endpoint)");
 // transcribe is excluded: its only text field is a plain <input> (language), not a wirable textarea
-eq(keys("out", "text"), ["edit", "endpoint", "image", "inpaint", "ivideo", "join", "llm", "lipsync", "music", "remix", "tts", "tvideo", "vedit", "vision"],
+eq(keys("out", "text"), ["edit", "endpoint", "image", "inpaint", "ivideo", "join", "llm", "lipsync", "model3d", "music", "remix", "tts", "tvideo", "vedit", "vision"],
   "text output → nodes with a text input OR a wirable text field");
 
 // dragging FROM an input → producers of that type
@@ -136,6 +138,7 @@ function spawnReal(typeKey, wx, wy, dir, type, originDataset, getPorts, onEnsure
     ensureModelForInput: () => { calls.ensured++; if (onEnsure) onEnsure(); },
     rememberAdd: () => {},   // wire-drop adds also feed the Add-menu "Recent" tier (localStorage, on-device)
     dismissConnectHint: () => {},   // wire-drop is a manual connect → retires the connect coach line
+    separateOnAdd: () => {},   // overlap slide is its own check; this sandbox only asserts the wire
   };
   vm.createContext(sctx);
   new vm.Script(extractFn(SRC, "quickSpawn") + ";globalThis.__qs = quickSpawn;", { filename: "index.html#quickspawn" }).runInContext(sctx);
