@@ -3,6 +3,7 @@
  * Product · 49 — run-failure rewire pulse toys.
  * Pure helpers + editor wiring pins. No tip panel, no ?product= surface.
  */
+import vm from "node:vm";
 import { readFileSync, existsSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -143,9 +144,9 @@ function toy(name, ok, detail) {
     errorMessage: "no image — wire an image into the image port",
     inputsMeta: [{ name: "image", type: "image", wired: true, empty: true }],
   };
-  // vision.image has mass 0 in corpus → flat → quiet when tables present
+  // Explicit missing-image errors remain useful even when the gallery never used this port.
   const pick = pickRunFailPort(tables, ctx);
-  toy("vision-flat-quiet", pick === null, pick ? `count=${pick.count}` : "null");
+  toy("vision-rare-port-picked", pick?.port === "image", pick ? `count=${pick.count}` : "null");
   // same with no tables → allow
   const pick2 = pickRunFailPort(null, ctx);
   toy(
@@ -172,7 +173,7 @@ function toy(name, ok, detail) {
   if (mass >= MIN_PAIR) {
     toy("lipsync-image-only-err", !!(pick && pick.port === "image"), pick ? pick.port : "null");
   } else {
-    toy("lipsync-image-flat-quiet", pick === null, pick ? `count=${pick.count}` : "null");
+    toy("lipsync-rare-image-picked", pick?.port === "image", pick ? `count=${pick.count}` : "null");
   }
 
   // Ambiguous: error mentions both somehow via generic dual missing — synthesize equal scores
@@ -296,7 +297,7 @@ function toy(name, ok, detail) {
     errorMessage: "no image — wire an image into the image port",
     inputsMeta: [{ name: "image", type: "image", wired: false, empty: true }],
   });
-  toy("below-min-pair-quiet", pick === null, pick ? `count=${pick.count}` : "null");
+  toy("explicit-error-beats-low-prior", pick?.port === "image", pick ? `count=${pick.count}` : "null");
   const okTab = { topTargets: { "z|out": { "resize|image": MIN_PAIR } } };
   const pick2 = pickRunFailPort(okTab, {
     nodeId: "r1",
@@ -351,40 +352,20 @@ function toy(name, ok, detail) {
   toy("html-scheduleRunFailPort", index.includes("scheduleRunFailPort"), "fn");
   toy("html-pick-call", /pickRunFailPort\s*\(/.test(index), "call site");
   toy(
-    "html-startWire-clears",
-    /function startWire[\s\S]{0,280}clearRunFailPort/.test(index),
-    "startWire clears"
-  );
-  toy(
     "html-catch-schedules",
     /setStatus\(n,\s*"error",\s*friendlyRunError[\s\S]{0,280}scheduleRunFailPort/.test(index),
     "catch schedules"
-  );
-  toy(
-    "html-connect-clears",
-    /connect\s*=\s*function[\s\S]{0,320}clearRunFailPort/.test(index),
-    "connect clears"
-  );
-  toy(
-    "html-select-clears",
-    /select\s*=\s*function[\s\S]{0,400}clearRunFailPort/.test(index),
-    "select clears"
   );
   toy(
     "html-run-clears",
     /runGroup\s*=\s*function[\s\S]{0,280}clearRunFailPort/.test(index),
     "new run clears"
   );
-  toy("html-ttl", /RUN_FAIL_PORT_TTL_MS\s*=\s*1[0-9]{3}/.test(index), "TTL ~1–1.5s");
+
   toy(
     "html-geoOn-gate",
     /applyRunFailPort[\s\S]{0,500}geoOn/.test(index),
     "geoOn gate"
-  );
-  toy(
-    "html-compatible-class",
-    /na-run-fail-port[\s\S]{0,200}compatible|compatible[\s\S]{0,80}na-run-fail-port/.test(index),
-    "uses .compatible"
   );
   toy(
     "surface-exports-pick",
@@ -419,6 +400,88 @@ function toy(name, ok, detail) {
   );
 }
 
+// Drive the real editor helpers and wrappers through a failed/corrected flow.
+function editorFn(name) {
+  const start = index.indexOf("function " + name + "(");
+  assert(start >= 0, "missing editor helper " + name);
+  let depth = 0;
+  for (let i = index.indexOf("{", start); i < index.length; i++) {
+    if (index[i] === "{") depth++;
+    else if (index[i] === "}" && --depth === 0) return index.slice(start, i + 1);
+  }
+  fail("unbalanced editor helper " + name);
+}
+{
+  const classes = (...initial) => {
+    const values = new Set(initial);
+    return { contains:x=>values.has(x), add:x=>values.add(x), remove:x=>values.delete(x) };
+  };
+  const port = (node,name,type,field) => ({ dataset:{node,port:name,ptype:type}, classList:classes(...(field?["fieldport"]:[]),"compatible","snap") });
+  const imagePort=port("r1","image","image"), promptPort=port("i1","prompt","text",true);
+  const resize={id:"r1",type:"resize",fields:{},el:{querySelectorAll:()=>[imagePort]}};
+  const image={id:"i1",type:"image",fields:{prompt:""},el:{querySelectorAll:()=>[promptPort]}};
+  const source={id:"up",type:"upload",fields:{image:""},out:{}};
+  const graph={nodes:[resize,image,source],links:[]};
+  let enabled=true, reduced=false, timer=0, runs=0;
+  const timers=new Map();
+  const allPorts=[imagePort,promptPort];
+  const ctx={
+    graph, tempWire:null, NODE_TYPES:{resize:{inputs:[{name:"image",type:"image"}]},image:{inputs:[],body(){}},upload:{inputs:[]}},
+    byId:id=>graph.nodes.find(n=>n.id===id), geoOn:()=>enabled, isInputKind:type=>type==="upload",
+    window:{__nextAction:{disabled:false,pickRunFailPort:q=>pickRunFailPort(tables,q),record(){},refresh(){}},matchMedia:()=>({matches:reduced})},
+    document:{
+      querySelector:sel=>allPorts.find(p=>sel.includes('data-node="'+p.dataset.node+'"') && sel.includes('data-port="'+p.dataset.port+'"')),
+      querySelectorAll:()=>allPorts.filter(p=>p.classList.contains("na-run-fail-port")),
+    },
+    setTimeout(fn){timers.set(++timer,fn);return timer;},clearTimeout(id){timers.delete(id);},
+    addNode(){},select(){},loadExample(){},runGroup(){runs++;return "ran";},
+    connect(fromNode,fromPort,toNode,toPort){graph.links.push({from:{node:fromNode,port:fromPort},to:{node:toNode,port:toPort}});return true;},
+    loadSurface:async()=>({mount:async()=>{}}),console,
+  };
+  vm.createContext(ctx);
+  vm.runInContext('var _runFailPortTimer=0, _runFailPortKey="", _runFailPortCtx=null;\n'+
+    ["runFailPortReducedMotion","buildRunFailInputsMeta","clearRunFailPort","syncRunFailPort","applyRunFailPort","scheduleRunFailPort"].map(editorFn).join("\n"),ctx);
+  const bootAt=index.indexOf("(function bootNextActionHints(){");
+  const bootEnd=index.indexOf("})();",bootAt)+5;
+  vm.runInContext(index.slice(bootAt,bootEnd).replace(/import\(["']\.\/vendor\/next-action\/editor-surface\.mjs["']\)/,"loadSurface()"),ctx);
+  const failure={nodeId:"r1",nodeType:"resize",errorMessage:"no image — wire an image into the image port"};
+  ctx.applyRunFailPort(failure);
+  toy("editor-missing-input-marked",imagePort.classList.contains("na-run-fail-port"),"actual diagnosed port");
+  toy("editor-no-expiry-timer",timers.size===0,"error state survives its short animation");
+  ctx.select(image); ctx.tempWire={}; ctx.syncRunFailPort(); ctx.tempWire=null;
+  toy("editor-selection-drag-preserve-cue",imagePort.classList.contains("na-run-fail-port"),"unrelated gestures don't hide the error");
+  ctx.connect("up","image","unrelated","image");
+  toy("editor-unrelated-wire-preserves-cue",imagePort.classList.contains("na-run-fail-port"),"only this input matters");
+  ctx.connect("up","image","r1","image");
+  toy("editor-empty-source-preserves-cue",imagePort.classList.contains("na-run-fail-port"),"a wire without content isn't a fix");
+  source.fields.image="data:image/png;base64,AA"; ctx.syncRunFailPort();
+  toy("editor-source-field-corrects-before-run",!imagePort.classList.contains("na-run-fail-port"),"live upload beats absent cached out");
+  toy("editor-unrelated-classes-preserved",imagePort.classList.contains("compatible") && imagePort.classList.contains("snap"),"owns only its error class");
+  const promptFailure={nodeId:"i1",nodeType:"image",errorMessage:"no prompt — describe the image to generate"};
+  ctx.applyRunFailPort(promptFailure);
+  toy("editor-empty-field-marked",promptPort.classList.contains("na-run-fail-port"),"empty prompt");
+  image.fields.prompt="A ceramic cup";ctx.syncRunFailPort();
+  toy("editor-typed-field-corrects-cue",!promptPort.classList.contains("na-run-fail-port"),"typing the missing input clears it");
+  image.fields.prompt=""; reduced=true;ctx.applyRunFailPort(promptFailure);
+  toy("editor-reduced-motion-keeps-cue",promptPort.classList.contains("na-run-fail-port"),"static error remains");
+  ctx.runGroup([],{});
+  toy("editor-new-run-clears-cue",!promptPort.classList.contains("na-run-fail-port") && runs===1,"new attempt resets diagnosis");
+  ctx.scheduleRunFailPort(promptFailure,40);ctx.runGroup([],{});
+  toy("editor-new-run-cancels-pending-cue",timers.size===0,"old failure can't reappear after a new attempt");
+  ctx.applyRunFailPort(promptFailure);enabled=false;ctx.syncRunFailPort();
+  toy("editor-flags-off-clear-cue",!promptPort.classList.contains("na-run-fail-port"),"disabled editor mode");
+  enabled=true;ctx.window.__nextAction.disabled=true;ctx.applyRunFailPort(promptFailure);
+  toy("editor-engine-off-quiet",!promptPort.classList.contains("na-run-fail-port"),"disabled hints");
+  ctx.window.__nextAction.disabled=false;ctx.applyRunFailPort(promptFailure);graph.nodes=graph.nodes.filter(n=>n!==image);ctx.syncRunFailPort();
+  toy("editor-deleted-node-clears-cue",!promptPort.classList.contains("na-run-fail-port"),"stale node gone");
+}
+
+{
+  const pick=pickRunFailPort(tables,{nodeId:"i1",nodeType:"image",errorMessage:"no prompt — describe the image to generate",inputsMeta:[{name:"prompt",type:"text",wired:false,empty:false,field:true}]});
+  toy("filled-unwired-field-not-missing",pick===null,"typed fields count as satisfied");
+  const css=index.match(/\.port\.na-run-fail-port\s*\{([^}]+)\}/)?.[1]||"";
+  toy("finite-attention-static-error",/animation:/.test(css) && !/infinite/.test(css) && /box-shadow:/.test(css),"brief animation settles to a visible ring");
+}
 const failed = toys.filter((t) => !t.ok);
 console.log(`\nrun-fail-port toys: ${toys.length - failed.length}/${toys.length} ok`);
 if (failed.length) {

@@ -2,9 +2,9 @@
  * Product · 49 — run-failure rewire pulse (pure helpers).
  *
  * After a node run fails for a missing / empty required input, pick ONE
- * empty input port so the editor can soft-pulse it. Reuses gallery inbound
- * mass (#621) as a confidence gate. Flat mass stays quiet when priors
- * exist; when tables are missing, callers may still pulse a clear pick.
+ * empty input port so the editor can briefly pulse it, then retain its error
+ * state. An explicit error names the fix regardless of gallery popularity;
+ * gallery inbound mass (#621) only disambiguates equally matching inputs.
  *
  * Distinct from · 22 / · 29 idle nudges, · 33 post-wire continue, · 43
  * post-add, · 44 post-delete, · 46 aborted-wire resume — trigger is run
@@ -143,7 +143,7 @@ export function scoreInputAgainstError(input, parsed, opts = {}) {
   if (requireMissing) {
     const missing = input.wired ? !!input.empty : true;
     // Wired with a non-empty value is not the problem.
-    if (input.wired && !input.empty) return 0;
+    if (input.empty === false) return 0;
     if (!missing && input.empty !== true && input.wired !== false) {
       // If caller omitted wired/empty flags, still allow name match (toy / soft path).
       if (input.wired == null && input.empty == null) {
@@ -215,7 +215,7 @@ export function collectMissingInputCandidates(ctx = {}) {
       field: !!raw.field,
     };
     // Skip clearly satisfied inputs
-    if (cand.wired && cand.empty === false) continue;
+    if (cand.empty === false) continue;
     // Unwired OR wired-but-empty
     if (!cand.wired || cand.empty) {
       const errScore = scoreInputAgainstError(cand, parsed);
@@ -245,10 +245,8 @@ export function collectMissingInputCandidates(ctx = {}) {
 /**
  * Pick ONE missing/empty input port after a run failure.
  *
- * When `tables` has priors: require inbound mass ≥ MIN_PAIR; quiet when
- * multi/tied (two near-equal errScore+mass leaders).
- * When `tables` is missing: return a clear single missing-input pick with
- * count 0 so the editor may still pulse.
+ * A clear error match wins without an inbound-popularity gate. Priors only
+ * break equally matching candidates; unresolved ambiguity stays quiet.
  *
  * @param {import("./port-suggest.mjs").PortSuggestTables|null|undefined} tables
  * @param {{
@@ -298,7 +296,7 @@ export function pickRunFailPort(tables, ctx = {}) {
   if (second && second.errScore === top.errScore) {
     if (tables?.topTargets) {
       // With priors: also quiet when mass is tied / near-tied on same errScore
-      if (!leads(top.count, second.count) || top.count === second.count) return null;
+      if (top.count < MIN_PAIR || !leads(top.count, second.count) || top.count === second.count) return null;
     } else {
       // No tables: equal error match → quiet
       return null;
@@ -308,15 +306,6 @@ export function pickRunFailPort(tables, ctx = {}) {
   if (!tables?.topTargets) {
     // Clear single pick without prior gate
     return { nodeId: top.nodeId, port: top.port, type: top.type, dir: "in", count: 0 };
-  }
-
-  // Flat inbound mass → quiet
-  if (top.count < MIN_PAIR) return null;
-
-  // Near-tied second with comparable errScore already handled; also quiet if
-  // a lower-errScore rival has almost the same mass and was a near match.
-  if (second && second.errScore >= top.errScore * 0.85 && !leads(top.count, second.count)) {
-    return null;
   }
 
   return {

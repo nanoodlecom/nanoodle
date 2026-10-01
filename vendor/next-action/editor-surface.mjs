@@ -156,7 +156,7 @@ export async function mount(api) {
       try { return pickRingTarget(portTables, query); }
       catch (_) { return null; }
     },
-    // Product · 49: after run failure for missing/empty required input, gate port pulse on inbound mass.
+    // Product · 49: actual missing-input errors lead; priors only resolve ambiguous ports.
     pickRunFailPort(ctx) {
       try {
         return pickRunFailPort(portTables, ctx || {});

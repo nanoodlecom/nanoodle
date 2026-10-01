@@ -722,11 +722,10 @@
   .port.likely{ transform:scale(1.45); box-shadow:0 0 0 5px #67e8f9cc; animation:none }
   .port.snap{ transform:scale(1.7); box-shadow:0 0 0 5px #ffffff66, 0 0 12px #fff6; animation:none }
   /* Product · 49: soft pulse on the empty input port after a missing-input run failure. */
-  .port.na-run-fail-port{ transform:scale(1.35); box-shadow:0 0 0 4px #fb7185aa, 0 0 12px #fb718566; animation:naRunFailPortPulse 1.25s ease-in-out infinite }
-  .port.na-run-fail-port.compatible{ box-shadow:0 0 0 4px #fb7185cc, 0 0 14px #fb718588 }
-  @keyframes naRunFailPortPulse{ 50%{ box-shadow:0 0 0 7px #fb718544, 0 0 18px #fb718555; transform:scale(1.5) } }
+  .port.na-run-fail-port{ transform:scale(1.15); box-shadow:0 0 0 3px #fb718599; animation:naRunFailPortPulse .85s ease-in-out 2 }
+  @keyframes naRunFailPortPulse{ 50%{ box-shadow:0 0 0 5px #fb718544; transform:scale(1.3) } }
   @media (prefers-reduced-motion: reduce){
-    .port.na-run-fail-port{ animation:none !important; box-shadow:none; transform:none }
+    .port.na-run-fail-port{ animation:none !important }
   }
   @keyframes portpulse{ 50%{ box-shadow:0 0 0 6px #ffffff14 } }
 
@@ -10383,6 +10382,7 @@ function refreshPortFills(){
     }
   }
   refreshPromptCaps();   // wiring a prompt is exactly when "a longer wired prompt is trimmed to fit" has to appear
+  try{ syncRunFailPort(); }catch(_){}
 }
 
 /* ---- prompt-cap chrome -------------------------------------------------
@@ -10584,7 +10584,6 @@ function startWire(port, e){
   if(port.classList && port.classList.contains("disabled")) return;
   e.preventDefault(); e.stopPropagation();
   closeQuickAdd();
-  try{ clearRunFailPort(); }catch(_){}
   const dir = port.dataset.dir, ptype = port.dataset.ptype, node = port.dataset.node;
   const id = e.pointerId;                            // only this pointer drives the wire — ignore a stray second touch
   const sx = e.clientX, sy = e.clientY;             // where the drag began — used to tell a click from a drag
@@ -11941,7 +11940,7 @@ async function runGroup(seedIds, ctx){
               // el so "brush the area" shows next to a canvas that can finally be brushed.
               if(n.type==="inpaint" && !n.fields.image && !n.el?.querySelector("[data-maskwrap] img") && inpaintWiredSource(n)) rerenderNode(n);
               setStatus(n, "error", friendlyRunError(err, n)); failed.add(id);   // real failure → poison dependents (no stale-input charge)
-              // Product · 49: soft-pulse the missing/empty required input port (not Abort/Stop).
+              // Product · 49: keep the diagnosed missing-input port visible until corrected (not Abort/Stop).
               try{ scheduleRunFailPort({ nodeId: n.id, nodeType: n.type, errorMessage: err?.message || String(err) }, 40); }catch(_){}
             }
           }
@@ -14643,6 +14642,7 @@ function stripInjectedMedia(n){
     delete n.fields.sample;
 }
 function applyGraphData(d, opts){
+  try{ clearRunFailPort(); }catch(_){}
   // Carry generated results + seed-skip signatures across SAME-WORKFLOW rebuilds (undo/redo,
   // version-jump, describe-apply). serializeGraph() never persists n.out/n._sig, so without this
   // those ops would wipe every paid result and force a full re-run. Keyed by id AND type — same
@@ -14701,6 +14701,7 @@ const RESUME_APPTITLE_KEY = "noodle_resume_apptitle";  // and its name, for the 
 const EDITOR_APP_KEY = "noodle_editor_app";  // localStorage: {id,title} of the app THIS workflow is bound to, so the binding survives a plain reload (not just OAuth)
 let saveT=null;
 function save(){
+  try{ syncRunFailPort(); }catch(_){}
   refreshRunEstimate();                 // keep the bottom-right run cost live as the graph is edited
   refreshPromptCaps();                  // …and the prompt-room notes: model swaps, typing and wiring all land here
   if(refreshAppButton()) layoutBar();   // flip ✨ Open↔Update live: an edit that diverges from (or re-matches) the bound app's saved graph — only re-measure the bar when the label text actually changed
@@ -16845,13 +16846,12 @@ RULES for the diff:
    ?na=0 / ?product=off disables hints; until the cache is confident, lists are unchanged. */
 
 /* Product · 49 — run-failure rewire: soft-pulse the empty required input
-   port after a missing-input run failure. Quiet when none/multi/flat/
-   reduced-motion/engine off. Clears on next drag / connect / select /
-   new run / short TTL. No tip panel. */
+   port after a missing-input run failure. Brief attention, then a static
+   error ring until that input is corrected or a new run starts. Reduced
+   motion retains the ring. No explanation panel or shared drag classes. */
 let _runFailPortTimer = 0;
-let _runFailPortTtl = 0;
 let _runFailPortKey = "";
-const RUN_FAIL_PORT_TTL_MS = 1500;
+let _runFailPortCtx = null;
 function runFailPortReducedMotion(){
   try{ return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(_){ return false; }
 }
@@ -16867,15 +16867,24 @@ function buildRunFailInputsMeta(n){
     let empty = true;
     if(wired){
       const l = (graph.links||[]).find(x=> x.to.node===n.id && x.to.port===name);
-      const v = l ? byId(l.from.node)?.out?.[l.from.port] : null;
-      empty = v==null || v==="" || (Array.isArray(v) && !v.length);
+      const src = l ? byId(l.from.node) : null;
+      let v = src?.out?.[l.from.port];
+      // Source inputs are corrected before Run: read their current field, not
+      // an absent/stale cached output. Generated nodes still require a result.
+      if(src && isInputKind(src.type)){
+        if(src.type==="choice"){
+          const opts = String(src.fields.options||"").split("\n").map(x=>x.trim()).filter(Boolean);
+          v = opts.includes(src.fields.selected) ? src.fields.selected : opts[0];
+        }else v = src.type==="mupload" ? (src._glbBlob || src.fields.model) : src.fields[l.from.port];
+      }
+      empty = v==null || (typeof v==="string" && !v.trim()) || (Array.isArray(v) && !v.length);
     }else if(field && n.fields){
       const fv = n.fields[name];
       empty = fv==null || String(fv).trim()==="";
     }
     meta.push({ name, type: type||"", wired, empty, field: !!field });
   };
-  for(const p of (t.inputs||[])) push(p.name, p.type, false);
+  for(const p of (t.inputs||[])) push(p.name, p.type, !!p.field || !!(n.fields && p.name in n.fields));
   // Dynamic image / video / audio / ref / endframe ports present in the DOM
   if(n.el){
     n.el.querySelectorAll('.port[data-dir="in"]').forEach(el=>{
@@ -16889,36 +16898,24 @@ function buildRunFailInputsMeta(n){
 }
 function clearRunFailPort(){
   if(_runFailPortTimer){ clearTimeout(_runFailPortTimer); _runFailPortTimer = 0; }
-  if(_runFailPortTtl){ clearTimeout(_runFailPortTtl); _runFailPortTtl = 0; }
-  document.querySelectorAll(".port.na-run-fail-port").forEach(p=>{
-    p.classList.remove("na-run-fail-port");
-    if(p.dataset.naRunFailCompatible){
-      p.classList.remove("compatible");
-      delete p.dataset.naRunFailCompatible;
-    }
-  });
+  document.querySelectorAll(".port.na-run-fail-port").forEach(p=> p.classList.remove("na-run-fail-port"));
   _runFailPortKey = "";
+  _runFailPortCtx = null;
+}
+function syncRunFailPort(){
+  if(_runFailPortCtx) applyRunFailPort(_runFailPortCtx);
 }
 function applyRunFailPort(ctx){
-  if(runFailPortReducedMotion()){ clearRunFailPort(); return; }
   if(typeof geoOn==="function" && !geoOn()){ clearRunFailPort(); return; }
-  if(typeof tempWire!=="undefined" && tempWire) return;
   const na = window.__nextAction;
-  if(!na || na.disabled){ clearRunFailPort(); return; }
-  if(!ctx || !ctx.nodeId){ clearRunFailPort(); return; }
-  const n = typeof byId==="function" ? byId(ctx.nodeId) : null;
-  const nodeType = ctx.nodeType || n?.type || "";
-  const inputsMeta = ctx.inputsMeta || (n ? buildRunFailInputsMeta(n) : []);
-  const graphSnapshot = ctx.graphSnapshot || {
-    nodes: (graph.nodes||[]).map(x=>({ id:x.id, type:x.type })),
-    links: (graph.links||[]).map(l=>({ from:l.from, to:l.to })),
-  };
+  if(!na || na.disabled || !ctx || !ctx.nodeId){ clearRunFailPort(); return; }
+  const n = byId(ctx.nodeId);
+  if(!n || (ctx.nodeType && ctx.nodeType!==n.type)){ clearRunFailPort(); return; }
   const args = {
-    nodeId: ctx.nodeId,
-    nodeType,
+    nodeId: n.id,
+    nodeType: n.type,
     errorMessage: ctx.errorMessage || "",
-    inputsMeta,
-    graphSnapshot,
+    inputsMeta: buildRunFailInputsMeta(n),
   };
   let pick = null;
   if(typeof na.pickRunFailPort==="function"){
@@ -16928,23 +16925,13 @@ function applyRunFailPort(ctx){
   const el = document.querySelector(`.port[data-node="${pick.nodeId}"][data-port="${pick.port}"][data-dir="in"]`);
   if(!el || el.classList.contains("disabled")){ clearRunFailPort(); return; }
   const key = pick.nodeId + "|" + pick.port + "|in";
-  if(key !== _runFailPortKey){
+  if(key!==_runFailPortKey){
     clearRunFailPort();
-    el.classList.add("na-run-fail-port");
-    if(!el.classList.contains("compatible")){
-      el.classList.add("compatible");
-      el.dataset.naRunFailCompatible = "1";
-    }
     _runFailPortKey = key;
-  }else if(!el.classList.contains("na-run-fail-port")){
-    el.classList.add("na-run-fail-port");
-    if(!el.classList.contains("compatible")){
-      el.classList.add("compatible");
-      el.dataset.naRunFailCompatible = "1";
-    }
   }
-  if(_runFailPortTtl) clearTimeout(_runFailPortTtl);
-  _runFailPortTtl = setTimeout(()=>{ _runFailPortTtl = 0; clearRunFailPort(); }, RUN_FAIL_PORT_TTL_MS);
+  _runFailPortCtx = { nodeId:n.id, nodeType:n.type, errorMessage:args.errorMessage };
+  // An unchanged port keeps its finite animation; a rebuilt port gets the ring.
+  if(!el.classList.contains("na-run-fail-port")) el.classList.add("na-run-fail-port");
 }
 function scheduleRunFailPort(ctx, ms){
   if(_runFailPortTimer) clearTimeout(_runFailPortTimer);
@@ -16965,19 +16952,19 @@ function scheduleRunFailPort(ctx, ms){
   connect = function(fromNode, fromPort, toNode, toPort){
     const ok = _connect(fromNode, fromPort, toNode, toPort);
     if(ok) try { window.__nextAction?.record?.("wire"); } catch(_){}
-    if(ok) try { clearRunFailPort(); } catch(_){}
+    if(ok) try { syncRunFailPort(); } catch(_){}
     return ok;
   };
   const _select = select;
   select = function(n){
     _select(n);
     try { window.__nextAction?.refresh?.(); } catch(_){}
-    try { clearRunFailPort(); } catch(_){}
   };
   const _loadExample = loadExample;
   loadExample = function(i){
     const r = _loadExample(i);
     try { window.__nextAction?.refresh?.(); } catch(_){}
+    try { clearRunFailPort(); } catch(_){}
     return r;
   };
   if (typeof runGroup === "function") {
