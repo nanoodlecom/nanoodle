@@ -22,6 +22,12 @@ import { applyAntiSlop, isShallowTextLlm, rerankShallowAdds } from "./anti-slop.
 import { pickRingTarget, rankDropTypes } from "./port-suggest.mjs";
 import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
 import { loadNextActionExport } from "./export-load.mjs";
+import {
+  buildModalityFollowOns,
+  createSettledRunState,
+  rankSettledRunNextAdd as rankSettledRunNextAddPure,
+  inferSettledOutputType,
+} from "./settled-run-next-add.mjs";
 
 const BASE = new URL(".", import.meta.url);
 
@@ -53,6 +59,10 @@ function disabledApi() {
     peek() { return null; },
     record() {},
     refresh() {},
+    noteSettledRun() { return null; },
+    clearSettledRun() {},
+    rankSettledRunNextAdd() { return []; },
+    settledRunPeek() { return null; },
   };
 }
 
@@ -83,6 +93,10 @@ export async function mount(api) {
   let recommendNext = null;
   const known = api.nodeTypes && api.nodeTypes.length ? new Set(api.nodeTypes) : null;
   const memory = createSuggestionMemory();
+  // Product · 45: last settled successful run → recipe follow-on Suggested boost.
+  const settledRun = createSettledRunState();
+  /** @type {Record<string, Record<string, number>>|null} */
+  let modalityFollowOns = null;
 
   function publish(next) {
     const s = next && next.confident ? JSON.stringify(next) : "";
@@ -155,6 +169,43 @@ export async function mount(api) {
       try { return pickRingTarget(portTables, query); }
       catch (_) { return null; }
     },
+    // Product · 45: after a successful settled run, soft-boost recipe follow-ons.
+    noteSettledRun(note) {
+      try {
+        const typed = (note && typeof note === "object" && !note.type && !note.outputType && !note.modality)
+          ? { ...note, type: inferSettledOutputType(note) }
+          : note;
+        const out = settledRun.note(typed);
+        try { api.onHints && api.onHints(); } catch (_) {}
+        return out;
+      } catch (_) { return null; }
+    },
+    clearSettledRun() {
+      try { settledRun.clear(); } catch (_) {}
+      try { api.onHints && api.onHints(); } catch (_) {}
+    },
+    settledRunPeek() {
+      try { return settledRun.get(); } catch (_) { return null; }
+    },
+    rankSettledRunNextAdd(opts = {}) {
+      try {
+        if (settledRun.expired(opts.now, opts.ttlMs)) return [];
+        return rankSettledRunNextAddPure(settledRun.get(), modalityFollowOns, {
+          memory,
+          nodeTypes: known,
+          disabled: false,
+          prefersReducedMotion: !!opts.prefersReducedMotion,
+          priorAdds: opts.priorAdds || [],
+          quietIfStrongPrior: opts.quietIfStrongPrior !== false,
+          now: opts.now,
+          ttlMs: opts.ttlMs,
+          max: opts.max,
+          minShare: opts.minShare,
+          minLead: opts.minLead,
+        });
+      } catch (_) { return []; }
+    },
+    hasModalityFollowOns() { return !!modalityFollowOns; },
   };
 
   try {
@@ -183,6 +234,10 @@ export async function mount(api) {
       recipes = null;
     }
     if (!recipes || !Array.isArray(recipes.recipes)) recipes = null;
+    try {
+      modalityFollowOns = recipes ? buildModalityFollowOns(recipes) : null;
+      if (modalityFollowOns && !Object.keys(modalityFollowOns).length) modalityFollowOns = null;
+    } catch (_) { modalityFollowOns = null; }
   } catch (e) {
     console.warn("[next-action] frequency prior unavailable", e);
     tables = null;

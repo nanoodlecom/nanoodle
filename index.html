@@ -14314,11 +14314,59 @@ function shownAdds(root){
 }
 function addHintMap(){
   const h = nextActionHints();
-  if(!h || !h.adds || !h.adds.length) return null;
-  const order = [], byType = {};
-  for(const a of h.adds){
-    if(!a || !NODE_TYPES[a.type] || byType[a.type]) continue;
+  const prior = [];
+  if(h && h.adds && h.adds.length){
+    for(const a of h.adds){
+      if(!a || !NODE_TYPES[a.type]) continue;
+      prior.push(a);
+    }
+  }
+  // Product · 45: after a successful settled run, soft-boost recipe follow-ons
+  // for that output type into Suggested when strong sources are quiet.
+  let settledHits = [];
+  try{
+    const na = window.__nextAction;
+    const reduce = !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
+    if(na && !na.disabled && typeof na.rankSettledRunNextAdd === "function" && !reduce){
+      const hits = na.rankSettledRunNextAdd({ priorAdds: prior, prefersReducedMotion: reduce });
+      if(Array.isArray(hits) && hits.length){
+        settledHits = hits.map(x => ({
+          type: x.type,
+          action: x.action || ("add:"+x.type),
+          reason: x.reason || "follows last output",
+          source: x.source || "settled-run",
+          share: x.share,
+        }));
+      }
+    }
+  }catch(_){}
+  const STRONG = new Set(["first-trio","recipe","post-first","learned","cold-start","first-node","empty-followup","add-search-popular","selected-output-consumer","selected-input-producer"]);
+  // Quiet entirely when a strong source already owns Suggested.
+  if(prior.some(a => a && STRONG.has(a.source))){
+    const order = [], byType = {};
+    for(const a of prior){
+      if(!a || !a.type || !NODE_TYPES[a.type] || byType[a.type]) continue;
+      byType[a.type] = a; order.push(a.type);
+      if(order.length >= 3) break;
+    }
+    return order.length ? { order, byType } : null;
+  }
+  const byType = {}, order = [];
+  const push = (a)=>{
+    if(!a || !a.type || !NODE_TYPES[a.type] || byType[a.type]) return;
     byType[a.type] = a; order.push(a.type);
+  };
+  for(const a of prior) push(a);
+  for(const x of settledHits){
+    const existing = byType[x.type];
+    if(existing && STRONG.has(existing.source)) continue;
+    if(existing && existing.source && existing.source !== "settled-run") continue;
+    if(existing){ byType[x.type] = x; continue; }
+    push(x);
+  }
+  if(order.length > 3){
+    order.length = 3;
+    for(const k of Object.keys(byType)){ if(!order.includes(k)) delete byType[k]; }
   }
   return order.length ? { order, byType } : null;
 }
@@ -16838,6 +16886,8 @@ RULES for the diff:
   addNode = function(type, x, y, fields){
     const n = _addNode(type, x, y, fields);
     try { window.__nextAction?.record?.("add:" + type); } catch(_){}
+    // Product · 45: consuming an add clears the settled-run boost (TTL / next action).
+    try { window.__nextAction?.clearSettledRun?.(); } catch(_){}
     return n;
   };
   const _connect = connect;
@@ -16855,13 +16905,43 @@ RULES for the diff:
   loadExample = function(i){
     const r = _loadExample(i);
     try { window.__nextAction?.refresh?.(); } catch(_){}
+    try { window.__nextAction?.clearSettledRun?.(); } catch(_){}
     return r;
   };
   if (typeof runGroup === "function") {
     const _runGroup = runGroup;
     runGroup = function(seedIds, ctx){
       try { window.__nextAction?.record?.("run"); } catch(_){}
-      return _runGroup.apply(this, arguments);
+      // New run clears prior settled-run boost until this one settles.
+      try { window.__nextAction?.clearSettledRun?.(); } catch(_){}
+      const ret = _runGroup.apply(this, arguments);
+      // Product · 45: on successful settle, note primary output type for Suggested boost.
+      Promise.resolve(ret).finally(()=>{
+        try{
+          const na = window.__nextAction;
+          if(!na || na.disabled || typeof na.noteSettledRun !== "function") return;
+          const seeds = Array.isArray(seedIds) ? seedIds.map(String) : [];
+          const nodes = (graph.nodes||[]).map(n => ({
+            id: n.id,
+            type: n.type,
+            status: n.el && n.el.dataset ? n.el.dataset.status : (n._status || ""),
+            ok: !!(n.el && n.el.dataset && (n.el.dataset.status==="ok" || n.el.dataset.status==="done")),
+          }));
+          // Prefer seeds that finished ok; also accept any ok node (demo / sample settle).
+          let type = "";
+          for(const id of seeds){
+            const n = nodes.find(x => String(x.id)===String(id));
+            if(n && n.ok && n.type && n.type!=="comment") type = n.type;
+          }
+          if(!type){
+            for(const n of nodes){
+              if(n.ok && n.type && n.type!=="comment") type = n.type;
+            }
+          }
+          if(type) na.noteSettledRun({ type, ok: true });
+        }catch(_){}
+      });
+      return ret;
     };
   }
   function paintOpenLists(){

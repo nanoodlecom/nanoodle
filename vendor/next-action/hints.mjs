@@ -15,7 +15,8 @@ const EMPTY = Object.freeze({
   openExamples: null,
 });
 
-function reasonForAdd(coldStart, sketch) {
+function reasonForAdd(coldStart, sketch, source) {
+  if (source === "settled-run") return "follows last output";
   if (coldStart || !sketch || !sketch.numNodes) return "common first node";
   return "often added next";
 }
