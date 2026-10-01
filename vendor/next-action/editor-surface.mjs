@@ -21,6 +21,7 @@ import { createSuggestionMemory } from "./suggestion-memory.mjs";
 import { applyAntiSlop, isShallowTextLlm, rerankShallowAdds } from "./anti-slop.mjs";
 import { pickRingTarget, rankDropTypes } from "./port-suggest.mjs";
 import { pickDblclickDanglingAddWire } from "./dblclick-dangling-add-wire.mjs";
+import { pickDropAutoWire } from "./drop-on-node-auto-wire.mjs";
 import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
 import { loadNextActionExport } from "./export-load.mjs";
 
@@ -155,6 +156,20 @@ export async function mount(api) {
       if (!portTables) return null;
       try { return pickRingTarget(portTables, query); }
       catch (_) { return null; }
+    },
+    pickDropAutoWire(query) {
+      if (!portTables) return null;
+      try {
+        const g = (api.getGraph && api.getGraph()) || {};
+        const graph = {
+          nodes: (query && query.nodes) || g.nodes || [],
+          links: (query && query.links) || g.links || [],
+        };
+        return pickDropAutoWire(portTables, graph, {
+          draggedId: query && query.draggedId,
+          targetId: query && query.targetId,
+        });
+      } catch (_) { return null; }
     },
     pickDblclickDanglingAddWire(query) {
       if (!portTables) return null;
