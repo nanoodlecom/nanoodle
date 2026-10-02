@@ -779,6 +779,14 @@
   @media (prefers-reduced-motion: reduce){
     .port.na-run-fail-port, .port.na-run-fail-port.compatible{ animation:none !important; transition:none; transform:none }
   }
+  /* Product · 51: after confident recipe match, soft-pulse recipe-expected
+     dangling port when naive gallery mass points elsewhere. */
+  .port.na-recipe-mismatch-port{ transform:scale(1.3); box-shadow:0 0 0 4px #22d3eeaa, 0 0 12px #22d3ee66; animation:naRecipeMismatchPort 1.2s ease-in-out infinite }
+  .port.na-recipe-mismatch-port.compatible{ box-shadow:0 0 0 4px #22d3eeaa, 0 0 12px #22d3ee66; opacity:1 }
+  @keyframes naRecipeMismatchPort{ 50%{ box-shadow:0 0 0 7px #22d3ee44, 0 0 16px #22d3ee55; transform:scale(1.45) } }
+  @media (prefers-reduced-motion: reduce){
+    .port.na-recipe-mismatch-port, .port.na-recipe-mismatch-port.compatible{ animation:none !important; transition:none; transform:none; box-shadow:0 0 0 3px #22d3ee88 }
+  }
 
   .body{ padding:.1rem .6rem .6rem; display:flex; flex-direction:column; gap:.5rem }
   .body label{ font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); display:block; margin-bottom:.2rem; font-weight:700 }
@@ -10804,6 +10812,7 @@ function nearestPort(x, y, ports){
 }
 function startWire(port, e){
   try{ clearDualSelectBridge(); }catch(_){}
+  try{ clearRecipeMismatchPort(); }catch(_){}
   if(port.classList && port.classList.contains("disabled")) return;
   e.preventDefault(); e.stopPropagation();
   closeQuickAdd();
@@ -17652,12 +17661,71 @@ function acceptDualSelectBridge(){
   }catch(_){ return false; }
 }
 
+
+/* Product · 51 — recipe-mismatch port pulse: after a confident gallery
+   recipe match, if the naive high-mass dangling out ≠ the recipe-expected
+   frontier out, soft-pulse the recipe-expected port so the continue/rewire
+   is obvious. No tip panel / no ?product= twin. */
+let _recipeMismatchTimer = 0;
+let _recipeMismatchKey = "";
+function recipeMismatchReducedMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(_){ return false; }
+}
+function clearRecipeMismatchPort(){
+  if(_recipeMismatchTimer){ clearTimeout(_recipeMismatchTimer); _recipeMismatchTimer = 0; }
+  document.querySelectorAll(".port.na-recipe-mismatch-port").forEach(p=>{
+    p.classList.remove("na-recipe-mismatch-port","compatible");
+  });
+  _recipeMismatchKey = "";
+}
+function applyRecipeMismatchPort(){
+  if(recipeMismatchReducedMotion()){ clearRecipeMismatchPort(); return; }
+  if(typeof geoOn==="function" && !geoOn()){ clearRecipeMismatchPort(); return; }
+  if(typeof tempWire!=="undefined" && tempWire){ clearRecipeMismatchPort(); return; }
+  const na = window.__nextAction;
+  if(!na || na.disabled || !(na.hasPortPriors && na.hasPortPriors()) || !(na.hasRecipes && na.hasRecipes()) || typeof na.pickRecipeMismatchPort!=="function"){
+    clearRecipeMismatchPort();
+    return;
+  }
+  let pick = null;
+  try{
+    pick = na.pickRecipeMismatchPort({
+      nodes: (graph.nodes||[]).map(n => ({ id:n.id, type:n.type })),
+      links: (graph.links||[]).map(l => ({ from:l.from, to:l.to })),
+    });
+  }catch(_){ pick = null; }
+  if(!pick){ clearRecipeMismatchPort(); return; }
+  const el = document.querySelector(`.port[data-node="${pick.nodeId}"][data-port="${pick.port}"][data-dir="out"]`);
+  if(!el || el.classList.contains("disabled")){ clearRecipeMismatchPort(); return; }
+  const key = pick.nodeId + "|" + pick.port + "|out";
+  if(key !== _recipeMismatchKey){
+    document.querySelectorAll(".port.na-recipe-mismatch-port").forEach(p=>{
+      p.classList.remove("na-recipe-mismatch-port","compatible");
+    });
+    el.classList.add("na-recipe-mismatch-port","compatible");
+    _recipeMismatchKey = key;
+  }else if(!el.classList.contains("na-recipe-mismatch-port")){
+    el.classList.add("na-recipe-mismatch-port","compatible");
+  }
+}
+function scheduleRecipeMismatchPort(ms){
+  if(_recipeMismatchTimer) clearTimeout(_recipeMismatchTimer);
+  _recipeMismatchTimer = setTimeout(()=>{
+    _recipeMismatchTimer = 0;
+    applyRecipeMismatchPort();
+    // Brief TTL — clear after pulse window so it doesn't linger like · 22 idle.
+    _recipeMismatchTimer = setTimeout(()=>{ _recipeMismatchTimer = 0; clearRecipeMismatchPort(); }, 2600);
+  }, ms == null ? 100 : ms);
+}
+
 (function bootNextActionHints(){
   const _addNode = addNode;
   addNode = function(type, x, y, fields){
     const n = _addNode(type, x, y, fields);
     try { window.__nextAction?.record?.("add:" + type); } catch(_){}
+    try { clearRecipeMismatchPort(); } catch(_){}
     try { clearDualSelectBridge(); scheduleDualSelectBridge(120); } catch(_){}
+    try { scheduleRecipeMismatchPort(140); } catch(_){}
     return n;
   };
   const _connect = connect;
@@ -17665,21 +17733,26 @@ function acceptDualSelectBridge(){
     const ok = _connect(fromNode, fromPort, toNode, toPort);
     if(ok) try { window.__nextAction?.record?.("wire"); } catch(_){}
     if(ok) try { syncRunFailPort(); } catch(_){}
+    if(ok) try { clearRecipeMismatchPort(); } catch(_){}
     if(ok) try { clearDualSelectBridge(); scheduleDualSelectBridge(120); } catch(_){}
+    if(ok) try { scheduleRecipeMismatchPort(140); } catch(_){}
     return ok;
   };
   const _select = select;
   select = function(n){
     _select(n);
     try { window.__nextAction?.refresh?.(); } catch(_){}
+    try { clearRecipeMismatchPort(); } catch(_){}
     // Single-select clears multiSel — bridge needs exactly 2
     try { clearDualSelectBridge(); scheduleDualSelectBridge(80); } catch(_){}
+    try { scheduleRecipeMismatchPort(120); } catch(_){}
   };
   const _loadExample = loadExample;
   loadExample = function(i){
     const r = _loadExample(i);
     try { window.__nextAction?.refresh?.(); } catch(_){}
     try { clearRunFailPort(); } catch(_){}
+    try { clearRecipeMismatchPort(); } catch(_){}
     try { clearDualSelectBridge(); } catch(_){}
     return r;
   };

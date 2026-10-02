@@ -21,6 +21,7 @@ import { createSuggestionMemory } from "./suggestion-memory.mjs";
 import { applyAntiSlop, isShallowTextLlm, rerankShallowAdds } from "./anti-slop.mjs";
 import { pickRingTarget, rankDropTypes } from "./port-suggest.mjs";
 import { pickRunFailPort } from "./run-fail-port.mjs";
+import { pickRecipeMismatchPort } from "./recipe-mismatch-port.mjs";
 import { rankRingTargets } from "./port-highlight.mjs";
 import { rankQuickaddAfterAbort as rankQuickaddAfterAbortPure } from "./quickadd-after-abort.mjs";
 import { pickDropAutoWire } from "./drop-on-node-auto-wire.mjs";
@@ -173,6 +174,22 @@ export async function mount(api) {
     pickRunFailPort(ctx) {
       try {
         return pickRunFailPort(portTables, ctx || {});
+      } catch (_) { return null; }
+    },
+    hasRecipes() { return !!(recipes && Array.isArray(recipes.recipes) && recipes.recipes.length); },
+    // Product · 51: confident recipe + naive dangling disagree → pulse recipe-expected port.
+    pickRecipeMismatchPort(query) {
+      if (!portTables || !recipes) return null;
+      try {
+        const g = (api.getGraph && api.getGraph()) || {};
+        const graph = {
+          nodes: (query && query.nodes) || g.nodes || [],
+          links: (query && query.links) || g.links || [],
+        };
+        return pickRecipeMismatchPort(portTables, recipes, graph, {
+          nodeTypes: known,
+          sketch: query && query.sketch,
+        });
       } catch (_) { return null; }
     },
     rankRingTargets(query) {
