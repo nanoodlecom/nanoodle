@@ -186,7 +186,10 @@ assert(!tables.weightsUrl, "port corpus must not carry a weightsUrl");
   assert(surface.includes("rankDropTypes") && surface.includes("pickRingTarget"), "engine exposes port ranking");
   assert(surface.includes("corpus/port-suggest.json"), "engine loads the baked prior");
   assert(!surface.includes("weightsUrl"), "port path must not register a weightsUrl");
-  assert(index.includes("na.pickRingTarget"), "wire drag asks the prior which port to ring");
+  assert(
+    index.includes("na.rankRingTargets") || index.includes("na.pickRingTarget"),
+    "wire drag asks the prior which port to ring"
+  );
   assert(index.includes("na.rankDropTypes"), "wire-drop menu asks the prior to rank types");
   assert(index.includes('classList.add("likely")'), "a confident port still gets the existing ring");
   assert(index.includes("connect("), "wires are still created through connect()");

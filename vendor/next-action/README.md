@@ -9,17 +9,31 @@
 | · 6 | `cold-start.mjs`, `firstNode` / `firstTrio` in `corpus/frequency-tables.json` (library + checks; no chips on the canvas) |
 | · 1 | `scripts/train-next-action.py`, `fixtures/smoke-weights.json`, `scripts/check-next-action.mjs`, `hints.mjs` |
 | port | `port-suggest.mjs`, `corpus/port-suggest.json` — wire-drop rank + drag ring only |
+| · 21 | `port-highlight.mjs` — graduated likely/fit/dim rings on target ports while dragging |
 | recipe | `recipe.mjs`, `corpus/recipes.json` — confident gallery completions re-rank Suggested rows |
 | slop | `anti-slop.mjs`, `corpus/anti-slop.json` — soft re-rank away from a shallow Text→LLM loop |
 | layout | `deoverlap.mjs`, `auto-tidy.mjs`, `collision-nudge.mjs` — slide an overlapping add apart |
+| bridge | `dual-select-bridge.mjs` — Product · 37 selectable wire preview; hover/focus reveals connect, click/Enter/Space accepts |
+| · 39 | `drop-on-node-auto-wire.mjs` — Product · 39 drop-on-node auto-wire |
 | memory | `suggestion-memory.mjs` — local accept/ignore reweight of suggested adds |
 | · 36 | `move-align-snap.mjs` — single-node drag H/V align guides + soft snap |
+| · 20 | `first-node.mjs` — empty-canvas firstNode rank + firstTrio follow-ups in add menus; stable first seat |
+| · 48 | `quickadd-after-abort.mjs` — after abort opens `#quickadd`, origin-fit Suggested re-rank |
+| · 40 | `dblclick-dangling-add-wire.mjs`, `scripts/check-next-action-dblclick-dangling-add-wire.mjs` — double-click dangling port → top gallery add+wire at free seat |
 | weights | `export-load.mjs`, `scripts/export-smallnet-weights.py` — catalog first, fixture fallback |
+| · 49 | `run-fail-port.mjs` — after a missing-input run failure, briefly pulse that port then keep a static error ring until corrected or retried |
+| · 22 | `dangling-nudge.mjs` — after idle, pulse one confident dangling output that still has a live partner |
+| · 24 | `model-suggest.mjs`, `corpus/model-suggest.json` — gallery-common models first in the picker; a flat prior leaves today’s order unmarked |
+| · 26 | `add-search-popular.mjs` — a confident add-search match lifts a gallery-popular type; an empty or ambiguous query does not |
+| · 27 | `selected-output-consumer.mjs` — a selected free output ranks fitting consumer types first in Add; a flat prior leaves the list alone |
+| · 33 | `continue-port.mjs` — right after a wire, pulse one leftover port on those two nodes when a live partner remains |
+| · 34 | `multi-tidy-suggest.mjs` — pulse Tidy only when Arrange would move or unstick the selected cards |
+| · 38 | `recent-type-recency.mjs` — when stronger Suggested sources are quiet, one clear recent add lifts with “you just used this” |
 
 Learned `.bin` weights stay **gitignored**; tests load inline float fixtures.
 Product · 36 draws faint move-align guides via `move-align-snap.mjs` during single-node drag (no tip panel).
 The editor reads scores from `editor-surface.mjs` and shows them inside existing
-menus (add-node, wire-drop quick-add, model picker). There is no floating
+menus (add-node, wire-drop quick-add, model picker). Product · 48 re-ranks abort→`#quickadd` Suggested rows via `quickadd-after-abort.mjs`. There is no floating
 next-action panel and no ghost node. `?product=` does not mount one.
 `?na=0` or `?product=off` disables hints; a failed load does the same, and
 menus stay unchanged. Catalog stays empty — no `weightsUrl` until a deliberate release.
@@ -44,12 +58,25 @@ node scripts/check-next-action-ring.mjs
 node scripts/check-next-action-cold-start.mjs
 node scripts/check-next-action.mjs
 node scripts/check-next-action-port-suggest.mjs
+node scripts/check-next-action-port-highlight.mjs
+node scripts/check-next-action-dual-select-bridge.mjs
+node scripts/check-next-action-drop-on-node-auto-wire.mjs
 node scripts/check-next-action-recipe.mjs
 node scripts/check-next-action-anti-slop.mjs
 node scripts/check-next-action-deoverlap.mjs
 node scripts/check-next-action-move-align-snap.mjs
 node scripts/check-next-action-suggestion-memory.mjs
+node scripts/check-next-action-quickadd-after-abort.mjs
 node scripts/check-next-action-weights.mjs
+node scripts/check-next-action-first-node.mjs
+node scripts/check-next-action-run-fail-port.mjs
+node scripts/check-next-action-dangling-nudge.mjs
+node scripts/check-next-action-model-suggest.mjs
+node scripts/check-next-action-add-search-popular.mjs
+node scripts/check-next-action-selected-output-consumer.mjs
+node scripts/check-next-action-continue-port.mjs
+node scripts/check-next-action-multi-tidy.mjs
+node scripts/check-next-action-recent-type-recency.mjs
 node scripts/check-smallnet.mjs   # catalog still empty
 ```
 
