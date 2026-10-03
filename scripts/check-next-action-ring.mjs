@@ -105,6 +105,19 @@ assert(RING_CAPACITY >= 32 && RING_CAPACITY <= 64, `capacity in 32–64, got ${R
   assert(ring.size() === 0, "disabled after clear still skips");
 }
 
+// Corrupt / private-mode storage must not throw and must start empty.
+{
+  const store = mockStorage();
+  store.setItem(ENABLED_KEY, "1");
+  store.setItem(STORAGE_KEY, "{not-json");
+  let ring;
+  try { ring = createRing({ storage: store, capacity: 8 }); }
+  catch (e) { fail("corrupt ring JSON must not throw: " + e); }
+  assert(ring.isEnabled(), "enabled flag still read");
+  assert(ring.size() === 0, "corrupt entries ignored");
+  assert(ring.record("add:text") === true, "record after corrupt hydrate");
+}
+
 console.log(
   `✓ next-action-ring: capacity=${RING_CAPACITY} V=${ACTION_VOCAB.length} schema=${schema.schemaVersion}`
 );
