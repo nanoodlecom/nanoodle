@@ -8,7 +8,7 @@
  * and runs them in node:vm. No browser, no network, no inference.
  *
  * Invariants:
- *   1. markLikelyPort is quiet without a wire hint / targets / anchor.
+ *   1. The wire-hint fallback (no gallery priors) is quiet without a wire hint / targets / anchor.
  *   2. On one node, prompt ranks above the model-id override.
  *   3. The selected node wins over a newer other node.
  *   4. A target that wouldCycle is skipped; the next preferred port is used.
@@ -16,6 +16,10 @@
  *   6. liftPinnedModel moves the pinned id to the front and no-ops otherwise.
  *   7. addHintMap drops unknown types and de-dupes.
  *   8. renderAddList does not repeat a Suggested type in Recent / Start here / groups.
+ *
+ * On current main, markLikelyPort delegates to applyPortHighlight. With no
+ * port priors that function still runs the wire-hint fallback and marks the
+ * chosen port "likely".
  */
 import { readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
@@ -66,11 +70,15 @@ function extractFunction(src, name) {
 const failures = [];
 const ok = (c, m) => { if (!c) failures.push(m); };
 
-let markLikelyPortFn, portLikelyRankFn, wouldCycleFn;
+let markLikelyPortFn, applyPortHighlightFn, portWouldCycleFn, portLikelyRankFn, wouldCycleFn;
 let modelHintIdFn, liftPinnedModelFn, nextActionHintsFn;
-let addHintMapFn, nodeRowFn, renderAddListFn, addMatchRankFn;
+let addHintMapFn, nodeRowFn, renderAddListFn, addMatchRankFn, add3dTieFn;
+let consumerTypeMapFn, selectedConsumerConfidentFn, recentTypeMapFn;
+let stampRecipeSourceFn, addPriorRowsFn, selectedGraphFn, addSearchTypeMetaFn;
 try {
   markLikelyPortFn = extractFunction(SRC, "markLikelyPort");
+  applyPortHighlightFn = extractFunction(SRC, "applyPortHighlight");
+  portWouldCycleFn = extractFunction(SRC, "portWouldCycle");
   portLikelyRankFn = extractFunction(SRC, "portLikelyRank");
   wouldCycleFn = extractFunction(SRC, "wouldCycle");
   modelHintIdFn = extractFunction(SRC, "modelHintId");
@@ -80,22 +88,38 @@ try {
   nodeRowFn = extractFunction(SRC, "nodeRow");
   renderAddListFn = extractFunction(SRC, "renderAddList");
   addMatchRankFn = extractFunction(SRC, "addMatchRank");
+  add3dTieFn = extractFunction(SRC, "add3dTie");
+  consumerTypeMapFn = extractFunction(SRC, "consumerTypeMap");
+  selectedConsumerConfidentFn = extractFunction(SRC, "selectedConsumerConfident");
+  recentTypeMapFn = extractFunction(SRC, "recentTypeMap");
+  stampRecipeSourceFn = extractFunction(SRC, "stampRecipeSource");
+  addPriorRowsFn = extractFunction(SRC, "addPriorRows");
+  selectedGraphFn = extractFunction(SRC, "selectedGraph");
+  addSearchTypeMetaFn = extractFunction(SRC, "addSearchTypeMeta");
 } catch (e) {
   process.stderr.write("✗ check-next-action-menus could not extract: " + e.message + "\n");
   process.exit(1);
 }
 
 function portEl(node, name, { disabled = false, dir = "in" } = {}) {
+  const classes = new Set(disabled ? ["disabled"] : []);
   return {
     dataset: { node, port: name, dir, ptype: "text" },
-    classList: { contains: (c) => !!(disabled && c === "disabled") },
+    classList: {
+      contains: (c) => classes.has(c),
+      add: (...cs) => { for (const c of cs) classes.add(c); },
+      remove: (...cs) => { for (const c of cs) classes.delete(c); },
+    },
+    getAttribute: () => null,
   };
 }
 
 function likely(opts) {
   const ctx = {
-    // No loaded gallery priors: exercise the shipped wire-hint fallback.
+    // No loaded gallery priors: exercise the shipped wire-hint fallback
+    // inside applyPortHighlight (markLikelyPort delegates to it).
     window: { __nextAction: null },
+    t: (s) => s,
     selected: opts.selectedId ? { id: opts.selectedId } : null,
     graph: {
       nodes: (opts.nodeIds || []).map((id) => ({ id })),
@@ -105,7 +129,14 @@ function likely(opts) {
   };
   vm.createContext(ctx);
   new vm.Script(
-    wouldCycleFn + "\n" + portLikelyRankFn + "\n" + markLikelyPortFn + "\n;globalThis.__fn = markLikelyPort;",
+    [
+      wouldCycleFn,
+      portLikelyRankFn,
+      portWouldCycleFn,
+      applyPortHighlightFn,
+      markLikelyPortFn,
+      "globalThis.__fn = markLikelyPort;",
+    ].join("\n"),
     { filename: "index.html#markLikelyPort" }
   ).runInContext(ctx);
   return ctx.__fn(opts.targets, opts.anchor);
@@ -131,7 +162,7 @@ ok(likely({ hints: WIRE, targets: [portEl("a", "prompt")], anchor: null }) === n
     targets: [model, extra, prompt],
     anchor: srcOut,
   });
-  ok(hit === prompt, "prompt ranks above model-id (and other text sockets) on the same node");
+  ok(hit === prompt && prompt.classList.contains("likely"), "prompt ranks above model-id (and other text sockets) on the same node and is marked likely");
   const onlyModel = likely({
     hints: WIRE,
     nodeIds: ["src", "img"],
@@ -250,6 +281,10 @@ function pickerHarness(opts) {
     ADD_STARTERS: ["text", "llm", "image"],
     addRecent: [],
     LANG: "en",
+    window: {},
+    graph: { nodes: [], links: [] },
+    selected: null,
+    multiSel: null,
     esc: (s) => String(s ?? ""),
     t: (s) => s,
     translateTree: () => {},
@@ -266,8 +301,21 @@ function pickerHarness(opts) {
   };
   vm.createContext(ctx);
   new vm.Script(
-    addHintMapFn + "\n" + nodeRowFn + "\n" + addMatchRankFn + "\n" + renderAddListFn +
-      "\n;globalThis.__map = addHintMap; globalThis.__render = renderAddList;",
+    [
+      addHintMapFn,
+      stampRecipeSourceFn,
+      addPriorRowsFn,
+      selectedGraphFn,
+      addSearchTypeMetaFn,
+      consumerTypeMapFn,
+      selectedConsumerConfidentFn,
+      recentTypeMapFn,
+      nodeRowFn,
+      addMatchRankFn,
+      add3dTieFn,
+      renderAddListFn,
+      "globalThis.__map = addHintMap; globalThis.__render = renderAddList;",
+    ].join("\n"),
     { filename: "index.html#addHintMap" }
   ).runInContext(ctx);
   const map = ctx.__map();

@@ -197,7 +197,10 @@ function hintsFor(history, sketch) {
     assert(!index.includes(needle), `index.html still has ${needle}`);
   }
   assert(index.includes('classList.add("likely")'), "wire drag can mark one compatible port");
-  assert(index.includes('classList.remove("compatible","snap","likely")'), "likely mark is cleared with the drag");
+  assert(
+    index.includes('classList.remove("compatible","snap","likely","fit","dim")'),
+    "likely mark is cleared with the drag, including fit and dim"
+  );
   assert(index.includes("!picker || !picker.nodeType"), "model picker pin requires the node that opened it");
   assert(
     index.includes("map.order.filter(k => cands.some(([ck]) => ck===k))"),

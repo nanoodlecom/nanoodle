@@ -129,12 +129,14 @@ const imgConsumers = keys("out", "image");
 // getPorts() is called on every querySelectorAll, so a stubbed ensureModelForInput can mutate
 // the returned set (mirroring how upgrading the model enables a previously-disabled socket).
 function spawnReal(typeKey, wx, wy, dir, type, originDataset, getPorts, onEnsure) {
-  const calls = { added: null, connected: null, ensured: 0 };
+  const calls = { added: null, connected: null, ensured: 0, snapshots: 0 };
   const fakeNew = { id: "new1", el: { querySelectorAll: () => getPorts() } };
   const sctx = {
-    addNode: (tk, x, y) => { calls.added = { tk, x, y }; return fakeNew; },
+    undoMuted: false,
+    pushUndo: () => { if (!sctx.undoMuted) calls.snapshots++; },
+    addNode: (tk, x, y) => { sctx.pushUndo(); calls.added = { tk, x, y }; return fakeNew; },
     select: () => {}, redraw: () => {},
-    connect: (fn, fp, tn, tp) => { calls.connected = { fn, fp, tn, tp }; },
+    connect: (fn, fp, tn, tp) => { sctx.pushUndo(); calls.connected = { fn, fp, tn, tp }; },
     ensureModelForInput: () => { calls.ensured++; if (onEnsure) onEnsure(); },
     rememberAdd: () => {},   // wire-drop adds also feed the Add-menu "Recent" tier (localStorage, on-device)
     dismissConnectHint: () => {},   // wire-drop is a manual connect → retires the connect coach line
@@ -153,6 +155,7 @@ const outCase = spawnReal("llm", 500, 300, "out", "text",
   { node: "src", port: "text", dir: "out", ptype: "text" },
   fixed([freePort("new1", "system"), freePort("new1", "prompt")]));
 ok(outCase.added && outCase.added.tk === "llm", "spawn(out): should addNode('llm')");
+ok(outCase.snapshots === 1 && outCase.ctx.undoMuted === false, "spawn(out): creation and wire are one undoable choice");
 ok(outCase.added && outCase.added.x === 508, "spawn(out): downstream node placed to the right of the drop (wx+8)");
 ok(outCase.connected && outCase.connected.fn === "src" && outCase.connected.fp === "text",
   "spawn(out): origin output must be the link SOURCE");
