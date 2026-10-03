@@ -159,6 +159,12 @@
   #selmenu.open{ display:flex }
   #selmenu button{ text-align:left; border:none; background:none; display:block; width:100%; padding:.5rem .65rem; border-radius:.45rem }
   #selmenu button:hover{ background:var(--panel2) }
+  /* Product · 34 — pulse the existing Tidy control only when Arrange would move or unstick. */
+  #seltidy.na-multi-tidy-suggest{ background:#5eead422; box-shadow:inset 0 0 0 1px #5eead488; animation:naMultiTidyPulse 1.4s ease-in-out infinite }
+  @keyframes naMultiTidyPulse{ 50%{ background:#5eead444 } }
+  @media (prefers-reduced-motion: reduce){
+    #seltidy.na-multi-tidy-suggest{ animation:none }
+  }
   /* ---------- language selector ---------- */
   #langmenu{ position:relative }
   #langbtn{ display:flex; align-items:center; gap:.25rem; background:none; border:1px solid transparent;
@@ -778,6 +784,18 @@
   @keyframes naRunFailPortPulse{ 50%{ box-shadow:0 0 0 5px #fb718544; transform:scale(1.3) } }
   @media (prefers-reduced-motion: reduce){
     .port.na-run-fail-port, .port.na-run-fail-port.compatible{ animation:none !important; transition:none; transform:none }
+  }
+  /* Product · 22 — idle nudge on one dangling output that still has a place to land. */
+  .port.na-dangling-nudge{ transform:scale(1.28); box-shadow:0 0 0 3px #fbbf24aa, 0 0 10px #fbbf2466; animation:naDanglePulse 1.35s ease-in-out infinite }
+  @keyframes naDanglePulse{ 50%{ box-shadow:0 0 0 6px #fbbf2444, 0 0 14px #fbbf2455; transform:scale(1.42) } }
+  @media (prefers-reduced-motion: reduce){
+    .port.na-dangling-nudge{ animation:none !important; box-shadow:none; transform:none }
+  }
+  /* Product · 33 — one leftover port on the two nodes a wire just joined. */
+  .port.na-continue-port{ transform:scale(1.28); box-shadow:0 0 0 3px #2dd4bfaa, 0 0 10px #2dd4bf66; animation:naContinuePulse 1.25s ease-in-out 4 }
+  @keyframes naContinuePulse{ 50%{ box-shadow:0 0 0 6px #2dd4bf44, 0 0 14px #2dd4bf55; transform:scale(1.42) } }
+  @media (prefers-reduced-motion: reduce){
+    .port.na-continue-port{ animation:none !important; box-shadow:none; transform:none }
   }
 
   .body{ padding:.1rem .6rem .6rem; display:flex; flex-direction:column; gap:.5rem }
@@ -7829,8 +7847,24 @@ function liftPinnedModel(list, id){
 function renderPicker(){
   if(!picker) return;
   const matches = rankPickerMatches(pickerMatches());
-  const pin = modelHintId();
-  const shown = pin ? liftPinnedModel(matches, pin) : matches;
+  const qNorm = normalizePickerQuery(($("mpicksearch").value || ""));
+  let shown = matches;
+  let galleryTagged = null;
+  if(!qNorm && pickerSort==="newest"){
+    try{
+      const na = window.__nextAction;
+      if(na && !na.disabled && typeof na.rankModelSuggestions==="function" && typeof na.liftChangedModels==="function"){
+        const hits = na.rankModelSuggestions(picker.nodeType || "", matches.map(m=>m.id), { kind: picker.kind || "" });
+        const lift = hits && hits.length ? na.liftChangedModels(matches, hits) : null;
+        if(lift && lift.list && lift.tagged && lift.tagged.length){
+          shown = lift.list;
+          galleryTagged = new Set(lift.tagged);
+        }
+      }
+    }catch(_){}
+  }
+  const pin = galleryTagged ? "" : modelHintId();
+  if(!galleryTagged) shown = pin ? liftPinnedModel(matches, pin) : matches;
   $("mpickcount").textContent = `${matches.length} ${matches.length===1?t("model"):t("models")} · ${t(PICK_SORTS[pickerSort])}`;
   const nsfwtog = $("mpicknsfwtog");
   if(nsfwtog && (picker.kind==="image" || picker.kind==="video")) nsfwtog.checked = !!nsfwOnly;
@@ -7856,14 +7890,15 @@ function renderPicker(){
   for(const m of shown.slice(0,400)){
     const b = document.createElement("button");
     if(m.id===picker.current) b.classList.add("sel");
-    const sug = !!(pin && m.id===pin);
+    const sug = galleryTagged ? galleryTagged.has(m.id) : !!(pin && m.id===pin);
     if(sug) b.classList.add("suggested");
     const tags = `${m.vision?'<span class="tag">vision</span>':''}${m.edit?'<span class="tag edit">edit</span>':''}`
       + `${m.t2v?'<span class="tag">t2v</span>':''}${m.i2v?'<span class="tag edit">i2v</span>':''}`
       + `${m.v2v?'<span class="tag edit">v2v</span>':''}${m.avatar?'<span class="tag">avatar</span>':''}`
       + `${m.tts?'<span class="tag">tts</span>':''}${m.music?'<span class="tag edit">music</span>':''}${m.stt?'<span class="tag">stt</span>':''}`
       + `${m.nsfw?`<span class="tag nsfw">${nsfwOnly?"nsfw":"NSFW"}</span>`:''}`;
-    b.innerHTML = `<span class="mname">${esc(m.id)} ${tags}</span>${sug?`<span class="sug" title="pick a model next">suggested</span>`:""}<span class="price">${esc(m.price)}</span>`;
+    const sugTitle = galleryTagged ? "common in gallery" : "pick a model next";
+    b.innerHTML = `<span class="mname">${esc(m.id)} ${tags}</span>${sug?`<span class="sug" title="${sugTitle}">suggested</span>`:""}<span class="price">${esc(m.price)}</span>`;
     b.onclick = ()=>{ picker.onPick(m.id); closePicker(); };
     frag.appendChild(b);
   }
@@ -10804,6 +10839,7 @@ function nearestPort(x, y, ports){
 }
 function startWire(port, e){
   try{ clearDualSelectBridge(); }catch(_){}
+  try{ clearContinuePort(); }catch(_){}
   if(port.classList && port.classList.contains("disabled")) return;
   e.preventDefault(); e.stopPropagation();
   closeQuickAdd();
@@ -14464,6 +14500,7 @@ function geoSetMulti(ids){
     multiSel.clear();
     select(ids && ids.length ? byId(ids[0]) : null);
     try{ clearDualSelectBridge(); }catch(_){}
+    try{ refreshMultiTidySuggest(); }catch(_){}
     return;
   }
   multiSel.clear();
@@ -14479,6 +14516,7 @@ function geoSetMulti(ids){
   selected = first;
   updateDelBtn();
   try{ scheduleDualSelectBridge(60); }catch(_){}
+  try{ refreshMultiTidySuggest(); }catch(_){}
 }
 function geoToggleMulti(n){
   if(!n) return;
@@ -14490,12 +14528,14 @@ function geoToggleMulti(n){
     multiSel.clear();
     select(only);
     try{ clearDualSelectBridge(); }catch(_){}
+    try{ refreshMultiTidySuggest(); }catch(_){}
     return;
   }
   for(const x of graph.nodes) if(x.el) x.el.classList.toggle("sel", multiSel.has(x.id));
   selected = n;
   updateDelBtn();
   try{ scheduleDualSelectBridge(60); }catch(_){}
+  try{ refreshMultiTidySuggest(); }catch(_){}
 }
 function geoMarquee(e){
   e.preventDefault();
@@ -14531,7 +14571,7 @@ function geoMarquee(e){
   window.addEventListener("pointerup", up);
   window.addEventListener("pointercancel", up);
 }
-$("seltidy").onclick = ()=> { $("selmenu").classList.remove("open"); geoTidySelection(); };
+$("seltidy").onclick = ()=> { $("selmenu").classList.remove("open"); geoTidySelection(); try{ refreshMultiTidySuggest(); }catch(_){} };
 document.addEventListener("contextmenu", (e)=>{
   if(!geoOn()) return;
   const menu = $("selmenu");
@@ -14545,6 +14585,7 @@ document.addEventListener("contextmenu", (e)=>{
   const r = menu.getBoundingClientRect();
   if(r.right > innerWidth - 8) menu.style.left = Math.max(8, innerWidth - r.width - 8) + "px";
   if(r.bottom > innerHeight - 8) menu.style.top = Math.max(8, innerHeight - r.height - 8) + "px";
+  try{ refreshMultiTidySuggest(); }catch(_){}
 });
 document.addEventListener("pointerdown", (e)=>{
   const menu = $("selmenu");
@@ -14588,6 +14629,98 @@ function addHintMap(){
   }
   return order.length ? { order, byType } : null;
 }
+function addSearchTypeMeta(){
+  const meta = {};
+  for(const [k,t] of Object.entries(NODE_TYPES)){
+    if(!t) continue;
+    let title = t.title || "";
+    if(typeof LANG!=="undefined" && LANG!=="en" && typeof i18nLookup==="function"){
+      const tt = i18nLookup(t.title);
+      if(tt) title = tt;
+    }
+    meta[k] = { title, id:k };
+  }
+  return meta;
+}
+function addPriorRows(base){
+  const prior = [];
+  if(!base) return prior;
+  for(const k of base.order){
+    const a = base.byType[k];
+    if(a) prior.push({ type:a.type, action:a.action, reason:a.reason, source:a.source, share:a.share });
+  }
+  return prior;
+}
+function stampRecipeSource(prior){
+  const h = nextActionHints();
+  if(h && h.recipe && prior[0]){
+    const src = prior[0].source;
+    if(!src || src === "frequency" || src === "blend" || src === "net") prior[0] = { ...prior[0], source: "recipe" };
+  }
+  return prior;
+}
+function selectedGraph(priorAdds){
+  return {
+    nodes: (graph.nodes||[]).map(n => ({ id:n.id, type:n.type })),
+    links: (graph.links||[]).map(l => ({ from:l.from, to:l.to })),
+    selectedId: (typeof selected!=="undefined" && selected && selected.id) ? selected.id : null,
+    selectedIds: (typeof multiSel!=="undefined" && multiSel && multiSel.size) ? [...multiSel] : [],
+    priorAdds: priorAdds || [],
+  };
+}
+// Product · 27 — empty Add list only. One selected node with a free output
+// ranks fitting consumers first. A flat prior, a tie, or an unchanged order
+// leaves the list exactly as it is. Quick-add does not use this.
+function consumerTypeMap(base){
+  try{
+    const na = window.__nextAction;
+    if(!na || na.disabled || typeof na.rankSelectedOutputConsumers !== "function" || typeof na.applyConsumerLift !== "function") return base;
+    const prior = stampRecipeSource(addPriorRows(base));
+    const hits = na.rankSelectedOutputConsumers(selectedGraph(prior));
+    const applied = na.applyConsumerLift(prior, hits);
+    if(!applied || !applied.changed || !applied.adds || !applied.adds.length) return base;
+    const order = [], byType = {};
+    const tagged = new Set(applied.tagged || []);
+    for(const a of applied.adds){
+      if(!a || !a.type || !NODE_TYPES[a.type] || byType[a.type]) continue;
+      byType[a.type] = tagged.has(a.type) ? a : ((base && base.byType[a.type]) || a);
+      order.push(a.type);
+    }
+    return order.length ? { order, byType } : base;
+  }catch(_){ return base; }
+}
+// A confident selected-output rank is the stronger Suggested source, so recency
+// stays quiet even when that consumer was already first and took no new tag.
+function selectedConsumerConfident(base){
+  try{
+    const na = window.__nextAction;
+    if(!na || na.disabled || typeof na.rankSelectedOutputConsumers !== "function") return false;
+    const prior = stampRecipeSource(addPriorRows(base));
+    const hits = na.rankSelectedOutputConsumers(selectedGraph(prior));
+    return !!(hits && hits.length);
+  }catch(_){ return false; }
+}
+// Product · 38 — empty Add list only. A clear recent add lifts into Suggested
+// when recipe / first-node / first-trio / a confident selected consumer are quiet.
+function recentTypeMap(base){
+  try{
+    const na = window.__nextAction;
+    if(!na || na.disabled || typeof na.rankRecentTypeRecency !== "function" || typeof na.applyRecentTypeLift !== "function") return base;
+    const prior = stampRecipeSource(addPriorRows(base));
+    const hits = na.rankRecentTypeRecency({ priorAdds: prior });
+    const applied = na.applyRecentTypeLift(prior, hits);
+    if(!applied || !applied.changed || !applied.adds || !applied.adds.length) return base;
+    const order = [], byType = {};
+    const tagged = new Set(applied.tagged || []);
+    for(const a of applied.adds){
+      if(!a || !a.type || !NODE_TYPES[a.type] || byType[a.type]) continue;
+      const row = tagged.has(a.type) ? a : (base && base.byType[a.type]) || a;
+      byType[a.type] = row;
+      order.push(a.type);
+    }
+    return order.length ? { order, byType } : base;
+  }catch(_){ return base; }
+}
 function nodeRow(k,t,sug){
   if(!sug) return `<button data-type="${k}"><span class="k">${t.em}</span><span><div>${esc(t.title)}</div><div class="d">${esc(t.desc)}</div></span></button>`;
   const why = sug.reason ? ` title="${esc(sug.reason)}"` : "";
@@ -14620,10 +14753,16 @@ function add3dTie(k, q){
 }
 function renderAddList(q){
   const list = $("addlist"), hint = $("addpop").querySelector(".addhint");
-  const map = addHintMap();
+  let map = addHintMap();
   let html = "";
   if(!q){
     hint.hidden = true;
+    const consumed = consumerTypeMap(map);
+    if(consumed) map = consumed;
+    if(!selectedConsumerConfident(map)){
+      const lifted = recentTypeMap(map);
+      if(lifted) map = lifted;
+    }
     const skip = map ? new Set(map.order) : null;
     if(map) html += `<div class="grp">Suggested</div>` + map.order.map(k=>nodeRow(k, NODE_TYPES[k], map.byType[k])).join("");
     const recent = addRecent.filter(k=>NODE_TYPES[k] && !(skip && skip.has(k)));
@@ -14643,11 +14782,23 @@ function renderAddList(q){
     }
   } else {
     hint.hidden = false;
-    const hits = Object.entries(NODE_TYPES)
+    let hits = Object.entries(NODE_TYPES)
       .map(([k,t])=>[k,t,addMatchRank(t,q)])
       .filter(([,,r])=>r>=0)
       .sort((a,b)=>a[2]-b[2] || add3dTie(a[0], q)-add3dTie(b[0], q) || (map ? ((map.byType[a[0]]?0:1)-(map.byType[b[0]]?0:1)) : 0));
-    html = hits.length ? hits.map(([k,t])=>nodeRow(k,t,map&&map.byType[k])).join("")
+    let lift = null;
+    try{
+      const na = window.__nextAction;
+      if(na && !na.disabled && typeof na.pickSearchLift==="function"){
+        lift = na.pickSearchLift(q, addSearchTypeMeta(), hits.map(h=>h[0]));
+      }
+    }catch(_){ lift = null; }
+    if(lift && lift.type && hits.length && hits[0][0] !== lift.type){
+      const i = hits.findIndex(h => h[0] === lift.type);
+      if(i > 0){ const [row] = hits.splice(i, 1); hits.unshift(row); }
+      else lift = null;
+    }else lift = null;
+    html = hits.length ? hits.map(([k,t])=>nodeRow(k,t,(lift && lift.type===k) ? lift : (map&&map.byType[k]))).join("")
                        : `<div class="nomatch">${esc(t("no nodes match “{q}”")).replace("{q}", ()=>esc(q))}</div>`;
   }
   list.innerHTML = html;
@@ -14687,6 +14838,31 @@ let spawnN = 0;
 let planDeoverlap = null;
 let deoverlapFrame = 0;
 import("./vendor/next-action/deoverlap.mjs").then((m) => { planDeoverlap = m.planDeoverlap; }).catch(() => {});
+// Product · 34 — pulse #seltidy only when Arrange would move or unstick the selection.
+let suggestMultiTidyFn = null;
+import("./vendor/next-action/multi-tidy-suggest.mjs").then((m) => { suggestMultiTidyFn = m.suggestMultiTidy; try{ refreshMultiTidySuggest(); }catch(_){} }).catch(() => {});
+document.addEventListener("pointerup", ()=>{ try{ if(typeof multiSel!=="undefined" && multiSel && multiSel.size>=2) refreshMultiTidySuggest(); }catch(_){} }, true);
+function refreshMultiTidySuggest(){
+  const btn = $("seltidy");
+  if(btn) btn.classList.remove("na-multi-tidy-suggest");
+  if(typeof geoOn==="function" && !geoOn()) return;
+  if(typeof multiSel==="undefined" || !multiSel || multiSel.size < 2 || !suggestMultiTidyFn) return;
+  let reduce = false;
+  try{ reduce = matchMedia("(prefers-reduced-motion: reduce)").matches; }catch(_){}
+  if(reduce) return;
+  const measured = geoMeasure(graph.nodes);
+  const sel = [], obstacles = [];
+  for(const b of measured){
+    if(!multiSel.has(b.id)){ obstacles.push(b); continue; }
+    const oy = geoUpstreamY(b.id);
+    sel.push({ id:b.id, x:b.x, y:b.y, w:b.w, h:b.h, orderY: oy == null ? b.y : oy });
+  }
+  if(sel.length < 2) return;
+  let verdict = null;
+  try{ verdict = suggestMultiTidyFn({ selected: sel, links: graph.links||[], obstacles }); }catch(_){ return; }
+  if(!verdict || !verdict.suggest) return;
+  if(btn) btn.classList.add("na-multi-tidy-suggest");
+}
 // Product · 20 — stable first-node seat on an empty canvas (no cascade jitter).
 let firstNodeSeatFn = null;
 import("./vendor/next-action/first-node.mjs").then((m) => { firstNodeSeatFn = m.firstNodeSeat; }).catch(() => {});
@@ -17652,12 +17828,128 @@ function acceptDualSelectBridge(){
   }catch(_){ return false; }
 }
 
+/* Product · 22 — after idle, pulse one high-prior dangling output that still has a
+   live partner on another node. Flat, tied, single-node, and drag stay quiet.
+   While a post-wire continue pulse is showing, this stays quiet so only one
+   port is the next click. No tip panel and no extra wire. */
+let _danglingNudgeTimer = 0;
+let _danglingNudgeKey = "";
+const DANGLING_NUDGE_IDLE_MS = 1700;
+function danglingNudgeReducedMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(_){ return false; }
+}
+function clearDanglingNudge(){
+  if(_danglingNudgeTimer){ clearTimeout(_danglingNudgeTimer); _danglingNudgeTimer = 0; }
+  document.querySelectorAll(".port.na-dangling-nudge").forEach(p=> p.classList.remove("na-dangling-nudge"));
+  _danglingNudgeKey = "";
+}
+function applyDanglingNudge(){
+  _danglingNudgeTimer = 0;
+  if(document.querySelector(".port.na-continue-port")){
+    document.querySelectorAll(".port.na-dangling-nudge").forEach(p=> p.classList.remove("na-dangling-nudge"));
+    _danglingNudgeKey = "";
+    _danglingNudgeTimer = setTimeout(applyDanglingNudge, 400);
+    return;
+  }
+  if(danglingNudgeReducedMotion() || (typeof geoOn==="function" && !geoOn())){ clearDanglingNudge(); return; }
+  if(typeof tempWire!=="undefined" && tempWire){ clearDanglingNudge(); return; }
+  if(typeof multiSel!=="undefined" && multiSel && multiSel.size>1){ clearDanglingNudge(); return; }
+  if(document.querySelector(".port.na-run-fail-port")){ clearDanglingNudge(); return; }
+  const na = window.__nextAction;
+  if(!na || na.disabled || !(na.hasPortPriors && na.hasPortPriors()) || typeof na.pickDanglingNudge!=="function"){
+    clearDanglingNudge();
+    return;
+  }
+  let pick = null;
+  try{
+    pick = na.pickDanglingNudge({
+      nodes: (graph.nodes||[]).map(n => ({ id:n.id, type:n.type })),
+      links: (graph.links||[]).map(l => ({ from:l.from, to:l.to })),
+      selectedId: (typeof selected!=="undefined" && selected && selected.id) ? selected.id : null,
+      selectedIds: (typeof multiSel!=="undefined" && multiSel && multiSel.size) ? [...multiSel] : [],
+      dragging: !!(typeof tempWire!=="undefined" && tempWire),
+    });
+  }catch(_){ pick = null; }
+  if(!pick || pick.dir==="in"){ clearDanglingNudge(); return; }
+  const el = document.querySelector(`.port[data-node="${pick.nodeId}"][data-port="${pick.port}"][data-dir="out"]`);
+  if(!el || el.classList.contains("disabled") || el.classList.contains("filled")){ clearDanglingNudge(); return; }
+  const key = pick.nodeId + "|" + pick.port + "|out";
+  if(key !== _danglingNudgeKey){
+    document.querySelectorAll(".port.na-dangling-nudge").forEach(p=> p.classList.remove("na-dangling-nudge"));
+    _danglingNudgeKey = key;
+  }
+  if(!el.classList.contains("na-dangling-nudge")) el.classList.add("na-dangling-nudge");
+}
+function armDanglingNudge(){
+  if(_danglingNudgeTimer) clearTimeout(_danglingNudgeTimer);
+  document.querySelectorAll(".port.na-dangling-nudge").forEach(p=> p.classList.remove("na-dangling-nudge"));
+  _danglingNudgeKey = "";
+  _danglingNudgeTimer = setTimeout(applyDanglingNudge, DANGLING_NUDGE_IDLE_MS);
+}
+document.addEventListener("pointerdown", ()=>{ try{ armDanglingNudge(); }catch(_){} }, true);
+
+/* Product · 33 — right after a wire lands, pulse one leftover port on those
+   two nodes when another node can still take it. A tie or a finished pair
+   stays unmarked. No tip panel. ?na=0 / ?product=off leaves ports alone. */
+let _continuePortTimer = 0;
+let _continuePortTtl = 0;
+let _continuePortKey = "";
+const CONTINUE_PORT_TTL_MS = 4200;
+function continuePortReducedMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(_){ return false; }
+}
+function clearContinuePort(){
+  if(_continuePortTimer){ clearTimeout(_continuePortTimer); _continuePortTimer = 0; }
+  if(_continuePortTtl){ clearTimeout(_continuePortTtl); _continuePortTtl = 0; }
+  document.querySelectorAll(".port.na-continue-port").forEach(p=> p.classList.remove("na-continue-port"));
+  _continuePortKey = "";
+}
+function applyContinuePort(fromNodeId, toNodeId){
+  if(continuePortReducedMotion() || (typeof geoOn==="function" && !geoOn())){ clearContinuePort(); return; }
+  if(typeof tempWire!=="undefined" && tempWire){ clearContinuePort(); return; }
+  if(typeof multiSel!=="undefined" && multiSel && multiSel.size>1){ clearContinuePort(); return; }
+  const na = window.__nextAction;
+  if(!na || na.disabled || !(na.hasPortPriors && na.hasPortPriors()) || typeof na.pickContinuePort!=="function"){
+    clearContinuePort();
+    return;
+  }
+  let pick = null;
+  try{
+    pick = na.pickContinuePort({
+      nodes: (graph.nodes||[]).map(n => ({ id:n.id, type:n.type })),
+      links: (graph.links||[]).map(l => ({ from:l.from, to:l.to })),
+      selectedId: (typeof selected!=="undefined" && selected && selected.id) ? selected.id : null,
+      selectedIds: (typeof multiSel!=="undefined" && multiSel && multiSel.size) ? [...multiSel] : [],
+      fromNodeId, toNodeId,
+    });
+  }catch(_){ pick = null; }
+  if(!pick){ clearContinuePort(); return; }
+  const el = document.querySelector(`.port[data-node="${pick.nodeId}"][data-port="${pick.port}"][data-dir="${pick.dir}"]`);
+  if(!el || el.classList.contains("disabled") || el.classList.contains("filled")){ clearContinuePort(); return; }
+  const key = pick.nodeId + "|" + pick.port + "|" + pick.dir;
+  if(key !== _continuePortKey){
+    document.querySelectorAll(".port.na-continue-port").forEach(p=> p.classList.remove("na-continue-port"));
+    _continuePortKey = key;
+  }
+  if(!el.classList.contains("na-continue-port")) el.classList.add("na-continue-port");
+  if(_continuePortTtl) clearTimeout(_continuePortTtl);
+  _continuePortTtl = setTimeout(()=>{ _continuePortTtl = 0; clearContinuePort(); }, CONTINUE_PORT_TTL_MS);
+}
+function scheduleContinuePort(fromNodeId, toNodeId){
+  if(_continuePortTimer) clearTimeout(_continuePortTimer);
+  _continuePortTimer = setTimeout(()=>{
+    _continuePortTimer = 0;
+    applyContinuePort(fromNodeId, toNodeId);
+  }, 220);
+}
+
 (function bootNextActionHints(){
   const _addNode = addNode;
   addNode = function(type, x, y, fields){
     const n = _addNode(type, x, y, fields);
     try { window.__nextAction?.record?.("add:" + type); } catch(_){}
     try { clearDualSelectBridge(); scheduleDualSelectBridge(120); } catch(_){}
+    try { armDanglingNudge(); } catch(_){}
     return n;
   };
   const _connect = connect;
@@ -17666,6 +17958,8 @@ function acceptDualSelectBridge(){
     if(ok) try { window.__nextAction?.record?.("wire"); } catch(_){}
     if(ok) try { syncRunFailPort(); } catch(_){}
     if(ok) try { clearDualSelectBridge(); scheduleDualSelectBridge(120); } catch(_){}
+    if(ok) try { scheduleContinuePort(fromNode, toNode); } catch(_){}
+    if(ok) try { armDanglingNudge(); } catch(_){}
     return ok;
   };
   const _select = select;
@@ -17674,6 +17968,7 @@ function acceptDualSelectBridge(){
     try { window.__nextAction?.refresh?.(); } catch(_){}
     // Single-select clears multiSel — bridge needs exactly 2
     try { clearDualSelectBridge(); scheduleDualSelectBridge(80); } catch(_){}
+    try { armDanglingNudge(); } catch(_){}
   };
   const _loadExample = loadExample;
   loadExample = function(i){
@@ -17681,6 +17976,7 @@ function acceptDualSelectBridge(){
     try { window.__nextAction?.refresh?.(); } catch(_){}
     try { clearRunFailPort(); } catch(_){}
     try { clearDualSelectBridge(); } catch(_){}
+    try { armDanglingNudge(); } catch(_){}
     return r;
   };
   if (typeof runGroup === "function") {
@@ -17712,6 +18008,7 @@ function acceptDualSelectBridge(){
       nodeTypes: Object.keys(NODE_TYPES),
       onHints: paintOpenLists,
     });
+    try { armDanglingNudge(); } catch(_){}
   }).catch((e) => { try { console.warn("[next-action] hints not mounted", e); } catch(_){} });
 })();
 
