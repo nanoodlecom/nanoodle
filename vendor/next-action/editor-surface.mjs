@@ -25,10 +25,16 @@ import { rankRingTargets } from "./port-highlight.mjs";
 import { rankQuickaddAfterAbort as rankQuickaddAfterAbortPure } from "./quickadd-after-abort.mjs";
 import { pickDropAutoWire } from "./drop-on-node-auto-wire.mjs";
 import { pickDblclickDanglingAddWire } from "./dblclick-dangling-add-wire.mjs";
+import { pickDanglingNudge as pickDanglingNudgePure } from "./dangling-nudge.mjs";
+import { pickContinuePort as pickContinuePortPure } from "./continue-port.mjs";
 import { pickDualSelectBridge } from "./dual-select-bridge.mjs";
 import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
 import { loadNextActionExport } from "./export-load.mjs";
 import { mergeFirstNodeRows, firstNodeSeat, isEmptyCanvas } from "./first-node.mjs";
+import { rankModelSuggestions as rankModelSuggestionsPure, liftChangedModels as liftChangedModelsPure } from "./model-suggest.mjs";
+import { pickSearchLift as pickSearchLiftPure } from "./add-search-popular.mjs";
+import { rankSelectedOutputConsumers as rankSelectedOutputConsumersPure, applyConsumerLift as applyConsumerLiftPure } from "./selected-output-consumer.mjs";
+import { rankRecentTypeRecency as rankRecentTypeRecencyPure, applyRecentTypeLift as applyRecentTypeLiftPure } from "./recent-type-recency.mjs";
 
 const BASE = new URL(".", import.meta.url);
 
@@ -87,6 +93,7 @@ export async function mount(api) {
   let slopPriors = null;
   let portTables = null;
   let recipes = null;
+  let modelPriors = null;
   let session = null;
   let recommendFrequency = null;
   let recommendNext = null;
@@ -226,6 +233,89 @@ export async function mount(api) {
         });
       } catch (_) { return null; }
     },
+    // Product · 22: after idle, one confident dangling output that still has a live partner.
+    pickDanglingNudge(query) {
+      if (!portTables) return null;
+      try {
+        const g = (api.getGraph && api.getGraph()) || {};
+        const graph = {
+          nodes: (query && query.nodes) || g.nodes || [],
+          links: (query && query.links) || g.links || [],
+          selectedId: query && "selectedId" in query ? query.selectedId : g.selectedId,
+          selectedIds: (query && query.selectedIds) || g.selectedIds || [],
+        };
+        return pickDanglingNudgePure(portTables, graph, {
+          dragging: !!(query && query.dragging),
+          disabled: false,
+        });
+      } catch (_) { return null; }
+    },
+    // Product · 33: after a wire lands, one leftover port on those two nodes with a live partner.
+    pickContinuePort(query) {
+      if (!portTables) return null;
+      try {
+        const g = (api.getGraph && api.getGraph()) || {};
+        const graph = {
+          nodes: (query && query.nodes) || g.nodes || [],
+          links: (query && query.links) || g.links || [],
+          selectedId: query && "selectedId" in query ? query.selectedId : g.selectedId,
+          selectedIds: (query && query.selectedIds) || g.selectedIds || [],
+        };
+        return pickContinuePortPure(portTables, graph, {
+          fromNodeId: query && (query.fromNodeId || query.fromId),
+          toNodeId: query && (query.toNodeId || query.toId),
+        });
+      } catch (_) { return null; }
+    },
+    // Product · 24: gallery-common models, tagged only when the picker order changes.
+    rankModelSuggestions(nodeType, catalogIds, opts = {}) {
+      if (!modelPriors) return [];
+      try { return rankModelSuggestionsPure(nodeType, catalogIds, modelPriors, opts || {}); }
+      catch (_) { return []; }
+    },
+    liftChangedModels(list, suggestions) {
+      try { return liftChangedModelsPure(list, suggestions); }
+      catch (_) { return null; }
+    },
+    // Product · 26: a typed add-search query lifts one confident popular match.
+    pickSearchLift(query, typeMeta, naturalIds) {
+      if (!tables) return null;
+      try { return pickSearchLiftPure(query, tables, typeMeta || {}, naturalIds || []); }
+      catch (_) { return null; }
+    },
+    // Product · 27: one selected node's free output → fitting consumer types in Add.
+    rankSelectedOutputConsumers(graph) {
+      if (!portTables) return [];
+      try {
+        const g = (api.getGraph && api.getGraph()) || {};
+        return rankSelectedOutputConsumersPure(portTables, {
+          nodes: (graph && graph.nodes) || g.nodes || [],
+          links: (graph && graph.links) || g.links || [],
+          selectedId: graph && "selectedId" in graph ? graph.selectedId : g.selectedId,
+          selectedIds: (graph && graph.selectedIds) || g.selectedIds || [],
+        }, { nodeTypes: known, priorAdds: graph && graph.priorAdds });
+      } catch (_) { return []; }
+    },
+    applyConsumerLift(prior, hits) {
+      try { return applyConsumerLiftPure(prior, hits); }
+      catch (_) { return { adds: Array.isArray(prior) ? prior : [], changed: false, tagged: [] }; }
+    },
+    // Product · 38: session add:* history → one clear recent type when strong sources are quiet.
+    rankRecentTypeRecency(opts = {}) {
+      try {
+        return rankRecentTypeRecencyPure(history, {
+          nodeTypes: known,
+          memory,
+          priorAdds: opts.priorAdds,
+          disabled: !!opts.disabled,
+          k: opts.k,
+        });
+      } catch (_) { return []; }
+    },
+    applyRecentTypeLift(prior, hits) {
+      try { return applyRecentTypeLiftPure(prior, hits); }
+      catch (_) { return { adds: Array.isArray(prior) ? prior : [], changed: false, tagged: [] }; }
+    },
     pickDualSelectBridge(query) {
       if (!portTables) return null;
       try {
@@ -240,6 +330,14 @@ export async function mount(api) {
       } catch (_) { return null; }
     },
   };
+
+  try {
+    modelPriors = await loadJSON("corpus/model-suggest.json");
+    if (!modelPriors || !modelPriors.byNodeType) modelPriors = null;
+  } catch (e) {
+    console.warn("[next-action] model-suggest prior unavailable", e);
+    modelPriors = null;
+  }
 
   try {
     portTables = await loadJSON("corpus/port-suggest.json");
