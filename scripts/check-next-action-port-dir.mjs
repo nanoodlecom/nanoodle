@@ -2,7 +2,9 @@
 /**
  * Leftover #621 edges: dragging FROM an input ranks producers (dir=in),
  * a self target is skipped, a missing query stays quiet, and the menu
- * never lists more than three types. The production check pins dir=out.
+ * never lists more than three types. The editor pin follows the ring on
+ * main: portHighlightQuery forwards the socket dir into rankRingTargets,
+ * and the wire-drop query forwards the origin dir into rankDropTypes.
  */
 import { readFileSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
@@ -117,12 +119,33 @@ const tables = {
   assert(dang.outs.some((o) => o.nodeId === "t1" && o.port === "text"), "a real text out is still dangling");
 }
 
+function sliceBetween(source, startMark, endMark) {
+  const start = source.indexOf(startMark);
+  const end = source.indexOf(endMark, start < 0 ? 0 : start + startMark.length);
+  assert(start >= 0 && end > start, `missing ${startMark} … ${endMark}`);
+  return source.slice(start, end);
+}
+
 {
   const index = readFileSync(join(ROOT, "index.html"), "utf8");
-  const ring = index.slice(index.indexOf("na.pickRingTarget({"), index.indexOf("na.pickRingTarget({") + 220);
-  const drop = index.slice(index.indexOf("na.rankDropTypes({"), index.indexOf("na.rankDropTypes({") + 160);
-  assert(ring.includes("dir: anchor.dataset.dir"), "the drag ring forwards the socket dir (in or out)");
-  assert(drop.includes("dir,"), "the wire-drop menu forwards the origin dir");
+  // Product · 21: the drag ring is portHighlightQuery → na.rankRingTargets.
+  // dir is the live socket direction, in or out.
+  const ringQuery = sliceBetween(index, "function portHighlightQuery(", "function portWouldCycle(");
+  const ringCall = sliceBetween(index, "function applyPortHighlight(", "function markLikelyPort(");
+  assert(
+    ringQuery.includes("dir: anchor.dataset.dir") &&
+      ringCall.includes("na.rankRingTargets(portHighlightQuery(targets, anchor))"),
+    "the drag ring forwards the socket dir (in or out)"
+  );
+  const drop = sliceBetween(index, "function wireDropHintMap(", "function openQuickAdd(");
+  const queryAt = drop.indexOf("const query = {");
+  const queryLit = queryAt < 0 ? "" : drop.slice(queryAt, queryAt + 80);
+  assert(
+    drop.includes("const dir = originPort.dataset.dir") &&
+      queryLit.includes("dir,") &&
+      drop.includes("na.rankDropTypes(query)"),
+    "the wire-drop menu forwards the origin dir"
+  );
 }
 
 console.log("✓ next-action-port-dir: inbound ranks producers, self is skipped, a missing query stays quiet");
