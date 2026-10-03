@@ -779,6 +779,12 @@
   @media (prefers-reduced-motion: reduce){
     .port.na-run-fail-port, .port.na-run-fail-port.compatible{ animation:none !important; transition:none; transform:none }
   }
+  /* Product · 22 — idle nudge on one dangling output that still has a place to land. */
+  .port.na-dangling-nudge{ transform:scale(1.28); box-shadow:0 0 0 3px #fbbf24aa, 0 0 10px #fbbf2466; animation:naDanglePulse 1.35s ease-in-out infinite }
+  @keyframes naDanglePulse{ 50%{ box-shadow:0 0 0 6px #fbbf2444, 0 0 14px #fbbf2455; transform:scale(1.42) } }
+  @media (prefers-reduced-motion: reduce){
+    .port.na-dangling-nudge{ animation:none !important; box-shadow:none; transform:none }
+  }
 
   .body{ padding:.1rem .6rem .6rem; display:flex; flex-direction:column; gap:.5rem }
   .body label{ font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); display:block; margin-bottom:.2rem; font-weight:700 }
@@ -17652,12 +17658,66 @@ function acceptDualSelectBridge(){
   }catch(_){ return false; }
 }
 
+/* Product · 22 — after idle, pulse one high-prior dangling output that still has a
+   live partner on another node. Flat, tied, single-node, and drag stay quiet.
+   No tip panel and no extra wire. ?na=0 / ?product=off leaves ports unmarked. */
+let _danglingNudgeTimer = 0;
+let _danglingNudgeKey = "";
+const DANGLING_NUDGE_IDLE_MS = 1700;
+function danglingNudgeReducedMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(_){ return false; }
+}
+function clearDanglingNudge(){
+  if(_danglingNudgeTimer){ clearTimeout(_danglingNudgeTimer); _danglingNudgeTimer = 0; }
+  document.querySelectorAll(".port.na-dangling-nudge").forEach(p=> p.classList.remove("na-dangling-nudge"));
+  _danglingNudgeKey = "";
+}
+function applyDanglingNudge(){
+  _danglingNudgeTimer = 0;
+  if(danglingNudgeReducedMotion() || (typeof geoOn==="function" && !geoOn())){ clearDanglingNudge(); return; }
+  if(typeof tempWire!=="undefined" && tempWire){ clearDanglingNudge(); return; }
+  if(typeof multiSel!=="undefined" && multiSel && multiSel.size>1){ clearDanglingNudge(); return; }
+  if(document.querySelector(".port.na-run-fail-port")){ clearDanglingNudge(); return; }
+  const na = window.__nextAction;
+  if(!na || na.disabled || !(na.hasPortPriors && na.hasPortPriors()) || typeof na.pickDanglingNudge!=="function"){
+    clearDanglingNudge();
+    return;
+  }
+  let pick = null;
+  try{
+    pick = na.pickDanglingNudge({
+      nodes: (graph.nodes||[]).map(n => ({ id:n.id, type:n.type })),
+      links: (graph.links||[]).map(l => ({ from:l.from, to:l.to })),
+      selectedId: (typeof selected!=="undefined" && selected && selected.id) ? selected.id : null,
+      selectedIds: (typeof multiSel!=="undefined" && multiSel && multiSel.size) ? [...multiSel] : [],
+      dragging: !!(typeof tempWire!=="undefined" && tempWire),
+    });
+  }catch(_){ pick = null; }
+  if(!pick || pick.dir==="in"){ clearDanglingNudge(); return; }
+  const el = document.querySelector(`.port[data-node="${pick.nodeId}"][data-port="${pick.port}"][data-dir="out"]`);
+  if(!el || el.classList.contains("disabled") || el.classList.contains("filled")){ clearDanglingNudge(); return; }
+  const key = pick.nodeId + "|" + pick.port + "|out";
+  if(key !== _danglingNudgeKey){
+    document.querySelectorAll(".port.na-dangling-nudge").forEach(p=> p.classList.remove("na-dangling-nudge"));
+    _danglingNudgeKey = key;
+  }
+  if(!el.classList.contains("na-dangling-nudge")) el.classList.add("na-dangling-nudge");
+}
+function armDanglingNudge(){
+  if(_danglingNudgeTimer) clearTimeout(_danglingNudgeTimer);
+  document.querySelectorAll(".port.na-dangling-nudge").forEach(p=> p.classList.remove("na-dangling-nudge"));
+  _danglingNudgeKey = "";
+  _danglingNudgeTimer = setTimeout(applyDanglingNudge, DANGLING_NUDGE_IDLE_MS);
+}
+document.addEventListener("pointerdown", ()=>{ try{ armDanglingNudge(); }catch(_){} }, true);
+
 (function bootNextActionHints(){
   const _addNode = addNode;
   addNode = function(type, x, y, fields){
     const n = _addNode(type, x, y, fields);
     try { window.__nextAction?.record?.("add:" + type); } catch(_){}
     try { clearDualSelectBridge(); scheduleDualSelectBridge(120); } catch(_){}
+    try { armDanglingNudge(); } catch(_){}
     return n;
   };
   const _connect = connect;
@@ -17666,6 +17726,7 @@ function acceptDualSelectBridge(){
     if(ok) try { window.__nextAction?.record?.("wire"); } catch(_){}
     if(ok) try { syncRunFailPort(); } catch(_){}
     if(ok) try { clearDualSelectBridge(); scheduleDualSelectBridge(120); } catch(_){}
+    try { armDanglingNudge(); } catch(_){}
     return ok;
   };
   const _select = select;
@@ -17674,6 +17735,7 @@ function acceptDualSelectBridge(){
     try { window.__nextAction?.refresh?.(); } catch(_){}
     // Single-select clears multiSel — bridge needs exactly 2
     try { clearDualSelectBridge(); scheduleDualSelectBridge(80); } catch(_){}
+    try { armDanglingNudge(); } catch(_){}
   };
   const _loadExample = loadExample;
   loadExample = function(i){
@@ -17681,6 +17743,7 @@ function acceptDualSelectBridge(){
     try { window.__nextAction?.refresh?.(); } catch(_){}
     try { clearRunFailPort(); } catch(_){}
     try { clearDualSelectBridge(); } catch(_){}
+    try { armDanglingNudge(); } catch(_){}
     return r;
   };
   if (typeof runGroup === "function") {
@@ -17712,6 +17775,7 @@ function acceptDualSelectBridge(){
       nodeTypes: Object.keys(NODE_TYPES),
       onHints: paintOpenLists,
     });
+    try { armDanglingNudge(); } catch(_){}
   }).catch((e) => { try { console.warn("[next-action] hints not mounted", e); } catch(_){} });
 })();
 

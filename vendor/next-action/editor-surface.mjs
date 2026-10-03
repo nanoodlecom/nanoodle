@@ -25,6 +25,7 @@ import { rankRingTargets } from "./port-highlight.mjs";
 import { rankQuickaddAfterAbort as rankQuickaddAfterAbortPure } from "./quickadd-after-abort.mjs";
 import { pickDropAutoWire } from "./drop-on-node-auto-wire.mjs";
 import { pickDblclickDanglingAddWire } from "./dblclick-dangling-add-wire.mjs";
+import { pickDanglingNudge as pickDanglingNudgePure } from "./dangling-nudge.mjs";
 import { pickDualSelectBridge } from "./dual-select-bridge.mjs";
 import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
 import { loadNextActionExport } from "./export-load.mjs";
@@ -223,6 +224,23 @@ export async function mount(api) {
           nodeW: query && query.nodeW,
           nodeH: query && query.nodeH,
           gap: query && query.gap,
+        });
+      } catch (_) { return null; }
+    },
+    // Product · 22: after idle, one confident dangling output that still has a live partner.
+    pickDanglingNudge(query) {
+      if (!portTables) return null;
+      try {
+        const g = (api.getGraph && api.getGraph()) || {};
+        const graph = {
+          nodes: (query && query.nodes) || g.nodes || [],
+          links: (query && query.links) || g.links || [],
+          selectedId: query && "selectedId" in query ? query.selectedId : g.selectedId,
+          selectedIds: (query && query.selectedIds) || g.selectedIds || [],
+        };
+        return pickDanglingNudgePure(portTables, graph, {
+          dragging: !!(query && query.dragging),
+          disabled: false,
         });
       } catch (_) { return null; }
     },
