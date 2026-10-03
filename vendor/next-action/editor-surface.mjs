@@ -29,6 +29,7 @@ import { pickDualSelectBridge } from "./dual-select-bridge.mjs";
 import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
 import { loadNextActionExport } from "./export-load.mjs";
 import { mergeFirstNodeRows, firstNodeSeat, isEmptyCanvas } from "./first-node.mjs";
+import { rankSelectedOutputConsumers as rankSelectedOutputConsumersPure, applyConsumerLift as applyConsumerLiftPure } from "./selected-output-consumer.mjs";
 
 const BASE = new URL(".", import.meta.url);
 
@@ -225,6 +226,23 @@ export async function mount(api) {
           gap: query && query.gap,
         });
       } catch (_) { return null; }
+    },
+    // Product · 27: one selected node's free output → fitting consumer types in Add.
+    rankSelectedOutputConsumers(graph) {
+      if (!portTables) return [];
+      try {
+        const g = (api.getGraph && api.getGraph()) || {};
+        return rankSelectedOutputConsumersPure(portTables, {
+          nodes: (graph && graph.nodes) || g.nodes || [],
+          links: (graph && graph.links) || g.links || [],
+          selectedId: graph && "selectedId" in graph ? graph.selectedId : g.selectedId,
+          selectedIds: (graph && graph.selectedIds) || g.selectedIds || [],
+        }, { nodeTypes: known, priorAdds: graph && graph.priorAdds });
+      } catch (_) { return []; }
+    },
+    applyConsumerLift(prior, hits) {
+      try { return applyConsumerLiftPure(prior, hits); }
+      catch (_) { return { adds: Array.isArray(prior) ? prior : [], changed: false, tagged: [] }; }
     },
     pickDualSelectBridge(query) {
       if (!portTables) return null;

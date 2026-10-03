@@ -14588,6 +14588,45 @@ function addHintMap(){
   }
   return order.length ? { order, byType } : null;
 }
+// Product · 27 — empty Add list only. One selected node with a free output
+// ranks fitting consumers first. A flat prior, a tie, or an unchanged order
+// leaves the list exactly as it is. Quick-add does not use this.
+function consumerTypeMap(base){
+  try{
+    const na = window.__nextAction;
+    if(!na || na.disabled || typeof na.rankSelectedOutputConsumers !== "function" || typeof na.applyConsumerLift !== "function") return base;
+    const h = nextActionHints();
+    const prior = [];
+    if(base){
+      for(const k of base.order){
+        const a = base.byType[k];
+        if(a) prior.push({ type:a.type, action:a.action, reason:a.reason, source:a.source, share:a.share });
+      }
+    }
+    if(h && h.recipe && prior[0]){
+      const src = prior[0].source;
+      if(!src || src === "frequency" || src === "blend" || src === "net") prior[0] = { ...prior[0], source: "recipe" };
+    }
+    const g = {
+      nodes: (graph.nodes||[]).map(n => ({ id:n.id, type:n.type })),
+      links: (graph.links||[]).map(l => ({ from:l.from, to:l.to })),
+      selectedId: (typeof selected!=="undefined" && selected && selected.id) ? selected.id : null,
+      selectedIds: (typeof multiSel!=="undefined" && multiSel && multiSel.size) ? [...multiSel] : [],
+      priorAdds: prior,
+    };
+    const hits = na.rankSelectedOutputConsumers(g);
+    const applied = na.applyConsumerLift(prior, hits);
+    if(!applied || !applied.changed || !applied.adds || !applied.adds.length) return base;
+    const order = [], byType = {};
+    const tagged = new Set(applied.tagged || []);
+    for(const a of applied.adds){
+      if(!a || !a.type || !NODE_TYPES[a.type] || byType[a.type]) continue;
+      byType[a.type] = tagged.has(a.type) ? a : ((base && base.byType[a.type]) || a);
+      order.push(a.type);
+    }
+    return order.length ? { order, byType } : base;
+  }catch(_){ return base; }
+}
 function nodeRow(k,t,sug){
   if(!sug) return `<button data-type="${k}"><span class="k">${t.em}</span><span><div>${esc(t.title)}</div><div class="d">${esc(t.desc)}</div></span></button>`;
   const why = sug.reason ? ` title="${esc(sug.reason)}"` : "";
@@ -14620,10 +14659,12 @@ function add3dTie(k, q){
 }
 function renderAddList(q){
   const list = $("addlist"), hint = $("addpop").querySelector(".addhint");
-  const map = addHintMap();
+  let map = addHintMap();
   let html = "";
   if(!q){
     hint.hidden = true;
+    const lifted = consumerTypeMap(map);
+    if(lifted) map = lifted;
     const skip = map ? new Set(map.order) : null;
     if(map) html += `<div class="grp">Suggested</div>` + map.order.map(k=>nodeRow(k, NODE_TYPES[k], map.byType[k])).join("");
     const recent = addRecent.filter(k=>NODE_TYPES[k] && !(skip && skip.has(k)));
