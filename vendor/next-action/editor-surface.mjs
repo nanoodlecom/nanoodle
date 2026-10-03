@@ -29,6 +29,7 @@ import { pickDualSelectBridge } from "./dual-select-bridge.mjs";
 import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
 import { loadNextActionExport } from "./export-load.mjs";
 import { mergeFirstNodeRows, firstNodeSeat, isEmptyCanvas } from "./first-node.mjs";
+import { rankRecentTypeRecency as rankRecentTypeRecencyPure, applyRecentTypeLift as applyRecentTypeLiftPure } from "./recent-type-recency.mjs";
 
 const BASE = new URL(".", import.meta.url);
 
@@ -225,6 +226,22 @@ export async function mount(api) {
           gap: query && query.gap,
         });
       } catch (_) { return null; }
+    },
+    // Product · 38: session add:* history → one clear recent type when strong sources are quiet.
+    rankRecentTypeRecency(opts = {}) {
+      try {
+        return rankRecentTypeRecencyPure(history, {
+          nodeTypes: known,
+          memory,
+          priorAdds: opts.priorAdds,
+          disabled: !!opts.disabled,
+          k: opts.k,
+        });
+      } catch (_) { return []; }
+    },
+    applyRecentTypeLift(prior, hits) {
+      try { return applyRecentTypeLiftPure(prior, hits); }
+      catch (_) { return { adds: Array.isArray(prior) ? prior : [], changed: false, tagged: [] }; }
     },
     pickDualSelectBridge(query) {
       if (!portTables) return null;

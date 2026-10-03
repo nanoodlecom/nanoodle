@@ -14588,6 +14588,35 @@ function addHintMap(){
   }
   return order.length ? { order, byType } : null;
 }
+// Product · 38 — empty Add list only. A clear recent add lifts into Suggested
+// when recipe / first-node / first-trio are quiet. A tie leaves today's list.
+function recentTypeMap(base){
+  try{
+    const na = window.__nextAction;
+    if(!na || na.disabled || typeof na.rankRecentTypeRecency !== "function" || typeof na.applyRecentTypeLift !== "function") return base;
+    const h = nextActionHints();
+    const prior = [];
+    if(base){
+      for(const k of base.order){
+        const a = base.byType[k];
+        if(a) prior.push({ type:a.type, action:a.action, reason:a.reason, source:a.source, share:a.share });
+      }
+    }
+    if(h && h.recipe && prior[0]) prior[0] = { ...prior[0], source: prior[0].source && prior[0].source !== "frequency" && prior[0].source !== "blend" && prior[0].source !== "net" ? prior[0].source : "recipe" };
+    const hits = na.rankRecentTypeRecency({ priorAdds: prior });
+    const applied = na.applyRecentTypeLift(prior, hits);
+    if(!applied || !applied.changed || !applied.adds || !applied.adds.length) return base;
+    const order = [], byType = {};
+    const tagged = new Set(applied.tagged || []);
+    for(const a of applied.adds){
+      if(!a || !a.type || !NODE_TYPES[a.type] || byType[a.type]) continue;
+      const row = tagged.has(a.type) ? a : (base && base.byType[a.type]) || a;
+      byType[a.type] = row;
+      order.push(a.type);
+    }
+    return order.length ? { order, byType } : base;
+  }catch(_){ return base; }
+}
 function nodeRow(k,t,sug){
   if(!sug) return `<button data-type="${k}"><span class="k">${t.em}</span><span><div>${esc(t.title)}</div><div class="d">${esc(t.desc)}</div></span></button>`;
   const why = sug.reason ? ` title="${esc(sug.reason)}"` : "";
@@ -14620,10 +14649,12 @@ function add3dTie(k, q){
 }
 function renderAddList(q){
   const list = $("addlist"), hint = $("addpop").querySelector(".addhint");
-  const map = addHintMap();
+  let map = addHintMap();
   let html = "";
   if(!q){
     hint.hidden = true;
+    const lifted = recentTypeMap(map);
+    if(lifted) map = lifted;
     const skip = map ? new Set(map.order) : null;
     if(map) html += `<div class="grp">Suggested</div>` + map.order.map(k=>nodeRow(k, NODE_TYPES[k], map.byType[k])).join("");
     const recent = addRecent.filter(k=>NODE_TYPES[k] && !(skip && skip.has(k)));
