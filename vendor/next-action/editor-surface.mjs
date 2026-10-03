@@ -29,6 +29,7 @@ import { pickDualSelectBridge } from "./dual-select-bridge.mjs";
 import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
 import { loadNextActionExport } from "./export-load.mjs";
 import { mergeFirstNodeRows, firstNodeSeat, isEmptyCanvas } from "./first-node.mjs";
+import { pickSearchLift as pickSearchLiftPure } from "./add-search-popular.mjs";
 
 const BASE = new URL(".", import.meta.url);
 
@@ -225,6 +226,12 @@ export async function mount(api) {
           gap: query && query.gap,
         });
       } catch (_) { return null; }
+    },
+    // Product · 26: a typed add-search query lifts one confident popular match.
+    pickSearchLift(query, typeMeta, naturalIds) {
+      if (!tables) return null;
+      try { return pickSearchLiftPure(query, tables, typeMeta || {}, naturalIds || []); }
+      catch (_) { return null; }
     },
     pickDualSelectBridge(query) {
       if (!portTables) return null;

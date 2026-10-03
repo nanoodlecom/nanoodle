@@ -21,6 +21,7 @@
 | · 40 | `dblclick-dangling-add-wire.mjs`, `scripts/check-next-action-dblclick-dangling-add-wire.mjs` — double-click dangling port → top gallery add+wire at free seat |
 | weights | `export-load.mjs`, `scripts/export-smallnet-weights.py` — catalog first, fixture fallback |
 | · 49 | `run-fail-port.mjs` — after a missing-input run failure, briefly pulse that port then keep a static error ring until corrected or retried |
+| · 26 | `add-search-popular.mjs` — a confident add-search match lifts a gallery-popular type; an empty or ambiguous query does not |
 
 Learned `.bin` weights stay **gitignored**; tests load inline float fixtures.
 The editor reads scores from `editor-surface.mjs` and shows them inside existing
@@ -60,6 +61,7 @@ node scripts/check-next-action-quickadd-after-abort.mjs
 node scripts/check-next-action-weights.mjs
 node scripts/check-next-action-first-node.mjs
 node scripts/check-next-action-run-fail-port.mjs
+node scripts/check-next-action-add-search-popular.mjs
 node scripts/check-smallnet.mjs   # catalog still empty
 ```
 

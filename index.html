@@ -14588,6 +14588,19 @@ function addHintMap(){
   }
   return order.length ? { order, byType } : null;
 }
+function addSearchTypeMeta(){
+  const meta = {};
+  for(const [k,t] of Object.entries(NODE_TYPES)){
+    if(!t) continue;
+    let title = t.title || "";
+    if(typeof LANG!=="undefined" && LANG!=="en" && typeof i18nLookup==="function"){
+      const tt = i18nLookup(t.title);
+      if(tt) title = tt;
+    }
+    meta[k] = { title, id:k };
+  }
+  return meta;
+}
 function nodeRow(k,t,sug){
   if(!sug) return `<button data-type="${k}"><span class="k">${t.em}</span><span><div>${esc(t.title)}</div><div class="d">${esc(t.desc)}</div></span></button>`;
   const why = sug.reason ? ` title="${esc(sug.reason)}"` : "";
@@ -14643,11 +14656,23 @@ function renderAddList(q){
     }
   } else {
     hint.hidden = false;
-    const hits = Object.entries(NODE_TYPES)
+    let hits = Object.entries(NODE_TYPES)
       .map(([k,t])=>[k,t,addMatchRank(t,q)])
       .filter(([,,r])=>r>=0)
       .sort((a,b)=>a[2]-b[2] || add3dTie(a[0], q)-add3dTie(b[0], q) || (map ? ((map.byType[a[0]]?0:1)-(map.byType[b[0]]?0:1)) : 0));
-    html = hits.length ? hits.map(([k,t])=>nodeRow(k,t,map&&map.byType[k])).join("")
+    let lift = null;
+    try{
+      const na = window.__nextAction;
+      if(na && !na.disabled && typeof na.pickSearchLift==="function"){
+        lift = na.pickSearchLift(q, addSearchTypeMeta(), hits.map(h=>h[0]));
+      }
+    }catch(_){ lift = null; }
+    if(lift && lift.type && hits.length && hits[0][0] !== lift.type){
+      const i = hits.findIndex(h => h[0] === lift.type);
+      if(i > 0){ const [row] = hits.splice(i, 1); hits.unshift(row); }
+      else lift = null;
+    }else lift = null;
+    html = hits.length ? hits.map(([k,t])=>nodeRow(k,t,(lift && lift.type===k) ? lift : (map&&map.byType[k]))).join("")
                        : `<div class="nomatch">${esc(t("no nodes match “{q}”")).replace("{q}", ()=>esc(q))}</div>`;
   }
   list.innerHTML = html;
