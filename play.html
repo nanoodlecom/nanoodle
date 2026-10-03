@@ -9979,8 +9979,10 @@ const PROMPT_CAPS = {
   function fillReasonEffortLists(){
     (STATE.settings || []).forEach((it,i)=>{
       if(it.node.type!=="llm" || it.field!=="reasoningEffort") return;
-      rawCatItem("chat", it.node.fields.model).then(m=>{
+      const modelAtStart = it.node.fields.model;
+      rawCatItem("chat", modelAtStart).then(m=>{
         const el = document.getElementById("set_"+i); if(!el || el.tagName!=="SELECT") return;
+        if(it.node.fields.model !== modelAtStart) return;   // stale: user swapped models before this catalog row landed
         const cat = (m && Array.isArray(m.reasoning_efforts) && m.reasoning_efforts.length)
           ? m.reasoning_efforts.map(String) : null;
         if(!cat) return;   // keep fallback options when catalog omits the list

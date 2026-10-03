@@ -13,6 +13,8 @@
 //   * refreshLlmOpts writes the clamp and paints catalog options (no fake default)
 //   * llmOpts / play runGraph send none|xhigh|max|medium; omit "default"
 //   * play fillReasonEffortLists rewrites the select and the graph field
+//   * #633 boot/catalog-miss keeps stored xhigh/none/minimal/max until the list lands
+//   * #633 stale play catalog callbacks after a model swap leave the new model alone
 //
 // njs/library SETTING_SPECS still ship the old 4-option fallback. Not pinned
 // as a failure (same class as other njs leftovers): play RUNTIME + fillReasonEffortLists
@@ -279,6 +281,62 @@ function refresh(model, fields, item) {
   else ok("refreshLlmOpts + llmOpts: leftover default becomes a billed medium");
 }
 
+{
+  const n = refresh("offline-id", { reasoningEffort: "xhigh" }, null);
+  if (n.fields.reasoningEffort !== "xhigh")
+    fail(`catalog miss must keep stored xhigh (boot / OAuth resume), got ${JSON.stringify(n.fields.reasoningEffort)}`);
+  else if (ed.llmOpts(n).reasoning_effort !== "xhigh")
+    fail(`catalog-miss send must still POST xhigh, got ${JSON.stringify(ed.llmOpts(n))}`);
+  else if (!optionValues(ed.box.innerHTML).includes("xhigh") || selectedValue(ed.box.innerHTML) !== "xhigh")
+    fail(`catalog miss must keep xhigh pickable/selected, opts=${JSON.stringify(optionValues(ed.box.innerHTML))} sel=${selectedValue(ed.box.innerHTML)}`);
+  else ok("catalog miss keeps stored xhigh (does not write medium)");
+}
+
+{
+  const kept = [];
+  for (const v of ["none", "minimal", "max", "high"]) {
+    const n = refresh("offline-id", { reasoningEffort: v }, null);
+    if (n.fields.reasoningEffort !== v) kept.push(`${v}→${n.fields.reasoningEffort}`);
+  }
+  if (kept.length) fail(`catalog miss must keep catalog-only / fallback efforts, drifted: ${kept.join(", ")}`);
+  else ok("catalog miss keeps none / minimal / max / high");
+}
+
+{
+  // Pre-#602 cache (or a reasoning model whose catalog row has no list yet):
+  // it.reasoning is true, reasoningEfforts is missing — must not snap via fallback.
+  const n = refresh("grok-cached", { reasoningEffort: "xhigh" }, {
+    reasoning: true, reasoningEfforts: null, structured_output: false,
+  });
+  if (n.fields.reasoningEffort !== "xhigh")
+    fail(`known reasoning model without a list must keep xhigh, got ${JSON.stringify(n.fields.reasoningEffort)}`);
+  else ok("reasoning model with no reasoningEfforts list keeps stored xhigh");
+}
+
+{
+  // Boot sequence: miss (or cache-without-list) then catalog arrival must restore
+  // only when we DID NOT write medium. Simulate the two refreshAllPrices sweeps.
+  const n = refresh("grok", { reasoningEffort: "xhigh" }, null);
+  if (n.fields.reasoningEffort !== "xhigh")
+    fail(`first sweep (empty catalog) already clobbered xhigh → ${JSON.stringify(n.fields.reasoningEffort)}`);
+  else {
+    ed.items.grok = { reasoning: true, reasoningEfforts: GROK, structured_output: false };
+    ed.refreshLlmOpts(n);
+    if (n.fields.reasoningEffort !== "xhigh")
+      fail(`catalog-arrival sweep lost xhigh, got ${JSON.stringify(n.fields.reasoningEffort)}`);
+    else ok("empty-catalog sweep + later Grok catalog still leaves xhigh");
+  }
+}
+
+{
+  const n = refresh("solar", { reasoningEffort: "xhigh" }, {
+    reasoning: true, reasoningEfforts: SOLAR, structured_output: false,
+  });
+  if (n.fields.reasoningEffort !== "medium")
+    fail(`catalogued Solar must still clamp leftover xhigh → medium, got ${JSON.stringify(n.fields.reasoningEffort)}`);
+  else ok("catalogued Solar still clamps leftover xhigh → medium");
+}
+
 /* ---- play fillReasonEffortLists (exported-app settings rewrite) ---------- */
 
 function extractRuntimeFn(src, name) {
@@ -370,6 +428,50 @@ async function fillReasonEffortCheck() {
 }
 
 await fillReasonEffortCheck();
+
+async function fillReasonStaleCheck() {
+  const el = { tagName: "SELECT", innerHTML: "" };
+  let dirty = 0;
+  const pending = {};
+  const ctx = {
+    console,
+    STATE: { settings: [] },
+    document: { getElementById: (id) => (id === "set_0" ? el : null) },
+    esc: (s) => String(s),
+    checkDirty: () => { dirty++; },
+    rawCatItem: (_kind, id) => new Promise((resolve) => { pending[id] = resolve; }),
+  };
+  vm.createContext(ctx);
+  new vm.Script(
+    extractRuntimeFn(PLAY, "fillReasonEffortLists") + "\nglobalThis.__fill = fillReasonEffortLists;",
+    { filename: "play.html#fillReasonEffortLists" },
+  ).runInContext(ctx);
+
+  const nd = { type: "llm", fields: { model: "grok", reasoningEffort: "xhigh" } };
+  ctx.STATE.settings = [{ node: nd, field: "reasoningEffort" }];
+  ctx.__fill();
+  nd.fields.model = "solar";
+  nd.fields.reasoningEffort = "medium";
+  ctx.__fill();
+  if (!pending.grok || !pending.solar) {
+    fail("fillReasonEffortLists did not start catalog fetches for both models");
+    return;
+  }
+  pending.solar({ reasoning_efforts: SOLAR });
+  await new Promise((r) => setImmediate(r));
+  pending.grok({ reasoning_efforts: GROK }); // late — must not rewrite Solar's node
+  await new Promise((r) => setImmediate(r));
+  if (nd.fields.model !== "solar")
+    fail(`stale-callback test corrupted the model id, got ${nd.fields.model}`);
+  else if (nd.fields.reasoningEffort !== "medium")
+    fail(`stale Grok catalog must not rewrite Solar's effort, got ${JSON.stringify(nd.fields.reasoningEffort)}`);
+  else if (optionValues(el.innerHTML).includes("xhigh"))
+    fail("stale Grok catalog must not paint xhigh onto a Solar node");
+  else ok("play fillReasonEffortLists ignores a stale catalog callback after a model swap");
+}
+
+await fillReasonStaleCheck();
+
 
 /* ---- play SETTING_SPECS fallback includes catalog levels ---------------- */
 
