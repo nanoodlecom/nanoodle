@@ -15,8 +15,9 @@ const EMPTY = Object.freeze({
   openExamples: null,
 });
 
-function reasonForAdd(coldStart, sketch) {
-  if (coldStart || !sketch || !sketch.numNodes) return "common first node";
+function reasonForAdd(coldStart, sketch, source) {
+  if (source === "first-trio") return "common opening";
+  if (source === "first-node" || coldStart || !sketch || !sketch.numNodes) return "common first node";
   return "often added next";
 }
 
@@ -46,6 +47,7 @@ export function projectHints(rows, opts = {}) {
     .map((r) => ({
       action: String((r && r.action) || ""),
       share: Math.max(0, Number(r && r.score) || 0) / sum,
+      source: (r && r.source) || "",
     }))
     .filter((r) => r.action)
     .sort((a, b) => b.share - a.share || a.action.localeCompare(b.action));
@@ -67,7 +69,8 @@ export function projectHints(rows, opts = {}) {
       type,
       action: r.action,
       share: r.share,
-      reason: reasonForAdd(!!opts.coldStart, sketch),
+      reason: reasonForAdd(!!opts.coldStart, sketch, r.source),
+      source: r.source || undefined,
     });
     if (adds.length >= maxAdds) break;
   }

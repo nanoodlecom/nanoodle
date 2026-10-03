@@ -108,7 +108,11 @@ function hintsFor(history, sketch) {
     assert(!index.includes(needle), `index.html still has ${needle}`);
   }
   assert(index.includes('classList.add("likely")'), "wire drag can mark one compatible port");
-  assert(index.includes('classList.remove("compatible","snap","likely")'), "likely mark is cleared with the drag");
+  assert(
+    index.includes('classList.remove("compatible","snap","likely","fit","dim")') ||
+      index.includes('classList.remove("compatible","snap","likely")'),
+    "likely mark is cleared with the drag"
+  );
   assert(surface.includes("chooseHints"), "engine publishes list hints");
   assert(!/function applyTip|id="na-panel"|id="na-ghost"/.test(index), "no standalone next-action widget");
 }
