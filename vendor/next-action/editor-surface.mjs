@@ -9,7 +9,7 @@
  * There is no panel, no ghost, and no ?product= surface. The old "wire" tip
  * only recorded the token — it never called connect() — so a wire suggestion
  * is not an action button. Menus rank add:/set:model/open:examples rows;
- * while a wire drag is active the editor may emphasize one compatible port,
+ * while a wire drag is active the editor may emphasize the best-fitting ports,
  * and dropping still goes through connect().
  *
  * ?na=0 or ?product=off (or nano.nextAction=off) disables the engine. A failed
@@ -20,8 +20,21 @@ import { chooseHints } from "./hints.mjs";
 import { createSuggestionMemory } from "./suggestion-memory.mjs";
 import { applyAntiSlop, isShallowTextLlm, rerankShallowAdds } from "./anti-slop.mjs";
 import { pickRingTarget, rankDropTypes } from "./port-suggest.mjs";
+import { pickRunFailPort } from "./run-fail-port.mjs";
+import { rankRingTargets } from "./port-highlight.mjs";
+import { rankQuickaddAfterAbort as rankQuickaddAfterAbortPure } from "./quickadd-after-abort.mjs";
+import { pickDropAutoWire } from "./drop-on-node-auto-wire.mjs";
+import { pickDblclickDanglingAddWire } from "./dblclick-dangling-add-wire.mjs";
+import { pickDanglingNudge as pickDanglingNudgePure } from "./dangling-nudge.mjs";
+import { pickContinuePort as pickContinuePortPure } from "./continue-port.mjs";
+import { pickDualSelectBridge } from "./dual-select-bridge.mjs";
 import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
 import { loadNextActionExport } from "./export-load.mjs";
+import { mergeFirstNodeRows, firstNodeSeat, isEmptyCanvas } from "./first-node.mjs";
+import { rankModelSuggestions as rankModelSuggestionsPure, liftChangedModels as liftChangedModelsPure } from "./model-suggest.mjs";
+import { pickSearchLift as pickSearchLiftPure } from "./add-search-popular.mjs";
+import { rankSelectedOutputConsumers as rankSelectedOutputConsumersPure, applyConsumerLift as applyConsumerLiftPure } from "./selected-output-consumer.mjs";
+import { rankRecentTypeRecency as rankRecentTypeRecencyPure, applyRecentTypeLift as applyRecentTypeLiftPure } from "./recent-type-recency.mjs";
 
 const BASE = new URL(".", import.meta.url);
 
@@ -53,6 +66,8 @@ function disabledApi() {
     peek() { return null; },
     record() {},
     refresh() {},
+    isEmptyCanvas() { return false; },
+    firstSeat(view) { return firstNodeSeat(view || {}); },
   };
 }
 
@@ -78,6 +93,7 @@ export async function mount(api) {
   let slopPriors = null;
   let portTables = null;
   let recipes = null;
+  let modelPriors = null;
   let session = null;
   let recommendFrequency = null;
   let recommendNext = null;
@@ -105,6 +121,8 @@ export async function mount(api) {
       let frequencyRows = memory.reweightRows(
         recommendFrequency(tables, history, sketch, ACTION_VOCAB.length)
       );
+      // Product · 20: empty-canvas firstNode + firstTrio follow-ups inside menus.
+      frequencyRows = mergeFirstNodeRows(frequencyRows, tables, history, sketch);
       let blendRows = null;
       if (session && recommendNext) {
         blendRows = memory.reweightRows(recommendNext(
@@ -113,6 +131,7 @@ export async function mount(api) {
           sketch,
           ACTION_VOCAB.length
         ));
+        blendRows = mergeFirstNodeRows(blendRows, tables, history, sketch);
       }
       const shallow = slopPriors && isShallowTextLlm(sketch, slopPriors);
       if (shallow) {
@@ -144,6 +163,8 @@ export async function mount(api) {
     noteChoice(action, shown) {
       if (memory.noteChoice(action, shown)) recompute();
     },
+    isEmptyCanvas(sketch) { return isEmptyCanvas(sketch || {}); },
+    firstSeat(view) { return firstNodeSeat(view || {}); },
     hasPortPriors() { return !!portTables; },
     rankDropTypes(query) {
       if (!portTables) return null;
@@ -155,7 +176,168 @@ export async function mount(api) {
       try { return pickRingTarget(portTables, query); }
       catch (_) { return null; }
     },
+    // Product · 49: actual missing-input errors lead; priors only resolve ambiguous ports.
+    pickRunFailPort(ctx) {
+      try {
+        return pickRunFailPort(portTables, ctx || {});
+      } catch (_) { return null; }
+    },
+    rankRingTargets(query) {
+      if (!portTables) return null;
+      try { return rankRingTargets(portTables, query); }
+      catch (_) { return null; }
+    },
+    // Product · 48: after aborted wire drag opens #quickadd, origin-fit Suggested re-rank.
+    rankQuickaddAfterAbort(query) {
+      if (!portTables) return null;
+      try {
+        return rankQuickaddAfterAbortPure(portTables, {
+          ...(query || {}),
+          memory,
+        });
+      } catch (_) { return null; }
+    },
+    pickDropAutoWire(query) {
+      if (!portTables) return null;
+      try {
+        const g = (api.getGraph && api.getGraph()) || {};
+        const graph = {
+          nodes: (query && query.nodes) || g.nodes || [],
+          links: (query && query.links) || g.links || [],
+        };
+        return pickDropAutoWire(portTables, graph, {
+          draggedId: query && query.draggedId,
+          targetId: query && query.targetId,
+        });
+      } catch (_) { return null; }
+    },
+    pickDblclickDanglingAddWire(query) {
+      if (!portTables) return null;
+      try {
+        const g = (api.getGraph && api.getGraph()) || {};
+        const graph = {
+          nodes: (query && query.nodes) || g.nodes || [],
+          links: (query && query.links) || g.links || [],
+          selectedId: (query && query.selectedId) != null ? query.selectedId : g.selectedId,
+          selectedIds: (query && query.selectedIds) || g.selectedIds || [],
+        };
+        return pickDblclickDanglingAddWire(portTables, graph, {
+          nodeId: query && query.nodeId,
+          port: query && query.port,
+          dir: query && query.dir,
+          type: query && query.type,
+          candidates: query && query.candidates,
+          nodeW: query && query.nodeW,
+          nodeH: query && query.nodeH,
+          gap: query && query.gap,
+        });
+      } catch (_) { return null; }
+    },
+    // Product · 22: after idle, one confident dangling output that still has a live partner.
+    pickDanglingNudge(query) {
+      if (!portTables) return null;
+      try {
+        const g = (api.getGraph && api.getGraph()) || {};
+        const graph = {
+          nodes: (query && query.nodes) || g.nodes || [],
+          links: (query && query.links) || g.links || [],
+          selectedId: query && "selectedId" in query ? query.selectedId : g.selectedId,
+          selectedIds: (query && query.selectedIds) || g.selectedIds || [],
+        };
+        return pickDanglingNudgePure(portTables, graph, {
+          dragging: !!(query && query.dragging),
+          disabled: false,
+        });
+      } catch (_) { return null; }
+    },
+    // Product · 33: after a wire lands, one leftover port on those two nodes with a live partner.
+    pickContinuePort(query) {
+      if (!portTables) return null;
+      try {
+        const g = (api.getGraph && api.getGraph()) || {};
+        const graph = {
+          nodes: (query && query.nodes) || g.nodes || [],
+          links: (query && query.links) || g.links || [],
+          selectedId: query && "selectedId" in query ? query.selectedId : g.selectedId,
+          selectedIds: (query && query.selectedIds) || g.selectedIds || [],
+        };
+        return pickContinuePortPure(portTables, graph, {
+          fromNodeId: query && (query.fromNodeId || query.fromId),
+          toNodeId: query && (query.toNodeId || query.toId),
+        });
+      } catch (_) { return null; }
+    },
+    // Product · 24: gallery-common models, tagged only when the picker order changes.
+    rankModelSuggestions(nodeType, catalogIds, opts = {}) {
+      if (!modelPriors) return [];
+      try { return rankModelSuggestionsPure(nodeType, catalogIds, modelPriors, opts || {}); }
+      catch (_) { return []; }
+    },
+    liftChangedModels(list, suggestions) {
+      try { return liftChangedModelsPure(list, suggestions); }
+      catch (_) { return null; }
+    },
+    // Product · 26: a typed add-search query lifts one confident popular match.
+    pickSearchLift(query, typeMeta, naturalIds) {
+      if (!tables) return null;
+      try { return pickSearchLiftPure(query, tables, typeMeta || {}, naturalIds || []); }
+      catch (_) { return null; }
+    },
+    // Product · 27: one selected node's free output → fitting consumer types in Add.
+    rankSelectedOutputConsumers(graph) {
+      if (!portTables) return [];
+      try {
+        const g = (api.getGraph && api.getGraph()) || {};
+        return rankSelectedOutputConsumersPure(portTables, {
+          nodes: (graph && graph.nodes) || g.nodes || [],
+          links: (graph && graph.links) || g.links || [],
+          selectedId: graph && "selectedId" in graph ? graph.selectedId : g.selectedId,
+          selectedIds: (graph && graph.selectedIds) || g.selectedIds || [],
+        }, { nodeTypes: known, priorAdds: graph && graph.priorAdds });
+      } catch (_) { return []; }
+    },
+    applyConsumerLift(prior, hits) {
+      try { return applyConsumerLiftPure(prior, hits); }
+      catch (_) { return { adds: Array.isArray(prior) ? prior : [], changed: false, tagged: [] }; }
+    },
+    // Product · 38: session add:* history → one clear recent type when strong sources are quiet.
+    rankRecentTypeRecency(opts = {}) {
+      try {
+        return rankRecentTypeRecencyPure(history, {
+          nodeTypes: known,
+          memory,
+          priorAdds: opts.priorAdds,
+          disabled: !!opts.disabled,
+          k: opts.k,
+        });
+      } catch (_) { return []; }
+    },
+    applyRecentTypeLift(prior, hits) {
+      try { return applyRecentTypeLiftPure(prior, hits); }
+      catch (_) { return { adds: Array.isArray(prior) ? prior : [], changed: false, tagged: [] }; }
+    },
+    pickDualSelectBridge(query) {
+      if (!portTables) return null;
+      try {
+        const g = (api.getGraph && api.getGraph()) || {};
+        const graph = {
+          nodes: (query && query.nodes) || g.nodes || [],
+          links: (query && query.links) || g.links || [],
+          selectedId: query && "selectedId" in query ? query.selectedId : (g.selectedId ?? null),
+          selectedIds: query && "selectedIds" in query ? query.selectedIds : (g.selectedIds ?? undefined),
+        };
+        return pickDualSelectBridge(portTables, graph);
+      } catch (_) { return null; }
+    },
   };
+
+  try {
+    modelPriors = await loadJSON("corpus/model-suggest.json");
+    if (!modelPriors || !modelPriors.byNodeType) modelPriors = null;
+  } catch (e) {
+    console.warn("[next-action] model-suggest prior unavailable", e);
+    modelPriors = null;
+  }
 
   try {
     portTables = await loadJSON("corpus/port-suggest.json");
