@@ -16,6 +16,7 @@
 | bridge | `dual-select-bridge.mjs` — Product · 37 selectable wire preview; hover/focus reveals connect, click/Enter/Space accepts |
 | · 39 | `drop-on-node-auto-wire.mjs` — Product · 39 drop-on-node auto-wire |
 | memory | `suggestion-memory.mjs` — local accept/ignore reweight of suggested adds |
+| · 36 | `move-align-snap.mjs` — single-node drag H/V align guides + soft snap |
 | · 20 | `first-node.mjs` — empty-canvas firstNode rank + firstTrio follow-ups in add menus; stable first seat |
 | · 48 | `quickadd-after-abort.mjs` — after abort opens `#quickadd`, origin-fit Suggested re-rank |
 | · 40 | `dblclick-dangling-add-wire.mjs`, `scripts/check-next-action-dblclick-dangling-add-wire.mjs` — double-click dangling port → top gallery add+wire at free seat |
@@ -30,6 +31,7 @@
 | · 38 | `recent-type-recency.mjs` — when stronger Suggested sources are quiet, one clear recent add lifts with “you just used this” |
 
 Learned `.bin` weights stay **gitignored**; tests load inline float fixtures.
+Product · 36 draws faint move-align guides via `move-align-snap.mjs` during single-node drag (no tip panel).
 The editor reads scores from `editor-surface.mjs` and shows them inside existing
 menus (add-node, wire-drop quick-add, model picker). Product · 48 re-ranks abort→`#quickadd` Suggested rows via `quickadd-after-abort.mjs`. There is no floating
 next-action panel and no ghost node. `?product=` does not mount one.
@@ -62,6 +64,7 @@ node scripts/check-next-action-drop-on-node-auto-wire.mjs
 node scripts/check-next-action-recipe.mjs
 node scripts/check-next-action-anti-slop.mjs
 node scripts/check-next-action-deoverlap.mjs
+node scripts/check-next-action-move-align-snap.mjs
 node scripts/check-next-action-suggestion-memory.mjs
 node scripts/check-next-action-quickadd-after-abort.mjs
 node scripts/check-next-action-weights.mjs
