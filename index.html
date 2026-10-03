@@ -159,6 +159,12 @@
   #selmenu.open{ display:flex }
   #selmenu button{ text-align:left; border:none; background:none; display:block; width:100%; padding:.5rem .65rem; border-radius:.45rem }
   #selmenu button:hover{ background:var(--panel2) }
+  /* Product · 34 — pulse the existing Tidy control only when Arrange would move or unstick. */
+  #seltidy.na-multi-tidy-suggest{ background:#5eead422; box-shadow:inset 0 0 0 1px #5eead488; animation:naMultiTidyPulse 1.4s ease-in-out infinite }
+  @keyframes naMultiTidyPulse{ 50%{ background:#5eead444 } }
+  @media (prefers-reduced-motion: reduce){
+    #seltidy.na-multi-tidy-suggest{ animation:none }
+  }
   /* ---------- language selector ---------- */
   #langmenu{ position:relative }
   #langbtn{ display:flex; align-items:center; gap:.25rem; background:none; border:1px solid transparent;
@@ -14464,6 +14470,7 @@ function geoSetMulti(ids){
     multiSel.clear();
     select(ids && ids.length ? byId(ids[0]) : null);
     try{ clearDualSelectBridge(); }catch(_){}
+    try{ refreshMultiTidySuggest(); }catch(_){}
     return;
   }
   multiSel.clear();
@@ -14479,6 +14486,7 @@ function geoSetMulti(ids){
   selected = first;
   updateDelBtn();
   try{ scheduleDualSelectBridge(60); }catch(_){}
+  try{ refreshMultiTidySuggest(); }catch(_){}
 }
 function geoToggleMulti(n){
   if(!n) return;
@@ -14490,12 +14498,14 @@ function geoToggleMulti(n){
     multiSel.clear();
     select(only);
     try{ clearDualSelectBridge(); }catch(_){}
+    try{ refreshMultiTidySuggest(); }catch(_){}
     return;
   }
   for(const x of graph.nodes) if(x.el) x.el.classList.toggle("sel", multiSel.has(x.id));
   selected = n;
   updateDelBtn();
   try{ scheduleDualSelectBridge(60); }catch(_){}
+  try{ refreshMultiTidySuggest(); }catch(_){}
 }
 function geoMarquee(e){
   e.preventDefault();
@@ -14531,7 +14541,7 @@ function geoMarquee(e){
   window.addEventListener("pointerup", up);
   window.addEventListener("pointercancel", up);
 }
-$("seltidy").onclick = ()=> { $("selmenu").classList.remove("open"); geoTidySelection(); };
+$("seltidy").onclick = ()=> { $("selmenu").classList.remove("open"); geoTidySelection(); try{ refreshMultiTidySuggest(); }catch(_){} };
 document.addEventListener("contextmenu", (e)=>{
   if(!geoOn()) return;
   const menu = $("selmenu");
@@ -14545,6 +14555,7 @@ document.addEventListener("contextmenu", (e)=>{
   const r = menu.getBoundingClientRect();
   if(r.right > innerWidth - 8) menu.style.left = Math.max(8, innerWidth - r.width - 8) + "px";
   if(r.bottom > innerHeight - 8) menu.style.top = Math.max(8, innerHeight - r.height - 8) + "px";
+  try{ refreshMultiTidySuggest(); }catch(_){}
 });
 document.addEventListener("pointerdown", (e)=>{
   const menu = $("selmenu");
@@ -14687,6 +14698,31 @@ let spawnN = 0;
 let planDeoverlap = null;
 let deoverlapFrame = 0;
 import("./vendor/next-action/deoverlap.mjs").then((m) => { planDeoverlap = m.planDeoverlap; }).catch(() => {});
+// Product · 34 — pulse #seltidy only when Arrange would move or unstick the selection.
+let suggestMultiTidyFn = null;
+import("./vendor/next-action/multi-tidy-suggest.mjs").then((m) => { suggestMultiTidyFn = m.suggestMultiTidy; try{ refreshMultiTidySuggest(); }catch(_){} }).catch(() => {});
+document.addEventListener("pointerup", ()=>{ try{ if(typeof multiSel!=="undefined" && multiSel && multiSel.size>=2) refreshMultiTidySuggest(); }catch(_){} }, true);
+function refreshMultiTidySuggest(){
+  const btn = $("seltidy");
+  if(btn) btn.classList.remove("na-multi-tidy-suggest");
+  if(typeof geoOn==="function" && !geoOn()) return;
+  if(typeof multiSel==="undefined" || !multiSel || multiSel.size < 2 || !suggestMultiTidyFn) return;
+  let reduce = false;
+  try{ reduce = matchMedia("(prefers-reduced-motion: reduce)").matches; }catch(_){}
+  if(reduce) return;
+  const measured = geoMeasure(graph.nodes);
+  const sel = [], obstacles = [];
+  for(const b of measured){
+    if(!multiSel.has(b.id)){ obstacles.push(b); continue; }
+    const oy = geoUpstreamY(b.id);
+    sel.push({ id:b.id, x:b.x, y:b.y, w:b.w, h:b.h, orderY: oy == null ? b.y : oy });
+  }
+  if(sel.length < 2) return;
+  let verdict = null;
+  try{ verdict = suggestMultiTidyFn({ selected: sel, links: graph.links||[], obstacles }); }catch(_){ return; }
+  if(!verdict || !verdict.suggest) return;
+  if(btn) btn.classList.add("na-multi-tidy-suggest");
+}
 // Product · 20 — stable first-node seat on an empty canvas (no cascade jitter).
 let firstNodeSeatFn = null;
 import("./vendor/next-action/first-node.mjs").then((m) => { firstNodeSeatFn = m.firstNodeSeat; }).catch(() => {});
