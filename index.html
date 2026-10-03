@@ -7829,8 +7829,24 @@ function liftPinnedModel(list, id){
 function renderPicker(){
   if(!picker) return;
   const matches = rankPickerMatches(pickerMatches());
-  const pin = modelHintId();
-  const shown = pin ? liftPinnedModel(matches, pin) : matches;
+  const qNorm = normalizePickerQuery(($("mpicksearch").value || ""));
+  let shown = matches;
+  let galleryTagged = null;
+  if(!qNorm && pickerSort==="newest"){
+    try{
+      const na = window.__nextAction;
+      if(na && !na.disabled && typeof na.rankModelSuggestions==="function" && typeof na.liftChangedModels==="function"){
+        const hits = na.rankModelSuggestions(picker.nodeType || "", matches.map(m=>m.id), { kind: picker.kind || "" });
+        const lift = hits && hits.length ? na.liftChangedModels(matches, hits) : null;
+        if(lift && lift.list && lift.tagged && lift.tagged.length){
+          shown = lift.list;
+          galleryTagged = new Set(lift.tagged);
+        }
+      }
+    }catch(_){}
+  }
+  const pin = galleryTagged ? "" : modelHintId();
+  if(!galleryTagged) shown = pin ? liftPinnedModel(matches, pin) : matches;
   $("mpickcount").textContent = `${matches.length} ${matches.length===1?t("model"):t("models")} · ${t(PICK_SORTS[pickerSort])}`;
   const nsfwtog = $("mpicknsfwtog");
   if(nsfwtog && (picker.kind==="image" || picker.kind==="video")) nsfwtog.checked = !!nsfwOnly;
@@ -7856,14 +7872,15 @@ function renderPicker(){
   for(const m of shown.slice(0,400)){
     const b = document.createElement("button");
     if(m.id===picker.current) b.classList.add("sel");
-    const sug = !!(pin && m.id===pin);
+    const sug = galleryTagged ? galleryTagged.has(m.id) : !!(pin && m.id===pin);
     if(sug) b.classList.add("suggested");
     const tags = `${m.vision?'<span class="tag">vision</span>':''}${m.edit?'<span class="tag edit">edit</span>':''}`
       + `${m.t2v?'<span class="tag">t2v</span>':''}${m.i2v?'<span class="tag edit">i2v</span>':''}`
       + `${m.v2v?'<span class="tag edit">v2v</span>':''}${m.avatar?'<span class="tag">avatar</span>':''}`
       + `${m.tts?'<span class="tag">tts</span>':''}${m.music?'<span class="tag edit">music</span>':''}${m.stt?'<span class="tag">stt</span>':''}`
       + `${m.nsfw?`<span class="tag nsfw">${nsfwOnly?"nsfw":"NSFW"}</span>`:''}`;
-    b.innerHTML = `<span class="mname">${esc(m.id)} ${tags}</span>${sug?`<span class="sug" title="pick a model next">suggested</span>`:""}<span class="price">${esc(m.price)}</span>`;
+    const sugTitle = galleryTagged ? "common in gallery" : "pick a model next";
+    b.innerHTML = `<span class="mname">${esc(m.id)} ${tags}</span>${sug?`<span class="sug" title="${sugTitle}">suggested</span>`:""}<span class="price">${esc(m.price)}</span>`;
     b.onclick = ()=>{ picker.onPick(m.id); closePicker(); };
     frag.appendChild(b);
   }

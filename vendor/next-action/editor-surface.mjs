@@ -29,6 +29,7 @@ import { pickDualSelectBridge } from "./dual-select-bridge.mjs";
 import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
 import { loadNextActionExport } from "./export-load.mjs";
 import { mergeFirstNodeRows, firstNodeSeat, isEmptyCanvas } from "./first-node.mjs";
+import { rankModelSuggestions as rankModelSuggestionsPure, liftChangedModels as liftChangedModelsPure } from "./model-suggest.mjs";
 
 const BASE = new URL(".", import.meta.url);
 
@@ -87,6 +88,7 @@ export async function mount(api) {
   let slopPriors = null;
   let portTables = null;
   let recipes = null;
+  let modelPriors = null;
   let session = null;
   let recommendFrequency = null;
   let recommendNext = null;
@@ -226,6 +228,16 @@ export async function mount(api) {
         });
       } catch (_) { return null; }
     },
+    // Product · 24: gallery-common models, tagged only when the picker order changes.
+    rankModelSuggestions(nodeType, catalogIds, opts = {}) {
+      if (!modelPriors) return [];
+      try { return rankModelSuggestionsPure(nodeType, catalogIds, modelPriors, opts || {}); }
+      catch (_) { return []; }
+    },
+    liftChangedModels(list, suggestions) {
+      try { return liftChangedModelsPure(list, suggestions); }
+      catch (_) { return null; }
+    },
     pickDualSelectBridge(query) {
       if (!portTables) return null;
       try {
@@ -240,6 +252,14 @@ export async function mount(api) {
       } catch (_) { return null; }
     },
   };
+
+  try {
+    modelPriors = await loadJSON("corpus/model-suggest.json");
+    if (!modelPriors || !modelPriors.byNodeType) modelPriors = null;
+  } catch (e) {
+    console.warn("[next-action] model-suggest prior unavailable", e);
+    modelPriors = null;
+  }
 
   try {
     portTables = await loadJSON("corpus/port-suggest.json");
