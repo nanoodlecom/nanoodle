@@ -779,6 +779,12 @@
   @media (prefers-reduced-motion: reduce){
     .port.na-run-fail-port, .port.na-run-fail-port.compatible{ animation:none !important; transition:none; transform:none }
   }
+  /* Product · 33 — one leftover port on the two nodes a wire just joined. */
+  .port.na-continue-port{ transform:scale(1.28); box-shadow:0 0 0 3px #2dd4bfaa, 0 0 10px #2dd4bf66; animation:naContinuePulse 1.25s ease-in-out 4 }
+  @keyframes naContinuePulse{ 50%{ box-shadow:0 0 0 6px #2dd4bf44, 0 0 14px #2dd4bf55; transform:scale(1.42) } }
+  @media (prefers-reduced-motion: reduce){
+    .port.na-continue-port{ animation:none !important; box-shadow:none; transform:none }
+  }
 
   .body{ padding:.1rem .6rem .6rem; display:flex; flex-direction:column; gap:.5rem }
   .body label{ font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); display:block; margin-bottom:.2rem; font-weight:700 }
@@ -10804,6 +10810,7 @@ function nearestPort(x, y, ports){
 }
 function startWire(port, e){
   try{ clearDualSelectBridge(); }catch(_){}
+  try{ clearContinuePort(); }catch(_){}
   if(port.classList && port.classList.contains("disabled")) return;
   e.preventDefault(); e.stopPropagation();
   closeQuickAdd();
@@ -17652,6 +17659,61 @@ function acceptDualSelectBridge(){
   }catch(_){ return false; }
 }
 
+/* Product · 33 — right after a wire lands, pulse one leftover port on those
+   two nodes when another node can still take it. A tie or a finished pair
+   stays unmarked. No tip panel. ?na=0 / ?product=off leaves ports alone. */
+let _continuePortTimer = 0;
+let _continuePortTtl = 0;
+let _continuePortKey = "";
+const CONTINUE_PORT_TTL_MS = 4200;
+function continuePortReducedMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(_){ return false; }
+}
+function clearContinuePort(){
+  if(_continuePortTimer){ clearTimeout(_continuePortTimer); _continuePortTimer = 0; }
+  if(_continuePortTtl){ clearTimeout(_continuePortTtl); _continuePortTtl = 0; }
+  document.querySelectorAll(".port.na-continue-port").forEach(p=> p.classList.remove("na-continue-port"));
+  _continuePortKey = "";
+}
+function applyContinuePort(fromNodeId, toNodeId){
+  if(continuePortReducedMotion() || (typeof geoOn==="function" && !geoOn())){ clearContinuePort(); return; }
+  if(typeof tempWire!=="undefined" && tempWire){ clearContinuePort(); return; }
+  if(typeof multiSel!=="undefined" && multiSel && multiSel.size>1){ clearContinuePort(); return; }
+  const na = window.__nextAction;
+  if(!na || na.disabled || !(na.hasPortPriors && na.hasPortPriors()) || typeof na.pickContinuePort!=="function"){
+    clearContinuePort();
+    return;
+  }
+  let pick = null;
+  try{
+    pick = na.pickContinuePort({
+      nodes: (graph.nodes||[]).map(n => ({ id:n.id, type:n.type })),
+      links: (graph.links||[]).map(l => ({ from:l.from, to:l.to })),
+      selectedId: (typeof selected!=="undefined" && selected && selected.id) ? selected.id : null,
+      selectedIds: (typeof multiSel!=="undefined" && multiSel && multiSel.size) ? [...multiSel] : [],
+      fromNodeId, toNodeId,
+    });
+  }catch(_){ pick = null; }
+  if(!pick){ clearContinuePort(); return; }
+  const el = document.querySelector(`.port[data-node="${pick.nodeId}"][data-port="${pick.port}"][data-dir="${pick.dir}"]`);
+  if(!el || el.classList.contains("disabled") || el.classList.contains("filled")){ clearContinuePort(); return; }
+  const key = pick.nodeId + "|" + pick.port + "|" + pick.dir;
+  if(key !== _continuePortKey){
+    document.querySelectorAll(".port.na-continue-port").forEach(p=> p.classList.remove("na-continue-port"));
+    _continuePortKey = key;
+  }
+  if(!el.classList.contains("na-continue-port")) el.classList.add("na-continue-port");
+  if(_continuePortTtl) clearTimeout(_continuePortTtl);
+  _continuePortTtl = setTimeout(()=>{ _continuePortTtl = 0; clearContinuePort(); }, CONTINUE_PORT_TTL_MS);
+}
+function scheduleContinuePort(fromNodeId, toNodeId){
+  if(_continuePortTimer) clearTimeout(_continuePortTimer);
+  _continuePortTimer = setTimeout(()=>{
+    _continuePortTimer = 0;
+    applyContinuePort(fromNodeId, toNodeId);
+  }, 220);
+}
+
 (function bootNextActionHints(){
   const _addNode = addNode;
   addNode = function(type, x, y, fields){
@@ -17666,6 +17728,7 @@ function acceptDualSelectBridge(){
     if(ok) try { window.__nextAction?.record?.("wire"); } catch(_){}
     if(ok) try { syncRunFailPort(); } catch(_){}
     if(ok) try { clearDualSelectBridge(); scheduleDualSelectBridge(120); } catch(_){}
+    if(ok) try { scheduleContinuePort(fromNode, toNode); } catch(_){}
     return ok;
   };
   const _select = select;

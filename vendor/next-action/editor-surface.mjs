@@ -25,6 +25,7 @@ import { rankRingTargets } from "./port-highlight.mjs";
 import { rankQuickaddAfterAbort as rankQuickaddAfterAbortPure } from "./quickadd-after-abort.mjs";
 import { pickDropAutoWire } from "./drop-on-node-auto-wire.mjs";
 import { pickDblclickDanglingAddWire } from "./dblclick-dangling-add-wire.mjs";
+import { pickContinuePort as pickContinuePortPure } from "./continue-port.mjs";
 import { pickDualSelectBridge } from "./dual-select-bridge.mjs";
 import { confidentRecipe, mergeRecipeHint } from "./recipe.mjs";
 import { loadNextActionExport } from "./export-load.mjs";
@@ -223,6 +224,23 @@ export async function mount(api) {
           nodeW: query && query.nodeW,
           nodeH: query && query.nodeH,
           gap: query && query.gap,
+        });
+      } catch (_) { return null; }
+    },
+    // Product · 33: after a wire lands, one leftover port on those two nodes with a live partner.
+    pickContinuePort(query) {
+      if (!portTables) return null;
+      try {
+        const g = (api.getGraph && api.getGraph()) || {};
+        const graph = {
+          nodes: (query && query.nodes) || g.nodes || [],
+          links: (query && query.links) || g.links || [],
+          selectedId: query && "selectedId" in query ? query.selectedId : g.selectedId,
+          selectedIds: (query && query.selectedIds) || g.selectedIds || [],
+        };
+        return pickContinuePortPure(portTables, graph, {
+          fromNodeId: query && (query.fromNodeId || query.fromId),
+          toNodeId: query && (query.toNodeId || query.toId),
         });
       } catch (_) { return null; }
     },
