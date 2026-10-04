@@ -15,6 +15,7 @@ import {
   typeMultiset,
   confidentRecipe,
   mergeRecipeHint,
+  liftRecipeType,
 } from "../vendor/next-action/recipe.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -104,7 +105,12 @@ assert(confidentRecipe(corpus, { numNodes: 1, nodeTypeCounts: { text: 1 } }) ===
   assert(hit && hit.slug === "character-sprites" && hit.type === "edit", `expected Game character kit → edit, got ${JSON.stringify(hit)}`);
   assert(hit.reason === "from Game character kit recipe", "reason names the example");
   const merged = mergeRecipeHint({ confident: true, adds: [{ type: "text", action: "add:text", share: 0.4, reason: "often added next" }], wire: null, setModel: null, openExamples: null }, hit);
-  assert(merged.confident && merged.adds[0].type === "edit" && merged.adds[0].reason === hit.reason, "recipe leads the add list");
+  assert(merged.confident && merged.adds[0].type === "edit" && merged.adds[0].reason === hit.reason && merged.adds[0].source === "recipe", "recipe leads the add list");
+  assert(merged.recipe.type === "edit", "the shelf mark knows the next type");
+  assert(liftRecipeType(["upload", "image", "edit"], "edit").join(",") === "edit,upload,image", "a search hit that is the next type rises to the top");
+  assert(liftRecipeType(["edit", "image"], "edit") === null, "already first does not rewrite the list");
+  assert(liftRecipeType(["upload", "image"], "edit") === null, "a type that is not a hit is not inserted");
+  assert(liftRecipeType(["upload", "image"], "") === null && liftRecipeType(["upload"], "upload") === null, "an unsure or single-row list stays put");
   assert(merged.adds[1].type === "text", "frequency rows stay behind the recipe");
   assert(!merged.wire, "a recipe completion is not a wire");
   assert(merged.recipe.slug === "character-sprites", "shelf can lift the matched example");
@@ -116,7 +122,8 @@ assert(confidentRecipe(corpus, { numNodes: 1, nodeTypeCounts: { text: 1 } }) ===
   const surface = readFileSync(join(NA, "editor-surface.mjs"), "utf8");
   const index = readFileSync(join(ROOT, "index.html"), "utf8");
   assert(!mod.includes("na-chip") && !mod.includes("Mess up") && !mod.includes("placeGhost"), "no chips, ghosts, or demo buttons");
-  assert(surface.includes("confidentRecipe") && surface.includes("mergeRecipeHint"), "engine merges a confident recipe");
+  assert(surface.includes("confidentRecipe") && surface.includes("mergeRecipeHint") && surface.includes("liftRecipeType"), "engine merges a confident recipe");
+  assert(index.includes("liftRecipeType"), "typed search pins the recipe next type when it is already a hit");
   assert(surface.includes("corpus/recipes.json"), "engine loads the baked recipes");
   assert(index.includes("eh.recipe"), "Examples shelf reads the matched recipe");
   assert(index.includes("recipe.reason"), "the shelf mark can name the recipe");

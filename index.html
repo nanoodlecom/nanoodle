@@ -14974,7 +14974,35 @@ function renderAddList(q){
       if(i > 0){ const [row] = hits.splice(i, 1); hits.unshift(row); }
       else lift = null;
     }else lift = null;
-    html = hits.length ? hits.map(([k,t])=>nodeRow(k,t,(lift && lift.type===k) ? lift : (map&&map.byType[k]))).join("")
+    // A confident recipe pins its next type to the top of this existing hit
+    // list. A miss does not insert a row; an unsure match leaves popular lift alone.
+    let recipeType = "";
+    try{
+      const rh = nextActionHints();
+      if(rh && rh.recipe){
+        const t = rh.recipe.type || (rh.adds && rh.adds[0] && rh.adds[0].type) || "";
+        if(t && NODE_TYPES[t]) recipeType = t;
+      }
+    }catch(_){ recipeType = ""; }
+    if(recipeType){
+      let lifted = null;
+      try{
+        const na = window.__nextAction;
+        if(na && !na.disabled && typeof na.liftRecipeType==="function"){
+          lifted = na.liftRecipeType(hits.map(h=>h[0]), recipeType);
+        }
+      }catch(_){ lifted = null; }
+      if(Array.isArray(lifted) && lifted.length===hits.length){
+        const byId = new Map(hits.map(h=>[h[0], h]));
+        const next = lifted.map(id=>byId.get(id));
+        if(next.every(Boolean)){
+          hits = next;
+          if(lift && lift.type!==recipeType) lift = null;
+        }
+      }
+    }
+    const sugFor = (k)=> (recipeType && k===recipeType && map && map.byType[k]) ? map.byType[k] : ((lift && lift.type===k) ? lift : (map&&map.byType[k]));
+    html = hits.length ? hits.map(([k,t])=>nodeRow(k,t,sugFor(k))).join("")
                        : `<div class="nomatch">${esc(t("no nodes match “{q}”")).replace("{q}", ()=>esc(q))}</div>`;
   }
   list.innerHTML = html;

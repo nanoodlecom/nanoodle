@@ -10,7 +10,7 @@
 | · 1 | `scripts/train-next-action.py`, `fixtures/smoke-weights.json`, `scripts/check-next-action.mjs`, `hints.mjs` |
 | port | `port-suggest.mjs`, `corpus/port-suggest.json` — wire-drop rank + drag ring only |
 | · 21 | `port-highlight.mjs` — graduated likely/fit/dim rings on target ports while dragging |
-| recipe | `recipe.mjs`, `corpus/recipes.json` — confident gallery completions re-rank Suggested rows |
+| recipe | `recipe.mjs`, `corpus/recipes.json` — confident gallery completions re-rank Suggested rows, and pin that next type to the top of a typed add-search hit list when it is already a hit |
 | slop | `anti-slop.mjs`, `corpus/anti-slop.json` — soft re-rank away from a shallow Text→LLM loop |
 | layout | `deoverlap.mjs`, `auto-tidy.mjs`, `collision-nudge.mjs` — slide an overlapping add apart |
 | bridge | `dual-select-bridge.mjs` — Product · 37 selectable wire preview; hover/focus reveals connect, click/Enter/Space accepts |
