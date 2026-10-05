@@ -7321,6 +7321,15 @@ const VIDEO_QUOTE_PER_SECOND = {
   "minimax-h3/reference-to-video": { default_resolution:"480p", default_duration:5, per_second_by_resolution:{ "480p":0.05, "540p":0.075, "768p":0.125, "1080p":0.25 } },
   "minimax/h3-max/multi-angle/image-to-video": { default_resolution:"480p", default_duration:5, per_second_by_resolution:{ "480p":0.05, "768p":0.08, "1080p":0.16 } },
   "minimax/h3-max/extend-video": { default_resolution:"768p", default_duration:5, per_second_by_resolution:{ "480p":0.05, "768p":0.08, "1080p":0.16, "2k":0.32 } },
+  // Measured 2026-10-05. The GET quote ignores duration/resolution (it only prices the
+  // model defaults), so these come from the quote POST /api/generate-video makes before it
+  // charges: no key + x-x402: true returns 402 with payment.amountUsd for that exact
+  // duration × resolution, and nothing runs. Both scale linearly: 1s, 6s and 15s agree.
+  // Grok Lite: 6s 720p $0.18 (= the GET default), 15s 1080p $2.10. A start image adds
+  // a flat $0.01 on top of this, which the estimate leaves out.
+  "grok-imagine-video-1.5-lite": { default_resolution:"720p", default_duration:6, per_second_by_resolution:{ "480p":0.02, "720p":0.03, "1080p":0.14 } },
+  // H3 Max Turbo extend: billed on the new seconds only (2s and 4s sources quote the same).
+  "minimax/h3-max-turbo/extend-video": { default_resolution:"768p", default_duration:5, per_second_by_resolution:{ "480p":0.025, "768p":0.04, "1080p":0.08, "2k":0.16 } },
 };
 function videoPricingHasDurationRate(p){
   if(!p) return false;
