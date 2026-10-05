@@ -14741,6 +14741,29 @@ function recentTypeMap(base){
     return order.length ? { order, byType } : base;
   }catch(_){ return base; }
 }
+// Product · 52 — empty Add list only. At a branch-point node (an output that
+// forks into different intents), keep the top three Suggested rows spread
+// across distinct intent modes from a tiny MoG head. Row 1 and recipe rows
+// never move; one dominant mode, a single live mode, or an already-spread
+// list leaves the list exactly as it is.
+function intentSpreadMap(base){
+  try{
+    if(!base) return base;
+    const na = window.__nextAction;
+    if(!na || na.disabled || typeof na.spreadIntentRows !== "function") return base;
+    const prior = stampRecipeSource(addPriorRows(base));
+    const applied = na.spreadIntentRows(selectedGraph(prior), prior);
+    if(!applied || !applied.changed || !applied.adds || !applied.adds.length) return base;
+    const order = [], byType = {};
+    const tagged = new Set(applied.tagged || []);
+    for(const a of applied.adds){
+      if(!a || !a.type || !NODE_TYPES[a.type] || byType[a.type]) continue;
+      byType[a.type] = tagged.has(a.type) ? a : ((base && base.byType[a.type]) || a);
+      order.push(a.type);
+    }
+    return order.length ? { order, byType } : base;
+  }catch(_){ return base; }
+}
 function nodeRow(k,t,sug){
   if(!sug) return `<button data-type="${k}"><span class="k">${t.em}</span><span><div>${esc(t.title)}</div><div class="d">${esc(t.desc)}</div></span></button>`;
   const why = sug.reason ? ` title="${esc(sug.reason)}"` : "";
@@ -14783,6 +14806,8 @@ function renderAddList(q){
       const lifted = recentTypeMap(map);
       if(lifted) map = lifted;
     }
+    const spread = intentSpreadMap(map);
+    if(spread) map = spread;
     const skip = map ? new Set(map.order) : null;
     if(map) html += `<div class="grp">Suggested</div>` + map.order.map(k=>nodeRow(k, NODE_TYPES[k], map.byType[k])).join("");
     const recent = addRecent.filter(k=>NODE_TYPES[k] && !(skip && skip.has(k)));

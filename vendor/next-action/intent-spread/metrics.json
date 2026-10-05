@@ -1,0 +1,1810 @@
+{
+ "label": "Product · 52",
+ "heldOut": "leave-one-graph-out over the 8 Examples-gallery graphs (fold weights trained without that graph)",
+ "trainedOn": "pop-os · RTX A6000 (GPU 1, the idle one) · ParticleGAN develop 81a0c642 · torch 2.6.0+cu124 · ≤4 jobs at a time",
+ "selected": "g_cd5_ts3",
+ "selectionNote": "8 small calibration configs were scored on these same held-out folds; g_cd5_ts3 was picked for best multi-mode coverage with calibrated (non-saturated) mode shares. Treat numbers as optimistic given the tiny gallery.",
+ "baselines": {
+  "baseline-count": "gallery consumer counts from the other graphs (Product · 27 style)",
+  "baseline-head": "same MoG head, plain marginal top-3 (no spread)",
+  "spread": "baseline-head rows through spreadIntentRows() (row 1 pinned)"
+ },
+ "forks": 55,
+ "spreadFired": 17,
+ "summary": {
+  "baseline-count": {
+   "all": {
+    "n": 38,
+    "modeCoverage3": 0.75,
+    "typeRecall3": 0.697,
+    "distinctModes3": 2.05,
+    "fullModeCoverage": 0.684
+   },
+   "multi": {
+    "n": 7,
+    "modeCoverage3": 0.643,
+    "typeRecall3": 0.714,
+    "distinctModes3": 1.86,
+    "fullModeCoverage": 0.286
+   },
+   "second": {
+    "n": 17,
+    "modeCoverage3": 0.529,
+    "typeRecall3": 0.706,
+    "distinctModes3": 1.82,
+    "fullModeCoverage": 0.529
+   }
+  },
+  "baseline-head": {
+   "all": {
+    "n": 38,
+    "modeCoverage3": 0.684,
+    "typeRecall3": 0.61,
+    "distinctModes3": 2.11,
+    "fullModeCoverage": 0.658
+   },
+   "multi": {
+    "n": 7,
+    "modeCoverage3": 0.714,
+    "typeRecall3": 0.667,
+    "distinctModes3": 2,
+    "fullModeCoverage": 0.571
+   },
+   "second": {
+    "n": 17,
+    "modeCoverage3": 0.412,
+    "typeRecall3": 0.441,
+    "distinctModes3": 1.82,
+    "fullModeCoverage": 0.412
+   }
+  },
+  "spread": {
+   "all": {
+    "n": 38,
+    "modeCoverage3": 0.789,
+    "typeRecall3": 0.583,
+    "distinctModes3": 2.5,
+    "fullModeCoverage": 0.763
+   },
+   "multi": {
+    "n": 7,
+    "modeCoverage3": 0.714,
+    "typeRecall3": 0.667,
+    "distinctModes3": 2,
+    "fullModeCoverage": 0.571
+   },
+   "second": {
+    "n": 17,
+    "modeCoverage3": 0.471,
+    "typeRecall3": 0.471,
+    "distinctModes3": 1.94,
+    "fullModeCoverage": 0.471
+   }
+  }
+ },
+ "grid": {
+  "a_base": {
+   "ctxDropout": 0,
+   "tagSmooth": 0,
+   "weightDecay": 0.0001,
+   "hidden": 16,
+   "modeCoverage3": {
+    "all": [
+     0.737,
+     0.816
+    ],
+    "multi": [
+     0.714,
+     0.714
+    ],
+    "second": [
+     0.471,
+     0.471
+    ]
+   }
+  },
+  "b_cd5": {
+   "ctxDropout": 0.5,
+   "tagSmooth": 0,
+   "weightDecay": 0.0001,
+   "hidden": 16,
+   "modeCoverage3": {
+    "all": [
+     0.632,
+     0.711
+    ],
+    "multi": [
+     0.571,
+     0.571
+    ],
+    "second": [
+     0.294,
+     0.294
+    ]
+   }
+  },
+  "c_cd5_ts1": {
+   "ctxDropout": 0.5,
+   "tagSmooth": 0.1,
+   "weightDecay": 0.0001,
+   "hidden": 16,
+   "modeCoverage3": {
+    "all": [
+     0.671,
+     0.75
+    ],
+    "multi": [
+     0.643,
+     0.643
+    ],
+    "second": [
+     0.294,
+     0.294
+    ]
+   }
+  },
+  "d_cd5_ts2_wd3": {
+   "ctxDropout": 0.5,
+   "tagSmooth": 0.2,
+   "weightDecay": 0.001,
+   "hidden": 16,
+   "modeCoverage3": {
+    "all": [
+     0.711,
+     0.816
+    ],
+    "multi": [
+     0.571,
+     0.571
+    ],
+    "second": [
+     0.353,
+     0.353
+    ]
+   }
+  },
+  "e_cd8_ts1": {
+   "ctxDropout": 0.8,
+   "tagSmooth": 0.1,
+   "weightDecay": 0.0001,
+   "hidden": 16,
+   "modeCoverage3": {
+    "all": [
+     0.711,
+     0.789
+    ],
+    "multi": [
+     0.714,
+     0.714
+    ],
+    "second": [
+     0.412,
+     0.471
+    ]
+   }
+  },
+  "f_h8_cd5_ts1": {
+   "ctxDropout": 0.5,
+   "tagSmooth": 0.1,
+   "weightDecay": 0.0001,
+   "hidden": 8,
+   "modeCoverage3": {
+    "all": [
+     0.658,
+     0.737
+    ],
+    "multi": [
+     0.571,
+     0.571
+    ],
+    "second": [
+     0.529,
+     0.588
+    ]
+   }
+  },
+  "g_cd5_ts3": {
+   "ctxDropout": 0.5,
+   "tagSmooth": 0.3,
+   "weightDecay": 0.0001,
+   "hidden": 16,
+   "modeCoverage3": {
+    "all": [
+     0.684,
+     0.789
+    ],
+    "multi": [
+     0.714,
+     0.714
+    ],
+    "second": [
+     0.412,
+     0.471
+    ]
+   }
+  },
+  "h_wd1e2_ts1": {
+   "ctxDropout": 0,
+   "tagSmooth": 0.1,
+   "weightDecay": 0.01,
+   "hidden": 16,
+   "modeCoverage3": {
+    "all": [
+     0.75,
+     0.829
+    ],
+    "multi": [
+     0.643,
+     0.643
+    ],
+    "second": [
+     0.353,
+     0.412
+    ]
+   }
+  }
+ },
+ "perFork": [
+  {
+   "state": "fresh",
+   "forkId": "character-sprites#n1",
+   "wired": [],
+   "truth": [
+    "llm"
+   ],
+   "modes": [
+    "describe"
+   ],
+   "why": "spread",
+   "head": [
+    "image",
+    "join",
+    "llm"
+   ],
+   "spread": [
+    "image",
+    "join",
+    "ivideo"
+   ],
+   "count": [
+    "image",
+    "join",
+    "llm"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "character-sprites#n2",
+   "wired": [],
+   "truth": [
+    "image"
+   ],
+   "modes": [
+    "picture"
+   ],
+   "why": "already-spread",
+   "head": [
+    "image",
+    "ivideo",
+    "lipsync"
+   ],
+   "spread": [
+    "image",
+    "ivideo",
+    "lipsync"
+   ],
+   "count": [
+    "join",
+    "llm",
+    "image"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "character-sprites#n3",
+   "wired": [],
+   "truth": [
+    "resize",
+    "edit"
+   ],
+   "modes": [
+    "refine"
+   ],
+   "why": "dominant",
+   "head": [
+    "ivideo",
+    "lipsync",
+    "resize"
+   ],
+   "spread": [
+    "ivideo",
+    "lipsync",
+    "resize"
+   ],
+   "count": [
+    "ivideo",
+    "edit",
+    "resize"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "image-model-arena#n2",
+   "wired": [],
+   "truth": [
+    "image",
+    "image",
+    "image",
+    "image"
+   ],
+   "modes": [
+    "picture"
+   ],
+   "why": "spread",
+   "head": [
+    "join",
+    "image",
+    "llm"
+   ],
+   "spread": [
+    "join",
+    "image",
+    "ivideo"
+   ],
+   "count": [
+    "join",
+    "image",
+    "llm"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "neon-shrine-duel#n1",
+   "wired": [],
+   "truth": [
+    "llm",
+    "llm"
+   ],
+   "modes": [
+    "describe"
+   ],
+   "why": "spread",
+   "head": [
+    "image",
+    "join",
+    "llm"
+   ],
+   "spread": [
+    "image",
+    "join",
+    "ivideo"
+   ],
+   "count": [
+    "image",
+    "join",
+    "ivideo"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "neon-shrine-duel#n2",
+   "wired": [],
+   "truth": [
+    "image"
+   ],
+   "modes": [
+    "picture"
+   ],
+   "why": "dominant",
+   "head": [
+    "image",
+    "edit",
+    "music"
+   ],
+   "spread": [
+    "image",
+    "edit",
+    "music"
+   ],
+   "count": [
+    "join",
+    "llm",
+    "image"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "neon-shrine-duel#n3",
+   "wired": [],
+   "truth": [
+    "ivideo"
+   ],
+   "modes": [
+    "animate"
+   ],
+   "why": "dominant",
+   "head": [
+    "resize",
+    "edit",
+    "inpaint"
+   ],
+   "spread": [
+    "resize",
+    "edit",
+    "inpaint"
+   ],
+   "count": [
+    "edit",
+    "resize",
+    "ivideo"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "neon-shrine-duel#n4",
+   "wired": [],
+   "truth": [
+    "ivideo"
+   ],
+   "modes": [
+    "animate"
+   ],
+   "why": "dominant",
+   "head": [
+    "image",
+    "edit",
+    "music"
+   ],
+   "spread": [
+    "image",
+    "edit",
+    "music"
+   ],
+   "count": [
+    "join",
+    "llm",
+    "image"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "photo-to-video#n1",
+   "wired": [],
+   "truth": [
+    "image"
+   ],
+   "modes": [
+    "picture"
+   ],
+   "why": "spread",
+   "head": [
+    "image",
+    "join",
+    "llm"
+   ],
+   "spread": [
+    "image",
+    "join",
+    "ivideo"
+   ],
+   "count": [
+    "image",
+    "join",
+    "llm"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "photo-to-video#n2",
+   "wired": [],
+   "truth": [
+    "ivideo"
+   ],
+   "modes": [
+    "animate"
+   ],
+   "why": "already-spread",
+   "head": [
+    "ivideo",
+    "resize",
+    "lipsync"
+   ],
+   "spread": [
+    "ivideo",
+    "resize",
+    "lipsync"
+   ],
+   "count": [
+    "edit",
+    "resize",
+    "ivideo"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "photo-to-video#n8",
+   "wired": [],
+   "truth": [
+    "ivideo"
+   ],
+   "modes": [
+    "animate"
+   ],
+   "why": "spread",
+   "head": [
+    "image",
+    "join",
+    "llm"
+   ],
+   "spread": [
+    "image",
+    "join",
+    "ivideo"
+   ],
+   "count": [
+    "image",
+    "join",
+    "llm"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "sing#n1",
+   "wired": [],
+   "truth": [
+    "join"
+   ],
+   "modes": [
+    "describe"
+   ],
+   "why": "spread",
+   "head": [
+    "image",
+    "join",
+    "llm"
+   ],
+   "spread": [
+    "image",
+    "join",
+    "ivideo"
+   ],
+   "count": [
+    "image",
+    "join",
+    "llm"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "sing#n10",
+   "wired": [],
+   "truth": [
+    "llm"
+   ],
+   "modes": [
+    "describe"
+   ],
+   "why": "spread",
+   "head": [
+    "edit",
+    "vedit",
+    "join"
+   ],
+   "spread": [
+    "edit",
+    "join",
+    "tts"
+   ],
+   "count": [
+    "join",
+    "llm",
+    "edit"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "sing#n2",
+   "wired": [],
+   "truth": [
+    "join",
+    "music"
+   ],
+   "modes": [
+    "describe",
+    "sound"
+   ],
+   "why": "already-spread",
+   "head": [
+    "image",
+    "ivideo",
+    "lipsync"
+   ],
+   "spread": [
+    "image",
+    "ivideo",
+    "lipsync"
+   ],
+   "count": [
+    "image",
+    "join",
+    "ivideo"
+   ]
+  },
+  {
+   "state": "second-fork",
+   "forkId": "sing#n2",
+   "wired": [
+    "join"
+   ],
+   "truth": [
+    "music"
+   ],
+   "modes": [
+    "sound"
+   ],
+   "why": "spread",
+   "head": [
+    "image",
+    "join",
+    "llm"
+   ],
+   "spread": [
+    "image",
+    "join",
+    "ivideo"
+   ],
+   "count": [
+    "image",
+    "join",
+    "ivideo"
+   ]
+  },
+  {
+   "state": "second-fork",
+   "forkId": "sing#n2",
+   "wired": [
+    "music"
+   ],
+   "truth": [
+    "join"
+   ],
+   "modes": [
+    "describe"
+   ],
+   "why": "already-spread",
+   "head": [
+    "image",
+    "ivideo",
+    "lipsync"
+   ],
+   "spread": [
+    "image",
+    "ivideo",
+    "lipsync"
+   ],
+   "count": [
+    "image",
+    "join",
+    "ivideo"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "sing#n3",
+   "wired": [],
+   "truth": [
+    "llm",
+    "join"
+   ],
+   "modes": [
+    "describe"
+   ],
+   "why": "already-spread",
+   "head": [
+    "ivideo",
+    "image",
+    "tts"
+   ],
+   "spread": [
+    "ivideo",
+    "image",
+    "tts"
+   ],
+   "count": [
+    "image",
+    "join",
+    "ivideo"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "sing#n5",
+   "wired": [],
+   "truth": [
+    "join"
+   ],
+   "modes": [
+    "describe"
+   ],
+   "why": "spread",
+   "head": [
+    "image",
+    "join",
+    "llm"
+   ],
+   "spread": [
+    "image",
+    "join",
+    "ivideo"
+   ],
+   "count": [
+    "image",
+    "join",
+    "llm"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "sing#n6",
+   "wired": [],
+   "truth": [
+    "llm",
+    "join"
+   ],
+   "modes": [
+    "describe"
+   ],
+   "why": "dominant",
+   "head": [
+    "join",
+    "llm",
+    "edit"
+   ],
+   "spread": [
+    "join",
+    "llm",
+    "edit"
+   ],
+   "count": [
+    "join",
+    "llm",
+    "edit"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "sing#n8",
+   "wired": [],
+   "truth": [
+    "join"
+   ],
+   "modes": [
+    "describe"
+   ],
+   "why": "already-spread",
+   "head": [
+    "ivideo",
+    "tts",
+    "edit"
+   ],
+   "spread": [
+    "ivideo",
+    "tts",
+    "edit"
+   ],
+   "count": [
+    "image",
+    "join",
+    "ivideo"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "sing#n9",
+   "wired": [],
+   "truth": [
+    "music"
+   ],
+   "modes": [
+    "sound"
+   ],
+   "why": "spread",
+   "head": [
+    "edit",
+    "vedit",
+    "join"
+   ],
+   "spread": [
+    "edit",
+    "join",
+    "tts"
+   ],
+   "count": [
+    "join",
+    "llm",
+    "edit"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "storyboard-relay#edit-brief",
+   "wired": [],
+   "truth": [
+    "edit",
+    "llm",
+    "join",
+    "llm"
+   ],
+   "modes": [
+    "refine",
+    "describe"
+   ],
+   "why": "dominant",
+   "head": [
+    "join",
+    "llm",
+    "vision"
+   ],
+   "spread": [
+    "join",
+    "llm",
+    "vision"
+   ],
+   "count": [
+    "llm",
+    "join",
+    "music"
+   ]
+  },
+  {
+   "state": "second-fork",
+   "forkId": "storyboard-relay#edit-brief",
+   "wired": [
+    "edit"
+   ],
+   "truth": [
+    "llm",
+    "join",
+    "llm"
+   ],
+   "modes": [
+    "describe"
+   ],
+   "why": "dominant",
+   "head": [
+    "join",
+    "llm",
+    "vision"
+   ],
+   "spread": [
+    "join",
+    "llm",
+    "vision"
+   ],
+   "count": [
+    "llm",
+    "join",
+    "music"
+   ]
+  },
+  {
+   "state": "second-fork",
+   "forkId": "storyboard-relay#edit-brief",
+   "wired": [
+    "llm"
+   ],
+   "truth": [
+    "edit",
+    "join"
+   ],
+   "modes": [
+    "refine"
+   ],
+   "why": "dominant",
+   "head": [
+    "join",
+    "llm",
+    "vision"
+   ],
+   "spread": [
+    "join",
+    "llm",
+    "vision"
+   ],
+   "count": [
+    "llm",
+    "join",
+    "music"
+   ]
+  },
+  {
+   "state": "second-fork",
+   "forkId": "storyboard-relay#edit-brief",
+   "wired": [
+    "join"
+   ],
+   "truth": [
+    "edit",
+    "llm",
+    "llm"
+   ],
+   "modes": [
+    "refine"
+   ],
+   "why": "dominant",
+   "head": [
+    "join",
+    "llm",
+    "vision"
+   ],
+   "spread": [
+    "join",
+    "llm",
+    "vision"
+   ],
+   "count": [
+    "llm",
+    "join",
+    "music"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "storyboard-relay#first-brief",
+   "wired": [],
+   "truth": [
+    "image",
+    "join"
+   ],
+   "modes": [
+    "picture",
+    "describe"
+   ],
+   "why": "already-spread",
+   "head": [
+    "image",
+    "join",
+    "ivideo"
+   ],
+   "spread": [
+    "image",
+    "join",
+    "ivideo"
+   ],
+   "count": [
+    "image",
+    "llm",
+    "join"
+   ]
+  },
+  {
+   "state": "second-fork",
+   "forkId": "storyboard-relay#first-brief",
+   "wired": [
+    "image"
+   ],
+   "truth": [
+    "join"
+   ],
+   "modes": [
+    "describe"
+   ],
+   "why": "dominant",
+   "head": [
+    "image",
+    "ivideo",
+    "music"
+   ],
+   "spread": [
+    "image",
+    "ivideo",
+    "music"
+   ],
+   "count": [
+    "image",
+    "llm",
+    "join"
+   ]
+  },
+  {
+   "state": "second-fork",
+   "forkId": "storyboard-relay#first-brief",
+   "wired": [
+    "join"
+   ],
+   "truth": [
+    "image"
+   ],
+   "modes": [
+    "picture"
+   ],
+   "why": "dominant",
+   "head": [
+    "join",
+    "llm",
+    "vision"
+   ],
+   "spread": [
+    "join",
+    "llm",
+    "vision"
+   ],
+   "count": [
+    "image",
+    "llm",
+    "join"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "storyboard-relay#frame-one",
+   "wired": [],
+   "truth": [
+    "edit",
+    "llm",
+    "resize",
+    "edit",
+    "llm"
+   ],
+   "modes": [
+    "refine",
+    "describe"
+   ],
+   "why": "dominant",
+   "head": [
+    "ivideo",
+    "lipsync",
+    "resize"
+   ],
+   "spread": [
+    "ivideo",
+    "lipsync",
+    "resize"
+   ],
+   "count": [
+    "ivideo",
+    "resize",
+    "edit"
+   ]
+  },
+  {
+   "state": "second-fork",
+   "forkId": "storyboard-relay#frame-one",
+   "wired": [
+    "edit"
+   ],
+   "truth": [
+    "llm",
+    "resize",
+    "llm"
+   ],
+   "modes": [
+    "describe"
+   ],
+   "why": "already-spread",
+   "head": [
+    "ivideo",
+    "lipsync",
+    "resize"
+   ],
+   "spread": [
+    "ivideo",
+    "lipsync",
+    "resize"
+   ],
+   "count": [
+    "ivideo",
+    "resize",
+    "edit"
+   ]
+  },
+  {
+   "state": "second-fork",
+   "forkId": "storyboard-relay#frame-one",
+   "wired": [
+    "llm"
+   ],
+   "truth": [
+    "edit",
+    "resize",
+    "edit"
+   ],
+   "modes": [
+    "refine"
+   ],
+   "why": "spread",
+   "head": [
+    "ivideo",
+    "llm",
+    "lipsync"
+   ],
+   "spread": [
+    "ivideo",
+    "llm",
+    "resize"
+   ],
+   "count": [
+    "ivideo",
+    "resize",
+    "edit"
+   ]
+  },
+  {
+   "state": "second-fork",
+   "forkId": "storyboard-relay#frame-one",
+   "wired": [
+    "resize"
+   ],
+   "truth": [
+    "edit",
+    "llm",
+    "edit",
+    "llm"
+   ],
+   "modes": [
+    "describe"
+   ],
+   "why": "dominant",
+   "head": [
+    "ivideo",
+    "lipsync",
+    "resize"
+   ],
+   "spread": [
+    "ivideo",
+    "lipsync",
+    "resize"
+   ],
+   "count": [
+    "ivideo",
+    "resize",
+    "edit"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "storyboard-relay#frame-two",
+   "wired": [],
+   "truth": [
+    "llm",
+    "edit",
+    "resize"
+   ],
+   "modes": [
+    "describe",
+    "refine"
+   ],
+   "why": "dominant",
+   "head": [
+    "llm",
+    "vision",
+    "resize"
+   ],
+   "spread": [
+    "llm",
+    "vision",
+    "resize"
+   ],
+   "count": [
+    "edit",
+    "inpaint",
+    "resize"
+   ]
+  },
+  {
+   "state": "second-fork",
+   "forkId": "storyboard-relay#frame-two",
+   "wired": [
+    "llm"
+   ],
+   "truth": [
+    "edit",
+    "resize"
+   ],
+   "modes": [
+    "refine"
+   ],
+   "why": "already-spread",
+   "head": [
+    "llm",
+    "resize",
+    "vision"
+   ],
+   "spread": [
+    "llm",
+    "resize",
+    "vision"
+   ],
+   "count": [
+    "edit",
+    "inpaint",
+    "resize"
+   ]
+  },
+  {
+   "state": "second-fork",
+   "forkId": "storyboard-relay#frame-two",
+   "wired": [
+    "edit"
+   ],
+   "truth": [
+    "llm",
+    "resize"
+   ],
+   "modes": [
+    "describe"
+   ],
+   "why": "dominant",
+   "head": [
+    "llm",
+    "vision",
+    "resize"
+   ],
+   "spread": [
+    "llm",
+    "vision",
+    "resize"
+   ],
+   "count": [
+    "edit",
+    "inpaint",
+    "resize"
+   ]
+  },
+  {
+   "state": "second-fork",
+   "forkId": "storyboard-relay#frame-two",
+   "wired": [
+    "resize"
+   ],
+   "truth": [
+    "llm",
+    "edit"
+   ],
+   "modes": [
+    "describe"
+   ],
+   "why": "dominant",
+   "head": [
+    "llm",
+    "vision",
+    "resize"
+   ],
+   "spread": [
+    "llm",
+    "vision",
+    "resize"
+   ],
+   "count": [
+    "edit",
+    "inpaint",
+    "resize"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "storyboard-relay#next-beat",
+   "wired": [],
+   "truth": [
+    "join"
+   ],
+   "modes": [
+    "describe"
+   ],
+   "why": "already-spread",
+   "head": [
+    "image",
+    "join",
+    "ivideo"
+   ],
+   "spread": [
+    "image",
+    "join",
+    "ivideo"
+   ],
+   "count": [
+    "image",
+    "llm",
+    "join"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "storyboard-relay#next-prompt",
+   "wired": [],
+   "truth": [
+    "join"
+   ],
+   "modes": [
+    "describe"
+   ],
+   "why": "dominant",
+   "head": [
+    "join",
+    "llm",
+    "vision"
+   ],
+   "spread": [
+    "join",
+    "llm",
+    "vision"
+   ],
+   "count": [
+    "llm",
+    "join",
+    "music"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "storyboard-relay#repair",
+   "wired": [],
+   "truth": [
+    "resize",
+    "llm"
+   ],
+   "modes": [
+    "refine",
+    "describe"
+   ],
+   "why": "dominant",
+   "head": [
+    "llm",
+    "vision",
+    "resize"
+   ],
+   "spread": [
+    "llm",
+    "vision",
+    "resize"
+   ],
+   "count": [
+    "edit",
+    "inpaint",
+    "resize"
+   ]
+  },
+  {
+   "state": "second-fork",
+   "forkId": "storyboard-relay#repair",
+   "wired": [
+    "resize"
+   ],
+   "truth": [
+    "llm"
+   ],
+   "modes": [
+    "describe"
+   ],
+   "why": "dominant",
+   "head": [
+    "llm",
+    "vision",
+    "resize"
+   ],
+   "spread": [
+    "llm",
+    "vision",
+    "resize"
+   ],
+   "count": [
+    "edit",
+    "inpaint",
+    "resize"
+   ]
+  },
+  {
+   "state": "second-fork",
+   "forkId": "storyboard-relay#repair",
+   "wired": [
+    "llm"
+   ],
+   "truth": [
+    "resize"
+   ],
+   "modes": [
+    "refine"
+   ],
+   "why": "dominant",
+   "head": [
+    "llm",
+    "vision",
+    "resize"
+   ],
+   "spread": [
+    "llm",
+    "vision",
+    "resize"
+   ],
+   "count": [
+    "edit",
+    "inpaint",
+    "resize"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "storyboard-relay#repair-prompt",
+   "wired": [],
+   "truth": [
+    "edit"
+   ],
+   "modes": [
+    "refine"
+   ],
+   "why": "dominant",
+   "head": [
+    "join",
+    "llm",
+    "vision"
+   ],
+   "spread": [
+    "join",
+    "llm",
+    "vision"
+   ],
+   "count": [
+    "llm",
+    "join",
+    "music"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "storyboard-relay#review",
+   "wired": [],
+   "truth": [
+    "join"
+   ],
+   "modes": [
+    "describe"
+   ],
+   "why": "already-spread",
+   "head": [
+    "join",
+    "llm",
+    "music"
+   ],
+   "spread": [
+    "join",
+    "llm",
+    "music"
+   ],
+   "count": [
+    "join",
+    "image",
+    "llm"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "storyboard-relay#rules",
+   "wired": [],
+   "truth": [
+    "join"
+   ],
+   "modes": [
+    "describe"
+   ],
+   "why": "already-spread",
+   "head": [
+    "image",
+    "join",
+    "ivideo"
+   ],
+   "spread": [
+    "image",
+    "join",
+    "ivideo"
+   ],
+   "count": [
+    "image",
+    "llm",
+    "join"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "talking-avatar#n0",
+   "wired": [],
+   "truth": [
+    "image"
+   ],
+   "modes": [
+    "picture"
+   ],
+   "why": "spread",
+   "head": [
+    "join",
+    "image",
+    "llm"
+   ],
+   "spread": [
+    "join",
+    "image",
+    "ivideo"
+   ],
+   "count": [
+    "image",
+    "join",
+    "llm"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "talking-avatar#n1",
+   "wired": [],
+   "truth": [
+    "lipsync"
+   ],
+   "modes": [
+    "animate"
+   ],
+   "why": "already-spread",
+   "head": [
+    "ivideo",
+    "resize",
+    "edit"
+   ],
+   "spread": [
+    "ivideo",
+    "resize",
+    "edit"
+   ],
+   "count": [
+    "edit",
+    "resize",
+    "ivideo"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "talking-avatar#n2",
+   "wired": [],
+   "truth": [
+    "tts"
+   ],
+   "modes": [
+    "sound"
+   ],
+   "why": "spread",
+   "head": [
+    "join",
+    "image",
+    "llm"
+   ],
+   "spread": [
+    "join",
+    "image",
+    "ivideo"
+   ],
+   "count": [
+    "image",
+    "join",
+    "llm"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "talking-avatar#n3",
+   "wired": [],
+   "truth": [
+    "lipsync"
+   ],
+   "modes": [
+    "animate"
+   ],
+   "why": "already-spread",
+   "head": [
+    "lipsync",
+    "trim",
+    "remix"
+   ],
+   "spread": [
+    "lipsync",
+    "trim",
+    "remix"
+   ],
+   "count": [
+    "soundtrack",
+    "lipsync",
+    "remix"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "talking-avatar#n5",
+   "wired": [],
+   "truth": [
+    "lipsync"
+   ],
+   "modes": [
+    "animate"
+   ],
+   "why": "spread",
+   "head": [
+    "join",
+    "image",
+    "llm"
+   ],
+   "spread": [
+    "join",
+    "image",
+    "ivideo"
+   ],
+   "count": [
+    "image",
+    "join",
+    "llm"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "tiny-world-film#n1",
+   "wired": [],
+   "truth": [
+    "image"
+   ],
+   "modes": [
+    "picture"
+   ],
+   "why": "spread",
+   "head": [
+    "join",
+    "image",
+    "llm"
+   ],
+   "spread": [
+    "join",
+    "image",
+    "ivideo"
+   ],
+   "count": [
+    "image",
+    "join",
+    "llm"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "tiny-world-film#n2",
+   "wired": [],
+   "truth": [
+    "ivideo"
+   ],
+   "modes": [
+    "animate"
+   ],
+   "why": "spread",
+   "head": [
+    "join",
+    "image",
+    "llm"
+   ],
+   "spread": [
+    "join",
+    "image",
+    "ivideo"
+   ],
+   "count": [
+    "image",
+    "join",
+    "llm"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "tiny-world-film#n3",
+   "wired": [],
+   "truth": [
+    "ivideo",
+    "resize"
+   ],
+   "modes": [
+    "animate",
+    "refine"
+   ],
+   "why": "already-spread",
+   "head": [
+    "ivideo",
+    "lipsync",
+    "resize"
+   ],
+   "spread": [
+    "ivideo",
+    "lipsync",
+    "resize"
+   ],
+   "count": [
+    "edit",
+    "resize",
+    "ivideo"
+   ]
+  },
+  {
+   "state": "second-fork",
+   "forkId": "tiny-world-film#n3",
+   "wired": [
+    "ivideo"
+   ],
+   "truth": [
+    "resize"
+   ],
+   "modes": [
+    "refine"
+   ],
+   "why": "already-spread",
+   "head": [
+    "ivideo",
+    "lipsync",
+    "resize"
+   ],
+   "spread": [
+    "ivideo",
+    "lipsync",
+    "resize"
+   ],
+   "count": [
+    "edit",
+    "resize",
+    "ivideo"
+   ]
+  },
+  {
+   "state": "second-fork",
+   "forkId": "tiny-world-film#n3",
+   "wired": [
+    "resize"
+   ],
+   "truth": [
+    "ivideo"
+   ],
+   "modes": [
+    "animate"
+   ],
+   "why": "already-spread",
+   "head": [
+    "llm",
+    "resize",
+    "edit"
+   ],
+   "spread": [
+    "llm",
+    "resize",
+    "edit"
+   ],
+   "count": [
+    "edit",
+    "resize",
+    "ivideo"
+   ]
+  },
+  {
+   "state": "fresh",
+   "forkId": "tiny-world-film#n4",
+   "wired": [],
+   "truth": [
+    "vedit"
+   ],
+   "modes": [
+    "refine"
+   ],
+   "why": "spread",
+   "head": [
+    "vframes",
+    "combine",
+    "vedit"
+   ],
+   "spread": [
+    "vframes",
+    "combine",
+    "extractaudio"
+   ],
+   "count": [
+    "vedit",
+    "vframes",
+    "combine"
+   ]
+  }
+ ]
+}

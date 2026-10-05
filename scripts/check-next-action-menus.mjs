@@ -73,7 +73,7 @@ const ok = (c, m) => { if (!c) failures.push(m); };
 let markLikelyPortFn, applyPortHighlightFn, portWouldCycleFn, portLikelyRankFn, wouldCycleFn;
 let modelHintIdFn, liftPinnedModelFn, nextActionHintsFn;
 let addHintMapFn, nodeRowFn, renderAddListFn, addMatchRankFn, add3dTieFn;
-let consumerTypeMapFn, selectedConsumerConfidentFn, recentTypeMapFn;
+let consumerTypeMapFn, selectedConsumerConfidentFn, recentTypeMapFn, intentSpreadMapFn;
 let stampRecipeSourceFn, addPriorRowsFn, selectedGraphFn, addSearchTypeMetaFn;
 try {
   markLikelyPortFn = extractFunction(SRC, "markLikelyPort");
@@ -92,6 +92,7 @@ try {
   consumerTypeMapFn = extractFunction(SRC, "consumerTypeMap");
   selectedConsumerConfidentFn = extractFunction(SRC, "selectedConsumerConfident");
   recentTypeMapFn = extractFunction(SRC, "recentTypeMap");
+  intentSpreadMapFn = extractFunction(SRC, "intentSpreadMap");
   stampRecipeSourceFn = extractFunction(SRC, "stampRecipeSource");
   addPriorRowsFn = extractFunction(SRC, "addPriorRows");
   selectedGraphFn = extractFunction(SRC, "selectedGraph");
@@ -310,6 +311,7 @@ function pickerHarness(opts) {
       consumerTypeMapFn,
       selectedConsumerConfidentFn,
       recentTypeMapFn,
+      intentSpreadMapFn,
       nodeRowFn,
       addMatchRankFn,
       add3dTieFn,

@@ -35,6 +35,7 @@ import { rankModelSuggestions as rankModelSuggestionsPure, liftChangedModels as 
 import { pickSearchLift as pickSearchLiftPure } from "./add-search-popular.mjs";
 import { rankSelectedOutputConsumers as rankSelectedOutputConsumersPure, applyConsumerLift as applyConsumerLiftPure } from "./selected-output-consumer.mjs";
 import { rankRecentTypeRecency as rankRecentTypeRecencyPure, applyRecentTypeLift as applyRecentTypeLiftPure } from "./recent-type-recency.mjs";
+import { spreadIntentRows as spreadIntentRowsPure, validWeights as validIntentWeights } from "./intent-spread.mjs";
 
 const BASE = new URL(".", import.meta.url);
 
@@ -97,6 +98,7 @@ export async function mount(api) {
   let session = null;
   let recommendFrequency = null;
   let recommendNext = null;
+  let intentWeights = null;
   const known = api.nodeTypes && api.nodeTypes.length ? new Set(api.nodeTypes) : null;
   const memory = createSuggestionMemory();
 
@@ -316,6 +318,20 @@ export async function mount(api) {
       try { return applyRecentTypeLiftPure(prior, hits); }
       catch (_) { return { adds: Array.isArray(prior) ? prior : [], changed: false, tagged: [] }; }
     },
+    // Product · 52: at a branch-point node, spread the top Suggested rows across intent modes.
+    hasIntentHead() { return !!intentWeights; },
+    spreadIntentRows(graph, priorAdds) {
+      if (!intentWeights) return null;
+      try {
+        const g = (api.getGraph && api.getGraph()) || {};
+        return spreadIntentRowsPure(intentWeights, {
+          nodes: (graph && graph.nodes) || g.nodes || [],
+          links: (graph && graph.links) || g.links || [],
+          selectedId: graph && "selectedId" in graph ? graph.selectedId : g.selectedId,
+          selectedIds: (graph && graph.selectedIds) || g.selectedIds || [],
+        }, priorAdds || [], { nodeTypes: known });
+      } catch (_) { return null; }
+    },
     pickDualSelectBridge(query) {
       if (!portTables) return null;
       try {
@@ -337,6 +353,14 @@ export async function mount(api) {
   } catch (e) {
     console.warn("[next-action] model-suggest prior unavailable", e);
     modelPriors = null;
+  }
+
+  try {
+    const w = await loadJSON("intent-spread/weights.json");
+    intentWeights = validIntentWeights(w) ? w : null;
+  } catch (e) {
+    console.warn("[next-action] intent-spread head unavailable", e);
+    intentWeights = null;
   }
 
   try {

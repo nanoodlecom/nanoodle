@@ -29,6 +29,7 @@
 | · 33 | `continue-port.mjs` — right after a wire, pulse one leftover port on those two nodes when a live partner remains |
 | · 34 | `multi-tidy-suggest.mjs` — pulse Tidy only when Arrange would move or unstick the selected cards |
 | · 38 | `recent-type-recency.mjs` — when stronger Suggested sources are quiet, one clear recent add lifts with “you just used this” |
+| · 52 | `intent-spread.mjs`, `intent-spread/weights.json`, `corpus/intent-forks.json` — at a branch-point node, a tiny MoG head (ParticleGAN `develop`) keeps the top three Suggested rows on distinct intent modes; row 1 and recipe rows never move |
 
 Learned `.bin` weights stay **gitignored**; tests load inline float fixtures.
 Product · 36 draws faint move-align guides via `move-align-snap.mjs` during single-node drag (no tip panel).
@@ -46,6 +47,17 @@ python scripts/train-next-action.py \
   --schema vendor/next-action/schema.json \
   --out /home/box/workspace/particlegan-product1-runs \
   --fixture vendor/next-action/fixtures/smoke-weights.json
+```
+
+### Product · 52 intent head
+
+```sh
+node scripts/bake-intent-forks.mjs            # gallery walkbacks + intent-fork tags
+python scripts/train-intent-spread.py \
+  --corpus vendor/next-action/corpus/intent-forks.json \
+  --out vendor/next-action/intent-spread/weights.json
+# held-out: one --holdout-graph SLUG run per gallery graph → fold-SLUG.json, then
+node scripts/eval-intent-spread.mjs <fold-dir> --json vendor/next-action/intent-spread/metrics.json
 ```
 
 ## Checks
@@ -77,6 +89,7 @@ node scripts/check-next-action-selected-output-consumer.mjs
 node scripts/check-next-action-continue-port.mjs
 node scripts/check-next-action-multi-tidy.mjs
 node scripts/check-next-action-recent-type-recency.mjs
+node scripts/check-next-action-intent-spread.mjs
 node scripts/check-smallnet.mjs   # catalog still empty
 ```
 
