@@ -28,6 +28,10 @@ const catalogs = {
     image('xai/grok-imagine-image/v2.0/text-to-image', ['1:1', '16:9']),
     image('recraft-v4', ['1024x1024']),
     image('anima/text-to-image', ['1k', '2k']),
+    image('black-forest-labs/flux-3/text-to-image', ['1k', '2k', '4k'], true),
+    image('bytedance/seedream-v5.0-flash', ['2k', '1.5k', '1k'], true),
+    image('ideogram/v4.5', ['1024x1024', '2048x2048']),
+    image('recraft-ai/recraft-v4.1-flash/text-to-image', ['1024x1024', '1024x768']),
   ],
   video: [
     { id: 'minimax-h3/image-to-video-spicy', capabilities: { image_to_video: true },
