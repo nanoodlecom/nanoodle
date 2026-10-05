@@ -34,6 +34,12 @@ const catalogs = {
     image('recraft-ai/recraft-v4.1-flash/text-to-image', ['1024x1024', '1024x768']),
   ],
   video: [
+    { id: 'grok-imagine-video-1.5-lite', capabilities: { text_to_video: true, image_to_video: true },
+      supported_parameters: { parameters: { resolution: opts(['480p', '720p', '1080p']), duration: opts(['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15']), aspect_ratio: opts(['16:9','4:3','3:2','1:1','2:3','3:4','9:16']) } } },
+    { id: 'heygen/heygen-video-1', capabilities: { text_to_video: true, image_to_video: true, video_to_video: true },
+      supported_parameters: { parameters: { resolution: opts(['480p', '768p']), duration: opts(['5','6','7','8','9','10']), aspect_ratio: opts(['auto','21:9','16:9','4:3','1:1','3:4','9:16','9:21']) } } },
+    { id: 'minimax-h3', capabilities: { text_to_video: true, image_to_video: true, video_to_video: true },
+      supported_parameters: { parameters: { resolution: opts(['480p', '540p', '768p', '1080p']), duration: opts(['3','4','5','6','7','8','9','10','11','12','13','14','15']), aspect_ratio: opts(['auto','21:9','16:9','4:3','1:1','3:4','9:16','9:21']) } } },
     { id: 'minimax-h3/image-to-video-spicy', capabilities: { image_to_video: true },
       supported_parameters: { parameters: { resolution: opts(['480p', '720p']), duration: opts([5, 10]) } } },
     { id: 'minimax/h3-max', capabilities: { image_to_video: true },

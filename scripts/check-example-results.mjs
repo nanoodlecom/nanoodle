@@ -37,7 +37,7 @@ const slugs = new Set(examples.map(e => e.slug));
 assert.equal(slugs.size, examples.length, 'duplicate example card');
 const curated = examples.filter(e => !LOCAL_ONLY.has(e.slug));
 const curatedSlugs = new Set(curated.map(e => e.slug));
-assert.deepEqual([...curatedSlugs].sort(), ['character-sprites', 'storyboard-relay', 'tiny-world-film', 'image-model-arena', 'flux3-seedream-ideogram-arena', 'photo-to-video', 'sing', 'talking-avatar', 'neon-shrine-duel'].sort(),
+assert.deepEqual([...curatedSlugs].sort(), ['character-sprites', 'storyboard-relay', 'tiny-world-film', 'image-model-arena', 'flux3-seedream-ideogram-arena', 'grok-heygen-minimax-video-arena', 'photo-to-video', 'sing', 'talking-avatar', 'neon-shrine-duel'].sort(),
   'curated shelf changed: review the workflow and its saved evidence before featuring it');
 assert.deepEqual([...bySlug.keys()].sort(), [...curatedSlugs].sort());
 assert.deepEqual([...gallery.matchAll(/<section id="([^"]+)"/g)].map(m => m[1]).sort(), [...bySlug.keys()].sort());
@@ -117,9 +117,10 @@ for (const ex of examples) {
   };
   const dependent = models.some(a => models.some(b => a !== b && canReach(a.id, b.id)));
   if (!dependent) {
-    assert.ok(ex.slug === 'image-model-arena' || ex.slug === 'flux3-seedream-ideogram-arena', 'independent calls need a meaningful comparison');
-    assert.equal(models.length, 4);
-    assert.equal(new Set(models.map(n => n.fields.model)).size, 4, 'arena must compare different models');
+    const arenaWidth = { 'image-model-arena': 4, 'flux3-seedream-ideogram-arena': 4, 'grok-heygen-minimax-video-arena': 3 };
+    assert.ok(ex.slug in arenaWidth, 'independent calls need a meaningful comparison');
+    assert.equal(models.length, arenaWidth[ex.slug]);
+    assert.equal(new Set(models.map(n => n.fields.model)).size, arenaWidth[ex.slug], 'arena must compare different models');
     const sources = models.map(n => ex.graph.links.find(l => l.to.node === n.id && l.to.port === 'prompt')?.from.node);
     assert.ok(sources.every(Boolean) && new Set(sources).size === 1, 'arena must compare the same brief');
   }

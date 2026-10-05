@@ -1,0 +1,107 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "comment",
+      "x": -338,
+      "y": -242,
+      "w": 360,
+      "fields": {
+        "text": "One brief, three video models. Run makes three paid clips. Compare the noodle lift, the steam, and the wet asphalt."
+      }
+    },
+    {
+      "id": "n2",
+      "type": "text",
+      "x": 60,
+      "y": 300,
+      "fields": {
+        "text": "Cinematic night product shot of a matte-black ceramic ramen bowl on wet asphalt. Violet neon rim light and magenta steam curling upward. A single chopstick lifts one glossy noodle strand in slow motion. Shallow depth of field, rain droplets catching light, locked low-angle camera with a gentle push-in. Dark editorial look, no text, no logos, no extra props."
+      },
+      "name": "Shared video brief"
+    },
+    {
+      "id": "n3",
+      "type": "tvideo",
+      "x": 400,
+      "y": -160,
+      "fields": {
+        "model": "grok-imagine-video-1.5-lite",
+        "prompt": "",
+        "duration": "5",
+        "resolution": "480p",
+        "aspect": "16:9",
+        "modelOpts": {},
+        "loras": []
+      },
+      "name": "Grok Imagine 1.5 Lite"
+    },
+    {
+      "id": "n4",
+      "type": "tvideo",
+      "x": 860,
+      "y": -140,
+      "fields": {
+        "model": "heygen/heygen-video-1",
+        "prompt": "",
+        "duration": "5",
+        "resolution": "480p",
+        "aspect": "16:9",
+        "modelOpts": {},
+        "loras": []
+      },
+      "name": "HeyGen Video 1"
+    },
+    {
+      "id": "n5",
+      "type": "tvideo",
+      "x": 640,
+      "y": 520,
+      "fields": {
+        "model": "minimax-h3",
+        "prompt": "",
+        "duration": "5",
+        "aspect": "16:9",
+        "modelOpts": {},
+        "loras": []
+      },
+      "name": "MiniMax H3"
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "n2",
+        "port": "text"
+      },
+      "to": {
+        "node": "n3",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "n2",
+        "port": "text"
+      },
+      "to": {
+        "node": "n4",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "n2",
+        "port": "text"
+      },
+      "to": {
+        "node": "n5",
+        "port": "prompt"
+      }
+    }
+  ]
+}

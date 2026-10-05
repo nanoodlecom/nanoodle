@@ -78,6 +78,14 @@ const HOWTO = {
     inspect: "Read MIDNIGHT BOWL and OPEN TIL 3 on each poster. One neon-red bowl. Extra words count.",
     costHow: "The saved run reported $0.145: FLUX.3 $0.05, Seedream 5.0 Flash $0.027, Ideogram V4.5 $0.06, and Recraft V4.1 Flash $0.008. Prices and results vary.",
   },
+  "grok-heygen-minimax-video-arena": {
+    headline: "Grok Imagine 1.5 Lite vs HeyGen Video 1 vs MiniMax H3: same prompt, side by side",
+    job: "One night-ramen brief: Grok Imagine 1.5 Lite, HeyGen Video 1, and MiniMax H3.",
+    purpose: "One brief splits to Grok Imagine Video 1.5 Lite, HeyGen Video 1, and MiniMax H3. Compare the noodle lift, the steam, and the wet asphalt.",
+    edit: "Rewrite <em>Shared video brief</em> once. Grok Imagine 1.5 Lite, HeyGen Video 1, and MiniMax H3 all receive it. Running the graph makes three paid video calls.",
+    inspect: "Play each clip. Grok fills the bowl and lifts a noodle clump. HeyGen starts emptier and drops a strand later. H3 does a single-chopstick / single-strand pull at 1440p.",
+    costHow: "The saved run reported $0.563: Grok Imagine 1.5 Lite $0.10, HeyGen Video 1 $0.10, and MiniMax H3 $0.363. Prices and results vary.",
+  },
   "photo-to-video": {
     headline: "Animate a still",
     job: "Generate a first frame, then animate its steam.",
@@ -135,7 +143,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 for (const sample of SAMPLES) {
   if (!HOWTO[sample.slug]) throw new Error("Unexpected sample: " + sample.slug);
 }
