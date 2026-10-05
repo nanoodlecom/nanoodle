@@ -71,8 +71,8 @@ const HOWTO = {
     costHow: "The archived comparison reported $0.118: Muse $0.01, Krea $0.01, Grok $0.06 and Recraft $0.038. That total covers the saved Krea run. Check the editor estimate for the current models before running.",
   },
   "flux3-seedream-ideogram-arena": {
-    headline: "FLUX.3 vs Seedream 5.0 vs Ideogram 4.5: same prompt, side by side",
-    job: "One midnight-ramen poster. Four models.",
+    headline: "FLUX.3 vs Seedream 5.0 vs Ideogram 4.5 vs Recraft V4.1: same poster, side by side",
+    job: "One midnight-ramen poster: FLUX.3, Seedream 5.0, Ideogram 4.5 and Recraft V4.1.",
     purpose: "One brief splits to FLUX.3, Seedream 5.0 Flash, Ideogram V4.5, and Recraft V4.1 Flash. Compare the heading, the footer, and whether the bowl stays alone.",
     edit: "Rewrite <em>Shared poster brief</em> once. FLUX.3 Image, Seedream 5.0 Flash, Ideogram V4.5, and Recraft V4.1 Flash all receive it. Running the graph makes four paid image calls.",
     inspect: "Read MIDNIGHT BOWL and OPEN TIL 3 on each poster. One neon-red bowl. Extra words count.",
