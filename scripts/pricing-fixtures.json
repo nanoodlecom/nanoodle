@@ -1819,6 +1819,58 @@
    "cases": [
     { "desc": "duration 10s stays the floor", "fields": { "duration": "10" }, "expect": 0.25 }
    ]
+  },
+  {
+   "id": "grok-imagine-video-1.5-lite",
+   "shape": "minimum-only catalog ($0.02) + generate-video x402 quote (2026-10-05): 480p $0.02/s, 720p $0.03/s, 1080p $0.14/s",
+   "pricing": {
+    "currency": "USD",
+    "minimum": 0.02,
+    "note": "Output duration and resolution determine pricing. Reference media may add charges. See model settings and the generation quote."
+   },
+   "cases": [
+    { "desc": "default settings are 6s 720p ($0.18, the GET quote), not the $0.02 floor", "fields": {}, "expect": 0.18 },
+    { "desc": "1s 480p equals the published minimum", "fields": { "duration": "1", "resolution": "480p" }, "expect": 0.02 },
+    { "desc": "6s 720p", "fields": { "duration": "6", "resolution": "720p" }, "expect": 0.18 },
+    { "desc": "15s 480p", "fields": { "duration": "15", "resolution": "480p" }, "expect": 0.3 },
+    { "desc": "15s 720p", "fields": { "duration": "15", "resolution": "720p" }, "expect": 0.45 },
+    { "desc": "15s 1080p", "fields": { "duration": "15", "resolution": "1080p" }, "expect": 2.1 }
+   ]
+  },
+  {
+   "id": "minimax/h3-max-turbo/extend-video",
+   "shape": "minimum-only catalog ($0.025) + generate-video x402 quote (2026-10-05): 480p $0.025/s ... 2k $0.16/s on the new seconds",
+   "pricing": { "currency": "USD", "minimum": 0.025 },
+   "cases": [
+    { "desc": "default 5s 768p ($0.20, the GET quote)", "fields": {}, "expect": 0.2 },
+    { "desc": "1s 480p equals the published minimum", "fields": { "duration": "1", "resolution": "480p" }, "expect": 0.025 },
+    { "desc": "15s 1080p", "fields": { "duration": "15", "resolution": "1080p" }, "expect": 1.2 },
+    { "desc": "15s 2k", "fields": { "duration": "15", "resolution": "2k" }, "expect": 2.4 }
+   ]
+  },
+  {
+   "id": "minimax/h3-max/recast",
+   "shape": "no duration knob (billed on the source clip) and not in the quote map — stays on its floor",
+   "pricing": { "currency": "USD", "minimum": 2.25 },
+   "cases": [
+    { "desc": "a stale duration does not scale the floor", "fields": { "duration": "10", "resolution": "1080p" }, "expect": 2.25 }
+   ]
+  },
+  {
+   "id": "infinitetalk",
+   "shape": "no duration knob (billed on the audio) and not in the quote map — stays on its floor",
+   "pricing": { "currency": "USD", "minimum": 0.09 },
+   "cases": [
+    { "desc": "a stale duration does not scale the floor", "fields": { "duration": "10", "resolution": "720p" }, "expect": 0.09 }
+   ]
+  },
+  {
+   "id": "bytedance/seedance-2.5/talking-avatar",
+   "shape": "no duration knob (billed on the audio) and not in the quote map — stays on its floor",
+   "pricing": { "currency": "USD", "minimum": 0.88 },
+   "cases": [
+    { "desc": "a stale duration does not scale the floor", "fields": { "duration": "10", "resolution": "720p" }, "expect": 0.88 }
+   ]
   }
  ]
 }
