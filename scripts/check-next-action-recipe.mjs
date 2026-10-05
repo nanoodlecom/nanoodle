@@ -59,7 +59,7 @@ assert(confidentRecipe(corpus, { numNodes: 1, nodeTypeCounts: { text: 1 } }) ===
 
 {
   const sketch = { numNodes: 2, nodeTypeCounts: { text: 1, image: 1 } };
-  const rec = recommendRecipes(corpus, sketch, 5);
+  const rec = recommendRecipes(corpus, sketch, 8);
   const ta = rec.find((r) => r.slug === "talking-avatar");
   assert(ta && ta.actions.length >= 2 && ta.actions.every((a) => a.startsWith("add:")), "talking-avatar partial");
   assert(

@@ -70,6 +70,14 @@ const HOWTO = {
     inspect: "Check FIX A FLAT, SATURDAY 10 AM, one wheel and two recognizable tire levers across all four results.",
     costHow: "The archived comparison reported $0.118: Muse $0.01, Krea $0.01, Grok $0.06 and Recraft $0.038. That total covers the saved Krea run. Check the editor estimate for the current models before running.",
   },
+  "flux3-seedream-ideogram-arena": {
+    headline: "FLUX.3 vs Seedream 5.0 vs Ideogram 4.5 vs Recraft V4.1: same poster, side by side",
+    job: "One midnight-ramen poster: FLUX.3, Seedream 5.0, Ideogram 4.5 and Recraft V4.1.",
+    purpose: "One brief splits to FLUX.3, Seedream 5.0 Flash, Ideogram V4.5, and Recraft V4.1 Flash. Compare the heading, the footer, and whether the bowl stays alone.",
+    edit: "Rewrite <em>Shared poster brief</em> once. FLUX.3 Image, Seedream 5.0 Flash, Ideogram V4.5, and Recraft V4.1 Flash all receive it. Running the graph makes four paid image calls.",
+    inspect: "Read MIDNIGHT BOWL and OPEN TIL 3 on each poster. One neon-red bowl. Extra words count.",
+    costHow: "The saved run reported $0.145: FLUX.3 $0.05, Seedream 5.0 Flash $0.027, Ideogram V4.5 $0.06, and Recraft V4.1 Flash $0.008. Prices and results vary.",
+  },
   "photo-to-video": {
     headline: "Animate a still",
     job: "Generate a first frame, then animate its steam.",
@@ -127,7 +135,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 for (const sample of SAMPLES) {
   if (!HOWTO[sample.slug]) throw new Error("Unexpected sample: " + sample.slug);
 }
