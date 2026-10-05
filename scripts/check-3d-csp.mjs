@@ -60,8 +60,10 @@ const proc = spawn(chrome, [
 ], { stdio: ["ignore", "pipe", "pipe"] });
 let dbg = "";
 const fail = (m) => { console.error("✗ " + m); proc.kill("SIGKILL"); server.close(); process.exit(1); };
+// Wait for Chrome to print its DevTools port. Override with CHECK_3D_CSP_CHROME_TIMEOUT_MS.
+const chromeStartMs = Number(process.env.CHECK_3D_CSP_CHROME_TIMEOUT_MS) || 60000;
 const port = await new Promise((resolvePort, reject) => {
-  const t = setTimeout(() => reject(new Error("chrome debug port")), 15000);
+  const t = setTimeout(() => reject(new Error("chrome debug port")), chromeStartMs);
   const on = (buf) => {
     dbg += buf.toString();
     const m = dbg.match(/DevTools listening on ws:\/\/127\.0\.0\.1:(\d+)/);
