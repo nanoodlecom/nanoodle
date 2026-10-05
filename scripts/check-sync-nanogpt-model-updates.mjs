@@ -250,6 +250,14 @@ console.log("sync-nanogpt-model-updates (fixture)");
   check("HTML community with no model link is skipped", community && classifyCard(community).skip === true);
 }
 
+// (c4) a launch whose title contains a product noun like "Remover" is a new
+// model, not a retirement (2026-10-01 HeyGen Video 1 and Video Music Remover).
+{
+  const line = lineFor(byId["heygen-remover-launch"]);
+  check("Remover launch is not Retired", typeof line === "string" && !line.startsWith("Retired:"), line);
+  check("Remover launch → New video models", typeof line === "string" && line.startsWith("New video models: HeyGen Video 1"), line);
+}
+
 // grouping: same date + same description → one line (Recraft's two image links)
 {
   const pending = selectPending([byId["1024"]], []);

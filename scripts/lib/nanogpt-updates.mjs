@@ -72,7 +72,10 @@ function decodeSlug(raw) {
 
 export function titleIntent(title) {
   const t = String(title || "").toLowerCase();
-  if (/retir|deprecat|remov|sunset/.test(t)) return "retired";
+  // "remov" must be the verb (removed/removal/removing), not a product noun:
+  // 2026-10-01's "HeyGen Video 1 and Video Music Remover" launch shipped as
+  // "Retired: …" because /remov/ matched "Remover".
+  if (/retir|deprecat|\bremov(?:e|ed|es|al|ing)\b|sunset/.test(t)) return "retired";
   if (/\bnow use\b|\bdefault\b|\bupgraded\b|\breturns\b/.test(t)) return "updated";
   if (/\bpric(?:e|es|ing)\b|\bcheaper\b|\bdiscount\b|\b\d+%\s*off\b/.test(t)) return "pricing";
   return "new";
