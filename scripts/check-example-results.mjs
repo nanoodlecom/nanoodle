@@ -117,9 +117,10 @@ for (const ex of examples) {
   };
   const dependent = models.some(a => models.some(b => a !== b && canReach(a.id, b.id)));
   if (!dependent) {
-    assert.ok(ex.slug === 'image-model-arena' || ex.slug === 'flux3-seedream-ideogram-arena', 'independent calls need a meaningful comparison');
-    assert.equal(models.length, 4);
-    assert.equal(new Set(models.map(n => n.fields.model)).size, 4, 'arena must compare different models');
+    const arenaWidth = { 'image-model-arena': 4, 'flux3-seedream-ideogram-arena': 4, 'grok-heygen-minimax-video-arena': 3 };
+    assert.ok(ex.slug in arenaWidth, 'independent calls need a meaningful comparison');
+    assert.equal(models.length, arenaWidth[ex.slug]);
+    assert.equal(new Set(models.map(n => n.fields.model)).size, arenaWidth[ex.slug], 'arena must compare different models');
     const sources = models.map(n => ex.graph.links.find(l => l.to.node === n.id && l.to.port === 'prompt')?.from.node);
     assert.ok(sources.every(Boolean) && new Set(sources).size === 1, 'arena must compare the same brief');
   }
