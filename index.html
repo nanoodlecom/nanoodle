@@ -1532,6 +1532,7 @@ const I18N = {
     "default":"predeterminado",
     "(in the top bar) takes you back to the graph and keeps this app.":"(en la barra superior) te lleva de vuelta al grafo y conserva esta app.",
     "(style adapter)":"(adaptador de estilo)",
+    "Paste a LoRA .safetensors URL":"Pega una URL .safetensors de LoRA",
     ", or":", o",
     "16:9 (Landscape)":"16:9 (Horizontal)",
     "1:1 (Square)":"1:1 (Cuadrado)",
@@ -2242,6 +2243,7 @@ const I18N = {
     "default":"par défaut",
     "(in the top bar) takes you back to the graph and keeps this app.":"(dans la barre du haut) vous ramène au graphe et conserve cette app.",
     "(style adapter)":"(adaptateur de style)",
+    "Paste a LoRA .safetensors URL":"Collez l’URL .safetensors d’un LoRA",
     ", or":", ou",
     "16:9 (Landscape)":"16:9 (Paysage)",
     "1:1 (Square)":"1:1 (Carré)",
@@ -2942,6 +2944,7 @@ const I18N = {
     "default":"Standard",
     "(in the top bar) takes you back to the graph and keeps this app.":"(in der oberen Leiste) bringt dich zurück zum Graphen und behält diese App.",
     "(style adapter)":"(Stil-Adapter)",
+    "Paste a LoRA .safetensors URL":"LoRA-URL (.safetensors) einfügen",
     ", or":", oder",
     "16:9 (Landscape)":"16:9 (Querformat)",
     "1:1 (Square)":"1:1 (Quadratisch)",
@@ -3645,6 +3648,7 @@ const I18N = {
     "default":"padrão",
     "(in the top bar) takes you back to the graph and keeps this app.":"(na barra superior) leva você de volta ao grafo e mantém este app.",
     "(style adapter)":"(adaptador de estilo)",
+    "Paste a LoRA .safetensors URL":"Cole uma URL .safetensors de LoRA",
     ", or":", ou",
     "16:9 (Landscape)":"16:9 (Paisagem)",
     "1:1 (Square)":"1:1 (Quadrado)",
@@ -4345,6 +4349,7 @@ const I18N = {
     "default":"デフォルト",
     "(in the top bar) takes you back to the graph and keeps this app.":"(上部バーの) を押すとグラフに戻り、このアプリはそのまま残ります。",
     "(style adapter)":"(スタイルアダプター)",
+    "Paste a LoRA .safetensors URL":"LoRAの.safetensors URLを貼り付け",
     ", or":"、または",
     "16:9 (Landscape)":"16:9 (横長)",
     "1:1 (Square)":"1:1 (スクエア)",
@@ -6610,7 +6615,7 @@ function refreshLoraParams(n){
   const eg = LORA_EXAMPLES[loraFamily(n.fields.model)];         // verified example for this family (or none)
   const open = rows.some(r=>(r.url||"").trim()) ? " open" : "";
   const rowHTML = (r,i)=>`<div class="lorarow" data-i="${i}" style="display:flex;gap:4px;align-items:center;margin:3px 0">
-      <input data-lu style="flex:1;min-width:0" placeholder="https://huggingface.co/…/resolve/main/x.safetensors" value="${esc(r.url||"")}"/>
+      <input data-lu style="flex:1;min-width:0" placeholder="${esc(t("Paste a LoRA .safetensors URL"))}" value="${esc(r.url||"")}"/>
       <input data-ls type="number" step="0.05" min="0" max="4" style="width:56px" title="strength" placeholder="1" value="${esc(r.strength??"")}"/>
       ${rows.length>1 ? `<button type="button" data-lx class="ubtn" title="remove" style="padding:2px 7px">×</button>` : ""}
     </div>`;
@@ -6620,21 +6625,21 @@ function refreshLoraParams(n){
   box.innerHTML = `<details class="adv"${open}><summary>🎨 LoRA${rows.length>1?` · ${rows.length}`:` ${esc(t("(style adapter)"))}`}</summary>
     ${rows.map(rowHTML).join("")}
     <div class="fhint" style="display:flex;justify-content:space-between;gap:8px">${footer}${eg?`<a href="#" data-loraeg>try an example ↗</a>`:""}</div>
-    <div class="fhint">HuggingFace .safetensors link or any direct URL — stack a few to blend styles. CivitAI must be re-hosted.</div></details>`;
+    <div class="fhint">HuggingFace …/resolve/main/x.safetensors or any direct URL. Stack a few to blend styles; CivitAI must be re-hosted.</div></details>`;
   translateTree(box);   // localize +add LoRA / try an example / fhint / strength+remove titles ({cap} + (style adapter) already localized above)
   box.querySelectorAll(".lorarow").forEach(row=>{
     const i = +row.dataset.i;
     const lu = row.querySelector("[data-lu]"), ls = row.querySelector("[data-ls]"), lx = row.querySelector("[data-lx]");
     lu.addEventListener("input", ()=>{
       const had = videoLoraOn(n.fields); rows[i].url = lu.value; save();
-      if(had !== videoLoraOn(n.fields)) refreshDims(n); else updateNodePrice(n);   // LoRA tier + LoRA-only resolution knob
+      if(had !== videoLoraOn(n.fields)){ refreshDims(n); keepNodeInView(n); } else updateNodePrice(n);   // LoRA tier + LoRA-only resolution knob (it grows the node)
     });
     ls.addEventListener("input", ()=>{ rows[i].strength = ls.value; save(); });
     [lu,ls].forEach(el=> el.addEventListener("pointerdown", e=>e.stopPropagation()));  // don't drag node when editing
     if(lx) lx.onclick = (e)=>{ e.preventDefault(); rows.splice(i,1); save(); refreshLoraParams(n); refreshDims(n); };
   });
   const add = box.querySelector("[data-ladd]");
-  if(add) add.onclick = (e)=>{ e.preventDefault(); rows.push({ url:"", strength:"" }); save(); refreshLoraParams(n); };
+  if(add) add.onclick = (e)=>{ e.preventDefault(); rows.push({ url:"", strength:"" }); save(); refreshLoraParams(n); keepNodeInView(n); };
   // one-tap working example: a verified, base-matching LoRA for THIS model's family + a matching prompt
   const egl = box.querySelector("[data-loraeg]");
   if(egl && eg) egl.onclick = (e)=>{
@@ -6644,7 +6649,7 @@ function refreshLoraParams(n){
       n.fields.prompt = eg.prompt;
       const pt = n.el.querySelector('[data-f="prompt"]'); if(pt) pt.value = n.fields.prompt;
     }
-    save(); refreshLoraParams(n); refreshDims(n);
+    save(); refreshLoraParams(n); refreshDims(n); keepNodeInView(n);
   };
 }
 // shared body + run for the Music and Speech nodes
@@ -11339,6 +11344,14 @@ editor.addEventListener("dblclick", e=>{
 // below them — reroute wires. And a section holding a WIRED field port can't collapse: hiding
 // the socket would leave its wire dangling at a zero-rect anchor. ("toggle" doesn't bubble →
 // capture phase; re-opening fires a second toggle, which just lands in the redraw branch.)
+// A section the USER opens keeps its node on screen (keepNodeInView). Sections that render already
+// open (a LoRA row with a URL, a graph load, a rebuild) fire "toggle" too, so the reveal only follows
+// a click on that section's own <summary> (mouse, or Enter/Space, which also click) a moment earlier.
+let summaryOpened = null;
+editor.addEventListener("click", e=>{
+  const s = e.target && e.target.closest && e.target.closest("summary");
+  summaryOpened = (s && s.parentElement && s.parentElement.tagName==="DETAILS") ? { d:s.parentElement, t:performance.now() } : null;
+}, true);
 editor.addEventListener("toggle", e=>{
   const d = e.target;
   if(d.tagName==="DETAILS" && !d.open &&
@@ -11347,6 +11360,11 @@ editor.addEventListener("toggle", e=>{
     return;
   }
   redraw();
+  if(d.tagName==="DETAILS" && d.open && summaryOpened && summaryOpened.d===d && performance.now()-summaryOpened.t < 1000){
+    summaryOpened = null;
+    const nel = d.closest(".node"), n = nel && graph.nodes.find(x=> x.el===nel);
+    if(n) keepNodeInView(n);
+  }
 }, true);
 editor.addEventListener("wheel", e=>{
   // Plain wheel yields to a scrollable region inside a node (a tall textarea, a long
@@ -11468,6 +11486,43 @@ function revealNodes(ids){
   panX = (vw - bw*scale)/2 - x0*scale;
   panY = (vh - bh*scale)/2 - y0*scale;
   applyWorld(); redraw();
+}
+// Keep ONE node fully on screen after it grows under the user's hand: a section they opened, a LoRA
+// row they added, the LoRA-only resolution knob appearing. It pans up only as far as needed, never
+// zooms or moves sideways, so the node's bottom clears the composer bar and any corner controls under
+// it. A node taller than the room left pins its top instead. Eased over 180ms; reduced motion jumps.
+// If the user drags, wheels or pinches mid-ease, panY moves under the tween and the tween stops.
+// revealPanDelta is the pure part (screen px → how far to pan up; 0 = leave the camera alone).
+function revealPanDelta(top, bottom, ceil, floor, margin){
+  const over = bottom + margin - floor;
+  if(!(over > 0)) return 0;
+  return Math.max(0, Math.min(over, top - (ceil + margin)));
+}
+let revealTween = 0;
+function keepNodeInView(n){
+  const el = n && n.el; if(!el || !el.isConnected) return;
+  const r = el.getBoundingClientRect(), ed = editor.getBoundingClientRect();
+  let floor = ed.bottom;
+  for(const id of ["describebar", "cornerpills", "controlbar"]){
+    const o = $(id); if(!o || o.hidden || !o.offsetHeight) continue;
+    const b = o.getBoundingClientRect();
+    if(id==="describebar" || (b.right > r.left && b.left < r.right)) floor = Math.min(floor, b.top);
+  }
+  const d = revealPanDelta(r.top, r.bottom, ed.top, floor, 16);
+  if(d < 1) return;
+  cancelAnimationFrame(revealTween);
+  const from = panY, to = panY - d;
+  if(costChipReduceMotion()){ panY = to; applyWorld(); redraw(); return; }
+  const t0 = performance.now(), dur = 180;
+  let last = from;
+  const step = (now)=>{
+    if(panY !== last) return;   // the user moved the camera: theirs wins
+    const k = Math.min(1, (now - t0)/dur), ease = 1 - Math.pow(1 - k, 3);
+    panY = last = from + (to - from)*ease;
+    applyWorld(); redraw();
+    if(k < 1) revealTween = requestAnimationFrame(step);
+  };
+  revealTween = requestAnimationFrame(step);
 }
 
 // delete selected node with keyboard (when not typing)
