@@ -5833,7 +5833,7 @@ function updateNodePrice(n){
   const t = NODE_TYPES[n.type]; if(!t.modelKind || !n.el) return;
   const el = n.el.querySelector("[data-mp]"); if(!el) return;
   const fields = effectiveModelFields(n);   // Choice→model wire: price the id that Run will bill
-  el.textContent = livePrice(t.modelKind, fields, t.modelFilter) || catItem(t.modelKind, fields.model)?.price || "";
+  el.textContent = livePrice(t.modelKind, fields, t.modelFilter, n) || catItem(t.modelKind, fields.model)?.price || "";
   updateModelWarn(n);
 }
 // Surface a drifted model id on the node's model button so a saved/shared graph doesn't rot
@@ -7257,7 +7257,7 @@ function refreshTranscribeLang(n){
 // live price for a node from its chosen dimensions (image: per-size; video: per_second_by_resolution × duration);
 // other pricing shapes keep the catalog's precomputed string.
 // nodeFilter is the node's t2v/i2v/v2v filter, so per-mode video prices (Kandinsky 6) match what Run bills.
-function livePrice(kind, fields, nodeFilter){
+function livePrice(kind, fields, nodeFilter, n){
   const it = catItem(kind, fields.model); if(!it) return "";
   if(kind==="image"){
     const per = it.sizePrices||{};
@@ -7270,7 +7270,14 @@ function livePrice(kind, fields, nodeFilter){
     return `$${(+v).toFixed(3)}/img`;
   }
   if(kind==="video"){
-    const u = videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), videoPriceFields(it.params, fields), false, false, nodeFilter);   // all shapes; recomputes live as resolution/duration change
+    // Pass the node's wired ref count (and source-video) so the chip tracks LoRA per-ref
+    // surcharges the same way nodeUnitUsd / the Run total do. Without n (picker rows),
+    // refs stay off — a list row has no graph wires.
+    const t = n && NODE_TYPES[n.type];
+    const refCount = (n && t && t.refInputs && modelHasImageRole(n,"refs"))
+      ? graph.links.filter(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port)).length : 0;
+    const videoWired = !!(n && graph.links.some(l=> l.to.node===n.id && l.to.port==="video"));
+    const u = videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), videoPriceFields(it.params, fields), refCount, videoWired, nodeFilter);   // all shapes; recomputes live as resolution/duration change
     if(u!=null) return `~$${u.toFixed(2)}/clip`;
   }
   if(kind==="model3d") return model3dPriceLabels(it.pricing, fields, it.defaults).card;
@@ -10650,8 +10657,9 @@ function removeLink(id){
   const l = graph.links.find(x=>x.id===id);
   graph.links = graph.links.filter(x=>x.id!==id);
   const tn = l && byId(l.to.node);
-  if(tn){ recompactImageLinks(tn); refreshImageInputs(tn); recompactVideoLinks(tn); refreshVideoInputs(tn); }   // close any hole, rebuild ports first…
+  if(tn){ recompactImageLinks(tn); refreshImageInputs(tn); recompactVideoLinks(tn); refreshVideoInputs(tn); recompactRefLinks(tn); refreshRefInputs(tn); }   // close any hole, rebuild ports first…
   if(tn?.type==="inpaint") rerenderNode(tn);                   // restore upload/brush UI when a port is unwired
+  if(tn && NODE_TYPES[tn.type]?.modelKind) updateNodePrice(tn);   // chip: drop the LoRA per-ref surcharge when a ref unwires
   redraw(); refreshPortFills();                                // …then draw wires to the new ports
   // the Custom endpoint's live POST preview reads graph.links — repaint it when a wire
   // is detached (typeof guard: check harnesses may extract removeLink() alone)
@@ -11078,7 +11086,9 @@ function connect(fromNode, fromPort, toNode, toPort){
   const tn = byId(toNode);
   refreshImageInputs(tn||{});   // wiring the empty slot grows the next one
   refreshVideoInputs(tn||{});   // …same for the Combine node's clip ports
+  refreshRefInputs(tn||{});     // …and Text→Video refN ports (H3 / seedance / …)
   if(tn?.type==="inpaint") rerenderNode(tn);   // reflect wired source/mask in the body
+  if(tn && NODE_TYPES[tn.type]?.modelKind) updateNodePrice(tn);   // chip: LoRA per-ref surcharge moves with the wire
   redraw(); refreshPortFills();
   // the Custom endpoint's live POST preview reads graph.links — repaint it when a wire
   // lands, or dest/req still show the pre-wire target (typeof guard: check harnesses

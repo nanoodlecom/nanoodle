@@ -11,10 +11,11 @@
 //      exactly ONE link (the newest); the displaced wire is dropped from graph.links.
 //   2. SELF-LOOP NO-OP    — connect(from===to) adds no link and pushes no undo
 //      snapshot (a self-drop must never be a recordable edit).
-//   3. PORT-GROWTH WIRING — a successful connect() calls refreshImageInputs AND
-//      refreshVideoInputs (the dynamic image/Combine clip ports grow their next
-//      slot here); a light pin that the call sites stay wired. Deep growth logic
-//      lives in check-image-ports.
+//   3. PORT-GROWTH WIRING — a successful connect() calls refreshImageInputs,
+//      refreshVideoInputs, AND refreshRefInputs (dynamic image / Combine clip /
+//      Text→Video refN ports grow their next slot here), plus updateNodePrice so
+//      the LoRA per-ref chip moves with the wire. Deep growth lives in
+//      check-image-ports / check-h3-lora-ref-chip.
 //   4. RUN-TIME CYCLE SAFETY — topoOrder() on a cyclic node set TERMINATES and
 //      returns the offenders in `cyclic` (excluded from `order`); the run driver
 //      badges each one "cycle detected" at ~6562. topoOrder itself never toasts,
@@ -98,7 +99,7 @@ try {
 }
 
 // spies/counters live on the context so the extracted functions mutate them directly
-const spy = { pushUndo: 0, refreshImageInputs: 0, refreshVideoInputs: 0, toast: 0 };
+const spy = { pushUndo: 0, refreshImageInputs: 0, refreshVideoInputs: 0, refreshRefInputs: 0, updateNodePrice: 0, toast: 0 };
 const ctx = {
   console,
   graph: { nodes: [], links: [] },
@@ -106,6 +107,9 @@ const ctx = {
   pushUndo: () => { spy.pushUndo++; },
   refreshImageInputs: () => { spy.refreshImageInputs++; },
   refreshVideoInputs: () => { spy.refreshVideoInputs++; },
+  refreshRefInputs: () => { spy.refreshRefInputs++; },
+  updateNodePrice: () => { spy.updateNodePrice++; },
+  NODE_TYPES: { text: {}, model: { modelKind: "video" } },  // modelKind gate on updateNodePrice
   rerenderNode: () => {},          // only reached for inpaint nodes — not exercised
   redraw: () => {}, refreshPortFills: () => {}, save: () => {},
   toast: () => { spy.toast++; },   // PR #231's loop refusal notice
@@ -127,7 +131,7 @@ const { connect, topoOrder } = ctx.__t;
 
 // helpers to reset per-scenario state
 const nodes = (...ids) => ids.map((id) => ({ id, type: "text" }));
-function reset(links) { ctx.graph.links = links || []; spy.pushUndo = spy.refreshImageInputs = spy.refreshVideoInputs = spy.toast = 0; }
+function reset(links) { ctx.graph.links = links || []; spy.pushUndo = spy.refreshImageInputs = spy.refreshVideoInputs = spy.refreshRefInputs = spy.updateNodePrice = spy.toast = 0; }
 const into = (port) => ctx.graph.links.filter((l) => l.to.node === "m" && l.to.port === port);
 
 // ---- 1. SINGLE-INPUT-WIRE --------------------------------------------------
@@ -165,10 +169,23 @@ const okRet = connect("a", "out", "b", "in");
   ok(ctx.graph.links.some((l) => l.id === "l9" && l.from.node === "c" && l.to.node === "d"), "valid-connect: the unrelated c→d link must be preserved");
   ok(spy.pushUndo === 1, "valid-connect: a real wire must push exactly one undo snapshot");
   ok(okRet !== false, "valid-connect: a successful wire must not report refusal");
-  // invariant 3 — the dynamic image/video port-growth call sites stay wired
+  // invariant 3 — the dynamic image/video/ref port-growth call sites stay wired
   ok(spy.refreshImageInputs === 1, "port-growth: connect() must call refreshImageInputs (dynamic vision img ports grow here)");
   ok(spy.refreshVideoInputs === 1, "port-growth: connect() must call refreshVideoInputs (Combine clip ports grow here)");
+  ok(spy.refreshRefInputs === 1, "port-growth: connect() must call refreshRefInputs (Text→Video refN ports grow here)");
 }
+
+// ---- 3b. CHIP PRICE ON WIRE (modelKind target) ------------------------------
+// Wiring into a video model node must refresh the node chip so LoRA per-ref
+// surcharges (H3 $0.02 × N) move with the wire — not only the Run total.
+ctx.graph.nodes = [
+  { id: "img", type: "text" },
+  { id: "vid", type: "model" },
+];
+reset([]);
+connect("img", "out", "vid", "ref1");
+ok(spy.refreshRefInputs === 1, "chip-on-wire: connect() into a modelKind node must call refreshRefInputs");
+ok(spy.updateNodePrice === 1, "chip-on-wire: connect() into a modelKind node must call updateNodePrice (chip tracks refs)");
 
 // ---- 4. RUN-TIME CYCLE SAFETY (topoOrder) ----------------------------------
 // A cyclic set must terminate and surface offenders in `cyclic`; an acyclic set
@@ -206,4 +223,4 @@ if (failures.length) {
   process.stderr.write("✗ connect() / topoOrder wire rules regressed:\n\n- " + failures.join("\n- ") + "\n");
   process.exit(1);
 }
-process.stdout.write("✓ connect() keeps one wire per input, ignores self-drops, grows dynamic ports; topoOrder flags run-time cycles.\n");
+process.stdout.write("✓ connect() keeps one wire per input, ignores self-drops, grows image/video/ref ports, refreshes the chip; topoOrder flags run-time cycles.\n");
