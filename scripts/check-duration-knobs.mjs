@@ -137,7 +137,7 @@ for (const [name, src, end] of [["editor", IDX, "function nodeUnitUsd("], ["play
   const pf = ctx.videoPriceFields({}, { duration: "10" });
   if (pf.duration !== "") fail("play: videoPriceFields must drop a stale duration");
   else ok("play: videoPriceFields twin drops a stale duration");
-  if (!/videoUnitUsd\(pricing, videoPriceFields\(pp, f\), refWired, videoWired\)/.test(PLAY)) fail("play: nodeUnitUsdPlay no longer strips stale duration");
+  if (!/videoUnitUsd\(pricing, videoPriceFields\(pp, f\), refWired, videoWired(?:, [\w.]+)?\)/.test(PLAY)) fail("play: nodeUnitUsdPlay no longer strips stale duration");
   else ok("play: nodeUnitUsdPlay prices through videoPriceFields");
   const fill = block(PLAY, "function fillDimLists(){");
   if (!/if\(it\.field==="duration"\)\{/.test(fill)) fail("play: fillDimLists no longer hides a catalogued model's missing duration row on every video node");
