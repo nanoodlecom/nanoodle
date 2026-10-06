@@ -144,6 +144,44 @@ const IRON = {
 };
 
 const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+
+// Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
+// Other guide pages keep the site-wide og-card.
+const DEFAULT_SHARE = {
+  image: "https://nanoodle.com/og-card.png",
+  alt: "Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo",
+};
+const SHARE_CARDS = {
+  "flux3-seedream-ideogram-arena": {
+    path: "/examples/gallery/flux3-seedream-ideogram-arena/og.png",
+    alt: "Four saved midnight-ramen posters side by side: FLUX.3, Seedream 5.0, Ideogram 4.5, and Recraft V4.1",
+  },
+  "grok-heygen-minimax-video-arena": {
+    path: "/examples/gallery/grok-heygen-minimax-video-arena/og.png",
+    alt: "Three saved night-ramen video frames side by side: Grok Imagine 1.5 Lite lifting a noodle clump, HeyGen Video 1 lifting noodles, and MiniMax H3 lifting one strand",
+  },
+};
+
+function pngSize(file) {
+  const buf = readFileSync(file);
+  if (buf.length < 24 || buf.toString("ascii", 12, 16) !== "IHDR") {
+    throw new Error("Share card is not a PNG: " + file);
+  }
+  return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+}
+
+function shareFor(slug) {
+  const card = SHARE_CARDS[slug];
+  if (!card) return DEFAULT_SHARE;
+  const file = join(ROOT, card.path.slice(1));
+  if (!existsSync(file)) throw new Error("Missing share card: " + card.path);
+  const { width, height } = pngSize(file);
+  if (width !== 1200 || height !== 630) {
+    throw new Error(`Share card ${card.path} is ${width}×${height}, expected 1200×630`);
+  }
+  return { image: "https://nanoodle.com" + card.path, alt: card.alt };
+}
+
 for (const sample of SAMPLES) {
   if (!HOWTO[sample.slug]) throw new Error("Unexpected sample: " + sample.slug);
 }
@@ -151,8 +189,9 @@ for (const slug of Object.keys(HOWTO)) {
   if (!SAMPLES.some((sample) => sample.slug === slug)) throw new Error("Missing saved sample: " + slug);
 }
 
-function chrome({ title, description, path, crumbs, wide, body, next }) {
+function chrome({ title, description, path, crumbs, wide, body, next, share }) {
   const url = "https://nanoodle.com" + path;
+  const card = share || DEFAULT_SHARE;
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -166,14 +205,14 @@ function chrome({ title, description, path, crumbs, wide, body, next }) {
 <meta property="og:title" content="${esc(title)}" />
 <meta property="og:description" content="${esc(description)}" />
 <meta property="og:url" content="${esc(url)}" />
-<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image" content="${esc(card.image)}" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
-<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta property="og:image:alt" content="${esc(card.alt)}" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="${esc(title)}" />
 <meta name="twitter:description" content="${esc(description)}" />
-<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+<meta name="twitter:image" content="${esc(card.image)}" />
 
 <link rel="icon" href="/favicon.ico" sizes="any" />
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
@@ -388,6 +427,7 @@ function samplePage(s, prev, next) {
     crumbs,
     body,
     next: nextLinks,
+    share: shareFor(s.slug),
   });
 }
 
