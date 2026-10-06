@@ -7392,12 +7392,22 @@ function videoUnitUsd(pricing, fields, refWired, videoWired, nodeFilter){
   const opts = (f.modelOpts && typeof f.modelOpts==="object") ? f.modelOpts : {};
   let audioOn = false;
   for(const k in opts){ if(/audio/i.test(k) && !/^(no|disable|without|mute)/i.test(k)){ const val=opts[k]; if(val===true||val==="true"||val===1||val==="1"||val==="on"||val==="yes"){ audioOn=true; break; } } }
-  const refOn = !!refWired || /reference/i.test(String(opts.mode||""));
+  // refWired may be a boolean (legacy fixtures / "any refs?") or a count of wired refN ports.
+  const refCount = typeof refWired==="number" ? Math.max(0, refWired|0) : (refWired ? 1 : 0);
+  const refOn = refCount>0 || /reference/i.test(String(opts.mode||""));
   const videoOn = !!videoWired || /extend/i.test(String(opts.mode||""));
-  const usd = videoBaseUsd(p, f, audioOn, refOn, videoOn, nodeFilter);
+  let usd = videoBaseUsd(p, f, audioOn, refOn, videoOn, nodeFilter);
   // Models that surcharge audio as a flat multiplier (audio_multiplier) rather than a separate tier: apply
   // it once — those shapes never carry a with-audio table, so a tier branch can't have already handled it.
-  if(usd!=null && isFinite(usd) && audioOn && p.audio_multiplier!=null) return usd * (_num(p.audio_multiplier) ?? 1);
+  if(usd!=null && isFinite(usd) && audioOn && p.audio_multiplier!=null) usd *= (_num(p.audio_multiplier) ?? 1);
+  // MiniMax H3 LoRA: each wired reference image/audio adds pricing.lora.reference_image_or_audio
+  // ($0.02). x402 2026-10-06: LoRA 5s 480p = $0.30, +1 ref $0.32, +2 $0.34, +3 $0.36. Without a
+  // LoRA the included_reference_images (5) cover ordinary refs and this key does not apply.
+  if(usd!=null && isFinite(usd) && refCount>0 && videoLoraOn(f)){
+    const tier = (p.lora && typeof p.lora==="object") ? p.lora : null;
+    const per = tier && _num(tier.reference_image_or_audio);
+    if(per!=null) usd += per * refCount;
+  }
   return usd;
 }
 function videoBaseUsd(pricing, fields, audioOn, refOn, videoOn, nodeFilter){
@@ -7458,8 +7468,10 @@ function videoBaseUsd(pricing, fields, audioOn, refOn, videoOn, nodeFilter){
   // and bills output_per_second × duration, floored at min_duration: 5s $0.65, 3s also $0.65,
   // 15s $1.95. The resolution param does not move it. A LoRA URL switches to the
   // lora.text_or_image_per_second table by resolution (5s 480p $0.25, 1080p $1.00, 3s 540p
-  // $0.225), or lora.reference_per_second with refs wired. Before this branch genericScanUsd
-  // carried output_per_second for every case, so a LoRA run read $0.65 whatever the tier.
+  // $0.225), or lora.reference_per_second with refs wired. The per-ref surcharge
+  // (lora.reference_image_or_audio, $0.02 × N) is added in videoUnitUsd once the base is known —
+  // this branch only picks the $/s table. Before this branch genericScanUsd carried
+  // output_per_second for every case, so a LoRA run read $0.65 whatever the tier.
   if(p.output_per_second!=null){
     const L = (p.lora && typeof p.lora==="object") ? p.lora : null;
     const billSecs = (d, lo, hi)=> Math.min(_num(hi) ?? d, Math.max(_num(lo) ?? d, d));
@@ -7658,10 +7670,12 @@ function nodeUnitUsd(n){
   if(kind==="video"){
     // ref-image ports actually wired (and the model still exposes a ref-image param) flip the estimate to
     // the with-reference tier — mirrors run()'s role clamp so a stale wire on a non-ref model can't inflate it.
-    const refWired = !!(t.refInputs && modelHasImageRole(n,"refs") && graph.links.some(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port)));
+    // Count wired refN ports (not just "any?") so LoRA per-ref surcharges (H3 $0.02 × N) land on the chip.
+    const refCount = (t.refInputs && modelHasImageRole(n,"refs"))
+      ? graph.links.filter(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port)).length : 0;
     // source-video input wired → extend-mode rates on nested mode×resolution tables (FLUX.3).
     const videoWired = graph.links.some(l=> l.to.node===n.id && l.to.port==="video");
-    const u = videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), videoPriceFields(it.params, fields), refWired, videoWired, t.modelFilter); return (u!=null && isFinite(u)) ? u : null; }
+    const u = videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), videoPriceFields(it.params, fields), refCount, videoWired, t.modelFilter); return (u!=null && isFinite(u)) ? u : null; }
   if(kind==="chat"){
     const f=fields||{}; const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(it, inTok, outTok); }
   if(kind==="audio"){ const chars = t.modelFilter==="stt" ? undefined : (((fields||{}).prompt||"").length || EST.ttsChars);

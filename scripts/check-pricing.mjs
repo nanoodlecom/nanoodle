@@ -92,11 +92,11 @@ for(const eng of ENGINES){
 
   // Reference/audio price tiers (this fix): wiring reference images or flipping the model's audio switch
   // bills a HIGHER tier (…WithReference… / with_audio / audio_multiplier). videoUnitUsd must pick it, and a
-  // base case (no flags) must NOT regress. The third arg is the caller's refWired; the audio switch rides in
+  // base case (no flags) must NOT regress. The third arg is the caller's ref count (or legacy boolean); the audio switch rides in
   // fields.modelOpts. Both engines must agree on every tier and the base rate.
   for(const f of fixtures.videoTiers || []){
     for(const c of (f.cases || [])){
-      const v = R.videoUnitUsd(f.pricing, c.fields || {}, c.refWired);
+      const v = R.videoUnitUsd(f.pricing, c.fields || {}, c.refCount != null ? c.refCount : c.refWired);
       if(v == null || !isFinite(v) || Math.abs(v - c.expect) > 1e-9)
         bad("videoTier", f.id, `${c.desc}`, `${v} (expected ${c.expect})`);
     }
@@ -109,7 +109,7 @@ for(const eng of ENGINES){
   for(const f of fixtures.videoQuote || []){
     for(const c of (f.cases || [])){
       const pricing = R.applyVideoQuotePricing(f.id, c.pricing || f.pricing);
-      const v = R.videoUnitUsd(pricing, c.fields || {}, c.refWired);
+      const v = R.videoUnitUsd(pricing, c.fields || {}, c.refCount != null ? c.refCount : c.refWired);
       if(v == null || !isFinite(v) || Math.abs(v - c.expect) > 1e-9)
         bad("videoQuote", f.id, `${c.desc}`, `${v} (expected ${c.expect})`);
     }

@@ -6260,10 +6260,18 @@ window.NoodleApp = (function () {
     const opts = (f.modelOpts && typeof f.modelOpts==="object") ? f.modelOpts : {};
     let audioOn = false;
     for(const k in opts){ if(/audio/i.test(k) && !/^(no|disable|without|mute)/i.test(k)){ const val=opts[k]; if(val===true||val==="true"||val===1||val==="1"||val==="on"||val==="yes"){ audioOn=true; break; } } }
-    const refOn = !!refWired || /reference/i.test(String(opts.mode||""));
+    // refWired may be a boolean (legacy fixtures / "any refs?") or a count of wired refN ports.
+    const refCount = typeof refWired==="number" ? Math.max(0, refWired|0) : (refWired ? 1 : 0);
+    const refOn = refCount>0 || /reference/i.test(String(opts.mode||""));
     const videoOn = !!videoWired || /extend/i.test(String(opts.mode||""));
-    const usd = videoBaseUsd(p, f, audioOn, refOn, videoOn, nodeFilter);
-    if(usd!=null && isFinite(usd) && audioOn && p.audio_multiplier!=null) return usd * (_num(p.audio_multiplier) ?? 1);
+    let usd = videoBaseUsd(p, f, audioOn, refOn, videoOn, nodeFilter);
+    if(usd!=null && isFinite(usd) && audioOn && p.audio_multiplier!=null) usd *= (_num(p.audio_multiplier) ?? 1);
+    // H3 LoRA: catalog pricing.lora.reference_image_or_audio ($0.02) times each wired ref.
+    if(usd!=null && isFinite(usd) && refCount>0 && videoLoraOn(f)){
+      const tier = (p.lora && typeof p.lora==="object") ? p.lora : null;
+      const each = tier && _num(tier.reference_image_or_audio);
+      if(each!=null) usd += each * refCount;
+    }
     return usd;
   }
   function videoBaseUsd(pricing, fields, audioOn, refOn, videoOn, nodeFilter){
@@ -6509,10 +6517,11 @@ window.NoodleApp = (function () {
       // to the with-reference tier — twin of the editor's refWired, off STATE.graph's wiring.
       const t = NODE_TYPES[n.type] || {}, sp = m.supported_parameters || {}, pp = sp.parameters||sp;   // ref-image descriptors live under .parameters (see modelAllowsRefs)
       const modelHasRefs = ["reference_images","reference_image_urls","referenceImages"].some(k=> k in pp) || videoRefsPriced(m);   // ref pricing counts as advertising them (see videoRefsPriced)
-      const refWired = !!(t.refInputs && modelHasRefs && STATE && STATE.graph && STATE.graph.links.some(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port)));
+      const refCount = (t.refInputs && modelHasRefs && STATE && STATE.graph)
+        ? STATE.graph.links.filter(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port)).length : 0;
       // source-video input wired → extend-mode rates (FLUX.3) — twin of the editor.
       const videoWired = !!(STATE && STATE.graph && STATE.graph.links.some(l=> l.to.node===n.id && l.to.port==="video"));
-      const u = videoUnitUsd(pricing, videoPriceFields(pp, f), refWired, videoWired, t.modelFilter); return (u!=null && isFinite(u)) ? u : null; }
+      const u = videoUnitUsd(pricing, videoPriceFields(pp, f), refCount, videoWired, t.modelFilter); return (u!=null && isFinite(u)) ? u : null; }
     if(kind==="chat"){ const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(pricing, inTok, outTok); }
     if(kind==="audio"){ const chars = n.type==="transcribe" ? undefined : ((f.prompt||"").length || EST.ttsChars);
       const secs = audioBilledSeconds(m.supported_parameters, f);   // per_second music meters off the chosen duration, not a fixed 30s

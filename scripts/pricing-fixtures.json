@@ -1743,7 +1743,7 @@
   },
   {
    "id": "minimax-h3 (live 2026-10-06 pricing: 2K default + LoRA tier)",
-   "shape": "output_per_second floored at min_duration without a LoRA; pricing.lora.text_or_image_per_second / reference_per_second by resolution once a LoRA URL is set. Expectations are NanoGPT x402 pre-charge quotes (no key, nothing ran), except LoRA+refs, which leaves out the flat $0.02 per reference image.",
+   "shape": "output_per_second floored at min_duration without a LoRA; pricing.lora.text_or_image_per_second / reference_per_second by resolution once a LoRA URL is set; each wired ref adds lora.reference_image_or_audio ($0.02). Expectations are NanoGPT x402 pre-charge quotes (no key, nothing ran), measured 2026-10-06.",
    "pricing": {"currency": "USD", "output_per_second": 0.13, "reference_video_input_per_second": 0.13, "extra_reference_image": 0.04, "included_reference_images": 5, "default_duration": 5, "min_duration": 5, "max_duration": 15, "supported_durations": [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], "lora": {"text_or_image_per_second": {"480p": 0.05, "540p": 0.075, "768p": 0.1, "1080p": 0.2}, "reference_per_second": {"480p": 0.06, "540p": 0.09, "768p": 0.135, "1080p": 0.27}, "reference_video_input": "Same per-second rate as output; rounded up, capped at 15 seconds.", "reference_image_or_audio": 0.02, "min_duration": 3, "max_duration": 15}},
    "cases": [
     { "desc": "arena default: 5s 16:9, no LoRA (x402 $0.65)", "fields": {"duration": "5", "aspect": "16:9"}, "refWired": false, "expect": 0.65 },
@@ -1758,7 +1758,10 @@
     { "desc": "LoRA 10s 768p (x402 $1.00)", "fields": {"duration": "10", "resolution": "768p", "loras": [{"url": "https://huggingface.co/x/y/resolve/main/a.safetensors", "strength": "1"}]}, "refWired": false, "expect": 1.0 },
     { "desc": "LoRA 3s 540p (x402 $0.225; LoRA floor is 3s)", "fields": {"duration": "3", "resolution": "540p", "loras": [{"url": "https://huggingface.co/x/y/resolve/main/a.safetensors", "strength": "1"}]}, "refWired": false, "expect": 0.225 },
     { "desc": "legacy single loraUrl field counts as a LoRA", "fields": {"duration": "5", "resolution": "480p", "loraUrl": "https://huggingface.co/x/y/resolve/main/a.safetensors"}, "refWired": false, "expect": 0.25 },
-    { "desc": "LoRA + refs wired 5s 480p: reference_per_second (x402 $0.32 incl. $0.02/ref image)", "fields": {"duration": "5", "resolution": "480p", "loras": [{"url": "https://huggingface.co/x/y/resolve/main/a.safetensors", "strength": "1"}]}, "refWired": true, "expect": 0.3 }
+    { "desc": "LoRA + 1 ref 5s 480p: reference_per_second + $0.02 (x402 $0.32)", "fields": {"duration": "5", "resolution": "480p", "loras": [{"url": "https://huggingface.co/x/y/resolve/main/a.safetensors", "strength": "1"}]}, "refWired": 1, "expect": 0.32 },
+   { "desc": "LoRA + 2 refs 5s 480p: +$0.04 (x402 $0.34)", "fields": {"duration": "5", "resolution": "480p", "loras": [{"url": "https://huggingface.co/x/y/resolve/main/a.safetensors", "strength": "1"}]}, "refWired": 2, "expect": 0.34 },
+   { "desc": "LoRA + 3 refs 5s 480p: +$0.06 (x402 $0.36)", "fields": {"duration": "5", "resolution": "480p", "loras": [{"url": "https://huggingface.co/x/y/resolve/main/a.safetensors", "strength": "1"}]}, "refWired": 3, "expect": 0.36 },
+   { "desc": "LoRA + 1 ref 5s 1080p: 0.27×5 + $0.02 (x402 $1.37)", "fields": {"duration": "5", "resolution": "1080p", "loras": [{"url": "https://huggingface.co/x/y/resolve/main/a.safetensors", "strength": "1"}]}, "refWired": 1, "expect": 1.37 }
    ]
   }
  ],
