@@ -189,5 +189,69 @@ ok(!/const NJS_TYPES = \{[^}]*model3d/.test(PLAY) && !/const NJS_TYPES = \{[^}]*
 ok(!PLAY.includes("function putGlbBytes") && !PLAY.includes("function loadGlbViewer") && !PLAY.includes("function model3dStatusUrl"),
   "play.html has no 3D viewer / poll / byte helpers");
 
+ok(IDX.includes("function newModel3dOutKey()") && IDX.includes("fields.model3dOutKey"),
+  "paid 3D results are keyed by model3dOutKey, not only node id");
+ok(/try\{ if\(typeof restoreModel3dOuts==="function"\) restoreModel3dOuts\(\); \}/.test(IDX),
+  "applyGraphData rehydrates 3D outs so Save→Load is not stash-blind");
+ok(IDX.includes("restoreModel3dOuts({legacy:true})"),
+  "boot load() still accepts a pre-key { n2: url } stash");
+
+{
+  const store = new Map();
+  const ctx = {
+    graph: { nodes: [] },
+    localStorage: {
+      getItem: (k) => (store.has(k) ? store.get(k) : null),
+      setItem: (k, v) => store.set(k, String(v)),
+    },
+    crypto: { randomUUID: () => "11111111-2222-3333-4444-555555555555" },
+    showResult() {},
+    setStatus() {},
+  };
+  vm.createContext(ctx);
+  vm.runInContext(
+    extractFn(IDX, "newModel3dOutKey") + "\n" +
+    extractFn(IDX, "model3dOutUrl") + "\n" +
+    extractFn(IDX, "stashModel3dOuts") + "\n" +
+    extractFn(IDX, "restoreModel3dOuts") + "\n" +
+    "globalThis.stashModel3dOuts=stashModel3dOuts; globalThis.restoreModel3dOuts=restoreModel3dOuts;",
+    ctx);
+
+  const urlA = "https://cdn.example/a.glb";
+  const urlB = "https://cdn.example/b.glb";
+  ctx.graph.nodes = [{ id: "n2", type: "model3d", fields: {}, out: { model: urlA } }];
+  ctx.stashModel3dOuts();
+  const afterRun = JSON.parse(store.get("noodle_model3d_out"));
+  const key = ctx.graph.nodes[0].fields.model3dOutKey;
+  ok(key === "k:11111111-2222-3333-4444-555555555555" && afterRun[key] === urlA,
+    "stash mints model3dOutKey and stores the https URL under it");
+  ok(afterRun.n2 == null, "stash drops the legacy n2 slot once the result has a stable key");
+
+  // 📂 Load of the same backup: applyGraphData rebuilds nodes without n.out, then restore.
+  ctx.graph.nodes = [{ id: "n2", type: "model3d", fields: { model3dOutKey: key }, out: {} }];
+  ctx.restoreModel3dOuts();
+  ok(ctx.graph.nodes[0].out && ctx.graph.nodes[0].out.model === urlA,
+    "restore by model3dOutKey brings the paid GLB back after Save→Load");
+
+  // An Example / other file that reuses n2 but has no key must not inherit urlA.
+  ctx.graph.nodes = [{ id: "n2", type: "model3d", fields: {}, out: {} }];
+  ctx.restoreModel3dOuts();
+  ok(!ctx.graph.nodes[0].out || !ctx.graph.nodes[0].out.model,
+    "restore without a key does not attach another workflow's n2 result");
+
+  // save() of that example must MERGE, not rewrite the map to {}.
+  ctx.stashModel3dOuts();
+  const afterExample = JSON.parse(store.get("noodle_model3d_out"));
+  ok(afterExample[key] === urlA,
+    "save() on a graph with no 3D out keeps the previous paid URL");
+
+  // Boot load() of a pre-fix graph still reads the old { n2: url } map.
+  store.set("noodle_model3d_out", JSON.stringify({ n2: urlB }));
+  ctx.graph.nodes = [{ id: "n2", type: "model3d", fields: {}, out: {} }];
+  ctx.restoreModel3dOuts({ legacy: true });
+  ok(ctx.graph.nodes[0].out && ctx.graph.nodes[0].out.model === urlB,
+    "legacy boot restore still accepts { n2: url }");
+}
+
 if (fail) { console.error("\n✗ check-3d-edges: " + fail + " failed"); process.exit(1); }
 console.log("\n✓ check-3d-edges");
