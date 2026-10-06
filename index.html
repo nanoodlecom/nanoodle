@@ -5833,7 +5833,7 @@ function updateNodePrice(n){
   const t = NODE_TYPES[n.type]; if(!t.modelKind || !n.el) return;
   const el = n.el.querySelector("[data-mp]"); if(!el) return;
   const fields = effectiveModelFields(n);   // Choice→model wire: price the id that Run will bill
-  el.textContent = livePrice(t.modelKind, fields) || catItem(t.modelKind, fields.model)?.price || "";
+  el.textContent = livePrice(t.modelKind, fields, t.modelFilter) || catItem(t.modelKind, fields.model)?.price || "";
   updateModelWarn(n);
 }
 // Surface a drifted model id on the node's model button so a saved/shared graph doesn't rot
@@ -7256,7 +7256,8 @@ function refreshTranscribeLang(n){
 }
 // live price for a node from its chosen dimensions (image: per-size; video: per_second_by_resolution × duration);
 // other pricing shapes keep the catalog's precomputed string.
-function livePrice(kind, fields){
+// nodeFilter is the node's t2v/i2v/v2v filter, so per-mode video prices (Kandinsky 6) match what Run bills.
+function livePrice(kind, fields, nodeFilter){
   const it = catItem(kind, fields.model); if(!it) return "";
   if(kind==="image"){
     const per = it.sizePrices||{};
@@ -7269,7 +7270,7 @@ function livePrice(kind, fields){
     return `$${(+v).toFixed(3)}/img`;
   }
   if(kind==="video"){
-    const u = videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), videoPriceFields(it.params, fields));   // all shapes; recomputes live as resolution/duration change
+    const u = videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), videoPriceFields(it.params, fields), false, false, nodeFilter);   // all shapes; recomputes live as resolution/duration change
     if(u!=null) return `~$${u.toFixed(2)}/clip`;
   }
   if(kind==="model3d") return model3dPriceLabels(it.pricing, fields, it.defaults).card;
@@ -7812,6 +7813,15 @@ function sortMatches(list){
   });
 }
 let picker = null; // { kind, filter, current, onPick }
+// Picker row price. Video models priced per mode (Kandinsky 6: per_video_by_mode) quote the mode this
+// node bills, so an Image → Video picker shows the image_to_video price, not the text_to_video default.
+function pickerRowPrice(m){
+  if(picker && picker.kind==="video" && picker.filter && m.pricing && m.pricing.per_video_by_mode){
+    const u = videoUnitUsd(applyVideoQuotePricing(m.id, m.pricing), {}, false, false, picker.filter);
+    if(u!=null && isFinite(u)) return `~$${u.toFixed(2)}/clip`;
+  }
+  return m.price;
+}
 function openPicker(kind, opts){
   // Kick a background revalidate if the in-memory catalog is stale so brand-new
   // NanoGPT models show up without requiring a hard reload. Non-blocking.
@@ -7977,7 +7987,7 @@ function renderPicker(){
       + `${m.tts?'<span class="tag">tts</span>':''}${m.music?'<span class="tag edit">music</span>':''}${m.stt?'<span class="tag">stt</span>':''}`
       + `${m.nsfw?`<span class="tag nsfw">${nsfwOnly?"nsfw":"NSFW"}</span>`:''}`;
     const sugTitle = galleryTagged ? "common in gallery" : "pick a model next";
-    b.innerHTML = `<span class="mname">${esc(m.id)} ${tags}</span>${sug?`<span class="sug" title="${sugTitle}">suggested</span>`:""}<span class="price">${esc(m.price)}</span>`;
+    b.innerHTML = `<span class="mname">${esc(m.id)} ${tags}</span>${sug?`<span class="sug" title="${sugTitle}">suggested</span>`:""}<span class="price">${esc(pickerRowPrice(m))}</span>`;
     b.onclick = ()=>{ picker.onPick(m.id); closePicker(); };
     frag.appendChild(b);
   }
