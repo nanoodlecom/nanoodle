@@ -10,7 +10,7 @@
 //
 // Usage:
 //   NANOGPT_API_KEY=sk-... node scripts/translate-updates.mjs        # backfill
-//   node scripts/translate-updates.mjs --key sk-... --model zai-org/glm-5.2  # explicit
+//   node scripts/translate-updates.mjs --key sk-... --model openai/gpt-6.1-sol --effort medium  # explicit
 //   node scripts/translate-updates.mjs --dry-run                      # list gaps, no spend
 //
 // The editor UI languages (index.html I18N_LANGS). Keep in sync with check-updates.mjs.
@@ -32,10 +32,14 @@ const flag = (name, short) => {
 };
 const dryRun = argv.includes("--dry-run");
 const key = flag("--key", "-k") || process.env.NANOGPT_API_KEY || "";
-// Default to glm-5.2 — the route live-probed reliable on NanoGPT (kimi-k3 and
-// x-ai/grok-4.5 both 503'd "all_fallbacks_failed" for minutes on 2026-07-19).
-// Override with --model / NANOGPT_MODEL.
-const model = flag("--model", "-m") || process.env.NANOGPT_MODEL || "zai-org/glm-5.2";
+// Default to GPT 6.1 Sol at medium reasoning effort (Mikkel's pick, 2026-10-06; replaces
+// zai-org/glm-5.2, chosen 2026-07-19 when kimi-k3 / grok-4.5 were 503ing). Live probe
+// 2026-10-06, 3 lines → es + ja: strict JSON, $/LoRA/ids/URLs kept, ~10–16s and ~$0.005/call.
+// Override with --model / NANOGPT_MODEL and --effort / NANOGPT_REASONING_EFFORT
+// (sent as `reasoning_effort`; pass --effort "" to omit it for models without reasoning).
+const model = flag("--model", "-m") || process.env.NANOGPT_MODEL || "openai/gpt-6.1-sol";
+const effortArg = argv.includes("--effort") ? flag("--effort") : process.env.NANOGPT_REASONING_EFFORT;
+const effort = effortArg === undefined ? "medium" : effortArg.trim();
 
 // don't-translate protected tokens — mirrors the localizer brief used to seed the backlog.
 // NOTE: labels the editor UI localizes (Run, My apps, Create app, Updates, Examples) are
@@ -101,6 +105,7 @@ async function translateBatch(lang, indices) {
       messages: [{ role: "system", content: sys }, { role: "user", content: user }],
       response_format: { type: "json_object" },
       temperature: 0.2,
+      ...(effort ? { reasoning_effort: effort } : {}),
     }),
   });
   if (!r.ok) throw new Error(`${lang}: HTTP ${r.status} — ${(await r.text()).slice(0, 300)}`);
