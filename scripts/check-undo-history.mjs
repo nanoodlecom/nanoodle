@@ -153,6 +153,9 @@ const prelude = `
   function refreshImageInputs(){}
   function recompactVideoLinks(){}
   function refreshVideoInputs(){}
+  function recompactRefLinks(){}
+  function refreshRefInputs(){}
+  function updateNodePrice(){}
   function applyWorld(){}
   function save(){}
   var pendingAppId = null;                          // the real binding var appHandoffSig/the __editflow__ handler read

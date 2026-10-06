@@ -116,6 +116,7 @@ const ctx = {
   pushUndo: () => {}, redraw: () => {}, save: () => {},
   toast: () => {},
   refreshImageInputs: () => {}, refreshVideoInputs: () => {},
+  refreshRefInputs: () => {}, recompactRefLinks: () => {}, updateNodePrice: () => {},
   recompactImageLinks: () => {}, recompactVideoLinks: () => {},
   rerenderNode: () => {}, updateDelBtn: () => {},
   refreshPromptCaps: () => {}, refreshFramePorts: () => {},
