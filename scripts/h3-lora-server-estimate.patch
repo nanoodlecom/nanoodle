@@ -1,0 +1,143 @@
+diff --git a/src/estimate.mjs b/src/estimate.mjs
+index b1a28e5..2a96136 100644
+--- a/src/estimate.mjs
++++ b/src/estimate.mjs
+@@ -67,18 +67,42 @@ function pickDur(p, raw, fields) {
+   return 5;
+ }
+ 
++// A LoRA row counts only once it carries a URL. loraParams sends nothing for a
++// blank row, so a blank row must not flip the estimate onto the LoRA tier.
++function videoLoraOn(fields) {
++  const f = fields || {};
++  const rows = Array.isArray(f.loras) ? f.loras : (String(f.loraUrl || "").trim() ? [{ url: f.loraUrl }] : []);
++  return rows.some((r) => r && String(r.url || "").trim() !== "");
++}
++
+ // A video run bills a HIGHER tier when reference images are wired or the model's
+ // audio switch is on. refWired comes from the graph wiring; the audio switch /
+-// reference mode ride in fields.modelOpts.
++// reference mode ride in fields.modelOpts. refWired may be a boolean (legacy
++// "any refs?") or a count of wired refN ports.
+ function videoUnitUsd(pricing, fields, refWired) {
+   const p = pricing || {};
+   const f = fields || {};
+   const opts = (f.modelOpts && typeof f.modelOpts === "object") ? f.modelOpts : {};
+   let audioOn = false;
+   for (const k in opts) { if (/audio/i.test(k) && !/^(no|disable|without|mute)/i.test(k)) { const val = opts[k]; if (val === true || val === "true" || val === 1 || val === "1" || val === "on" || val === "yes") { audioOn = true; break; } } }
+-  const refOn = !!refWired || /reference/i.test(String(opts.mode || ""));
+-  const usd = videoBaseUsd(p, f, audioOn, refOn);
+-  if (usd != null && isFinite(usd) && audioOn && p.audio_multiplier != null) return usd * (_num(p.audio_multiplier) ?? 1);
++  const refCount = typeof refWired === "number" ? Math.max(0, refWired | 0) : (refWired ? 1 : 0);
++  const refOn = refCount > 0 || /reference/i.test(String(opts.mode || ""));
++  let usd = videoBaseUsd(p, f, audioOn, refOn);
++  if (usd != null && isFinite(usd) && audioOn && p.audio_multiplier != null) usd *= (_num(p.audio_multiplier) ?? 1);
++  // MiniMax H3 LoRA: each wired reference image/audio adds
++  // pricing.lora.reference_image_or_audio ($0.02). This number is the quote,
++  // not the hold. x402 settlement on POST /api/generate-video (402
++  // payment.amountUsd, nothing runs) matches it with no added headroom:
++  // LoRA 5s 480p $0.25, +1 ref $0.32, +2 $0.34. GET /api/estimate-video-cost
++  // ignores lora/ref fields and stays on the non-LoRA floor ($0.65); this
++  // forecast does not. nanoodle-mcp's deposit (gate priceFor:
++  // ceil(basis × 1.2 × 2) for inexact video, 1.25× when exact) is applied by
++  // that caller on top of this usd and is intentionally left unchanged.
++  if (usd != null && isFinite(usd) && refCount > 0 && videoLoraOn(f)) {
++    const tier = (p.lora && typeof p.lora === "object") ? p.lora : null;
++    const per = tier && _num(tier.reference_image_or_audio);
++    if (per != null) usd += per * refCount;
++  }
+   return usd;
+ }
+ function videoBaseUsd(pricing, fields, audioOn, refOn) {
+@@ -148,6 +172,18 @@ function videoBaseUsd(pricing, fields, audioOn, refOn) {
+       if (mp != null) return _num(raw.pricePerMegapixel) * mp * nf;
+     }
+   }
++  // MiniMax H3 with a LoRA URL. Without one, fall through: non-LoRA H3 stays
++  // on genericScanUsd (output_per_second × duration → 5s $0.65) and every
++  // other shape keeps its existing handler. A LoRA URL switches to
++  // lora.text_or_image_per_second by resolution, or lora.reference_per_second
++  // once refs are wired. The per-ref surcharge is added in videoUnitUsd.
++  if (p.output_per_second != null && p.lora && typeof p.lora === "object" && videoLoraOn(f)) {
++    const L = p.lora;
++    const billSecs = (d, lo, hi) => Math.min(_num(hi) ?? d, Math.max(_num(lo) ?? d, d));
++    const tbl = (refOn && L.reference_per_second) ? L.reference_per_second : L.text_or_image_per_second;
++    v = (tbl && typeof tbl === "object") ? rp(tbl) : _num(tbl);
++    if (v != null) return v * billSecs(dur, L.min_duration, L.max_duration);
++  }
+   return genericScanUsd(p, dur);
+ }
+ // Last resort so a never-seen pricing shape estimates SOMETHING rather than
+@@ -220,9 +256,11 @@ function nodeUnitUsd(node, catItem, graph) {
+     const sp = m.supported_parameters || {}, pp = sp.parameters || sp;
+     const modelHasRefs = ["reference_images", "reference_image_urls", "referenceImages"].some((k) => k in pp) ||
+       pricingAdvertisesRefs(pricing); // twin of modelRefSpec: refs the run WILL send must forecast at the ref tier
+-    const refWired = !!(modelHasRefs && graph && Array.isArray(graph.links) &&
+-      graph.links.some((l) => l.to && l.to.node === node.id && REF_PORT_RE.test(l.to.port)));
+-    const u = videoUnitUsd(pricing, f, refWired);
++    // Count, not a boolean: H3 LoRA adds reference_image_or_audio once per wired refN port.
++    const refCount = (modelHasRefs && graph && Array.isArray(graph.links))
++      ? graph.links.filter((l) => l.to && l.to.node === node.id && REF_PORT_RE.test(l.to.port)).length
++      : 0;
++    const u = videoUnitUsd(pricing, f, refCount);
+     return (u != null && isFinite(u)) ? u : null;
+   }
+   if (kind === "chat") {
+diff --git a/tests/estimate.test.mjs b/tests/estimate.test.mjs
+index 925573c..ecd7dc1 100644
+--- a/tests/estimate.test.mjs
++++ b/tests/estimate.test.mjs
+@@ -155,3 +155,53 @@ test("retired 'draw' node is not billable: no cost, no unpriced count, no chat c
+   assert.equal(mixed.priced, 1);
+   assert.equal(mixed.unpriced, 0);
+ });
++
++// MiniMax H3 LoRA tier. genericScanUsd used to read output_per_second for every
++// case (5s → $0.65) and ignore both the LoRA table and the per-ref surcharge.
++// x402 pre-charge matches the quote with no headroom; this forecast must too.
++// The MCP deposit margin (1.2× × 2× for video) is applied by the caller, not here.
++test("minimax-h3 LoRA tier matches the client quote at 480p / 5s", () => {
++  const LORA = "https://huggingface.co/x/y/resolve/main/a.safetensors";
++  const pricing = {
++    currency: "USD",
++    output_per_second: 0.13,
++    reference_video_input_per_second: 0.13,
++    extra_reference_image: 0.04,
++    included_reference_images: 5,
++    default_duration: 5,
++    min_duration: 5,
++    max_duration: 15,
++    supported_durations: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
++    lora: {
++      text_or_image_per_second: { "480p": 0.05, "540p": 0.075, "768p": 0.1, "1080p": 0.2 },
++      reference_per_second: { "480p": 0.06, "540p": 0.09, "768p": 0.135, "1080p": 0.27 },
++      reference_image_or_audio: 0.02,
++      min_duration: 3,
++      max_duration: 15,
++    },
++  };
++  const cats = { video: [{ id: "minimax-h3", pricing, supported_parameters: { parameters: { duration: {}, resolution: {} } } }] };
++  const graphFor = (refs, lora) => {
++    const fields = { model: "minimax-h3", duration: "5", resolution: "480p" };
++    if (lora) fields.loras = [{ url: LORA, strength: "1" }];
++    const nodes = [{ id: "v1", type: "tvideo", fields }];
++    const links = [];
++    for (let i = 1; i <= refs; i++) {
++      nodes.push({ id: "img" + i, type: "upload", fields: {} });
++      links.push({ id: "l" + i, from: { node: "img" + i, port: "image" }, to: { node: "v1", port: "ref" + i } });
++    }
++    return { nodes, links };
++  };
++  const usd = (refs, lora) => estimateGraphCost(graphFor(refs, lora), cats).usd;
++  const near = (got, want, label) => assert.ok(Math.abs(got - want) < 1e-9, `${label}: ${got} !== ${want}`);
++  near(usd(0, false), 0.65, "non-LoRA 0 refs");
++  near(usd(1, false), 0.65, "non-LoRA 1 ref");
++  near(usd(2, false), 0.65, "non-LoRA 2 refs");
++  near(usd(0, true), 0.25, "LoRA 0 refs");
++  near(usd(1, true), 0.32, "LoRA 1 ref");
++  near(usd(2, true), 0.34, "LoRA 2 refs");
++  // A blank LoRA row must not leave the non-LoRA tier.
++  const blank = graphFor(0, false);
++  blank.nodes[0].fields.loras = [{ url: "  ", strength: "1" }];
++  near(estimateGraphCost(blank, cats).usd, 0.65, "blank LoRA url");
++});
