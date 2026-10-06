@@ -104,7 +104,7 @@ for (const [name, src, end] of [["editor", IDX, "function nodeUnitUsd("], ["play
     "var SIZES = [['1024x1024','square']];",
     IDX.slice(IDX.indexOf("const SIZE_FALLBACK"), IDX.indexOf("function applyDimFields(")).replace(/^const /gm, "var "),
     block(IDX, "function applyDimFields(fields, defs){"),
-    block(IDX, "function dimDefs(type, model){"),
+    block(IDX, "function dimDefs(type, model, fields){"),
     "var catalogs = { image:[], video:[] };",
     "function catItem(kind,id){ return (catalogs[kind]||[]).find(function(m){ return m.id===id; }); }",
   ].join("\n");

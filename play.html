@@ -6242,6 +6242,12 @@ window.NoodleApp = (function () {
     if(!fields || fields.duration==null || fields.duration==="" || pp.duration || pp.seconds) return fields;
     return Object.assign({}, fields, { duration: "" });
   }
+  // twin of the editor's videoLoraOn: only a row with a URL is a LoRA (loraParams skips blanks).
+  function videoLoraOn(fields){
+    const f = fields || {};
+    const rows = Array.isArray(f.loras) ? f.loras : (String(f.loraUrl||"").trim() ? [{ url:f.loraUrl }] : []);
+    return rows.some(r=> r && String(r.url||"").trim()!=="");
+  }
   function videoUnitUsd(pricing, fields, refWired, videoWired){
     const p = pricing || {};
     const f = fields || {};
@@ -6301,6 +6307,18 @@ window.NoodleApp = (function () {
       if(v==null){ const dt = draft ? (p.draft_per_second_by_resolution || p.full_per_second_by_resolution) : (p.full_per_second_by_resolution || p.draft_per_second_by_resolution); if(dt) v = rp(dt); }
       if(v==null) v = draft ? (_num(p.draft_per_second) ?? _num(p.full_per_second)) : (_num(p.full_per_second) ?? _num(p.draft_per_second));
       if(v!=null) return v*bd;
+    }
+    // MiniMax H3 (output_per_second, LoRA tier on pricing.lora): twin of the editor's handler,
+    // where the measured NanoGPT quotes are written down.
+    if(p.output_per_second!=null){
+      const L = (p.lora && typeof p.lora==="object") ? p.lora : null;
+      const billSecs = (d, lo, hi)=> Math.min(_num(hi) ?? d, Math.max(_num(lo) ?? d, d));
+      if(L && videoLoraOn(f)){
+        const tbl = (refOn && L.reference_per_second) ? L.reference_per_second : L.text_or_image_per_second;
+        v = (tbl && typeof tbl==="object") ? rp(tbl) : _num(tbl);
+        if(v!=null) return v*billSecs(dur, L.min_duration, L.max_duration);
+      }
+      v = _num(p.output_per_second); if(v!=null) return v*billSecs(dur, p.min_duration, p.max_duration);
     }
     if((v=rp(p.per_second_by_resolution))!=null) return v*dur;
     if((v=rp(p.standard_prices_per_second))!=null) return v*dur;

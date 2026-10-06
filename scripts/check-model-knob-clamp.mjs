@@ -119,7 +119,7 @@ function loadEditor() {
     block(IDX, "function applyDimFields(fields, defs){"),
     block(IDX, "const IMAGE_ASPECT = {").replace(/^const\s/, "var "),
     block(IDX, "function imageAspectSpec(model){"),
-    block(IDX, "function dimDefs(type, model){"),
+    block(IDX, "function dimDefs(type, model, fields){"),
     block(IDX, "function videoDimParams(n){"),
     "var catalogs = { image:[], video:[] };",
     "function catItem(kind,id){ return (catalogs[kind]||[]).find(function(m){ return m.id===id; }); }",
@@ -739,7 +739,7 @@ vm.runInContext([
     fail("editor: sanitizeFields still strips inpaint size against SIZES (would delete 1mp/2k after dimDefs accepted them)");
   } else ok("editor: sanitizeFields does not strip inpaint size against SIZES");
 
-  if (!/type==="image" \|\| type==="edit" \|\| type==="inpaint"/.test(block(IDX, "function dimDefs(type, model){"))) {
+  if (!/type==="image" \|\| type==="edit" \|\| type==="inpaint"/.test(block(IDX, "function dimDefs(type, model, fields){"))) {
     fail("editor: dimDefs no longer treats inpaint as an image-size node");
   } else ok("editor: dimDefs treats inpaint like image/edit");
 

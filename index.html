@@ -6625,10 +6625,13 @@ function refreshLoraParams(n){
   box.querySelectorAll(".lorarow").forEach(row=>{
     const i = +row.dataset.i;
     const lu = row.querySelector("[data-lu]"), ls = row.querySelector("[data-ls]"), lx = row.querySelector("[data-lx]");
-    lu.addEventListener("input", ()=>{ rows[i].url = lu.value; save(); });
+    lu.addEventListener("input", ()=>{
+      const had = videoLoraOn(n.fields); rows[i].url = lu.value; save();
+      if(had !== videoLoraOn(n.fields)) refreshDims(n); else updateNodePrice(n);   // LoRA tier + LoRA-only resolution knob
+    });
     ls.addEventListener("input", ()=>{ rows[i].strength = ls.value; save(); });
     [lu,ls].forEach(el=> el.addEventListener("pointerdown", e=>e.stopPropagation()));  // don't drag node when editing
-    if(lx) lx.onclick = (e)=>{ e.preventDefault(); rows.splice(i,1); save(); refreshLoraParams(n); };
+    if(lx) lx.onclick = (e)=>{ e.preventDefault(); rows.splice(i,1); save(); refreshLoraParams(n); refreshDims(n); };
   });
   const add = box.querySelector("[data-ladd]");
   if(add) add.onclick = (e)=>{ e.preventDefault(); rows.push({ url:"", strength:"" }); save(); refreshLoraParams(n); };
@@ -6641,7 +6644,7 @@ function refreshLoraParams(n){
       n.fields.prompt = eg.prompt;
       const pt = n.el.querySelector('[data-f="prompt"]'); if(pt) pt.value = n.fields.prompt;
     }
-    save(); refreshLoraParams(n);
+    save(); refreshLoraParams(n); refreshDims(n);
   };
 }
 // shared body + run for the Music and Speech nodes
@@ -7117,7 +7120,7 @@ function imageAspectExtra(model, aspect){
 }
 
 // the dimension fields a node should show, resolved from its model's catalog entry
-function dimDefs(type, model){
+function dimDefs(type, model, fields){
   if(type==="image" || type==="edit" || type==="inpaint"){
     const it = catItem("image", model);
     const listed = !!(it && it.resolutions && it.resolutions.length);
@@ -7151,7 +7154,12 @@ function dimDefs(type, model){
     // estimate silently priced the API default.
     const defs = [], soft = type!=="vedit" && type!=="lipsync";
     const rOpts = selOpts(p.resolution);
-    if(rOpts.length) defs.push({ f:"resolution", wire:"resolution", label:"resolution", options:rOpts, def:paramDef(p.resolution, rOpts), known });
+    // MiniMax H3 labels its resolution "LoRA / Edit / Extend Resolution… Generation without LoRAs
+    // remains 2K". On a generate node with no LoRA URL the knob would show "480p" over a 2560×1440
+    // clip, so it is hidden (kept for the wire, like a fixed duration) until a LoRA row has a URL.
+    // Catalog label only, no model-name list; vedit keeps it (edit/extend do use it).
+    const loraOnlyRes = type!=="vedit" && /\blora\b/i.test(String((p.resolution && p.resolution.label) || "")) && !videoLoraOn(fields);
+    if(rOpts.length) defs.push({ f:"resolution", wire:"resolution", label:"resolution", options:rOpts, def:paramDef(p.resolution, rOpts), known, hidden: loraOnlyRes });
     // aspect dimension: most models name it aspect_ratio, but Sora/WAN-style models call it `orientation`
     // (landscape/portrait) and PixVerse v5.5/5.6 call it `resolution_ratio` (16:9/9:16/… alongside a
     // separate `resolution`) — same node field, different WIRE key so the model honours the choice.
@@ -7194,7 +7202,7 @@ function videoDimParams(n){
 function refreshDims(n){
   if(!DIM_NODES[n.type] || !n.el) return;
   const box = n.el.querySelector("[data-dims]"); if(!box) return;
-  const defs = dimDefs(n.type, n.fields.model);
+  const defs = dimDefs(n.type, n.fields.model, n.fields);
   if(!defs.length){ box.innerHTML=""; return; }
   applyDimFields(n.fields, defs);     // clamp invalid stored values to this model's list (swap AND load)
   const shown = defs.filter(d=> !d.hidden);   // hidden = kept for the wire, never rendered (see dimDefs duration)
@@ -7365,6 +7373,13 @@ function videoPriceFields(params, fields){
   if(!fields || fields.duration==null || fields.duration==="" || pp.duration || pp.seconds) return fields;
   return Object.assign({}, fields, { duration: "" });
 }
+// A LoRA row counts only once it carries a URL — loraParams sends nothing for a blank row, so a
+// blank row must not flip the estimate or the LoRA-only resolution knob. Twin: play videoLoraOn.
+function videoLoraOn(fields){
+  const f = fields || {};
+  const rows = Array.isArray(f.loras) ? f.loras : (String(f.loraUrl||"").trim() ? [{ url:f.loraUrl }] : []);
+  return rows.some(r=> r && String(r.url||"").trim()!=="");
+}
 function videoUnitUsd(pricing, fields, refWired, videoWired){
   const p = pricing || {};
   const f = fields || {};
@@ -7430,6 +7445,24 @@ function videoBaseUsd(pricing, fields, audioOn, refOn, videoOn){
     if(v==null){ const dt = draft ? (p.draft_per_second_by_resolution || p.full_per_second_by_resolution) : (p.full_per_second_by_resolution || p.draft_per_second_by_resolution); if(dt) v = rp(dt); }
     if(v==null) v = draft ? (_num(p.draft_per_second) ?? _num(p.full_per_second)) : (_num(p.full_per_second) ?? _num(p.draft_per_second));
     if(v!=null) return v*bd;
+  }
+  // ---- MiniMax H3: output_per_second, plus a LoRA tier on pricing.lora ----
+  // Measured 2026-10-06 against NanoGPT's pre-charge quote (POST /api/generate-video, no key,
+  // x-x402: true → 402 with payment.amountUsd; nothing runs). Without a LoRA, H3 renders 2K
+  // and bills output_per_second × duration, floored at min_duration: 5s $0.65, 3s also $0.65,
+  // 15s $1.95. The resolution param does not move it. A LoRA URL switches to the
+  // lora.text_or_image_per_second table by resolution (5s 480p $0.25, 1080p $1.00, 3s 540p
+  // $0.225), or lora.reference_per_second with refs wired. Before this branch genericScanUsd
+  // carried output_per_second for every case, so a LoRA run read $0.65 whatever the tier.
+  if(p.output_per_second!=null){
+    const L = (p.lora && typeof p.lora==="object") ? p.lora : null;
+    const billSecs = (d, lo, hi)=> Math.min(_num(hi) ?? d, Math.max(_num(lo) ?? d, d));
+    if(L && videoLoraOn(f)){
+      const tbl = (refOn && L.reference_per_second) ? L.reference_per_second : L.text_or_image_per_second;
+      v = (tbl && typeof tbl==="object") ? rp(tbl) : _num(tbl);
+      if(v!=null) return v*billSecs(dur, L.min_duration, L.max_duration);
+    }
+    v = _num(p.output_per_second); if(v!=null) return v*billSecs(dur, p.min_duration, p.max_duration);
   }
   if((v=rp(p.per_second_by_resolution))!=null) return v*dur;
   if((v=rp(p.standard_prices_per_second))!=null) return v*dur;               // sora (standard tier)
