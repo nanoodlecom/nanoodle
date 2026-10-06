@@ -13198,7 +13198,7 @@ function renderModelBtn(){ const label = "✨ " + (MODEL || "pick a model…") +
   const p = $("portmodelpick"); if(p) p.textContent = label; }   // port uses the same MODEL
 function setModel(id){ MODEL = id; try{ localStorage.setItem("ngpt_app_model", id); }catch(_){} renderModelBtn(); }
 function openModelPicker(){
-  picker = { current: MODEL };
+  picker = { current: MODEL, toCurrent:true };
   $("mpicktitle").textContent = tB("Model for app changes");
   $("mpick").classList.add("open"); $("mpickback").classList.add("show");
   $("mpicksearch").value = ""; $("mpicklist").innerHTML = "<div class='dim' style='padding:.6rem'>loading the full list…</div>";
@@ -13206,6 +13206,12 @@ function openModelPicker(){
   loadChatCatalog().then(renderPicker);
 }
 function closePicker(){ $("mpick").classList.remove("open"); $("mpickback").classList.remove("show"); picker = null; }
+// Customize's picker opens ON the current MODEL: that row stays rendered past the 400 cap and is
+// centred in the list (list-only scroll, the page never moves) — the editor's picker does the same.
+function centreSelRow(box){
+  const row = box && box.querySelector("button.sel");
+  if(row) box.scrollTop += row.getBoundingClientRect().top - box.getBoundingClientRect().top - (box.clientHeight - row.offsetHeight) / 2;
+}
 function renderPicker(){
   if(!picker) return;
   const q = $("mpicksearch").value.trim().toLowerCase();
@@ -13213,7 +13219,9 @@ function renderPicker(){
   const matches = q ? list.filter(m=> m.id.toLowerCase().includes(q) || m.name.toLowerCase().includes(q)) : list;
   $("mpickcount").textContent = matches.length + " model" + (matches.length===1?"":"s") + (q?"":" · newest first");
   const frag = document.createDocumentFragment();
-  for(const m of matches.slice(0,400)){
+  const rows = matches.slice(0,400);
+  if(picker.current && !rows.some(m=>m.id===picker.current)){ const cur = matches.find(m=>m.id===picker.current); if(cur) rows.push(cur); }
+  for(const m of rows){
     const b = document.createElement("button");
     if(m.id===picker.current) b.classList.add("sel");
     b.innerHTML = '<span class="mname">'+esc(m.id)+'</span><span class="price">'+esc(m.price)+'</span>';
@@ -13221,6 +13229,7 @@ function renderPicker(){
     frag.appendChild(b);
   }
   $("mpicklist").replaceChildren(frag);
+  if(rows.length && picker.toCurrent){ picker.toCurrent = false; centreSelRow($("mpicklist")); }   // once per open; filtering keeps its scroll
 }
 
 /* ======================================================================
