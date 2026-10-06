@@ -55,5 +55,20 @@ for (const [name, src, end] of ENGINES) {
   }
 }
 
+// The node chip and the model-picker row must pass the node's filter too, or an Image → Video node
+// shows the text_to_video price ($0.16 / $1.35) while the run bar adds image_to_video ($0.17 / $1.40).
+{
+  const pins = [
+    ["chip passes the node filter", /livePrice\(t\.modelKind, fields, t\.modelFilter\)/],
+    ["livePrice forwards it to videoUnitUsd", /videoUnitUsd\(applyVideoQuotePricing\(fields\.model, it\.pricing\), videoPriceFields\(it\.params, fields\), false, false, nodeFilter\)/],
+    ["picker rows price by the picker filter", /videoUnitUsd\(applyVideoQuotePricing\(m\.id, m\.pricing\), \{\}, false, false, picker\.filter\)/],
+    ["picker rows render pickerRowPrice", /<span class="price">\$\{esc\(pickerRowPrice\(m\)\)\}<\/span>/],
+  ];
+  for (const [label, re] of pins) {
+    if (re.test(IDX)) ok(`editor: ${label}`);
+    else fail(`editor: ${label} (pin not found in index.html)`);
+  }
+}
+
 if (failed) { console.error(`\n${failed} failure(s)`); process.exit(1); }
 console.log("✓ check-video-per-video-by-mode");

@@ -142,7 +142,7 @@ for (const [name, src, end] of [["editor", IDX, "function nodeUnitUsd("], ["play
   const fill = block(PLAY, "function fillDimLists(){");
   if (!/if\(it\.field==="duration"\)\{/.test(fill)) fail("play: fillDimLists no longer hides a catalogued model's missing duration row on every video node");
   else ok("play: fillDimLists hides the duration row for catalogued no-duration models");
-  const eLivePrice = block(IDX, "function livePrice(kind, fields){");
+  const eLivePrice = block(IDX, "function livePrice(kind, fields, nodeFilter){");
   if (!/videoPriceFields\(it\.params, fields\)/.test(eLivePrice)) fail("editor: livePrice no longer strips stale duration");
   else ok("editor: livePrice prices through videoPriceFields");
 }
