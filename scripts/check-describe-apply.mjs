@@ -329,6 +329,39 @@ function runInvariants(mod) {
       F.push("ENDPOINT FIELD PORTS: a wire into endpoint.auth was accepted — auth must stay unwired");
   }
 
+  // 10. NODE PROPS CARRY — a survivor keeps everything outside `fields` the planner never sees:
+  //     its custom title (`name`), layout, and any other node-level prop. Live repro 2026-10-06
+  //     (#692, glm-5.2 on main AND gpt-6.1-sol): a "rainy neon night" edit on the postcard graph
+  //     reset Place→Text, Vibe→Choice, Spec→Join, Postcard prompt→LLM, Postcard→Image.
+  {
+    const prev = { nodes: [
+      { id: "n2", type: "text", x: 10, y: 20, w: 300, sizes: { text: 120 }, name: "Place", fields: { text: "Taipei" }, futureProp: { keep: 1 } },
+      { id: "n5", type: "llm", x: 400, y: 20, name: "Postcard prompt", fields: { model: "m", system: "be brief", prompt: "" } },
+      { id: "n6", type: "image", x: 800, y: 20, name: "Postcard", fields: { model: "m" } },
+    ], links: [] };
+    // what the planner returns: id/type/fields only — every name/layout prop absent, n2's text edited
+    const simple = { nodes: [
+      { id: "n2", type: "text", fields: { text: "Taipei on a rainy neon night" } },
+      { id: "n5", type: "llm", fields: { model: "m", system: "be brief" } },
+      { id: "n6", type: "image", fields: { model: "m" } },
+      { id: "n100", type: "text", fields: { text: "new" } },
+    ], links: [] };
+    const out = fromSimple(simple, prev);
+    const by = Object.fromEntries(out.nodes.map((n) => [n.id, n]));
+    for (const [id, want] of [["n2", "Place"], ["n5", "Postcard prompt"], ["n6", "Postcard"]])
+      if (!by[id] || by[id].name !== want)
+        F.push(`NODE PROPS CARRY: ${id}'s custom title "${want}" was dropped (name=${JSON.stringify(by[id] && by[id].name)}) — a described edit reset it to the node type`);
+    const n2 = by.n2 || {};
+    if (n2.w !== 300 || !n2.sizes || n2.sizes.text !== 120 || !n2.futureProp || n2.futureProp.keep !== 1)
+      F.push(`NODE PROPS CARRY: n2 lost a node-level prop the plan never saw (w=${n2.w}, sizes=${JSON.stringify(n2.sizes)}, futureProp=${JSON.stringify(n2.futureProp)})`);
+    if (n2.fields && n2.fields.text !== "Taipei on a rainy neon night")
+      F.push(`NODE PROPS CARRY: the planner's field edit was lost (text=${JSON.stringify(n2.fields.text)})`);
+    if (by.n100 && "name" in by.n100)
+      F.push(`NODE PROPS CARRY: a brand-new node inherited a title (${JSON.stringify(by.n100.name)})`);
+    if (prev.nodes[0].fields.text !== "Taipei")
+      F.push("NODE PROPS CARRY: fromSimple mutated the previous graph's fields (version snapshots would change)");
+  }
+
   // 9. MODEL FIELD PORTS — every modelKind node exposes a wirable model input (hidden twin of
   //    .modelpick via modelFieldHTML). validate must accept Choice → llm.model or a copilot plan
   //    that swaps the paid model id is rejected as a phantom port.

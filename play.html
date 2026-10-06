@@ -5498,7 +5498,11 @@ import { buildEnvironment, generateDiff, smartapply, parseDiffPerFile, callLlmFo
    ====================================================================== */
 const $ = (id) => document.getElementById(id);
 const NANOGPT = "https://nano-gpt.com";
-const DEFAULT_MODEL = "z-ai/glm-5.2";                      // writes the changes (user-selectable)
+const DEFAULT_MODEL = "openai/gpt-6.1-sol";                // writes the changes (user-selectable) — GPT 6.1 Sol at medium effort (2026-10-06; was z-ai/glm-5.2)
+// reasoning_effort for the GENERATE call — sent only when the chat catalog lists "medium" for the model
+// (glm-5.2 offers none|high|max, kimi-k3 only max, plain chat models none: sending it there 400s).
+// Catalog miss → only DEFAULT_MODEL, live-probed to accept it. Same gate as index.html's Describe changes.
+const GEN_EFFORT = "medium";
 const FALLBACK_MODEL = "openai/gpt-5.4-mini";                 // auto-retry here when the chosen model is overloaded/down (429 / 5xx)
 const LS_KEY = "noodle_app_state";   // working state of the app currently open {id,title,imported,graph,files,versions,curVer}
 const RESUME_KEY = "noodle_resume_app";  // sessionStorage: the open app, stashed across an OAuth full-page redirect. NOTE the
@@ -5652,6 +5656,8 @@ function mountLangPickerB(){
 try{ if(localStorage.getItem("ngpt_app_model") === "xiaomi/mimo-v2.5-pro-ultraspeed") localStorage.removeItem("ngpt_app_model"); }catch(_){}
 try{ localStorage.removeItem("ngpt_apply_model"); }catch(_){}
 
+// ngpt_app_model is only ever written by an explicit picker choice (setModel), so a saved id — the old
+// z-ai/glm-5.2 default included — is the user's own pick and is kept; only an empty key gets Sol.
 let MODEL = localStorage.getItem("ngpt_app_model") || DEFAULT_MODEL;
 
 // escape exactly like index.html's esc() — used for every graph/user string put into HTML
@@ -13176,19 +13182,23 @@ async function loadChatCatalog(){
     return { id:m.id, name:m.name||m.id, created:m.created,
       pin: p.prompt!=null ? +p.prompt : null, pout: p.completion!=null ? +p.completion : null,  // USD per 1M
       maxOut: m.max_output_tokens!=null ? +m.max_output_tokens : null,   // max_tokens ceiling — bounds the explicit output budget below
+      reasoningEfforts: Array.isArray(m.reasoning_efforts) && m.reasoning_efforts.length ? m.reasoning_efforts.map(String) : null,   // gates GEN_EFFORT
       price: p.prompt!=null ? "$"+(+p.prompt).toFixed(2)+"/$"+(+p.completion).toFixed(2)+" ·1M" : "" }; })
     .filter(m=>m.id);
   list.sort((a,b)=> (b.created||0)-(a.created||0));   // newest first
   chatCatalog = list; return list;
 }
 const priceOf = (id)=> (chatCatalog||[]).find(m=>m.id===id) || null;
+const genEffort = (id)=>{ const m = priceOf(id), list = m && m.reasoningEfforts;
+  if(list) return list.includes(GEN_EFFORT) ? GEN_EFFORT : null;
+  return id===DEFAULT_MODEL ? GEN_EFFORT : null; };
 let picker = null;
 function renderModelBtn(){ const label = "✨ " + (MODEL || "pick a model…") + " ▾";
   const b = $("modelpick"); if(b) b.textContent = label;
   const p = $("portmodelpick"); if(p) p.textContent = label; }   // port uses the same MODEL
 function setModel(id){ MODEL = id; try{ localStorage.setItem("ngpt_app_model", id); }catch(_){} renderModelBtn(); }
 function openModelPicker(){
-  picker = { current: MODEL };
+  picker = { current: MODEL, toCurrent:true };
   $("mpicktitle").textContent = tB("Model for app changes");
   $("mpick").classList.add("open"); $("mpickback").classList.add("show");
   $("mpicksearch").value = ""; $("mpicklist").innerHTML = "<div class='dim' style='padding:.6rem'>loading the full list…</div>";
@@ -13196,6 +13206,12 @@ function openModelPicker(){
   loadChatCatalog().then(renderPicker);
 }
 function closePicker(){ $("mpick").classList.remove("open"); $("mpickback").classList.remove("show"); picker = null; }
+// Customize's picker opens ON the current MODEL: that row stays rendered past the 400 cap and is
+// centred in the list (list-only scroll, the page never moves) — the editor's picker does the same.
+function centreSelRow(box){
+  const row = box && box.querySelector("button.sel");
+  if(row) box.scrollTop += row.getBoundingClientRect().top - box.getBoundingClientRect().top - (box.clientHeight - row.offsetHeight) / 2;
+}
 function renderPicker(){
   if(!picker) return;
   const q = $("mpicksearch").value.trim().toLowerCase();
@@ -13203,7 +13219,9 @@ function renderPicker(){
   const matches = q ? list.filter(m=> m.id.toLowerCase().includes(q) || m.name.toLowerCase().includes(q)) : list;
   $("mpickcount").textContent = matches.length + " model" + (matches.length===1?"":"s") + (q?"":" · newest first");
   const frag = document.createDocumentFragment();
-  for(const m of matches.slice(0,400)){
+  const rows = matches.slice(0,400);
+  if(picker.current && !rows.some(m=>m.id===picker.current)){ const cur = matches.find(m=>m.id===picker.current); if(cur) rows.push(cur); }
+  for(const m of rows){
     const b = document.createElement("button");
     if(m.id===picker.current) b.classList.add("sel");
     b.innerHTML = '<span class="mname">'+esc(m.id)+'</span><span class="price">'+esc(m.price)+'</span>';
@@ -13211,6 +13229,7 @@ function renderPicker(){
     frag.appendChild(b);
   }
   $("mpicklist").replaceChildren(frag);
+  if(rows.length && picker.toCurrent){ picker.toCurrent = false; centreSelRow($("mpicklist")); }   // once per open; filtering keeps its scroll
 }
 
 /* ======================================================================
@@ -13290,7 +13309,7 @@ function usageMeter(live){
 }
 function resetUsage(){ USAGE.inTok = USAGE.outTok = USAGE.cost = 0; USAGE.exact = true; }
 
-function streamingCallLlm(phase){
+function streamingCallLlm(phase, { effort=false }={}){
   return async ({ apiKey, baseUrl, model, messages, maxTokens=null, temperature=1.0 }) => {
     const inEst = estMsgs(messages);
     const priceFor = (m)=>{ const p = priceOf(m) || {}; return [(Number(p.pin)||0)/1e6, (Number(p.pout)||0)/1e6]; };
@@ -13307,10 +13326,11 @@ function streamingCallLlm(phase){
       const quirky = /^moonshotai\//.test(String(m||""));
       const cat = priceOf(m), ceil = cat && +cat.maxOut;
       const cap = maxTokens || (quirky ? Math.min(ceil || OUT_BUDGET, OUT_BUDGET) : null);   // kimi's ceiling is 1M — 240k always fits
+      const re = effort ? genEffort(m) : null;   // generate call only, catalog-gated per rung (the fallback rung too)
       return fetch(endpoint, {
         method:"POST",
         headers:{ Authorization:"Bearer "+apiKey, "Content-Type":"application/json" },
-        body: JSON.stringify({ model:m, messages, ...(cap?{max_tokens:cap}:{}), temperature, stream:true }),
+        body: JSON.stringify({ model:m, messages, ...(cap?{max_tokens:cap}:{}), ...(re?{reasoning_effort:re}:{}), temperature, stream:true }),
         signal: custAbort && custAbort.signal,   // ■ Stop aborts the request; reader.read() below then rejects with AbortError
       });
     };
@@ -13452,7 +13472,7 @@ async function runDiffPass(goal, opts){
       + (opts.preamble ? "\n" + opts.preamble + "\n" : "")
       + "\nThe change to make: " + goal;
     const diff = await generateDiff(env, prompt,
-      { apiKey:key, model:MODEL, callLlm:streamingCallLlm(opts.genLabel || "Generating changes") });
+      { apiKey:key, model:MODEL, callLlm:streamingCallLlm(opts.genLabel || "Generating changes", { effort:true }) });
 
     const parsed = parseDiffPerFile(diff);
     if(!diff.trim() || !parsed.length){
