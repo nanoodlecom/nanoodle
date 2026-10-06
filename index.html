@@ -8850,6 +8850,11 @@ const NODE_TYPES = {
       const url = await ctx.genVideo(mdl(n, ctx), mods.text ? prompt : "", opts, image || null,
         (st,ms,meta)=> setNodeProgress(n, fmtPollHeadline(t("building 3D…"), st, ms), meta));
       if(n.fields && n.fields.sample) delete n.fields.sample;   // the paid result replaces the teaching sample
+      // Stable key for noodle_model3d_out — node ids are reused across graphs, so
+      // a later save of an example must not orphan this URL under "n2".
+      // run() often sees a field-override COPY (wired prompt/image). Stamp the
+      // live node so skip-already-paid / stashModel3dOuts don't wait on autosave.
+      stampModel3dOutKey(n);
       return { model: url };
     }
   },
@@ -11947,7 +11952,7 @@ function nodeSeed(n){
 function isSeeded(n){ const s = nodeSeed(n); return s!=null && String(s).trim()!==""; }   // a concrete seed → deterministic
 function sigHash(s){ let h=5381; for(let i=0;i<s.length;i++) h=((h*33) ^ s.charCodeAt(i))>>>0; return h; }
 function nodeSig(n, inp){
-  const f = {...n.fields}; delete f.sel; delete f.brush;   // display-only knobs (variation pick, inpaint brush radius) don't change the output
+  const f = {...n.fields}; delete f.sel; delete f.brush; delete f.model3dOutKey;   // display-only knobs (variation pick, inpaint brush radius) + persistence id don't change the output
   return sigHash(JSON.stringify({ t:n.type, f, inp }));
 }
 /* =====================================================================
@@ -15286,6 +15291,10 @@ function applyGraphData(d, opts){
   graph.nodes.forEach(n=>{ if(n.type==="inpaint" && graph.links.some(l=> l.to.node===n.id)) rerenderNode(n); });
   redraw(); refreshPortFills(); refreshAllPrices();
   graph.nodes.forEach(n=>{ if(n.type==="endpoint") refreshEndpointUI(n); });
+  // Paid 3D URLs live in noodle_model3d_out (serializeGraph never writes n.out). Rehydrate
+  // by the node's own model3dOutKey BEFORE showResult so a 📂 Load of the user's backup
+  // brings the GLB back — load() used to be the only caller, so Save→Load wiped it.
+  try{ if(typeof restoreModel3dOuts==="function") restoreModel3dOuts(); }catch(_){}
   // repaint carried-over results into their (freshly built) node bodies — buildNodeEl starts blank
   graph.nodes.forEach(n=>{ if(n.out && Object.keys(n.out).length){ showResult(n); setStatus(n, "done"); } });
 }
@@ -15354,21 +15363,63 @@ function _restore(from, to){
 function syncUndoBtn(){ const b=$("undo"); if(b) b.disabled = !undoStack.length; const r=$("redo"); if(r) r.disabled = !redoStack.length; }   // hide each button when its stack is empty
 const undo = ()=> { _restore(undoStack, redoStack); syncUndoBtn(); };
 const redo = ()=> { _restore(redoStack, undoStack); syncUndoBtn(); };
+function newModel3dOutKey(){
+  try{ if(typeof crypto!=="undefined" && crypto.randomUUID) return "k:"+crypto.randomUUID(); }catch(_){}
+  return "k:"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2, 10);
+}
+// Prefer the live graph node (byId). A wired run() is handed `{...n, fields:{...}}`;
+// writing only that copy left the real node keyless until stashModel3dOuts (250ms later).
+function stampModel3dOutKey(n){
+  if(!n) return "";
+  const live = (typeof byId==="function" && n.id) ? byId(n.id) : null;
+  const dest = (live && live.fields) ? live : n;
+  if(!dest.fields) dest.fields = {};
+  if(typeof dest.fields.model3dOutKey!=="string" || dest.fields.model3dOutKey.indexOf("k:")!==0)
+    dest.fields.model3dOutKey = newModel3dOutKey();
+  if(n.fields && n.fields !== dest.fields) n.fields.model3dOutKey = dest.fields.model3dOutKey;
+  return dest.fields.model3dOutKey;
+}
+function model3dOutUrl(v){
+  return /^https:\/\//.test(String(v||"")) ? String(v) : "";
+}
+// Merge paid 3D URLs into noodle_model3d_out. The previous rewrite-the-whole-map
+// keyed by node id lost a finished job the moment save() ran on a graph without
+// that n.out (📂 Load of the same backup, an Example, another tab). Keys are
+// fields.model3dOutKey (minted on a successful run) so n1/n2 reuse cannot attach
+// or overwrite another workflow's result.
 function stashModel3dOuts(){
-  const map = {};
+  let map = {};
+  try{ map = JSON.parse(localStorage.getItem("noodle_model3d_out") || "{}") || {}; }catch(_){ map = {}; }
+  if(!map || typeof map!=="object" || Array.isArray(map)) map = {};
   for(const n of graph.nodes){
-    if(n.type==="model3d" && n.out && /^https:\/\//.test(String(n.out.model||""))) map[n.id] = n.out.model;
+    if(n.type!=="model3d") continue;
+    const url = model3dOutUrl(n.out && n.out.model);
+    if(!url) continue;
+    if(!n.fields) n.fields = {};
+    if(typeof n.fields.model3dOutKey!=="string" || n.fields.model3dOutKey.indexOf("k:")!==0)
+      n.fields.model3dOutKey = newModel3dOutKey();
+    map[n.fields.model3dOutKey] = url;
+    if(map[n.id] === url) delete map[n.id];   // drop the legacy node-id slot once this result has a stable key
   }
   try{ localStorage.setItem("noodle_model3d_out", JSON.stringify(map)); }catch(_){}
 }
-function restoreModel3dOuts(){
+function restoreModel3dOuts(opts){
   let map = {};
   try{ map = JSON.parse(localStorage.getItem("noodle_model3d_out") || "{}") || {}; }catch(_){ return; }
+  if(!map || typeof map!=="object") return;
+  const legacy = !!(opts && opts.legacy);
   let any = false;
   for(const n of graph.nodes){
-    if(n.type!=="model3d" || !map[n.id] || !/^https:\/\//.test(String(map[n.id]))) continue;
-    if(n.out && n.out.model) continue;
-    n.out = Object.assign({}, n.out, { model: map[n.id] });
+    if(n.type!=="model3d") continue;
+    if(model3dOutUrl(n.out && n.out.model)) continue;
+    const key = n.fields && n.fields.model3dOutKey;
+    let url = (typeof key==="string") ? model3dOutUrl(map[key]) : "";
+    // Same-tab reload of a graph minted before model3dOutKey: the old map is { n2: url }.
+    // File / example / share rebuilds must NOT use this — those graphs reuse n1/n2 and
+    // would inherit another workflow's paid GLB.
+    if(!url && legacy) url = model3dOutUrl(map[n.id]);
+    if(!url) continue;
+    n.out = Object.assign({}, n.out, { model: url });
     if(n.fields && n.fields.sample) delete n.fields.sample;
     any = true;
   }
@@ -15377,7 +15428,7 @@ function restoreModel3dOuts(){
 function load(){
   const raw = localStorage.getItem("noodle_graph");
   if(!raw) return false;
-  try{ applyGraphData(JSON.parse(raw)); restoreModel3dOuts(); return true; }catch{ return false; }
+  try{ applyGraphData(JSON.parse(raw)); try{ restoreModel3dOuts({legacy:true}); }catch(_){} return true; }catch{ return false; }
 }
 let _starterData = null;   // the shipped starter graph (noodle-graph.json), fetched once and reused as the demo baseline
 async function starterGraphData(){   // the shipped starter's data, or null on file:// where the fetch is blocked (caller falls back to the built-in seed)
