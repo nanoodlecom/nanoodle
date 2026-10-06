@@ -98,6 +98,7 @@ const ctx = {
   updateDelBtn: () => {},   // touch delete-affordance sync — no-op here
   refreshImageInputs: () => {}, recompactImageLinks: () => {},  // not exercised in this scenario
   refreshVideoInputs: () => {}, recompactVideoLinks: () => {},  // combine's clip-port helpers — not exercised here
+  refreshRefInputs: () => {}, recompactRefLinks: () => {}, updateNodePrice: () => {},  // Text→Video refN — not exercised here
   refreshPromptCaps: () => {},   // prompt-room notes (PROMPT LENGTH CAPS) — DOM chrome, not port wiring
   esc: (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c])),
   NODE_TYPES: { text: { title: "Text" }, choice: { title: "Choice" }, llm: { title: "LLM" } },

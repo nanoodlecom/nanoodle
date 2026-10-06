@@ -165,6 +165,7 @@ const ctx = {
   world: { innerHTML: "", style: { transform: "", setProperty() {} } },
   applyWorld() {}, buildNodeEl() {}, redraw() {}, refreshPortFills() {}, refreshAllPrices() {},
   recompactImageLinks() {}, refreshImageInputs() {}, recompactVideoLinks() {}, refreshVideoInputs() {},
+  recompactRefLinks() {}, refreshRefInputs() {}, updateNodePrice() {},
   refreshRunEstimate() {}, refreshPromptCaps() {}, syncUndoBtn() {}, flash() {}, toast() {}, appHandoffSig() { return ""; },   // refreshPromptCaps: save() live-refreshes the prompt-room notes (UI touchpoint, stubbed like refreshRunEstimate)
   refreshAppButton() { return false; }, layoutBar() {},   // save() live-refreshes the ✨ Open↔Update label (UI touchpoint, stubbed like refreshRunEstimate)
   t: (s) => s,

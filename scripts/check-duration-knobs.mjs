@@ -137,12 +137,12 @@ for (const [name, src, end] of [["editor", IDX, "function nodeUnitUsd("], ["play
   const pf = ctx.videoPriceFields({}, { duration: "10" });
   if (pf.duration !== "") fail("play: videoPriceFields must drop a stale duration");
   else ok("play: videoPriceFields twin drops a stale duration");
-  if (!/videoUnitUsd\(pricing, videoPriceFields\(pp, f\), refWired, videoWired(?:, [\w.]+)?\)/.test(PLAY)) fail("play: nodeUnitUsdPlay no longer strips stale duration");
+  if (!/videoUnitUsd\(pricing, videoPriceFields\(pp, f\), ref(?:Wired|Count), videoWired(?:, [\w.]+)?\)/.test(PLAY)) fail("play: nodeUnitUsdPlay no longer strips stale duration");
   else ok("play: nodeUnitUsdPlay prices through videoPriceFields");
   const fill = block(PLAY, "function fillDimLists(){");
   if (!/if\(it\.field==="duration"\)\{/.test(fill)) fail("play: fillDimLists no longer hides a catalogued model's missing duration row on every video node");
   else ok("play: fillDimLists hides the duration row for catalogued no-duration models");
-  const eLivePrice = block(IDX, "function livePrice(kind, fields, nodeFilter){");
+  const eLivePrice = block(IDX, "function livePrice(kind, fields, nodeFilter");
   if (!/videoPriceFields\(it\.params, fields\)/.test(eLivePrice)) fail("editor: livePrice no longer strips stale duration");
   else ok("editor: livePrice prices through videoPriceFields");
 }

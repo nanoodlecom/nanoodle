@@ -59,8 +59,8 @@ for (const [name, src, end] of ENGINES) {
 // shows the text_to_video price ($0.16 / $1.35) while the run bar adds image_to_video ($0.17 / $1.40).
 {
   const pins = [
-    ["chip passes the node filter", /livePrice\(t\.modelKind, fields, t\.modelFilter\)/],
-    ["livePrice forwards it to videoUnitUsd", /videoUnitUsd\(applyVideoQuotePricing\(fields\.model, it\.pricing\), videoPriceFields\(it\.params, fields\), false, false, nodeFilter\)/],
+    ["chip passes the node filter and the node", /livePrice\(t\.modelKind, fields, t\.modelFilter, n\)/],
+    ["livePrice forwards wired ref count to videoUnitUsd", /videoUnitUsd\(applyVideoQuotePricing\(fields\.model, it\.pricing\), videoPriceFields\(it\.params, fields\), refCount, videoWired, nodeFilter\)/],
     ["picker rows price by the picker filter", /videoUnitUsd\(applyVideoQuotePricing\(m\.id, m\.pricing\), \{\}, false, false, picker\.filter\)/],
     ["picker rows render pickerRowPrice", /<span class="price">\$\{esc\(pickerRowPrice\(m\)\)\}<\/span>/],
   ];

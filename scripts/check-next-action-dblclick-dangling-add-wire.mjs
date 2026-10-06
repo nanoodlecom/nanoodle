@@ -404,7 +404,7 @@ function toy(name, ok, detail) {
         context.graph.links=data.links;
       },
       syncUndoBtn() {}, _stashResults() {}, save() {}, redraw() {}, updateDelBtn() {},
-      refreshImageInputs() {}, refreshVideoInputs() {}, refreshPortFills() {},
+      refreshImageInputs() {}, refreshVideoInputs() {}, refreshRefInputs() {}, updateNodePrice() {}, refreshPortFills() {},
       recompactImageLinks() {}, recompactVideoLinks() {},
       IMG_PORT_RE: /^img\d+$/, EDIT_IMG_RE: /^image\d*$/, VID_PORT_RE: /^clip\d+$/,
       wouldCycle() { return !!options.cycle; },
