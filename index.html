@@ -16787,8 +16787,20 @@ $("signout").onclick = ()=> setKey(null);
 (function(){
   // Same default + persisted key the app builder uses (play.html DEFAULT_MODEL / ngpt_app_model),
   // so "the model that writes your changes" is one consistent choice across Describe + Customize.
-  const DESCRIBE_DEFAULT_MODEL = "z-ai/glm-5.2";
+  // GPT 6.1 Sol at medium effort (Mikkel's pick, 2026-10-06; was z-ai/glm-5.2). The key is only
+  // ever written by an explicit picker choice, so a saved id — the old glm-5.2 default included —
+  // is the user's own pick and is kept; only visitors with nothing saved move to Sol.
+  const DESCRIBE_DEFAULT_MODEL = "openai/gpt-6.1-sol";
   const DESCRIBE_MODEL_KEY = "ngpt_app_model";
+  // reasoning_effort for the PLANNING call — sent only when the chat catalog lists "medium" for the
+  // model (glm-5.2 offers none|high|max, kimi-k3 only max, plain chat models none at all: sending it
+  // there 400s). Catalog miss → only the default, which is live-probed to accept it. Same gate in
+  // play.html's Customize. The diff-apply call never gets it (mechanical, rides DESCRIBE_APPLY_MODEL).
+  const DESCRIBE_EFFORT = "medium";
+  const describeEffort = (model)=>{
+    const m = catItem("chat", model), list = m && m.reasoningEfforts;
+    if(list) return list.includes(DESCRIBE_EFFORT) ? DESCRIBE_EFFORT : null;
+    return model===DESCRIBE_DEFAULT_MODEL ? DESCRIBE_EFFORT : null; };
   const DESCRIBE_APPLY_MODEL = "openai/gpt-5.4-mini";   // mechanical diff-apply fallback — same model play's apply phase rides (#253)
   // The Moonshot route applies a TINY default output cap when a request carries no max_tokens
   // (live-confirmed 2026-07-17: kimi-k3 cut at ~4.8k output despite a 1M ceiling) — an
@@ -17203,7 +17215,7 @@ RULES for the diff:
   else if(typeof addEventListener==="function") addEventListener("resize", syncHeight);
 
   // Model = the full searchable LLM list — the SAME popover the editor uses for nodes (openPicker).
-  // Default + persisted with the app builder's setting (ngpt_app_model / glm-5.2).
+  // Default + persisted with the app builder's setting (ngpt_app_model / gpt-6.1-sol).
   let descModel = "";
   try{ descModel = localStorage.getItem(DESCRIBE_MODEL_KEY) || ""; }catch(_){}
   if(!descModel) descModel = DESCRIBE_DEFAULT_MODEL;
@@ -17309,8 +17321,9 @@ RULES for the diff:
   // streaming LLM client injected into patchling (same role as play's streamingCallLlm): streams the
   // reply, repaints the meter live, then commits exact tokens + cost from x_nanogpt_pricing and bumps
   // the editor's top-bar spend via accrue(). Uses the editor's own key/endpoint (no new origin).
-  function meteredCallLlm(phaseLabel){
+  function meteredCallLlm(phaseLabel, { effort=false }={}){
     return async ({ model, messages, maxTokens=null, temperature=1.0 })=>{
+      const re = effort ? describeEffort(model) : null;   // planning call only, catalog-gated
       const inEst = (messages||[]).reduce((n,m)=> n+estTok(typeof m.content==="string"?m.content:JSON.stringify(m.content)), 0);
       // Some upstreams (the Anthropic routes especially) fail INSIDE a 200 SSE stream: ~90s of
       // keep-alive chunks, then {error:{code:"upstream_timeout"}} + finish_reason:"error" with
@@ -17322,7 +17335,7 @@ RULES for the diff:
         let outTok = 0;
         const paint = ()=> setStatus(`<span class="db-spin"></span>${esc(phaseLabel)}… ${usageMeter({inTok:inEst,outTok,cost:0,live:true})}`);
         paint();
-        const body = { model, messages, temperature, stream:true, ...(cap?{max_tokens:cap}:{}) };
+        const body = { model, messages, temperature, stream:true, ...(cap?{max_tokens:cap}:{}), ...(re?{reasoning_effort:re}:{}) };
         const r = await fetch(CHAT_ENDPOINT, { method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal: dbAbort?.signal });
         if(!r.ok){ await throwHttp(r); }
         const reader = r.body.getReader(), dec = new TextDecoder();
@@ -17402,7 +17415,7 @@ RULES for the diff:
     dbAbort = new AbortController();
     lastReply = null; hideDetail();
     setBusy(true); resetUsage(); setStatus(`<span class="db-spin"></span>✏️ planning edits to your workflow…`);
-    const clients = { gen: meteredCallLlm("✏️ planning edits to your workflow"), apply: meteredCallLlm("✏️ applying edits to your workflow") };
+    const clients = { gen: meteredCallLlm("✏️ planning edits to your workflow", { effort:true }), apply: meteredCallLlm("✏️ applying edits to your workflow") };
     try{
       const { next } = await runGptdiff(prevSimple, text, descModel, clients);
       const valid = validate(next);
