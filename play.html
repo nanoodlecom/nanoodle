@@ -6248,7 +6248,7 @@ window.NoodleApp = (function () {
     const rows = Array.isArray(f.loras) ? f.loras : (String(f.loraUrl||"").trim() ? [{ url:f.loraUrl }] : []);
     return rows.some(r=> r && String(r.url||"").trim()!=="");
   }
-  function videoUnitUsd(pricing, fields, refWired, videoWired){
+  function videoUnitUsd(pricing, fields, refWired, videoWired, nodeFilter){
     const p = pricing || {};
     const f = fields || {};
     const opts = (f.modelOpts && typeof f.modelOpts==="object") ? f.modelOpts : {};
@@ -6256,11 +6256,11 @@ window.NoodleApp = (function () {
     for(const k in opts){ if(/audio/i.test(k) && !/^(no|disable|without|mute)/i.test(k)){ const val=opts[k]; if(val===true||val==="true"||val===1||val==="1"||val==="on"||val==="yes"){ audioOn=true; break; } } }
     const refOn = !!refWired || /reference/i.test(String(opts.mode||""));
     const videoOn = !!videoWired || /extend/i.test(String(opts.mode||""));
-    const usd = videoBaseUsd(p, f, audioOn, refOn, videoOn);
+    const usd = videoBaseUsd(p, f, audioOn, refOn, videoOn, nodeFilter);
     if(usd!=null && isFinite(usd) && audioOn && p.audio_multiplier!=null) return usd * (_num(p.audio_multiplier) ?? 1);
     return usd;
   }
-  function videoBaseUsd(pricing, fields, audioOn, refOn, videoOn){
+  function videoBaseUsd(pricing, fields, audioOn, refOn, videoOn, nodeFilter){
     const p = pricing || {}, raw = (p.raw && typeof p.raw==="object") ? p.raw : {};
     const f = fields || {};
     const res = f.resolution, defRes = p.default_resolution ?? raw.defaultResolution;
@@ -6353,6 +6353,15 @@ window.NoodleApp = (function () {
     }
     if((v=rp(p.per_resolution))!=null) return v;
     if(p.base_price!=null && p.per_extra_second!=null){ const bd=_num(p.base_duration)||0; return _num(p.base_price) + Math.max(0,dur-bd)*_num(p.per_extra_second); }
+    // ---- Kandinsky 6: one flat price per clip, split by mode (per_video_by_mode) ----
+    // kandinsky6-lite/pro bill {text_to_video, image_to_video} per fixed 5s clip ($0.16/$0.17, $1.35/$1.40).
+    // No earlier branch reads this key, so genericScanUsd used to quote $25 for both. The node's own
+    // filter picks the mode (Image → Video bills image_to_video); with no node (model list) it's text_to_video.
+    if(p.per_video_by_mode && typeof p.per_video_by_mode==="object"){ const mm=p.per_video_by_mode;
+      const want = nodeFilter==="i2v" ? "image_to_video" : nodeFilter==="v2v" ? "video_to_video" : "text_to_video";
+      v = _num(mm[want]);
+      if(v==null){ const vals=Object.values(mm).map(_num).filter(x=> x!=null && isFinite(x)); if(vals.length) v=Math.max(...vals); }
+      if(v!=null) return Math.max(v, _num(p.minimum)||0); }
     if(p.per_video!=null){ v=_num(p.per_video); if(v!=null) return v; }
     if(p.per_target_megapixel_second!=null){ const mp=_num(p.default_target_megapixels)||1; v=_num(p.per_target_megapixel_second)*mp*dur; return Math.max(v, _num(p.minimum_price)||0); }
     if(p.per_frame_unit!=null){ const fpu=_num(p.frames_per_unit)||1; return (dur*EST.videoFps/fpu)*_num(p.per_frame_unit); }
@@ -6497,7 +6506,7 @@ window.NoodleApp = (function () {
       const refWired = !!(t.refInputs && modelHasRefs && STATE && STATE.graph && STATE.graph.links.some(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port)));
       // source-video input wired → extend-mode rates (FLUX.3) — twin of the editor.
       const videoWired = !!(STATE && STATE.graph && STATE.graph.links.some(l=> l.to.node===n.id && l.to.port==="video"));
-      const u = videoUnitUsd(pricing, videoPriceFields(pp, f), refWired, videoWired); return (u!=null && isFinite(u)) ? u : null; }
+      const u = videoUnitUsd(pricing, videoPriceFields(pp, f), refWired, videoWired, t.modelFilter); return (u!=null && isFinite(u)) ? u : null; }
     if(kind==="chat"){ const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(pricing, inTok, outTok); }
     if(kind==="audio"){ const chars = n.type==="transcribe" ? undefined : ((f.prompt||"").length || EST.ttsChars);
       const secs = audioBilledSeconds(m.supported_parameters, f);   // per_second music meters off the chosen duration, not a fixed 30s
