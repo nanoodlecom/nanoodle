@@ -8817,7 +8817,9 @@ const NODE_TYPES = {
       if(n.fields && n.fields.sample) delete n.fields.sample;   // the paid result replaces the teaching sample
       // Stable key for noodle_model3d_out — node ids are reused across graphs, so
       // a later save of an example must not orphan this URL under "n2".
-      if(!n.fields.model3dOutKey) n.fields.model3dOutKey = newModel3dOutKey();
+      // run() often sees a field-override COPY (wired prompt/image). Stamp the
+      // live node so skip-already-paid / stashModel3dOuts don't wait on autosave.
+      stampModel3dOutKey(n);
       return { model: url };
     }
   },
@@ -11865,7 +11867,7 @@ function nodeSeed(n){
 function isSeeded(n){ const s = nodeSeed(n); return s!=null && String(s).trim()!==""; }   // a concrete seed → deterministic
 function sigHash(s){ let h=5381; for(let i=0;i<s.length;i++) h=((h*33) ^ s.charCodeAt(i))>>>0; return h; }
 function nodeSig(n, inp){
-  const f = {...n.fields}; delete f.sel; delete f.brush;   // display-only knobs (variation pick, inpaint brush radius) don't change the output
+  const f = {...n.fields}; delete f.sel; delete f.brush; delete f.model3dOutKey;   // display-only knobs (variation pick, inpaint brush radius) + persistence id don't change the output
   return sigHash(JSON.stringify({ t:n.type, f, inp }));
 }
 /* =====================================================================
@@ -15279,6 +15281,18 @@ const redo = ()=> { _restore(redoStack, undoStack); syncUndoBtn(); };
 function newModel3dOutKey(){
   try{ if(typeof crypto!=="undefined" && crypto.randomUUID) return "k:"+crypto.randomUUID(); }catch(_){}
   return "k:"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2, 10);
+}
+// Prefer the live graph node (byId). A wired run() is handed `{...n, fields:{...}}`;
+// writing only that copy left the real node keyless until stashModel3dOuts (250ms later).
+function stampModel3dOutKey(n){
+  if(!n) return "";
+  const live = (typeof byId==="function" && n.id) ? byId(n.id) : null;
+  const dest = (live && live.fields) ? live : n;
+  if(!dest.fields) dest.fields = {};
+  if(typeof dest.fields.model3dOutKey!=="string" || dest.fields.model3dOutKey.indexOf("k:")!==0)
+    dest.fields.model3dOutKey = newModel3dOutKey();
+  if(n.fields && n.fields !== dest.fields) n.fields.model3dOutKey = dest.fields.model3dOutKey;
+  return dest.fields.model3dOutKey;
 }
 function model3dOutUrl(v){
   return /^https:\/\//.test(String(v||"")) ? String(v) : "";

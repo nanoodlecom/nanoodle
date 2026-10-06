@@ -191,6 +191,10 @@ ok(!PLAY.includes("function putGlbBytes") && !PLAY.includes("function loadGlbVie
 
 ok(IDX.includes("function newModel3dOutKey()") && IDX.includes("fields.model3dOutKey"),
   "paid 3D results are keyed by model3dOutKey, not only node id");
+ok(/delete f\.sel; delete f\.brush; delete f\.model3dOutKey/.test(IDX),
+  "nodeSig ignores model3dOutKey the same way it ignores sel/brush");
+ok(IDX.includes("function stampModel3dOutKey(") && /stampModel3dOutKey\(n\)/.test(IDX),
+  "a successful 3D run stamps the key on the live node, not only the run copy");
 ok(/try\{ if\(typeof restoreModel3dOuts==="function"\) restoreModel3dOuts\(\); \}/.test(IDX),
   "applyGraphData rehydrates 3D outs so Save→Load is not stash-blind");
 ok(IDX.includes("restoreModel3dOuts({legacy:true})"),
@@ -251,6 +255,33 @@ ok(IDX.includes("restoreModel3dOuts({legacy:true})"),
   ctx.restoreModel3dOuts({ legacy: true });
   ok(ctx.graph.nodes[0].out && ctx.graph.nodes[0].out.model === urlB,
     "legacy boot restore still accepts { n2: url }");
+}
+
+{
+  const sig = { graph: { nodes: [{ id: "n2", type: "model3d", fields: { model: "tripo3d/v2.5", prompt: "a cup" } }] } };
+  sig.byId = (id) => sig.graph.nodes.find((n) => n.id === id);
+  sig.crypto = { randomUUID: () => "aaaa-bbbb-cccc-dddd-eeeeeeeeeeee" };
+  vm.createContext(sig);
+  vm.runInContext(
+    extractFn(IDX, "sigHash") + "\n" +
+    extractFn(IDX, "nodeSig") + "\n" +
+    extractFn(IDX, "newModel3dOutKey") + "\n" +
+    extractFn(IDX, "stampModel3dOutKey") + "\n" +
+    "globalThis.nodeSig=nodeSig; globalThis.stampModel3dOutKey=stampModel3dOutKey;",
+    sig);
+
+  const live = sig.graph.nodes[0];
+  const inp = { image: "data:image/png;base64,xx" };
+  const before = sig.nodeSig(live, inp);
+  const copy = { id: live.id, type: live.type, fields: Object.assign({}, live.fields) };
+  sig.stampModel3dOutKey(copy);
+  const after = sig.nodeSig(live, inp);
+  ok(live.fields.model3dOutKey === "k:aaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    "stampModel3dOutKey writes the key onto the live node via byId, not only the run copy");
+  ok(copy.fields.model3dOutKey === live.fields.model3dOutKey,
+    "the run copy is synced to the same key");
+  ok(before === after,
+    "nodeSig stays " + before + " after model3dOutKey is added (was a re-bill if it moved)");
 }
 
 if (fail) { console.error("\n✗ check-3d-edges: " + fail + " failed"); process.exit(1); }

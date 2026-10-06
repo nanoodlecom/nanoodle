@@ -8874,7 +8874,7 @@ const PROMPT_CAPS = {
   }
   function isSeeded(n){ var s = nodeSeed(n); return s!=null && String(s).trim()!==""; }
   function sigHash(s){ var h=5381; for(var i=0;i<s.length;i++) h=((h*33) ^ s.charCodeAt(i))>>>0; return h; }
-  function nodeSig(n, inp){ var f = Object.assign({}, n.fields); delete f.sel; delete f.brush; return sigHash(JSON.stringify({ t:n.type, f:f, inp:inp })); }
+  function nodeSig(n, inp){ var f = Object.assign({}, n.fields); delete f.sel; delete f.brush; delete f.model3dOutKey; return sigHash(JSON.stringify({ t:n.type, f:f, inp:inp })); }
   var RUN_CACHE = new Map();   // id -> {sig, out} (resolved) | {sig, pending} (in-flight, shared across concurrent lanes)
   var NODE_WORK = new Map();   // id -> Promise<out> — sibling targeted runs await a shared ancestor instead of re-charging
   /* =====================================================================
