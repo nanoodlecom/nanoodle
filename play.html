@@ -10292,6 +10292,14 @@ const PROMPT_CAPS = {
   // guaranteed failing PAID call (the model 400s without a person+garment pair), so a role model only
   // stays offerable when the node already has a port wired for every role. The runner guard is the
   // backstop; this keeps the dead end out of the menu instead of selling it.
+  // Picker row label. The catalog `name` is the friendly title ("Nano Banana 2",
+  // "Nano Banana 2.1"); `id` is what we store and send. A blank name keeps the id,
+  // so a model whose catalog name is already the id is unchanged. No local rename table.
+  function pickerModelLabel(m){
+    const id = String((m && m.id) || "");
+    const name = String((m && m.name) || "").trim();
+    return name || id;
+  }
   async function modelOptionsFor(type, node){
     const kind = SETTING_MODEL_KIND[type]; if(!kind) return [];
     const raw = await loadCatalogRaw(kind);
@@ -10311,7 +10319,7 @@ const PROMPT_CAPS = {
     return pool.sort((a,b)=> (b.created||0)-(a.created||0)
                           || famTie(a,b)
                           || verDesc(a.id, b.id))
-               .map(m=> m.id);
+               .map(m=> ({ id:m.id, name:m.name || "" }));
   }
   /* ---------- per-model DIMENSION options (size / resolution / aspect / duration) ----------
      Each model's REAL dimension options ride in the public catalog — image models list their
@@ -11027,7 +11035,8 @@ const PROMPT_CAPS = {
         const input = document.getElementById("set_"+i);
         if(!input || !ids.length) return;
         const cur = it.node.fields[it.field];
-        const all = (cur && !ids.includes(cur)) ? [cur, ...ids] : ids;   // keep the current id even if filtered out
+        const all = ids.slice();
+        if(cur && !all.some(r=> r.id===cur)) all.unshift({ id:cur, name:"" });   // keep the current id even if filtered out
         MODEL_OPTS.set(input, all.slice(0,300));
         if(document.activeElement===input) input.dispatchEvent(new Event("modelrefresh"));
       }).catch(()=>{});
@@ -11042,10 +11051,14 @@ const PROMPT_CAPS = {
     const opts = ()=> MODEL_OPTS.get(input) || [];
     function open(showAll){
       const q = showAll ? "" : input.value.trim().toLowerCase();
-      const list = opts().filter(id=> !q || id.toLowerCase().includes(q));
+      const list = opts().filter(m=> !q || String(m.id).toLowerCase().includes(q) || String(m.name||"").toLowerCase().includes(q));
       active = -1;
       if(!list.length){ close(); return; }
-      menu.innerHTML = list.map(id=> '<button type="button" class="modelopt" data-id="'+esc(id)+'">'+esc(id)+'</button>').join("");
+      menu.innerHTML = list.map(m=> {
+        const label = pickerModelLabel(m);
+        const title = label!==String(m.id||"") ? ' title="'+esc(m.id)+'"' : "";
+        return '<button type="button" class="modelopt" data-id="'+esc(m.id)+'"'+title+'>'+esc(label)+'</button>';
+      }).join("");
       menu.hidden = false; input.setAttribute("aria-expanded","true");
     }
     function close(){ menu.hidden = true; input.setAttribute("aria-expanded","false"); active = -1; }
@@ -13845,6 +13858,14 @@ function centreSelRow(box){
   const row = box && box.querySelector("button.sel");
   if(row) box.scrollTop += row.getBoundingClientRect().top - box.getBoundingClientRect().top - (box.clientHeight - row.offsetHeight) / 2;
 }
+// Picker row label. The catalog `name` is the friendly title ("Nano Banana 2",
+// "Nano Banana 2.1"); `id` is what we store and send. A blank name keeps the id,
+// so a model whose catalog name is already the id is unchanged. No local rename table.
+function pickerModelLabel(m){
+  const id = String((m && m.id) || "");
+  const name = String((m && m.name) || "").trim();
+  return name || id;
+}
 function renderPicker(){
   if(!picker) return;
   const q = $("mpicksearch").value.trim().toLowerCase();
@@ -13857,7 +13878,9 @@ function renderPicker(){
   for(const m of rows){
     const b = document.createElement("button");
     if(m.id===picker.current) b.classList.add("sel");
-    b.innerHTML = '<span class="mname">'+esc(m.id)+'</span><span class="price">'+esc(m.price)+'</span>';
+    const label = pickerModelLabel(m);
+    if(label !== String(m.id||"")) b.title = String(m.id||"");
+    b.innerHTML = '<span class="mname">'+esc(label)+'</span><span class="price">'+esc(m.price)+'</span>';
     b.onclick = ()=>{ setModel(m.id); closePicker(); };
     frag.appendChild(b);
   }

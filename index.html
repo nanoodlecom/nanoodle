@@ -7976,11 +7976,19 @@ function setNsfwOnly(v){
   try{ localStorage.setItem("nn_nsfwonly", nsfwOnly ? "1" : "0"); }catch{}
   renderPicker();
 }
+// Picker row label. The catalog `name` is the friendly title ("Nano Banana 2",
+// "Nano Banana 2.1"); `id` is what we store and send. A blank name keeps the id,
+// so a model whose catalog name is already the id is unchanged. No local rename table.
+function pickerModelLabel(m){
+  const id = String((m && m.id) || "");
+  const name = String((m && m.name) || "").trim();
+  return name || id;
+}
 // order the already-filtered matches by the current sort. created (native newest-first order)
 // is the tiebreak everywhere, so equal prices still read newest-first.
 function sortMatches(list){
   const arr = list.slice();
-  if(pickerSort==="name") return arr.sort((a,b)=> a.id.localeCompare(b.id));
+  if(pickerSort==="name") return arr.sort((a,b)=> pickerModelLabel(a).localeCompare(pickerModelLabel(b)) || String(a.id).localeCompare(String(b.id)));
   if(pickerSort==="cheapest" || pickerSort==="premium"){
     const dir = pickerSort==="cheapest" ? 1 : -1;
     return arr.sort((a,b)=>{
@@ -8177,7 +8185,9 @@ function renderPicker(){
       + `${m.tts?'<span class="tag">tts</span>':''}${m.music?'<span class="tag edit">music</span>':''}${m.stt?'<span class="tag">stt</span>':''}`
       + `${m.nsfw?`<span class="tag nsfw">${nsfwOnly?"nsfw":"NSFW"}</span>`:''}`;
     const sugTitle = galleryTagged ? "common in gallery" : "pick a model next";
-    b.innerHTML = `<span class="mname">${esc(m.id)} ${tags}</span>${sug?`<span class="sug" title="${sugTitle}">suggested</span>`:""}<span class="price">${esc(pickerRowPrice(m))}</span>`;
+    const label = pickerModelLabel(m);
+    if(label !== String(m.id||"")) b.title = String(m.id||"");
+    b.innerHTML = `<span class="mname">${esc(label)} ${tags}</span>${sug?`<span class="sug" title="${sugTitle}">suggested</span>`:""}<span class="price">${esc(pickerRowPrice(m))}</span>`;
     b.onclick = ()=>{ picker.onPick(m.id); closePicker(); };
     frag.appendChild(b);
   }
