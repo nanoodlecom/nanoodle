@@ -10292,8 +10292,8 @@ const PROMPT_CAPS = {
   // guaranteed failing PAID call (the model 400s without a person+garment pair), so a role model only
   // stays offerable when the node already has a port wired for every role. The runner guard is the
   // backstop; this keeps the dead end out of the menu instead of selling it.
-  // Picker row label. The catalog `name` is the friendly title ("Nano Banana 2",
-  // "Nano Banana 2.1"); `id` is what we store and send. A blank name keeps the id,
+  // Picker row label. The catalog name is the friendly title ("Nano Banana 2",
+  // "Nano Banana 2.1"); the id is what we store and send. A blank name keeps the id,
   // so a model whose catalog name is already the id is unchanged. No local rename table.
   function pickerModelLabel(m){
     const id = String((m && m.id) || "");
@@ -13858,8 +13858,8 @@ function centreSelRow(box){
   const row = box && box.querySelector("button.sel");
   if(row) box.scrollTop += row.getBoundingClientRect().top - box.getBoundingClientRect().top - (box.clientHeight - row.offsetHeight) / 2;
 }
-// Picker row label. The catalog `name` is the friendly title ("Nano Banana 2",
-// "Nano Banana 2.1"); `id` is what we store and send. A blank name keeps the id,
+// Picker row label. The catalog name is the friendly title ("Nano Banana 2",
+// "Nano Banana 2.1"); the id is what we store and send. A blank name keeps the id,
 // so a model whose catalog name is already the id is unchanged. No local rename table.
 function pickerModelLabel(m){
   const id = String((m && m.id) || "");

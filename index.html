@@ -7976,8 +7976,8 @@ function setNsfwOnly(v){
   try{ localStorage.setItem("nn_nsfwonly", nsfwOnly ? "1" : "0"); }catch{}
   renderPicker();
 }
-// Picker row label. The catalog `name` is the friendly title ("Nano Banana 2",
-// "Nano Banana 2.1"); `id` is what we store and send. A blank name keeps the id,
+// Picker row label. The catalog name is the friendly title ("Nano Banana 2",
+// "Nano Banana 2.1"); the id is what we store and send. A blank name keeps the id,
 // so a model whose catalog name is already the id is unchanged. No local rename table.
 function pickerModelLabel(m){
   const id = String((m && m.id) || "");
