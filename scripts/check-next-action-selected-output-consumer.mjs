@@ -50,6 +50,33 @@ function graph(nodes, links, selectedId, selectedIds) {
   toy("tvideo-output-prefers-combine", hits[0] && hits[0].type === "combine" && hits[0].reason === REASON, hits.map((h) => h.type).join(","));
 }
 
+// Gallery 2026-10-08: a selected LLM's free text ties between Join and LLM
+// (4 and 4; Text-to-Video 3, Image 2 behind them). A tie names no single next
+// node, so the ranker stays quiet and the Add list is unchanged. Both counts
+// are pinned so a later graph that breaks the tie fails here instead of
+// silently changing the menu.
+{
+  const targets = portTables.topTargets["llm|text"] || {};
+  const counts = {};
+  for (const [k, n] of Object.entries(targets)) {
+    const t = k.split("|")[0];
+    counts[t] = (counts[t] || 0) + n;
+  }
+  const g = graph([{ id: "l", type: "llm" }, { id: "x", type: "text" }], [], "l");
+  const hits = rankSelectedOutputConsumers(portTables, g, { nodeTypes: known });
+  toy(
+    "llm-text-tie-stays-quiet",
+    counts.join === 4 && counts.llm === 4 && counts.join === counts.llm && hits.length === 0,
+    "counts " + JSON.stringify(counts) + " hits " + hits.map((h) => h.type).join(",")
+  );
+  const forced = rankSelectedOutputConsumers(portTables, g, { nodeTypes: known, minLead: 1 });
+  toy(
+    "tie-stays-quiet-even-when-lead-is-waived",
+    forced.length === 0,
+    forced.map((h) => h.type + ":" + h.score).join(",")
+  );
+}
+
 {
   const g = graph(
     [{ id: "i", type: "image" }],

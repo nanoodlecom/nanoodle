@@ -2,7 +2,7 @@
  * Product · 27 — selected output consumer suggest (pure helpers).
  *
  * One selected node with a free output ranks gallery consumers of that
- * output first in Add. A flat or tied prior leaves the list alone. The
+ * output first in Add. A flat prior or a tie for first leaves the list alone. The
  * suggested tag is added only for types that actually moved up. Recipe,
  * first-node, and first-trio rows are left untouched.
  */
@@ -88,8 +88,13 @@ export function rankSelectedOutputConsumers(portTables, graph = {}, opts = {}) {
   const top = rows[0];
   const second = rows[1];
   const topShare = top.score / sum;
+  // An exact tie at the top is never confidence, whatever minLead a caller
+  // passes: two equally common consumers name no single next node, so the Add
+  // list stays exactly as it is. Decided 2026-10-08 when the gallery tied a
+  // selected LLM's text between Join and LLM (4 / 4); see README · 27.
+  const tied = !!second && second.score === top.score;
   const leads = !second || second.score <= 0 || top.score >= second.score * minLead;
-  if (!leads || topShare < minShare || top.score < minPair) return [];
+  if (tied || !leads || topShare < minShare || top.score < minPair) return [];
   const out = [];
   for (const r of rows) {
     const share = r.score / sum;
