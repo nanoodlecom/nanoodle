@@ -58,6 +58,7 @@ const catalogs = {
   audio: [
     { id: 'Minimax-Speech-2.8-HD', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Deep_Voice_Man'] } },
     { id: 'minimax/music-3', architecture: { modality: 'text->audio' } },
+    { id: 'elevenlabs/music', architecture: { modality: 'text->music' }, supported_parameters: { min_duration: 5, max_duration: 300 } },
   ],
   model3d: [
     { id: 'tripo3d/v2.5', architecture: { input_modalities: ['image'] } },

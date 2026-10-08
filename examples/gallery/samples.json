@@ -646,40 +646,49 @@
     "title": "One idea, three shots, one short film",
     "date": "2026-10-08",
     "review": "Sampled frames",
-    "note": "GLM 5.3 Flash plans three shots around one hero, a yellow paper boat, and writes a separate prompt for each shot. Seedance 1.5 Pro renders three silent 5-second 720p clips, and Combine joins them into one 15-second film. Shot 1: a hand sets the boat into a neon-lit gutter. Shot 2 restarts the launch with two hands, then the boat drifts down the gutter past pink and teal reflections. Shot 3: it floats from a stone channel out onto a sunrise harbor. The boat looks the same in every shot. The cuts are hard, and the film has no sound.",
+    "note": "GLM 5.3 Flash writes one style bible (a yellow paper boat, a small hand in a red raincoat sleeve, a rainy grey afternoon gutter, 35mm, low camera) and a three-beat story. Join pastes the bible word for word in front of every prompt. Muse paints the opening still, and Seedance 1.5 Pro animates it into Shot 1; Video \u2192 frames hands each shot's last frame to the next. Setup: a small hand sets the boat on the gutter and lets go. Turn: the boat drifts to an open drain and tips over its edge. Payoff: the hand lifts it out, dripping. One look and one place throughout, and each cut continues the action. ElevenLabs adds one music bed. Flaws: a hand flicks through a corner of Shot 2 for about half a second although the prompt said no hands, the music fades out about 2 s before the end, and Combine has no crossfade, so the cuts are hard. Shots 2 and 3 come from a second pass; see run.json.",
     "layout": "sequence",
-    "costUsd": 0.390510237,
+    "costUsd": 0.550556,
     "costExact": true,
     "models": [
       "z-ai/glm-5.3-flash",
-      "bytedance-seedance-v1.5-pro"
+      "meta/muse-image/text-to-image",
+      "bytedance-seedance-v1.5-pro",
+      "elevenlabs/music"
     ],
-    "graphSha256": "16f6b9157f10a648e324e62e35329613539ff932964a72f57441c05396265fc8",
+    "graphSha256": "a29cdaeb74811f4fad097023af1fa3782d4be6aab508353a58ddf8eee9d3fc42",
     "inputs": [
       {
         "label": "Film idea",
-        "text": "A tiny yellow paper boat's first voyage: a child's hand sets it into a rain-filled gutter on a neon-lit city street at night, it races through the rushing water past glowing reflections, and finally drifts out onto a calm harbor as the sun rises."
+        "text": "A child's yellow paper boat on a rainy afternoon: a small hand sets it into a rushing gutter, the current sweeps it toward an open storm drain where it spins on the very edge, and at the last moment the same small hand plucks it out of the water, safe."
       }
     ],
     "outputs": [
       {
         "src": "idea-to-short-film/shot-plan.txt",
         "kind": "text",
-        "label": "1. Shot planner: hero, style and three shots \u00b7 reported $0.00015",
-        "costUsd": 0.0001487745,
+        "label": "1. Style bible and story: setup, turn, payoff \u00b7 reported $0.00025",
+        "costUsd": 0.000245154,
         "collapsed": true,
-        "sha256": "2a2ff048b63c18078f83b492b4c4cf94cc6b3b15d58879d050dc219e6514499d"
+        "sha256": "16034764db8fbf45110d641493c15a2546414e4c97e424d4ccd812b691f95c74"
+      },
+      {
+        "src": "idea-to-short-film/opening-still.webp",
+        "kind": "image",
+        "label": "2. Opening still: Muse sets the look Shot 1 starts from \u00b7 reported $0.01",
+        "costUsd": 0.01,
+        "sha256": "b380e24cf52db0beb70cf5e962094d56dea4dda924508fc88daae052ce0cb17b"
       },
       {
         "src": "idea-to-short-film/film.mp4",
         "kind": "video",
-        "label": "2. Short film: three Seedance shots joined by Combine \u00b7 reported $0.39 total",
-        "costUsd": 0.390510237,
-        "sha256": "b7d93631f8fd0348341c742a479964956acf204602a5b6a919908f83d0d7e2c5"
+        "label": "3. Short film: three chained Seedance shots and one music bed \u00b7 reported $0.55 total",
+        "costUsd": 0.550556,
+        "sha256": "3121a22779774952181674a520fcc77f808421281a72216e41175f29653e1f9a"
       }
     ],
     "preview": "idea-to-short-film/preview.webp",
     "workflow": "idea-to-short-film/workflow.json",
-    "workflowSha256": "226be745dac8f2d8e6c4efd2b5cd55ff09fc68a0aaf0915642895172a970c3e9"
+    "workflowSha256": "a29cdaeb74811f4fad097023af1fa3782d4be6aab508353a58ddf8eee9d3fc42"
   }
 ]

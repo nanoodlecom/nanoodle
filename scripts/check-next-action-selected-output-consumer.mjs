@@ -42,39 +42,31 @@ function graph(nodes, links, selectedId, selectedIds) {
 
 {
   const g = graph(
-    [{ id: "v", type: "tvideo" }, { id: "x", type: "text" }],
+    [{ id: "l", type: "llm" }, { id: "x", type: "text" }],
     [],
-    "v"
+    "l"
   );
   const hits = rankSelectedOutputConsumers(portTables, g, { nodeTypes: known });
-  toy("tvideo-output-prefers-combine", hits[0] && hits[0].type === "combine" && hits[0].reason === REASON, hits.map((h) => h.type).join(","));
+  toy("llm-output-prefers-join", hits[0] && hits[0].type === "join" && hits[0].reason === REASON, hits.map((h) => h.type).join(","));
 }
 
-// Gallery 2026-10-08: a selected LLM's free text ties between Join and LLM
-// (4 and 4; Text-to-Video 3, Image 2 behind them). A tie names no single next
-// node, so the ranker stays quiet and the Add list is unchanged. Both counts
-// are pinned so a later graph that breaks the tie fails here instead of
-// silently changing the menu.
+// A tie for first is never confidence (decided 2026-10-08 with Liquid d1 when
+// the gallery briefly tied a selected LLM's text between Join and LLM, 4 / 4).
+// Synthetic tables, so the rule stays pinned whatever the live gallery says:
+// a tie leaves the Add list unchanged, even when a caller waives the lead.
 {
-  const targets = portTables.topTargets["llm|text"] || {};
-  const counts = {};
-  for (const [k, n] of Object.entries(targets)) {
-    const t = k.split("|")[0];
-    counts[t] = (counts[t] || 0) + n;
-  }
+  const tied = {
+    topTargets: { "llm|text": { "join|a": 2, "join|b": 2, "llm|prompt": 4, "image|prompt": 1 } },
+    portCatalog: portTables.portCatalog,
+  };
   const g = graph([{ id: "l", type: "llm" }, { id: "x", type: "text" }], [], "l");
-  const hits = rankSelectedOutputConsumers(portTables, g, { nodeTypes: known });
-  toy(
-    "llm-text-tie-stays-quiet",
-    counts.join === 4 && counts.llm === 4 && counts.join === counts.llm && hits.length === 0,
-    "counts " + JSON.stringify(counts) + " hits " + hits.map((h) => h.type).join(",")
-  );
-  const forced = rankSelectedOutputConsumers(portTables, g, { nodeTypes: known, minLead: 1 });
-  toy(
-    "tie-stays-quiet-even-when-lead-is-waived",
-    forced.length === 0,
-    forced.map((h) => h.type + ":" + h.score).join(",")
-  );
+  const hits = rankSelectedOutputConsumers(tied, g, { nodeTypes: known });
+  toy("tie-for-first-stays-quiet", hits.length === 0, hits.map((h) => h.type + ":" + h.score).join(","));
+  const forced = rankSelectedOutputConsumers(tied, g, { nodeTypes: known, minLead: 1 });
+  toy("tie-stays-quiet-even-when-lead-is-waived", forced.length === 0, forced.map((h) => h.type + ":" + h.score).join(","));
+  const broken = rankSelectedOutputConsumers(
+    { ...tied, topTargets: { "llm|text": { ...tied.topTargets["llm|text"], "join|b": 4 } } }, g, { nodeTypes: known });
+  toy("broken-tie-names-the-leader", broken[0] && broken[0].type === "join", broken.map((h) => h.type + ":" + h.score).join(","));
 }
 
 {
@@ -104,7 +96,7 @@ function graph(nodes, links, selectedId, selectedIds) {
 
 {
   const prior = [{ type: "image", source: "recipe", reason: "from recipe" }];
-  const g = graph([{ id: "v", type: "tvideo" }], [], "v");
+  const g = graph([{ id: "l", type: "llm" }], [], "l");
   toy(
     "recipe-blocks",
     rankSelectedOutputConsumers(portTables, g, { nodeTypes: known, priorAdds: prior }).length === 0,
@@ -113,7 +105,7 @@ function graph(nodes, links, selectedId, selectedIds) {
 }
 
 {
-  const g = graph([{ id: "v", type: "tvideo" }], [], "v");
+  const g = graph([{ id: "l", type: "llm" }], [], "l");
   const hits = rankSelectedOutputConsumers(portTables, g, { nodeTypes: known });
   const prior = [
     { type: "text", source: "frequency", reason: "often added next" },
@@ -121,8 +113,8 @@ function graph(nodes, links, selectedId, selectedIds) {
   ];
   const applied = applyConsumerLift(prior, hits);
   toy(
-    "combine-moves-up-and-is-tagged",
-    applied.changed === true && applied.adds[0].type === "combine" && applied.tagged.includes("combine") && !applied.tagged.includes("text"),
+    "join-moves-up-and-is-tagged",
+    applied.changed === true && applied.adds[0].type === "join" && applied.tagged.includes("join") && !applied.tagged.includes("text"),
     JSON.stringify(applied)
   );
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Leftover Product · 27 selected-output-consumer edges after #644 / #674.
-// Those pins cover TVideo→Combine (the gallery tie on LLM output since idea-to-short-film), tied image quiet, wired / multi / none
-// selected, recipe block, combine lift+tag, and already-first no-retag.
+// Those pins cover LLM→join, tied image quiet, wired / multi / none
+// selected, recipe block, join lift+tag, and already-first no-retag.
 // This file pins the leftover ranking contract: a comment or missing
 // selectedId stays quiet, first-node/learned/first-trio also block,
 // disabled / unknown nodeTypes drop the list, an empty prior inserts
@@ -52,7 +52,7 @@ function graph(nodes, links, selectedId, selectedIds) {
 }
 
 {
-  const g = graph([{ id: "v", type: "tvideo" }], [], "v");
+  const g = graph([{ id: "l", type: "llm" }], [], "l");
   const blockers = ["first-node", "learned", "first-trio"].filter((src) => STRONG_SOURCES.includes(src));
   if (blockers.length !== 3)
     fail(`STRONG_SOURCES drifted, missing ${["first-node", "learned", "first-trio"].filter((s) => !STRONG_SOURCES.includes(s))}`);
@@ -71,12 +71,12 @@ function graph(nodes, links, selectedId, selectedIds) {
 }
 
 {
-  const g = graph([{ id: "v", type: "tvideo" }], [], "v");
+  const g = graph([{ id: "l", type: "llm" }], [], "l");
   const off = rankSelectedOutputConsumers(portTables, g, { nodeTypes: known, disabled: true });
   const filtered = rankSelectedOutputConsumers(portTables, g, { nodeTypes: new Set(["text"]) });
   if (off.length)
     fail(`disabled must return [], got ${JSON.stringify(off)}`);
-  else if (filtered.some((h) => h.type === "combine") || filtered.length)
+  else if (filtered.some((h) => h.type === "join") || filtered.length)
     fail(`nodeTypes must drop unknown consumers, got ${JSON.stringify(filtered)}`);
   else ok("disabled and unknown nodeTypes drop the consumer list");
 }
@@ -84,7 +84,7 @@ function graph(nodes, links, selectedId, selectedIds) {
 {
   const hits = rankSelectedOutputConsumers(
     portTables,
-    graph([{ id: "v", type: "tvideo" }], [], "v"),
+    graph([{ id: "l", type: "llm" }], [], "l"),
     { nodeTypes: known }
   );
   const empty = applyConsumerLift(null, hits);
@@ -92,7 +92,7 @@ function graph(nodes, links, selectedId, selectedIds) {
     [{ type: "image", source: "first-node", reason: "first" }],
     hits
   );
-  if (!empty.changed || empty.adds[0]?.type !== "combine" || !empty.tagged.includes("combine"))
+  if (!empty.changed || empty.adds[0]?.type !== "join" || !empty.tagged.includes("join"))
     fail(`an empty prior must insert the consumer hits, got ${JSON.stringify(empty)}`);
   else if (blocked.changed !== false || blocked.adds[0]?.source !== "first-node")
     fail(`applyConsumerLift must keep a first-node prior, got ${JSON.stringify(blocked)}`);

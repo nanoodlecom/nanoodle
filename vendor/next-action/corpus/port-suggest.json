@@ -2,24 +2,29 @@
   "schemaVersion": 1,
   "source": "examples-gallery",
   "graphCount": 11,
-  "edgeCount": 75,
+  "edgeCount": 93,
   "typeToType": {
-    "text→llm": 4,
+    "text→llm": 5,
     "llm→image": 2,
     "image→resize": 3,
     "image→edit": 3,
     "text→image": 12,
     "text→tvideo": 3,
-    "llm→llm": 4,
-    "llm→tvideo": 3,
-    "tvideo→combine": 3,
-    "image→ivideo": 3,
+    "llm→llm": 5,
+    "llm→join": 12,
+    "join→image": 1,
+    "image→ivideo": 4,
+    "join→ivideo": 3,
+    "ivideo→vframes": 2,
+    "vframes→ivideo": 2,
+    "ivideo→combine": 3,
+    "combine→soundtrack": 1,
+    "music→soundtrack": 1,
     "llm→ivideo": 1,
     "text→ivideo": 2,
     "text→join": 5,
     "join→llm": 4,
     "join→join": 3,
-    "llm→join": 4,
     "llm→music": 1,
     "join→music": 1,
     "join→edit": 2,
@@ -34,27 +39,32 @@
     "ivideo→vedit": 1
   },
   "portPair": {
-    "text.text→llm.prompt": 4,
+    "text.text→llm.prompt": 5,
     "llm.text→image.prompt": 2,
     "image.image→resize.image": 3,
     "image.image→edit.image": 2,
     "text.text→image.prompt": 12,
     "text.text→tvideo.prompt": 3,
-    "llm.text→llm.prompt": 4,
-    "llm.text→tvideo.prompt": 3,
-    "tvideo.video→combine.vid1": 1,
-    "tvideo.video→combine.vid2": 1,
-    "tvideo.video→combine.vid3": 1,
-    "image.image→ivideo.image": 3,
+    "llm.text→llm.prompt": 5,
+    "llm.text→join.a": 5,
+    "llm.text→join.b": 7,
+    "join.text→image.prompt": 1,
+    "image.image→ivideo.image": 4,
+    "join.text→ivideo.prompt": 3,
+    "ivideo.video→vframes.video": 2,
+    "vframes.frame1→ivideo.image": 2,
+    "ivideo.video→combine.vid1": 1,
+    "ivideo.video→combine.vid2": 1,
+    "ivideo.video→combine.vid3": 1,
+    "combine.video→soundtrack.video": 1,
+    "music.audio→soundtrack.audio": 1,
     "llm.text→ivideo.prompt": 1,
     "text.text→ivideo.prompt": 2,
     "text.text→join.a": 2,
     "text.text→join.b": 3,
     "join.text→llm.prompt": 4,
     "join.text→join.a": 3,
-    "llm.text→join.b": 3,
     "llm.text→music.lyrics": 1,
-    "llm.text→join.a": 1,
     "join.text→music.prompt": 1,
     "join.text→edit.prompt": 2,
     "image.image→llm.img1": 2,
@@ -70,7 +80,7 @@
   },
   "topTargets": {
     "text|text": {
-      "llm|prompt": 4,
+      "llm|prompt": 5,
       "image|prompt": 12,
       "tvideo|prompt": 3,
       "ivideo|prompt": 2,
@@ -81,31 +91,43 @@
     },
     "llm|text": {
       "image|prompt": 2,
-      "llm|prompt": 4,
-      "tvideo|prompt": 3,
+      "llm|prompt": 5,
+      "join|a": 5,
+      "join|b": 7,
       "ivideo|prompt": 1,
-      "join|b": 3,
-      "music|lyrics": 1,
-      "join|a": 1
+      "music|lyrics": 1
     },
     "image|image": {
       "resize|image": 3,
       "edit|image": 2,
-      "ivideo|image": 3,
+      "ivideo|image": 4,
       "llm|img1": 2,
       "edit|image2": 1,
       "lipsync|image": 1
     },
-    "tvideo|video": {
-      "combine|vid1": 1,
-      "combine|vid2": 1,
-      "combine|vid3": 1
-    },
     "join|text": {
+      "image|prompt": 1,
+      "ivideo|prompt": 3,
       "llm|prompt": 4,
       "join|a": 3,
       "music|prompt": 1,
       "edit|prompt": 2
+    },
+    "ivideo|video": {
+      "vframes|video": 2,
+      "combine|vid1": 1,
+      "combine|vid2": 1,
+      "combine|vid3": 1,
+      "vedit|video": 1
+    },
+    "vframes|frame1": {
+      "ivideo|image": 2
+    },
+    "combine|video": {
+      "soundtrack|video": 1
+    },
+    "music|audio": {
+      "soundtrack|audio": 1
     },
     "edit|image": {
       "llm|img2": 2,
@@ -114,9 +136,6 @@
     },
     "tts|audio": {
       "lipsync|audio": 1
-    },
-    "ivideo|video": {
-      "vedit|video": 1
     }
   },
   "portCatalog": {
@@ -164,26 +183,7 @@
       "inputs": [
         "prompt"
       ],
-      "outputs": [
-        "video"
-      ]
-    },
-    "combine": {
-      "inputs": [
-        "vid1",
-        "vid2",
-        "vid3"
-      ],
       "outputs": []
-    },
-    "ivideo": {
-      "inputs": [
-        "image",
-        "prompt"
-      ],
-      "outputs": [
-        "video"
-      ]
     },
     "join": {
       "inputs": [
@@ -194,12 +194,48 @@
         "text"
       ]
     },
+    "ivideo": {
+      "inputs": [
+        "image",
+        "prompt"
+      ],
+      "outputs": [
+        "video"
+      ]
+    },
+    "vframes": {
+      "inputs": [
+        "video"
+      ],
+      "outputs": [
+        "frame1"
+      ]
+    },
+    "combine": {
+      "inputs": [
+        "vid1",
+        "vid2",
+        "vid3"
+      ],
+      "outputs": [
+        "video"
+      ]
+    },
+    "soundtrack": {
+      "inputs": [
+        "audio",
+        "video"
+      ],
+      "outputs": []
+    },
     "music": {
       "inputs": [
         "lyrics",
         "prompt"
       ],
-      "outputs": []
+      "outputs": [
+        "audio"
+      ]
     },
     "tts": {
       "inputs": [
