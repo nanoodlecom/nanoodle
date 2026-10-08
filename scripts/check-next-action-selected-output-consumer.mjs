@@ -42,12 +42,12 @@ function graph(nodes, links, selectedId, selectedIds) {
 
 {
   const g = graph(
-    [{ id: "l", type: "llm" }, { id: "x", type: "text" }],
+    [{ id: "v", type: "tvideo" }, { id: "x", type: "text" }],
     [],
-    "l"
+    "v"
   );
   const hits = rankSelectedOutputConsumers(portTables, g, { nodeTypes: known });
-  toy("llm-output-prefers-join", hits[0] && hits[0].type === "join" && hits[0].reason === REASON, hits.map((h) => h.type).join(","));
+  toy("tvideo-output-prefers-combine", hits[0] && hits[0].type === "combine" && hits[0].reason === REASON, hits.map((h) => h.type).join(","));
 }
 
 {
@@ -77,7 +77,7 @@ function graph(nodes, links, selectedId, selectedIds) {
 
 {
   const prior = [{ type: "image", source: "recipe", reason: "from recipe" }];
-  const g = graph([{ id: "l", type: "llm" }], [], "l");
+  const g = graph([{ id: "v", type: "tvideo" }], [], "v");
   toy(
     "recipe-blocks",
     rankSelectedOutputConsumers(portTables, g, { nodeTypes: known, priorAdds: prior }).length === 0,
@@ -86,7 +86,7 @@ function graph(nodes, links, selectedId, selectedIds) {
 }
 
 {
-  const g = graph([{ id: "l", type: "llm" }], [], "l");
+  const g = graph([{ id: "v", type: "tvideo" }], [], "v");
   const hits = rankSelectedOutputConsumers(portTables, g, { nodeTypes: known });
   const prior = [
     { type: "text", source: "frequency", reason: "often added next" },
@@ -94,8 +94,8 @@ function graph(nodes, links, selectedId, selectedIds) {
   ];
   const applied = applyConsumerLift(prior, hits);
   toy(
-    "join-moves-up-and-is-tagged",
-    applied.changed === true && applied.adds[0].type === "join" && applied.tagged.includes("join") && !applied.tagged.includes("text"),
+    "combine-moves-up-and-is-tagged",
+    applied.changed === true && applied.adds[0].type === "combine" && applied.tagged.includes("combine") && !applied.tagged.includes("text"),
     JSON.stringify(applied)
   );
 }

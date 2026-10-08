@@ -86,6 +86,14 @@ const HOWTO = {
     inspect: "Play each clip. Grok fills the bowl and lifts a noodle clump. HeyGen starts emptier and drops a strand later. H3 does a single-chopstick / single-strand pull at 1440p.",
     costHow: "The saved run reported $0.563: Grok Imagine 1.5 Lite $0.10, HeyGen Video 1 $0.10, and MiniMax H3 $0.363. Prices and results vary.",
   },
+  "idea-to-short-film": {
+    headline: "One idea, three shots, one short film",
+    job: "One sentence → a shot plan → three 5-second clips → one 15-second film.",
+    purpose: "The Shot planner writes a HERO line, a STYLE line and three shots: setup, journey and payoff. Each Shot prompt writer copies the hero and style into a prompt for its own shot, so the three separate video calls draw the same subject. Seedance 1.5 Pro renders each shot, and Combine joins the clips in order. Inspired by <a href=\"https://x.com/aiaicreate/status/2107279553609830408\">ComfyUI-MiniMaxH3-Studio</a> by @aiaicreate, which turns one idea into a planned multi-shot film.",
+    edit: "Rewrite <em>Film idea</em> as one sentence with a clear hero and a beginning, middle and end. Change the planner's system prompt to get more or fewer words, or a different style. To change models, pick another video model on Shot 1, Shot 2 and Shot 3. To get sound, switch on Generate Audio in each shot's options (Seedance charges more for it), or add a Video edit sound pass after Combine. Running the graph makes three paid video calls plus four cheap text calls.",
+    inspect: "Open the Shot planner's output first: the HERO line is what keeps the boat the same across clips. Then watch the film for consistency, and check that each shot does its own job. In the saved run, shot 2 repeats the launch before it drifts down the gutter. Each clip is generated separately, so expect hard cuts.",
+    costHow: "The saved run reported $0.39: three Seedance 1.5 Pro clips at $0.13 each (720p, 5 s, audio off) and four GLM 5.3 Flash calls at about $0.0001 each. Combine runs in the browser for free. Prices and results vary.",
+  },
   "photo-to-video": {
     headline: "Animate a still",
     job: "Generate a first frame, then animate its steam.",
@@ -143,7 +151,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "idea-to-short-film", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.

@@ -1,0 +1,118 @@
+{
+  "inspiration": {
+    "post": "https://x.com/aiaicreate/status/2107279553609830408",
+    "author": "@aiaicreate",
+    "app": "ComfyUI-MiniMaxH3-Studio",
+    "note": "Idea only: one idea, an LLM shot planner, short clips joined into one film. No media from the post is used; this graph uses Seedance 1.5 Pro clips and nanoodle's Combine node."
+  },
+  "runner": "nanoodle-js 0.8.0 library (Workflow.run) on graph.json, NANOGPT_API_KEY",
+  "startedAt": "2026-10-08T18:51:22.661Z",
+  "finishedAt": "2026-10-08T18:52:33.636Z",
+  "balanceBefore": 10.55449379,
+  "balanceAfter": 10.16398356,
+  "totalCostUsd": 0.39051,
+  "results": [
+    {
+      "node": "plan",
+      "label": "Shot planner",
+      "model": "z-ai/glm-5.3-flash",
+      "costUsd": 0.0001488,
+      "ms": 3622,
+      "text": "HERO: A tiny hand-folded bright yellow paper boat, small as a child's palm, crisp folded creases, slightly dampened at the bow.\n\nSTYLE: 35mm film look with soft grain, deep night blues and purples cut by neon pinks and oranges warming to golden sunrise, shallow depth of field, anamorphic lens flares, wet reflective surfaces.\n\nSHOT 1: Extreme close-up at gutter level, a child's hand lowers the yellow paper boat into a rushing rain-filled gutter beside a curb; camera slowly pushes in as fingers release and the current catches the boat, neon signs reflecting in the dark water around it.\n\nSHOT 2: Low tracking shot gliding alongside the boat at water level as it races down the gutter channel, camera moving parallel in a steady lateral dolly; rain streaks fall and the boat bobs and tilts through splashes, weaving past glowing pink and cyan reflections stretching across the wet asphalt.\n\nSHOT 3: Wide shot from behind and slightly above as the gutter empties into a calm harbor; camera cranes up slowly as the yellow paper boat drifts out onto still water, the rising sun painting the sky gold, its small silhouette growing peaceful against the vast glowing horizon."
+    },
+    {
+      "node": "w1",
+      "label": "Shot 1 prompt",
+      "model": "z-ai/glm-5.3-flash",
+      "costUsd": 0.0001194,
+      "ms": 2495,
+      "text": "Extreme close-up at gutter level, a tiny hand-folded bright yellow paper boat, small as a child's palm with crisp folded creases and a slightly dampened bow, is lowered by a child's hand into a rushing rain-filled gutter beside a curb, rendered in a 35mm film look with soft grain, deep night blues and purples cut by neon pinks and oranges, shallow depth of field and anamorphic lens flares. The camera slowly pushes in as the fingers release and the current catches the boat, neon signs reflecting in the dark water around its bright hull on wet reflective surfaces."
+    },
+    {
+      "node": "w2",
+      "label": "Shot 2 prompt",
+      "model": "z-ai/glm-5.3-flash",
+      "costUsd": 0.0001221,
+      "ms": 2109,
+      "text": "A tiny hand-folded bright yellow paper boat, small as a child's palm, crisp folded creases, slightly dampened at the bow, races down a rain-filled gutter in a 35mm film look with soft grain, deep night blues and purples cut by neon pinks and oranges, shallow depth of field, anamorphic lens flares, and wet reflective surfaces. A low tracking shot glides alongside the boat at water level in a steady lateral dolly, moving parallel as it bobs and tilts through splashes, rain streaks falling, weaving past glowing pink and cyan reflections stretching across the wet asphalt."
+    },
+    {
+      "node": "w3",
+      "label": "Shot 3 prompt",
+      "model": "z-ai/glm-5.3-flash",
+      "costUsd": 0.00012,
+      "ms": 2775,
+      "text": "A tiny hand-folded bright yellow paper boat, small as a child's palm, crisp folded creases, slightly dampened at the bow, shot in a 35mm film look with soft grain, deep night blues and purples giving way to golden sunrise, shallow depth of field, anamorphic lens flares, and wet reflective surfaces. In a wide shot from behind and slightly above, the gutter empties into a calm harbor; the camera cranes up slowly as the boat drifts out onto still water, the rising sun painting the sky gold, its small silhouette glowing peacefully against the vast horizon."
+    },
+    {
+      "node": "v1",
+      "label": "Shot 1",
+      "model": "bytedance-seedance-v1.5-pro",
+      "params": {
+        "duration": "5",
+        "resolution": "720p",
+        "aspect": "16:9",
+        "generateAudio": false
+      },
+      "costUsd": 0.13,
+      "ms": 52752
+    },
+    {
+      "node": "v2",
+      "label": "Shot 2",
+      "model": "bytedance-seedance-v1.5-pro",
+      "params": {
+        "duration": "5",
+        "resolution": "720p",
+        "aspect": "16:9",
+        "generateAudio": false
+      },
+      "costUsd": 0.13,
+      "ms": 63295
+    },
+    {
+      "node": "v3",
+      "label": "Shot 3",
+      "model": "bytedance-seedance-v1.5-pro",
+      "params": {
+        "duration": "5",
+        "resolution": "720p",
+        "aspect": "16:9",
+        "generateAudio": false
+      },
+      "costUsd": 0.13,
+      "ms": 57652
+    },
+    {
+      "node": "film",
+      "label": "Short film",
+      "costUsd": 0,
+      "ms": 1035,
+      "file": "film.mp4"
+    }
+  ],
+  "videoRunIds": {
+    "Shot 1": "vid_muzw7ek36de5498c465e",
+    "Shot 2": "vid_muzw7dy2050b2e953d8a",
+    "Shot 3": "vid_muzw7efl6bf587986f5a"
+  },
+  "verdicts": {
+    "Shot 1": "A hand lowers the yellow paper boat into a narrow wet gutter; it settles and floats with pink neon reflections around it.",
+    "Shot 2": "Opens on two hands shaping and setting the boat on dark water, repeating the launch beat, then the boat drifts along the wet gutter past pink and teal reflections.",
+    "Shot 3": "The boat sits at the mouth of a stone channel over dark water, then floats out across a calm harbor at sunrise, small against the horizon with moored boats on the skyline.",
+    "Film": "15.1 s, 1280x720, 24 fps, silent. The same folded yellow boat appears in all three shots. Cuts are hard cuts with no transitions; shot 2 restarts the launch instead of continuing it."
+  },
+  "media": {
+    "film.mp4": "Combine output re-encoded for the site (libx264 CRF 24, no audio, same frames and length). Original Combine output: 18,655,706 bytes, sha256 86a4c1e98c3a98e0a916c6066ddd361127b522296d4a810d2af461d0ad03f347.",
+    "clipSha256": {
+      "Shot 1": "ea88dc9d9f75018ed6c5da0f0ddaca6486ffdd51c232ce6c064b1a2964df9789",
+      "Shot 2": "a9214a98442bc5d8f533fea47fadef3a5cdc8abbbf77b72fb3aabf13916fc41a",
+      "Shot 3": "15d8957a6956790f752433da30046cbf2f36579fd4ee6bcb47151d3a6c545059"
+    },
+    "shot-plan.txt": "The Shot planner's text output, verbatim."
+  },
+  "posterFrame": "preview.webp",
+  "posterSource": "film.mp4 at 12.5 s (shot 3)",
+  "otherAttempts": "One text-only test of the planner and shot writers ($0.000588) before this run. No other video calls.",
+  "graphNote": "as-run-graph.json is the exact file the run used. Its Combine links target clip1, clip2 and clip3. graph.json and workflow.json are the same graph with those three ports renamed to vid1, vid2 and vid3, the port names the editor's Combine node uses. nanoodle-js accepts both names and orders them by number (src/nodes.mjs combine), so the run is the same. workflow.json also moves nodes so they don't overlap in the editor."
+}

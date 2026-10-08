@@ -1,0 +1,271 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": -40,
+      "y": -260,
+      "w": 440,
+      "fields": {
+        "text": "One idea becomes a three-shot short film. The planner fixes the hero and look once; each shot writer copies them into its own clip prompt; Combine joins the three 5-second clips in order. Run makes three paid video calls plus four cheap text calls.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "idea",
+      "type": "text",
+      "x": -40,
+      "y": 0,
+      "w": 320,
+      "name": "Film idea",
+      "fields": {
+        "text": "A tiny yellow paper boat's first voyage: a child's hand sets it into a rain-filled gutter on a neon-lit city street at night, it races through the rushing water past glowing reflections, and finally drifts out onto a calm harbor as the sun rises."
+      }
+    },
+    {
+      "id": "plan",
+      "type": "llm",
+      "x": 380,
+      "y": 0,
+      "w": 340,
+      "sizes": {
+        "system": 150
+      },
+      "name": "Shot planner",
+      "fields": {
+        "model": "z-ai/glm-5.3-flash",
+        "reasoningEffort": "low",
+        "maxTokens": "1200",
+        "system": "You are the shot planner for a 15-second short film made of three separate 5-second text-to-video clips. From the idea, write: HERO: one line describing the main subject's exact look (shape, color, material, size). STYLE: one line with the shared look (film stock or render style, palette, lens, lighting). Then SHOT 1, SHOT 2, SHOT 3: one continuous shot each, with camera framing, one camera move, and one clear action; together they tell setup, journey and payoff. Keep the hero visible and identical in every shot. No dialogue, no on-screen text. Plain text, under 220 words."
+      }
+    },
+    {
+      "id": "w1",
+      "type": "llm",
+      "x": 820,
+      "y": 0,
+      "w": 320,
+      "sizes": {
+        "system": 110
+      },
+      "name": "Shot 1 prompt",
+      "fields": {
+        "model": "z-ai/glm-5.3-flash",
+        "reasoningEffort": "low",
+        "maxTokens": "600",
+        "system": "You turn a three-shot film plan into ONE text-to-video prompt for SHOT 1 only. Start with the HERO and STYLE details copied from the plan, then describe the framing, camera move and action of SHOT 1. One paragraph, 60 to 100 words, present tense. No titles, labels, quotes, dialogue, on-screen text, or other shots. Output only the prompt."
+      }
+    },
+    {
+      "id": "v1",
+      "type": "tvideo",
+      "x": 820,
+      "y": 720,
+      "fields": {
+        "model": "bytedance-seedance-v1.5-pro",
+        "prompt": "",
+        "duration": "5",
+        "resolution": "720p",
+        "aspect": "16:9",
+        "modelOpts": {
+          "generateAudio": false
+        },
+        "loras": []
+      },
+      "name": "Shot 1"
+    },
+    {
+      "id": "w2",
+      "type": "llm",
+      "x": 1200,
+      "y": 0,
+      "w": 320,
+      "sizes": {
+        "system": 110
+      },
+      "name": "Shot 2 prompt",
+      "fields": {
+        "model": "z-ai/glm-5.3-flash",
+        "reasoningEffort": "low",
+        "maxTokens": "600",
+        "system": "You turn a three-shot film plan into ONE text-to-video prompt for SHOT 2 only. Start with the HERO and STYLE details copied from the plan, then describe the framing, camera move and action of SHOT 2. One paragraph, 60 to 100 words, present tense. No titles, labels, quotes, dialogue, on-screen text, or other shots. Output only the prompt."
+      }
+    },
+    {
+      "id": "v2",
+      "type": "tvideo",
+      "x": 1200,
+      "y": 720,
+      "fields": {
+        "model": "bytedance-seedance-v1.5-pro",
+        "prompt": "",
+        "duration": "5",
+        "resolution": "720p",
+        "aspect": "16:9",
+        "modelOpts": {
+          "generateAudio": false
+        },
+        "loras": []
+      },
+      "name": "Shot 2"
+    },
+    {
+      "id": "w3",
+      "type": "llm",
+      "x": 1580,
+      "y": 0,
+      "w": 320,
+      "sizes": {
+        "system": 110
+      },
+      "name": "Shot 3 prompt",
+      "fields": {
+        "model": "z-ai/glm-5.3-flash",
+        "reasoningEffort": "low",
+        "maxTokens": "600",
+        "system": "You turn a three-shot film plan into ONE text-to-video prompt for SHOT 3 only. Start with the HERO and STYLE details copied from the plan, then describe the framing, camera move and action of SHOT 3. One paragraph, 60 to 100 words, present tense. No titles, labels, quotes, dialogue, on-screen text, or other shots. Output only the prompt."
+      }
+    },
+    {
+      "id": "v3",
+      "type": "tvideo",
+      "x": 1580,
+      "y": 720,
+      "fields": {
+        "model": "bytedance-seedance-v1.5-pro",
+        "prompt": "",
+        "duration": "5",
+        "resolution": "720p",
+        "aspect": "16:9",
+        "modelOpts": {
+          "generateAudio": false
+        },
+        "loras": []
+      },
+      "name": "Shot 3"
+    },
+    {
+      "id": "film",
+      "type": "combine",
+      "x": 2000,
+      "y": 720,
+      "fields": {
+        "dedup": true
+      },
+      "name": "Short film"
+    }
+  ],
+  "links": [
+    {
+      "id": "l0",
+      "from": {
+        "node": "idea",
+        "port": "text"
+      },
+      "to": {
+        "node": "plan",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "lw1",
+      "from": {
+        "node": "plan",
+        "port": "text"
+      },
+      "to": {
+        "node": "w1",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "lv1",
+      "from": {
+        "node": "w1",
+        "port": "text"
+      },
+      "to": {
+        "node": "v1",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "lc1",
+      "from": {
+        "node": "v1",
+        "port": "video"
+      },
+      "to": {
+        "node": "film",
+        "port": "vid1"
+      }
+    },
+    {
+      "id": "lw2",
+      "from": {
+        "node": "plan",
+        "port": "text"
+      },
+      "to": {
+        "node": "w2",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "lv2",
+      "from": {
+        "node": "w2",
+        "port": "text"
+      },
+      "to": {
+        "node": "v2",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "lc2",
+      "from": {
+        "node": "v2",
+        "port": "video"
+      },
+      "to": {
+        "node": "film",
+        "port": "vid2"
+      }
+    },
+    {
+      "id": "lw3",
+      "from": {
+        "node": "plan",
+        "port": "text"
+      },
+      "to": {
+        "node": "w3",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "lv3",
+      "from": {
+        "node": "w3",
+        "port": "text"
+      },
+      "to": {
+        "node": "v3",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "lc3",
+      "from": {
+        "node": "v3",
+        "port": "video"
+      },
+      "to": {
+        "node": "film",
+        "port": "vid3"
+      }
+    }
+  ]
+}

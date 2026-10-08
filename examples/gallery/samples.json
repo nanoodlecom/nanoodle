@@ -640,5 +640,46 @@
     "preview": "grok-heygen-minimax-video-arena/preview.webp",
     "workflow": "grok-heygen-minimax-video-arena/workflow.json",
     "workflowSha256": "8363448659d2707604b7ce5cfac1be4974ff23acf3cf207a15125e03c606007c"
+  },
+  {
+    "slug": "idea-to-short-film",
+    "title": "One idea, three shots, one short film",
+    "date": "2026-10-08",
+    "review": "Sampled frames",
+    "note": "GLM 5.3 Flash plans three shots around one hero, a yellow paper boat, and writes a separate prompt for each shot. Seedance 1.5 Pro renders three silent 5-second 720p clips, and Combine joins them into one 15-second film. Shot 1: a hand sets the boat into a neon-lit gutter. Shot 2 restarts the launch with two hands, then the boat drifts down the gutter past pink and teal reflections. Shot 3: it floats from a stone channel out onto a sunrise harbor. The boat looks the same in every shot. The cuts are hard, and the film has no sound.",
+    "layout": "sequence",
+    "costUsd": 0.390510237,
+    "costExact": true,
+    "models": [
+      "z-ai/glm-5.3-flash",
+      "bytedance-seedance-v1.5-pro"
+    ],
+    "graphSha256": "16f6b9157f10a648e324e62e35329613539ff932964a72f57441c05396265fc8",
+    "inputs": [
+      {
+        "label": "Film idea",
+        "text": "A tiny yellow paper boat's first voyage: a child's hand sets it into a rain-filled gutter on a neon-lit city street at night, it races through the rushing water past glowing reflections, and finally drifts out onto a calm harbor as the sun rises."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "idea-to-short-film/shot-plan.txt",
+        "kind": "text",
+        "label": "1. Shot planner: hero, style and three shots \u00b7 reported $0.00015",
+        "costUsd": 0.0001487745,
+        "collapsed": true,
+        "sha256": "2a2ff048b63c18078f83b492b4c4cf94cc6b3b15d58879d050dc219e6514499d"
+      },
+      {
+        "src": "idea-to-short-film/film.mp4",
+        "kind": "video",
+        "label": "2. Short film: three Seedance shots joined by Combine \u00b7 reported $0.39 total",
+        "costUsd": 0.390510237,
+        "sha256": "b7d93631f8fd0348341c742a479964956acf204602a5b6a919908f83d0d7e2c5"
+      }
+    ],
+    "preview": "idea-to-short-film/preview.webp",
+    "workflow": "idea-to-short-film/workflow.json",
+    "workflowSha256": "226be745dac8f2d8e6c4efd2b5cd55ff09fc68a0aaf0915642895172a970c3e9"
   }
 ]
