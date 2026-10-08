@@ -1,14 +1,18 @@
 {
   "schemaVersion": 1,
   "source": "examples-gallery",
-  "graphCount": 10,
-  "edgeCount": 65,
+  "graphCount": 11,
+  "edgeCount": 72,
   "typeToType": {
     "text→llm": 3,
     "llm→image": 2,
     "image→resize": 3,
     "image→edit": 3,
-    "text→image": 12,
+    "text→image": 13,
+    "image→inpaint": 1,
+    "upload→inpaint": 2,
+    "text→inpaint": 2,
+    "inpaint→inpaint": 1,
     "text→tvideo": 3,
     "image→ivideo": 3,
     "llm→ivideo": 1,
@@ -36,7 +40,11 @@
     "llm.text→image.prompt": 2,
     "image.image→resize.image": 3,
     "image.image→edit.image": 2,
-    "text.text→image.prompt": 12,
+    "text.text→image.prompt": 13,
+    "image.image→inpaint.image": 1,
+    "upload.image→inpaint.mask": 2,
+    "text.text→inpaint.prompt": 2,
+    "inpaint.image→inpaint.image": 1,
     "text.text→tvideo.prompt": 3,
     "image.image→ivideo.image": 3,
     "llm.text→ivideo.prompt": 1,
@@ -65,7 +73,8 @@
   "topTargets": {
     "text|text": {
       "llm|prompt": 3,
-      "image|prompt": 12,
+      "image|prompt": 13,
+      "inpaint|prompt": 2,
       "tvideo|prompt": 3,
       "ivideo|prompt": 2,
       "join|a": 2,
@@ -84,10 +93,17 @@
     "image|image": {
       "resize|image": 3,
       "edit|image": 2,
+      "inpaint|image": 1,
       "ivideo|image": 3,
       "llm|img1": 2,
       "edit|image2": 1,
       "lipsync|image": 1
+    },
+    "upload|image": {
+      "inpaint|mask": 2
+    },
+    "inpaint|image": {
+      "inpaint|image": 1
     },
     "join|text": {
       "llm|prompt": 4,
@@ -144,6 +160,22 @@
         "image2",
         "prompt"
       ],
+      "outputs": [
+        "image"
+      ]
+    },
+    "inpaint": {
+      "inputs": [
+        "image",
+        "mask",
+        "prompt"
+      ],
+      "outputs": [
+        "image"
+      ]
+    },
+    "upload": {
+      "inputs": [],
       "outputs": [
         "image"
       ]

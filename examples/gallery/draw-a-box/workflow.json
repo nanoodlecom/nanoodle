@@ -1,0 +1,195 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 0,
+      "y": -240,
+      "w": 420,
+      "fields": {
+        "text": "Draw a box, say what goes in it. Each white box is a mask: only that region is repainted, the rest of the photo stays. Chain boxes to stack edits. Swap First photo for your own Image input, or brush a region inside an Inpaint node.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "scene",
+      "type": "text",
+      "x": 0,
+      "y": 0,
+      "w": 320,
+      "name": "Scene",
+      "fields": {
+        "text": "Low wide-angle night photo across an empty rain-soaked plaza in Tokyo. A row of small neon-lit noodle shops runs along the horizon across the middle of the frame. Open dark blue night sky with soft rain fills the entire top third. Wet reflective pavement fills the entire bottom third, empty and open. No people, no vehicles, no readable text. Cinematic 35mm photo, red and teal neon, moody and detailed."
+      }
+    },
+    {
+      "id": "photo",
+      "type": "image",
+      "x": 400,
+      "y": 0,
+      "fields": {
+        "model": "meta/muse-image/text-to-image",
+        "size": "16:9",
+        "variations": "1"
+      },
+      "sizes": {
+        "prompt": 0
+      },
+      "name": "First photo"
+    },
+    {
+      "id": "box1",
+      "type": "upload",
+      "x": 400,
+      "y": 470,
+      "w": 260,
+      "fields": {
+        "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAAkCAYAAAA5DDySAAAAN0lEQVR42u3QMQ0AAAgDsPk3Dck8EJ5WQhMAAACoOSJAgAABAgQIECBAgAABAgQIECBAgAABPFv7jDEyc1jyFAAAAABJRU5ErkJggg=="
+      },
+      "name": "Box 1"
+    },
+    {
+      "id": "say1",
+      "type": "text",
+      "x": 400,
+      "y": 790,
+      "w": 300,
+      "name": "What goes in box 1",
+      "fields": {
+        "text": "A small friendly robot ramen vendor standing behind a wooden street cart on the wet pavement, steam rising from a pot, a warm paper lantern hanging from the cart. Match the plaza's rain, neon light and reflections."
+      }
+    },
+    {
+      "id": "edit1",
+      "type": "inpaint",
+      "x": 840,
+      "y": 0,
+      "w": 340,
+      "fields": {
+        "model": "flux-lora/inpainting",
+        "size": "1024x576",
+        "prompt": "",
+        "image": "",
+        "mask": ""
+      },
+      "name": "Box 1 edit"
+    },
+    {
+      "id": "box2",
+      "type": "upload",
+      "x": 840,
+      "y": 500,
+      "w": 260,
+      "fields": {
+        "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAAkCAYAAAA5DDySAAAAMklEQVR42u3QQREAAAgDoPUvrSvh+YEIJAAAAADwag4JECBAgAABAgQIECBAgAABAqAWGQS6jA4YqwsAAAAASUVORK5CYII="
+      },
+      "name": "Box 2"
+    },
+    {
+      "id": "say2",
+      "type": "text",
+      "x": 840,
+      "y": 820,
+      "w": 300,
+      "name": "What goes in box 2",
+      "fields": {
+        "text": "A small red delivery scooter with a wooden ramen delivery box on the back, parked on the wet pavement, headlight on, its reflection in the puddles. Match the plaza's rain and neon light."
+      }
+    },
+    {
+      "id": "edit2",
+      "type": "inpaint",
+      "x": 1280,
+      "y": 0,
+      "w": 340,
+      "fields": {
+        "model": "flux-lora/inpainting",
+        "size": "1024x576",
+        "prompt": "",
+        "image": "",
+        "mask": ""
+      },
+      "name": "Box 2 edit"
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "scene",
+        "port": "text"
+      },
+      "to": {
+        "node": "photo",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "photo",
+        "port": "image"
+      },
+      "to": {
+        "node": "edit1",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "box1",
+        "port": "image"
+      },
+      "to": {
+        "node": "edit1",
+        "port": "mask"
+      }
+    },
+    {
+      "id": "l4",
+      "from": {
+        "node": "say1",
+        "port": "text"
+      },
+      "to": {
+        "node": "edit1",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l5",
+      "from": {
+        "node": "edit1",
+        "port": "image"
+      },
+      "to": {
+        "node": "edit2",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l6",
+      "from": {
+        "node": "box2",
+        "port": "image"
+      },
+      "to": {
+        "node": "edit2",
+        "port": "mask"
+      }
+    },
+    {
+      "id": "l7",
+      "from": {
+        "node": "say2",
+        "port": "text"
+      },
+      "to": {
+        "node": "edit2",
+        "port": "prompt"
+      }
+    }
+  ]
+}
