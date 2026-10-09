@@ -5,6 +5,10 @@
 // An entry may carry media:{ src:"updates-media/<name>.mp4", poster:"updates-media/
 // <name>.webp", w, h } — the PR's real-editor usage GIF, re-encoded. The editor's
 // Updates panel lazy-plays it inline; changelog.html shows the poster linking to it.
+// Editorial rule (CONTRIBUTING.md, not machine-checkable): attach a clip ONLY when
+// the change is substantial + user-visible AND the clip clearly, accurately shows
+// exactly that entry's change. Tiny changes (price/estimate fixes, default swaps)
+// get none. Removing a clip = delete `media` + its files (the orphan rule below).
 // This check pins, offline and with Node built-ins only:
 //
 //  1. every referenced src/poster exists under updates-media/ (a deployed folder —
