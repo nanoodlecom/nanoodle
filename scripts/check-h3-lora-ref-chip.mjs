@@ -72,8 +72,10 @@ function extractFunction(src, name) {
       /function livePrice\(kind, fields, nodeFilter, n\)\{/],
     ["livePrice counts wired refN ports from the node",
       /refCount = \(n && t && t\.refInputs && modelHasImageRole\(n,"refs"\)\)[\s\S]*?REF_PORT_RE\.test\(l\.to\.port\)\)\.length : 0/],
+    // The trailing { params, defaults } is the untouched-audio catalog context.
+    // refCount (not a hardcoded false), videoWired, and nodeFilter stay required.
     ["livePrice forwards refCount (not hardcoded false) to videoUnitUsd",
-      /videoUnitUsd\(applyVideoQuotePricing\(fields\.model, it\.pricing\), videoPriceFields\(it\.params, fields\), refCount, videoWired, nodeFilter\)/],
+      /videoUnitUsd\(applyVideoQuotePricing\(fields\.model, it\.pricing\), videoPriceFields\(it\.params, fields\), refCount, videoWired, nodeFilter(?:, \{[^)]*\})?\)/],
     ["connect refreshes ref ports after a wire",
       /refreshVideoInputs\(tn\|\|\{\}\);[\s\S]*?refreshRefInputs\(tn\|\|\{\}\);/],
     ["connect refreshes the node chip after a wire",
