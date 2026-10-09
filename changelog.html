@@ -73,6 +73,14 @@
   ul{ margin:0 0 1rem; padding-left:1.2rem; }
   li{ margin:.45rem 0; color:#cdd3df; scroll-margin-top:1rem; }
   li:target{ color:var(--ink); }
+  a.clip{ display:block; position:relative; width:min(100%,320px); margin:.5rem 0 .2rem; border:1px solid var(--line);
+          border-radius:.55rem; overflow:hidden; line-height:0; background:#000; }
+  a.clip:hover{ border-color:var(--accent); }
+  a.clip img{ display:block; width:100%; height:auto; }
+  a.clip::after{ content:"▶"; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:2.6rem; height:2.6rem;
+          border-radius:50%; background:#0b0d12cc; border:1px solid #3a425a; color:var(--ink); font-size:1rem; line-height:2.6rem;
+          text-align:center; }
+  a.clip:hover::after{ border-color:var(--accent); }
 
   footer{ border-top:1px solid var(--line); color:var(--dim); font-size:.82rem; padding:1.1rem 0 .3rem;
           display:flex; gap:.4rem 1rem; flex-wrap:wrap; align-items:center; }
@@ -99,15 +107,16 @@
     <section>
       <h2 id="d-2026-10-08"><a href="#d-2026-10-08">8 October 2026</a></h2>
       <ul>
-        <li id="u-2026-10-08-73c14f68b886">New ⚖️ Decide node: ask a decision model one typed question — pick the best of up to 4 images, choose a label, score on a scale, or yes/no — and get probabilities back for a fraction of a cent. Turn on the yes/no gate to stop the rest of the run (unbilled) when the answer is no.</li>
+        <li id="u-2026-10-08-94757d2a22b0">📣 Updates entries can now show a short usage clip of the feature. It plays inline as you scroll the panel, and a click opens it large. The changelog page links each clip too.<a class="clip" href="/updates-media/updates-clips.mp4" title="Play the usage clip"><img src="/updates-media/updates-clips.webp" width="720" height="500" loading="lazy" decoding="async" alt="Usage clip: 📣 Updates entries can now show a short usage clip of the feature. It plays inline as you scroll the panel, and a click opens it large. The changelog page links each clip too." /></a></li>
+        <li id="u-2026-10-08-73c14f68b886">New ⚖️ Decide node: ask a decision model one typed question — pick the best of up to 4 images, choose a label, score on a scale, or yes/no — and get probabilities back for a fraction of a cent. Turn on the yes/no gate to stop the rest of the run (unbilled) when the answer is no.<a class="clip" href="/updates-media/decide-node.mp4" title="Play the usage clip"><img src="/updates-media/decide-node.webp" width="720" height="570" loading="lazy" decoding="async" alt="Usage clip: New ⚖️ Decide node: ask a decision model one typed question — pick the best of up to 4 images, choose a label, score on a scale, or yes/no — and get probabilities back for a fraction of a cent. Turn on the yes/no gate to stop the rest of the run (unbilled) when the answer is no." /></a></li>
       </ul>
     </section>
     <section>
       <h2 id="d-2026-10-06"><a href="#d-2026-10-06">6 October 2026</a></h2>
       <ul>
-        <li id="u-2026-10-06-9e91a9d9d82c">MiniMax H3 with a LoRA and reference images now includes $0.02 per reference in the estimate (it used to leave that out).</li>
+        <li id="u-2026-10-06-9e91a9d9d82c">MiniMax H3 with a LoRA and reference images now includes $0.02 per reference in the estimate (it used to leave that out).<a class="clip" href="/updates-media/h3-lora-ref-quote.mp4" title="Play the usage clip"><img src="/updates-media/h3-lora-ref-quote.webp" width="720" height="450" loading="lazy" decoding="async" alt="Usage clip: MiniMax H3 with a LoRA and reference images now includes $0.02 per reference in the estimate (it used to leave that out)." /></a></li>
         <li id="u-2026-10-06-26db3e151cf7">Describe changes keeps your custom node titles (it used to reset them to Text, LLM, Image), and model pickers now open scrolled to the model you&#39;re using.</li>
-        <li id="u-2026-10-06-496967b1cb31">Describe changes and Customize now write your edits with GPT 6.1 Sol at medium reasoning effort by default. If you already picked a model, it stays picked.</li>
+        <li id="u-2026-10-06-496967b1cb31">Describe changes and Customize now write your edits with GPT 6.1 Sol at medium reasoning effort by default. If you already picked a model, it stays picked.<a class="clip" href="/updates-media/describe-default-gpt-6.1-sol.mp4" title="Play the usage clip"><img src="/updates-media/describe-default-gpt-6.1-sol.webp" width="720" height="450" loading="lazy" decoding="async" alt="Usage clip: Describe changes and Customize now write your edits with GPT 6.1 Sol at medium reasoning effort by default. If you already picked a model, it stays picked." /></a></li>
         <li id="u-2026-10-06-c80388ec08e5">Kandinsky 6 Lite and Pro now show their real per-clip price before you send: $0.16 and $1.35 from a prompt, $0.17 and $1.40 from a starting image. The estimate used to read $25.</li>
         <li id="u-2026-10-06-51fa300fa6b2">New video models: Kandinsky 6 Lite &amp; Kandinsky 6 Pro — Create short videos with synchronized sound from a prompt or animate a starting image. Lite is built for quick drafts; Pro supports more detailed scene direction and camera movement.</li>
         <li id="u-2026-10-06-613cd3b8b652">New video model: AI Video Captioner — Turn talking videos into captioned clips with animated word timing, keyword highlights and emoji.</li>
@@ -118,7 +127,7 @@
     <section>
       <h2 id="d-2026-10-05"><a href="#d-2026-10-05">5 October 2026</a></h2>
       <ul>
-        <li id="u-2026-10-05-c2761e7e54c6">Grok Imagine Video 1.5 Lite (and MiniMax H3 Max Turbo Extend) now update the pre-send estimate with duration and resolution, matching NanoGPT&#39;s generation quote. A 15s 1080p clip no longer shows the $0.02 floor.</li>
+        <li id="u-2026-10-05-c2761e7e54c6">Grok Imagine Video 1.5 Lite (and MiniMax H3 Max Turbo Extend) now update the pre-send estimate with duration and resolution, matching NanoGPT&#39;s generation quote. A 15s 1080p clip no longer shows the $0.02 floor.<a class="clip" href="/updates-media/grok-imagine-video-lite-quote.mp4" title="Play the usage clip"><img src="/updates-media/grok-imagine-video-lite-quote.webp" width="720" height="420" loading="lazy" decoding="async" alt="Usage clip: Grok Imagine Video 1.5 Lite (and MiniMax H3 Max Turbo Extend) now update the pre-send estimate with duration and resolution, matching NanoGPT&#39;s generation quote. A 15s 1080p clip no longer shows the $0.02 floor." /></a></li>
         <li id="u-2026-10-05-c2aafa8ae422">New LLM models: Apex Flash 1 &amp; Apex Flash 1 Abliterated — Apex Flash 1 and Apex Flash 1 Abliterated are now available and included in the subscription. These cybersecurity finetunes of GLM 5.3 Flash support code investigation, reasoning, and tool use.</li>
       </ul>
     </section>
@@ -156,7 +165,7 @@
     <section>
       <h2 id="d-2026-09-30"><a href="#d-2026-09-30">30 September 2026</a></h2>
       <ul>
-        <li id="u-2026-09-30-eceaab50d303">New 🧊 3D model node — NanoGPT&#39;s 3D models (default Tripo 2.5), drop or upload a .glb, 3D wires, a lazy orbit viewer, and a Teapot → Tripo teaching example you can spin.</li>
+        <li id="u-2026-09-30-eceaab50d303">New 🧊 3D model node — NanoGPT&#39;s 3D models (default Tripo 2.5), drop or upload a .glb, 3D wires, a lazy orbit viewer, and a Teapot → Tripo teaching example you can spin.<a class="clip" href="/updates-media/3d-model-node.mp4" title="Play the usage clip"><img src="/updates-media/3d-model-node.webp" width="720" height="796" loading="lazy" decoding="async" alt="Usage clip: New 🧊 3D model node — NanoGPT&#39;s 3D models (default Tripo 2.5), drop or upload a .glb, 3D wires, a lazy orbit viewer, and a Teapot → Tripo teaching example you can spin." /></a></li>
         <li id="u-2026-09-30-1a59ce8593f3">MiniMax H3 Singularity (and the other H3 models that only publish a minimum) now update the pre-send estimate with duration and resolution, matching NanoGPT&#39;s generation quote. A 15s clip no longer stays stuck on the short-clip floor.</li>
         <li id="u-2026-09-30-e39acbb1e9fe">New LLM model: Ling 3.1 Flash — Ling 3.1 Flash is now available and included in the subscription.</li>
         <li id="u-2026-09-30-700588c8887e">New video model: Pixelcut Looping Video — Turn one product photo into a seamless video loop with a locked camera and subtle ambient movement or a full 360° spin.</li>

@@ -10,7 +10,7 @@
 //
 // updates.json is the single source of truth (fed by the "Update:" commit-line
 // convention + the daily model-updates cron). Entry shape: { date: "YYYY-MM-DD",
-// text: "…", i18n: {es,fr,de,pt,ja} }. This page renders the English text; the
+// text: "…", i18n: {es,fr,de,pt,ja}, media?: {src,poster,w,h} }. This page renders the English text; the
 // localized strings stay in-app (the 📣 Updates panel).
 //
 // Deterministic by design: output depends ONLY on updates.json (no Date.now()),
@@ -77,6 +77,23 @@ const linkifyHtml = (s) =>
       : escHtml(part))
     .join("");
 
+// An entry's optional usage clip (media:{src,poster,w,h}, files under updates-media/,
+// validated by check-updates.mjs + check-updates-media.mjs). The page has zero
+// scripts and no media-src, so it shows the lazy poster image linking to the mp4
+// (the browser plays it on click) rather than an inline <video>.
+const MEDIA_RE = /^updates-media\/[a-z0-9][a-z0-9._-]*\.(mp4|webp|png|jpg)$/;
+function clipHtml(e) {
+  const m = e.media;
+  if (m === undefined) return "";
+  if (!m || !MEDIA_RE.test(m.src || "") || !/\.mp4$/.test(m.src) || !MEDIA_RE.test(m.poster || "") ||
+      !(Number.isInteger(m.w) && m.w > 0 && Number.isInteger(m.h) && m.h > 0)) {
+    console.error(`✗ gen-changelog: bad media on ${e.date} "${e.text.slice(0, 60)}" — run node scripts/check-updates.mjs`);
+    process.exit(1);
+  }
+  return `<a class="clip" href="/${m.src}" title="Play the usage clip">` +
+    `<img src="/${m.poster}" width="${m.w}" height="${m.h}" loading="lazy" decoding="async" alt="Usage clip: ${escHtml(e.text)}" /></a>`;
+}
+
 const MONTHS = ["January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"];
 function humanDate(iso) {
@@ -103,7 +120,7 @@ const sections = byDate
     ({ date, items }) => `    <section>
       <h2 id="d-${date}"><a href="#d-${date}">${humanDate(date)}</a></h2>
       <ul>
-${items.map((e) => `        <li id="u-${e.slug}">${linkifyHtml(e.text)}</li>`).join("\n")}
+${items.map((e) => `        <li id="u-${e.slug}">${linkifyHtml(e.text)}${clipHtml(e)}</li>`).join("\n")}
       </ul>
     </section>`
   )
@@ -184,6 +201,14 @@ const html = `<!doctype html>
   ul{ margin:0 0 1rem; padding-left:1.2rem; }
   li{ margin:.45rem 0; color:#cdd3df; scroll-margin-top:1rem; }
   li:target{ color:var(--ink); }
+  a.clip{ display:block; position:relative; width:min(100%,320px); margin:.5rem 0 .2rem; border:1px solid var(--line);
+          border-radius:.55rem; overflow:hidden; line-height:0; background:#000; }
+  a.clip:hover{ border-color:var(--accent); }
+  a.clip img{ display:block; width:100%; height:auto; }
+  a.clip::after{ content:"▶"; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:2.6rem; height:2.6rem;
+          border-radius:50%; background:#0b0d12cc; border:1px solid #3a425a; color:var(--ink); font-size:1rem; line-height:2.6rem;
+          text-align:center; }
+  a.clip:hover::after{ border-color:var(--accent); }
 
   footer{ border-top:1px solid var(--line); color:var(--dim); font-size:.82rem; padding:1.1rem 0 .3rem;
           display:flex; gap:.4rem 1rem; flex-wrap:wrap; align-items:center; }

@@ -38,11 +38,12 @@ self.addEventListener("fetch", (e) => {
   e.respondWith(
     fetch(req)
       .then((res) => {
-        // Only cache successful, same-origin ("basic"), query-less responses.
+        // Only cache full (200, not a 206 video Range slice — cache.put rejects those),
+        // same-origin ("basic"), query-less responses.
         // Skips error pages served mid-deploy (no stale-error pinning) and any
         // query-string navigation — notably the OAuth return (/?code=…&state=…),
         // which would otherwise leave one unbounded cache entry per login.
-        if (res.ok && res.type === "basic" && !new URL(req.url).search) {
+        if (res.status === 200 && res.type === "basic" && !new URL(req.url).search) {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put(req, copy));
         }

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Validate updates.json: a newest-first array of
-//   { date:"YYYY-MM-DD", text:"one line", i18n?:{ es,fr,de,pt,ja:"one line" } }.
+//   { date:"YYYY-MM-DD", text:"one line", i18n?:{ es,fr,de,pt,ja:"one line" },
+//     media?:{ src:"updates-media/x.mp4", poster:"updates-media/x.webp", w, h } }.
 // The pre-commit hook runs this when updates.json is staged, so a malformed hand
 // edit can't ship and break the in-app Updates changelog.
 //
@@ -18,6 +19,9 @@ import { dirname, join } from "node:path";
 // Editor UI languages that an entry's i18n object must cover, in full, when set.
 // Keep in sync with index.html's I18N_LANGS (es/fr/de/pt/ja).
 const LANGS = ["es", "fr", "de", "pt", "ja"];
+// Same-origin clip paths only (deployed folder, no traversal). Mirrors index.html's
+// UPD_MEDIA_RE and gen-changelog.mjs's MEDIA_RE.
+const MEDIA_RE = /^updates-media\/[a-z0-9][a-z0-9._-]*\.(mp4|webp|png|jpg)$/;
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const file = join(root, "updates.json");
@@ -41,6 +45,20 @@ if (!Array.isArray(list)) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(e.date || "")) errs.push(`#${i}: date must be YYYY-MM-DD`);
     if (typeof e.text !== "string" || !e.text.trim()) errs.push(`#${i}: text must be a non-empty string`);
     else if (/[\r\n]/.test(e.text)) errs.push(`#${i}: text must be a single line`);
+
+    // Optional usage clip — language-neutral, so one per entry (not per i18n lang).
+    // Shape only here; scripts/check-updates-media.mjs checks the files themselves.
+    if (e.media !== undefined) {
+      const m = e.media;
+      if (typeof m !== "object" || m === null || Array.isArray(m)) errs.push(`#${i}: media must be an object { src, poster, w, h }`);
+      else {
+        const extraM = Object.keys(m).filter(k => !["src", "poster", "w", "h"].includes(k));
+        if (extraM.length) errs.push(`#${i}: media has unknown key(s): ${extraM.join(", ")}`);
+        if (!MEDIA_RE.test(m.src || "") || !/\.mp4$/.test(m.src)) errs.push(`#${i}: media.src must be updates-media/<name>.mp4`);
+        if (!MEDIA_RE.test(m.poster || "") || /\.mp4$/.test(m.poster)) errs.push(`#${i}: media.poster must be updates-media/<name>.webp (or .png/.jpg)`);
+        if (!(Number.isInteger(m.w) && m.w > 0 && Number.isInteger(m.h) && m.h > 0)) errs.push(`#${i}: media.w / media.h must be positive integers (the clip's pixel size)`);
+      }
+    }
 
     if (e.i18n === undefined) { untranslated.push(i); return; }
     if (typeof e.i18n !== "object" || e.i18n === null || Array.isArray(e.i18n)) {
