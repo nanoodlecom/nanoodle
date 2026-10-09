@@ -1,5 +1,5 @@
-/* data-hash=3b6e04233cf08498 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-88ceeef6dbcc (16 modules) */
+/* data-hash=d3cca8265d3c66f9 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-7ca30f4bda98 (17 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -81,14 +81,30 @@ function throwIfAborted(signal) {
 }
 
 /** The outcome of Workflow.run(). Media values are MediaRef; text values plain strings. */
+/** Internal: thrown by a node skipped behind a closed gate, so ITS dependents skip too. Never surfaced. */
+class GateSkip extends Error {
+  constructor(gatedBy) { super("skipped — a gate upstream said no"); this.gatedBy = gatedBy; }
+}
+
 class RunResult {
-  constructor({ outputs, nodes, errors, costUsd, costExact, remainingBalance }) {
-    /** { [friendlyKey | nodeId]: value } — sink node primary outputs */
+  constructor({ outputs, nodes, errors, gated = [], costUsd, costExact, remainingBalance }) {
+    /** { [friendlyKey | nodeId]: value } — sink node primary outputs (a sink skipped by a closed gate has none) */
     this.outputs = outputs;
-    /** per-node { status: "done"|"error"|"skipped", out, error, costUsd, ms } */
+    /**
+     * per-node { status: "done"|"error"|"gated"|"skipped", out, error, costUsd, ms }.
+     * "gated": a ⚖️ Decide yes/no gate that answered no — it ran and billed, `out` holds its answer
+     * ({ text: "no", decision }), and it carries `gate: { yes, message }`. Not an error.
+     * "skipped" + `gatedBy: <decide node id>`: downstream of a closed gate — never ran, never billed.
+     * (Annotation notes are "skipped" with no gatedBy.)
+     */
     this.nodes = nodes;
-    /** [{ nodeId, name, message }] for every node that failed (incl. non-sink warnings) */
+    /** [{ nodeId, name, message }] for every node that failed (incl. non-sink warnings) — never gates */
     this.errors = errors;
+    /**
+     * [{ nodeId, name, message, yes, skipped: [nodeId…] }] — every Decide gate that closed this run.
+     * A closed gate is a deliberate, successful outcome: run() resolves, it never throws for one.
+     */
+    this.gated = gated;
     /** summed USD cost of all calls that reported one */
     this.costUsd = costUsd;
     /** false when any network call omitted its price (total is a floor) */
@@ -105,6 +121,8 @@ class RunResult {
     for (const k of Object.keys(this.outputs)) {
       if (k.toLowerCase() === norm) return this.outputs[k];
     }
+    const g = (this._gatedOutputs || []).find((o) => o.key.toLowerCase() === norm || o.nodeId.toLowerCase() === norm);
+    if (g) throw new NanoodleError(`output "${g.key}" was skipped — the gate "${g.gateName}" answered no, so it never ran (see result.gated)`, { code: "gated" });
     throw new NanoodleError(`no output "${key}" — available outputs: ${Object.keys(this.outputs).map((k) => `"${k}"`).join(", ") || "(none)"}`);
   }
 }
@@ -308,6 +326,7 @@ class Workflow {
       const io = { onCost, onPoll, signal: ac.signal };
       return {
         chat: (messages, model, opts) => this.client.chat(messages, model, opts, io),
+        decide: (body) => this.client.decide(body, io),
         image: (args) => this.client.image(args, io),
         video: (model, prompt, opts, imageDataUrl) => this.client.video(model, prompt, opts, imageDataUrl, io),
         audio: (model, input, extra) => this.client.audio(model, input, extra, io),
@@ -321,6 +340,15 @@ class Workflow {
       };
     };
 
+    const gated = [];
+    // a node whose upstream settled as a closed gate (or was itself skipped by one) → that gate's id
+    const gateOf = (id) => {
+      const r = nodesRec[id];
+      if (!r) return null;
+      if (r.status === "gated") return id;
+      if (r.status === "skipped" && r.gatedBy) return r.gatedBy;
+      return null;
+    };
     const execNode = async (n) => {
       const rec = nodesRec[n.id];
       try {
@@ -328,18 +356,31 @@ class Workflow {
         const inbound = graph.links.filter((l) => l.to.node === n.id);
         const inp = {};
         let fields = effFields.get(n.id);
-        let upstreamFail = null;
+        let upstreamFail = null, gatedBy = null;
         for (const l of inbound) {
           let srcOut;
           try { srcOut = await promises.get(l.from.node); }
-          catch { if (!upstreamFail) upstreamFail = displayName(byId.get(l.from.node)); continue; }
+          catch {
+            const g = gateOf(l.from.node);
+            if (g) { if (!gatedBy) gatedBy = g; } else if (!upstreamFail) upstreamFail = displayName(byId.get(l.from.node));
+            continue;
+          }
           const v = srcOut[l.from.port];
           if (isInputPort(n, l.to.port)) inp[l.to.port] = v;
           // wired textarea port = field override; a missing upstream port (degraded save) must
           // NOT clobber the typed field with undefined — the app only applies v != null
           else if (v != null) fields = { ...fields, [l.to.port]: v };
         }
+        // a real failure upstream wins over a gate (the browser runners agree): that is an error
         if (upstreamFail) throw new NanoodleError("upstream failed: " + upstreamFail);
+        if (gatedBy) {
+          rec.status = "skipped";
+          rec.gatedBy = gatedBy;
+          const gr = gated.find((x) => x.nodeId === gatedBy);
+          if (gr) gr.skipped.push(n.id);
+          emit({ type: "node-skipped", nodeId: n.id, name: displayName(n), reason: "gated", gatedBy });
+          throw new GateSkip(gatedBy);
+        }
         throwIfAborted(ac.signal);
         // Prompt length caps (see prompt-caps.mjs). Many image/video models reject an over-long
         // prompt at the route, and in a graph the prompt is WRITTEN by an upstream LLM — so a
@@ -363,6 +404,16 @@ class Workflow {
         emit({ type: "node-done", nodeId: n.id, name: displayName(n), ms: rec.ms, costUsd: rec.costUsd });
         return out;
       } catch (e) {
+        if (e instanceof GateSkip) throw e;
+        // ⚖️ Decide gate answered no: a settled, billed decision — not an error. Downstream skips.
+        if (e && e.gate === true && !ac.signal.aborted) {
+          rec.status = "gated";
+          rec.out = e.out || null;
+          rec.gate = { yes: e.decision && typeof e.decision.yes === "number" ? e.decision.yes : null, message: e.message };
+          gated.push({ nodeId: n.id, name: displayName(n), message: e.message, yes: rec.gate.yes, skipped: [] });
+          emit({ type: "node-gated", nodeId: n.id, name: displayName(n), message: e.message, yes: rec.gate.yes, costUsd: rec.costUsd });
+          throw e;
+        }
         // A prompt-length rejection is free (nothing generated) and, once banked, preventable: the
         // next run budgets the LLM above this node and fits whatever is left. Say that, rather than
         // relaying "please shorten it" about a prompt the caller never wrote.
@@ -393,7 +444,7 @@ class Workflow {
     const outputsMap = {};
     for (const o of this.outputs) {
       const rec = nodesRec[o.nodeId];
-      if (!rec || rec.status !== "done") continue;
+      if (!rec || !(rec.status === "done" || (rec.status === "gated" && rec.out))) continue;
       const primary = o.ports[0];
       const value = this._wrapValue(rec.out[primary.name], primary.type);
       outputsMap[o.key] = value;
@@ -403,9 +454,16 @@ class Workflow {
       outputs: outputsMap,
       nodes: nodesRec,
       errors,
+      gated,
       costUsd: cost.total,
       costExact: cost.exact,
       remainingBalance: cost.balance,
+    });
+    // sinks a closed gate skipped: get() names the gate instead of "no output"
+    Object.defineProperty(result, "_gatedOutputs", {
+      enumerable: false,
+      value: this.outputs.filter((o) => nodesRec[o.nodeId] && nodesRec[o.nodeId].gatedBy)
+        .map((o) => ({ key: o.key, nodeId: o.nodeId, gateName: displayName(byId.get(nodesRec[o.nodeId].gatedBy)) })),
     });
 
     // timeout/abort must fail the run even when local media finished after the deadline
@@ -939,6 +997,19 @@ class NanoClient {
     return out;
   }
 
+  /**
+   * POST /api/v1/decisions (⚖️ Decide). Returns the JSON ({ answers, usage:{ input_tokens, output_tokens, cost } }).
+   * Decision models bill input tokens only; the real price rides usage.cost.
+   */
+  async decide(body, { onCost, signal } = {}) {
+    const r = await this._postJson("/api/v1/decisions", body, signal);
+    if (!r.ok) throw httpError(r.status, await r.text());
+    const j = await r.json();
+    const c = j && j.usage && typeof j.usage.cost === "number" ? j.usage.cost : null;
+    if (onCost) onCost(costWithHeaders(c != null ? { ...j, cost: c } : j, r));
+    return j;
+  }
+
   /** POST /v1/images/generations (NOTE: not /api/v1). Returns data: / https URL(s). */
   async image({ prompt, model, size, imageDataUrl, maskDataUrl, extra, n = 1, multi = false }, { onCost, signal } = {}) {
     const body = { model, size: size || "1024x1024", n, response_format: "b64_json" };
@@ -1160,7 +1231,7 @@ const { NanoodleError } = __req("errors.mjs");
 /* Dynamic input-port families (mirrors the nanoodle app's runGraph). A wire landing on one of
    these ports — or on a port declared in NODE_TYPES[type].inputs — is a data input; a wire
    landing on ANY other port is a field override (wired prompt/system/lyrics/q/...). */
-const IMG_PORT_RE = /^img\d+$/;      // llm vision references
+const IMG_PORT_RE = /^img\d+$/;      // llm vision references, decide candidates
 const EDIT_IMG_RE = /^image\d*$/;    // edit multi-reference: image, image2, ...
 const VID_PORT_RE = /^vid\d+$/;
 const CLIP_PORT_RE = /^clip\d+$/;    // combine clips
@@ -1205,6 +1276,7 @@ const NODE_TYPES = {
   inpaint: { title: "Inpaint",         inputs: ["image", "mask"], outputs: [{ name: "image", type: "image" }], network: true },
   resize:  { title: "Resize / crop",   inputs: ["image"], outputs: [{ name: "image", type: "image" }], local: true },
   vision:  { title: "Vision",          inputs: ["image"], outputs: [{ name: "text", type: "text" }], network: true },
+  decide:  { title: "Decide",          inputs: ["text"], outputs: [{ name: "text", type: "text" }, { name: "image", type: "image" }], network: true }, // img1… candidates (IMG_PORT_RE)
   tvideo:  { title: "Text→Video",      inputs: [], outputs: [{ name: "video", type: "video" }], network: true },
   ivideo:  { title: "Image→Video",     inputs: ["image"], outputs: [{ name: "video", type: "video" }], network: true },
   vedit:   { title: "Video edit",      inputs: ["video"], outputs: [{ name: "video", type: "video" }], network: true },
@@ -1354,7 +1426,8 @@ const { NanoodleError } = __req("errors.mjs");
 const { catItem, chatModelCan, pricingAdvertisesRefs } = __req("catalog.mjs");
 const { IMG_PORT_RE, EDIT_IMG_RE, REF_PORT_RE, CLIP_PORT_RE, VID_PORT_RE, optionalNode } = __req("graph.mjs");
 const { MEDIA_INLINE_MAX } = __req("media.mjs");
-const { resizeCropImage, trimAudioToWav, extractAudioToWav, extractVideoFrames, concatVideos, muxSoundtrack, maskToSource, fitImageInline } = __req("local-media.mjs");
+const { resizeCropImage, trimAudioToWav, extractAudioToWav, extractVideoFrames, concatVideos, muxSoundtrack, maskToSource, fitImageInline, fitImageJpeg } = __req("local-media.mjs");
+const { decideRun, decideImageLimits } = __req("decide.mjs");
 
 function mdl(n) {
   const m = String((n.fields && n.fields.model) || "").trim();
@@ -1973,6 +2046,17 @@ const RUNNERS = {
     return { text: await ctx.chat(messages, mdl(n), {}) };
   },
 
+  // ⚖️ Decide: one typed question to a NanoGPT decision model (twin of the editor/play node).
+  // A closed yes/no gate throws a NanoodleError with code "decide-gate" — downstream skips, unbilled.
+  async decide(n, inp, ctx) {
+    const model = mdl(n);
+    const it = catItem(ctx.catalog, "chat", model);
+    // a catalog row WITHOUT decision_input (e.g. the non-detailed /api/v1/models list) is "unknown", not text-only
+    const lim = decideImageLimits(it && it.decision_input, !!(it && it.decision_input));
+    const fit = (u, maxDim, budget) => fitImageJpeg(u, maxDim, budget, mediaOpts(ctx));
+    return decideRun(n.fields || {}, model, inp.text, collectPorts(inp, IMG_PORT_RE), lim, (body) => ctx.decide(body), fit);
+  },
+
   async image(n, inp, ctx) {
     const prompt = promptOf(n, inp, "no prompt");
     let want = Math.max(1, parseInt(n.fields.variations, 10) || 1);
@@ -2366,6 +2450,14 @@ const SETTING_SPECS = {
   vision: [
     { f: "model", label: "Model", kind: "model" },
     { f: "q", label: "Question", kind: "textarea", def: "Describe this image." },
+  ],
+  decide: [
+    { f: "model", label: "Model", kind: "model" },
+    { f: "mode", label: "Decide", kind: "select", options: ["pick", "choose", "score", "yesno"], def: "pick" },
+    { f: "question", label: "Question", kind: "textarea" },
+    { f: "options", label: "Labels (one per line)", kind: "textarea" },
+    { f: "levels", label: "Scale (worst → best, one per line)", kind: "textarea", def: "poor\nokay\ngood\ngreat" },
+    { f: "gate", label: "Gate: stop downstream on no", kind: "boolean" },
   ],
   image: [
     { f: "model", label: "Model", kind: "model" },
@@ -3492,6 +3584,44 @@ async function fitImageInline(url, { budget = INLINE_IMAGE_BUDGET, fetch: fetchF
   throw new NanoodleError("image is too large to send inline even after resizing (~4 MB max) — use a smaller image");
 }
 
+/**
+ * Shrink an image to fit a decision model's limits (⚖️ Decide): long edge ≤ maxDim and the
+ * data: URL ≤ budget characters. JPEG on white (a transparent PNG can't turn black), stepping
+ * quality down, then size, until it fits — the twin of the browser's canvas decideFitImage.
+ * Needs ffmpeg (decisions without images never touch this).
+ */
+async function fitImageJpeg(url, maxDim, budget, { fetch: fetchFn, signal } = {}) {
+  return withTemp(async (dir) => {
+    throwIfAborted(signal);
+    const inPath = await writeInput(dir, "in", url, fetchFn);
+    const probe = await runProc("ffprobe", [
+      "-v", "error", "-select_streams", "v:0",
+      "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x", inPath,
+    ], { signal });
+    const dims = String(probe.stdout).trim().split("x").map(Number);
+    const sw = dims[0], sh = dims[1];
+    if (!(sw > 0) || !(sh > 0)) throw new NanoodleError("couldn’t read an image to judge");
+    let s = Math.min(1, maxDim / Math.max(sw, sh));
+    const qs = [3, 5, 8, 12]; // mjpeg -q:v (2 = best … 31 = worst) ≈ canvas quality 0.85 → 0.48
+    for (let round = 0; round < 6; round++) {
+      const w = Math.max(2, Math.round(sw * s / 2) * 2), h = Math.max(2, Math.round(sh * s / 2) * 2);
+      for (const q of qs) {
+        throwIfAborted(signal);
+        const outPath = join(dir, `fit-${round}-${q}.jpg`);
+        await runProc("ffmpeg", [
+          "-y", "-i", inPath, "-filter_complex",
+          `color=c=white:s=${w}x${h}[bg];[0:v]scale=${w}:${h},format=rgba[fg];[bg][fg]overlay=shortest=1,format=yuvj420p`,
+          "-frames:v", "1", "-q:v", String(q), outPath,
+        ], { signal });
+        const out = await dataUrlFromFile(outPath, "image/jpeg");
+        if (out.length <= budget) return out;
+      }
+      s *= 0.75;
+    }
+    throw new NanoodleError("couldn’t shrink an image small enough for the decision model");
+  });
+}
+
 async function resizeCropImageFfmpeg(url, m, w, h, { fetch: fetchFn, signal } = {}) {
   return withTemp(async (dir) => {
     throwIfAborted(signal);
@@ -3824,7 +3954,7 @@ __x.MAX_FRAMES = MAX_FRAMES; __x.MAX_IMAGE_DIM = MAX_IMAGE_DIM; __x.MP4CAT = MP4
 // (pixel-level mask comparison + headless canvas shim). Not part of the stable API.
 __x.decodePng = decodePng; __x.encodePngRgba = encodePngRgba;
 
-__x.throwIfAborted = throwIfAborted; __x.resizePlan = resizePlan; __x.maskToSource = maskToSource; __x.encodeWavMono = encodeWavMono; __x.resizeCropImage = resizeCropImage; __x.INLINE_IMAGE_BUDGET = INLINE_IMAGE_BUDGET; __x.fitImageInline = fitImageInline; __x.trimAudioToWav = trimAudioToWav; __x.extractAudioToWav = extractAudioToWav; __x.extractVideoFrames = extractVideoFrames; __x.concatVideos = concatVideos; __x.muxSoundtrack = muxSoundtrack;
+__x.throwIfAborted = throwIfAborted; __x.resizePlan = resizePlan; __x.maskToSource = maskToSource; __x.encodeWavMono = encodeWavMono; __x.resizeCropImage = resizeCropImage; __x.INLINE_IMAGE_BUDGET = INLINE_IMAGE_BUDGET; __x.fitImageInline = fitImageInline; __x.fitImageJpeg = fitImageJpeg; __x.trimAudioToWav = trimAudioToWav; __x.extractAudioToWav = extractAudioToWav; __x.extractVideoFrames = extractVideoFrames; __x.concatVideos = concatVideos; __x.muxSoundtrack = muxSoundtrack;
 });
 __def("x402.mjs", function (__x, __req) {
 const { NanoodleError } = __req("errors.mjs");
@@ -4469,6 +4599,170 @@ function learnPromptCap(learned, node, msg) {
 
 __x.PROMPT_CAPS = PROMPT_CAPS; __x.promptCap = promptCap; __x.fitPromptText = fitPromptText; __x.withFittedPrompt = withFittedPrompt; __x.isPromptTooLong = isPromptTooLong; __x.promptCapFromError = promptCapFromError; __x.learnPromptCap = learnPromptCap;
 });
+__def("decide.mjs", function (__x, __req) {
+// ⚖️ Decide — typed judgments from NanoGPT decision models (POST /api/v1/decisions).
+// Port of the editor/play twin block (nanoodle index.html / play.html "⚖️ DECIDE"): same
+// question shapes, same image state parts, same in-order + reversed pick debias, same
+// outputs. Only the on-device image shrink differs: browsers use canvas, this library
+// uses ffmpeg (fitImageJpeg) — text-only decisions need no ffmpeg at all.
+const { NanoodleError } = __req("errors.mjs");
+
+const DECIDE_DEFAULT_MODEL = "perplexity/pplx-decider-v1.1-27b";
+const DECIDE_SCALE_DEFAULT = "poor\nokay\ngood\ngreat";
+/** The live limits of every image-capable decision model at launch (catalog decision_input.image_limits). */
+const DECIDE_IMG_FALLBACK = { maxImages: 4, maxDimension: 512, maxEncodedBytes: 240000 };
+
+function decideMode(f) {
+  const m = f && f.mode;
+  return (m === "choose" || m === "score" || m === "yesno") ? m : "pick";
+}
+function decideLines(s) {
+  return String(s == null ? "" : s).split("\n").map((x) => x.trim()).filter(Boolean);
+}
+function decideDefaultQuestion(mode) {
+  if (mode === "pick") return "Which image best matches the brief?";
+  if (mode === "choose") return "Which label fits best?";
+  if (mode === "score") return "How good is it?";
+  return "Is it good enough to use?";
+}
+/** Image limits from a catalog decision_input; known=false (absent / offline) → permissive launch limits; known text-only → null. */
+function decideImageLimits(di, known) {
+  if (!known) return DECIDE_IMG_FALLBACK;
+  if (!di || !di.image_input) return null;
+  const l = di.image_limits || {};
+  return {
+    maxImages: l.maxImages > 0 ? l.maxImages : DECIDE_IMG_FALLBACK.maxImages,
+    maxDimension: l.maxDimension > 0 ? l.maxDimension : DECIDE_IMG_FALLBACK.maxDimension,
+    maxEncodedBytes: l.maxEncodedBytes > 0 ? l.maxEncodedBytes : DECIDE_IMG_FALLBACK.maxEncodedBytes,
+  };
+}
+/** The one typed question this node asks. Throws (before any request) on an unanswerable setup. */
+function decideQuestionFor(mode, f, nImgs) {
+  const q = String((f && f.question) || "").trim() || decideDefaultQuestion(mode);
+  if (mode === "pick") {
+    if (nImgs < 2) throw new NanoodleError("pick needs at least two images — wire 2 or more into the image ports");
+    const c = {};
+    for (let i = 1; i <= nImgs; i++) c["image_" + i] = "image " + i;
+    return { type: "choice", instructions: q, criteria: c };
+  }
+  if (mode === "choose") {
+    const labels = decideLines(f && f.options).filter((x, i, a) => a.indexOf(x) === i);
+    if (labels.length < 2) throw new NanoodleError("add at least two labels to choose from (one per line)");
+    if (labels.length > 255) throw new NanoodleError("too many labels — 255 at most");
+    const cc = {};
+    labels.forEach((x) => { cc[x] = null; });
+    return { type: "choice", instructions: q, criteria: cc };
+  }
+  if (mode === "score") {
+    const lv = decideLines((f && f.levels != null && String(f.levels).trim()) ? f.levels : DECIDE_SCALE_DEFAULT);
+    if (lv.length < 2 || lv.length > 10) throw new NanoodleError("the scale needs 2 to 10 levels, worst first (one per line)");
+    return { type: "score", instructions: q, criteria: lv };
+  }
+  return { type: "noul", instructions: q };
+}
+/** state: plain text, or (with images) text + labelled inline image_url parts. */
+function decideState(text, imgs) {
+  if (!imgs.length) return text;
+  const s = [];
+  if (text) s.push(text);
+  imgs.forEach((u, i) => {
+    if (imgs.length > 1) s.push("image_" + (i + 1) + ":");
+    s.push({ type: "image_url", image_url: { url: u } });
+  });
+  return s;
+}
+/** API answer → node outputs: text, image (pick: the winner; else the first image, passed through), decision detail. */
+function decideOutputs(mode, ans, q, imgs, usage, model) {
+  if (!ans || !ans.type) throw new NanoodleError("the decision model returned no answer");
+  const d = { mode, model, cost: (usage && typeof usage.cost === "number") ? usage.cost : null, rows: [] };
+  const probs = ans.probabilities || {};
+  if (mode === "pick") {
+    const k = String(ans.choice || ""), idx = parseInt(k.replace(/^image_/, ""), 10) || 1;
+    d.pick = idx; d.confidence = ans.confidence;
+    d.rows = Object.keys(q.criteria).map((key, i) => ({ label: "image " + (i + 1), p: +probs[key] || 0, win: key === k }));
+    return { text: "image " + idx, image: imgs[idx - 1] || "", decision: d };
+  }
+  if (mode === "choose") {
+    d.confidence = ans.confidence;
+    d.rows = Object.keys(q.criteria).map((key) => ({ label: key, p: +probs[key] || 0, win: key === ans.choice }));
+    return { text: String(ans.choice || ""), image: imgs[0] || "", decision: d };
+  }
+  if (mode === "score") {
+    const sc = (+ans.score || 0) + 1; // 1 = the first (worst) level
+    d.score = sc; d.levels = q.criteria.length; d.confidence = ans.confidence;
+    let top = 0;
+    q.criteria.forEach((x, i) => { if ((+probs[String(i)] || 0) > (+probs[String(top)] || 0)) top = i; });
+    d.rows = q.criteria.map((x, i) => ({ label: (i + 1) + " · " + x, p: +probs[String(i)] || 0, win: i === top }));
+    return { text: String(Math.round(sc * 100) / 100), image: imgs[0] || "", decision: d };
+  }
+  const py = Math.max(0, Math.min(1, +ans.noul || 0));
+  d.yes = py;
+  d.rows = [{ label: "yes", p: py, win: py >= 0.5 }, { label: "no", p: 1 - py, win: py < 0.5 }];
+  return { text: py >= 0.5 ? "yes" : "no", image: imgs[0] || "", decision: d };
+}
+/**
+ * A closed yes/no gate: a deliberate stop, not a failure. The runner throws this (so the browser
+ * twin and any direct RUNNERS caller see err.gate), and Workflow.run() settles it as node status
+ * "gated" — the decision ran and billed, `out` carries its answer, everything downstream is
+ * "skipped" unbilled, and the run itself succeeds.
+ */
+function decideGateError(d, out) {
+  return new NanoodleError(
+    "gate closed — the answer was no (yes " + Math.round(d.yes * 100) + "%), so nothing downstream ran",
+    { code: "decide-gate", gate: true, decision: d, out: out || null });
+}
+/** Average pick probabilities across runs that saw the candidates in different orders; costs add up. */
+function decideMergeOrders(js, orders) {
+  const n = orders[0].length, sum = new Array(n).fill(0);
+  let cost = 0, costKnown = true;
+  js.forEach((j, r) => {
+    const a = j && j.answers && j.answers.answer;
+    if (!a || !a.probabilities) throw new NanoodleError("the decision model returned no answer");
+    orders[r].forEach((orig, k) => { sum[orig] += (+a.probabilities["image_" + (k + 1)] || 0) / js.length; });
+    if (j.usage && typeof j.usage.cost === "number") cost += j.usage.cost; else costKnown = false;
+  });
+  let best = 0;
+  const probs = {};
+  sum.forEach((p, i) => { probs["image_" + (i + 1)] = p; if (p > sum[best]) best = i; });
+  return {
+    answers: { answer: { type: "choice", choice: "image_" + (best + 1), confidence: sum[best], probabilities: probs } },
+    usage: { cost: costKnown ? cost : null }, runs: js.length,
+  };
+}
+/**
+ * The whole run. send(body) POSTs /api/v1/decisions and returns the JSON; fit(url, maxDim, budget)
+ * returns a data: URL that fits (inlining remote URLs as needed).
+ */
+async function decideRun(f, model, text, imgs, lim, send, fit) {
+  const mode = decideMode(f);
+  text = String(text == null ? "" : text).trim();
+  imgs = (imgs || []).filter(Boolean);
+  if (imgs.length && !lim) throw new NanoodleError("this decision model can’t see images — pick one that can (e.g. PPLX Decider or Clef)");
+  if (lim && imgs.length > lim.maxImages) throw new NanoodleError("this decision model takes at most " + lim.maxImages + " images — unwire the extras");
+  const q = decideQuestionFor(mode, f, imgs.length);
+  if (!text && !imgs.length && !String((f && f.question) || "").trim()) throw new NanoodleError("nothing to judge — wire text or an image into Decide");
+  const sent = [];
+  if (imgs.length) {
+    const budget = Math.floor(lim.maxEncodedBytes * 0.95 / imgs.length);
+    for (const u of imgs) sent.push(await fit(u, lim.maxDimension, budget));
+  }
+  let j;
+  if (mode === "pick") {
+    // decision models lean toward the first image they see: ask in order and reversed, average
+    const fwd = sent.map((x, i) => i), rev = fwd.slice().reverse();
+    const both = await Promise.all([fwd, rev].map((ord) =>
+      send({ model, state: decideState(text, ord.map((i) => sent[i])), questions: { answer: q } })));
+    j = decideMergeOrders(both, [fwd, rev]);
+  } else {
+    j = await send({ model, state: decideState(text, sent), questions: { answer: q } });
+  }
+  const out = decideOutputs(mode, j && j.answers && j.answers.answer, q, imgs, j && j.usage, model);
+  if (mode === "yesno" && (f.gate === true || f.gate === "true") && out.decision.yes < 0.5) throw decideGateError(out.decision, out);
+  return out;
+}
+
+__x.DECIDE_DEFAULT_MODEL = DECIDE_DEFAULT_MODEL; __x.DECIDE_SCALE_DEFAULT = DECIDE_SCALE_DEFAULT; __x.DECIDE_IMG_FALLBACK = DECIDE_IMG_FALLBACK; __x.decideMode = decideMode; __x.decideLines = decideLines; __x.decideDefaultQuestion = decideDefaultQuestion; __x.decideImageLimits = decideImageLimits; __x.decideQuestionFor = decideQuestionFor; __x.decideState = decideState; __x.decideOutputs = decideOutputs; __x.decideGateError = decideGateError; __x.decideMergeOrders = decideMergeOrders; __x.decideRun = decideRun;
+});
 __def("zlib.mjs", function (__x, __req) {
 /**
  * Env-adaptive zlib: node:zlib in Node (dynamic import, cached), Compression/
@@ -4862,5 +5156,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-88ceeef6dbcc";
+  window.NanoodleEngine.version = "src-7ca30f4bda98";
 })();
