@@ -6556,12 +6556,37 @@ window.NoodleApp = (function () {
     const rows = Array.isArray(f.loras) ? f.loras : (String(f.loraUrl||"").trim() ? [{ url:f.loraUrl }] : []);
     return rows.some(r=> r && String(r.url||"").trim()!=="");
   }
-  function videoUnitUsd(pricing, fields, refWired, videoWired, nodeFilter){
+  // twin of the editor's videoAudioOn: an untouched audio switch is absent from modelOpts,
+  // and NanoGPT bills the catalog default (x402 2026-10-09: Seedance/Veo omit = on,
+  // PixVerse omit = off). An explicit false stays silent. No descriptor stays off.
+  function videoAudioOn(fields, audioCtx){
+    const f = fields || {};
+    const opts = (f.modelOpts && typeof f.modelOpts==="object") ? f.modelOpts : {};
+    let explicit = false;
+    for(const k in opts){
+      if(/audio/i.test(k) && !/^(no|disable|without|mute)/i.test(k)){
+        explicit = true;
+        const val = opts[k];
+        if(val===true||val==="true"||val===1||val==="1"||val==="on"||val==="yes") return true;
+      }
+    }
+    if(explicit) return false;
+    const ctx = audioCtx || {}, pp = ctx.params || {}, dflt = ctx.defaults || {};
+    for(const k of Object.keys(pp)){
+      const d = pp[k];
+      if(!d || typeof d!=="object") continue;
+      if(d.type!=="switch" && d.type!=="boolean") continue;
+      if(!/audio/i.test(k) || /^(no|disable|without|mute)/i.test(k)) continue;
+      const def = dflt[k]!=null ? dflt[k] : d.default;
+      return def===true||def==="true"||def===1||def==="1"||def==="on"||def==="yes";
+    }
+    return false;
+  }
+  function videoUnitUsd(pricing, fields, refWired, videoWired, nodeFilter, audioCtx){
     const p = pricing || {};
     const f = fields || {};
     const opts = (f.modelOpts && typeof f.modelOpts==="object") ? f.modelOpts : {};
-    let audioOn = false;
-    for(const k in opts){ if(/audio/i.test(k) && !/^(no|disable|without|mute)/i.test(k)){ const val=opts[k]; if(val===true||val==="true"||val===1||val==="1"||val==="on"||val==="yes"){ audioOn=true; break; } } }
+    const audioOn = videoAudioOn(f, audioCtx);   // untouched switch bills the catalog default; explicit false stays silent
     // refWired may be a boolean (legacy fixtures / "any refs?") or a count of wired refN ports.
     const refCount = typeof refWired==="number" ? Math.max(0, refWired|0) : (refWired ? 1 : 0);
     const refOn = refCount>0 || /reference/i.test(String(opts.mode||""));
@@ -6823,7 +6848,7 @@ window.NoodleApp = (function () {
         ? STATE.graph.links.filter(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port)).length : 0;
       // source-video input wired → extend-mode rates (FLUX.3) — twin of the editor.
       const videoWired = !!(STATE && STATE.graph && STATE.graph.links.some(l=> l.to.node===n.id && l.to.port==="video"));
-      const u = videoUnitUsd(pricing, videoPriceFields(pp, f), refCount, videoWired, t.modelFilter); return (u!=null && isFinite(u)) ? u : null; }
+      const u = videoUnitUsd(pricing, videoPriceFields(pp, f), refCount, videoWired, t.modelFilter, { params:pp, defaults:sp.defaults||{} }); return (u!=null && isFinite(u)) ? u : null; }
     if(n.type==="decide"){   // input tokens only — twin of the editor's Decide estimate (pick asks twice: in order + reversed)
       const imgs = (STATE && STATE.graph) ? STATE.graph.links.filter(l=> l.to.node===n.id && IMG_PORT_RE.test(l.to.port)).length : 0;
       const inTok = 120 + Math.round(((f.question||"").length + (f.options||"").length + (f.levels||"").length)/4) + 250 + imgs*400;
