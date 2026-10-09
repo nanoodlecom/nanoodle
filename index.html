@@ -249,6 +249,7 @@
   #updclipbox[hidden]{ display:none }
   #updclipbox{ position:fixed; inset:0; z-index:206; display:flex; align-items:center; justify-content:center;
                padding:min(4vh,2rem) min(4vw,2rem); background:rgba(4,6,11,.9); cursor:zoom-out }
+  #updclipbox video::cue{ font:500 clamp(14px,2vw,21px)/1.35 Inter,system-ui,sans-serif; color:#fff; background-color:rgba(11,13,18,.82) }
   #updclipbox video{ max-width:100%; max-height:100%; border-radius:.6rem; border:1px solid var(--line); box-shadow:0 30px 90px #000a; background:#000 }
   /* the 📣 Updates button's unseen badge */
   #updates{ position:relative }
@@ -16661,7 +16662,7 @@ async function openUpdates(){
 // Usage clips: an entry may carry media:{src,poster,w,h} (same-origin files under
 // updates-media/, checked by scripts/check-updates-media.mjs). w/h reserve the box;
 // poster + mp4 only load (and play) once the clip scrolls near view inside the panel.
-const UPD_MEDIA_RE = /^updates-media\/[a-z0-9][a-z0-9._-]*\.(mp4|webp|png|jpg)$/;
+const UPD_MEDIA_RE = /^updates-media\/[a-z0-9][a-z0-9._-]*\.(mp4|webp|png|jpg|vtt)$/;
 const updReduceMotion = ()=> { try{ return matchMedia("(prefers-reduced-motion: reduce)").matches; }catch{ return false; } };
 let updClipObs = null;
 function updClipObserver(){
@@ -16694,16 +16695,34 @@ function updClip(e){
   if(io) io.observe(clipVid); else { if(clipVid.dataset.poster) clipVid.poster = clipVid.dataset.poster; clipVid.src = m.src; }
   return btn;
 }
+// Enlarged view: narrated clips (media.audio) play once WITH sound — the click is the
+// user gesture that allows it; silent clips keep looping muted. Caption tracks come from
+// media.captions {lang: .vtt}; the one for the UI language shows unless that language is
+// already burned into the picture (media.burned) — then it stays available but hidden.
+const UPD_CAP_LABEL = { en:"English", es:"Español", fr:"Français", de:"Deutsch", pt:"Português", ja:"日本語" };
 function openUpdClip(m, label){
   const box = $("updclipbox"), v = box.querySelector("video");
   v.setAttribute("aria-label", label);
   if(m.poster && UPD_MEDIA_RE.test(m.poster)) v.poster = m.poster;
+  const narrated = m.audio === true;
+  v.muted = !narrated; v.loop = !narrated;
+  v.querySelectorAll("track").forEach(tr=> tr.remove());
+  const caps = (m.captions && typeof m.captions==="object") ? m.captions : {};
+  Object.keys(caps).forEach(lang=>{
+    const src = caps[lang];
+    if(!UPD_CAP_LABEL[lang] || typeof src!=="string" || !UPD_MEDIA_RE.test(src) || !/\.vtt$/.test(src)) return;
+    const cap = document.createElement("track");
+    cap.kind = "captions"; cap.srclang = lang; cap.label = UPD_CAP_LABEL[lang]; cap.src = src;
+    if(lang===LANG && lang!==m.burned) cap.default = true;
+    v.appendChild(cap);
+  });
   v.src = m.src; box.hidden = false;
-  v.play().catch(()=>{});
+  for(const tt of v.textTracks) tt.mode = (tt.language===LANG && tt.language!==m.burned) ? "showing" : "hidden";
+  v.play().catch(()=>{ if(!v.muted){ v.muted = true; v.play().catch(()=>{}); } });   // autoplay-with-sound refused → play muted, controls can unmute
 }
 function closeUpdClip(){
   const box = $("updclipbox"); if(box.hidden) return false;
-  const v = box.querySelector("video"); v.pause(); v.removeAttribute("src"); v.load();
+  const v = box.querySelector("video"); v.pause(); v.removeAttribute("src"); v.querySelectorAll("track").forEach(tr=> tr.remove()); v.load();
   box.hidden = true; return true;
 }
 $("updclipbox").addEventListener("click", e=>{ if(e.target.id==="updclipbox") closeUpdClip(); });

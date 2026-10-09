@@ -191,12 +191,65 @@ The editor loads a clip only while it is on screen in the panel. It plays
 as a small muted loop, and a click opens it large. The changelog page shows
 the poster, linking to the mp4.
 
+#### Narrated clips (voiceover, captions, logo)
+
+A qualifying clip should usually be narrated. `scripts/make-update-clip.mjs`
+renders one from a small spec in `scripts/update-clips/<name>.json`:
+
+- a short voiceover from NanoGPT TTS, timed to the on-screen actions;
+- English captions burned into the picture, plus a WebVTT track for each
+  language the spec translates;
+- the nanoodle logo fading in as an intro and out as an outro;
+- loudness normalized to −16 LUFS.
+
+```sh
+NANOGPT_API_KEY=… NANOODLE_PLAYWRIGHT=/path/to/playwright/index.mjs \
+  node scripts/make-update-clip.mjs scripts/update-clips/decide-node.json \
+  --source /path/to/raw-recording.webm --qa --attach
+node scripts/gen-changelog.mjs
+```
+
+`--attach` writes `media` with `audio: true`, `captions: {en, es, …}` and
+`burned: "en"`. In the 📣 panel the clip still loops muted. The enlarged
+view plays it once with sound and shows the caption track for the UI
+language, unless that language is the one burned into the picture.
+
+How to write the voiceover:
+
+- Use one or two short, warm lines that say what the viewer sees, as it
+  happens. Start each cue as its action starts, and land the payoff line
+  when the result appears on screen.
+- Describe only what the clip shows. If the clip shows a sample result,
+  don't say it was generated. Skip marketing words, prices and model
+  names unless they are on screen.
+- Use the UI's own words ("Run", "Decide node"). In each `i18n` line, use
+  that language's UI label (es "Ejecutar", de "Ausführen", …).
+
+The current voice is `elevenlabs/eleven-v4`, voice "Sarah". Keep that
+voice so every clip sounds like the same narrator. To change it, render
+one line with two or three voices, compare the takes, and keep the one
+whose transcript matches exactly and whose pacing sounds natural.
+
+`--qa` prints a checklist; go through all of it before you attach the
+clip:
+
+- [ ] Whisper's transcript matches the script (0% word error rate).
+- [ ] Loudness is about −16 LUFS.
+- [ ] In the contact sheet, every line lines up with its action, and the
+      captions are readable and never cover the thing being shown.
+- [ ] The logo intro and outro are clean.
+- [ ] The balance is blurred, and no browser chrome or `localhost`
+      appears.
+- [ ] The clip is ≤ 1.5 MB.
+
 `scripts/check-updates-media.mjs` runs in CI and in the pre-commit hook.
 It fails if a referenced file is missing, sits outside `updates-media/`,
 or is excluded by `.assetsignore`. It also fails on any of these:
 
-- a clip over 1 MB or a poster over 100 KB
-- an mp4 without `+faststart`, or one with an audio track
+- a clip over 1 MB (1.5 MB if narrated) or a poster over 100 KB
+- an mp4 without `+faststart`
+- an audio track without `audio: true`, or audio that isn't AAC
+- a narrated clip without English WebVTT captions
 - a `w`/`h` that does not match the poster
 - a file in `updates-media/` that no entry references
 
