@@ -669,6 +669,7 @@
   .node header.t-text{ background:linear-gradient(90deg,#7c8cff22,transparent) }
   .node header.t-llm{ background:linear-gradient(90deg,#3ddc9722,transparent) }
   .node header.t-vision{ background:linear-gradient(90deg,#ffcf6b22,transparent) }
+  .node header.t-decide{ background:linear-gradient(90deg,#f5b94222,#3ddc9714,transparent) }
   .node header.t-edit{ background:linear-gradient(90deg,#ff79c622,#7c8cff14,transparent) }
   .node header.t-tvideo, .node header.t-ivideo, .node header.t-combine{ background:linear-gradient(90deg,#5ad1e622,transparent) }
   .node header.t-soundtrack{ background:linear-gradient(90deg,#5ad1e622,#7c8cff14,transparent) }
@@ -860,6 +861,18 @@
   .result audio{ width:100%; margin-top:.2rem }
   .result .rtext{ font-size:.82rem; white-space:pre-wrap; max-height:160px; overflow:auto; color:var(--ink) }
   .result .err{ color:var(--bad); font-size:.8rem; white-space:pre-wrap }
+  /* ⚖️ Decide result card: answer + one probability bar per option */
+  .result .decide{ font-size:.78rem; display:flex; flex-direction:column; gap:.18rem }
+  .result .decide .dhead{ font-size:.9rem; font-weight:600; color:var(--ink); margin-bottom:.1rem }
+  .result .decide .drow{ display:grid; grid-template-columns:minmax(3.5rem,auto) 1fr 2.6rem; gap:.4rem; align-items:center; color:var(--dim) }
+  .result .decide .drow.win{ color:var(--ink); font-weight:600 }
+  .result .decide .dlab{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:9rem }
+  .result .decide .dbar{ height:.42rem; background:var(--panel2); border-radius:.3rem; overflow:hidden }
+  .result .decide .dbar i{ display:block; height:100%; background:var(--dim); border-radius:.3rem }
+  .result .decide .drow.win .dbar i{ background:var(--good) }
+  .result .decide .dp{ text-align:right; font-variant-numeric:tabular-nums }
+  .result .decide .dmeta{ color:var(--dim); font-size:.7rem; margin-top:.15rem }
+  .result .dgate{ color:var(--warn); font-size:.8rem; font-weight:600; margin-bottom:.3rem }
   .result .frames{ display:flex; flex-wrap:wrap; gap:.35rem }
   .result .frames .fr{ position:relative; flex:1 1 46%; min-width:80px }
   .result .frames .fr img{ width:100%; border-radius:.45rem; display:block }
@@ -1379,6 +1392,7 @@ const NANOGPT = "https://nano-gpt.com";
 const MEDIA_INLINE_MAX = 4.4*1024*1024;   // edge (Vercel) rejects request bodies over ~4.5 MB; guard inlined base64 media
 const IMG_ENDPOINT  = `${NANOGPT}/v1/images/generations`;
 const CHAT_ENDPOINT = `${NANOGPT}/api/v1/chat/completions`;
+const DECIDE_ENDPOINT = `${NANOGPT}/api/v1/decisions`;   // ⚖️ Decide — typed choice/score/yes-no from decision models
 const $ = (id) => document.getElementById(id);
 const clamp = (v,a,b)=> Math.max(a, Math.min(b, v));
 const esc = (s)=> String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -5034,9 +5048,15 @@ function normChat(m){
       ? m.reasoning_efforts.map(String) : null,
     audio_input:!!c.audio_input, video_input:!!c.video_input, pdf_upload:!!c.pdf_upload,
     maxOut: m.max_output_tokens,   // max_tokens ceiling (present on most models)
+    // Decision models (architecture.output_modalities ["decisions"]) answer typed questions instead of
+    // chatting: only the ⚖️ Decide node lists them, and they never appear in the LLM / Vision pickers.
+    decision: !!(m.architecture && Array.isArray(m.architecture.output_modalities) && m.architecture.output_modalities.indexOf("decisions")>=0),
+    decisionInput: m.decision_input || null,
     promptUsd1M: p.prompt!=null ? +p.prompt : null,          // $ per 1M input tokens — numeric, drives the run estimate
     completionUsd1M: p.completion!=null ? +p.completion : null,
-    price: p.prompt!=null ? `$${(+p.prompt).toFixed(2)}/$${(+p.completion).toFixed(2)} ·1M`
+    price: (p.prompt!=null && m.architecture && Array.isArray(m.architecture.output_modalities) && m.architecture.output_modalities.indexOf("decisions")>=0)
+         ? `$${(+p.prompt).toFixed(2)} ·1M in · output free`
+         : p.prompt!=null ? `$${(+p.prompt).toFixed(2)}/$${(+p.completion).toFixed(2)} ·1M`
          : (p.note==="varies_by_modality" ? "price varies by input" : "") };   // omni models: no flat token price
 }
 // Edit models verified live (2026-06-26) to HONOR a brushed mask on the inpaint path: the masked
@@ -5467,6 +5487,8 @@ const catItem = (kind,id)=> (catalogs[kind]||[]).find(m=>m.id===id);
 const KIND_LABEL = { chat:"Chat", image:"Image", video:"Video", audio:"Audio", model3d:"3D" };
 // capability filter shared by the picker and the default-model resolver — metadata only, no model names
 function passesFilter(m, filter){
+  if(filter==="decision") return !!m.decision;   // ⚖️ Decide lists decision models only
+  if(m.decision) return false;                    // …and they can't chat, so keep them out of every other picker
   if(!filter) return true;
   return !!m[filter];   // vision | edit | t2v | i2v | music | tts | remix are all boolean flags on the catalog item
 }
@@ -5479,6 +5501,12 @@ function defModelFor(type){
     if(tripo) return tripo.id;
     const m = list.find(x=> !x.nsfw);
     return m ? m.id : MODEL3D_IMAGE_DEFAULT;   // pinned even when the catalog is empty, so the node isn't blank offline
+  }
+  if(t.modelFilter==="decision"){
+    // pick-best needs a model that sees images: prefer the launch default, else any image-capable one
+    const list = (catalogs.chat||[]).filter(x=> x.decision);
+    const pref = list.find(x=> x.id===DECIDE_DEFAULT_MODEL) || list.find(x=> decideImageLimits(x.decisionInput, true)) || list[0];
+    return pref ? pref.id : DECIDE_DEFAULT_MODEL;   // pinned even before the catalog lands, like 3D
   }
   const isMedia = t.modelKind==="image" || t.modelKind==="video";
   const m = (catalogs[t.modelKind]||[]).find(x=> passesFilter(x, t.modelFilter) && (!isMedia || !x.nsfw));
@@ -5746,8 +5774,12 @@ function collectRefInputs(inp){
    The edit node keeps the legacy port name "image" for slot 1, so already-wired/saved graphs still load. */
 function imgSpec(n){
   const t = n && NODE_TYPES[n.type], ii = t && t.imageInputs; if(!ii) return null;
-  if(typeof ii==="string")
-    return { re:IMG_PORT_RE, name:(i)=> "img"+i, capable:modelSupportsImages(n), cap:Infinity, min:1, roles:null };
+  if(typeof ii==="string"){
+    // ⚖️ Decide: decision models take a fixed number of inline images (catalog image_limits.maxImages)
+    let cap = Infinity;
+    if(t.modelFilter==="decision"){ const dm = catItem("chat", n.fields.model); const lim = decideImageLimits(dm && dm.decisionInput, !!dm); cap = lim ? lim.maxImages : Infinity; }
+    return { re:IMG_PORT_RE, name:(i)=> "img"+i, capable:modelSupportsImages(n), cap, min:1, roles:null };
+  }
   const m = catItem(t.modelKind, n.fields.model);
   // roles/min are curated (IMG_INPUT_ROLES), so read the map directly when the catalog hasn't landed —
   // a vto node must still draw BOTH ports on a cold cache, where cap stays permissive at 14.
@@ -7281,6 +7313,10 @@ function livePrice(kind, fields, nodeFilter, n){
     if(u!=null) return `~$${u.toFixed(2)}/clip`;
   }
   if(kind==="model3d") return model3dPriceLabels(it.pricing, fields, it.defaults).card;
+  if(kind==="chat" && nodeFilter==="decision" && n){   // ⚖️ Decide: what one decision costs with what's wired now
+    const u = nodeUnitUsd(n);
+    if(u!=null) return u<0.0001 ? "<$0.0001/decision" : `~$${u.toFixed(4)}/decision`;
+  }
   return it.price||"";
 }
 // raw per-image USD for (model,size) from the catalog — the number behind livePrice's "$/img"
@@ -7683,6 +7719,12 @@ function nodeUnitUsd(n){
     // source-video input wired → extend-mode rates on nested mode×resolution tables (FLUX.3).
     const videoWired = graph.links.some(l=> l.to.node===n.id && l.to.port==="video");
     const u = videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), videoPriceFields(it.params, fields), refCount, videoWired, t.modelFilter); return (u!=null && isFinite(u)) ? u : null; }
+  if(kind==="chat" && t.modelFilter==="decision"){
+    // ⚖️ Decide bills input tokens only: the question + labels/scale + ~1 KB of wired text, plus each
+    // wired image (a ≤512px image lands at ~250–350 tokens on the launch models — 400 keeps it honest).
+    const f=fields||{}, imgs = graph.links.filter(l=> l.to.node===n.id && IMG_PORT_RE.test(l.to.port)).length;
+    const inTok = 120 + Math.round(((f.question||"").length + (f.options||"").length + (f.levels||"").length)/4) + 250 + imgs*400;
+    return chatUnitUsd(it, inTok, 0) * (decideMode(f)==="pick" ? 2 : 1); }   // pick asks twice (in order + reversed) to cancel position bias
   if(kind==="chat"){
     const f=fields||{}; const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(it, inTok, outTok); }
   if(kind==="audio"){ const chars = t.modelFilter==="stt" ? undefined : (((fields||{}).prompt||"").length || EST.ttsChars);
@@ -8785,6 +8827,44 @@ const NODE_TYPES = {
     }
   },
 
+  decide: {
+    em:"⚖️", title:"Decide", desc:"Pick the best image, choose a label, score or yes/no — typed answers with probabilities", group:"Text",
+    kw:"judge pick best choose select classify route label score rate grade rank compare gate filter check yes no quality arena vote decision winner",
+    modelKind:"chat", modelFilter:"decision",
+    inputs:[{name:"text", type:"text"}],
+    imageInputs:"vision",   // image-capable decision models grow img1…imgN (capped at the model's image_limits.maxImages)
+    outputs:[{name:"text", type:"text"},{name:"image", type:"image"}], preview:"decide",
+    body:(n)=>{
+      const mode = decideMode(n.fields);
+      const list = mode==="choose" ? "options" : mode==="score" ? "levels" : "";
+      const hint = {
+        pick:"Wire 2+ images (and the brief into text). The winner comes out of the image port; text says which one.",
+        choose:"Wire what to classify into text. The chosen label comes out of the text port.",
+        score:"Wire what to rate into text (or an image). Text out is the expected level, 1 = first line.",
+        yesno:"Text out is yes or no. With the gate on, a no stops the run here — nothing after it runs or bills.",
+      }[mode];
+      return `
+      ${modelFieldHTML(n)}
+      <div><label>decide</label><select data-f="mode" data-decide-mode>${optsHTML(DECIDE_MODES, mode)}</select></div>
+      <div><label>question</label><textarea data-f="question" style="min-height:44px" placeholder="${esc(t(decideDefaultQuestion(mode)))}">${esc(n.fields.question||"")}</textarea></div>
+      ${list ? `<div><label>${mode==="choose" ? "labels" : "scale"} <span class="dim lblhint">· ${mode==="choose" ? "one per line" : "one level per line, worst first"}</span></label>
+        <textarea data-f="${list}" style="min-height:60px" placeholder="${esc(mode==="choose" ? "watercolor\npixel art\nphoto" : DECIDE_SCALE_DEFAULT)}">${esc(n.fields[list]||"")}</textarea></div>` : ""}
+      ${mode==="yesno" ? `<label class="chk"><input type="checkbox" data-f="gate"${(n.fields.gate===true||n.fields.gate==="true")?" checked":""}/> gate: stop the run here when the answer is no</label>` : ""}
+      <div class="fhint">${esc(t(hint))}</div>`;
+    },
+    // switching mode swaps the labels / scale / gate controls
+    mount:(n)=>{
+      const sel = n.el.querySelector("select[data-decide-mode]"); if(!sel) return;
+      sel.addEventListener("change", ()=>{ n.fields.mode = sel.value; save(); rerenderNode(n); refreshAllPrices(); });
+    },
+    async run(n, inp, ctx){
+      const model = mdl(n, ctx);
+      const dm = catItem("chat", model);
+      return decideRun(n.fields, model, inp.text, collectImageInputs(inp, n), decideImageLimits(dm && dm.decisionInput, !!dm),
+        (body)=> ctx.genDecision(body), urlToDataUrl);
+    }
+  },
+
   tvideo: {
     em:"🎬", title:"Text→Video", desc:"Text → video (takes ~1 min to generate)", group:"Video",
     kw:"reference style subject consistent character",
@@ -9647,6 +9727,197 @@ function resizeCropImage(dataUrl, mode, tw, th){
     img.src = dataUrl;
   });
 }
+/* ======================================================================
+   ⚖️ DECIDE — typed judgments from NanoGPT decision models
+   POST /api/v1/decisions with the user's own NanoGPT key (same origin the editor already talks to,
+   full CORS — no second key, no backend). One question per run, four modes:
+     pick   — which wired image best answers the question (the winner flows out of the image port)
+     choose — which of your labels fits (the label is the text out)
+     score  — expected level on your scale, 1 = first line (fractional: probability-weighted)
+     yesno  — yes/no; with the gate on, "no" stops the run here so nothing downstream is billed
+   Decision models return calibrated probabilities instead of generated text and bill input tokens
+   only. Image-capable ones (catalog decision_input.image_input) take up to image_limits.maxImages
+   inline images, each at most maxDimension px, all of them within maxEncodedBytes — so every wired
+   image is shrunk to fit on-device first (decideFitImage). Shared twin: index.html and play.html
+   RUNTIME_JS carry this block character-identical after trim. NO backticks (String.raw template).
+   ====================================================================== */
+var DECIDE_DEFAULT_MODEL = "perplexity/pplx-decider-v1.1-27b";   // sees images (pick-best needs that), 262K context, cheapest per token at launch
+var DECIDE_MODES = [["pick","pick the best image"],["choose","choose a label"],["score","score on a scale"],["yesno","yes / no"]];
+var DECIDE_SCALE_DEFAULT = "poor\nokay\ngood\ngreat";
+var DECIDE_IMG_FALLBACK = { maxImages:4, maxDimension:512, maxEncodedBytes:240000 };   // the live limits of every image-capable decision model at launch
+function decideMode(f){ var m = f && f.mode; return (m==="choose" || m==="score" || m==="yesno") ? m : "pick"; }
+function decideLines(s){ return String(s==null ? "" : s).split("\n").map(function(x){ return x.trim(); }).filter(Boolean); }
+function decideDefaultQuestion(mode){
+  if(mode==="pick") return "Which image best matches the brief?";
+  if(mode==="choose") return "Which label fits best?";
+  if(mode==="score") return "How good is it?";
+  return "Is it good enough to use?";
+}
+// Image limits for a model from its catalog decision_input. known=false (id not in the catalog yet /
+// offline) stays permissive with the launch limits; a KNOWN text-only model returns null.
+function decideImageLimits(di, known){
+  if(!known) return DECIDE_IMG_FALLBACK;
+  if(!di || !di.image_input) return null;
+  var l = di.image_limits || {};
+  return {
+    maxImages: l.maxImages > 0 ? l.maxImages : DECIDE_IMG_FALLBACK.maxImages,
+    maxDimension: l.maxDimension > 0 ? l.maxDimension : DECIDE_IMG_FALLBACK.maxDimension,
+    maxEncodedBytes: l.maxEncodedBytes > 0 ? l.maxEncodedBytes : DECIDE_IMG_FALLBACK.maxEncodedBytes
+  };
+}
+// The one typed question this node asks. Throws (before any request) on an unanswerable setup.
+function decideQuestionFor(mode, f, nImgs){
+  var q = String((f && f.question) || "").trim() || decideDefaultQuestion(mode);
+  if(mode==="pick"){
+    if(nImgs < 2) throw new Error("pick needs at least two images — wire 2 or more into the image ports");
+    var c = {};
+    for(var i=1; i<=nImgs; i++) c["image_" + i] = "image " + i;
+    return { type:"choice", instructions:q, criteria:c };
+  }
+  if(mode==="choose"){
+    var labels = decideLines(f && f.options).filter(function(x, i, a){ return a.indexOf(x)===i; });
+    if(labels.length < 2) throw new Error("add at least two labels to choose from (one per line)");
+    if(labels.length > 255) throw new Error("too many labels — 255 at most");
+    var cc = {};
+    labels.forEach(function(x){ cc[x] = null; });
+    return { type:"choice", instructions:q, criteria:cc };
+  }
+  if(mode==="score"){
+    var lv = decideLines((f && f.levels!=null && String(f.levels).trim()) ? f.levels : DECIDE_SCALE_DEFAULT);
+    if(lv.length < 2 || lv.length > 10) throw new Error("the scale needs 2 to 10 levels, worst first (one per line)");
+    return { type:"score", instructions:q, criteria:lv };
+  }
+  return { type:"noul", instructions:q };
+}
+// state: plain text, or (with images) an array of text lines + inline image_url parts, labelled so
+// the model can tell candidate 2 from candidate 3.
+function decideState(text, imgs){
+  if(!imgs.length) return text;
+  var s = [];
+  if(text) s.push(text);
+  imgs.forEach(function(u, i){
+    if(imgs.length > 1) s.push("image_" + (i+1) + ":");
+    s.push({ type:"image_url", image_url:{ url:u } });
+  });
+  return s;
+}
+// Shrink one image (data: URL) to fit maxDim and a byte budget — JPEG on white, so a transparent PNG
+// can't turn black. Steps quality down, then size, until it fits. On-device, free.
+function decideFitImage(dataUrl, maxDim, budget){
+  return new Promise(function(res, rej){
+    var img = new Image();
+    img.onload = function(){
+      try{
+        var w0 = img.naturalWidth || 1, h0 = img.naturalHeight || 1;
+        var s = Math.min(1, maxDim / Math.max(w0, h0));
+        var qs = [0.85, 0.72, 0.6, 0.48];
+        for(var round=0; round<6; round++){
+          var w = Math.max(1, Math.round(w0*s)), h = Math.max(1, Math.round(h0*s));
+          var c = document.createElement("canvas"); c.width = w; c.height = h;
+          var cx = c.getContext("2d"); cx.fillStyle = "#fff"; cx.fillRect(0, 0, w, h);
+          cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = "high";
+          cx.drawImage(img, 0, 0, w, h);
+          for(var qi=0; qi<qs.length; qi++){
+            var out = c.toDataURL("image/jpeg", qs[qi]);
+            if(out.length <= budget){ res(out); return; }
+          }
+          s = s * 0.75;
+        }
+        rej(new Error("couldn’t shrink an image small enough for the decision model"));
+      }catch(e){ rej(e); }
+    };
+    img.onerror = function(){ rej(new Error("couldn’t read an image to judge")); };
+    img.src = dataUrl;
+  });
+}
+// Turn the API answer into the node's outputs: text (label / score / yes|no / "image N"), image
+// (pick: the winner; other modes: the first wired image, passed through so Decide can sit inline as
+// a gate), and decision (detail for the result card).
+function decideOutputs(mode, ans, q, imgs, usage, model){
+  if(!ans || !ans.type) throw new Error("the decision model returned no answer");
+  var d = { mode:mode, model:model, cost:(usage && typeof usage.cost==="number") ? usage.cost : null, rows:[] };
+  var probs = ans.probabilities || {};
+  if(mode==="pick"){
+    var k = String(ans.choice || ""), idx = parseInt(k.replace(/^image_/, ""), 10) || 1;
+    d.pick = idx; d.confidence = ans.confidence;
+    d.rows = Object.keys(q.criteria).map(function(key, i){ return { label:"image " + (i+1), p:+probs[key] || 0, win:key===k }; });
+    return { text:"image " + idx, image:imgs[idx-1] || "", decision:d };
+  }
+  if(mode==="choose"){
+    d.confidence = ans.confidence;
+    d.rows = Object.keys(q.criteria).map(function(key){ return { label:key, p:+probs[key] || 0, win:key===ans.choice }; });
+    return { text:String(ans.choice || ""), image:imgs[0] || "", decision:d };
+  }
+  if(mode==="score"){
+    var sc = (+ans.score || 0) + 1;   // 1 = the first (worst) level
+    d.score = sc; d.levels = q.criteria.length; d.confidence = ans.confidence;
+    var top = 0;
+    q.criteria.forEach(function(x, i){ if((+probs[String(i)] || 0) > (+probs[String(top)] || 0)) top = i; });
+    d.rows = q.criteria.map(function(x, i){ return { label:(i+1) + " · " + x, p:+probs[String(i)] || 0, win:i===top }; });
+    return { text:String(Math.round(sc*100)/100), image:imgs[0] || "", decision:d };
+  }
+  var py = Math.max(0, Math.min(1, +ans.noul || 0));
+  d.yes = py;
+  d.rows = [{ label:"yes", p:py, win:py>=0.5 }, { label:"no", p:1-py, win:py<0.5 }];
+  return { text:py>=0.5 ? "yes" : "no", image:imgs[0] || "", decision:d };
+}
+// "gate closed" is a deliberate stop, not a failure: the node shows it as such and every node
+// downstream is skipped (and never billed), exactly like the upstream-failed path.
+function decideGateError(d){
+  var e = new Error("gate closed — the answer was no (yes " + Math.round(d.yes*100) + "%), so nothing downstream ran");
+  e.gate = true; e.decision = d;
+  return e;
+}
+// Average the pick probabilities of several runs that saw the candidates in different orders.
+// orders[r][k] = which original image sat in slot k+1 of run r. Costs add up.
+function decideMergeOrders(js, orders){
+  var n = orders[0].length, sum = [], cost = 0, costKnown = true;
+  for(var i=0; i<n; i++) sum.push(0);
+  js.forEach(function(j, r){
+    var a = j && j.answers && j.answers.answer;
+    if(!a || !a.probabilities) throw new Error("the decision model returned no answer");
+    orders[r].forEach(function(orig, k){ sum[orig] += (+a.probabilities["image_" + (k+1)] || 0) / js.length; });
+    if(j.usage && typeof j.usage.cost==="number") cost += j.usage.cost; else costKnown = false;
+  });
+  var best = 0, probs = {};
+  sum.forEach(function(p, i){ probs["image_" + (i+1)] = p; if(p > sum[best]) best = i; });
+  return { answers:{ answer:{ type:"choice", choice:"image_" + (best+1), confidence:sum[best], probabilities:probs } },
+           usage:{ cost: costKnown ? cost : null }, runs:js.length };
+}
+// The whole run, shared by both engines. send(body) POSTs /api/v1/decisions and returns the JSON;
+// toDataUrl(url) inlines a remote/blob image. lim = decideImageLimits(...) for the chosen model.
+async function decideRun(f, model, text, imgs, lim, send, toDataUrl){
+  var mode = decideMode(f);
+  text = String(text==null ? "" : text).trim();
+  imgs = (imgs || []).filter(Boolean);
+  if(imgs.length && !lim) throw new Error("this decision model can’t see images — pick one that can (e.g. PPLX Decider or Clef)");
+  if(lim && imgs.length > lim.maxImages) throw new Error("this decision model takes at most " + lim.maxImages + " images — unwire the extras");
+  var q = decideQuestionFor(mode, f, imgs.length);
+  if(!text && !imgs.length && !String((f && f.question) || "").trim()) throw new Error("nothing to judge — wire text or an image into Decide");
+  var sent = [];
+  if(imgs.length){
+    var budget = Math.floor(lim.maxEncodedBytes * 0.95 / imgs.length);
+    for(var i=0; i<imgs.length; i++){
+      var du = /^data:/.test(imgs[i]) ? imgs[i] : await toDataUrl(imgs[i]);
+      sent.push(await decideFitImage(du, lim.maxDimension, budget));
+    }
+  }
+  var j;
+  if(mode==="pick"){
+    // Decision models lean toward the first image they see, so pick asks twice — candidates in
+    // order, then reversed — and averages each image's probability. Two tiny calls, run together.
+    var fwd = sent.map(function(x, i){ return i; }), rev = fwd.slice().reverse();
+    var both = await Promise.all([fwd, rev].map(function(ord){
+      return send({ model:model, state:decideState(text, ord.map(function(i){ return sent[i]; })), questions:{ answer:q } });
+    }));
+    j = decideMergeOrders(both, [fwd, rev]);
+  } else {
+    j = await send({ model:model, state:decideState(text, sent), questions:{ answer:q } });
+  }
+  var out = decideOutputs(mode, j && j.answers && j.answers.answer, q, imgs, j && j.usage, model);
+  if(mode==="yesno" && (f.gate===true || f.gate==="true") && out.decision.yes < 0.5) throw decideGateError(out.decision);
+  return out;
+}
 function fileToDataURL(file, cb){
   const img = new Image();
   img.onload = ()=> cb(scaledDataURL(img, img.naturalWidth, img.naturalHeight));
@@ -10382,12 +10653,22 @@ function setStopped(n){
 }
 // A node we never ran because an upstream node failed/cycled: not its own fault and never charged,
 // so show it as blocked — no stale-input run, no misleading "missing input" error.
-function setSkipped(n){
+function setSkipped(n, byGate){
   if(!n?.el) return;
   n.el.dataset.status = "skip";
   delete n._runT0; delete n._runMsg; delete n._pollMeta;
   const r = n.el.querySelector(".result");
-  if(r){ r.classList.add("show"); r.innerHTML = `<div style="color:var(--dim)">⤼ skipped — upstream failed</div>`; }
+  if(r){ r.classList.add("show"); r.innerHTML = `<div style="color:var(--dim)">⤼ ${esc(t(byGate ? "skipped — a gate upstream said no" : "skipped — upstream failed"))}</div>`; }
+  paintRunLive();
+}
+// A ⚖️ Decide gate that answered no: a deliberate stop (the decision itself ran and billed its tiny
+// cost), shown with its probabilities — not a red error. Everything downstream is skipped, unbilled.
+function setGated(n, err){
+  if(!n?.el) return;
+  n.el.dataset.status = "skip";
+  delete n._runT0; delete n._runMsg; delete n._pollMeta;
+  const r = n.el.querySelector(".result");
+  if(r){ r.classList.add("show"); r.innerHTML = `<div class="dgate">⛔ ${esc(t("gate closed — nothing downstream ran"))}</div>` + decideCardHTML(err.decision || {}); }
   paintRunLive();
 }
 // Status URL for a NanoGPT async video job (needs the API key when fetched; useful for curl/devtools).
@@ -10478,6 +10759,17 @@ async function downloadUrl(url, filename){
     if(href!==url) setTimeout(()=> URL.revokeObjectURL(href), 4000);
   }catch{ openUrl(url); }                                // fallback: open in a new tab
 }
+// ⚖️ Decide result card: the answer, then one probability bar per option (the winner highlighted)
+// and the real cost the decision billed (usage.cost — input tokens only).
+function decideCardHTML(d){
+  const pct = (p)=> Math.round((+p||0)*100) + "%";
+  const head = d.mode==="score" ? `${(Math.round((d.score||0)*10)/10)} / ${d.levels||"?"}`
+    : d.mode==="yesno" ? (d.yes>=0.5 ? `yes · ${pct(d.yes)}` : `no · ${pct(1-d.yes)}`)
+    : (d.mode==="pick" ? `image ${d.pick}` : (((d.rows||[]).find(x=> x.win)||{}).label || "")) + ` · ${pct(((d.rows||[]).find(x=> x.win)||{}).p)}`;
+  const rows = (d.rows||[]).map(x=> `<div class="drow${x.win?" win":""}"><span class="dlab" data-no-i18n>${esc(x.label)}</span><span class="dbar"><i style="width:${Math.max(1, Math.round((+x.p||0)*100))}%"></i></span><span class="dp">${pct(x.p)}</span></div>`).join("");
+  const cost = d.cost!=null ? ` · ${d.cost>0 ? "$"+(d.cost<0.0001 ? d.cost.toPrecision(2) : d.cost.toFixed(4)) : "$0"}` : "";
+  return `<div class="decide"><div class="dhead" data-no-i18n>${esc(head)}</div>${rows}<div class="dmeta" data-no-i18n>${esc((d.model||"") + cost)}</div></div>`;
+}
 function showResult(n){
   const ty = NODE_TYPES[n.type], r = n.el.querySelector(".result");
   const preview = typeof ty.preview==="function" ? ty.preview(n) : ty.preview;
@@ -10490,6 +10782,18 @@ function showResult(n){
     r.innerHTML = `<div class="frames">${imgs.map((src,i)=>
       `<div class="fr"><img src="${esc(src)}" alt="frame ${i+1}"/><button data-dl="${i}" title="${esc(t("save frame")+" "+(i+1))}">⬇</button></div>`).join("")}</div>`;
     imgs.forEach((src,i)=> r.querySelector(`[data-dl="${i}"]`).onclick = ()=> downloadUrl(src, `noodle-${n.id}-frame${i+1}.png`));
+    return;
+  }
+  if(preview==="decide"){
+    const d = n.out.decision;
+    if(!d){ r.classList.remove("show"); r.innerHTML=""; return; }
+    r.innerHTML = (d.mode==="pick" && n.out.image ? `<img src="${esc(n.out.image)}" alt="winner"/>` : "") + decideCardHTML(d)
+      + `<div class="acts"><button data-copy>⧉ ${esc(t("copy"))}</button></div>`;
+    r.querySelector("[data-copy]").onclick = async (e)=>{
+      const b=e.currentTarget, o=b.textContent;
+      b.textContent = await copyText(n.out.text ?? "") ? t("✓ copied") : t("copy failed");
+      setTimeout(()=> b.textContent=o, 1200);
+    };
     return;
   }
   if(preview==="image" && n.out.image){
@@ -12192,7 +12496,7 @@ function njsRunFor(type, rn, inp, n){
 // Signed out → the group still "runs", against DEMO_CTX: canned results (badged as samples, no
 // network, no charge) instead of a dead-end key prompt — the first Run click always shows the wow.
 function isPaidNanoType(type){
-  return /^(llm|vision|image|edit|inpaint|tvideo|ivideo|vedit|lipsync|music|remix|tts|transcribe)$/.test(type);
+  return /^(llm|vision|decide|image|edit|inpaint|tvideo|ivideo|vedit|lipsync|music|remix|tts|transcribe)$/.test(type);
 }
 async function runGroup(seedIds, ctx){
   ctx = ctx || (getKey() ? CTX : DEMO_CTX);
@@ -12255,6 +12559,7 @@ async function runGroup(seedIds, ctx){
     // (a→b, a→c) run concurrently rather than serializing down the topo order.
     const done = {};                                  // id → promise, so dependents await just their inputs
     const failed = new Set(cyclic);                   // ids that errored (or are in a cycle) → output is invalid, so dependents must NOT run on its stale .out
+    const gated = new Set();                          // ⚖️ Decide gates that closed (and everything they stopped) — a deliberate stop, not a failure
     const depsOf = (id)=>{                             // upstream node ids feeding this node (within the run set)
       const s = new Set();
       for(const l of graph.links) if(l.to.node===id && ids.has(l.from.node)) s.add(l.from.node);
@@ -12270,7 +12575,7 @@ async function runGroup(seedIds, ctx){
         if(ctl.signal.aborted && seedSet.has(id)){ setStopped(n); return; }
         // Poison-propagate: a failed/cyclic upstream node has no valid output, so running here would
         // feed this node the parent's STALE .out and reach a PAID call. Skip (transitively) instead.
-        if(deps.some(d=> failed.has(d))){ failed.add(id); setSkipped(n); return; }
+        if(deps.some(d=> failed.has(d))){ failed.add(id); const byGate = deps.some(d=> gated.has(d)); if(byGate) gated.add(id); setSkipped(n, byGate); return; }
         const t = NODE_TYPES[n.type], inp = {};
         for(const port of t.inputs){
           const l = graph.links.find(x=> x.to.node===id && x.to.port===port.name);
@@ -12397,6 +12702,7 @@ async function runGroup(seedIds, ctx){
             const workCancelled = !!(work && work.ctl && work.ctl.signal.aborted);
             const seedAlone = ctl.signal.aborted && !(work && work.holders && work.holders.size);
             if(workCancelled || seedAlone || err?.name==="AbortError") setStopped(n);   // user hit Stop — not a failure
+            else if(err && err.gate){ failed.add(id); gated.add(id); n.out = {}; delete n._sig; setGated(n, err); }   // ⚖️ Decide said no: stop here, dependents skip unbilled
             else {
               // An Inpaint node that just failed "no mask" is the FIRST run of the wire-then-brush flow:
               // its upstream produced the source within this same group, but the loop above skips nodes
@@ -12663,6 +12969,16 @@ const CTX = {
     if(opts.showThinking && msg.reasoning)                              // thinking trace returns in message.reasoning (NOT reasoning_content)
       out = "```thinking\n"+msg.reasoning+"\n```\n\n"+out;
     return out;
+  },
+  // ⚖️ Decide: one typed question → { answers, usage:{ input_tokens, output_tokens, cost } }. The real
+  // price rides usage.cost (input tokens only — decision models generate nothing), so accrue that.
+  async genDecision(body){
+    const r = await fetch(DECIDE_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
+    if(!r.ok){ await throwHttp(r); }
+    const j = await r.json();
+    const c = j && j.usage && typeof j.usage.cost==="number" ? j.usage.cost : null;
+    accrue(c!=null ? Object.assign({}, j, { cost:c }) : j, undefined, r);
+    return j;
   },
   // async video: submit → poll /api/video/status until COMPLETED (up to 10 min)
   // opts also carries optional source media for editing models: videoUrl/videoDataUrl
@@ -12975,7 +13291,7 @@ const DEMO_CTX = { ...CTX, demo:true,
     if(!url) throw new Error(t("the sample clip couldn't load — sign in to run this node for real"));
     return url;
   },
-  genAudio: demoDeny, transcribe: demoDeny,
+  genAudio: demoDeny, transcribe: demoDeny, genDecision: demoDeny,
 };
 // "loading sample…" — honest running-state text for a demo node (t() is free here, unshadowed).
 function demoRunLabel(){ return t("loading sample…"); }
@@ -15688,7 +16004,7 @@ const SHARE_FIT_MAX = 9000;
 // unfurls as a picture of itself instead of the generic ramen card. Best-effort everywhere:
 // any failure (or an implausibly large PNG) just means no card, and shortening proceeds.
 // Emoji/labels mirror NODE_TYPES (kept inline: play.html's registry lives inside RUNTIME_JS).
-const CARD_TYPE_META = { text:["📝","Text"], upload:["📷","Image input"], aupload:["🎤","Audio input"], vupload:["📹","Video input"], mupload:["📦","3D input"], choice:["🔘","Choice"], join:["🔗","Join"], llm:["🧠","LLM"], image:["🖼","Image"], edit:["✂️","Edit"], inpaint:["🩹","Inpaint"], resize:["📐","Resize / crop"], vision:["👁","Vision"], tvideo:["🎬","Text→Video"], ivideo:["📽️","Image→Video"], model3d:["🧊","3D model"], vedit:["🎞️","Video edit"], vframes:["🎞","Video → frames"], combine:["🎬","Combine videos"], soundtrack:["🎚","Soundtrack"], lipsync:["🎭","Avatar / lipsync"], music:["🎵","Music"], remix:["🎛","Remix audio"], tts:["🗣️","Speech"], trim:["✂️","Trim audio"], extractaudio:["🔊","Extract audio"], transcribe:["🎙️","Transcribe"], endpoint:["🔌","Custom endpoint"], comment:["💬","Comment"] };
+const CARD_TYPE_META = { text:["📝","Text"], upload:["📷","Image input"], aupload:["🎤","Audio input"], vupload:["📹","Video input"], mupload:["📦","3D input"], choice:["🔘","Choice"], join:["🔗","Join"], llm:["🧠","LLM"], image:["🖼","Image"], edit:["✂️","Edit"], inpaint:["🩹","Inpaint"], resize:["📐","Resize / crop"], vision:["👁","Vision"], decide:["⚖️","Decide"], tvideo:["🎬","Text→Video"], ivideo:["📽️","Image→Video"], model3d:["🧊","3D model"], vedit:["🎞️","Video edit"], vframes:["🎞","Video → frames"], combine:["🎬","Combine videos"], soundtrack:["🎚","Soundtrack"], lipsync:["🎭","Avatar / lipsync"], music:["🎵","Music"], remix:["🎛","Remix audio"], tts:["🗣️","Speech"], trim:["✂️","Trim audio"], extractaudio:["🔊","Extract audio"], transcribe:["🎙️","Transcribe"], endpoint:["🔌","Custom endpoint"], comment:["💬","Comment"] };
 // Decode the graph out of the link being shortened (not live editor state) so the card always
 // depicts exactly what the link opens. Returns null on anything unexpected.
 async function shareCardGraph(longUrl){
@@ -16931,6 +17247,12 @@ $("signout").onclick = ()=> setKey(null);
       showThinking:"true/false — include chain-of-thought in the text output",
     }, note:"vision models grow wired image ports (img1…); audio_input models grow an audio port; model is a wirable field port — a Choice option like anthropic/claude-fable-5.1 sets the paid model id" },
     vision:{ fields:{ model:"vision model id (optional)", q:"the question" } },
+    decide:{ main:"question", fields:{
+      model:"decision model id (optional; default perplexity/pplx-decider-v1.1-27b, which sees images; liquid/d1 / typesafe/jev-latest are text-only)",
+      mode:"pick|choose|score|yesno (default pick)", question:"what to decide (optional; a sensible default per mode)",
+      options:"choose mode: the labels, one per line (2–255)", levels:"score mode: the scale, worst first, one per line (2–10; default poor/okay/good/great)",
+      gate:"yesno mode: true = a no stops the run here; nothing downstream runs or bills",
+    }, note:"text port = what to judge (or the brief, in pick mode); image-capable decision models grow img1…img4. Outputs: text = the answer (pick: image N · choose: the label · score: 1…N, fractional · yesno: yes|no); image = the winning image in pick mode, else the first wired image passed through. Pick the best of several Image nodes by wiring each into img1, img2, …" },
     image:{ main:"prompt", fields:{
       model:"image model id (optional)", prompt:"image prompt", size:"e.g. 1024x1024 or catalog tier",
       aspect:"output shape (FIBO 1.5: 1:1 / 16:9 / … — size stays 1mp/4mp)",

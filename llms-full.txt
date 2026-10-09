@@ -109,8 +109,8 @@ Replace the code with your own (or delete the parameter and use bare
 ### The pages
 
 - **`index.html`** — the editor (site root, `/app`). A NanoGPT workflow
-  canvas: Text, Join, LLM, Image, Edit, Vision, video, music, speech and
-  more. Drag port to port (compatible inputs glow and snap by type), run
+  canvas: Text, Join, LLM, Image, Edit, Vision, Decide, video, music,
+  speech and more. Drag port to port (compatible inputs glow and snap by type), run
   disconnected groups in parallel, share a graph via URL, save/load JSON.
   UI in six languages (EN/ES/FR/DE/PT/JA), auto-detected with a switcher.
 - **`play.html`** — the app builder (`/play`, or ✨ **Create app** in the
@@ -215,7 +215,7 @@ JSON by hand anytime; `scripts/check-updates.mjs` keeps it valid.
 
 ## Node types in the editor
 
-The editor registers 29 node types. Titles and one-line descriptions below are taken verbatim from the node registry in index.html (the same text the in-editor quick-add menu shows); the `key` is the type identifier used in noodle-graph.json and in the executor libraries' supported-node tables.
+The editor registers 30 node types. Titles and one-line descriptions below are taken verbatim from the node registry in index.html (the same text the in-editor quick-add menu shows); the `key` is the type identifier used in noodle-graph.json and in the executor libraries' supported-node tables.
 
 ### Inputs
 
@@ -230,6 +230,7 @@ The editor registers 29 node types. Titles and one-line descriptions below are t
 
 - `join` — 🔗 Join: Glue two texts together
 - `llm` — 🧠 LLM: Text (+ images, audio) → text — any chat model
+- `decide` — ⚖️ Decide: Pick the best image, choose a label, score or yes/no — typed answers with probabilities
 - `endpoint` — 🔌 Custom endpoint: POST to a URL you own — a Choice can pick the path
 
 ### Image
