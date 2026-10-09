@@ -6822,6 +6822,10 @@ window.NoodleApp = (function () {
       const inTok = 120 + Math.round(((f.question||"").length + (f.options||"").length + (f.levels||"").length)/4) + 250 + imgs*400;
       const u = chatUnitUsd(pricing, inTok, 0); return u==null ? null : u * (decideMode(f)==="pick" ? 2 : 1); }
     if(kind==="chat"){ const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(pricing, inTok, outTok); }
+    if(n.type==="cleanvoice"){   // bills the source's length — twin of the editor: the wired node's duration knob, else 30 s
+      const g = STATE && STATE.graph, l = g ? g.links.find(l=> l.to.node===n.id && (l.to.port==="audio" || l.to.port==="video")) : null;
+      const src = l ? g.nodes.find(x=> x.id===l.from.node) : null;
+      return audioUnitUsd(pricing, undefined, cleanVoiceEstSeconds(src && src.fields)); }
     if(kind==="audio"){ const chars = n.type==="transcribe" ? undefined : ((f.prompt||"").length || EST.ttsChars);
       const secs = audioBilledSeconds(m.supported_parameters, f);   // per_second music meters off the chosen duration, not a fixed 30s
       const u = audioUnitUsd(pricing, chars, secs); if(u==null) return null;
@@ -8093,6 +8097,76 @@ function mp4ParamsMatch(bufs){
     return { audio: await ctx.genAudio(mdl(n), text, extra,
       (q,ms)=> onProgress && onProgress("generating audio… " + Math.round(ms/1000) + "s" + (q!=null?(" · queue "+q):""))) };
   }
+  /* =====================================================================
+     🎧 CLEAN VOICE — strip background noise / music, keep the voice
+     NanoGPT's noise_reduction audio models (ElevenLabs Audio Isolation,
+     VEED Clean Audio) ride POST /api/v1/audio/speech with
+     { model, audio:<public URL>, duration } and answer 202 pending + runId
+     (charged up front, real cost in the reply) → /api/tts/status → a hosted
+     mp3/flac. The source MUST be a public http(s) URL: NanoGPT downloads it
+     and rejects data: URLs, and nanoodle has no file hosting, so this node
+     cleans hosted media only (generated video/audio, or a pasted public
+     link). A video URL works as-is — the voice comes back as audio.
+     duration is only a quote: the server measures the file and bills that.
+     Shared twin: index.html and play.html carry this block verbatim
+     (scripts/check-clean-voice.mjs). No backticks — play.html's copy lives
+     inside the String.raw RUNTIME_JS.
+     ===================================================================== */
+  var CLEANVOICE_DEFAULT_MODEL = "elevenlabs/audio-isolation";   // $0.121/min, ~5 s for a 25 s clip; VEED Clean Audio is the cheaper pick ($0.01375 per started minute)
+  var CLEANVOICE_FALLBACK_SECS = 60;                              // length unknown → quote a minute; the server re-measures before billing
+  var CLEANVOICE_VIDEO_EXT = /\.(mp4|m4v|mov|webm|mkv|avi)(\?|#|$)/i;
+  // Which file to clean: a wired audio clip, else a wired video, else the pasted link.
+  function cleanVoiceSource(inp, f){
+    var a = inp && typeof inp.audio==="string" ? inp.audio.trim() : "";
+    var v = inp && typeof inp.video==="string" ? inp.video.trim() : "";
+    var link = String((f && f.url) || "").trim();
+    var url = a || v || link, video = a ? false : (v ? true : CLEANVOICE_VIDEO_EXT.test(link));
+    if(!url) throw new Error("no audio — wire audio or a video in, or paste a public link to the recording");
+    if(!/^https?:\/\//i.test(url))
+      throw new Error("Clean voice needs a hosted file — NanoGPT downloads it from a public link, and a clip uploaded or made in your browser has none. Wire a generated video or track, or paste a public https link to the recording.");
+    return { url:url, video:video };
+  }
+  // duration quote NanoGPT requires (0.6–3600 s); unknown → CLEANVOICE_FALLBACK_SECS
+  function cleanVoiceSeconds(secs){
+    var s = +secs;
+    if(!isFinite(s) || s<=0) return CLEANVOICE_FALLBACK_SECS;
+    return Math.min(3600, Math.max(0.6, Math.round(s*100)/100));
+  }
+  function cleanVoiceExtra(url, secs){ return { audio:url, duration:cleanVoiceSeconds(secs) }; }
+  // Seconds the run-cost chip assumes: the wired source node's own duration knob (a 6 s video), else 30 s.
+  function cleanVoiceEstSeconds(srcFields){
+    var d = parseFloat(srcFields && srcFields.duration);
+    return (isFinite(d) && d>0) ? d : 30;
+  }
+  // NanoGPT's 400s, reworded into the fix
+  function cleanVoiceError(e){
+    if(e && e.name==="AbortError") return e;
+    var m = String((e && e.message) || e || "");
+    if(/verify the source (audio )?duration/i.test(m)) return new Error("NanoGPT couldn't read this file's length — use MP3, WAV, M4A/AAC or MP4 (OGG isn't accepted).");
+    if(/unable to download/i.test(m)) return new Error("NanoGPT couldn't download the file — the link must be public (no sign-in, not expired).");
+    if(/public http\(?s?\)? source/i.test(m)) return new Error("Clean voice needs a public https link — clips uploaded in the browser can't reach it.");
+    return e;
+  }
+  // the source's length from its metadata (no CORS needed); null when it can't be read in 10 s
+  function cleanVoiceMediaSeconds(url, isVideo){
+    return new Promise(function(res){
+      var el = null, done = false;
+      function fin(v){ if(done) return; done = true; try{ el.removeAttribute("src"); el.load(); }catch(e){} res(v); }
+      try{ el = document.createElement(isVideo ? "video" : "audio"); }catch(e){ res(null); return; }
+      el.preload = "metadata"; el.muted = true;
+      el.onloadedmetadata = function(){ var d = el.duration; fin(isFinite(d) && d>0 ? d : null); };
+      el.onerror = function(){ fin(null); };
+      setTimeout(function(){ fin(null); }, 10000);
+      el.src = url;
+    });
+  }
+  // send(model, extra) → audio URL (the runtime's genAudio: submit, poll, bill).
+  async function cleanVoiceRun(model, inp, f, send){
+    var src = cleanVoiceSource(inp, f);
+    var secs = await cleanVoiceMediaSeconds(src.url, src.video);
+    try{ return { audio: await send(model || CLEANVOICE_DEFAULT_MODEL, cleanVoiceExtra(src.url, secs)) }; }
+    catch(e){ throw cleanVoiceError(e); }
+  }
 
   // dynamic image input ports — llm (vision): img1,img2,… ; edit (multi-reference): image,image2,…
   const IMG_PORT_RE = /^img\d+$/;
@@ -9183,6 +9257,15 @@ function mp4ParamsMatch(bufs){
         return { text: await ctx.transcribe(mdl(n), inp.audio, (n.fields.language||"auto").trim()) };
       }
     },
+    cleanvoice: {
+      em:"🎧", title:"Clean voice",
+      inputs:[{name:"audio", type:"audio"},{name:"video", type:"video"}], outputs:[{name:"audio", type:"audio"}],
+      run(n, inp, ctx, onProgress){
+        return cleanVoiceRun(mdl(n), inp, n.fields, function(model, extra){
+          return ctx.genAudio(model, "", extra, function(q,ms){ onProgress && onProgress("cleaning voice… " + Math.round(ms/1000) + "s" + (q!=null?(" · queue "+q):"")); });
+        });
+      }
+    },
     endpoint: {
       em:"🔌", title:"Custom endpoint",
       inputs:[{name:"text", type:"text"},{name:"image", type:"image"},{name:"audio", type:"audio"},{name:"video", type:"video"}],
@@ -9586,7 +9669,7 @@ const PROMPT_CAPS = {
   }
 
   function isPaidNanoType(type){
-    return /^(llm|vision|decide|image|edit|inpaint|tvideo|ivideo|vedit|lipsync|music|remix|tts|transcribe)$/.test(type);
+    return /^(llm|vision|decide|image|edit|inpaint|tvideo|ivideo|vedit|lipsync|music|remix|tts|transcribe|cleanvoice)$/.test(type);
   }
   function graphNeedsNanoKey(graph){
     return ((graph && graph.nodes) || []).some(function(n){ return n && isPaidNanoType(n.type); });
@@ -9968,6 +10051,8 @@ const PROMPT_CAPS = {
               { f:"instructions", label:"Voice instructions", kind:"textarea" }],
     transcribe:[{ f:"model", label:"Model", kind:"model" },
               { f:"language", label:"Language", kind:"text", def:"auto" }],
+    cleanvoice:[{ f:"model", label:"Model", kind:"model" },
+              { f:"url", label:"Public link (when nothing is wired)", kind:"text" }],
     trim:    [{ f:"start",  label:"Start (s)",  kind:"number", min:0, step:"0.1", def:"0" },
               { f:"length", label:"Length (s)", kind:"number", min:0.1, step:"0.1", def:"30" }],
     resize:  [{ f:"mode",   label:"Mode",   kind:"select", options:[["fit","fit within"],["fill","fill & crop"],["exact","exact (stretch)"]], def:"fit" },
@@ -9996,7 +10081,7 @@ const PROMPT_CAPS = {
   const SETTING_MODEL_KIND = {
     llm:"chat", vision:"chat", decide:"chat", image:"image", edit:"image", inpaint:"image",
     tvideo:"video", ivideo:"video", vedit:"video", lipsync:"video",
-    music:"audio", remix:"audio", tts:"audio", transcribe:"audio",
+    music:"audio", remix:"audio", tts:"audio", transcribe:"audio", cleanvoice:"audio",
   };
   function deriveSettings(graph){
     const out = [];
@@ -10121,6 +10206,7 @@ const PROMPT_CAPS = {
                            return usable && !dead && am.includes("text") && !am.includes("audio") && /audio|music/.test(out) && !(c.text_to_speech || m.category==="audio_tts"); }
       case "remix":      return !!(c.music_cover || c.audio_to_music || c.music_extension || c.audio_extension || c.audio_inpainting);   // mirrors the editor's normAudio remix flag
       case "transcribe": return (!!c.speech_to_text || m.category==="audio_stt") && !/clone/i.test(m.id||"");
+      case "cleanvoice": return !!c.noise_reduction;   // mirrors the editor's normAudio denoise flag
       default:           return !isDecisionRaw(m);   // llm — any chat model (decision models answer typed questions only, never chat)
     }
   }
@@ -10607,6 +10693,7 @@ const PROMPT_CAPS = {
     tts:    "reads text aloud as speech",
     trim:   "trims an audio clip to a chosen start and length",
     extractaudio:"extracts the audio track from a video as a WAV clip",
+    cleanvoice:"strips background noise and music from hosted audio or video, keeping just the voice",
     combine:"joins several video clips end-to-end into one video",
     soundtrack:"adds an audio track (music or narration) onto a video",
     endpoint:"calls a NanoGPT-shaped custom URL (typically localhost)",
@@ -15240,7 +15327,7 @@ function closeShareMenu(){ $("sharemenu").hidden = true; $("shareback").hidden =
 // unfurls as a picture of itself instead of the generic ramen card. Best-effort everywhere:
 // any failure (or an implausibly large PNG) just means no card, and shortening proceeds.
 // Emoji/labels mirror NODE_TYPES (kept inline: play.html's registry lives inside RUNTIME_JS).
-const CARD_TYPE_META = { text:["📝","Text"], upload:["📷","Image input"], aupload:["🎤","Audio input"], vupload:["📹","Video input"], choice:["🔘","Choice"], join:["🔗","Join"], llm:["🧠","LLM"], image:["🖼","Image"], edit:["✂️","Edit"], inpaint:["🩹","Inpaint"], resize:["📐","Resize / crop"], vision:["👁","Vision"], tvideo:["🎬","Text→Video"], ivideo:["📽️","Image→Video"], vedit:["🎞️","Video edit"], vframes:["🎞","Video → frames"], combine:["🎬","Combine videos"], soundtrack:["🎚","Soundtrack"], lipsync:["🎭","Avatar / lipsync"], music:["🎵","Music"], remix:["🎛","Remix audio"], tts:["🗣️","Speech"], trim:["✂️","Trim audio"], extractaudio:["🔊","Extract audio"], transcribe:["🎙️","Transcribe"], comment:["💬","Comment"] };
+const CARD_TYPE_META = { text:["📝","Text"], upload:["📷","Image input"], aupload:["🎤","Audio input"], vupload:["📹","Video input"], choice:["🔘","Choice"], join:["🔗","Join"], llm:["🧠","LLM"], image:["🖼","Image"], edit:["✂️","Edit"], inpaint:["🩹","Inpaint"], resize:["📐","Resize / crop"], vision:["👁","Vision"], tvideo:["🎬","Text→Video"], ivideo:["📽️","Image→Video"], vedit:["🎞️","Video edit"], vframes:["🎞","Video → frames"], combine:["🎬","Combine videos"], soundtrack:["🎚","Soundtrack"], lipsync:["🎭","Avatar / lipsync"], music:["🎵","Music"], remix:["🎛","Remix audio"], tts:["🗣️","Speech"], trim:["✂️","Trim audio"], extractaudio:["🔊","Extract audio"], transcribe:["🎙️","Transcribe"], cleanvoice:["🎧","Clean voice"], comment:["💬","Comment"] };
 // Decode the graph out of the link being shortened (not live editor state) so the card always
 // depicts exactly what the link opens. Returns null on anything unexpected.
 async function shareCardGraph(longUrl){

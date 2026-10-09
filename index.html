@@ -688,6 +688,7 @@
   .node header.t-soundtrack{ background:linear-gradient(90deg,#5ad1e622,#7c8cff14,transparent) }
   .node header.t-vframes{ background:linear-gradient(90deg,#5ad1e622,#ff79c614,transparent) }
   .node header.t-extractaudio{ background:linear-gradient(90deg,#5ad1e622,#3ddc9714,transparent) }
+  .node header.t-cleanvoice{ background:linear-gradient(90deg,#9b8cff22,#3ddc9714,transparent) }
   .node header.t-music, .node header.t-tts{ background:linear-gradient(90deg,#3ddc9722,transparent) }
   .node header.t-model3d{ background:linear-gradient(90deg,#a78bfa22,transparent) }
   .node header.t-mupload{ background:linear-gradient(90deg,#67e8f922,transparent) }
@@ -2077,6 +2078,12 @@ const I18N = {
     "Avatar / lipsync":"Avatar / sincronización labial",
     "Image + audio → talking video":"Imagen + audio → vídeo hablado",
     "Transcribe":"Transcribir",
+    "Clean voice":"Voz limpia",
+    "Strip background noise and music — keep the voice (audio or video in)":"Quita el ruido de fondo y la música — conserva la voz (entra audio o video)",
+    "or a public link":"o un enlace público",
+    "cleans hosted media only: a generated video or track, or a public link. Clips uploaded in the browser can't reach it.":"solo limpia medios alojados: un video o pista generados, o un enlace público. Los clips subidos en el navegador no le llegan.",
+    "cleaning voice…":"limpiando la voz…",
+    "https://…/interview.mp3":"https://…/interview.mp3",
     "Audio → text (speech-to-text)":"Audio → texto (voz a texto)",
     "Inputs":"Entradas",
     "Other":"Otros",
@@ -2782,6 +2789,12 @@ const I18N = {
     "Avatar / lipsync":"Avatar / synchro labiale",
     "Image + audio → talking video":"Image + audio → vidéo parlante",
     "Transcribe":"Transcrire",
+    "Clean voice":"Voix nette",
+    "Strip background noise and music — keep the voice (audio or video in)":"Retire le bruit de fond et la musique — garde la voix (audio ou vidéo en entrée)",
+    "or a public link":"ou un lien public",
+    "cleans hosted media only: a generated video or track, or a public link. Clips uploaded in the browser can't reach it.":"ne nettoie que des médias hébergés : une vidéo ou piste générée, ou un lien public. Les clips importés dans le navigateur ne l’atteignent pas.",
+    "cleaning voice…":"nettoyage de la voix…",
+    "https://…/interview.mp3":"https://…/interview.mp3",
     "Audio → text (speech-to-text)":"Audio → texte (reconnaissance vocale)",
     "Inputs":"Entrées",
     "Other":"Autre",
@@ -3487,6 +3500,12 @@ const I18N = {
     "Avatar / lipsync":"Avatar / Lippensynchro",
     "Image + audio → talking video":"Bild + Audio → sprechendes Video",
     "Transcribe":"Transkribieren",
+    "Clean voice":"Stimme säubern",
+    "Strip background noise and music — keep the voice (audio or video in)":"Entfernt Hintergrundgeräusche und Musik — behält die Stimme (Audio oder Video rein)",
+    "or a public link":"oder ein öffentlicher Link",
+    "cleans hosted media only: a generated video or track, or a public link. Clips uploaded in the browser can't reach it.":"säubert nur gehostete Medien: ein generiertes Video oder einen Track, oder einen öffentlichen Link. Im Browser hochgeladene Clips erreichen ihn nicht.",
+    "cleaning voice…":"Stimme wird gesäubert…",
+    "https://…/interview.mp3":"https://…/interview.mp3",
     "Audio → text (speech-to-text)":"Audio → Text (Sprache-zu-Text)",
     "Inputs":"Eingaben",
     "Other":"Sonstiges",
@@ -4192,6 +4211,12 @@ const I18N = {
     "Avatar / lipsync":"Avatar / sincronia labial",
     "Image + audio → talking video":"Imagem + áudio → vídeo falado",
     "Transcribe":"Transcrever",
+    "Clean voice":"Voz limpa",
+    "Strip background noise and music — keep the voice (audio or video in)":"Remove ruído de fundo e música — mantém a voz (entra áudio ou vídeo)",
+    "or a public link":"ou um link público",
+    "cleans hosted media only: a generated video or track, or a public link. Clips uploaded in the browser can't reach it.":"só limpa mídia hospedada: um vídeo ou faixa gerados, ou um link público. Clipes enviados no navegador não chegam a ele.",
+    "cleaning voice…":"limpando a voz…",
+    "https://…/interview.mp3":"https://…/interview.mp3",
     "Audio → text (speech-to-text)":"Áudio → texto (voz para texto)",
     "Inputs":"Entradas",
     "Other":"Outros",
@@ -4897,6 +4922,12 @@ const I18N = {
     "Avatar / lipsync":"アバター / リップシンク",
     "Image + audio → talking video":"画像 + 音声 → 話す動画",
     "Transcribe":"文字起こし",
+    "Clean voice":"音声クリーン",
+    "Strip background noise and music — keep the voice (audio or video in)":"背景ノイズや音楽を除去して声だけを残す（音声または動画を入力）",
+    "or a public link":"または公開リンク",
+    "cleans hosted media only: a generated video or track, or a public link. Clips uploaded in the browser can't reach it.":"ホストされたメディアのみ対応：生成した動画・トラック、または公開リンク。ブラウザでアップロードしたクリップは届きません。",
+    "cleaning voice…":"音声をクリーニング中…",
+    "https://…/interview.mp3":"https://…/interview.mp3",
     "Audio → text (speech-to-text)":"音声 → テキスト(文字起こし)",
     "Inputs":"入力",
     "Other":"その他",
@@ -5263,9 +5294,12 @@ function normAudio(m){
   // verbs only — no model ids. stem_separation (ships ZIP archives no browser can play) and
   // voice_clone (returns a voice id, not audio) are deliberately not remix verbs.
   const remix = !dead && !!(c.music_cover || c.audio_to_music || c.music_extension || c.audio_extension || c.audio_inpainting);
+  // 🎧 Clean voice: speech denoise / voice isolation (audio→audio, noise_reduction verb). Stem splitters
+  // (stem_separation) stay out — they return several stems, not one cleaned voice.
+  const denoise = !dead && !!c.noise_reduction;
   return { id:m.id, name:m.name||m.id, created:m.created, owner:m.owned_by||"", voices, langs, language, params:sp,
     sortUsd: audioUnitUsd(p, EST.ttsChars),          // resolved $ at assumed usage → price sorts (mixed units, rough)
-    tts, gen, music: gen && !tts && !remix, remix, stt, pricing:p, nsfw: !!c.nsfw, price };   // music = text-only song gens; audio_to_music (Yue2 m2m) stays on Remix   // raw pricing kept so transcribe can estimate from per_minute
+    tts, gen, music: gen && !tts && !remix, remix, stt, denoise, pricing:p, nsfw: !!c.nsfw, price };   // music = text-only song gens; audio_to_music (Yue2 m2m) stays on Remix   // raw pricing kept so transcribe can estimate from per_minute
 }
 // Pinned 3D defaults. Image→3D is the common case; the text model is used only when a prompt
 // is wired and the current model can't take text. Named ids, not "newest" — newest can be $8.
@@ -5504,7 +5538,7 @@ function passesFilter(m, filter){
   if(filter==="decision") return !!m.decision;   // ⚖️ Decide lists decision models only
   if(m.decision) return false;                    // …and they can't chat, so keep them out of every other picker
   if(!filter) return true;
-  return !!m[filter];   // vision | edit | t2v | i2v | music | tts | remix are all boolean flags on the catalog item
+  return !!m[filter];   // vision | edit | t2v | i2v | music | tts | remix | denoise are all boolean flags on the catalog item
 }
 // a node's default model = newest catalog entry of the right kind that passes the node's filter (or none yet)
 function defModelFor(type){
@@ -5521,6 +5555,12 @@ function defModelFor(type){
     const list = (catalogs.chat||[]).filter(x=> x.decision);
     const pref = list.find(x=> x.id===DECIDE_DEFAULT_MODEL) || list.find(x=> decideImageLimits(x.decisionInput, true)) || list[0];
     return pref ? pref.id : DECIDE_DEFAULT_MODEL;   // pinned even before the catalog lands, like 3D
+  }
+  if(t.modelFilter==="denoise"){
+    // 🎧 Clean voice: ElevenLabs Audio Isolation by default (fast, strongest noise removal in testing); VEED stays a pick away
+    const list = (catalogs.audio||[]).filter(x=> x.denoise);
+    const pref = list.find(x=> x.id===CLEANVOICE_DEFAULT_MODEL) || list[0];
+    return pref ? pref.id : CLEANVOICE_DEFAULT_MODEL;   // pinned even before the catalog lands, like Decide
   }
   const isMedia = t.modelKind==="image" || t.modelKind==="video";
   const m = (catalogs[t.modelKind]||[]).find(x=> passesFilter(x, t.modelFilter) && (!isMedia || !x.nsfw));
@@ -6798,6 +6838,76 @@ async function remixRun(n, inp, ctx){
   return { audio: await ctx.genAudio(mdl(n), text, extra,
     (q,ms)=> setNodeProgress(n, `${t("generating audio…")} ${Math.round(ms/1000)}s${q!=null?` · queue ${q}`:""}`), n.id) };
 }
+/* =====================================================================
+   🎧 CLEAN VOICE — strip background noise / music, keep the voice
+   NanoGPT's noise_reduction audio models (ElevenLabs Audio Isolation,
+   VEED Clean Audio) ride POST /api/v1/audio/speech with
+   { model, audio:<public URL>, duration } and answer 202 pending + runId
+   (charged up front, real cost in the reply) → /api/tts/status → a hosted
+   mp3/flac. The source MUST be a public http(s) URL: NanoGPT downloads it
+   and rejects data: URLs, and nanoodle has no file hosting, so this node
+   cleans hosted media only (generated video/audio, or a pasted public
+   link). A video URL works as-is — the voice comes back as audio.
+   duration is only a quote: the server measures the file and bills that.
+   Shared twin: index.html and play.html carry this block verbatim
+   (scripts/check-clean-voice.mjs). No backticks — play.html's copy lives
+   inside the String.raw RUNTIME_JS.
+   ===================================================================== */
+var CLEANVOICE_DEFAULT_MODEL = "elevenlabs/audio-isolation";   // $0.121/min, ~5 s for a 25 s clip; VEED Clean Audio is the cheaper pick ($0.01375 per started minute)
+var CLEANVOICE_FALLBACK_SECS = 60;                              // length unknown → quote a minute; the server re-measures before billing
+var CLEANVOICE_VIDEO_EXT = /\.(mp4|m4v|mov|webm|mkv|avi)(\?|#|$)/i;
+// Which file to clean: a wired audio clip, else a wired video, else the pasted link.
+function cleanVoiceSource(inp, f){
+  var a = inp && typeof inp.audio==="string" ? inp.audio.trim() : "";
+  var v = inp && typeof inp.video==="string" ? inp.video.trim() : "";
+  var link = String((f && f.url) || "").trim();
+  var url = a || v || link, video = a ? false : (v ? true : CLEANVOICE_VIDEO_EXT.test(link));
+  if(!url) throw new Error("no audio — wire audio or a video in, or paste a public link to the recording");
+  if(!/^https?:\/\//i.test(url))
+    throw new Error("Clean voice needs a hosted file — NanoGPT downloads it from a public link, and a clip uploaded or made in your browser has none. Wire a generated video or track, or paste a public https link to the recording.");
+  return { url:url, video:video };
+}
+// duration quote NanoGPT requires (0.6–3600 s); unknown → CLEANVOICE_FALLBACK_SECS
+function cleanVoiceSeconds(secs){
+  var s = +secs;
+  if(!isFinite(s) || s<=0) return CLEANVOICE_FALLBACK_SECS;
+  return Math.min(3600, Math.max(0.6, Math.round(s*100)/100));
+}
+function cleanVoiceExtra(url, secs){ return { audio:url, duration:cleanVoiceSeconds(secs) }; }
+// Seconds the run-cost chip assumes: the wired source node's own duration knob (a 6 s video), else 30 s.
+function cleanVoiceEstSeconds(srcFields){
+  var d = parseFloat(srcFields && srcFields.duration);
+  return (isFinite(d) && d>0) ? d : 30;
+}
+// NanoGPT's 400s, reworded into the fix
+function cleanVoiceError(e){
+  if(e && e.name==="AbortError") return e;
+  var m = String((e && e.message) || e || "");
+  if(/verify the source (audio )?duration/i.test(m)) return new Error("NanoGPT couldn't read this file's length — use MP3, WAV, M4A/AAC or MP4 (OGG isn't accepted).");
+  if(/unable to download/i.test(m)) return new Error("NanoGPT couldn't download the file — the link must be public (no sign-in, not expired).");
+  if(/public http\(?s?\)? source/i.test(m)) return new Error("Clean voice needs a public https link — clips uploaded in the browser can't reach it.");
+  return e;
+}
+// the source's length from its metadata (no CORS needed); null when it can't be read in 10 s
+function cleanVoiceMediaSeconds(url, isVideo){
+  return new Promise(function(res){
+    var el = null, done = false;
+    function fin(v){ if(done) return; done = true; try{ el.removeAttribute("src"); el.load(); }catch(e){} res(v); }
+    try{ el = document.createElement(isVideo ? "video" : "audio"); }catch(e){ res(null); return; }
+    el.preload = "metadata"; el.muted = true;
+    el.onloadedmetadata = function(){ var d = el.duration; fin(isFinite(d) && d>0 ? d : null); };
+    el.onerror = function(){ fin(null); };
+    setTimeout(function(){ fin(null); }, 10000);
+    el.src = url;
+  });
+}
+// send(model, extra) → audio URL (the runtime's genAudio: submit, poll, bill).
+async function cleanVoiceRun(model, inp, f, send){
+  var src = cleanVoiceSource(inp, f);
+  var secs = await cleanVoiceMediaSeconds(src.url, src.video);
+  try{ return { audio: await send(model || CLEANVOICE_DEFAULT_MODEL, cleanVoiceExtra(src.url, secs)) }; }
+  catch(e){ throw cleanVoiceError(e); }
+}
 /* ---------- general per-model options (from the catalog's own param descriptors) ----------
    Video models advertise rich params (preset, style, effect, cameraMovement, mode, switches…)
    in supported_parameters.parameters. Surface every CHOICE param (select ≥2 opts, or switch)
@@ -7741,6 +7851,9 @@ function nodeUnitUsd(n){
     return chatUnitUsd(it, inTok, 0) * (decideMode(f)==="pick" ? 2 : 1); }   // pick asks twice (in order + reversed) to cancel position bias
   if(kind==="chat"){
     const f=fields||{}; const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(it, inTok, outTok); }
+  if(kind==="audio" && t.modelFilter==="denoise"){   // 🎧 Clean voice bills the source's length: the wired node's duration knob, else 30 s
+    const l = graph.links.find(l=> l.to.node===n.id && (l.to.port==="audio" || l.to.port==="video")), src = l && byId(l.from.node);
+    return audioUnitUsd(it.pricing, undefined, cleanVoiceEstSeconds(src && src.fields)); }
   if(kind==="audio"){ const chars = t.modelFilter==="stt" ? undefined : (((fields||{}).prompt||"").length || EST.ttsChars);
     const secs = audioBilledSeconds(it.params, fields||{});   // per_second music meters off the chosen duration, not a fixed 30s
     const u = audioUnitUsd(it.pricing, chars, secs); if(u==null) return null;
@@ -9237,6 +9350,20 @@ const NODE_TYPES = {
       if(!inp.audio) throw new Error("no audio — wire an audio clip into the audio port");
       return { text: await ctx.transcribe(mdl(n), inp.audio, (n.fields.language||"auto").trim()) };
     }
+  },
+
+  cleanvoice: {
+    em:"🎧", title:"Clean voice", desc:"Strip background noise and music — keep the voice (audio or video in)", group:"Audio",
+    kw:"denoise noise removal reduction isolate isolation voice clean audio podcast interview dialogue speech enhance background music",
+    modelKind:"audio", modelFilter:"denoise",
+    inputs:[{name:"audio", type:"audio"},{name:"video", type:"video"}],
+    outputs:[{name:"audio", type:"audio"}], preview:"audio",
+    body:(n)=> `
+      ${modelFieldHTML(n)}
+      <div><label>${esc(t("or a public link"))}</label><textarea data-f="url" spellcheck="false" style="min-height:34px" placeholder="https://…/interview.mp3">${esc(n.fields.url||"")}</textarea></div>
+      <div class="fhint">${esc(t("cleans hosted media only: a generated video or track, or a public link. Clips uploaded in the browser can't reach it."))}</div>`,
+    run:(n, inp, ctx)=> cleanVoiceRun(mdl(n), inp, n.fields, (model, extra)=> ctx.genAudio(model, "", extra,
+      (q,ms)=> setNodeProgress(n, `${t("cleaning voice…")} ${Math.round(ms/1000)}s${q!=null?` · queue ${q}`:""}`), n.id)),
   },
 
   endpoint: {
@@ -12510,7 +12637,7 @@ function njsRunFor(type, rn, inp, n){
 // Signed out → the group still "runs", against DEMO_CTX: canned results (badged as samples, no
 // network, no charge) instead of a dead-end key prompt — the first Run click always shows the wow.
 function isPaidNanoType(type){
-  return /^(llm|vision|decide|image|edit|inpaint|tvideo|ivideo|vedit|lipsync|music|remix|tts|transcribe)$/.test(type);
+  return /^(llm|vision|decide|image|edit|inpaint|tvideo|ivideo|vedit|lipsync|music|remix|tts|transcribe|cleanvoice)$/.test(type);
 }
 async function runGroup(seedIds, ctx){
   ctx = ctx || (getKey() ? CTX : DEMO_CTX);
@@ -16018,7 +16145,7 @@ const SHARE_FIT_MAX = 9000;
 // unfurls as a picture of itself instead of the generic ramen card. Best-effort everywhere:
 // any failure (or an implausibly large PNG) just means no card, and shortening proceeds.
 // Emoji/labels mirror NODE_TYPES (kept inline: play.html's registry lives inside RUNTIME_JS).
-const CARD_TYPE_META = { text:["📝","Text"], upload:["📷","Image input"], aupload:["🎤","Audio input"], vupload:["📹","Video input"], mupload:["📦","3D input"], choice:["🔘","Choice"], join:["🔗","Join"], llm:["🧠","LLM"], image:["🖼","Image"], edit:["✂️","Edit"], inpaint:["🩹","Inpaint"], resize:["📐","Resize / crop"], vision:["👁","Vision"], decide:["⚖️","Decide"], tvideo:["🎬","Text→Video"], ivideo:["📽️","Image→Video"], model3d:["🧊","3D model"], vedit:["🎞️","Video edit"], vframes:["🎞","Video → frames"], combine:["🎬","Combine videos"], soundtrack:["🎚","Soundtrack"], lipsync:["🎭","Avatar / lipsync"], music:["🎵","Music"], remix:["🎛","Remix audio"], tts:["🗣️","Speech"], trim:["✂️","Trim audio"], extractaudio:["🔊","Extract audio"], transcribe:["🎙️","Transcribe"], endpoint:["🔌","Custom endpoint"], comment:["💬","Comment"] };
+const CARD_TYPE_META = { text:["📝","Text"], upload:["📷","Image input"], aupload:["🎤","Audio input"], vupload:["📹","Video input"], mupload:["📦","3D input"], choice:["🔘","Choice"], join:["🔗","Join"], llm:["🧠","LLM"], image:["🖼","Image"], edit:["✂️","Edit"], inpaint:["🩹","Inpaint"], resize:["📐","Resize / crop"], vision:["👁","Vision"], decide:["⚖️","Decide"], tvideo:["🎬","Text→Video"], ivideo:["📽️","Image→Video"], model3d:["🧊","3D model"], vedit:["🎞️","Video edit"], vframes:["🎞","Video → frames"], combine:["🎬","Combine videos"], soundtrack:["🎚","Soundtrack"], lipsync:["🎭","Avatar / lipsync"], music:["🎵","Music"], remix:["🎛","Remix audio"], tts:["🗣️","Speech"], trim:["✂️","Trim audio"], extractaudio:["🔊","Extract audio"], transcribe:["🎙️","Transcribe"], cleanvoice:["🎧","Clean voice"], endpoint:["🔌","Custom endpoint"], comment:["💬","Comment"] };
 // Decode the graph out of the link being shortened (not live editor state) so the card always
 // depicts exactly what the link opens. Returns null on anything unexpected.
 async function shareCardGraph(longUrl){
@@ -17391,6 +17518,8 @@ $("signout").onclick = ()=> setKey(null);
     trim:{ fields:{ start:"seconds", length:"seconds" }, note:"outputs mono WAV small enough to send to models" },
     extractaudio:{ fields:{ start:"seconds", length:"seconds (blank = whole clip)" }, note:"video → mono WAV; feed 🎙️ Transcribe or ✂️ Trim. AI-generated videos are usually silent." },
     transcribe:{ fields:{ model:"stt model id (optional)", language:"auto or a language code (select when model lists langs)" } },
+    cleanvoice:{ fields:{ model:"noise_reduction model id (optional; default elevenlabs/audio-isolation, veed/clean-audio is cheaper)", url:"public https link to a recording, used when nothing is wired" },
+      note:"audio OR video in → the voice alone as audio. Hosted media only: a generated video/track or a public link — browser uploads can't reach it. Pair with 🎚 Soundtrack to put the clean voice back on the video." },
     endpoint:{ main:"prompt", fields:{
       url:"host to POST (typically http://127.0.0.1:8787/v1/chat/completions or https://httpbingo.org)",
       mode:"chat|image|video|audio|json — sets the request body and the output port type",
@@ -17650,6 +17779,7 @@ $("signout").onclick = ()=> setKey(null);
     const tts=pick("audio","tts"); if(tts.length) L.push(`  tts: ${tts.join(", ")}`);
     const mus=pick("audio","music"); if(mus.length) L.push(`  music: ${mus.join(", ")}`);
     const rmx=pick("audio","remix"); if(rmx.length) L.push(`  remix: ${rmx.join(", ")}`);
+    const dn=pick("audio","denoise"); if(dn.length) L.push(`  cleanvoice: ${dn.join(", ")}`);
     return L.length ? `\nExample model ids you MAY use (newest first) — only if the user names a model, otherwise leave "model" out:\n${L.join("\n")}` : "";
   }
   // Prepended to patchling's own system prompt (which already asks for a unified ```diff block).
