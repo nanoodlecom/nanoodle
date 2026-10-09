@@ -1,7 +1,13 @@
 #!/usr/bin/env node
 // Build a narrated 📣 Updates clip: the PR's real-editor usage recording + a short
-// voiceover (NanoGPT TTS), burned-in captions + WebVTT tracks, and the nanoodle logo
-// fading in (intro) and out (outro). Loudness-normalized, faststart H.264/AAC.
+// voiceover (NanoGPT TTS), burned-in captions + WebVTT tracks. Loudness-normalized,
+// faststart H.264/AAC.
+//
+// Shape (Mikkel, Oct 2026): the FIRST frame is the feature itself — a still of the clip
+// at `titleFrameAt` (the node / result on canvas) with a title overlay naming it
+// ("⚖️ Decide node: picks the best image"), held TITLE_HOLD s; that frame is also the
+// poster. Then the take plays with VO + captions, crossfades into the nanoodle logo card
+// (icon + wordmark) and ENDS HELD on it at full opacity — no fade-out.
 //
 //   NANOGPT_API_KEY=… node scripts/make-update-clip.mjs scripts/update-clips/decide-node.json \
 //     [--source path/to/raw.webm] [--qa] [--attach] [--dry-run]
@@ -11,7 +17,9 @@
 // Spec (scripts/update-clips/<name>.json):
 //   { name, entry:"updates.json text prefix", source, ss?, to?, width?, fps?, crf?,
 //     blur?:[{x,y,w,h}] (source px — the balance chip), extend?:"freeze"|"loop",
-//     posterAt?: clip seconds, introTitle?, outroTitle?,
+//     title:"⚖️ Decide node", subtitle?:"picks the best image", titleFrameAt: clip seconds
+//     (a frame that SHOWS the feature — usually the finished result), titleZoom?:{cx,cy,scale}
+//     (push in on it, take px), kicker?:"New in nanoodle", titleHold?:1.4, outroTitle?,
 //     voice:{ model, voice, instructions?, speed? }, music?: { file, db? },
 //     cues:[{ at: clip seconds, text:"English VO line", i18n?:{es,fr,de,pt,ja} }] }
 // Writes updates-media/<name>.mp4 + .webp + .<lang>.vtt (en + every lang all cues
@@ -42,8 +50,14 @@ const API = "https://nano-gpt.com";
 const LANGS = ["en", "es", "fr", "de", "pt", "ja"];
 
 const W = spec.width || 960, FPS = spec.fps || 20, CRF = spec.crf || 24;
-const INTRO = 1.6, OUTRO = 1.6, XF = 0.4, FADE = 0.8;          // card lengths, crossfade, logo fade
-const LEAD = INTRO - XF;                                         // output time of clip t=0
+const HOLD = spec.titleHold || 1.4;   // title frame on screen alone (first frame = poster)
+const XF = 0.3;                        // title frame → take crossfade
+const XF2 = 0.4;                       // take → logo crossfade
+const LOGO_HOLD = 1.0;                 // logo at full opacity until the very last frame
+const OUTRO = XF2 + LOGO_HOLD;
+const LEAD = HOLD - XF;                // output time of clip t=0
+if (!spec.title) { console.error("spec.title is required (what the feature is — shown on the first frame)"); process.exit(2); }
+if (typeof spec.titleFrameAt !== "number") { console.error("spec.titleFrameAt is required (clip seconds of a frame that shows the feature)"); process.exit(2); }
 const work = mkdtempSync(join(tmpdir(), "update-clip-"));
 const cacheDir = join(process.env.XDG_CACHE_HOME || join(homedir(), ".cache"), "nanoodle-update-clip");
 mkdirSync(cacheDir, { recursive: true });
@@ -75,6 +89,7 @@ const base = join(work, "base.mp4");
   ff([...a, "-i", source, "-an", "-filter_complex", vf.join(";"), "-map", "[v]", "-c:v", "libx264", "-crf", "14", "-preset", "fast", base]);
 }
 const [, H] = probe(base, "stream=width,height").split(",").map(Number);
+const BAND = Math.round(H * (spec.titleBand || 0.22) / 2) * 2;   // title band height on the first frame
 let C = dur(base);
 log(`clip ${W}x${H} @${FPS}fps, ${C.toFixed(2)}s from ${source.replace(ROOT + "/", "")}`);
 
@@ -117,7 +132,7 @@ takes.forEach((t, i) => {
   const next = takes[i + 1];
   if (next && t.at + t.d + 0.25 > next.at) throw new Error(`cue ${i + 1} ("${t.text.slice(0, 40)}…") runs ${(t.at + t.d + 0.25 - next.at).toFixed(2)}s into cue ${i + 2} — shorten it or move cue ${i + 2} later`);
 });
-const needEnd = Math.max(...takes.map((t) => t.at + t.d)) + 0.9;
+const needEnd = Math.max(...takes.map((t) => t.at + t.d)) + XF2 + 0.6;   // VO done before the logo crossfade
 if (needEnd > C) {
   const ext = join(work, "ext.mp4");
   if (spec.extend === "loop") ff(["-stream_loop", String(Math.ceil(needEnd / C)), "-i", base, "-t", needEnd.toFixed(3), "-c:v", "libx264", "-crf", "14", "-preset", "fast", ext]);
@@ -125,7 +140,10 @@ if (needEnd > C) {
   log(`VO ends at ${needEnd.toFixed(2)}s > clip ${C.toFixed(2)}s → ${spec.extend === "loop" ? "looped" : "held last frame"}`);
   copyFileSync(ext, base); C = dur(base);
 }
-const T = INTRO + C + OUTRO - 2 * XF;
+const T = HOLD + C + OUTRO - XF - XF2;
+if (LEAD + takes[0].at < HOLD + 0.1) throw new Error(`cue 1 starts during the title hold — move it to at ≥ ${(HOLD + 0.1 - LEAD).toFixed(2)}`);
+const lastVo = Math.max(...takes.map((t) => t.at + t.d));
+if (lastVo > C - XF2) throw new Error("VO runs into the logo crossfade");
 
 // ---------- 4) logo cards (real icon + Righteous wordmark, rendered by Chrome) ----------
 async function cards() {
@@ -133,24 +151,47 @@ async function cards() {
   const { chromium } = await import(mod ? pathToFileURL(resolve(mod)).href : "playwright");
   const b64 = (p) => readFileSync(join(ROOT, p)).toString("base64");
   const esc = (s) => String(s || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-  const html = (title) => `<!doctype html><html><head><style>
-    @font-face{font-family:R;src:url(data:font/woff2;base64,${b64("vendor/righteous/righteous-latin.woff2")}) format("woff2")}
+  const font = `@font-face{font-family:R;src:url(data:font/woff2;base64,${b64("vendor/righteous/righteous-latin.woff2")}) format("woff2")}`;
+  // the logo card: real icon + Righteous wordmark (as in the editor's top bar)
+  const logo = `<!doctype html><html><head><style>${font}
     html,body{margin:0;width:${W}px;height:${H}px;overflow:hidden}
-    body{background:radial-gradient(${W * 0.9}px ${H * 0.7}px at 50% 42%,#1a1f3a,#0b0d12 70%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:${H * 0.03}px;font-family:Inter,system-ui,sans-serif}
+    body{background:radial-gradient(${W * 0.9}px ${H * 0.7}px at 50% 46%,#1a1f3a,#0b0d12 70%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:${H * 0.03}px;font-family:Inter,system-ui,sans-serif}
     .lock{display:flex;align-items:center;gap:${H * 0.03}px}
     img{width:${H * 0.15}px;height:${H * 0.15}px;border-radius:22%;filter:drop-shadow(0 0 ${H * 0.04}px #7c8cff66)}
     .w{font-family:R;font-size:${H * 0.12}px;color:#eef1f7;letter-spacing:.01em}
     .w b{font-weight:400;background:linear-gradient(90deg,#67e8f9,#7c8cff 70%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 ${H * 0.02}px #7c8cff77)}
-    .t{color:#9aa3b2;font-size:${H * 0.042}px;font-weight:500;letter-spacing:.01em;min-height:1.2em}
-  </style></head><body><div class="lock"><img src="data:image/png;base64,${b64("icon-512.png")}"><div class="w"><b>nano</b>odle</div></div><div class="t">${esc(title)}</div></body></html>`;
+    .t{color:#9aa3b2;font-size:${H * 0.04}px;font-weight:500}
+  </style></head><body><div class="lock"><img src="data:image/png;base64,${b64("icon-512.png")}"><div class="w"><b>nano</b>odle</div></div>${spec.outroTitle ? `<div class="t">${esc(spec.outroTitle)}</div>` : ""}</body></html>`;
+  // the title band: what the feature is, in a solid band across the top — the feature
+  // itself sits in full view underneath (nothing covers it), captions only start later
+  const title = `<!doctype html><html><head><style>
+    html,body{margin:0;width:${W}px;height:${BAND}px;overflow:hidden}
+    body{background:linear-gradient(180deg,#151a2e,#0b0d12);border-bottom:1px solid #2a3150;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Inter,system-ui,sans-serif;color:#eef1f7;box-sizing:border-box;padding:0 ${W * 0.04}px}
+    .k{font-size:${BAND * 0.11}px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#67e8f9;margin-bottom:${BAND * 0.04}px}
+    .n{font-size:${BAND * 0.3}px;font-weight:800;letter-spacing:-.02em;line-height:1.08;white-space:nowrap}
+    .s{font-size:${BAND * 0.15}px;font-weight:500;color:#b9c1d3;margin-top:${BAND * 0.05}px;white-space:nowrap}
+  </style></head><body>${spec.kicker === "" ? "" : `<div class="k">${esc(spec.kicker || "New in nanoodle")}</div>`}<div class="n">${esc(spec.title)}</div>${spec.subtitle ? `<div class="s">${esc(spec.subtitle)}</div>` : ""}
+  <script>for(const el of document.querySelectorAll(".n,.s")){let f=parseFloat(getComputedStyle(el).fontSize);while(el.scrollWidth>${W * 0.92}&&f>10){f-=1;el.style.fontSize=f+"px"}}</script></body></html>`;
   const exe = process.env.NANOODLE_CHROMIUM;   // same knob as smoke-first-run.mjs
   const br = await chromium.launch(exe ? { executablePath: exe } : {}).catch(() => chromium.launch({ channel: "chrome" }));
   const pg = await br.newPage({ viewport: { width: W, height: H } });
-  for (const [f, title] of [["intro.png", spec.introTitle], ["outro.png", spec.outroTitle ?? "nanoodle.com"]]) {
-    await pg.setContent(html(title)); await pg.evaluate(() => document.fonts.ready);
-    await pg.screenshot({ path: join(work, f) });
-  }
+  await pg.setContent(logo); await pg.evaluate(() => document.fonts.ready);
+  await pg.screenshot({ path: join(work, "logo.png") });
+  await pg.setViewportSize({ width: W, height: BAND });
+  await pg.setContent(title); await pg.evaluate(() => document.fonts.ready);
+  await pg.screenshot({ path: join(work, "title-band.png") });
   await br.close();
+  // first frame: the feature itself (a still of the take) under the title
+  if (spec.titleFrameAt > C) throw new Error(`titleFrameAt ${spec.titleFrameAt}s is past the clip (${C.toFixed(2)}s)`);
+  // the feature frame fills the area under the band: crop the take around titleZoom
+  // {cx, cy, scale} (take px; default = centered, scale 1) at the area's aspect, then scale
+  const z = spec.titleZoom || {}, sc = z.scale || 1, AH = H - BAND;
+  const cw = Math.min(W, Math.round(W / sc / 2) * 2), chh = Math.min(H, Math.round(AH / sc / 2) * 2);
+  const cx = z.cx ?? W / 2, cy = z.cy ?? H / 2;
+  const x = Math.max(0, Math.min(W - cw, Math.round(cx - cw / 2))), y = Math.max(0, Math.min(H - chh, Math.round(cy - chh / 2)));
+  ff(["-ss", String(spec.titleFrameAt), "-i", base, "-i", join(work, "title-band.png"), "-filter_complex",
+    `[0:v]crop=${cw}:${chh}:${x}:${y},scale=${W}:${AH}:flags=lanczos,pad=${W}:${H}:0:${BAND}:color=0x0b0d12,format=rgba[f];[f][1:v]overlay=0:0`,
+    "-frames:v", "1", join(work, "title.png")]);
 }
 await cards();
 
@@ -205,7 +246,7 @@ const mix = join(work, "vo.wav");
   if (spec.music && spec.music.file) {
     ins.push("-stream_loop", "-1", "-i", resolve(ROOT, spec.music.file));
     const m = takes.length;
-    graph += `;[${m}:a]aresample=48000,pan=mono|c0=0.5*c0+0.5*c1,volume=${spec.music.db ?? -26}dB,atrim=0:${T.toFixed(3)},afade=t=in:d=${FADE},afade=t=out:st=${(T - 1.2).toFixed(3)}:d=1.2[mu];[vo]asplit[v1][v2];[mu][v2]sidechaincompress=threshold=0.03:ratio=6:attack=20:release=400[duck];[v1][duck]amix=inputs=2:normalize=0[mx]`;
+    graph += `;[${m}:a]aresample=48000,pan=mono|c0=0.5*c0+0.5*c1,volume=${spec.music.db ?? -26}dB,atrim=0:${T.toFixed(3)},afade=t=in:d=0.8,afade=t=out:st=${(T - 1.2).toFixed(3)}:d=1.2[mu];[vo]asplit[v1][v2];[mu][v2]sidechaincompress=threshold=0.03:ratio=6:attack=20:release=400[duck];[v1][duck]amix=inputs=2:normalize=0[mx]`;
     map = "[mx]";
   }
   ff([...ins, "-filter_complex", graph, "-map", map, "-ar", "48000", "-ac", "1", mix]);
@@ -218,28 +259,29 @@ const norm = join(work, "vo-norm.wav");
   ff(["-i", mix, "-af", `loudnorm=I=-16:TP=-1.5:LRA=11:measured_I=${j.input_i}:measured_TP=${j.input_tp}:measured_LRA=${j.input_lra}:measured_thresh=${j.input_thresh}:offset=${j.target_offset}:linear=true,aresample=48000`, "-ar", "48000", norm]);
 }
 
-// ---------- 7) compose: intro card ⟶ clip ⟶ outro card, captions burned, AAC ----------
+// ---------- 7) compose: title frame ⟶ take ⟶ held logo card, captions burned, AAC ----------
 const out = join(outDir, `${spec.name}.mp4`);
 {
   const fsDir = "/usr/share/fonts";
   const g = [
-    `[0:v]fps=${FPS},format=yuv420p,setsar=1,fade=t=in:st=0:d=${FADE},settb=AVTB[i]`,
+    `[0:v]fps=${FPS},format=yuv420p,setsar=1,settb=AVTB[i]`,
     `[1:v]fps=${FPS},format=yuv420p,setsar=1,settb=AVTB[m]`,
-    `[2:v]fps=${FPS},format=yuv420p,setsar=1,fade=t=out:st=${OUTRO - FADE}:d=${FADE},settb=AVTB[o]`,
-    `[i][m]xfade=transition=fade:duration=${XF}:offset=${r3(INTRO - XF)}[im]`,
-    `[im][o]xfade=transition=fade:duration=${XF}:offset=${r3(INTRO - XF + C - XF)}[v0]`,
+    `[2:v]fps=${FPS},format=yuv420p,setsar=1,settb=AVTB[o]`,                      // no fade-out: ends held on the logo
+    `[i][m]xfade=transition=fade:duration=${XF}:offset=${r3(HOLD - XF)}[im]`,
+    `[im][o]xfade=transition=fade:duration=${XF2}:offset=${r3(HOLD - XF + C - XF2)}[v0]`,
     `[v0]subtitles=${join(work, "subs.ass")}:fontsdir=${fsDir}[v]`,
   ];
-  ff(["-loop", "1", "-framerate", String(FPS), "-t", String(INTRO), "-i", join(work, "intro.png"),
+  ff(["-loop", "1", "-framerate", String(FPS), "-t", String(HOLD), "-i", join(work, "title.png"),
       "-i", base,
-      "-loop", "1", "-framerate", String(FPS), "-t", String(OUTRO), "-i", join(work, "outro.png"),
+      "-loop", "1", "-framerate", String(FPS), "-t", String(OUTRO + 0.5), "-i", join(work, "logo.png"),
       "-i", norm,
       "-filter_complex", g.join(";"), "-map", "[v]", "-map", "3:a",
       "-c:v", "libx264", "-preset", "veryslow", "-crf", String(CRF), "-tune", "animation", "-pix_fmt", "yuv420p",
       "-c:a", "aac", "-b:a", spec.music ? "96k" : "72k", "-ac", "1", "-t", T.toFixed(3), "-movflags", "+faststart", out]);
 }
 const poster = join(outDir, `${spec.name}.webp`);
-ff(["-ss", String(r3(LEAD + (spec.posterAt ?? Math.min(C * 0.75, C - 0.5)))), "-i", out, "-frames:v", "1", "-c:v", "libwebp", "-quality", "72", poster]);
+// poster = the first frame (feature + title), so the panel communicates it before playback
+ff(["-i", out, "-frames:v", "1", "-c:v", "libwebp", "-quality", "72", poster]);
 
 const media = { src: `updates-media/${spec.name}.mp4`, poster: `updates-media/${spec.name}.webp`, w: W, h: H, audio: true, captions: vtts, burned: "en" };
 const sizeKB = (f) => Math.round(statSync(f).size / 1024);
@@ -290,4 +332,15 @@ if (flag("--qa") && !DRY) {
   const cols = 6, rows = Math.ceil(T / cols);
   ff(["-i", out, "-vf", `fps=1,scale=${Math.round(W / 2.5)}:-2,drawtext=fontfile=/usr/share/fonts/truetype/sand-box/google/Inter/Inter-VariableFont_opsz\\,wght.ttf:text='%{pts\\:hms}':x=6:y=6:fontsize=16:fontcolor=yellow:box=1:boxcolor=black@0.6,tile=${cols}x${rows}`, "-frames:v", "1", sheet]);
   log(`QA contact sheet (look at every frame): ${sheet}`);
+  // first frame must SHOW the feature + its title; last frame must be the logo at full opacity
+  const first = join(tmpdir(), `${spec.name}-first.png`), last = join(tmpdir(), `${spec.name}-last.png`), logoRef = join(work, "logo.png");
+  ff(["-i", out, "-frames:v", "1", first]);
+  ff(["-sseof", "-0.05", "-i", out, "-update", "1", "-frames:v", "1", last]);
+  const ssim = spawnSync("ffmpeg", ["-hide_banner", "-i", last, "-i", logoRef, "-filter_complex", "[0:v]format=yuv420p[a];[1:v]format=yuv420p,scale=" + W + ":" + H + "[b];[a][b]ssim", "-f", "null", "-"], { encoding: "utf8" });
+  const sv = parseFloat((ssim.stderr.match(/All:([\d.]+)/) || [])[1]);
+  log(`QA first frame (feature + title, = poster): ${first}`);
+  log(`QA last frame (logo, full opacity): ${last} — SSIM vs logo card ${isNaN(sv) ? "?" : sv.toFixed(3)}${sv >= 0.97 ? " ✓" : " ✗ (not the held logo!)"}`);
+  const size = statSync(out).size;
+  log(`QA size: ${size} bytes ${size <= 1_500_000 ? "✓ ≤ 1.5 MB" : "✗ over the 1.5 MB narrated cap"}`);
+  log(`QA captions vs title: title only during 0–${HOLD}s (top); first caption at ${(LEAD + takes[0].at).toFixed(2)}s (bottom) ✓`);
 }
