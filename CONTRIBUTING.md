@@ -193,14 +193,27 @@ the poster, linking to the mp4.
 
 #### Narrated clips (voiceover, captions, logo)
 
-A qualifying clip should usually be narrated. `scripts/make-update-clip.mjs`
-renders one from a small spec in `scripts/update-clips/<name>.json`:
+**Every new release with a substantial, visible change gets a narrated clip.**
+Render it in the same PR that adds the Updates entry, using
+`scripts/make-update-clip.mjs` and a small spec in
+`scripts/update-clips/<name>.json`. The clip has this shape:
 
-- a short voiceover from NanoGPT TTS, timed to the on-screen actions;
-- English captions burned into the picture, plus a WebVTT track for each
-  language the spec translates;
-- the nanoodle logo fading in as an intro and out as an outro;
-- loudness normalized to −16 LUFS.
+- **First frame: the feature and what it is.** The clip opens on a still
+  of the feature on canvas, usually the finished result (`titleFrameAt`,
+  optionally pushed in with `titleZoom`). A title band above it names the
+  feature (`title`, e.g. "⚖️ Decide node") and says what it does
+  (`subtitle`, e.g. "Picks the best image, with a probability for each").
+  It holds about 1.4s with nothing covering the feature. This frame is also
+  the poster, so the panel communicates the feature before anyone presses
+  play.
+- **Middle: the take.** The recording plays with a short voiceover from
+  NanoGPT TTS, timed to the on-screen actions. English captions are burned
+  in at the bottom, and there is a WebVTT track for each language the spec
+  translates.
+- **Last frame: the nanoodle logo** (icon and wordmark). The clip
+  crossfades into the logo and ends held on it at full opacity for about
+  1s. There is no fade-out.
+- **Loudness** is normalized to −16 LUFS.
 
 ```sh
 NANOGPT_API_KEY=… NANOODLE_PLAYWRIGHT=/path/to/playwright/index.mjs \
@@ -235,9 +248,14 @@ clip:
 
 - [ ] Whisper's transcript matches the script (0% word error rate).
 - [ ] Loudness is about −16 LUFS.
+- [ ] The first frame (`/tmp/<name>-first.png`, which is also the poster)
+      shows the feature itself plus its title, and the title band covers
+      nothing important.
+- [ ] The last frame (`/tmp/<name>-last.png`) is the logo at full opacity.
+      `--qa` checks it against the logo card (SSIM ≥ 0.97).
 - [ ] In the contact sheet, every line lines up with its action, and the
-      captions are readable and never cover the thing being shown.
-- [ ] The logo intro and outro are clean.
+      captions (bottom) are readable and never cover the title or the
+      thing being shown.
 - [ ] The balance is blurred, and no browser chrome or `localhost`
       appears.
 - [ ] The clip is ≤ 1.5 MB.
