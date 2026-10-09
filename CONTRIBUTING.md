@@ -147,11 +147,25 @@ is in the commit, so a forgotten regen cannot land locally. CI runs
 
 ### Usage clips on Updates entries
 
-A user-facing feature PR records a short real-editor usage GIF for its
-description (committed under `docs/media/`). Its Updates entry carries the
-same clip, so people see the feature in the 📣 panel and on `/changelog`.
-`docs/` is not deployed, so add a re-encoded copy under `updates-media/`
-and do not link to the GIF:
+Most Updates entries have no clip. An entry gets one only if **both** of
+these are true:
+
+1. **The change is substantial and visible to users**, such as a new node,
+   panel or workflow. Leave the clip off for small changes: a price or
+   estimate fix, a model-default swap, a label or copy tweak, or a bug fix
+   that's hard to see.
+2. **The clip clearly and accurately shows exactly that entry's change.**
+   Leave it off if the clip shows a different change, only one part of a
+   bundled entry, or something the entry text doesn't claim. Also leave it
+   off if it shows the change only in passing, or if its frames no longer
+   match the current UI.
+
+Check the actual frames before you add a clip. If you're unsure, leave it
+off; an entry without a clip is fine.
+
+For an entry that qualifies, reuse the real-editor usage GIF from the PR
+description (committed under `docs/media/`). `docs/` is not deployed, so
+add a re-encoded copy under `updates-media/` and do not link to the GIF:
 
 ```sh
 ffmpeg -i docs/media/my-feature.gif -an \
@@ -168,8 +182,6 @@ size for `w` and `h`:
 "media": { "src": "updates-media/my-feature.mp4", "poster": "updates-media/my-feature.webp", "w": 720, "h": 450 }
 ```
 
-- **Show only that entry's feature.** If the GIF covers a different
-  change, or only one part of a bundled entry, leave `media` off.
 - **Hide account details.** Blur the balance in the recording, and keep
   out browser chrome, the dock and `localhost`.
 - **One clip per entry.** `media` has no language, so all six languages
