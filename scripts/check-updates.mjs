@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Validate updates.json: a newest-first array of
 //   { date:"YYYY-MM-DD", text:"one line", i18n?:{ es,fr,de,pt,ja:"one line" },
-//     media?:{ src:"updates-media/x.mp4", poster:"updates-media/x.webp", w, h } }.
+//     media?:{ src:"updates-media/x.mp4", poster:"updates-media/x.webp", w, h,
+//              audio?:true, captions?:{ en:"updates-media/x.en.vtt", … }, burned?:"en" } }.
 // The pre-commit hook runs this when updates.json is staged, so a malformed hand
 // edit can't ship and break the in-app Updates changelog.
 //
@@ -21,7 +22,8 @@ import { dirname, join } from "node:path";
 const LANGS = ["es", "fr", "de", "pt", "ja"];
 // Same-origin clip paths only (deployed folder, no traversal). Mirrors index.html's
 // UPD_MEDIA_RE and gen-changelog.mjs's MEDIA_RE.
-const MEDIA_RE = /^updates-media\/[a-z0-9][a-z0-9._-]*\.(mp4|webp|png|jpg)$/;
+const MEDIA_RE = /^updates-media\/[a-z0-9][a-z0-9._-]*\.(mp4|webp|png|jpg|vtt)$/;
+const CAP_LANGS = ["en", ...LANGS];
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const file = join(root, "updates.json");
@@ -52,11 +54,23 @@ if (!Array.isArray(list)) {
       const m = e.media;
       if (typeof m !== "object" || m === null || Array.isArray(m)) errs.push(`#${i}: media must be an object { src, poster, w, h }`);
       else {
-        const extraM = Object.keys(m).filter(k => !["src", "poster", "w", "h"].includes(k));
+        const extraM = Object.keys(m).filter(k => !["src", "poster", "w", "h", "audio", "captions", "burned"].includes(k));
         if (extraM.length) errs.push(`#${i}: media has unknown key(s): ${extraM.join(", ")}`);
         if (!MEDIA_RE.test(m.src || "") || !/\.mp4$/.test(m.src)) errs.push(`#${i}: media.src must be updates-media/<name>.mp4`);
-        if (!MEDIA_RE.test(m.poster || "") || /\.mp4$/.test(m.poster)) errs.push(`#${i}: media.poster must be updates-media/<name>.webp (or .png/.jpg)`);
+        if (!MEDIA_RE.test(m.poster || "") || !/\.(webp|png|jpg)$/.test(m.poster)) errs.push(`#${i}: media.poster must be updates-media/<name>.webp (or .png/.jpg)`);
         if (!(Number.isInteger(m.w) && m.w > 0 && Number.isInteger(m.h) && m.h > 0)) errs.push(`#${i}: media.w / media.h must be positive integers (the clip's pixel size)`);
+        // Narrated clips (scripts/make-update-clip.mjs): audio:true, captions {lang: .vtt}, burned: the
+        // caption language drawn into the picture. Sound always comes with captions.
+        if (m.audio !== undefined && m.audio !== true) errs.push(`#${i}: media.audio is true or absent`);
+        if (m.captions !== undefined) {
+          if (typeof m.captions !== "object" || m.captions === null || Array.isArray(m.captions)) errs.push(`#${i}: media.captions must be { lang: "updates-media/<name>.<lang>.vtt" }`);
+          else for (const [lang, f] of Object.entries(m.captions)) {
+            if (!CAP_LANGS.includes(lang)) errs.push(`#${i}: media.captions has unknown language ${lang}`);
+            if (!MEDIA_RE.test(f || "") || !/\.vtt$/.test(f)) errs.push(`#${i}: media.captions.${lang} must be updates-media/<name>.vtt`);
+          }
+        }
+        if (m.audio === true && !(m.captions && m.captions.en)) errs.push(`#${i}: a narrated clip (media.audio) needs English captions (media.captions.en)`);
+        if (m.burned !== undefined && !(m.captions && m.captions[m.burned])) errs.push(`#${i}: media.burned must name a language in media.captions`);
       }
     }
 

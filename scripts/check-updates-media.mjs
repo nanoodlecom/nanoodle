@@ -15,7 +15,8 @@
 //     NOT docs/, which .assetsignore keeps off the site) and isn't asset-ignored;
 //  2. size caps: clip ≤ 1 MB, poster ≤ 100 KB (never ship a raw multi-MB GIF);
 //  3. the clip is a real MP4 with `moov` before `mdat` (+faststart, so it starts
-//     playing before the whole file arrives) and no audio track;
+//     playing before the whole file arrives); an audio track only on narrated clips
+//     (media.audio, AAC, ≤ 1.5 MB, with WebVTT captions — scripts/make-update-clip.mjs);
 //  4. the poster's real pixel size matches media.w × media.h (no layout shift);
 //  5. no orphans: every file in updates-media/ is referenced by some entry.
 //
@@ -31,9 +32,11 @@ import { dirname, join } from "node:path";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DIR = "updates-media";
-const MAX_CLIP = 1_000_000;
+const MAX_CLIP = 1_000_000;          // silent loop
+const MAX_NARRATED = 1_500_000;     // with voiceover (AAC) + logo intro/outro
+const MAX_VTT = 20_000;
 const MAX_POSTER = 100_000;
-const MEDIA_RE = /^updates-media\/[a-z0-9][a-z0-9._-]*\.(mp4|webp|png|jpg)$/;
+const MEDIA_RE = /^updates-media\/[a-z0-9][a-z0-9._-]*\.(mp4|webp|png|jpg|vtt)$/;
 let failed = 0;
 const fail = (msg) => { console.error("✗ check-updates-media: " + msg); failed++; };
 
@@ -92,15 +95,16 @@ list.forEach((e, i) => {
     fail(`${where}: media must be { src:"${DIR}/<name>.mp4", poster:"${DIR}/<name>.webp", w, h }`); return;
   }
   clips++;
-  for (const p of [m.src, m.poster]) {
+  const caps = (m.captions && typeof m.captions === "object") ? Object.values(m.captions) : [];
+  for (const p of [m.src, m.poster, ...caps]) {
     referenced.add(p);
     if (ignored(p)) fail(`${where}: ${p} is excluded by .assetsignore`);
   }
   const src = join(root, m.src), poster = join(root, m.poster);
   if (!existsSync(src)) fail(`${where}: ${m.src} does not exist`);
   else {
-    const size = statSync(src).size;
-    if (size > MAX_CLIP) fail(`${where}: ${m.src} is ${size} bytes (cap ${MAX_CLIP}) — re-encode smaller (crf/fps/width)`);
+    const size = statSync(src).size, cap = m.audio === true ? MAX_NARRATED : MAX_CLIP;
+    if (size > cap) fail(`${where}: ${m.src} is ${size} bytes (cap ${cap}${m.audio ? ", narrated" : ""}) — re-encode smaller (crf/fps/width)`);
     const boxes = mp4Boxes(readFileSync(src));
     const types = boxes.map(b => b.type);
     if (types[0] !== "ftyp") fail(`${where}: ${m.src} is not an MP4 (first box ${types[0] || "none"})`);
@@ -109,8 +113,21 @@ list.forEach((e, i) => {
     else if (moov > mdat) fail(`${where}: ${m.src} has moov after mdat — re-encode with -movflags +faststart`);
     else {
       const b = boxes[moov], moovBuf = readFileSync(src).subarray(b.off, b.off + b.size);
-      if (moovBuf.includes(Buffer.from("soun"))) fail(`${where}: ${m.src} has an audio track — clips are muted loops, encode with -an`);
+      const hasAudio = moovBuf.includes(Buffer.from("soun"));
+      // The panel loop is always muted; sound is only for the enlarged view, and only
+      // when the entry says so (media.audio) — which also requires captions.
+      if (hasAudio && m.audio !== true) fail(`${where}: ${m.src} has an audio track but media.audio isn't true — encode silent clips with -an`);
+      if (!hasAudio && m.audio === true) fail(`${where}: media.audio is true but ${m.src} has no audio track`);
+      if (hasAudio && !moovBuf.includes(Buffer.from("mp4a"))) fail(`${where}: ${m.src} audio must be AAC (mp4a) — every browser plays it`);
     }
+  }
+  for (const f of caps) {
+    const p = join(root, f);
+    if (!existsSync(p)) { fail(`${where}: ${f} does not exist`); continue; }
+    const txt = readFileSync(p, "utf8");
+    if (statSync(p).size > MAX_VTT) fail(`${where}: ${f} is over ${MAX_VTT} bytes`);
+    if (!/^WEBVTT(\s|$)/.test(txt)) fail(`${where}: ${f} must start with "WEBVTT"`);
+    if (!/\d\d:\d\d:\d\d\.\d{3} --> \d\d:\d\d:\d\d\.\d{3}/.test(txt)) fail(`${where}: ${f} has no cues`);
   }
   if (!existsSync(poster)) fail(`${where}: ${m.poster} does not exist`);
   else {
@@ -131,8 +148,10 @@ if (existsSync(join(root, DIR))) {
 const idx = readFileSync(join(root, "index.html"), "utf8");
 if (!/function updClip\(e\)/.test(idx) || !/updClip\(e\)/.test(idx.split("function updClip(e)")[0])) fail("index.html openUpdates() no longer renders media via updClip(e)");
 if (!/preload = "none"/.test(idx) || !/IntersectionObserver/.test(idx)) fail("index.html update clips must stay lazy (preload none + IntersectionObserver)");
+if (!/function openUpdClip\(/.test(idx) || !/v\.muted = !narrated/.test(idx)) fail("index.html enlarged view must unmute only narrated clips (media.audio)");
+if (!/clipVid\.muted = true/.test(idx)) fail("index.html panel clips must stay muted (autoplay-safe)");
 const gen = readFileSync(join(root, "scripts", "gen-changelog.mjs"), "utf8");
 if (!/clipHtml\(e\)/.test(gen) || !/loading="lazy"/.test(gen)) fail("gen-changelog.mjs no longer renders lazy clip posters");
 
 if (failed) process.exit(1);
-console.log(`✓ check-updates-media: ${clips} update clip${clips === 1 ? "" : "s"} exist, ship, are faststart MP4s ≤ ${MAX_CLIP / 1e6} MB with posters ≤ ${MAX_POSTER / 1e3} KB`);
+console.log(`✓ check-updates-media: ${clips} update clip${clips === 1 ? "" : "s"} exist, ship, are faststart MP4s (≤ ${MAX_CLIP / 1e6} MB silent, ≤ ${MAX_NARRATED / 1e6} MB narrated + captioned) with posters ≤ ${MAX_POSTER / 1e3} KB`);
