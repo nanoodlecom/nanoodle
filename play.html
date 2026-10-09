@@ -6512,6 +6512,13 @@ window.NoodleApp = (function () {
     "grok-imagine-video-1.5-lite": { default_resolution:"720p", default_duration:6, per_second_by_resolution:{ "480p":0.02, "720p":0.03, "1080p":0.14 } },
     // H3 Max Turbo extend: billed on the new seconds only (2s and 4s sources quote the same).
     "minimax/h3-max-turbo/extend-video": { default_resolution:"768p", default_duration:5, per_second_by_resolution:{ "480p":0.025, "768p":0.04, "1080p":0.08, "2k":0.16 } },
+    // Measured 2026-10-08 the same way (402 quote, nothing runs; 480p/720p/1080p x 4s/5s/12s x audio
+    // on/off, all linear in seconds). The public catalog's raw withAudio/withoutAudio tables for these
+    // ids are exactly 1/1.7 of what POST /api/generate-video bills (catalog 720p no-audio 5s $0.0765;
+    // quote and the 2026-10-08 idea-to-short-film run $0.13), so the quote's table replaces the raw one.
+    // Same raw shape, so the audio switch still picks the with-audio column.
+    "bytedance-seedance-v1.5-pro": { raw:{ type:"resolution-per-second-audio-toggle", defaultDuration:5, defaultResolution:"720p", withoutAudioPricesPerSecond:{ "480p":0.012, "720p":0.026, "1080p":0.052 }, withAudioPricesPerSecond:{ "480p":0.024, "720p":0.052, "1080p":0.104 } } },
+    "bytedance-seedance-v1.5-pro-fast": { raw:{ type:"resolution-per-second-audio-toggle", defaultDuration:5, defaultResolution:"720p", withoutAudioPricesPerSecond:{ "720p":0.02, "1080p":0.03 }, withAudioPricesPerSecond:{ "720p":0.04, "1080p":0.06 } } },
   };
   function videoPricingHasDurationRate(p){
     if(!p) return false;
