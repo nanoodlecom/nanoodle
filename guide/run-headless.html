@@ -263,6 +263,9 @@ npx nanoodle run graph.json --input "Shared test brief=@brief.txt" --env-file .e
       arrives when the node's turn comes, so paid nodes earlier in the graph have already
       spent — run a media-only graph once to prove your setup before you wire a paid node in
       front of it.</p>
+      <p>The ⚖️ <code>decide</code> node (NanoGPT decision models) runs in the editor and in
+      shared apps today; the headless libraries don't know it yet, so they refuse a graph that
+      contains it — up front, before anything spends.</p>
       <p>Only an <em>unknown</em> node type is refused up front: the libraries warn at load and
       throw at <code>run()</code> before any network call. That is how a graph saved before
       2026-07-22 with the retired <code>draw</code> node behaves. The full node table is on the

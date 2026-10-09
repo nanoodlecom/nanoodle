@@ -105,8 +105,8 @@ Replace the code with your own (or delete the parameter and use bare
 ## The pages
 
 - **`index.html`** — the editor (site root, `/app`). A NanoGPT workflow
-  canvas: Text, Join, LLM, Image, Edit, Vision, video, music, speech and
-  more. Drag port to port (compatible inputs glow and snap by type), run
+  canvas: Text, Join, LLM, Image, Edit, Vision, Decide, video, music,
+  speech and more. Drag port to port (compatible inputs glow and snap by type), run
   disconnected groups in parallel, share a graph via URL, save/load JSON.
   UI in six languages (EN/ES/FR/DE/PT/JA), auto-detected with a switcher.
 - **`play.html`** — the app builder (`/play`, or ✨ **Create app** in the
