@@ -263,9 +263,14 @@ npx nanoodle run graph.json --input "Shared test brief=@brief.txt" --env-file .e
       arrives when the node's turn comes, so paid nodes earlier in the graph have already
       spent — run a media-only graph once to prove your setup before you wire a paid node in
       front of it.</p>
-      <p>The ⚖️ <code>decide</code> node (NanoGPT decision models) runs in the editor and in
-      shared apps today; the headless libraries don't know it yet, so they refuse a graph that
-      contains it — up front, before anything spends.</p>
+      <p>The ⚖️ <code>decide</code> node (NanoGPT decision models) runs headless too, with the
+      same requests and costs as the editor. Text-only decisions need nothing extra. Wired images
+      are shrunk with ffmpeg. A yes/no <strong>gate</strong> that answers no is a result, not a failure:
+      that node reports <code>gated</code> and everything behind it reports <code>skipped</code>
+      (never run, never billed). The run succeeds and the CLI exits 0 with a <code>gated</code>
+      list in its JSON summary. Support landed on the libraries' main branches after
+      nanoodle 0.8.0 (npm) and 0.5.0 (PyPI), and those published releases still refuse a graph
+      containing <code>decide</code>, up front, before anything spends.</p>
       <p>Only an <em>unknown</em> node type is refused up front: the libraries warn at load and
       throw at <code>run()</code> before any network call. That is how a graph saved before
       2026-07-22 with the retired <code>draw</code> node behaves. The full node table is on the

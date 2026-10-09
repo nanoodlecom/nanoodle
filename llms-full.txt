@@ -371,7 +371,9 @@ unrecoverable.
 |---|---|
 | local | text, upload (image/audio/video), choice, join, comment |
 | local media† | resize, vframes, combine, soundtrack, trim, extractaudio |
-| NanoGPT | llm (incl. vision + audio input), image, edit, inpaint*, vision, tvideo, ivideo, vedit, lipsync, music, remix, tts, transcribe |
+| NanoGPT | llm (incl. vision + audio input), image, edit, inpaint*, vision, decide†, tvideo, ivideo, vedit, lipsync, music, remix, tts, transcribe |
+
+† `decide` asks a NanoGPT decision model one typed question (`POST /api/v1/decisions`): pick the best of the wired `img1…` images, choose a label, score on a scale, or yes/no. Text-only decisions need nothing extra; wired images are shrunk to the model's limits with ffmpeg. A yes/no gate that answers no is not a failure: that node settles as `gated`, everything downstream is `skipped` unbilled, and the run succeeds (see [Gates](#gates-decide-said-no)).
 
 † **local media** prefers a pure-JS path that matches the browser (lossless mp4 remux, PCM-WAV trim, PNG resize). **ffmpeg** on `PATH` is the fallback for everything else (soft dependency — not an npm package); clear error if it’s required and missing.
 
@@ -533,6 +535,24 @@ lanes no output depends on only appear in `result.errors`. Unknown/unsupported
 node types, missing required inputs, bad keys, and a missing API key all fail
 **before** anything is spent.
 
+#### Gates (Decide said no)
+
+A ⚖️ `decide` node in yes/no mode with **gate** on stops its branch when the
+answer is no. That is a result, not an error, so `run()` returns normally:
+
+```python
+result.gated
+# [{'node_id': 'n4', 'name': 'Decide', 'yes': 0.12, 'skipped': ['n5', 'n6'],
+#   'message': 'gate closed — the answer was no (yes 12%), so nothing downstream ran'}]
+result.nodes["n4"]   # NodeRun(status='gated', ..., gate={'yes': 0.12, 'message': ...}); .out = {'text': 'no', ...}
+result.nodes["n5"]   # NodeRun(status='skipped', cost_usd=None, ..., gated_by='n4') — never ran, never billed
+result["Image"]      # raises GatedOutputError (a KeyError): the gate 'Decide' answered no
+```
+
+`result.errors` stays empty, progress emits `node-gated` / `node-skipped`, and
+the CLI exits 0 with `gated` in its `--json` summary. A node fed by both a
+closed gate and a real failure is still an error.
+
 #### Prompt length caps
 
 Many image and video models reject a prompt over a fixed character count (HTTP 400,
@@ -604,7 +624,9 @@ is `0.0`, and the reason is in `errors[0].message`:
 |---|---|
 | local | text, upload (image/audio/video), choice, join, comment |
 | local media† | resize, vframes, combine, soundtrack, trim, extractaudio |
-| NanoGPT | llm (incl. vision + audio input), image, edit, inpaint*, vision, tvideo, ivideo, vedit, lipsync, music, remix, tts, transcribe |
+| NanoGPT | llm (incl. vision + audio input), image, edit, inpaint*, vision, decide†, tvideo, ivideo, vedit, lipsync, music, remix, tts, transcribe |
+
+† `decide` asks a NanoGPT decision model one typed question (`POST /api/v1/decisions`): pick the best of the wired `img1…` images, choose a label, score on a scale, or yes/no. Text-only decisions need nothing extra; wired images are shrunk to the model's limits with ffmpeg. A yes/no gate that answers no is not a failure: that node settles as `gated`, everything downstream is `skipped` unbilled, and the run succeeds (see [Gates](#gates-decide-said-no)).
 
 † **local media** needs **ffmpeg** on `PATH` (soft dependency — not a PyPI package). Same behaviour as the browser app; clear error if ffmpeg is missing.
 
