@@ -98,19 +98,19 @@ const ok = (c, m) => { if (!c) failures.push(m); };
 // dragging FROM an output → consumers of that type
 eq(keys("out", "image"), ["decide", "edit", "endpoint", "inpaint", "ivideo", "llm", "lipsync", "model3d", "resize", "vision"],
   "image output → nodes that take an image (incl. LLM's and Decide's dynamic image ports + Inpaint's image/mask + Custom endpoint)");
-eq(keys("out", "audio"), ["endpoint", "llm", "lipsync", "remix", "soundtrack", "transcribe", "trim"],
-  "audio output → nodes that take audio (incl. the LLM's audio-input port + Soundtrack's audio port + Remix's source track + Custom endpoint)");
-eq(keys("out", "video"), ["combine", "endpoint", "extractaudio", "soundtrack", "vedit", "vframes"],
-  "video output → nodes that take video (combine joins clips; soundtrack adds audio; vframes extracts stills; extractaudio peels the soundtrack + Custom endpoint)");
+eq(keys("out", "audio"), ["cleanvoice", "endpoint", "llm", "lipsync", "remix", "soundtrack", "transcribe", "trim"],
+  "audio output → nodes that take audio (incl. the LLM's audio-input port + Soundtrack's audio port + Remix's source track + Clean voice + Custom endpoint)");
+eq(keys("out", "video"), ["cleanvoice", "combine", "endpoint", "extractaudio", "soundtrack", "vedit", "vframes"],
+  "video output → nodes that take video (combine joins clips; soundtrack adds audio; vframes extracts stills; extractaudio peels the soundtrack; Clean voice pulls the voice out + Custom endpoint)");
 // transcribe is excluded: its only text field is a plain <input> (language), not a wirable textarea
-eq(keys("out", "text"), ["decide", "edit", "endpoint", "image", "inpaint", "ivideo", "join", "llm", "lipsync", "model3d", "music", "remix", "tts", "tvideo", "vedit", "vision"],
+eq(keys("out", "text"), ["cleanvoice", "decide", "edit", "endpoint", "image", "inpaint", "ivideo", "join", "llm", "lipsync", "model3d", "music", "remix", "tts", "tvideo", "vedit", "vision"],
   "text output → nodes with a text input OR a wirable text field");
 
 // dragging FROM an input → producers of that type
 eq(keys("in", "image"), ["decide", "edit", "image", "inpaint", "resize", "upload", "vframes"],
   "image input → nodes that produce an image (inpaint repaints; vframes emits frame stills; Decide passes the winner / input through)");
-eq(keys("in", "audio"), ["aupload", "extractaudio", "music", "remix", "trim", "tts"],
-  "audio input → nodes that produce audio (extractaudio emits a WAV from a video; remix transforms one)");
+eq(keys("in", "audio"), ["aupload", "cleanvoice", "extractaudio", "music", "remix", "trim", "tts"],
+  "audio input → nodes that produce audio (extractaudio emits a WAV from a video; remix transforms one; cleanvoice denoises one)");
 eq(keys("in", "video"), ["combine", "ivideo", "lipsync", "soundtrack", "tvideo", "vedit", "vupload"],
   "video input → nodes that produce video (combine joins clips into one; soundtrack outputs the scored video)");
 eq(keys("in", "text"), ["choice", "decide", "endpoint", "join", "llm", "text", "transcribe", "vision"],
