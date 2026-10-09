@@ -238,6 +238,18 @@
   .update-items a{ color:var(--accent); font-weight:600; text-decoration:none; overflow-wrap:anywhere }
   .update-items a:hover{ color:var(--ink); text-decoration:underline }
   #updatesempty{ font-size:.85rem; color:var(--dim); padding:1.4rem 0 }
+  /* an entry's usage clip (updates.json "media"): a small muted loop under the line,
+     lazy-loaded only while it's in view; click opens it large in #updclipbox. */
+  .update-clip{ display:block; margin:.45rem 0 .3rem; padding:0; width:min(100%,300px); border:1px solid var(--line);
+                border-radius:.5rem; overflow:hidden; background:#000; cursor:zoom-in; position:relative; line-height:0 }
+  .update-clip:hover, .update-clip:focus-visible{ border-color:var(--accent) }
+  .update-clip video{ display:block; width:100%; height:auto; pointer-events:none }
+  .update-clip::after{ content:"⤢"; position:absolute; right:.35rem; bottom:.35rem; font-size:.8rem; line-height:1;
+                       padding:.22rem .3rem; border-radius:.35rem; background:#0b0d12cc; color:var(--ink) }
+  #updclipbox[hidden]{ display:none }
+  #updclipbox{ position:fixed; inset:0; z-index:206; display:flex; align-items:center; justify-content:center;
+               padding:min(4vh,2rem) min(4vw,2rem); background:rgba(4,6,11,.9); cursor:zoom-out }
+  #updclipbox video{ max-width:100%; max-height:100%; border-radius:.6rem; border:1px solid var(--line); box-shadow:0 30px 90px #000a; background:#000 }
   /* the 📣 Updates button's unseen badge */
   #updates{ position:relative }
   #updbadge[hidden]{ display:none }
@@ -1225,6 +1237,7 @@
     <div id="updateslist"></div>
   </div>
 </div>
+<div id="updclipbox" hidden><video muted loop playsinline controls></video></div>
 
 <!-- Examples: one-click starter workflows (embedded graphs, loaded through applyGraphData). No fetch. -->
 <div id="examplesmodal" hidden>
@@ -16616,6 +16629,7 @@ async function openUpdates(){
   body.innerHTML = "<div id='updatesempty'>"+t("Loading…")+"</div>";
   $("updatesmodal").hidden = false;
   const list = await fetchUpdates();
+  if(updClipObs) updClipObs.disconnect();   // drop the last render's clips before rebuilding
   body.innerHTML = "";
   if(!list.length){ body.insertAdjacentHTML("beforeend", "<div id='updatesempty'>"+t("No updates yet — check back soon.")+"</div>"); }
   else {
@@ -16637,16 +16651,71 @@ async function openUpdates(){
           li.appendChild(a);
         } else if(part) li.appendChild(document.createTextNode(part));
       });
+      const clip = updClip(e);
+      if(clip) li.appendChild(clip);
       ul.appendChild(li);
     });
   }
   markUpdatesSeen(list);
 }
-function closeUpdates(){ $("updatesmodal").hidden = true; }
+// Usage clips: an entry may carry media:{src,poster,w,h} (same-origin files under
+// updates-media/, checked by scripts/check-updates-media.mjs). w/h reserve the box;
+// poster + mp4 only load (and play) once the clip scrolls near view inside the panel.
+const UPD_MEDIA_RE = /^updates-media\/[a-z0-9][a-z0-9._-]*\.(mp4|webp|png|jpg)$/;
+const updReduceMotion = ()=> { try{ return matchMedia("(prefers-reduced-motion: reduce)").matches; }catch{ return false; } };
+let updClipObs = null;
+function updClipObserver(){
+  if(updClipObs || typeof IntersectionObserver!=="function") return updClipObs;
+  updClipObs = new IntersectionObserver(ents=> ents.forEach(en=>{
+    const v = en.target;
+    if(en.isIntersecting){
+      if(!v.getAttribute("src")){ if(v.dataset.poster) v.poster = v.dataset.poster; v.src = v.dataset.src; }
+      if(!updReduceMotion()) v.play().catch(()=>{});
+    } else if(!v.paused) v.pause();
+  }), { root: $("updatespanel"), rootMargin: "120px 0px" });
+  return updClipObs;
+}
+function updClip(e){
+  const m = e && e.media;
+  if(!m || typeof m.src!=="string" || !UPD_MEDIA_RE.test(m.src) || !/\.mp4$/.test(m.src)) return null;
+  const btn = document.createElement("button");
+  btn.type = "button"; btn.className = "update-clip";
+  const label = updText(e);
+  btn.title = label; btn.setAttribute("aria-label", label);
+  const clipVid = document.createElement("video");
+  clipVid.muted = true; clipVid.loop = true; clipVid.playsInline = true; clipVid.preload = "none";
+  clipVid.setAttribute("muted", ""); clipVid.setAttribute("playsinline", ""); clipVid.setAttribute("aria-hidden", "true");
+  if(typeof m.poster==="string" && UPD_MEDIA_RE.test(m.poster)) clipVid.dataset.poster = m.poster;
+  if(m.w>0 && m.h>0){ clipVid.width = m.w; clipVid.height = m.h; clipVid.style.aspectRatio = m.w + " / " + m.h; }
+  clipVid.dataset.src = m.src;
+  btn.appendChild(clipVid);
+  btn.onclick = ()=> openUpdClip(m, label);
+  const io = updClipObserver();
+  if(io) io.observe(clipVid); else { if(clipVid.dataset.poster) clipVid.poster = clipVid.dataset.poster; clipVid.src = m.src; }
+  return btn;
+}
+function openUpdClip(m, label){
+  const box = $("updclipbox"), v = box.querySelector("video");
+  v.setAttribute("aria-label", label);
+  if(m.poster && UPD_MEDIA_RE.test(m.poster)) v.poster = m.poster;
+  v.src = m.src; box.hidden = false;
+  v.play().catch(()=>{});
+}
+function closeUpdClip(){
+  const box = $("updclipbox"); if(box.hidden) return false;
+  const v = box.querySelector("video"); v.pause(); v.removeAttribute("src"); v.load();
+  box.hidden = true; return true;
+}
+$("updclipbox").addEventListener("click", e=>{ if(e.target.id==="updclipbox") closeUpdClip(); });
+function closeUpdates(){
+  closeUpdClip();
+  document.querySelectorAll("#updateslist video").forEach(v=> v.pause());
+  $("updatesmodal").hidden = true;
+}
 $("updates").onclick = openUpdates;
 $("updatesclose").onclick = closeUpdates;
 $("updatesmodal").addEventListener("click", e=>{ if(e.target.id==="updatesmodal") closeUpdates(); });   // click the dim backdrop
-addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("updatesmodal").hidden) closeUpdates(); });
+addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("updatesmodal").hidden){ if(!closeUpdClip()) closeUpdates(); } });
 refreshUpdatesBadge();
 
 /* ---- Examples: a small catalog of workflows with useful dependencies or comparisons.

@@ -145,6 +145,49 @@ is in the commit, so a forgotten regen cannot land locally. CI runs
 `gen-changelog.mjs --check` unconditionally (a named step in
 `.github/workflows/checks.yml`).
 
+### Usage clips on Updates entries
+
+A user-facing feature PR records a short real-editor usage GIF for its
+description (committed under `docs/media/`). Its Updates entry carries the
+same clip, so people see the feature in the 📣 panel and on `/changelog`.
+`docs/` is not deployed, so add a re-encoded copy under `updates-media/`
+and do not link to the GIF:
+
+```sh
+ffmpeg -i docs/media/my-feature.gif -an \
+  -vf "fps=12,scale='min(720,iw)':-2:flags=lanczos,format=yuv420p" \
+  -c:v libx264 -preset veryslow -crf 23 -tune animation -movflags +faststart \
+  updates-media/my-feature.mp4
+ffmpeg -i updates-media/my-feature.mp4 -frames:v 1 -c:v libwebp -quality 72 updates-media/my-feature.webp
+```
+
+Then add the clip to that entry in `updates.json`. Use the clip's pixel
+size for `w` and `h`:
+
+```json
+"media": { "src": "updates-media/my-feature.mp4", "poster": "updates-media/my-feature.webp", "w": 720, "h": 450 }
+```
+
+- **Show only that entry's feature.** If the GIF covers a different
+  change, or only one part of a bundled entry, leave `media` off.
+- **Hide account details.** Blur the balance in the recording, and keep
+  out browser chrome, the dock and `localhost`.
+- **One clip per entry.** `media` has no language, so all six languages
+  show the same clip.
+
+The editor loads a clip only while it is on screen in the panel. It plays
+as a small muted loop, and a click opens it large. The changelog page shows
+the poster, linking to the mp4.
+
+`scripts/check-updates-media.mjs` runs in CI and in the pre-commit hook.
+It fails if a referenced file is missing, sits outside `updates-media/`,
+or is excluded by `.assetsignore`. It also fails on any of these:
+
+- a clip over 1 MB or a poster over 100 KB
+- an mp4 without `+faststart`, or one with an audio track
+- a `w`/`h` that does not match the poster
+- a file in `updates-media/` that no entry references
+
 ## Deploys
 
 Pushing to `main` triggers Cloudflare Workers Builds, which deploys the repo
