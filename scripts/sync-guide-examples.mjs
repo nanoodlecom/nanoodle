@@ -86,6 +86,14 @@ const HOWTO = {
     inspect: "Play each clip. Grok fills the bowl and lifts a noodle clump. HeyGen starts emptier and drops a strand later. H3 does a single-chopstick / single-strand pull at 1440p.",
     costHow: "The saved run reported $0.563: Grok Imagine 1.5 Lite $0.10, HeyGen Video 1 $0.10, and MiniMax H3 $0.363. Prices and results vary.",
   },
+  "idea-to-short-film": {
+    headline: "One idea, three shots, one short film",
+    job: "One sentence → a style bible and a three-beat story → an opening still → three chained 5-second shots → one 15-second film with music.",
+    purpose: "The Style bible writes one paragraph about what never changes: the hero, the place, the time of day, the light, the lens and the look. Join pastes it word for word in front of every image and shot prompt. The Story plans setup, turn and payoff, and says where each shot ends, because the next shot starts there. Muse paints the opening still, Seedance 1.5 Pro animates it into Shot 1, and Video → frames hands each shot's last frame to the next Image → Video shot, so cuts continue the action instead of restarting it. Combine joins the clips and Soundtrack lays one music bed over the film. Inspired by <a href=\"https://x.com/aiaicreate/status/2107279553609830408\">ComfyUI-MiniMaxH3-Studio</a> by @aiaicreate, which turns one idea into a planned multi-shot film.",
+    edit: "Rewrite <em>Film idea</em> as one sentence with a hero and a beginning, middle and end. Change the Music bed's prompt to change the mood. To change models, pick another image-to-video model on all three shots, and keep the same resolution and aspect. Combine has no crossfade; cuts are hard but continuous. Running the graph makes one image call, three paid video calls, one music call and six cheap text calls.",
+    inspect: "Open the Style bible first: it is the text every prompt starts with. Then read the Story's END lines and compare each with the first frame of the next shot. In the saved run, a hand flicks through a corner of Shot 2 for about half a second although the prompt said no hands, and the music fades out about 2 seconds before the end.",
+    costHow: "The saved film's nodes reported $0.55: three Seedance 1.5 Pro shots at $0.13 each (720p, 5 s, audio off), $0.15 for 15 seconds of ElevenLabs music, $0.01 for the Muse still, and about $0.0001 per GLM call. Video → frames, Combine and Soundtrack run in the browser for free. Shots 2 and 3 were re-rendered once, so the whole sample spent $0.81. Prices and results vary.",
+  },
   "photo-to-video": {
     headline: "Animate a still",
     job: "Generate a first frame, then animate its steam.",
@@ -143,7 +151,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "idea-to-short-film", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.

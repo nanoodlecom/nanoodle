@@ -50,6 +50,25 @@ function graph(nodes, links, selectedId, selectedIds) {
   toy("llm-output-prefers-join", hits[0] && hits[0].type === "join" && hits[0].reason === REASON, hits.map((h) => h.type).join(","));
 }
 
+// A tie for first is never confidence (decided 2026-10-08 with Liquid d1 when
+// the gallery briefly tied a selected LLM's text between Join and LLM, 4 / 4).
+// Synthetic tables, so the rule stays pinned whatever the live gallery says:
+// a tie leaves the Add list unchanged, even when a caller waives the lead.
+{
+  const tied = {
+    topTargets: { "llm|text": { "join|a": 2, "join|b": 2, "llm|prompt": 4, "image|prompt": 1 } },
+    portCatalog: portTables.portCatalog,
+  };
+  const g = graph([{ id: "l", type: "llm" }, { id: "x", type: "text" }], [], "l");
+  const hits = rankSelectedOutputConsumers(tied, g, { nodeTypes: known });
+  toy("tie-for-first-stays-quiet", hits.length === 0, hits.map((h) => h.type + ":" + h.score).join(","));
+  const forced = rankSelectedOutputConsumers(tied, g, { nodeTypes: known, minLead: 1 });
+  toy("tie-stays-quiet-even-when-lead-is-waived", forced.length === 0, forced.map((h) => h.type + ":" + h.score).join(","));
+  const broken = rankSelectedOutputConsumers(
+    { ...tied, topTargets: { "llm|text": { ...tied.topTargets["llm|text"], "join|b": 4 } } }, g, { nodeTypes: known });
+  toy("broken-tie-names-the-leader", broken[0] && broken[0].type === "join", broken.map((h) => h.type + ":" + h.score).join(","));
+}
+
 {
   const g = graph(
     [{ id: "i", type: "image" }],
