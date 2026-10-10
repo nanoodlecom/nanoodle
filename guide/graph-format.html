@@ -122,8 +122,8 @@
       persists node outputs, so a saved file contains your workflow, not your previous runs.</p>
 
       <h2>Ports and wires</h2>
-      <p>Every port has one of four kinds — <code>text</code>, <code>image</code>,
-      <code>audio</code>, <code>video</code> — and only matching kinds connect. A link's
+      <p>Every port has one of five kinds — <code>text</code>, <code>image</code>,
+      <code>audio</code>, <code>video</code>, <code>model3d</code> — and only matching kinds connect. A link's
       <code>from.port</code> names an output port on the source node; <code>to.port</code> names
       an input on the target.</p>
       <p>Two kinds of input ports exist:</p>
@@ -155,6 +155,7 @@
         <tr><td><code>upload</code></td><td>Image input</td><td>local</td><td>—</td><td>image</td><td><code>image</code> (data: URL)</td></tr>
         <tr><td><code>aupload</code></td><td>Audio input</td><td>local</td><td>—</td><td>audio</td><td><code>audio</code> (data: URL)</td></tr>
         <tr><td><code>vupload</code></td><td>Video input</td><td>local</td><td>—</td><td>video</td><td><code>video</code> (data: URL)</td></tr>
+        <tr><td><code>mupload</code></td><td>3D input</td><td>local</td><td>—</td><td>model (<code>model3d</code>)</td><td><code>model</code> (data: URL)</td></tr>
         <tr><td><code>choice</code></td><td>Choice</td><td>local</td><td>—</td><td>text</td><td><code>options</code>, <code>selected</code></td></tr>
         <tr><td><code>join</code></td><td>Join</td><td>local</td><td>a, b (text)</td><td>text</td><td><code>sep</code></td></tr>
         <tr><td><code>llm</code></td><td>LLM</td><td>NanoGPT</td><td>img1… (image), audio</td><td>text</td><td><code>model</code>, <code>system</code>, <code>prompt</code>, <code>temperature</code>, <code>maxTokens</code>, <code>format</code>, <code>reasoningEffort</code>, <code>showThinking</code></td></tr>
@@ -166,6 +167,7 @@
         <tr><td><code>decide</code></td><td>Decide</td><td>NanoGPT (decision models)</td><td>text, img1… (image)</td><td>text, image</td><td><code>model</code>, <code>mode</code> (<code>pick</code> / <code>choose</code> / <code>score</code> / <code>yesno</code>), <code>question</code>, <code>options</code>, <code>levels</code>, <code>gate</code></td></tr>
         <tr><td><code>tvideo</code></td><td>Text→Video</td><td>NanoGPT</td><td>ref1… (image)</td><td>video</td><td><code>model</code>, <code>prompt</code>, <code>duration</code>, <code>aspect</code>, <code>resolution</code>, <code>modelOpts</code></td></tr>
         <tr><td><code>ivideo</code></td><td>Image→Video</td><td>NanoGPT</td><td>image, endframe</td><td>video</td><td><code>model</code>, <code>prompt</code>, <code>duration</code>, <code>aspect</code>, <code>resolution</code>, <code>modelOpts</code></td></tr>
+        <tr><td><code>model3d</code></td><td>3D model</td><td>NanoGPT</td><td>image; field port <code>prompt</code></td><td>model (<code>model3d</code>)</td><td><code>model</code>, <code>prompt</code>, <code>modelOpts</code></td></tr>
         <tr><td><code>vedit</code></td><td>Video edit</td><td>NanoGPT</td><td>video</td><td>video</td><td><code>model</code>, <code>prompt</code>, <code>resolution</code>, <code>modelOpts</code></td></tr>
         <tr><td><code>vframes</code></td><td>Video → frames</td><td>local media</td><td>video</td><td>frame1…frameN (image)</td><td><code>frames</code>, <code>gap</code>, <code>dir</code></td></tr>
         <tr><td><code>combine</code></td><td>Combine videos</td><td>local media</td><td>clip1… (video)</td><td>video</td><td><code>dedup</code></td></tr>
@@ -181,6 +183,10 @@
         <tr><td><code>endpoint</code></td><td>Custom endpoint</td><td>local (BYO URL)</td><td>text, image, audio, video; field ports <code>url</code>, <code>mode</code>, <code>prompt</code>, <code>system</code></td><td>follows <code>mode</code></td><td><code>url</code>, <code>mode</code>, <code>prompt</code>, <code>auth</code>, <code>model</code></td></tr>
         <tr><td><code>comment</code></td><td>Comment</td><td>local (never runs)</td><td>—</td><td>—</td><td><code>text</code>, <code>color</code></td></tr>
       </table></div>
+      <p><code>cleanvoice</code>, <code>model3d</code>, <code>mupload</code>, and <code>endpoint</code>
+      are supported by the headless runners once the packages are released. npm 0.8.0 and PyPI 0.5.0
+      still lack them, and those published releases refuse a graph that contains one, up front,
+      before anything spends.</p>
 
       <h2>Loader rules</h2>
       <p>If you write your own reader, these are the rules the editor and the headless

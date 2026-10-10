@@ -271,8 +271,10 @@ npx nanoodle run graph.json --input "Shared test brief=@brief.txt" --env-file .e
       list in its JSON summary. Support landed on the libraries' main branches after
       nanoodle 0.8.0 (npm) and 0.5.0 (PyPI), and those published releases still refuse a graph
       containing <code>decide</code>, up front, before anything spends.</p>
-      <p>The 🎧 <code>cleanvoice</code> node (NanoGPT voice isolation / denoise) is editor and app only for
-      now. The headless libraries treat it as an unknown type and refuse the graph up front, before
+      <p>The 🎧 <code>cleanvoice</code> node (NanoGPT voice isolation), the 🧊 <code>model3d</code>
+      node, the 📦 <code>mupload</code> node, and the 🔌 <code>endpoint</code> node are supported
+      by the headless runners once the packages are released. npm 0.8.0 and PyPI 0.5.0 still lack
+      them, and those published releases refuse a graph that contains one, up front, before
       anything spends.</p>
       <p>Only an <em>unknown</em> node type is refused up front: the libraries warn at load and
       throw at <code>run()</code> before any network call. That is how a graph saved before

@@ -184,10 +184,11 @@ ok(blockAt > 0 && nudgeAt > blockAt, "the 3D block returns before dismissAppNudg
 ok(IDX.includes("does not burn the one-shot nudge or open the builder"),
   "Create-app 3D block comment still names the nudge / builder contract");
 
-ok(!/const NJS_TYPES = \{[^}]*model3d/.test(PLAY) && !/const NJS_TYPES = \{[^}]*mupload/.test(PLAY),
+const PLAY_RUNTIME = PLAY.replace(/<!-- NJS-ENGINE:BEGIN[\s\S]*?NJS-ENGINE:END -->/, "");
+ok(!/const NJS_TYPES = \{[^}]*model3d/.test(PLAY_RUNTIME) && !/const NJS_TYPES = \{[^}]*mupload/.test(PLAY_RUNTIME),
   "play RUNTIME NJS_TYPES still has no model3d / mupload");
-ok(!PLAY.includes("function putGlbBytes") && !PLAY.includes("function loadGlbViewer") && !PLAY.includes("function model3dStatusUrl"),
-  "play.html has no 3D viewer / poll / byte helpers");
+ok(!PLAY_RUNTIME.includes("function putGlbBytes") && !PLAY_RUNTIME.includes("function loadGlbViewer") && !PLAY_RUNTIME.includes("function model3dStatusUrl"),
+  "play runtime has no 3D viewer / poll / byte helpers");
 
 ok(IDX.includes("function newModel3dOutKey()") && IDX.includes("fields.model3dOutKey"),
   "paid 3D results are keyed by model3dOutKey, not only node id");
