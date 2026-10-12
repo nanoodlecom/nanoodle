@@ -59,6 +59,8 @@ const catalogs = {
   model3d: [
     { id: 'tripo3d/v2.5', architecture: { input_modalities: ['image'] } },
     { id: 'wavespeed-ai/hunyuan-3d-v3.1-rapid', architecture: { input_modalities: ['text', 'image'] } },
+    { id: 'wavespeed-ai/trellis-2/image-to-3d', architecture: { input_modalities: ['image'] },
+      supported_parameters: { parameters: { resolution: opts(['512', '1024', '1536']), texture_size: opts(['1024', '2048', '4096']), target_face_count: { type: 'number', min: 10000, max: 1000000 } } } },
   ],
 };
 
