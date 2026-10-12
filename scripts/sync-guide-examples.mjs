@@ -94,6 +94,14 @@ const HOWTO = {
     inspect: "Open the workflow and drag the 3D node to orbit the saved GLB. Check the sides the concept never showed: in the saved run the far side has portholes and a plainer cream strip, and the thin key and propeller blades go soft at some angles. The viewer shows flatter shading than the concept render.",
     costHow: "The saved sample reported about $0.21: TRELLIS.2 at $0.20 (1024 geometry), Muse text-to-image $0.01, and under $0.0001 for one GLM 5.3 Flash call. A concept-only test before the full run added about $0.01. Prices and results vary.",
   },
+  "blockout-to-shot": {
+    headline: "Blockout first, then the shot",
+    job: "One action idea → a grayscale blockout still → a finished restyle that keeps the same poses and camera → one 5-second image-to-video shot.",
+    purpose: "A Blender-style blockout (gray untextured stand-ins, readable silhouettes, explicit camera) gives the image and video models a blueprint. An LLM writes the blockout prompt; Muse paints it. A second LLM writes a look bible, Join puts a keep-composition line in front of it, and Muse Edit restyles materials and lighting while keeping the layout. A third LLM writes a short motion brief; Seedance 1.5 Pro animates the finished still. One look and one action throughout. Inspired by <a href=\"https://x.com/ComfyUI/status/2107848762957983856\">ComfyUI on X</a> (blockout then restyle); only the idea is used.",
+    edit: "Rewrite <em>Action idea</em> with clear poses and one camera path (family-friendly). To change the finished look, edit the Look bible system prompt or swap the Edit model. To change motion, edit the Motion brief system prompt or swap the Image → Video model. Keep resolution and duration matched if you swap video models. Running the graph makes three cheap text calls, one image call, one edit call, and one paid video call.",
+    inspect: "Compare the blockout still to the finished still: the rooftops, the robot's mid-leap pose, and the camera should match. Then scrub the clip. In the saved run the robot clears the gap and lands on the far roof, but it also spins sideways in mid-air, skips the crouch, and keeps rolling while the camera swings behind it.",
+    costHow: "The saved sample reported about $0.15: Seedance 1.5 Pro at $0.13 (720p, 5 s, audio off), Muse text-to-image $0.01, Muse Edit $0.01, and about $0.0002 for three GLM 5.3 Flash calls. Join nodes are free. Prices and results vary.",
+  },
   "photo-to-video": {
     headline: "Animate a still",
     job: "Generate a first frame, then animate its steam.",
@@ -151,7 +159,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.

@@ -682,5 +682,54 @@
     "workflow": "idea-to-3d-model/workflow.json",
     "workflowSha256": "e2b29e2f286570d4a6f67255708d02389c1f1933ca40e55a538821b585adf799",
     "workflowNote": "The editor workflow also points the 3D node at the saved GLB as its sample, so you can orbit the result before running; \u25b6 Run replaces it. Everything else matches the sampled graph."
+  },
+  {
+    "slug": "blockout-to-shot",
+    "title": "Blockout first, then the shot",
+    "date": "2026-10-12",
+    "review": "Sampled frames",
+    "note": "GLM 5.3 Flash writes three prompts from one action idea: a grayscale blockout prompt, a look bible, and a motion brief. Join puts a fixed keep-composition line in front of the look bible and a short animate line in front of the motion brief. Muse paints the blockout: matte gray rooftops and one boxy wheel-legged robot mid-leap over the gap, seen from a low rooftop camera. Muse Edit restyles it into weathered brick, fire escapes, a dusk sky, and an off-white robot with orange panels, keeping the blockout's layout, robot pose, and camera; it also adds a flock of pigeons that the look bible asked for. Seedance 1.5 Pro (720p, 5 s, silent) animates the finished still: the robot sails over the gap, spins sideways in mid-air, lands on the far roof, and the camera swings round behind it as it rolls toward the sunset. Flaws: the mid-air spin was not asked for, the landing has no crouch-and-settle, and the robot keeps rolling instead of holding still. Inspired by ComfyUI's blockout-then-restyle post on X; no media from that post is used.",
+    "layout": "sequence",
+    "costUsd": 0.150237,
+    "costExact": true,
+    "models": [
+      "z-ai/glm-5.3-flash",
+      "meta/muse-image/text-to-image",
+      "meta/muse-image/edit",
+      "bytedance-seedance-v1.5-pro"
+    ],
+    "graphSha256": "f32e1be93db2a4bba5a1b6386eccf4db22d6076de83b6709506b00af7602b5bf",
+    "inputs": [
+      {
+        "label": "Action idea",
+        "text": "A boxy courier robot with stubby wheel-legs leaps a narrow rooftop gap between two brick buildings at dusk. Low tracking camera from the near rooftop; the robot pushes off the ledge, sails across the alley, and lands on the far roof with a soft crouch."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "blockout-to-shot/blockout.webp",
+        "kind": "image",
+        "label": "1. Blockout still: matte gray stand-ins, one robot mid-leap \u00b7 reported $0.01",
+        "costUsd": 0.01,
+        "sha256": "1dc037044fff2346aa9d2fe675bed43092b7360a17f23730cc123755b805e879"
+      },
+      {
+        "src": "blockout-to-shot/finished.webp",
+        "kind": "image",
+        "label": "2. Finished look: Muse Edit restyles materials and dusk light, same layout and pose \u00b7 reported $0.01",
+        "costUsd": 0.01,
+        "sha256": "936c7910ad6bc99d91275a7666c94e37d61d86e7f04ad73e812db831c14d10d3"
+      },
+      {
+        "src": "blockout-to-shot/shot.mp4",
+        "kind": "video",
+        "label": "3. Shot: Seedance animates the finished still (720p, 5 s, silent) \u00b7 reported $0.13",
+        "costUsd": 0.13,
+        "sha256": "bf2666a4632ccefb4133c2eaee51b35bc121741109d5ab2e902b29bad673abb8"
+      }
+    ],
+    "preview": "blockout-to-shot/preview.webp",
+    "workflow": "blockout-to-shot/workflow.json",
+    "workflowSha256": "f32e1be93db2a4bba5a1b6386eccf4db22d6076de83b6709506b00af7602b5bf"
   }
 ]

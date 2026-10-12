@@ -1,17 +1,20 @@
 {
   "schemaVersion": 1,
   "source": "examples-gallery",
-  "graphCount": 11,
-  "edgeCount": 70,
+  "graphCount": 12,
+  "edgeCount": 82,
   "typeToType": {
-    "text→llm": 4,
-    "llm→image": 2,
+    "text→llm": 7,
+    "text→join": 8,
+    "llm→join": 7,
+    "llm→image": 3,
+    "join→edit": 3,
+    "image→edit": 4,
+    "edit→ivideo": 1,
+    "join→ivideo": 1,
     "image→resize": 3,
-    "image→edit": 3,
     "text→image": 12,
     "text→tvideo": 3,
-    "llm→join": 5,
-    "text→join": 6,
     "join→image": 1,
     "image→model3d": 1,
     "image→ivideo": 3,
@@ -22,7 +25,6 @@
     "llm→llm": 1,
     "llm→music": 1,
     "join→music": 1,
-    "join→edit": 2,
     "image→llm": 2,
     "edit→llm": 2,
     "edit→resize": 2,
@@ -34,10 +36,15 @@
     "ivideo→vedit": 1
   },
   "portPair": {
-    "text.text→llm.prompt": 4,
-    "llm.text→image.prompt": 2,
+    "text.text→llm.prompt": 7,
+    "text.text→join.a": 4,
+    "llm.text→join.b": 5,
+    "llm.text→image.prompt": 3,
+    "join.text→edit.prompt": 3,
+    "image.image→edit.image": 3,
+    "edit.image→ivideo.image": 1,
+    "join.text→ivideo.prompt": 1,
     "image.image→resize.image": 3,
-    "image.image→edit.image": 2,
     "text.text→image.prompt": 12,
     "text.text→tvideo.prompt": 3,
     "llm.text→join.a": 2,
@@ -47,14 +54,11 @@
     "image.image→ivideo.image": 3,
     "llm.text→ivideo.prompt": 1,
     "text.text→ivideo.prompt": 2,
-    "text.text→join.a": 2,
     "join.text→llm.prompt": 4,
     "join.text→join.a": 3,
-    "llm.text→join.b": 3,
     "llm.text→llm.prompt": 1,
     "llm.text→music.lyrics": 1,
     "join.text→music.prompt": 1,
-    "join.text→edit.prompt": 2,
     "image.image→llm.img1": 2,
     "edit.image→llm.img2": 2,
     "edit.image→resize.image": 2,
@@ -68,40 +72,42 @@
   },
   "topTargets": {
     "text|text": {
-      "llm|prompt": 4,
+      "llm|prompt": 7,
+      "join|a": 4,
       "image|prompt": 12,
       "tvideo|prompt": 3,
       "join|b": 4,
       "ivideo|prompt": 2,
-      "join|a": 2,
       "tts|prompt": 1,
       "lipsync|prompt": 1
     },
     "llm|text": {
-      "image|prompt": 2,
+      "join|b": 5,
+      "image|prompt": 3,
       "join|a": 2,
       "ivideo|prompt": 1,
-      "join|b": 3,
       "llm|prompt": 1,
       "music|lyrics": 1
     },
+    "join|text": {
+      "edit|prompt": 3,
+      "ivideo|prompt": 1,
+      "image|prompt": 1,
+      "llm|prompt": 4,
+      "join|a": 3,
+      "music|prompt": 1
+    },
     "image|image": {
+      "edit|image": 3,
       "resize|image": 3,
-      "edit|image": 2,
       "model3d|image": 1,
       "ivideo|image": 3,
       "llm|img1": 2,
       "edit|image2": 1,
       "lipsync|image": 1
     },
-    "join|text": {
-      "image|prompt": 1,
-      "llm|prompt": 4,
-      "join|a": 3,
-      "music|prompt": 1,
-      "edit|prompt": 2
-    },
     "edit|image": {
+      "ivideo|image": 1,
       "llm|img2": 2,
       "resize|image": 2,
       "edit|image": 1
@@ -130,6 +136,15 @@
         "text"
       ]
     },
+    "join": {
+      "inputs": [
+        "a",
+        "b"
+      ],
+      "outputs": [
+        "text"
+      ]
+    },
     "image": {
       "inputs": [
         "prompt"
@@ -137,12 +152,6 @@
       "outputs": [
         "image"
       ]
-    },
-    "resize": {
-      "inputs": [
-        "image"
-      ],
-      "outputs": []
     },
     "edit": {
       "inputs": [
@@ -154,27 +163,6 @@
         "image"
       ]
     },
-    "tvideo": {
-      "inputs": [
-        "prompt"
-      ],
-      "outputs": []
-    },
-    "join": {
-      "inputs": [
-        "a",
-        "b"
-      ],
-      "outputs": [
-        "text"
-      ]
-    },
-    "model3d": {
-      "inputs": [
-        "image"
-      ],
-      "outputs": []
-    },
     "ivideo": {
       "inputs": [
         "image",
@@ -183,6 +171,24 @@
       "outputs": [
         "video"
       ]
+    },
+    "resize": {
+      "inputs": [
+        "image"
+      ],
+      "outputs": []
+    },
+    "tvideo": {
+      "inputs": [
+        "prompt"
+      ],
+      "outputs": []
+    },
+    "model3d": {
+      "inputs": [
+        "image"
+      ],
+      "outputs": []
     },
     "music": {
       "inputs": [
