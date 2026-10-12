@@ -32,6 +32,7 @@ const catalogs = {
     image('bytedance/seedream-v5.0-flash', ['2k', '1.5k', '1k'], true),
     image('ideogram/v4.5', ['1024x1024', '2048x2048']),
     image('recraft-ai/recraft-v4.1-flash/text-to-image', ['1024x1024', '1024x768']),
+    image('flux-lora/inpainting', ['1024x1024', '1024x768', '1024x576', '768x1024', '576x1024', '1344x640', '640x1344', '1536x512', '512x1536'], true),
   ],
   video: [
     { id: 'grok-imagine-video-1.5-lite', capabilities: { text_to_video: true, image_to_video: true },

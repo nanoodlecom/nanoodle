@@ -86,6 +86,14 @@ const HOWTO = {
     inspect: "Play each clip. Grok fills the bowl and lifts a noodle clump. HeyGen starts emptier and drops a strand later. H3 does a single-chopstick / single-strand pull at 1440p.",
     costHow: "The saved run reported $0.563: Grok Imagine 1.5 Lite $0.10, HeyGen Video 1 $0.10, and MiniMax H3 $0.363. Prices and results vary.",
   },
+  "draw-a-box": {
+    headline: "Draw a box, say what goes in it",
+    job: "A photo, two box masks and two short prompts → region-only edits that stack.",
+    purpose: "Muse makes the photo. Each Box is a small mask where white marks the region to repaint. Flux Inpainting gets the photo, the box and what goes in it, and repaints only that region. Box 2 edits the result of Box 1, so the edits stack like layers. Inspired by <a href=\"https://x.com/Dennis84322486/status/2108195758256054436\">Scumble</a>, a ComfyUI image editor by @Dennis84322486 built on the same idea.",
+    edit: "Rewrite <em>Scene</em> for a different photo, then <em>What goes in box 1</em> and <em>What goes in box 2</em> for what each box should hold. To edit your own photo, replace <em>First photo</em> with an Image input. To move a box, upload a new mask (white or opaque = repaint) to <em>Box 1</em> or <em>Box 2</em>, or unwire it and brush the area inside the Inpaint node. Running the graph makes three paid image calls.",
+    inspect: "Compare the three frames. Outside each box the plaza should not change. Box 1 adds the robot vendor. Box 2 repainted the shopfronts and left a small dark scooter, not the red ramen scooter it asked for. A big box lets the model put the object anywhere inside it.",
+    costHow: "The saved run reported $0.078: Muse $0.01 and two Flux Inpainting calls at $0.034 each. Prices and results vary.",
+  },
   "photo-to-video": {
     headline: "Animate a still",
     job: "Generate a first frame, then animate its steam.",
@@ -143,7 +151,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "draw-a-box", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.

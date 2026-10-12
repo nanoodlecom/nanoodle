@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Draw a box, say what goes in it — nanoodle</title>
+<meta name="description" content="A photo, two box masks and two short prompts → region-only edits that stack. Reported saved run: $0.078." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="Draw a box, say what goes in it — nanoodle" />
+<meta property="og:description" content="A photo, two box masks and two short prompts → region-only edits that stack. Reported saved run: $0.078." />
+<meta property="og:url" content="https://nanoodle.com/guide/examples/draw-a-box" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Draw a box, say what goes in it — nanoodle" />
+<meta name="twitter:description" content="A photo, two box masks and two short prompts → region-only edits that stack. Reported saved run: $0.078." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/examples/draw-a-box" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <a href="/guide/examples/">Steal a noodle</a> / <span>Draw a box, say what goes in it</span></nav>
+
+  <main>
+    <h1><span class="grad">Draw a box, say what goes in it</span></h1>
+    <p class="lede">A photo, two box masks and two short prompts → region-only edits that stack.</p>
+
+    <section>
+      <p class="meta-row">Visual review · 2026-10-08 · Reported saved run: $0.078. <code>meta/muse-image/text-to-image</code> · <code>flux-lora/inpainting</code></p>
+      <p>Muse makes the photo. Each Box is a small mask where white marks the region to repaint. Flux Inpainting gets the photo, the box and what goes in it, and repaints only that region. Box 2 edits the result of Box 1, so the edits stack like layers. Inspired by &lt;a href=&quot;https://x.com/Dennis84322486/status/2108195758256054436&quot;&gt;Scumble&lt;/a&gt;, a ComfyUI image editor by @Dennis84322486 built on the same idea.</p>
+
+      <h2>Saved result</h2>
+      <div class="media sequence">
+          <figure><a href="/examples/gallery/draw-a-box/source.webp"><img src="/examples/gallery/draw-a-box/source.webp" alt="1. Muse: the plaza · reported $0.01 — Draw a box, say what goes in it" loading="lazy" /></a><figcaption>1. Muse: the plaza · reported $0.01 · <a href="/examples/gallery/draw-a-box/source.webp" download>Download</a></figcaption></figure>
+          <figure><a href="/examples/gallery/draw-a-box/box-1.jpg"><img src="/examples/gallery/draw-a-box/box-1.jpg" alt="2. Box 1: the robot vendor · reported $0.034 — Draw a box, say what goes in it" loading="lazy" /></a><figcaption>2. Box 1: the robot vendor · reported $0.034 · <a href="/examples/gallery/draw-a-box/box-1.jpg" download>Download</a></figcaption></figure>
+          <figure><a href="/examples/gallery/draw-a-box/box-2.jpg"><img src="/examples/gallery/draw-a-box/box-2.jpg" alt="3. Box 2: a small dark scooter, not the red one · reported $0.034 — Draw a box, say what goes in it" loading="lazy" /></a><figcaption>3. Box 2: a small dark scooter, not the red one · reported $0.034 · <a href="/examples/gallery/draw-a-box/box-2.jpg" download>Download</a></figcaption></figure>
+        </div>
+      <h3>References that went in</h3>
+        <div class="media input-refs comparison">
+          <figure><img src="/examples/gallery/draw-a-box/box-1-mask.png" alt="Box 1 (white = repaint)" loading="lazy" /><figcaption>Box 1 (white = repaint)</figcaption></figure>
+          <figure><img src="/examples/gallery/draw-a-box/box-2-mask.png" alt="Box 2 (white = repaint)" loading="lazy" /><figcaption>Box 2 (white = repaint)</figcaption></figure>
+        </div>
+      <div class="callout"><p>Muse makes a rainy neon plaza. Box 1 asks for a robot ramen vendor: Flux Inpainting paints a white robot behind a wooden cart with a glowing lantern and a bowl of food, plus a parked car and a pink-lit building inside the same box. Outside the box the plaza is unchanged. Box 2 asks for a red ramen-delivery scooter: it repaints those shopfronts and parks a small dark scooter by a door. No red, no ramen box, and the new sign is garbled.</p></div>
+
+
+
+      <h2>Make it yours</h2>
+      <ol class="input-list">
+        <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
+        <li>Rewrite <em>Scene</em> for a different photo, then <em>What goes in box 1</em> and <em>What goes in box 2</em> for what each box should hold. To edit your own photo, replace <em>First photo</em> with an Image input. To move a box, upload a new mask (white or opaque = repaint) to <em>Box 1</em> or <em>Box 2</em>, or unwire it and brush the area inside the Inpaint node. Running the graph makes three paid image calls.</li>
+        <li>Check the editor estimate, then run with your NanoGPT key. The saved run reported $0.078: Muse $0.01 and two Flux Inpainting calls at $0.034 each. Prices and results vary.</li>
+        <li>Compare the three frames. Outside each box the plaza should not change. Box 1 adds the robot vendor. Box 2 repainted the shopfronts and left a small dark scooter, not the red ramen scooter it asked for. A big box lets the model put the object anywhere inside it.</li>
+      </ol>
+
+
+      <div class="cta">
+        <a class="primary" href="https://nanoodle.com/#g=H4sIAAAAAAAAA91X31MiORB-37-ii5d7uAFhBHS92gcU3NI9V5FTy7q6h8CEmUgmmU0C47jl_36dDCDIgKNXV1d1PiD51d35-uuvw89PAJVZ5Qganv0mZEA1jv7EAcBP94nTLMC5yqjKhKHCVLzFvMkS6lZkHK8tPOJsfTnKcFT1my8TKU40_ZfxmFEeWL8Lj9Y2fTTWdleRFAgM5aMHmmSQRsRAKKkGJoCZGvTIKMJZZqjdBEzj7pjoyRFIwTMwdr-iIZPCrimaEHuNwMMVikNtQI7d9ySSRoI2JNM1OIlwmzWIjvLZ0QRowAyuDVKSwClTeDQ_M5YKMjlVIFMBZzEJKQaXTI0HuDBUUx1hTIsYhGYBBYIbhQsFLOi1JXZg4eRS2btnlHOZVuYrz-7_s1eUGz2igm4mxoG4IyvrKdlfSYkgsbMwWDe8K1O_yxRSvFuViJBTECyMFgCRkZJa20vTODEZKLx4VUsyoQEknDwRm8w_5CSTNeiAQkOYEx0TzkFQKaqcWZhkgGZ1JBNM41SgOS5F6FIXScWeENy5HzsVs8Bun-d2rPA-NbhMqICAqAkM-XQRop4gq5iJQMuxcaHBmHGem0FaM0WRAgkOmQpqcEctn8acjgybIWvIjFryb54ZSmNknB_z5hcnIgCJQdTgu4SEyoRTD28GMxqxEafaDRQlARli8BZZpCITNCaGjWC_Fcc5oh5uCpw1Q0kOkgcxIpS7CKghjNOgVoY7zuAmd5jl8Tp5mvVt9CniRYy85tZSjNHsxVNNq87mnr1W1cjqugc8odmTc91oH31enZ8RxRAAKbRbXV5q6d4efOU9URIRt0Fu7F5we6WEKzvwQRFobMIzTbgkwW58mgfrBea3dyOWA4LGA2LIUQ5WIsLfhkTTdtNjt8eX12n929dQdvDv--Am6t2E-K1nh53JSefe_m91u9nAbajzXv_2uulP9_sX_TrOhF19NdnvjiaHvfPWXT-6wLkTeTk476CZ407YP-udHG98vzqdHTx0e9mo8ZCdOlfH59c3rZ6anIdh-OXLZj4WCB-jIDd2YYuKXoDtpmy9Rvbg8yvpqm9K191qpxi6SErpWGeuPGPFqAiwhSiJpQxWQQQWqghQ1LEfiICh-gyxcLHgCKRYfLiujaIoECOisK8IJwcpjhcqgT0MCzYGxbQ9PUaS4tlE4gKaIArLmyRUASfYo5SACLV0udEas4ZrcEEMNj3XtKx6_qKdbHlOB4A7VbMysJApLJxSSmD7W0E6WN6o1jNy2NzZSpoltWHMp49VbHdkb-4Fb1soCXW_-dg6aK-uLUu8sjq7LKLVSfsgcHO7qeo6_Bta4JfTgtf4tOr_qRZcTF60oH_dc1ogr25majCLfr3vnZ27Y92UhM3zIg3o_Ojcfe0P2g-d5v2PVLvdg5vby-tvrZP7s7M3NMB_QwMKMN3UgNeIHvof0AD_fRpguywyFRu9ykCPpMSqzB8Ly4rPdWG5yTqZF_4Q34weFrSyz5xCMYiw0-flavs3Pi5XStZG7Cp8ah8yelvRu0J_qfvSdV4AeWGdN_zD_1-h-6uFjp9_uV8_nInJ1l8_fLV7YDzr17Rv-M13uA1dKrOk80ZM-PAoNLP-JFsxM0eiRI65XyberY5ycEsHvN45ttrZFe9-mXjX3mL_QriOPmWibZZiw-rr5sNk2BrsO8jQKhNuySSWCtj_Z2RolyRDCTcfD7c0GQ5KkqHQy_vJUGimkAxW2j49_w186Qh15REAAA">Open this noodle →</a>
+        <a class="secondary" href="/examples/gallery/#draw-a-box">See the reviewed run</a>
+      </div>
+      <p class="howto-note"><a href="/examples/gallery/draw-a-box/workflow.json" download>Download workflow</a>
+        · <a href="/examples/gallery/draw-a-box/graph.json" download>Original sampled graph</a>
+        · <a href="https://mcp.nanoodle.com/#draw-a-box">Explore MCP tools</a>
+        · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a></p>
+      <nav class="next">
+        <a href="/guide/examples/">← All examples</a>
+        <a href="/guide/examples/grok-heygen-minimax-video-arena">Grok Imagine 1.5 Lite vs HeyGen Video 1 vs MiniMax H3: same prompt, side by side</a>
+        <a href="/guide/examples/photo-to-video">Animate a still →</a>
+        <a href="/examples/gallery/#draw-a-box">Reviewed run</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· No analytics · Your key stays on your device</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>

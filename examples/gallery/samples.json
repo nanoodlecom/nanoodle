@@ -640,5 +640,68 @@
     "preview": "grok-heygen-minimax-video-arena/preview.webp",
     "workflow": "grok-heygen-minimax-video-arena/workflow.json",
     "workflowSha256": "8363448659d2707604b7ce5cfac1be4974ff23acf3cf207a15125e03c606007c"
+  },
+  {
+    "slug": "draw-a-box",
+    "title": "Draw a box, say what goes in it",
+    "date": "2026-10-08",
+    "review": "Visual review",
+    "note": "Muse makes a rainy neon plaza. Box 1 asks for a robot ramen vendor: Flux Inpainting paints a white robot behind a wooden cart with a glowing lantern and a bowl of food, plus a parked car and a pink-lit building inside the same box. Outside the box the plaza is unchanged. Box 2 asks for a red ramen-delivery scooter: it repaints those shopfronts and parks a small dark scooter by a door. No red, no ramen box, and the new sign is garbled.",
+    "layout": "sequence",
+    "costUsd": 0.078,
+    "costExact": true,
+    "models": [
+      "meta/muse-image/text-to-image",
+      "flux-lora/inpainting"
+    ],
+    "graphSha256": "96301c55586170d426644453e406e7f90f2601fd19b976c1764a3d3b9b6ed0d0",
+    "inputs": [
+      {
+        "label": "Scene",
+        "text": "Low wide-angle night photo across an empty rain-soaked plaza in Tokyo. A row of small neon-lit noodle shops runs along the horizon across the middle of the frame. Open dark blue night sky with soft rain fills the entire top third. Wet reflective pavement fills the entire bottom third, empty and open. No people, no vehicles, no readable text. Cinematic 35mm photo, red and teal neon, moody and detailed."
+      },
+      {
+        "label": "Box 1 (white = repaint)",
+        "src": "draw-a-box/box-1-mask.png"
+      },
+      {
+        "label": "What goes in box 1",
+        "text": "A small friendly robot ramen vendor standing behind a wooden street cart on the wet pavement, steam rising from a pot, a warm paper lantern hanging from the cart. Match the plaza's rain, neon light and reflections."
+      },
+      {
+        "label": "Box 2 (white = repaint)",
+        "src": "draw-a-box/box-2-mask.png"
+      },
+      {
+        "label": "What goes in box 2",
+        "text": "A small red delivery scooter with a wooden ramen delivery box on the back, parked on the wet pavement, headlight on, its reflection in the puddles. Match the plaza's rain and neon light."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "draw-a-box/source.webp",
+        "kind": "image",
+        "label": "1. Muse: the plaza \u00b7 reported $0.01",
+        "costUsd": 0.01,
+        "sha256": "474c28fc2bba1f15091c6fdbec47e1ee41cc679cacd3c57f7ecc60f543a67468"
+      },
+      {
+        "src": "draw-a-box/box-1.jpg",
+        "kind": "image",
+        "label": "2. Box 1: the robot vendor \u00b7 reported $0.034",
+        "costUsd": 0.034,
+        "sha256": "12e2d90134bf26c938ade89b502af1fd425e3e9ac86e29a601ff04a21fef9bd4"
+      },
+      {
+        "src": "draw-a-box/box-2.jpg",
+        "kind": "image",
+        "label": "3. Box 2: a small dark scooter, not the red one \u00b7 reported $0.034",
+        "costUsd": 0.034,
+        "sha256": "af3673ccccf256aa32441c2df32300034851d7ea1b3e4d915c1ba8a9a1fec592"
+      }
+    ],
+    "preview": "draw-a-box/preview.webp",
+    "workflow": "draw-a-box/workflow.json",
+    "workflowSha256": "2a6520972fe1b6a5ba99828691d194f2bf36f2d61fd283b65bd892be75ba28dd"
   }
 ]

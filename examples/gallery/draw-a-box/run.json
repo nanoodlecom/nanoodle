@@ -1,0 +1,65 @@
+{
+  "inspiration": {
+    "post": "https://x.com/Dennis84322486/status/2108195758256054436",
+    "author": "@Dennis84322486",
+    "app": "Scumble (ComfyUI)",
+    "note": "Idea only: draw a box, say what goes in it. No media from the post is used."
+  },
+  "runner": "nanoodle-js 0.8.0 library (Workflow.run) on graph.json, NANOGPT_API_KEY",
+  "startedAt": "2026-10-08T18:47:20.502Z",
+  "finishedAt": "2026-10-08T18:48:43.160Z",
+  "balanceBefore": 10.71108174,
+  "balanceAfter": 10.63308174,
+  "totalCostUsd": 0.078,
+  "results": [
+    {
+      "file": "source.webp",
+      "node": "photo",
+      "label": "First photo",
+      "model": "meta/muse-image/text-to-image",
+      "params": {
+        "size": "16:9"
+      },
+      "costUsd": 0.01,
+      "ms": 45988,
+      "pixels": "2048x1152"
+    },
+    {
+      "file": "box-1.jpg",
+      "node": "edit1",
+      "label": "Box 1 edit",
+      "model": "flux-lora/inpainting",
+      "params": {
+        "size": "1024x576",
+        "mask": "box-1-mask.png"
+      },
+      "costUsd": 0.034,
+      "ms": 13766,
+      "pixels": "1536x864"
+    },
+    {
+      "file": "box-2.jpg",
+      "node": "edit2",
+      "label": "Box 2 edit",
+      "model": "flux-lora/inpainting",
+      "params": {
+        "size": "1024x576",
+        "mask": "box-2-mask.png"
+      },
+      "costUsd": 0.034,
+      "ms": 21717,
+      "pixels": "1536x864"
+    }
+  ],
+  "masks": {
+    "box-1-mask.png": "64x36 PNG, transparent with a white box at x 5-27, y 14-35 (stretched to the photo size)",
+    "box-2-mask.png": "64x36 PNG, white box at x 36-59, y 18-34"
+  },
+  "verdicts": {
+    "Box 1": "A white robot with a dark visor stands behind a wooden cart with a glowing lantern and a bowl of food. The same box also gained a parked dark car and a pink-lit building. Outside the box the plaza matches the source.",
+    "Box 2": "The shopfronts inside the box were repainted with a new, garbled sign and potted plants. A small dark scooter is parked by a door. It is not red and has no visible ramen box."
+  },
+  "posterFrame": "preview.webp",
+  "posterSource": "box-2.jpg scaled to 768 px",
+  "otherAttempts": "Earlier attempts while tuning this graph (P-Image Edit ignored the box; two sky-whale boxes came back empty; one run with a different photo missed box 1) are not shown. They are listed in the PR body with their costs."
+}
