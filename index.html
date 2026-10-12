@@ -6927,10 +6927,13 @@ const PRICE_OR_DIM_PARAM = /^(duration|seconds|aspect_ratio|resolution|resolutio
 // free-text/number params that are really URLs, media references, or JSON lists — they need real
 // wiring (image/video/audio ports, the 🎨 LoRA box), not a footgun free-text box, so they're never
 // surfaced as a knob. Driven off the key + descriptor (no model names); selects/switches are unaffected.
+// CamelCase slots (imageUrl, image_url, endImageUrl, lastImageUrl, referenceImages) are the same
+// fields as their snake_case twins. Fold capitals before the media/URL test so every spelling hides.
 function videoFreetextSkip(key, d){
-  if(/(^|_)(image|images|video|videos|audio|audios)(_urls?)?$/i.test(key)) return true;   // media references
-  if(/_urls?$/i.test(key)) return true;                                                    // any URL slot
-  if(/^(loras|element_list|multi_prompt|last_image|end_image|prompt)$/i.test(key)) return true; // JSON lists / frame URLs / would clobber the node's main prompt
+  const k = String(key||"").replace(/([a-z0-9])([A-Z])/g, "$1_$2").replace(/-/g, "_").toLowerCase();
+  if(/(^|_)(image|images|video|videos|audio|audios)(_urls?)?$/i.test(k)) return true;   // media references
+  if(/_urls?$/i.test(k)) return true;                                                    // any URL slot
+  if(/^(loras|element_list|multi_prompt|last_image|end_image|prompt)$/i.test(k)) return true; // JSON lists / frame URLs / would clobber the node's main prompt
   const txt = (d.description||"") + " " + (d.placeholder||"");
   if(/\bJSON (array|object)\b|\bURLs?\b/i.test(txt)) return true;                           // descriptor itself declares a URL/list
   return false;
@@ -6964,6 +6967,11 @@ function videoOptDefs(model, nodeType){
   for(const [key,d] of Object.entries(p)){
     if(!d || typeof d!=="object") continue;
     if(PRICE_OR_DIM_PARAM.test(key) && kind!=="model3d") continue;   // video dims/price live on the node; 3D resolution/size are real knobs
+    // A label that names reference mode ("Generate reference mode audio") only applies
+    // when this node can select that mode. Image→Video has no ref ports, so the switch
+    // does nothing there. Descriptions that merely mention reference mode stay — those
+    // knobs still work for image-to-video (H3 prompt expansion).
+    if(!canRef && /\breference(?:[-\s])?mode\b/i.test(String(d.label||""))) continue;
     if(/^lora(_|$)/i.test(key)) continue;                      // the 🎨 LoRA box handles these
     const def = dflt[key]!=null ? dflt[key] : d.default;       // catalog default → placeholder/initial
     if(d.type==="select"){
@@ -7598,6 +7606,40 @@ function videoAudioOn(fields, audioCtx){
   }
   return false;
 }
+// Fresh-card resolution and duration. The node knob sends the catalog setting
+// (parameters.*.default, else supported_parameters.defaults, else the first listed
+// option). videoUnitUsd used to read only pricing.default_resolution and otherwise
+// the first price-map key — the cheap tier. Vidu Q4 has no pricing default, so the
+// picker listed ~$0.25 (540p × 5s) while the card bills ~$0.52 (720p × 5s). Wan 2.5's
+// pricing default is 480p and its card is 720p; Seedance 2.0 extend's pricing
+// duration is 4s and its card is 5s. An explicit field still wins. No descriptor
+// leaves the pricing fallback alone, including a duration videoPriceFields cleared
+// because the model lists no duration param. Twin: play videoSettingDefault.
+function videoSettingDefault(ctx, key){
+  const c = ctx || {}, pp = c.params || {}, d = pp[key];
+  if(!d || typeof d!=="object") return null;
+  if(d.default!=null && String(d.default)!=="") return String(d.default);
+  const bag = (c.defaults || {})[key];
+  if(bag!=null && String(bag)!=="") return String(bag);
+  const opts = Array.isArray(d.options) ? d.options : [];
+  for(const o of opts){
+    const v = (o && typeof o==="object") ? o.value : o;
+    if(v!=null && String(v)!=="") return String(v);
+  }
+  return null;
+}
+function videoDefaultFields(fields, ctx){
+  const f = Object.assign({}, fields || {});
+  if(f.resolution==null || f.resolution===""){
+    const r = videoSettingDefault(ctx, "resolution");
+    if(r!=null) f.resolution = r;
+  }
+  if(f.duration==null || f.duration===""){
+    const d = videoSettingDefault(ctx, "duration") ?? videoSettingDefault(ctx, "seconds");
+    if(d!=null) f.duration = d;
+  }
+  return f;
+}
 function videoUnitUsd(pricing, fields, refWired, videoWired, nodeFilter, audioCtx){
   const p = pricing || {};
   const f = fields || {};
@@ -7607,7 +7649,7 @@ function videoUnitUsd(pricing, fields, refWired, videoWired, nodeFilter, audioCt
   const refCount = typeof refWired==="number" ? Math.max(0, refWired|0) : (refWired ? 1 : 0);
   const refOn = refCount>0 || /reference/i.test(String(opts.mode||""));
   const videoOn = !!videoWired || /extend/i.test(String(opts.mode||""));
-  let usd = videoBaseUsd(p, f, audioOn, refOn, videoOn, nodeFilter);
+  let usd = videoBaseUsd(p, videoDefaultFields(f, audioCtx), audioOn, refOn, videoOn, nodeFilter);
   // Models that surcharge audio as a flat multiplier (audio_multiplier) rather than a separate tier: apply
   // it once — those shapes never carry a with-audio table, so a tier branch can't have already handled it.
   if(usd!=null && isFinite(usd) && audioOn && p.audio_multiplier!=null) usd *= (_num(p.audio_multiplier) ?? 1);
@@ -9766,13 +9808,19 @@ function refreshEndFrameInput(n){
 // Discoverability nudge on the Image→Video node: some i2v models (seedance-2.0 & co.)
 // ALSO advertise a reference-image array param (videoRefSpec non-null). ivideo deliberately
 // does NOT expose ref ports — the start-image + reference_images combined call is unverified
-// upstream (kling bills the modes separately) — so when such a model is picked, point the user
-// at the 🎬 Text→Video node, which DOES carry ref ports (#199), for character/subject pinning.
+// upstream (kling bills the modes separately) — so when such a model is picked AND the
+// Text→Video picker actually lists it, point at that node's ref ports (#199). A model that
+// advertises refs but can't be picked there (Vidu Q4, text_to_video false) gets no hint.
 // Editor-only: app builders don't pick models, so exported/shared apps never surface this.
 function refreshRefHint(n){
   if(!n.el || n.type!=="ivideo") return;
   const box = n.el.querySelector("[data-refhint]"); if(!box) return;
   if(!videoRefSpec(n)){ box.innerHTML=""; return; }
+  // The sentence points at Text→Video's ref ports. A model that advertises reference
+  // images but is not pickable there (Vidu Q4: text_to_video false) made it a dead end.
+  // Show it only when the Text→Video picker actually lists this model.
+  const m = catItem("video", n.fields.model);
+  if(!m || !m.t2v){ box.innerHTML=""; return; }
   box.innerHTML = `<div class="fhint">${esc(t("this model can pin a character/subject from reference images — use the 🎬 Text→Video node's ref ports for that"))}</div>`;
 }
 // Render the GROWING reference-image ports on the Text→Video node. Shown ONLY when the picked model
@@ -13212,8 +13260,8 @@ const CTX = {
     // those knobs. extra used to clobber dims here → the API billed the modelOpts duration while the
     // "~$X to run" chip priced the node's duration. Same priority rule as refImages below.
     if(opts.dims) Object.assign(body, opts.dims);
-    // Wired subject/style reference images LAST, so a ⚙️ knob can never clobber the array (a camelCase
-    // `referenceImages` key isn't caught by videoFreetextSkip, so a wired port must always win the key).
+    // Wired subject/style reference images LAST, so a saved modelOpts blob can never clobber the array
+    // (a graph saved before camelCase media keys were hidden can still carry referenceImages).
     if(opts.refImages && opts.refImages.length && opts.refKey) body[opts.refKey] = opts.refImages;   // ref-image array param (data: URLs inline; oversize caught below)
     // NanoGPT inlines media as base64 and the edge (Vercel) rejects bodies over ~4.5 MB with a
     // header-less 413 that the browser mislabels as a CORS error. There's no upload endpoint, so

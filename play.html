@@ -7229,6 +7229,40 @@ window.NoodleApp = (function () {
     }
     return false;
   }
+  // Fresh-card resolution and duration. The node knob sends the catalog setting
+  // (parameters.*.default, else supported_parameters.defaults, else the first listed
+  // option). videoUnitUsd used to read only pricing.default_resolution and otherwise
+  // the first price-map key — the cheap tier. Vidu Q4 has no pricing default, so the
+  // picker listed ~$0.25 (540p × 5s) while the card bills ~$0.52 (720p × 5s). Wan 2.5's
+  // pricing default is 480p and its card is 720p; Seedance 2.0 extend's pricing
+  // duration is 4s and its card is 5s. An explicit field still wins. No descriptor
+  // leaves the pricing fallback alone, including a duration videoPriceFields cleared
+  // because the model lists no duration param. Twin: play videoSettingDefault.
+  function videoSettingDefault(ctx, key){
+    const c = ctx || {}, pp = c.params || {}, d = pp[key];
+    if(!d || typeof d!=="object") return null;
+    if(d.default!=null && String(d.default)!=="") return String(d.default);
+    const bag = (c.defaults || {})[key];
+    if(bag!=null && String(bag)!=="") return String(bag);
+    const opts = Array.isArray(d.options) ? d.options : [];
+    for(const o of opts){
+      const v = (o && typeof o==="object") ? o.value : o;
+      if(v!=null && String(v)!=="") return String(v);
+    }
+    return null;
+  }
+  function videoDefaultFields(fields, ctx){
+    const f = Object.assign({}, fields || {});
+    if(f.resolution==null || f.resolution===""){
+      const r = videoSettingDefault(ctx, "resolution");
+      if(r!=null) f.resolution = r;
+    }
+    if(f.duration==null || f.duration===""){
+      const d = videoSettingDefault(ctx, "duration") ?? videoSettingDefault(ctx, "seconds");
+      if(d!=null) f.duration = d;
+    }
+    return f;
+  }
   function videoUnitUsd(pricing, fields, refWired, videoWired, nodeFilter, audioCtx){
     const p = pricing || {};
     const f = fields || {};
@@ -7238,7 +7272,7 @@ window.NoodleApp = (function () {
     const refCount = typeof refWired==="number" ? Math.max(0, refWired|0) : (refWired ? 1 : 0);
     const refOn = refCount>0 || /reference/i.test(String(opts.mode||""));
     const videoOn = !!videoWired || /extend/i.test(String(opts.mode||""));
-    let usd = videoBaseUsd(p, f, audioOn, refOn, videoOn, nodeFilter);
+    let usd = videoBaseUsd(p, videoDefaultFields(f, audioCtx), audioOn, refOn, videoOn, nodeFilter);
     if(usd!=null && isFinite(usd) && audioOn && p.audio_multiplier!=null) usd *= (_num(p.audio_multiplier) ?? 1);
     // H3 LoRA: catalog pricing.lora.reference_image_or_audio ($0.02) times each wired ref.
     if(usd!=null && isFinite(usd) && refCount>0 && videoLoraOn(f)){
