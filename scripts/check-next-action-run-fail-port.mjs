@@ -187,11 +187,14 @@ function toy(name, ok, detail) {
     ],
   };
   // Force equal by using an error that doesn't distinguish — collect may still score both via modality text
-  const ambPick = pickRunFailPort(tables, {
+  // Synthetic tie: the live gallery's join a/b inbound mass drifts as examples
+  // land (idea-to-short-film's Style + shot Joins made it 5 / 7 on 2026-10-08),
+  // so the tied branch is pinned on tables where both ports carry the same mass.
+  const ambPick = pickRunFailPort({ topTargets: { "llm|text": { "join|a": 4, "join|b": 4 } } }, {
     ...amb,
     errorMessage: "no text — wire something",
   });
-  // join a/b both text with equal errScore → quiet
+  // join a/b both text with equal errScore and equal mass → quiet
   toy("join-multi-tied-quiet", ambPick === null, ambPick ? ambPick.port : "null");
 }
 

@@ -1,0 +1,193 @@
+{
+ "inspiration": {
+  "post": "https://x.com/aiaicreate/status/2107279553609830408",
+  "author": "@aiaicreate",
+  "app": "ComfyUI-MiniMaxH3-Studio",
+  "note": "Idea only: one idea, an LLM planner, short clips joined into one film. No media from the post is used; this graph uses Seedance 1.5 Pro image-to-video shots, nanoodle's Video → frames, Combine and Soundtrack nodes."
+ },
+ "version": 2,
+ "why": "v1 (2026-10-08, $0.39) was three separate text-to-video clips: three looks (neon night to sunrise), shot 2 repeated the launch, hard cuts, no sound. v2 fixes the graph: one style bible pasted word for word into every prompt, one opening still that sets the look, every shot image-to-video, shots 2 and 3 starting on the previous shot's last frame, a setup / turn / payoff story, and one music bed.",
+ "runner": "nanoodle-js 0.8.0 library (Workflow.run), NANOGPT_API_KEY",
+ "passes": [
+  {
+   "name": "pass 1",
+   "startedAt": "2026-10-08T20:48:14.598Z",
+   "finishedAt": "2026-10-08T21:02:09.403Z",
+   "balanceBefore": 10.15269528,
+   "balanceAfter": 9.60211419,
+   "costUsd": 0.550581,
+   "kept": [
+    "Style bible",
+    "Story",
+    "Opening still prompt",
+    "Opening still",
+    "Shot 1 motion",
+    "Shot 1",
+    "Music bed"
+   ],
+   "discarded": {
+    "why": "In Shot 2 two red-sleeved hands reach in and nudge the boat for about a second, a second launch. The style bible pasted into every prompt describes the hand, and the shot writer had no rule against it.",
+    "costUsd": 0.260182
+   }
+  },
+  {
+   "name": "pass 2",
+   "startedAt": "2026-10-08T21:04:13.713Z",
+   "finishedAt": "2026-10-08T21:06:25.191Z",
+   "balanceBefore": 9.60149406,
+   "balanceAfter": 9.34133698,
+   "costUsd": 0.260157,
+   "what": "The shot writers gained one rule: end with who is in frame (\"No hands or people enter the frame.\" when the shot's ACTION has no hand). Pass 2 re-ran Shot 2 motion, Shot 3 motion, Shot 2, Shot 2 last frame, Shot 3, Combine and Soundtrack, fed with pass 1's style bible, story, Shot 1 clip, Shot 1 last frame and music (as Text, Image, Video and Audio inputs).",
+   "kept": [
+    "Shot 2 motion",
+    "Shot 3 motion",
+    "Shot 2",
+    "Shot 2 last frame",
+    "Shot 3",
+    "Combine",
+    "Soundtrack"
+   ]
+  }
+ ],
+ "totalCostUsd": 0.550556,
+ "totalCostNote": "Cost of the nodes whose outputs are in the saved film (pass 1 kept nodes + pass 2). Both passes together spent 0.810738; one fresh run of graph.json costs the same as pass 1 (about $0.55).",
+ "graphNote": "graph.json, workflow.json and as-run-graph.json are the same file: the final graph. Pass 1 ran it with the shot writers' earlier system prompt, which lacked the last who-is-in-frame sentence; Shot 1 motion (the only writer output kept from pass 1) comes from that wording. Node positions were tidied after the run.",
+ "results": [
+  {
+   "node": "bible",
+   "label": "Style bible",
+   "model": "z-ai/glm-5.3-flash",
+   "pass": 1,
+   "costUsd": 9.627449999999999e-05,
+   "text": "A small yellow paper boat, about eight inches long, folded from glossy bright-yellow paper with crisp visible creases, is the hero. A child appears only as a small pale hand in a red raincoat sleeve, wrist and fingers only. The setting is a city sidewalk gutter with fast-moving rainwater, concrete curbs, dark wet asphalt. Overcast rainy late afternoon, steady grey drizzle throughout. Soft diffused grey daylight, muted reflections in the water. Restrained palette: yellow, red, grey, wet black. Shot on a 35mm lens at child's eye level, low camera height near the gutter. Naturalistic live-action film look, shallow depth of field, subtle grain, gentle overcast color grade."
+  },
+  {
+   "node": "story",
+   "label": "Story: setup, turn, payoff",
+   "model": "z-ai/glm-5.3-flash",
+   "pass": 1,
+   "costUsd": 0.0001488795,
+   "text": "SHOT 1 — SETUP\nSTART: Rainy afternoon, a curb-side gutter streaming with rainwater; a small hand holds a yellow paper boat above the current.\nACTION: The hand lowers the boat onto the water and releases it; camera tracks alongside as the current carries it forward.\nEND: The boat glides down the gutter, rain rippling the water around it.\n\nSHOT 2 — TURN\nSTART: The boat gliding down the gutter, rain rippling the water around it.\nACTION: The current quickens and the boat is pulled toward the open storm drain, spinning on its edge; camera pushes in close on the tilting boat.\nEND: The boat balanced at the drain's lip, half tilted over the dark opening, water pouring past.\n\nSHOT 3 — PAYOFF\nSTART: The boat balanced at the drain's lip, half tilted over the dark opening, water pouring past.\nACTION: The small hand reaches in from above and plucks the boat out of the water; camera pulls back as the hand lifts it clear, safe against the gray rain.\nEND: The hand holding the dripping yellow boat aloft above the empty drain, rain falling steadily."
+  },
+  {
+   "node": "w0",
+   "label": "Opening still",
+   "model": "z-ai/glm-5.3-flash",
+   "pass": 1,
+   "costUsd": 7.224e-05,
+   "text": "Low camera angle at gutter level, a small hand holding a yellow paper boat above the streaming curb-side current, rain falling, wet asphalt street and blurred gray neighborhood filling the background."
+  },
+  {
+   "node": "w1",
+   "label": "Shot 1 motion",
+   "model": "z-ai/glm-5.3-flash",
+   "pass": 1,
+   "costUsd": 8.147999999999999e-05,
+   "text": "The hand lowers the yellow paper boat onto the streaming rainwater and releases it; the camera tracks alongside as the current carries it forward, rain rippling the water around it, and the boat glides down the gutter."
+  },
+  {
+   "node": "w2",
+   "label": "Shot 2 motion",
+   "model": "z-ai/glm-5.3-flash",
+   "pass": 2,
+   "costUsd": 9.791249999999999e-05,
+   "text": "The current quickens and the yellow boat is pulled toward the open storm drain, spinning on its edge as water pours past. The camera pushes in close on the tilting boat. It ends balanced at the drain's lip, half tilted over the dark opening. No hands or people enter the frame."
+  },
+  {
+   "node": "w3",
+   "label": "Shot 3 motion",
+   "model": "z-ai/glm-5.3-flash",
+   "pass": 2,
+   "costUsd": 5.9167500000000006e-05,
+   "text": "The hand dips down and plucks the tilting boat from the drain's lip, water streaming off its hull; the camera pulls back as the hand rises, lifting the dripping yellow boat clear of the dark opening while rain keeps falling. The hand stays in frame, holding the boat aloft above the empty drain."
+  },
+  {
+   "node": "key",
+   "label": "Opening still (sets the look)",
+   "model": "meta/muse-image/text-to-image",
+   "pass": 1,
+   "costUsd": 0.01,
+   "params": {
+    "size": "16:9"
+   },
+   "file": "opening-still.webp"
+  },
+  {
+   "node": "v1",
+   "label": "Shot 1 · setup",
+   "model": "bytedance-seedance-v1.5-pro",
+   "pass": 1,
+   "costUsd": 0.12999999999999998,
+   "params": {
+    "duration": "5",
+    "resolution": "720p",
+    "aspect": "16:9",
+    "generateAudio": false
+   }
+  },
+  {
+   "node": "v2",
+   "label": "Shot 2 · turn",
+   "model": "bytedance-seedance-v1.5-pro",
+   "pass": 2,
+   "costUsd": 0.12999999999999998,
+   "params": {
+    "duration": "5",
+    "resolution": "720p",
+    "aspect": "16:9",
+    "generateAudio": false
+   }
+  },
+  {
+   "node": "v3",
+   "label": "Shot 3 · payoff",
+   "model": "bytedance-seedance-v1.5-pro",
+   "pass": 2,
+   "costUsd": 0.12999999999999998,
+   "params": {
+    "duration": "5",
+    "resolution": "720p",
+    "aspect": "16:9",
+    "generateAudio": false
+   }
+  },
+  {
+   "node": "music",
+   "label": "Music bed",
+   "model": "elevenlabs/music",
+   "pass": 1,
+   "costUsd": 0.15,
+   "params": {
+    "duration": "15",
+    "instrumental": true
+   }
+  },
+  {
+   "node": "score",
+   "label": "Short film",
+   "costUsd": 0,
+   "file": "film.mp4"
+  }
+ ],
+ "verdicts": {
+  "Shot 1": "A small hand in a red raincoat sleeve sets the yellow paper boat on the rain-dimpled water of a curbside gutter and lets go; the boat drifts away from the camera down the gutter.",
+  "Shot 2": "Starts on Shot 1's last frame. For about half a second a red-sleeved hand flicks through the top-left corner and splashes (the prompt said no hands); it never touches the boat. The camera then pushes in as the boat drifts to a round open drain by the curb and tips over its edge.",
+  "Shot 3": "Starts on Shot 2's last frame, the boat tilted over the drain. The red-sleeved hand comes down, takes the boat and lifts it, dripping, above the drain.",
+  "Film": "15.1 s, 1280x720, 24 fps. One overcast grey afternoon, one street, the same boat and red sleeve in every shot. Each cut continues the action because the next shot starts on the previous shot's last frame; Combine has no crossfade, so the cuts are hard but continuous. The ElevenLabs bed (asked for soft piano and pizzicato strings) is loudest in the first 9 s, fades from about 10 s and is almost silent for the last 2 s. The water is calm rather than rushing, so the danger reads gently."
+ },
+ "media": {
+  "film.mp4": "Soundtrack output re-encoded for the site (libx264 CRF 24, AAC 128k, same frames and length). Original Soundtrack output: 19,361,919 bytes, sha256 019a8e644935e64ce469406f18f60ca31a88de37271d3281a4c6bf777a16f836.",
+  "opening-still.webp": "Muse output (2048x1152 WebP) resized to 1280x720 for the site.",
+  "clipSha256": {
+   "Shot 1": "12621446dd9ad4f84df0088e3f7bf29516432bc228db223c5db900673736090f",
+   "Shot 2": "2b83b90d7da3117f050ee9b637fab929a70079d7d27b9253cf32a18118df01b8",
+   "Shot 3": "554bd234f12c7ed77812c959ba5cb22f0486f91113fbdadeb74d2d21343211dd",
+   "Music bed": "5c3bdac94d37419798f8cd886c1c305a0bb57eadf4a8ff7db470f9c637da1c4c",
+   "Opening still": "907821bcdebfdccd085cd6aff8da6ac3abc1429f46e7c24d606640849b71545f"
+  },
+  "shot-plan.txt": "The Style bible and Story outputs, verbatim."
+ },
+ "posterFrame": "preview.webp",
+ "posterSource": "film.mp4 at 12.6 s (shot 3)",
+ "otherAttempts": "Before pass 1: a text-only test of the bible, story and writers ($0.00063) and an opening-still test ($0.01066). Between passes: three text-only writer tests ($0.00043) and one pass-2 attempt that stopped before any video call ($0.00012)."
+}

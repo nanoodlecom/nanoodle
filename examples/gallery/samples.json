@@ -640,5 +640,55 @@
     "preview": "grok-heygen-minimax-video-arena/preview.webp",
     "workflow": "grok-heygen-minimax-video-arena/workflow.json",
     "workflowSha256": "8363448659d2707604b7ce5cfac1be4974ff23acf3cf207a15125e03c606007c"
+  },
+  {
+    "slug": "idea-to-short-film",
+    "title": "One idea, three shots, one short film",
+    "date": "2026-10-08",
+    "review": "Sampled frames",
+    "note": "GLM 5.3 Flash writes one style bible (a yellow paper boat, a small hand in a red raincoat sleeve, a rainy grey afternoon gutter, 35mm, low camera) and a three-beat story. Join pastes the bible word for word in front of every prompt. Muse paints the opening still, and Seedance 1.5 Pro animates it into Shot 1; Video \u2192 frames hands each shot's last frame to the next. Setup: a small hand sets the boat on the gutter and lets go. Turn: the boat drifts to an open drain and tips over its edge. Payoff: the hand lifts it out, dripping. One look and one place throughout, and each cut continues the action. ElevenLabs adds one music bed. Flaws: a hand flicks through a corner of Shot 2 for about half a second although the prompt said no hands, the music fades out about 2 s before the end, and Combine has no crossfade, so the cuts are hard. Shots 2 and 3 come from a second pass; see run.json.",
+    "layout": "sequence",
+    "costUsd": 0.550556,
+    "costExact": true,
+    "models": [
+      "z-ai/glm-5.3-flash",
+      "meta/muse-image/text-to-image",
+      "bytedance-seedance-v1.5-pro",
+      "elevenlabs/music"
+    ],
+    "graphSha256": "a29cdaeb74811f4fad097023af1fa3782d4be6aab508353a58ddf8eee9d3fc42",
+    "inputs": [
+      {
+        "label": "Film idea",
+        "text": "A child's yellow paper boat on a rainy afternoon: a small hand sets it into a rushing gutter, the current sweeps it toward an open storm drain where it spins on the very edge, and at the last moment the same small hand plucks it out of the water, safe."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "idea-to-short-film/shot-plan.txt",
+        "kind": "text",
+        "label": "1. Style bible and story: setup, turn, payoff \u00b7 reported $0.00025",
+        "costUsd": 0.000245154,
+        "collapsed": true,
+        "sha256": "16034764db8fbf45110d641493c15a2546414e4c97e424d4ccd812b691f95c74"
+      },
+      {
+        "src": "idea-to-short-film/opening-still.webp",
+        "kind": "image",
+        "label": "2. Opening still: Muse sets the look Shot 1 starts from \u00b7 reported $0.01",
+        "costUsd": 0.01,
+        "sha256": "b380e24cf52db0beb70cf5e962094d56dea4dda924508fc88daae052ce0cb17b"
+      },
+      {
+        "src": "idea-to-short-film/film.mp4",
+        "kind": "video",
+        "label": "3. Short film: three chained Seedance shots and one music bed \u00b7 reported $0.55 total",
+        "costUsd": 0.550556,
+        "sha256": "3121a22779774952181674a520fcc77f808421281a72216e41175f29653e1f9a"
+      }
+    ],
+    "preview": "idea-to-short-film/preview.webp",
+    "workflow": "idea-to-short-film/workflow.json",
+    "workflowSha256": "a29cdaeb74811f4fad097023af1fa3782d4be6aab508353a58ddf8eee9d3fc42"
   }
 ]

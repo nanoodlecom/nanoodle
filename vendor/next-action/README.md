@@ -25,7 +25,7 @@
 | · 22 | `dangling-nudge.mjs` — after idle, pulse one confident dangling output that still has a live partner |
 | · 24 | `model-suggest.mjs`, `corpus/model-suggest.json` — gallery-common models first in the picker; a flat prior leaves today’s order unmarked |
 | · 26 | `add-search-popular.mjs` — a confident add-search match lifts a gallery-popular type; an empty or ambiguous query does not |
-| · 27 | `selected-output-consumer.mjs` — a selected free output ranks fitting consumer types first in Add; a flat prior leaves the list alone |
+| · 27 | `selected-output-consumer.mjs` — a selected free output ranks fitting consumer types first in Add; a flat prior or a tie for first leaves the list alone |
 | · 33 | `continue-port.mjs` — right after a wire, pulse one leftover port on those two nodes when a live partner remains |
 | · 34 | `multi-tidy-suggest.mjs` — pulse Tidy only when Arrange would move or unstick the selected cards |
 | · 38 | `recent-type-recency.mjs` — when stronger Suggested sources are quiet, one clear recent add lifts with “you just used this” |

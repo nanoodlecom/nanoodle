@@ -1,0 +1,611 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": -40,
+      "y": -700,
+      "w": 460,
+      "fields": {
+        "text": "One idea becomes a three-shot film that plays as one scene. Style bible: one paragraph (subject, place, time of day, light, lens, look) that every Join pastes word for word in front of each image and shot prompt. Story: setup, turn, payoff, where each shot ends on the frame the next one starts from. The opening still sets the look; each Seedance shot is image-to-video, and shots 2 and 3 start on the previous shot's last frame (Video → frames). Combine joins the clips (hard cuts; it has no crossfade) and Soundtrack lays one 15-second music bed over the whole film.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "idea",
+      "type": "text",
+      "x": -40,
+      "y": 0,
+      "w": 320,
+      "name": "Film idea",
+      "fields": {
+        "text": "A child's yellow paper boat on a rainy afternoon: a small hand sets it into a rushing gutter, the current sweeps it toward an open storm drain where it spins on the very edge, and at the last moment the same small hand plucks it out of the water, safe."
+      }
+    },
+    {
+      "id": "bible",
+      "type": "llm",
+      "x": 500,
+      "y": -560,
+      "w": 320,
+      "sizes": {
+        "system": 120
+      },
+      "name": "Style bible",
+      "fields": {
+        "model": "z-ai/glm-5.3-flash",
+        "reasoningEffort": "low",
+        "maxTokens": "700",
+        "system": "You write the STYLE BIBLE for a 15-second live-action short film made of three 5-second shots. It is pasted word for word at the start of every image and video prompt, so describe only what stays identical in every shot. One paragraph, 60 to 90 words, plain sentences, no headings or lists. Cover: the hero's exact look (shape, color, material, size); any person only as the camera sees them (for example a small hand and sleeve); the location; ONE time of day and weather that holds for the whole film; lighting; a restrained palette; lens and camera height; film look. No actions, no camera moves, no story events. Output only the paragraph."
+      }
+    },
+    {
+      "id": "story",
+      "type": "llm",
+      "x": 500,
+      "y": 260,
+      "w": 320,
+      "sizes": {
+        "system": 120
+      },
+      "name": "Story: setup, turn, payoff",
+      "fields": {
+        "model": "z-ai/glm-5.3-flash",
+        "reasoningEffort": "low",
+        "maxTokens": "900",
+        "system": "You plan a 15-second film as three 5-second shots that play as one continuous scene. Each shot after the first starts on the exact last frame of the shot before it, so every cut continues the action instead of restarting it. Tell a three-beat story: SHOT 1 SETUP, SHOT 2 TURN (the problem or danger), SHOT 3 PAYOFF (the problem resolves). Every shot shows a new event; never repeat an earlier one (shot 2 must not show the launch again). For each shot write three short lines. START: what the first frame shows. ACTION: the one thing that happens, and one camera move. END: exactly what the last frame shows; the next shot starts there. Same place, same time of day and same light in all three shots. No dialogue, no on-screen text. Plain text, under 200 words."
+      }
+    },
+    {
+      "id": "w0",
+      "type": "llm",
+      "x": 940,
+      "y": -700,
+      "w": 320,
+      "sizes": {
+        "system": 120
+      },
+      "name": "Opening still",
+      "fields": {
+        "model": "z-ai/glm-5.3-flash",
+        "reasoningEffort": "low",
+        "maxTokens": "300",
+        "system": "From the film plan, describe SHOT 1's START frame as one still image: framing, camera height, where the hero and any hands sit in the frame, and what fills the background. 25 to 45 words. Only what is visible in that single frame: no motion, no style or lighting words (a style paragraph is added before yours), no labels. Output only the description."
+      }
+    },
+    {
+      "id": "w1",
+      "type": "llm",
+      "x": 940,
+      "y": 0,
+      "w": 320,
+      "sizes": {
+        "system": 120
+      },
+      "name": "Shot 1 motion",
+      "fields": {
+        "model": "z-ai/glm-5.3-flash",
+        "reasoningEffort": "low",
+        "maxTokens": "400",
+        "system": "From the film plan, write the motion prompt for SHOT 1 only. The video model starts from the opening still, which already shows SHOT 1's START, so do not re-describe the scene: describe what moves during the 5 seconds, the ACTION and the one camera move, and how it ends on END. 35 to 60 words, present tense, one paragraph. No style or lighting words (a style paragraph is added before yours), no labels, no other shots, no dialogue or on-screen text. Always finish with one last sentence that says who is in frame: when this shot's ACTION names a hand or person, say that it stays in frame; when it does not, write exactly: No hands or people enter the frame. Output only the prompt."
+      }
+    },
+    {
+      "id": "w2",
+      "type": "llm",
+      "x": 940,
+      "y": 700,
+      "w": 320,
+      "sizes": {
+        "system": 120
+      },
+      "name": "Shot 2 motion",
+      "fields": {
+        "model": "z-ai/glm-5.3-flash",
+        "reasoningEffort": "low",
+        "maxTokens": "400",
+        "system": "From the film plan, write the motion prompt for SHOT 2 only. The video model starts from the last frame of shot 1, which already shows SHOT 2's START, so do not re-describe the scene: describe what moves during the 5 seconds, the ACTION and the one camera move, and how it ends on END. 35 to 60 words, present tense, one paragraph. No style or lighting words (a style paragraph is added before yours), no labels, no other shots, no dialogue or on-screen text. Always finish with one last sentence that says who is in frame: when this shot's ACTION names a hand or person, say that it stays in frame; when it does not, write exactly: No hands or people enter the frame. Output only the prompt."
+      }
+    },
+    {
+      "id": "w3",
+      "type": "llm",
+      "x": 940,
+      "y": 1400,
+      "w": 320,
+      "sizes": {
+        "system": 120
+      },
+      "name": "Shot 3 motion",
+      "fields": {
+        "model": "z-ai/glm-5.3-flash",
+        "reasoningEffort": "low",
+        "maxTokens": "400",
+        "system": "From the film plan, write the motion prompt for SHOT 3 only. The video model starts from the last frame of shot 2, which already shows SHOT 3's START, so do not re-describe the scene: describe what moves during the 5 seconds, the ACTION and the one camera move, and how it ends on END. 35 to 60 words, present tense, one paragraph. No style or lighting words (a style paragraph is added before yours), no labels, no other shots, no dialogue or on-screen text. Always finish with one last sentence that says who is in frame: when this shot's ACTION names a hand or person, say that it stays in frame; when it does not, write exactly: No hands or people enter the frame. Output only the prompt."
+      }
+    },
+    {
+      "id": "j0",
+      "type": "join",
+      "x": 1360,
+      "y": -700,
+      "w": 240,
+      "name": "Style + opening still",
+      "fields": {
+        "sep": "\\n\\n"
+      }
+    },
+    {
+      "id": "j1",
+      "type": "join",
+      "x": 1360,
+      "y": 0,
+      "w": 240,
+      "name": "Style + shot 1",
+      "fields": {
+        "sep": "\\n\\n"
+      }
+    },
+    {
+      "id": "j2",
+      "type": "join",
+      "x": 1360,
+      "y": 700,
+      "w": 240,
+      "name": "Style + shot 2",
+      "fields": {
+        "sep": "\\n\\n"
+      }
+    },
+    {
+      "id": "j3",
+      "type": "join",
+      "x": 1360,
+      "y": 1400,
+      "w": 240,
+      "name": "Style + shot 3",
+      "fields": {
+        "sep": "\\n\\n"
+      }
+    },
+    {
+      "id": "key",
+      "type": "image",
+      "x": 1700,
+      "y": -700,
+      "w": 300,
+      "name": "Opening still (sets the look)",
+      "fields": {
+        "model": "meta/muse-image/text-to-image",
+        "size": "16:9",
+        "variations": "1"
+      }
+    },
+    {
+      "id": "v1",
+      "type": "ivideo",
+      "x": 1700,
+      "y": 0,
+      "name": "Shot 1 · setup",
+      "fields": {
+        "model": "bytedance-seedance-v1.5-pro",
+        "prompt": "",
+        "duration": "5",
+        "resolution": "720p",
+        "aspect": "16:9",
+        "modelOpts": {
+          "generateAudio": false
+        },
+        "loras": []
+      }
+    },
+    {
+      "id": "v2",
+      "type": "ivideo",
+      "x": 1700,
+      "y": 700,
+      "name": "Shot 2 · turn",
+      "fields": {
+        "model": "bytedance-seedance-v1.5-pro",
+        "prompt": "",
+        "duration": "5",
+        "resolution": "720p",
+        "aspect": "16:9",
+        "modelOpts": {
+          "generateAudio": false
+        },
+        "loras": []
+      }
+    },
+    {
+      "id": "v3",
+      "type": "ivideo",
+      "x": 1700,
+      "y": 1400,
+      "name": "Shot 3 · payoff",
+      "fields": {
+        "model": "bytedance-seedance-v1.5-pro",
+        "prompt": "",
+        "duration": "5",
+        "resolution": "720p",
+        "aspect": "16:9",
+        "modelOpts": {
+          "generateAudio": false
+        },
+        "loras": []
+      }
+    },
+    {
+      "id": "f1",
+      "type": "vframes",
+      "x": 2120,
+      "y": 400,
+      "w": 240,
+      "name": "Shot 1 last frame",
+      "fields": {
+        "frames": "1",
+        "gap": "0.5",
+        "dir": "end"
+      }
+    },
+    {
+      "id": "f2",
+      "type": "vframes",
+      "x": 2120,
+      "y": 1100,
+      "w": 240,
+      "name": "Shot 2 last frame",
+      "fields": {
+        "frames": "1",
+        "gap": "0.5",
+        "dir": "end"
+      }
+    },
+    {
+      "id": "film",
+      "type": "combine",
+      "x": 2500,
+      "y": 700,
+      "name": "Join the shots",
+      "fields": {
+        "dedup": true
+      }
+    },
+    {
+      "id": "music",
+      "type": "music",
+      "x": 2500,
+      "y": -560,
+      "w": 320,
+      "name": "Music bed",
+      "fields": {
+        "model": "elevenlabs/music",
+        "prompt": "Gentle instrumental film score for a 15-second short about a child's paper boat in the rain: soft felt piano and light pizzicato strings, a quiet tense swell in the middle, a warm hopeful resolve at the end. No vocals, no drums.",
+        "instrumental": true,
+        "duration": "15",
+        "response_format": "mp3"
+      }
+    },
+    {
+      "id": "score",
+      "type": "soundtrack",
+      "x": 2920,
+      "y": 300,
+      "name": "Short film",
+      "fields": {
+        "loop": false
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "idea",
+        "port": "text"
+      },
+      "to": {
+        "node": "bible",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "idea",
+        "port": "text"
+      },
+      "to": {
+        "node": "story",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "story",
+        "port": "text"
+      },
+      "to": {
+        "node": "w0",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l4",
+      "from": {
+        "node": "bible",
+        "port": "text"
+      },
+      "to": {
+        "node": "j0",
+        "port": "a"
+      }
+    },
+    {
+      "id": "l5",
+      "from": {
+        "node": "w0",
+        "port": "text"
+      },
+      "to": {
+        "node": "j0",
+        "port": "b"
+      }
+    },
+    {
+      "id": "l6",
+      "from": {
+        "node": "story",
+        "port": "text"
+      },
+      "to": {
+        "node": "w1",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l7",
+      "from": {
+        "node": "bible",
+        "port": "text"
+      },
+      "to": {
+        "node": "j1",
+        "port": "a"
+      }
+    },
+    {
+      "id": "l8",
+      "from": {
+        "node": "w1",
+        "port": "text"
+      },
+      "to": {
+        "node": "j1",
+        "port": "b"
+      }
+    },
+    {
+      "id": "l9",
+      "from": {
+        "node": "story",
+        "port": "text"
+      },
+      "to": {
+        "node": "w2",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l10",
+      "from": {
+        "node": "bible",
+        "port": "text"
+      },
+      "to": {
+        "node": "j2",
+        "port": "a"
+      }
+    },
+    {
+      "id": "l11",
+      "from": {
+        "node": "w2",
+        "port": "text"
+      },
+      "to": {
+        "node": "j2",
+        "port": "b"
+      }
+    },
+    {
+      "id": "l12",
+      "from": {
+        "node": "story",
+        "port": "text"
+      },
+      "to": {
+        "node": "w3",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l13",
+      "from": {
+        "node": "bible",
+        "port": "text"
+      },
+      "to": {
+        "node": "j3",
+        "port": "a"
+      }
+    },
+    {
+      "id": "l14",
+      "from": {
+        "node": "w3",
+        "port": "text"
+      },
+      "to": {
+        "node": "j3",
+        "port": "b"
+      }
+    },
+    {
+      "id": "l15",
+      "from": {
+        "node": "j0",
+        "port": "text"
+      },
+      "to": {
+        "node": "key",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l16",
+      "from": {
+        "node": "key",
+        "port": "image"
+      },
+      "to": {
+        "node": "v1",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l17",
+      "from": {
+        "node": "j1",
+        "port": "text"
+      },
+      "to": {
+        "node": "v1",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l18",
+      "from": {
+        "node": "v1",
+        "port": "video"
+      },
+      "to": {
+        "node": "f1",
+        "port": "video"
+      }
+    },
+    {
+      "id": "l19",
+      "from": {
+        "node": "f1",
+        "port": "frame1"
+      },
+      "to": {
+        "node": "v2",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l20",
+      "from": {
+        "node": "j2",
+        "port": "text"
+      },
+      "to": {
+        "node": "v2",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l21",
+      "from": {
+        "node": "v2",
+        "port": "video"
+      },
+      "to": {
+        "node": "f2",
+        "port": "video"
+      }
+    },
+    {
+      "id": "l22",
+      "from": {
+        "node": "f2",
+        "port": "frame1"
+      },
+      "to": {
+        "node": "v3",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l23",
+      "from": {
+        "node": "j3",
+        "port": "text"
+      },
+      "to": {
+        "node": "v3",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l24",
+      "from": {
+        "node": "v1",
+        "port": "video"
+      },
+      "to": {
+        "node": "film",
+        "port": "vid1"
+      }
+    },
+    {
+      "id": "l25",
+      "from": {
+        "node": "v2",
+        "port": "video"
+      },
+      "to": {
+        "node": "film",
+        "port": "vid2"
+      }
+    },
+    {
+      "id": "l26",
+      "from": {
+        "node": "v3",
+        "port": "video"
+      },
+      "to": {
+        "node": "film",
+        "port": "vid3"
+      }
+    },
+    {
+      "id": "l27",
+      "from": {
+        "node": "film",
+        "port": "video"
+      },
+      "to": {
+        "node": "score",
+        "port": "video"
+      }
+    },
+    {
+      "id": "l28",
+      "from": {
+        "node": "music",
+        "port": "audio"
+      },
+      "to": {
+        "node": "score",
+        "port": "audio"
+      }
+    }
+  ]
+}
