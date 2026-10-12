@@ -86,6 +86,14 @@ const HOWTO = {
     inspect: "Play each clip. Grok fills the bowl and lifts a noodle clump. HeyGen starts emptier and drops a strand later. H3 does a single-chopstick / single-strand pull at 1440p.",
     costHow: "The saved run reported $0.563: Grok Imagine 1.5 Lite $0.10, HeyGen Video 1 $0.10, and MiniMax H3 $0.363. Prices and results vary.",
   },
+  "idea-to-3d-model": {
+    headline: "Idea to concept art to 3D model",
+    job: "One object idea → an LLM concept description → a clean concept render → a textured GLB you can orbit.",
+    purpose: "Image-to-3D models work best from one clear object on a plain background. An LLM writes the object's parts, materials, and colors; Join adds fixed 3D-ready render rules; Muse paints the concept; TRELLIS.2 turns that single image into a textured GLB. Inspired by <a href=\"https://x.com/patchmonkeydev/status/2109453424643428622\">@patchmonkeydev on X</a> (prompt → concept → multi-view → 3D in ComfyUI); only the idea is used.",
+    edit: "Rewrite <em>Object idea</em> with one solid object (family-friendly). Keep the render rules if you want clean 3D: one whole object, plain background, no props. To trade price for detail, change the 3D model node's geometry resolution (512 / 1024 / 1536) or swap in Tripo 2.5 or Hunyuan. Running the graph makes one cheap text call, one image call, and one paid 3D call.",
+    inspect: "Open the workflow and drag the 3D node to orbit the saved GLB. Check the sides the concept never showed: in the saved run the far side has portholes and a plainer cream strip, and the thin key and propeller blades go soft at some angles. The viewer shows flatter shading than the concept render.",
+    costHow: "The saved sample reported about $0.21: TRELLIS.2 at $0.20 (1024 geometry), Muse text-to-image $0.01, and under $0.0001 for one GLM 5.3 Flash call. A concept-only test before the full run added about $0.01. Prices and results vary.",
+  },
   "blockout-to-shot": {
     headline: "Blockout first, then the shot",
     job: "One action idea → a grayscale blockout still → a finished restyle that keeps the same poses and camera → one 5-second image-to-video shot.",
@@ -151,7 +159,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "blockout-to-shot", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.
