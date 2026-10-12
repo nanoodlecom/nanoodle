@@ -212,6 +212,114 @@ try {
   assert.deepEqual(violations, [], "no CSP console errors while the dropped GLB draws");
   console.log("✓ csp: dropped GLB draws under the real _headers connect-src");
   await cspContext.close();
+
+  // Corner-grip resize. Decide's question (and Choice's options) used to be ignored, and a
+  // wired prompt is display:none so a height written there never moves the card. Mouse and
+  // touch both have to grow the card and the visible primary box.
+  const resizeSpecs = [
+    { type:"text", fields:{ text:"resize me" }, field:"text" },
+    { type:"image", fields:{ prompt:"a red lantern" }, field:"prompt" },
+    { type:"tvideo", fields:{ prompt:"a slow pan across the market" }, field:"prompt" },
+    { type:"decide", fields:{ question:"which is better?" }, field:"question" },
+  ];
+  async function touchDrag(page, x, y, dx, dy) {
+    const client = await page.context().newCDPSession(page);
+    const point = (px, py) => ({ x:px, y:py, id:1 });
+    await client.send("Input.dispatchTouchEvent", { type:"touchStart", touchPoints:[point(x, y)] });
+    for (let i = 1; i <= 8; i++) {
+      await client.send("Input.dispatchTouchEvent", { type:"touchMove", touchPoints:[point(x + dx * i / 8, y + dy * i / 8)] });
+    }
+    await client.send("Input.dispatchTouchEvent", { type:"touchEnd", touchPoints:[] });
+    await client.detach();
+  }
+  async function assertGripResize(page, touch) {
+    for (const spec of resizeSpecs) {
+      const id = await page.evaluate((spec) => {
+        for (const n of [...graph.nodes]) removeNode(n.id);
+        const n = addNode(spec.type, 70, 60, spec.fields);
+        const ed = editor.getBoundingClientRect();
+        const r = n.el.getBoundingClientRect();
+        panX += (ed.left + 36) - r.left;
+        panY += (ed.top + 28) - r.top;
+        scale = 1;
+        applyWorld();
+        return n.id;
+      }, spec);
+      const grip = page.locator(`.node[data-id="${id}"] .rgrip`);
+      const box = await grip.boundingBox();
+      assert.ok(box && box.width >= 12 && box.height >= 12, `${spec.type} resize grip is on screen`);
+      const before = await page.evaluate((arg) => {
+        const n = graph.nodes.find(x => x.id === arg.id);
+        const ta = n.el.querySelector(`textarea[data-f="${arg.field}"]`);
+        const hit = document.elementFromPoint(
+          n.el.querySelector(".rgrip").getBoundingClientRect().left + 8,
+          n.el.querySelector(".rgrip").getBoundingClientRect().top + 8,
+        );
+        return {
+          w: n.el.offsetWidth,
+          h: ta ? ta.offsetHeight : 0,
+          hidden: ta ? ta.hidden : true,
+          hit: hit && (hit.classList?.contains("rgrip") || !!hit.closest?.(".rgrip")),
+        };
+      }, { id, field:spec.field });
+      assert.equal(before.hidden, false, `${spec.type} ${spec.field} box is visible`);
+      assert.equal(before.hit, true, `${spec.type} grip receives the pointer`);
+      const x = box.x + Math.min(box.width, 16) / 2;
+      const y = box.y + Math.min(box.height, 16) / 2;
+      if (touch) await touchDrag(page, x, y, 130, 80);
+      else {
+        await page.mouse.move(x, y);
+        await page.mouse.down();
+        await page.mouse.move(x + 130, y + 80, { steps:12 });
+        await page.mouse.up();
+      }
+      const after = await page.evaluate((arg) => {
+        const n = graph.nodes.find(x => x.id === arg.id);
+        const ta = n.el.querySelector(`textarea[data-f="${arg.field}"]`);
+        return { w: n.w, ow: n.el.offsetWidth, h: ta ? ta.offsetHeight : 0, sizes: n.sizes && n.sizes[arg.field] };
+      }, { id, field:spec.field });
+      assert.ok(after.ow >= before.w + 80, `${spec.type} card widened (${before.w} → ${after.ow})`);
+      assert.ok(after.h >= before.h + 40, `${spec.type} ${spec.field} grew (${before.h} → ${after.h})`);
+      assert.ok(after.sizes >= after.h - 2, `${spec.type} stored the new ${spec.field} height`);
+    }
+  }
+  for (const touch of [false, true]) {
+    const label = touch ? "touch" : "mouse";
+    const resizeContext = await browser.newContext({
+      viewport: touch ? { width:390, height:844 } : { width:1440, height:1000 },
+      isMobile: touch, hasTouch: touch, locale:"en-US",
+    });
+    await resizeContext.route("**/*", async route => {
+      const url = new URL(route.request().url());
+      if (url.origin === origin) {
+        if (url.pathname === "/sw.js") return route.fulfill({ contentType:"text/javascript", body:"// No caching in the browser smoke test.\n" });
+        return route.continue();
+      }
+      return route.abort();
+    });
+    const resizePage = await resizeContext.newPage();
+    resizePage.setDefaultTimeout(15000);
+    await resizePage.addInitScript(() => {
+      localStorage.setItem("noodle_hint_dismissed", "1");
+      localStorage.setItem("noodle_connect_hint_dismissed", "1");
+      localStorage.setItem("noodle_graph", JSON.stringify({ v:1, nodes:[], links:[], nid:1, lid:1, view:{ panX:40, panY:80, scale:1 } }));
+    });
+    try {
+      await resizePage.goto(origin + "/?product=off&na=0", { waitUntil:"networkidle" });
+      await resizePage.locator("#editor").waitFor();
+      await assertGripResize(resizePage, touch);
+      console.log(`✓ resize: text, image, video, and Decide grips grow the card and the visible box (${label})`);
+    } catch (error) {
+      if (process.env.NANOODLE_SMOKE_ARTIFACTS) {
+        const dir = resolve(process.env.NANOODLE_SMOKE_ARTIFACTS);
+        await mkdir(dir, { recursive:true });
+        await resizePage.screenshot({ path:resolve(dir, `resize-${label}.png`), fullPage:true }).catch(() => {});
+      }
+      throw error;
+    } finally {
+      await resizeContext.close();
+    }
+  }
 } finally {
   await browser?.close();
   await new Promise(resolve => server.close(resolve));

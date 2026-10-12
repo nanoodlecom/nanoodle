@@ -663,11 +663,14 @@
          border-radius:.7rem; box-shadow:0 10px 30px #0006; z-index:10; user-select:none; }
   .node.sel{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent), 0 14px 36px #0008 }
   /* card-corner resize grip — drag to set card width + the primary prompt's height (writes n.w / n.sizes) */
-  .node .rgrip{ position:absolute; right:0; bottom:0; width:16px; height:16px; z-index:6;
+  .node .rgrip{ position:absolute; right:0; bottom:0; z-index:6;
+                width:calc(16px * var(--invz, 1)); height:calc(16px * var(--invz, 1));
                 cursor:nwse-resize; opacity:.4; touch-action:none; border-radius:0 0 .7rem 0;
                 background:linear-gradient(135deg, transparent 0 50%, var(--dim) 50% 62%, transparent 62% 74%, var(--dim) 74% 86%, transparent 86%); }
   .node .rgrip:hover{ opacity:1 }
-  .node .rgrip::after{ content:""; position:absolute; inset:-7px -7px 0 0; }  /* fat touch target */
+  /* slop stays ~constant on screen: #world's scale shrinks CSS px, --invz (1/scale) cancels it */
+  .node .rgrip::after{ content:""; position:absolute;
+                inset:calc(-8px * var(--invz, 1)) calc(-6px * var(--invz, 1)) calc(-12px * var(--invz, 1)) calc(-12px * var(--invz, 1)); }
   /* run glow uses --invz (1/zoom on #world) so the ring stays screen-visible when the graph is fit-zoomed out */
   .node[data-status=run]{ border-color:var(--warn);
     box-shadow:0 0 0 calc(2px * var(--invz,1)) color-mix(in srgb, var(--warn) 70%, transparent),
@@ -9832,7 +9835,7 @@ function addFieldPorts(n){
 
 // Restore any saved per-field textarea heights so a stretched layout survives reload/share
 // (card width is restored in buildNodeEl from n.w). Height also grows two other ways: the node's
-// corner grip → startNodeResize (primary prompt only), and each textarea's own native resize
+// corner grip → startNodeResize (the visible primary box), and each textarea's own native resize
 // handle (resize:vertical) — the observer below captures the latter so ANY field's stretch persists.
 function prepTextareas(n){
   if(!n.el) return;
@@ -9845,6 +9848,7 @@ function prepTextareas(n){
     new ResizeObserver(()=>{
       const h = ta.offsetHeight;
       if(h===lastH) return;                // width-only reflow (card resize) — don't touch height
+      if(ta.hidden || h < 1) return;       // a wired field collapses to display:none — don't store 0 over a real height
       lastH = h; (n.sizes ||= {})[field] = h; save();
     }).observe(ta);
   });
@@ -11324,15 +11328,28 @@ function startNodeDrag(n, e){
 // Drag the node's bottom-right grip to resize: width grows the card (n.w), height grows the
 // primary prompt textarea (n.sizes). Mirrors startNodeDrag — window listeners, /scale, save on up.
 const RMINW = 210, RMAXW = 760, RMINH = 54;
+// Which box the corner grip stretches. Prompt/text/q are the historical primaries; Decide's
+// question and Choice's options are the same kind of box under a different field name (the Decide
+// node shipped without being added here, so its grip only changed width). A wired field is
+// display:none — writing a height onto it never moves the card, so skip it and use the next
+// visible text box (LLM system, once the prompt has collapsed into a chip).
+function nodeResizeTextarea(el){
+  const boxes = [...el.querySelectorAll(".body textarea[data-f], .body textarea[data-pf]")];
+  const visible = (t)=> !t.hidden && t.getClientRects().length > 0;
+  for(const f of ["prompt","text","q","question","options"]){
+    const t = boxes.find(t => (t.dataset.f || t.dataset.pf) === f && visible(t));
+    if(t) return t;
+  }
+  return boxes.find(visible) || null;
+}
 function startNodeResize(n, e){
   try{ clearDualSelectBridge(); }catch(_){}
   e.preventDefault(); e.stopPropagation(); select(n);
   const id = e.pointerId; nodeGestPtrs.add(id);
   const el = n.el;
-  // the primary prompt field by name (some nodes render a secondary textarea — e.g. LLM "system" — first)
-  const ta = el.querySelector('.body textarea[data-f="prompt"],.body textarea[data-f="text"],.body textarea[data-f="q"]');
+  const ta = nodeResizeTextarea(el);
   const sx=e.clientX, sy=e.clientY, startW=el.offsetWidth, startH=ta?ta.offsetHeight:0;
-  const w0=n.w, taF=ta?.dataset.f, taH0 = (ta && n.sizes) ? n.sizes[taF] : undefined;   // pre-resize state, restored if a pinch aborts this gesture
+  const w0=n.w, taF=ta?.dataset.f || ta?.dataset.pf, taH0 = (ta && n.sizes) ? n.sizes[taF] : undefined;   // pre-resize state, restored if a pinch aborts this gesture
   el.style.maxWidth = "none";
   let _snapped=false;
   const move = (ev)=>{
@@ -11342,7 +11359,7 @@ function startNodeResize(n, e){
     el.style.width = n.w+"px";
     if(ta){
       const h = Math.round(Math.max(RMINH, startH + (ev.clientY-sy)/scale));
-      ta.style.height = h+"px"; (n.sizes ||= {})[ta.dataset.f] = h;
+      ta.style.height = h+"px"; (n.sizes ||= {})[ta.dataset.f || ta.dataset.pf] = h;
     }
     redraw();
   };
