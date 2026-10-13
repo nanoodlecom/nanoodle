@@ -1,0 +1,129 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c1",
+      "type": "comment",
+      "name": "Write a story, not a shot list",
+      "x": 40,
+      "y": -40,
+      "w": 560,
+      "fields": {
+        "text": "Inspired by ComfyUI users who feed MiniMax H3 a plain story instead of camera jargon. Paste a short story; a cheap LLM keeps it free of shot-list language; H3 invents the framing. About $0.36 for the saved 5 s H3 run. Change the story and run again.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "n1",
+      "type": "text",
+      "name": "Story",
+      "x": 40,
+      "y": 180,
+      "w": 360,
+      "fields": {
+        "text": "A small cream-colored paper fox with ink-dot eyes folds a yellow paper boat on a rainy windowsill. When the rain softens, the fox carries the boat downstairs, sets it in a puddle by the curb, and gives it one gentle push. The boat drifts past a red bicycle and a blue mailbox as the fox watches from under a leaf umbrella."
+      }
+    },
+    {
+      "id": "n2",
+      "type": "llm",
+      "name": "Keep it a story",
+      "x": 460,
+      "y": 160,
+      "w": 360,
+      "sizes": {
+        "system": 120,
+        "prompt": 0
+      },
+      "fields": {
+        "model": "z-ai/glm-5.3-flash",
+        "system": "You receive a short story meant for a video model. Return ONLY the story text. Keep the same characters, props, and beats. Do not add camera angles, shot sizes, lenses, pans, cuts, or other film jargon. Keep it SFW and under 90 words. No title, preface, or quotes.",
+        "prompt": ""
+      }
+    },
+    {
+      "id": "n3",
+      "type": "text",
+      "name": "Story-mode rules",
+      "x": 40,
+      "y": 520,
+      "w": 360,
+      "fields": {
+        "text": "SFW family-friendly short film. Treat the following as a short story to film. Invent your own camera angles, pacing, and staging. Do not add on-screen text, logos, or watermarks.\n\nStory:"
+      }
+    },
+    {
+      "id": "n4",
+      "type": "join",
+      "name": "Story brief",
+      "x": 460,
+      "y": 480,
+      "w": 280,
+      "fields": {
+        "sep": "\n\n"
+      }
+    },
+    {
+      "id": "n5",
+      "type": "tvideo",
+      "name": "Film the story",
+      "x": 900,
+      "y": 300,
+      "w": 320,
+      "fields": {
+        "model": "minimax-h3",
+        "prompt": "",
+        "duration": "5",
+        "aspect": "16:9",
+        "modelOpts": {},
+        "loras": []
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "n1",
+        "port": "text"
+      },
+      "to": {
+        "node": "n2",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "n3",
+        "port": "text"
+      },
+      "to": {
+        "node": "n4",
+        "port": "a"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "n2",
+        "port": "text"
+      },
+      "to": {
+        "node": "n4",
+        "port": "b"
+      }
+    },
+    {
+      "id": "l4",
+      "from": {
+        "node": "n4",
+        "port": "text"
+      },
+      "to": {
+        "node": "n5",
+        "port": "prompt"
+      }
+    }
+  ]
+}

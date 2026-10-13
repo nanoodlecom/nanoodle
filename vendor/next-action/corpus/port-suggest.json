@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "source": "examples-gallery",
-  "graphCount": 12,
-  "edgeCount": 82,
+  "graphCount": 13,
+  "edgeCount": 86,
   "typeToType": {
-    "text→llm": 7,
-    "text→join": 8,
-    "llm→join": 7,
+    "text→llm": 8,
+    "text→join": 9,
+    "llm→join": 8,
     "llm→image": 3,
     "join→edit": 3,
     "image→edit": 4,
@@ -25,6 +25,7 @@
     "llm→llm": 1,
     "llm→music": 1,
     "join→music": 1,
+    "join→tvideo": 1,
     "image→llm": 2,
     "edit→llm": 2,
     "edit→resize": 2,
@@ -36,9 +37,9 @@
     "ivideo→vedit": 1
   },
   "portPair": {
-    "text.text→llm.prompt": 7,
-    "text.text→join.a": 4,
-    "llm.text→join.b": 5,
+    "text.text→llm.prompt": 8,
+    "text.text→join.a": 5,
+    "llm.text→join.b": 6,
     "llm.text→image.prompt": 3,
     "join.text→edit.prompt": 3,
     "image.image→edit.image": 3,
@@ -59,6 +60,7 @@
     "llm.text→llm.prompt": 1,
     "llm.text→music.lyrics": 1,
     "join.text→music.prompt": 1,
+    "join.text→tvideo.prompt": 1,
     "image.image→llm.img1": 2,
     "edit.image→llm.img2": 2,
     "edit.image→resize.image": 2,
@@ -72,8 +74,8 @@
   },
   "topTargets": {
     "text|text": {
-      "llm|prompt": 7,
-      "join|a": 4,
+      "llm|prompt": 8,
+      "join|a": 5,
       "image|prompt": 12,
       "tvideo|prompt": 3,
       "join|b": 4,
@@ -82,7 +84,7 @@
       "lipsync|prompt": 1
     },
     "llm|text": {
-      "join|b": 5,
+      "join|b": 6,
       "image|prompt": 3,
       "join|a": 2,
       "ivideo|prompt": 1,
@@ -95,7 +97,8 @@
       "image|prompt": 1,
       "llm|prompt": 4,
       "join|a": 3,
-      "music|prompt": 1
+      "music|prompt": 1,
+      "tvideo|prompt": 1
     },
     "image|image": {
       "edit|image": 3,
