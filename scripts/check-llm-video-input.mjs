@@ -135,5 +135,34 @@ async function playRun(model) {
   ok(parts && parts.length === 0, "play: known non-video model drops the wired clip");
 }
 
+// Port-row order stays image → audio → video no matter which refresher ran last (a lone
+// refreshImageInputs used to push the image rows under audio/video after a model pick).
+{
+  const fakeCol = () => {
+    const kids = [];
+    return { kids,
+      appendChild(el) { const i = kids.indexOf(el); if (i >= 0) kids.splice(i, 1); kids.push(el); return el; },
+      querySelectorAll(sel) { const cls = sel.split(".").pop(); return kids.filter((k) => k.cls === cls); } };
+  };
+  const col = fakeCol();
+  ["audrow", "vidinrow", "imgrow", "imgrow"].forEach((cls, i) => col.appendChild({ cls, i }));
+  const ctx = { NODE_TYPES: { llm: { audioInput: "audio_input", videoInput: "video_input" }, edit: {} } };
+  vm.createContext(ctx);
+  vm.runInContext(grab(/const MEDIA_ROW_ORDER = [^\n]+/, "MEDIA_ROW_ORDER") + "\n" + extractFn(IDX, "orderMediaInputRows")
+    + "\nthis.orderMediaInputRows = orderMediaInputRows;", ctx);
+  const n = { type: "llm", el: { querySelector: () => col } };
+  ctx.orderMediaInputRows(n);
+  ok(col.kids.map((k) => k.cls).join(",") === "imgrow,imgrow,audrow,vidinrow", "editor: media rows re-seat as image(s) → audio → video, got " + col.kids.map((k) => k.cls).join(","));
+  ok(col.kids[0].i === 2 && col.kids[1].i === 3, "editor: multiple image rows keep their own order");
+  for (const fn of ["refreshImageInputs", "refreshAudioInputs", "refreshVideoInput"])
+    ok(/orderMediaInputRows\(n\)/.test(extractFn(IDX, fn)), `editor: ${fn} re-seats the media rows`);
+}
+// Model picker: chat models that accept video get a "video in" badge (same .tag style), localized ×5.
+{
+  ok(/\$\{m\.video_input\?'<span class="tag edit">video in<\/span>':''\}/.test(IDX), "picker: video_input models get a \"video in\" tag");
+  const hits = IDX.match(/\n\s*"video in":"[^"]+",/g) || [];
+  ok(hits.length === 5, `i18n: "video in" translated in all 5 languages (found ${hits.length})`);
+}
+
 if (fail) { console.error(`\n✗ llm-video-input: ${fail} assertion(s) failed.`); process.exit(1); }
 console.log("\n✓ llm-video-input: video_input chat models (Gemini 4 Argon) get a video port that sends a video_url part on both engines.");

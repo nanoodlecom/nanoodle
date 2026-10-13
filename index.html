@@ -1745,6 +1745,7 @@ const I18N = {
     "variation":"variación",
     "variations":"variaciones",
     "vision":"visión",
+    "video in":"entrada de vídeo",
     "what to paint in":"qué pintar dentro",
     "wire two or more clips — they join in order, top to bottom":"conecta dos o más clips — se unen en orden, de arriba abajo",
     "· blank = random, fix to repeat (re-run won't regenerate)":"· vacío = aleatorio, fija para repetir (re-ejecutar no regenerará)",
@@ -2268,6 +2269,7 @@ const I18N = {
     "variation":"variation",
     "variations":"variations",
     "vision":"vision",
+    "video in":"entrée vidéo",
     "📷 Webcam":"📷 Webcam",
     "audio":"audio",
     "avatar":"avatar",
@@ -3170,6 +3172,7 @@ const I18N = {
     "variation":"Variation",
     "variations":"Variationen",
     "vision":"Vision",
+    "video in":"Videoeingang",
     "what to paint in":"was hineingemalt werden soll",
     "wire two or more clips — they join in order, top to bottom":"verbinde zwei oder mehr Clips — sie werden der Reihe nach zusammengefügt, von oben nach unten",
     "· blank = random, fix to repeat (re-run won't regenerate)":"· leer = zufällig, festlegen zum Wiederholen (erneutes Ausführen regeneriert nicht)",
@@ -3882,6 +3885,7 @@ const I18N = {
     "variation":"variação",
     "variations":"variações",
     "vision":"visão",
+    "video in":"entrada de vídeo",
     "what to paint in":"o que pintar na área",
     "wire two or more clips — they join in order, top to bottom":"conecte dois ou mais clipes — eles se unem em ordem, de cima para baixo",
     "· blank = random, fix to repeat (re-run won't regenerate)":"· vazio = aleatório, fixe para repetir (reexecutar não regenera)",
@@ -4593,6 +4597,7 @@ const I18N = {
     "variation":"バリエーション",
     "variations":"バリエーション",
     "vision":"ビジョン",
+    "video in":"動画入力",
     "what to paint in":"何を描き込むか",
     "wire two or more clips — they join in order, top to bottom":"クリップを2つ以上つないでください — 上から下の順に結合されます",
     "· blank = random, fix to repeat (re-run won't regenerate)":"· 空欄=ランダム、固定すると繰り返す（再実行で再生成されない）",
@@ -8286,7 +8291,7 @@ function renderPicker(){
     if(m.id===picker.current) b.classList.add("sel");
     const sug = galleryTagged ? galleryTagged.has(m.id) : !!(pin && m.id===pin);
     if(sug) b.classList.add("suggested");
-    const tags = `${m.vision?'<span class="tag">vision</span>':''}${m.edit?'<span class="tag edit">edit</span>':''}`
+    const tags = `${m.vision?'<span class="tag">vision</span>':''}${m.video_input?'<span class="tag edit">video in</span>':''}${m.edit?'<span class="tag edit">edit</span>':''}`
       + `${m.t2v?'<span class="tag">t2v</span>':''}${m.i2v?'<span class="tag edit">i2v</span>':''}`
       + `${m.v2v?'<span class="tag edit">v2v</span>':''}${m.avatar?'<span class="tag">avatar</span>':''}`
       + `${m.tts?'<span class="tag">tts</span>':''}${m.music?'<span class="tag edit">music</span>':''}${m.stt?'<span class="tag">stt</span>':''}`
@@ -9759,6 +9764,7 @@ function refreshImageInputs(n){
     translateTree(row);   // localize the disabled-port tooltip (port label stays English, like the static ports)
     if(!d.disabled) row.querySelector(".port").addEventListener("pointerdown", e=> startWire(e.currentTarget, e));
   });
+  orderMediaInputRows(n);
   refreshPortFills();
   updateModelWarn(n);   // wiring changed → re-evaluate the "needs 2 images (person, garment)" badge
 }
@@ -9798,6 +9804,16 @@ function refreshVideoInputs(n){
 // model pick or graph load. A non-audio model shows a disabled stub that visibly "unlocks" once
 // an audio-input model is picked (mirror of refreshImageInputs' disabled stub). The port lives as
 // a link (named "audio"), so it serializes and exports for free.
+// The LLM node's media ports always read image(s) → audio → video, whichever refresher ran last.
+// Each refresher removes + re-appends its own rows, so a lone refreshImageInputs (wire/catalog/load
+// paths) used to push the image rows below audio/video. Re-seat the three families in fixed order.
+const MEDIA_ROW_ORDER = [".prow.imgrow", ".prow.audrow", ".prow.vidinrow"];
+function orderMediaInputRows(n){
+  const t = n && NODE_TYPES[n.type];
+  if(!n?.el || !t || !(t.audioInput || t.videoInput)) return;
+  const col = n.el.querySelector(".col.in"); if(!col) return;
+  for(const sel of MEDIA_ROW_ORDER) col.querySelectorAll(sel).forEach(el=> col.appendChild(el));
+}
 function refreshAudioInputs(n){
   if(!n.el || !NODE_TYPES[n.type].audioInput) return;
   const col = n.el.querySelector(".col.in"); if(!col) return;
@@ -9809,6 +9825,7 @@ function refreshAudioInputs(n){
     + (off?` title="this model can’t hear audio — pick an audio-input model"`:``) + `></i><span>audio</span>`;
   col.appendChild(row);
   if(!off) row.querySelector(".port").addEventListener("pointerdown", e=> startWire(e.currentTarget, e));
+  orderMediaInputRows(n);
   refreshPortFills();
 }
 
@@ -9826,6 +9843,7 @@ function refreshVideoInput(n){
     + (off?` title="this model can’t watch video — pick a video-input model"`:``) + `></i><span>video</span>`;
   col.appendChild(row);
   if(!off) row.querySelector(".port").addEventListener("pointerdown", e=> startWire(e.currentTarget, e));
+  orderMediaInputRows(n);
   refreshPortFills();
 }
 
