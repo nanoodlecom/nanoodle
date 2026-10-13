@@ -1541,6 +1541,7 @@ const I18N = {
     "Language":"Idioma",
     "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"El acortador propio de nanoodle — admite enlaces muy largos (los enlaces de flujo pueden crecer mucho)",
     "this model can’t hear audio — pick an audio-input model":"este modelo no puede oír audio — elige un modelo con entrada de audio",
+    "this model can’t watch video — pick a video-input model":"este modelo no puede ver vídeo — elige un modelo con entrada de vídeo",
     "Close":"Cerrar",
     "Connect nodes":"Conectar nodos",
     "Close model picker":"Cerrar el selector de modelos",
@@ -2252,6 +2253,7 @@ const I18N = {
     "Language":"Langue",
     "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"Le raccourcisseur maison de nanoodle — gère les liens très longs (les liens de workflow peuvent devenir volumineux)",
     "this model can’t hear audio — pick an audio-input model":"ce modèle ne peut pas entendre l’audio — choisissez un modèle à entrée audio",
+    "this model can’t watch video — pick a video-input model":"ce modèle ne peut pas regarder de vidéo — choisis un modèle à entrée vidéo",
     "Close":"Fermer",
     "Connect nodes":"Relier les nœuds",
     "Close model picker":"Fermer le sélecteur de modèles",
@@ -2963,6 +2965,7 @@ const I18N = {
     "Language":"Sprache",
     "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"nanoodles eigener Kürzungsdienst — verarbeitet sehr lange Links (Workflow-Links können groß werden)",
     "this model can’t hear audio — pick an audio-input model":"dieses Modell kann kein Audio hören — wähle ein Modell mit Audio-Eingang",
+    "this model can’t watch video — pick a video-input model":"dieses Modell kann kein Video sehen — wähle ein Modell mit Videoeingang",
     "Close":"Schließen",
     "Connect nodes":"Knoten verbinden",
     "Close model picker":"Modellauswahl schließen",
@@ -3674,6 +3677,7 @@ const I18N = {
     "Language":"Idioma",
     "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"O encurtador próprio do nanoodle — aceita links muito longos (links de fluxo podem ficar grandes)",
     "this model can’t hear audio — pick an audio-input model":"este modelo não consegue ouvir áudio — escolha um modelo com entrada de áudio",
+    "this model can’t watch video — pick a video-input model":"este modelo não consegue ver vídeo — escolha um modelo com entrada de vídeo",
     "Close":"Fechar",
     "Connect nodes":"Conectar nós",
     "Close model picker":"Fechar o seletor de modelos",
@@ -4385,6 +4389,7 @@ const I18N = {
     "Language":"言語",
     "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"nanoodle自身の短縮サービス — とても長いリンクにも対応（ワークフローのリンクは大きくなりがちです）",
     "this model can’t hear audio — pick an audio-input model":"このモデルは音声を聞けません — 音声入力対応のモデルを選んでください",
+    "this model can’t watch video — pick a video-input model":"このモデルは動画を見られません — 動画入力対応モデルを選んでください",
     "Close":"閉じる",
     "Connect nodes":"ノードを接続",
     "Close model picker":"モデル選択を閉じる",
@@ -5744,6 +5749,13 @@ function modelSupportsAudio(n){
   const m = catItem(t.modelKind, n.fields.model);
   return !m || !!m[t.audioInput];
 }
+// Does the selected chat model accept video? Gates the single video input port on the LLM node
+// (mirror of modelSupportsAudio). Permissive when the id isn't in the catalog.
+function modelSupportsVideo(n){
+  const t = NODE_TYPES[n.type]; if(!t.videoInput) return false;
+  const m = catItem(t.modelKind, n.fields.model);
+  return !m || !!m[t.videoInput];
+}
 // Request-time chat capability probe — play.html's chatModelCan twin (dual-engine parity; keep the
 // semantics identical). Permissive on catalog miss so a typed-in / offline id is never blocked;
 // only a KNOWN-incapable model has the gated payload field stripped. normChat flattens capability
@@ -5888,6 +5900,15 @@ function collectVideoInputs(inp){
    data-URL prefix, derives the format from the MIME subtype (audio/mpeg→mp3). Inline
    base64 hits the same ~4.4MB edge body cap that bites lipsync — guard it loudly rather
    than POST a body the edge will drop. Shared verbatim with play.html's RUNTIME_JS. */
+// A wired clip → NanoGPT's canonical chat `video_url` part (docs: api-reference/miscellaneous/video-input).
+// A public https URL is passed straight through (no inlining, no body-size risk); a data:/blob: clip is
+// inlined as a data:video/* URL and guarded against the ~4.4MB edge body cap. Shared with play.html.
+function videoInputPart(url){
+  if(typeof url!=="string" || !url) return null;
+  if(!/^https:/i.test(url) && url.length > MEDIA_INLINE_MAX)
+    throw new Error("video clip is too large to inline (~4 MB send limit) — shorten it with the ✂️ Trim node first");
+  return { type:"video_url", video_url:{ url } };
+}
 function audioInputPart(url){
   if(typeof url!=="string" || !url) return null;
   if(url.length > MEDIA_INLINE_MAX)
@@ -5954,7 +5975,7 @@ function updateModelWarn(n){
     e.stopPropagation();
     const id = defModelFor(n.type); if(!id) return;
     n.fields.model = id; syncModelPickUI(n, id);
-    updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); save();
+    updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshVideoInput(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); save();
   };
 }
 /* ---------- dynamic audio parameters (from the model catalog + a researched spec) ----------
@@ -8034,7 +8055,7 @@ function refreshRunEstimate(){
     + (estimate ? "\n" + t("Video, text & audio are estimates: the real bill depends on clip length, tokens and characters.") : "")
     + (range3d ? "\n" + t("3D variants bill differently, so this isn’t an exact price.") : "");
 }
-function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); refreshModel3dPorts(n); backfillModel(n); }); refreshRunEstimate(); refreshPromptCaps(); }   // refreshPromptCaps: audio caps ARE catalog metadata (max_chars) and every note names the model, so both are blank until the catalog lands. refreshLlmOpts: reconcile knobs kept during a catalog miss (#311) once real capability flags exist; the dynamic port families (img/audio/endframe/ref) are catalog-gated too — without them a cold-cache boot (shared link, cleared storage) paints a saved ref-model graph portless until a reload
+function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshVideoInput(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); refreshModel3dPorts(n); backfillModel(n); }); refreshRunEstimate(); refreshPromptCaps(); }   // refreshPromptCaps: audio caps ARE catalog metadata (max_chars) and every note names the model, so both are blank until the catalog lands. refreshLlmOpts: reconcile knobs kept during a catalog miss (#311) once real capability flags exist; the dynamic port families (img/audio/endframe/ref) are catalog-gated too — without them a cold-cache boot (shared link, cleared storage) paints a saved ref-model graph portless until a reload
 function backfillModel(n){   // once a catalog arrives, give model nodes a sensible default if none chosen yet
   const t = NODE_TYPES[n.type];
   if(t.modelKind && !n.fields.model){
@@ -8815,11 +8836,12 @@ const NODE_TYPES = {
   },
 
   llm: {
-    em:"🧠", title:"LLM", desc:"Text (+ images, audio) → text — any chat model", group:"Text", kw:"chat write reason gpt assistant ask prompt transcribe describe listen",
+    em:"🧠", title:"LLM", desc:"Text (+ images, audio, video) → text — any chat model", group:"Text", kw:"chat write reason gpt assistant ask prompt transcribe describe listen",
     modelKind:"chat",
     inputs:[],
     imageInputs:"vision",   // vision-capable models grow dynamic image input ports (see refreshImageInputs)
     audioInput:"audio_input",   // audio-input models grow a single audio input port (see refreshAudioInputs)
+    videoInput:"video_input",   // video-input models (e.g. google/gemini-4-argon) grow a single video port (see refreshVideoInput)
     outputs:[{name:"text", type:"text"}], preview:"text",
     body:(n)=>`
       ${modelFieldHTML(n)}
@@ -8847,10 +8869,15 @@ const NODE_TYPES = {
       // data" makes a paid call with garbage audio (twin of the library's fetchMedia step).
       const aud  = hearsAudio && inp.audio ? audioInputPart(/^data:/.test(inp.audio) ? inp.audio : await urlToDataUrl(inp.audio)) : null;
       if(inp.audio && !hearsAudio) toast("audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).", "err");
+      // Wired video port (video_input models) — one video_url part. Dropped with a warning for a KNOWN
+      // non-video model (NanoGPT answers video_input_not_supported); https clips pass through as URLs.
+      const seesVideo = modelSupportsVideo(n);
+      const vid = seesVideo && inp.video ? videoInputPart(/^(data:|https:)/i.test(inp.video) ? inp.video : await urlToDataUrl(inp.video)) : null;
+      if(inp.video && !seesVideo) toast("video ignored — this model can’t watch video. Pick a video-input model (e.g. Gemini 4 Argon).", "err");
       const messages = [];
       if((n.fields.system||"").trim()) messages.push({role:"system", content:n.fields.system.trim()});
-      messages.push((imgs.length || aud)
-        ? { role:"user", content:[{type:"text", text:prompt}, ...imgs.map(url=>({type:"image_url", image_url:{url}})), ...(aud?[aud]:[])] }
+      messages.push((imgs.length || aud || vid)
+        ? { role:"user", content:[{type:"text", text:prompt}, ...imgs.map(url=>({type:"image_url", image_url:{url}})), ...(aud?[aud]:[]), ...(vid?[vid]:[])] }
         : { role:"user", content:prompt });
       // JSON output-format is only honored by structured_output models; on others response_format
       // json_object returns empty content (finish_reason tool_calls) yet STILL BILLS. The UI keeps
@@ -9642,7 +9669,7 @@ function buildNodeEl(n){
       e.stopPropagation();
       openPicker(t.modelKind, { current:n.fields.model, filter:t.modelFilter, nodeType:n.type, onPick:(id)=>{
         n.fields.model = id; if(n.type==="model3d") n.modelTouched = true;
-        syncModelPickUI(n, id); updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); refreshModel3dPorts(n); save();
+        syncModelPickUI(n, id); updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshVideoInput(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); refreshModel3dPorts(n); save();
         try{ window.__nextAction?.record?.("set:model"); }catch(_){}
       }});
     };
@@ -9690,6 +9717,7 @@ function buildNodeEl(n){
   refreshImageInputs(n);             // dynamic image ports + their own wire listeners (after the static-port bind above)
   refreshVideoInputs(n);             // dynamic clip ports on the Combine node (same timing as image ports)
   refreshAudioInputs(n);             // single audio port on audio-input chat models (model-gated)
+  refreshVideoInput(n);              // single video port on video-input chat models (model-gated)
   refreshEndFrameInput(n);           // optional end-frame port on the ivideo node (model-gated on last_image)
   refreshRefInputs(n);               // growing reference-image ports on the tvideo node (model-gated on a ref-image array param)
   refreshRefHint(n);                 // "refs live on Text→Video" nudge on the ivideo node (model-gated on videoRefSpec)
@@ -9779,6 +9807,23 @@ function refreshAudioInputs(n){
   row.className = "prow audrow" + (off?" off":"");
   row.innerHTML = `<i class="port audio${off?" disabled":""}" data-node="${esc(n.id)}" data-port="audio" data-dir="in" data-ptype="audio"`
     + (off?` title="this model can’t hear audio — pick an audio-input model"`:``) + `></i><span>audio</span>`;
+  col.appendChild(row);
+  if(!off) row.querySelector(".port").addEventListener("pointerdown", e=> startWire(e.currentTarget, e));
+  refreshPortFills();
+}
+
+// Render the single video input port on a video-input chat model (twin of refreshAudioInputs):
+// a disabled stub on non-video models that unlocks once a video_input model (e.g. Gemini 4 Argon)
+// is picked. Lives as a link named "video", so it serializes and exports for free.
+function refreshVideoInput(n){
+  if(!n.el || !NODE_TYPES[n.type].videoInput) return;
+  const col = n.el.querySelector(".col.in"); if(!col) return;
+  col.querySelectorAll(".prow.vidinrow").forEach(el=> el.remove());
+  const off = !modelSupportsVideo(n);
+  const row = document.createElement("div");
+  row.className = "prow vidinrow" + (off?" off":"");
+  row.innerHTML = `<i class="port video${off?" disabled":""}" data-node="${esc(n.id)}" data-port="video" data-dir="in" data-ptype="video"`
+    + (off?` title="this model can’t watch video — pick a video-input model"`:``) + `></i><span>video</span>`;
   col.appendChild(row);
   if(!off) row.querySelector(".port").addEventListener("pointerdown", e=> startWire(e.currentTarget, e));
   refreshPortFills();
@@ -11683,7 +11728,7 @@ function nodeAcceptsType(k, type){
   if(t.note) return false;   // a sticky note isn't part of the graph — never a wire target
   if((t.inputs||[]).some(p=> p.type===type)) return true;
   if(type==="image" && t.imageInputs) return true;
-  if(type==="video" && t.videoInputs) return true;
+  if(type==="video" && (t.videoInputs || t.videoInput)) return true;
   if(type==="audio" && t.audioInput) return true;
   if(type==="text"  && bodyHasTextField(k)) return true;
   return false;
@@ -11709,7 +11754,7 @@ function socketsForDrop(k, dir, ptype){
     const names = [];
     for(const p of (NODE_TYPES[k].inputs||[])) if(p.type===ptype && !names.includes(p.name)) names.push(p.name);
     if(ptype==="image" && NODE_TYPES[k].imageInputs && !names.includes("image")) names.push("image");
-    if(ptype==="video" && NODE_TYPES[k].videoInputs && !names.includes("video")) names.push("video");
+    if(ptype==="video" && (NODE_TYPES[k].videoInputs || NODE_TYPES[k].videoInput) && !names.includes("video")) names.push("video");
     if(ptype==="audio" && NODE_TYPES[k].audioInput && !names.includes("audio")) names.push("audio");
     if(ptype==="text" && bodyHasTextField(k) && !names.includes("prompt")) names.push("prompt");
     return names;
@@ -11816,6 +11861,13 @@ function ensureModelForInput(n, type){
     if(m){
       n.fields.model = m.id; syncModelPickUI(n, m.id);
       updateNodePrice(n); refreshAudioInputs(n); save();
+    }
+  }
+  if(type==="video" && t.videoInput && t.modelKind){
+    const m = (catalogs[t.modelKind]||[]).find(x=> passesFilter(x, t.videoInput));
+    if(m){
+      n.fields.model = m.id; syncModelPickUI(n, m.id);
+      updateNodePrice(n); refreshVideoInput(n); save();
     }
   }
   if(n.type==="model3d" && (type==="text" || type==="image")){
@@ -12694,6 +12746,9 @@ function njsRunFor(type, rn, inp, n){
   // now, but the ROLE→port mapping is curated here and the two lists can drift — a delegated run that
   // disagreed would either send a wrong-slot pair or spend where the built-in refused. Stay built-in.
   if(type==="edit" && IMG_INPUT_ROLES[rn.fields.model]) return null;
+  // LLM video port (video_input models): the library's llm runner has no video_url part yet, so a
+  // delegated run would silently drop the wired clip. Stay built-in whenever a video is wired.
+  if(type==="llm" && inp && inp.video) return null;
   // tvideo/vedit refs: the library now resolves the real ref key + cap from the raw catalog
   // (modelRefSpec), but on a catalog MISS it stays permissive-ON (send under the most common
   // spelling, like play) where this editor is permissive-OFF (videoRefSpec null → refs dropped,
@@ -12851,6 +12906,10 @@ async function runGroup(seedIds, ctx){
         if(t.audioInput) for(const l of graph.links){
           if(l.to.node===id && l.to.port==="audio") inp.audio = byId(l.from.node)?.out?.[l.from.port];
         }
+        // the single video port on video-input chat models → read by run() as inp.video
+        if(t.videoInput) for(const l of graph.links){
+          if(l.to.node===id && l.to.port==="video") inp.video = byId(l.from.node)?.out?.[l.from.port];
+        }
         // the optional end-frame port on the ivideo node → read by run() as inp.endframe, but ONLY when the
         // picked model still exposes last_image. Run-time role clamp: a wire left over from a model that had
         // an end frame (then swapped for one that doesn't) is ignored here — never sent, never charged.
@@ -12874,6 +12933,7 @@ async function runGroup(seedIds, ctx){
           if(imgRe && imgRe.test(l.to.port)) continue;   // image ports aren't text-field overrides
           if(t.videoInputs && VID_PORT_RE.test(l.to.port)) continue;   // clip ports aren't text-field overrides
           if(t.audioInput && l.to.port==="audio") continue;            // the audio port isn't a text-field override
+          if(t.videoInput && l.to.port==="video") continue;            // the video port isn't a text-field override
           if(t.refInputs && REF_PORT_RE.test(l.to.port)) continue;     // ref-image ports aren't text-field overrides
           const v = byId(l.from.node)?.out?.[l.from.port];
           if(v==null) continue;
@@ -17716,6 +17776,7 @@ $("signout").onclick = ()=> setKey(null);
           ins.push("image, image2, … (up to model's max_input_images)");
       }
       if(t.audioInput) ins.push("audio:audio (when model supports audio_input)");
+      if(t.videoInput) ins.push("video:video (when model supports video_input)");
       const outs = typeof t.outputs === "function"
         ? "image (ports frame1,frame2,… grow with fields.frames)"
         : (Array.isArray(t.outputs) ? t.outputs.map(p=>`${p.name}:${p.type}`).join(", ") || "—" : "—");
@@ -17887,6 +17948,7 @@ $("signout").onclick = ()=> setKey(null);
       if(t.imageInputs && (typeof t.imageInputs==="string" ? IMG_PORT_RE : EDIT_IMG_RE).test(port)) return true;
       if(t.videoInputs && VID_PORT_RE.test(port)) return true;
       if(t.audioInput && port==="audio") return true;
+      if(t.videoInput && port==="video") return true;
       if(t.endFrame  && port==="endframe") return true;
       if(t.refInputs && REF_PORT_RE.test(port)) return true;
       return textFieldPorts(type).includes(port);
