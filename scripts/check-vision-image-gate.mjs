@@ -83,7 +83,7 @@ new vm.Script(
   grab(/const EDIT_IMG_RE = \/[^\n]*;/, "EDIT_IMG_RE") + "\n" +
   grab(/const portIdx = [^\n]*;/, "portIdx") + "\n" +
   grab(/const IMG_INPUT_ROLES = \{[^\n]*\};/, "IMG_INPUT_ROLES") + "\n" +
-  ["modelSupportsImages", "imgSpec", "collectImageInputs", "modelSupportsAudio",
+  ["modelSupportsImages", "imgSpec", "collectImageInputs", "modelSupportsAudio", "modelSupportsVideo", "videoInputPart",
    "audioInputPart", "llmOpts", "chatModelCan"].map((n) => extractFn(IDX, n)).join("\n") + "\n" +
   extractNodeRun(IDX, "llm", "__llmRun") + "\n" +
   "globalThis.__t = { llmRun: __llmRun, modelSupportsImages };",
