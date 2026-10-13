@@ -102,6 +102,14 @@ const HOWTO = {
     inspect: "Compare the blockout still to the finished still: the rooftops, the robot's mid-leap pose, and the camera should match. Then scrub the clip. In the saved run the robot clears the gap and lands on the far roof, but it also spins sideways in mid-air, skips the crouch, and keeps rolling while the camera swings behind it.",
     costHow: "The saved sample reported about $0.15: Seedance 1.5 Pro at $0.13 (720p, 5 s, audio off), Muse text-to-image $0.01, Muse Edit $0.01, and about $0.0002 for three GLM 5.3 Flash calls. Join nodes are free. Prices and results vary.",
   },
+  "story-to-shot": {
+    headline: "Write a story. H3 picks the shots.",
+    job: "Turn a short story into one 5-second clip without writing camera angles.",
+    purpose: "Shows a cheap LLM keeping prose free of camera jargon, then MiniMax H3 inventing the framing — the same story-mode trick people are testing in ComfyUI.",
+    edit: "Rewrite <em>Story</em> with a new short, family-friendly scene (one hero, one clear action). Keep <em>Story-mode rules</em> and the Keep it a story LLM so the model stays SFW and invents its own camera. Change duration on the video node if you want a longer take (cost scales).",
+    inspect: "Watch whether H3 invents sensible cuts for the beats you wrote. Check that the hero and prop stay consistent across the clip. Look for missing story beats (mailbox vs door) and any unrequested props.",
+    costHow: "One GLM 5.3 Flash call plus one MiniMax H3 text-to-video call. The saved run was about $0.36 for 5 seconds of H3 (LLM was a fraction of a cent). Longer durations raise the price.",
+  },
   "photo-to-video": {
     headline: "Animate a still",
     job: "Generate a first frame, then animate its steam.",
@@ -159,7 +167,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.
