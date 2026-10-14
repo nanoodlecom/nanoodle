@@ -1,15 +1,15 @@
 {
   "unigram": {
-    "add:text": 116,
-    "add:llm": 55,
-    "set:model": 204,
-    "wire": 482,
-    "add:join": 56,
-    "add:image": 79,
+    "add:text": 120,
+    "add:llm": 57,
+    "set:model": 210,
+    "wire": 492,
+    "add:join": 58,
+    "add:image": 81,
     "add:edit": 31,
-    "add:ivideo": 17,
-    "add:comment": 62,
-    "run": 54,
+    "add:ivideo": 19,
+    "add:comment": 64,
+    "run": 56,
     "add:resize": 46,
     "add:music": 2,
     "add:tts": 6,
@@ -18,28 +18,28 @@
   },
   "bigram": {
     "add:text": {
-      "add:text": 49,
+      "add:text": 51,
       "add:llm": 13,
-      "add:join": 16,
+      "add:join": 18,
       "add:image": 29,
       "add:comment": 1,
       "add:ivideo": 3,
       "add:tts": 5
     },
     "add:llm": {
-      "set:model": 55
+      "set:model": 57
     },
     "set:model": {
-      "wire": 204
+      "wire": 210
     },
     "wire": {
       "add:join": 40,
-      "wire": 176,
-      "add:llm": 42,
-      "add:image": 50,
+      "wire": 178,
+      "add:llm": 44,
+      "add:image": 52,
       "add:edit": 31,
-      "add:ivideo": 14,
-      "add:comment": 53,
+      "add:ivideo": 16,
+      "add:comment": 55,
       "add:text": 13,
       "add:resize": 46,
       "add:music": 2,
@@ -48,19 +48,19 @@
       "add:vedit": 8
     },
     "add:join": {
-      "wire": 56
+      "wire": 58
     },
     "add:image": {
-      "set:model": 79
+      "set:model": 81
     },
     "add:edit": {
       "set:model": 31
     },
     "add:ivideo": {
-      "set:model": 17
+      "set:model": 19
     },
     "add:comment": {
-      "run": 54,
+      "run": 56,
       "add:comment": 8
     },
     "add:resize": {
@@ -80,10 +80,10 @@
     }
   },
   "coldStart": {
-    "add:text": 54
+    "add:text": 56
   },
   "firstNode": {
-    "add:text": 54
+    "add:text": 56
   },
   "firstTrio": [
     {
@@ -109,6 +109,14 @@
         "add:image"
       ],
       "count": 10
+    },
+    {
+      "actions": [
+        "add:text",
+        "add:text",
+        "add:join"
+      ],
+      "count": 4
     },
     {
       "actions": [
@@ -153,19 +161,11 @@
     {
       "actions": [
         "add:text",
-        "add:text",
-        "add:join"
-      ],
-      "count": 2
-    },
-    {
-      "actions": [
-        "add:text",
         "add:llm",
         "add:llm"
       ],
       "count": 1
     }
   ],
-  "total": 1224
+  "total": 1256
 }
