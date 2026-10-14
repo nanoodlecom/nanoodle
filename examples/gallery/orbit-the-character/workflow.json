@@ -1,0 +1,91 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 40,
+      "y": -100,
+      "w": 480,
+      "fields": {
+        "text": "One still → MiniMax H3 Max Multi Angle orbits 90° so you see the same subject from new sides. Seed → GLM writes Muse still prompt → Muse 1:1 → H3 Multi Angle (orbit-right 90°, 480p, 5s). Swap the seed; keep SFW physical toys/paper. Inspired by ComfyUI multi-angle character workflows.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "n1",
+      "type": "text",
+      "x": 40,
+      "y": 120,
+      "w": 320,
+      "name": "Character seed",
+      "fields": {
+        "text": "A cream paper fox with ink-dot eyes, tiny red scarf, standing on a sunny wooden windowsill next to a yellow paper boat, soft daylight, full body, three-quarter front view, plain cream wall behind."
+      }
+    },
+    {
+      "id": "n2",
+      "type": "llm",
+      "x": 420,
+      "y": 80,
+      "w": 320,
+      "sizes": { "system": 140 },
+      "name": "Still prompt",
+      "fields": {
+        "model": "z-ai/glm-5.3-flash",
+        "reasoningEffort": "low",
+        "maxTokens": "300",
+        "system": "You write ONE still-image prompt for Muse text-to-image from the user's character seed. Rules: preserve the exact character design and props; full body visible with margin; fixed camera (three-quarter or front); soft natural light; NO motion words, NO camera moves, NO 'animate', NO multiple frames; family-friendly SFW physical toy/paper craft only; no text overlays; ≤120 words; output ONLY the prompt text."
+      }
+    },
+    {
+      "id": "n3",
+      "type": "image",
+      "x": 820,
+      "y": 80,
+      "w": 280,
+      "sizes": { "prompt": 0 },
+      "name": "Character still",
+      "fields": {
+        "model": "meta/muse-image/text-to-image",
+        "size": "1:1",
+        "variations": "1"
+      }
+    },
+    {
+      "id": "n4",
+      "type": "ivideo",
+      "x": 820,
+      "y": 400,
+      "w": 300,
+      "name": "Orbit 90°",
+      "fields": {
+        "model": "minimax/h3-max/multi-angle/image-to-video",
+        "prompt": "Hold the subject centered and fully in frame. Smooth camera orbit right 90 degrees around the character. Keep identity, materials, and props stable. No morphing, no new objects, no text overlays. SFW.",
+        "resolution": "480p",
+        "duration": "5",
+        "modelOpts": {
+          "camera_motion": "orbit-right"
+        },
+        "loras": []
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": { "node": "n1", "port": "text" },
+      "to": { "node": "n2", "port": "prompt" }
+    },
+    {
+      "id": "l2",
+      "from": { "node": "n2", "port": "text" },
+      "to": { "node": "n3", "port": "prompt" }
+    },
+    {
+      "id": "l3",
+      "from": { "node": "n3", "port": "image" },
+      "to": { "node": "n4", "port": "image" }
+    }
+  ]
+}

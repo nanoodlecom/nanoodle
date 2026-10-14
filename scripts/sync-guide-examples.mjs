@@ -110,6 +110,14 @@ const HOWTO = {
     inspect: "Watch whether H3 invents sensible cuts for the beats you wrote. Check that the hero and prop stay consistent across the clip. Look for missing story beats (mailbox vs door) and any unrequested props.",
     costHow: "One GLM 5.3 Flash call plus one MiniMax H3 text-to-video call. The saved run was about $0.36 for 5 seconds of H3 (LLM was a fraction of a cent). Longer durations raise the price.",
   },
+  "orbit-the-character": {
+    headline: "One still. Orbit to a new side.",
+    job: "Turn one character still into a short orbit that shows the same subject from new angles.",
+    purpose: "Shows MiniMax H3 Max Multi Angle's orbit-right camera control on a SFW paper-craft subject — the multi-angle character trick people share from ComfyUI, without anime-girl defaults.",
+    edit: "Rewrite <em>Character seed</em> with a new SFW physical toy or paper subject (full body, fixed three-quarter view). Keep the GLM still-prompt rules and the Multi Angle node on orbit-right. Try orbit-left or rise in modelOpts if you want a different turn.",
+    inspect: "Watch whether identity (scarf, boat, paper folds) holds across the orbit. Check that the subject stays centered and that the ending angle is a real new side, not a morph. Look for background invention and prop drift.",
+    costHow: "One GLM 5.3 Flash call, one Muse 1:1 still (~$0.01), and one H3 Max Multi Angle 5 s 480p call ($0.25). The saved run was about $0.26 total. Longer durations or higher resolutions raise the price.",
+  },
   "photo-to-video": {
     headline: "Animate a still",
     job: "Generate a first frame, then animate its steam.",
@@ -167,7 +175,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.
