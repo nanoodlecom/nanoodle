@@ -768,5 +768,51 @@
     "workflow": "story-to-shot/workflow.json",
     "workflowSha256": "f5bb481ef336ec8eaab63c9ecbcf18cbfb4c8091ac7d578f81345f0545be56f3",
     "workflowNote": "Inspired by ComfyUI users who feed MiniMax H3 a plain story instead of camera angles (https://x.com/EndFolding79421/status/2109791105671700721). Original media not copied."
+  },
+  {
+    "slug": "orbit-the-character",
+    "title": "Orbit the character",
+    "date": "2026-10-14",
+    "review": "Orbit holds identity through the turn",
+    "note": "A cream paper fox with a tiny red scarf stands on a sunny wooden windowsill next to a yellow paper boat. GLM 5.3 Flash writes one Muse still prompt; Muse paints the 1:1 still; MiniMax H3 Max Multi Angle (orbit-right 90\u00b0, 480p, 5 s) turns the camera around the same subject so you see new sides without rewriting identity. Flaws: the orbit ends closer to a side/three-quarter view than a hard back shot, the yellow boat drifts a little relative to the fox, the scarf sometimes reads as a bow, and the background invents a deeper room as the camera moves. Checked frames are SFW. Inspired by ComfyUI multi-angle character workflows shared via @ai_hakase_ (https://x.com/ai_hakase_/status/2110356121911283849); no media from that post is used.",
+    "layout": "sequence",
+    "costUsd": 0.2610771225,
+    "costExact": true,
+    "models": [
+      "z-ai/glm-5.3-flash",
+      "meta/muse-image/text-to-image",
+      "minimax/h3-max/multi-angle/image-to-video"
+    ],
+    "graphSha256": "a0c007929f94b1d9e959745df168e8bc79ef4aa33cb5f31d8ecfd6051bdaf295",
+    "inputs": [
+      {
+        "label": "Character seed",
+        "text": "A cream paper fox with ink-dot eyes, tiny red scarf, standing on a sunny wooden windowsill next to a yellow paper boat, soft daylight, full body, three-quarter front view, plain cream wall behind."
+      },
+      {
+        "label": "Still rules",
+        "text": "Write ONE still-image prompt for Muse text-to-image from the character seed above. Preserve the exact design and props; full body with margin; fixed three-quarter or front camera; soft natural light; NO motion words, NO camera moves, NO animate, NO multiple frames; family-friendly SFW paper craft only; no text overlays; \u2264120 words; output ONLY the prompt text."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "orbit-the-character/still.webp",
+        "kind": "image",
+        "label": "1. Character still: Muse from the GLM prompt \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "935fe976d87481761458cf58d1a3b7d9ff26c78cca8030c15e2f5b5fb1d6b459"
+      },
+      {
+        "src": "orbit-the-character/orbit.mp4",
+        "kind": "video",
+        "label": "2. Orbit clip: H3 Max Multi Angle, orbit-right 90\u00b0, 480p, 5 s \u00b7 reported $0.25",
+        "costUsd": 0.25,
+        "sha256": "3f02bbf92cabfd0646458d91740150df199348eba369ce6a72b05e879a37c4db"
+      }
+    ],
+    "preview": "orbit-the-character/preview.webp",
+    "workflow": "orbit-the-character/workflow.json",
+    "workflowSha256": "a0c007929f94b1d9e959745df168e8bc79ef4aa33cb5f31d8ecfd6051bdaf295",
+    "workflowNote": "Inspired by ComfyUI \"M\u00faltiplos \u00e2ngulos de personagens\" / multi-angle character workflows (https://x.com/ai_hakase_/status/2110356121911283849). Original media not copied."
   }
 ]
