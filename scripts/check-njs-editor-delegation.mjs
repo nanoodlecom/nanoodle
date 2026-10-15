@@ -132,6 +132,8 @@ const REAL = [
   extractConst("DIM_TIER_PX"),
   extractFn("dimShape"), extractFn("nearestDimOption"), extractFn("applyDimFields"),
   extractFn("selOpts"), extractFn("paramDef"), extractFn("dimDefs"),
+  extractFn("numRangeDim"), extractFn("clampNumDim"), extractFn("videoMultiplierDim"),   // number-range duration + Samples dims (SFX 2.0)
+  extractFn("audioIsSfx"), extractFn("audioMultiplierSpec"), extractFn("audioUploadFormat"),   // njsRunFor's SFX veto
   grab(/const portIdx = [^\n]*/, "portIdx"),
   grab(/const IMG_PORT_RE = \/[^\n]*;/, "IMG_PORT_RE"),
   grab(/const NANOGPT = "[^\n]*;/, "NANOGPT"),

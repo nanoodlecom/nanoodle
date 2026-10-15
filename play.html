@@ -7280,6 +7280,7 @@ window.NoodleApp = (function () {
       const each = tier && _num(tier.reference_image_or_audio);
       if(each!=null) usd += each * refCount;
     }
+    if(usd!=null && isFinite(usd)) usd *= pricingMultiplier(p, f);   // num_samples: every sample is a billed clip
     return usd;
   }
   function videoBaseUsd(pricing, fields, audioOn, refOn, videoOn, nodeFilter){
@@ -7447,6 +7448,20 @@ window.NoodleApp = (function () {
     if(p.per_minute!=null) return _num(p.per_minute)*EST.sttMinutes;
     return null;
   }
+  // twin of the editor pricingMultiplier: pricing.multiplier_parameter (Mirelo SFX 2.0 num_samples,
+  // 1–4, default 2) bills every sample — node field / modelOpts / request body value, else the catalog
+  // multiplier_default, else 1, clamped to multiplier_min/max.
+  function pricingMultiplier(pricing, fields){
+    const p = pricing || {}, key = p.multiplier_parameter;
+    if(!key || typeof key!=="string") return 1;
+    const f = fields || {}, o = (f.modelOpts && typeof f.modelOpts==="object") ? f.modelOpts : {};
+    const pick = (v)=> (v!=null && v!=="" && isFinite(+v)) ? +v : null;
+    let m = pick(f[key]) ?? pick(o[key]) ?? pick(p.multiplier_default) ?? 1;
+    const lo = pick(p.multiplier_min), hi = pick(p.multiplier_max);
+    if(lo!=null) m = Math.max(lo, m);
+    if(hi!=null) m = Math.min(hi, m);
+    return m>0 ? m : 1;
+  }
   // Seconds a duration-metered audio model (per_second / per_billing_interval) is billed for: the node's
   // duration clamped to the model's advertised min/max_duration. null when the model isn't duration-metered or the field is blank → audioUnitUsd uses
   // EST.audioSeconds. sp = the audio catalog entry's supported_parameters. Mirrors the editor's audioBilledSeconds.
@@ -7455,7 +7470,10 @@ window.NoodleApp = (function () {
     if(p.min_duration==null || p.max_duration==null) return null;
     const d = parseFloat(fields && fields.duration);
     if(!isFinite(d)){                                                 // blank → default estimate, but never outside the model's range
-      const lo0=_num(p.min_duration), hi0=_num(p.max_duration), e=EST.audioSeconds;
+      const lo0=_num(p.min_duration), hi0=_num(p.max_duration);
+      const cd = _num(p.default_text_duration ?? ((p.duration && typeof p.duration==="object") ? p.duration.default : null));   // catalog default (SFX 2.0: 30s)
+      const e = cd!=null ? cd : EST.audioSeconds;
+      if(cd!=null) return Math.min(hi0!=null?hi0:e, Math.max(lo0!=null?lo0:e, e));
       return ((lo0!=null && e<lo0) || (hi0!=null && e>hi0)) ? Math.min(hi0!=null?hi0:e, Math.max(lo0!=null?lo0:e, e)) : null;
     }
     const lo=_num(p.min_duration), hi=_num(p.max_duration);
@@ -7475,7 +7493,7 @@ window.NoodleApp = (function () {
     const unit = audioUnitUsd(pricing, chars, secs);
     if(unit==null || !isFinite(unit)) return null;
     const songs = Math.max(1, parseInt(extra && (extra.number_of_songs || extra.n), 10) || 1);
-    return unit * songs;
+    return unit * songs * pricingMultiplier(pricing, extra || {});   // the body carries num_samples unless it is the catalog default
   }
   function imageUsd(pricing, size, count){
     const per = (pricing && pricing.per_image) || {};
@@ -7543,7 +7561,7 @@ window.NoodleApp = (function () {
       const secs = audioBilledSeconds(m.supported_parameters, f);   // per_second music meters off the chosen duration, not a fixed 30s
       const u = audioUnitUsd(pricing, chars, secs); if(u==null) return null;
       const songs = audioBilledSongs(m.supported_parameters, f);   // always 1 — collectAudioParams clamps the sent song count so a run only ever bills for one track
-      return u*songs; }
+      return u*songs*pricingMultiplier(pricing, f); }   // × num_samples (pricing.multiplier_parameter) — twin of the editor
     return null;
   }
   let _runCostToken = 0;
@@ -8667,9 +8685,12 @@ function mp4ParamsMatch(bufs){
      ===================================================================== */
   const AUDIO_PARAMS = {
     music: [
-      { id:"lyrics",          type:"textarea" },
-      { id:"instrumental",    type:"boolean" },
+      // cat:song: dropped for sound-effect models (Mirelo SFX, ElevenLabs Sound Effects…) — twin of the editor
+      { id:"lyrics",          type:"textarea", applies:"cat:song" },
+      { id:"instrumental",    type:"boolean",  applies:"cat:song" },
       { id:"duration",        type:"number",   applies:"cat:duration" },
+      // pricing.multiplier_parameter (SFX 2.0 num_samples); read + sent under that catalog key
+      { id:"samples",         type:"select",   applies:"cat:multiplier" },
       { id:"number_of_songs", type:"number",   default:1, applies:"cat:gencount" },
       { id:"negative_prompt", type:"textarea" },
       { id:"seed",            type:"number" },
@@ -8729,7 +8750,12 @@ function mp4ParamsMatch(bufs){
     let m = null;
     try{ m = await rawCatItem("audio", n.fields.model); }catch(e){}
     const sp = (m && m.supported_parameters) || null;
+    const pr = (m && m.pricing) || {};
+    const multKey = (typeof pr.multiplier_parameter==="string" && pr.multiplier_parameter && pr.multiplier_default!=null) ? pr.multiplier_parameter : null;
+    const isSfx = !!m && /(^|[\/\s._-])sfx|sound[\s_-]?effects?/i.test(String(m.id||"") + " " + String(m.name||""));
     const applies = function(f){
+      if(f.applies==="cat:multiplier") return !!multKey;   // needs the catalog to know the wire key
+      if(f.applies==="cat:song") return !isSfx;
       if(!f.applies || !sp) return true;   // untagged param, or no catalog → send-everything fallback
       if(f.applies==="cat:duration") return sp.min_duration!=null && sp.max_duration!=null;
       if(f.applies==="cat:secduration") return sp.min_duration!=null && sp.max_duration!=null && +(((m||{}).pricing||{}).per_second)>0;   // duration is a real output knob only when it's what's billed
@@ -8744,10 +8770,25 @@ function mp4ParamsMatch(bufs){
     for(const f of (AUDIO_PARAMS[n.type]||[])){
       if(!applies(f)) continue;
       let v = n.fields[f.id], key = wireKey(f.id);
+      if(f.applies==="cat:multiplier"){   // Samples: a whole number in the catalog range; omit the default (billed when absent)
+        const sv = Math.round(Number(n.fields[multKey]));
+        const lo = Math.max(1, Math.round(+(pr.multiplier_min!=null ? pr.multiplier_min : 1))), hi = Math.round(+(pr.multiplier_max!=null ? pr.multiplier_max : pr.multiplier_default));
+        if(n.fields[multKey]!=null && n.fields[multKey]!=="" && isFinite(sv) && sv>=lo && sv<=hi && sv!==Math.round(+pr.multiplier_default)) body[multKey] = sv;
+        continue;
+      }
       if(f.type==="boolean"){ if(v===true||v==="true") body[key]=true; continue; }
       if(v==null || v==="") continue;
       if(f.applies==="cat:language" && sp && sp.language && Array.isArray(sp.language.values) && sp.language.values.length && sp.language.values.indexOf(v)<0) continue; // leftover ISO/label not in this model's catalog enum (Qwen wants English, not en)
       // Yue2 catalogs the file type as output_format. response_format is ignored, so wav/flac came back mp3.
+      if(f.id==="response_format" && sp && sp.upload_audio_format && Array.isArray(sp.upload_audio_format.options)){   // Mirelo SFX 2.0: wav/mp3/aac/flac, default wav
+        const uvals = sp.upload_audio_format.options.map(function(o){ return (o && typeof o==="object") ? o.value : o; }).filter(function(x){ return typeof x==="string" && x; });
+        if(uvals.length){
+          if(uvals.indexOf(v)<0) continue;
+          const udef = (typeof sp.upload_audio_format.default==="string" && uvals.indexOf(sp.upload_audio_format.default)>=0) ? sp.upload_audio_format.default : uvals[0];
+          if(v!==udef) body.upload_audio_format = v;
+          continue;
+        }
+      }
       if(f.id==="response_format"){
         const of = sp && sp.output_format;
         const values = of && Array.isArray(of.values) ? of.values : null;
@@ -8763,7 +8804,9 @@ function mp4ParamsMatch(bufs){
         if(f.applies==="cat:gencount") num=1;   // never request more songs than the node can surface (one) — mirrors the editor's collectAudioParams clamp
         if((f.applies==="cat:duration" || f.applies==="cat:secduration") && sp){   // twin of the editor: clamp to the catalog range before POST
           if(sp.min_duration!=null && isFinite(+sp.min_duration)) num = Math.max(+sp.min_duration, num);
-          if(sp.max_duration!=null && isFinite(+sp.max_duration)) num = Math.min(+sp.max_duration, num); }
+          if(sp.max_duration!=null && isFinite(+sp.max_duration)) num = Math.min(+sp.max_duration, num);
+          const cdd = sp.default_text_duration!=null ? +sp.default_text_duration : ((sp.duration && typeof sp.duration==="object" && sp.duration.default!=null) ? +sp.duration.default : null);
+          if(cdd!=null && num===cdd) continue; }   // the catalog's own default (SFX 2.0 30s) — omitted, like the editor
         if(f.default!=null && num===f.default) continue; body[key]=num; continue; }
       if(f.default!=null && v===f.default) continue;       // e.g. response_format=mp3 → omit
       body[key] = v;
@@ -10352,6 +10395,10 @@ const PROMPT_CAPS = {
     // LLM video port (video_input models): the library's llm runner has no video_url part yet, so a
     // delegated run would silently drop the wired clip. Stay built-in whenever a video is wired.
     if(type==="llm" && inp && inp.video) return null;
+    // Sound-effect models (Mirelo SFX 2.0 num_samples, number-range duration, upload_audio_format) stay
+    // built-in — twin of the editor's veto; the library's videoDims / audioParams don't send those knobs
+    // yet. Sync id/name check (this gate can't await the catalog).
+    if((type==="tvideo" || type==="ivideo" || type==="vedit" || type==="music") && /(^|[\/\s._-])sfx|sound[\s_-]?effects?/i.test(String(rn.fields.model||""))) return null;
     // tvideo/vedit refs delegate: the library resolves the model's real ref key + cap from the same
     // raw catalog (modelRefSpec, twin of this runtime's modelAllowsRefs — permissive-ON on a miss on
     // BOTH paths, so bodies agree in every catalog state; locked by check-js-parity's ref scenarios).
@@ -11202,6 +11249,16 @@ const PROMPT_CAPS = {
     let d = sel(dP);
     if(!d.length) d = rangeDurOpts(dP);             // Wan 3.0 number-range (2–30s step 1) → every value, twin of editor rangeDurOpts
     if(d.length){ out.duration = d; out.def.duration = dP && dP.default!=null ? String(dP.default) : d[0][0]; }  // Sora names it seconds (4/8/12)
+    else if(dP && dP.min!=null && dP.max!=null && isFinite(+dP.min) && isFinite(+dP.max) && +dP.max>=+dP.min && +(dP.step!=null?dP.step:1)>0){
+      // a range too fine for rangeDurOpts (Mirelo SFX 2.0: 1–600s step 0.1) — twin of the editor's number dim:
+      // the stored value is clamped (not snapped to a list); the select offers whole seconds + the stored value.
+      const lo = +dP.min, hi = +dP.max, st = +(dP.step!=null?dP.step:1);
+      out.durationRange = { min:lo, max:hi, step:st };
+      const whole = []; for(let v=Math.max(1, Math.ceil(lo)); v<=Math.floor(hi) && whole.length<600; v++) whole.push([String(v), v+" sec"]);
+      out.duration = whole.length ? whole : DURATIONS;
+      const dd = dP.default!=null && isFinite(+dP.default) ? Math.min(hi, Math.max(lo, +dP.default)) : lo;
+      out.def.duration = String(dd);
+    }
     else if(dP){ out.duration = DURATIONS; out.def.duration = dP.default!=null ? String(dP.default) : DURATIONS[0][0]; }  // catalogued number param with no usable range — same 5/10 the editor falls back to
     const fP = p.fps || p.frames_per_second, f = sel(fP);
     if(f.length){ out.fps = f; out.def.fps = fP && fP.default!=null ? String(fP.default) : f[0][0]; }
@@ -11243,7 +11300,15 @@ const PROMPT_CAPS = {
     }
     res = snapField("resolution", pack.resolution, pack.def && pack.def.resolution);
     asp = snapField("aspect", pack.aspect, pack.def && pack.def.aspect);
-    dur = snapField("duration", pack.duration, pack.def && pack.def.duration);
+    if(pack.durationRange){   // number-range duration (SFX 2.0): clamp onto [min,max] + step, sent as a number
+      var dr = pack.durationRange, dx = parseFloat(dur);
+      if(isFinite(dx)){
+        dx = Math.min(dr.max, Math.max(dr.min, dx));
+        dx = dr.min + Math.round((dx - dr.min)/dr.step)*dr.step;
+        dx = Math.min(dr.max, Math.max(dr.min, dx));
+        dur = +dx.toFixed(Math.min(6, (String(dr.step).split(".")[1]||"").length));
+      }
+    } else dur = snapField("duration", pack.duration, pack.def && pack.def.duration);
     fps = snapField("fps", pack.fps, pack.def && pack.def.fps);
     if((asp==null||asp==="") && aP && aP.default!=null) asp = aP.default;   // baked-in field should exist; catalog default is the safety net
     if((dur==null||dur==="") && dP && dP.default!=null) dur = dP.default;
@@ -11256,6 +11321,15 @@ const PROMPT_CAPS = {
     if((pack.aspect || soft || aP) && asp!=null && asp!=="") out[aWire] = asp;
     if((pack.duration || soft || dP) && dur!=null && dur!=="") out[dWire] = dur;
     if(pack.fps && fps!=null && fps!=="") out[p.fps ? "fps" : "frames_per_second"] = fps;
+    // pricing.multiplier_parameter (SFX 2.0 num_samples 1–4): twin of the editor's Samples dim — the
+    // stored whole number in range, else the catalog default (each sample is billed).
+    var pr = (m && m.pricing) || {}, mk = pr.multiplier_parameter;
+    if(typeof mk==="string" && mk && pr.multiplier_max!=null){
+      var mlo = Math.max(1, Math.round(+(pr.multiplier_min!=null ? pr.multiplier_min : 1))), mhi = Math.round(+pr.multiplier_max);
+      var mv = Math.round(Number(n.fields[mk]));
+      if(!(n.fields[mk]!=null && n.fields[mk]!=="" && isFinite(mv))) mv = Math.round(+(pr.multiplier_default!=null ? pr.multiplier_default : mlo));
+      if(isFinite(mv) && isFinite(mhi) && mhi>=mlo) out[mk] = Math.min(mhi, Math.max(mlo, mv));
+    }
     return out;
   }
   // Best-effort: rewrite each dimension <select> from the chosen model's live catalog options. Never
@@ -11331,12 +11405,16 @@ const PROMPT_CAPS = {
         const def = (pack.def && pack.def[it.field]!=null && pack.def[it.field]!=="") ? String(pack.def[it.field]) : String(opts[0][0]);
         // catalog answered → this list is authoritative. Snap an invalid stored value
         // (swap AND load of an old graph) instead of injecting it as a fake option.
-        if(cur!=null && cur!=="" && !opts.some(o=> String(o[0])===String(cur))){
+        let list = opts;
+        const dr = it.field==="duration" && pack.durationRange;
+        if(dr && cur!=null && cur!=="" && isFinite(+cur) && +cur>=dr.min && +cur<=dr.max && !opts.some(o=> String(o[0])===String(cur)))
+          list = [[String(cur), cur+" sec"]].concat(opts);   // in-range fractional length from the editor (12.5s): keep it, don't snap
+        else if(cur!=null && cur!=="" && !opts.some(o=> String(o[0])===String(cur))){
           const next = nearestDimOption(cur, opts, def);
           cur = next; it.node.fields[it.field] = next;
           checkDirty(); refreshRunCost();
         }
-        el.innerHTML = opts.map(o=> '<option value="'+esc(o[0])+'"'+(String(o[0])===String(cur)?" selected":"")+'>'+esc(o[1])+'</option>').join("");
+        el.innerHTML = list.map(o=> '<option value="'+esc(o[0])+'"'+(String(o[0])===String(cur)?" selected":"")+'>'+esc(o[1])+'</option>').join("");
       }).catch(()=>{});
     });
   }

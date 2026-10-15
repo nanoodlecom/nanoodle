@@ -104,6 +104,7 @@ function editor() {
   vm.createContext(ctx);
   vm.runInContext(
     extractConst(IDX, "AUDIO_PARAMS") + "\n"
+    + ["audioIsSfx", "audioMultiplierSpec", "audioUploadFormat", "audioDurationDefault"].map((f) => extractFn(IDX, f)).join("\n") + "\n"   // SFX helpers audioApplies/audioFields call
     + extractFn(IDX, "audioApplies") + "\n"
     + extractFn(IDX, "audioFields") + "\n"
     + extractFn(IDX, "assertGenerateSongLyrics") + "\n"
