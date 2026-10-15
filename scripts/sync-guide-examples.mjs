@@ -118,6 +118,14 @@ const HOWTO = {
     inspect: "Watch whether identity (scarf, boat, paper folds) holds across the orbit. Check that the subject stays centered and that the ending angle is a real new side, not a morph. Look for background invention and prop drift.",
     costHow: "One GLM 5.3 Flash call, one Muse 1:1 still (~$0.01), and one H3 Max Multi Angle 5 s 480p call ($0.25). The saved run was about $0.26 total. Longer durations or higher resolutions raise the price.",
   },
+  "same-shot-three-looks": {
+    headline: "Same shot, three looks",
+    job: "Lock one composition, then climb a style ladder with Muse Edit.",
+    purpose: "Show that chained image edits can keep framing while swapping materials — glass, watercolor, photoreal — without redrawing the scene from scratch.",
+    edit: "Rewrite <em>Glass look prompt</em> with another SFW still-life (fixed camera, clear props). Keep <em>Watercolor edit</em> and <em>Photoreal edit</em> as preserve-composition restyles, and keep <em>Morph motion</em> on the Seedance clip if you want ambience — or disconnect that video node for a stills-only ladder.",
+    inspect: "Compare the three stills side by side: same rocks, cage/lantern, moon placement. The watercolor should read as paper; photoreal as a photo. Treat the Seedance clip as optional ambience (<em>Morph motion</em> often drifts into sparkles rather than a clean material morph).",
+    costHow: "This saved run was about $0.16 (three Muse calls ~$0.033 + Seedance ~$0.13). Stills alone are ~$0.03.",
+  },
   "photo-to-video": {
     headline: "Animate a still",
     job: "Generate a first frame, then animate its steam.",
@@ -175,7 +183,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.
