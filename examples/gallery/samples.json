@@ -814,5 +814,72 @@
     "workflow": "orbit-the-character/workflow.json",
     "workflowSha256": "a0c007929f94b1d9e959745df168e8bc79ef4aa33cb5f31d8ecfd6051bdaf295",
     "workflowNote": "Inspired by ComfyUI \"M\u00faltiplos \u00e2ngulos de personagens\" / multi-angle character workflows (https://x.com/ai_hakase_/status/2110356121911283849). Original media not copied."
+  },
+  {
+    "slug": "same-shot-three-looks",
+    "title": "Same shot, three looks",
+    "date": "2026-10-15",
+    "review": "Composition holds across glass \u2192 watercolor \u2192 photoreal",
+    "note": "A glass birdcage packed with books and a warm lantern sits on wet rocks in misty teal water under a crescent moon. Muse paints the glass look; Muse Edit restyles it to watercolor, then to photoreal fantasy, keeping the same framing. Seedance 1.5 Pro (720p, 5 s, silent) adds ambient motion on the glass still \u2014 in this run it invented golden sparkles instead of a clean material morph, so the three stills are the real ladder. Muse also read the lighthouse prompt as a glass birdcage/gazebo; the ladder still holds. Checked frames are SFW (no people). Inspired by ComfyUI style-morph / material-ladder clips such as @eikoung (https://x.com/eikoung/status/2110576332908433628); no media from that post is used.",
+    "layout": "sequence",
+    "costUsd": 0.163,
+    "costExact": true,
+    "models": [
+      "meta/muse-image/text-to-image",
+      "meta/muse-image/edit",
+      "bytedance-seedance-v1.5-pro"
+    ],
+    "graphSha256": "ca0cf3e0eb09c547f0086a1a56295ca3ebf4100af7472184d773d375c140b0ed",
+    "inputs": [
+      {
+        "label": "Glass look prompt",
+        "text": "A small translucent glass lighthouse filled with stacked books and a warm golden lantern, standing on wet black rocks in misty teal water under a pale crescent moon, clear glass walls with soft gold filigree, reflections on the water, fixed wide eye-level camera, centered composition, soft cinematic lighting, no people, no text, family-friendly SFW."
+      },
+      {
+        "label": "Watercolor edit",
+        "text": "Restyle this exact scene as a soft hand-drawn watercolor illustration on textured paper. Keep the same lighthouse shape, book stacks, lantern, rocks, moon, and camera framing. Flat gentle washes, visible paper grain, ink outlines, muted teal and warm gold. No photoreal glass, no 3D render look, no people, no text overlays, SFW."
+      },
+      {
+        "label": "Photoreal edit",
+        "text": "Restyle this exact scene as a photoreal cinematic fantasy photograph. Keep the same lighthouse silhouette, books, lantern glow, wet rocks, crescent moon, and locked camera framing. Real materials: weathered stone lighthouse, warm practical lantern light, misty teal sea, sharp detail. No cartoon, no watercolor paper, no people, no text overlays, SFW."
+      },
+      {
+        "label": "Morph motion",
+        "text": "Locked camera. The lighthouse materials slowly morph from clear translucent glass and gold filigree into soft watercolor paper illustration, then settle. Same composition the whole time. Gentle mist only. No camera move, no new objects, no people, no text, SFW."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "same-shot-three-looks/look-glass.webp",
+        "kind": "image",
+        "label": "1. Glass look: Muse text-to-image \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "6284d435580042c1cec5154fc1ab961178c20ea069fef937283ea4f6324dddf6"
+      },
+      {
+        "src": "same-shot-three-looks/look-watercolor.webp",
+        "kind": "image",
+        "label": "2. Watercolor: Muse Edit from look 1 \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "95500a6fc772660c28c436d803a141d72afe5ac51129743688ba268a3154c461"
+      },
+      {
+        "src": "same-shot-three-looks/look-photoreal.webp",
+        "kind": "image",
+        "label": "3. Photoreal: Muse Edit from look 2 \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "7db436ba4f05f87ec38c26b2d1da013f4afa3514b6164a0edfaee7ee071f4c47"
+      },
+      {
+        "src": "same-shot-three-looks/ambient.mp4",
+        "kind": "video",
+        "label": "4. Ambient clip on glass look: Seedance 1.5 Pro 720p 5s (sparkles, not a clean morph) \u00b7 reported $0.13",
+        "costUsd": 0.13,
+        "sha256": "50930dbcdcda364d654f8eab459f3bde00cf3faa8c8b37b77d48602ae923ff53"
+      }
+    ],
+    "preview": "same-shot-three-looks/preview.webp",
+    "workflow": "same-shot-three-looks/workflow.json",
+    "workflowSha256": "ca0cf3e0eb09c547f0086a1a56295ca3ebf4100af7472184d773d375c140b0ed"
   }
 ]
