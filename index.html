@@ -13335,7 +13335,7 @@ function loraKind(type){ return (type==="image"||type==="edit"||type==="inpaint"
 function imageTakesLora(id){
   id = String(id||"");
   if(/inpaint/i.test(id)) return false;            // flux-lora/inpainting etc. carry no lora_url
-  if(/klein/i.test(id)) return true;               // flux-2-klein-* (lora-capable per catalog)
+  if(/flux-2-klein/i.test(id)) return true;         // flux-2-klein-* only (lora-capable per catalog); FLUX.3 klein takes no lora_url
   if(/minimax-h3\/(text-to-image|image-edit)/i.test(id)) return true;  // wavespeed H3 image ids (no "lora" in the id)
   return /(^|[-\/])lora($|[-\/])/i.test(id);        // *-lora variants (flux-lora, *-dev-lora, p-image/*-lora)
 }
