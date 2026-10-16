@@ -7676,7 +7676,7 @@ window.NoodleApp = (function () {
   function imageTakesLora(id){
     id = String(id||"");
     if(/inpaint/i.test(id)) return false;
-    if(/klein/i.test(id)) return true;
+    if(/flux-2-klein/i.test(id)) return true;  // FLUX.3 klein takes no lora_url
     if(/minimax-h3\/(text-to-image|image-edit)/i.test(id)) return true;  // wavespeed H3 image ids (no "lora" in the id)
     return /(^|[-\/])lora($|[-\/])/i.test(id);
   }
