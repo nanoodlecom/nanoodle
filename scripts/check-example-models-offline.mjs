@@ -29,6 +29,7 @@ const catalogs = {
     image('recraft-v4', ['1024x1024']),
     image('anima/text-to-image', ['1k', '2k']),
     image('black-forest-labs/flux-3/text-to-image', ['1k', '2k', '4k'], true),
+    image('blackforestlabs/flux-3/klein/edit-image', ['768x768', '1024x1024', '1536x1536', '2048x2048', '4096x4096'], true),
     image('bytedance/seedream-v5.0-flash', ['2k', '1.5k', '1k'], true),
     image('ideogram/v4.5', ['1024x1024', '2048x2048']),
     image('recraft-ai/recraft-v4.1-flash/text-to-image', ['1024x1024', '1024x768']),

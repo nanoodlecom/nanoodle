@@ -126,6 +126,14 @@ const HOWTO = {
     inspect: "Compare the three stills side by side: same rocks, cage/lantern, moon placement. The watercolor should read as paper; photoreal as a photo. Treat the Seedance clip as optional ambience (<em>Morph motion</em> often drifts into sparkles rather than a clean material morph).",
     costHow: "This saved run was about $0.16 (three Muse calls ~$0.033 + Seedance ~$0.13). Stills alone are ~$0.03.",
   },
+  "mix-the-references": {
+    headline: "Mix the references",
+    job: "Compose one picture from separate who / wear / hold / where references.",
+    purpose: "Show multi-reference compositing: one Edit node takes several images in port order, and the instruction addresses each by number (image 1 is the character, image 2 the outfit…), so each part comes from its own source instead of a long prompt.",
+    edit: "Each reference has its own prompt: <em>Who · character</em>, <em>What they wear · outfit</em>, <em>What they hold · prop</em> and <em>Where · place</em>. Rewrite any of them, or replace its Image node with a 📷 Image input and drop in your own photo (a product, a mascot, a jacket, a room). Keep the wiring order and update the matching “Image N is…” line in <em>Mix instruction (names each image)</em>. Klein takes up to 10 references: wire image5 and name it the same way.",
+    inspect: "Check each reference against the mix: same fox colors and face, same coat and toggles, exactly one lantern, same pier and lighthouse. Look for parts that drop out (here the paper boats) and parts that change shape (the coat got longer).",
+    costHow: "Four Muse 1:1 stills at $0.011 each and one FLUX.3 Klein Edit 1024×1024 at $0.009. The saved run was $0.053. With your own uploads instead of the Muse stills it is about $0.01.",
+  },
   "photo-to-video": {
     headline: "Animate a still",
     job: "Generate a first frame, then animate its steam.",
@@ -183,7 +191,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.
