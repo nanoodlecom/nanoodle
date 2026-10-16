@@ -881,5 +881,82 @@
     "preview": "same-shot-three-looks/preview.webp",
     "workflow": "same-shot-three-looks/workflow.json",
     "workflowSha256": "ca0cf3e0eb09c547f0086a1a56295ca3ebf4100af7472184d773d375c140b0ed"
+  },
+  {
+    "slug": "mix-the-references",
+    "title": "Mix the references",
+    "date": "2026-10-16",
+    "review": "All four references land in one coherent shot",
+    "note": "Four Muse stills stand in for your own uploads: a paper-craft fox (image 1), a yellow knitted raincoat (image 2), a red paper lantern (image 3) and a paper harbor pier at dusk (image 4). FLUX.3 Klein Edit gets them in port order (image, image2, image3, image4), and the mix instruction names each one by number. In the result the fox wears the same raincoat with its three wooden toggles and holds the one lantern by its bamboo handle while standing on the cardboard pier, with the striped lighthouse behind it. Flaws: the two paper boats from image 4 mostly drop out, the fox's ears poke through the hood, and the coat comes out longer than the flat-lay reference. A first prompt without \u201cexactly one lantern\u201d gave the fox two lanterns, so the instruction now says it outright. Swap any reference Image node for a \ud83d\udcf7 Image input to mix your own photos. Checked outputs are SFW (no people). Inspired by the multi-reference workflows ComfyUI showed for Krea 3 and FLUX.3 Klein (https://x.com/ComfyUI/status/2110840667337642330); no media from that post is used.",
+    "layout": "sequence",
+    "costUsd": 0.053,
+    "costExact": true,
+    "models": [
+      "meta/muse-image/text-to-image",
+      "blackforestlabs/flux-3/klein/edit-image"
+    ],
+    "graphSha256": "7f5bc2b9a22b96bad7f47e1935605383e89b7e66181cc7988af34b71bb6170a3",
+    "inputs": [
+      {
+        "label": "Who \u00b7 character",
+        "text": "A small paper-craft fox mascot made of folded orange paper with a white paper chest and tail tip, a black paper nose and two round black eyes, standing upright on its hind legs and facing the camera, full body, centered, plain light grey studio backdrop, soft even light, crisp paper folds, no clothing, no text, family-friendly."
+      },
+      {
+        "label": "What they wear \u00b7 outfit",
+        "text": "Product photo of a tiny yellow knitted raincoat with a pointed hood and three round wooden toggle buttons down the front, laid flat and centered on a plain off-white background, soft even studio light, visible chunky knit texture, empty garment with no wearer, no mannequin, no text."
+      },
+      {
+        "label": "What they hold \u00b7 prop",
+        "text": "Product photo of a small round red paper lantern with a thin bamboo carrying handle, glowing warm from inside, centered on a plain off-white background, soft studio light, no text, no people."
+      },
+      {
+        "label": "Where \u00b7 place",
+        "text": "A paper-craft harbor at blue-hour dusk: a short wooden pier made of cardboard planks in the foreground, layered blue paper waves, two small folded paper boats, and a striped paper lighthouse on a rock in the background with its light on, wide eye-level view, empty pier with no characters, no text."
+      },
+      {
+        "label": "Mix instruction (names each image)",
+        "text": "Make one new picture that combines the four reference images.\nImage 1 is the character: keep this exact paper-craft fox, same folded orange paper, white chest, black nose and eyes, same proportions.\nImage 2 is the outfit: dress the fox in this exact yellow knitted raincoat, with the same pointed hood up and the same three wooden toggles.\nImage 3 is the prop: the fox holds exactly one of this red paper lantern by its bamboo handle in its right paw, glowing warm; its left paw is empty. Only one lantern in the whole picture.\nImage 4 is the place: the fox stands full body on this exact cardboard pier at blue-hour dusk, with the same paper waves, paper boats and striped lighthouse behind it.\nEverything stays paper-craft. The lantern casts warm light on the raincoat. One fox only, no other characters, no text."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "mix-the-references/ref-1-character.webp",
+        "kind": "image",
+        "label": "Image 1 \u00b7 character: Muse 1:1 \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "e30f5e6f1b0473e42224845cd8f518bd1e6293cb16a61ff3755bba5b4fa08214"
+      },
+      {
+        "src": "mix-the-references/ref-2-outfit.webp",
+        "kind": "image",
+        "label": "Image 2 \u00b7 outfit: Muse 1:1 \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "b8d5bfe2f56d319a20d14f546a4000930fac783eca533f07b70bcb068b653770"
+      },
+      {
+        "src": "mix-the-references/ref-3-prop.webp",
+        "kind": "image",
+        "label": "Image 3 \u00b7 prop: Muse 1:1 \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "cfbdff234b150d0f4b2573e326a94aa0625eb91d2c8e6f7bbcffcf8932ab3b1e"
+      },
+      {
+        "src": "mix-the-references/ref-4-place.webp",
+        "kind": "image",
+        "label": "Image 4 \u00b7 place: Muse 1:1 \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "e4e2a13443bbaad89f64f44966f4653303405de28a3d68c458b603ac30170ee9"
+      },
+      {
+        "src": "mix-the-references/mix.webp",
+        "kind": "image",
+        "label": "The mix: FLUX.3 Klein Edit, 4 references, 1024\u00d71024 \u00b7 reported $0.009",
+        "costUsd": 0.009,
+        "sha256": "f2c431bb6d55e331bde67ce62eb96c314e7c425001c6e351c4826454bf4f0386"
+      }
+    ],
+    "preview": "mix-the-references/preview.webp",
+    "workflow": "mix-the-references/workflow.json",
+    "workflowSha256": "7f5bc2b9a22b96bad7f47e1935605383e89b7e66181cc7988af34b71bb6170a3"
   }
 ]

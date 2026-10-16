@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mix the references — nanoodle</title>
+<meta name="description" content="Compose one picture from separate who / wear / hold / where references. Reported saved run: $0.053." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="Mix the references — nanoodle" />
+<meta property="og:description" content="Compose one picture from separate who / wear / hold / where references. Reported saved run: $0.053." />
+<meta property="og:url" content="https://nanoodle.com/guide/examples/mix-the-references" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Mix the references — nanoodle" />
+<meta name="twitter:description" content="Compose one picture from separate who / wear / hold / where references. Reported saved run: $0.053." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/examples/mix-the-references" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <a href="/guide/examples/">Steal a noodle</a> / <span>Mix the references</span></nav>
+
+  <main>
+    <h1><span class="grad">Mix the references</span></h1>
+    <p class="lede">Compose one picture from separate who / wear / hold / where references.</p>
+
+    <section>
+      <p class="meta-row">All four references land in one coherent shot · 2026-10-16 · Reported saved run: $0.053. <code>meta/muse-image/text-to-image</code> · <code>blackforestlabs/flux-3/klein/edit-image</code></p>
+      <p>Show multi-reference compositing: one Edit node takes several images in port order, and the instruction addresses each by number (image 1 is the character, image 2 the outfit…), so each part comes from its own source instead of a long prompt.</p>
+
+      <h2>Saved result</h2>
+      <div class="media sequence">
+          <figure><a href="/examples/gallery/mix-the-references/ref-1-character.webp"><img src="/examples/gallery/mix-the-references/ref-1-character.webp" alt="Image 1 · character: Muse 1:1 · reported $0.011 — Mix the references" loading="lazy" /></a><figcaption>Image 1 · character: Muse 1:1 · reported $0.011 · <a href="/examples/gallery/mix-the-references/ref-1-character.webp" download>Download</a></figcaption></figure>
+          <figure><a href="/examples/gallery/mix-the-references/ref-2-outfit.webp"><img src="/examples/gallery/mix-the-references/ref-2-outfit.webp" alt="Image 2 · outfit: Muse 1:1 · reported $0.011 — Mix the references" loading="lazy" /></a><figcaption>Image 2 · outfit: Muse 1:1 · reported $0.011 · <a href="/examples/gallery/mix-the-references/ref-2-outfit.webp" download>Download</a></figcaption></figure>
+          <figure><a href="/examples/gallery/mix-the-references/ref-3-prop.webp"><img src="/examples/gallery/mix-the-references/ref-3-prop.webp" alt="Image 3 · prop: Muse 1:1 · reported $0.011 — Mix the references" loading="lazy" /></a><figcaption>Image 3 · prop: Muse 1:1 · reported $0.011 · <a href="/examples/gallery/mix-the-references/ref-3-prop.webp" download>Download</a></figcaption></figure>
+          <figure><a href="/examples/gallery/mix-the-references/ref-4-place.webp"><img src="/examples/gallery/mix-the-references/ref-4-place.webp" alt="Image 4 · place: Muse 1:1 · reported $0.011 — Mix the references" loading="lazy" /></a><figcaption>Image 4 · place: Muse 1:1 · reported $0.011 · <a href="/examples/gallery/mix-the-references/ref-4-place.webp" download>Download</a></figcaption></figure>
+          <figure><a href="/examples/gallery/mix-the-references/mix.webp"><img src="/examples/gallery/mix-the-references/mix.webp" alt="The mix: FLUX.3 Klein Edit, 4 references, 1024×1024 · reported $0.009 — Mix the references" loading="lazy" /></a><figcaption>The mix: FLUX.3 Klein Edit, 4 references, 1024×1024 · reported $0.009 · <a href="/examples/gallery/mix-the-references/mix.webp" download>Download</a></figcaption></figure>
+        </div>
+
+      <div class="callout"><p>Four Muse stills stand in for your own uploads: a paper-craft fox (image 1), a yellow knitted raincoat (image 2), a red paper lantern (image 3) and a paper harbor pier at dusk (image 4). FLUX.3 Klein Edit gets them in port order (image, image2, image3, image4), and the mix instruction names each one by number. In the result the fox wears the same raincoat with its three wooden toggles and holds the one lantern by its bamboo handle while standing on the cardboard pier, with the striped lighthouse behind it. Flaws: the two paper boats from image 4 mostly drop out, the fox&#39;s ears poke through the hood, and the coat comes out longer than the flat-lay reference. A first prompt without “exactly one lantern” gave the fox two lanterns, so the instruction now says it outright. Swap any reference Image node for a 📷 Image input to mix your own photos. Checked outputs are SFW (no people). Inspired by the multi-reference workflows ComfyUI showed for Krea 3 and FLUX.3 Klein (https://x.com/ComfyUI/status/2110840667337642330); no media from that post is used.</p></div>
+
+
+
+      <h2>Make it yours</h2>
+      <ol class="input-list">
+        <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
+        <li>Each reference has its own prompt: <em>Who · character</em>, <em>What they wear · outfit</em>, <em>What they hold · prop</em> and <em>Where · place</em>. Rewrite any of them, or replace its Image node with a 📷 Image input and drop in your own photo (a product, a mascot, a jacket, a room). Keep the wiring order and update the matching “Image N is…” line in <em>Mix instruction (names each image)</em>. Klein takes up to 10 references: wire image5 and name it the same way.</li>
+        <li>Check the editor estimate, then run with your NanoGPT key. Four Muse 1:1 stills at $0.011 each and one FLUX.3 Klein Edit 1024×1024 at $0.009. The saved run was $0.053. With your own uploads instead of the Muse stills it is about $0.01.</li>
+        <li>Check each reference against the mix: same fox colors and face, same coat and toggles, exactly one lantern, same pier and lighthouse. Look for parts that drop out (here the paper boats) and parts that change shape (the coat got longer).</li>
+      </ol>
+
+
+      <div class="cta">
+        <a class="primary" href="https://nanoodle.com/#g=H4sIAAAAAAAAA8VYTY_bNhC951cQe0oAf0u1t-6pCFIgSIMEaIMWaHqgJcoiTJEqSa2sBvvfO0NKsrzWJtytgVxsiZTIx-F7jzP68oKQm7ubLVlO8EqqlBm4-wtuCPnifqGZp9B2k0y5tEzam0nXbpuSuR5VFGcdR2iNF_1tA7fT5ebUUEPDZnW6zzgTKU7cTYmDs6PFwd_zI8lUpYlmGdNMJswQAKKIkoyUPLGVZjPyhib56QnC4RlriKolwTVtSZ0r8tLmjCQ51TSxTL-aQCO1BBobUjOqh_e5EumEUJlCGwzpG42Fhhn55ddPf84i8k4wLsmblFuyZzAXPFIAMFIqbYnSKdPufZyTS2N1lViuAA4tYAEM4eICdg2RVbFjekt4QfcMNqK9WHUXUXcRz8hvNS1h2Gaw1LeuD1cJYYI5yecqvY1S-E2yTdvLZVnByhSpDCMNBhMjU-bKKjMjb6UpuWYpgkG4RSUsn55mqJU-ZELVhrxWRdZ8ektMrmp4Hud7pxklkVvqWWBe5taWZjufH2dAj3n75hxiaCszXy2Xi9t4sV5vomizjldRtHg16_lDkFJCadz-hgmY-qbtuXf_95MxfpbLS2Y6En2NlutzUkaL0z3uFI7xB1Dnc7VY7DYn8twEUfdnYgoqBClpyfQ00TSzELMjKahJlIU_2DOVQZNIIZpKUwl75R4mNbc57GWdc9s1JTkz1nOKckEsL4GhZCdocmifkAq21z1QK6JVBVe-mzXMTDx_udyTqtR8nwNLpVNJzuFBwfbGvZvRBJ9xWoEIaDohWQWL2Km0mZAEdA60AHGUgsI2CzfQXjt5VClXZAcTploBOKNgveyOtU_By5qbssWKiwZMUpFEKAsQ9u4GQwcT0oKLZpppzmQqmlnI9uuR7Xe6Od__6PacAPE5AVYDQhj-L3uws6VWRYl7u-gQXdBl2ZHldRhZClCuwBcLZum8AIVOHew5hmJq1fR8ES0uN9N2OWy-o5pT9BjjOoMks3qGZIYRfFwzQ2ftIqIqm3Ebpp2PWqVgmd6kUCUUGA_G5_2AHCS3FkSjgYSJgslawZQKD6kUDFylrf9qxlox1NAIbLRqvxdgvZW1ECySohci3TOtJJAPeA0qENRrrSM8ioW2pFdZNvXKRLLv3eBDurdKaFl_xw3fCTx5KnloHHJHczi3JoQBnRqypxoPUL8IUAEGjWkniIJKyf6puOzlEaaGkZ0NUEO0vrYcVt3mfwjY_O-qhegZWtgsnqIFzCq6cEDoymcrwR8rntTITW-pgiJVZScFNFUgaLFT4LFU6wZtPQdOC-DdHkSE9zUwD4mPqYvhKZs8lfDnXO8dHC5KpkrBwtg6EvsAtq5vr83WqNuej9_cnu_K1fgZXF0uViFkxXS34ygkDyw01RkmOXDy7TAXtZB_VGyaY8aZVuawRe7mmCC3Vlxy4G2XBwFJ052CH5xYHjDN976sNOs4J2jjyInjdqkSvcPsBnMer4s2n_K9MKA1PpWHua3m5UkvyFnABkmT47pWkCq1c5547uWEeZJokyYoFEApmFRNBfi9AIdndWflbkWdj_f5onmie4_sb4AelovFtQUR94L4Nhe-pyIKfixDNDGsOsfy__hSEliADiu4l4MSzq3oVZhE3tMDczWfZHVXuALXQCRQIO24ZKZl-7DW9TOY2WfpK7kllrZndeyWHBgr0e0B05HiQXFeboBRA-CxKmPS1heuspi0tUJfRLRFA76LhxWoFnekR7LqkPisbktSzUy3hKPXUQ_pkaxt4pWC7_h5htlbVfYFtOv0mdxZDndCE3VoEOq2R4EnbotBNC744DMO1-WxCdUvqrw9Mf1BicvARl8vlbQ-Pzl_8r7AMteHEJwJzMgH2U7XDd7aSg2ATl8tOvBxDx5FdkLvCjZzKr_QpgZBHfglms6F215Ed2iXA3d0Ye6scWCKO-YqQ24B6Js7phtXpiGqxgxJNiO_56eVJtTAkC6v6AzTQej2HIPjl6cgSM4Xof5z9e3zzBKkf6l8lvJvKD9-eBrG_9cr0Shat7z4RhTonE6CeN4ZK-jOzDNRHafR_IDjzHFNX_HQxSo-4s-ws0d98yCS8Pu3--QnOJy0j33yE4OaGpPEc9T4zenBhxecEoyi996LWFk1PoYeHaOFH0ACsQpCuroC0tExnoA0CkIaXQHp6BhPQBoHIY2vgHR0jCcg_SEE6TjHvKCCoQ7d5tFRvgZ1HQR1lGRXhLoKwroJwjpKsytijYKw3gZhHSXaFbHGQVh_DMF6ltI-W1qPgB3VFh4KL-7_A2zqdooUGgAA">Open this noodle →</a>
+        <a class="secondary" href="/examples/gallery/#mix-the-references">See the reviewed run</a>
+      </div>
+      <p class="howto-note"><a href="/examples/gallery/mix-the-references/workflow.json" download>Download workflow</a>
+        · <a href="/examples/gallery/mix-the-references/graph.json" download>Original sampled graph</a>
+        · <a href="https://mcp.nanoodle.com/#mix-the-references">Explore MCP tools</a>
+        · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a></p>
+      <nav class="next">
+        <a href="/guide/examples/">← All examples</a>
+        <a href="/guide/examples/grok-heygen-minimax-video-arena">Grok Imagine 1.5 Lite vs HeyGen Video 1 vs MiniMax H3: same prompt, side by side</a>
+        <a href="/guide/examples/same-shot-three-looks">Same shot, three looks →</a>
+        <a href="/examples/gallery/#mix-the-references">Reviewed run</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· No analytics · Your key stays on your device</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>
