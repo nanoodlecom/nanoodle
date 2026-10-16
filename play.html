@@ -2808,7 +2808,10 @@ const RUNNERS = {
   },
 
   async lipsync(n, inp, ctx) {
-    if (!inp.image) throw new NanoodleError("no image input");
+    // Portrait required only for image_to_video avatars; preset-only (audio→video) skips it.
+    const catM = catItem(ctx && ctx.catalog, "video", n.fields.model);
+    const needsPortrait = !catM || !!((catM.capabilities || {}).image_to_video) || !!catM.i2v;
+    if (needsPortrait && !inp.image) throw new NanoodleError("no image input");
     if (!inp.audio) throw new NanoodleError("no audio input");
     const prompt = promptOf(n, inp);
     // Avatar models cap audio length (LongCat = 30s) and the cap isn't reliably in the catalog,
@@ -2820,7 +2823,7 @@ const RUNNERS = {
     // ctx.trimAudio lets a browser host inject its Web Audio trimmer so the retry bytes match
     // its built-in runner exactly; default is the local-media trimmer (pure-JS WAV, ffmpeg).
     const trim = ctx.trimAudio || ((url, start, len, rate) => trimAudioToWav(url, start, len, rate, mediaOpts(ctx)));
-    const img = await fitImage(inp.image, ctx, "portrait image");
+    const img = needsPortrait ? await fitImage(inp.image, ctx, "portrait image") : null;
     let trimSec = null;
     for (let attempt = 0; attempt < 2; attempt++) {
       let opts;
@@ -9937,7 +9940,10 @@ function mp4ParamsMatch(bufs){
       em:"🎭", title:"Avatar / lipsync",
       inputs:[{name:"image", type:"image"},{name:"audio", type:"audio"}], outputs:[{name:"video", type:"video"}],
       async run(n, inp, ctx, onProgress){
-        if(!inp.image) throw new Error("no image input");
+        // Portrait required only for image_to_video avatars; preset-only (audio→video) skips it.
+        const catM = (((ctx && ctx.catalog && ctx.catalog.video) || []).find(m => m && m.id === n.fields.model)) || null;
+        const needsPortrait = !catM || !!((catM.capabilities || {}).image_to_video) || !!catM.i2v;
+        if(needsPortrait && !inp.image) throw new Error("no image input");
         if(!inp.audio) throw new Error("no audio input");
         const prompt = (inp.prompt != null ? inp.prompt : (n.fields.prompt != null ? n.fields.prompt : "")).trim();
         const prog = (st,ms,meta)=> onProgress && onProgress(pollProgressMsg("lip-syncing…", st, ms, meta));
@@ -9964,7 +9970,7 @@ function mp4ParamsMatch(bufs){
           opts.dims = await videoDimParams(n);      // resolution the avatar model supports (+ any duration/aspect it lists), under its real wire names
           opts.extra = (n.fields.modelOpts||{});    // per-model knobs baked in from the editor (seed/guidance_scale/…)
           try{
-            return { video: await ctx.genVideo(mdl(n), prompt, opts, inp.image, prog) };
+            return { video: await ctx.genVideo(mdl(n), prompt, opts, needsPortrait ? inp.image : null, prog) };
           }catch(e){
             if(attempt>0) throw e;
             const msg = e.message || "";
@@ -10978,7 +10984,14 @@ const PROMPT_CAPS = {
                            // is an omni/reference model, not a talking avatar.
                            const inMods = mod.split("->")[0].split("+");
                            const refAudio = ("reference_audios" in pp || "reference_audio" in pp || "reference_audio_urls" in pp);
-                           return !!c.image_to_video && !!c.audio_input && !multiAudio && !refAudio && !inMods.includes("video"); }
+                           // Preset-only talking avatars (HeyGen Avatar V): audio→video, no image_to_video.
+                           // Tag/category gate keeps lyrics/music audio→video models off this node.
+                           const tags = (m.tags || []).map(t => String(t).toLowerCase());
+                           const avatarTagged = tags.some(t => t === "avatar" || t === "lip-sync" || t === "talking-avatar")
+                             || /avatars?/i.test(m.category || "");
+                           const audioOnlyIn = inMods.length === 1 && inMods[0] === "audio";
+                           return !!c.audio_input && !multiAudio && !refAudio && !inMods.includes("video")
+                             && (!!c.image_to_video || (audioOnlyIn && avatarTagged)); }
       case "tts":        return !!c.text_to_speech || m.category==="audio_tts";
       case "music":      { const am = mod.split("->")[0].split("+");   // cover/extend models are text+audio-> and demand a source track — keep them out of a plain Music swap
                            // verb guard mirrors editor normAudio.usable: cover/extend/clone ids would leak in via modality alone

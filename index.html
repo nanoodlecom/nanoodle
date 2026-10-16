@@ -5244,12 +5244,19 @@ function normVideo(m){
   // such model (MiniMax H3 reference-to-video, same created stamp as H3 Max Lip Sync) is the
   // Avatar node's default. Catalog modality + param keys only — no model-name list. Text+image+audio
   // generators that really do take one driving track (music-video-generator, LTX, Wan 2.5) stay.
+  // Preset-only talking avatars (HeyGen Avatar V) are audio→video with image_to_video:false — still
+  // avatars when tagged avatar/lip-sync (or category Avatars). Lyrics/music audio→video rows stay out.
   const refAudio = ("reference_audios" in pp || "reference_audio" in pp || "reference_audio_urls" in pp);
+  const tags = (m.tags || []).map(t => String(t).toLowerCase());
+  const avatarTagged = tags.some(t => t === "avatar" || t === "lip-sync" || t === "talking-avatar")
+    || /avatars?/i.test(m.category || "");
+  const audioOnlyIn = inMods.length === 1 && inMods[0] === "audio";
   return { id:m.id, name:m.name||m.id, created:m.created,
     sortUsd: _vu,                                    // resolved $/clip at default res/duration → price sorts
     t2v:!!c.text_to_video && !needsSourceVideo, i2v:!!c.image_to_video,
     v2v:!!c.video_to_video,                          // edits/extends/upscales a SOURCE video (→ vedit node)
-    avatar:!!c.image_to_video && !!c.audio_input && !multiAudio && !refAudio && !inMods.includes("video"),    // image + single audio → talking video (→ lipsync node)
+    avatar:!!c.audio_input && !multiAudio && !refAudio && !inMods.includes("video")
+      && (!!c.image_to_video || (audioOnlyIn && avatarTagged)),  // image+audio, or preset-only audio→video avatar
     lora,                                            // catalog advertises lora_url_N → the LoRA disclosure is offered
     audioGen:!!c.audio_generation,                   // model renders synchronized audio into the clip → preview should NOT be muted
     params: pp,                                      // per-model param descriptors → the ⚙️ Model options block
@@ -9510,7 +9517,10 @@ const NODE_TYPES = {
       <div class="fhint">the spoken words come from the audio input — this guides movement and mood</div></div>
       <div data-modelopts></div>`,
     async run(n, inp, ctx){
-      if(!inp.image) throw new Error("no image — wire an image into the image port");
+      // Portrait required only when the catalog marks image_to_video (i2v). Preset-only avatars
+      // (audio→video, e.g. HeyGen Avatar V) run from the Preset avatar knob + audio alone.
+      const needsPortrait = (()=>{ const m = catItem("video", n.fields.model); return !m || !!m.i2v; })();
+      if(needsPortrait && !inp.image) throw new Error("no image — wire an image into the image port");
       if(!inp.audio) throw new Error("no audio — wire an audio clip into the audio port");
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       const prog = (st,ms,meta)=> setNodeProgress(n, fmtPollHeadline("lip-syncing…", st, ms), meta);
@@ -9541,7 +9551,7 @@ const NODE_TYPES = {
         opts.dims = videoDimParams(n);            // resolution (+ any duration/aspect the avatar model lists) under its real wire names
         opts.extra = (n.fields.modelOpts||{});    // per-model ⚙️ knobs (seed/guidance_scale/num_inference_steps/…)
         try{
-          return { video: await ctx.genVideo(mdl(n), prompt, opts, inp.image, prog) };
+          return { video: await ctx.genVideo(mdl(n), prompt, opts, needsPortrait ? inp.image : null, prog) };
         }catch(e){
           if(attempt>0) throw e;
           const msg = e.message || "";
