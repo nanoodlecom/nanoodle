@@ -491,6 +491,33 @@ const SCENARIOS = [
       links: [link("t1", "text", "v1", "prompt")],
     },
   },
+  // ---- preset-only talking avatars (nanoodle #733 / nanoodle-js #44) ----
+  // audio→video avatars with image_to_video false (HeyGen Avatar V) need no portrait; both engines
+  // submit on audio alone and NEVER forward a wired image. Image-to-video avatars keep sending it.
+  {
+    name: "catalog: lipsync preset-only avatar (image_to_video false) — audio only, no portrait",
+    catalog: { video: [{ id: "heygen/avatar-v", architecture: { modality: "audio->video" }, capabilities: { image_to_video: false, audio_input: true } }] },
+    data: {
+      nodes: [node("a1", "aupload", { audio: AUD }), node("l1", "lipsync", { model: "heygen/avatar-v", prompt: "" })],
+      links: [link("a1", "audio", "l1", "audio")],
+    },
+  },
+  {
+    name: "catalog: lipsync preset-only avatar drops a wired image",
+    catalog: { video: [{ id: "heygen/avatar-v", architecture: { modality: "audio->video" }, capabilities: { image_to_video: false, audio_input: true } }] },
+    data: {
+      nodes: [node("u1", "upload", { image: IMG }), node("a1", "aupload", { audio: AUD }), node("l1", "lipsync", { model: "heygen/avatar-v", prompt: "" })],
+      links: [link("u1", "image", "l1", "image"), link("a1", "audio", "l1", "audio")],
+    },
+  },
+  {
+    name: "catalog: lipsync image_to_video avatar (Avatar IV) still sends the portrait",
+    catalog: { video: [{ id: "heygen/avatar-iv", architecture: { modality: "image+audio->video" }, capabilities: { image_to_video: true, audio_input: true } }] },
+    data: {
+      nodes: [node("u1", "upload", { image: IMG }), node("a1", "aupload", { audio: AUD }), node("l1", "lipsync", { model: "heygen/avatar-iv", prompt: "" })],
+      links: [link("u1", "image", "l1", "image"), link("a1", "audio", "l1", "audio")],
+    },
+  },
 ];
 
 function diffReqs(playReqs, jsReqs) {
