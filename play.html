@@ -2808,10 +2808,7 @@ const RUNNERS = {
   },
 
   async lipsync(n, inp, ctx) {
-    // Portrait required only for image_to_video avatars; preset-only (audio→video) skips it.
-    const catM = catItem(ctx && ctx.catalog, "video", n.fields.model);
-    const needsPortrait = !catM || !!((catM.capabilities || {}).image_to_video) || !!catM.i2v;
-    if (needsPortrait && !inp.image) throw new NanoodleError("no image input");
+    if (!inp.image) throw new NanoodleError("no image input");
     if (!inp.audio) throw new NanoodleError("no audio input");
     const prompt = promptOf(n, inp);
     // Avatar models cap audio length (LongCat = 30s) and the cap isn't reliably in the catalog,
@@ -2823,7 +2820,7 @@ const RUNNERS = {
     // ctx.trimAudio lets a browser host inject its Web Audio trimmer so the retry bytes match
     // its built-in runner exactly; default is the local-media trimmer (pure-JS WAV, ffmpeg).
     const trim = ctx.trimAudio || ((url, start, len, rate) => trimAudioToWav(url, start, len, rate, mediaOpts(ctx)));
-    const img = needsPortrait ? await fitImage(inp.image, ctx, "portrait image") : null;
+    const img = await fitImage(inp.image, ctx, "portrait image");
     let trimSec = null;
     for (let attempt = 0; attempt < 2; attempt++) {
       let opts;

@@ -12942,6 +12942,9 @@ function njsRunFor(type, rn, inp, n){
   // LLM video port (video_input models): the library's llm runner has no video_url part yet, so a
   // delegated run would silently drop the wired clip. Stay built-in whenever a video is wired.
   if(type==="llm" && inp && inp.video) return null;
+  // Preset-only avatars (catalog image_to_video false, e.g. HeyGen Avatar V): the built-in lipsync
+  // runner skips the portrait; the library's runner still demands one and would forward it. Stay built-in.
+  if(type==="lipsync"){ const am = catItem("video", rn.fields.model); if(am && !am.i2v) return null; }
   // tvideo/vedit refs: the library now resolves the real ref key + cap from the raw catalog
   // (modelRefSpec), but on a catalog MISS it stays permissive-ON (send under the most common
   // spelling, like play) where this editor is permissive-OFF (videoRefSpec null → refs dropped,
