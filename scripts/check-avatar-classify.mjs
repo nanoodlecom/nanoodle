@@ -6,6 +6,8 @@
 // lipsync run posts audioUrl / audioDataUrl. The speech track is dropped and the call still bills.
 // Wan 3.0 Prime, Wan 3.0 reference-to-video, and Seedance 2.5 (the omni id, not the talking-avatar
 // id) have the same leak: their modality includes a source video this node cannot supply.
+// 2026-10-16: HeyGen Avatar V is audio→video (no image_to_video). It must still land on Avatar
+// when tagged avatar/lip-sync; Mureka Lyrics Video (audio→video, music tags) must stay off.
 //
 // Offline. Extracts normVideo (editor) and modelSuits (play / exported apps) and runs both against
 // fixture rows copied from that catalog response. No browser, no API spend.
@@ -118,6 +120,24 @@ const FIXTURES = [
     architecture: { modality: "image+audio->video" },
     capabilities: { image_to_video: true, audio_input: true },
     supported_parameters: { parameters: { resolution: { type: "select" } } } },
+  // Preset-only talking avatar (live 2026-10-16). created kept below H3 lip-sync so the
+  // default-avatar assertion in this file stays on the pre-HeyGen fixture set.
+  { id: "heygen/avatar-v", created: 1780000000, name: "HeyGen Avatar V", category: "Avatars",
+    tags: ["avatar", "lip-sync", "audio-driven"],
+    architecture: { modality: "audio->video" },
+    capabilities: { image_to_video: false, audio_input: true, text_to_video: false },
+    supported_parameters: { parameters: { mode: { type: "select" }, avatar: { type: "select" }, resolution: { type: "select" } } } },
+  { id: "heygen/avatar-iv", created: 1780000001, name: "HeyGen Avatar IV", category: "Avatars",
+    tags: ["avatar", "lip-sync", "audio-driven"],
+    architecture: { modality: "image+audio->video" },
+    capabilities: { image_to_video: true, audio_input: true },
+    supported_parameters: { parameters: { mode: { type: "select" }, avatar: { type: "select" }, resolution: { type: "select" } } } },
+  // audio→video but lyrics/music — must NOT become an avatar via the preset-only path
+  { id: "mureka/api/generate/lyrics-video", created: 1780000002, name: "Mureka 9.5 Lyrics Video", category: "video",
+    tags: ["audio-to-video", "lyrics", "music"],
+    architecture: { modality: "audio->video" },
+    capabilities: { image_to_video: false, audio_input: true },
+    supported_parameters: { parameters: { song_id: { type: "string" }, aspect_ratio: { type: "select" } } } },
 ];
 
 const NOT_AVATAR = [
@@ -129,6 +149,7 @@ const NOT_AVATAR = [
   "minimax/h3-max",
   "minimax-h3",
   "longcat-avatar-1.5/multi",
+  "mureka/api/generate/lyrics-video",
 ];
 const IS_AVATAR = [
   "minimax/h3-max/lip-sync/image-to-video",
@@ -138,6 +159,8 @@ const IS_AVATAR = [
   "music-video-generator",
   "lightricks/ltx-2.5/fast",
   "wan-s2v",
+  "heygen/avatar-v",
+  "heygen/avatar-iv",
 ];
 
 const editor = new Map(FIXTURES.map((m) => [m.id, idxCtx.normVideo(m)]));
@@ -175,4 +198,4 @@ if (fail) {
   console.error("\n✗ " + fail + " avatar-classify checks failed");
   process.exit(1);
 }
-console.log("\n✓ avatar classify: omni/reference models stay off the Avatar node; real talking avatars stay on. Both engines agree.");
+console.log("\n✓ avatar classify: omni/reference models stay off the Avatar node; real talking avatars (incl. preset-only HeyGen Avatar V) stay on; lyrics audio→video stays off. Both engines agree.");

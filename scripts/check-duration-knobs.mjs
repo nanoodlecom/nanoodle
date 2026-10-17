@@ -153,6 +153,7 @@ const SFX = { id: "elevenlabs/sound-effects/v2", supported_parameters: { min_dur
 {
   const code = [
     block(IDX, "const AUDIO_PARAMS = {").replace(/^const\s/, "var "),
+    ...["audioIsSfx", "audioMultiplierSpec", "audioUploadFormat", "audioDurationDefault"].map((f) => block(IDX, "function " + f + "(it){")),
     block(IDX, "function audioApplies(at, it){"),
     block(IDX, "function audioFields(kind, it){"),
     block(IDX, "function assertGenerateSongLyrics(model, lyrics){"),

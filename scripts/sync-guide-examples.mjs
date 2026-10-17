@@ -102,6 +102,38 @@ const HOWTO = {
     inspect: "Compare the blockout still to the finished still: the rooftops, the robot's mid-leap pose, and the camera should match. Then scrub the clip. In the saved run the robot clears the gap and lands on the far roof, but it also spins sideways in mid-air, skips the crouch, and keeps rolling while the camera swings behind it.",
     costHow: "The saved sample reported about $0.15: Seedance 1.5 Pro at $0.13 (720p, 5 s, audio off), Muse text-to-image $0.01, Muse Edit $0.01, and about $0.0002 for three GLM 5.3 Flash calls. Join nodes are free. Prices and results vary.",
   },
+  "story-to-shot": {
+    headline: "Write a story. H3 picks the shots.",
+    job: "Turn a short story into one 5-second clip without writing camera angles.",
+    purpose: "Shows a cheap LLM keeping prose free of camera jargon, then MiniMax H3 inventing the framing — the same story-mode trick people are testing in ComfyUI.",
+    edit: "Rewrite <em>Story</em> with a new short, family-friendly scene (one hero, one clear action). Keep <em>Story-mode rules</em> and the Keep it a story LLM so the model stays SFW and invents its own camera. Change duration on the video node if you want a longer take (cost scales).",
+    inspect: "Watch whether H3 invents sensible cuts for the beats you wrote. Check that the hero and prop stay consistent across the clip. Look for missing story beats (mailbox vs door) and any unrequested props.",
+    costHow: "One GLM 5.3 Flash call plus one MiniMax H3 text-to-video call. The saved run was about $0.36 for 5 seconds of H3 (LLM was a fraction of a cent). Longer durations raise the price.",
+  },
+  "orbit-the-character": {
+    headline: "One still. Orbit to a new side.",
+    job: "Turn one character still into a short orbit that shows the same subject from new angles.",
+    purpose: "Shows MiniMax H3 Max Multi Angle's orbit-right camera control on a SFW paper-craft subject — the multi-angle character trick people share from ComfyUI, without anime-girl defaults.",
+    edit: "Rewrite <em>Character seed</em> with a new SFW physical toy or paper subject (full body, fixed three-quarter view). Keep <em>Still rules</em>, the Join → GLM still-prompt path, and the Multi Angle node on orbit-right. Try orbit-left or rise in modelOpts if you want a different turn.",
+    inspect: "Watch whether identity (scarf, boat, paper folds) holds across the orbit. Check that the subject stays centered and that the ending angle is a real new side, not a morph. Look for background invention and prop drift.",
+    costHow: "One GLM 5.3 Flash call, one Muse 1:1 still (~$0.01), and one H3 Max Multi Angle 5 s 480p call ($0.25). The saved run was about $0.26 total. Longer durations or higher resolutions raise the price.",
+  },
+  "same-shot-three-looks": {
+    headline: "Same shot, three looks",
+    job: "Lock one composition, then climb a style ladder with Muse Edit.",
+    purpose: "Show that chained image edits can keep framing while swapping materials — glass, watercolor, photoreal — without redrawing the scene from scratch.",
+    edit: "Rewrite <em>Glass look prompt</em> with another SFW still-life (fixed camera, clear props). Keep <em>Watercolor edit</em> and <em>Photoreal edit</em> as preserve-composition restyles, and keep <em>Morph motion</em> on the Seedance clip if you want ambience — or disconnect that video node for a stills-only ladder.",
+    inspect: "Compare the three stills side by side: same rocks, cage/lantern, moon placement. The watercolor should read as paper; photoreal as a photo. Treat the Seedance clip as optional ambience (<em>Morph motion</em> often drifts into sparkles rather than a clean material morph).",
+    costHow: "This saved run was about $0.16 (three Muse calls ~$0.033 + Seedance ~$0.13). Stills alone are ~$0.03.",
+  },
+  "mix-the-references": {
+    headline: "Mix the references",
+    job: "Compose one picture from separate who / wear / hold / where references.",
+    purpose: "Show multi-reference compositing: one Edit node takes several images in port order, and the instruction addresses each by number (image 1 is the character, image 2 the outfit…), so each part comes from its own source instead of a long prompt.",
+    edit: "Each reference has its own prompt: <em>Who · character</em>, <em>What they wear · outfit</em>, <em>What they hold · prop</em> and <em>Where · place</em>. Rewrite any of them, or replace its Image node with a 📷 Image input and drop in your own photo (a product, a mascot, a jacket, a room). Keep the wiring order and update the matching “Image N is…” line in <em>Mix instruction (names each image)</em>. Klein takes up to 10 references: wire image5 and name it the same way.",
+    inspect: "Check each reference against the mix: same fox colors and face, same coat and toggles, exactly one lantern, same pier and lighthouse. Look for parts that drop out (here the paper boats) and parts that change shape (the coat got longer).",
+    costHow: "Four Muse 1:1 stills at $0.011 each and one FLUX.3 Klein Edit 1024×1024 at $0.009. The saved run was $0.053. With your own uploads instead of the Muse stills it is about $0.01.",
+  },
   "photo-to-video": {
     headline: "Animate a still",
     job: "Generate a first frame, then animate its steam.",
@@ -159,7 +191,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.
