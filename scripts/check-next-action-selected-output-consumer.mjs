@@ -56,7 +56,10 @@ function graph(nodes, links, selectedId, selectedIds) {
     [],
     "i"
   );
-  const hits = rankSelectedOutputConsumers(portTables, g, { nodeTypes: known });
+  // A synthetic tied prior, not the live corpus: the gallery's real image consumers shift as
+  // examples land (multi-reference edits wire several images into one edit node).
+  const tied = { ...portTables, topTargets: { ...portTables.topTargets, "image|image": { "edit|image": 5, "ivideo|image": 5 } } };
+  const hits = rankSelectedOutputConsumers(tied, g, { nodeTypes: known });
   toy("tied-image-consumers-quiet", hits.length === 0, hits.map((h) => h.type + ":" + h.score).join(","));
 }
 

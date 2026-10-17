@@ -74,7 +74,8 @@ assert(confidentRecipe(corpus, { numNodes: 1, nodeTypeCounts: { text: 1 } }) ===
 
 {
   const sketch = { numNodes: 2, nodeTypeCounts: { text: 1, llm: 1 } };
-  const rec = recommendRecipes(corpus, sketch, 5);
+  // Gallery growth added short text→llm recipes; keep k wide enough that sing still appears.
+  const rec = recommendRecipes(corpus, sketch, 8);
   const sing = rec.find((r) => r.slug === "sing");
   const sprites = rec.find((r) => r.slug === "character-sprites");
   assert(sing && sing.remaining.includes("music"), "sing partial keeps music");

@@ -29,6 +29,7 @@ const catalogs = {
     image('recraft-v4', ['1024x1024']),
     image('anima/text-to-image', ['1k', '2k']),
     image('black-forest-labs/flux-3/text-to-image', ['1k', '2k', '4k'], true),
+    image('blackforestlabs/flux-3/klein/edit-image', ['768x768', '1024x1024', '1536x1536', '2048x2048', '4096x4096'], true),
     image('bytedance/seedream-v5.0-flash', ['2k', '1.5k', '1k'], true),
     image('ideogram/v4.5', ['1024x1024', '2048x2048']),
     image('recraft-ai/recraft-v4.1-flash/text-to-image', ['1024x1024', '1024x768']),
@@ -40,10 +41,16 @@ const catalogs = {
       supported_parameters: { parameters: { resolution: opts(['480p', '768p']), duration: opts(['5','6','7','8','9','10']), aspect_ratio: opts(['auto','21:9','16:9','4:3','1:1','3:4','9:16','9:21']) } } },
     { id: 'minimax-h3', capabilities: { text_to_video: true, image_to_video: true, video_to_video: true },
       supported_parameters: { parameters: { resolution: opts(['480p', '540p', '768p', '1080p']), duration: opts(['3','4','5','6','7','8','9','10','11','12','13','14','15']), aspect_ratio: opts(['auto','21:9','16:9','4:3','1:1','3:4','9:16','9:21']) } } },
+    { id: 'bytedance-seedance-v1.5-pro', capabilities: { text_to_video: true, image_to_video: true, audio_generation: true },
+      supported_parameters: { parameters: { resolution: opts(['480p', '720p', '1080p']), duration: opts(['4','5','6','7','8','9','10','11','12']), aspect_ratio: opts(['16:9','9:16','1:1','3:4','4:3','21:9']),
+        generateAudio: { type: 'switch', default: true } } } },
     { id: 'minimax-h3/image-to-video-spicy', capabilities: { image_to_video: true },
       supported_parameters: { parameters: { resolution: opts(['480p', '720p']), duration: opts([5, 10]) } } },
     { id: 'minimax/h3-max', capabilities: { image_to_video: true },
       supported_parameters: { parameters: { resolution: opts(['480p', '720p']), duration: opts([5, 10]) } } },
+    { id: 'minimax/h3-max/multi-angle/image-to-video', capabilities: { image_to_video: true },
+      supported_parameters: { parameters: { resolution: opts(['480p', '768p', '1080p']), duration: opts(['5','6','7','8','9','10','11','12','13','14','15']),
+        camera_motion: opts(['orbit-right','orbit-left','push-in','pull-back','rise']) } } },
     { id: 'longcat-avatar-1.5', capabilities: { image_to_video: true, audio_input: true },
       supported_parameters: { parameters: { resolution: opts(['480p', '720p']) } } },
     { id: 'wan-video-image-to-video', capabilities: { image_to_video: true },
@@ -59,6 +66,8 @@ const catalogs = {
   model3d: [
     { id: 'tripo3d/v2.5', architecture: { input_modalities: ['image'] } },
     { id: 'wavespeed-ai/hunyuan-3d-v3.1-rapid', architecture: { input_modalities: ['text', 'image'] } },
+    { id: 'wavespeed-ai/trellis-2/image-to-3d', architecture: { input_modalities: ['image'] },
+      supported_parameters: { parameters: { resolution: opts(['512', '1024', '1536']), texture_size: opts(['1024', '2048', '4096']), target_face_count: { type: 'number', min: 10000, max: 1000000 } } } },
   ],
 };
 

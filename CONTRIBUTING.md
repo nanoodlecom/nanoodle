@@ -145,6 +145,132 @@ is in the commit, so a forgotten regen cannot land locally. CI runs
 `gen-changelog.mjs --check` unconditionally (a named step in
 `.github/workflows/checks.yml`).
 
+### Usage clips on Updates entries
+
+Most Updates entries have no clip. An entry gets one only if **both** of
+these are true:
+
+1. **The change is substantial and visible to users**, such as a new node,
+   panel or workflow. Leave the clip off for small changes: a price or
+   estimate fix, a model-default swap, a label or copy tweak, or a bug fix
+   that's hard to see.
+2. **The clip clearly and accurately shows exactly that entry's change.**
+   Leave it off if the clip shows a different change, only one part of a
+   bundled entry, or something the entry text doesn't claim. Also leave it
+   off if it shows the change only in passing, or if its frames no longer
+   match the current UI.
+
+Check the actual frames before you add a clip. If you're unsure, leave it
+off; an entry without a clip is fine.
+
+For an entry that qualifies, reuse the real-editor usage GIF from the PR
+description (committed under `docs/media/`). `docs/` is not deployed, so
+add a re-encoded copy under `updates-media/` and do not link to the GIF:
+
+```sh
+ffmpeg -i docs/media/my-feature.gif -an \
+  -vf "fps=12,scale='min(720,iw)':-2:flags=lanczos,format=yuv420p" \
+  -c:v libx264 -preset veryslow -crf 23 -tune animation -movflags +faststart \
+  updates-media/my-feature.mp4
+ffmpeg -i updates-media/my-feature.mp4 -frames:v 1 -c:v libwebp -quality 72 updates-media/my-feature.webp
+```
+
+Then add the clip to that entry in `updates.json`. Use the clip's pixel
+size for `w` and `h`:
+
+```json
+"media": { "src": "updates-media/my-feature.mp4", "poster": "updates-media/my-feature.webp", "w": 720, "h": 450 }
+```
+
+- **Hide account details.** Blur the balance in the recording, and keep
+  out browser chrome, the dock and `localhost`.
+- **One clip per entry.** `media` has no language, so all six languages
+  show the same clip.
+
+The editor loads a clip only while it is on screen in the panel. It plays
+as a small muted loop, and a click opens it large. The changelog page shows
+the poster, linking to the mp4.
+
+#### Narrated clips (voiceover, captions, logo)
+
+**Every new release with a substantial, visible change gets a narrated clip.**
+Render it in the same PR that adds the Updates entry, using
+`scripts/make-update-clip.mjs` and a small spec in
+`scripts/update-clips/<name>.json`. The clip has this shape:
+
+- **First frame: the feature and what it is.** The clip opens on a still
+  of the feature on canvas, usually the finished result (`titleFrameAt`,
+  optionally pushed in with `titleZoom`). A title band above it names the
+  feature (`title`, e.g. "⚖️ Decide node") and says what it does
+  (`subtitle`, e.g. "Picks the best image, with a probability for each").
+  It holds about 1.4s with nothing covering the feature. This frame is also
+  the poster, so the panel communicates the feature before anyone presses
+  play.
+- **Middle: the take.** The recording plays with a short voiceover from
+  NanoGPT TTS, timed to the on-screen actions. English captions are burned
+  in at the bottom, and there is a WebVTT track for each language the spec
+  translates.
+- **Last frame: the nanoodle logo** (icon and wordmark). The clip
+  crossfades into the logo and ends held on it at full opacity for about
+  1s. There is no fade-out.
+- **Loudness** is normalized to −16 LUFS.
+
+```sh
+NANOGPT_API_KEY=… NANOODLE_PLAYWRIGHT=/path/to/playwright/index.mjs \
+  node scripts/make-update-clip.mjs scripts/update-clips/decide-node.json \
+  --source /path/to/raw-recording.webm --qa --attach
+node scripts/gen-changelog.mjs
+```
+
+`--attach` writes `media` with `audio: true`, `captions: {en, es, …}` and
+`burned: "en"`. In the 📣 panel the clip still loops muted. The enlarged
+view plays it once with sound and shows the caption track for the UI
+language, unless that language is the one burned into the picture.
+
+How to write the voiceover:
+
+- Use one or two short, warm lines that say what the viewer sees, as it
+  happens. Start each cue as its action starts, and land the payoff line
+  when the result appears on screen.
+- Describe only what the clip shows. If the clip shows a sample result,
+  don't say it was generated. Skip marketing words, prices and model
+  names unless they are on screen.
+- Use the UI's own words ("Run", "Decide node"). In each `i18n` line, use
+  that language's UI label (es "Ejecutar", de "Ausführen", …).
+
+The current voice is `elevenlabs/eleven-v4`, voice "Sarah". Keep that
+voice so every clip sounds like the same narrator. To change it, render
+one line with two or three voices, compare the takes, and keep the one
+whose transcript matches exactly and whose pacing sounds natural.
+
+`--qa` prints a checklist; go through all of it before you attach the
+clip:
+
+- [ ] Whisper's transcript matches the script (0% word error rate).
+- [ ] Loudness is about −16 LUFS.
+- [ ] The first frame (`/tmp/<name>-first.png`, which is also the poster)
+      shows the feature itself plus its title, and the title band covers
+      nothing important.
+- [ ] The last frame (`/tmp/<name>-last.png`) is the logo at full opacity.
+      `--qa` checks it against the logo card (SSIM ≥ 0.97).
+- [ ] In the contact sheet, every line lines up with its action, and the
+      captions (bottom) are readable and never cover the title or the
+      thing being shown.
+- [ ] The balance is blurred, and no browser chrome or `localhost`
+      appears.
+- [ ] The clip is ≤ 1.5 MB.
+
+`scripts/check-updates-media.mjs` runs in CI and in the pre-commit hook.
+It fails if a referenced file is missing, sits outside `updates-media/`,
+or is excluded by `.assetsignore`. It also fails on any of these:
+
+- a clip over 1 MB (1.5 MB if narrated) or a poster over 100 KB
+- an mp4 without `+faststart`
+- an audio track without `audio: true`, or audio that isn't AAC
+- a narrated clip without English WebVTT captions
+- a `w`/`h` that does not match the poster
+- a file in `updates-media/` that no entry references
+
 ## Deploys
 
 Pushing to `main` triggers Cloudflare Workers Builds, which deploys the repo
