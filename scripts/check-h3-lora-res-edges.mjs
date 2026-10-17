@@ -67,6 +67,7 @@ const code = [
   block(IDX, "function applyDimFields(fields, defs){"),
   "var IMAGE_ASPECT = {};",
   block(IDX, "function imageAspectSpec(model){"),
+  block(IDX, "function videoMultiplierDim(it){"),
   block(IDX, "function videoLoraOn(fields){"),
   block(IDX, "function dimDefs(type, model, fields){"),
   `var catalogs = { image:[], video:${JSON.stringify([H3, PLAIN, DESC])} };`,
