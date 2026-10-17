@@ -1,0 +1,309 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": -40,
+      "y": -560,
+      "w": 460,
+      "fields": {
+        "text": "Blockout first, then the shot. Write a short action idea with clear poses and camera. An LLM turns it into a grayscale geometric blockout still (Muse T2I): untextured stand-ins, readable silhouettes, explicit framing. A second LLM writes a look bible; Join pastes a keep-composition line in front of it; Muse Edit restyles the blockout into finished characters and lighting while keeping the same composition, poses, and camera. A third LLM writes a short motion brief; Seedance 1.5 Pro (720p, 5 s, silent) animates the finished still. One look, one action \u2014 the video continues the restyled beat, it does not invent a new scene.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "idea",
+      "type": "text",
+      "x": -40,
+      "y": 0,
+      "w": 320,
+      "name": "Action idea",
+      "fields": {
+        "text": "A boxy courier robot with stubby wheel-legs leaps a narrow rooftop gap between two brick buildings at dusk. Low tracking camera from the near rooftop; the robot pushes off the ledge, sails across the alley, and lands on the far roof with a soft crouch."
+      }
+    },
+    {
+      "id": "preserve",
+      "type": "text",
+      "x": -40,
+      "y": 360,
+      "w": 320,
+      "name": "Keep composition",
+      "fields": {
+        "text": "Keep the exact composition, poses, and camera of the reference blockout. Only change materials, colors, lighting, and surface detail."
+      }
+    },
+    {
+      "id": "blockout-writer",
+      "type": "llm",
+      "x": 420,
+      "y": -200,
+      "w": 320,
+      "sizes": {
+        "system": 120
+      },
+      "name": "Blockout prompt",
+      "fields": {
+        "model": "z-ai/glm-5.3-flash",
+        "reasoningEffort": "low",
+        "maxTokens": "400",
+        "system": "You write ONE image prompt for a Blender-style BLOCKOUT still of the user's action idea. Grayscale only: matte medium-gray untextured geometric stand-ins (boxes, cylinders, simple limb blocks), no detailed faces, clothes, logos, or materials. Keep readable silhouette poses and the explicit camera (angle, height, framing) from the idea. Flat soft studio gray light, no color, no atmosphere glow. ONE hero figure only \u2014 do not place a second stand-in or landing-pose duplicate on the far side. 16:9 cinematic still. 40 to 70 words, plain sentences, no headings or lists, no quotes. Output only the prompt."
+      }
+    },
+    {
+      "id": "look-writer",
+      "type": "llm",
+      "x": 420,
+      "y": 200,
+      "w": 320,
+      "sizes": {
+        "system": 120
+      },
+      "name": "Look bible",
+      "fields": {
+        "model": "z-ai/glm-5.3-flash",
+        "reasoningEffort": "low",
+        "maxTokens": "450",
+        "system": "You write ONE look bible that restyles a grayscale geometric BLOCKOUT into a finished cinematic still of the user's action idea. Do NOT say to keep composition (that line is added before yours). Cover only: hero materials and colors; environment materials; dusk lighting and palette; lens feel. Assume the same poses and camera as the blockout. 40 to 70 words, plain sentences, no headings. Output only the look paragraph."
+      }
+    },
+    {
+      "id": "motion-writer",
+      "type": "llm",
+      "x": 420,
+      "y": 700,
+      "w": 320,
+      "sizes": {
+        "system": 120
+      },
+      "name": "Motion brief",
+      "fields": {
+        "model": "z-ai/glm-5.3-flash",
+        "reasoningEffort": "low",
+        "maxTokens": "350",
+        "system": "You write ONE short image-to-video motion prompt for a 5-second clip that starts from an already finished still of the user's action idea. Do not re-describe looks or materials. Describe only what moves: the single action and one camera move, present tense, and how the 5 seconds end. Preserve the still's composition and character design. 30 to 55 words, one paragraph, no headings. End with exactly: No new characters enter the frame. Output only the prompt."
+      }
+    },
+    {
+      "id": "j-look",
+      "type": "join",
+      "x": 860,
+      "y": 280,
+      "w": 240,
+      "name": "Preserve + look",
+      "fields": {
+        "sep": "\\n\\n"
+      }
+    },
+    {
+      "id": "j-motion",
+      "type": "join",
+      "x": 860,
+      "y": 700,
+      "w": 240,
+      "name": "Motion prompt",
+      "fields": {
+        "sep": "\\n\\n"
+      }
+    },
+    {
+      "id": "motion-prefix",
+      "type": "text",
+      "x": -40,
+      "y": 700,
+      "w": 280,
+      "name": "Motion prefix",
+      "fields": {
+        "text": "Animate the finished still for five seconds."
+      }
+    },
+    {
+      "id": "blockout",
+      "type": "image",
+      "x": 860,
+      "y": -200,
+      "w": 300,
+      "name": "Blockout still",
+      "fields": {
+        "model": "meta/muse-image/text-to-image",
+        "size": "16:9",
+        "variations": "1"
+      }
+    },
+    {
+      "id": "look",
+      "type": "edit",
+      "x": 1300,
+      "y": 160,
+      "w": 300,
+      "sizes": {
+        "prompt": 0
+      },
+      "name": "Finished look",
+      "fields": {
+        "model": "meta/muse-image/edit",
+        "size": "16:9",
+        "prompt": ""
+      }
+    },
+    {
+      "id": "shot",
+      "type": "ivideo",
+      "x": 1740,
+      "y": 360,
+      "w": 300,
+      "sizes": {
+        "prompt": 0
+      },
+      "name": "Shot \u00b7 5s",
+      "fields": {
+        "model": "bytedance-seedance-v1.5-pro",
+        "prompt": "",
+        "duration": "5",
+        "resolution": "720p",
+        "aspect": "16:9",
+        "modelOpts": {
+          "generateAudio": false
+        },
+        "loras": []
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "idea",
+        "port": "text"
+      },
+      "to": {
+        "node": "blockout-writer",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "idea",
+        "port": "text"
+      },
+      "to": {
+        "node": "look-writer",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "idea",
+        "port": "text"
+      },
+      "to": {
+        "node": "motion-writer",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l4",
+      "from": {
+        "node": "preserve",
+        "port": "text"
+      },
+      "to": {
+        "node": "j-look",
+        "port": "a"
+      }
+    },
+    {
+      "id": "l5",
+      "from": {
+        "node": "look-writer",
+        "port": "text"
+      },
+      "to": {
+        "node": "j-look",
+        "port": "b"
+      }
+    },
+    {
+      "id": "l6",
+      "from": {
+        "node": "motion-prefix",
+        "port": "text"
+      },
+      "to": {
+        "node": "j-motion",
+        "port": "a"
+      }
+    },
+    {
+      "id": "l7",
+      "from": {
+        "node": "motion-writer",
+        "port": "text"
+      },
+      "to": {
+        "node": "j-motion",
+        "port": "b"
+      }
+    },
+    {
+      "id": "l8",
+      "from": {
+        "node": "blockout-writer",
+        "port": "text"
+      },
+      "to": {
+        "node": "blockout",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l9",
+      "from": {
+        "node": "j-look",
+        "port": "text"
+      },
+      "to": {
+        "node": "look",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l10",
+      "from": {
+        "node": "blockout",
+        "port": "image"
+      },
+      "to": {
+        "node": "look",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l11",
+      "from": {
+        "node": "look",
+        "port": "image"
+      },
+      "to": {
+        "node": "shot",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l12",
+      "from": {
+        "node": "j-motion",
+        "port": "text"
+      },
+      "to": {
+        "node": "shot",
+        "port": "prompt"
+      }
+    }
+  ],
+  "nid": 13,
+  "lid": 13
+}

@@ -100,8 +100,8 @@ eq(keys("out", "image"), ["decide", "edit", "endpoint", "inpaint", "ivideo", "ll
   "image output → nodes that take an image (incl. LLM's and Decide's dynamic image ports + Inpaint's image/mask + Custom endpoint)");
 eq(keys("out", "audio"), ["cleanvoice", "endpoint", "llm", "lipsync", "remix", "soundtrack", "transcribe", "trim"],
   "audio output → nodes that take audio (incl. the LLM's audio-input port + Soundtrack's audio port + Remix's source track + Clean voice + Custom endpoint)");
-eq(keys("out", "video"), ["cleanvoice", "combine", "endpoint", "extractaudio", "soundtrack", "vedit", "vframes"],
-  "video output → nodes that take video (combine joins clips; soundtrack adds audio; vframes extracts stills; extractaudio peels the soundtrack; Clean voice pulls the voice out + Custom endpoint)");
+eq(keys("out", "video"), ["cleanvoice", "combine", "endpoint", "extractaudio", "llm", "soundtrack", "vedit", "vframes"],
+  "video output → nodes that take video (combine joins clips; soundtrack adds audio; vframes extracts stills; extractaudio peels the soundtrack; Clean voice pulls the voice out + Custom endpoint; LLM watches it on video_input models)");
 // transcribe is excluded: its only text field is a plain <input> (language), not a wirable textarea
 eq(keys("out", "text"), ["cleanvoice", "decide", "edit", "endpoint", "image", "inpaint", "ivideo", "join", "llm", "lipsync", "model3d", "music", "remix", "tts", "tvideo", "vedit", "vision"],
   "text output → nodes with a text input OR a wirable text field");

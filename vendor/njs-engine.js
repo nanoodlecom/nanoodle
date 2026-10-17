@@ -1,5 +1,5 @@
-/* data-hash=6c43b1db8d0dc0b0 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-72512c80b26f (19 modules) */
+/* data-hash=54fbb846faef8351 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-084980c97d96 (19 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -1648,7 +1648,9 @@ function loraKind(type) { return (type === "image" || type === "edit" || type ==
 function imageTakesLora(id) {
   id = String(id || "");
   if (/inpaint/i.test(id)) return false;
-  if (/klein/i.test(id)) return true;
+  // flux-2-klein-* only (lora-capable per catalog); FLUX.3 Klein (blackforestlabs/flux-3/klein/…)
+  // takes no lora_url — twin of the app's imageTakesLora (nanoodle #732)
+  if (/flux-2-klein/i.test(id)) return true;
   if (/minimax-h3\/(text-to-image|image-edit)/i.test(id)) return true;
   return /(^|[-\/])lora($|[-\/])/i.test(id);
 }
@@ -2186,7 +2188,12 @@ const RUNNERS = {
   },
 
   async lipsync(n, inp, ctx) {
-    if (!inp.image) throw new NanoodleError("no image input");
+    // Portrait required only for image_to_video avatars. Preset-only talking avatars (audio→video,
+    // catalog image_to_video false — e.g. HeyGen Avatar V) run from the preset + audio alone, and a
+    // wired image is NOT forwarded. Catalog miss / no catalog keeps the portrait requirement.
+    // Twin of play's built-in lipsync runner (nanoodle #733).
+    const needsPortrait = avatarNeedsPortrait(ctx && ctx.catalog, String((n.fields && n.fields.model) || "").trim());
+    if (needsPortrait && !inp.image) throw new NanoodleError("no image input");
     if (!inp.audio) throw new NanoodleError("no audio input");
     const prompt = promptOf(n, inp);
     // Avatar models cap audio length (LongCat = 30s) and the cap isn't reliably in the catalog,
@@ -2198,7 +2205,7 @@ const RUNNERS = {
     // ctx.trimAudio lets a browser host inject its Web Audio trimmer so the retry bytes match
     // its built-in runner exactly; default is the local-media trimmer (pure-JS WAV, ffmpeg).
     const trim = ctx.trimAudio || ((url, start, len, rate) => trimAudioToWav(url, start, len, rate, mediaOpts(ctx)));
-    const img = await fitImage(inp.image, ctx, "portrait image");
+    const img = needsPortrait ? await fitImage(inp.image, ctx, "portrait image") : null;
     let trimSec = null;
     for (let attempt = 0; attempt < 2; attempt++) {
       let opts;
@@ -2302,6 +2309,17 @@ const RUNNERS = {
     return runEndpoint(n, inp, { fetch: ctx && ctx.fetch, signal: ctx && ctx.signal });
   },
 };
+
+/**
+ * Does this avatar/lipsync model need a portrait image? True unless the model is in the
+ * opt-in catalog and is preset-only (no image_to_video — audio→video talking avatars such as
+ * HeyGen Avatar V). Catalog miss → true (the long-standing portrait requirement).
+ * Mirrors play's built-in lipsync runner: raw `capabilities.image_to_video` or a normalized `i2v`.
+ */
+function avatarNeedsPortrait(catalog, model) {
+  const m = catItem(catalog, "video", model);
+  return !m || !!((m.capabilities || {}).image_to_video) || !!m.i2v;
+}
 
 // Image→3D (Tripo) takes a photo only. Hunyuan Rapid takes text and an optional image.
 // Anything else, including a catalog miss, accepts either — the editor's same fallback.
@@ -5803,5 +5821,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-72512c80b26f";
+  window.NanoodleEngine.version = "src-084980c97d96";
 })();

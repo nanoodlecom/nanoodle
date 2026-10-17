@@ -1,16 +1,16 @@
 {
   "unigram": {
-    "add:text": 87,
-    "add:llm": 36,
-    "set:model": 148,
-    "wire": 388,
-    "add:image": 52,
-    "add:edit": 26,
+    "add:text": 174,
+    "add:llm": 57,
+    "set:model": 264,
+    "wire": 588,
+    "add:join": 58,
+    "add:image": 111,
+    "add:edit": 49,
+    "add:ivideo": 25,
+    "add:comment": 76,
+    "run": 68,
     "add:resize": 46,
-    "add:comment": 47,
-    "run": 39,
-    "add:ivideo": 12,
-    "add:join": 42,
     "add:music": 2,
     "add:tts": 6,
     "add:lipsync": 6,
@@ -18,52 +18,53 @@
   },
   "bigram": {
     "add:text": {
-      "add:llm": 4,
-      "add:image": 24,
-      "add:text": 39,
-      "add:ivideo": 3,
-      "add:join": 12,
+      "add:text": 83,
+      "add:llm": 13,
+      "add:join": 18,
+      "add:image": 50,
+      "add:comment": 1,
+      "add:ivideo": 4,
       "add:tts": 5
     },
     "add:llm": {
-      "set:model": 36
+      "set:model": 57
     },
     "set:model": {
-      "wire": 148
+      "wire": 264
     },
     "wire": {
-      "add:image": 28,
-      "add:edit": 26,
+      "add:join": 40,
+      "wire": 220,
+      "add:llm": 44,
+      "add:image": 61,
+      "add:edit": 49,
+      "add:ivideo": 21,
+      "add:comment": 67,
+      "add:text": 23,
       "add:resize": 46,
-      "add:comment": 39,
-      "add:llm": 32,
-      "add:ivideo": 9,
-      "wire": 152,
-      "add:text": 9,
-      "add:join": 30,
       "add:music": 2,
       "add:lipsync": 6,
       "add:tts": 1,
       "add:vedit": 8
     },
+    "add:join": {
+      "wire": 58
+    },
     "add:image": {
-      "set:model": 52
+      "set:model": 111
     },
     "add:edit": {
-      "set:model": 26
+      "set:model": 49
+    },
+    "add:ivideo": {
+      "set:model": 25
+    },
+    "add:comment": {
+      "run": 68,
+      "add:comment": 8
     },
     "add:resize": {
       "wire": 46
-    },
-    "add:comment": {
-      "run": 39,
-      "add:comment": 8
-    },
-    "add:ivideo": {
-      "set:model": 12
-    },
-    "add:join": {
-      "wire": 42
     },
     "add:music": {
       "set:model": 2
@@ -79,25 +80,33 @@
     }
   },
   "coldStart": {
-    "add:text": 39
+    "add:text": 68
   },
   "firstNode": {
-    "add:text": 39
+    "add:text": 68
   },
   "firstTrio": [
     {
       "actions": [
         "add:text",
         "add:text",
-        "add:image"
+        "add:text"
       ],
-      "count": 10
+      "count": 22
     },
     {
       "actions": [
         "add:text",
         "add:text",
-        "add:text"
+        "add:image"
+      ],
+      "count": 11
+    },
+    {
+      "actions": [
+        "add:text",
+        "add:image",
+        "add:image"
       ],
       "count": 10
     },
@@ -105,17 +114,25 @@
       "actions": [
         "add:text",
         "add:image",
-        "add:image"
+        "add:text"
       ],
       "count": 5
     },
     {
       "actions": [
         "add:text",
-        "add:image",
-        "add:text"
+        "add:text",
+        "add:join"
       ],
-      "count": 3
+      "count": 4
+    },
+    {
+      "actions": [
+        "add:text",
+        "add:text",
+        "add:llm"
+      ],
+      "count": 4
     },
     {
       "actions": [
@@ -136,8 +153,8 @@
     {
       "actions": [
         "add:text",
-        "add:text",
-        "add:join"
+        "add:llm",
+        "add:text"
       ],
       "count": 2
     },
@@ -150,5 +167,5 @@
       "count": 1
     }
   ],
-  "total": 945
+  "total": 1538
 }

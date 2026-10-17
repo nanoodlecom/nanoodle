@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Blockout first, then the shot — nanoodle</title>
+<meta name="description" content="One action idea → a grayscale blockout still → a finished restyle that keeps the same poses and camera → one 5-second image-to-video shot. Reported saved run: $0.15024." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="Blockout first, then the shot — nanoodle" />
+<meta property="og:description" content="One action idea → a grayscale blockout still → a finished restyle that keeps the same poses and camera → one 5-second image-to-video shot. Reported saved run: $0.15024." />
+<meta property="og:url" content="https://nanoodle.com/guide/examples/blockout-to-shot" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Blockout first, then the shot — nanoodle" />
+<meta name="twitter:description" content="One action idea → a grayscale blockout still → a finished restyle that keeps the same poses and camera → one 5-second image-to-video shot. Reported saved run: $0.15024." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/examples/blockout-to-shot" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <a href="/guide/examples/">Steal a noodle</a> / <span>Blockout first, then the shot</span></nav>
+
+  <main>
+    <h1><span class="grad">Blockout first, then the shot</span></h1>
+    <p class="lede">One action idea → a grayscale blockout still → a finished restyle that keeps the same poses and camera → one 5-second image-to-video shot.</p>
+
+    <section>
+      <p class="meta-row">Sampled frames · 2026-10-12 · Reported saved run: $0.15024. <code>z-ai/glm-5.3-flash</code> · <code>meta/muse-image/text-to-image</code> · <code>meta/muse-image/edit</code> · <code>bytedance-seedance-v1.5-pro</code></p>
+      <p>A Blender-style blockout (gray untextured stand-ins, readable silhouettes, explicit camera) gives the image and video models a blueprint. An LLM writes the blockout prompt; Muse paints it. A second LLM writes a look bible, Join puts a keep-composition line in front of it, and Muse Edit restyles materials and lighting while keeping the layout. A third LLM writes a short motion brief; Seedance 1.5 Pro animates the finished still. One look and one action throughout. Inspired by &lt;a href=&quot;https://x.com/ComfyUI/status/2107848762957983856&quot;&gt;ComfyUI on X&lt;/a&gt; (blockout then restyle); only the idea is used.</p>
+
+      <h2>Saved result</h2>
+      <div class="media sequence">
+          <figure><a href="/examples/gallery/blockout-to-shot/blockout.webp"><img src="/examples/gallery/blockout-to-shot/blockout.webp" alt="1. Blockout still: matte gray stand-ins, one robot mid-leap · reported $0.01 — Blockout first, then the shot" loading="lazy" /></a><figcaption>1. Blockout still: matte gray stand-ins, one robot mid-leap · reported $0.01 · <a href="/examples/gallery/blockout-to-shot/blockout.webp" download>Download</a></figcaption></figure>
+          <figure><a href="/examples/gallery/blockout-to-shot/finished.webp"><img src="/examples/gallery/blockout-to-shot/finished.webp" alt="2. Finished look: Muse Edit restyles materials and dusk light, same layout and pose · reported $0.01 — Blockout first, then the shot" loading="lazy" /></a><figcaption>2. Finished look: Muse Edit restyles materials and dusk light, same layout and pose · reported $0.01 · <a href="/examples/gallery/blockout-to-shot/finished.webp" download>Download</a></figcaption></figure>
+          <figure><video controls playsinline preload="none" poster="/examples/gallery/blockout-to-shot/preview.webp" aria-label="3. Shot: Seedance animates the finished still (720p, 5 s, silent) · reported $0.13 — Blockout first, then the shot"><source src="/examples/gallery/blockout-to-shot/shot.mp4" type="video/mp4"></video><figcaption>3. Shot: Seedance animates the finished still (720p, 5 s, silent) · reported $0.13 · <a href="/examples/gallery/blockout-to-shot/shot.mp4" download>Download</a></figcaption></figure>
+        </div>
+
+      <div class="callout"><p>GLM 5.3 Flash writes three prompts from one action idea: a grayscale blockout prompt, a look bible, and a motion brief. Join puts a fixed keep-composition line in front of the look bible and a short animate line in front of the motion brief. Muse paints the blockout: matte gray rooftops and one boxy wheel-legged robot mid-leap over the gap, seen from a low rooftop camera. Muse Edit restyles it into weathered brick, fire escapes, a dusk sky, and an off-white robot with orange panels, keeping the blockout&#39;s layout, robot pose, and camera; it also adds a flock of pigeons that the look bible asked for. Seedance 1.5 Pro (720p, 5 s, silent) animates the finished still: the robot sails over the gap, spins sideways in mid-air, lands on the far roof, and the camera swings round behind it as it rolls toward the sunset. Flaws: the mid-air spin was not asked for, the landing has no crouch-and-settle, and the robot keeps rolling instead of holding still. Inspired by ComfyUI&#39;s blockout-then-restyle post on X; no media from that post is used.</p></div>
+
+
+
+      <h2>Make it yours</h2>
+      <ol class="input-list">
+        <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
+        <li>Rewrite <em>Action idea</em> with clear poses and one camera path (family-friendly). To change the finished look, edit the Look bible system prompt or swap the Edit model. To change motion, edit the Motion brief system prompt or swap the Image → Video model. Keep resolution and duration matched if you swap video models. Running the graph makes three cheap text calls, one image call, one edit call, and one paid video call.</li>
+        <li>Check the editor estimate, then run with your NanoGPT key. The saved sample reported about $0.15: Seedance 1.5 Pro at $0.13 (720p, 5 s, audio off), Muse text-to-image $0.01, Muse Edit $0.01, and about $0.0002 for three GLM 5.3 Flash calls. Join nodes are free. Prices and results vary.</li>
+        <li>Compare the blockout still to the finished still: the rooftops, the robot's mid-leap pose, and the camera should match. Then scrub the clip. In the saved run the robot clears the gap and lands on the far roof, but it also spins sideways in mid-air, skips the crouch, and keeps rolling while the camera swings behind it.</li>
+      </ol>
+
+
+      <div class="cta">
+        <a class="primary" href="https://nanoodle.com/#g=H4sIAAAAAAAAA8VYXXPbNhZ9z6-445fas5IiyZad2k9Jm-7s1ok70-zs7Gz6AJGghBokuARoWe3kv--5ACmR-jItp-2MRxZJ4eLcc8_9AH9_RXTycHJNox5_y0wsLa7-iwui3_0nbqsY906ivsqczNxJr77vlrn0T0yath484m7_Yri6XvL15HJ9Y4EbF43rREkd8871nmxdPjq2_k6b6N6UjhJVWNcjN5cZf5CdGzegfxfKSRJ8VTgSkVMmIxVLQQvl5hRpKQrKjZWWRBZTJFJZiAG9zej29gO5ssgsKUfwzcDKrBBLGwktaSZNKl2hIprWAKxTWtPph9JK-jT-x9k1lRmjLAsZ4yHMgyLbo0KKWExhwyo9N6V0TuKufMy1irBVUohUZTNgICsjA1CMZMF-ACNpY-5pqrD-hv5pVEa5sOHJvZR5H2TDG-Xd1CqTQA6LJnNkEjhyQx7e-xgbFdK6pcZSZmvlhfc0UZmyc8CO5qIAabII9Gg1mzuAo8VcwQHeka883WCOGrv3Aqu9Nq34qSo2PAqhSY3HPC2UTG7oZyljkUWSRoMJ_VQYOr0aD_MeTQgWwRv0dAbLKhWucmAF2YdhQHfwnbnqkcG3KvCfy_FwdOF__wARGADO4E9Z2agYiWkqBaQEjmKDR5lhWh6wJ9BmckE2kpkcrARNrHFtCpbjUmptFifVky_-_5feroRhEW4ni5f1wUxpp8n5eH2dgWW28Xat8pNOOfSWpuZxCTJKsF9QYabw2OeHdeV0ukS4pdR9LWeWkDA5Ry0TRWEW-K1JnMlpJnKw5haSs29hOI4RdFoqHUMhWAAuS3s_oFssctDUPQsn6IIFmvoAZJyNlcmbEBKPJS8RWgsJJ_4mQjST0IFQGpajwtgQP6G1XAbFaXxgQSgFSWU1-ATFYQPCsjKaD7qEKocwZPEgjwnX-eXTAfsRedTMnW5R86vYPfkIeT-Re5z-QeKJLCRnVp3xnCp6yZmezSRxQhVKaCz2msb_OumDOVsWicDyWDrQ34m-eqe-T_lim0Wt0zaJF-ON7jAe7mfRqt_kBkV2iZqYcuMaD2uAW6yvOkcO-eXuMOkpep_mVb_1hXo902l_MjjvJ1rYebMOoLZbk4Gs90mCquadQzlo_CIVj5_MvczY_snFcNh8toJ98h9ThgJJdx_fE8ocQhNgEuxCwu9QAmNZ9H3Bone3d9_9ePevT1UPqmKNSl98Y5tNb0B_X3Uwg6hfc7yxSSpjVaZ9bm_NprVucqv2RacoFSytaIn2AgS-Hqc5DGqVToOq7FkPRbOSCOywYHiJNoDFijIzg39wZCW3AXk57-iNje4cxF71yUrXp5CtRjGYS5Zpr26fZ-uiEhz_QaME-cRHTYuV8b08aNuD9Wr334RLjc3nSBOaIXgDHwJcclucgRfPXN1KYuPbQ645J0TdsWu62EWuRADUZzdQAxk9nG6WJguEAxpdXn9LEVo2OPGM-zZ2MST046shLUwRgzNsBLNW8qzlSQXgOUjzRZZ3U9aFu_8rDXoj0Jcuh8g9aN4xyKhT4nL_PD5p_4icvV1NP39Juk46pet6RAPhojFo7R4gV8lbDZnr4asthkNp_b2hj3dIf0gaNu43-gmdehxhHsTKOPYzDlyWtETTt2cD-s48oPWHouDFvkrN0EV8M7ghmT0ojJM80K9_ceN7-3o65AU5nET23qBZo2okmB8w_llbpnI9Lm7O3STaw-jz5L8tdR-IHBMsaM-7tfowhh4v-qs_QPQfGqPxXyH7826yD3O871V9Z_phwK7G-lbvmvSrMhlplYcUQcEsnA01W2QY5LgRLDeG-icSgOtwIfs4o0aFmobo240m83390GtkwVunEL69DqJU3Etqw6xLPjtU2uTfQYA8CkL70J-VYSKa80SL1ZOq-lskSTzAqSUMjcEy4wfmZlJ63dfnKzRLq2bZgM694ieTWvGMYCXhDb2_hwU_0voJkDP3o_EHlMaxjVOlCK0GnVG-qB_82mdOt7PiV5xD22nx5nKjF7xpp8X4YnsKXhH2N2pvs0vpVua85vPnDH_dsAcpHoN-M6l3of_QFPpXxl4VJWgvUY_HHEK2HHhzwIH2JgfPjeEAvuP87TM9UQhmlRPPOihsu-iryuEgbZ8RhttOvmu9rOlYTNGnxesUVafvYbxm97nCtUFVBZ4X8CjXvP8gUH6YXV9OR11Hr20aMKZvRHrU9JJpGG2eN4cHG1Cl12va335-qCP7dFbupawF_ABTKzgnXUjiV3w7tOI7zwZNV08dy19M088Ag1PBcDi9oontyNN06cKLLrTE6svDaDBBqps9tDTuxmXhVcX3J-3-bo0u60f85qz5VNhcRm4X-x7WXe7aaPFgJjO0QCff8skJDxM0U7n6wZeGCUyJwr8j_qUdP3z-4l8iYwi93_sSWY8avMHnNmv8_nnrzRmzU80wvixtxceZ3Vb2vZVoGKxo75Ku4z8P-K5T2XGgz_880Lvn6uNgX3SBvfXO7mjoG1NPw47oBHfSBe4TQf1aiKedEF92Qbx7KHkB5o357Nk8Xz0D9ddjej_qbly_6YK6Q606rvi9MBO_7QJ-vxqfX_deiHc0fA7buzYLM9-LMbfNHITcqSV22-dJuK2B6ji4nRrhobR5nij2Id4pilf1EJJ5tKPzaiIJF6--_B94nuoe8B4AAA">Open this noodle →</a>
+        <a class="secondary" href="/examples/gallery/#blockout-to-shot">See the reviewed run</a>
+      </div>
+      <p class="howto-note"><a href="/examples/gallery/blockout-to-shot/workflow.json" download>Download workflow</a>
+        · <a href="/examples/gallery/blockout-to-shot/graph.json" download>Original sampled graph</a>
+        · <a href="https://mcp.nanoodle.com/#blockout-to-shot">Explore MCP tools</a>
+        · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a></p>
+      <nav class="next">
+        <a href="/guide/examples/">← All examples</a>
+        <a href="/guide/examples/story-to-shot">Write a story. H3 picks the shots.</a>
+        <a href="/guide/examples/idea-to-3d-model">Idea to concept art to 3D model →</a>
+        <a href="/examples/gallery/#blockout-to-shot">Reviewed run</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· No analytics · Your key stays on your device</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>
