@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Idea to concept art to 3D model — nanoodle</title>
+<meta name="description" content="One object idea → an LLM concept description → a clean concept render → a textured GLB you can orbit. Reported saved run: $0.21007." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="Idea to concept art to 3D model — nanoodle" />
+<meta property="og:description" content="One object idea → an LLM concept description → a clean concept render → a textured GLB you can orbit. Reported saved run: $0.21007." />
+<meta property="og:url" content="https://nanoodle.com/guide/examples/idea-to-3d-model" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Idea to concept art to 3D model — nanoodle" />
+<meta name="twitter:description" content="One object idea → an LLM concept description → a clean concept render → a textured GLB you can orbit. Reported saved run: $0.21007." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/examples/idea-to-3d-model" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <a href="/guide/examples/">Steal a noodle</a> / <span>Idea to concept art to 3D model</span></nav>
+
+  <main>
+    <h1><span class="grad">Idea to concept art to 3D model</span></h1>
+    <p class="lede">One object idea → an LLM concept description → a clean concept render → a textured GLB you can orbit.</p>
+
+    <section>
+      <p class="meta-row">Orbited in the editor · 2026-10-12 · Reported saved run: $0.21007. <code>z-ai/glm-5.3-flash</code> · <code>meta/muse-image/text-to-image</code> · <code>wavespeed-ai/trellis-2/image-to-3d</code></p>
+      <p>Image-to-3D models work best from one clear object on a plain background. An LLM writes the object&#39;s parts, materials, and colors; Join adds fixed 3D-ready render rules; Muse paints the concept; TRELLIS.2 turns that single image into a textured GLB. Inspired by &lt;a href=&quot;https://x.com/patchmonkeydev/status/2109453424643428622&quot;&gt;@patchmonkeydev on X&lt;/a&gt; (prompt → concept → multi-view → 3D in ComfyUI); only the idea is used.</p>
+
+      <h2>Saved result</h2>
+      <div class="media sequence">
+          <figure><a href="/examples/gallery/idea-to-3d-model/concept.webp"><img src="/examples/gallery/idea-to-3d-model/concept.webp" alt="1. Concept art: Muse paints the GLM description on a plain background · reported $0.01 — Idea to concept art to 3D model" loading="lazy" /></a><figcaption>1. Concept art: Muse paints the GLM description on a plain background · reported $0.01 · <a href="/examples/gallery/idea-to-3d-model/concept.webp" download>Download</a></figcaption></figure>
+          <figure><video controls playsinline preload="none" poster="/examples/gallery/idea-to-3d-model/preview.webp" aria-label="2. 3D model: TRELLIS.2 GLB from that one picture, one full turn in nanoodle&#39;s 3D viewer (screen capture, 4 s) · reported $0.20 — Idea to concept art to 3D model"><source src="/examples/gallery/idea-to-3d-model/turntable.mp4" type="video/mp4"></video><figcaption>2. 3D model: TRELLIS.2 GLB from that one picture, one full turn in nanoodle&#39;s 3D viewer (screen capture, 4 s) · reported $0.20 · <a href="/examples/gallery/idea-to-3d-model/turntable.mp4" download>Download</a></figcaption></figure>
+        </div>
+
+      <div class="callout"><p>GLM 5.3 Flash turns a one-line object idea into a concept description: a teal capsule-shaped toy submarine with a cream belly band, a brass periscope, three cream-rimmed portholes, a brass wind-up key, and a striped tail cone with a three-blade propeller. Join adds fixed render rules (one whole object, three-quarter view, plain light-gray background, no props), and Muse paints the concept. TRELLIS.2 (1024 geometry, 1024 textures, about 80k faces) turns that single picture into a 3.6 MB textured GLB. Orbiting it in nanoodle&#39;s 3D viewer shows a complete toy from every side, including a far side and back that the picture never showed: portholes on both flanks, the striped tail, the propeller blades, the key, and the periscope. Flaws: the viewer renders it flatter and less glossy than the concept, the thin key and propeller blades go soft at some angles, and the cream band on the far side is a plainer flat strip. Inspired by @patchmonkeydev&#39;s prompt → concept → multi-view → 3D ComfyUI pipeline on X; no media from that post is used.</p></div>
+
+
+
+      <h2>Make it yours</h2>
+      <ol class="input-list">
+        <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
+        <li>Rewrite <em>Object idea</em> with one solid object (family-friendly). Keep the render rules if you want clean 3D: one whole object, plain background, no props. To trade price for detail, change the 3D model node's geometry resolution (512 / 1024 / 1536) or swap in Tripo 2.5 or Hunyuan. Running the graph makes one cheap text call, one image call, and one paid 3D call.</li>
+        <li>Check the editor estimate, then run with your NanoGPT key. The saved sample reported about $0.21: TRELLIS.2 at $0.20 (1024 geometry), Muse text-to-image $0.01, and under $0.0001 for one GLM 5.3 Flash call. A concept-only test before the full run added about $0.01. Prices and results vary.</li>
+        <li>Open the workflow and drag the 3D node to orbit the saved GLB. Check the sides the concept never showed: in the saved run the far side has portholes and a plainer cream strip, and the thin key and propeller blades go soft at some angles. The viewer shows flatter shading than the concept render.</li>
+      </ol>
+
+      <p class="howto-note">The editor workflow also points the 3D node at the saved GLB as its sample, so you can orbit the result before running; ▶ Run replaces it. Everything else matches the sampled graph.</p>
+      <div class="cta">
+        <a class="primary" href="https://nanoodle.com/#g=H4sIAAAAAAAAA7VXXW_bNhR976-48MtawHL8la7rntomGzqkC9B0GIZ1KGiJttlQpEZScdQi_33nUrIj2W6qbhjQOpZIXl6ec-659OdHRIObwXOaDPmbsZn0ePoTD0Sf4ydeqwzvBmmiTJAmDIbb96EqZByxed4ZuMXbZD7ePVf8PHt6_2KDF6fT--elkjrjnbd7cnR5Gzj660wKel9OJz9MKbUmlUUg4cL21eyMcqStR_S7U0GSNfi_-CjTQMpQoQU-N9ZlfkQvDF1cvKFQOuNJ8XiwJLZBEw6K86dOFUFZQ4_9WhRySAUG_JByEaRTQuNrarV1_smIfrGILrLM01LdyoycNJl05EotPT3mVDZrq7cJDSmsnZTJ3yUiYtqNkpthk6JWq3VIVk5UtBDp9crZ0mRPyFuskVSoFFlLUp6k8BUhb62WzQlmZyN6U3rMQqDg44LmTD_Su7fnFxevr0bT5thhLQJ5ZVbISuViJbcoMNzYIqOfL15SZUtKhSHrFiqM6GojihhWMRfCZAz-6eIpvS3NaEc7sRIADJNWSa3tZtCM3MW_d8NjsuKQh5KK5D-op66YZi0xGZHHGJeNCjobPKS0F5SuS3Nd0UaZLClxZFuRLxe5cIqpVGENoBZOeE8FtOBTy_qIpFIkjArrAjMOkQjyAVICokEoTYXDZK1BO-OHMGq12-daVtAttiuGNYm8SAodp6ZOinzUB8qtkDdcCO4QVK3zLqazZ30x9eqT3EPNVz7InL1jOt4md8DBq6ZgW3X1MBexlnnlp0Sok5XOk9PRLFlq4ddtoQETbw1kfL5cAvJ4OuitNSMXt-_stTQcfzAfj9tju9QHf0DoEa4o76vfXv5y_updrHiyS8Df1AjIy3EKbAXmZmcJts-qnRs1VY8Fl7-eb81niSUxKCrTfeejDEd0FnFYsE3pKg7X05-TvZFOaI3a1GtbyoCUmH2WDQ4I3CApKdI1XMOrhZYxySOuNCSfxzilW4pUAnmWH9zvjbiWJLFLVZ_PW62yWmHWGOQA0T02lpbaigBkYToyZSEb9iB2UeWax5XmEtiahJeMHvS_WsMSzyxmBOKGwCZ6b2bD2uMQGalCHk5A7NIWGiUEXLkIR_STyJWukqVTwFRXI5qP2ey-H9cePoz2jvQFnLJYb83TS-5MSHZEl2UoynAPb0t4vWrIh0rLPn60Xzvz6dcdaaecdp_o501XtWU34kLT64pvGA_bbja0LDUwADpLh-1rohkn9vhoZbC1FYZBUq27jNntdiiI2ITYp2o9-0ghwooF9AqpWTQhaAoUhDJTtqb4nhaR44D-eHOrlVTbJjptZjfxDQu-ER2OHr9YnM01x_K9WPyY1BV7SORHdOwukc_GXSIne_eU6fyQyK2t7e9yjEEvC17y_r3Bv2-w8cPcoxd1k59M9triXvKz8YMe3uQP5_-qg0MQPZ07h-Oc5LC9JCZ8wjwmwSbd9JuEeMHk-aT9-gbtVkTHi4N9IMtlqz3s8IoZzbI9xE4fRmx-hO77S1Rz6cQdqScYG3EjfSFlxu0sONwAlE-mJxELBqWVXpuPQaeVcbDLInT3iF0QJl7GpspIjafz1rLGPHCn-7AD-nAGPECGD9wpPqQoxVAXxHi8m3TXJkzksGuOJG_jV3-yEnynqU64vdXnSWK6J_WlfKUXe_zh86_4Y0Mrc_3FHxt60sIXoHTR5d8pB3dHhq-5CkTTPFB0sMejfOHa1IrX0NJDiHraJ--v7_htJziwu1Yk0SvtWZ-0u73xf8l2Xy3Hs533yfahbf6VQP6jMk6_QRnHtqrts3fSHUv8Ypi9mjQx12dNffL3p4_u_gFgh-sLJRAAAA">Open this noodle →</a>
+        <a class="secondary" href="/examples/gallery/#idea-to-3d-model">See the reviewed run</a>
+      </div>
+      <p class="howto-note"><a href="/examples/gallery/idea-to-3d-model/workflow.json" download>Download workflow</a>
+        · <a href="/examples/gallery/idea-to-3d-model/graph.json" download>Original sampled graph</a>
+        · <a href="https://mcp.nanoodle.com/#idea-to-3d-model">Explore MCP tools</a>
+        · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a></p>
+      <nav class="next">
+        <a href="/guide/examples/">← All examples</a>
+        <a href="/guide/examples/blockout-to-shot">Blockout first, then the shot</a>
+        <a href="/guide/examples/photo-to-video">Animate a still →</a>
+        <a href="/examples/gallery/#idea-to-3d-model">Reviewed run</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· No analytics · Your key stays on your device</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -238,6 +238,19 @@
   .update-items a{ color:var(--accent); font-weight:600; text-decoration:none; overflow-wrap:anywhere }
   .update-items a:hover{ color:var(--ink); text-decoration:underline }
   #updatesempty{ font-size:.85rem; color:var(--dim); padding:1.4rem 0 }
+  /* an entry's usage clip (updates.json "media"): a small muted loop under the line,
+     lazy-loaded only while it's in view; click opens it large in #updclipbox. */
+  .update-clip{ display:block; margin:.45rem 0 .3rem; padding:0; width:min(100%,300px); border:1px solid var(--line);
+                border-radius:.5rem; overflow:hidden; background:#000; cursor:zoom-in; position:relative; line-height:0 }
+  .update-clip:hover, .update-clip:focus-visible{ border-color:var(--accent) }
+  .update-clip video{ display:block; width:100%; height:auto; pointer-events:none }
+  .update-clip::after{ content:"⤢"; position:absolute; right:.35rem; bottom:.35rem; font-size:.8rem; line-height:1;
+                       padding:.22rem .3rem; border-radius:.35rem; background:#0b0d12cc; color:var(--ink) }
+  #updclipbox[hidden]{ display:none }
+  #updclipbox{ position:fixed; inset:0; z-index:206; display:flex; align-items:center; justify-content:center;
+               padding:min(4vh,2rem) min(4vw,2rem); background:rgba(4,6,11,.9); cursor:zoom-out }
+  #updclipbox video::cue{ font:500 clamp(14px,2vw,21px)/1.35 Inter,system-ui,sans-serif; color:#fff; background-color:rgba(11,13,18,.82) }
+  #updclipbox video{ max-width:100%; max-height:100%; border-radius:.6rem; border:1px solid var(--line); box-shadow:0 30px 90px #000a; background:#000 }
   /* the 📣 Updates button's unseen badge */
   #updates{ position:relative }
   #updbadge[hidden]{ display:none }
@@ -650,11 +663,14 @@
          border-radius:.7rem; box-shadow:0 10px 30px #0006; z-index:10; user-select:none; }
   .node.sel{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent), 0 14px 36px #0008 }
   /* card-corner resize grip — drag to set card width + the primary prompt's height (writes n.w / n.sizes) */
-  .node .rgrip{ position:absolute; right:0; bottom:0; width:16px; height:16px; z-index:6;
+  .node .rgrip{ position:absolute; right:0; bottom:0; z-index:6;
+                width:calc(16px * var(--invz, 1)); height:calc(16px * var(--invz, 1));
                 cursor:nwse-resize; opacity:.4; touch-action:none; border-radius:0 0 .7rem 0;
                 background:linear-gradient(135deg, transparent 0 50%, var(--dim) 50% 62%, transparent 62% 74%, var(--dim) 74% 86%, transparent 86%); }
   .node .rgrip:hover{ opacity:1 }
-  .node .rgrip::after{ content:""; position:absolute; inset:-7px -7px 0 0; }  /* fat touch target */
+  /* slop stays ~constant on screen: #world's scale shrinks CSS px, --invz (1/scale) cancels it */
+  .node .rgrip::after{ content:""; position:absolute;
+                inset:calc(-8px * var(--invz, 1)) calc(-6px * var(--invz, 1)) calc(-12px * var(--invz, 1)) calc(-12px * var(--invz, 1)); }
   /* run glow uses --invz (1/zoom on #world) so the ring stays screen-visible when the graph is fit-zoomed out */
   .node[data-status=run]{ border-color:var(--warn);
     box-shadow:0 0 0 calc(2px * var(--invz,1)) color-mix(in srgb, var(--warn) 70%, transparent),
@@ -669,11 +685,13 @@
   .node header.t-text{ background:linear-gradient(90deg,#7c8cff22,transparent) }
   .node header.t-llm{ background:linear-gradient(90deg,#3ddc9722,transparent) }
   .node header.t-vision{ background:linear-gradient(90deg,#ffcf6b22,transparent) }
+  .node header.t-decide{ background:linear-gradient(90deg,#f5b94222,#3ddc9714,transparent) }
   .node header.t-edit{ background:linear-gradient(90deg,#ff79c622,#7c8cff14,transparent) }
   .node header.t-tvideo, .node header.t-ivideo, .node header.t-combine{ background:linear-gradient(90deg,#5ad1e622,transparent) }
   .node header.t-soundtrack{ background:linear-gradient(90deg,#5ad1e622,#7c8cff14,transparent) }
   .node header.t-vframes{ background:linear-gradient(90deg,#5ad1e622,#ff79c614,transparent) }
   .node header.t-extractaudio{ background:linear-gradient(90deg,#5ad1e622,#3ddc9714,transparent) }
+  .node header.t-cleanvoice{ background:linear-gradient(90deg,#9b8cff22,#3ddc9714,transparent) }
   .node header.t-music, .node header.t-tts{ background:linear-gradient(90deg,#3ddc9722,transparent) }
   .node header.t-model3d{ background:linear-gradient(90deg,#a78bfa22,transparent) }
   .node header.t-mupload{ background:linear-gradient(90deg,#67e8f922,transparent) }
@@ -860,6 +878,18 @@
   .result audio{ width:100%; margin-top:.2rem }
   .result .rtext{ font-size:.82rem; white-space:pre-wrap; max-height:160px; overflow:auto; color:var(--ink) }
   .result .err{ color:var(--bad); font-size:.8rem; white-space:pre-wrap }
+  /* ⚖️ Decide result card: answer + one probability bar per option */
+  .result .decide{ font-size:.78rem; display:flex; flex-direction:column; gap:.18rem }
+  .result .decide .dhead{ font-size:.9rem; font-weight:600; color:var(--ink); margin-bottom:.1rem }
+  .result .decide .drow{ display:grid; grid-template-columns:minmax(3.5rem,auto) 1fr 2.6rem; gap:.4rem; align-items:center; color:var(--dim) }
+  .result .decide .drow.win{ color:var(--ink); font-weight:600 }
+  .result .decide .dlab{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:9rem }
+  .result .decide .dbar{ height:.42rem; background:var(--panel2); border-radius:.3rem; overflow:hidden }
+  .result .decide .dbar i{ display:block; height:100%; background:var(--dim); border-radius:.3rem }
+  .result .decide .drow.win .dbar i{ background:var(--good) }
+  .result .decide .dp{ text-align:right; font-variant-numeric:tabular-nums }
+  .result .decide .dmeta{ color:var(--dim); font-size:.7rem; margin-top:.15rem }
+  .result .dgate{ color:var(--warn); font-size:.8rem; font-weight:600; margin-bottom:.3rem }
   .result .frames{ display:flex; flex-wrap:wrap; gap:.35rem }
   .result .frames .fr{ position:relative; flex:1 1 46%; min-width:80px }
   .result .frames .fr img{ width:100%; border-radius:.45rem; display:block }
@@ -1212,6 +1242,7 @@
     <div id="updateslist"></div>
   </div>
 </div>
+<div id="updclipbox" hidden><video muted loop playsinline controls></video></div>
 
 <!-- Examples: one-click starter workflows (embedded graphs, loaded through applyGraphData). No fetch. -->
 <div id="examplesmodal" hidden>
@@ -1379,6 +1410,7 @@ const NANOGPT = "https://nano-gpt.com";
 const MEDIA_INLINE_MAX = 4.4*1024*1024;   // edge (Vercel) rejects request bodies over ~4.5 MB; guard inlined base64 media
 const IMG_ENDPOINT  = `${NANOGPT}/v1/images/generations`;
 const CHAT_ENDPOINT = `${NANOGPT}/api/v1/chat/completions`;
+const DECIDE_ENDPOINT = `${NANOGPT}/api/v1/decisions`;   // ⚖️ Decide — typed choice/score/yes-no from decision models
 const $ = (id) => document.getElementById(id);
 const clamp = (v,a,b)=> Math.max(a, Math.min(b, v));
 const esc = (s)=> String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1509,6 +1541,7 @@ const I18N = {
     "Language":"Idioma",
     "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"El acortador propio de nanoodle — admite enlaces muy largos (los enlaces de flujo pueden crecer mucho)",
     "this model can’t hear audio — pick an audio-input model":"este modelo no puede oír audio — elige un modelo con entrada de audio",
+    "this model can’t watch video — pick a video-input model":"este modelo no puede ver vídeo — elige un modelo con entrada de vídeo",
     "Close":"Cerrar",
     "Connect nodes":"Conectar nodos",
     "Close model picker":"Cerrar el selector de modelos",
@@ -1712,6 +1745,7 @@ const I18N = {
     "variation":"variación",
     "variations":"variaciones",
     "vision":"visión",
+    "video in":"entrada de vídeo",
     "what to paint in":"qué pintar dentro",
     "wire two or more clips — they join in order, top to bottom":"conecta dos o más clips — se unen en orden, de arriba abajo",
     "· blank = random, fix to repeat (re-run won't regenerate)":"· vacío = aleatorio, fija para repetir (re-ejecutar no regenerará)",
@@ -1856,6 +1890,9 @@ const I18N = {
     "motion prompt (optional)":"prompt de movimiento (opcional)",
     "style / prompt":"estilo / prompt",
     "musical style — not lyrics":"estilo musical — no la letra",
+    "sound description":"descripción del sonido",
+    "Samples":"Muestras",
+    "samples":"muestras",
     "Lyrics (sung words)":"Letra (palabras cantadas)",
     "Instrumental (no vocals)":"Instrumental (sin voz)",
     "the sung words — wire or type them here. Style is the prompt above, not this field.":"las palabras cantadas — conéctalas o escríbelas aquí. El estilo es el prompt de arriba, no este campo.",
@@ -2049,6 +2086,12 @@ const I18N = {
     "Avatar / lipsync":"Avatar / sincronización labial",
     "Image + audio → talking video":"Imagen + audio → vídeo hablado",
     "Transcribe":"Transcribir",
+    "Clean voice":"Voz limpia",
+    "Strip background noise and music — keep the voice (audio or video in)":"Quita el ruido de fondo y la música — conserva la voz (entra audio o video)",
+    "or a public link":"o un enlace público",
+    "cleans hosted media only: a generated video or track, or a public link. Clips uploaded in the browser can't reach it.":"solo limpia medios alojados: un video o pista generados, o un enlace público. Los clips subidos en el navegador no le llegan.",
+    "cleaning voice…":"limpiando la voz…",
+    "https://…/interview.mp3":"https://…/interview.mp3",
     "Audio → text (speech-to-text)":"Audio → texto (voz a texto)",
     "Inputs":"Entradas",
     "Other":"Otros",
@@ -2214,6 +2257,7 @@ const I18N = {
     "Language":"Langue",
     "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"Le raccourcisseur maison de nanoodle — gère les liens très longs (les liens de workflow peuvent devenir volumineux)",
     "this model can’t hear audio — pick an audio-input model":"ce modèle ne peut pas entendre l’audio — choisissez un modèle à entrée audio",
+    "this model can’t watch video — pick a video-input model":"ce modèle ne peut pas regarder de vidéo — choisis un modèle à entrée vidéo",
     "Close":"Fermer",
     "Connect nodes":"Relier les nœuds",
     "Close model picker":"Fermer le sélecteur de modèles",
@@ -2228,6 +2272,7 @@ const I18N = {
     "variation":"variation",
     "variations":"variations",
     "vision":"vision",
+    "video in":"entrée vidéo",
     "📷 Webcam":"📷 Webcam",
     "audio":"audio",
     "avatar":"avatar",
@@ -2561,6 +2606,9 @@ const I18N = {
     "motion prompt (optional)":"prompt de mouvement (facultatif)",
     "style / prompt":"style / prompt",
     "musical style — not lyrics":"style musical — pas les paroles",
+    "sound description":"description du son",
+    "Samples":"Échantillons",
+    "samples":"échantillons",
     "Lyrics (sung words)":"Paroles (mots chantés)",
     "Instrumental (no vocals)":"Instrumental (sans voix)",
     "the sung words — wire or type them here. Style is the prompt above, not this field.":"les paroles chantées — câblez-les ou saisissez-les ici. Le style est le prompt ci-dessus, pas ce champ.",
@@ -2754,6 +2802,12 @@ const I18N = {
     "Avatar / lipsync":"Avatar / synchro labiale",
     "Image + audio → talking video":"Image + audio → vidéo parlante",
     "Transcribe":"Transcrire",
+    "Clean voice":"Voix nette",
+    "Strip background noise and music — keep the voice (audio or video in)":"Retire le bruit de fond et la musique — garde la voix (audio ou vidéo en entrée)",
+    "or a public link":"ou un lien public",
+    "cleans hosted media only: a generated video or track, or a public link. Clips uploaded in the browser can't reach it.":"ne nettoie que des médias hébergés : une vidéo ou piste générée, ou un lien public. Les clips importés dans le navigateur ne l’atteignent pas.",
+    "cleaning voice…":"nettoyage de la voix…",
+    "https://…/interview.mp3":"https://…/interview.mp3",
     "Audio → text (speech-to-text)":"Audio → texte (reconnaissance vocale)",
     "Inputs":"Entrées",
     "Other":"Autre",
@@ -2919,6 +2973,7 @@ const I18N = {
     "Language":"Sprache",
     "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"nanoodles eigener Kürzungsdienst — verarbeitet sehr lange Links (Workflow-Links können groß werden)",
     "this model can’t hear audio — pick an audio-input model":"dieses Modell kann kein Audio hören — wähle ein Modell mit Audio-Eingang",
+    "this model can’t watch video — pick a video-input model":"dieses Modell kann kein Video sehen — wähle ein Modell mit Videoeingang",
     "Close":"Schließen",
     "Connect nodes":"Knoten verbinden",
     "Close model picker":"Modellauswahl schließen",
@@ -3123,6 +3178,7 @@ const I18N = {
     "variation":"Variation",
     "variations":"Variationen",
     "vision":"Vision",
+    "video in":"Videoeingang",
     "what to paint in":"was hineingemalt werden soll",
     "wire two or more clips — they join in order, top to bottom":"verbinde zwei oder mehr Clips — sie werden der Reihe nach zusammengefügt, von oben nach unten",
     "· blank = random, fix to repeat (re-run won't regenerate)":"· leer = zufällig, festlegen zum Wiederholen (erneutes Ausführen regeneriert nicht)",
@@ -3266,6 +3322,9 @@ const I18N = {
     "motion prompt (optional)":"Bewegungs-Prompt (optional)",
     "style / prompt":"Stil / Prompt",
     "musical style — not lyrics":"Musikstil — kein Songtext",
+    "sound description":"Klangbeschreibung",
+    "Samples":"Varianten",
+    "samples":"Varianten",
     "Lyrics (sung words)":"Songtext (gesungene Worte)",
     "Instrumental (no vocals)":"Instrumental (ohne Gesang)",
     "the sung words — wire or type them here. Style is the prompt above, not this field.":"die gesungenen Worte — verdrahte oder tippe sie hier. Der Stil ist der Prompt oben, nicht dieses Feld.",
@@ -3459,6 +3518,12 @@ const I18N = {
     "Avatar / lipsync":"Avatar / Lippensynchro",
     "Image + audio → talking video":"Bild + Audio → sprechendes Video",
     "Transcribe":"Transkribieren",
+    "Clean voice":"Stimme säubern",
+    "Strip background noise and music — keep the voice (audio or video in)":"Entfernt Hintergrundgeräusche und Musik — behält die Stimme (Audio oder Video rein)",
+    "or a public link":"oder ein öffentlicher Link",
+    "cleans hosted media only: a generated video or track, or a public link. Clips uploaded in the browser can't reach it.":"säubert nur gehostete Medien: ein generiertes Video oder einen Track, oder einen öffentlichen Link. Im Browser hochgeladene Clips erreichen ihn nicht.",
+    "cleaning voice…":"Stimme wird gesäubert…",
+    "https://…/interview.mp3":"https://…/interview.mp3",
     "Audio → text (speech-to-text)":"Audio → Text (Sprache-zu-Text)",
     "Inputs":"Eingaben",
     "Other":"Sonstiges",
@@ -3624,6 +3689,7 @@ const I18N = {
     "Language":"Idioma",
     "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"O encurtador próprio do nanoodle — aceita links muito longos (links de fluxo podem ficar grandes)",
     "this model can’t hear audio — pick an audio-input model":"este modelo não consegue ouvir áudio — escolha um modelo com entrada de áudio",
+    "this model can’t watch video — pick a video-input model":"este modelo não consegue ver vídeo — escolha um modelo com entrada de vídeo",
     "Close":"Fechar",
     "Connect nodes":"Conectar nós",
     "Close model picker":"Fechar o seletor de modelos",
@@ -3828,6 +3894,7 @@ const I18N = {
     "variation":"variação",
     "variations":"variações",
     "vision":"visão",
+    "video in":"entrada de vídeo",
     "what to paint in":"o que pintar na área",
     "wire two or more clips — they join in order, top to bottom":"conecte dois ou mais clipes — eles se unem em ordem, de cima para baixo",
     "· blank = random, fix to repeat (re-run won't regenerate)":"· vazio = aleatório, fixe para repetir (reexecutar não regenera)",
@@ -3971,6 +4038,9 @@ const I18N = {
     "motion prompt (optional)":"prompt de movimento (opcional)",
     "style / prompt":"estilo / prompt",
     "musical style — not lyrics":"estilo musical — não a letra",
+    "sound description":"descrição do som",
+    "Samples":"Amostras",
+    "samples":"amostras",
     "Lyrics (sung words)":"Letra (palavras cantadas)",
     "Instrumental (no vocals)":"Instrumental (sem voz)",
     "the sung words — wire or type them here. Style is the prompt above, not this field.":"as palavras cantadas — ligue ou escreva aqui. O estilo é o prompt acima, não este campo.",
@@ -4164,6 +4234,12 @@ const I18N = {
     "Avatar / lipsync":"Avatar / sincronia labial",
     "Image + audio → talking video":"Imagem + áudio → vídeo falado",
     "Transcribe":"Transcrever",
+    "Clean voice":"Voz limpa",
+    "Strip background noise and music — keep the voice (audio or video in)":"Remove ruído de fundo e música — mantém a voz (entra áudio ou vídeo)",
+    "or a public link":"ou um link público",
+    "cleans hosted media only: a generated video or track, or a public link. Clips uploaded in the browser can't reach it.":"só limpa mídia hospedada: um vídeo ou faixa gerados, ou um link público. Clipes enviados no navegador não chegam a ele.",
+    "cleaning voice…":"limpando a voz…",
+    "https://…/interview.mp3":"https://…/interview.mp3",
     "Audio → text (speech-to-text)":"Áudio → texto (voz para texto)",
     "Inputs":"Entradas",
     "Other":"Outros",
@@ -4329,6 +4405,7 @@ const I18N = {
     "Language":"言語",
     "nanoodle’s own first-party shortener — handles very long links (workflow links can get big)":"nanoodle自身の短縮サービス — とても長いリンクにも対応（ワークフローのリンクは大きくなりがちです）",
     "this model can’t hear audio — pick an audio-input model":"このモデルは音声を聞けません — 音声入力対応のモデルを選んでください",
+    "this model can’t watch video — pick a video-input model":"このモデルは動画を見られません — 動画入力対応モデルを選んでください",
     "Close":"閉じる",
     "Connect nodes":"ノードを接続",
     "Close model picker":"モデル選択を閉じる",
@@ -4532,6 +4609,7 @@ const I18N = {
     "variation":"バリエーション",
     "variations":"バリエーション",
     "vision":"ビジョン",
+    "video in":"動画入力",
     "what to paint in":"何を描き込むか",
     "wire two or more clips — they join in order, top to bottom":"クリップを2つ以上つないでください — 上から下の順に結合されます",
     "· blank = random, fix to repeat (re-run won't regenerate)":"· 空欄=ランダム、固定すると繰り返す（再実行で再生成されない）",
@@ -4676,6 +4754,9 @@ const I18N = {
     "motion prompt (optional)":"動きのプロンプト (任意)",
     "style / prompt":"スタイル / プロンプト",
     "musical style — not lyrics":"音楽スタイル — 歌詞ではない",
+    "sound description":"音の説明",
+    "Samples":"サンプル数",
+    "samples":"サンプル数",
     "Lyrics (sung words)":"歌詞（歌う言葉）",
     "Instrumental (no vocals)":"インストゥルメンタル（ボーカルなし）",
     "the sung words — wire or type them here. Style is the prompt above, not this field.":"歌う言葉 — ここに配線するか入力。スタイルは上のプロンプトであり、この欄ではない。",
@@ -4869,6 +4950,12 @@ const I18N = {
     "Avatar / lipsync":"アバター / リップシンク",
     "Image + audio → talking video":"画像 + 音声 → 話す動画",
     "Transcribe":"文字起こし",
+    "Clean voice":"音声クリーン",
+    "Strip background noise and music — keep the voice (audio or video in)":"背景ノイズや音楽を除去して声だけを残す（音声または動画を入力）",
+    "or a public link":"または公開リンク",
+    "cleans hosted media only: a generated video or track, or a public link. Clips uploaded in the browser can't reach it.":"ホストされたメディアのみ対応：生成した動画・トラック、または公開リンク。ブラウザでアップロードしたクリップは届きません。",
+    "cleaning voice…":"音声をクリーニング中…",
+    "https://…/interview.mp3":"https://…/interview.mp3",
     "Audio → text (speech-to-text)":"音声 → テキスト(文字起こし)",
     "Inputs":"入力",
     "Other":"その他",
@@ -5034,9 +5121,15 @@ function normChat(m){
       ? m.reasoning_efforts.map(String) : null,
     audio_input:!!c.audio_input, video_input:!!c.video_input, pdf_upload:!!c.pdf_upload,
     maxOut: m.max_output_tokens,   // max_tokens ceiling (present on most models)
+    // Decision models (architecture.output_modalities ["decisions"]) answer typed questions instead of
+    // chatting: only the ⚖️ Decide node lists them, and they never appear in the LLM / Vision pickers.
+    decision: !!(m.architecture && Array.isArray(m.architecture.output_modalities) && m.architecture.output_modalities.indexOf("decisions")>=0),
+    decisionInput: m.decision_input || null,
     promptUsd1M: p.prompt!=null ? +p.prompt : null,          // $ per 1M input tokens — numeric, drives the run estimate
     completionUsd1M: p.completion!=null ? +p.completion : null,
-    price: p.prompt!=null ? `$${(+p.prompt).toFixed(2)}/$${(+p.completion).toFixed(2)} ·1M`
+    price: (p.prompt!=null && m.architecture && Array.isArray(m.architecture.output_modalities) && m.architecture.output_modalities.indexOf("decisions")>=0)
+         ? `$${(+p.prompt).toFixed(2)} ·1M in · output free`
+         : p.prompt!=null ? `$${(+p.prompt).toFixed(2)}/$${(+p.completion).toFixed(2)} ·1M`
          : (p.note==="varies_by_modality" ? "price varies by input" : "") };   // omni models: no flat token price
 }
 // Edit models verified live (2026-06-26) to HONOR a brushed mask on the inpaint path: the masked
@@ -5123,11 +5216,13 @@ function normImg(m){
 }
 function normVideo(m){
   const p=applyVideoQuotePricing(m.id, m.pricing||{}), c=m.capabilities||{};
-  const _vu = videoUnitUsd(p, {});                 // universal resolver: every pricing shape at default res/duration, never blank
+  const sp=m.supported_parameters||{}, pp=sp.parameters||sp;
+  // universal resolver at default res/duration. An untouched audio switch quotes the catalog
+  // default (what an omitted key bills), so the picker row matches the node chip.
+  const _vu = videoUnitUsd(p, {}, false, false, undefined, { params:pp, defaults:sp.defaults||{} });
   const price = _vu!=null ? `~$${_vu.toFixed(2)}/clip` : "";
   // the video catalog DOES expose lora params, so gate on the real thing: a lora_url slot
   // means we can drive it (the spicy model only offers a "loras" override → correctly excluded)
-  const sp=m.supported_parameters||{}, pp=sp.parameters||sp;
   const lora = Object.keys(pp).some(k=>/^lora_url/i.test(k));
   // multi-speaker avatars (e.g. LongCat Multi) require left_audio/right_audio URLs, not one audio track —
   // the lipsync node only wires a single audio input, so offering them is a guaranteed dead end unless
@@ -5149,12 +5244,19 @@ function normVideo(m){
   // such model (MiniMax H3 reference-to-video, same created stamp as H3 Max Lip Sync) is the
   // Avatar node's default. Catalog modality + param keys only — no model-name list. Text+image+audio
   // generators that really do take one driving track (music-video-generator, LTX, Wan 2.5) stay.
+  // Preset-only talking avatars (HeyGen Avatar V) are audio→video with image_to_video:false — still
+  // avatars when tagged avatar/lip-sync (or category Avatars). Lyrics/music audio→video rows stay out.
   const refAudio = ("reference_audios" in pp || "reference_audio" in pp || "reference_audio_urls" in pp);
+  const tags = (m.tags || []).map(t => String(t).toLowerCase());
+  const avatarTagged = tags.some(t => t === "avatar" || t === "lip-sync" || t === "talking-avatar")
+    || /avatars?/i.test(m.category || "");
+  const audioOnlyIn = inMods.length === 1 && inMods[0] === "audio";
   return { id:m.id, name:m.name||m.id, created:m.created,
     sortUsd: _vu,                                    // resolved $/clip at default res/duration → price sorts
     t2v:!!c.text_to_video && !needsSourceVideo, i2v:!!c.image_to_video,
     v2v:!!c.video_to_video,                          // edits/extends/upscales a SOURCE video (→ vedit node)
-    avatar:!!c.image_to_video && !!c.audio_input && !multiAudio && !refAudio && !inMods.includes("video"),    // image + single audio → talking video (→ lipsync node)
+    avatar:!!c.audio_input && !multiAudio && !refAudio && !inMods.includes("video")
+      && (!!c.image_to_video || (audioOnlyIn && avatarTagged)),  // image+audio, or preset-only audio→video avatar
     lora,                                            // catalog advertises lora_url_N → the LoRA disclosure is offered
     audioGen:!!c.audio_generation,                   // model renders synchronized audio into the clip → preview should NOT be muted
     params: pp,                                      // per-model param descriptors → the ⚙️ Model options block
@@ -5229,9 +5331,12 @@ function normAudio(m){
   // verbs only — no model ids. stem_separation (ships ZIP archives no browser can play) and
   // voice_clone (returns a voice id, not audio) are deliberately not remix verbs.
   const remix = !dead && !!(c.music_cover || c.audio_to_music || c.music_extension || c.audio_extension || c.audio_inpainting);
+  // 🎧 Clean voice: speech denoise / voice isolation (audio→audio, noise_reduction verb). Stem splitters
+  // (stem_separation) stay out — they return several stems, not one cleaned voice.
+  const denoise = !dead && !!c.noise_reduction;
   return { id:m.id, name:m.name||m.id, created:m.created, owner:m.owned_by||"", voices, langs, language, params:sp,
     sortUsd: audioUnitUsd(p, EST.ttsChars),          // resolved $ at assumed usage → price sorts (mixed units, rough)
-    tts, gen, music: gen && !tts && !remix, remix, stt, pricing:p, nsfw: !!c.nsfw, price };   // music = text-only song gens; audio_to_music (Yue2 m2m) stays on Remix   // raw pricing kept so transcribe can estimate from per_minute
+    tts, gen, music: gen && !tts && !remix, remix, stt, denoise, pricing:p, nsfw: !!c.nsfw, price };   // music = text-only song gens; audio_to_music (Yue2 m2m) stays on Remix   // raw pricing kept so transcribe can estimate from per_minute
 }
 // Pinned 3D defaults. Image→3D is the common case; the text model is used only when a prompt
 // is wired and the current model can't take text. Named ids, not "newest" — newest can be $8.
@@ -5467,8 +5572,10 @@ const catItem = (kind,id)=> (catalogs[kind]||[]).find(m=>m.id===id);
 const KIND_LABEL = { chat:"Chat", image:"Image", video:"Video", audio:"Audio", model3d:"3D" };
 // capability filter shared by the picker and the default-model resolver — metadata only, no model names
 function passesFilter(m, filter){
+  if(filter==="decision") return !!m.decision;   // ⚖️ Decide lists decision models only
+  if(m.decision) return false;                    // …and they can't chat, so keep them out of every other picker
   if(!filter) return true;
-  return !!m[filter];   // vision | edit | t2v | i2v | music | tts | remix are all boolean flags on the catalog item
+  return !!m[filter];   // vision | edit | t2v | i2v | music | tts | remix | denoise are all boolean flags on the catalog item
 }
 // a node's default model = newest catalog entry of the right kind that passes the node's filter (or none yet)
 function defModelFor(type){
@@ -5479,6 +5586,18 @@ function defModelFor(type){
     if(tripo) return tripo.id;
     const m = list.find(x=> !x.nsfw);
     return m ? m.id : MODEL3D_IMAGE_DEFAULT;   // pinned even when the catalog is empty, so the node isn't blank offline
+  }
+  if(t.modelFilter==="decision"){
+    // pick-best needs a model that sees images: prefer the launch default, else any image-capable one
+    const list = (catalogs.chat||[]).filter(x=> x.decision);
+    const pref = list.find(x=> x.id===DECIDE_DEFAULT_MODEL) || list.find(x=> decideImageLimits(x.decisionInput, true)) || list[0];
+    return pref ? pref.id : DECIDE_DEFAULT_MODEL;   // pinned even before the catalog lands, like 3D
+  }
+  if(t.modelFilter==="denoise"){
+    // 🎧 Clean voice: ElevenLabs Audio Isolation by default (fast, strongest noise removal in testing); VEED stays a pick away
+    const list = (catalogs.audio||[]).filter(x=> x.denoise);
+    const pref = list.find(x=> x.id===CLEANVOICE_DEFAULT_MODEL) || list[0];
+    return pref ? pref.id : CLEANVOICE_DEFAULT_MODEL;   // pinned even before the catalog lands, like Decide
   }
   const isMedia = t.modelKind==="image" || t.modelKind==="video";
   const m = (catalogs[t.modelKind]||[]).find(x=> passesFilter(x, t.modelFilter) && (!isMedia || !x.nsfw));
@@ -5657,6 +5776,13 @@ function modelSupportsAudio(n){
   const m = catItem(t.modelKind, n.fields.model);
   return !m || !!m[t.audioInput];
 }
+// Does the selected chat model accept video? Gates the single video input port on the LLM node
+// (mirror of modelSupportsAudio). Permissive when the id isn't in the catalog.
+function modelSupportsVideo(n){
+  const t = NODE_TYPES[n.type]; if(!t.videoInput) return false;
+  const m = catItem(t.modelKind, n.fields.model);
+  return !m || !!m[t.videoInput];
+}
 // Request-time chat capability probe — play.html's chatModelCan twin (dual-engine parity; keep the
 // semantics identical). Permissive on catalog miss so a typed-in / offline id is never blocked;
 // only a KNOWN-incapable model has the gated payload field stripped. normChat flattens capability
@@ -5746,8 +5872,12 @@ function collectRefInputs(inp){
    The edit node keeps the legacy port name "image" for slot 1, so already-wired/saved graphs still load. */
 function imgSpec(n){
   const t = n && NODE_TYPES[n.type], ii = t && t.imageInputs; if(!ii) return null;
-  if(typeof ii==="string")
-    return { re:IMG_PORT_RE, name:(i)=> "img"+i, capable:modelSupportsImages(n), cap:Infinity, min:1, roles:null };
+  if(typeof ii==="string"){
+    // ⚖️ Decide: decision models take a fixed number of inline images (catalog image_limits.maxImages)
+    let cap = Infinity;
+    if(t.modelFilter==="decision"){ const dm = catItem("chat", n.fields.model); const lim = decideImageLimits(dm && dm.decisionInput, !!dm); cap = lim ? lim.maxImages : Infinity; }
+    return { re:IMG_PORT_RE, name:(i)=> "img"+i, capable:modelSupportsImages(n), cap, min:1, roles:null };
+  }
   const m = catItem(t.modelKind, n.fields.model);
   // roles/min are curated (IMG_INPUT_ROLES), so read the map directly when the catalog hasn't landed —
   // a vto node must still draw BOTH ports on a cold cache, where cap stays permissive at 14.
@@ -5797,6 +5927,15 @@ function collectVideoInputs(inp){
    data-URL prefix, derives the format from the MIME subtype (audio/mpeg→mp3). Inline
    base64 hits the same ~4.4MB edge body cap that bites lipsync — guard it loudly rather
    than POST a body the edge will drop. Shared verbatim with play.html's RUNTIME_JS. */
+// A wired clip → NanoGPT's canonical chat `video_url` part (docs: api-reference/miscellaneous/video-input).
+// A public https URL is passed straight through (no inlining, no body-size risk); a data:/blob: clip is
+// inlined as a data:video/* URL and guarded against the ~4.4MB edge body cap. Shared with play.html.
+function videoInputPart(url){
+  if(typeof url!=="string" || !url) return null;
+  if(!/^https:/i.test(url) && url.length > MEDIA_INLINE_MAX)
+    throw new Error("video clip is too large to inline (~4 MB send limit) — shorten it with the ✂️ Trim node first");
+  return { type:"video_url", video_url:{ url } };
+}
 function audioInputPart(url){
   if(typeof url!=="string" || !url) return null;
   if(url.length > MEDIA_INLINE_MAX)
@@ -5863,7 +6002,7 @@ function updateModelWarn(n){
     e.stopPropagation();
     const id = defModelFor(n.type); if(!id) return;
     n.fields.model = id; syncModelPickUI(n, id);
-    updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); save();
+    updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshVideoInput(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); save();
   };
 }
 /* ---------- dynamic audio parameters (from the model catalog + a researched spec) ----------
@@ -5876,9 +6015,14 @@ function updateModelWarn(n){
 // only-when-nonempty, so providers that don't accept them just never receive the key.
 const AUDIO_PARAMS = {
   music: [
-    { id:"lyrics",          label:"Lyrics (sung words)", type:"textarea", appliesTo:"all", ph:"[Verse] rain on the underpass / fox-mask catching neon…", hint:"the sung words — wire or type them here. Style is the prompt above, not this field." },
-    { id:"instrumental",    label:"Instrumental (no vocals)", type:"boolean", appliesTo:"all", hint:"on = music only, no singing; leave Lyrics empty" },
+    // cat:song = every music model except sound-effect generators (Mirelo SFX, ElevenLabs Sound
+    // Effects, Stable Audio SFX) — nothing is sung there, so Lyrics / Instrumental are dead controls.
+    { id:"lyrics",          label:"Lyrics (sung words)", type:"textarea", appliesTo:"cat:song", ph:"[Verse] rain on the underpass / fox-mask catching neon…", hint:"the sung words — wire or type them here. Style is the prompt above, not this field." },
+    { id:"instrumental",    label:"Instrumental (no vocals)", type:"boolean", appliesTo:"cat:song", hint:"on = music only, no singing; leave Lyrics empty" },
     { id:"duration",        label:"Duration (sec)",  type:"number",   appliesTo:"cat:duration" },
+    // pricing.multiplier_parameter (Mirelo SFX 2.0 num_samples 1–4, default 2): each sample is billed.
+    // audioFields renames it to the catalog's wire key so the chip (pricingMultiplier) reads the same value.
+    { id:"samples",         label:"Samples",         type:"select",   appliesTo:"cat:multiplier" },
     { id:"number_of_songs", label:"Number of songs", type:"number",   appliesTo:"cat:gencount", default:1 },
     { id:"negative_prompt", label:"Negative prompt", type:"textarea", appliesTo:"all", ph:"what to avoid — e.g. harsh noise, distortion, muffled vocals" },
     { id:"seed",            label:"Seed",            type:"number",   appliesTo:"all", advanced:true, hint:"blank = random; set a fixed seed to repeat this song and reuse cached results" },
@@ -5901,11 +6045,43 @@ const AUDIO_PARAMS = {
     { id:"response_format", label:"Format",          type:"select",   appliesTo:"cat:outputformat", options:["mp3","wav","flac"], default:"mp3", advanced:true },
   ],
 };
+// Sound-effect generators in the Music picker (Mirelo SFX 1.6 / 2.0, ElevenLabs Sound Effects,
+// Stable Audio SFX): the prompt describes a sound, not a musical style, and nothing is sung.
+// Read off the catalog id + display name — no fixed model list.
+function audioIsSfx(it){
+  if(!it) return false;
+  return /(^|[\/\s._-])sfx|sound[\s_-]?effects?/i.test(String(it.id||"") + " " + String(it.name||""));
+}
+// pricing.multiplier_parameter with a catalog default and range → a Samples knob (else null).
+function audioMultiplierSpec(it){
+  const pr = (it && it.pricing) || {}, key = pr.multiplier_parameter;
+  if(typeof key!=="string" || !key || pr.multiplier_default==null) return null;
+  const lo = Math.max(1, Math.round(+(pr.multiplier_min ?? 1))), hi = Math.round(+(pr.multiplier_max ?? pr.multiplier_default)), def = Math.round(+pr.multiplier_default);
+  if(!isFinite(lo) || !isFinite(hi) || !isFinite(def) || hi<lo || hi-lo>16) return null;
+  const options = []; for(let i=lo;i<=hi;i++) options.push(String(i));
+  return { key, options, def:String(Math.min(hi, Math.max(lo, def))) };
+}
+// The catalog's own output-file enum for SFX 2.0 (upload_audio_format: wav/mp3/aac/flac, default wav).
+function audioUploadFormat(it){
+  const uf = it && it.params && it.params.upload_audio_format;
+  if(!uf || typeof uf!=="object" || !Array.isArray(uf.options)) return null;
+  const values = uf.options.map(o=> (o && typeof o==="object") ? o.value : o).filter(v=> typeof v==="string" && v);
+  if(!values.length) return null;
+  return { values, def: (typeof uf.default==="string" && values.includes(uf.default)) ? uf.default : values[0] };
+}
+// Default text duration the catalog advertises (SFX 2.0: 30s) — shown as the Duration placeholder.
+function audioDurationDefault(it){
+  const p = (it && it.params) || {};
+  const d = p.default_text_duration ?? ((p.duration && typeof p.duration==="object") ? p.duration.default : null);
+  return (d!=null && isFinite(+d)) ? +d : null;
+}
 // resolve a param's appliesTo against the selected model's live catalog entry (catalog metadata only)
 function audioApplies(at, it){
   const p = it.params||{};
   switch(at){
     case "all":          return true;
+    case "cat:song":     return !audioIsSfx(it);
+    case "cat:multiplier": return !!audioMultiplierSpec(it);
     case "cat:voices":   return it.voices.length>0;
     case "cat:language": return !!it.language && it.language.values.length>0;
     case "cat:duration": return p.min_duration!=null && p.max_duration!=null;
@@ -5926,7 +6102,9 @@ function audioFields(kind, it){
     const f = { ...p, jsonKey:p.id };
     if(p.appliesTo==="cat:voices")   f.options = it.voices;
     if(p.appliesTo==="cat:language"){ f.options = it.language.values; if(it.language.default!=null) f.default = it.language.default; }
-    if(p.appliesTo==="cat:duration" || p.appliesTo==="cat:secduration"){ f.min = it.params.min_duration; f.max = it.params.max_duration; }
+    if(p.appliesTo==="cat:duration" || p.appliesTo==="cat:secduration"){ f.min = it.params.min_duration; f.max = it.params.max_duration;
+      const dd = audioDurationDefault(it); if(dd!=null) f.default = dd; }   // SFX 2.0 text default 30s → placeholder (and omitted when typed, the API's own default)
+    if(p.appliesTo==="cat:multiplier"){ const ms = audioMultiplierSpec(it); f.id = f.jsonKey = ms.key; f.options = ms.options; f.default = ms.def; }
     if(p.appliesTo==="cat:gencount") continue;   // nanoodle surfaces a single track and collectAudioParams clamps the count to 1 (= default → never sent), so a "(1–1)" input is a dead control — don't render it
     // Yue2 catalogs the file type as output_format (mp3/wav/flac). Sending the OpenAI
     // response_format key is ignored, so a wav/flac choice came back as mp3.
@@ -5937,6 +6115,8 @@ function audioFields(kind, it){
         f.jsonKey = "output_format";
         if(of.default!=null) f.default = of.default;
       }
+      const uf = audioUploadFormat(it);   // Mirelo SFX 2.0 catalogs upload_audio_format (wav/mp3/aac/flac, default wav)
+      if(uf){ f.options = uf.values; f.jsonKey = "upload_audio_format"; f.default = uf.def; }
     }
     out.push(f);
   }
@@ -5977,6 +6157,17 @@ function audioFieldHTML(n, f){
     return `<div><label>${esc(f.label)}</label><textarea data-pf="${f.id}" style="min-height:40px" placeholder="${esc(f.ph||f.label)}">${esc(v)}</textarea>${hint}</div>`;
   return `<div><label>${esc(f.label)}</label><input data-pf="${f.id}" value="${esc(v)}" placeholder="${esc(f.label)}"/>${hint}</div>`;
 }
+// Music node prompt: a sound-effect model wants a sound description, not a musical style.
+const MUSIC_PROMPT = ["musical style — not lyrics", "late-night analog folk, slow mid-tempo, fingerpicked nylon guitar, distant wok hiss…"];
+const SFX_PROMPT = ["sound description", "footsteps on wet gravel, a car door slams, distant thunder rolls in…"];
+function musicPromptCopy(it){ return audioIsSfx(it) ? SFX_PROMPT : MUSIC_PROMPT; }
+function syncAudioPromptLabel(n, it){
+  if(n.type!=="music" || !n.el) return;
+  const [label, ph] = musicPromptCopy(it);
+  const lbl = n.el.querySelector("[data-plabel]"), ta = n.el.querySelector('textarea[data-f="prompt"]');
+  if(lbl) lbl.textContent = t(label);
+  if(ta) ta.setAttribute("placeholder", ph);
+}
 // rebuild the parameter block for an audio node from its current model
 function refreshAudioParams(n){
   if(!AUDIO_PARAMS[n.type] || !n.el) return;
@@ -5985,6 +6176,15 @@ function refreshAudioParams(n){
   const advBox = n.el.querySelector("[data-advparams]");
   if(!it){ box.innerHTML=""; if(advBox) advBox.innerHTML=""; return; }
   const fields = audioFields(n.type, it);
+  // A select still sitting on the PREVIOUS model's default was never chosen — it follows the new model's
+  // default (song mp3 → SFX 2.0 wav). A value the user picked stays when the new list still has it.
+  const prevDef = n._audioDefaults || {};
+  n._audioDefaults = {};
+  for(const f of fields){
+    if(f.type!=="select") continue;
+    n._audioDefaults[f.id] = f.default ?? (f.options||[])[0];
+    if(prevDef[f.id]!=null && n.fields[f.id]===prevDef[f.id] && f.default!=null && f.default!==prevDef[f.id]) n.fields[f.id] = f.default;
+  }
   for(const f of fields){  // normalize selects so a switched model lands on a valid value
     if(f.type==="select" && !(f.options||[]).includes(n.fields[f.id])) n.fields[f.id] = f.default ?? (f.options||[])[0];
     // combo (voice): a value outside the catalog list is a deliberate custom/cloned voice ID and
@@ -5997,6 +6197,18 @@ function refreshAudioParams(n){
         n.fields[f.id] = f.default ?? (f.options||[])[0];
     }
   }
+  for(const f of fields){  // a duration left over from another model snaps into this one's range (SFX 2.0 120s → SFX 1.6 60s)
+    if(f.type!=="number" || !(f.appliesTo==="cat:duration" || f.appliesTo==="cat:secduration")) continue;
+    const v = n.fields[f.id]; if(v==null || v==="" || !isFinite(+v)) continue;
+    let num = +v;
+    if(f.min!=null && isFinite(+f.min)) num = Math.max(+f.min, num);
+    if(f.max!=null && isFinite(+f.max)) num = Math.min(+f.max, num);
+    if(num!==+v) n.fields[f.id] = String(num);
+  }
+  // a Samples value from SFX 2.0 must not ride along (or multiply the chip) on a model without the knob
+  const mk = (it.pricing||{}).multiplier_parameter;
+  if(typeof mk==="string" && mk && !fields.some(f=> f.id===mk)) delete n.fields[mk];
+  syncAudioPromptLabel(n, it);
   const basicFields = fields.filter(f=>!f.advanced);
   const advancedFields = fields.filter(f=>f.advanced);
   box.innerHTML = basicFields.map(f=>audioFieldHTML(n,f)).join("");
@@ -6656,7 +6868,7 @@ function refreshLoraParams(n){
 // promptFirst puts the main prompt right under the model picker, ahead of the per-model
 // param block — for Music the required style prompt must not hide below Lyrics/Duration.
 function audioBody(n, promptLabel, ph, promptFirst){
-  const prompt = `<div><label>${promptLabel}</label><textarea data-f="prompt" placeholder="${esc(ph)}">${esc(n.fields.prompt||"")}</textarea></div>`;
+  const prompt = `<div><label data-plabel>${promptLabel}</label><textarea data-f="prompt" placeholder="${esc(ph)}">${esc(n.fields.prompt||"")}</textarea></div>`;
   return `${modelFieldHTML(n)}
     ${promptFirst ? prompt : ""}
     <div data-params></div>
@@ -6699,6 +6911,10 @@ function collectAudioParams(n){
     let v = n.fields[f.id];
     if(f.type==="boolean"){ if(v===true||v==="true") body[f.jsonKey]=true; continue; }
     if(v==null || v==="") continue;
+    if(f.appliesTo==="cat:multiplier"){   // Samples → a number under the catalog's wire key; omit the default (the API bills that when absent)
+      const num = Math.round(Number(v)); if(!isFinite(num) || !(f.options||[]).includes(String(num))) continue;
+      if(String(num)!==String(f.default)) body[f.jsonKey] = num;
+      continue; }
     if(f.type==="select" && (f.options||[]).length && !(f.options||[]).includes(v)) continue; // leftover language/format not in this model's catalog enum (Qwen wants English, not en)
     if(f.type==="number"){ let num=Number(v); if(isNaN(num)) continue;
       if(f.appliesTo==="cat:gencount") num=1;   // never request more songs than the node can surface (one) — otherwise a stale/over-set field would bill for dropped tracks
@@ -6752,6 +6968,76 @@ async function remixRun(n, inp, ctx){
   return { audio: await ctx.genAudio(mdl(n), text, extra,
     (q,ms)=> setNodeProgress(n, `${t("generating audio…")} ${Math.round(ms/1000)}s${q!=null?` · queue ${q}`:""}`), n.id) };
 }
+/* =====================================================================
+   🎧 CLEAN VOICE — strip background noise / music, keep the voice
+   NanoGPT's noise_reduction audio models (ElevenLabs Audio Isolation,
+   VEED Clean Audio) ride POST /api/v1/audio/speech with
+   { model, audio:<public URL>, duration } and answer 202 pending + runId
+   (charged up front, real cost in the reply) → /api/tts/status → a hosted
+   mp3/flac. The source MUST be a public http(s) URL: NanoGPT downloads it
+   and rejects data: URLs, and nanoodle has no file hosting, so this node
+   cleans hosted media only (generated video/audio, or a pasted public
+   link). A video URL works as-is — the voice comes back as audio.
+   duration is only a quote: the server measures the file and bills that.
+   Shared twin: index.html and play.html carry this block verbatim
+   (scripts/check-clean-voice.mjs). No backticks — play.html's copy lives
+   inside the String.raw RUNTIME_JS.
+   ===================================================================== */
+var CLEANVOICE_DEFAULT_MODEL = "elevenlabs/audio-isolation";   // $0.121/min, ~5 s for a 25 s clip; VEED Clean Audio is the cheaper pick ($0.01375 per started minute)
+var CLEANVOICE_FALLBACK_SECS = 60;                              // length unknown → quote a minute; the server re-measures before billing
+var CLEANVOICE_VIDEO_EXT = /\.(mp4|m4v|mov|webm|mkv|avi)(\?|#|$)/i;
+// Which file to clean: a wired audio clip, else a wired video, else the pasted link.
+function cleanVoiceSource(inp, f){
+  var a = inp && typeof inp.audio==="string" ? inp.audio.trim() : "";
+  var v = inp && typeof inp.video==="string" ? inp.video.trim() : "";
+  var link = String((f && f.url) || "").trim();
+  var url = a || v || link, video = a ? false : (v ? true : CLEANVOICE_VIDEO_EXT.test(link));
+  if(!url) throw new Error("no audio — wire audio or a video in, or paste a public link to the recording");
+  if(!/^https?:\/\//i.test(url))
+    throw new Error("Clean voice needs a hosted file — NanoGPT downloads it from a public link, and a clip uploaded or made in your browser has none. Wire a generated video or track, or paste a public https link to the recording.");
+  return { url:url, video:video };
+}
+// duration quote NanoGPT requires (0.6–3600 s); unknown → CLEANVOICE_FALLBACK_SECS
+function cleanVoiceSeconds(secs){
+  var s = +secs;
+  if(!isFinite(s) || s<=0) return CLEANVOICE_FALLBACK_SECS;
+  return Math.min(3600, Math.max(0.6, Math.round(s*100)/100));
+}
+function cleanVoiceExtra(url, secs){ return { audio:url, duration:cleanVoiceSeconds(secs) }; }
+// Seconds the run-cost chip assumes: the wired source node's own duration knob (a 6 s video), else 30 s.
+function cleanVoiceEstSeconds(srcFields){
+  var d = parseFloat(srcFields && srcFields.duration);
+  return (isFinite(d) && d>0) ? d : 30;
+}
+// NanoGPT's 400s, reworded into the fix
+function cleanVoiceError(e){
+  if(e && e.name==="AbortError") return e;
+  var m = String((e && e.message) || e || "");
+  if(/verify the source (audio )?duration/i.test(m)) return new Error("NanoGPT couldn't read this file's length — use MP3, WAV, M4A/AAC or MP4 (OGG isn't accepted).");
+  if(/unable to download/i.test(m)) return new Error("NanoGPT couldn't download the file — the link must be public (no sign-in, not expired).");
+  if(/public http\(?s?\)? source/i.test(m)) return new Error("Clean voice needs a public https link — clips uploaded in the browser can't reach it.");
+  return e;
+}
+// the source's length from its metadata (no CORS needed); null when it can't be read in 10 s
+function cleanVoiceMediaSeconds(url, isVideo){
+  return new Promise(function(res){
+    var el = null, done = false;
+    function fin(v){ if(done) return; done = true; try{ el.removeAttribute("src"); el.load(); }catch(e){} res(v); }
+    try{ el = document.createElement(isVideo ? "video" : "audio"); }catch(e){ res(null); return; }
+    el.preload = "metadata"; el.muted = true;
+    el.onloadedmetadata = function(){ var d = el.duration; fin(isFinite(d) && d>0 ? d : null); };
+    el.onerror = function(){ fin(null); };
+    setTimeout(function(){ fin(null); }, 10000);
+    el.src = url;
+  });
+}
+// send(model, extra) → audio URL (the runtime's genAudio: submit, poll, bill).
+async function cleanVoiceRun(model, inp, f, send){
+  var src = cleanVoiceSource(inp, f);
+  var secs = await cleanVoiceMediaSeconds(src.url, src.video);
+  try{ return { audio: await send(model || CLEANVOICE_DEFAULT_MODEL, cleanVoiceExtra(src.url, secs)) }; }
+  catch(e){ throw cleanVoiceError(e); }
+}
 /* ---------- general per-model options (from the catalog's own param descriptors) ----------
    Video models advertise rich params (preset, style, effect, cameraMovement, mode, switches…)
    in supported_parameters.parameters. Surface every CHOICE param (select ≥2 opts, or switch)
@@ -6766,10 +7052,13 @@ const PRICE_OR_DIM_PARAM = /^(duration|seconds|aspect_ratio|resolution|resolutio
 // free-text/number params that are really URLs, media references, or JSON lists — they need real
 // wiring (image/video/audio ports, the 🎨 LoRA box), not a footgun free-text box, so they're never
 // surfaced as a knob. Driven off the key + descriptor (no model names); selects/switches are unaffected.
+// CamelCase slots (imageUrl, image_url, endImageUrl, lastImageUrl, referenceImages) are the same
+// fields as their snake_case twins. Fold capitals before the media/URL test so every spelling hides.
 function videoFreetextSkip(key, d){
-  if(/(^|_)(image|images|video|videos|audio|audios)(_urls?)?$/i.test(key)) return true;   // media references
-  if(/_urls?$/i.test(key)) return true;                                                    // any URL slot
-  if(/^(loras|element_list|multi_prompt|last_image|end_image|prompt)$/i.test(key)) return true; // JSON lists / frame URLs / would clobber the node's main prompt
+  const k = String(key||"").replace(/([a-z0-9])([A-Z])/g, "$1_$2").replace(/-/g, "_").toLowerCase();
+  if(/(^|_)(image|images|video|videos|audio|audios)(_urls?)?$/i.test(k)) return true;   // media references
+  if(/_urls?$/i.test(k)) return true;                                                    // any URL slot
+  if(/^(loras|element_list|multi_prompt|last_image|end_image|prompt)$/i.test(k)) return true; // JSON lists / frame URLs / would clobber the node's main prompt
   const txt = (d.description||"") + " " + (d.placeholder||"");
   if(/\bJSON (array|object)\b|\bURLs?\b/i.test(txt)) return true;                           // descriptor itself declares a URL/list
   return false;
@@ -6803,7 +7092,13 @@ function videoOptDefs(model, nodeType){
   for(const [key,d] of Object.entries(p)){
     if(!d || typeof d!=="object") continue;
     if(PRICE_OR_DIM_PARAM.test(key) && kind!=="model3d") continue;   // video dims/price live on the node; 3D resolution/size are real knobs
+    // A label that names reference mode ("Generate reference mode audio") only applies
+    // when this node can select that mode. Image→Video has no ref ports, so the switch
+    // does nothing there. Descriptions that merely mention reference mode stay — those
+    // knobs still work for image-to-video (H3 prompt expansion).
+    if(!canRef && /\breference(?:[-\s])?mode\b/i.test(String(d.label||""))) continue;
     if(/^lora(_|$)/i.test(key)) continue;                      // the 🎨 LoRA box handles these
+    if(key===((it.pricing||{}).multiplier_parameter) && kind!=="model3d") continue;   // Samples (num_samples) is a node dim knob — see videoMultiplierDim
     const def = dflt[key]!=null ? dflt[key] : d.default;       // catalog default → placeholder/initial
     if(d.type==="select"){
       let opts = (d.options||[]).filter(o=> o && o.value!=null && (kind==="model3d" || o.value!==""));
@@ -6845,6 +7140,8 @@ function refreshModelOpts(n){
     const v = cur[d.key];
     const hint = d.desc ? `<div class="fhint">${esc(d.desc)}</div>` : "";   // the catalog's own explanation
     if(d.type==="bool"){
+      // Untouched (v==null) paints the catalog default — the value NanoGPT bills when the
+      // key is omitted — and does not write modelOpts until the user flips the box.
       const on = (v==null) ? (d.def===true||d.def==="true") : (v===true||v==="true");
       return `<label class="setbool" style="margin:3px 0"><input type="checkbox" data-of="${esc(d.key)}"${on?" checked":""}/> ${esc(d.label)}</label>${hint}`;
     }
@@ -7014,6 +7311,38 @@ function rangeDurOpts(param){
   for(let v=lo; v<=hi+1e-9; v+=st){ const n = Math.round(v*1000)/1000; out.push([String(n), n+" sec"]); }
   return out;
 }
+// a catalog number range → a number-input dim def {type:"number",min,max,step,def}; null when the range
+// is missing or non-numeric. Used only when rangeDurOpts declined (more than 120 steps).
+function numRangeDim(param){
+  if(!param || param.min==null || param.max==null) return null;
+  const lo = +param.min, hi = +param.max, st = +(param.step!=null ? param.step : 1);
+  if(!Number.isFinite(lo) || !Number.isFinite(hi) || !(st>0) || hi<lo) return null;
+  let def = param.default!=null && isFinite(+param.default) ? +param.default : lo;
+  def = Math.min(hi, Math.max(lo, def));
+  return { type:"number", min:lo, max:hi, step:st, options:[], def:String(def) };
+}
+// clamp a typed number-dim value into [min,max] and onto its step grid ("" when unparseable)
+function clampNumDim(v, d){
+  const x = parseFloat(v); if(!Number.isFinite(x)) return "";
+  let y = Math.min(d.max, Math.max(d.min, x));
+  if(d.step>0){ y = d.min + Math.round((y - d.min)/d.step)*d.step; y = Math.min(d.max, Math.max(d.min, y)); }
+  const dec = Math.min(6, (String(d.step).split(".")[1]||"").length);
+  return String(+y.toFixed(dec));
+}
+// Samples knob for a video model whose pricing names a multiplier_parameter (SFX 2.0 num_samples).
+function videoMultiplierDim(it){
+  const pr = (it && it.pricing) || {}, key = pr.multiplier_parameter;
+  if(typeof key!=="string" || !key) return null;
+  const pd = ((it && it.params) || {})[key] || {};
+  const lo = Math.max(1, Math.round(+(pr.multiplier_min ?? pd.min ?? 1)));
+  const hi = Math.round(+(pr.multiplier_max ?? pd.max ?? NaN));
+  if(!isFinite(lo) || !isFinite(hi) || hi<lo || hi-lo>16) return null;
+  let def = Math.round(+(pr.multiplier_default ?? pd.default ?? ((it && it.defaults) || {})[key] ?? lo));
+  if(!isFinite(def)) def = lo;
+  def = Math.min(hi, Math.max(lo, def));
+  const options = []; for(let i=lo;i<=hi;i++) options.push([String(i), String(i)]);
+  return { f:key, wire:key, label:"samples", options, def:String(def), known:true, num:true };
+}
 /* ---------- snap a stored choice onto a model's real option list ----------
    A size / duration / quality / mode value only means something for the model it
    was chosen for: MiniMax H3 lists duration 5–15 (incl. 8); Wan Prime advertises
@@ -7078,6 +7407,11 @@ function nearestDimOption(cur, options, def){
 function applyDimFields(fields, defs){
   for(const d of defs){
     const cur = fields[d.f];
+    if(d.type==="number"){   // free number dim (SFX 2.0 duration): clamp into the catalog range, keep the step grid
+      const c = (cur==null || cur==="") ? "" : clampNumDim(cur, d);
+      fields[d.f] = c==="" ? d.def : c;
+      continue;
+    }
     if(d.locked) fields[d.f] = d.def;
     else if(cur==null || cur==="") fields[d.f] = d.def;
     else if(!d.options.some(o=> String(o[0])===String(cur))){
@@ -7184,7 +7518,15 @@ function dimDefs(type, model, fields){
     // A CATALOGUED t2v/i2v model that lists no duration (Veo 3 fixed 8s, Hailuo 2.3 Pro / Kandinsky 5 Pro fixed 5s,
     // Wan 2.2 5B, MiniMax Video 6s…) keeps the def for send parity with the library, but the 5/10 knob is HIDDEN:
     // it offered lengths the model can't make, and on per-second models it moved the estimate.
-    if(dOpts.length || soft || dParam) defs.push({ f:"duration", wire:dWire, label:"duration", options:(dOpts.length?dOpts:DURATION_FALLBACK), def:paramDef(dParam, dOpts.length?dOpts:DURATION_FALLBACK), known, hidden: !!(known && !dParam) });
+    // A range too fine for a dropdown (Mirelo SFX 2.0: 1–600s in 0.1s steps) is a number input clamped to
+    // the catalog range — the 5/10 fallback offered two lengths of a 600-second knob.
+    const dRange = (!dOpts.length && dParam) ? numRangeDim(dParam) : null;
+    if(dRange) defs.push(Object.assign({ f:"duration", wire:dWire, label:"duration", known }, dRange));
+    else if(dOpts.length || soft || dParam) defs.push({ f:"duration", wire:dWire, label:"duration", options:(dOpts.length?dOpts:DURATION_FALLBACK), def:paramDef(dParam, dOpts.length?dOpts:DURATION_FALLBACK), known, hidden: !!(known && !dParam) });
+    // pricing.multiplier_parameter (SFX 2.0 num_samples 1–4, default 2): every sample is a billed clip, so
+    // it is a node knob beside duration (not tucked in ⚙️ Model options) and drives the chip via pricingMultiplier.
+    const ms = videoMultiplierDim(it);
+    if(ms) defs.push(ms);
     const fParam = p.fps || p.frames_per_second, fOpts = selOpts(fParam);
     if(fOpts.length) defs.push({ f:"fps", wire:p.fps ? "fps" : "frames_per_second", label:"fps", options:fOpts, def:paramDef(fParam, fOpts), known });
     return defs;
@@ -7199,7 +7541,7 @@ function videoDimParams(n){
   const out = {}, defs = dimDefs(n.type, n.fields.model); applyDimFields(n.fields, defs);
   for(const d of defs){
     const v = (n.fields[d.f]!=null && n.fields[d.f]!=="") ? n.fields[d.f] : d.def;
-    if(v!=null && v!=="") out[d.wire] = v;
+    if(v!=null && v!=="") out[d.wire] = (d.type==="number" || d.num) && isFinite(+v) ? +v : v;   // number dims (SFX 2.0 duration / num_samples) go out as numbers
   }
   return out;
 }
@@ -7212,7 +7554,9 @@ function refreshDims(n){
   applyDimFields(n.fields, defs);     // clamp invalid stored values to this model's list (swap AND load)
   const shown = defs.filter(d=> !d.hidden);   // hidden = kept for the wire, never rendered (see dimDefs duration)
   if(!shown.length){ box.innerHTML=""; updateNodePrice(n); return; }
-  const ctl = (d)=> `<div><label>${esc(d.label)}</label><select data-df="${esc(d.f)}"${d.locked?" disabled":""}>${
+  const ctl = (d)=> d.type==="number"
+    ? `<div><label>${esc(d.label)}</label><input type="number" data-df="${esc(d.f)}" min="${esc(d.min)}" max="${esc(d.max)}" step="${esc(d.step)}" title="${esc(d.min)}–${esc(d.max)} s" value="${esc(n.fields[d.f]??d.def)}"/></div>`
+    : `<div><label>${esc(d.label)}</label><select data-df="${esc(d.f)}"${d.locked?" disabled":""}>${
     d.options.map(o=>`<option value="${esc(o[0])}"${String(o[0])===String(n.fields[d.f])?" selected":""}>${esc(o[1])}</option>`).join("")}</select></div>`;
   // A locked def's disclosure is a sentence, so it goes FULL WIDTH under the row — the first two
   // controls sit in a half-width `.two` grid, where it would wrap to three cramped lines.
@@ -7224,7 +7568,11 @@ function refreshDims(n){
   translateTree(box);   // localize size/resolution/aspect/duration labels + option text (mirror refreshAudioParams)
   box.querySelectorAll("[data-df]").forEach(el=>{
     const f = el.dataset.df;
-    el.addEventListener("change", ()=>{ n.fields[f] = el.value; updateNodePrice(n); save(); });
+    const d = defs.find(x=> x.f===f);
+    if(d && d.type==="number"){   // live chip while typing; clamp + snap on commit
+      el.addEventListener("input", ()=>{ const c = clampNumDim(el.value, d); if(c!==""){ n.fields[f] = c; updateNodePrice(n); } });
+      el.addEventListener("change", ()=>{ const c = clampNumDim(el.value, d); n.fields[f] = c==="" ? d.def : c; el.value = n.fields[f]; updateNodePrice(n); save(); });
+    } else el.addEventListener("change", ()=>{ n.fields[f] = el.value; updateNodePrice(n); save(); });
     el.addEventListener("pointerdown", e=> e.stopPropagation());   // don't drag the node while choosing
   });
   updateNodePrice(n);
@@ -7277,10 +7625,14 @@ function livePrice(kind, fields, nodeFilter, n){
     const refCount = (n && t && t.refInputs && modelHasImageRole(n,"refs"))
       ? graph.links.filter(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port)).length : 0;
     const videoWired = !!(n && graph.links.some(l=> l.to.node===n.id && l.to.port==="video"));
-    const u = videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), videoPriceFields(it.params, fields), refCount, videoWired, nodeFilter);   // all shapes; recomputes live as resolution/duration change
+    const u = videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), videoPriceFields(it.params, fields), refCount, videoWired, nodeFilter, { params:it.params, defaults:it.defaults });   // all shapes; recomputes live as resolution/duration change. Untouched audio switch uses the catalog default.
     if(u!=null) return `~$${u.toFixed(2)}/clip`;
   }
   if(kind==="model3d") return model3dPriceLabels(it.pricing, fields, it.defaults).card;
+  if(kind==="chat" && nodeFilter==="decision" && n){   // ⚖️ Decide: what one decision costs with what's wired now
+    const u = nodeUnitUsd(n);
+    if(u!=null) return u<0.0001 ? "<$0.0001/decision" : `~$${u.toFixed(4)}/decision`;
+  }
   return it.price||"";
 }
 // raw per-image USD for (model,size) from the catalog — the number behind livePrice's "$/img"
@@ -7351,6 +7703,13 @@ const VIDEO_QUOTE_PER_SECOND = {
   "grok-imagine-video-1.5-lite": { default_resolution:"720p", default_duration:6, per_second_by_resolution:{ "480p":0.02, "720p":0.03, "1080p":0.14 } },
   // H3 Max Turbo extend: billed on the new seconds only (2s and 4s sources quote the same).
   "minimax/h3-max-turbo/extend-video": { default_resolution:"768p", default_duration:5, per_second_by_resolution:{ "480p":0.025, "768p":0.04, "1080p":0.08, "2k":0.16 } },
+  // Measured 2026-10-08 the same way (402 quote, nothing runs; 480p/720p/1080p x 4s/5s/12s x audio
+  // on/off, all linear in seconds). The public catalog's raw withAudio/withoutAudio tables for these
+  // ids are exactly 1/1.7 of what POST /api/generate-video bills (catalog 720p no-audio 5s $0.0765;
+  // quote and the 2026-10-08 idea-to-short-film run $0.13), so the quote's table replaces the raw one.
+  // Same raw shape, so the audio switch still picks the with-audio column.
+  "bytedance-seedance-v1.5-pro": { raw:{ type:"resolution-per-second-audio-toggle", defaultDuration:5, defaultResolution:"720p", withoutAudioPricesPerSecond:{ "480p":0.012, "720p":0.026, "1080p":0.052 }, withAudioPricesPerSecond:{ "480p":0.024, "720p":0.052, "1080p":0.104 } } },
+  "bytedance-seedance-v1.5-pro-fast": { raw:{ type:"resolution-per-second-audio-toggle", defaultDuration:5, defaultResolution:"720p", withoutAudioPricesPerSecond:{ "720p":0.02, "1080p":0.03 }, withAudioPricesPerSecond:{ "720p":0.04, "1080p":0.06 } } },
 };
 function videoPricingHasDurationRate(p){
   if(!p) return false;
@@ -7393,17 +7752,81 @@ function videoLoraOn(fields){
   const rows = Array.isArray(f.loras) ? f.loras : (String(f.loraUrl||"").trim() ? [{ url:f.loraUrl }] : []);
   return rows.some(r=> r && String(r.url||"").trim()!=="");
 }
-function videoUnitUsd(pricing, fields, refWired, videoWired, nodeFilter){
+// Untouched audio switch: modelOpts omits the key. The checkbox paints the catalog
+// default and only writes it once the user flips it; the generate-video body omits
+// it the same way. NanoGPT then bills that catalog default. x402 quotes 2026-10-09
+// (no key, POST /api/generate-video, header x-x402: true, 402 payment.amountUsd,
+// nothing runs): Seedance 1.5 Pro and Fast, and Veo 3 / 3 Fast / 3.1 Fast, omit
+// equals audio on; PixVerse C1, V6 and V5.6 omit equals audio off. Both match
+// supported_parameters.defaults. An explicit false stays on the silent tier. No
+// param descriptor (pricing fixtures) stays off. Twin: play videoAudioOn.
+function videoAudioOn(fields, audioCtx){
+  const f = fields || {};
+  const opts = (f.modelOpts && typeof f.modelOpts==="object") ? f.modelOpts : {};
+  let explicit = false;
+  for(const k in opts){
+    if(/audio/i.test(k) && !/^(no|disable|without|mute)/i.test(k)){
+      explicit = true;
+      const val = opts[k];
+      if(val===true||val==="true"||val===1||val==="1"||val==="on"||val==="yes") return true;
+    }
+  }
+  if(explicit) return false;
+  const ctx = audioCtx || {}, pp = ctx.params || {}, dflt = ctx.defaults || {};
+  for(const k of Object.keys(pp)){
+    const d = pp[k];
+    if(!d || typeof d!=="object") continue;
+    if(d.type!=="switch" && d.type!=="boolean") continue;
+    if(!/audio/i.test(k) || /^(no|disable|without|mute)/i.test(k)) continue;
+    const def = dflt[k]!=null ? dflt[k] : d.default;
+    return def===true||def==="true"||def===1||def==="1"||def==="on"||def==="yes";
+  }
+  return false;
+}
+// Fresh-card resolution and duration. The node knob sends the catalog setting
+// (parameters.*.default, else supported_parameters.defaults, else the first listed
+// option). videoUnitUsd used to read only pricing.default_resolution and otherwise
+// the first price-map key — the cheap tier. Vidu Q4 has no pricing default, so the
+// picker listed ~$0.25 (540p × 5s) while the card bills ~$0.52 (720p × 5s). Wan 2.5's
+// pricing default is 480p and its card is 720p; Seedance 2.0 extend's pricing
+// duration is 4s and its card is 5s. An explicit field still wins. No descriptor
+// leaves the pricing fallback alone, including a duration videoPriceFields cleared
+// because the model lists no duration param. Twin: play videoSettingDefault.
+function videoSettingDefault(ctx, key){
+  const c = ctx || {}, pp = c.params || {}, d = pp[key];
+  if(!d || typeof d!=="object") return null;
+  if(d.default!=null && String(d.default)!=="") return String(d.default);
+  const bag = (c.defaults || {})[key];
+  if(bag!=null && String(bag)!=="") return String(bag);
+  const opts = Array.isArray(d.options) ? d.options : [];
+  for(const o of opts){
+    const v = (o && typeof o==="object") ? o.value : o;
+    if(v!=null && String(v)!=="") return String(v);
+  }
+  return null;
+}
+function videoDefaultFields(fields, ctx){
+  const f = Object.assign({}, fields || {});
+  if(f.resolution==null || f.resolution===""){
+    const r = videoSettingDefault(ctx, "resolution");
+    if(r!=null) f.resolution = r;
+  }
+  if(f.duration==null || f.duration===""){
+    const d = videoSettingDefault(ctx, "duration") ?? videoSettingDefault(ctx, "seconds");
+    if(d!=null) f.duration = d;
+  }
+  return f;
+}
+function videoUnitUsd(pricing, fields, refWired, videoWired, nodeFilter, audioCtx){
   const p = pricing || {};
   const f = fields || {};
   const opts = (f.modelOpts && typeof f.modelOpts==="object") ? f.modelOpts : {};
-  let audioOn = false;
-  for(const k in opts){ if(/audio/i.test(k) && !/^(no|disable|without|mute)/i.test(k)){ const val=opts[k]; if(val===true||val==="true"||val===1||val==="1"||val==="on"||val==="yes"){ audioOn=true; break; } } }
+  const audioOn = videoAudioOn(f, audioCtx);   // untouched switch bills the catalog default; explicit false stays silent
   // refWired may be a boolean (legacy fixtures / "any refs?") or a count of wired refN ports.
   const refCount = typeof refWired==="number" ? Math.max(0, refWired|0) : (refWired ? 1 : 0);
   const refOn = refCount>0 || /reference/i.test(String(opts.mode||""));
   const videoOn = !!videoWired || /extend/i.test(String(opts.mode||""));
-  let usd = videoBaseUsd(p, f, audioOn, refOn, videoOn, nodeFilter);
+  let usd = videoBaseUsd(p, videoDefaultFields(f, audioCtx), audioOn, refOn, videoOn, nodeFilter);
   // Models that surcharge audio as a flat multiplier (audio_multiplier) rather than a separate tier: apply
   // it once — those shapes never carry a with-audio table, so a tier branch can't have already handled it.
   if(usd!=null && isFinite(usd) && audioOn && p.audio_multiplier!=null) usd *= (_num(p.audio_multiplier) ?? 1);
@@ -7415,6 +7838,8 @@ function videoUnitUsd(pricing, fields, refWired, videoWired, nodeFilter){
     const per = tier && _num(tier.reference_image_or_audio);
     if(per!=null) usd += per * refCount;
   }
+  // multiplier_parameter (Mirelo SFX 2.0 num_samples): every requested sample is a billed clip.
+  if(usd!=null && isFinite(usd)) usd *= pricingMultiplier(p, f);
   return usd;
 }
 function videoBaseUsd(pricing, fields, audioOn, refOn, videoOn, nodeFilter){
@@ -7601,6 +8026,22 @@ function audioUnitUsd(pricing, chars, seconds){
   if(p.per_minute!=null) return _num(p.per_minute)*EST.sttMinutes;
   return null;
 }
+// Per-sample / per-output billing multiplier. NanoGPT names the knob that multiplies the bill in
+// pricing.multiplier_parameter (Mirelo SFX 2.0: "num_samples", 1–4, default 2 — every sample is
+// billed). Read the node's value under that wire key (a node field, the ⚙️ model options, or a
+// request body), else the catalog multiplier_default, else 1; clamp to multiplier_min/max.
+// Without this the Video edit chip quoted one sample ($0.11) for 1, 2 or 4. Twin: play pricingMultiplier.
+function pricingMultiplier(pricing, fields){
+  const p = pricing || {}, key = p.multiplier_parameter;
+  if(!key || typeof key!=="string") return 1;
+  const f = fields || {}, o = (f.modelOpts && typeof f.modelOpts==="object") ? f.modelOpts : {};
+  const pick = (v)=> (v!=null && v!=="" && isFinite(+v)) ? +v : null;
+  let m = pick(f[key]) ?? pick(o[key]) ?? pick(p.multiplier_default) ?? 1;
+  const lo = pick(p.multiplier_min), hi = pick(p.multiplier_max);
+  if(lo!=null) m = Math.max(lo, m);
+  if(hi!=null) m = Math.min(hi, m);
+  return m>0 ? m : 1;
+}
 // Seconds a duration-metered audio model (per_second / per_billing_interval) is actually billed for:
 // the node's duration field clamped to the model's advertised min/max_duration. null when the model
 // isn't duration-metered (no min/max_duration)
@@ -7611,7 +8052,10 @@ function audioBilledSeconds(params, fields){
   if(p.min_duration==null || p.max_duration==null) return null;   // model doesn't price by duration
   const d = parseFloat(fields && fields.duration);
   if(!isFinite(d)){                                                 // blank → default estimate, but never outside the model's range
-    const lo0=_num(p.min_duration), hi0=_num(p.max_duration), e=EST.audioSeconds;
+    const lo0=_num(p.min_duration), hi0=_num(p.max_duration);
+    const cd = _num(p.default_text_duration ?? ((p.duration && typeof p.duration==="object") ? p.duration.default : null));   // catalog default (SFX 2.0: 30s)
+    const e = cd!=null ? cd : EST.audioSeconds;
+    if(cd!=null) return Math.min(hi0!=null?hi0:e, Math.max(lo0!=null?lo0:e, e));
     return ((lo0!=null && e<lo0) || (hi0!=null && e>hi0)) ? Math.min(hi0!=null?hi0:e, Math.max(lo0!=null?lo0:e, e)) : null;
   }
   const lo=_num(p.min_duration), hi=_num(p.max_duration);
@@ -7631,7 +8075,7 @@ function speechEstUsd(pricing, params, input, extra){
   const unit = audioUnitUsd(pricing, chars, secs);
   if(unit==null || !isFinite(unit)) return null;
   const songs = Math.max(1, parseInt(extra && (extra.number_of_songs || extra.n), 10) || 1);
-  return unit * songs;
+  return unit * songs * pricingMultiplier(pricing, extra || {});   // the body carries num_samples unless it is the catalog default
 }
 // Live value on a field in-port (Choice.selected / Text) — same rules as endpoint preview.
 // Prefer the source's live field over a stale last-run .out so a Choice flip updates estimates
@@ -7682,14 +8126,23 @@ function nodeUnitUsd(n){
       ? graph.links.filter(l=> l.to.node===n.id && REF_PORT_RE.test(l.to.port)).length : 0;
     // source-video input wired → extend-mode rates on nested mode×resolution tables (FLUX.3).
     const videoWired = graph.links.some(l=> l.to.node===n.id && l.to.port==="video");
-    const u = videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), videoPriceFields(it.params, fields), refCount, videoWired, t.modelFilter); return (u!=null && isFinite(u)) ? u : null; }
+    const u = videoUnitUsd(applyVideoQuotePricing(fields.model, it.pricing), videoPriceFields(it.params, fields), refCount, videoWired, t.modelFilter, { params:it.params, defaults:it.defaults }); return (u!=null && isFinite(u)) ? u : null; }
+  if(kind==="chat" && t.modelFilter==="decision"){
+    // ⚖️ Decide bills input tokens only: the question + labels/scale + ~1 KB of wired text, plus each
+    // wired image (a ≤512px image lands at ~250–350 tokens on the launch models — 400 keeps it honest).
+    const f=fields||{}, imgs = graph.links.filter(l=> l.to.node===n.id && IMG_PORT_RE.test(l.to.port)).length;
+    const inTok = 120 + Math.round(((f.question||"").length + (f.options||"").length + (f.levels||"").length)/4) + 250 + imgs*400;
+    return chatUnitUsd(it, inTok, 0) * (decideMode(f)==="pick" ? 2 : 1); }   // pick asks twice (in order + reversed) to cancel position bias
   if(kind==="chat"){
     const f=fields||{}; const inTok = Math.max(200, Math.round(((f.system||"").length+(f.prompt||"").length)/4)+200); const outTok = f.maxTokens ? +f.maxTokens : EST.llmOutTokens; return chatUnitUsd(it, inTok, outTok); }
+  if(kind==="audio" && t.modelFilter==="denoise"){   // 🎧 Clean voice bills the source's length: the wired node's duration knob, else 30 s
+    const l = graph.links.find(l=> l.to.node===n.id && (l.to.port==="audio" || l.to.port==="video")), src = l && byId(l.from.node);
+    return audioUnitUsd(it.pricing, undefined, cleanVoiceEstSeconds(src && src.fields)); }
   if(kind==="audio"){ const chars = t.modelFilter==="stt" ? undefined : (((fields||{}).prompt||"").length || EST.ttsChars);
     const secs = audioBilledSeconds(it.params, fields||{});   // per_second music meters off the chosen duration, not a fixed 30s
     const u = audioUnitUsd(it.pricing, chars, secs); if(u==null) return null;
     const songs = audioBilledSongs(it.params, fields||{});   // always 1 — collectAudioParams clamps the sent song count so a run only ever bills for one track
-    return u*songs; }
+    return u*songs*pricingMultiplier(it.pricing, fields||{}); }   // × num_samples (pricing.multiplier_parameter — SFX 2.0 bills every sample)
   if(kind==="model3d") return _num(it.pricing && it.pricing.per_run);
   return null;
 }
@@ -7779,7 +8232,7 @@ function refreshRunEstimate(){
     + (estimate ? "\n" + t("Video, text & audio are estimates: the real bill depends on clip length, tokens and characters.") : "")
     + (range3d ? "\n" + t("3D variants bill differently, so this isn’t an exact price.") : "");
 }
-function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); refreshModel3dPorts(n); backfillModel(n); }); refreshRunEstimate(); refreshPromptCaps(); }   // refreshPromptCaps: audio caps ARE catalog metadata (max_chars) and every note names the model, so both are blank until the catalog lands. refreshLlmOpts: reconcile knobs kept during a catalog miss (#311) once real capability flags exist; the dynamic port families (img/audio/endframe/ref) are catalog-gated too — without them a cold-cache boot (shared link, cleared storage) paints a saved ref-model graph portless until a reload
+function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshVideoInput(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); refreshModel3dPorts(n); backfillModel(n); }); refreshRunEstimate(); refreshPromptCaps(); }   // refreshPromptCaps: audio caps ARE catalog metadata (max_chars) and every note names the model, so both are blank until the catalog lands. refreshLlmOpts: reconcile knobs kept during a catalog miss (#311) once real capability flags exist; the dynamic port families (img/audio/endframe/ref) are catalog-gated too — without them a cold-cache boot (shared link, cleared storage) paints a saved ref-model graph portless until a reload
 function backfillModel(n){   // once a catalog arrives, give model nodes a sensible default if none chosen yet
   const t = NODE_TYPES[n.type];
   if(t.modelKind && !n.fields.model){
@@ -7807,11 +8260,19 @@ function setNsfwOnly(v){
   try{ localStorage.setItem("nn_nsfwonly", nsfwOnly ? "1" : "0"); }catch{}
   renderPicker();
 }
+// Picker row label. The catalog name is the friendly title ("Nano Banana 2",
+// "Nano Banana 2.1"); the id is what we store and send. A blank name keeps the id,
+// so a model whose catalog name is already the id is unchanged. No local rename table.
+function pickerModelLabel(m){
+  const id = String((m && m.id) || "");
+  const name = String((m && m.name) || "").trim();
+  return name || id;
+}
 // order the already-filtered matches by the current sort. created (native newest-first order)
 // is the tiebreak everywhere, so equal prices still read newest-first.
 function sortMatches(list){
   const arr = list.slice();
-  if(pickerSort==="name") return arr.sort((a,b)=> a.id.localeCompare(b.id));
+  if(pickerSort==="name") return arr.sort((a,b)=> pickerModelLabel(a).localeCompare(pickerModelLabel(b)) || String(a.id).localeCompare(String(b.id)));
   if(pickerSort==="cheapest" || pickerSort==="premium"){
     const dir = pickerSort==="cheapest" ? 1 : -1;
     return arr.sort((a,b)=>{
@@ -7838,7 +8299,7 @@ let picker = null; // { kind, filter, current, onPick }
 // node bills, so an Image → Video picker shows the image_to_video price, not the text_to_video default.
 function pickerRowPrice(m){
   if(picker && picker.kind==="video" && picker.filter && m.pricing && m.pricing.per_video_by_mode){
-    const u = videoUnitUsd(applyVideoQuotePricing(m.id, m.pricing), {}, false, false, picker.filter);
+    const u = videoUnitUsd(applyVideoQuotePricing(m.id, m.pricing), {}, false, false, picker.filter, { params:m.params, defaults:m.defaults });
     if(u!=null && isFinite(u)) return `~$${u.toFixed(2)}/clip`;
   }
   return m.price;
@@ -8002,13 +8463,15 @@ function renderPicker(){
     if(m.id===picker.current) b.classList.add("sel");
     const sug = galleryTagged ? galleryTagged.has(m.id) : !!(pin && m.id===pin);
     if(sug) b.classList.add("suggested");
-    const tags = `${m.vision?'<span class="tag">vision</span>':''}${m.edit?'<span class="tag edit">edit</span>':''}`
+    const tags = `${m.vision?'<span class="tag">vision</span>':''}${m.video_input?'<span class="tag edit">video in</span>':''}${m.edit?'<span class="tag edit">edit</span>':''}`
       + `${m.t2v?'<span class="tag">t2v</span>':''}${m.i2v?'<span class="tag edit">i2v</span>':''}`
       + `${m.v2v?'<span class="tag edit">v2v</span>':''}${m.avatar?'<span class="tag">avatar</span>':''}`
       + `${m.tts?'<span class="tag">tts</span>':''}${m.music?'<span class="tag edit">music</span>':''}${m.stt?'<span class="tag">stt</span>':''}`
       + `${m.nsfw?`<span class="tag nsfw">${nsfwOnly?"nsfw":"NSFW"}</span>`:''}`;
     const sugTitle = galleryTagged ? "common in gallery" : "pick a model next";
-    b.innerHTML = `<span class="mname">${esc(m.id)} ${tags}</span>${sug?`<span class="sug" title="${sugTitle}">suggested</span>`:""}<span class="price">${esc(pickerRowPrice(m))}</span>`;
+    const label = pickerModelLabel(m);
+    if(label !== String(m.id||"")) b.title = String(m.id||"");
+    b.innerHTML = `<span class="mname">${esc(label)} ${tags}</span>${sug?`<span class="sug" title="${sugTitle}">suggested</span>`:""}<span class="price">${esc(pickerRowPrice(m))}</span>`;
     b.onclick = ()=>{ picker.onPick(m.id); closePicker(); };
     frag.appendChild(b);
   }
@@ -8550,11 +9013,12 @@ const NODE_TYPES = {
   },
 
   llm: {
-    em:"🧠", title:"LLM", desc:"Text (+ images, audio) → text — any chat model", group:"Text", kw:"chat write reason gpt assistant ask prompt transcribe describe listen",
+    em:"🧠", title:"LLM", desc:"Text (+ images, audio, video) → text — any chat model", group:"Text", kw:"chat write reason gpt assistant ask prompt transcribe describe listen",
     modelKind:"chat",
     inputs:[],
     imageInputs:"vision",   // vision-capable models grow dynamic image input ports (see refreshImageInputs)
     audioInput:"audio_input",   // audio-input models grow a single audio input port (see refreshAudioInputs)
+    videoInput:"video_input",   // video-input models (e.g. google/gemini-4-argon) grow a single video port (see refreshVideoInput)
     outputs:[{name:"text", type:"text"}], preview:"text",
     body:(n)=>`
       ${modelFieldHTML(n)}
@@ -8582,10 +9046,15 @@ const NODE_TYPES = {
       // data" makes a paid call with garbage audio (twin of the library's fetchMedia step).
       const aud  = hearsAudio && inp.audio ? audioInputPart(/^data:/.test(inp.audio) ? inp.audio : await urlToDataUrl(inp.audio)) : null;
       if(inp.audio && !hearsAudio) toast("audio ignored — this model is text-only. Pick an audio-input model (e.g. a Gemini).", "err");
+      // Wired video port (video_input models) — one video_url part. Dropped with a warning for a KNOWN
+      // non-video model (NanoGPT answers video_input_not_supported); https clips pass through as URLs.
+      const seesVideo = modelSupportsVideo(n);
+      const vid = seesVideo && inp.video ? videoInputPart(/^(data:|https:)/i.test(inp.video) ? inp.video : await urlToDataUrl(inp.video)) : null;
+      if(inp.video && !seesVideo) toast("video ignored — this model can’t watch video. Pick a video-input model (e.g. Gemini 4 Argon).", "err");
       const messages = [];
       if((n.fields.system||"").trim()) messages.push({role:"system", content:n.fields.system.trim()});
-      messages.push((imgs.length || aud)
-        ? { role:"user", content:[{type:"text", text:prompt}, ...imgs.map(url=>({type:"image_url", image_url:{url}})), ...(aud?[aud]:[])] }
+      messages.push((imgs.length || aud || vid)
+        ? { role:"user", content:[{type:"text", text:prompt}, ...imgs.map(url=>({type:"image_url", image_url:{url}})), ...(aud?[aud]:[]), ...(vid?[vid]:[])] }
         : { role:"user", content:prompt });
       // JSON output-format is only honored by structured_output models; on others response_format
       // json_object returns empty content (finish_reason tool_calls) yet STILL BILLS. The UI keeps
@@ -8785,6 +9254,44 @@ const NODE_TYPES = {
     }
   },
 
+  decide: {
+    em:"⚖️", title:"Decide", desc:"Pick the best image, choose a label, score or yes/no — typed answers with probabilities", group:"Text",
+    kw:"judge pick best choose select classify route label score rate grade rank compare gate filter check yes no quality arena vote decision winner",
+    modelKind:"chat", modelFilter:"decision",
+    inputs:[{name:"text", type:"text"}],
+    imageInputs:"vision",   // image-capable decision models grow img1…imgN (capped at the model's image_limits.maxImages)
+    outputs:[{name:"text", type:"text"},{name:"image", type:"image"}], preview:"decide",
+    body:(n)=>{
+      const mode = decideMode(n.fields);
+      const list = mode==="choose" ? "options" : mode==="score" ? "levels" : "";
+      const hint = {
+        pick:"Wire 2+ images (and the brief into text). The winner comes out of the image port; text says which one.",
+        choose:"Wire what to classify into text. The chosen label comes out of the text port.",
+        score:"Wire what to rate into text (or an image). Text out is the expected level, 1 = first line.",
+        yesno:"Text out is yes or no. With the gate on, a no stops the run here — nothing after it runs or bills.",
+      }[mode];
+      return `
+      ${modelFieldHTML(n)}
+      <div><label>decide</label><select data-f="mode" data-decide-mode>${optsHTML(DECIDE_MODES, mode)}</select></div>
+      <div><label>question</label><textarea data-f="question" style="min-height:44px" placeholder="${esc(t(decideDefaultQuestion(mode)))}">${esc(n.fields.question||"")}</textarea></div>
+      ${list ? `<div><label>${mode==="choose" ? "labels" : "scale"} <span class="dim lblhint">· ${mode==="choose" ? "one per line" : "one level per line, worst first"}</span></label>
+        <textarea data-f="${list}" style="min-height:60px" placeholder="${esc(mode==="choose" ? "watercolor\npixel art\nphoto" : DECIDE_SCALE_DEFAULT)}">${esc(n.fields[list]||"")}</textarea></div>` : ""}
+      ${mode==="yesno" ? `<label class="chk"><input type="checkbox" data-f="gate"${(n.fields.gate===true||n.fields.gate==="true")?" checked":""}/> gate: stop the run here when the answer is no</label>` : ""}
+      <div class="fhint">${esc(t(hint))}</div>`;
+    },
+    // switching mode swaps the labels / scale / gate controls
+    mount:(n)=>{
+      const sel = n.el.querySelector("select[data-decide-mode]"); if(!sel) return;
+      sel.addEventListener("change", ()=>{ n.fields.mode = sel.value; save(); rerenderNode(n); refreshAllPrices(); });
+    },
+    async run(n, inp, ctx){
+      const model = mdl(n, ctx);
+      const dm = catItem("chat", model);
+      return decideRun(n.fields, model, inp.text, collectImageInputs(inp, n), decideImageLimits(dm && dm.decisionInput, !!dm),
+        (body)=> ctx.genDecision(body), urlToDataUrl);
+    }
+  },
+
   tvideo: {
     em:"🎬", title:"Text→Video", desc:"Text → video (takes ~1 min to generate)", group:"Video",
     kw:"reference style subject consistent character",
@@ -8965,7 +9472,7 @@ const NODE_TYPES = {
 
   combine: {
     em:"🎬", title:"Combine videos", desc:"Join clips end-to-end into one video", group:"Video",
-    inputs:[], videoInputs:true,                       // grows clip1, clip2, … input ports (see refreshVideoInputs)
+    inputs:[], videoInputs:true,                       // grows vid1, vid2, … input ports (see refreshVideoInputs)
     outputs:[{name:"video", type:"video"}], preview:"video",
     body:(n)=>`
       <div style="opacity:.6;font-size:.8em;margin-bottom:.35rem">wire two or more clips — they join in order, top to bottom</div>
@@ -9010,7 +9517,10 @@ const NODE_TYPES = {
       <div class="fhint">the spoken words come from the audio input — this guides movement and mood</div></div>
       <div data-modelopts></div>`,
     async run(n, inp, ctx){
-      if(!inp.image) throw new Error("no image — wire an image into the image port");
+      // Portrait required only when the catalog marks image_to_video (i2v). Preset-only avatars
+      // (audio→video, e.g. HeyGen Avatar V) run from the Preset avatar knob + audio alone.
+      const needsPortrait = (()=>{ const m = catItem("video", n.fields.model); return !m || !!m.i2v; })();
+      if(needsPortrait && !inp.image) throw new Error("no image — wire an image into the image port");
       if(!inp.audio) throw new Error("no audio — wire an audio clip into the audio port");
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
       const prog = (st,ms,meta)=> setNodeProgress(n, fmtPollHeadline("lip-syncing…", st, ms), meta);
@@ -9041,7 +9551,7 @@ const NODE_TYPES = {
         opts.dims = videoDimParams(n);            // resolution (+ any duration/aspect the avatar model lists) under its real wire names
         opts.extra = (n.fields.modelOpts||{});    // per-model ⚙️ knobs (seed/guidance_scale/num_inference_steps/…)
         try{
-          return { video: await ctx.genVideo(mdl(n), prompt, opts, inp.image, prog) };
+          return { video: await ctx.genVideo(mdl(n), prompt, opts, needsPortrait ? inp.image : null, prog) };
         }catch(e){
           if(attempt>0) throw e;
           const msg = e.message || "";
@@ -9067,7 +9577,7 @@ const NODE_TYPES = {
     modelKind:"audio", modelFilter:"music",
     inputs:[],
     outputs:[{name:"audio", type:"audio"}], preview:"audio",
-    body:(n)=> audioBody(n, "musical style — not lyrics", "late-night analog folk, slow mid-tempo, fingerpicked nylon guitar, distant wok hiss…", true),
+    body:(n)=> audioBody(n, "musical style — not lyrics", "late-night analog folk, slow mid-tempo, fingerpicked nylon guitar, distant wok hiss…", true),   // SFX models: refreshAudioParams → syncAudioPromptLabel swaps in "sound description"
     run: audioRun,
   },
 
@@ -9143,6 +9653,20 @@ const NODE_TYPES = {
       if(!inp.audio) throw new Error("no audio — wire an audio clip into the audio port");
       return { text: await ctx.transcribe(mdl(n), inp.audio, (n.fields.language||"auto").trim()) };
     }
+  },
+
+  cleanvoice: {
+    em:"🎧", title:"Clean voice", desc:"Strip background noise and music — keep the voice (audio or video in)", group:"Audio",
+    kw:"denoise noise removal reduction isolate isolation voice clean audio podcast interview dialogue speech enhance background music",
+    modelKind:"audio", modelFilter:"denoise",
+    inputs:[{name:"audio", type:"audio"},{name:"video", type:"video"}],
+    outputs:[{name:"audio", type:"audio"}], preview:"audio",
+    body:(n)=> `
+      ${modelFieldHTML(n)}
+      <div><label>${esc(t("or a public link"))}</label><textarea data-f="url" spellcheck="false" style="min-height:34px" placeholder="https://…/interview.mp3">${esc(n.fields.url||"")}</textarea></div>
+      <div class="fhint">${esc(t("cleans hosted media only: a generated video or track, or a public link. Clips uploaded in the browser can't reach it."))}</div>`,
+    run:(n, inp, ctx)=> cleanVoiceRun(mdl(n), inp, n.fields, (model, extra)=> ctx.genAudio(model, "", extra,
+      (q,ms)=> setNodeProgress(n, `${t("cleaning voice…")} ${Math.round(ms/1000)}s${q!=null?` · queue ${q}`:""}`), n.id)),
   },
 
   endpoint: {
@@ -9325,7 +9849,7 @@ function buildNodeEl(n){
       e.stopPropagation();
       openPicker(t.modelKind, { current:n.fields.model, filter:t.modelFilter, nodeType:n.type, onPick:(id)=>{
         n.fields.model = id; if(n.type==="model3d") n.modelTouched = true;
-        syncModelPickUI(n, id); updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); refreshModel3dPorts(n); save();
+        syncModelPickUI(n, id); updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshVideoInput(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); refreshModel3dPorts(n); save();
         try{ window.__nextAction?.record?.("set:model"); }catch(_){}
       }});
     };
@@ -9373,6 +9897,7 @@ function buildNodeEl(n){
   refreshImageInputs(n);             // dynamic image ports + their own wire listeners (after the static-port bind above)
   refreshVideoInputs(n);             // dynamic clip ports on the Combine node (same timing as image ports)
   refreshAudioInputs(n);             // single audio port on audio-input chat models (model-gated)
+  refreshVideoInput(n);              // single video port on video-input chat models (model-gated)
   refreshEndFrameInput(n);           // optional end-frame port on the ivideo node (model-gated on last_image)
   refreshRefInputs(n);               // growing reference-image ports on the tvideo node (model-gated on a ref-image array param)
   refreshRefHint(n);                 // "refs live on Text→Video" nudge on the ivideo node (model-gated on videoRefSpec)
@@ -9414,6 +9939,7 @@ function refreshImageInputs(n){
     translateTree(row);   // localize the disabled-port tooltip (port label stays English, like the static ports)
     if(!d.disabled) row.querySelector(".port").addEventListener("pointerdown", e=> startWire(e.currentTarget, e));
   });
+  orderMediaInputRows(n);
   refreshPortFills();
   updateModelWarn(n);   // wiring changed → re-evaluate the "needs 2 images (person, garment)" badge
 }
@@ -9453,6 +9979,16 @@ function refreshVideoInputs(n){
 // model pick or graph load. A non-audio model shows a disabled stub that visibly "unlocks" once
 // an audio-input model is picked (mirror of refreshImageInputs' disabled stub). The port lives as
 // a link (named "audio"), so it serializes and exports for free.
+// The LLM node's media ports always read image(s) → audio → video, whichever refresher ran last.
+// Each refresher removes + re-appends its own rows, so a lone refreshImageInputs (wire/catalog/load
+// paths) used to push the image rows below audio/video. Re-seat the three families in fixed order.
+const MEDIA_ROW_ORDER = [".prow.imgrow", ".prow.audrow", ".prow.vidinrow"];
+function orderMediaInputRows(n){
+  const t = n && NODE_TYPES[n.type];
+  if(!n?.el || !t || !(t.audioInput || t.videoInput)) return;
+  const col = n.el.querySelector(".col.in"); if(!col) return;
+  for(const sel of MEDIA_ROW_ORDER) col.querySelectorAll(sel).forEach(el=> col.appendChild(el));
+}
 function refreshAudioInputs(n){
   if(!n.el || !NODE_TYPES[n.type].audioInput) return;
   const col = n.el.querySelector(".col.in"); if(!col) return;
@@ -9464,6 +10000,25 @@ function refreshAudioInputs(n){
     + (off?` title="this model can’t hear audio — pick an audio-input model"`:``) + `></i><span>audio</span>`;
   col.appendChild(row);
   if(!off) row.querySelector(".port").addEventListener("pointerdown", e=> startWire(e.currentTarget, e));
+  orderMediaInputRows(n);
+  refreshPortFills();
+}
+
+// Render the single video input port on a video-input chat model (twin of refreshAudioInputs):
+// a disabled stub on non-video models that unlocks once a video_input model (e.g. Gemini 4 Argon)
+// is picked. Lives as a link named "video", so it serializes and exports for free.
+function refreshVideoInput(n){
+  if(!n.el || !NODE_TYPES[n.type].videoInput) return;
+  const col = n.el.querySelector(".col.in"); if(!col) return;
+  col.querySelectorAll(".prow.vidinrow").forEach(el=> el.remove());
+  const off = !modelSupportsVideo(n);
+  const row = document.createElement("div");
+  row.className = "prow vidinrow" + (off?" off":"");
+  row.innerHTML = `<i class="port video${off?" disabled":""}" data-node="${esc(n.id)}" data-port="video" data-dir="in" data-ptype="video"`
+    + (off?` title="this model can’t watch video — pick a video-input model"`:``) + `></i><span>video</span>`;
+  col.appendChild(row);
+  if(!off) row.querySelector(".port").addEventListener("pointerdown", e=> startWire(e.currentTarget, e));
+  orderMediaInputRows(n);
   refreshPortFills();
 }
 
@@ -9491,13 +10046,19 @@ function refreshEndFrameInput(n){
 // Discoverability nudge on the Image→Video node: some i2v models (seedance-2.0 & co.)
 // ALSO advertise a reference-image array param (videoRefSpec non-null). ivideo deliberately
 // does NOT expose ref ports — the start-image + reference_images combined call is unverified
-// upstream (kling bills the modes separately) — so when such a model is picked, point the user
-// at the 🎬 Text→Video node, which DOES carry ref ports (#199), for character/subject pinning.
+// upstream (kling bills the modes separately) — so when such a model is picked AND the
+// Text→Video picker actually lists it, point at that node's ref ports (#199). A model that
+// advertises refs but can't be picked there (Vidu Q4, text_to_video false) gets no hint.
 // Editor-only: app builders don't pick models, so exported/shared apps never surface this.
 function refreshRefHint(n){
   if(!n.el || n.type!=="ivideo") return;
   const box = n.el.querySelector("[data-refhint]"); if(!box) return;
   if(!videoRefSpec(n)){ box.innerHTML=""; return; }
+  // The sentence points at Text→Video's ref ports. A model that advertises reference
+  // images but is not pickable there (Vidu Q4: text_to_video false) made it a dead end.
+  // Show it only when the Text→Video picker actually lists this model.
+  const m = catItem("video", n.fields.model);
+  if(!m || !m.t2v){ box.innerHTML=""; return; }
   box.innerHTML = `<div class="fhint">${esc(t("this model can pin a character/subject from reference images — use the 🎬 Text→Video node's ref ports for that"))}</div>`;
 }
 // Render the GROWING reference-image ports on the Text→Video node. Shown ONLY when the picked model
@@ -9560,7 +10121,7 @@ function addFieldPorts(n){
 
 // Restore any saved per-field textarea heights so a stretched layout survives reload/share
 // (card width is restored in buildNodeEl from n.w). Height also grows two other ways: the node's
-// corner grip → startNodeResize (primary prompt only), and each textarea's own native resize
+// corner grip → startNodeResize (the visible primary box), and each textarea's own native resize
 // handle (resize:vertical) — the observer below captures the latter so ANY field's stretch persists.
 function prepTextareas(n){
   if(!n.el) return;
@@ -9573,6 +10134,7 @@ function prepTextareas(n){
     new ResizeObserver(()=>{
       const h = ta.offsetHeight;
       if(h===lastH) return;                // width-only reflow (card resize) — don't touch height
+      if(ta.hidden || h < 1) return;       // a wired field collapses to display:none — don't store 0 over a real height
       lastH = h; (n.sizes ||= {})[field] = h; save();
     }).observe(ta);
   });
@@ -9646,6 +10208,197 @@ function resizeCropImage(dataUrl, mode, tw, th){
     img.onerror = ()=> rej(new Error("couldn’t read that image to resize"));
     img.src = dataUrl;
   });
+}
+/* ======================================================================
+   ⚖️ DECIDE — typed judgments from NanoGPT decision models
+   POST /api/v1/decisions with the user's own NanoGPT key (same origin the editor already talks to,
+   full CORS — no second key, no backend). One question per run, four modes:
+     pick   — which wired image best answers the question (the winner flows out of the image port)
+     choose — which of your labels fits (the label is the text out)
+     score  — expected level on your scale, 1 = first line (fractional: probability-weighted)
+     yesno  — yes/no; with the gate on, "no" stops the run here so nothing downstream is billed
+   Decision models return calibrated probabilities instead of generated text and bill input tokens
+   only. Image-capable ones (catalog decision_input.image_input) take up to image_limits.maxImages
+   inline images, each at most maxDimension px, all of them within maxEncodedBytes — so every wired
+   image is shrunk to fit on-device first (decideFitImage). Shared twin: index.html and play.html
+   RUNTIME_JS carry this block character-identical after trim. NO backticks (String.raw template).
+   ====================================================================== */
+var DECIDE_DEFAULT_MODEL = "perplexity/pplx-decider-v1.1-27b";   // sees images (pick-best needs that), 262K context, cheapest per token at launch
+var DECIDE_MODES = [["pick","pick the best image"],["choose","choose a label"],["score","score on a scale"],["yesno","yes / no"]];
+var DECIDE_SCALE_DEFAULT = "poor\nokay\ngood\ngreat";
+var DECIDE_IMG_FALLBACK = { maxImages:4, maxDimension:512, maxEncodedBytes:240000 };   // the live limits of every image-capable decision model at launch
+function decideMode(f){ var m = f && f.mode; return (m==="choose" || m==="score" || m==="yesno") ? m : "pick"; }
+function decideLines(s){ return String(s==null ? "" : s).split("\n").map(function(x){ return x.trim(); }).filter(Boolean); }
+function decideDefaultQuestion(mode){
+  if(mode==="pick") return "Which image best matches the brief?";
+  if(mode==="choose") return "Which label fits best?";
+  if(mode==="score") return "How good is it?";
+  return "Is it good enough to use?";
+}
+// Image limits for a model from its catalog decision_input. known=false (id not in the catalog yet /
+// offline) stays permissive with the launch limits; a KNOWN text-only model returns null.
+function decideImageLimits(di, known){
+  if(!known) return DECIDE_IMG_FALLBACK;
+  if(!di || !di.image_input) return null;
+  var l = di.image_limits || {};
+  return {
+    maxImages: l.maxImages > 0 ? l.maxImages : DECIDE_IMG_FALLBACK.maxImages,
+    maxDimension: l.maxDimension > 0 ? l.maxDimension : DECIDE_IMG_FALLBACK.maxDimension,
+    maxEncodedBytes: l.maxEncodedBytes > 0 ? l.maxEncodedBytes : DECIDE_IMG_FALLBACK.maxEncodedBytes
+  };
+}
+// The one typed question this node asks. Throws (before any request) on an unanswerable setup.
+function decideQuestionFor(mode, f, nImgs){
+  var q = String((f && f.question) || "").trim() || decideDefaultQuestion(mode);
+  if(mode==="pick"){
+    if(nImgs < 2) throw new Error("pick needs at least two images — wire 2 or more into the image ports");
+    var c = {};
+    for(var i=1; i<=nImgs; i++) c["image_" + i] = "image " + i;
+    return { type:"choice", instructions:q, criteria:c };
+  }
+  if(mode==="choose"){
+    var labels = decideLines(f && f.options).filter(function(x, i, a){ return a.indexOf(x)===i; });
+    if(labels.length < 2) throw new Error("add at least two labels to choose from (one per line)");
+    if(labels.length > 255) throw new Error("too many labels — 255 at most");
+    var cc = {};
+    labels.forEach(function(x){ cc[x] = null; });
+    return { type:"choice", instructions:q, criteria:cc };
+  }
+  if(mode==="score"){
+    var lv = decideLines((f && f.levels!=null && String(f.levels).trim()) ? f.levels : DECIDE_SCALE_DEFAULT);
+    if(lv.length < 2 || lv.length > 10) throw new Error("the scale needs 2 to 10 levels, worst first (one per line)");
+    return { type:"score", instructions:q, criteria:lv };
+  }
+  return { type:"noul", instructions:q };
+}
+// state: plain text, or (with images) an array of text lines + inline image_url parts, labelled so
+// the model can tell candidate 2 from candidate 3.
+function decideState(text, imgs){
+  if(!imgs.length) return text;
+  var s = [];
+  if(text) s.push(text);
+  imgs.forEach(function(u, i){
+    if(imgs.length > 1) s.push("image_" + (i+1) + ":");
+    s.push({ type:"image_url", image_url:{ url:u } });
+  });
+  return s;
+}
+// Shrink one image (data: URL) to fit maxDim and a byte budget — JPEG on white, so a transparent PNG
+// can't turn black. Steps quality down, then size, until it fits. On-device, free.
+function decideFitImage(dataUrl, maxDim, budget){
+  return new Promise(function(res, rej){
+    var img = new Image();
+    img.onload = function(){
+      try{
+        var w0 = img.naturalWidth || 1, h0 = img.naturalHeight || 1;
+        var s = Math.min(1, maxDim / Math.max(w0, h0));
+        var qs = [0.85, 0.72, 0.6, 0.48];
+        for(var round=0; round<6; round++){
+          var w = Math.max(1, Math.round(w0*s)), h = Math.max(1, Math.round(h0*s));
+          var c = document.createElement("canvas"); c.width = w; c.height = h;
+          var cx = c.getContext("2d"); cx.fillStyle = "#fff"; cx.fillRect(0, 0, w, h);
+          cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = "high";
+          cx.drawImage(img, 0, 0, w, h);
+          for(var qi=0; qi<qs.length; qi++){
+            var out = c.toDataURL("image/jpeg", qs[qi]);
+            if(out.length <= budget){ res(out); return; }
+          }
+          s = s * 0.75;
+        }
+        rej(new Error("couldn’t shrink an image small enough for the decision model"));
+      }catch(e){ rej(e); }
+    };
+    img.onerror = function(){ rej(new Error("couldn’t read an image to judge")); };
+    img.src = dataUrl;
+  });
+}
+// Turn the API answer into the node's outputs: text (label / score / yes|no / "image N"), image
+// (pick: the winner; other modes: the first wired image, passed through so Decide can sit inline as
+// a gate), and decision (detail for the result card).
+function decideOutputs(mode, ans, q, imgs, usage, model){
+  if(!ans || !ans.type) throw new Error("the decision model returned no answer");
+  var d = { mode:mode, model:model, cost:(usage && typeof usage.cost==="number") ? usage.cost : null, rows:[] };
+  var probs = ans.probabilities || {};
+  if(mode==="pick"){
+    var k = String(ans.choice || ""), idx = parseInt(k.replace(/^image_/, ""), 10) || 1;
+    d.pick = idx; d.confidence = ans.confidence;
+    d.rows = Object.keys(q.criteria).map(function(key, i){ return { label:"image " + (i+1), p:+probs[key] || 0, win:key===k }; });
+    return { text:"image " + idx, image:imgs[idx-1] || "", decision:d };
+  }
+  if(mode==="choose"){
+    d.confidence = ans.confidence;
+    d.rows = Object.keys(q.criteria).map(function(key){ return { label:key, p:+probs[key] || 0, win:key===ans.choice }; });
+    return { text:String(ans.choice || ""), image:imgs[0] || "", decision:d };
+  }
+  if(mode==="score"){
+    var sc = (+ans.score || 0) + 1;   // 1 = the first (worst) level
+    d.score = sc; d.levels = q.criteria.length; d.confidence = ans.confidence;
+    var top = 0;
+    q.criteria.forEach(function(x, i){ if((+probs[String(i)] || 0) > (+probs[String(top)] || 0)) top = i; });
+    d.rows = q.criteria.map(function(x, i){ return { label:(i+1) + " · " + x, p:+probs[String(i)] || 0, win:i===top }; });
+    return { text:String(Math.round(sc*100)/100), image:imgs[0] || "", decision:d };
+  }
+  var py = Math.max(0, Math.min(1, +ans.noul || 0));
+  d.yes = py;
+  d.rows = [{ label:"yes", p:py, win:py>=0.5 }, { label:"no", p:1-py, win:py<0.5 }];
+  return { text:py>=0.5 ? "yes" : "no", image:imgs[0] || "", decision:d };
+}
+// "gate closed" is a deliberate stop, not a failure: the node shows it as such and every node
+// downstream is skipped (and never billed), exactly like the upstream-failed path.
+function decideGateError(d){
+  var e = new Error("gate closed — the answer was no (yes " + Math.round(d.yes*100) + "%), so nothing downstream ran");
+  e.gate = true; e.decision = d;
+  return e;
+}
+// Average the pick probabilities of several runs that saw the candidates in different orders.
+// orders[r][k] = which original image sat in slot k+1 of run r. Costs add up.
+function decideMergeOrders(js, orders){
+  var n = orders[0].length, sum = [], cost = 0, costKnown = true;
+  for(var i=0; i<n; i++) sum.push(0);
+  js.forEach(function(j, r){
+    var a = j && j.answers && j.answers.answer;
+    if(!a || !a.probabilities) throw new Error("the decision model returned no answer");
+    orders[r].forEach(function(orig, k){ sum[orig] += (+a.probabilities["image_" + (k+1)] || 0) / js.length; });
+    if(j.usage && typeof j.usage.cost==="number") cost += j.usage.cost; else costKnown = false;
+  });
+  var best = 0, probs = {};
+  sum.forEach(function(p, i){ probs["image_" + (i+1)] = p; if(p > sum[best]) best = i; });
+  return { answers:{ answer:{ type:"choice", choice:"image_" + (best+1), confidence:sum[best], probabilities:probs } },
+           usage:{ cost: costKnown ? cost : null }, runs:js.length };
+}
+// The whole run, shared by both engines. send(body) POSTs /api/v1/decisions and returns the JSON;
+// toDataUrl(url) inlines a remote/blob image. lim = decideImageLimits(...) for the chosen model.
+async function decideRun(f, model, text, imgs, lim, send, toDataUrl){
+  var mode = decideMode(f);
+  text = String(text==null ? "" : text).trim();
+  imgs = (imgs || []).filter(Boolean);
+  if(imgs.length && !lim) throw new Error("this decision model can’t see images — pick one that can (e.g. PPLX Decider or Clef)");
+  if(lim && imgs.length > lim.maxImages) throw new Error("this decision model takes at most " + lim.maxImages + " images — unwire the extras");
+  var q = decideQuestionFor(mode, f, imgs.length);
+  if(!text && !imgs.length && !String((f && f.question) || "").trim()) throw new Error("nothing to judge — wire text or an image into Decide");
+  var sent = [];
+  if(imgs.length){
+    var budget = Math.floor(lim.maxEncodedBytes * 0.95 / imgs.length);
+    for(var i=0; i<imgs.length; i++){
+      var du = /^data:/.test(imgs[i]) ? imgs[i] : await toDataUrl(imgs[i]);
+      sent.push(await decideFitImage(du, lim.maxDimension, budget));
+    }
+  }
+  var j;
+  if(mode==="pick"){
+    // Decision models lean toward the first image they see, so pick asks twice — candidates in
+    // order, then reversed — and averages each image's probability. Two tiny calls, run together.
+    var fwd = sent.map(function(x, i){ return i; }), rev = fwd.slice().reverse();
+    var both = await Promise.all([fwd, rev].map(function(ord){
+      return send({ model:model, state:decideState(text, ord.map(function(i){ return sent[i]; })), questions:{ answer:q } });
+    }));
+    j = decideMergeOrders(both, [fwd, rev]);
+  } else {
+    j = await send({ model:model, state:decideState(text, sent), questions:{ answer:q } });
+  }
+  var out = decideOutputs(mode, j && j.answers && j.answers.answer, q, imgs, j && j.usage, model);
+  if(mode==="yesno" && (f.gate===true || f.gate==="true") && out.decision.yes < 0.5) throw decideGateError(out.decision);
+  return out;
 }
 function fileToDataURL(file, cb){
   const img = new Image();
@@ -10382,12 +11135,22 @@ function setStopped(n){
 }
 // A node we never ran because an upstream node failed/cycled: not its own fault and never charged,
 // so show it as blocked — no stale-input run, no misleading "missing input" error.
-function setSkipped(n){
+function setSkipped(n, byGate){
   if(!n?.el) return;
   n.el.dataset.status = "skip";
   delete n._runT0; delete n._runMsg; delete n._pollMeta;
   const r = n.el.querySelector(".result");
-  if(r){ r.classList.add("show"); r.innerHTML = `<div style="color:var(--dim)">⤼ skipped — upstream failed</div>`; }
+  if(r){ r.classList.add("show"); r.innerHTML = `<div style="color:var(--dim)">⤼ ${esc(t(byGate ? "skipped — a gate upstream said no" : "skipped — upstream failed"))}</div>`; }
+  paintRunLive();
+}
+// A ⚖️ Decide gate that answered no: a deliberate stop (the decision itself ran and billed its tiny
+// cost), shown with its probabilities — not a red error. Everything downstream is skipped, unbilled.
+function setGated(n, err){
+  if(!n?.el) return;
+  n.el.dataset.status = "skip";
+  delete n._runT0; delete n._runMsg; delete n._pollMeta;
+  const r = n.el.querySelector(".result");
+  if(r){ r.classList.add("show"); r.innerHTML = `<div class="dgate">⛔ ${esc(t("gate closed — nothing downstream ran"))}</div>` + decideCardHTML(err.decision || {}); }
   paintRunLive();
 }
 // Status URL for a NanoGPT async video job (needs the API key when fetched; useful for curl/devtools).
@@ -10478,6 +11241,17 @@ async function downloadUrl(url, filename){
     if(href!==url) setTimeout(()=> URL.revokeObjectURL(href), 4000);
   }catch{ openUrl(url); }                                // fallback: open in a new tab
 }
+// ⚖️ Decide result card: the answer, then one probability bar per option (the winner highlighted)
+// and the real cost the decision billed (usage.cost — input tokens only).
+function decideCardHTML(d){
+  const pct = (p)=> Math.round((+p||0)*100) + "%";
+  const head = d.mode==="score" ? `${(Math.round((d.score||0)*10)/10)} / ${d.levels||"?"}`
+    : d.mode==="yesno" ? (d.yes>=0.5 ? `yes · ${pct(d.yes)}` : `no · ${pct(1-d.yes)}`)
+    : (d.mode==="pick" ? `image ${d.pick}` : (((d.rows||[]).find(x=> x.win)||{}).label || "")) + ` · ${pct(((d.rows||[]).find(x=> x.win)||{}).p)}`;
+  const rows = (d.rows||[]).map(x=> `<div class="drow${x.win?" win":""}"><span class="dlab" data-no-i18n>${esc(x.label)}</span><span class="dbar"><i style="width:${Math.max(1, Math.round((+x.p||0)*100))}%"></i></span><span class="dp">${pct(x.p)}</span></div>`).join("");
+  const cost = d.cost!=null ? ` · ${d.cost>0 ? "$"+(d.cost<0.0001 ? d.cost.toPrecision(2) : d.cost.toFixed(4)) : "$0"}` : "";
+  return `<div class="decide"><div class="dhead" data-no-i18n>${esc(head)}</div>${rows}<div class="dmeta" data-no-i18n>${esc((d.model||"") + cost)}</div></div>`;
+}
 function showResult(n){
   const ty = NODE_TYPES[n.type], r = n.el.querySelector(".result");
   const preview = typeof ty.preview==="function" ? ty.preview(n) : ty.preview;
@@ -10490,6 +11264,18 @@ function showResult(n){
     r.innerHTML = `<div class="frames">${imgs.map((src,i)=>
       `<div class="fr"><img src="${esc(src)}" alt="frame ${i+1}"/><button data-dl="${i}" title="${esc(t("save frame")+" "+(i+1))}">⬇</button></div>`).join("")}</div>`;
     imgs.forEach((src,i)=> r.querySelector(`[data-dl="${i}"]`).onclick = ()=> downloadUrl(src, `noodle-${n.id}-frame${i+1}.png`));
+    return;
+  }
+  if(preview==="decide"){
+    const d = n.out.decision;
+    if(!d){ r.classList.remove("show"); r.innerHTML=""; return; }
+    r.innerHTML = (d.mode==="pick" && n.out.image ? `<img src="${esc(n.out.image)}" alt="winner"/>` : "") + decideCardHTML(d)
+      + `<div class="acts"><button data-copy>⧉ ${esc(t("copy"))}</button></div>`;
+    r.querySelector("[data-copy]").onclick = async (e)=>{
+      const b=e.currentTarget, o=b.textContent;
+      b.textContent = await copyText(n.out.text ?? "") ? t("✓ copied") : t("copy failed");
+      setTimeout(()=> b.textContent=o, 1200);
+    };
     return;
   }
   if(preview==="image" && n.out.image){
@@ -10828,15 +11614,28 @@ function startNodeDrag(n, e){
 // Drag the node's bottom-right grip to resize: width grows the card (n.w), height grows the
 // primary prompt textarea (n.sizes). Mirrors startNodeDrag — window listeners, /scale, save on up.
 const RMINW = 210, RMAXW = 760, RMINH = 54;
+// Which box the corner grip stretches. Prompt/text/q are the historical primaries; Decide's
+// question and Choice's options are the same kind of box under a different field name (the Decide
+// node shipped without being added here, so its grip only changed width). A wired field is
+// display:none — writing a height onto it never moves the card, so skip it and use the next
+// visible text box (LLM system, once the prompt has collapsed into a chip).
+function nodeResizeTextarea(el){
+  const boxes = [...el.querySelectorAll(".body textarea[data-f], .body textarea[data-pf]")];
+  const visible = (t)=> !t.hidden && t.getClientRects().length > 0;
+  for(const f of ["prompt","text","q","question","options"]){
+    const t = boxes.find(t => (t.dataset.f || t.dataset.pf) === f && visible(t));
+    if(t) return t;
+  }
+  return boxes.find(visible) || null;
+}
 function startNodeResize(n, e){
   try{ clearDualSelectBridge(); }catch(_){}
   e.preventDefault(); e.stopPropagation(); select(n);
   const id = e.pointerId; nodeGestPtrs.add(id);
   const el = n.el;
-  // the primary prompt field by name (some nodes render a secondary textarea — e.g. LLM "system" — first)
-  const ta = el.querySelector('.body textarea[data-f="prompt"],.body textarea[data-f="text"],.body textarea[data-f="q"]');
+  const ta = nodeResizeTextarea(el);
   const sx=e.clientX, sy=e.clientY, startW=el.offsetWidth, startH=ta?ta.offsetHeight:0;
-  const w0=n.w, taF=ta?.dataset.f, taH0 = (ta && n.sizes) ? n.sizes[taF] : undefined;   // pre-resize state, restored if a pinch aborts this gesture
+  const w0=n.w, taF=ta?.dataset.f || ta?.dataset.pf, taH0 = (ta && n.sizes) ? n.sizes[taF] : undefined;   // pre-resize state, restored if a pinch aborts this gesture
   el.style.maxWidth = "none";
   let _snapped=false;
   const move = (ev)=>{
@@ -10846,7 +11645,7 @@ function startNodeResize(n, e){
     el.style.width = n.w+"px";
     if(ta){
       const h = Math.round(Math.max(RMINH, startH + (ev.clientY-sy)/scale));
-      ta.style.height = h+"px"; (n.sizes ||= {})[ta.dataset.f] = h;
+      ta.style.height = h+"px"; (n.sizes ||= {})[ta.dataset.f || ta.dataset.pf] = h;
     }
     redraw();
   };
@@ -11122,7 +11921,7 @@ function nodeAcceptsType(k, type){
   if(t.note) return false;   // a sticky note isn't part of the graph — never a wire target
   if((t.inputs||[]).some(p=> p.type===type)) return true;
   if(type==="image" && t.imageInputs) return true;
-  if(type==="video" && t.videoInputs) return true;
+  if(type==="video" && (t.videoInputs || t.videoInput)) return true;
   if(type==="audio" && t.audioInput) return true;
   if(type==="text"  && bodyHasTextField(k)) return true;
   return false;
@@ -11148,7 +11947,7 @@ function socketsForDrop(k, dir, ptype){
     const names = [];
     for(const p of (NODE_TYPES[k].inputs||[])) if(p.type===ptype && !names.includes(p.name)) names.push(p.name);
     if(ptype==="image" && NODE_TYPES[k].imageInputs && !names.includes("image")) names.push("image");
-    if(ptype==="video" && NODE_TYPES[k].videoInputs && !names.includes("video")) names.push("video");
+    if(ptype==="video" && (NODE_TYPES[k].videoInputs || NODE_TYPES[k].videoInput) && !names.includes("video")) names.push("video");
     if(ptype==="audio" && NODE_TYPES[k].audioInput && !names.includes("audio")) names.push("audio");
     if(ptype==="text" && bodyHasTextField(k) && !names.includes("prompt")) names.push("prompt");
     return names;
@@ -11255,6 +12054,13 @@ function ensureModelForInput(n, type){
     if(m){
       n.fields.model = m.id; syncModelPickUI(n, m.id);
       updateNodePrice(n); refreshAudioInputs(n); save();
+    }
+  }
+  if(type==="video" && t.videoInput && t.modelKind){
+    const m = (catalogs[t.modelKind]||[]).find(x=> passesFilter(x, t.videoInput));
+    if(m){
+      n.fields.model = m.id; syncModelPickUI(n, m.id);
+      updateNodePrice(n); refreshVideoInput(n); save();
     }
   }
   if(n.type==="model3d" && (type==="text" || type==="image")){
@@ -12133,12 +12939,24 @@ function njsRunFor(type, rn, inp, n){
   // now, but the ROLE→port mapping is curated here and the two lists can drift — a delegated run that
   // disagreed would either send a wrong-slot pair or spend where the built-in refused. Stay built-in.
   if(type==="edit" && IMG_INPUT_ROLES[rn.fields.model]) return null;
+  // LLM video port (video_input models): the library's llm runner has no video_url part yet, so a
+  // delegated run would silently drop the wired clip. Stay built-in whenever a video is wired.
+  if(type==="llm" && inp && inp.video) return null;
+  // Preset-only avatars (catalog image_to_video false, e.g. HeyGen Avatar V): the built-in lipsync
+  // runner skips the portrait; the library's runner still demands one and would forward it. Stay built-in.
+  if(type==="lipsync"){ const am = catItem("video", rn.fields.model); if(am && !am.i2v) return null; }
   // tvideo/vedit refs: the library now resolves the real ref key + cap from the raw catalog
   // (modelRefSpec), but on a catalog MISS it stays permissive-ON (send under the most common
   // spelling, like play) where this editor is permissive-OFF (videoRefSpec null → refs dropped,
   // never sent-and-charged). A transient raw-catalog failure inside a delegated run would
   // therefore send refs the built-in wouldn't — wired refs stay on the built-in path.
   if(type==="tvideo" || type==="vedit"){ for(const k in inp){ if(REF_PORT_RE.test(k)) return null; } }
+  // Samples (pricing.multiplier_parameter, SFX 2.0 num_samples), the number-range duration and the SFX
+  // Music knobs (upload_audio_format, no lyrics) are built-in only: the library's videoDims / audioParams
+  // don't send them yet, so a delegated run would bill the API's 2 samples while the chip quoted 1 or 4.
+  if((type==="tvideo" || type==="ivideo" || type==="vedit") && videoMultiplierDim(catItem("video", rn.fields.model))) return null;
+  if(type==="music"){ const am = catItem("audio", rn.fields.model);
+    if(am && (audioIsSfx(am) || audioMultiplierSpec(am) || audioUploadFormat(am))) return null; }
   // A pending video/audio job submitted by the BUILT-IN engine (lazy bundle load race: first run
   // fires before vendor/njs-engine.js arrives) uses a body-shaped signature this shim can't match —
   // delegating now would orphan that paid job and re-submit. Let the engine that owns it resume it.
@@ -12192,7 +13010,7 @@ function njsRunFor(type, rn, inp, n){
 // Signed out → the group still "runs", against DEMO_CTX: canned results (badged as samples, no
 // network, no charge) instead of a dead-end key prompt — the first Run click always shows the wow.
 function isPaidNanoType(type){
-  return /^(llm|vision|image|edit|inpaint|tvideo|ivideo|vedit|lipsync|music|remix|tts|transcribe)$/.test(type);
+  return /^(llm|vision|decide|image|edit|inpaint|tvideo|ivideo|vedit|lipsync|music|remix|tts|transcribe|cleanvoice)$/.test(type);
 }
 async function runGroup(seedIds, ctx){
   ctx = ctx || (getKey() ? CTX : DEMO_CTX);
@@ -12255,6 +13073,7 @@ async function runGroup(seedIds, ctx){
     // (a→b, a→c) run concurrently rather than serializing down the topo order.
     const done = {};                                  // id → promise, so dependents await just their inputs
     const failed = new Set(cyclic);                   // ids that errored (or are in a cycle) → output is invalid, so dependents must NOT run on its stale .out
+    const gated = new Set();                          // ⚖️ Decide gates that closed (and everything they stopped) — a deliberate stop, not a failure
     const depsOf = (id)=>{                             // upstream node ids feeding this node (within the run set)
       const s = new Set();
       for(const l of graph.links) if(l.to.node===id && ids.has(l.from.node)) s.add(l.from.node);
@@ -12270,7 +13089,7 @@ async function runGroup(seedIds, ctx){
         if(ctl.signal.aborted && seedSet.has(id)){ setStopped(n); return; }
         // Poison-propagate: a failed/cyclic upstream node has no valid output, so running here would
         // feed this node the parent's STALE .out and reach a PAID call. Skip (transitively) instead.
-        if(deps.some(d=> failed.has(d))){ failed.add(id); setSkipped(n); return; }
+        if(deps.some(d=> failed.has(d))){ failed.add(id); const byGate = deps.some(d=> gated.has(d)); if(byGate) gated.add(id); setSkipped(n, byGate); return; }
         const t = NODE_TYPES[n.type], inp = {};
         for(const port of t.inputs){
           const l = graph.links.find(x=> x.to.node===id && x.to.port===port.name);
@@ -12288,6 +13107,10 @@ async function runGroup(seedIds, ctx){
         // the single audio port on audio-input chat models → read by run() as inp.audio
         if(t.audioInput) for(const l of graph.links){
           if(l.to.node===id && l.to.port==="audio") inp.audio = byId(l.from.node)?.out?.[l.from.port];
+        }
+        // the single video port on video-input chat models → read by run() as inp.video
+        if(t.videoInput) for(const l of graph.links){
+          if(l.to.node===id && l.to.port==="video") inp.video = byId(l.from.node)?.out?.[l.from.port];
         }
         // the optional end-frame port on the ivideo node → read by run() as inp.endframe, but ONLY when the
         // picked model still exposes last_image. Run-time role clamp: a wire left over from a model that had
@@ -12312,6 +13135,7 @@ async function runGroup(seedIds, ctx){
           if(imgRe && imgRe.test(l.to.port)) continue;   // image ports aren't text-field overrides
           if(t.videoInputs && VID_PORT_RE.test(l.to.port)) continue;   // clip ports aren't text-field overrides
           if(t.audioInput && l.to.port==="audio") continue;            // the audio port isn't a text-field override
+          if(t.videoInput && l.to.port==="video") continue;            // the video port isn't a text-field override
           if(t.refInputs && REF_PORT_RE.test(l.to.port)) continue;     // ref-image ports aren't text-field overrides
           const v = byId(l.from.node)?.out?.[l.from.port];
           if(v==null) continue;
@@ -12397,6 +13221,7 @@ async function runGroup(seedIds, ctx){
             const workCancelled = !!(work && work.ctl && work.ctl.signal.aborted);
             const seedAlone = ctl.signal.aborted && !(work && work.holders && work.holders.size);
             if(workCancelled || seedAlone || err?.name==="AbortError") setStopped(n);   // user hit Stop — not a failure
+            else if(err && err.gate){ failed.add(id); gated.add(id); n.out = {}; delete n._sig; setGated(n, err); }   // ⚖️ Decide said no: stop here, dependents skip unbilled
             else {
               // An Inpaint node that just failed "no mask" is the FIRST run of the wire-then-brush flow:
               // its upstream produced the source within this same group, but the loop above skips nodes
@@ -12523,7 +13348,7 @@ function loraKind(type){ return (type==="image"||type==="edit"||type==="inpaint"
 function imageTakesLora(id){
   id = String(id||"");
   if(/inpaint/i.test(id)) return false;            // flux-lora/inpainting etc. carry no lora_url
-  if(/klein/i.test(id)) return true;               // flux-2-klein-* (lora-capable per catalog)
+  if(/flux-2-klein/i.test(id)) return true;         // flux-2-klein-* only (lora-capable per catalog); FLUX.3 klein takes no lora_url
   if(/minimax-h3\/(text-to-image|image-edit)/i.test(id)) return true;  // wavespeed H3 image ids (no "lora" in the id)
   return /(^|[-\/])lora($|[-\/])/i.test(id);        // *-lora variants (flux-lora, *-dev-lora, p-image/*-lora)
 }
@@ -12664,6 +13489,16 @@ const CTX = {
       out = "```thinking\n"+msg.reasoning+"\n```\n\n"+out;
     return out;
   },
+  // ⚖️ Decide: one typed question → { answers, usage:{ input_tokens, output_tokens, cost } }. The real
+  // price rides usage.cost (input tokens only — decision models generate nothing), so accrue that.
+  async genDecision(body){
+    const r = await fetch(DECIDE_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
+    if(!r.ok){ await throwHttp(r); }
+    const j = await r.json();
+    const c = j && j.usage && typeof j.usage.cost==="number" ? j.usage.cost : null;
+    accrue(c!=null ? Object.assign({}, j, { cost:c }) : j, undefined, r);
+    return j;
+  },
   // async video: submit → poll /api/video/status until COMPLETED (up to 10 min)
   // opts also carries optional source media for editing models: videoUrl/videoDataUrl
   // (extend/edit/upscale) and audioDataUrl (lipsync/avatar). duration/aspect only sent when set.
@@ -12687,8 +13522,8 @@ const CTX = {
     // those knobs. extra used to clobber dims here → the API billed the modelOpts duration while the
     // "~$X to run" chip priced the node's duration. Same priority rule as refImages below.
     if(opts.dims) Object.assign(body, opts.dims);
-    // Wired subject/style reference images LAST, so a ⚙️ knob can never clobber the array (a camelCase
-    // `referenceImages` key isn't caught by videoFreetextSkip, so a wired port must always win the key).
+    // Wired subject/style reference images LAST, so a saved modelOpts blob can never clobber the array
+    // (a graph saved before camelCase media keys were hidden can still carry referenceImages).
     if(opts.refImages && opts.refImages.length && opts.refKey) body[opts.refKey] = opts.refImages;   // ref-image array param (data: URLs inline; oversize caught below)
     // NanoGPT inlines media as base64 and the edge (Vercel) rejects bodies over ~4.5 MB with a
     // header-less 413 that the browser mislabels as a CORS error. There's no upload endpoint, so
@@ -12975,7 +13810,7 @@ const DEMO_CTX = { ...CTX, demo:true,
     if(!url) throw new Error(t("the sample clip couldn't load — sign in to run this node for real"));
     return url;
   },
-  genAudio: demoDeny, transcribe: demoDeny,
+  genAudio: demoDeny, transcribe: demoDeny, genDecision: demoDeny,
 };
 // "loading sample…" — honest running-state text for a demo node (t() is free here, unshadowed).
 function demoRunLabel(){ return t("loading sample…"); }
@@ -15688,7 +16523,7 @@ const SHARE_FIT_MAX = 9000;
 // unfurls as a picture of itself instead of the generic ramen card. Best-effort everywhere:
 // any failure (or an implausibly large PNG) just means no card, and shortening proceeds.
 // Emoji/labels mirror NODE_TYPES (kept inline: play.html's registry lives inside RUNTIME_JS).
-const CARD_TYPE_META = { text:["📝","Text"], upload:["📷","Image input"], aupload:["🎤","Audio input"], vupload:["📹","Video input"], mupload:["📦","3D input"], choice:["🔘","Choice"], join:["🔗","Join"], llm:["🧠","LLM"], image:["🖼","Image"], edit:["✂️","Edit"], inpaint:["🩹","Inpaint"], resize:["📐","Resize / crop"], vision:["👁","Vision"], tvideo:["🎬","Text→Video"], ivideo:["📽️","Image→Video"], model3d:["🧊","3D model"], vedit:["🎞️","Video edit"], vframes:["🎞","Video → frames"], combine:["🎬","Combine videos"], soundtrack:["🎚","Soundtrack"], lipsync:["🎭","Avatar / lipsync"], music:["🎵","Music"], remix:["🎛","Remix audio"], tts:["🗣️","Speech"], trim:["✂️","Trim audio"], extractaudio:["🔊","Extract audio"], transcribe:["🎙️","Transcribe"], endpoint:["🔌","Custom endpoint"], comment:["💬","Comment"] };
+const CARD_TYPE_META = { text:["📝","Text"], upload:["📷","Image input"], aupload:["🎤","Audio input"], vupload:["📹","Video input"], mupload:["📦","3D input"], choice:["🔘","Choice"], join:["🔗","Join"], llm:["🧠","LLM"], image:["🖼","Image"], edit:["✂️","Edit"], inpaint:["🩹","Inpaint"], resize:["📐","Resize / crop"], vision:["👁","Vision"], decide:["⚖️","Decide"], tvideo:["🎬","Text→Video"], ivideo:["📽️","Image→Video"], model3d:["🧊","3D model"], vedit:["🎞️","Video edit"], vframes:["🎞","Video → frames"], combine:["🎬","Combine videos"], soundtrack:["🎚","Soundtrack"], lipsync:["🎭","Avatar / lipsync"], music:["🎵","Music"], remix:["🎛","Remix audio"], tts:["🗣️","Speech"], trim:["✂️","Trim audio"], extractaudio:["🔊","Extract audio"], transcribe:["🎙️","Transcribe"], cleanvoice:["🎧","Clean voice"], endpoint:["🔌","Custom endpoint"], comment:["💬","Comment"] };
 // Decode the graph out of the link being shortened (not live editor state) so the card always
 // depicts exactly what the link opens. Returns null on anything unexpected.
 async function shareCardGraph(longUrl){
@@ -16300,6 +17135,7 @@ async function openUpdates(){
   body.innerHTML = "<div id='updatesempty'>"+t("Loading…")+"</div>";
   $("updatesmodal").hidden = false;
   const list = await fetchUpdates();
+  if(updClipObs) updClipObs.disconnect();   // drop the last render's clips before rebuilding
   body.innerHTML = "";
   if(!list.length){ body.insertAdjacentHTML("beforeend", "<div id='updatesempty'>"+t("No updates yet — check back soon.")+"</div>"); }
   else {
@@ -16321,16 +17157,89 @@ async function openUpdates(){
           li.appendChild(a);
         } else if(part) li.appendChild(document.createTextNode(part));
       });
+      const clip = updClip(e);
+      if(clip) li.appendChild(clip);
       ul.appendChild(li);
     });
   }
   markUpdatesSeen(list);
 }
-function closeUpdates(){ $("updatesmodal").hidden = true; }
+// Usage clips: an entry may carry media:{src,poster,w,h} (same-origin files under
+// updates-media/, checked by scripts/check-updates-media.mjs). w/h reserve the box;
+// poster + mp4 only load (and play) once the clip scrolls near view inside the panel.
+const UPD_MEDIA_RE = /^updates-media\/[a-z0-9][a-z0-9._-]*\.(mp4|webp|png|jpg|vtt)$/;
+const updReduceMotion = ()=> { try{ return matchMedia("(prefers-reduced-motion: reduce)").matches; }catch{ return false; } };
+let updClipObs = null;
+function updClipObserver(){
+  if(updClipObs || typeof IntersectionObserver!=="function") return updClipObs;
+  updClipObs = new IntersectionObserver(ents=> ents.forEach(en=>{
+    const v = en.target;
+    if(en.isIntersecting){
+      if(!v.getAttribute("src")){ if(v.dataset.poster) v.poster = v.dataset.poster; v.src = v.dataset.src; }
+      if(!updReduceMotion()) v.play().catch(()=>{});
+    } else if(!v.paused) v.pause();
+  }), { root: $("updatespanel"), rootMargin: "120px 0px" });
+  return updClipObs;
+}
+function updClip(e){
+  const m = e && e.media;
+  if(!m || typeof m.src!=="string" || !UPD_MEDIA_RE.test(m.src) || !/\.mp4$/.test(m.src)) return null;
+  const btn = document.createElement("button");
+  btn.type = "button"; btn.className = "update-clip";
+  const label = updText(e);
+  btn.title = label; btn.setAttribute("aria-label", label);
+  const clipVid = document.createElement("video");
+  clipVid.muted = true; clipVid.loop = true; clipVid.playsInline = true; clipVid.preload = "none";
+  clipVid.setAttribute("muted", ""); clipVid.setAttribute("playsinline", ""); clipVid.setAttribute("aria-hidden", "true");
+  if(typeof m.poster==="string" && UPD_MEDIA_RE.test(m.poster)) clipVid.dataset.poster = m.poster;
+  if(m.w>0 && m.h>0){ clipVid.width = m.w; clipVid.height = m.h; clipVid.style.aspectRatio = m.w + " / " + m.h; }
+  clipVid.dataset.src = m.src;
+  btn.appendChild(clipVid);
+  btn.onclick = ()=> openUpdClip(m, label);
+  const io = updClipObserver();
+  if(io) io.observe(clipVid); else { if(clipVid.dataset.poster) clipVid.poster = clipVid.dataset.poster; clipVid.src = m.src; }
+  return btn;
+}
+// Enlarged view: narrated clips (media.audio) play once WITH sound — the click is the
+// user gesture that allows it; silent clips keep looping muted. Caption tracks come from
+// media.captions {lang: .vtt}; the one for the UI language shows unless that language is
+// already burned into the picture (media.burned) — then it stays available but hidden.
+const UPD_CAP_LABEL = { en:"English", es:"Español", fr:"Français", de:"Deutsch", pt:"Português", ja:"日本語" };
+function openUpdClip(m, label){
+  const box = $("updclipbox"), v = box.querySelector("video");
+  v.setAttribute("aria-label", label);
+  if(m.poster && UPD_MEDIA_RE.test(m.poster)) v.poster = m.poster;
+  const narrated = m.audio === true;
+  v.muted = !narrated; v.loop = !narrated;
+  v.querySelectorAll("track").forEach(tr=> tr.remove());
+  const caps = (m.captions && typeof m.captions==="object") ? m.captions : {};
+  Object.keys(caps).forEach(lang=>{
+    const src = caps[lang];
+    if(!UPD_CAP_LABEL[lang] || typeof src!=="string" || !UPD_MEDIA_RE.test(src) || !/\.vtt$/.test(src)) return;
+    const cap = document.createElement("track");
+    cap.kind = "captions"; cap.srclang = lang; cap.label = UPD_CAP_LABEL[lang]; cap.src = src;
+    if(lang===LANG && lang!==m.burned) cap.default = true;
+    v.appendChild(cap);
+  });
+  v.src = m.src; box.hidden = false;
+  for(const tt of v.textTracks) tt.mode = (tt.language===LANG && tt.language!==m.burned) ? "showing" : "hidden";
+  v.play().catch(()=>{ if(!v.muted){ v.muted = true; v.play().catch(()=>{}); } });   // autoplay-with-sound refused → play muted, controls can unmute
+}
+function closeUpdClip(){
+  const box = $("updclipbox"); if(box.hidden) return false;
+  const v = box.querySelector("video"); v.pause(); v.removeAttribute("src"); v.querySelectorAll("track").forEach(tr=> tr.remove()); v.load();
+  box.hidden = true; return true;
+}
+$("updclipbox").addEventListener("click", e=>{ if(e.target.id==="updclipbox") closeUpdClip(); });
+function closeUpdates(){
+  closeUpdClip();
+  document.querySelectorAll("#updateslist video").forEach(v=> v.pause());
+  $("updatesmodal").hidden = true;
+}
 $("updates").onclick = openUpdates;
 $("updatesclose").onclick = closeUpdates;
 $("updatesmodal").addEventListener("click", e=>{ if(e.target.id==="updatesmodal") closeUpdates(); });   // click the dim backdrop
-addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("updatesmodal").hidden) closeUpdates(); });
+addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("updatesmodal").hidden){ if(!closeUpdClip()) closeUpdates(); } });
 refreshUpdatesBadge();
 
 /* ---- Examples: a small catalog of workflows with useful dependencies or comparisons.
@@ -16448,6 +17357,118 @@ const EXAMPLES = [
            {id:"l2",from:{node:"n2",port:"text"},to:{node:"n4",port:"prompt"}},
            {id:"l3",from:{node:"n2",port:"text"},to:{node:"n5",port:"prompt"}} ] } },
 
+ { em:"🧊", slug:"idea-to-3d-model", title:"Idea to concept art to 3D model", desc:"One object idea → concept art → a textured 3D model you can orbit.",
+   thumb:"examples/gallery/idea-to-3d-model/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:-40,y:-360,w:520,fields:{"text":"Idea → concept art → 3D model. Write one object in plain words. An LLM turns it into a concept-art description (shape, parts, materials, colors). Join adds fixed render rules (one whole object, three-quarter view, plain light-gray background) so the picture is easy to lift into 3D. Muse paints the concept; TRELLIS.2 turns that single image into a textured GLB you can orbit. Swap the idea and ▶ Run.","color":"yellow"}},
+           {id:"idea",type:"text",x:-40,y:0,w:320,fields:{"text":"A chunky wind-up toy submarine with a brass periscope, three round portholes, a striped tail propeller and a big wind-up key on top, painted teal and cream."},name:"Object idea"},
+           {id:"concept-writer",type:"llm",x:380,y:0,w:320,sizes:{"system":120},fields:{"model":"z-ai/glm-5.3-flash","reasoningEffort":"low","maxTokens":"400","system":"You write the SUBJECT part of an image prompt for a 3D-ready concept render of ONE object from the user's idea. Describe only the object: overall silhouette and proportions, each visible part, materials, colors, small surface details. Make every part solid and connected (no floating pieces, no thin wires, no glass you can see through). Do not mention background, lighting, camera, people, or text. Family-friendly. 40 to 70 words, one paragraph, plain sentences. Output only the description."},name:"Concept description"},
+           {id:"style",type:"text",x:380,y:420,w:320,fields:{"text":"Single object 3D concept render, the whole object fully in frame and centered with margin on all sides, three-quarter front view from slightly above, soft even studio light, plain seamless light-gray background, no ground shadow, no props, no text, no other objects."},name:"3D-ready render rules"},
+           {id:"j-prompt",type:"join",x:800,y:160,w:240,fields:{"sep":"\\n\\n"},name:"Concept prompt"},
+           {id:"concept",type:"image",x:1140,y:60,w:300,fields:{"model":"meta/muse-image/text-to-image","size":"1:1","variations":"1"},name:"Concept art"},
+           {id:"mesh",type:"model3d",x:1540,y:60,w:440,fields:{"model":"wavespeed-ai/trellis-2/image-to-3d","prompt":"","modelOpts":{"resolution": "1024", "texture_size": "1024", "target_face_count": 80000},"sample":"examples/gallery/idea-to-3d-model/model.glb"},name:"TRELLIS.2 → GLB"} ],
+   links:[ {id:"l1",from:{node:"idea",port:"text"},to:{node:"concept-writer",port:"prompt"}},
+           {id:"l2",from:{node:"concept-writer",port:"text"},to:{node:"j-prompt",port:"a"}},
+           {id:"l3",from:{node:"style",port:"text"},to:{node:"j-prompt",port:"b"}},
+           {id:"l4",from:{node:"j-prompt",port:"text"},to:{node:"concept",port:"prompt"}},
+           {id:"l5",from:{node:"concept",port:"image"},to:{node:"mesh",port:"image"}} ] } },
+ { em:"🧱", slug:"blockout-to-shot", title:"Blockout first, then the shot", desc:"Gray geometric blockout first, then restyle into the finished look and animate one shot.",
+   thumb:"examples/gallery/blockout-to-shot/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:-40,y:-560,w:460,fields:{"text":"Blockout first, then the shot. Write a short action idea with clear poses and camera. An LLM turns it into a grayscale geometric blockout still (Muse T2I): untextured stand-ins, readable silhouettes, explicit framing. A second LLM writes a look bible; Join pastes a keep-composition line in front of it; Muse Edit restyles the blockout into finished characters and lighting while keeping the same composition, poses, and camera. A third LLM writes a short motion brief; Seedance 1.5 Pro (720p, 5 s, silent) animates the finished still. One look, one action — the video continues the restyled beat, it does not invent a new scene.","color":"yellow"}},
+           {id:"idea",type:"text",x:-40,y:0,w:320,fields:{"text":"A boxy courier robot with stubby wheel-legs leaps a narrow rooftop gap between two brick buildings at dusk. Low tracking camera from the near rooftop; the robot pushes off the ledge, sails across the alley, and lands on the far roof with a soft crouch."},name:"Action idea"},
+           {id:"preserve",type:"text",x:-40,y:360,w:320,fields:{"text":"Keep the exact composition, poses, and camera of the reference blockout. Only change materials, colors, lighting, and surface detail."},name:"Keep composition"},
+           {id:"blockout-writer",type:"llm",x:420,y:-200,w:320,sizes:{"system":120},fields:{"model":"z-ai/glm-5.3-flash","reasoningEffort":"low","maxTokens":"400","system":"You write ONE image prompt for a Blender-style BLOCKOUT still of the user's action idea. Grayscale only: matte medium-gray untextured geometric stand-ins (boxes, cylinders, simple limb blocks), no detailed faces, clothes, logos, or materials. Keep readable silhouette poses and the explicit camera (angle, height, framing) from the idea. Flat soft studio gray light, no color, no atmosphere glow. ONE hero figure only — do not place a second stand-in or landing-pose duplicate on the far side. 16:9 cinematic still. 40 to 70 words, plain sentences, no headings or lists, no quotes. Output only the prompt."},name:"Blockout prompt"},
+           {id:"look-writer",type:"llm",x:420,y:200,w:320,sizes:{"system":120},fields:{"model":"z-ai/glm-5.3-flash","reasoningEffort":"low","maxTokens":"450","system":"You write ONE look bible that restyles a grayscale geometric BLOCKOUT into a finished cinematic still of the user's action idea. Do NOT say to keep composition (that line is added before yours). Cover only: hero materials and colors; environment materials; dusk lighting and palette; lens feel. Assume the same poses and camera as the blockout. 40 to 70 words, plain sentences, no headings. Output only the look paragraph."},name:"Look bible"},
+           {id:"motion-writer",type:"llm",x:420,y:700,w:320,sizes:{"system":120},fields:{"model":"z-ai/glm-5.3-flash","reasoningEffort":"low","maxTokens":"350","system":"You write ONE short image-to-video motion prompt for a 5-second clip that starts from an already finished still of the user's action idea. Do not re-describe looks or materials. Describe only what moves: the single action and one camera move, present tense, and how the 5 seconds end. Preserve the still's composition and character design. 30 to 55 words, one paragraph, no headings. End with exactly: No new characters enter the frame. Output only the prompt."},name:"Motion brief"},
+           {id:"j-look",type:"join",x:860,y:280,w:240,fields:{"sep":"\\n\\n"},name:"Preserve + look"},
+           {id:"j-motion",type:"join",x:860,y:700,w:240,fields:{"sep":"\\n\\n"},name:"Motion prompt"},
+           {id:"motion-prefix",type:"text",x:-40,y:700,w:280,fields:{"text":"Animate the finished still for five seconds."},name:"Motion prefix"},
+           {id:"blockout",type:"image",x:860,y:-200,w:300,fields:{"model":"meta/muse-image/text-to-image","size":"16:9","variations":"1"},name:"Blockout still"},
+           {id:"look",type:"edit",x:1300,y:160,w:300,fields:{"model":"meta/muse-image/edit","size":"16:9","prompt":""},name:"Finished look"},
+           {id:"shot",type:"ivideo",x:1740,y:360,w:300,fields:{"model":"bytedance-seedance-v1.5-pro","prompt":"","duration":"5","resolution":"720p","aspect":"16:9","modelOpts":{"generateAudio": false},"loras":[]},name:"Shot · 5s"} ],
+   links:[ {id:"l1",from:{node:"idea",port:"text"},to:{node:"blockout-writer",port:"prompt"}},
+           {id:"l2",from:{node:"idea",port:"text"},to:{node:"look-writer",port:"prompt"}},
+           {id:"l3",from:{node:"idea",port:"text"},to:{node:"motion-writer",port:"prompt"}},
+           {id:"l4",from:{node:"preserve",port:"text"},to:{node:"j-look",port:"a"}},
+           {id:"l5",from:{node:"look-writer",port:"text"},to:{node:"j-look",port:"b"}},
+           {id:"l6",from:{node:"motion-prefix",port:"text"},to:{node:"j-motion",port:"a"}},
+           {id:"l7",from:{node:"motion-writer",port:"text"},to:{node:"j-motion",port:"b"}},
+           {id:"l8",from:{node:"blockout-writer",port:"text"},to:{node:"blockout",port:"prompt"}},
+           {id:"l9",from:{node:"j-look",port:"text"},to:{node:"look",port:"prompt"}},
+           {id:"l10",from:{node:"blockout",port:"image"},to:{node:"look",port:"image"}},
+           {id:"l11",from:{node:"look",port:"image"},to:{node:"shot",port:"image"}},
+           {id:"l12",from:{node:"j-motion",port:"text"},to:{node:"shot",port:"prompt"}} ] } },
+ { em:"📖", slug:"story-to-shot", title:"Write a story, get a shot", desc:"Write a short story. MiniMax H3 invents the camera and films it — no shot list required.",
+   thumb:"examples/gallery/story-to-shot/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c1",type:"comment",x:40,y:-40,w:560,fields:{"text":"Inspired by ComfyUI users who feed MiniMax H3 a plain story instead of camera jargon. Paste a short story; a cheap LLM keeps it free of shot-list language; H3 invents the framing. About $0.36 for the saved 5 s H3 run. Change the story and run again.","color":"yellow"},name:"Write a story, not a shot list"},
+           {id:"n1",type:"text",x:40,y:180,w:360,fields:{"text":"A small cream-colored paper fox with ink-dot eyes folds a yellow paper boat on a rainy windowsill. When the rain softens, the fox carries the boat downstairs, sets it in a puddle by the curb, and gives it one gentle push. The boat drifts past a red bicycle and a blue mailbox as the fox watches from under a leaf umbrella."},name:"Story"},
+           {id:"n2",type:"llm",x:460,y:160,w:360,sizes:{"system":120},fields:{"model":"z-ai/glm-5.3-flash","system":"You receive a short story meant for a video model. Return ONLY the story text. Keep the same characters, props, and beats. Do not add camera angles, shot sizes, lenses, pans, cuts, or other film jargon. Keep it SFW and under 90 words. No title, preface, or quotes.","prompt":""},name:"Keep it a story"},
+           {id:"n3",type:"text",x:40,y:520,w:360,fields:{"text":"SFW family-friendly short film. Treat the following as a short story to film. Invent your own camera angles, pacing, and staging. Do not add on-screen text, logos, or watermarks.\n\nStory:"},name:"Story-mode rules"},
+           {id:"n4",type:"join",x:460,y:480,w:280,fields:{"sep":"\n\n"},name:"Story brief"},
+           {id:"n5",type:"tvideo",x:900,y:300,w:320,fields:{"model":"minimax-h3","prompt":"","duration":"5","aspect":"16:9","modelOpts":{},"loras":[]},name:"Film the story"} ],
+   links:[ {id:"l1",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}},
+           {id:"l2",from:{node:"n3",port:"text"},to:{node:"n4",port:"a"}},
+           {id:"l3",from:{node:"n2",port:"text"},to:{node:"n4",port:"b"}},
+           {id:"l4",from:{node:"n4",port:"text"},to:{node:"n5",port:"prompt"}} ] } },
+ { em:"🔄", slug:"orbit-the-character", title:"Orbit the character", desc:"One still → MiniMax H3 Max Multi Angle orbits 90° so you see the same subject from new sides.",
+   thumb:"examples/gallery/orbit-the-character/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:-120,w:500,fields:{"text":"One still → MiniMax H3 Max Multi Angle orbits 90° so you see the same subject from new sides. Seed + still rules → Join → GLM writes Muse prompt → Muse 1:1 → H3 Multi Angle (orbit-right 90°, 480p, 5s). Swap the seed; keep SFW physical toys/paper. Inspired by ComfyUI multi-angle character workflows.","color":"yellow"}},
+           {id:"n1",type:"text",x:40,y:100,w:300,fields:{"text":"A cream paper fox with ink-dot eyes, tiny red scarf, standing on a sunny wooden windowsill next to a yellow paper boat, soft daylight, full body, three-quarter front view, plain cream wall behind."},name:"Character seed"},
+           {id:"n1b",type:"text",x:40,y:420,w:300,fields:{"text":"Write ONE still-image prompt for Muse text-to-image from the character seed above. Preserve the exact design and props; full body with margin; fixed three-quarter or front camera; soft natural light; NO motion words, NO camera moves, NO animate, NO multiple frames; family-friendly SFW paper craft only; no text overlays; ≤120 words; output ONLY the prompt text."},name:"Still rules"},
+           {id:"n2j",type:"join",x:400,y:240,w:240,fields:{"sep":"\n\n"},name:"Still brief"},
+           {id:"n2",type:"llm",x:720,y:200,w:300,sizes:{"system":80},fields:{"model":"z-ai/glm-5.3-flash","reasoningEffort":"low","maxTokens":"300","system":"Follow the still-rules block exactly. Output ONLY the Muse still prompt."},name:"Still prompt"},
+           {id:"n3",type:"image",x:1100,y:160,w:280,fields:{"model":"meta/muse-image/text-to-image","size":"1:1","variations":"1"},name:"Character still"},
+           {id:"n4",type:"ivideo",x:1100,y:480,w:300,fields:{"model":"minimax/h3-max/multi-angle/image-to-video","prompt":"Hold the subject centered and fully in frame. Smooth camera orbit right 90 degrees around the character. Keep identity, materials, and props stable. No morphing, no new objects, no text overlays. SFW.","resolution":"480p","duration":"5","modelOpts":{"camera_motion": "orbit-right"},"loras":[]},name:"Orbit 90°"} ],
+   links:[ {id:"l1",from:{node:"n1b",port:"text"},to:{node:"n2j",port:"a"}},
+           {id:"l2",from:{node:"n1",port:"text"},to:{node:"n2j",port:"b"}},
+           {id:"l3",from:{node:"n2j",port:"text"},to:{node:"n2",port:"prompt"}},
+           {id:"l4",from:{node:"n2",port:"text"},to:{node:"n3",port:"prompt"}},
+           {id:"l5",from:{node:"n3",port:"image"},to:{node:"n4",port:"image"}} ] } },
+ { em:"🎨", slug:"same-shot-three-looks", title:"Same shot, three looks", desc:"One locked shot restyled three ways, then a short ambient clip on the glass look.",
+   thumb:"examples/gallery/same-shot-three-looks/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:-140,w:560,fields:{"text":"Same locked shot, three materials. Muse paints a glass look; Muse Edit restyles it to watercolor, then to photoreal fantasy; Seedance 1.5 Pro animates a material morph from the glass still. Camera and composition stay fixed. Inspired by ComfyUI style-morph / material-ladder clips (e.g. @eikoung).","color":"yellow"}},
+           {id:"n1",type:"text",x:40,y:100,w:320,fields:{"text":"A small translucent glass lighthouse filled with stacked books and a warm golden lantern, standing on wet black rocks in misty teal water under a pale crescent moon, clear glass walls with soft gold filigree, reflections on the water, fixed wide eye-level camera, centered composition, soft cinematic lighting, no people, no text, family-friendly SFW."},name:"Glass look prompt"},
+           {id:"n2",type:"image",x:420,y:80,w:280,fields:{"model":"meta/muse-image/text-to-image","size":"16:9","variations":"1"},name:"1 · Glass look"},
+           {id:"n3p",type:"text",x:40,y:420,w:320,fields:{"text":"Restyle this exact scene as a soft hand-drawn watercolor illustration on textured paper. Keep the same lighthouse shape, book stacks, lantern, rocks, moon, and camera framing. Flat gentle washes, visible paper grain, ink outlines, muted teal and warm gold. No photoreal glass, no 3D render look, no people, no text overlays, SFW."},name:"Watercolor edit"},
+           {id:"n3",type:"edit",x:420,y:400,w:280,fields:{"model":"meta/muse-image/edit","size":"16:9","prompt":""},name:"2 · Watercolor"},
+           {id:"n4p",type:"text",x:40,y:720,w:320,fields:{"text":"Restyle this exact scene as a photoreal cinematic fantasy photograph. Keep the same lighthouse silhouette, books, lantern glow, wet rocks, crescent moon, and locked camera framing. Real materials: weathered stone lighthouse, warm practical lantern light, misty teal sea, sharp detail. No cartoon, no watercolor paper, no people, no text overlays, SFW."},name:"Photoreal edit"},
+           {id:"n4",type:"edit",x:420,y:700,w:280,fields:{"model":"meta/muse-image/edit","size":"16:9","prompt":""},name:"3 · Photoreal"},
+           {id:"n5p",type:"text",x:780,y:80,w:300,fields:{"text":"Locked camera. The lighthouse materials slowly morph from clear translucent glass and gold filigree into soft watercolor paper illustration, then settle. Same composition the whole time. Gentle mist only. No camera move, no new objects, no people, no text, SFW."},name:"Morph motion"},
+           {id:"n5",type:"ivideo",x:780,y:320,w:300,fields:{"model":"bytedance-seedance-v1.5-pro","prompt":"","duration":"5","resolution":"720p","aspect":"16:9","modelOpts":{"generateAudio": false},"loras":[]},name:"Material morph · 5s"} ],
+   links:[ {id:"l1",from:{node:"n1",port:"text"},to:{node:"n2",port:"prompt"}},
+           {id:"l2",from:{node:"n2",port:"image"},to:{node:"n3",port:"image"}},
+           {id:"l3",from:{node:"n3p",port:"text"},to:{node:"n3",port:"prompt"}},
+           {id:"l4",from:{node:"n3",port:"image"},to:{node:"n4",port:"image"}},
+           {id:"l5",from:{node:"n4p",port:"text"},to:{node:"n4",port:"prompt"}},
+           {id:"l6",from:{node:"n2",port:"image"},to:{node:"n5",port:"image"}},
+           {id:"l7",from:{node:"n5p",port:"text"},to:{node:"n5",port:"prompt"}} ] } },
+ { em:"🧩", slug:"mix-the-references", title:"Mix the references", desc:"Four separate references (who, what they wear, what they hold, where) composed into one picture, each named by number.",
+   thumb:"examples/gallery/mix-the-references/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:-170,w:720,fields:{"text":"Mix four references into one picture. Each reference is its own node: who (the character), what they wear, what they hold, and where they stand. FLUX.3 Klein Edit gets them in port order and the instruction names each one by number: image 1, image 2, image 3, image 4. Swap any reference Image node for a 📷 Image input to use your own photos. Inspired by the multi-reference workflows ComfyUI showed for Krea 3 and FLUX.3 Klein (https://x.com/ComfyUI/status/2110840667337642330).","color":"yellow"}},
+           {id:"p1",type:"text",x:40,y:60,w:300,fields:{"text":"A small paper-craft fox mascot made of folded orange paper with a white paper chest and tail tip, a black paper nose and two round black eyes, standing upright on its hind legs and facing the camera, full body, centered, plain light grey studio backdrop, soft even light, crisp paper folds, no clothing, no text, family-friendly."},name:"Who · character"},
+           {id:"r1",type:"image",x:380,y:40,w:260,fields:{"model":"meta/muse-image/text-to-image","size":"1:1","variations":"1"},name:"1 · Character"},
+           {id:"p2",type:"text",x:40,y:380,w:300,fields:{"text":"Product photo of a tiny yellow knitted raincoat with a pointed hood and three round wooden toggle buttons down the front, laid flat and centered on a plain off-white background, soft even studio light, visible chunky knit texture, empty garment with no wearer, no mannequin, no text."},name:"What they wear · outfit"},
+           {id:"r2",type:"image",x:380,y:360,w:260,fields:{"model":"meta/muse-image/text-to-image","size":"1:1","variations":"1"},name:"2 · Outfit"},
+           {id:"p3",type:"text",x:40,y:700,w:300,fields:{"text":"Product photo of a small round red paper lantern with a thin bamboo carrying handle, glowing warm from inside, centered on a plain off-white background, soft studio light, no text, no people."},name:"What they hold · prop"},
+           {id:"r3",type:"image",x:380,y:680,w:260,fields:{"model":"meta/muse-image/text-to-image","size":"1:1","variations":"1"},name:"3 · Prop"},
+           {id:"p4",type:"text",x:40,y:1020,w:300,fields:{"text":"A paper-craft harbor at blue-hour dusk: a short wooden pier made of cardboard planks in the foreground, layered blue paper waves, two small folded paper boats, and a striped paper lighthouse on a rock in the background with its light on, wide eye-level view, empty pier with no characters, no text."},name:"Where · place"},
+           {id:"r4",type:"image",x:380,y:1000,w:260,fields:{"model":"meta/muse-image/text-to-image","size":"1:1","variations":"1"},name:"4 · Place"},
+           {id:"mixp",type:"text",x:720,y:60,w:340,fields:{"text":"Make one new picture that combines the four reference images.\nImage 1 is the character: keep this exact paper-craft fox, same folded orange paper, white chest, black nose and eyes, same proportions.\nImage 2 is the outfit: dress the fox in this exact yellow knitted raincoat, with the same pointed hood up and the same three wooden toggles.\nImage 3 is the prop: the fox holds exactly one of this red paper lantern by its bamboo handle in its right paw, glowing warm; its left paw is empty. Only one lantern in the whole picture.\nImage 4 is the place: the fox stands full body on this exact cardboard pier at blue-hour dusk, with the same paper waves, paper boats and striped lighthouse behind it.\nEverything stays paper-craft. The lantern casts warm light on the raincoat. One fox only, no other characters, no text."},name:"Mix instruction (names each image)"},
+           {id:"mix",type:"edit",x:720,y:420,w:340,fields:{"model":"blackforestlabs/flux-3/klein/edit-image","size":"1024x1024","prompt":""},name:"Mix · FLUX.3 Klein Edit"} ],
+   links:[ {id:"l1",from:{node:"p1",port:"text"},to:{node:"r1",port:"prompt"}},
+           {id:"l2",from:{node:"p2",port:"text"},to:{node:"r2",port:"prompt"}},
+           {id:"l3",from:{node:"p3",port:"text"},to:{node:"r3",port:"prompt"}},
+           {id:"l4",from:{node:"p4",port:"text"},to:{node:"r4",port:"prompt"}},
+           {id:"l5",from:{node:"r1",port:"image"},to:{node:"mix",port:"image"}},
+           {id:"l6",from:{node:"r2",port:"image"},to:{node:"mix",port:"image2"}},
+           {id:"l7",from:{node:"r3",port:"image"},to:{node:"mix",port:"image3"}},
+           {id:"l8",from:{node:"r4",port:"image"},to:{node:"mix",port:"image4"}},
+           {id:"l9",from:{node:"mixp",port:"text"},to:{node:"mix",port:"prompt"}} ] } },
  { em:"🎬", slug:"photo-to-video", title:"From scene to short clip", desc:"Generate a first frame, then animate it with a separate motion brief.",
    thumb:"examples/gallery/photo-to-video/preview.webp",
    graph:{ v:1,
@@ -16931,6 +17952,12 @@ $("signout").onclick = ()=> setKey(null);
       showThinking:"true/false — include chain-of-thought in the text output",
     }, note:"vision models grow wired image ports (img1…); audio_input models grow an audio port; model is a wirable field port — a Choice option like anthropic/claude-fable-5.1 sets the paid model id" },
     vision:{ fields:{ model:"vision model id (optional)", q:"the question" } },
+    decide:{ main:"question", fields:{
+      model:"decision model id (optional; default perplexity/pplx-decider-v1.1-27b, which sees images; liquid/d1 / typesafe/jev-latest are text-only)",
+      mode:"pick|choose|score|yesno (default pick)", question:"what to decide (optional; a sensible default per mode)",
+      options:"choose mode: the labels, one per line (2–255)", levels:"score mode: the scale, worst first, one per line (2–10; default poor/okay/good/great)",
+      gate:"yesno mode: true = a no stops the run here; nothing downstream runs or bills",
+    }, note:"text port = what to judge (or the brief, in pick mode); image-capable decision models grow img1…img4. Outputs: text = the answer (pick: image N · choose: the label · score: 1…N, fractional · yesno: yes|no); image = the winning image in pick mode, else the first wired image passed through. Pick the best of several Image nodes by wiring each into img1, img2, …" },
     image:{ main:"prompt", fields:{
       model:"image model id (optional)", prompt:"image prompt", size:"e.g. 1024x1024 or catalog tier",
       aspect:"output shape (FIBO 1.5: 1:1 / 16:9 / … — size stays 1mp/4mp)",
@@ -16962,7 +17989,7 @@ $("signout").onclick = ()=> setKey(null);
       resolution:"catalog resolution tier (optional)",
     }, note:"ref-capable edit models (seedance-2.0 video-edit) grow ref1… reference-image ports for character/subject swaps" },
     vframes:{ fields:{ frames:"how many (1–12)", gap:"seconds between frames", dir:"end|start" }, note:"grows frame1…frameN image output ports" },
-    combine:{ fields:{ dedup:"trim duplicate seam frame (true/false, default true)" }, note:"grows clip1, clip2, … video input ports" },
+    combine:{ fields:{ dedup:"trim duplicate seam frame (true/false, default true)" }, note:"grows vid1, vid2, … video input ports" },
     soundtrack:{ fields:{ loop:"loop audio to fill the video (true/false)" }, note:"replaces the video's existing soundtrack" },
     lipsync:{ fields:{ model:"avatar model id (optional)", prompt:"optional direction (mood/movement)", resolution:"optional" }, note:"image + single audio → talking video; multi-speaker avatars are filtered out" },
     music:{ main:"prompt", fields:{
@@ -16981,6 +18008,8 @@ $("signout").onclick = ()=> setKey(null);
     trim:{ fields:{ start:"seconds", length:"seconds" }, note:"outputs mono WAV small enough to send to models" },
     extractaudio:{ fields:{ start:"seconds", length:"seconds (blank = whole clip)" }, note:"video → mono WAV; feed 🎙️ Transcribe or ✂️ Trim. AI-generated videos are usually silent." },
     transcribe:{ fields:{ model:"stt model id (optional)", language:"auto or a language code (select when model lists langs)" } },
+    cleanvoice:{ fields:{ model:"noise_reduction model id (optional; default elevenlabs/audio-isolation, veed/clean-audio is cheaper)", url:"public https link to a recording, used when nothing is wired" },
+      note:"audio OR video in → the voice alone as audio. Hosted media only: a generated video/track or a public link — browser uploads can't reach it. Pair with 🎚 Soundtrack to put the clean voice back on the video." },
     endpoint:{ main:"prompt", fields:{
       url:"host to POST (typically http://127.0.0.1:8787/v1/chat/completions or https://httpbingo.org)",
       mode:"chat|image|video|audio|json — sets the request body and the output port type",
@@ -17006,6 +18035,7 @@ $("signout").onclick = ()=> setKey(null);
           ins.push("image, image2, … (up to model's max_input_images)");
       }
       if(t.audioInput) ins.push("audio:audio (when model supports audio_input)");
+      if(t.videoInput) ins.push("video:video (when model supports video_input)");
       const outs = typeof t.outputs === "function"
         ? "image (ports frame1,frame2,… grow with fields.frames)"
         : (Array.isArray(t.outputs) ? t.outputs.map(p=>`${p.name}:${p.type}`).join(", ") || "—" : "—");
@@ -17177,6 +18207,7 @@ $("signout").onclick = ()=> setKey(null);
       if(t.imageInputs && (typeof t.imageInputs==="string" ? IMG_PORT_RE : EDIT_IMG_RE).test(port)) return true;
       if(t.videoInputs && VID_PORT_RE.test(port)) return true;
       if(t.audioInput && port==="audio") return true;
+      if(t.videoInput && port==="video") return true;
       if(t.endFrame  && port==="endframe") return true;
       if(t.refInputs && REF_PORT_RE.test(port)) return true;
       return textFieldPorts(type).includes(port);
@@ -17240,6 +18271,7 @@ $("signout").onclick = ()=> setKey(null);
     const tts=pick("audio","tts"); if(tts.length) L.push(`  tts: ${tts.join(", ")}`);
     const mus=pick("audio","music"); if(mus.length) L.push(`  music: ${mus.join(", ")}`);
     const rmx=pick("audio","remix"); if(rmx.length) L.push(`  remix: ${rmx.join(", ")}`);
+    const dn=pick("audio","denoise"); if(dn.length) L.push(`  cleanvoice: ${dn.join(", ")}`);
     return L.length ? `\nExample model ids you MAY use (newest first) — only if the user names a model, otherwise leave "model" out:\n${L.join("\n")}` : "";
   }
   // Prepended to patchling's own system prompt (which already asks for a unified ```diff block).

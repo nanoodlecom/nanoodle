@@ -1,5 +1,5 @@
-/* data-hash=3b6e04233cf08498 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-88ceeef6dbcc (16 modules) */
+/* data-hash=54fbb846faef8351 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-084980c97d96 (19 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -81,14 +81,30 @@ function throwIfAborted(signal) {
 }
 
 /** The outcome of Workflow.run(). Media values are MediaRef; text values plain strings. */
+/** Internal: thrown by a node skipped behind a closed gate, so ITS dependents skip too. Never surfaced. */
+class GateSkip extends Error {
+  constructor(gatedBy) { super("skipped — a gate upstream said no"); this.gatedBy = gatedBy; }
+}
+
 class RunResult {
-  constructor({ outputs, nodes, errors, costUsd, costExact, remainingBalance }) {
-    /** { [friendlyKey | nodeId]: value } — sink node primary outputs */
+  constructor({ outputs, nodes, errors, gated = [], costUsd, costExact, remainingBalance }) {
+    /** { [friendlyKey | nodeId]: value } — sink node primary outputs (a sink skipped by a closed gate has none) */
     this.outputs = outputs;
-    /** per-node { status: "done"|"error"|"skipped", out, error, costUsd, ms } */
+    /**
+     * per-node { status: "done"|"error"|"gated"|"skipped", out, error, costUsd, ms }.
+     * "gated": a ⚖️ Decide yes/no gate that answered no — it ran and billed, `out` holds its answer
+     * ({ text: "no", decision }), and it carries `gate: { yes, message }`. Not an error.
+     * "skipped" + `gatedBy: <decide node id>`: downstream of a closed gate — never ran, never billed.
+     * (Annotation notes are "skipped" with no gatedBy.)
+     */
     this.nodes = nodes;
-    /** [{ nodeId, name, message }] for every node that failed (incl. non-sink warnings) */
+    /** [{ nodeId, name, message }] for every node that failed (incl. non-sink warnings) — never gates */
     this.errors = errors;
+    /**
+     * [{ nodeId, name, message, yes, skipped: [nodeId…] }] — every Decide gate that closed this run.
+     * A closed gate is a deliberate, successful outcome: run() resolves, it never throws for one.
+     */
+    this.gated = gated;
     /** summed USD cost of all calls that reported one */
     this.costUsd = costUsd;
     /** false when any network call omitted its price (total is a floor) */
@@ -105,6 +121,8 @@ class RunResult {
     for (const k of Object.keys(this.outputs)) {
       if (k.toLowerCase() === norm) return this.outputs[k];
     }
+    const g = (this._gatedOutputs || []).find((o) => o.key.toLowerCase() === norm || o.nodeId.toLowerCase() === norm);
+    if (g) throw new NanoodleError(`output "${g.key}" was skipped — the gate "${g.gateName}" answered no, so it never ran (see result.gated)`, { code: "gated" });
     throw new NanoodleError(`no output "${key}" — available outputs: ${Object.keys(this.outputs).map((k) => `"${k}"`).join(", ") || "(none)"}`);
   }
 }
@@ -308,6 +326,7 @@ class Workflow {
       const io = { onCost, onPoll, signal: ac.signal };
       return {
         chat: (messages, model, opts) => this.client.chat(messages, model, opts, io),
+        decide: (body) => this.client.decide(body, io),
         image: (args) => this.client.image(args, io),
         video: (model, prompt, opts, imageDataUrl) => this.client.video(model, prompt, opts, imageDataUrl, io),
         audio: (model, input, extra) => this.client.audio(model, input, extra, io),
@@ -321,6 +340,15 @@ class Workflow {
       };
     };
 
+    const gated = [];
+    // a node whose upstream settled as a closed gate (or was itself skipped by one) → that gate's id
+    const gateOf = (id) => {
+      const r = nodesRec[id];
+      if (!r) return null;
+      if (r.status === "gated") return id;
+      if (r.status === "skipped" && r.gatedBy) return r.gatedBy;
+      return null;
+    };
     const execNode = async (n) => {
       const rec = nodesRec[n.id];
       try {
@@ -328,18 +356,37 @@ class Workflow {
         const inbound = graph.links.filter((l) => l.to.node === n.id);
         const inp = {};
         let fields = effFields.get(n.id);
-        let upstreamFail = null;
+        let upstreamFail = null, gatedBy = null;
         for (const l of inbound) {
           let srcOut;
           try { srcOut = await promises.get(l.from.node); }
-          catch { if (!upstreamFail) upstreamFail = displayName(byId.get(l.from.node)); continue; }
+          catch {
+            const g = gateOf(l.from.node);
+            if (g) { if (!gatedBy) gatedBy = g; } else if (!upstreamFail) upstreamFail = displayName(byId.get(l.from.node));
+            continue;
+          }
           const v = srcOut[l.from.port];
           if (isInputPort(n, l.to.port)) inp[l.to.port] = v;
+          // Custom endpoint url/mode: a Choice path like "/post" must ride inp so
+          // endpointResolveTarget can join it onto the typed host. Overwriting
+          // fields.url with "/post" rejects the joined URL.
+          else if (n.type === "endpoint" && (l.to.port === "url" || l.to.port === "mode")) {
+            if (v != null) inp[l.to.port] = v;
+          }
           // wired textarea port = field override; a missing upstream port (degraded save) must
           // NOT clobber the typed field with undefined — the app only applies v != null
           else if (v != null) fields = { ...fields, [l.to.port]: v };
         }
+        // a real failure upstream wins over a gate (the browser runners agree): that is an error
         if (upstreamFail) throw new NanoodleError("upstream failed: " + upstreamFail);
+        if (gatedBy) {
+          rec.status = "skipped";
+          rec.gatedBy = gatedBy;
+          const gr = gated.find((x) => x.nodeId === gatedBy);
+          if (gr) gr.skipped.push(n.id);
+          emit({ type: "node-skipped", nodeId: n.id, name: displayName(n), reason: "gated", gatedBy });
+          throw new GateSkip(gatedBy);
+        }
         throwIfAborted(ac.signal);
         // Prompt length caps (see prompt-caps.mjs). Many image/video models reject an over-long
         // prompt at the route, and in a graph the prompt is WRITTEN by an upstream LLM — so a
@@ -363,6 +410,16 @@ class Workflow {
         emit({ type: "node-done", nodeId: n.id, name: displayName(n), ms: rec.ms, costUsd: rec.costUsd });
         return out;
       } catch (e) {
+        if (e instanceof GateSkip) throw e;
+        // ⚖️ Decide gate answered no: a settled, billed decision — not an error. Downstream skips.
+        if (e && e.gate === true && !ac.signal.aborted) {
+          rec.status = "gated";
+          rec.out = e.out || null;
+          rec.gate = { yes: e.decision && typeof e.decision.yes === "number" ? e.decision.yes : null, message: e.message };
+          gated.push({ nodeId: n.id, name: displayName(n), message: e.message, yes: rec.gate.yes, skipped: [] });
+          emit({ type: "node-gated", nodeId: n.id, name: displayName(n), message: e.message, yes: rec.gate.yes, costUsd: rec.costUsd });
+          throw e;
+        }
         // A prompt-length rejection is free (nothing generated) and, once banked, preventable: the
         // next run budgets the LLM above this node and fits whatever is left. Say that, rather than
         // relaying "please shorten it" about a prompt the caller never wrote.
@@ -393,7 +450,7 @@ class Workflow {
     const outputsMap = {};
     for (const o of this.outputs) {
       const rec = nodesRec[o.nodeId];
-      if (!rec || rec.status !== "done") continue;
+      if (!rec || !(rec.status === "done" || (rec.status === "gated" && rec.out))) continue;
       const primary = o.ports[0];
       const value = this._wrapValue(rec.out[primary.name], primary.type);
       outputsMap[o.key] = value;
@@ -403,9 +460,16 @@ class Workflow {
       outputs: outputsMap,
       nodes: nodesRec,
       errors,
+      gated,
       costUsd: cost.total,
       costExact: cost.exact,
       remainingBalance: cost.balance,
+    });
+    // sinks a closed gate skipped: get() names the gate instead of "no output"
+    Object.defineProperty(result, "_gatedOutputs", {
+      enumerable: false,
+      value: this.outputs.filter((o) => nodesRec[o.nodeId] && nodesRec[o.nodeId].gatedBy)
+        .map((o) => ({ key: o.key, nodeId: o.nodeId, gateName: displayName(byId.get(nodesRec[o.nodeId].gatedBy)) })),
     });
 
     // timeout/abort must fail the run even when local media finished after the deadline
@@ -565,6 +629,7 @@ const EXT_MIME = {
   ".mp3": "audio/mpeg", ".wav": "audio/wav", ".ogg": "audio/ogg", ".opus": "audio/ogg",
   ".aac": "audio/aac", ".flac": "audio/flac", ".m4a": "audio/mp4",
   ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime", ".mkv": "video/x-matroska",
+  ".glb": "model/gltf-binary",
   ".txt": "text/plain", ".json": "application/json",
 };
 
@@ -573,6 +638,7 @@ const MIME_EXT = {
   "audio/mpeg": "mp3", "audio/wav": "wav", "audio/ogg": "ogg", "audio/aac": "aac",
   "audio/flac": "flac", "audio/mp4": "m4a",
   "video/mp4": "mp4", "video/webm": "webm", "video/quicktime": "mov",
+  "model/gltf-binary": "glb",
   "text/plain": "txt", "application/json": "json",
 };
 
@@ -603,6 +669,7 @@ function sniffMime(bytes) {
   if (ascii(0, "fLaC")) return "audio/flac";
   if (b.length >= 12 && ascii(4, "ftyp")) return "video/mp4";
   if (b.length >= 4 && b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3) return "video/webm";
+  if (b.length >= 4 && ascii(0, "glTF")) return "model/gltf-binary";
   return "application/octet-stream";
 }
 
@@ -815,6 +882,22 @@ function sleep(ms, signal) {
  * NanoGPT transport. `baseUrl` and `fetch` are injectable (that's how the offline test harness runs);
  * pollIntervals / timeouts are per-media-kind knobs (ms).
  */
+/**
+ * GLB URL from a 3D status poll. A completed payload is 3D only when
+ * output.kind is "3d" or output.format is "glb" — a bare video url is not a model.
+ * Prefers model_url, then model.url, video.url, then videoUrls[0].
+ */
+function model3dStatusUrl(s) {
+  const out = (s && s.data && s.data.output) || (s && s.output) || {};
+  const kind = String(out.kind || "").toLowerCase();
+  const format = String(out.format || "").toLowerCase();
+  if (kind !== "3d" && format !== "glb") return "";
+  const list = Array.isArray(out.videoUrls) ? out.videoUrls : [];
+  const first = list.length ? list[0] : null;
+  const fromList = typeof first === "string" ? first : (first && first.url) || "";
+  return out.model_url || (out.model && out.model.url) || (out.video && out.video.url) || fromList || "";
+}
+
 class NanoClient {
   constructor({ apiKey, baseUrl = "https://nano-gpt.com", fetch = globalThis.fetch, pollIntervals = {}, timeouts = {}, payment } = {}) {
     // non-enumerable: console.log/util.inspect/JSON.stringify of a client (or a Workflow holding
@@ -827,8 +910,9 @@ class NanoClient {
     this.pollIntervals = { video: 5000, audio: 3000, x402: 3000, ...pollIntervals };
     // video: no default deadline — NanoGPT jobs keep running server-side and long renders
     // routinely exceed 10 min. Pass timeouts.video (ms) to cap a headless/CI run. Audio keeps
-    // a 5-min default (shorter jobs; still overridable).
-    this.timeouts = { video: Infinity, audio: 300000, ...timeouts };
+    // a 5-min default (shorter jobs; still overridable). 3D stops at 25 min (the editor's
+    // MODEL3D_DEADLINE_MS); the job may still be running after that.
+    this.timeouts = { video: Infinity, audio: 300000, model3d: 25 * 60 * 1000, ...timeouts };
   }
 
   _auth() {
@@ -939,6 +1023,19 @@ class NanoClient {
     return out;
   }
 
+  /**
+   * POST /api/v1/decisions (⚖️ Decide). Returns the JSON ({ answers, usage:{ input_tokens, output_tokens, cost } }).
+   * Decision models bill input tokens only; the real price rides usage.cost.
+   */
+  async decide(body, { onCost, signal } = {}) {
+    const r = await this._postJson("/api/v1/decisions", body, signal);
+    if (!r.ok) throw httpError(r.status, await r.text());
+    const j = await r.json();
+    const c = j && j.usage && typeof j.usage.cost === "number" ? j.usage.cost : null;
+    if (onCost) onCost(costWithHeaders(c != null ? { ...j, cost: c } : j, r));
+    return j;
+  }
+
   /** POST /v1/images/generations (NOTE: not /api/v1). Returns data: / https URL(s). */
   async image({ prompt, model, size, imageDataUrl, maskDataUrl, extra, n = 1, multi = false }, { onCost, signal } = {}) {
     const body = { model, size: size || "1024x1024", n, response_format: "b64_json" };
@@ -963,7 +1060,10 @@ class NanoClient {
   // io.resume (a runId) skips the submit — and its charge — and goes straight to
   // polling: how a timed-out job is picked back up without paying twice.
   async video(model, prompt, opts = {}, imageDataUrl, { onCost, onPoll, onRunId, resume, signal } = {}) {
-    const body = { model, prompt };
+    const is3d = opts.mediaKind === "model3d";
+    const body = { model };
+    // 3D omits an empty prompt (image-only models). Video still sends a blank prompt.
+    if (!(is3d && !String(prompt || "").trim())) body.prompt = prompt;
     if (opts.duration) body.duration = opts.duration;
     if (opts.aspect_ratio) body.aspect_ratio = opts.aspect_ratio;
     if (opts.resolution) body.resolution = opts.resolution;
@@ -999,10 +1099,11 @@ class NanoClient {
     }
 
     const t0 = Date.now();
-    const videoCap = this.timeouts.video;
+    const videoCap = is3d ? this.timeouts.model3d : this.timeouts.video;
+    const pollEvery = is3d ? (this.pollIntervals.model3d || this.pollIntervals.video) : this.pollIntervals.video;
     // Infinity/non-finite = wait forever (default). Finite ms = headless/CI cap.
     while (!Number.isFinite(videoCap) || Date.now() - t0 < videoCap) {
-      await sleep(this.pollIntervals.video, signal);
+      await sleep(pollEvery, signal);
       let s;
       try {
         s = await (await this._get("/api/video/status?requestId=" + encodeURIComponent(runId), signal)).json();
@@ -1013,16 +1114,23 @@ class NanoClient {
       const st = String((s.data && s.data.status) || s.status || "").toUpperCase();
       if (onPoll) onPoll({ status: st, elapsedMs: Date.now() - t0, runId });
       if (st === "COMPLETED" || st === "SUCCEEDED") {
+        if (is3d) {
+          const url = model3dStatusUrl(s);
+          if (!url) throw new NanoodleError("completed but no model url");
+          return url;
+        }
         const out = (s.data && s.data.output) || s.output || {};
         const url = (out.video && out.video.url) || out.url || (Array.isArray(out.video) ? out.video[0] && out.video[0].url : null);
         if (!url) throw new NanoodleError("completed but no video url");
         return url;
       }
       if (["FAILED", "ERROR", "CANCELED"].includes(st)) {
-        throw new NanoodleError("video failed: " + ((s.data && s.data.error) || st));
+        const why = (s.data && s.data.error) || st;
+        throw new NanoodleError((is3d ? "3D failed: " : "video failed: ") + why);
       }
     }
-    throw new NanoodleError(`video timed out (${Math.round(videoCap / 1000)}s) — the job may still be running on NanoGPT's side`, { code: "timeout" });
+    const label = is3d ? "3D" : "video";
+    throw new NanoodleError(`${label} timed out (${Math.round(videoCap / 1000)}s) — the job may still be running on NanoGPT's side`, { code: "timeout" });
   }
 
   /**
@@ -1152,7 +1260,7 @@ class NanoClient {
   }
 }
 
-__x.httpError = httpError; __x.costFromJson = costFromJson; __x.costFromHeaders = costFromHeaders; __x.costWithHeaders = costWithHeaders; __x.sleep = sleep; __x.NanoClient = NanoClient;
+__x.httpError = httpError; __x.costFromJson = costFromJson; __x.costFromHeaders = costFromHeaders; __x.costWithHeaders = costWithHeaders; __x.sleep = sleep; __x.model3dStatusUrl = model3dStatusUrl; __x.NanoClient = NanoClient;
 });
 __def("graph.mjs", function (__x, __req) {
 const { NanoodleError } = __req("errors.mjs");
@@ -1160,7 +1268,7 @@ const { NanoodleError } = __req("errors.mjs");
 /* Dynamic input-port families (mirrors the nanoodle app's runGraph). A wire landing on one of
    these ports — or on a port declared in NODE_TYPES[type].inputs — is a data input; a wire
    landing on ANY other port is a field override (wired prompt/system/lyrics/q/...). */
-const IMG_PORT_RE = /^img\d+$/;      // llm vision references
+const IMG_PORT_RE = /^img\d+$/;      // llm vision references, decide candidates
 const EDIT_IMG_RE = /^image\d*$/;    // edit multi-reference: image, image2, ...
 const VID_PORT_RE = /^vid\d+$/;
 const CLIP_PORT_RE = /^clip\d+$/;    // combine clips
@@ -1197,6 +1305,7 @@ const NODE_TYPES = {
   upload:  { title: "Image input",     inputs: [], outputs: [{ name: "image", type: "image" }], local: true },
   aupload: { title: "Audio input",     inputs: [], outputs: [{ name: "audio", type: "audio" }], local: true },
   vupload: { title: "Video input",     inputs: [], outputs: [{ name: "video", type: "video" }], local: true },
+  mupload: { title: "3D input",        inputs: [], outputs: [{ name: "model", type: "model3d" }], local: true },
   choice:  { title: "Choice",          inputs: [], outputs: [{ name: "text", type: "text" }], local: true },
   join:    { title: "Join",            inputs: ["a", "b"], outputs: [{ name: "text", type: "text" }], local: true },
   llm:     { title: "LLM",             inputs: [], outputs: [{ name: "text", type: "text" }], network: true },
@@ -1205,8 +1314,10 @@ const NODE_TYPES = {
   inpaint: { title: "Inpaint",         inputs: ["image", "mask"], outputs: [{ name: "image", type: "image" }], network: true },
   resize:  { title: "Resize / crop",   inputs: ["image"], outputs: [{ name: "image", type: "image" }], local: true },
   vision:  { title: "Vision",          inputs: ["image"], outputs: [{ name: "text", type: "text" }], network: true },
+  decide:  { title: "Decide",          inputs: ["text"], outputs: [{ name: "text", type: "text" }, { name: "image", type: "image" }], network: true }, // img1… candidates (IMG_PORT_RE)
   tvideo:  { title: "Text→Video",      inputs: [], outputs: [{ name: "video", type: "video" }], network: true },
   ivideo:  { title: "Image→Video",     inputs: ["image"], outputs: [{ name: "video", type: "video" }], network: true },
+  model3d: { title: "3D model",        inputs: ["image"], outputs: [{ name: "model", type: "model3d" }], network: true },
   vedit:   { title: "Video edit",      inputs: ["video"], outputs: [{ name: "video", type: "video" }], network: true },
   vframes: { title: "Video → frames",  inputs: ["video"], outputs: [{ name: "frame1", type: "image" }], local: true, framesOut: true }, // dynamic frame1..N
   combine: { title: "Combine videos",  inputs: [], outputs: [{ name: "video", type: "video" }], local: true },
@@ -1218,6 +1329,10 @@ const NODE_TYPES = {
   trim:    { title: "Trim audio",      inputs: ["audio"], outputs: [{ name: "audio", type: "audio" }], local: true },
   extractaudio: { title: "Extract audio", inputs: ["video"], outputs: [{ name: "audio", type: "audio" }], local: true },
   transcribe: { title: "Transcribe",   inputs: ["audio"], outputs: [{ name: "text", type: "text" }], network: true },
+  cleanvoice: { title: "Clean voice", inputs: ["audio", "video"], outputs: [{ name: "audio", type: "audio" }], network: true },
+  // Custom URL — not a NanoGPT call, so `network` stays unset (no API key required).
+  // Output port follows fields.mode (see deriveOutputs / endpointOutPort).
+  endpoint: { title: "Custom endpoint", inputs: ["text", "image", "audio", "video"], outputs: [{ name: "text", type: "text" }] },
   comment: { title: "Comment",         inputs: [], outputs: [], note: true, local: true },
 };
 
@@ -1261,7 +1376,10 @@ const MEDIA_FIELD_KEYS = ["image", "mask", "audio", "video"];
 const MEDIA_URL_RE = /^(data:|https?:)/i;
 
 function scrubMediaPlaceholders(n, warnings) {
-  for (const k of MEDIA_FIELD_KEYS) {
+  // mupload stores the .glb on fields.model. That key is an AI model id on every
+  // other node, so it is only treated as media here.
+  const keys = n.type === "mupload" ? MEDIA_FIELD_KEYS.concat(["model"]) : MEDIA_FIELD_KEYS;
+  for (const k of keys) {
     const v = n.fields[k];
     if (v == null || v === "" || (typeof v === "string" && MEDIA_URL_RE.test(v.trim()))) continue;
     const shown = typeof v === "string"
@@ -1354,7 +1472,10 @@ const { NanoodleError } = __req("errors.mjs");
 const { catItem, chatModelCan, pricingAdvertisesRefs } = __req("catalog.mjs");
 const { IMG_PORT_RE, EDIT_IMG_RE, REF_PORT_RE, CLIP_PORT_RE, VID_PORT_RE, optionalNode } = __req("graph.mjs");
 const { MEDIA_INLINE_MAX } = __req("media.mjs");
-const { resizeCropImage, trimAudioToWav, extractAudioToWav, extractVideoFrames, concatVideos, muxSoundtrack, maskToSource, fitImageInline } = __req("local-media.mjs");
+const { resizeCropImage, trimAudioToWav, extractAudioToWav, extractVideoFrames, concatVideos, muxSoundtrack, maskToSource, fitImageInline, fitImageJpeg } = __req("local-media.mjs");
+const { decideRun, decideImageLimits } = __req("decide.mjs");
+const { cleanVoiceRun, CLEANVOICE_DEFAULT_MODEL } = __req("cleanvoice.mjs");
+const { runEndpoint } = __req("endpoint.mjs");
 
 function mdl(n) {
   const m = String((n.fields && n.fields.model) || "").trim();
@@ -1527,7 +1648,9 @@ function loraKind(type) { return (type === "image" || type === "edit" || type ==
 function imageTakesLora(id) {
   id = String(id || "");
   if (/inpaint/i.test(id)) return false;
-  if (/klein/i.test(id)) return true;
+  // flux-2-klein-* only (lora-capable per catalog); FLUX.3 Klein (blackforestlabs/flux-3/klein/…)
+  // takes no lora_url — twin of the app's imageTakesLora (nanoodle #732)
+  if (/flux-2-klein/i.test(id)) return true;
   if (/minimax-h3\/(text-to-image|image-edit)/i.test(id)) return true;
   return /(^|[-\/])lora($|[-\/])/i.test(id);
 }
@@ -1850,6 +1973,13 @@ const RUNNERS = {
     }
     return { video: n.fields.video };
   },
+  async mupload(n) {
+    if (!n.fields.model) {
+      if (optionalNode(n)) return { model: "" };
+      throw new NanoodleError("no 3D file — drop a .glb first");
+    }
+    return { model: n.fields.model };
+  },
 
   async choice(n) {
     const opts = String(n.fields.options || "").split("\n").map((s) => s.trim()).filter(Boolean);
@@ -1973,6 +2103,17 @@ const RUNNERS = {
     return { text: await ctx.chat(messages, mdl(n), {}) };
   },
 
+  // ⚖️ Decide: one typed question to a NanoGPT decision model (twin of the editor/play node).
+  // A closed yes/no gate throws a NanoodleError with code "decide-gate" — downstream skips, unbilled.
+  async decide(n, inp, ctx) {
+    const model = mdl(n);
+    const it = catItem(ctx.catalog, "chat", model);
+    // a catalog row WITHOUT decision_input (e.g. the non-detailed /api/v1/models list) is "unknown", not text-only
+    const lim = decideImageLimits(it && it.decision_input, !!(it && it.decision_input));
+    const fit = (u, maxDim, budget) => fitImageJpeg(u, maxDim, budget, mediaOpts(ctx));
+    return decideRun(n.fields || {}, model, inp.text, collectPorts(inp, IMG_PORT_RE), lim, (body) => ctx.decide(body), fit);
+  },
+
   async image(n, inp, ctx) {
     const prompt = promptOf(n, inp, "no prompt");
     let want = Math.max(1, parseInt(n.fields.variations, 10) || 1);
@@ -2047,7 +2188,12 @@ const RUNNERS = {
   },
 
   async lipsync(n, inp, ctx) {
-    if (!inp.image) throw new NanoodleError("no image input");
+    // Portrait required only for image_to_video avatars. Preset-only talking avatars (audio→video,
+    // catalog image_to_video false — e.g. HeyGen Avatar V) run from the preset + audio alone, and a
+    // wired image is NOT forwarded. Catalog miss / no catalog keeps the portrait requirement.
+    // Twin of play's built-in lipsync runner (nanoodle #733).
+    const needsPortrait = avatarNeedsPortrait(ctx && ctx.catalog, String((n.fields && n.fields.model) || "").trim());
+    if (needsPortrait && !inp.image) throw new NanoodleError("no image input");
     if (!inp.audio) throw new NanoodleError("no audio input");
     const prompt = promptOf(n, inp);
     // Avatar models cap audio length (LongCat = 30s) and the cap isn't reliably in the catalog,
@@ -2059,7 +2205,7 @@ const RUNNERS = {
     // ctx.trimAudio lets a browser host inject its Web Audio trimmer so the retry bytes match
     // its built-in runner exactly; default is the local-media trimmer (pure-JS WAV, ffmpeg).
     const trim = ctx.trimAudio || ((url, start, len, rate) => trimAudioToWav(url, start, len, rate, mediaOpts(ctx)));
-    const img = await fitImage(inp.image, ctx, "portrait image");
+    const img = needsPortrait ? await fitImage(inp.image, ctx, "portrait image") : null;
     let trimSec = null;
     for (let attempt = 0; attempt < 2; attempt++) {
       let opts;
@@ -2128,7 +2274,72 @@ const RUNNERS = {
     if (!inp.audio) throw new NanoodleError("no audio input");
     return { text: await ctx.transcribe(mdl(n), inp.audio, (n.fields.language || "auto").trim()) };
   },
+
+  // 🎧 Clean voice: hosted audio or video → voice-only audio. data:/blob: refused before any request.
+  async cleanvoice(n, inp, ctx) {
+    const model = String((n.fields && n.fields.model) || "").trim() || CLEANVOICE_DEFAULT_MODEL;
+    return cleanVoiceRun(model, inp, n.fields, (m, extra) => ctx.audio(m, "", extra));
+  },
+
+  // 🧊 3D model: image and/or text → GLB via the video submit/poll API (mediaKind model3d).
+  async model3d(n, inp, ctx) {
+    const model = String((n.fields && n.fields.model) || "").trim() || MODEL3D_IMAGE_DEFAULT;
+    const mods = model3dInputMods(ctx && ctx.catalog, model);
+    const prompt = promptOf(n, inp);
+    let image = mods.image ? (inp.image || "") : "";
+    if (inp.image && !mods.image && ctx && ctx.progress) {
+      ctx.progress("This model takes text only — the image wire stays, but this run ignores it.");
+    }
+    if (prompt && !mods.text && ctx && ctx.progress) {
+      ctx.progress("This model takes an image only — the prompt stays, but this run ignores it.");
+    }
+    if (mods.image && !mods.text && !image) throw new NanoodleError("Connect an image first.");
+    if (mods.text && !mods.image && !prompt) throw new NanoodleError("Add a prompt first.");
+    if (mods.image && mods.text && !image && !prompt) throw new NanoodleError("Add a prompt or connect an image first.");
+    if (image) image = await fitImage(image, ctx, "source image");
+    const url = await ctx.video(model, mods.text ? prompt : "", {
+      extra: n.fields.modelOpts || {},
+      mediaKind: "model3d",
+    }, image || null);
+    return { model: url };
+  },
+
+  // 🔌 Custom endpoint: POST to the graph's own URL. ctx.fetch so tests can point it at a mock.
+  async endpoint(n, inp, ctx) {
+    return runEndpoint(n, inp, { fetch: ctx && ctx.fetch, signal: ctx && ctx.signal });
+  },
 };
+
+/**
+ * Does this avatar/lipsync model need a portrait image? True unless the model is in the
+ * opt-in catalog and is preset-only (no image_to_video — audio→video talking avatars such as
+ * HeyGen Avatar V). Catalog miss → true (the long-standing portrait requirement).
+ * Mirrors play's built-in lipsync runner: raw `capabilities.image_to_video` or a normalized `i2v`.
+ */
+function avatarNeedsPortrait(catalog, model) {
+  const m = catItem(catalog, "video", model);
+  return !m || !!((m.capabilities || {}).image_to_video) || !!m.i2v;
+}
+
+// Image→3D (Tripo) takes a photo only. Hunyuan Rapid takes text and an optional image.
+// Anything else, including a catalog miss, accepts either — the editor's same fallback.
+const MODEL3D_IMAGE_DEFAULT = "tripo3d/v2.5";
+const MODEL3D_TEXT_DEFAULT = "wavespeed-ai/hunyuan-3d-v3.1-rapid";
+
+function model3dInputMods(catalog, id) {
+  const it = catItem(catalog, "model3d", id);
+  const raw = it && (
+    (Array.isArray(it.modalities) && it.modalities)
+    || (it.architecture && Array.isArray(it.architecture.input_modalities) && it.architecture.input_modalities)
+  );
+  if (raw && raw.length) {
+    const mods = raw.filter((x) => x === "image" || x === "text");
+    if (mods.length) return { image: mods.includes("image"), text: mods.includes("text") };
+  }
+  if (id === MODEL3D_IMAGE_DEFAULT) return { image: true, text: false };
+  if (id === MODEL3D_TEXT_DEFAULT) return { image: true, text: true };
+  return { image: true, text: true };
+}
 
 __x.IMG_INPUT_ROLES = IMG_INPUT_ROLES; __x.loraParams = loraParams; __x.RUNNERS = RUNNERS;
 });
@@ -2180,6 +2391,7 @@ __x.catItem = catItem; __x.pricingAdvertisesRefs = pricingAdvertisesRefs; __x.ch
 __def("io.mjs", function (__x, __req) {
 const { NanoodleError } = __req("errors.mjs");
 const { NODE_TYPES, displayName, optionalNode, topoSort, wiredFramesFloor, MAX_FRAMES } = __req("graph.mjs");
+const { endpointOutPort } = __req("endpoint.mjs");
 
 /* ============================== INPUTS ============================== */
 
@@ -2189,6 +2401,7 @@ const INPUT_SPECS = {
   upload:  [{ f: "image",  label: "Image", kind: "image" }],
   aupload: [{ f: "audio",  label: "Audio", kind: "audio" }],
   vupload: [{ f: "video",  label: "Video", kind: "video" }],
+  mupload: [{ f: "model",  label: "3D file", kind: "model3d" }],
   llm:     [{ f: "prompt", label: "Prompt", kind: "textarea" },
             { f: "system", label: "System prompt", kind: "textarea", optional: true, def: "You are a helpful, concise assistant." }],
   image:   [{ f: "prompt", label: "Image prompt", kind: "textarea" }],
@@ -2196,6 +2409,9 @@ const INPUT_SPECS = {
   music:   [{ f: "prompt", label: "Style / prompt", kind: "textarea" }],
   remix:   [{ f: "prompt", label: "Style / direction", kind: "textarea" }],
   tts:     [{ f: "prompt", label: "Text to speak", kind: "textarea" }],
+  // Optional: image-only 3D models run with a photo and no prompt.
+  model3d: [{ f: "prompt", label: "3D prompt", kind: "textarea", optional: true }],
+  endpoint:[{ f: "prompt", label: "Prompt", kind: "textarea" }],
 };
 
 /**
@@ -2343,6 +2559,8 @@ function deriveOutputs(graph) {
       ports = [];
       for (let i = 1; i <= count; i++) ports.push({ name: "frame" + i, type: "image" });
     }
+    // Custom endpoint's output port follows fields.mode (chat→text, image, video, audio, json→text).
+    if (n.type === "endpoint") ports = [endpointOutPort(n)];
     return { key, nodeId: n.id, type: n.type, ports };
   });
 }
@@ -2366,6 +2584,14 @@ const SETTING_SPECS = {
   vision: [
     { f: "model", label: "Model", kind: "model" },
     { f: "q", label: "Question", kind: "textarea", def: "Describe this image." },
+  ],
+  decide: [
+    { f: "model", label: "Model", kind: "model" },
+    { f: "mode", label: "Decide", kind: "select", options: ["pick", "choose", "score", "yesno"], def: "pick" },
+    { f: "question", label: "Question", kind: "textarea" },
+    { f: "options", label: "Labels (one per line)", kind: "textarea" },
+    { f: "levels", label: "Scale (worst → best, one per line)", kind: "textarea", def: "poor\nokay\ngood\ngreat" },
+    { f: "gate", label: "Gate: stop downstream on no", kind: "boolean" },
   ],
   image: [
     { f: "model", label: "Model", kind: "model" },
@@ -2424,6 +2650,19 @@ const SETTING_SPECS = {
   transcribe: [
     { f: "model", label: "Model", kind: "model" },
     { f: "language", label: "Language", kind: "text", def: "auto" },
+  ],
+  cleanvoice: [
+    { f: "model", label: "Model", kind: "model" },
+    { f: "url", label: "Public link (when nothing is wired)", kind: "text" },
+  ],
+  model3d: [
+    { f: "model", label: "Model", kind: "model" },
+  ],
+  endpoint: [
+    { f: "url", label: "URL", kind: "text", def: "http://127.0.0.1:8787/v1/chat/completions" },
+    { f: "mode", label: "Mode", kind: "select", options: ["chat", "image", "video", "audio", "json"], def: "chat" },
+    { f: "model", label: "Model", kind: "text", def: "local" },
+    { f: "auth", label: "Authorization (optional)", kind: "text", def: "" },
   ],
   join: [{ f: "sep", label: "Separator (use \\n for a line break)", kind: "text", def: " " }],
   inpaint: [
@@ -3492,6 +3731,44 @@ async function fitImageInline(url, { budget = INLINE_IMAGE_BUDGET, fetch: fetchF
   throw new NanoodleError("image is too large to send inline even after resizing (~4 MB max) — use a smaller image");
 }
 
+/**
+ * Shrink an image to fit a decision model's limits (⚖️ Decide): long edge ≤ maxDim and the
+ * data: URL ≤ budget characters. JPEG on white (a transparent PNG can't turn black), stepping
+ * quality down, then size, until it fits — the twin of the browser's canvas decideFitImage.
+ * Needs ffmpeg (decisions without images never touch this).
+ */
+async function fitImageJpeg(url, maxDim, budget, { fetch: fetchFn, signal } = {}) {
+  return withTemp(async (dir) => {
+    throwIfAborted(signal);
+    const inPath = await writeInput(dir, "in", url, fetchFn);
+    const probe = await runProc("ffprobe", [
+      "-v", "error", "-select_streams", "v:0",
+      "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x", inPath,
+    ], { signal });
+    const dims = String(probe.stdout).trim().split("x").map(Number);
+    const sw = dims[0], sh = dims[1];
+    if (!(sw > 0) || !(sh > 0)) throw new NanoodleError("couldn’t read an image to judge");
+    let s = Math.min(1, maxDim / Math.max(sw, sh));
+    const qs = [3, 5, 8, 12]; // mjpeg -q:v (2 = best … 31 = worst) ≈ canvas quality 0.85 → 0.48
+    for (let round = 0; round < 6; round++) {
+      const w = Math.max(2, Math.round(sw * s / 2) * 2), h = Math.max(2, Math.round(sh * s / 2) * 2);
+      for (const q of qs) {
+        throwIfAborted(signal);
+        const outPath = join(dir, `fit-${round}-${q}.jpg`);
+        await runProc("ffmpeg", [
+          "-y", "-i", inPath, "-filter_complex",
+          `color=c=white:s=${w}x${h}[bg];[0:v]scale=${w}:${h},format=rgba[fg];[bg][fg]overlay=shortest=1,format=yuvj420p`,
+          "-frames:v", "1", "-q:v", String(q), outPath,
+        ], { signal });
+        const out = await dataUrlFromFile(outPath, "image/jpeg");
+        if (out.length <= budget) return out;
+      }
+      s *= 0.75;
+    }
+    throw new NanoodleError("couldn’t shrink an image small enough for the decision model");
+  });
+}
+
 async function resizeCropImageFfmpeg(url, m, w, h, { fetch: fetchFn, signal } = {}) {
   return withTemp(async (dir) => {
     throwIfAborted(signal);
@@ -3824,7 +4101,7 @@ __x.MAX_FRAMES = MAX_FRAMES; __x.MAX_IMAGE_DIM = MAX_IMAGE_DIM; __x.MP4CAT = MP4
 // (pixel-level mask comparison + headless canvas shim). Not part of the stable API.
 __x.decodePng = decodePng; __x.encodePngRgba = encodePngRgba;
 
-__x.throwIfAborted = throwIfAborted; __x.resizePlan = resizePlan; __x.maskToSource = maskToSource; __x.encodeWavMono = encodeWavMono; __x.resizeCropImage = resizeCropImage; __x.INLINE_IMAGE_BUDGET = INLINE_IMAGE_BUDGET; __x.fitImageInline = fitImageInline; __x.trimAudioToWav = trimAudioToWav; __x.extractAudioToWav = extractAudioToWav; __x.extractVideoFrames = extractVideoFrames; __x.concatVideos = concatVideos; __x.muxSoundtrack = muxSoundtrack;
+__x.throwIfAborted = throwIfAborted; __x.resizePlan = resizePlan; __x.maskToSource = maskToSource; __x.encodeWavMono = encodeWavMono; __x.resizeCropImage = resizeCropImage; __x.INLINE_IMAGE_BUDGET = INLINE_IMAGE_BUDGET; __x.fitImageInline = fitImageInline; __x.fitImageJpeg = fitImageJpeg; __x.trimAudioToWav = trimAudioToWav; __x.extractAudioToWav = extractAudioToWav; __x.extractVideoFrames = extractVideoFrames; __x.concatVideos = concatVideos; __x.muxSoundtrack = muxSoundtrack;
 });
 __def("x402.mjs", function (__x, __req) {
 const { NanoodleError } = __req("errors.mjs");
@@ -4469,6 +4746,688 @@ function learnPromptCap(learned, node, msg) {
 
 __x.PROMPT_CAPS = PROMPT_CAPS; __x.promptCap = promptCap; __x.fitPromptText = fitPromptText; __x.withFittedPrompt = withFittedPrompt; __x.isPromptTooLong = isPromptTooLong; __x.promptCapFromError = promptCapFromError; __x.learnPromptCap = learnPromptCap;
 });
+__def("decide.mjs", function (__x, __req) {
+// ⚖️ Decide — typed judgments from NanoGPT decision models (POST /api/v1/decisions).
+// Port of the editor/play twin block (nanoodle index.html / play.html "⚖️ DECIDE"): same
+// question shapes, same image state parts, same in-order + reversed pick debias, same
+// outputs. Only the on-device image shrink differs: browsers use canvas, this library
+// uses ffmpeg (fitImageJpeg) — text-only decisions need no ffmpeg at all.
+const { NanoodleError } = __req("errors.mjs");
+
+const DECIDE_DEFAULT_MODEL = "perplexity/pplx-decider-v1.1-27b";
+const DECIDE_SCALE_DEFAULT = "poor\nokay\ngood\ngreat";
+/** The live limits of every image-capable decision model at launch (catalog decision_input.image_limits). */
+const DECIDE_IMG_FALLBACK = { maxImages: 4, maxDimension: 512, maxEncodedBytes: 240000 };
+
+function decideMode(f) {
+  const m = f && f.mode;
+  return (m === "choose" || m === "score" || m === "yesno") ? m : "pick";
+}
+function decideLines(s) {
+  return String(s == null ? "" : s).split("\n").map((x) => x.trim()).filter(Boolean);
+}
+function decideDefaultQuestion(mode) {
+  if (mode === "pick") return "Which image best matches the brief?";
+  if (mode === "choose") return "Which label fits best?";
+  if (mode === "score") return "How good is it?";
+  return "Is it good enough to use?";
+}
+/** Image limits from a catalog decision_input; known=false (absent / offline) → permissive launch limits; known text-only → null. */
+function decideImageLimits(di, known) {
+  if (!known) return DECIDE_IMG_FALLBACK;
+  if (!di || !di.image_input) return null;
+  const l = di.image_limits || {};
+  return {
+    maxImages: l.maxImages > 0 ? l.maxImages : DECIDE_IMG_FALLBACK.maxImages,
+    maxDimension: l.maxDimension > 0 ? l.maxDimension : DECIDE_IMG_FALLBACK.maxDimension,
+    maxEncodedBytes: l.maxEncodedBytes > 0 ? l.maxEncodedBytes : DECIDE_IMG_FALLBACK.maxEncodedBytes,
+  };
+}
+/** The one typed question this node asks. Throws (before any request) on an unanswerable setup. */
+function decideQuestionFor(mode, f, nImgs) {
+  const q = String((f && f.question) || "").trim() || decideDefaultQuestion(mode);
+  if (mode === "pick") {
+    if (nImgs < 2) throw new NanoodleError("pick needs at least two images — wire 2 or more into the image ports");
+    const c = {};
+    for (let i = 1; i <= nImgs; i++) c["image_" + i] = "image " + i;
+    return { type: "choice", instructions: q, criteria: c };
+  }
+  if (mode === "choose") {
+    const labels = decideLines(f && f.options).filter((x, i, a) => a.indexOf(x) === i);
+    if (labels.length < 2) throw new NanoodleError("add at least two labels to choose from (one per line)");
+    if (labels.length > 255) throw new NanoodleError("too many labels — 255 at most");
+    const cc = {};
+    labels.forEach((x) => { cc[x] = null; });
+    return { type: "choice", instructions: q, criteria: cc };
+  }
+  if (mode === "score") {
+    const lv = decideLines((f && f.levels != null && String(f.levels).trim()) ? f.levels : DECIDE_SCALE_DEFAULT);
+    if (lv.length < 2 || lv.length > 10) throw new NanoodleError("the scale needs 2 to 10 levels, worst first (one per line)");
+    return { type: "score", instructions: q, criteria: lv };
+  }
+  return { type: "noul", instructions: q };
+}
+/** state: plain text, or (with images) text + labelled inline image_url parts. */
+function decideState(text, imgs) {
+  if (!imgs.length) return text;
+  const s = [];
+  if (text) s.push(text);
+  imgs.forEach((u, i) => {
+    if (imgs.length > 1) s.push("image_" + (i + 1) + ":");
+    s.push({ type: "image_url", image_url: { url: u } });
+  });
+  return s;
+}
+/** API answer → node outputs: text, image (pick: the winner; else the first image, passed through), decision detail. */
+function decideOutputs(mode, ans, q, imgs, usage, model) {
+  if (!ans || !ans.type) throw new NanoodleError("the decision model returned no answer");
+  const d = { mode, model, cost: (usage && typeof usage.cost === "number") ? usage.cost : null, rows: [] };
+  const probs = ans.probabilities || {};
+  if (mode === "pick") {
+    const k = String(ans.choice || ""), idx = parseInt(k.replace(/^image_/, ""), 10) || 1;
+    d.pick = idx; d.confidence = ans.confidence;
+    d.rows = Object.keys(q.criteria).map((key, i) => ({ label: "image " + (i + 1), p: +probs[key] || 0, win: key === k }));
+    return { text: "image " + idx, image: imgs[idx - 1] || "", decision: d };
+  }
+  if (mode === "choose") {
+    d.confidence = ans.confidence;
+    d.rows = Object.keys(q.criteria).map((key) => ({ label: key, p: +probs[key] || 0, win: key === ans.choice }));
+    return { text: String(ans.choice || ""), image: imgs[0] || "", decision: d };
+  }
+  if (mode === "score") {
+    const sc = (+ans.score || 0) + 1; // 1 = the first (worst) level
+    d.score = sc; d.levels = q.criteria.length; d.confidence = ans.confidence;
+    let top = 0;
+    q.criteria.forEach((x, i) => { if ((+probs[String(i)] || 0) > (+probs[String(top)] || 0)) top = i; });
+    d.rows = q.criteria.map((x, i) => ({ label: (i + 1) + " · " + x, p: +probs[String(i)] || 0, win: i === top }));
+    return { text: String(Math.round(sc * 100) / 100), image: imgs[0] || "", decision: d };
+  }
+  const py = Math.max(0, Math.min(1, +ans.noul || 0));
+  d.yes = py;
+  d.rows = [{ label: "yes", p: py, win: py >= 0.5 }, { label: "no", p: 1 - py, win: py < 0.5 }];
+  return { text: py >= 0.5 ? "yes" : "no", image: imgs[0] || "", decision: d };
+}
+/**
+ * A closed yes/no gate: a deliberate stop, not a failure. The runner throws this (so the browser
+ * twin and any direct RUNNERS caller see err.gate), and Workflow.run() settles it as node status
+ * "gated" — the decision ran and billed, `out` carries its answer, everything downstream is
+ * "skipped" unbilled, and the run itself succeeds.
+ */
+function decideGateError(d, out) {
+  return new NanoodleError(
+    "gate closed — the answer was no (yes " + Math.round(d.yes * 100) + "%), so nothing downstream ran",
+    { code: "decide-gate", gate: true, decision: d, out: out || null });
+}
+/** Average pick probabilities across runs that saw the candidates in different orders; costs add up. */
+function decideMergeOrders(js, orders) {
+  const n = orders[0].length, sum = new Array(n).fill(0);
+  let cost = 0, costKnown = true;
+  js.forEach((j, r) => {
+    const a = j && j.answers && j.answers.answer;
+    if (!a || !a.probabilities) throw new NanoodleError("the decision model returned no answer");
+    orders[r].forEach((orig, k) => { sum[orig] += (+a.probabilities["image_" + (k + 1)] || 0) / js.length; });
+    if (j.usage && typeof j.usage.cost === "number") cost += j.usage.cost; else costKnown = false;
+  });
+  let best = 0;
+  const probs = {};
+  sum.forEach((p, i) => { probs["image_" + (i + 1)] = p; if (p > sum[best]) best = i; });
+  return {
+    answers: { answer: { type: "choice", choice: "image_" + (best + 1), confidence: sum[best], probabilities: probs } },
+    usage: { cost: costKnown ? cost : null }, runs: js.length,
+  };
+}
+/**
+ * The whole run. send(body) POSTs /api/v1/decisions and returns the JSON; fit(url, maxDim, budget)
+ * returns a data: URL that fits (inlining remote URLs as needed).
+ */
+async function decideRun(f, model, text, imgs, lim, send, fit) {
+  const mode = decideMode(f);
+  text = String(text == null ? "" : text).trim();
+  imgs = (imgs || []).filter(Boolean);
+  if (imgs.length && !lim) throw new NanoodleError("this decision model can’t see images — pick one that can (e.g. PPLX Decider or Clef)");
+  if (lim && imgs.length > lim.maxImages) throw new NanoodleError("this decision model takes at most " + lim.maxImages + " images — unwire the extras");
+  const q = decideQuestionFor(mode, f, imgs.length);
+  if (!text && !imgs.length && !String((f && f.question) || "").trim()) throw new NanoodleError("nothing to judge — wire text or an image into Decide");
+  const sent = [];
+  if (imgs.length) {
+    const budget = Math.floor(lim.maxEncodedBytes * 0.95 / imgs.length);
+    for (const u of imgs) sent.push(await fit(u, lim.maxDimension, budget));
+  }
+  let j;
+  if (mode === "pick") {
+    // decision models lean toward the first image they see: ask in order and reversed, average
+    const fwd = sent.map((x, i) => i), rev = fwd.slice().reverse();
+    const both = await Promise.all([fwd, rev].map((ord) =>
+      send({ model, state: decideState(text, ord.map((i) => sent[i])), questions: { answer: q } })));
+    j = decideMergeOrders(both, [fwd, rev]);
+  } else {
+    j = await send({ model, state: decideState(text, sent), questions: { answer: q } });
+  }
+  const out = decideOutputs(mode, j && j.answers && j.answers.answer, q, imgs, j && j.usage, model);
+  if (mode === "yesno" && (f.gate === true || f.gate === "true") && out.decision.yes < 0.5) throw decideGateError(out.decision, out);
+  return out;
+}
+
+__x.DECIDE_DEFAULT_MODEL = DECIDE_DEFAULT_MODEL; __x.DECIDE_SCALE_DEFAULT = DECIDE_SCALE_DEFAULT; __x.DECIDE_IMG_FALLBACK = DECIDE_IMG_FALLBACK; __x.decideMode = decideMode; __x.decideLines = decideLines; __x.decideDefaultQuestion = decideDefaultQuestion; __x.decideImageLimits = decideImageLimits; __x.decideQuestionFor = decideQuestionFor; __x.decideState = decideState; __x.decideOutputs = decideOutputs; __x.decideGateError = decideGateError; __x.decideMergeOrders = decideMergeOrders; __x.decideRun = decideRun;
+});
+__def("cleanvoice.mjs", function (__x, __req) {
+/**
+ * 🎧 Clean voice — strip background noise / music, keep the voice.
+ * Twin of the editor/play block (nanoodle #709). NanoGPT's noise_reduction
+ * models (ElevenLabs Audio Isolation, VEED Clean Audio) ride
+ * POST /api/v1/audio/speech with { model, audio:<public URL>, duration }
+ * and answer 202 + runId (charged up front) → GET /api/tts/status → hosted audio.
+ * The source MUST be a public http(s) URL: data: and blob: are refused before
+ * any request. duration is only a quote; the server re-measures and bills that.
+ */
+const { NanoodleError } = __req("errors.mjs");
+
+const CLEANVOICE_DEFAULT_MODEL = "elevenlabs/audio-isolation"; // $0.121/min
+const CLEANVOICE_FALLBACK_SECS = 60; // length unknown → quote a minute
+const CLEANVOICE_VIDEO_EXT = /\.(mp4|m4v|mov|webm|mkv|avi)(\?|#|$)/i;
+
+/** Which file to clean: a wired audio clip, else a wired video, else the pasted link. */
+function cleanVoiceSource(inp, f) {
+  const a = inp && typeof inp.audio === "string" ? inp.audio.trim() : "";
+  const v = inp && typeof inp.video === "string" ? inp.video.trim() : "";
+  const link = String((f && f.url) || "").trim();
+  const url = a || v || link;
+  const video = a ? false : (v ? true : CLEANVOICE_VIDEO_EXT.test(link));
+  if (!url) throw new NanoodleError("no audio — wire audio or a video in, or paste a public link to the recording");
+  if (!/^https?:\/\//i.test(url)) {
+    throw new NanoodleError(
+      "Clean voice needs a hosted file — NanoGPT downloads it from a public link, and a clip uploaded or made in your browser has none. Wire a generated video or track, or paste a public https link to the recording.");
+  }
+  return { url, video };
+}
+
+/** Duration quote NanoGPT requires (0.6–3600 s); unknown → CLEANVOICE_FALLBACK_SECS. */
+function cleanVoiceSeconds(secs) {
+  const s = +secs;
+  if (!isFinite(s) || s <= 0) return CLEANVOICE_FALLBACK_SECS;
+  return Math.min(3600, Math.max(0.6, Math.round(s * 100) / 100));
+}
+
+function cleanVoiceExtra(url, secs) {
+  return { audio: url, duration: cleanVoiceSeconds(secs) };
+}
+
+/** Seconds the cost forecast assumes: the wired source node's duration knob, else 30 s. */
+function cleanVoiceEstSeconds(srcFields) {
+  const d = parseFloat(srcFields && srcFields.duration);
+  return (isFinite(d) && d > 0) ? d : 30;
+}
+
+/** NanoGPT's 400s, reworded into the fix. Unrelated errors (and aborts) pass through. */
+function cleanVoiceError(e) {
+  if (e && (e.name === "AbortError" || e.code === "aborted")) return e;
+  const m = String((e && e.message) || e || "");
+  if (/verify the source (audio )?duration/i.test(m)) {
+    return new NanoodleError("NanoGPT couldn't read this file's length — use MP3, WAV, M4A/AAC or MP4 (OGG isn't accepted).");
+  }
+  if (/unable to download/i.test(m)) {
+    return new NanoodleError("NanoGPT couldn't download the file — the link must be public (no sign-in, not expired).");
+  }
+  if (/public http\(?s?\)? source/i.test(m)) {
+    return new NanoodleError("Clean voice needs a public https link — clips uploaded in the browser can't reach it.");
+  }
+  return e;
+}
+
+/**
+ * The source's length from media metadata. Browsers can read it without CORS;
+ * Node has no media element, so this resolves null and the quote falls back to
+ * CLEANVOICE_FALLBACK_SECS (the server re-measures before billing).
+ */
+function cleanVoiceMediaSeconds(url, isVideo) {
+  return new Promise((res) => {
+    const doc = globalThis.document;
+    if (!doc || typeof doc.createElement !== "function") { res(null); return; }
+    let el = null;
+    let done = false;
+    const fin = (v) => {
+      if (done) return;
+      done = true;
+      try { el.removeAttribute("src"); el.load(); } catch { /* element may already be gone */ }
+      res(v);
+    };
+    try { el = doc.createElement(isVideo ? "video" : "audio"); }
+    catch { res(null); return; }
+    el.preload = "metadata";
+    el.muted = true;
+    el.onloadedmetadata = () => {
+      const d = el.duration;
+      fin(isFinite(d) && d > 0 ? d : null);
+    };
+    el.onerror = () => fin(null);
+    setTimeout(() => fin(null), 10000);
+    el.src = url;
+  });
+}
+
+/** send(model, extra) → audio URL (the runtime's audio submit + poll). */
+async function cleanVoiceRun(model, inp, f, send) {
+  const src = cleanVoiceSource(inp, f);
+  const secs = await cleanVoiceMediaSeconds(src.url, src.video);
+  try {
+    return { audio: await send(model || CLEANVOICE_DEFAULT_MODEL, cleanVoiceExtra(src.url, secs)) };
+  } catch (e) {
+    throw cleanVoiceError(e);
+  }
+}
+
+__x.CLEANVOICE_DEFAULT_MODEL = CLEANVOICE_DEFAULT_MODEL; __x.CLEANVOICE_FALLBACK_SECS = CLEANVOICE_FALLBACK_SECS; __x.cleanVoiceSource = cleanVoiceSource; __x.cleanVoiceSeconds = cleanVoiceSeconds; __x.cleanVoiceExtra = cleanVoiceExtra; __x.cleanVoiceEstSeconds = cleanVoiceEstSeconds; __x.cleanVoiceError = cleanVoiceError; __x.cleanVoiceMediaSeconds = cleanVoiceMediaSeconds; __x.cleanVoiceRun = cleanVoiceRun;
+});
+__def("endpoint.mjs", function (__x, __req) {
+/**
+ * 🔌 Custom endpoint — POST a NanoGPT-shaped body to a URL the graph names.
+ * Twin of the editor/play helpers (index.html runEndpoint). The request goes
+ * straight to that URL: never the NanoGPT client, never the API key.
+ * Custom auth is only fields.auth. http is allowed for loopback and LAN;
+ * a public host must be https.
+ */
+const { NanoodleError } = __req("errors.mjs");
+const { b64ImageMime, bytesToDataUrl } = __req("media.mjs");
+
+const ENDPOINT_DEF_URL = "http://127.0.0.1:8787/v1/chat/completions";
+const ENDPOINT_MODES = ["chat", "image", "video", "audio", "json"];
+
+function endpointMode(n) {
+  const m = String((n && n.fields && n.fields.mode) || "chat").toLowerCase();
+  return ENDPOINT_MODES.includes(m) ? m : "chat";
+}
+
+function endpointOutPort(n) {
+  const m = endpointMode(n);
+  if (m === "image") return { name: "image", type: "image" };
+  if (m === "video") return { name: "video", type: "video" };
+  if (m === "audio") return { name: "audio", type: "audio" };
+  return { name: "text", type: "text" };
+}
+
+function endpointIsLoopbackHost(host) {
+  const h = String(host || "").toLowerCase().replace(/^\[|\]$/g, "");
+  return h === "localhost" || h === "127.0.0.1" || h === "::1";
+}
+
+function endpointIsPrivateIPv4(host) {
+  const p = String(host || "").split(".");
+  if (p.length !== 4) return false;
+  if (!p.every((x) => /^\d+$/.test(x) && +x >= 0 && +x <= 255)) return false;
+  const a = +p[0], b = +p[1];
+  if (a === 10) return true;
+  if (a === 192 && b === 168) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 169 && b === 254) return true;
+  return false;
+}
+
+function endpointUrlOk(url) {
+  const s = String(url || "").trim();
+  if (!s) return "URL required — set the custom endpoint URL";
+  let u;
+  try { u = new URL(s); } catch {
+    return "that URL isn’t allowed — use http://localhost, 127.0.0.1, a LAN host, or https";
+  }
+  if (u.protocol !== "http:" && u.protocol !== "https:") {
+    return "that URL isn’t allowed — use http://localhost, 127.0.0.1, a LAN host, or https";
+  }
+  if (u.username || u.password) {
+    return "that URL isn’t allowed — don’t put credentials in the URL; use the Authorization field";
+  }
+  if (u.protocol === "https:") return true;
+  const host = u.hostname;
+  if (endpointIsLoopbackHost(host) || endpointIsPrivateIPv4(host) || /\.local$/i.test(host)) return true;
+  return "that URL isn’t allowed — http is only for localhost, 127.0.0.1, or a LAN host; use https for a public host";
+}
+
+function endpointHeaders(auth) {
+  const headers = { "Content-Type": "application/json" };
+  const a = String(auth || "").trim();
+  if (a) headers.Authorization = /\s/.test(a) ? a : ("Bearer " + a);
+  return headers;
+}
+
+function endpointPrompt(n, inp) {
+  inp = inp || {};
+  const v = inp.prompt != null ? inp.prompt : (inp.text != null ? inp.text : (n.fields && n.fields.prompt));
+  return String(v == null ? "" : v).trim();
+}
+
+function endpointIsPath(s) {
+  const raw = String(s == null ? "" : s).trim();
+  if (!raw || raw.charAt(0) !== "/") return false;
+  if (raw.length < 2) return false;
+  if (/[\s\u00b7|\u2022]/.test(raw)) return false;
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(raw)) return false;
+  return true;
+}
+
+function endpointJoinPath(base, path) {
+  const u = new URL(String(base || "").trim());
+  let p = String(path || "").trim();
+  if (p.charAt(0) !== "/") p = "/" + p;
+  const q = p.indexOf("?");
+  if (q >= 0) { u.pathname = p.slice(0, q); u.search = p.slice(q); }
+  else { u.pathname = p; u.search = ""; }
+  return u.toString();
+}
+
+function endpointParseRoute(s) {
+  const raw = String(s == null ? "" : s).trim();
+  const out = {};
+  if (!raw) return out;
+  const low = raw.toLowerCase();
+  if (ENDPOINT_MODES.includes(low)) { out.mode = low; return out; }
+  let mode = "", rest = raw;
+  for (const prefix of ENDPOINT_MODES) {
+    if (!low.startsWith(prefix)) continue;
+    const after = raw.slice(prefix.length);
+    const ch = after.charAt(0);
+    if (ch === "\u00b7" || ch === "|" || ch === ":" || ch === "\u2022" || ch === "-" || /\s/.test(ch)) {
+      mode = prefix;
+      rest = after.replace(/^[\s\u00b7|\u2022:\-]+/, "");
+      break;
+    }
+  }
+  rest = String(rest || "").replace(/\s+\([^)]*\)\s*$/, "").trim();
+  let url = "";
+  const m = rest.match(/https?:\/\/[^\s)]+/i);
+  if (m) url = m[0].replace(/[.,;]+$/, "");
+  if (mode) out.mode = mode;
+  if (url) out.url = url;
+  else if (endpointIsPath(rest)) out.path = rest;
+  else if (!mode && endpointIsPath(raw)) out.path = raw;
+  return out;
+}
+
+function endpointResolveTarget(n, inp) {
+  inp = inp || {};
+  const hasFieldUrl = n && n.fields && Object.prototype.hasOwnProperty.call(n.fields, "url");
+  const fieldUrl = hasFieldUrl ? n.fields.url : ENDPOINT_DEF_URL;
+  const urlRaw = (inp.url != null && String(inp.url).trim() !== "") ? inp.url : fieldUrl;
+  const modeRaw = (inp.mode != null && String(inp.mode).trim() !== "") ? inp.mode : (n && n.fields && n.fields.mode);
+  const parsedUrl = endpointParseRoute(urlRaw);
+  const parsedMode = endpointParseRoute(modeRaw);
+  const parsedField = endpointParseRoute(fieldUrl);
+  const path = parsedUrl.path || parsedMode.path;
+  let resolvedUrl = parsedUrl;
+  if (path && !parsedUrl.url) {
+    const base = parsedField.url || String(fieldUrl == null ? "" : fieldUrl).trim();
+    if (base && !endpointIsPath(base)) {
+      try { resolvedUrl = { mode: parsedUrl.mode, url: endpointJoinPath(base, path) }; } catch { /* leave the raw path to fail urlOk */ }
+    }
+  }
+  let url = resolvedUrl.url || String(urlRaw == null ? "" : urlRaw).trim();
+  let mode;
+  if (resolvedUrl.url && resolvedUrl.mode) mode = resolvedUrl.mode;
+  else if (parsedMode.url && parsedMode.mode) { url = parsedMode.url; mode = parsedMode.mode; }
+  else mode = parsedMode.mode || resolvedUrl.mode || (n && n.fields && n.fields.mode) || "chat";
+  mode = ENDPOINT_MODES.includes(String(mode).toLowerCase()) ? String(mode).toLowerCase() : "chat";
+  return { url, mode };
+}
+
+function endpointModel(n) {
+  const m = String((n.fields && n.fields.model) || "").trim();
+  return m || "local";
+}
+
+function endpointRequestBody(mode, n, inp) {
+  inp = inp || {};
+  const model = endpointModel(n);
+  if (mode === "chat") {
+    const prompt = endpointPrompt(n, inp);
+    const messages = [];
+    const sys = String((n.fields && n.fields.system) || "").trim();
+    if (sys) messages.push({ role: "system", content: sys });
+    const imgs = inp.image ? (Array.isArray(inp.image) ? inp.image : [inp.image]) : [];
+    const aud = inp.audio
+      ? { type: "input_audio", input_audio: { data: String(inp.audio).replace(/^data:[^,]*,/, ""), format: "wav" } }
+      : null;
+    if (imgs.length || aud) {
+      const parts = [{ type: "text", text: prompt || "" }];
+      for (const url of imgs) parts.push({ type: "image_url", image_url: { url } });
+      if (aud) parts.push(aud);
+      messages.push({ role: "user", content: parts });
+    } else {
+      messages.push({ role: "user", content: prompt });
+    }
+    return { model, messages, temperature: 0.8 };
+  }
+  if (mode === "image") {
+    const ib = { model, size: (n.fields && n.fields.size) || "1024x1024", n: 1, response_format: "b64_json" };
+    const ip = endpointPrompt(n, inp);
+    if (ip) ib.prompt = ip;
+    if (inp.image) ib.imageDataUrl = inp.image;
+    return ib;
+  }
+  if (mode === "video") {
+    const vb = { model, prompt: endpointPrompt(n, inp) };
+    if (inp.image) vb.imageDataUrl = inp.image;
+    if (inp.video) {
+      if (/^https?:/i.test(inp.video)) vb.videoUrl = inp.video;
+      else vb.videoDataUrl = inp.video;
+    }
+    return vb;
+  }
+  if (mode === "audio") {
+    const ab = { model, input: endpointPrompt(n, inp) };
+    if (inp.audio) {
+      if (/^https?:/i.test(inp.audio)) ab.audioUrl = inp.audio;
+      else ab.audioDataUrl = inp.audio;
+    }
+    return ab;
+  }
+  const jb = {};
+  if (inp.text != null && inp.text !== "") jb.text = inp.text;
+  else {
+    const tp = endpointPrompt(n, inp);
+    if (tp) jb.text = tp;
+  }
+  if (inp.image) jb.image = inp.image;
+  if (inp.video) jb.video = inp.video;
+  if (inp.audio) jb.audio = inp.audio;
+  return jb;
+}
+
+function endpointShapeHint(mode) {
+  if (mode === "chat") return "OpenAI chat JSON { choices:[{ message:{ content } }] }";
+  if (mode === "image") return "{ data:[{ b64_json }] } or { data:[{ url }] }";
+  if (mode === "video") return '{ "url" } or NanoGPT { output: { video: { url } } }';
+  if (mode === "audio") return '{ "url" } or a binary audio body';
+  return '{ "text" } or { "data": ... }';
+}
+
+function endpointApiMessage(body) {
+  try {
+    const j = JSON.parse(String(body || "").replace(/^\d{3}:\s*/, ""));
+    const err = j && j.error;
+    let msg = (typeof err === "string" && err)
+      || (err && typeof err.message === "string" && err.message)
+      || (j && typeof j.message === "string" && j.message)
+      || (j && typeof j.detail === "string" && j.detail)
+      || (j && typeof j.title === "string" && j.title);
+    msg = String(msg || "").replace(/\s+/g, " ").trim();
+    return msg || null;
+  } catch { return null; }
+}
+
+function endpointHttpError(status, body) {
+  const extracted = endpointApiMessage(body);
+  let hint = "";
+  if (status === 404) hint = "check the custom endpoint URL";
+  else if (status === 401 || status === 403) hint = "check the Authorization field";
+  else if (status === 405) hint = "this endpoint must accept POST";
+  else if (status === 413) hint = "payload too large; send a smaller body";
+  else if (status === 415) hint = "send JSON (Content-Type: application/json)";
+  if (extracted) return extracted + (hint ? " — " + hint : "");
+  if (/<html|<body|<!doctype/i.test(String(body || ""))) {
+    return status + " — the URL returned a web page, not JSON; check the custom endpoint URL";
+  }
+  if (hint) return status + " — " + hint;
+  if (!String(body || "").replace(/\s+/g, "").trim()) {
+    return status + " — the endpoint returned an error with no body; check the URL and mode";
+  }
+  if (/^\s*[{\[]/.test(String(body || ""))) {
+    return status + " — the endpoint rejected the request (check URL, mode, and the posted JSON)";
+  }
+  return status + ": " + String(body).replace(/\s+/g, " ").trim().slice(0, 160);
+}
+
+function endpointNotJsonError(mode, ct, raw) {
+  const sample = String(raw || "").replace(/\s+/g, " ").trim().slice(0, 80);
+  if (/<html|<body|<!doctype/i.test(raw || "") || /text\/html/i.test(ct || "")) {
+    return "the endpoint returned a web page, not JSON — check the URL (it must POST " + endpointShapeHint(mode) + ")";
+  }
+  return "response is not JSON — return " + endpointShapeHint(mode) + (sample ? " (got: " + sample + ")" : "");
+}
+
+function endpointParseChat(j) {
+  const msg = (j && j.choices && j.choices[0] && j.choices[0].message) || {};
+  const txt = msg.content;
+  if (txt == null) throw new NanoodleError("no text in response — return " + endpointShapeHint("chat"));
+  return { text: typeof txt === "string" ? txt : txt.map((p) => p.text || "").join("") };
+}
+
+function endpointParseImage(j) {
+  const urls = ((j && j.data) || []).map((d) => {
+    if (d.b64_json) return "data:" + b64ImageMime(d.b64_json) + ";base64," + d.b64_json;
+    return d.url;
+  }).filter(Boolean);
+  if (!urls.length) throw new NanoodleError("no image in response — return " + endpointShapeHint("image"));
+  return { image: urls[0], images: urls };
+}
+
+function endpointParseVideo(j) {
+  const out = (j && j.data && j.data.output) || (j && j.output) || {};
+  const url = (j && (j.url || j.videoUrl))
+    || (out.video && out.video.url)
+    || out.url
+    || (Array.isArray(out.video) ? (out.video[0] && out.video[0].url) : null)
+    || (j && j.data && j.data.url);
+  if (!url) throw new NanoodleError('no video url in response — return { "url" } or NanoGPT { output: { video: { url } } }');
+  return { video: url };
+}
+
+function endpointParseAudioJson(j) {
+  const url = (j && (j.url || j.audioUrl)) || (j && j.data && (j.data.url || j.data.audioUrl));
+  if (!url) throw new NanoodleError('no audio url in response — return { "url" } or a binary audio body');
+  return { audio: url };
+}
+
+function endpointLooksLikeEcho(j) {
+  if (!j || typeof j !== "object") return false;
+  const h = j.headers;
+  if (!h || typeof h !== "object" || Array.isArray(h)) return false;
+  if (!Object.prototype.hasOwnProperty.call(j, "data") && !Object.prototype.hasOwnProperty.call(j, "json")) return false;
+  return j.url != null || j.origin != null || j.method != null;
+}
+
+function endpointJsonModeText(v) {
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (s) {
+      try {
+        const p = JSON.parse(s);
+        if (p && typeof p === "object") return endpointJsonModeText(p);
+      } catch { /* plain text */ }
+    }
+    return v;
+  }
+  if (v && typeof v === "object") {
+    if (endpointLooksLikeEcho(v)) {
+      const inner = (Object.prototype.hasOwnProperty.call(v, "json") && v.json != null) ? v.json : v.data;
+      if (inner !== v) return endpointJsonModeText(inner);
+    }
+    if (v.text != null) return String(v.text);
+    try { return JSON.stringify(v, null, 2); } catch { return String(v); }
+  }
+  return v == null ? "" : String(v);
+}
+
+function endpointParseJsonMode(j) {
+  if (j && j.text != null && !endpointLooksLikeEcho(j)) return { text: String(j.text) };
+  if (endpointLooksLikeEcho(j)) {
+    return { text: endpointJsonModeText((Object.prototype.hasOwnProperty.call(j, "json") && j.json != null) ? j.json : j.data) };
+  }
+  if (j && Object.prototype.hasOwnProperty.call(j, "data")) return { text: endpointJsonModeText(j.data) };
+  throw new NanoodleError('json mode expected { "text" } or { "data": ... } — not a chat/completions wrapper');
+}
+
+async function endpointParseResponse(mode, r) {
+  const ct = (r.headers && r.headers.get && r.headers.get("content-type")) || "";
+  if (mode === "audio" && !/json/i.test(ct)) {
+    const bytes = new Uint8Array(await r.arrayBuffer());
+    let mime = ct.split(";")[0].trim().toLowerCase();
+    if (!mime || mime === "application/octet-stream" || mime === "binary/octet-stream") mime = "audio/mpeg";
+    return { audio: bytesToDataUrl(bytes, mime) };
+  }
+  let raw = "";
+  try { raw = await r.text(); } catch { raw = ""; }
+  if (!String(raw).trim()) {
+    throw new NanoodleError("empty response — the endpoint returned no body; check the URL and mode");
+  }
+  let j;
+  try { j = JSON.parse(raw); } catch {
+    throw new NanoodleError(endpointNotJsonError(mode, ct, raw));
+  }
+  if (mode === "chat") return endpointParseChat(j);
+  if (mode === "image") return endpointParseImage(j);
+  if (mode === "video") return endpointParseVideo(j);
+  if (mode === "audio") return endpointParseAudioJson(j);
+  return endpointParseJsonMode(j);
+}
+
+function endpointUrlIsLocal(url) {
+  try {
+    const u = new URL(String(url || "").trim());
+    const host = u.hostname;
+    return endpointIsLoopbackHost(host) || endpointIsPrivateIPv4(host) || /\.local$/i.test(host);
+  } catch { return false; }
+}
+
+function endpointFetchIsOpaque(e) {
+  const m = ((e && e.message) || String(e)).trim();
+  if (/^(TypeError: )?(Failed to fetch|Load failed|NetworkError)/i.test(m)) return true;
+  return !!(e && e.name === "TypeError" && /fetch|network|cors/i.test(m));
+}
+
+function endpointFetchError(e, url) {
+  if (!endpointFetchIsOpaque(e)) return (e && e.message) || String(e);
+  if (!endpointUrlIsLocal(url)) return "blocked by CORS — your server needs Access-Control-Allow-Origin";
+  return "blocked — CORS (Access-Control-Allow-Origin + OPTIONS) or Chrome local-network permission";
+}
+
+/**
+ * POST the mode's body and parse the reply.
+ * @param {{ fetch?: typeof fetch, signal?: AbortSignal }} [io]
+ */
+async function runEndpoint(n, inp, io = {}) {
+  const target = endpointResolveTarget(n, inp || {});
+  const url = target.url;
+  const ok = endpointUrlOk(url);
+  if (ok !== true) throw new NanoodleError(ok);
+  const mode = target.mode;
+  const body = endpointRequestBody(mode, n, inp || {});
+  const headers = endpointHeaders(n.fields && n.fields.auth);
+  const doFetch = io.fetch || globalThis.fetch;
+  let r;
+  try {
+    r = await doFetch(url, { method: "POST", headers, body: JSON.stringify(body), signal: io.signal });
+  } catch (e) {
+    if (e && e.name === "AbortError") throw e;
+    throw new NanoodleError(endpointFetchError(e, url));
+  }
+  if (!r.ok) {
+    let errBody = "";
+    try { errBody = (await r.text()).slice(0, 800); } catch { /* ignore */ }
+    throw new NanoodleError(endpointHttpError(r.status, errBody));
+  }
+  return endpointParseResponse(mode, r);
+}
+
+__x.ENDPOINT_DEF_URL = ENDPOINT_DEF_URL; __x.ENDPOINT_MODES = ENDPOINT_MODES; __x.endpointMode = endpointMode; __x.endpointOutPort = endpointOutPort; __x.endpointUrlOk = endpointUrlOk; __x.endpointResolveTarget = endpointResolveTarget; __x.endpointRequestBody = endpointRequestBody; __x.runEndpoint = runEndpoint;
+});
 __def("zlib.mjs", function (__x, __req) {
 /**
  * Env-adaptive zlib: node:zlib in Node (dynamic import, cached), Compression/
@@ -4862,5 +5821,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-88ceeef6dbcc";
+  window.NanoodleEngine.version = "src-084980c97d96";
 })();

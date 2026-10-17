@@ -640,5 +640,323 @@
     "preview": "grok-heygen-minimax-video-arena/preview.webp",
     "workflow": "grok-heygen-minimax-video-arena/workflow.json",
     "workflowSha256": "8363448659d2707604b7ce5cfac1be4974ff23acf3cf207a15125e03c606007c"
+  },
+  {
+    "slug": "idea-to-3d-model",
+    "title": "Idea to concept art to 3D model",
+    "date": "2026-10-12",
+    "review": "Orbited in the editor",
+    "note": "GLM 5.3 Flash turns a one-line object idea into a concept description: a teal capsule-shaped toy submarine with a cream belly band, a brass periscope, three cream-rimmed portholes, a brass wind-up key, and a striped tail cone with a three-blade propeller. Join adds fixed render rules (one whole object, three-quarter view, plain light-gray background, no props), and Muse paints the concept. TRELLIS.2 (1024 geometry, 1024 textures, about 80k faces) turns that single picture into a 3.6 MB textured GLB. Orbiting it in nanoodle's 3D viewer shows a complete toy from every side, including a far side and back that the picture never showed: portholes on both flanks, the striped tail, the propeller blades, the key, and the periscope. Flaws: the viewer renders it flatter and less glossy than the concept, the thin key and propeller blades go soft at some angles, and the cream band on the far side is a plainer flat strip. Inspired by @patchmonkeydev's prompt \u2192 concept \u2192 multi-view \u2192 3D ComfyUI pipeline on X; no media from that post is used.",
+    "layout": "sequence",
+    "costUsd": 0.210068,
+    "costExact": true,
+    "models": [
+      "z-ai/glm-5.3-flash",
+      "meta/muse-image/text-to-image",
+      "wavespeed-ai/trellis-2/image-to-3d"
+    ],
+    "graphSha256": "0b6687c67368e62a04d67c9c33dceb16a5103b56234f5a88305f29a201bb3284",
+    "inputs": [
+      {
+        "label": "Object idea",
+        "text": "A chunky wind-up toy submarine with a brass periscope, three round portholes, a striped tail propeller and a big wind-up key on top, painted teal and cream."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "idea-to-3d-model/concept.webp",
+        "kind": "image",
+        "label": "1. Concept art: Muse paints the GLM description on a plain background \u00b7 reported $0.01",
+        "costUsd": 0.01,
+        "sha256": "27c459a228af0b99668c8f54a66779850d8c20aa12d8075f8ef22b7038e4e7f8"
+      },
+      {
+        "src": "idea-to-3d-model/turntable.mp4",
+        "kind": "video",
+        "label": "2. 3D model: TRELLIS.2 GLB from that one picture, one full turn in nanoodle's 3D viewer (screen capture, 4 s) \u00b7 reported $0.20",
+        "costUsd": 0.2,
+        "sha256": "f9834e56b885197e989012af6cf2f75b19be2514f230723d0e8d083f82f0ec38"
+      }
+    ],
+    "preview": "idea-to-3d-model/preview.webp",
+    "workflow": "idea-to-3d-model/workflow.json",
+    "workflowSha256": "e2b29e2f286570d4a6f67255708d02389c1f1933ca40e55a538821b585adf799",
+    "workflowNote": "The editor workflow also points the 3D node at the saved GLB as its sample, so you can orbit the result before running; \u25b6 Run replaces it. Everything else matches the sampled graph."
+  },
+  {
+    "slug": "blockout-to-shot",
+    "title": "Blockout first, then the shot",
+    "date": "2026-10-12",
+    "review": "Sampled frames",
+    "note": "GLM 5.3 Flash writes three prompts from one action idea: a grayscale blockout prompt, a look bible, and a motion brief. Join puts a fixed keep-composition line in front of the look bible and a short animate line in front of the motion brief. Muse paints the blockout: matte gray rooftops and one boxy wheel-legged robot mid-leap over the gap, seen from a low rooftop camera. Muse Edit restyles it into weathered brick, fire escapes, a dusk sky, and an off-white robot with orange panels, keeping the blockout's layout, robot pose, and camera; it also adds a flock of pigeons that the look bible asked for. Seedance 1.5 Pro (720p, 5 s, silent) animates the finished still: the robot sails over the gap, spins sideways in mid-air, lands on the far roof, and the camera swings round behind it as it rolls toward the sunset. Flaws: the mid-air spin was not asked for, the landing has no crouch-and-settle, and the robot keeps rolling instead of holding still. Inspired by ComfyUI's blockout-then-restyle post on X; no media from that post is used.",
+    "layout": "sequence",
+    "costUsd": 0.150237,
+    "costExact": true,
+    "models": [
+      "z-ai/glm-5.3-flash",
+      "meta/muse-image/text-to-image",
+      "meta/muse-image/edit",
+      "bytedance-seedance-v1.5-pro"
+    ],
+    "graphSha256": "f32e1be93db2a4bba5a1b6386eccf4db22d6076de83b6709506b00af7602b5bf",
+    "inputs": [
+      {
+        "label": "Action idea",
+        "text": "A boxy courier robot with stubby wheel-legs leaps a narrow rooftop gap between two brick buildings at dusk. Low tracking camera from the near rooftop; the robot pushes off the ledge, sails across the alley, and lands on the far roof with a soft crouch."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "blockout-to-shot/blockout.webp",
+        "kind": "image",
+        "label": "1. Blockout still: matte gray stand-ins, one robot mid-leap \u00b7 reported $0.01",
+        "costUsd": 0.01,
+        "sha256": "1dc037044fff2346aa9d2fe675bed43092b7360a17f23730cc123755b805e879"
+      },
+      {
+        "src": "blockout-to-shot/finished.webp",
+        "kind": "image",
+        "label": "2. Finished look: Muse Edit restyles materials and dusk light, same layout and pose \u00b7 reported $0.01",
+        "costUsd": 0.01,
+        "sha256": "936c7910ad6bc99d91275a7666c94e37d61d86e7f04ad73e812db831c14d10d3"
+      },
+      {
+        "src": "blockout-to-shot/shot.mp4",
+        "kind": "video",
+        "label": "3. Shot: Seedance animates the finished still (720p, 5 s, silent) \u00b7 reported $0.13",
+        "costUsd": 0.13,
+        "sha256": "bf2666a4632ccefb4133c2eaee51b35bc121741109d5ab2e902b29bad673abb8"
+      }
+    ],
+    "preview": "blockout-to-shot/preview.webp",
+    "workflow": "blockout-to-shot/workflow.json",
+    "workflowSha256": "f32e1be93db2a4bba5a1b6386eccf4db22d6076de83b6709506b00af7602b5bf"
+  },
+  {
+    "slug": "story-to-shot",
+    "title": "Write a story, get a shot",
+    "date": "2026-10-13",
+    "review": "One coherent beat with invented framing",
+    "note": "A cream paper fox folds a yellow boat on a rainy windowsill, launches it into a curb puddle, and watches under a leaf umbrella as it drifts past a red bicycle. GLM 5.3 Flash keeps the prose free of shot-list jargon; MiniMax H3 invents the framing. Flaws: the umbrella is a green leaf, and the blue mailbox reads as a blue door/box. Checked frames are SFW.",
+    "layout": "sequence",
+    "costUsd": 0.36334024161764705,
+    "costExact": true,
+    "models": [
+      "z-ai/glm-5.3-flash",
+      "minimax-h3"
+    ],
+    "graphSha256": "f5bb481ef336ec8eaab63c9ecbcf18cbfb4c8091ac7d578f81345f0545be56f3",
+    "inputs": [
+      {
+        "label": "Story",
+        "text": "A small cream-colored paper fox with ink-dot eyes folds a yellow paper boat on a rainy windowsill. When the rain softens, the fox carries the boat downstairs, sets it in a puddle by the curb, and gives it one gentle push. The boat drifts past a red bicycle and a blue mailbox as the fox watches from under a leaf umbrella."
+      },
+      {
+        "label": "Story-mode rules",
+        "text": "SFW family-friendly short film. Treat the following as a short story to film. Invent your own camera angles, pacing, and staging. Do not add on-screen text, logos, or watermarks.\n\nStory:"
+      }
+    ],
+    "outputs": [
+      {
+        "src": "story-to-shot/shot.mp4",
+        "kind": "video",
+        "label": "MiniMax H3: the filmed story",
+        "sha256": "b369d13f23699e604fa5e8497c21bf28f8e90e49158393d67efd0afc1996da0d"
+      }
+    ],
+    "preview": "story-to-shot/preview.webp",
+    "workflow": "story-to-shot/workflow.json",
+    "workflowSha256": "f5bb481ef336ec8eaab63c9ecbcf18cbfb4c8091ac7d578f81345f0545be56f3",
+    "workflowNote": "Inspired by ComfyUI users who feed MiniMax H3 a plain story instead of camera angles (https://x.com/EndFolding79421/status/2109791105671700721). Original media not copied."
+  },
+  {
+    "slug": "orbit-the-character",
+    "title": "Orbit the character",
+    "date": "2026-10-14",
+    "review": "Orbit holds identity through the turn",
+    "note": "A cream paper fox with a tiny red scarf stands on a sunny wooden windowsill next to a yellow paper boat. GLM 5.3 Flash writes one Muse still prompt; Muse paints the 1:1 still; MiniMax H3 Max Multi Angle (orbit-right 90\u00b0, 480p, 5 s) turns the camera around the same subject so you see new sides without rewriting identity. Flaws: the orbit ends closer to a side/three-quarter view than a hard back shot, the yellow boat drifts a little relative to the fox, the scarf sometimes reads as a bow, and the background invents a deeper room as the camera moves. Checked frames are SFW. Inspired by ComfyUI multi-angle character workflows shared via @ai_hakase_ (https://x.com/ai_hakase_/status/2110356121911283849); no media from that post is used.",
+    "layout": "sequence",
+    "costUsd": 0.2610771225,
+    "costExact": true,
+    "models": [
+      "z-ai/glm-5.3-flash",
+      "meta/muse-image/text-to-image",
+      "minimax/h3-max/multi-angle/image-to-video"
+    ],
+    "graphSha256": "a0c007929f94b1d9e959745df168e8bc79ef4aa33cb5f31d8ecfd6051bdaf295",
+    "inputs": [
+      {
+        "label": "Character seed",
+        "text": "A cream paper fox with ink-dot eyes, tiny red scarf, standing on a sunny wooden windowsill next to a yellow paper boat, soft daylight, full body, three-quarter front view, plain cream wall behind."
+      },
+      {
+        "label": "Still rules",
+        "text": "Write ONE still-image prompt for Muse text-to-image from the character seed above. Preserve the exact design and props; full body with margin; fixed three-quarter or front camera; soft natural light; NO motion words, NO camera moves, NO animate, NO multiple frames; family-friendly SFW paper craft only; no text overlays; \u2264120 words; output ONLY the prompt text."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "orbit-the-character/still.webp",
+        "kind": "image",
+        "label": "1. Character still: Muse from the GLM prompt \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "935fe976d87481761458cf58d1a3b7d9ff26c78cca8030c15e2f5b5fb1d6b459"
+      },
+      {
+        "src": "orbit-the-character/orbit.mp4",
+        "kind": "video",
+        "label": "2. Orbit clip: H3 Max Multi Angle, orbit-right 90\u00b0, 480p, 5 s \u00b7 reported $0.25",
+        "costUsd": 0.25,
+        "sha256": "3f02bbf92cabfd0646458d91740150df199348eba369ce6a72b05e879a37c4db"
+      }
+    ],
+    "preview": "orbit-the-character/preview.webp",
+    "workflow": "orbit-the-character/workflow.json",
+    "workflowSha256": "a0c007929f94b1d9e959745df168e8bc79ef4aa33cb5f31d8ecfd6051bdaf295",
+    "workflowNote": "Inspired by ComfyUI \"M\u00faltiplos \u00e2ngulos de personagens\" / multi-angle character workflows (https://x.com/ai_hakase_/status/2110356121911283849). Original media not copied."
+  },
+  {
+    "slug": "same-shot-three-looks",
+    "title": "Same shot, three looks",
+    "date": "2026-10-15",
+    "review": "Composition holds across glass \u2192 watercolor \u2192 photoreal",
+    "note": "A glass birdcage packed with books and a warm lantern sits on wet rocks in misty teal water under a crescent moon. Muse paints the glass look; Muse Edit restyles it to watercolor, then to photoreal fantasy, keeping the same framing. Seedance 1.5 Pro (720p, 5 s, silent) adds ambient motion on the glass still \u2014 in this run it invented golden sparkles instead of a clean material morph, so the three stills are the real ladder. Muse also read the lighthouse prompt as a glass birdcage/gazebo; the ladder still holds. Checked frames are SFW (no people). Inspired by ComfyUI style-morph / material-ladder clips such as @eikoung (https://x.com/eikoung/status/2110576332908433628); no media from that post is used.",
+    "layout": "sequence",
+    "costUsd": 0.163,
+    "costExact": true,
+    "models": [
+      "meta/muse-image/text-to-image",
+      "meta/muse-image/edit",
+      "bytedance-seedance-v1.5-pro"
+    ],
+    "graphSha256": "ca0cf3e0eb09c547f0086a1a56295ca3ebf4100af7472184d773d375c140b0ed",
+    "inputs": [
+      {
+        "label": "Glass look prompt",
+        "text": "A small translucent glass lighthouse filled with stacked books and a warm golden lantern, standing on wet black rocks in misty teal water under a pale crescent moon, clear glass walls with soft gold filigree, reflections on the water, fixed wide eye-level camera, centered composition, soft cinematic lighting, no people, no text, family-friendly SFW."
+      },
+      {
+        "label": "Watercolor edit",
+        "text": "Restyle this exact scene as a soft hand-drawn watercolor illustration on textured paper. Keep the same lighthouse shape, book stacks, lantern, rocks, moon, and camera framing. Flat gentle washes, visible paper grain, ink outlines, muted teal and warm gold. No photoreal glass, no 3D render look, no people, no text overlays, SFW."
+      },
+      {
+        "label": "Photoreal edit",
+        "text": "Restyle this exact scene as a photoreal cinematic fantasy photograph. Keep the same lighthouse silhouette, books, lantern glow, wet rocks, crescent moon, and locked camera framing. Real materials: weathered stone lighthouse, warm practical lantern light, misty teal sea, sharp detail. No cartoon, no watercolor paper, no people, no text overlays, SFW."
+      },
+      {
+        "label": "Morph motion",
+        "text": "Locked camera. The lighthouse materials slowly morph from clear translucent glass and gold filigree into soft watercolor paper illustration, then settle. Same composition the whole time. Gentle mist only. No camera move, no new objects, no people, no text, SFW."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "same-shot-three-looks/look-glass.webp",
+        "kind": "image",
+        "label": "1. Glass look: Muse text-to-image \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "6284d435580042c1cec5154fc1ab961178c20ea069fef937283ea4f6324dddf6"
+      },
+      {
+        "src": "same-shot-three-looks/look-watercolor.webp",
+        "kind": "image",
+        "label": "2. Watercolor: Muse Edit from look 1 \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "95500a6fc772660c28c436d803a141d72afe5ac51129743688ba268a3154c461"
+      },
+      {
+        "src": "same-shot-three-looks/look-photoreal.webp",
+        "kind": "image",
+        "label": "3. Photoreal: Muse Edit from look 2 \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "7db436ba4f05f87ec38c26b2d1da013f4afa3514b6164a0edfaee7ee071f4c47"
+      },
+      {
+        "src": "same-shot-three-looks/ambient.mp4",
+        "kind": "video",
+        "label": "4. Ambient clip on glass look: Seedance 1.5 Pro 720p 5s (sparkles, not a clean morph) \u00b7 reported $0.13",
+        "costUsd": 0.13,
+        "sha256": "50930dbcdcda364d654f8eab459f3bde00cf3faa8c8b37b77d48602ae923ff53"
+      }
+    ],
+    "preview": "same-shot-three-looks/preview.webp",
+    "workflow": "same-shot-three-looks/workflow.json",
+    "workflowSha256": "ca0cf3e0eb09c547f0086a1a56295ca3ebf4100af7472184d773d375c140b0ed"
+  },
+  {
+    "slug": "mix-the-references",
+    "title": "Mix the references",
+    "date": "2026-10-16",
+    "review": "All four references land in one coherent shot",
+    "note": "Four Muse stills stand in for your own uploads: a paper-craft fox (image 1), a yellow knitted raincoat (image 2), a red paper lantern (image 3) and a paper harbor pier at dusk (image 4). FLUX.3 Klein Edit gets them in port order (image, image2, image3, image4), and the mix instruction names each one by number. In the result the fox wears the same raincoat with its three wooden toggles and holds the one lantern by its bamboo handle while standing on the cardboard pier, with the striped lighthouse behind it. Flaws: the two paper boats from image 4 mostly drop out, the fox's ears poke through the hood, and the coat comes out longer than the flat-lay reference. A first prompt without \u201cexactly one lantern\u201d gave the fox two lanterns, so the instruction now says it outright. Swap any reference Image node for a \ud83d\udcf7 Image input to mix your own photos. Checked outputs are SFW (no people). Inspired by the multi-reference workflows ComfyUI showed for Krea 3 and FLUX.3 Klein (https://x.com/ComfyUI/status/2110840667337642330); no media from that post is used.",
+    "layout": "sequence",
+    "costUsd": 0.053,
+    "costExact": true,
+    "models": [
+      "meta/muse-image/text-to-image",
+      "blackforestlabs/flux-3/klein/edit-image"
+    ],
+    "graphSha256": "7f5bc2b9a22b96bad7f47e1935605383e89b7e66181cc7988af34b71bb6170a3",
+    "inputs": [
+      {
+        "label": "Who \u00b7 character",
+        "text": "A small paper-craft fox mascot made of folded orange paper with a white paper chest and tail tip, a black paper nose and two round black eyes, standing upright on its hind legs and facing the camera, full body, centered, plain light grey studio backdrop, soft even light, crisp paper folds, no clothing, no text, family-friendly."
+      },
+      {
+        "label": "What they wear \u00b7 outfit",
+        "text": "Product photo of a tiny yellow knitted raincoat with a pointed hood and three round wooden toggle buttons down the front, laid flat and centered on a plain off-white background, soft even studio light, visible chunky knit texture, empty garment with no wearer, no mannequin, no text."
+      },
+      {
+        "label": "What they hold \u00b7 prop",
+        "text": "Product photo of a small round red paper lantern with a thin bamboo carrying handle, glowing warm from inside, centered on a plain off-white background, soft studio light, no text, no people."
+      },
+      {
+        "label": "Where \u00b7 place",
+        "text": "A paper-craft harbor at blue-hour dusk: a short wooden pier made of cardboard planks in the foreground, layered blue paper waves, two small folded paper boats, and a striped paper lighthouse on a rock in the background with its light on, wide eye-level view, empty pier with no characters, no text."
+      },
+      {
+        "label": "Mix instruction (names each image)",
+        "text": "Make one new picture that combines the four reference images.\nImage 1 is the character: keep this exact paper-craft fox, same folded orange paper, white chest, black nose and eyes, same proportions.\nImage 2 is the outfit: dress the fox in this exact yellow knitted raincoat, with the same pointed hood up and the same three wooden toggles.\nImage 3 is the prop: the fox holds exactly one of this red paper lantern by its bamboo handle in its right paw, glowing warm; its left paw is empty. Only one lantern in the whole picture.\nImage 4 is the place: the fox stands full body on this exact cardboard pier at blue-hour dusk, with the same paper waves, paper boats and striped lighthouse behind it.\nEverything stays paper-craft. The lantern casts warm light on the raincoat. One fox only, no other characters, no text."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "mix-the-references/ref-1-character.webp",
+        "kind": "image",
+        "label": "Image 1 \u00b7 character: Muse 1:1 \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "e30f5e6f1b0473e42224845cd8f518bd1e6293cb16a61ff3755bba5b4fa08214"
+      },
+      {
+        "src": "mix-the-references/ref-2-outfit.webp",
+        "kind": "image",
+        "label": "Image 2 \u00b7 outfit: Muse 1:1 \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "b8d5bfe2f56d319a20d14f546a4000930fac783eca533f07b70bcb068b653770"
+      },
+      {
+        "src": "mix-the-references/ref-3-prop.webp",
+        "kind": "image",
+        "label": "Image 3 \u00b7 prop: Muse 1:1 \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "cfbdff234b150d0f4b2573e326a94aa0625eb91d2c8e6f7bbcffcf8932ab3b1e"
+      },
+      {
+        "src": "mix-the-references/ref-4-place.webp",
+        "kind": "image",
+        "label": "Image 4 \u00b7 place: Muse 1:1 \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "e4e2a13443bbaad89f64f44966f4653303405de28a3d68c458b603ac30170ee9"
+      },
+      {
+        "src": "mix-the-references/mix.webp",
+        "kind": "image",
+        "label": "The mix: FLUX.3 Klein Edit, 4 references, 1024\u00d71024 \u00b7 reported $0.009",
+        "costUsd": 0.009,
+        "sha256": "f2c431bb6d55e331bde67ce62eb96c314e7c425001c6e351c4826454bf4f0386"
+      }
+    ],
+    "preview": "mix-the-references/preview.webp",
+    "workflow": "mix-the-references/workflow.json",
+    "workflowSha256": "7f5bc2b9a22b96bad7f47e1935605383e89b7e66181cc7988af34b71bb6170a3"
   }
 ]

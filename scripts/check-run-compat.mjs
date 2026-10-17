@@ -948,6 +948,7 @@ function editorLanguageClampCheck(fail) {
   vm.createContext(ctx);
   const src = [
     extractIndexBlock(IDX, "const AUDIO_PARAMS = {"),
+    ...["audioIsSfx", "audioMultiplierSpec", "audioUploadFormat", "audioDurationDefault"].map((f) => extractIndexBlock(IDX, "function " + f + "(it){")),
     extractIndexBlock(IDX, "function audioApplies(at, it){"),
     extractIndexBlock(IDX, "function audioFields(kind, it){"),
     extractIndexBlock(IDX, "function assertGenerateSongLyrics(model, lyrics){"),
