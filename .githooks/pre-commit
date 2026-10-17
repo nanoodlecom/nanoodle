@@ -55,7 +55,7 @@ touches_examples=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|scripts/
 touches_i18n=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-i18n-coverage\.mjs)$' || true)
 # updates.json feeds the in-app "📣 Updates" changelog — a bad hand edit must not ship.
 # changelog.html + feed.xml are generated from it; they must stay in lockstep.
-touches_updates=$(printf '%s\n' "$staged" | grep -E '(^|/)(updates\.json|changelog\.html|feed\.xml|scripts/(check-updates|check-changelog|gen-changelog)\.mjs)$' || true)
+touches_updates=$(printf '%s\n' "$staged" | grep -E '(^|/)(updates\.json|changelog\.html|feed\.xml|scripts/(check-updates|check-updates-media|check-changelog|gen-changelog)\.mjs)$|^updates-media/' || true)
 # index.html + play.html carry the "Create app" handoff state machine (which app a click targets).
 touches_createapp=$(printf '%s\n' "$staged" | grep -E '(^|/)(index\.html|play\.html|scripts/check-create-app\.mjs)$' || true)
 # index.html runGroup must not run/charge a downstream node on a failed upstream's stale output.
@@ -317,6 +317,7 @@ fi
 #     here means the commit includes the lockstep files; CI still --checks.
 if [ -n "$touches_updates" ]; then
   node "$root/scripts/check-updates.mjs"
+  node "$root/scripts/check-updates-media.mjs"
   node "$root/scripts/gen-changelog.mjs"
   git add -- "$root/changelog.html" "$root/feed.xml"
   node "$root/scripts/check-changelog.mjs"

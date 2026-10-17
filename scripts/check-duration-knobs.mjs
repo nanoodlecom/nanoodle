@@ -137,7 +137,7 @@ for (const [name, src, end] of [["editor", IDX, "function nodeUnitUsd("], ["play
   const pf = ctx.videoPriceFields({}, { duration: "10" });
   if (pf.duration !== "") fail("play: videoPriceFields must drop a stale duration");
   else ok("play: videoPriceFields twin drops a stale duration");
-  if (!/videoUnitUsd\(pricing, videoPriceFields\(pp, f\), ref(?:Wired|Count), videoWired(?:, [\w.]+)?\)/.test(PLAY)) fail("play: nodeUnitUsdPlay no longer strips stale duration");
+  if (!/videoUnitUsd\(pricing, videoPriceFields\(pp, f\), ref(?:Wired|Count), videoWired(?:, [\w.]+)?(?:, \{[^)]*\})?\)/.test(PLAY)) fail("play: nodeUnitUsdPlay no longer strips stale duration");
   else ok("play: nodeUnitUsdPlay prices through videoPriceFields");
   const fill = block(PLAY, "function fillDimLists(){");
   if (!/if\(it\.field==="duration"\)\{/.test(fill)) fail("play: fillDimLists no longer hides a catalogued model's missing duration row on every video node");
@@ -153,6 +153,7 @@ const SFX = { id: "elevenlabs/sound-effects/v2", supported_parameters: { min_dur
 {
   const code = [
     block(IDX, "const AUDIO_PARAMS = {").replace(/^const\s/, "var "),
+    ...["audioIsSfx", "audioMultiplierSpec", "audioUploadFormat", "audioDurationDefault"].map((f) => block(IDX, "function " + f + "(it){")),
     block(IDX, "function audioApplies(at, it){"),
     block(IDX, "function audioFields(kind, it){"),
     block(IDX, "function assertGenerateSongLyrics(model, lyrics){"),

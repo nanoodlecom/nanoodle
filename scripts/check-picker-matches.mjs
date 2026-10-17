@@ -56,6 +56,7 @@ function sandbox() {
   };
   vm.createContext(ctx);
   vm.runInContext(
+    block(IDX, "function pickerModelLabel(m){") + "\n" +
     block(IDX, "function passesFilter(m, filter){") + "\n" +
     block(IDX, "function sortMatches(list){") + "\n" +
     block(IDX, "function normalizePickerQuery(s){") + "\n" +
@@ -220,6 +221,42 @@ function sandbox() {
 if (!IDX.includes('${nsfwOnly?"nsfw":"NSFW"}')) {
   fail("renderPicker lost the NSFW badge on exception rows");
 } else ok("renderPicker marks NSFW rows with an NSFW badge while NSFW-only is off");
+
+{
+  const ctx = sandbox();
+  const nb21 = ctx.pickerModelLabel({ id: "nano-banana-2.1", name: "Nano Banana 2.1" });
+  const nb2 = ctx.pickerModelLabel({ id: "nano-banana-2", name: "Nano Banana 2" });
+  const same = ctx.pickerModelLabel({ id: "Upscaler", name: "Upscaler" });
+  const missing = ctx.pickerModelLabel({ id: "nano-banana-2.1", name: "  " });
+  if (nb21 !== "Nano Banana 2.1") fail("nano-banana-2.1 should show Nano Banana 2.1, got " + JSON.stringify(nb21));
+  else if (nb2 !== "Nano Banana 2") fail("nano-banana-2 catalog name changed, got " + JSON.stringify(nb2));
+  else if (same !== "Upscaler") fail("name===id must stay the id, got " + JSON.stringify(same));
+  else if (missing !== "nano-banana-2.1") fail("blank catalog name must fall back to the id, got " + JSON.stringify(missing));
+  else ok("pickerModelLabel uses the catalog name and falls back to the id");
+  const named = ctx.sortMatches([
+    { id: "nano-banana-2.1", name: "Nano Banana 2.1" },
+    { id: "nano-banana-2", name: "Nano Banana 2" },
+    { id: "Upscaler", name: "Upscaler" },
+  ]).map((m) => m.id);
+  if (named.join(",") !== "nano-banana-2,nano-banana-2.1,Upscaler")
+    fail("A→Z should follow the visible label, got " + named.join(","));
+  else ok("A→Z sorts by the catalog label, id only as a tiebreak");
+}
+
+if (!IDX.includes("pickerModelLabel(m)") || IDX.includes("${esc(m.id)}")) {
+  fail("renderPicker still prints the raw id as the row label");
+} else ok("renderPicker shows pickerModelLabel, not the raw id");
+
+{
+  const PLAY = readFileSync(join(ROOT, "play.html"), "utf8");
+  const fn = block(IDX, "function pickerModelLabel(m){");
+  const copies = PLAY.split("function pickerModelLabel(m){").length - 1;
+  if (copies < 2) fail("play.html should define pickerModelLabel for the app menu and the chat picker, found " + copies);
+  else if (!PLAY.includes(fn)) fail("play.html pickerModelLabel text drifted from index.html");
+  else if (!PLAY.includes("'<span class=\"mname\">'+esc(label)+'") || !PLAY.includes(">'+esc(label)+'</button>'"))
+    fail("play.html picker still prints the raw id as the visible label");
+  else ok("play.html app menu and chat picker use the same catalog label");
+}
 
 if (failed) {
   process.stderr.write(`\n✗ pickerMatches NSFW id-search: ${failed} failure(s)\n`);

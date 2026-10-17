@@ -56,18 +56,18 @@ function registeredTypes() {
   return new Set(keys);
 }
 
-// "upload (image/audio/video)" -> "upload"; "inpaint*" -> "inpaint"
-const bareKey = (cell) => cell.replace(/\([^)]*\)/g, "").replace(/[*†\\`]/g, "").trim();
+// "upload (image/audio/video)" -> "upload"; "inpaint*" -> "inpaint"; "model3d‡" / "cleanvoice§" -> bare keys
+const bareKey = (cell) => cell.replace(/\([^)]*\)/g, "").replace(/[*†‡§\\`]/g, "").trim();
 
 const known = registeredTypes();
 // aliases the tables use that are not literal NODE_TYPES keys
 const ALIASES = new Set(["upload"]);   // stands for upload / aupload / vupload
 
-const rows = [...actual.matchAll(/^\| *(local|local media†|NanoGPT) *\| *(.+?) *\|$/gm)];
-// 3 rows per library table, 2 libraries
-if (rows.length !== 6) {
+const rows = [...actual.matchAll(/^\| *(local|local media†|NanoGPT|custom URL) *\| *(.+?) *\|$/gm)];
+// nanoodle-js: local, local media, NanoGPT, custom URL. nanoodle-py: local, local media, NanoGPT.
+if (rows.length !== 7) {
   fails.push(
-    `expected 6 supported-node rows in llms-full.txt (3 per library), found ${rows.length}.\n` +
+    `expected 7 supported-node rows in llms-full.txt (4 in nanoodle-js, 3 in nanoodle-py), found ${rows.length}.\n` +
     "  The libraries' README table shape changed, so this guard went blind.\n" +
     "  Update the row regex in scripts/check-llms-full.mjs.");
 } else {

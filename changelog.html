@@ -73,6 +73,14 @@
   ul{ margin:0 0 1rem; padding-left:1.2rem; }
   li{ margin:.45rem 0; color:#cdd3df; scroll-margin-top:1rem; }
   li:target{ color:var(--ink); }
+  a.clip{ display:block; position:relative; width:min(100%,320px); margin:.5rem 0 .2rem; border:1px solid var(--line);
+          border-radius:.55rem; overflow:hidden; line-height:0; background:#000; }
+  a.clip:hover{ border-color:var(--accent); }
+  a.clip img{ display:block; width:100%; height:auto; }
+  a.clip::after{ content:"▶"; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:2.6rem; height:2.6rem;
+          border-radius:50%; background:#0b0d12cc; border:1px solid #3a425a; color:var(--ink); font-size:1rem; line-height:2.6rem;
+          text-align:center; }
+  a.clip:hover::after{ border-color:var(--accent); }
 
   footer{ border-top:1px solid var(--line); color:var(--dim); font-size:.82rem; padding:1.1rem 0 .3rem;
           display:flex; gap:.4rem 1rem; flex-wrap:wrap; align-items:center; }
@@ -90,12 +98,97 @@
 
   <main>
     <h1>Change<span class="grad">log</span></h1>
-    <p class="sub">Everything that ships to nanoodle, newest first — the same entries as the in-app 📣 Updates panel. Last update: 6 October 2026.</p>
+    <p class="sub">Everything that ships to nanoodle, newest first — the same entries as the in-app 📣 Updates panel. Last update: 16 October 2026.</p>
     <nav class="feedrow">
       <a href="/feed.xml" type="application/atom+xml">Follow via Atom feed</a>
       <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">Source on GitHub</a>
     </nav>
 
+    <section>
+      <h2 id="d-2026-10-16"><a href="#d-2026-10-16">16 October 2026</a></h2>
+      <ul>
+        <li id="u-2026-10-16-e56c99e0a336">New gallery example: Same shot, three looks — one Muse still, then Muse Edit ladders glass → watercolor → photoreal on a locked composition, with a quiet Seedance ambient bed.</li>
+        <li id="u-2026-10-16-596454e0b5bc">Music node Samples knob now bills Mirelo SFX 2.0 num_samples correctly (SFX-aware pricing on the Music node).</li>
+        <li id="u-2026-10-16-cab14d316dd2">New video model: ByteDance OmniHuman v2 — ByteDance OmniHuman v2 turns a human image and a WAV or MP3 audio track into an expressive avatar video. Add an optional prompt to guide the scene, movement and camera.</li>
+        <li id="u-2026-10-16-102fcee31686">New LLM model: Muse Spark Open — Muse Spark Open brings Meta’s open-weight 816B-A42B model for coding, codebase understanding, and agentic tool use to NanoGPT.</li>
+        <li id="u-2026-10-16-76ccd3a93bdf">New LLM model: Orion 26B A4B v1.1 — TheDrummer&#39;s Gemma 4 fine-tune is built for creative writing, roleplay, and expressive dialogue, with optional thinking, a 65,536-token context window, and up to 8,192 output tokens.</li>
+        <li id="u-2026-10-16-634b7e0301d7">New LLM models: Moondream 3 Preview &amp; Moondream 3.1 — Moondream 3 Preview and its distinct successor Moondream 3.1 support text, image questions, captioning, OCR, and optional reasoning. Both use 9B total parameters with 2B active per token.</li>
+        <li id="u-2026-10-16-7fc11754d5a2">New video models: HeyGen Avatar IV &amp; HeyGen Avatar V — HeyGen Avatar IV animates a portrait image or preset avatar from recorded speech, with up to 1080p output. HeyGen Avatar V uses eligible preset avatars with up to 4K MP4 output.</li>
+      </ul>
+    </section>
+    <section>
+      <h2 id="d-2026-10-15"><a href="#d-2026-10-15">15 October 2026</a></h2>
+      <ul>
+        <li id="u-2026-10-15-22d125f7d957">New LLM model: Gemma 4 12B Starry Ocean — Gemma 4 12B Starry Ocean is now available and included in your subscription.</li>
+        <li id="u-2026-10-15-72aa7d491325">New LLM model: Ultramarine 1 Flash — Built for finance, law, consulting, and operations, it was trained on assignments such as building Excel models, editing PowerPoint decks, and drafting Word memos.</li>
+        <li id="u-2026-10-15-213b9c554709">New LLM model: Gemini 4 Argon — You can now pick a service tier for Gemini 4 Argon right in chat: open Setup and choose Standard, Flex, or Priority.</li>
+        <li id="u-2026-10-15-310b55773b5b">New video model: Generate a video soundtrack — Mirelo SFX 2.0 is now available for creating sound effects and ambience from text or synchronized soundtracks from video. It can preserve existing speech while adding surrounding sounds.</li>
+        <li id="u-2026-10-15-981b5333f9d9">New video model: AI Video Translator — Dub talking videos into 28 languages while keeping each speaker’s cloned voice and speech timing.</li>
+        <li id="u-2026-10-15-ff11ad73c87f">New LLM models: Apertus 1.5 8B &amp; Qwen SEA-LION v4 32B &amp; Gemma SEA-LION v4 27B &amp; Bielik 11B v3.0 — Built by the Swiss AI Initiative, it makes its weights, training data and recipes open, with multilingual chat and a 262K context window.</li>
+        <li id="u-2026-10-15-782bf5b96abe">New LLM model: Nvidia Nemotron 3.5 Super VL — Nvidia Nemotron 3.5 Super VL is now available and included in your subscription!</li>
+        <li id="u-2026-10-15-d08c94918092">New image models: FLUX.3 Image Klein &amp; Klein Base — Create images with precise layouts and expressive typography, or add reference images to edit text, transfer styles, and compose objects into a new scene.</li>
+      </ul>
+    </section>
+    <section>
+      <h2 id="d-2026-10-14"><a href="#d-2026-10-14">14 October 2026</a></h2>
+      <ul>
+        <li id="u-2026-10-14-642e2a818048">New LLM model: Gemini 4 Argon — Gemini 4 Argon now supports Flex and Priority service tiers. Flex costs 50% less than Standard when you can wait, while Priority costs 80% more for higher-priority processing.</li>
+        <li id="u-2026-10-14-c32681b7b054">New LLM model: LFM2.5 24B A2B — This text reasoning model uses 2.45B active parameters out of 24B total, with tool calling, structured output, and a 128,000-token context window for agent workflows.</li>
+        <li id="u-2026-10-14-43b761263a49">Retired: Sora 2 — Sora 2 has now been retired and is no longer available for new video generations. Existing Sora 2 generations remain identified correctly in your history. For a current alternative, try Kling 3.0 Pro.</li>
+      </ul>
+    </section>
+    <section>
+      <h2 id="d-2026-10-13"><a href="#d-2026-10-13">13 October 2026</a></h2>
+      <ul>
+        <li id="u-2026-10-13-9c83893bb372">LLM node now takes video — wire a clip into a video_input chat model (Gemini 4 Argon and friends) to ask about what happens on screen.</li>
+        <li id="u-2026-10-13-c97e98161e5c">New LLM models: Qwen 3.8 27B Uncensored &amp; Thinking variant — Qwen 3.8 27B Uncensored and its Thinking variant are no longer included in the subscription. Both variants remain available through pay-as-you-go billing using your account balance.</li>
+        <li id="u-2026-10-13-34c3bbbe2bd5">New LLM models: GLM 5.2 &amp; GLM 5.2 Thinking — We have restored the extra included input tokens deducted for GLM 5.2 and GLM 5.2 Thinking between the switch to 2x on October 12 and October 13 at 07:13:36 UTC.</li>
+        <li id="u-2026-10-13-17b9f7daf00b">New LLM model: Gemini 4 Argon — Google&#39;s flagship reasoning model is built for complex software engineering, mathematical and scientific problem solving, and multi-step agents.</li>
+      </ul>
+    </section>
+    <section>
+      <h2 id="d-2026-10-12"><a href="#d-2026-10-12">12 October 2026</a></h2>
+      <ul>
+        <li id="u-2026-10-12-91d050fc44a4">New LLM models: GLM 5.2 &amp; GLM 5.2 Thinking &amp; GLM 5.3 &amp; GLM 5.3 Thinking — GLM 5.2 and GLM 5.2 Thinking now count at 2x toward included input-token usage in the subscription. GLM 5.3 and GLM 5.3 Thinking now count at the regular 1x multiplier.</li>
+        <li id="u-2026-10-12-23252e078bcd">New LLM model: TheDrummer Skyfall 31B v4.2 — TheDrummer Skyfall 31B v4.2 is now available and included in your subscription. This 31B model is built for creative writing, roleplay, and dialogue, with a 16K-token context window.</li>
+        <li id="u-2026-10-12-85784c5c0b76">Pricing: Qwen 3.8 27B Uncensored &amp; Thinking variant — Pay-as-you-go pricing for Qwen 3.8 27B Uncensored and its Thinking variant is now $1 per million input tokens, $3 per million output tokens, and $0.22 per million cached input tokens.</li>
+        <li id="u-2026-10-12-1dbe935241ca">New LLM model: Muse Wonder — Meta&#39;s new frontier reasoning model for complex personal and professional agentic tasks.</li>
+        <li id="u-2026-10-12-238607abe264">Retired: Bria Guided Background Removal — Upload an image and describe which objects to keep, drop, or isolate, or leave the prompt blank for standard background removal.</li>
+      </ul>
+    </section>
+    <section>
+      <h2 id="d-2026-10-10"><a href="#d-2026-10-10">10 October 2026</a></h2>
+      <ul>
+        <li id="u-2026-10-10-f91dd0ef459c">New image model: Qwen Image 2.1 Turbo — Qwen Image 2.1 Turbo is now available for image generation and editing.</li>
+      </ul>
+    </section>
+    <section>
+      <h2 id="d-2026-10-09"><a href="#d-2026-10-09">9 October 2026</a></h2>
+      <ul>
+        <li id="u-2026-10-09-1c1158359b18">🎧 New Clean voice node: it strips background noise and music and keeps the voice, using ElevenLabs Audio Isolation (about $0.12 a minute) or the cheaper VEED Clean Audio. Wire in a generated video or track, or paste a public link to a recording. NanoGPT fetches the file from its link, so clips uploaded in the browser can&#39;t be cleaned yet. Wire the result into 🎚 Soundtrack to put the clean voice back on the video.<a class="clip" href="/updates-media/clean-voice-node.mp4" title="Play the usage clip"><img src="/updates-media/clean-voice-node.webp" width="960" height="680" loading="lazy" decoding="async" alt="Usage clip: 🎧 New Clean voice node: it strips background noise and music and keeps the voice, using ElevenLabs Audio Isolation (about $0.12 a minute) or the cheaper VEED Clean Audio. Wire in a generated video or track, or paste a public link to a recording. NanoGPT fetches the file from its link, so clips uploaded in the browser can&#39;t be cleaned yet. Wire the result into 🎚 Soundtrack to put the clean voice back on the video." /></a></li>
+        <li id="u-2026-10-09-5cd867264ce1">New LLM model: GPT-6.1 Sol — GPT-6.1 Sol now supports Ultrafast for faster token generation. Select Ultrafast alongside Flex and Fast in the chat settings, or set service_tier to &quot;ultrafast&quot; in API requests.</li>
+      </ul>
+    </section>
+    <section>
+      <h2 id="d-2026-10-08"><a href="#d-2026-10-08">8 October 2026</a></h2>
+      <ul>
+        <li id="u-2026-10-08-94757d2a22b0">📣 Updates entries can now show a short usage clip of the feature. It plays inline as you scroll the panel, and a click opens it large. The changelog page links each clip too.</li>
+        <li id="u-2026-10-08-73c14f68b886">New ⚖️ Decide node: ask a decision model one typed question — pick the best of up to 4 images, choose a label, score on a scale, or yes/no — and get probabilities back for a fraction of a cent. Turn on the yes/no gate to stop the rest of the run (unbilled) when the answer is no.<a class="clip" href="/updates-media/decide-node.mp4" title="Play the usage clip"><img src="/updates-media/decide-node.webp" width="960" height="758" loading="lazy" decoding="async" alt="Usage clip: New ⚖️ Decide node: ask a decision model one typed question — pick the best of up to 4 images, choose a label, score on a scale, or yes/no — and get probabilities back for a fraction of a cent. Turn on the yes/no gate to stop the rest of the run (unbilled) when the answer is no." /></a></li>
+        <li id="u-2026-10-08-23c6bccf9e07">New video model: MiniMax H3 Max Relight — Relight an existing video with exactly one lighting-reference image while preserving the source subjects, motion, camera, setting, and audio. Choose 480p, 768p, 1080p, or 2K output.</li>
+        <li id="u-2026-10-08-0ce99d3fcf28">New LLM models: Gemma 4 26B A4B Chimera X Heretic &amp; Gemma 4 31B Scarlet — Gemma 4 26B A4B Chimera X Heretic and Gemma 4 31B Scarlet are now available and included in the subscription.</li>
+      </ul>
+    </section>
+    <section>
+      <h2 id="d-2026-10-07"><a href="#d-2026-10-07">7 October 2026</a></h2>
+      <ul>
+        <li id="u-2026-10-07-5e86ef1a1b6f">Pricing: A Better API Pricing Hub — The API pricing hub now brings text and image model rates together in searchable tables.</li>
+        <li id="u-2026-10-07-38662461c549">New image model: Recraft SVG Edit — Recraft SVG Edit lets you upload an existing SVG, describe the changes you want, and create a new SVG with editable vector shapes.</li>
+        <li id="u-2026-10-07-60e4c0c5c792">New LLM model: Auto Model — Auto Model can now choose how deeply to reason for each message: simple questions can skip thinking, while harder requests get more.</li>
+        <li id="u-2026-10-07-2a096662b7bf">New LLM model: Claude Haiku 5.5 — Anthropic&#39;s fastest and most capable small model is built for high-volume, cost-sensitive work, with strong performance across coding, computer use, knowledge work, and live support.</li>
+        <li id="u-2026-10-07-20218e3ab8db">New audio models: Mureka Instrumental &amp; Mureka Lyrics &amp; Mureka Podcast &amp; Mureka Song &amp; Mureka Lyrics Video — Create instrumental tracks, turn ideas into lyrics, produce multi-voice podcasts, or generate complete songs from lyrics or a creative prompt.</li>
+        <li id="u-2026-10-07-34553c06e5b1">New video model: Vidu Q4 — Animate still images with motion and sound, or use reference images and voice clips to keep characters, products and voices consistent across scenes.</li>
+      </ul>
+    </section>
     <section>
       <h2 id="d-2026-10-06"><a href="#d-2026-10-06">6 October 2026</a></h2>
       <ul>
@@ -105,6 +198,8 @@
         <li id="u-2026-10-06-c80388ec08e5">Kandinsky 6 Lite and Pro now show their real per-clip price before you send: $0.16 and $1.35 from a prompt, $0.17 and $1.40 from a starting image. The estimate used to read $25.</li>
         <li id="u-2026-10-06-51fa300fa6b2">New video models: Kandinsky 6 Lite &amp; Kandinsky 6 Pro — Create short videos with synchronized sound from a prompt or animate a starting image. Lite is built for quick drafts; Pro supports more detailed scene direction and camera movement.</li>
         <li id="u-2026-10-06-613cd3b8b652">New video model: AI Video Captioner — Turn talking videos into captioned clips with animated word timing, keyword highlights and emoji.</li>
+        <li id="u-2026-10-06-95202749c108">New LLM model: Mistral Large 4 — This open-weight model supports reasoning, coding, image understanding, tool calling, and structured output. Its 512K-token context window lets you work with long documents and large codebases.</li>
+        <li id="u-2026-10-06-960604e6c53f">New image model: Nano Banana 2.1 — Create detailed product shots, posters with readable text, and panoramic scenes, or combine reference images into a new composition.</li>
       </ul>
     </section>
     <section>
@@ -148,7 +243,7 @@
     <section>
       <h2 id="d-2026-09-30"><a href="#d-2026-09-30">30 September 2026</a></h2>
       <ul>
-        <li id="u-2026-09-30-eceaab50d303">New 🧊 3D model node — NanoGPT&#39;s 3D models (default Tripo 2.5), drop or upload a .glb, 3D wires, a lazy orbit viewer, and a Teapot → Tripo teaching example you can spin.</li>
+        <li id="u-2026-09-30-eceaab50d303">New 🧊 3D model node — NanoGPT&#39;s 3D models (default Tripo 2.5), drop or upload a .glb, 3D wires, a lazy orbit viewer, and a Teapot → Tripo teaching example you can spin.<a class="clip" href="/updates-media/3d-model-node.mp4" title="Play the usage clip"><img src="/updates-media/3d-model-node.webp" width="720" height="796" loading="lazy" decoding="async" alt="Usage clip: New 🧊 3D model node — NanoGPT&#39;s 3D models (default Tripo 2.5), drop or upload a .glb, 3D wires, a lazy orbit viewer, and a Teapot → Tripo teaching example you can spin." /></a></li>
         <li id="u-2026-09-30-1a59ce8593f3">MiniMax H3 Singularity (and the other H3 models that only publish a minimum) now update the pre-send estimate with duration and resolution, matching NanoGPT&#39;s generation quote. A 15s clip no longer stays stuck on the short-clip floor.</li>
         <li id="u-2026-09-30-e39acbb1e9fe">New LLM model: Ling 3.1 Flash — Ling 3.1 Flash is now available and included in the subscription.</li>
         <li id="u-2026-09-30-700588c8887e">New video model: Pixelcut Looping Video — Turn one product photo into a seamless video loop with a locked camera and subtle ambient movement or a full 360° spin.</li>
