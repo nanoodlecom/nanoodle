@@ -48,7 +48,7 @@ const catalogs = {
     { id: 'minimax-h3/image-to-video-spicy', capabilities: { image_to_video: true },
       supported_parameters: { parameters: { resolution: opts(['480p', '720p']), duration: opts([5, 10]) } } },
     { id: 'minimax/h3-max', capabilities: { image_to_video: true },
-      supported_parameters: { parameters: { resolution: opts(['480p', '720p']), duration: opts([5, 10]) } } },
+      supported_parameters: { parameters: { resolution: opts(['480p', '768p', '1080p']), duration: opts([5, 10]) } } },
     { id: 'minimax/h3-max/multi-angle/image-to-video', capabilities: { image_to_video: true },
       supported_parameters: { parameters: { resolution: opts(['480p', '768p', '1080p']), duration: opts(['5','6','7','8','9','10','11','12','13','14','15']),
         camera_motion: opts(['orbit-right','orbit-left','push-in','pull-back','rise']) } } },

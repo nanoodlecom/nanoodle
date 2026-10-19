@@ -142,6 +142,14 @@ const HOWTO = {
     inspect: "Put the two images side by side. Check that every object is still in the same place, that the darkest areas went solid black, that mid-tones became dots rather than smooth grey, and that highlights stayed white. Zoom in: the dots here are drawn by the model, not a regular halftone grid.",
     costHow: "One Muse 3:4 still at $0.011 and one Qwen Image 2.1 Edit at 1k for $0.03. The saved run was $0.041. With your own art in place of the Muse still it is $0.03.",
   },
+  "day-to-night": {
+    headline: "Day to night between two keyframes",
+    job: "Make a clip that starts on one still and ends on another, here midday to night.",
+    purpose: "Show start + end frame video: an Image→Video node with an end-frame port. The model has to get from the first image to the second, so you choose both ends of the shot and it fills in the change between them.",
+    edit: "Rewrite <em>Day keyframe · prompt</em> for a different place, and <em>Night keyframe · instruction</em> for a different change (winter, a storm, a finished room). Keep \"same camera, same framing\" in the instruction so the two frames line up. Or swap either Image node for a 📷 Image input to use your own before and after. <em>Transition · motion prompt</em> describes what happens in between.",
+    inspect: "Check that the first frame matches the day still and the last frame matches the night still, and that nothing jumps in between. Watch for materials that change mid-clip (here the paper waves turn into real water) and for details that pop in late instead of fading in (here the moon and stars).",
+    costHow: "Muse 16:9 $0.011 + Muse Edit 16:9 $0.011 + MiniMax H3 Max at 768p for 5 s, $0.40. The saved run was $0.422. Set the video node to 480p for about $0.25.",
+  },
   "photo-to-video": {
     headline: "Animate a still",
     job: "Generate a first frame, then animate its steam.",
@@ -199,7 +207,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.
