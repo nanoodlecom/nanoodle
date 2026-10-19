@@ -1,15 +1,15 @@
 {
   "unigram": {
-    "add:text": 194,
-    "add:llm": 57,
-    "set:model": 293,
-    "wire": 634,
+    "add:text": 195,
+    "add:llm": 58,
+    "set:model": 295,
+    "wire": 636,
+    "add:image": 129,
+    "add:comment": 85,
+    "run": 77,
     "add:join": 58,
-    "add:image": 128,
     "add:edit": 56,
     "add:ivideo": 30,
-    "add:comment": 84,
-    "run": 76,
     "add:resize": 46,
     "add:music": 2,
     "add:tts": 6,
@@ -18,8 +18,8 @@
   },
   "bigram": {
     "add:text": {
+      "add:llm": 14,
       "add:text": 93,
-      "add:llm": 13,
       "add:join": 18,
       "add:image": 58,
       "add:edit": 2,
@@ -28,19 +28,19 @@
       "add:tts": 5
     },
     "add:llm": {
-      "set:model": 57
+      "set:model": 58
     },
     "set:model": {
-      "wire": 293
+      "wire": 295
     },
     "wire": {
+      "add:image": 71,
+      "add:comment": 76,
       "add:join": 40,
       "wire": 237,
       "add:llm": 44,
-      "add:image": 70,
       "add:edit": 54,
       "add:ivideo": 26,
-      "add:comment": 75,
       "add:text": 25,
       "add:resize": 46,
       "add:music": 2,
@@ -48,21 +48,21 @@
       "add:tts": 1,
       "add:vedit": 8
     },
+    "add:image": {
+      "set:model": 129
+    },
+    "add:comment": {
+      "run": 77,
+      "add:comment": 8
+    },
     "add:join": {
       "wire": 58
-    },
-    "add:image": {
-      "set:model": 128
     },
     "add:edit": {
       "set:model": 56
     },
     "add:ivideo": {
       "set:model": 30
-    },
-    "add:comment": {
-      "run": 76,
-      "add:comment": 8
     },
     "add:resize": {
       "wire": 46
@@ -81,10 +81,10 @@
     }
   },
   "coldStart": {
-    "add:text": 76
+    "add:text": 77
   },
   "firstNode": {
-    "add:text": 76
+    "add:text": 77
   },
   "firstTrio": [
     {
@@ -122,6 +122,14 @@
     {
       "actions": [
         "add:text",
+        "add:llm",
+        "add:image"
+      ],
+      "count": 4
+    },
+    {
+      "actions": [
+        "add:text",
         "add:text",
         "add:join"
       ],
@@ -134,14 +142,6 @@
         "add:llm"
       ],
       "count": 4
-    },
-    {
-      "actions": [
-        "add:text",
-        "add:llm",
-        "add:image"
-      ],
-      "count": 3
     },
     {
       "actions": [
@@ -168,5 +168,5 @@
       "count": 1
     }
   ],
-  "total": 1678
+  "total": 1687
 }

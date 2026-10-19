@@ -1,0 +1,82 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 40,
+      "y": -200,
+      "w": 720,
+      "fields": {
+        "text": "Event details → bilingual poster. MOSS Image is strongest at lettering: it prints Chinese and English text where the brief puts it. Write the event in plain words; the LLM writes a poster brief with every line to print in quotes, in both languages, and where each line goes. MOSS letters the poster. The Negative prompt on the MOSS node keeps extra words and blurry letters out; Steps, Guidance and Prompt expansion are under ⚙️ Model options (blank = model defaults). Check every character before you print it.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "event",
+      "type": "text",
+      "x": 40,
+      "y": 60,
+      "w": 320,
+      "name": "Event details",
+      "fields": {
+        "text": "A neighborhood tea house's autumn tea festival. October 24 to 26, 10am to 6pm. Free tastings. Warm, calm, a little traditional."
+      }
+    },
+    {
+      "id": "copy",
+      "type": "llm",
+      "x": 420,
+      "y": 60,
+      "w": 340,
+      "sizes": {
+        "system": 140
+      },
+      "name": "Bilingual poster brief",
+      "fields": {
+        "model": "z-ai/glm-5.3-flash",
+        "reasoningEffort": "low",
+        "maxTokens": "1000",
+        "system": "You write an image prompt for a vertical event poster with bilingual text, Simplified Chinese and English. From the user's event details, choose a short Chinese headline (2 to 6 characters) and its English translation, a date and time line, and one short bilingual extra line. Write every line that must be printed inside double quotes, exactly as it should appear, and say where it goes (top headline, directly under it, bottom). Then describe one simple central illustration that fits the event, the palette, the paper or background texture, and clean modern typography with generous margins. No people, no logos, no other text. One paragraph, under 110 words. Output only the prompt."
+      }
+    },
+    {
+      "id": "poster",
+      "type": "image",
+      "x": 820,
+      "y": 40,
+      "w": 300,
+      "name": "Bilingual poster · MOSS Image",
+      "fields": {
+        "model": "moss-image",
+        "size": "1024x1536",
+        "variations": "1",
+        "negativePrompt": "misspelled words, extra text, watermark, blurry letters"
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "event",
+        "port": "text"
+      },
+      "to": {
+        "node": "copy",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "copy",
+        "port": "text"
+      },
+      "to": {
+        "node": "poster",
+        "port": "prompt"
+      }
+    }
+  ]
+}

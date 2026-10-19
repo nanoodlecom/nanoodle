@@ -1066,5 +1066,45 @@
     "preview": "day-to-night/preview.webp",
     "workflow": "day-to-night/workflow.json",
     "workflowSha256": "e766e5fb1738468b9473298fed39acadb1a25d164513b9a33976e557aea1977b"
+  },
+  {
+    "slug": "bilingual-tea-poster",
+    "title": "Event details to a bilingual poster",
+    "date": "2026-10-19",
+    "review": "Every Chinese and English line exact on the first run",
+    "layout": "sequence",
+    "note": "GLM 5.3 Flash turns three lines of event details into a poster brief with every line to print in quotes: 秋茶会, Autumn Tea Festival, 10月24日–26日 10:00–18:00 / Oct 24–26, 10am–6pm, and 免费品茗 / Free Tastings. MOSS Image letters all of it at 1024×1536 with a negative prompt, character for character and where the brief puts it, with no extra words, over a line-art teapot and cup on textured paper. Flaws: the illustration is pale next to the lettering, the brief chose 秋茶会 rather than a longer headline, and MOSS is not fast (this run took about half a minute; test images took 19 to 78 seconds against 13 to 19 for Nano Banana 2.1). In side-by-side tests MOSS kept a two-column bilingual menu layout that Nano Banana 2.1, FLUX.3 and GPT Image 2 each rearranged. The poster was checked and is SFW (no people).",
+    "costUsd": 0.078794,
+    "costExact": true,
+    "models": [
+      "z-ai/glm-5.3-flash",
+      "moss-image"
+    ],
+    "graphSha256": "7ba85ed1c5af77c5f73efdc9d3edef45a7afe3c45c21c540cc6992eead97ea62",
+    "inputs": [
+      {
+        "label": "Event details",
+        "text": "A neighborhood tea house's autumn tea festival. October 24 to 26, 10am to 6pm. Free tastings. Warm, calm, a little traditional."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "bilingual-tea-poster/brief.txt",
+        "kind": "text",
+        "label": "Poster brief: GLM 5.3 Flash · reported $0.0002",
+        "costUsd": 0.000151,
+        "sha256": "0fc4ec85634ad539940933fe94dfd1d092d35339427ca23f3103565cd9bbd4a1"
+      },
+      {
+        "src": "bilingual-tea-poster/poster.webp",
+        "kind": "image",
+        "label": "Bilingual poster: MOSS Image 1024×1536 · reported $0.079",
+        "costUsd": 0.078643,
+        "sha256": "588fab0c44c1322fe2dfd16e9cb1a2e4c1547ef12cd9d02a7b1ab110d2e864ee"
+      }
+    ],
+    "preview": "bilingual-tea-poster/preview.webp",
+    "workflow": "bilingual-tea-poster/workflow.json",
+    "workflowSha256": "7ba85ed1c5af77c5f73efdc9d3edef45a7afe3c45c21c540cc6992eead97ea62"
   }
 ]
