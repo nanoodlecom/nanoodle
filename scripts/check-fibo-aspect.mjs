@@ -59,6 +59,7 @@ function loadEditor() {
     block(IDX, "function imageAspectSpec(model){"),
     block(IDX, "function imageAspectExtra(model, aspect){"),
     block(IDX, "function dimDefs(type, model, fields){"),
+    block(IDX, "function imageKnobExtra(fields, spec){"),
     block(IDX, "function imgExtra(n){"),
     "function loraParams(){ return {}; }",
     "function needsCustomCivitai(){ return false; }",

@@ -1624,6 +1624,10 @@ const I18N = {
     "Join clips end-to-end into one video":"Une los clips uno tras otro en un solo vídeo",
     "Make it shorter — optional":"Hazlo más corto — opcional",
     "Model options":"Opciones de modelo",
+    "Steps":"Pasos",
+    "Guidance":"Guía",
+    "Prompt expansion":"Expansión del prompt",
+    "Steps, guidance and prompt expansion from the model's catalog. Defaults apply when untouched.":"Pasos, guía y expansión del prompt del catálogo del modelo. Si no los tocas, se usan los valores por defecto.",
     "More app options":"Más opciones de app",
     "Per-model knobs from the catalog (presets, styles, camera moves…). Defaults apply when untouched.":"Controles por modelo del catálogo (preajustes, estilos, movimientos de cámara…). Se aplican los valores por defecto si no se tocan.",
     "Pull still frames out of a video":"Extrae fotogramas fijos de un vídeo",
@@ -2347,6 +2351,10 @@ const I18N = {
     "Join clips end-to-end into one video":"Assembler les clips bout à bout en une seule vidéo",
     "Make it shorter — optional":"Raccourcir — facultatif",
     "Model options":"Options du modèle",
+    "Steps":"Étapes",
+    "Guidance":"Guidage",
+    "Prompt expansion":"Expansion du prompt",
+    "Steps, guidance and prompt expansion from the model's catalog. Defaults apply when untouched.":"Étapes, guidage et expansion du prompt issus du catalogue du modèle. Les valeurs par défaut s’appliquent si vous n’y touchez pas.",
     "More app options":"Plus d’options d’app",
     "Per-model knobs from the catalog (presets, styles, camera moves…). Defaults apply when untouched.":"Réglages spécifiques au modèle issus du catalogue (préréglages, styles, mouvements de caméra…). Les valeurs par défaut s’appliquent si vous n’y touchez pas.",
     "Pull still frames out of a video":"Extraire des images fixes d’une vidéo",
@@ -3058,6 +3066,10 @@ const I18N = {
     "Join clips end-to-end into one video":"Clips hintereinander zu einem Video zusammenfügen",
     "Make it shorter — optional":"Kürzer machen — optional",
     "Model options":"Modelloptionen",
+    "Steps":"Schritte",
+    "Guidance":"Guidance",
+    "Prompt expansion":"Prompt-Erweiterung",
+    "Steps, guidance and prompt expansion from the model's catalog. Defaults apply when untouched.":"Schritte, Guidance und Prompt-Erweiterung aus dem Modellkatalog. Unverändert gelten die Standardwerte.",
     "More app options":"Weitere App-Optionen",
     "Per-model knobs from the catalog (presets, styles, camera moves…). Defaults apply when untouched.":"Modellspezifische Regler aus dem Katalog (Presets, Stile, Kamerafahrten…). Standardwerte gelten, solange unverändert.",
     "Pull still frames out of a video":"Standbilder aus einem Video ziehen",
@@ -3773,6 +3785,10 @@ const I18N = {
     "Join clips end-to-end into one video":"Junte clipes de ponta a ponta em um único vídeo",
     "Make it shorter — optional":"Torne mais curto — opcional",
     "Model options":"Opções de modelo",
+    "Steps":"Passos",
+    "Guidance":"Orientação",
+    "Prompt expansion":"Expansão do prompt",
+    "Steps, guidance and prompt expansion from the model's catalog. Defaults apply when untouched.":"Passos, orientação e expansão do prompt do catálogo do modelo. Sem alterações, valem os padrões.",
     "More app options":"Mais opções de app",
     "Per-model knobs from the catalog (presets, styles, camera moves…). Defaults apply when untouched.":"Controles por modelo do catálogo (predefinições, estilos, movimentos de câmera…). Os padrões se aplicam quando não alterados.",
     "Pull still frames out of a video":"Extraia quadros estáticos de um vídeo",
@@ -4486,6 +4502,10 @@ const I18N = {
     "Join clips end-to-end into one video":"クリップをつなげて1つの動画に結合",
     "Make it shorter — optional":"短くする — 任意",
     "Model options":"モデルオプション",
+    "Steps":"ステップ数",
+    "Guidance":"ガイダンス",
+    "Prompt expansion":"プロンプト拡張",
+    "Steps, guidance and prompt expansion from the model's catalog. Defaults apply when untouched.":"モデルのカタログにあるステップ数・ガイダンス・プロンプト拡張です。触らなければ既定値が使われます。",
     "More app options":"その他のアプリオプション",
     "Per-model knobs from the catalog (presets, styles, camera moves…). Defaults apply when untouched.":"カタログのモデル別の調整項目 (プリセット、スタイル、カメラの動き…)。変更しない場合はデフォルトが適用されます。",
     "Pull still frames out of a video":"動画から静止フレームを抽出",
@@ -5212,6 +5232,7 @@ function normImg(m){
     fixedCount: m.supported_parameters?.fixed_image_count || 0,          // ALWAYS returns this many (e.g. midjourney/higgsfield = 4), regardless of n
     sizePrices: per,                                                     // per-size price map → live price as the size changes
     nsfw: !!m.capabilities?.nsfw,
+    knobs: imageKnobSpec(m.supported_parameters),                      // negative prompt / steps / guidance / prompt expansion the catalog advertises (MOSS Image)
     price: v!=null ? `$${(+v).toFixed(3)}/img` : "" };
 }
 function normVideo(m){
@@ -6706,6 +6727,64 @@ function ensureRunwareLiveCatalog(){
     });
   return _runwareLive.promise;
 }
+/* ---------- catalog image knobs (negative prompt · steps · guidance · prompt expansion) ----------
+   The v1 image catalog advertises these flat under supported_parameters (MOSS Image, 2026-10-18:
+   negative_prompt:true, num_inference_steps/guidance_scale {min,max,default},
+   enable_prompt_expansion {default}). Catalog-driven, no model names. Values live in n.fields
+   (negativePrompt / steps / guidance / promptExpansion) and go out only when set, so the model's own
+   defaults apply untouched. play.html's RUNTIME carries the same two helpers (exports forward them). */
+function imageKnobSpec(sp){
+  sp = sp || {};
+  const num = (p)=> (p && typeof p==="object" && p.min!=null && p.max!=null && isFinite(+p.min) && isFinite(+p.max) && +p.max>+p.min)
+    ? { min:+p.min, max:+p.max, def:(p.default!=null && isFinite(+p.default)) ? +p.default : null } : null;
+  const out = {};
+  if(sp.negative_prompt===true) out.negative = true;
+  const st = num(sp.num_inference_steps); if(st) out.steps = st;
+  const g = num(sp.guidance_scale); if(g) out.guidance = g;
+  const ex = sp.enable_prompt_expansion;
+  if(ex===true || (ex && typeof ex==="object")) out.expand = { def: !(ex && ex.default===false) };
+  return Object.keys(out).length ? out : null;
+}
+function imageKnobExtra(fields, spec){
+  const e = {};
+  if(!spec || !fields) return e;
+  const clamp = (v, r)=>{
+    if(v==null || String(v).trim()==="") return null;
+    const x = Number(v); if(!isFinite(x)) return null;
+    return Math.min(r.max, Math.max(r.min, x));
+  };
+  if(spec.negative){ const np = String(fields.negativePrompt||"").trim(); if(np) e.negative_prompt = np; }
+  if(spec.steps){ const v = clamp(fields.steps, spec.steps); if(v!=null) e.num_inference_steps = Math.round(v); }
+  if(spec.guidance){ const v = clamp(fields.guidance, spec.guidance); if(v!=null) e.guidance_scale = v; }
+  if(spec.expand && typeof fields.promptExpansion==="boolean") e.enable_prompt_expansion = fields.promptExpansion;
+  return e;
+}
+function imageKnobsHtml(n){
+  const spec = (catItem("image", n.fields.model)||{}).knobs;
+  if(!spec) return "";
+  const f = n.fields, rows = [];
+  const numRow = (key, label, r, step)=> `<div style="margin:3px 0"><label>${esc(t(label))} (${esc(r.min)}–${esc(r.max)})</label><input type="number" data-imgknob="${key}" min="${esc(r.min)}" max="${esc(r.max)}" step="${step}" value="${esc(f[key]??"")}" placeholder="${esc(r.def!=null?String(r.def):"")}"/></div>`;
+  if(spec.steps) rows.push(numRow("steps", "Steps", spec.steps, "1"));
+  if(spec.guidance) rows.push(numRow("guidance", "Guidance", spec.guidance, "0.1"));
+  if(spec.expand){
+    const on = typeof f.promptExpansion==="boolean" ? f.promptExpansion : spec.expand.def;
+    rows.push(`<label class="setbool" style="margin:3px 0"><input type="checkbox" data-imgknob="promptExpansion"${on?" checked":""}/> ${esc(t("Prompt expansion"))}</label>`);
+  }
+  const touched = ["steps","guidance"].some(k=> f[k]!=null && f[k]!=="") || typeof f.promptExpansion==="boolean";
+  return (spec.negative ? negPromptHtml(n) : "") + (rows.length ? `<details class="adv"${touched?" open":""}><summary>⚙️ ${esc(t("Model options"))}</summary>${rows.join("")}<div class="fhint">${esc(t("Steps, guidance and prompt expansion from the model's catalog. Defaults apply when untouched."))}</div></details>` : "");
+}
+function wireImageKnobs(box, n){
+  box.querySelectorAll("[data-imgknob]").forEach(el=>{
+    const key = el.dataset.imgknob;
+    el.addEventListener(el.type==="checkbox" ? "change" : "input", ()=>{
+      if(el.type==="checkbox") n.fields[key] = el.checked;
+      else if(el.value==="") delete n.fields[key];               // blank → the model's own default
+      else n.fields[key] = el.value;
+      save();
+    });
+    el.addEventListener("pointerdown", e=> e.stopPropagation());
+  });
+}
 function negPromptHtml(n){
   return `<div style="margin-top:4px">
         <label>${esc(t("Negative prompt"))} <span class="dim lblhint">· ${esc(t("optional"))}</span></label>
@@ -6723,8 +6802,9 @@ function refreshCivitParams(n){
   const box = n.el.querySelector("[data-civitparams]"); if(!box) return;
   if(!needsCustomCivitai(n.fields.model)){
     // Direct AIR-style catalog models (persona:… etc.) take a negative prompt too — just that field
-    box.innerHTML = airModelTakesNegative(n.fields.model) ? negPromptHtml(n) : "";
-    wireNegPrompt(box, n);
+    box.innerHTML = airModelTakesNegative(n.fields.model) ? negPromptHtml(n) : imageKnobsHtml(n);
+    wireNegPrompt(box, n); wireImageKnobs(box, n);
+    if(box.innerHTML) translateTree(box);
     return;
   }
   // Kick a live refresh of the Runware group (non-blocking; stamped list shows immediately)
@@ -12994,6 +13074,9 @@ function njsRunFor(type, rn, inp, n){
         args = args || {};
         const extra = Object.assign({}, args.extra || {});
         if(extra.aspect_ratio==null || extra.aspect_ratio==="") Object.assign(extra, imageAspectExtra(args.model, rn.fields && rn.fields.aspect));
+        // catalog knobs (MOSS negative prompt / steps / guidance / expansion) — same helper as imgExtra
+        const kx = imageKnobExtra(rn.fields, (catItem("image", args.model)||{}).knobs);
+        for(const k of Object.keys(kx)) if(!(k in extra)) extra[k] = kx[k];
         return sendImage(Object.assign({}, args, { extra }));
       };
     }
@@ -13415,6 +13498,10 @@ function imgExtra(n){
     const np = String(n.fields.negativePrompt||"").trim();
     if(np) e.negative_prompt = np;
   }
+  // catalog-advertised knobs (MOSS Image: negative prompt, steps, guidance, prompt expansion) — never
+  // overwrite a key the AIR path already set
+  const kx = imageKnobExtra(n.fields, (catItem("image", n.fields.model)||{}).knobs);
+  for(const k of Object.keys(kx)) if(!(k in e)) e[k] = kx[k];
   return e;
 }
 function loraParams(n){

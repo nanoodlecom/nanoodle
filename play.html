@@ -9763,7 +9763,7 @@ function mp4ParamsMatch(bufs){
         const _fixed = _catIt ? ((_catIt.supported_parameters && _catIt.supported_parameters.fixed_image_count) || 0) : 0;
         if(_fixed > 1) want = _fixed;
         // always multi: even n:1 can return N (fixed_image_count models) — surface every image paid for.
-        const urls = await ctx.genImage(prompt, mdl(n), snapImageSize(n, _catIt)||SIZES[0][0], undefined, undefined, withImageAspect(imgExtra(n), n, _catIt), {n:want, multi:true});
+        const urls = await ctx.genImage(prompt, mdl(n), snapImageSize(n, _catIt)||SIZES[0][0], undefined, undefined, withImageKnobs(withImageAspect(imgExtra(n), n, _catIt), n, _catIt), {n:want, multi:true});
         const sel = Math.min(Math.max(0, parseInt(n.fields.sel,10)||0), urls.length-1);
         return { image: urls[sel], images: urls };
       }
@@ -9800,7 +9800,7 @@ function mp4ParamsMatch(bufs){
         if(imgs.reduce(function(s,u){ return s + (u?u.length:0); }, 0) > MEDIA_INLINE_MAX)
           throw new Error("reference images too large (~4 MB combined limit) — use fewer or smaller images");
         const src = imgs.length>1 ? imgs : imgs[0];   // array → multi-image composite; string → single edit (unchanged)
-        return { image: await ctx.genImage(prompt, mdl(n), snapImageSize(n, _m)||SIZES[0][0], src, undefined, withImageAspect(imgExtra(n), n, _m)) };
+        return { image: await ctx.genImage(prompt, mdl(n), snapImageSize(n, _m)||SIZES[0][0], src, undefined, withImageKnobs(withImageAspect(imgExtra(n), n, _m), n, _m)) };
       }
     },
     inpaint: {
@@ -9815,7 +9815,7 @@ function mp4ParamsMatch(bufs){
         if(!prompt) throw new Error("no prompt — say what to paint into the brushed area");
         const mask = await maskToSource(rawMask, source);
         const _ipCat = await rawCatItem("image", mdl(n));
-        return { image: await ctx.genImage(prompt, mdl(n), snapImageSize(n, _ipCat)||SIZES[0][0], source, mask, withImageAspect(imgExtra(n), n, _ipCat)) };
+        return { image: await ctx.genImage(prompt, mdl(n), snapImageSize(n, _ipCat)||SIZES[0][0], source, mask, withImageKnobs(withImageAspect(imgExtra(n), n, _ipCat), n, _ipCat)) };
       }
     },
     resize: {
@@ -10482,7 +10482,7 @@ const PROMPT_CAPS = {
           args = args || {};
           var raw = null, list = (ctx.catalog && ctx.catalog.image) || [], i;
           for(i=0;i<list.length;i++) if(list[i] && list[i].id===args.model) raw = list[i];
-          return _sendImage(Object.assign({}, args, { extra: withImageAspect(args.extra, rn, raw) }));
+          return _sendImage(Object.assign({}, args, { extra: withImageKnobs(withImageAspect(args.extra, rn, raw), rn, raw) }));
         };
       }
       return E.RUNNERS[type](rn, inp2, ctx);
@@ -11259,6 +11259,42 @@ const PROMPT_CAPS = {
   // Merge aspect_ratio into an image extra. A key already set (library/built-in FIBO imgExtra)
   // wins, so flag-on and flag-off stay byte-identical. Unknown leftovers snap to the catalog
   // default rather than posting a ratio the model will 400.
+  // twin of the editor's imageKnobSpec/imageKnobExtra: catalog-advertised negative prompt, steps,
+  // guidance and prompt expansion (MOSS Image). Raw catalog read; sent only when the node set them,
+  // never overriding a key already in extra. No catalog item (offline export) -> nothing added.
+  function imageKnobSpec(sp){
+    sp = sp || {};
+    var num = function(p){
+      return (p && typeof p==="object" && p.min!=null && p.max!=null && isFinite(+p.min) && isFinite(+p.max) && +p.max>+p.min)
+        ? { min:+p.min, max:+p.max, def:(p.default!=null && isFinite(+p.default)) ? +p.default : null } : null;
+    };
+    var out = {}, st, g, ex = sp.enable_prompt_expansion;
+    if(sp.negative_prompt===true) out.negative = true;
+    st = num(sp.num_inference_steps); if(st) out.steps = st;
+    g = num(sp.guidance_scale); if(g) out.guidance = g;
+    if(ex===true || (ex && typeof ex==="object")) out.expand = { def: !(ex && ex.default===false) };
+    return Object.keys(out).length ? out : null;
+  }
+  function imageKnobExtra(fields, spec){
+    var e = {}, v, np;
+    if(!spec || !fields) return e;
+    var clamp = function(x, r){
+      if(x==null || String(x).trim()==="") return null;
+      var n = Number(x); if(!isFinite(n)) return null;
+      return Math.min(r.max, Math.max(r.min, n));
+    };
+    if(spec.negative){ np = String(fields.negativePrompt||"").trim(); if(np) e.negative_prompt = np; }
+    if(spec.steps){ v = clamp(fields.steps, spec.steps); if(v!=null) e.num_inference_steps = Math.round(v); }
+    if(spec.guidance){ v = clamp(fields.guidance, spec.guidance); if(v!=null) e.guidance_scale = v; }
+    if(spec.expand && typeof fields.promptExpansion==="boolean") e.enable_prompt_expansion = fields.promptExpansion;
+    return e;
+  }
+  function withImageKnobs(extra, n, raw){
+    extra = Object.assign({}, extra || {});
+    var kx = imageKnobExtra(n && n.fields, raw && imageKnobSpec(raw.supported_parameters)), k;
+    for(k in kx) if(!(k in extra)) extra[k] = kx[k];
+    return extra;
+  }
   function withImageAspect(extra, n, raw){
     extra = Object.assign({}, extra || {});
     if(extra.aspect_ratio!=null && extra.aspect_ratio!=="") return extra;
