@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Color art to a printed manga panel — nanoodle</title>
+<meta name="description" content="Turn a color illustration into a black-and-white manga panel with ink, solid blacks and screentone. Reported saved run: $0.041." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="Color art to a printed manga panel — nanoodle" />
+<meta property="og:description" content="Turn a color illustration into a black-and-white manga panel with ink, solid blacks and screentone. Reported saved run: $0.041." />
+<meta property="og:url" content="https://nanoodle.com/guide/examples/color-to-manga" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Color art to a printed manga panel — nanoodle" />
+<meta name="twitter:description" content="Turn a color illustration into a black-and-white manga panel with ink, solid blacks and screentone. Reported saved run: $0.041." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/examples/color-to-manga" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <a href="/guide/examples/">Steal a noodle</a> / <span>Color art to a printed manga panel</span></nav>
+
+  <main>
+    <h1><span class="grad">Color art to a printed manga panel</span></h1>
+    <p class="lede">Turn a color illustration into a black-and-white manga panel with ink, solid blacks and screentone.</p>
+
+    <section>
+      <p class="meta-row">Convincing screentone page from one edit; the dots are drawn, not a true halftone grid · 2026-10-19 · Reported saved run: $0.041. <code>meta/muse-image/text-to-image</code> · <code>qwen-image-2.1/edit</code></p>
+      <p>Show a production-step edit: the same picture redrawn for black-and-white print. Composition stays put and only the rendering changes: color becomes line art, solid black fills and dot tones.</p>
+
+      <h2>Saved result</h2>
+      <div class="media sequence">
+          <figure><a href="/examples/gallery/color-to-manga/color-art.webp"><img src="/examples/gallery/color-to-manga/color-art.webp" alt="Color art: Muse 3:4 · reported $0.011 — Color art to a printed manga panel" loading="lazy" /></a><figcaption>Color art: Muse 3:4 · reported $0.011 · <a href="/examples/gallery/color-to-manga/color-art.webp" download>Download</a></figcaption></figure>
+          <figure><a href="/examples/gallery/color-to-manga/manga-panel.webp"><img src="/examples/gallery/color-to-manga/manga-panel.webp" alt="Printed manga panel: Qwen Image 2.1 Edit 1k · reported $0.03 — Color art to a printed manga panel" loading="lazy" /></a><figcaption>Printed manga panel: Qwen Image 2.1 Edit 1k · reported $0.03 · <a href="/examples/gallery/color-to-manga/manga-panel.webp" download>Download</a></figcaption></figure>
+        </div>
+
+      <div class="callout"><p>Muse paints a color anime-style panel: a cartoon fox in a yellow raincoat carries a red paper lantern down a rainy old-town street at night, with a cat asleep on a windowsill, laundry overhead and a small bridge behind. Qwen Image 2.1 Edit redraws it in one pass as a black-and-white manga panel. The composition, pose and every background element stay in place. Outlines come back as crisp ink, the night sky and shadows become solid blacks and dense dots, walls and cobblestones get screentone, and the lantern glow stays white paper. Flaws: the tones are dots the model drew, scattered rather than a true 45° halftone grid, so this is not the mechanical tone pass the ComfyUI-MangaScreen node does. The yellow coat and orange fur both go nearly white, so the fox loses its color contrast and reads a little like a cat. The panel comes back at 896×1184, smaller than the 1344×1792 color art. Swap the Muse node for a 📷 Image input to convert your own picture. Both outputs were checked and are SFW (a cartoon animal, no people). Inspired by the ComfyUI-MangaScreen node by @renrenrenz5cq (https://x.com/renrenrenz5cq/status/2110357826745098659) and @studiomasakaki&#39;s Qwen + MangaScreen recipe (https://x.com/studiomasakaki/status/2111473583835004974). No media from those posts is used.</p></div>
+
+
+
+      <h2>Make it yours</h2>
+      <ol class="input-list">
+        <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
+        <li>Rewrite <em>Color art · prompt</em> for a different scene, or replace the Muse node with a 📷 Image input and drop in your own color art. <em>Manga conversion · instruction</em> holds the ink rules (line weight, which areas go solid black, how dense the dots get). Change them for a lighter or heavier tone pass.</li>
+        <li>Check the editor estimate, then run with your NanoGPT key. One Muse 3:4 still at $0.011 and one Qwen Image 2.1 Edit at 1k for $0.03. The saved run was $0.041. With your own art in place of the Muse still it is $0.03.</li>
+        <li>Put the two images side by side. Check that every object is still in the same place, that the darkest areas went solid black, that mid-tones became dots rather than smooth grey, and that highlights stayed white. Zoom in: the dots here are drawn by the model, not a regular halftone grid.</li>
+      </ol>
+
+
+      <div class="cta">
+        <a class="primary" href="https://nanoodle.com/#g=H4sIAAAAAAAAA61WW24bNxT9zyou9NMG1cN6-KX8pA0K1CgCtEmKFmj7Qc1caQhxyAnJsTwJsoouoMvIf1fUJfRczkiWHNtRiwKGPLy8b557yPdPiHrXvTmN-_JlXc4Bq1-xIHqffiHWOWS9bKBtZBt7_a08NhWnHVeWBxs3kM5OdssGy8H4_FawgeB8crteaja5BN6GFOd8E8X5m9pbUpQ54zxpY-oQvYraWUI6DjuVl7xyWhiVrQfK5oNNoSNTqewKu8qymVNmWInFmoy2HPoUnNGdDS3hNhAsKWSeUYmzTLmLAQYhssrJLdsEhvSyDgynCBkoFtzlpXykgj0_o7BRFelIS5HS33_-8ZGuSrViuKrqSMg4c_aaod-42pPbWKp0FmvPQ_pxw7bTngzH9G0OP7njbSAxC23hJBlWKoQhXdlQaS_1N0nvhSuXzU9Xg5dS_utUD8m5yv5zz7b9e3eavYW6ioSYEfm7GuX_ApEOEPGavixirMJ8NLoZ4nxHB5ajEFWsw2gyHp9MT88vJmfns9OTy4uz08unqY_PQ6xz7UoV1Fqt9Rehre0r2s_Kc6Yrvhvo0HIv0nh2Pj29mF5MT09OZpfns6fDHeBIMIhzELw0bIzb9LqdD-n_h_59gK4GOLZP0ZyA9xiUzw6BPN0DslVl8vFih4q_PgKgrqz2XD6G9q9pWRsz6FBldcmDEBsjx1_q7BD_Gx2LDtgZGwqFyrVdpf4vnAFo65jAPgcQQ6mMoQwZOVgu3U1r7TzOgxHTJzNF7ehkBYfYBw6UTx6pbSp54D5zAhoxFrQVzuVUV318oCZorqAnNoLISlXsySiMp8wwAmyUWUPLuOTVKu87rw3BfhBlHFAfMyAZyepVEYf0M1aZWywMkgLuA3wvDWfIQvly596Icl-YApbBMFcBUyIlaZu7TUDr-lAGzH1DBcrutqVF5DBaBQZd7KNks_A6X7Xy5NIqI2MnJS9AGas0L31aoqupWpSQEldrjOTr6KXAlFFLKzgat-lT7lWJs8tImpkBK15hf2W4n44dx5Y34rTUphksvWabGwisI8FH-gh6ZUPbf8MRlYdWXDFnBS3q1KbhMfC_F_xa2Ocu-g_hPzuE_-Tidh30O74D7A78czrZpvT4sAi_Pj4qJcjMiF3JUY1K6A9S1iPpESA0OKyhS0sMpvPZvvga6E6TJAF64-MoA1fIf6CM2eTznJGocZ_m0Q25f3ydSZLH8ccrBsY2lFpAY1LhuAtySN9jYBK8-UZlMm9l5YKWwP07SM0K5aGCwYAGJ3wzUm72BoPYsLwItiMT4IAqhOfhb_bKrrf3cXv9pgmU40-ollNBskm44XaoM69DteMz-PhGDEFs4jxXfg1mgAdGuQtG6nxwvcutn654GL5xiRDbhEstlIM4rVHYu_6FCCoVE7Pg8m-rKpRZ7t4Gz9rAvou7Akkt9GrFHmPONmAjvSCkPYkIDjQTHYtqqJTf6iK976CZtLvatuQmrJpc6bijPwEuOEc1XTPbQ02cC0-vwEjio-UllahIGoGFW6ce_oA3R9ehRM3J3FnTzIVQ0g3UUkvpHM5l5bnBD-4YdKglHZXnOKlbajrgoFbUomG5RL7HsdK988V4CX2GlCb_Nyu97KYDc4RBvOdpdiRLvYVlS0kDWI4OStnjpvF6X7rLr3enZ_j9PT3VMQnrB5_qZryXHFwdpiavwU_fPxLV-bijs08aE939bh5w0pVwxJGbyTHZPhCmJfujk92H14NeHst1elxnH4jz7zr7gJN7OyvAePLhHxRyyYDQDQAA">Open this noodle →</a>
+        <a class="secondary" href="/examples/gallery/#color-to-manga">See the reviewed run</a>
+      </div>
+      <p class="howto-note"><a href="/examples/gallery/color-to-manga/workflow.json" download>Download workflow</a>
+        · <a href="/examples/gallery/color-to-manga/graph.json" download>Original sampled graph</a>
+        · <a href="https://mcp.nanoodle.com/#color-to-manga">Explore MCP tools</a>
+        · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a></p>
+      <nav class="next">
+        <a href="/guide/examples/">← All examples</a>
+        <a href="/guide/examples/grok-heygen-minimax-video-arena">Grok Imagine 1.5 Lite vs HeyGen Video 1 vs MiniMax H3: same prompt, side by side</a>
+        <a href="/guide/examples/mix-the-references">Mix the references →</a>
+        <a href="/examples/gallery/#color-to-manga">Reviewed run</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· No analytics · Your key stays on your device</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>

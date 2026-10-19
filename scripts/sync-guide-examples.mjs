@@ -134,6 +134,14 @@ const HOWTO = {
     inspect: "Check each reference against the mix: same fox colors and face, same coat and toggles, exactly one lantern, same pier and lighthouse. Look for parts that drop out (here the paper boats) and parts that change shape (the coat got longer).",
     costHow: "Four Muse 1:1 stills at $0.011 each and one FLUX.3 Klein Edit 1024×1024 at $0.009. The saved run was $0.053. With your own uploads instead of the Muse stills it is about $0.01.",
   },
+  "color-to-manga": {
+    headline: "Color art to a printed manga panel",
+    job: "Turn a color illustration into a black-and-white manga panel with ink, solid blacks and screentone.",
+    purpose: "Show a production-step edit: the same picture redrawn for black-and-white print. Composition stays put and only the rendering changes: color becomes line art, solid black fills and dot tones.",
+    edit: "Rewrite <em>Color art · prompt</em> for a different scene, or replace the Muse node with a 📷 Image input and drop in your own color art. <em>Manga conversion · instruction</em> holds the ink rules (line weight, which areas go solid black, how dense the dots get). Change them for a lighter or heavier tone pass.",
+    inspect: "Put the two images side by side. Check that every object is still in the same place, that the darkest areas went solid black, that mid-tones became dots rather than smooth grey, and that highlights stayed white. Zoom in: the dots here are drawn by the model, not a regular halftone grid.",
+    costHow: "One Muse 3:4 still at $0.011 and one Qwen Image 2.1 Edit at 1k for $0.03. The saved run was $0.041. With your own art in place of the Muse still it is $0.03.",
+  },
   "photo-to-video": {
     headline: "Animate a still",
     job: "Generate a first frame, then animate its steam.",
@@ -191,7 +199,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.

@@ -59,7 +59,9 @@ assert(confidentRecipe(corpus, { numNodes: 1, nodeTypeCounts: { text: 1 } }) ===
 
 {
   const sketch = { numNodes: 2, nodeTypeCounts: { text: 1, image: 1 } };
-  const rec = recommendRecipes(corpus, sketch, 8);
+  // Gallery growth keeps adding short text→image recipes (color-to-manga, mix-the-references…);
+  // keep k wide enough that talking-avatar still appears.
+  const rec = recommendRecipes(corpus, sketch, 12);
   const ta = rec.find((r) => r.slug === "talking-avatar");
   assert(ta && ta.actions.length >= 2 && ta.actions.every((a) => a.startsWith("add:")), "talking-avatar partial");
   assert(
