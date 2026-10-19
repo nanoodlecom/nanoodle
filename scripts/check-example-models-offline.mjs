@@ -22,7 +22,7 @@ const catalogs = {
     ...(id === 'google/gemini-3.8-flash' ? { capabilities: { vision: true } } : {}) })),
   image: [
     image('meta/muse-image/edit', ['auto', '1:1', '3:2', '16:9'], true),
-    image('meta/muse-image/text-to-image', ['1:1', '3:2', '16:9']),
+    image('meta/muse-image/text-to-image', ['1:1', '3:2', '3:4', '16:9']),
     image('nano-banana-edit', ['auto'], true),
     image('openai/gpt-image-2.5/flare/text-to-image', ['1k', '2k', '4k']),
     image('xai/grok-imagine-image/v2.0/text-to-image', ['1:1', '16:9']),
@@ -30,6 +30,7 @@ const catalogs = {
     image('anima/text-to-image', ['1k', '2k']),
     image('black-forest-labs/flux-3/text-to-image', ['1k', '2k', '4k'], true),
     image('blackforestlabs/flux-3/klein/edit-image', ['768x768', '1024x1024', '1536x1536', '2048x2048', '4096x4096'], true),
+    image('qwen-image-2.1/edit', ['1k', '1.5k', '2k', 'auto'], true),
     image('bytedance/seedream-v5.0-flash', ['2k', '1.5k', '1k'], true),
     image('ideogram/v4.5', ['1024x1024', '2048x2048']),
     image('recraft-ai/recraft-v4.1-flash/text-to-image', ['1024x1024', '1024x768']),

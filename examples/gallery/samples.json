@@ -958,5 +958,49 @@
     "preview": "mix-the-references/preview.webp",
     "workflow": "mix-the-references/workflow.json",
     "workflowSha256": "7f5bc2b9a22b96bad7f47e1935605383e89b7e66181cc7988af34b71bb6170a3"
+  },
+  {
+    "slug": "color-to-manga",
+    "title": "Color art to a printed manga panel",
+    "date": "2026-10-19",
+    "review": "Convincing screentone page from one edit; the dots are drawn, not a true halftone grid",
+    "note": "Muse paints a color anime-style panel: a cartoon fox in a yellow raincoat carries a red paper lantern down a rainy old-town street at night, with a cat asleep on a windowsill, laundry overhead and a small bridge behind. Qwen Image 2.1 Edit redraws it in one pass as a black-and-white manga panel. The composition, pose and every background element stay in place. Outlines come back as crisp ink, the night sky and shadows become solid blacks and dense dots, walls and cobblestones get screentone, and the lantern glow stays white paper. Flaws: the tones are dots the model drew, scattered rather than a true 45\u00b0 halftone grid, so this is not the mechanical tone pass the ComfyUI-MangaScreen node does. The yellow coat and orange fur both go nearly white, so the fox loses its color contrast and reads a little like a cat. The panel comes back at 896\u00d71184, smaller than the 1344\u00d71792 color art. Swap the Muse node for a \ud83d\udcf7 Image input to convert your own picture. Both outputs were checked and are SFW (a cartoon animal, no people). Inspired by the ComfyUI-MangaScreen node by @renrenrenz5cq (https://x.com/renrenrenz5cq/status/2110357826745098659) and @studiomasakaki's Qwen + MangaScreen recipe (https://x.com/studiomasakaki/status/2111473583835004974). No media from those posts is used.",
+    "layout": "sequence",
+    "costUsd": 0.041,
+    "costExact": true,
+    "models": [
+      "meta/muse-image/text-to-image",
+      "qwen-image-2.1/edit"
+    ],
+    "graphSha256": "be601d1c94520cd2158419fc50b2390ad3b64f096b49dcd4467a873a8c61a696",
+    "inputs": [
+      {
+        "label": "Color art \u00b7 prompt",
+        "text": "A full-color anime-style comic illustration with clean cel shading and bold outlines: a small cartoon fox with orange fur and a white chest, wearing a yellow raincoat with the hood up, holds a glowing red paper lantern and walks along a narrow rainy old-town street at night. Wet cobblestones reflect warm lantern light, a cat sleeps on a windowsill, laundry hangs on a line overhead, a tiny bridge over a canal in the background, falling rain streaks. Strong light and shadow, dramatic low camera angle, full body, family-friendly, no text, no signs with letters, no speech bubbles."
+      },
+      {
+        "label": "Manga conversion \u00b7 instruction",
+        "text": "Redraw image 1 as a printed black-and-white manga panel. Keep the exact composition, camera angle, character pose and every background element in the same place.\nInk: clean black line art with varied line weight, crisp outlines.\nBlacks: the darkest areas become solid black ink fills.\nTones: every mid-tone becomes screentone, a pattern of round halftone dots; darker areas get bigger, denser dots and lighter areas get smaller, sparser dots.\nHighlights: the lantern glow and its reflections stay clean white paper.\nRain: thin straight ink strokes.\nPure black and white only: no color, no smooth grey gradients, no added text, no speech bubbles, no sound effects."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "color-to-manga/color-art.webp",
+        "kind": "image",
+        "label": "Color art: Muse 3:4 \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "aa4ecfafcbdbb317824d1d0d8ec35f540ab102b1d34146f141b79783c62d857d"
+      },
+      {
+        "src": "color-to-manga/manga-panel.webp",
+        "kind": "image",
+        "label": "Printed manga panel: Qwen Image 2.1 Edit 1k \u00b7 reported $0.03",
+        "costUsd": 0.03,
+        "sha256": "08dfb458b678c6fb0c887f977db9b6fd51c4190fb5c4fdb9917c53e4725b9e5b"
+      }
+    ],
+    "preview": "color-to-manga/preview.webp",
+    "workflow": "color-to-manga/workflow.json",
+    "workflowSha256": "be601d1c94520cd2158419fc50b2390ad3b64f096b49dcd4467a873a8c61a696"
   }
 ]
