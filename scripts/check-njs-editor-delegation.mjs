@@ -119,6 +119,7 @@ const REAL = [
   extractFn("chatModelCan"), extractFn("modelSupportsImages"), extractFn("modelSupportsAudio"), extractFn("modelSupportsVideo"), extractFn("videoInputPart"), extractFn("audioInputPart"),
   extractConst("IMAGE_ASPECT"), extractFn("aspectFromParams"), extractFn("imageAspectSpec"),
   extractFn("imageAspectExtra"),
+  extractFn("imageKnobSpec"), extractFn("imageKnobExtra"),
   extractFn("imgExtra"), extractFn("b64ImageMime"), extractFn("imageUnitUsd"),
   extractFn("normalizeLoraUrl"), extractFn("loraFamily"), extractFn("loraKind"),
   extractFn("imageTakesLora"), extractFn("modelTakesLora"), extractFn("loraCap"),
@@ -181,7 +182,7 @@ function makeCtx({ flagOn, key = "test-api-key", drifted = false, spy = [], dire
     EST: { chatImageUsd: 0.14 },
     NODE_TYPES: { llm: { imageInputs: "vision", audioInput: "audio_input", modelKind: "chat" }, image: { modelKind: "image" }, edit: { modelKind: "image" } },
     // normalized catalog (the editor helpers' view): capability flags flattened, maxOut for the gallery clamp
-    catalogs: { chat: [{ id: "x" }], image: [{ id: "x", maxOut: 9, sizePrices: {} }], video: [], audio: [] },
+    catalogs: { chat: [{ id: "x" }], image: [{ id: "x", maxOut: 9, sizePrices: {} }, { id: "moss-image", maxOut: 4, sizePrices: {}, knobs: { negative: true, steps: { min: 1, max: 100, def: 50 }, guidance: { min: 0, max: 10, def: 3 }, expand: { def: true } } }], video: [], audio: [] },
     // loraParams comes from the extracted index.html helpers above (Anima/H3/
     // qwen21 numbered slots). needsCustomCivitai stays stubbed — no AIR fixtures here.
     needsCustomCivitai: () => false, airModelTakesNegative: () => false,
@@ -255,6 +256,16 @@ const SCENARIOS = [
       lora_url_2: "https://huggingface.co/x/y/resolve/main/b.safetensors", lora_scale_2: 0.8,
     },
     forbid: ["lora_url", "lora_strength", "lora_url_3"],
+  }],
+  // catalog knobs (MOSS Image): the shim stamps imageKnobExtra so both engines post them
+  ["moss t2i posts negative/steps/guidance/expansion", "image", { model: "moss-image", prompt: "a menu board", variations: "1", size: "1024x1024",
+    negativePrompt: "watermark", steps: "30", guidance: "4.5", promptExpansion: false }, {}, null, {
+    must: { negative_prompt: "watermark", num_inference_steps: 30, guidance_scale: 4.5, enable_prompt_expansion: false },
+    forbid: [],
+  }],
+  ["x t2i never gets leftover moss knobs", "image", { model: "x", prompt: "a fox", variations: "1", negativePrompt: "watermark", steps: "30" }, {}, null, {
+    must: {},
+    forbid: ["negative_prompt", "num_inference_steps"],
   }],
   ["plain qwen21 t2i sends no LoRA", "image", { model: "wavespeed-ai/qwen-image-2.1/text-to-image", prompt: "a fox", variations: "1", loras: [
     { url: "https://huggingface.co/x/y/resolve/main/a.safetensors", strength: "1" },
