@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Day to night between two keyframes — nanoodle</title>
+<meta name="description" content="Make a clip that starts on one still and ends on another, here midday to night. Reported saved run: $0.422." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="Day to night between two keyframes — nanoodle" />
+<meta property="og:description" content="Make a clip that starts on one still and ends on another, here midday to night. Reported saved run: $0.422." />
+<meta property="og:url" content="https://nanoodle.com/guide/examples/day-to-night" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Day to night between two keyframes — nanoodle" />
+<meta name="twitter:description" content="Make a clip that starts on one still and ends on another, here midday to night. Reported saved run: $0.422." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/examples/day-to-night" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <a href="/guide/examples/">Steal a noodle</a> / <span>Day to night between two keyframes</span></nav>
+
+  <main>
+    <h1><span class="grad">Day to night between two keyframes</span></h1>
+    <p class="lede">Make a clip that starts on one still and ends on another, here midday to night.</p>
+
+    <section>
+      <p class="meta-row">A real sunset timelapse that lands on the night keyframe · 2026-10-19 · Reported saved run: $0.422. <code>meta/muse-image/text-to-image</code> · <code>meta/muse-image/edit</code> · <code>minimax/h3-max</code></p>
+      <p>Show start + end frame video: an Image→Video node with an end-frame port. The model has to get from the first image to the second, so you choose both ends of the shot and it fills in the change between them.</p>
+
+      <h2>Saved result</h2>
+      <div class="media sequence">
+          <figure><a href="/examples/gallery/day-to-night/day-keyframe.webp"><img src="/examples/gallery/day-to-night/day-keyframe.webp" alt="Start frame · day: Muse 16:9 · reported $0.011 — Day to night between two keyframes" loading="lazy" /></a><figcaption>Start frame · day: Muse 16:9 · reported $0.011 · <a href="/examples/gallery/day-to-night/day-keyframe.webp" download>Download</a></figcaption></figure>
+          <figure><a href="/examples/gallery/day-to-night/night-keyframe.webp"><img src="/examples/gallery/day-to-night/night-keyframe.webp" alt="End frame · night: Muse Edit 16:9 · reported $0.011 — Day to night between two keyframes" loading="lazy" /></a><figcaption>End frame · night: Muse Edit 16:9 · reported $0.011 · <a href="/examples/gallery/day-to-night/night-keyframe.webp" download>Download</a></figcaption></figure>
+          <figure><video controls playsinline preload="none" poster="/examples/gallery/day-to-night/preview.webp" aria-label="Day → night: MiniMax H3 Max, start + end frame, 768p 5 s · reported $0.40 — Day to night between two keyframes"><source src="/examples/gallery/day-to-night/day-to-night.mp4" type="video/mp4"></video><figcaption>Day → night: MiniMax H3 Max, start + end frame, 768p 5 s · reported $0.40 · <a href="/examples/gallery/day-to-night/day-to-night.mp4" download>Download</a></figcaption></figure>
+        </div>
+
+      <div class="callout"><p>Muse paints a paper-craft seaside village at midday: six card houses, a striped lighthouse, two folded paper boats and a paper sun. Muse Edit repaints the same shot at night, with lit windows, the lighthouse lamp on, a paper crescent moon and stars. MiniMax H3 Max gets the day still on its image port and the night still on its end-frame port. Across 5 seconds the camera holds still while the sun sinks behind the trees, the sky goes from blue through orange and pink to navy, the windows light up and the lighthouse switches on. The clip ends on the night keyframe. It is the gallery&#39;s first start + end frame example. Flaws: the night keyframe turned the layered paper waves into glossy real-looking water, so the water changes material during the clip. The moon and stars appear only in the last second instead of fading in, and the lighthouse gives a soft glow, not a sweeping beam. The 480p setting was dropped by the headless runner (it sends resolution only when it has the model catalog), so the clip rendered at H3 Max&#39;s default 768p for $0.40. The saved graph says 768p to match. H3 Max also added a faint ambient sound bed. Swap either keyframe for a 📷 Image input to morph between your own before and after. Every keyframe and sampled video frame was checked and is SFW (paper scenery, no people). Inspired by @Audrius1454663&#39;s open-source rebuild of Higgsfield&#39;s VFX presets, Day→Night among them, on the Comfy Developer Platform (https://x.com/Audrius1454663/status/2111177673842012349). No media from that post is used.</p></div>
+
+
+
+      <h2>Make it yours</h2>
+      <ol class="input-list">
+        <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
+        <li>Rewrite <em>Day keyframe · prompt</em> for a different place, and <em>Night keyframe · instruction</em> for a different change (winter, a storm, a finished room). Keep "same camera, same framing" in the instruction so the two frames line up. Or swap either Image node for a 📷 Image input to use your own before and after. <em>Transition · motion prompt</em> describes what happens in between.</li>
+        <li>Check the editor estimate, then run with your NanoGPT key. Muse 16:9 $0.011 + Muse Edit 16:9 $0.011 + MiniMax H3 Max at 768p for 5 s, $0.40. The saved run was $0.422. Set the video node to 480p for about $0.25.</li>
+        <li>Check that the first frame matches the day still and the last frame matches the night still, and that nothing jumps in between. Watch for materials that change mid-clip (here the paper waves turn into real water) and for details that pop in late instead of fading in (here the moon and stars).</li>
+      </ol>
+
+
+      <div class="cta">
+        <a class="primary" href="https://nanoodle.com/#g=H4sIAAAAAAAAA71X224bNxB9z1cM_FIb1cUXRU781CBpkaJNUBRBUaDIA6WlJMJcckFSkjdBXvsB_Zm-91P6JT0z3NXFtpyNW1QP2iU5OzwcnjNDfnxCdLQ6uqKzHr85X-iI1m9oEH2Uf3SbAn1H075xSbt01Gv7U11pGfFluTdwg97R6aZZo9k_u9x2rNFxOd62Z0bbgidup2Tn-iax81eqpuTJmfki0USntdaO0trTta5nQZU6DujNMmqqFPBFSgtNcaqdJpWoNEWh6l42-LYwiYLetcPnFBc-sa3M0CPlCnpjnHmjbuj1BfFjrmE_8WlxJV_BI8VkrCXvyGDIlGqO-X1I8jXbZLh7VtoVfQEslj2KXiyn1lS0UJEXGZOCD9h7hg9Xlv_QZkPMr8OA3rW4UzDTa1r7cB1p5gPsa8QHb3qoZkkHOo5aRe8i1kTB-7IZFcdiwQMThZ7K-gxd0QxLjwtd0MIjZicD-t7FygR0TGr65sWyCGYZz0ZPR-PxxVeRfKVdP_plmGqEdrI0Fnhn9NrM51F2FTa_fPcrVUFHjuIxtvPv3_94K-HhGUsgOmmX-NKXs5pe6ZW2cBzoJ6sSIJd0vEipilfD4c0AZBvuwxgibGkZh-dn-F1eji8vno3OT8_OL0bPTwYbUhLz1PrAnKq1tX591Ix8kuen3n2kr_rY7buMF3I-RPfxPtkvzrdth81rid1ymP76EyHyZbXj9SFRvABjXFGqgmmPSPWnATsKujuDUGBHeesNRlcgIJMT_J4ECXoriTUP61r3LYcbhnpNM0AgNQ0-Zn1Yk5LVmCtMfLiiaG4olgqUFnJEEgDY7pm3BRgi8eWnCgX8pwWkEq5JY1k12q7w60xGXfQBv79emASoIHKFr2QhmBIgxX1LiuCnYDgWIA1Zg_hmTVlVVgAw60lGaGBkRxOvYAAfVtVa-GuXTbRorVZakDBSGAJuZVgPwS9d6yAFnY1yMy4dLTA7GccfWq1Cdhmv6wG9DCZWjSXDiELulYlmggBKQHjvsDUsfGxVUhhIHvwyHgxQeeF5ZchISANxoXLAnKdK-8pqeVUO6cbmbnY56ELje0ksaes2i_dpPNqn8fmzbTuaD_oWOxsGX9FpC-mzpOfE_DDlS9Qky5-WOqlhCfu-AB_y4vvJ9_eX0SDjD87GV893-1cqQB0GGVFGu8lfEvkjEsBuJA9lgJwFd8NhHNSwnDLIbong51zOoA2DCnOjpmlb_AT6gH7QutpWuyn-guoRT2ncXGiKBBDqrOme0L4n6umJKDYlbUeZkIDMZeut48qqaa4tIG7FNJfi16aILA0eZjFAMEhgc9Z440O8X0FZBcN1alW3NfS6blQhmacRIwplbCpW7pmiwGDhyG-e661r8GBmQbh0yHgKlSSn_kZtc7xyEHg92xg0qap3e9WSbCKwTLk-YhaBpbKeJ1rtpc61kgIrcwY9s1o2NbZJbScPDejtvxf4AZpqHHk-p_D_WuJ3Wb05fT1S6XureEDgG3BH3bRd-pXuIu3do2rH4v4uKBcNbzkHoPTy9iUV_kdUPZRJ1LaNZME0kBuUa2sHJVNqqypEVyp3Lu2b03I-K26rVzQOhXSiF6ZRdHM46LWlhkuxBrvJes4MWzKzZLMcRI3gtBxXUbhYwyzDCr7bTOFEw9qJjSiZ62T-fldgsVHhspLzLs6XeDyoOpEPz8K1XxQXcR2o0L3igr2V3VZiTaaoKtTrHJAcTnKseGIK5ETiEFnOBQ7nIOQRHXauErcl2lmWfLi_p_CucPbyD3PsTv04vf8EicN0kyjBs-a-cpzvEV_zlUMSvT7pqjzDyedmuLjo43FAWzu9SLreLqVcYeRy_KzaHS2WQbVjT3cHcExUcs98vx9D_L-Xi6hlqh66iNqzndUA1v5a-A579-TOK8ChaqPvO9kr-fvdHHDShKMDBex5F7QHpslnm85g96vAQT8Pob3oFtuDM31ZdA-6-YL4jv6_-O7J-VHhfdoFbMdtfDRcpAXJCp0Qj7sRYq-WPpoPhxDfSwfOFk8-_QMWdEblwxIAAA">Open this noodle →</a>
+        <a class="secondary" href="/examples/gallery/#day-to-night">See the reviewed run</a>
+      </div>
+      <p class="howto-note"><a href="/examples/gallery/day-to-night/workflow.json" download>Download workflow</a>
+        · <a href="/examples/gallery/day-to-night/graph.json" download>Original sampled graph</a>
+        · <a href="https://mcp.nanoodle.com/#day-to-night">Explore MCP tools</a>
+        · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a></p>
+      <nav class="next">
+        <a href="/guide/examples/">← All examples</a>
+        <a href="/guide/examples/grok-heygen-minimax-video-arena">Grok Imagine 1.5 Lite vs HeyGen Video 1 vs MiniMax H3: same prompt, side by side</a>
+        <a href="/guide/examples/color-to-manga">Color art to a printed manga panel →</a>
+        <a href="/examples/gallery/#day-to-night">Reviewed run</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· No analytics · Your key stays on your device</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>
