@@ -2,10 +2,306 @@
   "schemaVersion": 1,
   "product": "next-action",
   "label": "Product · 4",
-  "bakedAt": "2026-10-19T19:27:47.095Z",
-  "graphCount": 20,
-  "exampleCount": 1678,
+  "bakedAt": "2026-10-19T19:41:10.589Z",
+  "graphCount": 21,
+  "exampleCount": 1687,
   "examples": [
+    {
+      "source": "examples/gallery/bilingual-tea-poster/graph.json",
+      "history": [],
+      "sketch": {
+        "nodeTypeCounts": {
+          "text": 0,
+          "llm": 0,
+          "image": 0,
+          "edit": 0,
+          "ivideo": 0,
+          "vedit": 0,
+          "music": 0,
+          "tts": 0,
+          "lipsync": 0,
+          "join": 0,
+          "resize": 0,
+          "comment": 0
+        },
+        "numNodes": 0,
+        "numLinks": 0,
+        "danglingOut": 0,
+        "danglingIn": 0,
+        "selectedType": null
+      },
+      "nextAction": "add:text",
+      "intentFork": "cold-start",
+      "exampleId": "examples/gallery/bilingual-tea-poster/graph.json#event-copy-poster-c-intent@0"
+    },
+    {
+      "source": "examples/gallery/bilingual-tea-poster/graph.json",
+      "history": [
+        "add:text"
+      ],
+      "sketch": {
+        "nodeTypeCounts": {
+          "text": 1,
+          "llm": 0,
+          "image": 0,
+          "edit": 0,
+          "ivideo": 0,
+          "vedit": 0,
+          "music": 0,
+          "tts": 0,
+          "lipsync": 0,
+          "join": 0,
+          "resize": 0,
+          "comment": 0
+        },
+        "numNodes": 1,
+        "numLinks": 0,
+        "danglingOut": 1,
+        "danglingIn": 1,
+        "selectedType": null
+      },
+      "nextAction": "add:llm",
+      "intentFork": "none",
+      "exampleId": "examples/gallery/bilingual-tea-poster/graph.json#event-copy-poster-c-intent@1"
+    },
+    {
+      "source": "examples/gallery/bilingual-tea-poster/graph.json",
+      "history": [
+        "add:text",
+        "add:llm"
+      ],
+      "sketch": {
+        "nodeTypeCounts": {
+          "text": 1,
+          "llm": 1,
+          "image": 0,
+          "edit": 0,
+          "ivideo": 0,
+          "vedit": 0,
+          "music": 0,
+          "tts": 0,
+          "lipsync": 0,
+          "join": 0,
+          "resize": 0,
+          "comment": 0
+        },
+        "numNodes": 2,
+        "numLinks": 0,
+        "danglingOut": 2,
+        "danglingIn": 2,
+        "selectedType": null
+      },
+      "nextAction": "set:model",
+      "intentFork": "none",
+      "exampleId": "examples/gallery/bilingual-tea-poster/graph.json#set:copy"
+    },
+    {
+      "source": "examples/gallery/bilingual-tea-poster/graph.json",
+      "history": [
+        "add:text",
+        "add:llm",
+        "set:model"
+      ],
+      "sketch": {
+        "nodeTypeCounts": {
+          "text": 1,
+          "llm": 1,
+          "image": 0,
+          "edit": 0,
+          "ivideo": 0,
+          "vedit": 0,
+          "music": 0,
+          "tts": 0,
+          "lipsync": 0,
+          "join": 0,
+          "resize": 0,
+          "comment": 0
+        },
+        "numNodes": 2,
+        "numLinks": 0,
+        "danglingOut": 2,
+        "danglingIn": 2,
+        "selectedType": null
+      },
+      "nextAction": "wire",
+      "intentFork": "none",
+      "exampleId": "examples/gallery/bilingual-tea-poster/graph.json#wire:l1"
+    },
+    {
+      "source": "examples/gallery/bilingual-tea-poster/graph.json",
+      "history": [
+        "add:text",
+        "add:llm",
+        "set:model",
+        "wire"
+      ],
+      "sketch": {
+        "nodeTypeCounts": {
+          "text": 1,
+          "llm": 1,
+          "image": 0,
+          "edit": 0,
+          "ivideo": 0,
+          "vedit": 0,
+          "music": 0,
+          "tts": 0,
+          "lipsync": 0,
+          "join": 0,
+          "resize": 0,
+          "comment": 0
+        },
+        "numNodes": 2,
+        "numLinks": 1,
+        "danglingOut": 1,
+        "danglingIn": 1,
+        "selectedType": null
+      },
+      "nextAction": "add:image",
+      "intentFork": "none",
+      "exampleId": "examples/gallery/bilingual-tea-poster/graph.json#event-copy-poster-c-intent@2"
+    },
+    {
+      "source": "examples/gallery/bilingual-tea-poster/graph.json",
+      "history": [
+        "add:text",
+        "add:llm",
+        "set:model",
+        "wire",
+        "add:image"
+      ],
+      "sketch": {
+        "nodeTypeCounts": {
+          "text": 1,
+          "llm": 1,
+          "image": 1,
+          "edit": 0,
+          "ivideo": 0,
+          "vedit": 0,
+          "music": 0,
+          "tts": 0,
+          "lipsync": 0,
+          "join": 0,
+          "resize": 0,
+          "comment": 0
+        },
+        "numNodes": 3,
+        "numLinks": 1,
+        "danglingOut": 2,
+        "danglingIn": 2,
+        "selectedType": null
+      },
+      "nextAction": "set:model",
+      "intentFork": "none",
+      "exampleId": "examples/gallery/bilingual-tea-poster/graph.json#set:poster"
+    },
+    {
+      "source": "examples/gallery/bilingual-tea-poster/graph.json",
+      "history": [
+        "add:text",
+        "add:llm",
+        "set:model",
+        "wire",
+        "add:image",
+        "set:model"
+      ],
+      "sketch": {
+        "nodeTypeCounts": {
+          "text": 1,
+          "llm": 1,
+          "image": 1,
+          "edit": 0,
+          "ivideo": 0,
+          "vedit": 0,
+          "music": 0,
+          "tts": 0,
+          "lipsync": 0,
+          "join": 0,
+          "resize": 0,
+          "comment": 0
+        },
+        "numNodes": 3,
+        "numLinks": 1,
+        "danglingOut": 2,
+        "danglingIn": 2,
+        "selectedType": null
+      },
+      "nextAction": "wire",
+      "intentFork": "none",
+      "exampleId": "examples/gallery/bilingual-tea-poster/graph.json#wire:l2"
+    },
+    {
+      "source": "examples/gallery/bilingual-tea-poster/graph.json",
+      "history": [
+        "add:text",
+        "add:llm",
+        "set:model",
+        "wire",
+        "add:image",
+        "set:model",
+        "wire"
+      ],
+      "sketch": {
+        "nodeTypeCounts": {
+          "text": 1,
+          "llm": 1,
+          "image": 1,
+          "edit": 0,
+          "ivideo": 0,
+          "vedit": 0,
+          "music": 0,
+          "tts": 0,
+          "lipsync": 0,
+          "join": 0,
+          "resize": 0,
+          "comment": 0
+        },
+        "numNodes": 3,
+        "numLinks": 2,
+        "danglingOut": 1,
+        "danglingIn": 1,
+        "selectedType": null
+      },
+      "nextAction": "add:comment",
+      "intentFork": "none",
+      "exampleId": "examples/gallery/bilingual-tea-poster/graph.json#event-copy-poster-c-intent@3"
+    },
+    {
+      "source": "examples/gallery/bilingual-tea-poster/graph.json",
+      "history": [
+        "add:text",
+        "add:llm",
+        "set:model",
+        "wire",
+        "add:image",
+        "set:model",
+        "wire",
+        "add:comment"
+      ],
+      "sketch": {
+        "nodeTypeCounts": {
+          "text": 1,
+          "llm": 1,
+          "image": 1,
+          "edit": 0,
+          "ivideo": 0,
+          "vedit": 0,
+          "music": 0,
+          "tts": 0,
+          "lipsync": 0,
+          "join": 0,
+          "resize": 0,
+          "comment": 1
+        },
+        "numNodes": 3,
+        "numLinks": 2,
+        "danglingOut": 1,
+        "danglingIn": 1,
+        "selectedType": null
+      },
+      "nextAction": "run",
+      "intentFork": "none",
+      "exampleId": "examples/gallery/bilingual-tea-poster/graph.json#run"
+    },
     {
       "source": "examples/gallery/blockout-to-shot/graph.json",
       "history": [],

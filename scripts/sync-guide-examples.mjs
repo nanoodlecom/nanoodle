@@ -142,6 +142,14 @@ const HOWTO = {
     inspect: "Put the two images side by side. Check that every object is still in the same place, that the darkest areas went solid black, that mid-tones became dots rather than smooth grey, and that highlights stayed white. Zoom in: the dots here are drawn by the model, not a regular halftone grid.",
     costHow: "One Muse 3:4 still at $0.011 and one Qwen Image 2.1 Edit at 1k for $0.03. The saved run was $0.041. With your own art in place of the Muse still it is $0.03.",
   },
+  "bilingual-tea-poster": {
+    headline: "Event details to a bilingual poster",
+    job: "Turn three lines of event details into a poster lettered in Chinese and English.",
+    purpose: "Show what MOSS Image does best: exact text in two scripts, placed where the brief says. The LLM writes every line to print in quotes, with its position; MOSS letters them.",
+    edit: "Rewrite <em>Event details</em> and ▶ Run. <em>Bilingual poster brief</em> holds the copywriting rules (headline length, which lines, no people or logos). The MOSS node carries a Negative prompt; Steps, Guidance and Prompt expansion are under ⚙️ Model options and stay at the model defaults when blank.",
+    inspect: "Read every printed line against the brief, character by character, in both scripts. Look for extra words, a dropped line, or text in the wrong place.",
+    costHow: "One GLM 5.3 Flash call for $0.0002 and one MOSS Image call at 1024×1536 for $0.079. The saved run was $0.079. At MOSS's default 1024×1024 it is about $0.053, and at 512×512 about $0.013.",
+  },
   "day-to-night": {
     headline: "Day to night between two keyframes",
     job: "Make a clip that starts on one still and ends on another, here midday to night.",
@@ -207,7 +215,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.

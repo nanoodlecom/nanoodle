@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "source": "examples-gallery",
-  "graphCount": 18,
-  "edgeCount": 117,
+  "graphCount": 19,
+  "edgeCount": 119,
   "typeToType": {
-    "text→llm": 8,
+    "text→llm": 9,
+    "llm→image": 5,
     "text→join": 11,
     "llm→join": 8,
-    "llm→image": 4,
     "join→edit": 3,
     "image→edit": 11,
     "edit→ivideo": 2,
@@ -38,10 +38,10 @@
     "ivideo→vedit": 1
   },
   "portPair": {
-    "text.text→llm.prompt": 8,
+    "text.text→llm.prompt": 9,
+    "llm.text→image.prompt": 5,
     "text.text→join.a": 6,
     "llm.text→join.b": 6,
-    "llm.text→image.prompt": 4,
     "join.text→edit.prompt": 3,
     "image.image→edit.image": 7,
     "edit.image→ivideo.image": 1,
@@ -79,7 +79,7 @@
   },
   "topTargets": {
     "text|text": {
-      "llm|prompt": 8,
+      "llm|prompt": 9,
       "join|a": 6,
       "image|prompt": 20,
       "edit|prompt": 5,
@@ -90,8 +90,8 @@
       "lipsync|prompt": 1
     },
     "llm|text": {
+      "image|prompt": 5,
       "join|b": 6,
-      "image|prompt": 4,
       "join|a": 2,
       "ivideo|prompt": 1,
       "llm|prompt": 1,
@@ -148,6 +148,14 @@
         "text"
       ]
     },
+    "image": {
+      "inputs": [
+        "prompt"
+      ],
+      "outputs": [
+        "image"
+      ]
+    },
     "join": {
       "inputs": [
         "a",
@@ -155,14 +163,6 @@
       ],
       "outputs": [
         "text"
-      ]
-    },
-    "image": {
-      "inputs": [
-        "prompt"
-      ],
-      "outputs": [
-        "image"
       ]
     },
     "edit": {
