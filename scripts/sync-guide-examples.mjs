@@ -158,6 +158,14 @@ const HOWTO = {
     inspect: "Check that the first frame matches the day still and the last frame matches the night still, and that nothing jumps in between. Watch for materials that change mid-clip (here the paper waves turn into real water) and for details that pop in late instead of fading in (here the moon and stars).",
     costHow: "Muse 16:9 $0.011 + Muse Edit 16:9 $0.011 + MiniMax H3 Max at 768p for 5 s, $0.40. The saved run was $0.422. Set the video node to 480p for about $0.25.",
   },
+  "product-photo-to-hero-ad": {
+    headline: "Product photo to a hero ad",
+    job: "Turn one plain product photo into an ad shot: placed in a scene, retouched where it went wrong, and moving.",
+    purpose: "Show a small commercial pipeline: an Edit node places the product and is told to keep it identical, an Inpaint node changes only a brushed area so you can fix one mistake without rerolling the whole scene, and Image→Video adds one slow camera move whose last frame doubles as the hero still.",
+    edit: "Rewrite <em>Product photo · prompt</em> for your product, or swap the packshot Image node for a 📷 Image input with your own product on a plain background. Rewrite <em>Placement · instruction</em> for your setting, and keep its \"keep the product identical\" lines. Run up to the scene and look for what went wrong, then brush that area on the Inpaint node (or replace <em>Mask · white = repaint</em>) and say what belongs there in <em>Fix · what goes in the mask</em>. <em>Hero move · look + motion</em> sets the look and the camera move.",
+    inspect: "Compare the placed product with your packshot: shape, color, handles and any parts the model may have duplicated or merged (here the saucer turned up twice). After the fix, check that only the brushed area changed. In the clip, watch the product's shape through the orbit and look for things that appear from nowhere (here a falling drop at about 2 s).",
+    costHow: "Muse 1:1 $0.011 + Muse Edit 16:9 $0.011 + Nano Banana Edit inpaint $0.039 + Seedance 1.5 Pro 720p 5 s without audio, reported $0.13 (the catalog estimate is about $0.08). Video → frames is free. The saved run was $0.191. With your own product photo, skip the Muse packshot.",
+  },
   "photo-to-video": {
     headline: "Animate a still",
     job: "Generate a first frame, then animate its steam.",
@@ -215,7 +223,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.

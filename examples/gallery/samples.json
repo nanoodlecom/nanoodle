@@ -1073,7 +1073,7 @@
     "date": "2026-10-19",
     "review": "Every Chinese and English line exact on the first run",
     "layout": "sequence",
-    "note": "GLM 5.3 Flash turns three lines of event details into a poster brief with every line to print in quotes: 秋茶会, Autumn Tea Festival, 10月24日–26日 10:00–18:00 / Oct 24–26, 10am–6pm, and 免费品茗 / Free Tastings. MOSS Image letters all of it at 1024×1536 with a negative prompt, character for character and where the brief puts it, with no extra words, over a line-art teapot and cup on textured paper. Flaws: the illustration is pale next to the lettering, the brief chose 秋茶会 rather than a longer headline, and MOSS is not fast (this run took about half a minute; test images took 19 to 78 seconds against 13 to 19 for Nano Banana 2.1). In side-by-side tests MOSS kept a two-column bilingual menu layout that Nano Banana 2.1, FLUX.3 and GPT Image 2 each rearranged. The poster was checked and is SFW (no people).",
+    "note": "GLM 5.3 Flash turns three lines of event details into a poster brief with every line to print in quotes: \u79cb\u8336\u4f1a, Autumn Tea Festival, 10\u670824\u65e5\u201326\u65e5 10:00\u201318:00 / Oct 24\u201326, 10am\u20136pm, and \u514d\u8d39\u54c1\u8317 / Free Tastings. MOSS Image letters all of it at 1024\u00d71536 with a negative prompt, character for character and where the brief puts it, with no extra words, over a line-art teapot and cup on textured paper. Flaws: the illustration is pale next to the lettering, the brief chose \u79cb\u8336\u4f1a rather than a longer headline, and MOSS is not fast (this run took about half a minute; test images took 19 to 78 seconds against 13 to 19 for Nano Banana 2.1). In side-by-side tests MOSS kept a two-column bilingual menu layout that Nano Banana 2.1, FLUX.3 and GPT Image 2 each rearranged. The poster was checked and is SFW (no people).",
     "costUsd": 0.078794,
     "costExact": true,
     "models": [
@@ -1091,14 +1091,14 @@
       {
         "src": "bilingual-tea-poster/brief.txt",
         "kind": "text",
-        "label": "Poster brief: GLM 5.3 Flash · reported $0.0002",
+        "label": "Poster brief: GLM 5.3 Flash \u00b7 reported $0.0002",
         "costUsd": 0.000151,
         "sha256": "0fc4ec85634ad539940933fe94dfd1d092d35339427ca23f3103565cd9bbd4a1"
       },
       {
         "src": "bilingual-tea-poster/poster.webp",
         "kind": "image",
-        "label": "Bilingual poster: MOSS Image 1024×1536 · reported $0.079",
+        "label": "Bilingual poster: MOSS Image 1024\u00d71536 \u00b7 reported $0.079",
         "costUsd": 0.078643,
         "sha256": "588fab0c44c1322fe2dfd16e9cb1a2e4c1547ef12cd9d02a7b1ab110d2e864ee"
       }
@@ -1106,5 +1106,80 @@
     "preview": "bilingual-tea-poster/preview.webp",
     "workflow": "bilingual-tea-poster/workflow.json",
     "workflowSha256": "7ba85ed1c5af77c5f73efdc9d3edef45a7afe3c45c21c540cc6992eead97ea62"
+  },
+  {
+    "slug": "product-photo-to-hero-ad",
+    "title": "Product photo to a hero ad",
+    "date": "2026-10-20",
+    "review": "A plain packshot becomes a placed, retouched, orbiting ad shot",
+    "note": "Muse paints a stand-in product packshot: a handmade sage-green speckled ceramic pour-over dripper with a ribbed inside, a thumb tab and a matching saucer, on white. Muse Edit places that exact dripper on a travertine kitchen counter, standing on a glass carafe of coffee next to a kraft bag of beans and a linen towel, in morning window light. The cone, glaze, speckles and tab come through. But the placement also invented a second sage saucer under the carafe, so the product shows up twice. The Inpaint node fixes only that: a brushed mask over the extra saucer, and Nano Banana Edit paints the carafe's glass bottom straight onto the stone. Seedance 1.5 Pro (720p, 5 s, no audio) then does one slow orbit: the camera arcs around the dripper, the bean bag slides behind it, the window drifts past, and it settles closer on the dripper over the carafe. Video \u2192 frames keeps that last frame as a hero still. Flaws: the placement turned the saucer into the dripper's base plate and then added the duplicate. Outside the mask the fix is close but not pixel-identical (mean change about 6/255): it also turned the single drip into a thin running stream and came back smaller (1344\u00d7768). Around 2 s a coffee drop falls into the dripper from above the frame, because the motion prompt asked for a falling drop and Seedance placed it wrong. The steam is heavier than a real pour-over. A retake with a reworded motion prompt was worse (an invisible pour from above and a smaller orbit), so the first take is the one shown. Swap the packshot Image node for a \ud83d\udcf7 Image input to use your own product photo, then re-brush the mask on your scene. Every image and sampled video frame was checked and is SFW (a ceramic product in a kitchen, no people, no logos). Inspired by @Genflickmovies' \"one product photo into a hero ad in three nodes\" (https://x.com/Genflickmovies/status/2112318819133702620). No media from that post is used.",
+    "layout": "sequence",
+    "costUsd": 0.191,
+    "costExact": true,
+    "models": [
+      "meta/muse-image/text-to-image",
+      "meta/muse-image/edit",
+      "nano-banana-edit",
+      "bytedance-seedance-v1.5-pro"
+    ],
+    "graphSha256": "1dcd297b3d7320a81ed6760a0c96b3569da9a1e175f5208a17133164a17ec16b",
+    "inputs": [
+      {
+        "label": "Product photo \u00b7 prompt",
+        "text": "Studio product packshot of a handmade ceramic pour-over coffee dripper: a cone-shaped dripper with a matte sage-green glaze, fine dark iron speckles, thin ribbed lines inside the rim, one small rounded thumb tab on the side, sitting on a matching round sage-green saucer. Centered on a plain white seamless background, soft even softbox light, a faint contact shadow, sharp focus, true-to-life color. No text, no logos, no labels, no people, no hands."
+      },
+      {
+        "label": "Placement \u00b7 instruction",
+        "text": "Place this exact coffee dripper into a lifestyle scene for a hero ad. Keep the product identical: the same cone shape, the same matte sage-green glaze and dark speckles, the same thumb tab and the same saucer, at the same proportions. Stand it slightly right of center on a pale travertine kitchen counter, with a clear glass carafe under it half full of coffee, a folded oatmeal linen towel and a small plain kraft paper bag of whole beans behind it on the left, soft warm morning window light from the left with long gentle shadows, a softly blurred cream-colored kitchen behind. Photographic, calm, premium. No text, no logos, no labels, no people, no hands."
+      },
+      {
+        "label": "Fix \u00b7 what goes in the mask",
+        "text": "The clear glass carafe's rounded glass bottom resting directly on the pale travertine counter, with a soft natural contact shadow and warm morning light on the stone. No saucer, no plate, no coaster under the carafe."
+      },
+      {
+        "label": "Hero move \u00b7 look + motion",
+        "text": "Look: a calm premium product commercial, warm morning window light, shallow depth of field, photographic, the same travertine counter and cream kitchen throughout. Motion: one slow, smooth orbit. The camera glides in a gentle 30-degree arc around the ceramic coffee dripper from left to right at counter height, easing slightly closer, and settles on a centered hero frame of the dripper on the glass carafe. A single drop of coffee falls from the dripper into the carafe and a thin wisp of steam rises. Nothing else moves. The dripper keeps its exact cone shape, matte sage-green glaze, dark speckles and thumb tab. No people, no hands, no text."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "product-photo-to-hero-ad/packshot.webp",
+        "kind": "image",
+        "label": "1. Product packshot: Muse 1:1 (stand-in for your photo) \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "37a5eb5550e9dfad5b25628d9da16939647ff0c634346df10d3c89592ab9f0a2"
+      },
+      {
+        "src": "product-photo-to-hero-ad/placed.webp",
+        "kind": "image",
+        "label": "2. Placed in scene: Muse Edit 16:9 keeps the dripper, but adds a second saucer under the carafe \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "25b70bfd0bfa9692ef3f2768272ebffaa12e8c6f41292fc3b16918a03f13d7f8"
+      },
+      {
+        "src": "product-photo-to-hero-ad/retouched.webp",
+        "kind": "image",
+        "label": "3. Targeted fix: Inpaint (Nano Banana Edit) repaints only the masked saucer \u00b7 reported $0.039",
+        "costUsd": 0.039,
+        "sha256": "ae82139982da05dd508771f76bc72aed41ed8e3800bc55b50d69ac38c4635a6a"
+      },
+      {
+        "src": "product-photo-to-hero-ad/hero-ad.mp4",
+        "kind": "video",
+        "label": "4. Hero orbit: Seedance 1.5 Pro, 720p 5 s, no audio \u00b7 reported $0.13",
+        "costUsd": 0.13,
+        "sha256": "0845fb99a0d1c1307f4b8d19d393a6c7252ebc0774c736fa41b8780a36ebe590"
+      },
+      {
+        "src": "product-photo-to-hero-ad/hero-frame.webp",
+        "kind": "image",
+        "label": "5. Hero frame: the clip's last frame (Video \u2192 frames) \u00b7 $0",
+        "costUsd": 0,
+        "sha256": "b41515600d955ffffbbcd2dce280cf220734fcec6c9b194bafe3e7244485eb9a"
+      }
+    ],
+    "preview": "product-photo-to-hero-ad/preview.webp",
+    "workflow": "product-photo-to-hero-ad/workflow.json",
+    "workflowSha256": "1dcd297b3d7320a81ed6760a0c96b3569da9a1e175f5208a17133164a17ec16b"
   }
 ]
