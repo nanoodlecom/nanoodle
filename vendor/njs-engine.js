@@ -1,5 +1,5 @@
-/* data-hash=df15d768a0542520 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-c7a9ed155709 (19 modules) */
+/* data-hash=e745af5b65feeddf */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-c14d4573b1b2 (19 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -41,7 +41,7 @@ __def("browser.mjs", function (__x, __req) {
 });
 __def("workflow.mjs", function (__x, __req) {
 const { NanoodleError, RunError, UnsupportedNodeError } = __req("errors.mjs");
-const { NODE_TYPES, displayName, isInputPort, materialize, topoSort, wiredFramesFloor, MAX_FRAMES } = __req("graph.mjs");
+const { NODE_TYPES, displayName, isInputPort, lockedNode, materialize, topoSort, wiredFramesFloor, MAX_FRAMES } = __req("graph.mjs");
 const { deriveInputs, deriveOutputs, deriveSettings, resolveInputKey, resolveSettingKey } = __req("io.mjs");
 const { NanoClient } = __req("client.mjs");
 const { MediaRef, coerceMediaInput } = __req("media.mjs");
@@ -237,6 +237,13 @@ class Workflow {
     const settingAssignments = [];
     for (const [key, value] of Object.entries(settings)) {
       const entry = resolveSettingKey(graph, this.settings, key);
+      const target = graph.nodes.find((x) => x.id === entry.nodeId);
+      if (lockedNode(target)) {
+        throw new NanoodleError(
+          `setting "${key}" targets locked node ${entry.nodeId} (${displayName(target)}) — ` +
+          `a locked node always runs with its stored fields, so settings can't override ${entry.nodeId}.${entry.field}`,
+          { code: "locked" });
+      }
       settingAssignments.push({ entry, value });
     }
 
@@ -315,15 +322,19 @@ class Workflow {
     const promises = new Map();
     const mediaFetch = this.client.fetch;
 
-    const ctxFor = (node, rec) => {
+    // Once a node is finalized (done / skipped / error) or the run has settled, late
+    // callbacks from a runner that ignored its abort signal must not mutate anything.
+    let runSettled = false;
+    const frozen = (rec) => runSettled || rec.final === true;
+    const ctxFor = (node, rec, nodeSignal = ac.signal) => {
       const onCost = (c) => {
-        if (!c) return;
+        if (!c || frozen(rec)) return;
         if (c.usd != null) { rec.costUsd = (rec.costUsd || 0) + c.usd; cost.total += c.usd; }
         else cost.exact = false;
         if (c.balance != null) cost.balance = c.balance;
       };
-      const onPoll = (info) => emit({ type: "poll", nodeId: node.id, name: displayName(node), ...info });
-      const io = { onCost, onPoll, signal: ac.signal };
+      const onPoll = (info) => frozen(rec) ? undefined : emit({ type: "poll", nodeId: node.id, name: displayName(node), ...info });
+      const io = { onCost, onPoll, signal: nodeSignal };
       return {
         chat: (messages, model, opts) => this.client.chat(messages, model, opts, io),
         decide: (body) => this.client.decide(body, io),
@@ -334,9 +345,9 @@ class Workflow {
         fetchMedia: (url) => this.client.fetchMediaDataUrl(url, io),
         // local media (resize/combine/…) — same fetch + signal as network I/O
         fetch: mediaFetch,
-        signal: ac.signal,
+        signal: nodeSignal,
         catalog: this.catalog,
-        progress: (msg) => emit({ type: "node-progress", nodeId: node.id, name: displayName(node), message: msg }),
+        progress: (msg) => frozen(rec) ? undefined : emit({ type: "node-progress", nodeId: node.id, name: displayName(node), message: msg }),
       };
     };
 
@@ -351,15 +362,19 @@ class Workflow {
     };
     const execNode = async (n) => {
       const rec = nodesRec[n.id];
+      let nodeTimer = null, unlinkNode = null;
       try {
         throwIfAborted(ac.signal);
         const inbound = graph.links.filter((l) => l.to.node === n.id);
         const inp = {};
         let fields = effFields.get(n.id);
-        let upstreamFail = null, gatedBy = null;
+        let upstreamFail = null, gatedBy = null, skippedIn = 0;
         for (const l of inbound) {
           let srcOut;
-          try { srcOut = await promises.get(l.from.node); }
+          try {
+            srcOut = await promises.get(l.from.node);
+            if (nodesRec[l.from.node] && nodesRec[l.from.node].skippedOnError) { skippedIn++; continue; }
+          }
           catch {
             const g = gateOf(l.from.node);
             if (g) { if (!gatedBy) gatedBy = g; } else if (!upstreamFail) upstreamFail = displayName(byId.get(l.from.node));
@@ -379,6 +394,12 @@ class Workflow {
         }
         // a real failure upstream wins over a gate (the browser runners agree): that is an error
         if (upstreamFail) throw new NanoodleError("upstream failed: " + upstreamFail);
+        // onError:"skip" upstreams leave their ports undefined (ignored above). A node whose
+        // EVERY wire comes from a skipped node has nothing left to work with — fail clearly.
+        if (inbound.length && skippedIn === inbound.length) {
+          throw new NanoodleError("all inputs were skipped after failing: " +
+            [...new Set(inbound.map((l) => displayName(byId.get(l.from.node))))].join(", "));
+        }
         if (gatedBy) {
           rec.status = "skipped";
           rec.gatedBy = gatedBy;
@@ -394,6 +415,7 @@ class Workflow {
         // and report it below. The graph's own prompts are never rewritten to avoid this.
         const fit = withFittedPrompt(n, fields, { catalog: this.catalog, learned: this._promptCaps });
         fields = fit.fields;
+        rec.started = true;
         emit({ type: "node-start", nodeId: n.id, name: displayName(n) });
         // A fitted prompt changed what this run pays for — never silent, even headless.
         if (fit.trimmed) {
@@ -402,14 +424,37 @@ class Workflow {
             `${fields.model} rejects prompts over ${fit.trimmed.cap}`);
         }
         const t0 = Date.now();
-        const out = await RUNNERS[n.type]({ ...n, fields }, inp, ctxFor(n, rec));
+        // Per-node timeout (fields.timeoutMs): a child controller linked to the run signal.
+        // The race guarantees the deadline even if a runner never observes its signal.
+        const timeoutMs = Number(fields.timeoutMs);
+        let nodeSignal = ac.signal, deadline = null;
+        if (Number.isFinite(timeoutMs) && timeoutMs > 0) {
+          const nac = new AbortController();
+          const onRunAbort = () => nac.abort(ac.signal.reason);
+          ac.signal.addEventListener("abort", onRunAbort, { once: true });
+          unlinkNode = () => ac.signal.removeEventListener("abort", onRunAbort);
+          nodeSignal = nac.signal;
+          deadline = new Promise((_, reject) => {
+            nodeTimer = setTimeout(() => {
+              const err = new NanoodleError(`node timed out after ${timeoutMs}ms`, { code: "timeout" });
+              nac.abort(err);
+              reject(err);
+            }, timeoutMs);
+          });
+          deadline.catch(() => {});
+        }
+        const work = RUNNERS[n.type]({ ...n, fields }, inp, ctxFor(n, rec, nodeSignal));
+        const out = deadline ? await Promise.race([work, deadline]) : await work;
+        if (deadline) throwIfAborted(nodeSignal);
         throwIfAborted(ac.signal);
+        rec.final = true;
         rec.status = "done";
         rec.out = out;
         rec.ms = Date.now() - t0;
         emit({ type: "node-done", nodeId: n.id, name: displayName(n), ms: rec.ms, costUsd: rec.costUsd });
         return out;
       } catch (e) {
+        rec.final = true;
         if (e instanceof GateSkip) throw e;
         // ⚖️ Decide gate answered no: a settled, billed decision — not an error. Downstream skips.
         if (e && e.gate === true && !ac.signal.aborted) {
@@ -426,11 +471,24 @@ class Workflow {
         if (learnPromptCap(this._promptCaps, n, e.message)) {
           e.message = e.message + " — noted: nanoodle keeps this model's prompt inside that limit from now on, so running again should succeed";
         }
-        rec.status = "error";
         rec.error = e.message;
-        errors.push({ nodeId: n.id, name: displayName(n), message: e.message });
+        errors.push({ nodeId: n.id, name: displayName(n), message: e.message, ...(e && e.code ? { code: e.code } : {}) });
+        // fields.onError:"skip" — a failed (or timed-out) node is recorded and skipped; its
+        // dependents see undefined ports. A run-level abort/timeout is never skipped.
+        const onError = (effFields.get(n.id) || {}).onError;
+        if (onError === "skip" && !ac.signal.aborted) {
+          rec.status = "skipped";
+          rec.skippedOnError = true;
+          rec.out = {};
+          emit({ type: "node-skipped", nodeId: n.id, name: displayName(n), reason: "error", error: e.message });
+          return {};
+        }
+        rec.status = "error";
         emit({ type: "node-error", nodeId: n.id, name: displayName(n), error: e.message });
         throw e;
+      } finally {
+        if (nodeTimer) clearTimeout(nodeTimer);
+        if (unlinkNode) unlinkNode();
       }
     };
 
@@ -442,10 +500,19 @@ class Workflow {
       }
       await Promise.allSettled([...promises.values()]);
     } finally {
+      runSettled = true;
       if (timer) clearTimeout(timer);
       if (signal) signal.removeEventListener("abort", onOuterAbort);
     }
 
+    // A network node that started but was skipped, timed out or aborted without ever reporting
+    // a price may still have been billed: the total can't be exact.
+    for (const n of order) {
+      const rec = nodesRec[n.id];
+      const t = NODE_TYPES[n.type];
+      if (!rec || !rec.started || rec.status === "done" || rec.costUsd != null || (t && t.local)) continue;
+      cost.exact = false;
+    }
     // ---- result ----
     const outputsMap = {};
     for (const o of this.outputs) {
@@ -501,6 +568,12 @@ class Workflow {
         detail += ` (root cause — ${roots.map((e) => `"${e.name}": ${e.message}`).join("; ")})`;
       }
       throw new RunError("run failed — " + detail, result);
+    }
+    // onError:"skip" never makes a run succeed with nothing: if every output skipped, fail.
+    const skippedSinks = this.outputs.filter((o) => nodesRec[o.nodeId] && nodesRec[o.nodeId].skippedOnError);
+    if (this.outputs.length && skippedSinks.length === this.outputs.length) {
+      throw new RunError("run failed — every output was skipped after failing: " +
+        skippedSinks.map((o) => `"${o.key}": ${nodesRec[o.nodeId].error}`).join("; "), result);
     }
     return result;
   }
@@ -1376,6 +1449,12 @@ function optionalNode(node) {
   return v === true || v === "true";
 }
 
+/** Author-locked node: fields.locked keeps every field at its stored value (no inputs derived). */
+function lockedNode(node) {
+  const v = node && node.fields && node.fields.locked;
+  return v === true || v === "true";
+}
+
 /** Is a wire landing on `port` of `node` a data input (vs a field override)? */
 function isInputPort(node, port) {
   const t = NODE_TYPES[node.type];
@@ -1486,7 +1565,7 @@ function topoSort(graph) {
   return order;
 }
 
-__x.IMG_PORT_RE = IMG_PORT_RE; __x.EDIT_IMG_RE = EDIT_IMG_RE; __x.VID_PORT_RE = VID_PORT_RE; __x.CLIP_PORT_RE = CLIP_PORT_RE; __x.REF_PORT_RE = REF_PORT_RE; __x.FRAME_PORT_RE = FRAME_PORT_RE; __x.MAX_FRAMES = MAX_FRAMES; __x.wiredFramesFloor = wiredFramesFloor; __x.NODE_TYPES = NODE_TYPES; __x.displayName = displayName; __x.optionalNode = optionalNode; __x.isInputPort = isInputPort; __x.materialize = materialize; __x.topoSort = topoSort;
+__x.IMG_PORT_RE = IMG_PORT_RE; __x.EDIT_IMG_RE = EDIT_IMG_RE; __x.VID_PORT_RE = VID_PORT_RE; __x.CLIP_PORT_RE = CLIP_PORT_RE; __x.REF_PORT_RE = REF_PORT_RE; __x.FRAME_PORT_RE = FRAME_PORT_RE; __x.MAX_FRAMES = MAX_FRAMES; __x.wiredFramesFloor = wiredFramesFloor; __x.NODE_TYPES = NODE_TYPES; __x.displayName = displayName; __x.optionalNode = optionalNode; __x.lockedNode = lockedNode; __x.isInputPort = isInputPort; __x.materialize = materialize; __x.topoSort = topoSort;
 });
 __def("nodes.mjs", function (__x, __req) {
 const { NanoodleError } = __req("errors.mjs");
@@ -2411,7 +2490,7 @@ __x.catItem = catItem; __x.pricingAdvertisesRefs = pricingAdvertisesRefs; __x.ch
 });
 __def("io.mjs", function (__x, __req) {
 const { NanoodleError } = __req("errors.mjs");
-const { NODE_TYPES, displayName, optionalNode, topoSort, wiredFramesFloor, MAX_FRAMES } = __req("graph.mjs");
+const { NODE_TYPES, displayName, lockedNode, optionalNode, topoSort, wiredFramesFloor, MAX_FRAMES } = __req("graph.mjs");
 const { endpointOutPort } = __req("endpoint.mjs");
 
 /* ============================== INPUTS ============================== */
@@ -2453,6 +2532,9 @@ function deriveInputs(graph) {
   };
   for (const n of graph.nodes) {
     if (n.unknown) continue;
+    // fields.locked: the node's fields are fixed by the graph — never surfaced as inputs,
+    // so runs use the stored values.
+    if (lockedNode(n)) continue;
     if (n.type === "inpaint") {
       if (!fed(n.id, "prompt")) entries.push(mk(n, "prompt", "What to paint in", "textarea", false));
       // image and/or mask surface whenever not wired (SPEC-io). The app's combined brush widget
@@ -5842,5 +5924,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-c7a9ed155709";
+  window.NanoodleEngine.version = "src-c14d4573b1b2";
 })();
