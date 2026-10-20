@@ -1,0 +1,48 @@
+{
+  "label": "2026-10-20 product-photo-to-hero-ad ceramic dripper (Muse packshot → Muse Edit placement → Nano Banana Edit inpaint → Seedance 1.5 Pro orbit → last frame)",
+  "startedAt": "2026-10-20T17:43:23.553Z",
+  "finishedAt": "2026-10-20T17:46:52.775Z",
+  "costUsd": 0.191,
+  "costExact": true,
+  "balanceBefore": 31.0659903,
+  "balanceAfter": 30.8749903,
+  "balanceDelta": 0.191,
+  "nodes": {
+    "pack": {
+      "status": "done",
+      "costUsd": 0.011,
+      "files": {
+        "image": "packshot.webp"
+      }
+    },
+    "scene": {
+      "status": "done",
+      "costUsd": 0.011,
+      "files": {
+        "image": "placed.webp"
+      }
+    },
+    "fix": {
+      "status": "done",
+      "costUsd": 0.039,
+      "files": {
+        "image": "retouched.webp"
+      }
+    },
+    "clip": {
+      "status": "done",
+      "costUsd": 0.13,
+      "files": {
+        "video": "hero-ad.mp4"
+      }
+    },
+    "hero": {
+      "status": "done",
+      "costUsd": null,
+      "files": {
+        "frame1": "hero-frame.webp"
+      }
+    }
+  },
+  "note": "Run in two passes the way you would in the editor: packshot + placement first, then the mask was brushed on the placed scene and the fix, clip and last frame ran on that exact scene image. The runner passed the model catalog, so 720p and audio off reached Seedance (1280×720, no audio track). Seedance reported $0.13 against a catalog estimate of ~$0.08. Images are re-saved as WebP and the clip re-encoded (H.264 CRF 24) for size; same frames. The fix node's request carried size \"16:9\", which Nano Banana Edit ignores (its only size is auto); it kept the source's 16:9 framing at 1344×768, so the saved graph says auto like the editor sends."
+}
