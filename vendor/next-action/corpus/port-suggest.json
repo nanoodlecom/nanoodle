@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "source": "examples-gallery",
-  "graphCount": 20,
-  "edgeCount": 128,
+  "graphCount": 21,
+  "edgeCount": 135,
   "typeToType": {
     "text→llm": 9,
     "llm→image": 5,
@@ -13,11 +13,11 @@
     "edit→ivideo": 2,
     "join→ivideo": 1,
     "image→resize": 3,
-    "text→image": 21,
+    "text→image": 24,
     "text→edit": 6,
     "image→ivideo": 6,
     "text→ivideo": 5,
-    "text→tvideo": 3,
+    "text→tvideo": 4,
     "join→image": 1,
     "image→model3d": 1,
     "llm→ivideo": 1,
@@ -40,6 +40,7 @@
     "image→lipsync": 1,
     "tts→lipsync": 1,
     "text→lipsync": 1,
+    "image→tvideo": 3,
     "ivideo→vedit": 1
   },
   "portPair": {
@@ -52,12 +53,12 @@
     "edit.image→ivideo.image": 1,
     "join.text→ivideo.prompt": 1,
     "image.image→resize.image": 3,
-    "text.text→image.prompt": 21,
+    "text.text→image.prompt": 24,
     "text.text→edit.prompt": 6,
     "image.image→ivideo.image": 6,
     "edit.image→ivideo.endframe": 1,
     "text.text→ivideo.prompt": 5,
-    "text.text→tvideo.prompt": 3,
+    "text.text→tvideo.prompt": 4,
     "llm.text→join.a": 2,
     "text.text→join.b": 5,
     "join.text→image.prompt": 1,
@@ -85,16 +86,19 @@
     "image.image→lipsync.image": 1,
     "tts.audio→lipsync.audio": 1,
     "text.text→lipsync.prompt": 1,
+    "image.image→tvideo.ref1": 1,
+    "image.image→tvideo.ref2": 1,
+    "image.image→tvideo.ref3": 1,
     "ivideo.video→vedit.video": 1
   },
   "topTargets": {
     "text|text": {
       "llm|prompt": 9,
       "join|a": 6,
-      "image|prompt": 21,
+      "image|prompt": 24,
       "edit|prompt": 6,
       "ivideo|prompt": 5,
-      "tvideo|prompt": 3,
+      "tvideo|prompt": 4,
       "join|b": 5,
       "inpaint|prompt": 1,
       "tts|prompt": 1,
@@ -126,7 +130,10 @@
       "edit|image3": 1,
       "edit|image4": 1,
       "llm|img1": 2,
-      "lipsync|image": 1
+      "lipsync|image": 1,
+      "tvideo|ref1": 1,
+      "tvideo|ref2": 1,
+      "tvideo|ref3": 1
     },
     "edit|image": {
       "ivideo|image": 1,
@@ -214,7 +221,10 @@
     },
     "tvideo": {
       "inputs": [
-        "prompt"
+        "prompt",
+        "ref1",
+        "ref2",
+        "ref3"
       ],
       "outputs": []
     },

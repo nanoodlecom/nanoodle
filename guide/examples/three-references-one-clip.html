@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Three references, one clip — nanoodle</title>
+<meta name="description" content="Put a specific character, prop and place into one video clip and keep all three looking like your references. Reported saved run: $0.468." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="Three references, one clip — nanoodle" />
+<meta property="og:description" content="Put a specific character, prop and place into one video clip and keep all three looking like your references. Reported saved run: $0.468." />
+<meta property="og:url" content="https://nanoodle.com/guide/examples/three-references-one-clip" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Three references, one clip — nanoodle" />
+<meta name="twitter:description" content="Put a specific character, prop and place into one video clip and keep all three looking like your references. Reported saved run: $0.468." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/examples/three-references-one-clip" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <a href="/guide/examples/">Steal a noodle</a> / <span>Three references, one clip</span></nav>
+
+  <main>
+    <h1><span class="grad">Three references, one clip</span></h1>
+    <p class="lede">Put a specific character, prop and place into one video clip and keep all three looking like your references.</p>
+
+    <section>
+      <p class="meta-row">A character, a prop and a place from three stills stay consistent in one clip · 2026-10-21 · Reported saved run: $0.468. <code>meta/muse-image/text-to-image</code> · <code>minimax-h3/reference-to-video</code></p>
+      <p>Show reference-to-video: instead of starting from one first frame, the Text→Video node takes several reference images on its ref ports and the model builds a new shot that contains all of them, so one character design can be reused across many different shots.</p>
+
+      <h2>Saved result</h2>
+      <div class="media sequence">
+          <figure><a href="/examples/gallery/three-references-one-clip/character.webp"><img src="/examples/gallery/three-references-one-clip/character.webp" alt="1. Character reference: Muse 1:1 · reported $0.011 — Three references, one clip" loading="lazy" /></a><figcaption>1. Character reference: Muse 1:1 · reported $0.011 · <a href="/examples/gallery/three-references-one-clip/character.webp" download>Download</a></figcaption></figure>
+          <figure><a href="/examples/gallery/three-references-one-clip/prop.webp"><img src="/examples/gallery/three-references-one-clip/prop.webp" alt="2. Prop reference: Muse 1:1 · reported $0.011 — Three references, one clip" loading="lazy" /></a><figcaption>2. Prop reference: Muse 1:1 · reported $0.011 · <a href="/examples/gallery/three-references-one-clip/prop.webp" download>Download</a></figcaption></figure>
+          <figure><a href="/examples/gallery/three-references-one-clip/place.webp"><img src="/examples/gallery/three-references-one-clip/place.webp" alt="3. Place reference: Muse 16:9 · reported $0.011 — Three references, one clip" loading="lazy" /></a><figcaption>3. Place reference: Muse 16:9 · reported $0.011 · <a href="/examples/gallery/three-references-one-clip/place.webp" download>Download</a></figcaption></figure>
+          <figure><video controls playsinline preload="none" poster="/examples/gallery/three-references-one-clip/preview.webp" aria-label="4. One clip from all three: H3 Reference-to-Video, 540p 5 s · reported $0.435 — Three references, one clip"><source src="/examples/gallery/three-references-one-clip/clip.mp4" type="video/mp4"></video><figcaption>4. One clip from all three: H3 Reference-to-Video, 540p 5 s · reported $0.435 · <a href="/examples/gallery/three-references-one-clip/clip.mp4" download>Download</a></figcaption></figure>
+        </div>
+
+      <div class="callout"><p>Muse paints three separate reference stills, all in one needle-felted wool stop-motion look: a little hedgehog mail carrier (brown felted spines, mustard knitted scarf, navy cap, brown satchel), a coral-orange ribbed paper lantern with a wooden handle, and an empty grey stone arch bridge over a blue wool stream in an autumn felt forest at dusk. All three go into one Text→Video node on its ref1, ref2 and ref3 ports, and MiniMax H3 Reference-to-Video (540p, 5 s) films one shot with them: the hedgehog walks onto the left end of the bridge carrying the unlit lantern by its handle while the camera tracks to the right past the felt trees, and at about 3.5 s the lantern lights up with a warm candle glow that he holds up. The character keeps its cap, scarf, satchel and face, the lantern keeps its shape, color and handle, and the bridge, stream and trees match the place still. This is the video version of Mix the references, which only makes a still. Flaws: the model ignored the framing in the prompt. Instead of crossing to the middle of the bridge, the hedgehog stays pinned to the left edge while the camera pans away, so he is cut off by the frame edge in the first half-second and again at the end. The glow lights the ground near him rather than the whole bridge, and the stream drifts out of frame as the camera pans. A retake with a locked-off-camera prompt panned the same way and kept him even smaller, so the first take is the one shown. The clip has its own generated sound (soft footsteps, then a rising tone as the lantern lights; no voice). Swap any Image node for a 📷 Image input to use your own references. Every still and sampled video frame was checked and is SFW (a felt cartoon hedgehog, a lantern and a forest; no people, no logos). Inspired by @ComfyUI&#39;s FastH3 OmniRef multi-reference video post (https://x.com/ComfyUI/status/2112645504769413283) and @OrctonAI&#39;s reference-character video tests (https://x.com/OrctonAI/status/2112955932216791381). No media from those posts is used.</p></div>
+
+
+
+      <h2>Make it yours</h2>
+      <ol class="input-list">
+        <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
+        <li>Rewrite <em>Ref 1 · character</em>, <em>Ref 2 · prop</em> and <em>Ref 3 · place</em> for your own subjects, keeping the same "Look:" line at the start of each so they share one style, or swap any Image node for a 📷 Image input with your own picture. In <em>Shot · look + action</em>, refer to them as image 1, image 2 and image 3 and describe one simple action. You can wire up to nine references.</li>
+        <li>Check the editor estimate, then run with your NanoGPT key. Three Muse stills at $0.011 each + H3 Reference-to-Video at 540p for 5 s, reported $0.435 (the 540p rate of $0.075/s is $0.375; the rest matches about $0.02 per reference image). The saved run was $0.468. With your own reference pictures, skip the Muse stills.</li>
+        <li>Check each reference in the clip: the character's face, clothes and colors, the prop's shape and color, and whether the setting matches the place still. Then check framing: here the model kept the hedgehog at the left edge and panned away instead of following the prompt.</li>
+      </ol>
+
+
+      <div class="cta">
+        <a class="primary" href="https://nanoodle.com/#g=H4sIAAAAAAAAA91YzZLjthG--ym65pKdijQa_czszJycclWSTXk9KXuTS8oHiARFlECCAUBptK695gGSB_Bj-O5H8RP4Efx1k5KoGWmLO5kcsheJBIjGh-7-PjTwwxdEZ6uzOxoP-Kl0qQ54-wdeiH6QXzSbFG1nydCUUZfxbLBtj5tKS48rioOOB7TOLnevG7wOJ5f7hjXPeNlpyIy2Kc-8nZOt64fI1t_lXmvyOtNel4kOA3KlpsSa6oLeqqWmV85T6l1FpjyXvhCNtVRpTzE35YI2rqa1KiM-QAv6cxfvSFGSK6-SqP0ALxVbUGXKj1YlGsZNad6qB_rzlL7dzj6Mbvh3k2pHEVMHUpgoCkDX2H4H1L_869_NN-zP3wXGPh7hZ8I_U6qcj0GmyowtQgMZkDBeRVpqXQXSKsnJZWyyuKOgCr1HSwiSWZSDpplxt4_WJSoaV17Qu1w6iipSiZ4gdkgFMoVaaES7fZgIjOZ5ysMMPpGvaSUrWGkfYJGhvDUP0rGPBL1a54ZxlnZDReOPxvnnF_TdWrE_N_RGrLMrKEOkFP36439-altNWdVYt6M6aA6TJ7cuOzNc0JsyVMbrlOYb-vIrV2Sbv72BS_-oQkRc7ovSIDZU1Daa4W5cC75yIdKrPMYq3I1GDxfI01FrYhSiinUYTcbjyfXs6upy9vr6djaeTm6m5-KTL-99El35hzdN_Nro72MQdUAQHxnfjulav726up1OJuPr17fj6c34_GJHE2LmWOc5yTfaWrc-a3s-yP-HwTEaVsNce_eUhEKXjzHw-pB_08n-nXOEbbArx_TzT_tcO-tF0a-dWzKhcniuUAh0qXVq9TDTNiJ0a-cs8sJVw8JxflIBZsFBXiNxXRYpq9-_3zSfZWaOlBtQNEidlQlmboXQMcmZ-mvlC1APjTCH9jo1jqxZ5HGAJODJVB3roqRK4ZOoOXF9HaQXQfGpBLdwIdACrAVVvtqFdJ8-IdcaCiHELJjih-vJdbrQuVsg542lRHlvMBzmy5Tlpq58AyirMXTu0g0evStjoxTDf9bK83wro9cDmntO-dYycr3kZUKbvFYFZRAiWpuYo8WaGOGLOcRpSXOtUnAKrOH1yJveNCPFc-1qh01e0bLEYLYPsBl_5F2NcaVabYZzW2uZHyupuK9Z8h4XxIW9b0klnh3HIsCrgu-g-prJiZiKbEJgJRgSpyE8vKE54KaNRnGoQ65Sh2Xj31cQhKQGyb-BnCKVBlgRRGzhgjxV2lVWyyMnVrjoQ4_j5BCFe8yOQ3rMDukxudm_B_NeP8r8RlzRdrnF9IRM-8QCod5C4D7OpQICaXlcoaMaIX56KKhH7Bnedg7X0MLiAeO7cbd5pbyRbSBIZz9N4V3kGZoyu-knKhP2weEcn6ue_JXriJ2UdEWk4VyluDCxiplTckWSOK_sED_louU6Vy2880aTKAwzc-F1y_-k9qvGB6kuxUO2KT525Yssde4VMM1VgE8WkAAWJvYNdmpoEWqBZulJM96UATvmyxH6L3CO6ES7TiZxU4tpG_SLEv545vYh_PVLM15C__9Adq5vn8H228t-bJ8K2w8n-Vzp_nVbc3cpr_YItxt7axYFMOpGQpmf1mEJPGAdb9xDq1fYYLki4Cm3e3BeFxXTDQaEenAC1ER51Nxzb1CEkOzIzCtFso-3vuLiYSDIG8AteNnN0an50IE9HFozV-VS5CXD1NJvtVo1H8hGL_PwBykOJs0kjJ3CctOcM1okODZoEGRzx_Td1Y8NsVWJfLZPSM7x78fx4wnbg-Q3Ny9OcsbyP2f59d3tf01zPlP2Yfnr648fFGZPWf4dH1fhAwvm0u9RGDK2z5_s93zxgELelLWrgxzaB8KSBH7x2HmR9Eu0Y7_FPstb6lptAtMdHCfheMOZdi8_fpCQ_bk9qNOro-eDLcBHdT3X851SvhnaVu_n8IddMq9x3GbMJxSlM_t0QFIPsL5Is-zoOsOiGeuG22X13QrmsL7pWJvwEd7g0HysguGDvtgqTCoFTdZRH4ySlMDCrcli6FYWOG1RjpgOJFidDpzbuxUO10BwH4QxhQ9Wcjekm-WHJoYZFBd4WvnbWnusqjhrsaV1bmCUP9iKoeijLlH8_AlOk0TcJ3GIugqcP0iLyJcs7PVt9KUcelz7fJpA8m3YEarLNcjHyf64Cjq2p9-3923M-KOXYX1l0PA-8DDMpyPftXEIsyvDZ93WtPaigdx-1e3AnupsveuaXVbdXhUqncRjqirA7qsoeD90OixyWe5Bvz_0PX6_l4tSa7BrnrooteOOP7CSQ2_wRdiRexxetfNxp9BP9p_ojts5ZaX1YY_ksZN-eA8q7WfjPWXlE_BOe-I9qBqeD_iUmU9APOuD-FQkmyqhN94DLeiY4VvoXmCvern3RBhfDuykF9jrXmBPhfDl0E57oX3dL3MPKrdnJ-4ptEfzlqXtiw-_ATOZZpIQGgAA">Open this noodle →</a>
+        <a class="secondary" href="/examples/gallery/#three-references-one-clip">See the reviewed run</a>
+      </div>
+      <p class="howto-note"><a href="/examples/gallery/three-references-one-clip/workflow.json" download>Download workflow</a>
+        · <a href="/examples/gallery/three-references-one-clip/graph.json" download>Original sampled graph</a>
+        · <a href="https://mcp.nanoodle.com/#three-references-one-clip">Explore MCP tools</a>
+        · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a></p>
+      <nav class="next">
+        <a href="/guide/examples/">← All examples</a>
+        <a href="/guide/examples/grok-heygen-minimax-video-arena">Grok Imagine 1.5 Lite vs HeyGen Video 1 vs MiniMax H3: same prompt, side by side</a>
+        <a href="/guide/examples/product-photo-to-hero-ad">Product photo to a hero ad →</a>
+        <a href="/examples/gallery/#three-references-one-clip">Reviewed run</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· No analytics · Your key stays on your device</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>
