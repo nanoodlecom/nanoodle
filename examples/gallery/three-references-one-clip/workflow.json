@@ -1,0 +1,204 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 40,
+      "y": -200,
+      "w": 1000,
+      "fields": {
+        "text": "Three references, one clip. Make (or drop in) one still per thing you want in the shot: a character, a prop and a place. MiniMax H3 Reference-to-Video takes all three on the Text→Video node's ref1/ref2/ref3 ports and films one shot that keeps each of them: same character design, same prop, same location. The prompt names them as image 1, image 2 and image 3. This is the video version of Mix the references (which only makes a still). Swap any Image node for a 📷 Image input to use your own references. Inspired by @ComfyUI's FastH3 OmniRef multi-reference video post (https://x.com/ComfyUI/status/2112645504769413283) and @OrctonAI's reference-character tests (https://x.com/OrctonAI/status/2112955932216791381).",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "p-hero",
+      "type": "text",
+      "x": 40,
+      "y": 60,
+      "w": 320,
+      "name": "Ref 1 · character",
+      "fields": {
+        "text": "Look: a handmade needle-felted wool stop-motion miniature, soft fuzzy wool fibers, tiny visible stitches, warm tabletop studio light, muted autumn palette of rust, mustard and moss green. Character reference sheet: one small needle-felted hedgehog mail carrier standing upright, full body, front three-quarter view, brown felted spines, a cream face with a little black bead nose and bead eyes, a tiny mustard-yellow knitted scarf, a round navy-blue felt cap, a small brown felt satchel across the body. Centered on a plain light warm-grey backdrop, soft shadow, sharp focus. No text, no logos, no people, no hands."
+      }
+    },
+    {
+      "id": "hero",
+      "type": "image",
+      "x": 400,
+      "y": 40,
+      "w": 280,
+      "sizes": {
+        "prompt": 0
+      },
+      "name": "Character · Muse",
+      "fields": {
+        "model": "meta/muse-image/text-to-image",
+        "size": "1:1",
+        "variations": "1"
+      }
+    },
+    {
+      "id": "p-prop",
+      "type": "text",
+      "x": 40,
+      "y": 480,
+      "w": 320,
+      "name": "Ref 2 · prop",
+      "fields": {
+        "text": "Look: a handmade needle-felted wool stop-motion miniature, soft fuzzy wool fibers, tiny visible stitches, warm tabletop studio light, muted autumn palette of rust, mustard and moss green. Prop reference: one small round paper lantern in coral-orange with thin vertical ribs, a little curved wooden handle on top and a tiny brass base, glowing softly from a warm candle inside. Centered on a plain light warm-grey backdrop, soft shadow, sharp focus. Just the lantern, nothing else. No text, no logos, no people, no hands."
+      }
+    },
+    {
+      "id": "prop",
+      "type": "image",
+      "x": 400,
+      "y": 460,
+      "w": 280,
+      "sizes": {
+        "prompt": 0
+      },
+      "name": "Prop · Muse",
+      "fields": {
+        "model": "meta/muse-image/text-to-image",
+        "size": "1:1",
+        "variations": "1"
+      }
+    },
+    {
+      "id": "p-place",
+      "type": "text",
+      "x": 40,
+      "y": 900,
+      "w": 320,
+      "name": "Ref 3 · place",
+      "fields": {
+        "text": "Look: a handmade needle-felted wool stop-motion miniature, soft fuzzy wool fibers, tiny visible stitches, warm tabletop studio light, muted autumn palette of rust, mustard and moss green. Location reference: a miniature felted autumn forest at dusk, wide eye-level view of a small humpbacked grey stone arch bridge crossing a blue wool stream, rust and mustard felt trees on both banks, a few felt leaves on the bridge, a deep blue dusk sky. The bridge is empty: no characters, no animals, no people, no text."
+      }
+    },
+    {
+      "id": "place",
+      "type": "image",
+      "x": 400,
+      "y": 880,
+      "w": 280,
+      "sizes": {
+        "prompt": 0
+      },
+      "name": "Place · Muse",
+      "fields": {
+        "model": "meta/muse-image/text-to-image",
+        "size": "16:9",
+        "variations": "1"
+      }
+    },
+    {
+      "id": "p-shot",
+      "type": "text",
+      "x": 760,
+      "y": 60,
+      "w": 340,
+      "name": "Shot · look + action",
+      "fields": {
+        "text": "Look: a handmade needle-felted wool stop-motion miniature, soft fuzzy wool fibers, tiny visible stitches, warm tabletop studio light, muted autumn palette of rust, mustard and moss green. One continuous shot, the camera tracks slowly sideways at eye level. The little hedgehog mail carrier from image 1 (brown felted spines, mustard knitted scarf, navy felt cap, brown satchel) walks onto the grey stone arch bridge from image 3, entering from the left, carrying the coral-orange paper lantern from image 2 by its curved wooden handle. In the middle of the bridge it stops, lifts the lantern up high, and the lantern's warm candle glow spreads over the stones, the fallen leaves and the blue wool stream below while the dusk sky deepens. Gentle stop-motion steps. Only this one hedgehog. No people, no hands, no text."
+      }
+    },
+    {
+      "id": "clip",
+      "type": "tvideo",
+      "x": 760,
+      "y": 460,
+      "w": 320,
+      "name": "One clip · H3 Reference-to-Video",
+      "fields": {
+        "model": "minimax-h3/reference-to-video",
+        "prompt": "",
+        "duration": "5",
+        "resolution": "540p",
+        "aspect": "16:9",
+        "modelOpts": {},
+        "loras": []
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "p-hero",
+        "port": "text"
+      },
+      "to": {
+        "node": "hero",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "p-prop",
+        "port": "text"
+      },
+      "to": {
+        "node": "prop",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "p-place",
+        "port": "text"
+      },
+      "to": {
+        "node": "place",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l4",
+      "from": {
+        "node": "hero",
+        "port": "image"
+      },
+      "to": {
+        "node": "clip",
+        "port": "ref1"
+      }
+    },
+    {
+      "id": "l5",
+      "from": {
+        "node": "prop",
+        "port": "image"
+      },
+      "to": {
+        "node": "clip",
+        "port": "ref2"
+      }
+    },
+    {
+      "id": "l6",
+      "from": {
+        "node": "place",
+        "port": "image"
+      },
+      "to": {
+        "node": "clip",
+        "port": "ref3"
+      }
+    },
+    {
+      "id": "l7",
+      "from": {
+        "node": "p-shot",
+        "port": "text"
+      },
+      "to": {
+        "node": "clip",
+        "port": "prompt"
+      }
+    }
+  ]
+}

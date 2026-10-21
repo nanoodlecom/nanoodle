@@ -1181,5 +1181,71 @@
     "preview": "product-photo-to-hero-ad/preview.webp",
     "workflow": "product-photo-to-hero-ad/workflow.json",
     "workflowSha256": "1dcd297b3d7320a81ed6760a0c96b3569da9a1e175f5208a17133164a17ec16b"
+  },
+  {
+    "slug": "three-references-one-clip",
+    "title": "Three references, one clip",
+    "date": "2026-10-21",
+    "review": "A character, a prop and a place from three stills stay consistent in one clip",
+    "note": "Muse paints three separate reference stills, all in one needle-felted wool stop-motion look: a little hedgehog mail carrier (brown felted spines, mustard knitted scarf, navy cap, brown satchel), a coral-orange ribbed paper lantern with a wooden handle, and an empty grey stone arch bridge over a blue wool stream in an autumn felt forest at dusk. All three go into one Text\u2192Video node on its ref1, ref2 and ref3 ports, and MiniMax H3 Reference-to-Video (540p, 5 s) films one shot with them: the hedgehog walks onto the left end of the bridge carrying the unlit lantern by its handle while the camera tracks to the right past the felt trees, and at about 3.5 s the lantern lights up with a warm candle glow that he holds up. The character keeps its cap, scarf, satchel and face, the lantern keeps its shape, color and handle, and the bridge, stream and trees match the place still. This is the video version of Mix the references, which only makes a still. Flaws: the model ignored the framing in the prompt. Instead of crossing to the middle of the bridge, the hedgehog stays pinned to the left edge while the camera pans away, so he is cut off by the frame edge in the first half-second and again at the end. The glow lights the ground near him rather than the whole bridge, and the stream drifts out of frame as the camera pans. A retake with a locked-off-camera prompt panned the same way and kept him even smaller, so the first take is the one shown. The clip has its own generated sound (soft footsteps, then a rising tone as the lantern lights; no voice). Swap any Image node for a \ud83d\udcf7 Image input to use your own references. Every still and sampled video frame was checked and is SFW (a felt cartoon hedgehog, a lantern and a forest; no people, no logos). Inspired by @ComfyUI's FastH3 OmniRef multi-reference video post (https://x.com/ComfyUI/status/2112645504769413283) and @OrctonAI's reference-character video tests (https://x.com/OrctonAI/status/2112955932216791381). No media from those posts is used.",
+    "layout": "sequence",
+    "costUsd": 0.468,
+    "costExact": true,
+    "models": [
+      "meta/muse-image/text-to-image",
+      "minimax-h3/reference-to-video"
+    ],
+    "graphSha256": "cde7e0259d8421d74a189f665744bd8bd462a3ef8f1bb2531a302567cc47ed80",
+    "inputs": [
+      {
+        "label": "Ref 1 \u00b7 character",
+        "text": "Look: a handmade needle-felted wool stop-motion miniature, soft fuzzy wool fibers, tiny visible stitches, warm tabletop studio light, muted autumn palette of rust, mustard and moss green. Character reference sheet: one small needle-felted hedgehog mail carrier standing upright, full body, front three-quarter view, brown felted spines, a cream face with a little black bead nose and bead eyes, a tiny mustard-yellow knitted scarf, a round navy-blue felt cap, a small brown felt satchel across the body. Centered on a plain light warm-grey backdrop, soft shadow, sharp focus. No text, no logos, no people, no hands."
+      },
+      {
+        "label": "Ref 2 \u00b7 prop",
+        "text": "Look: a handmade needle-felted wool stop-motion miniature, soft fuzzy wool fibers, tiny visible stitches, warm tabletop studio light, muted autumn palette of rust, mustard and moss green. Prop reference: one small round paper lantern in coral-orange with thin vertical ribs, a little curved wooden handle on top and a tiny brass base, glowing softly from a warm candle inside. Centered on a plain light warm-grey backdrop, soft shadow, sharp focus. Just the lantern, nothing else. No text, no logos, no people, no hands."
+      },
+      {
+        "label": "Ref 3 \u00b7 place",
+        "text": "Look: a handmade needle-felted wool stop-motion miniature, soft fuzzy wool fibers, tiny visible stitches, warm tabletop studio light, muted autumn palette of rust, mustard and moss green. Location reference: a miniature felted autumn forest at dusk, wide eye-level view of a small humpbacked grey stone arch bridge crossing a blue wool stream, rust and mustard felt trees on both banks, a few felt leaves on the bridge, a deep blue dusk sky. The bridge is empty: no characters, no animals, no people, no text."
+      },
+      {
+        "label": "Shot \u00b7 look + action",
+        "text": "Look: a handmade needle-felted wool stop-motion miniature, soft fuzzy wool fibers, tiny visible stitches, warm tabletop studio light, muted autumn palette of rust, mustard and moss green. One continuous shot, the camera tracks slowly sideways at eye level. The little hedgehog mail carrier from image 1 (brown felted spines, mustard knitted scarf, navy felt cap, brown satchel) walks onto the grey stone arch bridge from image 3, entering from the left, carrying the coral-orange paper lantern from image 2 by its curved wooden handle. In the middle of the bridge it stops, lifts the lantern up high, and the lantern's warm candle glow spreads over the stones, the fallen leaves and the blue wool stream below while the dusk sky deepens. Gentle stop-motion steps. Only this one hedgehog. No people, no hands, no text."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "three-references-one-clip/character.webp",
+        "kind": "image",
+        "label": "1. Character reference: Muse 1:1 \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "dfbc80bd14983c1c46a57459388247d808011bc00e693a050873010a8d327f4a"
+      },
+      {
+        "src": "three-references-one-clip/prop.webp",
+        "kind": "image",
+        "label": "2. Prop reference: Muse 1:1 \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "4255456d9d3cd1e4f12026263c82f5cc7482539d2860c05f8c90aede64456b32"
+      },
+      {
+        "src": "three-references-one-clip/place.webp",
+        "kind": "image",
+        "label": "3. Place reference: Muse 16:9 \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "664ec54de66962f6484136ce0ac74362ed3ec771c04b186fd7e5b07426b856d3"
+      },
+      {
+        "src": "three-references-one-clip/clip.mp4",
+        "kind": "video",
+        "label": "4. One clip from all three: H3 Reference-to-Video, 540p 5 s \u00b7 reported $0.435",
+        "costUsd": 0.435,
+        "sha256": "d3320c4d7580967735a94fe6744bc82f94b97d9a964d5bb62f2510208c8e20b7"
+      }
+    ],
+    "preview": "three-references-one-clip/preview.webp",
+    "workflow": "three-references-one-clip/workflow.json",
+    "workflowSha256": "cde7e0259d8421d74a189f665744bd8bd462a3ef8f1bb2531a302567cc47ed80"
   }
 ]

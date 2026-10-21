@@ -166,6 +166,14 @@ const HOWTO = {
     inspect: "Compare the placed product with your packshot: shape, color, handles and any parts the model may have duplicated or merged (here the saucer turned up twice). After the fix, check that only the brushed area changed. In the clip, watch the product's shape through the orbit and look for things that appear from nowhere (here a falling drop at about 2 s).",
     costHow: "Muse 1:1 $0.011 + Muse Edit 16:9 $0.011 + Nano Banana Edit inpaint $0.039 + Seedance 1.5 Pro 720p 5 s without audio, reported $0.13 (the catalog estimate is about $0.08). Video → frames is free. The saved run was $0.191. With your own product photo, skip the Muse packshot.",
   },
+  "three-references-one-clip": {
+    headline: "Three references, one clip",
+    job: "Put a specific character, prop and place into one video clip and keep all three looking like your references.",
+    purpose: "Show reference-to-video: instead of starting from one first frame, the Text→Video node takes several reference images on its ref ports and the model builds a new shot that contains all of them, so one character design can be reused across many different shots.",
+    edit: "Rewrite <em>Ref 1 · character</em>, <em>Ref 2 · prop</em> and <em>Ref 3 · place</em> for your own subjects, keeping the same \"Look:\" line at the start of each so they share one style, or swap any Image node for a 📷 Image input with your own picture. In <em>Shot · look + action</em>, refer to them as image 1, image 2 and image 3 and describe one simple action. You can wire up to nine references.",
+    inspect: "Check each reference in the clip: the character's face, clothes and colors, the prop's shape and color, and whether the setting matches the place still. Then check framing: here the model kept the hedgehog at the left edge and panned away instead of following the prompt.",
+    costHow: "Three Muse stills at $0.011 each + H3 Reference-to-Video at 540p for 5 s, reported $0.435 (the 540p rate of $0.075/s is $0.375; the rest matches about $0.02 per reference image). The saved run was $0.468. With your own reference pictures, skip the Muse stills.",
+  },
   "photo-to-video": {
     headline: "Animate a still",
     job: "Generate a first frame, then animate its steam.",
@@ -223,7 +231,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.
