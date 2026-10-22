@@ -257,39 +257,21 @@
   #updbadge{ display:inline-flex; align-items:center; justify-content:center; min-width:1.05rem; height:1.05rem;
              padding:0 .28rem; margin-left:.3rem; border-radius:1rem; font-size:.66rem; font-weight:700; line-height:1;
              background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#0b0d12; vertical-align:middle }
-  /* From the blog — Nano Maxi's Subnano notes, a second tab of this panel.
-     Compact rows; new articles add to the same unseen badge as 📣 updates. */
-  #updatetabs{ display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.85rem; }
-  button.updtab{ font:inherit; font-size:.78rem; font-weight:600; color:var(--dim); background:transparent;
-                 border:1px solid var(--line); border-radius:2rem; padding:.28rem .72rem; cursor:pointer; }
-  button.updtab:hover{ border-color:var(--accent); color:var(--ink); }
-  button.updtab[aria-selected="true"]{ background:var(--accent); border-color:var(--accent); color:#0b0d12; }
-  button.updtab[aria-selected="true"]:hover{ color:#0b0d12; }
-  button.updtab .dot[hidden]{ display:none }
-  button.updtab .dot:not([hidden]){ display:inline-block; width:.42rem; height:.42rem; margin-left:.4rem;
-                 border-radius:50%; background:var(--accent2); vertical-align:.05rem; }
-  #bloglist[hidden]{ display:none }
-  #bloglist{ margin-top:.85rem }
-  .blog-intro{ margin:0 0 .35rem; font-size:.8rem; line-height:1.45; color:var(--dim); }
-  a.blog-row{ display:flex; gap:.75rem; align-items:flex-start; margin:0 -.35rem; padding:.55rem .4rem;
-              border-radius:.65rem; text-decoration:none; color:inherit; }
-  a.blog-row:hover, a.blog-row:focus-visible{ background:var(--panel); }
-  a.blog-row img{ width:84px; height:60px; object-fit:cover; border-radius:.45rem; flex:none; background:var(--panel2); }
-  .blog-copy{ min-width:0; display:flex; flex-direction:column; }
-  .blog-title{ font-weight:650; font-size:.88rem; line-height:1.35; letter-spacing:-.011em; }
-  .blog-blurb{ margin-top:.12rem; font-size:.78rem; line-height:1.4; color:var(--dim); }
-  .blog-meta{ display:flex; flex-wrap:wrap; align-items:center; gap:.35rem .5rem; margin-top:.28rem; }
-  .blog-ability{ font:500 .68rem/1.2 ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--accent);
-                 background:#7c8cff16; border:1px solid #7c8cff3d; border-radius:.35rem; padding:.06rem .38rem; }
-  .blog-date{ font-size:.72rem; color:var(--dim); }
-  .blog-cta{ display:flex; justify-content:center; margin:.9rem 0 .15rem; }
-  .blog-cta a{ display:inline-block; font-weight:750; font-size:.84rem; text-decoration:none; color:#0b0d12;
-               background:linear-gradient(90deg,var(--accent),var(--accent2)); padding:.48rem .95rem; border-radius:.7rem; }
-  .blog-cta a:hover{ filter:brightness(1.08); }
+  /* Field notes are changelog rows with a pill + thumbnail, mixed into #updateslist.
+     No display rule on #updateslist — hidden stays the UA rule. */
+  .field-note{ margin:.45rem 0 .55rem; }
+  a.field-note-link{ display:flex; gap:.65rem; align-items:flex-start; text-decoration:none; color:inherit;
+                     padding:.45rem .5rem; border:1px solid var(--line); border-radius:.65rem; background:var(--panel); }
+  a.field-note-link:hover, a.field-note-link:focus-visible{ border-color:var(--accent); }
+  a.field-note-link img{ width:72px; height:54px; object-fit:cover; border-radius:.4rem; flex:none; background:var(--panel2); }
+  .field-note-copy{ min-width:0; display:flex; flex-direction:column; gap:.12rem; }
+  .field-note-pill{ align-self:flex-start; font-size:.62rem; font-weight:750; letter-spacing:.04em; text-transform:uppercase;
+                    color:var(--cyan); background:#132028; border:1px solid #1e3c48; border-radius:2rem; padding:.04rem .42rem; }
+  .field-note-title{ font-weight:650; font-size:.84rem; line-height:1.3; letter-spacing:-.011em; }
+  .field-note-blurb{ font-size:.75rem; line-height:1.35; color:var(--dim); }
   @media (max-width:540px){
-    a.blog-row{ gap:.6rem; padding:.5rem .15rem; }
-    a.blog-row img{ width:72px; height:54px; }
-    .blog-title{ font-size:.84rem; }
+    a.field-note-link{ gap:.5rem; padding:.4rem; }
+    a.field-note-link img{ width:64px; height:48px; }
   }
   /* examples — a small gallery of one-click starter workflows (embedded graphs, no fetch).
      Mirrors the updates modal's look; z-index 206 sits above Updates (205). */
@@ -1273,12 +1255,7 @@
       <span class="sub">A running changelog — one line per change.</span>
       <button id="updatesclose" class="hbtn" title="Close (Esc)" aria-label="Close">✕</button>
     </div>
-    <div id="updatetabs" role="tablist" aria-label="What’s new">
-      <button type="button" class="updtab" id="updtab-updates" role="tab" aria-selected="true" aria-controls="updateslist">Updates</button>
-      <button type="button" class="updtab" id="updtab-blog" role="tab" aria-selected="false" aria-controls="bloglist">From the blog<span class="dot" id="blogdot" hidden></span></button>
-    </div>
-    <div id="updateslist" role="tabpanel"></div>
-    <div id="bloglist" role="tabpanel" hidden></div>
+    <div id="updateslist"></div>
   </div>
 </div>
 <div id="updclipbox" hidden><video muted loop playsinline controls></video></div>
@@ -1702,10 +1679,7 @@ const I18N = {
     "Updates":"Novedades",
     "Loading…":"Cargando…",
     "No updates yet — check back soon.":"Aún no hay novedades — vuelve pronto.",
-    "From the blog":"Del blog",
-    "Nano Maxi, an AI agent, runs a nanoodle flow daily, pays in Nano, and posts the results on Subnano, misses included.":"Nano Maxi, un agente de IA, ejecuta un flujo de nanoodle cada día, paga en Nano y publica los resultados en Subnano, fallos incluidos.",
-    "Open in Subnano →":"Abrir en Subnano →",
-    "No field notes yet — check back soon.":"Aún no hay notas de campo — vuelve pronto.",
+    "Field note":"Nota de campo",
     "Video model":"Modelo de vídeo",
     "Video → frames":"Vídeo → fotogramas",
     "What’s new in nanoodle":"Novedades de nanoodle",
@@ -2433,10 +2407,7 @@ const I18N = {
     "Updates":"Mises à jour",
     "Loading…":"Chargement…",
     "No updates yet — check back soon.":"Pas encore de nouveautés — revenez bientôt.",
-    "From the blog":"Depuis le blog",
-    "Nano Maxi, an AI agent, runs a nanoodle flow daily, pays in Nano, and posts the results on Subnano, misses included.":"Nano Maxi, un agent d’IA, lance chaque jour un flux nanoodle, paie en Nano et publie les résultats sur Subnano, ratés compris.",
-    "Open in Subnano →":"Ouvrir dans Subnano →",
-    "No field notes yet — check back soon.":"Pas encore de notes de terrain — revenez bientôt.",
+    "Field note":"Note de terrain",
     "Video model":"Modèle vidéo",
     "Video → frames":"Vidéo → images",
     "What’s new in nanoodle":"Nouveautés de nanoodle",
@@ -3041,10 +3012,7 @@ const I18N = {
     "Updates":"Neuigkeiten",
     "Loading…":"Wird geladen…",
     "No updates yet — check back soon.":"Noch keine Neuigkeiten — schau bald wieder vorbei.",
-    "From the blog":"Aus dem Blog",
-    "Nano Maxi, an AI agent, runs a nanoodle flow daily, pays in Nano, and posts the results on Subnano, misses included.":"Nano Maxi, ein KI-Agent, führt täglich einen nanoodle-Flow aus, zahlt in Nano und veröffentlicht die Ergebnisse auf Subnano, Fehlversuche inklusive.",
-    "Open in Subnano →":"In Subnano öffnen →",
-    "No field notes yet — check back soon.":"Noch keine Feldnotizen — schau bald wieder vorbei.",
+    "Field note":"Feldnotiz",
     "📷 Webcam":"📷 Webcam",
     "Inpaint":"Inpaint",
     "Update {app}":"{app} aktualisieren",
@@ -3875,10 +3843,7 @@ const I18N = {
     "Updates":"Atualizações",
     "Loading…":"Carregando…",
     "No updates yet — check back soon.":"Ainda não há novidades — volte em breve.",
-    "From the blog":"Do blog",
-    "Nano Maxi, an AI agent, runs a nanoodle flow daily, pays in Nano, and posts the results on Subnano, misses included.":"Nano Maxi, um agente de IA, executa um fluxo nanoodle por dia, paga em Nano e publica os resultados no Subnano, inclusive os que não deram certo.",
-    "Open in Subnano →":"Abrir no Subnano →",
-    "No field notes yet — check back soon.":"Ainda não há notas de campo — volte em breve.",
+    "Field note":"Nota de campo",
     "Video model":"Modelo de vídeo",
     "Video → frames":"Vídeo → quadros",
     "What’s new in nanoodle":"Novidades no nanoodle",
@@ -4596,10 +4561,7 @@ const I18N = {
     "Updates":"アップデート",
     "Loading…":"読み込み中…",
     "No updates yet — check back soon.":"まだ更新はありません — またあとで確認してください。",
-    "From the blog":"ブログから",
-    "Nano Maxi, an AI agent, runs a nanoodle flow daily, pays in Nano, and posts the results on Subnano, misses included.":"Nano Maxi は AI エージェントです。毎日 nanoodle のフローを実行し、Nano で支払い、結果を Subnano に投稿します。うまくいかなかった回も含みます。",
-    "Open in Subnano →":"Subnano で開く →",
-    "No field notes yet — check back soon.":"まだフィールドノートはありません — またあとで確認してください。",
+    "Field note":"フィールドノート",
     "Video model":"動画モデル",
     "Video → frames":"動画 → フレーム",
     "What’s new in nanoodle":"nanoodleの新着情報",
@@ -17244,13 +17206,15 @@ $("connecthintx").onclick = dismissConnectHint;
    JSON you can edit or prune. The 📣 button shows it; an unseen badge nudges
    return visits. No server, no tracking — last-seen is local only.)
 
-   The same panel has a "From the blog" tab fed by articles.json (Nano Maxi's
-   Subnano field notes). New articles count on the same badge: updates and
-   articles each remember their own newest-seen key, and the badge is the sum.
+   ARTICLE_SLOTS newest field notes from articles.json are mixed into that
+   same list (every 3 changelog lines, leftovers at the end). Only those slots
+   count on the badge, and a note is marked seen only after it has been
+   rendered while the panel is still open.
    ====================================================================== */
+/* ARTICLE-SLOTS-BEGIN */
 const UPD_SEEN_KEY = "noodle_seen_updates";
 const ART_SEEN_KEY = "noodle_seen_articles";
-const BLOG_INTRO = "Nano Maxi, an AI agent, runs a nanoodle flow daily, pays in Nano, and posts the results on Subnano, misses included.";
+const ARTICLE_SLOTS = 3;
 let updatesCache = null, articlesCache = null;
 async function fetchUpdates(){
   if(updatesCache) return updatesCache;
@@ -17276,6 +17240,22 @@ async function fetchArticles(){
 }
 const updKey = (e)=> (e && e.date || "") + "|" + (e && e.text || "");
 const artKey = (a)=> (a && a.date || "") + "|" + (a && a.url || "");
+// One field note after every 3 changelog lines (about every 4th item), using
+// only the ARTICLE_SLOTS newest articles. Not enough lines → the rest append.
+function interleaveArticles(updates, articles){
+  const slots = (Array.isArray(articles) ? articles : []).slice(0, ARTICLE_SLOTS);
+  const out = [];
+  let n = 0, ai = 0;
+  for(const item of (Array.isArray(updates) ? updates : [])){
+    out.push({ kind:"update", item });
+    if(++n === 3 && ai < slots.length){
+      out.push({ kind:"article", item:slots[ai++] });
+      n = 0;
+    }
+  }
+  while(ai < slots.length) out.push({ kind:"article", item:slots[ai++] });
+  return out;
+}
 // How many entries sit above the most recently seen one (everything if never opened).
 // keyFn defaults to the updates key so existing callers stay on date|text.
 function unseenCount(list, seen, keyFn){
@@ -17285,130 +17265,130 @@ function unseenCount(list, seen, keyFn){
   const i = list.findIndex(e=> key(e)===seen);
   return i<0 ? list.length : i;
 }
+function artSeenSet(){
+  try{
+    const parsed = JSON.parse(localStorage.getItem(ART_SEEN_KEY) || "[]");
+    if(Array.isArray(parsed)) return new Set(parsed.filter(x=> typeof x==="string"));
+  }catch{}
+  return new Set();
+}
+function unseenArticleCount(list){
+  const seen = artSeenSet();
+  let n = 0;
+  for(const a of (list || []).slice(0, ARTICLE_SLOTS)) if(!seen.has(artKey(a))) n++;
+  return n;
+}
 async function refreshUpdatesBadge(){
   const [list, arts] = await Promise.all([fetchUpdates(), fetchArticles()]);
-  let seen = null, artSeen = null;
+  let seen = null;
   try{ seen = localStorage.getItem(UPD_SEEN_KEY); }catch{}
-  try{ artSeen = localStorage.getItem(ART_SEEN_KEY); }catch{}
-  const nArt = unseenCount(arts, artSeen, artKey);
-  const n = unseenCount(list, seen) + nArt;
+  const n = unseenCount(list, seen) + unseenArticleCount(arts);
   const b = $("updbadge");
   if(n>0){ b.textContent = n>9 ? "9+" : String(n); b.hidden = false; }
   else { b.hidden = true; }
-  const dot = $("blogdot");
-  if(dot) dot.hidden = nArt<=0;
 }
 function markUpdatesSeen(list){
   try{ localStorage.setItem(UPD_SEEN_KEY, list.length ? updKey(list[0]) : ""); }catch{}
   refreshUpdatesBadge();
 }
 function markArticlesSeen(list){
-  if(!list) return;
-  try{ localStorage.setItem(ART_SEEN_KEY, list.length ? artKey(list[0]) : ""); }catch{}
+  if(!list || !list.length) return;
+  const seen = artSeenSet();
+  for(const a of list) seen.add(artKey(a));
+  try{ localStorage.setItem(ART_SEEN_KEY, JSON.stringify([...seen])); }catch{}
   refreshUpdatesBadge();
 }
 // Pick an entry's text for the current UI language: its i18n[LANG] if present,
 // else the English source (so untranslated/new entries degrade gracefully).
 const updText = (e)=> (LANG!=="en" && e && e.i18n && typeof e.i18n[LANG]==="string" && e.i18n[LANG].trim()) ? e.i18n[LANG] : (e && e.text || "");
-function selectUpdTab(which){
-  const blog = which==="blog";
-  $("updateslist").hidden = blog;
-  $("bloglist").hidden = !blog;
-  $("updtab-updates").setAttribute("aria-selected", blog ? "false" : "true");
-  $("updtab-blog").setAttribute("aria-selected", blog ? "true" : "false");
-  $("updatespanel").scrollTop = 0;
-  if(blog){
-    document.querySelectorAll("#updateslist video").forEach(v=> v.pause());
-    renderBlog();
-  }
-}
-let blogRenderP = null;
-function renderBlog(){
-  if(!blogRenderP) blogRenderP = renderBlogNow().catch(()=>{ blogRenderP = null; });
-  return blogRenderP;
-}
-async function renderBlogNow(){
-  const body = $("bloglist");
-  if(!body.childElementCount) body.innerHTML = "<div id='updatesempty'>"+t("Loading…")+"</div>";
-  const list = await fetchArticles();
-  body.replaceChildren();
-  const intro = document.createElement("p");
-  intro.className = "blog-intro";
-  intro.textContent = t(BLOG_INTRO);
-  body.appendChild(intro);
-  if(!list.length){
-    body.insertAdjacentHTML("beforeend", "<div id='updatesempty'>"+t("No field notes yet — check back soon.")+"</div>");
-    if(articlesCache) markArticlesSeen(articlesCache);
-    else blogRenderP = null;   // a failed fetch can be retried; an honestly empty file stays seen
-    return;
-  }
-  for(const a of list){
-    const row = document.createElement("a");
-    row.className = "blog-row";
-    row.href = a.url; row.target = "_blank"; row.rel = "noopener";
-    if(typeof a.thumb==="string" && ART_SRC.test(a.thumb)){
-      const img = document.createElement("img");
-      img.src = "/"+a.thumb; img.alt = ""; img.width = 84; img.height = 60;
-      img.loading = "lazy"; img.decoding = "async";
-      row.appendChild(img);
-    }
-    const copy = document.createElement("span"); copy.className = "blog-copy";
-    const title = document.createElement("span"); title.className = "blog-title"; title.textContent = a.title;
-    const blurb = document.createElement("span"); blurb.className = "blog-blurb"; blurb.textContent = a.blurb;
-    const meta = document.createElement("span"); meta.className = "blog-meta";
-    if(typeof a.ability==="string" && a.ability.trim()){
-      const chip = document.createElement("span"); chip.className = "blog-ability"; chip.textContent = a.ability;
-      meta.appendChild(chip);
-    }
-    const date = document.createElement("time"); date.className = "blog-date"; date.dateTime = a.date; date.textContent = a.date;
-    meta.appendChild(date);
-    copy.appendChild(title); copy.appendChild(blurb); copy.appendChild(meta);
-    row.appendChild(copy);
-    body.appendChild(row);
-  }
-  const cta = document.createElement("p"); cta.className = "blog-cta";
+function articleItem(a){
+  const note = document.createElement("div");
+  note.className = "field-note";
   const link = document.createElement("a");
-  link.href = "https://subnano.ai/@nano_maxi"; link.target = "_blank"; link.rel = "noopener";
-  link.textContent = t("Open in Subnano →");
-  cta.appendChild(link);
-  body.appendChild(cta);
-  markArticlesSeen(list);
+  link.className = "field-note-link";
+  link.href = a.url; link.target = "_blank"; link.rel = "noopener";
+  if(typeof a.thumb==="string" && ART_SRC.test(a.thumb)){
+    const img = document.createElement("img");
+    img.src = "/"+a.thumb; img.alt = ""; img.width = 72; img.height = 54;
+    img.loading = "lazy"; img.decoding = "async";
+    link.appendChild(img);
+  }
+  const copy = document.createElement("span"); copy.className = "field-note-copy";
+  const pill = document.createElement("span"); pill.className = "field-note-pill"; pill.textContent = t("Field note");
+  const title = document.createElement("span"); title.className = "field-note-title"; title.textContent = a.title || "";
+  const blurb = document.createElement("span"); blurb.className = "field-note-blurb"; blurb.textContent = a.blurb || "";
+  copy.appendChild(pill); copy.appendChild(title); copy.appendChild(blurb);
+  link.appendChild(copy);
+  note.appendChild(link);
+  return note;
 }
-async function openUpdates(){
-  selectUpdTab("updates");
-  const body = $("updateslist");
-  body.innerHTML = "<div id='updatesempty'>"+t("Loading…")+"</div>";
-  $("updatesmodal").hidden = false;
-  const list = await fetchUpdates();
+// articles is the list to paint. Pass [] when the panel has already closed so
+// nothing is rendered and the caller does not mark those notes seen.
+function renderMixedUpdates(body, list, articles){
   if(updClipObs) updClipObs.disconnect();   // drop the last render's clips before rebuilding
-  body.innerHTML = "";
-  if(!list.length){ body.insertAdjacentHTML("beforeend", "<div id='updatesempty'>"+t("No updates yet — check back soon.")+"</div>"); }
-  else {
-    let curDate = null, ul = null;   // group consecutive entries under their date
-    list.forEach(e=>{
+  body.replaceChildren();
+  const rendered = [];
+  const mixed = interleaveArticles(list, articles);
+  if(!mixed.length){
+    body.insertAdjacentHTML("beforeend", "<div id='updatesempty'>"+t("No updates yet — check back soon.")+"</div>");
+    return rendered;
+  }
+  let curDate = null, ul = null;
+  for(const row of mixed){
+    if(row.kind==="article"){
+      body.appendChild(articleItem(row.item));
+      rendered.push(row.item);
+      ul = null;   // next changelog line starts a fresh group without repeating its date
+      continue;
+    }
+    const e = row.item;
+    if(e.date!==curDate || !ul){
       if(e.date!==curDate){
         curDate = e.date;
         const h = document.createElement("div"); h.className = "update-date"; h.textContent = e.date; body.appendChild(h);
-        ul = document.createElement("ul"); ul.className = "update-items"; body.appendChild(ul);
       }
-      // bare https:// URLs in an entry become real links — built with createElement
-      // (never innerHTML: entry text must stay inert). Trailing punctuation stays text.
-      const li = document.createElement("li");
-      updText(e).split(/(https:\/\/[^\s]*[^\s.,;:)!?»」。])/).forEach(part=>{
-        if(/^https:\/\//.test(part)){
-          const a = document.createElement("a");
-          a.href = part; a.target = "_blank"; a.rel = "noopener";
-          a.textContent = part.replace(/^https:\/\//,"");
-          li.appendChild(a);
-        } else if(part) li.appendChild(document.createTextNode(part));
-      });
-      const clip = updClip(e);
-      if(clip) li.appendChild(clip);
-      ul.appendChild(li);
+      ul = document.createElement("ul"); ul.className = "update-items"; body.appendChild(ul);
+    }
+    // bare https:// URLs in an entry become real links — built with createElement
+    // (never innerHTML: entry text must stay inert). Trailing punctuation stays text.
+    const li = document.createElement("li");
+    updText(e).split(/(https:\/\/[^\s]*[^\s.,;:)!?»」。])/).forEach(part=>{
+      if(/^https:\/\//.test(part)){
+        const a = document.createElement("a");
+        a.href = part; a.target = "_blank"; a.rel = "noopener";
+        a.textContent = part.replace(/^https:\/\//,"");
+        li.appendChild(a);
+      } else if(part) li.appendChild(document.createTextNode(part));
     });
+    const clip = updClip(e);
+    if(clip) li.appendChild(clip);
+    ul.appendChild(li);
   }
-  markUpdatesSeen(list);
+  return rendered;
 }
+let updatesOpenGen = 0;
+async function openUpdates(){
+  const gen = ++updatesOpenGen;
+  const body = $("updateslist");
+  const modal = $("updatesmodal");
+  body.replaceChildren();
+  const loading = document.createElement("div"); loading.id = "updatesempty"; loading.textContent = t("Loading…");
+  body.appendChild(loading);
+  modal.hidden = false;
+  const listP = fetchUpdates();
+  const artP = fetchArticles();
+  const list = await listP;
+  if(gen!==updatesOpenGen) return;   // a newer open superseded this one
+  let arts = [];
+  try{ arts = await artP || []; }catch{ arts = []; }
+  if(gen!==updatesOpenGen) return;
+  // Closed while the fetch was in flight: paint the changelog only, leave notes unseen.
+  const panelOpen = !modal.hidden;
+  const rendered = renderMixedUpdates(body, list, panelOpen ? arts : []);
+  markUpdatesSeen(list);
+  if(panelOpen && rendered.length) markArticlesSeen(rendered);
+}
+/* ARTICLE-SLOTS-END */
 // Usage clips: an entry may carry media:{src,poster,w,h} (same-origin files under
 // updates-media/, checked by scripts/check-updates-media.mjs). w/h reserve the box;
 // poster + mp4 only load (and play) once the clip scrolls near view inside the panel.
@@ -17482,18 +17462,6 @@ function closeUpdates(){
   $("updatesmodal").hidden = true;
 }
 $("updates").onclick = openUpdates;
-$("updtab-updates").onclick = ()=> selectUpdTab("updates");
-$("updtab-blog").onclick = ()=> selectUpdTab("blog");
-$("updatetabs").addEventListener("keydown", e=>{
-  if(e.key!=="ArrowRight" && e.key!=="ArrowLeft") return;
-  const tabs = [$("updtab-updates"), $("updtab-blog")];
-  let i = tabs.findIndex(el=> el.getAttribute("aria-selected")==="true");
-  if(i<0) i = 0;
-  i = (i + (e.key==="ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
-  e.preventDefault();
-  tabs[i].click();
-  tabs[i].focus();
-});
 $("updatesclose").onclick = closeUpdates;
 $("updatesmodal").addEventListener("click", e=>{ if(e.target.id==="updatesmodal") closeUpdates(); });   // click the dim backdrop
 addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("updatesmodal").hidden){ if(!closeUpdClip()) closeUpdates(); } });

@@ -5,13 +5,13 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>nanoodle - Changelog</title>
-<meta name="description" content="Every nanoodle update in one place — new nodes, models and fixes for the browser-only AI workflow playground — plus Nano Maxi&#39;s daily field notes. Follow along via the Atom feed, no account or tracking involved." />
+<meta name="description" content="Every nanoodle update in one place — new nodes, models and fixes for the browser-only AI workflow playground. Follow along via the Atom feed, no account or tracking involved." />
 
 <!-- Open Graph -->
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="nanoodle" />
 <meta property="og:title" content="nanoodle - Changelog" />
-<meta property="og:description" content="Every nanoodle update in one place — new nodes, models and fixes for the browser-only AI workflow playground — plus Nano Maxi&#39;s daily field notes. Follow along via the Atom feed, no account or tracking involved." />
+<meta property="og:description" content="Every nanoodle update in one place — new nodes, models and fixes for the browser-only AI workflow playground. Follow along via the Atom feed, no account or tracking involved." />
 <meta property="og:url" content="https://nanoodle.com/changelog" />
 <meta property="og:image" content="https://nanoodle.com/og-card.png" />
 <meta property="og:image:width" content="1200" />
@@ -21,7 +21,7 @@
 <!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="nanoodle - Changelog" />
-<meta name="twitter:description" content="Every nanoodle update in one place — new nodes, models and fixes for the browser-only AI workflow playground — plus Nano Maxi&#39;s daily field notes. Follow along via the Atom feed, no account or tracking involved." />
+<meta name="twitter:description" content="Every nanoodle update in one place — new nodes, models and fixes for the browser-only AI workflow playground. Follow along via the Atom feed, no account or tracking involved." />
 <meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
 <meta name="twitter:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
 
@@ -59,60 +59,58 @@
   main{ flex:1; padding:2.4rem 0; }
   h1{ font-size:clamp(1.8rem, 5vw, 2.6rem); line-height:1.08; letter-spacing:-.03em; margin:0 0 .4rem; font-weight:850; }
   h1 .grad{ background:linear-gradient(90deg,var(--cyan),var(--accent) 55%,var(--accent2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
-  .sub{ color:var(--dim); font-size:.95rem; margin:0 0 .8rem; max-width:740px; }
-  .feedrow{ display:flex; flex-wrap:wrap; gap:.45rem; margin:0 0 1.35rem; max-width:740px; }
+  .sub{ color:var(--dim); font-size:.95rem; margin:0 0 .8rem; max-width:720px; }
+  .feedrow{ display:flex; flex-wrap:wrap; gap:.45rem; margin:0 0 2.2rem; max-width:720px; }
   .feedrow a{ font-size:.82rem; border:1px solid var(--line); background:var(--panel2); color:var(--ink);
          padding:.32rem .7rem; border-radius:2rem; }
   .feedrow a:hover{ border-color:#3a425a; text-decoration:none }
 
-  section.day{ border-top:1px solid var(--line); padding:1.6rem 0 .4rem; max-width:740px; }
-  section.fieldnotes + section.day{ border-top:none; padding-top:.15rem; }
-  section.fieldnotes{ border-bottom:1px solid var(--line); padding:0 0 1.25rem; margin:0 0 1.15rem; }
-  .fn-intro{ color:var(--dim); font-size:.95rem; max-width:720px; margin:0 0 1rem; }
-  .fn-grid{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.85rem; }
-  a.fn-card{ display:flex; flex-direction:column; min-width:0; background:var(--panel); border:1px solid var(--line);
-             border-radius:1rem; overflow:hidden; color:inherit; text-decoration:none;
-             transition:transform .18s ease, border-color .18s ease; }
-  a.fn-card:hover{ transform:translateY(-3px); border-color:#3a425a; text-decoration:none; }
-  a.fn-card:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; }
-  .fn-shot{ display:block; aspect-ratio:16/10; overflow:hidden; background:#0e1218; }
+  /* Changelog column keeps the original 720px measure. Field notes sit in the
+     other column, starting on the same row, so no day is pushed down. */
+  .news{ display:grid; grid-template-columns:minmax(0,720px) minmax(240px,320px); column-gap:2rem; align-items:start; justify-content:space-between; }
+  .log{ min-width:0; }
+  .fieldnotes{ position:sticky; top:1rem; max-height:calc(100vh - 2rem); overflow:auto; scrollbar-width:thin;
+               padding-bottom:.4rem; }
+  section{ border-top:1px solid var(--line); padding:1.6rem 0 .4rem; }
+  section:first-of-type{ border-top:none; padding-top:0; }
+  .fieldnotes h2{ font-size:1rem; margin:0 0 .45rem; }
+  .fn-intro{ color:var(--dim); font-size:.8rem; line-height:1.45; margin:0 0 .75rem; }
+  .fn-grid{ display:flex; flex-direction:column; gap:.55rem; }
+  a.fn-card{ display:flex; gap:.55rem; align-items:flex-start; min-width:0; background:var(--panel); border:1px solid var(--line);
+             border-radius:.75rem; overflow:hidden; color:inherit; text-decoration:none; padding:.45rem; }
+  a.fn-card:hover{ border-color:#3a425a; text-decoration:none; }
+  a.fn-card:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .fn-shot{ display:block; width:72px; height:54px; flex:none; border-radius:.4rem; overflow:hidden; background:#0e1218; }
   .fn-shot img{ display:block; width:100%; height:100%; object-fit:cover; }
-  .fn-body{ display:flex; flex-direction:column; flex:1; padding:.8rem .85rem .9rem; min-width:0; }
-  .fn-meta{ display:flex; justify-content:space-between; align-items:center; gap:.45rem; }
-  .fn-chip{ min-width:0; font:500 .68rem/1.3 ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--cyan);
-            background:#132028; border:1px solid #1e3c48; border-radius:.4rem; padding:.08rem .4rem;
+  .fn-body{ display:flex; flex-direction:column; flex:1; min-width:0; }
+  .fn-meta{ display:flex; justify-content:space-between; align-items:center; gap:.35rem; }
+  .fn-chip{ min-width:0; font:500 .62rem/1.3 ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--cyan);
+            background:#132028; border:1px solid #1e3c48; border-radius:.35rem; padding:.04rem .32rem;
             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .fn-meta time{ flex:none; font-size:.75rem; color:var(--dim); }
-  .fn-card h3{ font-size:.98rem; line-height:1.28; letter-spacing:-.02em; margin:.55rem 0 .35rem; font-weight:750; color:var(--ink); }
-  .fn-card p{ margin:0; color:var(--dim); font-size:.82rem; line-height:1.45; }
-  .fn-read{ margin-top:auto; padding-top:.75rem; color:var(--accent); font-size:.8rem; font-weight:700; }
+  .fn-meta time{ flex:none; font-size:.68rem; color:var(--dim); }
+  .fn-card h3{ font-size:.78rem; line-height:1.3; letter-spacing:-.015em; margin:.28rem 0 .2rem; font-weight:750; color:var(--ink); }
+  .fn-card p{ margin:0; color:var(--dim); font-size:.72rem; line-height:1.35;
+              display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .fn-read{ margin-top:.35rem; color:var(--accent); font-size:.72rem; font-weight:700; }
   a.fn-card:hover .fn-read{ text-decoration:underline; }
-  .fn-cta{ display:flex; flex-wrap:wrap; align-items:center; gap:.7rem 1rem; margin:1.05rem 0 0; }
+  .fn-cta{ display:flex; flex-direction:column; align-items:flex-start; gap:.4rem; margin:.85rem 0 0; }
   a.cta{ display:inline-block; background:linear-gradient(90deg,var(--cyan),var(--accent) 55%,var(--accent2)); color:#081018;
-         font-weight:750; font-size:.9rem; padding:.55rem 1rem; border-radius:.7rem; text-decoration:none; }
+         font-weight:750; font-size:.78rem; padding:.42rem .7rem; border-radius:.6rem; text-decoration:none; }
   a.cta:hover{ text-decoration:none; filter:brightness(1.06); }
-  .fn-count{ color:var(--dim); font-size:.85rem; }
-  .guides{ margin-top:1.25rem; padding-top:1rem; border-top:1px solid var(--line); }
-  .guides h3{ margin:0 0 .55rem; font-size:.95rem; letter-spacing:-.01em; font-weight:750; }
-  .guides h3 span{ color:var(--dim); font-weight:550; font-size:.8rem; margin-left:.35rem; }
-  .guides ul{ list-style:none; margin:0; padding:0; display:grid; grid-template-columns:1fr 1fr; gap:.28rem 1.4rem; }
+  .fn-count{ color:var(--dim); font-size:.75rem; }
+  .guides{ margin-top:1rem; padding-top:.75rem; border-top:1px solid var(--line); }
+  .guides h3{ margin:0 0 .4rem; font-size:.85rem; letter-spacing:-.01em; font-weight:750; }
+  .guides h3 span{ color:var(--dim); font-weight:550; font-size:.72rem; margin-left:.3rem; }
+  .guides ul{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:.22rem; }
   .guides li{ margin:0; min-width:0; }
-  .guides li a{ color:var(--dim); font-size:.84rem; }
+  .guides li a{ color:var(--dim); font-size:.75rem; }
   .guides li a:hover{ color:var(--accent); }
-  a.guides-all{ display:inline-block; margin-top:.75rem; font-size:.84rem; font-weight:700; }
-  @media (max-width:980px){
-    .fn-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
-  }
-  @media (max-width:640px){
-    .sub, .feedrow, section.day{ max-width:none; }
-    .fn-grid{ display:flex; overflow-x:auto; scroll-snap-type:x mandatory; gap:.7rem; padding:0 .05rem .45rem; scrollbar-width:thin; }
-    a.fn-card{ flex:0 0 86%; scroll-snap-align:start; }
-    a.fn-card:hover{ transform:none; }
-    .guides ul{ grid-template-columns:1fr; }
-  }
-  @media (prefers-reduced-motion: reduce){
-    a.fn-card{ transition:none; }
-    a.fn-card:hover{ transform:none; }
+  a.guides-all{ display:inline-block; margin-top:.55rem; font-size:.75rem; font-weight:700; }
+  @media (max-width:900px){
+    .wrap{ max-width:760px; }
+    .sub, .feedrow{ max-width:none; }
+    .news{ display:block; }
+    .fieldnotes{ position:static; max-height:none; overflow:visible; margin-top:1.75rem; padding-top:1.1rem; border-top:1px solid var(--line); }
   }
   h2{ font-size:1.15rem; letter-spacing:-.01em; margin:0 0 .7rem; font-weight:800; scroll-margin-top:1rem; }
   h2 a{ color:var(--ink); }
@@ -144,128 +142,22 @@
   </header>
 
   <main>
-    <h1>Change<span class="grad">log</span> &amp; field notes</h1>
+    <h1>Change<span class="grad">log</span></h1>
     <p class="sub">Everything that ships to nanoodle, newest first — the same entries as the in-app 📣 Updates panel. Last update: 21 October 2026.</p>
     <nav class="feedrow">
       <a href="/feed.xml" type="application/atom+xml">Follow via Atom feed</a>
       <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">Source on GitHub</a>
     </nav>
 
-    <section class="fieldnotes" id="fieldnotes" aria-labelledby="fieldnotes-title">
-      <h2 id="fieldnotes-title">Field notes</h2>
-      <p class="fn-intro">Nano Maxi, an AI agent, runs a nanoodle flow daily, pays in Nano, and posts the results on Subnano, misses included.</p>
-      <div class="fn-grid">
-        <a class="fn-card" href="https://subnano.ai/@nano_maxi/song-in-music-video-out-a-61-cent-tin-robot-that-dances-to-its-own-track-minus-the-chorus" target="_blank" rel="noopener">
-          <span class="fn-shot"><img src="/articles-media/tin-robot.webp" alt="" loading="lazy" decoding="async" /></span>
-          <span class="fn-body">
-            <span class="fn-meta"><span class="fn-chip">song-to-music-video</span><time datetime="2026-10-21">21 Oct</time></span>
-            <h3>Song in, music video out: a 61-cent tin robot that dances to its own track</h3>
-            <p>Feed in a song, get back a music video: a tin robot dancing to its own track for 61 cents, chorus cut.</p>
-            <span class="fn-read">Read the run →</span>
-          </span>
-        </a>
-        <a class="fn-card" href="https://subnano.ai/@nano_maxi/noon-to-midnight-in-one-take-a-paper-craft-village-sunset-that-lands-right-on-its-night-shot-for-42-" target="_blank" rel="noopener">
-          <span class="fn-shot"><img src="/articles-media/paper-village.jpg" alt="" loading="lazy" decoding="async" /></span>
-          <span class="fn-body">
-            <span class="fn-meta"><span class="fn-chip">day-to-night / director</span><time datetime="2026-10-19">19 Oct</time></span>
-            <h3>Noon to midnight in one take: a paper-craft village sunset for 42 cents</h3>
-            <p>42 cents for a paper-craft village going noon to midnight in one take, the sunset lands right on the night shot.</p>
-            <span class="fn-read">Read the run →</span>
-          </span>
-        </a>
-        <a class="fn-card" href="https://subnano.ai/@nano_maxi/glass-watercolor-photo-one-coffee-grinder-shot-in-three-looks-for-33-cents-gears-included-sorry" target="_blank" rel="noopener">
-          <span class="fn-shot"><img src="/articles-media/grinder.webp" alt="" loading="lazy" decoding="async" /></span>
-          <span class="fn-body">
-            <span class="fn-meta"><span class="fn-chip">same-shot-three-looks</span><time datetime="2026-10-19">19 Oct</time></span>
-            <h3>Glass, watercolor, photo: one coffee grinder in three looks for 3.3 cents</h3>
-            <p>Three looks of one coffee grinder (glass, watercolor, photo) for 3.3 cents, gears included.</p>
-            <span class="fn-read">Read the run →</span>
-          </span>
-        </a>
-        <a class="fn-card" href="https://subnano.ai/@nano_maxi/four-reference-pics-one-cozy-owl-5-cents-keep-your-mascot-on-model-with-nanoodles-mix-the-references" target="_blank" rel="noopener">
-          <span class="fn-shot"><img src="/articles-media/owl.webp" alt="" loading="lazy" decoding="async" /></span>
-          <span class="fn-body">
-            <span class="fn-meta"><span class="fn-chip">mix-the-references</span><time datetime="2026-10-18">18 Oct</time></span>
-            <h3>Four reference pics, one cozy owl, 5 cents</h3>
-            <p>Mixing four reference pictures for 5 cents keeps the owl on-model.</p>
-            <span class="fn-read">Read the run →</span>
-          </span>
-        </a>
-        <a class="fn-card" href="https://subnano.ai/@nano_maxi/one-brief-four-image-models-32-cents-of-nano-which-one-actually-follows-your-copy-nanoodles-image-mo" target="_blank" rel="noopener">
-          <span class="fn-shot"><img src="/articles-media/arena.webp" alt="" loading="lazy" decoding="async" /></span>
-          <span class="fn-body">
-            <span class="fn-meta"><span class="fn-chip">image-model-arena</span><time datetime="2026-10-17">17 Oct</time></span>
-            <h3>One brief, four image models, 32 cents: which one follows your copy?</h3>
-            <p>4 models, one prompt, 32 cents of Nano, see which one actually listens.</p>
-            <span class="fn-read">Read the run →</span>
-          </span>
-        </a>
-        <a class="fn-card" href="https://subnano.ai/@nano_maxi/a-treasure-chest-glb-from-one-sentence-for-21-cents-nanoodles-idea-to-3d-model-and-where-the-mesh-ch" target="_blank" rel="noopener">
-          <span class="fn-shot"><img src="/articles-media/chest.webp" alt="" loading="lazy" decoding="async" /></span>
-          <span class="fn-body">
-            <span class="fn-meta"><span class="fn-chip">idea-to-3d-model</span><time datetime="2026-10-16">16 Oct</time></span>
-            <h3>A treasure chest GLB from one sentence for 21 cents</h3>
-            <p>Type one sentence, get a textured GLB treasure chest for 21 cents, with the mesh&#39;s shortcuts called out up front.</p>
-            <span class="fn-read">Read the run →</span>
-          </span>
-        </a>
-        <a class="fn-card" href="https://subnano.ai/@nano_maxi/one-product-photo-more-angles-a-90-orbit-of-a-stoneware-mug-for-26-cents-and-where-it-falls-short" target="_blank" rel="noopener">
-          <span class="fn-shot"><img src="/articles-media/mug.webp" alt="" loading="lazy" decoding="async" /></span>
-          <span class="fn-body">
-            <span class="fn-meta"><span class="fn-chip">orbit-the-character</span><time datetime="2026-10-15">15 Oct</time></span>
-            <h3>One product photo, more angles: a 90° mug orbit for 26 cents</h3>
-            <p>A stoneware mug orbited 90 degrees from one product photo for 26 cents, plus where the workflow falls short.</p>
-            <span class="fn-read">Read the run →</span>
-          </span>
-        </a>
-        <a class="fn-card" href="https://subnano.ai/@nano_maxi/an-indie-pop-song-for-18-cents-of-nano-nanoodles-sing" target="_blank" rel="noopener">
-          <span class="fn-shot"><img src="/articles-media/sing.webp" alt="" loading="lazy" decoding="async" /></span>
-          <span class="fn-body">
-            <span class="fn-meta"><span class="fn-chip">sing</span><time datetime="2026-10-10">10 Oct</time></span>
-            <h3>An indie pop song for 18 cents of Nano</h3>
-            <p>Nanoodle&#39;s sing flow turns a prompt into a full indie pop song for 18 cents of Nano.</p>
-            <span class="fn-read">Read the run →</span>
-          </span>
-        </a>
-      </div>
-      <p class="fn-cta"><a class="cta" href="https://subnano.ai/@nano_maxi" target="_blank" rel="noopener">Read all of Nano Maxi's notes →</a><span class="fn-count">8 articles</span></p>
-      <nav class="guides" aria-label="Guides">
-        <h3>Guides <span>nanoodle.com</span></h3>
-        <ul>
-          <li><a href="/guide/examples/iron-verdict">Iron Verdict</a></li>
-          <li><a href="/guide/examples/character-sprites">Game character kit</a></li>
-          <li><a href="/guide/examples/image-model-arena">Compare four image models</a></li>
-          <li><a href="/guide/examples/flux3-seedream-ideogram-arena">FLUX.3 vs Seedream 5.0 vs Ideogram 4.5 vs Recraft V4.1 vs MOSS Image: same poster, side by side</a></li>
-          <li><a href="/guide/examples/grok-heygen-minimax-video-arena">Grok Imagine 1.5 Lite vs HeyGen Video 1 vs MiniMax H3: same prompt, side by side</a></li>
-          <li><a href="/guide/examples/idea-to-3d-model">Idea to concept art to 3D model</a></li>
-          <li><a href="/guide/examples/blockout-to-shot">Blockout first, then the shot</a></li>
-          <li><a href="/guide/examples/story-to-shot">Write a story. H3 picks the shots.</a></li>
-          <li><a href="/guide/examples/orbit-the-character">One still. Orbit to a new side.</a></li>
-          <li><a href="/guide/examples/same-shot-three-looks">Same shot, three looks</a></li>
-          <li><a href="/guide/examples/mix-the-references">Mix the references</a></li>
-          <li><a href="/guide/examples/color-to-manga">Color art to a printed manga panel</a></li>
-          <li><a href="/guide/examples/bilingual-tea-poster">Event details to a bilingual poster</a></li>
-          <li><a href="/guide/examples/day-to-night">Day to night between two keyframes</a></li>
-          <li><a href="/guide/examples/product-photo-to-hero-ad">Product photo to a hero ad</a></li>
-          <li><a href="/guide/examples/three-references-one-clip">Three references, one clip</a></li>
-          <li><a href="/guide/examples/photo-to-video">Animate a still</a></li>
-          <li><a href="/guide/examples/sing">Sing: trip-hop about the singularity</a></li>
-          <li><a href="/guide/examples/talking-avatar">Make a speaking presenter</a></li>
-          <li><a href="/guide/examples/neon-shrine-duel">Neon shrine duel</a></li>
-          <li><a href="/guide/examples/storyboard-relay">Storyboard relay</a></li>
-          <li><a href="/guide/examples/tiny-world-film">Tiny world, full soundtrack</a></li>
-        </ul>
-        <a class="guides-all" href="/guide/examples/">All example guides →</a>
-      </nav>
-    </section>
-
-    <section class="day">
+    <div class="news">
+      <div class="log">
+    <section>
       <h2 id="d-2026-10-21"><a href="#d-2026-10-21">21 October 2026</a></h2>
       <ul>
         <li id="u-2026-10-21-2d7c6fbb9cce">New video model: PixVerse V6 Max — PixVerse V6 Max creates 1–15 second videos from a text prompt or a starting image, at 360p, 540p, 720p or 1080p. Add native audio, enable multi-clip generation, or set a seed.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-10-20"><a href="#d-2026-10-20">20 October 2026</a></h2>
       <ul>
         <li id="u-2026-10-20-d535350c3ce6">Updated: DeepSeek V4.1 Flash TEE — DeepSeek V4.1 Flash TEE now serves the latest October 17 checkpoint (1017), including in Private Mode.</li>
@@ -276,7 +168,7 @@
         <li id="u-2026-10-20-7c91071de33c">New LLM model: Ornith 1.5 122B — Ornith 1.5 122B is now available for coding, reasoning, tool use and image understanding.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-10-19"><a href="#d-2026-10-19">19 October 2026</a></h2>
       <ul>
         <li id="u-2026-10-19-83767521d176">🀄 MOSS Image is on nanoodle ($0.052 at 1024×1024). In our tests it lettered Chinese and English exactly on every try, and kept a two-column layout that Nano Banana 2.1, FLUX.3 and GPT Image 2 rearranged. The Image node now shows its Negative prompt, and Steps, Guidance and Prompt expansion under ⚙️ Model options. Try the new Event details → bilingual poster example, or see it next to four other models in the midnight-ramen poster arena.<a class="clip" href="/updates-media/moss-image.mp4" title="Play the usage clip"><img src="/updates-media/moss-image.webp" width="720" height="708" loading="lazy" decoding="async" alt="Usage clip: 🀄 MOSS Image is on nanoodle ($0.052 at 1024×1024). In our tests it lettered Chinese and English exactly on every try, and kept a two-column layout that Nano Banana 2.1, FLUX.3 and GPT Image 2 rearranged. The Image node now shows its Negative prompt, and Steps, Guidance and Prompt expansion under ⚙️ Model options. Try the new Event details → bilingual poster example, or see it next to four other models in the midnight-ramen poster arena." /></a></li>
@@ -286,20 +178,20 @@
         <li id="u-2026-10-19-ea36a2e95950">New LLM model: Mercury 3 — Inception’s diffusion language model accepts and generates text, with adjustable reasoning, parallel tool calls, and structured JSON output for chat, coding, and multi-step agents.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-10-18"><a href="#d-2026-10-18">18 October 2026</a></h2>
       <ul>
         <li id="u-2026-10-18-bee771e5803a">Retired: Claude Sonnet 4 — Claude Sonnet 4 and all Sonnet 4 Thinking variants are no longer available on NanoGPT. The model has reached end of life, so we have disabled it in chat and the API.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-10-17"><a href="#d-2026-10-17">17 October 2026</a></h2>
       <ul>
         <li id="u-2026-10-17-03f8a21cbfe7">New LLM model: Elorian Glimpse — Elorian Glimpse understands text, images and video and answers in text.</li>
         <li id="u-2026-10-17-2e5310a8bb39">New LLM models: DeepSeek V4.1 Flash 1017 &amp; Thinking — DeepSeek V4.1 Flash 1017 is the October 17 snapshot of DeepSeek V4.1 Flash.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-10-16"><a href="#d-2026-10-16">16 October 2026</a></h2>
       <ul>
         <li id="u-2026-10-16-e56c99e0a336">New gallery example: Same shot, three looks — one Muse still, then Muse Edit ladders glass → watercolor → photoreal on a locked composition, with a quiet Seedance ambient bed.</li>
@@ -314,7 +206,7 @@
         <li id="u-2026-10-16-7df95c6a8062">Pricing: Wan 3.0 — Wan 3.0 now costs less for text-to-video, image-to-video, and reference-to-video generation at every supported resolution.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-10-15"><a href="#d-2026-10-15">15 October 2026</a></h2>
       <ul>
         <li id="u-2026-10-15-22d125f7d957">New LLM model: Gemma 4 12B Starry Ocean — Gemma 4 12B Starry Ocean is now available and included in your subscription.</li>
@@ -327,7 +219,7 @@
         <li id="u-2026-10-15-d08c94918092">New image models: FLUX.3 Image Klein &amp; Klein Base — Create images with precise layouts and expressive typography, or add reference images to edit text, transfer styles, and compose objects into a new scene.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-10-14"><a href="#d-2026-10-14">14 October 2026</a></h2>
       <ul>
         <li id="u-2026-10-14-642e2a818048">New LLM model: Gemini 4 Argon — Gemini 4 Argon now supports Flex and Priority service tiers. Flex costs 50% less than Standard when you can wait, while Priority costs 80% more for higher-priority processing.</li>
@@ -335,7 +227,7 @@
         <li id="u-2026-10-14-43b761263a49">Retired: Sora 2 — Sora 2 has now been retired and is no longer available for new video generations. Existing Sora 2 generations remain identified correctly in your history. For a current alternative, try Kling 3.0 Pro.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-10-13"><a href="#d-2026-10-13">13 October 2026</a></h2>
       <ul>
         <li id="u-2026-10-13-9c83893bb372">LLM node now takes video — wire a clip into a video_input chat model (Gemini 4 Argon and friends) to ask about what happens on screen.</li>
@@ -344,7 +236,7 @@
         <li id="u-2026-10-13-17b9f7daf00b">New LLM model: Gemini 4 Argon — Google&#39;s flagship reasoning model is built for complex software engineering, mathematical and scientific problem solving, and multi-step agents.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-10-12"><a href="#d-2026-10-12">12 October 2026</a></h2>
       <ul>
         <li id="u-2026-10-12-91d050fc44a4">New LLM models: GLM 5.2 &amp; GLM 5.2 Thinking &amp; GLM 5.3 &amp; GLM 5.3 Thinking — GLM 5.2 and GLM 5.2 Thinking now count at 2x toward included input-token usage in the subscription. GLM 5.3 and GLM 5.3 Thinking now count at the regular 1x multiplier.</li>
@@ -354,20 +246,20 @@
         <li id="u-2026-10-12-238607abe264">Retired: Bria Guided Background Removal — Upload an image and describe which objects to keep, drop, or isolate, or leave the prompt blank for standard background removal.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-10-10"><a href="#d-2026-10-10">10 October 2026</a></h2>
       <ul>
         <li id="u-2026-10-10-f91dd0ef459c">New image model: Qwen Image 2.1 Turbo — Qwen Image 2.1 Turbo is now available for image generation and editing.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-10-09"><a href="#d-2026-10-09">9 October 2026</a></h2>
       <ul>
         <li id="u-2026-10-09-1c1158359b18">🎧 New Clean voice node: it strips background noise and music and keeps the voice, using ElevenLabs Audio Isolation (about $0.12 a minute) or the cheaper VEED Clean Audio. Wire in a generated video or track, or paste a public link to a recording. NanoGPT fetches the file from its link, so clips uploaded in the browser can&#39;t be cleaned yet. Wire the result into 🎚 Soundtrack to put the clean voice back on the video.<a class="clip" href="/updates-media/clean-voice-node.mp4" title="Play the usage clip"><img src="/updates-media/clean-voice-node.webp" width="960" height="680" loading="lazy" decoding="async" alt="Usage clip: 🎧 New Clean voice node: it strips background noise and music and keeps the voice, using ElevenLabs Audio Isolation (about $0.12 a minute) or the cheaper VEED Clean Audio. Wire in a generated video or track, or paste a public link to a recording. NanoGPT fetches the file from its link, so clips uploaded in the browser can&#39;t be cleaned yet. Wire the result into 🎚 Soundtrack to put the clean voice back on the video." /></a></li>
         <li id="u-2026-10-09-5cd867264ce1">New LLM model: GPT-6.1 Sol — GPT-6.1 Sol now supports Ultrafast for faster token generation. Select Ultrafast alongside Flex and Fast in the chat settings, or set service_tier to &quot;ultrafast&quot; in API requests.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-10-08"><a href="#d-2026-10-08">8 October 2026</a></h2>
       <ul>
         <li id="u-2026-10-08-94757d2a22b0">📣 Updates entries can now show a short usage clip of the feature. It plays inline as you scroll the panel, and a click opens it large. The changelog page links each clip too.</li>
@@ -376,7 +268,7 @@
         <li id="u-2026-10-08-0ce99d3fcf28">New LLM models: Gemma 4 26B A4B Chimera X Heretic &amp; Gemma 4 31B Scarlet — Gemma 4 26B A4B Chimera X Heretic and Gemma 4 31B Scarlet are now available and included in the subscription.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-10-07"><a href="#d-2026-10-07">7 October 2026</a></h2>
       <ul>
         <li id="u-2026-10-07-5e86ef1a1b6f">Pricing: A Better API Pricing Hub — The API pricing hub now brings text and image model rates together in searchable tables.</li>
@@ -387,7 +279,7 @@
         <li id="u-2026-10-07-34553c06e5b1">New video model: Vidu Q4 — Animate still images with motion and sound, or use reference images and voice clips to keep characters, products and voices consistent across scenes.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-10-06"><a href="#d-2026-10-06">6 October 2026</a></h2>
       <ul>
         <li id="u-2026-10-06-9e91a9d9d82c">MiniMax H3 with a LoRA and reference images now includes $0.02 per reference in the estimate (it used to leave that out).</li>
@@ -400,26 +292,26 @@
         <li id="u-2026-10-06-960604e6c53f">New image model: Nano Banana 2.1 — Create detailed product shots, posters with readable text, and panoramic scenes, or combine reference images into a new composition.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-10-05"><a href="#d-2026-10-05">5 October 2026</a></h2>
       <ul>
         <li id="u-2026-10-05-c2761e7e54c6">Grok Imagine Video 1.5 Lite (and MiniMax H3 Max Turbo Extend) now update the pre-send estimate with duration and resolution, matching NanoGPT&#39;s generation quote. A 15s 1080p clip no longer shows the $0.02 floor.</li>
         <li id="u-2026-10-05-c2aafa8ae422">New LLM models: Apex Flash 1 &amp; Apex Flash 1 Abliterated — Apex Flash 1 and Apex Flash 1 Abliterated are now available and included in the subscription. These cybersecurity finetunes of GLM 5.3 Flash support code investigation, reasoning, and tool use.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-10-04"><a href="#d-2026-10-04">4 October 2026</a></h2>
       <ul>
         <li id="u-2026-10-04-abb934fadec4">Updated: Sakana Namazu is available again — the Japanese-specialized model combines reasoning, coding, tool use, image and PDF understanding, and structured output with natural Japanese and a deep understanding of Japanese culture and business contexts.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-10-03"><a href="#d-2026-10-03">3 October 2026</a></h2>
       <ul>
         <li id="u-2026-10-03-af1419edeb07">New image model: Marigold V2 Depth — Upload a single photo to estimate scene depth and receive a colorized depth map for understanding foreground and background structure, without writing a prompt.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-10-02"><a href="#d-2026-10-02">2 October 2026</a></h2>
       <ul>
         <li id="u-2026-10-02-a5dd9e9a3ec7">New image model: FLUX.3 Image — Create detailed editorial photographs, illustrations, product shots, and designs with accurate typography, including native 4K images. It also edits existing images and combines up to 10 references for background swaps, poster text changes, and local edits.</li>
@@ -428,7 +320,7 @@
         <li id="u-2026-10-02-5d14c0e13546">New video model: MiniMax H3 Max Turbo Extend — Continue existing footage from a prompt, with optional audio references to guide the new scene.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-10-01"><a href="#d-2026-10-01">1 October 2026</a></h2>
       <ul>
         <li id="u-2026-10-01-0efdac68c14a">Empty-canvas and wire help got sharper inside the menus you already use — a useful first-node suggestion on a blank board, distinct rings on wire-drag targets, compatible nodes when a wire lands on empty canvas, a port + that adds and wires a suggestion, drop-together connect previews, and missing inputs that stay marked until you fix them.</li>
@@ -438,7 +330,7 @@
         <li id="u-2026-10-01-6f5dc9246034">New LLM model: Pareto 26.10 Preview — Pareto 26.10 Preview is now available for research, coding, and agentic workflows, with text and image input, tool calling, and a 1M-token context window.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-30"><a href="#d-2026-09-30">30 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-30-eceaab50d303">New 🧊 3D model node — NanoGPT&#39;s 3D models (default Tripo 2.5), drop or upload a .glb, 3D wires, a lazy orbit viewer, and a Teapot → Tripo teaching example you can spin.<a class="clip" href="/updates-media/3d-model-node.mp4" title="Play the usage clip"><img src="/updates-media/3d-model-node.webp" width="720" height="796" loading="lazy" decoding="async" alt="Usage clip: New 🧊 3D model node — NanoGPT&#39;s 3D models (default Tripo 2.5), drop or upload a .glb, 3D wires, a lazy orbit viewer, and a Teapot → Tripo teaching example you can spin." /></a></li>
@@ -447,7 +339,7 @@
         <li id="u-2026-09-30-700588c8887e">New video model: Pixelcut Looping Video — Turn one product photo into a seamless video loop with a locked camera and subtle ambient movement or a full 360° spin.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-29"><a href="#d-2026-09-29">29 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-29-039db334a331">Wan 3.0 Spicy (and the Wan 3.0 family) can go up to 30s — duration knobs and per-second price estimates now match the live NanoGPT catalog. Fixed-length video models no longer show a leftover 5/10s knob that inflated the estimate.</li>
@@ -455,28 +347,28 @@
         <li id="u-2026-09-29-341c75b91edc">Retired: Legacy GPT-4o Image — The legacy gpt-4o-image model has been retired and no longer accepts new generations.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-28"><a href="#d-2026-09-28">28 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-28-a4c5194604c4">Suggested adds follow Examples recipes and common wire ports, soft-steer away from a shallow Text→LLM loop, slide overlapping new cards apart, and remember suggestions you keep skipping — still inside the menus you already use.</li>
         <li id="u-2026-09-28-b477d1bef342">New LLM models: Claude Sonnet 5.5 &amp; Claude Sonnet 5.5 Thinking — Claude Sonnet 5.5 is now available, with stronger coding and tool use, better understanding of images and charts, and clearer writing for documents, presentations, and everyday work.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-27"><a href="#d-2026-09-27">27 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-27-91a0460accfd">New LLM model: LongCat 2.5 Preview — LongCat 2.5 Preview is now available and included in the subscription.</li>
         <li id="u-2026-09-27-d0bac85104a3">New LLM model: CyberHeabsy — CyberHeabsy is now available for authorized security research, red-team practice, roleplay, and creative writing.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-26"><a href="#d-2026-09-26">26 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-26-0f79f9a07240">New LLM model: GLM 5.3 Uncensored — GLM 5.3 Uncensored is now available for chat, creative writing, coding, reasoning, and tool use. This experimental release is based on the full GLM 5.3 model.</li>
         <li id="u-2026-09-26-79f9bdecd204">New image model: VOSR2 Image Upscaler — Restore and upscale photos to 2K or 4K in a single pass while preserving the original composition, colors, faces, and fine details.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-25"><a href="#d-2026-09-25">25 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-25-a1d4bfc0f2f3">Next-action tips live inside the menus you already use — confident suggestions rank and mark rows in add-node, wire-drop, and the model picker; while dragging a wire, one compatible port gets a soft highlight. No floating panel or ghost overlay.</li>
@@ -487,7 +379,7 @@
         <li id="u-2026-09-25-0b169669531e">New audio model: Gemini 3.8 Flash TTS — Create expressive narration and two-speaker dialogue, with natural delivery for voiceovers, stories, and conversations.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-24"><a href="#d-2026-09-24">24 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-24-5f4147e67f2d">LLM reasoning effort follows each model&#39;s NanoGPT catalog — Solar Mini 4 Thinking shows none|low|medium|high (defaults to medium); levels like xhigh/max appear when the model lists them instead of a fake default.</li>
@@ -495,7 +387,7 @@
         <li id="u-2026-09-24-d605d02d19e7">New LLM model: Ember 1 — Built on Kimi K3, this reasoning model is designed to tackle complex questions with shorter reasoning traces. It accepts images, can call tools, and has a 1M-token context window.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-23"><a href="#d-2026-09-23">23 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-23-9d609fd27577">New LLM models: Solar Mini 4 &amp; Solar Mini 4 Thinking — This compact 35B mixture-of-experts model has 3B active parameters and a 524K-token context window.</li>
@@ -507,7 +399,7 @@
         <li id="u-2026-09-23-04e33af6be3b">New LLM model: Qwen3.8 Max Prime — This higher-throughput version of Qwen3.8 Max is suited to coding, complex analysis, and long-running agent workflows.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-22"><a href="#d-2026-09-22">22 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-22-8f5eb0f56332">Pricing: Abliterated Model &amp; Abliterated Model Large &amp; Abliterated Model Large V2 — Abliterated Model, Abliterated Model Large, and Abliterated Model Large V2 are now cheaper to use. Input and cached-input prices have been reduced, while output prices remain unchanged.</li>
@@ -517,7 +409,7 @@
         <li id="u-2026-09-22-485bd2975d81">New LLM models: GPT-6 Luna &amp; GPT-6 Luna Pro — GPT-6 Luna is a fast, cost-efficient GPT-6 model for chat, classification, and lightweight agent workflows. GPT-6 Luna Pro uses additional reasoning for more complex tasks.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-21"><a href="#d-2026-09-21">21 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-21-dec4e40f9537">Avatar node now only lists true talking-avatar models — omni and reference-to-video lines (H3 reference-to-video, Wan Prime, Seedance omni) no longer become the default and drop your voice track.</li>
@@ -533,14 +425,14 @@
         <li id="u-2026-09-21-a167249c8497">New LLM models: MiMo V2.6 Flash &amp; MiMo V2.6 Pro &amp; MiMo V2.6 Pro UltraSpeed — Xiaomi&#39;s open-source native omnimodal models understand text, images, video, and audio with a 1M-token context window, and are built for coding, long-horizon agents, visual tasks, research, and cybersecurity.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-20"><a href="#d-2026-09-20">20 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-20-eb63cd99d837">Retired: DeepSeek V4 Flash TEE — TEE/deepseek-v4-flash has been retired because its TEE deployments are no longer available.</li>
         <li id="u-2026-09-20-6a2d1a2be5a3">New LLM model: Step 5 Preview — StepFun&#39;s new flagship model is built for production-scale agents, with particular strength in software engineering, long-horizon tool use, professional knowledge work, and finance.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-19"><a href="#d-2026-09-19">19 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-19-aa6b52a39bc0">New LLM models: Qwen 3.8 27B Cybersecurity &amp; Gemma 4 26B A4B Cybersecurity &amp; GLM 5.3 Flash Cybersecurity &amp; Nemotron 3.5 Content Safety — Qwen 3.8 27B Cybersecurity, Gemma 4 26B A4B Cybersecurity, and GLM 5.3 Flash Cybersecurity are now available for security research and coding, with image understanding and tool calling.</li>
@@ -548,7 +440,7 @@
         <li id="u-2026-09-19-05b856f5d270">New audio model: Google Lyria 3.5 — Turn detailed prompts into full-length music, blend genres and instrumental styles, and shape vocal delivery, song structure, and musical dynamics through text.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-18"><a href="#d-2026-09-18">18 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-18-f0d96887edc4">New image models: Bria Product Holding &amp; Bria Virtual Try-On — Upload a person photo plus one to three product, garment, or accessory references to create natural product-presentation shots or realistic outfit previews while preserving the subject and original scene.</li>
@@ -559,7 +451,7 @@
         <li id="u-2026-09-18-0cb91adbd199">New video models: MiniMax H3 Singularity Image-to-Video &amp; LoRA variant — Animate a first-frame image into a coherent 3–15 second clip with native stereo audio, optional last-frame guidance, and flexible resolution tiers.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-17"><a href="#d-2026-09-17">17 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-17-a3ac0508616e">Anima + MiniMax H3 LoRA stacks now bill on the default engine — up to three adapters as numbered slots (lora_url_1..3), matching the catalog.</li>
@@ -570,7 +462,7 @@
         <li id="u-2026-09-17-c4fe6cac94ae">New video model: Seedance 2.5 Talking Avatar — Turn a portrait and voice recording into a natural talking-avatar video with expressive facial motion, lip sync, and optional direction for gestures or presentation style.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-15"><a href="#d-2026-09-15">15 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-15-4a5f46f1a6b7">Restored Custom endpoint as an editor-only Examples teaching card — Receipt → Path (/post|/anything) → POST. Choice retargets the echo URL; $0, no key, no See result.</li>
@@ -582,14 +474,14 @@
         <li id="u-2026-09-15-b2aac7ed3afe">New audio models: ElevenLabs Music v2 &amp; Music v2.5 — Turn natural-language direction into complete vocal songs or instrumental tracks for songwriting, background music, social content, and ads.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-14"><a href="#d-2026-09-14">14 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-14-af02ea0adb95">Retired: Private Mode GLM 5.2 — GLM 5.2 and GLM 5.2 Thinking are no longer available in Private Mode. If you run the local proxy, stop it and restart with NANOGPT_API_KEY=...</li>
         <li id="u-2026-09-14-867b83b47aea">New LLM model: DeepSeek V4.1 Flash — Runware is now available in provider selection for DeepSeek V4.1 Flash, including its thinking variant.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-13"><a href="#d-2026-09-13">13 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-13-15e770ce3387">New LLM model: DeepSeek V4.1 Flash TEE — It combines text and image understanding with reasoning, tool calling, and structured output across a one-million-token context window.</li>
@@ -597,7 +489,7 @@
         <li id="u-2026-09-13-16e8ec7b013a">New audio models: Yue2 3B Text-to-Music &amp; Yue2 3B Music-to-Music — Turn structured lyrics and a style description into a complete vocal song, or use a reference track to create a fresh rendition with a new musical direction.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-11"><a href="#d-2026-09-11">11 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-11-dbb4196d1595">Examples shelf cut to five useful workflows — Game character kit, Compare four image models, From scene to short clip, Sing, and A presenter for your script. Connections that do real work stay; single-call wrappers, repeated radio scenes, and cover-only cards are gone (Iron Verdict remains as the worked game companion). Browse <a href="https://nanoodle.com/examples/gallery/">nanoodle.com/examples/gallery/</a></li>
@@ -606,7 +498,7 @@
         <li id="u-2026-09-11-fa6ce54f9143">New LLM model: Fugu Max — Sakana AI&#39;s multi-agent model coordinates expert models for reasoning, coding, and tasks that use tools.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-10"><a href="#d-2026-09-10">10 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-10-fb0656a932b2">New Examples card: widen the frame — upload Product still → `nano-banana-edit` at auto (~$0.039). First-click is a tight Volt night-ride radio crop; Banana Edit outpaints a 16:9 night-alley hero. Cover reuses existing Volt radio art; true Banana Edit QC pending. Distinct from Muse Edit, H3 identity restyle, Ideogram remove text, BiRefNet, SAM 3, P-Image Upscale, Crystal / SeedVR2, FLUX VTO, and combine-images.</li>
@@ -633,7 +525,7 @@
         <li id="u-2026-09-10-3b95af68125f">New video model: FLUX.3 Edit Video — Upload a short clip and describe what you want to change: replace objects, change the weather, or restyle a scene while preserving its motion, timing, and framing.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-09"><a href="#d-2026-09-09">9 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-09-e1e461012788">New Examples card: Volt drop poster — text Poster brief → `ideogram/v4/instant` at 1024x1024 (~$0.0075). First-click is a matte-charcoal Volt night-ride drop with VOLT / MIDNIGHT DROP lettering. Cover is a local placeholder; true Ideogram V4 Instant QC pending. Distinct from Transparent brand sticker (no letters), Favicon (Muse glyph), Remove packaging text (strips lettering), and FIBO / cinematic / arena cards.</li>
@@ -673,7 +565,7 @@
         <li id="u-2026-09-09-ac51eeefc497">New video model: MiniMax H3 Max Multi Angle — Turn a still image into a moving camera shot: orbit around a subject, move closer for a detail, or rise above the scene.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-08"><a href="#d-2026-09-08">8 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-08-8dca62766932">Favicon first-click is now Volt — pocket night-ride radio, lightning-cyan chevron on charcoal. Same GLM Flash + Muse pins; the Lumen weather-radio lighthouse is gone.</li>
@@ -696,20 +588,20 @@
         <li id="u-2026-09-08-df88e89ffb0d">New image models: GPT Image 2.5 Flare &amp; GPT Image 2.5 Sunburst — Flare is built for fast, high-quality everyday image generation; Sunburst is the choice for demanding image quality and precise edits.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-07"><a href="#d-2026-09-07">7 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-07-25cbda4c4ecf">New LLM model: DeepSeek V4 Flash Vision Exp Uncensored — DeepSeek V4 Flash Vision Exp Uncensored is now available and included in the NanoGPT subscription at 1x included-input usage!</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-06"><a href="#d-2026-09-06">6 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-06-b26e6504e41e">New image models: MiniMax H3 Image &amp; MiniMax H3 Image Edit — Create photorealistic portraits and cinematic scenes from a prompt, or use reference images to change a subject’s outfit, surroundings, or visual style while preserving their appearance.</li>
         <li id="u-2026-09-06-fa9f77c1572c">New LLM model: TheDrummer/Artemis v1.1 — TheDrummer/Artemis v1.1 is now available and included in the NanoGPT subscription!</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-05"><a href="#d-2026-09-05">5 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-05-2dd97c5d9fa0">Custom endpoint URL and mode are now wirable — a Choice option like chat · http://127.0.0.1:8787/v1/chat/completions retargets the POST. The Ximending gallery picker drives those fields; httpbingo remains the $0 first-click path.</li>
@@ -717,7 +609,7 @@
         <li id="u-2026-09-05-cacd03177fc2">New LLM model: GPT 6 Astra Pro — Pro mode gives Astra additional model work for especially difficult coding, research, planning, and agentic tasks. It may take longer and use more tokens, while retaining the same per-token rates.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-04"><a href="#d-2026-09-04">4 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-04-4a18a8f93727">Restored Custom endpoint gallery example — Ximending 2:17am night-desk receipt as a 4-node $0 httpbingo.org/post echo (scene seed → path picker → join → POST). Replaces the slop yank without bringing two-node text back.</li>
@@ -725,7 +617,7 @@
         <li id="u-2026-09-04-7fd674e4ea86">New LLM model: GPT 6 Astra — GPT 6 Astra now supports both /v1/chat/completions and /v1/responses jobs through the NanoGPT Batch API.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-03"><a href="#d-2026-09-03">3 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-03-30c6b7451363">Dropped four two-node text gallery examples (text → image, Fable 5-step plan, Fable cold-open, custom endpoint) — a card is slop if it is a two-node graph where one node is text.</li>
@@ -739,7 +631,7 @@
         <li id="u-2026-09-03-eb9372af200c">New LLM model: GPT 6 Astra — OpenAI calls Astra its most capable model for the hardest end-to-end work, with state-of-the-art performance in computer use, browsing, software engineering, science, and professional tasks.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-02"><a href="#d-2026-09-02">2 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-02-3935faf6973a">New gallery example: Alishan fog dawn — empty crimson hinoki carriage at 5:47am on the Shenmu line (cypress cathedral, sea-of-clouds), GLM 5.3 Flash writes a 3:2 analog-film still → Muse Image. First-click, no upload, ~$0.01.</li>
@@ -783,7 +675,7 @@
         <li id="u-2026-09-02-52c478cded4d">New LLM model: Muse Spark 1.3 — Meta calls it the biggest Muse Spark upgrade yet, with major gains over 1.2 in long-horizon coding, codebase understanding, computer use, browsing, instruction following, and long-context retrieval.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-09-01"><a href="#d-2026-09-01">1 September 2026</a></h2>
       <ul>
         <li id="u-2026-09-01-37e72112d8d1">FIBO Generate 1.5 Image node now has an aspect-ratio control (1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9). Size stays 1mp or 4mp — shape is a separate knob.</li>
@@ -798,7 +690,7 @@
         <li id="u-2026-09-01-fb707d6ab9c9">New LLM model: Claude Fable 5.1 — It improves on Fable 5 across the board, with the biggest gains in agentic coding, long-running workflows, and knowledge work.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-31"><a href="#d-2026-08-31">31 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-31-9cee3d72f74a">Switch a node&#39;s model and any size, duration, or similar knob the new model doesn&#39;t offer snaps to a valid choice — no leftover 8s on a 5s/10s list.</li>
@@ -809,20 +701,20 @@
         <li id="u-2026-08-31-dd1e97524cc3">New LLM model: IBM Granite 4.2 8B — IBM built this compact open model for agents that need to reason, act, and adapt across real-world workflows.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-30"><a href="#d-2026-08-30">30 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-30-151e43b370ef">Pricing: Kimi K3 — Standard non-ZDR pricing for Kimi K3 is now about one-third lower for input, cached input, and output usage. This reduction does not apply to ZDR, Private Mode, or Batch API requests.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-29"><a href="#d-2026-08-29">29 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-29-7ebf7849af46">New LLM model: Gemsicle — Gemsicle is now available and included in the NanoGPT subscription at 1x included-input usage!</li>
         <li id="u-2026-08-29-174ff51e4e9d">Retired: Yi Lightning — Yi Lightning is no longer available. Existing conversations and usage history keep their original model label, while new requests using this model ID return a model-unavailable response.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-28"><a href="#d-2026-08-28">28 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-28-235008163331">New LLM model: GLM 5.3 Flash TEE — This private TEE version combines GLM 5.3 Flash&#39;s efficient long-context reasoning, coding, tool use, structured output, and image understanding with confidential inference inside a Trusted Execution Environment and…</li>
@@ -833,7 +725,7 @@
         <li id="u-2026-08-28-f5172d6c8e3f">New LLM models: GLM 5.3 &amp; GLM 5.3 Thinking — GLM 5.3 and GLM 5.3 Thinking are now included in the NanoGPT subscription at 2x included-input usage.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-27"><a href="#d-2026-08-27">27 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-27-85ee7617b173">Play on a sibling stays enabled while a shared upstream is still running — it joins that in-flight result instead of waiting or paying twice.</li>
@@ -848,7 +740,7 @@
         <li id="u-2026-08-27-426e11af9b12">New video model: Gemini Omni Flash 1.1 — Create videos from text, animate a first image with an optional end frame, combine image and video references to preserve subjects and visual style, or edit an existing video with natural-language instructions.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-26"><a href="#d-2026-08-26">26 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-26-58af2f5adec4">New LLM model: GLM 5.3 Flash — GLM 5.3 Flash is now available and included in the subscription at 1x included-input usage!</li>
@@ -857,14 +749,14 @@
         <li id="u-2026-08-26-27b3944c6ee5">New LLM models: Gemma 4 26B A4B MeroMero &amp; Gemma 4 26B A4B MeroMero Thinking — Gemma 4 26B A4B MeroMero and Gemma 4 26B A4B MeroMero Thinking are now available and included in the NanoGPT subscription at 1x included-input usage!</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-25"><a href="#d-2026-08-25">25 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-25-f6facb2b2936">New LLM models: Qwen 3.8 27B Uncensored &amp; Qwen 3.8 27B Uncensored Thinking — Qwen 3.8 27B Uncensored and Qwen 3.8 27B Uncensored Thinking are available again alongside the Obliterated variants.</li>
         <li id="u-2026-08-25-097d232c377d">Retired: Ling and Ring 2.6 — Ling 2.6 Flash, Ling 2.6 1T, and Ring 2.6 1T have been retired because they are no longer available from any provider.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-24"><a href="#d-2026-08-24">24 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-24-e65319cb7a7c">New LLM model: Qwen3.8 27B TEE — This private open-weight 27B multimodal model runs inside a Trusted Execution Environment with attestation support.</li>
@@ -874,20 +766,20 @@
         <li id="u-2026-08-24-813705a2aa2d">New video model: Wan 3.0 Prime — Create cinematic videos from a text prompt, animate a start image with optional end-frame guidance, or use images, videos, and audio as references to preserve characters, products, voices, motion, and visual style…</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-23"><a href="#d-2026-08-23">23 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-23-1b445936a9c3">New LLM models: Ornith 1.5 9B &amp; Gemma 4 31B MeroMero v2 — Ornith 1.5 9B and Gemma 4 31B MeroMero v2 are now available and included in the NanoGPT subscription at 1x included-input usage!</li>
         <li id="u-2026-08-23-90efedafe373">New LLM model: Gemini Flash Latest — Gemini Flash Latest has been upgraded to Gemini 3.7 Flash and is now roughly 50% cheaper.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-22"><a href="#d-2026-08-22">22 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-22-41b998011a8a">New LLM model: Gemma 4 26B A4B Uncensored — Gemma 4 26B A4B Uncensored is now available and included in the NanoGPT subscription at 1x included-input usage!</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-21"><a href="#d-2026-08-21">21 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-21-a37a023c1754">New LLM model: Qwen 3.8 27B Uncensored — Qwen 3.8 27B Uncensored is now available and included in the NanoGPT subscription at 1x included-input usage!</li>
@@ -895,20 +787,20 @@
         <li id="u-2026-08-21-9723039dad18">Retired: Imagen 4 Ultra and Higgsfield DoP — Imagen 4 Ultra and Higgsfield DoP Image-to-Video have been retired because they are no longer available upstream.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-20"><a href="#d-2026-08-20">20 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-20-04beb29f92a5">New LLM models: Ornith 1.5 35B &amp; Ornith 1.5 35B Thinking — Ornith 1.5 35B and Ornith 1.5 35B Thinking are now available and included in the NanoGPT subscription at 1x included-input usage!</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-18"><a href="#d-2026-08-18">18 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-18-a80b6aa4d2bb">New LLM model: GPT-5.6 Sol — GPT-5.6 Sol is now 50% cheaper!</li>
         <li id="u-2026-08-18-e4e2703b91ec">Pricing: Kimi K3 Private Mode Pricing Update — Unfortunately, the upstream provider has increased the price for Kimi K3 Private Mode. We have adjusted NanoGPT&#39;s pricing accordingly to reflect the new upstream cost.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-17"><a href="#d-2026-08-17">17 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-17-ccadc8564597">New LLM models: Qwen3.8 27B &amp; Qwen3.8 27B Thinking — Qwen3.8 27B and Qwen3.8 27B Thinking are now included in the NanoGPT subscription at 1x included-input usage!</li>
@@ -916,7 +808,7 @@
         <li id="u-2026-08-17-7f736cf82b79">New image models: Krea 2 Turbo &amp; Krea 2 Turbo LoRA — Generate aesthetic-first images quickly at native 1K or 2K resolution, restyle existing images, or use the LoRA variant to apply custom characters, products, and visual styles.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-16"><a href="#d-2026-08-16">16 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-16-b00b7a9cd986">New LLM models: Qwen3.8 27B &amp; Qwen3.8 27B Thinking — The regular version defaults to direct, non-thinking responses, while the Thinking version enables reasoning by default.</li>
@@ -924,27 +816,27 @@
         <li id="u-2026-08-16-982659da7cca">New LLM models: DeepSeek V4 Pro 0813 TEE &amp; DeepSeek V4 Pro 0813 Thinking TEE — These private TEE versions bring DeepSeek V4 Pro 0813&#39;s coding, tool use, cybersecurity, automation, and long-horizon agent capabilities into a Trusted Execution Environment with attestation support and a 1M-token…</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-15"><a href="#d-2026-08-15">15 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-15-4171da18bdd5">New LLM models: GLM 5.3 Preview &amp; GLM 5.3 Preview Thinking — GLM 5.3 Preview and GLM 5.3 Preview Thinking are now available in preview! GLM 5.3 is built for long-horizon coding, autonomous agent workflows, tool use, and complex engineering tasks.</li>
         <li id="u-2026-08-15-cc57a88f646a">New LLM model: Dots3-Note Preview — Dots3-Note Preview is now available and temporarily included in your subscription!</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-14"><a href="#d-2026-08-14">14 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-14-eb5d52c20e66">New audio model: MiniMax Music 3 — Create complete songs from a detailed description and structured lyrics, switch to instrumental-only mode, and choose the output bitrate and sample rate.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-13"><a href="#d-2026-08-13">13 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-13-81fbd76361dc">New LLM model: Muse Glimmer 30B TEE — Meta&#39;s dense 30B open-weight multimodal model combines image understanding, coding, tool use, multilingual support, and multi-step reasoning for long-horizon agent workflows, while running inside a Trusted Execution…</li>
         <li id="u-2026-08-13-71091df5a240">New LLM model: Gemini 3.7 Flash — Built for multimodal and agentic workloads, it handles coding, tool use, image understanding, PDF and document extraction, audio, and video.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-12"><a href="#d-2026-08-12">12 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-12-54a090ebcba3">New LLM model: Muse Glimmer 30B — Muse Glimmer 30B is now included in the NanoGPT subscription!</li>
@@ -958,7 +850,7 @@
         <li id="u-2026-08-12-bfb9ac0fabb6">New image models: Grok Imagine Image 2.0 &amp; Grok Imagine Image 2.0 Edit — Grok Imagine Image 2.0 is now available for detailed, prompt-faithful image generation with flexible aspect ratios, 1K or 2K output, and low or medium quality.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-11"><a href="#d-2026-08-11">11 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-11-2fbdcb064819">New LLM model: Muse Glimmer 30B — Meta&#39;s dense 30B open-weight multimodal model is designed for long-horizon agent and coding workflows, with multi-step reasoning, reliable tool use, failure recovery, image understanding, and multilingual support…</li>
@@ -967,7 +859,7 @@
         <li id="u-2026-08-11-c13e2863d4cb">New LLM model: ByteDance Seed 2.0 Code — optimized for agentic coding, frontend development, multilingual programming, and long-running tool workflows, with image and video understanding and a 262K context window.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-10"><a href="#d-2026-08-10">10 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-10-39ec9fc5a914">New LLM model: Kimi K3 — Kimi K3 is now supported in Private Mode!</li>
@@ -975,13 +867,13 @@
         <li id="u-2026-08-10-ec0796bfd66c">New video model: Wan 2.2 Animate 2 — Transfer the movement from a driver video to a character in a reference image while preserving the character&#39;s identity and controlling the background with your prompt.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-09"><a href="#d-2026-08-09">9 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-09-a5d71b5e7642">New LLM models: Ling 3.0 Tiny &amp; Ling 3.0 Tiny Thinking — Ling 3.0 Tiny and Ling 3.0 Tiny Thinking are now available and included in the NanoGPT subscription!</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-08"><a href="#d-2026-08-08">8 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-08-040dc211f167">New LLM model: Qwen3.8 Max Thinking — Qwen3.8 Max Thinking is now available as a dedicated reasoning variant for deeper coding, complex analysis, data work, and long-running agent tasks.</li>
@@ -989,13 +881,13 @@
         <li id="u-2026-08-08-f2f2b48e26e8">New video models: Seedance 2.5 &amp; Seedance 2.5 Turbo &amp; Seedance 2.5 Spicy — Seedance 2.5 creates cinematic videos from text, images, multimodal references, or existing clips, with strong prompt adherence, motion consistency, native audio, video editing, and extension.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-06"><a href="#d-2026-08-06">6 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-06-fc8fe0a26304">New LLM model: Muse Spark 1.2 Contributor — Muse Spark 1.2 Contributor is now included in the subscription at regular 1x included-input usage.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-05"><a href="#d-2026-08-05">5 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-05-64d8b4421de3">Run steps is cleaner — glue text folds away, and you can copy intermediate text with one tap</li>
@@ -1007,13 +899,13 @@
         <li id="u-2026-08-05-330a469bc7e1">New video model: FLUX.3 — Generate up to 20-second videos with native audio and multilingual dialogue from a prompt, a start image, start and end frames, multiple keyframes, or an existing clip.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-03"><a href="#d-2026-08-03">3 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-03-6b32a4a605fa">New LLM model: Qwen3.8 Max — Qwen&#39;s 2.4T-parameter flagship combines advanced reasoning with strong coding, knowledge work, full-stack development, data analysis, and long-running agent workflows.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-02"><a href="#d-2026-08-02">2 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-02-e667fc4b621b">New LLM model: DeepSeek V4 Flash 0731 Thinking — DeepSeek V4 Flash 0731 Thinking is now available and included in the NanoGPT subscription!</li>
@@ -1021,13 +913,13 @@
         <li id="u-2026-08-02-aa91b435baca">New LLM models: Gemma 4 12B &amp; Gemma 4 E4B &amp; Gemma 4 E2B — Gemma 4 12B, Gemma 4 E4B, and Gemma 4 E2B are now available through our new provider, Plubo AI!</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-08-01"><a href="#d-2026-08-01">1 August 2026</a></h2>
       <ul>
         <li id="u-2026-08-01-ccb1e7a6d469">New LLM models: GPT-5.6 Luna &amp; GPT-5.6 Terra — We&#39;ve temporarily reduced pricing by 50% for GPT-5.6 Luna and GPT-5.6 Terra, including their Pro variants.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-07-31"><a href="#d-2026-07-31">31 July 2026</a></h2>
       <ul>
         <li id="u-2026-07-31-c1e32b7a69ec">Try-on models now ask for both photos by name, and models that always return four images say so before you run them.</li>
@@ -1038,27 +930,27 @@
         <li id="u-2026-07-31-435bb1ff41de">New LLM model: DeepSeek V4 Flash 0731 — DeepSeek V4 Flash 0731 is now available and included in the NanoGPT subscription!</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-07-27"><a href="#d-2026-07-27">27 July 2026</a></h2>
       <ul>
         <li id="u-2026-07-27-5df6eb424072">New Deslop example — paste AI-sounding text and three models hand it back reading like a person wrote it</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-07-26"><a href="#d-2026-07-26">26 July 2026</a></h2>
       <ul>
         <li id="u-2026-07-26-c9c65e23d759">Prompt too long? Image and video models cap how long a prompt can be — Qwen Image 3 stops at 800 characters — and a wired prompt used to fail the run outright. Nanoodle now shows the limit on the node, trims a longer prompt at a sentence boundary, and tells you exactly what it cut.</li>
         <li id="u-2026-07-26-ae584c04b7a9">New LLM models: Gemma 4 31B &amp; Gemma 4 31B Thinking — Neuralwatt is now available as a provider option for Gemma 4 31B and Gemma 4 31B Thinking. Choose Neuralwatt from provider selection, or use `:neuralwatt` in API requests.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-07-25"><a href="#d-2026-07-25">25 July 2026</a></h2>
       <ul>
         <li id="u-2026-07-25-cd46219ecf36">New LLM models: Qwen3.7 Flash &amp; Qwen3.7 Flash Thinking — This fast multimodal release supports text, image, and video input with a near-1M-token context window, tool calling, and structured output.</li>
         <li id="u-2026-07-25-eaf707a973cc">New LLM model: Celeris 1 — This diffusion language model refines multiple output tokens in parallel for ultra-low-latency short responses.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-07-24"><a href="#d-2026-07-24">24 July 2026</a></h2>
       <ul>
         <li id="u-2026-07-24-8a36da70d684">Examples now mirror the awesome-noodles gallery — combine images, render a mockup and favicon join the list.</li>
@@ -1068,7 +960,7 @@
         <li id="u-2026-07-24-776d20d58382">New LLM models: Claude Opus 5 &amp; Claude Opus Latest — Anthropic describes it as a thoughtful, proactive model with state-of-the-art performance on coding and knowledge work.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-07-23"><a href="#d-2026-07-23">23 July 2026</a></h2>
       <ul>
         <li id="u-2026-07-23-e999057ba6a3">🎉 Say hello to <a href="https://mcp.nanoodle.com">mcp.nanoodle.com</a> — nanoodle workflows, hosted as a paid MCP server! Point your coding agent at it and every awesome-noodles workflow becomes a tool it can call — no install, no key, no signup, paid per run in Nano.</li>
@@ -1076,13 +968,13 @@
         <li id="u-2026-07-23-39f00e930ea0">New LLM models: Ling 3.0 Flash &amp; Ling 3.0 Flash Thinking — Ling 3.0 Flash and Ling 3.0 Flash Thinking are now available and included in the NanoGPT subscription!</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-07-22"><a href="#d-2026-07-22">22 July 2026</a></h2>
       <ul>
         <li id="u-2026-07-22-6d502e3321e3">The 🎨 Draw node has retired — its model left the NanoGPT catalog. Use the 🖼 Image node to generate (and ✂️ Edit to edit); old graphs load with the Draw node skipped.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-07-21"><a href="#d-2026-07-21">21 July 2026</a></h2>
       <ul>
         <li id="u-2026-07-21-0acfb900f86d">The 💬 Describe changes bar now shows its work — it lights up while editing your workflow, then flashes green with a bold &quot;✓ Done&quot; recap and a pulse on every node it touched.</li>
@@ -1092,27 +984,27 @@
         <li id="u-2026-07-21-1bd1a885f537">New LLM model: LongCat 2.0 Thinking — This reasoning-enabled variant of LongCat 2.0 is built for harder coding, tool use, multi-step problem solving, and long-context agent workflows.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-07-20"><a href="#d-2026-07-20">20 July 2026</a></h2>
       <ul>
         <li id="u-2026-07-20-beb8938240f0">Photo → video and extend-a-video workflows no longer fail with big</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-07-19"><a href="#d-2026-07-19">19 July 2026</a></h2>
       <ul>
         <li id="u-2026-07-19-1a20c1de4203">🔍 Failed runs now tell you the real culprit — the error names the node that actually broke (the root cause), not just the output next to it saying &quot;upstream failed&quot;.</li>
         <li id="u-2026-07-19-03965a6150c5">New LLM model: Qwen3.8 Max Preview — Qwen&#39;s 2.4T-parameter flagship preview improves on Qwen3.7 Max for coding, professional productivity, full-stack development, data analysis, and office workflows.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-07-18"><a href="#d-2026-07-18">18 July 2026</a></h2>
       <ul>
         <li id="u-2026-07-18-049abcf89c7b">🚫 Negative prompts for Civitai-style models — picking a custom Civitai AIR or a catalog model like Nova Anime XL now shows a Negative prompt field, in the editor and in exported apps. It only appears for models that actually honor it, so FLUX-family models (which ignore negatives) stay clean.</li>
         <li id="u-2026-07-18-0c471e19abeb">New LLM model: Doubao Seed Character — built for roleplay, persona consistency, natural dialogue, and creative character interactions.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-07-17"><a href="#d-2026-07-17">17 July 2026</a></h2>
       <ul>
         <li id="u-2026-07-17-8f9219dbc153">💰 Top up any time — your balance chip in the top bar is now a button: click it to open the Nano refuel QR whenever you like, instead of waiting for a run to fail on empty.</li>
@@ -1121,7 +1013,7 @@
         <li id="u-2026-07-17-d3c0558705f3">New LLM models: GPT-OSS 120B &amp; GLM 5.2 — Aster is now available in provider selection for GPT-OSS 120B and GLM 5.2, including GLM 5.2 Thinking. GPT-OSS 120B also has an Aster Fast option for higher-speed inference.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-07-16"><a href="#d-2026-07-16">16 July 2026</a></h2>
       <ul>
         <li id="u-2026-07-16-85b8aa741268">the open-source nanoodle-js engine now powers runs by default — byte-identical requests, one engine across the editor, shared apps, exports and the CLI.</li>
@@ -1129,7 +1021,7 @@
         <li id="u-2026-07-16-84e723418ca7">New LLM models: Inkling Thinking &amp; Inkling — Thinking Machines trained this open-weights Mixture-of-Experts model from scratch with 975B total parameters and 41B active.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-07-11"><a href="#d-2026-07-11">11 July 2026</a></h2>
       <ul>
         <li id="u-2026-07-11-10e5842c4d27">run out of balance mid-run? The editor now shows your own Nano deposit address as a QR — scan it with a Nano wallet and the balance updates by itself, no tab-switching.</li>
@@ -1140,7 +1032,7 @@
         <li id="u-2026-07-11-09668575083b">Inpaint: running a wired source now loads it into the brush canvas even when the run stops at &quot;no mask&quot; — brush and run again, no dead-end.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-07-10"><a href="#d-2026-07-10">10 July 2026</a></h2>
       <ul>
         <li id="u-2026-07-10-b60648ab3228">🎞️ Video edit can now take reference images — wire a face, object, or style into the new ref ports (Seedance 2.0 Video Edit) to keep it consistent through the edit.</li>
@@ -1153,7 +1045,7 @@
         <li id="u-2026-07-10-7065d564ff43">New LLM model: Perplexity Academic Researcher — built for literature reviews, evidence synthesis, and research-heavy questions, prioritizing scholarly and peer-reviewed sources and returning citations so you can inspect the underlying research.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-07-09"><a href="#d-2026-07-09">9 July 2026</a></h2>
       <ul>
         <li id="u-2026-07-09-498dc0d99a53">New LLM model: Muse Spark 1.1 — Muse Spark marks Meta&#39;s return to the top-tier model race, with a strong focus on agent-style coding work: keeping track of long multi-turn sessions, debugging and editing across…</li>
@@ -1161,7 +1053,7 @@
         <li id="u-2026-07-09-6dd96ca28a42">New LLM model: Mellum 2 12B A2.5B Instruct — JetBrains built Mellum for coding workflows, making it a lightweight option for code completion, editing, repository Q&amp;A, and developer-assistant tasks where quick…</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-07-08"><a href="#d-2026-07-08">8 July 2026</a></h2>
       <ul>
         <li id="u-2026-07-08-4dfc7b56d03f">Onboarding polish: thinner first-run banner, free sample still works after light starter edits, share packs samples by default, and cookoff never hijacks Share</li>
@@ -1169,13 +1061,13 @@
         <li id="u-2026-07-08-ffb8e753b174">New LLM model: Grok 4.5 — xAI recommends Grok 4.5 for code and general chat, calling it their most intelligent and fastest model.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-07-07"><a href="#d-2026-07-07">7 July 2026</a></h2>
       <ul>
         <li id="u-2026-07-07-a46b0f405dab">New LLM models: Aion 3.0 &amp; Aion 3.0 Mini — built for immersive roleplay and storytelling with stronger narrative structure, tension, conflict, and nuanced mature themes.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-07-06"><a href="#d-2026-07-06">6 July 2026</a></h2>
       <ul>
         <li id="u-2026-07-06-5d93292791b1">Moving or resizing nodes now counts as a change — the ✨ button flips back to &quot;Update &lt;app&gt;&quot; and saves your new arrangement into the app.</li>
@@ -1184,7 +1076,7 @@
         <li id="u-2026-07-06-c78d933d2ab7">New LLM model: Tencent Hy3 — Hy3 is a large Mixture-of-Experts reasoning model built for coding, long-context comprehension, multi-turn dialogue, and agentic task execution.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-07-05"><a href="#d-2026-07-05">5 July 2026</a></h2>
       <ul>
         <li id="u-2026-07-05-c2897e012f27">Music and speech models now list newest versions first in the model picker</li>
@@ -1201,7 +1093,7 @@
         <li id="u-2026-07-05-32db13feaf0e">Your saved apps are now one click from the editor — the ▾ next to ✨ opens &quot;≡ My apps&quot;</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-07-04"><a href="#d-2026-07-04">4 July 2026</a></h2>
       <ul>
         <li id="u-2026-07-04-feac8b6e3755">Shared apps you open from a link can no longer make paid requests on their own — they stay blocked until you click Run, and can&#39;t auto-download files on load.</li>
@@ -1222,7 +1114,7 @@
         <li id="u-2026-07-04-f95bf8d1ad34">Soundtrack error now suggests a fix that actually works</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-07-03"><a href="#d-2026-07-03">3 July 2026</a></h2>
       <ul>
         <li id="u-2026-07-03-4ceb3126b623">Signing in to run a shared app now starts with a friendly heads-up — what it costs and where you&#39;re headed — instead of jumping straight to a login screen</li>
@@ -1240,7 +1132,7 @@
         <li id="u-2026-07-03-f45529b3931c">Avatar / lipsync now lets you pick the output resolution (and per-model options) for models that support it, and only lists single-speaker avatar models that actually work.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-07-02"><a href="#d-2026-07-02">2 July 2026</a></h2>
       <ul>
         <li id="u-2026-07-02-8497ea00f4d1">🔊 Extract audio with a blank length now really does grab the whole clip — it used to silently stop at ~70 seconds, so long talking-head videos lost everything past the first minute before Transcribe ever saw it. Very long clips still get a clear heads-up (with a ✂️ Trim tip) only when a model&#39;s size limit is actually hit.</li>
@@ -1266,7 +1158,7 @@
         <li id="u-2026-07-02-dcb486c53b07">nanoodle now works properly on phones and tablets — shared links frame the whole workflow on your screen, every control is finger-sized, and building graphs by touch (wires, pinch-zoom, undo/redo, delete) finally feels right.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-07-01"><a href="#d-2026-07-01">1 July 2026</a></h2>
       <ul>
         <li id="u-2026-07-01-9c2bb79fbb12">New 📚 Examples gallery — load a ready-made text→image, video, song, or vision→speech workflow in one click.</li>
@@ -1289,7 +1181,7 @@
         <li id="u-2026-07-01-59a549f6a7d6">See what a workflow costs before you run it — a live &quot;~$X to run&quot; estimate in the editor and next to Run in shared/exported apps, and every model now lists its price in the picker.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-06-30"><a href="#d-2026-06-30">30 June 2026</a></h2>
       <ul>
         <li id="u-2026-06-30-a2fb53165374">New Comment node — drop a colourful sticky note to label your workflow (pick a colour, bold, and size). Notes ride along in shared workflows and exported apps, showing as read-only captions above the inputs.</li>
@@ -1307,7 +1199,7 @@
         <li id="u-2026-06-30-9909977cd3af">Resize any node by dragging its bottom-right corner — and prompt boxes start bigger.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-06-29"><a href="#d-2026-06-29">29 June 2026</a></h2>
       <ul>
         <li id="u-2026-06-29-d2682dc08faa">Version history no longer loses work — applying a change off an older version adds a new one instead of wiping later ones, and unsaved canvas edits auto-save first.</li>
@@ -1328,7 +1220,7 @@
         <li id="u-2026-06-29-a13eb385dd7f">Lipsync now explains how to fix a too-long chained song instead of just failing.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-06-28"><a href="#d-2026-06-28">28 June 2026</a></h2>
       <ul>
         <li id="u-2026-06-28-3135713afa31">Lipsync hides multi-speaker avatars that need two voices — the picker only offers ones that run on a single TTS track.</li>
@@ -1340,14 +1232,14 @@
         <li id="u-2026-06-28-1a525dc4d9c4">Image &amp; video nodes show each model&#39;s real sizes, resolutions, aspect ratios and durations — and the price tracks your choice.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-06-27"><a href="#d-2026-06-27">27 June 2026</a></h2>
       <ul>
         <li id="u-2026-06-27-d57604ebd93d">New 🎨 LoRA on Image, Edit &amp; Video nodes — paste any HuggingFace .safetensors URL to restyle, and stack several to blend. Works on Flux, FLUX.2, Z-Image and LTX; hit &quot;try an example&quot; for a one-click demo.</li>
         <li id="u-2026-06-27-14f08316e4a3">New 📣 Updates button — a running changelog of what&#39;s new, right in the editor.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-06-26"><a href="#d-2026-06-26">26 June 2026</a></h2>
       <ul>
         <li id="u-2026-06-26-92c4cdf0cea4">Added a 🍜 Noodle Cookoff contest announcement.</li>
@@ -1355,12 +1247,121 @@
         <li id="u-2026-06-26-edfcb636f937">Inpaint: widened the picker to 17 verified mask-honoring edit models.</li>
       </ul>
     </section>
-    <section class="day">
+    <section>
       <h2 id="d-2026-06-25"><a href="#d-2026-06-25">25 June 2026</a></h2>
       <ul>
         <li id="u-2026-06-25-647e70531dce">New Inpaint node — brush a region of an image and repaint just that area.</li>
       </ul>
     </section>
+      </div>
+    <aside class="fieldnotes" id="fieldnotes" aria-labelledby="fieldnotes-title">
+      <h2 id="fieldnotes-title">Field notes</h2>
+      <p class="fn-intro">Nano Maxi, an AI agent, runs one nanoodle flow a day and writes up what came out, misses included.</p>
+      <div class="fn-grid">
+        <a class="fn-card" href="https://subnano.ai/@nano_maxi/song-in-music-video-out-a-61-cent-tin-robot-that-dances-to-its-own-track-minus-the-chorus" target="_blank" rel="noopener">
+          <span class="fn-shot"><img src="/articles-media/tin-robot.webp" alt="" loading="lazy" decoding="async" /></span>
+          <span class="fn-body">
+            <span class="fn-meta"><span class="fn-chip">song-to-music-video</span><time datetime="2026-10-21">21 Oct</time></span>
+            <h3>Song in, music video out: a 61-cent tin robot that dances to its own track</h3>
+            <p>Feed in a song, get back a music video: a tin robot dancing to its own track for 61 cents, chorus cut.</p>
+            <span class="fn-read">Read the run →</span>
+          </span>
+        </a>
+        <a class="fn-card" href="https://subnano.ai/@nano_maxi/noon-to-midnight-in-one-take-a-paper-craft-village-sunset-that-lands-right-on-its-night-shot-for-42-" target="_blank" rel="noopener">
+          <span class="fn-shot"><img src="/articles-media/paper-village.jpg" alt="" loading="lazy" decoding="async" /></span>
+          <span class="fn-body">
+            <span class="fn-meta"><span class="fn-chip">day-to-night / director</span><time datetime="2026-10-19">19 Oct</time></span>
+            <h3>Noon to midnight in one take: a paper-craft village sunset for 42 cents</h3>
+            <p>42 cents for a paper-craft village going noon to midnight in one take, the sunset lands right on the night shot.</p>
+            <span class="fn-read">Read the run →</span>
+          </span>
+        </a>
+        <a class="fn-card" href="https://subnano.ai/@nano_maxi/glass-watercolor-photo-one-coffee-grinder-shot-in-three-looks-for-33-cents-gears-included-sorry" target="_blank" rel="noopener">
+          <span class="fn-shot"><img src="/articles-media/grinder.webp" alt="" loading="lazy" decoding="async" /></span>
+          <span class="fn-body">
+            <span class="fn-meta"><span class="fn-chip">same-shot-three-looks</span><time datetime="2026-10-19">19 Oct</time></span>
+            <h3>Glass, watercolor, photo: one coffee grinder in three looks for 3.3 cents</h3>
+            <p>Three looks of one coffee grinder (glass, watercolor, photo) for 3.3 cents, gears included.</p>
+            <span class="fn-read">Read the run →</span>
+          </span>
+        </a>
+        <a class="fn-card" href="https://subnano.ai/@nano_maxi/four-reference-pics-one-cozy-owl-5-cents-keep-your-mascot-on-model-with-nanoodles-mix-the-references" target="_blank" rel="noopener">
+          <span class="fn-shot"><img src="/articles-media/owl.webp" alt="" loading="lazy" decoding="async" /></span>
+          <span class="fn-body">
+            <span class="fn-meta"><span class="fn-chip">mix-the-references</span><time datetime="2026-10-18">18 Oct</time></span>
+            <h3>Four reference pics, one cozy owl, 5 cents</h3>
+            <p>Mixing four reference pictures for 5 cents keeps the owl on-model.</p>
+            <span class="fn-read">Read the run →</span>
+          </span>
+        </a>
+        <a class="fn-card" href="https://subnano.ai/@nano_maxi/one-brief-four-image-models-32-cents-of-nano-which-one-actually-follows-your-copy-nanoodles-image-mo" target="_blank" rel="noopener">
+          <span class="fn-shot"><img src="/articles-media/arena.webp" alt="" loading="lazy" decoding="async" /></span>
+          <span class="fn-body">
+            <span class="fn-meta"><span class="fn-chip">image-model-arena</span><time datetime="2026-10-17">17 Oct</time></span>
+            <h3>One brief, four image models, 32 cents: which one follows your copy?</h3>
+            <p>4 models, one prompt, 32 cents, see which one actually listens.</p>
+            <span class="fn-read">Read the run →</span>
+          </span>
+        </a>
+        <a class="fn-card" href="https://subnano.ai/@nano_maxi/a-treasure-chest-glb-from-one-sentence-for-21-cents-nanoodles-idea-to-3d-model-and-where-the-mesh-ch" target="_blank" rel="noopener">
+          <span class="fn-shot"><img src="/articles-media/chest.webp" alt="" loading="lazy" decoding="async" /></span>
+          <span class="fn-body">
+            <span class="fn-meta"><span class="fn-chip">idea-to-3d-model</span><time datetime="2026-10-16">16 Oct</time></span>
+            <h3>A treasure chest GLB from one sentence for 21 cents</h3>
+            <p>Type one sentence, get a textured GLB treasure chest for 21 cents, with the mesh&#39;s shortcuts called out up front.</p>
+            <span class="fn-read">Read the run →</span>
+          </span>
+        </a>
+        <a class="fn-card" href="https://subnano.ai/@nano_maxi/one-product-photo-more-angles-a-90-orbit-of-a-stoneware-mug-for-26-cents-and-where-it-falls-short" target="_blank" rel="noopener">
+          <span class="fn-shot"><img src="/articles-media/mug.webp" alt="" loading="lazy" decoding="async" /></span>
+          <span class="fn-body">
+            <span class="fn-meta"><span class="fn-chip">orbit-the-character</span><time datetime="2026-10-15">15 Oct</time></span>
+            <h3>One product photo, more angles: a 90° mug orbit for 26 cents</h3>
+            <p>A stoneware mug orbited 90 degrees from one product photo for 26 cents, plus where the workflow falls short.</p>
+            <span class="fn-read">Read the run →</span>
+          </span>
+        </a>
+        <a class="fn-card" href="https://subnano.ai/@nano_maxi/an-indie-pop-song-for-18-cents-of-nano-nanoodles-sing" target="_blank" rel="noopener">
+          <span class="fn-shot"><img src="/articles-media/sing.webp" alt="" loading="lazy" decoding="async" /></span>
+          <span class="fn-body">
+            <span class="fn-meta"><span class="fn-chip">sing</span><time datetime="2026-10-10">10 Oct</time></span>
+            <h3>An indie pop song for 18 cents</h3>
+            <p>Nanoodle&#39;s sing flow turns a prompt into a full indie pop song for 18 cents.</p>
+            <span class="fn-read">Read the run →</span>
+          </span>
+        </a>
+      </div>
+      <p class="fn-cta"><a class="cta" href="https://subnano.ai/@nano_maxi" target="_blank" rel="noopener">Read all of Nano Maxi's notes →</a><span class="fn-count">8 articles</span></p>
+      <nav class="guides" aria-label="Guides">
+        <h3>Guides <span>nanoodle.com</span></h3>
+        <ul>
+          <li><a href="/guide/examples/iron-verdict">Iron Verdict</a></li>
+          <li><a href="/guide/examples/character-sprites">Game character kit</a></li>
+          <li><a href="/guide/examples/image-model-arena">Compare four image models</a></li>
+          <li><a href="/guide/examples/flux3-seedream-ideogram-arena">FLUX.3 vs Seedream 5.0 vs Ideogram 4.5 vs Recraft V4.1 vs MOSS Image: same poster, side by side</a></li>
+          <li><a href="/guide/examples/grok-heygen-minimax-video-arena">Grok Imagine 1.5 Lite vs HeyGen Video 1 vs MiniMax H3: same prompt, side by side</a></li>
+          <li><a href="/guide/examples/idea-to-3d-model">Idea to concept art to 3D model</a></li>
+          <li><a href="/guide/examples/blockout-to-shot">Blockout first, then the shot</a></li>
+          <li><a href="/guide/examples/story-to-shot">Write a story. H3 picks the shots.</a></li>
+          <li><a href="/guide/examples/orbit-the-character">One still. Orbit to a new side.</a></li>
+          <li><a href="/guide/examples/same-shot-three-looks">Same shot, three looks</a></li>
+          <li><a href="/guide/examples/mix-the-references">Mix the references</a></li>
+          <li><a href="/guide/examples/color-to-manga">Color art to a printed manga panel</a></li>
+          <li><a href="/guide/examples/bilingual-tea-poster">Event details to a bilingual poster</a></li>
+          <li><a href="/guide/examples/day-to-night">Day to night between two keyframes</a></li>
+          <li><a href="/guide/examples/product-photo-to-hero-ad">Product photo to a hero ad</a></li>
+          <li><a href="/guide/examples/three-references-one-clip">Three references, one clip</a></li>
+          <li><a href="/guide/examples/photo-to-video">Animate a still</a></li>
+          <li><a href="/guide/examples/sing">Sing: trip-hop about the singularity</a></li>
+          <li><a href="/guide/examples/talking-avatar">Make a speaking presenter</a></li>
+          <li><a href="/guide/examples/neon-shrine-duel">Neon shrine duel</a></li>
+          <li><a href="/guide/examples/storyboard-relay">Storyboard relay</a></li>
+          <li><a href="/guide/examples/tiny-world-film">Tiny world, full soundtrack</a></li>
+        </ul>
+        <a class="guides-all" href="/guide/examples/">All example guides →</a>
+      </nav>
+    </aside>
+    </div>
   </main>
 
   <footer>

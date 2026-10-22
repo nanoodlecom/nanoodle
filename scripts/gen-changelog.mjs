@@ -4,10 +4,10 @@
 //   changelog.html — static, self-contained page (zero scripts, zero third-party,
 //                    inline CSS matching the site's visual language). Dated 📣
 //                    updates come from updates.json, newest-first, grouped by date.
-//                    Between the lede and those sections: a Field notes card strip
-//                    from articles.json (Nano Maxi's daily Subnano posts) and a
-//                    Guides link set from sitemap.xml's /guide/examples/* pages
-//                    (each title is that page's h1).
+//                    A Field notes column from articles.json (Nano Maxi's daily
+//                    Subnano posts) sits beside those sections — it does not
+//                    precede them — plus a Guides link set from sitemap.xml's
+//                    /guide/examples/* pages (each title is that page's h1).
 //   feed.xml       — Atom feed of the updates.json entries only, so people can
 //                    follow nanoodle without accounts or analytics (RSS is the only
 //                    subscription channel consistent with the zero-analytics promise).
@@ -202,9 +202,9 @@ function fieldNotesHtml() {
         </a>`).join("\n");
   const links = guides.map((g) => `          <li><a href="${escHtml(g.href)}">${escHtml(g.title)}</a></li>`).join("\n");
   const n = articles.length;
-  return `    <section class="fieldnotes" id="fieldnotes" aria-labelledby="fieldnotes-title">
+  return `    <aside class="fieldnotes" id="fieldnotes" aria-labelledby="fieldnotes-title">
       <h2 id="fieldnotes-title">Field notes</h2>
-      <p class="fn-intro">Nano Maxi, an AI agent, runs a nanoodle flow daily, pays in Nano, and posts the results on Subnano, misses included.</p>
+      <p class="fn-intro">Nano Maxi, an AI agent, runs one nanoodle flow a day and writes up what came out, misses included.</p>
       <div class="fn-grid">
 ${cards}
       </div>
@@ -216,7 +216,7 @@ ${links}
         </ul>
         <a class="guides-all" href="/guide/examples/">All example guides →</a>
       </nav>
-    </section>`;
+    </aside>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -231,11 +231,11 @@ for (const e of sorted) {
 
 const newestDate = sorted[0].date;
 const DESC = "Every nanoodle update in one place — new nodes, models and fixes for the " +
-  "browser-only AI workflow playground — plus Nano Maxi's daily field notes. Follow along via the Atom feed, no account or tracking involved.";
+  "browser-only AI workflow playground. Follow along via the Atom feed, no account or tracking involved.";
 
 const sections = byDate
   .map(
-    ({ date, items }) => `    <section class="day">
+    ({ date, items }) => `    <section>
       <h2 id="d-${date}"><a href="#d-${date}">${humanDate(date)}</a></h2>
       <ul>
 ${items.map((e) => `        <li id="u-${e.slug}">${linkifyHtml(e.text)}${clipHtml(e)}</li>`).join("\n")}
@@ -305,60 +305,58 @@ const html = `<!doctype html>
   main{ flex:1; padding:2.4rem 0; }
   h1{ font-size:clamp(1.8rem, 5vw, 2.6rem); line-height:1.08; letter-spacing:-.03em; margin:0 0 .4rem; font-weight:850; }
   h1 .grad{ background:linear-gradient(90deg,var(--cyan),var(--accent) 55%,var(--accent2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
-  .sub{ color:var(--dim); font-size:.95rem; margin:0 0 .8rem; max-width:740px; }
-  .feedrow{ display:flex; flex-wrap:wrap; gap:.45rem; margin:0 0 1.35rem; max-width:740px; }
+  .sub{ color:var(--dim); font-size:.95rem; margin:0 0 .8rem; max-width:720px; }
+  .feedrow{ display:flex; flex-wrap:wrap; gap:.45rem; margin:0 0 2.2rem; max-width:720px; }
   .feedrow a{ font-size:.82rem; border:1px solid var(--line); background:var(--panel2); color:var(--ink);
          padding:.32rem .7rem; border-radius:2rem; }
   .feedrow a:hover{ border-color:#3a425a; text-decoration:none }
 
-  section.day{ border-top:1px solid var(--line); padding:1.6rem 0 .4rem; max-width:740px; }
-  section.fieldnotes + section.day{ border-top:none; padding-top:.15rem; }
-  section.fieldnotes{ border-bottom:1px solid var(--line); padding:0 0 1.25rem; margin:0 0 1.15rem; }
-  .fn-intro{ color:var(--dim); font-size:.95rem; max-width:720px; margin:0 0 1rem; }
-  .fn-grid{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.85rem; }
-  a.fn-card{ display:flex; flex-direction:column; min-width:0; background:var(--panel); border:1px solid var(--line);
-             border-radius:1rem; overflow:hidden; color:inherit; text-decoration:none;
-             transition:transform .18s ease, border-color .18s ease; }
-  a.fn-card:hover{ transform:translateY(-3px); border-color:#3a425a; text-decoration:none; }
-  a.fn-card:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; }
-  .fn-shot{ display:block; aspect-ratio:16/10; overflow:hidden; background:#0e1218; }
+  /* Changelog column keeps the original 720px measure. Field notes sit in the
+     other column, starting on the same row, so no day is pushed down. */
+  .news{ display:grid; grid-template-columns:minmax(0,720px) minmax(240px,320px); column-gap:2rem; align-items:start; justify-content:space-between; }
+  .log{ min-width:0; }
+  .fieldnotes{ position:sticky; top:1rem; max-height:calc(100vh - 2rem); overflow:auto; scrollbar-width:thin;
+               padding-bottom:.4rem; }
+  section{ border-top:1px solid var(--line); padding:1.6rem 0 .4rem; }
+  section:first-of-type{ border-top:none; padding-top:0; }
+  .fieldnotes h2{ font-size:1rem; margin:0 0 .45rem; }
+  .fn-intro{ color:var(--dim); font-size:.8rem; line-height:1.45; margin:0 0 .75rem; }
+  .fn-grid{ display:flex; flex-direction:column; gap:.55rem; }
+  a.fn-card{ display:flex; gap:.55rem; align-items:flex-start; min-width:0; background:var(--panel); border:1px solid var(--line);
+             border-radius:.75rem; overflow:hidden; color:inherit; text-decoration:none; padding:.45rem; }
+  a.fn-card:hover{ border-color:#3a425a; text-decoration:none; }
+  a.fn-card:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .fn-shot{ display:block; width:72px; height:54px; flex:none; border-radius:.4rem; overflow:hidden; background:#0e1218; }
   .fn-shot img{ display:block; width:100%; height:100%; object-fit:cover; }
-  .fn-body{ display:flex; flex-direction:column; flex:1; padding:.8rem .85rem .9rem; min-width:0; }
-  .fn-meta{ display:flex; justify-content:space-between; align-items:center; gap:.45rem; }
-  .fn-chip{ min-width:0; font:500 .68rem/1.3 ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--cyan);
-            background:#132028; border:1px solid #1e3c48; border-radius:.4rem; padding:.08rem .4rem;
+  .fn-body{ display:flex; flex-direction:column; flex:1; min-width:0; }
+  .fn-meta{ display:flex; justify-content:space-between; align-items:center; gap:.35rem; }
+  .fn-chip{ min-width:0; font:500 .62rem/1.3 ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--cyan);
+            background:#132028; border:1px solid #1e3c48; border-radius:.35rem; padding:.04rem .32rem;
             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .fn-meta time{ flex:none; font-size:.75rem; color:var(--dim); }
-  .fn-card h3{ font-size:.98rem; line-height:1.28; letter-spacing:-.02em; margin:.55rem 0 .35rem; font-weight:750; color:var(--ink); }
-  .fn-card p{ margin:0; color:var(--dim); font-size:.82rem; line-height:1.45; }
-  .fn-read{ margin-top:auto; padding-top:.75rem; color:var(--accent); font-size:.8rem; font-weight:700; }
+  .fn-meta time{ flex:none; font-size:.68rem; color:var(--dim); }
+  .fn-card h3{ font-size:.78rem; line-height:1.3; letter-spacing:-.015em; margin:.28rem 0 .2rem; font-weight:750; color:var(--ink); }
+  .fn-card p{ margin:0; color:var(--dim); font-size:.72rem; line-height:1.35;
+              display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .fn-read{ margin-top:.35rem; color:var(--accent); font-size:.72rem; font-weight:700; }
   a.fn-card:hover .fn-read{ text-decoration:underline; }
-  .fn-cta{ display:flex; flex-wrap:wrap; align-items:center; gap:.7rem 1rem; margin:1.05rem 0 0; }
+  .fn-cta{ display:flex; flex-direction:column; align-items:flex-start; gap:.4rem; margin:.85rem 0 0; }
   a.cta{ display:inline-block; background:linear-gradient(90deg,var(--cyan),var(--accent) 55%,var(--accent2)); color:#081018;
-         font-weight:750; font-size:.9rem; padding:.55rem 1rem; border-radius:.7rem; text-decoration:none; }
+         font-weight:750; font-size:.78rem; padding:.42rem .7rem; border-radius:.6rem; text-decoration:none; }
   a.cta:hover{ text-decoration:none; filter:brightness(1.06); }
-  .fn-count{ color:var(--dim); font-size:.85rem; }
-  .guides{ margin-top:1.25rem; padding-top:1rem; border-top:1px solid var(--line); }
-  .guides h3{ margin:0 0 .55rem; font-size:.95rem; letter-spacing:-.01em; font-weight:750; }
-  .guides h3 span{ color:var(--dim); font-weight:550; font-size:.8rem; margin-left:.35rem; }
-  .guides ul{ list-style:none; margin:0; padding:0; display:grid; grid-template-columns:1fr 1fr; gap:.28rem 1.4rem; }
+  .fn-count{ color:var(--dim); font-size:.75rem; }
+  .guides{ margin-top:1rem; padding-top:.75rem; border-top:1px solid var(--line); }
+  .guides h3{ margin:0 0 .4rem; font-size:.85rem; letter-spacing:-.01em; font-weight:750; }
+  .guides h3 span{ color:var(--dim); font-weight:550; font-size:.72rem; margin-left:.3rem; }
+  .guides ul{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:.22rem; }
   .guides li{ margin:0; min-width:0; }
-  .guides li a{ color:var(--dim); font-size:.84rem; }
+  .guides li a{ color:var(--dim); font-size:.75rem; }
   .guides li a:hover{ color:var(--accent); }
-  a.guides-all{ display:inline-block; margin-top:.75rem; font-size:.84rem; font-weight:700; }
-  @media (max-width:980px){
-    .fn-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
-  }
-  @media (max-width:640px){
-    .sub, .feedrow, section.day{ max-width:none; }
-    .fn-grid{ display:flex; overflow-x:auto; scroll-snap-type:x mandatory; gap:.7rem; padding:0 .05rem .45rem; scrollbar-width:thin; }
-    a.fn-card{ flex:0 0 86%; scroll-snap-align:start; }
-    a.fn-card:hover{ transform:none; }
-    .guides ul{ grid-template-columns:1fr; }
-  }
-  @media (prefers-reduced-motion: reduce){
-    a.fn-card{ transition:none; }
-    a.fn-card:hover{ transform:none; }
+  a.guides-all{ display:inline-block; margin-top:.55rem; font-size:.75rem; font-weight:700; }
+  @media (max-width:900px){
+    .wrap{ max-width:760px; }
+    .sub, .feedrow{ max-width:none; }
+    .news{ display:block; }
+    .fieldnotes{ position:static; max-height:none; overflow:visible; margin-top:1.75rem; padding-top:1.1rem; border-top:1px solid var(--line); }
   }
   h2{ font-size:1.15rem; letter-spacing:-.01em; margin:0 0 .7rem; font-weight:800; scroll-margin-top:1rem; }
   h2 a{ color:var(--ink); }
@@ -390,16 +388,19 @@ const html = `<!doctype html>
   </header>
 
   <main>
-    <h1>Change<span class="grad">log</span> &amp; field notes</h1>
+    <h1>Change<span class="grad">log</span></h1>
     <p class="sub">Everything that ships to nanoodle, newest first — the same entries as the in-app 📣 Updates panel. Last update: ${humanDate(newestDate)}.</p>
     <nav class="feedrow">
       <a href="/feed.xml" type="application/atom+xml">Follow via Atom feed</a>
       <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">Source on GitHub</a>
     </nav>
 
-${fieldNotesHtml()}
-
+    <div class="news">
+      <div class="log">
 ${sections}
+      </div>
+${fieldNotesHtml()}
+    </div>
   </main>
 
   <footer>
