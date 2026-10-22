@@ -1,0 +1,112 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 40,
+      "y": -170,
+      "w": 760,
+      "fields": {
+        "text": "One still, a seamless loop. Muse paints one scene, and the same still goes into the video node twice: on the image port (first frame) and on the endframe port (last frame). Because the clip has to end on the picture it started from, it plays back as a loop. Keep the motion cyclic (things that turn, sway or bob) and the camera locked off.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "p-still",
+      "type": "text",
+      "name": "Scene · prompt",
+      "x": 40,
+      "y": 60,
+      "w": 320,
+      "fields": {
+        "text": "Look: a soft matte claymation miniature diorama, hand-sculpted plasticine with tiny fingerprint texture, pastel teal, peach and cream palette, gentle warm studio light, shallow depth of field. Scene: a small floating island of clay drifting in a pale peach sky, with a little cream windmill with four peach sails on top, a thin teal waterfall pouring off the island's edge into soft clay clouds below, a few round mint-green trees, and two puffy cream clouds beside it. Wide, centered, calm composition with empty sky around the island. No people, no animals, no text, no logos."
+      }
+    },
+    {
+      "id": "still",
+      "type": "image",
+      "name": "Loop frame · Muse",
+      "x": 400,
+      "y": 40,
+      "w": 280,
+      "fields": {
+        "model": "meta/muse-image/text-to-image",
+        "size": "16:9",
+        "variations": "1"
+      }
+    },
+    {
+      "id": "p-move",
+      "type": "text",
+      "name": "Loop · motion prompt",
+      "x": 40,
+      "y": 400,
+      "w": 320,
+      "fields": {
+        "text": "Look: a soft matte claymation miniature diorama, hand-sculpted plasticine with tiny fingerprint texture, pastel teal, peach and cream palette, gentle warm studio light, shallow depth of field. A seamless loop. Locked-off camera, no zoom, no pan, no cuts. The windmill's four peach sails turn slowly and steadily, the teal clay waterfall keeps flowing over the edge into the clouds, and the floating island bobs gently up and then settles back down. The clay clouds barely drift and return to where they started. Nothing new enters the frame, nothing leaves it, and the last moment is exactly the same picture as the first."
+      }
+    },
+    {
+      "id": "clip",
+      "type": "ivideo",
+      "name": "Seamless loop · H3 Max Turbo (same start + end frame)",
+      "x": 760,
+      "y": 180,
+      "w": 300,
+      "fields": {
+        "model": "minimax/h3-max-turbo",
+        "prompt": "",
+        "resolution": "768p",
+        "duration": "5",
+        "loras": []
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "p-still",
+        "port": "text"
+      },
+      "to": {
+        "node": "still",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "still",
+        "port": "image"
+      },
+      "to": {
+        "node": "clip",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "still",
+        "port": "image"
+      },
+      "to": {
+        "node": "clip",
+        "port": "endframe"
+      }
+    },
+    {
+      "id": "l4",
+      "from": {
+        "node": "p-move",
+        "port": "text"
+      },
+      "to": {
+        "node": "clip",
+        "port": "prompt"
+      }
+    }
+  ]
+}

@@ -1,0 +1,146 @@
+{
+  "v": 1,
+  "nodes": [
+    {
+      "id": "c-intent",
+      "type": "comment",
+      "x": 40,
+      "y": -170,
+      "w": 1140,
+      "fields": {
+        "text": "Add snow to a clip. The first two nodes just make a calm 5 s source clip (Muse still → H3 Max Turbo, 480p). The Video edit node then reshoots that clip with snow while keeping its camera move and timing. To use your own footage, delete the first three nodes and wire a 📹 Video input into Video edit instead.",
+        "color": "yellow"
+      }
+    },
+    {
+      "id": "p-still",
+      "type": "text",
+      "name": "Scene · prompt",
+      "x": 40,
+      "y": 60,
+      "w": 320,
+      "fields": {
+        "text": "Look: cinematic photographic realism, 35mm film still, cool blue-hour light with warm practical lamps, soft haze, gentle film grain. Scene: a small weathered wooden dock on a calm mountain lake at blue hour, one empty green rowboat tied to the dock, a single warm lantern glowing on a post at the end of the dock, dark pine trees along the shore and misty mountains behind, the still water reflecting the lantern. Eye-level, wide, quiet and empty. No snow yet, no people, no animals, no text, no logos."
+      }
+    },
+    {
+      "id": "still",
+      "type": "image",
+      "name": "Scene · Muse",
+      "x": 400,
+      "y": 40,
+      "w": 280,
+      "fields": {
+        "model": "meta/muse-image/text-to-image",
+        "size": "16:9",
+        "variations": "1"
+      }
+    },
+    {
+      "id": "p-move",
+      "type": "text",
+      "name": "Plain clip · motion prompt",
+      "x": 40,
+      "y": 400,
+      "w": 320,
+      "fields": {
+        "text": "Look: cinematic photographic realism, 35mm film still, cool blue-hour light with warm practical lamps, soft haze, gentle film grain. One calm continuous shot. The camera pushes in very slowly along the dock toward the lantern. The lantern flame flickers softly, thin mist drifts across the lake, and small ripples move around the tied rowboat. Nothing else happens: no people, no animals, no weather change."
+      }
+    },
+    {
+      "id": "plain",
+      "type": "ivideo",
+      "name": "Plain clip · H3 Max Turbo 480p",
+      "x": 760,
+      "y": 40,
+      "w": 300,
+      "fields": {
+        "model": "minimax/h3-max-turbo",
+        "prompt": "",
+        "resolution": "480p",
+        "duration": "5",
+        "loras": []
+      }
+    },
+    {
+      "id": "p-fx",
+      "type": "text",
+      "name": "Effect · edit instruction",
+      "x": 760,
+      "y": 400,
+      "w": 320,
+      "fields": {
+        "text": "Add steady, gentle falling snow to this whole shot. Large soft snowflakes drift down in front of the camera and over the lake, catching the warm lantern light, and a thin layer of fresh snow gradually settles on the dock boards, the rowboat and the pine branches. Keep the camera move, framing, timing, lighting, lantern, boat and everything else exactly the same."
+      }
+    },
+    {
+      "id": "fx",
+      "type": "vedit",
+      "name": "Add snow · FLUX.3 Edit Video",
+      "x": 1140,
+      "y": 180,
+      "w": 300,
+      "fields": {
+        "model": "blackforestlabs/flux-3/edit-video",
+        "prompt": ""
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": {
+        "node": "p-still",
+        "port": "text"
+      },
+      "to": {
+        "node": "still",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l2",
+      "from": {
+        "node": "still",
+        "port": "image"
+      },
+      "to": {
+        "node": "plain",
+        "port": "image"
+      }
+    },
+    {
+      "id": "l3",
+      "from": {
+        "node": "p-move",
+        "port": "text"
+      },
+      "to": {
+        "node": "plain",
+        "port": "prompt"
+      }
+    },
+    {
+      "id": "l4",
+      "from": {
+        "node": "plain",
+        "port": "video"
+      },
+      "to": {
+        "node": "fx",
+        "port": "video"
+      }
+    },
+    {
+      "id": "l5",
+      "from": {
+        "node": "p-fx",
+        "port": "text"
+      },
+      "to": {
+        "node": "fx",
+        "port": "prompt"
+      }
+    }
+  ]
+}

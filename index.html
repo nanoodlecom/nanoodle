@@ -5857,6 +5857,9 @@ const VIDEO_IMG_ROLE_KEYS = { last:["last_image","end_image"], refs:["reference_
 //     duration/aspect/resolution only; marketing /api/models sets supportsLastImage on v1.1 and the
 //     video-models tags include first-last-frame. v1 has neither flag nor tag — do not send last_image
 //     on v1 (an ignored extra image is charged). Drop v1.1 once NanoGPT lists the param.
+//     minimax/h3-max-turbo: live-verified 2026-10-22 (the same still on image + endframe came back
+//     as a closed loop, last frame 1.2/255 from the first). Its catalog entry now lists lastImageUrl, a
+//     key VIDEO_IMG_ROLE_KEYS doesn't read yet, so it rides the family list like h3-max.
 const VIDEO_REF_PRICE_KEYS = ["included_reference_images","extra_reference_image"];
 // A billed `reference_to_video` MODE (Omni v1 / v1.1) is the catalog advertising refs the same way
 // extra_reference_image does for minimax-h3 — no reference_images param. Exact key only; kling-o1's
@@ -5864,7 +5867,7 @@ const VIDEO_REF_PRICE_KEYS = ["included_reference_images","extra_reference_image
 const videoRefsModePriced = (p)=> !!(p && ((p.per_second_by_mode && p.per_second_by_mode.reference_to_video!=null)
   || (p.per_second_by_mode_and_resolution && p.per_second_by_mode_and_resolution.reference_to_video!=null)));
 const videoRefsPriced = (m)=> { const p = m && m.pricing; return !!p && (VIDEO_REF_PRICE_KEYS.some(k=> p[k]!=null) || videoRefsModePriced(p)); };
-const VIDEO_LAST_FRAME_FAMILIES = /^(minimax-h3|minimax\/h3-max|alibaba\/wan-3\.0-prime|alibaba\/wan-3\.0\/image-to-video|google\/gemini-omni-flash\/v1\.1)$/i;
+const VIDEO_LAST_FRAME_FAMILIES = /^(minimax-h3|minimax\/h3-max|minimax\/h3-max-turbo|alibaba\/wan-3\.0-prime|alibaba\/wan-3\.0\/image-to-video|google\/gemini-omni-flash\/v1\.1)$/i;
 function modelHasImageRole(n, role){
   const t = NODE_TYPES[n.type]; if(!t.modelKind) return false;
   const m = catItem(t.modelKind, n.fields.model);
@@ -17774,6 +17777,33 @@ const EXAMPLES = [
            {id:"l5",from:{node:"prop",port:"image"},to:{node:"clip",port:"ref2"}},
            {id:"l6",from:{node:"place",port:"image"},to:{node:"clip",port:"ref3"}},
            {id:"l7",from:{node:"p-shot",port:"text"},to:{node:"clip",port:"prompt"}} ] } },
+ { em:"🔁", slug:"seamless-loop", title:"One still, a seamless loop", desc:"Put the same still on a video node's first-frame and last-frame ports, so the clip ends on the picture it started from and plays as a seamless loop.",
+   thumb:"examples/gallery/seamless-loop/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:-170,w:760,fields:{"text":"One still, a seamless loop. Muse paints one scene, and the same still goes into the video node twice: on the image port (first frame) and on the endframe port (last frame). Because the clip has to end on the picture it started from, it plays back as a loop. Keep the motion cyclic (things that turn, sway or bob) and the camera locked off.","color":"yellow"}},
+           {id:"p-still",type:"text",x:40,y:60,w:320,fields:{"text":"Look: a soft matte claymation miniature diorama, hand-sculpted plasticine with tiny fingerprint texture, pastel teal, peach and cream palette, gentle warm studio light, shallow depth of field. Scene: a small floating island of clay drifting in a pale peach sky, with a little cream windmill with four peach sails on top, a thin teal waterfall pouring off the island's edge into soft clay clouds below, a few round mint-green trees, and two puffy cream clouds beside it. Wide, centered, calm composition with empty sky around the island. No people, no animals, no text, no logos."},name:"Scene · prompt"},
+           {id:"still",type:"image",x:400,y:40,w:280,fields:{"model":"meta/muse-image/text-to-image","size":"16:9","variations":"1"},name:"Loop frame · Muse"},
+           {id:"p-move",type:"text",x:40,y:400,w:320,fields:{"text":"Look: a soft matte claymation miniature diorama, hand-sculpted plasticine with tiny fingerprint texture, pastel teal, peach and cream palette, gentle warm studio light, shallow depth of field. A seamless loop. Locked-off camera, no zoom, no pan, no cuts. The windmill's four peach sails turn slowly and steadily, the teal clay waterfall keeps flowing over the edge into the clouds, and the floating island bobs gently up and then settles back down. The clay clouds barely drift and return to where they started. Nothing new enters the frame, nothing leaves it, and the last moment is exactly the same picture as the first."},name:"Loop · motion prompt"},
+           {id:"clip",type:"ivideo",x:760,y:180,w:300,fields:{"model":"minimax/h3-max-turbo","prompt":"","resolution":"768p","duration":"5","loras":[]},name:"Seamless loop · H3 Max Turbo (same start + end frame)"} ],
+   links:[ {id:"l1",from:{node:"p-still",port:"text"},to:{node:"still",port:"prompt"}},
+           {id:"l2",from:{node:"still",port:"image"},to:{node:"clip",port:"image"}},
+           {id:"l3",from:{node:"still",port:"image"},to:{node:"clip",port:"endframe"}},
+           {id:"l4",from:{node:"p-move",port:"text"},to:{node:"clip",port:"prompt"}} ] } },
+ { em:"❄️", slug:"add-snow-to-a-clip", title:"Add snow to a clip", desc:"Take a finished clip and run it through a video edit node that adds snow, keeping the original camera move and timing.",
+   thumb:"examples/gallery/add-snow-to-a-clip/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:-170,w:1140,fields:{"text":"Add snow to a clip. The first two nodes just make a calm 5 s source clip (Muse still → H3 Max Turbo, 480p). The Video edit node then reshoots that clip with snow while keeping its camera move and timing. To use your own footage, delete the first three nodes and wire a 📹 Video input into Video edit instead.","color":"yellow"}},
+           {id:"p-still",type:"text",x:40,y:60,w:320,fields:{"text":"Look: cinematic photographic realism, 35mm film still, cool blue-hour light with warm practical lamps, soft haze, gentle film grain. Scene: a small weathered wooden dock on a calm mountain lake at blue hour, one empty green rowboat tied to the dock, a single warm lantern glowing on a post at the end of the dock, dark pine trees along the shore and misty mountains behind, the still water reflecting the lantern. Eye-level, wide, quiet and empty. No snow yet, no people, no animals, no text, no logos."},name:"Scene · prompt"},
+           {id:"still",type:"image",x:400,y:40,w:280,fields:{"model":"meta/muse-image/text-to-image","size":"16:9","variations":"1"},name:"Scene · Muse"},
+           {id:"p-move",type:"text",x:40,y:400,w:320,fields:{"text":"Look: cinematic photographic realism, 35mm film still, cool blue-hour light with warm practical lamps, soft haze, gentle film grain. One calm continuous shot. The camera pushes in very slowly along the dock toward the lantern. The lantern flame flickers softly, thin mist drifts across the lake, and small ripples move around the tied rowboat. Nothing else happens: no people, no animals, no weather change."},name:"Plain clip · motion prompt"},
+           {id:"plain",type:"ivideo",x:760,y:40,w:300,fields:{"model":"minimax/h3-max-turbo","prompt":"","resolution":"480p","duration":"5","loras":[]},name:"Plain clip · H3 Max Turbo 480p"},
+           {id:"p-fx",type:"text",x:760,y:400,w:320,fields:{"text":"Add steady, gentle falling snow to this whole shot. Large soft snowflakes drift down in front of the camera and over the lake, catching the warm lantern light, and a thin layer of fresh snow gradually settles on the dock boards, the rowboat and the pine branches. Keep the camera move, framing, timing, lighting, lantern, boat and everything else exactly the same."},name:"Effect · edit instruction"},
+           {id:"fx",type:"vedit",x:1140,y:180,w:300,fields:{"model":"blackforestlabs/flux-3/edit-video","prompt":""},name:"Add snow · FLUX.3 Edit Video"} ],
+   links:[ {id:"l1",from:{node:"p-still",port:"text"},to:{node:"still",port:"prompt"}},
+           {id:"l2",from:{node:"still",port:"image"},to:{node:"plain",port:"image"}},
+           {id:"l3",from:{node:"p-move",port:"text"},to:{node:"plain",port:"prompt"}},
+           {id:"l4",from:{node:"plain",port:"video"},to:{node:"fx",port:"video"}},
+           {id:"l5",from:{node:"p-fx",port:"text"},to:{node:"fx",port:"prompt"}} ] } },
  { em:"🎬", slug:"photo-to-video", title:"From scene to short clip", desc:"Generate a first frame, then animate it with a separate motion brief.",
    thumb:"examples/gallery/photo-to-video/preview.webp",
    graph:{ v:1,
