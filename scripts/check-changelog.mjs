@@ -8,8 +8,9 @@
 // and CI never compared them. Gallery/product PRs (#430, #433) then burned a
 // review cycle the same way: hand-edit updates.json, forget gen-changelog.
 //
-// Deterministic: gen-changelog.mjs output depends only on updates.json (no
-// Date.now()), so this is a byte-identical diff. Writes nothing.
+// Deterministic: gen-changelog.mjs output depends only on updates.json,
+// articles.json, sitemap.xml, and the h1 of each /guide/examples/* page
+// (no Date.now()), so this is a byte-identical diff. Writes nothing.
 //
 //   node scripts/check-changelog.mjs
 //   node scripts/gen-changelog.mjs --check    # same check, via the generator
@@ -32,8 +33,12 @@ const trigger = (hook.match(/touches_updates=.*/) || [""])[0];
 if (!trigger) fail("pre-commit has no touches_updates trigger");
 else {
   if (!trigger.includes("updates\\.json")) fail("touches_updates must include updates.json");
+  if (!trigger.includes("articles\\.json")) fail("touches_updates must include articles.json");
+  if (!trigger.includes("sitemap\\.xml")) fail("touches_updates must include sitemap.xml");
   if (!trigger.includes("changelog\\.html")) fail("touches_updates must include changelog.html");
   if (!trigger.includes("feed\\.xml")) fail("touches_updates must include feed.xml");
+  if (!trigger.includes("articles-media/")) fail("touches_updates must include articles-media/");
+  if (!trigger.includes("guide/examples/")) fail("touches_updates must include guide/examples/");
 }
 
 const block = (hook.match(/if \[ -n "\$touches_updates" \]; then\n([\s\S]*?)\nfi/) || [])[1] || "";

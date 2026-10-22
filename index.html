@@ -257,6 +257,40 @@
   #updbadge{ display:inline-flex; align-items:center; justify-content:center; min-width:1.05rem; height:1.05rem;
              padding:0 .28rem; margin-left:.3rem; border-radius:1rem; font-size:.66rem; font-weight:700; line-height:1;
              background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#0b0d12; vertical-align:middle }
+  /* From the blog — Nano Maxi's Subnano notes, a second tab of this panel.
+     Compact rows; new articles add to the same unseen badge as 📣 updates. */
+  #updatetabs{ display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.85rem; }
+  button.updtab{ font:inherit; font-size:.78rem; font-weight:600; color:var(--dim); background:transparent;
+                 border:1px solid var(--line); border-radius:2rem; padding:.28rem .72rem; cursor:pointer; }
+  button.updtab:hover{ border-color:var(--accent); color:var(--ink); }
+  button.updtab[aria-selected="true"]{ background:var(--accent); border-color:var(--accent); color:#0b0d12; }
+  button.updtab[aria-selected="true"]:hover{ color:#0b0d12; }
+  button.updtab .dot[hidden]{ display:none }
+  button.updtab .dot:not([hidden]){ display:inline-block; width:.42rem; height:.42rem; margin-left:.4rem;
+                 border-radius:50%; background:var(--accent2); vertical-align:.05rem; }
+  #bloglist[hidden]{ display:none }
+  #bloglist{ margin-top:.85rem }
+  .blog-intro{ margin:0 0 .35rem; font-size:.8rem; line-height:1.45; color:var(--dim); }
+  a.blog-row{ display:flex; gap:.75rem; align-items:flex-start; margin:0 -.35rem; padding:.55rem .4rem;
+              border-radius:.65rem; text-decoration:none; color:inherit; }
+  a.blog-row:hover, a.blog-row:focus-visible{ background:var(--panel); }
+  a.blog-row img{ width:84px; height:60px; object-fit:cover; border-radius:.45rem; flex:none; background:var(--panel2); }
+  .blog-copy{ min-width:0; display:flex; flex-direction:column; }
+  .blog-title{ font-weight:650; font-size:.88rem; line-height:1.35; letter-spacing:-.011em; }
+  .blog-blurb{ margin-top:.12rem; font-size:.78rem; line-height:1.4; color:var(--dim); }
+  .blog-meta{ display:flex; flex-wrap:wrap; align-items:center; gap:.35rem .5rem; margin-top:.28rem; }
+  .blog-ability{ font:500 .68rem/1.2 ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--accent);
+                 background:#7c8cff16; border:1px solid #7c8cff3d; border-radius:.35rem; padding:.06rem .38rem; }
+  .blog-date{ font-size:.72rem; color:var(--dim); }
+  .blog-cta{ display:flex; justify-content:center; margin:.9rem 0 .15rem; }
+  .blog-cta a{ display:inline-block; font-weight:750; font-size:.84rem; text-decoration:none; color:#0b0d12;
+               background:linear-gradient(90deg,var(--accent),var(--accent2)); padding:.48rem .95rem; border-radius:.7rem; }
+  .blog-cta a:hover{ filter:brightness(1.08); }
+  @media (max-width:540px){
+    a.blog-row{ gap:.6rem; padding:.5rem .15rem; }
+    a.blog-row img{ width:72px; height:54px; }
+    .blog-title{ font-size:.84rem; }
+  }
   /* examples — a small gallery of one-click starter workflows (embedded graphs, no fetch).
      Mirrors the updates modal's look; z-index 206 sits above Updates (205). */
   #examplesmodal[hidden]{ display:none }
@@ -1239,7 +1273,12 @@
       <span class="sub">A running changelog — one line per change.</span>
       <button id="updatesclose" class="hbtn" title="Close (Esc)" aria-label="Close">✕</button>
     </div>
-    <div id="updateslist"></div>
+    <div id="updatetabs" role="tablist" aria-label="What’s new">
+      <button type="button" class="updtab" id="updtab-updates" role="tab" aria-selected="true" aria-controls="updateslist">Updates</button>
+      <button type="button" class="updtab" id="updtab-blog" role="tab" aria-selected="false" aria-controls="bloglist">From the blog<span class="dot" id="blogdot" hidden></span></button>
+    </div>
+    <div id="updateslist" role="tabpanel"></div>
+    <div id="bloglist" role="tabpanel" hidden></div>
   </div>
 </div>
 <div id="updclipbox" hidden><video muted loop playsinline controls></video></div>
@@ -1663,6 +1702,10 @@ const I18N = {
     "Updates":"Novedades",
     "Loading…":"Cargando…",
     "No updates yet — check back soon.":"Aún no hay novedades — vuelve pronto.",
+    "From the blog":"Del blog",
+    "Nano Maxi, an AI agent, runs a nanoodle flow daily, pays in Nano, and posts the results on Subnano, misses included.":"Nano Maxi, un agente de IA, ejecuta un flujo de nanoodle cada día, paga en Nano y publica los resultados en Subnano, fallos incluidos.",
+    "Open in Subnano →":"Abrir en Subnano →",
+    "No field notes yet — check back soon.":"Aún no hay notas de campo — vuelve pronto.",
     "Video model":"Modelo de vídeo",
     "Video → frames":"Vídeo → fotogramas",
     "What’s new in nanoodle":"Novedades de nanoodle",
@@ -2390,6 +2433,10 @@ const I18N = {
     "Updates":"Mises à jour",
     "Loading…":"Chargement…",
     "No updates yet — check back soon.":"Pas encore de nouveautés — revenez bientôt.",
+    "From the blog":"Depuis le blog",
+    "Nano Maxi, an AI agent, runs a nanoodle flow daily, pays in Nano, and posts the results on Subnano, misses included.":"Nano Maxi, un agent d’IA, lance chaque jour un flux nanoodle, paie en Nano et publie les résultats sur Subnano, ratés compris.",
+    "Open in Subnano →":"Ouvrir dans Subnano →",
+    "No field notes yet — check back soon.":"Pas encore de notes de terrain — revenez bientôt.",
     "Video model":"Modèle vidéo",
     "Video → frames":"Vidéo → images",
     "What’s new in nanoodle":"Nouveautés de nanoodle",
@@ -2994,6 +3041,10 @@ const I18N = {
     "Updates":"Neuigkeiten",
     "Loading…":"Wird geladen…",
     "No updates yet — check back soon.":"Noch keine Neuigkeiten — schau bald wieder vorbei.",
+    "From the blog":"Aus dem Blog",
+    "Nano Maxi, an AI agent, runs a nanoodle flow daily, pays in Nano, and posts the results on Subnano, misses included.":"Nano Maxi, ein KI-Agent, führt täglich einen nanoodle-Flow aus, zahlt in Nano und veröffentlicht die Ergebnisse auf Subnano, Fehlversuche inklusive.",
+    "Open in Subnano →":"In Subnano öffnen →",
+    "No field notes yet — check back soon.":"Noch keine Feldnotizen — schau bald wieder vorbei.",
     "📷 Webcam":"📷 Webcam",
     "Inpaint":"Inpaint",
     "Update {app}":"{app} aktualisieren",
@@ -3824,6 +3875,10 @@ const I18N = {
     "Updates":"Atualizações",
     "Loading…":"Carregando…",
     "No updates yet — check back soon.":"Ainda não há novidades — volte em breve.",
+    "From the blog":"Do blog",
+    "Nano Maxi, an AI agent, runs a nanoodle flow daily, pays in Nano, and posts the results on Subnano, misses included.":"Nano Maxi, um agente de IA, executa um fluxo nanoodle por dia, paga em Nano e publica os resultados no Subnano, inclusive os que não deram certo.",
+    "Open in Subnano →":"Abrir no Subnano →",
+    "No field notes yet — check back soon.":"Ainda não há notas de campo — volte em breve.",
     "Video model":"Modelo de vídeo",
     "Video → frames":"Vídeo → quadros",
     "What’s new in nanoodle":"Novidades no nanoodle",
@@ -4541,6 +4596,10 @@ const I18N = {
     "Updates":"アップデート",
     "Loading…":"読み込み中…",
     "No updates yet — check back soon.":"まだ更新はありません — またあとで確認してください。",
+    "From the blog":"ブログから",
+    "Nano Maxi, an AI agent, runs a nanoodle flow daily, pays in Nano, and posts the results on Subnano, misses included.":"Nano Maxi は AI エージェントです。毎日 nanoodle のフローを実行し、Nano で支払い、結果を Subnano に投稿します。うまくいかなかった回も含みます。",
+    "Open in Subnano →":"Subnano で開く →",
+    "No field notes yet — check back soon.":"まだフィールドノートはありません — またあとで確認してください。",
     "Video model":"動画モデル",
     "Video → frames":"動画 → フレーム",
     "What’s new in nanoodle":"nanoodleの新着情報",
@@ -17184,9 +17243,15 @@ $("connecthintx").onclick = dismissConnectHint;
    auto-appends a one-line entry via the post-commit hook; the file is plain
    JSON you can edit or prune. The 📣 button shows it; an unseen badge nudges
    return visits. No server, no tracking — last-seen is local only.)
+
+   The same panel has a "From the blog" tab fed by articles.json (Nano Maxi's
+   Subnano field notes). New articles count on the same badge: updates and
+   articles each remember their own newest-seen key, and the badge is the sum.
    ====================================================================== */
 const UPD_SEEN_KEY = "noodle_seen_updates";
-let updatesCache = null;
+const ART_SEEN_KEY = "noodle_seen_articles";
+const BLOG_INTRO = "Nano Maxi, an AI agent, runs a nanoodle flow daily, pays in Nano, and posts the results on Subnano, misses included.";
+let updatesCache = null, articlesCache = null;
 async function fetchUpdates(){
   if(updatesCache) return updatesCache;
   try{ const r = await fetch("updates.json", {cache:"no-store"}); updatesCache = r.ok ? await r.json() : []; }
@@ -17194,30 +17259,123 @@ async function fetchUpdates(){
   if(!Array.isArray(updatesCache)) updatesCache = [];
   return updatesCache;
 }
+// Same-origin thumbs only. index.html's CSP is img-src 'self' (plus data/blob/nano-gpt).
+const ART_SRC = /^articles-media\/[a-z0-9][a-z0-9._-]*\.(webp|png|jpg)$/;
+const articleOk = (a)=> !!(a && typeof a.title==="string" && a.title.trim() && typeof a.blurb==="string" && typeof a.url==="string" && /^https:\/\//.test(a.url) && typeof a.date==="string" && /^\d{4}-\d{2}-\d{2}$/.test(a.date));
+async function fetchArticles(){
+  if(articlesCache) return articlesCache;
+  try{
+    const r = await fetch("articles.json", {cache:"no-store"});
+    if(!r.ok) return [];
+    const data = await r.json();
+    if(!Array.isArray(data)) return [];
+    articlesCache = data.filter(articleOk);
+  }catch{ return []; }
+  articlesCache.sort((a,b)=> a.date<b.date ? 1 : a.date>b.date ? -1 : 0);   // newest first; file order kept within a day
+  return articlesCache;
+}
 const updKey = (e)=> (e && e.date || "") + "|" + (e && e.text || "");
+const artKey = (a)=> (a && a.date || "") + "|" + (a && a.url || "");
 // How many entries sit above the most recently seen one (everything if never opened).
-function unseenCount(list, seen){
+// keyFn defaults to the updates key so existing callers stay on date|text.
+function unseenCount(list, seen, keyFn){
   if(!list.length) return 0;
   if(!seen) return list.length;
-  const i = list.findIndex(e=> updKey(e)===seen);
+  const key = keyFn || updKey;
+  const i = list.findIndex(e=> key(e)===seen);
   return i<0 ? list.length : i;
 }
 async function refreshUpdatesBadge(){
-  const list = await fetchUpdates();
-  let seen = null; try{ seen = localStorage.getItem(UPD_SEEN_KEY); }catch{}
-  const n = unseenCount(list, seen);
+  const [list, arts] = await Promise.all([fetchUpdates(), fetchArticles()]);
+  let seen = null, artSeen = null;
+  try{ seen = localStorage.getItem(UPD_SEEN_KEY); }catch{}
+  try{ artSeen = localStorage.getItem(ART_SEEN_KEY); }catch{}
+  const nArt = unseenCount(arts, artSeen, artKey);
+  const n = unseenCount(list, seen) + nArt;
   const b = $("updbadge");
   if(n>0){ b.textContent = n>9 ? "9+" : String(n); b.hidden = false; }
   else { b.hidden = true; }
+  const dot = $("blogdot");
+  if(dot) dot.hidden = nArt<=0;
 }
 function markUpdatesSeen(list){
   try{ localStorage.setItem(UPD_SEEN_KEY, list.length ? updKey(list[0]) : ""); }catch{}
-  $("updbadge").hidden = true;
+  refreshUpdatesBadge();
+}
+function markArticlesSeen(list){
+  if(!list) return;
+  try{ localStorage.setItem(ART_SEEN_KEY, list.length ? artKey(list[0]) : ""); }catch{}
+  refreshUpdatesBadge();
 }
 // Pick an entry's text for the current UI language: its i18n[LANG] if present,
 // else the English source (so untranslated/new entries degrade gracefully).
 const updText = (e)=> (LANG!=="en" && e && e.i18n && typeof e.i18n[LANG]==="string" && e.i18n[LANG].trim()) ? e.i18n[LANG] : (e && e.text || "");
+function selectUpdTab(which){
+  const blog = which==="blog";
+  $("updateslist").hidden = blog;
+  $("bloglist").hidden = !blog;
+  $("updtab-updates").setAttribute("aria-selected", blog ? "false" : "true");
+  $("updtab-blog").setAttribute("aria-selected", blog ? "true" : "false");
+  $("updatespanel").scrollTop = 0;
+  if(blog){
+    document.querySelectorAll("#updateslist video").forEach(v=> v.pause());
+    renderBlog();
+  }
+}
+let blogRenderP = null;
+function renderBlog(){
+  if(!blogRenderP) blogRenderP = renderBlogNow().catch(()=>{ blogRenderP = null; });
+  return blogRenderP;
+}
+async function renderBlogNow(){
+  const body = $("bloglist");
+  if(!body.childElementCount) body.innerHTML = "<div id='updatesempty'>"+t("Loading…")+"</div>";
+  const list = await fetchArticles();
+  body.replaceChildren();
+  const intro = document.createElement("p");
+  intro.className = "blog-intro";
+  intro.textContent = t(BLOG_INTRO);
+  body.appendChild(intro);
+  if(!list.length){
+    body.insertAdjacentHTML("beforeend", "<div id='updatesempty'>"+t("No field notes yet — check back soon.")+"</div>");
+    if(articlesCache) markArticlesSeen(articlesCache);
+    else blogRenderP = null;   // a failed fetch can be retried; an honestly empty file stays seen
+    return;
+  }
+  for(const a of list){
+    const row = document.createElement("a");
+    row.className = "blog-row";
+    row.href = a.url; row.target = "_blank"; row.rel = "noopener";
+    if(typeof a.thumb==="string" && ART_SRC.test(a.thumb)){
+      const img = document.createElement("img");
+      img.src = "/"+a.thumb; img.alt = ""; img.width = 84; img.height = 60;
+      img.loading = "lazy"; img.decoding = "async";
+      row.appendChild(img);
+    }
+    const copy = document.createElement("span"); copy.className = "blog-copy";
+    const title = document.createElement("span"); title.className = "blog-title"; title.textContent = a.title;
+    const blurb = document.createElement("span"); blurb.className = "blog-blurb"; blurb.textContent = a.blurb;
+    const meta = document.createElement("span"); meta.className = "blog-meta";
+    if(typeof a.ability==="string" && a.ability.trim()){
+      const chip = document.createElement("span"); chip.className = "blog-ability"; chip.textContent = a.ability;
+      meta.appendChild(chip);
+    }
+    const date = document.createElement("time"); date.className = "blog-date"; date.dateTime = a.date; date.textContent = a.date;
+    meta.appendChild(date);
+    copy.appendChild(title); copy.appendChild(blurb); copy.appendChild(meta);
+    row.appendChild(copy);
+    body.appendChild(row);
+  }
+  const cta = document.createElement("p"); cta.className = "blog-cta";
+  const link = document.createElement("a");
+  link.href = "https://subnano.ai/@nano_maxi"; link.target = "_blank"; link.rel = "noopener";
+  link.textContent = t("Open in Subnano →");
+  cta.appendChild(link);
+  body.appendChild(cta);
+  markArticlesSeen(list);
+}
 async function openUpdates(){
+  selectUpdTab("updates");
   const body = $("updateslist");
   body.innerHTML = "<div id='updatesempty'>"+t("Loading…")+"</div>";
   $("updatesmodal").hidden = false;
@@ -17324,6 +17482,18 @@ function closeUpdates(){
   $("updatesmodal").hidden = true;
 }
 $("updates").onclick = openUpdates;
+$("updtab-updates").onclick = ()=> selectUpdTab("updates");
+$("updtab-blog").onclick = ()=> selectUpdTab("blog");
+$("updatetabs").addEventListener("keydown", e=>{
+  if(e.key!=="ArrowRight" && e.key!=="ArrowLeft") return;
+  const tabs = [$("updtab-updates"), $("updtab-blog")];
+  let i = tabs.findIndex(el=> el.getAttribute("aria-selected")==="true");
+  if(i<0) i = 0;
+  i = (i + (e.key==="ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+  e.preventDefault();
+  tabs[i].click();
+  tabs[i].focus();
+});
 $("updatesclose").onclick = closeUpdates;
 $("updatesmodal").addEventListener("click", e=>{ if(e.target.id==="updatesmodal") closeUpdates(); });   // click the dim backdrop
 addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("updatesmodal").hidden){ if(!closeUpdClip()) closeUpdates(); } });
