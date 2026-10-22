@@ -1,0 +1,27 @@
+{
+  "label": "2026-10-22 seamless-loop clay windmill island (Muse 16:9 \u2192 minimax/h3-max-turbo 768p 5 s, same still on image + endframe)",
+  "startedAt": "2026-10-22T17:44:00.776Z",
+  "finishedAt": "2026-10-22T17:44:46.028Z",
+  "costUsd": 0.211,
+  "costExact": true,
+  "balanceBefore": 24.19471323,
+  "balanceAfter": 23.98371323,
+  "balanceDelta": 0.211,
+  "nodes": {
+    "still": {
+      "status": "done",
+      "costUsd": 0.011,
+      "files": {
+        "image": "still.webp"
+      }
+    },
+    "clip": {
+      "status": "done",
+      "costUsd": 0.2,
+      "files": {
+        "video": "loop.mp4"
+      }
+    }
+  },
+  "note": "Run in two passes the way you would in the editor: the Muse still first (checked), then the same still on the clip node's image and endframe ports. The runner passed the model catalog, so 768p reached H3 Max Turbo (1344\u00d7768, 24 fps, 124 frames, 5.17 s, with an audio track). Loop check on every frame at 448\u00d7256: last\u2192first mean absolute difference 1.18/255; consecutive frames mean 0.91, median 0.50, max 2.42; motion eases into the seam (steps of about 0.25 on either side). Image re-saved as WebP (max 1024 px) and the clip re-encoded (H.264 CRF 24, AAC) for size; same frames. No retakes."
+}

@@ -174,6 +174,22 @@ const HOWTO = {
     inspect: "Check each reference in the clip: the character's face, clothes and colors, the prop's shape and color, and whether the setting matches the place still. Then check framing: here the model kept the hedgehog at the left edge and panned away instead of following the prompt.",
     costHow: "Three Muse stills at $0.011 each + H3 Reference-to-Video at 540p for 5 s, reported $0.435 (the 540p rate of $0.075/s is $0.375; the rest matches about $0.02 per reference image). The saved run was $0.468. With your own reference pictures, skip the Muse stills.",
   },
+  "seamless-loop": {
+    headline: "One still, a seamless loop",
+    job: "Turn one picture into a short clip that loops without a visible cut, for a background, a banner or a social post.",
+    purpose: "Show the endframe port: on video models that take an end image, an Image→Video node grows an end frame port. Wiring the same still into both the image and end frame ports forces the clip to finish where it started, so it plays as a loop.",
+    edit: "Rewrite <em>Scene · prompt</em> for your own scene, or swap the Image node for a 📷 Image input with your own picture. In <em>Loop · motion prompt</em> keep the camera locked off and describe motion that can come back to where it began: things that turn, sway, bob, flicker or flow. Avoid anything that enters or leaves the frame.",
+    inspect: "Play the clip on repeat and watch the loop point. Compare the last frame with the first: here they differ by about as much as two neighbouring frames, but the motion slows into the seam, so there is a faint tick in the sails if you look for it.",
+    costHow: "One Muse still at $0.011 + H3 Max Turbo at 768p for 5 s at $0.04/s = $0.20. The saved run was $0.211. At 480p the clip is $0.125; at 1080p, $0.40.",
+  },
+  "add-snow-to-a-clip": {
+    headline: "Add snow to a clip",
+    job: "Change the weather in a clip you already have, without reshooting or re-animating it.",
+    purpose: "Show the Video edit node used as a VFX pass: a video-to-video model takes a finished clip plus one plain-language instruction and returns the same shot with the change, keeping the camera move, framing and timing.",
+    edit: "To try it as is, rewrite <em>Scene · prompt</em> and <em>Plain clip · motion prompt</em> for a calm shot of your own. To edit a clip you already have, replace the first three nodes with a 📹 Video input holding it (under 15 s). Then rewrite <em>Effect · edit instruction</em>: say what to add and end with what must stay the same. Try rain, fog, autumn leaves or a different time of day.",
+    inspect: "Play the plain clip and the edited clip side by side. Check the camera move and timing match, that the new weather sits on the right surfaces, and whether anything is actually moving: here the snow is settled from the first frame and no flakes fall.",
+    costHow: "One Muse still at $0.011 + H3 Max Turbo at 480p for 5 s at $0.025/s = $0.125 + FLUX.3 Edit Video at $0.051 per second of source, billed here as 6 s = $0.306. The saved run was $0.442. With your own clip, you pay only the edit.",
+  },
   "photo-to-video": {
     headline: "Animate a still",
     job: "Generate a first frame, then animate its steam.",
@@ -231,7 +247,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.
@@ -412,7 +428,7 @@ function renderMedia(s, how) {
     }
     if (o.kind === "video") {
       const poster = s.preview ? ` poster="/examples/gallery/${esc(local(s.preview))}"` : "";
-      return `<figure><video controls playsinline preload="none"${poster} aria-label="${esc(o.label + ' — ' + aria)}"><source src="${esc(src)}" type="video/mp4"></video><figcaption>${esc(o.label)} · <a href="${esc(src)}" download>Download</a></figcaption></figure>`;
+      return `<figure><video controls playsinline${o.loop ? " loop" : ""} preload="none"${poster} aria-label="${esc(o.label + ' — ' + aria)}"><source src="${esc(src)}" type="video/mp4"></video><figcaption>${esc(o.label)} · <a href="${esc(src)}" download>Download</a></figcaption></figure>`;
     }
     if (o.kind === "audio") {
       return `<figure><audio controls preload="none" aria-label="${esc(aria)}"><source src="${esc(src)}" type="audio/mpeg"></audio><figcaption>${esc(o.label)} · <a href="${esc(src)}" download>Download</a></figcaption></figure>`;

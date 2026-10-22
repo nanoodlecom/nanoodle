@@ -11140,7 +11140,7 @@ const PROMPT_CAPS = {
   function videoRefsModePriced(p){ return !!(p && ((p.per_second_by_mode && p.per_second_by_mode.reference_to_video!=null)
     || (p.per_second_by_mode_and_resolution && p.per_second_by_mode_and_resolution.reference_to_video!=null))); }
   function videoRefsPriced(m){ var p = m && m.pricing; return !!p && (VIDEO_REF_PRICE_KEYS.some(function(k){ return p[k]!=null; }) || videoRefsModePriced(p)); }
-  var VIDEO_LAST_FRAME_FAMILIES = /^(minimax-h3|minimax\/h3-max|alibaba\/wan-3\.0-prime|alibaba\/wan-3\.0\/image-to-video|google\/gemini-omni-flash\/v1\.1)$/i;
+  var VIDEO_LAST_FRAME_FAMILIES = /^(minimax-h3|minimax\/h3-max|minimax\/h3-max-turbo|alibaba\/wan-3\.0-prime|alibaba\/wan-3\.0\/image-to-video|google\/gemini-omni-flash\/v1\.1)$/i;
   // Does this video model accept an end-frame (last_image)? Mirrors the editor's modelHasImageRole, but
   // permissive-ON when the catalog can't be read: the endframe wire was authored deliberately in the
   // editor (gated there), so if we can't verify at runtime we honor it rather than silently drop the morph.

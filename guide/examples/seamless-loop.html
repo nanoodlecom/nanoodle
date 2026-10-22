@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>One still, a seamless loop — nanoodle</title>
+<meta name="description" content="Turn one picture into a short clip that loops without a visible cut, for a background, a banner or a social post. Reported saved run: $0.211." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="One still, a seamless loop — nanoodle" />
+<meta property="og:description" content="Turn one picture into a short clip that loops without a visible cut, for a background, a banner or a social post. Reported saved run: $0.211." />
+<meta property="og:url" content="https://nanoodle.com/guide/examples/seamless-loop" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="One still, a seamless loop — nanoodle" />
+<meta name="twitter:description" content="Turn one picture into a short clip that loops without a visible cut, for a background, a banner or a social post. Reported saved run: $0.211." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/examples/seamless-loop" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <a href="/guide/examples/">Steal a noodle</a> / <span>One still, a seamless loop</span></nav>
+
+  <main>
+    <h1><span class="grad">One still, a seamless loop</span></h1>
+    <p class="lede">Turn one picture into a short clip that loops without a visible cut, for a background, a banner or a social post.</p>
+
+    <section>
+      <p class="meta-row">A clay windmill island that ends on its first frame, so it loops · 2026-10-22 · Reported saved run: $0.211. <code>meta/muse-image/text-to-image</code> · <code>minimax/h3-max-turbo</code></p>
+      <p>Show the endframe port: on video models that take an end image, an Image→Video node grows an end frame port. Wiring the same still into both the image and end frame ports forces the clip to finish where it started, so it plays as a loop.</p>
+
+      <h2>Saved result</h2>
+      <div class="media sequence">
+          <figure><a href="/examples/gallery/seamless-loop/still.webp"><img src="/examples/gallery/seamless-loop/still.webp" alt="1. The loop frame: Muse 16:9 · reported $0.011 — One still, a seamless loop" loading="lazy" /></a><figcaption>1. The loop frame: Muse 16:9 · reported $0.011 · <a href="/examples/gallery/seamless-loop/still.webp" download>Download</a></figcaption></figure>
+          <figure><video controls playsinline loop preload="none" poster="/examples/gallery/seamless-loop/preview.webp" aria-label="2. Seamless loop: H3 Max Turbo, same still as first and last frame, 768p 5 s · reported $0.20 — One still, a seamless loop"><source src="/examples/gallery/seamless-loop/loop.mp4" type="video/mp4"></video><figcaption>2. Seamless loop: H3 Max Turbo, same still as first and last frame, 768p 5 s · reported $0.20 · <a href="/examples/gallery/seamless-loop/loop.mp4" download>Download</a></figcaption></figure>
+        </div>
+
+      <div class="callout"><p>Muse paints one 16:9 still in a soft claymation look: a small floating clay island in a peach sky with a cream windmill, a teal waterfall pouring off its edge, mint-green trees and two puffy clouds. That one still is wired into the Image→Video node twice, on its image port (first frame) and on its endframe port (last frame), and MiniMax H3 Max Turbo (768p, 5 s) animates between them. Because the clip has to finish on the picture it began with, it plays back as a loop: the windmill&#39;s sails turn, the island rocks a few degrees side to side and bobs, the waterfall sways with it, and the clouds stay put. Measured on every frame, the last frame differs from the first by 1.2/255 on average, about the same as a normal step between two frames (0.9 on average, up to 2.4), and the most the picture ever moves away from the first frame is 7.4/255 around frame 85. The preview below is set to loop. Flaws: the model eases the motion down into the last frames and back up out of the first, so the step across the seam is about four times the tiny steps around it. On close watching there is a faint tick at the loop point, mostly in the sails and the island; at normal viewing it reads as continuous. The motion is gentle, more of a living picture than an action loop. The clip carries a quiet sound track from the model that isn&#39;t made to loop, so mute it for the cleanest loop. Swap the Image node for a 📷 Image input to loop your own picture. Every still and sampled video frame was checked and is SFW (clay scenery only; no people, animals, text or logos). Inspired by @PurzBeats sharing looping H3 videos by @_pxlpshr (https://x.com/PurzBeats/status/2113290714066944138). No media from that post is used.</p></div>
+
+
+
+      <h2>Make it yours</h2>
+      <ol class="input-list">
+        <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
+        <li>Rewrite <em>Scene · prompt</em> for your own scene, or swap the Image node for a 📷 Image input with your own picture. In <em>Loop · motion prompt</em> keep the camera locked off and describe motion that can come back to where it began: things that turn, sway, bob, flicker or flow. Avoid anything that enters or leaves the frame.</li>
+        <li>Check the editor estimate, then run with your NanoGPT key. One Muse still at $0.011 + H3 Max Turbo at 768p for 5 s at $0.04/s = $0.20. The saved run was $0.211. At 480p the clip is $0.125; at 1080p, $0.40.</li>
+        <li>Play the clip on repeat and watch the loop point. Compare the last frame with the first: here they differ by about as much as two neighbouring frames, but the motion slows into the seam, so there is a faint tick in the sails if you look for it.</li>
+      </ol>
+
+
+      <div class="cta">
+        <a class="primary" href="https://nanoodle.com/#g=H4sIAAAAAAAAA-VWyW7jRhC9-ysKvsSDSPJ4ie34lpwCZCY5ZIAcgjm0yaLUUJPd6G5a5gz8Xbnny-ZVkdpsySByCpCLxN6qXlW9Wr6eEJ0-nt7TxUS-Gl9ywuovLIi-6i-2bYm902Jqm8xNPp2s93MXWE98Xe8dPGH3-v1m2WE5vbjdbqywcXuzXVeWXSmK1ypFOD9lEf57w5SydW5ChhKb2nFK5LwPM_rYJqZggCuRl3sFN4x7TUl5gaWph7c095wI97wePNqSPYm1lFe24Hu81gNbmzkk-pjprLIxZaoihLxTkcMdbkrdHK45s7k1o5-5MIJJ7hXOBlqYRFDK2-fBFrmNUJUBzcTMJV77eiIbwZku0YMploR3ZrDyV-agT2ufLaQUHUQXdJYXtplD_MJkgshmQmllOvKRHvzDu40XCkCLIqtYQpevqtkmUCSxcz6Knzt2zq9Oh5Nn_X-eHCJCmKpPX_NAQ7bZbaBXdv-QoNA_f1OAmeFtltzsc-TqchxHPni_vBd6-CpTbXIW75sOX-Kv2jbWqM9L6xEoM0FYmnKaitYF8X-QGNrCAubK5gVl23RUwbkcQwRpSPTg_QRcS5kd1gZ0DGyKhbq5iOAlDh1D9YTmSAYHWSbWiHELreTsfJERoIURL1PJAXp8RWrVjNRHakGNC1Q5D-jNnGxyyrxK7aEy2qrfb3BX9A0g0rKb9NgRaJtFe49pZZuylgTQw8q3cf3CWJeUkz5IZgmZ1C7AzhwrgRFwXbSBM312KJrvEnGJLNFsUo8rtsL5tgR5GfaJwIpXFH0L9PB_ns4jMxTgNw0JuvIU2qrqBqSb9wnJiWSY0Z_4mBA8Azxc4ss4XAOHfLIaWLWJwalOHECmV7dFOqPfoIN9cJDTeKhFfruk3xJS_XB-7tNsDO-PsF5rxmvag5OhrwvCfalUL5m_T_3rfepf3r1N_RrFy4memrM5ryF-qkDOxbBp9tN9WHiR7BcFdnFz_-Pu_qOJVhMl6em4ClD7Rx5bANQT8MFQvkaUgV3f_K_qwE8vO9wHrdpTycC-jitnv3hpGPgIptH_os1pRp8WvEl4ZOmrbJcmQQl6XadwYYMprUPpkJzR5NdU3laAJVpPknK00jrwyLFvgZv87xudZO627b6sXuhGqfdFR21YXwMSlkI19LvSr5regr1qYiK7oe7pw8hqBDSvFqgKIqhb91FJd-2J1KD2aNlIPSDJQvFTf-rYPMo0kLeQtYnXXqYYoCZ-MoWg3QwR66ZtBoEyGoyqGTIEHCgZOoAcaJW7wZeU-eWKPpon-tTGB09nwzwDY-l7HSn6sWM_lXbnKsmli7sXufR-bGGxUi6fzhdXU_xNs2DYrRtDHuPm7m7k5F0r-SYntzd3Yfe0bKNZn_2we4AhxOjk-Xnfqfj9rKOps83y6GjqLrY-kGFq3yKZ8w7NLWIDRrhN4Vpr3obLHxZ0VMzgkhG8cJdjEB9V1Bf30YD3WHhUzFtwr_4LcNeT9yjE1-MosdfI_jUjjiE-SAjh9MnzyTcJaTwcfA0AAA">Open this noodle →</a>
+        <a class="secondary" href="/examples/gallery/#seamless-loop">See the reviewed run</a>
+      </div>
+      <p class="howto-note"><a href="/examples/gallery/seamless-loop/workflow.json" download>Download workflow</a>
+        · <a href="/examples/gallery/seamless-loop/graph.json" download>Original sampled graph</a>
+        · <a href="https://mcp.nanoodle.com/#seamless-loop">Explore MCP tools</a>
+        · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a></p>
+      <nav class="next">
+        <a href="/guide/examples/">← All examples</a>
+        <a href="/guide/examples/add-snow-to-a-clip">Add snow to a clip</a>
+        <a href="/guide/examples/three-references-one-clip">Three references, one clip →</a>
+        <a href="/examples/gallery/#seamless-loop">Reviewed run</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· No analytics · Your key stays on your device</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>

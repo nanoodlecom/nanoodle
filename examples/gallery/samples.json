@@ -1247,5 +1247,106 @@
     "preview": "three-references-one-clip/preview.webp",
     "workflow": "three-references-one-clip/workflow.json",
     "workflowSha256": "cde7e0259d8421d74a189f665744bd8bd462a3ef8f1bb2531a302567cc47ed80"
+  },
+  {
+    "slug": "seamless-loop",
+    "title": "One still, a seamless loop",
+    "date": "2026-10-22",
+    "review": "A clay windmill island that ends on its first frame, so it loops",
+    "note": "Muse paints one 16:9 still in a soft claymation look: a small floating clay island in a peach sky with a cream windmill, a teal waterfall pouring off its edge, mint-green trees and two puffy clouds. That one still is wired into the Image\u2192Video node twice, on its image port (first frame) and on its endframe port (last frame), and MiniMax H3 Max Turbo (768p, 5 s) animates between them. Because the clip has to finish on the picture it began with, it plays back as a loop: the windmill's sails turn, the island rocks a few degrees side to side and bobs, the waterfall sways with it, and the clouds stay put. Measured on every frame, the last frame differs from the first by 1.2/255 on average, about the same as a normal step between two frames (0.9 on average, up to 2.4), and the most the picture ever moves away from the first frame is 7.4/255 around frame 85. The preview below is set to loop. Flaws: the model eases the motion down into the last frames and back up out of the first, so the step across the seam is about four times the tiny steps around it. On close watching there is a faint tick at the loop point, mostly in the sails and the island; at normal viewing it reads as continuous. The motion is gentle, more of a living picture than an action loop. The clip carries a quiet sound track from the model that isn't made to loop, so mute it for the cleanest loop. Swap the Image node for a \ud83d\udcf7 Image input to loop your own picture. Every still and sampled video frame was checked and is SFW (clay scenery only; no people, animals, text or logos). Inspired by @PurzBeats sharing looping H3 videos by @_pxlpshr (https://x.com/PurzBeats/status/2113290714066944138). No media from that post is used.",
+    "layout": "sequence",
+    "costUsd": 0.211,
+    "costExact": true,
+    "models": [
+      "meta/muse-image/text-to-image",
+      "minimax/h3-max-turbo"
+    ],
+    "graphSha256": "0e9b0f97e8064aa5759f297c3cc38adfa150495773162c9f4e9803f3b0e6f5d3",
+    "inputs": [
+      {
+        "label": "Scene \u00b7 prompt",
+        "text": "Look: a soft matte claymation miniature diorama, hand-sculpted plasticine with tiny fingerprint texture, pastel teal, peach and cream palette, gentle warm studio light, shallow depth of field. Scene: a small floating island of clay drifting in a pale peach sky, with a little cream windmill with four peach sails on top, a thin teal waterfall pouring off the island's edge into soft clay clouds below, a few round mint-green trees, and two puffy cream clouds beside it. Wide, centered, calm composition with empty sky around the island. No people, no animals, no text, no logos."
+      },
+      {
+        "label": "Loop \u00b7 motion prompt",
+        "text": "Look: a soft matte claymation miniature diorama, hand-sculpted plasticine with tiny fingerprint texture, pastel teal, peach and cream palette, gentle warm studio light, shallow depth of field. A seamless loop. Locked-off camera, no zoom, no pan, no cuts. The windmill's four peach sails turn slowly and steadily, the teal clay waterfall keeps flowing over the edge into the clouds, and the floating island bobs gently up and then settles back down. The clay clouds barely drift and return to where they started. Nothing new enters the frame, nothing leaves it, and the last moment is exactly the same picture as the first."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "seamless-loop/still.webp",
+        "kind": "image",
+        "label": "1. The loop frame: Muse 16:9 \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "5e72c0b3e4a53f964fef4d7ee3d8487f52ff5ff5187e72602a4d984b91f98ca6"
+      },
+      {
+        "src": "seamless-loop/loop.mp4",
+        "kind": "video",
+        "loop": true,
+        "label": "2. Seamless loop: H3 Max Turbo, same still as first and last frame, 768p 5 s \u00b7 reported $0.20",
+        "costUsd": 0.2,
+        "sha256": "0b7c2d4ef928f33657d0778f0004e9c3c61ea71471d135eb21abe2c27f148aab"
+      }
+    ],
+    "preview": "seamless-loop/preview.webp",
+    "workflow": "seamless-loop/workflow.json",
+    "workflowSha256": "0e9b0f97e8064aa5759f297c3cc38adfa150495773162c9f4e9803f3b0e6f5d3"
+  },
+  {
+    "slug": "add-snow-to-a-clip",
+    "title": "Add snow to a clip",
+    "date": "2026-10-22",
+    "review": "A blue-hour lake clip reshot with fresh snow, same camera move",
+    "note": "The first nodes just make a calm source clip: Muse paints a weathered wooden dock on a misty mountain lake at blue hour, with a green rowboat and a lantern glowing on a post, and MiniMax H3 Max Turbo (480p, 5 s) animates it with a slow camera drift, flickering lantern, drifting mist and small ripples. The Video edit node then sends that clip to FLUX.3 Edit Video with one instruction: add snow, keep everything else. The result keeps the plain clip's framing, camera move and timing, and the dock boards, the rowboat's rim, the lantern post's cap and the shore are now covered in a layer of fresh snow while the lantern still glows warm against the cold blue. Compare the two clips side by side. Flaws: no falling snowflakes are visible. The instruction asked for flakes drifting past the camera and for the snow to build up over the shot, but FLUX.3 painted the snow as already settled from the first frame and it stays the same to the end, so this reads as \"the same shot on a snowy evening\" rather than \"snow starts falling\". The edit is also a little softer than the source in fine detail (pine needles, dock grain). The edit came back at the source's 832\u00d7480, not the 720p the model page mentions. It billed 6 s for the 5.17 s source clip ($0.306), more than the 5 s you might expect. To use your own footage, delete the first three nodes and wire a \ud83d\udcf9 Video input into the Video edit node. Every still and sampled video frame was checked and is SFW (a lake, a dock and a boat; no people, animals, text or logos). Inspired by @ComfyUI's LTX for VFX post (https://x.com/ComfyUI/status/2112952361765511440). No media from that post is used.",
+    "layout": "sequence",
+    "costUsd": 0.442,
+    "costExact": true,
+    "models": [
+      "meta/muse-image/text-to-image",
+      "minimax/h3-max-turbo",
+      "blackforestlabs/flux-3/edit-video"
+    ],
+    "graphSha256": "9e3d953f5693662da9075ffa74adab5cb43c7d9f9515b9d0b3c71c3867c555ad",
+    "inputs": [
+      {
+        "label": "Scene \u00b7 prompt",
+        "text": "Look: cinematic photographic realism, 35mm film still, cool blue-hour light with warm practical lamps, soft haze, gentle film grain. Scene: a small weathered wooden dock on a calm mountain lake at blue hour, one empty green rowboat tied to the dock, a single warm lantern glowing on a post at the end of the dock, dark pine trees along the shore and misty mountains behind, the still water reflecting the lantern. Eye-level, wide, quiet and empty. No snow yet, no people, no animals, no text, no logos."
+      },
+      {
+        "label": "Plain clip \u00b7 motion prompt",
+        "text": "Look: cinematic photographic realism, 35mm film still, cool blue-hour light with warm practical lamps, soft haze, gentle film grain. One calm continuous shot. The camera pushes in very slowly along the dock toward the lantern. The lantern flame flickers softly, thin mist drifts across the lake, and small ripples move around the tied rowboat. Nothing else happens: no people, no animals, no weather change."
+      },
+      {
+        "label": "Effect \u00b7 edit instruction",
+        "text": "Add steady, gentle falling snow to this whole shot. Large soft snowflakes drift down in front of the camera and over the lake, catching the warm lantern light, and a thin layer of fresh snow gradually settles on the dock boards, the rowboat and the pine branches. Keep the camera move, framing, timing, lighting, lantern, boat and everything else exactly the same."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "add-snow-to-a-clip/lake.webp",
+        "kind": "image",
+        "label": "1. Scene still: Muse 16:9 \u00b7 reported $0.011",
+        "costUsd": 0.011,
+        "sha256": "878d558cac9d695068e6e4a309fc1e27ced687ba9726e5de62f9b5e13e74c774"
+      },
+      {
+        "src": "add-snow-to-a-clip/plain.mp4",
+        "kind": "video",
+        "label": "2. Plain clip: H3 Max Turbo, 480p 5 s \u00b7 reported $0.125",
+        "costUsd": 0.125,
+        "sha256": "1a5a8ab4e3dc23791eb4b78781883b2a880da2d0ccb024e9208c1944f1000164"
+      },
+      {
+        "src": "add-snow-to-a-clip/snow.mp4",
+        "kind": "video",
+        "label": "3. Same clip with snow: FLUX.3 Edit Video \u00b7 reported $0.306",
+        "costUsd": 0.306,
+        "sha256": "bb7d2ea39929ba49ec99a8b5212c17fc064a2f73364b5decb1fa3d39e6a42d15"
+      }
+    ],
+    "preview": "add-snow-to-a-clip/preview.webp",
+    "workflow": "add-snow-to-a-clip/workflow.json",
+    "workflowSha256": "9e3d953f5693662da9075ffa74adab5cb43c7d9f9515b9d0b3c71c3867c555ad"
   }
 ]

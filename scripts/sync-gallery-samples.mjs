@@ -33,7 +33,7 @@ function renderOutputs(s) {
       const text = `<blockquote>${textHtml(readFileSync(join(root, src), 'utf8'))}</blockquote>`;
       media = (o.spoiler || o.collapsed) ? `<details><summary>${esc(o.label)}</summary>${text}</details>` : text;
     }
-    else if (o.kind === 'video') media = `<video controls playsinline preload="none" poster="${local(s.preview)}" aria-label="${esc(o.label + ' — ' + s.title)}"><source src="${src}" type="video/mp4"></video>`;
+    else if (o.kind === 'video') media = `<video controls playsinline${o.loop ? ' loop' : ''} preload="none" poster="${local(s.preview)}" aria-label="${esc(o.label + ' — ' + s.title)}"><source src="${src}" type="video/mp4"></video>`;
     else if (o.kind === 'audio') media = `<audio controls preload="none" aria-label="${esc(s.title)}"><source src="${src}" type="audio/mpeg"></audio>`;
     else if (o.kind === 'image') media = `<a href="${src}"><img src="${src}" alt="${esc(o.label + ' — ' + s.title)}" loading="lazy"></a>`;
     else throw Error('Unsupported sample output: ' + o.kind);

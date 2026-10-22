@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Add snow to a clip — nanoodle</title>
+<meta name="description" content="Change the weather in a clip you already have, without reshooting or re-animating it. Reported saved run: $0.442." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="Add snow to a clip — nanoodle" />
+<meta property="og:description" content="Change the weather in a clip you already have, without reshooting or re-animating it. Reported saved run: $0.442." />
+<meta property="og:url" content="https://nanoodle.com/guide/examples/add-snow-to-a-clip" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Add snow to a clip — nanoodle" />
+<meta name="twitter:description" content="Change the weather in a clip you already have, without reshooting or re-animating it. Reported saved run: $0.442." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/examples/add-snow-to-a-clip" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <a href="/guide/examples/">Steal a noodle</a> / <span>Add snow to a clip</span></nav>
+
+  <main>
+    <h1><span class="grad">Add snow to a clip</span></h1>
+    <p class="lede">Change the weather in a clip you already have, without reshooting or re-animating it.</p>
+
+    <section>
+      <p class="meta-row">A blue-hour lake clip reshot with fresh snow, same camera move · 2026-10-22 · Reported saved run: $0.442. <code>meta/muse-image/text-to-image</code> · <code>minimax/h3-max-turbo</code> · <code>blackforestlabs/flux-3/edit-video</code></p>
+      <p>Show the Video edit node used as a VFX pass: a video-to-video model takes a finished clip plus one plain-language instruction and returns the same shot with the change, keeping the camera move, framing and timing.</p>
+
+      <h2>Saved result</h2>
+      <div class="media sequence">
+          <figure><a href="/examples/gallery/add-snow-to-a-clip/lake.webp"><img src="/examples/gallery/add-snow-to-a-clip/lake.webp" alt="1. Scene still: Muse 16:9 · reported $0.011 — Add snow to a clip" loading="lazy" /></a><figcaption>1. Scene still: Muse 16:9 · reported $0.011 · <a href="/examples/gallery/add-snow-to-a-clip/lake.webp" download>Download</a></figcaption></figure>
+          <figure><video controls playsinline preload="none" poster="/examples/gallery/add-snow-to-a-clip/preview.webp" aria-label="2. Plain clip: H3 Max Turbo, 480p 5 s · reported $0.125 — Add snow to a clip"><source src="/examples/gallery/add-snow-to-a-clip/plain.mp4" type="video/mp4"></video><figcaption>2. Plain clip: H3 Max Turbo, 480p 5 s · reported $0.125 · <a href="/examples/gallery/add-snow-to-a-clip/plain.mp4" download>Download</a></figcaption></figure>
+          <figure><video controls playsinline preload="none" poster="/examples/gallery/add-snow-to-a-clip/preview.webp" aria-label="3. Same clip with snow: FLUX.3 Edit Video · reported $0.306 — Add snow to a clip"><source src="/examples/gallery/add-snow-to-a-clip/snow.mp4" type="video/mp4"></video><figcaption>3. Same clip with snow: FLUX.3 Edit Video · reported $0.306 · <a href="/examples/gallery/add-snow-to-a-clip/snow.mp4" download>Download</a></figcaption></figure>
+        </div>
+
+      <div class="callout"><p>The first nodes just make a calm source clip: Muse paints a weathered wooden dock on a misty mountain lake at blue hour, with a green rowboat and a lantern glowing on a post, and MiniMax H3 Max Turbo (480p, 5 s) animates it with a slow camera drift, flickering lantern, drifting mist and small ripples. The Video edit node then sends that clip to FLUX.3 Edit Video with one instruction: add snow, keep everything else. The result keeps the plain clip&#39;s framing, camera move and timing, and the dock boards, the rowboat&#39;s rim, the lantern post&#39;s cap and the shore are now covered in a layer of fresh snow while the lantern still glows warm against the cold blue. Compare the two clips side by side. Flaws: no falling snowflakes are visible. The instruction asked for flakes drifting past the camera and for the snow to build up over the shot, but FLUX.3 painted the snow as already settled from the first frame and it stays the same to the end, so this reads as &quot;the same shot on a snowy evening&quot; rather than &quot;snow starts falling&quot;. The edit is also a little softer than the source in fine detail (pine needles, dock grain). The edit came back at the source&#39;s 832×480, not the 720p the model page mentions. It billed 6 s for the 5.17 s source clip ($0.306), more than the 5 s you might expect. To use your own footage, delete the first three nodes and wire a 📹 Video input into the Video edit node. Every still and sampled video frame was checked and is SFW (a lake, a dock and a boat; no people, animals, text or logos). Inspired by @ComfyUI&#39;s LTX for VFX post (https://x.com/ComfyUI/status/2112952361765511440). No media from that post is used.</p></div>
+
+
+
+      <h2>Make it yours</h2>
+      <ol class="input-list">
+        <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
+        <li>To try it as is, rewrite <em>Scene · prompt</em> and <em>Plain clip · motion prompt</em> for a calm shot of your own. To edit a clip you already have, replace the first three nodes with a 📹 Video input holding it (under 15 s). Then rewrite <em>Effect · edit instruction</em>: say what to add and end with what must stay the same. Try rain, fog, autumn leaves or a different time of day.</li>
+        <li>Check the editor estimate, then run with your NanoGPT key. One Muse still at $0.011 + H3 Max Turbo at 480p for 5 s at $0.025/s = $0.125 + FLUX.3 Edit Video at $0.051 per second of source, billed here as 6 s = $0.306. The saved run was $0.442. With your own clip, you pay only the edit.</li>
+        <li>Play the plain clip and the edited clip side by side. Check the camera move and timing match, that the new weather sits on the right surfaces, and whether anything is actually moving: here the snow is settled from the first frame and no flakes fall.</li>
+      </ol>
+
+
+      <div class="cta">
+        <a class="primary" href="https://nanoodle.com/#g=H4sIAAAAAAAAA9VXS47bRhDd-xSFWSUApfFYM7YzuywcBIidBIhjBAi8aJFFsaMmm-luipINb32A5AA5RpBtjpIT5Ah51aQ0pC3JtHfZaNi_qtdV73XVvL5HdLG5uKWrRL4qm7HH6GcMiF7HX0zrDHMX6UxXgatwkeznw67muGLLcrSwxez1_cNwh-Hs6tHdRCserwY7cs0mE897n2Kdt0Gsf5ll5CvbUrCkKDW6ntPzginXzgcKraUIm35pMCzVmmWXMiXdkCdvG5dyPEWfPWs8kw_aGPrn7W_09YKeqS09b9zSJnT9-H79eWf5hc7YEmc6RNMUCq7IsS-sDR4jFTqDrQ5FB60ttGFaM9e6WpHGrlSV7BSVdgM8VUZBl1iCfUuCYgdcZNuKcthUK04oY8Mh-trfrHDM_d3EQqudXO3fP37_q0eoq7oJ-EVgBpB15QOrbH5IB0mGjHUSzB0bY9uLfuVN_PsmOZbuehYj9X62Y14OsxXuKbM_pFwx_f0n1c6W9XkuPBwzYfFgGhGeWru-pVRXXKqgU6oLG-zKqbrAwLEy2pcJLW7KEhFE_iP-hFJrDS1Nw7NCgm70qghd6lrlSuBVKawpQ0aVtU9AmTxQoV4hJyuw2nBnDY50Nad4z1vkwZcKPGpZIWOOkR6LTFWU2XRNttpzsLRNFXAQxoWYIQIhAZJgFxMjVjvYZmGYbZcWW4KGOeRUqCDmEvEG8gBJRGwUdOgqWiGTQrforbagjBzGIQZbbD44nym3JlAT9IIn0MlYnJN1cNp1BC21B5I9Xk9LLnSVJd2uqJlWwS0CnRtGxHoDPZg5PdnxzPCGEfEWZEzo10ZziKbjJef0re3EsuOQgNdUs60Nx09VaYTTx29Jd_wwdmX9fApXTzAVNld8hqryHrxL1DFTr8dMffD4PFNLUMCIi5KDuixhfhYxXMqdZsHOxohwwutXEdPVw9svhvMb5TRIbisfV6cJVh6bqXr93ggr4zOGSJRWfE3R7jBC_zvxfoe8R1mmtgKDG9t4UUDonv3-ya4bX0AjiM6G3Y48VGZ2A8lEhQcL_9lYAc_vBpQDD3wbna7Z-QjL7ERMMCtKo8zpHGVCpc5639tZA7XopXtanK4hD9-XEAdhdv7i89C_FSIqsbkiNqgqhaprrvztGXX1DxalhapWPEldtVDliLo2UnM-xKxhkY01dsyuRw_PCm5xf6rgtNxxe1ksZvgzC-JuqKee2dg5nEVNt6YR6svKCB1Ws8ap_drNcAG1VMU26eUkWebbqaJ8kud4WiVsh0rumjRi-EDUPk2UsbWSZmF3JxdQT_i077jALo_2xhrulfJUuRV3OpM9udDWd3SGNNDRIPm5g772JaiXlRAbTHYDrqcqpMW-kIxKW9R5JwbVicaoHc7CZC6NWAcPqs4a4IVIOQTRCt6wg0ShD5f5roDtS6vqNRRr4dKpKoXU5_QNGrchVpFcAk9Kerak792SDlX31eFM6GCV5bEYSJG3eJmALJZPWJ2ktGNM2QgV3qfKoSsGWb56-uNP8wU9Ec68GIty-26nLXS5evyJKlsala5zdAw-GLX0l7lptrPFpSCcjV-DseTGV8fvy_jvBoi2Pvnvhrm6uwX4VI4hSVt8rEsVv9aFg8T2nu_Cao8bOmmmv8aE7JkHUxCfdNT1BpMBj1_lk3bO4V1Mi_CorfjkAJ_E-xEBvp4E-JSjjqGTAQ_EeNLIObA306J73M3Hxfa4jaOBFfHde3PvPzYg-WL5DwAA">Open this noodle →</a>
+        <a class="secondary" href="/examples/gallery/#add-snow-to-a-clip">See the reviewed run</a>
+      </div>
+      <p class="howto-note"><a href="/examples/gallery/add-snow-to-a-clip/workflow.json" download>Download workflow</a>
+        · <a href="/examples/gallery/add-snow-to-a-clip/graph.json" download>Original sampled graph</a>
+        · <a href="https://mcp.nanoodle.com/#add-snow-to-a-clip">Explore MCP tools</a>
+        · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a></p>
+      <nav class="next">
+        <a href="/guide/examples/">← All examples</a>
+        <a href="/guide/examples/grok-heygen-minimax-video-arena">Grok Imagine 1.5 Lite vs HeyGen Video 1 vs MiniMax H3: same prompt, side by side</a>
+        <a href="/guide/examples/seamless-loop">One still, a seamless loop →</a>
+        <a href="/examples/gallery/#add-snow-to-a-clip">Reviewed run</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· No analytics · Your key stays on your device</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>
