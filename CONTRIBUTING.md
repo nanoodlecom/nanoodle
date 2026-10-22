@@ -132,16 +132,19 @@ it with `--no-verify` — CI runs the full suite unconditionally anyway.
 
 ## Changelog artifacts
 
-`updates.json` is the source of truth for the in-app 📣 panel. `changelog.html`
-and `feed.xml` are generated — do not edit them by hand. After editing
-`updates.json`:
+`updates.json` is the source of truth for the in-app 📣 panel. `articles.json`
+is the source for Nano Maxi's field notes (same-origin thumbs in
+`articles-media/`). `changelog.html` and `feed.xml` are generated — do not
+edit them by hand. After editing `updates.json`, `articles.json`, or the
+sitemap's `/guide/examples/*` pages:
 
 ```sh
 node scripts/gen-changelog.mjs
 ```
 
-The pre-commit hook regenerates and stages those two files when `updates.json`
-is in the commit, so a forgotten regen cannot land locally. CI runs
+The pre-commit hook regenerates and stages those two files when `updates.json`,
+`articles.json`, the guide pages, or the generator are in the commit, so a
+forgotten regen cannot land locally. CI runs
 `gen-changelog.mjs --check` unconditionally (a named step in
 `.github/workflows/checks.yml`).
 

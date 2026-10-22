@@ -257,6 +257,22 @@
   #updbadge{ display:inline-flex; align-items:center; justify-content:center; min-width:1.05rem; height:1.05rem;
              padding:0 .28rem; margin-left:.3rem; border-radius:1rem; font-size:.66rem; font-weight:700; line-height:1;
              background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#0b0d12; vertical-align:middle }
+  /* Field notes are changelog rows with a pill + thumbnail, mixed into #updateslist.
+     No display rule on #updateslist — hidden stays the UA rule. */
+  .field-note{ margin:.45rem 0 .55rem; }
+  a.field-note-link{ display:flex; gap:.65rem; align-items:flex-start; text-decoration:none; color:inherit;
+                     padding:.45rem .5rem; border:1px solid var(--line); border-radius:.65rem; background:var(--panel); }
+  a.field-note-link:hover, a.field-note-link:focus-visible{ border-color:var(--accent); }
+  a.field-note-link img{ width:72px; height:54px; object-fit:cover; border-radius:.4rem; flex:none; background:var(--panel2); }
+  .field-note-copy{ min-width:0; display:flex; flex-direction:column; gap:.12rem; }
+  .field-note-pill{ align-self:flex-start; font-size:.62rem; font-weight:750; letter-spacing:.04em; text-transform:uppercase;
+                    color:var(--cyan); background:#132028; border:1px solid #1e3c48; border-radius:2rem; padding:.04rem .42rem; }
+  .field-note-title{ font-weight:650; font-size:.84rem; line-height:1.3; letter-spacing:-.011em; }
+  .field-note-blurb{ font-size:.75rem; line-height:1.35; color:var(--dim); }
+  @media (max-width:540px){
+    a.field-note-link{ gap:.5rem; padding:.4rem; }
+    a.field-note-link img{ width:64px; height:48px; }
+  }
   /* examples — a small gallery of one-click starter workflows (embedded graphs, no fetch).
      Mirrors the updates modal's look; z-index 206 sits above Updates (205). */
   #examplesmodal[hidden]{ display:none }
@@ -1663,6 +1679,7 @@ const I18N = {
     "Updates":"Novedades",
     "Loading…":"Cargando…",
     "No updates yet — check back soon.":"Aún no hay novedades — vuelve pronto.",
+    "Field note":"Nota de campo",
     "Video model":"Modelo de vídeo",
     "Video → frames":"Vídeo → fotogramas",
     "What’s new in nanoodle":"Novedades de nanoodle",
@@ -2390,6 +2407,7 @@ const I18N = {
     "Updates":"Mises à jour",
     "Loading…":"Chargement…",
     "No updates yet — check back soon.":"Pas encore de nouveautés — revenez bientôt.",
+    "Field note":"Note de terrain",
     "Video model":"Modèle vidéo",
     "Video → frames":"Vidéo → images",
     "What’s new in nanoodle":"Nouveautés de nanoodle",
@@ -2994,6 +3012,7 @@ const I18N = {
     "Updates":"Neuigkeiten",
     "Loading…":"Wird geladen…",
     "No updates yet — check back soon.":"Noch keine Neuigkeiten — schau bald wieder vorbei.",
+    "Field note":"Feldnotiz",
     "📷 Webcam":"📷 Webcam",
     "Inpaint":"Inpaint",
     "Update {app}":"{app} aktualisieren",
@@ -3824,6 +3843,7 @@ const I18N = {
     "Updates":"Atualizações",
     "Loading…":"Carregando…",
     "No updates yet — check back soon.":"Ainda não há novidades — volte em breve.",
+    "Field note":"Nota de campo",
     "Video model":"Modelo de vídeo",
     "Video → frames":"Vídeo → quadros",
     "What’s new in nanoodle":"Novidades no nanoodle",
@@ -4541,6 +4561,7 @@ const I18N = {
     "Updates":"アップデート",
     "Loading…":"読み込み中…",
     "No updates yet — check back soon.":"まだ更新はありません — またあとで確認してください。",
+    "Field note":"フィールドノート",
     "Video model":"動画モデル",
     "Video → frames":"動画 → フレーム",
     "What’s new in nanoodle":"nanoodleの新着情報",
@@ -17184,9 +17205,17 @@ $("connecthintx").onclick = dismissConnectHint;
    auto-appends a one-line entry via the post-commit hook; the file is plain
    JSON you can edit or prune. The 📣 button shows it; an unseen badge nudges
    return visits. No server, no tracking — last-seen is local only.)
+
+   ARTICLE_SLOTS newest field notes from articles.json are mixed into that
+   same list (every 3 changelog lines, leftovers at the end). Only those slots
+   count on the badge, and a note is marked seen only after it has been
+   rendered while the panel is still open.
    ====================================================================== */
+/* ARTICLE-SLOTS-BEGIN */
 const UPD_SEEN_KEY = "noodle_seen_updates";
-let updatesCache = null;
+const ART_SEEN_KEY = "noodle_seen_articles";
+const ARTICLE_SLOTS = 3;
+let updatesCache = null, articlesCache = null;
 async function fetchUpdates(){
   if(updatesCache) return updatesCache;
   try{ const r = await fetch("updates.json", {cache:"no-store"}); updatesCache = r.ok ? await r.json() : []; }
@@ -17194,63 +17223,172 @@ async function fetchUpdates(){
   if(!Array.isArray(updatesCache)) updatesCache = [];
   return updatesCache;
 }
+// Same-origin thumbs only. index.html's CSP is img-src 'self' (plus data/blob/nano-gpt).
+const ART_SRC = /^articles-media\/[a-z0-9][a-z0-9._-]*\.(webp|png|jpg)$/;
+const articleOk = (a)=> !!(a && typeof a.title==="string" && a.title.trim() && typeof a.blurb==="string" && typeof a.url==="string" && /^https:\/\//.test(a.url) && typeof a.date==="string" && /^\d{4}-\d{2}-\d{2}$/.test(a.date));
+async function fetchArticles(){
+  if(articlesCache) return articlesCache;
+  try{
+    const r = await fetch("articles.json", {cache:"no-store"});
+    if(!r.ok) return [];
+    const data = await r.json();
+    if(!Array.isArray(data)) return [];
+    articlesCache = data.filter(articleOk);
+  }catch{ return []; }
+  articlesCache.sort((a,b)=> a.date<b.date ? 1 : a.date>b.date ? -1 : 0);   // newest first; file order kept within a day
+  return articlesCache;
+}
 const updKey = (e)=> (e && e.date || "") + "|" + (e && e.text || "");
+const artKey = (a)=> (a && a.date || "") + "|" + (a && a.url || "");
+// One field note after every 3 changelog lines (about every 4th item), using
+// only the ARTICLE_SLOTS newest articles. Not enough lines → the rest append.
+function interleaveArticles(updates, articles){
+  const slots = (Array.isArray(articles) ? articles : []).slice(0, ARTICLE_SLOTS);
+  const out = [];
+  let n = 0, ai = 0;
+  for(const item of (Array.isArray(updates) ? updates : [])){
+    out.push({ kind:"update", item });
+    if(++n === 3 && ai < slots.length){
+      out.push({ kind:"article", item:slots[ai++] });
+      n = 0;
+    }
+  }
+  while(ai < slots.length) out.push({ kind:"article", item:slots[ai++] });
+  return out;
+}
 // How many entries sit above the most recently seen one (everything if never opened).
-function unseenCount(list, seen){
+// keyFn defaults to the updates key so existing callers stay on date|text.
+function unseenCount(list, seen, keyFn){
   if(!list.length) return 0;
   if(!seen) return list.length;
-  const i = list.findIndex(e=> updKey(e)===seen);
+  const key = keyFn || updKey;
+  const i = list.findIndex(e=> key(e)===seen);
   return i<0 ? list.length : i;
 }
+function artSeenSet(){
+  try{
+    const parsed = JSON.parse(localStorage.getItem(ART_SEEN_KEY) || "[]");
+    if(Array.isArray(parsed)) return new Set(parsed.filter(x=> typeof x==="string"));
+  }catch{}
+  return new Set();
+}
+function unseenArticleCount(list){
+  const seen = artSeenSet();
+  let n = 0;
+  for(const a of (list || []).slice(0, ARTICLE_SLOTS)) if(!seen.has(artKey(a))) n++;
+  return n;
+}
 async function refreshUpdatesBadge(){
-  const list = await fetchUpdates();
-  let seen = null; try{ seen = localStorage.getItem(UPD_SEEN_KEY); }catch{}
-  const n = unseenCount(list, seen);
+  const [list, arts] = await Promise.all([fetchUpdates(), fetchArticles()]);
+  let seen = null;
+  try{ seen = localStorage.getItem(UPD_SEEN_KEY); }catch{}
+  const n = unseenCount(list, seen) + unseenArticleCount(arts);
   const b = $("updbadge");
   if(n>0){ b.textContent = n>9 ? "9+" : String(n); b.hidden = false; }
   else { b.hidden = true; }
 }
 function markUpdatesSeen(list){
   try{ localStorage.setItem(UPD_SEEN_KEY, list.length ? updKey(list[0]) : ""); }catch{}
-  $("updbadge").hidden = true;
+  refreshUpdatesBadge();
+}
+function markArticlesSeen(list){
+  if(!list || !list.length) return;
+  const seen = artSeenSet();
+  for(const a of list) seen.add(artKey(a));
+  try{ localStorage.setItem(ART_SEEN_KEY, JSON.stringify([...seen])); }catch{}
+  refreshUpdatesBadge();
 }
 // Pick an entry's text for the current UI language: its i18n[LANG] if present,
 // else the English source (so untranslated/new entries degrade gracefully).
 const updText = (e)=> (LANG!=="en" && e && e.i18n && typeof e.i18n[LANG]==="string" && e.i18n[LANG].trim()) ? e.i18n[LANG] : (e && e.text || "");
-async function openUpdates(){
-  const body = $("updateslist");
-  body.innerHTML = "<div id='updatesempty'>"+t("Loading…")+"</div>";
-  $("updatesmodal").hidden = false;
-  const list = await fetchUpdates();
+function articleItem(a){
+  const note = document.createElement("div");
+  note.className = "field-note";
+  const link = document.createElement("a");
+  link.className = "field-note-link";
+  link.href = a.url; link.target = "_blank"; link.rel = "noopener";
+  if(typeof a.thumb==="string" && ART_SRC.test(a.thumb)){
+    const img = document.createElement("img");
+    img.src = "/"+a.thumb; img.alt = ""; img.width = 72; img.height = 54;
+    img.loading = "lazy"; img.decoding = "async";
+    link.appendChild(img);
+  }
+  const copy = document.createElement("span"); copy.className = "field-note-copy";
+  const pill = document.createElement("span"); pill.className = "field-note-pill"; pill.textContent = t("Field note");
+  const title = document.createElement("span"); title.className = "field-note-title"; title.textContent = a.title || "";
+  const blurb = document.createElement("span"); blurb.className = "field-note-blurb"; blurb.textContent = a.blurb || "";
+  copy.appendChild(pill); copy.appendChild(title); copy.appendChild(blurb);
+  link.appendChild(copy);
+  note.appendChild(link);
+  return note;
+}
+// articles is the list to paint. Pass [] when the panel has already closed so
+// nothing is rendered and the caller does not mark those notes seen.
+function renderMixedUpdates(body, list, articles){
   if(updClipObs) updClipObs.disconnect();   // drop the last render's clips before rebuilding
-  body.innerHTML = "";
-  if(!list.length){ body.insertAdjacentHTML("beforeend", "<div id='updatesempty'>"+t("No updates yet — check back soon.")+"</div>"); }
-  else {
-    let curDate = null, ul = null;   // group consecutive entries under their date
-    list.forEach(e=>{
+  body.replaceChildren();
+  const rendered = [];
+  const mixed = interleaveArticles(list, articles);
+  if(!mixed.length){
+    body.insertAdjacentHTML("beforeend", "<div id='updatesempty'>"+t("No updates yet — check back soon.")+"</div>");
+    return rendered;
+  }
+  let curDate = null, ul = null;
+  for(const row of mixed){
+    if(row.kind==="article"){
+      body.appendChild(articleItem(row.item));
+      rendered.push(row.item);
+      ul = null;   // next changelog line starts a fresh group without repeating its date
+      continue;
+    }
+    const e = row.item;
+    if(e.date!==curDate || !ul){
       if(e.date!==curDate){
         curDate = e.date;
         const h = document.createElement("div"); h.className = "update-date"; h.textContent = e.date; body.appendChild(h);
-        ul = document.createElement("ul"); ul.className = "update-items"; body.appendChild(ul);
       }
-      // bare https:// URLs in an entry become real links — built with createElement
-      // (never innerHTML: entry text must stay inert). Trailing punctuation stays text.
-      const li = document.createElement("li");
-      updText(e).split(/(https:\/\/[^\s]*[^\s.,;:)!?»」。])/).forEach(part=>{
-        if(/^https:\/\//.test(part)){
-          const a = document.createElement("a");
-          a.href = part; a.target = "_blank"; a.rel = "noopener";
-          a.textContent = part.replace(/^https:\/\//,"");
-          li.appendChild(a);
-        } else if(part) li.appendChild(document.createTextNode(part));
-      });
-      const clip = updClip(e);
-      if(clip) li.appendChild(clip);
-      ul.appendChild(li);
+      ul = document.createElement("ul"); ul.className = "update-items"; body.appendChild(ul);
+    }
+    // bare https:// URLs in an entry become real links — built with createElement
+    // (never innerHTML: entry text must stay inert). Trailing punctuation stays text.
+    const li = document.createElement("li");
+    updText(e).split(/(https:\/\/[^\s]*[^\s.,;:)!?»」。])/).forEach(part=>{
+      if(/^https:\/\//.test(part)){
+        const a = document.createElement("a");
+        a.href = part; a.target = "_blank"; a.rel = "noopener";
+        a.textContent = part.replace(/^https:\/\//,"");
+        li.appendChild(a);
+      } else if(part) li.appendChild(document.createTextNode(part));
     });
+    const clip = updClip(e);
+    if(clip) li.appendChild(clip);
+    ul.appendChild(li);
   }
-  markUpdatesSeen(list);
+  return rendered;
 }
+let updatesOpenGen = 0;
+async function openUpdates(){
+  const gen = ++updatesOpenGen;
+  const body = $("updateslist");
+  const modal = $("updatesmodal");
+  body.replaceChildren();
+  const loading = document.createElement("div"); loading.id = "updatesempty"; loading.textContent = t("Loading…");
+  body.appendChild(loading);
+  modal.hidden = false;
+  const listP = fetchUpdates();
+  const artP = fetchArticles();
+  const list = await listP;
+  if(gen!==updatesOpenGen) return;   // a newer open superseded this one
+  let arts = [];
+  try{ arts = await artP || []; }catch{ arts = []; }
+  if(gen!==updatesOpenGen) return;
+  // Closed while the fetch was in flight: paint the changelog only, leave notes unseen.
+  const panelOpen = !modal.hidden;
+  const rendered = renderMixedUpdates(body, list, panelOpen ? arts : []);
+  markUpdatesSeen(list);
+  if(panelOpen && rendered.length) markArticlesSeen(rendered);
+}
+/* ARTICLE-SLOTS-END */
 // Usage clips: an entry may carry media:{src,poster,w,h} (same-origin files under
 // updates-media/, checked by scripts/check-updates-media.mjs). w/h reserve the box;
 // poster + mp4 only load (and play) once the clip scrolls near view inside the panel.
