@@ -7057,8 +7057,9 @@ async function audioRun(n, inp, ctx){
 // take data: mp3; models that insist on a hosted URL 400 for free and genAudio maps that error.)
 async function remixSourceAudio(url){
   if(typeof url!=="string" || !url) throw new Error("no audio — wire a source track into the audio port");
-  if(/^https?:/.test(url)) return url;
-  const du = await urlToDataUrl(url);
+  var resolved = await resolveContentMedia(url);
+  if(/^https?:/.test(resolved)) return resolved;
+  const du = await urlToDataUrl(resolved);
   if(du.length > MEDIA_INLINE_MAX)
     throw new Error("source audio is too large to inline (~4 MB send limit) — shorten it with the ✂️ Trim node, or chain straight from a 🎵 Music node");
   return du;
@@ -13011,6 +13012,7 @@ function njsCtx(E, n){
     },
     transcribe: (model, audioUrl, language)=> client.transcribe(model, audioUrl, language, io),
     fetchMedia: (url)=> client.fetchMediaDataUrl(url, io),
+    resolveContentUrl: (url)=> client.resolveContentUrl(url, { signal: io.signal }),
     fetch: (u,o)=> fetch(u,o),
     signal: io.signal,
     catalog: null,   // filled per run by njsRunFor (async prefetch, then cached)
@@ -13571,7 +13573,9 @@ const CTX = {
     const r = await fetch(IMG_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
     if(!r.ok){ await throwHttp(r); }
     const j = await r.json();
-    const urls = (j.data||[]).map(d=> d.b64_json ? `data:${b64ImageMime(d.b64_json)};base64,${d.b64_json}` : d.url).filter(Boolean);
+    const rawUrls = (j.data||[]).map(d=> d.b64_json ? `data:${b64ImageMime(d.b64_json)};base64,${d.b64_json}` : d.url).filter(Boolean);
+    const urls = [];
+    for(const u of rawUrls) urls.push(await resolveContentMedia(u));
     if(!urls.length) throw new Error("no image in response");
     // /v1/images/generations returns no cost field (live-confirmed), so estimate from the catalog's
     // per-size price × the number of images ACTUALLY returned (some models force N regardless of opts.n).
@@ -13694,7 +13698,7 @@ const CTX = {
         if(!url) throw new Error(opts.mediaKind==="model3d" ? "completed but no model url" : "completed but no video url");
         if(runKey) PENDING_VIDEO.delete(runKey);
         applyPollSettlement(s, pr, false);
-        return url;
+        return await resolveContentMedia(url);
       }
       if(["FAILED","ERROR","CANCELED"].includes(st)){
         if(runKey) PENDING_VIDEO.delete(runKey);     // genuinely dead — don't let a later run resume it
@@ -13729,7 +13733,7 @@ const CTX = {
     if(pend && pend.sig===bodySig && pend.job){
       const url = await pollAudio(model, pend.job, onProgress, runKey, bodySig);
       if(!url) throw new Error("no audio url in response");
-      return url;
+      return await resolveContentMedia(url);
     }
     if(pend && runKey) PENDING_AUDIO.delete(runKey);   // stale (request changed) — drop and submit fresh
     const r = await fetch(`${NANOGPT}/api/v1/audio/speech`, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
@@ -13752,7 +13756,7 @@ const CTX = {
       let url = j.url || j.audioUrl || j.data?.url || j.data?.audioUrl;
       if(!url && (j.runId || j.id)) url = await pollAudio(model, j, onProgress, runKey, bodySig);   // async model → poll (resume-aware)
       if(!url) throw new Error("no audio url in response");
-      return url;
+      return await resolveContentMedia(url);
     }
     const blob = await r.blob();
     const hc = parseFloat(r.headers.get("x-cost") || r.headers.get("x-nano-cost") || "");
@@ -14005,14 +14009,191 @@ async function urlToDataUrl(url){
   catch(e){ if(e?.name==="AbortError") throw e; throw mediaFetchError(url, e); }
   return await new Promise((res, rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=()=>rej(new Error("could not read media")); fr.readAsDataURL(blob); });
 }
-// source-video payload for /api/generate-video: pass a public https link as videoUrl, otherwise inline as videoDataUrl
-async function videoSourceOpts(url){
-  return /^https?:/.test(url) ? { videoUrl:url } : { videoDataUrl: await urlToDataUrl(url) };
+// Resolve a provider media URL before it is stored or handed to the next node.
+// Grok Imagine finishes with a relative content path (/api/generate-video/content?runId=…)
+// that 307s, with the API key, to a private presigned file. Join path-absolute URLs onto
+// the NanoGPT base. Fetch /api and /v1 content URLs with the key and redirect:manual.
+// An authed redirect's Location is the absolute file URL (the key is never sent to that
+// host, and a clip over the inline cap still chains). A direct 200 under the cap is
+// inlined as a data URL. data:, blob:, and ordinary http(s) URLs pass through with no
+// fetch. Errors use the path only — never the API key or a presigned query string.
+// No backticks: play.html's copy lives inside the String.raw RUNTIME_JS.
+function isContentApiPath(pathname){
+  return pathname==="/api" || pathname.startsWith("/api/") || pathname==="/v1" || pathname.startsWith("/v1/");
 }
-// source-audio payload for lipsync: a remote song/TTS url rides as audioUrl (no inlining — a 4-min
-// Mureka song base64'd would blow past the edge's ~4 MB body limit); only blob/data urls get inlined.
+function contentApiBase(baseUrl){
+  var base = String(baseUrl || "https://nano-gpt.com").replace(/\/+$/, "");
+  var origin = new URL(base + "/").origin;
+  return { base:base, origin:origin };
+}
+function contentDataUrlWouldExceed(byteLength, mime){
+  var header = ("data:" + (mime || "application/octet-stream") + ";base64,").length;
+  return header + Math.ceil(Math.max(0, byteLength) / 3) * 4 > MEDIA_INLINE_MAX;
+}
+function scrubContentSecrets(text, apiKey){
+  var s = String(text || "");
+  if(apiKey && String(apiKey).length >= 4) s = s.split(String(apiKey)).join("[redacted]");
+  s = s.replace(/bearer\s+\S+/gi, "Bearer [redacted]");
+  s = s.replace(/[?#][^\s)"']*/g, "");
+  s = s.replace(/(?:X-Amz-[A-Za-z-]*|Signature|sig|token|api_key|apikey)\s*[:=]\s*\S+/gi, function(m){
+    return m.split(/[:=]/)[0] + "=[redacted]";
+  });
+  return s.replace(/\s+/g, " ").trim().slice(0, 160);
+}
+function contentAuthHeaders(url, origin, authHeaders){
+  try{
+    if(new URL(url).origin !== origin) return {};
+  }catch(e){ return {}; }
+  return authHeaders ? Object.assign({}, authHeaders) : {};
+}
+async function drainContentBody(r){
+  try{
+    if(r && r.body && typeof r.body.cancel==="function") await r.body.cancel();
+    else if(r && typeof r.arrayBuffer==="function") await r.arrayBuffer();
+  }catch(e){ /* already consumed, or an opaque redirect has no body */ }
+}
+function contentResponseMime(r){
+  var ct = ((r && r.headers && r.headers.get && r.headers.get("content-type")) || "").split(";")[0].trim().toLowerCase();
+  if(!ct || ct==="application/octet-stream" || ct==="binary/octet-stream") return "";
+  return ct;
+}
+function sniffContentMime(bytes){
+  var b = bytes || [];
+  var ascii = function(off, s){
+    for(var i=0;i<s.length;i++) if(b[off+i] !== s.charCodeAt(i)) return false;
+    return true;
+  };
+  if(b.length>=8 && b[0]===0x89 && ascii(1, "PNG")) return "image/png";
+  if(b.length>=3 && b[0]===0xff && b[1]===0xd8) return "image/jpeg";
+  if(ascii(0, "GIF8")) return "image/gif";
+  if(ascii(0, "RIFF") && b.length>=12 && ascii(8, "WEBP")) return "image/webp";
+  if(ascii(0, "RIFF") && b.length>=12 && ascii(8, "WAVE")) return "audio/wav";
+  if(ascii(0, "ID3") || (b.length>=2 && b[0]===0xff && (b[1] & 0xe0)===0xe0)) return "audio/mpeg";
+  if(ascii(0, "OggS")) return "audio/ogg";
+  if(ascii(0, "fLaC")) return "audio/flac";
+  if(b.length>=12 && ascii(4, "ftyp")) return "video/mp4";
+  if(b.length>=4 && b[0]===0x1a && b[1]===0x45 && b[2]===0xdf && b[3]===0xa3) return "video/webm";
+  return "application/octet-stream";
+}
+function contentBytesToDataUrl(bytes, mime){
+  var u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  var CHUNK = 0x8000, bin = "";
+  for(var i=0;i<u8.length;i+=CHUNK){
+    var slice = u8.subarray(i, i+CHUNK);
+    var arr = new Array(slice.length);
+    for(var j=0;j<slice.length;j++) arr[j] = slice[j];
+    bin += String.fromCharCode.apply(null, arr);
+  }
+  if(typeof btoa!=="function") throw new Error("couldn't inline provider media: no base64 encoder");
+  return "data:" + (mime || "application/octet-stream") + ";base64," + btoa(bin);
+}
+async function resolveProviderMediaUrl(url, opts){
+  opts = opts || {};
+  if(typeof url!=="string") return url;
+  var s = url.trim();
+  if(!s || /^(data:|blob:)/i.test(s)) return s;
+  var baseInfo = contentApiBase(opts.baseUrl);
+  var base = baseInfo.base, origin = baseInfo.origin;
+  var start = null;
+  try{
+    if(/^https?:/i.test(s)){
+      var abs = new URL(s);
+      if(abs.origin!==origin || !isContentApiPath(abs.pathname)) return s;
+      start = abs;
+    }else if(s.startsWith("/") && !s.startsWith("//")){
+      start = new URL(s, base + "/");
+      if(!isContentApiPath(start.pathname)) return start.href;
+    }else{
+      return s;
+    }
+  }catch(e){ return s; }
+  var doFetch = opts.fetch || fetch;
+  if(!doFetch) throw new Error("couldn't fetch provider media: no fetch available");
+  var apiKey = opts.apiKey || "";
+  var current = start.href;
+  for(var hop=0; hop<5; hop++){
+    var r;
+    try{
+      r = await doFetch(current, {
+        method:"GET",
+        headers: contentAuthHeaders(current, origin, opts.authHeaders),
+        redirect:"manual",
+        signal: opts.signal
+      });
+    }catch(e){
+      if(e && (e.name==="AbortError" || e.code==="aborted")) throw e;
+      if(opts.signal && opts.signal.aborted) throw e;
+      var detail = scrubContentSecrets(e && e.message, apiKey);
+      throw new Error("couldn't fetch provider media" + (detail ? " (" + detail + ")" : ""));
+    }
+    var status = r && r.status;
+    var loc = r && r.headers && r.headers.get && r.headers.get("location");
+    if(r && (r.type==="opaqueredirect" || ((status===0 || status==null) && !loc))){
+      await drainContentBody(r);
+      throw new Error("provider media redirected, but the redirect target was not exposed");
+    }
+    if(loc && (status===0 || (status>=300 && status<400))){
+      await drainContentBody(r);
+      var next;
+      try{ next = new URL(loc, current); }
+      catch(e2){ throw new Error("provider media redirect had no usable location"); }
+      if(next.origin!==origin || !isContentApiPath(next.pathname)) return next.href;
+      current = next.href;
+      continue;
+    }
+    if(status>=300 && status<400){
+      await drainContentBody(r);
+      throw new Error("provider media redirect had no location");
+    }
+    if(!r.ok){
+      var raw = "";
+      try{ raw = String(await r.text()).slice(0, 500); }catch(e3){ raw = ""; }
+      var snippet = scrubContentSecrets(raw, apiKey);
+      throw new Error("couldn't fetch provider media (HTTP " + status + ")" + (snippet ? ": " + snippet : ""));
+    }
+    var mimeHeader = contentResponseMime(r);
+    var declared = Number(r.headers && r.headers.get && r.headers.get("content-length"));
+    if(Number.isFinite(declared) && declared>=0 && contentDataUrlWouldExceed(declared, mimeHeader)){
+      await drainContentBody(r);
+      throw new Error("provider media is too large to send inline (~4 MB max) and did not redirect to a fetchable file");
+    }
+    var bytes = new Uint8Array(await r.arrayBuffer());
+    var mime = mimeHeader || sniffContentMime(bytes);
+    if(contentDataUrlWouldExceed(bytes.length, mime)){
+      throw new Error("provider media is too large to send inline (~4 MB max) and did not redirect to a fetchable file");
+    }
+    return contentBytesToDataUrl(bytes, mime);
+  }
+  throw new Error("provider media redirect did not resolve to a fetchable file");
+}
+async function resolveContentMedia(url){
+  var key = "";
+  if(typeof getKey==="function") key = getKey() || "";
+  var signal;
+  if(typeof runSignal==="function") signal = runSignal();
+  else if(typeof ABORT!=="undefined" && ABORT) signal = ABORT.signal;
+  return resolveProviderMediaUrl(url, {
+    baseUrl: NANOGPT,
+    apiKey: key,
+    authHeaders: key ? { Authorization:"Bearer " + key, "x-api-key":key } : {},
+    signal: signal,
+    fetch: function(u, init){
+      if(typeof apiFetch==="function") return apiFetch(u, init);
+      return fetch(u, init);
+    }
+  });
+}
+// source-video payload for /api/generate-video: a public https link rides as videoUrl (a resolved
+// content redirect is already absolute); anything local is inlined as videoDataUrl.
+async function videoSourceOpts(url){
+  var resolved = await resolveContentMedia(url);
+  return /^https?:/.test(resolved) ? { videoUrl:resolved } : { videoDataUrl: await urlToDataUrl(resolved) };
+}
+// source-audio payload for lipsync: a remote song/TTS url rides as audioUrl (no inlining — a long
+// song base64'd would blow past the edge's ~4 MB body limit); only blob/data urls get inlined.
 async function audioSourceOpts(url){
-  return /^https?:/.test(url) ? { audioUrl:url } : { audioDataUrl: await urlToDataUrl(url) };
+  var resolved = await resolveContentMedia(url);
+  return /^https?:/.test(resolved) ? { audioUrl:resolved } : { audioDataUrl: await urlToDataUrl(resolved) };
 }
 // ---- audio trimming (no libraries — Web Audio decode + a manual RIFF encoder, same spirit as the
 //      Combine node's in-browser media pipeline). Used by the Trim node and lipsync's auto-fit. ----
@@ -14598,7 +14779,9 @@ async function pollAudio(model, j, onProgress, runKey, bodySig){
     if(st==="completed" || st==="succeeded"){
       if(runKey) PENDING_AUDIO.delete(runKey);
       applyPollSettlement(s, pr, false);
-      return s.audioUrl || s.url || s.data?.audioUrl || s.data?.url || (()=>{ throw new Error("completed but no audio url"); })();
+      const au = s.audioUrl || s.url || s.data?.audioUrl || s.data?.url;
+      if(!au) throw new Error("completed but no audio url");
+      return await resolveContentMedia(au);
     }
     if(["error","failed","content_policy_violation"].includes(st)){
       if(runKey) PENDING_AUDIO.delete(runKey);   // genuinely dead — don't resume
