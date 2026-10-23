@@ -5,7 +5,7 @@
 // Locally: NANOODLE_PLAYWRIGHT=/path/to/playwright/index.mjs node scripts/smoke-first-run.mjs
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { readFile, mkdir } from "node:fs/promises";
+import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { dirname, extname, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -65,6 +65,7 @@ try {
     const contexts = [];
     const forbidden = [];
     const errors = [];
+    const consoleErrors = [];
     const authorize = [];
     const registrations = [];
     let finishAuthorize;
@@ -106,7 +107,17 @@ try {
         forbidden.push(`${req.method()} ${url.origin}${url.pathname}`);
         return route.abort();
       });
-      context.on("page", page => page.on("pageerror", error => errors.push(error.message)));
+      context.on("page", page => {
+        page.on("pageerror", error => errors.push(error.message));
+        page.on("console", message => {
+          if (!["error", "warning"].includes(message.type())) return;
+          const location = message.location();
+          let path = "";
+          try { path = new URL(location.url).pathname; } catch {}
+          // Record location/type only: console text may contain request bodies.
+          if (consoleErrors.length < 100) consoleErrors.push({ type:message.type(), line:location.lineNumber, path });
+        });
+      });
       return context;
     };
     const context = await newContext();
@@ -166,10 +177,37 @@ try {
       assert.deepEqual(errors, [], "no browser JavaScript errors");
       console.log(`✓ ${label}: sample → app → share/export → recipient NanoGPT OAuth; no paid calls`);
     } catch (error) {
+      const builderFrame = page.frames().find(frame => {
+        try { return new URL(frame.url()).pathname === "/play.html"; } catch { return false; }
+      });
+      const shareState = builderFrame ? await builderFrame.evaluate(async () => {
+        let clipboardPermission = "unsupported";
+        try { clipboardPermission = (await navigator.permissions.query({name:"clipboard-write"})).state; } catch {}
+        return {
+          documentReady:document.readyState,
+          graphNodes:typeof APP_STATE === "object" ? APP_STATE.graph?.nodes?.length : null,
+          shareHidden:document.querySelector("#sharemenu")?.hidden,
+          shareHandler:typeof document.querySelector("#share")?.onclick,
+          documentFocused:document.hasFocus(),
+          userActivation:navigator.userActivation?.isActive,
+          clipboardPermission,
+        };
+      }).catch(() => ({frameUnavailable:true})) : {frameMissing:true};
+      // Controlled test state only: no storage, clipboard content, graph fields,
+      // authentication values, URLs with fragments, or request/response bodies.
+      const redact = text => String(text).slice(0, 2000)
+        .replace(/https?:\/\/[^\s]+/g, url => {
+          try { const parsed = new URL(url); return parsed.origin + parsed.pathname; } catch { return "[URL]"; }
+        })
+        .replace(/Bearer\s+[^\s"']+/gi, "Bearer [redacted]");
+      const diagnostics = {label, node:process.version, errors:errors.map(redact),
+        unexpectedRequests:forbidden.map(redact), consoleErrors, shareState};
+      console.error("Browser smoke diagnostics:", JSON.stringify(diagnostics));
       if (process.env.NANOODLE_SMOKE_ARTIFACTS) {
         const dir = resolve(process.env.NANOODLE_SMOKE_ARTIFACTS);
         await mkdir(dir, {recursive:true});
         await page.screenshot({path:resolve(dir, `${label}.png`), fullPage:true}).catch(() => {});
+        await writeFile(resolve(dir, `${label}-diagnostics.json`), JSON.stringify(diagnostics, null, 2));
       }
       throw error;
     } finally {
