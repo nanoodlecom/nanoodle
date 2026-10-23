@@ -188,7 +188,7 @@ try {
         try { clipboardPermission = (await navigator.permissions.query({name:"clipboard-write"})).state; } catch {}
         return {
           documentReady:document.readyState,
-          graphNodes:typeof APP_STATE === "object" ? APP_STATE.graph?.nodes?.length : null,
+          appFramePopulated:Boolean(document.querySelector("#appframe")?.srcdoc),
           shareHidden:document.querySelector("#sharemenu")?.hidden,
           shareHandler:typeof document.querySelector("#share")?.onclick,
           documentFocused:document.hasFocus(),
