@@ -193,10 +193,10 @@ const HOWTO = {
   "photo-to-video": {
     headline: "Animate a still",
     job: "Generate a first frame, then animate its steam.",
-    purpose: "Muse draws a mug of tea beside a notebook. MiniMax H3 Spicy uses that first frame and a separate motion brief to make a five-second clip. Keeping the scene and movement in separate inputs lets you change what moves without redesigning the still.",
-    edit: "Change <em>Still brief</em> and <em>Motion brief</em> to describe the same scene. Muse generates the first frame; MiniMax H3 Spicy animates it for five seconds at 480p.",
+    purpose: "Muse draws a mug of tea beside a notebook. MiniMax H3 uses that first frame and a separate motion brief to make a five-second clip. Keeping the scene and movement in separate inputs lets you change what moves without redesigning the still.",
+    edit: "Change <em>Still brief</em> and <em>Motion brief</em> to describe the same scene. Muse generates the first frame; MiniMax H3 animates it for five seconds at 480p.",
     inspect: "Play the clip. The mug, notebook and desk should stay stable while the steam moves. Check the full clip before using it.",
-    costHow: "The saved tea-mug run reported $0.21: $0.01 for the still and $0.20 for five seconds of video at 480p. Prices and results vary.",
+    costHow: "The saved tea-mug run reported $0.261 on 23 October 2026: the Muse still plus five seconds of MiniMax H3 image-to-video at 480p. Prices and results vary.",
   },
   sing: {
     headline: "Sing: trip-hop about the singularity",
