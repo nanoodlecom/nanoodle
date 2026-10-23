@@ -112,6 +112,13 @@ const REAL = [
   extractFn("njsOn"), extractFn("njsCatalogRaw"), extractFn("njsCatalogs"),
   extractFn("njsCtx"), extractFn("njsRunFor"),
   extractFn("urlToDataUrl"), extractFn("mediaFetchError"),
+  // genImage resolves provider content URLs before returning them. data:/https no-ops here;
+  // the helpers must be in the sandbox or a b64 image response throws before the body compare.
+  extractFn("isContentApiPath"), extractFn("contentApiBase"), extractFn("contentDataUrlWouldExceed"),
+  extractFn("scrubContentSecrets"), extractFn("contentAuthHeaders"), extractFn("drainContentBody"),
+  extractFn("contentResponseMime"), extractFn("sniffContentMime"), extractFn("contentBytesToDataUrl"),
+  extractFn("resolveProviderMediaUrl"), extractFn("resolveContentMedia"),
+  extractFn("videoSourceOpts"), extractFn("audioSourceOpts"),
   grab(/const NJS_TYPES = \{[^\n]*\};/, "NJS_TYPES"),
   grab(/const REF_PORT_RE = \/[^\n]*;/, "REF_PORT_RE"),
   grab(/const IMG_INPUT_ROLES = \{[^\n]*\};/, "IMG_INPUT_ROLES"),   // njsRunFor's role-model veto reads it
@@ -149,7 +156,8 @@ const REAL = [
 
 function makeCtx({ flagOn, key = "test-api-key", drifted = false, spy = [], directive = null }) {
   const ctx = {
-    console, URLSearchParams, JSON, Promise, Object, Array, Math, Number, String, isNaN, isFinite, parseInt, parseFloat, Error, DOMException: Error,
+    console, URL, URLSearchParams, JSON, Promise, Object, Array, Math, Number, String, isNaN, isFinite, parseInt, parseFloat, Error, DOMException: Error,
+    Uint8Array, TextEncoder, TextDecoder, btoa, atob,
     // urlToDataUrl support: real Blob + a minimal FileReader (readAsDataURL like Chrome)
     Blob,
     FileReader: class {
