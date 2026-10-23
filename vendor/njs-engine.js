@@ -1,5 +1,5 @@
-/* data-hash=e745af5b65feeddf */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-c14d4573b1b2 (19 modules) */
+/* data-hash=fa9a6c7a9eb0a786 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-93d3d3743635 (19 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -42,6 +42,7 @@ __def("browser.mjs", function (__x, __req) {
 __def("workflow.mjs", function (__x, __req) {
 const { NanoodleError, RunError, UnsupportedNodeError } = __req("errors.mjs");
 const { NODE_TYPES, displayName, isInputPort, lockedNode, materialize, topoSort, wiredFramesFloor, MAX_FRAMES } = __req("graph.mjs");
+const { endpointOutPort } = __req("endpoint.mjs");
 const { deriveInputs, deriveOutputs, deriveSettings, resolveInputKey, resolveSettingKey } = __req("io.mjs");
 const { NanoClient } = __req("client.mjs");
 const { MediaRef, coerceMediaInput } = __req("media.mjs");
@@ -69,6 +70,68 @@ function warnGraph(msg) {
 }
 
 const MEDIA_KINDS = new Set(["image", "audio", "video", "inpaint"]);
+/** Ports whose value is media a later node will fetch or inline. */
+const HANDED_MEDIA_PORT = /^(?:video|audio|image|mask|endframe|model)$|^(?:img|image|vid|clip|ref|frame)\d+$/;
+const MEDIA_OUT_TYPES = new Set(["image", "audio", "video", "model3d"]);
+
+function mediaOutputKeys(node, out) {
+  const keys = [];
+  const add = (k) => { if (k && !keys.includes(k)) keys.push(k); };
+  if (!out || typeof out !== "object") return keys;
+  if (node.type === "endpoint") {
+    const p = endpointOutPort(node);
+    if (p && MEDIA_OUT_TYPES.has(p.type)) add(p.name);
+  } else if (node.type === "vframes") {
+    for (const k of Object.keys(out)) if (/^frame\d+$/.test(k)) add(k);
+  } else {
+    const spec = NODE_TYPES[node.type];
+    for (const p of (spec && spec.outputs) || []) {
+      if (MEDIA_OUT_TYPES.has(p.type)) add(p.name);
+    }
+  }
+  if (Array.isArray(out.images)) add("images");
+  return keys;
+}
+
+/**
+ * Resolve provider-relative content URLs on a node's media outputs before they
+ * are stored or wired onward. One fetch per distinct URL (image + images[]).
+ */
+async function publishNodeMedia(client, node, out, signal) {
+  if (!out || typeof out !== "object" || Array.isArray(out)) return out;
+  const keys = mediaOutputKeys(node, out);
+  if (!keys.length) return out;
+  const cache = new Map();
+  const resolve = async (value) => {
+    if (typeof value === "string") {
+      if (!value) return value;
+      if (cache.has(value)) return cache.get(value);
+      const resolved = await client.resolveContentUrl(value, { signal });
+      cache.set(value, resolved);
+      return resolved;
+    }
+    if (Array.isArray(value)) {
+      let changed = false;
+      const next = [];
+      for (const item of value) {
+        const r = await resolve(item);
+        if (r !== item) changed = true;
+        next.push(r);
+      }
+      return changed ? next : value;
+    }
+    return value;
+  };
+  let copy = null;
+  for (const k of keys) {
+    const resolved = await resolve(out[k]);
+    if (resolved !== out[k]) {
+      if (!copy) copy = { ...out };
+      copy[k] = resolved;
+    }
+  }
+  return copy || out;
+}
 
 function abortReason(signal) {
   const r = signal && signal.reason;
@@ -381,7 +444,14 @@ class Workflow {
             continue;
           }
           const v = srcOut[l.from.port];
-          if (isInputPort(n, l.to.port)) inp[l.to.port] = v;
+          if (isInputPort(n, l.to.port)) {
+            // Node boundary: a relative content URL from the upstream provider is
+            // resolved (authed redirect → absolute file URL, or inlined bytes)
+            // before this node builds videoUrl / videoDataUrl / audio / image.
+            inp[l.to.port] = (typeof v === "string" && v && HANDED_MEDIA_PORT.test(l.to.port))
+              ? await this.client.resolveContentUrl(v, { signal: ac.signal })
+              : v;
+          }
           // Custom endpoint url/mode: a Choice path like "/post" must ride inp so
           // endpointResolveTarget can join it onto the typed host. Overwriting
           // fields.url with "/post" rejects the joined URL.
@@ -443,9 +513,14 @@ class Workflow {
           });
           deadline.catch(() => {});
         }
-        const work = RUNNERS[n.type]({ ...n, fields }, inp, ctxFor(n, rec, nodeSignal));
-        const out = deadline ? await Promise.race([work, deadline]) : await work;
+        const nodeForRun = { ...n, fields };
+        const work = RUNNERS[n.type](nodeForRun, inp, ctxFor(n, rec, nodeSignal));
+        const rawOut = deadline ? await Promise.race([work, deadline]) : await work;
         if (deadline) throwIfAborted(nodeSignal);
+        throwIfAborted(ac.signal);
+        // Final outputs of this node are absolute usable URLs, not the relative
+        // content path the provider returned. Downstream reads this same object.
+        const out = await publishNodeMedia(this.client, nodeForRun, rawOut, nodeSignal);
         throwIfAborted(ac.signal);
         rec.final = true;
         rec.status = "done";
@@ -715,6 +790,22 @@ const MIME_EXT = {
   "text/plain": "txt", "application/json": "json",
 };
 
+/**
+ * A URL safe to put in an error or log line: origin + path only.
+ * Presigned query strings (and any other search/fragment) are dropped, so a
+ * signature or a key that rode along in the query cannot leak via an error.
+ */
+function redactUrl(url) {
+  const s = String(url || "");
+  try {
+    const u = new URL(s);
+    return u.origin + u.pathname;
+  } catch {
+    const cut = s.search(/[?#]/);
+    return (cut >= 0 ? s.slice(0, cut) : s).slice(0, 120);
+  }
+}
+
 /** Best-effort file extension for a MIME type (used by the CLI --out saver). */
 function extForMime(mime) {
   return MIME_EXT[String(mime || "").split(";")[0].trim().toLowerCase()] || "bin";
@@ -794,8 +885,14 @@ class MediaRef {
   /** @returns {Promise<Uint8Array>} the raw media bytes (decodes data:, fetches http(s)). */
   async bytes() {
     if (this.url.startsWith("data:")) return dataUrlBytes(this.url).bytes;
-    const r = await this._fetch(this.url);
-    if (!r.ok) throw new NanoodleError("couldn't download media (" + r.status + "): " + this.url);
+    let r;
+    try {
+      r = await this._fetch(this.url);
+    } catch (e) {
+      if (e && (e.name === "AbortError" || e.code === "aborted")) throw e;
+      throw new NanoodleError("couldn't download media: " + redactUrl(this.url));
+    }
+    if (!r.ok) throw new NanoodleError("couldn't download media (" + r.status + "): " + redactUrl(this.url));
     if (!this._mime) {
       const ct = r.headers && r.headers.get && r.headers.get("content-type");
       if (ct) this._mime = ct.split(";")[0].trim();
@@ -871,11 +968,11 @@ function coerceMediaInput(value, what, opts = {}) {
   return url;
 }
 
-__x.MEDIA_INLINE_MAX = MEDIA_INLINE_MAX; __x.bytesToBase64 = bytesToBase64; __x.base64ToBytes = base64ToBytes; __x.b64ImageMime = b64ImageMime; __x.extForMime = extForMime; __x.mimeFromExt = mimeFromExt; __x.sniffMime = sniffMime; __x.bytesToDataUrl = bytesToDataUrl; __x.dataUrlBytes = dataUrlBytes; __x.MediaRef = MediaRef; __x.mediaFromFile = mediaFromFile; __x.assertInlineMediaSize = assertInlineMediaSize; __x.coerceMediaInput = coerceMediaInput;
+__x.MEDIA_INLINE_MAX = MEDIA_INLINE_MAX; __x.bytesToBase64 = bytesToBase64; __x.base64ToBytes = base64ToBytes; __x.b64ImageMime = b64ImageMime; __x.redactUrl = redactUrl; __x.extForMime = extForMime; __x.mimeFromExt = mimeFromExt; __x.sniffMime = sniffMime; __x.bytesToDataUrl = bytesToDataUrl; __x.dataUrlBytes = dataUrlBytes; __x.MediaRef = MediaRef; __x.mediaFromFile = mediaFromFile; __x.assertInlineMediaSize = assertInlineMediaSize; __x.coerceMediaInput = coerceMediaInput;
 });
 __def("client.mjs", function (__x, __req) {
 const { NanoodleError } = __req("errors.mjs");
-const { b64ImageMime, bytesToDataUrl, dataUrlBytes, MEDIA_INLINE_MAX } = __req("media.mjs");
+const { b64ImageMime, bytesToDataUrl, dataUrlBytes, redactUrl, sniffMime, MEDIA_INLINE_MAX } = __req("media.mjs");
 const { assertPaymentOption, parseNanoInvoice, looksLikeResult } = __req("x402.mjs");
 
 const AUDIO_MIME = { mp3: "audio/mpeg", opus: "audio/ogg", aac: "audio/aac", flac: "audio/flac", wav: "audio/wav", pcm: "audio/wav" };
@@ -1308,8 +1405,14 @@ class NanoClient {
     if (/^data:/i.test(audioUrl)) {
       ({ bytes, mime } = dataUrlBytes(audioUrl));
     } else {
-      const r = await this.fetch(audioUrl, { signal }); // media CDN — no auth headers
-      if (!r.ok) throw new NanoodleError("couldn't download the audio to transcribe (" + r.status + ")");
+      let r;
+      try { r = await this.fetch(audioUrl, { signal }); } // media CDN — no auth headers
+      catch (e) {
+        if (e && (e.name === "AbortError" || e.code === "aborted")) throw e;
+        if (signal && signal.aborted) throw e;
+        throw new NanoodleError("couldn't download the audio to transcribe: " + redactUrl(audioUrl));
+      }
+      if (!r.ok) throw new NanoodleError("couldn't download the audio to transcribe (" + r.status + "): " + redactUrl(audioUrl));
       bytes = new Uint8Array(await r.arrayBuffer());
       mime = ((r.headers && r.headers.get && r.headers.get("content-type")) || "audio/mpeg").split(";")[0];
     }
@@ -1338,12 +1441,39 @@ class NanoClient {
    * Used when a chat audio part needs base64 bytes but the upstream node produced an https URL.
    */
   async fetchMediaDataUrl(url, { signal } = {}) {
-    const r = await this.fetch(url, { signal });
-    if (!r.ok) throw new NanoodleError("couldn't download media to inline (" + r.status + "): " + url);
+    let r;
+    try { r = await this.fetch(url, { signal }); }
+    catch (e) {
+      if (e && (e.name === "AbortError" || e.code === "aborted")) throw e;
+      if (signal && signal.aborted) throw e;
+      throw new NanoodleError("couldn't download media to inline: " + redactUrl(url));
+    }
+    if (!r.ok) throw new NanoodleError("couldn't download media to inline (" + r.status + "): " + redactUrl(url));
     const bytes = new Uint8Array(await r.arrayBuffer());
     const ct = (((r.headers && r.headers.get && r.headers.get("content-type")) || "").split(";")[0] || "").trim().toLowerCase();
     const mime = ct && ct !== "application/octet-stream" && ct !== "binary/octet-stream" ? ct : undefined;
     return bytesToDataUrl(bytes, mime); // sniffs magic bytes when the CDN's content-type is generic
+  }
+
+  /**
+   * Resolve a provider media URL before it is handed to another node or returned
+   * as a node output. Relative content paths (Grok Imagine's
+   * `/api/generate-video/content?...`) and same-origin `/api` or `/v1` URLs are
+   * joined onto `baseUrl` and fetched with the API key, redirects manual so the
+   * key is never forwarded to the file host. A redirect Location becomes the
+   * absolute file URL (presigned queries stay on that URL — the next provider
+   * needs them — and are never put in errors). A direct 200 is inlined as a
+   * data URL only when it fits MEDIA_INLINE_MAX; an over-cap clip must come
+   * back as a redirect URL rather than failing the inline budget.
+   */
+  async resolveContentUrl(url, { signal } = {}) {
+    return resolveProviderMediaUrl(url, {
+      baseUrl: this.baseUrl,
+      fetch: this.fetch,
+      authHeaders: this._auth(),
+      apiKey: this.apiKey,
+      signal,
+    });
   }
 
   /** Optional helper: POST /api/check-balance → { usd_balance }. */
@@ -1354,7 +1484,146 @@ class NanoClient {
   }
 }
 
-__x.httpError = httpError; __x.costFromJson = costFromJson; __x.costFromHeaders = costFromHeaders; __x.costWithHeaders = costWithHeaders; __x.sleep = sleep; __x.model3dStatusUrl = model3dStatusUrl; __x.NanoClient = NanoClient;
+/** Paths that still need the API key (a content endpoint), not a public file. */
+function isContentApiPath(pathname) {
+  return pathname === "/api" || pathname.startsWith("/api/")
+    || pathname === "/v1" || pathname.startsWith("/v1/");
+}
+
+function apiBase(baseUrl) {
+  const base = String(baseUrl || "https://nano-gpt.com").replace(/\/+$/, "");
+  const origin = new URL(base + "/").origin;
+  return { base, origin };
+}
+
+/** Estimated data-URL length for `byteLength` raw bytes. Matches the inline cap's string check. */
+function dataUrlWouldExceed(byteLength, mime) {
+  const header = ("data:" + (mime || "application/octet-stream") + ";base64,").length;
+  return header + Math.ceil(Math.max(0, byteLength) / 3) * 4 > MEDIA_INLINE_MAX;
+}
+
+/** Drop the API key, bearer tokens, and query strings from text that may be shown. */
+function scrubSecrets(text, apiKey) {
+  let s = String(text || "");
+  if (apiKey && String(apiKey).length >= 4) s = s.split(String(apiKey)).join("[redacted]");
+  s = s.replace(/bearer\s+\S+/gi, "Bearer [redacted]");
+  s = s.replace(/[?#][^\s)"']*/g, "");
+  s = s.replace(/(?:X-Amz-[A-Za-z-]*|Signature|sig|token|api_key|apikey)\s*[:=]\s*\S+/gi, (m) => m.split(/[:=]/)[0] + "=[redacted]");
+  return s.replace(/\s+/g, " ").trim().slice(0, 160);
+}
+
+function authHeadersFor(url, origin, authHeaders) {
+  try {
+    if (new URL(url).origin !== origin) return {};
+  } catch {
+    return {};
+  }
+  return authHeaders ? { ...authHeaders } : {};
+}
+
+async function drainBody(r) {
+  try {
+    if (r && r.body && typeof r.body.cancel === "function") await r.body.cancel();
+    else if (r && typeof r.arrayBuffer === "function") await r.arrayBuffer();
+  } catch { /* already consumed, or the peer hung up */ }
+}
+
+function responseMime(r) {
+  const ct = ((r && r.headers && r.headers.get && r.headers.get("content-type")) || "").split(";")[0].trim().toLowerCase();
+  if (!ct || ct === "application/octet-stream" || ct === "binary/octet-stream") return "";
+  return ct;
+}
+
+/**
+ * Resolve one provider media URL.
+ * - data:, blob:, and ordinary http(s) URLs pass through (no fetch, no key).
+ * - A path-absolute URL is joined onto the NanoGPT base. Non-API paths become
+ *   that absolute URL and are not fetched (the next node can GET them).
+ * - `/api` and `/v1` URLs (relative, or already on the API origin) are fetched
+ *   with the key and `redirect: "manual"`. An off-origin or non-API Location is
+ *   the fetchable file URL and is returned without downloading it — so a clip
+ *   over the ~4.4 MB inline cap still chains. A 200 body is inlined only when
+ *   the data URL fits MEDIA_INLINE_MAX.
+ * Errors never include the API key or a presigned query string.
+ */
+async function resolveProviderMediaUrl(url, { baseUrl, fetch: fetchImpl, authHeaders, apiKey, signal } = {}) {
+  if (typeof url !== "string") return url;
+  const s = url.trim();
+  if (!s || /^(data:|blob:)/i.test(s)) return s;
+  const { base, origin } = apiBase(baseUrl);
+  let start;
+  try {
+    if (/^https?:/i.test(s)) {
+      const abs = new URL(s);
+      if (abs.origin !== origin || !isContentApiPath(abs.pathname)) return s;
+      start = abs;
+    } else if (s.startsWith("/") && !s.startsWith("//")) {
+      start = new URL(s, base + "/");
+      if (!isContentApiPath(start.pathname)) return start.href;
+    } else {
+      return s;
+    }
+  } catch {
+    return s;
+  }
+
+  const doFetch = fetchImpl || globalThis.fetch;
+  if (!doFetch) throw new NanoodleError("couldn't fetch provider media: no fetch available");
+  let current = start.href;
+  for (let hop = 0; hop < 5; hop++) {
+    let r;
+    try {
+      r = await doFetch(current, {
+        method: "GET",
+        headers: authHeadersFor(current, origin, authHeaders),
+        redirect: "manual",
+        signal,
+      });
+    } catch (e) {
+      if (e && (e.name === "AbortError" || e.code === "aborted")) throw e;
+      if (signal && signal.aborted) throw e;
+      const detail = scrubSecrets(e && e.message, apiKey);
+      throw new NanoodleError("couldn't fetch provider media" + (detail ? " (" + detail + ")" : ""));
+    }
+    const status = r.status;
+    const loc = r.headers && r.headers.get && r.headers.get("location");
+    if (loc && (status === 0 || (status >= 300 && status < 400))) {
+      await drainBody(r);
+      let next;
+      try { next = new URL(loc, current); }
+      catch { throw new NanoodleError("provider media redirect had no usable location"); }
+      // File host or a non-API path: hand back the absolute URL. Do not fetch it
+      // (that would pull a multi-megabyte clip and might attach the key).
+      if (next.origin !== origin || !isContentApiPath(next.pathname)) return next.href;
+      current = next.href;
+      continue;
+    }
+    if (status >= 300 && status < 400) {
+      await drainBody(r);
+      throw new NanoodleError("provider media redirect had no location");
+    }
+    if (!r.ok) {
+      const raw = String(await r.text().catch(() => "")).slice(0, 500);
+      const snippet = scrubSecrets(raw, apiKey);
+      throw new NanoodleError("couldn't fetch provider media (HTTP " + status + ")" + (snippet ? ": " + snippet : ""));
+    }
+    const mimeHeader = responseMime(r);
+    const declared = Number(r.headers && r.headers.get && r.headers.get("content-length"));
+    if (Number.isFinite(declared) && declared >= 0 && dataUrlWouldExceed(declared, mimeHeader)) {
+      await drainBody(r);
+      throw new NanoodleError("provider media is too large to send inline (~4 MB max) and did not redirect to a fetchable file");
+    }
+    const bytes = new Uint8Array(await r.arrayBuffer());
+    const mime = mimeHeader || sniffMime(bytes);
+    if (dataUrlWouldExceed(bytes.length, mime)) {
+      throw new NanoodleError("provider media is too large to send inline (~4 MB max) and did not redirect to a fetchable file");
+    }
+    return bytesToDataUrl(bytes, mime);
+  }
+  throw new NanoodleError("provider media redirect did not resolve to a fetchable file");
+}
+
+__x.httpError = httpError; __x.costFromJson = costFromJson; __x.costFromHeaders = costFromHeaders; __x.costWithHeaders = costWithHeaders; __x.sleep = sleep; __x.model3dStatusUrl = model3dStatusUrl; __x.NanoClient = NanoClient; __x.resolveProviderMediaUrl = resolveProviderMediaUrl;
 });
 __def("graph.mjs", function (__x, __req) {
 const { NanoodleError } = __req("errors.mjs");
@@ -3120,7 +3389,7 @@ __def("local-media.mjs", function (__x, __req) {
  */
 const { inflate, deflate } = __req("zlib.mjs");
 const { NanoodleError } = __req("errors.mjs");
-const { bytesToDataUrl, dataUrlBytes, sniffMime, MEDIA_INLINE_MAX } = __req("media.mjs");
+const { bytesToDataUrl, dataUrlBytes, redactUrl, sniffMime, MEDIA_INLINE_MAX } = __req("media.mjs");
 const { MP4CAT } = __req("mp4cat.mjs");
 
 const MAX_FRAMES = 12;
@@ -3226,8 +3495,13 @@ async function urlBytes(url, fetchFn) {
   if (/^https?:/i.test(u)) {
     const fetchImpl = fetchFn || globalThis.fetch;
     if (!fetchImpl) throw new NanoodleError("can't download media: no fetch available");
-    const r = await fetchImpl(u);
-    if (!r.ok) throw new NanoodleError(`couldn't download media (${r.status}): ${u.slice(0, 120)}`);
+    let r;
+    try { r = await fetchImpl(u); }
+    catch (e) {
+      if (e && (e.name === "AbortError" || e.code === "aborted")) throw e;
+      throw new NanoodleError(`couldn't download media: ${redactUrl(u)}`);
+    }
+    if (!r.ok) throw new NanoodleError(`couldn't download media (${r.status}): ${redactUrl(u)}`);
     return new Uint8Array(await r.arrayBuffer());
   }
   throw new NanoodleError("media must be a data: or http(s) URL");
@@ -4676,6 +4950,416 @@ function qrTerminal(text) {
 
 __x.qrModules = qrModules; __x.qrTerminal = qrTerminal;
 });
+__def("endpoint.mjs", function (__x, __req) {
+/**
+ * 🔌 Custom endpoint — POST a NanoGPT-shaped body to a URL the graph names.
+ * Twin of the editor/play helpers (index.html runEndpoint). The request goes
+ * straight to that URL: never the NanoGPT client, never the API key.
+ * Custom auth is only fields.auth. http is allowed for loopback and LAN;
+ * a public host must be https.
+ */
+const { NanoodleError } = __req("errors.mjs");
+const { b64ImageMime, bytesToDataUrl } = __req("media.mjs");
+
+const ENDPOINT_DEF_URL = "http://127.0.0.1:8787/v1/chat/completions";
+const ENDPOINT_MODES = ["chat", "image", "video", "audio", "json"];
+
+function endpointMode(n) {
+  const m = String((n && n.fields && n.fields.mode) || "chat").toLowerCase();
+  return ENDPOINT_MODES.includes(m) ? m : "chat";
+}
+
+function endpointOutPort(n) {
+  const m = endpointMode(n);
+  if (m === "image") return { name: "image", type: "image" };
+  if (m === "video") return { name: "video", type: "video" };
+  if (m === "audio") return { name: "audio", type: "audio" };
+  return { name: "text", type: "text" };
+}
+
+function endpointIsLoopbackHost(host) {
+  const h = String(host || "").toLowerCase().replace(/^\[|\]$/g, "");
+  return h === "localhost" || h === "127.0.0.1" || h === "::1";
+}
+
+function endpointIsPrivateIPv4(host) {
+  const p = String(host || "").split(".");
+  if (p.length !== 4) return false;
+  if (!p.every((x) => /^\d+$/.test(x) && +x >= 0 && +x <= 255)) return false;
+  const a = +p[0], b = +p[1];
+  if (a === 10) return true;
+  if (a === 192 && b === 168) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 169 && b === 254) return true;
+  return false;
+}
+
+function endpointUrlOk(url) {
+  const s = String(url || "").trim();
+  if (!s) return "URL required — set the custom endpoint URL";
+  let u;
+  try { u = new URL(s); } catch {
+    return "that URL isn’t allowed — use http://localhost, 127.0.0.1, a LAN host, or https";
+  }
+  if (u.protocol !== "http:" && u.protocol !== "https:") {
+    return "that URL isn’t allowed — use http://localhost, 127.0.0.1, a LAN host, or https";
+  }
+  if (u.username || u.password) {
+    return "that URL isn’t allowed — don’t put credentials in the URL; use the Authorization field";
+  }
+  if (u.protocol === "https:") return true;
+  const host = u.hostname;
+  if (endpointIsLoopbackHost(host) || endpointIsPrivateIPv4(host) || /\.local$/i.test(host)) return true;
+  return "that URL isn’t allowed — http is only for localhost, 127.0.0.1, or a LAN host; use https for a public host";
+}
+
+function endpointHeaders(auth) {
+  const headers = { "Content-Type": "application/json" };
+  const a = String(auth || "").trim();
+  if (a) headers.Authorization = /\s/.test(a) ? a : ("Bearer " + a);
+  return headers;
+}
+
+function endpointPrompt(n, inp) {
+  inp = inp || {};
+  const v = inp.prompt != null ? inp.prompt : (inp.text != null ? inp.text : (n.fields && n.fields.prompt));
+  return String(v == null ? "" : v).trim();
+}
+
+function endpointIsPath(s) {
+  const raw = String(s == null ? "" : s).trim();
+  if (!raw || raw.charAt(0) !== "/") return false;
+  if (raw.length < 2) return false;
+  if (/[\s\u00b7|\u2022]/.test(raw)) return false;
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(raw)) return false;
+  return true;
+}
+
+function endpointJoinPath(base, path) {
+  const u = new URL(String(base || "").trim());
+  let p = String(path || "").trim();
+  if (p.charAt(0) !== "/") p = "/" + p;
+  const q = p.indexOf("?");
+  if (q >= 0) { u.pathname = p.slice(0, q); u.search = p.slice(q); }
+  else { u.pathname = p; u.search = ""; }
+  return u.toString();
+}
+
+function endpointParseRoute(s) {
+  const raw = String(s == null ? "" : s).trim();
+  const out = {};
+  if (!raw) return out;
+  const low = raw.toLowerCase();
+  if (ENDPOINT_MODES.includes(low)) { out.mode = low; return out; }
+  let mode = "", rest = raw;
+  for (const prefix of ENDPOINT_MODES) {
+    if (!low.startsWith(prefix)) continue;
+    const after = raw.slice(prefix.length);
+    const ch = after.charAt(0);
+    if (ch === "\u00b7" || ch === "|" || ch === ":" || ch === "\u2022" || ch === "-" || /\s/.test(ch)) {
+      mode = prefix;
+      rest = after.replace(/^[\s\u00b7|\u2022:\-]+/, "");
+      break;
+    }
+  }
+  rest = String(rest || "").replace(/\s+\([^)]*\)\s*$/, "").trim();
+  let url = "";
+  const m = rest.match(/https?:\/\/[^\s)]+/i);
+  if (m) url = m[0].replace(/[.,;]+$/, "");
+  if (mode) out.mode = mode;
+  if (url) out.url = url;
+  else if (endpointIsPath(rest)) out.path = rest;
+  else if (!mode && endpointIsPath(raw)) out.path = raw;
+  return out;
+}
+
+function endpointResolveTarget(n, inp) {
+  inp = inp || {};
+  const hasFieldUrl = n && n.fields && Object.prototype.hasOwnProperty.call(n.fields, "url");
+  const fieldUrl = hasFieldUrl ? n.fields.url : ENDPOINT_DEF_URL;
+  const urlRaw = (inp.url != null && String(inp.url).trim() !== "") ? inp.url : fieldUrl;
+  const modeRaw = (inp.mode != null && String(inp.mode).trim() !== "") ? inp.mode : (n && n.fields && n.fields.mode);
+  const parsedUrl = endpointParseRoute(urlRaw);
+  const parsedMode = endpointParseRoute(modeRaw);
+  const parsedField = endpointParseRoute(fieldUrl);
+  const path = parsedUrl.path || parsedMode.path;
+  let resolvedUrl = parsedUrl;
+  if (path && !parsedUrl.url) {
+    const base = parsedField.url || String(fieldUrl == null ? "" : fieldUrl).trim();
+    if (base && !endpointIsPath(base)) {
+      try { resolvedUrl = { mode: parsedUrl.mode, url: endpointJoinPath(base, path) }; } catch { /* leave the raw path to fail urlOk */ }
+    }
+  }
+  let url = resolvedUrl.url || String(urlRaw == null ? "" : urlRaw).trim();
+  let mode;
+  if (resolvedUrl.url && resolvedUrl.mode) mode = resolvedUrl.mode;
+  else if (parsedMode.url && parsedMode.mode) { url = parsedMode.url; mode = parsedMode.mode; }
+  else mode = parsedMode.mode || resolvedUrl.mode || (n && n.fields && n.fields.mode) || "chat";
+  mode = ENDPOINT_MODES.includes(String(mode).toLowerCase()) ? String(mode).toLowerCase() : "chat";
+  return { url, mode };
+}
+
+function endpointModel(n) {
+  const m = String((n.fields && n.fields.model) || "").trim();
+  return m || "local";
+}
+
+function endpointRequestBody(mode, n, inp) {
+  inp = inp || {};
+  const model = endpointModel(n);
+  if (mode === "chat") {
+    const prompt = endpointPrompt(n, inp);
+    const messages = [];
+    const sys = String((n.fields && n.fields.system) || "").trim();
+    if (sys) messages.push({ role: "system", content: sys });
+    const imgs = inp.image ? (Array.isArray(inp.image) ? inp.image : [inp.image]) : [];
+    const aud = inp.audio
+      ? { type: "input_audio", input_audio: { data: String(inp.audio).replace(/^data:[^,]*,/, ""), format: "wav" } }
+      : null;
+    if (imgs.length || aud) {
+      const parts = [{ type: "text", text: prompt || "" }];
+      for (const url of imgs) parts.push({ type: "image_url", image_url: { url } });
+      if (aud) parts.push(aud);
+      messages.push({ role: "user", content: parts });
+    } else {
+      messages.push({ role: "user", content: prompt });
+    }
+    return { model, messages, temperature: 0.8 };
+  }
+  if (mode === "image") {
+    const ib = { model, size: (n.fields && n.fields.size) || "1024x1024", n: 1, response_format: "b64_json" };
+    const ip = endpointPrompt(n, inp);
+    if (ip) ib.prompt = ip;
+    if (inp.image) ib.imageDataUrl = inp.image;
+    return ib;
+  }
+  if (mode === "video") {
+    const vb = { model, prompt: endpointPrompt(n, inp) };
+    if (inp.image) vb.imageDataUrl = inp.image;
+    if (inp.video) {
+      if (/^https?:/i.test(inp.video)) vb.videoUrl = inp.video;
+      else vb.videoDataUrl = inp.video;
+    }
+    return vb;
+  }
+  if (mode === "audio") {
+    const ab = { model, input: endpointPrompt(n, inp) };
+    if (inp.audio) {
+      if (/^https?:/i.test(inp.audio)) ab.audioUrl = inp.audio;
+      else ab.audioDataUrl = inp.audio;
+    }
+    return ab;
+  }
+  const jb = {};
+  if (inp.text != null && inp.text !== "") jb.text = inp.text;
+  else {
+    const tp = endpointPrompt(n, inp);
+    if (tp) jb.text = tp;
+  }
+  if (inp.image) jb.image = inp.image;
+  if (inp.video) jb.video = inp.video;
+  if (inp.audio) jb.audio = inp.audio;
+  return jb;
+}
+
+function endpointShapeHint(mode) {
+  if (mode === "chat") return "OpenAI chat JSON { choices:[{ message:{ content } }] }";
+  if (mode === "image") return "{ data:[{ b64_json }] } or { data:[{ url }] }";
+  if (mode === "video") return '{ "url" } or NanoGPT { output: { video: { url } } }';
+  if (mode === "audio") return '{ "url" } or a binary audio body';
+  return '{ "text" } or { "data": ... }';
+}
+
+function endpointApiMessage(body) {
+  try {
+    const j = JSON.parse(String(body || "").replace(/^\d{3}:\s*/, ""));
+    const err = j && j.error;
+    let msg = (typeof err === "string" && err)
+      || (err && typeof err.message === "string" && err.message)
+      || (j && typeof j.message === "string" && j.message)
+      || (j && typeof j.detail === "string" && j.detail)
+      || (j && typeof j.title === "string" && j.title);
+    msg = String(msg || "").replace(/\s+/g, " ").trim();
+    return msg || null;
+  } catch { return null; }
+}
+
+function endpointHttpError(status, body) {
+  const extracted = endpointApiMessage(body);
+  let hint = "";
+  if (status === 404) hint = "check the custom endpoint URL";
+  else if (status === 401 || status === 403) hint = "check the Authorization field";
+  else if (status === 405) hint = "this endpoint must accept POST";
+  else if (status === 413) hint = "payload too large; send a smaller body";
+  else if (status === 415) hint = "send JSON (Content-Type: application/json)";
+  if (extracted) return extracted + (hint ? " — " + hint : "");
+  if (/<html|<body|<!doctype/i.test(String(body || ""))) {
+    return status + " — the URL returned a web page, not JSON; check the custom endpoint URL";
+  }
+  if (hint) return status + " — " + hint;
+  if (!String(body || "").replace(/\s+/g, "").trim()) {
+    return status + " — the endpoint returned an error with no body; check the URL and mode";
+  }
+  if (/^\s*[{\[]/.test(String(body || ""))) {
+    return status + " — the endpoint rejected the request (check URL, mode, and the posted JSON)";
+  }
+  return status + ": " + String(body).replace(/\s+/g, " ").trim().slice(0, 160);
+}
+
+function endpointNotJsonError(mode, ct, raw) {
+  const sample = String(raw || "").replace(/\s+/g, " ").trim().slice(0, 80);
+  if (/<html|<body|<!doctype/i.test(raw || "") || /text\/html/i.test(ct || "")) {
+    return "the endpoint returned a web page, not JSON — check the URL (it must POST " + endpointShapeHint(mode) + ")";
+  }
+  return "response is not JSON — return " + endpointShapeHint(mode) + (sample ? " (got: " + sample + ")" : "");
+}
+
+function endpointParseChat(j) {
+  const msg = (j && j.choices && j.choices[0] && j.choices[0].message) || {};
+  const txt = msg.content;
+  if (txt == null) throw new NanoodleError("no text in response — return " + endpointShapeHint("chat"));
+  return { text: typeof txt === "string" ? txt : txt.map((p) => p.text || "").join("") };
+}
+
+function endpointParseImage(j) {
+  const urls = ((j && j.data) || []).map((d) => {
+    if (d.b64_json) return "data:" + b64ImageMime(d.b64_json) + ";base64," + d.b64_json;
+    return d.url;
+  }).filter(Boolean);
+  if (!urls.length) throw new NanoodleError("no image in response — return " + endpointShapeHint("image"));
+  return { image: urls[0], images: urls };
+}
+
+function endpointParseVideo(j) {
+  const out = (j && j.data && j.data.output) || (j && j.output) || {};
+  const url = (j && (j.url || j.videoUrl))
+    || (out.video && out.video.url)
+    || out.url
+    || (Array.isArray(out.video) ? (out.video[0] && out.video[0].url) : null)
+    || (j && j.data && j.data.url);
+  if (!url) throw new NanoodleError('no video url in response — return { "url" } or NanoGPT { output: { video: { url } } }');
+  return { video: url };
+}
+
+function endpointParseAudioJson(j) {
+  const url = (j && (j.url || j.audioUrl)) || (j && j.data && (j.data.url || j.data.audioUrl));
+  if (!url) throw new NanoodleError('no audio url in response — return { "url" } or a binary audio body');
+  return { audio: url };
+}
+
+function endpointLooksLikeEcho(j) {
+  if (!j || typeof j !== "object") return false;
+  const h = j.headers;
+  if (!h || typeof h !== "object" || Array.isArray(h)) return false;
+  if (!Object.prototype.hasOwnProperty.call(j, "data") && !Object.prototype.hasOwnProperty.call(j, "json")) return false;
+  return j.url != null || j.origin != null || j.method != null;
+}
+
+function endpointJsonModeText(v) {
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (s) {
+      try {
+        const p = JSON.parse(s);
+        if (p && typeof p === "object") return endpointJsonModeText(p);
+      } catch { /* plain text */ }
+    }
+    return v;
+  }
+  if (v && typeof v === "object") {
+    if (endpointLooksLikeEcho(v)) {
+      const inner = (Object.prototype.hasOwnProperty.call(v, "json") && v.json != null) ? v.json : v.data;
+      if (inner !== v) return endpointJsonModeText(inner);
+    }
+    if (v.text != null) return String(v.text);
+    try { return JSON.stringify(v, null, 2); } catch { return String(v); }
+  }
+  return v == null ? "" : String(v);
+}
+
+function endpointParseJsonMode(j) {
+  if (j && j.text != null && !endpointLooksLikeEcho(j)) return { text: String(j.text) };
+  if (endpointLooksLikeEcho(j)) {
+    return { text: endpointJsonModeText((Object.prototype.hasOwnProperty.call(j, "json") && j.json != null) ? j.json : j.data) };
+  }
+  if (j && Object.prototype.hasOwnProperty.call(j, "data")) return { text: endpointJsonModeText(j.data) };
+  throw new NanoodleError('json mode expected { "text" } or { "data": ... } — not a chat/completions wrapper');
+}
+
+async function endpointParseResponse(mode, r) {
+  const ct = (r.headers && r.headers.get && r.headers.get("content-type")) || "";
+  if (mode === "audio" && !/json/i.test(ct)) {
+    const bytes = new Uint8Array(await r.arrayBuffer());
+    let mime = ct.split(";")[0].trim().toLowerCase();
+    if (!mime || mime === "application/octet-stream" || mime === "binary/octet-stream") mime = "audio/mpeg";
+    return { audio: bytesToDataUrl(bytes, mime) };
+  }
+  let raw = "";
+  try { raw = await r.text(); } catch { raw = ""; }
+  if (!String(raw).trim()) {
+    throw new NanoodleError("empty response — the endpoint returned no body; check the URL and mode");
+  }
+  let j;
+  try { j = JSON.parse(raw); } catch {
+    throw new NanoodleError(endpointNotJsonError(mode, ct, raw));
+  }
+  if (mode === "chat") return endpointParseChat(j);
+  if (mode === "image") return endpointParseImage(j);
+  if (mode === "video") return endpointParseVideo(j);
+  if (mode === "audio") return endpointParseAudioJson(j);
+  return endpointParseJsonMode(j);
+}
+
+function endpointUrlIsLocal(url) {
+  try {
+    const u = new URL(String(url || "").trim());
+    const host = u.hostname;
+    return endpointIsLoopbackHost(host) || endpointIsPrivateIPv4(host) || /\.local$/i.test(host);
+  } catch { return false; }
+}
+
+function endpointFetchIsOpaque(e) {
+  const m = ((e && e.message) || String(e)).trim();
+  if (/^(TypeError: )?(Failed to fetch|Load failed|NetworkError)/i.test(m)) return true;
+  return !!(e && e.name === "TypeError" && /fetch|network|cors/i.test(m));
+}
+
+function endpointFetchError(e, url) {
+  if (!endpointFetchIsOpaque(e)) return (e && e.message) || String(e);
+  if (!endpointUrlIsLocal(url)) return "blocked by CORS — your server needs Access-Control-Allow-Origin";
+  return "blocked — CORS (Access-Control-Allow-Origin + OPTIONS) or Chrome local-network permission";
+}
+
+/**
+ * POST the mode's body and parse the reply.
+ * @param {{ fetch?: typeof fetch, signal?: AbortSignal }} [io]
+ */
+async function runEndpoint(n, inp, io = {}) {
+  const target = endpointResolveTarget(n, inp || {});
+  const url = target.url;
+  const ok = endpointUrlOk(url);
+  if (ok !== true) throw new NanoodleError(ok);
+  const mode = target.mode;
+  const body = endpointRequestBody(mode, n, inp || {});
+  const headers = endpointHeaders(n.fields && n.fields.auth);
+  const doFetch = io.fetch || globalThis.fetch;
+  let r;
+  try {
+    r = await doFetch(url, { method: "POST", headers, body: JSON.stringify(body), signal: io.signal });
+  } catch (e) {
+    if (e && e.name === "AbortError") throw e;
+    throw new NanoodleError(endpointFetchError(e, url));
+  }
+  if (!r.ok) {
+    let errBody = "";
+    try { errBody = (await r.text()).slice(0, 800); } catch { /* ignore */ }
+    throw new NanoodleError(endpointHttpError(r.status, errBody));
+  }
+  return endpointParseResponse(mode, r);
+}
+
+__x.ENDPOINT_DEF_URL = ENDPOINT_DEF_URL; __x.ENDPOINT_MODES = ENDPOINT_MODES; __x.endpointMode = endpointMode; __x.endpointOutPort = endpointOutPort; __x.endpointUrlOk = endpointUrlOk; __x.endpointResolveTarget = endpointResolveTarget; __x.endpointRequestBody = endpointRequestBody; __x.runEndpoint = runEndpoint;
+});
 __def("prompt-caps.mjs", function (__x, __req) {
 /**
  * Prompt length caps — the wired prompt nobody can shorten.
@@ -5121,416 +5805,6 @@ async function cleanVoiceRun(model, inp, f, send) {
 
 __x.CLEANVOICE_DEFAULT_MODEL = CLEANVOICE_DEFAULT_MODEL; __x.CLEANVOICE_FALLBACK_SECS = CLEANVOICE_FALLBACK_SECS; __x.cleanVoiceSource = cleanVoiceSource; __x.cleanVoiceSeconds = cleanVoiceSeconds; __x.cleanVoiceExtra = cleanVoiceExtra; __x.cleanVoiceEstSeconds = cleanVoiceEstSeconds; __x.cleanVoiceError = cleanVoiceError; __x.cleanVoiceMediaSeconds = cleanVoiceMediaSeconds; __x.cleanVoiceRun = cleanVoiceRun;
 });
-__def("endpoint.mjs", function (__x, __req) {
-/**
- * 🔌 Custom endpoint — POST a NanoGPT-shaped body to a URL the graph names.
- * Twin of the editor/play helpers (index.html runEndpoint). The request goes
- * straight to that URL: never the NanoGPT client, never the API key.
- * Custom auth is only fields.auth. http is allowed for loopback and LAN;
- * a public host must be https.
- */
-const { NanoodleError } = __req("errors.mjs");
-const { b64ImageMime, bytesToDataUrl } = __req("media.mjs");
-
-const ENDPOINT_DEF_URL = "http://127.0.0.1:8787/v1/chat/completions";
-const ENDPOINT_MODES = ["chat", "image", "video", "audio", "json"];
-
-function endpointMode(n) {
-  const m = String((n && n.fields && n.fields.mode) || "chat").toLowerCase();
-  return ENDPOINT_MODES.includes(m) ? m : "chat";
-}
-
-function endpointOutPort(n) {
-  const m = endpointMode(n);
-  if (m === "image") return { name: "image", type: "image" };
-  if (m === "video") return { name: "video", type: "video" };
-  if (m === "audio") return { name: "audio", type: "audio" };
-  return { name: "text", type: "text" };
-}
-
-function endpointIsLoopbackHost(host) {
-  const h = String(host || "").toLowerCase().replace(/^\[|\]$/g, "");
-  return h === "localhost" || h === "127.0.0.1" || h === "::1";
-}
-
-function endpointIsPrivateIPv4(host) {
-  const p = String(host || "").split(".");
-  if (p.length !== 4) return false;
-  if (!p.every((x) => /^\d+$/.test(x) && +x >= 0 && +x <= 255)) return false;
-  const a = +p[0], b = +p[1];
-  if (a === 10) return true;
-  if (a === 192 && b === 168) return true;
-  if (a === 172 && b >= 16 && b <= 31) return true;
-  if (a === 169 && b === 254) return true;
-  return false;
-}
-
-function endpointUrlOk(url) {
-  const s = String(url || "").trim();
-  if (!s) return "URL required — set the custom endpoint URL";
-  let u;
-  try { u = new URL(s); } catch {
-    return "that URL isn’t allowed — use http://localhost, 127.0.0.1, a LAN host, or https";
-  }
-  if (u.protocol !== "http:" && u.protocol !== "https:") {
-    return "that URL isn’t allowed — use http://localhost, 127.0.0.1, a LAN host, or https";
-  }
-  if (u.username || u.password) {
-    return "that URL isn’t allowed — don’t put credentials in the URL; use the Authorization field";
-  }
-  if (u.protocol === "https:") return true;
-  const host = u.hostname;
-  if (endpointIsLoopbackHost(host) || endpointIsPrivateIPv4(host) || /\.local$/i.test(host)) return true;
-  return "that URL isn’t allowed — http is only for localhost, 127.0.0.1, or a LAN host; use https for a public host";
-}
-
-function endpointHeaders(auth) {
-  const headers = { "Content-Type": "application/json" };
-  const a = String(auth || "").trim();
-  if (a) headers.Authorization = /\s/.test(a) ? a : ("Bearer " + a);
-  return headers;
-}
-
-function endpointPrompt(n, inp) {
-  inp = inp || {};
-  const v = inp.prompt != null ? inp.prompt : (inp.text != null ? inp.text : (n.fields && n.fields.prompt));
-  return String(v == null ? "" : v).trim();
-}
-
-function endpointIsPath(s) {
-  const raw = String(s == null ? "" : s).trim();
-  if (!raw || raw.charAt(0) !== "/") return false;
-  if (raw.length < 2) return false;
-  if (/[\s\u00b7|\u2022]/.test(raw)) return false;
-  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(raw)) return false;
-  return true;
-}
-
-function endpointJoinPath(base, path) {
-  const u = new URL(String(base || "").trim());
-  let p = String(path || "").trim();
-  if (p.charAt(0) !== "/") p = "/" + p;
-  const q = p.indexOf("?");
-  if (q >= 0) { u.pathname = p.slice(0, q); u.search = p.slice(q); }
-  else { u.pathname = p; u.search = ""; }
-  return u.toString();
-}
-
-function endpointParseRoute(s) {
-  const raw = String(s == null ? "" : s).trim();
-  const out = {};
-  if (!raw) return out;
-  const low = raw.toLowerCase();
-  if (ENDPOINT_MODES.includes(low)) { out.mode = low; return out; }
-  let mode = "", rest = raw;
-  for (const prefix of ENDPOINT_MODES) {
-    if (!low.startsWith(prefix)) continue;
-    const after = raw.slice(prefix.length);
-    const ch = after.charAt(0);
-    if (ch === "\u00b7" || ch === "|" || ch === ":" || ch === "\u2022" || ch === "-" || /\s/.test(ch)) {
-      mode = prefix;
-      rest = after.replace(/^[\s\u00b7|\u2022:\-]+/, "");
-      break;
-    }
-  }
-  rest = String(rest || "").replace(/\s+\([^)]*\)\s*$/, "").trim();
-  let url = "";
-  const m = rest.match(/https?:\/\/[^\s)]+/i);
-  if (m) url = m[0].replace(/[.,;]+$/, "");
-  if (mode) out.mode = mode;
-  if (url) out.url = url;
-  else if (endpointIsPath(rest)) out.path = rest;
-  else if (!mode && endpointIsPath(raw)) out.path = raw;
-  return out;
-}
-
-function endpointResolveTarget(n, inp) {
-  inp = inp || {};
-  const hasFieldUrl = n && n.fields && Object.prototype.hasOwnProperty.call(n.fields, "url");
-  const fieldUrl = hasFieldUrl ? n.fields.url : ENDPOINT_DEF_URL;
-  const urlRaw = (inp.url != null && String(inp.url).trim() !== "") ? inp.url : fieldUrl;
-  const modeRaw = (inp.mode != null && String(inp.mode).trim() !== "") ? inp.mode : (n && n.fields && n.fields.mode);
-  const parsedUrl = endpointParseRoute(urlRaw);
-  const parsedMode = endpointParseRoute(modeRaw);
-  const parsedField = endpointParseRoute(fieldUrl);
-  const path = parsedUrl.path || parsedMode.path;
-  let resolvedUrl = parsedUrl;
-  if (path && !parsedUrl.url) {
-    const base = parsedField.url || String(fieldUrl == null ? "" : fieldUrl).trim();
-    if (base && !endpointIsPath(base)) {
-      try { resolvedUrl = { mode: parsedUrl.mode, url: endpointJoinPath(base, path) }; } catch { /* leave the raw path to fail urlOk */ }
-    }
-  }
-  let url = resolvedUrl.url || String(urlRaw == null ? "" : urlRaw).trim();
-  let mode;
-  if (resolvedUrl.url && resolvedUrl.mode) mode = resolvedUrl.mode;
-  else if (parsedMode.url && parsedMode.mode) { url = parsedMode.url; mode = parsedMode.mode; }
-  else mode = parsedMode.mode || resolvedUrl.mode || (n && n.fields && n.fields.mode) || "chat";
-  mode = ENDPOINT_MODES.includes(String(mode).toLowerCase()) ? String(mode).toLowerCase() : "chat";
-  return { url, mode };
-}
-
-function endpointModel(n) {
-  const m = String((n.fields && n.fields.model) || "").trim();
-  return m || "local";
-}
-
-function endpointRequestBody(mode, n, inp) {
-  inp = inp || {};
-  const model = endpointModel(n);
-  if (mode === "chat") {
-    const prompt = endpointPrompt(n, inp);
-    const messages = [];
-    const sys = String((n.fields && n.fields.system) || "").trim();
-    if (sys) messages.push({ role: "system", content: sys });
-    const imgs = inp.image ? (Array.isArray(inp.image) ? inp.image : [inp.image]) : [];
-    const aud = inp.audio
-      ? { type: "input_audio", input_audio: { data: String(inp.audio).replace(/^data:[^,]*,/, ""), format: "wav" } }
-      : null;
-    if (imgs.length || aud) {
-      const parts = [{ type: "text", text: prompt || "" }];
-      for (const url of imgs) parts.push({ type: "image_url", image_url: { url } });
-      if (aud) parts.push(aud);
-      messages.push({ role: "user", content: parts });
-    } else {
-      messages.push({ role: "user", content: prompt });
-    }
-    return { model, messages, temperature: 0.8 };
-  }
-  if (mode === "image") {
-    const ib = { model, size: (n.fields && n.fields.size) || "1024x1024", n: 1, response_format: "b64_json" };
-    const ip = endpointPrompt(n, inp);
-    if (ip) ib.prompt = ip;
-    if (inp.image) ib.imageDataUrl = inp.image;
-    return ib;
-  }
-  if (mode === "video") {
-    const vb = { model, prompt: endpointPrompt(n, inp) };
-    if (inp.image) vb.imageDataUrl = inp.image;
-    if (inp.video) {
-      if (/^https?:/i.test(inp.video)) vb.videoUrl = inp.video;
-      else vb.videoDataUrl = inp.video;
-    }
-    return vb;
-  }
-  if (mode === "audio") {
-    const ab = { model, input: endpointPrompt(n, inp) };
-    if (inp.audio) {
-      if (/^https?:/i.test(inp.audio)) ab.audioUrl = inp.audio;
-      else ab.audioDataUrl = inp.audio;
-    }
-    return ab;
-  }
-  const jb = {};
-  if (inp.text != null && inp.text !== "") jb.text = inp.text;
-  else {
-    const tp = endpointPrompt(n, inp);
-    if (tp) jb.text = tp;
-  }
-  if (inp.image) jb.image = inp.image;
-  if (inp.video) jb.video = inp.video;
-  if (inp.audio) jb.audio = inp.audio;
-  return jb;
-}
-
-function endpointShapeHint(mode) {
-  if (mode === "chat") return "OpenAI chat JSON { choices:[{ message:{ content } }] }";
-  if (mode === "image") return "{ data:[{ b64_json }] } or { data:[{ url }] }";
-  if (mode === "video") return '{ "url" } or NanoGPT { output: { video: { url } } }';
-  if (mode === "audio") return '{ "url" } or a binary audio body';
-  return '{ "text" } or { "data": ... }';
-}
-
-function endpointApiMessage(body) {
-  try {
-    const j = JSON.parse(String(body || "").replace(/^\d{3}:\s*/, ""));
-    const err = j && j.error;
-    let msg = (typeof err === "string" && err)
-      || (err && typeof err.message === "string" && err.message)
-      || (j && typeof j.message === "string" && j.message)
-      || (j && typeof j.detail === "string" && j.detail)
-      || (j && typeof j.title === "string" && j.title);
-    msg = String(msg || "").replace(/\s+/g, " ").trim();
-    return msg || null;
-  } catch { return null; }
-}
-
-function endpointHttpError(status, body) {
-  const extracted = endpointApiMessage(body);
-  let hint = "";
-  if (status === 404) hint = "check the custom endpoint URL";
-  else if (status === 401 || status === 403) hint = "check the Authorization field";
-  else if (status === 405) hint = "this endpoint must accept POST";
-  else if (status === 413) hint = "payload too large; send a smaller body";
-  else if (status === 415) hint = "send JSON (Content-Type: application/json)";
-  if (extracted) return extracted + (hint ? " — " + hint : "");
-  if (/<html|<body|<!doctype/i.test(String(body || ""))) {
-    return status + " — the URL returned a web page, not JSON; check the custom endpoint URL";
-  }
-  if (hint) return status + " — " + hint;
-  if (!String(body || "").replace(/\s+/g, "").trim()) {
-    return status + " — the endpoint returned an error with no body; check the URL and mode";
-  }
-  if (/^\s*[{\[]/.test(String(body || ""))) {
-    return status + " — the endpoint rejected the request (check URL, mode, and the posted JSON)";
-  }
-  return status + ": " + String(body).replace(/\s+/g, " ").trim().slice(0, 160);
-}
-
-function endpointNotJsonError(mode, ct, raw) {
-  const sample = String(raw || "").replace(/\s+/g, " ").trim().slice(0, 80);
-  if (/<html|<body|<!doctype/i.test(raw || "") || /text\/html/i.test(ct || "")) {
-    return "the endpoint returned a web page, not JSON — check the URL (it must POST " + endpointShapeHint(mode) + ")";
-  }
-  return "response is not JSON — return " + endpointShapeHint(mode) + (sample ? " (got: " + sample + ")" : "");
-}
-
-function endpointParseChat(j) {
-  const msg = (j && j.choices && j.choices[0] && j.choices[0].message) || {};
-  const txt = msg.content;
-  if (txt == null) throw new NanoodleError("no text in response — return " + endpointShapeHint("chat"));
-  return { text: typeof txt === "string" ? txt : txt.map((p) => p.text || "").join("") };
-}
-
-function endpointParseImage(j) {
-  const urls = ((j && j.data) || []).map((d) => {
-    if (d.b64_json) return "data:" + b64ImageMime(d.b64_json) + ";base64," + d.b64_json;
-    return d.url;
-  }).filter(Boolean);
-  if (!urls.length) throw new NanoodleError("no image in response — return " + endpointShapeHint("image"));
-  return { image: urls[0], images: urls };
-}
-
-function endpointParseVideo(j) {
-  const out = (j && j.data && j.data.output) || (j && j.output) || {};
-  const url = (j && (j.url || j.videoUrl))
-    || (out.video && out.video.url)
-    || out.url
-    || (Array.isArray(out.video) ? (out.video[0] && out.video[0].url) : null)
-    || (j && j.data && j.data.url);
-  if (!url) throw new NanoodleError('no video url in response — return { "url" } or NanoGPT { output: { video: { url } } }');
-  return { video: url };
-}
-
-function endpointParseAudioJson(j) {
-  const url = (j && (j.url || j.audioUrl)) || (j && j.data && (j.data.url || j.data.audioUrl));
-  if (!url) throw new NanoodleError('no audio url in response — return { "url" } or a binary audio body');
-  return { audio: url };
-}
-
-function endpointLooksLikeEcho(j) {
-  if (!j || typeof j !== "object") return false;
-  const h = j.headers;
-  if (!h || typeof h !== "object" || Array.isArray(h)) return false;
-  if (!Object.prototype.hasOwnProperty.call(j, "data") && !Object.prototype.hasOwnProperty.call(j, "json")) return false;
-  return j.url != null || j.origin != null || j.method != null;
-}
-
-function endpointJsonModeText(v) {
-  if (typeof v === "string") {
-    const s = v.trim();
-    if (s) {
-      try {
-        const p = JSON.parse(s);
-        if (p && typeof p === "object") return endpointJsonModeText(p);
-      } catch { /* plain text */ }
-    }
-    return v;
-  }
-  if (v && typeof v === "object") {
-    if (endpointLooksLikeEcho(v)) {
-      const inner = (Object.prototype.hasOwnProperty.call(v, "json") && v.json != null) ? v.json : v.data;
-      if (inner !== v) return endpointJsonModeText(inner);
-    }
-    if (v.text != null) return String(v.text);
-    try { return JSON.stringify(v, null, 2); } catch { return String(v); }
-  }
-  return v == null ? "" : String(v);
-}
-
-function endpointParseJsonMode(j) {
-  if (j && j.text != null && !endpointLooksLikeEcho(j)) return { text: String(j.text) };
-  if (endpointLooksLikeEcho(j)) {
-    return { text: endpointJsonModeText((Object.prototype.hasOwnProperty.call(j, "json") && j.json != null) ? j.json : j.data) };
-  }
-  if (j && Object.prototype.hasOwnProperty.call(j, "data")) return { text: endpointJsonModeText(j.data) };
-  throw new NanoodleError('json mode expected { "text" } or { "data": ... } — not a chat/completions wrapper');
-}
-
-async function endpointParseResponse(mode, r) {
-  const ct = (r.headers && r.headers.get && r.headers.get("content-type")) || "";
-  if (mode === "audio" && !/json/i.test(ct)) {
-    const bytes = new Uint8Array(await r.arrayBuffer());
-    let mime = ct.split(";")[0].trim().toLowerCase();
-    if (!mime || mime === "application/octet-stream" || mime === "binary/octet-stream") mime = "audio/mpeg";
-    return { audio: bytesToDataUrl(bytes, mime) };
-  }
-  let raw = "";
-  try { raw = await r.text(); } catch { raw = ""; }
-  if (!String(raw).trim()) {
-    throw new NanoodleError("empty response — the endpoint returned no body; check the URL and mode");
-  }
-  let j;
-  try { j = JSON.parse(raw); } catch {
-    throw new NanoodleError(endpointNotJsonError(mode, ct, raw));
-  }
-  if (mode === "chat") return endpointParseChat(j);
-  if (mode === "image") return endpointParseImage(j);
-  if (mode === "video") return endpointParseVideo(j);
-  if (mode === "audio") return endpointParseAudioJson(j);
-  return endpointParseJsonMode(j);
-}
-
-function endpointUrlIsLocal(url) {
-  try {
-    const u = new URL(String(url || "").trim());
-    const host = u.hostname;
-    return endpointIsLoopbackHost(host) || endpointIsPrivateIPv4(host) || /\.local$/i.test(host);
-  } catch { return false; }
-}
-
-function endpointFetchIsOpaque(e) {
-  const m = ((e && e.message) || String(e)).trim();
-  if (/^(TypeError: )?(Failed to fetch|Load failed|NetworkError)/i.test(m)) return true;
-  return !!(e && e.name === "TypeError" && /fetch|network|cors/i.test(m));
-}
-
-function endpointFetchError(e, url) {
-  if (!endpointFetchIsOpaque(e)) return (e && e.message) || String(e);
-  if (!endpointUrlIsLocal(url)) return "blocked by CORS — your server needs Access-Control-Allow-Origin";
-  return "blocked — CORS (Access-Control-Allow-Origin + OPTIONS) or Chrome local-network permission";
-}
-
-/**
- * POST the mode's body and parse the reply.
- * @param {{ fetch?: typeof fetch, signal?: AbortSignal }} [io]
- */
-async function runEndpoint(n, inp, io = {}) {
-  const target = endpointResolveTarget(n, inp || {});
-  const url = target.url;
-  const ok = endpointUrlOk(url);
-  if (ok !== true) throw new NanoodleError(ok);
-  const mode = target.mode;
-  const body = endpointRequestBody(mode, n, inp || {});
-  const headers = endpointHeaders(n.fields && n.fields.auth);
-  const doFetch = io.fetch || globalThis.fetch;
-  let r;
-  try {
-    r = await doFetch(url, { method: "POST", headers, body: JSON.stringify(body), signal: io.signal });
-  } catch (e) {
-    if (e && e.name === "AbortError") throw e;
-    throw new NanoodleError(endpointFetchError(e, url));
-  }
-  if (!r.ok) {
-    let errBody = "";
-    try { errBody = (await r.text()).slice(0, 800); } catch { /* ignore */ }
-    throw new NanoodleError(endpointHttpError(r.status, errBody));
-  }
-  return endpointParseResponse(mode, r);
-}
-
-__x.ENDPOINT_DEF_URL = ENDPOINT_DEF_URL; __x.ENDPOINT_MODES = ENDPOINT_MODES; __x.endpointMode = endpointMode; __x.endpointOutPort = endpointOutPort; __x.endpointUrlOk = endpointUrlOk; __x.endpointResolveTarget = endpointResolveTarget; __x.endpointRequestBody = endpointRequestBody; __x.runEndpoint = runEndpoint;
-});
 __def("zlib.mjs", function (__x, __req) {
 /**
  * Env-adaptive zlib: node:zlib in Node (dynamic import, cached), Compression/
@@ -5924,5 +6198,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-c14d4573b1b2";
+  window.NanoodleEngine.version = "src-93d3d3743635";
 })();
