@@ -467,6 +467,13 @@
           padding:.7rem 1rem; border-radius:.6rem; box-shadow:0 16px 44px #000b; font-size:.9rem; font-weight:600;
           opacity:0; pointer-events:none; transition:opacity .18s ease, transform .18s ease }
   #toast.show{ opacity:1; transform:translateX(-50%) translateY(0) scale(1) }
+  /* The workspace menu opens in the same band as the toast. While it is open, park the toast at the bottom so it doesn't cover the rename field or the tab list. */
+  body:has(#wsdropmenu:not([hidden])) #toast,
+  body:has(#wschooser:not([hidden])) #toast{
+    top:auto; bottom:1.1rem; transform:translateX(-50%) translateY(14px) scale(.98); }
+  body:has(#wsdropmenu:not([hidden])) #toast.show,
+  body:has(#wschooser:not([hidden])) #toast.show{
+    transform:translateX(-50%) translateY(0) scale(1); }
   #toast.err{ border-color:var(--bad) }
   #toast.warn{ border-color:var(--warn) }
   /* ⛽ Refuel — scan-to-top-up panel; opens ONLY at the out-of-balance dead-end (nowhere else) */
@@ -1162,16 +1169,20 @@
     display:flex; align-items:flex-end; gap:.15rem; padding:0 .5rem;
     background:#090b10; border-bottom:1px solid var(--line); user-select:none; }
   #wstabs{ display:flex; align-items:flex-end; gap:.15rem; min-width:0; max-width:calc(100% - 2.2rem);
-    height:100%; overflow-x:auto; scrollbar-width:none; }
-  #wstabs::-webkit-scrollbar{ display:none }
+    height:100%; overflow-x:auto; scrollbar-width:thin; }
+  #wstabs::-webkit-scrollbar{ height:3px }
+  #wstabs::-webkit-scrollbar-thumb{ background:#3a4258; border-radius:3px }
+  #wstabs.fade-l{ -webkit-mask-image:linear-gradient(to right, transparent, #000 14px); mask-image:linear-gradient(to right, transparent, #000 14px); }
+  #wstabs.fade-r{ -webkit-mask-image:linear-gradient(to right, #000 calc(100% - 14px), transparent); mask-image:linear-gradient(to right, #000 calc(100% - 14px), transparent); }
+  #wstabs.fade-l.fade-r{ -webkit-mask-image:linear-gradient(to right, transparent, #000 14px, #000 calc(100% - 14px), transparent); mask-image:linear-gradient(to right, transparent, #000 14px, #000 calc(100% - 14px), transparent); }
   .wstab{ position:relative; display:inline-flex; align-items:center; gap:.3rem; flex:0 0 auto;
     max-width:11.5rem; height:calc(var(--ws-h) - 7px); margin:0; padding:0 .55rem 0 .7rem;
     border:1px solid transparent; border-bottom:none; border-radius:.45rem .45rem 0 0;
     background:transparent; color:var(--dim); font-size:.78rem; line-height:1; cursor:pointer; }
   .wstab .wslabel{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
   .wstab .wsx{ display:inline-flex; align-items:center; justify-content:center; flex:none;
-    width:1.05rem; height:1.05rem; margin-right:-.1rem; border-radius:.3rem; opacity:0;
-    font-size:.85rem; color:var(--dim); }
+    width:1.15rem; height:1.15rem; margin:0; padding:0; border:none; background:transparent;
+    border-radius:.3rem; opacity:0; font-size:.85rem; line-height:1; color:var(--dim); }
   .wstab:hover .wsx, .wstab.on .wsx, .wstab:focus-visible .wsx{ opacity:.8 }
   .wstab .wsx:hover{ opacity:1; background:#ffffff18; color:var(--ink) }
   .wstab:hover:not(.on){ color:var(--ink); background:#ffffff0a }
@@ -1196,13 +1207,26 @@
   #wschooser button:hover, #wsdropmenu button:hover, #wsdropmenu button.on{ background:var(--panel2) }
   #wsdropmenu button.on{ background:#7c8cff22 }
   #wschooser .wssep{ height:1px; background:var(--line); margin:.2rem .35rem }
-  #wsdropmenu .wshint{ font-size:.7rem; line-height:1.35; color:var(--dim); padding:.35rem .6rem .1rem; }
-  #wsdropmenu input.wsrename{ margin:.2rem .35rem .3rem; background:var(--panel2); border:1px solid var(--line);
-    border-radius:.4rem; padding:.4rem .55rem; font:inherit; color:inherit; }
+  #wsdropmenu:not([hidden]){ max-height:min(70vh, 440px); overflow:auto; }
+  #wsdropmenu .wshint{ font-size:.7rem; line-height:1.35; color:var(--dim); padding:.35rem .6rem .15rem; }
+  #wsdropmenu .wsrow{ display:flex; align-items:center; gap:.15rem; border-radius:.4rem; }
+  #wsdropmenu .wsrow.on{ background:#7c8cff22; }
+  #wsdropmenu .wsrow .wsname{ flex:1 1 auto; width:auto; min-width:0; text-align:left;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #wsdropmenu .wsrow input.wsrename{ flex:1 1 auto; width:auto; min-width:0; margin:0;
+    background:transparent; border:none; border-radius:.35rem; padding:.48rem .45rem; font:inherit; color:inherit; }
+  #wsdropmenu .wsrow .wsx{ flex:none; width:2rem; height:2rem; margin:0; padding:0; border:none;
+    background:transparent; color:var(--dim); font-size:1.05rem; line-height:1; }
+  #wsdropmenu .wsrow .wsx:hover, #wsdropmenu .wsrow .wsx:focus-visible{ color:var(--ink); background:#ffffff18; }
+  #workspaces.wsbusy .wstab:not(.on),
+  #workspaces.wsbusy #wsadd,
+  #workspaces.wsbusy #wsdrop{ opacity:.4; }
+  #workspaces.wsbusy .wstab{ cursor:default; }
   @media (max-width:720px){
     :root{ --ws-h:40px }
     #wstabs{ display:none }
-    #wsdrop{ display:inline-flex; align-items:center; gap:.35rem; flex:1 1 auto; min-width:0;
+    #wsaddwrap{ display:none }   /* the header already has ＋ Add node; starters live in the workspace menu */
+    #wsdrop{ display:inline-flex; align-items:center; gap:.35rem; flex:1 1 auto; min-width:0; }
       height:calc(var(--ws-h) - 10px); margin:0 0 5px; padding:0 .7rem;
       background:var(--bg); border:1px solid var(--line); border-radius:.45rem; color:var(--ink); font-size:.84rem; }
     #wsdrop .wsdropname{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; text-align:left; flex:1 }
@@ -1270,7 +1294,7 @@
   <div id="wsaddwrap">
     <button id="wsadd" type="button" title="New workspace" aria-label="New workspace" aria-haspopup="menu" aria-expanded="false">+</button>
     <div id="wschooser" hidden role="menu" aria-label="New workspace">
-      <div class="wshint">The workspace you are on stays put.</div>
+      <div class="wshint">Opens in a new tab — your current workflow stays open.</div>
       <button type="button" data-ws="blank">Blank canvas</button>
       <button type="button" data-ws="t2i">Text to image</button>
       <button type="button" data-ws="ask">Ask a model</button>
@@ -2213,7 +2237,7 @@ const I18N = {
     "Text to image":"Texto a imagen",
     "Ask a model":"Preguntar a un modelo",
     "Browse Examples":"Ver ejemplos",
-    "The workspace you are on stays put.":"El espacio en el que estás se queda.",
+    "Opens in a new tab — your current workflow stays open.":"Se abre en una pestaña nueva — tu flujo actual sigue abierto.",
     "Opened in a new workspace — the one you were on is still here.":"Abierto en un espacio nuevo — el anterior sigue aquí.",
     "Opened “{name}” in a new workspace.":"“{name}” se abrió en un espacio nuevo.",
     "Too many workspaces — close one first.":"Hay demasiados espacios — cierra uno primero.",
@@ -2221,6 +2245,8 @@ const I18N = {
     "Couldn’t switch — this browser couldn’t store the workspace.":"No se pudo cambiar — este navegador no pudo guardar el espacio.",
     "Close “{name}”? This removes it from this browser.":"¿Cerrar “{name}”? Se eliminará de este navegador.",
     "Rename workspace":"Renombrar espacio",
+    "Close workspace":"Cerrar espacio",
+    "“{name}” is already open.":"“{name}” ya está abierto.",
     "Workflow":"Flujo",
     "Untitled":"Sin título",
     "Shared workflow":"Flujo compartido",
@@ -2952,7 +2978,7 @@ const I18N = {
     "Text to image":"Texte vers image",
     "Ask a model":"Interroger un modèle",
     "Browse Examples":"Parcourir les exemples",
-    "The workspace you are on stays put.":"L’espace en cours reste en place.",
+    "Opens in a new tab — your current workflow stays open.":"S’ouvre dans un nouvel onglet — votre workflow en cours reste ouvert.",
     "Opened in a new workspace — the one you were on is still here.":"Ouvert dans un nouvel espace — le précédent est toujours là.",
     "Opened “{name}” in a new workspace.":"« {name} » est ouvert dans un nouvel espace.",
     "Too many workspaces — close one first.":"Trop d’espaces — fermez-en un d’abord.",
@@ -2960,6 +2986,8 @@ const I18N = {
     "Couldn’t switch — this browser couldn’t store the workspace.":"Impossible de changer — ce navigateur n’a pas pu enregistrer l’espace.",
     "Close “{name}”? This removes it from this browser.":"Fermer « {name} » ? Cela le retire de ce navigateur.",
     "Rename workspace":"Renommer l’espace",
+    "Close workspace":"Fermer l’espace",
+    "“{name}” is already open.":"« {name} » est déjà ouvert.",
     "Workflow":"Workflow",
     "Untitled":"Sans titre",
     "Shared workflow":"Workflow partagé",
@@ -3691,7 +3719,7 @@ const I18N = {
     "Text to image":"Text zu Bild",
     "Ask a model":"Ein Modell fragen",
     "Browse Examples":"Beispiele durchsuchen",
-    "The workspace you are on stays put.":"Der aktuelle Arbeitsbereich bleibt.",
+    "Opens in a new tab — your current workflow stays open.":"Öffnet einen neuen Tab — dein aktueller Workflow bleibt offen.",
     "Opened in a new workspace — the one you were on is still here.":"In einem neuen Arbeitsbereich geöffnet — der vorherige ist noch da.",
     "Opened “{name}” in a new workspace.":"„{name}“ wurde in einem neuen Arbeitsbereich geöffnet.",
     "Too many workspaces — close one first.":"Zu viele Arbeitsbereiche — schließe zuerst einen.",
@@ -3699,6 +3727,8 @@ const I18N = {
     "Couldn’t switch — this browser couldn’t store the workspace.":"Wechseln nicht möglich — dieser Browser konnte den Arbeitsbereich nicht speichern.",
     "Close “{name}”? This removes it from this browser.":"„{name}“ schließen? Das entfernt ihn aus diesem Browser.",
     "Rename workspace":"Arbeitsbereich umbenennen",
+    "Close workspace":"Arbeitsbereich schließen",
+    "“{name}” is already open.":"„{name}“ ist bereits geöffnet.",
     "Workflow":"Workflow",
     "Untitled":"Unbenannt",
     "Shared workflow":"Geteilter Workflow",
@@ -4430,7 +4460,7 @@ const I18N = {
     "Text to image":"Texto para imagem",
     "Ask a model":"Perguntar a um modelo",
     "Browse Examples":"Ver exemplos",
-    "The workspace you are on stays put.":"O espaço em que você está permanece.",
+    "Opens in a new tab — your current workflow stays open.":"Abre em uma nova aba — seu fluxo atual continua aberto.",
     "Opened in a new workspace — the one you were on is still here.":"Aberto em um espaço novo — o anterior continua aqui.",
     "Opened “{name}” in a new workspace.":"“{name}” foi aberto em um espaço novo.",
     "Too many workspaces — close one first.":"Espaços demais — feche um primeiro.",
@@ -4438,6 +4468,8 @@ const I18N = {
     "Couldn’t switch — this browser couldn’t store the workspace.":"Não foi possível trocar — este navegador não conseguiu guardar o espaço.",
     "Close “{name}”? This removes it from this browser.":"Fechar “{name}”? Isso o remove deste navegador.",
     "Rename workspace":"Renomear espaço",
+    "Close workspace":"Fechar espaço",
+    "“{name}” is already open.":"“{name}” já está aberto.",
     "Workflow":"Fluxo",
     "Untitled":"Sem título",
     "Shared workflow":"Fluxo compartilhado",
@@ -5169,7 +5201,7 @@ const I18N = {
     "Text to image":"テキストから画像",
     "Ask a model":"モデルに聞く",
     "Browse Examples":"例を見る",
-    "The workspace you are on stays put.":"作業中のワークスペースはそのまま残ります。",
+    "Opens in a new tab — your current workflow stays open.":"新しいタブで開きます — 作業中のワークフローはそのまま残ります。",
     "Opened in a new workspace — the one you were on is still here.":"新しいワークスペースで開きました — それまでの作業はそのままです。",
     "Opened “{name}” in a new workspace.":"「{name}」を新しいワークスペースで開きました。",
     "Too many workspaces — close one first.":"ワークスペースが多すぎます — 先に一つ閉じてください。",
@@ -5177,6 +5209,8 @@ const I18N = {
     "Couldn’t switch — this browser couldn’t store the workspace.":"切り替えできませんでした — このブラウザはワークスペースを保存できませんでした。",
     "Close “{name}”? This removes it from this browser.":"「{name}」を閉じますか？このブラウザから削除されます。",
     "Rename workspace":"ワークスペースの名前を変更",
+    "Close workspace":"ワークスペースを閉じる",
+    "“{name}” is already open.":"「{name}」はすでに開いています。",
     "Workflow":"ワークフロー",
     "Untitled":"無題",
     "Shared workflow":"共有ワークフロー",
@@ -12932,6 +12966,7 @@ function updateRunButtons(){
   const est = $("runest");
   if(est){ if(running || draining) est.hidden = true; else refreshRunEstimate(); }
   paintRunLive();
+  try{ if(typeof syncWorkspaceBusy==="function") syncWorkspaceBusy(); }catch(_){}
 }
 
 /* ---------- live run strip (#runlive) ----------
@@ -16585,7 +16620,7 @@ function saveFile(){
   // (Share links / exported apps still go through shareableGraph() to blank that private media.)
   const blob = new Blob([JSON.stringify(serializeGraph(), null, 2)], {type:"application/json"});
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob); a.download = "noodle-graph.json"; a.click();
+  a.href = URL.createObjectURL(blob); a.download = (typeof workspaceDownloadName==="function" ? workspaceDownloadName() : "noodle-graph.json"); a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
 }
 function loadFile(file){
@@ -16597,6 +16632,7 @@ function loadFile(file){
     const had = graph.nodes.length > 0;   // only park + reassure if there's a workflow to bring back (skip an empty canvas)
     if(had) pushUndo(true);                // BEFORE the mutation — boundary: an unrelated file replaces the graph; ↺ Undo restores the prior graph + its paid results
     setPendingApp(null); applyGraphData(JSON.parse(r.result)); window.resetDescribeVersions?.(); save();
+    try{ if(typeof stampActiveExample==="function") stampActiveExample(null); }catch(_){}
     if(had) toast(t("↺ Undo restores your previous workflow"));   // opening a file replaced your graph — one Ctrl+Z away
   }catch(e){ alert(t("Couldn’t load that file:")+" "+e.message); } };
   r.readAsText(file);
@@ -17073,6 +17109,56 @@ function nameFromGraphJson(json){
   }catch(_){}
   return "";
 }
+// Node labels like "Prompt" describe a field, not the workflow. A tab should say what the graph is for.
+const WS_GENERIC_NAME = /^(prompt|image|text|answer|upload|note|edit|input)$/i;
+function purposeName(json){
+  try{
+    const d = typeof json==="string" ? JSON.parse(json) : json;
+    const nodes = (d && d.nodes) || [];
+    if(!nodes.length) return "";
+    const has = (ty)=> nodes.some(n => n && n.type===ty);
+    const linked = (a, b)=> (d.links||[]).some(l => {
+      const fn = nodes.find(n => n && n.id===l.from.node);
+      const tn = nodes.find(n => n && n.id===l.to.node);
+      return fn && tn && fn.type===a && tn.type===b;
+    });
+    if((linked("text","image") || (nodes.length<=3 && has("text") && has("image"))) && !has("llm") && !has("tvideo") && !has("ivideo"))
+      return "Text to image";
+    if((linked("text","llm") || (nodes.length<=3 && has("text") && has("llm"))) && !has("image"))
+      return "Ask a model";
+  }catch(_){}
+  return "";
+}
+function workspaceLabelForGraph(json, ga){
+  const raw = nameFromGraphJson(json);
+  const specific = raw && !WS_GENERIC_NAME.test(raw) ? raw : "";
+  const purpose = purposeName(json);
+  if(ga){
+    const title = (typeof pendingAppTitle!=="undefined" && pendingAppTitle) || "";
+    return title || specific || purpose || "Shared app";
+  }
+  return specific || purpose || "Shared workflow";
+}
+function workspaceDownloadName(){
+  let name = "noodle-graph";
+  try{
+    const d = readWorkspaces();
+    const cur = d && d.tabs.find(t => t.id===d.active);
+    if(cur && String(cur.name||"").trim()) name = String(cur.name).trim();
+  }catch(_){}
+  name = name.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, " ").replace(/\s+/g, " ").trim() || "noodle-graph";
+  if(name.length>60) name = name.slice(0, 60).trim();
+  return name+".json";
+}
+function stampActiveExample(slug){
+  const d = readWorkspaces();
+  if(!d) return;
+  const cur = d.tabs.find(t => t.id===d.active);
+  if(!cur) return;
+  if(slug) cur.example = String(slug);
+  else delete cur.example;
+  try{ writeWorkspaces(d); }catch(_){}
+}
 function readWorkspaces(){
   try{
     const d = JSON.parse(localStorage.getItem(WS_INDEX_KEY) || "null");
@@ -17087,7 +17173,8 @@ function ensureWorkspaces(){
   if(existing) return existing;
   let raw = null;
   try{ raw = localStorage.getItem("noodle_graph"); }catch(_){}
-  const name = nameFromGraphJson(raw) || wsT("Workflow");
+  const named = nameFromGraphJson(raw);
+  const name = (named && !WS_GENERIC_NAME.test(named) ? named : "") || purposeName(raw) || wsT("Workflow");
   const app = editorAppBinding();
   const d = { v:1, active:"w1", seq:1, tabs:[{ id:"w1", name, app: app ? { id:app.id, title:app.title || null } : null }] };
   try{ writeWorkspaces(d); }catch(_){}
@@ -17225,8 +17312,22 @@ function openWorkspaceWithGraph(data, name, opts){
     }
   }
   flushSave();
+  try{ stampActiveExample(opts.example || null); }catch(_){}
   try{ renderWorkspaces(); }catch(_){}
   return true;
+}
+function openExampleWorkspace(graphData, name, slug){
+  if(workspaceBusy()){ flash("can’t change the workflow while running — Stop first"); return false; }
+  const d = readWorkspaces() || ensureWorkspaces();
+  const existing = slug && d.tabs.find(t => t.example===slug);
+  if(existing){
+    if(d.active!==existing.id) switchWorkspace(existing.id);
+    return "switch";
+  }
+  const had = !!(graph.nodes && graph.nodes.length);
+  const ok = openWorkspaceWithGraph(graphData, name, { respectCap:true, fit:true, example:slug });
+  if(!ok) return false;
+  return had ? "open" : "absorb";
 }
 function switchWorkspace(id){
   const d = readWorkspaces();
@@ -17336,7 +17437,11 @@ function renameWorkspace(id, name, opts){
   if(!tab) return;
   let next = String(name||"").trim().replace(/[\r\n]+/g," ").replace(/\s+/g," ");
   if(next.length>40) next = next.slice(0,40).trim();
-  if(!next || next===tab.name) return;
+  // An empty commit must restore the label. Leaving the input in place is how a blank rename got stuck.
+  if(!next || next===tab.name){
+    if(!opts || opts.render!==false){ try{ renderWorkspaces(); }catch(_){} }
+    return;
+  }
   next = uniqueWorkspaceName(next, d.tabs.filter(t => t.id!==id));
   tab.name = next;
   try{ writeWorkspaces(d); }catch(_){}
@@ -17387,7 +17492,28 @@ function toggleChooser(){
   if(!menu) return;
   const open = menu.hidden;
   closeWorkspaceMenus();
-  if(open){ placeChooser(); menu.hidden = false; const add = $("wsadd"); if(add) add.setAttribute("aria-expanded", "true"); }
+  if(open){
+    placeChooser();
+    menu.hidden = false;
+    const add = $("wsadd");
+    if(add) add.setAttribute("aria-expanded", "true");
+    const first = menu.querySelector("[data-ws]");
+    if(first) first.focus();
+  }
+}
+function chooseWorkspace(kind){
+  closeWorkspaceMenus();
+  if(kind==="examples"){ if(typeof openExamples==="function") openExamples(); return; }
+  if(workspaceBusy()){ flash("can’t change the workflow while running — Stop first"); return; }
+  let data, name, fit = true;
+  if(kind==="blank"){ data = blankGraph(); name = wsT("Blank canvas"); fit = false; }
+  else if(kind==="t2i"){ data = textToImageGraph(); name = wsT("Text to image"); }
+  else if(kind==="ask"){ data = askModelGraph(); name = wsT("Ask a model"); }
+  else return;
+  const had = !!(graph.nodes && graph.nodes.length);
+  if(!openWorkspaceWithGraph(data, name, { respectCap:true, fit })) return;
+  try{ if(typeof dismissHint==="function") dismissHint(); }catch(_){}
+  if(had) toast(wsT("Opened “{name}” in a new workspace.").replace("{name}", name));
 }
 function fillDropMenu(d){
   const menu = $("wsdropmenu");
@@ -17395,34 +17521,81 @@ function fillDropMenu(d){
   menu.textContent = "";
   const cur = d.tabs.find(t => t.id===d.active);
   const renamingId = cur && cur.id;
+  let inp = null;
+  for(const tab of d.tabs){
+    const wsRow = document.createElement("div");
+    wsRow.className = "wsrow"+(tab.id===d.active ? " on" : "");
+    wsRow.setAttribute("role", "option");
+    wsRow.setAttribute("aria-selected", tab.id===d.active ? "true" : "false");
+    if(tab.id===d.active){
+      inp = document.createElement("input");
+      inp.className = "wsrename";
+      inp.value = tab.name;
+      inp.maxLength = 40;
+      inp.setAttribute("aria-label", wsT("Rename workspace"));
+      inp.setAttribute("data-no-i18n", "");
+      inp.addEventListener("keydown", (e)=>{
+        if(e.key==="Enter"){
+          e.preventDefault();
+          renameWorkspace(renamingId, inp.value, {render:false});
+          menu.hidden = true;
+          const drop = $("wsdrop"); if(drop) drop.setAttribute("aria-expanded","false");
+          try{ renderWorkspaces(); }catch(_){}
+        } else if(e.key==="Escape"){
+          e.preventDefault(); e.stopPropagation();
+          menu.hidden = true;
+          const drop = $("wsdrop"); if(drop) drop.setAttribute("aria-expanded","false");
+        }
+      });
+      inp.addEventListener("blur", ()=>{
+        renameWorkspace(renamingId, inp.value, {render:false});
+        const live = readWorkspaces();
+        const kept = live && live.tabs.find(t => t.id===renamingId);
+        if(kept && inp.isConnected) inp.value = kept.name;
+        const label = document.querySelector("#wsdrop .wsdropname");
+        if(label && kept) label.textContent = kept.name;
+      });
+      wsRow.appendChild(inp);
+    } else {
+      const nameBtn = document.createElement("button");
+      nameBtn.type = "button";
+      nameBtn.className = "wsname";
+      nameBtn.setAttribute("data-no-i18n", "");
+      nameBtn.textContent = tab.name;
+      nameBtn.addEventListener("click", ()=>{
+        if(inp) renameWorkspace(renamingId, inp.value, {render:false});
+        menu.hidden = true;
+        const drop = $("wsdrop"); if(drop) drop.setAttribute("aria-expanded","false");
+        switchWorkspace(tab.id);
+      });
+      wsRow.appendChild(nameBtn);
+    }
+    const xBtn = document.createElement("button");
+    xBtn.type = "button";
+    xBtn.className = "wsx";
+    xBtn.setAttribute("aria-label", wsT("Close workspace"));
+    xBtn.textContent = "×";
+    xBtn.addEventListener("click", (e)=>{
+      e.stopPropagation();
+      if(inp) renameWorkspace(renamingId, inp.value, {render:false});
+      closeWorkspace(tab.id);
+    });
+    wsRow.appendChild(xBtn);
+    menu.appendChild(wsRow);
+  }
+  const sep = document.createElement("div");
+  sep.className = "wssep";
+  menu.appendChild(sep);
   const hint = document.createElement("div");
   hint.className = "wshint";
-  hint.textContent = wsT("Rename workspace");
+  hint.textContent = wsT("Opens in a new tab — your current workflow stays open.");
   menu.appendChild(hint);
-  const inp = document.createElement("input");
-  inp.className = "wsrename";
-  inp.value = cur ? cur.name : "";
-  inp.maxLength = 40;
-  inp.setAttribute("aria-label", wsT("Rename workspace"));
-  inp.setAttribute("data-no-i18n", "");
-  inp.addEventListener("keydown", (e)=>{
-    if(e.key==="Enter"){ e.preventDefault(); renameWorkspace(renamingId, inp.value); $("wsdropmenu").hidden = true; }
-    else if(e.key==="Escape"){ e.preventDefault(); e.stopPropagation(); $("wsdropmenu").hidden = true; }
-  });
-  inp.addEventListener("blur", ()=>{ if(!$("wsdropmenu").hidden) renameWorkspace(renamingId, inp.value); });
-  menu.appendChild(inp);
-  for(const tab of d.tabs){
-    if(tab.id===d.active) continue;   // the field above is the workspace you're on
-    const row = document.createElement("button");
-    row.type = "button";
-    row.setAttribute("role", "option");
-    row.setAttribute("data-no-i18n", "");
-    row.setAttribute("aria-selected", tab.id===d.active ? "true" : "false");
-    row.textContent = tab.name;
-    if(tab.id===d.active) row.className = "on";
-    row.addEventListener("pointerdown", (e)=>{ e.preventDefault(); renameWorkspace(renamingId, inp.value, {render:false}); });
-    row.addEventListener("click", ()=>{ $("wsdropmenu").hidden = true; const drop = $("wsdrop"); if(drop) drop.setAttribute("aria-expanded","false"); switchWorkspace(tab.id); });
-    menu.appendChild(row);
+  for(const [kind, label] of [["blank","Blank canvas"],["t2i","Text to image"],["ask","Ask a model"],["examples","Browse Examples"]]){
+    const item = document.createElement("button");
+    item.type = "button";
+    item.setAttribute("data-ws", kind);
+    item.textContent = wsT(label);
+    menu.appendChild(item);
   }
 }
 function renderWorkspaces(){
@@ -17439,8 +17612,7 @@ function renderWorkspaces(){
     }catch(_){}
     tabsEl.textContent = "";
     for(const tab of d.tabs){
-      const tabBtn = document.createElement("button");
-      tabBtn.type = "button";
+      const tabBtn = document.createElement("div");
       tabBtn.className = "wstab"+(tab.id===d.active ? " on" : "");
       tabBtn.setAttribute("role", "tab");
       tabBtn.setAttribute("data-no-i18n", "");
@@ -17453,9 +17625,10 @@ function renderWorkspaces(){
       label.textContent = tab.name;
       tabBtn.appendChild(label);
       if(d.tabs.length>1 || tabOccupied(d, tab)){
-        const x = document.createElement("span");
+        const x = document.createElement("button");
+        x.type = "button";
         x.className = "wsx";
-        x.setAttribute("aria-hidden", "true");
+        x.setAttribute("aria-label", wsT("Close workspace"));
         x.textContent = "×";
         tabBtn.appendChild(x);
       }
@@ -17474,6 +17647,8 @@ function renderWorkspaces(){
     const menu = $("wsdropmenu");
     if(menu && !menu.hidden) fillDropMenu(d);
     if(focusId) focusWorkspaceTab(focusId);
+    try{ scrollActiveTabIntoView(); }catch(_){}
+    try{ syncWorkspaceBusy(); }catch(_){}
   }catch(_){}
 }
 function beginWorkspaceRename(tabEl){
@@ -17530,17 +17705,28 @@ function bindWorkspaceChrome(){
       beginWorkspaceRename(b);
     });
     tabs.addEventListener("keydown", (e)=>{
+      if(e.target && e.target.closest && e.target.closest("input, textarea")) return;
+      if(e.key==="F2"){
+        const b = e.target.closest && e.target.closest(".wstab");
+        if(!b) return;
+        e.preventDefault();
+        beginWorkspaceRename(b);
+        return;
+      }
+      if((e.key==="Enter" || e.key===" ") && e.target.classList && e.target.classList.contains("wstab")){
+        e.preventDefault();
+        switchWorkspace(e.target.dataset.id);
+        return;
+      }
       const d = readWorkspaces(); if(!d) return;
       const i = d.tabs.findIndex(t => t.id===d.active);
       if(e.key==="ArrowRight" || e.key==="ArrowLeft"){
         e.preventDefault();
         const n = d.tabs[(i + (e.key==="ArrowRight"?1:-1) + d.tabs.length) % d.tabs.length];
         if(n){ switchWorkspace(n.id); focusWorkspaceTab(n.id); }
-      } else if((e.key==="Backspace" || e.key==="Delete") && document.activeElement && document.activeElement.classList && document.activeElement.classList.contains("wstab")){
-        e.preventDefault();
-        closeWorkspace(document.activeElement.dataset.id);
       }
     });
+    tabs.addEventListener("scroll", ()=>{ try{ syncTabOverflow(); }catch(_){} }, {passive:true});
     tabs.addEventListener("pointerdown", (e)=>{
       if(e.button!=null && e.button!==0) return;
       const b = e.target.closest && e.target.closest(".wstab");
@@ -17581,22 +17767,27 @@ function bindWorkspaceChrome(){
     const add = $("wsadd");
     if(add) add.onclick = (e)=>{ e.stopPropagation(); toggleChooser(); };
     const chooser = $("wschooser");
-    if(chooser) chooser.addEventListener("click", (e)=>{
+    if(chooser){
+      chooser.addEventListener("click", (e)=>{
+        const b = e.target.closest && e.target.closest("[data-ws]");
+        if(!b) return;
+        chooseWorkspace(b.getAttribute("data-ws"));
+      });
+      chooser.addEventListener("keydown", (e)=>{
+        const items = [...chooser.querySelectorAll("[data-ws]")];
+        if(!items.length) return;
+        const i = items.indexOf(document.activeElement);
+        if(e.key!=="ArrowDown" && e.key!=="ArrowUp") return;
+        e.preventDefault();
+        const next = items[(i<0 ? 0 : i + (e.key==="ArrowDown" ? 1 : -1) + items.length) % items.length];
+        if(next) next.focus();
+      });
+    }
+    const dropMenu = $("wsdropmenu");
+    if(dropMenu) dropMenu.addEventListener("click", (e)=>{
       const b = e.target.closest && e.target.closest("[data-ws]");
       if(!b) return;
-      closeWorkspaceMenus();
-      const kind = b.getAttribute("data-ws");
-      if(kind==="examples"){ if(typeof openExamples==="function") openExamples(); return; }
-      if(workspaceBusy()){ flash("can’t change the workflow while running — Stop first"); return; }
-      let data, name, fit = true;
-      if(kind==="blank"){ data = blankGraph(); name = wsT("Blank canvas"); fit = false; }
-      else if(kind==="t2i"){ data = textToImageGraph(); name = wsT("Text to image"); }
-      else if(kind==="ask"){ data = askModelGraph(); name = wsT("Ask a model"); }
-      else return;
-      const had = !!(graph.nodes && graph.nodes.length);
-      if(!openWorkspaceWithGraph(data, name, { respectCap:true, fit })) return;
-      try{ if(typeof dismissHint==="function") dismissHint(); }catch(_){}
-      if(had) toast(wsT("Opened “{name}” in a new workspace.").replace("{name}", name));
+      chooseWorkspace(b.getAttribute("data-ws"));
     });
     const drop = $("wsdrop");
     if(drop) drop.onclick = (e)=>{
@@ -17620,6 +17811,19 @@ function bindWorkspaceChrome(){
       if(addBtn && ch && ch.hidden) addBtn.setAttribute("aria-expanded", "false");
     });
     addEventListener("keydown", (e)=>{
+      if(e.key==="F2" && e.target && e.target.id==="wsdrop"){
+        e.preventDefault();
+        const menu = $("wsdropmenu");
+        if(menu && menu.hidden){
+          const d = readWorkspaces();
+          if(d) fillDropMenu(d);
+          menu.hidden = false;
+          e.target.setAttribute("aria-expanded", "true");
+        }
+        const inp = menu && menu.querySelector("input.wsrename");
+        if(inp){ inp.focus(); try{ inp.select(); }catch(_){} }
+        return;
+      }
       if(e.key!=="Escape") return;
       const ch = $("wschooser"), m = $("wsdropmenu");
       if(m && !m.hidden){ m.hidden = true; if(drop) drop.setAttribute("aria-expanded","false"); }
@@ -17627,15 +17831,62 @@ function bindWorkspaceChrome(){
     });
   }catch(_){}
 }
+function scrollActiveTabIntoView(){
+  const tabsEl = (typeof $==="function") ? $("wstabs") : null;
+  if(!tabsEl) return;
+  const on = tabsEl.querySelector(".wstab.on");
+  if(on){
+    const left = on.offsetLeft, right = left + on.offsetWidth;
+    const viewL = tabsEl.scrollLeft, viewR = viewL + tabsEl.clientWidth;
+    if(left < viewL) tabsEl.scrollLeft = Math.max(0, left - 4);
+    else if(right > viewR) tabsEl.scrollLeft = right - tabsEl.clientWidth + 4;
+  }
+  syncTabOverflow();
+}
+function syncTabOverflow(){
+  const el = (typeof $==="function") ? $("wstabs") : null;
+  if(!el) return;
+  const max = el.scrollWidth - el.clientWidth;
+  el.classList.toggle("fade-l", el.scrollLeft > 4);
+  el.classList.toggle("fade-r", max - el.scrollLeft > 4);
+}
+function syncWorkspaceBusy(){
+  const busy = typeof workspaceBusy==="function" && workspaceBusy();
+  const strip = (typeof $==="function") ? $("workspaces") : null;
+  if(strip) strip.classList.toggle("wsbusy", !!busy);
+  const add = (typeof $==="function") ? $("wsadd") : null;
+  if(add) add.setAttribute("aria-disabled", busy ? "true" : "false");
+  try{
+    document.querySelectorAll("#wstabs .wstab").forEach(el => {
+      if(busy && !el.classList.contains("on")) el.setAttribute("aria-disabled", "true");
+      else el.removeAttribute("aria-disabled");
+    });
+  }catch(_){}
+}
+function onWorkspaceHash(){
+  const h = (typeof location!=="undefined" && location.hash) || "";
+  if(!/^#(g|j|ga)=/.test(h)) return false;
+  if(typeof workspaceBusy==="function" && workspaceBusy()){
+    try{ history.replaceState({}, "", location.pathname + location.search); }catch(_){}
+    try{ flash("can’t change the workflow while running — Stop first"); }catch(_){}
+    return false;
+  }
+  if(typeof loadFromHash!=="function") return false;
+  return loadFromHash();
+}
+try{ addEventListener("hashchange", ()=>{ try{ onWorkspaceHash(); }catch(_){} }); }catch(_){}
 function noteFreshWorkspaceName(){
   const d = readWorkspaces();
   if(!d) return;
   const cur = d.tabs.find(t => t.id===d.active) || d.tabs[0];
   if(!cur) return;
   if(cur.name!=="Workflow" && cur.name!==wsT("Workflow")) return;
-  const named = (graph.nodes||[]).find(n => n && n.name && String(n.name).trim());
-  if(!named) return;
-  cur.name = uniqueWorkspaceName(String(named.name).trim(), d.tabs.filter(t => t.id!==cur.id));
+  const named = (graph.nodes||[]).find(n => n && n.name && String(n.name).trim() && !WS_GENERIC_NAME.test(String(n.name).trim()));
+  if(!named){
+    const purpose = purposeName({ nodes:graph.nodes, links:graph.links });
+    if(!purpose) return;
+    cur.name = uniqueWorkspaceName(wsT(purpose), d.tabs.filter(t => t.id!==cur.id));
+  } else cur.name = uniqueWorkspaceName(String(named.name).trim(), d.tabs.filter(t => t.id!==cur.id));
   try{ writeWorkspaces(d); }catch(_){}
   try{ renderWorkspaces(); }catch(_){}
 }
@@ -17667,10 +17918,9 @@ async function loadFromHash(){
     let shelved = false;
     try{
       if(prev && typeof shelvePreviousWorkspace==="function"){
-        const fromGraph = (typeof nameFromGraphJson==="function") ? nameFromGraphJson(json) : "";
-        const label = ga
-          ? ((typeof pendingAppTitle!=="undefined" && pendingAppTitle) || fromGraph || "Shared app")
-          : (fromGraph || "Shared workflow");
+        const label = (typeof workspaceLabelForGraph==="function")
+          ? workspaceLabelForGraph(json, ga)
+          : (ga ? "Shared app" : "Shared workflow");
         shelved = !!shelvePreviousWorkspace(prev, prevApp, typeof t==="function" ? t(label) : label);
       }
     }catch(_){}
@@ -18768,6 +19018,15 @@ function loadExample(i){
   if(runningNodes.size){ flash("can’t change the workflow while running — Stop first"); return; }   // replacing the graph mid-run would strand in-flight (already-charged) results (mirrors the per-node delete guard)
   closeExamples();
   const had = graph.nodes.length > 0;
+  if(typeof openExampleWorkspace==="function"){
+    const name = t(ex.title);
+    const how = openExampleWorkspace(JSON.parse(JSON.stringify(ex.graph)), name, ex.slug);
+    dismissHint();
+    if(how==="open") toast(t("Opened “{name}” in a new workspace.").replace("{name}", name));
+    else if(how==="switch") toast(t("“{name}” is already open.").replace("{name}", name));
+    else if(how==="absorb") toast(t("✓ loaded example")+": "+name);
+    return;
+  }
   if(had && typeof openWorkspaceWithGraph==="function"){
     const name = t(ex.title);
     const ok = openWorkspaceWithGraph(JSON.parse(JSON.stringify(ex.graph)), name, { respectCap:true, fit:true });

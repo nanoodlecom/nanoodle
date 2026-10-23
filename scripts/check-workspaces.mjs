@@ -173,8 +173,9 @@ const bundle = [
   extractFn(SRC, "loadFromHash"),
   extractFn(SRC, "b64urlToBytes"),
   "globalThis.__W = { ensureWorkspaces, load, save, loadFromHash, serializeGraph, applyGraphData,",
-  "  openWorkspaceWithGraph, switchWorkspace, closeWorkspace, textToImageGraph, askModelGraph, blankGraph,",
-  "  readWorkspaces, shelvePreviousWorkspace, graph, ",
+  "  openWorkspaceWithGraph, openExampleWorkspace, switchWorkspace, closeWorkspace, renameWorkspace,",
+  "  textToImageGraph, askModelGraph, blankGraph,",
+  "  readWorkspaces, shelvePreviousWorkspace, workspaceLabelForGraph, workspaceDownloadName, onWorkspaceHash, graph, ",
   "  stacks: () => ({ undo: undoStack.slice(), redo: redoStack.slice() }),",
   "  toasts: () => __toasts.slice(),",
   "  setConfirm: (v) => { __confirm = v; },",
@@ -360,6 +361,44 @@ const photoOf = (g) => {
   ok(W.readWorkspaces().tabs.length === 1, "confirming close removes the tab");
   ok(W.readWorkspaces().active === "w1", "closing the active tab returns to the other one");
   ok(textOf(JSON.parse(backing.noodle_graph)) === textOf(JSON.parse(FIXTURE)), "the remaining tab is the original workflow");
+}
+
+// ---------------------------------------------------------------------------
+// 7. An empty rename keeps the previous name. A repeated example switches
+//    to the tab that already has it. A pasted hash opens now.
+// ---------------------------------------------------------------------------
+{
+  clearStore();
+  backing.noodle_graph = FIXTURE;
+  const W = boot();
+  W.ensureWorkspaces();
+  W.load();
+  const id = W.readWorkspaces().active;
+  W.renameWorkspace(id, "   ");
+  ok(W.readWorkspaces().tabs[0].name === "Night desk", "an empty rename must keep the current name");
+  W.renameWorkspace(id, "Night desk");
+  ok(W.readWorkspaces().tabs[0].name === "Night desk", "renaming to the same name must keep it");
+  ok(W.workspaceDownloadName() === "Night desk.json", "Save uses the tab name as the filename, got " + W.workspaceDownloadName());
+  ok(W.workspaceLabelForGraph(W.textToImageGraph(), false) === "Text to image", "a prompt+image graph is named for what it does, not the node called Prompt");
+  ok(W.workspaceLabelForGraph(JSON.parse(FIXTURE), false) === "Night desk", "a named workflow keeps that name");
+
+  const how = W.openExampleWorkspace(W.textToImageGraph(), "Storyboard relay", "storyboard-relay");
+  ok(how === "open", "the first open of an example adds a tab");
+  ok(W.readWorkspaces().tabs.length === 2, "one example adds one tab");
+  ok(W.readWorkspaces().tabs.some((t) => t.example === "storyboard-relay"), "the example tab remembers which example it is");
+  W.switchWorkspace("w1");
+  const again = W.openExampleWorkspace(W.textToImageGraph(), "Storyboard relay", "storyboard-relay");
+  ok(again === "switch", "opening the same example again switches to its tab");
+  ok(W.readWorkspaces().tabs.length === 2, "a repeated example must not create “Storyboard relay 2”");
+  ok(W.readWorkspaces().active !== "w1", "the switch lands on the example tab");
+
+  const before = W.readWorkspaces().tabs.length;
+  const stranger = { v: 1, nodes: [{ id: "s2", type: "text", x: 1, y: 1, name: "Pasted", fields: { text: "pasted link" } }], links: [], nid: 2, lid: 1 };
+  W.setHash("#j=" + b64url(stranger));
+  const pasted = await W.onWorkspaceHash();
+  ok(pasted === true, "a hash set on an already-open page must load");
+  ok(W.readWorkspaces().tabs.length === before + 1, "the pasted link opens a new tab immediately");
+  ok(W.serializeGraph().nodes.some((n) => n.name === "Pasted"), "the pasted graph is the one on screen");
 }
 
 if (failures.length) {
