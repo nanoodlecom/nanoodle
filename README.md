@@ -133,7 +133,7 @@ Replace the code with your own (or delete the parameter and use bare
 A saved graph (`noodle-graph.json`) — or any share link — doesn't need the
 browser: two zero-dependency sibling libraries re-execute it headlessly —
 [nanoodle-js](https://github.com/nanoodlecom/nanoodle-js)
-(`npm install nanoodle` 0.8.0, Node ≥ 20) and
+(`npm install nanoodle` 0.8.0, Node 22.23.4+, 24.22.1+, or 26.12.1+) and
 [nanoodle-py](https://github.com/nanoodlecom/nanoodle-py)
 (`pip install nanoodle` 0.5.0, stdlib-only). Same graphs, same results;
 useful for scripts, servers, and agent skills. Walkthrough:
