@@ -89,6 +89,7 @@
     --bg:#0b0d12; --panel:#12151d; --panel2:#171b25; --ink:#eef1f7; --dim:#aeb7c8; --muted:#c3c9d6;
     --line:#262c3a; --accent:#7c8cff; --accent2:#ff79c6; --good:#3ddc97; --bad:#ff6b6b; --warn:#ffcf6b;
     --text-port:#7c8cff; --image-port:#ff79c6; --video-port:#5ad1e6; --audio-port:#3ddc97; --model3d-port:#a78bfa;
+    --ws-h:34px;
   }
   *{box-sizing:border-box}
   .vh{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0}
@@ -460,7 +461,7 @@
              padding:.6rem 1rem; background:linear-gradient(90deg,var(--accent),var(--accent2)); }
   .sub-copy.ok{ background:var(--good) }
   /* toast — a clearly-visible transient confirmation */
-  #toast{ position:fixed; top:64px; left:50%; transform:translateX(-50%) translateY(-14px) scale(.98); z-index:240;   /* above every modal — Share toast feedback must show over them; pointer-events:none keeps it click-through */
+  #toast{ position:fixed; top:calc(64px + var(--ws-h)); left:50%; transform:translateX(-50%) translateY(-14px) scale(.98); z-index:240;   /* above every modal — Share toast feedback must show over them; pointer-events:none keeps it click-through */
           display:flex; align-items:center; gap:.5rem; max-width:min(92vw,560px);
           background:var(--panel); border:1px solid var(--good); color:var(--ink);
           padding:.7rem 1rem; border-radius:.6rem; box-shadow:0 16px 44px #000b; font-size:.9rem; font-weight:600;
@@ -617,7 +618,7 @@
                  font-size:.72rem; line-height:1.28; padding:.4rem .4rem .4rem .65rem; gap:.3rem; }
     #canvashint #hintx{ font-size:.95rem; align-self:flex-start; }
   }
-  #editor{ position:fixed; inset:52px 0 var(--db-h,3rem) 0; overflow:hidden; cursor:grab;
+  #editor{ position:fixed; inset:calc(52px + var(--ws-h)) 0 var(--db-h,3rem) 0; overflow:hidden; cursor:grab;
            background-color:#0b0d12;
            background-image:radial-gradient(circle, #ffffff0d 1px, transparent 1px);
            background-size:22px 22px;
@@ -643,7 +644,7 @@
   @media (hover:none){ #fit:not([disabled]){ opacity:.6; pointer-events:auto } #undo:not([disabled]), #redo:not([disabled]){ opacity:.6; pointer-events:auto } #describebar{ opacity:.85 } }   /* touch: no hover to reveal them, so keep them discoverable (composer :focus-within still brightens to 1) */
   /* Screen-space delete for the selected node — the in-header ✕ shrinks with zoom and sits next to the
      paid ▶ run, so touch gets a big fixed target that can't mis-fire. Coarse pointers only. */
-  #delnode{ position:fixed; top:58px; right:.6rem; z-index:60; display:none; align-items:center; gap:.35rem;
+  #delnode{ position:fixed; top:calc(58px + var(--ws-h)); right:.6rem; z-index:60; display:none; align-items:center; gap:.35rem;
             padding:.55rem .75rem; font:inherit; font-size:.82rem; font-weight:600; border-radius:.6rem; cursor:pointer;
             background:var(--panel2); border:1px solid var(--bad); color:var(--bad); box-shadow:0 6px 18px #0006; }
   #delnode:active{ filter:brightness(1.15) }
@@ -942,7 +943,7 @@
   .node.note textarea.cmttext:focus{ outline:none; border-style:solid; border-color:var(--cmt,#f5d76e) }
 
   /* key entry */
-  #keyrow{ position:fixed; top:60px; left:50%; transform:translateX(-50%); z-index:50; display:none; gap:.5rem; flex-wrap:wrap;
+  #keyrow{ position:fixed; top:calc(60px + var(--ws-h)); left:50%; transform:translateX(-50%); z-index:50; display:none; gap:.5rem; flex-wrap:wrap;
            max-width:calc(100vw - .5rem);
            background:var(--panel); border:1px solid var(--line); border-radius:.6rem; padding:.6rem; align-items:center; box-shadow:0 12px 40px #0008}
   #keyrow.open{display:flex}
@@ -956,7 +957,7 @@
   .dim{ color:var(--dim) }
 
   /* ---------- sample-run pill (signed-out Run) — same shelf as #keyrow ---------- */
-  #demopop{ position:fixed; top:60px; left:50%; transform:translateX(-50%); z-index:49; display:flex; flex-direction:column; gap:.55rem;
+  #demopop{ position:fixed; top:calc(60px + var(--ws-h)); left:50%; transform:translateX(-50%); z-index:49; display:flex; flex-direction:column; gap:.55rem;
             max-width:min(480px, calc(100vw - .5rem));
             background:var(--panel); border:1px solid var(--line); border-radius:.6rem; padding:.65rem 2.2rem .65rem .8rem; box-shadow:0 12px 40px #0008 }
   #demopop[hidden]{ display:none }
@@ -990,7 +991,7 @@
   /* ---------- model picker ---------- */
   #mpickback{ position:fixed; inset:0; z-index:55; background:#0008; display:none }
   #mpickback.show{ display:block }
-  #mpick{ position:fixed; top:64px; left:50%; transform:translateX(-50%); z-index:60; display:none;
+  #mpick{ position:fixed; top:calc(64px + var(--ws-h)); left:50%; transform:translateX(-50%); z-index:60; display:none;
           width:min(560px,92vw); max-height:74vh; flex-direction:column; background:var(--panel);
           border:1px solid var(--line); border-radius:.8rem; box-shadow:0 18px 60px #000a; overflow:hidden }
   #mpick.open{ display:flex }
@@ -1082,8 +1083,8 @@
   body.narrowbar #appmore{ display:none }              /* no room for the caret; its "Save as a new app" fork moves into ⋯ (layoutBar) */
   body.narrowbar #moremenu{ display:block }            /* reveal the overflow trigger */
   /* an icon-only ✨ gives the nudge no width to hug — pin it to the viewport instead */
-  body.narrowbar #appnudge{ position:fixed; top:58px; left:.5rem; right:.5rem; max-width:none; justify-content:center; white-space:normal }
-  body.narrowbar #appblock{ position:fixed; top:58px; left:.5rem; right:.5rem; max-width:none }
+  body.narrowbar #appnudge{ position:fixed; top:calc(58px + var(--ws-h)); left:.5rem; right:.5rem; max-width:none; justify-content:center; white-space:normal }
+  body.narrowbar #appblock{ position:fixed; top:calc(58px + var(--ws-h)); left:.5rem; right:.5rem; max-width:none }
   body.narrowbar #top .sep{ display:none }
   body.narrowbar #cost{ display:none }                 /* balance is non-essential chrome when the bar is tight */
   body.narrowbar #authmenu{ display:none }             /* its sign-in/paste-key buttons move into ⋯ (RELOC); only the empty caret shell stays behind */
@@ -1130,7 +1131,7 @@
 
   /* ---------- share popover (ported from play.html's app share) ---------- */
   #shareback{ position:fixed; inset:0; z-index:190; }
-  #sharemenu{ position:fixed; right:.6rem; top:3rem; z-index:191; width:min(360px,94vw);
+  #sharemenu{ position:fixed; right:.6rem; top:calc(52px + var(--ws-h) + .35rem); z-index:191; width:min(360px,94vw);
               max-height:80vh; overflow:auto; background:var(--panel); border:1px solid var(--line);
               border-radius:.7rem; box-shadow:0 18px 50px rgba(0,0,0,.5); padding:.55rem .6rem; }
   #sharemenu[hidden], #shareback[hidden]{ display:none; }
@@ -1155,6 +1156,64 @@
   .sm-svc button.sm-primary::before{ content:"✓"; color:var(--accent); font-weight:700; }
   .sm-svc button.sm-primary:hover{ background:#7c8cff33; border-color:var(--accent); }
   .sm-svc button:disabled{ opacity:.5; cursor:progress; }
+
+  /* ---------- workspaces: a document strip under the toolbar, not more pills in #top ---------- */
+  #workspaces{ position:fixed; top:52px; left:0; right:0; height:var(--ws-h); z-index:29;
+    display:flex; align-items:flex-end; gap:.15rem; padding:0 .5rem;
+    background:#090b10; border-bottom:1px solid var(--line); user-select:none; }
+  #wstabs{ display:flex; align-items:flex-end; gap:.15rem; min-width:0; max-width:calc(100% - 2.2rem);
+    height:100%; overflow-x:auto; scrollbar-width:none; }
+  #wstabs::-webkit-scrollbar{ display:none }
+  .wstab{ position:relative; display:inline-flex; align-items:center; gap:.3rem; flex:0 0 auto;
+    max-width:11.5rem; height:calc(var(--ws-h) - 7px); margin:0; padding:0 .55rem 0 .7rem;
+    border:1px solid transparent; border-bottom:none; border-radius:.45rem .45rem 0 0;
+    background:transparent; color:var(--dim); font-size:.78rem; line-height:1; cursor:pointer; }
+  .wstab .wslabel{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+  .wstab .wsx{ display:inline-flex; align-items:center; justify-content:center; flex:none;
+    width:1.05rem; height:1.05rem; margin-right:-.1rem; border-radius:.3rem; opacity:0;
+    font-size:.85rem; color:var(--dim); }
+  .wstab:hover .wsx, .wstab.on .wsx, .wstab:focus-visible .wsx{ opacity:.8 }
+  .wstab .wsx:hover{ opacity:1; background:#ffffff18; color:var(--ink) }
+  .wstab:hover:not(.on){ color:var(--ink); background:#ffffff0a }
+  .wstab.on{ background:var(--bg); color:var(--ink); border-color:var(--line); }
+  .wstab.on::after{ content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px; background:var(--bg) }
+  .wstab input.wsrename{ width:7.2rem; min-width:0; flex:1; margin:0; padding:0;
+    background:transparent; border:none; border-radius:0; color:inherit; font:inherit; }
+  #wsdrop{ display:none }
+  #wsaddwrap{ position:relative; flex:none; display:flex; align-items:center; height:100%; }
+  #wsadd{ width:1.7rem; height:1.55rem; margin:0 0 4px; padding:0; border-radius:.4rem;
+    background:transparent; color:var(--dim); font-size:1.05rem; line-height:1; }
+  #wsadd:hover, #wsadd[aria-expanded="true"]{ color:var(--ink); background:var(--panel2); border-color:var(--line) }
+  #wschooser[hidden], #wsdropmenu[hidden]{ display:none }
+  #wschooser:not([hidden]), #wsdropmenu:not([hidden]){ display:flex; flex-direction:column;
+    position:absolute; top:calc(100% + 4px); z-index:6; min-width:220px; padding:.3rem;
+    background:var(--panel); border:1px solid var(--line); border-radius:.6rem; box-shadow:0 14px 40px #000c; }
+  #wschooser:not([hidden]){ left:0 }
+  #wsdropmenu:not([hidden]){ left:.45rem; right:auto; min-width:min(280px, calc(100vw - 1rem)); }
+  #wschooser .wshint{ font-size:.7rem; line-height:1.35; color:var(--dim); padding:.3rem .6rem .4rem; pointer-events:none; }
+  #wschooser button, #wsdropmenu button{ text-align:left; border:none; background:none; width:100%;
+    padding:.48rem .6rem; border-radius:.4rem; font-size:.84rem; color:var(--ink); }
+  #wschooser button:hover, #wsdropmenu button:hover, #wsdropmenu button.on{ background:var(--panel2) }
+  #wsdropmenu button.on{ background:#7c8cff22 }
+  #wschooser .wssep{ height:1px; background:var(--line); margin:.2rem .35rem }
+  #wsdropmenu .wshint{ font-size:.7rem; line-height:1.35; color:var(--dim); padding:.35rem .6rem .1rem; }
+  #wsdropmenu input.wsrename{ margin:.2rem .35rem .3rem; background:var(--panel2); border:1px solid var(--line);
+    border-radius:.4rem; padding:.4rem .55rem; font:inherit; color:inherit; }
+  @media (max-width:720px){
+    :root{ --ws-h:40px }
+    #wstabs{ display:none }
+    #wsdrop{ display:inline-flex; align-items:center; gap:.35rem; flex:1 1 auto; min-width:0;
+      height:calc(var(--ws-h) - 10px); margin:0 0 5px; padding:0 .7rem;
+      background:var(--bg); border:1px solid var(--line); border-radius:.45rem; color:var(--ink); font-size:.84rem; }
+    #wsdrop .wsdropname{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; text-align:left; flex:1 }
+    #wschooser:not([hidden]){ left:auto; right:0 }
+    #wsdropmenu:not([hidden]){ left:.45rem; right:.45rem; width:auto }
+  }
+  @media (pointer:coarse){
+    .wstab{ min-height:36px }
+    .wstab .wsx{ opacity:.75 }
+    #wsadd{ width:2rem; height:2rem }
+  }
 </style>
 </head>
 <body>
@@ -1204,6 +1263,23 @@
   </div>
   <button id="signout" class="link" style="display:none">sign out</button>
 </header>
+
+<div id="workspaces">
+  <div id="wstabs" role="tablist" aria-label="Workspaces"></div>
+  <button id="wsdrop" type="button" title="Workspaces" aria-haspopup="listbox" aria-expanded="false"><span class="wsdropname">Workflow</span> ▾</button>
+  <div id="wsaddwrap">
+    <button id="wsadd" type="button" title="New workspace" aria-label="New workspace" aria-haspopup="menu" aria-expanded="false">+</button>
+    <div id="wschooser" hidden role="menu" aria-label="New workspace">
+      <div class="wshint">The workspace you are on stays put.</div>
+      <button type="button" data-ws="blank">Blank canvas</button>
+      <button type="button" data-ws="t2i">Text to image</button>
+      <button type="button" data-ws="ask">Ask a model</button>
+      <div class="wssep"></div>
+      <button type="button" data-ws="examples">Browse Examples</button>
+    </div>
+  </div>
+  <div id="wsdropmenu" hidden role="listbox" aria-label="Workspaces"></div>
+</div>
 
 <div id="keyrow">
   <button id="keyx" title="Close" aria-label="Close">×</button>
@@ -1278,7 +1354,7 @@
       <div id="communitytop" data-no-i18n hidden></div>
       <div id="communitymore" data-no-i18n hidden></div>
     </div>
-    <div id="examplesnote">loading replaces your current workflow — it’s autosaved, and ↺ Undo brings it back. <span>these come from</span> <a href="https://github.com/nanoodlecom/awesome-noodles" target="_blank" rel="noopener" data-no-i18n>awesome-noodles</a><span> — remix one and send us yours.</span>
+    <div id="examplesnote">Opening an example adds a workspace. The one you are on stays put. <span>these come from</span> <a href="https://github.com/nanoodlecom/awesome-noodles" target="_blank" rel="noopener" data-no-i18n>awesome-noodles</a><span> — remix one and send us yours.</span>
       <!-- second link, second question: the gallery answers "what can I start from", the showcase
            answers "does this make anything real". Same sentence shape as the line above, so the
            text nodes around the (untranslated) repo name stay their own i18n keys. -->
@@ -2130,7 +2206,25 @@ const I18N = {
     "built by nanoodle users — opens in a new tab":"creado por usuarios de nanoodle — se abre en una pestaña nueva",
     "by":"por",
     "ready-made workflows, built right into the page — click one to load it, then ▶ Run on your own key.":"flujos ya preparados, integrados directamente en la página — haz clic en uno para cargarlo, luego pulsa ▶ Ejecutar con tu propia clave.",
-    "loading replaces your current workflow — it’s autosaved, and ↺ Undo brings it back.":"cargarlo reemplaza tu flujo actual — se autoguarda, y ↺ Deshacer lo recupera.",
+    "Opening an example adds a workspace. The one you are on stays put.":"Abrir un ejemplo añade un espacio de trabajo. El que tienes abierto se queda.",
+    "Workspaces":"Espacios de trabajo",
+    "New workspace":"Nuevo espacio de trabajo",
+    "Blank canvas":"Lienzo en blanco",
+    "Text to image":"Texto a imagen",
+    "Ask a model":"Preguntar a un modelo",
+    "Browse Examples":"Ver ejemplos",
+    "The workspace you are on stays put.":"El espacio en el que estás se queda.",
+    "Opened in a new workspace — the one you were on is still here.":"Abierto en un espacio nuevo — el anterior sigue aquí.",
+    "Opened “{name}” in a new workspace.":"“{name}” se abrió en un espacio nuevo.",
+    "Too many workspaces — close one first.":"Hay demasiados espacios — cierra uno primero.",
+    "Couldn’t open a new workspace — your current workflow is unchanged.":"No se pudo abrir un espacio nuevo — tu flujo actual no cambió.",
+    "Couldn’t switch — this browser couldn’t store the workspace.":"No se pudo cambiar — este navegador no pudo guardar el espacio.",
+    "Close “{name}”? This removes it from this browser.":"¿Cerrar “{name}”? Se eliminará de este navegador.",
+    "Rename workspace":"Renombrar espacio",
+    "Workflow":"Flujo",
+    "Untitled":"Sin título",
+    "Shared workflow":"Flujo compartido",
+    "Shared app":"App compartida",
     "↺ Undo restores your previous workflow":"↺ Deshacer restaura tu flujo anterior",
     "✓ loaded example":"✓ ejemplo cargado",
     "photo → video":"foto → vídeo",
@@ -2851,7 +2945,25 @@ const I18N = {
     "built by nanoodle users — opens in a new tab":"créé par des utilisateurs de nanoodle — s'ouvre dans un nouvel onglet",
     "by":"par",
     "ready-made workflows, built right into the page — click one to load it, then ▶ Run on your own key.":"des workflows prêts à l'emploi, intégrés directement dans la page — cliquez sur l'un d'eux pour le charger, puis appuyez sur ▶ Exécuter avec votre propre clé.",
-    "loading replaces your current workflow — it’s autosaved, and ↺ Undo brings it back.":"le chargement remplace votre workflow actuel — il est autosauvegardé, et ↺ Annuler le restaure.",
+    "Opening an example adds a workspace. The one you are on stays put.":"Ouvrir un exemple ajoute un espace de travail. Celui en cours reste en place.",
+    "Workspaces":"Espaces de travail",
+    "New workspace":"Nouvel espace de travail",
+    "Blank canvas":"Canevas vide",
+    "Text to image":"Texte vers image",
+    "Ask a model":"Interroger un modèle",
+    "Browse Examples":"Parcourir les exemples",
+    "The workspace you are on stays put.":"L’espace en cours reste en place.",
+    "Opened in a new workspace — the one you were on is still here.":"Ouvert dans un nouvel espace — le précédent est toujours là.",
+    "Opened “{name}” in a new workspace.":"« {name} » est ouvert dans un nouvel espace.",
+    "Too many workspaces — close one first.":"Trop d’espaces — fermez-en un d’abord.",
+    "Couldn’t open a new workspace — your current workflow is unchanged.":"Impossible d’ouvrir un nouvel espace — votre workflow actuel est inchangé.",
+    "Couldn’t switch — this browser couldn’t store the workspace.":"Impossible de changer — ce navigateur n’a pas pu enregistrer l’espace.",
+    "Close “{name}”? This removes it from this browser.":"Fermer « {name} » ? Cela le retire de ce navigateur.",
+    "Rename workspace":"Renommer l’espace",
+    "Workflow":"Workflow",
+    "Untitled":"Sans titre",
+    "Shared workflow":"Workflow partagé",
+    "Shared app":"App partagée",
     "↺ Undo restores your previous workflow":"↺ Annuler restaure votre workflow précédent",
     "✓ loaded example":"✓ exemple chargé",
     "photo → video":"photo → vidéo",
@@ -3572,7 +3684,25 @@ const I18N = {
     "built by nanoodle users — opens in a new tab":"von nanoodle-Nutzern gebaut — öffnet in einem neuen Tab",
     "by":"von",
     "ready-made workflows, built right into the page — click one to load it, then ▶ Run on your own key.":"fertige Workflows, direkt in die Seite eingebaut — klicke auf einen, um ihn zu laden, und drücke dann ▶ Ausführen mit deinem eigenen Schlüssel.",
-    "loading replaces your current workflow — it’s autosaved, and ↺ Undo brings it back.":"das Laden ersetzt deinen aktuellen Workflow — er wird automatisch gespeichert, und ↺ Rückgängig holt ihn zurück.",
+    "Opening an example adds a workspace. The one you are on stays put.":"Ein Beispiel öffnet einen neuen Arbeitsbereich. Der aktuelle bleibt.",
+    "Workspaces":"Arbeitsbereiche",
+    "New workspace":"Neuer Arbeitsbereich",
+    "Blank canvas":"Leere Fläche",
+    "Text to image":"Text zu Bild",
+    "Ask a model":"Ein Modell fragen",
+    "Browse Examples":"Beispiele durchsuchen",
+    "The workspace you are on stays put.":"Der aktuelle Arbeitsbereich bleibt.",
+    "Opened in a new workspace — the one you were on is still here.":"In einem neuen Arbeitsbereich geöffnet — der vorherige ist noch da.",
+    "Opened “{name}” in a new workspace.":"„{name}“ wurde in einem neuen Arbeitsbereich geöffnet.",
+    "Too many workspaces — close one first.":"Zu viele Arbeitsbereiche — schließe zuerst einen.",
+    "Couldn’t open a new workspace — your current workflow is unchanged.":"Neuer Arbeitsbereich ließ sich nicht öffnen — dein aktueller Workflow ist unverändert.",
+    "Couldn’t switch — this browser couldn’t store the workspace.":"Wechseln nicht möglich — dieser Browser konnte den Arbeitsbereich nicht speichern.",
+    "Close “{name}”? This removes it from this browser.":"„{name}“ schließen? Das entfernt ihn aus diesem Browser.",
+    "Rename workspace":"Arbeitsbereich umbenennen",
+    "Workflow":"Workflow",
+    "Untitled":"Unbenannt",
+    "Shared workflow":"Geteilter Workflow",
+    "Shared app":"Geteilte App",
     "↺ Undo restores your previous workflow":"↺ Rückgängig stellt deinen vorherigen Workflow wieder her",
     "✓ loaded example":"✓ Beispiel geladen",
     "photo → video":"Foto → Video",
@@ -4293,7 +4423,25 @@ const I18N = {
     "built by nanoodle users — opens in a new tab":"criado por usuários do nanoodle — abre em uma nova aba",
     "by":"por",
     "ready-made workflows, built right into the page — click one to load it, then ▶ Run on your own key.":"fluxos prontos, embutidos direto na página — clique em um para carregá-lo, depois pressione ▶ Executar com sua própria chave.",
-    "loading replaces your current workflow — it’s autosaved, and ↺ Undo brings it back.":"carregar substitui seu fluxo atual — ele é autossalvo, e ↺ Desfazer o traz de volta.",
+    "Opening an example adds a workspace. The one you are on stays put.":"Abrir um exemplo adiciona um espaço de trabalho. O atual permanece.",
+    "Workspaces":"Espaços de trabalho",
+    "New workspace":"Novo espaço de trabalho",
+    "Blank canvas":"Tela em branco",
+    "Text to image":"Texto para imagem",
+    "Ask a model":"Perguntar a um modelo",
+    "Browse Examples":"Ver exemplos",
+    "The workspace you are on stays put.":"O espaço em que você está permanece.",
+    "Opened in a new workspace — the one you were on is still here.":"Aberto em um espaço novo — o anterior continua aqui.",
+    "Opened “{name}” in a new workspace.":"“{name}” foi aberto em um espaço novo.",
+    "Too many workspaces — close one first.":"Espaços demais — feche um primeiro.",
+    "Couldn’t open a new workspace — your current workflow is unchanged.":"Não foi possível abrir um espaço novo — seu fluxo atual não mudou.",
+    "Couldn’t switch — this browser couldn’t store the workspace.":"Não foi possível trocar — este navegador não conseguiu guardar o espaço.",
+    "Close “{name}”? This removes it from this browser.":"Fechar “{name}”? Isso o remove deste navegador.",
+    "Rename workspace":"Renomear espaço",
+    "Workflow":"Fluxo",
+    "Untitled":"Sem título",
+    "Shared workflow":"Fluxo compartilhado",
+    "Shared app":"App compartilhado",
     "↺ Undo restores your previous workflow":"↺ Desfazer restaura seu fluxo anterior",
     "✓ loaded example":"✓ exemplo carregado",
     "photo → video":"foto → vídeo",
@@ -5014,7 +5162,25 @@ const I18N = {
     "built by nanoodle users — opens in a new tab":"nanoodleユーザーの作品 — 新しいタブで開きます",
     "by":"作:",
     "ready-made workflows, built right into the page — click one to load it, then ▶ Run on your own key.":"ページに内蔵されたすぐ使えるワークフロー集 — クリックして読み込み、自分のキーで ▶ 実行 を押してください。",
-    "loading replaces your current workflow — it’s autosaved, and ↺ Undo brings it back.":"読み込むと今のワークフローが置き換わります — 自動保存されているので、↺ 元に戻す で元に戻せます。",
+    "Opening an example adds a workspace. The one you are on stays put.":"例を開くとワークスペースが追加されます。作業中のものは残ります。",
+    "Workspaces":"ワークスペース",
+    "New workspace":"新しいワークスペース",
+    "Blank canvas":"空白のキャンバス",
+    "Text to image":"テキストから画像",
+    "Ask a model":"モデルに聞く",
+    "Browse Examples":"例を見る",
+    "The workspace you are on stays put.":"作業中のワークスペースはそのまま残ります。",
+    "Opened in a new workspace — the one you were on is still here.":"新しいワークスペースで開きました — それまでの作業はそのままです。",
+    "Opened “{name}” in a new workspace.":"「{name}」を新しいワークスペースで開きました。",
+    "Too many workspaces — close one first.":"ワークスペースが多すぎます — 先に一つ閉じてください。",
+    "Couldn’t open a new workspace — your current workflow is unchanged.":"新しいワークスペースを開けませんでした — 今のワークフローはそのままです。",
+    "Couldn’t switch — this browser couldn’t store the workspace.":"切り替えできませんでした — このブラウザはワークスペースを保存できませんでした。",
+    "Close “{name}”? This removes it from this browser.":"「{name}」を閉じますか？このブラウザから削除されます。",
+    "Rename workspace":"ワークスペースの名前を変更",
+    "Workflow":"ワークフロー",
+    "Untitled":"無題",
+    "Shared workflow":"共有ワークフロー",
+    "Shared app":"共有アプリ",
     "↺ Undo restores your previous workflow":"↺ 元に戻す で前のワークフローに戻せます",
     "✓ loaded example":"✓ サンプルを読み込みました",
     "photo → video":"写真 → 動画",
@@ -16426,7 +16592,9 @@ function loadFile(file){
   if(!file) return;
   const r = new FileReader();
   r.onload = ()=>{ try{
-    const had = graph.nodes.length > 0;   // only park + reassure if there's a workflow to bring back (mirrors loadExample; skip an empty canvas)
+    // File Load stays IN this workspace (↺ Undo brings the previous graph back, paid results included).
+    // Examples and share links open a new workspace instead — they must not replace the one you are on.
+    const had = graph.nodes.length > 0;   // only park + reassure if there's a workflow to bring back (skip an empty canvas)
     if(had) pushUndo(true);                // BEFORE the mutation — boundary: an unrelated file replaces the graph; ↺ Undo restores the prior graph + its paid results
     setPendingApp(null); applyGraphData(JSON.parse(r.result)); window.resetDescribeVersions?.(); save();
     if(had) toast(t("↺ Undo restores your previous workflow"));   // opening a file replaced your graph — one Ctrl+Z away
@@ -16806,6 +16974,7 @@ function setPendingApp(id, title){
     if(pendingAppId) localStorage.setItem(EDITOR_APP_KEY, JSON.stringify({ id:pendingAppId, title:pendingAppTitle }));
     else localStorage.removeItem(EDITOR_APP_KEY);
   }catch(_){}
+  try{ if(typeof stampActiveApp==="function") stampActiveApp(); }catch(_){}
   updateTitle();
 }
 // True only when the canvas is bound to an app AND that app's SAVED graph matches the canvas —
@@ -16872,6 +17041,606 @@ function updateTitle(){
   if(!pendingAppId && !lib) $("apppop").classList.remove("open");
   layoutBar();   // binding swaps "Create app" ↔ "Update <title>" → the bar's width changes, re-measure fit
 }
+/* WORKSPACES-BEGIN
+   Each tab is one autosaved graph. noodle_graph stays the ACTIVE tab, same JSON as before,
+   so a returning visitor's graph becomes tab 1 without a rewrite. Inactive tabs live in
+   noodle_ws_<id>. The index (noodle_workspaces) stores names and app bindings only.
+   Paid results and undo stacks are memory-only, same as a reload today. */
+const WS_INDEX_KEY = "noodle_workspaces";
+const WS_CAP = 16;
+const workspaceResults = new Map();
+const workspaceHist = new Map();
+function wsGraphKey(id){ return "noodle_ws_"+id; }
+function wsT(s){ return typeof t==="function" ? t(s) : s; }
+function editorAppBinding(){
+  try{
+    const b = JSON.parse(localStorage.getItem("noodle_editor_app") || "null");
+    if(b && b.id) return { id:b.id, title:b.title || null };
+  }catch(_){}
+  return null;
+}
+function graphHasNodes(json){
+  try{
+    const d = typeof json==="string" ? JSON.parse(json) : json;
+    return !!(d && Array.isArray(d.nodes) && d.nodes.length);
+  }catch(_){ return false; }
+}
+function nameFromGraphJson(json){
+  try{
+    const d = typeof json==="string" ? JSON.parse(json) : json;
+    const n = (d && d.nodes || []).find(x => x && x.name && String(x.name).trim());
+    if(n) return String(n.name).trim().replace(/[\r\n]+/g," ").slice(0, 40);
+  }catch(_){}
+  return "";
+}
+function readWorkspaces(){
+  try{
+    const d = JSON.parse(localStorage.getItem(WS_INDEX_KEY) || "null");
+    if(!d || d.v!==1 || !Array.isArray(d.tabs) || !d.tabs.length) return null;
+    if(!d.tabs.some(t => t && t.id===d.active)) d.active = d.tabs[0].id;
+    return d;
+  }catch(_){ return null; }
+}
+function writeWorkspaces(d){ localStorage.setItem(WS_INDEX_KEY, JSON.stringify(d)); }
+function ensureWorkspaces(){
+  const existing = readWorkspaces();
+  if(existing) return existing;
+  let raw = null;
+  try{ raw = localStorage.getItem("noodle_graph"); }catch(_){}
+  const name = nameFromGraphJson(raw) || wsT("Workflow");
+  const app = editorAppBinding();
+  const d = { v:1, active:"w1", seq:1, tabs:[{ id:"w1", name, app: app ? { id:app.id, title:app.title || null } : null }] };
+  try{ writeWorkspaces(d); }catch(_){}
+  return d;
+}
+function uniqueWorkspaceName(base, tabs){
+  const used = new Set((tabs||[]).map(t => t && t.name));
+  let stem = String(base||"").trim().replace(/[\r\n]+/g," ").replace(/\s+/g," ") || "Workflow";
+  if(stem.length>40) stem = stem.slice(0,40).trim();
+  if(!used.has(stem)) return stem;
+  for(let i=2;i<100;i++){
+    const suffix = " "+i;
+    const c = (stem.slice(0, Math.max(1, 40-suffix.length))+suffix).trim();
+    if(!used.has(c)) return c;
+  }
+  return stem.slice(0, 28)+" "+Date.now().toString(36).slice(-6);
+}
+function stampActiveApp(){
+  const d = readWorkspaces();
+  if(!d) return;
+  const cur = d.tabs.find(t => t.id===d.active);
+  if(!cur) return;
+  cur.app = (typeof pendingAppId!=="undefined" && pendingAppId)
+    ? { id:pendingAppId, title:(typeof pendingAppTitle!=="undefined" && pendingAppTitle) || null }
+    : null;
+  writeWorkspaces(d);
+}
+function flushSave(){
+  try{ clearTimeout(saveT); }catch(_){}
+  saveT = null;
+  try{ if(typeof stashModel3dOuts==="function") stashModel3dOuts(); }catch(_){}
+  try{ localStorage.setItem("noodle_graph", JSON.stringify(serializeGraph())); }catch(_){}
+}
+function parkWorkspaceHistory(id){
+  if(!id || typeof undoStack==="undefined" || typeof redoStack==="undefined") return;
+  workspaceHist.set(id, { undo:undoStack.splice(0, undoStack.length), redo:redoStack.splice(0, redoStack.length) });
+  try{ syncUndoBtn(); }catch(_){}
+}
+function restoreWorkspaceHistory(id){
+  if(typeof undoStack==="undefined" || typeof redoStack==="undefined") return;
+  undoStack.splice(0, undoStack.length);
+  redoStack.splice(0, redoStack.length);
+  const h = id && workspaceHist.get(id);
+  if(h){
+    if(h.undo && h.undo.length) undoStack.push(...h.undo);
+    if(h.redo && h.redo.length) redoStack.push(...h.redo);
+  }
+  try{ syncUndoBtn(); }catch(_){}
+}
+function workspaceBusy(){
+  try{ return !!(runningNodes && runningNodes.size); }catch(_){ return false; }
+}
+function blankGraph(){
+  return { v:1, nodes:[], links:[], nid:1, lid:1, view:{ panX:40, panY:40, scale:1 } };
+}
+function textToImageGraph(){
+  return {
+    v:1,
+    nodes:[
+      { id:"n1", type:"text", x:80, y:150, w:280, name:"Prompt", fields:{ text:"a fox-masked courier on rain-slick shrine stairs, neon in the puddles, 2am Tokyo" } },
+      { id:"n2", type:"image", x:460, y:120, w:300, name:"Image", fields:{ model:"meta/muse-image/text-to-image", prompt:"", size:"1:1", variations:"1" } }
+    ],
+    links:[{ id:"l1", from:{ node:"n1", port:"text" }, to:{ node:"n2", port:"prompt" } }],
+    nid:3, lid:2, view:{ panX:40, panY:30, scale:1 }
+  };
+}
+function askModelGraph(){
+  return {
+    v:1,
+    nodes:[
+      { id:"n1", type:"text", x:80, y:160, w:280, name:"Prompt", fields:{ text:"Explain how a node graph runs, in three short sentences." } },
+      { id:"n2", type:"llm", x:460, y:110, w:320, name:"Answer", fields:{ model:"z-ai/glm-5.3-flash", prompt:"", system:"", maxTokens:"400", reasoningEffort:"low" } }
+    ],
+    links:[{ id:"l1", from:{ node:"n1", port:"text" }, to:{ node:"n2", port:"prompt" } }],
+    nid:3, lid:2, view:{ panX:40, panY:30, scale:1 }
+  };
+}
+function shelvePreviousWorkspace(prevJson, prevApp, newName){
+  try{
+    if(!graphHasNodes(prevJson)) return false;
+    const d = ensureWorkspaces();
+    const cur = d.tabs.find(t => t.id===d.active) || d.tabs[0];
+    if(!cur) return false;
+    localStorage.setItem(wsGraphKey(cur.id), String(prevJson));
+    try{ if(typeof _stashResults==="function") workspaceResults.set(cur.id, _stashResults()); }catch(_){}
+    cur.app = (prevApp && prevApp.id) ? { id:prevApp.id, title:prevApp.title || null } : null;
+    d.seq = (d.seq|0) + 1;
+    while(d.tabs.some(t => t.id==="w"+d.seq)) d.seq++;
+    const id = "w"+d.seq;
+    const neu = { id, name:uniqueWorkspaceName(newName || wsT("Workflow"), d.tabs), app:null };
+    if(typeof pendingAppId!=="undefined" && pendingAppId)
+      neu.app = { id:pendingAppId, title:(typeof pendingAppTitle!=="undefined" && pendingAppTitle) || null };
+    d.tabs.push(neu);
+    d.active = id;
+    writeWorkspaces(d);
+    try{ parkWorkspaceHistory(cur.id); }catch(_){}
+    try{ renderWorkspaces(); }catch(_){}
+    return true;
+  }catch(_){ return false; }
+}
+function openWorkspaceWithGraph(data, name, opts){
+  opts = opts || {};
+  if(workspaceBusy()){ flash("can’t change the workflow while running — Stop first"); return false; }
+  const had = !!(graph.nodes && graph.nodes.length);
+  if(had){
+    const d0 = readWorkspaces() || ensureWorkspaces();
+    if(opts.respectCap && d0.tabs.length >= WS_CAP){
+      toast(wsT("Too many workspaces — close one first."), "warn");
+      return false;
+    }
+    flushSave();
+    let prev = null, prevApp = null;
+    try{ prev = localStorage.getItem("noodle_graph"); }catch(_){}
+    try{ prevApp = editorAppBinding(); }catch(_){}
+    if(!shelvePreviousWorkspace(prev, prevApp, name)){
+      toast(wsT("Couldn’t open a new workspace — your current workflow is unchanged."), "err");
+      return false;
+    }
+  }
+  const wasMuted = undoMuted;
+  undoMuted = true;
+  try{
+    setPendingApp(null);
+    applyGraphData(data);
+    window.resetDescribeVersions?.();
+    if(opts.fit && typeof fitView==="function") fitView();
+  }finally{ undoMuted = wasMuted; }
+  if(!had){
+    const d = ensureWorkspaces();
+    const cur = d.tabs.find(t => t.id===d.active);
+    if(cur){
+      cur.name = uniqueWorkspaceName(name || wsT("Untitled"), d.tabs.filter(t => t.id!==cur.id));
+      cur.app = null;
+      try{ writeWorkspaces(d); }catch(_){}
+    }
+  }
+  flushSave();
+  try{ renderWorkspaces(); }catch(_){}
+  return true;
+}
+function switchWorkspace(id){
+  const d = readWorkspaces();
+  if(!d || d.active===id){ closeWorkspaceMenus(); return; }
+  if(workspaceBusy()){ flash("can’t change the workflow while running — Stop first"); return; }
+  const next = d.tabs.find(t => t.id===id);
+  const leaving = d.tabs.find(t => t.id===d.active);
+  if(!next || !leaving) return;
+  try{ if(typeof _stashResults==="function") workspaceResults.set(leaving.id, _stashResults()); }catch(_){}
+  flushSave();
+  let json = null;
+  try{ json = localStorage.getItem("noodle_graph"); }catch(_){}
+  if(json){
+    try{ localStorage.setItem(wsGraphKey(leaving.id), json); }
+    catch(_){ toast(wsT("Couldn’t switch — this browser couldn’t store the workspace."), "err"); return; }
+  }
+  parkWorkspaceHistory(leaving.id);
+  d.active = id;
+  try{ writeWorkspaces(d); }catch(_){}
+  let raw = null;
+  try{ raw = localStorage.getItem(wsGraphKey(id)); }catch(_){}
+  const wasMuted = undoMuted;
+  undoMuted = true;
+  try{
+    const stash = workspaceResults.get(id) || null;
+    if(raw) applyGraphData(JSON.parse(raw), stash ? {resultStash:stash} : undefined);
+    else applyGraphData(blankGraph());
+    window.resetDescribeVersions?.();
+    const app = next.app;
+    setPendingApp(app && app.id ? app.id : null, app && app.title);
+  }finally{ undoMuted = wasMuted; }
+  restoreWorkspaceHistory(id);
+  flushSave();
+  try{ renderWorkspaces(); }catch(_){}
+}
+function closeWorkspace(id){
+  if(workspaceBusy()){ flash("can’t change the workflow while running — Stop first"); return; }
+  const d = ensureWorkspaces();
+  const tab = d.tabs.find(t => t.id===id);
+  if(!tab) return;
+  let raw = null;
+  if(d.active===id){ try{ raw = JSON.stringify(serializeGraph()); }catch(_){} }
+  else { try{ raw = localStorage.getItem(wsGraphKey(id)); }catch(_){} }
+  const occupied = graphHasNodes(raw);
+  if(d.tabs.length===1){
+    if(!occupied) return;
+    const msg = wsT("Close “{name}”? This removes it from this browser.").replace("{name}", tab.name);
+    let ok = true;
+    try{ ok = confirm(msg); }catch(_){ ok = true; }
+    if(!ok) return;
+    workspaceResults.delete(id);
+    workspaceHist.delete(id);
+    try{ localStorage.removeItem(wsGraphKey(id)); }catch(_){}
+    tab.name = wsT("Untitled");
+    tab.app = null;
+    try{ writeWorkspaces(d); }catch(_){}
+    const wasMuted = undoMuted;
+    undoMuted = true;
+    try{
+      setPendingApp(null);
+      applyGraphData(blankGraph());
+      window.resetDescribeVersions?.();
+    }finally{ undoMuted = wasMuted; }
+    restoreWorkspaceHistory(null);
+    flushSave();
+    try{ renderWorkspaces(); }catch(_){}
+    return;
+  }
+  if(occupied){
+    const msg = wsT("Close “{name}”? This removes it from this browser.").replace("{name}", tab.name);
+    let ok = true;
+    try{ ok = confirm(msg); }catch(_){ ok = true; }
+    if(!ok) return;
+  }
+  workspaceResults.delete(id);
+  workspaceHist.delete(id);
+  try{ localStorage.removeItem(wsGraphKey(id)); }catch(_){}
+  const idx = d.tabs.findIndex(t => t.id===id);
+  d.tabs.splice(idx, 1);
+  if(d.active===id){
+    const neighbor = d.tabs[Math.max(0, idx-1)] || d.tabs[0];
+    d.active = neighbor.id;
+    try{ writeWorkspaces(d); }catch(_){}
+    let nraw = null;
+    try{ nraw = localStorage.getItem(wsGraphKey(neighbor.id)); }catch(_){}
+    const wasMuted = undoMuted;
+    undoMuted = true;
+    try{
+      const stash = workspaceResults.get(neighbor.id) || null;
+      if(nraw) applyGraphData(JSON.parse(nraw), stash ? {resultStash:stash} : undefined);
+      else applyGraphData(blankGraph());
+      window.resetDescribeVersions?.();
+      const app = neighbor.app;
+      setPendingApp(app && app.id ? app.id : null, app && app.title);
+    }finally{ undoMuted = wasMuted; }
+    restoreWorkspaceHistory(neighbor.id);
+    flushSave();
+  } else {
+    try{ writeWorkspaces(d); }catch(_){}
+  }
+  try{ renderWorkspaces(); }catch(_){}
+}
+function renameWorkspace(id, name, opts){
+  const d = readWorkspaces();
+  if(!d) return;
+  const tab = d.tabs.find(t => t.id===id);
+  if(!tab) return;
+  let next = String(name||"").trim().replace(/[\r\n]+/g," ").replace(/\s+/g," ");
+  if(next.length>40) next = next.slice(0,40).trim();
+  if(!next || next===tab.name) return;
+  next = uniqueWorkspaceName(next, d.tabs.filter(t => t.id!==id));
+  tab.name = next;
+  try{ writeWorkspaces(d); }catch(_){}
+  if(!opts || opts.render!==false){ try{ renderWorkspaces(); }catch(_){} }
+}
+function commitReorder(id, toIndex){
+  const d = readWorkspaces();
+  if(!d) return;
+  const from = d.tabs.findIndex(t => t.id===id);
+  if(from<0) return;
+  const dest = Math.max(0, Math.min(d.tabs.length-1, toIndex>from ? toIndex-1 : toIndex));
+  if(dest===from) return;
+  const [tab] = d.tabs.splice(from, 1);
+  d.tabs.splice(dest, 0, tab);
+  try{ writeWorkspaces(d); }catch(_){}
+  try{ renderWorkspaces(); }catch(_){}
+}
+function tabOccupied(d, tab){
+  if(tab.id===d.active) return !!(graph.nodes && graph.nodes.length);
+  try{ return graphHasNodes(localStorage.getItem(wsGraphKey(tab.id))); }catch(_){ return false; }
+}
+function focusWorkspaceTab(id){
+  try{
+    const b = $("wstabs").querySelector('.wstab[data-id="'+id+'"]');
+    if(b) b.focus();
+  }catch(_){}
+}
+function closeWorkspaceMenus(){
+  try{
+    const ch = $("wschooser"); if(ch){ ch.hidden = true; }
+    const add = $("wsadd"); if(add) add.setAttribute("aria-expanded", "false");
+    const m = $("wsdropmenu"); if(m) m.hidden = true;
+    const drop = $("wsdrop"); if(drop) drop.setAttribute("aria-expanded", "false");
+  }catch(_){}
+}
+function placeChooser(){
+  try{
+    const wrap = $("wsaddwrap"), menu = $("wschooser");
+    if(!wrap || !menu || !wrap.getBoundingClientRect) return;
+    const r = wrap.getBoundingClientRect();
+    const flip = r.left > (window.innerWidth || 0) - 260;
+    menu.style.left = flip ? "auto" : "0";
+    menu.style.right = flip ? "0" : "auto";
+  }catch(_){}
+}
+function toggleChooser(){
+  const menu = $("wschooser");
+  if(!menu) return;
+  const open = menu.hidden;
+  closeWorkspaceMenus();
+  if(open){ placeChooser(); menu.hidden = false; const add = $("wsadd"); if(add) add.setAttribute("aria-expanded", "true"); }
+}
+function fillDropMenu(d){
+  const menu = $("wsdropmenu");
+  if(!menu) return;
+  menu.textContent = "";
+  const cur = d.tabs.find(t => t.id===d.active);
+  const renamingId = cur && cur.id;
+  const hint = document.createElement("div");
+  hint.className = "wshint";
+  hint.textContent = wsT("Rename workspace");
+  menu.appendChild(hint);
+  const inp = document.createElement("input");
+  inp.className = "wsrename";
+  inp.value = cur ? cur.name : "";
+  inp.maxLength = 40;
+  inp.setAttribute("aria-label", wsT("Rename workspace"));
+  inp.setAttribute("data-no-i18n", "");
+  inp.addEventListener("keydown", (e)=>{
+    if(e.key==="Enter"){ e.preventDefault(); renameWorkspace(renamingId, inp.value); $("wsdropmenu").hidden = true; }
+    else if(e.key==="Escape"){ e.preventDefault(); e.stopPropagation(); $("wsdropmenu").hidden = true; }
+  });
+  inp.addEventListener("blur", ()=>{ if(!$("wsdropmenu").hidden) renameWorkspace(renamingId, inp.value); });
+  menu.appendChild(inp);
+  for(const tab of d.tabs){
+    if(tab.id===d.active) continue;   // the field above is the workspace you're on
+    const row = document.createElement("button");
+    row.type = "button";
+    row.setAttribute("role", "option");
+    row.setAttribute("data-no-i18n", "");
+    row.setAttribute("aria-selected", tab.id===d.active ? "true" : "false");
+    row.textContent = tab.name;
+    if(tab.id===d.active) row.className = "on";
+    row.addEventListener("pointerdown", (e)=>{ e.preventDefault(); renameWorkspace(renamingId, inp.value, {render:false}); });
+    row.addEventListener("click", ()=>{ $("wsdropmenu").hidden = true; const drop = $("wsdrop"); if(drop) drop.setAttribute("aria-expanded","false"); switchWorkspace(tab.id); });
+    menu.appendChild(row);
+  }
+}
+function renderWorkspaces(){
+  try{
+    if(typeof document==="undefined" || typeof $!=="function") return;
+    const tabsEl = $("wstabs");
+    if(!tabsEl) return;
+    const d = readWorkspaces();
+    if(!d) return;
+    let focusId = null;
+    try{
+      const a = document.activeElement;
+      if(a && a.closest && a.closest("#wstabs")) focusId = d.active;
+    }catch(_){}
+    tabsEl.textContent = "";
+    for(const tab of d.tabs){
+      const tabBtn = document.createElement("button");
+      tabBtn.type = "button";
+      tabBtn.className = "wstab"+(tab.id===d.active ? " on" : "");
+      tabBtn.setAttribute("role", "tab");
+      tabBtn.setAttribute("data-no-i18n", "");
+      tabBtn.setAttribute("aria-selected", tab.id===d.active ? "true" : "false");
+      tabBtn.tabIndex = tab.id===d.active ? 0 : -1;
+      tabBtn.dataset.id = tab.id;
+      tabBtn.title = tab.name;
+      const label = document.createElement("span");
+      label.className = "wslabel";
+      label.textContent = tab.name;
+      tabBtn.appendChild(label);
+      if(d.tabs.length>1 || tabOccupied(d, tab)){
+        const x = document.createElement("span");
+        x.className = "wsx";
+        x.setAttribute("aria-hidden", "true");
+        x.textContent = "×";
+        tabBtn.appendChild(x);
+      }
+      tabsEl.appendChild(tabBtn);
+    }
+    const drop = $("wsdrop");
+    if(drop){
+      const cur = d.tabs.find(t => t.id===d.active);
+      drop.textContent = "";
+      const s = document.createElement("span");
+      s.className = "wsdropname";
+      s.textContent = cur ? cur.name : wsT("Workflow");
+      drop.appendChild(s);
+      drop.appendChild(document.createTextNode(" ▾"));
+    }
+    const menu = $("wsdropmenu");
+    if(menu && !menu.hidden) fillDropMenu(d);
+    if(focusId) focusWorkspaceTab(focusId);
+  }catch(_){}
+}
+function beginWorkspaceRename(tabEl){
+  const id = tabEl && tabEl.dataset && tabEl.dataset.id;
+  const d = readWorkspaces();
+  const tab = d && d.tabs.find(t => t.id===id);
+  if(!tab) return;
+  const label = tabEl.querySelector(".wslabel");
+  if(!label) return;
+  const inp = document.createElement("input");
+  inp.className = "wsrename";
+  inp.value = tab.name;
+  inp.maxLength = 40;
+  inp.setAttribute("aria-label", wsT("Rename workspace"));
+  inp.setAttribute("data-no-i18n", "");
+  label.replaceWith(inp);
+  inp.focus();
+  try{ inp.select(); }catch(_){}
+  let closed = false;
+  const finish = (commit)=>{
+    if(closed) return;
+    closed = true;
+    inp.removeEventListener("blur", onBlur);
+    if(commit) renameWorkspace(id, inp.value);
+    else { try{ renderWorkspaces(); }catch(_){} }
+  };
+  const onBlur = ()=> finish(true);
+  inp.addEventListener("blur", onBlur);
+  inp.addEventListener("keydown", (e)=>{
+    if(e.key==="Enter"){ e.preventDefault(); finish(true); }
+    else if(e.key==="Escape"){ e.preventDefault(); e.stopPropagation(); finish(false); }
+  });
+  inp.addEventListener("pointerdown", (e)=> e.stopPropagation());
+  inp.addEventListener("click", (e)=> e.stopPropagation());
+}
+let wsDrag = null, wsSuppressClick = false;
+function bindWorkspaceChrome(){
+  try{
+    if(typeof document==="undefined" || typeof $!=="function") return;
+    const tabs = $("wstabs");
+    if(!tabs || tabs.dataset.wsbound) return;
+    tabs.dataset.wsbound = "1";
+    tabs.addEventListener("click", (e)=>{
+      if(wsSuppressClick){ wsSuppressClick = false; return; }
+      const b = e.target.closest && e.target.closest(".wstab");
+      if(!b) return;
+      if(e.target.closest(".wsx")){ e.stopPropagation(); closeWorkspace(b.dataset.id); return; }
+      switchWorkspace(b.dataset.id);
+    });
+    tabs.addEventListener("dblclick", (e)=>{
+      const b = e.target.closest && e.target.closest(".wstab");
+      if(!b || (e.target.closest && e.target.closest(".wsx"))) return;
+      e.preventDefault();
+      beginWorkspaceRename(b);
+    });
+    tabs.addEventListener("keydown", (e)=>{
+      const d = readWorkspaces(); if(!d) return;
+      const i = d.tabs.findIndex(t => t.id===d.active);
+      if(e.key==="ArrowRight" || e.key==="ArrowLeft"){
+        e.preventDefault();
+        const n = d.tabs[(i + (e.key==="ArrowRight"?1:-1) + d.tabs.length) % d.tabs.length];
+        if(n){ switchWorkspace(n.id); focusWorkspaceTab(n.id); }
+      } else if((e.key==="Backspace" || e.key==="Delete") && document.activeElement && document.activeElement.classList && document.activeElement.classList.contains("wstab")){
+        e.preventDefault();
+        closeWorkspace(document.activeElement.dataset.id);
+      }
+    });
+    tabs.addEventListener("pointerdown", (e)=>{
+      if(e.button!=null && e.button!==0) return;
+      const b = e.target.closest && e.target.closest(".wstab");
+      if(!b || (e.target.closest && e.target.closest(".wsx")) || (e.target.closest && e.target.closest("input"))) return;
+      const buttons = [...tabs.querySelectorAll(".wstab")];
+      wsDrag = { id:b.dataset.id, x:e.clientX, moved:false, el:b, rects:buttons.map(el=>{
+        const r = el.getBoundingClientRect();
+        return { left:r.left, mid:r.left + r.width/2 };
+      })};
+      try{ b.setPointerCapture(e.pointerId); }catch(_){}
+    });
+    tabs.addEventListener("pointermove", (e)=>{
+      if(!wsDrag) return;
+      const dx = e.clientX - wsDrag.x;
+      if(!wsDrag.moved && Math.abs(dx) < 6) return;
+      wsDrag.moved = true;
+      wsDrag.el.style.transform = "translateX("+dx+"px)";
+      wsDrag.el.style.zIndex = "2";
+    });
+    tabs.addEventListener("pointerup", (e)=>{
+      if(!wsDrag) return;
+      const drag = wsDrag;
+      wsDrag = null;
+      drag.el.style.transform = "";
+      drag.el.style.zIndex = "";
+      if(!drag.moved) return;
+      wsSuppressClick = true;
+      let target = drag.rects.length;
+      for(let i=0;i<drag.rects.length;i++){ if(e.clientX < drag.rects[i].mid){ target = i; break; } }
+      commitReorder(drag.id, target);
+    });
+    tabs.addEventListener("pointercancel", ()=>{
+      if(!wsDrag) return;
+      wsDrag.el.style.transform = "";
+      wsDrag.el.style.zIndex = "";
+      wsDrag = null;
+    });
+    const add = $("wsadd");
+    if(add) add.onclick = (e)=>{ e.stopPropagation(); toggleChooser(); };
+    const chooser = $("wschooser");
+    if(chooser) chooser.addEventListener("click", (e)=>{
+      const b = e.target.closest && e.target.closest("[data-ws]");
+      if(!b) return;
+      closeWorkspaceMenus();
+      const kind = b.getAttribute("data-ws");
+      if(kind==="examples"){ if(typeof openExamples==="function") openExamples(); return; }
+      if(workspaceBusy()){ flash("can’t change the workflow while running — Stop first"); return; }
+      let data, name, fit = true;
+      if(kind==="blank"){ data = blankGraph(); name = wsT("Blank canvas"); fit = false; }
+      else if(kind==="t2i"){ data = textToImageGraph(); name = wsT("Text to image"); }
+      else if(kind==="ask"){ data = askModelGraph(); name = wsT("Ask a model"); }
+      else return;
+      const had = !!(graph.nodes && graph.nodes.length);
+      if(!openWorkspaceWithGraph(data, name, { respectCap:true, fit })) return;
+      try{ if(typeof dismissHint==="function") dismissHint(); }catch(_){}
+      if(had) toast(wsT("Opened “{name}” in a new workspace.").replace("{name}", name));
+    });
+    const drop = $("wsdrop");
+    if(drop) drop.onclick = (e)=>{
+      e.stopPropagation();
+      const menu = $("wsdropmenu");
+      if(!menu) return;
+      const open = menu.hidden;
+      closeWorkspaceMenus();
+      if(open){
+        const d = readWorkspaces();
+        if(d) fillDropMenu(d);
+        menu.hidden = false;
+        drop.setAttribute("aria-expanded", "true");
+      }
+    };
+    document.addEventListener("click", (e)=>{
+      const ch = $("wschooser"), m = $("wsdropmenu");
+      if(ch && !ch.hidden && !(e.target.closest && e.target.closest("#wschooser,#wsadd"))) ch.hidden = true;
+      if(m && !m.hidden && !(e.target.closest && e.target.closest("#wsdropmenu,#wsdrop"))){ m.hidden = true; if(drop) drop.setAttribute("aria-expanded","false"); }
+      const addBtn = $("wsadd");
+      if(addBtn && ch && ch.hidden) addBtn.setAttribute("aria-expanded", "false");
+    });
+    addEventListener("keydown", (e)=>{
+      if(e.key!=="Escape") return;
+      const ch = $("wschooser"), m = $("wsdropmenu");
+      if(m && !m.hidden){ m.hidden = true; if(drop) drop.setAttribute("aria-expanded","false"); }
+      if(ch && !ch.hidden){ ch.hidden = true; const addBtn = $("wsadd"); if(addBtn) addBtn.setAttribute("aria-expanded","false"); }
+    });
+  }catch(_){}
+}
+function noteFreshWorkspaceName(){
+  const d = readWorkspaces();
+  if(!d) return;
+  const cur = d.tabs.find(t => t.id===d.active) || d.tabs[0];
+  if(!cur) return;
+  if(cur.name!=="Workflow" && cur.name!==wsT("Workflow")) return;
+  const named = (graph.nodes||[]).find(n => n && n.name && String(n.name).trim());
+  if(!named) return;
+  cur.name = uniqueWorkspaceName(String(named.name).trim(), d.tabs.filter(t => t.id!==cur.id));
+  try{ writeWorkspaces(d); }catch(_){}
+  try{ renderWorkspaces(); }catch(_){}
+}
+/* WORKSPACES-END */
+
 async function loadFromHash(){
   const h = location.hash; let json=null, ga=false;
   try{
@@ -16882,20 +17651,37 @@ async function loadFromHash(){
   }catch{ /* bad link */ }
   if(!json) return false;
   try{
-    // Both the app-handoff (#ga=) and the share-link (#g=/#j=) paths run at boot BEFORE load(), so the
-    // canvas is empty — pushUndo() would snapshot nothing. Park the STORED graph (same serializeGraph
-    // JSON) instead: the save() below overwrites the noodle someone left on this browser, and Ctrl+Z
-    // must bring it back. (Skip when there's nothing stored — no snapshot of an empty canvas.)
-    let parked = false;
-    try{ const prev = localStorage.getItem("noodle_graph"); if(prev){ undoStack.push({ s:prev, boundary:true, stash:null }); syncUndoBtn(); parked = true; } }catch(_){}   // boundary, no stash: fresh boot — the old session's results were memory-only and are already gone
+    // Snapshot the autosave BEFORE setPendingApp / save() touch it. A payload that throws
+    // never reaches the shelve below, so a bad link still cannot overwrite noodle_graph.
+    let prev = null, prevApp = null;
+    try{ prev = localStorage.getItem("noodle_graph"); }catch(_){}
+    try{ if(typeof editorAppBinding==="function") prevApp = editorAppBinding(); }catch(_){}
+    JSON.parse(json);
     if(ga){
       const spec = JSON.parse(json); setPendingApp(spec.appId, spec.title); applyGraphData(spec.graph);
     }
     else {
       setPendingApp(null); applyGraphData(JSON.parse(json));
-      if(parked) toast(t("↺ Undo restores your previous workflow"));   // a share link just replaced your graph — reassure it's one Ctrl+Z away
     }
     window.resetDescribeVersions?.();   // a shared/handoff graph replaces the workflow → drop the old describe-version chips
+    let shelved = false;
+    try{
+      if(prev && typeof shelvePreviousWorkspace==="function"){
+        const fromGraph = (typeof nameFromGraphJson==="function") ? nameFromGraphJson(json) : "";
+        const label = ga
+          ? ((typeof pendingAppTitle!=="undefined" && pendingAppTitle) || fromGraph || "Shared app")
+          : (fromGraph || "Shared workflow");
+        shelved = !!shelvePreviousWorkspace(prev, prevApp, typeof t==="function" ? t(label) : label);
+      }
+    }catch(_){}
+    if(!shelved && prev){
+      // No workspace list in this runtime, or the stored graph was empty: park it so one
+      // undo brings it back. That is the pre-workspace contract.
+      try{ undoStack.push({ s:prev, boundary:true, stash:null }); syncUndoBtn(); }catch(_){}
+      if(!ga) toast(t("↺ Undo restores your previous workflow"));
+    } else if(shelved && !ga){
+      toast(t("Opened in a new workspace — the one you were on is still here."));
+    }
     history.replaceState({}, "", location.pathname + location.search); // consume the link; edits now win
     save();
     return true;
@@ -17981,6 +18767,14 @@ function loadExample(i){
   const ex=EXAMPLES[i]; if(!ex) return;
   if(runningNodes.size){ flash("can’t change the workflow while running — Stop first"); return; }   // replacing the graph mid-run would strand in-flight (already-charged) results (mirrors the per-node delete guard)
   closeExamples();
+  const had = graph.nodes.length > 0;
+  if(had && typeof openWorkspaceWithGraph==="function"){
+    const name = t(ex.title);
+    const ok = openWorkspaceWithGraph(JSON.parse(JSON.stringify(ex.graph)), name, { respectCap:true, fit:true });
+    dismissHint();
+    if(ok) toast(t("Opened “{name}” in a new workspace.").replace("{name}", name));
+    return;
+  }
   pushUndo(true);                                // BEFORE the mutation — boundary: an example is an unrelated graph; ↺ Undo restores the prior graph + its paid results
   setPendingApp(null);                           // an example is a fresh workflow, not an app edit (mirrors loadFile)
   applyGraphData(JSON.parse(JSON.stringify(ex.graph)));  // deep-clone: applyGraphData spreads nodes shallowly and mutates them, so a raw template would be corrupted for the next load
@@ -18156,6 +18950,7 @@ $("signout").onclick = ()=> setKey(null);
    ====================================================================== */
 (async ()=>{
   buildAddMenu();
+  try{ ensureWorkspaces(); renderWorkspaces(); bindWorkspaceChrome(); }catch(_){}
   document.documentElement.lang = LANG;  // detected (or persisted) UI language
   buildLangMenu();
   translateTree(document.body);           // translate the static chrome once (toolbar, key row, picker header…)
@@ -18199,6 +18994,7 @@ $("signout").onclick = ()=> setKey(null);
   const freshStart = !restored;                                   // nothing personal loaded → we're about to show the shipped starter
   if(!restored) restored = await loadDefault();                   // else noodle-graph.json
   if(!restored) seed();                                           // else built-in starter
+  if(freshStart){ try{ noteFreshWorkspaceName(); }catch(_){} }    // name the generic tab from the starter, without rewriting noodle_graph
   // Capture the starter's full + topology signatures so a signed-out Run can free-sample the
   // pristine starter AND light field edits on the same shape (see demoMode / runGroup / inDemoRun).
   // Compute from the CANONICAL noodle-graph.json, not the live canvas: autosave makes a returning
@@ -18217,6 +19013,7 @@ $("signout").onclick = ()=> setKey(null);
     }catch(_){}
   }
   updateTitle();                                                  // reflect whether an app's workflow is loaded
+  try{ renderWorkspaces(); }catch(_){}
   redraw();
   // Reconcile once the fresh catalog lands: resize cards, backfill default models, refresh prices/panels
   // and redraw wires to the new port positions. For a returning visitor this is a no-op-ish nudge; for a
