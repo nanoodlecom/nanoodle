@@ -136,6 +136,9 @@ try {
       await page.locator("#demox").click();
 
       await page.locator("#makeapp").click();
+      // The iframe element exists before play.html wires its controls and loads
+      // the handoff. Use the editor's validated __appready__ handshake instead.
+      await page.waitForFunction(() => typeof appFrameLoaded !== "undefined" && appFrameLoaded);
       const builder = page.frameLocator("#appmodalframe");
       await builder.locator("#appframe").waitFor();
       if (mobile) await builder.locator("#barmore").click();
