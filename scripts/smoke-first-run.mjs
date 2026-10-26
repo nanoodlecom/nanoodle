@@ -281,7 +281,8 @@ try {
           // Loading a shelved graph advances allocation counters; its content
           // and viewport must round-trip without resetting those counters.
           const {nid:beforeNid, lid:beforeLid, ...beforeContent} = JSON.parse(original);
-          const {nid:afterNid, lid:afterLid, ...afterContent} = await tabPage.evaluate(() => serializeGraph());
+          const {nid:afterNid, lid:afterLid, ...afterContent} = JSON.parse(
+            await tabPage.evaluate(() => JSON.stringify(serializeGraph())));
           assert.deepEqual(afterContent, beforeContent, "switching back restores the original graph after recovery");
           assert.ok(afterNid >= beforeNid && afterLid >= beforeLid, "allocation counters stay monotonic");
         }
