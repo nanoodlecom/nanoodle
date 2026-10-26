@@ -10070,6 +10070,9 @@ function applyWorld(){ world.style.transform = `translate(${panX}px,${panY}px) s
    NODE CREATION / RENDERING
    ====================================================================== */
 function addNode(type, x, y, fields){
+  // seed() builds the fallback starter with undo muted. A real add on the still-blank
+  // first paint claims the canvas so the late starter cannot replace that node.
+  if(!undoMuted){ try{ claimInitialCanvas(); }catch(_){} }
   pushUndo();
   const t = NODE_TYPES[type];
   const n = { id:"n"+(nid++), type, x, y, fields:Object.assign({}, fields), out:{}, el:null };
@@ -12406,6 +12409,7 @@ function ensureModelForInput(n, type){
 }
 function quickSpawn(typeKey, wx, wy, dir, type, originPort){
   // Picking one row creates one connected pair: Undo should remove that whole choice.
+  try{ claimInitialCanvas(); }catch(_){}
   const wasMuted = undoMuted;
   pushUndo(); undoMuted = true;
   try{
@@ -16262,6 +16266,9 @@ function spawnFirstSeat(){
 }
 function spawnCenter(type){
   // One menu choice includes placement and its unambiguous automatic wire.
+  // Claim before muting: addNode skips the claim while undo is muted, and this
+  // click is what a blank first paint must not lose to the starter still loading.
+  try{ claimInitialCanvas(); }catch(_){}
   const wasMuted = undoMuted;
   pushUndo(); undoMuted = true;
   try{
@@ -16635,6 +16642,9 @@ async function starterGraphData(){   // the shipped starter's data, or null on f
 }
 async function loadDefault(){   // noodle-graph.json shipped alongside the page = the starting point
   const d = await starterGraphData();
+  // The fetch is the blank-page window. A tab action or an added node during it
+  // already owns the canvas — painting the starter now would replace that.
+  if(typeof initialCanvasUnclaimed==="function" && !initialCanvasUnclaimed()) return false;
   if(!d) return false;          // e.g. opened via file:// — fall back to the built-in seed
   applyGraphData(JSON.parse(JSON.stringify(d)));   // clone: applyGraphData shares the fields ref and edits would corrupt the cached baseline
   fitView(hintPad());   // always frame the shipped demo for THIS screen — its baked-in view pins top-left on wide monitors; the user hasn't positioned it. hintPad() reserves the (already-shown) first-run banner so the graph frames below it, not under it.
@@ -16669,6 +16679,7 @@ function loadFile(file){
     try{ appId = pendingAppId; appTitle = pendingAppTitle; }catch(_){}
     try{ if(typeof wsSnapshotKey==="function") editorShot = wsSnapshotKey(EDITOR_APP_KEY); }catch(_){}
     try{
+      try{ claimInitialCanvas(); }catch(_){}
       // File Load stays IN this workspace (↺ Undo brings the previous graph back, paid results included).
       // Examples and share links open a new workspace instead — they must not replace the one you are on.
       if(had) pushUndo(true);                // BEFORE the mutation — boundary: an unrelated file replaces the graph; ↺ Undo restores the prior graph + its paid results
@@ -17135,6 +17146,22 @@ function updateTitle(){
    Paid results and undo stacks are memory-only, same as a reload today. */
 const WS_INDEX_KEY = "noodle_workspaces";
 const WS_CAP = 16;
+// True until the first-visit starter is installed, or the user takes the blank canvas.
+// Choosing a workspace while this is set must not absorb that empty canvas: the
+// starter still belongs on tab 1, and the choice opens beside it once the starter lands.
+let initialGraphPending = true;
+let deferredWorkspaceKind = null;
+function claimInitialCanvas(){ initialGraphPending = false; }
+function initialCanvasUnclaimed(){ return initialGraphPending; }
+function finishInitialCanvas(opts){
+  claimInitialCanvas();
+  if(opts && opts.fresh){ try{ noteFreshWorkspaceName(); }catch(_){} }
+  const kind = deferredWorkspaceKind;
+  deferredWorkspaceKind = null;
+  if(!kind) return false;
+  try{ chooseWorkspace(kind); }catch(_){ return false; }
+  return true;
+}
 const workspaceResults = new Map();
 const workspaceHist = new Map();
 function wsGraphKey(id){ return "noodle_ws_"+id; }
@@ -17548,6 +17575,8 @@ function shelvePreviousWorkspace(prevJson, prevApp, newName){
 function openWorkspaceWithGraph(data, name, opts){
   opts = opts || {};
   if(workspaceBusy()){ flash("can’t change the workflow while running — Stop first"); return false; }
+  // This canvas is the user's now. A starter fetch still in flight must not paint over it.
+  claimInitialCanvas();
   const had = !!(graph.nodes && graph.nodes.length);
   if(had){
     let d0 = readWorkspaces();
@@ -17911,6 +17940,14 @@ function chooseWorkspace(kind){
   closeWorkspaceMenus();
   if(kind==="examples"){ if(typeof openExamples==="function") openExamples(); return; }
   if(workspaceBusy()){ flash("can’t change the workflow while running — Stop first"); return; }
+  // The blank first paint is already tab 1, waiting for the starter. Absorbing a
+  // choice into it is what made the first new-tab look like we weren't in a tab,
+  // and the starter then painted over that choice. Hold the choice and open it
+  // beside the starter once the starter is actually on the canvas.
+  if(initialCanvasUnclaimed() && !(graph.nodes && graph.nodes.length)){
+    deferredWorkspaceKind = kind;
+    return "deferred";
+  }
   let data, name, fit = true;
   if(kind==="blank"){ data = blankGraph(); name = wsT("Blank canvas"); fit = false; }
   else if(kind==="t2i"){ data = textToImageGraph(); name = wsT("Text to image"); }
@@ -19852,9 +19889,16 @@ $("signout").onclick = ()=> setKey(null);
       if(b && b.id) setPendingApp(b.id, b.title || null); }catch(_){}
   }
   const freshStart = !restored;                                   // nothing personal loaded → we're about to show the shipped starter
-  if(!restored) restored = await loadDefault();                   // else noodle-graph.json
-  if(!restored) seed();                                           // else built-in starter
-  if(freshStart){ try{ noteFreshWorkspaceName(); }catch(_){} }    // name the generic tab from the starter, without rewriting noodle_graph
+  if(!restored && initialCanvasUnclaimed()) restored = await loadDefault(); // else noodle-graph.json
+  if(!restored && initialCanvasUnclaimed()) seed();               // else built-in starter
+  // The default tab already exists (created before this await). Name it from the
+  // graph now on the canvas, still without rewriting noodle_graph, then run a
+  // new-tab choice the user made while the page was blank — beside this tab.
+  try{
+    if(freshStart) finishInitialCanvas({fresh:true});
+    else claimInitialCanvas();
+    renderWorkspaces();
+  }catch(_){}
   // Capture the starter's full + topology signatures so a signed-out Run can free-sample the
   // pristine starter AND light field edits on the same shape (see demoMode / runGroup / inDemoRun).
   // Compute from the CANONICAL noodle-graph.json, not the live canvas: autosave makes a returning
@@ -20831,6 +20875,7 @@ function tryDblclickDanglingAddWire(portEl){
   const undoBefore = undoStack.slice(), redoBefore = redoStack.slice();
   const nidBefore = nid, lidBefore = lid;
   const mutedBefore = undoMuted;
+  try{ claimInitialCanvas(); }catch(_){}
   pushUndo(); undoMuted = true;
   const rollback = ()=>{
     try{

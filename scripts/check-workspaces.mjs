@@ -174,6 +174,7 @@ const bundle = [
   extractFn(SRC, "b64urlToBytes"),
   "globalThis.__W = { ensureWorkspaces, load, save, loadFromHash, serializeGraph, applyGraphData,",
   "  openWorkspaceWithGraph, openExampleWorkspace, switchWorkspace, closeWorkspace, renameWorkspace, workspaceChord,",
+  "  chooseWorkspace, initialCanvasUnclaimed, claimInitialCanvas, finishInitialCanvas,",
   "  textToImageGraph, askModelGraph, blankGraph,",
   "  readWorkspaces, shelvePreviousWorkspace, workspaceLabelForGraph, workspaceDownloadName, onWorkspaceHash, graph, ",
   "  stacks: () => ({ undo: undoStack.slice(), redo: redoStack.slice() }),",
@@ -845,6 +846,81 @@ function stageTightPair() {
     ok(re.toasts().some((m) => m.includes("Couldn’t switch")) || W.toasts().some((m) => m.includes("Couldn’t switch")), "the impossible restore did not surface an error");
     q.stop();
   }
+}
+
+// A fresh profile's first paint is an empty canvas with tab w1 already selected.
+// noodle_graph is still unset — the starter is not pinned until the user edits.
+// Choosing a workspace in that window must not absorb the empty tab, and must
+// open beside the starter once the starter arrives. A node added in that window
+// claims the canvas, so a late starter must not replace it. An existing
+// noodle_graph stays byte-for-byte.
+const FRESH_STARTER = {
+  v: 1,
+  nodes: [{ id: "n1", type: "text", x: 40, y: 40, name: "Travel postcard", fields: { text: "STARTER-TEXT" } }],
+  links: [], nid: 2, lid: 1,
+};
+
+{
+  clearStore();
+  const W = boot();
+  const idx0 = W.ensureWorkspaces();
+  ok(W.initialCanvasUnclaimed(), "a fresh profile has not claimed the canvas");
+  ok(!backing.noodle_graph, "a fresh profile does not bind noodle_graph before the first edit");
+  ok(idx0 && idx0.tabs.length === 1 && idx0.active === "w1", "the default workspace exists and is selected before the first tab action");
+  ok(idx0.tabs[0].id === "w1", "the default tab has an id the canvas can bind to");
+  ok(W.chooseWorkspace("blank") === "deferred", "the first new-tab on a blank page waits for the default graph");
+  ok(W.readWorkspaces().tabs.length === 1, "deferring the first new-tab must not absorb or add a tab");
+  ok(!backing.noodle_graph, "deferring the first new-tab must not write noodle_graph");
+  ok(W.initialCanvasUnclaimed(), "deferring leaves the starter free to land on tab 1");
+  W.applyGraphData(FRESH_STARTER);
+  ok(W.finishInitialCanvas({ fresh: true }) === true, "the deferred blank canvas runs once the starter is in");
+  const idx = W.readWorkspaces();
+  ok(idx.tabs.length === 2, `the blank canvas opens beside the starter, got ${idx.tabs.length} tabs`);
+  ok(idx.active !== "w1", "the new workspace is the active tab");
+  ok(idx.tabs.find((t) => t.id === "w1").name === "Travel postcard", "tab 1 is named from the starter");
+  const shelved = JSON.parse(backing.noodle_ws_w1);
+  ok(shelved.nodes[0].name === "Travel postcard" && textOf(shelved) === "STARTER-TEXT", "tab 1 keeps the starter bytes");
+  ok((W.serializeGraph().nodes || []).length === 0, "the blank canvas is on screen");
+  ok(JSON.parse(backing.noodle_graph).nodes.length === 0, "noodle_graph is bound to the active blank workspace");
+  W.switchWorkspace("w1");
+  ok(W.readWorkspaces().active === "w1", "switching back selects the default workspace");
+  ok(W.serializeGraph().nodes[0].name === "Travel postcard" && textOf(W.serializeGraph()) === "STARTER-TEXT", "switching back shows the starter, not the blank canvas");
+}
+
+{
+  clearStore();
+  const W = boot();
+  W.ensureWorkspaces();
+  W.applyGraphData(markerGraph("MINE"));
+  W.claimInitialCanvas();
+  ok(!W.initialCanvasUnclaimed(), "adding a node on the blank page claims the canvas");
+  W.finishInitialCanvas({ fresh: true });
+  ok(textOf(W.serializeGraph()) === "MINE", "a late starter must not replace the node added on the blank page");
+  ok(W.readWorkspaces().tabs.length === 1 && W.readWorkspaces().active === "w1", "that node stays on the default workspace");
+  const spawnAt = SRC.indexOf("function spawnCenter");
+  const spawnBody = SRC.slice(spawnAt, SRC.indexOf("undoMuted = true", spawnAt));
+  ok(spawnBody.includes("claimInitialCanvas"), "Add node claims the blank canvas before undo is muted");
+}
+
+{
+  clearStore();
+  backing.noodle_graph = FIXTURE;
+  const before = backing.noodle_graph;
+  const W = boot();
+  W.ensureWorkspaces();
+  ok(W.load() === true, "a saved graph still loads");
+  W.finishInitialCanvas({ fresh: false });
+  ok(backing.noodle_graph === before, "boot must not rewrite an existing user's noodle_graph");
+  ok(!Object.keys(backing).some((k) => k.startsWith("noodle_ws_")), "boot must not copy a saved graph into a second key");
+  ok(W.readWorkspaces().tabs.length === 1 && W.readWorkspaces().active === "w1", "a saved graph stays the one active workspace");
+  ok(W.readWorkspaces().tabs[0].name === "Night desk", "a saved graph keeps its workspace name");
+  ok(textOf(W.serializeGraph()) === textOf(JSON.parse(FIXTURE)), "a saved graph's nodes survive boot");
+  const again = W.chooseWorkspace("t2i");
+  ok(again !== "deferred", "a returning canvas is not the blank first paint, so a new tab opens now");
+  ok(W.readWorkspaces().tabs.length === 2, "a saved graph gains a second tab instead of being replaced");
+  const shelved = JSON.parse(backing.noodle_ws_w1);
+  ok(textOf(shelved) === textOf(JSON.parse(FIXTURE)), "the saved graph's text is shelved on its own tab");
+  ok(photoOf(shelved) === photoOf(JSON.parse(FIXTURE)), "the saved graph's upload is shelved on its own tab");
 }
 
 if (failures.length) {
