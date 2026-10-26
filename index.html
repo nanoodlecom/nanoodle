@@ -17260,6 +17260,9 @@ function stampActiveExample(slug){
 let workspaceMemory = null;
 let workspaceFlashId = null;
 let workspaceFlashT = null;
+function copyWorkspaces(d){
+  try{ return JSON.parse(JSON.stringify(d)); }catch(_){ return null; }
+}
 function readWorkspaces(){
   try{
     const d = JSON.parse(localStorage.getItem(WS_INDEX_KEY) || "null");
@@ -17270,7 +17273,7 @@ function readWorkspaces(){
   }catch(_){}
   if(workspaceMemory && workspaceMemory.v===1 && Array.isArray(workspaceMemory.tabs) && workspaceMemory.tabs.length){
     if(!workspaceMemory.tabs.some(t => t && t.id===workspaceMemory.active)) workspaceMemory.active = workspaceMemory.tabs[0].id;
-    return workspaceMemory;
+    return copyWorkspaces(workspaceMemory);
   }
   return null;
 }
@@ -17370,6 +17373,7 @@ function workspaceShot(activeId){
     res: id ? captureResults(id) : null,
     hist: id ? captureHist(id) : null,
     canvas, stash,
+    memory: workspaceMemory ? copyWorkspaces(workspaceMemory) : null,
   };
 }
 function workspaceRollback(shot, extra){
@@ -17456,6 +17460,10 @@ function workspaceRollback(shot, extra){
     }catch(_){}
   }
   try{ if(typeof updateTitle==="function") updateTitle(); }catch(_){}
+  // Shelving mutates the index it was handed. When that object was the live
+  // in-memory tab list, a failed write left Blank active while disk — and the
+  // canvas — still had the original workspace. Put the snapshot back.
+  workspaceMemory = shot.memory ? copyWorkspaces(shot.memory) : null;
   try{ renderWorkspaces(); }catch(_){}
   if(!onSource && sourceBytes!=null && activeNow===shot.id && liveNow!==sourceBytes) wsStorageError("switch");
   return !!(onSource && leaveOk && editorOk);
@@ -18458,9 +18466,10 @@ function noteFreshWorkspaceName(){
   try{ writeWorkspaces(d); }
   catch(_){
     try{ wsRestoreKey(WS_INDEX_KEY, prev); }catch(_){}
-    // No index was stored yet: the first-write warning is already up, and
-    // this rename lives on the in-memory tab. Don't cover that warning.
-    if(prev.present) wsStorageError("save");
+    // readWorkspaces hands back a copy. Keep the renamed copy when the index
+    // was never stored, and don't cover the first-write warning.
+    if(!prev.present) workspaceMemory = d;
+    else wsStorageError("save");
     return;
   }
   try{ renderWorkspaces(); }catch(_){}

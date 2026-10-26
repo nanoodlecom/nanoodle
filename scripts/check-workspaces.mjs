@@ -1039,6 +1039,37 @@ function fakeWsDom() {
   ok(!Object.prototype.hasOwnProperty.call(backing, "noodle_workspaces"), "naming the in-memory tab still does not write the index");
 }
 
+// Index writes stay blocked. Plus then Blank on a populated graph must not
+// leave the in-memory list on the new tab while the canvas keeps the old nodes.
+{
+  clearStore();
+  const origSet = localStorage.setItem;
+  localStorage.setItem = (k, v) => {
+    if (k === "noodle_workspaces") {
+      const err = new Error("quota");
+      err.name = "QuotaExceededError";
+      throw err;
+    }
+    return origSet.call(localStorage, k, v);
+  };
+  const W = boot();
+  const six = {
+    v: 1,
+    nodes: [1, 2, 3, 4, 5, 6].map((i) => ({ id: "n" + i, type: "text", x: i, y: 1, fields: { text: "N" + i } })),
+    links: [], nid: 7, lid: 1,
+  };
+  try {
+    W.ensureWorkspaces();
+    W.claimInitialCanvas();
+    W.applyGraphData(six);
+    W.chooseWorkspace("blank");
+  } finally { localStorage.setItem = origSet; }
+  const idx = W.readWorkspaces();
+  ok(idx.tabs.length === 1 && idx.active === "w1" && idx.tabs[0].id === "w1", "a blocked Blank open leaves the original workspace active");
+  ok(!idx.tabs.some((t) => t.name === "Blank canvas"), "a blocked Blank open does not show Blank as a tab");
+  ok((W.serializeGraph().nodes || []).length === 6 && textOf(W.serializeGraph()) === "N1", "the canvas still has the original 6 nodes");
+}
+
 // Delay the starter. Blank during the wait must leave the canvas empty:
 // loadDefault and seed both consult freshGraphStillDue after the await.
 {
