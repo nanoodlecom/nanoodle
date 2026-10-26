@@ -1,0 +1,28 @@
+{
+  "label": "2026-10-26 radio-play Tilly & Rotor (z-ai/glm-5.3-flash script → Join cast note → gemini-3.1-flash-tts-preview)",
+  "startedAt": "2026-10-26T17:53:03.143Z",
+  "finishedAt": "2026-10-26T17:53:45.095Z",
+  "costUsd": 0.098492,
+  "costExact": false,
+  "balanceBefore": 9.60231478,
+  "balanceAfter": 9.50382237,
+  "balanceDelta": 0.098492,
+  "nodes": {
+    "script": {
+      "status": "done",
+      "costUsd": 0.0013935075000000004,
+      "files": {
+        "text": "script.txt"
+      }
+    },
+    "voice": {
+      "status": "done",
+      "costUsd": 0.097098,
+      "costNote": "not reported by the API; balance delta minus the script call",
+      "files": {
+        "audio": "radio-play.mp3"
+      }
+    }
+  },
+  "note": "Second take. The first take used the same graph with a reworded cast note (\"TTS the following conversation ... as a lively radio play\", Kore on the node) and a 12-line script with [laughs]/[whimpers] cues: it came back as one voice acting both parts (Elevenlabs Scribe heard one speaker), so it is not shipped. For this take the cast note uses the exact wording that passed on 2026-10-23, the node voice is Puck, and the script is 10 lines with no cues. Speaker check: voxtral-mini-transcribe-3-0 with diarize ($0.0044) splits the audio into two speakers that alternate exactly with the script's 10 lines; median pitch per speaker is about 108 Hz (Tilly) and 253 Hz (Rotor). The transcript has no speaker names read aloud. Gemini returned 24 kHz mono WAV (69.5 s); re-encoded to MP3 96 kbps for size."
+}

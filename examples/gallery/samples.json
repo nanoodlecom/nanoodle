@@ -1348,5 +1348,104 @@
     "preview": "add-snow-to-a-clip/preview.webp",
     "workflow": "add-snow-to-a-clip/workflow.json",
     "workflowSha256": "9e3d953f5693662da9075ffa74adab5cb43c7d9f9515b9d0b3c71c3867c555ad"
+  },
+  {
+    "slug": "logo-pile",
+    "title": "Logo to a 3D pile, cut out",
+    "date": "2026-10-26",
+    "review": "A flat paper-airplane badge becomes a heap of 3D copies on a transparent background",
+    "note": "FLUX.3 Klein draws a flat two-color logo: a rounded square badge with a navy outline, a tangerine fill and a white paper airplane with two speed lines. Qwen Image 2.1 Edit gets that logo as image 1 and an instruction to make about twenty thick 3D copies, piled up messily, tilted and overlapping, isometric from a high angle, on a plain light grey background. It returns a heap of about two dozen glossy badges that all keep the navy rim, the orange face and the white airplane. Bria's guided background removal is told to keep \"the pile of 3D logo badges\" and returns a 1024\u00d71024 PNG where the grey background is fully transparent and the pile edges are clean, so it can go straight onto a slide or a banner. Flaws: the Klein logo has slightly soft, uneven edges, the kind you get from a raster model, not true vector. In the pile, every badge lies flat or tilted; none stands on its edge as the instruction asked. The badges are thinner than \"thick\", and a few airplanes are simplified or mirrored copies of the original. The cutout drops the contact shadows, so the pile floats when placed on a new background. Swap the FLUX.3 Klein node for a \ud83d\udcf7 Image input to pile up your own logo. Every image was checked and is SFW (an invented logo shape only; no people, no text, no real brands). Inspired by @Manz's ComfyUI + Qwen Image 2.1 logo-pile workflow (https://x.com/Manz/status/2114301636029882437). No media from that post is used.",
+    "layout": "sequence",
+    "costUsd": 0.069,
+    "costExact": true,
+    "models": [
+      "blackforestlabs/flux-3/klein/text-to-image",
+      "qwen-image-2.1/edit",
+      "bria/remove-background-guided"
+    ],
+    "graphSha256": "8cbfbdddb78f8978afb254f6cce7d43f77d05fe32eb17e937148bfbb7f2cab80",
+    "inputs": [
+      {
+        "label": "Logo \u00b7 prompt",
+        "text": "A flat, modern vector logo mark on a plain white background: a rounded square badge with a thick deep-navy outline and a warm tangerine-orange fill, and inside it a simple bold white paper airplane pointing up and to the right, with two short white speed lines behind it. Two flat colors plus white, clean geometric shapes, even line weight, centered with generous margins. No text, no letters, no words, no gradients, no shadows."
+      },
+      {
+        "label": "Pile \u00b7 instruction",
+        "text": "Turn the logo in image 1 into a physical 3D object and show many copies of it: about twenty thick, solid 3D logo badges with rounded bevelled edges, each one an exact copy of this logo with the same shape, the same colors and the same white paper airplane, piled up in a messy heap. The badges are stacked messily, tilted at different angles, overlapping and leaning on each other, some lying flat and some standing on edge. Isometric view from a high angle. Soft even studio light, gentle contact shadows between the pieces, glossy plastic material. The whole pile is isolated in the center on a plain flat light grey background with nothing else in the scene. No text, no letters, no extra objects."
+      },
+      {
+        "label": "Keep \u00b7 what to cut out",
+        "text": "the pile of 3D logo badges"
+      }
+    ],
+    "outputs": [
+      {
+        "src": "logo-pile/logo.webp",
+        "kind": "image",
+        "label": "1. Flat logo: FLUX.3 Klein 1024\u00b2 \u00b7 reported $0.009",
+        "costUsd": 0.009,
+        "sha256": "869b45ab02cbd2ddc39fc880ea68531fafaee8af0f32ef627c1eeb0ab126e99d"
+      },
+      {
+        "src": "logo-pile/pile.webp",
+        "kind": "image",
+        "label": "2. 3D pile: Qwen Image 2.1 Edit 1k \u00b7 reported $0.03",
+        "costUsd": 0.03,
+        "sha256": "dc46b6332a1a4f30ed8d2075f6fd68f68c14a5e3bbbf2fd26e6bf88588486dbe"
+      },
+      {
+        "src": "logo-pile/pile-cutout.webp",
+        "kind": "image",
+        "label": "3. Transparent cutout: Bria guided background removal \u00b7 reported $0.03",
+        "costUsd": 0.03,
+        "sha256": "57470e1fb2b7352d83648a5d40dab529d82082d22054ffaf0ce099dc84211aa8"
+      }
+    ],
+    "preview": "logo-pile/preview.webp",
+    "workflow": "logo-pile/workflow.json",
+    "workflowSha256": "8cbfbdddb78f8978afb254f6cce7d43f77d05fe32eb17e937148bfbb7f2cab80"
+  },
+  {
+    "slug": "radio-play",
+    "title": "Radio play: two voices, one Speech node",
+    "date": "2026-10-26",
+    "review": "Audio sample: a baker and a first-day delivery drone, two distinct voices",
+    "note": "The story idea goes to GLM 5.3 Flash, which writes a 10-line, 126-word radio play as \"Tilly: \u2026\" / \"Rotor: \u2026\" lines: Tilly, a calm old baker, talks a jumpy delivery drone on its first morning through getting a three-tier cake up a windy hill to a lighthouse. A gust tilts the top tier, they split the cake into three trips, a gull nearly gets the last one, and the keeper names a cupcake after Rotor. Join puts a fixed cast note in front of the script (\"TTS the following conversation between Tilly and Rotor. Tilly has a deep calm older voice (voice Kore); Rotor has a bright young voice (voice Puck). Do not read the speaker names aloud.\"), and Gemini 3.1 Flash TTS reads it as one 1:09 scene. A diarizing transcription model (Voxtral) splits the recording into two speakers that switch exactly where the script switches, Tilly low (about 108 Hz) and Rotor high (about 253 Hz), and no speaker names are read aloud. Flaws: the delivery is slow for 126 words, with long gaps between lines. Gemini picks its own timbres from the cast note: Tilly comes out as a deep, rather masculine voice, not obviously the Kore voice named in the note. The script repeats one beat (\"not a crumb lost\" and \"not one crumb dropped\"). This depends on the cast note's wording: a first take that called it \"a lively radio play\" came back in one voice and is not used. The model is a preview. Every line was checked against the transcript and is family-friendly. Inspired by @jeffreyabrick's two-voice radio play (https://x.com/jeffreyabrick/status/2113269680702156843). No media from that post is used.",
+    "costUsd": 0.0985,
+    "costExact": false,
+    "models": [
+      "z-ai/glm-5.3-flash",
+      "gemini-3.1-flash-tts-preview"
+    ],
+    "graphSha256": "79fe075fd1c168d62c1d3e30d70db5cb7e69ca5ccf6fee1b4873024572e50f72",
+    "inputs": [
+      {
+        "label": "Story idea",
+        "text": "A one-minute radio play. Tilly, a calm old village baker, and Rotor, a jumpy young delivery drone on its very first morning, have to get a three-tier birthday cake up a windy hill to the lighthouse before the party at noon. Rotor is nervous and too literal; Tilly is patient and dry. A small mishap, a clever fix, and a happy landing."
+      },
+      {
+        "label": "Cast \u00b7 voice direction",
+        "text": "TTS the following conversation between Tilly and Rotor. Tilly has a deep calm older voice (voice Kore); Rotor has a bright young voice (voice Puck). Do not read the speaker names aloud."
+      }
+    ],
+    "outputs": [
+      {
+        "src": "radio-play/radio-play.mp3",
+        "kind": "audio",
+        "label": "Radio play: Gemini 3.1 Flash TTS, two voices, 1:09 \u00b7 about $0.097 by balance",
+        "costUsd": 0.097098,
+        "sha256": "11d12406ecc58be3a3811c35cd5e0c66ab72a4af624aa7ecdad9109cddcb0f39"
+      },
+      {
+        "src": "radio-play/script.txt",
+        "kind": "text",
+        "label": "Script: GLM 5.3 Flash \u00b7 reported $0.0009",
+        "costUsd": 0.000876,
+        "sha256": "eba462c8bcb7d67f3fecee06d813073ad850e7879af947e61b2d1d14b0ebb2ae"
+      }
+    ],
+    "preview": "radio-play/preview.svg",
+    "workflow": "radio-play/workflow.json",
+    "workflowSha256": "79fe075fd1c168d62c1d3e30d70db5cb7e69ca5ccf6fee1b4873024572e50f72"
   }
 ]

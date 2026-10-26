@@ -1,27 +1,28 @@
 {
   "schemaVersion": 1,
   "source": "examples-gallery",
-  "graphCount": 23,
-  "edgeCount": 144,
+  "graphCount": 25,
+  "edgeCount": 153,
   "typeToType": {
-    "text→image": 26,
+    "text→image": 27,
     "image→ivideo": 9,
     "text→ivideo": 7,
     "ivideo→vedit": 2,
     "text→vedit": 1,
-    "text→llm": 9,
+    "text→llm": 10,
     "llm→image": 5,
-    "text→join": 11,
-    "llm→join": 8,
+    "text→join": 12,
+    "llm→join": 9,
     "join→edit": 3,
-    "image→edit": 12,
+    "image→edit": 13,
     "edit→ivideo": 2,
     "join→ivideo": 1,
     "image→resize": 3,
-    "text→edit": 6,
+    "text→edit": 8,
     "text→tvideo": 4,
     "join→image": 1,
     "image→model3d": 1,
+    "edit→edit": 3,
     "llm→ivideo": 1,
     "join→llm": 5,
     "edit→inpaint": 1,
@@ -29,7 +30,7 @@
     "text→inpaint": 1,
     "inpaint→ivideo": 1,
     "ivideo→vframes": 1,
-    "edit→edit": 2,
+    "join→tts": 1,
     "join→join": 3,
     "llm→llm": 1,
     "llm→music": 1,
@@ -45,27 +46,28 @@
     "image→tvideo": 3
   },
   "portPair": {
-    "text.text→image.prompt": 26,
+    "text.text→image.prompt": 27,
     "image.image→ivideo.image": 8,
     "text.text→ivideo.prompt": 7,
     "ivideo.video→vedit.video": 2,
     "text.text→vedit.prompt": 1,
-    "text.text→llm.prompt": 9,
+    "text.text→llm.prompt": 10,
     "llm.text→image.prompt": 5,
-    "text.text→join.a": 6,
-    "llm.text→join.b": 6,
+    "text.text→join.a": 7,
+    "llm.text→join.b": 7,
     "join.text→edit.prompt": 3,
-    "image.image→edit.image": 8,
+    "image.image→edit.image": 9,
     "edit.image→ivideo.image": 1,
     "join.text→ivideo.prompt": 1,
     "image.image→resize.image": 3,
-    "text.text→edit.prompt": 6,
+    "text.text→edit.prompt": 8,
     "edit.image→ivideo.endframe": 1,
     "text.text→tvideo.prompt": 4,
     "llm.text→join.a": 2,
     "text.text→join.b": 5,
     "join.text→image.prompt": 1,
     "image.image→model3d.image": 1,
+    "edit.image→edit.image": 3,
     "image.image→edit.image2": 2,
     "image.image→edit.image3": 1,
     "image.image→edit.image4": 1,
@@ -76,7 +78,7 @@
     "text.text→inpaint.prompt": 1,
     "inpaint.image→ivideo.image": 1,
     "ivideo.video→vframes.video": 1,
-    "edit.image→edit.image": 2,
+    "join.text→tts.prompt": 1,
     "image.image→ivideo.endframe": 1,
     "join.text→join.a": 3,
     "llm.text→llm.prompt": 1,
@@ -96,12 +98,12 @@
   },
   "topTargets": {
     "text|text": {
-      "image|prompt": 26,
+      "image|prompt": 27,
       "ivideo|prompt": 7,
       "vedit|prompt": 1,
-      "llm|prompt": 9,
-      "join|a": 6,
-      "edit|prompt": 6,
+      "llm|prompt": 10,
+      "join|a": 7,
+      "edit|prompt": 8,
       "tvideo|prompt": 4,
       "join|b": 5,
       "inpaint|prompt": 1,
@@ -110,7 +112,7 @@
     },
     "image|image": {
       "ivideo|image": 8,
-      "edit|image": 8,
+      "edit|image": 9,
       "resize|image": 3,
       "model3d|image": 1,
       "edit|image2": 2,
@@ -129,7 +131,7 @@
     },
     "llm|text": {
       "image|prompt": 5,
-      "join|b": 6,
+      "join|b": 7,
       "join|a": 2,
       "ivideo|prompt": 1,
       "llm|prompt": 1,
@@ -140,6 +142,7 @@
       "ivideo|prompt": 1,
       "image|prompt": 1,
       "llm|prompt": 5,
+      "tts|prompt": 1,
       "join|a": 3,
       "music|prompt": 1,
       "tvideo|prompt": 1
@@ -147,8 +150,8 @@
     "edit|image": {
       "ivideo|image": 1,
       "ivideo|endframe": 1,
+      "edit|image": 3,
       "inpaint|image": 1,
-      "edit|image": 2,
       "llm|img2": 2,
       "resize|image": 2
     },
@@ -268,13 +271,6 @@
       ],
       "outputs": []
     },
-    "music": {
-      "inputs": [
-        "lyrics",
-        "prompt"
-      ],
-      "outputs": []
-    },
     "tts": {
       "inputs": [
         "prompt"
@@ -282,6 +278,13 @@
       "outputs": [
         "audio"
       ]
+    },
+    "music": {
+      "inputs": [
+        "lyrics",
+        "prompt"
+      ],
+      "outputs": []
     },
     "lipsync": {
       "inputs": [

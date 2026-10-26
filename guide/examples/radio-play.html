@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Radio play: two voices, one Speech node — nanoodle</title>
+<meta name="description" content="Make a short two-person audio scene, a radio play, an explainer dialogue or a podcast-style intro, without recording anyone. Reported saved run: at least $0.0985." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="Radio play: two voices, one Speech node — nanoodle" />
+<meta property="og:description" content="Make a short two-person audio scene, a radio play, an explainer dialogue or a podcast-style intro, without recording anyone. Reported saved run: at least $0.0985." />
+<meta property="og:url" content="https://nanoodle.com/guide/examples/radio-play" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Radio play: two voices, one Speech node — nanoodle" />
+<meta name="twitter:description" content="Make a short two-person audio scene, a radio play, an explainer dialogue or a podcast-style intro, without recording anyone. Reported saved run: at least $0.0985." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/examples/radio-play" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <a href="/guide/examples/">Steal a noodle</a> / <span>Radio play: two voices, one Speech node</span></nav>
+
+  <main>
+    <h1><span class="grad">Radio play: two voices, one Speech node</span></h1>
+    <p class="lede">Make a short two-person audio scene, a radio play, an explainer dialogue or a podcast-style intro, without recording anyone.</p>
+
+    <section>
+      <p class="meta-row">Audio sample: a baker and a first-day delivery drone, two distinct voices · 2026-10-26 · Reported saved run: at least $0.0985. <code>z-ai/glm-5.3-flash</code> · <code>gemini-3.1-flash-tts-preview</code></p>
+      <p>Show that one Speech node can do a conversation: Gemini 3.1 Flash TTS reads a &quot;conversation between A and B&quot; with a cast note that assigns a voice to each name, and does not read the names aloud.</p>
+
+      <h2>Saved result</h2>
+      <div class="media">
+          <figure><a href="/examples/gallery/radio-play/preview.svg"><img src="/examples/gallery/radio-play/preview.svg" alt="Radio play: two voices, one Speech node" loading="lazy" /></a><figcaption>Cover still · <a href="/examples/gallery/radio-play/preview.svg" download>Download</a></figcaption></figure>
+        </div>
+        <div class="media comparison">
+          <figure><audio controls preload="none" aria-label="Radio play: two voices, one Speech node"><source src="/examples/gallery/radio-play/radio-play.mp3" type="audio/mpeg"></audio><figcaption>Radio play: Gemini 3.1 Flash TTS, two voices, 1:09 · about $0.097 by balance · <a href="/examples/gallery/radio-play/radio-play.mp3" download>Download</a></figcaption></figure>
+          <figure><blockquote class="sample">Tilly: Steady, Rotor. One hill, one cake, and noon on the clock.
+Rotor: Wind gust! The top tier is tilting eleven degrees! Should I panic?
+Tilly: No panicking. Unstack it. Three tiers, three trips. You&#39;re quick as a kettle whistle.
+Rotor: Recalculating... Three trips. Landing pad: lighthouse porch. ETA: eleven fifty-two.
+Tilly: Good lad. Mind the gulls. Land soft as butter on warm toast.
+Rotor: Tier two delivered! Tier one... gull! Shoo! Delivered! Not a crumb lost.
+Tilly: Then take the candles and yourself up last, slow and proud.
+Rotor: All tiers assembled! The keeper says it&#39;s the finest she&#39;s ever seen!
+Tilly: And you, first flight, first delivery, not one crumb dropped.
+Rotor: The keeper named a cupcake Rotor&#39;s Ration for me. Best morning ever.
+</blockquote><figcaption>Script: GLM 5.3 Flash · reported $0.0009 · <a href="/examples/gallery/radio-play/script.txt" download>Download</a></figcaption></figure>
+        </div>
+
+      <div class="callout"><p>The story idea goes to GLM 5.3 Flash, which writes a 10-line, 126-word radio play as &quot;Tilly: …&quot; / &quot;Rotor: …&quot; lines: Tilly, a calm old baker, talks a jumpy delivery drone on its first morning through getting a three-tier cake up a windy hill to a lighthouse. A gust tilts the top tier, they split the cake into three trips, a gull nearly gets the last one, and the keeper names a cupcake after Rotor. Join puts a fixed cast note in front of the script (&quot;TTS the following conversation between Tilly and Rotor. Tilly has a deep calm older voice (voice Kore); Rotor has a bright young voice (voice Puck). Do not read the speaker names aloud.&quot;), and Gemini 3.1 Flash TTS reads it as one 1:09 scene. A diarizing transcription model (Voxtral) splits the recording into two speakers that switch exactly where the script switches, Tilly low (about 108 Hz) and Rotor high (about 253 Hz), and no speaker names are read aloud. Flaws: the delivery is slow for 126 words, with long gaps between lines. Gemini picks its own timbres from the cast note: Tilly comes out as a deep, rather masculine voice, not obviously the Kore voice named in the note. The script repeats one beat (&quot;not a crumb lost&quot; and &quot;not one crumb dropped&quot;). This depends on the cast note&#39;s wording: a first take that called it &quot;a lively radio play&quot; came back in one voice and is not used. The model is a preview. Every line was checked against the transcript and is family-friendly. Inspired by @jeffreyabrick&#39;s two-voice radio play (https://x.com/jeffreyabrick/status/2113269680702156843). No media from that post is used.</p></div>
+
+
+
+      <h2>Make it yours</h2>
+      <ol class="input-list">
+        <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
+        <li>Rewrite <em>Story idea</em>, and change the two names in the idea, the Script node's system prompt and <em>Cast · voice direction</em>. Keep the cast note's opening ("TTS the following conversation between …") and the "Do not read the speaker names aloud" line; rewording it can collapse everything into one voice. Describe the two voices so they contrast (deep and calm against bright and young).</li>
+        <li>Check the editor estimate, then run with your NanoGPT key. GLM 5.3 Flash for under $0.001 + Gemini 3.1 Flash TTS at about $0.10 per 1,000 characters (cast note plus script, about 950 characters here) = about $0.10. The saved run was about $0.098 by balance; the TTS price is not reported per call.</li>
+        <li>Listen for the switch at every line, and for names being read out. If both characters sound the same, put the cast note back to the wording here and run the Speech node again.</li>
+      </ol>
+
+
+      <div class="cta">
+        <a class="primary" href="https://nanoodle.com/#g=H4sIAAAAAAAAA61WwY7bNhC95ysGvjRBLa3t3ewmu5cGDVq0adMiWaCHuihoaWwxpkSBpK1VgnxX7_2yvqFsx9p4d90gF8skh8M3M28e-eER0WA9uKTxUP5VNmeP0Z8YEH2Iv5jWOeYGWaKrwFUYDLfzoa05rtiy7C3cYPZstBu2GCaT0aeJBhPP9wzmmk0uB2-PFOd8E8T5dWNpbXXGnubOlmQrprc1c1aQwE3px19-pafpKf1glC-ocTrAVJEvrAvkVK4t1Ua1pDxNB69VyZdkdMXTQfz4lH62uqJ6FWTXXN9wTpnyAd4DE1ZwahUusff6-i2FgmlujbGNrhaU2WrNzqugbUUzDg1zRdfaGJxW5fTGBuumgyE1hQbcGAUtLOA1OhSb2axQTmWB3TDumQ5eWjmaHKs8HudrVkt2VAE6IBq7yqcDhM2lrjSdpuNN5AJPNvm4qymsYfwTmEoiC41NaoAFUp9xhcS9Yq6j7S7cb4DMujyGZqzHfisu_BXcITIdqIEvx3XhlEeeYkoV8rhmhPwp1xIzIzNtTDH8l0wzlS0lnVK_mImU3rDE1EHYZsGLzcwiPTKtc1YxLT2YKf1U-Vo7IJi19N07ns8dt2rmdLZECBJpl-u96j8uQqj95cnJTQq6nvT2nPigwsqfTMbj08n58_Nno4vRZPz0_NnZ6ZN0x2oSohvrhJQtCwUGm5WP8ftxeKhr6kRi-LxnIr3va5jz49rjhSQ0ARVWYT_etKMhOIW0GXSNyWmNGbWQSiy3bIsMFaN3q7JuqbUrlD5nKSiKlzsplpXCe4ozc-1Qg9K6ChwZUqHWkSMLDsKwwjEnQYOrM-1CkSPtGc6iVY1VNEzeUgEMHasY3FgUobAr8GzGc-s6JtTKBbSPVNpWaYeQtKeK3Rq2HRusxW6wRZmrTb_BokYfQoaiRe6QghfkS4XzSu0LVcdcGKGldHkXv0IINQI3GCCidFfRXe6FoZLnt4DRUr-WImOnk9E91feZ0_UBxTSmvF38fvUfEMcSymfE0ftE6ZOFKRMoYDIXHdjnq2994FLs_hBZ3KrikKzTC10pM6S5KrVpk7lD6vJeE3dyu-3ClH6rsIze2gqSv7wtdbBZBQgpKIPpXEOrFivuZHYYGx8CFIeQBwXtQ9-5IGoT9XBP7NDFURq6GknbVYAKIvCNKmsIG9RYzr6kNE1FDZ8Jqcaj7VnKgByVir63cIf0fBStJqOoclFpgg3KQExBeJG3yBAF_jLS03FcbUhUOzszXA67S2KDrFGuJI7cuQJhO7mDPrKS26RClM7EfsBESq-h7Mo5FXsO1h7tlidQIs7CFrlMB-nSHPqWycXiyeJuQg02TbM1K5Vb5rap4iDoYPg--kYi0r__9K_LW1zeI6HX7_kW6ZCBshbRGR2leyLXX6B7F5Mj3wVfdBtvdBFtL3diLjfgVh9Rpu7WeNx9XkGRnlxtBKizx20BydrIZM_491W2fJLSEXf3PUX6Xi44lKhzuSPA_xGcw0l_hxfO_Xpz8YDgeK7F0XRa3Q3_5RYwfUu3hU-QT-5FHoM-wJfg-8gvzvvInz5wUe6kchEfTAkeTJ1QJnCd1I7Xmpt90eyAYIPUdH_Bsa_Rjvw3hKhUkYSNWt-dj-tD7xDpwAMvt6_SiPj9K77jIRLLO9_xZvzpMJH4vm95Ux94t8ipuDl2HfxZ0MEe9nOLCHt-NlEcoSVmchziHvm_GPFdXtRRUE-PgXp3Ur4O1NlRUM-Ogfp1ctpv7odIIDx-9PHRf4PsWcGdDgAA">Open this noodle →</a>
+        <a class="secondary" href="/examples/gallery/#radio-play">See the reviewed run</a>
+      </div>
+      <p class="howto-note"><a href="/examples/gallery/radio-play/workflow.json" download>Download workflow</a>
+        · <a href="/examples/gallery/radio-play/graph.json" download>Original sampled graph</a>
+        · <a href="https://mcp.nanoodle.com/#radio-play">Explore MCP tools</a>
+        · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a></p>
+      <nav class="next">
+        <a href="/guide/examples/">← All examples</a>
+        <a href="/guide/examples/grok-heygen-minimax-video-arena">Grok Imagine 1.5 Lite vs HeyGen Video 1 vs MiniMax H3: same prompt, side by side</a>
+        <a href="/guide/examples/logo-pile">Logo to a 3D pile, cut out →</a>
+        <a href="/examples/gallery/#radio-play">Reviewed run</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· No analytics · Your key stays on your device</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>

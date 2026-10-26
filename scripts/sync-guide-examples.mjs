@@ -190,6 +190,22 @@ const HOWTO = {
     inspect: "Play the plain clip and the edited clip side by side. Check the camera move and timing match, that the new weather sits on the right surfaces, and whether anything is actually moving: here the snow is settled from the first frame and no flakes fall.",
     costHow: "One Muse still at $0.011 + H3 Max Turbo at 480p for 5 s at $0.025/s = $0.125 + FLUX.3 Edit Video at $0.051 per second of source, billed here as 6 s = $0.306. The saved run was $0.442. With your own clip, you pay only the edit.",
   },
+  "logo-pile": {
+    headline: "Logo to a 3D pile, cut out",
+    job: "Turn a flat logo into a 3D hero graphic, a heap of the logo as physical objects, on a transparent background for a slide, a banner or a launch post.",
+    purpose: "Chain two Edit nodes: the first restyles the picture (flat logo to 3D pile), the second uses a background-removal model with a short prompt naming what to keep, so the result comes out as a transparent PNG.",
+    edit: "Describe a different mark in <em>Logo · prompt</em>, or swap the FLUX.3 Klein node for a 📷 Image input with your own logo, ideally on a plain background. In <em>Pile · instruction</em> change the count, the material (glossy plastic, metal, wood) or the angle; keep \"exact copy of this logo\" and \"plain background\" so the cutout step has an easy job. If your logo is not a badge, change \"the pile of 3D logo badges\" in <em>Keep · what to cut out</em> to match.",
+    inspect: "Compare the copies in the pile with the flat logo: colors and shape hold, but look for simplified or mirrored marks. Open the cutout on a dark background to check the edges; the contact shadows are gone, so add your own if it looks like it floats.",
+    costHow: "FLUX.3 Klein at 1024² for $0.009 + Qwen Image 2.1 Edit at 1k for $0.03 + Bria guided cutout for $0.03 = $0.069. With your own logo the first step is free, so it is $0.06.",
+  },
+  "radio-play": {
+    headline: "Radio play: two voices, one Speech node",
+    job: "Make a short two-person audio scene, a radio play, an explainer dialogue or a podcast-style intro, without recording anyone.",
+    purpose: "Show that one Speech node can do a conversation: Gemini 3.1 Flash TTS reads a \"conversation between A and B\" with a cast note that assigns a voice to each name, and does not read the names aloud.",
+    edit: "Rewrite <em>Story idea</em>, and change the two names in the idea, the Script node's system prompt and <em>Cast · voice direction</em>. Keep the cast note's opening (\"TTS the following conversation between …\") and the \"Do not read the speaker names aloud\" line; rewording it can collapse everything into one voice. Describe the two voices so they contrast (deep and calm against bright and young).",
+    inspect: "Listen for the switch at every line, and for names being read out. If both characters sound the same, put the cast note back to the wording here and run the Speech node again.",
+    costHow: "GLM 5.3 Flash for under $0.001 + Gemini 3.1 Flash TTS at about $0.10 per 1,000 characters (cast note plus script, about 950 characters here) = about $0.10. The saved run was about $0.098 by balance; the TTS price is not reported per call.",
+  },
   "photo-to-video": {
     headline: "Animate a still",
     job: "Generate a first frame, then animate its steam.",
@@ -247,7 +263,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.
