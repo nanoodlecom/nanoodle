@@ -1189,6 +1189,8 @@
   .wstab:focus-visible{ outline:2px solid var(--accent); outline-offset:-2px; z-index:1; }
   .wstab.on{ background:var(--bg); color:var(--ink); border-color:var(--line); font-weight:600;
     box-shadow:inset 0 2px 0 var(--accent); }
+  @keyframes wsflash{ 0%{ box-shadow:inset 0 0 0 2px var(--accent); background:#7c8cff55 } 100%{ box-shadow:inset 0 2px 0 var(--accent) } }
+  .wstab.wsflash{ animation:wsflash .7s ease; }
   .wstab.on::after{ content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px; background:var(--bg) }
   .wstab .wsx:focus-visible{ opacity:1; outline:2px solid var(--accent); outline-offset:1px; background:#ffffff18; color:var(--ink); }
   .wstab input.wsrename{ width:7.2rem; min-width:0; flex:1; margin:0; padding:0;
@@ -2265,6 +2267,8 @@ const I18N = {
     "Couldn’t open a new workspace — your current workflow is unchanged.":"No se pudo abrir un espacio nuevo — tu flujo actual no cambió.",
     "Couldn’t switch — this browser couldn’t store the workspace.":"No se pudo cambiar — este navegador no pudo guardar el espacio.",
     "Couldn’t save that workspace change.":"No se pudo guardar ese cambio de espacio.",
+    "Couldn’t store workspaces in this browser. This tab stays open for this visit; nothing was deleted.":"No se pudieron guardar los espacios en este navegador. Esta pestaña sigue abierta en esta visita; no se borró nada.",
+    "Blank canvas is this tab.":"El lienzo en blanco es esta pestaña.",
     "Close “{name}”? This removes it from this browser.":"¿Cerrar “{name}”? Se eliminará de este navegador.",
     "Rename workspace":"Renombrar espacio",
     "Close workspace":"Cerrar espacio",
@@ -3007,6 +3011,8 @@ const I18N = {
     "Couldn’t open a new workspace — your current workflow is unchanged.":"Impossible d’ouvrir un nouvel espace — votre workflow actuel est inchangé.",
     "Couldn’t switch — this browser couldn’t store the workspace.":"Impossible de changer — ce navigateur n’a pas pu enregistrer l’espace.",
     "Couldn’t save that workspace change.":"Impossible d’enregistrer cette modification d’espace.",
+    "Couldn’t store workspaces in this browser. This tab stays open for this visit; nothing was deleted.":"Impossible d’enregistrer les espaces dans ce navigateur. Cet onglet reste ouvert pour cette visite ; rien n’a été supprimé.",
+    "Blank canvas is this tab.":"Le canevas vide est cet onglet.",
     "Close “{name}”? This removes it from this browser.":"Fermer « {name} » ? Cela le retire de ce navigateur.",
     "Rename workspace":"Renommer l’espace",
     "Close workspace":"Fermer l’espace",
@@ -3749,6 +3755,8 @@ const I18N = {
     "Couldn’t open a new workspace — your current workflow is unchanged.":"Neuer Arbeitsbereich ließ sich nicht öffnen — dein aktueller Workflow ist unverändert.",
     "Couldn’t switch — this browser couldn’t store the workspace.":"Wechseln nicht möglich — dieser Browser konnte den Arbeitsbereich nicht speichern.",
     "Couldn’t save that workspace change.":"Diese Arbeitsbereich-Änderung ließ sich nicht speichern.",
+    "Couldn’t store workspaces in this browser. This tab stays open for this visit; nothing was deleted.":"Arbeitsbereiche ließen sich in diesem Browser nicht speichern. Dieser Tab bleibt für diesen Besuch offen; es wurde nichts gelöscht.",
+    "Blank canvas is this tab.":"Die leere Fläche ist dieser Tab.",
     "Close “{name}”? This removes it from this browser.":"„{name}“ schließen? Das entfernt ihn aus diesem Browser.",
     "Rename workspace":"Arbeitsbereich umbenennen",
     "Close workspace":"Arbeitsbereich schließen",
@@ -4491,6 +4499,8 @@ const I18N = {
     "Couldn’t open a new workspace — your current workflow is unchanged.":"Não foi possível abrir um espaço novo — seu fluxo atual não mudou.",
     "Couldn’t switch — this browser couldn’t store the workspace.":"Não foi possível trocar — este navegador não conseguiu guardar o espaço.",
     "Couldn’t save that workspace change.":"Não foi possível guardar essa alteração de espaço.",
+    "Couldn’t store workspaces in this browser. This tab stays open for this visit; nothing was deleted.":"Não foi possível guardar os espaços neste navegador. Esta aba fica aberta nesta visita; nada foi apagado.",
+    "Blank canvas is this tab.":"A tela em branco é esta aba.",
     "Close “{name}”? This removes it from this browser.":"Fechar “{name}”? Isso o remove deste navegador.",
     "Rename workspace":"Renomear espaço",
     "Close workspace":"Fechar espaço",
@@ -5233,6 +5243,8 @@ const I18N = {
     "Couldn’t open a new workspace — your current workflow is unchanged.":"新しいワークスペースを開けませんでした — 今のワークフローはそのままです。",
     "Couldn’t switch — this browser couldn’t store the workspace.":"切り替えできませんでした — このブラウザはワークスペースを保存できませんでした。",
     "Couldn’t save that workspace change.":"そのワークスペースの変更を保存できませんでした。",
+    "Couldn’t store workspaces in this browser. This tab stays open for this visit; nothing was deleted.":"このブラウザにワークスペースを保存できませんでした。このタブはこの訪問のあいだ開いたままです。何も削除していません。",
+    "Blank canvas is this tab.":"空白のキャンバスはこのタブです。",
     "Close “{name}”? This removes it from this browser.":"「{name}」を閉じますか？このブラウザから削除されます。",
     "Rename workspace":"ワークスペースの名前を変更",
     "Close workspace":"ワークスペースを閉じる",
@@ -16641,10 +16653,11 @@ async function starterGraphData(){   // the shipped starter's data, or null on f
   return _starterData;
 }
 async function loadDefault(){   // noodle-graph.json shipped alongside the page = the starting point
+  const gen = (typeof bootGeneration==="function") ? bootGeneration() : 0;
   const d = await starterGraphData();
-  // The fetch is the blank-page window. A tab action or an added node during it
-  // already owns the canvas — painting the starter now would replace that.
-  if(typeof initialCanvasUnclaimed==="function" && !initialCanvasUnclaimed()) return false;
+  // The fetch is the blank-page window. A Blank click or an added node during it
+  // already owns the canvas — painting the starter now would fill that workspace.
+  if(typeof freshGraphStillDue==="function" && !freshGraphStillDue(gen)) return false;
   if(!d) return false;          // e.g. opened via file:// — fall back to the built-in seed
   applyGraphData(JSON.parse(JSON.stringify(d)));   // clone: applyGraphData shares the fields ref and edits would corrupt the cached baseline
   fitView(hintPad());   // always frame the shipped demo for THIS screen — its baked-in view pins top-left on wide monitors; the user hasn't positioned it. hintPad() reserves the (already-shown) first-run banner so the graph frames below it, not under it.
@@ -17147,12 +17160,17 @@ function updateTitle(){
 const WS_INDEX_KEY = "noodle_workspaces";
 const WS_CAP = 16;
 // True until the first-visit starter is installed, or the user takes the blank canvas.
-// Choosing a workspace while this is set must not absorb that empty canvas: the
-// starter still belongs on tab 1, and the choice opens beside it once the starter lands.
+// A chooser click in that window is held, and it moves bootGen. The starter fetch
+// still in flight then does not paint onto the workspace that click just took.
+// If the starter is already on the canvas when the held choice runs, it opens beside it.
 let initialGraphPending = true;
 let deferredWorkspaceKind = null;
+let bootGen = 0;
 function claimInitialCanvas(){ initialGraphPending = false; }
 function initialCanvasUnclaimed(){ return initialGraphPending; }
+function bootGeneration(){ return bootGen; }
+function noteBootChoice(){ bootGen++; }
+function freshGraphStillDue(gen){ return initialGraphPending && gen === bootGen; }
 function finishInitialCanvas(opts){
   claimInitialCanvas();
   if(opts && opts.fresh){ try{ noteFreshWorkspaceName(); }catch(_){} }
@@ -17237,22 +17255,38 @@ function stampActiveExample(slug){
   else delete cur.example;
   writeWorkspaces(d);
 }
+// Set when the first index write cannot land. Storage stays untouched; the
+// strip reads this so the page still has a tab for the rest of the visit.
+let workspaceMemory = null;
+let workspaceFlashId = null;
+let workspaceFlashT = null;
 function readWorkspaces(){
   try{
     const d = JSON.parse(localStorage.getItem(WS_INDEX_KEY) || "null");
-    if(!d || d.v!==1 || !Array.isArray(d.tabs) || !d.tabs.length) return null;
-    if(!d.tabs.some(t => t && t.id===d.active)) d.active = d.tabs[0].id;
-    return d;
-  }catch(_){ return null; }
+    if(d && d.v===1 && Array.isArray(d.tabs) && d.tabs.length){
+      if(!d.tabs.some(t => t && t.id===d.active)) d.active = d.tabs[0].id;
+      return d;
+    }
+  }catch(_){}
+  if(workspaceMemory && workspaceMemory.v===1 && Array.isArray(workspaceMemory.tabs) && workspaceMemory.tabs.length){
+    if(!workspaceMemory.tabs.some(t => t && t.id===workspaceMemory.active)) workspaceMemory.active = workspaceMemory.tabs[0].id;
+    return workspaceMemory;
+  }
+  return null;
 }
-function writeWorkspaces(d){ localStorage.setItem(WS_INDEX_KEY, JSON.stringify(d)); }
+function writeWorkspaces(d){
+  localStorage.setItem(WS_INDEX_KEY, JSON.stringify(d));
+  workspaceMemory = null;
+}
 function wsStorageError(kind){
   const msg = kind==="switch"
     ? "Couldn’t switch — this browser couldn’t store the workspace."
     : kind==="open"
     ? "Couldn’t open a new workspace — your current workflow is unchanged."
+    : kind==="index"
+    ? "Couldn’t store workspaces in this browser. This tab stays open for this visit; nothing was deleted."
     : "Couldn’t save that workspace change.";
-  try{ toast(wsT(msg), "err"); }catch(_){}
+  try{ toast(wsT(msg), kind==="index" ? "warn" : "err"); }catch(_){}
 }
 function wsSnapshotKey(key){
   try{
@@ -17459,7 +17493,15 @@ function ensureWorkspaces(){
   const name = (named && !WS_GENERIC_NAME.test(named) ? named : "") || purposeName(raw) || wsT("Workflow");
   const app = editorAppBinding();
   const d = { v:1, active:"w1", seq:1, tabs:[{ id:"w1", name, app: app ? { id:app.id, title:app.title || null } : null }] };
-  writeWorkspaces(d);
+  try{ writeWorkspaces(d); }
+  catch(_){
+    // QuotaExceededError on this first write used to escape the boot catch,
+    // so the tab strip never rendered and the plus button never got a handler.
+    // Keep the default tab in memory, warn, and delete nothing.
+    workspaceMemory = d;
+    try{ wsStorageError("index"); }catch(_){}
+    return d;
+  }
   return d;
 }
 function uniqueWorkspaceName(base, tabs){
@@ -17936,14 +17978,33 @@ function toggleChooser(){
     if(first) first.focus();
   }
 }
+function acknowledgeCurrentWorkspace(msg){
+  const d = readWorkspaces();
+  const id = d && d.active;
+  workspaceFlashId = id || null;
+  try{ clearTimeout(workspaceFlashT); }catch(_){}
+  workspaceFlashT = setTimeout(()=>{ workspaceFlashId = null; }, 800);
+  try{ renderWorkspaces(); }catch(_){}
+  try{ if(id) focusWorkspaceTab(id); }catch(_){}
+  try{
+    const tabs = (typeof $==="function") ? $("wstabs") : null;
+    const el = tabs && id && tabs.querySelector('.wstab[data-id="'+id+'"]');
+    if(el){
+      el.classList.remove("wsflash");
+      void el.offsetWidth;
+      el.classList.add("wsflash");
+    }
+  }catch(_){}
+  try{ toast(msg); }catch(_){}
+}
 function chooseWorkspace(kind){
   closeWorkspaceMenus();
   if(kind==="examples"){ if(typeof openExamples==="function") openExamples(); return; }
   if(workspaceBusy()){ flash("can’t change the workflow while running — Stop first"); return; }
-  // The blank first paint is already tab 1, waiting for the starter. Absorbing a
-  // choice into it is what made the first new-tab look like we weren't in a tab,
-  // and the starter then painted over that choice. Hold the choice and open it
-  // beside the starter once the starter is actually on the canvas.
+  // The blank first paint is already tab 1. Hold the choice, and move bootGen
+  // so the starter still loading cannot paint onto it. If that starter is
+  // already on the canvas when the choice runs, it opens beside this tab.
+  if(initialCanvasUnclaimed()) noteBootChoice();
   if(initialCanvasUnclaimed() && !(graph.nodes && graph.nodes.length)){
     deferredWorkspaceKind = kind;
     return "deferred";
@@ -17957,6 +18018,9 @@ function chooseWorkspace(kind){
   if(!openWorkspaceWithGraph(data, name, { respectCap:true, fit })) return;
   try{ if(typeof dismissHint==="function") dismissHint(); }catch(_){}
   if(had) toast(wsT("Opened “{name}” in a new workspace.").replace("{name}", name));
+  // Plus, then Blank, on an empty tab reuses that tab. The canvas does not
+  // change, so flash and name it — otherwise the click looks like it missed.
+  else if(kind==="blank") acknowledgeCurrentWorkspace(wsT("Blank canvas is this tab."));
 }
 function fillDropMenu(d){
   const menu = $("wsdropmenu");
@@ -18066,6 +18130,7 @@ function renderWorkspaces(){
       tabBtn.tabIndex = tab.id===d.active ? 0 : -1;
       tabBtn.dataset.id = tab.id;
       tabBtn.title = tab.name;
+      if(tab.id===workspaceFlashId) tabBtn.classList.add("wsflash");
       const label = document.createElement("span");
       label.className = "wslabel";
       label.textContent = tab.name;
@@ -18144,6 +18209,10 @@ let wsDrag = null, wsSuppressClick = false;
 function bindWorkspaceChrome(){
   try{
     if(typeof document==="undefined" || typeof $!=="function") return;
+    // Idempotent on its own: the plus handler is one assignment, and the tab
+    // listeners install only once. A second call does not stack either.
+    const add = $("wsadd");
+    if(add) add.onclick = (e)=>{ e.stopPropagation(); toggleChooser(); };
     const tabs = $("wstabs");
     if(!tabs || tabs.dataset.wsbound) return;
     tabs.dataset.wsbound = "1";
@@ -18246,8 +18315,6 @@ function bindWorkspaceChrome(){
       wsDrag.el.style.zIndex = "";
       wsDrag = null;
     });
-    const add = $("wsadd");
-    if(add) add.onclick = (e)=>{ e.stopPropagation(); toggleChooser(); };
     const chooser = $("wschooser");
     if(chooser){
       chooser.addEventListener("click", (e)=>{
@@ -18391,7 +18458,9 @@ function noteFreshWorkspaceName(){
   try{ writeWorkspaces(d); }
   catch(_){
     try{ wsRestoreKey(WS_INDEX_KEY, prev); }catch(_){}
-    wsStorageError("save");
+    // No index was stored yet: the first-write warning is already up, and
+    // this rename lives on the in-memory tab. Don't cover that warning.
+    if(prev.present) wsStorageError("save");
     return;
   }
   try{ renderWorkspaces(); }catch(_){}
@@ -19847,7 +19916,11 @@ $("signout").onclick = ()=> setKey(null);
    ====================================================================== */
 (async ()=>{
   buildAddMenu();
-  try{ ensureWorkspaces(); renderWorkspaces(); bindWorkspaceChrome(); }catch(_){}
+  // These do not share a catch. A QuotaExceededError from the first
+  // noodle_workspaces write must not skip the plus button.
+  try{ ensureWorkspaces(); }catch(_){}
+  try{ renderWorkspaces(); }catch(_){}
+  try{ bindWorkspaceChrome(); }catch(_){}
   document.documentElement.lang = LANG;  // detected (or persisted) UI language
   buildLangMenu();
   translateTree(document.body);           // translate the static chrome once (toolbar, key row, picker header…)
@@ -19889,11 +19962,13 @@ $("signout").onclick = ()=> setKey(null);
       if(b && b.id) setPendingApp(b.id, b.title || null); }catch(_){}
   }
   const freshStart = !restored;                                   // nothing personal loaded → we're about to show the shipped starter
-  if(!restored && initialCanvasUnclaimed()) restored = await loadDefault(); // else noodle-graph.json
-  if(!restored && initialCanvasUnclaimed()) seed();               // else built-in starter
+  const bootGenAtStarter = typeof bootGeneration==="function" ? bootGeneration() : 0;
+  if(!restored && (typeof freshGraphStillDue!=="function" || freshGraphStillDue(bootGenAtStarter))) restored = await loadDefault(); // else noodle-graph.json
+  // A Blank click during that await moves bootGen. Do not seed six nodes onto it.
+  if(!restored && (typeof freshGraphStillDue!=="function" || freshGraphStillDue(bootGenAtStarter))) seed(); // else built-in starter
   // The default tab already exists (created before this await). Name it from the
   // graph now on the canvas, still without rewriting noodle_graph, then run a
-  // new-tab choice the user made while the page was blank — beside this tab.
+  // new-tab choice the user made while the page was blank.
   try{
     if(freshStart) finishInitialCanvas({fresh:true});
     else claimInitialCanvas();
