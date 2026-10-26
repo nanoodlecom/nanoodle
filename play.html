@@ -7319,7 +7319,7 @@ window.NoodleApp = (function () {
           json: async()=> JSON.parse(new TextDecoder().decode(buf)),
           blob: async()=> new Blob([buf], { type: headers["content-type"] || "" }),
           arrayBuffer: async()=> buf,
-          type: d.type || "",
+          type: d.respType || "",
         });
       }
       window.addEventListener("message", onMsg);
@@ -8171,13 +8171,16 @@ window.NoodleApp = (function () {
   // runId at module scope (keyed on node id, threaded via makeCtx) so re-running the SAME node RESUMES
   // the in-flight job instead of POSTing — and paying — again. We also stash a content signature, so
   // editing the node's inputs (new prompt/media) submits a correct fresh job rather than resuming a
-  // stale render. Set on submit, kept on the 10-min timeout, deleted on COMPLETED/FAILED. Module-level,
-  // so it survives re-runs in both the exported file and the builder preview iframe.
-  const PENDING_VIDEO = new Map();   // runKey (nodeId:lane) -> {runId, sig} of an in-flight (possibly timed-out) video job
+  // stale render. Set on submit, kept on timeout. resultUrl (the raw provider URL) stays
+  // until the content fetch succeeds, so a failed fetch retries only that fetch. A genuine
+  // FAILED/ERROR/CANCELED deletes the entry. Module-level, so it survives re-runs in both
+  // the exported file and the builder preview iframe.
+  const PENDING_VIDEO = new Map();   // runKey (nodeId:lane) -> {runId, sig, resultUrl?} of an in-flight or finished-but-unfetched video job
   // Async music/TTS: submit charges + returns runId, then we poll /api/tts/status. Dropping the
   // runId on ANY early exit (Stop's abort, the 5-min timeout) meant a re-run re-submitted and
-  // double-charged. PENDING_AUDIO registers the job the moment it exists and deletes it only on
-  // completed/failed, so an unchanged re-run resumes the poll (twin of PENDING_VIDEO / the editor).
+  // double-charged. PENDING_AUDIO registers the job the moment it exists. A genuine failure
+  // deletes it. A completed job keeps resultUrl until the content fetch succeeds, so an
+  // unchanged re-run retries only that fetch (twin of PENDING_VIDEO / the editor).
   // Keys carry the lane index (nodeId:lane) — a multi-count Run executes N cloned graphs with
   // IDENTICAL node ids at once, and bare-nodeId keys made concurrent lanes clobber each other's
   // pending entry (one paid job became unrecoverable). Lane-keying applies to PENDING_VIDEO too.
@@ -8292,6 +8295,10 @@ window.NoodleApp = (function () {
       // changes, so we submit a correct fresh job instead of returning the old render.
       const sig = videoSig(payload);
       const prev = runKey ? PENDING_VIDEO.get(runKey) : null;
+      // Provider already finished. Retry only the content fetch — submitting again would charge twice.
+      if(prev && prev.sig===sig && prev.resultUrl){
+        return await deliverResolvedMedia(PENDING_VIDEO, runKey, {runId:prev.runId, sig:sig, resultUrl:prev.resultUrl, njs:prev.njs}, prev.resultUrl);
+      }
       let runId = (prev && prev.sig===sig) ? prev.runId : null;
       if(!runId){
         if(payload.length > MEDIA_INLINE_MAX)
@@ -8318,9 +8325,10 @@ window.NoodleApp = (function () {
           const out = (s.data && s.data.output) || s.output || {};
           const url = (out.video && out.video.url) || out.url || (Array.isArray(out.video) ? out.video[0] && out.video[0].url : null);
           if(!url) throw new Error("completed but no video url");
-          if(runKey) PENDING_VIDEO.delete(runKey);
           applyPollBalance(s, pr, false);
-          return await resolveContentMedia(url);
+          const vEntry = {runId:runId, sig:sig, resultUrl:url};
+          if(prev && prev.njs) vEntry.njs = true;
+          return await deliverResolvedMedia(PENDING_VIDEO, runKey, vEntry, url);
         }
         if(["FAILED","ERROR","CANCELED"].includes(st)){ if(runKey) PENDING_VIDEO.delete(runKey); applyPollBalance(s, pr, true); throw new Error("video failed: " + videoFailText(s, st)); }
       }
@@ -8345,10 +8353,14 @@ window.NoodleApp = (function () {
       }
       const bodySig = videoSig(JSON.stringify(body));
       const pend = runKey ? PENDING_AUDIO.get(runKey) : null;
+      if(pend && pend.sig===bodySig && pend.resultUrl){
+        return await deliverResolvedMedia(PENDING_AUDIO, runKey, pend, pend.resultUrl);
+      }
       if(pend && pend.sig===bodySig && pend.job){
         const url = await pollAudio(model, pend.job, onProgress, runKey, bodySig);
         if(!url) throw new Error("no audio url in response");
-        return await resolveContentMedia(url);   // resume — no second onCost
+        const kept = (runKey && PENDING_AUDIO.get(runKey)) || { sig:bodySig, job:pend.job, resultUrl:url };
+        return await deliverResolvedMedia(PENDING_AUDIO, runKey, kept, url);
       }
       if(pend && runKey) PENDING_AUDIO.delete(runKey);
       const r = await apiFetch(NANOGPT + "/api/v1/audio/speech", {method:"POST", headers:authHeaders(), body:JSON.stringify(body)});
@@ -8371,6 +8383,8 @@ window.NoodleApp = (function () {
         let url = j.url || j.audioUrl || (j.data && j.data.url) || (j.data && j.data.audioUrl);
         if(!url && (j.runId || j.id)) url = await pollAudio(model, j, onProgress, runKey, bodySig);   // async model → poll (resume-aware)
         if(!url) throw new Error("no audio url in response");
+        const keptAud = runKey && PENDING_AUDIO.get(runKey);
+        if(keptAud && keptAud.resultUrl) return await deliverResolvedMedia(PENDING_AUDIO, runKey, keptAud, url);
         return await resolveContentMedia(url);
       }
       const cAud = costFromHeaders(r);   // binary audio: price rides on x-cost / x-remaining-balance (absent live)
@@ -8439,10 +8453,14 @@ window.NoodleApp = (function () {
   // Grok Imagine finishes with a relative content path (/api/generate-video/content?runId=…)
   // that 307s, with the API key, to a private presigned file. Join path-absolute URLs onto
   // the NanoGPT base. Fetch /api and /v1 content URLs with the key and redirect:manual.
-  // An authed redirect's Location is the absolute file URL (the key is never sent to that
-  // host, and a clip over the inline cap still chains). A direct 200 under the cap is
-  // inlined as a data URL. data:, blob:, and ordinary http(s) URLs pass through with no
-  // fetch. Errors use the path only — never the API key or a presigned query string.
+  // A runtime that exposes Location (Node, the resolver worker) returns that file URL
+  // without downloading it. A browser's manual redirect is opaque — Location is hidden —
+  // so that hop is POSTed to /api/resolve-content, which walks the redirects itself.
+  // The key is attached only to the API origin. Custom key headers are never put on a
+  // request the browser would follow, so they cannot be auto-forwarded to the file host.
+  // A direct 200 under the cap is inlined as a data URL. data:, blob:, and ordinary
+  // http(s) URLs pass through with no fetch. Errors use the path only — never the API
+  // key or a presigned query string.
   // No backticks: play.html's copy lives inside the String.raw RUNTIME_JS.
   function isContentApiPath(pathname){
     return pathname==="/api" || pathname.startsWith("/api/") || pathname==="/v1" || pathname.startsWith("/v1/");
@@ -8513,6 +8531,89 @@ window.NoodleApp = (function () {
     if(typeof btoa!=="function") throw new Error("couldn't inline provider media: no base64 encoder");
     return "data:" + (mime || "application/octet-stream") + ";base64," + btoa(bin);
   }
+  function contentResolverEndpoint(){
+    var origin = "";
+    try { origin = (location && location.origin) || ""; } catch(e){ origin = ""; }
+    if(origin && origin!=="null" && /^https?:\/\//.test(origin)) return origin.replace(/\/+$/, "") + "/api/resolve-content";
+    return "https://nanoodle.com/api/resolve-content";
+  }
+  function isOpaqueContentRedirect(r){
+    if(!r) return false;
+    if(r.type==="opaqueredirect") return true;
+    var status = r.status;
+    var loc = r.headers && r.headers.get && r.headers.get("location");
+    return (status===0 || status==null) && !loc;
+  }
+  async function resolveHiddenContentRedirect(contentUrl, opts){
+    opts = opts || {};
+    var endpoint = contentResolverEndpoint();
+    var headers = { "content-type":"application/json", accept:"application/json" };
+    if(opts.apiKey) headers.Authorization = "Bearer " + opts.apiKey;
+    var doFetch = opts.resolverFetch || (typeof fetch==="function" ? fetch : null);
+    if(!doFetch) throw new Error("couldn't fetch provider media: no fetch available");
+    var r;
+    try{
+      r = await doFetch(endpoint, {
+        method:"POST",
+        headers:headers,
+        body:JSON.stringify({ url:contentUrl }),
+        redirect:"error",
+        signal:opts.signal
+      });
+    }catch(e){
+      if(e && (e.name==="AbortError" || e.code==="aborted")) throw e;
+      if(opts.signal && opts.signal.aborted) throw e;
+      var detail = scrubContentSecrets(e && e.message, opts.apiKey || "");
+      throw new Error("couldn't fetch provider media" + (detail ? " (" + detail + ")" : ""));
+    }
+    var raw = "";
+    try{ raw = await r.text(); }
+    catch(e2){
+      if(e2 && (e2.name==="AbortError" || e2.code==="aborted")) throw e2;
+      if(opts.signal && opts.signal.aborted) throw e2;
+      var detail2 = scrubContentSecrets(e2 && e2.message, opts.apiKey || "");
+      throw new Error("couldn't fetch provider media" + (detail2 ? " (" + detail2 + ")" : ""));
+    }
+    var parsed = null;
+    try{ parsed = JSON.parse(raw); }catch(e3){ parsed = null; }
+    if(!r.ok || !parsed || (parsed.url==null && parsed.dataUrl==null)){
+      var snippet = scrubContentSecrets((parsed && parsed.error) || raw, opts.apiKey || "");
+      throw new Error("provider media redirected, but the redirect target was not exposed" + (snippet ? " (" + snippet + ")" : ""));
+    }
+    if(parsed.dataUrl) return parsed.dataUrl;
+    return parsed.url;
+  }
+  function syntheticContentRedirect(location){
+    return {
+      ok:false,
+      status:307,
+      type:"basic",
+      headers:{ get:function(k){ return String(k).toLowerCase()==="location" ? location : null; } },
+      text:function(){ return Promise.resolve(""); },
+      json:function(){ return Promise.reject(new Error("not json")); },
+      arrayBuffer:function(){ return Promise.resolve(new ArrayBuffer(0)); },
+      body:{ cancel:function(){ return Promise.resolve(); } }
+    };
+  }
+  function contentFetchForEngine(u, init){
+    init = init || {};
+    return fetch(u, init).then(function(r){
+      if(init.redirect!=="manual" || !isOpaqueContentRedirect(r)) return r;
+      var key = "";
+      try{ if(typeof getKey==="function") key = getKey() || ""; }catch(e){ key = ""; }
+      return resolveHiddenContentRedirect(String(u), {
+        apiKey:key,
+        signal:init.signal,
+        resolverFetch:fetch
+      }).then(function(finalUrl){ return syntheticContentRedirect(finalUrl); });
+    });
+  }
+  async function deliverResolvedMedia(map, runKey, entry, url){
+    if(runKey && map) map.set(runKey, entry);
+    var resolved = await resolveContentMedia(url);
+    if(runKey && map) map.delete(runKey);
+    return resolved;
+  }
   async function resolveProviderMediaUrl(url, opts){
     opts = opts || {};
     if(typeof url!=="string") return url;
@@ -8556,7 +8657,7 @@ window.NoodleApp = (function () {
       var loc = r && r.headers && r.headers.get && r.headers.get("location");
       if(r && (r.type==="opaqueredirect" || ((status===0 || status==null) && !loc))){
         await drainContentBody(r);
-        throw new Error("provider media redirected, but the redirect target was not exposed");
+        return await resolveHiddenContentRedirect(current, opts);
       }
       if(loc && (status===0 || (status>=300 && status<400))){
         await drainContentBody(r);
@@ -8573,7 +8674,12 @@ window.NoodleApp = (function () {
       }
       if(!r.ok){
         var raw = "";
-        try{ raw = String(await r.text()).slice(0, 500); }catch(e3){ raw = ""; }
+        try{ raw = String(await r.text()).slice(0, 500); }
+        catch(e3){
+          if(e3 && (e3.name==="AbortError" || e3.code==="aborted")) throw e3;
+          if(opts.signal && opts.signal.aborted) throw e3;
+          raw = (e3 && e3.message) || "";
+        }
         var snippet = scrubContentSecrets(raw, apiKey);
         throw new Error("couldn't fetch provider media (HTTP " + status + ")" + (snippet ? ": " + snippet : ""));
       }
@@ -8583,7 +8689,14 @@ window.NoodleApp = (function () {
         await drainContentBody(r);
         throw new Error("provider media is too large to send inline (~4 MB max) and did not redirect to a fetchable file");
       }
-      var bytes = new Uint8Array(await r.arrayBuffer());
+      var bytes;
+      try{ bytes = new Uint8Array(await r.arrayBuffer()); }
+      catch(e4){
+        if(e4 && (e4.name==="AbortError" || e4.code==="aborted")) throw e4;
+        if(opts.signal && opts.signal.aborted) throw e4;
+        var detail4 = scrubContentSecrets(e4 && e4.message, apiKey);
+        throw new Error("couldn't fetch provider media" + (detail4 ? " (" + detail4 + ")" : ""));
+      }
       var mime = mimeHeader || sniffContentMime(bytes);
       if(contentDataUrlWouldExceed(bytes.length, mime)){
         throw new Error("provider media is too large to send inline (~4 MB max) and did not redirect to a fetchable file");
@@ -8606,7 +8719,8 @@ window.NoodleApp = (function () {
       fetch: function(u, init){
         if(typeof apiFetch==="function") return apiFetch(u, init);
         return fetch(u, init);
-      }
+      },
+      resolverFetch: function(u, init){ return fetch(u, init); }
     });
   }
   // source-video payload for /api/generate-video: a public https link rides as videoUrl (a resolved
@@ -9223,8 +9337,9 @@ function mp4ParamsMatch(bufs){
     const job = { runId:runId, model:model, cost:j.cost, paymentSource:j.paymentSource, isApiRequest:j.isApiRequest };
     // Remember the job (with its request sig) the moment it exists, so EVERY early exit is recoverable
     // (mirror PENDING_VIDEO / the editor). The charge already happened at submit: Stop's abort (the
-    // abortable sleep below rejects) and the 5-min timeout must both leave this entry in place —
-    // only completed/failed below may delete it.
+    // abortable sleep below rejects) and the 5-min timeout must both leave this entry in place.
+    // A genuine failure below deletes it. Completion stores resultUrl and leaves the entry
+    // until the content fetch succeeds.
     if(runKey && bodySig!=null) PENDING_AUDIO.set(runKey, { sig:bodySig, job:job });
     const qs = new URLSearchParams({ runId:runId, model:model });
     if(j.cost!=null) qs.set("cost", j.cost);                 // these let the server auto-refund on failure
@@ -9237,11 +9352,16 @@ function mp4ParamsMatch(bufs){
       catch(e){ continue; }
       const st = String(s.status||"").toLowerCase();
       if(st==="completed" || st==="succeeded"){
-        if(runKey) PENDING_AUDIO.delete(runKey);
         applyPollBalance(s, pr, false);
         const au = s.audioUrl || s.url || (s.data && s.data.audioUrl) || (s.data && s.data.url);
         if(!au) throw new Error("completed but no audio url");
-        return await resolveContentMedia(au);
+        // Keep the job + raw URL until the caller’s content fetch succeeds. Deleting
+        // here made the next failure re-submit a job that was already paid for.
+        if(runKey){
+          const prevA = PENDING_AUDIO.get(runKey) || {};
+          PENDING_AUDIO.set(runKey, { sig:(bodySig!=null ? bodySig : prevA.sig), job:(prevA.job || job), resultUrl:au, njs:prevA.njs });
+        }
+        return au;
       }
       if(["error","failed","content_policy_violation"].includes(st)){
         if(runKey) PENDING_AUDIO.delete(runKey);
@@ -10891,7 +11011,7 @@ const PROMPT_CAPS = {
   // registries and canvas media. Plain fetch + apiKey (never apiFetch): the client
   // adds auth to API calls only, so media CDN downloads never see the key.
   function njsCtx(E, onCost, runKey, note){
-    const client = new E.NanoClient({ apiKey: getKey(), baseUrl: NANOGPT, fetch: (u,o)=> fetch(u,o) });
+    const client = new E.NanoClient({ apiKey: getKey(), baseUrl: NANOGPT, fetch: (u,o)=> contentFetchForEngine(u, o) });
     const io = { onCost: onCost, onPoll: (info)=>{
       if(!note) return;
       const st = String((info && info.status) || "…");
@@ -10913,13 +11033,24 @@ const PROMPT_CAPS = {
       video: (model, prompt, opts, imageDataUrl)=>{
         const sig = videoSig(JSON.stringify([model, prompt, opts, imageDataUrl]));
         const prev = runKey ? PENDING_VIDEO.get(runKey) : null;
+        // resultUrl is the raw provider URL. Resolving it is not a new job: a failed
+        // fetch must leave the entry so the next run does not submit again.
+        const finish = (url)=>{
+          const cur = (runKey && PENDING_VIDEO.get(runKey)) || {};
+          if(runKey) PENDING_VIDEO.set(runKey, Object.assign({}, cur, {sig:sig, resultUrl:url, njs:true, runId: cur.runId || (prev && prev.runId)}));
+          return client.resolveContentUrl(url, { signal: io.signal }).then(function(resolved){
+            if(runKey) PENDING_VIDEO.delete(runKey);
+            return resolved;
+          });
+        };
+        if(prev && prev.sig===sig && prev.resultUrl) return finish(prev.resultUrl);
         const io2 = Object.assign({}, io, {
           resume: (prev && prev.sig===sig) ? prev.runId : undefined,
           onRunId: (id)=>{ if(runKey) PENDING_VIDEO.set(runKey, {runId:id, sig:sig, njs:true}); },   // njs tag: signatures are engine-shaped, only this shim can resume it (see njsRunFor's foreign-pending veto)
         });
         return client.video(model, prompt, opts, imageDataUrl, io2).then(
-          (url)=>{ if(runKey) PENDING_VIDEO.delete(runKey); return url; },
-          (e)=>{ const hadJob = runKey && PENDING_VIDEO.has(runKey); if(runKey && !keepPending(e)){ PENDING_VIDEO.delete(runKey); if(hadJob) refreshPlayBalance(true); } throw e; });
+          finish,
+          (e)=>{ const hadJob = runKey && PENDING_VIDEO.has(runKey); const kept = runKey && PENDING_VIDEO.get(runKey); if(kept && kept.resultUrl) throw e; if(runKey && !keepPending(e)){ PENDING_VIDEO.delete(runKey); if(hadJob) refreshPlayBalance(true); } throw e; });
       },
       audio: async (model, input, extra)=>{
         // Estimate BEFORE the prompt/style rewrite clears input. The library's binary
@@ -10932,6 +11063,15 @@ const PROMPT_CAPS = {
         else if(/yue2-3b\/(?:text|music)-to-music$/i.test(String(model||"").trim())){ extra=Object.assign({},extra||{},{style:((extra||{}).style!=null&&String((extra||{}).style).trim()!==""?(extra||{}).style:input)}); input=undefined; }
         const sig = videoSig(JSON.stringify([model, input, extra]));
         const pend = runKey ? PENDING_AUDIO.get(runKey) : null;
+        const finishAud = (url)=>{
+          const cur = (runKey && PENDING_AUDIO.get(runKey)) || {};
+          if(runKey) PENDING_AUDIO.set(runKey, Object.assign({}, cur, {sig:sig, resultUrl:url, njs:true, job: cur.job || (pend && pend.job)}));
+          return client.resolveContentUrl(url, { signal: io.signal }).then(function(resolved){
+            if(runKey) PENDING_AUDIO.delete(runKey);
+            return resolved;
+          });
+        };
+        if(pend && pend.sig===sig && pend.resultUrl) return finishAud(pend.resultUrl);
         const io2 = Object.assign({}, io, {
           onCost: (c)=>{
             if(c && c.usd==null && est!=null) onCost(Object.assign({}, c, { usd:est, estimate:true }));
@@ -10941,13 +11081,13 @@ const PROMPT_CAPS = {
           onRunId: (job)=>{ if(runKey) PENDING_AUDIO.set(runKey, {sig:sig, job:job, njs:true}); },   // njs tag: see njsRunFor's foreign-pending veto
         });
         return client.audio(model, input, extra, io2).then(
-          (url)=>{ if(runKey) PENDING_AUDIO.delete(runKey); return url; },
-          (e)=>{ const hadJob = runKey && PENDING_AUDIO.has(runKey); if(runKey && !keepPending(e)){ PENDING_AUDIO.delete(runKey); if(hadJob) refreshPlayBalance(true); } const apiMsg = e && /^400\b/.test(e.message||"") && audioApiMessage(e.message); throw apiMsg ? new Error(apiMsg) : e; });
+          finishAud,
+          (e)=>{ const hadJob = runKey && PENDING_AUDIO.has(runKey); const kept = runKey && PENDING_AUDIO.get(runKey); if(kept && kept.resultUrl) throw e; if(runKey && !keepPending(e)){ PENDING_AUDIO.delete(runKey); if(hadJob) refreshPlayBalance(true); } const apiMsg = e && /^400\b/.test(e.message||"") && audioApiMessage(e.message); throw apiMsg ? new Error(apiMsg) : e; });
       },
       transcribe: (model, audioUrl, language)=> client.transcribe(model, audioUrl, language, io),
       fetchMedia: (url)=> client.fetchMediaDataUrl(url, io),
       resolveContentUrl: (url)=> client.resolveContentUrl(url, { signal: io.signal }),
-      fetch: (u,o)=> fetch(u,o),
+      fetch: (u,o)=> contentFetchForEngine(u, o),
       signal: io.signal,
       catalog: null,   // filled per run by njsRunFor (async prefetch, then cached)
       maskToSource: (mask, source)=> maskToSource(mask, source),   // canvas compositor — handles JPEG/WebP sources
@@ -15159,6 +15299,57 @@ function noteBalanceFromWire(r, bodyBuf, kind){
     if(["error","failed","content_policy_violation","canceled","cancelled"].includes(st)) refreshBal(true);
   }
 }
+// A browser fetch with redirect:"manual" is an opaque redirect: status 0, no Location.
+// The preview iframe cannot call nanoodle.com (its connect-src is self/blob/nano-gpt),
+// so the parent walks the hop. Authorization only — never x-api-key — and the file
+// host is never requested from here.
+function bridgeMediaError(prefix, detail){
+  return new Error(prefix + (detail ? " (" + detail + ")" : ""));
+}
+function scrubBridgeDetail(text, apiKey){
+  const key = String(apiKey || "");
+  let s = String(text || "");
+  if(key.length >= 4) s = s.split(key).join("[redacted]");
+  s = s.replace(/bearer\s+\S+/gi, "Bearer [redacted]").replace(/[?#][^\s)"']*/g, "");
+  const secret = /(?:X-Amz-[A-Za-z-]*|Signature|sig|token|api_key|apikey)\s*[:=]\s*\S+/gi;
+  s = s.replace(secret, (m) => m.split(/[:=]/)[0] + "=[redacted]");
+  s = s.replace(/\s+/g, " ").trim();
+  return s.slice(0, 160);
+}
+function bridgeLooksOpaque(r){
+  if(!r || r.type==="opaqueredirect") return true;
+  let loc = null;
+  try{ loc = r.headers && r.headers.get && r.headers.get("location"); }catch(_){ loc = null; }
+  return (r.status===0 || r.status==null) && !loc;
+}
+async function resolveContentOnParent(contentUrl, apiKey){
+  let rr;
+  try{
+    rr = await fetch("/api/resolve-content", {
+      method:"POST",
+      headers:{ "content-type":"application/json", Authorization:"Bearer " + apiKey },
+      body: JSON.stringify({ url: contentUrl }),
+      redirect:"error"
+    });
+  }catch(e){
+    throw bridgeMediaError("couldn't fetch provider media", scrubBridgeDetail(e && e.message, apiKey));
+  }
+  let raw = "";
+  try{ raw = await rr.text(); }
+  catch(e2){
+    throw bridgeMediaError("couldn't fetch provider media", scrubBridgeDetail(e2 && e2.message, apiKey));
+  }
+  let parsed = null;
+  try{ parsed = JSON.parse(raw); }catch(_){ parsed = null; }
+  const target = parsed && (parsed.url || parsed.dataUrl);
+  if(!rr.ok || !target){
+    throw bridgeMediaError(
+      "provider media redirected, but the redirect target was not exposed",
+      scrubBridgeDetail((parsed && parsed.error) || raw, apiKey)
+    );
+  }
+  return String(target);
+}
 // ----- parent <- iframe bridge -----
 addEventListener("message", async (e) => {
   if(e.source !== $("appframe").contentWindow) return;
@@ -15231,20 +15422,30 @@ addEventListener("message", async (e) => {
       }
       const headers = Object.assign({}, d.headers, k ? { Authorization:"Bearer "+k, "x-api-key":k } : {});
       const init = { method:d.method||"GET", headers, body:(d.body!=null?d.body:undefined) };
-      // Content GETs ask for redirect:manual so a 307 Location (the presigned file) comes back
-      // instead of the browser following it — and forwarding the key — to the file host.
+      // Content GETs ask for redirect:manual. A real browser answers opaqueredirect and
+      // hides Location; following it would keep a custom x-api-key on the file host.
       if(d.redirect==="manual" || d.redirect==="error" || d.redirect==="follow") init.redirect = d.redirect;
       const r = await fetch(u.href, init);
+      if(kind==="read" && bridgeLooksOpaque(r)){
+        try{
+          const target = await resolveContentOnParent(u.href, k);
+          reply({ ok:false, status:307, respType:"basic", headers:{ location: target }, body: new ArrayBuffer(0) });
+        }catch(err){
+          reply({ error: scrubBridgeDetail((err && err.message) || String(err), k) });
+        }
+        return;
+      }
       let body;
       try{ body = await r.arrayBuffer(); }catch(_){ body = new ArrayBuffer(0); }
-      // An opaque redirect has no readable body or headers; skip the balance parse.
       if(r.type!=="opaqueredirect"){ try{ noteBalanceFromWire(r, body, kind); }catch(_){} }
       const hdrs = {};
       try{ r.headers.forEach((v,kk)=> hdrs[kk.toLowerCase()]=v); }catch(_){}
-      reply({ ok:!!r.ok, status:r.status||0, type:r.type||"", headers:hdrs, body });   // ArrayBuffer → structured clone
+      // respType, not type: Object.assign would let the fetch response type overwrite
+      // the message type, and the iframe would ignore the reply.
+      reply({ ok:!!r.ok, status:r.status||0, respType:r.type||"", headers:hdrs, body });
       // A completed paid request = the recipient actually ran the shared app → unlock Export + Customize.
       if(kind === "charge" && r.ok) markRanOnce({ toast:true });
-    }catch(err){ reply({ error:(err && err.message) || String(err) }); }
+    }catch(err){ reply({ error: scrubBridgeDetail((err && err.message) || String(err), getKey()) }); }
     return;
   }
   // the app finished generating an output — keep it (IndexedDB) so a reload/app-switch/return

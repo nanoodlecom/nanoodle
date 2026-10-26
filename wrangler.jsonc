@@ -10,7 +10,14 @@
   "observability": {
     "enabled": true
   },
+  // Static site, plus one Worker route. Browsers cannot read Location on
+  // redirect:"manual" (opaque redirect), so /api/resolve-content walks the
+  // NanoGPT content 307 server-side and returns the file URL. Every other
+  // path stays on the asset server and never enters the Worker.
+  "main": "worker/entry.js",
   "assets": {
-    "directory": "."
+    "directory": ".",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/resolve-content"]
   }
 }

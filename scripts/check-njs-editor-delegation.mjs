@@ -118,6 +118,9 @@ const REAL = [
   extractFn("scrubContentSecrets"), extractFn("contentAuthHeaders"), extractFn("drainContentBody"),
   extractFn("contentResponseMime"), extractFn("sniffContentMime"), extractFn("contentBytesToDataUrl"),
   extractFn("resolveProviderMediaUrl"), extractFn("resolveContentMedia"),
+  extractFn("contentResolverEndpoint"), extractFn("isOpaqueContentRedirect"),
+  extractFn("resolveHiddenContentRedirect"), extractFn("syntheticContentRedirect"),
+  extractFn("contentFetchForEngine"), extractFn("deliverResolvedMedia"),
   extractFn("videoSourceOpts"), extractFn("audioSourceOpts"),
   grab(/const NJS_TYPES = \{[^\n]*\};/, "NJS_TYPES"),
   grab(/const REF_PORT_RE = \/[^\n]*;/, "REF_PORT_RE"),
@@ -503,6 +506,40 @@ for (const [name, type, fields, inp, directive, pin] of SCENARIOS) {
     assert.equal(kept, expectKept, `${label}: pending entry ${expectKept ? "must survive" : "must be deleted"} (got kept=${kept})`);
   }
   console.log("✓ pending jobs survive Stop/timeout and are deleted only on genuine failure");
+}
+
+// Browser fetch with redirect:manual is opaque. The editor shim's fetch wrapper
+// must turn that into a readable 307 via POST /api/resolve-content, and that
+// POST must carry Authorization only — never the content request's x-api-key.
+{
+  const on = makeCtx({ flagOn: false });
+  const PRESIGNED = "https://files.example/clip.mp4?X-Amz-Signature=SUPERSECRET";
+  const seen = [];
+  on.fetch = async (url, init = {}) => {
+    seen.push({ url: String(url), redirect: init.redirect, headers: init.headers || {} });
+    if (String(url).includes("/api/resolve-content")) {
+      return { ok: true, status: 200, text: async () => JSON.stringify({ url: PRESIGNED }) };
+    }
+    return {
+      ok: false, status: 0, type: "opaqueredirect",
+      headers: { get: () => null },
+      text: async () => "",
+      arrayBuffer: async () => new ArrayBuffer(0),
+      body: { cancel: async () => {} },
+    };
+  };
+  const r = await on.contentFetchForEngine("https://nano-gpt.com/api/generate-video/content?runId=grok1", {
+    redirect: "manual",
+    headers: { Authorization: "Bearer test-api-key", "x-api-key": "test-api-key" },
+  });
+  assert.equal(r.status, 307, "opaque content fetch becomes a readable 307");
+  assert.equal(r.headers.get("location"), PRESIGNED, "synthetic Location is the file URL");
+  assert.equal(seen[0] && seen[0].redirect, "manual", "the content GET stays redirect:manual");
+  const post = seen.find((s) => s.url.includes("/api/resolve-content"));
+  assert.ok(post && post.redirect === "error", "resolver POST does not follow redirects");
+  assert.equal(post.headers.Authorization, "Bearer test-api-key", "resolver POST sends the bearer key");
+  assert.equal(post.headers["x-api-key"], undefined, "resolver POST does not send x-api-key");
+  console.log("✓ editor fetch wrapper resolves an opaque redirect without forwarding x-api-key");
 }
 
 if (failed) { console.log(`\n${failed}/${SCENARIOS.length} editor delegation scenarios failed`); process.exit(1); }

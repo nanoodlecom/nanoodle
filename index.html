@@ -12945,7 +12945,7 @@ function njsCatalogs(){
 // canvas media. Plain fetch + apiKey (never authHeaders on media): the client
 // adds auth to API calls only, so media CDN downloads never see the key.
 function njsCtx(E, n){
-  const client = new E.NanoClient({ apiKey: getKey(), baseUrl: NANOGPT, fetch: (u,o)=> fetch(u,o) });
+  const client = new E.NanoClient({ apiKey: getKey(), baseUrl: NANOGPT, fetch: (u,o)=> contentFetchForEngine(u, o) });
   // library cost objects ({usd, balance}) → accrue(): spend meter + live balance; a null usd
   // flags the session total as inexact, exactly like a priceless built-in response.
   const onCost = (c)=>{
@@ -12974,13 +12974,24 @@ function njsCtx(E, n){
     video: (model, prompt, opts, imageDataUrl)=>{
       const sig = sigHash(JSON.stringify([model, prompt, opts, imageDataUrl]));
       const prev = PENDING_VIDEO.get(n.id);
+      // resultUrl is the raw provider URL. Resolving it is not a new job: a failed
+      // fetch must leave the entry so the next run does not submit again.
+      const finish = (url)=>{
+        const cur = PENDING_VIDEO.get(n.id) || {};
+        PENDING_VIDEO.set(n.id, { ...cur, sig, resultUrl:url, njs:true, runId: cur.runId || (prev && prev.runId) });
+        return client.resolveContentUrl(url, { signal: io.signal }).then((resolved)=>{
+          PENDING_VIDEO.delete(n.id);
+          return resolved;
+        });
+      };
+      if(prev && prev.sig===sig && prev.resultUrl) return finish(prev.resultUrl);
       const io2 = { ...io,
         resume: (prev && prev.sig===sig) ? prev.runId : undefined,
         onRunId: (id)=> PENDING_VIDEO.set(n.id, {sig, runId:id, njs:true}),
       };
       return client.video(model, prompt, opts, imageDataUrl, io2).then(
-        (url)=>{ PENDING_VIDEO.delete(n.id); return url; },
-        (e)=>{ const hadJob = PENDING_VIDEO.has(n.id); if(!keepPending(e)){ PENDING_VIDEO.delete(n.id); if(hadJob && typeof refreshBalance==="function") refreshBalance(true); } throw e; });
+        finish,
+        (e)=>{ const hadJob = PENDING_VIDEO.has(n.id); const kept = PENDING_VIDEO.get(n.id); if(kept && kept.resultUrl) throw e; if(!keepPending(e)){ PENDING_VIDEO.delete(n.id); if(hadJob && typeof refreshBalance==="function") refreshBalance(true); } throw e; });
     },
     audio: (model, input, extra)=>{
       // Estimate BEFORE the prompt/style rewrite clears `input`. The library's binary
@@ -12993,6 +13004,15 @@ function njsCtx(E, n){
       else if(/yue2-3b\/(?:text|music)-to-music$/i.test(String(model||"").trim())){ extra=Object.assign({},extra||{},{style:((extra||{}).style!=null&&String((extra||{}).style).trim()!==""?(extra||{}).style:input)}); input=undefined; }
       const sig = sigHash(JSON.stringify([model, input, extra]));
       const pend = PENDING_AUDIO.get(n.id);
+      const finish = (url)=>{
+        const cur = PENDING_AUDIO.get(n.id) || {};
+        PENDING_AUDIO.set(n.id, { ...cur, sig, resultUrl:url, njs:true, job: cur.job || (pend && pend.job) });
+        return client.resolveContentUrl(url, { signal: io.signal }).then((resolved)=>{
+          PENDING_AUDIO.delete(n.id);
+          return resolved;
+        });
+      };
+      if(pend && pend.sig===sig && pend.resultUrl) return finish(pend.resultUrl);
       const io2 = { ...io,
         onCost: (c)=>{
           if(c && c.usd==null && est!=null){
@@ -13007,13 +13027,13 @@ function njsCtx(E, n){
         onRunId: (job)=> PENDING_AUDIO.set(n.id, {sig, job, njs:true}),
       };
       return client.audio(model, input, extra, io2).then(
-        (url)=>{ PENDING_AUDIO.delete(n.id); return url; },
-        (e)=>{ const hadJob = PENDING_AUDIO.has(n.id); if(!keepPending(e)){ PENDING_AUDIO.delete(n.id); if(hadJob && typeof refreshBalance==="function") refreshBalance(true); } const apiMsg = e && /^400\b/.test(e.message||"") && audioApiMessage(e.message); throw apiMsg ? new Error(apiMsg) : e; });
+        finish,
+        (e)=>{ const hadJob = PENDING_AUDIO.has(n.id); const kept = PENDING_AUDIO.get(n.id); if(kept && kept.resultUrl) throw e; if(!keepPending(e)){ PENDING_AUDIO.delete(n.id); if(hadJob && typeof refreshBalance==="function") refreshBalance(true); } const apiMsg = e && /^400\b/.test(e.message||"") && audioApiMessage(e.message); throw apiMsg ? new Error(apiMsg) : e; });
     },
     transcribe: (model, audioUrl, language)=> client.transcribe(model, audioUrl, language, io),
     fetchMedia: (url)=> client.fetchMediaDataUrl(url, io),
     resolveContentUrl: (url)=> client.resolveContentUrl(url, { signal: io.signal }),
-    fetch: (u,o)=> fetch(u,o),
+    fetch: (u,o)=> contentFetchForEngine(u, o),
     signal: io.signal,
     catalog: null,   // filled per run by njsRunFor (async prefetch, then cached)
     maskToSource: (mask, source)=> maskToSource(mask, source),   // canvas compositor — handles JPEG/WebP sources
@@ -13551,13 +13571,16 @@ const LORA_EXAMPLES = {
 // A submitted video job runs server-side regardless of whether our poll loop is still watching.
 // If we stop polling (timeout), the job — and the credits already spent — aren't lost: stash its
 // runId keyed by the calling node so the next run resumes the same job instead of paying to
-// re-submit. In-memory only; a transient runId has no business in a saved or shared graph.
-const PENDING_VIDEO = new Map();   // nodeId → {sig, runId} of an in-flight (timed-out) video job
+// re-submit. Once the provider finishes, resultUrl (the raw content URL) stays until that
+// fetch succeeds — a failed fetch retries only the fetch, never a second paid submit.
+// In-memory only; a transient runId has no business in a saved or shared graph.
+const PENDING_VIDEO = new Map();   // nodeId → {sig, runId, resultUrl?} of an in-flight or finished-but-unfetched video job
 // Same idea for async music/TTS: submit returns runId + charges immediately, then we poll
 // /api/tts/status. Dropping the runId on ANY early exit (Stop's abort, the 5-min timeout) meant a
 // re-run re-submitted and double-charged. PENDING_AUDIO registers the job the moment it exists
-// (mirror PENDING_VIDEO) and deletes it only on completed/failed, so an unchanged re-run resumes.
-const PENDING_AUDIO = new Map();   // nodeId → {sig, job:{runId,cost,paymentSource,isApiRequest,model}}
+// (mirror PENDING_VIDEO). A genuine failure deletes it. A completed job keeps resultUrl until
+// the content fetch succeeds, so an unchanged re-run retries only that fetch.
+const PENDING_AUDIO = new Map();   // nodeId → {sig, job, resultUrl?}
 const CTX = {
   // opts.n = how many images to request (default 1). opts.multi=true returns ALL images as an
   // array (the gen node, which shows a pick-one gallery); every other caller omits opts and gets a
@@ -13652,6 +13675,11 @@ const CTX = {
     // (new prompt/seed/inputs → new body) would resume the previous request and return the OLD video.
     const bodySig = sigHash(JSON.stringify(body));
     const pend = runKey && PENDING_VIDEO.get(runKey);
+    // Provider already finished. The content fetch failed (or was aborted). Retry
+    // only that fetch — a new generate-video would charge again.
+    if(pend && pend.sig===bodySig && pend.resultUrl){
+      return await deliverResolvedMedia(PENDING_VIDEO, runKey, { sig:bodySig, runId:pend.runId, resultUrl:pend.resultUrl, njs:pend.njs }, pend.resultUrl);
+    }
     let runId = (pend && pend.sig===bodySig) ? pend.runId : null;
     if(pend && !runId && runKey) PENDING_VIDEO.delete(runKey);   // stale (request changed) — drop it and submit fresh
     if(!runId){
@@ -13696,9 +13724,10 @@ const CTX = {
           ? model3dStatusUrl(s)
           : (out.video?.url || out.url || (Array.isArray(out.video) ? out.video[0]?.url : null));
         if(!url) throw new Error(opts.mediaKind==="model3d" ? "completed but no model url" : "completed but no video url");
-        if(runKey) PENDING_VIDEO.delete(runKey);
         applyPollSettlement(s, pr, false);
-        return await resolveContentMedia(url);
+        const vEntry = { sig:bodySig, runId, resultUrl:url };
+        if(pend && pend.njs) vEntry.njs = true;
+        return await deliverResolvedMedia(PENDING_VIDEO, runKey, vEntry, url);
       }
       if(["FAILED","ERROR","CANCELED"].includes(st)){
         if(runKey) PENDING_VIDEO.delete(runKey);     // genuinely dead — don't let a later run resume it
@@ -13730,10 +13759,14 @@ const CTX = {
     const bodySig = sigHash(JSON.stringify(body));
     // Resume a timed-out async job for THIS node when the request is unchanged (mirror PENDING_VIDEO).
     const pend = runKey && PENDING_AUDIO.get(runKey);
+    if(pend && pend.sig===bodySig && pend.resultUrl){
+      return await deliverResolvedMedia(PENDING_AUDIO, runKey, pend, pend.resultUrl);
+    }
     if(pend && pend.sig===bodySig && pend.job){
       const url = await pollAudio(model, pend.job, onProgress, runKey, bodySig);
       if(!url) throw new Error("no audio url in response");
-      return await resolveContentMedia(url);
+      const kept = (runKey && PENDING_AUDIO.get(runKey)) || { sig:bodySig, job:pend.job, resultUrl:url };
+      return await deliverResolvedMedia(PENDING_AUDIO, runKey, kept, url);
     }
     if(pend && runKey) PENDING_AUDIO.delete(runKey);   // stale (request changed) — drop and submit fresh
     const r = await fetch(`${NANOGPT}/api/v1/audio/speech`, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
@@ -13756,6 +13789,8 @@ const CTX = {
       let url = j.url || j.audioUrl || j.data?.url || j.data?.audioUrl;
       if(!url && (j.runId || j.id)) url = await pollAudio(model, j, onProgress, runKey, bodySig);   // async model → poll (resume-aware)
       if(!url) throw new Error("no audio url in response");
+      const keptAud = runKey && PENDING_AUDIO.get(runKey);
+      if(keptAud && keptAud.resultUrl) return await deliverResolvedMedia(PENDING_AUDIO, runKey, keptAud, url);
       return await resolveContentMedia(url);
     }
     const blob = await r.blob();
@@ -14013,10 +14048,14 @@ async function urlToDataUrl(url){
 // Grok Imagine finishes with a relative content path (/api/generate-video/content?runId=…)
 // that 307s, with the API key, to a private presigned file. Join path-absolute URLs onto
 // the NanoGPT base. Fetch /api and /v1 content URLs with the key and redirect:manual.
-// An authed redirect's Location is the absolute file URL (the key is never sent to that
-// host, and a clip over the inline cap still chains). A direct 200 under the cap is
-// inlined as a data URL. data:, blob:, and ordinary http(s) URLs pass through with no
-// fetch. Errors use the path only — never the API key or a presigned query string.
+// A runtime that exposes Location (Node, the resolver worker) returns that file URL
+// without downloading it. A browser's manual redirect is opaque — Location is hidden —
+// so that hop is POSTed to /api/resolve-content, which walks the redirects itself.
+// The key is attached only to the API origin. Custom key headers are never put on a
+// request the browser would follow, so they cannot be auto-forwarded to the file host.
+// A direct 200 under the cap is inlined as a data URL. data:, blob:, and ordinary
+// http(s) URLs pass through with no fetch. Errors use the path only — never the API
+// key or a presigned query string.
 // No backticks: play.html's copy lives inside the String.raw RUNTIME_JS.
 function isContentApiPath(pathname){
   return pathname==="/api" || pathname.startsWith("/api/") || pathname==="/v1" || pathname.startsWith("/v1/");
@@ -14087,6 +14126,89 @@ function contentBytesToDataUrl(bytes, mime){
   if(typeof btoa!=="function") throw new Error("couldn't inline provider media: no base64 encoder");
   return "data:" + (mime || "application/octet-stream") + ";base64," + btoa(bin);
 }
+function contentResolverEndpoint(){
+  var origin = "";
+  try { origin = (location && location.origin) || ""; } catch(e){ origin = ""; }
+  if(origin && origin!=="null" && /^https?:\/\//.test(origin)) return origin.replace(/\/+$/, "") + "/api/resolve-content";
+  return "https://nanoodle.com/api/resolve-content";
+}
+function isOpaqueContentRedirect(r){
+  if(!r) return false;
+  if(r.type==="opaqueredirect") return true;
+  var status = r.status;
+  var loc = r.headers && r.headers.get && r.headers.get("location");
+  return (status===0 || status==null) && !loc;
+}
+async function resolveHiddenContentRedirect(contentUrl, opts){
+  opts = opts || {};
+  var endpoint = contentResolverEndpoint();
+  var headers = { "content-type":"application/json", accept:"application/json" };
+  if(opts.apiKey) headers.Authorization = "Bearer " + opts.apiKey;
+  var doFetch = opts.resolverFetch || (typeof fetch==="function" ? fetch : null);
+  if(!doFetch) throw new Error("couldn't fetch provider media: no fetch available");
+  var r;
+  try{
+    r = await doFetch(endpoint, {
+      method:"POST",
+      headers:headers,
+      body:JSON.stringify({ url:contentUrl }),
+      redirect:"error",
+      signal:opts.signal
+    });
+  }catch(e){
+    if(e && (e.name==="AbortError" || e.code==="aborted")) throw e;
+    if(opts.signal && opts.signal.aborted) throw e;
+    var detail = scrubContentSecrets(e && e.message, opts.apiKey || "");
+    throw new Error("couldn't fetch provider media" + (detail ? " (" + detail + ")" : ""));
+  }
+  var raw = "";
+  try{ raw = await r.text(); }
+  catch(e2){
+    if(e2 && (e2.name==="AbortError" || e2.code==="aborted")) throw e2;
+    if(opts.signal && opts.signal.aborted) throw e2;
+    var detail2 = scrubContentSecrets(e2 && e2.message, opts.apiKey || "");
+    throw new Error("couldn't fetch provider media" + (detail2 ? " (" + detail2 + ")" : ""));
+  }
+  var parsed = null;
+  try{ parsed = JSON.parse(raw); }catch(e3){ parsed = null; }
+  if(!r.ok || !parsed || (parsed.url==null && parsed.dataUrl==null)){
+    var snippet = scrubContentSecrets((parsed && parsed.error) || raw, opts.apiKey || "");
+    throw new Error("provider media redirected, but the redirect target was not exposed" + (snippet ? " (" + snippet + ")" : ""));
+  }
+  if(parsed.dataUrl) return parsed.dataUrl;
+  return parsed.url;
+}
+function syntheticContentRedirect(location){
+  return {
+    ok:false,
+    status:307,
+    type:"basic",
+    headers:{ get:function(k){ return String(k).toLowerCase()==="location" ? location : null; } },
+    text:function(){ return Promise.resolve(""); },
+    json:function(){ return Promise.reject(new Error("not json")); },
+    arrayBuffer:function(){ return Promise.resolve(new ArrayBuffer(0)); },
+    body:{ cancel:function(){ return Promise.resolve(); } }
+  };
+}
+function contentFetchForEngine(u, init){
+  init = init || {};
+  return fetch(u, init).then(function(r){
+    if(init.redirect!=="manual" || !isOpaqueContentRedirect(r)) return r;
+    var key = "";
+    try{ if(typeof getKey==="function") key = getKey() || ""; }catch(e){ key = ""; }
+    return resolveHiddenContentRedirect(String(u), {
+      apiKey:key,
+      signal:init.signal,
+      resolverFetch:fetch
+    }).then(function(finalUrl){ return syntheticContentRedirect(finalUrl); });
+  });
+}
+async function deliverResolvedMedia(map, runKey, entry, url){
+  if(runKey && map) map.set(runKey, entry);
+  var resolved = await resolveContentMedia(url);
+  if(runKey && map) map.delete(runKey);
+  return resolved;
+}
 async function resolveProviderMediaUrl(url, opts){
   opts = opts || {};
   if(typeof url!=="string") return url;
@@ -14130,7 +14252,7 @@ async function resolveProviderMediaUrl(url, opts){
     var loc = r && r.headers && r.headers.get && r.headers.get("location");
     if(r && (r.type==="opaqueredirect" || ((status===0 || status==null) && !loc))){
       await drainContentBody(r);
-      throw new Error("provider media redirected, but the redirect target was not exposed");
+      return await resolveHiddenContentRedirect(current, opts);
     }
     if(loc && (status===0 || (status>=300 && status<400))){
       await drainContentBody(r);
@@ -14147,7 +14269,12 @@ async function resolveProviderMediaUrl(url, opts){
     }
     if(!r.ok){
       var raw = "";
-      try{ raw = String(await r.text()).slice(0, 500); }catch(e3){ raw = ""; }
+      try{ raw = String(await r.text()).slice(0, 500); }
+      catch(e3){
+        if(e3 && (e3.name==="AbortError" || e3.code==="aborted")) throw e3;
+        if(opts.signal && opts.signal.aborted) throw e3;
+        raw = (e3 && e3.message) || "";
+      }
       var snippet = scrubContentSecrets(raw, apiKey);
       throw new Error("couldn't fetch provider media (HTTP " + status + ")" + (snippet ? ": " + snippet : ""));
     }
@@ -14157,7 +14284,14 @@ async function resolveProviderMediaUrl(url, opts){
       await drainContentBody(r);
       throw new Error("provider media is too large to send inline (~4 MB max) and did not redirect to a fetchable file");
     }
-    var bytes = new Uint8Array(await r.arrayBuffer());
+    var bytes;
+    try{ bytes = new Uint8Array(await r.arrayBuffer()); }
+    catch(e4){
+      if(e4 && (e4.name==="AbortError" || e4.code==="aborted")) throw e4;
+      if(opts.signal && opts.signal.aborted) throw e4;
+      var detail4 = scrubContentSecrets(e4 && e4.message, apiKey);
+      throw new Error("couldn't fetch provider media" + (detail4 ? " (" + detail4 + ")" : ""));
+    }
     var mime = mimeHeader || sniffContentMime(bytes);
     if(contentDataUrlWouldExceed(bytes.length, mime)){
       throw new Error("provider media is too large to send inline (~4 MB max) and did not redirect to a fetchable file");
@@ -14180,7 +14314,8 @@ async function resolveContentMedia(url){
     fetch: function(u, init){
       if(typeof apiFetch==="function") return apiFetch(u, init);
       return fetch(u, init);
-    }
+    },
+    resolverFetch: function(u, init){ return fetch(u, init); }
   });
 }
 // source-video payload for /api/generate-video: a public https link rides as videoUrl (a resolved
@@ -14762,7 +14897,8 @@ async function pollAudio(model, j, onProgress, runKey, bodySig){
   const job = { runId, model, cost:j.cost, paymentSource:j.paymentSource, isApiRequest:j.isApiRequest };
   // Remember the job (with its request sig) the moment it exists, so EVERY early exit is recoverable
   // (mirror PENDING_VIDEO). The charge already happened at submit: Stop's abort and the 5-min timeout
-  // must both leave this entry in place — only completed/failed below may delete it.
+  // must both leave this entry in place. A genuine failure below deletes it. Completion
+  // stores resultUrl and leaves the entry until the content fetch succeeds.
   if(runKey && bodySig!=null) PENDING_AUDIO.set(runKey, { sig:bodySig, job });
   const qs = new URLSearchParams({ runId, model });
   if(j.cost!=null) qs.set("cost", j.cost);                 // these let the server auto-refund on failure
@@ -14777,11 +14913,16 @@ async function pollAudio(model, j, onProgress, runKey, bodySig){
     catch(e){ if(e?.name==="AbortError") throw e; continue; }
     const st = String(s.status||"").toLowerCase();
     if(st==="completed" || st==="succeeded"){
-      if(runKey) PENDING_AUDIO.delete(runKey);
       applyPollSettlement(s, pr, false);
       const au = s.audioUrl || s.url || s.data?.audioUrl || s.data?.url;
       if(!au) throw new Error("completed but no audio url");
-      return await resolveContentMedia(au);
+      // Keep the job + raw URL until the caller’s content fetch succeeds. Deleting
+      // here made the next failure re-submit a job that was already paid for.
+      if(runKey){
+        const prevA = PENDING_AUDIO.get(runKey) || {};
+        PENDING_AUDIO.set(runKey, { sig: bodySig!=null ? bodySig : prevA.sig, job: prevA.job || job, resultUrl: au, njs: prevA.njs });
+      }
+      return au;
     }
     if(["error","failed","content_policy_violation"].includes(st)){
       if(runKey) PENDING_AUDIO.delete(runKey);   // genuinely dead — don't resume
