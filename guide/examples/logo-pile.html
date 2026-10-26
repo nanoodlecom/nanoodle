@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Logo to a 3D pile, cut out — nanoodle</title>
+<meta name="description" content="Turn a flat logo into a 3D hero graphic, a heap of the logo as physical objects, on a transparent background for a slide, a banner or a launch post. Reported saved run: $0.069." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="Logo to a 3D pile, cut out — nanoodle" />
+<meta property="og:description" content="Turn a flat logo into a 3D hero graphic, a heap of the logo as physical objects, on a transparent background for a slide, a banner or a launch post. Reported saved run: $0.069." />
+<meta property="og:url" content="https://nanoodle.com/guide/examples/logo-pile" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Logo to a 3D pile, cut out — nanoodle" />
+<meta name="twitter:description" content="Turn a flat logo into a 3D hero graphic, a heap of the logo as physical objects, on a transparent background for a slide, a banner or a launch post. Reported saved run: $0.069." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/examples/logo-pile" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <a href="/guide/examples/">Steal a noodle</a> / <span>Logo to a 3D pile, cut out</span></nav>
+
+  <main>
+    <h1><span class="grad">Logo to a 3D pile, cut out</span></h1>
+    <p class="lede">Turn a flat logo into a 3D hero graphic, a heap of the logo as physical objects, on a transparent background for a slide, a banner or a launch post.</p>
+
+    <section>
+      <p class="meta-row">A flat paper-airplane badge becomes a heap of 3D copies on a transparent background · 2026-10-26 · Reported saved run: $0.069. <code>blackforestlabs/flux-3/klein/text-to-image</code> · <code>qwen-image-2.1/edit</code> · <code>bria/remove-background-guided</code></p>
+      <p>Chain two Edit nodes: the first restyles the picture (flat logo to 3D pile), the second uses a background-removal model with a short prompt naming what to keep, so the result comes out as a transparent PNG.</p>
+
+      <h2>Saved result</h2>
+      <div class="media sequence">
+          <figure><a href="/examples/gallery/logo-pile/logo.webp"><img src="/examples/gallery/logo-pile/logo.webp" alt="1. Flat logo: FLUX.3 Klein 1024² · reported $0.009 — Logo to a 3D pile, cut out" loading="lazy" /></a><figcaption>1. Flat logo: FLUX.3 Klein 1024² · reported $0.009 · <a href="/examples/gallery/logo-pile/logo.webp" download>Download</a></figcaption></figure>
+          <figure><a href="/examples/gallery/logo-pile/pile.webp"><img src="/examples/gallery/logo-pile/pile.webp" alt="2. 3D pile: Qwen Image 2.1 Edit 1k · reported $0.03 — Logo to a 3D pile, cut out" loading="lazy" /></a><figcaption>2. 3D pile: Qwen Image 2.1 Edit 1k · reported $0.03 · <a href="/examples/gallery/logo-pile/pile.webp" download>Download</a></figcaption></figure>
+          <figure><a href="/examples/gallery/logo-pile/pile-cutout.webp"><img src="/examples/gallery/logo-pile/pile-cutout.webp" alt="3. Transparent cutout: Bria guided background removal · reported $0.03 — Logo to a 3D pile, cut out" loading="lazy" /></a><figcaption>3. Transparent cutout: Bria guided background removal · reported $0.03 · <a href="/examples/gallery/logo-pile/pile-cutout.webp" download>Download</a></figcaption></figure>
+        </div>
+
+      <div class="callout"><p>FLUX.3 Klein draws a flat two-color logo: a rounded square badge with a navy outline, a tangerine fill and a white paper airplane with two speed lines. Qwen Image 2.1 Edit gets that logo as image 1 and an instruction to make about twenty thick 3D copies, piled up messily, tilted and overlapping, isometric from a high angle, on a plain light grey background. It returns a heap of about two dozen glossy badges that all keep the navy rim, the orange face and the white airplane. Bria&#39;s guided background removal is told to keep &quot;the pile of 3D logo badges&quot; and returns a 1024×1024 PNG where the grey background is fully transparent and the pile edges are clean, so it can go straight onto a slide or a banner. Flaws: the Klein logo has slightly soft, uneven edges, the kind you get from a raster model, not true vector. In the pile, every badge lies flat or tilted; none stands on its edge as the instruction asked. The badges are thinner than &quot;thick&quot;, and a few airplanes are simplified or mirrored copies of the original. The cutout drops the contact shadows, so the pile floats when placed on a new background. Swap the FLUX.3 Klein node for a 📷 Image input to pile up your own logo. Every image was checked and is SFW (an invented logo shape only; no people, no text, no real brands). Inspired by @Manz&#39;s ComfyUI + Qwen Image 2.1 logo-pile workflow (https://x.com/Manz/status/2114301636029882437). No media from that post is used.</p></div>
+
+
+
+      <h2>Make it yours</h2>
+      <ol class="input-list">
+        <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
+        <li>Describe a different mark in <em>Logo · prompt</em>, or swap the FLUX.3 Klein node for a 📷 Image input with your own logo, ideally on a plain background. In <em>Pile · instruction</em> change the count, the material (glossy plastic, metal, wood) or the angle; keep "exact copy of this logo" and "plain background" so the cutout step has an easy job. If your logo is not a badge, change "the pile of 3D logo badges" in <em>Keep · what to cut out</em> to match.</li>
+        <li>Check the editor estimate, then run with your NanoGPT key. FLUX.3 Klein at 1024² for $0.009 + Qwen Image 2.1 Edit at 1k for $0.03 + Bria guided cutout for $0.03 = $0.069. With your own logo the first step is free, so it is $0.06.</li>
+        <li>Compare the copies in the pile with the flat logo: colors and shape hold, but look for simplified or mirrored marks. Open the cutout on a dark background to check the edges; the contact shadows are gone, so add your own if it looks like it floats.</li>
+      </ol>
+
+
+      <div class="cta">
+        <a class="primary" href="https://nanoodle.com/#g=H4sIAAAAAAAAA7VXy27cNhTd5ysuvGmNat7T2HU3faYwkgYp6gAFii44EmfEDkUqJDWyEuQr-gH9jOz7Rf2EnktpXvGMPQ7QjS2S0n0cnnvunXdPiM5WZ1c0SvjJ2Ex6rH7Hguhd_IttlWHvLO0pE6QJZ8l6PzSljCe2KPYObrE7HW6WDZa98XC7UWPjYrxdz5XUGTteu2Tj8jaw8Rd2YSlYEjT5gUqlZULKUMidlOSDLH2fRuf07MXr3_oTeq4lDjMnao8P5loE0vy9h4lckrwVRaklucp4soZUwL_afE2-FiVWNLcO3_37918f6LoQCwlXZRWoViGnxlaO344W-zQ-p19qabr3xv0R_ZjBQqgcbId87RmYWSqEabCn0iUnkdpSSR9zyagqqZDeK90gL28LGZxKSZiMvIT1ubMFIsrVIsfmgrNH3IJKLZDoTKTLhbOVyfo0OafvnBKfeVpUKoPl7SE5WdiV0LSUwAsGdBPh4AiiKyfbsAW9evlTm62g4ITxpXC42R1bCV4WWcM3kjlbwli8G6_hM8HDTBgjgRPjWDqbVWmgEgj16RrWlOPAGvrmZ2HeItTvbTFvXl_TFx9jydj1Yny1dcu5tjV9nodQ-qvB4LYPwg3YwsAHESo_GI9G08lw9HTydDj-6vJyPJ1cnPc3dCRmqLaO2dRIDVtn3cn7-P99cojuZY9juEv2yMv7mP70NF5_G-mZUIGac4ZWMg0ALXKmEG65e811roLcuYMrnMQHgOnfVLgiHGZAbn1zkWkZLrtnxKohWwWtTHvVgmrhCgogk3TY7FnHjzRXWifxDWU87pKrAdeqYr3MrM66KEpR4nqFcggNJksLgiuzYB7zx6EtNAe-IrcYT6hRf7l1obPgS4m4OSBPM5krdhn6dIPXYsHGu0J56Mq3XySUaikMLeS6PHyOKHxCcgXSxNRq2XpMwVbJJIuuFxJctLADRBfIq08vER8uICFjScuAd318Bsuy9mnhRKZgpV3BU2Zr398wZnO3RhRyo0__fGCyF-UOM1jjJuPhPQw7zC_FNfAxwfYZNr2fYcwozaZmGpSBpEkftJj5wVxXt73JYMkiOWAYesH29v3hc6_exkBGw_H0lv_sHq4ENCYoa3x85TgszzbaC2x21XkfofHlNhd2_FEqHahXNDypYlkwPqFipye2ohuIZKR3p-wUsaNRK_Ko1rzxKoXOQuTt7E9UdCvkOdQrtoBO-e0cjEcRz1CYKA-QresOCRoVhJS_jy5iVfuWy-uCn4H0mjuH5DPUgEhziAVXN_e3lAuobNgHTPrWTluHCNzjdtrqSbbrruBi-a73DhV7sm1ZisWJ-1ZDuRQlqjeX62hZjqDL6RKvblpbUDpgDU5kaj6XsanEfoYM7Eo6LcqSZYSD4GLnZyhgmxyicgwN4tINn0SdiNDyHpyZbP1BFlvNppGulKzvNtE-_WrnoZUPH6pMQQxa_YBiBM2QmMBQduUP0HFN0nRdU6Yc9kJbzh_Q-ABPhYCYKKFbLOrc6q7B4hLQ2BGxzNrJRXYqtSvx7ajCMUCAZLPbvOPlGYDAKUrt5dqKhxl5XNKw50THw_sE7BUHiSKFPgaHdo3ifoyKHa45iVnoARF7oOg2KvYGBdKqVA-TwWDP8q5cLXd3N8JxdjzxdZWVHQAHxrn_U6zS6sAo_aBWXQ5P06rNfAch2JeT44A8x8TAQNQ8vULRECHPDo9hw8GkHibDxeWpLQ0lNojjrOxta6TXjryHaCGqYB9LjJudyZcHYkDCo_V6sEaOd1D5RGrg7x_xlxeGmOXRX156tHXGWrZvm3-0HRhY2SuGrg2p7mQLXA7aOWaly-EEbuvxKfEe89MOJCeHu6c_R83cF-3kNHSPOXocusesPALd6UnxngTLg-Hu1vMngfvlaeAe8fM4bI8YOQgtV96T9_8BysLmWAARAAA">Open this noodle →</a>
+        <a class="secondary" href="/examples/gallery/#logo-pile">See the reviewed run</a>
+      </div>
+      <p class="howto-note"><a href="/examples/gallery/logo-pile/workflow.json" download>Download workflow</a>
+        · <a href="/examples/gallery/logo-pile/graph.json" download>Original sampled graph</a>
+        · <a href="https://mcp.nanoodle.com/#logo-pile">Explore MCP tools</a>
+        · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a></p>
+      <nav class="next">
+        <a href="/guide/examples/">← All examples</a>
+        <a href="/guide/examples/radio-play">Radio play: two voices, one Speech node</a>
+        <a href="/guide/examples/add-snow-to-a-clip">Add snow to a clip →</a>
+        <a href="/examples/gallery/#logo-pile">Reviewed run</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· No analytics · Your key stays on your device</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>

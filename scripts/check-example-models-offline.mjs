@@ -30,7 +30,9 @@ const catalogs = {
     image('anima/text-to-image', ['1k', '2k']),
     image('black-forest-labs/flux-3/text-to-image', ['1k', '2k', '4k'], true),
     image('blackforestlabs/flux-3/klein/edit-image', ['768x768', '1024x1024', '1536x1536', '2048x2048', '4096x4096'], true),
+    image('blackforestlabs/flux-3/klein/text-to-image', ['768x768', '1024x1024', '1536x1536', '2048x2048', '4096x4096']),
     image('qwen-image-2.1/edit', ['1k', '1.5k', '2k', 'auto'], true),
+    image('bria/remove-background-guided', ['auto'], true),
     image('bytedance/seedream-v5.0-flash', ['2k', '1.5k', '1k'], true),
     image('ideogram/v4.5', ['1024x1024', '2048x2048']),
     image('recraft-ai/recraft-v4.1-flash/text-to-image', ['1024x1024', '1024x768']),
@@ -73,6 +75,7 @@ const catalogs = {
   ],
   audio: [
     { id: 'Minimax-Speech-2.8-HD', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Deep_Voice_Man'] } },
+    { id: 'gemini-3.1-flash-tts-preview', capabilities: { text_to_speech: true }, supported_parameters: { voices: ['Puck', 'Kore'] } },
     { id: 'minimax/music-3', architecture: { modality: 'text->audio' } },
   ],
   model3d: [
