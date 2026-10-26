@@ -278,8 +278,12 @@ try {
             await tabPage.locator("#wsdrop").click();
             await tabPage.locator("#wsdropmenu .wsname").click();
           } else await tabPage.locator('#wstabs .wstab[data-id="w1"]').click();
-          assert.equal(await tabPage.evaluate(() => JSON.stringify(serializeGraph())), original,
-            "switching back restores the original graph after recovery");
+          // Loading a shelved graph advances allocation counters; its content
+          // and viewport must round-trip without resetting those counters.
+          const {nid:beforeNid, lid:beforeLid, ...beforeContent} = JSON.parse(original);
+          const {nid:afterNid, lid:afterLid, ...afterContent} = await tabPage.evaluate(() => serializeGraph());
+          assert.deepEqual(afterContent, beforeContent, "switching back restores the original graph after recovery");
+          assert.ok(afterNid >= beforeNid && afterLid >= beforeLid, "allocation counters stay monotonic");
         }
         assert.deepEqual(forbidden, [], "workspace clicks make no paid or unexpected external requests");
         assert.deepEqual(errors, [], "workspace clicks produce no browser JavaScript errors");
