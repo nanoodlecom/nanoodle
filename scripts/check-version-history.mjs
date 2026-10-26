@@ -275,8 +275,7 @@ function checkIndex(root, fail) {
   // dropped reset on any of them is caught explicitly, not just via the unclassified path.
   const EXTERNAL = [
     { tag: "loadFile (open a .json)",     snippet: "applyGraphData(JSON.parse(r.result))" },
-    { tag: "loadFromHash (shared link)",  snippet: "applyGraphData(spec.graph)" },
-    { tag: "loadFromHash (bare graph)",   snippet: "applyGraphData(JSON.parse(json))" },
+    { tag: "loadFromHash (shared or bare graph)", snippet: "applyGraphData(graphData)" },
     { tag: "editor→app postMessage",      snippet: "applyGraphData(e.data.graph, sameFlow ? {carryResults:true} : undefined)" },
     { tag: "open an Example",             snippet: "applyGraphData(JSON.parse(JSON.stringify(ex.graph)))" },
   ];

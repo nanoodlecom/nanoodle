@@ -181,6 +181,7 @@ const bundle = [
   "  setConfirm: (v) => { __confirm = v; },",
   "  setHash: (h) => { location.hash = h; },",
   "  setOut: (id, out) => { const n = graph.nodes.find(x => x.id === id); if (n) n.out = out; },",
+  "  setText: (id, text) => { const n = graph.nodes.find(x => x.id === id); if (n) { n.fields = n.fields || {}; n.fields.text = text; } },",
   "  outOf: (id) => { const n = graph.nodes.find(x => x.id === id); return n && n.out; },",
   "};",
 ].join("\n");
@@ -427,6 +428,105 @@ const photoOf = (g) => {
   ok(css.includes(".wstab:focus-visible"), "desktop tabs have a visible focus state");
   ok(SRC.includes("touch-hold renames a tab"), "a touch hold can rename a tab");
   ok(SRC.includes('e.key==="Home"') && SRC.includes('e.key==="End"'), "Home and End move along the tab strip");
+}
+
+// A setItem that rejects any value carrying the unsaved marker. The last good
+// autosave does not contain it, which is what the old switch stored instead.
+function rejectUnsaved(orig) {
+  return (k, v) => {
+    if (String(v).includes("UNSAVED")) {
+      const err = new Error("quota");
+      err.name = "QuotaExceededError";
+      throw err;
+    }
+    return orig.call(localStorage, k, v);
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 9. A quota failure while switching must keep the unsaved edit on this tab.
+//    The old flushSave swallowed the error, then switchWorkspace copied the
+//    stale noodle_graph onto the tab it left and switched anyway.
+// ---------------------------------------------------------------------------
+{
+  clearStore();
+  backing.noodle_graph = FIXTURE;
+  const W = boot();
+  W.ensureWorkspaces();
+  W.load();
+  ok(W.openWorkspaceWithGraph(W.textToImageGraph(), "Text to image", { respectCap: true, fit: true }) === true, "quota setup needs a second tab");
+  const active = W.readWorkspaces().active;
+  const textNode = W.serializeGraph().nodes.find((n) => n.type === "text");
+  ok(!!textNode, "the open tab has a text node to edit");
+  W.setText(textNode.id, "UNSAVED edit that must survive a failed switch");
+  const other = backing.noodle_ws_w1;
+  const graphBefore = backing.noodle_graph;
+  const leavingKey = "noodle_ws_" + active;
+  const orig = localStorage.setItem;
+  localStorage.setItem = rejectUnsaved(orig);
+  try { W.switchWorkspace("w1"); }
+  finally { localStorage.setItem = orig; }
+  ok(W.readWorkspaces().active === active, "a failed save must stay on the current workspace");
+  ok(textOf(W.serializeGraph()).includes("UNSAVED"), "the unsaved edit stays on screen after a failed switch");
+  ok(backing.noodle_ws_w1 === other, "a failed switch must not touch the other tab's stored graph");
+  ok(backing.noodle_graph === graphBefore, "a failed switch must not rewrite noodle_graph with a stale copy");
+  ok(!backing[leavingKey] || String(backing[leavingKey]).includes("UNSAVED"), "a failed switch must not store the pre-edit graph as the tab we left");
+  ok(W.toasts().some((m) => m.includes("Couldn’t switch")), "a failed switch tells you it could not switch");
+}
+
+// ---------------------------------------------------------------------------
+// 10. An in-page #j= import saves the current graph (unsaved text + paid
+//     output) before applying the incoming one. If that save fails, it does
+//     not apply. The old path applied first, then shelved the stale autosave
+//     and stashed results from the graph that had just replaced the paid one.
+// ---------------------------------------------------------------------------
+{
+  clearStore();
+  backing.noodle_graph = FIXTURE;
+  const W = boot();
+  W.ensureWorkspaces();
+  W.load();
+  const home = W.readWorkspaces().active;
+  W.setText("n1", "UNSAVED EDIT");
+  W.setOut("n1", { text: "PAID" });
+  const stranger = { v: 1, nodes: [{ id: "s1", type: "text", x: 1, y: 1, name: "Stranger", fields: { text: "incoming" } }], links: [], nid: 2, lid: 1 };
+  W.setHash("#j=" + b64url(stranger));
+  const applied = await W.loadFromHash();
+  ok(applied === true, "a #j= import applies once the current graph is saved");
+  ok(W.readWorkspaces().tabs.length === 2 && W.readWorkspaces().active !== home, "the import opens in a new tab");
+  ok(textOf(W.serializeGraph()) === "incoming", "the incoming graph is the one on screen");
+  const shelved = JSON.parse(backing.noodle_ws_w1);
+  ok(textOf(shelved) === "UNSAVED EDIT", "the tab we left keeps the unsaved edit, not the last autosave");
+  W.switchWorkspace(home);
+  ok(W.readWorkspaces().active === home, "switching back lands on the original tab");
+  ok(textOf(W.serializeGraph()) === "UNSAVED EDIT", "switching back shows the unsaved edit");
+  ok(W.outOf("n1") && W.outOf("n1").text === "PAID", "switching back restores the paid output that was on screen");
+}
+{
+  clearStore();
+  backing.noodle_graph = FIXTURE;
+  const W = boot();
+  W.ensureWorkspaces();
+  W.load();
+  const stored = backing.noodle_graph;
+  const tabsBefore = W.readWorkspaces().tabs.length;
+  W.setText("n1", "UNSAVED EDIT");
+  W.setOut("n1", { text: "PAID" });
+  const stranger = { v: 1, nodes: [{ id: "s1", type: "text", x: 1, y: 1, name: "Stranger", fields: { text: "incoming" } }], links: [], nid: 2, lid: 1 };
+  const orig = localStorage.setItem;
+  localStorage.setItem = rejectUnsaved(orig);
+  let applied = true;
+  try {
+    W.setHash("#j=" + b64url(stranger));
+    applied = await W.loadFromHash();
+  } finally { localStorage.setItem = orig; }
+  ok(applied === false, "an import that cannot save the current graph must not apply");
+  ok(textOf(W.serializeGraph()) === "UNSAVED EDIT", "a refused import leaves the unsaved edit on screen");
+  ok(W.outOf("n1") && W.outOf("n1").text === "PAID", "a refused import leaves the paid output on screen");
+  ok(W.readWorkspaces().tabs.length === tabsBefore, "a refused import must not add a tab");
+  ok(!Object.keys(backing).some((k) => k.startsWith("noodle_ws_")), "a refused import must not shelve");
+  ok(backing.noodle_graph === stored, "a refused import must not replace noodle_graph");
+  ok(W.toasts().some((m) => m.includes("unchanged")), "a refused import says the current workflow is unchanged");
 }
 
 if (failures.length) {

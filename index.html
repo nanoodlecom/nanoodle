@@ -17223,11 +17223,20 @@ function stampActiveApp(){
     : null;
   writeWorkspaces(d);
 }
+// Write the live canvas to noodle_graph now. Returns that JSON, or null when the
+// write did not land — callers that are about to replace the canvas must stop.
+// Swallowing the quota error here is what made a switch store the previous autosave
+// and drop the edit that was only on screen.
 function flushSave(){
   try{ clearTimeout(saveT); }catch(_){}
   saveT = null;
   try{ if(typeof stashModel3dOuts==="function") stashModel3dOuts(); }catch(_){}
-  try{ localStorage.setItem("noodle_graph", JSON.stringify(serializeGraph())); }catch(_){}
+  let json = null;
+  try{ json = JSON.stringify(serializeGraph()); }
+  catch(_){ return null; }
+  try{ localStorage.setItem("noodle_graph", json); }
+  catch(_){ return null; }
+  return json;
 }
 function parkWorkspaceHistory(id){
   if(!id || typeof undoStack==="undefined" || typeof redoStack==="undefined") return;
@@ -17306,9 +17315,12 @@ function openWorkspaceWithGraph(data, name, opts){
       toast(wsT("Too many workspaces — close one first."), "warn");
       return false;
     }
-    flushSave();
-    let prev = null, prevApp = null;
-    try{ prev = localStorage.getItem("noodle_graph"); }catch(_){}
+    const prev = flushSave();
+    if(!prev){
+      toast(wsT("Couldn’t open a new workspace — your current workflow is unchanged."), "err");
+      return false;
+    }
+    let prevApp = null;
     try{ prevApp = editorAppBinding(); }catch(_){}
     if(!shelvePreviousWorkspace(prev, prevApp, name)){
       toast(wsT("Couldn’t open a new workspace — your current workflow is unchanged."), "err");
@@ -17357,19 +17369,25 @@ function switchWorkspace(id){
   const next = d.tabs.find(t => t.id===id);
   const leaving = d.tabs.find(t => t.id===d.active);
   if(!next || !leaving) return;
-  try{ if(typeof _stashResults==="function") workspaceResults.set(leaving.id, _stashResults()); }catch(_){}
-  flushSave();
-  let json = null;
-  try{ json = localStorage.getItem("noodle_graph"); }catch(_){}
-  if(json){
-    try{ localStorage.setItem(wsGraphKey(leaving.id), json); }
-    catch(_){ toast(wsT("Couldn’t switch — this browser couldn’t store the workspace."), "err"); return; }
+  // The live canvas, not whatever getItem returns. A quota failure used to be swallowed
+  // by flushSave, and the next lines then copied the stale autosave onto this tab.
+  const snap = flushSave();
+  if(!snap){
+    toast(wsT("Couldn’t switch — this browser couldn’t store the workspace."), "err");
+    return;
   }
+  try{ if(typeof _stashResults==="function") workspaceResults.set(leaving.id, _stashResults()); }catch(_){}
+  try{ localStorage.setItem(wsGraphKey(leaving.id), snap); }
+  catch(_){ toast(wsT("Couldn’t switch — this browser couldn’t store the workspace."), "err"); return; }
+  let raw = null;
+  try{ raw = localStorage.getItem(wsGraphKey(id)); }catch(_){}
+  // Land the destination in noodle_graph before touching the canvas or the active id.
+  // If this write fails, the tab we are on is still the one on screen and still the one stored.
+  try{ localStorage.setItem("noodle_graph", raw || JSON.stringify(blankGraph())); }
+  catch(_){ toast(wsT("Couldn’t switch — this browser couldn’t store the workspace."), "err"); return; }
   parkWorkspaceHistory(leaving.id);
   d.active = id;
   try{ writeWorkspaces(d); }catch(_){}
-  let raw = null;
-  try{ raw = localStorage.getItem(wsGraphKey(id)); }catch(_){}
   const wasMuted = undoMuted;
   undoMuted = true;
   try{
@@ -18016,20 +18034,39 @@ async function loadFromHash(){
     else if(h.startsWith("#j=")) json = new TextDecoder().decode(b64urlToBytes(h.slice(3)));
   }catch{ /* bad link */ }
   if(!json) return false;
+  let incoming = null;
+  try{ incoming = JSON.parse(json); }catch{ return false; }
+  const graphData = ga ? incoming && incoming.graph : incoming;
+  // A payload that cannot be a graph must fail before any save or shelve. {nodes:5}
+  // used to throw inside apply and skip the shelve; it still must do neither.
+  if(!graphData || typeof graphData!=="object" || !Array.isArray(graphData.nodes)) return false;
   try{
-    // Snapshot the autosave BEFORE setPendingApp / save() touch it. A payload that throws
-    // never reaches the shelve below, so a bad link still cannot overwrite noodle_graph.
+    // Snapshot the canvas we are leaving BEFORE apply replaces it. An unsaved text edit
+    // and a paid result live only in memory; reading noodle_graph after apply (or instead
+    // of the live graph) stores the previous autosave and drops both.
+    const had = !!(graph.nodes && graph.nodes.length);
     let prev = null, prevApp = null;
-    try{ prev = localStorage.getItem("noodle_graph"); }catch(_){}
+    if(had && typeof flushSave==="function"){
+      // Live canvas. A quota miss returns null — do not apply the incoming graph over it.
+      prev = flushSave();
+      if(!prev){
+        try{ toast((typeof wsT==="function" ? wsT : t)("Couldn’t open a new workspace — your current workflow is unchanged.")); }catch(_){}
+        return false;
+      }
+    } else {
+      // Empty canvas, or a runtime that has no workspace save (the pre-tab undo park).
+      // Keep the stored bytes — serializing an empty canvas would wipe them.
+      try{ prev = localStorage.getItem("noodle_graph"); }catch(_){}
+    }
     try{ if(typeof editorAppBinding==="function") prevApp = editorAppBinding(); }catch(_){}
-    JSON.parse(json);
-    if(ga){
-      const spec = JSON.parse(json); setPendingApp(spec.appId, spec.title); applyGraphData(spec.graph);
+    // shelve stamps the new tab from pendingAppId. Point that at the incoming app
+    // without setPendingApp, which would rewrite the tab we are leaving.
+    const keepId = (typeof pendingAppId!=="undefined") ? pendingAppId : null;
+    const keepTitle = (typeof pendingAppTitle!=="undefined") ? pendingAppTitle : null;
+    if(typeof pendingAppId!=="undefined"){
+      if(ga){ pendingAppId = (incoming && incoming.appId) || null; pendingAppTitle = pendingAppId ? ((incoming && incoming.title) || null) : null; }
+      else { pendingAppId = null; pendingAppTitle = null; }
     }
-    else {
-      setPendingApp(null); applyGraphData(JSON.parse(json));
-    }
-    window.resetDescribeVersions?.();   // a shared/handoff graph replaces the workflow → drop the old describe-version chips
     let shelved = false;
     try{
       if(prev && typeof shelvePreviousWorkspace==="function"){
@@ -18039,6 +18076,18 @@ async function loadFromHash(){
         shelved = !!shelvePreviousWorkspace(prev, prevApp, typeof t==="function" ? t(label) : label);
       }
     }catch(_){}
+    // shelve is how this page keeps the workflow you were on. If it is here and it
+    // did not take the live graph, stop — applying now would drop that graph.
+    // A runtime without it (the pre-tab undo park) still applies, then parks below.
+    if(had && typeof shelvePreviousWorkspace==="function" && !shelved){
+      if(typeof pendingAppId!=="undefined"){ pendingAppId = keepId; pendingAppTitle = keepTitle; }
+      try{ toast((typeof wsT==="function" ? wsT : t)("Couldn’t open a new workspace — your current workflow is unchanged.")); }catch(_){}
+      return false;
+    }
+    if(ga) setPendingApp(incoming.appId, incoming.title);
+    else setPendingApp(null);
+    applyGraphData(graphData);
+    window.resetDescribeVersions?.();   // a shared/handoff graph replaces the workflow → drop the old describe-version chips
     if(!shelved && prev){
       // No workspace list in this runtime, or the stored graph was empty: park it so one
       // undo brings it back. That is the pre-workspace contract.
