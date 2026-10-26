@@ -173,7 +173,7 @@ const bundle = [
   extractFn(SRC, "loadFromHash"),
   extractFn(SRC, "b64urlToBytes"),
   "globalThis.__W = { ensureWorkspaces, load, save, loadFromHash, serializeGraph, applyGraphData,",
-  "  openWorkspaceWithGraph, openExampleWorkspace, switchWorkspace, closeWorkspace, renameWorkspace,",
+  "  openWorkspaceWithGraph, openExampleWorkspace, switchWorkspace, closeWorkspace, renameWorkspace, workspaceChord,",
   "  textToImageGraph, askModelGraph, blankGraph,",
   "  readWorkspaces, shelvePreviousWorkspace, workspaceLabelForGraph, workspaceDownloadName, onWorkspaceHash, graph, ",
   "  stacks: () => ({ undo: undoStack.slice(), redo: redoStack.slice() }),",
@@ -399,6 +399,34 @@ const photoOf = (g) => {
   ok(pasted === true, "a hash set on an already-open page must load");
   ok(W.readWorkspaces().tabs.length === before + 1, "the pasted link opens a new tab immediately");
   ok(W.serializeGraph().nodes.some((n) => n.name === "Pasted"), "the pasted graph is the one on screen");
+}
+
+// ---------------------------------------------------------------------------
+// 8. Keyboard chords ignore typing and plain arrows. The narrow layout keeps
+//    a 44px touch target, and the active tab is marked with the accent.
+// ---------------------------------------------------------------------------
+{
+  const W = boot();
+  const chord = (over) => W.workspaceChord(Object.assign({ shiftKey: false, repeat: false, ctrlKey: false, metaKey: false, altKey: false, key: "", target: { tagName: "BODY", isContentEditable: false } }, over));
+  ok(chord({ ctrlKey: true, altKey: true, key: "ArrowRight" }) === "next", "Ctrl+Alt+ArrowRight moves to the next workspace");
+  ok(chord({ metaKey: true, altKey: true, key: "[" }) === "prev", "Cmd+Alt+[ moves to the previous workspace");
+  ok(chord({ altKey: true, key: "ArrowRight" }) === null, "Alt+Arrow without Ctrl/Cmd must not steal canvas keys");
+  ok(chord({ ctrlKey: true, altKey: true, key: "ArrowLeft", target: { tagName: "INPUT", isContentEditable: false } }) === null, "a chord while typing must not switch tabs");
+  ok(chord({ ctrlKey: true, altKey: true, shiftKey: true, key: "]" }) === null, "Shift cancels the workspace chord");
+
+  const cssStart = SRC.indexOf("workspaces: a document strip");
+  const cssEnd = SRC.indexOf("</style>", cssStart);
+  const css = SRC.slice(cssStart, cssEnd);
+  const narrow = css.slice(css.indexOf("@media (max-width:720px)"));
+  ok(css.includes("overflow-x:auto"), "wide screens scroll the tab strip horizontally");
+  ok(narrow.includes("#wstabs{ display:none }"), "narrow screens collapse the strip instead of squeezing tabs");
+  ok(narrow.includes("min-height:44px"), "the collapsed workspace control is at least 44px");
+  ok(narrow.includes("ws-touch-target") && /#wsdropmenu \.wsrow \.wsx\{[^}]*min-height:44px/.test(narrow), "the mobile close control is a 44px touch target");
+  ok(/#wsdropmenu \.wsrow input\.wsrename\{[^}]*min-height:44px/.test(narrow), "the mobile rename field is a 44px touch target");
+  ok(/\.wstab\.on\{[^}]*var\(--accent\)/.test(css), "the active tab carries an accent mark");
+  ok(css.includes(".wstab:focus-visible"), "desktop tabs have a visible focus state");
+  ok(SRC.includes("touch-hold renames a tab"), "a touch hold can rename a tab");
+  ok(SRC.includes('e.key==="Home"') && SRC.includes('e.key==="End"'), "Home and End move along the tab strip");
 }
 
 if (failures.length) {

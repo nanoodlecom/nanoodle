@@ -1186,8 +1186,11 @@
   .wstab:hover .wsx, .wstab.on .wsx, .wstab:focus-visible .wsx{ opacity:.8 }
   .wstab .wsx:hover{ opacity:1; background:#ffffff18; color:var(--ink) }
   .wstab:hover:not(.on){ color:var(--ink); background:#ffffff0a }
-  .wstab.on{ background:var(--bg); color:var(--ink); border-color:var(--line); }
+  .wstab:focus-visible{ outline:2px solid var(--accent); outline-offset:-2px; z-index:1; }
+  .wstab.on{ background:var(--bg); color:var(--ink); border-color:var(--line); font-weight:600;
+    box-shadow:inset 0 2px 0 var(--accent); }
   .wstab.on::after{ content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px; background:var(--bg) }
+  .wstab .wsx:focus-visible{ opacity:1; outline:2px solid var(--accent); outline-offset:1px; background:#ffffff18; color:var(--ink); }
   .wstab input.wsrename{ width:7.2rem; min-width:0; flex:1; margin:0; padding:0;
     background:transparent; border:none; border-radius:0; color:inherit; font:inherit; }
   #wsdrop{ display:none }
@@ -1195,22 +1198,24 @@
   #wsadd{ width:1.7rem; height:1.55rem; margin:0 0 4px; padding:0; border-radius:.4rem;
     background:transparent; color:var(--dim); font-size:1.05rem; line-height:1; }
   #wsadd:hover, #wsadd[aria-expanded="true"]{ color:var(--ink); background:var(--panel2); border-color:var(--line) }
+  #wsadd:focus-visible, #wsdrop:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
   #wschooser[hidden], #wsdropmenu[hidden]{ display:none }
   #wschooser:not([hidden]), #wsdropmenu:not([hidden]){ display:flex; flex-direction:column;
     position:absolute; top:calc(100% + 4px); z-index:6; min-width:220px; padding:.3rem;
     background:var(--panel); border:1px solid var(--line); border-radius:.6rem; box-shadow:0 14px 40px #000c; }
   #wschooser:not([hidden]){ left:0 }
-  #wsdropmenu:not([hidden]){ left:.45rem; right:auto; min-width:min(280px, calc(100vw - 1rem)); }
+  #wsdropmenu:not([hidden]){ left:.45rem; right:auto; min-width:min(280px, calc(100vw - 1rem)); max-width:calc(100vw - .9rem); }
   #wschooser .wshint{ font-size:.7rem; line-height:1.35; color:var(--dim); padding:.3rem .6rem .4rem; pointer-events:none; }
   #wschooser button, #wsdropmenu button{ text-align:left; border:none; background:none; width:100%;
     padding:.48rem .6rem; border-radius:.4rem; font-size:.84rem; color:var(--ink); }
   #wschooser button:hover, #wsdropmenu button:hover, #wsdropmenu button.on{ background:var(--panel2) }
+  #wschooser button:focus-visible, #wsdropmenu button:focus-visible{ outline:2px solid var(--accent); outline-offset:-2px; background:var(--panel2); }
   #wsdropmenu button.on{ background:#7c8cff22 }
   #wschooser .wssep{ height:1px; background:var(--line); margin:.2rem .35rem }
   #wsdropmenu:not([hidden]){ max-height:min(70vh, 440px); overflow:auto; }
   #wsdropmenu .wshint{ font-size:.7rem; line-height:1.35; color:var(--dim); padding:.35rem .6rem .15rem; }
   #wsdropmenu .wsrow{ display:flex; align-items:center; gap:.15rem; border-radius:.4rem; }
-  #wsdropmenu .wsrow.on{ background:#7c8cff22; }
+  #wsdropmenu .wsrow.on{ background:#7c8cff22; box-shadow:inset 3px 0 0 var(--accent); }
   #wsdropmenu .wsrow .wsname{ flex:1 1 auto; width:auto; min-width:0; text-align:left;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #wsdropmenu .wsrow input.wsrename{ flex:1 1 auto; width:auto; min-width:0; margin:0;
@@ -1218,25 +1223,41 @@
   #wsdropmenu .wsrow .wsx{ flex:none; width:2rem; height:2rem; margin:0; padding:0; border:none;
     background:transparent; color:var(--dim); font-size:1.05rem; line-height:1; }
   #wsdropmenu .wsrow .wsx:hover, #wsdropmenu .wsrow .wsx:focus-visible{ color:var(--ink); background:#ffffff18; }
+  #wsdrop .wscount{ display:none }
   #workspaces.wsbusy .wstab:not(.on),
   #workspaces.wsbusy #wsadd,
   #workspaces.wsbusy #wsdrop{ opacity:.4; }
   #workspaces.wsbusy .wstab{ cursor:default; }
+  /* Narrow screens collapse the strip into one control. A row of 44px tabs does not fit at ~375px,
+     and the header already has ＋ Add node, so starters live in this menu. */
   @media (max-width:720px){
-    :root{ --ws-h:40px }
+    :root{ --ws-h:52px }
+    #workspaces{ align-items:center; padding-left:max(.5rem, env(safe-area-inset-left)); padding-right:max(.5rem, env(safe-area-inset-right)); }
     #wstabs{ display:none }
-    #wsaddwrap{ display:none }   /* the header already has ＋ Add node; starters live in the workspace menu */
-    #wsdrop{ display:inline-flex; align-items:center; gap:.35rem; flex:1 1 auto; min-width:0; }
-      height:calc(var(--ws-h) - 10px); margin:0 0 5px; padding:0 .7rem;
-      background:var(--bg); border:1px solid var(--line); border-radius:.45rem; color:var(--ink); font-size:.84rem; }
+    #wsaddwrap{ display:none }
+    #wsdrop{ display:inline-flex; align-items:center; gap:.4rem; flex:1 1 auto; min-width:0; width:100%;
+      height:44px; min-height:44px; margin:0; padding:0 .75rem; white-space:nowrap;
+      background:var(--bg); border:1px solid var(--line); border-radius:.55rem; color:var(--ink); font-size:.92rem;
+      box-shadow:inset 0 2px 0 var(--accent); }
     #wsdrop .wsdropname{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; text-align:left; flex:1 }
+    #wsdrop .wscount{ display:inline-flex; align-items:center; justify-content:center; flex:none;
+      min-width:1.5rem; height:1.5rem; padding:0 .35rem; border-radius:999px;
+      background:#7c8cff33; color:var(--ink); font-size:.72rem; font-weight:700; }
     #wschooser:not([hidden]){ left:auto; right:0 }
-    #wsdropmenu:not([hidden]){ left:.45rem; right:.45rem; width:auto }
+    #wsdropmenu:not([hidden]){ left:.45rem; right:.45rem; width:auto; max-width:none }
+    /* ws-touch-target: every row, starter, rename field and close control is a 44px touch target */
+    #wsdropmenu .wsrow{ min-height:44px; }
+    #wsdropmenu .wsrow .wsname, #wsdropmenu button[data-ws]{ min-height:44px; }
+    #wsdropmenu .wsrow input.wsrename{ min-height:44px; font-size:16px; padding:.45rem .6rem;
+      border:1px solid var(--line); background:var(--bg); }
+    #wsdropmenu .wsrow .wsx{ width:44px; height:44px; min-width:44px; min-height:44px; font-size:1.35rem; }
   }
-  @media (pointer:coarse){
-    .wstab{ min-height:36px }
-    .wstab .wsx{ opacity:.75 }
-    #wsadd{ width:2rem; height:2rem }
+  @media (pointer:coarse) and (min-width:721px){
+    :root{ --ws-h:52px }
+    .wstab{ height:44px; min-height:44px; }
+    .wstab .wsx{ opacity:1; width:44px; height:44px; min-width:44px; min-height:44px; }
+    #wsadd{ width:44px; height:44px; }
+    .wstab input.wsrename{ font-size:16px; }
   }
 </style>
 </head>
@@ -1289,7 +1310,7 @@
 </header>
 
 <div id="workspaces">
-  <div id="wstabs" role="tablist" aria-label="Workspaces"></div>
+  <div id="wstabs" role="tablist" aria-label="Workspaces" aria-keyshortcuts="Control+Alt+ArrowRight Control+Alt+ArrowLeft"></div>
   <button id="wsdrop" type="button" title="Workspaces" aria-haspopup="listbox" aria-expanded="false"><span class="wsdropname">Workflow</span> ▾</button>
   <div id="wsaddwrap">
     <button id="wsadd" type="button" title="New workspace" aria-label="New workspace" aria-haspopup="menu" aria-expanded="false">+</button>
@@ -17469,6 +17490,43 @@ function focusWorkspaceTab(id){
     if(b) b.focus();
   }catch(_){}
 }
+// Ctrl/Cmd+Alt+Arrow (or [ / ]) switches tabs from anywhere that isn't a text field.
+// Plain arrows stay with the canvas. Returns "next", "prev", or null.
+function workspaceChord(e){
+  if(!e) return null;
+  const t = e.target;
+  const tag = t && t.tagName;
+  if(tag==="TEXTAREA" || tag==="INPUT" || tag==="SELECT") return null;
+  if(t && t.isContentEditable) return null;
+  if(e.shiftKey || e.repeat) return null;
+  if(!(e.ctrlKey || e.metaKey) || !e.altKey) return null;
+  if(e.key==="ArrowRight" || e.key==="]") return "next";
+  if(e.key==="ArrowLeft" || e.key==="[") return "prev";
+  return null;
+}
+function workspaceOverlayOpen(){
+  try{
+    const ch = $("wschooser"), m = $("wsdropmenu");
+    if(ch && !ch.hidden) return true;
+    if(m && !m.hidden) return true;
+    for(const id of ["examplesmodal","updatesmodal","appmodal","sharemenu","refuelmodal"]){
+      const el = $(id);
+      if(el && !el.hidden) return true;
+    }
+    const pick = $("mpick");
+    if(pick && pick.style.display && pick.style.display!=="none") return true;
+  }catch(_){}
+  return false;
+}
+function stepWorkspace(dir){
+  const d = readWorkspaces();
+  if(!d || !d.tabs.length) return;
+  const i = Math.max(0, d.tabs.findIndex(t => t.id===d.active));
+  const n = d.tabs[(i + (dir==="next" ? 1 : -1) + d.tabs.length) % d.tabs.length];
+  if(!n || n.id===d.active) return;
+  switchWorkspace(n.id);
+  focusWorkspaceTab(n.id);
+}
 function closeWorkspaceMenus(){
   try{
     const ch = $("wschooser"); if(ch){ ch.hidden = true; }
@@ -17534,6 +17592,9 @@ function fillDropMenu(d){
       inp.maxLength = 40;
       inp.setAttribute("aria-label", wsT("Rename workspace"));
       inp.setAttribute("data-no-i18n", "");
+      inp.setAttribute("enterkeyhint", "done");
+      inp.autocomplete = "off";
+      inp.spellcheck = false;
       inp.addEventListener("keydown", (e)=>{
         if(e.key==="Enter"){
           e.preventDefault();
@@ -17642,6 +17703,13 @@ function renderWorkspaces(){
       s.className = "wsdropname";
       s.textContent = cur ? cur.name : wsT("Workflow");
       drop.appendChild(s);
+      if(d.tabs.length>1){
+        const n = document.createElement("span");
+        n.className = "wscount";
+        n.setAttribute("data-no-i18n", "");
+        n.textContent = String(d.tabs.length);
+        drop.appendChild(n);
+      }
       drop.appendChild(document.createTextNode(" ▾"));
     }
     const menu = $("wsdropmenu");
@@ -17664,6 +17732,9 @@ function beginWorkspaceRename(tabEl){
   inp.maxLength = 40;
   inp.setAttribute("aria-label", wsT("Rename workspace"));
   inp.setAttribute("data-no-i18n", "");
+  inp.setAttribute("enterkeyhint", "done");
+  inp.autocomplete = "off";
+  inp.spellcheck = false;
   label.replaceWith(inp);
   inp.focus();
   try{ inp.select(); }catch(_){}
@@ -17706,6 +17777,7 @@ function bindWorkspaceChrome(){
     });
     tabs.addEventListener("keydown", (e)=>{
       if(e.target && e.target.closest && e.target.closest("input, textarea")) return;
+      if(workspaceChord(e)) return;   // the window listener takes one step; don't also move on the arrow
       if(e.key==="F2"){
         const b = e.target.closest && e.target.closest(".wstab");
         if(!b) return;
@@ -17720,13 +17792,24 @@ function bindWorkspaceChrome(){
       }
       const d = readWorkspaces(); if(!d) return;
       const i = d.tabs.findIndex(t => t.id===d.active);
-      if(e.key==="ArrowRight" || e.key==="ArrowLeft"){
+      if(e.key==="ArrowRight" || e.key==="ArrowLeft" || e.key==="Home" || e.key==="End"){
         e.preventDefault();
-        const n = d.tabs[(i + (e.key==="ArrowRight"?1:-1) + d.tabs.length) % d.tabs.length];
-        if(n){ switchWorkspace(n.id); focusWorkspaceTab(n.id); }
+        let n;
+        if(e.key==="Home") n = d.tabs[0];
+        else if(e.key==="End") n = d.tabs[d.tabs.length-1];
+        else n = d.tabs[(i + (e.key==="ArrowRight"?1:-1) + d.tabs.length) % d.tabs.length];
+        if(n){
+          if(n.id!==d.active) switchWorkspace(n.id);
+          focusWorkspaceTab(n.id);
+        }
       }
     });
     tabs.addEventListener("scroll", ()=>{ try{ syncTabOverflow(); }catch(_){} }, {passive:true});
+    let wsHoldTimer = null;
+    const clearWsHold = ()=>{ if(wsHoldTimer){ clearTimeout(wsHoldTimer); wsHoldTimer = null; } };
+    tabs.addEventListener("contextmenu", (e)=>{
+      if(e.target.closest && e.target.closest(".wstab")) e.preventDefault();
+    });
     tabs.addEventListener("pointerdown", (e)=>{
       if(e.button!=null && e.button!==0) return;
       const b = e.target.closest && e.target.closest(".wstab");
@@ -17737,16 +17820,29 @@ function bindWorkspaceChrome(){
         return { left:r.left, mid:r.left + r.width/2 };
       })};
       try{ b.setPointerCapture(e.pointerId); }catch(_){}
+      // touch-hold renames a tab (double-tap is unreliable, and F2 isn't on a phone keyboard)
+      clearWsHold();
+      if(e.pointerType==="touch" || e.pointerType==="pen"){
+        wsHoldTimer = setTimeout(()=>{
+          wsHoldTimer = null;
+          if(!wsDrag || wsDrag.moved || wsDrag.el!==b) return;
+          wsDrag = null;
+          wsSuppressClick = true;
+          beginWorkspaceRename(b);
+        }, 550);
+      }
     });
     tabs.addEventListener("pointermove", (e)=>{
       if(!wsDrag) return;
       const dx = e.clientX - wsDrag.x;
       if(!wsDrag.moved && Math.abs(dx) < 6) return;
       wsDrag.moved = true;
+      clearWsHold();
       wsDrag.el.style.transform = "translateX("+dx+"px)";
       wsDrag.el.style.zIndex = "2";
     });
     tabs.addEventListener("pointerup", (e)=>{
+      clearWsHold();
       if(!wsDrag) return;
       const drag = wsDrag;
       wsDrag = null;
@@ -17759,6 +17855,7 @@ function bindWorkspaceChrome(){
       commitReorder(drag.id, target);
     });
     tabs.addEventListener("pointercancel", ()=>{
+      clearWsHold();
       if(!wsDrag) return;
       wsDrag.el.style.transform = "";
       wsDrag.el.style.zIndex = "";
@@ -17784,11 +17881,23 @@ function bindWorkspaceChrome(){
       });
     }
     const dropMenu = $("wsdropmenu");
-    if(dropMenu) dropMenu.addEventListener("click", (e)=>{
-      const b = e.target.closest && e.target.closest("[data-ws]");
-      if(!b) return;
-      chooseWorkspace(b.getAttribute("data-ws"));
-    });
+    if(dropMenu){
+      dropMenu.addEventListener("click", (e)=>{
+        const b = e.target.closest && e.target.closest("[data-ws]");
+        if(!b) return;
+        chooseWorkspace(b.getAttribute("data-ws"));
+      });
+      dropMenu.addEventListener("keydown", (e)=>{
+        if(e.target && e.target.tagName==="INPUT") return;
+        if(e.key!=="ArrowDown" && e.key!=="ArrowUp") return;
+        const items = [...dropMenu.querySelectorAll("button.wsname, button[data-ws]")];
+        if(!items.length) return;
+        e.preventDefault();
+        const i = items.indexOf(document.activeElement);
+        const next = items[(i<0 ? 0 : i + (e.key==="ArrowDown" ? 1 : -1) + items.length) % items.length];
+        if(next) next.focus();
+      });
+    }
     const drop = $("wsdrop");
     if(drop) drop.onclick = (e)=>{
       e.stopPropagation();
@@ -17824,6 +17933,12 @@ function bindWorkspaceChrome(){
         if(inp){ inp.focus(); try{ inp.select(); }catch(_){} }
         return;
       }
+      const chord = workspaceChord(e);
+      if(chord && !workspaceOverlayOpen()){
+        e.preventDefault();
+        stepWorkspace(chord);
+        return;
+      }
       if(e.key!=="Escape") return;
       const ch = $("wschooser"), m = $("wsdropmenu");
       if(m && !m.hidden){ m.hidden = true; if(drop) drop.setAttribute("aria-expanded","false"); }
@@ -17838,8 +17953,8 @@ function scrollActiveTabIntoView(){
   if(on){
     const left = on.offsetLeft, right = left + on.offsetWidth;
     const viewL = tabsEl.scrollLeft, viewR = viewL + tabsEl.clientWidth;
-    if(left < viewL) tabsEl.scrollLeft = Math.max(0, left - 4);
-    else if(right > viewR) tabsEl.scrollLeft = right - tabsEl.clientWidth + 4;
+    if(left < viewL + 18) tabsEl.scrollLeft = Math.max(0, left - 18);
+    else if(right > viewR - 18) tabsEl.scrollLeft = right - tabsEl.clientWidth + 18;
   }
   syncTabOverflow();
 }
