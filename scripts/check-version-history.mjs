@@ -270,6 +270,8 @@ function checkIndex(root, fail) {
     { tag: "OAuth-redirect resume",       snippet: "applyGraphData(JSON.parse(rs))" },
     { tag: "copilot selectVersion",       snippet: "applyGraphData(clone(v.graph), {carryResults:true})" },
     { tag: "copilot submit",              snippet: "applyGraphData(appliedInternal, {carryResults:true})" },
+    { tag: "workspace rollback restore",  snippet: "applyGraphData(rolled, stash ? {resultStash:stash} : undefined)" },
+    { tag: "import rollback restore",     snippet: "applyGraphData(JSON.parse(canvasJson), liveStash ? {resultStash:liveStash} : undefined)" },
   ];
   // external callers (wholesale swaps): must have resetDescribeVersions nearby. Named so a
   // dropped reset on any of them is caught explicitly, not just via the unclassified path.

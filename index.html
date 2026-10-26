@@ -2264,6 +2264,7 @@ const I18N = {
     "Too many workspaces — close one first.":"Hay demasiados espacios — cierra uno primero.",
     "Couldn’t open a new workspace — your current workflow is unchanged.":"No se pudo abrir un espacio nuevo — tu flujo actual no cambió.",
     "Couldn’t switch — this browser couldn’t store the workspace.":"No se pudo cambiar — este navegador no pudo guardar el espacio.",
+    "Couldn’t save that workspace change.":"No se pudo guardar ese cambio de espacio.",
     "Close “{name}”? This removes it from this browser.":"¿Cerrar “{name}”? Se eliminará de este navegador.",
     "Rename workspace":"Renombrar espacio",
     "Close workspace":"Cerrar espacio",
@@ -3005,6 +3006,7 @@ const I18N = {
     "Too many workspaces — close one first.":"Trop d’espaces — fermez-en un d’abord.",
     "Couldn’t open a new workspace — your current workflow is unchanged.":"Impossible d’ouvrir un nouvel espace — votre workflow actuel est inchangé.",
     "Couldn’t switch — this browser couldn’t store the workspace.":"Impossible de changer — ce navigateur n’a pas pu enregistrer l’espace.",
+    "Couldn’t save that workspace change.":"Impossible d’enregistrer cette modification d’espace.",
     "Close “{name}”? This removes it from this browser.":"Fermer « {name} » ? Cela le retire de ce navigateur.",
     "Rename workspace":"Renommer l’espace",
     "Close workspace":"Fermer l’espace",
@@ -3746,6 +3748,7 @@ const I18N = {
     "Too many workspaces — close one first.":"Zu viele Arbeitsbereiche — schließe zuerst einen.",
     "Couldn’t open a new workspace — your current workflow is unchanged.":"Neuer Arbeitsbereich ließ sich nicht öffnen — dein aktueller Workflow ist unverändert.",
     "Couldn’t switch — this browser couldn’t store the workspace.":"Wechseln nicht möglich — dieser Browser konnte den Arbeitsbereich nicht speichern.",
+    "Couldn’t save that workspace change.":"Diese Arbeitsbereich-Änderung ließ sich nicht speichern.",
     "Close “{name}”? This removes it from this browser.":"„{name}“ schließen? Das entfernt ihn aus diesem Browser.",
     "Rename workspace":"Arbeitsbereich umbenennen",
     "Close workspace":"Arbeitsbereich schließen",
@@ -4487,6 +4490,7 @@ const I18N = {
     "Too many workspaces — close one first.":"Espaços demais — feche um primeiro.",
     "Couldn’t open a new workspace — your current workflow is unchanged.":"Não foi possível abrir um espaço novo — seu fluxo atual não mudou.",
     "Couldn’t switch — this browser couldn’t store the workspace.":"Não foi possível trocar — este navegador não conseguiu guardar o espaço.",
+    "Couldn’t save that workspace change.":"Não foi possível guardar essa alteração de espaço.",
     "Close “{name}”? This removes it from this browser.":"Fechar “{name}”? Isso o remove deste navegador.",
     "Rename workspace":"Renomear espaço",
     "Close workspace":"Fechar espaço",
@@ -5228,6 +5232,7 @@ const I18N = {
     "Too many workspaces — close one first.":"ワークスペースが多すぎます — 先に一つ閉じてください。",
     "Couldn’t open a new workspace — your current workflow is unchanged.":"新しいワークスペースを開けませんでした — 今のワークフローはそのままです。",
     "Couldn’t switch — this browser couldn’t store the workspace.":"切り替えできませんでした — このブラウザはワークスペースを保存できませんでした。",
+    "Couldn’t save that workspace change.":"そのワークスペースの変更を保存できませんでした。",
     "Close “{name}”? This removes it from this browser.":"「{name}」を閉じますか？このブラウザから削除されます。",
     "Rename workspace":"ワークスペースの名前を変更",
     "Close workspace":"ワークスペースを閉じる",
@@ -16647,15 +16652,38 @@ function saveFile(){
 function loadFile(file){
   if(!file) return;
   const r = new FileReader();
-  r.onload = ()=>{ try{
-    // File Load stays IN this workspace (↺ Undo brings the previous graph back, paid results included).
-    // Examples and share links open a new workspace instead — they must not replace the one you are on.
-    const had = graph.nodes.length > 0;   // only park + reassure if there's a workflow to bring back (skip an empty canvas)
-    if(had) pushUndo(true);                // BEFORE the mutation — boundary: an unrelated file replaces the graph; ↺ Undo restores the prior graph + its paid results
-    setPendingApp(null); applyGraphData(JSON.parse(r.result)); window.resetDescribeVersions?.(); save();
-    try{ if(typeof stampActiveExample==="function") stampActiveExample(null); }catch(_){}
-    if(had) toast(t("↺ Undo restores your previous workflow"));   // opening a file replaced your graph — one Ctrl+Z away
-  }catch(e){ alert(t("Couldn’t load that file:")+" "+e.message); } };
+  r.onload = ()=>{
+    let parsed = null;
+    try{ parsed = JSON.parse(r.result); }
+    catch(e){ alert(t("Couldn’t load that file:")+" "+e.message); return; }
+    // Reject a bad file before parking undo or clearing the canvas.
+    if(typeof graphPayloadOk==="function" && !graphPayloadOk(parsed)){
+      alert(t("Couldn’t load that file:")+" invalid graph");
+      return;
+    }
+    const had = graph.nodes.length > 0;
+    let canvasJson = null, stash = null, undoLen = 0, appId = null, appTitle = null, editorShot = null;
+    try{ canvasJson = JSON.stringify(serializeGraph()); }catch(_){}
+    try{ if(typeof _stashResults==="function") stash = _stashResults(); }catch(_){}
+    try{ undoLen = undoStack.length; }catch(_){}
+    try{ appId = pendingAppId; appTitle = pendingAppTitle; }catch(_){}
+    try{ if(typeof wsSnapshotKey==="function") editorShot = wsSnapshotKey(EDITOR_APP_KEY); }catch(_){}
+    try{
+      // File Load stays IN this workspace (↺ Undo brings the previous graph back, paid results included).
+      // Examples and share links open a new workspace instead — they must not replace the one you are on.
+      if(had) pushUndo(true);                // BEFORE the mutation — boundary: an unrelated file replaces the graph; ↺ Undo restores the prior graph + its paid results
+      setPendingApp(null); applyGraphData(JSON.parse(r.result)); window.resetDescribeVersions?.(); save();
+      try{ if(typeof stampActiveExample==="function") stampActiveExample(null); }
+      catch(_){ if(typeof wsStorageError==="function") wsStorageError("save"); }
+      if(had) toast(t("↺ Undo restores your previous workflow"));   // opening a file replaced your graph — one Ctrl+Z away
+    }catch(e){
+      try{ if(typeof undoStack!=="undefined" && undoStack.length>undoLen) undoStack.splice(undoLen); }catch(_){}
+      try{ if(canvasJson && typeof reapplyWorkspaceGraph==="function") reapplyWorkspaceGraph(canvasJson, stash); }catch(_){}
+      try{ if(typeof pendingAppId!=="undefined"){ pendingAppId = appId; pendingAppTitle = appTitle; } }catch(_){}
+      try{ if(editorShot && typeof wsRestoreKey==="function") wsRestoreKey(EDITOR_APP_KEY, editorShot); }catch(_){}
+      alert(t("Couldn’t load that file:")+" "+e.message);
+    }
+  };
   r.readAsText(file);
 }
 $("save").onclick = saveFile;
@@ -17025,14 +17053,16 @@ let pendingAppTitle = null;   // the loaded app's name, for the page title (carr
 // EVERY place that changes which app this workflow targets must go through here — that's
 // what stops a stale id from silently re-targeting an old app on the next "Create app".
 function setPendingApp(id, title){
-  pendingAppId = id || null;
-  pendingAppTitle = pendingAppId ? (title || null) : null;
-  try{
-    if(pendingAppId) localStorage.setItem(EDITOR_APP_KEY, JSON.stringify({ id:pendingAppId, title:pendingAppTitle }));
-    else localStorage.removeItem(EDITOR_APP_KEY);
-  }catch(_){}
-  try{ if(typeof stampActiveApp==="function") stampActiveApp(); }catch(_){}
-  updateTitle();
+  const nextId = id || null;
+  const nextTitle = nextId ? (title || null) : null;
+  // Storage first, then memory. A quota miss throws so a workspace switch or
+  // import can put the previous binding back instead of keeping a half-written one.
+  if(nextId) localStorage.setItem(EDITOR_APP_KEY, JSON.stringify({ id:nextId, title:nextTitle }));
+  else localStorage.removeItem(EDITOR_APP_KEY);
+  pendingAppId = nextId;
+  pendingAppTitle = nextTitle;
+  if(typeof stampActiveApp==="function") stampActiveApp();
+  try{ updateTitle(); }catch(_){}
 }
 // True only when the canvas is bound to an app AND that app's SAVED graph matches the canvas —
 // i.e. there is genuinely nothing to Update. appSyncSig = content + node layout: rearranging
@@ -17178,7 +17208,7 @@ function stampActiveExample(slug){
   if(!cur) return;
   if(slug) cur.example = String(slug);
   else delete cur.example;
-  try{ writeWorkspaces(d); }catch(_){}
+  writeWorkspaces(d);
 }
 function readWorkspaces(){
   try{
@@ -17189,6 +17219,117 @@ function readWorkspaces(){
   }catch(_){ return null; }
 }
 function writeWorkspaces(d){ localStorage.setItem(WS_INDEX_KEY, JSON.stringify(d)); }
+function wsStorageError(kind){
+  const msg = kind==="switch"
+    ? "Couldn’t switch — this browser couldn’t store the workspace."
+    : kind==="open"
+    ? "Couldn’t open a new workspace — your current workflow is unchanged."
+    : "Couldn’t save that workspace change.";
+  try{ toast(wsT(msg), "err"); }catch(_){}
+}
+function wsSnapshotKey(key){
+  try{
+    const value = localStorage.getItem(key);
+    return { present: value!==null, value };
+  }catch(_){ return { present:false, value:null }; }
+}
+function wsRestoreKey(key, shot){
+  if(!shot || !shot.present) localStorage.removeItem(key);
+  else localStorage.setItem(key, shot.value);
+}
+function captureResults(id){
+  return { had: !!(id && workspaceResults.has(id)), entry: id ? workspaceResults.get(id) : null };
+}
+function restoreResults(id, shot){
+  if(!id || !shot) return;
+  if(shot.had) workspaceResults.set(id, shot.entry);
+  else workspaceResults.delete(id);
+}
+function captureHist(id){
+  const undo = (typeof undoStack!=="undefined") ? undoStack.slice() : [];
+  const redo = (typeof redoStack!=="undefined") ? redoStack.slice() : [];
+  return { had: !!(id && workspaceHist.has(id)), entry: id ? (workspaceHist.get(id) || null) : null, undo, redo };
+}
+function restoreHist(id, shot){
+  if(!shot) return;
+  if(typeof undoStack!=="undefined"){
+    undoStack.splice(0, undoStack.length, ...(shot.undo||[]));
+    redoStack.splice(0, redoStack.length, ...(shot.redo||[]));
+  }
+  if(id){
+    if(shot.had) workspaceHist.set(id, shot.entry);
+    else workspaceHist.delete(id);
+  }
+  try{ syncUndoBtn(); }catch(_){}
+}
+// Put a graph back on the canvas after a failed switch/import. Same workflow,
+// so this is not a describe-version reset — the caller still has the old chips.
+function reapplyWorkspaceGraph(json, stash){
+  const rolled = typeof json==="string" ? JSON.parse(json) : json;
+  const wasMuted = (typeof undoMuted!=="undefined") ? undoMuted : false;
+  if(typeof undoMuted!=="undefined") undoMuted = true;
+  try{ applyGraphData(rolled, stash ? {resultStash:stash} : undefined); }
+  finally{ if(typeof undoMuted!=="undefined") undoMuted = wasMuted; }
+}
+function workspaceShot(activeId){
+  const id = activeId || ((typeof readWorkspaces==="function" && readWorkspaces()) ? readWorkspaces().active : null);
+  let canvas = null, stash = null;
+  try{ canvas = JSON.stringify(serializeGraph()); }catch(_){}
+  try{ if(typeof _stashResults==="function") stash = _stashResults(); }catch(_){}
+  return {
+    id,
+    graph: wsSnapshotKey("noodle_graph"),
+    index: wsSnapshotKey(WS_INDEX_KEY),
+    editor: wsSnapshotKey(EDITOR_APP_KEY),
+    leaving: id ? wsSnapshotKey(wsGraphKey(id)) : { present:false, value:null },
+    appId: (typeof pendingAppId!=="undefined") ? pendingAppId : null,
+    appTitle: (typeof pendingAppTitle!=="undefined") ? pendingAppTitle : null,
+    res: id ? captureResults(id) : null,
+    hist: id ? captureHist(id) : null,
+    canvas, stash,
+  };
+}
+function workspaceRollback(shot, extra){
+  if(!shot) return;
+  extra = extra || {};
+  try{ wsRestoreKey("noodle_graph", shot.graph); }catch(_){}
+  try{ wsRestoreKey(WS_INDEX_KEY, shot.index); }catch(_){}
+  try{ wsRestoreKey(EDITOR_APP_KEY, shot.editor); }catch(_){}
+  if(shot.id){ try{ wsRestoreKey(wsGraphKey(shot.id), shot.leaving); }catch(_){} }
+  if(extra.removeId){ try{ localStorage.removeItem(wsGraphKey(extra.removeId)); }catch(_){} }
+  if(shot.id && shot.res) restoreResults(shot.id, shot.res);
+  if(extra.resId) restoreResults(extra.resId, extra.res);
+  if(extra.histId && extra.hist) restoreHist(extra.histId, extra.hist);
+  if(shot.id && shot.hist) restoreHist(shot.id, shot.hist);
+  if(typeof pendingAppId!=="undefined"){ pendingAppId = shot.appId; pendingAppTitle = shot.appTitle; }
+  if(extra.canvas && shot.canvas){ try{ reapplyWorkspaceGraph(shot.canvas, shot.stash); }catch(_){} }
+  try{ if(typeof updateTitle==="function") updateTitle(); }catch(_){}
+  try{ renderWorkspaces(); }catch(_){}
+}
+// Every node and every link, before a share link is allowed to touch a tab.
+// A null node used to pass the array check, add a tab, then throw inside apply
+// after the canvas had already been cleared.
+function graphPayloadOk(g){
+  if(!g || typeof g!=="object" || Array.isArray(g) || !Array.isArray(g.nodes)) return false;
+  if(g.links!=null && !Array.isArray(g.links)) return false;
+  const ids = new Set();
+  for(const n of g.nodes){
+    if(!n || typeof n!=="object" || Array.isArray(n)) return false;
+    if(typeof n.id!=="string" || !n.id || typeof n.type!=="string" || !n.type) return false;
+    if(!n.fields || typeof n.fields!=="object" || Array.isArray(n.fields)) return false;
+    if(ids.has(n.id)) return false;
+    ids.add(n.id);
+  }
+  for(const l of (g.links||[])){
+    if(!l || typeof l!=="object" || Array.isArray(l)) return false;
+    const a = l.from, b = l.to;
+    if(!a || typeof a!=="object" || Array.isArray(a) || !b || typeof b!=="object" || Array.isArray(b)) return false;
+    if(typeof a.node!=="string" || typeof a.port!=="string" || !a.port) return false;
+    if(typeof b.node!=="string" || typeof b.port!=="string" || !b.port) return false;
+    if(!ids.has(a.node) || !ids.has(b.node)) return false;
+  }
+  return true;
+}
 function ensureWorkspaces(){
   const existing = readWorkspaces();
   if(existing) return existing;
@@ -17198,7 +17339,7 @@ function ensureWorkspaces(){
   const name = (named && !WS_GENERIC_NAME.test(named) ? named : "") || purposeName(raw) || wsT("Workflow");
   const app = editorAppBinding();
   const d = { v:1, active:"w1", seq:1, tabs:[{ id:"w1", name, app: app ? { id:app.id, title:app.title || null } : null }] };
-  try{ writeWorkspaces(d); }catch(_){}
+  writeWorkspaces(d);
   return d;
 }
 function uniqueWorkspaceName(base, tabs){
@@ -17283,75 +17424,94 @@ function askModelGraph(){
   };
 }
 function shelvePreviousWorkspace(prevJson, prevApp, newName){
+  if(!graphHasNodes(prevJson)) return false;
+  let d;
+  try{ d = ensureWorkspaces(); }catch(_){ return false; }
+  const cur = d.tabs.find(t => t.id===d.active) || d.tabs[0];
+  if(!cur) return false;
+  const shot = workspaceShot(cur.id);
+  let newId = null;
   try{
-    if(!graphHasNodes(prevJson)) return false;
-    const d = ensureWorkspaces();
-    const cur = d.tabs.find(t => t.id===d.active) || d.tabs[0];
-    if(!cur) return false;
     localStorage.setItem(wsGraphKey(cur.id), String(prevJson));
     try{ if(typeof _stashResults==="function") workspaceResults.set(cur.id, _stashResults()); }catch(_){}
     cur.app = (prevApp && prevApp.id) ? { id:prevApp.id, title:prevApp.title || null } : null;
     d.seq = (d.seq|0) + 1;
     while(d.tabs.some(t => t.id==="w"+d.seq)) d.seq++;
-    const id = "w"+d.seq;
-    const neu = { id, name:uniqueWorkspaceName(newName || wsT("Workflow"), d.tabs), app:null };
+    newId = "w"+d.seq;
+    const neu = { id:newId, name:uniqueWorkspaceName(newName || wsT("Workflow"), d.tabs), app:null };
     if(typeof pendingAppId!=="undefined" && pendingAppId)
       neu.app = { id:pendingAppId, title:(typeof pendingAppTitle!=="undefined" && pendingAppTitle) || null };
     d.tabs.push(neu);
-    d.active = id;
+    d.active = newId;
     writeWorkspaces(d);
-    try{ parkWorkspaceHistory(cur.id); }catch(_){}
+    parkWorkspaceHistory(cur.id);
     try{ renderWorkspaces(); }catch(_){}
     return true;
-  }catch(_){ return false; }
+  }catch(_){
+    workspaceRollback(shot, { removeId:newId });
+    return false;
+  }
 }
 function openWorkspaceWithGraph(data, name, opts){
   opts = opts || {};
   if(workspaceBusy()){ flash("can’t change the workflow while running — Stop first"); return false; }
   const had = !!(graph.nodes && graph.nodes.length);
   if(had){
-    const d0 = readWorkspaces() || ensureWorkspaces();
+    let d0 = readWorkspaces();
+    if(!d0){ try{ d0 = ensureWorkspaces(); }catch(_){ wsStorageError("open"); return false; } }
     if(opts.respectCap && d0.tabs.length >= WS_CAP){
       toast(wsT("Too many workspaces — close one first."), "warn");
       return false;
     }
-    const prev = flushSave();
-    if(!prev){
-      toast(wsT("Couldn’t open a new workspace — your current workflow is unchanged."), "err");
-      return false;
-    }
-    let prevApp = null;
-    try{ prevApp = editorAppBinding(); }catch(_){}
-    if(!shelvePreviousWorkspace(prev, prevApp, name)){
-      toast(wsT("Couldn’t open a new workspace — your current workflow is unchanged."), "err");
-      return false;
-    }
   }
-  const wasMuted = undoMuted;
-  undoMuted = true;
+  // Shot is the pre-attempt state. A later write that fails puts every key,
+  // the canvas, and the undo stacks back to this — including a flush that
+  // already landed — so the open never leaves the new graph behind.
+  const shot = workspaceShot();
+  let newId = null;
+  let canvasTouched = false;
   try{
-    setPendingApp(null);
-    applyGraphData(data);
-    window.resetDescribeVersions?.();
-    if(opts.fit && typeof fitView==="function") fitView();
-  }finally{ undoMuted = wasMuted; }
-  if(!had){
-    const d = ensureWorkspaces();
-    const cur = d.tabs.find(t => t.id===d.active);
-    if(cur){
-      cur.name = uniqueWorkspaceName(name || wsT("Untitled"), d.tabs.filter(t => t.id!==cur.id));
-      cur.app = null;
-      try{ writeWorkspaces(d); }catch(_){}
+    if(had){
+      const prev = flushSave();
+      if(!prev){ wsStorageError("open"); return false; }
+      let prevApp = null;
+      try{ prevApp = editorAppBinding(); }catch(_){}
+      if(!shelvePreviousWorkspace(prev, prevApp, name)){ wsStorageError("open"); return false; }
+      const now = readWorkspaces();
+      newId = now && now.active;
     }
+    const wasMuted = undoMuted;
+    undoMuted = true;
+    try{
+      canvasTouched = true;
+      setPendingApp(null);
+      applyGraphData(data);
+      window.resetDescribeVersions?.();
+      if(opts.fit && typeof fitView==="function") fitView();
+    }finally{ undoMuted = wasMuted; }
+    if(!had){
+      const d = ensureWorkspaces();
+      const cur = d.tabs.find(t => t.id===d.active);
+      if(cur){
+        cur.name = uniqueWorkspaceName(name || wsT("Untitled"), d.tabs.filter(t => t.id!==cur.id));
+        cur.app = null;
+        writeWorkspaces(d);
+      }
+    }
+    if(!flushSave()) throw new Error("store");
+    stampActiveExample(opts.example || null);
+  }catch(_){
+    workspaceRollback(shot, { removeId:newId, canvas:canvasTouched });
+    wsStorageError("open");
+    return false;
   }
-  flushSave();
-  try{ stampActiveExample(opts.example || null); }catch(_){}
   try{ renderWorkspaces(); }catch(_){}
   return true;
 }
 function openExampleWorkspace(graphData, name, slug){
   if(workspaceBusy()){ flash("can’t change the workflow while running — Stop first"); return false; }
-  const d = readWorkspaces() || ensureWorkspaces();
+  let d = readWorkspaces();
+  if(!d){ try{ d = ensureWorkspaces(); }catch(_){ wsStorageError("open"); return false; } }
   const existing = slug && d.tabs.find(t => t.example===slug);
   if(existing){
     if(d.active!==existing.id) switchWorkspace(existing.id);
@@ -17372,100 +17532,163 @@ function switchWorkspace(id){
   // The live canvas, not whatever getItem returns. A quota failure used to be swallowed
   // by flushSave, and the next lines then copied the stale autosave onto this tab.
   const snap = flushSave();
-  if(!snap){
-    toast(wsT("Couldn’t switch — this browser couldn’t store the workspace."), "err");
-    return;
-  }
-  try{ if(typeof _stashResults==="function") workspaceResults.set(leaving.id, _stashResults()); }catch(_){}
-  try{ localStorage.setItem(wsGraphKey(leaving.id), snap); }
-  catch(_){ toast(wsT("Couldn’t switch — this browser couldn’t store the workspace."), "err"); return; }
+  if(!snap){ wsStorageError("switch"); return; }
+  // Everything after this flush is one transaction. The shot is the source tab
+  // AFTER that flush, so a later miss (the active-pointer write included) puts
+  // noodle_graph, the leaving key, the index, and the canvas back together.
+  const shot = workspaceShot(leaving.id);
+  const destHist = captureHist(id);
+  const destRes = captureResults(id);
+  try{ if(shot.stash) workspaceResults.set(leaving.id, shot.stash); }catch(_){}
   let raw = null;
   try{ raw = localStorage.getItem(wsGraphKey(id)); }catch(_){}
-  // Land the destination in noodle_graph before touching the canvas or the active id.
-  // If this write fails, the tab we are on is still the one on screen and still the one stored.
-  try{ localStorage.setItem("noodle_graph", raw || JSON.stringify(blankGraph())); }
-  catch(_){ toast(wsT("Couldn’t switch — this browser couldn’t store the workspace."), "err"); return; }
-  parkWorkspaceHistory(leaving.id);
-  d.active = id;
-  try{ writeWorkspaces(d); }catch(_){}
-  const wasMuted = undoMuted;
-  undoMuted = true;
+  let destObj = null;
+  if(raw){ try{ destObj = JSON.parse(raw); }catch(_){ destObj = null; } }
+  if(raw && !destObj){
+    restoreResults(leaving.id, shot.res);
+    wsStorageError("switch");
+    return;
+  }
+  const destJson = destObj ? raw : JSON.stringify(blankGraph());
+  let canvasTouched = false;
   try{
-    const stash = workspaceResults.get(id) || null;
-    if(raw) applyGraphData(JSON.parse(raw), stash ? {resultStash:stash} : undefined);
-    else applyGraphData(blankGraph());
-    window.resetDescribeVersions?.();
-    const app = next.app;
-    setPendingApp(app && app.id ? app.id : null, app && app.title);
-  }finally{ undoMuted = wasMuted; }
-  restoreWorkspaceHistory(id);
-  flushSave();
+    localStorage.setItem(wsGraphKey(leaving.id), snap);
+    localStorage.setItem("noodle_graph", destJson);
+    d.active = id;
+    writeWorkspaces(d);
+    parkWorkspaceHistory(leaving.id);
+    const wasMuted = undoMuted;
+    undoMuted = true;
+    try{
+      canvasTouched = true;
+      const stash = workspaceResults.get(id) || null;
+      if(destObj) applyGraphData(destObj, stash ? {resultStash:stash} : undefined);
+      else applyGraphData(blankGraph());
+      window.resetDescribeVersions?.();
+      const app = next.app;
+      setPendingApp(app && app.id ? app.id : null, app && app.title);
+    }finally{ undoMuted = wasMuted; }
+    restoreWorkspaceHistory(id);
+    if(!flushSave()) throw new Error("store");
+  }catch(_){
+    workspaceRollback(shot, { canvas:canvasTouched, histId:id, hist:destHist, resId:id, res:destRes });
+    wsStorageError("switch");
+    return;
+  }
   try{ renderWorkspaces(); }catch(_){}
 }
 function closeWorkspace(id){
   if(workspaceBusy()){ flash("can’t change the workflow while running — Stop first"); return; }
-  const d = ensureWorkspaces();
+  let d;
+  try{ d = ensureWorkspaces(); }catch(_){ wsStorageError("save"); return; }
   const tab = d.tabs.find(t => t.id===id);
   if(!tab) return;
   let raw = null;
   if(d.active===id){ try{ raw = JSON.stringify(serializeGraph()); }catch(_){} }
   else { try{ raw = localStorage.getItem(wsGraphKey(id)); }catch(_){} }
   const occupied = graphHasNodes(raw);
-  if(d.tabs.length===1){
-    if(!occupied) return;
+  const confirmClose = ()=>{
     const msg = wsT("Close “{name}”? This removes it from this browser.").replace("{name}", tab.name);
     let ok = true;
     try{ ok = confirm(msg); }catch(_){ ok = true; }
-    if(!ok) return;
-    workspaceResults.delete(id);
-    workspaceHist.delete(id);
-    try{ localStorage.removeItem(wsGraphKey(id)); }catch(_){}
-    tab.name = wsT("Untitled");
-    tab.app = null;
-    try{ writeWorkspaces(d); }catch(_){}
-    const wasMuted = undoMuted;
-    undoMuted = true;
+    return ok;
+  };
+  if(d.tabs.length===1){
+    if(!occupied) return;
+    if(!confirmClose()) return;
+    const shot = workspaceShot(id);
+    const res = captureResults(id);
+    const hist = captureHist(id);
+    let canvasTouched = false;
     try{
-      setPendingApp(null);
-      applyGraphData(blankGraph());
-      window.resetDescribeVersions?.();
-    }finally{ undoMuted = wasMuted; }
-    restoreWorkspaceHistory(null);
-    flushSave();
+      tab.name = wsT("Untitled");
+      tab.app = null;
+      delete tab.example;
+      writeWorkspaces(d);
+      localStorage.removeItem(wsGraphKey(id));
+      const wasMuted = undoMuted;
+      undoMuted = true;
+      try{
+        canvasTouched = true;
+        setPendingApp(null);
+        applyGraphData(blankGraph());
+        window.resetDescribeVersions?.();
+      }finally{ undoMuted = wasMuted; }
+      workspaceResults.delete(id);
+      workspaceHist.delete(id);
+      restoreWorkspaceHistory(null);
+      if(!flushSave()) throw new Error("store");
+    }catch(_){
+      workspaceRollback(shot, { canvas:canvasTouched, resId:id, res, histId:id, hist });
+      wsStorageError("save");
+      return;
+    }
     try{ renderWorkspaces(); }catch(_){}
     return;
   }
-  if(occupied){
-    const msg = wsT("Close “{name}”? This removes it from this browser.").replace("{name}", tab.name);
-    let ok = true;
-    try{ ok = confirm(msg); }catch(_){ ok = true; }
-    if(!ok) return;
-  }
-  workspaceResults.delete(id);
-  workspaceHist.delete(id);
-  try{ localStorage.removeItem(wsGraphKey(id)); }catch(_){}
+  if(occupied && !confirmClose()) return;
   const idx = d.tabs.findIndex(t => t.id===id);
-  d.tabs.splice(idx, 1);
-  if(d.active===id){
-    const neighbor = d.tabs[Math.max(0, idx-1)] || d.tabs[0];
+  if(d.active!==id){
+    const shot = workspaceShot(d.active);
+    const closedKey = wsSnapshotKey(wsGraphKey(id));
+    d.tabs.splice(idx, 1);
+    try{
+      writeWorkspaces(d);
+      localStorage.removeItem(wsGraphKey(id));
+    }catch(_){
+      try{ wsRestoreKey(wsGraphKey(id), closedKey); }catch(_){}
+      workspaceRollback(shot);
+      wsStorageError("save");
+      return;
+    }
+    workspaceResults.delete(id);
+    workspaceHist.delete(id);
+    try{ renderWorkspaces(); }catch(_){}
+    return;
+  }
+  const neighbor = d.tabs[idx===0 ? 1 : idx-1];
+  let nraw = null;
+  try{ nraw = localStorage.getItem(wsGraphKey(neighbor.id)); }catch(_){}
+  let nobj = null;
+  if(nraw){ try{ nobj = JSON.parse(nraw); }catch(_){ nobj = null; } }
+  const destJson = nobj ? nraw : JSON.stringify(blankGraph());
+  const shot = workspaceShot(id);
+  const closedRes = captureResults(id);
+  const closedHist = captureHist(id);
+  const neighborRes = captureResults(neighbor.id);
+  const neighborHist = captureHist(neighbor.id);
+  let canvasTouched = false;
+  try{
+    d.tabs.splice(idx, 1);
     d.active = neighbor.id;
-    try{ writeWorkspaces(d); }catch(_){}
-    let nraw = null;
-    try{ nraw = localStorage.getItem(wsGraphKey(neighbor.id)); }catch(_){}
+    writeWorkspaces(d);
+    localStorage.setItem("noodle_graph", destJson);
+    localStorage.removeItem(wsGraphKey(id));
     const wasMuted = undoMuted;
     undoMuted = true;
     try{
+      canvasTouched = true;
       const stash = workspaceResults.get(neighbor.id) || null;
-      if(nraw) applyGraphData(JSON.parse(nraw), stash ? {resultStash:stash} : undefined);
+      if(nobj) applyGraphData(nobj, stash ? {resultStash:stash} : undefined);
       else applyGraphData(blankGraph());
       window.resetDescribeVersions?.();
       const app = neighbor.app;
       setPendingApp(app && app.id ? app.id : null, app && app.title);
     }finally{ undoMuted = wasMuted; }
+    workspaceResults.delete(id);
+    workspaceHist.delete(id);
     restoreWorkspaceHistory(neighbor.id);
-    flushSave();
-  } else {
-    try{ writeWorkspaces(d); }catch(_){}
+    if(!flushSave()) throw new Error("store");
+  }catch(_){
+    workspaceRollback(shot, {
+      canvas:canvasTouched,
+      resId:id, res:closedRes,
+      histId:id, hist:closedHist,
+    });
+    restoreResults(neighbor.id, neighborRes);
+    restoreHist(neighbor.id, neighborHist);
+    wsStorageError("save");
+    return;
   }
   try{ renderWorkspaces(); }catch(_){}
 }
@@ -17482,8 +17705,15 @@ function renameWorkspace(id, name, opts){
     return;
   }
   next = uniqueWorkspaceName(next, d.tabs.filter(t => t.id!==id));
+  const prev = wsSnapshotKey(WS_INDEX_KEY);
   tab.name = next;
-  try{ writeWorkspaces(d); }catch(_){}
+  try{ writeWorkspaces(d); }
+  catch(_){
+    try{ wsRestoreKey(WS_INDEX_KEY, prev); }catch(_){}
+    wsStorageError("save");
+    try{ renderWorkspaces(); }catch(_){}
+    return;
+  }
   if(!opts || opts.render!==false){ try{ renderWorkspaces(); }catch(_){} }
 }
 function commitReorder(id, toIndex){
@@ -17493,9 +17723,16 @@ function commitReorder(id, toIndex){
   if(from<0) return;
   const dest = Math.max(0, Math.min(d.tabs.length-1, toIndex>from ? toIndex-1 : toIndex));
   if(dest===from) return;
+  const prev = wsSnapshotKey(WS_INDEX_KEY);
   const [tab] = d.tabs.splice(from, 1);
   d.tabs.splice(dest, 0, tab);
-  try{ writeWorkspaces(d); }catch(_){}
+  try{ writeWorkspaces(d); }
+  catch(_){
+    try{ wsRestoreKey(WS_INDEX_KEY, prev); }catch(_){}
+    wsStorageError("save");
+    try{ renderWorkspaces(); }catch(_){}
+    return;
+  }
   try{ renderWorkspaces(); }catch(_){}
 }
 function tabOccupied(d, tab){
@@ -18020,7 +18257,13 @@ function noteFreshWorkspaceName(){
     if(!purpose) return;
     cur.name = uniqueWorkspaceName(wsT(purpose), d.tabs.filter(t => t.id!==cur.id));
   } else cur.name = uniqueWorkspaceName(String(named.name).trim(), d.tabs.filter(t => t.id!==cur.id));
-  try{ writeWorkspaces(d); }catch(_){}
+  const prev = wsSnapshotKey(WS_INDEX_KEY);
+  try{ writeWorkspaces(d); }
+  catch(_){
+    try{ wsRestoreKey(WS_INDEX_KEY, prev); }catch(_){}
+    wsStorageError("save");
+    return;
+  }
   try{ renderWorkspaces(); }catch(_){}
 }
 /* WORKSPACES-END */
@@ -18037,9 +18280,64 @@ async function loadFromHash(){
   let incoming = null;
   try{ incoming = JSON.parse(json); }catch{ return false; }
   const graphData = ga ? incoming && incoming.graph : incoming;
-  // A payload that cannot be a graph must fail before any save or shelve. {nodes:5}
-  // used to throw inside apply and skip the shelve; it still must do neither.
-  if(!graphData || typeof graphData!=="object" || !Array.isArray(graphData.nodes)) return false;
+  // Shape of every node and every link, before a tab is added or the canvas cleared.
+  // {nodes:[null]} and a link to a missing id used to pass the array check.
+  const payloadOk = (typeof graphPayloadOk==="function") ? graphPayloadOk : function(g){
+    if(!g || typeof g!=="object" || Array.isArray(g) || !Array.isArray(g.nodes)) return false;
+    if(g.links!=null && !Array.isArray(g.links)) return false;
+    const ids = new Set();
+    for(const n of g.nodes){
+      if(!n || typeof n!=="object" || Array.isArray(n)) return false;
+      if(typeof n.id!=="string" || !n.id || typeof n.type!=="string" || !n.type) return false;
+      if(!n.fields || typeof n.fields!=="object" || Array.isArray(n.fields)) return false;
+      if(ids.has(n.id)) return false;
+      ids.add(n.id);
+    }
+    for(const l of (g.links||[])){
+      if(!l || typeof l!=="object" || Array.isArray(l)) return false;
+      const a = l.from, b = l.to;
+      if(!a || typeof a!=="object" || Array.isArray(a) || !b || typeof b!=="object" || Array.isArray(b)) return false;
+      if(typeof a.node!=="string" || typeof a.port!=="string" || !a.port) return false;
+      if(typeof b.node!=="string" || typeof b.port!=="string" || !b.port) return false;
+      if(!ids.has(a.node) || !ids.has(b.node)) return false;
+    }
+    return true;
+  };
+  if(!payloadOk(graphData)) return false;
+  const keepId = (typeof pendingAppId!=="undefined") ? pendingAppId : null;
+  const keepTitle = (typeof pendingAppTitle!=="undefined") ? pendingAppTitle : null;
+  const undoBefore = (typeof undoStack!=="undefined") ? undoStack.slice() : null;
+  const redoBefore = (typeof redoStack!=="undefined") ? redoStack.slice() : null;
+  let canvasJson = null, liveStash = null;
+  try{ canvasJson = JSON.stringify(serializeGraph()); }catch(_){}
+  try{ if(typeof _stashResults==="function") liveStash = _stashResults(); }catch(_){}
+  const activeBefore = (typeof readWorkspaces==="function" && readWorkspaces()) ? readWorkspaces().active : null;
+  const useWs = typeof workspaceShot==="function";
+  const shot = useWs ? workspaceShot(activeBefore) : null;
+  let canvasTouched = false, newActive = null;
+  const sayUnchanged = ()=>{
+    try{ toast((typeof wsT==="function" ? wsT : t)("Couldn’t open a new workspace — your current workflow is unchanged.")); }catch(_){}
+  };
+  let storedGraph;
+  try{ storedGraph = localStorage.getItem("noodle_graph"); }catch(_){ storedGraph = undefined; }
+  const rollbackImport = ()=>{
+    if(shot) workspaceRollback(shot, { removeId: newActive && newActive!==activeBefore ? newActive : null, canvas: canvasTouched });
+    else {
+      try{
+        if(storedGraph===undefined || storedGraph===null) localStorage.removeItem("noodle_graph");
+        else localStorage.setItem("noodle_graph", storedGraph);
+      }catch(_){}
+      if(canvasTouched && canvasJson){
+        try{ applyGraphData(JSON.parse(canvasJson), liveStash ? {resultStash:liveStash} : undefined); }catch(_){}
+      }
+      if(undoBefore && typeof undoStack!=="undefined"){
+        undoStack.splice(0, undoStack.length, ...undoBefore);
+        redoStack.splice(0, redoStack.length, ...redoBefore);
+        try{ syncUndoBtn(); }catch(_){}
+      }
+    }
+    if(typeof pendingAppId!=="undefined"){ pendingAppId = keepId; pendingAppTitle = keepTitle; }
+  };
   try{
     // Snapshot the canvas we are leaving BEFORE apply replaces it. An unsaved text edit
     // and a paid result live only in memory; reading noodle_graph after apply (or instead
@@ -18049,10 +18347,7 @@ async function loadFromHash(){
     if(had && typeof flushSave==="function"){
       // Live canvas. A quota miss returns null — do not apply the incoming graph over it.
       prev = flushSave();
-      if(!prev){
-        try{ toast((typeof wsT==="function" ? wsT : t)("Couldn’t open a new workspace — your current workflow is unchanged.")); }catch(_){}
-        return false;
-      }
+      if(!prev){ sayUnchanged(); return false; }
     } else {
       // Empty canvas, or a runtime that has no workspace save (the pre-tab undo park).
       // Keep the stored bytes — serializing an empty canvas would wipe them.
@@ -18061,29 +18356,30 @@ async function loadFromHash(){
     try{ if(typeof editorAppBinding==="function") prevApp = editorAppBinding(); }catch(_){}
     // shelve stamps the new tab from pendingAppId. Point that at the incoming app
     // without setPendingApp, which would rewrite the tab we are leaving.
-    const keepId = (typeof pendingAppId!=="undefined") ? pendingAppId : null;
-    const keepTitle = (typeof pendingAppTitle!=="undefined") ? pendingAppTitle : null;
     if(typeof pendingAppId!=="undefined"){
       if(ga){ pendingAppId = (incoming && incoming.appId) || null; pendingAppTitle = pendingAppId ? ((incoming && incoming.title) || null) : null; }
       else { pendingAppId = null; pendingAppTitle = null; }
     }
     let shelved = false;
-    try{
-      if(prev && typeof shelvePreviousWorkspace==="function"){
-        const label = (typeof workspaceLabelForGraph==="function")
-          ? workspaceLabelForGraph(json, ga)
-          : (ga ? "Shared app" : "Shared workflow");
-        shelved = !!shelvePreviousWorkspace(prev, prevApp, typeof t==="function" ? t(label) : label);
-      }
-    }catch(_){}
+    if(prev && typeof shelvePreviousWorkspace==="function"){
+      const label = (typeof workspaceLabelForGraph==="function")
+        ? workspaceLabelForGraph(json, ga)
+        : (ga ? "Shared app" : "Shared workflow");
+      shelved = !!shelvePreviousWorkspace(prev, prevApp, typeof t==="function" ? t(label) : label);
+    }
     // shelve is how this page keeps the workflow you were on. If it is here and it
     // did not take the live graph, stop — applying now would drop that graph.
     // A runtime without it (the pre-tab undo park) still applies, then parks below.
     if(had && typeof shelvePreviousWorkspace==="function" && !shelved){
       if(typeof pendingAppId!=="undefined"){ pendingAppId = keepId; pendingAppTitle = keepTitle; }
-      try{ toast((typeof wsT==="function" ? wsT : t)("Couldn’t open a new workspace — your current workflow is unchanged.")); }catch(_){}
+      sayUnchanged();
       return false;
     }
+    if(typeof readWorkspaces==="function"){
+      const now = readWorkspaces();
+      if(now && now.active!==activeBefore) newActive = now.active;
+    }
+    canvasTouched = true;
     if(ga) setPendingApp(incoming.appId, incoming.title);
     else setPendingApp(null);
     applyGraphData(graphData);
@@ -18096,10 +18392,15 @@ async function loadFromHash(){
     } else if(shelved && !ga){
       toast(t("Opened in a new workspace — the one you were on is still here."));
     }
-    history.replaceState({}, "", location.pathname + location.search); // consume the link; edits now win
-    save();
+    if(typeof flushSave==="function"){ if(!flushSave()) throw new Error("store"); }
+    else save();
+    try{ history.replaceState({}, "", location.pathname + location.search); }catch(_){} // consume the link; edits now win
     return true;
-  }catch{ return false; }
+  }catch(_){
+    rollbackImport();
+    sayUnchanged();
+    return false;
+  }
 }
 $("share").onclick = ()=> shareUrl().catch(e=> flash(t("share failed")+": "+e.message));
 $("shareback").onclick = closeShareMenu;
@@ -18265,7 +18566,7 @@ async function openCreateApp(){
 $("makeapp").onclick = openCreateApp;
 // "✨ New" (shown only while this workflow is bound to an app): unlink first, then open the
 // builder on a plain #g= handoff so it mints a brand-new app instead of updating the bound one.
-$("newapp").onclick = ()=>{ $("apppop").classList.remove("open"); setPendingApp(null); openCreateApp(); };
+$("newapp").onclick = ()=>{ $("apppop").classList.remove("open"); try{ setPendingApp(null); }catch(_){ flash("couldn’t autosave — a photo, audio clip, or 3D file may be too large for local storage"); return; } openCreateApp(); };
 $("openapps").onclick = openMyApps;
 // Caret next to "Update app": reveal the "Save as a new app" fork (desktop only — phones hide the caret and layoutBar moves the fork into ⋯).
 $("appmore").onclick = (e)=>{ e.stopPropagation(); $("apppop").classList.toggle("open"); };
@@ -18321,8 +18622,22 @@ addEventListener("message", e=>{
     if(e.data.graph){ try{ sameFlow = (!!e.data.appId && e.data.appId===pendingAppId) || appSyncSig(e.data.graph)===appSyncSig(); }catch(_){} }
     // snapshot the canvas being replaced — an unbound in-progress noodle must stay one Ctrl+Z
     // away (a foreign graph is a wholesale swap → boundary entry parks its results too)
-    if(e.data.graph){ try{ pushUndo(!sameFlow); applyGraphData(e.data.graph, sameFlow ? {carryResults:true} : undefined); window.resetDescribeVersions?.(); save(); ok = true; }catch(_){ /* keep current canvas, don't rebind */ } }
-    if(ok) setPendingApp(e.data.appId, e.data.title);
+    if(e.data.graph && typeof graphPayloadOk==="function" && !graphPayloadOk(e.data.graph)){
+      ok = false;
+    } else if(e.data.graph){
+      let canvasJson = null, stash = null, undoLen = 0;
+      try{ canvasJson = JSON.stringify(serializeGraph()); }catch(_){}
+      try{ if(typeof _stashResults==="function") stash = _stashResults(); }catch(_){}
+      try{ undoLen = undoStack.length; }catch(_){}
+      try{
+        pushUndo(!sameFlow); applyGraphData(e.data.graph, sameFlow ? {carryResults:true} : undefined); window.resetDescribeVersions?.(); save(); ok = true;
+      }catch(_){
+        ok = false;
+        try{ if(typeof undoStack!=="undefined" && undoStack.length>undoLen) undoStack.splice(undoLen); }catch(_){}
+        try{ if(canvasJson && typeof reapplyWorkspaceGraph==="function") reapplyWorkspaceGraph(canvasJson, stash); }catch(_){}
+      }
+    }
+    if(ok){ try{ setPendingApp(e.data.appId, e.data.title); }catch(_){ flash("couldn’t autosave — a photo, audio clip, or 3D file may be too large for local storage"); } }
     lastHandoffSig = null;   // the round-trip changed the canvas/binding → next "Create app" re-hands-off
     closeAppModal();
   }
@@ -18332,7 +18647,8 @@ addEventListener("message", e=>{
   // THAT app instead of minting duplicate defaults. setPendingApp stays the single chokepoint.
   else if(e.data.type==="__appsaved__"){
     const mirrored = (appFrameLoaded || appFrameBooting) && appSyncSig()===lastHandoffSig;   // builder still shows exactly this canvas
-    setPendingApp(e.data.appId, e.data.title);
+    try{ setPendingApp(e.data.appId, e.data.title); }
+    catch(_){ flash("couldn’t autosave — a photo, audio clip, or 3D file may be too large for local storage"); }
     if(mirrored) lastHandoffSig = appSyncSig();   // only the binding changed → keep the reopen-resume path alive
   }
   // builder finished booting → it can hear postMessage now. Flush any handoff parked during

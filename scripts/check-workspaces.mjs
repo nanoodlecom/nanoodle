@@ -183,6 +183,9 @@ const bundle = [
   "  setOut: (id, out) => { const n = graph.nodes.find(x => x.id === id); if (n) n.out = out; },",
   "  setText: (id, text) => { const n = graph.nodes.find(x => x.id === id); if (n) { n.fields = n.fields || {}; n.fields.text = text; } },",
   "  outOf: (id) => { const n = graph.nodes.find(x => x.id === id); return n && n.out; },",
+  "  setPendingApp, pending: () => ({ id: pendingAppId, title: pendingAppTitle }),",
+  "  seedUndo: (s) => { undoStack.push({ s: String(s), boundary: true, stash: null }); },",
+  "  clearToasts: () => { __toasts.length = 0; },",
   "};",
 ].join("\n");
 
@@ -527,6 +530,159 @@ function rejectUnsaved(orig) {
   ok(!Object.keys(backing).some((k) => k.startsWith("noodle_ws_")), "a refused import must not shelve");
   ok(backing.noodle_graph === stored, "a refused import must not replace noodle_graph");
   ok(W.toasts().some((m) => m.includes("unchanged")), "a refused import says the current workflow is unchanged");
+}
+
+// A text node whose only job is to be recognizable after a switch.
+function markerGraph(text) {
+  return { v: 1, nodes: [{ id: "n1", type: "text", x: 1, y: 1, fields: { text } }], links: [], nid: 2, lid: 1 };
+}
+function tabMarker(W, id) {
+  const idx = W.readWorkspaces();
+  if (idx && idx.active === id) return textOf(W.serializeGraph());
+  const raw = backing["noodle_ws_" + id];
+  if (!raw) return null;
+  try { return textOf(JSON.parse(raw)); } catch { return null; }
+}
+
+// ---------------------------------------------------------------------------
+// 11. Every write inside a switch is transactional. Failing the 1st, 2nd, …
+//     setItem must leave the source tab on screen and in the index, and a
+//     later successful switch must not overwrite any tab's graph. The old
+//     code wrote the destination into noodle_graph, swallowed the pointer
+//     failure, and the next switch stored that destination over the source.
+// ---------------------------------------------------------------------------
+{
+  const failedKeys = [];
+  let switches = 0;
+  for (let n = 1; n <= 12; n++) {
+    clearStore();
+    const W = boot();
+    W.ensureWorkspaces();
+    W.applyGraphData(markerGraph("GRAPH-w1"));
+    for (let i = 2; i <= 10; i++) {
+      const grew = W.openWorkspaceWithGraph(markerGraph("GRAPH-w" + i), "Tab " + i, { respectCap: true });
+      if (!grew) { fail("could not open tab " + i + " while setting up switch writes"); break; }
+    }
+    const idx = W.readWorkspaces();
+    const source = idx.active;
+    const dest = idx.tabs.find((t) => t.id !== source && tabMarker(W, t.id) === "GRAPH-w9");
+    ok(!!dest, "setup needs a w9-style tab whose graph is GRAPH-w9");
+    if (!dest) break;
+    const sourceMarker = textOf(W.serializeGraph());
+    W.setOut("n1", { text: "PAID-" + source });
+    const beforeActive = source;
+    const orig = localStorage.setItem;
+    let i = 0;
+    let tripped = false;
+    let trippedKey = null;
+    localStorage.setItem = (k, v) => {
+      if (!tripped) {
+        i++;
+        if (i === n) {
+          tripped = true;
+          trippedKey = k;
+          const err = new Error("quota");
+          err.name = "QuotaExceededError";
+          throw err;
+        }
+      }
+      return orig.call(localStorage, k, v);
+    };
+    try { W.switchWorkspace(dest.id); }
+    finally { localStorage.setItem = orig; }
+    const activeAfter = W.readWorkspaces().active;
+    if (!tripped) {
+      ok(activeAfter === dest.id, "a switch with room to spare must reach the destination once injections run out");
+      break;
+    }
+    switches++;
+    failedKeys.push(trippedKey);
+    ok(activeAfter === beforeActive, `write #${n} (${trippedKey}) failed but the active id changed to ${activeAfter}`);
+    ok(textOf(W.serializeGraph()) === sourceMarker, `write #${n} (${trippedKey}) left the destination graph on screen`);
+    ok(W.outOf("n1") && W.outOf("n1").text === "PAID-" + source, `write #${n} (${trippedKey}) dropped the paid output on the source tab`);
+    ok(textOf(JSON.parse(backing.noodle_graph)) === sourceMarker, `write #${n} (${trippedKey}) stored another tab's graph in noodle_graph`);
+    const leaveRaw = backing["noodle_ws_" + source];
+    if (leaveRaw) ok(textOf(JSON.parse(leaveRaw)) === sourceMarker, `write #${n} (${trippedKey}) stored another graph on the source tab's key`);
+    ok(tabMarker(W, dest.id) === "GRAPH-w9", `write #${n} (${trippedKey}) overwrote the destination tab`);
+    for (let t = 1; t <= 10; t++) {
+      const id = "w" + t;
+      const want = "GRAPH-" + id;
+      const got = tabMarker(W, id);
+      ok(got === want, `write #${n} (${trippedKey}) mixed ${id}: expected ${want}, got ${got}`);
+    }
+    ok(W.toasts().some((m) => m.includes("Couldn’t switch")), `write #${n} (${trippedKey}) failed without an error`);
+    // The reviewer's follow-up: more switches must not copy the canvas onto the wrong tab.
+    const order = idx.tabs.map((t) => t.id);
+    for (const id of [dest.id, order[0], source, order[Math.min(4, order.length - 1)]]) W.switchWorkspace(id);
+    for (let t = 1; t <= 10; t++) {
+      const id = "w" + t;
+      const want = "GRAPH-" + id;
+      const got = tabMarker(W, id);
+      ok(got === want, `after write #${n} (${trippedKey}) a later switch mixed ${id}: expected ${want}, got ${got}`);
+    }
+  }
+  ok(switches >= 3, `expected a quota miss on several switch writes, tripped ${switches}`);
+  ok(failedKeys.includes("noodle_workspaces"), "one injected failure must be the active-workspace pointer (noodle_workspaces)");
+  ok(failedKeys.includes("noodle_graph"), "one injected failure must be the noodle_graph write");
+  ok(failedKeys.some((k) => k && k.startsWith("noodle_ws_")), "one injected failure must be the tab's own noodle_ws_ key");
+}
+
+// ---------------------------------------------------------------------------
+// 12. A payload that is almost a graph must not add a tab, clear the canvas,
+//     touch undo, or change the app binding. Null nodes, missing fields, and
+//     links that point at nothing used to get past the array check.
+// ---------------------------------------------------------------------------
+{
+  clearStore();
+  backing.noodle_graph = FIXTURE;
+  const W = boot();
+  W.ensureWorkspaces();
+  W.load();
+  W.setText("n1", "UNSAVED EDIT");
+  W.setOut("n1", { text: "PAID" });
+  W.seedUndo("before-import");
+  W.setPendingApp("app_keep", "Keep me");
+  const home = W.readWorkspaces().active;
+  const snap = () => JSON.stringify({
+    graph: backing.noodle_graph,
+    index: backing.noodle_workspaces,
+    editor: backing.noodle_editor_app || null,
+    ws: Object.keys(backing).filter((k) => k.startsWith("noodle_ws_")).sort(),
+    tabs: W.readWorkspaces().tabs.length,
+    active: W.readWorkspaces().active,
+    undo: W.stacks().undo.length,
+    redo: W.stacks().redo.length,
+    text: textOf(W.serializeGraph()),
+    paid: W.outOf("n1") && W.outOf("n1").text,
+    pending: W.pending().id,
+    title: W.pending().title,
+  });
+  const before = snap();
+  const bad = [
+    { nodes: [null], links: [] },
+    { nodes: [{ id: "n1", type: "text" }], links: [] },
+    { nodes: [{ id: "n1", type: "text", fields: { text: "x" } }], links: [{ from: { node: "nope", port: "text" }, to: { node: "n1", port: "text" } }] },
+    { nodes: [{ id: "n1", fields: { text: "x" } }], links: [] },
+    { nodes: [{ id: "n1", type: "text", fields: null }], links: [] },
+    { nodes: [{ id: "n1", type: "text", fields: { text: "x" } }], links: [null] },
+  ];
+  for (const payload of bad) {
+    W.setHash("#j=" + b64url(payload));
+    let ret = true;
+    try { ret = await W.loadFromHash(); }
+    catch (e) { fail("malformed import threw: " + e.message); ret = null; }
+    ok(ret === false, "malformed import must fail: " + JSON.stringify(payload).slice(0, 90));
+    ok(snap() === before, "malformed import changed tabs, canvas, undo, or app state: " + JSON.stringify(payload).slice(0, 90));
+  }
+  const stranger = { v: 1, nodes: [{ id: "s1", type: "text", x: 1, y: 1, fields: { text: "incoming" } }], links: [], nid: 2, lid: 1 };
+  W.setHash("#j=" + b64url(stranger));
+  const applied = await W.loadFromHash();
+  ok(applied === true, "a valid import still opens after the rejected payloads");
+  ok(textOf(W.serializeGraph()) === "incoming", "the valid import is the graph on screen");
+  W.switchWorkspace(home);
+  ok(W.readWorkspaces().active === home, "switching back after a valid import lands on the original tab");
+  ok(textOf(W.serializeGraph()) === "UNSAVED EDIT", "the original unsaved edit survived the rejected payloads and the later import");
+  ok(W.outOf("n1") && W.outOf("n1").text === "PAID", "the original paid output survived the rejected payloads and the later import");
 }
 
 if (failures.length) {
