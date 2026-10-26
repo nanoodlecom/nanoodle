@@ -778,6 +778,39 @@ async function parentContentRedirect() {
   await drive("null redirect", null);
 }
 
+async function playImageOpaque() {
+  console.log("\nplay built-in: an opaque image redirect is a new paid request");
+  const seen = [];
+  const fetch = async (url, init = {}) => {
+    const u = new URL(String(url), "https://nano-gpt.com");
+    seen.push({
+      pathname: u.pathname,
+      method: String(init.method || "GET").toUpperCase(),
+      headers: init.headers || {},
+      redirect: init.redirect,
+    });
+    if (u.pathname === "/v1/images/generations" && String(init.method || "GET").toUpperCase() === "POST") {
+      return jsonRes({ data: [{ url: "/api/images/content?runId=img1" }] });
+    }
+    if (u.pathname === "/api/images/content") return opaqueRedirect();
+    if (/\/models/.test(u.pathname) || u.pathname === "/api/check-balance") return jsonRes({ data: [] });
+    return jsonRes({ data: [] });
+  };
+  const app = loadEngine((ctx) => { ctx.fetch = fetch; });
+  const g = app.materialize({ nodes: [node("n", "image", { model: "flux", prompt: "a boat", size: "1024x1024" })], links: [] });
+  const posts = () => seen.filter((r) => r.pathname === "/v1/images/generations" && r.method === "POST");
+  const first = await playOnce(app, g);
+  ok(first.errors.length === 1 && /new paid request/.test(first.errors[0] || ""), "opaque image says a second run is paid (" + (first.errors[0] || "") + ")");
+  ok(!/finished job is saved/.test(first.errors.join("\n")) && !/not a new generation/.test(first.errors.join("\n")), "opaque image does not promise the job was saved");
+  assertNoSecrets(first.errors.join("\n"));
+  ok(!(first.outs.n && first.outs.n.image), "opaque image does not publish a result");
+  ok(posts().length === 1, "the image was submitted once");
+  const second = await playOnce(app, g);
+  ok(second.errors.length === 1 && /new paid request/.test(second.errors[0] || ""), "the image retry is still an error");
+  ok(posts().length === 2, "the image retry is a second paid request (got " + posts().length + ")");
+  ok(keyedNanoodle(seen).length === 0, "the image content read sends no user key to nanoodle.com");
+}
+
 async function parentStreamCap() {
   console.log("\nplay parent: a content read stops streaming at the inline cap");
   const replies = [];
@@ -857,6 +890,7 @@ await playInline();
 await playPassthrough();
 await playVideoRetries();
 await playAudioRetries();
+await playImageOpaque();
 await playSyncAudioUrl();
 await playBodyRead();
 await noKeyedNanoodle();

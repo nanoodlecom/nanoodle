@@ -120,7 +120,7 @@ const REAL = [
   extractFn("resolveProviderMediaUrl"), extractFn("resolveContentMedia"),
   extractFn("isOpaqueContentRedirect"), extractFn("contentBearerHeaders"),
   extractFn("readCappedContentBody"), extractFn("contentFetchForEngine"),
-  extractFn("deliverResolvedMedia"),
+  extractFn("opaqueContentError"), extractFn("deliverResolvedMedia"),
   extractFn("videoSourceOpts"), extractFn("audioSourceOpts"),
   grab(/const NJS_TYPES = \{[^\n]*\};/, "NJS_TYPES"),
   grab(/const REF_PORT_RE = \/[^\n]*;/, "REF_PORT_RE"),
@@ -549,8 +549,11 @@ for (const [name, type, fields, inp, directive, pin] of SCENARIOS) {
       authHeaders: { Authorization: "Bearer test-api-key", "x-api-key": "test-api-key" },
       fetch: on.fetch,
     }),
-    (err) => /finished job is saved/.test(err && err.message) && !String(err && err.message).includes("test-api-key"),
-    "an opaque redirect is an error and does not include the key",
+    (err) => /hid the provider file link/.test(err && err.message)
+      && !/finished job is saved/.test(err && err.message)
+      && !/new paid request/.test(err && err.message)
+      && !String(err && err.message).includes("test-api-key"),
+    "the shared handler does not promise the job was saved",
   );
   const contentGets = seen.filter((s) => String(s.url).includes("/api/generate-video/content"));
   assert.ok(contentGets.every((s) => s.headers["x-api-key"] == null), "content reads never send x-api-key");
@@ -569,6 +572,23 @@ for (const [name, type, fields, inp, directive, pin] of SCENARIOS) {
   assert.equal(submits, 1, "a second run does not submit the video again");
   assert.equal(on.PENDING_VIDEO.has("n1"), true, "the finished job stays pending");
   assert.equal(on.PENDING_VIDEO.get("n1").resultUrl, "/api/generate-video/content?runId=grok1");
+  let imagePosts = 0;
+  const img = on.njsCtx({
+    NanoClient: class {
+      constructor() {}
+      image() {
+        imagePosts++;
+        return this.resolveContentUrl("/api/images/content?runId=img1");
+      }
+    },
+  }, { id: "img" });
+  await assert.rejects(
+    () => img.image({}),
+    (err) => /new paid request/.test(err && err.message) && !/finished job is saved/.test(err && err.message),
+    "an opaque image says a second run is a new paid request",
+  );
+  await assert.rejects(() => img.image({}), /new paid request/);
+  assert.equal(imagePosts, 2, "an image retry submits again");
   console.log("✓ editor refuses an opaque redirect without sending the key to nanoodle.com");
 }
 

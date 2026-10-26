@@ -12948,7 +12948,8 @@ function njsCtx(E, n){
   const client = new E.NanoClient({ apiKey: getKey(), baseUrl: NANOGPT, fetch: (u,o)=> contentFetchForEngine(u, o) });
   // The bundled resolver follows redirect:manual and reads Location. Browsers hide
   // that header. A readable Location becomes the file URL. An opaque redirect
-  // throws, and the finished job stays pending instead of looking successful.
+  // throws without saying the job was saved; video and audio add that only
+  // after they have stored the result.
   client.resolveContentUrl = function(url, opts){
     var key = "";
     try{ key = (typeof getKey==="function" && getKey()) || ""; }catch(e){ key = ""; }
@@ -12984,7 +12985,7 @@ function njsCtx(E, n){
     // built-in genChat twin: inject the "respond in <UI language>" directive (the library is
     // deliberately locale-less), except in JSON/structured mode where it corrupts the output.
     chat: (messages, model, opts)=> client.chat((opts && opts.response_format) ? messages : withLocale(messages), model, opts, io),
-    image: (args)=> client.image(args, io),
+    image: (args)=> client.image(args, io).catch(function(e){ throw opaqueContentError(e, false); }),
     video: (model, prompt, opts, imageDataUrl)=>{
       const sig = sigHash(JSON.stringify([model, prompt, opts, imageDataUrl]));
       const prev = PENDING_VIDEO.get(n.id);
@@ -12996,7 +12997,7 @@ function njsCtx(E, n){
         return client.resolveContentUrl(url, { signal: io.signal }).then((resolved)=>{
           PENDING_VIDEO.delete(n.id);
           return resolved;
-        });
+        }, (e)=>{ throw opaqueContentError(e, true); });
       };
       if(prev && prev.sig===sig && prev.resultUrl) return finish(prev.resultUrl);
       const io2 = { ...io,
@@ -13024,7 +13025,7 @@ function njsCtx(E, n){
         return client.resolveContentUrl(url, { signal: io.signal }).then((resolved)=>{
           PENDING_AUDIO.delete(n.id);
           return resolved;
-        });
+        }, (e)=>{ throw opaqueContentError(e, true); });
       };
       if(pend && pend.sig===sig && pend.resultUrl) return finish(pend.resultUrl);
       const io2 = { ...io,
@@ -13612,7 +13613,10 @@ const CTX = {
     const j = await r.json();
     const rawUrls = (j.data||[]).map(d=> d.b64_json ? `data:${b64ImageMime(d.b64_json)};base64,${d.b64_json}` : d.url).filter(Boolean);
     const urls = [];
-    for(const u of rawUrls) urls.push(await resolveContentMedia(u));
+    for(const u of rawUrls){
+      try{ urls.push(await resolveContentMedia(u)); }
+      catch(e){ throw opaqueContentError(e, false); }
+    }
     if(!urls.length) throw new Error("no image in response");
     // /v1/images/generations returns no cost field (live-confirmed), so estimate from the catalog's
     // per-size price × the number of images ACTUALLY returned (some models force N regardless of opts.n).
@@ -14071,8 +14075,9 @@ async function urlToDataUrl(url){
 // A runtime that exposes Location returns that file URL and does not download it.
 // A browser's manual redirect is opaque (Location hidden). That content address
 // was not shown to work with no bearer key for preview, a new tab, and download,
-// so an opaque hop throws instead of reporting success. The caller keeps the
-// finished job until a later fetch returns a usable file URL. The key never goes
+// so an opaque hop throws instead of reporting success. Video and audio paths
+// that kept the job say a retry only downloads; an image says a new run is a
+// new paid request. The key never goes
 // to nanoodle.com. A direct 200 under the cap is inlined as a data URL, and a
 // chunked body is cancelled once it would pass the cap. data:, blob:, and ordinary
 // http(s) URLs pass through with no fetch. Errors use the path only — never the
@@ -14220,9 +14225,17 @@ function contentFetchForEngine(u, init){
   if(init.redirect==="manual") headers = contentBearerHeaders(headers);
   return fetch(u, Object.assign({}, init, { headers: headers }));
 }
+function opaqueContentError(err, kept){
+  var msg = (err && err.message) || "";
+  if(!/hid the provider file link/.test(msg)) return err;
+  if(kept) return new Error(msg + " The finished job is saved - Run again retries only this download, not a new generation.");
+  return new Error(msg + " Running again is a new paid request.");
+}
 async function deliverResolvedMedia(map, runKey, entry, url){
   if(runKey && map) map.set(runKey, entry);
-  var resolved = await resolveContentMedia(url);
+  var resolved;
+  try{ resolved = await resolveContentMedia(url); }
+  catch(e){ throw opaqueContentError(e, true); }
   if(runKey && map) map.delete(runKey);
   return resolved;
 }
@@ -14271,7 +14284,7 @@ async function resolveProviderMediaUrl(url, opts){
       await drainContentBody(r);
       // Do not report success with the content URL. Preview, open, and download
       // send no bearer key, and this hop did not reveal a file address.
-      throw new Error("This clip finished, but the browser hid the provider file link. Preview, open, download, and the next node need a file address that works with no API key, and this page could not read one. The finished job is saved - Run again retries only this download, not a new generation.");
+      throw new Error("The browser hid the provider file link. Preview, open, download, and the next node need a file address that works with no API key, and this page could not read one.");
     }
     if(loc && (status===0 || (status>=300 && status<400))){
       await drainContentBody(r);
