@@ -6,15 +6,15 @@
 // read — without downloading the file, and without leaking the key or the
 // presigned query into errors. Mock fetch only. No network, no API spend.
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadEngine } from "./play-engine.mjs";
-import { handleContentResolveRequest, resolveProviderContent } from "../worker/content-resolve.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const KEY = "test-api-key";
 const RELATIVE = "/api/generate-video/content?runId=grok1&model=grok-imagine-video-1.5-lite";
+const CONTENT = "https://nano-gpt.com" + RELATIVE;
 const PRESIGNED = "https://files.example/clip.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAEXAMPLE&X-Amz-Signature=SUPERSECRET";
 const EXT_URL = "https://cdn.example/ext.mp4";
 const MP4 = Uint8Array.from([0, 0, 0, 20, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d, 0, 0, 0, 0]);
@@ -39,6 +39,20 @@ function header(headers, name) {
   if (typeof headers.get === "function") return headers.get(name);
   for (const k of Object.keys(headers)) if (k.toLowerCase() === want) return headers[k];
   return undefined;
+}
+
+function carriesUserKey(headers) {
+  return !!(header(headers, "authorization") || header(headers, "x-api-key"));
+}
+
+// A user key must never be sent to nanoodle.com, including any subdomain.
+function keyedNanoodle(seen) {
+  return (seen || []).filter((r) => {
+    let host = "";
+    try { host = new URL(r.href || r.url || "").hostname; } catch { return false; }
+    if (host !== "nanoodle.com" && !host.endsWith(".nanoodle.com")) return false;
+    return carriesUserKey(r.headers);
+  });
 }
 
 function jsonRes(obj, status = 200, extra = {}) {
@@ -88,36 +102,9 @@ function opaqueRedirect() {
   };
 }
 
-// Server-side hop walker used by the real /api/resolve-content handler.
-// Auth is required on allowlisted NanoGPT content paths and forbidden elsewhere.
-function serverHopFetch(hops, location = PRESIGNED) {
-  return async (url, init = {}) => {
-    const u = new URL(String(url));
-    const rec = { href: u.href, pathname: u.pathname, headers: init.headers || {}, redirect: init.redirect };
-    hops.push(rec);
-    if (u.hostname !== "nano-gpt.com") throw new Error("server fetched " + u.hostname);
-    if (header(rec.headers, "authorization") !== "Bearer " + KEY || header(rec.headers, "x-api-key") !== KEY)
-      throw new Error("server content hop auth missing or wrong on " + u.pathname);
-    if (init.redirect !== "manual") throw new Error("server hop redirect " + init.redirect);
-    return rawRes({ status: 307, headers: { location }, body: "" });
-  };
-}
-
-async function workerResolve(rec, hops, location) {
-  if (header(rec.headers, "x-api-key")) throw new Error("resolver POST forwarded x-api-key");
-  if (rec.redirect !== "error") throw new Error("resolver POST redirect was " + rec.redirect);
-  const req = new Request("https://nanoodle.com/api/resolve-content", {
-    method: "POST",
-    headers: rec.headers,
-    body: typeof rec.body === "string" ? rec.body : JSON.stringify(rec.body || {}),
-  });
-  return handleContentResolveRequest(req, serverHopFetch(hops, location));
-}
-
 // One mock for a Grok → extend chain. `content` answers the content GET.
 // File hosts are refused until allowFile() — the run must not download them.
-// hooks.resolve answers POST /api/resolve-content (the browser-real opaque path).
-function chainFetch(content, hooks = {}) {
+function chainFetch(content) {
   const seen = [];
   let allowFile = false;
   const statuses = [
@@ -150,12 +137,6 @@ function chainFetch(content, hooks = {}) {
     }
     if (u.pathname === "/api/video/status") {
       return jsonRes(statuses.shift() || { data: { status: "COMPLETED", output: { url: EXT_URL } } }, 200, { "x-remaining-balance": "9.5" });
-    }
-    if (u.pathname === "/api/resolve-content" && rec.method === "POST") {
-      if (header(rec.headers, "x-api-key")) throw new Error("resolver POST forwarded x-api-key");
-      if (rec.redirect !== "error") throw new Error("resolver POST redirect was " + rec.redirect);
-      if (!hooks.resolve) return jsonRes({ error: "unexpected resolver call" }, 500);
-      return hooks.resolve(rec);
     }
     if (u.pathname === "/api/generate-video/content" || u.pathname === "/api/images/content" || u.pathname === "/v1/audio/content" || u.pathname === "/api/v1/audio/content") {
       return content(u, rec);
@@ -199,10 +180,7 @@ function bodyOf(rec) {
 
 async function playChain() {
   console.log("\nplay built-in: Grok relative URL → extend-video (browser opaqueredirect)");
-  const serverHops = [];
-  const fetch = chainFetch(async () => opaqueRedirect(), {
-    resolve: (rec) => workerResolve(rec, serverHops),
-  });
+  const fetch = chainFetch(async () => opaqueRedirect());
   const app = loadEngine((ctx) => { ctx.fetch = fetch; });
   const outs = {};
   const errors = [];
@@ -216,38 +194,19 @@ async function playChain() {
   const ext = bodyOf(posts[1]);
   ok(!!ext && ext.model === "minimax/h3-max-turbo/extend-video", "extend model is H3 extend-video");
   ok(!!ext && ext.output === "extended", "extend sends modelOpts.output");
-  ok(!!ext && ext.videoUrl === PRESIGNED, "extend videoUrl is the absolute presigned URL (got " + (ext && ext.videoUrl) + ")");
+  ok(!!ext && ext.videoUrl === CONTENT, "extend videoUrl is the absolute nano-gpt.com content URL (got " + (ext && ext.videoUrl) + ")");
   ok(!!ext && !("videoDataUrl" in ext), "extend does not inline the clip");
-  ok(!!ext && !String(ext.videoUrl || "").includes(RELATIVE), "extend body does not carry the relative path");
   ok(!!ext && !String(ext.videoUrl || "").includes(KEY), "extend videoUrl does not contain the key");
-  ok(outs.open && outs.open.video === PRESIGNED, "opening node output is the absolute URL");
+  ok(outs.open && outs.open.video === CONTENT, "opening node output is the absolute content URL");
   const hits = contentCalls(fetch.seen);
-  ok(hits.length === 1, "browser content endpoint is fetched once (got " + hits.length + ")");
-  if (hits[0]) {
-    ok(hits[0].redirect === "manual", "content fetch uses redirect:manual (got " + hits[0].redirect + ")");
-    ok(header(hits[0].headers, "authorization") === "Bearer " + KEY, "content fetch sends the bearer key");
-    ok(header(hits[0].headers, "x-api-key") === KEY, "content fetch sends x-api-key");
-    ok(hits[0].href.startsWith("https://nano-gpt.com/api/generate-video/content?"), "content URL is joined onto the NanoGPT base");
-    ok(!hits[0].href.includes(KEY), "content URL does not contain the key");
-  }
-  const resolvers = fetch.seen.filter((r) => r.pathname === "/api/resolve-content");
-  ok(resolvers.length === 1, "one resolver POST (got " + resolvers.length + ")");
-  if (resolvers[0]) {
-    ok(resolvers[0].redirect === "error", "resolver POST uses redirect:error (got " + resolvers[0].redirect + ")");
-    ok(header(resolvers[0].headers, "authorization") === "Bearer " + KEY, "resolver POST sends the bearer key");
-    ok(!header(resolvers[0].headers, "x-api-key"), "resolver POST does not send x-api-key");
-  }
-  ok(serverHops.length === 1, "server walks the content URL once (got " + serverHops.length + ")");
-  if (serverHops[0]) {
-    ok(serverHops[0].redirect === "manual", "server hop uses redirect:manual");
-    ok(header(serverHops[0].headers, "authorization") === "Bearer " + KEY && header(serverHops[0].headers, "x-api-key") === KEY, "server attaches a fresh key pair only on the content hop");
-  }
+  ok(hits.length === 2, "the producer and the extend node each fetch the content URL once (got " + hits.length + ")");
+  ok(hits.every((h) => h.redirect === "manual"), "every content fetch uses redirect:manual");
+  ok(hits.every((h) => header(h.headers, "authorization") === "Bearer " + KEY), "every content fetch sends the bearer key");
+  ok(hits.every((h) => !header(h.headers, "x-api-key")), "no content fetch sends x-api-key");
+  ok(hits.every((h) => h.href === CONTENT && !h.href.includes(KEY)), "content URL is joined onto the NanoGPT base without the key");
+  ok(!fetch.seen.some((r) => r.pathname === "/api/resolve-content"), "opaque redirect does not call /api/resolve-content");
+  ok(keyedNanoodle(fetch.seen).length === 0, "no request carrying a user key goes to a nanoodle.com origin");
   ok(!fetch.seen.some((r) => r.href.startsWith("https://files.example") || r.href.startsWith("https://cdn.example")), "presigned and CDN hosts are not fetched during the run");
-  ok(!serverHops.some((r) => /files\.example|cdn\.example/.test(r.href)), "server does not fetch the file host");
-  fetch.allowFile();
-  const got = await fetch(PRESIGNED);
-  const bytes = new Uint8Array(await got.arrayBuffer());
-  ok(got.status === 200 && bytes.length === MP4.length && bytes[4] === 0x66, "presigned URL is readable without the API key");
   assertNoSecrets(errors.join("\n"));
 }
 
@@ -481,7 +440,10 @@ async function playReadableRedirect() {
   ok(errors.length === 0, "readable-redirect run has no node errors (" + errors.join(" | ") + ")");
   const ext = bodyOf(videoPosts(fetch.seen)[1]);
   ok(!!ext && ext.videoUrl === PRESIGNED, "readable 307 still becomes the extend videoUrl");
-  ok(!fetch.seen.some((r) => r.pathname === "/api/resolve-content"), "a readable Location does not call the resolver");
+  const hit = contentCalls(fetch.seen)[0];
+  ok(hit && hit.redirect === "manual" && header(hit.headers, "authorization") === "Bearer " + KEY && !header(hit.headers, "x-api-key"), "a readable content hop is manual and Authorization-only");
+  ok(!fetch.seen.some((r) => r.pathname === "/api/resolve-content"), "a readable Location does not call a resolver");
+  ok(keyedNanoodle(fetch.seen).length === 0, "a readable Location does not send the key to nanoodle.com");
 }
 
 async function playVideoRetries() {
@@ -521,28 +483,18 @@ async function playVideoRetries() {
     ok(statusCalls(fetch.seen).length === 1, "abort retry does not re-poll status");
   }
   {
-    let fails = 1;
-    const serverHops = [];
-    const fetch = chainFetch(async () => opaqueRedirect(), {
-      resolve: async (rec) => {
-        if (fails) { fails--; return jsonRes({ error: "hidden " + KEY + " " + PRESIGNED }, 502); }
-        return workerResolve(rec, serverHops);
-      },
-    });
+    const fetch = chainFetch(async () => opaqueRedirect());
     const app = loadEngine((ctx) => { ctx.fetch = fetch; });
     const g = app.materialize({ nodes: [node("n", "tvideo", fields)], links: [] });
     const first = await playOnce(app, g);
-    ok(first.errors.length === 1 && /redirect target was not exposed/.test(first.errors[0] || ""), "hidden redirect is a node error (" + (first.errors[0] || "") + ")");
-    assertNoSecrets(first.errors.join("\n"));
-    ok(videoPosts(fetch.seen).length === 1 && statusCalls(fetch.seen).length === 1, "hidden redirect submitted and polled once");
-    const second = await playOnce(app, g);
-    ok(second.errors.length === 0 && second.outs.n && second.outs.n.video === PRESIGNED, "hidden-redirect retry returns the presigned URL");
-    ok(videoPosts(fetch.seen).length === 1, "hidden-redirect retry does not submit again");
-    ok(statusCalls(fetch.seen).length === 1, "hidden-redirect retry does not re-poll status");
+    ok(first.errors.length === 0 && first.outs.n && first.outs.n.video === CONTENT, "opaque redirect returns the absolute content URL (" + (first.outs.n && first.outs.n.video) + ")");
+    ok(videoPosts(fetch.seen).length === 1 && statusCalls(fetch.seen).length === 1, "opaque redirect submitted and polled once");
+    ok(contentCalls(fetch.seen).length === 1, "opaque redirect fetches the content URL once");
+    ok(keyedNanoodle(fetch.seen).length === 0, "opaque redirect sends no user key to nanoodle.com");
   }
 }
 
-function audioJobFetch(content, hooks = {}) {
+function audioJobFetch(content) {
   const seen = [];
   const fn = async (url, init = {}) => {
     const u = new URL(String(url), "https://nano-gpt.com");
@@ -563,11 +515,6 @@ function audioJobFetch(content, hooks = {}) {
       return jsonRes({ status: "completed", audioUrl: "/v1/audio/content?runId=aud1" }, 200, { "x-remaining-balance": "9.5" });
     }
     if (u.pathname === "/v1/audio/content" || u.pathname === "/api/v1/audio/content") return content(u, rec);
-    if (u.pathname === "/api/resolve-content" && rec.method === "POST") {
-      if (header(rec.headers, "x-api-key")) throw new Error("resolver POST forwarded x-api-key");
-      if (!hooks.resolve) return jsonRes({ error: "unexpected resolver" }, 500);
-      return hooks.resolve(rec);
-    }
     if (/\/models/.test(u.pathname) || u.pathname === "/api/check-balance") return jsonRes({ data: [] });
     return jsonRes({ data: [] });
   };
@@ -612,165 +559,15 @@ async function playAudioRetries() {
     ok(speechPosts(fetch.seen).length === 1 && ttsPolls(fetch.seen).length === 1, "audio abort retry does not resubmit or re-poll");
   }
   {
-    let fails = 1;
-    const serverHops = [];
-    const fetch = audioJobFetch(async () => opaqueRedirect(), {
-      resolve: async (rec) => {
-        if (fails) { fails--; return jsonRes({ error: "hidden " + KEY + " " + PRESIGNED }, 502); }
-        return workerResolve(rec, serverHops);
-      },
-    });
+    const audioContent = "https://nano-gpt.com/v1/audio/content?runId=aud1";
+    const fetch = audioJobFetch(async () => opaqueRedirect());
     const app = loadEngine((ctx) => { ctx.fetch = fetch; ctx.URLSearchParams = URLSearchParams; });
     const g = app.materialize(graph());
     const first = await playOnce(app, g);
-    ok(first.errors.length === 1 && /redirect target was not exposed/.test(first.errors[0] || ""), "hidden audio redirect is a node error (" + (first.errors[0] || "") + ")");
-    assertNoSecrets(first.errors.join("\n"));
-    ok(speechPosts(fetch.seen).length === 1 && ttsPolls(fetch.seen).length === 1, "hidden audio redirect submitted and polled once");
-    const second = await playOnce(app, g);
-    ok(second.errors.length === 0 && second.outs.n && second.outs.n.audio === PRESIGNED, "hidden audio retry returns the presigned URL");
-    ok(speechPosts(fetch.seen).length === 1 && ttsPolls(fetch.seen).length === 1, "hidden audio retry does not resubmit or re-poll");
-    ok(serverHops.length === 1 && serverHops[0].pathname === "/v1/audio/content", "server hop is the audio content URL");
+    ok(first.errors.length === 0 && first.outs.n && first.outs.n.audio === audioContent, "opaque audio redirect returns the absolute content URL (" + (first.outs.n && first.outs.n.audio) + ")");
+    ok(speechPosts(fetch.seen).length === 1 && ttsPolls(fetch.seen).length === 1, "opaque audio redirect submitted and polled once");
+    ok(keyedNanoodle(fetch.seen).length === 0, "opaque audio redirect sends no user key to nanoodle.com");
   }
-}
-
-async function playBodyRead() {
-  console.log("\nplay built-in: a body-read failure is scrubbed and does not resubmit");
-  let fails = 1;
-  const fetch = chainFetch(async () => {
-    const res = rawRes({ status: 200, headers: { "content-type": "video/mp4" }, body: MP4 });
-    if (fails) {
-      fails--;
-      res.arrayBuffer = async () => { throw new Error("read failed " + KEY + " " + PRESIGNED); };
-    }
-    return res;
-  });
-  const app = loadEngine((ctx) => { ctx.fetch = fetch; });
-  const g = app.materialize({ nodes: [node("n", "tvideo", { model: "grok-imagine-video-1.5-lite", prompt: "a boat" })], links: [] });
-  const first = await playOnce(app, g);
-  ok(first.errors.length === 1 && /couldn't fetch provider media/.test(first.errors[0] || ""), "body-read failure is a node error (" + (first.errors[0] || "") + ")");
-  assertNoSecrets(first.errors.join("\n"));
-  const second = await playOnce(app, g);
-  ok(second.errors.length === 0 && second.outs.n && String(second.outs.n.video || "").startsWith("data:video/mp4;base64,"), "body-read retry inlines the clip");
-  ok(videoPosts(fetch.seen).length === 1, "body-read retry does not submit again");
-  ok(statusCalls(fetch.seen).length === 1, "body-read retry does not re-poll status");
-}
-
-async function serverUnits() {
-  console.log("\nworker: resolve-content walks hops without forwarding the key");
-  const abs = "https://nano-gpt.com" + RELATIVE;
-  {
-    const hops = [];
-    const out = await resolveProviderContent(abs, { apiKey: KEY, fetch: serverHopFetch(hops) });
-    ok(out.url === PRESIGNED, "307 resolves to the presigned URL");
-    ok(hops.length === 1 && hops[0].redirect === "manual", "one manual server hop");
-    ok(header(hops[0].headers, "authorization") === "Bearer " + KEY && header(hops[0].headers, "x-api-key") === KEY, "key pair is attached on the content hop");
-  }
-  {
-    const hops = [];
-    const out = await resolveProviderContent(abs, {
-      apiKey: KEY,
-      fetch: async (url, init) => {
-        const u = new URL(String(url));
-        hops.push({ href: u.href, pathname: u.pathname, headers: init.headers, redirect: init.redirect });
-        if (u.hostname !== "nano-gpt.com") throw new Error("downloaded " + u.hostname);
-        if (u.pathname === "/api/generate-video/content")
-          return rawRes({ status: 307, headers: { location: "/api/images/content?runId=img1" } });
-        if (u.pathname === "/api/images/content")
-          return rawRes({ status: 307, headers: { location: PRESIGNED } });
-        throw new Error("unexpected hop " + u.pathname);
-      },
-    });
-    ok(out.url === PRESIGNED, "a second same-origin content hop is followed, then the file URL is returned");
-    ok(hops.length === 2, "two API hops, file host not fetched");
-    ok(hops[0].headers !== hops[1].headers, "each hop gets a fresh header object");
-    ok(header(hops[1].headers, "x-api-key") === KEY, "the second content hop is authenticated on its own");
-  }
-  {
-    let fetched = false;
-    let err = null;
-    try {
-      await resolveProviderContent("https://files.example/clip.mp4", { apiKey: KEY, fetch: async () => { fetched = true; } });
-    } catch (e) { err = e; }
-    ok(err && /couldn't fetch provider media/.test(err.message) && !fetched, "a non-content URL is rejected before any fetch");
-  }
-  {
-    let err = null;
-    try {
-      await resolveProviderContent(abs, {
-        apiKey: KEY,
-        fetch: async () => {
-          const res = rawRes({ status: 500, body: "" });
-          res.text = async () => { throw new Error("body " + KEY + " " + PRESIGNED); };
-          return res;
-        },
-      });
-    } catch (e) { err = e; }
-    ok(err && /couldn't fetch provider media/.test(err.message), "text() failure is reported");
-    assertNoSecrets(err && err.message);
-  }
-  {
-    let err = null;
-    try {
-      await resolveProviderContent(abs, {
-        apiKey: KEY,
-        fetch: async () => {
-          const res = rawRes({ status: 200, headers: { "content-type": "video/mp4" }, body: MP4 });
-          res.arrayBuffer = async () => { throw new Error("read failed " + KEY + " " + PRESIGNED); };
-          return res;
-        },
-      });
-    } catch (e) { err = e; }
-    ok(err && /couldn't fetch provider media/.test(err.message), "arrayBuffer() failure is reported");
-    assertNoSecrets(err && err.message);
-  }
-  {
-    const hops = [];
-    const req = new Request("https://nanoodle.com/api/resolve-content", {
-      method: "POST",
-      headers: { authorization: "Bearer " + KEY, "x-api-key": "other-key-value", "content-type": "application/json" },
-      body: JSON.stringify({ url: abs }),
-    });
-    const res = await handleContentResolveRequest(req, serverHopFetch(hops));
-    const body = await res.json();
-    ok(res.status === 200 && body.url === PRESIGNED, "handler returns the file URL");
-    ok(header(hops[0].headers, "x-api-key") === KEY, "hop key comes from the bearer token, not the client's x-api-key");
-    const denied = await handleContentResolveRequest(new Request("https://nanoodle.com/api/resolve-content", {
-      method: "POST",
-      headers: { "x-api-key": KEY, "content-type": "application/json" },
-      body: JSON.stringify({ url: abs }),
-    }), async () => { throw new Error("should not fetch"); });
-    ok(denied.status === 401, "x-api-key alone is not accepted");
-  }
-}
-
-async function parentOpaque() {
-  console.log("\nplay parent: opaque content GET is resolved without x-api-key");
-  const hops = [];
-  let box = null;
-  loadEngine((ctx) => {
-    box = ctx;
-    ctx.fetch = async (url, init = {}) => {
-      const u = new URL(String(url), "https://nanoodle.com");
-      if (u.pathname === "/api/resolve-content") {
-        return workerResolve({
-          headers: init.headers || {},
-          redirect: init.redirect,
-          body: init.body,
-        }, hops);
-      }
-      return jsonRes({ data: [] });
-    };
-  });
-  ok(typeof box.resolveContentOnParent === "function", "parent exposes resolveContentOnParent");
-  const target = await box.resolveContentOnParent("https://nano-gpt.com" + RELATIVE, KEY);
-  ok(target === PRESIGNED, "parent resolver returns the presigned URL (got " + target + ")");
-  ok(hops.length === 1, "parent asked the worker to walk one hop");
-  box.fetch = async () => { throw new Error("down " + KEY + " " + PRESIGNED); };
-  let err = null;
-  try { await box.resolveContentOnParent("https://nano-gpt.com" + RELATIVE, KEY); }
-  catch (e) { err = e; }
-  ok(err && /couldn't fetch provider media/.test(err.message), "parent fetch failure is wrapped");
-  assertNoSecrets(err && err.message);
 }
 
 async function playSyncAudioUrl() {
@@ -815,8 +612,107 @@ async function playSyncAudioUrl() {
   }
 }
 
+async function playBodyRead() {
+  console.log("\nplay built-in: a body-read failure is scrubbed and does not resubmit");
+  let fails = 1;
+  const fetch = chainFetch(async () => {
+    const res = rawRes({ status: 200, headers: { "content-type": "video/mp4" }, body: MP4 });
+    if (fails) {
+      fails--;
+      res.arrayBuffer = async () => { throw new Error("read failed " + KEY + " " + PRESIGNED); };
+    }
+    return res;
+  });
+  const app = loadEngine((ctx) => { ctx.fetch = fetch; });
+  const g = app.materialize({ nodes: [node("n", "tvideo", { model: "grok-imagine-video-1.5-lite", prompt: "a boat" })], links: [] });
+  const first = await playOnce(app, g);
+  ok(first.errors.length === 1 && /couldn't fetch provider media/.test(first.errors[0] || ""), "body-read failure is a node error (" + (first.errors[0] || "") + ")");
+  assertNoSecrets(first.errors.join("\n"));
+  const second = await playOnce(app, g);
+  ok(second.errors.length === 0 && second.outs.n && String(second.outs.n.video || "").startsWith("data:video/mp4;base64,"), "body-read retry inlines the clip");
+  ok(videoPosts(fetch.seen).length === 1, "body-read retry does not submit again");
+  ok(statusCalls(fetch.seen).length === 1, "body-read retry does not re-poll status");
+}
+
+async function noKeyedNanoodle() {
+  console.log("\nno user key is sent to a nanoodle.com origin");
+  for (const file of ["index.html", "play.html", "wrangler.jsonc"]) {
+    const src = readFileSync(join(ROOT, file), "utf8");
+    ok(!src.includes("/api/resolve-content"), file + " has no /api/resolve-content route");
+    ok(!src.includes("resolveContentOnParent"), file + " does not resolve content on the parent");
+  }
+  ok(!existsSync(join(ROOT, "worker")), "the Worker directory is gone");
+  const fetch = chainFetch(async () => opaqueRedirect());
+  const app = loadEngine((ctx) => { ctx.fetch = fetch; });
+  await playOnce(app, app.materialize(chainGraph()));
+  const bad = keyedNanoodle(fetch.seen);
+  ok(bad.length === 0, "chain sends no Authorization or x-api-key to nanoodle.com (got " + bad.map((r) => r.href).join(", ") + ")");
+  ok(!fetch.seen.some((r) => {
+    try { return new URL(r.href).hostname === "nanoodle.com" || new URL(r.href).hostname.endsWith(".nanoodle.com"); }
+    catch { return false; }
+  }), "the chain does not request nanoodle.com at all");
+}
+
+async function playStreamCap() {
+  console.log("\nplay built-in: a chunked body with no length stops at the cap");
+  {
+    let pulled = 0;
+    let cancelled = false;
+    const chunk = 256 * 1024;
+    const fetch = chainFetch(async () => {
+      const res = rawRes({ status: 200, headers: { "content-type": "video/mp4" }, body: "" });
+      res.body = {
+        getReader() {
+          return {
+            async read() {
+              if (cancelled || pulled >= 12 * 1024 * 1024) return { done: true, value: undefined };
+              pulled += chunk;
+              return { done: false, value: new Uint8Array(chunk) };
+            },
+            async cancel() { cancelled = true; },
+            releaseLock() {},
+          };
+        },
+        cancel: async () => { cancelled = true; },
+      };
+      return res;
+    });
+    const app = loadEngine((ctx) => { ctx.fetch = fetch; });
+    const run = await playOnce(app, app.materialize({ nodes: [node("n", "tvideo", { model: "grok-imagine-video-1.5-lite", prompt: "a boat" })], links: [] }));
+    ok(/too large to send inline/.test(run.errors[0] || ""), "a body with no length is refused at the cap (" + (run.errors[0] || "") + ")");
+    ok(pulled < 8 * 1024 * 1024, "the unread tail is not buffered (pulled " + pulled + ")");
+    ok(cancelled, "the reader is cancelled");
+    assertNoSecrets(run.errors.join("\n"));
+    ok(keyedNanoodle(fetch.seen).length === 0, "the capped read sends no user key to nanoodle.com");
+  }
+  {
+    const bytes = Uint8Array.from([0, 0, 0, 20, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d, 0, 0, 0, 0]);
+    const fetch = chainFetch(async () => {
+      const res = rawRes({ status: 200, headers: { "content-type": "video/mp4" }, body: bytes });
+      res.body = {
+        getReader() {
+          let sent = false;
+          return {
+            async read() {
+              if (sent) return { done: true, value: undefined };
+              sent = true;
+              return { done: false, value: bytes };
+            },
+            async cancel() {},
+            releaseLock() {},
+          };
+        },
+      };
+      return res;
+    });
+    const app = loadEngine((ctx) => { ctx.fetch = fetch; });
+    const run = await playOnce(app, app.materialize({ nodes: [node("n", "tvideo", { model: "grok-imagine-video-1.5-lite", prompt: "a boat" })], links: [] }));
+    ok(run.errors.length === 0 && String(run.outs.n && run.outs.n.video || "").startsWith("data:video/mp4;base64,"), "a short chunked body is still inlined (" + (run.errors[0] || "") + ")");
+  }
+}
+
 async function parentContentRedirect() {
-  console.log("\nplay parent: content reads force redirect:manual");
+  console.log("\nplay parent: content reads force redirect:manual and do not forward the key");
   async function drive(label, redirectField) {
     const replies = [];
     const seen = [];
@@ -838,7 +734,7 @@ async function parentContentRedirect() {
         },
       });
       ctx.addEventListener = (type, fn) => {
-        if (type === "message" && String(fn).includes("resolveContentOnParent")) apiListener = fn;
+        if (type === "message" && String(fn).includes('init.redirect = "manual"')) apiListener = fn;
       };
       ctx.fetch = async (url, init = {}) => {
         const u = new URL(String(url), "https://nanoodle.com");
@@ -851,11 +747,6 @@ async function parentContentRedirect() {
         };
         seen.push(rec);
         if (u.hostname === "files.example") throw new Error("file host fetched: " + u.href);
-        if (u.pathname === "/api/resolve-content" && rec.method === "POST") {
-          if (header(rec.headers, "x-api-key")) throw new Error("resolver POST forwarded x-api-key");
-          if (rec.redirect !== "error") throw new Error("resolver POST redirect was " + rec.redirect);
-          return jsonRes({ url: PRESIGNED });
-        }
         if (u.pathname === "/api/generate-video/content") return opaqueRedirect();
         return jsonRes({ data: [] });
       };
@@ -866,77 +757,18 @@ async function parentContentRedirect() {
     await apiListener({ source: frameWin, data });
     const gets = seen.filter((r) => r.pathname === "/api/generate-video/content");
     ok(gets.length === 1 && gets[0].redirect === "manual", label + ": content read is redirect:manual (got " + (gets[0] && gets[0].redirect) + ")");
-    ok(gets[0] && header(gets[0].headers, "x-api-key") === KEY, label + ": the key stays on the nano-gpt.com content hop");
+    ok(gets[0] && header(gets[0].headers, "authorization") === "Bearer " + KEY, label + ": Authorization stays on nano-gpt.com");
+    ok(gets[0] && !header(gets[0].headers, "x-api-key"), label + ": content read does not send x-api-key");
     ok(!seen.some((r) => /files\.example/.test(r.href)), label + ": the file host is not fetched");
-    const post = seen.find((r) => r.pathname === "/api/resolve-content");
-    ok(post && post.redirect === "error" && !header(post.headers, "x-api-key"), label + ": resolver POST does not follow and does not send x-api-key");
+    ok(!seen.some((r) => r.pathname === "/api/resolve-content"), label + ": the parent does not call /api/resolve-content");
+    ok(keyedNanoodle(seen).length === 0, label + ": no user key goes to a nanoodle.com origin");
     const reply = replies[0];
-    ok(reply && reply.status === 307 && reply.headers && reply.headers.location === PRESIGNED, label + ": bridge answers with the presigned Location");
+    ok(reply && reply.status === 0 && !(reply.headers && reply.headers.location), label + ": opaque redirect is returned without a synthesized Location");
+    ok(reply && !JSON.stringify(reply).includes(KEY) && !JSON.stringify(reply).includes("SUPERSECRET"), label + ": the bridge reply has no key and no presigned query");
   }
   await drive("explicit follow", "follow");
   await drive("omitted redirect", undefined);
   await drive("null redirect", null);
-}
-
-async function workerPreflightAndCap() {
-  console.log("\nworker: preflight is a null-body 204, and a chunked body stops at the cap");
-  const preflight = new Request("https://nanoodle.com/api/resolve-content", {
-    method: "OPTIONS",
-    headers: {
-      Origin: "https://nanoodle.com",
-      "Access-Control-Request-Method": "POST",
-      "Access-Control-Request-Headers": "authorization, content-type",
-    },
-  });
-  let pre;
-  try {
-    pre = await handleContentResolveRequest(preflight, async () => { throw new Error("preflight fetched"); });
-  } catch (e) {
-    ok(false, "OPTIONS threw: " + (e && e.message));
-    pre = null;
-  }
-  if (pre) {
-    ok(pre.status === 204, "preflight status is 204 (got " + pre.status + ")");
-    ok((await pre.text()) === "", "preflight body is empty");
-    ok(pre.headers.get("access-control-allow-origin") === "https://nanoodle.com", "preflight echoes Origin");
-    ok(/POST/.test(pre.headers.get("access-control-allow-methods") || ""), "preflight allows POST");
-    ok(/authorization/i.test(pre.headers.get("access-control-allow-headers") || ""), "preflight allows authorization");
-    ok(!pre.headers.get("content-type"), "preflight does not claim a JSON body");
-  }
-  {
-    let pulled = 0;
-    const chunk = 256 * 1024;
-    const stream = new ReadableStream({
-      pull(controller) {
-        if (pulled >= 12 * 1024 * 1024) { controller.close(); return; }
-        pulled += chunk;
-        controller.enqueue(new Uint8Array(chunk));
-      },
-    });
-    const res = new Response(stream, { status: 200, headers: { "content-type": "video/mp4" } });
-    let err = null;
-    try {
-      await resolveProviderContent("https://nano-gpt.com" + RELATIVE, {
-        apiKey: KEY,
-        fetch: async () => res,
-      });
-    } catch (e) { err = e; }
-    ok(err && /too large to send inline/.test(err.message), "a body with no length is refused at the cap (" + (err && err.message) + ")");
-    ok(pulled < 8 * 1024 * 1024, "the unread tail is not buffered (pulled " + pulled + ")");
-    assertNoSecrets(err && err.message);
-  }
-  {
-    const bytes = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
-    const stream = new ReadableStream({
-      start(controller) { controller.enqueue(bytes); controller.close(); },
-    });
-    const res = new Response(stream, { status: 200, headers: { "content-type": "video/mp4" } });
-    const out = await resolveProviderContent("https://nano-gpt.com" + RELATIVE, {
-      apiKey: KEY,
-      fetch: async () => res,
-    });
-    ok(out && typeof out.dataUrl === "string" && out.dataUrl.startsWith("data:video/mp4;base64,"), "a short chunked body is still inlined");
-  }
 }
 
 const E = loadBundle();
@@ -950,10 +782,9 @@ await playVideoRetries();
 await playAudioRetries();
 await playSyncAudioUrl();
 await playBodyRead();
-await serverUnits();
-await parentOpaque();
+await noKeyedNanoodle();
+await playStreamCap();
 await parentContentRedirect();
-await workerPreflightAndCap();
 await engineUnits(E);
 await engineChain(E);
 

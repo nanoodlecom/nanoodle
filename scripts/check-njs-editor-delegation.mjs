@@ -118,9 +118,9 @@ const REAL = [
   extractFn("scrubContentSecrets"), extractFn("contentAuthHeaders"), extractFn("drainContentBody"),
   extractFn("contentResponseMime"), extractFn("sniffContentMime"), extractFn("contentBytesToDataUrl"),
   extractFn("resolveProviderMediaUrl"), extractFn("resolveContentMedia"),
-  extractFn("contentResolverEndpoint"), extractFn("isOpaqueContentRedirect"),
-  extractFn("resolveHiddenContentRedirect"), extractFn("syntheticContentRedirect"),
-  extractFn("contentFetchForEngine"), extractFn("deliverResolvedMedia"),
+  extractFn("isOpaqueContentRedirect"), extractFn("contentBearerHeaders"),
+  extractFn("readCappedContentBody"), extractFn("contentFetchForEngine"),
+  extractFn("deliverResolvedMedia"),
   extractFn("videoSourceOpts"), extractFn("audioSourceOpts"),
   grab(/const NJS_TYPES = \{[^\n]*\};/, "NJS_TYPES"),
   grab(/const REF_PORT_RE = \/[^\n]*;/, "REF_PORT_RE"),
@@ -508,18 +508,14 @@ for (const [name, type, fields, inp, directive, pin] of SCENARIOS) {
   console.log("✓ pending jobs survive Stop/timeout and are deleted only on genuine failure");
 }
 
-// Browser fetch with redirect:manual is opaque. The editor shim's fetch wrapper
-// must turn that into a readable 307 via POST /api/resolve-content, and that
-// POST must carry Authorization only — never the content request's x-api-key.
+// Browser fetch with redirect:manual is opaque. The editor shim must not POST the
+// user key to nanoodle.com. A manual content read drops x-api-key and, when
+// Location is hidden, the page resolver returns the absolute content URL.
 {
   const on = makeCtx({ flagOn: false });
-  const PRESIGNED = "https://files.example/clip.mp4?X-Amz-Signature=SUPERSECRET";
   const seen = [];
   on.fetch = async (url, init = {}) => {
     seen.push({ url: String(url), redirect: init.redirect, headers: init.headers || {} });
-    if (String(url).includes("/api/resolve-content")) {
-      return { ok: true, status: 200, text: async () => JSON.stringify({ url: PRESIGNED }) };
-    }
     return {
       ok: false, status: 0, type: "opaqueredirect",
       headers: { get: () => null },
@@ -528,18 +524,34 @@ for (const [name, type, fields, inp, directive, pin] of SCENARIOS) {
       body: { cancel: async () => {} },
     };
   };
-  const r = await on.contentFetchForEngine("https://nano-gpt.com/api/generate-video/content?runId=grok1", {
+  const contentUrl = "https://nano-gpt.com/api/generate-video/content?runId=grok1";
+  const r = await on.contentFetchForEngine(contentUrl, {
     redirect: "manual",
     headers: { Authorization: "Bearer test-api-key", "x-api-key": "test-api-key" },
   });
-  assert.equal(r.status, 307, "opaque content fetch becomes a readable 307");
-  assert.equal(r.headers.get("location"), PRESIGNED, "synthetic Location is the file URL");
-  assert.equal(seen[0] && seen[0].redirect, "manual", "the content GET stays redirect:manual");
-  const post = seen.find((s) => s.url.includes("/api/resolve-content"));
-  assert.ok(post && post.redirect === "error", "resolver POST does not follow redirects");
-  assert.equal(post.headers.Authorization, "Bearer test-api-key", "resolver POST sends the bearer key");
-  assert.equal(post.headers["x-api-key"], undefined, "resolver POST does not send x-api-key");
-  console.log("✓ editor fetch wrapper resolves an opaque redirect without forwarding x-api-key");
+  assert.equal(r.status, 0, "an opaque content fetch stays opaque");
+  assert.equal(r.type, "opaqueredirect");
+  assert.equal(seen.length, 1, "the wrapper performs one fetch");
+  assert.equal(seen[0].redirect, "manual", "the content GET stays redirect:manual");
+  assert.equal(seen[0].headers.Authorization, "Bearer test-api-key", "the content GET keeps Authorization");
+  assert.equal(seen[0].headers["x-api-key"], undefined, "the content GET drops x-api-key");
+  assert.equal(seen.some((s) => {
+    try {
+      const host = new URL(s.url).hostname;
+      const h = s.headers || {};
+      return (host === "nanoodle.com" || host.endsWith(".nanoodle.com")) && (h.Authorization || h.authorization || h["x-api-key"]);
+    } catch { return false; }
+  }), false, "no request carrying a user key goes to a nanoodle.com origin");
+  const resolved = await on.resolveProviderMediaUrl(contentUrl, {
+    baseUrl: "https://nano-gpt.com",
+    apiKey: "test-api-key",
+    authHeaders: { Authorization: "Bearer test-api-key", "x-api-key": "test-api-key" },
+    fetch: on.fetch,
+  });
+  assert.equal(resolved, contentUrl, "an opaque redirect becomes the absolute content URL");
+  const contentGets = seen.filter((s) => String(s.url).includes("/api/generate-video/content"));
+  assert.ok(contentGets.every((s) => s.headers["x-api-key"] == null), "content reads never send x-api-key");
+  console.log("✓ editor resolves an opaque redirect in the browser without sending the key to nanoodle.com");
 }
 
 if (failed) { console.log(`\n${failed}/${SCENARIOS.length} editor delegation scenarios failed`); process.exit(1); }
