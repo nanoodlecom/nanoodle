@@ -13789,9 +13789,13 @@ const CTX = {
       let url = j.url || j.audioUrl || j.data?.url || j.data?.audioUrl;
       if(!url && (j.runId || j.id)) url = await pollAudio(model, j, onProgress, runKey, bodySig);   // async model → poll (resume-aware)
       if(!url) throw new Error("no audio url in response");
-      const keptAud = runKey && PENDING_AUDIO.get(runKey);
-      if(keptAud && keptAud.resultUrl) return await deliverResolvedMedia(PENDING_AUDIO, runKey, keptAud, url);
-      return await resolveContentMedia(url);
+      // The speech POST already charged. Store the raw URL before resolving, even when
+      // the JSON body had no runId and no earlier pending job, so a failed fetch is not a second charge.
+      const prevAud = (runKey && PENDING_AUDIO.get(runKey)) || {};
+      const audEntry = { sig:bodySig, resultUrl:url };
+      if(prevAud.job) audEntry.job = prevAud.job;
+      if(prevAud.njs) audEntry.njs = true;
+      return await deliverResolvedMedia(PENDING_AUDIO, runKey, audEntry, url);
     }
     const blob = await r.blob();
     const hc = parseFloat(r.headers.get("x-cost") || r.headers.get("x-nano-cost") || "");

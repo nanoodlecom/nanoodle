@@ -773,6 +773,172 @@ async function parentOpaque() {
   assertNoSecrets(err && err.message);
 }
 
+async function playSyncAudioUrl() {
+  console.log("\nplay built-in: a synchronous audio JSON url is kept before the content fetch");
+  const direct = "/v1/audio/content?file=clip";
+  let fails = 1;
+  const fetch = audioJobFetch(async () => {
+    if (fails) { fails--; throw new Error("read failed " + KEY + " " + PRESIGNED); }
+    return rawRes({ status: 307, headers: { location: PRESIGNED }, body: "" });
+  });
+  const orig = fetch;
+  const wrapped = async (url, init = {}) => {
+    const u = new URL(String(url), "https://nano-gpt.com");
+    if (u.pathname === "/api/v1/audio/speech") {
+      orig.seen.push({
+        href: u.href,
+        pathname: u.pathname,
+        method: String(init.method || "GET").toUpperCase(),
+        headers: init.headers || {},
+        redirect: init.redirect,
+        body: init.body,
+      });
+      return jsonRes({ url: direct, cost: 0.02 }, 200, { "x-remaining-balance": "9.5", "x-cost": "0.02" });
+    }
+    return orig(url, init);
+  };
+  wrapped.seen = orig.seen;
+  const app = loadEngine((ctx) => { ctx.fetch = wrapped; ctx.URLSearchParams = URLSearchParams; });
+  const g = app.materialize({ nodes: [node("n", "tts", { model: "tts-1", prompt: "hello" })], links: [] });
+  const first = await playOnce(app, g);
+  ok(first.errors.length === 1, "sync audio resolver failure is a node error (" + (first.errors[0] || first.aborted) + ")");
+  assertNoSecrets(first.errors.join("\n"));
+  ok(speechPosts(wrapped.seen).length === 1, "sync audio failure submitted once");
+  ok(ttsPolls(wrapped.seen).length === 0, "a url with no runId does not poll");
+  const second = await playOnce(app, g);
+  ok(second.errors.length === 0 && second.outs.n && second.outs.n.audio === PRESIGNED, "sync audio retry returns the presigned URL (" + (second.outs.n && second.outs.n.audio) + ")");
+  ok(speechPosts(wrapped.seen).length === 1, "sync audio retry does not submit speech again (got " + speechPosts(wrapped.seen).length + ")");
+  ok(ttsPolls(wrapped.seen).length === 0, "sync audio retry still does not poll");
+  for (const file of ["index.html", "play.html"]) {
+    const src = readFileSync(join(ROOT, file), "utf8");
+    ok(src.includes("const audEntry = { sig:bodySig, resultUrl:url };"), file + " persists the completed audio URL before resolving");
+  }
+}
+
+async function parentContentRedirect() {
+  console.log("\nplay parent: content reads force redirect:manual");
+  async function drive(label, redirectField) {
+    const replies = [];
+    const seen = [];
+    const frameWin = { postMessage(msg) { replies.push(msg); } };
+    let apiListener = null;
+    loadEngine((ctx) => {
+      const doc = ctx.document;
+      ctx.document = new Proxy(doc, {
+        get(target, prop, recv) {
+          if (prop === "getElementById") {
+            return (id) => {
+              if (id === "appframe") return { contentWindow: frameWin };
+              const fn = doc.getElementById;
+              return typeof fn === "function" ? fn.call(doc, id) : undefined;
+            };
+          }
+          const value = Reflect.get(target, prop, recv);
+          return typeof value === "function" ? value.bind(doc) : value;
+        },
+      });
+      ctx.addEventListener = (type, fn) => {
+        if (type === "message" && String(fn).includes("resolveContentOnParent")) apiListener = fn;
+      };
+      ctx.fetch = async (url, init = {}) => {
+        const u = new URL(String(url), "https://nanoodle.com");
+        const rec = {
+          href: u.href,
+          pathname: u.pathname,
+          method: String(init.method || "GET").toUpperCase(),
+          headers: init.headers || {},
+          redirect: init.redirect,
+        };
+        seen.push(rec);
+        if (u.hostname === "files.example") throw new Error("file host fetched: " + u.href);
+        if (u.pathname === "/api/resolve-content" && rec.method === "POST") {
+          if (header(rec.headers, "x-api-key")) throw new Error("resolver POST forwarded x-api-key");
+          if (rec.redirect !== "error") throw new Error("resolver POST redirect was " + rec.redirect);
+          return jsonRes({ url: PRESIGNED });
+        }
+        if (u.pathname === "/api/generate-video/content") return opaqueRedirect();
+        return jsonRes({ data: [] });
+      };
+    });
+    ok(typeof apiListener === "function", label + ": captured the trusted iframe bridge");
+    const data = { type: "__api__", id: 7, url: "https://nano-gpt.com" + RELATIVE, method: "GET" };
+    if (redirectField !== undefined) data.redirect = redirectField;
+    await apiListener({ source: frameWin, data });
+    const gets = seen.filter((r) => r.pathname === "/api/generate-video/content");
+    ok(gets.length === 1 && gets[0].redirect === "manual", label + ": content read is redirect:manual (got " + (gets[0] && gets[0].redirect) + ")");
+    ok(gets[0] && header(gets[0].headers, "x-api-key") === KEY, label + ": the key stays on the nano-gpt.com content hop");
+    ok(!seen.some((r) => /files\.example/.test(r.href)), label + ": the file host is not fetched");
+    const post = seen.find((r) => r.pathname === "/api/resolve-content");
+    ok(post && post.redirect === "error" && !header(post.headers, "x-api-key"), label + ": resolver POST does not follow and does not send x-api-key");
+    const reply = replies[0];
+    ok(reply && reply.status === 307 && reply.headers && reply.headers.location === PRESIGNED, label + ": bridge answers with the presigned Location");
+  }
+  await drive("explicit follow", "follow");
+  await drive("omitted redirect", undefined);
+  await drive("null redirect", null);
+}
+
+async function workerPreflightAndCap() {
+  console.log("\nworker: preflight is a null-body 204, and a chunked body stops at the cap");
+  const preflight = new Request("https://nanoodle.com/api/resolve-content", {
+    method: "OPTIONS",
+    headers: {
+      Origin: "https://nanoodle.com",
+      "Access-Control-Request-Method": "POST",
+      "Access-Control-Request-Headers": "authorization, content-type",
+    },
+  });
+  let pre;
+  try {
+    pre = await handleContentResolveRequest(preflight, async () => { throw new Error("preflight fetched"); });
+  } catch (e) {
+    ok(false, "OPTIONS threw: " + (e && e.message));
+    pre = null;
+  }
+  if (pre) {
+    ok(pre.status === 204, "preflight status is 204 (got " + pre.status + ")");
+    ok((await pre.text()) === "", "preflight body is empty");
+    ok(pre.headers.get("access-control-allow-origin") === "https://nanoodle.com", "preflight echoes Origin");
+    ok(/POST/.test(pre.headers.get("access-control-allow-methods") || ""), "preflight allows POST");
+    ok(/authorization/i.test(pre.headers.get("access-control-allow-headers") || ""), "preflight allows authorization");
+    ok(!pre.headers.get("content-type"), "preflight does not claim a JSON body");
+  }
+  {
+    let pulled = 0;
+    const chunk = 256 * 1024;
+    const stream = new ReadableStream({
+      pull(controller) {
+        if (pulled >= 12 * 1024 * 1024) { controller.close(); return; }
+        pulled += chunk;
+        controller.enqueue(new Uint8Array(chunk));
+      },
+    });
+    const res = new Response(stream, { status: 200, headers: { "content-type": "video/mp4" } });
+    let err = null;
+    try {
+      await resolveProviderContent("https://nano-gpt.com" + RELATIVE, {
+        apiKey: KEY,
+        fetch: async () => res,
+      });
+    } catch (e) { err = e; }
+    ok(err && /too large to send inline/.test(err.message), "a body with no length is refused at the cap (" + (err && err.message) + ")");
+    ok(pulled < 8 * 1024 * 1024, "the unread tail is not buffered (pulled " + pulled + ")");
+    assertNoSecrets(err && err.message);
+  }
+  {
+    const bytes = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
+    const stream = new ReadableStream({
+      start(controller) { controller.enqueue(bytes); controller.close(); },
+    });
+    const res = new Response(stream, { status: 200, headers: { "content-type": "video/mp4" } });
+    const out = await resolveProviderContent("https://nano-gpt.com" + RELATIVE, {
+      apiKey: KEY,
+      fetch: async () => res,
+    });
+    ok(out && typeof out.dataUrl === "string" && out.dataUrl.startsWith("data:video/mp4;base64,"), "a short chunked body is still inlined");
+  }
+}
+
 const E = loadBundle();
 await playChain();
 await playReadableRedirect();
@@ -782,9 +948,12 @@ await playInline();
 await playPassthrough();
 await playVideoRetries();
 await playAudioRetries();
+await playSyncAudioUrl();
 await playBodyRead();
 await serverUnits();
 await parentOpaque();
+await parentContentRedirect();
+await workerPreflightAndCap();
 await engineUnits(E);
 await engineChain(E);
 

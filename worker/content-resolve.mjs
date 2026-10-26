@@ -84,6 +84,58 @@ async function drainBody(r) {
   } catch { /* already consumed, or an opaque redirect has no body */ }
 }
 
+function tooLargeInline() {
+  return new Error("provider media is too large to send inline (~4 MB max) and did not redirect to a fetchable file");
+}
+
+/**
+ * Read a body without buffering past the inline cap. A missing content-length
+ * used to pull the whole stream into memory and only then check the size.
+ * Chunked reads stop and cancel once the next chunk would exceed the cap.
+ */
+async function readCappedBody(r, mime, apiKey, signal) {
+  const body = r && r.body;
+  if (body && typeof body.getReader === "function") {
+    const reader = body.getReader();
+    const chunks = [];
+    let total = 0;
+    try {
+      for (;;) {
+        let step;
+        try { step = await reader.read(); }
+        catch (e) {
+          if (isAbort(e) || (signal && signal.aborted)) throw e;
+          const detail = scrubSecrets(e && e.message, apiKey);
+          throw new Error("couldn't fetch provider media" + (detail ? " (" + detail + ")" : ""));
+        }
+        if (step.done) break;
+        const value = step.value instanceof Uint8Array ? step.value : new Uint8Array(step.value || []);
+        if (dataUrlWouldExceed(total + value.byteLength, mime)) {
+          try { await reader.cancel(); } catch { /* drop the unread tail */ }
+          throw tooLargeInline();
+        }
+        chunks.push(value);
+        total += value.byteLength;
+      }
+    } finally {
+      try { reader.releaseLock(); } catch { /* already released by cancel */ }
+    }
+    const out = new Uint8Array(total);
+    let off = 0;
+    for (const c of chunks) { out.set(c, off); off += c.byteLength; }
+    return out;
+  }
+  let bytes;
+  try { bytes = new Uint8Array(await r.arrayBuffer()); }
+  catch (e) {
+    if (isAbort(e) || (signal && signal.aborted)) throw e;
+    const detail = scrubSecrets(e && e.message, apiKey);
+    throw new Error("couldn't fetch provider media" + (detail ? " (" + detail + ")" : ""));
+  }
+  if (dataUrlWouldExceed(bytes.length, mime)) throw tooLargeInline();
+  return bytes;
+}
+
 /** Fresh headers for this hop only. Never a copy of the previous request's headers. */
 function headersForHop(url, apiKey, baseUrl) {
   if (!apiKey || !isAllowedContentUrl(url, baseUrl)) return {};
@@ -159,26 +211,17 @@ export async function resolveProviderContent(url, { fetch: fetchImpl, apiKey, ba
     const declared = Number(r.headers && r.headers.get && r.headers.get("content-length"));
     if (Number.isFinite(declared) && declared >= 0 && dataUrlWouldExceed(declared, mimeHeader)) {
       await drainBody(r);
-      throw new Error("provider media is too large to send inline (~4 MB max) and did not redirect to a fetchable file");
-    }
-    let bytes;
-    try { bytes = new Uint8Array(await r.arrayBuffer()); }
-    catch (e) {
-      if (isAbort(e) || (signal && signal.aborted)) throw e;
-      const detail = scrubSecrets(e && e.message, apiKey);
-      throw new Error("couldn't fetch provider media" + (detail ? " (" + detail + ")" : ""));
+      throw tooLargeInline();
     }
     const mime = mimeHeader || "application/octet-stream";
-    if (dataUrlWouldExceed(bytes.length, mime)) {
-      throw new Error("provider media is too large to send inline (~4 MB max) and did not redirect to a fetchable file");
-    }
+    const bytes = await readCappedBody(r, mime, apiKey, signal);
     return { dataUrl: bytesToDataUrl(bytes, mime) };
   }
   throw new Error("provider media redirect did not resolve to a fetchable file");
 }
 
-function jsonResponse(obj, status, request) {
-  const headers = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" };
+function corsHeaders(request, extra) {
+  const headers = Object.assign({ "cache-control": "no-store" }, extra || {});
   const origin = request && request.headers && request.headers.get && request.headers.get("origin");
   if (origin) {
     headers["access-control-allow-origin"] = origin;
@@ -186,7 +229,19 @@ function jsonResponse(obj, status, request) {
     headers["access-control-allow-headers"] = "authorization, content-type";
     headers["access-control-allow-methods"] = "POST, OPTIONS";
   }
-  return new Response(JSON.stringify(obj), { status, headers });
+  return headers;
+}
+
+function jsonResponse(obj, status, request) {
+  return new Response(JSON.stringify(obj), {
+    status,
+    headers: corsHeaders(request, { "content-type": "application/json; charset=utf-8" }),
+  });
+}
+
+// 204 and 205 cannot carry a body. JSON.stringify here makes Response throw.
+function emptyResponse(status, request) {
+  return new Response(null, { status, headers: corsHeaders(request) });
 }
 
 /**
@@ -196,7 +251,7 @@ function jsonResponse(obj, status, request) {
  * or from `x-api-key` (that custom header is not forwarded to this hop).
  */
 export async function handleContentResolveRequest(request, fetchImpl) {
-  if (!request || request.method === "OPTIONS") return jsonResponse({ ok: true }, 204, request);
+  if (!request || request.method === "OPTIONS") return emptyResponse(204, request);
   if (request.method !== "POST") return jsonResponse({ error: "method not allowed" }, 405, request);
   const auth = (request.headers && request.headers.get && request.headers.get("authorization")) || "";
   const m = /^Bearer\s+(\S+)/i.exec(auth);

@@ -8383,9 +8383,13 @@ window.NoodleApp = (function () {
         let url = j.url || j.audioUrl || (j.data && j.data.url) || (j.data && j.data.audioUrl);
         if(!url && (j.runId || j.id)) url = await pollAudio(model, j, onProgress, runKey, bodySig);   // async model → poll (resume-aware)
         if(!url) throw new Error("no audio url in response");
-        const keptAud = runKey && PENDING_AUDIO.get(runKey);
-        if(keptAud && keptAud.resultUrl) return await deliverResolvedMedia(PENDING_AUDIO, runKey, keptAud, url);
-        return await resolveContentMedia(url);
+        // The speech POST already charged. Store the raw URL before resolving, even when
+        // the JSON body had no runId and no earlier pending job, so a failed fetch is not a second charge.
+        const prevAud = (runKey && PENDING_AUDIO.get(runKey)) || {};
+        const audEntry = { sig:bodySig, resultUrl:url };
+        if(prevAud.job) audEntry.job = prevAud.job;
+        if(prevAud.njs) audEntry.njs = true;
+        return await deliverResolvedMedia(PENDING_AUDIO, runKey, audEntry, url);
       }
       const cAud = costFromHeaders(r);   // binary audio: price rides on x-cost / x-remaining-balance (absent live)
       if(cAud.usd==null){ const est = await estSpeechUsd(model, input, extra); if(est!=null){ cAud.usd = est; cAud.estimate = true; } }
@@ -15422,9 +15426,11 @@ addEventListener("message", async (e) => {
       }
       const headers = Object.assign({}, d.headers, k ? { Authorization:"Bearer "+k, "x-api-key":k } : {});
       const init = { method:d.method||"GET", headers, body:(d.body!=null?d.body:undefined) };
-      // Content GETs ask for redirect:manual. A real browser answers opaqueredirect and
-      // hides Location; following it would keep a custom x-api-key on the file host.
-      if(d.redirect==="manual" || d.redirect==="error" || d.redirect==="follow") init.redirect = d.redirect;
+      // Content reads are redirect:manual in every iframe mode. An explicit follow, or an
+      // omitted redirect (fetch defaults to follow), would keep this custom x-api-key on
+      // the file host and skip the resolver. Other calls may still honor a caller mode.
+      if(kind==="read") init.redirect = "manual";
+      else if(d.redirect==="manual" || d.redirect==="error" || d.redirect==="follow") init.redirect = d.redirect;
       const r = await fetch(u.href, init);
       if(kind==="read" && bridgeLooksOpaque(r)){
         try{
