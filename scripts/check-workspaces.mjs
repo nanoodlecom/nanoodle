@@ -174,6 +174,8 @@ const bundle = [
   extractFn(SRC, "b64urlToBytes"),
   "globalThis.__W = { ensureWorkspaces, load, save, loadFromHash, serializeGraph, applyGraphData,",
   "  openWorkspaceWithGraph, openExampleWorkspace, switchWorkspace, closeWorkspace, renameWorkspace, workspaceChord,",
+  "  chooseWorkspace, initialCanvasUnclaimed, claimInitialCanvas, finishInitialCanvas,",
+  "  bootGeneration, freshGraphStillDue, bindWorkspaceChrome, noteFreshWorkspaceName,",
   "  textToImageGraph, askModelGraph, blankGraph,",
   "  readWorkspaces, shelvePreviousWorkspace, workspaceLabelForGraph, workspaceDownloadName, onWorkspaceHash, graph, ",
   "  stacks: () => ({ undo: undoStack.slice(), redo: redoStack.slice() }),",
@@ -845,6 +847,273 @@ function stageTightPair() {
     ok(re.toasts().some((m) => m.includes("Couldn’t switch")) || W.toasts().some((m) => m.includes("Couldn’t switch")), "the impossible restore did not surface an error");
     q.stop();
   }
+}
+
+// A fresh profile's first paint is an empty canvas with tab w1 already selected.
+// noodle_graph is still unset — the starter is not pinned until the user edits.
+// Choosing a workspace in that window must not absorb the empty tab. The click
+// cancels a starter that has not painted. If the starter is already on the
+// canvas when the held choice runs, the choice opens beside it. A node added
+// in that window claims the canvas, so a late starter must not replace it.
+// An existing noodle_graph stays byte-for-byte.
+const FRESH_STARTER = {
+  v: 1,
+  nodes: [{ id: "n1", type: "text", x: 40, y: 40, name: "Travel postcard", fields: { text: "STARTER-TEXT" } }],
+  links: [], nid: 2, lid: 1,
+};
+
+{
+  clearStore();
+  const W = boot();
+  const idx0 = W.ensureWorkspaces();
+  ok(W.initialCanvasUnclaimed(), "a fresh profile has not claimed the canvas");
+  ok(!backing.noodle_graph, "a fresh profile does not bind noodle_graph before the first edit");
+  ok(idx0 && idx0.tabs.length === 1 && idx0.active === "w1", "the default workspace exists and is selected before the first tab action");
+  ok(idx0.tabs[0].id === "w1", "the default tab has an id the canvas can bind to");
+  const gen = W.bootGeneration();
+  ok(W.chooseWorkspace("blank") === "deferred", "the first new-tab on a blank page waits for the default graph");
+  ok(!W.freshGraphStillDue(gen), "that click cancels a starter fetch that has not painted yet");
+  ok(W.readWorkspaces().tabs.length === 1, "deferring the first new-tab must not absorb or add a tab");
+  ok(!backing.noodle_graph, "deferring the first new-tab must not write noodle_graph");
+  ok(W.initialCanvasUnclaimed(), "deferring does not claim the canvas");
+  W.applyGraphData(FRESH_STARTER);
+  ok(W.finishInitialCanvas({ fresh: true }) === true, "the deferred blank canvas runs once the starter is in");
+  const idx = W.readWorkspaces();
+  ok(idx.tabs.length === 2, `the blank canvas opens beside the starter, got ${idx.tabs.length} tabs`);
+  ok(idx.active !== "w1", "the new workspace is the active tab");
+  ok(idx.tabs.find((t) => t.id === "w1").name === "Travel postcard", "tab 1 is named from the starter");
+  const shelved = JSON.parse(backing.noodle_ws_w1);
+  ok(shelved.nodes[0].name === "Travel postcard" && textOf(shelved) === "STARTER-TEXT", "tab 1 keeps the starter bytes");
+  ok((W.serializeGraph().nodes || []).length === 0, "the blank canvas is on screen");
+  ok(JSON.parse(backing.noodle_graph).nodes.length === 0, "noodle_graph is bound to the active blank workspace");
+  W.switchWorkspace("w1");
+  ok(W.readWorkspaces().active === "w1", "switching back selects the default workspace");
+  ok(W.serializeGraph().nodes[0].name === "Travel postcard" && textOf(W.serializeGraph()) === "STARTER-TEXT", "switching back shows the starter, not the blank canvas");
+}
+
+{
+  clearStore();
+  const W = boot();
+  W.ensureWorkspaces();
+  W.applyGraphData(markerGraph("MINE"));
+  W.claimInitialCanvas();
+  ok(!W.initialCanvasUnclaimed(), "adding a node on the blank page claims the canvas");
+  W.finishInitialCanvas({ fresh: true });
+  ok(textOf(W.serializeGraph()) === "MINE", "a late starter must not replace the node added on the blank page");
+  ok(W.readWorkspaces().tabs.length === 1 && W.readWorkspaces().active === "w1", "that node stays on the default workspace");
+  const spawnAt = SRC.indexOf("function spawnCenter");
+  const spawnBody = SRC.slice(spawnAt, SRC.indexOf("undoMuted = true", spawnAt));
+  ok(spawnBody.includes("claimInitialCanvas"), "Add node claims the blank canvas before undo is muted");
+}
+
+{
+  clearStore();
+  backing.noodle_graph = FIXTURE;
+  const before = backing.noodle_graph;
+  const W = boot();
+  W.ensureWorkspaces();
+  ok(W.load() === true, "a saved graph still loads");
+  W.finishInitialCanvas({ fresh: false });
+  ok(backing.noodle_graph === before, "boot must not rewrite an existing user's noodle_graph");
+  ok(!Object.keys(backing).some((k) => k.startsWith("noodle_ws_")), "boot must not copy a saved graph into a second key");
+  ok(W.readWorkspaces().tabs.length === 1 && W.readWorkspaces().active === "w1", "a saved graph stays the one active workspace");
+  ok(W.readWorkspaces().tabs[0].name === "Night desk", "a saved graph keeps its workspace name");
+  ok(textOf(W.serializeGraph()) === textOf(JSON.parse(FIXTURE)), "a saved graph's nodes survive boot");
+  const again = W.chooseWorkspace("t2i");
+  ok(again !== "deferred", "a returning canvas is not the blank first paint, so a new tab opens now");
+  ok(W.readWorkspaces().tabs.length === 2, "a saved graph gains a second tab instead of being replaced");
+  const shelved = JSON.parse(backing.noodle_ws_w1);
+  ok(textOf(shelved) === textOf(JSON.parse(FIXTURE)), "the saved graph's text is shelved on its own tab");
+  ok(photoOf(shelved) === photoOf(JSON.parse(FIXTURE)), "the saved graph's upload is shelved on its own tab");
+}
+
+// The first noodle_workspaces write throws. The default tab stays in memory,
+// nothing already stored is deleted, and the plus button still opens.
+function fakeWsDom() {
+  const els = {};
+  const make = (id) => {
+    const el = {
+      id,
+      dataset: {},
+      hidden: true,
+      onclick: null,
+      style: {},
+      classList: { add() {}, remove() {}, contains() { return false; } },
+      setAttribute() {},
+      getAttribute() { return null; },
+      addEventListener() {},
+      querySelector() { return null; },
+      querySelectorAll() { return []; },
+      focus() { el.focused = true; },
+      textContent: "",
+    };
+    els[id] = el;
+    return el;
+  };
+  for (const id of ["wstabs", "wsadd", "wschooser", "wsdropmenu", "wsdrop", "workspaces"]) make(id);
+  const document = {
+    getElementById: (id) => els[id] || null,
+    addEventListener() {},
+    querySelectorAll: () => [],
+    activeElement: null,
+  };
+  return { document, $: (id) => document.getElementById(id), els };
+}
+{
+  clearStore();
+  backing.noodle_graph = FIXTURE;
+  backing.noodle_other = "keep-me";
+  const keysBefore = Object.keys(backing).sort().join();
+  const origSet = localStorage.setItem;
+  const origRemove = localStorage.removeItem;
+  const removed = [];
+  localStorage.setItem = (k, v) => {
+    if (k === "noodle_workspaces") {
+      const err = new Error("quota");
+      err.name = "QuotaExceededError";
+      throw err;
+    }
+    return origSet.call(localStorage, k, v);
+  };
+  localStorage.removeItem = (k) => { removed.push(k); return origRemove.call(localStorage, k); };
+  const dom = fakeWsDom();
+  let windowListeners = 0;
+  const W = boot({
+    document: dom.document,
+    $: dom.$,
+    addEventListener() { windowListeners++; },
+  });
+  let idx = null;
+  try { idx = W.ensureWorkspaces(); }
+  finally {
+    localStorage.setItem = origSet;
+    localStorage.removeItem = origRemove;
+  }
+  ok(idx && idx.active === "w1" && idx.tabs.length === 1, "a failed first index write still returns the default workspace");
+  ok(W.readWorkspaces() && W.readWorkspaces().active === "w1", "the page reads that workspace back from memory");
+  ok(idx.tabs[0].name === "Night desk", "the in-memory tab keeps the saved graph's name");
+  ok(!Object.prototype.hasOwnProperty.call(backing, "noodle_workspaces"), "the failed write left no index behind");
+  ok(backing.noodle_graph === FIXTURE, "the saved graph was not deleted");
+  ok(backing.noodle_other === "keep-me", "unrelated storage was not deleted");
+  ok(removed.length === 0, "a failed first write does not remove keys: " + removed.join(","));
+  ok(Object.keys(backing).sort().join() === keysBefore, "the store's keys are unchanged after the failed write");
+  ok(W.toasts().some((m) => m.includes("nothing was deleted")), "the failed write shows a storage warning");
+  const listenersBefore = windowListeners;
+  W.bindWorkspaceChrome();
+  W.bindWorkspaceChrome();
+  ok(typeof dom.els.wsadd.onclick === "function", "the plus button is bound after the failed write");
+  ok(windowListeners - listenersBefore === 1, "binding the tab chrome twice does not stack keyboard listeners, got " + (windowListeners - listenersBefore));
+  dom.els.wsadd.onclick({ stopPropagation() {} });
+  ok(dom.els.wschooser.hidden === false, "the plus button opens the chooser");
+  W.claimInitialCanvas();
+  W.clearToasts();
+  W.chooseWorkspace("t2i");
+  ok((W.serializeGraph().nodes || []).some((n) => n.type === "image"), "the recovered workspace accepts a template");
+  ok(W.readWorkspaces().tabs.length === 1 && W.readWorkspaces().active === "w1", "the template stays on the recovered default workspace");
+  const bootHead = SRC.slice(SRC.indexOf("buildAddMenu();"), SRC.indexOf("document.documentElement.lang"));
+  ok(bootHead.includes("bindWorkspaceChrome"), "boot binds the tab chrome");
+  ok(!/try\{[^}]*ensureWorkspaces\(\)[^}]*bindWorkspaceChrome\(\)/.test(bootHead.replace(/\s+/g, "")), "ensure and bind do not share one catch");
+}
+{
+  clearStore();
+  backing.noodle_keep = "do-not-delete";
+  const origSet = localStorage.setItem;
+  localStorage.setItem = (k, v) => {
+    if (k === "noodle_workspaces") {
+      const err = new Error("quota");
+      err.name = "QuotaExceededError";
+      throw err;
+    }
+    return origSet.call(localStorage, k, v);
+  };
+  const W = boot();
+  try {
+    W.ensureWorkspaces();
+    W.applyGraphData(FRESH_STARTER);
+    W.noteFreshWorkspaceName();
+  } finally { localStorage.setItem = origSet; }
+  ok(W.readWorkspaces().tabs[0].name === "Travel postcard", "the in-memory tab can still take the starter's name");
+  ok(W.toasts().some((m) => m.includes("nothing was deleted")), "the first-write warning stays up");
+  ok(!W.toasts().some((m) => m.includes("Couldn’t save that workspace change.")), "naming the in-memory tab does not cover that warning");
+  ok(backing.noodle_keep === "do-not-delete", "naming the in-memory tab deletes nothing");
+  ok(!Object.prototype.hasOwnProperty.call(backing, "noodle_workspaces"), "naming the in-memory tab still does not write the index");
+}
+
+// Index writes stay blocked. Plus then Blank on a populated graph must not
+// leave the in-memory list on the new tab while the canvas keeps the old nodes.
+{
+  clearStore();
+  const origSet = localStorage.setItem;
+  localStorage.setItem = (k, v) => {
+    if (k === "noodle_workspaces") {
+      const err = new Error("quota");
+      err.name = "QuotaExceededError";
+      throw err;
+    }
+    return origSet.call(localStorage, k, v);
+  };
+  const W = boot();
+  const six = {
+    v: 1,
+    nodes: [1, 2, 3, 4, 5, 6].map((i) => ({ id: "n" + i, type: "text", x: i, y: 1, fields: { text: "N" + i } })),
+    links: [], nid: 7, lid: 1,
+  };
+  try {
+    W.ensureWorkspaces();
+    W.claimInitialCanvas();
+    W.applyGraphData(six);
+    W.chooseWorkspace("blank");
+  } finally { localStorage.setItem = origSet; }
+  const idx = W.readWorkspaces();
+  ok(idx.tabs.length === 1 && idx.active === "w1" && idx.tabs[0].id === "w1", "a blocked Blank open leaves the original workspace active");
+  ok(!idx.tabs.some((t) => t.name === "Blank canvas"), "a blocked Blank open does not show Blank as a tab");
+  ok((W.serializeGraph().nodes || []).length === 6 && textOf(W.serializeGraph()) === "N1", "the canvas still has the original 6 nodes");
+}
+
+// Delay the starter. Blank during the wait must leave the canvas empty:
+// loadDefault and seed both consult freshGraphStillDue after the await.
+{
+  clearStore();
+  const W = boot();
+  W.ensureWorkspaces();
+  const gen = W.bootGeneration();
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const flight = (async () => {
+    await gate;
+    if (!W.freshGraphStillDue(gen)) return false;
+    W.applyGraphData(FRESH_STARTER);
+    return true;
+  })();
+  ok(W.chooseWorkspace("blank") === "deferred", "Blank during the starter wait is held");
+  release();
+  const painted = await flight;
+  ok(painted === false, "the late starter does not paint after Blank");
+  ok((W.serializeGraph().nodes || []).length === 0, "the canvas is still empty while that starter was in flight");
+  ok(W.finishInitialCanvas({ fresh: true }) === true, "the held Blank runs once boot settles");
+  ok((W.serializeGraph().nodes || []).length === 0, "the late starter did not add nodes to the blank canvas");
+  ok(W.readWorkspaces().tabs.length === 1, "Blank on the still-empty tab does not leave a second empty tab");
+  ok(W.readWorkspaces().tabs[0].name === "Blank canvas", "the empty tab shows that it is the blank canvas");
+  ok(W.toasts().some((m) => m.includes("Blank canvas is this tab")), "Blank on an empty tab says so");
+  const ld = SRC.slice(SRC.indexOf("async function loadDefault"), SRC.indexOf("function saveFile"));
+  ok(ld.indexOf("await starterGraphData") >= 0 && ld.indexOf("freshGraphStillDue") > ld.indexOf("await starterGraphData"), "loadDefault checks the boot generation after the fetch");
+  const seedSite = SRC.slice(SRC.indexOf("const freshStart"), SRC.indexOf("Capture the starter"));
+  ok(seedSite.includes("freshGraphStillDue") && seedSite.indexOf("seed()") > seedSite.indexOf("freshGraphStillDue"), "boot does not seed after a tab click during loadDefault");
+}
+
+// Plus, then Blank, once the canvas is already empty and claimed.
+{
+  clearStore();
+  const W = boot();
+  W.ensureWorkspaces();
+  W.claimInitialCanvas();
+  W.applyGraphData(W.blankGraph());
+  W.clearToasts();
+  W.chooseWorkspace("blank");
+  ok(W.readWorkspaces().tabs.length === 1, "Blank on an empty tab reuses that tab");
+  ok((W.serializeGraph().nodes || []).length === 0, "the reused tab stays empty");
+  ok(W.toasts().some((m) => m.includes("Blank canvas is this tab")), "reusing the empty tab is visible");
+  ok(W.readWorkspaces().tabs[0].name === "Blank canvas", "the reused tab is named Blank canvas");
 }
 
 if (failures.length) {

@@ -216,6 +216,95 @@ try {
     } finally {
       for (const context of contexts) await context.close();
     }
+
+    // Exercise the literal plus button, with fresh isolated storage in each case.
+    // The ordinary activation journey above waits for startup and misses this race.
+    for (const storageDenied of [false, true]) {
+      const tabContext = await newContext();
+      const tabPage = await tabContext.newPage();
+      tabPage.setDefaultTimeout(15000);
+      let releaseStarter;
+      const starterGate = new Promise(resolve => { releaseStarter = resolve; });
+      let starterRequested;
+      const starterSeen = new Promise(resolve => { starterRequested = resolve; });
+      if (!storageDenied) await tabPage.route("**/noodle-graph.json", async route => {
+        starterRequested();
+        await starterGate;
+        await route.fulfill({json:starter});
+      });
+      if (storageDenied) await tabPage.addInitScript(() => {
+        window.__denyWorkspaceIndex = true;
+        const setItem = Storage.prototype.setItem;
+        Storage.prototype.setItem = function(key, value) {
+          if (this === localStorage && key === "noodle_workspaces" && window.__denyWorkspaceIndex)
+            throw new DOMException("Test index write denial", "QuotaExceededError");
+          return setItem.call(this, key, value);
+        };
+      });
+      const openBlank = async () => {
+        // Mobile intentionally folds the plus/strip into the Workspaces menu.
+        // Desktop still clicks the literal plus, through Playwright hit testing.
+        const control = mobile ? "#wsdrop" : "#wsadd";
+        const menu = mobile ? "#wsdropmenu" : "#wschooser";
+        await tabPage.locator(control).click();
+        await tabPage.locator(`${menu}:not([hidden])`).waitFor({state:"visible"});
+        assert.equal(await tabPage.locator(control).getAttribute("aria-expanded"), "true");
+        await tabPage.locator(`${menu} [data-ws="blank"]`).click();
+      };
+      try {
+        await tabPage.goto(origin, {waitUntil:storageDenied ? "networkidle" : "domcontentloaded"});
+        if (!storageDenied) {
+          await starterSeen;
+          assert.equal(await tabPage.locator("#world .node").count(), 0, "starter is still loading");
+          await openBlank();
+          releaseStarter();
+          await tabPage.waitForLoadState("networkidle");
+          await tabPage.waitForFunction(() => !initialCanvasUnclaimed());
+          assert.equal(await tabPage.locator("#world .node").count(), 0, "late starter preserves the Blank choice");
+          assert.equal(await tabPage.locator("#wstabs .wstab").count(), 1, "early Blank reuses the default tab");
+          assert.equal(await tabPage.locator("#wstabs .wstab.on").getAttribute("data-id"), "w1");
+          assert.match(await tabPage.locator("#workspaces").innerText(), /Blank canvas/);
+        } else {
+          const original = await tabPage.evaluate(() => JSON.stringify(serializeGraph()));
+          assert.equal(await tabPage.locator("#world .node").count(), starter.nodes.length);
+          for (let attempt = 0; attempt < 3; attempt++) {
+            await openBlank();
+            assert.equal(await tabPage.evaluate(() => JSON.stringify(serializeGraph())), original,
+              "denied index write preserves the graph");
+            assert.equal(await tabPage.locator("#wstabs .wstab.on").getAttribute("data-id"), "w1");
+            assert.equal(await tabPage.locator("#wstabs .wstab").count(), 1);
+          }
+          await tabPage.evaluate(() => { window.__denyWorkspaceIndex = false; });
+          await openBlank();
+          assert.equal(await tabPage.locator("#world .node").count(), 0, "writes recover and open Blank");
+          assert.equal(await tabPage.locator("#wstabs .wstab").count(), 2);
+          if (mobile) {
+            await tabPage.locator("#wsdrop").click();
+            await tabPage.locator("#wsdropmenu .wsname").click();
+          } else await tabPage.locator('#wstabs .wstab[data-id="w1"]').click();
+          // Loading a shelved graph advances allocation counters; its content
+          // and viewport must round-trip without resetting those counters.
+          const {nid:beforeNid, lid:beforeLid, ...beforeContent} = JSON.parse(original);
+          const {nid:afterNid, lid:afterLid, ...afterContent} = JSON.parse(
+            await tabPage.evaluate(() => JSON.stringify(serializeGraph())));
+          assert.deepEqual(afterContent, beforeContent, "switching back restores the original graph after recovery");
+          assert.ok(afterNid >= beforeNid && afterLid >= beforeLid, "allocation counters stay monotonic");
+        }
+        assert.deepEqual(forbidden, [], "workspace clicks make no paid or unexpected external requests");
+        assert.deepEqual(errors, [], "workspace clicks produce no browser JavaScript errors");
+        console.log(`✓ workspace ${mobile ? "menu" : "plus"} ${label}: ${storageDenied ? "persistent index denial → recovery → switch back" : "first click → chooser → Blank survives slow startup"}; no paid calls`);
+      } catch (error) {
+        if (process.env.NANOODLE_SMOKE_ARTIFACTS) {
+          const dir = resolve(process.env.NANOODLE_SMOKE_ARTIFACTS);
+          await mkdir(dir, {recursive:true});
+          await tabPage.screenshot({path:resolve(dir, `workspace-${label}-${storageDenied ? "storage" : "startup"}.png`), fullPage:true}).catch(() => {});
+        }
+        throw error;
+      } finally {
+        releaseStarter();
+        await tabContext.close();
+      }
+    }
   }
   const glb = await readFile(resolve(root, "examples/product-shot/sample.glb"));
   const cspContext = await browser.newContext({ viewport:{ width:1440, height:900 } });
