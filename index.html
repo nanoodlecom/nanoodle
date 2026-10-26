@@ -17233,9 +17233,31 @@ function wsSnapshotKey(key){
     return { present: value!==null, value };
   }catch(_){ return { present:false, value:null }; }
 }
+function wsReadKey(key){
+  try{ return localStorage.getItem(key); }catch(_){ return null; }
+}
+// Write a snapshot back and read it. A quota throw, or a write that does not
+// land as the same bytes, is a failed restore — callers must not assume it stuck.
 function wsRestoreKey(key, shot){
-  if(!shot || !shot.present) localStorage.removeItem(key);
-  else localStorage.setItem(key, shot.value);
+  const wantPresent = !!(shot && shot.present);
+  const want = wantPresent ? String(shot.value) : null;
+  // Already the snapshot: a full disk must not be asked to write it again.
+  const cur0 = wsReadKey(key);
+  if(wantPresent ? cur0===want : cur0===null) return true;
+  try{
+    if(!wantPresent) localStorage.removeItem(key);
+    else localStorage.setItem(key, want);
+  }catch(_){ return false; }
+  const cur = wsReadKey(key);
+  if(!wantPresent) return cur===null;
+  return cur===want;
+}
+function wsPutVerified(key, value){
+  const want = String(value);
+  if(wsReadKey(key)===want) return true;
+  try{ localStorage.setItem(key, want); }
+  catch(_){ return false; }
+  return wsReadKey(key)===want;
 }
 function captureResults(id){
   return { had: !!(id && workspaceResults.has(id)), entry: id ? workspaceResults.get(id) : null };
@@ -17290,21 +17312,92 @@ function workspaceShot(activeId){
   };
 }
 function workspaceRollback(shot, extra){
-  if(!shot) return;
+  if(!shot) return false;
   extra = extra || {};
-  try{ wsRestoreKey("noodle_graph", shot.graph); }catch(_){}
-  try{ wsRestoreKey(WS_INDEX_KEY, shot.index); }catch(_){}
-  try{ wsRestoreKey(EDITOR_APP_KEY, shot.editor); }catch(_){}
-  if(shot.id){ try{ wsRestoreKey(wsGraphKey(shot.id), shot.leaving); }catch(_){} }
+  const leaveKey = shot.id ? wsGraphKey(shot.id) : null;
+  const sourceBytes = shot.graph && shot.graph.present ? String(shot.graph.value) : null;
+  // Free the destination binding and temp keys BEFORE putting a larger graph
+  // back. Doing it the other way round fails under a still-tight quota: the
+  // index reverts, the canvas reverts, and noodle_graph keeps the incoming
+  // workspace. A reload then shows that incoming graph under the original tab.
   if(extra.removeId){ try{ localStorage.removeItem(wsGraphKey(extra.removeId)); }catch(_){} }
+  const editorWant = shot.editor && shot.editor.present ? String(shot.editor.value) : null;
+  if(wsReadKey(EDITOR_APP_KEY)!==editorWant){ try{ localStorage.removeItem(EDITOR_APP_KEY); }catch(_){} }
+  let graphOk = wsRestoreKey("noodle_graph", shot.graph);
+  // The leaving key is a temp copy of the original once noodle_graph holds the
+  // incoming graph. Drop it only as a retry, and put the original back on that
+  // key if the graph still will not land — never replace it with the incoming bytes.
+  if(!graphOk && leaveKey){
+    const backup = wsReadKey(leaveKey);
+    try{ localStorage.removeItem(leaveKey); }catch(_){}
+    graphOk = wsRestoreKey("noodle_graph", shot.graph);
+    if(!graphOk){
+      const put = sourceBytes!=null ? sourceBytes : backup;
+      if(put!=null) wsPutVerified(leaveKey, put);
+    }
+  }
+  let indexOk = false, leaveOk = true, editorOk = true;
+  if(graphOk){
+    indexOk = wsRestoreKey(WS_INDEX_KEY, shot.index);
+    if(leaveKey) leaveOk = wsRestoreKey(leaveKey, shot.leaving);
+    editorOk = wsRestoreKey(EDITOR_APP_KEY, shot.editor);
+  }
+  // Index and noodle_graph move together. If the original graph did not land,
+  // do not point the index back at the source tab: that pairs the incoming
+  // bytes with the original workspace. Keep the original on its own key, and
+  // if the index still names that tab, point it at whoever actually owns the
+  // bytes now in noodle_graph (a small write) so a reload cannot disagree.
+  if(!graphOk || !indexOk){
+    if(leaveKey && sourceBytes!=null) wsPutVerified(leaveKey, sourceBytes);
+    try{
+      const idx = JSON.parse(wsReadKey(WS_INDEX_KEY) || "null");
+      const live = wsReadKey("noodle_graph");
+      if(idx && sourceBytes!=null && idx.active===shot.id && live!==sourceBytes){
+        const owner = (idx.tabs||[]).find(t => t && t.id!==shot.id && wsReadKey(wsGraphKey(t.id))===live);
+        if(owner){
+          idx.active = owner.id;
+          wsPutVerified(WS_INDEX_KEY, JSON.stringify(idx));
+        }
+      }
+    }catch(_){}
+  }
+  const liveNow = wsReadKey("noodle_graph");
+  let activeNow = null;
+  try{ const idx = JSON.parse(wsReadKey(WS_INDEX_KEY) || "null"); activeNow = idx && idx.active; }catch(_){}
+  const onSource = !!(graphOk && indexOk && activeNow===shot.id && liveNow===sourceBytes);
   if(shot.id && shot.res) restoreResults(shot.id, shot.res);
   if(extra.resId) restoreResults(extra.resId, extra.res);
-  if(extra.histId && extra.hist) restoreHist(extra.histId, extra.hist);
-  if(shot.id && shot.hist) restoreHist(shot.id, shot.hist);
-  if(typeof pendingAppId!=="undefined"){ pendingAppId = shot.appId; pendingAppTitle = shot.appTitle; }
-  if(extra.canvas && shot.canvas){ try{ reapplyWorkspaceGraph(shot.canvas, shot.stash); }catch(_){} }
+  if(onSource){
+    if(extra.histId && extra.hist) restoreHist(extra.histId, extra.hist);
+    if(shot.id && shot.hist) restoreHist(shot.id, shot.hist);
+    if(typeof pendingAppId!=="undefined"){ pendingAppId = shot.appId; pendingAppTitle = shot.appTitle; }
+  }else{
+    // Disk stayed on the incoming workspace. Park that tab's history on the
+    // live stacks so the next switch does not flush this canvas onto the
+    // original tab's undo, and keep the in-memory app binding with it.
+    if(shot.id && shot.hist) restoreHist(shot.id, shot.hist);
+    if(extra.histId && extra.hist) restoreHist(extra.histId, extra.hist);
+    if(typeof pendingAppId!=="undefined"){
+      let app = null;
+      try{
+        const idx = JSON.parse(wsReadKey(WS_INDEX_KEY) || "null");
+        const cur = idx && (idx.tabs||[]).find(t => t && t.id===idx.active);
+        app = cur && cur.app;
+      }catch(_){}
+      pendingAppId = app && app.id ? app.id : null;
+      pendingAppTitle = app && app.title ? app.title : null;
+    }
+  }
+  if(extra.canvas){
+    try{
+      if(onSource && shot.canvas) reapplyWorkspaceGraph(shot.canvas, shot.stash);
+      else if(liveNow) reapplyWorkspaceGraph(liveNow, null);
+    }catch(_){}
+  }
   try{ if(typeof updateTitle==="function") updateTitle(); }catch(_){}
   try{ renderWorkspaces(); }catch(_){}
+  if(!onSource && sourceBytes!=null && activeNow===shot.id && liveNow!==sourceBytes) wsStorageError("switch");
+  return !!(onSource && leaveOk && editorOk);
 }
 // Every node and every link, before a share link is allowed to touch a tab.
 // A null node used to pass the array check, add a tab, then throw inside apply

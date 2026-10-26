@@ -685,6 +685,168 @@ function tabMarker(W, id) {
   ok(W.outOf("n1") && W.outOf("n1").text === "PAID", "the original paid output survived the rejected payloads and the later import");
 }
 
+// A quota that stays full for the whole attempt: the failed switch, the rollback,
+// a second vm on the same backing (a reload), and every switch after that.
+// Equal-size replaces fit. Anything that would grow past `cap` throws.
+function usageOf() {
+  return Object.values(backing).reduce((n, v) => n + String(v).length, 0);
+}
+function editorValueOf(len) {
+  const id = "app_dest";
+  for (let n = 0; n < len + 8; n++) {
+    const title = "T".repeat(n);
+    const value = JSON.stringify({ id, title });
+    if (value.length === len) return { id, title, value };
+  }
+  return null;
+}
+function installTightQuota(cap, reject) {
+  const orig = localStorage.setItem;
+  const wrote = [];
+  let refused = null;
+  localStorage.setItem = (k, v) => {
+    const next = String(v);
+    const blocked = !!(reject && reject(k, next));
+    const oldLen = Object.prototype.hasOwnProperty.call(backing, k) ? String(backing[k]).length : 0;
+    if (blocked || usageOf() - oldLen + next.length > cap) {
+      if (!refused) refused = k + (blocked ? " refused" : " over cap");
+      const err = new Error("quota");
+      err.name = "QuotaExceededError";
+      throw err;
+    }
+    wrote.push(k);
+    return orig.call(localStorage, k, v);
+  };
+  return { wrote, refused: () => refused, stop() { localStorage.setItem = orig; } };
+}
+// The bad pair Ember hit: the index still names the original tab while
+// noodle_graph holds the incoming workspace.
+function pairBad(sourceId) {
+  let idx = null;
+  try { idx = JSON.parse(backing.noodle_workspaces); } catch { return true; }
+  const live = backing.noodle_graph || "";
+  return !!(idx && idx.active === sourceId && live.includes("INCOMING") && !live.includes("ORIGINAL"));
+}
+function originalHeld(sourceId) {
+  let idx = null;
+  try { idx = JSON.parse(backing.noodle_workspaces); } catch { return false; }
+  const key = backing["noodle_ws_" + sourceId];
+  if (idx && idx.active === sourceId) return (backing.noodle_graph || "").includes("ORIGINAL");
+  return !!(key && key.includes("ORIGINAL"));
+}
+// Two tabs. The active one is a large ORIGINAL graph. The other is a compact
+// INCOMING graph plus a fat app binding that exactly fills the bytes freed by
+// swapping the large graph out. Cap leaves room for one extra copy of ORIGINAL
+// (the leaving-tab write) and nothing else.
+function stageTightPair() {
+  clearStore();
+  const W = boot();
+  W.ensureWorkspaces();
+  W.applyGraphData(markerGraph("ORIGINAL" + "A".repeat(4000)));
+  W.save();
+  const opened = W.openWorkspaceWithGraph(markerGraph("INCOMING"), "Incoming", { respectCap: true });
+  if (!opened) return { error: "could not open the incoming tab" };
+  const destId = W.readWorkspaces().active;
+  const sourceId = W.readWorkspaces().tabs.find((t) => t.id !== destId).id;
+  W.switchWorkspace(sourceId);
+  if (W.readWorkspaces().active !== sourceId) return { error: "could not switch back to the original tab" };
+  const preview = JSON.stringify(W.serializeGraph());
+  backing.noodle_graph = preview;
+  delete backing["noodle_ws_" + sourceId];
+  const compact = JSON.stringify({ nodes: [{ id: "n1", type: "text", x: 1, y: 1, fields: { text: "INCOMING" } }], links: [] });
+  backing["noodle_ws_" + destId] = compact;
+  const graphLen = preview.length;
+  const slack = graphLen - compact.length;
+  const editor = editorValueOf(slack);
+  if (!editor) return { error: "could not size the destination binding to " + slack };
+  const idx = JSON.parse(backing.noodle_workspaces);
+  idx.tabs.find((t) => t.id === destId).app = { id: editor.id, title: editor.title };
+  backing.noodle_workspaces = JSON.stringify(idx);
+  delete backing.noodle_editor_app;
+  const cap = usageOf() + graphLen;
+  return { W, sourceId, destId, editor, cap, graphLen, slack, originalBytes: preview };
+}
+
+// ---------------------------------------------------------------------------
+// 13. A quota that never lifts. Freeing the destination app binding has to
+//     happen before the large graph is put back, and the restore has to be
+//     read back. Otherwise a reload shows the incoming graph under the
+//     original tab and the next switch deletes the original.
+// ---------------------------------------------------------------------------
+{
+  const stage = stageTightPair();
+  ok(!stage.error, stage.error || "tight-quota stage");
+  if (!stage.error) {
+    const { W, sourceId, destId, cap, graphLen, slack, originalBytes } = stage;
+    const q = installTightQuota(cap);
+    W.clearToasts();
+    try { W.switchWorkspace(destId); }
+    finally { /* quota stays on through reload and later switches */ }
+    const detail = `refused ${q.refused()}; wrote ${q.wrote.join(",")}; graph ${graphLen} slack ${slack} cap ${cap}`;
+    ok(q.wrote.includes("noodle_editor_app"), "the destination binding was stored before the quota miss — " + detail);
+    ok(W.toasts().some((m) => m.includes("Couldn’t switch")), "a still-tight quota tells you the switch failed — " + detail);
+    ok(!pairBad(sourceId), "rollback left the incoming graph under the original workspace — " + detail);
+    ok(JSON.parse(backing.noodle_workspaces).active === sourceId, "a restorable switch stays on the original tab — " + detail);
+    ok(backing.noodle_graph === originalBytes, "noodle_graph was put back to the original bytes — " + detail);
+    ok(originalHeld(sourceId), "original content is stored under the original workspace — " + detail);
+    const re = boot();
+    re.ensureWorkspaces();
+    ok(re.load() === true, "reload still reads a graph");
+    ok(JSON.parse(backing.noodle_workspaces).active === sourceId, "after reload the original workspace is still the active one — " + detail);
+    ok((backing.noodle_graph || "").includes("ORIGINAL"), "after reload noodle_graph is still the original workspace — " + detail);
+    ok(!pairBad(sourceId), "after reload the incoming graph is not showing as the original workspace — " + detail);
+    ok(String(textOf(re.serializeGraph()) || "").startsWith("ORIGINAL"), "after reload the canvas is the original workflow");
+    re.clearToasts();
+    re.switchWorkspace(destId);
+    re.switchWorkspace(sourceId);
+    ok(originalHeld(sourceId), "later switches under the same quota keep the original on its workspace — " + detail);
+    ok(!pairBad(sourceId), "later switches did not pair the incoming graph with the original workspace — " + detail);
+    q.stop();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 14. The same tight quota, and putting the large graph back keeps failing
+//     even after the binding and the temp copy are gone. The original bytes
+//     stay on the original workspace, the index is not left claiming them
+//     while noodle_graph holds the incoming one, and the error is visible.
+//     A reload and another switch must not destroy that copy.
+// ---------------------------------------------------------------------------
+{
+  const stage = stageTightPair();
+  ok(!stage.error, stage.error || "impossible-restore stage");
+  if (!stage.error) {
+    const { W, sourceId, destId, cap, graphLen, slack, originalBytes } = stage;
+    let armed = false;
+    const q = installTightQuota(cap, (k, next) => {
+      if (k === "noodle_graph" && next.includes("INCOMING")) armed = true;
+      // Restoring the original graph keeps throwing for the rest of the test.
+      return armed && k === "noodle_graph" && next.includes("ORIGINAL");
+    });
+    W.clearToasts();
+    try { W.switchWorkspace(destId); }
+    finally { /* stays armed, and the cap stays tight */ }
+    const detail = `refused ${q.refused()}; wrote ${q.wrote.join(",")}; graph ${graphLen} slack ${slack}`;
+    ok(q.wrote.includes("noodle_editor_app"), "the binding was stored before restore became impossible — " + detail);
+    ok(W.toasts().some((m) => m.includes("Couldn’t switch")), "an impossible restore surfaces an error — " + detail);
+    ok(!pairBad(sourceId), "index and noodle_graph were left out of sync — " + detail);
+    ok(backing["noodle_ws_" + sourceId] === originalBytes, "the original bytes stayed on the original workspace — " + detail);
+    ok(!(backing["noodle_ws_" + sourceId] || "").includes("INCOMING"), "the incoming graph was written over the original workspace — " + detail);
+    const re = boot();
+    re.ensureWorkspaces();
+    ok(re.load() === true, "reload after an impossible restore still reads a graph");
+    ok(backing["noodle_ws_" + sourceId] === originalBytes, "reload left the original bytes on the original workspace — " + detail);
+    ok(!pairBad(sourceId), "reload is showing the incoming graph under the original workspace — " + detail);
+    re.clearToasts();
+    re.switchWorkspace(sourceId);
+    re.switchWorkspace(destId);
+    ok(backing["noodle_ws_" + sourceId] === originalBytes, "a later switch destroyed the original workspace — " + detail);
+    ok(!pairBad(sourceId), "a later switch paired the incoming graph with the original workspace — " + detail);
+    ok(re.toasts().some((m) => m.includes("Couldn’t switch")) || W.toasts().some((m) => m.includes("Couldn’t switch")), "the impossible restore did not surface an error");
+    q.stop();
+  }
+}
+
 if (failures.length) {
   console.error("✗ workspaces broke:\n\n- " + failures.join("\n- ") + "\n");
   process.exit(1);
