@@ -242,10 +242,14 @@ try {
         };
       });
       const openBlank = async () => {
-        await tabPage.locator("#wsadd").click();
-        await tabPage.locator("#wschooser:not([hidden])").waitFor({state:"visible"});
-        assert.equal(await tabPage.locator("#wsadd").getAttribute("aria-expanded"), "true");
-        await tabPage.locator('#wschooser [data-ws="blank"]').click();
+        // Mobile intentionally folds the plus/strip into the Workspaces menu.
+        // Desktop still clicks the literal plus, through Playwright hit testing.
+        const control = mobile ? "#wsdrop" : "#wsadd";
+        const menu = mobile ? "#wsdropmenu" : "#wschooser";
+        await tabPage.locator(control).click();
+        await tabPage.locator(`${menu}:not([hidden])`).waitFor({state:"visible"});
+        assert.equal(await tabPage.locator(control).getAttribute("aria-expanded"), "true");
+        await tabPage.locator(`${menu} [data-ws="blank"]`).click();
       };
       try {
         await tabPage.goto(origin, {waitUntil:storageDenied ? "networkidle" : "domcontentloaded"});
@@ -288,7 +292,7 @@ try {
         }
         assert.deepEqual(forbidden, [], "workspace clicks make no paid or unexpected external requests");
         assert.deepEqual(errors, [], "workspace clicks produce no browser JavaScript errors");
-        console.log(`✓ workspace plus ${label}: ${storageDenied ? "persistent index denial → recovery → switch back" : "first click → chooser → Blank survives slow startup"}; no paid calls`);
+        console.log(`✓ workspace ${mobile ? "menu" : "plus"} ${label}: ${storageDenied ? "persistent index denial → recovery → switch back" : "first click → chooser → Blank survives slow startup"}; no paid calls`);
       } catch (error) {
         if (process.env.NANOODLE_SMOKE_ARTIFACTS) {
           const dir = resolve(process.env.NANOODLE_SMOKE_ARTIFACTS);
