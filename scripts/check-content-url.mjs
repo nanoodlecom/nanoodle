@@ -2,9 +2,9 @@
 // Provider-relative content URLs (Grok Imagine returns
 // /api/generate-video/content?runId=… which 307s, with the API key, to a private
 // presigned file). The editor and play runtimes, and the embedded engine, must
-// resolve that path at the node boundary into an absolute URL the next node can
-// read — without downloading the file, and without leaking the key or the
-// presigned query into errors. Mock fetch only. No network, no API spend.
+// resolve a readable Location into an absolute file URL the next node can read.
+// An opaque browser redirect is not reported as success: the finished job stays
+// pending and the user sees an error. Mock fetch only. No network, no API spend.
 
 import { existsSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -188,18 +188,13 @@ async function playChain() {
     onResult: (n) => { outs[n.id] = n.out; },
     onStatus: (id, kind, msg) => { if (kind === "error") errors.push(id + ": " + msg); },
   });
-  ok(errors.length === 0, "run has no node errors (" + errors.join(" | ") + ")");
+  ok(errors.length >= 1 && /finished job is saved/.test(errors.join("\n")), "opaque redirect is an error, not a successful output (" + errors.join(" | ") + ")");
+  ok(/not a new generation/.test(errors.join("\n")), "the error says a retry is not a new generation");
   const posts = videoPosts(fetch.seen);
-  ok(posts.length === 2, "two generate-video submits (got " + posts.length + ")");
-  const ext = bodyOf(posts[1]);
-  ok(!!ext && ext.model === "minimax/h3-max-turbo/extend-video", "extend model is H3 extend-video");
-  ok(!!ext && ext.output === "extended", "extend sends modelOpts.output");
-  ok(!!ext && ext.videoUrl === CONTENT, "extend videoUrl is the absolute nano-gpt.com content URL (got " + (ext && ext.videoUrl) + ")");
-  ok(!!ext && !("videoDataUrl" in ext), "extend does not inline the clip");
-  ok(!!ext && !String(ext.videoUrl || "").includes(KEY), "extend videoUrl does not contain the key");
-  ok(outs.open && outs.open.video === CONTENT, "opening node output is the absolute content URL");
+  ok(posts.length === 1, "the extend node is not submitted with the content URL (got " + posts.length + " posts)");
+  ok(!outs.open || outs.open.video !== CONTENT, "the opening node does not publish the content URL");
   const hits = contentCalls(fetch.seen);
-  ok(hits.length === 2, "the producer and the extend node each fetch the content URL once (got " + hits.length + ")");
+  ok(hits.length === 1, "only the producer fetches the content URL (got " + hits.length + ")");
   ok(hits.every((h) => h.redirect === "manual"), "every content fetch uses redirect:manual");
   ok(hits.every((h) => header(h.headers, "authorization") === "Bearer " + KEY), "every content fetch sends the bearer key");
   ok(hits.every((h) => !header(h.headers, "x-api-key")), "no content fetch sends x-api-key");
@@ -487,9 +482,16 @@ async function playVideoRetries() {
     const app = loadEngine((ctx) => { ctx.fetch = fetch; });
     const g = app.materialize({ nodes: [node("n", "tvideo", fields)], links: [] });
     const first = await playOnce(app, g);
-    ok(first.errors.length === 0 && first.outs.n && first.outs.n.video === CONTENT, "opaque redirect returns the absolute content URL (" + (first.outs.n && first.outs.n.video) + ")");
+    ok(first.errors.length === 1 && /finished job is saved/.test(first.errors[0] || ""), "opaque redirect is a node error (" + (first.errors[0] || "") + ")");
+    ok(!(first.outs.n && first.outs.n.video), "opaque redirect does not publish a video");
+    assertNoSecrets(first.errors.join("\n"));
     ok(videoPosts(fetch.seen).length === 1 && statusCalls(fetch.seen).length === 1, "opaque redirect submitted and polled once");
     ok(contentCalls(fetch.seen).length === 1, "opaque redirect fetches the content URL once");
+    const second = await playOnce(app, g);
+    ok(second.errors.length === 1 && /finished job is saved/.test(second.errors[0] || ""), "opaque retry is still an error");
+    ok(videoPosts(fetch.seen).length === 1, "opaque retry does not submit generate-video again (got " + videoPosts(fetch.seen).length + ")");
+    ok(statusCalls(fetch.seen).length === 1, "opaque retry does not re-poll status (got " + statusCalls(fetch.seen).length + ")");
+    ok(contentCalls(fetch.seen).length === 2, "opaque retry repeats only the content fetch (got " + contentCalls(fetch.seen).length + ")");
     ok(keyedNanoodle(fetch.seen).length === 0, "opaque redirect sends no user key to nanoodle.com");
   }
 }
@@ -564,8 +566,13 @@ async function playAudioRetries() {
     const app = loadEngine((ctx) => { ctx.fetch = fetch; ctx.URLSearchParams = URLSearchParams; });
     const g = app.materialize(graph());
     const first = await playOnce(app, g);
-    ok(first.errors.length === 0 && first.outs.n && first.outs.n.audio === audioContent, "opaque audio redirect returns the absolute content URL (" + (first.outs.n && first.outs.n.audio) + ")");
+    ok(first.errors.length === 1 && /finished job is saved/.test(first.errors[0] || ""), "opaque audio redirect is a node error (" + (first.errors[0] || "") + ")");
+    ok(!(first.outs.n && first.outs.n.audio), "opaque audio redirect does not publish audio");
+    assertNoSecrets(first.errors.join("\n"));
     ok(speechPosts(fetch.seen).length === 1 && ttsPolls(fetch.seen).length === 1, "opaque audio redirect submitted and polled once");
+    const second = await playOnce(app, g);
+    ok(second.errors.length === 1, "opaque audio retry is still an error");
+    ok(speechPosts(fetch.seen).length === 1 && ttsPolls(fetch.seen).length === 1, "opaque audio retry does not resubmit or re-poll");
     ok(keyedNanoodle(fetch.seen).length === 0, "opaque audio redirect sends no user key to nanoodle.com");
   }
 }
@@ -771,6 +778,76 @@ async function parentContentRedirect() {
   await drive("null redirect", null);
 }
 
+async function parentStreamCap() {
+  console.log("\nplay parent: a content read stops streaming at the inline cap");
+  const replies = [];
+  const frameWin = { postMessage(msg) { replies.push(msg); } };
+  let apiListener = null;
+  let pulled = 0;
+  let cancelled = false;
+  let reads = 0;
+  const chunk = 256 * 1024;
+  loadEngine((ctx) => {
+    const doc = ctx.document;
+    ctx.document = new Proxy(doc, {
+      get(target, prop, recv) {
+        if (prop === "getElementById") {
+          return (id) => {
+            if (id === "appframe") return { contentWindow: frameWin };
+            const fn = doc.getElementById;
+            return typeof fn === "function" ? fn.call(doc, id) : undefined;
+          };
+        }
+        const value = Reflect.get(target, prop, recv);
+        return typeof value === "function" ? value.bind(doc) : value;
+      },
+    });
+    ctx.addEventListener = (type, fn) => {
+      if (type === "message" && String(fn).includes('init.redirect = "manual"')) apiListener = fn;
+    };
+    ctx.fetch = async (url, init = {}) => {
+      const u = new URL(String(url), "https://nano-gpt.com");
+      if (u.pathname !== "/api/generate-video/content") return jsonRes({ data: [] });
+      ok(init.redirect === "manual", "capped content read stays redirect:manual");
+      ok(header(init.headers, "authorization") === "Bearer " + KEY, "capped content read keeps Authorization");
+      ok(!header(init.headers, "x-api-key"), "capped content read does not send x-api-key");
+      return {
+        ok: true,
+        status: 200,
+        type: "basic",
+        headers: { get: (k) => (String(k).toLowerCase() === "content-type" ? "video/mp4" : null) },
+        body: {
+          getReader() {
+            return {
+              async read() {
+                reads++;
+                if (cancelled || pulled >= 12 * 1024 * 1024) return { done: true, value: undefined };
+                pulled += chunk;
+                return { done: false, value: new Uint8Array(chunk) };
+              },
+              async cancel() { cancelled = true; },
+              releaseLock() {},
+            };
+          },
+          cancel: async () => { cancelled = true; },
+        },
+      };
+    };
+  });
+  ok(typeof apiListener === "function", "captured the trusted iframe bridge");
+  await apiListener({
+    source: frameWin,
+    data: { type: "__api__", id: 9, url: "https://nano-gpt.com" + RELATIVE, method: "GET" },
+  });
+  const reply = replies[0] || {};
+  ok(/inline cap/.test(reply.error || ""), "the bridge reports the cap instead of the whole file (" + (reply.error || "") + ")");
+  ok(pulled < 8 * 1024 * 1024, "the unread tail is not buffered (pulled " + pulled + ")");
+  ok(cancelled, "the bridge cancels the reader");
+  ok(reads > 1 && reads < 40, "the bridge pulled more than one chunk and then stopped (reads " + reads + ")");
+  assertNoSecrets(JSON.stringify(reply));
+  ok(!reply.body || reply.body.byteLength === 0, "the over-cap reply does not carry the buffered clip");
+}
+
 const E = loadBundle();
 await playChain();
 await playReadableRedirect();
@@ -785,6 +862,7 @@ await playBodyRead();
 await noKeyedNanoodle();
 await playStreamCap();
 await parentContentRedirect();
+await parentStreamCap();
 await engineUnits(E);
 await engineChain(E);
 
@@ -792,4 +870,4 @@ if (failed) {
   console.error("\n✗ content-url: " + failed + " assertion(s) failed.");
   process.exit(1);
 }
-console.log("\n✓ content-url: relative NanoGPT content URLs chain as absolute readable URLs, and secrets stay out of errors.");
+console.log("\n✓ content-url: a readable Location becomes a file URL, an opaque redirect stays pending, and secrets stay out of errors.");

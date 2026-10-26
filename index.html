@@ -12947,9 +12947,8 @@ function njsCatalogs(){
 function njsCtx(E, n){
   const client = new E.NanoClient({ apiKey: getKey(), baseUrl: NANOGPT, fetch: (u,o)=> contentFetchForEngine(u, o) });
   // The bundled resolver follows redirect:manual and reads Location. Browsers hide
-  // that header, and following still does not reveal a no-CORS file URL, so the
-  // page resolver owns this: a readable Location becomes the file URL, and an
-  // opaque redirect becomes the absolute nano-gpt.com content URL.
+  // that header. A readable Location becomes the file URL. An opaque redirect
+  // throws, and the finished job stays pending instead of looking successful.
   client.resolveContentUrl = function(url, opts){
     var key = "";
     try{ key = (typeof getKey==="function" && getKey()) || ""; }catch(e){ key = ""; }
@@ -14070,13 +14069,14 @@ async function urlToDataUrl(url){
 // redirect:manual, so the key stays on nano-gpt.com. x-api-key is never set on that
 // request: a cross-origin redirect would keep it, while browsers strip Authorization.
 // A runtime that exposes Location returns that file URL and does not download it.
-// A browser's manual redirect is opaque (Location hidden). Following the redirect
-// still does not reveal the file URL when the file host sends no CORS headers, so
-// the absolute nano-gpt.com content URL is what the next node receives and fetches.
-// The key never goes to nanoodle.com. A direct 200 under the cap is inlined as a
-// data URL, and a chunked body is cancelled once it would pass the cap. data:, blob:,
-// and ordinary http(s) URLs pass through with no fetch. Errors use the path only —
-// never the API key or a presigned query string.
+// A browser's manual redirect is opaque (Location hidden). That content address
+// was not shown to work with no bearer key for preview, a new tab, and download,
+// so an opaque hop throws instead of reporting success. The caller keeps the
+// finished job until a later fetch returns a usable file URL. The key never goes
+// to nanoodle.com. A direct 200 under the cap is inlined as a data URL, and a
+// chunked body is cancelled once it would pass the cap. data:, blob:, and ordinary
+// http(s) URLs pass through with no fetch. Errors use the path only — never the
+// API key or a presigned query string.
 // No backticks: play.html's copy lives inside the String.raw RUNTIME_JS.
 function isContentApiPath(pathname){
   return pathname==="/api" || pathname.startsWith("/api/") || pathname==="/v1" || pathname.startsWith("/v1/");
@@ -14269,10 +14269,9 @@ async function resolveProviderMediaUrl(url, opts){
     var loc = r && r.headers && r.headers.get && r.headers.get("location");
     if(r && (r.type==="opaqueredirect" || ((status===0 || status==null) && !loc))){
       await drainContentBody(r);
-      // The browser hid Location. Do not ask nanoodle.com to walk the hop, and do
-      // not follow: a no-CORS file host never exposes response.url. The next node
-      // fetches this absolute content URL itself.
-      return current;
+      // Do not report success with the content URL. Preview, open, and download
+      // send no bearer key, and this hop did not reveal a file address.
+      throw new Error("This clip finished, but the browser hid the provider file link. Preview, open, download, and the next node need a file address that works with no API key, and this page could not read one. The finished job is saved - Run again retries only this download, not a new generation.");
     }
     if(loc && (status===0 || (status>=300 && status<400))){
       await drainContentBody(r);

@@ -509,8 +509,8 @@ for (const [name, type, fields, inp, directive, pin] of SCENARIOS) {
 }
 
 // Browser fetch with redirect:manual is opaque. The editor shim must not POST the
-// user key to nanoodle.com. A manual content read drops x-api-key and, when
-// Location is hidden, the page resolver returns the absolute content URL.
+// user key to nanoodle.com. A manual content read drops x-api-key. When Location
+// is hidden, the page resolver throws and the finished job stays pending.
 {
   const on = makeCtx({ flagOn: false });
   const seen = [];
@@ -542,16 +542,34 @@ for (const [name, type, fields, inp, directive, pin] of SCENARIOS) {
       return (host === "nanoodle.com" || host.endsWith(".nanoodle.com")) && (h.Authorization || h.authorization || h["x-api-key"]);
     } catch { return false; }
   }), false, "no request carrying a user key goes to a nanoodle.com origin");
-  const resolved = await on.resolveProviderMediaUrl(contentUrl, {
-    baseUrl: "https://nano-gpt.com",
-    apiKey: "test-api-key",
-    authHeaders: { Authorization: "Bearer test-api-key", "x-api-key": "test-api-key" },
-    fetch: on.fetch,
-  });
-  assert.equal(resolved, contentUrl, "an opaque redirect becomes the absolute content URL");
+  await assert.rejects(
+    () => on.resolveProviderMediaUrl(contentUrl, {
+      baseUrl: "https://nano-gpt.com",
+      apiKey: "test-api-key",
+      authHeaders: { Authorization: "Bearer test-api-key", "x-api-key": "test-api-key" },
+      fetch: on.fetch,
+    }),
+    (err) => /finished job is saved/.test(err && err.message) && !String(err && err.message).includes("test-api-key"),
+    "an opaque redirect is an error and does not include the key",
+  );
   const contentGets = seen.filter((s) => String(s.url).includes("/api/generate-video/content"));
   assert.ok(contentGets.every((s) => s.headers["x-api-key"] == null), "content reads never send x-api-key");
-  console.log("✓ editor resolves an opaque redirect in the browser without sending the key to nanoodle.com");
+  let submits = 0;
+  const ctx = on.njsCtx({
+    NanoClient: class {
+      constructor() {}
+      video() {
+        submits++;
+        return Promise.resolve("/api/generate-video/content?runId=grok1");
+      }
+    },
+  }, { id: "n1" });
+  await assert.rejects(() => ctx.video("m", "a boat", {}, undefined), /finished job is saved/);
+  await assert.rejects(() => ctx.video("m", "a boat", {}, undefined), /finished job is saved/);
+  assert.equal(submits, 1, "a second run does not submit the video again");
+  assert.equal(on.PENDING_VIDEO.has("n1"), true, "the finished job stays pending");
+  assert.equal(on.PENDING_VIDEO.get("n1").resultUrl, "/api/generate-video/content?runId=grok1");
+  console.log("✓ editor refuses an opaque redirect without sending the key to nanoodle.com");
 }
 
 if (failed) { console.log(`\n${failed}/${SCENARIOS.length} editor delegation scenarios failed`); process.exit(1); }
