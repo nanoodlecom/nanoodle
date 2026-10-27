@@ -1130,7 +1130,9 @@ function fakeWsDom() {
   ],links:[],nid:4,lid:1});
   backing.noodle_workspaces=JSON.stringify({v:1,active:"w1",seq:1,tabs:[{id:"w1",name:"Song idea"}]});
   const W = boot({addEventListener(kind, handler) { if(kind === "beforeunload") beforeUnload = handler; }});
-  await W.initWorkspaceStorage();
+  const firstInit=W.initWorkspaceStorage(), overlappingInit=W.initWorkspaceStorage();
+  ok(firstInit===overlappingInit,"overlapping storage initialization shares one promise");
+  await firstInit;
   W.ensureWorkspaces();W.claimInitialCanvas();W.load();
   W.setOut("n3", {audio:"data:audio/wav;base64,QUFBQQ=="});
   W.save();

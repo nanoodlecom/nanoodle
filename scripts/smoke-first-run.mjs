@@ -426,7 +426,7 @@ try {
     }
     // Start with newer IDB-only tabs plus an older local backup, then fail the
     // actual restore request. Neither Retry nor healthy reload may erase either branch.
-    for (const failure of ["open", "read", "timeout", "unavailable"]) {
+    for (const failure of ["open", "read", "timeout", "unavailable", "overlap"]) {
       const recoveryContext = await newContext();
       const seedPage = await recoveryContext.newPage();
       await seedPage.goto(origin + "/__workspace-test-seed");
@@ -457,12 +457,29 @@ try {
       recoveryPage.on("dialog", dialog => dialog.accept());
       await recoveryPage.addInitScript(({failure}) => {
         const broken = () => sessionStorage.getItem("restore-test-healthy") !== "1";
+        if(failure==="overlap") {
+          // The manual race gate is independent of the separately tested 2.5s
+          // timeout. Allow UI-action latency without timing out this race fixture.
+          const timeout=window.setTimeout.bind(window);
+          window.setTimeout=(fn,ms,...args)=>timeout(fn,ms===2500?10000:ms,...args);
+        }
         if(failure==="unavailable" && broken()) Object.defineProperty(window,"indexedDB",{value:undefined,configurable:true});
         const open=IDBFactory.prototype.open;
+        window.__restoreRequests=0;
         IDBFactory.prototype.open=function(name,version){
+          if(name==="nanoodle-workspaces" && failure==="overlap" && !broken() && sessionStorage.getItem("restore-test-overlap-done")!=="1") {
+            window.__restoreRequests++;
+            const req={},native=open.call(this,name,version);
+            native.onsuccess=()=>{
+              window.__releaseRestoreOpen=()=>{req.result=native.result;req.onsuccess?.();};
+              window.__restoreReadPending=true;
+            };
+            native.onerror=()=>{req.error=native.error;req.onerror?.();};
+            return req;
+          }
           if(name!=="nanoodle-workspaces" || !broken() || failure==="read") return open.call(this,name,version);
           const req={};
-          if(failure==="open") setTimeout(()=>{req.error=new DOMException("Synthetic open failure","UnknownError");req.onerror?.();},0);
+          if(failure==="open" || failure==="overlap") setTimeout(()=>{req.error=new DOMException("Synthetic open failure","UnknownError");req.onerror?.();},0);
           else setTimeout(()=>{
             const native=open.call(this,name,version);
             native.onsuccess=()=>{req.result=native.result; req.onsuccess?.(); window.__lateWorkspaceOpenDelivered=true;};
@@ -490,10 +507,26 @@ try {
           await recoveryPage.waitForFunction(()=>window.__lateWorkspaceOpenDelivered);
           assert.ok(await recoveryPage.evaluate(()=>workspacePersistence().restoreFailed),"a late open callback cannot silently change storage authority");
         }
-        const expectedText=(failure==="read" ? "RAPID RECOVERY EDIT " : "NEWEST RECOVERY EDIT ")+failure;
+        let expectedText=(failure==="read" ? "RAPID RECOVERY EDIT " : "NEWEST RECOVERY EDIT ")+failure;
         if(failure==="read") await recoveryPage.locator('.node[data-id="n1"] textarea').fill(expectedText);
         await recoveryPage.evaluate(()=>sessionStorage.setItem("restore-test-healthy","1"));
-        if(failure==="open") {
+        if(failure==="overlap") {
+          await recoveryPage.locator("#wspersistence-retry").click();
+          await recoveryPage.waitForFunction(()=>window.__restoreReadPending);
+          const field=recoveryPage.locator('.node[data-id="n1"] textarea');
+          await field.fill("EDIT B WHILE RETRY IS PENDING");
+          await recoveryPage.evaluate(()=>settleWorkspaceStorage());
+          assert.ok(await recoveryPage.locator("#wspersistence-retry").isDisabled(),"a pending retry cannot be started again from the UI");
+          // Force the duplicate handler as well: correctness must not depend on
+          // button state or event ordering. It must share the first init promise.
+          await recoveryPage.evaluate(()=>{void document.getElementById("wspersistence-retry").onclick();});
+          expectedText="LATEST OVERLAPPING RETRY EDIT";
+          await field.fill(expectedText);
+          await recoveryPage.evaluate(()=>settleWorkspaceStorage());
+          assert.equal(await recoveryPage.evaluate(()=>window.__restoreRequests),1,"overlapping Retry shares one storage restore");
+          await recoveryPage.evaluate(()=>{sessionStorage.setItem("restore-test-overlap-done","1");window.__releaseRestoreOpen();});
+          await recoveryPage.waitForFunction(()=>!workspacePersistence().restoreFailed && workspacePersistence().mode==="browser");
+        } else if(failure==="open") {
           await recoveryPage.locator("#wspersistence-retry").click();
           await recoveryPage.waitForFunction(()=>!workspacePersistence().restoreFailed && workspacePersistence().mode==="browser");
         } else await recoveryPage.reload({waitUntil:"networkidle"});

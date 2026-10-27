@@ -17214,6 +17214,7 @@ let wsRevision = 0, wsSavedRevision = 0, wsQueued = false;
 let wsUnloadBound = false;
 let wsRestoreFailed = false, wsRecoveryActive = false, wsRecoveryId = null, wsRecoveryBackup = null;
 let wsKnownRecord = null;
+let wsInitFlight = null, wsAuthorityEpoch = 0;
 let wsPersistTail = Promise.resolve(), wsStorageFailure = null, wsPersistFailure = null;
 function wsOwnedKey(key){
   return key==="noodle_graph" || key===WS_INDEX_KEY || key===EDITOR_APP_KEY || /^noodle_ws_/.test(key);
@@ -17309,6 +17310,7 @@ function wsPersistenceNotice(saving){
     box.hidden = !unsaved;
     backup.hidden = !!saving;
     retry.hidden = !!saving;
+    retry.disabled = !!wsInitFlight;
     backup.onclick = ()=> saveFile();
     retry.onclick = async ()=>{
       wsPersistenceNotice(true);
@@ -17343,11 +17345,16 @@ function wsQueuePersist(){
   // each intermediate graph/index write. The IDB transaction commits them together.
   Promise.resolve().then(()=>{
     wsQueued = false;
-    const revision = wsRevision, values = Object.assign({}, wsValues);
+    const revision = wsRevision, values = Object.assign({}, wsValues), authority = wsAuthorityEpoch;
     if(wsRecoveryActive) wsWriteRecovery(values);
     const recoveryId = wsRecoveryId;
     wsPersistTail = wsPersistTail.then(()=>new Promise((resolve, reject)=>{
+      const superseded = ()=>{const e=new Error("WorkspaceSuperseded");e.name="WorkspaceSuperseded";return e;};
+      if(authority!==wsAuthorityEpoch){reject(superseded());return;}
       if(!wsDatabase || wsRestoreFailed){ reject(new Error("BrowserStorageUnavailable")); return; }
+      // Freeze this operation's baseline; a later restore callback cannot make
+      // an older snapshot appear current while the transaction is reading.
+      const expectedRecord=wsKnownRecord;
       try{
         const tx = wsDatabase.transaction("workspaces", "readwrite");
         const timer = setTimeout(()=>{
@@ -17357,13 +17364,14 @@ function wsQueuePersist(){
         const fail = ()=>{ clearTimeout(timer); reject(tx.error || new Error("BrowserStorageUnavailable")); };
         const generation=Date.now().toString(36)+"-"+Math.random().toString(36).slice(2);
         let wrote=false;
-        tx.oncomplete = ()=>{ clearTimeout(timer); if(wrote){ wsKnownRecord=generation; resolve(); }else reject(new Error("BrowserStorageUnavailable")); };
+        tx.oncomplete = ()=>{ clearTimeout(timer); if(wrote){ if(authority===wsAuthorityEpoch) wsKnownRecord=generation; resolve(); }else reject(new Error("BrowserStorageUnavailable")); };
         tx.onerror = tx.onabort = fail;
         const store=tx.objectStore("workspaces"), current=store.get("state");
         current.onerror=fail;
         current.onsuccess=()=>{
           try{
-            if(wsRecordToken(current.result)!==wsKnownRecord){
+            if(authority!==wsAuthorityEpoch){clearTimeout(timer);reject(superseded());tx.abort();return;}
+            if(wsRecordToken(current.result)!==expectedRecord){
               const error=new Error("WorkspaceConflict");error.name="WorkspaceConflict";
               clearTimeout(timer);reject(error);tx.abort();return;
             }
@@ -17372,6 +17380,7 @@ function wsQueuePersist(){
         };
       }catch(e){ reject(e); }
     })).then(()=>{
+      if(authority!==wsAuthorityEpoch) return;
       wsSavedRevision = revision;
       wsPersistFailure = null;
       if(revision===wsRevision){
@@ -17379,6 +17388,7 @@ function wsQueuePersist(){
         wsPersistenceNotice(false);
       }
     }, error=>{
+      if(error && error.name==="WorkspaceSuperseded") return;
       if(error && error.name==="WorkspaceConflict"){
         wsRestoreFailed=true;wsRecoveryActive=true;
         wsStorageFailure={operation:"commit",key:"nanoodle-workspaces",name:"WorkspaceConflict"};
@@ -17413,7 +17423,16 @@ const workspaceStorage = {
     wsQueuePersist();
   }
 };
-async function initWorkspaceStorage(){
+function initWorkspaceStorage(){
+  if(wsInitFlight) return wsInitFlight;
+  wsInitFlight=restoreWorkspaceStorage().finally(()=>{
+    wsInitFlight=null;
+    try{const retry=$("wspersistence-retry");if(retry)retry.disabled=false;}catch(_){}
+  });
+  return wsInitFlight;
+}
+async function restoreWorkspaceStorage(){
+  wsAuthorityEpoch++;
   wsStorageEnabled = true;
   if(wsRestoreFailed && wsDatabase){ try{wsDatabase.close();}catch(_){} wsDatabase=null; }
   const recovery = wsReadRecovery();
@@ -17457,6 +17476,7 @@ async function initWorkspaceStorage(){
         }catch(e){ db.close(); finish(e); }
       };
     });
+    wsAuthorityEpoch++; // supersede snapshots queued while the restore was pending
     const restored = Object.create(null);
     wsKnownRecord=wsRecordToken(record);
     if(record && record.v===1 && record.values && typeof record.values==="object"){

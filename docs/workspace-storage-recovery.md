@@ -26,6 +26,10 @@ The unload handler flushes a pending edit to that journal synchronously before
 refresh can outrun the autosave debounce. Each IDB write also checks the snapshot
 generation inside the same transaction: a newer writer causes recovery mode,
 not a blind overwrite. Retry then reconciles both branches under fresh tab IDs.
+Initialization/retry is single-flight. Authority epochs invalidate snapshots
+queued before or during a restore, and each transaction freezes its comparison
+baseline. Overlapping retries cannot replace a newer live edit with an older
+journal captured by an earlier caller.
 
 ## Export and rollback procedure
 
