@@ -413,6 +413,64 @@ try {
       assert.ok(after.sizes >= after.h - 2, `${spec.type} stored the new ${spec.field} height`);
     }
   }
+  // Several tabs, narrow enough that the strip scrolls sideways. overflow-x:auto
+  // must not grow a vertical scrollbar, and a horizontal bar must not steal
+  // height from the tabs (scrollHeight stays within the strip).
+  {
+    const stripContext = await browser.newContext({ viewport:{ width:880, height:800 }, locale:"en-US" });
+    await stripContext.route("**/*", async route => {
+      const url = new URL(route.request().url());
+      if (url.origin === origin) {
+        if (url.pathname === "/sw.js") return route.fulfill({ contentType:"text/javascript", body:"// No caching in the browser smoke test.\n" });
+        return route.continue();
+      }
+      return route.abort();
+    });
+    const stripNames = ["Song idea","Night desk","Poster","Loop","Ask","Storyboard","Hero ad","Snow loop","Bilingual poster","Product shot"];
+    const stripPage = await stripContext.newPage();
+    stripPage.setDefaultTimeout(15000);
+    await stripPage.addInitScript((names) => {
+      const tabs = names.map((name, i) => ({ id:"w" + (i + 1), name, app:null }));
+      localStorage.setItem("noodle_workspaces", JSON.stringify({ v:1, active:"w1", seq:tabs.length, tabs }));
+      localStorage.setItem("noodle_graph", JSON.stringify({ v:1, nodes:[], links:[], nid:1, lid:1 }));
+      localStorage.setItem("noodle_hint_dismissed", "1");
+      localStorage.setItem("noodle_connect_hint_dismissed", "1");
+    }, stripNames);
+    try {
+      await stripPage.goto(origin + "/?product=off&na=0", { waitUntil:"domcontentloaded" });
+      await stripPage.locator("#wstabs .wstab").nth(stripNames.length - 1).waitFor();
+      const box = await stripPage.locator("#wstabs").evaluate(el => {
+        el.scrollLeft = el.scrollWidth;
+        const strip = el.getBoundingClientRect();
+        const tabs = [...el.querySelectorAll(".wstab")];
+        const tabOverflow = tabs.filter(t => {
+          const r = t.getBoundingClientRect();
+          return r.top < strip.top - 0.5 || r.bottom > strip.bottom + 0.5 || r.height > strip.height + 0.5;
+        }).length;
+        const cs = getComputedStyle(el);
+        return {
+          scrollHeight:el.scrollHeight, clientHeight:el.clientHeight,
+          scrollWidth:el.scrollWidth, clientWidth:el.clientWidth,
+          overflowY:cs.overflowY, count:tabs.length, tabOverflow,
+        };
+      });
+      assert.ok(box.count >= 4, "several workspace tabs are open");
+      assert.ok(box.scrollWidth > box.clientWidth, "the strip is wide enough to scroll sideways");
+      assert.ok(box.scrollHeight <= box.clientHeight, `tab strip scrollHeight ${box.scrollHeight} exceeds clientHeight ${box.clientHeight}`);
+      assert.equal(box.overflowY, "hidden");
+      assert.equal(box.tabOverflow, 0, "tab height stays inside the strip");
+      console.log("✓ workspace tab strip: no vertical scrollbar with several tabs");
+    } catch (error) {
+      if (process.env.NANOODLE_SMOKE_ARTIFACTS) {
+        const dir = resolve(process.env.NANOODLE_SMOKE_ARTIFACTS);
+        await mkdir(dir, { recursive:true });
+        await stripPage.screenshot({ path:resolve(dir, "tab-strip.png"), fullPage:true }).catch(() => {});
+      }
+      throw error;
+    } finally {
+      await stripContext.close();
+    }
+  }
   for (const touch of [false, true]) {
     const label = touch ? "touch" : "mouse";
     const resizeContext = await browser.newContext({

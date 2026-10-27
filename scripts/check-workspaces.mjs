@@ -425,6 +425,8 @@ const photoOf = (g) => {
   const css = SRC.slice(cssStart, cssEnd);
   const narrow = css.slice(css.indexOf("@media (max-width:720px)"));
   ok(css.includes("overflow-x:auto"), "wide screens scroll the tab strip horizontally");
+  ok(css.includes("overflow-y:hidden"), "the tab strip never shows a vertical scrollbar");
+  ok(css.includes("scrollbar-width:none"), "the horizontal tab scrollbar stays hidden so it cannot clip the tabs");
   ok(narrow.includes("#wstabs{ display:none }"), "narrow screens collapse the strip instead of squeezing tabs");
   ok(narrow.includes("min-height:44px"), "the collapsed workspace control is at least 44px");
   ok(narrow.includes("ws-touch-target") && /#wsdropmenu \.wsrow \.wsx\{[^}]*min-height:44px/.test(narrow), "the mobile close control is a 44px touch target");
