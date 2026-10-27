@@ -16611,6 +16611,7 @@ const EDITOR_APP_KEY = "noodle_editor_app";  // localStorage: {id,title} of the 
 let saveT=null;
 function save(){
   if(typeof invalidateWorkspaceCloseHistory==="function") invalidateWorkspaceCloseHistory();
+  if(typeof syncWorkspaceCloseControls==="function") syncWorkspaceCloseControls();
   try{ syncRunFailPort(); }catch(_){}
   refreshRunEstimate();                 // keep the bottom-right run cost live as the graph is edited
   refreshPromptCaps();                  // …and the prompt-room notes: model swaps, typing and wiring all land here
@@ -16796,6 +16797,7 @@ function loadFile(file){
       }else save();
       try{ if(typeof stampActiveExample==="function") stampActiveExample(null); }
       catch(_){ if(typeof wsStorageError==="function") wsStorageError("save"); }
+      if(typeof syncWorkspaceCloseControls==="function") syncWorkspaceCloseControls();
       if(had) toast(t("↺ Undo restores your previous workflow"));   // opening a file replaced your graph — one Ctrl+Z away
     }catch(e){
       try{ if(typeof undoStack!=="undefined" && undoStack.length>undoLen) undoStack.splice(undoLen); }catch(_){}
@@ -18444,6 +18446,16 @@ function commitReorder(id, toIndex){
 function tabOccupied(d, tab){
   if(tab.id===d.active) return !!(graph.nodes && graph.nodes.length);
   try{ return graphHasNodes(workspaceStorage.getItem(wsGraphKey(tab.id))); }catch(_){ return false; }
+}
+// Only the last tab hides its close button when blank. A Load, first node, or
+// canvas Undo can change that without changing the tab index. Refresh the strip
+// only when that control actually changes, so typing never rebuilds a rename.
+function syncWorkspaceCloseControls(){
+  try{
+    const d=readWorkspaces();if(!d || d.tabs.length!==1)return;
+    const tab=$("wstabs").querySelector(".wstab");
+    if(tab && !!tab.querySelector(".wsx")!==!!graph.nodes.length)renderWorkspaces();
+  }catch(_){}
 }
 function focusWorkspaceTab(id){
   try{
