@@ -206,6 +206,14 @@ const HOWTO = {
     inspect: "Listen for the switch at every line, and for names being read out. If both characters sound the same, put the cast note back to the wording here and run the Speech node again.",
     costHow: "GLM 5.3 Flash for under $0.001 + Gemini 3.1 Flash TTS at about $0.10 per 1,000 characters (cast note plus script, about 950 characters here) = about $0.10. The saved run was about $0.098 by balance; the TTS price is not reported per call.",
   },
+  "swap-the-character": {
+    headline: "Swap the character, keep the performance",
+    job: "Recast a clip: keep someone's dance, gesture or walk, the camera move and the location, but have a different character perform it, from just one picture of that character.",
+    purpose: "The Video edit node grows a <em>character</em> image port when you pick an image+video model like Wan 2.2 Animate. Wire the performance clip into <em>video</em> and the character still into <em>character</em>, and set the model's mode to <em>replace</em> so the character is placed into the original scene. (<em>animate</em> mode instead moves your still, with its own background.)",
+    edit: "Change the performer in <em>Dancer · prompt</em> and the dance in <em>Performance · motion prompt</em>, or delete those nodes and wire a 📹 Video input with your own clip into Video edit. Describe a different character in <em>New character · prompt</em>, or wire a 📷 Image input into the character port. Use a full-body character on a plain background, at the same aspect ratio as the clip, with the pose roughly matching the performer's first frame.",
+    inspect: "Play the two clips side by side and step through the spin: the moves and camera should match beat for beat. Check whether the character kept its proportions and details (here the fox grows to the dancer's height and loses most of its tail), and look at fast turns for smearing.",
+    costHow: "Two Muse stills at $0.011 each + H3 Max Turbo 480p 5 s for $0.125 + Wan 2.2 Animate replace at 480p for $0.30 (it billed 6 s at $0.05/s for the 5.18 s clip) = $0.447. With your own clip and character image only the swap is paid: about $0.05 per second at 480p.",
+  },
   "photo-to-video": {
     headline: "Animate a still",
     job: "Generate a first frame, then animate its steam.",
@@ -263,7 +271,7 @@ const IRON = {
   costHow: "The selected source images cost $0.02 combined ($0.01 each for reference and parts). Local baking and playtesting made no further model calls. Your own character spends your NanoGPT balance; the skill has the full run.",
 };
 
-const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
+const ORDER = ["storyboard-relay", "tiny-world-film", "iron-verdict", "character-sprites", "image-model-arena", "flux3-seedream-ideogram-arena", "grok-heygen-minimax-video-arena", "swap-the-character", "radio-play", "logo-pile", "add-snow-to-a-clip", "seamless-loop", "three-references-one-clip", "product-photo-to-hero-ad", "bilingual-tea-poster", "day-to-night", "color-to-manga", "mix-the-references", "same-shot-three-looks", "orbit-the-character", "story-to-shot", "blockout-to-shot", "idea-to-3d-model", "photo-to-video", "sing", "talking-avatar", "neon-shrine-duel"];
 
 // Per-page share cards composed from the saved gallery outputs (1200×630 PNG).
 // Other guide pages keep the site-wide og-card.
