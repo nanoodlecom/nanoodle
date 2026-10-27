@@ -502,6 +502,13 @@ try {
         await recoveryPage.locator('.node[data-id="n1"] textarea').fill("NEWEST RECOVERY EDIT " + failure);
         await recoveryPage.evaluate(()=>settleWorkspaceStorage());
         assert.equal(await recoveryPage.evaluate(()=>workspacePersistence().recoveryBackup),"local","edits are journaled separately without touching unread IDB");
+        if(mobile){
+          await recoveryPage.locator("#wsdrop").click();
+          await recoveryPage.locator("#wsdropmenu .wsrow.on .wsx").click();
+        }else await recoveryPage.locator("#wstabs .wstab.on .wsx").click();
+        await recoveryPage.locator("#wscloseundo-action").click();
+        assert.equal(await recoveryPage.evaluate(()=>graph.nodes.find(n=>n.id==="n1").fields.text),"NEWEST RECOVERY EDIT " + failure,"close/Undo during unreadable storage preserves this visit's edits");
+        await recoveryPage.evaluate(()=>settleWorkspaceStorage());
         assert.match(await recoveryPage.locator("#wspersistence").innerText(),/could not be restored/);
         if(failure==="timeout") {
           await recoveryPage.waitForFunction(()=>window.__lateWorkspaceOpenDelivered);
@@ -587,6 +594,156 @@ try {
         }
         throw error;
       } finally { await recoveryContext.close(); }
+    }
+    // Real close controls, action buttons and native keyboard dispatch. The
+    // tombstones are visit-only; persisted graphs still use the storage adapter.
+    {
+      const closeContext=await newContext();
+      const closePage=await closeContext.newPage();closePage.setDefaultTimeout(15000);
+      const dialogs=[];
+      closePage.on("dialog",async dialog=>{dialogs.push(dialog.type());await dialog.dismiss();});
+      await closePage.addInitScript(({song})=>{
+        if(!localStorage.getItem("close-test-seeded")){
+          const other={v:1,nodes:[{id:"other",type:"text",x:30,y:30,fields:{text:"OTHER WORKFLOW"},name:"Other"}],links:[],nid:2,lid:1};
+          localStorage.setItem("noodle_graph",JSON.stringify(song));
+          localStorage.setItem("noodle_ws_w2",JSON.stringify(other));
+          localStorage.setItem("noodle_ws_w3",JSON.stringify(other));
+          localStorage.setItem("noodle_workspaces",JSON.stringify({v:1,seq:3,active:"w1",tabs:[
+            {id:"w1",name:"Song idea",app:null},{id:"w2",name:"Poster",app:null},{id:"w3",name:"Sketch",app:null}]}));
+          localStorage.setItem("close-test-seeded","1");
+          localStorage.setItem("noodle_hint_dismissed","1");localStorage.setItem("noodle_connect_hint_dismissed","1");
+        }
+        const set=Storage.prototype.setItem;
+        Storage.prototype.setItem=function(key,value){
+          if(this===localStorage && window.__closeStorageFull && /^noodle_(graph|workspaces|ws_|editor_app)/.test(key))throw new DOMException("Synthetic full storage","QuotaExceededError");
+          return set.call(this,key,value);
+        };
+        const put=IDBObjectStore.prototype.put;
+        IDBObjectStore.prototype.put=function(...args){
+          if(this.name==="workspaces" && window.__closeDatabaseDenied)throw new DOMException("Synthetic database denial","QuotaExceededError");
+          return put.apply(this,args);
+        };
+      },{song});
+      const closeTab=async id=>{
+        if(mobile){
+          if(!await closePage.locator("#wsdropmenu").isVisible())await closePage.locator("#wsdrop").click();
+          const index=await closePage.evaluate(id=>readWorkspaces().tabs.findIndex(t=>t.id===id),id);
+          await closePage.locator("#wsdropmenu .wsrow").nth(index).locator(".wsx").click();
+        }else await closePage.locator(`#wstabs .wstab[data-id="${id}"] .wsx`).click();
+      };
+      const ids=()=>closePage.evaluate(()=>readWorkspaces().tabs.map(t=>t.id));
+      const shortcut=async key=>{await closePage.evaluate(()=>document.activeElement?.blur());await closePage.keyboard.press(key);};
+      try{
+        await closePage.goto(origin+"/?product=off&na=0",{waitUntil:"networkidle"});
+        await closePage.evaluate(()=>{const n=graph.nodes.find(n=>n.id==="n1");n.out={text:"GENERATED IN THIS VISIT"};pushUndo();});
+        await closeTab("w2");
+        assert.deepEqual(await ids(),["w1","w3"],"inactive close is immediate");
+        assert.match(await closePage.locator("#wscloseundo").innerText(),/Closed “Poster”/);
+        assert.equal(await closePage.locator("#wscloseundo").getAttribute("role"),"status");
+        assert.equal(await closePage.locator("#wscloseundo").getAttribute("aria-live"),"polite");
+        assert.equal(await closePage.locator("#wscloseundo-action").evaluate(el=>el===document.activeElement),false,"notice does not steal focus");
+        assert.ok(await closePage.locator("#wscloseundo-action").evaluate(el=>el.getBoundingClientRect().height>=44),"Undo is a touch-sized button");
+        // A rename input and contenteditable retain browser undo, even while a
+        // close is pending. Merely opening an editor must not close another tab.
+        if(mobile){
+          const rename=closePage.locator("#wsdropmenu input.wsrename");
+          await rename.focus();await closePage.keyboard.press("Control+z");
+        }else{
+          await closePage.locator('#wstabs .wstab[data-id="w1"]').press("F2");
+          await closePage.locator("#wstabs input.wsrename").press("Control+z");
+        }
+        assert.deepEqual(await ids(),["w1","w3"],"rename input Ctrl+Z never reopens tabs");
+        const native=await closePage.evaluate(()=>{
+          const el=document.createElement("div");el.contentEditable="true";document.body.append(el);el.focus();
+          const event=new KeyboardEvent("keydown",{key:"z",ctrlKey:true,bubbles:true,cancelable:true});el.dispatchEvent(event);
+          const prevented=event.defaultPrevented;el.remove();return prevented;
+        });
+        assert.equal(native,false,"contenteditable keeps native undo");
+        if(process.env.NANOODLE_SMOKE_ARTIFACTS){
+          const dir=resolve(process.env.NANOODLE_SMOKE_ARTIFACTS);await mkdir(dir,{recursive:true});
+          await closePage.screenshot({path:resolve(dir,`close-undo-${label}.png`),fullPage:true});
+        }
+        await closePage.locator("#wscloseundo-action").click();
+        assert.deepEqual(await ids(),["w1","w2","w3"],"button restores inactive tab at original position");
+        assert.equal(await closePage.evaluate(()=>readWorkspaces().active),"w1","inactive Undo keeps current workflow");
+        await closeTab("w1");
+        assert.equal(await closePage.evaluate(()=>readWorkspaces().active),"w2");
+        await shortcut("Control+z");
+        assert.equal(await closePage.evaluate(()=>readWorkspaces().active),"w1","literal keyboard Undo restores active close");
+        assert.equal(await closePage.evaluate(()=>graph.nodes.find(n=>n.id==="n1").out.text),"GENERATED IN THIS VISIT","Undo retains generated results in this visit");
+        assert.equal(await closePage.evaluate(()=>graph.nodes.find(n=>n.id==="upload-test").fields.image),uploadedPNG);
+        await shortcut("Control+Shift+z");
+        assert.deepEqual(await ids(),["w2","w3"],"keyboard Redo closes restored active tab");
+        await closeTab("w3");
+        await shortcut("Control+z");await shortcut("Control+z");
+        assert.deepEqual(await ids(),["w1","w2","w3"],"multiple closes undo LIFO without losing tabs");
+        await closeTab("w2");await closeTab("w3");
+        await closeTab("w1");
+        assert.deepEqual(await ids(),["w1"],"last close keeps its ID");
+        assert.equal(await closePage.locator(".node").count(),0);
+        await closePage.locator("#wscloseundo-action").click();
+        assert.deepEqual(await ids(),["w1"],"last Undo restores into the same ID");
+        assert.equal(await closePage.evaluate(()=>readWorkspaces().tabs[0].name),"Song idea");
+        assert.equal(await closePage.evaluate(()=>graph.nodes.find(n=>n.id==="n1").out.text),"GENERATED IN THIS VISIT");
+        // A new edit makes the earlier close toast stale. Canvas Undo remains
+        // available and cannot accidentally reopen one of those old tabs.
+        await closePage.evaluate(()=>{addNode("text",20,20,{text:"LATEST NEW NODE"});});
+        assert.equal(await closePage.locator("#wscloseundo").isVisible(),false,"new action dismisses stale close Undo");
+        await shortcut("Control+z");
+        assert.deepEqual(await ids(),["w1"],"canvas Undo does not resurrect stale tab closures");
+        assert.equal(await closePage.evaluate(()=>graph.nodes.some(n=>n.fields?.text==="LATEST NEW NODE")),false,"canvas Undo still works");
+        // Both stores denied: close/Undo are still usable and accurately marked
+        // visit-only. Recovery persists the restored newest graph, not a tombstone.
+        await closePage.evaluate(()=>{window.__closeStorageFull=true;window.__closeDatabaseDenied=true;});
+        await closeTab("w1");await closePage.locator("#wscloseundo-action").click();
+        assert.equal((await closePage.evaluate(()=>settleWorkspaceStorage())).mode,"session");
+        assert.match(await closePage.locator("#wspersistence").innerText(),/visit only/);
+        assert.equal(await closePage.evaluate(()=>graph.nodes.find(n=>n.id==="upload-test").fields.image),uploadedPNG);
+        await closePage.evaluate(()=>{window.__closeDatabaseDenied=false;});
+        await closePage.locator("#wspersistence-retry").click();
+        assert.equal((await closePage.evaluate(()=>settleWorkspaceStorage())).mode,"browser");
+        // Save/Load exercises the restored workflow's real file controls.
+        if(!await closePage.locator("#save").isVisible())await closePage.locator("#morebtn").click();
+        const [backup]=await Promise.all([closePage.waitForEvent("download"),closePage.locator("#save").click()]);
+        const saved=JSON.parse(await readFile(await backup.path(),"utf8"));
+        assert.equal(saved.nodes.find(n=>n.id==="upload-test").fields.image,uploadedPNG);
+        assert.ok(saved.nodes.every(n=>!n.out),"Save retains existing generated-output exclusion");
+        await closeTab("w1");await closePage.locator("#loadfile").setInputFiles(await backup.path());
+        await closePage.waitForFunction(()=>graph.nodes.some(n=>n.id==="upload-test"));
+        assert.equal(await closePage.locator("#wscloseundo").isVisible(),false,"Load invalidates stale close action");
+        await closePage.evaluate(()=>settleWorkspaceStorage());
+        await closePage.reload({waitUntil:"networkidle"});
+        assert.equal(await closePage.evaluate(()=>graph.nodes.find(n=>n.id==="upload-test").fields.image),uploadedPNG,"Save/Load then reload keeps restored upload");
+        assert.equal(await closePage.locator("#wscloseundo").isVisible(),false,"reload never implies visit-only close history survived");
+        await closePage.evaluate(()=>Object.defineProperty(navigator,"platform",{value:"MacIntel",configurable:true}));
+        await closeTab("w1");
+        assert.equal(await closePage.locator("#wscloseundo-key").textContent(),"⌘ + Z","Mac shows the native hotkey");
+        await shortcut("Meta+z");
+        assert.equal(await closePage.evaluate(()=>graph.nodes.find(n=>n.id==="upload-test").fields.image),uploadedPNG,"Cmd+Z restores a closed workspace");
+        await closeTab("w1");await closePage.keyboard.press("Escape");
+        assert.equal(await closePage.locator("#wscloseundo").isVisible(),false,"Escape dismisses the action without undoing the close");
+        await closePage.locator("#loadfile").setInputFiles(await backup.path());
+        await closePage.waitForFunction(()=>graph.nodes.some(n=>n.id==="upload-test"));
+        // Timer is suspended while pointer/focus is on the action and expires
+        // after eight available seconds. Escape dismisses without altering data.
+        await closeTab("w1");
+        await closePage.evaluate(()=>settleWorkspaceStorage());
+        await closePage.clock.install();
+        await closePage.locator("#wscloseundo-action").focus();
+        await closePage.clock.runFor(9000);
+        assert.equal(await closePage.locator("#wscloseundo").isVisible(),true,"focused Undo does not expire");
+        await closePage.evaluate(()=>document.activeElement.blur());await closePage.mouse.move(1,1);
+        await closePage.clock.runFor(8100);
+        assert.equal(await closePage.locator("#wscloseundo").isVisible(),false,"notice expires without deleting more data");
+        assert.deepEqual(await ids(),["w1"]);
+        assert.deepEqual(dialogs,[],"workspace deletion never opens a blocking browser dialog");
+        assert.deepEqual(errors,[],"close/Undo produces no browser exceptions");
+        assert.deepEqual(forbidden,[],"close/Undo makes no paid or unexpected requests");
+        console.log(`✓ workspace close ${label}: immediate controls, button/hotkey Undo/Redo, native typing, results/uploads/history, last ID, storage denial/recovery, Save/Load/reload, notice focus/expiry`);
+      }catch(error){
+        if(process.env.NANOODLE_SMOKE_ARTIFACTS){const dir=resolve(process.env.NANOODLE_SMOKE_ARTIFACTS);await mkdir(dir,{recursive:true});await closePage.screenshot({path:resolve(dir,`close-undo-failure-${label}.png`),fullPage:true}).catch(()=>{});}
+        throw error;
+      }finally{await closeContext.close();}
     }
   }
   const glb = await readFile(resolve(root, "examples/product-shot/sample.glb"));
