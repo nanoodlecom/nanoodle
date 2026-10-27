@@ -34,6 +34,12 @@ await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
 // The app normalizes loopback IPs to localhost for its OAuth redirect URI.
 const origin = `http://localhost:${server.address().port}`;
 const starter = JSON.parse(await readFile(resolve(root, "noodle-graph.json"), "utf8"));
+const song = JSON.parse(await readFile(resolve(root, "examples/gallery/sing/graph.json"), "utf8"));
+song.nodes.find(n => n.type === "comment").name = "Song idea";
+song.nodes.find(n => n.id === "n1").fields.text = "SYNTHETIC SONG IDEA";
+const uploadedPNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jP1sAAAAASUVORK5CYII=";
+song.nodes.push({id:"upload-test",type:"upload",x:20,y:700,fields:{image:uploadedPNG},name:"Uploaded input"});
+const graphContent = value => { const {nid, lid, ...content} = value; return content; };
 const chatId = starter.nodes.find(n => n.type === "llm").fields.model;
 const imageId = starter.nodes.find(n => n.type === "image").fields.model;
 const catalog = {
@@ -219,7 +225,9 @@ try {
 
     // Exercise the literal plus button, with fresh isolated storage in each case.
     // The ordinary activation journey above waits for startup and misses this race.
-    for (const storageDenied of [false, true]) {
+    for (const scenario of ["starter", "quota", "storage-startup"]) {
+      const storageDenied = scenario === "quota";
+      const slowStorage = scenario === "storage-startup";
       const tabContext = await newContext();
       const tabPage = await tabContext.newPage();
       tabPage.setDefaultTimeout(15000);
@@ -227,20 +235,56 @@ try {
       const starterGate = new Promise(resolve => { releaseStarter = resolve; });
       let starterRequested;
       const starterSeen = new Promise(resolve => { starterRequested = resolve; });
-      if (!storageDenied) await tabPage.route("**/noodle-graph.json", async route => {
+      if (scenario === "starter") await tabPage.route("**/noodle-graph.json", async route => {
         starterRequested();
         await starterGate;
         await route.fulfill({json:starter});
       });
-      if (storageDenied) await tabPage.addInitScript(() => {
-        window.__denyWorkspaceIndex = true;
+      if (slowStorage) await tabPage.addInitScript(({song}) => {
+        localStorage.setItem("noodle_graph", JSON.stringify(song));
+        const open = IDBFactory.prototype.open;
+        IDBFactory.prototype.open = function(name, version) {
+          if(name !== "nanoodle-workspaces") return open.call(this, name, version);
+          // Delay this request's delivery, then use the actual IndexedDB engine.
+          // The production code still performs its real read/upgrade transaction.
+          const request = {};
+          setTimeout(() => {
+            const native = open.call(this, name, version);
+            native.onupgradeneeded = e => { request.result=native.result; request.onupgradeneeded?.(e); };
+            native.onsuccess = e => { request.result=native.result; request.onsuccess?.(e); };
+            native.onerror = e => { request.error=native.error; request.onerror?.(e); };
+          }, 1000);
+          return request;
+        };
+      }, {song});
+      if (storageDenied) await tabPage.addInitScript(({song}) => {
+        if (!localStorage.getItem("workspace-test-seeded")) {
+          localStorage.setItem("noodle_graph", JSON.stringify(song));
+          localStorage.setItem("noodle_keep", "unrelated-data-must-survive");
+          localStorage.setItem("workspace-test-seeded", "1");
+        }
+        window.__workspaceCap = Number(sessionStorage.getItem("workspace-test-cap") || Infinity);
+        window.__workspaceRejected = [];
         const setItem = Storage.prototype.setItem;
         Storage.prototype.setItem = function(key, value) {
-          if (this === localStorage && key === "noodle_workspaces" && window.__denyWorkspaceIndex)
-            throw new DOMException("Test index write denial", "QuotaExceededError");
+          if (this === localStorage) {
+            const usage = Object.keys(localStorage).reduce((n,k) => n + k.length + localStorage.getItem(k).length, 0);
+            const old = localStorage.getItem(key);
+            const projected = usage - (old === null ? 0 : key.length + old.length) + key.length + String(value).length;
+            if (projected > window.__workspaceCap) {
+              window.__workspaceRejected.push({key, projected, cap:window.__workspaceCap});
+              throw new DOMException("Synthetic aggregate storage budget exceeded", "QuotaExceededError");
+            }
+          }
           return setItem.call(this, key, value);
         };
-      });
+        const put = IDBObjectStore.prototype.put;
+        IDBObjectStore.prototype.put = function(...args) {
+          if (this.name === "workspaces" && window.__denyWorkspaceDatabase)
+            throw new DOMException("Synthetic browser storage denial", "QuotaExceededError");
+          return put.apply(this, args);
+        };
+      }, {song});
       const openBlank = async () => {
         // Mobile intentionally folds the plus/strip into the Workspaces menu.
         // Desktop still clicks the literal plus, through Playwright hit testing.
@@ -251,9 +295,32 @@ try {
         assert.equal(await tabPage.locator(control).getAttribute("aria-expanded"), "true");
         await tabPage.locator(`${menu} [data-ws="blank"]`).click();
       };
+      const switchToOriginal = async () => {
+        if (mobile) {
+          await tabPage.locator("#wsdrop").click();
+          await tabPage.locator("#wsdropmenu .wsname").first().click();
+        } else await tabPage.locator('#wstabs .wstab[data-id="w1"]').click();
+      };
+      const saveBackup = async () => {
+        if (!await tabPage.locator("#save").isVisible()) await tabPage.locator("#morebtn").click();
+        const [backup] = await Promise.all([
+          tabPage.waitForEvent("download"), tabPage.locator("#save").click(),
+        ]);
+        assert.equal(await backup.failure(), null);
+        return backup.path();
+      };
+      const settle = () => tabPage.evaluate(() => settleWorkspaceStorage());
       try {
         await tabPage.goto(origin, {waitUntil:storageDenied ? "networkidle" : "domcontentloaded"});
-        if (!storageDenied) {
+        if (slowStorage) {
+          assert.equal(await tabPage.locator("#world .node").count(), 0, "the stored graph has not restored yet");
+          await openBlank();
+          await tabPage.waitForFunction(() => !initialCanvasUnclaimed());
+          assert.equal(await tabPage.locator("#world .node").count(), 0);
+          assert.equal(await tabPage.locator("#wstabs .wstab").count(), 2, "an early choice opens beside the restored Song idea");
+          await switchToOriginal();
+          assert.equal(await tabPage.evaluate(() => graph.nodes.find(n => n.id === "n1").fields.text), "SYNTHETIC SONG IDEA");
+        } else if (!storageDenied) {
           await starterSeen;
           assert.equal(await tabPage.locator("#world .node").count(), 0, "starter is still loading");
           await openBlank();
@@ -265,39 +332,86 @@ try {
           assert.equal(await tabPage.locator("#wstabs .wstab.on").getAttribute("data-id"), "w1");
           assert.match(await tabPage.locator("#workspaces").innerText(), /Blank canvas/);
         } else {
-          const original = await tabPage.evaluate(() => JSON.stringify(serializeGraph()));
-          assert.equal(await tabPage.locator("#world .node").count(), starter.nodes.length);
+          const original = await tabPage.evaluate(() => {
+            flushSave();
+            const usage = Object.keys(localStorage).reduce((n,k) => n + k.length + localStorage.getItem(k).length, 0);
+            window.__workspaceCap = usage + 512;
+            sessionStorage.setItem("workspace-test-cap", String(window.__workspaceCap));
+            graph.nodes.find(n => n.type === "music").out = {audio:"data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQAAAAA="};
+            return JSON.stringify(serializeGraph());
+          });
+          const legacy = await tabPage.evaluate(() => localStorage.getItem("noodle_graph"));
+          assert.equal(await tabPage.locator("#world .node").count(), song.nodes.length);
           for (let attempt = 0; attempt < 3; attempt++) {
             await openBlank();
-            assert.equal(await tabPage.evaluate(() => JSON.stringify(serializeGraph())), original,
-              "denied index write preserves the graph");
+            assert.equal(await tabPage.locator("#world .node").count(), 0, "new tab works while local storage stays full");
+            await switchToOriginal();
+            const restored = JSON.parse(await tabPage.evaluate(() => JSON.stringify(serializeGraph())));
+            assert.deepEqual(graphContent(restored), graphContent(JSON.parse(original)), "switch back preserves the entire Song idea and upload");
+            assert.ok(await tabPage.evaluate(() => graph.nodes.find(n => n.type === "music").out.audio), "generated results survive in-session switching");
             assert.equal(await tabPage.locator("#wstabs .wstab.on").getAttribute("data-id"), "w1");
-            assert.equal(await tabPage.locator("#wstabs .wstab").count(), 1);
           }
-          await tabPage.evaluate(() => { window.__denyWorkspaceIndex = false; });
+          assert.equal((await settle()).mode, "browser", "fallback is durably committed before refresh");
+          assert.equal(await tabPage.evaluate(() => workspacePersistence().cause.key), "noodle_ws_w1", "the duplicate shelving write caused the fallback");
+          assert.equal(await tabPage.evaluate(() => localStorage.getItem("noodle_graph")), legacy, "the last legacy durable graph is not deleted or evicted");
+
+          const backup = await saveBackup();
+          const saved = JSON.parse(await readFile(backup, "utf8"));
+          assert.equal(saved.nodes.find(n => n.id === "upload-test").fields.image, uploadedPNG, "Save includes uploaded inputs");
+          assert.ok(saved.nodes.every(n => !n.out), "generated results keep their existing excluded-from-backup semantics");
           await openBlank();
-          assert.equal(await tabPage.locator("#world .node").count(), 0, "writes recover and open Blank");
-          assert.equal(await tabPage.locator("#wstabs .wstab").count(), 2);
-          if (mobile) {
-            await tabPage.locator("#wsdrop").click();
-            await tabPage.locator("#wsdropmenu .wsname").click();
-          } else await tabPage.locator('#wstabs .wstab[data-id="w1"]').click();
-          // Loading a shelved graph advances allocation counters; its content
-          // and viewport must round-trip without resetting those counters.
-          const {nid:beforeNid, lid:beforeLid, ...beforeContent} = JSON.parse(original);
-          const {nid:afterNid, lid:afterLid, ...afterContent} = JSON.parse(
-            await tabPage.evaluate(() => JSON.stringify(serializeGraph())));
-          assert.deepEqual(afterContent, beforeContent, "switching back restores the original graph after recovery");
-          assert.ok(afterNid >= beforeNid && afterLid >= beforeLid, "allocation counters stay monotonic");
+          await tabPage.locator("#loadfile").setInputFiles(backup);
+          await tabPage.waitForFunction(() => graph.nodes.some(n => n.id === "upload-test"));
+          assert.equal((await settle()).mode, "browser", "Load persists immediately while local storage stays full");
+          assert.deepEqual(graphContent(JSON.parse(await tabPage.evaluate(() => JSON.stringify(serializeGraph())))), graphContent(saved), "Save → Load restores the complete workflow");
+          await tabPage.reload({waitUntil:"networkidle"});
+          assert.deepEqual(graphContent(JSON.parse(await tabPage.evaluate(() => JSON.stringify(serializeGraph())))), graphContent(saved), "refresh restores the loaded workspace from browser storage");
+
+          // A second independent storage failure must keep usable tabs and offer
+          // an actual Save export. Retry must persist the newest edit, not the old record.
+          await tabPage.evaluate(() => { window.__denyWorkspaceDatabase = true; });
+          const idea = tabPage.locator('.node[data-id="n1"] textarea').first();
+          await idea.fill("NEWEST UNSAVED SONG IDEA");
+          assert.equal((await settle()).mode, "session", "uncommitted state is never labeled saved");
+          await tabPage.locator("#wspersistence-save").waitFor({state:"visible"});
+          assert.match(await tabPage.locator("#wspersistence").innerText(), /visit only/);
+          assert.ok(await tabPage.evaluate(() => {
+            const e = new Event("beforeunload", {cancelable:true}); dispatchEvent(e); return e.defaultPrevented;
+          }), "unpersisted work warns before refresh/close");
+          const visitBackup = await saveBackup();
+          await idea.fill("TEMPORARY CHANGE BEFORE LOAD");
+          await settle();
+          await tabPage.locator("#loadfile").setInputFiles(visitBackup);
+          await tabPage.waitForFunction(() => graph.nodes.find(n => n.id === "n1")?.fields.text === "NEWEST UNSAVED SONG IDEA");
+          assert.equal((await settle()).mode, "session", "Load is usable even when both browser stores reject writes");
+          await idea.fill("EVEN NEWER SONG IDEA");
+          await settle();
+          await tabPage.evaluate(() => { window.__denyWorkspaceDatabase = false; });
+          await tabPage.locator("#wspersistence-retry").click();
+          assert.equal((await settle()).mode, "browser", "Retry saving commits the current state after recovery");
+          await tabPage.reload({waitUntil:"networkidle"});
+          assert.equal(await tabPage.evaluate(() => graph.nodes.find(n => n.id === "n1").fields.text), "EVEN NEWER SONG IDEA", "recovery never overwrites newer edits with an old backup");
+          await openBlank();
+          const legacyFile = resolve(root, "scripts/fixtures/legacy-noodle-graph.json");
+          await tabPage.locator("#loadfile").setInputFiles(legacyFile);
+          await tabPage.waitForFunction(() => graph.nodes.some(n => n.name === "Night desk"));
+          await settle();
+          await tabPage.reload({waitUntil:"networkidle"});
+          const oldWorkflow = JSON.parse(await readFile(legacyFile, "utf8"));
+          assert.deepEqual(graphContent(JSON.parse(await tabPage.evaluate(() => JSON.stringify(serializeGraph())))), graphContent(oldWorkflow), "old imported workflows and their uploads survive Load and refresh");
+          await switchToOriginal();
+          assert.equal(await tabPage.evaluate(() => graph.nodes.find(n => n.id === "n1").fields.text), "SYNTHETIC SONG IDEA", "the original workspace survives imports, edits and refreshes");
+          assert.equal(await tabPage.evaluate(() => localStorage.getItem("noodle_keep")), "unrelated-data-must-survive");
+          await settle();
         }
         assert.deepEqual(forbidden, [], "workspace clicks make no paid or unexpected external requests");
         assert.deepEqual(errors, [], "workspace clicks produce no browser JavaScript errors");
-        console.log(`✓ workspace ${mobile ? "menu" : "plus"} ${label}: ${storageDenied ? "persistent index denial → recovery → switch back" : "first click → chooser → Blank survives slow startup"}; no paid calls`);
+        console.log(`✓ workspace ${mobile ? "menu" : "plus"} ${label}: ${slowStorage ? "first click during browser storage restore → Blank beside saved Song idea" : storageDenied ? "Song idea + results → tight aggregate quota → usable tabs → Save/Load → refresh → visit-only warning/export → retry newest edit → legacy import" : "first click → chooser → Blank survives slow startup"}; no paid calls`);
       } catch (error) {
         if (process.env.NANOODLE_SMOKE_ARTIFACTS) {
           const dir = resolve(process.env.NANOODLE_SMOKE_ARTIFACTS);
           await mkdir(dir, {recursive:true});
-          await tabPage.screenshot({path:resolve(dir, `workspace-${label}-${storageDenied ? "storage" : "startup"}.png`), fullPage:true}).catch(() => {});
+          await tabPage.screenshot({path:resolve(dir, `workspace-${label}-${scenario}.png`), fullPage:true}).catch(() => {});
         }
         throw error;
       } finally {
