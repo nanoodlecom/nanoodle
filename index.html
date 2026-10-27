@@ -490,7 +490,7 @@
   #wscloseundo button:focus-visible{ outline:2px solid var(--ink); outline-offset:3px; }
   body:has(#wscloseundo:not([hidden])) #toast{ top:calc(126px + var(--ws-h)); }
   body:has(#wsdropmenu:not([hidden])) #wscloseundo,
-  body:has(#wschooser:not([hidden])) #wscloseundo{ top:auto; bottom:calc(var(--db-h,3rem) + .75rem); }
+  body:has(#wschooser:not([hidden])) #wscloseundo{ top:auto; bottom:max(calc(var(--db-h,3rem) + .75rem),var(--ws-persistence-space,0px)); }
   body:has(#wsdropmenu:not([hidden])):has(#wscloseundo:not([hidden])) #toast,
   body:has(#wschooser:not([hidden])):has(#wscloseundo:not([hidden])) #toast{ top:auto; }
   @media(max-width:540px){ #wscloseundo{ gap:.55rem; padding-left:.75rem; } #wscloseundo kbd{ display:none } }
@@ -17281,6 +17281,12 @@ function closedWorkspaceRedoAvailable(){return !!(wsClosedRedo && wsClosedRedo.l
 function pauseWorkspaceCloseNotice(){
   if(wsCloseNoticeTimer!==null){wsCloseRemaining=Math.max(0,wsCloseRemaining-(Date.now()-wsCloseStarted));clearTimeout(wsCloseNoticeTimer);wsCloseNoticeTimer=null;}
 }
+function placeWorkspaceCloseNotice(){
+  try{
+    const el=$("wscloseundo"),box=$("wspersistence");
+    if(el)el.style.setProperty("--ws-persistence-space",box && !box.hidden ? Math.ceil(innerHeight-box.getBoundingClientRect().top+12)+"px" : "0px");
+  }catch(_){}
+}
 function resumeWorkspaceCloseNotice(){
   if(!visibleWorkspaceCloseUndo()) return;
   const el=$("wscloseundo");
@@ -17300,7 +17306,7 @@ function showWorkspaceCloseNotice(){
     button.setAttribute("aria-keyshortcuts",mac?"Meta+Z":"Control+Z");
     button.setAttribute("aria-label",wsT("Undo closing “{name}”").replace("{name}",()=>entry.tab.name));
     button.onclick=()=>{if(wsClosedUndo[wsClosedUndo.length-1]===entry) restoreClosedWorkspace();};
-    el.hidden=false;resumeWorkspaceCloseNotice();
+    el.hidden=false;placeWorkspaceCloseNotice();resumeWorkspaceCloseNotice();
   }catch(_){}
   try{syncUndoBtn();}catch(_){}
 }
@@ -17311,6 +17317,7 @@ function bindWorkspaceCloseNotice(){
     el.addEventListener("pointerleave",resumeWorkspaceCloseNotice);
     el.addEventListener("focusin",pauseWorkspaceCloseNotice);
     el.addEventListener("focusout",()=>setTimeout(resumeWorkspaceCloseNotice,0));
+    addEventListener("resize",placeWorkspaceCloseNotice);
     $("wscloseundo-dismiss").onclick=invalidateWorkspaceCloseHistory;
     addEventListener("keydown",e=>{if(e.key==="Escape" && !el.hidden)invalidateWorkspaceCloseHistory();});
   }catch(_){}
@@ -17501,6 +17508,7 @@ function wsPersistenceNotice(saving){
     text.textContent = wsT(saving ? "Saving workspaces in this browser…" : wsRestoreFailed
       ? "Saved workspaces could not be restored. Save this visit’s workflows before refreshing, or retry recovery."
       : "These workspaces are available for this visit only. Save each workflow before refreshing.");
+    placeWorkspaceCloseNotice();
   }catch(_){}
 }
 function wsBeginOverflow(key, error, operation){
