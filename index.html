@@ -1168,9 +1168,15 @@
   #workspaces{ position:fixed; top:52px; left:0; right:0; height:var(--ws-h); z-index:29;
     display:flex; align-items:flex-end; gap:.15rem; padding:0 .5rem;
     background:#090b10; border-bottom:1px solid var(--line); user-select:none; }
+  /* The active tab paints 1px over this bar's border (.wstab.on::after). That
+     pixel has to sit inside the strip, or overflow-x:auto computes a vertical
+     scrollbar between the last tab and +. A visible horizontal bar steals the
+     same height and clips the tabs, so sideways scrolling stays but the bar
+     does not. */
   #wstabs{ display:flex; align-items:flex-end; gap:.15rem; min-width:0; max-width:calc(100% - 2.2rem);
-    height:100%; overflow-x:auto; scrollbar-width:thin; }
-  #wstabs::-webkit-scrollbar{ height:3px }
+    height:calc(100% + 1px); align-self:flex-start; padding-bottom:1px;
+    overflow-x:auto; overflow-y:hidden; scrollbar-width:none; }
+  #wstabs::-webkit-scrollbar{ height:3px; width:0 }
   #wstabs::-webkit-scrollbar-thumb{ background:#3a4258; border-radius:3px }
   #wstabs.fade-l{ -webkit-mask-image:linear-gradient(to right, transparent, #000 14px); mask-image:linear-gradient(to right, transparent, #000 14px); }
   #wstabs.fade-r{ -webkit-mask-image:linear-gradient(to right, #000 calc(100% - 14px), transparent); mask-image:linear-gradient(to right, #000 calc(100% - 14px), transparent); }
