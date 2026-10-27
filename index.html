@@ -1232,6 +1232,10 @@
     background:transparent; color:var(--dim); font-size:1.05rem; line-height:1; }
   #wsdropmenu .wsrow .wsx:hover, #wsdropmenu .wsrow .wsx:focus-visible{ color:var(--ink); background:#ffffff18; }
   #wsdrop .wscount{ display:none }
+  #wspersistence{ position:fixed; left:.75rem; bottom:.75rem; z-index:260; max-width:min(34rem, calc(100vw - 1.5rem));
+    padding:.65rem .8rem; border:1px solid var(--line); border-radius:.6rem; background:var(--panel); color:var(--ink); font-size:.82rem; }
+  #wspersistence[hidden]{ display:none }
+  #wspersistence button{ margin-left:.5rem; font-size:inherit; }
   #workspaces.wsbusy .wstab:not(.on),
   #workspaces.wsbusy #wsadd,
   #workspaces.wsbusy #wsdrop{ opacity:.4; }
@@ -1333,6 +1337,7 @@
   </div>
   <div id="wsdropmenu" hidden role="listbox" aria-label="Workspaces"></div>
 </div>
+<div id="wspersistence" hidden role="status"><span id="wspersistence-text"></span><button id="wspersistence-save" type="button" hidden>Save this workflow</button><button id="wspersistence-retry" type="button" hidden>Retry saving</button></div>
 
 <div id="keyrow">
   <button id="keyx" title="Close" aria-label="Close">×</button>
@@ -1592,6 +1597,13 @@ const I18N_ENAME = { es:"Spanish", fr:"French", de:"German", pt:"Portuguese", ja
 /* === I18N-MAPS-BEGIN (es/fr/de/pt/ja — generated; English is identity) === */
 const I18N = {
   es:{
+    "Recovered visit":"Visita recuperada",
+    "Saved workspaces could not be restored. Save this visit’s workflows before refreshing, or retry recovery.":"No se pudieron restaurar los espacios guardados. Guarda los flujos de esta visita antes de actualizar o reintenta la recuperación.",
+    "Save this workflow":"Guardar este flujo",
+    "Retry saving":"Reintentar guardado",
+    "Saving workspaces in this browser…":"Guardando espacios en este navegador…",
+    "These workspaces are available for this visit only. Save each workflow before refreshing.":"Estos espacios solo están disponibles durante esta visita. Guarda cada flujo antes de actualizar.",
+    "Save backs up the workflow and uploaded inputs. Generated results are kept for this visit only.":"Guardar incluye el flujo y las entradas subidas. Los resultados generados solo se conservan durante esta visita.",
     "Uses this output":"Usa esta salida",
     "Provides this input":"Proporciona esta entrada",
     "Uses this text":"Usa este texto",
@@ -2336,6 +2348,13 @@ const I18N = {
     "Load nanoodle into your coding agent":"Carga nanoodle en tu agente de código"
   },
   fr:{
+    "Recovered visit":"Visite récupérée",
+    "Saved workspaces could not be restored. Save this visit’s workflows before refreshing, or retry recovery.":"Les espaces enregistrés n’ont pas pu être restaurés. Enregistrez les workflows de cette visite avant d’actualiser ou réessayez la récupération.",
+    "Save this workflow":"Enregistrer ce workflow",
+    "Retry saving":"Réessayer l’enregistrement",
+    "Saving workspaces in this browser…":"Enregistrement des espaces dans ce navigateur…",
+    "These workspaces are available for this visit only. Save each workflow before refreshing.":"Ces espaces sont disponibles uniquement pour cette visite. Enregistrez chaque workflow avant d’actualiser.",
+    "Save backs up the workflow and uploaded inputs. Generated results are kept for this visit only.":"Enregistrer sauvegarde le workflow et les fichiers importés. Les résultats générés sont conservés uniquement pour cette visite.",
     "Uses this output":"Utilise cette sortie",
     "Provides this input":"Fournit cette entrée",
     "Uses this text":"Utilise ce texte",
@@ -3080,6 +3099,13 @@ const I18N = {
     "Load nanoodle into your coding agent":"Chargez nanoodle dans votre agent de code"
   },
   de:{
+    "Recovered visit":"Wiederhergestellter Besuch",
+    "Saved workspaces could not be restored. Save this visit’s workflows before refreshing, or retry recovery.":"Gespeicherte Arbeitsbereiche konnten nicht wiederhergestellt werden. Speichere die Workflows dieses Besuchs vor dem Neuladen oder versuche die Wiederherstellung erneut.",
+    "Save this workflow":"Diesen Workflow speichern",
+    "Retry saving":"Speichern erneut versuchen",
+    "Saving workspaces in this browser…":"Arbeitsbereiche werden in diesem Browser gespeichert…",
+    "These workspaces are available for this visit only. Save each workflow before refreshing.":"Diese Arbeitsbereiche sind nur für diesen Besuch verfügbar. Speichere jeden Workflow vor dem Neuladen.",
+    "Save backs up the workflow and uploaded inputs. Generated results are kept for this visit only.":"Speichern sichert den Workflow und hochgeladene Eingaben. Generierte Ergebnisse bleiben nur für diesen Besuch erhalten.",
     "Uses this output":"Verwendet diese Ausgabe",
     "Provides this input":"Liefert diese Eingabe",
     "Uses this text":"Verwendet diesen Text",
@@ -3824,6 +3850,13 @@ const I18N = {
     "Load nanoodle into your coding agent":"Lade nanoodle in deinen Coding-Agenten"
   },
   pt:{
+    "Recovered visit":"Visita recuperada",
+    "Saved workspaces could not be restored. Save this visit’s workflows before refreshing, or retry recovery.":"Não foi possível restaurar os espaços guardados. Guarda os fluxos desta visita antes de atualizar ou tenta recuperar novamente.",
+    "Save this workflow":"Guardar este fluxo",
+    "Retry saving":"Tentar guardar novamente",
+    "Saving workspaces in this browser…":"A guardar espaços neste navegador…",
+    "These workspaces are available for this visit only. Save each workflow before refreshing.":"Estes espaços só estão disponíveis durante esta visita. Guarda cada fluxo antes de atualizar.",
+    "Save backs up the workflow and uploaded inputs. Generated results are kept for this visit only.":"Guardar inclui o fluxo e as entradas carregadas. Os resultados gerados só são mantidos durante esta visita.",
     "Uses this output":"Usa esta saída",
     "Provides this input":"Fornece esta entrada",
     "Uses this text":"Usa este texto",
@@ -4568,6 +4601,13 @@ const I18N = {
     "Load nanoodle into your coding agent":"Carregue o nanoodle no seu agente de código"
   },
   ja:{
+    "Recovered visit":"復元した訪問",
+    "Saved workspaces could not be restored. Save this visit’s workflows before refreshing, or retry recovery.":"保存済みワークスペースを復元できませんでした。再読み込みする前に今回のワークフローを保存するか、復元を再試行してください。",
+    "Save this workflow":"このワークフローを保存",
+    "Retry saving":"保存を再試行",
+    "Saving workspaces in this browser…":"このブラウザにワークスペースを保存中…",
+    "These workspaces are available for this visit only. Save each workflow before refreshing.":"これらのワークスペースは今回の訪問中のみ利用できます。再読み込みする前に各ワークフローを保存してください。",
+    "Save backs up the workflow and uploaded inputs. Generated results are kept for this visit only.":"保存にはワークフローとアップロードした入力が含まれます。生成結果は今回の訪問中のみ保持されます。",
     "Uses this output":"この出力を使う",
     "Provides this input":"この入力を供給する",
     "Uses this text":"このテキストを使う",
@@ -16532,9 +16572,10 @@ function save(){
   refreshPromptCaps();                  // …and the prompt-room notes: model swaps, typing and wiring all land here
   if(refreshAppButton()) layoutBar();   // flip ✨ Open↔Update live: an edit that diverges from (or re-matches) the bound app's saved graph — only re-measure the bar when the label text actually changed
   clearTimeout(saveT);
+  if(typeof markWorkspaceDirty==="function") markWorkspaceDirty();
   saveT = setTimeout(()=>{
     try{ stashModel3dOuts(); }catch(_){}
-    try{ localStorage.setItem("noodle_graph", JSON.stringify(serializeGraph())); }
+    try{ (typeof workspaceStorage==="object" ? workspaceStorage : localStorage).setItem("noodle_graph", JSON.stringify(serializeGraph())); }
     catch(e){ flash("couldn’t autosave — a photo, audio clip, or 3D file may be too large for local storage"); return; }
     if(location.hash) history.replaceState({}, "", location.pathname + location.search); // a local edit supersedes a shared link
   }, 250);
@@ -16648,7 +16689,7 @@ function restoreModel3dOuts(opts){
   if(any) for(const n of graph.nodes) if(n.type==="model3d" && n.out && n.out.model){ showResult(n); setStatus(n, "done"); }
 }
 function load(){
-  const raw = localStorage.getItem("noodle_graph");
+  const raw = (typeof workspaceStorage==="object" ? workspaceStorage : localStorage).getItem("noodle_graph");
   if(!raw) return false;
   try{ applyGraphData(JSON.parse(raw)); try{ restoreModel3dOuts({legacy:true}); }catch(_){} return true; }catch{ return false; }
 }
@@ -16702,7 +16743,10 @@ function loadFile(file){
       // File Load stays IN this workspace (↺ Undo brings the previous graph back, paid results included).
       // Examples and share links open a new workspace instead — they must not replace the one you are on.
       if(had) pushUndo(true);                // BEFORE the mutation — boundary: an unrelated file replaces the graph; ↺ Undo restores the prior graph + its paid results
-      setPendingApp(null); applyGraphData(JSON.parse(r.result)); window.resetDescribeVersions?.(); save();
+      setPendingApp(null); applyGraphData(parsed); window.resetDescribeVersions?.();
+      if(typeof flushSave==="function"){
+        if(!flushSave()) throw new Error("Couldn’t store the loaded workflow");
+      }else save();
       try{ if(typeof stampActiveExample==="function") stampActiveExample(null); }
       catch(_){ if(typeof wsStorageError==="function") wsStorageError("save"); }
       if(had) toast(t("↺ Undo restores your previous workflow"));   // opening a file replaced your graph — one Ctrl+Z away
@@ -17087,8 +17131,9 @@ function setPendingApp(id, title){
   const nextTitle = nextId ? (title || null) : null;
   // Storage first, then memory. A quota miss throws so a workspace switch or
   // import can put the previous binding back instead of keeping a half-written one.
-  if(nextId) localStorage.setItem(EDITOR_APP_KEY, JSON.stringify({ id:nextId, title:nextTitle }));
-  else localStorage.removeItem(EDITOR_APP_KEY);
+  const storage = typeof workspaceStorage==="object" ? workspaceStorage : localStorage;
+  if(nextId) storage.setItem(EDITOR_APP_KEY, JSON.stringify({ id:nextId, title:nextTitle }));
+  else storage.removeItem(EDITOR_APP_KEY);
   pendingAppId = nextId;
   pendingAppTitle = nextTitle;
   if(typeof stampActiveApp==="function") stampActiveApp();
@@ -17165,6 +17210,312 @@ function updateTitle(){
    Paid results and undo stacks are memory-only, same as a reload today. */
 const WS_INDEX_KEY = "noodle_workspaces";
 const WS_CAP = 16;
+const WS_RECOVERY_KEY = "noodle_workspace_recovery";
+// Normal-sized legacy workspaces keep their existing localStorage format.
+// When a write fails (including the temporary second copy during a tab change),
+// keep a scoped working copy and persist the whole workspace transaction in IDB.
+// Never evict another workflow or remove the legacy durable copy to make room.
+let wsStorageEnabled = false, wsValues = null, wsDatabase = null;
+let wsRevision = 0, wsSavedRevision = 0, wsQueued = false;
+let wsUnloadBound = false;
+let wsRestoreFailed = false, wsRecoveryActive = false, wsRecoveryId = null, wsRecoveryBackup = null;
+let wsKnownRecord = null;
+let wsInitFlight = null, wsAuthorityEpoch = 0;
+let wsPersistTail = Promise.resolve(), wsStorageFailure = null, wsPersistFailure = null;
+function wsOwnedKey(key){
+  return key==="noodle_graph" || key===WS_INDEX_KEY || key===EDITOR_APP_KEY || /^noodle_ws_/.test(key);
+}
+function workspacePersistence(){
+  return { mode:!wsValues ? "local" : wsSavedRevision===wsRevision ? "browser" : "session",
+    pending:!!wsValues && wsSavedRevision!==wsRevision && !wsPersistFailure, cause:wsStorageFailure, persistenceError:wsPersistFailure,
+    restoreFailed:wsRestoreFailed, recoveryBackup:wsRecoveryBackup };
+}
+function wsRawStorage(kind){
+  try{ return kind==="local" ? localStorage : sessionStorage; }catch(_){ return null; }
+}
+function wsRecordToken(record){
+  return record ? record.generation || JSON.stringify(record.values||{}) : null;
+}
+function wsCopyValues(values){
+  const result = Object.create(null);
+  for(const [key,value] of Object.entries(values||{})) if(wsOwnedKey(key) && typeof value==="string") result[key]=value;
+  return result;
+}
+function wsReadRecovery(){
+  let newest = null;
+  for(const storage of [wsRawStorage("local"), wsRawStorage("session")]){
+    try{
+      const d = storage && JSON.parse(storage.getItem(WS_RECOVERY_KEY)||"null");
+      if(d && d.v===1 && typeof d.id==="string" && d.values && typeof d.values==="object"
+          && (!newest || (d.updated||0)>(newest.updated||0))) newest=Object.assign({},d,{values:wsCopyValues(d.values)});
+    }catch(_){}
+  }
+  return newest;
+}
+function wsWriteRecovery(values){
+  const previous = wsReadRecovery();
+  const updated = Math.max(Date.now(), (previous && previous.updated || 0)+1);
+  wsRecoveryId = updated.toString(36)+"-"+Math.random().toString(36).slice(2);
+  const json = JSON.stringify({v:1, id:wsRecoveryId, updated, values});
+  wsRecoveryBackup = null;
+  for(const [kind,storage] of [["local",wsRawStorage("local")],["session",wsRawStorage("session")]]){
+    try{ if(storage){ storage.setItem(WS_RECOVERY_KEY,json); wsRecoveryBackup=kind; break; } }catch(_){}
+  }
+}
+function wsClearRecovery(){
+  for(const storage of [wsRawStorage("local"), wsRawStorage("session")]){
+    try{
+      const d=storage && JSON.parse(storage.getItem(WS_RECOVERY_KEY)||"null");
+      if(d && d.id===wsRecoveryId) storage.removeItem(WS_RECOVERY_KEY);
+    }catch(_){}
+  }
+  wsRecoveryActive = false;
+  wsRecoveryBackup = null;
+}
+// A recovery visit is a separate branch of work. Never replace unread IDB tabs
+// with the older local backup or that visit's edits when storage becomes readable.
+function wsMergeRecovery(saved, visit){
+  const result = Object.assign(Object.create(null), saved);
+  let d, live;
+  try{ d=JSON.parse(saved[WS_INDEX_KEY]); live=JSON.parse(visit[WS_INDEX_KEY]); }catch(_){}
+  if(!d || !Array.isArray(d.tabs) || !d.tabs.length) return Object.assign(Object.create(null), visit);
+  if(!live || !Array.isArray(live.tabs) || !live.tabs.length) return result;
+  if(saved.noodle_graph!=null) result[wsGraphKey(d.active)]=saved.noodle_graph;
+  const histories = new Map(workspaceHist), results = new Map(workspaceResults);
+  workspaceHist.clear(); workspaceResults.clear();
+  for(const tab of live.tabs){
+    let id;
+    do{ d.seq=(d.seq|0)+1; id="w"+d.seq; }while(d.tabs.some(t=>t.id===id));
+    const recovered = Object.assign({}, tab, {id, name:uniqueWorkspaceName(wsT("Recovered visit")+": "+tab.name,d.tabs)});
+    d.tabs.push(recovered);
+    const json = tab.id===live.active ? visit.noodle_graph : visit[wsGraphKey(tab.id)];
+    if(json!=null) result[wsGraphKey(id)]=json;
+    if(results.has(tab.id)) workspaceResults.set(id,results.get(tab.id));
+    if(histories.has(tab.id)) workspaceHist.set(id,histories.get(tab.id));
+    if(tab.id===live.active){ d.active=id; result.noodle_graph=json || JSON.stringify(blankGraph()); }
+  }
+  if(visit[EDITOR_APP_KEY]!=null) result[EDITOR_APP_KEY]=visit[EDITOR_APP_KEY];
+  else delete result[EDITOR_APP_KEY];
+  result[WS_INDEX_KEY]=JSON.stringify(d);
+  return result;
+}
+function markWorkspaceDirty(){
+  if(wsValues){ wsRevision++; wsPersistenceNotice(true); }
+}
+async function settleWorkspaceStorage(){
+  if(saveT) flushSave();
+  await Promise.resolve();
+  await wsPersistTail;
+  return workspacePersistence();
+}
+function wsPersistenceNotice(saving){
+  try{
+    const box = $("wspersistence"), text = $("wspersistence-text"), backup = $("wspersistence-save"), retry = $("wspersistence-retry");
+    if(!box || !text || !backup || !retry) return;
+    const unsaved = !!wsValues && wsSavedRevision!==wsRevision;
+    box.hidden = !unsaved;
+    backup.hidden = !!saving;
+    retry.hidden = !!saving;
+    retry.disabled = !!wsInitFlight;
+    backup.onclick = ()=> saveFile();
+    retry.onclick = async ()=>{
+      wsPersistenceNotice(true);
+      if(!wsDatabase || wsRestoreFailed) await initWorkspaceStorage();
+      wsQueuePersist();
+    };
+    box.title = wsT("Save backs up the workflow and uploaded inputs. Generated results are kept for this visit only.");
+    text.textContent = wsT(saving ? "Saving workspaces in this browser…" : wsRestoreFailed
+      ? "Saved workspaces could not be restored. Save this visit’s workflows before refreshing, or retry recovery."
+      : "These workspaces are available for this visit only. Save each workflow before refreshing.");
+  }catch(_){}
+}
+function wsBeginOverflow(key, error, operation){
+  if(wsValues) return;
+  const values = Object.create(null);
+  const keys = new Set(["noodle_graph", WS_INDEX_KEY, EDITOR_APP_KEY]);
+  try{ for(let i=0; i<localStorage.length; i++){ const k=localStorage.key(i); if(wsOwnedKey(k)) keys.add(k); } }catch(_){}
+  // The list also works with storage adapters that cannot enumerate keys.
+  try{ const d=JSON.parse(localStorage.getItem(WS_INDEX_KEY)||"null"); for(const tab of d && d.tabs || []) keys.add(wsGraphKey(tab.id)); }catch(_){}
+  for(const k of keys){ try{ const v=localStorage.getItem(k); if(v!==null) values[k]=v; }catch(_){} }
+  wsValues = values;
+  wsSavedRevision = -1;
+  wsStorageFailure = {operation, key, name:error && error.name || "Error"};
+  wsPersistenceNotice(false);
+}
+function wsQueuePersist(){
+  wsRevision++;
+  if(wsQueued) return;
+  wsQueued = true;
+  wsPersistenceNotice(true);
+  // Capture after the synchronous tab transaction (or its rollback), not after
+  // each intermediate graph/index write. The IDB transaction commits them together.
+  Promise.resolve().then(()=>{
+    wsQueued = false;
+    const revision = wsRevision, values = Object.assign({}, wsValues), authority = wsAuthorityEpoch;
+    if(wsRecoveryActive) wsWriteRecovery(values);
+    const recoveryId = wsRecoveryId;
+    wsPersistTail = wsPersistTail.then(()=>new Promise((resolve, reject)=>{
+      const superseded = ()=>{const e=new Error("WorkspaceSuperseded");e.name="WorkspaceSuperseded";return e;};
+      if(authority!==wsAuthorityEpoch){reject(superseded());return;}
+      if(!wsDatabase || wsRestoreFailed){ reject(new Error("BrowserStorageUnavailable")); return; }
+      // Freeze this operation's baseline; a later restore callback cannot make
+      // an older snapshot appear current while the transaction is reading.
+      const expectedRecord=wsKnownRecord;
+      try{
+        const tx = wsDatabase.transaction("workspaces", "readwrite");
+        const timer = setTimeout(()=>{
+          try{ tx.abort(); }catch(_){}
+          reject(new Error("BrowserStorageTimeout"));
+        }, 5000);
+        const fail = ()=>{ clearTimeout(timer); reject(tx.error || new Error("BrowserStorageUnavailable")); };
+        const generation=Date.now().toString(36)+"-"+Math.random().toString(36).slice(2);
+        let wrote=false;
+        tx.oncomplete = ()=>{ clearTimeout(timer); if(wrote){ if(authority===wsAuthorityEpoch) wsKnownRecord=generation; resolve(); }else reject(new Error("BrowserStorageUnavailable")); };
+        tx.onerror = tx.onabort = fail;
+        const store=tx.objectStore("workspaces"), current=store.get("state");
+        current.onerror=fail;
+        current.onsuccess=()=>{
+          try{
+            if(authority!==wsAuthorityEpoch){clearTimeout(timer);reject(superseded());tx.abort();return;}
+            if(wsRecordToken(current.result)!==expectedRecord){
+              const error=new Error("WorkspaceConflict");error.name="WorkspaceConflict";
+              clearTimeout(timer);reject(error);tx.abort();return;
+            }
+            store.put({v:1, values, recoveryId, generation}, "state");wrote=true;
+          }catch(error){clearTimeout(timer);reject(error);try{tx.abort();}catch(_){}}
+        };
+      }catch(e){ reject(e); }
+    })).then(()=>{
+      if(authority!==wsAuthorityEpoch) return;
+      wsSavedRevision = revision;
+      wsPersistFailure = null;
+      if(revision===wsRevision){
+        if(wsRecoveryActive && recoveryId===wsRecoveryId) wsClearRecovery();
+        wsPersistenceNotice(false);
+      }
+    }, error=>{
+      if(error && error.name==="WorkspaceSuperseded") return;
+      if(error && error.name==="WorkspaceConflict"){
+        wsRestoreFailed=true;wsRecoveryActive=true;
+        wsStorageFailure={operation:"commit",key:"nanoodle-workspaces",name:"WorkspaceConflict"};
+        if(saveT) flushSave();
+        wsWriteRecovery(wsValues);
+      }
+      wsPersistFailure = wsDatabase ? error && error.name || "Error" : "BrowserStorageUnavailable";
+      wsPersistenceNotice(false);
+    });
+  });
+}
+const workspaceStorage = {
+  getItem(key){
+    if(wsValues) return Object.prototype.hasOwnProperty.call(wsValues, key) ? wsValues[key] : null;
+    try{ return localStorage.getItem(key); }
+    catch(e){ if(!wsStorageEnabled) throw e; wsBeginOverflow(key, e, "read"); return this.getItem(key); }
+  },
+  setItem(key, value){
+    if(!wsValues){
+      try{ localStorage.setItem(key, String(value)); return; }
+      catch(e){ if(!wsStorageEnabled) throw e; wsBeginOverflow(key, e, "write"); }
+    }
+    wsValues[key] = String(value);
+    wsQueuePersist();
+  },
+  removeItem(key){
+    if(!wsValues){
+      try{ localStorage.removeItem(key); return; }
+      catch(e){ if(!wsStorageEnabled) throw e; wsBeginOverflow(key, e, "remove"); }
+    }
+    delete wsValues[key];
+    wsQueuePersist();
+  }
+};
+function initWorkspaceStorage(){
+  if(wsInitFlight) return wsInitFlight;
+  wsInitFlight=restoreWorkspaceStorage().finally(()=>{
+    wsInitFlight=null;
+    try{const retry=$("wspersistence-retry");if(retry)retry.disabled=false;}catch(_){}
+  });
+  return wsInitFlight;
+}
+async function restoreWorkspaceStorage(){
+  wsAuthorityEpoch++;
+  wsStorageEnabled = true;
+  if(wsRestoreFailed && wsDatabase){ try{wsDatabase.close();}catch(_){} wsDatabase=null; }
+  const recovery = wsReadRecovery();
+  if(!wsUnloadBound && typeof addEventListener==="function"){
+    wsUnloadBound = true;
+    addEventListener("beforeunload", e=>{
+      // A recovery reload must not outrun the 250ms autosave debounce. Journal
+      // the latest live edit synchronously; IDB commits still remain asynchronous.
+      if(wsValues && saveT) flushSave();
+      if(wsRecoveryActive && wsValues) wsWriteRecovery(wsValues);
+      if(wsValues && wsRevision!==wsSavedRevision){ e.preventDefault(); e.returnValue=""; }
+    });
+  }
+  try{
+    if(typeof indexedDB==="undefined"){
+      const error=new Error("BrowserStorageUnavailable");error.name="BrowserStorageUnavailable";throw error;
+    }
+    const record = await new Promise((resolve, reject)=>{
+      let finished = false;
+      const finish = (error, value)=>{
+        if(finished) return;
+        finished = true; clearTimeout(timer);
+        if(error) reject(error); else resolve(value);
+      };
+      let timer = null;
+      timer = setTimeout(()=>finish(new Error("BrowserStorageTimeout")), 2500);
+      const request = indexedDB.open("nanoodle-workspaces", 1);
+      request.onupgradeneeded = ()=>request.result.createObjectStore("workspaces");
+      request.onerror = ()=>finish(request.error || new Error("BrowserStorageUnavailable"));
+      request.onsuccess = ()=>{
+        const db = request.result;
+        if(finished){ db.close(); return; }
+        try{
+          const tx = db.transaction("workspaces", "readonly");
+          const read = tx.objectStore("workspaces").get("state");
+          read.onerror = ()=>{ db.close(); finish(read.error || new Error("BrowserStorageUnavailable")); };
+          read.onsuccess = ()=>{
+            if(finished){ db.close(); return; }
+            wsDatabase=db; finish(null, read.result);
+          };
+        }catch(e){ db.close(); finish(e); }
+      };
+    });
+    wsAuthorityEpoch++; // supersede snapshots queued while the restore was pending
+    const restored = Object.create(null);
+    wsKnownRecord=wsRecordToken(record);
+    if(record && record.v===1 && record.values && typeof record.values==="object"){
+      for(const [key,value] of Object.entries(record.values)) if(wsOwnedKey(key) && typeof value==="string") restored[key]=value;
+      const index = JSON.parse(restored[WS_INDEX_KEY]||"null");
+      if(!index || index.v!==1 || !Array.isArray(index.tabs) || !index.tabs.some(t=>t && t.id===index.active))
+        throw new Error("InvalidWorkspaceRecord");
+    }else if(record){
+      throw new Error("InvalidWorkspaceRecord");
+    }
+    const visit = wsRestoreFailed && wsValues ? wsValues : recovery && recovery.id!==record?.recoveryId ? recovery.values : null;
+    if(visit){
+      const wasLive = !!wsValues;
+      wsValues = wsMergeRecovery(restored,visit);
+      wsRecoveryActive=true; wsRestoreFailed=false; wsSavedRevision=-1;
+      if(wasLive){ try{ renderWorkspaces(); }catch(_){} }
+      wsQueuePersist();
+    }else if(!wsValues && Object.keys(restored).length){
+      wsValues=restored; wsRecoveryId=record.recoveryId || null;
+      if(recovery && recovery.id===record.recoveryId) wsClearRecovery();
+    }
+    wsRestoreFailed=false;
+  }catch(e){
+    if(wsDatabase){ try{ wsDatabase.close(); }catch(_){} wsDatabase=null; }
+    wsPersistFailure=e && e.name || "Error";
+    wsRestoreFailed=true; wsRecoveryActive=true;
+    if(!wsValues){
+      wsBeginOverflow("nanoodle-workspaces",e,"restore");
+      if(recovery){ wsValues=recovery.values; wsRecoveryId=recovery.id; }
+    }
+    wsQueuePersist();
+  }
+}
 // True until the first-visit starter is installed, or the user takes the blank canvas.
 // A chooser click in that window is held, and it moves bootGen. The starter fetch
 // still in flight then does not paint onto the workspace that click just took.
@@ -17192,7 +17543,7 @@ function wsGraphKey(id){ return "noodle_ws_"+id; }
 function wsT(s){ return typeof t==="function" ? t(s) : s; }
 function editorAppBinding(){
   try{
-    const b = JSON.parse(localStorage.getItem("noodle_editor_app") || "null");
+    const b = JSON.parse(workspaceStorage.getItem("noodle_editor_app") || "null");
     if(b && b.id) return { id:b.id, title:b.title || null };
   }catch(_){}
   return null;
@@ -17271,7 +17622,7 @@ function copyWorkspaces(d){
 }
 function readWorkspaces(){
   try{
-    const d = JSON.parse(localStorage.getItem(WS_INDEX_KEY) || "null");
+    const d = JSON.parse(workspaceStorage.getItem(WS_INDEX_KEY) || "null");
     if(d && d.v===1 && Array.isArray(d.tabs) && d.tabs.length){
       if(!d.tabs.some(t => t && t.id===d.active)) d.active = d.tabs[0].id;
       return d;
@@ -17284,7 +17635,7 @@ function readWorkspaces(){
   return null;
 }
 function writeWorkspaces(d){
-  localStorage.setItem(WS_INDEX_KEY, JSON.stringify(d));
+  workspaceStorage.setItem(WS_INDEX_KEY, JSON.stringify(d));
   workspaceMemory = null;
 }
 function wsStorageError(kind){
@@ -17299,12 +17650,12 @@ function wsStorageError(kind){
 }
 function wsSnapshotKey(key){
   try{
-    const value = localStorage.getItem(key);
+    const value = workspaceStorage.getItem(key);
     return { present: value!==null, value };
   }catch(_){ return { present:false, value:null }; }
 }
 function wsReadKey(key){
-  try{ return localStorage.getItem(key); }catch(_){ return null; }
+  try{ return workspaceStorage.getItem(key); }catch(_){ return null; }
 }
 // Write a snapshot back and read it. A quota throw, or a write that does not
 // land as the same bytes, is a failed restore — callers must not assume it stuck.
@@ -17315,8 +17666,8 @@ function wsRestoreKey(key, shot){
   const cur0 = wsReadKey(key);
   if(wantPresent ? cur0===want : cur0===null) return true;
   try{
-    if(!wantPresent) localStorage.removeItem(key);
-    else localStorage.setItem(key, want);
+    if(!wantPresent) workspaceStorage.removeItem(key);
+    else workspaceStorage.setItem(key, want);
   }catch(_){ return false; }
   const cur = wsReadKey(key);
   if(!wantPresent) return cur===null;
@@ -17325,7 +17676,7 @@ function wsRestoreKey(key, shot){
 function wsPutVerified(key, value){
   const want = String(value);
   if(wsReadKey(key)===want) return true;
-  try{ localStorage.setItem(key, want); }
+  try{ workspaceStorage.setItem(key, want); }
   catch(_){ return false; }
   return wsReadKey(key)===want;
 }
@@ -17391,16 +17742,16 @@ function workspaceRollback(shot, extra){
   // back. Doing it the other way round fails under a still-tight quota: the
   // index reverts, the canvas reverts, and noodle_graph keeps the incoming
   // workspace. A reload then shows that incoming graph under the original tab.
-  if(extra.removeId){ try{ localStorage.removeItem(wsGraphKey(extra.removeId)); }catch(_){} }
+  if(extra.removeId){ try{ workspaceStorage.removeItem(wsGraphKey(extra.removeId)); }catch(_){} }
   const editorWant = shot.editor && shot.editor.present ? String(shot.editor.value) : null;
-  if(wsReadKey(EDITOR_APP_KEY)!==editorWant){ try{ localStorage.removeItem(EDITOR_APP_KEY); }catch(_){} }
+  if(wsReadKey(EDITOR_APP_KEY)!==editorWant){ try{ workspaceStorage.removeItem(EDITOR_APP_KEY); }catch(_){} }
   let graphOk = wsRestoreKey("noodle_graph", shot.graph);
   // The leaving key is a temp copy of the original once noodle_graph holds the
   // incoming graph. Drop it only as a retry, and put the original back on that
   // key if the graph still will not land — never replace it with the incoming bytes.
   if(!graphOk && leaveKey){
     const backup = wsReadKey(leaveKey);
-    try{ localStorage.removeItem(leaveKey); }catch(_){}
+    try{ workspaceStorage.removeItem(leaveKey); }catch(_){}
     graphOk = wsRestoreKey("noodle_graph", shot.graph);
     if(!graphOk){
       const put = sourceBytes!=null ? sourceBytes : backup;
@@ -17502,7 +17853,7 @@ function ensureWorkspaces(){
   const existing = readWorkspaces();
   if(existing) return existing;
   let raw = null;
-  try{ raw = localStorage.getItem("noodle_graph"); }catch(_){}
+  try{ raw = workspaceStorage.getItem("noodle_graph"); }catch(_){}
   const named = nameFromGraphJson(raw);
   const name = (named && !WS_GENERIC_NAME.test(named) ? named : "") || purposeName(raw) || wsT("Workflow");
   const app = editorAppBinding();
@@ -17551,7 +17902,7 @@ function flushSave(){
   let json = null;
   try{ json = JSON.stringify(serializeGraph()); }
   catch(_){ return null; }
-  try{ localStorage.setItem("noodle_graph", json); }
+  try{ workspaceStorage.setItem("noodle_graph", json); }
   catch(_){ return null; }
   return json;
 }
@@ -17608,7 +17959,7 @@ function shelvePreviousWorkspace(prevJson, prevApp, newName){
   const shot = workspaceShot(cur.id);
   let newId = null;
   try{
-    localStorage.setItem(wsGraphKey(cur.id), String(prevJson));
+    workspaceStorage.setItem(wsGraphKey(cur.id), String(prevJson));
     try{ if(typeof _stashResults==="function") workspaceResults.set(cur.id, _stashResults()); }catch(_){}
     cur.app = (prevApp && prevApp.id) ? { id:prevApp.id, title:prevApp.title || null } : null;
     d.seq = (d.seq|0) + 1;
@@ -17719,7 +18070,7 @@ function switchWorkspace(id){
   const destRes = captureResults(id);
   try{ if(shot.stash) workspaceResults.set(leaving.id, shot.stash); }catch(_){}
   let raw = null;
-  try{ raw = localStorage.getItem(wsGraphKey(id)); }catch(_){}
+  try{ raw = workspaceStorage.getItem(wsGraphKey(id)); }catch(_){}
   let destObj = null;
   if(raw){ try{ destObj = JSON.parse(raw); }catch(_){ destObj = null; } }
   if(raw && !destObj){
@@ -17730,8 +18081,8 @@ function switchWorkspace(id){
   const destJson = destObj ? raw : JSON.stringify(blankGraph());
   let canvasTouched = false;
   try{
-    localStorage.setItem(wsGraphKey(leaving.id), snap);
-    localStorage.setItem("noodle_graph", destJson);
+    workspaceStorage.setItem(wsGraphKey(leaving.id), snap);
+    workspaceStorage.setItem("noodle_graph", destJson);
     d.active = id;
     writeWorkspaces(d);
     parkWorkspaceHistory(leaving.id);
@@ -17763,7 +18114,7 @@ function closeWorkspace(id){
   if(!tab) return;
   let raw = null;
   if(d.active===id){ try{ raw = JSON.stringify(serializeGraph()); }catch(_){} }
-  else { try{ raw = localStorage.getItem(wsGraphKey(id)); }catch(_){} }
+  else { try{ raw = workspaceStorage.getItem(wsGraphKey(id)); }catch(_){} }
   const occupied = graphHasNodes(raw);
   const confirmClose = ()=>{
     const msg = wsT("Close “{name}”? This removes it from this browser.").replace("{name}", tab.name);
@@ -17783,7 +18134,7 @@ function closeWorkspace(id){
       tab.app = null;
       delete tab.example;
       writeWorkspaces(d);
-      localStorage.removeItem(wsGraphKey(id));
+      workspaceStorage.removeItem(wsGraphKey(id));
       const wasMuted = undoMuted;
       undoMuted = true;
       try{
@@ -17812,7 +18163,7 @@ function closeWorkspace(id){
     d.tabs.splice(idx, 1);
     try{
       writeWorkspaces(d);
-      localStorage.removeItem(wsGraphKey(id));
+      workspaceStorage.removeItem(wsGraphKey(id));
     }catch(_){
       try{ wsRestoreKey(wsGraphKey(id), closedKey); }catch(_){}
       workspaceRollback(shot);
@@ -17826,7 +18177,7 @@ function closeWorkspace(id){
   }
   const neighbor = d.tabs[idx===0 ? 1 : idx-1];
   let nraw = null;
-  try{ nraw = localStorage.getItem(wsGraphKey(neighbor.id)); }catch(_){}
+  try{ nraw = workspaceStorage.getItem(wsGraphKey(neighbor.id)); }catch(_){}
   let nobj = null;
   if(nraw){ try{ nobj = JSON.parse(nraw); }catch(_){ nobj = null; } }
   const destJson = nobj ? nraw : JSON.stringify(blankGraph());
@@ -17840,8 +18191,8 @@ function closeWorkspace(id){
     d.tabs.splice(idx, 1);
     d.active = neighbor.id;
     writeWorkspaces(d);
-    localStorage.setItem("noodle_graph", destJson);
-    localStorage.removeItem(wsGraphKey(id));
+    workspaceStorage.setItem("noodle_graph", destJson);
+    workspaceStorage.removeItem(wsGraphKey(id));
     const wasMuted = undoMuted;
     undoMuted = true;
     try{
@@ -17915,7 +18266,7 @@ function commitReorder(id, toIndex){
 }
 function tabOccupied(d, tab){
   if(tab.id===d.active) return !!(graph.nodes && graph.nodes.length);
-  try{ return graphHasNodes(localStorage.getItem(wsGraphKey(tab.id))); }catch(_){ return false; }
+  try{ return graphHasNodes(workspaceStorage.getItem(wsGraphKey(tab.id))); }catch(_){ return false; }
 }
 function focusWorkspaceTab(id){
   try{
@@ -18483,6 +18834,7 @@ function noteFreshWorkspaceName(){
 /* WORKSPACES-END */
 
 async function loadFromHash(){
+  const storage = typeof workspaceStorage==="object" ? workspaceStorage : localStorage;
   const h = location.hash; let json=null, ga=false;
   try{
     if(h.startsWith("#ga=")){ ga=true; const tag=h.slice(4);
@@ -18533,13 +18885,13 @@ async function loadFromHash(){
     try{ toast((typeof wsT==="function" ? wsT : t)("Couldn’t open a new workspace — your current workflow is unchanged.")); }catch(_){}
   };
   let storedGraph;
-  try{ storedGraph = localStorage.getItem("noodle_graph"); }catch(_){ storedGraph = undefined; }
+  try{ storedGraph = storage.getItem("noodle_graph"); }catch(_){ storedGraph = undefined; }
   const rollbackImport = ()=>{
     if(shot) workspaceRollback(shot, { removeId: newActive && newActive!==activeBefore ? newActive : null, canvas: canvasTouched });
     else {
       try{
-        if(storedGraph===undefined || storedGraph===null) localStorage.removeItem("noodle_graph");
-        else localStorage.setItem("noodle_graph", storedGraph);
+        if(storedGraph===undefined || storedGraph===null) storage.removeItem("noodle_graph");
+        else storage.setItem("noodle_graph", storedGraph);
       }catch(_){}
       if(canvasTouched && canvasJson){
         try{ applyGraphData(JSON.parse(canvasJson), liveStash ? {resultStash:liveStash} : undefined); }catch(_){}
@@ -18565,7 +18917,7 @@ async function loadFromHash(){
     } else {
       // Empty canvas, or a runtime that has no workspace save (the pre-tab undo park).
       // Keep the stored bytes — serializing an empty canvas would wipe them.
-      try{ prev = localStorage.getItem("noodle_graph"); }catch(_){}
+      try{ prev = storage.getItem("noodle_graph"); }catch(_){}
     }
     try{ if(typeof editorAppBinding==="function") prevApp = editorAppBinding(); }catch(_){}
     // shelve stamps the new tab from pendingAppId. Point that at the incoming app
@@ -19931,6 +20283,15 @@ $("signout").onclick = ()=> setKey(null);
    ====================================================================== */
 (async ()=>{
   buildAddMenu();
+  try{ ensureWorkspaces(); }catch(_){}
+  try{ renderWorkspaces(); }catch(_){}
+  try{ bindWorkspaceChrome(); }catch(_){}
+  // Restoring the durable workspace precedes edits. Plus remains available and
+  // its existing deferred choice runs once that restore has settled.
+  const topWasInert = $("top").inert, editorWasInert = editor.inert;
+  $("top").inert = true; editor.inert = true;
+  try{ await initWorkspaceStorage(); }
+  finally{ $("top").inert = topWasInert; editor.inert = editorWasInert; }
   // These do not share a catch. A QuotaExceededError from the first
   // noodle_workspaces write must not skip the plus button.
   try{ ensureWorkspaces(); }catch(_){}
@@ -19973,7 +20334,7 @@ $("signout").onclick = ()=> setKey(null);
     // ...and re-link it to the app it was bound to, so a plain reload keeps "Update app"
     // (the binding lives outside noodle_graph; without this the next "Create app" would
     // spawn a duplicate of the very app the user was editing).
-    try{ const b = JSON.parse(localStorage.getItem(EDITOR_APP_KEY) || "null");
+    try{ const b = JSON.parse(workspaceStorage.getItem(EDITOR_APP_KEY) || "null");
       if(b && b.id) setPendingApp(b.id, b.title || null); }catch(_){}
   }
   const freshStart = !restored;                                   // nothing personal loaded → we're about to show the shipped starter
@@ -19985,8 +20346,7 @@ $("signout").onclick = ()=> setKey(null);
   // graph now on the canvas, still without rewriting noodle_graph, then run a
   // new-tab choice the user made while the page was blank.
   try{
-    if(freshStart) finishInitialCanvas({fresh:true});
-    else claimInitialCanvas();
+    finishInitialCanvas({fresh:freshStart});
     renderWorkspaces();
   }catch(_){}
   // Capture the starter's full + topology signatures so a signed-out Run can free-sample the

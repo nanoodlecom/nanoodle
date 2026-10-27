@@ -276,7 +276,7 @@ function checkIndex(root, fail) {
   // external callers (wholesale swaps): must have resetDescribeVersions nearby. Named so a
   // dropped reset on any of them is caught explicitly, not just via the unclassified path.
   const EXTERNAL = [
-    { tag: "loadFile (open a .json)",     snippet: "applyGraphData(JSON.parse(r.result))" },
+    { tag: "loadFile (open a .json)",     snippet: "applyGraphData(parsed)" },
     { tag: "loadFromHash (shared or bare graph)", snippet: "applyGraphData(graphData)" },
     { tag: "editor→app postMessage",      snippet: "applyGraphData(e.data.graph, sameFlow ? {carryResults:true} : undefined)" },
     { tag: "open an Example",             snippet: "applyGraphData(JSON.parse(JSON.stringify(ex.graph)))" },
@@ -347,8 +347,8 @@ function selftest() {
       name: "index caller completeness (drop loadFile reset)",
       file: "index.html",
       mutate: (s) => s.replace(
-        'setPendingApp(null); applyGraphData(JSON.parse(r.result)); window.resetDescribeVersions?.(); save();',
-        'setPendingApp(null); applyGraphData(JSON.parse(r.result)); save();'),
+        'setPendingApp(null); applyGraphData(parsed); window.resetDescribeVersions?.();',
+        'setPendingApp(null); applyGraphData(parsed);'),
       want: /not classified|no longer calls resetDescribeVersions/i,
     },
   ];

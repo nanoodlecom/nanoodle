@@ -205,6 +205,22 @@ function makeStorage(backing) {
   };
 }
 
+// These handoff cases model a healthy browser with an empty overflow database;
+// their small fixtures remain in legacy localStorage. API absence is a recovery
+// failure now, covered separately by check-workspaces and the real browser suite.
+function emptyWorkspaceDatabase() {
+  return {open() {
+    const request={};
+    queueMicrotask(()=>{
+      request.result={close(){},transaction(){return {objectStore(){return {get(){
+        const read={result:undefined};queueMicrotask(()=>read.onsuccess?.());return read;
+      }}}};}};
+      request.onsuccess?.();
+    });
+    return request;
+  }};
+}
+
 function makeLocation(href, nav) {
   const u = new URL(href);
   return {
@@ -244,6 +260,7 @@ function loadPage(code, kind, { href, store, session, parentIsSelf = true }) {
     console,
     TextEncoder, TextDecoder, URL, URLSearchParams, btoa, atob, crypto,
     Blob, Response, CompressionStream, DecompressionStream, structuredClone, queueMicrotask, Date,
+    indexedDB:emptyWorkspaceDatabase(),
     setTimeout: (fn) => { const id = timerId++; timers.push({ id, fn }); return id; },
     clearTimeout: (id) => { const i = timers.findIndex((t) => t.id === id); if (i >= 0) timers.splice(i, 1); },
     setInterval: () => 0, clearInterval: () => {},
