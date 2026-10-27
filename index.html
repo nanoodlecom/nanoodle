@@ -17666,6 +17666,7 @@ async function restoreWorkspaceStorage(){
       };
     });
     wsAuthorityEpoch++; // supersede snapshots queued while the restore was pending
+    invalidateWorkspaceCloseHistory(); // a close made during Retry may refer to pre-recovery tab ids
     const restored = Object.create(null);
     wsKnownRecord=wsRecordToken(record);
     if(record && record.v===1 && record.values && typeof record.values==="object"){
