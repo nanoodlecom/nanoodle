@@ -1591,6 +1591,8 @@ const I18N_ENAME = { es:"Spanish", fr:"French", de:"German", pt:"Portuguese", ja
 /* === I18N-MAPS-BEGIN (es/fr/de/pt/ja — generated; English is identity) === */
 const I18N = {
   es:{
+    "Recovered visit":"Visita recuperada",
+    "Saved workspaces could not be restored. Save this visit’s workflows before refreshing, or retry recovery.":"No se pudieron restaurar los espacios guardados. Guarda los flujos de esta visita antes de actualizar o reintenta la recuperación.",
     "Save this workflow":"Guardar este flujo",
     "Retry saving":"Reintentar guardado",
     "Saving workspaces in this browser…":"Guardando espacios en este navegador…",
@@ -2340,6 +2342,8 @@ const I18N = {
     "Load nanoodle into your coding agent":"Carga nanoodle en tu agente de código"
   },
   fr:{
+    "Recovered visit":"Visite récupérée",
+    "Saved workspaces could not be restored. Save this visit’s workflows before refreshing, or retry recovery.":"Les espaces enregistrés n’ont pas pu être restaurés. Enregistrez les workflows de cette visite avant d’actualiser ou réessayez la récupération.",
     "Save this workflow":"Enregistrer ce workflow",
     "Retry saving":"Réessayer l’enregistrement",
     "Saving workspaces in this browser…":"Enregistrement des espaces dans ce navigateur…",
@@ -3089,6 +3093,8 @@ const I18N = {
     "Load nanoodle into your coding agent":"Chargez nanoodle dans votre agent de code"
   },
   de:{
+    "Recovered visit":"Wiederhergestellter Besuch",
+    "Saved workspaces could not be restored. Save this visit’s workflows before refreshing, or retry recovery.":"Gespeicherte Arbeitsbereiche konnten nicht wiederhergestellt werden. Speichere die Workflows dieses Besuchs vor dem Neuladen oder versuche die Wiederherstellung erneut.",
     "Save this workflow":"Diesen Workflow speichern",
     "Retry saving":"Speichern erneut versuchen",
     "Saving workspaces in this browser…":"Arbeitsbereiche werden in diesem Browser gespeichert…",
@@ -3838,6 +3844,8 @@ const I18N = {
     "Load nanoodle into your coding agent":"Lade nanoodle in deinen Coding-Agenten"
   },
   pt:{
+    "Recovered visit":"Visita recuperada",
+    "Saved workspaces could not be restored. Save this visit’s workflows before refreshing, or retry recovery.":"Não foi possível restaurar os espaços guardados. Guarda os fluxos desta visita antes de atualizar ou tenta recuperar novamente.",
     "Save this workflow":"Guardar este fluxo",
     "Retry saving":"Tentar guardar novamente",
     "Saving workspaces in this browser…":"A guardar espaços neste navegador…",
@@ -4587,6 +4595,8 @@ const I18N = {
     "Load nanoodle into your coding agent":"Carregue o nanoodle no seu agente de código"
   },
   ja:{
+    "Recovered visit":"復元した訪問",
+    "Saved workspaces could not be restored. Save this visit’s workflows before refreshing, or retry recovery.":"保存済みワークスペースを復元できませんでした。再読み込みする前に今回のワークフローを保存するか、復元を再試行してください。",
     "Save this workflow":"このワークフローを保存",
     "Retry saving":"保存を再試行",
     "Saving workspaces in this browser…":"このブラウザにワークスペースを保存中…",
@@ -17194,6 +17204,7 @@ function updateTitle(){
    Paid results and undo stacks are memory-only, same as a reload today. */
 const WS_INDEX_KEY = "noodle_workspaces";
 const WS_CAP = 16;
+const WS_RECOVERY_KEY = "noodle_workspace_recovery";
 // Normal-sized legacy workspaces keep their existing localStorage format.
 // When a write fails (including the temporary second copy during a tab change),
 // keep a scoped working copy and persist the whole workspace transaction in IDB.
@@ -17201,13 +17212,85 @@ const WS_CAP = 16;
 let wsStorageEnabled = false, wsValues = null, wsDatabase = null;
 let wsRevision = 0, wsSavedRevision = 0, wsQueued = false;
 let wsUnloadBound = false;
+let wsRestoreFailed = false, wsRecoveryActive = false, wsRecoveryId = null, wsRecoveryBackup = null;
+let wsKnownRecord = null;
 let wsPersistTail = Promise.resolve(), wsStorageFailure = null, wsPersistFailure = null;
 function wsOwnedKey(key){
   return key==="noodle_graph" || key===WS_INDEX_KEY || key===EDITOR_APP_KEY || /^noodle_ws_/.test(key);
 }
 function workspacePersistence(){
   return { mode:!wsValues ? "local" : wsSavedRevision===wsRevision ? "browser" : "session",
-    pending:!!wsValues && wsSavedRevision!==wsRevision && !wsPersistFailure, cause:wsStorageFailure, persistenceError:wsPersistFailure };
+    pending:!!wsValues && wsSavedRevision!==wsRevision && !wsPersistFailure, cause:wsStorageFailure, persistenceError:wsPersistFailure,
+    restoreFailed:wsRestoreFailed, recoveryBackup:wsRecoveryBackup };
+}
+function wsRawStorage(kind){
+  try{ return kind==="local" ? localStorage : sessionStorage; }catch(_){ return null; }
+}
+function wsRecordToken(record){
+  return record ? record.generation || JSON.stringify(record.values||{}) : null;
+}
+function wsCopyValues(values){
+  const result = Object.create(null);
+  for(const [key,value] of Object.entries(values||{})) if(wsOwnedKey(key) && typeof value==="string") result[key]=value;
+  return result;
+}
+function wsReadRecovery(){
+  let newest = null;
+  for(const storage of [wsRawStorage("local"), wsRawStorage("session")]){
+    try{
+      const d = storage && JSON.parse(storage.getItem(WS_RECOVERY_KEY)||"null");
+      if(d && d.v===1 && typeof d.id==="string" && d.values && typeof d.values==="object"
+          && (!newest || (d.updated||0)>(newest.updated||0))) newest=Object.assign({},d,{values:wsCopyValues(d.values)});
+    }catch(_){}
+  }
+  return newest;
+}
+function wsWriteRecovery(values){
+  const previous = wsReadRecovery();
+  const updated = Math.max(Date.now(), (previous && previous.updated || 0)+1);
+  wsRecoveryId = updated.toString(36)+"-"+Math.random().toString(36).slice(2);
+  const json = JSON.stringify({v:1, id:wsRecoveryId, updated, values});
+  wsRecoveryBackup = null;
+  for(const [kind,storage] of [["local",wsRawStorage("local")],["session",wsRawStorage("session")]]){
+    try{ if(storage){ storage.setItem(WS_RECOVERY_KEY,json); wsRecoveryBackup=kind; break; } }catch(_){}
+  }
+}
+function wsClearRecovery(){
+  for(const storage of [wsRawStorage("local"), wsRawStorage("session")]){
+    try{
+      const d=storage && JSON.parse(storage.getItem(WS_RECOVERY_KEY)||"null");
+      if(d && d.id===wsRecoveryId) storage.removeItem(WS_RECOVERY_KEY);
+    }catch(_){}
+  }
+  wsRecoveryActive = false;
+  wsRecoveryBackup = null;
+}
+// A recovery visit is a separate branch of work. Never replace unread IDB tabs
+// with the older local backup or that visit's edits when storage becomes readable.
+function wsMergeRecovery(saved, visit){
+  const result = Object.assign(Object.create(null), saved);
+  let d, live;
+  try{ d=JSON.parse(saved[WS_INDEX_KEY]); live=JSON.parse(visit[WS_INDEX_KEY]); }catch(_){}
+  if(!d || !Array.isArray(d.tabs) || !d.tabs.length) return Object.assign(Object.create(null), visit);
+  if(!live || !Array.isArray(live.tabs) || !live.tabs.length) return result;
+  if(saved.noodle_graph!=null) result[wsGraphKey(d.active)]=saved.noodle_graph;
+  const histories = new Map(workspaceHist), results = new Map(workspaceResults);
+  workspaceHist.clear(); workspaceResults.clear();
+  for(const tab of live.tabs){
+    let id;
+    do{ d.seq=(d.seq|0)+1; id="w"+d.seq; }while(d.tabs.some(t=>t.id===id));
+    const recovered = Object.assign({}, tab, {id, name:uniqueWorkspaceName(wsT("Recovered visit")+": "+tab.name,d.tabs)});
+    d.tabs.push(recovered);
+    const json = tab.id===live.active ? visit.noodle_graph : visit[wsGraphKey(tab.id)];
+    if(json!=null) result[wsGraphKey(id)]=json;
+    if(results.has(tab.id)) workspaceResults.set(id,results.get(tab.id));
+    if(histories.has(tab.id)) workspaceHist.set(id,histories.get(tab.id));
+    if(tab.id===live.active){ d.active=id; result.noodle_graph=json || JSON.stringify(blankGraph()); }
+  }
+  if(visit[EDITOR_APP_KEY]!=null) result[EDITOR_APP_KEY]=visit[EDITOR_APP_KEY];
+  else delete result[EDITOR_APP_KEY];
+  result[WS_INDEX_KEY]=JSON.stringify(d);
+  return result;
 }
 function markWorkspaceDirty(){
   if(wsValues){ wsRevision++; wsPersistenceNotice(true); }
@@ -17229,11 +17312,13 @@ function wsPersistenceNotice(saving){
     backup.onclick = ()=> saveFile();
     retry.onclick = async ()=>{
       wsPersistenceNotice(true);
-      if(!wsDatabase) await initWorkspaceStorage();
+      if(!wsDatabase || wsRestoreFailed) await initWorkspaceStorage();
       wsQueuePersist();
     };
     box.title = wsT("Save backs up the workflow and uploaded inputs. Generated results are kept for this visit only.");
-    text.textContent = wsT(saving ? "Saving workspaces in this browser…" : "These workspaces are available for this visit only. Save each workflow before refreshing.");
+    text.textContent = wsT(saving ? "Saving workspaces in this browser…" : wsRestoreFailed
+      ? "Saved workspaces could not be restored. Save this visit’s workflows before refreshing, or retry recovery."
+      : "These workspaces are available for this visit only. Save each workflow before refreshing.");
   }catch(_){}
 }
 function wsBeginOverflow(key, error, operation){
@@ -17259,8 +17344,10 @@ function wsQueuePersist(){
   Promise.resolve().then(()=>{
     wsQueued = false;
     const revision = wsRevision, values = Object.assign({}, wsValues);
+    if(wsRecoveryActive) wsWriteRecovery(values);
+    const recoveryId = wsRecoveryId;
     wsPersistTail = wsPersistTail.then(()=>new Promise((resolve, reject)=>{
-      if(!wsDatabase){ reject(new Error("BrowserStorageUnavailable")); return; }
+      if(!wsDatabase || wsRestoreFailed){ reject(new Error("BrowserStorageUnavailable")); return; }
       try{
         const tx = wsDatabase.transaction("workspaces", "readwrite");
         const timer = setTimeout(()=>{
@@ -17268,15 +17355,36 @@ function wsQueuePersist(){
           reject(new Error("BrowserStorageTimeout"));
         }, 5000);
         const fail = ()=>{ clearTimeout(timer); reject(tx.error || new Error("BrowserStorageUnavailable")); };
-        tx.oncomplete = ()=>{ clearTimeout(timer); resolve(); };
+        const generation=Date.now().toString(36)+"-"+Math.random().toString(36).slice(2);
+        let wrote=false;
+        tx.oncomplete = ()=>{ clearTimeout(timer); if(wrote){ wsKnownRecord=generation; resolve(); }else reject(new Error("BrowserStorageUnavailable")); };
         tx.onerror = tx.onabort = fail;
-        tx.objectStore("workspaces").put({v:1, values}, "state");
+        const store=tx.objectStore("workspaces"), current=store.get("state");
+        current.onerror=fail;
+        current.onsuccess=()=>{
+          try{
+            if(wsRecordToken(current.result)!==wsKnownRecord){
+              const error=new Error("WorkspaceConflict");error.name="WorkspaceConflict";
+              clearTimeout(timer);reject(error);tx.abort();return;
+            }
+            store.put({v:1, values, recoveryId, generation}, "state");wrote=true;
+          }catch(error){clearTimeout(timer);reject(error);try{tx.abort();}catch(_){}}
+        };
       }catch(e){ reject(e); }
     })).then(()=>{
       wsSavedRevision = revision;
       wsPersistFailure = null;
-      if(revision===wsRevision) wsPersistenceNotice(false);
+      if(revision===wsRevision){
+        if(wsRecoveryActive && recoveryId===wsRecoveryId) wsClearRecovery();
+        wsPersistenceNotice(false);
+      }
     }, error=>{
+      if(error && error.name==="WorkspaceConflict"){
+        wsRestoreFailed=true;wsRecoveryActive=true;
+        wsStorageFailure={operation:"commit",key:"nanoodle-workspaces",name:"WorkspaceConflict"};
+        if(saveT) flushSave();
+        wsWriteRecovery(wsValues);
+      }
       wsPersistFailure = wsDatabase ? error && error.name || "Error" : "BrowserStorageUnavailable";
       wsPersistenceNotice(false);
     });
@@ -17307,14 +17415,22 @@ const workspaceStorage = {
 };
 async function initWorkspaceStorage(){
   wsStorageEnabled = true;
+  if(wsRestoreFailed && wsDatabase){ try{wsDatabase.close();}catch(_){} wsDatabase=null; }
+  const recovery = wsReadRecovery();
   if(!wsUnloadBound && typeof addEventListener==="function"){
     wsUnloadBound = true;
     addEventListener("beforeunload", e=>{
+      // A recovery reload must not outrun the 250ms autosave debounce. Journal
+      // the latest live edit synchronously; IDB commits still remain asynchronous.
+      if(wsValues && saveT) flushSave();
+      if(wsRecoveryActive && wsValues) wsWriteRecovery(wsValues);
       if(wsValues && wsRevision!==wsSavedRevision){ e.preventDefault(); e.returnValue=""; }
     });
   }
-  if(typeof indexedDB==="undefined") return;
   try{
+    if(typeof indexedDB==="undefined"){
+      const error=new Error("BrowserStorageUnavailable");error.name="BrowserStorageUnavailable";throw error;
+    }
     const record = await new Promise((resolve, reject)=>{
       let finished = false;
       const finish = (error, value)=>{
@@ -17341,14 +17457,38 @@ async function initWorkspaceStorage(){
         }catch(e){ db.close(); finish(e); }
       };
     });
+    const restored = Object.create(null);
+    wsKnownRecord=wsRecordToken(record);
     if(record && record.v===1 && record.values && typeof record.values==="object"){
-      const restored = Object.create(null);
       for(const [key,value] of Object.entries(record.values)) if(wsOwnedKey(key) && typeof value==="string") restored[key]=value;
-      // An edit made while opening storage already belongs to this visit.
-      if(wsValues) wsQueuePersist(); // retries always keep this visit's newer state, including removals
-      else wsValues=restored;
+      const index = JSON.parse(restored[WS_INDEX_KEY]||"null");
+      if(!index || index.v!==1 || !Array.isArray(index.tabs) || !index.tabs.some(t=>t && t.id===index.active))
+        throw new Error("InvalidWorkspaceRecord");
+    }else if(record){
+      throw new Error("InvalidWorkspaceRecord");
     }
-  }catch(e){ wsPersistFailure=e && e.name || "Error"; }
+    const visit = wsRestoreFailed && wsValues ? wsValues : recovery && recovery.id!==record?.recoveryId ? recovery.values : null;
+    if(visit){
+      const wasLive = !!wsValues;
+      wsValues = wsMergeRecovery(restored,visit);
+      wsRecoveryActive=true; wsRestoreFailed=false; wsSavedRevision=-1;
+      if(wasLive){ try{ renderWorkspaces(); }catch(_){} }
+      wsQueuePersist();
+    }else if(!wsValues && Object.keys(restored).length){
+      wsValues=restored; wsRecoveryId=record.recoveryId || null;
+      if(recovery && recovery.id===record.recoveryId) wsClearRecovery();
+    }
+    wsRestoreFailed=false;
+  }catch(e){
+    if(wsDatabase){ try{ wsDatabase.close(); }catch(_){} wsDatabase=null; }
+    wsPersistFailure=e && e.name || "Error";
+    wsRestoreFailed=true; wsRecoveryActive=true;
+    if(!wsValues){
+      wsBeginOverflow("nanoodle-workspaces",e,"restore");
+      if(recovery){ wsValues=recovery.values; wsRecoveryId=recovery.id; }
+    }
+    wsQueuePersist();
+  }
 }
 // True until the first-visit starter is installed, or the user takes the blank canvas.
 // A chooser click in that window is held, and it moves bootGen. The starter fetch

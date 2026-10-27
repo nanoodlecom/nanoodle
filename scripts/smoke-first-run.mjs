@@ -419,6 +419,137 @@ try {
         await tabContext.close();
       }
     }
+    // Start with newer IDB-only tabs plus an older local backup, then fail the
+    // actual restore request. Neither Retry nor healthy reload may erase either branch.
+    for (const failure of ["open", "read", "timeout", "unavailable"]) {
+      const recoveryContext = await newContext();
+      const seedPage = await recoveryContext.newPage();
+      await seedPage.goto(origin + "/site.webmanifest");
+      await seedPage.evaluate(async () => {
+        const make = text => JSON.stringify({v:1,nodes:[{id:"n1",type:"text",x:30,y:40,fields:{text}}],links:[],nid:2,lid:1});
+        localStorage.setItem("noodle_graph",make("LEGACY BACKUP"));
+        localStorage.setItem("noodle_workspaces",JSON.stringify({v:1,active:"w1",seq:1,tabs:[{id:"w1",name:"Local backup"}]}));
+        const db = await new Promise((resolve,reject) => {
+          const req=indexedDB.open("nanoodle-workspaces",1);
+          req.onupgradeneeded=()=>req.result.createObjectStore("workspaces");
+          req.onsuccess=()=>resolve(req.result); req.onerror=()=>reject(req.error);
+        });
+        await new Promise((resolve,reject) => {
+          const tx=db.transaction("workspaces","readwrite");
+          tx.objectStore("workspaces").put({v:1,values:{
+            noodle_graph:make("IDB ONLY TAB"),noodle_ws_w1:make("IDB ORIGINAL"),
+            noodle_workspaces:JSON.stringify({v:1,active:"w2",seq:2,tabs:[{id:"w1",name:"IDB original"},{id:"w2",name:"IDB only"}]}),
+          }},"state");
+          tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error);
+        });
+        db.close();
+      });
+      await seedPage.close();
+      const recoveryPage = await recoveryContext.newPage();
+      recoveryPage.setDefaultTimeout(15000);
+      // This page contains synthetic edits with a recovery journal; accept only
+      // this test page's unload warning when explicitly exercising reload.
+      recoveryPage.on("dialog", dialog => dialog.accept());
+      await recoveryPage.addInitScript(({failure}) => {
+        const broken = () => sessionStorage.getItem("restore-test-healthy") !== "1";
+        if(failure==="unavailable" && broken()) Object.defineProperty(window,"indexedDB",{value:undefined,configurable:true});
+        const open=IDBFactory.prototype.open;
+        IDBFactory.prototype.open=function(name,version){
+          if(name!=="nanoodle-workspaces" || !broken() || failure==="read") return open.call(this,name,version);
+          const req={};
+          if(failure==="open") setTimeout(()=>{req.error=new DOMException("Synthetic open failure","UnknownError");req.onerror?.();},0);
+          else setTimeout(()=>{
+            const native=open.call(this,name,version);
+            native.onsuccess=()=>{req.result=native.result; req.onsuccess?.(); window.__lateWorkspaceOpenDelivered=true;};
+            native.onerror=()=>{req.error=native.error; req.onerror?.();};
+          },3200);
+          return req;
+        };
+        const get=IDBObjectStore.prototype.get;
+        IDBObjectStore.prototype.get=function(key){
+          if(this.name!=="workspaces" || !broken() || failure!=="read") return get.call(this,key);
+          const req={};
+          setTimeout(()=>{req.error=new DOMException("Synthetic read failure","UnknownError");req.onerror?.();},0);
+          return req;
+        };
+      },{failure});
+      try {
+        await recoveryPage.goto(origin,{waitUntil:"domcontentloaded"});
+        await recoveryPage.waitForFunction(()=>typeof workspacePersistence==="function" && workspacePersistence().restoreFailed && graph.nodes.length>0);
+        assert.equal((await recoveryPage.evaluate(()=>workspacePersistence())).mode,"session","failed restore never silently promotes the stale local backup");
+        await recoveryPage.locator('.node[data-id="n1"] textarea').fill("NEWEST RECOVERY EDIT " + failure);
+        await recoveryPage.evaluate(()=>settleWorkspaceStorage());
+        assert.equal(await recoveryPage.evaluate(()=>workspacePersistence().recoveryBackup),"local","edits are journaled separately without touching unread IDB");
+        assert.match(await recoveryPage.locator("#wspersistence").innerText(),/could not be restored/);
+        if(failure==="timeout") {
+          await recoveryPage.waitForFunction(()=>window.__lateWorkspaceOpenDelivered);
+          assert.ok(await recoveryPage.evaluate(()=>workspacePersistence().restoreFailed),"a late open callback cannot silently change storage authority");
+        }
+        const expectedText=(failure==="read" ? "RAPID RECOVERY EDIT " : "NEWEST RECOVERY EDIT ")+failure;
+        if(failure==="read") await recoveryPage.locator('.node[data-id="n1"] textarea').fill(expectedText);
+        await recoveryPage.evaluate(()=>sessionStorage.setItem("restore-test-healthy","1"));
+        if(failure==="open") {
+          await recoveryPage.locator("#wspersistence-retry").click();
+          await recoveryPage.waitForFunction(()=>!workspacePersistence().restoreFailed && workspacePersistence().mode==="browser");
+        } else await recoveryPage.reload({waitUntil:"networkidle"});
+        await recoveryPage.evaluate(()=>settleWorkspaceStorage());
+        assert.equal(await recoveryPage.evaluate(()=>readWorkspaces().tabs.length),3,"IDB-only tabs and the recovery visit are all retained");
+        assert.equal(await recoveryPage.evaluate(()=>graph.nodes[0].fields.text),expectedText);
+        await recoveryPage.reload({waitUntil:"networkidle"});
+        assert.equal(await recoveryPage.evaluate(()=>readWorkspaces().tabs.length),3,"a consumed recovery journal does not duplicate or overwrite work on healthy reload");
+        assert.equal(await recoveryPage.evaluate(()=>graph.nodes[0].fields.text),expectedText);
+        if(mobile) {
+          await recoveryPage.locator("#wsdrop").click();
+          await recoveryPage.locator("#wsdropmenu").getByRole("button",{name:"IDB only",exact:true}).click();
+        } else await recoveryPage.locator('#wstabs .wstab[data-id="w2"]').click();
+        assert.equal(await recoveryPage.evaluate(()=>graph.nodes[0].fields.text),"IDB ONLY TAB","Retry/reload never deletes a previously unread IDB-only workspace");
+        await recoveryPage.evaluate(()=>settleWorkspaceStorage());
+        if(failure==="open") {
+          const backupPage=await recoveryContext.newPage();
+          await backupPage.goto(origin+"/workspace-recovery.html");
+          const button=backupPage.locator('button[data-source="browser"][data-id="w2"]');
+          await button.waitFor({state:"visible"});
+          const [backup]=await Promise.all([backupPage.waitForEvent("download"),button.click()]);
+          const recovered=JSON.parse(await readFile(await backup.path(),"utf8"));
+          assert.equal(recovered.nodes[0].fields.text,"IDB ONLY TAB","the same-origin read-only recovery page exports an IDB-only workflow");
+          assert.equal(await backupPage.locator('button[data-source="legacy"]').count(),1,"the retained legacy backup is separately available");
+          await backupPage.close();
+          await recoveryPage.reload({waitUntil:"networkidle"});
+          assert.equal(await recoveryPage.evaluate(()=>readWorkspaces().tabs.length),3,"backup export does not mutate workspace storage");
+          await recoveryPage.evaluate(async()=>{
+            const db=await new Promise((resolve,reject)=>{const r=indexedDB.open("nanoodle-workspaces",1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+            await new Promise((resolve,reject)=>{
+              const tx=db.transaction("workspaces","readwrite"),store=tx.objectStore("workspaces"),r=store.get("state");
+              r.onsuccess=()=>{
+                const record=r.result,index=JSON.parse(record.values.noodle_workspaces);
+                index.tabs.push({id:"w9",name:"Other writer"});index.seq=9;
+                record.values.noodle_workspaces=JSON.stringify(index);
+                record.values.noodle_ws_w9=JSON.stringify({v:1,nodes:[{id:"n1",type:"text",x:20,y:30,fields:{text:"OTHER WRITER TAB"}}],links:[],nid:2,lid:1});
+                record.generation="synthetic-other-writer";store.put(record,"state");
+              };
+              tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
+            });db.close();
+          });
+          await recoveryPage.locator('.node[data-id="n1"] textarea').fill("UNCOMMITTED CONCURRENT EDIT");
+          const conflict=await recoveryPage.evaluate(()=>settleWorkspaceStorage());
+          assert.equal(conflict.mode,"session");assert.equal(conflict.cause.name,"WorkspaceConflict","an older window cannot overwrite a newer database snapshot");
+          await recoveryPage.locator("#wspersistence-retry").click();
+          await recoveryPage.waitForFunction(()=>!workspacePersistence().restoreFailed && workspacePersistence().mode==="browser");
+          assert.ok(await recoveryPage.evaluate(()=>readWorkspaces().tabs.some(t=>t.id==="w9")),"conflict recovery preserves the other writer's IDB-only tab");
+          assert.equal(await recoveryPage.evaluate(()=>graph.nodes[0].fields.text),"UNCOMMITTED CONCURRENT EDIT","conflict recovery also preserves this visit's newest edit");
+          await recoveryPage.reload({waitUntil:"networkidle"});
+          assert.equal(await recoveryPage.evaluate(()=>graph.nodes[0].fields.text),"UNCOMMITTED CONCURRENT EDIT");
+        }
+        assert.deepEqual(forbidden,[]); assert.deepEqual(errors,[]);
+        console.log(`✓ workspace recovery ${label}: ${failure} failure → edit → ${failure==="open" ? "Retry" : "healthy reload"} → preserve both saved tabs and newest visit`);
+      } catch(error) {
+        if(process.env.NANOODLE_SMOKE_ARTIFACTS){
+          const dir=resolve(process.env.NANOODLE_SMOKE_ARTIFACTS);await mkdir(dir,{recursive:true});
+          await recoveryPage.screenshot({path:resolve(dir,`recovery-${label}-${failure}.png`),fullPage:true}).catch(()=>{});
+        }
+        throw error;
+      } finally { await recoveryContext.close(); }
+    }
   }
   const glb = await readFile(resolve(root, "examples/product-shot/sample.glb"));
   const cspContext = await browser.newContext({ viewport:{ width:1440, height:900 } });

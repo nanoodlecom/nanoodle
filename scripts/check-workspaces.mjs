@@ -177,6 +177,7 @@ const bundle = [
   "  chooseWorkspace, initialCanvasUnclaimed, claimInitialCanvas, finishInitialCanvas,",
   "  bootGeneration, freshGraphStillDue, bindWorkspaceChrome, noteFreshWorkspaceName,",
   "  initWorkspaceStorage, settleWorkspaceStorage, workspacePersistence,",
+  "  wsMergeRecovery,",
   "  textToImageGraph, askModelGraph, blankGraph,",
   "  readWorkspaces, shelvePreviousWorkspace, workspaceLabelForGraph, workspaceDownloadName, onWorkspaceHash, graph, ",
   "  stacks: () => ({ undo: undoStack.slice(), redo: redoStack.slice() }),",
@@ -1117,21 +1118,20 @@ function fakeWsDom() {
   ok(W.readWorkspaces().tabs[0].name === "Blank canvas", "the reused tab is named Blank canvas");
 }
 
-// A tight aggregate budget, not a one-shot throw: the source fits, but making
-// its temporary second copy does not. With no durable fallback available the
-// tabs must still work, preserve results, and honestly remain visit-only.
+// An unavailable IDB API plus a tight aggregate budget: the original is durable,
+// but the larger recovery journal cannot fit. Tabs remain usable and visit-only.
 {
   clearStore();
   let beforeUnload;
-  const W = boot({addEventListener(kind, handler) { if(kind === "beforeunload") beforeUnload = handler; }});
-  await W.initWorkspaceStorage();
-  W.ensureWorkspaces();
-  W.claimInitialCanvas();
-  W.applyGraphData({v:1,nodes:[
+  backing.noodle_graph=JSON.stringify({v:1,nodes:[
     {id:"n1",type:"text",x:20,y:20,name:"Song idea",fields:{text:"SYNTHETIC SONG"}},
     {id:"n2",type:"aupload",x:20,y:200,fields:{audio:"data:audio/wav;base64," + "A".repeat(262144)}},
     {id:"n3",type:"music",x:400,y:20,fields:{prompt:"SYNTHETIC SONG"}}
   ],links:[],nid:4,lid:1});
+  backing.noodle_workspaces=JSON.stringify({v:1,active:"w1",seq:1,tabs:[{id:"w1",name:"Song idea"}]});
+  const W = boot({addEventListener(kind, handler) { if(kind === "beforeunload") beforeUnload = handler; }});
+  await W.initWorkspaceStorage();
+  W.ensureWorkspaces();W.claimInitialCanvas();W.load();
   W.setOut("n3", {audio:"data:audio/wav;base64,QUFBQQ=="});
   W.save();
   const durable = backing.noodle_graph;
@@ -1146,9 +1146,9 @@ function fakeWsDom() {
       ok(W.outOf("n3").audio==="data:audio/wav;base64,QUFBQQ==", "in-session switching keeps the generated result");
     }
     const state = await W.settleWorkspaceStorage();
-    ok(q.refused()==="noodle_ws_w1 over cap", "the confirmed failure is the temporary shelving copy");
+    ok(q.refused()==="noodle_workspace_recovery over cap", "the larger recovery journal respects the aggregate quota");
     ok(state.mode==="session" && state.persistenceError==="BrowserStorageUnavailable", "memory-only work never claims to be saved");
-    ok(state.cause.key==="noodle_ws_w1" && state.cause.name==="QuotaExceededError", "diagnostics identify key and exception without graph content");
+    ok(state.restoreFailed && state.cause.operation==="restore" && state.cause.name==="BrowserStorageUnavailable", "diagnostics identify restore failure without graph content");
     ok(backing.noodle_graph===durable, "the last durable workflow is untouched");
     let prevented = false;
     beforeUnload({preventDefault() { prevented=true; }, returnValue:null});
@@ -1156,6 +1156,29 @@ function fakeWsDom() {
     const reload = boot();
     ok(reload.load() && textOf(reload.serializeGraph())==="SYNTHETIC SONG", "even a visit-only fallback leaves the original durable workflow reloadable");
   }finally{ q.stop(); }
+}
+
+// A failed restore branches from a legacy backup. Recovery must keep IDB-only
+// tabs as well as edits made in that visit, even though both use the same ids.
+{
+  clearStore();
+  const W = boot();
+  const savedOne = JSON.stringify(markerGraph("IDB ORIGINAL"));
+  const savedTwo = JSON.stringify(markerGraph("IDB ONLY TAB"));
+  const newest = JSON.stringify(markerGraph("NEWEST RECOVERY EDIT"));
+  const saved = {
+    noodle_graph:savedTwo, noodle_ws_w1:savedOne,
+    noodle_workspaces:JSON.stringify({v:1,active:"w2",seq:2,tabs:[{id:"w1",name:"Original"},{id:"w2",name:"IDB only"}]}),
+  };
+  const visit = {
+    noodle_graph:newest,
+    noodle_workspaces:JSON.stringify({v:1,active:"w1",seq:1,tabs:[{id:"w1",name:"Recovery visit"}]}),
+  };
+  const merged = W.wsMergeRecovery(saved,visit);
+  const index = JSON.parse(merged.noodle_workspaces);
+  ok(index.tabs.length===3 && index.active!=="w1" && index.active!=="w2", "recovered edits get their own tab beside both saved tabs");
+  ok(merged.noodle_ws_w1===savedOne && merged.noodle_ws_w2===savedTwo, "recovery preserves every IDB-only graph byte-for-byte");
+  ok(merged.noodle_graph===newest, "recovery keeps the newest visit active instead of replacing it with an unread snapshot");
 }
 
 if (failures.length) {
