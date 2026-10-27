@@ -150,8 +150,8 @@ const prelude = `
   function toast(m) { __toasts.push(String(m)); }
   function t(s) { return s; }
   function fitView() { globalThis.__fitted = (globalThis.__fitted || 0) + 1; }
-  var __confirm = true;
-  function confirm() { return __confirm; }
+  var __confirm = true, __confirmCalls = 0;
+  function confirm() { __confirmCalls++; return __confirm; }
   function clearTimeout() {}
   function setTimeout(fn) { fn(); return 0; }
   const byId = (id) => graph.nodes.find(n => n.id === id);
@@ -178,6 +178,10 @@ const bundle = [
   "  bootGeneration, freshGraphStillDue, bindWorkspaceChrome, noteFreshWorkspaceName,",
   "  initWorkspaceStorage, settleWorkspaceStorage, workspacePersistence,",
   "  wsMergeRecovery,",
+  "  restoreClosedWorkspace,",
+  "  redoClosedWorkspace: () => handleWorkspaceCloseHistory(redoStack),",
+  "  closedCounts: () => ({undo:wsClosedUndo.length,redo:wsClosedRedo.length}),",
+  "  confirmCalls: () => __confirmCalls,",
   "  textToImageGraph, askModelGraph, blankGraph,",
   "  readWorkspaces, shelvePreviousWorkspace, workspaceLabelForGraph, workspaceDownloadName, onWorkspaceHash, graph, ",
   "  stacks: () => ({ undo: undoStack.slice(), redo: redoStack.slice() }),",
@@ -351,7 +355,7 @@ const photoOf = (g) => {
 }
 
 // ---------------------------------------------------------------------------
-// 6. Close confirms, and declining leaves the tab in place.
+// 6. Close is immediate and reversible, with no blocking browser confirmation.
 // ---------------------------------------------------------------------------
 {
   clearStore();
@@ -363,12 +367,99 @@ const photoOf = (g) => {
   const active = W.readWorkspaces().active;
   W.setConfirm(false);
   W.closeWorkspace(active);
-  ok(W.readWorkspaces().tabs.length === 2, "declining the close confirm must keep the tab");
-  W.setConfirm(true);
-  W.closeWorkspace(active);
-  ok(W.readWorkspaces().tabs.length === 1, "confirming close removes the tab");
+  ok(W.confirmCalls()===0,"closing a workspace never opens a blocking confirm");
+  ok(W.readWorkspaces().tabs.length === 1, "close removes the tab immediately");
   ok(W.readWorkspaces().active === "w1", "closing the active tab returns to the other one");
   ok(textOf(JSON.parse(backing.noodle_graph)) === textOf(JSON.parse(FIXTURE)), "the remaining tab is the original workflow");
+  ok(W.restoreClosedWorkspace(),"Undo reopens the closed tab");
+  ok(W.readWorkspaces().tabs.length===2 && W.readWorkspaces().active===active,"Undo restores the closed tab id and active state");
+  ok(W.redoClosedWorkspace() && W.readWorkspaces().tabs.length===1,"Redo closes it again without another dialog");
+}
+
+// ---------------------------------------------------------------------------
+// 6b. Closing an inactive tab preserves position, results, app binding and its
+//     own graph history. Undo must not move the current canvas.
+// ---------------------------------------------------------------------------
+{
+  clearStore(); backing.noodle_graph=FIXTURE;
+  const W=boot(); W.ensureWorkspaces(); W.load();
+  W.setOut("n1",{text:"PAID BEFORE CLOSE"}); W.seedUndo("original history");
+  W.setPendingApp("saved-app","Night desk app");
+  W.openWorkspaceWithGraph(W.textToImageGraph(),"Poster",{});
+  const current=W.readWorkspaces().active, before=JSON.stringify(W.serializeGraph());
+  W.closeWorkspace("w1");
+  ok(!backing.noodle_ws_w1,"close frees the inactive graph's browser-storage key immediately");
+  ok(W.restoreClosedWorkspace(),"inactive close is reversible");
+  ok(W.readWorkspaces().tabs[0].id==="w1" && W.readWorkspaces().active===current,"inactive Undo restores original position without activating it");
+  ok(JSON.stringify(W.serializeGraph())===before,"inactive Undo does not replace the live canvas");
+  W.switchWorkspace("w1");
+  ok(photoOf(W.serializeGraph())===photoOf(JSON.parse(FIXTURE)),"inactive Undo retains uploaded input");
+  ok(W.outOf("n1")?.text==="PAID BEFORE CLOSE","inactive Undo retains generated results in this visit");
+  ok(W.stacks().undo[0]?.s==="original history","inactive Undo restores its canvas history");
+  ok(W.pending().id==="saved-app","inactive Undo restores app binding");
+}
+
+// Last-tab close resets in place. Undo returns the same ID, and can be saved,
+// loaded and reloaded normally; session-only close history itself never reloads.
+{
+  clearStore(); backing.noodle_graph=FIXTURE;
+  const W=boot(); W.ensureWorkspaces(); W.load();
+  W.seedUndo("last history"); W.setOut("n1",{text:"LAST PAID RESULT"});
+  W.setPendingApp("last-app","Last app");
+  W.closeWorkspace("w1");
+  ok(W.readWorkspaces().active==="w1" && W.readWorkspaces().tabs.length===1 && !W.serializeGraph().nodes.length,"last close resets same tab ID");
+  ok(W.restoreClosedWorkspace(),"last-tab Undo succeeds");
+  ok(W.readWorkspaces().active==="w1" && W.readWorkspaces().tabs.length===1,"last Undo never adds a duplicate tab");
+  ok(W.readWorkspaces().tabs[0].name==="Night desk" && W.pending().id==="last-app","last Undo restores tab metadata and app binding");
+  ok(W.stacks().undo[0]?.s==="last history" && W.outOf("n1")?.text==="LAST PAID RESULT","last Undo restores canvas history and results");
+  const exported=JSON.stringify(W.serializeGraph());
+  W.save();
+  const R=boot();R.ensureWorkspaces();R.load();
+  ok(photoOf(R.serializeGraph())===photoOf(JSON.parse(FIXTURE)),"Undo then refresh retains uploaded input");
+  ok(!R.closedCounts().undo && !R.restoreClosedWorkspace(),"refresh does not resurrect visit-only tombstones");
+  R.applyGraphData(JSON.parse(exported));
+  ok(textOf(R.serializeGraph())===textOf(JSON.parse(FIXTURE)),"Save JSON from restored tab loads its workflow");
+}
+
+// Several closes are LIFO; unrelated edits invalidate both custom stacks.
+{
+  clearStore(); backing.noodle_graph=FIXTURE;
+  const W=boot(); W.ensureWorkspaces();W.load();
+  W.openWorkspaceWithGraph(W.askModelGraph(),"Ask",{});const b=W.readWorkspaces().active;
+  W.openWorkspaceWithGraph(W.textToImageGraph(),"Poster",{});const c=W.readWorkspaces().active;
+  W.closeWorkspace(c);W.closeWorkspace(b);
+  ok(W.restoreClosedWorkspace() && W.readWorkspaces().active===b,"first Undo reopens most recently closed tab");
+  ok(W.restoreClosedWorkspace() && W.readWorkspaces().active===c,"second Undo reopens previous close");
+  ok(W.readWorkspaces().tabs.map(t=>t.id).join(",")===`w1,${b},${c}`,"multiple Undo retains original order");
+  W.redoClosedWorkspace();W.redoClosedWorkspace();
+  ok(W.readWorkspaces().tabs.length===1,"multiple Redo closes in order");
+  W.setText("n1","LATEST EDIT");W.save();
+  ok(!W.restoreClosedWorkspace() && !W.closedCounts().redo,"new edits invalidate stale close actions");
+  ok(textOf(W.serializeGraph())==="LATEST EDIT","stale Undo cannot overwrite latest work");
+  W.closeWorkspace("w1");W.applyGraphData(W.askModelGraph());
+  ok(!W.restoreClosedWorkspace() && W.serializeGraph().nodes.length>0,"last-tab Undo also guards new work without a save callback");
+}
+
+// A failed restore returns to the latest current graph and remains retryable.
+// A read error cannot close an unread inactive workflow as though it were blank.
+{
+  clearStore();backing.noodle_graph=FIXTURE;
+  const W=boot();W.ensureWorkspaces();W.load();
+  W.openWorkspaceWithGraph(W.askModelGraph(),"Ask",{});const closed=W.readWorkspaces().active;
+  W.seedUndo("closed history"); W.closeWorkspace(closed);
+  W.setText("n1","LATEST CURRENT GRAPH");W.seedUndo("current history");
+  const orig=localStorage.setItem;
+  localStorage.setItem=(key,value)=>{if(key==="noodle_graph" && String(value).includes("z-ai/glm"))throw new Error("quota");orig(key,value);};
+  try{ok(!W.restoreClosedWorkspace(),"failed final graph write refuses Undo");}finally{localStorage.setItem=orig;}
+  ok(W.readWorkspaces().active==="w1" && W.readWorkspaces().tabs.length===1,"failed Undo rolls back the index");
+  ok(textOf(W.serializeGraph())==="LATEST CURRENT GRAPH" && textOf(JSON.parse(backing.noodle_graph))==="LATEST CURRENT GRAPH","failed Undo keeps newest current canvas and durable bytes");
+  ok(W.stacks().undo.at(-1)?.s==="current history","failed Undo restores current canvas history");
+  ok(W.restoreClosedWorkspace(),"Undo can retry after storage recovers");
+  W.switchWorkspace("w1");
+  const get=localStorage.getItem;
+  localStorage.getItem=key=>{if(key==="noodle_ws_"+closed)throw new Error("unreadable");return get(key);};
+  try{ok(!W.closeWorkspace(closed),"unreadable inactive tab refuses destructive close");}finally{localStorage.getItem=get;}
+  ok(W.readWorkspaces().tabs.length===2,"unreadable workflow remains in its tab");
 }
 
 // ---------------------------------------------------------------------------

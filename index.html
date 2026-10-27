@@ -476,6 +476,24 @@
     transform:translateX(-50%) translateY(0) scale(1); }
   #toast.err{ border-color:var(--bad) }
   #toast.warn{ border-color:var(--warn) }
+  #wscloseundo{ position:fixed; top:calc(64px + var(--ws-h)); left:50%; transform:translateX(-50%); z-index:241;
+    display:flex; align-items:center; gap:.8rem; max-width:min(92vw,620px); padding:.65rem .75rem .65rem 1rem;
+    background:var(--panel); color:var(--ink); border:1px solid var(--accent); border-radius:.8rem;
+    box-shadow:0 16px 44px #0009; font-size:.9rem; }
+  #wscloseundo[hidden]{ display:none }
+  #wscloseundo-text{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #wscloseundo-action{ display:flex; align-items:center; gap:.6rem; flex:none; border-color:transparent;
+    background:linear-gradient(110deg,var(--accent),var(--accent2)); color:#10131b; font-weight:750; }
+  #wscloseundo kbd{ border:1px solid #10131b55; border-radius:.3rem; padding:.08rem .3rem; font:600 .72rem system-ui; white-space:nowrap; }
+  #wscloseundo-dismiss{ flex:none; border:0; background:transparent; color:var(--dim); padding:.35rem; }
+  #wscloseundo button{ min-height:44px; } #wscloseundo-dismiss{ min-width:44px; }
+  #wscloseundo button:focus-visible{ outline:2px solid var(--ink); outline-offset:3px; }
+  body:has(#wscloseundo:not([hidden])) #toast{ top:calc(126px + var(--ws-h)); }
+  body:has(#wsdropmenu:not([hidden])) #wscloseundo,
+  body:has(#wschooser:not([hidden])) #wscloseundo{ top:auto; bottom:max(calc(var(--db-h,3rem) + .75rem),var(--ws-persistence-space,0px)); }
+  body:has(#wsdropmenu:not([hidden])):has(#wscloseundo:not([hidden])) #toast,
+  body:has(#wschooser:not([hidden])):has(#wscloseundo:not([hidden])) #toast{ top:auto; }
+  @media(max-width:540px){ #wscloseundo{ gap:.55rem; padding-left:.75rem; } #wscloseundo kbd{ display:none } }
   /* ⛽ Refuel — scan-to-top-up panel; opens ONLY at the out-of-balance dead-end (nowhere else) */
   #refuelmodal[hidden]{ display:none }
   #refuelmodal{ position:fixed; inset:0; z-index:214; display:flex; padding:min(4vh,2.4rem) min(4vw,2.4rem);
@@ -1380,6 +1398,11 @@
 </div>
 
 <div id="toast"></div>
+<div id="wscloseundo" hidden role="status" aria-live="polite" aria-atomic="true">
+  <span id="wscloseundo-text"></span>
+  <button id="wscloseundo-action" type="button"><span>Undo</span><kbd id="wscloseundo-key" aria-hidden="true"></kbd></button>
+  <button id="wscloseundo-dismiss" type="button" aria-label="Dismiss undo notification">×</button>
+</div>
 
 <!-- Updates: a tiny changelog (static updates.json, newest first; one line per change) -->
 <div id="updatesmodal" hidden>
@@ -1597,6 +1620,10 @@ const I18N_ENAME = { es:"Spanish", fr:"French", de:"German", pt:"Portuguese", ja
 /* === I18N-MAPS-BEGIN (es/fr/de/pt/ja — generated; English is identity) === */
 const I18N = {
   es:{
+    "Undo":"Deshacer",
+    "Closed “{name}”":"Se cerró «{name}»",
+    "Undo closing “{name}”":"Deshacer el cierre de «{name}»",
+    "Dismiss undo notification":"Cerrar aviso de deshacer",
     "Recovered visit":"Visita recuperada",
     "Saved workspaces could not be restored. Save this visit’s workflows before refreshing, or retry recovery.":"No se pudieron restaurar los espacios guardados. Guarda los flujos de esta visita antes de actualizar o reintenta la recuperación.",
     "Save this workflow":"Guardar este flujo",
@@ -2348,6 +2375,10 @@ const I18N = {
     "Load nanoodle into your coding agent":"Carga nanoodle en tu agente de código"
   },
   fr:{
+    "Undo":"Annuler",
+    "Closed “{name}”":"« {name} » fermé",
+    "Undo closing “{name}”":"Annuler la fermeture de « {name} »",
+    "Dismiss undo notification":"Masquer la notification d’annulation",
     "Recovered visit":"Visite récupérée",
     "Saved workspaces could not be restored. Save this visit’s workflows before refreshing, or retry recovery.":"Les espaces enregistrés n’ont pas pu être restaurés. Enregistrez les workflows de cette visite avant d’actualiser ou réessayez la récupération.",
     "Save this workflow":"Enregistrer ce workflow",
@@ -3099,6 +3130,10 @@ const I18N = {
     "Load nanoodle into your coding agent":"Chargez nanoodle dans votre agent de code"
   },
   de:{
+    "Undo":"Rückgängig",
+    "Closed “{name}”":"„{name}“ geschlossen",
+    "Undo closing “{name}”":"Schließen von „{name}“ rückgängig machen",
+    "Dismiss undo notification":"Rückgängig-Hinweis schließen",
     "Recovered visit":"Wiederhergestellter Besuch",
     "Saved workspaces could not be restored. Save this visit’s workflows before refreshing, or retry recovery.":"Gespeicherte Arbeitsbereiche konnten nicht wiederhergestellt werden. Speichere die Workflows dieses Besuchs vor dem Neuladen oder versuche die Wiederherstellung erneut.",
     "Save this workflow":"Diesen Workflow speichern",
@@ -3850,6 +3885,10 @@ const I18N = {
     "Load nanoodle into your coding agent":"Lade nanoodle in deinen Coding-Agenten"
   },
   pt:{
+    "Undo":"Desfazer",
+    "Closed “{name}”":"«{name}» fechado",
+    "Undo closing “{name}”":"Desfazer o fecho de «{name}»",
+    "Dismiss undo notification":"Fechar aviso de desfazer",
     "Recovered visit":"Visita recuperada",
     "Saved workspaces could not be restored. Save this visit’s workflows before refreshing, or retry recovery.":"Não foi possível restaurar os espaços guardados. Guarda os fluxos desta visita antes de atualizar ou tenta recuperar novamente.",
     "Save this workflow":"Guardar este fluxo",
@@ -4601,6 +4640,10 @@ const I18N = {
     "Load nanoodle into your coding agent":"Carregue o nanoodle no seu agente de código"
   },
   ja:{
+    "Undo":"元に戻す",
+    "Closed “{name}”":"「{name}」を閉じました",
+    "Undo closing “{name}”":"「{name}」を閉じる操作を元に戻す",
+    "Dismiss undo notification":"元に戻す通知を閉じる",
     "Recovered visit":"復元した訪問",
     "Saved workspaces could not be restored. Save this visit’s workflows before refreshing, or retry recovery.":"保存済みワークスペースを復元できませんでした。再読み込みする前に今回のワークフローを保存するか、復元を再試行してください。",
     "Save this workflow":"このワークフローを保存",
@@ -12781,8 +12824,8 @@ window.addEventListener("keydown", e=>{
   if(e.code==="KeyT" && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey &&
      !/^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName) &&
      typeof geoOn==="function" && geoOn()){ e.preventDefault(); geoTidySelection(); return; }   // Shift+T tidies the multi-selection
-  const typing = /^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName);
-  if((e.ctrlKey||e.metaKey) && !typing && /^[zy]$/i.test(e.key)){
+  const typing = [document.activeElement,e.target].some(el=>el && (/^(TEXTAREA|INPUT|SELECT)$/.test(el.tagName) || el.isContentEditable));
+  if((e.ctrlKey||e.metaKey) && !e.altKey && !e.isComposing && !e.defaultPrevented && !typing && /^[zy]$/i.test(e.key)){
     e.preventDefault();
     (/y/i.test(e.key) || e.shiftKey) ? redo() : undo();   // Ctrl/Cmd+Z undo · +Shift / Ctrl+Y redo
     return;
@@ -16567,6 +16610,8 @@ const RESUME_APPTITLE_KEY = "noodle_resume_apptitle";  // and its name, for the 
 const EDITOR_APP_KEY = "noodle_editor_app";  // localStorage: {id,title} of the app THIS workflow is bound to, so the binding survives a plain reload (not just OAuth)
 let saveT=null;
 function save(){
+  if(typeof invalidateWorkspaceCloseHistory==="function") invalidateWorkspaceCloseHistory();
+  if(typeof syncWorkspaceCloseControls==="function") syncWorkspaceCloseControls();
   try{ syncRunFailPort(); }catch(_){}
   refreshRunEstimate();                 // keep the bottom-right run cost live as the graph is edited
   refreshPromptCaps();                  // …and the prompt-room notes: model swaps, typing and wiring all land here
@@ -16599,6 +16644,7 @@ function _stashResults(){
 }
 function pushUndo(boundary){      // call BEFORE a structural mutation — records the state to return to
   if(undoMuted) return;
+  if(typeof invalidateWorkspaceCloseHistory==="function") invalidateWorkspaceCloseHistory();
   // boundary=true marks a WHOLESALE graph swap (📂 Load, example, share link, a foreign app's
   // "edit workflow"): the parked snapshot and the incoming graph are UNRELATED workflows that
   // reuse n1/n2… ids, so _restore must NOT carry results across it (#309 via undo) — instead
@@ -16611,6 +16657,7 @@ function pushUndo(boundary){      // call BEFORE a structural mutation — recor
   syncUndoBtn();
 }
 function _restore(from, to){
+  if(typeof handleWorkspaceCloseHistory==="function" && handleWorkspaceCloseHistory(from)) return;
   if(!from.length) return;
   if(runningNodes.size){ flash("can’t change the workflow while running — Stop first"); return; }   // an undo/redo mid-run replaces the graph out from under in-flight (already-charged) nodes — their results would write into detached objects and vanish (mirrors the per-node delete guard)
   const entry = from.pop();
@@ -16623,7 +16670,7 @@ function _restore(from, to){
   finally { undoMuted = false; }
   save();
 }
-function syncUndoBtn(){ const b=$("undo"); if(b) b.disabled = !undoStack.length; const r=$("redo"); if(r) r.disabled = !redoStack.length; }   // hide each button when its stack is empty
+function syncUndoBtn(){ const b=$("undo"); if(b) b.disabled = !undoStack.length && !(typeof visibleWorkspaceCloseUndo==="function" && visibleWorkspaceCloseUndo()); const r=$("redo"); if(r) r.disabled = !redoStack.length && !(typeof closedWorkspaceRedoAvailable==="function" && closedWorkspaceRedoAvailable()); }
 const undo = ()=> { _restore(undoStack, redoStack); syncUndoBtn(); };
 const redo = ()=> { _restore(redoStack, undoStack); syncUndoBtn(); };
 function newModel3dOutKey(){
@@ -16721,6 +16768,7 @@ function saveFile(){
 }
 function loadFile(file){
   if(!file) return;
+  if(typeof invalidateWorkspaceCloseHistory==="function") invalidateWorkspaceCloseHistory();
   const r = new FileReader();
   r.onload = ()=>{
     let parsed = null;
@@ -16749,6 +16797,7 @@ function loadFile(file){
       }else save();
       try{ if(typeof stampActiveExample==="function") stampActiveExample(null); }
       catch(_){ if(typeof wsStorageError==="function") wsStorageError("save"); }
+      if(typeof syncWorkspaceCloseControls==="function") syncWorkspaceCloseControls();
       if(had) toast(t("↺ Undo restores your previous workflow"));   // opening a file replaced your graph — one Ctrl+Z away
     }catch(e){
       try{ if(typeof undoStack!=="undefined" && undoStack.length>undoLen) undoStack.splice(undoLen); }catch(_){}
@@ -17210,6 +17259,138 @@ function updateTitle(){
    Paid results and undo stacks are memory-only, same as a reload today. */
 const WS_INDEX_KEY = "noodle_workspaces";
 const WS_CAP = 16;
+// Closed tabs are reversible for the visible notice, in this visit only. Keep
+// them outside per-workspace graph history: switching tabs swaps those stacks.
+var wsClosedUndo=[], wsClosedRedo=[], wsCloseHistoryMute=0, wsCloseSerial=0;
+var wsCloseNoticeToken=null, wsCloseNoticeTimer=null, wsCloseRemaining=0, wsCloseStarted=0;
+function hideWorkspaceCloseNotice(){
+  clearTimeout(wsCloseNoticeTimer);wsCloseNoticeTimer=null;wsCloseNoticeToken=null;
+  try{const el=$("wscloseundo");if(el)el.hidden=true;}catch(_){}
+  try{syncUndoBtn();}catch(_){}
+}
+function invalidateWorkspaceCloseHistory(){
+  if(wsCloseHistoryMute || !wsClosedUndo) return;
+  wsClosedUndo.length=0;wsClosedRedo.length=0;hideWorkspaceCloseNotice();
+}
+function visibleWorkspaceCloseUndo(){
+  const entry=wsClosedUndo && wsClosedUndo[wsClosedUndo.length-1];
+  if(!entry || entry.token!==wsCloseNoticeToken || entry.epoch!==wsAuthorityEpoch) return false;
+  try{return !!$("wscloseundo") && !$("wscloseundo").hidden;}catch(_){return false;}
+}
+function closedWorkspaceRedoAvailable(){return !!(wsClosedRedo && wsClosedRedo.length);}
+function pauseWorkspaceCloseNotice(){
+  if(wsCloseNoticeTimer!==null){wsCloseRemaining=Math.max(0,wsCloseRemaining-(Date.now()-wsCloseStarted));clearTimeout(wsCloseNoticeTimer);wsCloseNoticeTimer=null;}
+}
+function placeWorkspaceCloseNotice(){
+  try{
+    const el=$("wscloseundo"),box=$("wspersistence");
+    if(el)el.style.setProperty("--ws-persistence-space",box && !box.hidden ? Math.ceil(innerHeight-box.getBoundingClientRect().top+12)+"px" : "0px");
+  }catch(_){}
+}
+function resumeWorkspaceCloseNotice(){
+  if(!visibleWorkspaceCloseUndo()) return;
+  const el=$("wscloseundo");
+  if(el.contains(document.activeElement) || el.matches(":hover")) return;
+  pauseWorkspaceCloseNotice();wsCloseStarted=Date.now();
+  wsCloseNoticeTimer=setTimeout(()=>invalidateWorkspaceCloseHistory(),wsCloseRemaining);
+}
+function showWorkspaceCloseNotice(){
+  const entry=wsClosedUndo[wsClosedUndo.length-1];
+  if(!entry){hideWorkspaceCloseNotice();return;}
+  wsCloseNoticeToken=entry.token;clearTimeout(wsCloseNoticeTimer);wsCloseNoticeTimer=null;wsCloseRemaining=8000;
+  try{
+    const el=$("wscloseundo"),button=$("wscloseundo-action");if(!el || !button)return;
+    $("wscloseundo-text").textContent=wsT("Closed “{name}”").replace("{name}",()=>entry.tab.name);
+    const mac=/Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent || "");
+    $("wscloseundo-key").textContent=mac?"⌘ + Z":"Ctrl + Z";
+    button.setAttribute("aria-keyshortcuts",mac?"Meta+Z":"Control+Z");
+    button.setAttribute("aria-label",wsT("Undo closing “{name}”").replace("{name}",()=>entry.tab.name));
+    button.onclick=()=>{if(wsClosedUndo[wsClosedUndo.length-1]===entry) restoreClosedWorkspace();};
+    el.hidden=false;placeWorkspaceCloseNotice();resumeWorkspaceCloseNotice();
+  }catch(_){}
+  try{syncUndoBtn();}catch(_){}
+}
+function bindWorkspaceCloseNotice(){
+  try{
+    const el=$("wscloseundo");if(!el || el.dataset.bound)return;el.dataset.bound="1";
+    el.addEventListener("pointerenter",pauseWorkspaceCloseNotice);
+    el.addEventListener("pointerleave",resumeWorkspaceCloseNotice);
+    el.addEventListener("focusin",pauseWorkspaceCloseNotice);
+    el.addEventListener("focusout",()=>setTimeout(resumeWorkspaceCloseNotice,0));
+    addEventListener("resize",placeWorkspaceCloseNotice);
+    $("wscloseundo-dismiss").onclick=invalidateWorkspaceCloseHistory;
+    addEventListener("keydown",e=>{if(e.key==="Escape" && !el.hidden)invalidateWorkspaceCloseHistory();});
+  }catch(_){}
+}
+function captureClosedWorkspace(d,tab,raw){
+  const active=d.active===tab.id;
+  const stored=active?{undo:undoStack.slice(),redo:redoStack.slice()}:workspaceHist.get(tab.id);
+  return {tab:copyWorkspaces(tab),index:d.tabs.indexOf(tab),active,last:d.tabs.length===1,
+    graph:raw || JSON.stringify(blankGraph()),results:active?_stashResults():workspaceResults.get(tab.id) || null,
+    history:stored?{undo:(stored.undo||[]).slice(),redo:(stored.redo||[]).slice()}:{undo:[],redo:[]},epoch:wsAuthorityEpoch,token:++wsCloseSerial};
+}
+function recordClosedWorkspace(entry,opts){
+  if(!opts || !opts.redo)wsClosedRedo.length=0;
+  wsClosedUndo.push(entry);if(wsClosedUndo.length>25)wsClosedUndo.shift();
+  showWorkspaceCloseNotice();
+}
+function restoreClosedWorkspace(){
+  const entry=wsClosedUndo[wsClosedUndo.length-1];if(!entry)return false;
+  if(workspaceBusy()){flash("can’t change the workflow while running — Stop first");return false;}
+  const d=readWorkspaces();if(!d)return false;
+  if(entry.epoch!==wsAuthorityEpoch){invalidateWorkspaceCloseHistory();return false;}
+  const existing=d.tabs.find(t=>t.id===entry.tab.id);
+  // Last-tab close keeps its id. Never replace new work done in its blank slot.
+  if(existing && !(entry.last && d.tabs.length===1 && d.active===entry.tab.id && !graph.nodes.length && !existing.app && existing.name===wsT("Untitled"))){
+    invalidateWorkspaceCloseHistory();return false;
+  }
+  if(!flushSave()){wsStorageError("save");return false;}
+  const shot=workspaceShot(), oldKey=wsSnapshotKey(wsGraphKey(entry.tab.id));
+  const oldResults=captureResults(entry.tab.id),oldHistory=workspaceHist.get(entry.tab.id);
+  let canvasTouched=false;
+  wsCloseHistoryMute++;
+  try{
+    if(existing)d.tabs[d.tabs.indexOf(existing)]=copyWorkspaces(entry.tab);
+    else d.tabs.splice(Math.min(entry.index,d.tabs.length),0,copyWorkspaces(entry.tab));
+    workspaceStorage.setItem(wsGraphKey(entry.tab.id),entry.graph);
+    if(entry.results)workspaceResults.set(entry.tab.id,entry.results);else workspaceResults.delete(entry.tab.id);
+    workspaceHist.set(entry.tab.id,entry.history);
+    if(entry.active){
+      const leaving=d.active;
+      if(leaving!==entry.tab.id){
+        workspaceStorage.setItem(wsGraphKey(leaving),JSON.stringify(serializeGraph()));
+        const results=_stashResults();if(results)workspaceResults.set(leaving,results);else workspaceResults.delete(leaving);
+        parkWorkspaceHistory(leaving);
+      }
+      d.active=entry.tab.id;writeWorkspaces(d);
+      const muted=undoMuted;undoMuted=true;
+      try{
+        canvasTouched=true;applyGraphData(JSON.parse(entry.graph),entry.results?{resultStash:entry.results}:undefined);
+        setPendingApp(entry.tab.app && entry.tab.app.id,entry.tab.app && entry.tab.app.title);
+        window.resetDescribeVersions?.();
+      }finally{undoMuted=muted;}
+      restoreWorkspaceHistory(entry.tab.id);
+      if(!flushSave())throw new Error("store");
+    }else writeWorkspaces(d);
+    wsClosedUndo.pop();wsClosedRedo.push(entry);
+    renderWorkspaces();showWorkspaceCloseNotice();syncUndoBtn();
+    return true;
+  }catch(_){
+    wsRestoreKey(wsGraphKey(entry.tab.id),oldKey);
+    restoreResults(entry.tab.id,oldResults);
+    if(oldHistory)workspaceHist.set(entry.tab.id,oldHistory);else workspaceHist.delete(entry.tab.id);
+    workspaceRollback(shot,{canvas:canvasTouched});wsStorageError("save");return false;
+  }finally{wsCloseHistoryMute--;}
+}
+function handleWorkspaceCloseHistory(from){
+  if(from===undoStack && visibleWorkspaceCloseUndo()){restoreClosedWorkspace();return true;}
+  if(from===redoStack && closedWorkspaceRedoAvailable()){
+    const entry=wsClosedRedo[wsClosedRedo.length-1];
+    if(closeWorkspace(entry.tab.id,{redo:true}))wsClosedRedo.pop();
+    syncUndoBtn();return true;
+  }
+  return false;
+}
 const WS_RECOVERY_KEY = "noodle_workspace_recovery";
 // Normal-sized legacy workspaces keep their existing localStorage format.
 // When a write fails (including the temporary second copy during a tab change),
@@ -17327,6 +17508,7 @@ function wsPersistenceNotice(saving){
     text.textContent = wsT(saving ? "Saving workspaces in this browser…" : wsRestoreFailed
       ? "Saved workspaces could not be restored. Save this visit’s workflows before refreshing, or retry recovery."
       : "These workspaces are available for this visit only. Save each workflow before refreshing.");
+    placeWorkspaceCloseNotice();
   }catch(_){}
 }
 function wsBeginOverflow(key, error, operation){
@@ -17438,6 +17620,7 @@ function initWorkspaceStorage(){
   return wsInitFlight;
 }
 async function restoreWorkspaceStorage(){
+  invalidateWorkspaceCloseHistory();
   wsAuthorityEpoch++;
   wsStorageEnabled = true;
   if(wsRestoreFailed && wsDatabase){ try{wsDatabase.close();}catch(_){} wsDatabase=null; }
@@ -17483,6 +17666,7 @@ async function restoreWorkspaceStorage(){
       };
     });
     wsAuthorityEpoch++; // supersede snapshots queued while the restore was pending
+    invalidateWorkspaceCloseHistory(); // a close made during Retry may refer to pre-recovery tab ids
     const restored = Object.create(null);
     wsKnownRecord=wsRecordToken(record);
     if(record && record.v===1 && record.values && typeof record.values==="object"){
@@ -18035,6 +18219,7 @@ function openWorkspaceWithGraph(data, name, opts){
     return false;
   }
   try{ renderWorkspaces(); }catch(_){}
+  invalidateWorkspaceCloseHistory();
   return true;
 }
 function openExampleWorkspace(graphData, name, slug){
@@ -18105,8 +18290,13 @@ function switchWorkspace(id){
     return;
   }
   try{ renderWorkspaces(); }catch(_){}
+  invalidateWorkspaceCloseHistory();
 }
-function closeWorkspace(id){
+function closeWorkspace(id,opts){
+  wsCloseHistoryMute++;
+  try{return closeWorkspaceNow(id,opts);}finally{wsCloseHistoryMute--;}
+}
+function closeWorkspaceNow(id,opts){
   if(workspaceBusy()){ flash("can’t change the workflow while running — Stop first"); return; }
   let d;
   try{ d = ensureWorkspaces(); }catch(_){ wsStorageError("save"); return; }
@@ -18114,17 +18304,13 @@ function closeWorkspace(id){
   if(!tab) return;
   let raw = null;
   if(d.active===id){ try{ raw = JSON.stringify(serializeGraph()); }catch(_){} }
-  else { try{ raw = workspaceStorage.getItem(wsGraphKey(id)); }catch(_){} }
+  else { try{ raw = workspaceStorage.getItem(wsGraphKey(id)); }catch(_){wsStorageError("save");return false;} }
   const occupied = graphHasNodes(raw);
-  const confirmClose = ()=>{
-    const msg = wsT("Close “{name}”? This removes it from this browser.").replace("{name}", tab.name);
-    let ok = true;
-    try{ ok = confirm(msg); }catch(_){ ok = true; }
-    return ok;
-  };
+  if(d.active===id && graph.nodes.length && !raw){wsStorageError("save");return false;}
+  if(raw){try{if(!graphPayloadOk(JSON.parse(raw)))throw new Error("graph");}catch(_){wsStorageError("save");return false;}}
+  const closed=captureClosedWorkspace(d,tab,raw);
   if(d.tabs.length===1){
     if(!occupied) return;
-    if(!confirmClose()) return;
     const shot = workspaceShot(id);
     const res = captureResults(id);
     const hist = captureHist(id);
@@ -18153,9 +18339,8 @@ function closeWorkspace(id){
       return;
     }
     try{ renderWorkspaces(); }catch(_){}
-    return;
+    recordClosedWorkspace(closed,opts);return true;
   }
-  if(occupied && !confirmClose()) return;
   const idx = d.tabs.findIndex(t => t.id===id);
   if(d.active!==id){
     const shot = workspaceShot(d.active);
@@ -18173,7 +18358,7 @@ function closeWorkspace(id){
     workspaceResults.delete(id);
     workspaceHist.delete(id);
     try{ renderWorkspaces(); }catch(_){}
-    return;
+    recordClosedWorkspace(closed,opts);return true;
   }
   const neighbor = d.tabs[idx===0 ? 1 : idx-1];
   let nraw = null;
@@ -18220,6 +18405,7 @@ function closeWorkspace(id){
     return;
   }
   try{ renderWorkspaces(); }catch(_){}
+  recordClosedWorkspace(closed,opts);return true;
 }
 function renameWorkspace(id, name, opts){
   const d = readWorkspaces();
@@ -18234,6 +18420,7 @@ function renameWorkspace(id, name, opts){
     return;
   }
   next = uniqueWorkspaceName(next, d.tabs.filter(t => t.id!==id));
+  invalidateWorkspaceCloseHistory();
   const prev = wsSnapshotKey(WS_INDEX_KEY);
   tab.name = next;
   try{ writeWorkspaces(d); }
@@ -18252,6 +18439,7 @@ function commitReorder(id, toIndex){
   if(from<0) return;
   const dest = Math.max(0, Math.min(d.tabs.length-1, toIndex>from ? toIndex-1 : toIndex));
   if(dest===from) return;
+  invalidateWorkspaceCloseHistory();
   const prev = wsSnapshotKey(WS_INDEX_KEY);
   const [tab] = d.tabs.splice(from, 1);
   d.tabs.splice(dest, 0, tab);
@@ -18267,6 +18455,16 @@ function commitReorder(id, toIndex){
 function tabOccupied(d, tab){
   if(tab.id===d.active) return !!(graph.nodes && graph.nodes.length);
   try{ return graphHasNodes(workspaceStorage.getItem(wsGraphKey(tab.id))); }catch(_){ return false; }
+}
+// Only the last tab hides its close button when blank. A Load, first node, or
+// canvas Undo can change that without changing the tab index. Refresh the strip
+// only when that control actually changes, so typing never rebuilds a rename.
+function syncWorkspaceCloseControls(){
+  try{
+    const d=readWorkspaces();if(!d || d.tabs.length!==1)return;
+    const tab=$("wstabs").querySelector(".wstab");
+    if(tab && !!tab.querySelector(".wsx")!==!!graph.nodes.length)renderWorkspaces();
+  }catch(_){}
 }
 function focusWorkspaceTab(id){
   try{
@@ -18574,6 +18772,7 @@ let wsDrag = null, wsSuppressClick = false;
 function bindWorkspaceChrome(){
   try{
     if(typeof document==="undefined" || typeof $!=="function") return;
+    bindWorkspaceCloseNotice();
     // Idempotent on its own: the plus handler is one assignment, and the tab
     // listeners install only once. A second call does not stack either.
     const add = $("wsadd");
@@ -19065,11 +19264,12 @@ function closeAppModal(){
 }
 // First load only: boots play.html into the iframe off the hash. Later handoffs must NOT
 // come through here — a same-URL-different-fragment src write doesn't reload the iframe.
-function openAppModal(hash){ $("appmodalframe").src = "play.html"+hash; appFrameBooting = true; lastHandoffSig = appSyncSig(); $("appmodal").hidden = false; try{ if(!localStorage.getItem("noodle_appbuilder_intro_seen")) $("appmodalhint").hidden = false; }catch(_){} }
+function openAppModal(hash){ if(typeof invalidateWorkspaceCloseHistory==="function")invalidateWorkspaceCloseHistory(); $("appmodalframe").src = "play.html"+hash; appFrameBooting = true; lastHandoffSig = appSyncSig(); $("appmodal").hidden = false; try{ if(!localStorage.getItem("noodle_appbuilder_intro_seen")) $("appmodalhint").hidden = false; }catch(_){} }
 // "≡ My apps": bring up the builder over whatever it last had open and pop its library menu —
 // browsing must NOT hand off the canvas (no draft minted, no binding touched; play.html only
 // posts __appsaved__ for canvas-derived apps, so opening one from the list can't rebind us).
 function openMyApps(){
+  if(typeof invalidateWorkspaceCloseHistory==="function")invalidateWorkspaceCloseHistory();
   $("apppop").classList.remove("open"); $("morepop").classList.remove("open");
   if(appFrameLoaded || appFrameBooting){
     $("appmodal").hidden = false;
@@ -19087,6 +19287,7 @@ function openMyApps(){
 }
 async function openCreateApp(){
   if(!graph.nodes.length){ flash("add a node first"); return; }
+  if(typeof invalidateWorkspaceCloseHistory==="function")invalidateWorkspaceCloseHistory();
   queuedMyApps = false;   // a Create/Update supersedes a parked menu-open — don't pop the library over the fresh handoff
 
   // Same graph + builder loaded (or still booting off this very graph) → just bring your
