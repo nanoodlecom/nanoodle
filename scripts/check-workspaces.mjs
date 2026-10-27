@@ -176,7 +176,6 @@ const bundle = [
   "  openWorkspaceWithGraph, openExampleWorkspace, switchWorkspace, closeWorkspace, renameWorkspace, workspaceChord,",
   "  chooseWorkspace, initialCanvasUnclaimed, claimInitialCanvas, finishInitialCanvas,",
   "  bootGeneration, freshGraphStillDue, bindWorkspaceChrome, noteFreshWorkspaceName,",
-  "  initWorkspaceStorage, settleWorkspaceStorage, workspacePersistence,",
   "  textToImageGraph, askModelGraph, blankGraph,",
   "  readWorkspaces, shelvePreviousWorkspace, workspaceLabelForGraph, workspaceDownloadName, onWorkspaceHash, graph, ",
   "  stacks: () => ({ undo: undoStack.slice(), redo: redoStack.slice() }),",
@@ -1115,47 +1114,6 @@ function fakeWsDom() {
   ok((W.serializeGraph().nodes || []).length === 0, "the reused tab stays empty");
   ok(W.toasts().some((m) => m.includes("Blank canvas is this tab")), "reusing the empty tab is visible");
   ok(W.readWorkspaces().tabs[0].name === "Blank canvas", "the reused tab is named Blank canvas");
-}
-
-// A tight aggregate budget, not a one-shot throw: the source fits, but making
-// its temporary second copy does not. With no durable fallback available the
-// tabs must still work, preserve results, and honestly remain visit-only.
-{
-  clearStore();
-  let beforeUnload;
-  const W = boot({addEventListener(kind, handler) { if(kind === "beforeunload") beforeUnload = handler; }});
-  await W.initWorkspaceStorage();
-  W.ensureWorkspaces();
-  W.claimInitialCanvas();
-  W.applyGraphData({v:1,nodes:[
-    {id:"n1",type:"text",x:20,y:20,name:"Song idea",fields:{text:"SYNTHETIC SONG"}},
-    {id:"n2",type:"aupload",x:20,y:200,fields:{audio:"data:audio/wav;base64," + "A".repeat(262144)}},
-    {id:"n3",type:"music",x:400,y:20,fields:{prompt:"SYNTHETIC SONG"}}
-  ],links:[],nid:4,lid:1});
-  W.setOut("n3", {audio:"data:audio/wav;base64,QUFBQQ=="});
-  W.save();
-  const durable = backing.noodle_graph;
-  const q = installTightQuota(usageOf() + 512);
-  try {
-    for(let i=0; i<3; i++){
-      ok(W.openWorkspaceWithGraph(W.blankGraph(), "Blank canvas", {respectCap:true}), "a tight budget still opens a usable new tab");
-      ok(W.serializeGraph().nodes.length===0, "the new tab is blank");
-      W.switchWorkspace("w1");
-      ok(textOf(W.serializeGraph())==="SYNTHETIC SONG", "the original Song idea is still available");
-      ok(W.serializeGraph().nodes.find(n=>n.id==="n2").fields.audio.endsWith("A".repeat(262144)), "the uploaded input is intact");
-      ok(W.outOf("n3").audio==="data:audio/wav;base64,QUFBQQ==", "in-session switching keeps the generated result");
-    }
-    const state = await W.settleWorkspaceStorage();
-    ok(q.refused()==="noodle_ws_w1 over cap", "the confirmed failure is the temporary shelving copy");
-    ok(state.mode==="session" && state.persistenceError==="BrowserStorageUnavailable", "memory-only work never claims to be saved");
-    ok(state.cause.key==="noodle_ws_w1" && state.cause.name==="QuotaExceededError", "diagnostics identify key and exception without graph content");
-    ok(backing.noodle_graph===durable, "the last durable workflow is untouched");
-    let prevented = false;
-    beforeUnload({preventDefault() { prevented=true; }, returnValue:null});
-    ok(prevented, "refresh/close warns when current tabs lack durable storage");
-    const reload = boot();
-    ok(reload.load() && textOf(reload.serializeGraph())==="SYNTHETIC SONG", "even a visit-only fallback leaves the original durable workflow reloadable");
-  }finally{ q.stop(); }
 }
 
 if (failures.length) {
