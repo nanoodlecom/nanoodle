@@ -18,6 +18,11 @@ const mime = { ".html":"text/html", ".js":"text/javascript", ".mjs":"text/javasc
 const server = createServer(async (req, res) => {
   try {
     let pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
+    if(pathname === "/__workspace-test-seed") {
+      res.writeHead(200, {"Content-Type":"text/html", "Content-Security-Policy":"default-src 'none'"});
+      res.end("<!doctype html><title>Workspace storage fixture</title>");
+      return;
+    }
     if (pathname === "/") pathname = "/index.html";
     if (pathname === "/play") pathname = "/play.html";
     const file = resolve(root, "." + pathname);
@@ -424,7 +429,7 @@ try {
     for (const failure of ["open", "read", "timeout", "unavailable"]) {
       const recoveryContext = await newContext();
       const seedPage = await recoveryContext.newPage();
-      await seedPage.goto(origin + "/site.webmanifest");
+      await seedPage.goto(origin + "/__workspace-test-seed");
       await seedPage.evaluate(async () => {
         const make = text => JSON.stringify({v:1,nodes:[{id:"n1",type:"text",x:30,y:40,fields:{text}}],links:[],nid:2,lid:1});
         localStorage.setItem("noodle_graph",make("LEGACY BACKUP"));
