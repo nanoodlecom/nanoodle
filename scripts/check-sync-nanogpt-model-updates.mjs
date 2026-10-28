@@ -279,6 +279,19 @@ console.log("sync-nanogpt-model-updates (fixture)");
   const groups = groupPending(selectPending([card], []));
   const line = groups[0] && groups[0].text;
   check("provider card → NanoGPT provider update line", typeof line === "string" && line.startsWith("NanoGPT provider update: ") && !/New LLM model/.test(line) && /part of NanoGPT/.test(line), line);
+
+// Mixed case: provider info AND a newly launched model must stay "new".
+{
+  const mixed = { id: "9001", date: "2026-10-27", category: "news", title: "RunAnywhere: Fast Inference and More Model Choices",
+    text: "[RunAnywhere](https://nano-gpt.com/provider/runanywhere) is now available through the provider selector for [GLM 5.3](https://nano-gpt.com/conversation?model=z-ai%2Fglm-5.3). We also launched [Zeta 9](https://nano-gpt.com/conversation?model=zeta%2Fzeta-9), a new model." };
+  check("mixed provider + new model → intent new", classifyCard(mixed).intent === "new", classifyCard(mixed).intent);
+  const newTitle = { ...mixed, id: "9002", title: "New: Zeta 9 via RunAnywhere", text: "[RunAnywhere](https://nano-gpt.com/provider/runanywhere) is now available through the provider selector for [Zeta 9](https://nano-gpt.com/conversation?model=zeta%2Fzeta-9)." };
+  check("provider card with launch title → intent new", classifyCard(newTitle).intent === "new", classifyCard(newTitle).intent);
+  const unseen = { ...newTitle, id: "9003", title: "RunAnywhere: More Model Choices", knownSlugs: ["z-ai/glm-5.3"] };
+  check("provider card linking an unseen model → intent new", classifyCard(unseen).intent === "new", classifyCard(unseen).intent);
+  const known = { ...unseen, id: "9004", knownSlugs: ["zeta/zeta-9"] };
+  check("provider card linking only known models → provider", classifyCard(known).intent === "provider", classifyCard(known).intent);
+}
 }
 
 if (fail) {

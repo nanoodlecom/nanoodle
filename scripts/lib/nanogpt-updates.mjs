@@ -193,6 +193,21 @@ function displayTitles(card, models, intent) {
   return [title];
 }
 
+const LAUNCH_RE = /\b(new|introduc\w*|launch\w*|releas\w*|debut\w*|added|adding|now available|now live|just landed)\b/i;
+export function addsNewModels(title, rawText, models, knownSlugs) {
+  if (LAUNCH_RE.test(String(title || ""))) return true;
+  const sentences = String(rawText || "").split(/(?<=[.!?])\s+|\n+/).filter(Boolean);
+  for (const sn of sentences) {
+    if (isProviderCard(sn)) continue;
+    if (LAUNCH_RE.test(markdownToPlain(sn))) return true;
+  }
+  if (knownSlugs) {
+    const known = knownSlugs instanceof Set ? knownSlugs : new Set(knownSlugs);
+    if ((models || []).some(m => m && m.slug && !known.has(m.slug))) return true;
+  }
+  return false;
+}
+
 export function classifyCard(card) {
   const date = parseDate(card && card.date);
   const title = card && card.title ? String(card.title).trim() : "";
@@ -202,7 +217,10 @@ export function classifyCard(card) {
   // 2026-10-27 (#1379): "RunAnywhere … is now available through the provider
   // selector for [GLM 5.3] …" links seven EXISTING models. It adds a NanoGPT
   // inference provider, not models, so it must not read "New LLM models: …".
-  if (intent === "new" && isProviderCard(rawText)) intent = "provider";
+  // Narrow: provider-only when the card adds NO new models — no launch wording
+  // in the title or in any sentence outside the provider sentence, and (when the
+  // caller passes card.knownSlugs) every linked model is already known.
+  if (intent === "new" && isProviderCard(rawText) && !addsNewModels(title, rawText, extracted, card && card.knownSlugs)) intent = "provider";
   const models = subjectModels(title, extracted, intent);
   const linkKind = cardKindFromModels(models);
   const description = markdownToPlain(rawText);
