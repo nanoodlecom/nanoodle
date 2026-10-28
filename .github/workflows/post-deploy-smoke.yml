@@ -3,7 +3,7 @@ name: Post-deploy smoke (live)
 # nanoodle.com deploys from main via Cloudflare Workers Builds (wrangler.jsonc: build runs
 # scripts/stamp-sw.mjs, which stamps sw.js with CACHE = "nanoodle-<sha7>"). That deploy is not a
 # GitHub Actions workflow, so there is no workflow_run to hang off: instead this job starts on the
-# same push to main and its first step WAITS until live /sw.js carries the pushed commit's sha7,
+# same push to main and its first step WAITS until live /sw.js AND the editor HTML (<meta name="nanoodle-build">) carry the pushed commit's sha7,
 # i.e. until the deploy for this exact commit has finished. Then a fresh headless Chromium runs
 # scripts/smoke-live.mjs against https://nanoodle.com.
 #
@@ -26,9 +26,11 @@ on:
 permissions:
   contents: read
 
+# Push runs and manual runs never share a group: a newer main push supersedes an older push's
+# deploy wait, while each manual dispatch gets its own group and is never cancelled.
 concurrency:
-  group: post-deploy-smoke
-  cancel-in-progress: true   # a newer main push supersedes an older deploy wait
+  group: post-deploy-smoke-${{ github.event_name == 'push' && 'push' || format('dispatch-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
   live:
