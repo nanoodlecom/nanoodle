@@ -178,6 +178,46 @@ for (const [name, actions] of Object.entries(SCENARIOS)) {
   }
 }
 
+// 5. The single-flight entry is cleared once an import settles: the same link
+// can be reopened after its tab is closed, and a failed import can be retried.
+{
+  const { gzipSync } = await import("node:zlib");
+  const LINK = "#g=" + gzipSync(Buffer.from(g("REOPEN LINK"))).toString("base64url");
+  await navigate(origin + "/?product=off&na=0&reopen=1");
+  await sleep(2500);
+  await evaluate(READY);
+  const COUNT2 = `(() => { const d = readWorkspaces(); let n = 0;
+    for (const t of d.tabs) { const j = t.id === d.active ? JSON.stringify(serializeGraph()) : String(workspaceStorage.getItem("noodle_ws_" + t.id)); if (j.includes("REOPEN LINK")) n++; }
+    return { n, tabs: d.tabs.length, active: d.active }; })()`;
+  const open = `(async () => { history.replaceState({}, "", location.pathname + location.search); location.hash = ${JSON.stringify(LINK)};
+    await new Promise(r => setTimeout(r, 1500)); return true; })()`;
+  await evaluate(open);
+  let c = await evaluate(COUNT2);
+  ok(c && c.n === 1, `reopen: first open imports one tab, got ${JSON.stringify(c)}`);
+  await evaluate(`(async()=>{ closeWorkspace(readWorkspaces().active); await new Promise(r=>setTimeout(r,500)); return true; })()`);
+  const afterClose = await evaluate(COUNT2);
+  ok(afterClose && afterClose.n === 0, `reopen: closing removes the imported tab, got ${JSON.stringify(afterClose)}`);
+  await evaluate(open);
+  c = await evaluate(COUNT2);
+  ok(c && c.n === 1 && c.tabs === afterClose.tabs + 1, `reopen: the same link opened again creates a new tab, got ${JSON.stringify(c)} after ${JSON.stringify(afterClose)}`);
+  await evaluate(`(async()=>{ closeWorkspace(readWorkspaces().active); await new Promise(r=>setTimeout(r,500)); return true; })()`);
+
+  // Forced failure, then a retry of the same link.
+  const before = await evaluate(COUNT2);
+  const failed = await evaluate(`(async () => { const real = window.loadFromHash; let threw = false;
+    window.loadFromHash = () => Promise.reject(new Error("forced import failure"));
+    history.replaceState({}, "", location.pathname + location.search + ${JSON.stringify(LINK)});   // no hashchange: only this call imports
+    try { await importHashOnce(); } catch (_) { threw = true; }
+    window.loadFromHash = real; await new Promise(r => setTimeout(r, 300)); return threw; })()`);
+  ok(failed === true, "retry: the forced import failed");
+  c = await evaluate(COUNT2);
+  ok(c && c.n === 0 && c.tabs === before.tabs, `retry: the failed import created nothing, got ${JSON.stringify(c)}`);
+  const retried = await evaluate(`(async () => { try { return await importHashOnce(); } catch (e) { return String(e); } })()`);
+  await sleep(800);
+  c = await evaluate(COUNT2);
+  ok(retried === true && c && c.n === 1, `retry: the same link retried imports once, got ${JSON.stringify(retried)} ${JSON.stringify(c)}`);
+}
+
 if (failures.length) { console.error("✗ check-workspaces-restore-race:\n- " + failures.join("\n- ")); done(1); }
-console.log("✓ check-workspaces-restore-race: strip, Examples, direct opens and a share link (imported once) during a slow IndexedDB restore leave both workspaces, graphs and the upload intact");
+console.log("✓ check-workspaces-restore-race: strip, Examples, direct opens and a share link (imported once; reopen and retry work) during a slow IndexedDB restore leave both workspaces, graphs and the upload intact");
 done(0);
