@@ -13433,6 +13433,9 @@ function njsRunFor(type, rn, inp, n){
         // catalog knobs (MOSS negative prompt / steps / guidance / expansion) — same helper as imgExtra
         const kx = imageKnobExtra(rn.fields, (catItem("image", args.model)||{}).knobs);
         for(const k of Object.keys(kx)) if(!(k in extra)) extra[k] = kx[k];
+        // FLUX.3 Klein t2i is LoRA-capable here, but the generated njs-engine still rejects it (nanoodle-js imageTakesLora, #732). Stamp built-in LoRA keys the engine omitted; never override a key it already set.
+        const lx = loraParams(rn);
+        for(const k of Object.keys(lx)) if(!(k in extra)) extra[k] = lx[k];
         return sendImage(Object.assign({}, args, { extra }));
       };
     }

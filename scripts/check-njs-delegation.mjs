@@ -205,6 +205,17 @@ const GRAPHS = [
     nodes: [node("i1", "image", { model: "wavespeed-ai/qwen-image-2.1/text-to-image", prompt: "a fox", variations: "1", loras: [{ url: LORA_A, strength: "1" }] })],
     links: [],
   }, ["image"], PIN_NO_LORA],
+  // FLUX.3 Klein t2i (catalog lora_url_1..3, 2026-10-27). The generated engine
+  // still rejects both ids (nanoodle-js imageTakesLora, #732), and delegation is
+  // the default — the shim must still put the numbered slots on the paid body.
+  ["flux3 klein t2i lora reaches delegated request", {
+    nodes: [node("i1", "image", { model: "blackforestlabs/flux-3/klein/text-to-image", prompt: "a fox", variations: "1", loras: LORA_STACK1 })],
+    links: [],
+  }, ["image"], PIN_H3_IMAGE],
+  ["flux3 klein base t2i lora reaches delegated request", {
+    nodes: [node("i1", "image", { model: "blackforestlabs/flux-3/klein/base/text-to-image", prompt: "a fox", variations: "1", loras: LORA_STACK1 })],
+    links: [],
+  }, ["image"], PIN_H3_IMAGE],
 ];
 
 // Veto shapes (mirrors check-njs-editor-delegation.mjs): the library doesn't yet match the

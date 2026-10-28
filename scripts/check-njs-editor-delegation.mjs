@@ -273,6 +273,21 @@ const SCENARIOS = [
     must: {},
     forbid: ["lora_url", "lora_url_1", "lora_strength"],
   }],
+  // FLUX.3 Klein t2i (catalog lora_url_1..3, 2026-10-27). The generated engine
+  // still rejects both ids (nanoodle-js imageTakesLora, #732), and delegation is
+  // the default — the shim must still put the numbered slots on the paid body.
+  ["flux3 klein t2i lora reaches delegated request", "image", { model: "blackforestlabs/flux-3/klein/text-to-image", prompt: "a fox", variations: "1", loras: [
+    { url: "https://huggingface.co/x/y/resolve/main/a.safetensors", strength: "1" },
+  ] }, {}, null, {
+    must: { lora_url_1: "https://huggingface.co/x/y/resolve/main/a.safetensors", lora_scale_1: 1 },
+    forbid: ["lora_url", "lora_strength"],
+  }],
+  ["flux3 klein base t2i lora reaches delegated request", "image", { model: "blackforestlabs/flux-3/klein/base/text-to-image", prompt: "a fox", variations: "1", loras: [
+    { url: "https://huggingface.co/x/y/resolve/main/a.safetensors", strength: "1" },
+  ] }, {}, null, {
+    must: { lora_url_1: "https://huggingface.co/x/y/resolve/main/a.safetensors", lora_scale_1: 1 },
+    forbid: ["lora_url", "lora_strength"],
+  }],
 ];
 const norm = (c) => JSON.stringify(c);
 
