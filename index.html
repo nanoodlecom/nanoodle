@@ -16819,6 +16819,7 @@ function saveFile(){
   setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
 }
 function loadFile(file){
+  if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
   if(!file) return;
   if(typeof invalidateWorkspaceCloseHistory==="function") invalidateWorkspaceCloseHistory();
   const r = new FileReader();
@@ -17387,6 +17388,7 @@ function recordClosedWorkspace(entry,opts){
   showWorkspaceCloseNotice();
 }
 function restoreClosedWorkspace(){
+  if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
   const entry=wsClosedUndo[wsClosedUndo.length-1];if(!entry)return false;
   if(workspaceBusy()){flash("can’t change the workflow while running — Stop first");return false;}
   const d=readWorkspaces();if(!d)return false;
@@ -17507,6 +17509,13 @@ function wsClearRecovery(){
 }
 // A recovery visit is a separate branch of work. Never replace unread IDB tabs
 // with the older local backup or that visit's edits when storage becomes readable.
+function wsVisitHasWork(visit){
+  try{
+    const d = JSON.parse(visit[WS_INDEX_KEY]||"null");
+    if(!d || !Array.isArray(d.tabs)) return graphHasNodes(visit.noodle_graph);
+    return d.tabs.some(t => graphHasNodes(t.id===d.active ? visit.noodle_graph : visit[wsGraphKey(t.id)]));
+  }catch(_){ return false; }
+}
 function wsMergeRecovery(saved, visit){
   const result = Object.assign(Object.create(null), saved);
   let d, live;
@@ -17654,6 +17663,8 @@ const workspaceStorage = {
     catch(e){ if(!wsStorageEnabled) throw e; wsBeginOverflow(key, e, "read"); return this.getItem(key); }
   },
   setItem(key, value){
+    // Backstop for any caller the entry guards miss: never write a partial state mid-restore.
+    if(wsRestorePending && wsOwnedKey(key)){ const e=new Error("WorkspaceRestorePending"); e.name="WorkspaceRestorePending"; throw e; }
     if(!wsValues){
       try{ localStorage.setItem(key, String(value)); return; }
       catch(e){ if(!wsStorageEnabled) throw e; wsBeginOverflow(key, e, "write"); }
@@ -17662,6 +17673,7 @@ const workspaceStorage = {
     wsQueuePersist();
   },
   removeItem(key){
+    if(wsRestorePending && wsOwnedKey(key)){ const e=new Error("WorkspaceRestorePending"); e.name="WorkspaceRestorePending"; throw e; }
     if(!wsValues){
       try{ localStorage.removeItem(key); return; }
       catch(e){ if(!wsStorageEnabled) throw e; wsBeginOverflow(key, e, "remove"); }
@@ -17746,6 +17758,15 @@ async function restoreWorkspaceStorage(){
     }else if(!wsValues && Object.keys(restored).length){
       wsValues=restored; wsRecoveryId=record.recoveryId || null;
       if(recovery && recovery.id===record.recoveryId) wsClearRecovery();
+    }else if(wsValues && Object.keys(restored).length){
+      // Something wrote this visit's state before the saved record came back
+      // (a full localStorage overflow). Never skip the snapshot: keep every saved
+      // tab, and carry the visit's work over as recovered tabs if it has any.
+      const live = wsValues;
+      wsValues = wsVisitHasWork(live) ? wsMergeRecovery(restored, live) : restored;
+      wsRecoveryId=record.recoveryId || null; wsSavedRevision=-1;
+      try{ renderWorkspaces(); }catch(_){}
+      wsQueuePersist();
     }
     wsRestoreFailed=false;
   }catch(e){
@@ -17863,6 +17884,7 @@ let workspaceMemory = null;
 // never merges, and the next save would overwrite the saved tabs. So every
 // workspace mutation is refused until the restore settles.
 let wsRestorePending = false;
+let wsHashHeld = false;
 function wsMutationBlocked(){
   if(!wsRestorePending) return false;
   try{ flash(wsT("still loading your saved workspaces — try again in a moment")); }catch(_){}
@@ -17895,6 +17917,7 @@ function writeWorkspaces(d){
   workspaceMemory = null;
 }
 function wsStorageError(kind){
+  if(wsRestorePending){ try{ flash(wsT("still loading your saved workspaces — try again in a moment")); }catch(_){} return; }
   const msg = kind==="switch"
     ? "Couldn’t switch — this browser couldn’t store the workspace."
     : kind==="open"
@@ -18247,6 +18270,7 @@ function shelvePreviousWorkspace(prevJson, prevApp, newName){
 }
 function openWorkspaceWithGraph(data, name, opts){
   opts = opts || {};
+  if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return false;
   if(workspaceBusy()){ flash("can’t change the workflow while running — Stop first"); return false; }
   // This canvas is the user's now. A starter fetch still in flight must not paint over it.
   claimInitialCanvas();
@@ -18305,6 +18329,7 @@ function openWorkspaceWithGraph(data, name, opts){
   return true;
 }
 function openExampleWorkspace(graphData, name, slug){
+  if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return false;
   if(workspaceBusy()){ flash("can’t change the workflow while running — Stop first"); return false; }
   let d = readWorkspaces();
   if(!d){ try{ d = ensureWorkspaces(); }catch(_){ wsStorageError("open"); return false; } }
@@ -18319,7 +18344,7 @@ function openExampleWorkspace(graphData, name, slug){
   return had ? "open" : "absorb";
 }
 function switchWorkspace(id){
-  if(wsMutationBlocked()) return;
+  if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
   const d = readWorkspaces();
   if(!d || d.active===id){ closeWorkspaceMenus(); return; }
   if(workspaceBusy()){ flash("can’t change the workflow while running — Stop first"); return; }
@@ -18376,7 +18401,7 @@ function switchWorkspace(id){
   invalidateWorkspaceCloseHistory();
 }
 function closeWorkspace(id,opts){
-  if(wsMutationBlocked()) return;
+  if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
   wsCloseHistoryMute++;
   try{return closeWorkspaceNow(id,opts);}finally{wsCloseHistoryMute--;}
 }
@@ -18492,7 +18517,7 @@ function closeWorkspaceNow(id,opts){
   recordClosedWorkspace(closed,opts);return true;
 }
 function renameWorkspace(id, name, opts){
-  if(wsMutationBlocked()) return;
+  if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
   const d = readWorkspaces();
   if(!d) return;
   const tab = d.tabs.find(t => t.id===id);
@@ -18518,7 +18543,7 @@ function renameWorkspace(id, name, opts){
   if(!opts || opts.render!==false){ try{ renderWorkspaces(); }catch(_){} }
 }
 function commitReorder(id, toIndex){
-  if(wsMutationBlocked()) return;
+  if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
   const d = readWorkspaces();
   if(!d) return;
   const from = d.tabs.findIndex(t => t.id===id);
@@ -18648,7 +18673,7 @@ function acknowledgeCurrentWorkspace(msg){
 }
 function chooseWorkspace(kind){
   closeWorkspaceMenus();
-  if(kind==="examples"){ if(typeof openExamples==="function") openExamples(); return; }
+  if(kind==="examples"){ if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return; if(typeof openExamples==="function") openExamples(); return; }
   // Plus stays usable while the restore runs: hold the choice, the same way the
   // first-visit starter does, and open it once the saved tabs are back.
   if(wsRestorePending){ deferredWorkspaceKind = kind; return "deferred"; }
@@ -19086,6 +19111,8 @@ function syncWorkspaceBusy(){
 function onWorkspaceHash(){
   const h = (typeof location!=="undefined" && location.hash) || "";
   if(!/^#(g|j|ga)=/.test(h)) return false;
+  // A shared link that lands mid-restore waits; boot replays it once the saved tabs are back.
+  if(typeof wsRestorePending!=="undefined" && wsRestorePending){ wsHashHeld = true; return false; }
   if(typeof workspaceBusy==="function" && workspaceBusy()){
     try{ history.replaceState({}, "", location.pathname + location.search); }catch(_){}
     try{ flash("can’t change the workflow while running — Stop first"); }catch(_){}
@@ -19463,6 +19490,7 @@ addEventListener("message", e=>{
   // builder asked to edit the workflow: load that app's graph onto the canvas, remember
   // its id so the next "Create app" updates it, and drop back to the editor.
   else if(e.data.type==="__editflow__"){
+    if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
     // Bind the id ONLY if the graph actually applies — otherwise "Update app" would point at
     // one app while the canvas shows another's, and the next save would overwrite the wrong app.
     let ok = !e.data.graph;   // no graph payload → nothing to apply, the binding is all there is
@@ -20396,6 +20424,7 @@ function openExamples(){
 function closeExamples(){ $("examplesmodal").hidden=true; }
 function loadExample(i){
   const ex=EXAMPLES[i]; if(!ex) return;
+  if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;   // the gallery can also be open from before boot settled
   if(runningNodes.size){ flash("can’t change the workflow while running — Stop first"); return; }   // replacing the graph mid-run would strand in-flight (already-charged) results (mirrors the per-node delete guard)
   closeExamples();
   const had = graph.nodes.length > 0;
@@ -20600,6 +20629,7 @@ $("signout").onclick = ()=> setKey(null);
   wsRestorePending = true;
   try{ await initWorkspaceStorage(); }
   finally{ wsRestorePending = false; $("top").inert = topWasInert; editor.inert = editorWasInert; }
+  if(wsHashHeld){ wsHashHeld = false; try{ setTimeout(()=>{ try{ onWorkspaceHash(); }catch(_){} }, 0); }catch(_){} }
   // These do not share a catch. A QuotaExceededError from the first
   // noodle_workspaces write must not skip the plus button.
   try{ ensureWorkspaces(); }catch(_){}
@@ -21183,6 +21213,7 @@ RULES for the diff:
   window.resetDescribeVersions = ()=>{ versions.length = 0; curVer = -1; renderVersions(); setStatus(""); hideDetail(); };
   function selectVersion(i){
     const v = versions[i]; if(!v || i===curVer || busy) return;
+    if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
     if(runningNodes.size){ flash("can’t change the workflow while running — Stop first"); return; }   // a version jump mid-run replaces the graph under in-flight (already-charged) nodes — strand-proof, like the per-node delete guard
     // Canvas edits made by hand since the current version aren't a snapshot — applyGraphData
     // below would replace the live graph and drop them. Don't interrupt to ask: just capture
@@ -21336,6 +21367,7 @@ RULES for the diff:
     if(busy) return;
     const text = input.value.trim();
     if(!text){ input.focus(); return; }
+    if(typeof wsMutationBlocked==="function" && wsMutationBlocked()) return;
     if(!ensureAuth()) return;   // signed out: launch sign-in on https / open the key row on file:// — same as Run
     const prevInternal = serializeGraph();
     const prevSimple = toSimple(prevInternal);

@@ -63,7 +63,9 @@ await send("Page.addScriptToEvaluateOnNewDocument", { source: `window.__seen = "
 
 
 // The saved graphs carry the names, so a lost w2 is a missing string.
-const g = (t) => JSON.stringify({ v: 1, nodes: [{ id: "n1", type: "text", x: 40, y: 40, fields: { text: t } }], links: [], nid: 2, lid: 1 });
+const UPLOAD = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+const g = (t, up) => JSON.stringify({ v: 1, nodes: [{ id: "n1", type: "text", x: 40, y: 40, fields: { text: t } }]
+  .concat(up ? [{ id: "n2", type: "upload", x: 300, y: 40, fields: { image: UPLOAD } }] : []), links: [], nid: 3, lid: 1 });
 const FILL = `(() => { localStorage.clear();
   localStorage.setItem("noodle_hint_dismissed","1"); localStorage.setItem("noodle_connect_hint_dismissed","1");
   localStorage.setItem("noodle_graph", ${JSON.stringify(g("GRAPH ONE"))});
@@ -85,12 +87,14 @@ await navigate(origin + "/blank-404");
 await evaluate(FILL);
 await navigate(origin + "/?product=off&na=0");
 await evaluate(READY);
-ok(await evaluate(`openWorkspaceWithGraph(${g("GRAPH TWO")}, "Second", { fit:false }) !== false`), "setup: second workspace opens");
+ok(await evaluate(`openWorkspaceWithGraph(${g("GRAPH TWO", true)}, "Second", { fit:false }) !== false`), "setup: second workspace opens");
 await evaluate(`(async()=>{ flushSave(); try{ await settleWorkspaceStorage(); }catch(_){} await new Promise(r=>setTimeout(r,800)); })()`);
 let s = await evaluate(DUMP);
 ok(s && s.tabs.length === 2, "setup: two workspaces saved, got " + JSON.stringify(s && s.tabs));
 
-// 2. Reload with IndexedDB's open held back 1.5s (under the 2.5s restore timeout) and act on the strip meanwhile.
+// 2. Reload with IndexedDB's open held back 1.5s (under the 2.5s restore
+// timeout) and act meanwhile. Each scenario is one way a user or link could
+// mutate workspaces before the saved tabs are back.
 await send("Page.addScriptToEvaluateOnNewDocument", { source: `(() => {
   const real = IDBFactory.prototype.open;
   IDBFactory.prototype.open = function (...a) {
@@ -102,30 +106,44 @@ await send("Page.addScriptToEvaluateOnNewDocument", { source: `(() => {
     return fake;
   };
 })();` });
-await send("Page.navigate", { url: origin + "/?product=off&na=0&race=1" });
-for (let i = 0; i < 60; i++) { if (await evaluate(`typeof renameWorkspace==="function" && !!document.getElementById("wstabs")`)) break; await sleep(50); }
-await evaluate(`(() => { const run = (f) => { try { f(); } catch (_) {} };
-  run(() => renameWorkspace("w1", "Renamed during boot"));
-  run(() => chooseWorkspace("blank"));
-  run(() => switchWorkspace("w2"));
-  run(() => commitReorder("w1", 1));
-  run(() => closeWorkspace("w2"));
-  run(() => save()); run(() => flushSave()); return true; })()`);
-await sleep(2500); // past the held open
-await evaluate(READY);
-// A normal save once the restore is back.
-await evaluate(`(async()=>{ save(); await new Promise(r=>setTimeout(r,500)); flushSave(); try{ await settleWorkspaceStorage(); }catch(_){} await new Promise(r=>setTimeout(r,800)); })()`);
-
-// 3. A plain reload must still have both workspaces and both graphs.
-await navigate(origin + "/?product=off&na=0&after=1");
-await sleep(2500);
-await evaluate(READY);
-s = await evaluate(DUMP);
-const all = s ? Object.values(s.graphs).join("\n") : "";
-ok(s && s.tabs.length >= 2, "both saved workspaces survive actions taken during the delayed restore, got " + JSON.stringify(s && s.tabs));
-ok(all.includes("GRAPH ONE"), "workspace 1's graph survives");
-ok(all.includes("GRAPH TWO"), "workspace 2's graph survives");
+const SCENARIOS = {
+  strip: `run(() => renameWorkspace("w1", "Renamed during boot"));
+    run(() => chooseWorkspace("blank")); run(() => switchWorkspace("w2"));
+    run(() => commitReorder("w1", 1)); run(() => closeWorkspace("w2"));
+    run(() => save()); run(() => flushSave());`,
+  // Ember's P1: Plus → Browse Examples → pick one, mid-restore.
+  examples: `run(() => document.querySelector('[data-ws="examples"]').click());
+    run(() => openExamples()); out.pick = (() => { try { loadExample(0); return "ran"; } catch (e) { return String(e); } })();`,
+  direct: `out.open = (() => { try { return openWorkspaceWithGraph(${JSON.stringify(g("INTRUDER"))}, "Intruder", { fit:false }); } catch (e) { return String(e); } })();
+    out.ex = (() => { try { return openExampleWorkspace(JSON.parse(${JSON.stringify(g("INTRUDER EX"))}), "Ex", "x-slug"); } catch (e) { return String(e); } })();
+    run(() => restoreClosedWorkspace());
+    run(() => loadFile(new File([${JSON.stringify(g("INTRUDER FILE"))}], "f.json", { type: "application/json" })));
+    run(() => workspaceStorage.setItem("noodle_ws_w9", "x"));`,
+};
+for (const [name, actions] of Object.entries(SCENARIOS)) {
+  await send("Page.navigate", { url: origin + "/?product=off&na=0&race=" + name });
+  for (let i = 0; i < 80; i++) { if (await evaluate(`typeof renameWorkspace==="function" && !!document.getElementById("wstabs")`)) break; await sleep(25); }
+  const out = await evaluate(`(() => { const out = {}; const run = (f) => { try { f(); } catch (_) {} }; ${actions} return out; })()`);
+  if (name === "direct") ok(out && out.open === false && out.ex === false, `direct: opens are refused mid-restore, got ${JSON.stringify(out)}`);
+  await sleep(2500); // past the held open
+  await evaluate(READY);
+  try { await evaluate(`closeExamples()`); } catch {}
+  // A normal save once the restore is back.
+  await evaluate(`(async()=>{ save(); await new Promise(r=>setTimeout(r,500)); flushSave(); try{ await settleWorkspaceStorage(); }catch(_){} await new Promise(r=>setTimeout(r,800)); })()`);
+  // 3. A reload must still have both workspaces, both graphs and the upload.
+  await navigate(origin + "/?product=off&na=0&after=" + name);
+  await sleep(2500);
+  await evaluate(READY);
+  s = await evaluate(DUMP);
+  const all = s ? Object.values(s.graphs).join("\n") : "";
+  const ids = s ? s.tabs.map(t => t.split(":")[0]) : [];
+  ok(ids.includes("w1") && ids.includes("w2"), `${name}: w1 and w2 survive actions during the delayed restore, got ${JSON.stringify(s && s.tabs)}`);
+  ok(all.includes("GRAPH ONE"), `${name}: workspace 1's graph survives`);
+  ok(all.includes("GRAPH TWO"), `${name}: workspace 2's graph survives`);
+  ok(all.includes(UPLOAD), `${name}: workspace 2's upload survives`);
+  ok(!/INTRUDER/.test(all), `${name}: nothing was opened mid-restore`);
+}
 
 if (failures.length) { console.error("✗ check-workspaces-restore-race:\n- " + failures.join("\n- ")); done(1); }
-console.log("✓ check-workspaces-restore-race: strip actions during a slow IndexedDB restore leave both workspaces and graphs intact");
+console.log("✓ check-workspaces-restore-race: strip, Examples and direct opens during a slow IndexedDB restore leave both workspaces, graphs and the upload intact");
 done(0);
