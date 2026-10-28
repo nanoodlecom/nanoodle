@@ -17553,7 +17553,9 @@ function wsPersistenceNotice(saving){
     box.title = wsT("Save backs up the workflow and uploaded inputs. Generated results are kept for this visit only.");
     // A browser that cannot open IndexedDB at all (private mode, blocked
     // storage, a full disk) has nothing to "restore": say it is session-only.
-    const noStore = wsRestoreFailed && /^(BrowserStorageUnavailable|BrowserStorageTimeout|SecurityError|InvalidStateError|UnknownError|QuotaExceededError)$/.test(String(wsPersistFailure||""));
+    // Only when this visit started with no saved index at all: a returning
+    // visitor whose IndexedDB copy can't be read still hears "could not be restored".
+    const noStore = wsRestoreFailed && wsFreshIndex && /^(BrowserStorageUnavailable|SecurityError|InvalidStateError)$/.test(String(wsPersistFailure||""));
     text.textContent = wsT(saving ? "Saving workspaces in this browser…" : noStore
       ? "This browser can’t store workspaces right now, so these tabs last for this visit only. Nothing was deleted. Save each workflow before refreshing."
       : wsRestoreFailed
@@ -17850,6 +17852,8 @@ function stampActiveExample(slug){
 // Set when the first index write cannot land. Storage stays untouched; the
 // strip reads this so the page still has a tab for the rest of the visit.
 let workspaceMemory = null;
+// True when this page created the first index (nothing was saved before it).
+let wsFreshIndex = false;
 let workspaceFlashId = null;
 let workspaceFlashT = null;
 function copyWorkspaces(d){
@@ -18098,6 +18102,7 @@ function ensureWorkspaces(opts){
   const name = (named && !WS_GENERIC_NAME.test(named) ? named : "") || purposeName(raw) || wsT("Workflow");
   const app = editorAppBinding();
   const d = { v:1, active:"w1", seq:1, tabs:[{ id:"w1", name, app: app ? { id:app.id, title:app.title || null } : null }] };
+  if(!wsStorageEnabled) wsFreshIndex = true;
   try{ writeWorkspaces(d); }
   catch(_){
     // QuotaExceededError on this first write used to escape the boot catch,
