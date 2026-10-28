@@ -167,8 +167,14 @@ async function drop() {
   if (!d.ok) fail("drop did not run: " + d.detail);
 }
 await drop();
+// Paint budget for the dropped GLB. A fixed 10s (40 × 250ms) expired on slow
+// runners before SwiftShader drew. Override with CHECK_3D_CSP_DRAW_TIMEOUT_MS.
+const drawTimeoutMs = Number(process.env.CHECK_3D_CSP_DRAW_TIMEOUT_MS) || 45000;
+const drawPollMs = 250;
 let drew = false;
-for (let i = 0; i < 40; i++) {
+let lastState = null;
+const drawDeadline = Date.now() + drawTimeoutMs;
+while (Date.now() < drawDeadline) {
   const probe = await send("Runtime.evaluate", {
     expression: `(() => {
       const canvas = document.querySelector(".node .glb-canvas");
@@ -185,6 +191,7 @@ for (let i = 0; i < 40; i++) {
   const raw = probe.result && probe.result.result && probe.result.result.value;
   if (raw) {
     const state = JSON.parse(raw);
+    lastState = state;
     if (!state.dropped) {
       // the document holding the drop is gone: the page navigated after the drop step
       if (retried) fail("page navigated again after the retried drop");
@@ -199,9 +206,9 @@ for (let i = 0; i < 40; i++) {
     if (state.err) fail("viewer error: " + state.err);
     if (state.vis && state.vis !== "hidden") { drew = true; break; }
   }
-  await new Promise((r) => setTimeout(r, 250));
+  await new Promise((r) => setTimeout(r, drawPollMs));
 }
-if (!drew) fail("dropped GLB did not draw a canvas under the production CSP");
+if (!drew) fail("dropped GLB did not draw a canvas under the production CSP within " + drawTimeoutMs + "ms; last state " + JSON.stringify(lastState));
 console.log("✓ check-3d-csp: dropped GLB draws under the _headers CSP");
 ws.close();
 proc.kill("SIGKILL");
