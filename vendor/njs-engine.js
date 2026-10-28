@@ -1,5 +1,5 @@
-/* data-hash=9cf3fb64a834b630 */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-21f307b7dd2a (19 modules) */
+/* data-hash=1bb26ea68cc7197e */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-ff85ffefd391 (19 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -2017,9 +2017,11 @@ function loraKind(type) { return (type === "image" || type === "edit" || type ==
 function imageTakesLora(id) {
   id = String(id || "");
   if (/inpaint/i.test(id)) return false;
-  // flux-2-klein-* only (lora-capable per catalog); FLUX.3 Klein (blackforestlabs/flux-3/klein/…)
-  // takes no lora_url — twin of the app's imageTakesLora (nanoodle #732)
+  // twin of the app's imageTakesLora (nanoodle #732, #764): flux-2-klein-* is lora-capable;
+  // FLUX.3 Klein text-to-image (base + distilled) gained lora_url_1..3 in the catalog on
+  // 2026-10-27, but FLUX.3 Klein edit-image still takes no lora_url
   if (/flux-2-klein/i.test(id)) return true;
+  if (/flux-3\/klein\/(base\/)?text-to-image/i.test(id)) return true;
   if (/minimax-h3\/(text-to-image|image-edit)/i.test(id)) return true;
   return /(^|[-\/])lora($|[-\/])/i.test(id);
 }
@@ -6215,5 +6217,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-21f307b7dd2a";
+  window.NanoodleEngine.version = "src-ff85ffefd391";
 })();
