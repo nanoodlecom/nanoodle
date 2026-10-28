@@ -276,9 +276,25 @@ console.log("sync-nanogpt-model-updates (fixture)");
     text: "[RunAnywhere (Wally)](https://nano-gpt.com/provider/runanywhere) is now available through the provider selector for [GLM 5.3](https://nano-gpt.com/conversation?model=z-ai%2Fglm-5.3) and [Kimi K3](https://nano-gpt.com/conversation?model=moonshotai%2Fkimi-k3)." };
   const info = classifyCard(card);
   check("provider card → intent provider", info.intent === "provider", info.intent);
-  const groups = groupPending(selectPending([card], []));
+  // Real feed shape: the models were launched by OLDER cards (newest-first list).
+  const launchGlm = { id: "1300", date: "2026-10-01", category: "models", title: "GLM 5.3",
+    text: "[GLM 5.3](https://nano-gpt.com/conversation?model=z-ai%2Fglm-5.3) is new." };
+  const launchKimi = { id: "1301", date: "2026-10-02", category: "models", title: "Kimi K3",
+    text: "[Kimi K3](https://nano-gpt.com/conversation?model=moonshotai%2Fkimi-k3) is new." };
+  const groups = groupPending(selectPending([card, launchKimi, launchGlm], ["id:1301", "id:1300", "2026-10-02|moonshotai/kimi-k3", "2026-10-01|z-ai/glm-5.3"]));
   const line = groups[0] && groups[0].text;
   check("provider card → NanoGPT provider update line", typeof line === "string" && line.startsWith("NanoGPT provider update: ") && !/New LLM model/.test(line) && /part of NanoGPT/.test(line), line);
+
+  // Same card alone, with no history: its models are unknown, so it is not provider-only.
+  const lone = groupPending(selectPending([card], []));
+  check("provider card with unknown models via selectPending → not a provider line", lone[0] && !/^NanoGPT provider update/.test(lone[0].text), lone[0] && lone[0].text);
+}
+// (a) A launch claim inside the provider sentence itself is still a launch.
+{
+  const inside = { id: "9010", date: "2026-10-27", category: "news", title: "RunAnywhere: More Model Choices",
+    text: "[RunAnywhere](https://nano-gpt.com/provider/runanywhere) is now available through the provider selector for the newly launched [Zeta 9](https://nano-gpt.com/conversation?model=zeta%2Fzeta-9)." };
+  check("launch wording inside the provider sentence → intent new", classifyCard({ ...inside, knownSlugs: ["zeta/zeta-9"] }).intent === "new", classifyCard({ ...inside, knownSlugs: ["zeta/zeta-9"] }).intent);
+}
 
 // Mixed case: provider info AND a newly launched model must stay "new".
 {
@@ -292,6 +308,40 @@ console.log("sync-nanogpt-model-updates (fixture)");
   const known = { ...unseen, id: "9004", knownSlugs: ["zeta/zeta-9"] };
   check("provider card linking only known models → provider", classifyCard(known).intent === "provider", classifyCard(known).intent);
 }
+
+// Through the real sync entry point (--dry-run, fixtures via env; no network,
+// no writes): the production path must feed known models into the classifier.
+{
+  const { execFileSync } = await import("node:child_process");
+  const { mkdtempSync, writeFileSync: wf } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const dir = mkdtempSync(join(tmpdir(), "nanogpt-sync-"));
+  const SYNC = join(dirname(fileURLToPath(import.meta.url)), "sync-nanogpt-model-updates.mjs");
+  const ts = (d) => Math.floor(Date.parse(d + "T00:00:00Z") / 1000);
+  const catalog = { data: [
+    { id: "z-ai/glm-5.3", created: ts("2026-08-14") },
+    { id: "minimax/MiniMax-M3:thinking", created: ts("2026-06-01") },
+    { id: "zeta/zeta-9", created: ts("2026-10-27") },   // created the same day: a launch
+  ] };
+  const providerText = (extra) => "[RunAnywhere (Wally)](https://nano-gpt.com/provider/runanywhere) is now available through the provider selector for "
+    + (extra || "") + "[GLM 5.3](https://nano-gpt.com/conversation?model=z-ai%2Fglm-5.3) and [MiniMax M3 Thinking](https://nano-gpt.com/conversation?model=minimax%2FMiniMax-M3%3Athinking).";
+  const runSync = (name, cards, cat) => {
+    const cf = join(dir, name + ".cards.json"), sf = join(dir, name + ".seen.json"), kf = join(dir, name + ".catalog.json");
+    wf(cf, JSON.stringify(cards)); wf(sf, JSON.stringify({ seen: ["id:1000", "2026-09-01|old/model"] }));
+    wf(kf, cat === undefined ? JSON.stringify(catalog) : cat);
+    return execFileSync(process.execPath, [SYNC, "--dry-run", "--no-translate"], { encoding: "utf8",
+      env: { ...process.env, NANOGPT_UPDATES_FIXTURE: cf, NANOGPT_SEEN_FILE: sf, NANOGPT_CATALOG_FIXTURE: kf, NOODLE_SYNC_AUTO_PUSH: "" } });
+  };
+  const base = { date: "2026-10-27", category: "news", title: "RunAnywhere: Fast Inference and More Model Choices" };
+  const dry = (out) => (out.match(/\[dry-run\] 2026-10-27 — (.*)/) || [])[1] || "";
+  let out = runSync("provider", [{ ...base, id: "1379", text: providerText() }]);
+  check("sync entry: 1379-shaped card with catalog-known models → NanoGPT provider update", /^NanoGPT provider update: /.test(dry(out)), dry(out) || out);
+  out = runSync("inside", [{ ...base, id: "1380", text: providerText("the newly launched [Zeta 9](https://nano-gpt.com/conversation?model=zeta%2Fzeta-9), ") }]);
+  check("sync entry: launch wording inside the provider sentence → not provider", dry(out) && !/^NanoGPT provider update/.test(dry(out)), dry(out) || out);
+  out = runSync("unseen", [{ ...base, id: "1381", text: providerText("[Zeta 9](https://nano-gpt.com/conversation?model=zeta%2Fzeta-9), ") }]);
+  check("sync entry: provider card linking a model the catalog dates to the card's day → not provider", dry(out) && !/^NanoGPT provider update/.test(dry(out)), dry(out) || out);
+  out = runSync("nocatalog", [{ ...base, id: "1382", text: providerText() }], "not json");
+  check("sync entry: catalog unavailable → errs toward new models", dry(out) && !/^NanoGPT provider update/.test(dry(out)), dry(out) || out);
 }
 
 if (fail) {

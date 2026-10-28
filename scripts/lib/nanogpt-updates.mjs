@@ -194,16 +194,33 @@ function displayTitles(card, models, intent) {
 }
 
 const LAUNCH_RE = /\b(new|introduc\w*|launch\w*|releas\w*|debut\w*|added|adding|now available|now live|just landed)\b/i;
-export function addsNewModels(title, rawText, models, knownSlugs) {
-  if (LAUNCH_RE.test(String(title || ""))) return true;
-  const sentences = String(rawText || "").split(/(?<=[.!?])\s+|\n+/).filter(Boolean);
-  for (const sn of sentences) {
-    if (isProviderCard(sn)) continue;
-    if (LAUNCH_RE.test(markdownToPlain(sn))) return true;
+// The one phrase a provider card is allowed: "<provider> is now available
+// through the provider selector" / "added as a (new) provider". Only that
+// phrase is neutralised; every sentence, provider sentences included, is then
+// scanned for launch wording ("… selector for the new Zeta 9" is a launch).
+const PROVIDER_PHRASE_RE = /\b(?:(?:is|are|has been|have been)\s+)?(?:now\s+)?(?:available|added|live)\s+(?:as|through|via|on|in)\s+(?:the\s+|a\s+|an\s+)?(?:new\s+)?(?:inference\s+)?provider(?:\s+(?:selector|option|picker))?\b/gi;
+const NEW_PROVIDER_RE = /\b(?:a|an)\s+new\s+(?:inference\s+)?provider\b/gi;
+// NanoGPT /api/v1/models → Map(slug → YYYY-MM-DD created).
+export function catalogCreatedMap(json) {
+  const list = Array.isArray(json) ? json : (json && Array.isArray(json.data) ? json.data : []);
+  const out = new Map();
+  for (const m of list) {
+    if (!m || typeof m.id !== "string" || !Number.isFinite(Number(m.created)) || !Number(m.created)) continue;
+    out.set(modelSlugKey(m.id), new Date(Number(m.created) * 1000).toISOString().slice(0, 10));
   }
+  return out;
+}
+export function modelSlugKey(slug) {
+  return String(slug || "").toLowerCase();
+}
+export function addsNewModels(title, rawText, models, knownSlugs) {
+  const launch = (t) => LAUNCH_RE.test(String(t || "").replace(PROVIDER_PHRASE_RE, " ").replace(NEW_PROVIDER_RE, " provider "));
+  if (launch(title)) return true;
+  const sentences = markdownToPlain(String(rawText || "")).split(/(?<=[.!?])\s+|\n+/).filter(Boolean);
+  if (sentences.some(launch)) return true;
   if (knownSlugs) {
-    const known = knownSlugs instanceof Set ? knownSlugs : new Set(knownSlugs);
-    if ((models || []).some(m => m && m.slug && !known.has(m.slug))) return true;
+    const known = new Set([...knownSlugs].map(modelSlugKey));
+    if ((models || []).some(m => m && m.slug && !known.has(modelSlugKey(m.slug)))) return true;
   }
   return false;
 }
@@ -274,8 +291,29 @@ export function selectPending(cards, seen, opts = {}) {
   const pending = [];
   let hitSeenChat = false;
 
-  for (const card of cards) {
-    const info = classifyCard(card);
+  // Known models for the provider check (production source): every model a
+  // strictly OLDER card in the feed linked (cards arrive newest-first), plus
+  // every date|slug in the seen file dated before the card, plus (sync passes
+  // opts.catalogCreated from NanoGPT's public /api/v1/models) every catalog
+  // model whose `created` date is before the card's date. A provider card
+  // linking anything outside that is announcing a model, not just a provider.
+  const seenDated = seenList.filter(k => typeof k === "string" && /^\d{4}-\d\d-\d\d\|/.test(k))
+    .map(k => ({ date: k.slice(0, 10), slug: modelSlugKey(k.slice(11)) }));
+  const olderSlugs = new Array(cards.length);
+  { const acc = new Set();
+    for (let i = cards.length - 1; i >= 0; i--) {
+      olderSlugs[i] = new Set(acc);
+      const c = cards[i];
+      const links = Array.isArray(c && c.models) ? c.models : extractMarkdownModelLinks(c && c.text != null ? String(c.text) : "");
+      for (const m of links) if (m && m.slug) acc.add(modelSlugKey(m.slug));
+    } }
+  for (let ci = 0; ci < cards.length; ci++) {
+    const card = cards[ci];
+    const d = parseDate(card && card.date) || "";
+    const known = olderSlugs[ci];
+    for (const k of seenDated) if (k.date < d) known.add(k.slug);
+    if (opts.catalogCreated) for (const [slug, created] of opts.catalogCreated) if (created && created < d) known.add(modelSlugKey(slug));
+    const info = classifyCard(card && card.knownSlugs ? card : { ...card, knownSlugs: known });
     if (!info.date) continue;
 
     const idKey = seenKeyForId(info.id);
