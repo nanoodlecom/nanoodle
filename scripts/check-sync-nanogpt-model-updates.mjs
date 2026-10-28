@@ -270,6 +270,17 @@ console.log("sync-nanogpt-model-updates (fixture)");
   );
 }
 
+// 1379: a NanoGPT provider added for existing models is not "New LLM models".
+{
+  const card = { id: "1379", date: "2026-10-27", category: "news", title: "RunAnywhere: Fast Inference and More Model Choices",
+    text: "[RunAnywhere (Wally)](https://nano-gpt.com/provider/runanywhere) is now available through the provider selector for [GLM 5.3](https://nano-gpt.com/conversation?model=z-ai%2Fglm-5.3) and [Kimi K3](https://nano-gpt.com/conversation?model=moonshotai%2Fkimi-k3)." };
+  const info = classifyCard(card);
+  check("provider card → intent provider", info.intent === "provider", info.intent);
+  const groups = groupPending(selectPending([card], []));
+  const line = groups[0] && groups[0].text;
+  check("provider card → NanoGPT provider update line", typeof line === "string" && line.startsWith("NanoGPT provider update: ") && !/New LLM model/.test(line) && /part of NanoGPT/.test(line), line);
+}
+
 if (fail) {
   console.error(`\n✗ sync-nanogpt-model-updates: ${fail} assertion(s) failed.`);
   process.exit(1);

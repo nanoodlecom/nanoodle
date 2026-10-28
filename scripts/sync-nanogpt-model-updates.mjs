@@ -19,6 +19,8 @@
 //   retired/deprecated/removed  → "Retired: …"
 //   now use / default / upgraded / returns → "Updated: …" (not "New LLM models")
 //   price/pricing/cheaper/discount → "Pricing: …"
+//   a /provider/ link or "provider selector" in the body → "NanoGPT provider update: …"
+//     (a new NanoGPT inference provider for existing models, never "New … models")
 //   else → "New LLM/image/video/audio model(s): …" matching the link kind
 //
 // Source of truth is GET https://nano-gpt.com/api/updates (public JSON, paginated

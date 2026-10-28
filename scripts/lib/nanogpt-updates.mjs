@@ -70,6 +70,11 @@ function decodeSlug(raw) {
   try { return decodeURIComponent(cleaned); } catch { return cleaned; }
 }
 
+export function isProviderCard(text) {
+  const t = String(text || "");
+  return /nano-gpt\.com\/provider\//i.test(t) || /\bprovider (?:selector|option|picker)\b/i.test(t);
+}
+
 export function titleIntent(title) {
   const t = String(title || "").toLowerCase();
   // "remov" must be the verb (removed/removal/removing), not a product noun:
@@ -193,7 +198,11 @@ export function classifyCard(card) {
   const title = card && card.title ? String(card.title).trim() : "";
   const rawText = card && card.text != null ? String(card.text) : "";
   const extracted = Array.isArray(card && card.models) ? card.models : extractMarkdownModelLinks(rawText);
-  const intent = titleIntent(title);
+  let intent = titleIntent(title);
+  // 2026-10-27 (#1379): "RunAnywhere … is now available through the provider
+  // selector for [GLM 5.3] …" links seven EXISTING models. It adds a NanoGPT
+  // inference provider, not models, so it must not read "New LLM models: …".
+  if (intent === "new" && isProviderCard(rawText)) intent = "provider";
   const models = subjectModels(title, extracted, intent);
   const linkKind = cardKindFromModels(models);
   const description = markdownToPlain(rawText);
@@ -306,6 +315,7 @@ function fallbackSentence(titles, intent, kind) {
 }
 
 export function changelogLabel(intent, kind, count) {
+  if (intent === "provider") return "NanoGPT provider update";
   if (intent === "retired") return "Retired";
   if (intent === "updated") return "Updated";
   if (intent === "pricing") return "Pricing";
@@ -317,6 +327,11 @@ export function toChangelogText(titles, description, intent = "new", kind = "cha
   const detail = trimDetail(description);
   const title = titles.join(" & ");
   const label = changelogLabel(intent, kind, titles.length);
+  if (intent === "provider") {
+    // The models already exist; the news is the provider. Say where the choice lives.
+    const body = detail || `a new provider option for ${title}.`;
+    return `${label}: ${body} The provider selector is part of NanoGPT, not nanoodle; no new models were added.`.replace(/\s+/g, " ").trim();
+  }
   const text = detail
     ? `${label}: ${title} — ${detail}`
     : `${label}: ${fallbackSentence(titles, intent, kind)}`;
