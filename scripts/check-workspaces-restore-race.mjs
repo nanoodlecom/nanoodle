@@ -16,24 +16,30 @@ const chrome = ["/usr/local/bin/google-chrome", "/usr/bin/google-chrome", "/usr/
 if (!chrome) { console.log("⊘ check-workspaces-restore-race: no Chrome (covered by check-workspaces.mjs)"); process.exit(0); }
 
 const mime = { ".html": "text/html", ".js": "text/javascript", ".json": "application/json", ".css": "text/css", ".webp": "image/webp", ".png": "image/png", ".svg": "image/svg+xml" };
-const server = createServer((req, res) => {
+let slowStarterMs = 0;   // section 6 slows the shipped starter fetch
+const handler = async (req, res) => {
   try {
     let p = decodeURIComponent(new URL(req.url, "http://x").pathname);
+    if (p === "/noodle-graph.json" && slowStarterMs) await new Promise(r => setTimeout(r, slowStarterMs));
     if (p === "/") p = "/index.html";
     const file = resolve(ROOT, "." + p);
     if (!file.startsWith(ROOT + sep)) { res.writeHead(403); res.end(); return; }
     const body = readFileSync(file);
     res.writeHead(200, { "Content-Type": mime[extname(file)] || "application/octet-stream" }); res.end(body);
   } catch { res.writeHead(404, { "Content-Type": "text/html" }); res.end("<!doctype html><title>404</title>"); }
-});
+};
+const server = createServer(handler);
+const freshServer = createServer(handler);   // a second origin = a fresh profile's empty storage, without clearing anything
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
-const origin = `http://localhost:${server.address().port}`;   // index.html canonicalizes 127.0.0.1 to localhost
+const origin = `http://localhost:${server.address().port}`;
+await new Promise((r) => freshServer.listen(0, "127.0.0.1", r));
+const freshOrigin = `http://localhost:${freshServer.address().port}`;   // index.html canonicalizes 127.0.0.1 to localhost
 const profile = mkdtempSync(join(tmpdir(), "nanoodle-ws-race-"));
 const proc = spawn(chrome, ["--headless=new", "--disable-gpu", "--no-sandbox", "--no-first-run", "--no-default-browser-check",
   `--user-data-dir=${profile}`, "--remote-debugging-port=0", origin + "/blank-404"], { stdio: ["ignore", "pipe", "pipe"] });
 const failures = [];
 const ok = (c, m) => { if (!c) failures.push(m); };
-const done = (code) => { try { proc.kill("SIGKILL"); } catch {} server.close(); try { rmSync(profile, { recursive: true, force: true }); } catch {} process.exit(code); };
+const done = (code) => { try { proc.kill("SIGKILL"); } catch {} server.close(); freshServer.close(); try { rmSync(profile, { recursive: true, force: true }); } catch {} process.exit(code); };
 let dbg = "";
 const port = await new Promise((res, rej) => {
   const t = setTimeout(() => rej(new Error("chrome debug port")), 60000);
@@ -218,6 +224,31 @@ for (const [name, actions] of Object.entries(SCENARIOS)) {
   ok(retried === true && c && c.n === 1, `retry: the same link retried imports once, got ${JSON.stringify(retried)} ${JSON.stringify(c)}`);
 }
 
+// 6. Ember's block: fresh profile, a share link lands mid-restore, and the
+// shipped starter is slow. The starter must never overwrite the shared graph.
+{
+  const { gzipSync } = await import("node:zlib");
+  const LINK = "#g=" + gzipSync(Buffer.from(g("FRESH SHARED"))).toString("base64url");
+  slowStarterMs = 4000;
+  await send("Page.navigate", { url: freshOrigin + "/?product=off&na=0&fresh=1" });
+  for (let i = 0; i < 80; i++) { if (await evaluate(`typeof onWorkspaceHash==="function" && !!document.getElementById("wstabs")`)) break; await sleep(25); }
+  const held = await evaluate(`(() => { const p = wsRestorePending; location.hash = ${JSON.stringify(LINK)}; return p; })()`);
+  ok(held === true, "fresh: the link landed while the restore was still pending");
+  await sleep(7000);   // past the held restore AND the slowed starter
+  await evaluate(READY);
+  const FRESH = `(() => { const d = readWorkspaces(); const all = d.tabs.map(t => t.id === d.active ? JSON.stringify(serializeGraph()) : String(workspaceStorage.getItem("noodle_ws_" + t.id))).join("\\n");
+    return { shared: (all.match(/FRESH SHARED/g) || []).length, starter: /Raohe night market/.test(JSON.stringify(serializeGraph())), canvasShared: /FRESH SHARED/.test(JSON.stringify(serializeGraph())), tabs: d.tabs.length }; })()`;
+  let f = await evaluate(FRESH);
+  ok(f && f.canvasShared && !f.starter, `fresh: canvas shows the shared graph, not the starter, got ${JSON.stringify(f)}`);
+  await evaluate(`(async()=>{ save(); await new Promise(r=>setTimeout(r,400)); flushSave(); try{ await settleWorkspaceStorage(); }catch(_){} await new Promise(r=>setTimeout(r,800)); })()`);
+  slowStarterMs = 0;
+  await navigate(freshOrigin + "/?product=off&na=0&fresh=after");
+  await sleep(2500);
+  await evaluate(READY);
+  f = await evaluate(FRESH);
+  ok(f && f.shared === 1 && f.canvasShared && !f.starter, `fresh: after save + reload the shared graph persists once and the starter does not, got ${JSON.stringify(f)}`);
+}
+
 if (failures.length) { console.error("✗ check-workspaces-restore-race:\n- " + failures.join("\n- ")); done(1); }
-console.log("✓ check-workspaces-restore-race: strip, Examples, direct opens and a share link (imported once; reopen and retry work) during a slow IndexedDB restore leave both workspaces, graphs and the upload intact");
+console.log("✓ check-workspaces-restore-race: strip, Examples, direct opens and a share link (imported once; reopen and retry work; a slow starter never clobbers it on a fresh profile) during a slow IndexedDB restore leave both workspaces, graphs and the upload intact");
 done(0);
