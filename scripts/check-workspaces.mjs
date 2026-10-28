@@ -1134,6 +1134,30 @@ function fakeWsDom() {
   ok(!Object.prototype.hasOwnProperty.call(backing, "noodle_workspaces"), "naming the in-memory tab still does not write the index");
 }
 
+// Regression: boot's pre-restore pass runs before the IndexedDB overflow is
+// armed, so a full localStorage must not raise the "Couldn't store workspaces"
+// banner there; the post-restore pass writes the in-memory index through
+// workspaceStorage (which overflows to IndexedDB) instead.
+{
+  clearStore();
+  backing.noodle_graph = FIXTURE;
+  const origSet = localStorage.setItem;
+  localStorage.setItem = (k, v) => {
+    if (k === "noodle_workspaces") { const err = new Error("quota"); err.name = "QuotaExceededError"; throw err; }
+    return origSet.call(localStorage, k, v);
+  };
+  const W = boot();
+  let idx = null;
+  try { idx = W.ensureWorkspaces({ quiet: true }); } finally { localStorage.setItem = origSet; }
+  ok(idx && idx.active === "w1", "the quiet pre-restore pass still returns the default workspace");
+  ok(!W.toasts().some((m) => m.includes("nothing was deleted")), "the pre-restore pass does not show the storage banner");
+  ok(backing.noodle_graph === FIXTURE, "the quiet pass leaves the saved graph alone");
+  const boot0 = SRC.slice(SRC.indexOf("\n  buildAddMenu();"), SRC.indexOf("await initWorkspaceStorage()", SRC.indexOf("\n  buildAddMenu();")));
+  ok(/ensureWorkspaces\(\{\s*quiet:\s*true\s*\}\)/.test(boot0), "boot's pre-restore ensureWorkspaces is quiet");
+  const ens = SRC.slice(SRC.indexOf("function ensureWorkspaces("), SRC.indexOf("function uniqueWorkspaceName("));
+  ok(/if\(workspaceMemory && wsStorageEnabled\)\{\s*try\{\s*writeWorkspaces\(existing\)/.test(ens), "a memory-only index is written once the overflow is armed");
+}
+
 // Index writes stay blocked. Plus then Blank on a populated graph must not
 // leave the in-memory list on the new tab while the canvas keeps the old nodes.
 {
