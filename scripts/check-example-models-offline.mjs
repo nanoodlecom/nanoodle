@@ -70,6 +70,8 @@ const catalogs = {
         num_frames: { type: 'number', default: 81 }, frames_per_second: { type: 'number', default: 16 } } } },
     { id: 'blackforestlabs/flux-3/edit-video', architecture: { modality: 'video->video' },
       capabilities: { video_to_video: true }, supported_parameters: { parameters: { safety_tolerance: { type: 'number', default: 2 } } } },
+    { id: 'wan-22-animate', architecture: { modality: 'image+video->video', input_modalities: ['image', 'video'] },
+      capabilities: { video_to_video: true, image_to_video: true }, supported_parameters: { parameters: { resolution: opts(['480p', '720p']), mode: opts(['animate', 'replace']) } } },
     { id: 'mirelo-ai/sfx1.6/video-to-video', architecture: { modality: 'text+video->video' },
       capabilities: { video_to_video: true }, supported_parameters: { parameters: { seed: { type: 'number', default: -1 } } } },
   ],

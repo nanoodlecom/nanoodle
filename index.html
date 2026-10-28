@@ -2020,6 +2020,7 @@ const I18N = {
     "LLM":"LLM",
     "this model can’t read images — pick a vision model":"este modelo no puede leer imágenes — elige un modelo de visión",
     "morph target — the clip ends on this image":"objetivo de transición — el clip termina en esta imagen",
+    "the character that takes over the performance in the video":"el personaje que asume la actuación del vídeo",
     "subject/style reference — the video keeps this face, object, or style":"referencia de sujeto/estilo — el vídeo conserva esta cara, objeto o estilo",
     "Text → image":"Texto → imagen",
     "Edit":"Editar",
@@ -2775,6 +2776,7 @@ const I18N = {
     "LLM":"LLM",
     "this model can’t read images — pick a vision model":"ce modèle ne peut pas lire les images — choisissez un modèle de vision",
     "morph target — the clip ends on this image":"cible du morphing — le clip se termine sur cette image",
+    "the character that takes over the performance in the video":"le personnage qui reprend la performance de la vidéo",
     "subject/style reference — the video keeps this face, object, or style":"référence de sujet/style — la vidéo conserve ce visage, cet objet ou ce style",
     "Text → image":"Texte → image",
     "Edit":"Modifier",
@@ -3530,6 +3532,7 @@ const I18N = {
     "LLM":"LLM",
     "this model can’t read images — pick a vision model":"dieses Modell kann keine Bilder lesen — wähle ein Vision-Modell",
     "morph target — the clip ends on this image":"Morph-Ziel — der Clip endet auf diesem Bild",
+    "the character that takes over the performance in the video":"die Figur, die die Performance im Video übernimmt",
     "subject/style reference — the video keeps this face, object, or style":"Motiv-/Stil-Referenz — das Video behält dieses Gesicht, Objekt oder diesen Stil bei",
     "Text → image":"Text → Bild",
     "Edit":"Bearbeiten",
@@ -4285,6 +4288,7 @@ const I18N = {
     "LLM":"LLM",
     "this model can’t read images — pick a vision model":"este modelo não consegue ler imagens — escolha um modelo de visão",
     "morph target — the clip ends on this image":"alvo da transição — o clipe termina nesta imagem",
+    "the character that takes over the performance in the video":"o personagem que assume a atuação do vídeo",
     "subject/style reference — the video keeps this face, object, or style":"referência de sujeito/estilo — o vídeo mantém este rosto, objeto ou estilo",
     "Text → image":"Texto → imagem",
     "Edit":"Editar",
@@ -5040,6 +5044,7 @@ const I18N = {
     "LLM":"LLM",
     "this model can’t read images — pick a vision model":"このモデルは画像を読み取れません — ビジョンモデルを選んでください",
     "morph target — the clip ends on this image":"モーフィング先 — クリップはこの画像で終わります",
+    "the character that takes over the performance in the video":"動画の演技を引き継ぐキャラクター",
     "subject/style reference — the video keeps this face, object, or style":"被写体/スタイルの参照 — この顔・オブジェクト・スタイルを動画が保持します",
     "Text → image":"テキスト → 画像",
     "Edit":"編集",
@@ -5624,6 +5629,7 @@ function normVideo(m){
     sortUsd: _vu,                                    // resolved $/clip at default res/duration → price sorts
     t2v:!!c.text_to_video && !needsSourceVideo, i2v:!!c.image_to_video,
     v2v:!!c.video_to_video,                          // edits/extends/upscales a SOURCE video (→ vedit node)
+    charImg:!!c.video_to_video && inMods.includes("image") && inMods.includes("video") && !inMods.includes("text"),   // image+video->video (Wan Animate replace, motion control) → vedit grows a character port
     avatar:!!c.audio_input && !multiAudio && !refAudio && !inMods.includes("video")
       && (!!c.image_to_video || (audioOnlyIn && avatarTagged)),  // image+audio, or preset-only audio→video avatar
     lora,                                            // catalog advertises lora_url_N → the LoRA disclosure is offered
@@ -6374,7 +6380,7 @@ function updateModelWarn(n){
     e.stopPropagation();
     const id = defModelFor(n.type); if(!id) return;
     n.fields.model = id; syncModelPickUI(n, id);
-    updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshVideoInput(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); save();
+    updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshVideoInput(n); refreshEndFrameInput(n); refreshCharInput(n); refreshRefInputs(n); refreshRefHint(n); save();
   };
 }
 /* ---------- dynamic audio parameters (from the model catalog + a researched spec) ----------
@@ -8663,7 +8669,7 @@ function refreshRunEstimate(){
     + (estimate ? "\n" + t("Video, text & audio are estimates: the real bill depends on clip length, tokens and characters.") : "")
     + (range3d ? "\n" + t("3D variants bill differently, so this isn’t an exact price.") : "");
 }
-function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshVideoInput(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); refreshModel3dPorts(n); backfillModel(n); }); refreshRunEstimate(); refreshPromptCaps(); }   // refreshPromptCaps: audio caps ARE catalog metadata (max_chars) and every note names the model, so both are blank until the catalog lands. refreshLlmOpts: reconcile knobs kept during a catalog miss (#311) once real capability flags exist; the dynamic port families (img/audio/endframe/ref) are catalog-gated too — without them a cold-cache boot (shared link, cleared storage) paints a saved ref-model graph portless until a reload
+function refreshAllPrices(){ graph.nodes.forEach(n=>{ updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshVideoInput(n); refreshEndFrameInput(n); refreshCharInput(n); refreshRefInputs(n); refreshRefHint(n); refreshModel3dPorts(n); backfillModel(n); }); refreshRunEstimate(); refreshPromptCaps(); }   // refreshPromptCaps: audio caps ARE catalog metadata (max_chars) and every note names the model, so both are blank until the catalog lands. refreshLlmOpts: reconcile knobs kept during a catalog miss (#311) once real capability flags exist; the dynamic port families (img/audio/endframe/ref) are catalog-gated too — without them a cold-cache boot (shared link, cleared storage) paints a saved ref-model graph portless until a reload
 function backfillModel(n){   // once a catalog arrives, give model nodes a sensible default if none chosen yet
   const t = NODE_TYPES[n.type];
   if(t.modelKind && !n.fields.model){
@@ -9824,6 +9830,7 @@ const NODE_TYPES = {
     modelKind:"video", modelFilter:"v2v",
     inputs:[{name:"video", type:"video"}],
     refInputs:true,   // grows reference-image ports when the model exposes a ref-image array param (seedance-2.0 video-edit family) — see refreshRefInputs
+    charInput:true,   // grows a "character" image port on image+video->video models (Wan 2.2 Animate replace, motion control) — see refreshCharInput
     outputs:[{name:"video", type:"video"}], preview:"video",
     body:(n)=>`
       ${modelFieldHTML(n)}
@@ -9841,7 +9848,8 @@ const NODE_TYPES = {
         if(refs.length > rspec.cap) toast(t("dropped {n} reference image(s) over this model's limit of {max}").replace("{n}", refs.length-rspec.cap).replace("{max}", rspec.cap), "warn");
         opts.refImages = refs.slice(0, rspec.cap); opts.refKey = rspec.key;
       }
-      const url = await ctx.genVideo(mdl(n), prompt, opts, null,
+      // character still (image+video->video models only — see input gather) rides as imageDataUrl next to the driver
+      const url = await ctx.genVideo(mdl(n), prompt, opts, inp.image || null,
         (st,ms,meta)=> setNodeProgress(n, fmtPollHeadline("processing video…", st, ms), meta));
       return { video: url };
     }
@@ -10283,7 +10291,7 @@ function buildNodeEl(n){
       e.stopPropagation();
       openPicker(t.modelKind, { current:n.fields.model, filter:t.modelFilter, nodeType:n.type, onPick:(id)=>{
         n.fields.model = id; if(n.type==="model3d") n.modelTouched = true;
-        syncModelPickUI(n, id); updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshVideoInput(n); refreshEndFrameInput(n); refreshRefInputs(n); refreshRefHint(n); refreshModel3dPorts(n); save();
+        syncModelPickUI(n, id); updateNodePrice(n); refreshDims(n); refreshAudioParams(n); refreshTranscribeLang(n); refreshCivitParams(n); refreshLoraParams(n); refreshModelOpts(n); refreshLlmOpts(n); refreshImageInputs(n); refreshAudioInputs(n); refreshVideoInput(n); refreshEndFrameInput(n); refreshCharInput(n); refreshRefInputs(n); refreshRefHint(n); refreshModel3dPorts(n); save();
         try{ window.__nextAction?.record?.("set:model"); }catch(_){}
       }});
     };
@@ -10332,7 +10340,7 @@ function buildNodeEl(n){
   refreshVideoInputs(n);             // dynamic clip ports on the Combine node (same timing as image ports)
   refreshAudioInputs(n);             // single audio port on audio-input chat models (model-gated)
   refreshVideoInput(n);              // single video port on video-input chat models (model-gated)
-  refreshEndFrameInput(n);           // optional end-frame port on the ivideo node (model-gated on last_image)
+  refreshEndFrameInput(n); refreshCharInput(n);           // optional end-frame port on the ivideo node (model-gated on last_image)
   refreshRefInputs(n);               // growing reference-image ports on the tvideo node (model-gated on a ref-image array param)
   refreshRefHint(n);                 // "refs live on Text→Video" nudge on the ivideo node (model-gated on videoRefSpec)
   addFieldPorts(n);
@@ -10472,6 +10480,29 @@ function refreshEndFrameInput(n){
   const row = document.createElement("div");
   row.className = "prow endrow";
   row.innerHTML = `<i class="port image" data-node="${esc(n.id)}" data-port="endframe" data-dir="in" data-ptype="image" title="morph target — the clip ends on this image"></i><span>end frame</span>`;
+  col.appendChild(row);
+  translateTree(row);
+  row.querySelector(".port").addEventListener("pointerdown", e=> startWire(e.currentTarget, e));
+  refreshPortFills();
+}
+// Render the "character" image port on the Video edit node. Shown ONLY when the picked model is an
+// image+video->video model with no text input (Wan 2.2 Animate animate/replace, Kling / PixVerse
+// motion control, P-Video Animate): those REQUIRE a still next to the driver video, so without the
+// port they were dead ends on this node. Text+image+video "unified" models get no port — an image
+// there usually flips the job to image→video and drops the source clip. Lives as a link named
+// "image"; a wire left over after a swap to a plain v2v model is ignored at run (see input gather).
+function modelTakesCharacter(n){
+  const m = catItem("video", n.fields.model);
+  return !!(m && m.charImg);
+}
+function refreshCharInput(n){
+  if(!n.el || !NODE_TYPES[n.type].charInput) return;
+  const col = n.el.querySelector(".col.in"); if(!col) return;
+  col.querySelectorAll(".prow.charrow").forEach(el=> el.remove());
+  if(!modelTakesCharacter(n)) return;
+  const row = document.createElement("div");
+  row.className = "prow charrow";
+  row.innerHTML = `<i class="port image" data-node="${esc(n.id)}" data-port="image" data-dir="in" data-ptype="image" title="the character that takes over the performance in the video"></i><span>character</span>`;
   col.appendChild(row);
   translateTree(row);
   row.querySelector(".port").addEventListener("pointerdown", e=> startWire(e.currentTarget, e));
@@ -13560,6 +13591,11 @@ async function runGroup(seedIds, ctx){
         if(t.endFrame && modelHasImageRole(n,"last")) for(const l of graph.links){
           if(l.to.node===id && l.to.port==="endframe") inp.endframe = byId(l.from.node)?.out?.[l.from.port];
         }
+        // the character port on the vedit node → read by run() as inp.image, but ONLY when the picked model is
+        // image+video->video. Run-time clamp (mirror endframe): a stale wire after a model swap is never sent.
+        if(t.charInput && modelTakesCharacter(n)) for(const l of graph.links){
+          if(l.to.node===id && l.to.port==="image") inp.image = byId(l.from.node)?.out?.[l.from.port];
+        }
         // the growing reference-image ports on the tvideo node → read by run() via collectRefInputs(), but
         // ONLY when the picked model still exposes a ref-image param. Run-time role clamp (mirror endframe):
         // a wire left over from a ref model then swapped for one without refs is ignored — never sent/charged.
@@ -13579,6 +13615,7 @@ async function runGroup(seedIds, ctx){
           if(t.audioInput && l.to.port==="audio") continue;            // the audio port isn't a text-field override
           if(t.videoInput && l.to.port==="video") continue;            // the video port isn't a text-field override
           if(t.refInputs && REF_PORT_RE.test(l.to.port)) continue;     // ref-image ports aren't text-field overrides
+          if(t.charInput && l.to.port==="image") continue;             // the character port isn't a text-field override
           const v = byId(l.from.node)?.out?.[l.from.port];
           if(v==null) continue;
           if(n.type==="endpoint" && (l.to.port==="url" || l.to.port==="mode")){
@@ -20119,6 +20156,23 @@ const EXAMPLES = [
            {id:"l2",from:{node:"p-cast",port:"text"},to:{node:"cast",port:"a"}},
            {id:"l3",from:{node:"script",port:"text"},to:{node:"cast",port:"b"}},
            {id:"l4",from:{node:"cast",port:"text"},to:{node:"voice",port:"prompt"}} ] } },
+ { em:"🦊", slug:"swap-the-character", title:"Swap the character, keep the performance", desc:"Swap the person in a clip for a character from one image, keeping their moves, the camera and the scene.",
+   thumb:"examples/gallery/swap-the-character/preview.webp",
+   graph:{ v:1,
+   nodes:[ {id:"c-intent",type:"comment",x:40,y:-190,w:1180,fields:{"text":"Swap the character, keep the performance. The first nodes just make a 5 s performance clip (a Muse still of an invented cartoon dancer → H3 Max Turbo, 480p) and a Muse still of a new character (a plush fox). The Video edit node sends both to Wan 2.2 Animate in replace mode: the fox takes over the dancer's moves, while the plaza, the camera move and the sound stay. To use your own clip, delete the dancer nodes and wire a 📹 Video input into Video edit; to use your own character, wire a 📷 Image input into its character port. Keep both the same aspect ratio. Inspired by @ComfyUI's OPENjutsu post: https://x.com/ComfyUI/status/2114843030364795231","color":"yellow"}},
+           {id:"p-scene",type:"text",x:40,y:40,w:320,fields:{"text":"Look: stylized 3D animated feature film, soft rounded shapes, matte clay-like materials, warm golden-hour light, pastel colors, gentle depth of field. Scene: a small cobblestone town square at golden hour with a stone fountain, pastel shopfronts and string lights. In the center stands one invented cartoon street dancer, a lanky young man with stylized cartoon proportions, fully clothed in a mustard-yellow raincoat, a green knit beanie, blue jeans and red sneakers. He is seen full body from head to shoes with space around him, facing the camera, arms relaxed at his sides. Wide medium shot at eye level. No text, no logos, no other people."},name:"Dancer · prompt"},
+           {id:"scene",type:"image",x:400,y:20,w:280,fields:{"model":"meta/muse-image/text-to-image","size":"16:9","variations":"1"},name:"Dancer still · Muse"},
+           {id:"p-move",type:"text",x:40,y:360,w:320,fields:{"text":"Look: stylized 3D animated feature film, soft rounded shapes, matte clay-like materials, warm golden-hour light, pastel colors. One continuous shot with no cuts. The camera slowly pushes in and drifts a little to the left. The street dancer stays full body in frame: he steps side to side, raises both arms high and spins around once, then finishes with a big theatrical bow toward the camera. The fountain sprays softly and the string lights glow. No text, no other people."},name:"Performance · motion prompt"},
+           {id:"driver",type:"ivideo",x:760,y:20,w:300,fields:{"model":"minimax/h3-max-turbo","prompt":"","resolution":"480p","duration":"5","loras":[]},name:"Performance clip · H3 Max Turbo 480p"},
+           {id:"p-char",type:"text",x:40,y:680,w:320,fields:{"text":"Look: stylized 3D animated feature film, soft rounded shapes, matte clay-like materials, warm golden-hour light, pastel colors, gentle depth of field. One invented character: a plush fox toy brought to life, standing upright on two legs like a person, with soft orange felt fur, a cream belly and muzzle, black felt paws, a fluffy white-tipped tail, small button eyes, and a mustard-yellow knitted scarf. Full body from ears to feet with space around it, facing the camera, arms relaxed at its sides, centered, against a plain soft warm-gray studio backdrop. Wide medium shot at eye level. No text, no logos."},name:"New character · prompt"},
+           {id:"char",type:"image",x:400,y:660,w:280,fields:{"model":"meta/muse-image/text-to-image","size":"16:9","variations":"1"},name:"New character · Muse"},
+           {id:"swap",type:"vedit",x:1140,y:300,w:300,fields:{"model":"wan-22-animate","prompt":"","resolution":"480p","modelOpts":{"mode": "replace"},"loras":[]},name:"Swap · Wan 2.2 Animate (replace)"} ],
+   links:[ {id:"l1",from:{node:"p-scene",port:"text"},to:{node:"scene",port:"prompt"}},
+           {id:"l2",from:{node:"scene",port:"image"},to:{node:"driver",port:"image"}},
+           {id:"l3",from:{node:"p-move",port:"text"},to:{node:"driver",port:"prompt"}},
+           {id:"l4",from:{node:"p-char",port:"text"},to:{node:"char",port:"prompt"}},
+           {id:"l5",from:{node:"driver",port:"video"},to:{node:"swap",port:"video"}},
+           {id:"l6",from:{node:"char",port:"image"},to:{node:"swap",port:"image"}} ] } },
  { em:"🎬", slug:"photo-to-video", title:"From scene to short clip", desc:"Generate a first frame, then animate it with a separate motion brief.",
    thumb:"examples/gallery/photo-to-video/preview.webp",
    graph:{ v:1,
@@ -20719,6 +20773,7 @@ $("signout").onclick = ()=> setKey(null);
       if(t.videoInputs) ins.push("clip1:video, clip2:video, …");
       if(t.refInputs) ins.push("ref1:image, ref2:image, … (when model supports reference images)");
       if(t.endFrame) ins.push("endframe:image (when model supports last_image morph)");
+      if(t.charInput) ins.push("image:image (character still — image+video->video models like wan-22-animate)");
       if(t.imageInputs){
         if(t.imageInputs === "vision" || t.imageInputs === true)
           ins.push("img1:image, … (vision models grow ports as needed)");
@@ -20900,6 +20955,7 @@ $("signout").onclick = ()=> setKey(null);
       if(t.audioInput && port==="audio") return true;
       if(t.videoInput && port==="video") return true;
       if(t.endFrame  && port==="endframe") return true;
+      if(t.charInput && port==="image") return true;
       if(t.refInputs && REF_PORT_RE.test(port)) return true;
       return textFieldPorts(type).includes(port);
     };

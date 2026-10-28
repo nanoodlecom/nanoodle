@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "source": "examples-gallery",
-  "graphCount": 25,
-  "edgeCount": 153,
+  "graphCount": 26,
+  "edgeCount": 159,
   "typeToType": {
-    "text→image": 27,
-    "image→ivideo": 9,
-    "text→ivideo": 7,
-    "ivideo→vedit": 2,
+    "text→image": 29,
+    "image→ivideo": 10,
+    "text→ivideo": 8,
+    "ivideo→vedit": 3,
     "text→vedit": 1,
     "text→llm": 10,
     "llm→image": 5,
@@ -39,6 +39,7 @@
     "image→llm": 2,
     "edit→llm": 2,
     "edit→resize": 2,
+    "image→vedit": 1,
     "text→tts": 1,
     "image→lipsync": 1,
     "tts→lipsync": 1,
@@ -46,10 +47,10 @@
     "image→tvideo": 3
   },
   "portPair": {
-    "text.text→image.prompt": 27,
-    "image.image→ivideo.image": 8,
-    "text.text→ivideo.prompt": 7,
-    "ivideo.video→vedit.video": 2,
+    "text.text→image.prompt": 29,
+    "image.image→ivideo.image": 9,
+    "text.text→ivideo.prompt": 8,
+    "ivideo.video→vedit.video": 3,
     "text.text→vedit.prompt": 1,
     "text.text→llm.prompt": 10,
     "llm.text→image.prompt": 5,
@@ -88,6 +89,7 @@
     "image.image→llm.img1": 2,
     "edit.image→llm.img2": 2,
     "edit.image→resize.image": 2,
+    "image.image→vedit.image": 1,
     "text.text→tts.prompt": 1,
     "image.image→lipsync.image": 1,
     "tts.audio→lipsync.audio": 1,
@@ -98,8 +100,8 @@
   },
   "topTargets": {
     "text|text": {
-      "image|prompt": 27,
-      "ivideo|prompt": 7,
+      "image|prompt": 29,
+      "ivideo|prompt": 8,
       "vedit|prompt": 1,
       "llm|prompt": 10,
       "join|a": 7,
@@ -111,7 +113,7 @@
       "lipsync|prompt": 1
     },
     "image|image": {
-      "ivideo|image": 8,
+      "ivideo|image": 9,
       "edit|image": 9,
       "resize|image": 3,
       "model3d|image": 1,
@@ -120,13 +122,14 @@
       "edit|image4": 1,
       "ivideo|endframe": 1,
       "llm|img1": 2,
+      "vedit|image": 1,
       "lipsync|image": 1,
       "tvideo|ref1": 1,
       "tvideo|ref2": 1,
       "tvideo|ref3": 1
     },
     "ivideo|video": {
-      "vedit|video": 2,
+      "vedit|video": 3,
       "vframes|video": 1
     },
     "llm|text": {
@@ -192,6 +195,7 @@
     },
     "vedit": {
       "inputs": [
+        "image",
         "prompt",
         "video"
       ],

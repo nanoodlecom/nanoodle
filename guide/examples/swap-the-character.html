@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Swap the character, keep the performance — nanoodle</title>
+<meta name="description" content="Recast a clip: keep someone&#39;s dance, gesture or walk, the camera move and the location, but have a different character perform it, from just one picture of that character. Reported saved run: $0.447." />
+
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="nanoodle" />
+<meta property="og:title" content="Swap the character, keep the performance — nanoodle" />
+<meta property="og:description" content="Recast a clip: keep someone&#39;s dance, gesture or walk, the camera move and the location, but have a different character perform it, from just one picture of that character. Reported saved run: $0.447." />
+<meta property="og:url" content="https://nanoodle.com/guide/examples/swap-the-character" />
+<meta property="og:image" content="https://nanoodle.com/og-card.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Neon noodles rising from a ramen bowl into glowing workflow cables, with the nanoodle logo" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Swap the character, keep the performance — nanoodle" />
+<meta name="twitter:description" content="Recast a clip: keep someone&#39;s dance, gesture or walk, the camera move and the location, but have a different character perform it, from just one picture of that character. Reported saved run: $0.447." />
+<meta name="twitter:image" content="https://nanoodle.com/og-card.png" />
+
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="canonical" href="https://nanoodle.com/guide/examples/swap-the-character" />
+<link rel="stylesheet" href="/guide/guide.css" />
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <a class="logo" href="/"><span class="nano">NaNo</span>odle</a>
+    <div class="spacer"></div>
+    <a class="ghost" href="/">Open editor →</a>
+  </header>
+
+  <nav class="crumbs"><a href="/">Home</a> / <a href="/guide/">Guide</a> / <a href="/guide/examples/">Steal a noodle</a> / <span>Swap the character, keep the performance</span></nav>
+
+  <main>
+    <h1><span class="grad">Swap the character, keep the performance</span></h1>
+    <p class="lede">Recast a clip: keep someone&#39;s dance, gesture or walk, the camera move and the location, but have a different character perform it, from just one picture of that character.</p>
+
+    <section>
+      <p class="meta-row">A cartoon dancer&#39;s routine re-performed by a plush fox, same plaza, same camera move · 2026-10-27 · Reported saved run: $0.447. <code>meta/muse-image/text-to-image</code> · <code>minimax/h3-max-turbo</code> · <code>wan-22-animate</code></p>
+      <p>The Video edit node grows a &lt;em&gt;character&lt;/em&gt; image port when you pick an image+video model like Wan 2.2 Animate. Wire the performance clip into &lt;em&gt;video&lt;/em&gt; and the character still into &lt;em&gt;character&lt;/em&gt;, and set the model&#39;s mode to &lt;em&gt;replace&lt;/em&gt; so the character is placed into the original scene. (&lt;em&gt;animate&lt;/em&gt; mode instead moves your still, with its own background.)</p>
+
+      <h2>Saved result</h2>
+      <div class="media sequence">
+          <figure><a href="/examples/gallery/swap-the-character/plaza.webp"><img src="/examples/gallery/swap-the-character/plaza.webp" alt="1. Dancer still: Muse 16:9 · reported $0.011 — Swap the character, keep the performance" loading="lazy" /></a><figcaption>1. Dancer still: Muse 16:9 · reported $0.011 · <a href="/examples/gallery/swap-the-character/plaza.webp" download>Download</a></figcaption></figure>
+          <figure><video controls playsinline preload="none" poster="/examples/gallery/swap-the-character/preview.webp" aria-label="2. Performance clip: H3 Max Turbo, 480p 5 s · reported $0.125 — Swap the character, keep the performance"><source src="/examples/gallery/swap-the-character/dancer.mp4" type="video/mp4"></video><figcaption>2. Performance clip: H3 Max Turbo, 480p 5 s · reported $0.125 · <a href="/examples/gallery/swap-the-character/dancer.mp4" download>Download</a></figcaption></figure>
+          <figure><a href="/examples/gallery/swap-the-character/fox.webp"><img src="/examples/gallery/swap-the-character/fox.webp" alt="3. New character: Muse 16:9 · reported $0.011 — Swap the character, keep the performance" loading="lazy" /></a><figcaption>3. New character: Muse 16:9 · reported $0.011 · <a href="/examples/gallery/swap-the-character/fox.webp" download>Download</a></figcaption></figure>
+          <figure><video controls playsinline preload="none" poster="/examples/gallery/swap-the-character/preview.webp" aria-label="4. Same performance by the fox: Wan 2.2 Animate, replace, 480p · reported $0.30 — Swap the character, keep the performance"><source src="/examples/gallery/swap-the-character/fox-dance.mp4" type="video/mp4"></video><figcaption>4. Same performance by the fox: Wan 2.2 Animate, replace, 480p · reported $0.30 · <a href="/examples/gallery/swap-the-character/fox-dance.mp4" download>Download</a></figcaption></figure>
+        </div>
+
+      <div class="callout"><p>The first nodes just make a performance clip to swap into. Muse paints an invented cartoon street dancer (mustard raincoat, green beanie, jeans, red sneakers) in a pastel cobblestone plaza with a fountain and string lights, and MiniMax H3 Max Turbo (480p, 5 s) animates him: a slow push-in while he steps side to side, throws his arms up, spins once and bows. A second Muse still shows the new character, a plush felt fox with a knitted mustard scarf, on a plain backdrop at the same 16:9. The Video edit node sends the clip and the fox to Wan 2.2 Animate in replace mode. The fox takes over the whole performance: the side steps, the raised arms, the spin and the bow land on the same beats. The plaza, the fountain, the string lights, the camera push-in and the clip&#39;s sound all stay as they were. Compare the two clips side by side. Flaws: the fox is not a small plush toy any more. Wan stretches it to the dancer&#39;s human height and limb length, so it reads as a person in a fox mascot suit, with long thin legs and black boots. The fluffy tail almost disappears; only a white tip shows briefly from behind. The back view during the spin smears, and the bow ends with the head buried and the paws over the face rather than a clear bow. The result is 832×464 at 30 fps, a little smaller than the 832×480 source. It billed 6 s ($0.30) for the 5.18 s source clip. To use your own footage, delete the dancer nodes and wire a 📹 Video input into the Video edit node; to use your own character, wire a 📷 Image input into its character port. Keep the clip and the character image the same aspect ratio. Every still and sampled video frame was checked and is SFW (invented cartoon characters, fully clothed; no real people, text or logos). Inspired by @ComfyUI&#39;s OPENjutsu post (https://x.com/ComfyUI/status/2114843030364795231). No media from that post is used.</p></div>
+
+
+
+      <h2>Make it yours</h2>
+      <ol class="input-list">
+        <li>Open the graph — save first if the canvas already has your work. Undo brings yours back.</li>
+        <li>Change the performer in <em>Dancer · prompt</em> and the dance in <em>Performance · motion prompt</em>, or delete those nodes and wire a 📹 Video input with your own clip into Video edit. Describe a different character in <em>New character · prompt</em>, or wire a 📷 Image input into the character port. Use a full-body character on a plain background, at the same aspect ratio as the clip, with the pose roughly matching the performer's first frame.</li>
+        <li>Check the editor estimate, then run with your NanoGPT key. Two Muse stills at $0.011 each + H3 Max Turbo 480p 5 s for $0.125 + Wan 2.2 Animate replace at 480p for $0.30 (it billed 6 s at $0.05/s for the 5.18 s clip) = $0.447. With your own clip and character image only the swap is paid: about $0.05 per second at 480p.</li>
+        <li>Play the two clips side by side and step through the spin: the moves and camera should match beat for beat. Check whether the character kept its proportions and details (here the fox grows to the dancer's height and loses most of its tail), and look at fast turns for smearing.</li>
+      </ol>
+
+
+      <div class="cta">
+        <a class="primary" href="https://nanoodle.com/#g=H4sIAAAAAAAAA9VYTW4bNxjd5xQfvGkCzEi2ZCuOu2nRtGjQJg6QtFkUWVAajoYxh5ySHMly4G0P0B6gxwi67VF6gh6h7-OMJY1tOeN0FRiQNCTn--N7jx_9_gHR3mLvhA4S_mVsJj2efsED0fv4iWGVYWxvlioTpAl7ydV4WFUyztiy7EycY_Rwf_24wmN68GQzsGSPB8ebgVxJnbHnK59sXZ4Htv5qKSoKhaRZIZyYBekSOpOyGauky60rhZnJAb3GQK6cDxQToXc1fpbiTJKgI_Lbi2mmVUUPBT2vvSQflNZkcxKGlFkgF5nRTLhgraGM1zv657ff6fsxPRfn9Lp2U5vQ4fF-9QivZHTDDBm53MTLfipd-4Jye_6oifNnlUlLMlNNsOSlyTxNbSgoWHqDQEaDEX1tVCmCRFDkZKUFAi-x-iTmDmMUkJ0nu4ATHmpi_cJj1UL6hJaF0rIplBYXImnqKErpRFwSo-cxb2v88kGsEJ4lzmZla0d2aWKpEsqklkFueWmLzBaWynGN__3zj7_axJSp6oBP5LLJ9EtOrWt6s6UbGx_oWSnmctuGCn6rnJV1YUA_MAaagnECSIqEr-QskBNB2QE9M76C0YymK_rqG1vmq5-eoTSnL7998a4OvoYdH06oCKHyJ8Ph-QA4HrbrhihFqP1wdHBweHw43sff5PDxk6PR-GANc2Lka-sYpCuptV3utTOX8fsyuY1GVepn0sibLIp4X48a5MOjT5ta__2BKmfL6m6SHXYpNh71Y9iP1p6dYPNXWl2gXOOn2NSIu4xyiTI4ppUuE6AkR3UZKpjyhagYY1gYmE9ilWoFrvGLTgnN8BOupLnVmTRpwXuu1bwICVXCB6kpVg_L5iAcYJrJCpsJ-sRYB_SK63QCTPhSaF49nWrpgzVAIYPH_1oLxkxoXVB0sVQwgnfiuhyxBqHM2qUvbJU7a0IDXB-cMvMmLM-IaQjCAuCYDcxJtnNDFPCilKFlQgJ_WpizFQMb5qAwTRjrkl69hj1k8CprkHZea71C4QBhLAHFwUkolnBZ2sAJQFZmZkVgB3M4NHRmIBhTif2RCU11LekdHppkGOreSCiCQy7fI2oPWcFL7AhMyVaE1EsqpMiYiagF-NsEWrG0iLi1VChsdS5mXJmNXiAGV3o40eIcjlD1gu2D3HD2Bl9UguN1yWYDT8uVJC0XUg_ohSXGWgLJIG3n1sdfnDfILG2l5aAPdXYQR7Fa7GROI8rgD0v0dfZ06TPq0mf0kQOKlVizp1IGMcTWyTSGMuRc02DTbmB4wwMM_MLB5OTJ9vhCgDARFXG2n4ywfvdVkZdbJx9KUVp21kdRxpPPUVIGdArSzkBzZWpb-waTEenA3axmrr_enIQeXAMTK5zQIAQTESzInMpZJeAgsDqBMEwGLfPQvNyRgHh0-i2mwUruYB7nCy-VVcOVyDt8J8xtL9sTPzKrQCKNKFWKGd2Q0cJ6PLZhTxkVI2wlbqoiPwU0bCbY7ZJ1EfKxxdq2KWplEKYdh8lFR8Lrw39bBWmOanQpe2-ionboSG5h6oJ7gbvhGRszYHS714qtVhenjyd3cne835e7inF5PizGKb7SwO62qdlyBCu3R530VtdMIp7pRIfZrI4dSJw72p4ANkXsr9_2Yjh3PH0Z_qLTcPZrFybHnyO5d_YLp52D-qoW3ECsm28QZEVTRASzTEWtcrArHvTMgLpy7BCko7DErJx7ijEKvjt4a5L2uOS8sJcGXWoudQDvYxMwc1KUOJ51S66yvrjQ8aAWs7NmZSWWnpfmus7zFTfoQaZBVRViBkV10nY70zqgg-FDlJfHO8a15oBbAc7Uo7nIB_Rd95CXwnnOMGeNunnGq9DriOe-Ox7xSdsUyQyL5pAS3Ky4rlFUuBq8dekc6oJq1pmyNEXKGdqd-zcHvSTmdm7saAVukOPjvcBk8hk1Ax5X5JvFWPCd62Yx4n0aNbh-x3zY3jAfdQuDC9C1lmD_E6V2KUw6GqWtVvxfkY1mT6vQ9dZO8AttOnvrucseSozPt_FfIVqZs53_CtGbS-Aes62bsGkDuH7T40TR_K81_MrzZuPs7YZ2mmnr1gMhetQn4p2OGvD2Dvja-b_T0F0Bj_uVuNMFf3KFdwd8jxIf9ou4o1yfHPEuK_eI96hPvLsr0_Ry_UG8rVE7zdwV76RPvLvqck8E74r2NvyyZjy4fPAfAQXl4EwVAAA">Open this noodle →</a>
+        <a class="secondary" href="/examples/gallery/#swap-the-character">See the reviewed run</a>
+      </div>
+      <p class="howto-note"><a href="/examples/gallery/swap-the-character/workflow.json" download>Download workflow</a>
+        · <a href="/examples/gallery/swap-the-character/graph.json" download>Original sampled graph</a>
+        · <a href="https://mcp.nanoodle.com/#swap-the-character">Explore MCP tools</a>
+        · <a href="https://github.com/nanoodlecom/awesome-noodles">awesome-noodles</a></p>
+      <nav class="next">
+        <a href="/guide/examples/">← All examples</a>
+        <a href="/guide/examples/grok-heygen-minimax-video-arena">Grok Imagine 1.5 Lite vs HeyGen Video 1 vs MiniMax H3: same prompt, side by side</a>
+        <a href="/guide/examples/radio-play">Radio play: two voices, one Speech node →</a>
+        <a href="/examples/gallery/#swap-the-character">Reviewed run</a>
+      </nav>
+    </section>
+  </main>
+
+  <footer>
+    <span>Made with <a href="https://nano-gpt.com/r/mgzwtqjw" target="_blank" rel="noopener">NanoGPT</a></span>
+    <span>· No analytics · Your key stays on your device</span>
+    <div class="spacer"></div>
+    <a href="https://github.com/nanoodlecom/nanoodle" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.reddit.com/user/dividebynano" target="_blank" rel="noopener">Contact</a>
+    <a href="/">Home</a>
+  </footer>
+
+</div>
+</body>
+</html>
