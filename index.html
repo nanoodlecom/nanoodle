@@ -19118,6 +19118,7 @@ function onWorkspaceHash(){
     try{ flash("can’t change the workflow while running — Stop first"); }catch(_){}
     return false;
   }
+  if(typeof importHashOnce==="function") return importHashOnce();
   if(typeof loadFromHash!=="function") return false;
   return loadFromHash();
 }
@@ -19148,6 +19149,16 @@ function noteFreshWorkspaceName(){
 }
 /* WORKSPACES-END */
 
+// Single-flight, keyed on the hash: a share link held during restore is
+// replayed AND seen by normal boot; both must resolve to one import.
+let wsHashImport = null;
+function importHashOnce(){
+  const h = (typeof location!=="undefined" && location.hash) || "";
+  if(wsHashImport && wsHashImport.hash===h) return wsHashImport.p;
+  const p = Promise.resolve().then(()=>loadFromHash());
+  wsHashImport = { hash:h, p };
+  return p;
+}
 async function loadFromHash(){
   const storage = typeof workspaceStorage==="object" ? workspaceStorage : localStorage;
   const h = location.hash; let json=null, ga=false;
@@ -20665,7 +20676,7 @@ $("signout").onclick = ()=> setKey(null);
         const ra = sessionStorage.getItem(RESUME_APPID_KEY); if(ra) setPendingApp(ra, sessionStorage.getItem(RESUME_APPTITLE_KEY) || null);   // keep the edit-workflow link across login
       } }catch(_){}
   try{ sessionStorage.removeItem(RESUME_APPID_KEY); sessionStorage.removeItem(RESUME_APPTITLE_KEY); }catch(_){}
-  if(!restored && location.hash.length > 3){ restored = await loadFromHash();   // opened a shared link
+  if(!restored && location.hash.length > 3){ restored = await importHashOnce();   // opened a shared link (single-flight with the held replay)
     if(restored) fitView(hintPad());   // always frame the sharer's graph for THIS screen — the visitor hasn't positioned it (same as loadDefault); hintPad() reserves the first-run banner if it's up
   }
   if(!restored && (restored = load())){                          // else last local graph...

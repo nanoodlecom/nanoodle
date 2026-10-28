@@ -144,6 +144,40 @@ for (const [name, actions] of Object.entries(SCENARIOS)) {
   ok(!/INTRUDER/.test(all), `${name}: nothing was opened mid-restore`);
 }
 
+// 4. Ember's P2: a compressed share link that lands mid-restore is held,
+// replayed, AND seen by normal boot. It must import exactly once.
+{
+  const { gzipSync } = await import("node:zlib");
+  const SHARE = "#g=" + gzipSync(Buffer.from(g("SHARED LINK"))).toString("base64url");
+  const COUNT = `(() => { const d = readWorkspaces(); let n = 0;
+    for (const t of d.tabs) { const j = t.id === d.active ? JSON.stringify(serializeGraph()) : String(workspaceStorage.getItem("noodle_ws_" + t.id)); if (j.includes("SHARED LINK")) n++; }
+    return { n, tabs: d.tabs.length, hash: location.hash }; })()`;
+  for (const how of ["hashchange", "url"]) {
+    if (how === "url") await send("Page.navigate", { url: origin + "/?product=off&na=0&share=url" + SHARE });
+    else {
+      await send("Page.navigate", { url: origin + "/?product=off&na=0&share=hc" });
+      for (let i = 0; i < 80; i++) { if (await evaluate(`typeof onWorkspaceHash==="function" && !!document.getElementById("wstabs")`)) break; await sleep(25); }
+      await evaluate(`location.hash = ${JSON.stringify(SHARE)}; true`);
+    }
+    await sleep(2500);
+    await evaluate(READY);
+    await sleep(1000);
+    let c = await evaluate(COUNT);
+    ok(c && c.n === 1, `share/${how}: mid-restore link imported exactly once, got ${JSON.stringify(c)}`);
+    await evaluate(`(async()=>{ flushSave(); try{ await settleWorkspaceStorage(); }catch(_){} await new Promise(r=>setTimeout(r,800)); })()`);
+    await navigate(origin + "/?product=off&na=0&after=share-" + how);
+    await sleep(2500);
+    await evaluate(READY);
+    c = await evaluate(COUNT);
+    ok(c && c.n === 1, `share/${how}: still exactly one imported tab after reload, got ${JSON.stringify(c)}`);
+    s = await evaluate(DUMP);
+    const ids = s ? s.tabs.map(t => t.split(":")[0]) : [];
+    ok(ids.includes("w1") && ids.includes("w2"), `share/${how}: w1 and w2 still there`);
+    // drop the imported tab so the next variant starts from the same two
+    await evaluate(`(async()=>{ const d = readWorkspaces(); for (const t of d.tabs) if (t.id!=="w1" && t.id!=="w2") { try{ closeWorkspace(t.id); }catch(_){} } flushSave(); try{ await settleWorkspaceStorage(); }catch(_){} await new Promise(r=>setTimeout(r,800)); })()`);
+  }
+}
+
 if (failures.length) { console.error("✗ check-workspaces-restore-race:\n- " + failures.join("\n- ")); done(1); }
-console.log("✓ check-workspaces-restore-race: strip, Examples and direct opens during a slow IndexedDB restore leave both workspaces, graphs and the upload intact");
+console.log("✓ check-workspaces-restore-race: strip, Examples, direct opens and a share link (imported once) during a slow IndexedDB restore leave both workspaces, graphs and the upload intact");
 done(0);
