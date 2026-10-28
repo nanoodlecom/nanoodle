@@ -2313,6 +2313,7 @@ const I18N = {
     "Couldn’t open a new workspace — your current workflow is unchanged.":"No se pudo abrir un espacio nuevo — tu flujo actual no cambió.",
     "Couldn’t switch — this browser couldn’t store the workspace.":"No se pudo cambiar — este navegador no pudo guardar el espacio.",
     "Couldn’t save that workspace change.":"No se pudo guardar ese cambio de espacio.",
+    "This browser can’t store workspaces right now, so these tabs last for this visit only. Nothing was deleted. Save each workflow before refreshing.":"Este navegador no puede guardar espacios ahora, así que estas pestañas duran solo esta visita. No se borró nada. Guarda cada flujo antes de recargar.",
     "Couldn’t store workspaces in this browser. This tab stays open for this visit; nothing was deleted.":"No se pudieron guardar los espacios en este navegador. Esta pestaña sigue abierta en esta visita; no se borró nada.",
     "Blank canvas is this tab.":"El lienzo en blanco es esta pestaña.",
     "Close “{name}”? This removes it from this browser.":"¿Cerrar “{name}”? Se eliminará de este navegador.",
@@ -3069,6 +3070,7 @@ const I18N = {
     "Couldn’t open a new workspace — your current workflow is unchanged.":"Impossible d’ouvrir un nouvel espace — votre workflow actuel est inchangé.",
     "Couldn’t switch — this browser couldn’t store the workspace.":"Impossible de changer — ce navigateur n’a pas pu enregistrer l’espace.",
     "Couldn’t save that workspace change.":"Impossible d’enregistrer cette modification d’espace.",
+    "This browser can’t store workspaces right now, so these tabs last for this visit only. Nothing was deleted. Save each workflow before refreshing.":"Ce navigateur ne peut pas enregistrer les espaces pour l’instant : ces onglets ne durent que cette visite. Rien n’a été supprimé. Enregistrez chaque flux avant d’actualiser.",
     "Couldn’t store workspaces in this browser. This tab stays open for this visit; nothing was deleted.":"Impossible d’enregistrer les espaces dans ce navigateur. Cet onglet reste ouvert pour cette visite ; rien n’a été supprimé.",
     "Blank canvas is this tab.":"Le canevas vide est cet onglet.",
     "Close “{name}”? This removes it from this browser.":"Fermer « {name} » ? Cela le retire de ce navigateur.",
@@ -3825,6 +3827,7 @@ const I18N = {
     "Couldn’t open a new workspace — your current workflow is unchanged.":"Neuer Arbeitsbereich ließ sich nicht öffnen — dein aktueller Workflow ist unverändert.",
     "Couldn’t switch — this browser couldn’t store the workspace.":"Wechseln nicht möglich — dieser Browser konnte den Arbeitsbereich nicht speichern.",
     "Couldn’t save that workspace change.":"Diese Arbeitsbereich-Änderung ließ sich nicht speichern.",
+    "This browser can’t store workspaces right now, so these tabs last for this visit only. Nothing was deleted. Save each workflow before refreshing.":"Dieser Browser kann gerade keine Arbeitsbereiche speichern, daher gelten diese Tabs nur für diesen Besuch. Es wurde nichts gelöscht. Speichere jeden Workflow vor dem Neuladen.",
     "Couldn’t store workspaces in this browser. This tab stays open for this visit; nothing was deleted.":"Arbeitsbereiche ließen sich in diesem Browser nicht speichern. Dieser Tab bleibt für diesen Besuch offen; es wurde nichts gelöscht.",
     "Blank canvas is this tab.":"Die leere Fläche ist dieser Tab.",
     "Close “{name}”? This removes it from this browser.":"„{name}“ schließen? Das entfernt ihn aus diesem Browser.",
@@ -4581,6 +4584,7 @@ const I18N = {
     "Couldn’t open a new workspace — your current workflow is unchanged.":"Não foi possível abrir um espaço novo — seu fluxo atual não mudou.",
     "Couldn’t switch — this browser couldn’t store the workspace.":"Não foi possível trocar — este navegador não conseguiu guardar o espaço.",
     "Couldn’t save that workspace change.":"Não foi possível guardar essa alteração de espaço.",
+    "This browser can’t store workspaces right now, so these tabs last for this visit only. Nothing was deleted. Save each workflow before refreshing.":"Este navegador não consegue guardar espaços agora, por isso estas abas duram só esta visita. Nada foi apagado. Guarde cada fluxo antes de recarregar.",
     "Couldn’t store workspaces in this browser. This tab stays open for this visit; nothing was deleted.":"Não foi possível guardar os espaços neste navegador. Esta aba fica aberta nesta visita; nada foi apagado.",
     "Blank canvas is this tab.":"A tela em branco é esta aba.",
     "Close “{name}”? This removes it from this browser.":"Fechar “{name}”? Isso o remove deste navegador.",
@@ -5337,6 +5341,7 @@ const I18N = {
     "Couldn’t open a new workspace — your current workflow is unchanged.":"新しいワークスペースを開けませんでした — 今のワークフローはそのままです。",
     "Couldn’t switch — this browser couldn’t store the workspace.":"切り替えできませんでした — このブラウザはワークスペースを保存できませんでした。",
     "Couldn’t save that workspace change.":"そのワークスペースの変更を保存できませんでした。",
+    "This browser can’t store workspaces right now, so these tabs last for this visit only. Nothing was deleted. Save each workflow before refreshing.":"このブラウザは現在ワークスペースを保存できないため、これらのタブはこの訪問のあいだだけ有効です。何も削除していません。再読み込みの前に各ワークフローを保存してください。",
     "Couldn’t store workspaces in this browser. This tab stays open for this visit; nothing was deleted.":"このブラウザにワークスペースを保存できませんでした。このタブはこの訪問のあいだ開いたままです。何も削除していません。",
     "Blank canvas is this tab.":"空白のキャンバスはこのタブです。",
     "Close “{name}”? This removes it from this browser.":"「{name}」を閉じますか？このブラウザから削除されます。",
@@ -17546,7 +17551,12 @@ function wsPersistenceNotice(saving){
       wsQueuePersist();
     };
     box.title = wsT("Save backs up the workflow and uploaded inputs. Generated results are kept for this visit only.");
-    text.textContent = wsT(saving ? "Saving workspaces in this browser…" : wsRestoreFailed
+    // A browser that cannot open IndexedDB at all (private mode, blocked
+    // storage, a full disk) has nothing to "restore": say it is session-only.
+    const noStore = wsRestoreFailed && /^(BrowserStorageUnavailable|BrowserStorageTimeout|SecurityError|InvalidStateError|UnknownError|QuotaExceededError)$/.test(String(wsPersistFailure||""));
+    text.textContent = wsT(saving ? "Saving workspaces in this browser…" : noStore
+      ? "This browser can’t store workspaces right now, so these tabs last for this visit only. Nothing was deleted. Save each workflow before refreshing."
+      : wsRestoreFailed
       ? "Saved workspaces could not be restored. Save this visit’s workflows before refreshing, or retry recovery."
       : "These workspaces are available for this visit only. Save each workflow before refreshing.");
     placeWorkspaceCloseNotice();
@@ -18074,9 +18084,14 @@ function graphPayloadOk(g){
   }
   return true;
 }
-function ensureWorkspaces(){
+function ensureWorkspaces(opts){
   const existing = readWorkspaces();
-  if(existing) return existing;
+  if(existing){
+    // A boot-time index kept only in memory (localStorage full before the IDB
+    // overflow was armed) gets written now that workspaceStorage can overflow.
+    if(workspaceMemory && wsStorageEnabled){ try{ writeWorkspaces(existing); }catch(_){} }
+    return existing;
+  }
   let raw = null;
   try{ raw = workspaceStorage.getItem("noodle_graph"); }catch(_){}
   const named = nameFromGraphJson(raw);
@@ -18089,7 +18104,10 @@ function ensureWorkspaces(){
     // so the tab strip never rendered and the plus button never got a handler.
     // Keep the default tab in memory, warn, and delete nothing.
     workspaceMemory = d;
-    try{ wsStorageError("index"); }catch(_){}
+    // The pre-restore boot pass is quiet: before initWorkspaceStorage arms the
+    // IndexedDB overflow a full localStorage is expected to throw, and the
+    // post-restore pass retries through the overflow (#762 regression).
+    if(!(opts && opts.quiet)){ try{ wsStorageError("index"); }catch(_){} }
     return d;
   }
   return d;
@@ -20542,7 +20560,7 @@ $("signout").onclick = ()=> setKey(null);
    ====================================================================== */
 (async ()=>{
   buildAddMenu();
-  try{ ensureWorkspaces(); }catch(_){}
+  try{ ensureWorkspaces({ quiet:true }); }catch(_){}
   try{ renderWorkspaces(); }catch(_){}
   try{ bindWorkspaceChrome(); }catch(_){}
   // Restoring the durable workspace precedes edits. Plus remains available and
