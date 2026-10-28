@@ -2175,6 +2175,7 @@ const I18N = {
     "✂ trimmed {from} → {to} characters to fit":"✂ recortado de {from} → {to} caracteres para que quepa",
     "{model} takes prompts of at most {cap} characters — noted. Run again: a longer prompt is trimmed to fit, and the node says so.":"{model} admite prompts de como máximo {cap} caracteres — anotado. Ejecuta de nuevo: un prompt más largo se recorta para que quepa, y el nodo lo indica.",
     "can’t delete while running — Stop first":"no se puede eliminar mientras se ejecuta — detén primero",
+    "still loading your saved workspaces — try again in a moment":"todavía cargando tus espacios de trabajo guardados — inténtalo de nuevo en un momento",
     "can’t change the workflow while running — Stop first":"no se puede cambiar el flujo de trabajo mientras se ejecuta — detén primero",
     "couldn’t read that file":"no se pudo leer ese archivo",
     "stopping…":"deteniendo…",
@@ -2932,6 +2933,7 @@ const I18N = {
     "✂ trimmed {from} → {to} characters to fit":"✂ raccourci de {from} → {to} caractères pour tenir",
     "{model} takes prompts of at most {cap} characters — noted. Run again: a longer prompt is trimmed to fit, and the node says so.":"{model} accepte des prompts de {cap} caractères au maximum — noté. Relancez : un prompt plus long est raccourci pour tenir, et le nœud le signale.",
     "can’t delete while running — Stop first":"impossible de supprimer pendant l'exécution — arrêtez d'abord",
+    "still loading your saved workspaces — try again in a moment":"chargement de vos espaces de travail enregistrés — réessayez dans un instant",
     "can’t change the workflow while running — Stop first":"impossible de modifier le flux de travail pendant l'exécution — arrêtez d'abord",
     "couldn’t read that file":"impossible de lire ce fichier",
     "stopping…":"arrêt…",
@@ -3689,6 +3691,7 @@ const I18N = {
     "✂ trimmed {from} → {to} characters to fit":"✂ von {from} → {to} Zeichen gekürzt, damit es passt",
     "{model} takes prompts of at most {cap} characters — noted. Run again: a longer prompt is trimmed to fit, and the node says so.":"{model} nimmt Prompts von höchstens {cap} Zeichen — notiert. Erneut ausführen: ein längerer Prompt wird passend gekürzt, und der Node sagt es.",
     "can’t delete while running — Stop first":"kann nicht löschen, während es läuft — zuerst stoppen",
+    "still loading your saved workspaces — try again in a moment":"gespeicherte Arbeitsbereiche werden noch geladen — gleich noch einmal versuchen",
     "can’t change the workflow while running — Stop first":"Arbeitsablauf kann während der Ausführung nicht geändert werden — zuerst stoppen",
     "couldn’t read that file":"diese Datei konnte nicht gelesen werden",
     "stopping…":"wird gestoppt…",
@@ -4446,6 +4449,7 @@ const I18N = {
     "✂ trimmed {from} → {to} characters to fit":"✂ cortado de {from} → {to} caracteres para caber",
     "{model} takes prompts of at most {cap} characters — noted. Run again: a longer prompt is trimmed to fit, and the node says so.":"{model} aceita prompts de no máximo {cap} caracteres — anotado. Execute de novo: um prompt maior é cortado para caber, e o node avisa.",
     "can’t delete while running — Stop first":"não é possível excluir durante a execução — pare primeiro",
+    "still loading your saved workspaces — try again in a moment":"ainda carregando seus espaços de trabalho salvos — tente novamente em instantes",
     "can’t change the workflow while running — Stop first":"não é possível alterar o fluxo de trabalho durante a execução — pare primeiro",
     "couldn’t read that file":"não foi possível ler esse arquivo",
     "stopping…":"parando…",
@@ -5203,6 +5207,7 @@ const I18N = {
     "✂ trimmed {from} → {to} characters to fit":"✂ 収めるため{from} → {to}文字に短縮",
     "{model} takes prompts of at most {cap} characters — noted. Run again: a longer prompt is trimmed to fit, and the node says so.":"{model}のプロンプト上限は{cap}文字です — 記録しました。もう一度実行すると、長いプロンプトは収まるよう短縮され、ノードにその旨が表示されます。",
     "can’t delete while running — Stop first":"実行中は削除できません — 先に停止してください",
+    "still loading your saved workspaces — try again in a moment":"保存したワークスペースを読み込み中です — 少し待ってからもう一度お試しください",
     "can’t change the workflow while running — Stop first":"実行中はワークフローを変更できません — 先に停止してください",
     "couldn’t read that file":"そのファイルを読み込めませんでした",
     "stopping…":"停止中…",
@@ -16656,6 +16661,7 @@ const RESUME_APPTITLE_KEY = "noodle_resume_apptitle";  // and its name, for the 
 const EDITOR_APP_KEY = "noodle_editor_app";  // localStorage: {id,title} of the app THIS workflow is bound to, so the binding survives a plain reload (not just OAuth)
 let saveT=null;
 function save(){
+  if(typeof wsRestorePending!=="undefined" && wsRestorePending) return; // nothing on the canvas is the user's yet
   if(typeof invalidateWorkspaceCloseHistory==="function") invalidateWorkspaceCloseHistory();
   if(typeof syncWorkspaceCloseControls==="function") syncWorkspaceCloseControls();
   try{ syncRunFailPort(); }catch(_){}
@@ -17852,6 +17858,17 @@ function stampActiveExample(slug){
 // Set when the first index write cannot land. Storage stays untouched; the
 // strip reads this so the page still has a tab for the rest of the visit.
 let workspaceMemory = null;
+// True while boot waits for IndexedDB to hand back the saved workspaces. Any
+// tab change in that window would write a partial index that the restore
+// never merges, and the next save would overwrite the saved tabs. So every
+// workspace mutation is refused until the restore settles.
+let wsRestorePending = false;
+function wsMutationBlocked(){
+  if(!wsRestorePending) return false;
+  try{ flash(wsT("still loading your saved workspaces — try again in a moment")); }catch(_){}
+  try{ renderWorkspaces(); }catch(_){}
+  return true;
+}
 // True when this page created the first index (nothing was saved before it).
 let wsFreshIndex = false;
 let workspaceFlashId = null;
@@ -18144,6 +18161,7 @@ function stampActiveApp(){
 // Swallowing the quota error here is what made a switch store the previous autosave
 // and drop the edit that was only on screen.
 function flushSave(){
+  if(wsRestorePending) return null;
   try{ clearTimeout(saveT); }catch(_){}
   saveT = null;
   try{ if(typeof stashModel3dOuts==="function") stashModel3dOuts(); }catch(_){}
@@ -18301,6 +18319,7 @@ function openExampleWorkspace(graphData, name, slug){
   return had ? "open" : "absorb";
 }
 function switchWorkspace(id){
+  if(wsMutationBlocked()) return;
   const d = readWorkspaces();
   if(!d || d.active===id){ closeWorkspaceMenus(); return; }
   if(workspaceBusy()){ flash("can’t change the workflow while running — Stop first"); return; }
@@ -18357,6 +18376,7 @@ function switchWorkspace(id){
   invalidateWorkspaceCloseHistory();
 }
 function closeWorkspace(id,opts){
+  if(wsMutationBlocked()) return;
   wsCloseHistoryMute++;
   try{return closeWorkspaceNow(id,opts);}finally{wsCloseHistoryMute--;}
 }
@@ -18472,6 +18492,7 @@ function closeWorkspaceNow(id,opts){
   recordClosedWorkspace(closed,opts);return true;
 }
 function renameWorkspace(id, name, opts){
+  if(wsMutationBlocked()) return;
   const d = readWorkspaces();
   if(!d) return;
   const tab = d.tabs.find(t => t.id===id);
@@ -18497,6 +18518,7 @@ function renameWorkspace(id, name, opts){
   if(!opts || opts.render!==false){ try{ renderWorkspaces(); }catch(_){} }
 }
 function commitReorder(id, toIndex){
+  if(wsMutationBlocked()) return;
   const d = readWorkspaces();
   if(!d) return;
   const from = d.tabs.findIndex(t => t.id===id);
@@ -18627,6 +18649,9 @@ function acknowledgeCurrentWorkspace(msg){
 function chooseWorkspace(kind){
   closeWorkspaceMenus();
   if(kind==="examples"){ if(typeof openExamples==="function") openExamples(); return; }
+  // Plus stays usable while the restore runs: hold the choice, the same way the
+  // first-visit starter does, and open it once the saved tabs are back.
+  if(wsRestorePending){ deferredWorkspaceKind = kind; return "deferred"; }
   if(workspaceBusy()){ flash("can’t change the workflow while running — Stop first"); return; }
   // The blank first paint is already tab 1. Hold the choice, and move bootGen
   // so the starter still loading cannot paint onto it. If that starter is
@@ -20572,8 +20597,9 @@ $("signout").onclick = ()=> setKey(null);
   // its existing deferred choice runs once that restore has settled.
   const topWasInert = $("top").inert, editorWasInert = editor.inert;
   $("top").inert = true; editor.inert = true;
+  wsRestorePending = true;
   try{ await initWorkspaceStorage(); }
-  finally{ $("top").inert = topWasInert; editor.inert = editorWasInert; }
+  finally{ wsRestorePending = false; $("top").inert = topWasInert; editor.inert = editorWasInert; }
   // These do not share a catch. A QuotaExceededError from the first
   // noodle_workspaces write must not skip the plus button.
   try{ ensureWorkspaces(); }catch(_){}
