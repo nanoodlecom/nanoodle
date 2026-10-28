@@ -13464,6 +13464,9 @@ function njsRunFor(type, rn, inp, n){
         // catalog knobs (MOSS negative prompt / steps / guidance / expansion) — same helper as imgExtra
         const kx = imageKnobExtra(rn.fields, (catItem("image", args.model)||{}).knobs);
         for(const k of Object.keys(kx)) if(!(k in extra)) extra[k] = kx[k];
+        // FLUX.3 Klein t2i is LoRA-capable here, but the generated njs-engine still rejects it (nanoodle-js imageTakesLora, #732). Stamp built-in LoRA keys the engine omitted; never override a key it already set.
+        const lx = loraParams(rn);
+        for(const k of Object.keys(lx)) if(!(k in extra)) extra[k] = lx[k];
         return sendImage(Object.assign({}, args, { extra }));
       };
     }
@@ -13824,7 +13827,8 @@ function loraKind(type){ return (type==="image"||type==="edit"||type==="inpaint"
 function imageTakesLora(id){
   id = String(id||"");
   if(/inpaint/i.test(id)) return false;            // flux-lora/inpainting etc. carry no lora_url
-  if(/flux-2-klein/i.test(id)) return true;         // flux-2-klein-* only (lora-capable per catalog); FLUX.3 klein takes no lora_url
+  if(/flux-2-klein/i.test(id)) return true;         // flux-2-klein-* only (lora-capable per catalog)
+  if(/flux-3\/klein\/(base\/)?text-to-image/i.test(id)) return true;  // FLUX.3 klein t2i gained lora_url_1..3 in the catalog (2026-10-27)
   if(/minimax-h3\/(text-to-image|image-edit)/i.test(id)) return true;  // wavespeed H3 image ids (no "lora" in the id)
   return /(^|[-\/])lora($|[-\/])/i.test(id);        // *-lora variants (flux-lora, *-dev-lora, p-image/*-lora)
 }
