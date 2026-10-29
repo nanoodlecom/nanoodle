@@ -60,6 +60,7 @@ function loadEditor() {
     block(IDX, "function imageAspectExtra(model, aspect){"),
     block(IDX, "function dimDefs(type, model, fields){"),
     block(IDX, "function imageKnobExtra(fields, spec){"),
+    block(IDX, "function imageModelOpts(opts) {"),
     block(IDX, "function imgExtra(n){"),
     "function loraParams(){ return {}; }",
     "function needsCustomCivitai(){ return false; }",

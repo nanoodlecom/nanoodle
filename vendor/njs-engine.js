@@ -1,5 +1,5 @@
-/* data-hash=1bb26ea68cc7197e */
-/* nanoodle-js browser engine — generated from nanoodle-js@src-ff85ffefd391 (19 modules) */
+/* data-hash=1d00c07dfab05ae3 */
+/* nanoodle-js browser engine — generated from nanoodle-js@src-7e14be627055 (20 modules) */
 (function () {
   "use strict";
   var __mods = {};
@@ -768,12 +768,18 @@ function b64ImageMime(b64) {
   if (b64.startsWith("iVBOR")) return "image/png";
   if (b64.startsWith("R0lG")) return "image/gif";
   if (b64.startsWith("UklG")) return "image/webp";
+  // SVG may start with a BOM, XML declaration, or comments. Inspect a bounded
+  // prefix as text only; no XML parsing or execution.
+  try {
+    const head = atob(b64.slice(0, 8192));
+    if (/^(?:\xef\xbb\xbf)?\s*(?:<\?xml[^>]*>\s*)?(?:<!--[\s\S]*?-->\s*)*<svg(?:\s|\/?>)/i.test(head)) return "image/svg+xml";
+  } catch { /* malformed/unknown base64 keeps the raster fallback */ }
   return "image/png";
 }
 
 const EXT_MIME = {
   ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif",
-  ".webp": "image/webp", ".bmp": "image/bmp",
+  ".webp": "image/webp", ".bmp": "image/bmp", ".svg": "image/svg+xml",
   ".mp3": "audio/mpeg", ".wav": "audio/wav", ".ogg": "audio/ogg", ".opus": "audio/ogg",
   ".aac": "audio/aac", ".flac": "audio/flac", ".m4a": "audio/mp4",
   ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime", ".mkv": "video/x-matroska",
@@ -782,7 +788,7 @@ const EXT_MIME = {
 };
 
 const MIME_EXT = {
-  "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp",
+  "image/svg+xml": "svg", "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp",
   "audio/mpeg": "mp3", "audio/wav": "wav", "audio/ogg": "ogg", "audio/aac": "aac",
   "audio/flac": "flac", "audio/mp4": "m4a",
   "video/mp4": "mp4", "video/webm": "webm", "video/quicktime": "mov",
@@ -971,6 +977,7 @@ function coerceMediaInput(value, what, opts = {}) {
 __x.MEDIA_INLINE_MAX = MEDIA_INLINE_MAX; __x.bytesToBase64 = bytesToBase64; __x.base64ToBytes = base64ToBytes; __x.b64ImageMime = b64ImageMime; __x.redactUrl = redactUrl; __x.extForMime = extForMime; __x.mimeFromExt = mimeFromExt; __x.sniffMime = sniffMime; __x.bytesToDataUrl = bytesToDataUrl; __x.dataUrlBytes = dataUrlBytes; __x.MediaRef = MediaRef; __x.mediaFromFile = mediaFromFile; __x.assertInlineMediaSize = assertInlineMediaSize; __x.coerceMediaInput = coerceMediaInput;
 });
 __def("client.mjs", function (__x, __req) {
+const { imageModelOpts } = __req("image-options.mjs");
 const { NanoodleError } = __req("errors.mjs");
 const { b64ImageMime, bytesToDataUrl, dataUrlBytes, redactUrl, sniffMime, MEDIA_INLINE_MAX } = __req("media.mjs");
 const { assertPaymentOption, parseNanoInvoice, looksLikeResult } = __req("x402.mjs");
@@ -1233,7 +1240,7 @@ class NanoClient {
     if (prompt) body.prompt = prompt; // omit when blank — upscalers run with no instruction
     if (imageDataUrl) body.imageDataUrl = imageDataUrl; // string OR array (edit multi-reference)
     if (maskDataUrl) body.maskDataUrl = maskDataUrl; // white = repaint
-    if (extra) Object.assign(body, extra);
+    Object.assign(body, imageModelOpts(extra));
     const r = await this._postJson("/v1/images/generations", body, signal);
     if (!r.ok) throw httpError(r.status, await r.text());
     const j = await r.json();
@@ -1837,6 +1844,7 @@ function topoSort(graph) {
 __x.IMG_PORT_RE = IMG_PORT_RE; __x.EDIT_IMG_RE = EDIT_IMG_RE; __x.VID_PORT_RE = VID_PORT_RE; __x.CLIP_PORT_RE = CLIP_PORT_RE; __x.REF_PORT_RE = REF_PORT_RE; __x.FRAME_PORT_RE = FRAME_PORT_RE; __x.MAX_FRAMES = MAX_FRAMES; __x.wiredFramesFloor = wiredFramesFloor; __x.NODE_TYPES = NODE_TYPES; __x.displayName = displayName; __x.optionalNode = optionalNode; __x.lockedNode = lockedNode; __x.isInputPort = isInputPort; __x.materialize = materialize; __x.topoSort = topoSort;
 });
 __def("nodes.mjs", function (__x, __req) {
+const { imageModelOpts } = __req("image-options.mjs");
 const { NanoodleError } = __req("errors.mjs");
 const { catItem, chatModelCan, pricingAdvertisesRefs } = __req("catalog.mjs");
 const { IMG_PORT_RE, EDIT_IMG_RE, REF_PORT_RE, CLIP_PORT_RE, VID_PORT_RE, optionalNode } = __req("graph.mjs");
@@ -2106,7 +2114,7 @@ function airModelTakesNegative(model) {
 
 /** Per-call image extras: LoRA params + fixed seed (when numeric) + custom-civitai AIR. */
 function imgExtra(n) {
-  const e = loraParams(n);
+  const e = { ...imageModelOpts(n.fields.modelOpts), ...loraParams(n) };
   const s = n.fields.seed;
   if (s != null && String(s).trim() !== "" && !isNaN(Number(s))) e.seed = Number(s);
   if (n.fields.model === "custom-civitai") {
@@ -2513,7 +2521,8 @@ const RUNNERS = {
       }
     }
     const prompt = promptOf(n, inp);
-    if (!prompt && !/upscal/i.test(n.fields.model || "")) throw new NanoodleError("no edit instruction");
+    if (!prompt && !/upscal/i.test(n.fields.model || "")
+        && !(n.fields.model === "ideogram/vector" && n.fields.modelOpts?.vector_operation === "convert")) throw new NanoodleError("no edit instruction");
     imgs = await Promise.all(imgs.map((u) => fitImage(u, ctx, "source image")));
     guardRefsSize(imgs);
     const src = imgs.length > 1 ? imgs : imgs[0]; // array → multi-image composite; string → single edit
@@ -5552,6 +5561,21 @@ function learnPromptCap(learned, node, msg) {
 
 __x.PROMPT_CAPS = PROMPT_CAPS; __x.promptCap = promptCap; __x.fitPromptText = fitPromptText; __x.withFittedPrompt = withFittedPrompt; __x.isPromptTooLong = isPromptTooLong; __x.promptCapFromError = promptCapFromError; __x.learnPromptCap = learnPromptCap;
 });
+__def("image-options.mjs", function (__x, __req) {
+// Model knobs may tune generation, but cannot replace node-owned request fields
+// or smuggle routing/authentication settings into an image request.
+function imageModelOpts(opts) {
+  const out = {};
+  if (!opts || typeof opts !== "object" || Array.isArray(opts)) return out;
+  for (const [key, value] of Object.entries(opts)) {
+    if (/^(?:model|prompt|size|n|responseformat|image|images|imageurl|imagedataurl|mask|maskurl|maskdataurl|key|apikey|xapikey|token|accesstoken|authorization|auth|headers|url|endpoint|baseurl|method|body|credentials|proxy|runid|requestid|isapirequest|paymentsource|paymentid|tojson|proto|prototype|constructor)$/i.test(key.replace(/[_-]/g, ""))) continue;
+    out[key] = value;
+  }
+  return out;
+}
+
+__x.imageModelOpts = imageModelOpts;
+});
 __def("decide.mjs", function (__x, __req) {
 // ⚖️ Decide — typed judgments from NanoGPT decision models (POST /api/v1/decisions).
 // Port of the editor/play twin block (nanoodle index.html / play.html "⚖️ DECIDE"): same
@@ -6217,5 +6241,5 @@ __x.MP4CAT = MP4CAT;
 __x.default = MP4CAT;
 });
   window.NanoodleEngine = __req("browser.mjs");
-  window.NanoodleEngine.version = "src-ff85ffefd391";
+  window.NanoodleEngine.version = "src-7e14be627055";
 })();
