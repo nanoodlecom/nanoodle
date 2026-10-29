@@ -147,7 +147,7 @@ function makeEl(id) {
     appendChild: (c) => c, append: () => {}, prepend: () => {}, insertBefore: (c) => c,
     removeChild: (c) => c, remove: () => {}, replaceChildren: () => {},
     setAttribute() {}, getAttribute() { return null; }, removeAttribute() {}, hasAttribute() { return false; },
-    addEventListener() {}, removeEventListener() {}, dispatchEvent() { return true; },
+    _events: {}, addEventListener(type, fn) { (this._events[type] ||= []).push(fn); }, removeEventListener() {}, dispatchEvent() { return true; },
     getBoundingClientRect: () => ({ x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 }),
     getContext: () => inert(),
     focus() {}, blur() {}, click() {}, scrollIntoView() {}, closest() { return null; },
@@ -176,7 +176,11 @@ function makeDocument() {
   const body = makeEl("body"), head = makeEl("head"), docEl = makeEl("html");
   const store = {
     _els: els, getElementById: get,
-    createElement: (tag) => makeEl("new:" + tag),
+    createElement: (tag) => {
+      const e = makeEl("new:" + tag);
+      if(tag === "textarea") Object.defineProperty(e, "value", { get: () => String(e.innerHTML || "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&") });
+      return e;
+    },
     createElementNS: (ns, tag) => makeEl("new:" + tag),
     createTextNode: (t) => ({ textContent: t, nodeType: 3 }),
     createDocumentFragment: () => makeEl("frag"),
@@ -227,7 +231,7 @@ function makeLocation(href, nav) {
     get href() { return u.href; }, set href(v) { nav.target = new URL(v, u.href).href; },
     get origin() { return u.origin; }, get protocol() { return u.protocol; },
     get host() { return u.host; }, get hostname() { return u.hostname; }, set hostname(v) { u.hostname = v; },
-    get pathname() { return u.pathname; }, get search() { return u.search; }, get hash() { return u.hash; },
+    get pathname() { return u.pathname; }, get search() { return u.search; }, get hash() { return u.hash; }, set hash(v) { u.hash=v; },
     assign: (v) => { nav.target = new URL(v, u.href).href; },
     replace: (v) => { nav.target = new URL(v, u.href).href; },
     reload: () => {}, toString: () => u.href, _url: u,
@@ -804,6 +808,152 @@ async function run() {
     record("H7 drawer browsing never rebinds the editor (no __appsaved__ for foreign apps)",
       graphMarker(playStateGraph(store)) === "BBB" && notes.length === 0,
       `opened=${graphMarker(playStateGraph(store))} appsavedPosts=${JSON.stringify(notes)}`);
+  }
+
+  // Browser title ownership follows the visible view, including messages queued by
+  // an older modal showing. These run the real editor and player scripts offline.
+  const TAGLINE = "nanoodle — like ComfyUI, but way simpler";
+  const send = (ctx, source, data) => { for(const fn of ctx._listeners.message || []) fn({ source, data }); };
+  const installNamed = (ctx, name) => {
+    ctx._namedFiles = { "index.html": "<title>" + name + "</title>", "app.css":"" };
+    vm.runInContext('installApp({ graph:{nodes:[],links:[]}, files:_namedFiles })', ctx);
+  };
+  {
+    const store = {}, ctx = await bootEditor(ORIGIN + "/editor" + (await graphHash(APP_A)), store, {});
+    record("T1 unbound editor first load shows the tagline", ctx.document.title===TAGLINE, ctx.document.title);
+    vm.runInContext('setPendingApp("app_A", "Alpha")', ctx);
+    record("T1 bound editor names the current app", ctx.document.title==="nanoodle - Alpha app", ctx.document.title);
+    await emittedHandoff(ctx);
+    const src = el(ctx, "appmodalframe").contentWindow;
+    record("T2 builder loading uses the tagline", ctx.document.title===TAGLINE, ctx.document.title);
+    const token = vm.runInContext("appTitleToken", ctx);
+    send(ctx, {}, { type:"__apptitle__", titleToken:token, title:"Wrong source" });
+    send(ctx, src, { type:"__apptitle__", titleToken:token-1, title:"Old showing" });
+    record("T2 wrong-source and old-showing title messages are ignored", ctx.document.title===TAGLINE, ctx.document.title);
+    send(ctx, src, { type:"__apptitle__", titleToken:token, title:"Beta · nanoodle app" });
+    record("T3 browsing another app in the modal updates the browser title", ctx.document.title==="Beta · nanoodle app", ctx.document.title);
+    vm.runInContext("closeAppModal()", ctx);
+    send(ctx, src, { type:"__apptitle__", titleToken:token, title:"Late Beta" });
+    record("T3 close returns title ownership to the editor", ctx.document.title==="nanoodle - Alpha app", ctx.document.title);
+    vm.runInContext('setPendingApp(null); applyGraphData({nodes:[],links:[]}); save()', ctx);
+    send(ctx, src, { type:"__appsaved__", appId:"old-app", title:"Old app" });
+    record("T4 a delayed builder save cannot rebind a closed/blank workspace", ctx.document.title===TAGLINE && !store.noodle_editor_app, ctx.document.title);
+    const reloaded = await bootEditor(ORIGIN + "/editor", store, {});
+    record("T4 reload cannot restore the late old title", reloaded.document.title===TAGLINE, reloaded.document.title);
+    await emittedHandoff(ctx, () => vm.runInContext("openMyApps()", ctx));
+    send(ctx, src, { type:"__apptitle__", titleToken:token, title:"Old showing" });
+    record("T5 reopening the library waits for its current title", ctx.document.title===TAGLINE, ctx.document.title);
+  }
+  {
+    const ctx = await bootPlay(ORIGIN + "/play.html", {}, {});
+    record("T6 blank player first load shows the tagline", ctx.document.title===TAGLINE, ctx.document.title);
+    installNamed(ctx, "Alpha");
+    record("T6 player install names Alpha", ctx.document.title==="Alpha · nanoodle app", ctx.document.title);
+    installNamed(ctx, "Beta");
+    record("T6 switching player apps names Beta", ctx.document.title==="Beta · nanoodle app", ctx.document.title);
+    vm.runInContext("showEmpty()", ctx);
+    record("T7 player empty/home clears the previous title", ctx.document.title===TAGLINE, ctx.document.title);
+    vm.runInContext("syncTitleFromFiles()", ctx);
+    record("T7 resync while empty cannot resurrect Beta", ctx.document.title===TAGLINE, ctx.document.title);
+    installNamed(ctx, "Gamma");
+    let release;
+    ctx._delayedJson = new Promise(r => { release = r; });
+    vm.runInContext('gunzip=()=>_delayedJson; location.hash="#g=AA"', ctx);
+    const pending = vm.runInContext("loadFromHash()", ctx);
+    installNamed(ctx, "Delta");
+    release(JSON.stringify(APP_A));
+    await pending;
+    record("T8 delayed compressed import cannot replace a newer app or title", ctx.document.title==="Delta · nanoodle app", ctx.document.title);
+  }
+
+  {
+    const ctx = await bootEditor(ORIGIN + "/editor" + (await graphHash(APP_A)), {}, {});
+    vm.runInContext('setPendingApp("app_A", "Alpha"); globalThis._alphaWs=readWorkspaces().active; chooseWorkspace("ask"); setPendingApp("app_B", "Beta"); globalThis._betaWs=readWorkspaces().active', ctx);
+    record("T9 opening a second editor workspace names its own app", ctx.document.title==="nanoodle - Beta app", ctx.document.title);
+    vm.runInContext('switchWorkspace(_alphaWs)', ctx);
+    record("T9 switching editor workspaces restores the current title", ctx.document.title==="nanoodle - Alpha app", ctx.document.title);
+    vm.runInContext('closeWorkspaceNow(_betaWs); closeWorkspaceNow(_alphaWs)', ctx);
+    record("T9 closing the final app workspace resets to the tagline", ctx.document.title===TAGLINE, ctx.document.title);
+  }
+  // Delayed Customize replies are fixtures, with no model or network requests.
+  for(const phase of ["catalog", "generate", "apply"]){
+    const code = PLAY_SRC.replace("generateDiff=async()=>''", "generateDiff=async()=>globalThis._generate()")
+      .replace("smartapply=async()=>({})", "smartapply=async()=>globalThis._apply()")
+      .replace("parseDiffPerFile=()=>({})", "parseDiffPerFile=()=>[{}]");
+    const ctx = loadPage(code, "play", { href:ORIGIN+"/play.html", store:{}, session:{} });
+    await ctx.__BOOT__;
+    installNamed(ctx, "Alpha");
+    let release, entered;
+    const gate = new Promise(r => { release=r; }), started = new Promise(r => { entered=r; });
+    const wait = async () => { entered(); await gate; };
+    ctx._catalog = async () => { if(phase==="catalog") await wait(); };
+    ctx._generate = async () => { if(phase==="generate") await wait(); return "fixture diff"; };
+    ctx._apply = async () => { if(phase==="apply") await wait(); return { "index.html":"<title>Late Alpha</title>", "app.css":"" }; };
+    ctx.AbortController = AbortController; ctx.performance = performance;
+    ctx.NoodleApp = { materialize:g=>g, describeGraph:()=>"fixture", deriveInputs:()=>[], deriveOutputs:()=>[] };
+    vm.runInContext('setKey("fixture-key"); loadChatCatalog=()=>_catalog(); resetUsage=()=>{}; streamingCallLlm=()=>()=>{}', ctx);
+    const pending = vm.runInContext('runDiffPass("fixture goal")', ctx);
+    await started;
+    if(phase==="apply"){
+      vm.runInContext('pendingHandoff={graph:{nodes:[],links:[]}}; syncBrowserTitle()', ctx);
+      record("T10 queued workflow uses the tagline while Customize settles", ctx.document.title===TAGLINE, ctx.document.title);
+    }
+    installNamed(ctx, "Beta");
+    release();
+    const applied = await pending;
+    record("T10 delayed Customize " + phase + " cannot rewrite a newer app title/files",
+      applied===false && ctx.document.title==="Beta · nanoodle app" && vm.runInContext('titleFromFiles(APP_STATE.files)', ctx)==="Beta", ctx.document.title);
+  }
+
+  {
+    const editor = await bootEditor(ORIGIN + "/editor" + (await graphHash(APP_A)), {}, {});
+    await emittedHandoff(editor);
+    const player = await bootPlay(ORIGIN+"/play.html", {}, {}, { parentIsSelf:false });
+    const src = el(editor, "appmodalframe").contentWindow;
+    src.postMessage = data => send(player, player.parent, data);
+    player.parent.postMessage = data => send(editor, src, data);
+    vm.runInContext("showAppModalTitle()", editor);
+    installNamed(player, "Alpha");
+    record("T11 real player title notification reaches the embedded editor", editor.document.title==="Alpha · nanoodle app", editor.document.title);
+    installNamed(player, "Beta");
+    record("T11 embedded app switch updates the top-level title", editor.document.title==="Beta · nanoodle app", editor.document.title);
+    vm.runInContext("closeAppModal()", editor);
+    vm.runInContext("showEmpty()", player);
+    record("T11 hidden player cannot overwrite the editor title", editor.document.title===TAGLINE, editor.document.title);
+    vm.runInContext("openMyApps()", editor);
+    record("T11 reopening the empty player uses the tagline", editor.document.title===TAGLINE, editor.document.title);
+    installNamed(player, "Gamma");
+    player.document.createRange = ()=>({ selectNodeContents(){} });
+    player.getSelection = ()=>({ removeAllRanges(){}, addRange(){} });
+    const span = el(player, "bar-title");
+    for(const fn of span._events.click || []) fn({});
+    span.textContent = "Old edit";
+    installNamed(player, "Delta");
+    for(const fn of span._events.blur || []) fn({});
+    record("T12 late rename blur cannot rename or restore the previous app", editor.document.title==="Delta · nanoodle app" && span.textContent==="Delta", editor.document.title);
+  }
+
+  {
+    const store = {}, ctx = await bootEditor(ORIGIN+"/editor"+(await graphHash(APP_A)), store, {});
+    let release;
+    ctx._compression = new Promise(r => { release=r; });
+    vm.runInContext('gzip=()=>_compression; localStorage.removeItem("noodle_app_handoff")', ctx);
+    const pending = vm.runInContext("openCreateApp()", ctx);
+    vm.runInContext('chooseWorkspace("blank")', ctx);
+    release(null); await pending;
+    record("T13 navigation during handoff compression cannot open or stash an old app", ctx.document.title===TAGLINE && !store.noodle_app_handoff && el(ctx,"appmodal").hidden, ctx.document.title);
+  }
+
+  {
+    const ctx = await bootPlay(ORIGIN+"/play.html", {}, {});
+    let reject;
+    ctx._brokenImport = new Promise((_r, fail) => { reject=fail; });
+    vm.runInContext('gunzip=()=>_brokenImport; location.hash="#a=AA"', ctx);
+    const pending = vm.runInContext("loadFromHash()", ctx);
+    installNamed(ctx, "Beta");
+    reject(new Error("obsolete import failure"));
+    const claimed = await pending;
+    record("T14 failed obsolete import cannot trigger an old saved-app fallback or error", claimed===true && ctx.document.title==="Beta · nanoodle app" && !vm.runInContext("shareLinkBroken",ctx), JSON.stringify({claimed,title:ctx.document.title,broken:vm.runInContext("shareLinkBroken",ctx)}));
   }
 
   /* R4 (static): the editor's closeAppModal must not tear down the iframe, openAppModal must

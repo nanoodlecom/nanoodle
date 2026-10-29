@@ -97,6 +97,7 @@ function checkPlay(root, fail) {
     const ctx = {
       APP_STATE: null,
       appDirty: false,
+      appRevision: 0,
       toast: (msg, kind) => toasts.push({ msg, kind }),
       $: () => ({ innerHTML: "", disabled: false, textContent: "", set: () => {} }),
       document: { title: "" },

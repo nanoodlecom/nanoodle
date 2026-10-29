@@ -15421,11 +15421,14 @@ async function runDiffPass(goal, opts){
   if(busy) return false; busy = true;
   custAbort = new AbortController();
   setCustBusy(true); $("undo").disabled = true;
+  const revision = appRevision;
+  const stillCurrent = ()=> revision===appRevision && !pendingHandoff;
   const t0 = performance.now();
   resetUsage();
   await loadChatCatalog().catch(()=>{});   // make sure per-model prices are available for the live cost
 
   try{
+    if(!stillCurrent()) return false;
     const env = buildEnvironment({ "index.html": APP_STATE.files["index.html"], "app.css": APP_STATE.files["app.css"] });
     const appDesc = NoodleApp.describeGraph(NoodleApp.materialize(APP_STATE.graph));
     const prompt = CONTRACT
@@ -15435,6 +15438,7 @@ async function runDiffPass(goal, opts){
     const diff = await generateDiff(env, prompt,
       { apiKey:key, model:MODEL, callLlm:streamingCallLlm(opts.genLabel || "Generating changes", { effort:true }) });
 
+    if(!stillCurrent()) return false;
     const parsed = parseDiffPerFile(diff);
     if(!diff.trim() || !parsed.length){
       $("cust-status").innerHTML = '<span class="err">⚠ No applicable change — try rephrasing the goal.</span> ' + usageMeter();
@@ -15450,6 +15454,7 @@ async function runDiffPass(goal, opts){
       callLlmForApply: (p,o,d,m,o2) => callLlmForApply(p,o,d,m,{ ...o2, callLlm:applyLlm }),
     });
 
+    if(!stillCurrent()) return false;
     // merge edited files back; runtime.js/graph.json are never in the map so they survive untouched
     APP_STATE.files = { ...APP_STATE.files, "index.html":updated["index.html"], "app.css":updated["app.css"] };
     // the UI was just (re)written against the current graph — a customize keeps the same
@@ -15464,6 +15469,7 @@ async function runDiffPass(goal, opts){
     $("cust-status").innerHTML = '<span class="ok">✓ ' + (opts.okLabel || "Applied") + ' in ' + secs + 's — preview updated.</span> ' + usageMeter();
     return true;
   }catch(e){
+    if(!stillCurrent()) return false;
     if(e && e.name==="AbortError") $("cust-status").innerHTML = '<span class="dim">Stopped.</span> ' + usageMeter();   // you hit ■ Stop — neutral, not an error
     else $("cust-status").innerHTML = '<span class="err">Error: ' + esc(friendlyRunError(e)) + '</span>';
     return false;
@@ -15541,6 +15547,7 @@ function selectVersion(i){
   // sharehint already flags them as unsaved. So don't interrupt with a prompt: switch, and drop a
   // non-blocking heads-up only when there were such edits, so the reset is never a silent surprise.
   const hadEdits = appDirty;
+  appRevision++;
   APP_STATE.curVer = i;
   { const cs = $("cust-status"); if(cs) cs.innerHTML = ""; }   // a prior customize's result line doesn't describe this version
   APP_STATE.files = { ...APP_STATE.files, ...vs[i].files };   // flip the editable files to that version
@@ -15570,9 +15577,16 @@ function titleFromFiles(files){
   return decodeEntities((m ? m[1] : "My nanoodle app").trim());
 }
 // pull the bar title from the live files (after a default build or a customize pass)
+let appTitleToken = null;
+function syncBrowserTitle(){
+  document.title = $("empty").hidden && !pendingHandoff
+    ? titleFromFiles(APP_STATE.files) + " · nanoodle app"
+    : "nanoodle — like ComfyUI, but way simpler";
+  if(IN_EDITOR && appTitleToken!==null){ try{ parent.postMessage({ type:"__apptitle__", title:document.title, titleToken:appTitleToken }, "*"); }catch(_){} }
+}
 function syncTitleFromFiles(){
-  const t = titleFromFiles(APP_STATE.files);
-  $("bar-title").textContent = t; document.title = t + " · nanoodle app";
+  $("bar-title").textContent = titleFromFiles(APP_STATE.files);
+  syncBrowserTitle();
 }
 // escape a plain-text title for safe insertion into the HTML <title> tag
 // (titleFromFiles decodes it back, so round-trips like "Tom & Jerry" survive)
@@ -15606,6 +15620,7 @@ function setAppTitle(raw){
   const html = APP_STATE.files && APP_STATE.files["index.html"];
   if(!name || !html) return false;
   if(name === titleFromFiles(APP_STATE.files)) return false;   // no-op
+  appRevision++;
   APP_STATE.files = { ...APP_STATE.files, "index.html": withName(html, name) };
   const cv = APP_STATE.versions[APP_STATE.curVer];
   if(cv && cv.files && cv.files["index.html"]) cv.files["index.html"] = withName(cv.files["index.html"], name);
@@ -15619,10 +15634,10 @@ function setAppTitle(raw){
 function wireTitle(){
   const span = $("bar-title");
   span.tabIndex = 0; span.setAttribute("role","textbox");
-  let before = null;                                  // set while editing
+  let before = null, renameRevision = null;            // set while editing
   const begin = ()=>{
     if(!$("empty").hidden || before != null) return; // nothing loaded / already editing
-    before = span.textContent;
+    before = span.textContent; renameRevision = appRevision;
     span.title = "";
     span.contentEditable = "plaintext-only";
     span.focus();
@@ -15631,10 +15646,10 @@ function wireTitle(){
   };
   const end = (save)=>{
     if(before == null) return;
-    const val = span.textContent, orig = before; before = null;
+    const val = span.textContent; before = null;
     span.contentEditable = "false";
     span.title = "Click to rename this app";
-    if(!(save && setAppTitle(val))){ span.textContent = orig; document.title = orig + " · nanoodle app"; }
+    if(renameRevision!==appRevision || !(save && setAppTitle(val))) syncTitleFromFiles();
   };
   span.title = "Click to rename this app";
   span.addEventListener("click", begin);
@@ -15868,7 +15883,9 @@ function stashResume(){
 }
 
 // install a freshly-loaded {graph, files} into the builder (used by every load path)
+let appRevision = 0;   // installs and empty/home invalidate in-flight customize results
 function installApp({ graph, files, versions, curVer, fresh, id, imported, uiSig, fromEditor, lang, ranOnce, armed, samples }){
+  appRevision++; pendingHandoff = null;   // this explicit open supersedes an older queued workflow
   if($("portbar")){ $("portbar").hidden = true; setPortMode(false); }   // any (re)load clears a stale "port?" offer
   { const cs = $("cust-status"); if(cs) cs.innerHTML = ""; }   // ...and a prior customize's "✓ Applied"/"Error" line — it described a different app
   CUR_ID = id || null;
@@ -15925,7 +15942,7 @@ function installApp({ graph, files, versions, curVer, fresh, id, imported, uiSig
   if(fresh && APP_STATE.versions.length <= 1) enterFirstRun(); else exitFirstRun();
   return saved;
 }
-function showEmpty(){ exitFirstRun(); document.body.classList.remove("recipient"); document.body.classList.remove("prerun"); document.body.classList.add("empty"); { const rw=$("recwelcome"); if(rw) rw.hidden=true; } $("empty").hidden = false; $("appframe").style.display="none"; $("bar-title").textContent="My nanoodle app"; renderAppsBtn(); }
+function showEmpty(){ appRevision++; pendingHandoff = null; exitFirstRun(); document.body.classList.remove("recipient"); document.body.classList.remove("prerun"); document.body.classList.add("empty"); { const rw=$("recwelcome"); if(rw) rw.hidden=true; } $("empty").hidden = false; $("appframe").style.display="none"; $("bar-title").textContent="My nanoodle app"; syncBrowserTitle(); renderAppsBtn(); }
 
 /* ---------- one-time welcome strip for share-link recipients ----------
    Shown once per browser (global flag, not per app — a returning visitor who opens a second
@@ -16826,6 +16843,7 @@ function showLinkError(){
   box.hidden = false;
 }
 async function loadFromHash(){
+  const revision = appRevision;
   const h = location.hash;
   // #a= : full app spec {v,graph,files}, gzip (or 'u'+b64 uncompressed fallback)
   if(h.startsWith("#a=")){
@@ -16833,6 +16851,7 @@ async function loadFromHash(){
       const tag = h.slice(3);
       const json = tag[0]==="u" ? new TextDecoder().decode(b64urlToBytes(tag.slice(1)))
                                 : await gunzip(b64urlToBytes(tag));
+      if(revision!==appRevision || location.hash!==h) return true;   // a newer navigation owns the app
       const spec = JSON.parse(json);
       // someone else's app → keep it in "My apps", flagged as imported. Customized apps carry
       // their own files; compact (never-Customized) shares ship files-less and rebuild the
@@ -16854,7 +16873,7 @@ async function loadFromHash(){
         toast("Couldn’t save the imported app — local storage is full. Keep this link to re-open it.", "err");
       }
       return true;
-    }catch(_){ shareLinkBroken = true; /* fall through — boot surfaces the incomplete-link banner */ }
+    }catch(_){ if(revision!==appRevision || location.hash!==h) return true; shareLinkBroken = true; /* fall through — boot surfaces the incomplete-link banner */ }
   }
   // #ga= : graph + app id, round-tripped back from the editor after editing THIS app's
   // workflow. Re-target the existing app onto the edited graph (keep UI, or offer a port).
@@ -16863,6 +16882,7 @@ async function loadFromHash(){
       const tag = h.slice(4);
       const json = tag[0]==="u" ? new TextDecoder().decode(b64urlToBytes(tag.slice(1)))
                                 : await gunzip(b64urlToBytes(tag));
+      if(revision!==appRevision || location.hash!==h) return true;
       const spec = JSON.parse(json);
       updateAppWorkflow(spec.appId, spec.graph, true);
       consumeHandoff();
@@ -16874,13 +16894,14 @@ async function loadFromHash(){
     try{
       const json = h.startsWith("#g=") ? await gunzip(b64urlToBytes(h.slice(3)))
                                        : new TextDecoder().decode(b64urlToBytes(h.slice(3)));
+      if(revision!==appRevision || location.hash!==h) return true;
       const graph = JSON.parse(json);
       installApp({ graph, files:defaultFiles(graph), fresh:true, fromEditor:true });   // straight from the editor → lead with the prompt
       consumeHandoff();   // a reload now restores the saved draft, not the original graph
       return true;
     }catch(_){ /* fall through */ }
   }
-  return false;
+  return revision!==appRevision || location.hash!==h;   // failed obsolete loads must not trigger a saved-app fallback
 }
 
 /* ======================================================================
@@ -17040,11 +17061,15 @@ if(IN_EDITOR){
     if(e.data.type==="__appmodalhidden__"){
       document.querySelectorAll("audio,video").forEach(m=>{ try{ m.pause(); }catch(_){} });
     }
+    else if(e.data.type==="__appmodalshown__"){
+      appTitleToken = e.data.titleToken;
+      syncBrowserTitle();
+    }
     // the editor re-handed-off a changed graph into this live document (see applyHandoff)
     else if(e.data.type==="__handoff__"){
       // never yank the app out from under an in-flight customize/port — park the graph
       // and let runDiffPass's finally apply it once the run settles
-      if(busy){ pendingHandoff = e.data; toast("Workflow received — applying it when this customize finishes"); }
+      if(busy){ pendingHandoff = e.data; syncBrowserTitle(); toast("Workflow received — applying it when this customize finishes"); }
       else applyHandoff(e.data);
     }
     // the editor's "≡ My apps" entry: surface the library menu over whatever is open
@@ -17177,6 +17202,7 @@ function migrateLegacy(){
 }
 
 async function boot(){
+  const initialRevision = appRevision;
   // Heal a stored key that predates save-time cleaning (one invisible char makes every run throw
   // before the network): clean in place, or drop an unsendable one so auth honestly shows signed-out.
   try{ const k0 = getKey(); if(k0){ const k1 = cleanKey(k0);
@@ -17216,7 +17242,7 @@ async function boot(){
   migrateLegacy();
   renderAppsBtn();
 
-  let loaded = false;
+  let loaded = appRevision!==initialRevision;   // an app opened while OAuth was settling already owns the screen
   // A handoff hash (#a=/#ga=/#g=/#j=) means a fresh, explicit user action — clicking "Create app",
   // or opening a share/app link. That MUST win over a stale OAuth resume stash: a real OAuth return
   // carries no hash (it never survives the redirect), so preferring the hash never steals a genuine
@@ -17228,7 +17254,7 @@ async function boot(){
   let resumeSt = null;
   try{ const rs = sessionStorage.getItem(RESUME_KEY); if(rs){ sessionStorage.removeItem(RESUME_KEY); resumeSt = JSON.parse(rs); } }catch(_){}
 
-  if(hasHandoff) loaded = await loadFromHash();
+  if(!loaded && hasHandoff) loaded = await loadFromHash();
 
   // Resume the app stashed just before an OAuth redirect — exactly what the user was on.
   if(!loaded && resumeSt && resumeSt.graph){

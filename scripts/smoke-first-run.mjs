@@ -146,12 +146,19 @@ try {
         "sample image actually decodes");
       await page.locator("#demox").click();
 
+      assert.equal(await page.title(), "nanoodle — like ComfyUI, but way simpler", "unbound editor uses its tagline");
       await page.locator("#makeapp").click();
       // The iframe element exists before play.html wires its controls and loads
       // the handoff. Use the editor's validated __appready__ handshake instead.
       await page.waitForFunction(() => typeof appFrameLoaded !== "undefined" && appFrameLoaded);
       const builder = page.frameLocator("#appmodalframe");
       await builder.locator("#appframe").waitFor();
+      const currentAppTitle = await builder.locator("#bar-title").innerText();
+      await page.waitForFunction(expected => document.title === expected, currentAppTitle + " · nanoodle app");
+      await page.locator("#appmodalclose").click();
+      assert.equal(await page.title(), "nanoodle - " + currentAppTitle + " app", "closing the modal restores the canvas title");
+      await page.locator("#makeapp").click();
+      await page.waitForFunction(expected => document.title === expected, currentAppTitle + " · nanoodle app");
       if (mobile) await builder.locator("#barmore").click();
       await builder.locator("#share").click();
       await builder.locator("#sharemenu:not([hidden])").waitFor();

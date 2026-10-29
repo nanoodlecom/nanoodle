@@ -17292,7 +17292,9 @@ function refreshAppButton(){
 // whenever a binding is live, so "Create app" can never quietly overwrite an app you forgot about.
 function updateTitle(){
   const appTitle = (pendingAppTitle || "").trim();   // NB: not named `t` — that's the global translation fn
-  document.title = pendingAppId ? `nanoodle - ${appTitle || "app"} app` : "nanoodle — like ComfyUI, but way simpler";
+  document.title = !$("appmodal").hidden
+    ? (appModalTitle || "nanoodle — like ComfyUI, but way simpler")
+    : (pendingAppId ? `nanoodle - ${appTitle || "app"} app` : "nanoodle — like ComfyUI, but way simpler");
   const nw = $("newapp"), more = $("appmore");
   refreshAppButton();
   // The caret opens for two reasons: a live binding (the "Save as a new app" escape hatch)
@@ -19362,6 +19364,14 @@ let appFrameBooting = false;    // src assigned but boot unconfirmed — a postM
                                 // lost (no listener) or clobbered by the in-flight boot's hash graph
 let queuedHandoff = null;       // __handoff__ parked during that window; flushed on __appready__
 let queuedMyApps = false;       // "open the My apps menu" parked during that window; flushed after any parked handoff
+// The visible builder owns the browser title only for this showing. A token keeps
+// queued messages from a previous showing from restoring an old app name.
+let appTitleToken = 0, appModalTitle = null;
+function showAppModalTitle(){
+  appModalTitle = null; appTitleToken++;
+  updateTitle();
+  if(appFrameLoaded){ try{ $("appmodalframe").contentWindow.postMessage({ type:"__appmodalshown__", titleToken:appTitleToken }, "*"); }catch(_){} }
+}
 let lastHandoffSig = null;      // signature of the graph last handed to the builder
 // What the built app actually consumes: node identity/type/name/fields + links + which app we're
 // editing. INCLUDES the custom name — it's a step's label in the built app, so renaming a node
@@ -19392,13 +19402,14 @@ function appSyncSig(g){
   return appHandoffSig(g) + JSON.stringify((g.nodes||[]).map(n=>[n.x, n.y, n.w??null]));
 }
 function closeAppModal(){
+  appTitleToken++; appModalTitle = null;
   $("appmodal").hidden = true;   // hide, but keep the builder loaded so you can come back to it
   try{ $("appmodalframe").contentWindow.postMessage({ type:"__appmodalhidden__" }, "*"); }catch(_){}   // pause any builder-chrome media
   updateTitle();   // a builder session can grow/empty the app library → recompute the ▾/My-apps reveal
 }
 // First load only: boots play.html into the iframe off the hash. Later handoffs must NOT
 // come through here — a same-URL-different-fragment src write doesn't reload the iframe.
-function openAppModal(hash){ if(typeof invalidateWorkspaceCloseHistory==="function")invalidateWorkspaceCloseHistory(); $("appmodalframe").src = "play.html"+hash; appFrameBooting = true; lastHandoffSig = appSyncSig(); $("appmodal").hidden = false; try{ if(!localStorage.getItem("noodle_appbuilder_intro_seen")) $("appmodalhint").hidden = false; }catch(_){} }
+function openAppModal(hash){ if(typeof invalidateWorkspaceCloseHistory==="function")invalidateWorkspaceCloseHistory(); $("appmodalframe").src = "play.html"+hash; appFrameBooting = true; lastHandoffSig = appSyncSig(); $("appmodal").hidden = false; showAppModalTitle(); try{ if(!localStorage.getItem("noodle_appbuilder_intro_seen")) $("appmodalhint").hidden = false; }catch(_){} }
 // "≡ My apps": bring up the builder over whatever it last had open and pop its library menu —
 // browsing must NOT hand off the canvas (no draft minted, no binding touched; play.html only
 // posts __appsaved__ for canvas-derived apps, so opening one from the list can't rebind us).
@@ -19406,7 +19417,7 @@ function openMyApps(){
   if(typeof invalidateWorkspaceCloseHistory==="function")invalidateWorkspaceCloseHistory();
   $("apppop").classList.remove("open"); $("morepop").classList.remove("open");
   if(appFrameLoaded || appFrameBooting){
-    $("appmodal").hidden = false;
+    $("appmodal").hidden = false; showAppModalTitle();
     if(appFrameLoaded){ try{ $("appmodalframe").contentWindow.postMessage({ type:"__openmyapps__" }, "*"); }catch(_){} }
     else queuedMyApps = true;   // still booting — the __appready__ handler below delivers it
     return;
@@ -19417,7 +19428,7 @@ function openMyApps(){
   // just re-show" fast path and silently skip handing the canvas over.
   $("appmodalframe").src = "play.html";
   appFrameBooting = true; queuedMyApps = true;
-  $("appmodal").hidden = false;
+  $("appmodal").hidden = false; showAppModalTitle();
 }
 async function openCreateApp(){
   if(!graph.nodes.length){ flash("add a node first"); return; }
@@ -19428,8 +19439,7 @@ async function openCreateApp(){
   // app back (no reload, no fresh draft).
   if((appFrameLoaded || appFrameBooting) && appSyncSig()===lastHandoffSig){
     dismissAppNudge();
-    $("appmodal").hidden = false;
-    try{ $("appmodalframe").contentWindow.postMessage({ type:"__appmodalshown__" }, "*"); }catch(_){}
+    $("appmodal").hidden = false; showAppModalTitle();
     return;
   }
   if(graph.nodes.some(n=> n.type==="model3d" || n.type==="mupload")){
@@ -19437,20 +19447,21 @@ async function openCreateApp(){
     return;
   }
   dismissAppNudge();   // they've reached the builder — the post-run nudge is spent
+  const handoffSig = appSyncSig(), titleTokenAtStart = appTitleToken;
   const graphData = serializeGraph();
   const json = JSON.stringify(graphData);
-  try{ localStorage.setItem("noodle_app_handoff", json); }catch{}
   // Builder already live but the graph changed → hand the new graph into the running
   // document over the message channel (see the reload note above). appId carries the
   // binding: set → update that app in place; null → mint a brand-new app. If the first
   // load is still booting (slow device, reopened within the load window) the frame can't
   // hear us yet — park the payload; the __appready__ handler below flushes it.
   if(appFrameLoaded || appFrameBooting){
+    try{ localStorage.setItem("noodle_app_handoff", json); }catch{}
     const payload = { type:"__handoff__", graph:graphData, appId:pendingAppId||null };
     if(appFrameLoaded){ try{ $("appmodalframe").contentWindow.postMessage(payload, "*"); }catch(_){} }
     else queuedHandoff = payload;
     lastHandoffSig = appSyncSig();
-    $("appmodal").hidden = false;
+    $("appmodal").hidden = false; showAppModalTitle();
     return;
   }
   let hash;
@@ -19462,6 +19473,8 @@ async function openCreateApp(){
     const packed = await gzip(json).catch(()=>null);
     hash = packed ? "#g="+bytesToB64url(packed) : "#j="+bytesToB64url(new TextEncoder().encode(json));
   }
+  if(appSyncSig()!==handoffSig || appTitleToken!==titleTokenAtStart) return;   // navigation during compression superseded this app
+  try{ localStorage.setItem("noodle_app_handoff", json); }catch{}
   openAppModal(hash);
 }
 $("makeapp").onclick = openCreateApp;
@@ -19504,7 +19517,13 @@ addEventListener("keydown", e=>{ if(e.key==="Escape" && !$("appmodal").hidden) c
 
 addEventListener("message", e=>{
   if(e.source!==$("appmodalframe").contentWindow || !e.data) return;
-  if(e.data.type==="__closeapp__") closeAppModal();
+  if(e.data.type==="__apptitle__"){
+    if(!$("appmodal").hidden && !appFrameBooting && !queuedHandoff && e.data.titleToken===appTitleToken){
+      appModalTitle = typeof e.data.title==="string" ? e.data.title : null;
+      updateTitle();
+    }
+  }
+  else if(e.data.type==="__closeapp__") closeAppModal();
   // builder asked to edit the workflow: load that app's graph onto the canvas, remember
   // its id so the next "Create app" updates it, and drop back to the editor.
   else if(e.data.type==="__editflow__"){
@@ -19549,6 +19568,7 @@ addEventListener("message", e=>{
   // THAT app instead of minting duplicate defaults. setPendingApp stays the single chokepoint.
   else if(e.data.type==="__appsaved__"){
     const mirrored = (appFrameLoaded || appFrameBooting) && appSyncSig()===lastHandoffSig;   // builder still shows exactly this canvas
+    if(!mirrored) return;   // a hidden builder must not rebind a different workspace after a delayed save
     try{ setPendingApp(e.data.appId, e.data.title); }
     catch(_){ flash("couldn’t autosave — a photo, audio clip, or 3D file may be too large for local storage"); }
     if(mirrored) lastHandoffSig = appSyncSig();   // only the binding changed → keep the reopen-resume path alive
@@ -19571,6 +19591,7 @@ addEventListener("message", e=>{
       queuedMyApps = false;
       try{ $("appmodalframe").contentWindow.postMessage({ type:"__openmyapps__" }, "*"); }catch(_){}
     }
+    if(!$("appmodal").hidden) showAppModalTitle();
   }
 });
 function seed(){
