@@ -11711,14 +11711,28 @@ function setNodeProgress(n, msg, meta){
   paintRunLive();
 }
 function openUrl(url){ window.open(url, "_blank", "noopener"); }
+function imageDownloadFilename(filename, mime){
+  const exts = {
+    "image/png":"png", "image/jpeg":"jpg", "image/gif":"gif", "image/webp":"webp",
+    "image/svg+xml":"svg", "image/avif":"avif", "image/bmp":"bmp"
+  };
+  const type = String(mime||"").split(";")[0].trim().toLowerCase();
+  return Object.hasOwn(exts, type) ? filename.replace(/\.[^./\\]+$/, "") + "." + exts[type] : filename;
+}
 async function downloadUrl(url, filename){
   try{
     let href = url;
-    if(!/^(data:|blob:)/.test(url)){                    // remote URL → fetch the bytes so download works cross-origin
+    let mime = (String(url).match(/^data:([^;,]+)/i)||[])[1] || "";
+    if(!/^(data:|blob:)/i.test(url)){                  // remote URL → fetch the bytes so download works cross-origin
       const b = await (await fetch(url)).blob();
+      mime = b.type;
       href = URL.createObjectURL(b);
+    } else if(/^blob:/i.test(url)){
+      // Read the existing Blob's type without taking ownership of its URL.
+      // If it can no longer be fetched, retain the caller's filename fallback.
+      try{ mime = (await (await fetch(url)).blob()).type; }catch{}
     }
-    const a = document.createElement("a"); a.href=href; a.download=filename; a.click();
+    const a = document.createElement("a"); a.href=href; a.download=imageDownloadFilename(filename, mime); a.click();
     if(href!==url) setTimeout(()=> URL.revokeObjectURL(href), 4000);
   }catch{ openUrl(url); }                                // fallback: open in a new tab
 }

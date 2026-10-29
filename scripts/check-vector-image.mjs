@@ -80,4 +80,48 @@ for (const src of [editor, play.slice(play.indexOf("const RUNTIME_JS"))]) {
   assert.equal(sniff(Buffer.from("<html><svg/></html>").toString("base64")), "image/png");
   assert.equal(sniff("%%%bad%%%"), "image/png");
 }
-console.log("✓ vector-image: convert-only prompts, protected options, SVG results across editor and play/export");
+// Exercise the editor's real downloader: a .png call-site fallback must not
+// overwrite the MIME-derived extension of an SVG (including gallery outputs).
+const saved = [], fetched = [], revoked = [], opened = [];
+let blobType = "image/svg+xml", failFetch = false;
+const downloadCtx = vm.createContext({
+  document: { createElement: () => ({ click(){ saved.push({ href:this.href, name:this.download }); } }) },
+  fetch: async (url, init) => {
+    fetched.push({ url, init });
+    if(failFetch) throw new Error("offline");
+    return { blob: async () => ({ type:blobType }) };
+  },
+  URL: { createObjectURL: () => "blob:download-copy", revokeObjectURL: (url) => revoked.push(url) },
+  openUrl: (url) => opened.push(url), setTimeout: (fn) => fn(),
+});
+vm.runInContext(fn(editor, "imageDownloadFilename") + "\n" +
+  balanced(editor, editor.indexOf("async function downloadUrl(")), downloadCtx);
+for (const [mime, ext] of [["image/svg+xml", "svg"], ["IMAGE/SVG+XML;charset=utf-8", "svg"],
+  ["image/png", "png"], ["image/jpeg", "jpg"], ["image/webp", "webp"], ["image/gif", "gif"]]) {
+  const url = "data:" + mime + ";base64," + Buffer.from(SVG).toString("base64");
+  await downloadCtx.downloadUrl(url, "noodle-out.png");
+  assert.equal(saved.at(-1).name, "noodle-out." + ext);
+  assert.equal(saved.at(-1).href, url);
+}
+assert.equal(fetched.length, 0, "inline outputs need no fetch");
+await downloadCtx.downloadUrl("https://cdn.example/wrong.png", "noodle-out.png");
+assert.equal(saved.at(-1).name, "noodle-out.svg", "remote Blob MIME wins over the filename/URL");
+assert.equal(saved.at(-1).href, "blob:download-copy");
+assert.deepEqual(revoked, ["blob:download-copy"]);
+assert.equal(fetched.at(-1).init, undefined, "media requests carry no auth options");
+await downloadCtx.downloadUrl("blob:original", "noodle-out.png");
+assert.equal(saved.at(-1).name, "noodle-out.svg");
+assert.equal(saved.at(-1).href, "blob:original");
+assert.deepEqual(revoked, ["blob:download-copy"], "do not revoke someone else's Blob URL");
+blobType = "video/mp4";
+await downloadCtx.downloadUrl("https://cdn.example/video", "noodle-out.mp4");
+assert.equal(saved.at(-1).name, "noodle-out.mp4", "non-image download names stay intact");
+blobType = "constructor";
+await downloadCtx.downloadUrl("https://cdn.example/unknown", "noodle-out.png");
+assert.equal(saved.at(-1).name, "noodle-out.png", "unknown MIME must not match inherited map keys");
+failFetch = true;
+await downloadCtx.downloadUrl("blob:expired", "noodle-out.png");
+assert.equal(saved.at(-1).name, "noodle-out.png", "unknown MIME keeps the caller's fallback");
+await downloadCtx.downloadUrl("https://cdn.example/offline", "noodle-out.png");
+assert.deepEqual(opened, ["https://cdn.example/offline"], "remote failure retains the open-tab fallback");
+console.log("✓ vector-image: convert-only prompts, protected options, SVG results and editor download extensions");
