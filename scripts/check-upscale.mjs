@@ -31,7 +31,7 @@ for (const file of ["index.html", "play.html"]) {
 
   // 1. Edit run(): the "no edit instruction" throw must be gated on the upscale
   //    model check so a blank-prompt upscale run is allowed through.
-  const throwRe = /if\(!prompt && !\/upscal\/i\.test\(n\.fields\.model\|\|""\)\) throw new Error\("no edit instruction/;
+  const throwRe = /if\(!prompt && !\/upscal\/i\.test\(n\.fields\.model\|\|""\) && \!\(n\.fields\.model==="ideogram\/vector" && n\.fields\.modelOpts && n\.fields\.modelOpts\.vector_operation==="convert"\)\) throw new Error\("no edit instruction/;
   if (!throwRe.test(src))
     fail(`${file}: Edit run() must gate the "no edit instruction" throw on !/upscal/i.test(n.fields.model||"") so upscalers run promptless`);
 

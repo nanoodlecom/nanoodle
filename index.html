@@ -9585,8 +9585,8 @@ const NODE_TYPES = {
         imgs = imgs.slice(0, cap);
       }
       const prompt = (inp.prompt ?? n.fields.prompt ?? "").trim();
-      // Upscalers just enlarge — they need no instruction. Every other edit model requires one.
-      if(!prompt && !/upscal/i.test(n.fields.model||"")) throw new Error("no edit instruction — describe the change to make");
+      // Upscalers just enlarge — they need no instruction. Ideogram Vector convert also needs no instruction.
+      if(!prompt && !/upscal/i.test(n.fields.model||"") && !(n.fields.model==="ideogram/vector" && n.fields.modelOpts && n.fields.modelOpts.vector_operation==="convert")) throw new Error("no edit instruction — describe the change to make");
       // N inlined refs add up fast — refuse before any paid call (mirrors the inpaint guard)
       if(imgs.reduce((s,u)=> s + (u?u.length:0), 0) > MEDIA_INLINE_MAX)
         throw new Error("reference images too large (~4 MB combined limit) — use fewer or smaller images");
@@ -11711,14 +11711,28 @@ function setNodeProgress(n, msg, meta){
   paintRunLive();
 }
 function openUrl(url){ window.open(url, "_blank", "noopener"); }
+function imageDownloadFilename(filename, mime){
+  const exts = {
+    "image/png":"png", "image/jpeg":"jpg", "image/gif":"gif", "image/webp":"webp",
+    "image/svg+xml":"svg", "image/avif":"avif", "image/bmp":"bmp"
+  };
+  const type = String(mime||"").split(";")[0].trim().toLowerCase();
+  return Object.hasOwn(exts, type) ? filename.replace(/\.[^./\\]+$/, "") + "." + exts[type] : filename;
+}
 async function downloadUrl(url, filename){
   try{
     let href = url;
-    if(!/^(data:|blob:)/.test(url)){                    // remote URL → fetch the bytes so download works cross-origin
+    let mime = (String(url).match(/^data:([^;,]+)/i)||[])[1] || "";
+    if(!/^(data:|blob:)/i.test(url)){                  // remote URL → fetch the bytes so download works cross-origin
       const b = await (await fetch(url)).blob();
+      mime = b.type;
       href = URL.createObjectURL(b);
+    } else if(/^blob:/i.test(url)){
+      // Read the existing Blob's type without taking ownership of its URL.
+      // If it can no longer be fetched, retain the caller's filename fallback.
+      try{ mime = (await (await fetch(url)).blob()).type; }catch{}
     }
-    const a = document.createElement("a"); a.href=href; a.download=filename; a.click();
+    const a = document.createElement("a"); a.href=href; a.download=imageDownloadFilename(filename, mime); a.click();
     if(href!==url) setTimeout(()=> URL.revokeObjectURL(href), 4000);
   }catch{ openUrl(url); }                                // fallback: open in a new tab
 }
@@ -13790,7 +13804,13 @@ function b64ImageMime(b64){
   if(b64.startsWith("iVBOR")) return "image/png";
   if(b64.startsWith("R0lG"))  return "image/gif";
   if(b64.startsWith("UklG"))  return "image/webp";
-  return "image/png";   // unknown → sensible default; browsers sniff content regardless
+    // SVG may start with a BOM, XML declaration, or comments. Inspect a bounded
+  // prefix as text only; no XML parsing or execution.
+  try {
+    const head = atob(b64.slice(0, 8192));
+    if (/^(?:\xef\xbb\xbf)?\s*(?:<\?xml[^>]*>\s*)?(?:<!--[\s\S]*?-->\s*)*<svg(?:\s|\/?>)/i.test(head)) return "image/svg+xml";
+  } catch { /* malformed/unknown base64 keeps the raster fallback */ }
+return "image/png";   // unknown → sensible default; browsers sniff content regardless
 }
 /* ---------- LoRA (image style adapters) ----------
    HuggingFace + any direct .safetensors URL only. The browser never fetches the
@@ -13890,8 +13910,19 @@ function loraBodyFor(model, items){       // items: [{url,scale}], 1..cap, alrea
 // result regardless, making "same seed → same image" hold even if the model isn't seed-honest).
 // custom-civitai also requires customCivitaiAir (full AIR) — refuse before the paid call so we
 // never surface the API's raw missing_custom_model / invalidModel 400s.
+// Model knobs may tune generation, but cannot replace node-owned request fields
+// or smuggle routing/authentication settings into an image request.
+function imageModelOpts(opts) {
+  const out = {};
+  if (!opts || typeof opts !== "object" || Array.isArray(opts)) return out;
+  for (const [key, value] of Object.entries(opts)) {
+    if (/^(?:model|prompt|size|n|responseformat|image|images|imageurl|imagedataurl|mask|maskurl|maskdataurl|key|apikey|xapikey|token|accesstoken|authorization|auth|headers|url|endpoint|baseurl|method|body|credentials|proxy|runid|requestid|isapirequest|paymentsource|paymentid|tojson|proto|prototype|constructor)$/i.test(key.replace(/[_-]/g, ""))) continue;
+    out[key] = value;
+  }
+  return out;
+}
 function imgExtra(n){
-  const e = loraParams(n), s = n.fields.seed;
+  const e = Object.assign(imageModelOpts(n.fields.modelOpts), loraParams(n)), s = n.fields.seed;
   if(s!=null && String(s).trim()!=="" && !isNaN(Number(s))) e.seed = Number(s);
   // Catalog aspect_ratio (or the FIBO offline map). Leftover fields.aspect after a swap onto
   // a model with no separate knob must not go out — imageAspectExtra returns {} then.
@@ -13956,7 +13987,7 @@ const CTX = {
     if(prompt) body.prompt = prompt;                     // omit when blank — upscalers run with no instruction; every other path guarantees a non-empty prompt before reaching here
     if(imageDataUrl) body.imageDataUrl = imageDataUrl;   // present → image edit (img2img)
     if(maskDataUrl)  body.maskDataUrl  = maskDataUrl;    // present → inpaint; WHITE areas = the region to repaint (verified live)
-    if(extra) Object.assign(body, extra);                // LoRA (and any future per-model image params)
+    Object.assign(body, imageModelOpts(extra));         // model knobs cannot replace request fields
     const r = await fetch(IMG_ENDPOINT, {method:"POST", headers:authHeaders(), body:JSON.stringify(body), signal:runSignal()});
     if(!r.ok){ await throwHttp(r); }
     const j = await r.json();

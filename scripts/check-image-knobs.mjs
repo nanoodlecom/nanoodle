@@ -53,6 +53,7 @@ const editor = (() => {
   const code = [
     block(IDX, "function imageKnobSpec(sp){"),
     block(IDX, "function imageKnobExtra(fields, spec){"),
+    block(IDX, "function imageModelOpts(opts) {"),
     block(IDX, "function imgExtra(n){"),
     "function imageAspectExtra(){ return {}; }",
     "function loraParams(){ return {}; }",
