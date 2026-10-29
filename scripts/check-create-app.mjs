@@ -255,7 +255,7 @@ function makeFetch() {
   };
 }
 
-function loadPage(code, kind, { href, store, session, parentIsSelf = true }) {
+function loadPage(code, kind, { href, store, session, parentIsSelf = true, frameHandoffToken = null }) {
   const nav = { target: null };
   const timers = [];
   let timerId = 1;
@@ -286,7 +286,7 @@ function loadPage(code, kind, { href, store, session, parentIsSelf = true }) {
     Image: class { set src(_v) {} },
     _listeners: {}, dispatchEvent() { return true; }, postMessage() {},
     open: () => ({ closed: false, close() {}, focus() {}, postMessage() {} }),
-    close() {}, name: "", _timers: timers, _nav: nav,
+    close() {}, name: "", frameElement:frameHandoffToken==null ? null : {dataset:{handoffToken:String(frameHandoffToken)}}, _timers: timers, _nav: nav,
   };
   ctx.addEventListener = (type, fn) => { (ctx._listeners[type] ||= []).push(fn); };
   ctx.removeEventListener = (type, fn) => { const a = ctx._listeners[type]; if (a) { const i = a.indexOf(fn); if (i >= 0) a.splice(i, 1); } };
@@ -724,7 +724,7 @@ async function run() {
     const ctx = await bootEditor(ORIGIN + "/editor" + (await graphHash(APP_B)), store, session);
     await emittedHandoff(ctx);                                  // first open → builder live, sig recorded
     const src = el(ctx, "appmodalframe").contentWindow;
-    for (const fn of (ctx._listeners.message || [])) fn({ source: src, data: { type: "__appsaved__", appId: "app_NEW1", title: "Neon Ramen" } });
+    for (const fn of (ctx._listeners.message || [])) fn({ source: src, data: { type: "__appsaved__", handoffToken:vm.runInContext("appHandoffToken",ctx), appId: "app_NEW1", title: "Neon Ramen" } });
     await drainAsync();
     let persisted = null; try { persisted = JSON.parse(store.noodle_editor_app); } catch {}
     const second = await emittedHandoff(ctx);                   // unchanged graph → must resume, not re-hand-off
@@ -836,7 +836,7 @@ async function run() {
     send(ctx, src, { type:"__apptitle__", titleToken:token, title:"Late Beta" });
     record("T3 close returns title ownership to the editor", ctx.document.title==="nanoodle - Alpha app", ctx.document.title);
     vm.runInContext('setPendingApp(null); applyGraphData({nodes:[],links:[]}); save()', ctx);
-    send(ctx, src, { type:"__appsaved__", appId:"old-app", title:"Old app" });
+    send(ctx, src, { type:"__appsaved__", handoffToken:vm.runInContext("appHandoffToken",ctx), appId:"old-app", title:"Old app" });
     record("T4 a delayed builder save cannot rebind a closed/blank workspace", ctx.document.title===TAGLINE && !store.noodle_editor_app, ctx.document.title);
     const reloaded = await bootEditor(ORIGIN + "/editor", store, {});
     record("T4 reload cannot restore the late old title", reloaded.document.title===TAGLINE, reloaded.document.title);
@@ -954,6 +954,84 @@ async function run() {
     reject(new Error("obsolete import failure"));
     const claimed = await pending;
     record("T14 failed obsolete import cannot trigger an old saved-app fallback or error", claimed===true && ctx.document.title==="Beta · nanoodle app" && !vm.runInContext("shareLinkBroken",ctx), JSON.stringify({claimed,title:ctx.document.title,broken:vm.runInContext("shareLinkBroken",ctx)}));
+  }
+
+  {
+    const store = {}, editor = await bootEditor(ORIGIN+"/editor"+(await graphHash(APP_A)), store, {});
+    await emittedHandoff(editor);
+    const player = await bootPlay(ORIGIN+"/play.html"+(await graphHash(APP_A)), store, {}, {parentIsSelf:false,frameHandoffToken:el(editor,"appmodalframe").dataset.handoffToken});
+    const id = vm.runInContext("CUR_ID", player), title = vm.runInContext("titleFromFiles(APP_STATE.files)",player);
+    vm.runInContext('closeAppModal(); graph.nodes[0].fields.text="EDITED SAME WORKSPACE"; save()', editor);
+    send(editor, el(editor,"appmodalframe").contentWindow, {type:"__appsaved__",handoffToken:vm.runInContext("editorHandoffToken",player),appId:id,title});
+    record("T15 delayed first save binds its edited originating workspace", vm.runInContext("pendingAppId",editor)===id, txt(editor,"makeapp"));
+    const next = await emittedHandoff(editor);
+    send(player, player.parent, {type:"__handoff__",handoffToken:vm.runInContext("appHandoffToken",editor),appId:next.spec.appId || null,graph:next.spec.graph});
+    const apps = JSON.parse(store.noodle_apps || "[]");
+    record("T15 next Create app updates the saved app without a duplicate", next.kind==="ga" && apps.length===1 && apps[0].id===id && graphMarker(apps[0].graph)==="EDITED SAME WORKSPACE", JSON.stringify({kind:next.kind,apps:apps.length}));
+  }
+  {
+    const code = PLAY_SRC.replace("generateDiff=async()=>''", "generateDiff=async()=>globalThis._generate()");
+    const ctx = loadPage(code, "play", {href:ORIGIN+"/play.html",store:{},session:{},parentIsSelf:false});
+    await ctx.__BOOT__; installNamed(ctx,"Alpha");
+    let release, entered;
+    const gate = new Promise(r=>{release=r;}), started = new Promise(r=>{entered=r;});
+    ctx._generate = async()=>{ el(ctx,"cust-status").innerHTML="Generating changes…"; entered(); await gate; return "old diff"; };
+    ctx.AbortController=AbortController;ctx.performance=performance;
+    ctx.NoodleApp={materialize:g=>g,describeGraph:()=>"fixture",deriveInputs:()=>[],deriveOutputs:()=>[]};
+    vm.runInContext('setKey("fixture"); loadChatCatalog=async()=>{};resetUsage=()=>{};streamingCallLlm=()=>()=>{}',ctx);
+    const pending=vm.runInContext('runDiffPass("fixture goal")',ctx);await started;
+    send(ctx,ctx.parent,{type:"__handoff__",graph:APP_B,appId:null});
+    record("T16 parked workflow reports a neutral waiting status", /waiting|finishes|received/i.test(el(ctx,"cust-status").innerHTML) && !/Generating/.test(el(ctx,"cust-status").innerHTML), el(ctx,"cust-status").innerHTML);
+    release();const applied=await pending;
+    record("T16 superseded Customize settles on the newer workflow with no stale status", applied===false && vm.runInContext('APP_STATE.graph.nodes[0].fields.text',ctx)==="BBB" && el(ctx,"cust-status").innerHTML==="", el(ctx,"cust-status").innerHTML);
+  }
+  {
+    const ctx=await bootPlay(ORIGIN+"/play.html",{},{});installNamed(ctx,"Alpha");
+    let controller;
+    const response=new Response(new ReadableStream({start(c){controller=c;}}),{status:200});
+    ctx.fetch=async()=>response;ctx.performance={now:()=>1000};
+    const pending=vm.runInContext('streamingCallLlm("Generating changes")({apiKey:"fixture",model:"fixture",messages:[]})',ctx);
+    await drainAsync();installNamed(ctx,"Beta");el(ctx,"cust-status").innerHTML="Beta status";
+    controller.enqueue(new TextEncoder().encode('data: {"choices":[{"delta":{"content":"old reply"}}]}\n\n'));
+    controller.close();await pending;
+    record("T17 late streaming updates cannot overwrite the newer app status", el(ctx,"cust-status").innerHTML==="Beta status", el(ctx,"cust-status").innerHTML);
+  }
+  {
+    const titleBlock=INDEX_SRC.slice(INDEX_SRC.indexOf("let pendingAppId = null;"),INDEX_SRC.indexOf("/* WORKSPACES-BEGIN"));
+    const elements=new Map();const get=id=>{if(!elements.has(id))elements.set(id,makeEl(id));return elements.get(id);};
+    get("appmodal").hidden=false;
+    const early={document:{title:""},localStorage:{getItem:()=>null},$:get,t:s=>s,layoutBar(){}};
+    let error=null;try{vm.runInNewContext(titleBlock+"\nupdateTitle();",early);}catch(e){error=e;}
+    record("T18 title state is initialized before an early visible-modal title update", !error && early.document.title===TAGLINE, error ? String(error) : early.document.title);
+  }
+
+  {
+    const ctx=await bootEditor(ORIGIN+"/editor"+(await graphHash(APP_A)),{},{});
+    await emittedHandoff(ctx);
+    const source=el(ctx,"appmodalframe").contentWindow;
+    const token=vm.runInContext("appHandoffToken",ctx);
+    vm.runInContext('closeAppModal(); globalThis._originWs=readWorkspaces().active; chooseWorkspace("ask")',ctx);
+    send(ctx,source,{type:"__appsaved__",handoffToken:token,appId:"old_A",title:"Alpha"});
+    record("T19 delayed save cannot bind another workspace", vm.runInContext("pendingAppId",ctx)===null, ctx.document.title);
+    vm.runInContext('switchWorkspace(_originWs); graph.nodes[0].fields.text="EDITED AFTER RETURN"',ctx);
+    send(ctx,source,{type:"__appsaved__",handoffToken:token,appId:"app_A",title:"Alpha"});
+    record("T19 delayed save still binds its edited workspace after switching away and back", vm.runInContext("pendingAppId",ctx)==="app_A",ctx.document.title);
+    vm.runInContext('chooseWorkspace("ask")',ctx);await emittedHandoff(ctx);
+    const currentToken=vm.runInContext("appHandoffToken",ctx);
+    send(ctx,source,{type:"__appsaved__",handoffToken:token,appId:"old_A",title:"Old Alpha"});
+    record("T20 an older handoff cannot bind the newer handoff's workspace", currentToken!==token && vm.runInContext("pendingAppId",ctx)===null,ctx.document.title);
+    send(ctx,source,{type:"__appsaved__",handoffToken:currentToken,appId:"app_B",title:"Beta"});
+    record("T20 the newer handoff's own save binds normally", vm.runInContext("pendingAppId",ctx)==="app_B",ctx.document.title);
+    vm.runInContext('closeAppModal(); setPendingApp(null); applyGraphData({nodes:[{id:"new",type:"text",fields:{text:"replacement"}}],links:[]})',ctx);
+    send(ctx,source,{type:"__appsaved__",handoffToken:currentToken,appId:"app_B",title:"Old Beta"});
+    record("T20 a replacement in the same workspace invalidates its older save", vm.runInContext("pendingAppId",ctx)===null && ctx.document.title===TAGLINE,ctx.document.title);
+  }
+  {
+    const ctx=await bootPlay(ORIGIN+"/play.html"+(await graphHash(APP_A)),{}, {},{parentIsSelf:false,frameHandoffToken:37});
+    record("T21 initial player boot captures the iframe handoff token", vm.runInContext("editorHandoffToken",ctx)===37,vm.runInContext("editorHandoffToken",ctx));
+    const notes=[];ctx.parent.postMessage=data=>notes.push(data);
+    send(ctx,ctx.parent,{type:"__handoff__",handoffToken:38,graph:APP_B,appId:null});
+    record("T21 live handoff saves echo their current token", notes.some(d=>d.type==="__appsaved__" && d.handoffToken===38),JSON.stringify(notes.map(d=>({type:d.type,handoffToken:d.handoffToken}))));
   }
 
   /* R4 (static): the editor's closeAppModal must not tear down the iframe, openAppModal must

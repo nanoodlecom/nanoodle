@@ -15271,6 +15271,8 @@ function usageMeter(live){
 function resetUsage(){ USAGE.inTok = USAGE.outTok = USAGE.cost = 0; USAGE.exact = true; }
 
 function streamingCallLlm(phase, { effort=false }={}){
+  const revision = appRevision;
+  const paintStatus = html=>{ if(revision===appRevision && !pendingHandoff) $("cust-status").innerHTML = html; };
   return async ({ apiKey, baseUrl, model, messages, maxTokens=null, temperature=1.0 }) => {
     const inEst = estMsgs(messages);
     const priceFor = (m)=>{ const p = priceOf(m) || {}; return [(Number(p.pin)||0)/1e6, (Number(p.pout)||0)/1e6]; };
@@ -15308,7 +15310,7 @@ function streamingCallLlm(phase, { effort=false }={}){
       const usedModel = plan[a];
       const [inPer, outPer] = priceFor(usedModel);            // per-1M USD from the catalog
       let outTok = 0, liveCost = inEst*inPer;
-      const paint = ()=> $("cust-status").innerHTML = '<span class="spin">◐</span> ' + esc(phase) + '… ' + usageMeter({ inTok:inEst, outTok, cost:liveCost });
+      const paint = ()=> paintStatus('<span class="spin">◐</span> ' + esc(phase) + '… ' + usageMeter({ inTok:inEst, outTok, cost:liveCost }));
       paint();
       const r = await send(usedModel);
       // Chosen model is overloaded or down (429 / 503 / any 5xx) → skip straight to the last rung
@@ -15318,7 +15320,7 @@ function streamingCallLlm(phase, { effort=false }={}){
         if((r.status===429 || r.status>=500) && a < plan.length-1){
           try{ await r.body?.cancel(); }catch(_){}
           lastErr = new Error("LLM " + r.status);
-          $("cust-status").innerHTML = '<span class="spin">◐</span> ' + esc(usedModel) + ' is busy — retrying with ' + esc(plan[plan.length-1]) + '…';
+          paintStatus('<span class="spin">◐</span> ' + esc(usedModel) + ' is busy — retrying with ' + esc(plan[plan.length-1]) + '…');
           a = plan.length-2;                                  // next loop iteration = final rung
           continue;
         }
@@ -15359,7 +15361,7 @@ function streamingCallLlm(phase, { effort=false }={}){
       // only while the next rung is still the model the user picked (never swap models silently)
       if(streamErr && !content.trim()){
         if(a < plan.length-1 && plan[a+1]===usedModel){
-          $("cust-status").innerHTML = '<span class="spin">◐</span> ' + esc(usedModel) + ' timed out — retrying…';
+          paintStatus('<span class="spin">◐</span> ' + esc(usedModel) + ' timed out — retrying…');
           continue;
         }
         throw new Error(usedModel + " didn't answer (" + streamErr + ") — try again or pick a different model");
@@ -15474,6 +15476,7 @@ async function runDiffPass(goal, opts){
     else $("cust-status").innerHTML = '<span class="err">Error: ' + esc(friendlyRunError(e)) + '</span>';
     return false;
   }finally{
+    if(revision===appRevision && pendingHandoff) $("cust-status").innerHTML = "";
     busy = false; custAbort = null; setCustBusy(false); $("undo").disabled = APP_STATE.curVer <= 0;
     // the editor handed a new graph over while we were generating — apply it now that the run settled
     if(pendingHandoff){ const p = pendingHandoff; pendingHandoff = null; applyHandoff(p); }
@@ -15672,6 +15675,8 @@ function wireTitle(){
    closing the builder never loses it; the editor is told via __appsaved__ and
    binds to it, so re-creates update in place instead of stacking duplicates.
    ====================================================================== */
+// Captured at boot for the initial editor handoff, then replaced by live handoffs.
+let editorHandoffToken = Number(window.frameElement?.dataset.handoffToken) || null;
 let APP_STATE = { v:1, graph:{ nodes:[], links:[] }, files:{}, versions:[], curVer:0, uiSig:null, lang:"", samples:null };
 let CUR_ID = null;          // library id of the open app, or null for a draft
 let curImported = false;    // open app came in via a share link (#a=)
@@ -15867,7 +15872,7 @@ function commit(){
   if(!CUR_ID) CUR_ID = newId();
   clearTimeout(persistTimer);
   const ok = writeState();
-  if(ok && IN_EDITOR && FROM_EDITOR){ try{ parent.postMessage({ type:"__appsaved__", appId:CUR_ID, title:titleFromFiles(APP_STATE.files) }, "*"); }catch(_){} }
+  if(ok && IN_EDITOR && FROM_EDITOR){ try{ parent.postMessage({ type:"__appsaved__", appId:CUR_ID, title:titleFromFiles(APP_STATE.files), handoffToken:editorHandoffToken }, "*"); }catch(_){} }
   return ok;
 }
 // Stash the open app in sessionStorage right before a full-page OAuth redirect.
@@ -15989,6 +15994,7 @@ function updateAppWorkflow(appId, newGraph, fromEditor){
    means "update that app" (same path as the #ga= boot); null means "mint a brand-new
    app" (same as the #g= boot — installApp commits fresh apps, so Create creates). */
 function applyHandoff(d){
+  editorHandoffToken = d.handoffToken ?? null;
   const graph = d.graph || { nodes:[], links:[] };
   if(d.appId) updateAppWorkflow(d.appId, graph, true);
   else installApp({ graph, files:defaultFiles(graph), fresh:true, fromEditor:true });
@@ -17069,7 +17075,11 @@ if(IN_EDITOR){
     else if(e.data.type==="__handoff__"){
       // never yank the app out from under an in-flight customize/port — park the graph
       // and let runDiffPass's finally apply it once the run settles
-      if(busy){ pendingHandoff = e.data; syncBrowserTitle(); toast("Workflow received — applying it when this customize finishes"); }
+      if(busy){
+        pendingHandoff = e.data; syncBrowserTitle();
+        $("cust-status").innerHTML = '<span class="dim">Workflow received — waiting for the current request to finish.</span>';
+        toast("Workflow received — opening it when the current request finishes");
+      }
       else applyHandoff(e.data);
     }
     // the editor's "≡ My apps" entry: surface the library menu over whatever is open

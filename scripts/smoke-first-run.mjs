@@ -221,7 +221,9 @@ try {
           try { const parsed = new URL(url); return parsed.origin + parsed.pathname; } catch { return "[URL]"; }
         })
         .replace(/Bearer\s+[^\s"']+/gi, "Bearer [redacted]");
-      const diagnostics = {label, node:process.version, errors:errors.map(redact),
+      const titleState = await page.evaluate(()=>({owner:appHandoffWorkspaceId,workspace:activeAppWorkspaceId(),handoff:appHandoffToken,bound:!!pendingAppId,frameToken:document.querySelector("#appmodalframe").dataset.handoffToken})).catch(()=>null);
+      const playerTitleState = builderFrame ? await builderFrame.evaluate(()=>({frameToken:window.frameElement?.dataset.handoffToken})).catch(()=>null) : null;
+      const diagnostics = {label, titleState, playerTitleState, node:process.version, errors:errors.map(redact),
         unexpectedRequests:forbidden.map(redact), consoleErrors, shareState};
       console.error("Browser smoke diagnostics:", JSON.stringify(diagnostics));
       if (process.env.NANOODLE_SMOKE_ARTIFACTS) {

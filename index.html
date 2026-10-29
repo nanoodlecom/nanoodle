@@ -17225,11 +17225,14 @@ function closeShareMenu(){ $("sharemenu").hidden = true; $("shareback").hidden =
 // this id so the app updates in place instead of spawning a fresh default app.
 let pendingAppId = null;
 let pendingAppTitle = null;   // the loaded app's name, for the page title (carried alongside pendingAppId)
+// Initialize title and handoff ownership before any binding/title update can run.
+let appTitleToken = 0, appModalTitle = null;
+let appHandoffWorkspaceId = null, appHandoffToken = 0;
 // The single chokepoint for the app binding: keep the in-memory pair, the persisted
 // {id,title} (so a plain reload re-links, like the title does), and the UI in lockstep.
 // EVERY place that changes which app this workflow targets must go through here — that's
 // what stops a stale id from silently re-targeting an old app on the next "Create app".
-function setPendingApp(id, title){
+function setPendingApp(id, title, preserveHandoff){
   const nextId = id || null;
   const nextTitle = nextId ? (title || null) : null;
   // Storage first, then memory. A quota miss throws so a workspace switch or
@@ -17240,6 +17243,9 @@ function setPendingApp(id, title){
   pendingAppId = nextId;
   pendingAppTitle = nextTitle;
   if(typeof stampActiveApp==="function") stampActiveApp();
+  // Clearing/replacing this workflow ends its outstanding handoff. Restoring a
+  // workspace or receiving its save preserves ownership across ordinary edits.
+  if(!preserveHandoff && typeof activeAppWorkspaceId==="function" && appHandoffWorkspaceId===activeAppWorkspaceId()) appHandoffWorkspaceId = null;
   try{ updateTitle(); }catch(_){}
 }
 // True only when the canvas is bound to an app AND that app's SAVED graph matches the canvas —
@@ -17423,7 +17429,7 @@ function restoreClosedWorkspace(){
       const muted=undoMuted;undoMuted=true;
       try{
         canvasTouched=true;applyGraphData(JSON.parse(entry.graph),entry.results?{resultStash:entry.results}:undefined);
-        setPendingApp(entry.tab.app && entry.tab.app.id,entry.tab.app && entry.tab.app.title);
+        setPendingApp(entry.tab.app && entry.tab.app.id,entry.tab.app && entry.tab.app.title, true);
         window.resetDescribeVersions?.();
       }finally{undoMuted=muted;}
       restoreWorkspaceHistory(entry.tab.id);
@@ -18391,7 +18397,7 @@ function switchWorkspace(id){
       else applyGraphData(blankGraph());
       window.resetDescribeVersions?.();
       const app = next.app;
-      setPendingApp(app && app.id ? app.id : null, app && app.title);
+      setPendingApp(app && app.id ? app.id : null, app && app.title, true);
     }finally{ undoMuted = wasMuted; }
     restoreWorkspaceHistory(id);
     if(!flushSave()) throw new Error("store");
@@ -18499,7 +18505,7 @@ function closeWorkspaceNow(id,opts){
       else applyGraphData(blankGraph());
       window.resetDescribeVersions?.();
       const app = neighbor.app;
-      setPendingApp(app && app.id ? app.id : null, app && app.title);
+      setPendingApp(app && app.id ? app.id : null, app && app.title, true);
     }finally{ undoMuted = wasMuted; }
     workspaceResults.delete(id);
     workspaceHist.delete(id);
@@ -19366,7 +19372,14 @@ let queuedHandoff = null;       // __handoff__ parked during that window; flushe
 let queuedMyApps = false;       // "open the My apps menu" parked during that window; flushed after any parked handoff
 // The visible builder owns the browser title only for this showing. A token keeps
 // queued messages from a previous showing from restoring an old app name.
-let appTitleToken = 0, appModalTitle = null;
+function activeAppWorkspaceId(){ const d = readWorkspaces(); return d && d.active; }
+function startAppHandoff(){
+  appHandoffWorkspaceId = activeAppWorkspaceId();
+  appHandoffToken++;
+  // The first boot commits before __appready__. The same-origin frame carries
+  // its token without changing the shared graph/hash format.
+  $("appmodalframe").dataset.handoffToken = String(appHandoffToken);
+}
 function showAppModalTitle(){
   appModalTitle = null; appTitleToken++;
   updateTitle();
@@ -19409,7 +19422,7 @@ function closeAppModal(){
 }
 // First load only: boots play.html into the iframe off the hash. Later handoffs must NOT
 // come through here — a same-URL-different-fragment src write doesn't reload the iframe.
-function openAppModal(hash){ if(typeof invalidateWorkspaceCloseHistory==="function")invalidateWorkspaceCloseHistory(); $("appmodalframe").src = "play.html"+hash; appFrameBooting = true; lastHandoffSig = appSyncSig(); $("appmodal").hidden = false; showAppModalTitle(); try{ if(!localStorage.getItem("noodle_appbuilder_intro_seen")) $("appmodalhint").hidden = false; }catch(_){} }
+function openAppModal(hash){ if(typeof invalidateWorkspaceCloseHistory==="function")invalidateWorkspaceCloseHistory(); startAppHandoff(); $("appmodalframe").src = "play.html"+hash; appFrameBooting = true; lastHandoffSig = appSyncSig(); $("appmodal").hidden = false; showAppModalTitle(); try{ if(!localStorage.getItem("noodle_appbuilder_intro_seen")) $("appmodalhint").hidden = false; }catch(_){} }
 // "≡ My apps": bring up the builder over whatever it last had open and pop its library menu —
 // browsing must NOT hand off the canvas (no draft minted, no binding touched; play.html only
 // posts __appsaved__ for canvas-derived apps, so opening one from the list can't rebind us).
@@ -19447,7 +19460,7 @@ async function openCreateApp(){
     return;
   }
   dismissAppNudge();   // they've reached the builder — the post-run nudge is spent
-  const handoffSig = appSyncSig(), titleTokenAtStart = appTitleToken;
+  const handoffSig = appSyncSig(), titleTokenAtStart = appTitleToken, workspaceAtStart = activeAppWorkspaceId();
   const graphData = serializeGraph();
   const json = JSON.stringify(graphData);
   // Builder already live but the graph changed → hand the new graph into the running
@@ -19458,7 +19471,7 @@ async function openCreateApp(){
   if(appFrameLoaded || appFrameBooting){
     try{ localStorage.setItem("noodle_app_handoff", json); }catch{}
     const payload = { type:"__handoff__", graph:graphData, appId:pendingAppId||null };
-    if(appFrameLoaded){ try{ $("appmodalframe").contentWindow.postMessage(payload, "*"); }catch(_){} }
+    if(appFrameLoaded){ startAppHandoff(); payload.handoffToken = appHandoffToken; try{ $("appmodalframe").contentWindow.postMessage(payload, "*"); }catch(_){} }
     else queuedHandoff = payload;
     lastHandoffSig = appSyncSig();
     $("appmodal").hidden = false; showAppModalTitle();
@@ -19473,7 +19486,7 @@ async function openCreateApp(){
     const packed = await gzip(json).catch(()=>null);
     hash = packed ? "#g="+bytesToB64url(packed) : "#j="+bytesToB64url(new TextEncoder().encode(json));
   }
-  if(appSyncSig()!==handoffSig || appTitleToken!==titleTokenAtStart) return;   // navigation during compression superseded this app
+  if(appSyncSig()!==handoffSig || appTitleToken!==titleTokenAtStart || activeAppWorkspaceId()!==workspaceAtStart) return;   // navigation during compression superseded this app
   try{ localStorage.setItem("noodle_app_handoff", json); }catch{}
   openAppModal(hash);
 }
@@ -19567,9 +19580,11 @@ addEventListener("message", e=>{
   // flips to "✨ Update <name>" the moment the app durably exists and later handoffs update
   // THAT app instead of minting duplicate defaults. setPendingApp stays the single chokepoint.
   else if(e.data.type==="__appsaved__"){
-    const mirrored = (appFrameLoaded || appFrameBooting) && appSyncSig()===lastHandoffSig;   // builder still shows exactly this canvas
-    if(!mirrored) return;   // a hidden builder must not rebind a different workspace after a delayed save
-    try{ setPendingApp(e.data.appId, e.data.title); }
+    if(!(appFrameLoaded || appFrameBooting) || !appHandoffWorkspaceId || activeAppWorkspaceId()!==appHandoffWorkspaceId || e.data.handoffToken!==appHandoffToken) return;
+    // Content may have changed while this workspace's first save was in flight.
+    // Bind it anyway; only an unchanged graph can keep the reopen fast path.
+    const mirrored = appSyncSig()===lastHandoffSig;
+    try{ setPendingApp(e.data.appId, e.data.title, true); }
     catch(_){ flash("couldn’t autosave — a photo, audio clip, or 3D file may be too large for local storage"); }
     if(mirrored) lastHandoffSig = appSyncSig();   // only the binding changed → keep the reopen-resume path alive
   }
@@ -19582,6 +19597,7 @@ addEventListener("message", e=>{
     if(queuedHandoff){
       const q = queuedHandoff; queuedHandoff = null;
       q.appId = pendingAppId || q.appId || null;
+      startAppHandoff(); q.handoffToken = appHandoffToken;
       try{ $("appmodalframe").contentWindow.postMessage(q, "*"); }catch(_){}
     }
     // "My apps" clicked during the boot window: pop the library menu now that the builder can
