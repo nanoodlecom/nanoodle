@@ -7573,6 +7573,11 @@ window.NoodleApp = (function () {
     "grok-imagine-video-1.5-lite": { default_resolution:"720p", default_duration:6, per_second_by_resolution:{ "480p":0.02, "720p":0.03, "1080p":0.14 } },
     // H3 Max Turbo extend: billed on the new seconds only (2s and 4s sources quote the same).
     "minimax/h3-max-turbo/extend-video": { default_resolution:"768p", default_duration:5, per_second_by_resolution:{ "480p":0.025, "768p":0.04, "1080p":0.08, "2k":0.16 } },
+    // H3 Lite / H3 Highspeed (catalog 2026-10-23): pricing is only {minimum, note}, so the chip sat flat at
+    // ~$0.17 / ~$0.41 for every 4-15s clip. 402 quotes 2026-10-29 (same method), linear in seconds:
+    // Highspeed 768p 4s $0.408, 7s $0.714, 15s $1.53; Lite 480p 5s $0.2125, 15s $0.6375, 768p 5s $0.34, 15s $1.02.
+    "minimax/h3-highspeed": { default_resolution:"768p", default_duration:5, per_second_by_resolution:{ "768p":0.102 } },
+    "minimax/h3-lite": { default_resolution:"768p", default_duration:5, per_second_by_resolution:{ "480p":0.0425, "768p":0.068 } },
     // Measured 2026-10-08 the same way (402 quote, nothing runs; 480p/720p/1080p x 4s/5s/12s x audio
     // on/off, all linear in seconds). The public catalog's raw withAudio/withoutAudio tables for these
     // ids are exactly 1/1.7 of what POST /api/generate-video bills (catalog 720p no-audio 5s $0.0765;
