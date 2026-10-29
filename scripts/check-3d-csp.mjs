@@ -12,6 +12,21 @@ import { dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+// Paint budget for the dropped GLB. A fixed 10s (40 × 250ms) expired on slow
+// runners before SwiftShader drew. CHECK_3D_CSP_DRAW_TIMEOUT_MS overrides it
+// only when the value is a base-10 integer from 1 to 600000. Anything else
+// warns and keeps this default, so a bad override does not fail the CSP check.
+const DRAW_TIMEOUT_DEFAULT_MS = 45000;
+const DRAW_TIMEOUT_MAX_MS = 600000;
+function drawTimeoutMsFromEnv(raw) {
+  if (raw == null) return DRAW_TIMEOUT_DEFAULT_MS;
+  const text = String(raw).trim();
+  const n = Number(text);
+  if (/^[0-9]+$/.test(text) && Number.isInteger(n) && n >= 1 && n <= DRAW_TIMEOUT_MAX_MS) return n;
+  console.warn("⚠ CHECK_3D_CSP_DRAW_TIMEOUT_MS=" + JSON.stringify(raw) + " is not an integer from 1 to " + DRAW_TIMEOUT_MAX_MS + "; using " + DRAW_TIMEOUT_DEFAULT_MS + "ms");
+  return DRAW_TIMEOUT_DEFAULT_MS;
+}
+const drawTimeoutMs = drawTimeoutMsFromEnv(process.env.CHECK_3D_CSP_DRAW_TIMEOUT_MS);
 const chrome = ["/usr/local/bin/google-chrome", "/usr/bin/google-chrome", "/usr/bin/chromium", "/usr/bin/chromium-browser"]
   .find((p) => existsSync(p));
 if (!chrome) {
@@ -167,9 +182,6 @@ async function drop() {
   if (!d.ok) fail("drop did not run: " + d.detail);
 }
 await drop();
-// Paint budget for the dropped GLB. A fixed 10s (40 × 250ms) expired on slow
-// runners before SwiftShader drew. Override with CHECK_3D_CSP_DRAW_TIMEOUT_MS.
-const drawTimeoutMs = Number(process.env.CHECK_3D_CSP_DRAW_TIMEOUT_MS) || 45000;
 const drawPollMs = 250;
 let drew = false;
 let lastState = null;
